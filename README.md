@@ -4,7 +4,7 @@
 
 Dashboard **Formule 1 en direct** pour suivre chaque Grand Prix sur votre ordinateur, **calé sur le délai de votre diffusion TV** (chaîne TV, box, appli de streaming…). Windows, macOS et Linux.
 
-![Paddock Live pendant une séance (replay des qualifications du Grand Prix d'Azerbaïdjan 2026)](docs/screenshots/tableau-de-bord.png)
+![Paddock Live pendant une séance (replay de la course du Grand Prix de Singapour 2026)](docs/screenshots/tableau-de-bord.png)
 
 <sub>Design « Pitwall » en mode sombre. L'application suit par défaut le mode clair ou sombre de l'ordinateur ou du téléphone (voir plus bas).</sub>
 
