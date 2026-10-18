@@ -1,5 +1,6 @@
 // Paddock Live Companion : transmet la connexion F1 TV faite dans le navigateur (cookie
-// « login-session » de formula1.com) à l'appli Paddock Live qui tourne sur cet ordinateur.
+// « entitlement_token » de formula1.com, « login-session » sur l'ancien site) à l'appli Paddock Live
+// qui tourne sur cet ordinateur.
 // Rien d'autre n'est lu, et rien ne part ailleurs que vers 127.0.0.1.
 const api = globalThis.browser ?? globalThis.chrome;
 const PORTS = [3000, 3001, 3002, 3010];   // ports essayés par l'appli de bureau au démarrage
@@ -16,9 +17,9 @@ async function f1Cookies(name) {
   return out.filter(onF1);
 }
 
-// Cookies qui peuvent porter la session F1 TV : « login-session » (ancien site du compte), « ST » et sa
-// variante « ST-NO-SS » (site actuel)
-const NAMES = ['login-session', 'ST', 'ST-NO-SS'];
+// Cookies qui portent le jeton d'abonnement F1 TV : « login-session » (ancien site du compte, jeton dans
+// un JSON) et « entitlement_token » (site F1 TV actuel, jeton seul)
+const NAMES = ['login-session', 'entitlement_token'];
 const b64json = (part) => JSON.parse(decodeURIComponent(escape(atob(part.replace(/-/g, '+').replace(/_/g, '/')))));
 function unwrap(raw) {
   let s = String(raw || '').trim();
@@ -74,7 +75,7 @@ async function sync({ send = true, force = false } = {}) {
   // Pas de session trouvée : noms des cookies formula1.com visibles (jamais leurs valeurs), pour le diagnostic
   if (!value && access) {
     const all = await f1Cookies();
-    out.seen = [...new Set(all.map((c) => ([...NAMES, 'entitlement_token'].includes(c.name) ? `${c.name} : ${shape(c.value)}` : c.name)))].sort();
+    out.seen = [...new Set(all.map((c) => (NAMES.includes(c.name) ? `${c.name} : ${shape(c.value)}` : c.name)))].sort();
   }
   if (!send || !value || !app) return out;
   const { sent } = await api.storage.local.get('sent');

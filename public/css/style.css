@@ -558,6 +558,10 @@ code { background: var(--panel-3); padding: 1px 5px; border-radius: 4px; font-si
 .cl-body p { margin: 4px 0; }
 .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 8px 0; }
 .fb-form { display: grid; gap: 8px; margin-top: 8px; border-radius: 10px; }
+.ext-card { display: flex; align-items: center; gap: 14px; margin: 12px 0; padding: 12px 14px; border: 1px solid var(--accent); border-radius: 10px; background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.ext-card > div { flex: 1; display: grid; gap: 4px; }
+.ext-card .btn { flex: none; }
+@media (max-width: 600px) { .ext-card { flex-direction: column; align-items: stretch; } }
 .fb-form.drag { outline: 2px dashed var(--accent); outline-offset: 6px; }
 .fb-form select { justify-self: start; }
 .fb-form textarea { width: 100%; resize: vertical; font: inherit; }

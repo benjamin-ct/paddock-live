@@ -157,14 +157,19 @@ function otherDisplay() {
 }
 
 // ---- Connexion F1 TV ----
-// Ouvre la page de connexion officielle dans une fenêtre de l'appli, puis lit le cookie
-// « login-session » (y compris s'il est protégé) et l'envoie au serveur local.
+// Ouvre la page de connexion officielle dans une fenêtre de l'appli, puis lit le cookie du jeton
+// d'abonnement (y compris s'il est protégé) et l'envoie au serveur local : « login-session » (ancien
+// site du compte) ou « entitlement_token » (site F1 TV actuel).
 const LOGIN_URL = 'https://account.formula1.com/#/fr/login?redirect=https%3A%2F%2Ff1tv.formula1.com%2F';
 let loginWindow = null;
 
 async function readLoginCookie(ses) {
-  const cookies = await ses.cookies.get({ name: 'login-session' });
-  return cookies.find((c) => /formula1\.com$/.test(c.domain.replace(/^\./, '')))?.value || null;
+  for (const name of ['login-session', 'entitlement_token']) {
+    const cookies = await ses.cookies.get({ name });
+    const value = cookies.find((c) => /formula1\.com$/.test(c.domain.replace(/^\./, '')))?.value;
+    if (value) return value;
+  }
+  return null;
 }
 
 async function sendToken(value) {

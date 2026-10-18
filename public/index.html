@@ -498,15 +498,18 @@
         <p class="small">Depuis 2025, la F1 réserve les positions GPS et la télémétrie du flux live aux abonnés <b>F1 TV</b>.
           Sans jeton, le dashboard <b>estime</b> la position des voitures à partir des chronos (mini-secteurs) : c'est moins précis mais fonctionne.
           Les replays, eux, contiennent toujours le GPS.</p>
+        <div class="ext-card">
+          <div><b>Recommandé : l'extension Paddock Live Companion</b>
+            <span class="small muted">Pour Chrome, Edge et Firefox. Installez-la, puis connectez-vous sur formula1.com dans votre navigateur habituel : Paddock Live reçoit la connexion tout seul, et à nouveau à chaque reconnexion.</span></div>
+          <a class="btn btn-accent" href="https://paddocklive.app/extension" target="_blank" rel="noopener"><svg class="ic" aria-hidden="true"><use href="#i-external"/></svg> Installer l'extension</a>
+        </div>
         <div class="row" id="desktopLogin" hidden>
-          <button class="btn btn-accent" id="desktopLoginBtn"><svg class="ic" aria-hidden="true"><use href="#i-lock"/></svg> Se connecter à F1 TV</button>
-          <span class="small muted">Une fenêtre de connexion formula1.com s'ouvre ; une fois connecté, le jeton est récupéré automatiquement.</span>
+          <button class="btn" id="desktopLoginBtn"><svg class="ic" aria-hidden="true"><use href="#i-lock"/></svg> Se connecter à F1 TV</button>
+          <span class="small muted">Sans extension : une fenêtre de connexion formula1.com s'ouvre ; une fois connecté, le jeton est récupéré automatiquement.</span>
           <button class="btn small" id="desktopLogoutBtn" title="Oublier la session F1 TV mémorisée dans l'application">Se déconnecter</button>
         </div>
-        <div class="row">
-          <a class="btn" href="https://paddocklive.app/extension" target="_blank" rel="noopener"><svg class="ic" aria-hidden="true"><use href="#i-external"/></svg> Extension Paddock Live Companion</a>
-          <span class="small muted">Pour Chrome, Edge et Firefox : connectez-vous sur formula1.com dans votre navigateur, Paddock Live reçoit la connexion tout seul.</span>
-          <button class="btn small" id="tokenClear" hidden title="Oublier la connexion F1 TV">Se déconnecter</button>
+        <div class="row" id="tokenClearRow" hidden>
+          <button class="btn small" id="tokenClear" title="Oublier la connexion F1 TV">Se déconnecter</button>
         </div>
         <p class="small muted">La connexion reste sur votre ordinateur et n'est envoyée qu'aux serveurs de la F1. Elle est renouvelée automatiquement tant que votre session formula1.com est valide (environ 30 jours) ; un rappel s'affiche quelques jours avant la fin.</p>
       </section>

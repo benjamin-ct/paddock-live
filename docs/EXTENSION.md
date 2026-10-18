@@ -7,7 +7,8 @@ ouverte sur l'ordinateur reçoit la connexion toute seule (GPS et télémétrie 
 ## Fonctionnement
 
 - Code dans `extension/` (Manifest V3, un seul code pour les trois navigateurs).
-- L'extension lit un seul cookie, `login-session` de formula1.com, et l'envoie à l'appli sur
+- L'extension lit seulement le cookie de connexion de formula1.com (`entitlement_token` sur le site actuel,
+  `login-session` sur l'ancien), garde le jeton d'abonnement F1 TV qu'il contient et l'envoie à l'appli sur
   `http://127.0.0.1` (ports 3000, 3001, 3002 et 3010, ceux qu'essaie l'appli de bureau) : `POST /api/auth`.
 - Envoi automatique à chaque connexion sur formula1.com, au démarrage du navigateur et toutes les
   30 minutes (si l'appli était fermée au moment de la connexion). La fenêtre de l'extension montre l'état
@@ -106,7 +107,7 @@ Paddock Live installée sur l'ordinateur de l'utilisateur.
 
 **Justification des permissions** :
 
-- `cookies` : lire le cookie `login-session` de formula1.com, qui contient la connexion F1 TV de
+- `cookies` : lire le cookie de connexion de formula1.com (`entitlement_token`, ou `login-session` sur l'ancien site), qui contient la connexion F1 TV de
   l'utilisateur, pour la transmettre à l'appli Paddock Live.
 - `storage` : retenir la dernière connexion transmise pour ne pas la renvoyer inutilement.
 - `alarms` : vérifier toutes les 30 minutes si l'appli Paddock Live a été ouverte après la connexion, pour

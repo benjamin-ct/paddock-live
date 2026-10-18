@@ -4,6 +4,15 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
+## v1.27.45 — à venir
+
+### F1 TV
+- La connexion F1 TV fonctionne de nouveau avec le site formula1.com actuel, qui range désormais la connexion
+  ailleurs : l'extension Paddock Live Companion (version 1.0.3) et le bouton « Se connecter à F1 TV » de l'appli de
+  bureau la retrouvent.
+- L'extension est mise en avant dans Réglages → Compte F1 TV (bouton « Installer l'extension ») ; la fenêtre de
+  connexion de l'appli reste disponible sans extension. Le rappel « Se reconnecter » ouvre cette page.
+
 ## v1.27.44 — 2026-10-18
 
 ### Une question, une idée ?
