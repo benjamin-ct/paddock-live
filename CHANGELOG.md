@@ -4,7 +4,7 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
-## v1.27.34 — à venir
+## v1.27.34 — 2026-10-18
 
 ### Streaming (OBS, Streamlabs, Meld Studio, Stream Deck)
 - Nouvel onglet Réglages → Streaming : le classement et la carte du circuit à ajouter comme source
