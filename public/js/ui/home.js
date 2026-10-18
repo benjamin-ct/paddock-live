@@ -2,7 +2,7 @@
 // résultat (replay depuis le début ou tableau de bord), dernières actualités, raccourcis.
 // Ouverte au lancement quand aucune séance n'est en cours ; pendant une séance, l'appli s'ouvre
 // directement sur le Direct.
-import { $, $$, esc, api, drivers, placeView } from '../util.js';
+import { $, $$, esc, api, drivers, placeView, hideBoot } from '../util.js';
 import { store, on } from '../store.js';
 import { icon } from '../icons.js';
 import { LOCALE, EN, t } from '../i18n.js';
@@ -218,9 +218,9 @@ function render() {
       <button data-home="replays">${icon('history')}<b>Replays</b><small>Rejouer une séance</small></button>
     </nav>
     <a class="hm-follow" href="https://paddocklive.app/liens/" target="_blank" rel="noopener">${icon('share')} Suivre Paddock Live sur les réseaux ${icon('arrow-right', 'ic-s')}</a>`;
-  news();
   if (nx && !live) loadWeather(nx);
-  loadStandings();
+  // Actualités et favoris : l'accueil est complet quand les deux sont là
+  return Promise.allSettled([news(), loadStandings()]);
 }
 
 // again : titres traduits entre-temps, réaffichés une fois
@@ -297,7 +297,7 @@ async function act(k) {
 export function initHome() {
   const view = $('#homeView');
   // Fenêtres détachées (second écran) : pas d'accueil
-  if (!view || new URLSearchParams(location.search).has('win')) return;
+  if (!view || new URLSearchParams(location.search).has('win')) { hideBoot(); return; }
   addEventListener('resize', () => { if (isHomeOpen()) placeView($('#homeView')); });
   view.addEventListener('click', (e) => {
     const b = e.target.closest('[data-home]');
@@ -313,11 +313,13 @@ export function initHome() {
     mode = s?.mode;
   });
   on('prefs', (k) => { if ((k === 'favs' || k === 'favTeams') && isHomeOpen()) renderFav(); });
+  // Écran de chargement retiré quand l'accueil est complet (ou le tableau de bord, en direct)
   Promise.all([loadSchedule(), loadArchive()]).then(() => {
     noLiveCheck();
     if (!touched && liveNow() && isHomeOpen()) { closeHome(); return; }
-    render();
-  });
+    return render();
+  }).finally(hideBoot);
+  setTimeout(hideBoot, 12000);
 }
 
 // Navigation ailleurs (Direct, Saison, Actu…) : l'accueil ne se rouvre ni ne se ferme plus tout seul

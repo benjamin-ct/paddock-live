@@ -2945,3 +2945,15 @@ html.overlay body.ov-body { background: transparent; margin: 0; overflow: hidden
 .stream-row { display: grid; gap: 4px; margin: 10px 0; }
 .stream-row .row { flex-wrap: nowrap; }
 .stream-row input { flex: 1; min-width: 0; font: 12px var(--mono, monospace); }
+
+/* Écran de chargement du démarrage : flou sur toute l'appli tant que l'accueil n'est pas complet */
+.boot-cover { position: fixed; inset: 0; z-index: 5000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+  background: color-mix(in srgb, var(--bg) 55%, transparent); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); transition: opacity .35s ease; }
+.boot-cover img { width: 72px; height: 72px; border-radius: 16px; }
+.boot-cover b { font-size: 18px; margin-top: 6px; }
+.boot-cover small { color: var(--muted); font-size: 13px; }
+.boot-spin { width: 34px; height: 34px; border-radius: 50%; border: 3px solid color-mix(in srgb, var(--accent) 22%, transparent); border-top-color: var(--accent); animation: boot-spin .8s linear infinite; }
+@keyframes boot-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .boot-spin { animation-duration: 2.4s; } }
+.boot-cover.out { opacity: 0; pointer-events: none; }
+html:is(.float-map, .overlay) .boot-cover { display: none; }

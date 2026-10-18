@@ -2338,6 +2338,8 @@ export default {
   "Lu": "Read",
   "Marquer comme lu": "Mark as read",
   "Marquer comme non lu": "Mark as unread",
+  "Chargement de Paddock Live…": "Loading Paddock Live…",
+  "Calendrier, résultats et actualités": "Calendar, results and news",
   "Version simplifiée": "Simplified version",
   "Version complète sur ce téléphone : tous les onglets et réglages de l'ordinateur": "Full version on this phone: all the computer’s tabs and settings",
   "Décoché (conseillé) : l'essentiel seulement. Direct : classement, circuit, direction de course et radios ; Saison : calendrier, classements, course au titre, résultats et pronostics ; Actu : toute l'actu, importantes et favoris.": "Unchecked (recommended): just the essentials. Live: timing, track, race control and radios; Season: calendar, standings, title race, results and predictions; News: all news, important and favourites.",
