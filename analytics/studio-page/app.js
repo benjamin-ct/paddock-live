@@ -394,7 +394,7 @@ Ce qu'elle peut apporter à tes lives :
 - De quoi commenter chaque tour : écarts, secteurs, pneus, arrêts, carte GPS, radios d'équipe retranscrites et traduites, direction de course.
 - Des pronostics avec ta communauté : ton chat pronostique la pole et le podium depuis une simple page web, avec un classement sur la saison.
 
-Le pack de présentation (6 images et un PDF) : ${KIT}
+Le pack de présentation (6 images) : ${KIT}
 
 Je serais ravi d'avoir ton avis, et je peux t'aider à tout installer avant le prochain GP.
 
@@ -417,7 +417,9 @@ function settings() {
       <a class="btn small" href="${esc(u)}" target="_blank" rel="noopener">${icon('link')}Ouvrir</a><button class="btn small" data-copy="${esc(u)}">${icon('copy')}Copier</button></div>`;
   const dlg = sheet('Réglages', `<h3 class="section">Mes pages de liens</h3><div class="group">${pages.map(link).join('')}</div>
     <p class="hint">Tous les réseaux sur une seule page : le lien à mettre en bio.</p>
-    <h3 class="section">Pack streamers</h3><div class="group">${link(['Présentation pour les streamers', KIT])}</div>
+    <h3 class="section">Pack streamers</h3><div class="group">${link(['Présentation pour les streamers', KIT])}
+      <div class="row-item static"><span class="grow"><b>Pack en PDF</b><small>Les 6 pages en un fichier, à joindre à un e-mail</small></span>
+        <a class="btn small" href="${KIT}paddock-live-streamers.pdf" download>${icon('download')}Télécharger</a></div></div>
     ${PITCH.map(([n, t]) => `<details class="cap"><summary><span>${esc(n)}</span></summary><textarea rows="9">${esc(t)}</textarea>
       <button class="btn small" data-copy="">${icon('copy')}Copier le message</button></details>`).join('')}
     <p class="hint">Page non listée : ni le site ni l'appli n'y mènent. Envoie le lien avec un des messages (modifiables avant de copier).</p>
