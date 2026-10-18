@@ -212,8 +212,6 @@ export default {
     // Scènes OBS toutes prêtes : adresse courte à donner aux streamers
     if (req.method === 'GET' && url.pathname === '/obs') return Response.redirect(new URL('/obs/paddock-live-obs.json', url), 302);
     // Page des streamers : le bloc Streaming du site (aperçu, scènes OBS, installation)
-    // Extension Paddock Live Companion : adresse donnée dans l'appli (vers la boutique une fois publiée)
-    if (req.method === 'GET' && url.pathname === '/extension') return Response.redirect('https://github.com/benjamin-ct/paddock-live/blob/main/docs/EXTENSION.md', 302);
     if (req.method === 'GET' && url.pathname === '/streaming') return Response.redirect(new URL('/#streaming', url), 302);
     if (req.method === 'GET' && /^\/calendar(-en)?\.ics$/.test(url.pathname)) return calendar(env, new Date().getUTCFullYear(), url.pathname.includes('-en'));
     // Ancienne adresse (*.workers.dev) : les pages ouvertes dans un navigateur (connexion,
