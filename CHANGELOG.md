@@ -4,7 +4,7 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
-## v1.27.37 — à venir
+## v1.27.37 — 2026-10-18
 
 ### Météo
 - Entre deux séances, l'onglet Météo montre le circuit du prochain Grand Prix, comme la barre du haut : temps qu'il
