@@ -1630,6 +1630,8 @@ export default {
   "Statistiques": "Statistics",
   "Statistiques des posts": "Post statistics",
   "Lecture des statistiques…": "Reading statistics…",
+  "Temps actuel et prévisions du week-end à {} (Open-Meteo). La station météo du circuit prend le relais pendant les séances.": "Current weather and weekend forecast in {} (Open-Meteo). The circuit weather station takes over during sessions.",
+  "Météo de {} en cours de chargement…": "Loading the weather for {}…",
   "abonné": "follower",
   "nouveaux abonnés": "new followers",
   "nouvel abonné": "new follower",

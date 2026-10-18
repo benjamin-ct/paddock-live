@@ -6,6 +6,11 @@ l'application (Réglages → Application → Nouveautés).
 
 ## v1.27.37 — à venir
 
+### Météo
+- Entre deux séances, l'onglet Météo montre le circuit du prochain Grand Prix, comme la barre du haut : temps qu'il
+  fait sur place (air, humidité, pression, vent, pluie), prévisions des jours du week-end et radar des
+  précipitations autour du circuit. Avant, il gardait la météo et le radar de la dernière séance regardée.
+
 ### Simulateur d'arrêt
 - Le cercle de position bouge en continu, comme la carte : chaque voiture tourne avec sa position sur la piste
   (ligne d'arrivée en haut), et la sortie des stands du pilote choisi le suit. Avant, il n'était mis à jour qu'au

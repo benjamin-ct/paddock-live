@@ -4,6 +4,8 @@ import { Dial, SpeedTrace, animate, carNow } from './gauge.js';
 import { $, esc, drivers, orderedNumbers, teamColor, teamMark, stintsOf, compoundInfo, COMPOUNDS, fmtLap, fmtSigned, lapSeconds } from '../util.js';
 import { icon } from '../icons.js';
 import { realStints } from '/shared/pits.js';
+import { upcoming } from './home.js';
+import { DEC, LOCALE, t } from '../i18n.js';
 
 let lastTele = 0;
 let stratVer = -1, wxVer = -1, champVer = -1;
@@ -132,21 +134,38 @@ export function renderStrategy() {
   </div>`;
 }
 
+const gauge = (lbl, val, unit) => `<div class="gauge"><div class="gauge-lbl">${lbl}</div><div class="gauge-val">${val}<small> ${unit}</small></div></div>`;
+const windArrow = (dir) => `<span class="wind-arrow" style="transform:rotate(${dir + 180}deg)" title="Direction ${dir}°">${icon('arrow-up')}</span>`;
+// Entre deux séances : temps qu'il fait sur le circuit du prochain Grand Prix et prévisions du
+// week-end (Open-Meteo), plutôt que la station météo de la dernière séance chargée
+function upcomingWeather(nx) {
+  const c = nx.current, place = nx.locality || nx.race;
+  const num = (v, d = 0) => (Number.isFinite(Number(v)) && v !== null ? Number(v).toFixed(d).replace('.', DEC) : '—');
+  $('#wxGauges').innerHTML = `${c ? `<div class="wx">
+    ${gauge('Air', num(c.air, 1), '°C')}${gauge('Humidité', num(c.humidity), '%')}${gauge('Pression', num(c.pressure, 1), 'hPa')}
+    ${gauge('Vent', num(c.wind), `km/h ${Number.isFinite(c.windDir) ? windArrow(c.windDir) : ''}`)}${gauge('Pluie', Number(c.rain) > 0 ? `${icon('rain')} ${num(c.rain, 1)}` : 'Non', Number(c.rain) > 0 ? 'mm' : '')}
+  </div>` : ''}
+    ${nx.days?.length ? `<div class="hm-wx">${nx.days.map((d) => `<span><b>${esc(new Date(`${d.date}T12:00:00`).toLocaleDateString(LOCALE, { weekday: 'short', day: 'numeric' }))}</b> ${Math.round(d.tmin)}–${Math.round(d.tmax)}° ${d.rain != null ? `<small>${icon('rain')} ${d.rain} %</small>` : ''}</span>`).join('')}</div>` : ''}
+    <p class="note">${c || nx.days?.length ? esc(t('Temps actuel et prévisions du week-end à {} (Open-Meteo). La station météo du circuit prend le relais pendant les séances.', place)) : esc(t('Météo de {} en cours de chargement…', place))}</p>`;
+}
+
 export function renderWeather() {
-  const v = versionOf(['WeatherData', '__reset']);
+  const nx = upcoming();
+  const v = `${versionOf(['WeatherData', '__reset'])}|${nx ? `${nx.race}|${JSON.stringify(nx.current)}|${nx.days?.length}` : ''}`;
   if (v === wxVer) return;
   wxVer = v;
   const w = store.state.WeatherData;
   // Deux zones : jauges (ici) et radar des précipitations (radar.js), rafraîchies séparément
   if (!$('#wxGauges')) $('#weather').innerHTML = '<div id="wxGauges"></div><div id="wxRadar"></div>';
+  if (nx) { upcomingWeather(nx); return; }
   if (!w) { $('#wxGauges').innerHTML = '<div class="note">Pas de données météo.</div>'; return; }
-  const g = (lbl, val, unit) => `<div class="gauge"><div class="gauge-lbl">${lbl}</div><div class="gauge-val">${val}<small> ${unit}</small></div></div>`;
+  const g = gauge;
   const wind = Number(w.WindSpeed);
   const dir = Number(w.WindDirection) || 0;
   $('#wxGauges').innerHTML = `<div class="wx">
     ${g('Air', esc(w.AirTemp), '°C')}${g('Piste', esc(w.TrackTemp), '°C')}${g('Humidité', esc(w.Humidity), '%')}
     ${g('Pression', esc(w.Pressure), 'hPa')}
-    ${g('Vent', Number.isFinite(wind) ? (wind * 3.6).toFixed(0) : '—', `km/h <span class="wind-arrow" style="transform:rotate(${dir + 180}deg)" title="Direction ${dir}°">${icon('arrow-up')}</span>`)}
+    ${g('Vent', Number.isFinite(wind) ? (wind * 3.6).toFixed(0) : '—', `km/h ${windArrow(dir)}`)}
     ${g('Pluie', w.Rainfall === '1' || w.Rainfall === 1 ? `${icon('rain')} Oui` : 'Non', '')}
   </div><p class="note">Direction du vent : ${dir}° (d'où il vient). Données de la station météo du circuit.</p>`;
 }

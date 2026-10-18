@@ -296,7 +296,7 @@ async function handleApi(req, res, url) {
     // Météo prévue sur un circuit (accueil : prochain Grand Prix)
     case 'GET /api/forecast': {
       const days = await forecast(url.searchParams.get('lat'), url.searchParams.get('lon'));
-      return sendJSON(res, 200, { days, tz: days.tz });
+      return sendJSON(res, 200, { days, tz: days.tz, current: days.current });
     }
     case 'GET /api/calendar.ics': {
       const year = yearOf(url.searchParams.get('year'));

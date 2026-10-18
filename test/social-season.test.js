@@ -183,6 +183,9 @@ test('météo prévue : jours, températures et risque de pluie', async () => {
   assert.equal(days.tz, 'America/Chicago');
   assert.deepEqual([...days], [{ date: '2026-10-23', tmax: 25, tmin: 14, rain: 10 }, { date: '2026-10-24', tmax: 26, tmin: 15, rain: null }]);
   await assert.rejects(forecast('a', 1), /Coordonnées/);
+  // Temps qu'il fait sur le circuit (onglet Météo entre deux séances)
+  const now = await forecast(1.29, 103.86, { get: async (u) => { assert.match(u, /current=temperature_2m/); return { daily: { time: ['2026-10-18'], temperature_2m_max: [31] }, current: { time: '2026-10-18T11:30', temperature_2m: 30.2, relative_humidity_2m: 77, surface_pressure: 1011.1, wind_speed_10m: 5, wind_direction_10m: 204, precipitation: 0 } }; } });
+  assert.deepEqual(now.current, { at: '2026-10-18T11:30', air: 30.2, humidity: 77, pressure: 1011.1, wind: 5, windDir: 204, rain: 0 });
 });
 
 test('race week : tracé du circuit, couleurs du pays, vainqueur précédent, mise en page selon la manche', async () => {
