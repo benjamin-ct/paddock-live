@@ -4,7 +4,7 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
-## v1.27.41 — à venir
+## v1.27.41 — 2026-10-18
 
 ### Pronostics entre amis
 - Groupes en ligne : « Retirer de mes groupes » enlève un groupe de votre liste sur cet appareil (dans l'appli et
