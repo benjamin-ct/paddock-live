@@ -114,6 +114,7 @@ const HELP = {
     'Login Kit : ajoutez l\'adresse de redirection {}.',
     'Autorisations user.info.basic et video.upload ; ajoutez votre compte TikTok comme utilisateur de test (sandbox).',
     'Publication directe depuis la page web (téléphone) : activez aussi « Direct Post » (autorisation video.publish) dans Content Posting API, cochez « Publication directe » ci-dessous et reconnectez-vous. Tant que TikTok n\'a pas validé votre app (audit), les vidéos restent visibles par vous seul.',
+    'Statistiques dans la page web (abonnés, vues, j’aime) : ajoutez aussi les autorisations user.info.profile, user.info.stats et video.list (Login Kit et Display API), cochez « Statistiques » ci-dessous et reconnectez-vous.',
     'Collez client key et client secret, enregistrez, puis « Se connecter à TikTok ».'],
   youtube: ['console.cloud.google.com : créez un projet, puis API et services → Bibliothèque : activez « YouTube Data API v3 ».',
     'Écran de consentement OAuth (Google Auth Platform) : type « Externe », votre adresse e-mail, puis ajoutez votre compte Google (celui de la chaîne) dans « Utilisateurs test ».',
@@ -159,7 +160,8 @@ async function accountsDialog(onChange, open = null) {
       ${Object.keys(FIELDS).map((k) => `<details class="posts-acc" data-net="${k}" ${k === open ? 'open' : ''}><summary><b>${TITLES[k]}</b> ${status(k)}</summary>
         <ol class="small">${HELP[k].map((h) => `<li>${esc(t(h, redirect))}</li>`).join('')}</ol>
         ${FIELDS[k].map(([f, l]) => `<label class="small">${esc(t(l))}<input type="password" data-f="${f}" autocomplete="off" spellcheck="false"></label>`).join('')}
-        ${k === 'tiktok' ? `<label class="toggle small"><input type="checkbox" data-f="direct" ${info.tiktok?.direct ? 'checked' : ''}> ${t('Publication directe (Direct Post activé dans votre app TikTok)')}</label>` : ''}
+        ${k === 'tiktok' ? `<label class="toggle small"><input type="checkbox" data-f="direct" ${info.tiktok?.direct ? 'checked' : ''}> ${t('Publication directe (Direct Post activé dans votre app TikTok)')}</label>
+          <label class="toggle small"><input type="checkbox" data-f="stats" ${info.tiktok?.stats ? 'checked' : ''}> ${t('Statistiques (user.info.stats et video.list ajoutés dans votre app TikTok)')}</label>` : ''}
         <div class="row"><button class="btn small btn-accent" data-save>${t('Enregistrer et vérifier')}</button>
           ${OAUTH[k] ? `<button class="btn small ${info[k]?.configured && !info[k]?.connected ? 'btn-accent' : ''}" data-login ${info[k]?.configured ? '' : 'disabled'}>${t('Se connecter à {}', OAUTH[k])}</button>` : ''}
           <button class="btn small" data-remove>${t('Déconnecter')}</button></div></details>`).join('')}

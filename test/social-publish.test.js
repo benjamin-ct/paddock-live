@@ -218,7 +218,7 @@ test('TikTok : clés vérifiées à l\'enregistrement, connexion effacée si l\'
     await assert.rejects(saveAccount('tiktok', { clientKey: 'cle', clientSecret: 'faux' }), /Clés refusées par TikTok/);
     assert.equal(accountsInfo().tiktok.configured, false);
     await saveAccount('tiktok', { clientKey: 'cle', clientSecret: 'bon' });
-    assert.deepEqual(accountsInfo().tiktok, { connected: false, name: '', configured: true, direct: false });
+    assert.deepEqual(accountsInfo().tiktok, { connected: false, name: '', configured: true, direct: false, stats: false });
     // Compte connecté puis clés d'une autre app : il faut se reconnecter
     const { getConfig } = await import('../server/config.js');
     saveConfig({ social: { ...getConfig().social, tiktok: { ...getConfig().social.tiktok, refreshToken: 'r', name: 'Moi' } } });
@@ -231,6 +231,10 @@ test('TikTok : clés vérifiées à l\'enregistrement, connexion effacée si l\'
     await saveAccount('tiktok', { clientKey: 'autre', clientSecret: 'bon', direct: true });
     assert.equal(accountsInfo().tiktok.direct, true);
     assert.equal(new URL(tiktokLoginUrl('http://127.0.0.1:4321')).searchParams.get('scope'), 'user.info.basic,video.upload,video.publish');
+    // Statistiques : profil, chiffres et liste des vidéos seulement si c'est coché
+    await saveAccount('tiktok', { clientKey: 'autre', clientSecret: 'bon', stats: true });
+    assert.equal(accountsInfo().tiktok.stats, true);
+    assert.equal(new URL(tiktokLoginUrl('http://127.0.0.1:4321')).searchParams.get('scope'), 'user.info.basic,video.upload,user.info.profile,user.info.stats,video.list');
   } finally { globalThis.fetch = realFetch; }
 });
 

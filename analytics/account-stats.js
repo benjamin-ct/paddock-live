@@ -1,12 +1,13 @@
 // Statistiques des comptes (Studio) : pour chaque compte (Benjy Paddock, Paddock Live, d'après les
 // pages de liens) et chaque réseau, abonnés et activité des 28 derniers jours, lus chez les réseaux
 // avec les jetons du coffre. Une mesure refusée (permission, compte non relié) est absente, et le
-// réseau dit pourquoi. TikTok et X ne donnent pas ces chiffres à l'appli : lien seulement.
+// réseau dit pourquoi. X fait payer ces chiffres : lien seulement.
 import { PAGES } from './links/pages.mjs';
 import { call, GRAPH, THREADS } from '../shared/meta-publish.js';
 import { YOUTUBE } from '../shared/video-publish.js';
 
 const BSKY = 'https://public.api.bsky.app/xrpc';
+const TIKTOK = 'https://open.tiktokapis.com/v2';
 const DAYS = 28;
 const NETS = ['instagram', 'facebook', 'threads', 'youtube', 'bluesky', 'tiktok', 'x'];
 // Comptes suivis : Benjy Paddock puis Paddock Live, identifiants repris des pages de liens
@@ -87,8 +88,30 @@ async function bluesky(handle, now, fetchFn) {
   return { followers: p.followersCount ?? null, posts: p.postsCount ?? null, likes: sum(mine, (x) => x.likeCount), comments: sum(mine, (x) => x.replyCount), shares: sum(mine, (x) => (x.repostCount || 0) + (x.quoteCount || 0)) };
 }
 
-// v : coffre ; youtubeToken : jeton YouTube à jour (ou null) -> [{ name, nets: { réseau: { url, handle, stats | error | note } } }]
-export async function accountStats(v, { youtubeToken = null, now = Date.now(), fetchFn = fetch } = {}) {
+// TikTok : compte relié avec l'option « Statistiques » (abonnés, vidéos ; vues, j'aime, commentaires,
+// partages des vidéos des 28 derniers jours, 20 par page, 5 pages au plus)
+async function tiktok(token, handle, now) {
+  if (!token) throw new Error('compte TikTok non relié');
+  const auth = { headers: { Authorization: `Bearer ${token}` } };
+  let u;
+  try { u = (await call(`${TIKTOK}/user/info/?fields=username,follower_count,video_count`, auth))?.data?.user || {}; } catch (err) {
+    throw new Error(/scope/i.test(err.message) ? 'statistiques non autorisées : cochez « Statistiques » (TikTok) dans l\'appli et reconnectez-vous' : err.message);
+  }
+  if ((u.username || '').toLowerCase() !== handle) throw new Error(u.username ? `autre compte relié (@${u.username})` : 'compte TikTok non relié');
+  const recent = [];
+  let cursor;
+  for (let page = 0; page < 5; page++) {
+    const d = (await call(`${TIKTOK}/video/list/?fields=create_time,view_count,like_count,comment_count,share_count`, { method: 'POST', ...auth, json: { max_count: 20, ...(cursor ? { cursor } : {}) } }).catch(() => null))?.data;
+    const list = d?.videos || [];
+    recent.push(...list.filter((x) => x.create_time * 1000 > now - DAYS * 86400e3));
+    if (!d?.has_more || !list.length || list.at(-1).create_time * 1000 <= now - DAYS * 86400e3) break;
+    cursor = d.cursor;
+  }
+  return { followers: u.follower_count ?? null, posts: u.video_count ?? null, views: sum(recent, (x) => x.view_count), likes: sum(recent, (x) => x.like_count), comments: sum(recent, (x) => x.comment_count), shares: sum(recent, (x) => x.share_count) };
+}
+
+// v : coffre ; youtubeToken, tiktokToken : jetons à jour (ou null) -> [{ name, nets: { réseau: { url, handle, stats | error | note } } }]
+export async function accountStats(v, { youtubeToken = null, tiktokToken = null, now = Date.now(), fetchFn = fetch } = {}) {
   const pages = v.meta ? [v.meta, ...(v.meta.pages || []).filter((p) => p.pageId !== v.meta.pageId)] : [];
   return Promise.all(ACCOUNTS.map(async (acc) => {
     const nets = {};
@@ -101,7 +124,8 @@ export async function accountStats(v, { youtubeToken = null, now = Date.now(), f
         else if (n === 'threads') out.stats = await threads([v.threads, v.threads2], handle, now);
         else if (n === 'youtube') out.stats = await youtube(youtubeToken, handle);
         else if (n === 'bluesky') out.stats = await bluesky(handle, now, fetchFn);
-        else out.note = n === 'tiktok' ? 'chiffres non fournis par TikTok à l\'appli' : 'chiffres payants chez X';
+        else if (n === 'tiktok') out.stats = await tiktok(tiktokToken, handle, now);
+        else out.note = 'chiffres payants chez X';
         if (out.stats) out.stats = Object.fromEntries(Object.entries(out.stats).filter(([, x]) => ok(x) && !Number.isNaN(x)));
       } catch (err) { out.error = String(err?.message || err).slice(0, 160); }
       nets[n] = out;

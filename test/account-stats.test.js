@@ -26,6 +26,11 @@ test('statistiques des comptes : chaque réseau des deux comptes, mesures refus�
     if (u.hostname === 'graph.threads.net') threadTokens.push(q.get('access_token'));
     if (u.hostname === 'graph.threads.net') return j({ data: [{ name: 'views', total_value: { value: 900 } }, { name: 'followers_count', total_value: { value: 20 } }, { name: 'likes', total_value: { value: 15 } }] });
     if (u.hostname === 'www.googleapis.com') return j({ items: [{ statistics: { subscriberCount: q.get('forHandle') === '@benjypaddock' ? '8' : '3', viewCount: '500', videoCount: '4', hiddenSubscriberCount: false } }] });
+    if (u.hostname === 'open.tiktokapis.com' && u.pathname.endsWith('/user/info/')) return j({ data: { user: { username: 'paddockliveapp', follower_count: 70, video_count: 9 } }, error: { code: 'ok' } });
+    if (u.hostname === 'open.tiktokapis.com') {
+      const day = (d) => Date.parse(`2026-10-${d}T10:00:00Z`) / 1000;
+      return j({ data: { videos: [{ create_time: day(15), view_count: 300, like_count: 20, comment_count: 2, share_count: 1 }, { create_time: day('01') - 30 * 86400, view_count: 999 }], has_more: true, cursor: 1 }, error: { code: 'ok' } });
+    }
     if (u.pathname.endsWith('getProfile')) return j({ followersCount: q.get('actor') === 'paddocklive.app' ? 11 : 22, postsCount: 6 });
     if (u.pathname.endsWith('getAuthorFeed')) return j({ feed: [{ post: { indexedAt: '2026-10-15T10:00:00Z', likeCount: 4, replyCount: 1, repostCount: 2, quoteCount: 0 } }, { reason: { $type: 'repost' }, post: { indexedAt: '2026-10-15T10:00:00Z', likeCount: 99 } }] });
     throw new Error(`inattendu : ${url}`);
@@ -50,7 +55,11 @@ test('statistiques des comptes : chaque réseau des deux comptes, mesures refus�
     assert.equal(benjy.nets.youtube.stats.followers, 8);
     assert.equal(pl.nets.youtube.stats.totalViews, 500);
     assert.deepEqual(pl.nets.bluesky.stats, { followers: 11, posts: 6, likes: 4, comments: 1, shares: 2 });   // repartages exclus
-    assert.match(benjy.nets.tiktok.note, /TikTok/);
+    assert.match(benjy.nets.tiktok.error, /non relié/);
+    // TikTok relié (Paddock Live) : vidéos des 28 derniers jours seulement ; l'autre compte le dit
+    [benjy, pl] = await accountStats(v, { tiktokToken: 'tk', now });
+    assert.deepEqual(pl.nets.tiktok.stats, { followers: 70, posts: 9, views: 300, likes: 20, comments: 2, shares: 1 });
+    assert.match(benjy.nets.tiktok.error, /@paddockliveapp/);
     assert.equal(benjy.nets.x.url, 'https://x.com/benjypaddock');
     assert.deepEqual(Object.keys(benjy.nets), ['instagram', 'facebook', 'threads', 'youtube', 'bluesky', 'tiktok', 'x']);
   } finally { globalThis.fetch = real; }

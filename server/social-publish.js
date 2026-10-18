@@ -25,7 +25,7 @@ export function accountsInfo() {
     threads: { connected: !!c.threads?.token, name: c.threads?.username ? `@${c.threads.username}` : '', expiresAt: c.threads?.expiresAt || null },
     threads2: { connected: !!c.threads2?.token, name: c.threads2?.username ? `@${c.threads2.username}` : '' },
     bluesky: { connected: !!c.bluesky?.appPassword, name: c.bluesky?.handle ? `@${String(c.bluesky.handle).replace(/^@/, '')}` : '' },
-    tiktok: { connected: !!c.tiktok?.refreshToken, name: c.tiktok?.name || '', configured: !!c.tiktok?.clientKey, direct: !!c.tiktok?.direct },
+    tiktok: { connected: !!c.tiktok?.refreshToken, name: c.tiktok?.name || '', configured: !!c.tiktok?.clientKey, direct: !!c.tiktok?.direct, stats: !!c.tiktok?.stats },
     youtube: { connected: !!c.youtube?.refreshToken, name: c.youtube?.name || '', configured: !!c.youtube?.clientId },
   };
 }
@@ -82,8 +82,10 @@ export async function saveAccount(net, b) {
     const prev = conf().tiktok || {};
     // direct : publication directe (autorisation video.publish, à activer dans l'app TikTok)
     const direct = b.direct === true;
+    // stats : statistiques dans la page web (user.info.profile, user.info.stats, video.list)
+    const stats = b.stats === true;
     // Autre app TikTok : l'ancienne connexion ne vaut plus
-    save('tiktok', prev.clientKey && prev.clientKey !== clientKey ? { clientKey, clientSecret, direct } : { ...prev, clientKey, clientSecret, direct });
+    save('tiktok', prev.clientKey && prev.clientKey !== clientKey ? { clientKey, clientSecret, direct, stats } : { ...prev, clientKey, clientSecret, direct, stats });
   } else if (net === 'youtube') {
     const clientId = str(b.clientId, 300); const clientSecret = str(b.clientSecret, 200);
     if (!clientId || !clientSecret) throw new Error('ID client et code secret du client nécessaires');
@@ -155,7 +157,7 @@ export function tiktokLoginUrl(origin) {
   pending.set(state, { verifier, redirect, at: Date.now() });
   // TikTok (ordinateur) : défi PKCE = SHA-256 du vérificateur, en hexadécimal
   const challenge = crypto.createHash('sha256').update(verifier).digest('hex');
-  return `https://www.tiktok.com/v2/auth/authorize/?${new URLSearchParams({ client_key: t.clientKey, scope: `user.info.basic,video.upload${t.direct ? ',video.publish' : ''}`, response_type: 'code', redirect_uri: redirect, state, code_challenge: challenge, code_challenge_method: 'S256' })}`;
+  return `https://www.tiktok.com/v2/auth/authorize/?${new URLSearchParams({ client_key: t.clientKey, scope: `user.info.basic,video.upload${t.direct ? ',video.publish' : ''}${t.stats ? ',user.info.profile,user.info.stats,video.list' : ''}`, response_type: 'code', redirect_uri: redirect, state, code_challenge: challenge, code_challenge_method: 'S256' })}`;
 }
 
 function storeTiktok(t, r) {
