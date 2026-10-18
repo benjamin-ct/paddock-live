@@ -35,6 +35,10 @@ l'application (Réglages → Application → Nouveautés).
 - Accueil : les dernières actualités sont traduites, y compris celles arrivées depuis l'ouverture de
   l'application.
 
+### Téléphone et tablette
+- iPhone, appli ajoutée à l'écran d'accueil : le haut de l'écran n'est plus flou. La page commence sous la
+  barre d'état (l'heure, la batterie), claire ou noire selon l'apparence choisie.
+
 ## v1.27.33 — 2026-10-18
 
 ### Pronostics entre amis

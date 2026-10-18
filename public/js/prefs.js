@@ -88,6 +88,8 @@ function applyScheme() {
     touch('DriverList');   // panneaux redessinés avec les couleurs de l'apparence (pneus, carte…)
   }
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', v === 'light' ? '#F4F5F7' : '#07080A');
+  // Appli installée sur iPhone : barre d'état claire ou noire (prise en compte au lancement suivant)
+  document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]')?.setAttribute('content', v === 'light' ? 'default' : 'black');
 }
 document.documentElement.dataset.theme = 'pitwall';
 applyScheme();

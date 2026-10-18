@@ -6,7 +6,8 @@
   <meta name="theme-color" content="#07080A">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <!-- Barre d'état normale (pas « black-translucent ») : sous la barre d'état, iOS 26 floute le haut de la page -->
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="Paddock Live">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -14,7 +15,7 @@
   <link rel="icon" href="/logo.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/css/style.css">
   <script>/* Carte flottante : page transparente dès l'affichage ; overlay de streaming (OBS…) : sans barre d'outils */ if (/[?&]float=1(&|$)/.test(location.search)) document.documentElement.classList.add('float-map'); if (/[?&]overlay=1(&|$)/.test(location.search)) document.documentElement.classList.add('overlay');</script>
-  <script>/* Thème Pitwall et apparence (sombre / clair / système) posés avant l'affichage : pas d'éclair */ try { const p = JSON.parse(localStorage.getItem('paddock.prefs') || '{}'); const s = p.schemeSet || p.scheme === 'light' ? p.scheme : 'auto'; const light = s === 'light' || (s === 'auto' && matchMedia('(prefers-color-scheme: light)').matches); document.documentElement.dataset.scheme = light ? 'light' : 'dark'; } catch { document.documentElement.dataset.scheme = 'dark'; } document.documentElement.dataset.theme = 'pitwall';</script>
+  <script>/* Thème Pitwall et apparence (sombre / clair / système) posés avant l'affichage : pas d'éclair */ try { const p = JSON.parse(localStorage.getItem('paddock.prefs') || '{}'); const s = p.schemeSet || p.scheme === 'light' ? p.scheme : 'auto'; const light = s === 'light' || (s === 'auto' && matchMedia('(prefers-color-scheme: light)').matches); document.documentElement.dataset.scheme = light ? 'light' : 'dark'; if (light) { document.querySelector('meta[name="theme-color"]').content = '#F4F5F7'; document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]').content = 'default'; } } catch { document.documentElement.dataset.scheme = 'dark'; } document.documentElement.dataset.theme = 'pitwall';</script>
 </head>
 <body>
   <!-- Nouveau design : barre de navigation latérale (fenêtre principale, grand écran) -->
