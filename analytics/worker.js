@@ -208,6 +208,8 @@ export default {
     // Site de l'appli : liens de téléchargement vers la dernière version ; sur un nom de domaine
     // à soi (pas *.workers.dev), la racine affiche le site au lieu de la page des statistiques
     if (req.method === 'GET' && url.pathname.startsWith('/download/')) return download(url.pathname);
+    // Scènes OBS toutes prêtes : adresse courte à donner aux streamers
+    if (req.method === 'GET' && url.pathname === '/obs') return Response.redirect(new URL('/obs/paddock-live-obs.json', url), 302);
     if (req.method === 'GET' && /^\/calendar(-en)?\.ics$/.test(url.pathname)) return calendar(env, new Date().getUTCFullYear(), url.pathname.includes('-en'));
     // Ancienne adresse (*.workers.dev) : les pages ouvertes dans un navigateur (connexion,
     // statistiques) passent sur le nom de domaine (SITE_ORIGIN) ; l'appli y garde ses appels

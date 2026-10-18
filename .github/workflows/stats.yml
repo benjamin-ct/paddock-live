@@ -47,6 +47,7 @@ on:
       - 'shared/gp-names.js'
       - 'shared/*-muxer.js'
       - 'scripts/build-studio.mjs'
+      - 'docs/obs/*.json'
       - '.github/workflows/stats.yml'
 
 concurrency: stats-deploy
