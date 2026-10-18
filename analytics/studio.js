@@ -689,7 +689,7 @@ export async function studioApi(req, env, url) {
   const pushed = await pushApi(path, req, env);
   if (pushed) return pushed;
   // Questions et suggestions des utilisateurs
-  const fb = await feedbackApi(path, req, env);
+  const fb = await feedbackApi(path, req, env, url);
   if (fb) return fb;
   return json({ error: 'Introuvable' }, 404);
 }

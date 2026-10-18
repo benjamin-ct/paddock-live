@@ -222,7 +222,7 @@ Au premier lancement, Paddock Live demande s'il peut envoyer des **statistiques 
 
 ## 💬 Une question, une idée ?
 
-⚙ Réglages → À propos → *Une question, une idée ?* : choisissez Suggestion, Question ou Problème, écrivez votre message et cliquez sur **Envoyer**. Il arrive directement au créateur de Paddock Live, avec la version de l'appli et le système de l'ordinateur. Laissez un e-mail ou un pseudo (facultatif) pour recevoir une réponse. Le même formulaire est en bas de la FAQ du site [paddocklive.app](https://paddocklive.app/#faq).
+⚙ Réglages → À propos → *Une question, une idée ?* : choisissez Suggestion, Question ou Problème, écrivez votre message et cliquez sur **Envoyer**. Il arrive directement au créateur de Paddock Live, avec la version de l'appli et le système de l'ordinateur. Ajoutez jusqu'à 3 captures d'écran ou vidéos (images jusqu'à 8 Mo, vidéos jusqu'à 40 Mo) pour montrer un bug. Laissez un e-mail ou un pseudo (facultatif) pour recevoir une réponse. Le même formulaire est en bas de la FAQ du site [paddocklive.app](https://paddocklive.app/#faq).
 
 ## 🌍 Traductions et transcription des radios
 

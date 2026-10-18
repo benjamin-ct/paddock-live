@@ -368,16 +368,37 @@ export function initSettings() {
   on('status', renderReplayBar);
   setInterval(renderReplayBar, 250);
 
-  // À propos : question ou suggestion envoyée au créateur (relais du serveur local)
+  // À propos : question ou suggestion envoyée au créateur (relais du serveur local), avec jusqu'à
+  // 3 captures ou vidéos envoyées ensuite une par une (mêmes limites que le serveur Paddock Live)
+  const FB_MAX = { 'image/png': 8e6, 'image/jpeg': 8e6, 'image/webp': 8e6, 'image/gif': 8e6, 'video/mp4': 40e6, 'video/webm': 40e6, 'video/quicktime': 40e6 };
+  const fbHint = $('#fbFileList').textContent;
+  const fbFiles = () => [...$('#fbFiles').files];
+  $('#fbFiles').addEventListener('change', () => {
+    const f = fbFiles();
+    $('#fbFileList').textContent = f.length ? f.map((x) => `${x.name} (${(x.size / 1e6).toFixed(1)} Mo)`).join(' · ') : t(fbHint);
+  });
   $('#fbForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const text = $('#fbText').value.trim();
+    const files = fbFiles();
     if (text.length < 5) { toast(t('Message trop court')); return; }
+    if (files.length > 3) { toast(t('3 fichiers au plus')); return; }
+    const bad = files.find((f) => !(f.size <= (FB_MAX[f.type] || 0)));
+    if (bad) { toast(t('{} : format non accepté ou fichier trop lourd', bad.name), 5000); return; }
     $('#fbSend').disabled = true;
     try {
-      await api('/api/feedback', { method: 'POST', body: { kind: $('#fbKind').value, text, contact: $('#fbContact').value.trim(), lang: LANG } });
+      const r = await api('/api/feedback', { method: 'POST', body: { kind: $('#fbKind').value, text, contact: $('#fbContact').value.trim(), lang: LANG, files: files.length } });
       $('#fbText').value = '';
-      toast(t('Message envoyé : merci !'), 3000, 'check');
+      try {
+        for (const [n, f] of files.entries()) {
+          toast(t('Envoi des pièces jointes ({}/{})…', n + 1, files.length), 120000);
+          const res = await fetch(`/api/feedback/file?${new URLSearchParams({ id: r.id, up: r.up, n })}`, { method: 'POST', headers: { 'Content-Type': f.type }, body: f });
+          if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `Erreur ${res.status}`);
+        }
+        toast(t('Message envoyé : merci !'), 3000, 'check');
+      } catch (err) { toast(t('Message envoyé, mais pièce jointe refusée : {}', err.message), 6000); }
+      $('#fbFiles').value = '';
+      $('#fbFileList').textContent = t(fbHint);
     } catch (err) { toast(err.message, 5000); }
     $('#fbSend').disabled = false;
   });

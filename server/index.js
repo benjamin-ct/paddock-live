@@ -38,7 +38,7 @@ import { postHistory, recordPost, removePost, statsOfPosts } from './post-histor
 import { accountsInfo, saveAccount, tiktokLoginUrl, tiktokCallback, youtubeLoginUrl, youtubeCallback, publish as publishSocial } from './social-publish.js';
 import { startAutoRenew, renew as renewF1tv, sessionOf, state as renewState, resetRenewState } from './f1tv-auth.js';
 import { localHost, sameSiteRequest, decodePath } from './guard.js';
-import { stats, startStats, sendFeedback } from './stats.js';
+import { stats, startStats, sendFeedback, sendFeedbackFile } from './stats.js';
 import { archivePath, sendArchiveFile, archiveJSON } from './archive.js';
 import { cloud, createCloudTranslator } from './cloud-translate.js';
 import { cloudRadio } from './cloud-transcribe.js';
@@ -127,7 +127,8 @@ function sendJSON(res, status, obj) {
 // Requête mal formée : erreur 400 (et non 500)
 class BadRequest extends Error {}
 
-function readBody(req, max = 1e6) {
+// Corps brut (au plus max octets)
+function readRaw(req, max) {
   return new Promise((resolve, reject) => {
     let size = 0;
     const chunks = [];
@@ -136,15 +137,17 @@ function readBody(req, max = 1e6) {
       if (size > max) { reject(new BadRequest('Requête trop volumineuse')); req.destroy(); return; }
       chunks.push(c);
     });
-    req.on('end', () => {
-      const text = Buffer.concat(chunks).toString('utf8');
-      let body;
-      try { body = text ? JSON.parse(text) : {}; } catch { reject(new BadRequest('JSON invalide')); return; }
-      // Les routes attendent un objet : « null », un nombre ou une liste valent un corps vide
-      resolve(body && typeof body === 'object' && !Array.isArray(body) ? body : {});
-    });
+    req.on('end', () => resolve(Buffer.concat(chunks)));
     req.on('error', reject);
   });
+}
+
+async function readBody(req, max = 1e6) {
+  const text = (await readRaw(req, max)).toString('utf8');
+  let body;
+  try { body = text ? JSON.parse(text) : {}; } catch { throw new BadRequest('JSON invalide'); }
+  // Les routes attendent un objet : « null », un nombre ou une liste valent un corps vide
+  return body && typeof body === 'object' && !Array.isArray(body) ? body : {};
 }
 
 function serveStatic(req, res, pathname) {
@@ -525,6 +528,11 @@ async function handleApi(req, res, url) {
     // Question ou suggestion (Réglages → À propos), relayée au créateur
     case 'POST /api/feedback': {
       const r = await sendFeedback(await readBody(req, 2e4));
+      return sendJSON(res, r.status, r.data);
+    }
+    // Pièce jointe du message (capture, vidéo), envoyée seule après lui
+    case 'POST /api/feedback/file': {
+      const r = await sendFeedbackFile(url.searchParams, String(req.headers['content-type'] || ''), await readRaw(req, 40e6));
       return sendJSON(res, r.status, r.data);
     }
     case 'POST /api/predictions': {

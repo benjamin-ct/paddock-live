@@ -4,6 +4,12 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
+## v1.27.44 — à venir
+
+### Une question, une idée ?
+- Joignez jusqu'à 3 captures d'écran ou vidéos à votre message (images jusqu'à 8 Mo, vidéos jusqu'à 40 Mo),
+  depuis Réglages → À propos ou depuis le formulaire du site : pratique pour montrer un bug.
+
 ## v1.27.43 — 2026-10-18
 
 ### Une question, une idée ?
