@@ -328,8 +328,14 @@ const inboxCount = () => api('feedback').then((r) => showCount(r.items || [])).c
 function msgHtml(m) {
   const from = m.src === 'app' ? ['Appli', /^\d/.test(m.version) ? `v${m.version}` : '', SYS[m.os] || m.os].filter(Boolean).join(' ') : 'Site';
   const when = new Date(m.at).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  // Réponse : e-mail prêt avec le message d'origine cité (en anglais si le message l'était)
+  const en = m.lang === 'en';
+  const reply = `mailto:${encodeURIComponent(m.contact || '').replace('%40', '@')}?${new URLSearchParams({
+    subject: en ? 'Re: your message about Paddock Live' : 'Re : votre message sur Paddock Live',
+    body: `${en ? 'Hi,' : 'Bonjour,'}\n\n\n\n${en ? 'Your message:' : 'Votre message :'}\n${String(m.text).slice(0, 1500).split('\n').map((l) => `> ${l}`).join('\n')}`,
+  }).toString().replace(/\+/g, '%20')}`;
   const contact = !m.contact ? '<small>Pas de contact laissé</small>'
-    : isMail(m.contact) ? `<a class="btn small" href="mailto:${esc(m.contact)}?subject=${encodeURIComponent('Paddock Live')}">${icon('send')}Répondre à ${esc(m.contact)}</a>`
+    : isMail(m.contact) ? `<a class="btn small" href="${esc(reply)}">${icon('send')}Répondre à ${esc(m.contact)}</a>`
       : `<small>Contact : ${esc(m.contact)}</small>`;
   const files = (m.files || []).map((f) => `<button class="att" data-att="${Number(m.id)}:${Number(f.n)}" data-type="${esc(f.type)}">${icon(f.type.startsWith('video/') ? 'video' : 'image')}<span>${f.type.startsWith('video/') ? 'Vidéo' : 'Image'} · ${(f.size / 1e6).toFixed(1)} Mo</span></button>`).join('');
   return `<article class="msg${m.seen ? '' : ' new'}"><div class="msg-head"><span class="badge kind-${esc(m.kind)}">${esc(KIND[m.kind] || m.kind)}</span>

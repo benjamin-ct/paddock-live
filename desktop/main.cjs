@@ -8,6 +8,7 @@ const APP_ICON = path.join(__dirname, 'icon.png');
 const net = require('node:net');
 const { pathToFileURL } = require('node:url');
 const fs = require('node:fs');
+const { loginValues, diagnose } = require('./f1-cookies.cjs');
 
 // Dossier des données (réglages, jeton F1 TV, enregistrements, fenêtres)
 app.setPath('userData', path.join(app.getPath('appData'), 'Paddock Live'));
@@ -157,20 +158,11 @@ function otherDisplay() {
 }
 
 // ---- Connexion F1 TV ----
-// Ouvre la page de connexion officielle dans une fenêtre de l'appli, puis lit le cookie du jeton
-// d'abonnement (y compris s'il est protégé) et l'envoie au serveur local : « login-session » (ancien
-// site du compte) ou « entitlement_token » (site F1 TV actuel).
+// Ouvre la page de connexion officielle dans une fenêtre de l'appli, puis lit les cookies de connexion
+// (y compris protégés : f1-cookies.cjs) et les envoie au serveur local, qui garde le jeton d'abonnement.
 const LOGIN_URL = 'https://account.formula1.com/#/fr/login?redirect=https%3A%2F%2Ff1tv.formula1.com%2F';
 let loginWindow = null;
 
-async function readLoginCookie(ses) {
-  for (const name of ['login-session', 'entitlement_token']) {
-    const cookies = await ses.cookies.get({ name });
-    const value = cookies.find((c) => /formula1\.com$/.test(c.domain.replace(/^\./, '')))?.value;
-    if (value) return value;
-  }
-  return null;
-}
 
 async function sendToken(value) {
   const res = await fetch(`http://127.0.0.1:${process.env.PORT}/api/auth`, {
@@ -206,22 +198,28 @@ function loginF1TV() {
       resolve(result);
     };
     // Cookie d'une ancienne connexion dont la session est finie : refusé par le serveur, on
-    // attend que l'utilisateur se reconnecte (le cookie change) au lieu de fermer la fenêtre
-    let refused = null;
+    // attend que l'utilisateur se reconnecte (le cookie change) au lieu de fermer la fenêtre.
+    // Autre refus : on essaie le cookie suivant, puis on s'arrête avec la liste des cookies vus
+    // (jamais leurs valeurs), pour savoir quoi corriger si formula1.com change encore.
+    const refused = new Set();
     const check = async () => {
-      try {
-        const value = await readLoginCookie(ses);
-        if (!value || value === refused) return;
-        const info = await sendToken(value);
-        finish({ ok: true, info });
-      } catch (err) {
-        if (/expir/i.test(err.message)) { refused = (await readLoginCookie(ses).catch(() => null)); return; }
-        finish({ ok: false, error: err.message });
+      const cookies = await ses.cookies.get({}).catch(() => []);
+      let error = null;
+      for (const value of loginValues(cookies)) {
+        if (refused.has(value)) continue;
+        try { return finish({ ok: true, info: await sendToken(value) }); } catch (err) {
+          refused.add(value);
+          if (!/expir/i.test(err.message)) error = err;
+        }
       }
+      if (error) finish({ ok: false, error: `${error.message} (cookies formula1.com : ${diagnose(cookies) || 'aucun'})` });
     };
     // Déjà connecté (session mémorisée) ? Sinon on surveille jusqu'à la connexion.
     const timer = setInterval(check, 1500);
-    loginWindow.on('closed', () => finish({ ok: false, error: 'Fenêtre fermée avant la connexion' }));
+    loginWindow.on('closed', async () => {
+      const seen = diagnose(await ses.cookies.get({}).catch(() => []));
+      finish({ ok: false, error: `Fenêtre fermée avant la connexion${seen ? ` (cookies formula1.com : ${seen})` : ''}` });
+    });
     // User-agent de Chrome standard (sans la mention Electron ni le nom de l'appli) pour la page de connexion.
     const ua = loginWindow.webContents.getUserAgent().replace(/ Electron\/\S+/, '').replace(/\) (?!Chrome\/)\S+\/\S+ (?=Chrome\/)/, ') ');
     loginWindow.loadURL(LOGIN_URL, { userAgent: ua });

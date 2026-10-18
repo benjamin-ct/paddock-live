@@ -4,6 +4,17 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
+## v1.27.47 — à venir
+
+### Interface
+- Les légendes sous les panneaux sont masquées par défaut : à afficher dans Réglages → Apparence.
+- Version anglaise complète : les derniers textes restés en français sont traduits (réglages, connexion F1 TV,
+  actualités, arrêts, pronostics…).
+
+### F1 TV
+- Si la connexion par la fenêtre « Se connecter à F1 TV » échoue, le message indique ce que formula1.com a
+  enregistré : de quoi corriger vite si le site change encore.
+
 ## v1.27.46 — 2026-10-18
 
 ### Interface plus légère

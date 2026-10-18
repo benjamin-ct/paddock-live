@@ -123,7 +123,6 @@ Le détail de chacune est dans le **[guide complet](docs/GUIDE.md)**.
 
 ### Streaming
 - **Overlays** à ajouter comme source navigateur dans OBS Studio, Streamlabs ou Meld Studio, au rythme du délai TV : classement (colonnes au choix), carte du circuit (calques au choix), bandeaux de drapeaux, compteur de tours, compte à rebours, podium, télémétrie du pilote suivi ; fond réglable de 0 à 100 % ; adresses fixes, réglages appliqués en direct sans recopier le lien.
-- **Scènes OBS toutes prêtes** ([paddocklive.app/obs](https://paddocklive.app/obs), à importer dans OBS → Collection de scènes → Importer) : avant la course, course et podium, overlays déjà placés en 1920 × 1080 ([aperçu](docs/obs/apercu-course.png)).
 - **Stream Deck** ou Bitfocus Companion : délai TV ±1 s ou ±0,1 s, lecture, pause et ±10 s en replay.
 
 ### Disposition et écrans
@@ -137,7 +136,7 @@ Le détail de chacune est dans le **[guide complet](docs/GUIDE.md)**.
 - Barre de replay compacte, menu des calques adapté, carte allégée par défaut ; tablette avec la disposition de l'ordinateur.
 
 ### Apparence, langue et application
-- Design « Pitwall » en **clair, sombre ou automatique**, logos et couleurs des écuries (officielles ou contrastées), légendes sous les panneaux, animations désactivables.
+- Design « Pitwall » en **clair, sombre ou automatique**, logos et couleurs des écuries (officielles ou contrastées), légendes sous les panneaux (au choix), animations désactivables.
 - Interface en **français ou en anglais**, noms des Grands Prix et des séances traduits.
 - **Réglages** avec recherche, rubriques et « À propos » (nouveautés, réseaux, informations légales).
 - **Mise à jour automatique** (Windows, macOS, AppImage), **sauvegarde des réglages** dans un fichier.
