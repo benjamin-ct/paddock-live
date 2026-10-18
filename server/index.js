@@ -69,6 +69,8 @@ const hub = new Hub({ maxDelayMs: settings.maxDelayMs });
 // Réglages des overlays de streaming (Réglages → Streaming), gardés d'un lancement à l'autre
 hub.overlayCfg = getConfig().overlays || null;
 hub.onOverlayCfg = (cfg) => saveConfig({ overlays: cfg });
+// Démarrage du serveur (nouvelle version après une mise à jour) : les overlays ouverts dans OBS se rechargent
+hub.boot = Date.now();
 const recorder = process.env.NO_RECORDING ? null : new Recorder();
 const live = new LiveSource(hub, () => {
   const token = getConfig().f1tvToken;

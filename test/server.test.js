@@ -89,7 +89,7 @@ test('hub : les téléphones du réseau local reçoivent le délai TV de l\'ordi
   pc.emit('message', Buffer.from(JSON.stringify({ type: 'delay', ms: 42000 })));
   const phone = new FakeWs();
   hub.addClient(phone, { host: false });
-  assert.deepEqual(phone.sent.find((m) => m.type === 'role'), { type: 'role', host: false, hostDelay: 42000, hostFocus: null, overlayCfg: null });
+  assert.deepEqual(phone.sent.find((m) => m.type === 'role'), { type: 'role', host: false, hostDelay: 42000, hostFocus: null, overlayCfg: null, boot: null });
   // Nouveau réglage sur l'ordinateur : transmis au téléphone ; pas l'inverse
   pc.sent = [];
   pc.emit('message', Buffer.from(JSON.stringify({ type: 'delay', ms: 45000 })));
