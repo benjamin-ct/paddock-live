@@ -1,7 +1,8 @@
 // Pronostics entre amis en ligne : un groupe (lien paddocklive.app/p/<id>) où chacun pronostique la
 // pole et le podium depuis une page web ou depuis l'appli, hors du réseau local. Saison et résultats :
 // ceux que garde le serveur (seasonRow). Un pseudo appartient au premier qui l'utilise : son jeton,
-// gardé par son navigateur ou son appli, est demandé pour le modifier. Mêmes règles et mêmes points
+// gardé par son navigateur ou son appli, est demandé pour le modifier. Le créateur reçoit un jeton
+// qui lui permet de supprimer le groupe pour tout le monde. Mêmes règles et mêmes points
 // que dans l'appli (shared/predict.js).
 import { seasonRow } from './studio.js';
 import { predictView, checkPick, playerKey } from '../shared/predict.js';
@@ -15,6 +16,7 @@ const SEASON_AGE = 6 * 3600e3;   // saison enregistrée acceptée telle quelle (
 
 const newId = () => [...crypto.getRandomValues(new Uint8Array(10))].map((b) => 'abcdefghijklmnopqrstuvwxyz0123456789'[b % 36]).join('');
 const groupOf = (env, id) => env.DB.prepare('SELECT id, name FROM pronos_groups WHERE id = ?').bind(id).first();
+const adminOf = (env, id) => env.DB.prepare('SELECT tok FROM pronos_admins WHERE grp = ?').bind(id).first();
 
 // Pronostics d'une saison du groupe : { rounds: { manche: { clé: { name, pole, p1, p2, p3, tok } } } }
 async function storeOf(env, id, year) {
@@ -36,7 +38,9 @@ export async function pronosApi(req, env, url, { now = Date.now() } = {}) {
     await env.DB.prepare('INSERT INTO pronos_new (ip, day, n) VALUES (?, ?, 1) ON CONFLICT(ip, day) DO UPDATE SET n = n + 1').bind(ip, day).run();
     const id = newId();
     await env.DB.prepare('INSERT INTO pronos_groups (id, name, at) VALUES (?, ?, ?)').bind(id, name, now).run();
-    return json({ id, name });
+    const admin = crypto.randomUUID();
+    await env.DB.prepare('INSERT INTO pronos_admins (grp, tok) VALUES (?, ?)').bind(id, admin).run();
+    return json({ id, name, admin });
   }
   if (!GROUP_RE.test(path)) return json({ error: 'Groupe inconnu' }, 404);
   const group = await groupOf(env, path);
@@ -71,6 +75,18 @@ export async function pronosApi(req, env, url, { now = Date.now() } = {}) {
       ON CONFLICT(grp, year, round, pkey) DO UPDATE SET name = excluded.name, pole = excluded.pole, p1 = excluded.p1, p2 = excluded.p2, p3 = excluded.p3, at = excluded.at`)
       .bind(group.id, year, out.race.round, out.key, p.name, p.pole, p.p1, p.p2, p.p3, tok, now).run();
     return json({ ok: true, tok, poleOpen: out.poleOpen, podiumOpen: out.podiumOpen });
+  }
+  // Suppression pour tout le monde : par le créateur (jeton reçu à la création) ; groupe créé avant ce
+  // jeton : par son seul joueur, ou par n'importe qui s'il est vide
+  if (req.method === 'DELETE') {
+    const b = await req.json().catch(() => ({}));
+    const admin = (await adminOf(env, group.id))?.tok;
+    const { results } = await env.DB.prepare('SELECT DISTINCT tok FROM pronos WHERE grp = ?').bind(group.id).all();
+    if (admin ? b.admin !== admin : !(results || []).every((r) => r.tok === b.tok)) {
+      return json({ error: admin ? 'Seul le créateur du groupe peut le supprimer pour tout le monde' : 'D\'autres joueurs pronostiquent dans ce groupe : il ne peut pas être supprimé' }, 403);
+    }
+    for (const sql of ['DELETE FROM pronos WHERE grp = ?', 'DELETE FROM pronos_admins WHERE grp = ?', 'DELETE FROM pronos_groups WHERE id = ?']) await env.DB.prepare(sql).bind(group.id).run();
+    return json({ ok: true });
   }
   return json({ error: 'Méthode non prise en charge' }, 405);
 }
