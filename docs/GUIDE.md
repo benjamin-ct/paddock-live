@@ -220,6 +220,10 @@ Au premier lancement, Paddock Live demande s'il peut envoyer des **statistiques 
 - **Comment** : l'appli additionne les compteurs sur l'ordinateur et envoie seulement des totaux, environ toutes les 15 minutes (gardés sur le disque d'ici là si internet manque). Les fenêtres du téléphone passent par l'ordinateur ; le choix se fait sur l'ordinateur.
 - Le petit serveur qui reçoit ces totaux est dans le dossier `analytics/` du projet. La variable `PADDOCK_STATS_URL` vide désactive complètement la fonction (aucune question posée).
 
+## 💬 Une question, une idée ?
+
+⚙ Réglages → À propos → *Une question, une idée ?* : choisissez Suggestion, Question ou Problème, écrivez votre message et cliquez sur **Envoyer**. Il arrive directement au créateur de Paddock Live, avec la version de l'appli et le système de l'ordinateur. Laissez un e-mail ou un pseudo (facultatif) pour recevoir une réponse. Le même formulaire est en bas de la FAQ du site [paddocklive.app](https://paddocklive.app/#faq).
+
 ## 🌍 Traductions et transcription des radios
 
 Les actualités (d'avance, dès leur arrivée), les messages de la direction de course, le texte des radios d'équipe et les documents FIA sont traduits par le **serveur Paddock Live** (Cloudflare Workers AI, modèle de langage Mistral Small 3.1 avec des consignes F1 : noms des pilotes et des écuries gardés, vocabulaire des fans) : chaque texte n'y est traduit qu'une fois, puis gardé pour tous les utilisateurs. Les **radios d'équipe** y sont aussi **transcrites** (Whisper large-v3-turbo), une seule fois pour tous. Rien n'est calculé sur l'ordinateur.

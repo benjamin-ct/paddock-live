@@ -4,7 +4,8 @@ import { $, esc, api } from '../util.js';
 import { arrows } from '../icons.js';
 import { LOCALE } from '../i18n.js';
 
-// Mise en forme du texte du journal : titres « ### », listes « - », gras « **…** »
+// Mise en forme du texte du journal : titres « ### », listes « - » (lignes suivantes en retrait :
+// suite du même point), gras « **…** »
 export function changelogHtml(md) {
   const inline = (s) => arrows(esc(s)).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/`(.+?)`/g, '<code>$1</code>');
   let html = '', list = false;
@@ -12,6 +13,7 @@ export function changelogHtml(md) {
     const line = raw.trim();
     const li = /^[-*] (.*)$/.exec(line);
     if (li) { if (!list) { html += '<ul>'; list = true; } html += `<li>${inline(li[1])}</li>`; continue; }
+    if (list && line && /^\s/.test(raw)) { html = `${html.slice(0, -5)} ${inline(line)}</li>`; continue; }
     if (list) { html += '</ul>'; list = false; }
     if (!line) continue;
     const h = /^#{3,4} (.*)$/.exec(line);

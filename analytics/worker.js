@@ -19,6 +19,7 @@ import { cleanSummaryRequest, summarizeArticle } from './summarize.js';
 import { newsAlerts } from './alerts.js';
 import { transcribeRadio, cachedRadio, HASH_RE, MAX_AUDIO } from './transcribe.js';
 import { download } from './download.js';
+import { feedbackPost } from './feedback.js';
 import { buildIcs } from '../shared/ics.js';
 import { pronosApi, GROUP_RE } from './pronos.js';
 
@@ -227,6 +228,10 @@ export default {
     }
     if (req.method === 'POST' && url.pathname === '/e') {
       try { return await ingest(req, env); } catch { return json({ error: 'Erreur' }, 500); }
+    }
+    // Questions et suggestions (appli, site) : lues dans le Studio
+    if (req.method === 'POST' && url.pathname === '/f') {
+      try { return await feedbackPost(req, env); } catch { return json({ error: 'Erreur' }, 500); }
     }
     // Traduction partagée (actualités, radios) : ouverte à l'appli, plafonnée par jour
     if (req.method === 'POST' && url.pathname === '/t') {

@@ -74,11 +74,13 @@ function home({ from = 'up' } = {}) {
   app.className = 'shell';
   app.innerHTML = `<header class="appbar"><div class="brand">${LOGO}<span>Paddock <b>Studio</b></span></div><span class="grow"></span>
       <a class="iconbtn" href="https://paddocklive.app/" aria-label="Retour au site" title="Retour au site">${icon('home')}</a>
-      <button class="iconbtn" id="refresh" aria-label="Actualiser">${icon('refresh')}</button><button class="iconbtn" id="settings" aria-label="Réglages">${icon('settings')}</button></header>
+      <button class="iconbtn" id="refresh" aria-label="Actualiser">${icon('refresh')}</button><button class="iconbtn" id="inbox" aria-label="Messages">${icon('mail')}<i class="count" hidden></i></button><button class="iconbtn" id="settings" aria-label="Réglages">${icon('settings')}</button></header>
     <main class="page" id="body"></main>
     <nav class="tabbar" style="--i:${tabIndex(state.tab)}"><div class="side-brand">${LOGO}<span>Paddock <b>Studio</b></span></div><span class="lens"></span>${TABS.map(([k, v, ic]) => `<button data-tab="${k}" class="${state.tab === k ? 'on' : ''}">${icon(ic)}<span>${v}</span></button>`).join('')}</nav>`;
   $('#settings').onclick = settings;
-  $('#refresh').onclick = () => showTab({ force: true });
+  $('#inbox').onclick = messages;
+  $('#refresh').onclick = () => { inboxCount(); showTab({ force: true }); };
+  inboxCount();
   $$('[data-tab]').forEach((b) => {
     b.onclick = () => {
       if (state.tab === b.dataset.tab) { scrollTo({ top: 0, behavior: 'smooth' }); return; }
@@ -314,6 +316,47 @@ function renderStats(body, r, stale) {
   });
 }
 
+// ---------- Messages : questions et suggestions des utilisateurs (appli, site) ----------
+const KIND = { idea: 'Suggestion', question: 'Question', bug: 'Problème' };
+const SYS = { win: 'Windows', mac: 'macOS', linux: 'Linux' };
+const isMail = (s) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
+const showCount = (items) => {
+  const c = $('#inbox .count'), n = items.filter((m) => !m.seen).length;
+  if (c) { c.hidden = !n; c.textContent = n > 9 ? '9+' : n; }
+};
+const inboxCount = () => api('feedback').then((r) => showCount(r.items || [])).catch(() => {});
+function msgHtml(m) {
+  const from = m.src === 'app' ? ['Appli', /^\d/.test(m.version) ? `v${m.version}` : '', SYS[m.os] || m.os].filter(Boolean).join(' ') : 'Site';
+  const when = new Date(m.at).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  const contact = !m.contact ? '<small>Pas de contact laissé</small>'
+    : isMail(m.contact) ? `<a class="btn small" href="mailto:${esc(m.contact)}?subject=${encodeURIComponent('Paddock Live')}">${icon('send')}Répondre à ${esc(m.contact)}</a>`
+      : `<small>Contact : ${esc(m.contact)}</small>`;
+  return `<article class="msg${m.seen ? '' : ' new'}"><div class="msg-head"><span class="badge kind-${esc(m.kind)}">${esc(KIND[m.kind] || m.kind)}</span>
+    <small>${esc(when)} · ${esc(from)}${m.lang === 'en' ? ' · en anglais' : ''}</small></div><p>${esc(m.text)}</p>
+    <div class="msg-foot">${contact}<button class="btn small" data-remove="${Number(m.id)}">Supprimer</button></div></article>`;
+}
+async function messages() {
+  const dlg = sheet('Messages', '<p class="hint center">Chargement…</p>');
+  const body = $('.sheet-body', dlg);
+  let items;
+  try { items = (await api('feedback')).items || []; } catch (err) { body.innerHTML = `<p class="hint center">${esc(err.message)}</p>`; return; }
+  const draw = () => {
+    body.innerHTML = items.length ? `<div class="group">${items.map(msgHtml).join('')}</div>
+      <p class="hint">Envoyés depuis l'appli (Réglages → À propos) ou le site (FAQ). Un e-mail laissé permet de répondre.</p>`
+      : '<p class="hint center">Aucun message pour l\'instant. Les questions et suggestions envoyées depuis l\'appli (Réglages → À propos) ou le site arriveront ici.</p>';
+    $$('[data-remove]', body).forEach((b) => {
+      b.onclick = async () => {
+        try { await api('feedback/remove', { method: 'POST', body: JSON.stringify({ id: Number(b.dataset.remove) }) }); } catch (err) { toast(err.message, 'bad'); return; }
+        items = items.filter((m) => m.id !== Number(b.dataset.remove));
+        draw();
+      };
+    });
+  };
+  draw();
+  // Messages lus : pastille retirée (ils restent marqués jusqu'à la prochaine ouverture)
+  if (items.some((m) => !m.seen)) api('feedback/seen', { method: 'POST' }).then(() => showCount([])).catch(() => {});
+}
+
 // Pack de présentation pour les streamers : page non listée (ni le site ni l'appli n'y mènent),
 // à envoyer avec un de ces messages
 const KIT = 'https://paddocklive.app/kit/streamers/';
@@ -416,6 +459,7 @@ async function alertsBlock(el) {
 // Notification touchée : post de la news prêt à relire
 async function openAlert(id) {
   if (!id) return;
+  if (id === 'messages') { messages(); return; }
   try {
     const it = ((await api('alerts')).items || []).find((a) => a.id === id);
     if (!it) return;

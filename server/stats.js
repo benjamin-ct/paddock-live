@@ -16,6 +16,15 @@ export const STATS_URL = process.env.PADDOCK_STATS_URL ?? DEFAULT_URL;
 const VERSION = process.env.PADDOCK_VERSION || 'dev';
 const OS = { win32: 'win', darwin: 'mac', linux: 'linux' }[process.platform] || 'other';
 const FLUSH_MS = 15 * 60e3;
+
+// Question ou suggestion écrite par l'utilisateur (Réglages → À propos), envoyée quand il clique sur
+// Envoyer, avec la version et le système : lue par le créateur dans le Studio
+export const FEEDBACK_URL = process.env.PADDOCK_FEEDBACK_URL ?? 'https://paddock-live-stats.paddock-live.workers.dev/f';
+export async function sendFeedback(b, { url = FEEDBACK_URL, send = request } = {}) {
+  const data = JSON.stringify({ kind: b?.kind, text: b?.text, contact: b?.contact, lang: b?.lang, src: 'app', version: VERSION, os: OS });
+  const r = await send(url, { method: 'POST', timeout: 20000, body: data, headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) } });
+  try { return { status: r.status, data: JSON.parse(r.body.toString('utf8')) }; } catch { return { status: 502, data: { error: `Serveur Paddock Live indisponible (HTTP ${r.status})` } }; }
+}
 const PENDING_FILE = path.join(DATA_DIR, 'stats-pending.json');
 
 // Compteurs pas encore envoyés, gardés sur le disque : rien de perdu si l'appli se ferme avant l'envoi
