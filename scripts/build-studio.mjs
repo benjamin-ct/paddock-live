@@ -75,9 +75,8 @@ fs.writeFileSync(path.join(OUT, 'stats-refresh.js'), `${ptr}\npullToRefresh(() =
 // Conditions d'utilisation et politique de confidentialité (/legal/terms, /legal/privacy), demandées
 // par TikTok pour l'app de publication en brouillon
 copy(path.join(ROOT, 'analytics', 'legal'), path.join(OUT, 'legal'));
-// Kit de lancement des comptes (visuels et vidéos des posts de lancement, page du Studio) et pack de
-// présentation pour les streamers (/kit/streamers/, lien non listé donné dans les Réglages du Studio)
-for (const acc of ['benjy', 'paddocklive', 'streamers']) copy(path.join(ROOT, 'analytics', 'launch-kit', acc), path.join(OUT, 'kit', acc));
+// Pack de présentation pour les streamers (/kit/streamers/, lien non listé donné dans les Réglages du Studio)
+copy(path.join(ROOT, 'analytics', 'launch-kit', 'streamers'), path.join(OUT, 'kit', 'streamers'));
 // Site de l'appli pour le lancement (/site/, racine d'un nom de domaine à soi), avec ses images
 copy(path.join(ROOT, 'analytics', 'launch'), path.join(OUT, 'site'), (f) => f !== 'img');
 copy(path.join(ROOT, 'analytics', 'launch', 'img'), path.join(OUT, 'site', 'img'));

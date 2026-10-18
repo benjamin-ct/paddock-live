@@ -4,6 +4,7 @@
 // passer un faux texte pour une radio qu'il n'a pas envoyée. Plafond quotidien contre les abus ;
 // au-delà, l'appli transcrit sur l'ordinateur comme avant.
 import { clean } from '../shared/radio-text.js';
+import { aiQuota } from './quota.js';
 
 export const ASR_MODEL = '@cf/openai/whisper-large-v3-turbo';
 export const ASR_FALLBACK = '@cf/openai/whisper';
@@ -50,16 +51,13 @@ export async function cachedRadio(env, hash) {
 }
 
 // Fichier son -> { text, d } (texte vide : radio sans parole), { limited } ou { invalid }
-export async function transcribeRadio(env, bytes, day = new Date().toISOString().slice(0, 10)) {
+export async function transcribeRadio(env, bytes, day = new Date().toISOString().slice(0, 10), ip = null) {
   if (!isAudio(bytes)) return { invalid: true };
   const hash = await audioHash(bytes);
   const hit = await cachedRadio(env, hash);
   if (hit) return { ...hit, cached: true };
   const limit = Number(env.ASR_DAILY_LIMIT) || 3000;
-  const k = `radio:${day}`;
-  const used = (await env.DB.prepare('SELECT n FROM ai_usage WHERE day = ?1').bind(k).first())?.n || 0;
-  if (used + 1 > limit) return { limited: true };
-  await env.DB.prepare('INSERT INTO ai_usage (day, n) VALUES (?1, ?2) ON CONFLICT (day) DO UPDATE SET n = n + excluded.n').bind(k, 1).run();
+  if (!(await aiQuota(env, { key: `radio:${day}`, day, n: 1, limit, ip }))) return { limited: true };
   const r = await whisper(env, bytes);
   const text = clean(r.text);
   const d = Number.isFinite(r.d) ? Math.round(r.d * 10) / 10 : null;

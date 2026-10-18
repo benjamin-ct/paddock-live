@@ -73,6 +73,15 @@ test('transcription partagée : une seule fois pour tous, texte nettoyé, plafon
   assert.deepEqual(await transcribeRadio(env, new Uint8Array(2000), '2026-10-15'), { invalid: true });
 });
 
+test('transcription partagée : une seule adresse ne prend qu\'un quart du plafond du jour', async () => {
+  const { env, usage } = fakeEnv({ limit: 8 });
+  for (let i = 0; i < 2; i++) assert.equal((await transcribeRadio(env, mp3(2000, 20 + i), '2026-10-15', '203.0.113.7')).text, 'Box, box.');
+  assert.deepEqual(await transcribeRadio(env, mp3(2000, 30), '2026-10-15', '203.0.113.7'), { limited: true });
+  assert.equal((await transcribeRadio(env, mp3(2000, 31), '2026-10-15', '198.51.100.2')).text, 'Box, box.', 'les autres adresses continuent');
+  assert.equal(usage.get('radio:2026-10-15'), 3);
+  assert.equal(usage.get('2026-10-15|203.0.113.7|radio:2026-10-15'), 2);
+});
+
 test('transcription partagée : modèle de secours si Whisper turbo échoue', async () => {
   const { env, calls } = fakeEnv({ failTurbo: true });
   const r = await transcribeRadio(env, mp3());

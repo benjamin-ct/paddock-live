@@ -34,6 +34,7 @@ export function cleanFeedback(b) {
 // POST /f : nouveau message (avec un jeton d'envoi s'il annonce des pièces jointes)
 export async function feedbackPost(req, env, { now = Date.now(), fetchFn = fetch } = {}) {
   if (!env.DB) return json({ error: 'Envoi indisponible' }, 503);
+  if (Number(req.headers.get('Content-Length') || 0) > 16 * 1024) return json({ error: 'Message trop long' }, 413);
   const text = await req.text();
   if (text.length > 16 * 1024) return json({ error: 'Message trop long' }, 413);
   let body = null;

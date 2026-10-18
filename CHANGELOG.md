@@ -14,6 +14,8 @@ l'application (Réglages → Application → Nouveautés).
 ### F1 TV
 - Si la connexion par la fenêtre « Se connecter à F1 TV » échoue, le message indique ce que formula1.com a
   enregistré : de quoi corriger vite si le site change encore.
+- Extension Paddock Live Companion 1.0.4 : une ancienne connexion expirée (ancien site formula1.com) ne bloque
+  plus la connexion actuelle.
 
 ## v1.27.46 — 2026-10-18
 

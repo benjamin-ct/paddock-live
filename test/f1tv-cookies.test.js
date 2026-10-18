@@ -16,7 +16,7 @@ const loginSession = (token) => encodeURIComponent(JSON.stringify({ data: { subs
 function extension() {
   const noop = { addListener() {} };
   const ctx = vm.createContext({
-    atob, fetch() {}, AbortSignal,
+    atob, Date, fetch() {}, AbortSignal,
     chrome: { cookies: { onChanged: noop }, runtime: { onStartup: noop, onInstalled: noop, onMessage: noop }, alarms: { onAlarm: noop } },
   });
   vm.runInContext(readFileSync(new URL('../extension/background.js', import.meta.url), 'utf8'), ctx);
@@ -29,6 +29,8 @@ test('extension : garde seulement un jeton d\'abonnement F1 TV', () => {
   assert.equal(subscriptionToken(loginSession(SUB)), SUB, 'login-session (ancien site, JSON encodé)');
   assert.equal(subscriptionToken(`Bearer ${SUB}`), SUB);
   assert.equal(subscriptionToken(OTHER), null, 'JWT sans état d\'abonnement');
+  const old = jwt({ SubscriptionStatus: 'active', exp: Math.floor(Date.now() / 1000) - 3600 });
+  assert.equal(subscriptionToken(loginSession(old)), null, 'connexion expirée (vieux cookie de l\'ancien site)');
   assert.equal(subscriptionToken('opaque-session-value'), null);
   assert.equal(subscriptionToken(''), null);
 });

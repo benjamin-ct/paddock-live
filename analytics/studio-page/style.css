@@ -344,30 +344,9 @@ dialog.sheet .group, dialog.sheet input { background: rgba(255, 255, 255, .05); 
 /* « Tirer pour actualiser » : sous la barre d'état et l'encoche, au-dessus de l'en-tête, en verre */
 .ptr { top: env(safe-area-inset-top) !important; z-index: 30 !important; background: var(--surface-2) !important; color: var(--text) !important; border: 1px solid var(--glass-line); box-shadow: var(--glass-hi) !important; }
 
-/* ---------- Kit de lancement ---------- */
+/* ---------- Fonctions (accueil) ---------- */
 .features { display: grid; gap: 10px; margin-bottom: 10px; }
 .features .card.feature { margin-bottom: 0; }
-.kit-progress b { color: var(--text); }
-.kit-net.done { border-color: color-mix(in srgb, var(--ok) 35%, transparent); }
-.kit-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-.kit-head b { display: block; font-size: 16px; }
-.kit-head small { display: block; color: var(--muted); font-size: 12.5px; }
-.kit-done { position: relative; flex: none; cursor: pointer; }
-.kit-done input { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
-.kit-done span { display: inline-flex; align-items: center; gap: 4px; padding: 6px 12px; border: 1px solid var(--line-2); border-radius: 999px; color: var(--text-2); font-size: 13px; font-weight: 600; }
-.kit-done span .ic { width: 15px; height: 15px; }
-.kit-done input:checked + span { background: color-mix(in srgb, var(--ok) 16%, transparent); border-color: transparent; color: var(--ok); }
-.kit-media { display: flex; gap: 8px; overflow-x: auto; margin: 0 -2px 10px; padding: 2px; scrollbar-width: none; }
-.kit-media::-webkit-scrollbar { display: none; }
-.kit-media img { flex: none; height: 150px; width: auto; border-radius: 10px; border: 1px solid var(--line); cursor: zoom-in; }
-.kit-media.story img { height: 190px; }
-.kit-media.x img { height: 110px; }
-.kit-net video { max-height: 340px; width: auto; max-width: 100%; margin: 0 auto 10px; background: #000; }
-.kit-net textarea { font-size: 15px; }
-.kit-count { display: block; margin: 4px 2px 0; color: var(--muted); font-size: 12px; text-align: right; }
-.kit-actions { margin-top: 10px; }
-.kit-net .st:empty { display: none; }
-.kit-net .st { margin: 8px 2px 0; font-size: 13px; }
 
 /* ---------- Ordinateur (fenêtre large) ----------
    Même Studio, mise en page de bureau : navigation dans une barre latérale, listes sur plusieurs
@@ -414,7 +393,6 @@ dialog.sheet .group, dialog.sheet input { background: rgba(255, 255, 255, .05); 
   .chips { flex-wrap: wrap; overflow: visible; margin-inline: 0; padding-inline: 0; }
   .features { grid-template-columns: repeat(2, minmax(0, 560px)); }
   .card.feature { max-width: 560px; }
-  .editing.kit .page { display: block; max-width: 820px; }
 
   .toast { bottom: 28px; }
   /* Feuilles : fenêtre centrée */
