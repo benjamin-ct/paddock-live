@@ -24,6 +24,7 @@ export function studioVault(c = getConfig()) {
     meta: s.meta?.pageToken ? { pageId: s.meta.pageId, pageName: s.meta.pageName, pageToken: s.meta.pageToken, igId: s.meta.igId, igUsername: s.meta.igUsername, pages: s.meta.pages || [] } : null,
     bluesky: s.bluesky?.appPassword ? { handle: s.bluesky.handle, appPassword: s.bluesky.appPassword, did: s.bluesky.did || '' } : null,
     threads: s.threads?.token ? { token: s.threads.token, userId: s.threads.userId, username: s.threads.username, expiresAt: s.threads.expiresAt || null } : null,
+    threads2: s.threads2?.token ? { token: s.threads2.token, userId: s.threads2.userId, username: s.threads2.username, expiresAt: s.threads2.expiresAt || null } : null,
     tiktok: s.tiktok?.refreshToken ? { clientKey: s.tiktok.clientKey, clientSecret: s.tiktok.clientSecret, accessToken: s.tiktok.accessToken || '', expiresAt: s.tiktok.expiresAt || 0, refreshToken: s.tiktok.refreshToken, openId: s.tiktok.openId || '', name: s.tiktok.name || '' } : null,
     youtube: s.youtube?.refreshToken ? { clientId: s.youtube.clientId, clientSecret: s.youtube.clientSecret, accessToken: s.youtube.accessToken || '', expiresAt: s.youtube.expiresAt || 0, refreshToken: s.youtube.refreshToken, name: s.youtube.name || '' } : null,
     f1tv,

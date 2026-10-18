@@ -62,10 +62,10 @@ async function facebook(pages, handle) {
   throw new Error('page non reliée (reconnectez Meta dans l\'appli pour ajouter toutes vos pages)');
 }
 
-// Threads : compte relié (vues, j'aime, réponses, partages des 28 derniers jours)
-async function threads(th, handle, now) {
-  if (!th?.token) throw new Error('compte Threads non relié');
-  if ((th.username || '').toLowerCase() !== handle) throw new Error('compte non relié (un seul compte Threads par connexion)');
+// Threads : compte relié, le premier ou le deuxième (vues, j'aime, réponses, partages des 28 derniers jours)
+async function threads(list, handle, now) {
+  const th = list.find((t) => t?.token && (t.username || '').toLowerCase() === handle);
+  if (!th) throw new Error('compte non relié (Comptes… → Threads, 2e compte, dans l\'appli)');
   const r = await call(`${THREADS}/me/threads_insights?${new URLSearchParams({ metric: 'views,likes,replies,reposts,quotes,followers_count', since: since(now), until: Math.floor(now / 1000), access_token: th.token })}`);
   return { followers: total(r, 'followers_count'), views: total(r, 'views'), likes: total(r, 'likes'), comments: total(r, 'replies'), shares: (total(r, 'reposts') ?? 0) + (total(r, 'quotes') ?? 0) };
 }
@@ -98,7 +98,7 @@ export async function accountStats(v, { youtubeToken = null, now = Date.now(), f
       try {
         if (n === 'instagram') out.stats = await instagram(pages, handle, now);
         else if (n === 'facebook') out.stats = await facebook(pages, handle);
-        else if (n === 'threads') out.stats = await threads(v.threads, handle, now);
+        else if (n === 'threads') out.stats = await threads([v.threads, v.threads2], handle, now);
         else if (n === 'youtube') out.stats = await youtube(youtubeToken, handle);
         else if (n === 'bluesky') out.stats = await bluesky(handle, now, fetchFn);
         else out.note = n === 'tiktok' ? 'chiffres non fournis par TikTok à l\'appli' : 'chiffres payants chez X';

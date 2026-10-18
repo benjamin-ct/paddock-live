@@ -23,6 +23,7 @@ export function accountsInfo() {
     facebook: { connected: !!c.meta?.pageToken, name: c.meta?.pageName || '' },
     instagram: { connected: !!c.meta?.igId, name: c.meta?.igUsername ? `@${c.meta.igUsername}` : '' },
     threads: { connected: !!c.threads?.token, name: c.threads?.username ? `@${c.threads.username}` : '', expiresAt: c.threads?.expiresAt || null },
+    threads2: { connected: !!c.threads2?.token, name: c.threads2?.username ? `@${c.threads2.username}` : '' },
     bluesky: { connected: !!c.bluesky?.appPassword, name: c.bluesky?.handle ? `@${String(c.bluesky.handle).replace(/^@/, '')}` : '' },
     tiktok: { connected: !!c.tiktok?.refreshToken, name: c.tiktok?.name || '', configured: !!c.tiktok?.clientKey, direct: !!c.tiktok?.direct },
     youtube: { connected: !!c.youtube?.refreshToken, name: c.youtube?.name || '', configured: !!c.youtube?.clientId },
@@ -55,13 +56,14 @@ export async function saveAccount(net, b) {
     // Toutes les pages du compte (et leurs comptes Instagram) gardées pour les statistiques de chaque compte
     const all = list.slice(0, 10).map((p) => ({ pageId: p.id, pageName: p.name, pageToken: p.access_token, igId: p.instagram_business_account?.id || '', igUsername: p.instagram_business_account?.username || '' }));
     saveConfig({ social: { ...conf(), meta: { appId, appSecret, pageId: page.id, pageName: page.name, pageToken: page.access_token, igId: page.instagram_business_account?.id || '', igUsername: page.instagram_business_account?.username || '', pages: all } } });
-  } else if (net === 'threads') {
+  } else if (net === 'threads' || net === 'threads2') {
+    // threads2 : deuxième compte Threads, pour ses statistiques dans le Studio (pas de publication)
     const appSecret = str(b.appSecret); const token = str(b.token, 1000);
     if (!appSecret || !token) throw new Error('Clé secrète Threads et jeton nécessaires');
     let long = { access_token: token, expires_in: 0 };
     try { long = await call(`https://graph.threads.net/access_token?${new URLSearchParams({ grant_type: 'th_exchange_token', client_secret: appSecret, access_token: token })}`); } catch { /* déjà un jeton longue durée */ }
     const me = await call(`${THREADS}/me?${new URLSearchParams({ fields: 'id,username', access_token: long.access_token })}`);
-    save('threads', { appSecret, token: long.access_token, expiresAt: long.expires_in ? Date.now() + long.expires_in * 1000 : null, userId: me.id, username: me.username || '' });
+    save(net, { appSecret, token: long.access_token, expiresAt: long.expires_in ? Date.now() + long.expires_in * 1000 : null, userId: me.id, username: me.username || '' });
   } else if (net === 'bluesky') {
     const handle = str(b.handle, 120).replace(/^@/, ''); const appPassword = str(b.appPassword, 100);
     if (!handle || !appPassword) throw new Error('Identifiant et mot de passe d\'application nécessaires');

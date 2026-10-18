@@ -106,6 +106,8 @@ const HELP = {
   threads: ['Dans l\'app Meta, ajoutez le cas d\'usage « Accéder à l\'API Threads » (threads_basic, threads_content_publish, threads_manage_replies, threads_manage_insights).',
     'Ajoutez votre compte Threads comme testeur, puis acceptez l\'invitation dans Threads (Paramètres → Compte → Autorisations du site web).',
     'Copiez la clé secrète Threads de l\'app et générez un jeton avec « User Token Generator ». Il est prolongé automatiquement.'],
+  threads2: ['Pour les statistiques de votre deuxième compte Threads dans la page web (aucune publication) : même app Meta, ajoutez ce compte comme testeur et acceptez l’invitation dans Threads.',
+    'Générez un jeton pour ce compte avec « User Token Generator », puis collez la clé secrète Threads et ce jeton ici.'],
   bluesky: ['Gratuit : dans Bluesky, Paramètres → Confidentialité et sécurité → Mots de passe d\'application → « Ajouter un mot de passe d\'application ».',
     'Collez ici votre identifiant (ex. benjy.paddocklive.app ou pseudo.bsky.social) et ce mot de passe d\'application (jamais votre mot de passe principal).'],
   tiktok: ['developers.tiktok.com → Manage apps : créez une app avec Login Kit (plateforme Desktop) et Content Posting API.',
@@ -124,11 +126,12 @@ const FIELDS = {
   x: [['apiKey', 'API Key'], ['apiSecret', 'API Key Secret'], ['accessToken', 'Access Token'], ['accessSecret', 'Access Token Secret']],
   meta: [['appId', 'Identifiant de l\'app'], ['appSecret', 'Clé secrète de l\'app'], ['userToken', 'Jeton d\'accès (Explorateur de l\'API Graph)']],
   threads: [['appSecret', 'Clé secrète Threads'], ['token', 'Jeton Threads']],
+  threads2: [['appSecret', 'Clé secrète Threads'], ['token', 'Jeton Threads']],
   bluesky: [['handle', 'Identifiant Bluesky'], ['appPassword', 'Mot de passe d\'application']],
   tiktok: [['clientKey', 'Client key'], ['clientSecret', 'Client secret']],
   youtube: [['clientId', 'ID client'], ['clientSecret', 'Code secret du client']],
 };
-const TITLES = { x: 'X', meta: 'Instagram + Facebook', threads: 'Threads', bluesky: 'Bluesky', tiktok: 'TikTok', youtube: 'YouTube Shorts' };
+const TITLES = { x: 'X', meta: 'Instagram + Facebook', threads: 'Threads', threads2: 'Threads (2e compte, statistiques)', bluesky: 'Bluesky', tiktok: 'TikTok', youtube: 'YouTube Shorts' };
 // Connexion par le navigateur (OAuth) : bouton « Se connecter à … »
 const OAUTH = { tiktok: 'TikTok', youtube: 'YouTube' };
 

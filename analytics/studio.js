@@ -98,7 +98,7 @@ function cleanVault(v) {
   const page = (p) => ({ pageId: s(p?.pageId, 40), pageName: s(p?.pageName, 120), pageToken: s(p?.pageToken), igId: s(p?.igId, 40), igUsername: s(p?.igUsername, 60) });
   // pages : toutes les pages du compte Meta (statistiques de chaque compte)
   if (v?.meta?.pageToken) out.meta = { ...page(v.meta), pages: (Array.isArray(v.meta.pages) ? v.meta.pages : []).slice(0, 10).map(page).filter((p) => p.pageToken) };
-  if (v?.threads?.token) out.threads = { token: s(v.threads.token), userId: s(v.threads.userId, 40), username: s(v.threads.username, 60), expiresAt: Number(v.threads.expiresAt) || null };
+  for (const k of ['threads', 'threads2']) if (v?.[k]?.token) out[k] = { token: s(v[k].token), userId: s(v[k].userId, 40), username: s(v[k].username, 60), expiresAt: Number(v[k].expiresAt) || null };
   if (v?.bluesky?.appPassword) out.bluesky = { handle: s(v.bluesky.handle, 120), appPassword: s(v.bluesky.appPassword, 100), did: s(v.bluesky.did, 120) };
   if (v?.tiktok?.refreshToken) out.tiktok = { clientKey: s(v.tiktok.clientKey, 200), clientSecret: s(v.tiktok.clientSecret, 200), accessToken: s(v.tiktok.accessToken), expiresAt: Number(v.tiktok.expiresAt) || 0, refreshToken: s(v.tiktok.refreshToken), openId: s(v.tiktok.openId, 200), name: s(v.tiktok.name, 120) };
   if (v?.youtube?.refreshToken) out.youtube = { clientId: s(v.youtube.clientId, 300), clientSecret: s(v.youtube.clientSecret, 200), accessToken: s(v.youtube.accessToken), expiresAt: Number(v.youtube.expiresAt) || 0, refreshToken: s(v.youtube.refreshToken), name: s(v.youtube.name, 120) };
@@ -148,9 +148,10 @@ export async function freshF1tv(token, { now = Date.now(), fetchFn = fetch } = {
 // Jetons prolongés si besoin (Threads : 60 jours, F1 TV : 4 jours), coffre réenregistré s'ils changent
 async function refresh(env, raw, vault) {
   const th = vault.threads?.token ? await freshThreads(vault.threads) : vault.threads;
+  const th2 = vault.threads2?.token ? await freshThreads(vault.threads2) : vault.threads2;
   const f1tv = await freshF1tv(vault.f1tv);
-  if (th === vault.threads && f1tv === vault.f1tv) return vault;
-  const next = { ...vault, threads: th, f1tv };
+  if (th === vault.threads && th2 === vault.threads2 && f1tv === vault.f1tv) return vault;
+  const next = { ...vault, threads: th, threads2: th2, f1tv };
   await setRow(env, 'vault', await seal(raw, next));
   return next;
 }
@@ -159,7 +160,7 @@ async function refresh(env, raw, vault) {
 // que le serveur a lui-même prolongés (appli restée fermée longtemps)
 function keepNewer(old, incoming) {
   const out = { ...incoming };
-  if (old.threads?.token && out.threads?.token && old.threads.userId === out.threads.userId && (old.threads.expiresAt || 0) > (out.threads.expiresAt || 0)) out.threads = old.threads;
+  for (const k of ['threads', 'threads2']) if (old[k]?.token && out[k]?.token && old[k].userId === out[k].userId && (old[k].expiresAt || 0) > (out[k].expiresAt || 0)) out[k] = old[k];
   if (old.f1tv && out.f1tv && jwtSession(old.f1tv) === jwtSession(out.f1tv) && jwtExp(old.f1tv) > jwtExp(out.f1tv)) out.f1tv = old.f1tv;
   // TikTok, YouTube : jetons renouvelés par le serveur gardés s'ils sont plus récents (même compte, même app)
   if (old.tiktok && out.tiktok && old.tiktok.openId === out.tiktok.openId && old.tiktok.clientKey === out.tiktok.clientKey && (old.tiktok.expiresAt || 0) > (out.tiktok.expiresAt || 0)) out.tiktok = { ...out.tiktok, accessToken: old.tiktok.accessToken, expiresAt: old.tiktok.expiresAt, refreshToken: old.tiktok.refreshToken };
