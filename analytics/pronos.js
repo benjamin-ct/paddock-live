@@ -11,6 +11,7 @@ const json = (data, status = 200) => new Response(JSON.stringify(data), { status
 export const GROUP_RE = /^[a-z0-9]{10}$/;
 const MAX_PLAYERS = 50;
 const MAX_NEW = 20;   // groupes créés par adresse et par jour
+const SEASON_AGE = 6 * 3600e3;   // saison enregistrée acceptée telle quelle (tenue à jour par la tâche planifiée)
 
 const newId = () => [...crypto.getRandomValues(new Uint8Array(10))].map((b) => 'abcdefghijklmnopqrstuvwxyz0123456789'[b % 36]).join('');
 const groupOf = (env, id) => env.DB.prepare('SELECT id, name FROM pronos_groups WHERE id = ?').bind(id).first();
@@ -45,7 +46,7 @@ export async function pronosApi(req, env, url, { now = Date.now() } = {}) {
     const year = Number(url.searchParams.get('year')) || yNow;
     if (Math.abs(year - yNow) > 1) return json({ error: 'Année invalide' }, 400);
     const tok = url.searchParams.get('tok') || '';
-    const s = (await seasonRow(env, year)).v;
+    const s = (await seasonRow(env, year, { maxAge: SEASON_AGE })).v;
     const v = predictView(await storeOf(env, group.id, year), s, (_, p) => !!tok && p.tok === tok, now);
     // Nom des Grands Prix en français pour la page web
     return json({ group, year, ...v, races: v.races.map((r) => ({ ...r, fr: gpFull(r.name, false) })) });
@@ -63,7 +64,7 @@ export async function pronosApi(req, env, url, { now = Date.now() } = {}) {
     const players = new Set(Object.values(store.rounds).flatMap((r) => Object.keys(r)));
     if (!players.has(key) && players.size >= MAX_PLAYERS) return json({ error: `Groupe complet (${MAX_PLAYERS} joueurs)` }, 403);
     let out;
-    try { out = checkPick((await seasonRow(env, year)).v, b, old, now); } catch (err) { return json({ error: err.message }, 400); }
+    try { out = checkPick((await seasonRow(env, year, { maxAge: SEASON_AGE })).v, b, old, now); } catch (err) { return json({ error: err.message }, 400); }
     const tok = owner?.tok || (typeof b.tok === 'string' && /^[\w-]{20,64}$/.test(b.tok) ? b.tok : crypto.randomUUID());
     const p = out.pick;
     await env.DB.prepare(`INSERT INTO pronos (grp, year, round, pkey, name, pole, p1, p2, p3, tok, at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)

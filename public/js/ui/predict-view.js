@@ -13,6 +13,7 @@ import { track } from './stats.js';
 let view = null;
 let viewYear = null;
 let loading = false;
+let seq = 0;               // numéro de la dernière lecture demandée (les réponses plus anciennes sont ignorées)
 
 const me = () => storageGet('paddock.player', '');
 const SITE = 'https://paddocklive.app/p/';
@@ -30,8 +31,11 @@ const fmt = (t) => (t ? new Date(t).toLocaleString(LOCALE, { weekday: 'short', d
 
 // quiet : relecture automatique (pronostics des autres) ; rien n'est redessiné si rien n'a changé ou
 // pendant la saisie, et les choix en cours sont gardés
+// Une lecture demandée (groupe changé…) n'attend pas la relecture automatique en cours : elle part
+// tout de suite, et la réponse de l'ancienne lecture est ignorée
 async function load(year, force = false, quiet = false) {
-  if (loading || (!force && view && viewYear === year)) return;
+  if ((quiet && loading) || (!force && view && viewYear === year)) return;
+  const my = ++seq;
   loading = true;
   let next;
   try {
@@ -40,8 +44,9 @@ async function load(year, force = false, quiet = false) {
   } catch (err) {
     next = quiet ? view : { error: err.message };
   } finally {
-    loading = false;
+    if (my === seq) loading = false;
   }
+  if (my !== seq) return;
   const form = $('#pdForm');
   if (quiet && (sig(next) === sig(view) || form?.contains(document.activeElement))) return;
   const keep = quiet && form ? Object.fromEntries(new FormData(form)) : null;
@@ -150,7 +155,7 @@ export function initPredict() {
   document.addEventListener('change', (e) => {
     if (e.target.closest('#pdForm')) lockPodium();
     const sw = e.target.closest('[data-pd-switch]');
-    if (sw) { useGroup(groups().find((x) => x.id === sw.value)); load(viewYear, true); }
+    if (sw) { useGroup(groups().find((x) => x.id === sw.value)); view = null; fill(); load(viewYear, true); }
   });
   // Pronostics des autres (téléphones, groupe en ligne) relus toutes les 5 s quand la vue est affichée
   setInterval(() => { if ($('#pdRoot')?.offsetParent && !document.hidden && viewYear) load(viewYear, true, true); }, 5000);
@@ -180,6 +185,8 @@ export function initPredict() {
         if (k) storageSet(tokKey(r.group), k);
         useGroup(r.group);
       }
+      view = null;
+      fill();
       load(viewYear, true);
     } catch (err) { toast(err.message, 5000); b.disabled = false; }
   });

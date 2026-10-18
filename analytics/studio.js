@@ -52,10 +52,12 @@ async function setRow(env, k, v) {
 // ---------- Saison résumée (onglet Saison du Studio) ----------
 // Gardée dans la base, relue au plus toutes les 30 minutes (par la tâche planifiée, sinon à la
 // demande) ; l'ancienne version sert si Jolpica ne répond pas.
-export async function seasonRow(env, year, { now = Date.now(), fetchFn, wait } = {}) {
+// maxAge : âge accepté sans reconstruire (pronostics : la saison relue en arrière-plan suffit, le
+// visiteur n'attend jamais la reconstruction)
+export async function seasonRow(env, year, { now = Date.now(), fetchFn, wait, maxAge = SEASON_TTL } = {}) {
   const key = `season:${year}`;
   const row = JSON.parse(await getRow(env, key) || 'null');
-  if (row && now - row.at < SEASON_TTL) return row;
+  if (row && now - row.at < maxAge) return row;
   try {
     const fresh = { at: now, v: await buildSeason(year, { fetchFn, wait }) };
     await setRow(env, key, JSON.stringify(fresh));

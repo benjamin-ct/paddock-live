@@ -30,6 +30,8 @@ l'application (Réglages → Application → Nouveautés).
   rouvre le groupe avec votre pseudo et vos points sur un autre appareil (téléphone, autre ordinateur).
 - Page web du groupe : sur ordinateur, le bouton copie directement le lien ; le partage du téléphone reste sur
   mobile.
+- Changer de groupe est immédiat : le groupe choisi s'affiche dès la réponse du serveur, sans attendre la
+  mise à jour automatique suivante, et la page web du groupe s'ouvre sans attendre la mise à jour du calendrier.
 
 ### Actualités
 - Accueil : les dernières actualités sont traduites, y compris celles arrivées depuis l'ouverture de
