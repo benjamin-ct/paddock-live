@@ -7,7 +7,7 @@ import { prefs, setPref, toggleFav, toggleTeamFav } from '../prefs.js';
 import { NEWS_TEAMS, fold } from '/shared/news.js';
 import { saveWindowsSnapshot, restoreWindowsSnapshot, hasWindowsSnapshot } from './layout.js';
 import { icon } from '../icons.js';
-import { LANG, LOCALE, EN } from '../i18n.js';
+import { LANG, LOCALE, EN, t } from '../i18n.js';
 
 let dragging = false;
 
@@ -367,6 +367,20 @@ export function initSettings() {
 
   on('status', renderReplayBar);
   setInterval(renderReplayBar, 250);
+
+  // À propos : question ou suggestion envoyée au créateur (relais du serveur local)
+  $('#fbForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const text = $('#fbText').value.trim();
+    if (text.length < 5) { toast(t('Message trop court')); return; }
+    $('#fbSend').disabled = true;
+    try {
+      await api('/api/feedback', { method: 'POST', body: { kind: $('#fbKind').value, text, contact: $('#fbContact').value.trim(), lang: LANG } });
+      $('#fbText').value = '';
+      toast(t('Message envoyé : merci !'), 3000, 'check');
+    } catch (err) { toast(err.message, 5000); }
+    $('#fbSend').disabled = false;
+  });
 }
 
 function renderFavs() {

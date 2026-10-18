@@ -74,11 +74,13 @@ function home({ from = 'up' } = {}) {
   app.className = 'shell';
   app.innerHTML = `<header class="appbar"><div class="brand">${LOGO}<span>Paddock <b>Studio</b></span></div><span class="grow"></span>
       <a class="iconbtn" href="https://paddocklive.app/" aria-label="Retour au site" title="Retour au site">${icon('home')}</a>
-      <button class="iconbtn" id="refresh" aria-label="Actualiser">${icon('refresh')}</button><button class="iconbtn" id="settings" aria-label="Réglages">${icon('settings')}</button></header>
+      <button class="iconbtn" id="refresh" aria-label="Actualiser">${icon('refresh')}</button><button class="iconbtn" id="inbox" aria-label="Messages">${icon('mail')}<i class="count" hidden></i></button><button class="iconbtn" id="settings" aria-label="Réglages">${icon('settings')}</button></header>
     <main class="page" id="body"></main>
     <nav class="tabbar" style="--i:${tabIndex(state.tab)}"><div class="side-brand">${LOGO}<span>Paddock <b>Studio</b></span></div><span class="lens"></span>${TABS.map(([k, v, ic]) => `<button data-tab="${k}" class="${state.tab === k ? 'on' : ''}">${icon(ic)}<span>${v}</span></button>`).join('')}</nav>`;
   $('#settings').onclick = settings;
-  $('#refresh').onclick = () => showTab({ force: true });
+  $('#inbox').onclick = messages;
+  $('#refresh').onclick = () => { inboxCount(); showTab({ force: true }); };
+  inboxCount();
   $$('[data-tab]').forEach((b) => {
     b.onclick = () => {
       if (state.tab === b.dataset.tab) { scrollTo({ top: 0, behavior: 'smooth' }); return; }
@@ -314,21 +316,104 @@ function renderStats(body, r, stale) {
   });
 }
 
+// ---------- Messages : questions et suggestions des utilisateurs (appli, site) ----------
+const KIND = { idea: 'Suggestion', question: 'Question', bug: 'Problème' };
+const SYS = { win: 'Windows', mac: 'macOS', linux: 'Linux' };
+const isMail = (s) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
+const showCount = (items) => {
+  const c = $('#inbox .count'), n = items.filter((m) => !m.seen).length;
+  if (c) { c.hidden = !n; c.textContent = n > 9 ? '9+' : n; }
+};
+const inboxCount = () => api('feedback').then((r) => showCount(r.items || [])).catch(() => {});
+function msgHtml(m) {
+  const from = m.src === 'app' ? ['Appli', /^\d/.test(m.version) ? `v${m.version}` : '', SYS[m.os] || m.os].filter(Boolean).join(' ') : 'Site';
+  const when = new Date(m.at).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  const contact = !m.contact ? '<small>Pas de contact laissé</small>'
+    : isMail(m.contact) ? `<a class="btn small" href="mailto:${esc(m.contact)}?subject=${encodeURIComponent('Paddock Live')}">${icon('send')}Répondre à ${esc(m.contact)}</a>`
+      : `<small>Contact : ${esc(m.contact)}</small>`;
+  return `<article class="msg${m.seen ? '' : ' new'}"><div class="msg-head"><span class="badge kind-${esc(m.kind)}">${esc(KIND[m.kind] || m.kind)}</span>
+    <small>${esc(when)} · ${esc(from)}${m.lang === 'en' ? ' · en anglais' : ''}</small></div><p>${esc(m.text)}</p>
+    <div class="msg-foot">${contact}<button class="btn small" data-remove="${Number(m.id)}">Supprimer</button></div></article>`;
+}
+async function messages() {
+  const dlg = sheet('Messages', '<p class="hint center">Chargement…</p>');
+  const body = $('.sheet-body', dlg);
+  let items;
+  try { items = (await api('feedback')).items || []; } catch (err) { body.innerHTML = `<p class="hint center">${esc(err.message)}</p>`; return; }
+  const draw = () => {
+    body.innerHTML = items.length ? `<div class="group">${items.map(msgHtml).join('')}</div>
+      <p class="hint">Envoyés depuis l'appli (Réglages → À propos) ou le site (FAQ). Un e-mail laissé permet de répondre.</p>`
+      : '<p class="hint center">Aucun message pour l\'instant. Les questions et suggestions envoyées depuis l\'appli (Réglages → À propos) ou le site arriveront ici.</p>';
+    $$('[data-remove]', body).forEach((b) => {
+      b.onclick = async () => {
+        try { await api('feedback/remove', { method: 'POST', body: JSON.stringify({ id: Number(b.dataset.remove) }) }); } catch (err) { toast(err.message, 'bad'); return; }
+        items = items.filter((m) => m.id !== Number(b.dataset.remove));
+        draw();
+      };
+    });
+  };
+  draw();
+  // Messages lus : pastille retirée (ils restent marqués jusqu'à la prochaine ouverture)
+  if (items.some((m) => !m.seen)) api('feedback/seen', { method: 'POST' }).then(() => showCount([])).catch(() => {});
+}
+
+// Pack de présentation pour les streamers : page non listée (ni le site ni l'appli n'y mènent),
+// à envoyer avec un de ces messages
+const KIT = 'https://paddocklive.app/kit/streamers/';
+const PITCH = [
+  ['Message court (DM Instagram, TikTok, X, Discord)', `Salut ! Je regarde tes lives pendant les Grands Prix et je pense qu'un outil que j'ai créé pourrait te servir : Paddock Live, une appli gratuite et sans compte qui affiche la course en direct (classement, carte GPS, radios traduites, stratégie) et qui ajoute des overlays sur ton stream (OBS, Streamlabs, Meld).
+
+Elle se cale sur ta diffusion TV : zéro spoiler pour toi et ton chat.
+
+Tout est résumé en 6 images ici : ${KIT}
+
+Si tu veux tester pendant le prochain GP, je t'aide volontiers à l'installer !`],
+  ['Message complet (e-mail, adresse pro)', `Objet : Un outil gratuit pour tes lives F1
+
+Salut,
+
+Je suis tes lives pendant les Grands Prix et je voulais te présenter Paddock Live, une appli que j'ai développée pour suivre la F1 en direct comme au mur des stands. Elle est gratuite, sans compte, pour Windows, macOS et Linux.
+
+Ce qu'elle peut apporter à tes lives :
+- Des overlays prêts pour OBS, Streamlabs ou Meld : classement, carte du circuit, compteur de tours, bandeaux safety car et drapeaux, podium. Ils se mettent à jour tout seuls.
+- Zéro spoiler : le chronométrage arrive avant l'image TV, Paddock Live retarde tout pour coller à ta diffusion (un clic, ou l'appli écoute la TV).
+- De quoi commenter chaque tour : écarts, secteurs, pneus, arrêts, carte GPS, radios d'équipe retranscrites et traduites, direction de course.
+- Des pronostics avec ta communauté : ton chat pronostique la pole et le podium depuis une simple page web, avec un classement sur la saison.
+
+Le pack de présentation (6 images et un PDF) : ${KIT}
+
+Je serais ravi d'avoir ton avis, et je peux t'aider à tout installer avant le prochain GP.
+
+À bientôt !`],
+  ['Short message (English)', `Hi! I watch your race-day streams and I think a tool I built could help: Paddock Live, a free desktop app (no account needed) that shows the race live (timing, GPS track map, translated team radios, strategy) and adds overlays to your stream (OBS, Streamlabs, Meld).
+
+It syncs with your TV broadcast, so no spoilers for you or your chat.
+
+Everything in 6 images here (in French, the app is in English too): ${KIT}
+
+Happy to help you set it up before the next Grand Prix!`],
+];
+
 // ---------- Réglages : comptes, alertes, déconnexion ----------
 function settings() {
   const me = session.me || {};
   const accounts = [['Instagram', me.instagram], ['Facebook', me.facebook], ['Threads', me.threads], ['Bluesky', me.bluesky], ['F1 TV (archives des séances)', me.f1tv ? 'connecté' : null]];
   const pages = [['Paddock Live', 'https://paddocklive.app/liens/'], ['Benjy Paddock', 'https://paddocklive.app/benjy/']];
-  const dlg = sheet('Réglages', `<h3 class="section">Mes pages de liens</h3><div class="group">${pages.map(([n, u]) => `<div class="row-item static"><span class="grow"><b>${esc(n)}</b><small>${esc(u.replace('https://', ''))}</small></span>
-      <a class="btn small" href="${esc(u)}" target="_blank" rel="noopener">${icon('link')}Ouvrir</a><button class="btn small" data-copy="${esc(u)}">${icon('copy')}Copier</button></div>`).join('')}</div>
+  const link = ([n, u]) => `<div class="row-item static"><span class="grow"><b>${esc(n)}</b><small>${esc(u.replace('https://', ''))}</small></span>
+      <a class="btn small" href="${esc(u)}" target="_blank" rel="noopener">${icon('link')}Ouvrir</a><button class="btn small" data-copy="${esc(u)}">${icon('copy')}Copier</button></div>`;
+  const dlg = sheet('Réglages', `<h3 class="section">Mes pages de liens</h3><div class="group">${pages.map(link).join('')}</div>
     <p class="hint">Tous les réseaux sur une seule page : le lien à mettre en bio.</p>
+    <h3 class="section">Pack streamers</h3><div class="group">${link(['Présentation pour les streamers', KIT])}</div>
+    ${PITCH.map(([n, t]) => `<details class="cap"><summary><span>${esc(n)}</span></summary><textarea rows="9">${esc(t)}</textarea>
+      <button class="btn small" data-copy="">${icon('copy')}Copier le message</button></details>`).join('')}
+    <p class="hint">Page non listée : ni le site ni l'appli n'y mènent. Envoie le lien avec un des messages (modifiables avant de copier).</p>
     <h3 class="section">Comptes</h3><div class="group">${accounts.map(([n, v]) => `<div class="row-item static"><span class="grow"><b>${esc(n)}</b><small>${esc(v || 'non connecté')}</small></span><span class="state ${v ? 'on' : ''}"></span></div>`).join('')}</div>
     <p class="hint">Comptes envoyés par l'appli de bureau (Posts → Publier… → Comptes…).</p>
     <h3 class="section">Alertes des grosses news</h3><div id="alerts"></div>
     <button class="btn danger wide" id="out">${icon('logout')}Se déconnecter de cet appareil</button>
     <p class="hint center">Version du Studio : ${esc(VERSION)} · © 2026 Paddock Live · <a href="https://github.com/benjamin-ct/paddock-live/blob/main/analytics/LICENSE" target="_blank" rel="noopener">Licence AGPL v3</a></p>`);
   alertsBlock($('#alerts', dlg));
-  $$('[data-copy]', dlg).forEach((b) => { b.onclick = () => navigator.clipboard.writeText(b.dataset.copy).then(() => toast('Lien copié', 'ok'), () => toast('Copie impossible', 'bad')); });
+  $$('[data-copy]', dlg).forEach((b) => { b.onclick = () => navigator.clipboard.writeText(b.dataset.copy || b.previousElementSibling.value).then(() => toast(b.dataset.copy ? 'Lien copié' : 'Message copié', 'ok'), () => toast('Copie impossible', 'bad')); });
   $('#out', dlg).onclick = () => { dlg.close(); forgetKey(); login(); };
 }
 
@@ -374,6 +459,7 @@ async function alertsBlock(el) {
 // Notification touchée : post de la news prêt à relire
 async function openAlert(id) {
   if (!id) return;
+  if (id === 'messages') { messages(); return; }
   try {
     const it = ((await api('alerts')).items || []).find((a) => a.id === id);
     if (!it) return;

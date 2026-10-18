@@ -19,6 +19,7 @@ import { cleanSummaryRequest, summarizeArticle } from './summarize.js';
 import { newsAlerts } from './alerts.js';
 import { transcribeRadio, cachedRadio, HASH_RE, MAX_AUDIO } from './transcribe.js';
 import { download } from './download.js';
+import { feedbackPost } from './feedback.js';
 import { buildIcs } from '../shared/ics.js';
 import { pronosApi, GROUP_RE } from './pronos.js';
 
@@ -208,6 +209,10 @@ export default {
     // Site de l'appli : liens de téléchargement vers la dernière version ; sur un nom de domaine
     // à soi (pas *.workers.dev), la racine affiche le site au lieu de la page des statistiques
     if (req.method === 'GET' && url.pathname.startsWith('/download/')) return download(url.pathname);
+    // Scènes OBS toutes prêtes : adresse courte à donner aux streamers
+    if (req.method === 'GET' && url.pathname === '/obs') return Response.redirect(new URL('/obs/paddock-live-obs.json', url), 302);
+    // Page des streamers : le bloc Streaming du site (aperçu, scènes OBS, installation)
+    if (req.method === 'GET' && url.pathname === '/streaming') return Response.redirect(new URL('/#streaming', url), 302);
     if (req.method === 'GET' && /^\/calendar(-en)?\.ics$/.test(url.pathname)) return calendar(env, new Date().getUTCFullYear(), url.pathname.includes('-en'));
     // Ancienne adresse (*.workers.dev) : les pages ouvertes dans un navigateur (connexion,
     // statistiques) passent sur le nom de domaine (SITE_ORIGIN) ; l'appli y garde ses appels
@@ -223,6 +228,10 @@ export default {
     }
     if (req.method === 'POST' && url.pathname === '/e') {
       try { return await ingest(req, env); } catch { return json({ error: 'Erreur' }, 500); }
+    }
+    // Questions et suggestions (appli, site) : lues dans le Studio
+    if (req.method === 'POST' && url.pathname === '/f') {
+      try { return await feedbackPost(req, env); } catch { return json({ error: 'Erreur' }, 500); }
     }
     // Traduction partagée (actualités, radios) : ouverte à l'appli, plafonnée par jour
     if (req.method === 'POST' && url.pathname === '/t') {

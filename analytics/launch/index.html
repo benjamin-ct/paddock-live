@@ -115,6 +115,15 @@ section { padding: 96px 0; }
 
 /* Questions */
 .faq { max-width: 820px; }
+.ask { display: grid; gap: 12px; margin-top: 32px; padding: 22px; border: 1px solid var(--line); border-radius: 18px; background: var(--card); }
+.ask h3 { margin: 0; font: 800 28px/1.1 var(--title); }
+.ask p { margin: 0; color: var(--muted); }
+.ask select, .ask textarea, .ask input { width: 100%; padding: 12px 14px; border: 1px solid var(--line-2); border-radius: 12px; background: var(--bg-2); color: var(--text); font: 16px 'Titillium Web', sans-serif; }
+.ask select { width: auto; justify-self: start; }
+.ask textarea { min-height: 120px; resize: vertical; }
+.ask :focus { outline: none; border-color: var(--red); }
+.ask .btn { justify-self: start; }
+.ask .ok { color: var(--ok); }
 details { border-bottom: 1px solid var(--line); }
 summary { cursor: pointer; list-style: none; display: flex; justify-content: space-between; gap: 16px; padding: 20px 0; font-weight: 700; font-size: 19px; }
 summary::-webkit-details-marker { display: none; }
@@ -277,15 +286,20 @@ footer .brand { -webkit-user-select: none; user-select: none; -webkit-touch-call
 
       <article class="feature reveal" id="streaming">
         <div class="copy">
-          <span class="eyebrow" data-en="Streaming">Streaming</span>
+          <span class="eyebrow" data-en="For streamers">Pour les streamers</span>
           <h3 data-en="The race as overlays on your stream">La course en overlay sur ton live</h3>
-          <p data-en="Add the standings, the track map, flag banners, lap counter, countdown, podium or telemetry to OBS, Streamlabs or Meld Studio: paste one address and it stays on your TV delay.">Ajoute le classement, la carte du circuit, les bandeaux de drapeaux, le compteur de tours, le compte à rebours, le podium ou la télémétrie à OBS, Streamlabs ou Meld Studio : une adresse à coller, toujours calée sur ton délai TV.</p>
+          <p data-en="Standings, track map, flag banners, lap counter, time remaining, podium and telemetry, ready for OBS, Streamlabs or Meld Studio, and always on your TV delay: your chat sees the info at the same moment as the picture.">Classement, carte du circuit, bandeaux de drapeaux, compteur de tours, temps restant, podium et télémétrie, prêts pour OBS, Streamlabs ou Meld Studio, et toujours calés sur ton délai TV : ton chat voit les infos en même temps que l'image.</p>
           <ul>
-            <li data-en="Background, columns and layers set from the app, applied live">Fond, colonnes et calques réglés depuis l'appli, appliqués en direct</li>
-            <li data-en="Stream Deck buttons: TV delay, play, pause and ±10 s in replay">Boutons pour le Stream Deck : délai TV, lecture, pause et ±10 s en replay</li>
+            <li data-en="Ready-made OBS scenes: before the race, race and podium, already laid out in 1920 × 1080">Scènes OBS toutes prêtes : avant la course, course et podium, déjà placées en 1920 × 1080</li>
+            <li data-en="Install: open Paddock Live, then in OBS go to Scene Collection → Import, pick the file and swap the frame for your webcam">Installation : ouvre Paddock Live, puis dans OBS Collection de scènes → Importer, choisis le fichier et remplace le cadre par ta webcam</li>
+            <li data-en="Background, columns and layers set from the app, applied live; Stream Deck buttons for the TV delay and replays">Fond, colonnes et calques réglés depuis l'appli, appliqués en direct ; boutons Stream Deck pour le délai TV et les replays</li>
           </ul>
+          <div class="cta" style="justify-content:flex-start;margin-top:20px">
+            <a class="btn primary small" href="/obs"><svg><use href="#i-dl"/></svg><span data-en="OBS scenes">Scènes OBS</span></a>
+            <a class="btn small" href="#telecharger" data-en="Download the app">Télécharger l'appli</a>
+          </div>
         </div>
-        <div class="frame"><img src="/site/img/streaming.webp" width="1600" height="888" alt="" loading="lazy"></div>
+        <div class="frame"><img src="/site/img/obs-course.webp" width="1600" height="900" alt="Scène OBS « Course » : classement, tours, temps restant, carte, télémétrie, bandeau de drapeau et webcam" loading="lazy"></div>
       </article>
 
       <article class="feature reveal" id="telephone">
@@ -353,6 +367,15 @@ footer .brand { -webkit-user-select: none; user-select: none; -webkit-touch-call
       <details><summary data-en="Does it work on a phone?">Ça marche sur téléphone ?</summary><p data-en="Yes, from your computer: scan the QR code it shows and the dashboard opens on your phone or tablet over your home Wi-Fi.">Oui, depuis ton ordinateur : scanne le QR code qu'il affiche, le dashboard s'ouvre sur ton téléphone ou ta tablette via le Wi-Fi de la maison.</p></details>
       <details><summary data-en="Is it an official F1 app?">C'est une appli officielle de la F1 ?</summary><p data-en="No. Paddock Live is an independent project, not affiliated with Formula 1, the FIA or the teams.">Non. Paddock Live est un projet indépendant, sans lien avec la Formula 1, la FIA ni les écuries.</p></details>
       <details><summary data-en="What about my data?">Et mes données ?</summary><p data-en="Your accounts stay on your computer. The app only sends anonymous usage counters, with no identifier. Details in the privacy policy.">Tes comptes restent sur ton ordinateur. L'appli n'envoie que des compteurs d'utilisation anonymes, sans identifiant. Le détail est dans la politique de confidentialité.</p></details>
+      <form class="ask" id="ask">
+        <h3 data-en="A question, an idea?">Une question, une idée ?</h3>
+        <p data-en="Suggestion, question or problem: your message goes straight to the creator of Paddock Live.">Suggestion, question ou problème : ton message arrive directement au créateur de Paddock Live.</p>
+        <select name="kind" aria-label="Type"><option value="idea" data-en="Suggestion">Suggestion</option><option value="question" data-en="Question">Question</option><option value="bug" data-en="Problem">Problème</option></select>
+        <textarea name="msg" maxlength="2000" required placeholder="Ton message…" data-ph-en="Your message…" aria-label="Message"></textarea>
+        <input name="contact" maxlength="120" placeholder="E-mail ou pseudo (facultatif, pour te répondre)" data-ph-en="Email or nickname (optional, so I can reply)" aria-label="Contact">
+        <button class="btn primary" data-en="Send">Envoyer</button>
+        <p id="askMsg" role="status"></p>
+      </form>
     </div>
   </section>
 </main>
@@ -402,6 +425,7 @@ function setLang(l) {
   document.documentElement.lang = l;
   for (const el of els) el.innerHTML = l === 'en' ? el.dataset.en : el.dataset.fr;
   document.title = META[l];
+  for (const el of document.querySelectorAll('[data-ph-en]')) { el.dataset.phFr ??= el.placeholder; el.placeholder = l === 'en' ? el.dataset.phEn : el.dataset.phFr; }
   const b = document.getElementById('lang');
   b.textContent = l === 'en' ? 'FR' : 'EN';
   b.setAttribute('aria-label', l === 'en' ? 'Français' : 'English');
@@ -434,6 +458,25 @@ function showVersion() {
   document.getElementById('ver').textContent = lang === 'en' ? `Version ${version} · Windows 10/11, macOS, Linux` : `Version ${version} · Windows 10/11, macOS, Linux`;
 }
 fetch('/download/latest.json').then((r) => r.json()).then((d) => { version = d.version || ''; showVersion(); }).catch(() => {});
+
+// Question ou suggestion : envoyée au serveur, lue par le créateur dans le Studio
+document.getElementById('ask').onsubmit = async (e) => {
+  e.preventDefault();
+  const f = e.target.elements, out = document.getElementById('askMsg'), en = lang === 'en', btn = e.target.querySelector('button');
+  const text = f.msg.value.trim();
+  out.className = '';
+  if (text.length < 5) { out.textContent = en ? 'Message too short' : 'Message trop court'; return; }
+  btn.disabled = true;
+  try {
+    const r = await fetch('/f', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: f.kind.value, text, contact: f.contact.value.trim(), lang, src: 'site' }) });
+    if (r.status === 429) throw new Error(en ? 'Too many messages today: try again tomorrow' : 'Trop de messages aujourd\'hui : réessaie demain');
+    if (!r.ok) throw new Error(en ? 'Sending failed: please try again' : 'Envoi impossible : réessaie');
+    f.msg.value = '';
+    out.className = 'ok';
+    out.textContent = en ? 'Message sent, thank you!' : 'Message envoyé, merci !';
+  } catch (err) { out.textContent = err.message; }
+  btn.disabled = false;
+};
 
 let saved = null;
 try { saved = localStorage.getItem('pl.lang'); } catch { /* sans stockage */ }

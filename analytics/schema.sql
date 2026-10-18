@@ -59,3 +59,8 @@ CREATE TABLE IF NOT EXISTS pronos (grp TEXT NOT NULL, year INTEGER NOT NULL, rou
   pole TEXT, p1 TEXT, p2 TEXT, p3 TEXT, tok TEXT NOT NULL, at INTEGER NOT NULL, PRIMARY KEY (grp, year, round, pkey));
 CREATE TABLE IF NOT EXISTS pronos_admins (grp TEXT PRIMARY KEY, tok TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS pronos_new (ip TEXT NOT NULL, day TEXT NOT NULL, n INTEGER NOT NULL, PRIMARY KEY (ip, day));
+
+-- Questions et suggestions des utilisateurs (appli, site), lues dans le Studio ; envois par adresse et par jour
+CREATE TABLE IF NOT EXISTS feedback (id INTEGER PRIMARY KEY AUTOINCREMENT, at INTEGER NOT NULL, kind TEXT NOT NULL, text TEXT NOT NULL,
+  contact TEXT NOT NULL, src TEXT NOT NULL, version TEXT NOT NULL, os TEXT NOT NULL, lang TEXT NOT NULL, seen INTEGER NOT NULL DEFAULT 0);
+CREATE TABLE IF NOT EXISTS feedback_new (ip TEXT NOT NULL, day TEXT NOT NULL, n INTEGER NOT NULL, PRIMARY KEY (ip, day));

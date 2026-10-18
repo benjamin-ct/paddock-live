@@ -15,6 +15,7 @@ import { addEntry, removeEntry, cleanKey } from '../shared/post-history.js';
 import { postStats } from '../shared/post-stats.js';
 import { recentPosts, importEntries } from './post-import.js';
 import { pushApi } from './alerts.js';
+import { feedbackApi } from './feedback.js';
 import { packFeeds } from '../shared/feed-pack.js';
 import { cleanPostRequest, rewritePost } from './summarize.js';
 import { buildSeason, SEASON_TTL } from './season-cache.js';
@@ -687,5 +688,8 @@ export async function studioApi(req, env, url) {
   // Alertes des grosses news sur le téléphone (abonnements, dernières alertes)
   const pushed = await pushApi(path, req, env);
   if (pushed) return pushed;
+  // Questions et suggestions des utilisateurs
+  const fb = await feedbackApi(path, req, env);
+  if (fb) return fb;
   return json({ error: 'Introuvable' }, 404);
 }

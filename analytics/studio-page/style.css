@@ -473,3 +473,17 @@ details.cap[open] textarea { animation: in-up .3s var(--ease); }
 .tkbox .seg { margin-bottom: 4px; }
 .tk-who { margin: 10px 0 0; font-size: 14px; }
 .tk-who small { color: var(--muted); }
+
+/* Messages des utilisateurs (questions, suggestions) */
+#inbox { position: relative; }
+#inbox .count { position: absolute; top: 5px; right: 4px; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 9px; background: var(--brand); color: #fff; font: 700 10.5px/17px 'JetBrains Mono', monospace; font-style: normal; text-align: center; }
+.msg { padding: 14px 16px; border-top: 1px solid var(--line); }
+.msg:first-child { border-top: 0; }
+.msg.new { box-shadow: inset 3px 0 var(--brand); }
+.msg-head, .msg-foot { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.msg-foot { justify-content: space-between; }
+.msg small { color: var(--muted); }
+.msg p { margin: 8px 0 12px; white-space: pre-wrap; overflow-wrap: anywhere; -webkit-user-select: text; user-select: text; }
+.badge.kind-idea { background: #2fbf71; }
+.badge.kind-question { background: #5aa9ff; }
+.badge.kind-bug { background: #ffb020; }

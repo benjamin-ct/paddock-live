@@ -557,6 +557,11 @@ code { background: var(--panel-3); padding: 1px 5px; border-radius: 4px; font-si
 .cl-body ul { margin: 4px 0; padding-left: 18px; }
 .cl-body p { margin: 4px 0; }
 .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 8px 0; }
+.fb-form { display: grid; gap: 8px; margin-top: 8px; }
+.fb-form select { justify-self: start; }
+.fb-form textarea { width: 100%; resize: vertical; font: inherit; }
+.fb-form .row { margin: 0; }
+.fb-form .row input { flex: 1; min-width: 200px; }
 .row input[type=password] { flex: 1; min-width: 200px; padding: 5px 8px; }
 details summary { cursor: pointer; color: var(--text-2); margin: 6px 0; }
 details ol { line-height: 1.6; }

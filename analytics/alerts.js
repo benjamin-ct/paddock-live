@@ -97,6 +97,22 @@ export async function sendPush(keys, sub, message, { fetchFn = fetch, now = Date
   return res.ok;
 }
 
+// Message à chaque téléphone abonné (nombre reçu) ; abonnements disparus retirés
+export async function notifyPhones(env, message, { fetchFn = fetch, now = Date.now() } = {}) {
+  const subs = await readJSON(env, 'push', []);
+  if (!subs.length) return 0;
+  const keys = await vapidKeys(env);
+  const gone = new Set();
+  let sent = 0;
+  await Promise.all(subs.map(async (s) => {
+    const r = await sendPush(keys, s, message, { fetchFn, now }).catch(() => false);
+    if (r === 'gone') gone.add(s.endpoint);
+    else if (r) sent++;
+  }));
+  if (gone.size) await setRow(env, 'push', JSON.stringify(subs.filter((s) => !gone.has(s.endpoint))));
+  return sent;
+}
+
 export function validSubscription(s) {
   try {
     const u = new URL(s?.endpoint);
@@ -178,18 +194,10 @@ export async function newsAlerts(env, { fetchFn = fetch, now = Date.now() } = {}
   }
   if (!added.length) return { checked: picked.length, items: items.length, sent: 0 };
   await setRow(env, 'alerts', JSON.stringify([...added, ...alerts].slice(0, MAX_ALERTS)));
-  // Envoi à chaque téléphone abonné ; abonnements disparus retirés
-  const keys = await vapidKeys(env);
-  const gone = new Set();
+  // Envoi à chaque téléphone abonné
   let sent = 0;
   for (const a of added) {
-    const message = { title: `${isBreaking(a) ? 'BREAKING · ' : ''}${newsKind(a).label} · ${a.srcName}`, body: a.titleFr, id: a.id, url: `/studio/?alert=${encodeURIComponent(a.id)}` };
-    await Promise.all(subs.map(async (s) => {
-      const r = await sendPush(keys, s, message, { fetchFn, now }).catch(() => false);
-      if (r === 'gone') gone.add(s.endpoint);
-      else if (r) sent++;
-    }));
+    sent += await notifyPhones(env, { title: `${isBreaking(a) ? 'BREAKING · ' : ''}${newsKind(a).label} · ${a.srcName}`, body: a.titleFr, id: a.id, url: `/studio/?alert=${encodeURIComponent(a.id)}` }, { fetchFn, now });
   }
-  if (gone.size) await setRow(env, 'push', JSON.stringify(subs.filter((s) => !gone.has(s.endpoint))));
   return { checked: picked.length, items: items.length, alerts: added.length, sent };
 }

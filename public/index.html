@@ -598,6 +598,17 @@
       </section>
 
       <section class="set-block" data-sgroup="about">
+        <h4><svg class="ic" aria-hidden="true"><use href="#i-megaphone"/></svg> Une question, une idée ?</h4>
+        <p class="small muted">Suggestion, question ou problème : votre message arrive directement au créateur de Paddock Live.</p>
+        <form class="fb-form" id="fbForm">
+          <select id="fbKind" aria-label="Type de message"><option value="idea">Suggestion</option><option value="question">Question</option><option value="bug">Problème</option></select>
+          <textarea id="fbText" rows="4" maxlength="2000" required placeholder="Votre message…" aria-label="Votre message"></textarea>
+          <div class="row"><input type="text" id="fbContact" maxlength="120" placeholder="E-mail ou pseudo (facultatif, pour vous répondre)" aria-label="E-mail ou pseudo">
+            <button class="btn small primary" id="fbSend"><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg> Envoyer</button></div>
+        </form>
+      </section>
+
+      <section class="set-block" data-sgroup="about">
         <h4><svg class="ic" aria-hidden="true"><use href="#i-note"/></svg> Nouveautés (journal des modifications)</h4>
         <div class="cl-list" id="changelog"><p class="muted">Chargement…</p></div>
       </section>

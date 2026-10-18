@@ -38,7 +38,7 @@ import { postHistory, recordPost, removePost, statsOfPosts } from './post-histor
 import { accountsInfo, saveAccount, tiktokLoginUrl, tiktokCallback, youtubeLoginUrl, youtubeCallback, publish as publishSocial } from './social-publish.js';
 import { startAutoRenew, renew as renewF1tv, sessionOf, state as renewState, resetRenewState } from './f1tv-auth.js';
 import { localHost, sameSiteRequest, decodePath } from './guard.js';
-import { stats, startStats } from './stats.js';
+import { stats, startStats, sendFeedback } from './stats.js';
 import { archivePath, sendArchiveFile, archiveJSON } from './archive.js';
 import { cloud, createCloudTranslator } from './cloud-translate.js';
 import { cloudRadio } from './cloud-transcribe.js';
@@ -520,6 +520,11 @@ async function handleApi(req, res, url) {
     case 'DELETE /api/predictions/online': {
       const { g, ...body } = await readBody(req, 1e4);
       const r = await pronosOnline('DELETE', g || '', { body });
+      return sendJSON(res, r.status, r.data);
+    }
+    // Question ou suggestion (Réglages → À propos), relayée au créateur
+    case 'POST /api/feedback': {
+      const r = await sendFeedback(await readBody(req, 2e4));
       return sendJSON(res, r.status, r.data);
     }
     case 'POST /api/predictions': {

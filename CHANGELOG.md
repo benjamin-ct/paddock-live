@@ -4,6 +4,17 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
+## v1.27.42 — 2026-10-18
+
+### Une question, une idée ?
+- Nouveau formulaire dans Réglages → À propos : envoyez une suggestion, une question ou un problème directement au
+  créateur de Paddock Live. Laissez un e-mail ou un pseudo (facultatif) pour recevoir une réponse.
+- Le même formulaire est aussi sur le site, en bas de la FAQ.
+
+### Nouveautés
+- Le journal des modifications (Réglages → À propos, et nouveautés d'une mise à jour) n'est plus coupé en morceaux :
+  chaque point s'affiche d'un seul tenant, même quand il tient sur plusieurs lignes.
+
 ## v1.27.41 — 2026-10-18
 
 ### Pronostics entre amis
