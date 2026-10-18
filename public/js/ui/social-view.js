@@ -427,12 +427,15 @@ async function saveImages(d, canvases) {
   return { folder, dir };
 }
 
-// Pages officielles pour écrire un post, préremplies (gratuit, sans clés d'accès)
+// Pages officielles pour écrire un post, préremplies (gratuit, sans clés d'accès). Seulement pour
+// les réseaux sans publication automatique (compte non connecté dans « Publier sur mes réseaux »).
 const INTENTS = {
-  x: { name: 'X', url: 'https://x.com/intent/post?text=' },
-  threads: { name: 'Threads', url: 'https://www.threads.com/intent/post?text=' },
-  bsky: { name: 'Bluesky', url: 'https://bsky.app/intent/compose?text=' },
+  x: { name: 'X', url: 'https://x.com/intent/post?text=', acc: 'x' },
+  threads: { name: 'Threads', url: 'https://www.threads.com/intent/post?text=', acc: 'threads' },
+  bsky: { name: 'Bluesky', url: 'https://bsky.app/intent/compose?text=', acc: 'bluesky' },
 };
+let accounts = {};   // comptes connectés (/api/social/accounts), relus à chaque ouverture
+const freeIntents = () => Object.entries(INTENTS).filter(([, v]) => !accounts[v.acc]?.connected);
 
 async function copyImage(canvas) {
   const blob = await new Promise((r) => canvas.toBlob(r, 'image/png'));
@@ -493,7 +496,7 @@ async function render(dlg, keepHead = false) {
       ${fmt === 'story' ? '' : `<label class="small muted">${fmt === 'x' ? t('Texte pour X / Threads / Bluesky') : t('Légende Instagram / Facebook')}</label>
       <textarea class="posts-cap" rows="${fmt === 'x' ? 4 : 12}" data-no-i18n>${esc(fmt === 'x' ? caps.x : caps.instagram)}</textarea>
       <div class="row"><button class="btn small" data-cap>${icon('doc')} ${t('Copier le texte')}</button>${fmt === 'x' ? `<span class="small muted" data-count></span><span class="spacer"></span>
-        <span class="small muted">${t('Publier gratuitement :')}</span>${Object.entries(INTENTS).map(([k, v]) => `<button class="btn small btn-accent" data-intent="${k}" title="${t("Ouvre la page de {} pour écrire un post, avec ce texte, et copie la première image : collez-la puis publiez. Gratuit, sans clés d'accès.", v.name)}">${icon('external')} ${v.name}</button>`).join('')}` : ''}</div>
+        ${freeIntents().length ? `<span class="small muted">${t('Publier gratuitement :')}</span>` : ''}${freeIntents().map(([k, v]) => `<button class="btn small btn-accent" data-intent="${k}" title="${t("Ouvre la page de {} pour écrire un post, avec ce texte, et copie la première image : collez-la puis publiez. Gratuit, sans clés d'accès.", v.name)}">${icon('external')} ${v.name}</button>`).join('')}` : ''}</div>
       ${fmt === 'x' && caps.comment ? `<div class="row small"><span class="muted">${t('Premier commentaire :')}</span> <span data-no-i18n>${esc(caps.comment)}</span><button class="btn small" data-copycomment>${icon('doc')} ${t('Copier')}</button></div>` : ''}
       ${fmt === 'x' ? `<p class="small muted posts-xhelp" hidden>${icon('info')} ${t("Fenêtre ouverte avec le texte : collez l'image avec Ctrl+V (Cmd+V sur Mac), puis publiez. Pour d'autres images, cliquez sur « Copier » sous chacune et collez-les aussi.")}</p>` : ''}`}
     </div>`;
@@ -575,6 +578,24 @@ async function render(dlg, keepHead = false) {
 // ---------- Statistiques des posts publiés ----------
 const fmtN = (v) => (v == null ? '—' : Number(v).toLocaleString());
 const STAT_LABELS = [['views', 'Vues'], ['reach', 'Portée'], ['likes', "J'aime"], ['comments', 'Comm.'], ['shares', 'Partages'], ['saves', 'Enreg.']];
+// Comptes (page web activée, comme dans le Studio) : abonnés et activité des 28 derniers jours par
+// réseau ; réseaux sans chiffres regroupés en bas. Libellé au singulier pour 1.
+const SINGULAR = { 'nouveaux abonnés': 'nouvel abonné', vues: 'vue', 'vues au total': 'vue au total', 'comptes touchés': 'compte touché', 'visites du profil': 'visite du profil',
+  'comptes engagés': 'compte engagé', interactions: 'interaction', partages: 'partage', publications: 'publication', abonnés: 'abonné' };
+const one = (n, l) => t((n === 1 && SINGULAR[l]) || l);
+const ACC_LABELS = [['newFollowers', 'nouveaux abonnés'], ['views', 'vues'], ['totalViews', 'vues au total'], ['reach', 'comptes touchés'], ['profileViews', 'visites du profil'],
+  ['engaged', 'comptes engagés'], ['interactions', 'interactions'], ['likes', "j'aime"], ['comments', 'comm.'], ['shares', 'partages'], ['posts', 'publications']];
+const netLink = (n, url) => (url ? `<a href="${esc(url)}" target="_blank" rel="noopener">${esc(NET_NAMES[n] || n)}</a>` : esc(NET_NAMES[n] || n));
+const accountsHtml = (accounts) => `<h4>${t('Mes comptes')} <span class="small muted">${t('activité des 28 derniers jours')}</span></h4>
+  <div class="posts-accs">${accounts.map((a) => {
+    const nets = Object.entries(a.nets);
+    const live = nets.filter(([, x]) => x.stats), off = nets.filter(([, x]) => !x.stats);
+    const total = live.reduce((n, [, x]) => n + (x.stats.followers || 0), 0);
+    return `<div class="posts-acc"><div class="row"><b>${esc(a.name)}</b><span class="spacer"></span><span><b>${fmtN(total)}</b> ${one(total, 'abonnés')}</span></div>
+      ${live.map(([n, x]) => `<div class="small"><b>${netLink(n, x.url)}</b> · <b>${fmtN(x.stats.followers)}</b> ${one(x.stats.followers, 'abonnés')}
+        <span class="muted">· ${ACC_LABELS.filter(([k]) => x.stats[k]).map(([k, l]) => `<b>${fmtN(x.stats[k])}</b> ${one(x.stats[k], l)}`).join(' · ') || t('aucune activité')}</span></div>`).join('')}
+      ${off.length ? `<div class="small muted">${off.map(([n, x]) => `${netLink(n, x.url)} · ${esc(x.note || x.error || t('indisponible'))}`).join(' — ')}</div>` : ''}</div>`;
+  }).join('')}</div>`;
 async function openStats() {
   let dlg = $('#postsStatsDlg');
   if (!dlg) {
@@ -591,7 +612,7 @@ async function openStats() {
   try {
     const r = await fetch('/api/social/stats').then((x) => x.json());
     const f = Object.entries(r.followers || {});
-    body.innerHTML = `${f.length ? `<div class="posts-stats-fol">${f.map(([n, v]) => `<div><b>${fmtN(v)}</b><span class="small muted">${t('abonnés')} ${NET_NAMES[n] || n}</span></div>`).join('')}</div>` : ''}
+    body.innerHTML = `${r.accounts?.length ? accountsHtml(r.accounts) : f.length ? `<div class="posts-stats-fol">${f.map(([n, v]) => `<div><b>${fmtN(v)}</b><span class="small muted">${t('abonnés')} ${NET_NAMES[n] || n}</span></div>`).join('')}</div>` : ''}
       ${(r.posts || []).length ? (r.posts || []).map((p) => `<div class="posts-stats-post">
         <div class="row"><b>${esc(p.title || t('Post'))}</b><span class="spacer"></span><span class="small muted">${esc(new Date(p.at).toLocaleString())}</span>
           <button class="btn small" data-statsremove="${esc(p.key)}" title="${t('Post supprimé sur les réseaux : le retirer des statistiques')}">${t('Retirer')}</button></div>
@@ -753,6 +774,11 @@ function open() {
   $('[data-open]', dlg).hidden = true;
   dlg.showModal();
   render(dlg);
+  fetch('/api/social/accounts').then((r) => r.json()).then((a) => {
+    const changed = JSON.stringify(a) !== JSON.stringify(accounts);
+    accounts = a;
+    if (changed && dlg.open) render(dlg);
+  }).catch(() => {});
 }
 
 function show(on) {

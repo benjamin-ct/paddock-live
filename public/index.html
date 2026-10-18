@@ -14,7 +14,7 @@
   <title>Paddock Live</title>
   <link rel="icon" href="/logo.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/css/style.css">
-  <script>/* Carte flottante : page transparente dès l'affichage ; overlay de streaming (OBS…) : sans barre d'outils */ if (/[?&]float=1(&|$)/.test(location.search)) document.documentElement.classList.add('float-map'); if (/[?&]overlay=1(&|$)/.test(location.search)) document.documentElement.classList.add('overlay');</script>
+  <script>/* Carte flottante : page transparente dès l'affichage ; overlay de streaming (OBS…) : sans barre d'outils */ if (/[?&]float=1(&|$)/.test(location.search)) document.documentElement.classList.add('float-map'); if (/[?&]overlay=1(&|$)/.test(location.search)) document.documentElement.classList.add('overlay'); /* Opacité du fond (&bg=0 à 100, Réglages → Streaming) */ const bg = new URLSearchParams(location.search).get('bg'); if (bg !== null) document.documentElement.style.setProperty('--ov-bg', `${Math.min(100, Math.max(0, Number(bg) || 0))}%`);</script>
   <script>/* Thème Pitwall et apparence (sombre / clair / système) posés avant l'affichage : pas d'éclair */ try { const p = JSON.parse(localStorage.getItem('paddock.prefs') || '{}'); const s = p.schemeSet || p.scheme === 'light' ? p.scheme : 'auto'; const light = s === 'light' || (s === 'auto' && matchMedia('(prefers-color-scheme: light)').matches); document.documentElement.dataset.scheme = light ? 'light' : 'dark'; if (light) { document.querySelector('meta[name="theme-color"]').content = '#F4F5F7'; document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]').content = 'default'; } } catch { document.documentElement.dataset.scheme = 'dark'; } document.documentElement.dataset.theme = 'pitwall';</script>
 </head>
 <body>
@@ -312,16 +312,16 @@
           <div class="subbar rd-bar">
             <select id="radioFilter" aria-label="Filtrer les radios"><option value="all">Tous les pilotes</option><option value="fav">Mes favoris</option><option value="duel">Pilotes du duel</option></select>
             <label class="toggle" title="Joue chaque nouvelle radio dès qu'elle arrive (au rythme du délai TV)"><input type="checkbox" id="radioAuto"> Lecture auto</label>
-            <label class="toggle" title="Retranscrit chaque radio d'équipe en texte. Avec le serveur Paddock Live (Réglages → Application), chaque radio n'est transcrite qu'une fois pour tous : rien à calculer ici. Sinon, la transcription se fait sur cet ordinateur (premier usage : téléchargement des modèles, haute qualité ~4,5 Go, légère ~130 Mo)."><input type="checkbox" id="radioText"> Texte</label>
+            <label data-full class="toggle" title="Retranscrit chaque radio d'équipe en texte. Avec le serveur Paddock Live (Réglages → Application), chaque radio n'est transcrite qu'une fois pour tous : rien à calculer ici. Sinon, la transcription se fait sur cet ordinateur (premier usage : téléchargement des modèles, haute qualité ~4,5 Go, légère ~130 Mo)."><input type="checkbox" id="radioText"> Texte</label>
             <label class="toggle" hidden title="Expérimental, F1 TV Pro : écoute le son des caméras embarquées (pilote suivi et pilotes du duel, ou vos favoris) et retranscrit toutes leurs radios, pas seulement celles publiées par la F1. Séances en direct ; tout est fait sur cet ordinateur."><input type="checkbox" id="obRadio"> Caméras embarquées</label>
             <span class="rd-opts" id="obRadioOpts" hidden><select id="obRadioWho" aria-label="Pilotes écoutés"><option value="auto">Pilote suivi + duel</option><option value="favs">Mes favoris (3 max)</option></select></span>
-            <span class="rd-opts" id="radioOpts">
+            <span class="rd-opts" id="radioOpts" data-full>
               <label class="small">Traduction <select id="radioLang" aria-label="Langue de traduction"><option value="fr">Français</option><option value="es">Español</option><option value="de">Deutsch</option><option value="it">Italiano</option><option value="none">Aucune (anglais)</option></select></label>
               <label class="small" title="Transcription sur cet ordinateur (serveur Paddock Live désactivé ou indisponible). Légère (par défaut) : petits modèles sur le processeur, environ 1 Go de mémoire, textes plus approximatifs. Haute : Whisper large-v3-turbo + modèle de langage (Qwen3-4B) qui connaît le contexte F1 ; nécessite une carte graphique (environ 4,5 Go téléchargés une fois) et occupe 10 à 15 Go de mémoire pendant la transcription (libérés après 5 minutes sans radio).">Qualité <select id="radioQuality" aria-label="Qualité de transcription"><option value="auto">Légère (≈ 1 Go)</option><option value="high">Haute (carte graphique, 10 à 15 Go)</option></select></label>
             </span>
           </div>
-          <div class="muted small rd-status" id="radioTextStatus"></div>
-          <div class="muted small rd-status" id="obRadioStatus"></div>
+          <div class="muted small rd-status" id="radioTextStatus" data-full></div>
+          <div class="muted small rd-status" id="obRadioStatus" data-full></div>
           <div class="rd-strip" id="radioStrip" aria-label="Radios d'équipe"></div>
           <div class="note rd-empty" id="radioEmpty" hidden></div>
           <div class="rd-feed-head"><b>Radios retranscrites</b><span class="muted small">texte et traduction</span><button class="rd-speed" id="radioSpeed" title="Vitesse de lecture des radios">1×</button></div>

@@ -4,6 +4,46 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
+## v1.27.37 — 2026-10-18
+
+### Météo
+- Entre deux séances, l'onglet Météo montre le circuit du prochain Grand Prix, comme la barre du haut : temps qu'il
+  fait sur place (air, humidité, pression, vent, pluie), prévisions des jours du week-end et radar des
+  précipitations autour du circuit. Avant, il gardait la météo et le radar de la dernière séance regardée.
+
+### Simulateur d'arrêt
+- Le cercle de position bouge en continu, comme la carte : chaque voiture tourne avec sa position sur la piste
+  (ligne d'arrivée en haut), et la sortie des stands du pilote choisi le suit. Avant, il n'était mis à jour qu'au
+  passage des voitures aux points de chronométrage, le leader restant figé en haut, et semblait au ralenti.
+
+### Replays
+- Barre de lecture : au survol, une infobulle donne l'heure et ce que signifient les traits et les zones colorées
+  (arrêt, dépassement, incident, pénalité, voiture de sécurité, VSC, drapeaux). Les moments à venir ne montrent que
+  leur type, pour ne rien dévoiler.
+- « Revoir en replay » sur l'accueil démarre 1 minute avant le départ, comme depuis la page Replays.
+- Pendant un replay, c'est « Replays » qui reste allumé dans la barre latérale (et non « Direct »).
+
+### Streaming
+- Carte de l'overlay : choisissez les calques affichés (noms, traînées, positions, écarts, virages, secteurs,
+  voie des stands, drapeaux…) dans Réglages → Streaming ; l'adresse à copier se met à jour toute seule.
+- Fond de chaque overlay (sauf les bandeaux) : de 0 % (sans fond) à 100 %, réglable dans Réglages → Streaming.
+- Un seul overlay de classement, plus complet : places gagnées ou perdues, intervalle, écart au leader, pneu et
+  nombre de tours, arrêts. Vous cochez les colonnes à afficher (par défaut : places, intervalle et pneu). Les
+  anciennes adresses du classement fonctionnent toujours.
+- Les overlays restent en thème sombre, même si l'ordinateur est en thème clair.
+- Bandeaux de l'overlay : tous de la même taille (VSC, voiture de sécurité, drapeaux jaune, vert, rouge, damier),
+  sur une seule ligne.
+
+### Téléphone
+- Carte : le menu « Calques » s'ouvre au-dessus de la barre du bas et défile au doigt (il était coupé).
+- Carte plus lisible sur téléphone : au premier affichage, seuls les noms des pilotes, les positions, les
+  secteurs et la voie des stands restent affichés. Les autres calques se réactivent dans « Calques », et vos
+  choix sont gardés.
+- Barre de replay plus compacte : deux lignes au lieu de trois (lecture et barre de progression, puis heure,
+  ±10 s, vitesses, moments et fermeture), pour laisser plus de place au panneau affiché.
+- Radios plus lisibles : en version simplifiée, la barre ne garde que le filtre des pilotes et « Lecture auto »
+  (transcription et traduction restent dans la version complète).
+
 ## v1.27.36 — 2026-10-18
 
 ### Démarrage

@@ -79,6 +79,8 @@ setLogoColor(prefs.logoColor);
 // Apparence : sombre, clair ou comme le système (data-scheme sur <html>, lu par le CSS et la carte)
 const systemLight = window.matchMedia?.('(prefers-color-scheme: light)');
 export function resolvedScheme() {
+  // Overlays de streaming (OBS…) : toujours sombres, quelle que soit l'apparence de l'ordinateur
+  if (document.documentElement.classList.contains('overlay')) return 'dark';
   return prefs.scheme === 'light' || (prefs.scheme === 'auto' && systemLight?.matches) ? 'light' : 'dark';
 }
 function applyScheme() {

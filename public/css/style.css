@@ -1311,15 +1311,25 @@ html:not(.phone) [data-phone] { display: none !important; }
   .topbar .session-flag { width: 24px; height: 16px; }
   .topbar :is(#seasonBtn, #newsBtn) { padding: 5px 9px; }
   .topbar .icon-btn { padding: 4px 6px; font-size: 19px; }
-  /* Barre de lecture (replay) */
-  .replaybar { flex-wrap: wrap; gap: 6px 10px; padding: 6px 10px; }
-  .replaybar #rpStart, .replaybar .rp-flags, .rp-speed[data-speed="10"], .rp-speed[data-speed="20"], .rp-speed[data-speed="30"] { display: none; }
-  .rp-play { width: 32px; height: 32px; }
-  .rp-side { flex: 1 1 100%; justify-content: flex-end; flex-wrap: wrap; gap: 6px; }
-  .rp-time { font-size: 11.5px; margin-right: auto; }
+  /* Barre de lecture (replay) : deux lignes, lecture + barre, puis heure et commandes */
+  html[data-theme="pitwall"] .replaybar { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 10px; padding: 8px 10px 6px; align-items: center; }
+  .replaybar .rp-main { display: contents; }
+  .replaybar .rp-top, .replaybar #rpStart, .replaybar .rp-flags, .rp-speed[data-speed="10"], .rp-speed[data-speed="20"], .rp-speed[data-speed="30"] { display: none; }
+  html[data-theme="pitwall"] .rp-play { width: 34px; height: 34px; }
+  .replaybar .rp-track { grid-column: 2; grid-row: 1; margin: 6px 7px 0 2px; }
+  .replaybar .rp-side { grid-column: 1 / -1; grid-row: 2; flex-wrap: nowrap; gap: 6px; }
+  .replaybar .rp-side .btn.small, .rp-speed { height: 28px; padding: 0 8px; min-width: 0; }
+  .replaybar .rp-mo-l, .replaybar .rp-dur { display: none; }
+  [data-theme="pitwall"] .replaybar .rp-time { margin-right: auto; }
+  .replaybar #rpClose { padding: 0 4px; height: 28px; }
   /* Un panneau à la fois, sur toute la hauteur disponible */
   .grid.mobile { display: flex; flex-direction: column; flex: 1; min-height: 0; padding: 6px; gap: 0; overflow: hidden; }
   .grid.mobile > .panel { flex: 1 1 auto; height: auto !important; min-height: 0; border-radius: 10px; }
+  /* Calques de la carte : au-dessus de la barre du bas, toute la largeur, défilement au doigt (le panneau
+     coupait le menu) */
+  .grid.mobile .map-layers-menu { position: fixed; left: 8px; right: 8px; top: auto; bottom: calc(76px + env(safe-area-inset-bottom));
+    max-height: 60dvh; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; }
+  .grid.mobile .map-layers-menu .toggle { white-space: normal; }
   .grid.mobile .panel-ctrl { display: none; }
   .grid.mobile .panel-head .hint, .p-tower .panel-head .hint { display: none; }
   /* Classement : colonnes essentielles */
@@ -1424,6 +1434,8 @@ html:not(.phone) [data-phone] { display: none !important; }
 }
 @media (max-width: 380px) {
   .grid.mobile .tower td, .grid.mobile .tower th { padding-left: 3px; padding-right: 3px; }
+  .replaybar .rp-side .btn.small, .rp-speed { padding: 0 5px; }
+  .replaybar .rp-side { gap: 5px; }
 }
 @media (max-width: 340px) {
   .grid.mobile .tower .c-pits { display: none; }
@@ -1837,6 +1849,7 @@ body.solo .grid .panel-head { padding-right: 116px; }
 .cd-car.me text { font-size: 11.5px; }
 .cd-ghost { fill: none; stroke: #fff; stroke-width: 2; stroke-dasharray: 3 3; }
 .cd-ghost-l { font: 700 10px var(--font); fill: var(--text-2); text-anchor: middle; dominant-baseline: middle; }
+.cd-line { stroke: var(--text); stroke-width: 2.5; stroke-linecap: round; }
 .cd-top { font: 700 9px var(--font); fill: var(--muted); text-anchor: middle; letter-spacing: 1px; }
 .cd-mid { font: 700 11px var(--font); fill: var(--muted); text-anchor: middle; letter-spacing: .5px; text-transform: uppercase; }
 .cd-mid2 { font: 600 11px var(--font); fill: var(--muted); text-anchor: middle; }
@@ -2338,6 +2351,13 @@ body.mini-body { display: block; min-height: 0; height: 100vh; overflow: hidden;
 .mini-table .m-drv i { display: inline-block; width: 3px; height: 13px; margin-right: 6px; vertical-align: -2px; border-radius: 2px; }
 .mini-table .m-val { text-align: right; font-family: "JetBrains Mono", Consolas, monospace; font-size: 12.5px; color: var(--text-2); }
 .mini-table .m-tyre { width: 24px; text-align: center; }
+/* Overlay : colonnes choisies (places gagnées, écart au leader, âge des pneus, arrêts) */
+.mini-table .m-dl { width: 26px; text-align: right; font: 700 11px "JetBrains Mono", Consolas, monospace; color: var(--muted); }
+.mini-table .m-dl.up { color: var(--green); } .mini-table .m-dl.down { color: var(--red); }
+.mini-table .m-sub { font-size: 11px; color: var(--muted); }
+.mini-table .m-age { width: auto; white-space: nowrap; }
+.mini-table .m-age .tyre-age { font-size: 10.5px; color: var(--muted); margin-left: 3px; }
+.mini-table .m-pits { width: 16px; text-align: center; font: 700 11px "JetBrains Mono", Consolas, monospace; color: var(--muted); }
 .mini-table .m-tag { font: 700 10px "Saira Condensed", sans-serif; letter-spacing: .5px; color: var(--blue); }
 .mini-table tr.focus td { background: var(--focus); }
 .mini-table tr.duel-a .m-drv { color: var(--blue); }
@@ -2352,6 +2372,10 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; gap: 5
 
 /* Replay : moments clés (liste et repères sur la barre de lecture) */
 .rp-marks { position: absolute; inset: 0; pointer-events: none; }
+.rp-tip { position: absolute; bottom: calc(100% + 8px); transform: translateX(-50%); z-index: 5; pointer-events: none; display: flex; flex-direction: column; gap: 2px;
+  max-width: 320px; padding: 6px 9px; border-radius: 8px; background: var(--panel-2); border: 1px solid var(--line-2); box-shadow: 0 8px 24px rgba(0, 0, 0, .35); font-size: 12px; white-space: nowrap; }
+.rp-tip b { font-family: var(--font-mono, monospace); font-size: 11.5px; color: var(--muted); }
+.rp-tip span { overflow: hidden; text-overflow: ellipsis; }
 .rp-mark { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; border-radius: 1px; background: var(--blue); opacity: .85; }
 .rp-mark.k-race { background: var(--purple); }
 .rp-mark.k-pit { background: var(--muted); }
@@ -2457,6 +2481,9 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; gap: 5
 .posts-stats-fol { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
 .posts-stats-fol > div { background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px; padding: 8px 14px; display: flex; flex-direction: column; }
 .posts-stats-fol b { font-size: 20px; }
+.posts-accs { display: grid; gap: 10px; margin-bottom: 14px; }
+.posts-acc { background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; display: grid; gap: 5px; }
+.posts-acc a { color: inherit; }
 .posts-stats-post { border-top: 1px solid var(--border); padding: 10px 0; display: grid; gap: 3px; }
 /* Posts « news » : choix de la nouvelle, titre et résumé modifiables */
 .posts-news-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 10px; }
@@ -2634,12 +2661,12 @@ html:is(.float-map, .float-mini):hover :is(.float-bar, .float-resize), html.floa
 /* Mini-classement flottant (appli de bureau) : pas de fond, chaque ligne en pastille translucide */
 html.float-mini, html.float-mini body.mini-body { background: transparent; }
 html.float-mini body.mini-body { padding: 4px 4px 26px; cursor: grab; }
-html.float-mini :is(.mini-head, .mini-foot) { border: 0; border-radius: 7px; background: color-mix(in srgb, var(--panel) 84%, transparent); }
+html.float-mini :is(.mini-head, .mini-foot) { border: 0; border-radius: 7px; background: color-mix(in srgb, var(--panel) var(--ov-bg, 85%), transparent); }
 html.float-mini :is(.mini-head, .mini-banner) { margin-bottom: 3px; }
 html.float-mini .mini-banner { border-radius: 7px; }
 html.float-mini .mini-table { border-collapse: separate; border-spacing: 0 2px; }
-html.float-mini .mini-table td { border: 0; background: color-mix(in srgb, var(--panel) 80%, transparent); }
-html.float-mini .mini-table tr.focus td { background: linear-gradient(var(--focus), var(--focus)), color-mix(in srgb, var(--panel) 80%, transparent); }
+html.float-mini .mini-table td { border: 0; background: color-mix(in srgb, var(--panel) var(--ov-bg, 80%), transparent); }
+html.float-mini .mini-table tr.focus td { background: linear-gradient(var(--focus), var(--focus)), color-mix(in srgb, var(--panel) var(--ov-bg, 80%), transparent); }
 html.float-mini .mini-table td:first-child { border-radius: 6px 0 0 6px; }
 html.float-mini .mini-table td:last-child { border-radius: 0 6px 6px 0; }
 html.float-mini .mini-foot { left: 4px; right: 4px; bottom: 4px; }
@@ -2864,6 +2891,7 @@ html.float-mini .float-bar { top: auto; bottom: 4px; right: 24px; }   /* en bas 
 .posts-dlg .posts-item:hover { border-color: var(--line-2); }
 .posts-dlg .posts-item canvas { border-radius: 9px; border: 0; }
 .posts-dlg .posts-caps { margin-top: 18px; padding: 14px; border: 1px solid var(--border); border-radius: 14px; background: var(--panel-2); }
+.posts-caps:not(:has(*)) { display: none; }   /* format Story : pas de texte à publier */
 .posts-dlg .posts-cap { background: var(--panel); }
 @media (max-width: 900px) {
   .posts-dlg { width: 100vw !important; height: 100dvh; max-height: 100dvh; border-radius: 0; border: 0; margin: 0; }
@@ -2913,17 +2941,20 @@ html.float-mini .float-bar { top: auto; bottom: 4px; right: 24px; }   /* en bas 
 html.overlay :is(.float-bar, .float-resize, .toast) { display: none !important; }
 html.overlay.float-mini body.mini-body { padding-bottom: 4px; cursor: default; }
 html.overlay .mini-foot, html.overlay #miniMode { display: none !important; }
+/* Carte en overlay : fond réglable (transparente par défaut) */
+html.float-map.overlay .map-wrap { background: color-mix(in srgb, var(--panel) var(--ov-bg, 0%), transparent) !important; border-radius: 12px; }
 
 /* Overlays d'un seul élément (overlay.html?w=…) : taille de base fixe, mise à l'échelle de la source */
 html.overlay body.ov-body { background: transparent; margin: 0; overflow: hidden; }
 .ov { display: inline-block; padding: 6px; }
 .ov-banner { width: 800px; }
-.ov-banner .flag-banner { border-radius: 10px; font-size: 26px; padding: 12px 18px; }
-.ov-banner .flag-banner .fb-sub { font-size: 16px; }
+.ov-banner .flag-banner, .ov-banner .flag-banner:is(.yellow, .green) { border-radius: 10px; font-size: 24px; padding: 0 18px; height: 64px; white-space: nowrap; overflow: hidden; }
+.ov-banner .flag-banner .fb-icon { flex: none; }
+.ov-banner .flag-banner .fb-sub { font-size: 16px; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .ov-banner .flag-banner.chequered { background: #f2f4f8; color: #0b0c0f; animation: none; }
 .ov-banner .flag-banner.chequered .fb-icon { background: repeating-conic-gradient(#0b0c0f 0 25%, #fff 0 50%) 0 0 / 9px 9px; }
 .ov-laps { width: 280px; } .ov-countdown { width: 420px; } .ov-podium { width: 440px; } .ov-telemetry { width: 300px; }
-.ov-card { background: color-mix(in srgb, var(--panel) 86%, transparent); border-radius: 12px; padding: 12px 16px; color: var(--text); }
+.ov-card { background: color-mix(in srgb, var(--panel) var(--ov-bg, 85%), transparent); border-radius: 12px; padding: 12px 16px; color: var(--text); }
 .ov-label { font-size: 13px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ov-big { font: 900 44px/1.1 var(--font-mono, var(--font)); font-variant-numeric: tabular-nums; margin: 2px 0; }
 .ov-big small { font-size: .55em; color: var(--muted); font-weight: 700; }
@@ -2957,3 +2988,6 @@ html.overlay body.ov-body { background: transparent; margin: 0; overflow: hidden
 @media (prefers-reduced-motion: reduce) { .boot-spin { animation-duration: 2.4s; } }
 .boot-cover.out { opacity: 0; pointer-events: none; }
 html:is(.float-map, .overlay) .boot-cover { display: none; }
+.stream-bg { display: flex; align-items: center; gap: 8px; margin-top: 2px; }
+.stream-bg input { width: 180px; accent-color: var(--accent); }
+.stream-bg span { min-width: 64px; color: var(--muted); }

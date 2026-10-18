@@ -87,12 +87,13 @@ async function loadWeather(nx) {
   if (!nx?.lat) return;
   const key = `${nx.race}|${nx.year}`;
   if (weather?.key === key) return;
-  weather = { key, days: null, tz: null };
+  weather = { key, days: null, tz: null, current: null };
   try {
     const d = await api(`/api/forecast?lat=${nx.lat}&lon=${nx.lon}`);
     const dates = new Set(schedule.filter((s) => s.race === nx.race && s.year === nx.year).map((s) => new Date(s.t).toISOString().slice(0, 10)));
     weather.days = (d.days || []).filter((x) => dates.has(x.date));
     weather.tz = d.tz || null;
+    weather.current = d.current || null;
   } catch { weather.days = []; }
   if (isHomeOpen()) render();
 }
@@ -114,7 +115,7 @@ export function upcoming() {
   const week = schedule.filter((s) => s.race === nx.race && s.year === nx.year);
   const race = week.find((s) => s.label === 'Course') || week.at(-1);
   const w = weather?.key === `${nx.race}|${nx.year}` ? weather : null;
-  return { ...nx, first: week[0].t, raceT: race.t, raceDay: w?.days?.find((d) => d.date === new Date(race.t).toISOString().slice(0, 10)) || null, tz: w?.tz || null };
+  return { ...nx, first: week[0].t, raceT: race.t, raceDay: w?.days?.find((d) => d.date === new Date(race.t).toISOString().slice(0, 10)) || null, tz: w?.tz || null, days: w?.days || null, current: w?.current || null };
 }
 
 // Pilotes et écuries favoris : position et points au championnat. Masqué juste après une séance (il
@@ -286,7 +287,8 @@ async function act(k) {
     // Séance absente des archives (compte F1 TV non connecté) : espace Replays (enregistrements)
     if (!ls?.path) { act('replays'); return; }
     try {
-      await api('/api/replay', { method: 'POST', body: { path: ls.path, startOffsetMs: 0 } });
+      // Départ du replay : 1 min avant le début de la séance (choix par défaut du serveur)
+      await api('/api/replay', { method: 'POST', body: { path: ls.path } });
       closeHome();
       $('#noLiveView').hidden = true;
       toast(`Chargement du replay : ${gp(ls.meeting)} — ${sessionName(ls.name)}`, 4000);

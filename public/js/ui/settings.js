@@ -125,7 +125,7 @@ function renderReplayBar() {
   const next = phases.findIndex((p) => shown < p.start);
   $('#rpPhase').textContent = cur >= 0 ? `${labels[cur]} · ${fmtDuration(shown - phases[cur].start, false)}`
     : next > 0 ? `Entre ${labels[next - 1]} et ${labels[next]}` : next === 0 ? `Avant ${labels[0]} · ${fmtDuration(phases[0].start - shown, false)}` : phases.length ? 'Séance terminée' : '';
-  $('#rpTime').textContent = `${fmtDuration(shown)} / ${fmtDuration(dur)}`;
+  $('#rpTime').innerHTML = `${fmtDuration(shown)}<span class="rp-dur"> / ${fmtDuration(dur)}</span>`;   // durée masquée sur téléphone
   $('#rpPlay').innerHTML = icon(store.status.paused ? 'play' : 'pause');
   $('#rpPlay').title = store.status.paused ? 'Reprendre (barre d\'espace)' : 'Pause (barre d\'espace)';
 }

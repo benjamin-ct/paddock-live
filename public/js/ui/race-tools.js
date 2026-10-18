@@ -1,5 +1,5 @@
 // Outils de course : simulateur d'arrêt au stand et détection des bagarres.
-import { store, setDuel, versionOf } from '../store.js';
+import { store, setDuel, versionOf, displayNow } from '../store.js';
 import { $, esc, drivers, orderedNumbers, sessionKind, teamColor, fmtSigned } from '../util.js';
 import { parseGap, parseLapTime } from '/shared/f1.js';
 import { currentTrack } from './map.js';
@@ -29,43 +29,68 @@ function gapsToLeader(state) {
 }
 
 // Cercle de position (comme le « Circle of Doom » de MultiViewer) : un tour = un tour de cercle.
-// Chaque voiture est placée selon son écart au leader (le leader en haut, les poursuivants dans
-// le sens inverse des aiguilles), avec la position de sortie des stands du pilote choisi.
-function circleSvg(gaps, me, projected, dl) {
+// Les voitures tournent avec leur position sur la piste à l'heure affichée (GPS ou estimée, comme
+// sur la carte), ligne d'arrivée en haut ; sans tracé, elles sont placées selon leur écart au
+// leader (le leader en haut). La sortie des stands du pilote choisi le suit, en retard du temps
+// perdu au stand.
+const R = 100, C = 130, TAU = 2 * Math.PI;
+const pt = (a, r) => [C + r * Math.sin(a), C - r * Math.cos(a)];
+function trackAngle(num) {
+  const pos = store.positions, L = pos.track?.L, now = displayNow();
+  if (!L) return null;
+  const p = pos.hasGps(now) ? pos.progressAt(num, now) : pos.estimatedProgress(num, now);
+  return p === null || p === undefined ? null : ((((p / L - pos.lineFrac()) % 1) + 1) % 1) * TAU;
+}
+
+function circleSvg(gaps, me, dl, live) {
   const lap = gaps.lap || 90;
-  const R = 100, C = 130;
-  const ang = (gap) => -((gap % lap) / lap) * 2 * Math.PI;
-  const pt = (a, r) => [C + r * Math.sin(a), C - r * Math.cos(a)];
-  const mine = gaps.find((g) => g.num === me);
-  // Arc entre la position actuelle et la sortie des stands
-  const a0 = ang(mine.gap), a1 = ang(projected);
-  const span = ((mine.gap - projected) / lap) * 2 * Math.PI;   // négatif : on recule
-  const [x0, y0] = pt(a0, R), [x1, y1] = pt(a1, R);
-  const arc = `<path d="M${x0.toFixed(1)} ${y0.toFixed(1)} A${R} ${R} 0 ${Math.abs(span) > Math.PI ? 1 : 0} 0 ${x1.toFixed(1)} ${y1.toFixed(1)}" class="cd-loss"/>`;
-  // Étiquettes alternées dedans / dehors pour limiter les chevauchements
-  const placed = [];
-  const dots = gaps.map((g) => {
-    const a = ang(g.gap);
-    const [x, y] = pt(a, R);
-    const near = placed.filter((p) => Math.abs(Math.atan2(Math.sin(p.a - a), Math.cos(p.a - a))) < 0.2).length;
-    placed.push({ a });
-    const lr = near % 2 ? R - 24 : R + 22;
-    const [lx, ly] = pt(a, lr);
-    const col = teamColor(dl[g.num]);
-    return `<g class="cd-car${g.num === me ? ' me' : ''}"><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${g.num === me ? 7 : 5.5}" fill="${col}"/>
-      <text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" fill="${col}">${esc(dl[g.num]?.Tla || g.num)}</text></g>`;
-  }).join('');
-  const [gx, gy] = pt(a1, R);
-  const [glx, gly] = pt(a1, R - 40);
-  const ticks = Array.from({ length: 12 }, (_, i) => { const a = (i / 12) * 2 * Math.PI; const [ax, ay] = pt(a, R - 6); const [bx, by] = pt(a, R + 6); return `<line x1="${ax.toFixed(1)}" y1="${ay.toFixed(1)}" x2="${bx.toFixed(1)}" y2="${by.toFixed(1)}"/>`; }).join('');
+  const ticks = Array.from({ length: 12 }, (_, i) => { const a = (i / 12) * TAU; const [ax, ay] = pt(a, R - 6); const [bx, by] = pt(a, R + 6); return `<line x1="${ax.toFixed(1)}" y1="${ay.toFixed(1)}" x2="${bx.toFixed(1)}" y2="${by.toFixed(1)}"/>`; }).join('');
+  const dots = gaps.map((g) => `<g class="cd-car${g.num === me ? ' me' : ''}" data-num="${g.num}"><circle r="${g.num === me ? 7 : 5.5}" fill="${teamColor(dl[g.num])}"/>
+      <text fill="${teamColor(dl[g.num])}">${esc(dl[g.num]?.Tla || g.num)}</text></g>`).join('');
   return `<svg class="cd" viewBox="0 0 260 260" role="img" aria-label="Cercle de position">
     <circle cx="${C}" cy="${C}" r="${R}" class="cd-ring"/><g class="cd-ticks">${ticks}</g>
-    ${arc}
-    <circle cx="${gx.toFixed(1)}" cy="${gy.toFixed(1)}" r="8" class="cd-ghost"/>
-    <text x="${glx.toFixed(1)}" y="${gly.toFixed(1)}" class="cd-ghost-l">sortie ${esc(dl[me]?.Tla || me)}</text>
+    ${live ? `<line x1="${C}" y1="${C - R - 9}" x2="${C}" y2="${C - R + 9}" class="cd-line"/>` : ''}
+    <path class="cd-loss"/><circle r="8" class="cd-ghost"/><text class="cd-ghost-l">sortie ${esc(dl[me]?.Tla || me)}</text>
     ${dots}
-    <text x="${C}" y="${C - 18}" class="cd-mid2">leader en haut</text><text x="${C}" y="${C - 2}" class="cd-mid">1 tour</text><text x="${C}" y="${C + 12}" class="cd-mid2">${lap.toFixed(1).replace('.', DEC)} s</text>
+    <text x="${C}" y="${C - 18}" class="cd-mid2">${live ? 'ligne d\'arrivée en haut' : 'leader en haut'}</text><text x="${C}" y="${C - 2}" class="cd-mid">1 tour</text><text x="${C}" y="${C + 12}" class="cd-mid2">${lap.toFixed(1).replace('.', DEC)} s</text>
   </svg>`;
+}
+
+// Placement des voitures, à chaque image tant que le simulateur est affiché (mouvement lissé)
+let cd = null;
+const cdAng = new Map();
+let cdLast = 0;
+function placeCars() {
+  const svg = $('#pitsim svg.cd');
+  if (!svg || !cd) return;
+  const now = performance.now(), k = Math.min(1, ((now - cdLast) / 1000) * 5);
+  cdLast = now;
+  const { gaps, me, projected } = cd, lap = gaps.lap || 90;
+  const lead = trackAngle(gaps[0].num) ?? 0;
+  const placed = [];
+  let aMe = 0, gMe = 0;
+  for (const g of gaps) {
+    const el = svg.querySelector(`.cd-car[data-num="${g.num}"]`);
+    if (!el) continue;
+    const target = trackAngle(g.num) ?? lead - ((g.gap % lap) / lap) * TAU;
+    const prev = cdAng.get(g.num);
+    const a = prev === undefined ? target : prev + Math.atan2(Math.sin(target - prev), Math.cos(target - prev)) * k;
+    cdAng.set(g.num, a);
+    // Étiquettes alternées dedans / dehors pour limiter les chevauchements
+    const near = placed.filter((b) => Math.abs(Math.atan2(Math.sin(b - a), Math.cos(b - a))) < 0.2).length;
+    placed.push(a);
+    const [x, y] = pt(a, R), [lx, ly] = pt(a, near % 2 ? R - 24 : R + 22);
+    el.firstElementChild.setAttribute('cx', x.toFixed(1)); el.firstElementChild.setAttribute('cy', y.toFixed(1));
+    el.lastElementChild.setAttribute('x', lx.toFixed(1)); el.lastElementChild.setAttribute('y', ly.toFixed(1));
+    if (g.num === me) { aMe = a; gMe = g.gap; }
+  }
+  // Sortie des stands : en retard du temps perdu au stand, et arc entre la voiture et sa sortie
+  const span = ((projected - gMe) / lap) * TAU, a1 = aMe - span;
+  const [x0, y0] = pt(aMe, R), [x1, y1] = pt(a1, R), [gx, gy] = pt(a1, R - 40);
+  svg.querySelector('.cd-loss').setAttribute('d', `M${x0.toFixed(1)} ${y0.toFixed(1)} A${R} ${R} 0 ${Math.abs(span) > Math.PI ? 1 : 0} 0 ${x1.toFixed(1)} ${y1.toFixed(1)}`);
+  const gh = svg.querySelector('.cd-ghost'), gl = svg.querySelector('.cd-ghost-l');
+  gh.setAttribute('cx', x1.toFixed(1)); gh.setAttribute('cy', y1.toFixed(1));
+  gl.setAttribute('x', gx.toFixed(1)); gl.setAttribute('y', gy.toFixed(1));
 }
 
 // ---------------- Simulateur d'arrêt ----------------
@@ -185,7 +210,7 @@ export function renderPitSim(force = false) {
   $('#simLossSrc').textContent = `(${lossOverride !== null ? 'réglage manuel' : loss.label})`;
   if (document.activeElement !== $('#simLoss')) $('#simLoss').value = lossVal;
   $('#simLossReset').hidden = lossOverride === null;
-  $('#simOut').innerHTML = `<div class="pitsim-cols"><div class="cd-wrap">${circleSvg(gaps, me, projected, dl)}</div><div class="pitsim-res"><div class="pit-result">
+  $('#simOut').innerHTML = `<div class="pitsim-cols"><div class="cd-wrap">${circleSvg(gaps, me, dl, trackAngle(gaps[0].num) !== null)}</div><div class="pitsim-res"><div class="pit-result">
       <div class="small muted">Si <b>${esc(dl[me]?.Tla || me)}</b> s'arrête maintenant (actuellement P${curPos}) :</div>
       <div class="big">P${newPos}</div>
       <div class="small">${ahead ? t('à {} derrière {}', `<b>${(projected - ahead.gap).toFixed(1).replace('.', DEC)} s</b>`, esc(dl[ahead.num]?.Tla || ahead.num)) : t('en tête')}${behind ? ` ${t('· {} devant {}', `<b>${(behind.gap - projected).toFixed(1).replace('.', DEC)} s</b>`, esc(dl[behind.num]?.Tla || behind.num))}` : ''}</div>
@@ -194,6 +219,8 @@ export function renderPitSim(force = false) {
     <table class="pit-order">${slice.map((o) => `<tr class="${o.me ? 'me' : ''}"><td>P${order.indexOf(o) + 1}</td>
       <td><span class="drv"><span class="drv-bar" style="background:${teamColor(dl[o.num])}"></span>${esc(dl[o.num]?.Tla || o.num)}${o.me ? ' (après arrêt)' : ''}</span></td>
       <td style="text-align:right">${o.me ? '' : fmtSigned(o.gap - projected, 1) + ' s'}</td></tr>`).join('')}</table></div></div>`;
+  cd = { gaps, me, projected };
+  placeCars();
 }
 
 // ---------------- Bagarres ----------------
@@ -242,6 +269,8 @@ export function battleList(s, max = 20) {
 }
 
 export function initRaceTools() {
+  const tick = () => { requestAnimationFrame(tick); if (document.visibilityState === 'visible' && $('#pitsim')?.classList.contains('active')) placeCars(); };
+  requestAnimationFrame(tick);
   document.addEventListener('click', (e) => {
     const b = e.target.closest('[data-battle]');
     if (!b) return;

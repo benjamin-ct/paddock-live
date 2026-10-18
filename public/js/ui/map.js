@@ -1315,17 +1315,31 @@ function drawCars(dt) {
 
 // Cases de la carte mémorisées d'une session à l'autre
 const MAP_OPTS = ['mapLabels', 'mapCorners', 'mapSectors', 'mapMiniNums', 'mapZones', 'mapPit', 'mapFlagText', 'mapShowOut', 'mapTrails', 'mapGrid', 'mapPosBadges', 'mapGaps', 'mapFocusCard', 'mapRibbon2'];
+// Calques décochés par défaut sur téléphone : traînées, bulles d'écart et de télémétrie, bande de l'ordre,
+// numéros de virage, zones de dépassement, liste des drapeaux (restent : pastilles, positions, secteurs, stands)
+const MOBILE_OFF = ['mapTrails', 'mapGaps', 'mapFocusCard', 'mapRibbon2', 'mapCorners', 'mapZones', 'mapFlagText'];
 
 function initMapOptions() {
   const saved = storageGet('paddock.mapOpts', {});
   // Nouveau dessin de la carte (v2) : fond uni par défaut, l'ancien choix du fond est oublié
   if (saved.v !== 2) delete saved.mapGrid;
-  const save = () => storageSet('paddock.mapOpts', { v: 2, ...Object.fromEntries(MAP_OPTS.map((k) => [k, $(`#${k}`).checked])) });
+  // Téléphone (petite carte) : allégée au premier affichage, une seule fois (les choix restent ensuite)
+  if (matchMedia('(pointer: coarse) and (max-width: 900px)').matches && !saved.mob) {
+    for (const id of MOBILE_OFF) saved[id] = false;
+    saved.mob = 1;
+  }
+  const save = () => storageSet('paddock.mapOpts', { v: 2, mob: saved.mob, ...Object.fromEntries(MAP_OPTS.map((k) => [k, $(`#${k}`).checked])) });
   for (const id of MAP_OPTS) {
     const el = $(`#${id}`);
     if (typeof saved[id] === 'boolean') el.checked = saved[id];
     el.addEventListener('change', save);
     if (id === 'mapRibbon2') el.addEventListener('change', () => { xf = null; });
+  }
+  // Overlay de streaming : calques choisis dans l'adresse (&layers=labels,trails…, Réglages → Streaming)
+  const want = new URLSearchParams(location.search).get('layers');
+  if (want !== null && document.documentElement.classList.contains('overlay')) {
+    const on = new Set(want.split(','));
+    for (const id of MAP_OPTS) $(`#${id}`).checked = on.has(id.slice(3).toLowerCase());
   }
   const hot = $('#hotLapDim');
   hot.checked = prefs.hotLapDim;

@@ -5,6 +5,7 @@ import { store } from '../store.js';
 import { $, esc, api } from '../util.js';
 import { icon } from '../icons.js';
 import { LOCALE } from '../i18n.js';
+import { upcoming } from './home.js';
 
 const BASE_Z = 8;      // zoom du fond de carte
 const RAIN_Z = 7;      // zoom maximal des images radar gratuites (agrandies × 2)
@@ -35,8 +36,15 @@ async function loadFrames() {
   } catch { frames = []; }
 }
 
-// Circuit de la séance affichée : d'après le nom du Grand Prix, sinon la date
+// Circuit de la séance affichée : d'après le nom du Grand Prix, sinon la date ; entre deux
+// séances, celui du prochain Grand Prix (comme la barre du haut)
 async function loadPlace() {
+  const nx = upcoming();
+  if (nx?.lat) {
+    const key = `next|${nx.race}`;
+    if (key !== placeKey) { placeKey = key; place = { name: nx.locality || nx.race, lat: nx.lat, lon: nx.lon }; built = ''; }
+    return;
+  }
   const info = store.state.SessionInfo;
   const key = `${info?.Meeting?.Name}|${info?.StartDate}`;
   if (!info || key === placeKey) return;

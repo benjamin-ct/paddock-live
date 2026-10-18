@@ -4,7 +4,8 @@
 import { translatePage } from './i18n.js';
 import { icon } from './icons.js';
 import { store, versionOf, setDelay, on } from './store.js';
-import { $, esc, drivers, orderedNumbers, sessionKind, teamColor, currentStint, compoundInfo, storageGet, storageSet, fmtDelay } from './util.js';
+import { $, esc, drivers, orderedNumbers, sessionKind, teamColor, currentStint, compoundInfo, tyreBadge, storageGet, storageSet, fmtDelay } from './util.js';
+import { realStopCount } from '/shared/pits.js';
 import { prefs, isFav } from './prefs.js';
 import { trackStatusInfo } from '/shared/f1.js';
 import { connect } from './conn.js';
@@ -14,6 +15,9 @@ translatePage();
 
 // 'int' (intervalle) | 'gap' (écart au leader) ; overlay de streaming : ?mode=gap dans l'adresse
 let mode = new URLSearchParams(location.search).get('mode') || storageGet('paddock.miniMode', 'int');
+// Overlay de streaming : colonnes choisies (Réglages → Streaming) : delta (places gagnées depuis le
+// départ), int (intervalle), gap (écart au leader), tyre (pneu et tours), pits (arrêts)
+const COLS = new URLSearchParams(location.search).get('cols')?.split(',') || null;
 let lastKey = '';
 
 const list = (o) => (!o ? [] : Array.isArray(o) ? o : Object.keys(o).sort((a, b) => a - b).map((k) => o[k]));
@@ -60,8 +64,10 @@ function render() {
     const ci = st?.Compound ? compoundInfo(st.Compound) : null;
     const tag = l.Retired ? 'ABD' : l.InPit ? 'STAND' : l.PitOut ? 'SORTIE' : l.KnockedOut ? 'ÉLIM.' : '';
     const cls = [store.focus === n ? 'focus' : '', store.duel.a === n ? 'duel-a' : '', store.duel.b === n ? 'duel-b' : '', isFav(n) ? 'fav' : '', l.Retired || l.KnockedOut ? 'out' : ''].filter(Boolean).join(' ');
-    return `<tr class="${cls}"><td class="m-pos">${esc(l.Position || '')}</td>
-      <td class="m-drv"><i style="background:${teamColor(d)}"></i>${esc(d.Tla || n)}${isFav(n) ? icon('star-fill') : ''}</td>
+    const head = `<tr class="${cls}"><td class="m-pos">${esc(l.Position || '')}</td>
+      <td class="m-drv"><i style="background:${teamColor(d)}"></i>${esc(d.Tla || n)}${isFav(n) ? icon('star-fill') : ''}</td>`;
+    if (COLS) return `${head}${columns(n, l, app[n], kind, val, tag, st)}</tr>`;
+    return `${head}
       <td class="m-val">${tag ? `<span class="m-tag">${tag}</span>` : esc(val)}</td>
       <td class="m-tyre">${ci ? `<span class="tyre" style="--tc:${ci.color}">${ci.letter}</span>` : ''}</td></tr>`;
   });
@@ -70,14 +76,31 @@ function render() {
   fitOverlay();
 }
 
-// Overlay de streaming : tout le classement dans la hauteur de la source (réduit si besoin)
+// Colonnes de l'overlay (COLS). Hors course : un seul temps (écart au meilleur), ni places ni arrêts
+function columns(n, l, a, kind, val, tag, st) {
+  const race = kind === 'race';
+  const main = COLS.includes('int') || !COLS.includes('gap') ? 'int' : 'gap';
+  return COLS.map((c) => {
+    if (c === 'delta') {
+      const dl = race && a?.GridPos && l.Position ? Number(a.GridPos) - Number(l.Position) : 0;
+      return race ? `<td class="m-dl ${dl > 0 ? 'up' : dl < 0 ? 'down' : ''}">${dl ? `${dl > 0 ? '▲' : '▼'}${Math.abs(dl)}` : ''}</td>` : '';
+    }
+    if (c === main) return `<td class="m-val">${tag ? `<span class="m-tag">${tag}</span>` : esc(race ? gap(c === 'gap' ? l.GapToLeader : l.IntervalToPositionAhead?.Value) : val)}</td>`;
+    if (c === 'gap') return race ? `<td class="m-val m-sub">${tag || /^LAP/i.test(l.GapToLeader || '') ? '' : esc(gap(l.GapToLeader))}</td>` : '';
+    if (c === 'tyre') return `<td class="m-tyre m-age">${st?.Compound ? tyreBadge(st.Compound, st.TotalLaps, st.New) : ''}</td>`;
+    if (c === 'pits') return race ? `<td class="m-pits" title="Arrêts aux stands">${realStopCount(a, l) || ''}</td>` : '';
+    return '';
+  }).join('');
+}
+
+// Overlay de streaming : tout le classement dans la source (réduit si besoin, hauteur et largeur)
 const OVERLAY = document.documentElement.classList.contains('overlay');
 function fitOverlay() {
   if (!OVERLAY) return;
   const html = document.documentElement;
   html.style.zoom = '';
-  const h = document.body.scrollHeight;
-  if (h > innerHeight) html.style.zoom = String(Math.floor((innerHeight / h) * 1000) / 1000);
+  const k = Math.min(1, innerHeight / document.body.scrollHeight, innerWidth / document.body.scrollWidth);
+  if (k < 1) html.style.zoom = String(Math.floor(k * 1000) / 1000);
 }
 window.addEventListener('resize', fitOverlay);
 
