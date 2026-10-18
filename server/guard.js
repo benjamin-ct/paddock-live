@@ -28,6 +28,14 @@ export function sameSiteRequest(headers) {
   try { return new URL(origin).host === headers.host; } catch { return false; }
 }
 
+// Extension de navigateur Paddock Live Companion (Chrome, Edge, Firefox, Safari) : elle seule peut
+// transmettre la connexion F1 TV faite dans le navigateur (routes EXTENSION_ROUTES). Une page web ne
+// peut pas se donner une telle origine.
+export const EXTENSION_ROUTES = new Set(['GET /api/auth', 'POST /api/auth']);
+export function extensionRequest(headers) {
+  return /^(chrome|moz|safari-web)-extension:\/\/[\w.@-]+$/.test(String(headers.origin || ''));
+}
+
 // Chemin d'URL décodé, ou null s'il est mal formé (« %E0%A4%A » faisait planter le serveur)
 export function decodePath(pathname) {
   try { return decodeURIComponent(pathname); } catch { return null; }

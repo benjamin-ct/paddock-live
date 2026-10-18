@@ -331,8 +331,9 @@ function msgHtml(m) {
   const contact = !m.contact ? '<small>Pas de contact laissé</small>'
     : isMail(m.contact) ? `<a class="btn small" href="mailto:${esc(m.contact)}?subject=${encodeURIComponent('Paddock Live')}">${icon('send')}Répondre à ${esc(m.contact)}</a>`
       : `<small>Contact : ${esc(m.contact)}</small>`;
+  const files = (m.files || []).map((f) => `<button class="att" data-att="${Number(m.id)}:${Number(f.n)}" data-type="${esc(f.type)}">${icon(f.type.startsWith('video/') ? 'video' : 'image')}<span>${f.type.startsWith('video/') ? 'Vidéo' : 'Image'} · ${(f.size / 1e6).toFixed(1)} Mo</span></button>`).join('');
   return `<article class="msg${m.seen ? '' : ' new'}"><div class="msg-head"><span class="badge kind-${esc(m.kind)}">${esc(KIND[m.kind] || m.kind)}</span>
-    <small>${esc(when)} · ${esc(from)}${m.lang === 'en' ? ' · en anglais' : ''}</small></div><p>${esc(m.text)}</p>
+    <small>${esc(when)} · ${esc(from)}${m.lang === 'en' ? ' · en anglais' : ''}</small></div><p>${esc(m.text)}</p>${files ? `<div class="atts">${files}</div>` : ''}
     <div class="msg-foot">${contact}<button class="btn small" data-remove="${Number(m.id)}">Supprimer</button></div></article>`;
 }
 async function messages() {
@@ -344,6 +345,19 @@ async function messages() {
     body.innerHTML = items.length ? `<div class="group">${items.map(msgHtml).join('')}</div>
       <p class="hint">Envoyés depuis l'appli (Réglages → À propos) ou le site (FAQ). Un e-mail laissé permet de répondre.</p>`
       : '<p class="hint center">Aucun message pour l\'instant. Les questions et suggestions envoyées depuis l\'appli (Réglages → À propos) ou le site arriveront ici.</p>';
+    // Pièces jointes : chargées au toucher (images affichées, vidéos lues sur place)
+    $$('[data-att]', body).forEach((b) => {
+      b.onclick = async () => {
+        const [msg, n] = b.dataset.att.split(':');
+        b.classList.add('busy');
+        try {
+          const src = URL.createObjectURL(await (await api(`feedback/file?msg=${msg}&n=${n}`, { raw: true })).blob());
+          const el = document.createElement(b.dataset.type.startsWith('video/') ? 'video' : 'img');
+          Object.assign(el, { src, className: 'att-view' }, el.tagName === 'VIDEO' ? { controls: true, playsInline: true } : { alt: '' });
+          b.replaceWith(el);
+        } catch (err) { b.classList.remove('busy'); toast(err.message, 'bad'); }
+      };
+    });
     $$('[data-remove]', body).forEach((b) => {
       b.onclick = async () => {
         try { await api('feedback/remove', { method: 'POST', body: JSON.stringify({ id: Number(b.dataset.remove) }) }); } catch (err) { toast(err.message, 'bad'); return; }
@@ -380,7 +394,7 @@ Ce qu'elle peut apporter à tes lives :
 - De quoi commenter chaque tour : écarts, secteurs, pneus, arrêts, carte GPS, radios d'équipe retranscrites et traduites, direction de course.
 - Des pronostics avec ta communauté : ton chat pronostique la pole et le podium depuis une simple page web, avec un classement sur la saison.
 
-Le pack de présentation (6 images et un PDF) : ${KIT}
+Le pack de présentation (6 images) : ${KIT}
 
 Je serais ravi d'avoir ton avis, et je peux t'aider à tout installer avant le prochain GP.
 
@@ -403,7 +417,9 @@ function settings() {
       <a class="btn small" href="${esc(u)}" target="_blank" rel="noopener">${icon('link')}Ouvrir</a><button class="btn small" data-copy="${esc(u)}">${icon('copy')}Copier</button></div>`;
   const dlg = sheet('Réglages', `<h3 class="section">Mes pages de liens</h3><div class="group">${pages.map(link).join('')}</div>
     <p class="hint">Tous les réseaux sur une seule page : le lien à mettre en bio.</p>
-    <h3 class="section">Pack streamers</h3><div class="group">${link(['Présentation pour les streamers', KIT])}</div>
+    <h3 class="section">Pack streamers</h3><div class="group">${link(['Présentation pour les streamers', KIT])}
+      <div class="row-item static"><span class="grow"><b>Pack en PDF</b><small>Les 6 pages en un fichier, à joindre à un e-mail</small></span>
+        <a class="btn small" href="${KIT}paddock-live-streamers.pdf" download>${icon('download')}Télécharger</a></div></div>
     ${PITCH.map(([n, t]) => `<details class="cap"><summary><span>${esc(n)}</span></summary><textarea rows="9">${esc(t)}</textarea>
       <button class="btn small" data-copy="">${icon('copy')}Copier le message</button></details>`).join('')}
     <p class="hint">Page non listée : ni le site ni l'appli n'y mènent. Envoie le lien avec un des messages (modifiables avant de copier).</p>

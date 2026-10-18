@@ -124,6 +124,9 @@ section { padding: 96px 0; }
 .ask :focus { outline: none; border-color: var(--red); }
 .ask .btn { justify-self: start; }
 .ask .ok { color: var(--ok); }
+.ask.drag { border: 2px dashed var(--red); }
+.ask-files { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; color: var(--muted); font-size: 15px; }
+.ask-files .btn { padding: 10px 18px; font-size: 15px; }
 details { border-bottom: 1px solid var(--line); }
 summary { cursor: pointer; list-style: none; display: flex; justify-content: space-between; gap: 16px; padding: 20px 0; font-weight: 700; font-size: 19px; }
 summary::-webkit-details-marker { display: none; }
@@ -372,6 +375,9 @@ footer .brand { -webkit-user-select: none; user-select: none; -webkit-touch-call
         <p data-en="Suggestion, question or problem: your message goes straight to the creator of Paddock Live.">Suggestion, question ou problème : ton message arrive directement au créateur de Paddock Live.</p>
         <select name="kind" aria-label="Type"><option value="idea" data-en="Suggestion">Suggestion</option><option value="question" data-en="Question">Question</option><option value="bug" data-en="Problem">Problème</option></select>
         <textarea name="msg" maxlength="2000" required placeholder="Ton message…" data-ph-en="Your message…" aria-label="Message"></textarea>
+        <div class="ask-files"><label class="btn" for="askFiles" data-en="Add a screenshot or a video">Ajouter une capture ou une vidéo</label>
+          <input type="file" id="askFiles" name="files" multiple accept="image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm,video/quicktime" hidden>
+          <span id="askFileList" data-en="Or drag them here, or paste a screenshot (Ctrl+V): up to 3 files, images up to 8 MB, videos up to 40 MB">Ou glisse-les, ou colle une capture (Ctrl+V) : 3 fichiers au plus, images jusqu'à 8 Mo, vidéos jusqu'à 40 Mo</span></div>
         <input name="contact" maxlength="120" placeholder="E-mail ou pseudo (facultatif, pour te répondre)" data-ph-en="Email or nickname (optional, so I can reply)" aria-label="Contact">
         <button class="btn primary" data-en="Send">Envoyer</button>
         <p id="askMsg" role="status"></p>
@@ -465,19 +471,56 @@ document.getElementById('ask').onsubmit = async (e) => {
   e.preventDefault();
   const f = e.target.elements, out = document.getElementById('askMsg'), en = lang === 'en', btn = e.target.querySelector('button');
   const text = f.msg.value.trim();
+  const files = [...f.files.files];
   out.className = '';
   if (text.length < 5) { out.textContent = en ? 'Message too short' : 'Message trop court'; return; }
+  if (files.length > 3) { out.textContent = en ? '3 files at most' : '3 fichiers au plus'; return; }
+  const bad = files.find((x) => !(x.size <= (ASK_MAX[x.type] || 0)));
+  if (bad) { out.textContent = `${bad.name} : ${en ? 'format not accepted or file too large' : 'format non accepté ou fichier trop lourd'}`; return; }
   btn.disabled = true;
   try {
-    const r = await fetch('/f', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: f.kind.value, text, contact: f.contact.value.trim(), lang, src: 'site' }) });
+    const r = await fetch('/f', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: f.kind.value, text, contact: f.contact.value.trim(), lang, src: 'site', files: files.length }) });
     if (r.status === 429) throw new Error(en ? 'Too many messages today: try again tomorrow' : 'Trop de messages aujourd\'hui : réessaie demain');
     if (!r.ok) throw new Error(en ? 'Sending failed: please try again' : 'Envoi impossible : réessaie');
+    const { id, up } = await r.json();
     f.msg.value = '';
-    out.className = 'ok';
-    out.textContent = en ? 'Message sent, thank you!' : 'Message envoyé, merci !';
+    try {
+      for (const [n, x] of files.entries()) {
+        out.textContent = en ? `Sending attachments (${n + 1}/${files.length})…` : `Envoi des pièces jointes (${n + 1}/${files.length})…`;
+        const res = await fetch(`/f/file?${new URLSearchParams({ id, up, n })}`, { method: 'POST', headers: { 'Content-Type': x.type }, body: x });
+        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `HTTP ${res.status}`);
+      }
+      out.className = 'ok';
+      out.textContent = en ? 'Message sent, thank you!' : 'Message envoyé, merci !';
+    } catch (err) { out.textContent = `${en ? 'Message sent, but an attachment was refused' : 'Message envoyé, mais pièce jointe refusée'} : ${err.message}`; }
+    f.files.value = '';
+    askList();
   } catch (err) { out.textContent = err.message; }
   btn.disabled = false;
 };
+// Pièces jointes : mêmes limites que le serveur (3 fichiers, images 8 Mo, vidéos 40 Mo)
+const ASK_MAX = { 'image/png': 8e6, 'image/jpeg': 8e6, 'image/webp': 8e6, 'image/gif': 8e6, 'video/mp4': 40e6, 'video/webm': 40e6, 'video/quicktime': 40e6 };
+const askFiles = document.getElementById('askFiles'), askListEl = document.getElementById('askFileList');
+function askList() {
+  const files = [...askFiles.files];
+  askListEl.textContent = files.length ? files.map((x) => `${x.name} (${(x.size / 1e6).toFixed(1)} Mo)`).join(' · ') : askListEl.dataset[lang === 'en' ? 'en' : 'fr'];
+}
+askFiles.onchange = askList;
+// Captures et vidéos aussi collées (Ctrl+V) ou glissées sur le formulaire : ajoutées à la sélection
+const ask = document.getElementById('ask');
+function askAdd(list) {
+  const add = [...list].filter((f) => /^(image|video)\//.test(f.type));
+  if (!add.length) return false;
+  const dt = new DataTransfer();
+  [...askFiles.files, ...add].slice(0, 3).forEach((f) => dt.items.add(f));
+  askFiles.files = dt.files;
+  askList();
+  return true;
+}
+ask.addEventListener('paste', (e) => { if (askAdd(e.clipboardData?.files || [])) e.preventDefault(); });
+ask.addEventListener('dragover', (e) => { if (e.dataTransfer.types.includes('Files')) { e.preventDefault(); ask.classList.add('drag'); } });
+ask.addEventListener('dragleave', (e) => { if (!ask.contains(e.relatedTarget)) ask.classList.remove('drag'); });
+ask.addEventListener('drop', (e) => { e.preventDefault(); ask.classList.remove('drag'); askAdd(e.dataTransfer.files); });
 
 let saved = null;
 try { saved = localStorage.getItem('pl.lang'); } catch { /* sans stockage */ }

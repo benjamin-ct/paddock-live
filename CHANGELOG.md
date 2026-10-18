@@ -4,6 +4,20 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
+## v1.27.44 — 2026-10-18
+
+### Une question, une idée ?
+- Joignez jusqu'à 3 captures d'écran ou vidéos à votre message (images jusqu'à 8 Mo, vidéos jusqu'à 40 Mo),
+  depuis Réglages → À propos ou depuis le formulaire du site : pratique pour montrer un bug. Ajoutez-les avec le
+  bouton, en les glissant sur le formulaire ou en collant une capture (Ctrl+V).
+
+### F1 TV
+- Nouvelle extension de navigateur **Paddock Live Companion** (Chrome, Edge et Firefox, lien dans Réglages →
+  Compte F1 TV) : connectez-vous sur formula1.com dans votre navigateur habituel, l'appli reçoit la connexion toute
+  seule (GPS et télémétrie).
+- Connexion simplifiée : il reste le bouton « Se connecter à F1 TV » de l'appli de bureau et l'extension. Le
+  favori « récupérer mon jeton » et le copier-coller du cookie disparaissent.
+
 ## v1.27.43 — 2026-10-18
 
 ### Une question, une idée ?

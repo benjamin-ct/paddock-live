@@ -37,8 +37,8 @@ import { studioInfo, enableStudio, disableStudio, syncStudio, startStudioSync, s
 import { postHistory, recordPost, removePost, statsOfPosts } from './post-history.js';
 import { accountsInfo, saveAccount, tiktokLoginUrl, tiktokCallback, youtubeLoginUrl, youtubeCallback, publish as publishSocial } from './social-publish.js';
 import { startAutoRenew, renew as renewF1tv, sessionOf, state as renewState, resetRenewState } from './f1tv-auth.js';
-import { localHost, sameSiteRequest, decodePath } from './guard.js';
-import { stats, startStats, sendFeedback } from './stats.js';
+import { localHost, sameSiteRequest, decodePath, extensionRequest, EXTENSION_ROUTES } from './guard.js';
+import { stats, startStats, sendFeedback, sendFeedbackFile } from './stats.js';
 import { archivePath, sendArchiveFile, archiveJSON } from './archive.js';
 import { cloud, createCloudTranslator } from './cloud-translate.js';
 import { cloudRadio } from './cloud-transcribe.js';
@@ -127,7 +127,8 @@ function sendJSON(res, status, obj) {
 // Requête mal formée : erreur 400 (et non 500)
 class BadRequest extends Error {}
 
-function readBody(req, max = 1e6) {
+// Corps brut (au plus max octets)
+function readRaw(req, max) {
   return new Promise((resolve, reject) => {
     let size = 0;
     const chunks = [];
@@ -136,15 +137,17 @@ function readBody(req, max = 1e6) {
       if (size > max) { reject(new BadRequest('Requête trop volumineuse')); req.destroy(); return; }
       chunks.push(c);
     });
-    req.on('end', () => {
-      const text = Buffer.concat(chunks).toString('utf8');
-      let body;
-      try { body = text ? JSON.parse(text) : {}; } catch { reject(new BadRequest('JSON invalide')); return; }
-      // Les routes attendent un objet : « null », un nombre ou une liste valent un corps vide
-      resolve(body && typeof body === 'object' && !Array.isArray(body) ? body : {});
-    });
+    req.on('end', () => resolve(Buffer.concat(chunks)));
     req.on('error', reject);
   });
+}
+
+async function readBody(req, max = 1e6) {
+  const text = (await readRaw(req, max)).toString('utf8');
+  let body;
+  try { body = text ? JSON.parse(text) : {}; } catch { throw new BadRequest('JSON invalide'); }
+  // Les routes attendent un objet : « null », un nombre ou une liste valent un corps vide
+  return body && typeof body === 'object' && !Array.isArray(body) ? body : {};
 }
 
 function serveStatic(req, res, pathname) {
@@ -168,7 +171,8 @@ async function handleApi(req, res, url) {
   const route = `${req.method} ${url.pathname}`;
   // L'API ne répond qu'à l'interface elle-même : un autre site ouvert dans le navigateur ne peut
   // ni la lire ni déclencher d'action (relais F1 TV avec le jeton, réglages, enregistrements…)
-  if (!sameSiteRequest(req.headers)) return sendJSON(res, 403, { error: 'Origine refusée' });
+  const fromExtension = extensionRequest(req.headers) && EXTENSION_ROUTES.has(route) && isLoopback(req.socket.remoteAddress);
+  if (!sameSiteRequest(req.headers) && !fromExtension) return sendJSON(res, 403, { error: 'Origine refusée' });
 
   switch (route) {
     case 'GET /api/lan':
@@ -527,6 +531,11 @@ async function handleApi(req, res, url) {
       const r = await sendFeedback(await readBody(req, 2e4));
       return sendJSON(res, r.status, r.data);
     }
+    // Pièce jointe du message (capture, vidéo), envoyée seule après lui
+    case 'POST /api/feedback/file': {
+      const r = await sendFeedbackFile(url.searchParams, String(req.headers['content-type'] || ''), await readRaw(req, 40e6));
+      return sendJSON(res, r.status, r.data);
+    }
     case 'POST /api/predictions': {
       const body = await readBody(req);
       try {
@@ -724,9 +733,9 @@ async function handleApi(req, res, url) {
     case 'POST /api/auth': {
       const body = await readBody(req);
       const token = parseF1tvToken(body.token);
-      if (!token) return sendJSON(res, 400, { error: 'Jeton non reconnu. Collez la valeur du cookie "login-session" ou le jeton "subscriptionToken".' });
+      if (!token) return sendJSON(res, 400, { error: 'Connexion F1 TV non reconnue : reconnectez-vous sur formula1.com.' });
       const info = tokenInfo(token);
-      const expiredMsg = 'Ce jeton est expiré : reconnectez-vous sur F1 TV et recopiez-le.';
+      const expiredMsg = 'Connexion F1 TV expirée : reconnectez-vous sur formula1.com.';
       if (info.expired) {
         // Jeton périmé mais session formula1.com encore valide : on le renouvelle aussitôt
         const ses = sessionOf(token);

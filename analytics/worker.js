@@ -19,7 +19,7 @@ import { cleanSummaryRequest, summarizeArticle } from './summarize.js';
 import { newsAlerts } from './alerts.js';
 import { transcribeRadio, cachedRadio, HASH_RE, MAX_AUDIO } from './transcribe.js';
 import { download } from './download.js';
-import { feedbackPost } from './feedback.js';
+import { feedbackPost, feedbackFile } from './feedback.js';
 import { buildIcs } from '../shared/ics.js';
 import { pronosApi, GROUP_RE } from './pronos.js';
 
@@ -212,6 +212,8 @@ export default {
     // Scènes OBS toutes prêtes : adresse courte à donner aux streamers
     if (req.method === 'GET' && url.pathname === '/obs') return Response.redirect(new URL('/obs/paddock-live-obs.json', url), 302);
     // Page des streamers : le bloc Streaming du site (aperçu, scènes OBS, installation)
+    // Extension Paddock Live Companion : adresse donnée dans l'appli (vers la boutique une fois publiée)
+    if (req.method === 'GET' && url.pathname === '/extension') return Response.redirect('https://github.com/benjamin-ct/paddock-live/blob/main/docs/EXTENSION.md', 302);
     if (req.method === 'GET' && url.pathname === '/streaming') return Response.redirect(new URL('/#streaming', url), 302);
     if (req.method === 'GET' && /^\/calendar(-en)?\.ics$/.test(url.pathname)) return calendar(env, new Date().getUTCFullYear(), url.pathname.includes('-en'));
     // Ancienne adresse (*.workers.dev) : les pages ouvertes dans un navigateur (connexion,
@@ -232,6 +234,9 @@ export default {
     // Questions et suggestions (appli, site) : lues dans le Studio
     if (req.method === 'POST' && url.pathname === '/f') {
       try { return await feedbackPost(req, env); } catch { return json({ error: 'Erreur' }, 500); }
+    }
+    if (req.method === 'POST' && url.pathname === '/f/file') {
+      try { return await feedbackFile(req, env, url); } catch { return json({ error: 'Erreur' }, 500); }
     }
     // Traduction partagée (actualités, radios) : ouverte à l'appli, plafonnée par jour
     if (req.method === 'POST' && url.pathname === '/t') {

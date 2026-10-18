@@ -276,7 +276,6 @@ export function initSettings() {
 
   if (window.f1desktop?.isDesktop) {
     $('#desktopLogin').hidden = false;
-    $('#bookmarkletHelp').hidden = true;
     $('#desktopLoginBtn').addEventListener('click', async () => {
       toast('Connectez-vous dans la fenêtre F1 qui vient de s\'ouvrir…', 6000);
       const res = await window.f1desktop.loginF1TV();
@@ -291,34 +290,13 @@ export function initSettings() {
       refreshAuth();
     });
   } else {
-    // Navigateur : pas de connexion intégrée, les méthodes manuelles sont dépliées
-    $('#f1tvMore').open = true;
+    // Navigateur : connexion par l'extension, bouton pour l'oublier
+    $('#tokenClear').hidden = false;
   }
 
-  // Jeton F1 TV en un clic : favori à glisser dans la barre du navigateur. Exécuté sur formula1.com,
-  // il lit le cookie de session et revient sur le dashboard avec le jeton dans l'URL (#f1tv=…).
-  const code = `(()=>{const c=document.cookie.split('; ').find(x=>x.startsWith('login-session='));if(!c){alert('Paddock Live : cookie introuvable. Connectez-vous sur formula1.com, ou utilisez la méthode manuelle.');return}location.href='${location.origin}/#f1tv='+encodeURIComponent(c.slice(14))})()`;
-  $('#bookmarklet').href = `javascript:${code}`;
-  $('#bookmarklet').addEventListener('click', (e) => { e.preventDefault(); toast('Glissez ce bouton dans votre barre de favoris, puis cliquez dessus depuis formula1.com', 5000); });
-  const m = /[#&]f1tv=([^&]+)/.exec(location.hash);
-  if (m) {
-    history.replaceState(null, '', location.pathname + location.search);
-    api('/api/auth', { method: 'POST', body: { token: decodeURIComponent(m[1]) } })
-      .then(() => toast('Jeton F1 TV enregistré : GPS et télémétrie activés en live', 5000, 'check'))
-      .catch((err) => toast(err.message, 6000));
-  }
-
-
-  $('#tokenSave').addEventListener('click', async () => {
-    try {
-      await api('/api/auth', { method: 'POST', body: { token: $('#tokenInput').value } });
-      $('#tokenInput').value = '';
-      toast('Jeton F1 TV enregistré, reconnexion au flux…');
-    } catch (err) { toast(err.message, 5000); }
-    refreshAuth();
-  });
   $('#tokenClear').addEventListener('click', async () => {
     await api('/api/auth', { method: 'DELETE' }).catch(() => {});
+    toast('Session F1 TV oubliée');
     refreshAuth();
   });
 
@@ -368,16 +346,52 @@ export function initSettings() {
   on('status', renderReplayBar);
   setInterval(renderReplayBar, 250);
 
-  // À propos : question ou suggestion envoyée au créateur (relais du serveur local)
+  // À propos : question ou suggestion envoyée au créateur (relais du serveur local), avec jusqu'à
+  // 3 captures ou vidéos envoyées ensuite une par une (mêmes limites que le serveur Paddock Live)
+  const FB_MAX = { 'image/png': 8e6, 'image/jpeg': 8e6, 'image/webp': 8e6, 'image/gif': 8e6, 'video/mp4': 40e6, 'video/webm': 40e6, 'video/quicktime': 40e6 };
+  const fbHint = $('#fbFileList').textContent;
+  const fbFiles = () => [...$('#fbFiles').files];
+  $('#fbFiles').addEventListener('change', () => {
+    const f = fbFiles();
+    $('#fbFileList').textContent = f.length ? f.map((x) => `${x.name} (${(x.size / 1e6).toFixed(1)} Mo)`).join(' · ') : t(fbHint);
+  });
+  // Captures et vidéos aussi collées (Ctrl+V) ou glissées sur le formulaire : ajoutées à la sélection
+  const fbAdd = (list) => {
+    const add = [...list].filter((f) => /^(image|video)\//.test(f.type));
+    if (!add.length) return false;
+    const dt = new DataTransfer();
+    [...fbFiles(), ...add].slice(0, 3).forEach((f) => dt.items.add(f));
+    $('#fbFiles').files = dt.files;
+    $('#fbFiles').dispatchEvent(new Event('change'));
+    return true;
+  };
+  const fbForm = $('#fbForm');
+  fbForm.addEventListener('paste', (e) => { if (fbAdd(e.clipboardData?.files || [])) e.preventDefault(); });
+  fbForm.addEventListener('dragover', (e) => { if (e.dataTransfer.types.includes('Files')) { e.preventDefault(); fbForm.classList.add('drag'); } });
+  fbForm.addEventListener('dragleave', (e) => { if (!fbForm.contains(e.relatedTarget)) fbForm.classList.remove('drag'); });
+  fbForm.addEventListener('drop', (e) => { e.preventDefault(); fbForm.classList.remove('drag'); fbAdd(e.dataTransfer.files); });
   $('#fbForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const text = $('#fbText').value.trim();
+    const files = fbFiles();
     if (text.length < 5) { toast(t('Message trop court')); return; }
+    if (files.length > 3) { toast(t('3 fichiers au plus')); return; }
+    const bad = files.find((f) => !(f.size <= (FB_MAX[f.type] || 0)));
+    if (bad) { toast(t('{} : format non accepté ou fichier trop lourd', bad.name), 5000); return; }
     $('#fbSend').disabled = true;
     try {
-      await api('/api/feedback', { method: 'POST', body: { kind: $('#fbKind').value, text, contact: $('#fbContact').value.trim(), lang: LANG } });
+      const r = await api('/api/feedback', { method: 'POST', body: { kind: $('#fbKind').value, text, contact: $('#fbContact').value.trim(), lang: LANG, files: files.length } });
       $('#fbText').value = '';
-      toast(t('Message envoyé : merci !'), 3000, 'check');
+      try {
+        for (const [n, f] of files.entries()) {
+          toast(t('Envoi des pièces jointes ({}/{})…', n + 1, files.length), 120000);
+          const res = await fetch(`/api/feedback/file?${new URLSearchParams({ id: r.id, up: r.up, n })}`, { method: 'POST', headers: { 'Content-Type': f.type }, body: f });
+          if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `Erreur ${res.status}`);
+        }
+        toast(t('Message envoyé : merci !'), 3000, 'check');
+      } catch (err) { toast(t('Message envoyé, mais pièce jointe refusée : {}', err.message), 6000); }
+      $('#fbFiles').value = '';
+      $('#fbFileList').textContent = t(fbHint);
     } catch (err) { toast(err.message, 5000); }
     $('#fbSend').disabled = false;
   });

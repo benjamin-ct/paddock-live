@@ -55,3 +55,23 @@ test('radar : seules des tuiles valides sont demandées à OpenStreetMap', async
   assert.equal(validTile(8, 1.5, 3), false);
   assert.equal(validTile(NaN, 1, 1), false);
 });
+
+test('sécurité : l\'extension Paddock Live Companion ne peut que transmettre la connexion F1 TV', async () => {
+  const { extensionRequest, EXTENSION_ROUTES } = await import('../server/guard.js');
+  for (const o of ['chrome-extension://dlfpjnekpodpopmcpocbamehimlbnblk', 'moz-extension://4b1c0d2e-1f3a-4c5b-9d6e-7f8a9b0c1d2e', 'safari-web-extension://ABC-123']) assert.equal(extensionRequest({ origin: o }), true, o);
+  for (const o of ['https://evil.example', 'chrome-extension://x/chemin', 'null', '', undefined]) assert.equal(extensionRequest({ origin: o }), false, String(o));
+  assert.deepEqual([...EXTENSION_ROUTES].sort(), ['GET /api/auth', 'POST /api/auth']);
+});
+
+test('extension : manifeste valide et textes traduits en français et en anglais', async () => {
+  const { readFileSync, existsSync } = await import('node:fs');
+  const dir = new URL('../extension/', import.meta.url);
+  const manifest = JSON.parse(readFileSync(new URL('manifest.json', dir), 'utf8'));
+  assert.equal(manifest.manifest_version, 3);
+  for (const f of [...Object.values(manifest.icons), 'background.js', 'popup.html', 'popup.js', 'popup.css']) assert.ok(existsSync(new URL(f, dir)), f);
+  const fr = JSON.parse(readFileSync(new URL('_locales/fr/messages.json', dir), 'utf8'));
+  const en = JSON.parse(readFileSync(new URL('_locales/en/messages.json', dir), 'utf8'));
+  assert.deepEqual(Object.keys(fr).sort(), Object.keys(en).sort());
+  const used = [...readFileSync(new URL('popup.html', dir), 'utf8').matchAll(/data-i18n="(\w+)"/g), ...readFileSync(new URL('popup.js', dir), 'utf8').matchAll(/t\(['"](\w+)['"]\)/g)].map((m) => m[1]);
+  for (const k of used) assert.ok(fr[k] && en[k], k);
+});

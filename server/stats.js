@@ -20,10 +20,17 @@ const FLUSH_MS = 15 * 60e3;
 // Question ou suggestion écrite par l'utilisateur (Réglages → À propos), envoyée quand il clique sur
 // Envoyer, avec la version et le système : lue par le créateur dans le Studio
 export const FEEDBACK_URL = process.env.PADDOCK_FEEDBACK_URL ?? 'https://paddock-live-stats.paddock-live.workers.dev/f';
-export async function sendFeedback(b, { url = FEEDBACK_URL, send = request } = {}) {
-  const data = JSON.stringify({ kind: b?.kind, text: b?.text, contact: b?.contact, lang: b?.lang, src: 'app', version: VERSION, os: OS });
-  const r = await send(url, { method: 'POST', timeout: 20000, body: data, headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) } });
+const answer = (r) => {
   try { return { status: r.status, data: JSON.parse(r.body.toString('utf8')) }; } catch { return { status: 502, data: { error: `Serveur Paddock Live indisponible (HTTP ${r.status})` } }; }
+};
+export async function sendFeedback(b, { url = FEEDBACK_URL, send = request } = {}) {
+  const data = JSON.stringify({ kind: b?.kind, text: b?.text, contact: b?.contact, lang: b?.lang, files: b?.files, src: 'app', version: VERSION, os: OS });
+  return answer(await send(url, { method: 'POST', timeout: 20000, body: data, headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) } }));
+}
+// Pièce jointe (capture, vidéo) : relayée telle quelle, avec le jeton d'envoi reçu pour le message
+export async function sendFeedbackFile(params, type, data, { url = FEEDBACK_URL, send = request } = {}) {
+  const q = new URLSearchParams({ id: params.get('id') || '', up: params.get('up') || '', n: params.get('n') || '' });
+  return answer(await send(`${url}/file?${q}`, { method: 'POST', timeout: 180000, body: data, headers: { 'Content-Type': type, 'Content-Length': data.length } }));
 }
 const PENDING_FILE = path.join(DATA_DIR, 'stats-pending.json');
 
