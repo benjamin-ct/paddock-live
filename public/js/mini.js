@@ -12,7 +12,8 @@ import { FLOAT, floatChrome } from './ui/floatwin.js';
 
 translatePage();
 
-let mode = storageGet('paddock.miniMode', 'int');   // 'int' (intervalle) | 'gap' (écart au leader)
+// 'int' (intervalle) | 'gap' (écart au leader) ; overlay de streaming : ?mode=gap dans l'adresse
+let mode = new URLSearchParams(location.search).get('mode') || storageGet('paddock.miniMode', 'int');
 let lastKey = '';
 
 const list = (o) => (!o ? [] : Array.isArray(o) ? o : Object.keys(o).sort((a, b) => a - b).map((k) => o[k]));

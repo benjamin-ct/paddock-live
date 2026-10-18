@@ -37,6 +37,7 @@ import { initSeason } from './ui/season.js';
 import { initNews } from './ui/news.js';
 import { initHome, initNoLive } from './ui/home.js';
 import './ui/calendar-menu.js';
+import './ui/streaming.js';
 import { initFloatMap } from './ui/floatmap.js';
 import { initReplays } from './ui/replays.js';
 import { initRail } from './ui/rail.js';

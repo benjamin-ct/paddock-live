@@ -14,7 +14,8 @@ function send(obj) {
 
 export function connect() {
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-  ws = new WebSocket(`${proto}://${location.host}/ws`);
+  // Overlay de streaming (?overlay=1) : suit le délai TV de l'appli
+  ws = new WebSocket(`${proto}://${location.host}/ws${/[?&]overlay=1(&|$)/.test(location.search) ? '?follow=1' : ''}`);
 
   ws.onopen = () => {
     store.connected = true;
@@ -42,6 +43,10 @@ export function connect() {
         if (msg.hostDelay != null) followHost(msg.hostDelay);
         break;
       case 'hostDelay': followHost(msg.ms); break;
+      // Délai changé à distance (Stream Deck)
+      case 'setDelay':
+        if (store.isHost && msg.ms !== store.delay) { setDelay(msg.ms); toast(`Délai TV : ${fmtDelay(store.delay)}`, 2500); }
+        break;
       case 'news': emit('news', msg.items); break;
       case 'pong': {
         const sent = pending.get(msg.id);

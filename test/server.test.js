@@ -100,6 +100,21 @@ test('hub : les téléphones du réseau local reçoivent le délai TV de l\'ordi
   hub.close();
 });
 
+test('hub : délai changé à distance (Stream Deck), suivi par les fenêtres, les overlays et les téléphones', () => {
+  const hub = new Hub({ maxDelayMs: 600000 });
+  hub.reset({ mode: 'test' });
+  const pc = new FakeWs();
+  hub.addClient(pc);
+  pc.emit('message', Buffer.from(JSON.stringify({ type: 'delay', ms: 30000 })));
+  const overlay = new FakeWs();
+  hub.addClient(overlay, { host: false });
+  assert.equal(hub.setHostDelay(hub.hostDelay + 1500), 31500);
+  assert.deepEqual(pc.sent.at(-1), { type: 'setDelay', ms: 31500 });
+  assert.deepEqual(overlay.sent.at(-1), { type: 'hostDelay', ms: 31500 });
+  assert.equal(hub.setHostDelay(-5000), 0);   // jamais négatif
+  hub.close();
+});
+
 test('replay : périodes de drapeau rouge', async () => {
   const { redFlagPeriods } = await import('../server/replay.js');
   const ev = (off, Status) => ({ off, topic: 'TrackStatus', data: { Status } });

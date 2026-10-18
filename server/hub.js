@@ -180,6 +180,14 @@ export class Hub {
     if (c.ws.readyState === WebSocket.OPEN) c.ws.send(str);
   }
 
+  // Délai TV changé à distance (Stream Deck…) : appliqué par les fenêtres de l'ordinateur, suivi par
+  // les overlays et les téléphones. Renvoie le nouveau délai (ms).
+  setHostDelay(ms) {
+    this.hostDelay = Math.round(Math.max(0, Math.min(this.maxDelayMs, ms)) / 100) * 100;
+    for (const o of this.clients) this.send(o, JSON.stringify(o.host ? { type: 'setDelay', ms: this.hostDelay } : { type: 'hostDelay', ms: this.hostDelay }));
+    return this.hostDelay;
+  }
+
   tick() {
     for (const c of this.clients) {
       if (c.ws.readyState !== WebSocket.OPEN) continue;

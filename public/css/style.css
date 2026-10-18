@@ -2901,3 +2901,14 @@ html.float-mini .float-bar { top: auto; bottom: 4px; right: 24px; }   /* en bas 
 .pd-group .pd-actions { margin-top: 10px; }
 .pd-group input { flex: 1 1 220px; min-width: 0; }
 .pd-group summary { cursor: pointer; }
+
+/* Overlays de streaming (sources navigateur d'OBS, Streamlabs, Meld Studio : ?overlay=1) : rien
+   d'interactif ni de message, seulement le contenu sur fond transparent */
+html.overlay :is(.float-bar, .float-resize, .toast) { display: none !important; }
+html.overlay.float-mini body.mini-body { padding-bottom: 4px; cursor: default; }
+html.overlay .mini-foot, html.overlay #miniMode { display: none !important; }
+
+/* Réglages → Streaming : adresses à copier */
+.stream-row { display: grid; gap: 4px; margin: 10px 0; }
+.stream-row .row { flex-wrap: nowrap; }
+.stream-row input { flex: 1; min-width: 0; font: 12px var(--mono, monospace); }

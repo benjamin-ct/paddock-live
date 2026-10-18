@@ -13,7 +13,7 @@
   <title>Paddock Live</title>
   <link rel="icon" href="/logo.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/css/style.css">
-  <script>/* Carte flottante : page transparente dès l'affichage */ if (/[?&]float=1(&|$)/.test(location.search)) document.documentElement.classList.add('float-map');</script>
+  <script>/* Carte flottante : page transparente dès l'affichage ; overlay de streaming (OBS…) : sans barre d'outils */ if (/[?&]float=1(&|$)/.test(location.search)) document.documentElement.classList.add('float-map'); if (/[?&]overlay=1(&|$)/.test(location.search)) document.documentElement.classList.add('overlay');</script>
   <script>/* Thème Pitwall et apparence (sombre / clair / système) posés avant l'affichage : pas d'éclair */ try { const p = JSON.parse(localStorage.getItem('paddock.prefs') || '{}'); const s = p.schemeSet || p.scheme === 'light' ? p.scheme : 'auto'; const light = s === 'light' || (s === 'auto' && matchMedia('(prefers-color-scheme: light)').matches); document.documentElement.dataset.scheme = light ? 'light' : 'dark'; } catch { document.documentElement.dataset.scheme = 'dark'; } document.documentElement.dataset.theme = 'pitwall';</script>
 </head>
 <body>
@@ -481,6 +481,7 @@
           <button class="set-tab" data-sgroup="display"><span class="set-ico"><svg class="ic" aria-hidden="true"><use href="#i-layout"/></svg></span><span class="set-lbl"><b>Disposition</b><small>Panneaux, colonnes, fenêtres</small></span></button>
           <button class="set-tab" data-sgroup="alerts"><span class="set-ico"><svg class="ic" aria-hidden="true"><use href="#i-bell"/></svg></span><span class="set-lbl"><b>Alertes & favoris</b><small>Notifications, rappels, favoris</small></span></button>
           <button class="set-tab" data-sgroup="app"><span class="set-ico"><svg class="ic" aria-hidden="true"><use href="#i-gear"/></svg></span><span class="set-lbl"><b>Application</b><small>Mises à jour, téléphone, traductions</small></span></button>
+          <button class="set-tab" data-sgroup="stream"><span class="set-ico"><svg class="ic" aria-hidden="true"><use href="#i-video"/></svg></span><span class="set-lbl"><b>Streaming</b><small>OBS, Streamlabs, Meld, Stream Deck</small></span></button>
           <button class="set-tab" data-sgroup="about"><span class="set-ico"><svg class="ic" aria-hidden="true"><use href="#i-info"/></svg></span><span class="set-lbl"><b>À propos</b><small>Nouveautés, réseaux, légal</small></span></button>
         </nav>
       </aside>
@@ -675,6 +676,8 @@
         <div class="row"><label class="toggle small"><input type="checkbox" id="keepAwake"> Garder l'écran allumé pendant une séance (sur téléphone : touchez l'écran une fois)</label></div>
       </section>
 
+      <section class="set-block" data-sgroup="stream" id="streamOverlays"></section>
+      <section class="set-block" data-sgroup="stream" id="streamDeck"></section>
       <section class="set-block" data-sgroup="app" id="shortcutsBlock">
         <h4><svg class="ic" aria-hidden="true"><use href="#i-keyboard"/></svg> Raccourcis</h4>
         <p class="small muted"><kbd><svg class="ic ic-s" aria-hidden="true"><use href="#i-arrow-left"/></svg></kbd> <kbd><svg class="ic ic-s" aria-hidden="true"><use href="#i-arrow-right"/></svg></kbd> : délai ±1 s · Maj : ±5 s · Alt : ±0,1 s · S : synchro TV · Espace : pause (replay) · M : couper les alertes sonores · Échap : quitter le panneau agrandi</p>
