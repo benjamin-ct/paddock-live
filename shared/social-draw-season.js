@@ -1,7 +1,7 @@
 // Visuels des posts de saison (mode créateur) : horaires du week-end, pneus et météo, records du
 // circuit, notes des pilotes, duels entre coéquipiers, positions tour par tour, récap de la semaine,
 // et images de la vidéo animée de la course. Mêmes outils de dessin que les autres posts.
-import { C, TITLE, BODY, MONO, MEDAL, rr, txt, fitLines, vivid, background, frame, newsSlide, teamLogo } from './social-draw.js';
+import { C, TITLE, BODY, MONO, MEDAL, rr, txt, fitLines, vivid, alpha, background, frame, newsSlide, teamLogo } from './social-draw.js';
 import { lapStr } from './social-season.js';
 
 const dec = (v, n = 1) => (v == null ? '—' : Number(v).toFixed(n).replace('.', ','));
@@ -230,6 +230,72 @@ export function equipes(ctx, W, H, d, o, page) {
     txt(ctx, `${r.b.pts} pts`, W - f.pad - 30, y + h * 0.5 + fs * 0.95, { size: Math.round(fs * 0.55), weight: 700, family: MONO, color: C.muted, align: 'right' });
     if (gap && h > fs * 3.4) txt(ctx, gap, cx, y + h - 14, { size: Math.max(18, Math.round(fs * 0.42)), weight: 600, color: C.muted, align: 'center' });
   });
+}
+
+// ---------- Course au titre : pilotes (team = false) ou constructeurs ----------
+// Bandeau : points encore en jeu, ou le champion ; puis les concurrents encore en course et les deux
+// premiers éliminés (grisés). Barre : points actuels, hachures jusqu'au maximum possible, trait du leader.
+export function titre(ctx, W, H, d, o, team) {
+  const all = team ? d.constructors : d.drivers;
+  const champ = team ? d.champTeam : d.champion;
+  const clinch = team ? d.clinchC : d.clinchD;
+  background(ctx, W, H, all[0]?.color);
+  const f = frame(ctx, W, H, d, o, team ? 'Constructeurs' : 'Pilotes');
+  const land = W > H;
+  const u = Math.min(W, H) / 1080;
+  // Bandeau
+  const bh = Math.round(130 * u);
+  panel(ctx, f.pad, f.top - 10, W - f.pad * 2, bh);
+  ctx.fillStyle = champ ? C.gold : C.red; ctx.fillRect(f.pad, f.top, 8, bh - 20);
+  const by = f.top - 10 + bh / 2;
+  if (champ) {
+    txt(ctx, team ? 'CHAMPION DU MONDE DES CONSTRUCTEURS' : 'CHAMPION DU MONDE', f.pad + 40 * u, by - 12 * u, { size: Math.round(30 * u), weight: 700, family: TITLE, color: C.gold, spacing: 3, max: W - f.pad * 2 - 80 * u });
+    txt(ctx, champ.name.toUpperCase(), f.pad + 40 * u, by + 42 * u, { size: Math.round(52 * u), weight: 800, family: TITLE, max: W - f.pad * 2 - 80 * u });
+  } else {
+    txt(ctx, `${team ? d.left.c : d.left.d} PTS`, f.pad + 40 * u, by + 26 * u, { size: Math.round(72 * u), weight: 800, family: TITLE });
+    txt(ctx, 'ENCORE EN JEU', f.pad + 40 * u, by - 34 * u, { size: Math.round(24 * u), weight: 700, family: TITLE, color: C.red, spacing: 3 });
+    const rest = d.left.races ? `${d.left.races} GP RESTANT${d.left.races > 1 ? 'S' : ''}${d.left.sprints ? ` · ${d.left.sprints} SPRINT${d.left.sprints > 1 ? 'S' : ''}` : ''}` : 'SAISON TERMINÉE';
+    txt(ctx, rest, W - f.pad - 30 * u, by + 12 * u, { size: Math.round(30 * u), weight: 700, family: TITLE, color: C.muted, align: 'right', spacing: 2 });
+  }
+  // Concurrents : encore en course, puis deux éliminés
+  const max = land ? 5 : H > 1600 ? 10 : 7;
+  const alive = all.filter((e) => e.alive).length;
+  const list = all.slice(0, Math.min(max, Math.max(alive + 2, 3)));
+  const top = f.top - 10 + bh + 24 * u;
+  const rowH = Math.min((H > 1600 ? 190 : land ? 110 : 120) * u, (f.bottom - top - 30 * u) / Math.max(list.length, 1));
+  const fs = Math.round(rowH * 0.32);
+  const lead = Math.max(...all.map((e) => e.points));
+  const scale = Math.max(...list.map((e) => e.maxPts), 1);
+  list.forEach((e, i) => {
+    const y = top + i * rowH;
+    const h = rowH - 12 * u;
+    const col = vivid(e.color);
+    ctx.save();
+    if (!e.alive) ctx.globalAlpha = 0.45;
+    panel(ctx, f.pad, y, W - f.pad * 2, h, 14);
+    ctx.fillStyle = col; ctx.fillRect(f.pad, y + 10, 6, h - 20);
+    const px = f.pad + fs * 1.7;
+    txt(ctx, String(e.pos), px, y + h * 0.5 + fs * 0.34, { size: Math.round(fs * 1.1), weight: 800, family: TITLE, color: i === 0 ? C.gold : C.text, align: 'right' });
+    const slot = fs * 1.3;
+    teamLogo(ctx, o, e.team, px + fs * 0.4 + slot / 2, y + h * 0.5, fs * 0.95, 'center', slot);
+    const tx = px + fs * 0.7 + slot;
+    const right = W - f.pad - fs * 0.6;
+    const ny = y + h * 0.42;
+    txt(ctx, `${e.points} PTS`, right, ny, { size: Math.round(fs * 0.86), weight: 700, family: MONO, align: 'right' });
+    txt(ctx, e.label.toUpperCase(), tx, ny, { size: fs, weight: 800, family: TITLE, max: right - tx - fs * 4.4 });
+    const status = !e.alive ? `${team ? 'Éliminée' : 'Éliminé'} · manche ${e.outRound}` : e.behind ? `À ${e.behind} pts · ${e.maxPts} pts au plus` : 'En tête';
+    txt(ctx, status.toUpperCase(), tx, ny + fs * 0.78, { size: Math.round(Math.max(fs * 0.5, 20 * u)), weight: 700, family: TITLE, color: !e.alive ? C.red : e.behind ? C.muted : C.gold, spacing: 1.5 });
+    // Barre : points (couleur d'écurie) + possible (clair) ; trait = points du leader
+    const bx = tx; const bw = right - tx; const bar = Math.max(6, fs * 0.2); const yb = y + h - bar - fs * 0.32;
+    rr(ctx, bx, yb, bw, bar, bar / 2); ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fill();
+    if (e.alive) { rr(ctx, bx, yb, Math.max(bar, bw * (e.maxPts / scale)), bar, bar / 2); ctx.fillStyle = alpha(col, 0.3); ctx.fill(); }
+    rr(ctx, bx, yb, Math.max(bar, bw * (e.points / scale)), bar, bar / 2); ctx.fillStyle = col; ctx.fill();
+    ctx.fillStyle = C.text; ctx.fillRect(bx + bw * (lead / scale) - 1.5, yb - bar * 0.6, 3, bar * 2.2);
+    ctx.restore();
+  });
+  const msg = champ ? '' : clinch?.next ? `${clinch.leader} peut être sacré dès ${clinch.next}` : clinch?.earliest ? `Titre possible au plus tôt : ${clinch.earliest}` : '';
+  const more = alive > list.length ? `+ ${alive - list.length} autres encore en course` : '';
+  note(ctx, W, f, [msg, more].filter(Boolean).join('  ·  ') || 'Barre claire : points encore possibles');
 }
 
 // ---------- Positions tour par tour ----------

@@ -3,7 +3,7 @@
 // et vidéo animée) et récap de la semaine. Données de la saison (Jolpica, format de /api/season),
 // records du circuit (archives F1) ; textes en français. Code pur, partagé par l'appli et la page web.
 import { gpNameFr } from './summary.js';
-import { driverRatings, qualiGaps } from './season-calc.js';
+import { driverRatings, qualiGaps, titleRace } from './season-calc.js';
 import { cleanPace, lapsLedBy } from './race-laps.js';
 import { raceStory } from './race-story.js';
 import { hashtag, teamTag, BRAND_TAG, xLength } from './social.js';
@@ -179,6 +179,44 @@ export function teamDuelsData(season, { year, upTo = null, live = {} } = {}) {
   return d;
 }
 
+// ---------- 4 bis. Course au titre (pilotes et constructeurs) après une manche ----------
+// Classements officiels après la dernière course ; pour une manche plus ancienne, recalculés d'après
+// les résultats jusqu'à elle (courses et sprints). Qui peut encore être champion : titleRace.
+function standingsUpTo(races) {
+  const dm = new Map(); const cm = new Map();
+  const add = (x, win) => {
+    const d = dm.get(x.code) || { code: x.code, name: x.name, last: x.last, points: 0, wins: 0 };
+    dm.set(x.code, { ...d, team: x.team, teamId: x.teamId, points: d.points + x.points, wins: d.wins + win });
+    const c = cm.get(x.teamId) || { id: x.teamId, name: x.team, points: 0, wins: 0 };
+    cm.set(x.teamId, { ...c, points: c.points + x.points, wins: c.wins + win });
+  };
+  for (const r of races) { for (const x of r.results) add(x, x.pos === 1 ? 1 : 0); for (const x of r.sprintResults || []) add(x, 0); }
+  const rank = (m) => [...m.values()].sort((a, b) => b.points - a.points || b.wins - a.wins).map((e, i) => ({ ...e, pos: i + 1 }));
+  return { drivers: rank(dm), constructors: rank(cm) };
+}
+export function titleData(season, { year, upTo = null, live = {} } = {}) {
+  const done = season.races.filter((r) => r.results.length && (!upTo || r.round <= upTo));
+  const last = done.at(-1);
+  const d = base(last, year, 'title', 'Course au titre');
+  d.after = done.length;
+  if (!last) return { ...d, drivers: [], constructors: [] };
+  const races = season.races.map((r) => (r.round <= last.round ? r : { ...r, results: [], sprintResults: [] }));
+  const latest = !season.races.some((r) => r.round > last.round && r.results.length);
+  const tr = titleRace({ races, ...(latest ? { drivers: season.drivers, constructors: season.constructors } : standingsUpTo(done)) }, year);
+  const gp = (r) => (r ? gpNameFr(r.name).replace(/^le /, '') : '');
+  const row = (e, label, color) => ({ pos: e.pos, label, team: e.team || e.name, color, points: e.points, behind: e.behind, maxPts: e.maxPts, alive: e.alive, outRound: e.outRound });
+  d.drivers = tr.drivers.map((e) => row(e, e.last || e.name, teamColor(e.teamId || e.team, live[e.code])));
+  d.constructors = tr.constructors.map((e) => row(e, e.name, teamColor(e.id || e.name)));
+  d.left = { races: tr.races, sprints: tr.sprints, d: tr.maxD, c: tr.maxC };
+  d.champion = tr.champion ? { name: tr.champion.name, team: tr.champion.team } : null;
+  d.champTeam = tr.champTeam ? { name: tr.champTeam.name } : null;
+  // Titre au plus tôt : dès la prochaine manche, sinon la première où il devient possible
+  const when = (c) => c && { leader: c.leader.name, next: c.possibleNext ? gpNameFr(c.next.name) : null, earliest: c.earliest ? gp(c.earliest) : null };
+  d.clinchD = when(tr.clinchD);
+  d.clinchC = when(tr.clinchC);
+  return d;
+}
+
 // ---------- 5. Course tour par tour (graphique des positions, vidéo) ----------
 // rcm : direction de course (parseRaceControl), sinon neutralisations estimées d'après les temps au
 // tour (vidéo animée)
@@ -260,6 +298,24 @@ export function seasonCaptions(d, sig = '') {
   if (d.post === 'teamduels') {
     const lines = d.rows.map((r) => `${r.team} : ${r.a.last} ${r.a.q}-${r.b.q} ${r.b.last} en qualifs, ${r.a.r}-${r.b.r} en course`);
     return finish(d, `Duels entre coéquipiers après ${d.after} course${d.after > 1 ? 's' : ''}`, lines, sig, ['#Teammates'], lines.slice(0, 4));
+  }
+  if (d.post === 'title') {
+    const part = (list, champ, clinch, max, team) => {
+      if (!list.length) return [];
+      if (champ) return [`${team ? 'Constructeurs' : 'Pilotes'} : ${champ.name} ${team ? 'champion du monde des constructeurs' : 'champion du monde'} !`];
+      const alive = list.filter((e) => e.alive);
+      const out = [`${team ? 'Constructeurs' : 'Pilotes'} (${max} pts encore en jeu) :`,
+        ...alive.slice(0, 5).map((e) => `${e.pos}. ${e.label} : ${e.points} pts${e.behind ? ` (à ${e.behind} pts)` : ''}`)];
+      if (alive.length > 5) out.push(`… et ${alive.length - 5} autre${alive.length > 6 ? 's' : ''} encore en course`);
+      if (clinch?.next) out.push(`${clinch.leader} peut être sacré dès ${clinch.next}.`);
+      else if (clinch?.earliest) out.push(`Titre possible au plus tôt : ${clinch.earliest}.`);
+      return out;
+    };
+    const dl = part(d.drivers, d.champion, d.clinchD, d.left.d, false);
+    const cl = part(d.constructors, d.champTeam, d.clinchC, d.left.c, true);
+    const left = d.left.races ? `Encore ${d.left.races} Grand${d.left.races > 1 ? 's' : ''} Prix${d.left.sprints ? `, dont ${d.left.sprints} en format sprint` : ''}.` : 'Saison terminée.';
+    const lines = [...dl, ...(dl.length && cl.length ? [''] : []), ...cl, '', left];
+    return finish(d, d.champion ? `${d.champion.name} champion du monde ${d.year} !` : `La course au titre après ${gpNameFr(d.gpEn)}`, lines, sig, ['#F1Championship'], [...dl.slice(0, 3), '', ...cl.slice(0, 2)]);
   }
   if (d.post === 'racelaps') {
     const lines = [];

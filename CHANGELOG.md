@@ -4,6 +4,15 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
+## v1.27.33 — à venir
+
+### Corrections
+- Résumé de fin de course : le Grand Prix de Bahreïn, couru cette année en Malaisie, porte son nom
+  en français.
+
+### Divers
+- Petites améliorations internes.
+
 ## v1.27.32 — 2026-10-18
 
 ### Barre du haut
