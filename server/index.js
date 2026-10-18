@@ -733,9 +733,9 @@ async function handleApi(req, res, url) {
     case 'POST /api/auth': {
       const body = await readBody(req);
       const token = parseF1tvToken(body.token);
-      if (!token) return sendJSON(res, 400, { error: 'Jeton non reconnu. Collez la valeur du cookie "login-session" ou le jeton "subscriptionToken".' });
+      if (!token) return sendJSON(res, 400, { error: 'Connexion F1 TV non reconnue : reconnectez-vous sur formula1.com.' });
       const info = tokenInfo(token);
-      const expiredMsg = 'Ce jeton est expiré : reconnectez-vous sur F1 TV et recopiez-le.';
+      const expiredMsg = 'Connexion F1 TV expirée : reconnectez-vous sur formula1.com.';
       if (info.expired) {
         // Jeton périmé mais session formula1.com encore valide : on le renouvelle aussitôt
         const ses = sessionOf(token);

@@ -276,7 +276,6 @@ export function initSettings() {
 
   if (window.f1desktop?.isDesktop) {
     $('#desktopLogin').hidden = false;
-    $('#bookmarkletHelp').hidden = true;
     $('#desktopLoginBtn').addEventListener('click', async () => {
       toast('Connectez-vous dans la fenêtre F1 qui vient de s\'ouvrir…', 6000);
       const res = await window.f1desktop.loginF1TV();
@@ -291,34 +290,13 @@ export function initSettings() {
       refreshAuth();
     });
   } else {
-    // Navigateur : pas de connexion intégrée, les méthodes manuelles sont dépliées
-    $('#f1tvMore').open = true;
+    // Navigateur : connexion par l'extension, bouton pour l'oublier
+    $('#tokenClear').hidden = false;
   }
 
-  // Jeton F1 TV en un clic : favori à glisser dans la barre du navigateur. Exécuté sur formula1.com,
-  // il lit le cookie de session et revient sur le dashboard avec le jeton dans l'URL (#f1tv=…).
-  const code = `(()=>{const c=document.cookie.split('; ').find(x=>x.startsWith('login-session='));if(!c){alert('Paddock Live : cookie introuvable. Connectez-vous sur formula1.com, ou utilisez la méthode manuelle.');return}location.href='${location.origin}/#f1tv='+encodeURIComponent(c.slice(14))})()`;
-  $('#bookmarklet').href = `javascript:${code}`;
-  $('#bookmarklet').addEventListener('click', (e) => { e.preventDefault(); toast('Glissez ce bouton dans votre barre de favoris, puis cliquez dessus depuis formula1.com', 5000); });
-  const m = /[#&]f1tv=([^&]+)/.exec(location.hash);
-  if (m) {
-    history.replaceState(null, '', location.pathname + location.search);
-    api('/api/auth', { method: 'POST', body: { token: decodeURIComponent(m[1]) } })
-      .then(() => toast('Jeton F1 TV enregistré : GPS et télémétrie activés en live', 5000, 'check'))
-      .catch((err) => toast(err.message, 6000));
-  }
-
-
-  $('#tokenSave').addEventListener('click', async () => {
-    try {
-      await api('/api/auth', { method: 'POST', body: { token: $('#tokenInput').value } });
-      $('#tokenInput').value = '';
-      toast('Jeton F1 TV enregistré, reconnexion au flux…');
-    } catch (err) { toast(err.message, 5000); }
-    refreshAuth();
-  });
   $('#tokenClear').addEventListener('click', async () => {
     await api('/api/auth', { method: 'DELETE' }).catch(() => {});
+    toast('Session F1 TV oubliée');
     refreshAuth();
   });
 

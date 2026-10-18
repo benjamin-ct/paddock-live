@@ -2433,4 +2433,10 @@ export default {
   "Pièce jointe inattendue": "Unexpected attachment",
   "Pièce jointe déjà reçue": "Attachment already received",
   "Fichier vide": "Empty file",
+  "Oublier la connexion F1 TV": "Forget the F1 TV connection",
+  "Pour Chrome, Edge et Firefox : connectez-vous sur formula1.com dans votre navigateur, Paddock Live reçoit la connexion tout seul.": "For Chrome, Edge and Firefox: sign in on formula1.com in your browser and Paddock Live receives the connection automatically.",
+  "La connexion reste sur votre ordinateur et n'est envoyée qu'aux serveurs de la F1. Elle est renouvelée automatiquement tant que votre session formula1.com est valide (environ 30 jours) ; un rappel s'affiche quelques jours avant la fin.": "The connection stays on your computer and is only sent to F1 servers. It is renewed automatically while your formula1.com session is valid (about 30 days); a reminder shows a few days before it ends.",
+  "Connexion F1 TV non reconnue : reconnectez-vous sur formula1.com.": "F1 TV connection not recognised: sign in again on formula1.com.",
+  "Connexion F1 TV expirée : reconnectez-vous sur formula1.com.": "F1 TV connection expired: sign in again on formula1.com.",
+  "Session F1 TV oubliée": "F1 TV session forgotten",
 };

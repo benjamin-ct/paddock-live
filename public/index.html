@@ -503,25 +503,12 @@
           <span class="small muted">Une fenêtre de connexion formula1.com s'ouvre ; une fois connecté, le jeton est récupéré automatiquement.</span>
           <button class="btn small" id="desktopLogoutBtn" title="Oublier la session F1 TV mémorisée dans l'application">Se déconnecter</button>
         </div>
-        <details class="set-more" id="f1tvMore">
-          <summary>Autres méthodes de connexion (navigateur, jeton manuel)</summary>
-          <details class="small">
-          <summary>Comment récupérer mon jeton F1 TV ?</summary>
-          <ol>
-            <li>Connectez-vous sur <b>f1tv.formula1.com</b> (ou formula1.com) dans votre navigateur.</li>
-            <li>Ouvrez les outils de développement (F12) <svg class="ic ic-s" aria-hidden="true"><use href="#i-arrow-right"/></svg> onglet <b>Application</b> (Chrome/Edge) ou <b>Stockage</b> (Firefox) <svg class="ic ic-s" aria-hidden="true"><use href="#i-arrow-right"/></svg> <b>Cookies</b> <svg class="ic ic-s" aria-hidden="true"><use href="#i-arrow-right"/></svg> <code>https://www.formula1.com</code>.</li>
-            <li>Copiez la <b>valeur</b> du cookie <code>login-session</code> et collez-la ci-dessous (le jeton est extrait automatiquement).</li>
-          </ol>
-          <p>Le jeton est enregistré uniquement sur votre PC (fichier <code>config.json</code>). Il n'est envoyé qu'aux serveurs de la F1 (dont api.formula1.com pour le renouvellement). Il vaut environ 4 jours et l'application le <b>renouvelle automatiquement</b> tant que votre session formula1.com est valide (environ 30 jours après la connexion) ; un rappel s'affiche quelques jours avant la fin.</p>
-          </details>
-        <p class="small" id="bookmarkletHelp"><b>Méthode rapide :</b> glissez ce bouton dans votre barre de favoris <svg class="ic ic-s" aria-hidden="true"><use href="#i-arrow-right"/></svg> <a class="btn" id="bookmarklet" href="#">Paddock Live : récupérer mon jeton</a>
-          puis, connecté sur formula1.com, cliquez sur ce favori. <span class="muted">(Si le site bloque la lecture du cookie, utilisez la méthode manuelle.)</span></p>
         <div class="row">
-          <input type="password" id="tokenInput" placeholder="Valeur du cookie login-session ou jeton" autocomplete="off">
-          <button class="btn" id="tokenSave">Enregistrer</button>
-          <button class="btn" id="tokenClear">Supprimer</button>
+          <a class="btn" href="https://paddocklive.app/extension" target="_blank" rel="noopener"><svg class="ic" aria-hidden="true"><use href="#i-external"/></svg> Extension Paddock Live Companion</a>
+          <span class="small muted">Pour Chrome, Edge et Firefox : connectez-vous sur formula1.com dans votre navigateur, Paddock Live reçoit la connexion tout seul.</span>
+          <button class="btn small" id="tokenClear" hidden title="Oublier la connexion F1 TV">Se déconnecter</button>
         </div>
-        </details>
+        <p class="small muted">La connexion reste sur votre ordinateur et n'est envoyée qu'aux serveurs de la F1. Elle est renouvelée automatiquement tant que votre session formula1.com est valide (environ 30 jours) ; un rappel s'affiche quelques jours avant la fin.</p>
       </section>
 
       <section class="set-block" data-sgroup="app" data-phone>

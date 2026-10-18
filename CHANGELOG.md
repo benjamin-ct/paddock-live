@@ -12,9 +12,11 @@ l'application (Réglages → Application → Nouveautés).
   bouton, en les glissant sur le formulaire ou en collant une capture (Ctrl+V).
 
 ### F1 TV
-- Prêt pour l'extension de navigateur **Paddock Live Companion** (bientôt sur les boutiques Chrome, Edge et
-  Firefox) : connectez-vous sur formula1.com dans votre navigateur habituel, l'appli reçoit la connexion toute
-  seule (GPS et télémétrie), sans copier de jeton.
+- Nouvelle extension de navigateur **Paddock Live Companion** (Chrome, Edge et Firefox, lien dans Réglages →
+  Compte F1 TV) : connectez-vous sur formula1.com dans votre navigateur habituel, l'appli reçoit la connexion toute
+  seule (GPS et télémétrie).
+- Connexion simplifiée : il reste le bouton « Se connecter à F1 TV » de l'appli de bureau et l'extension. Le
+  favori « récupérer mon jeton » et le copier-coller du cookie disparaissent.
 
 ## v1.27.43 — 2026-10-18
 
