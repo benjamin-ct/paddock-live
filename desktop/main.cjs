@@ -92,7 +92,8 @@ function snapshotChildren() {
   }));
 }
 
-const childPrefs = () => ({ contextIsolation: true, sandbox: true, preload: path.join(__dirname, 'preload.cjs') });
+// plugins : visionneuse PDF intégrée (documents FIA affichés dans l'appli)
+const childPrefs = () => ({ contextIsolation: true, sandbox: true, plugins: true, preload: path.join(__dirname, 'preload.cjs') });
 
 // Carte flottante : fenêtre transparente, sans cadre ni fond, au-dessus de tout (par-dessus la vidéo)
 const isFloatUrl = (u) => /[?&]float=1(&|$)/.test(u || '');
@@ -306,8 +307,8 @@ function setupContents(wc, url) {
     // Mode créateur : page de publication (X, Threads, Bluesky) préremplie, ouverte dans l'appli
     if (composeOf(target)) { openCompose(target); return { action: 'deny' }; }
     // Navigateur par défaut, pour les adresses web seulement (pas de file:, ni de protocole
-    // système qui lancerait un autre programme)
-    if (/^https?:\/\//i.test(target)) shell.openExternal(target);
+    // système qui lancerait un autre programme) ; webcal : abonnement au calendrier, ouvert par l'agenda
+    if (/^(https?|webcal):\/\//i.test(target)) shell.openExternal(target);
     return { action: 'deny' };
   });
   wc.on('did-create-window', (win, { url: target }) => {
@@ -505,7 +506,7 @@ async function start() {
     title: 'Paddock Live',
     autoHideMenuBar: true,
     icon: APP_ICON,
-    webPreferences: { contextIsolation: true, sandbox: true, preload: path.join(__dirname, 'preload.cjs') },
+    webPreferences: childPrefs(),
   });
   const url = `http://127.0.0.1:${process.env.PORT}/`;
   setupContents(mainWindow.webContents, url);

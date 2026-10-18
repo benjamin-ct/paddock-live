@@ -32,10 +32,12 @@ function fold(line) {
 // Noms des séances en anglais (le calendrier suit la langue de l'interface)
 const LABEL_EN = { EL1: 'FP1', EL2: 'FP2', EL3: 'FP3', 'Qualif. sprint': 'Sprint qualifying', Sprint: 'Sprint', Qualifications: 'Qualifying', Course: 'Race' };
 
-export function buildIcs(races, { year, round = null, alarmMin = 15, now = Date.now(), lang = 'fr' } = {}) {
+// subscribe : calendrier auquel on s'abonne (adresse fixe, relue par l'agenda toutes les 6 h)
+export function buildIcs(races, { year, round = null, alarmMin = 15, now = Date.now(), lang = 'fr', subscribe = false } = {}) {
   const en = lang === 'en';
   const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Paddock Live//Calendrier F1//FR', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
-    `X-WR-CALNAME:${text(round ? `F1 ${year} — ${en ? 'round' : 'manche'} ${round}` : `F1 ${year}`)}`];
+    `X-WR-CALNAME:${text(subscribe ? `${en ? 'Formula 1' : 'Formule 1'} (Paddock Live)` : round ? `F1 ${year} — ${en ? 'round' : 'manche'} ${round}` : `F1 ${year}`)}`,
+    ...(subscribe ? ['REFRESH-INTERVAL;VALUE=DURATION:PT6H', 'X-PUBLISHED-TTL:PT6H'] : [])];
   for (const r of races) {
     if (round && r.round !== round) continue;
     for (const s of r.sessions || []) {

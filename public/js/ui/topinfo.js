@@ -8,6 +8,7 @@ import { fiaState } from './feed.js';
 import { icon } from '../icons.js';
 import { LOCALE, EN } from '../i18n.js';
 import { gpFull } from '/shared/gp-names.js';
+import { pdfHref } from './pdf-view.js';
 
 let open = null;      // outil ouvert : 'docs' | 'speeds' | 'sectors' | 'weather'
 let pop = null;
@@ -19,7 +20,8 @@ let speedMode = 'best';   // 'best' : meilleures vitesses de la séance ; 'last'
 
 const list = (o) => (!o ? [] : Array.isArray(o) ? o : Object.keys(o).sort((a, b) => a - b).map((k) => o[k]));
 
-// Documents d'un autre Grand Prix de la saison (choisi dans la liste) : chargés une fois
+// Documents d'un autre Grand Prix de la saison (choisi dans la liste) : chargés une fois, et ceux de
+// tous les Grands Prix déjà commencés lus d'avance, l'un après l'autre (liste aussitôt affichée)
 let docGp = '';       // '' : Grand Prix de la séance affichée
 let races = null;     // Grands Prix déjà commencés de la saison, du plus récent au plus ancien
 const otherDocs = new Map();
@@ -30,6 +32,7 @@ function loadRaces() {
   api(`/api/schedule?year=${year}`).then((d) => {
     races = d.races.filter((r) => r.sessions.some((s) => Date.parse(s.t) < Date.now())).reverse().map((r) => ({ name: r.name, locality: r.locality || '', year }));
     render(true);
+    (async () => { for (const r of races) await otherState(r).job; })();
   }).catch(() => { races = null; });
 }
 function otherState(r) {
@@ -37,10 +40,10 @@ function otherState(r) {
   if (!o) {
     o = { key: r.name, docs: [], loading: true };
     otherDocs.set(r.name, o);
-    api(`/api/fia-docs?${new URLSearchParams({ year: r.year, name: r.name, location: r.locality, country: '' })}`)
+    o.job = api(`/api/fia-docs?${new URLSearchParams({ year: r.year, name: r.name, location: r.locality, country: '' })}`)
       .then((x) => { o.docs = x.docs || []; o.page = x.page; })
       .catch((err) => { o.error = err.message; otherDocs.delete(r.name); })
-      .finally(() => { o.loading = false; render(true); });
+      .finally(() => { o.loading = false; if (docGp === r.name) render(true); });
   }
   return o;
 }
@@ -79,7 +82,7 @@ function docsHtml() {
       <div class="tbd-main"><div class="tbd-title">${esc(d.title)}</div>
         <div class="tbd-sum">${cars.length ? `<b>${esc(cars.join(', '))}</b> · ` : ''}${esc(sum.text)}</div></div>
       <span class="tbd-time">${esc(time(d.published))}</span>
-      <a class="tbd-dl" href="${esc(d.url)}" target="_blank" rel="noopener" title="Ouvrir / télécharger le PDF">⤓</a></div>`).join('')
+      <a class="tbd-dl" href="${esc(pdfHref(d.url))}" data-pdf="${esc(d.title)}" target="_blank" rel="noopener" title="Afficher le PDF">${icon('doc', 'ic-s')}</a></div>`).join('')
     : `<div class="note">${f.loading && !f.docs?.length ? 'Chargement des documents…' : f.error ? `Documents indisponibles : ${esc(f.error)}` : q ? 'Aucun document ne correspond.' : 'Aucun document publié pour l\'instant.'}</div>`;
   return `<div class="tbp-head"><b>Documents FIA</b>${gpSel}<span class="muted small">${docs.length} document${docs.length > 1 ? 's' : ''}</span>
       ${f.page ? `<a class="small" href="${esc(f.page)}" target="_blank" rel="noopener">fia.com ${icon('external', 'ic-s')}</a>` : ''}</div>

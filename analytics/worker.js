@@ -19,6 +19,8 @@ import { cleanSummaryRequest, summarizeArticle } from './summarize.js';
 import { newsAlerts } from './alerts.js';
 import { transcribeRadio, cachedRadio, HASH_RE, MAX_AUDIO } from './transcribe.js';
 import { download } from './download.js';
+import { buildIcs } from '../shared/ics.js';
+import { pronosApi, GROUP_RE } from './pronos.js';
 
 const MAX_BODY = 32 * 1024;
 const COOKIE = 'pl_stats';
@@ -206,6 +208,7 @@ export default {
     // Site de l'appli : liens de téléchargement vers la dernière version ; sur un nom de domaine
     // à soi (pas *.workers.dev), la racine affiche le site au lieu de la page des statistiques
     if (req.method === 'GET' && url.pathname.startsWith('/download/')) return download(url.pathname);
+    if (req.method === 'GET' && /^\/calendar(-en)?\.ics$/.test(url.pathname)) return calendar(env, new Date().getUTCFullYear(), url.pathname.includes('-en'));
     // Ancienne adresse (*.workers.dev) : les pages ouvertes dans un navigateur (connexion,
     // statistiques) passent sur le nom de domaine (SITE_ORIGIN) ; l'appli y garde ses appels
     if (env.SITE_ORIGIN && url.hostname.endsWith('.workers.dev') && req.method === 'GET' && ['/', '/login', '/stats'].includes(url.pathname)) {
@@ -248,6 +251,13 @@ export default {
         const res = await summarizeArticle(env, r);
         return json(res, res.limited ? 429 : res.points ? 200 : 502);
       } catch { return json({ error: 'Erreur' }, 500); }
+    }
+    // Pronostics entre amis en ligne : API, et page de chaque groupe (fichier statique /p/)
+    if (url.pathname.startsWith('/p/api/')) {
+      try { return await pronosApi(req, env, url); } catch { return json({ error: 'Erreur' }, 500); }
+    }
+    if (req.method === 'GET' && url.pathname.startsWith('/p/') && GROUP_RE.test(url.pathname.slice(3).replace(/\/$/, '')) && env.ASSETS) {
+      return env.ASSETS.fetch(new Request(new URL('/p/', url), req));
     }
     // Page web du créateur : API (la page elle-même est un fichier statique, dossier site/)
     if (url.pathname.startsWith('/studio/api/')) {
@@ -304,3 +314,14 @@ export default {
     return json({ error: 'Introuvable' }, 404);
   },
 };
+
+// Calendrier des séances auquel on s'abonne depuis l'appli (webcal://paddocklive.app/calendar.ics,
+// ou Google Agenda) : saison en cours, gardée dans la base et relue par la tâche planifiée ; l'agenda
+// se met à jour tout seul quand les horaires changent.
+export async function calendar(env, year, en = false, opts = {}) {
+  const row = await seasonRow(env, year, opts).catch(() => null);
+  if (!row) return new Response('Calendrier indisponible', { status: 503 });
+  return new Response(buildIcs(row.v.races, { year, lang: en ? 'en' : 'fr', subscribe: true }), {
+    headers: { 'Content-Type': 'text/calendar; charset=utf-8', 'Content-Disposition': `inline; filename="f1${en ? '-en' : ''}.ics"`, 'Cache-Control': 'public, max-age=3600', 'Access-Control-Allow-Origin': '*' },
+  });
+}

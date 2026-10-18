@@ -5,7 +5,7 @@
 import { teammateDuels, FLASH_KINDS, GRID_SOURCE } from './social-more.js';
 import { teamLogoPath } from './team-logos.js';
 import { followReason, questionFor } from './social-follow.js';
-import { horaires, infos, editions, topflop, notes, equipes, positions, recapCover, recapItem, raceweek } from './social-draw-season.js';
+import { horaires, infos, editions, topflop, notes, equipes, positions, recapCover, recapItem, raceweek, titre, titreComment, titleBlocks } from './social-draw-season.js';
 
 export const FORMATS = {
   ig: { w: 1080, h: 1350, name: 'instagram' },
@@ -39,6 +39,7 @@ function baseSlides(d, fmt) {
   if (d.post === 'ratings') return d.rows.length ? ['couverture', 'topflop', 'notes'] : [];
   if (d.post === 'teamduels') return d.rows.length ? ['couverture', ...Array.from({ length: Math.ceil(d.rows.length / 5) }, (_, i) => `equipes-${i + 1}`)] : [];
   if (d.post === 'racelaps') return d.total ? ['couverture', 'positions'] : [];
+  if (d.post === 'title') return d.drivers.length ? ['couverture', 'titrepilotes', ...(d.constructors.length ? ['titreecuries'] : []), ...(titleBlocks(d).length ? ['titrecomment'] : [])] : [];
   if (d.post === 'recap') return d.items.length ? ['recapcover', ...d.items.map((_, i) => `recap-${i + 1}`)].slice(0, fmt === 'x' ? 4 : undefined) : [];
   if (!d.rows.length) return [];
   let list = ['meilleurtemps', 'podium', 'classement', ...(d.facts.length ? ['faits'] : [])];
@@ -61,6 +62,7 @@ export function keptData(d, skip, fmt) {
   if (d.news) return { ...d, points: pointPages(d.points, fmt).filter((_, i) => !skip.has(`essentiel-${i + 1}`)).flat() };
   if (d.post === 'recap') return { ...d, items: d.items.filter((_, i) => !skip.has(`recap-${i + 1}`)) };
   if (d.post === 'teamduels') return { ...d, rows: d.rows.filter((_, i) => !skip.has(`equipes-${Math.floor(i / 5) + 1}`)) };
+  if (d.post === 'title') return { ...d, drivers: skip.has('titrepilotes') ? [] : d.drivers, constructors: skip.has('titreecuries') ? [] : d.constructors };
   if ((d.post === 'weekend' || d.post === 'raceweek') && skip.has('infos')) return { ...d, tyres: null, forecast: [] };
   if (d.post === 'prerace' && skip.has('meteo')) return { ...d, weather: null, tyres: null };
   if (!d.post && skip.has('faits')) return { ...d, facts: [] };
@@ -80,7 +82,7 @@ export function pointPages(points, fmt = 'ig') {
   for (let k = 0; k < n; k++) { const take = Math.ceil((list.length - i) / (n - k)); pages.push(list.slice(i, i + take)); i += take; }
   return pages;
 }
-export const SLIDE_NAMES = { grille: 'Grille de départ', meteo: 'Météo et pneus', champpilotes: 'Championnat pilotes', champecuries: 'Championnat constructeurs', flash: 'Flash', duels: 'Duels entre coéquipiers', news: 'News', couverture: 'Couverture', vainqueur: 'Vainqueur', pole: 'Pole position', meilleurtemps: 'Meilleur temps', podium: 'Podium', classement: 'Classement', faits: 'Faits marquants', championnat: 'Championnat', abonnement: 'Abonnez-vous', question: 'Question', essentiel: "L'essentiel", raceweek: 'Race Week', horaires: 'Horaires', infos: 'Pneus et météo', records: 'Records', editions: 'Éditions précédentes', topflop: 'Tops et flops', notes: 'Toutes les notes', equipes: 'Duels par écurie', positions: 'Positions tour par tour', recapcover: 'La semaine', recap: 'Info' };
+export const SLIDE_NAMES = { grille: 'Grille de départ', meteo: 'Météo et pneus', champpilotes: 'Championnat pilotes', champecuries: 'Championnat constructeurs', flash: 'Flash', duels: 'Duels entre coéquipiers', news: 'News', couverture: 'Couverture', vainqueur: 'Vainqueur', pole: 'Pole position', meilleurtemps: 'Meilleur temps', podium: 'Podium', classement: 'Classement', faits: 'Faits marquants', championnat: 'Championnat', abonnement: 'Abonnez-vous', question: 'Question', essentiel: "L'essentiel", raceweek: 'Race Week', horaires: 'Horaires', infos: 'Pneus et météo', records: 'Records', editions: 'Éditions précédentes', topflop: 'Tops et flops', notes: 'Toutes les notes', equipes: 'Duels par écurie', positions: 'Positions tour par tour', recapcover: 'La semaine', recap: 'Info', titrepilotes: 'Titre pilotes', titreecuries: 'Titre constructeurs', titrecomment: 'Comment être sacré' };
 export const slideName = (s) => SLIDE_NAMES[s] || SLIDE_NAMES[String(s).replace(/-\d+$/, '')] || s;
 
 // ---------- Outils de dessin ----------
@@ -474,13 +476,13 @@ function cover(ctx, W, H, d, o, next, fmt) {
     rr(ctx, pad, y, fw, fh, 8); ctx.save(); ctx.clip(); ctx.drawImage(o.flag, pad, y, fw, fh); ctx.restore();
     y += fh + 30 * u;
   }
-  const word = { prerace: 'AVANT-COURSE', champ: 'CHAMPIONNAT', weekend: 'PROGRAMME', records: 'LE SAVIEZ-VOUS', ratings: 'LES NOTES', teamduels: 'LES DUELS', racelaps: 'LA COURSE' }[d.post] || 'RÉSULTATS';
+  const word = { prerace: 'AVANT-COURSE', champ: 'CHAMPIONNAT', weekend: 'PROGRAMME', records: 'LE SAVIEZ-VOUS', ratings: 'LES NOTES', teamduels: 'LES DUELS', racelaps: 'LA COURSE', title: 'LE TITRE' }[d.post] || 'RÉSULTATS';
   txt(ctx, word, pad, y + 150 * u, { size: Math.round(190 * u), weight: 800, family: TITLE, max: colW, spacing: 2 });
   y += 190 * u;
   // Séance dans une étiquette rouge
   const tag = (d.post === 'prerace' ? (d.sprint ? 'Sprint' : 'Course') : d.post === 'champ' ? (d.final ? 'Après la course' : 'En direct')
     : d.post === 'weekend' ? (d.sprint ? 'Week-end sprint' : `Manche ${d.round || ''}`) : d.post === 'records' ? 'Records du circuit'
-      : d.post === 'ratings' ? 'Après la course' : d.post === 'teamduels' ? `Après ${d.after} course${d.after > 1 ? 's' : ''}` : d.post === 'racelaps' ? 'Tour par tour'
+      : d.post === 'ratings' ? 'Après la course' : d.post === 'teamduels' || d.post === 'title' ? `Après ${d.after} course${d.after > 1 ? 's' : ''}` : d.post === 'racelaps' ? 'Tour par tour'
         : d.kind === 'race' && !d.sprint ? 'Course' : d.label).toUpperCase();
   ctx.font = `700 ${Math.round(36 * u)}px ${TITLE}`;
   const tw = ctx.measureText(tag).width + 6 * tag.length * u;
@@ -1037,6 +1039,8 @@ export function drawSlide(canvas, slide, fmt, d, o = {}) {
   else if (slide === 'notes') notes(ctx, w, h, d, o);
   else if (/^equipes-\d+$/.test(slide)) equipes(ctx, w, h, d, o, Number(slide.slice(8)));
   else if (slide === 'positions') positions(ctx, w, h, d, o);
+  else if (slide === 'titrepilotes' || slide === 'titreecuries') titre(ctx, w, h, d, o, slide === 'titreecuries');
+  else if (slide === 'titrecomment') titreComment(ctx, w, h, d, o);
   else if (slide === 'recapcover') recapCover(ctx, w, h, d, o);
   else if (/^recap-\d+$/.test(slide)) recapItem(ctx, w, h, d, o, Number(slide.slice(6)), fmt);
   else if (/^essentiel-\d+$/.test(slide)) essentiel(ctx, w, h, d, o, Number(slide.slice(10)), fmt);

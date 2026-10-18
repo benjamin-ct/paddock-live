@@ -20,7 +20,8 @@ const GP_FR = {
   German: "d'Allemagne", Turkish: 'de Turquie', Russian: 'de Russie', Styrian: 'de Styrie', Malaysian: 'de Malaisie', Korean: 'de Corée', Indian: "d'Inde",
 };
 export function gpNameFr(name) {
-  const base = String(name || '').replace(/ Grand Prix$/i, '').trim();
+  // « Bahrain Grand Prix in Malaysia » (Grand Prix déplacé) : nom du Grand Prix seul
+  const base = String(name || '').replace(/ Grand Prix( in .+)?$/i, '').trim();
   if (!base) return 'ce Grand Prix';
   return `le Grand Prix ${GP_FR[base] || `${/^[AEIOUÉÂ]/i.test(base) ? "d'" : 'de '}${base}`}`;
 }

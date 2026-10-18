@@ -10,7 +10,7 @@ import { FLAG_ISO } from './header.js';
 import { postData, captions, xLength } from '/shared/social.js';
 import { FORMATS, slidesFor, drawSlide, slideName, chosenSlides, keptData } from '/shared/social-draw.js';
 import { followCaptions, questionCaptions } from '/shared/social-follow.js';
-import { raceWeekData, weekendData, recordsData, ratingsData, teamDuelsData, raceLapsData, recapData, seasonCaptions } from '/shared/social-season.js';
+import { raceWeekData, weekendData, recordsData, ratingsData, teamDuelsData, titleData, raceLapsData, recapData, seasonCaptions } from '/shared/social-season.js';
 import { raceFrame, raceVideoTiming } from '/shared/social-draw-season.js';
 import { makeAnimation } from '/shared/social-video.js';
 import { newsFrame, newsVideoTiming } from '/shared/social-news-video.js';
@@ -32,7 +32,7 @@ let withPhotos = storageGet(OPT_KEY, {}).photos !== false;
 let noSpoiler = storageGet(OPT_KEY, {}).noSpoiler !== false;   // texte sans le vainqueur au début
 let mode = ['news', 'season', 'manual'].includes(storageGet(OPT_KEY, {}).mode) ? storageGet(OPT_KEY, {}).mode : 'session';
 let withQuestion = storageGet(OPT_KEY, {}).question !== false;   // question en fin de texte (commentaires)
-const SEASON_TYPES = [['raceweek', 'Race Week'], ['weekend', 'Programme du week-end'], ['records', 'Le saviez-vous'], ['ratings', 'Notes des pilotes'], ['teamduels', 'Duels coéquipiers'], ['racelaps', 'Course tour par tour']];
+const SEASON_TYPES = [['raceweek', 'Race Week'], ['weekend', 'Programme du week-end'], ['records', 'Le saviez-vous'], ['ratings', 'Notes des pilotes'], ['teamduels', 'Duels coéquipiers'], ['title', 'Course au titre'], ['racelaps', 'Course tour par tour']];
 let seasonType = SEASON_TYPES.some(([k]) => k === storageGet(OPT_KEY, {}).seasonType) ? storageGet(OPT_KEY, {}).seasonType : 'raceweek';
 let roundSel = null;   // manche choisie (posts de saison)
 let recapMode = false; // news : récap de la semaine
@@ -211,6 +211,9 @@ async function seasonSource(sig) {
   } else if (seasonType === 'teamduels') {
     d = teamDuelsData(data, { year, upTo: race.round, live });
     extra = msg(t('Bilan de la saison jusqu\'à la manche choisie : qui devance l\'autre en qualifications et en course.'));
+  } else if (seasonType === 'title') {
+    d = titleData(data, { year, upTo: race.round, live });
+    extra = msg(t('Qui peut encore être champion après cette manche : points encore en jeu (courses et sprints restants), éliminés grisés.'));
   } else {
     // Tours et direction de course (safety car, VSC, drapeaux) pour la vidéo
     const [laps, rc] = await Promise.all([

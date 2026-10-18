@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pronostics F1 · Paddock Live</title>
+<meta name="description" content="Pronostics entre amis : pole et podium de chaque Grand Prix de Formule 1.">
+<meta name="robots" content="noindex">
+<link rel="icon" href="/app/icon-512.png">
+<link rel="stylesheet" href="/legal/style.css">
+<style>
+  /* Groupe de pronostics en ligne : même contenu que la vue Pronostics de l'appli Paddock Live */
+  .box { background: #14161b; border: 1px solid #23262d; border-radius: 14px; padding: 16px; margin: 16px 0; }
+  .box h2 { margin: 0 0 10px; font-size: 18px; }
+  .dim, small { color: var(--dim); }
+  label { display: grid; gap: 4px; font-size: 14px; color: var(--dim); }
+  input, select { font: inherit; color: var(--fg); background: #0f1115; border: 1px solid #2c3039; border-radius: 10px; padding: 9px 10px; width: 100%; }
+  .picks { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 12px 0; }
+  button { font: inherit; font-weight: 600; background: var(--red); color: #fff; border: 0; border-radius: 999px; padding: 11px 20px; cursor: pointer; }
+  button:disabled { opacity: .6; }
+  table { width: 100%; border-collapse: collapse; font-size: 15px; }
+  th, td { text-align: left; padding: 7px 6px; border-bottom: 1px solid #23262d; }
+  th { color: var(--dim); font-weight: 600; font-size: 13px; }
+  tr.me td { background: rgba(225, 6, 0, .1); }
+  .hit { color: #3ddc84; } .near { color: #e8c35a; }
+  .msg { margin: 10px 0 0; font-size: 14px; }
+  .msg.bad { color: #ff7a73; } .msg.ok { color: #3ddc84; }
+  details summary { cursor: pointer; }
+  .scroll { overflow-x: auto; }
+  footer { color: var(--dim); font-size: 14px; margin-top: 40px; }
+  footer a { color: var(--dim); }
+</style>
+</head>
+<body>
+<main>
+  <h1><span>Pronostics</span> <b id="gname">F1</b></h1>
+  <p class="date">Pole et podium de chaque Grand Prix, entre amis · <a href="/">Paddock Live</a></p>
+  <div id="root"><p class="dim">Chargement…</p></div>
+  <footer>Pronostics fermés au début des qualifications (pole) et au départ de la course (podium) ; ceux des autres sont révélés à la fermeture.
+    Votre pseudo est réservé à ce navigateur. Aussi visible dans l'application <a href="/">Paddock Live</a>, onglet Saison → Pronostics.</footer>
+</main>
+<script>
+  const id = location.pathname.split('/').filter(Boolean)[1] || '';
+  const KEY = `pronos.tok.${id}`;
+  const store = { get: (k) => { try { return localStorage.getItem(k) || ''; } catch { return ''; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch { /* navigation privée */ } } };
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+  const fmt = (t) => (t ? new Date(t).toLocaleString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—');
+  const gp = (r) => r.fr || String(r.name || '').replace(/ Grand Prix.*$/, '');
+  let view = null;
+
+  async function load() {
+    const r = await fetch(`/p/api/${id}?tok=${encodeURIComponent(store.get(KEY))}`);
+    view = await r.json();
+    if (!r.ok) { document.getElementById('root').innerHTML = `<p class="msg bad">${esc(view.error || 'Groupe indisponible')}</p>`; return; }
+    document.getElementById('gname').textContent = view.group.name;
+    document.title = `${view.group.name} · Pronostics F1`;
+    render();
+  }
+
+  const select = (name, value, off) => `<label>${{ pole: 'Pole position', p1: '1er', p2: '2e', p3: '3e' }[name]}<select name="${name}" ${off ? 'disabled' : ''}><option value="">—</option>${view.drivers.map((d) => `<option value="${esc(d.code)}" ${d.code === value ? 'selected' : ''}>${esc(d.code)} · ${esc(d.name)}</option>`).join('')}</select></label>`;
+  const cell = (code, pts) => (!code ? '<td class="dim">—</td>' : code === '?' ? '<td class="dim" title="Révélé à la fermeture">caché</td>' : `<td class="${pts >= 3 ? 'hit' : pts ? 'near' : ''}">${esc(code)}${pts ? ` <small>+${pts}</small>` : ''}</td>`);
+  const table = (r) => (r.picks.length ? `<div class="scroll"><table><tr><th>Joueur</th><th>Pole</th><th>1er</th><th>2e</th><th>3e</th><th>Points</th></tr>${r.picks.map((p) => `<tr class="${p.mine ? 'me' : ''}"><td>${esc(p.name)}</td>${cell(p.pole, p.points?.pole)}${cell(p.p1, p.points?.podium[0])}${cell(p.p2, p.points?.podium[1])}${cell(p.p3, p.points?.podium[2])}<td><b>${p.points ? p.points.total : '—'}</b></td></tr>`).join('')}</table></div>` : '<p class="dim">Aucun pronostic.</p>');
+
+  function render() {
+    const now = Date.now();
+    const next = view.races.find((r) => !r.result && r.locks.podium && r.locks.podium > now);
+    const mine = next?.picks.find((p) => p.mine) || {};
+    const poleOpen = next && (!next.locks.pole || now < next.locks.pole);
+    const others = next ? next.picks.filter((p) => !p.mine).length : 0;
+    const name = mine.name || store.get('pronos.name');
+    const form = next ? `<section class="box"><h2>${esc(gp(next))} <small>· manche ${next.round}</small></h2>
+      <form id="f"><label>Votre prénom ou pseudo<input name="name" value="${esc(name)}" maxlength="24" required placeholder="ex. Benjamin"></label>
+        <div class="picks">${select('pole', mine.pole, !poleOpen)}${select('p1', mine.p1)}${select('p2', mine.p2)}${select('p3', mine.p3)}</div>
+        <button type="submit">Enregistrer mon pronostic</button>
+        <p class="dim msg">Pole : ${poleOpen ? `jusqu'au ${fmt(next.locks.pole)}` : 'fermé (qualifications commencées)'} · Podium : jusqu'au ${fmt(next.locks.podium)}${others ? ` · ${others} autre${others > 1 ? 's' : ''} joueur${others > 1 ? 's ont' : ' a'} déjà pronostiqué` : ''}</p>
+        <p class="msg" id="msg"></p></form></section>` : '<section class="box"><p class="dim">Plus de Grand Prix à pronostiquer cette saison.</p></section>';
+    const done = view.races.filter((r) => r.result && r.picks.length).reverse();
+    const meName = (name || '').toLowerCase();
+    const board = view.board.length ? `<div class="scroll"><table><tr><th>#</th><th>Joueur</th><th>Points</th></tr>${view.board.map((p, i) => `<tr class="${p.name.toLowerCase() === meName ? 'me' : ''}"><td>${i + 1}</td><td>${esc(p.name)}</td><td><b>${p.total}</b></td></tr>`).join('')}</table></div>`
+      : '<p class="dim">Le classement apparaîtra après le premier Grand Prix pronostiqué.</p>';
+    const waiting = view.races.filter((r) => !r.result && r.picks.length && r !== next);
+    document.getElementById('root').innerHTML = `${form}
+      <section class="box"><h2>Classement ${view.year}</h2>${board}<p class="dim msg">Points : pole exacte 3 · pilote à la bonne place du podium 3 · sur le podium mais à une autre place 1 · podium exact dans l'ordre +2.</p></section>
+      ${waiting.map((r) => `<section class="box"><h2>R${r.round} · ${esc(gp(r))} <small>en attente des résultats</small></h2>${table(r)}</section>`).join('')}
+      ${done.map((r, i) => `<details class="box" ${i === 0 ? 'open' : ''}><summary><b>R${r.round} · ${esc(gp(r))}</b> <small>pole ${esc(r.result.pole || '—')} · podium ${esc(r.result.podium.join(', ') || '—')}</small></summary>${table(r)}</details>`).join('')}`;
+    const f = document.getElementById('f');
+    if (f) f.onsubmit = async (e) => {
+      e.preventDefault();
+      const v = Object.fromEntries(new FormData(f));
+      const msg = document.getElementById('msg');
+      f.querySelector('button').disabled = true;
+      try {
+        const r = await fetch(`/p/api/${id}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ year: view.year, round: next.round, name: v.name, pole: v.pole || null, p1: v.p1 || null, p2: v.p2 || null, p3: v.p3 || null, tok: store.get(KEY) || undefined }) });
+        const out = await r.json();
+        if (!r.ok) throw new Error(out.error || 'Erreur');
+        store.set(KEY, out.tok);
+        store.set('pronos.name', v.name.trim());
+        await load();
+        const m = document.getElementById('msg');
+        if (m) { m.className = 'msg ok'; m.textContent = 'Pronostic enregistré'; }
+      } catch (err) { msg.className = 'msg bad'; msg.textContent = err.message; f.querySelector('button').disabled = false; }
+    };
+  }
+  load().catch(() => { document.getElementById('root').innerHTML = '<p class="msg bad">Serveur injoignable : réessayez dans un instant.</p>'; });
+</script>
+</body>
+</html>

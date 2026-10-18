@@ -510,6 +510,12 @@ test('Studio : saison résumée par le serveur, gardée 30 minutes, ancienne ver
   const a = await seasonRow(env, 2026, { now: t0, fetchFn, wait });
   assert.equal(a.v.races[0].name, 'Australian Grand Prix');
   assert.equal(a.v.drivers[0].points, 300);
+  // Calendrier auquel on s'abonne : séances de la saison gardée, relu par l'agenda toutes les 6 h
+  const { calendar } = await import('../analytics/worker.js');
+  const cal = await (await calendar(env, 2026, false, { now: t0 })).text();
+  assert.match(cal, /X-WR-CALNAME:Formule 1 \(Paddock Live\)/);
+  assert.match(cal, /REFRESH-INTERVAL;VALUE=DURATION:PT6H/);
+  assert.match(cal, /SUMMARY:F1 Australian GP — Course/);
   const n = urls.length;
   assert.equal(n, 6);
   // Moins de 30 minutes après : version gardée, aucune demande

@@ -5,7 +5,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { DATA_DIR } from './config.js';
 import { season } from './season.js';
-import { locksOf, resultOf, scorePick, leaderboard, playerKey } from '../shared/predict.js';
+import { request } from './net.js';
+import { playerKey, predictView, checkPick } from '../shared/predict.js';
 
 const FILE = path.join(DATA_DIR, 'predictions.json');
 let data = null;
@@ -21,62 +22,29 @@ function save() {
 }
 
 export async function predictionsView(year, me, now = Date.now()) {
-  const s = await season(year);
-  const store = load()[year] || { rounds: {} };
   const meKey = playerKey(me);
-  const races = s.races.map((r) => {
-    const locks = locksOf(r);
-    const result = resultOf(r);
-    const picks = Object.entries(store.rounds[r.round] || {}).map(([key, p]) => {
-      const mine = key === meKey;
-      const showPole = mine || !locks.pole || now >= locks.pole;
-      const showPodium = mine || !locks.podium || now >= locks.podium;
-      return {
-        name: p.name, mine,
-        pole: showPole ? p.pole || null : (p.pole ? '?' : null),
-        p1: showPodium ? p.p1 || null : (p.p1 ? '?' : null),
-        p2: showPodium ? p.p2 || null : (p.p2 ? '?' : null),
-        p3: showPodium ? p.p3 || null : (p.p3 ? '?' : null),
-        points: result ? scorePick(p, result) : null,
-      };
-    }).sort((a, b) => (b.points?.total || 0) - (a.points?.total || 0) || a.name.localeCompare(b.name));
-    return { round: r.round, name: r.name, locality: r.locality, date: r.date, locks, result, picks };
-  });
-  return {
-    year, now,
-    drivers: s.drivers.map((d) => ({ code: d.code, name: d.name, team: d.team })),
-    races,
-    board: leaderboard(store, s.races),
-  };
+  return { year, ...predictView(load()[year], await season(year), (key) => key === meKey, now) };
 }
 
-export async function savePrediction({ year, round, name, pole, p1, p2, p3 }, now = Date.now()) {
-  const key = playerKey(name);
-  if (!key) throw new Error('Indiquez votre prénom ou un pseudo');
+export async function savePrediction({ year, ...input }, now = Date.now()) {
   const s = await season(year);
-  const race = s.races.find((r) => r.round === Number(round));
-  if (!race) throw new Error('Grand Prix introuvable');
-  const codes = new Set(s.drivers.map((d) => d.code));
-  const pickOk = (c) => c === null || c === undefined || c === '' || codes.has(c);
-  if (![pole, p1, p2, p3].every(pickOk)) throw new Error('Pilote inconnu');
-  const podium = [p1, p2, p3].filter(Boolean);
-  if (new Set(podium).size !== podium.length) throw new Error('Un même pilote ne peut pas occuper deux places du podium');
-  const locks = locksOf(race);
-  const poleOpen = !locks.pole || now < locks.pole;
-  const podiumOpen = !locks.podium || now < locks.podium;
-  if (!poleOpen && !podiumOpen) throw new Error('Pronostics fermés : la course a commencé');
   const d = load();
   d[year] ||= { rounds: {} };
+  const { race, key, pick, poleOpen, podiumOpen } = checkPick(s, input, d[year].rounds[input.round]?.[playerKey(input.name)], now);
   d[year].rounds[race.round] ||= {};
-  const old = d[year].rounds[race.round][key] || {};
-  d[year].rounds[race.round][key] = {
-    name: String(name).trim().slice(0, 24),
-    pole: poleOpen ? pole || null : old.pole || null,
-    p1: podiumOpen ? p1 || null : old.p1 || null,
-    p2: podiumOpen ? p2 || null : old.p2 || null,
-    p3: podiumOpen ? p3 || null : old.p3 || null,
-    at: now,
-  };
+  d[year].rounds[race.round][key] = pick;
   save();
   return { ok: true, poleOpen, podiumOpen };
+}
+
+// Groupe en ligne (pronostics partagés hors du réseau local, page paddocklive.app/p/<groupe>) : demandes
+// relayées au serveur Paddock Live. path : 'new' (création) ou l'identifiant du groupe.
+export const PRONOS_URL = process.env.PADDOCK_PRONOS_URL ?? 'https://paddock-live-stats.paddock-live.workers.dev/p/api';
+export async function pronosOnline(method, path, { query = '', body = null } = {}) {
+  if (!/^(new|[a-z0-9]{10})$/.test(path)) return { status: 400, data: { error: 'Groupe inconnu' } };
+  const data = body ? JSON.stringify(body) : undefined;
+  const r = await request(`${PRONOS_URL}/${path}${query}`, { method, timeout: 30000, ...(data ? { body: data, headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) } } : {}) });
+  let out;
+  try { out = JSON.parse(r.body.toString('utf8')); } catch { out = { error: `Serveur Paddock Live indisponible (HTTP ${r.status})` }; }
+  return { status: r.status, data: out };
 }

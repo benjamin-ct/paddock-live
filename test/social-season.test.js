@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { weekendData, recordsData, ratingsData, raceRatings, teamDuelsData, raceLapsData, recapData, seasonCaptions, teamColor } from '../shared/social-season.js';
+import { weekendData, recordsData, ratingsData, raceRatings, teamDuelsData, titleData, raceLapsData, recapData, seasonCaptions, teamColor } from '../shared/social-season.js';
 import { parseRaceLaps, cleanPace, lapsLedBy } from '../shared/race-laps.js';
 import { questionCaptions, questionFor } from '../shared/social-follow.js';
 import { slidesFor } from '../shared/social-draw.js';
@@ -77,6 +77,39 @@ test('duels entre coéquipiers sur la saison', () => {
   assert.match(seasonCaptions(d, '').instagram, /Ferrari : Leclerc 2-0 Hamilton en qualifs, 2-0 en course/);
   assert.equal(teamColor('red_bull'), '#3671C6');
   assert.equal(teamColor('Racing Bulls'), '#6692FF');
+});
+
+test('course au titre : points encore en jeu, éliminés, titre possible au prochain GP', () => {
+  const season = {
+    races: [R1, R2, { ...race(12, [], []), results: [] }],
+    // Classement officiel (pénalité de points comprise pour Tsunoda)
+    drivers: [{ pos: 1, ...D.LEC, points: 43 }, { pos: 2, ...D.VER, points: 40 }, { pos: 3, ...D.HAM, points: 33 }, { pos: 4, ...D.TSU, points: 10 }],
+    constructors: [{ pos: 1, id: 'ferrari', name: 'Ferrari', points: 76 }, { pos: 2, id: 'red_bull', name: 'Red Bull', points: 50 }],
+  };
+  const d = titleData(season, { year: 2026 });
+  assert.equal(d.after, 2);
+  assert.deepEqual(d.left, { races: 1, sprints: 0, d: 25, c: 43 });
+  assert.deepEqual(d.drivers.map((e) => [e.label, e.alive]), [['Leclerc', true], ['Verstappen', true], ['Hamilton', true], ['Tsunoda', false]]);
+  assert.equal(d.drivers[3].outRound, 11);
+  assert.equal(d.clinchD.next, 'le Grand Prix des États-Unis');
+  assert.deepEqual(slidesFor(d), ['couverture', 'titrepilotes', 'titreecuries', 'titrecomment']);
+  // Comme dans l'appli : avance à prendre sur chaque rival au prochain GP, place qu'il doit faire au pire
+  assert.equal(d.clinchD.possibleNext, true);
+  assert.deepEqual(d.clinchD.needs.map((n) => [n.label, n.margin]), [['Verstappen', -2], ['Hamilton', -9]]);
+  assert.equal(d.clinchD.needs[0].win, 'suffit');
+  const ig = seasonCaptions(d, '').instagram;
+  assert.match(ig, /^La course au titre après le Grand Prix des États-Unis/);
+  assert.match(ig, /2\. Verstappen : 40 pts \(à 3 pts\)/);
+  assert.match(ig, /Charles Leclerc peut être sacré dès le Grand Prix des États-Unis\./);
+  assert.match(ig, /Encore 1 Grand Prix\./);
+  // Manche plus ancienne : classement recalculé d'après les résultats jusqu'à elle
+  const old = titleData(season, { year: 2026, upTo: 10 });
+  assert.deepEqual(old.drivers.slice(0, 2).map((e) => [e.label, e.points]), [['Verstappen', 25], ['Leclerc', 18]]);
+  assert.equal(old.left.races, 2);
+  // Plus qu'un pilote en course : champion
+  const won = titleData({ ...season, drivers: [season.drivers[0], { ...season.drivers[1], points: 10 }, { ...season.drivers[2], points: 5 }, season.drivers[3]] }, { year: 2026 });
+  assert.equal(won.champion.name, 'Charles Leclerc');
+  assert.match(seasonCaptions(won, '').instagram, /^Charles Leclerc champion du monde 2026 !/);
 });
 
 test('course tour par tour : pages de l\'API regroupées, leaders et remontées', () => {

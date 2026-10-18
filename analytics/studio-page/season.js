@@ -1,7 +1,7 @@
 // Studio : posts de la saison (Race Week, programme, records, notes, duels, course tour par tour),
 // d'après l'API publique Jolpica, les archives de la F1 et la météo. Chargé à l'ouverture de l'onglet.
 import { builtinNomination } from '/shared/tyres.js';
-import { raceWeekData, weekendData, recordsData, ratingsData, teamDuelsData, raceLapsData, seasonCaptions } from '/shared/social-season.js';
+import { raceWeekData, weekendData, recordsData, ratingsData, teamDuelsData, titleData, raceLapsData, seasonCaptions } from '/shared/social-season.js';
 import { raceFrame, raceVideoTiming } from '/shared/social-draw-season.js';
 import { parseRaceLaps } from '/shared/race-laps.js';
 import { circuitInfo } from '/shared/circuits-info.js';
@@ -91,7 +91,7 @@ async function forecastOf(lat, lon) {
   return (d.time || []).map((date, i) => ({ date, tmax: d.temperature_2m_max?.[i] ?? null, tmin: d.temperature_2m_min?.[i] ?? null, rain: d.precipitation_probability_max?.[i] ?? null })).filter((x) => x.tmax !== null);
 }
 
-const STYPES = [['raceweek', 'Race Week'], ['weekend', 'Programme'], ['records', 'Le saviez-vous'], ['ratings', 'Notes'], ['teamduels', 'Duels'], ['racelaps', 'Tour par tour']];
+const STYPES = [['raceweek', 'Race Week'], ['weekend', 'Programme'], ['records', 'Le saviez-vous'], ['ratings', 'Notes'], ['teamduels', 'Duels'], ['title', 'Course au titre'], ['racelaps', 'Tour par tour']];
 const dateFr = (d) => new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
 // Grands Prix : le prochain (ou la dernière course) en tête et mis en avant, puis les suivants dans
 // l'ordre du calendrier, et les courses passées de la plus récente à la plus ancienne
@@ -157,6 +157,9 @@ async function seasonEditor(year, data, race, back) {
     note = `Note sur 10 calculée par Paddock Live : résultat, ${d.withPace ? 'rythme en course, ' : ''}places gagnées et duel avec le coéquipier.`;
   } else if (state.stype === 'teamduels') {
     d = teamDuelsData(data, { year, upTo: race.round, live });
+  } else if (state.stype === 'title') {
+    d = titleData(data, { year, upTo: race.round, live });
+    note = 'Qui peut encore être champion après cette manche : points encore en jeu (courses et sprints restants), éliminés grisés.';
   } else {
     const [laps, rcm] = await Promise.all([lapsOf(year, race.round), raceControlOf(year, race).catch(() => null)]);
     if (!laps.total) throw new Error('Tours de cette course pas encore publiés');

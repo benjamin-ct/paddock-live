@@ -8,6 +8,7 @@ import { icon } from '../icons.js';
 import { DEC, EN } from '../i18n.js';
 import { cloudOn, cloudTranslate } from '../cloud.js';
 import { continuesStint } from '/shared/pits.js';
+import { pdfHref } from './pdf-view.js';
 
 function list(obj) {
   if (!obj) return [];
@@ -311,7 +312,7 @@ function docLink(doc, dl) {
   if (!doc) return '';
   const info = parseFiaDoc(doc);
   const who = info.cars[0] ? ` — ${esc(dl[info.cars[0]]?.Tla || `voiture ${info.cars[0]}`)}` : '';
-  return `<a class="fia-doc" href="${esc(doc.url)}" target="_blank" rel="noopener" title="${esc(doc.title)}">${icon('doc')} ${esc(DOC_KIND[info.type] || 'Document')} FIA${info.num ? ` n° ${info.num}` : ''}${who}<span class="muted"> · ${esc(info.subject.replace(/^Cars?\s+[\d\s,&and]+-\s*/i, ''))}</span> ${icon('external', 'ic-s')}</a>`;
+  return `<a class="fia-doc" href="${esc(pdfHref(doc.url))}" data-pdf="${esc(doc.title)}" target="_blank" rel="noopener" title="${esc(doc.title)}">${icon('doc')} ${esc(DOC_KIND[info.type] || 'Document')} FIA${info.num ? ` n° ${info.num}` : ''}${who}<span class="muted"> · ${esc(info.subject.replace(/^Cars?\s+[\d\s,&and]+-\s*/i, ''))}</span> ${icon('external', 'ic-s')}</a>`;
 }
 
 let stwRenderKey = '';

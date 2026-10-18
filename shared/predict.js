@@ -63,3 +63,58 @@ export function leaderboard(store, races) {
   }
   return [...players.values()].sort((a, b) => b.total - a.total || a.name.localeCompare(b.name));
 }
+
+// Pronostics d'une saison vus par un joueur. store : { rounds: { manche: { clé: pronostic } } } ;
+// mine(clé, pronostic) : ce joueur (ses choix restent visibles) ; ceux des autres sont cachés (« ? »)
+// jusqu'à la fermeture. Commun à l'appli (pronostics sur l'ordinateur) et au groupe en ligne.
+export function predictView(store, s, mine, now = Date.now()) {
+  const races = s.races.map((r) => {
+    const locks = locksOf(r);
+    const result = resultOf(r);
+    const picks = Object.entries(store?.rounds?.[r.round] || {}).map(([key, p]) => {
+      const me = mine(key, p);
+      const showPole = me || !locks.pole || now >= locks.pole;
+      const showPodium = me || !locks.podium || now >= locks.podium;
+      return {
+        name: p.name, mine: me,
+        pole: showPole ? p.pole || null : (p.pole ? '?' : null),
+        p1: showPodium ? p.p1 || null : (p.p1 ? '?' : null),
+        p2: showPodium ? p.p2 || null : (p.p2 ? '?' : null),
+        p3: showPodium ? p.p3 || null : (p.p3 ? '?' : null),
+        points: result ? scorePick(p, result) : null,
+      };
+    }).sort((a, b) => (b.points?.total || 0) - (a.points?.total || 0) || a.name.localeCompare(b.name));
+    return { round: r.round, name: r.name, locality: r.locality, date: r.date, locks, result, picks };
+  });
+  return { now, drivers: s.drivers.map((d) => ({ code: d.code, name: d.name, team: d.team })), races, board: leaderboard(store, s.races) };
+}
+
+// Pronostic reçu, vérifié : { race, key, pick } à enregistrer (old : pronostic déjà enregistré de ce
+// joueur pour cette manche ; ses choix déjà fermés sont gardés), sinon une erreur au message clair
+export function checkPick(s, { round, name, pole, p1, p2, p3 }, old = null, now = Date.now()) {
+  const key = playerKey(name);
+  if (!key) throw new Error('Indiquez votre prénom ou un pseudo');
+  const race = s.races.find((r) => r.round === Number(round));
+  if (!race) throw new Error('Grand Prix introuvable');
+  const codes = new Set(s.drivers.map((d) => d.code));
+  const pickOk = (c) => c === null || c === undefined || c === '' || codes.has(c);
+  if (![pole, p1, p2, p3].every(pickOk)) throw new Error('Pilote inconnu');
+  const podium = [p1, p2, p3].filter(Boolean);
+  if (new Set(podium).size !== podium.length) throw new Error('Un même pilote ne peut pas occuper deux places du podium');
+  const locks = locksOf(race);
+  const poleOpen = !locks.pole || now < locks.pole;
+  const podiumOpen = !locks.podium || now < locks.podium;
+  if (!poleOpen && !podiumOpen) throw new Error('Pronostics fermés : la course a commencé');
+  const o = old || {};
+  return {
+    race, key, poleOpen, podiumOpen,
+    pick: {
+      name: String(name).trim().slice(0, 24),
+      pole: poleOpen ? pole || null : o.pole || null,
+      p1: podiumOpen ? p1 || null : o.p1 || null,
+      p2: podiumOpen ? p2 || null : o.p2 || null,
+      p3: podiumOpen ? p3 || null : o.p3 || null,
+      at: now,
+    },
+  };
+}
