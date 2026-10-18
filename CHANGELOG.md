@@ -19,6 +19,12 @@ l'application (Réglages → Application → Nouveautés).
   anciennes adresses du classement fonctionnent toujours.
 - Les overlays restent en thème sombre, même si l'ordinateur est en thème clair.
 
+### Téléphone
+- Carte : le menu « Calques » s'ouvre au-dessus de la barre du bas et défile au doigt (il était coupé).
+- Carte plus lisible sur téléphone : au premier affichage, seuls les noms des pilotes, les positions, les
+  secteurs et la voie des stands restent affichés. Les autres calques se réactivent dans « Calques », et vos
+  choix sont gardés.
+
 ## v1.27.36 — 2026-10-18
 
 ### Démarrage

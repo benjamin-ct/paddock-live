@@ -1320,6 +1320,11 @@ html:not(.phone) [data-phone] { display: none !important; }
   /* Un panneau à la fois, sur toute la hauteur disponible */
   .grid.mobile { display: flex; flex-direction: column; flex: 1; min-height: 0; padding: 6px; gap: 0; overflow: hidden; }
   .grid.mobile > .panel { flex: 1 1 auto; height: auto !important; min-height: 0; border-radius: 10px; }
+  /* Calques de la carte : au-dessus de la barre du bas, toute la largeur, défilement au doigt (le panneau
+     coupait le menu) */
+  .grid.mobile .map-layers-menu { position: fixed; left: 8px; right: 8px; top: auto; bottom: calc(76px + env(safe-area-inset-bottom));
+    max-height: 60dvh; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; }
+  .grid.mobile .map-layers-menu .toggle { white-space: normal; }
   .grid.mobile .panel-ctrl { display: none; }
   .grid.mobile .panel-head .hint, .p-tower .panel-head .hint { display: none; }
   /* Classement : colonnes essentielles */
