@@ -11,6 +11,9 @@ l'application (Réglages → Application → Nouveautés).
   Réglages → Streaming et s'appliquent tout de suite aux overlays déjà ajoutés dans OBS, Streamlabs ou Meld Studio,
   sans recopier l'adresse ni actualiser la source. Les réglages sont gardés d'un lancement à l'autre ; les anciennes
   adresses avec leurs réglages fonctionnent toujours.
+- Overlays nets quelle que soit leur taille : tailles conseillées doublées (le classement en 680 × 1280…), le classement
+  s'agrandit maintenant avec la source, et plus rien n'est rogné en bas des overlays. Pour les agrandir dans OBS,
+  changez la taille de la source plutôt que d'étirer son cadre (c'est ce qui rendait l'image floue).
 - Réglages → Streaming : les cases des colonnes du classement et des calques de la carte sont rangées en colonnes
   lisibles (elles se chevauchaient), et l'adresse de la carte ne dépasse plus du cadre.
 

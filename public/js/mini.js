@@ -97,16 +97,21 @@ function columns(n, l, a, kind, val, tag, st) {
   }).join('');
 }
 
-// Overlay de streaming : tout le classement dans la source (réduit si besoin, hauteur et largeur)
+// Overlay de streaming : tout le classement dans la source
 const OVERLAY = document.documentElement.classList.contains('overlay');
 function fitOverlay() {
   if (!OVERLAY) return;
   const html = document.documentElement;
-  html.style.zoom = '';
-  const k = Math.min(1, innerHeight / document.body.scrollHeight, innerWidth / document.body.scrollWidth);
-  if (k < 1) html.style.zoom = String(Math.floor(k * 1000) / 1000);
+  // Dessiné pour 340 px de large : agrandi à la largeur de la source (net dans OBS, même en grand),
+  // puis réduit si le classement dépasse en hauteur
+  let k = innerWidth / 340;
+  html.style.zoom = String(k);
+  const h = Math.max(...[...document.body.children].map((e) => e.getBoundingClientRect().bottom)) + 4 * k;   // bas du contenu (marge de 4 px)
+  if (h > innerHeight) k *= innerHeight / h;
+  html.style.zoom = String(Math.floor(k * 1000) / 1000);
 }
 window.addEventListener('resize', fitOverlay);
+document.fonts?.addEventListener('loadingdone', fitOverlay);
 
 $('#miniMode').addEventListener('click', () => {
   mode = mode === 'gap' ? 'int' : 'gap';

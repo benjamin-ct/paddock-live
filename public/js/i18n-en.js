@@ -2374,6 +2374,7 @@ export default {
   "Intervalle avec la voiture de devant": "Interval to the car ahead",
   "Pneu et nombre de tours": "Tyre and laps",
   "Hors course, un seul temps (écart au meilleur tour) ; ni places ni arrêts.": "Outside races, a single time (gap to the fastest lap); no places or pit stops.",
+  "Pour agrandir un overlay, augmentez la largeur et la hauteur de la source (double-clic sur la source) plutôt que d'étirer son cadre : il se redessine net. Étiré, il est agrandi comme une image et devient flou.": "To make an overlay bigger, increase the source's width and height (double-click the source) instead of stretching its frame: it is redrawn sharp. Stretched, it is enlarged like an image and becomes blurry.",
   "Fond, colonnes et calques : appliqués tout de suite aux overlays déjà ajoutés, l'adresse ne change pas.": "Background, columns and layers: applied straight away to overlays already added; the address does not change.",
   "Calques de la carte": "Map layers",
   "Chargement de Paddock Live…": "Loading Paddock Live…",

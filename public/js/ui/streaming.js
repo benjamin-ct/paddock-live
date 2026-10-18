@@ -11,13 +11,13 @@ const base = () => `http://127.0.0.1:${location.port || 80}`;
 const MAP = '/?panel=map&float=1&overlay=1';
 // [nom, adresse, taille conseillée, opacité du fond par défaut (%) ; null : pas de réglage du fond]
 const OVERLAYS = [
-  ['Classement', '/mini.html?overlay=1', '340 × 640', 80],
+  ['Classement', '/mini.html?overlay=1', '680 × 1280', 80],
   ['Carte du circuit', MAP, '800 × 600', 0],
-  ['Bandeaux (drapeau rouge, voiture de sécurité, VSC…)', '/overlay.html?w=banner', '800 × 80', null],
-  ['Compteur de tours', '/overlay.html?w=laps', '300 × 150', 85],
-  ['Compte à rebours (séance en cours ou prochaine séance)', '/overlay.html?w=countdown', '440 × 130', 85],
-  ['Podium (trois premiers)', '/overlay.html?w=podium', '460 × 220', 85],
-  ['Télémétrie du pilote suivi', '/overlay.html?w=telemetry', '320 × 350', 85],
+  ['Bandeaux (drapeau rouge, voiture de sécurité, VSC…)', '/overlay.html?w=banner', '1600 × 160', null],
+  ['Compteur de tours', '/overlay.html?w=laps', '600 × 300', 85],
+  ['Compte à rebours (séance en cours ou prochaine séance)', '/overlay.html?w=countdown', '880 × 260', 85],
+  ['Podium (trois premiers)', '/overlay.html?w=podium', '920 × 440', 85],
+  ['Télémétrie du pilote suivi', '/overlay.html?w=telemetry', '640 × 700', 85],
 ];
 // Calques de la carte sans effet dans l'overlay (fond texturé, bande « ordre sur la piste »)
 const NO_LAYER = ['mapGrid', 'mapRibbon2'];
@@ -65,6 +65,7 @@ function render() {
       <li>Streamlabs Desktop : Sources → + → Source navigateur → collez l'adresse.</li>
       <li>Meld Studio : ajoutez une couche Navigateur (Browser) à la scène → collez l'adresse.</li>
       <li>La carte affiche le circuit pendant une séance ou un replay. Pour recharger une source : clic droit → Actualiser.</li>
+      <li>Pour agrandir un overlay, augmentez la largeur et la hauteur de la source (double-clic sur la source) plutôt que d'étirer son cadre : il se redessine net. Étiré, il est agrandi comme une image et devient flou.</li>
       <li>Chaque overlay s'adapte à la taille de la source. Les bandeaux n'apparaissent que pendant un drapeau (et 30 s au drapeau à damier) : laissez la source affichée en permanence.</li>
       <li>La télémétrie montre le pilote suivi dans Paddock Live (clic sur son nom dans le classement), sinon le leader : changez de pilote dans l'appli, l'overlay suit.</li>
       <li>Fond, colonnes et calques : appliqués tout de suite aux overlays déjà ajoutés, l'adresse ne change pas.</li></ul></details>`;
