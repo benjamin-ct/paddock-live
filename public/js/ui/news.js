@@ -641,11 +641,19 @@ export function closeNews() {
   markRead();
 }
 
-// Dernières actualités (page d'accueil) : titre traduit si besoin, source, date
-export async function latestNews(n = 4) {
+// Dernières actualités (page d'accueil) : titre traduit si besoin, source, date. Titres pas encore
+// traduits (arrivés depuis l'ouverture de l'appli) : traductions du serveur relues, sinon demandées,
+// puis onTranslated() pour réafficher
+export async function latestNews(n = 4, onTranslated = null) {
   await load();
-  return items.filter((it) => srcById[it.src]?.enabled !== false && it.kind !== 'video').sort((a, b) => b.t - a.t).slice(0, n)
-    .map((it) => ({ id: it.id, title: titleOf(it).text, link: safeUrl(it.link), src: srcById[it.src]?.name || it.src, when: ago(it.t) }));
+  const list = items.filter((it) => srcById[it.src]?.enabled !== false && it.kind !== 'video').sort((a, b) => b.t - a.t).slice(0, n);
+  const missing = prefs.newsTranslate ? list.filter((it) => needs(it.title, it.lang)) : [];
+  if (missing.length && onTranslated) {
+    loadTranslations(true)
+      .then(() => Promise.all(missing.filter((it) => needs(it.title, it.lang)).map((it) => translate(it.title, it.lang, true))))
+      .then(onTranslated);
+  }
+  return list.map((it) => ({ id: it.id, title: titleOf(it).text, link: safeUrl(it.link), src: srcById[it.src]?.name || it.src, when: ago(it.t) }));
 }
 
 export function initNews() {

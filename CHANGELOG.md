@@ -28,6 +28,12 @@ l'application (Réglages → Application → Nouveautés).
 - Retrouvez vos groupes toute la saison : la liste « Mes groupes » (dans Saison → Pronostics et sur
   paddocklive.app/p) les rouvre en un clic, et l'application passe d'un groupe à l'autre. Un lien personnel
   rouvre le groupe avec votre pseudo et vos points sur un autre appareil (téléphone, autre ordinateur).
+- Page web du groupe : sur ordinateur, le bouton copie directement le lien ; le partage du téléphone reste sur
+  mobile.
+
+### Actualités
+- Accueil : les dernières actualités sont traduites, y compris celles arrivées depuis l'ouverture de
+  l'application.
 
 ## v1.27.33 — 2026-10-18
 

@@ -223,11 +223,12 @@ function render() {
   loadStandings();
 }
 
-async function news() {
+// again : titres traduits entre-temps, réaffichés une fois
+async function news(again = true) {
   const box = $('#hmNews');
   if (!box) return;
   try {
-    const list = await (await import('./news.js')).latestNews(4);
+    const list = await (await import('./news.js')).latestNews(4, again ? () => news(false) : null);
     box.innerHTML = list.length ? list.map((n) => `<button class="hm-news-item" data-home="news"><span class="hm-news-t" data-no-i18n>${esc(n.title)}</span><span class="muted small"><span data-no-i18n>${esc(n.src)}</span> · <span>${esc(n.when)}</span></span></button>`).join('') : '<div class="muted small">Aucune actualité pour le moment.</div>';
   } catch { box.innerHTML = '<div class="muted small">Actualités indisponibles.</div>'; }
 }

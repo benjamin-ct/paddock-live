@@ -150,14 +150,16 @@
   // Lien du groupe à envoyer (partage du téléphone, sinon copie)
   function invite() {
     const url = `${location.origin}/p/${id}`;
+    // Partage du système sur téléphone ; sur ordinateur, simple copie du lien
+    const share = navigator.share && matchMedia('(pointer: coarse)').matches;
     const box = document.createElement('section');
     box.className = 'box';
     box.innerHTML = `<h2>Inviter des amis</h2><p class="dim msg">Envoyez-leur ce lien : ils pronostiquent depuis cette page, sans rien installer.</p>
-      <div class="picks"><input readonly value="${esc(url)}"><button type="button" id="share">${navigator.share ? 'Partager le lien' : 'Copier le lien'}</button></div>`;
+      <div class="picks"><input readonly value="${esc(url)}"><button type="button" id="share">${share ? 'Partager le lien' : 'Copier le lien'}</button></div>`;
     document.querySelector('main').insertBefore(box, document.querySelector('footer'));
     myLink();
     box.querySelector('#share').onclick = async () => {
-      try { if (navigator.share) await navigator.share({ title: document.title, url }); else { await navigator.clipboard.writeText(url); box.querySelector('#share').textContent = 'Lien copié'; } } catch { /* partage annulé */ }
+      try { if (share) await navigator.share({ title: document.title, url }); else { await navigator.clipboard.writeText(url); box.querySelector('#share').textContent = 'Lien copié'; } } catch { /* partage annulé */ }
     };
   }
   // Lien personnel : après le premier pronostic (jeton du pseudo)
