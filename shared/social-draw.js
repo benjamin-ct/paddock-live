@@ -54,6 +54,18 @@ export function chosenSlides(list, skip = []) {
   const out = list.filter((x) => !s.has(x));
   return out.length ? out : list.slice(0, 1);
 }
+// Données des textes sans ce que montraient les images écartées (skip : Set) : points clés, infos du
+// récap, duels d'une page, faits marquants, pneus et météo
+export function keptData(d, skip, fmt) {
+  if (!skip.size) return d;
+  if (d.news) return { ...d, points: pointPages(d.points, fmt).filter((_, i) => !skip.has(`essentiel-${i + 1}`)).flat() };
+  if (d.post === 'recap') return { ...d, items: d.items.filter((_, i) => !skip.has(`recap-${i + 1}`)) };
+  if (d.post === 'teamduels') return { ...d, rows: d.rows.filter((_, i) => !skip.has(`equipes-${Math.floor(i / 5) + 1}`)) };
+  if ((d.post === 'weekend' || d.post === 'raceweek') && skip.has('infos')) return { ...d, tyres: null, forecast: [] };
+  if (d.post === 'prerace' && skip.has('meteo')) return { ...d, weather: null, tyres: null };
+  if (!d.post && skip.has('faits')) return { ...d, facts: [] };
+  return d;
+}
 // Pages de points (essentiel-N) gardées : leurs numéros, dans l'ordre
 const keptPages = (o, prefix, all) => (o.slides ? o.slides.filter((s) => s.startsWith(`${prefix}-`)).map((s) => Number(s.slice(prefix.length + 1))) : all);
 

@@ -6,7 +6,7 @@ export const $ = (s, el = document) => el.querySelector(s);
 export const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 export const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 export const SIG = '@BenjyPaddock';
-export const NET_NAMES = { instagram: 'Instagram', facebook: 'Facebook', threads: 'Threads', x: 'X', bluesky: 'Bluesky', tiktok: 'TikTok', youtube: 'YouTube' };
+export const NET_NAMES = { instagram: 'Instagram', facebook: 'Facebook', threads: 'Threads', x: 'X', bluesky: 'Bluesky', tiktok: 'TikTok', youtube: 'YouTube', 'instagram-story': 'Story Instagram', 'facebook-story': 'Story Facebook' };
 
 // Réglages de la page (gardés pendant la visite) et comptes connectés (réponse de /me)
 export const state = { tab: 'news', fmt: 'ig', noSpoiler: true, photos: true, all: false, linkComment: true, follow: true, question: true, stype: 'raceweek', round: null, nsort: 'top', nkind: null, skip: new Set() };
@@ -251,3 +251,6 @@ export function bindMusic(kind) {
   addEventListener('popstate', end, { once: true });
   return () => $('#vtrack').value;
 }
+
+// Vidéo fabriquée sur place, jointe au post si elle est en MP4 (format accepté par tous les réseaux)
+export const clipFile = (clip, name) => (clip?.mime.includes('mp4') ? new File([clip.blob], `${name}.mp4`, { type: 'video/mp4' }) : null);

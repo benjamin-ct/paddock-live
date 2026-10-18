@@ -8,13 +8,14 @@ import { t } from '../i18n.js';
 import { toast } from './delay.js';
 import { FLAG_ISO } from './header.js';
 import { postData, captions, xLength } from '/shared/social.js';
-import { FORMATS, slidesFor, drawSlide, slideName, chosenSlides } from '/shared/social-draw.js';
+import { FORMATS, slidesFor, drawSlide, slideName, chosenSlides, keptData } from '/shared/social-draw.js';
 import { followCaptions, questionCaptions } from '/shared/social-follow.js';
 import { raceWeekData, weekendData, recordsData, ratingsData, teamDuelsData, raceLapsData, recapData, seasonCaptions } from '/shared/social-season.js';
 import { raceFrame, raceVideoTiming } from '/shared/social-draw-season.js';
 import { makeAnimation } from '/shared/social-video.js';
 import { newsFrame, newsVideoTiming } from '/shared/social-news-video.js';
-import { bigNews, newsPost, newsCaptions, newsKind, newsKinds, sortNews, OTHER_SERIES, isBreaking } from '/shared/social-news.js';
+import { bigNews, newsPost, newsCaptions, newsKind, newsKinds, sortNews, OTHER_SERIES, isBreaking, NEWS_BADGES } from '/shared/social-news.js';
+import { newsTags } from '/shared/news.js';
 import { builtinNomination } from '/shared/tyres.js';
 import { preraceData, champData, flashEvents, flashData, moreCaptions, FLASH_KINDS } from '/shared/social-more.js';
 import { postedEntry } from '/shared/post-history.js';
@@ -29,7 +30,7 @@ let enabled = false;
 let fmt = storageGet(OPT_KEY, {}).fmt || 'ig';
 let withPhotos = storageGet(OPT_KEY, {}).photos !== false;
 let noSpoiler = storageGet(OPT_KEY, {}).noSpoiler !== false;   // texte sans le vainqueur au début
-let mode = ['news', 'season'].includes(storageGet(OPT_KEY, {}).mode) ? storageGet(OPT_KEY, {}).mode : 'session';
+let mode = ['news', 'season', 'manual'].includes(storageGet(OPT_KEY, {}).mode) ? storageGet(OPT_KEY, {}).mode : 'session';
 let withQuestion = storageGet(OPT_KEY, {}).question !== false;   // question en fin de texte (commentaires)
 const SEASON_TYPES = [['raceweek', 'Race Week'], ['weekend', 'Programme du week-end'], ['records', 'Le saviez-vous'], ['ratings', 'Notes des pilotes'], ['teamduels', 'Duels coéquipiers'], ['racelaps', 'Course tour par tour']];
 let seasonType = SEASON_TYPES.some(([k]) => k === storageGet(OPT_KEY, {}).seasonType) ? storageGet(OPT_KEY, {}).seasonType : 'raceweek';
@@ -124,13 +125,13 @@ function sessionSource(sig) {
           : og.error ? t('Grille de la FIA indisponible ({}) : ordre des qualifications, sans les pénalités.', og.error)
             : t('Grille pas encore publiée par la FIA : ordre des qualifications, sans les pénalités.');
       const warn = `<p class="posts-warn small">${icon('info')} ${esc(note)}</p>`;
-      return { d, caps: moreCaptions(d, sig), head: types + warn, record: { key: `prerace:${folderOf(d)}`, kind: 'prerace', title: `${t('Avant-course')} · ${d.gp}` } };
+      return { d, caps: (dd) => moreCaptions(dd, sig), head: types + warn, record: { key: `prerace:${folderOf(d)}`, kind: 'prerace', title: `${t('Avant-course')} · ${d.gp}` } };
     });
   }
   if (postType === 'champ') {
     const d = champData(state);
     if (!d) return { head: `${types}<p class="muted">${t('Championnat disponible après une course ou un sprint : ouvrez la séance en direct ou en replay.')}</p>` };
-    return { d, caps: moreCaptions(d, sig), head: types, record: { key: `champ:${folderOf(d)}`, kind: 'champ', title: `${t('Championnat')} · ${d.gp}` } };
+    return { d, caps: (dd) => moreCaptions(dd, sig), head: types, record: { key: `champ:${folderOf(d)}`, kind: 'champ', title: `${t('Championnat')} · ${d.gp}` } };
   }
   if (postType === 'flash') {
     const evs = flashEvents(state);
@@ -139,11 +140,11 @@ function sessionSource(sig) {
     flashSel = ev.id;
     const d = flashData(state, ev);
     const pick = `<div class="row posts-news-bar"><select class="posts-news-sel" data-flashpick>${evs.map((x) => `<option value="${esc(x.id)}" ${x === ev ? 'selected' : ''}>${esc(t(FLASH_KINDS[x.kind].label))} · ${esc(x.title)}${x.lap ? ` · ${esc(t('tour {}', x.lap))}` : ''}</option>`).join('')}</select></div>`;
-    return { d, caps: moreCaptions(d, sig), head: types + pick, record: { key: `flash:${folderOf(d)}`, kind: 'flash', title: `${ev.title} · ${d.gp}` } };
+    return { d, caps: (dd) => moreCaptions(dd, sig), head: types + pick, record: { key: `flash:${folderOf(d)}`, kind: 'flash', title: `${ev.title} · ${d.gp}` } };
   }
   const d = postData(state);
   const warn = d.final ? '' : `<p class="posts-warn small">${icon('warning')} ${t('Séance pas terminée : résultats provisoires, au rythme de votre délai TV.')}</p>`;
-  return { d, caps: captions(d, sig, { spoiler: !noSpoiler }), head: types + warn, record: { key: `session:${folderOf(d)}`, kind: 'session', title: `${d.label} · ${d.gp}` } };
+  return { d, caps: (dd) => captions(dd, sig, { spoiler: !noSpoiler }), head: types + warn, record: { key: `session:${folderOf(d)}`, kind: 'session', title: `${d.label} · ${d.gp}` } };
 }
 
 // ---------- Posts de saison : programme, records, notes, duels, course tour par tour ----------
@@ -225,7 +226,7 @@ async function seasonSource(sig) {
       <video class="posts-vid" data-rv controls playsinline hidden></video>`;
   }
   const label = SEASON_TYPES.find(([k]) => k === seasonType)[1];
-  return { d, caps: seasonCaptions(d, sig), head: head + extra, record: { key: `${seasonType}:${year}-${race.round}`, kind: seasonType, title: `${t(label)} · ${d.gp}` } };
+  return { d, caps: (dd) => seasonCaptions(dd, sig), head: head + extra, record: { key: `${seasonType}:${year}-${race.round}`, kind: seasonType, title: `${t(label)} · ${d.gp}` } };
 }
 
 // Vidéo animée (format story) de la course ou d'une news (« Breaking news ») : enregistrée dans le navigateur
@@ -340,8 +341,62 @@ async function newsSource(sig) {
       <p class="small muted">${icon('info')} ${t(failed ? 'Traduction indisponible : textes en version originale, à traduire à la main.' : "Titre et résumé traduits automatiquement : relisez-les et corrigez-les si besoin. Les photos et le texte de l'article ne sont jamais repris, la source est citée.")}</p>
     </div>`;
   const record = { key: `news:${it.id}`, kind: 'news', title: d.title, srcTitle: it.title, link: it.link || '', summary: String(it.summary || '').slice(0, 300) };
-  return { d, caps: newsCaptions(d, sig, { linkInComment: linkComment }), head, record };
+  return { d, caps: (dd) => newsCaptions(dd, sig, { linkInComment: linkComment }), head, record };
 }
+// ---------- Post écrit à la main (comme « Écrire un post » de la page web) ----------
+// Texte libre, mise en forme par l'IA du serveur, photo ; pilotes et écuries reconnus dans le texte.
+const blankManual = () => ({ id: `m${Date.now().toString(36)}`, raw: '', title: '', summary: '', points: '', kind: '', source: '', image: null, breaking: false });
+let manual = blankManual();
+function manualPost(sig) {
+  const m = manual;
+  const title = m.title.trim() || t('Votre titre ici');
+  const d = newsPost({ id: m.id, cat: 'official', t: Date.now(), link: '', title, summary: m.summary, tags: newsTags(`${m.title} ${m.summary} ${m.points}`) },
+    { title, summary: m.summary, points: m.points, driverList: store.state?.DriverList || {}, sourceName: m.source.trim() });
+  if (m.kind) d.badge = NEWS_BADGES.find((b) => b.key === m.kind) || d.badge;
+  if (m.image) d.image = m.image;
+  d.breaking = m.breaking;
+  return { d, caps: (dd) => newsCaptions(dd, sig), record: { key: `manual:${m.id}`, kind: 'manual', title: d.title } };
+}
+function manualSource(sig) {
+  const m = manual;
+  const { d, caps, record } = manualPost(sig);
+  const head = `<div class="posts-news-edit">
+      <label class="small muted">${t('Votre texte (l’info en vrac, vos notes, un brouillon)')}<textarea data-m="raw" rows="4" maxlength="4000" placeholder="${t('Ex. : Norris prolonge chez McLaren jusqu’en 2030, annonce faite ce matin avant le GP des États-Unis…')}">${esc(m.raw)}</textarea></label>
+      <div class="row"><button class="btn small" data-mai>${icon('bolt')} ${t('Mettre en forme avec l’IA')}</button><span class="small muted" data-maist>${t('Titre, résumé et points clés rédigés à partir de votre texte.')}</span></div>
+      <label class="small muted">${t('Titre')}<input type="text" data-m="title" maxlength="120" value="${esc(m.title)}" placeholder="${t('Le titre du visuel')}"></label>
+      <label class="small muted">${t('Résumé')}<textarea data-m="summary" rows="3" maxlength="320">${esc(m.summary)}</textarea></label>
+      <label class="small muted">${t('Points clés, un par ligne (images suivantes du carrousel)')}<textarea data-m="points" rows="4" maxlength="1600" placeholder="${t('Facultatif')}">${esc(m.points)}</textarea></label>
+      <div class="posts-m2">
+        <label class="small muted">${t('Type d’info')} <select data-mkind><option value="">${t('Deviné d’après le texte')}</option>${NEWS_BADGES.map((b) => `<option value="${b.key}" ${m.kind === b.key ? 'selected' : ''}>${esc(t(b.label.charAt(0) + b.label.slice(1).toLowerCase()))}</option>`).join('')}</select></label>
+        <label class="small muted">${t('Source (facultatif)')} <input type="text" data-m="source" maxlength="60" value="${esc(m.source)}" placeholder="${t('Ex. : communiqué de McLaren')}"></label>
+      </div>
+      <div class="row"><label class="btn small">${icon('plus')} ${t('Choisir une photo')}<input type="file" data-mimg accept="image/*" hidden></label>
+        ${m.image ? `<button class="btn small" data-mimgdel>${icon('close')} ${t('Retirer la photo')}</button>` : `<span class="small muted">${t('Facultatif : remplace les portraits des pilotes')}</span>`}
+        <span class="spacer"></span><button class="btn small" data-mnew title="${t('Vider le formulaire pour écrire un autre post')}">${icon('plus')} ${t('Nouveau post')}</button></div>
+      <label class="toggle small" title="${t('Visuel et vidéo « Breaking news », réservés aux infos qui font du bruit')}"><input type="checkbox" data-mbreaking ${m.breaking ? 'checked' : ''}> ${t('Très grosse info')}</label>
+      ${m.breaking ? `<div class="row"><button class="btn small btn-accent" data-racevideo>${icon('video')} ${t('Créer la vidéo Breaking news')}</button> ${musicSelect('news')}
+        <button class="btn small" data-racevideosave disabled>${icon('save')} ${t('Enregistrer la vidéo')}</button><span class="small muted" data-rvst>${esc(t('Vidéo verticale (story, TikTok, Reels, Shorts) : titre, résumé puis points clés, avec musique. Aussi utilisée pour TikTok et YouTube à la publication.'))}</span></div>
+      <video class="posts-vid" data-rv controls playsinline hidden></video>` : ''}
+      <p class="small muted">${icon('info')} ${t('Les pilotes et écuries cités sont reconnus dans le texte : portraits, logos et couleurs suivent tout seuls.')}</p>
+    </div>`;
+  return { d, caps, head, record };
+}
+async function manualRewrite(dlg, btn) {
+  const text = (manual.raw.trim() || `${manual.title}\n${manual.summary}\n${manual.points}`).trim();
+  const st = $('[data-maist]', dlg);
+  if (text.length < 20) { st.textContent = t('Écrivez d’abord quelques phrases dans « Votre texte ».'); return; }
+  btn.disabled = true;
+  st.textContent = t('Mise en forme…');
+  try {
+    const r = await fetch('/api/social/rewrite', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.title) throw new Error(j.error ? t(j.error) : t('Mise en forme indisponible pour le moment'));
+    Object.assign(manual, { title: j.title, summary: j.summary || '', points: (j.points || []).join('\n') });
+    render(dlg);
+    toast(t('Rédigé par l’IA à partir de votre texte : relisez et corrigez avant de publier.'), 4000, 'check');
+  } catch (err) { st.textContent = err.message; } finally { btn.disabled = false; }
+}
+
 // Récap de la semaine : les 5 plus grosses news des 7 derniers jours (une par sujet)
 async function recapSource(sig, data, bar) {
   const f1 = (l) => l.filter((it) => !OTHER_SERIES.test(`${it.title} ${it.summary || ''}`));
@@ -352,7 +407,7 @@ async function recapSource(sig, data, bar) {
   const posts = list.map((it, i) => newsPost(it, { title: fr[2 * i] ?? it.title, summary: fr[2 * i + 1] ?? it.summary, driverList: store.state?.DriverList || {}, sourceName: data.sources.find((s) => s.id === it.src)?.name || it.src }));
   const d = recapData(posts);
   const head = `${bar(null)}<p class="small muted">${icon('info')} ${t('Titres et résumés traduits automatiquement : relisez les visuels avant de publier.')}</p>`;
-  return { d, caps: seasonCaptions(d, sig), head, record: { key: `recap:${d.date}`, kind: 'recap', title: `${t('La semaine en F1')} · ${d.date}` } };
+  return { d, caps: (dd) => seasonCaptions(dd, sig), head, record: { key: `recap:${d.date}`, kind: 'recap', title: `${t('La semaine en F1')} · ${d.date}` } };
 }
 const fileOf = (i, slide) => `${FORMATS[fmt].name}-${i + 1}-${slide}`;
 
@@ -396,6 +451,8 @@ async function render(dlg, keepHead = false) {
     if (id !== renderId) return;
     if (!r.d) { body.innerHTML = r.head; return; }
     ({ d, caps, head, record } = r);
+  } else if (mode === 'manual') {
+    ({ d, caps, head, record } = manualSource(sig));
   } else if (mode === 'season') {
     let r;
     try { r = await seasonSource(sig); } catch (err) { r = { head: `<p class="muted">${esc(err.message)}</p>` }; }
@@ -414,8 +471,15 @@ async function render(dlg, keepHead = false) {
   if (skipSlides.key !== postKey) skipSlides = { key: postKey, set: new Set() };
   const skip = skipSlides.set;
   const chosenOf = (list) => chosenSlides(list, [...skip]);
-  if (withQuestion) caps = questionCaptions(caps, d, sig);
-  if (follow) caps = followCaptions(caps, d, sig);
+  // Textes sans ce que montraient les images écartées (question et abonnement compris)
+  const capsOf = caps;
+  const textsOf = () => {
+    let c = capsOf(keptData(d, skip, fmt));
+    if (withQuestion && !skip.has('question')) c = questionCaptions(c, d, sig);
+    if (follow && !skip.has('abonnement')) c = followCaptions(c, d, sig);
+    return c;
+  };
+  caps = textsOf();
   if (!slides.length || (!d.rows?.length && !d.post && !d.news)) { body.innerHTML = `${mode !== 'news' ? head : ''}<p class="muted">${t('Pas encore de classement pour cette séance : lancez un live ou un replay.')}</p>`; return; }
   const main = `<p class="small muted">${icon('info')} ${t('Toutes les images sont publiées : décochez celles à laisser de côté (sommaire, nombre de points et numéros suivent).')}</p>
     <div class="posts-grid">${slides.map((s, i) => `<figure class="posts-item" data-fig="${i}"><canvas data-slide="${s}" title="${t('Cliquer pour voir en grand')}"></canvas>
@@ -461,6 +525,11 @@ async function render(dlg, keepHead = false) {
       // Une image au moins reste publiée
       if (!chosenOf(slides).some((s) => !skip.has(s))) { skip.delete(cb.dataset.pick); cb.checked = true; toast(t('Gardez au moins une image'), 2500, 'warning'); }
       paint();
+      // Texte affiché mis à jour, sauf s'il a été retouché à la main
+      const prev = caps;
+      caps = textsOf();
+      const k = fmt === 'x' ? 'x' : 'instagram';
+      if (area && area.value === prev[k]) { area.value = caps[k]; upd(); }
     };
   });
   const count = $('[data-count]', body);
@@ -567,7 +636,7 @@ function open() {
     dlg = document.createElement('dialog');
     dlg.id = 'postsDlg';
     dlg.className = 'modal posts-dlg';
-    const MODES = [['session', 'Séance', 'Résultats, avant-course, flash', 'checkered'], ['season', 'Saison', 'Race week, records, notes', 'calendar'], ['news', 'News', 'Grosses news et récap', 'news']];
+    const MODES = [['session', 'Séance', 'Résultats, avant-course, flash', 'checkered'], ['season', 'Saison', 'Race week, records, notes', 'calendar'], ['news', 'News', 'Grosses news et récap', 'news'], ['manual', 'Écrire', 'Votre propre post', 'note']];
     const FMTS = [['ig', 'Instagram / Facebook', 'Carrousel 4:5', 'r45'], ['story', 'Story / TikTok / Shorts', 'Vertical 9:16', 'r916'], ['x', 'X / Threads / Bluesky', 'Paysage 16:9', 'r169']];
     dlg.innerHTML = `<div class="pv-shell">
       <aside class="pv-side">
@@ -629,6 +698,9 @@ function open() {
       if (f && f !== fmt) { fmt = f; sync(); render(dlg); }
       if (e.target.closest('[data-stats]')) openStats();
       if (e.target.closest('[data-nsummary]')) detailedSummary(dlg, e.target.closest('[data-nsummary]'));
+      if (e.target.closest('[data-mai]')) manualRewrite(dlg, e.target.closest('[data-mai]'));
+      if (e.target.closest('[data-mimgdel]')) { manual.image = null; render(dlg); }
+      if (e.target.closest('[data-mnew]')) { manual = blankManual(); render(dlg); }
       if (e.target.closest('[data-all]')) { try { await dlg.onSaveAll?.(); } catch (err) { toast(err.message, 5000, 'warning'); } }
       if (e.target.closest('[data-publish]')) { if (dlg.publish) dlg.publish(); else toast(t('Visuels en préparation, réessayez dans un instant'), 3000); }
       if (e.target.closest('[data-open]')) fetch('/api/posts/open', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ folder: dlg.dataset.folder }) });
@@ -650,8 +722,20 @@ function open() {
       if (e.target.matches('[data-roundpick]')) { roundSel = Number(e.target.value); render(dlg); }
       if (e.target.matches('[data-linkcomment]')) { linkComment = e.target.checked; sync(); render(dlg); }
       if (e.target.matches('[data-breaking]') && newsSel) { breakingSet.set(newsSel, e.target.checked); render(dlg); }
+      if (e.target.matches('[data-mbreaking]')) { manual.breaking = e.target.checked; render(dlg); }
+      if (e.target.matches('[data-mkind]')) { manual.kind = e.target.value; renderNewsOnly(dlg); }
+      if (e.target.matches('[data-mimg]') && e.target.files?.[0]) {
+        createImageBitmap(e.target.files[0]).then((img) => { manual.image = img; render(dlg); }, () => toast(t('Image illisible'), 3000, 'warning'));
+      }
     });
     dlg.addEventListener('input', (e) => {
+      // Post écrit à la main : seuls les visuels et les textes sont redessinés pendant la saisie
+      if (e.target.matches('[data-m]')) {
+        manual[e.target.dataset.m] = e.target.value;
+        clearTimeout(te);
+        if (e.target.dataset.m !== 'raw') te = setTimeout(() => renderNewsOnly(dlg), 450);
+        return;
+      }
       if (!e.target.matches('[data-ntitle], [data-nsum], [data-npoints]') || !newsSel) return;
       edits.set(newsSel, { title: $('[data-ntitle]', dlg).value, summary: $('[data-nsum]', dlg).value, points: $('[data-npoints]', dlg).value });
       clearTimeout(te);

@@ -57,14 +57,52 @@ const TIKTOK_FAIL = {
 export async function tiktokStatus(token, id) {
   try {
     const d = (await call(`${TIKTOK}/post/publish/status/fetch/`, { method: 'POST', headers: { Authorization: `Bearer ${token}` }, json: { publish_id: id } }))?.data || {};
-    return { status: d.status || 'inconnu', fail_reason: d.fail_reason || '' };
+    return { status: d.status || 'inconnu', fail_reason: d.fail_reason || '', post: d.publicaly_available_post_id?.[0] ? String(d.publicaly_available_post_id[0]) : '' };
   } catch (err) { return { error: String(err?.message || err).slice(0, 200) }; }
 }
+// ---------- Publication directe (autorisation video.publish) ----------
+// Tant que l'app TikTok du créateur n'a pas passé l'audit de TikTok, seul « Moi uniquement » est accepté,
+// sur un compte privé. Règles de TikTok suivies par le Studio : compte relu avant chaque publication,
+// visibilité choisie sans valeur par défaut, interactions à cocher, contenu commercial déclaré.
+export const TIKTOK_PRIVACY = ['PUBLIC_TO_EVERYONE', 'MUTUAL_FOLLOW_FRIENDS', 'FOLLOWER_OF_CREATOR', 'SELF_ONLY'];
+export async function tiktokCreator(token) {
+  const d = (await call(`${TIKTOK}/post/publish/creator_info/query/`, { method: 'POST', headers: { Authorization: `Bearer ${token}` }, json: {} }))?.data || {};
+  return {
+    nickname: d.creator_nickname || '', username: d.creator_username || '', avatar: d.creator_avatar_url || '',
+    privacy: (d.privacy_level_options || []).filter((x) => TIKTOK_PRIVACY.includes(x)),
+    comment: !d.comment_disabled, duet: !d.duet_disabled, stitch: !d.stitch_disabled,
+    maxDuration: Number(d.max_video_post_duration_sec) || 0,
+  };
+}
+// o : { title, privacy, comment, duet, stitch, brandOrganic, brandContent } (interactions autorisées : true)
+export async function tiktokDirect(token, video, mime = 'video/mp4', o = {}) {
+  if (!video?.length) throw new Error('Vidéo manquante');
+  const auth = { Authorization: `Bearer ${token}` };
+  const init = await call(`${TIKTOK}/post/publish/video/init/`, { method: 'POST', headers: auth, json: {
+    post_info: { title: String(o.title || '').slice(0, 2200), privacy_level: o.privacy, disable_comment: !o.comment, disable_duet: !o.duet, disable_stitch: !o.stitch, brand_organic_toggle: !!o.brandOrganic, brand_content_toggle: !!o.brandContent },
+    source_info: { source: 'FILE_UPLOAD', video_size: video.length, chunk_size: video.length, total_chunk_count: 1 },
+  } });
+  const res = await fetch(init.data.upload_url, { method: 'PUT', headers: { 'Content-Type': mime, 'Content-Range': `bytes 0-${video.length - 1}/${video.length}` }, body: video, signal: AbortSignal.timeout(300000) });
+  if (!res.ok) throw new Error(`Envoi de la vidéo refusé par TikTok (HTTP ${res.status})`);
+  const id = init.data.publish_id;
+  let s = { status: 'inconnu' };
+  for (const t0 = Date.now(); id && Date.now() - t0 < draftTiming.max;) {
+    await new Promise((r) => setTimeout(r, draftTiming.poll));
+    s = await tiktokStatus(token, id);
+    if (s.status === 'FAILED' || s.status === 'PUBLISH_COMPLETE') break;
+  }
+  return tiktokOutcome(id, s, o);
+}
 const INBOX = 'ouvrez la notification dans TikTok (Boîte de réception → Notifications système) pour ajouter un son et publier';
-// État lu -> résultat ({ url, id, note, pending }) ou erreur levée si TikTok a refusé la vidéo
-export function tiktokOutcome(id, s) {
+// État lu -> résultat ({ url, id, note, pending }) ou erreur levée si TikTok a refusé la vidéo.
+// direct : réglages d'une publication directe (sinon brouillon) ; username : compte, pour le lien
+export function tiktokOutcome(id, s, direct = null) {
   if (s.status === 'FAILED') throw new Error(`TikTok a refusé la vidéo : ${TIKTOK_FAIL[s.fail_reason] || s.fail_reason || 'raison inconnue'}`);
-  if (s.status === 'SEND_TO_USER_INBOX' || s.status === 'PUBLISH_COMPLETE') return { url: null, id, note: `Brouillon reçu par TikTok : ${INBOX}` };
+  if (direct && s.status === 'PUBLISH_COMPLETE') {
+    return { url: s.post && direct.username ? `https://www.tiktok.com/@${direct.username}/video/${s.post}` : null, id,
+      note: direct.privacy === 'SELF_ONLY' ? 'Publiée, visible par vous seul' : 'Publiée : TikTok peut mettre quelques minutes à l\'afficher sur votre profil' };
+  }
+  if (!direct && (s.status === 'SEND_TO_USER_INBOX' || s.status === 'PUBLISH_COMPLETE')) return { url: null, id, note: `Brouillon reçu par TikTok : ${INBOX}` };
   const why = s.error ? `état illisible : ${s.error}` : `état TikTok : ${s.status}`;
   return { url: null, id, pending: true, note: `Vidéo envoyée, encore en traitement chez TikTok (${why}) : vérifiez l'état dans quelques minutes` };
 }

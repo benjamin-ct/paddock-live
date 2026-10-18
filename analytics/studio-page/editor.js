@@ -1,11 +1,12 @@
 // Studio : éditeur d'un post (visuels, textes, publication, programmation, partage), commun aux news,
 // séances et posts de la saison.
-import { slidesFor, drawSlide, slideName, chosenSlides } from '/shared/social-draw.js';
+import { slidesFor, drawSlide, slideName, chosenSlides, keptData } from '/shared/social-draw.js';
 import { openImageViewer } from '/shared/image-viewer.js';
 import { followCaptions, questionCaptions } from '/shared/social-follow.js';
 import { FLAG_ISO } from '/shared/flags.js';
 import { loadTeamLogos } from '/shared/team-logos.js';
 import { $, $$, esc, api, icon, toast, toggle, sheet, schedList, glide, state, session, SIG, NET_NAMES, IOS, installed } from './ui.js';
+import { tiktokPanel, tiktokProblem, tiktokChoice, TIKTOK_PRIVACY } from './tiktok.js';
 
 // ---------- Images (photos des pilotes, drapeaux) par le relais du serveur ----------
 const imgCache = new Map();
@@ -73,7 +74,8 @@ addEventListener('touchend', () => {
 });
 
 // back : retour ; title / subtitle : en-tête ; head : réglages propres au post (HTML), au-dessus des
-// visuels ou en dessous (below) ; data : données des visuels ; caps : textes ; bind(redraw) :
+// visuels ou en dessous (below) ; data : données des visuels ; caps(d) : textes des données d (sans ce
+// que montrent les images écartées) ; bind(redraw) :
 // branchement des réglages ; record : entrée du journal ; video() : vidéo du créateur jointe au post
 export function editor({ back, title, subtitle = '', head = '', below = false, data, caps, bind = () => {}, record, video = () => null }) {
   let canvases = [];
@@ -104,14 +106,19 @@ export function editor({ back, title, subtitle = '', head = '', below = false, d
   if (!history.state?.editor) history.pushState({ editor: 1 }, '');
   leave = back;
 
+  // Textes : question et abonnement seulement si leur image est gardée ; retouches à la main conservées
+  const texts = (d) => {
+    let base = caps(keptData(d, state.skip, state.fmt));
+    if (state.question && !state.skip.has('question')) base = questionCaptions(base, d, SIG);
+    if (state.follow && !state.skip.has('abonnement')) base = followCaptions(base, d, SIG);
+    const c = { ...base, ...edited };
+    if (!c.bsky) c.bsky = c.x;
+    return c;
+  };
   const redraw = async (changed = false) => {
     if (changed) edited = {};
     const d = data();
-    let base = caps();
-    if (state.question) base = questionCaptions(base, d, SIG);
-    if (state.follow) base = followCaptions(base, d, SIG);
-    const c = { ...base, ...edited };
-    if (!c.bsky) c.bsky = c.x;
+    const c = texts(d);
     const slides = slidesFor(d, { fmt: state.fmt, follow: state.follow, question: state.question });
     $('#main').innerHTML = `<div class="slides ${state.fmt}">${slides.map((sl) => `<figure class="sl"><canvas data-slide="${sl}" title="${esc(slideName(sl))} : voir en grand"></canvas>
         <label class="pick"><input type="checkbox" data-pick="${sl}" ${state.skip.has(sl) ? '' : 'checked'}><span data-num></span>${esc(slideName(sl))}</label></figure>`).join('')}</div>
@@ -131,13 +138,30 @@ export function editor({ back, title, subtitle = '', head = '', below = false, d
       count(k);
       $(`#cap-${k}`).oninput = (e) => { edited[k] = e.target.value; count(k); };
     }
-    // Avec une vidéo : Reel, vidéo Facebook et Threads, et aussi brouillon TikTok et Short YouTube (à cocher)
+    // Avec une vidéo : Reel, vidéo Facebook et Threads, et aussi brouillon TikTok et Short YouTube (à cocher).
+    // Format Story : stories Instagram et Facebook (Threads et Bluesky n'en ont pas)
     const vid = video();
-    $('#netsbox').innerHTML = `<h3 class="section">Publier sur</h3>${[['instagram', 'Instagram'], ['facebook', 'Facebook'], ['threads', 'Threads'], ['bluesky', 'Bluesky'], ...(vid ? [['tiktok', 'TikTok'], ['youtube', 'YouTube Shorts']] : [])].map(([k, v]) => {
-      const acc = session.me?.[k];
+    const story = !vid && state.fmt === 'story';
+    const list = story ? [['instagram-story', 'Story Instagram'], ['facebook-story', 'Story Facebook']]
+      : [['instagram', 'Instagram'], ['facebook', 'Facebook'], ['threads', 'Threads'], ['bluesky', 'Bluesky'], ...(vid ? [['tiktok', 'TikTok'], ['youtube', 'YouTube Shorts']] : [])];
+    $('#netsbox').innerHTML = `<h3 class="section">Publier sur</h3>${list.map(([k, v]) => {
+      const acc = session.me?.[k.replace('-story', '')];
       return `<label class="switch net"><span><b>${v}</b><small>${esc(acc || 'non connecté')}</small><em class="st" data-st="${k}"></em></span><input type="checkbox" role="switch" data-net="${k}" ${acc ? (k === 'tiktok' || k === 'youtube' ? '' : 'checked') : 'disabled'}></label>`;
-    }).join('')}<p class="hint">${vid ? 'Votre vidéo part en Reel sur Instagram, en vidéo sur Facebook et Threads, en brouillon sur TikTok (son et texte à finir dans l\'appli) et en privé sur YouTube. Bluesky reçoit les visuels.'
-      : 'Instagram, Facebook et Threads reçoivent les visuels au format Instagram, Bluesky les 4 premiers au format X. X, TikTok, YouTube Shorts, story : « Partager » ouvre les applis du téléphone avec les visuels du format choisi.'}</p>`;
+    }).join('')}${vid ? '<div id="tkbox" class="tkbox" hidden></div>' : ''}<p class="hint">${vid ? 'Votre vidéo part en Reel sur Instagram, en vidéo sur Facebook et Threads, sur TikTok (brouillon ou publication directe, réglages ci-dessus) et en privé sur YouTube. Bluesky reçoit les visuels.'
+      : story ? 'Une story par image, dans l\'ordre, visible 24 heures, sans texte. Threads et Bluesky n\'ont pas de stories ; story TikTok : « Partager » ouvre les applis du téléphone avec ces visuels.'
+        : 'Instagram, Facebook et Threads reçoivent les visuels au format Instagram, Bluesky les 4 premiers au format X. Stories Instagram et Facebook : choisissez le format Story. X, TikTok, YouTube Shorts : « Partager » ouvre les applis du téléphone avec les visuels du format choisi.'}</p>`;
+    // TikTok coché : réglages (brouillon ou publication directe) ; publication bloquée tant qu'ils manquent
+    const tk = $('[data-net="tiktok"]');
+    if (vid && tk) {
+      const check = () => {
+        const why = tk.checked ? tiktokProblem() : null;
+        $('#go').disabled = !!why;
+        $('#go').title = why || '';
+      };
+      const show = () => { $('#tkbox').hidden = !tk.checked; if (tk.checked) tiktokPanel($('#tkbox'), vid, textOf('tiktok'), check); else check(); };
+      tk.onchange = show;
+      show();
+    }
     const o = await assets(d);
     const all = $$('#main canvas');
     // Images gardées : redessinées (sommaire, points, numéros) ; écartées : grisées, sans numéro
@@ -159,10 +183,12 @@ export function editor({ back, title, subtitle = '', head = '', below = false, d
         if (cb.checked) state.skip.delete(cb.dataset.pick); else state.skip.add(cb.dataset.pick);
         if (!chosenSlides(slides, [...state.skip]).some((s) => !state.skip.has(s))) { state.skip.delete(cb.dataset.pick); cb.checked = true; toast('Gardez au moins une image', 'bad'); }
         paint();
+        const t = texts(d);
+        for (const k of Object.keys(t)) if (!(k in edited) && $(`#cap-${k}`)) { $(`#cap-${k}`).value = t[k]; count(k); }
       };
     });
     $('#go').onclick = () => publishAll(d, o, record?.(), vid);
-    $('#plan').onclick = () => (vid ? toast('Post avec vidéo : publication tout de suite seulement, pas de programmation', 'bad') : schedulePanel(d, o, record?.()));
+    $('#plan').onclick = () => (vid || story ? toast(`${vid ? 'Post avec vidéo' : 'Stories'} : publication tout de suite seulement, pas de programmation`, 'bad') : schedulePanel(d, o, record?.()));
     $('#share').onclick = () => share(canvases, state.fmt === 'x' ? $('#cap-x').value : state.fmt === 'ig' ? $('#cap-instagram').value : '');
     // iPhone : « Partager » propose aussi « Enregistrer les images » (Photos)
     if ($('#dl')) $('#dl').onclick = () => download(canvases);
@@ -210,14 +236,15 @@ async function fitJpeg(cv, max) {
   for (const q of [0.92, 0.85, 0.75, 0.6, 0.45]) { b = await toBlob(cv, 'image/jpeg', q); if (b.size <= max) break; }
   return b;
 }
-// Visuels : format Instagram (Instagram, Facebook, Threads) ; Bluesky : 4 au format X, moins de 1 Mo
+// Visuels : format Instagram (Instagram, Facebook, Threads) ou Story (stories) ; Bluesky : 4 au format X, moins de 1 Mo
+const isStory = (n) => n.endsWith('-story');
 async function postImages(d, o, nets, maxIg = Infinity) {
   // Images gardées seulement (sommaire et numéros suivent)
   const draw = (fmt, max, n = 99) => {
     const list = chosenSlides(slidesFor(d, { fmt, follow: state.follow, question: state.question }), [...(state.skip || [])]).slice(0, n);
     return Promise.all(list.map((sl) => fitJpeg(drawSlide(document.createElement('canvas'), sl, fmt, d, { ...o, slides: list }), max)));
   };
-  return { ig: nets.some((n) => n !== 'bluesky') ? await draw('ig', maxIg) : [], x: nets.includes('bluesky') ? await draw('x', 950 * 1024, 4) : [] };
+  return { ig: nets.some((n) => n !== 'bluesky') ? await draw(nets.some(isStory) ? 'story' : 'ig', maxIg) : [], x: nets.includes('bluesky') ? await draw('x', 950 * 1024, 4) : [] };
 }
 
 // Publication programmée : envoyée au serveur, publiée à l'heure même page fermée
@@ -263,10 +290,12 @@ function schedulePanel(d, o, record = null) {
 
 // Publication : visuels au format Instagram (JPEG), un réseau après l'autre, progression affichée
 // Envoi d'un post au serveur (réponse en continu : avancement, puis résultat ou erreur)
-export async function sendPost(network, text, blobs, comment = '', video = null) {
+// tiktok : réglages d'une publication directe sur TikTok (sinon brouillon)
+export async function sendPost(network, text, blobs, comment = '', video = null, tiktok = null) {
   const form = new FormData();
   form.append('network', network);
   form.append('text', text);
+  if (tiktok) form.append('tiktok', JSON.stringify(tiktok));
   blobs.forEach((b, i) => form.append('images', b, `image-${i + 1}.jpg`));
   if (video) form.append('video', video, video.type === 'video/quicktime' ? 'video.mov' : 'video.mp4');
   if (comment) form.append('comment', comment);
@@ -302,7 +331,11 @@ export { goBack };
 async function publishAll(d, o, record = null, video = null) {
   const nets = checkedNets();
   if (!nets.length) { toast('Cochez au moins un réseau', 'bad'); return; }
-  if (!confirm(`Publier maintenant sur : ${nets.map((n) => NET_NAMES[n] || n).join(', ')} ?\n\nLes posts seront publics${video ? ' (TikTok : en brouillon ; YouTube : en privé)' : ''}.`)) return;
+  const stories = nets.some(isStory);
+  // TikTok : publication directe avec les réglages choisis, sinon brouillon ; rien n'est envoyé sans confirmation
+  const tk = nets.includes('tiktok') ? tiktokChoice() : null;
+  if (nets.includes('tiktok') && tiktokProblem()) { toast(tiktokProblem(), 'bad'); return; }
+  if (!confirm(`Publier maintenant sur : ${nets.map((n) => NET_NAMES[n] || n).join(', ')} ?\n\n${stories ? 'Les stories seront publiques pendant 24 heures' : `Les posts seront publics${[nets.includes('tiktok') && `TikTok : ${tk ? `publication directe, visible par : ${TIKTOK_PRIVACY[tk.privacy]}` : 'en brouillon'}`, nets.includes('youtube') && 'YouTube : en privé'].filter(Boolean).map((x, i, a) => `${i ? ' ; ' : ' ('}${x}${i === a.length - 1 ? ')' : ''}`).join('')}`}.`)) return;
   const go = $('#go');
   go.disabled = true;
   $('#netsbox').scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -317,10 +350,11 @@ async function publishAll(d, o, record = null, video = null) {
     try {
       // Vidéo : seule envoyée (sauf Bluesky, qui garde les visuels)
       const withVideo = video && n !== 'bluesky';
-      const result = await sendPost(n, textOf(n), n === 'bluesky' ? bsky : withVideo ? [] : blobs, commentOf(n), withVideo ? video : null);
+      const result = await sendPost(n, stories ? '' : textOf(n), n === 'bluesky' ? bsky : withVideo ? [] : blobs, stories ? '' : commentOf(n), withVideo ? video : null, n === 'tiktok' ? tk : null);
       ok++;
       st.className = 'st ok';
-      if (record) api('history', { method: 'POST', body: JSON.stringify({ entry: { ...record, at: Date.now(), nets: { [n]: { id: result.id ?? null, url: result.url || null } } } }) }).catch(() => {});
+      // Stories (24 heures) : pas dans l'historique, qui garde le post du fil
+      if (record && !stories) api('history', { method: 'POST', body: JSON.stringify({ entry: { ...record, at: Date.now(), nets: { [n]: { id: result.id ?? null, url: result.url || null } } } }) }).catch(() => {});
       st.innerHTML = (result.url ? `<a href="${esc(result.url)}" target="_blank" rel="noopener">Publié ${icon('check')}</a>` : `Publié ${icon('check')}`)
         + (result.comment ? ' · commentaire ajouté' : result.commentError ? ` <span class="err">· commentaire refusé : ${esc(result.commentError)}</span>` : '')
         + (result.note ? ` · ${esc(result.note)}` : '')
@@ -330,6 +364,6 @@ async function publishAll(d, o, record = null, video = null) {
       st.textContent = err.message;
     } finally { clearInterval(tick); }
   }
-  go.disabled = false;
+  go.disabled = !!(nets.includes('tiktok') && tiktokProblem());
   toast(ok === nets.length ? 'Publié partout' : ok ? `Publié sur ${ok} réseau${ok > 1 ? 'x' : ''} sur ${nets.length}` : 'Rien n\'a été publié', ok === nets.length ? 'ok' : 'bad');
 }

@@ -10,10 +10,10 @@ import { CHAMPIONSHIP, parseSeasons, parseDocumentList, pickEvent } from '/share
 import { gridDocument, parseStartingGrid } from '/shared/fia-grid.js';
 import { extractArticle } from '/shared/article.js';
 import { recapData, seasonCaptions } from '/shared/social-season.js';
-import { $, $$, esc, api, ago, icon, toggle, glide, state, SIG, NET_NAMES, musicField, bindMusic } from './ui.js';
+import { $, $$, esc, api, ago, icon, toggle, glide, state, SIG, NET_NAMES, musicField, bindMusic, clipFile } from './ui.js';
 import { toFrench, freshNews, cachedNews, latestDrivers, loadState, rememberDrivers, SESSION_FR } from './data.js';
 import { editor, assets } from './editor.js';
-import { makeAnimation } from '/shared/social-video.js';
+import { makeAnimation, unlockAudio } from '/shared/social-video.js';
 import { newsFrame, newsVideoTiming } from '/shared/social-news-video.js';
 
 // Résumé détaillé : page de l'article lue par le serveur, texte extrait ici, points clés rédigés par
@@ -35,11 +35,13 @@ const NEWS_VIDEO = (on) => `${toggle('brk', 'Très grosse info', on, 'Visuel et 
   <p class="hint" id="vidst">Vidéo verticale « Breaking news » pour TikTok, Reels, YouTube Shorts ou une story : titre, résumé puis points clés, avec musique. Garder l'écran allumé pendant l'enregistrement.</p>
   <video id="vid" controls playsinline hidden></video></div>`;
 // onBreaking(on) : très grosse info cochée ou décochée à la main
-function bindNewsVideo(getD, name, onBreaking) {
+// onClip(file) : vidéo prête (MP4), jointe au post pour la publier sur TikTok, Instagram, Facebook…
+function bindNewsVideo(getD, name, onBreaking, onClip) {
   let clip = null;
   const track = bindMusic('news');
   $('#brk').onchange = (e) => { $('#vidbox').hidden = !e.target.checked; onBreaking(e.target.checked); };
   $('#mkvid').onclick = async () => {
+    unlockAudio();   // pendant le toucher, avant toute attente (sinon vidéo muette sur iPhone)
     $('#mkvid').disabled = true;
     try {
       const d = getD();
@@ -48,7 +50,8 @@ function bindNewsVideo(getD, name, onBreaking) {
       clip = await makeAnimation((ctx, t) => newsFrame(ctx, 1080, 1920, d, o, t), duration, { music: 'gen', track: track(), onProgress: (p) => { $('#vidst').textContent = `Enregistrement… ${Math.round(p * 100)} %`; } });
       $('#vid').src = URL.createObjectURL(clip.blob); $('#vid').hidden = false;
       $('#sharevid').disabled = false;
-      $('#vidst').textContent = `Vidéo prête : ${Math.round(duration)} s, ${(clip.blob.size / 1e6).toFixed(1).replace('.', ',')} Mo`;
+      $('#vidst').textContent = `Vidéo prête : ${Math.round(duration)} s, ${(clip.blob.size / 1e6).toFixed(1).replace('.', ',')} Mo${clip.silent ? ' · sans son : le navigateur a bloqué la musique, recommencez' : ''}${clipFile(clip, name) ? ' · cochez TikTok, Instagram… dans « Publier sur » pour la publier' : ' · format WebM : à partager seulement (publication en MP4)'}`;
+      onClip(clipFile(clip, name));
     } catch (err) { $('#vidst').textContent = err.message; } finally { $('#mkvid').disabled = false; }
   };
   $('#sharevid').onclick = async () => {
@@ -63,6 +66,7 @@ export async function newsEditor(it, done, back) {
   const [title, summary] = await toFrench([{ text: it.title, from: it.lang }, { text: it.summary, from: it.lang }]);
   const failed = title === null || summary === null;
   let breaking = null;   // très grosse info choisie à la main (sinon : détectée)
+  let made = null;       // vidéo Breaking news fabriquée (MP4), jointe au post
   const make = async (t, s, p = '') => {
     const nd = newsPost(it, { title: t, summary: s, points: p, driverList: await latestDrivers(), sourceName: it.srcName });
     if (breaking !== null) nd.breaking = breaking;
@@ -84,7 +88,8 @@ export async function newsEditor(it, done, back) {
       ${NEWS_VIDEO(d.breaking)}
       <p class="hint">${failed ? 'Traduction indisponible : textes en version originale, à traduire à la main.' : 'Titre et résumé traduits automatiquement : relisez-les et corrigez-les si besoin. Ni photo ni texte de l\'article repris, la source est citée.'}</p>`,
     data: () => d,
-    caps: () => newsCaptions(d, SIG, { linkInComment: state.linkComment }),
+    caps: (dd) => newsCaptions(dd, SIG, { linkInComment: state.linkComment }),
+    video: () => made,
     record: () => ({ key: `news:${it.id}`, kind: 'news', title: d.title, srcTitle: it.title, link: it.link || '', summary: String(it.summary || '').slice(0, 300) }),
     bind: (redraw) => {
       let tm = null;
@@ -104,7 +109,7 @@ export async function newsEditor(it, done, back) {
         } catch (err) { $('#nsumst').textContent = err.message; } finally { btn.disabled = false; btn.classList.remove('busy'); }
       };
       $('#linkcomment').onchange = (e) => { state.linkComment = e.target.checked; redraw(true); };
-      bindNewsVideo(() => d, 'breaking-news', (on) => { breaking = on; d.breaking = on; redraw(true); });
+      bindNewsVideo(() => d, 'breaking-news', (on) => { breaking = on; d.breaking = on; redraw(true); }, (file) => { made = file; redraw(); });
     },
   });
 }
@@ -144,9 +149,9 @@ export async function manualEditor(back) {
       <p class="hint">Les pilotes et écuries cités sont reconnus dans le texte : portraits, logos et couleurs suivent tout seuls.</p>
       ${NEWS_VIDEO(false)}`,
     data: () => d,
-    caps: () => newsCaptions(d, SIG),
+    caps: (dd) => newsCaptions(dd, SIG),
     record: () => ({ key: `manual:${it.id}`, kind: 'manual', title: d.title }),
-    video: () => f.video,
+    video: () => f.video || f.made,
     bind: (redraw) => {
       let tm = null;
       const upd = (now = false) => {
@@ -198,7 +203,7 @@ export async function manualEditor(back) {
         upd(true);
       };
       $('#mviddel').onclick = () => { f.video = null; $('#mvid').value = ''; $('#mvidst').textContent = ''; $('#mviddel').hidden = true; $('#mvidprev').hidden = true; $('#mvidprev').removeAttribute('src'); upd(true); };
-      bindNewsVideo(() => d, 'breaking-news', (on) => { f.breaking = on; upd(true); });
+      bindNewsVideo(() => d, 'breaking-news', (on) => { f.breaking = on; upd(true); }, (file) => { f.made = file; redraw(); });
     },
   });
 }
@@ -218,7 +223,7 @@ export async function recapEditor(back) {
     title: 'Récap de la semaine',
     subtitle: `${d.items.length} grosses news des 7 derniers jours`,
     head: '<p class="hint">Titres et résumés traduits automatiquement : relisez les visuels avant de publier.</p>',
-    data: () => d, caps: () => seasonCaptions(d, SIG),
+    data: () => d, caps: (dd) => seasonCaptions(dd, SIG),
     record: () => ({ key: `recap:${d.date}`, kind: 'recap', title: `La semaine en F1 · ${d.date}` }),
   });
 }
@@ -285,7 +290,7 @@ export async function sessionEditor(s, back) {
       <label class="field" id="flashrow" hidden><span>Moment de la séance</span><select id="flashpick">${events.map((x, i) => `<option value="${i}">${esc(FLASH_KINDS[x.kind].label)} · ${esc(x.title)}${x.lap ? ` · tour ${x.lap}` : ''}</option>`).join('')}</select></label>
       <div id="nospoilrow">${toggle('nospoil', 'Texte sans spoiler', state.noSpoiler, 'Vainqueur absent du début du texte')}</div>`,
     data,
-    caps: () => (type === 'results' ? captions(results, SIG, { spoiler: !state.noSpoiler }) : moreCaptions(data(), SIG)),
+    caps: (dd) => (type === 'results' ? captions(dd, SIG, { spoiler: !state.noSpoiler }) : moreCaptions(dd, SIG)),
     record: () => (type === 'results' ? { key: `session:${s.path}`, kind: 'session', title: `${SESSION_FR(s.name)} · ${results.gp}` }
       : { key: `${type}:${s.path}${type === 'flash' ? `:${ev.id}` : ''}`, kind: type, title: `${type === 'flash' ? ev.title : typeName()} · ${results.gp}` }),
     bind: (redraw) => {

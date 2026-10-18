@@ -16,7 +16,7 @@ let schedule = null;   // [{ race, round, label, t }]
 let archive = null;    // dernière séance rejouable { meeting, name, path, t }
 let timer = 0;
 let standings = null;  // classement du championnat (carte du favori)
-let weather = null;    // { key, days } : météo prévue du prochain Grand Prix
+let weather = null;    // { key, days, tz } : météo prévue du prochain Grand Prix, fuseau horaire du circuit
 let showFav = false;   // carte du favori dévoilée (peut contenir le dernier résultat)
 let editFav = false;   // choix des pilotes et écuries favoris ouvert sur l'accueil
 let touched = false;   // l'utilisateur a quitté l'accueil : plus d'ouverture ou de fermeture automatique
@@ -34,7 +34,7 @@ async function loadSchedule() {
     try { races.push(...(await api(`/api/schedule?year=${y}`)).races.map((r) => ({ ...r, year: y }))); } catch { /* hors ligne */ }
     if (races.some((r) => r.sessions.some((s) => Date.parse(s.t) > Date.now()))) break;
   }
-  schedule = races.flatMap((r) => r.sessions.filter((s) => s.t).map((s) => ({ race: r.name, round: r.round, year: r.year, label: s.label, t: Date.parse(s.t), lat: r.lat, lon: r.lon })))
+  schedule = races.flatMap((r) => r.sessions.filter((s) => s.t).map((s) => ({ race: r.name, round: r.round, year: r.year, label: s.label, t: Date.parse(s.t), lat: r.lat, lon: r.lon, locality: r.locality, country: r.country, circuitId: r.circuitId })))
     .sort((a, b) => a.t - b.t);
 }
 
@@ -84,21 +84,37 @@ const gp = (name) => gpShort(name, EN);
 
 // Météo prévue des jours du prochain week-end (Open-Meteo, 16 jours au plus)
 async function loadWeather(nx) {
-  if (!nx?.lat || nx.t - Date.now() > 15 * 86400e3) return;
+  if (!nx?.lat) return;
   const key = `${nx.race}|${nx.year}`;
   if (weather?.key === key) return;
-  weather = { key, days: null };
+  weather = { key, days: null, tz: null };
   try {
     const d = await api(`/api/forecast?lat=${nx.lat}&lon=${nx.lon}`);
     const dates = new Set(schedule.filter((s) => s.race === nx.race && s.year === nx.year).map((s) => new Date(s.t).toISOString().slice(0, 10)));
     weather.days = (d.days || []).filter((x) => dates.has(x.date));
+    weather.tz = d.tz || null;
   } catch { weather.days = []; }
-  render();
+  if (isHomeOpen()) render();
 }
 function weatherHtml(nx) {
   const days = weather?.key === `${nx.race}|${nx.year}` ? weather.days : null;
   if (!days?.length) return '';
   return `<div class="hm-wx">${days.map((d) => `<span title="Météo prévue sur le circuit"><b>${esc(new Date(`${d.date}T12:00:00`).toLocaleDateString(LOCALE, { weekday: 'short' }))}</b> ${Math.round(d.tmax)}° ${d.rain != null ? `<small>${icon('rain')} ${d.rain} %</small>` : ''}</span>`).join('')}</div>`;
+}
+
+// Barre du haut entre deux séances : le prochain Grand Prix (prochaine séance, course, fiche du
+// circuit, météo prévue, fuseau horaire). null pendant une séance, un replay ou les résultats.
+export function upcoming() {
+  if (!schedule || resultsOpen || store.status?.mode === 'replay') return null;
+  const st = store.state.SessionStatus?.Status;
+  if (st === 'Started' || st === 'Aborted' || liveNow()) return null;
+  const nx = nextSession();
+  if (!nx) return null;
+  loadWeather(nx);
+  const week = schedule.filter((s) => s.race === nx.race && s.year === nx.year);
+  const race = week.find((s) => s.label === 'Course') || week.at(-1);
+  const w = weather?.key === `${nx.race}|${nx.year}` ? weather : null;
+  return { ...nx, first: week[0].t, raceT: race.t, raceDay: w?.days?.find((d) => d.date === new Date(race.t).toISOString().slice(0, 10)) || null, tz: w?.tz || null };
 }
 
 // Pilotes et écuries favoris : position et points au championnat. Masqué juste après une séance (il

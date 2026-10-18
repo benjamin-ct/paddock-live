@@ -9,8 +9,8 @@ process.env.PADDOCK_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'paddock-st
 const CODE = 'ESSAI-42';
 const HASH = (await import('node:crypto')).createHash('sha256').update(`paddock-live:${CODE}`).digest('hex');
 process.env.PADDOCK_CREATOR_HASH = HASH;
-const { studioApi, freshF1tv, runSchedule } = await import('../analytics/studio.js');
-const { studioKey, enableStudio, syncStudio, disableStudio, studioInfo } = await import('../server/studio-sync.js');
+const { studioApi, freshF1tv, runSchedule, seasonRow } = await import('../analytics/studio.js');
+const { studioKey, enableStudio, syncStudio, disableStudio, studioInfo, studioRewrite } = await import('../server/studio-sync.js');
 const { saveConfig, getConfig } = await import('../server/config.js');
 const { timing } = await import('../shared/meta-publish.js');
 
@@ -449,5 +449,73 @@ test('page du créateur : vidéo du kit envoyée par le serveur (brouillon TikTo
     assert.equal((await post('youtube')).status, 400);   // TikTok et YouTube : vidéo obligatoire
     assert.equal((await post('youtube', new Blob(['x'], { type: 'image/gif' }))).status, 400);
   } finally { globalThis.fetch = realFetch; delete env.ASSETS; }
+
+  // Publication directe sur TikTok : compte relu, réglages vérifiés, puis publiée
+  const sent = [];
+  globalThis.fetch = async (url, opts = {}) => {
+    const u = String(url);
+    if (u.endsWith('/post/publish/creator_info/query/')) {
+      return new Response(JSON.stringify({ data: { creator_nickname: 'Benjy Paddock', creator_username: 'benjypaddock', privacy_level_options: ['PUBLIC_TO_EVERYONE', 'SELF_ONLY', 'AUTRE'], comment_disabled: false, duet_disabled: true, stitch_disabled: false, max_video_post_duration_sec: 600 }, error: { code: 'ok' } }));
+    }
+    if (u.endsWith('/post/publish/video/init/')) { sent.push(JSON.parse(opts.body)); return new Response(JSON.stringify({ data: { upload_url: 'https://up.test/tt', publish_id: 'd1' }, error: { code: 'ok' } })); }
+    if (u === 'https://up.test/tt') return new Response(null, { status: 201 });
+    if (u.endsWith('/post/publish/status/fetch/')) return new Response(JSON.stringify({ data: { status: 'PUBLISH_COMPLETE', publicaly_available_post_id: [7123] }, error: { code: 'ok' } }));
+    throw new Error(`inattendu : ${u}`);
+  };
+  try {
+    const info = await (await worker('https://s.test/studio/api/tiktok-creator', { headers: key })).json();
+    assert.deepEqual(info, { nickname: 'Benjy Paddock', username: 'benjypaddock', avatar: '', privacy: ['PUBLIC_TO_EVERYONE', 'SELF_ONLY'], comment: true, duet: false, stitch: true, maxDuration: 600 });
+    const direct = (o) => { const f = new FormData(); f.append('network', 'tiktok'); f.append('text', 'Texte'); f.append('video', new Blob([new Uint8Array([1, 2, 3])], { type: 'video/mp4' }), 'v.mp4'); f.append('tiktok', JSON.stringify(o)); return worker('https://s.test/studio/api/publish', { method: 'POST', headers: key, body: f }); };
+    // Visibilité obligatoire, contenu de marque jamais privé
+    assert.equal((await direct({ title: 'x' })).status, 400);
+    assert.equal((await direct({ privacy: 'SELF_ONLY', brandContent: true })).status, 400);
+    assert.equal(sent.length, 0);
+    const r = await direct({ title: 'Mon titre #F1', privacy: 'PUBLIC_TO_EVERYONE', comment: true, brandOrganic: true, username: 'benjypaddock' });
+    assert.match(await r.text(), /"done":true.*"url":"https:\/\/www\.tiktok\.com\/@benjypaddock\/video\/7123"/);
+    assert.deepEqual(sent[0].post_info, { title: 'Mon titre #F1', privacy_level: 'PUBLIC_TO_EVERYONE', disable_comment: false, disable_duet: true, disable_stitch: true, brand_organic_toggle: true, brand_content_toggle: false });
+    assert.equal(sent[0].source_info.video_size, 3);
+  } finally { globalThis.fetch = realFetch; }
   await disableStudio({ fetchFn });
+});
+
+test('appli : post écrit à la main mis en forme par l\'IA du serveur (page web activée seulement)', async () => {
+  saveConfig({ studio: null });
+  await assert.rejects(studioRewrite('Norris prolonge chez McLaren jusqu\'en 2030.'), /activez d'abord la page web/);
+  saveConfig({ studio: { key: 'cle-studio' } });
+  let seen = null;
+  const fetchFn = async (url, opts) => { seen = { url: String(url), key: opts.headers['X-Studio-Key'], body: JSON.parse(opts.body) }; return new Response(JSON.stringify({ title: 'Norris prolonge', summary: 'Résumé.', points: ['Un'] })); };
+  const r = await studioRewrite('Norris prolonge chez McLaren jusqu\'en 2030.', { fetchFn });
+  assert.equal(r.title, 'Norris prolonge');
+  assert.match(seen.url, /\/studio\/api\/rewrite$/);
+  assert.equal(seen.key, 'cle-studio');
+  assert.equal(seen.body.text, 'Norris prolonge chez McLaren jusqu\'en 2030.');
+  saveConfig({ studio: null });
+});
+
+test('Studio : saison résumée par le serveur, gardée 30 minutes, ancienne version si Jolpica ne répond pas', async () => {
+  const urls = [];
+  let down = false;
+  const page = (extra) => ({ MRData: { total: '1', ...extra } });
+  const fetchFn = async (u) => {
+    urls.push(String(u));
+    if (down) return new Response('', { status: 503 });
+    const p = new URL(u).pathname;
+    if (p.endsWith('/driverstandings.json')) return new Response(JSON.stringify(page({ StandingsTable: { StandingsLists: [{ DriverStandings: [{ position: '1', points: '300', wins: '7', Driver: { givenName: 'Lando', familyName: 'Norris', code: 'NOR', permanentNumber: '4' }, Constructors: [{ name: 'McLaren', constructorId: 'mclaren' }] }] }] } })));
+    if (p.endsWith('/constructorstandings.json')) return new Response(JSON.stringify(page({ StandingsTable: { StandingsLists: [{ ConstructorStandings: [] }] } })));
+    if (p.endsWith('/2026.json')) return new Response(JSON.stringify(page({ RaceTable: { Races: [{ round: '1', raceName: 'Australian Grand Prix', date: '2026-03-08', time: '04:00:00Z', Circuit: { circuitId: 'albert_park', Location: { country: 'Australia' } } }] } })));
+    return new Response(JSON.stringify({ MRData: { total: '0', RaceTable: { Races: [] } } }));
+  };
+  const wait = async () => {};
+  const t0 = Date.parse('2026-10-18T08:00:00Z');
+  const a = await seasonRow(env, 2026, { now: t0, fetchFn, wait });
+  assert.equal(a.v.races[0].name, 'Australian Grand Prix');
+  assert.equal(a.v.drivers[0].points, 300);
+  const n = urls.length;
+  assert.equal(n, 6);
+  // Moins de 30 minutes après : version gardée, aucune demande
+  assert.equal((await seasonRow(env, 2026, { now: t0 + 29 * 60e3, fetchFn, wait })).at, t0);
+  assert.equal(urls.length, n);
+  // Plus tard, Jolpica en panne : l'ancienne version sert
+  down = true;
+  assert.equal((await seasonRow(env, 2026, { now: t0 + 31 * 60e3, fetchFn, wait })).at, t0);
 });

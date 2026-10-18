@@ -74,6 +74,19 @@ test("news en plusieurs images : points clés répartis, légendes avec l'essent
   assert.ok(newsCaptions(long, '@moi').instagram.length <= 2200);
 });
 
+test('textes : sans ce que montraient les images écartées', async () => {
+  const { keptData } = await import('../shared/social-draw.js');
+  const d = { news: true, points: ['p1', 'p2', 'p3', 'p4', 'p5', 'p6'] };
+  assert.equal(keptData(d, new Set(), 'ig'), d);
+  assert.deepEqual(keptData(d, new Set(['essentiel-2']), 'ig').points, ['p1', 'p2', 'p3']);
+  assert.deepEqual(keptData(d, new Set(['essentiel-1']), 'story').points, ['p4', 'p5', 'p6']);   // story : 5 points par image au plus, 6 -> 2 images de 3
+  assert.deepEqual(keptData({ post: 'recap', items: ['a', 'b', 'c'] }, new Set(['recap-2']), 'ig').items, ['a', 'c']);
+  assert.deepEqual(keptData({ post: 'teamduels', rows: [1, 2, 3, 4, 5, 6, 7] }, new Set(['equipes-1']), 'ig').rows, [6, 7]);
+  assert.deepEqual(keptData({ post: 'weekend', tyres: { soft: 3 }, forecast: [1] }, new Set(['infos']), 'ig'), { post: 'weekend', tyres: null, forecast: [] });
+  assert.equal(keptData({ post: 'prerace', weather: { air: 20 }, tyres: {} }, new Set(['meteo']), 'ig').weather, null);
+  assert.deepEqual(keptData({ kind: 'race', facts: [1] }, new Set(['faits']), 'ig').facts, []);
+});
+
 test('images choisies : écartées du post, sommaire et numéros des points suivent', async () => {
   const { chosenSlides, drawSlide } = await import('../shared/social-draw.js');
   const { newsPost } = await import('../shared/social-news.js');

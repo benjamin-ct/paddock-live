@@ -4,6 +4,17 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
+## v1.27.32 — 2026-10-18
+
+### Barre du haut
+- Entre deux séances, la barre du haut présente le prochain Grand Prix au lieu de la dernière séance :
+  nom, ville et dates du week-end, compte à rebours de la prochaine séance, nombre de tours et longueur
+  du circuit, heure locale sur le circuit, heure de départ de la course et météo prévue ce jour-là.
+  Elle repasse sur la séance dès qu'elle commence, pendant un replay ou en ouvrant les résultats.
+
+### Divers
+- Petites améliorations internes.
+
 ## v1.27.31 — 2026-10-17
 
 ### À propos

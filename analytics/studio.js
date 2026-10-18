@@ -10,13 +10,15 @@
 import { DEFAULT_SOURCES, feedUrl } from '../shared/news-sources.js';
 import { publishFacebook, publishInstagram, publishThreads, freshThreads, commentFacebook, replyThreads, withComment, storyInstagram, storyFacebook, reelInstagram, hostVideo, publishFacebookVideo, publishThreadsVideo } from '../shared/meta-publish.js';
 import { publishBluesky, replyBluesky } from '../shared/bluesky-publish.js';
-import { freshTiktok, freshYoutube, tiktokDraft, tiktokStatus, tiktokOutcome, youtubeUpload } from '../shared/video-publish.js';
+import { freshTiktok, freshYoutube, tiktokDraft, tiktokStatus, tiktokOutcome, youtubeUpload, tiktokCreator, tiktokDirect, TIKTOK_PRIVACY } from '../shared/video-publish.js';
 import { addEntry, removeEntry, cleanKey } from '../shared/post-history.js';
 import { postStats } from '../shared/post-stats.js';
 import { recentPosts, importEntries } from './post-import.js';
 import { pushApi } from './alerts.js';
 import { packFeeds } from '../shared/feed-pack.js';
 import { cleanPostRequest, rewritePost } from './summarize.js';
+import { buildSeason, SEASON_TTL } from './season-cache.js';
+import { accountStats } from './account-stats.js';
 
 // Empreinte du code (la même que dans l'appli) : SHA-256 de « paddock-live:<CODE> » (STUDIO_CODE_HASH :
 // autre empreinte, pour les tests)
@@ -45,6 +47,23 @@ async function getRow(env, k) {
 }
 async function setRow(env, k, v) {
   await env.DB.prepare('INSERT INTO studio (k, v, at) VALUES (?, ?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v, at = excluded.at').bind(k, v, Date.now()).run();
+}
+
+// ---------- Saison résumée (onglet Saison du Studio) ----------
+// Gardée dans la base, relue au plus toutes les 30 minutes (par la tâche planifiée, sinon à la
+// demande) ; l'ancienne version sert si Jolpica ne répond pas.
+export async function seasonRow(env, year, { now = Date.now(), fetchFn, wait } = {}) {
+  const key = `season:${year}`;
+  const row = JSON.parse(await getRow(env, key) || 'null');
+  if (row && now - row.at < SEASON_TTL) return row;
+  try {
+    const fresh = { at: now, v: await buildSeason(year, { fetchFn, wait }) };
+    await setRow(env, key, JSON.stringify(fresh));
+    return fresh;
+  } catch (err) {
+    if (row) return row;
+    throw err;
+  }
 }
 
 // ---------- Essais ratés ----------
@@ -76,10 +95,12 @@ async function open(raw, sealed) {
 function cleanVault(v) {
   const s = (x, max = 2000) => (typeof x === 'string' ? x.slice(0, max) : '');
   const out = { at: Date.now() };
-  if (v?.meta?.pageToken) out.meta = { pageId: s(v.meta.pageId, 40), pageName: s(v.meta.pageName, 120), pageToken: s(v.meta.pageToken), igId: s(v.meta.igId, 40), igUsername: s(v.meta.igUsername, 60) };
-  if (v?.threads?.token) out.threads = { token: s(v.threads.token), userId: s(v.threads.userId, 40), username: s(v.threads.username, 60), expiresAt: Number(v.threads.expiresAt) || null };
+  const page = (p) => ({ pageId: s(p?.pageId, 40), pageName: s(p?.pageName, 120), pageToken: s(p?.pageToken), igId: s(p?.igId, 40), igUsername: s(p?.igUsername, 60) });
+  // pages : toutes les pages du compte Meta (statistiques de chaque compte)
+  if (v?.meta?.pageToken) out.meta = { ...page(v.meta), pages: (Array.isArray(v.meta.pages) ? v.meta.pages : []).slice(0, 10).map(page).filter((p) => p.pageToken) };
+  for (const k of ['threads', 'threads2']) if (v?.[k]?.token) out[k] = { token: s(v[k].token), userId: s(v[k].userId, 40), username: s(v[k].username, 60), expiresAt: Number(v[k].expiresAt) || null };
   if (v?.bluesky?.appPassword) out.bluesky = { handle: s(v.bluesky.handle, 120), appPassword: s(v.bluesky.appPassword, 100), did: s(v.bluesky.did, 120) };
-  if (v?.tiktok?.refreshToken) out.tiktok = { clientKey: s(v.tiktok.clientKey, 200), clientSecret: s(v.tiktok.clientSecret, 200), accessToken: s(v.tiktok.accessToken), expiresAt: Number(v.tiktok.expiresAt) || 0, refreshToken: s(v.tiktok.refreshToken), openId: s(v.tiktok.openId, 200), name: s(v.tiktok.name, 120) };
+  for (const k of ['tiktok', 'tiktok2']) if (v?.[k]?.refreshToken) out[k] = { clientKey: s(v[k].clientKey, 200), clientSecret: s(v[k].clientSecret, 200), accessToken: s(v[k].accessToken), expiresAt: Number(v[k].expiresAt) || 0, refreshToken: s(v[k].refreshToken), openId: s(v[k].openId, 200), name: s(v[k].name, 120) };
   if (v?.youtube?.refreshToken) out.youtube = { clientId: s(v.youtube.clientId, 300), clientSecret: s(v.youtube.clientSecret, 200), accessToken: s(v.youtube.accessToken), expiresAt: Number(v.youtube.expiresAt) || 0, refreshToken: s(v.youtube.refreshToken), name: s(v.youtube.name, 120) };
   if (v?.f1tv) out.f1tv = s(v.f1tv, 6000);
   if (v?.f1tvOff === true) out.f1tvOff = true;
@@ -127,9 +148,10 @@ export async function freshF1tv(token, { now = Date.now(), fetchFn = fetch } = {
 // Jetons prolongés si besoin (Threads : 60 jours, F1 TV : 4 jours), coffre réenregistré s'ils changent
 async function refresh(env, raw, vault) {
   const th = vault.threads?.token ? await freshThreads(vault.threads) : vault.threads;
+  const th2 = vault.threads2?.token ? await freshThreads(vault.threads2) : vault.threads2;
   const f1tv = await freshF1tv(vault.f1tv);
-  if (th === vault.threads && f1tv === vault.f1tv) return vault;
-  const next = { ...vault, threads: th, f1tv };
+  if (th === vault.threads && th2 === vault.threads2 && f1tv === vault.f1tv) return vault;
+  const next = { ...vault, threads: th, threads2: th2, f1tv };
   await setRow(env, 'vault', await seal(raw, next));
   return next;
 }
@@ -138,10 +160,10 @@ async function refresh(env, raw, vault) {
 // que le serveur a lui-même prolongés (appli restée fermée longtemps)
 function keepNewer(old, incoming) {
   const out = { ...incoming };
-  if (old.threads?.token && out.threads?.token && old.threads.userId === out.threads.userId && (old.threads.expiresAt || 0) > (out.threads.expiresAt || 0)) out.threads = old.threads;
+  for (const k of ['threads', 'threads2']) if (old[k]?.token && out[k]?.token && old[k].userId === out[k].userId && (old[k].expiresAt || 0) > (out[k].expiresAt || 0)) out[k] = old[k];
   if (old.f1tv && out.f1tv && jwtSession(old.f1tv) === jwtSession(out.f1tv) && jwtExp(old.f1tv) > jwtExp(out.f1tv)) out.f1tv = old.f1tv;
   // TikTok, YouTube : jetons renouvelés par le serveur gardés s'ils sont plus récents (même compte, même app)
-  if (old.tiktok && out.tiktok && old.tiktok.openId === out.tiktok.openId && old.tiktok.clientKey === out.tiktok.clientKey && (old.tiktok.expiresAt || 0) > (out.tiktok.expiresAt || 0)) out.tiktok = { ...out.tiktok, accessToken: old.tiktok.accessToken, expiresAt: old.tiktok.expiresAt, refreshToken: old.tiktok.refreshToken };
+  for (const k of ['tiktok', 'tiktok2']) if (old[k] && out[k] && old[k].openId === out[k].openId && old[k].clientKey === out[k].clientKey && (old[k].expiresAt || 0) > (out[k].expiresAt || 0)) out[k] = { ...out[k], accessToken: old[k].accessToken, expiresAt: old[k].expiresAt, refreshToken: old[k].refreshToken };
   if (old.youtube && out.youtube && old.youtube.clientId === out.youtube.clientId && old.youtube.refreshToken === out.youtube.refreshToken && (old.youtube.expiresAt || 0) > (out.youtube.expiresAt || 0)) out.youtube = { ...out.youtube, accessToken: old.youtube.accessToken, expiresAt: old.youtube.expiresAt };
   // Jeton expiré dans l'appli (restée fermée) : celui que le serveur a renouvelé est gardé
   if (old.f1tv && !out.f1tv && !out.f1tvOff && jwtExp(old.f1tv) > Date.now()) out.f1tv = old.f1tv;
@@ -316,13 +338,16 @@ async function publish(req, env, raw, vault) {
   if (missing(net, vault)) return json({ error: missing(net, vault) }, 409);
   if (CLIPS.includes(net) && !video) return json({ error: 'Aucune vidéo' }, 400);
   if (!CLIPS.includes(net) && !images.length && !(video && net !== 'bluesky')) return json({ error: 'Aucune image' }, 400);
+  // TikTok : publication directe si la page envoie ses réglages, sinon brouillon
+  const direct = net === 'tiktok' && form.get('tiktok') ? tiktokOptions(form.get('tiktok')) : null;
+  if (direct?.error) return json({ error: direct.error }, 400);
   const { readable, writable } = new TransformStream();
   const w = writable.getWriter();
   const line = (o) => w.write(enc.encode(`${JSON.stringify(o)}\n`));
   (async () => {
     try {
       await line({ step: video ? 'Envoi de la vidéo…' : 'Envoi des images…' });
-      const r = CLIPS.includes(net) ? await sendClip(env, raw, vault, net, new Uint8Array(await video.arrayBuffer()), video.type, text)
+      const r = CLIPS.includes(net) ? await sendClip(env, raw, vault, net, new Uint8Array(await video.arrayBuffer()), video.type, text, direct)
         : await sendTo(net, vault, { text, comment, images, small: images, video }, async () => (await refresh(env, raw, vault)).threads);
       await line({ done: true, ...resultOf(r), ...(r.note ? { note: r.note } : {}) });
     } catch (err) {
@@ -371,16 +396,36 @@ async function sendVideo(req, env, raw, vault, url) {
   } catch (err) { return json({ error: err.message }, 502); }
 }
 // Brouillon TikTok ou Short YouTube (jeton renouvelé au besoin, gardé dans le coffre)
-async function sendClip(env, raw, vault, net, video, mime, text) {
+// direct : réglages d'une publication directe sur TikTok (sinon brouillon)
+async function sendClip(env, raw, vault, net, video, mime, text, direct = null) {
   try {
-    const acc = await (net === 'tiktok' ? freshTiktok : freshYoutube)(vault[net]);
-    if (acc !== vault[net]) await setRow(env, 'vault', await seal(raw, { ...vault, [net]: acc }));
-    return net === 'tiktok' ? await tiktokDraft(acc.accessToken, video, mime) : await youtubeUpload(acc.accessToken, video, mime, text);
+    const acc = await clipAccount(env, raw, vault, net);
+    if (net === 'youtube') return await youtubeUpload(acc.accessToken, video, mime, text);
+    return direct ? await tiktokDirect(acc.accessToken, video, mime, direct) : await tiktokDraft(acc.accessToken, video, mime);
   } catch (err) {
     throw new Error(err.code === 'invalid_grant' || err.code === 'invalid_client'
       ? `Connexion ${net === 'tiktok' ? 'TikTok' : 'YouTube'} expirée : reconnectez-vous dans l'appli (Comptes…), puis « Renvoyer les comptes »`
       : String(err?.message || err).slice(0, 300));
   }
+}
+
+// Compte TikTok ou YouTube aux jetons à jour (gardés par le serveur s'ils ont été renouvelés)
+async function clipAccount(env, raw, vault, net) {
+  const acc = await (net === 'youtube' ? freshYoutube : freshTiktok)(vault[net]);
+  if (acc !== vault[net]) await setRow(env, 'vault', await seal(raw, { ...vault, [net]: acc }));
+  return acc;
+}
+// Réglages de publication directe TikTok envoyés par la page : vérifiés, sinon raison du refus
+function tiktokOptions(raw) {
+  let o;
+  try { o = JSON.parse(String(raw || '')); } catch { return { error: 'Réglages TikTok illisibles' }; }
+  if (!o || typeof o !== 'object') return { error: 'Réglages TikTok illisibles' };
+  if (!TIKTOK_PRIVACY.includes(o.privacy)) return { error: 'Choisissez qui peut voir la vidéo sur TikTok' };
+  if (o.brandContent && o.privacy === 'SELF_ONLY') return { error: 'Un contenu de marque ne peut pas être privé sur TikTok' };
+  const title = String(o.title || '');
+  if (title.length > 2200) return { error: 'Texte TikTok trop long (2 200 caractères au plus)' };
+  return { title, privacy: o.privacy, comment: o.comment === true, duet: o.duet === true, stitch: o.stitch === true, brandOrganic: o.brandOrganic === true, brandContent: o.brandContent === true,
+    username: /^[\w.]{1,64}$/.test(o.username || '') ? o.username : '' };
 }
 
 // ---------- Publications programmées ----------
@@ -590,9 +635,24 @@ export async function studioApi(req, env, url) {
     return json({ added: add.length, errors });
   }
   if (path === 'stats' && req.method === 'GET') {
-    const v = await refresh(env, a.raw, vault);
-    // 8 posts au plus : nombre de requêtes du serveur limité par appel
-    return json(await postStats(JSON.parse(await getRow(env, 'history') || '[]'), { meta: v.meta, threads: v.threads, bluesky: v.bluesky }, { limit: 8 }));
+    let v = await refresh(env, a.raw, vault);
+    // 8 posts au plus : nombre de requêtes du serveur limité par appel ; chiffres de chaque compte en plus
+    // Jetons YouTube et TikTok renouvelés l'un après l'autre : chaque enregistrement garde le précédent
+    const tokens = {};
+    for (const net of [...CLIPS, 'tiktok2']) {
+      const acc = v[net] ? await clipAccount(env, a.raw, v, net).catch(() => null) : null;
+      if (acc) { v = { ...v, [net]: acc }; tokens[`${net}Token`] = acc.accessToken; }
+    }
+    const [posts, accounts] = await Promise.all([
+      postStats(JSON.parse(await getRow(env, 'history') || '[]'), { meta: v.meta, threads: v.threads, bluesky: v.bluesky }, { limit: 8 }),
+      accountStats(v, tokens),
+    ]);
+    return json({ ...posts, accounts });
+  }
+  if (path === 'season' && req.method === 'GET') {
+    const year = Number(url.searchParams.get('year'));
+    if (!Number.isInteger(year) || year < 1950 || year > new Date().getUTCFullYear() + 1) return json({ error: 'Année invalide' }, 400);
+    try { return json(await seasonRow(env, year)); } catch (err) { return json({ error: String(err?.message || err) }, 502); }
   }
   if (path === 'feed' && req.method === 'GET') return feed(req, url);
   if (path === 'feeds' && req.method === 'GET') return feeds();
@@ -612,6 +672,16 @@ export async function studioApi(req, env, url) {
     return publish(req, env, a.raw, vault);
   }
   if (path === 'video' && req.method === 'POST') return sendVideo(req, env, a.raw, vault, url);
+  // Compte TikTok relu avant une publication directe : nom, visibilités et interactions permises, durée maximale
+  if (path === 'tiktok-creator' && req.method === 'GET') {
+    if (!vault.tiktok) return json({ error: missing('tiktok', vault) }, 409);
+    try {
+      return json(await tiktokCreator((await clipAccount(env, a.raw, vault, 'tiktok')).accessToken));
+    } catch (err) {
+      const m = String(err?.message || err);
+      return json({ error: /scope/i.test(m) ? 'Publication directe pas encore autorisée : activez « Direct Post » (video.publish) dans votre app TikTok, cochez « Publication directe » dans l\'appli (Comptes…, TikTok), reconnectez TikTok puis « Renvoyer les comptes »' : m.slice(0, 300), scope: /scope/i.test(m) }, 502);
+    }
+  }
   // Alertes des grosses news sur le téléphone (abonnements, dernières alertes)
   const pushed = await pushApi(path, req, env);
   if (pushed) return pushed;

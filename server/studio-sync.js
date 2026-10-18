@@ -21,10 +21,11 @@ export function studioVault(c = getConfig()) {
   const s = c.social || {};
   const f1tv = c.f1tvToken && !tokenInfo(c.f1tvToken).expired ? c.f1tvToken : null;
   return {
-    meta: s.meta?.pageToken ? { pageId: s.meta.pageId, pageName: s.meta.pageName, pageToken: s.meta.pageToken, igId: s.meta.igId, igUsername: s.meta.igUsername } : null,
+    meta: s.meta?.pageToken ? { pageId: s.meta.pageId, pageName: s.meta.pageName, pageToken: s.meta.pageToken, igId: s.meta.igId, igUsername: s.meta.igUsername, pages: s.meta.pages || [] } : null,
     bluesky: s.bluesky?.appPassword ? { handle: s.bluesky.handle, appPassword: s.bluesky.appPassword, did: s.bluesky.did || '' } : null,
     threads: s.threads?.token ? { token: s.threads.token, userId: s.threads.userId, username: s.threads.username, expiresAt: s.threads.expiresAt || null } : null,
-    tiktok: s.tiktok?.refreshToken ? { clientKey: s.tiktok.clientKey, clientSecret: s.tiktok.clientSecret, accessToken: s.tiktok.accessToken || '', expiresAt: s.tiktok.expiresAt || 0, refreshToken: s.tiktok.refreshToken, openId: s.tiktok.openId || '', name: s.tiktok.name || '' } : null,
+    threads2: s.threads2?.token ? { token: s.threads2.token, userId: s.threads2.userId, username: s.threads2.username, expiresAt: s.threads2.expiresAt || null } : null,
+    ...Object.fromEntries(['tiktok', 'tiktok2'].map((k) => [k, s[k]?.refreshToken ? { clientKey: s[k].clientKey, clientSecret: s[k].clientSecret, accessToken: s[k].accessToken || '', expiresAt: s[k].expiresAt || 0, refreshToken: s[k].refreshToken, openId: s[k].openId || '', name: s[k].name || '' } : null])),
     youtube: s.youtube?.refreshToken ? { clientId: s.youtube.clientId, clientSecret: s.youtube.clientSecret, accessToken: s.youtube.accessToken || '', expiresAt: s.youtube.expiresAt || 0, refreshToken: s.youtube.refreshToken, name: s.youtube.name || '' } : null,
     f1tv,
     f1tvOff: !c.f1tvToken,   // F1 TV déconnecté dans l'appli (et pas seulement expiré, appli fermée)
@@ -32,13 +33,20 @@ export function studioVault(c = getConfig()) {
 }
 const digest = (v) => crypto.createHash('sha256').update(JSON.stringify(v)).digest('hex');
 
-async function post(path, body, key, fetchFn = fetch) {
+async function post(path, body, key, fetchFn = fetch, timeout = 20000) {
   const res = await fetchFn(`${STUDIO_URL}/studio/api/${path}`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json', ...(key ? { 'X-Studio-Key': key } : {}) }, body: JSON.stringify(body), signal: AbortSignal.timeout(20000),
+    method: 'POST', headers: { 'Content-Type': 'application/json', ...(key ? { 'X-Studio-Key': key } : {}) }, body: JSON.stringify(body), signal: AbortSignal.timeout(timeout),
   });
   const j = await res.json().catch(() => ({}));
   if (!res.ok) { const e = new Error(j.error || `Erreur ${res.status}`); e.status = res.status; throw e; }
   return j;
+}
+
+// Post écrit à la main dans l'appli : mise en forme par l'IA du serveur, comme sur la page web
+export async function studioRewrite(text, { fetchFn } = {}) {
+  const key = getConfig().studio?.key;
+  if (!key) throw new Error('Mise en forme par l\'IA : activez d\'abord la page web (Publier sur mes réseaux → Comptes… → Page web)');
+  return post('rewrite', { text: String(text || '').slice(0, 4000) }, key, fetchFn, 90000);
 }
 
 export function studioInfo() {

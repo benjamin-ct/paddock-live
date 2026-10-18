@@ -182,8 +182,7 @@ function renderNews(body, items, { at, stale = false }) {
     ${kinds.length > 1 ? `<div class="chips" id="nkinds"><button data-k="" class="${state.nkind ? '' : 'on'}">Tout <small>${big.length}</small></button>${kinds.map((k) => `<button data-k="${k.key}" class="${state.nkind === k.key ? 'on' : ''}"><i style="background:${k.color}"></i>${esc(KIND_NAMES[k.key] || k.label)} <small>${k.n}</small></button>`).join('')}</div>` : ''}
     <p class="status">${stale ? '<span class="dot"></span>Mise à jour…' : `À jour · ${new Date(at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`}</p>
     <div class="features"><button class="card feature" id="manual">${icon('pen')}<span class="grow"><b>Écrire un post</b><small>Votre texte, mis en forme par l'IA si besoin ; visuels faits tout seuls</small></span>${icon('next')}</button>
-    <button class="card feature" id="recap">${icon('spark')}<span class="grow"><b>Récap de la semaine</b><small>Carrousel des 5 plus grosses news des 7 derniers jours</small></span>${icon('next')}</button>
-    <button class="card feature" id="launch">${icon('rocket')}<span class="grow"><b>Kit de lancement</b><small>Les posts de lancement sur tous les réseaux, au même endroit</small></span>${icon('next')}</button></div>
+    <button class="card feature" id="recap">${icon('spark')}<span class="grow"><b>Récap de la semaine</b><small>Carrousel des 5 plus grosses news des 7 derniers jours</small></span>${icon('next')}</button></div>
     ${list.length ? `<div class="list">${list.map((it, i) => {
       const k = newsKind(it);
       const posted = done.get(it);
@@ -201,7 +200,6 @@ function renderNews(body, items, { at, stale = false }) {
   $$('#nkinds [data-k]', body).forEach((b) => { b.onclick = () => { state.nkind = b.dataset.k || null; renderNews(body, items, { at, stale }); }; });
   $('#manual', body).onclick = (e) => open(e.currentTarget, async () => (await posts()).manualEditor(back));
   $('#recap', body).onclick = (e) => open(e.currentTarget, async () => (await posts()).recapEditor(back));
-  $('#launch', body).onclick = (e) => open(e.currentTarget, async () => (await import('./launch.js')).launchKit(back));
   $$('[data-i]', body).forEach((b) => { b.onclick = () => { setRead(list[Number(b.dataset.i)].id); open(b, async () => (await posts()).newsEditor(list[Number(b.dataset.i)], done.get(list[Number(b.dataset.i)]), back)); }; });
 }
 
@@ -236,6 +234,27 @@ async function seasonView(body, { restore }) {
 }
 
 // ---------- Statistiques des posts ----------
+// Chiffres des comptes (28 derniers jours, sauf abonnés, publications et vues totales). Une ligne par
+// réseau : abonnés à droite, autres chiffres non nuls en dessous ; réseaux sans chiffres regroupés en bas.
+// Libellé au singulier pour 1 (« 1 abonné », « 1 nouvel abonné »)
+const SINGULAR = { 'nouveaux abonnés': 'nouvel abonné', vues: 'vue', 'vues au total': 'vue au total', 'comptes touchés': 'compte touché', 'visites du profil': 'visite du profil',
+  'comptes engagés': 'compte engagé', interactions: 'interaction', partages: 'partage', publications: 'publication', abonnés: 'abonné' };
+const one = (n, l) => (n === 1 && SINGULAR[l]) || l;
+const ACC_LABELS = [['newFollowers', 'nouveaux abonnés'], ['views', 'vues'], ['totalViews', 'vues au total'], ['reach', 'comptes touchés'], ['profileViews', 'visites du profil'],
+  ['engaged', 'comptes engagés'], ['interactions', 'interactions'], ['likes', 'j\'aime'], ['comments', 'comm.'], ['shares', 'partages'], ['posts', 'publications']];
+const metricsOf = (s, labels) => labels.filter(([k]) => s[k]).map(([k, l]) => `<span class="metric"><b>${fmtN(s[k])}</b>${one(s[k], l)}</span>`).join('');
+const netLink = (n, url) => (url ? `<a href="${esc(url)}" target="_blank" rel="noopener">${esc(NET_NAMES[n] || n)}</a>` : esc(NET_NAMES[n] || n));
+const accountsHtml = (accounts) => `<h3 class="section">Mes comptes <small>activité des 28 derniers jours</small></h3>
+  <div class="accs">${accounts.map((a) => {
+    const nets = Object.entries(a.nets);
+    const live = nets.filter(([, x]) => x.stats);
+    const off = nets.filter(([, x]) => !x.stats);
+    const total = live.reduce((t, [, x]) => t + (x.stats.followers || 0), 0);
+    return `<div class="card acc"><div class="acc-head"><b>${esc(a.name)}</b><span class="acc-total"><b>${fmtN(total)}</b>${one(total, 'abonnés')}</span></div>
+      ${live.map(([n, x]) => `<div class="acc-net"><span class="net">${netLink(n, x.url)}</span><span class="acc-f"><b>${x.stats.followers != null ? fmtN(x.stats.followers) : '—'}</b>${one(x.stats.followers, 'abonnés')}</span>
+        <div class="metrics">${metricsOf(x.stats, ACC_LABELS) || '<span>aucune activité</span>'}</div></div>`).join('')}
+      ${off.length ? `<div class="acc-off">${off.map(([n, x]) => `<span>${netLink(n, x.url)} · ${esc(x.note || x.error || 'indisponible')}</span>`).join('')}</div>` : ''}</div>`;
+  }).join('')}</div>`;
 const STAT_LABELS = [['views', 'Vues'], ['reach', 'Portée'], ['likes', 'J\'aime'], ['comments', 'Comm.'], ['shares', 'Partages'], ['saves', 'Enreg.']];
 async function statsTab(body, { force, restore, current }) {
   // Statistiques relues au plus toutes les 2 minutes (sauf « Actualiser »)
@@ -252,15 +271,15 @@ async function statsTab(body, { force, restore, current }) {
 }
 function renderStats(body, r, stale) {
   const f = Object.entries(r.followers || {});
-  body.innerHTML = `${f.length ? `<div class="tiles">${f.map(([n, v]) => `<div class="tile"><b>${fmtN(v)}</b><small>abonnés ${esc(NET_NAMES[n] || n)}</small></div>`).join('')}</div>` : ''}
-    ${stale ? '<p class="status"><span class="dot"></span>Mise à jour…</p>' : ''}
+  body.innerHTML = `${stale ? '<p class="status"><span class="dot"></span>Mise à jour…</p>' : ''}
+    ${r.accounts?.length ? accountsHtml(r.accounts) : f.length ? `<div class="tiles">${f.map(([n, v]) => `<div class="tile"><b>${fmtN(v)}</b><small>abonnés ${esc(NET_NAMES[n] || n)}</small></div>`).join('')}</div>` : ''}
     <div id="schedlist"></div>
-    <div class="row section-row"><h3 class="section grow">Posts publiés</h3><button class="btn small" id="statsimport" title="Ajoute aux statistiques les posts des 30 derniers jours publiés à la main ou depuis le kit de démarrage">${icon('refresh')}Retrouver mes posts</button></div>
-    ${(r.posts || []).length ? `<div class="list">${r.posts.map((p) => `<div class="card post"><div class="card-top"><time>${esc(new Date(p.at).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))}</time><span class="grow"></span><button class="iconbtn small" data-statsremove="${esc(p.key)}" aria-label="Retirer des statistiques" title="Retirer des statistiques">${icon('close')}</button></div><div class="t">${esc(p.title || 'Post')}</div>
+    <div class="row section-row"><h3 class="section grow">Posts publiés</h3><button class="btn small" id="statsimport" title="Ajoute aux statistiques les posts des 30 derniers jours publiés hors du Studio">${icon('refresh')}Retrouver mes posts</button></div>
+    ${(r.posts || []).length ? `<div class="list posts">${r.posts.map((p) => `<div class="card post"><div class="card-top"><time>${esc(new Date(p.at).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))}</time><span class="grow"></span><button class="iconbtn small" data-statsremove="${esc(p.key)}" aria-label="Retirer des statistiques" title="Retirer des statistiques">${icon('close')}</button></div><div class="t">${esc(p.title || 'Post')}</div>
       ${Object.entries(p.nets).map(([n, x]) => {
         const s = p.stats?.[n];
         const name = x.url ? `<a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(NET_NAMES[n] || n)}</a>` : esc(NET_NAMES[n] || n);
-        const vals = s && !s.error ? STAT_LABELS.filter(([k]) => s[k] != null).map(([k, l]) => `<span class="metric"><b>${fmtN(s[k])}</b>${l}</span>`).join('') : `<span class="hint">statistiques indisponibles${s?.error ? ` (${esc(s.error)})` : ''}</span>`;
+        const vals = s && !s.error ? metricsOf(s, STAT_LABELS) || '<span>pas encore d\'interaction</span>' : `<span class="hint">statistiques indisponibles${s?.error ? ` (${esc(s.error)})` : ''}</span>`;
         return `<div class="net-stats"><span class="net">${name}</span><div class="metrics">${vals}</div></div>`;
       }).join('')}</div>`).join('')}</div>` : empty('Aucun post publié pour le moment.', 'chart')}`;
   schedList($('#schedlist', body));

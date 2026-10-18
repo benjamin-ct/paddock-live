@@ -3,13 +3,12 @@
 import { builtinNomination } from '/shared/tyres.js';
 import { raceWeekData, weekendData, recordsData, ratingsData, teamDuelsData, raceLapsData, seasonCaptions } from '/shared/social-season.js';
 import { raceFrame, raceVideoTiming } from '/shared/social-draw-season.js';
-import { summarize } from '/shared/season-data.js';
 import { parseRaceLaps } from '/shared/race-laps.js';
 import { circuitInfo } from '/shared/circuits-info.js';
 import { editionOf, recordsOf, recordYears } from '/shared/circuit-records.js';
 import { parseRaceControl, raceSessionPath } from '/shared/race-story.js';
-import { makeAnimation } from '/shared/social-video.js';
-import { $, $$, esc, api, icon, store, skeleton, toast, state, session, SIG, musicField, bindMusic } from './ui.js';
+import { makeAnimation, unlockAudio } from '/shared/social-video.js';
+import { $, $$, esc, api, icon, store, skeleton, toast, state, session, SIG, musicField, bindMusic, clipFile } from './ui.js';
 import { latestDrivers } from './data.js';
 import { editor, assets } from './editor.js';
 
@@ -48,13 +47,8 @@ const memoOf = (k, fn, ttl = Infinity) => {
   }
   return seasonMemo.get(k);
 };
-const seasonOf = (year) => memoOf(`s3-${year}`, async () => {
-  const races = (pages) => pages.flatMap((m) => m?.RaceTable?.Races || []);
-  // Calendrier et classements ensemble, puis les résultats (4 demandes par seconde au plus)
-  const [schedule, ds, cs] = await Promise.all([jolpica(`${year}`).then(races), jolpica(`${year}/driverstandings`), jolpica(`${year}/constructorstandings`)]);
-  const [results, quali, sprint] = await Promise.all([jolpica(`${year}/results`).then(races), jolpica(`${year}/qualifying`).then(races), jolpica(`${year}/sprint`).then(races)]);
-  return summarize({ schedule, driverStandings: ds[0]?.StandingsTable?.StandingsLists?.[0]?.DriverStandings, constructorStandings: cs[0]?.StandingsTable?.StandingsLists?.[0]?.ConstructorStandings, results, quali, sprint });
-}, 30 * 60e3);
+// Saison résumée par le serveur (lue chez Jolpica et tenue à jour toutes les 30 minutes) : une seule demande
+const seasonOf = (year) => memoOf(`s4-${year}`, async () => (await api(`season?year=${year}`)).v, 10 * 60e3);
 // Records du circuit : éditions précédentes lues dans les archives de la F1 (gardées sur le
 // téléphone, définitives ; une archive pas encore publiée sera relue la fois suivante)
 const readArchive = async (p) => JSON.parse((await (await api(`archive?p=${encodeURIComponent(p)}`, { raw: true })).text()).replace(/^﻿/, ''));
@@ -113,7 +107,7 @@ function raceList(races, def, upcoming) {
 export async function seasonTab(body, back) {
   const year = new Date().getUTCFullYear();
   const bar = `<div class="chips" id="stypes">${STYPES.map(([k, v]) => `<button data-st="${k}" class="${state.stype === k ? 'on' : ''}">${v}</button>`).join('')}</div>`;
-  body.innerHTML = `${bar}${skeleton(5)}<p class="hint center">Lecture de la saison (jusqu'à une minute la première fois)…</p>`;
+  body.innerHTML = `${bar}${skeleton(5)}<p class="hint center">Lecture de la saison…</p>`;
   const data = await seasonOf(year);
   if (!body.isConnected) return;
   const upcoming = ['raceweek', 'weekend', 'records'].includes(state.stype);
@@ -172,6 +166,7 @@ async function seasonEditor(year, data, race, back) {
   const video = state.stype === 'racelaps';
   const typeName = STYPES.find(([k]) => k === state.stype)[1];
   let clip = null;
+  let file = null;   // vidéo prête en MP4, jointe au post
   editor({
     back,
     title: typeName,
@@ -180,19 +175,22 @@ async function seasonEditor(year, data, race, back) {
       ${video ? `${musicField('race', 'depart')}<div class="row"><button class="btn" id="mkvid">${icon('video')}Créer la vidéo (${Math.round(raceVideoTiming(d).duration)} s)</button><button class="btn" id="sharevid" disabled>${icon('share')}Partager</button></div>
         <p class="hint" id="vidst">Vidéo verticale pour TikTok, Reels, YouTube Shorts ou une story : le graphique des positions se dessine tour après tour, avec safety cars, drapeaux et moments forts. Garder l'écran allumé pendant l'enregistrement.</p>
         <video id="vid" controls playsinline hidden></video>` : ''}`,
-    data: () => d, caps: () => seasonCaptions(d, SIG),
+    data: () => d, caps: (dd) => seasonCaptions(dd, SIG),
     record: () => ({ key: `${state.stype}:${year}-${race.round}`, kind: state.stype, title: `${typeName} · ${d.gp}` }),
-    bind: () => {
+    video: () => file,
+    bind: (redraw) => {
       if (!video) return;
       const track = bindMusic('race');
       $('#mkvid').onclick = async () => {
+        unlockAudio();   // pendant le toucher, avant toute attente (sinon vidéo muette sur iPhone)
         $('#mkvid').disabled = true;
         try {
           const o = await assets(d);
           clip = await makeAnimation((ctx, t) => raceFrame(ctx, 1080, 1920, d, o, t), raceVideoTiming(d).duration, { music: 'gen', track: track(), onProgress: (p) => { $('#vidst').textContent = `Enregistrement… ${Math.round(p * 100)} %`; } });
           $('#vid').src = URL.createObjectURL(clip.blob); $('#vid').hidden = false;
           $('#sharevid').disabled = false;
-          $('#vidst').textContent = `Vidéo prête (${(clip.blob.size / 1e6).toFixed(1).replace('.', ',')} Mo)`;
+          $('#vidst').textContent = `Vidéo prête (${(clip.blob.size / 1e6).toFixed(1).replace('.', ',')} Mo)${clip.silent ? ' · sans son : le navigateur a bloqué la musique, recommencez' : ''}${(file = clipFile(clip, `course-${race.round}`)) ? ' · cochez TikTok, Instagram… dans « Publier sur » pour la publier' : ' · format WebM : à partager seulement (publication en MP4)'}`;
+          redraw();
         } catch (err) { $('#vidst').textContent = err.message; } finally { $('#mkvid').disabled = false; }
       };
       $('#sharevid').onclick = async () => {

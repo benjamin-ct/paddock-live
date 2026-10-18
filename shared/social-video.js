@@ -111,9 +111,11 @@ async function encodeFrames(paint, duration, { music, file, track, onProgress })
     ...(withAudio ? { audio: { codec: plan.audio[1], numberOfChannels: 2, sampleRate: 48000 } } : {}),
   });
   let failure = null;
+  let silent = false;   // musique rendue muette par le navigateur : signalée à l'appelant
   const fail = (e) => { failure = failure || e; };
   if (withAudio) {
     const buf = await renderMusic(music, file, track, duration);
+    silent = !buf.getChannelData(0).some((x) => Math.abs(x) > 1e-4);
     const enc = new AudioEncoder({ output: (c, m) => muxer.addAudioChunk(c, m), error: fail });
     enc.configure({ codec: plan.audio[0], sampleRate: 48000, numberOfChannels: 2, bitrate: 192e3 });
     const step = 4800;
@@ -147,7 +149,19 @@ async function encodeFrames(paint, duration, { music, file, track, onProgress })
   if (failure) throw failure;
   muxer.finalize();
   onProgress?.(1);
-  return { blob: new Blob([target.buffer], { type: plan.mime }), mime: plan.mime };
+  return { blob: new Blob([target.buffer], { type: plan.mime }), mime: plan.mime, ...(silent ? { silent } : {}) };
+}
+
+// Son des vidéos enregistrées en temps réel : le contexte audio doit démarrer pendant le geste
+// (toucher « Créer la vidéo »), sinon l'iPhone le laisse en pause et la vidéo sort muette. À appeler
+// au tout début du clic, avant toute attente. Le mode silencieux de l'iPhone ne coupe plus le son.
+let liveAc = null;
+export function unlockAudio() {
+  try {
+    if (navigator.audioSession) navigator.audioSession.type = 'playback';
+    liveAc = liveAc && liveAc.state !== 'closed' ? liveAc : new AudioContext();
+    liveAc.resume().catch(() => {});
+  } catch { /* pas de son possible dans ce navigateur */ }
 }
 
 // Animation : paint(ctx, t) dessine l'image à l'instant t (secondes)
@@ -161,6 +175,7 @@ export async function makeAnimation(paint, duration, opts = {}) {
 
 // Enregistrement en temps réel (navigateur sans WebCodecs)
 async function recordLive(paint, duration, { music = 'gen', file = null, track, onProgress } = {}) {
+  let silent = false;   // son bloqué par le navigateur : vidéo muette, signalée à l'appelant
   if (!window.MediaRecorder) throw new Error('Enregistrement vidéo indisponible dans ce navigateur');
   const out = document.createElement('canvas');
   out.width = W; out.height = H;
@@ -168,10 +183,13 @@ async function recordLive(paint, duration, { music = 'gen', file = null, track, 
   const video = out.captureStream(30);
   let ac = null;
   const tracks = [...video.getVideoTracks()];
+  let master = null;
   if (music !== 'none') {
-    ac = new AudioContext();
+    ac = liveAc && liveAc.state !== 'closed' ? liveAc : new AudioContext();
+    await ac.resume().catch(() => {});
+    if (ac.state !== 'running') silent = true;
     const dest = ac.createMediaStreamDestination();
-    const master = ac.createGain();
+    master = ac.createGain();
     master.gain.setValueAtTime(0.0001, ac.currentTime);
     master.gain.exponentialRampToValueAtTime(0.8, ac.currentTime + 0.6);
     master.gain.setValueAtTime(0.8, ac.currentTime + Math.max(0.7, duration - 1.2));
@@ -207,11 +225,12 @@ async function recordLive(paint, duration, { music = 'gen', file = null, track, 
   rec.stop();
   await done;
   video.getTracks().forEach((tr) => tr.stop());
-  await ac?.close();
+  // Contexte ouvert pendant le geste : gardé pour la vidéo suivante, seul le son de celle-ci est coupé
+  if (ac === liveAc) master?.disconnect(); else await ac?.close();
   const type = (rec.mimeType || mimeType || 'video/webm').split(';')[0];
   let blob = new Blob(chunks, { type });
   if (type === 'video/webm') blob = new Blob([webmWithDuration(await blob.arrayBuffer(), duration * 1000)], { type });
-  return { blob, mime: type };
+  return { blob, mime: type, ...(silent ? { silent } : {}) };
 }
 
 // Diaporama des visuels au format story : léger zoom et fondu enchaîné

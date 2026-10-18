@@ -33,7 +33,7 @@ import { predictionsView, savePrediction } from './predict.js';
 import { lightsInfo, saveLights, hueDiscover, huePair, lightDevices, setLights } from './lights.js';
 import { exportServerSettings, importServerSettings } from './backup.js';
 import { creatorEnabled, setCreator, savePostImage, openPostsDir } from './creator.js';
-import { studioInfo, enableStudio, disableStudio, syncStudio, startStudioSync } from './studio-sync.js';
+import { studioInfo, enableStudio, disableStudio, syncStudio, startStudioSync, studioRewrite } from './studio-sync.js';
 import { postHistory, recordPost, removePost, statsOfPosts } from './post-history.js';
 import { accountsInfo, saveAccount, tiktokLoginUrl, tiktokCallback, youtubeLoginUrl, youtubeCallback, publish as publishSocial } from './social-publish.js';
 import { startAutoRenew, renew as renewF1tv, sessionOf, state as renewState, resetRenewState } from './f1tv-auth.js';
@@ -291,11 +291,13 @@ async function handleApi(req, res, url) {
     case 'GET /api/schedule': {
       const year = yearOf(url.searchParams.get('year'));
       const d = await season(year);
-      return sendJSON(res, 200, { year, races: d.races.map((r) => ({ round: r.round, name: r.name, locality: r.locality, lat: r.lat, lon: r.lon, sessions: r.sessions })) });
+      return sendJSON(res, 200, { year, races: d.races.map((r) => ({ round: r.round, name: r.name, locality: r.locality, country: r.country, circuitId: r.circuitId, lat: r.lat, lon: r.lon, sessions: r.sessions })) });
     }
     // Météo prévue sur un circuit (accueil : prochain Grand Prix)
-    case 'GET /api/forecast':
-      return sendJSON(res, 200, { days: await forecast(url.searchParams.get('lat'), url.searchParams.get('lon')) });
+    case 'GET /api/forecast': {
+      const days = await forecast(url.searchParams.get('lat'), url.searchParams.get('lon'));
+      return sendJSON(res, 200, { days, tz: days.tz });
+    }
     case 'GET /api/calendar.ics': {
       const year = yearOf(url.searchParams.get('year'));
       const round = Number(url.searchParams.get('round')) || null;
@@ -343,6 +345,7 @@ async function handleApi(req, res, url) {
     case 'GET /api/social/accounts':
     case 'POST /api/social/accounts':
     case 'POST /api/social/tiktok/login':
+    case 'POST /api/social/tiktok2/login':
     case 'POST /api/social/youtube/login':
     case 'POST /api/social/publish':
     case 'GET /api/social/studio':
@@ -351,6 +354,7 @@ async function handleApi(req, res, url) {
     case 'GET /api/social/history':
     case 'GET /api/social/grid':
     case 'POST /api/social/summary':
+    case 'POST /api/social/rewrite':
     case 'GET /api/social/laps':
     case 'GET /api/social/records':
     case 'GET /api/social/racecontrol':
@@ -408,6 +412,8 @@ async function handleApi(req, res, url) {
         if (route === 'POST /api/social/schedule') return sendJSON(res, 200, { item: scheduler.add(await readBody(req, 150e6)) });
         if (route === 'POST /api/social/schedule/cancel') { scheduler.cancel((await readBody(req, 1e4)).id); return sendJSON(res, 200, { items: scheduler.list() }); }
         // Résumé détaillé d'une news en points clés (images suivantes du post)
+        // Post écrit à la main : titre, résumé et points clés rédigés par l'IA à partir du texte
+        if (route === 'POST /api/social/rewrite') return sendJSON(res, 200, await studioRewrite((await readBody(req, 2e4)).text));
         if (route === 'POST /api/social/summary') return sendJSON(res, 200, { points: await summarize(String((await readBody(req, 1e4)).link || '')) });
         if (route === 'POST /api/social/history') return sendJSON(res, 200, { items: await recordPost((await readBody(req, 1e5)).entry) });
         if (route === 'POST /api/social/history/remove') return sendJSON(res, 200, { items: await removePost((await readBody(req, 1e4)).key) });
@@ -416,6 +422,7 @@ async function handleApi(req, res, url) {
           return sendJSON(res, 200, b.off ? await disableStudio() : b.sync ? (await syncStudio({ force: true }), studioInfo()) : await enableStudio(String(b.code || '')));
         }
         if (route === 'POST /api/social/tiktok/login') return sendJSON(res, 200, { url: tiktokLoginUrl(`http://127.0.0.1:${req.socket.localPort}`) });
+        if (route === 'POST /api/social/tiktok2/login') return sendJSON(res, 200, { url: tiktokLoginUrl(`http://127.0.0.1:${req.socket.localPort}`, true) });
         if (route === 'POST /api/social/youtube/login') return sendJSON(res, 200, { url: youtubeLoginUrl(`http://127.0.0.1:${req.socket.localPort}`) });
         const body = await readBody(req, route === 'POST /api/social/publish' ? 120e6 : 1e6);
         if (route === 'POST /api/social/accounts') {

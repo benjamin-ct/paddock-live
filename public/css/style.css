@@ -2456,6 +2456,9 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; gap: 5
 .posts-news-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 10px; }
 .posts-news-sel { flex: 1 1 320px; min-width: 0; max-width: 100%; }
 .posts-news-edit { display: grid; gap: 8px; margin-bottom: 14px; }
+.posts-news-edit select { display: block; margin-top: 4px; }
+/* Post écrit à la main : type d'info et source côte à côte */
+.posts-news-edit .posts-m2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .posts-news-edit input, .posts-news-edit textarea { display: block; width: 100%; margin-top: 4px; box-sizing: border-box; font: 13px/1.45 var(--font, inherit); background: var(--panel-2); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; resize: vertical; }
 
 .posts-pub-dlg, .posts-acc-dlg { width: min(720px, calc(100vw - 32px)); max-height: calc(100vh - 40px); }

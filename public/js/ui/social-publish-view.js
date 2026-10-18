@@ -4,7 +4,7 @@ import { $, esc, storageGet, storageSet } from '../util.js';
 import { icon } from '../icons.js';
 import { t } from '../i18n.js';
 import { toast } from './delay.js';
-import { makeVideo } from '/shared/social-video.js';
+import { makeVideo, unlockAudio } from '/shared/social-video.js';
 import { TRACKS, trackOf, previewTrack } from '/shared/social-music.js';
 
 const NETS = [
@@ -106,12 +106,18 @@ const HELP = {
   threads: ['Dans l\'app Meta, ajoutez le cas d\'usage « Accéder à l\'API Threads » (threads_basic, threads_content_publish, threads_manage_replies, threads_manage_insights).',
     'Ajoutez votre compte Threads comme testeur, puis acceptez l\'invitation dans Threads (Paramètres → Compte → Autorisations du site web).',
     'Copiez la clé secrète Threads de l\'app et générez un jeton avec « User Token Generator ». Il est prolongé automatiquement.'],
+  threads2: ['Pour les statistiques de votre deuxième compte Threads dans la page web (aucune publication) : même app Meta, ajoutez ce compte comme testeur et acceptez l’invitation dans Threads.',
+    'Générez un jeton pour ce compte avec « User Token Generator », puis collez la clé secrète Threads et ce jeton ici.'],
   bluesky: ['Gratuit : dans Bluesky, Paramètres → Confidentialité et sécurité → Mots de passe d\'application → « Ajouter un mot de passe d\'application ».',
     'Collez ici votre identifiant (ex. benjy.paddocklive.app ou pseudo.bsky.social) et ce mot de passe d\'application (jamais votre mot de passe principal).'],
   tiktok: ['developers.tiktok.com → Manage apps : créez une app avec Login Kit (plateforme Desktop) et Content Posting API.',
     'Login Kit : ajoutez l\'adresse de redirection {}.',
     'Autorisations user.info.basic et video.upload ; ajoutez votre compte TikTok comme utilisateur de test (sandbox).',
+    'Publication directe depuis la page web (téléphone) : activez aussi « Direct Post » (autorisation video.publish) dans Content Posting API, cochez « Publication directe » ci-dessous et reconnectez-vous. Tant que TikTok n\'a pas validé votre app (audit), les vidéos restent visibles par vous seul.',
+    'Statistiques dans la page web (abonnés, vues, j’aime) : ajoutez aussi les autorisations user.info.profile, user.info.stats et video.list (Login Kit et Display API), cochez « Statistiques » ci-dessous et reconnectez-vous.',
     'Collez client key et client secret, enregistrez, puis « Se connecter à TikTok ».'],
+  tiktok2: ['Pour les statistiques de votre deuxième compte TikTok dans la page web (aucune publication) : même app TikTok, avec les autorisations user.info.profile, user.info.stats et video.list (ajoutez aussi ce compte comme utilisateur de test tant que l’app est en sandbox).',
+    'Dans le navigateur, connectez-vous d’abord à TikTok avec ce deuxième compte (ou utilisez une fenêtre privée), puis « Se connecter à TikTok » ci-dessous.'],
   youtube: ['console.cloud.google.com : créez un projet, puis API et services → Bibliothèque : activez « YouTube Data API v3 ».',
     'Écran de consentement OAuth (Google Auth Platform) : type « Externe », votre adresse e-mail, puis ajoutez votre compte Google (celui de la chaîne) dans « Utilisateurs test ».',
     'Identifiants (Clients) → Créer un client OAuth, type « Application de bureau » : copiez l\'ID client et le code secret du client.',
@@ -123,13 +129,15 @@ const FIELDS = {
   x: [['apiKey', 'API Key'], ['apiSecret', 'API Key Secret'], ['accessToken', 'Access Token'], ['accessSecret', 'Access Token Secret']],
   meta: [['appId', 'Identifiant de l\'app'], ['appSecret', 'Clé secrète de l\'app'], ['userToken', 'Jeton d\'accès (Explorateur de l\'API Graph)']],
   threads: [['appSecret', 'Clé secrète Threads'], ['token', 'Jeton Threads']],
+  threads2: [['appSecret', 'Clé secrète Threads'], ['token', 'Jeton Threads']],
   bluesky: [['handle', 'Identifiant Bluesky'], ['appPassword', 'Mot de passe d\'application']],
   tiktok: [['clientKey', 'Client key'], ['clientSecret', 'Client secret']],
+  tiktok2: [],
   youtube: [['clientId', 'ID client'], ['clientSecret', 'Code secret du client']],
 };
-const TITLES = { x: 'X', meta: 'Instagram + Facebook', threads: 'Threads', bluesky: 'Bluesky', tiktok: 'TikTok', youtube: 'YouTube Shorts' };
+const TITLES = { x: 'X', meta: 'Instagram + Facebook', threads: 'Threads', threads2: 'Threads (2e compte, statistiques)', bluesky: 'Bluesky', tiktok: 'TikTok', tiktok2: 'TikTok (2e compte, statistiques)', youtube: 'YouTube Shorts' };
 // Connexion par le navigateur (OAuth) : bouton « Se connecter à … »
-const OAUTH = { tiktok: 'TikTok', youtube: 'YouTube' };
+const OAUTH = { tiktok: 'TikTok', tiktok2: 'TikTok', youtube: 'YouTube' };
 
 // open : section gardée ouverte après un enregistrement (sinon tout se replie)
 async function accountsDialog(onChange, open = null) {
@@ -155,7 +163,9 @@ async function accountsDialog(onChange, open = null) {
       ${Object.keys(FIELDS).map((k) => `<details class="posts-acc" data-net="${k}" ${k === open ? 'open' : ''}><summary><b>${TITLES[k]}</b> ${status(k)}</summary>
         <ol class="small">${HELP[k].map((h) => `<li>${esc(t(h, redirect))}</li>`).join('')}</ol>
         ${FIELDS[k].map(([f, l]) => `<label class="small">${esc(t(l))}<input type="password" data-f="${f}" autocomplete="off" spellcheck="false"></label>`).join('')}
-        <div class="row"><button class="btn small btn-accent" data-save>${t('Enregistrer et vérifier')}</button>
+        ${k === 'tiktok' ? `<label class="toggle small"><input type="checkbox" data-f="direct" ${info.tiktok?.direct ? 'checked' : ''}> ${t('Publication directe (Direct Post activé dans votre app TikTok)')}</label>
+          <label class="toggle small"><input type="checkbox" data-f="stats" ${info.tiktok?.stats ? 'checked' : ''}> ${t('Statistiques (user.info.stats et video.list ajoutés dans votre app TikTok)')}</label>` : ''}
+        <div class="row">${FIELDS[k].length ? `<button class="btn small btn-accent" data-save>${t('Enregistrer et vérifier')}</button>` : ''}
           ${OAUTH[k] ? `<button class="btn small ${info[k]?.configured && !info[k]?.connected ? 'btn-accent' : ''}" data-login ${info[k]?.configured ? '' : 'disabled'}>${t('Se connecter à {}', OAUTH[k])}</button>` : ''}
           <button class="btn small" data-remove>${t('Déconnecter')}</button></div></details>`).join('')}
       <details class="posts-acc" data-studio ${studio.enabled ? '' : 'open'}><summary><b>${t('Page web (téléphone)')}</b> ${studio.enabled ? `<span class="posts-ok">${icon('check')} ${t('Activée')}</span>` : `<span class="muted">${t('Désactivée')}</span>`}</summary>
@@ -202,7 +212,7 @@ async function accountsDialog(onChange, open = null) {
       btn.disabled = true;
       if (btn.dataset.save !== undefined) {
         const body = { network };
-        for (const i of box.querySelectorAll('[data-f]')) body[i.dataset.f] = i.value;
+        for (const i of box.querySelectorAll('[data-f]')) body[i.dataset.f] = i.type === 'checkbox' ? i.checked : i.value;
         await api('/api/social/accounts', body);
         toast(k === 'tiktok' ? t('Clés TikTok vérifiées : cliquez sur « Se connecter à TikTok »') : k === 'youtube' ? t('Clés enregistrées : cliquez sur « Se connecter à YouTube »') : t('Compte enregistré'), OAUTH[k] ? 6000 : 2500, 'check');
       } else if (btn.dataset.remove !== undefined) {
@@ -271,6 +281,7 @@ export async function openPublish({ d, caps, render, folder, record = null, onPo
   draw();
   const vst = () => $('[data-vst]', dlg);
   const buildVideo = async () => {
+    unlockAudio();   // pendant le clic, avant toute attente (sinon vidéo muette sur iPhone)
     const music = dlg.querySelector('[name="pmusic"]:checked')?.value || 'gen';
     const file = $('[data-audio]', dlg).files?.[0] || null;
     if (music === 'file' && !file) { $('[data-audio]', dlg).click(); throw new Error(t('Choisissez d\'abord un fichier audio')); }
@@ -282,7 +293,7 @@ export async function openPublish({ d, caps, render, folder, record = null, onPo
     const el = $('.posts-vid', dlg);
     el.src = video.url; el.hidden = false;
     $('[data-savevideo]', dlg).disabled = false;
-    vst().textContent = t('Vidéo prête ({} Mo)', (v.blob.size / 1e6).toFixed(1).replace('.', ','));
+    vst().textContent = t('Vidéo prête ({} Mo)', (v.blob.size / 1e6).toFixed(1).replace('.', ',')) + (v.silent ? ` · ${t('sans son : le navigateur a bloqué la musique, recommencez')}` : '');
   };
   // Contenu envoyé à un réseau (visuels préparés une seule fois par format)
   const txt = (k) => $(`[data-txt="${k}"]`, dlg).value;
