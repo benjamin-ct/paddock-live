@@ -7,8 +7,8 @@ import { toast } from './delay.js';
 
 const base = () => `http://127.0.0.1:${location.port || 80}`;
 const OVERLAYS = [
-  ['Classement (intervalles)', '/mini.html?overlay=1', '300 × 560'],
-  ['Classement (écart au leader)', '/mini.html?overlay=1&mode=gap', '300 × 560'],
+  ['Classement (intervalles)', '/mini.html?overlay=1', '300 × 640'],
+  ['Classement (écart au leader)', '/mini.html?overlay=1&mode=gap', '300 × 640'],
   ['Carte du circuit', '/?panel=map&float=1&overlay=1', '800 × 600'],
 ];
 const COMMANDS = [

@@ -9,7 +9,8 @@ l'application (Réglages → Application → Nouveautés).
 ### Streaming (OBS, Streamlabs, Meld Studio, Stream Deck)
 - Nouvel onglet Réglages → Streaming : le classement et la carte du circuit à ajouter comme source
   « Navigateur » dans OBS Studio, Streamlabs ou Meld Studio, sur fond transparent. Ils suivent le délai
-  TV réglé dans l'application.
+  TV réglé dans l'application ; le classement montre toujours tous les pilotes, réduit à la taille de la
+  source.
 - Commandes pour le Stream Deck (ou Bitfocus Companion) : délai TV ±1 s ou ±0,1 s, replay en lecture ou
   pause, −10 s / +10 s. Le délai change aussi dans les overlays et sur les téléphones.
 
