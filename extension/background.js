@@ -3,10 +3,22 @@
 // Rien d'autre n'est lu, et rien ne part ailleurs que vers 127.0.0.1.
 const api = globalThis.browser ?? globalThis.chrome;
 const PORTS = [3000, 3001, 3002, 3010];   // ports essayés par l'appli de bureau au démarrage
+const ORIGINS = ['https://*.formula1.com/*', 'http://127.0.0.1/*'];
+const onF1 = (c) => /(^|\.)formula1\.com$/.test(c.domain.replace(/^\./, ''));
+
+// Cookies de formula1.com lisibles, y compris cloisonnés (Chrome : partitionKey ; Firefox avec
+// isolation : firstPartyDomain) ; une option inconnue du navigateur est simplement ignorée
+async function f1Cookies(name) {
+  const out = [];
+  for (const extra of [{}, { partitionKey: {} }, { firstPartyDomain: null }]) {
+    try { out.push(...await api.cookies.getAll({ ...(name ? { name } : { domain: 'formula1.com' }), ...extra })); } catch { /* option non prise en charge */ }
+  }
+  return out.filter(onF1);
+}
 
 async function session() {
   // Posé sur formula1.com ou l'un de ses sous-domaines (compte, F1 TV) : le plus durable
-  const all = await api.cookies.getAll({ domain: 'formula1.com', name: 'login-session' });
+  const all = await f1Cookies('login-session');
   return all.sort((x, y) => (y.expirationDate || 0) - (x.expirationDate || 0))[0]?.value || null;
 }
 
@@ -27,7 +39,10 @@ async function findApp() {
 async function sync({ send = true, force = false } = {}) {
   const value = await session();
   const app = await findApp();
-  const out = { signedIn: !!value, app: app && { port: app.port, linked: !!app.auth.hasToken, expiresAt: app.auth.expiresAt || null } };
+  const access = await api.permissions.contains({ origins: ORIGINS }).catch(() => true);
+  const out = { signedIn: !!value, access, app: app && { port: app.port, linked: !!app.auth.hasToken, expiresAt: app.auth.expiresAt || null } };
+  // Pas de session trouvée : noms des cookies formula1.com visibles (jamais leurs valeurs), pour le diagnostic
+  if (!value && access) out.seen = [...new Set((await f1Cookies()).map((c) => c.name))].sort();
   if (!send || !value || !app) return out;
   const { sent } = await api.storage.local.get('sent');
   if (!force && sent === value) return out;

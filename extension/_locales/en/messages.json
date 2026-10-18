@@ -1,18 +1,62 @@
 {
-  "name": { "message": "Paddock Live Companion" },
-  "description": { "message": "Connects Paddock Live to F1 TV: sign in on formula1.com in your browser and the desktop app receives the connection automatically." },
-  "f1tv": { "message": "F1 TV in this browser" },
-  "f1tvOn": { "message": "Signed in on formula1.com" },
-  "f1tvOff": { "message": "Not signed in" },
-  "f1tvLogin": { "message": "Sign in to F1 TV" },
-  "app": { "message": "Paddock Live app" },
-  "appOn": { "message": "Running on this computer" },
-  "appOff": { "message": "Not found: start Paddock Live" },
-  "appLinked": { "message": "GPS and telemetry enabled (F1 TV connection received)" },
-  "appUnlinked": { "message": "Not connected to F1 TV yet" },
-  "send": { "message": "Send my connection to Paddock Live" },
-  "sent": { "message": "Connection sent: GPS and telemetry enabled." },
-  "auto": { "message": "After that, nothing to do: every time you sign in on formula1.com, Paddock Live is notified automatically." },
-  "privacy": { "message": "Your F1 TV connection never leaves your computer: it is only sent to the Paddock Live app (127.0.0.1)." },
-  "download": { "message": "Download Paddock Live" }
+  "name": {
+    "message": "Paddock Live Companion"
+  },
+  "description": {
+    "message": "Connects Paddock Live to F1 TV: sign in on formula1.com in your browser and the desktop app receives the connection automatically."
+  },
+  "f1tv": {
+    "message": "F1 TV in this browser"
+  },
+  "f1tvOn": {
+    "message": "Signed in on formula1.com"
+  },
+  "f1tvOff": {
+    "message": "Not signed in"
+  },
+  "f1tvLogin": {
+    "message": "Sign in to F1 TV"
+  },
+  "app": {
+    "message": "Paddock Live app"
+  },
+  "appOn": {
+    "message": "Running on this computer"
+  },
+  "appOff": {
+    "message": "Not found: start Paddock Live"
+  },
+  "appLinked": {
+    "message": "GPS and telemetry enabled (F1 TV connection received)"
+  },
+  "appUnlinked": {
+    "message": "Not connected to F1 TV yet"
+  },
+  "send": {
+    "message": "Send my connection to Paddock Live"
+  },
+  "sent": {
+    "message": "Connection sent: GPS and telemetry enabled."
+  },
+  "auto": {
+    "message": "After that, nothing to do: every time you sign in on formula1.com, Paddock Live is notified automatically."
+  },
+  "privacy": {
+    "message": "Your F1 TV connection never leaves your computer: it is only sent to the Paddock Live app (127.0.0.1)."
+  },
+  "download": {
+    "message": "Download Paddock Live"
+  },
+  "grant": {
+    "message": "Allow access to formula1.com"
+  },
+  "noAccess": {
+    "message": "Access to formula1.com not allowed"
+  },
+  "diag": {
+    "message": "Diagnostic, formula1.com cookies seen:"
+  },
+  "diagNone": {
+    "message": "none"
+  }
 }

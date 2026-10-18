@@ -28,7 +28,7 @@ empaquetée** → choisir le dossier `extension/`. Firefox : `about:debugging` �
 Depuis le dossier `extension/` :
 
 ```sh
-zip -qrX ../paddock-live-companion-1.0.0.zip manifest.json background.js popup.html popup.js icons _locales
+zip -qrX ../paddock-live-companion-<version>.zip manifest.json background.js popup.html popup.js icons _locales
 ```
 
 À chaque nouvelle version : augmenter `version` dans `extension/manifest.json`, refaire le zip et l'envoyer
