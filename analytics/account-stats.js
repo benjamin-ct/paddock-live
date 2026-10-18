@@ -59,13 +59,13 @@ async function facebook(pages, handle) {
     const n = (v) => (v == null ? null : typeof v === 'object' ? Object.values(v).reduce((a, x) => a + (Number(x) || 0), 0) : Number(v));
     return { followers: base.followers_count ?? base.fan_count ?? null, views: n(views), interactions: n(engaged), newFollowers: n(follows) };
   }
-  throw new Error('page non reliée (reconnectez Meta dans l\'appli pour ajouter toutes vos pages)');
+  throw new Error('page non reliée : reconnectez Meta dans l\'appli');
 }
 
 // Threads : compte relié, le premier ou le deuxième (vues, j'aime, réponses, partages des 28 derniers jours)
 async function threads(list, handle, now) {
   const th = list.find((t) => t?.token && (t.username || '').toLowerCase() === handle);
-  if (!th) throw new Error('compte non relié (Comptes… → Threads, 2e compte, dans l\'appli)');
+  if (!th) throw new Error('compte non relié : ajoutez-le dans l\'appli (Threads, 2e compte)');
   const r = await call(`${THREADS}/me/threads_insights?${new URLSearchParams({ metric: 'views,likes,replies,reposts,quotes,followers_count', since: since(now), until: Math.floor(now / 1000), access_token: th.token })}`);
   return { followers: total(r, 'followers_count'), views: total(r, 'views'), likes: total(r, 'likes'), comments: total(r, 'replies'), shares: (total(r, 'reposts') ?? 0) + (total(r, 'quotes') ?? 0) };
 }

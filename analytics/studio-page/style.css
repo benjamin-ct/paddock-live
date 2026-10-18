@@ -249,6 +249,18 @@ button.row-item:active { background: var(--surface-2); }
 .tile b { display: block; font: 800 30px/1 'Saira Condensed', sans-serif; font-variant-numeric: tabular-nums; }
 .tile small { color: var(--muted); font-size: 13px; }
 .card.post .t { margin-top: 4px; }
+/* Statistiques des comptes : une carte par compte, total des abonnés en tête, une ligne par réseau */
+.accs { display: grid; gap: 12px; margin-bottom: 8px; }
+.card.acc { padding: 16px; }
+.acc-head { display: flex; align-items: baseline; gap: 10px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.acc-head > b { flex: 1; font: 800 20px/1.1 'Saira Condensed', sans-serif; }
+.acc-total, .acc-f { color: var(--muted); font-size: 12.5px; white-space: nowrap; }
+.acc-total b { margin-right: 5px; color: var(--text); font: 800 28px/1 'Saira Condensed', sans-serif; font-variant-numeric: tabular-nums; }
+.acc-net { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; padding: 11px 0; border-bottom: 1px solid var(--line); }
+.acc-net .metrics { grid-column: 1 / -1; }
+.acc-f b { margin-right: 4px; color: var(--text); font-size: 15px; font-variant-numeric: tabular-nums; }
+.acc-off { display: grid; gap: 4px; padding-top: 11px; color: var(--muted); font-size: 12.5px; }
+.acc-off a { color: var(--text-2); font-weight: 600; }
 .net-stats { display: flex; gap: 10px; align-items: baseline; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
 .net { flex: none; min-width: 76px; font-size: 13.5px; font-weight: 600; }
 .net a { text-decoration: none; }
@@ -394,6 +406,10 @@ dialog.sheet .group, dialog.sheet input { background: rgba(255, 255, 255, .05); 
   .tabbar .ic { width: 21px; height: 21px; }
   /* Listes sur plusieurs colonnes */
   .list { grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; }
+  .accs { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+  /* Posts publiés : colonnes remplies sans trous (cartes de hauteurs différentes) */
+  .list.posts { display: block; columns: 340px; column-gap: 12px; }
+  .list.posts > * { break-inside: avoid; margin-bottom: 12px; }
   .gps { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); column-gap: 20px; align-items: start; }
   .chips { flex-wrap: wrap; overflow: visible; margin-inline: 0; padding-inline: 0; }
   .features { grid-template-columns: repeat(2, minmax(0, 560px)); }
