@@ -4,6 +4,14 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
+## v1.27.46 — 2026-10-18
+
+### Interface plus légère
+- Beaucoup moins de texte d'explication : réglages, aides de l'espace Saison et notes des panneaux vont à
+  l'essentiel.
+- Les légendes sous les panneaux ne gardent que les repères de couleur et les badges (classement, carte, duel,
+  comparaison de tours).
+
 ## v1.27.45 — 2026-10-18
 
 ### F1 TV

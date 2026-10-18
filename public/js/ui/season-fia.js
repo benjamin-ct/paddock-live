@@ -99,7 +99,7 @@ const short = (n) => gpShort(n, EN);
 function note(fia) {
   if (!fia) return '<div class="note">Chargement des documents de la FIA…</div>';
   if (fia.error) return `<div class="note">Documents de la FIA indisponibles (${esc(fia.error)}).</div>`;
-  if (fia.pending) return `<div class="note">${icon('hourglass')} Lecture des documents officiels de la FIA : <b>${fia.done} / ${fia.total}</b> Grands Prix — la première fois, les PDF de chaque épreuve sont téléchargés et lus, ensuite tout est conservé sur ce PC.</div>`;
+  if (fia.pending) return `<div class="note">${icon('hourglass')} Lecture des documents officiels de la FIA : <b>${fia.done} / ${fia.total}</b> Grands Prix</div>`;
   return '';
 }
 
@@ -261,7 +261,7 @@ export function renderElements(ctx, fia) {
     </div>
     <section class="sz-box"><h3>Éléments utilisés par pilote</h3><div class="sz-scroll"><table class="sz-table sz-heat"><tr><th>Pilote</th><th>Moteur</th>${els.map((e) => `<th title="${esc(EL_FR[e] || e)}">${esc(e)}</th>`).join('')}<th>Total</th></tr>
       ${drivers.map((d) => `<tr><td>${mark(d.team, ctx, d.teamId)}<b>${esc(d.driver)}</b></td><td class="muted small">${esc(d.engine || '')}</td>${els.map((e) => cell(d, e)).join('')}<td><b>${d.total}</b></td></tr>`).join('')}</table></div>
-      <p class="muted small">${els.map((e) => `<b>${esc(e)}</b> ${esc(EL_FR[e] || e)}`).join(' · ')}. Chaque élément au-delà de la limite de la saison entraîne une pénalité sur la grille. <span class="sz-pu-key at">limite atteinte</span> <span class="sz-pu-key over">limite dépassée</span></p></section>
+      <p class="muted small">${els.map((e) => `<b>${esc(e)}</b> ${esc(EL_FR[e] || e)}`).join(' · ')} <span class="sz-pu-key at">limite atteinte</span> <span class="sz-pu-key over">limite dépassée</span></p></section>
     <div class="sz-grid2">
       <section class="sz-box"><h3>Total par pilote</h3>${hbars(drivers.map((d) => ({ html: `${mark(d.team, ctx, d.teamId)}<b>${esc(lastName(d))}</b>`, v: d.total, color: tcol(d.team, ctx, d.teamId) })))}</section>
       <section class="sz-box"><h3>Total par écurie</h3>${hbars(byTeam.map((t) => ({ html: `${mark(t.team, ctx, t.teamId)}<b>${esc(t.team)}</b>`, v: t.n, color: tcol(t.team, ctx, t.teamId) })))}</section>

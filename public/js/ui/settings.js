@@ -29,7 +29,7 @@ async function refreshAuth() {
     let renew;
     if (a.renewRejected) renew = `<span style="color:var(--orange)">La F1 a mis fin à la session : reconnectez-vous pour continuer.</span>`;
     else if (a.autoRenew) {
-      renew = `${icon('refresh')} Renouvelé automatiquement (tous les ~4 jours)${a.sessionExpiresAt ? ` jusqu'au <b>${esc(fmtWhen(a.sessionExpiresAt))}</b>, fin de la session formula1.com (≈ 30 jours après la connexion) : il faudra alors se reconnecter` : ''}.`;
+      renew = `${icon('refresh')} Renouvelé automatiquement${a.sessionExpiresAt ? ` jusqu'au <b>${esc(fmtWhen(a.sessionExpiresAt))}</b>` : ''}.`;
       if (a.renewError) renew += ` <span style="color:var(--orange)">Dernier essai : ${esc(a.renewError)}</span>`;
     } else renew = `<span class="muted">Ce jeton ne se renouvelle pas tout seul : reconnectez-vous avant son expiration.</span>`;
     el.innerHTML = `${head}${offer}${gps}<br>${renew} ${a.autoRenew && !a.renewRejected ? '<button class="btn small" id="tokenRenew">Renouveler maintenant</button>' : ''}`;

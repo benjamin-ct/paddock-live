@@ -343,7 +343,7 @@ async function messages() {
   try { items = (await api('feedback')).items || []; } catch (err) { body.innerHTML = `<p class="hint center">${esc(err.message)}</p>`; return; }
   const draw = () => {
     body.innerHTML = items.length ? `<div class="group">${items.map(msgHtml).join('')}</div>
-      <p class="hint">Envoyés depuis l'appli (Réglages → À propos) ou le site (FAQ). Un e-mail laissé permet de répondre.</p>`
+      <p class="hint">Envoyés depuis l'appli ou le site.</p>`
       : '<p class="hint center">Aucun message pour l\'instant. Les questions et suggestions envoyées depuis l\'appli (Réglages → À propos) ou le site arriveront ici.</p>';
     // Pièces jointes : chargées au toucher (images affichées, vidéos lues sur place)
     $$('[data-att]', body).forEach((b) => {
@@ -422,7 +422,7 @@ function settings() {
         <a class="btn small" href="${KIT}paddock-live-streamers.pdf" download>${icon('download')}Télécharger</a></div></div>
     ${PITCH.map(([n, t]) => `<details class="cap"><summary><span>${esc(n)}</span></summary><textarea rows="9">${esc(t)}</textarea>
       <button class="btn small" data-copy="">${icon('copy')}Copier le message</button></details>`).join('')}
-    <p class="hint">Page non listée : ni le site ni l'appli n'y mènent. Envoie le lien avec un des messages (modifiables avant de copier).</p>
+    <p class="hint">Page non listée : envoie le lien avec un des messages.</p>
     <h3 class="section">Comptes</h3><div class="group">${accounts.map(([n, v]) => `<div class="row-item static"><span class="grow"><b>${esc(n)}</b><small>${esc(v || 'non connecté')}</small></span><span class="state ${v ? 'on' : ''}"></span></div>`).join('')}</div>
     <p class="hint">Comptes envoyés par l'appli de bureau (Posts → Publier… → Comptes…).</p>
     <h3 class="section">Alertes des grosses news</h3><div id="alerts"></div>
@@ -464,7 +464,7 @@ async function alertsBlock(el) {
   }
   const sub = await currentSub().catch(() => null);
   const on = !!sub && Notification.permission === 'granted';
-  el.innerHTML = `<div class="group"><div class="row-item static"><span class="grow"><b>${on ? `Actives sur ${/iPhone|Android.*Mobile/.test(navigator.userAgent) ? 'ce téléphone' : IOS || matchMedia('(pointer: coarse)').matches ? 'cet appareil' : 'cet ordinateur'}` : 'Désactivées'}</b><small>Une notification à chaque grosse news (transfert, pénalité, annonce officielle…), le post prêt à relire</small></span><span class="state ${on ? 'on' : ''}"></span></div></div>
+  el.innerHTML = `<div class="group"><div class="row-item static"><span class="grow"><b>${on ? `Actives sur ${/iPhone|Android.*Mobile/.test(navigator.userAgent) ? 'ce téléphone' : IOS || matchMedia('(pointer: coarse)').matches ? 'cet appareil' : 'cet ordinateur'}` : 'Désactivées'}</b><small>À chaque grosse news, avec le post prêt</small></span><span class="state ${on ? 'on' : ''}"></span></div></div>
     <div class="row">${on ? `<button class="btn" id="alerttest">${icon('bell')}Tester</button><button class="btn" id="alertoff">Couper</button>` : `<button class="btn primary" id="alerton">${icon('bell')}Activer</button>`}</div>`;
   const fail = (err) => toast(err.message, 'bad');
   if ($('#alerton', el)) $('#alerton', el).onclick = () => enableAlerts().then(() => { toast('Alertes activées', 'ok'); alertsBlock(el); }).catch(fail);

@@ -96,7 +96,7 @@ function pendingNote(stats) {
   if (!stats) return '<div class="note">Chargement des statistiques détaillées…</div>';
   if (stats.error) return `<div class="note">Statistiques détaillées indisponibles (${esc(stats.error)}).</div>`;
   if (stats.pending || stats.done < stats.total) {
-    return `<div class="note">${stats.pending ? `${icon('hourglass')} Analyse des courses de la saison` : 'Courses analysées'} : <b>${stats.done} / ${stats.total}</b>${stats.pending ? ' — la première fois, les archives officielles de chaque Grand Prix sont téléchargées et analysées (environ 2 s par course), ensuite tout est conservé sur ce PC.' : ''}</div>`;
+    return `<div class="note">${stats.pending ? `${icon('hourglass')} Analyse des courses de la saison` : 'Courses analysées'} : <b>${stats.done} / ${stats.total}</b></div>`;
   }
   return '';
 }
@@ -331,8 +331,7 @@ export function renderPits(ctx) {
       ${tl.map((t) => `<tr><td>${mark(t.team, t.color)}<b>${esc(t.team)}</b></td><td>${t.n}</td><td>${fr(t.med, 2)} s</td><td>${fr(t.best, 1)} s</td><td>${t.under25}</td></tr>`).join('')}</table></section>
     <section class="sz-box"><h3>Par Grand Prix</h3><table class="sz-table"><tr><th>Manche</th><th>Grand Prix</th><th>Arrêts</th><th>Immob. médiane</th><th>Plus rapide</th><th>Voie des stands</th></tr>
       ${rounds.map((rd) => { const p = R.get(rd).race.profile; const f = valid.filter((s) => s.round === rd).sort((a, b) => a.stop - b.stop)[0];
-        return `<tr><td>R${rd}</td><td>${esc(name(rd))}</td><td>${p.stops}</td><td>${p.stopMedian ? `${fr(p.stopMedian, 2)} s` : '—'}</td><td>${f ? `${fr(f.stop, 1)} s · ${esc(f.d.tla)}` : '—'}</td><td>${p.pitLane ? `${fr(p.pitLane, 1)} s` : '—'}</td></tr>`; }).join('')}</table></section>
-    <p class="muted small">Immobilisation : temps à l'arrêt mesuré par la F1 (les arrêts de plus de 15 s — réparations, pénalités — sont exclus des moyennes). Voie des stands : de l'entrée à la sortie.</p>`;
+        return `<tr><td>R${rd}</td><td>${esc(name(rd))}</td><td>${p.stops}</td><td>${p.stopMedian ? `${fr(p.stopMedian, 2)} s` : '—'}</td><td>${f ? `${fr(f.stop, 1)} s · ${esc(f.d.tla)}` : '—'}</td><td>${p.pitLane ? `${fr(p.pitLane, 1)} s` : '—'}</td></tr>`; }).join('')}</table></section>`;
 }
 
 // ---------------- Vitesses de pointe ----------------
@@ -431,6 +430,5 @@ export function renderCircuits(ctx, sort = 'round') {
       ${meter('Dépassements', 'gains', p.gains, `${p.gains}`)}
       ${meter('Neutralisations', 'neutral', p.neutralPct, `${fr(p.neutralPct, 0)} % des tours`)}
       ${near.get(key)?.length ? `<div class="sz-near"><span class="muted small">Circuits les plus proches</span>${near.get(key).map((b) => `<span class="sz-tag" title="R${b.round} ${esc(b.r.name || '')}">${esc(b.r.locality || short(b.r.name))}</span>`).join('')}</div>` : ''}
-    </article>`).join('')}</div>
-    <p class="muted small">Vitesse moyenne : sur le meilleur tour de la course. Dépassements : places gagnées en piste d'un tour à l'autre (hors 1er tour, arrêts et neutralisations) — une estimation. Neutralisations : tours du leader sous safety car, VSC ou drapeau rouge. Arrêts par pilote : moyenne des pilotes à l'arrivée. Contrainte pneus : d'après le composé le plus dur choisi par Pirelli pour le Grand Prix (C1, le plus dur, pour les circuits les plus exigeants ; C3 pour les moins exigeants). Circuits les plus proches : comparaison de la longueur, du nombre de virages, des vitesses, des dépassements, des arrêts et des pneus. Les jauges comparent les circuits de la saison entre eux.</p>`;
+    </article>`).join('')}</div>`;
 }

@@ -155,7 +155,7 @@ function favHtml() {
   const head = `<div class="hm-kicker">${count === 1 ? 'Mon favori au championnat' : 'Mes favoris au championnat'} ${edit}</div>`;
   if (!count) {
     return `<section class="hm-card hm-fav" id="hmFav">${head}${editFav ? favEditor(ds, teams)
-      : '<div class="muted">Ajoutez vos pilotes et écuries favoris : ils apparaîtront ici avec leur place au championnat.</div>'}</section>`;
+      : '<div class="muted">Ajoutez vos pilotes et écuries favoris.</div>'}</section>`;
   }
   const recent = lastSession() && Date.now() - lastSession().t < 72 * 3600e3;
   const hide = recent && !showFav;

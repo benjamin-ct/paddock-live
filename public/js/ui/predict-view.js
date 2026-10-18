@@ -3,7 +3,7 @@
 // pronostics partagés avec un lien (page paddocklive.app/p/<groupe>), hors du réseau local.
 // Pseudo d'un groupe réservé par un jeton gardé ici.
 import { $, esc, api, storageGet, storageSet } from '../util.js';
-import { icon, arrows } from '../icons.js';
+import { icon } from '../icons.js';
 import { toast } from './delay.js';
 import { POINTS } from '/shared/predict.js';
 import { LOCALE, EN } from '../i18n.js';
@@ -137,7 +137,7 @@ function fill() {
         <div class="pd-actions"><button class="btn" type="submit">${icon('check')} Enregistrer mon pronostic</button>
           <span class="muted small">Pole : ${poleOpen ? `jusqu'au ${fmt(next.locks.pole)}` : 'fermé (qualifications commencées)'} · Podium : jusqu'au ${fmt(next.locks.podium)}</span></div>
       </form>
-      <p class="muted small">${others ? `${others} autre${others > 1 ? 's' : ''} joueur${others > 1 ? 's ont' : ' a'} déjà pronostiqué (choix révélés à la fermeture).` : group() ? 'Aucun autre joueur pour l\'instant : partagez le lien du groupe.' : arrows('Aucun autre joueur pour l\'instant : partagez le dashboard sur vos téléphones (Réglages → Application → accès réseau), ou jouez en ligne avec un groupe.')}</p>
+      <p class="muted small">${others ? `${others} autre${others > 1 ? 's' : ''} joueur${others > 1 ? 's ont' : ' a'} déjà pronostiqué (choix révélés à la fermeture).` : group() ? 'Aucun autre joueur pour l\'instant : partagez le lien du groupe.' : 'Aucun autre joueur pour l\'instant : jouez en ligne avec un groupe.'}</p>
     </section>` : '<section class="sz-box"><p class="muted">Plus de Grand Prix à pronostiquer cette saison.</p></section>';
 
   const done = view.races.filter((r) => r.result && r.picks.length).reverse();
