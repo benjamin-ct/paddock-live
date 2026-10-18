@@ -291,11 +291,13 @@ async function handleApi(req, res, url) {
     case 'GET /api/schedule': {
       const year = yearOf(url.searchParams.get('year'));
       const d = await season(year);
-      return sendJSON(res, 200, { year, races: d.races.map((r) => ({ round: r.round, name: r.name, locality: r.locality, lat: r.lat, lon: r.lon, sessions: r.sessions })) });
+      return sendJSON(res, 200, { year, races: d.races.map((r) => ({ round: r.round, name: r.name, locality: r.locality, country: r.country, circuitId: r.circuitId, lat: r.lat, lon: r.lon, sessions: r.sessions })) });
     }
     // Météo prévue sur un circuit (accueil : prochain Grand Prix)
-    case 'GET /api/forecast':
-      return sendJSON(res, 200, { days: await forecast(url.searchParams.get('lat'), url.searchParams.get('lon')) });
+    case 'GET /api/forecast': {
+      const days = await forecast(url.searchParams.get('lat'), url.searchParams.get('lon'));
+      return sendJSON(res, 200, { days, tz: days.tz });
+    }
     case 'GET /api/calendar.ics': {
       const year = yearOf(url.searchParams.get('year'));
       const round = Number(url.searchParams.get('round')) || null;

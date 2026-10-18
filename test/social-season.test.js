@@ -146,8 +146,9 @@ test('publications programmées : publiées à l\'heure, résultat gardé, annul
 });
 
 test('météo prévue : jours, températures et risque de pluie', async () => {
-  const days = await forecast(30.13, -97.64, { get: async (u) => { assert.match(u, /latitude=30\.1300&longitude=-97\.6400/); return { daily: { time: ['2026-10-23', '2026-10-24'], temperature_2m_max: [25, 26], temperature_2m_min: [14, 15], precipitation_probability_max: [10, null] } }; } });
-  assert.deepEqual(days, [{ date: '2026-10-23', tmax: 25, tmin: 14, rain: 10 }, { date: '2026-10-24', tmax: 26, tmin: 15, rain: null }]);
+  const days = await forecast(30.13, -97.64, { get: async (u) => { assert.match(u, /latitude=30\.1300&longitude=-97\.6400/); return { daily: { time: ['2026-10-23', '2026-10-24'], temperature_2m_max: [25, 26], temperature_2m_min: [14, 15], precipitation_probability_max: [10, null] }, timezone: 'America/Chicago' }; } });
+  assert.equal(days.tz, 'America/Chicago');
+  assert.deepEqual([...days], [{ date: '2026-10-23', tmax: 25, tmin: 14, rain: 10 }, { date: '2026-10-24', tmax: 26, tmin: 15, rain: null }]);
   await assert.rejects(forecast('a', 1), /Coordonnées/);
 });
 

@@ -1,5 +1,6 @@
 // Météo prévue sur un circuit (Open-Meteo, gratuit et sans clé) pour le post « programme du
-// week-end » : températures et risque de pluie de chaque jour, gardées une heure.
+// week-end » : températures et risque de pluie de chaque jour, gardées une heure. days.tz : fuseau
+// horaire du circuit (heure locale dans la barre du haut avant le Grand Prix).
 import { getJSON } from './net.js';
 
 const cache = new Map();
@@ -14,6 +15,7 @@ export async function forecast(lat, lon, { get = getJSON, now = Date.now } = {})
   const d = j?.daily || {};
   const days = (d.time || []).map((date, i) => ({ date, tmax: d.temperature_2m_max?.[i] ?? null, tmin: d.temperature_2m_min?.[i] ?? null, rain: d.precipitation_probability_max?.[i] ?? null }))
     .filter((x) => x.tmax !== null);
+  days.tz = typeof j?.timezone === 'string' ? j.timezone : null;
   cache.set(key, { at: now(), days });
   return days;
 }

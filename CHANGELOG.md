@@ -6,6 +6,12 @@ l'application (Réglages → Application → Nouveautés).
 
 ## v1.27.32 — à venir
 
+### Barre du haut
+- Entre deux séances, la barre du haut présente le prochain Grand Prix au lieu de la dernière séance :
+  nom, ville et dates du week-end, compte à rebours de la prochaine séance, nombre de tours et longueur
+  du circuit, heure locale sur le circuit, heure de départ de la course et météo prévue ce jour-là.
+  Elle repasse sur la séance dès qu'elle commence, pendant un replay ou en ouvrant les résultats.
+
 ### Divers
 - Petites améliorations internes.
 

@@ -4,7 +4,10 @@ import { $, esc, fmtDuration, sessionKind, currentStint } from '../util.js';
 import { trackStatusInfo, SESSION_STATUS_FR, parseUtc, parseLapTime } from '/shared/f1.js';
 import { FLAG_ISO } from '/shared/flags.js';
 import { gpShort, gpFull, sessionLabel } from '/shared/gp-names.js';
-import { EN } from '../i18n.js';
+import { EN, LOCALE, t } from '../i18n.js';
+import { upcoming } from './home.js';
+import { COUNTRY_ISO } from '/shared/social-season.js';
+import { circuitInfo } from '/shared/circuits-info.js';
 
 export { FLAG_ISO };
 import { icon } from '../icons.js';
@@ -14,6 +17,10 @@ const POPOUT = new URLSearchParams(location.search).has('win');
 let lastVer = -1;
 
 export function renderHeader() {
+  // Entre deux séances : le prochain Grand Prix plutôt que le dernier direct
+  const nx = upcoming();
+  if (nx) { renderUpcoming(nx); return; }
+  if (upKey) { upKey = ''; lastVer = -1; $('#clockBox .hstat-label').textContent = 'Temps restant'; }
   const s = store.state;
   const v = versionOf(['SessionInfo', 'TrackStatus', 'SessionStatus', 'LapCount', 'WeatherData', 'TimingData', 'TimingAppData', 'RaceControlMessages', '__reset']);
   if (v !== lastVer) {
@@ -120,6 +127,57 @@ export function renderHeader() {
 }
 
 let gmtOffset = null;
+
+// ---------- Prochain Grand Prix (aucune séance en cours) ----------
+// Nom, lieu et dates du week-end, compte à rebours de la prochaine séance, tours et longueur de la
+// course, heure locale du circuit, heure de la course et météo prévue ce jour-là.
+let upKey = '';
+const two = (n) => String(n).padStart(2, '0');
+function renderUpcoming(nx) {
+  const key = `${nx.race}|${nx.label}|${nx.t}|${nx.tz}|${nx.raceDay?.tmax}`;
+  if (key !== upKey) {
+    upKey = key;
+    const sn = $('#sessionName');
+    sn.textContent = `${EN ? gpFull(nx.race, true, 'GP') : gpShort(nx.race)} — ${t(nx.label)}`;
+    sn.title = gpFull(nx.race, EN);
+    const day = (t, o) => new Date(t).toLocaleDateString(LOCALE, o);
+    $('#sessionSub').textContent = [nx.locality, nx.country, `${day(nx.first, { day: 'numeric' })}–${day(nx.raceT, { day: 'numeric', month: 'long' })}`].filter(Boolean).join(' · ');
+    if (!POPOUT) document.title = `Paddock Live · ${nx.race}`;
+    const ts = $('#trackStatus');
+    ts.className = 'track-status none';
+    ts.querySelector('.ts-label').textContent = 'À venir';
+    const ci = circuitInfo(nx.circuitId);
+    $('#lapLabel').textContent = 'Tours';
+    $('#lapValue').textContent = ci?.laps ? String(ci.laps) : '—';
+    $('#lapsLeftBox').hidden = true;
+    lapBar(null);
+    $('#clockBox .hstat-label').textContent = 'Début dans';
+    $('#circuitTimeBox').hidden = !nx.tz;
+    $('#surfaceBox').hidden = true;
+    const iso = COUNTRY_ISO[nx.country];
+    const flag = $('#sessionFlag');
+    if (iso && flag.dataset.iso !== iso) { flag.dataset.iso = iso; flag.src = `https://flagcdn.com/w80/${iso}.png`; flag.onerror = () => { flag.hidden = true; }; flag.onload = () => { flag.hidden = false; }; }
+    if (!iso) { flag.hidden = true; flag.dataset.iso = ''; }
+    flag.title = nx.country || '';
+    const wm = (label, val, title = '') => `<div class="wm"${title ? ` title="${esc(title)}"` : ''}><span class="muted">${label}</span><b>${val}</b></div>`;
+    const w = nx.raceDay;
+    $('#weatherMini').innerHTML = (ci?.km ? wm('Longueur', `${String(ci.km).replace('.', EN ? '.' : ',')}<small> km</small>`) : '')
+      + wm('Course', esc(new Date(nx.raceT).toLocaleString(LOCALE, { weekday: 'short', hour: '2-digit', minute: '2-digit' })), 'Départ de la course (heure de votre appareil)')
+      + (w ? wm('Prévu', `${Math.round(w.tmax)}°`, 'Température maximale prévue le jour de la course') + (w.rain != null ? wm('Pluie', `${w.rain}<small> %</small>`, 'Risque de pluie le jour de la course') : '') : '');
+  }
+  renderBanner();
+  // Compte à rebours et heure du circuit, à la seconde
+  const left = Math.max(0, Math.floor((nx.t - Date.now()) / 1000));
+  const d = Math.floor(left / 86400);
+  const txt = `${d ? `${d} ${EN ? 'd' : 'j'} ` : ''}${two(Math.floor(left / 3600) % 24)}:${two(Math.floor(left / 60) % 60)}:${two(left % 60)}`;
+  const cv = $('#clockValue');
+  if (cv.textContent !== txt) cv.textContent = txt;
+  if (nx.tz) {
+    const hm = new Date().toLocaleTimeString('fr-FR', { timeZone: nx.tz, hour: '2-digit', minute: '2-digit' });
+    const ct = $('#circuitTime');
+    if (ct.textContent !== hm) ct.textContent = hm;
+  }
+}
 
 // « 04:00:00 », « -05:00:00 » -> décalage en ms par rapport à UTC
 function parseGmtOffset(v) {
