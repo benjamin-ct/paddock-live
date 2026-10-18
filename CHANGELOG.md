@@ -6,6 +6,11 @@ l'application (Réglages → Application → Nouveautés).
 
 ## v1.27.37 — à venir
 
+### Simulateur d'arrêt
+- Le cercle de position bouge en continu, comme la carte : chaque voiture tourne avec sa position sur la piste
+  (ligne d'arrivée en haut), et la sortie des stands du pilote choisi le suit. Avant, il n'était mis à jour qu'au
+  passage des voitures aux points de chronométrage, le leader restant figé en haut, et semblait au ralenti.
+
 ### Replays
 - Barre de lecture : au survol, une infobulle donne l'heure et ce que signifient les traits et les zones colorées
   (arrêt, dépassement, incident, pénalité, voiture de sécurité, VSC, drapeaux). Les moments à venir ne montrent que

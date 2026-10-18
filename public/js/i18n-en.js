@@ -962,6 +962,7 @@ export default {
   "Le simulateur d'arrêt au stand est disponible pendant les courses (et sprints).": "The pit stop simulator is available during races (and sprints).",
   "Leader constructeurs": "Constructors' leader",
   "leader en haut": "leader at top",
+  "ligne d'arrivée en haut": "finish line at top",
   "Leader pilotes": "Drivers' leader",
   "Lecteur audio introuvable": "Audio player not found",
   "Lecture / pause": "Play / pause",
