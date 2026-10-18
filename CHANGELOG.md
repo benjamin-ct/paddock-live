@@ -4,7 +4,7 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
-## v1.27.33 — à venir
+## v1.27.33 — 2026-10-18
 
 ### Pronostics entre amis
 - Jouez en ligne, hors du réseau local : créez un groupe dans Saison → Pronostics et envoyez le lien à
