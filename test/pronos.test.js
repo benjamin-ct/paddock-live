@@ -4,7 +4,7 @@ import { pronosApi } from '../analytics/pronos.js';
 
 // Base D1 réduite aux requêtes des pronostics en ligne (et à la saison gardée)
 function fakeD1(seasonV) {
-  const groups = new Map(); const picks = new Map(); const created = new Map();
+  const groups = new Map(); const picks = new Map(); const created = new Map(); const admins = new Map();
   const studio = new Map([['season:2026', JSON.stringify({ at: Date.now(), v: seasonV })]]);
   return {
     picks,
@@ -13,16 +13,22 @@ function fakeD1(seasonV) {
         async first() {
           if (sql.startsWith('SELECT v FROM studio')) return studio.has(a[0]) ? { v: studio.get(a[0]) } : null;
           if (sql.startsWith('SELECT id, name FROM pronos_groups')) return groups.get(a[0]) || null;
+          if (sql.startsWith('SELECT tok FROM pronos_admins')) return admins.has(a[0]) ? { tok: admins.get(a[0]) } : null;
           if (sql.startsWith('SELECT n FROM pronos_new')) return created.has(`${a[0]}|${a[1]}`) ? { n: created.get(`${a[0]}|${a[1]}`) } : null;
           throw new Error(`requête inattendue : ${sql}`);
         },
         async all() {
           if (sql.startsWith('SELECT round, pkey')) return { results: [...picks.values()].filter((r) => r.grp === a[0] && r.year === a[1]) };
+          if (sql.startsWith('SELECT DISTINCT tok')) return { results: [...new Set([...picks.values()].filter((r) => r.grp === a[0]).map((r) => r.tok))].map((tok) => ({ tok })) };
           throw new Error(`requête inattendue : ${sql}`);
         },
         async run() {
           if (sql.startsWith('INSERT INTO pronos_new')) created.set(`${a[0]}|${a[1]}`, (created.get(`${a[0]}|${a[1]}`) || 0) + 1);
           else if (sql.startsWith('INSERT INTO pronos_groups')) groups.set(a[0], { id: a[0], name: a[1] });
+          else if (sql.startsWith('INSERT INTO pronos_admins')) admins.set(a[0], a[1]);
+          else if (sql.startsWith('DELETE FROM pronos WHERE')) { for (const [k, r] of picks) if (r.grp === a[0]) picks.delete(k); }
+          else if (sql.startsWith('DELETE FROM pronos_admins')) admins.delete(a[0]);
+          else if (sql.startsWith('DELETE FROM pronos_groups')) groups.delete(a[0]);
           else if (sql.startsWith('INSERT INTO pronos ')) {
             const [grp, year, round, pkey, name, pole, p1, p2, p3, tok, at] = a;
             const k = `${grp}|${year}|${round}|${pkey}`;
@@ -90,4 +96,30 @@ test('pronostics en ligne : saison enregistrée utilisée sans attendre sa recon
     assert.equal(r.group.name, 'Test');
     assert.equal(calls, 0);
   } finally { globalThis.fetch = old; }
+});
+
+test('pronostics en ligne : suppression du groupe par son créateur (ou son seul joueur pour les anciens groupes)', async () => {
+  const season = { drivers: [{ code: 'VER', name: 'Max Verstappen', team: 'X' }, { code: 'NOR', name: 'Lando Norris', team: 'X' }],
+    races: [{ round: 18, name: 'United States Grand Prix', date: '2026-10-25T19:00:00Z', results: [], quali: [], sessions: [{ label: 'Course', t: '2026-10-25T19:00:00Z' }] }] };
+  const env = { DB: fakeD1(season) };
+  const now = Date.parse('2026-10-20T10:00:00Z');
+  const g = await call(env, 'POST', '/p/api/new', { name: 'Les copains' }, now);
+  assert.ok(g.admin.length >= 20);
+  const a = await call(env, 'POST', `/p/api/${g.id}`, { year: 2026, round: 18, name: 'Alice', p1: 'VER' }, now);
+  // Un joueur qui n'a pas créé le groupe ne peut pas le supprimer, même seul
+  const refus = await call(env, 'DELETE', `/p/api/${g.id}`, { tok: a.tok }, now);
+  assert.equal(refus.status, 403);
+  assert.match(refus.error, /créateur/);
+  assert.equal((await call(env, 'DELETE', `/p/api/${g.id}`, { admin: g.admin }, now)).status, 200);
+  assert.equal((await call(env, 'GET', `/p/api/${g.id}?year=2026`, null, now)).status, 404);
+  assert.equal(env.DB.picks.size, 0);
+  // Groupe créé avant le jeton du créateur : supprimable par son seul joueur, plus dès qu'il y en a deux
+  await env.DB.prepare('INSERT INTO pronos_groups').bind('ancienxxxx', 'Ancien').run();
+  const x = await call(env, 'POST', '/p/api/ancienxxxx', { year: 2026, round: 18, name: 'Xavier', p1: 'VER' }, now);
+  await call(env, 'POST', '/p/api/ancienxxxx', { year: 2026, round: 18, name: 'Yves', p1: 'NOR' }, now);
+  assert.match((await call(env, 'DELETE', '/p/api/ancienxxxx', { tok: x.tok }, now)).error, /autres joueurs/);
+  await env.DB.prepare('INSERT INTO pronos_groups').bind('seulxxxxxx', 'Seul').run();
+  const s = await call(env, 'POST', '/p/api/seulxxxxxx', { year: 2026, round: 18, name: 'Sam', p1: 'VER' }, now);
+  assert.equal((await call(env, 'DELETE', '/p/api/seulxxxxxx', {}, now)).status, 403);
+  assert.equal((await call(env, 'DELETE', '/p/api/seulxxxxxx', { tok: s.tok }, now)).status, 200);
 });

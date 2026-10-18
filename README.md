@@ -105,7 +105,7 @@ Le détail de chacune est dans le **[guide complet](docs/GUIDE.md)**.
 
 ### Pronostics entre amis
 - Pole et podium avant chaque Grand Prix, choix des autres cachés jusqu'à la fermeture, points et classement de la saison.
-- En réseau local ou **en ligne** : groupe à créer, lien à partager (copié sur ordinateur, partage du téléphone), liste « Mes groupes » pour retrouver ses groupes toute la saison, page web pour jouer sans l'application.
+- En réseau local ou **en ligne** : groupe à créer, lien à partager (copié sur ordinateur, partage du téléphone), liste « Mes groupes » pour retrouver ses groupes toute la saison (et en retirer), suppression du groupe par son créateur, page web pour jouer sans l'application.
 
 ### Espace Actu
 - Sources officielles (F1, FIA, écuries, pilotes) et une trentaine de médias en 8 langues, sources à ajouter ou couper.

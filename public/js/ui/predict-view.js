@@ -19,11 +19,17 @@ const me = () => storageGet('paddock.player', '');
 const SITE = 'https://paddocklive.app/p/';
 const group = () => { try { return JSON.parse(storageGet('paddock.pronoGroup', '') || 'null'); } catch { return null; } };
 const tokKey = (g) => `paddock.pronoTok.${g.id}`;
+const adminKey = (g) => `paddock.pronoAdmin.${g.id}`;   // jeton du créateur : suppression du groupe
 // Groupes en ligne déjà ouverts ici (« Mes groupes »), le groupe affiché en tête
 const groups = () => { let l; try { l = JSON.parse(storageGet('paddock.pronoGroups', '') || '[]'); } catch { l = []; } const g = group(); return g ? [g, ...l.filter((x) => x.id !== g.id)] : l; };
 function useGroup(g) {
   storageSet('paddock.pronoGroups', JSON.stringify([{ id: g.id, name: g.name }, ...groups().filter((x) => x.id !== g.id)].slice(0, 20)));
   storageSet('paddock.pronoGroup', JSON.stringify({ id: g.id, name: g.name }));
+}
+// Retiré de « Mes groupes » (ici seulement : le groupe reste en ligne pour les autres)
+function forget(g) {
+  storageSet('paddock.pronoGroups', JSON.stringify(groups().filter((x) => x.id !== g.id)));
+  storageSet('paddock.pronoGroup', '');
 }
 // Lien personnel : le groupe avec ce pseudo sur un autre appareil (page web ou autre appli)
 const myLink = (g) => { const t = storageGet(tokKey(g), ''); return t ? `${SITE}${g.id}#k=${t}` : ''; };
@@ -93,6 +99,8 @@ function groupBox() {
       <p class="muted small">Vos amis pronostiquent depuis cette page web, sans l'appli ni le réseau local ; tout s'affiche ici aussi.</p>
       <div class="pd-actions"><input readonly value="${esc(SITE + g.id)}" class="pd-link"><button class="btn small" data-pd="copy">${icon('doc')} Copier le lien</button>
         <button class="btn small" data-pd="leave" title="Revenir aux pronostics de cet ordinateur (le groupe reste dans Mes groupes)">Quitter le groupe</button></div>
+      <div class="pd-actions"><button class="btn small" data-pd="forget" title="Le groupe disparaît de cet appareil ; il reste en ligne pour les autres joueurs">Retirer de mes groupes</button>
+        ${storageGet(adminKey(g), '') || storageGet(tokKey(g), '') ? '<button class="btn small" data-pd="delete" title="Efface le groupe et les pronostics de tous les joueurs (créateur du groupe seulement)">Supprimer le groupe</button>' : ''}</div>
       ${mine ? `<div class="pd-actions"><input readonly value="${esc(mine)}" class="pd-link"><button class="btn small" data-pd="mylink">${icon('doc')} Copier mon lien personnel</button></div>
       <p class="muted small">Lien personnel : ce groupe avec votre pseudo et vos points sur un autre appareil (téléphone, autre ordinateur). Gardez-le pour vous.</p>` : ''}
       ${list.length > 1 ? `<label class="small pd-name">Mes groupes <select data-pd-switch>${list.map((x) => `<option value="${esc(x.id)}" ${x.id === g.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></label>` : ''}</section>`;
@@ -168,10 +176,19 @@ export function initPredict() {
       if (act === 'copy') { await navigator.clipboard.writeText(SITE + group().id); toast('Lien copié', 2000, 'check'); return; }
       if (act === 'mylink') { await navigator.clipboard.writeText(myLink(group())); toast('Lien copié', 2000, 'check'); return; }
       if (act === 'leave') { if (!window.confirm('Quitter le groupe en ligne ? Vous pourrez le rouvrir depuis Mes groupes.')) return; storageSet('paddock.pronoGroup', ''); }
+      if (act === 'forget') { if (!window.confirm('Retirer ce groupe de vos groupes ? Il reste en ligne pour les autres joueurs.')) return; forget(group()); }
+      if (act === 'delete') {
+        if (!window.confirm('Supprimer ce groupe pour tout le monde ? Les pronostics de tous les joueurs seront effacés.')) return;
+        const g = group();
+        await api('/api/predictions/online', { method: 'DELETE', body: { g: g.id, admin: storageGet(adminKey(g), '') || undefined, tok: storageGet(tokKey(g), '') || undefined } });
+        forget(g);
+        toast('Groupe supprimé', 3000, 'check');
+      }
       if (act === 'open') useGroup(groups().find((x) => x.id === b.dataset.id));
       if (act === 'create') {
         b.disabled = true;
         const g = await api('/api/predictions/online', { method: 'POST', body: { name: $('[name="pdGroupName"]', box).value } });
+        if (g.admin) storageSet(adminKey(g), g.admin);
         useGroup(g);
         toast('Groupe créé : copiez le lien et envoyez-le à vos amis', 5000, 'check');
       }

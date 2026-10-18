@@ -517,6 +517,11 @@ async function handleApi(req, res, url) {
       const r = await pronosOnline('POST', g || 'new', { body });
       return sendJSON(res, r.status, r.data);
     }
+    case 'DELETE /api/predictions/online': {
+      const { g, ...body } = await readBody(req, 1e4);
+      const r = await pronosOnline('DELETE', g || '', { body });
+      return sendJSON(res, r.status, r.data);
+    }
     case 'POST /api/predictions': {
       const body = await readBody(req);
       try {

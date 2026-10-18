@@ -18,6 +18,9 @@
   .picks { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 12px 0; }
   button { font: inherit; font-weight: 600; background: var(--red); color: #fff; border: 0; border-radius: 999px; padding: 11px 20px; cursor: pointer; }
   button:disabled { opacity: .6; }
+  button.link { background: none; color: var(--dim); padding: 4px 8px; font-weight: 500; text-decoration: underline; }
+  button.ghost { background: none; color: #ff7a73; border: 1px solid #2c3039; }
+  .mg { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
   table { width: 100%; border-collapse: collapse; font-size: 15px; }
   th, td { text-align: left; padding: 7px 6px; border-bottom: 1px solid #23262d; }
   th { color: var(--dim); font-weight: 600; font-size: 13px; }
@@ -54,6 +57,8 @@
   // Groupes ouverts dans ce navigateur (« Mes groupes »), le plus récent en tête
   const myGroups = () => { try { return JSON.parse(store.get('pronos.groups') || '[]'); } catch { return []; } };
   const remember = (g) => store.set('pronos.groups', JSON.stringify([{ id: g.id, name: g.name }, ...myGroups().filter((x) => x.id !== g.id)].slice(0, 20)));
+  // Retiré de « Mes groupes » (ce navigateur seulement : le groupe reste en ligne pour les autres)
+  const forget = (gid) => store.set('pronos.groups', JSON.stringify(myGroups().filter((x) => x.id !== gid)));
 
   // quiet : relecture automatique (pronostics des autres) ; rien n'est redessiné si rien n'a changé ou
   // pendant la saisie, et les choix en cours sont gardés
@@ -129,12 +134,13 @@
   function createPage() {
     document.getElementById('gname').textContent = 'entre amis';
     const mine = myGroups();
-    document.getElementById('root').innerHTML = `${mine.length ? `<section class="box"><h2>Mes groupes</h2>${mine.map((g) => `<p><a href="/p/${esc(g.id)}">${esc(g.name)}</a></p>`).join('')}
+    document.getElementById('root').innerHTML = `${mine.length ? `<section class="box"><h2>Mes groupes</h2>${mine.map((g) => `<p class="mg"><a href="/p/${esc(g.id)}">${esc(g.name)}</a><button type="button" class="link" data-forget="${esc(g.id)}" title="Le groupe disparaît de ce navigateur ; il reste en ligne pour les autres joueurs">Retirer</button></p>`).join('')}
       <p class="dim msg">Groupes ouverts dans ce navigateur. Sur un autre appareil, utilisez votre lien personnel (en bas de la page du groupe).</p></section>` : ''}
       <section class="box"><h2>Créer un groupe</h2>
       <form id="nf"><label>Nom du groupe<input name="name" maxlength="40" required placeholder="ex. Les copains"></label>
         <p><button type="submit">Créer le groupe</button></p><p class="msg" id="msg"></p></form>
       <p class="dim msg">Vous recevez un lien à envoyer à vos amis : chacun pronostique la pole et le podium de chaque Grand Prix depuis cette page, sans rien installer. Le groupe s'ouvre aussi dans l'application Paddock Live (Saison → Pronostics → Rejoindre).</p></section>`;
+    document.querySelectorAll('[data-forget]').forEach((b) => { b.onclick = () => { forget(b.dataset.forget); createPage(); }; });
     const f = document.getElementById('nf');
     f.onsubmit = async (e) => {
       e.preventDefault();
@@ -143,6 +149,7 @@
         const r = await fetch('/p/api/new', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: f.elements.name.value }) });
         const out = await r.json();
         if (!r.ok) throw new Error(out.error || 'Erreur');
+        if (out.admin) store.set(`pronos.admin.${out.id}`, out.admin);
         location.href = `/p/${out.id}?new=1`;
       } catch (err) { const m = document.getElementById('msg'); m.className = 'msg bad'; m.textContent = err.message; f.querySelector('button').disabled = false; }
     };
@@ -176,9 +183,35 @@
     const b = me.querySelector('button');
     b.onclick = async () => { try { await navigator.clipboard.writeText(link); b.textContent = 'Lien copié'; } catch { me.querySelector('input').select(); } };
   }
+  // Groupe à retirer de ce navigateur, ou à supprimer pour tout le monde (créateur du groupe)
+  function removeBox() {
+    const admin = store.get(`pronos.admin.${id}`);
+    const box = document.createElement('section');
+    box.className = 'box';
+    box.innerHTML = `<h2>Retirer ou supprimer le groupe</h2><p class="dim msg">Retirer : le groupe disparaît de ce navigateur et reste en ligne pour les autres joueurs.${admin || store.get(KEY) ? ' Supprimer : le groupe et les pronostics de tous les joueurs sont effacés (créateur du groupe seulement).' : ''}</p>
+      <div class="picks"><button type="button" class="ghost" id="forget">Retirer de mes groupes</button>${admin || store.get(KEY) ? '<button type="button" class="ghost" id="del">Supprimer le groupe</button>' : ''}</div><p class="msg" id="delMsg"></p>`;
+    document.querySelector('main').insertBefore(box, document.querySelector('footer'));
+    box.querySelector('#forget').onclick = () => {
+      if (!confirm('Retirer ce groupe de vos groupes ? Il reste en ligne pour les autres joueurs.')) return;
+      forget(id);
+      location.href = '/p/';
+    };
+    const del = box.querySelector('#del');
+    if (del) del.onclick = async () => {
+      if (!confirm('Supprimer ce groupe pour tout le monde ? Les pronostics de tous les joueurs seront effacés.')) return;
+      del.disabled = true;
+      try {
+        const r = await fetch(`/p/api/${id}`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ admin: admin || undefined, tok: store.get(KEY) || undefined }) });
+        const out = await r.json();
+        if (!r.ok) throw new Error(out.error || 'Erreur');
+        forget(id);
+        location.href = '/p/';
+      } catch (err) { const m = box.querySelector('#delMsg'); m.className = 'msg bad'; m.textContent = err.message; del.disabled = false; }
+    };
+  }
   if (!id) createPage();
   else {
-    load().then(() => { if (view?.group) invite(); }).catch(() => { document.getElementById('root').innerHTML = '<p class="msg bad">Serveur injoignable : réessayez dans un instant.</p>'; });
+    load().then(() => { if (view?.group) { invite(); removeBox(); } }).catch(() => { document.getElementById('root').innerHTML = '<p class="msg bad">Serveur injoignable : réessayez dans un instant.</p>'; });
     // Pronostics des autres relus toutes les 5 s, et au retour sur la page
     setInterval(() => { if (!document.hidden) load(true).catch(() => {}); }, 5000);
     document.addEventListener('visibilitychange', () => { if (!document.hidden) load(true).catch(() => {}); });

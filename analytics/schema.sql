@@ -52,8 +52,10 @@ CREATE TABLE IF NOT EXISTS studio (k TEXT PRIMARY KEY, v TEXT NOT NULL, at INTEG
 CREATE TABLE IF NOT EXISTS studio_fail (ip TEXT NOT NULL, day TEXT NOT NULL, n INTEGER NOT NULL, PRIMARY KEY (ip, day));
 
 -- Pronostics entre amis en ligne : groupes (lien /p/<id> à partager), pronostics de chaque joueur
--- (tok : jeton du navigateur ou de l'appli qui a pris le pseudo) et groupes créés par adresse et par jour
+-- (tok : jeton du navigateur ou de l'appli qui a pris le pseudo), jeton du créateur (suppression du
+-- groupe) et groupes créés par adresse et par jour
 CREATE TABLE IF NOT EXISTS pronos_groups (id TEXT PRIMARY KEY, name TEXT NOT NULL, at INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS pronos (grp TEXT NOT NULL, year INTEGER NOT NULL, round INTEGER NOT NULL, pkey TEXT NOT NULL, name TEXT NOT NULL,
   pole TEXT, p1 TEXT, p2 TEXT, p3 TEXT, tok TEXT NOT NULL, at INTEGER NOT NULL, PRIMARY KEY (grp, year, round, pkey));
+CREATE TABLE IF NOT EXISTS pronos_admins (grp TEXT PRIMARY KEY, tok TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS pronos_new (ip TEXT NOT NULL, day TEXT NOT NULL, n INTEGER NOT NULL, PRIMARY KEY (ip, day));
