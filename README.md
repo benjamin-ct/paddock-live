@@ -35,6 +35,7 @@ La liste complète est plus bas : **[toutes les fonctionnalités](#-toutes-les-f
 | ![Saison : course au titre, et quand le titre peut se jouer](docs/screenshots/saison-course-au-titre.png) | ![Saison : duels entre coéquipiers ou pilote contre pilote](docs/screenshots/saison-duels.png) |
 | ![Météo du circuit : temps actuel, prévisions du week-end et radar de la pluie](docs/screenshots/radar.png) | ![Saison : pronostics entre amis](docs/screenshots/pronostics.png) |
 | ![Radios d'équipe retranscrites et traduites](docs/screenshots/radios.png) | ![Analyse : comparaison de deux tours, secteur par secteur](docs/screenshots/analyse-comparaison.png) |
+| ![Secteurs : meilleurs secteurs, tour idéal, vitesses et records du circuit](docs/screenshots/secteurs.png) | ![Saison : profil des circuits (longueur, dépassements, pneus, circuits les plus proches)](docs/screenshots/saison-circuits.png) |
 
 <img src="docs/screenshots/mini-classement.png" alt="Mini-classement flottant, toujours au premier plan" width="380" align="right">
 
