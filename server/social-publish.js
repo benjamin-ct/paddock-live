@@ -52,7 +52,9 @@ export async function saveAccount(net, b) {
     const list = pages?.data || [];
     const page = list.find((p) => p.id === str(b.pageId)) || list.find((p) => p.instagram_business_account) || list[0];
     if (!page) throw new Error('Aucune page Facebook accessible avec ce jeton');
-    saveConfig({ social: { ...conf(), meta: { appId, appSecret, pageId: page.id, pageName: page.name, pageToken: page.access_token, igId: page.instagram_business_account?.id || '', igUsername: page.instagram_business_account?.username || '' } } });
+    // Toutes les pages du compte (et leurs comptes Instagram) gardées pour les statistiques de chaque compte
+    const all = list.slice(0, 10).map((p) => ({ pageId: p.id, pageName: p.name, pageToken: p.access_token, igId: p.instagram_business_account?.id || '', igUsername: p.instagram_business_account?.username || '' }));
+    saveConfig({ social: { ...conf(), meta: { appId, appSecret, pageId: page.id, pageName: page.name, pageToken: page.access_token, igId: page.instagram_business_account?.id || '', igUsername: page.instagram_business_account?.username || '', pages: all } } });
   } else if (net === 'threads') {
     const appSecret = str(b.appSecret); const token = str(b.token, 1000);
     if (!appSecret || !token) throw new Error('Clé secrète Threads et jeton nécessaires');

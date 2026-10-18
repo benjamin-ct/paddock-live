@@ -18,6 +18,7 @@ import { pushApi } from './alerts.js';
 import { packFeeds } from '../shared/feed-pack.js';
 import { cleanPostRequest, rewritePost } from './summarize.js';
 import { buildSeason, SEASON_TTL } from './season-cache.js';
+import { accountStats } from './account-stats.js';
 
 // Empreinte du code (la même que dans l'appli) : SHA-256 de « paddock-live:<CODE> » (STUDIO_CODE_HASH :
 // autre empreinte, pour les tests)
@@ -94,7 +95,9 @@ async function open(raw, sealed) {
 function cleanVault(v) {
   const s = (x, max = 2000) => (typeof x === 'string' ? x.slice(0, max) : '');
   const out = { at: Date.now() };
-  if (v?.meta?.pageToken) out.meta = { pageId: s(v.meta.pageId, 40), pageName: s(v.meta.pageName, 120), pageToken: s(v.meta.pageToken), igId: s(v.meta.igId, 40), igUsername: s(v.meta.igUsername, 60) };
+  const page = (p) => ({ pageId: s(p?.pageId, 40), pageName: s(p?.pageName, 120), pageToken: s(p?.pageToken), igId: s(p?.igId, 40), igUsername: s(p?.igUsername, 60) });
+  // pages : toutes les pages du compte Meta (statistiques de chaque compte)
+  if (v?.meta?.pageToken) out.meta = { ...page(v.meta), pages: (Array.isArray(v.meta.pages) ? v.meta.pages : []).slice(0, 10).map(page).filter((p) => p.pageToken) };
   if (v?.threads?.token) out.threads = { token: s(v.threads.token), userId: s(v.threads.userId, 40), username: s(v.threads.username, 60), expiresAt: Number(v.threads.expiresAt) || null };
   if (v?.bluesky?.appPassword) out.bluesky = { handle: s(v.bluesky.handle, 120), appPassword: s(v.bluesky.appPassword, 100), did: s(v.bluesky.did, 120) };
   if (v?.tiktok?.refreshToken) out.tiktok = { clientKey: s(v.tiktok.clientKey, 200), clientSecret: s(v.tiktok.clientSecret, 200), accessToken: s(v.tiktok.accessToken), expiresAt: Number(v.tiktok.expiresAt) || 0, refreshToken: s(v.tiktok.refreshToken), openId: s(v.tiktok.openId, 200), name: s(v.tiktok.name, 120) };
@@ -632,8 +635,13 @@ export async function studioApi(req, env, url) {
   }
   if (path === 'stats' && req.method === 'GET') {
     const v = await refresh(env, a.raw, vault);
-    // 8 posts au plus : nombre de requêtes du serveur limité par appel
-    return json(await postStats(JSON.parse(await getRow(env, 'history') || '[]'), { meta: v.meta, threads: v.threads, bluesky: v.bluesky }, { limit: 8 }));
+    // 8 posts au plus : nombre de requêtes du serveur limité par appel ; chiffres de chaque compte en plus
+    const youtubeToken = v.youtube ? (await clipAccount(env, a.raw, v, 'youtube').catch(() => null))?.accessToken || null : null;
+    const [posts, accounts] = await Promise.all([
+      postStats(JSON.parse(await getRow(env, 'history') || '[]'), { meta: v.meta, threads: v.threads, bluesky: v.bluesky }, { limit: 8 }),
+      accountStats(v, { youtubeToken }),
+    ]);
+    return json({ ...posts, accounts });
   }
   if (path === 'season' && req.method === 'GET') {
     const year = Number(url.searchParams.get('year'));

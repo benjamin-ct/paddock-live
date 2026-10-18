@@ -234,6 +234,15 @@ async function seasonView(body, { restore }) {
 }
 
 // ---------- Statistiques des posts ----------
+// Chiffres des comptes (28 derniers jours, sauf abonnés, publications et vues totales)
+const ACC_LABELS = [['followers', 'abonnés'], ['newFollowers', 'nouveaux abonnés'], ['posts', 'publications'], ['views', 'vues'], ['totalViews', 'vues au total'], ['reach', 'comptes touchés'],
+  ['profileViews', 'visites du profil'], ['engaged', 'comptes engagés'], ['interactions', 'interactions'], ['likes', 'j\'aime'], ['comments', 'comm.'], ['shares', 'partages']];
+const accountsHtml = (accounts) => `<h3 class="section">Mes comptes <small>activité des 28 derniers jours</small></h3>
+  <div class="tiles">${accounts.map((a) => `<div class="tile"><b>${fmtN(Object.values(a.nets).reduce((t, x) => t + (x.stats?.followers || 0), 0))}</b><small>abonnés ${esc(a.name)}</small></div>`).join('')}</div>
+  <div class="list">${accounts.map((a) => `<div class="card post"><div class="t">${esc(a.name)}</div>${Object.entries(a.nets).map(([n, x]) => {
+    const vals = x.stats ? ACC_LABELS.filter(([k]) => x.stats[k] != null).map(([k, l]) => `<span class="metric"><b>${fmtN(x.stats[k])}</b>${l}</span>`).join('') : `<span class="hint">${esc(x.note || x.error || 'indisponible')}</span>`;
+    return `<div class="net-stats"><span class="net"><a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(NET_NAMES[n] || n)}</a></span><div class="metrics">${vals}</div></div>`;
+  }).join('')}</div>`).join('')}</div>`;
 const STAT_LABELS = [['views', 'Vues'], ['reach', 'Portée'], ['likes', 'J\'aime'], ['comments', 'Comm.'], ['shares', 'Partages'], ['saves', 'Enreg.']];
 async function statsTab(body, { force, restore, current }) {
   // Statistiques relues au plus toutes les 2 minutes (sauf « Actualiser »)
@@ -250,8 +259,8 @@ async function statsTab(body, { force, restore, current }) {
 }
 function renderStats(body, r, stale) {
   const f = Object.entries(r.followers || {});
-  body.innerHTML = `${f.length ? `<div class="tiles">${f.map(([n, v]) => `<div class="tile"><b>${fmtN(v)}</b><small>abonnés ${esc(NET_NAMES[n] || n)}</small></div>`).join('')}</div>` : ''}
-    ${stale ? '<p class="status"><span class="dot"></span>Mise à jour…</p>' : ''}
+  body.innerHTML = `${stale ? '<p class="status"><span class="dot"></span>Mise à jour…</p>' : ''}
+    ${r.accounts?.length ? accountsHtml(r.accounts) : f.length ? `<div class="tiles">${f.map(([n, v]) => `<div class="tile"><b>${fmtN(v)}</b><small>abonnés ${esc(NET_NAMES[n] || n)}</small></div>`).join('')}</div>` : ''}
     <div id="schedlist"></div>
     <div class="row section-row"><h3 class="section grow">Posts publiés</h3><button class="btn small" id="statsimport" title="Ajoute aux statistiques les posts des 30 derniers jours publiés hors du Studio">${icon('refresh')}Retrouver mes posts</button></div>
     ${(r.posts || []).length ? `<div class="list">${r.posts.map((p) => `<div class="card post"><div class="card-top"><time>${esc(new Date(p.at).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))}</time><span class="grow"></span><button class="iconbtn small" data-statsremove="${esc(p.key)}" aria-label="Retirer des statistiques" title="Retirer des statistiques">${icon('close')}</button></div><div class="t">${esc(p.title || 'Post')}</div>

@@ -21,7 +21,7 @@ export function studioVault(c = getConfig()) {
   const s = c.social || {};
   const f1tv = c.f1tvToken && !tokenInfo(c.f1tvToken).expired ? c.f1tvToken : null;
   return {
-    meta: s.meta?.pageToken ? { pageId: s.meta.pageId, pageName: s.meta.pageName, pageToken: s.meta.pageToken, igId: s.meta.igId, igUsername: s.meta.igUsername } : null,
+    meta: s.meta?.pageToken ? { pageId: s.meta.pageId, pageName: s.meta.pageName, pageToken: s.meta.pageToken, igId: s.meta.igId, igUsername: s.meta.igUsername, pages: s.meta.pages || [] } : null,
     bluesky: s.bluesky?.appPassword ? { handle: s.bluesky.handle, appPassword: s.bluesky.appPassword, did: s.bluesky.did || '' } : null,
     threads: s.threads?.token ? { token: s.threads.token, userId: s.threads.userId, username: s.threads.username, expiresAt: s.threads.expiresAt || null } : null,
     tiktok: s.tiktok?.refreshToken ? { clientKey: s.tiktok.clientKey, clientSecret: s.tiktok.clientSecret, accessToken: s.tiktok.accessToken || '', expiresAt: s.tiktok.expiresAt || 0, refreshToken: s.tiktok.refreshToken, openId: s.tiktok.openId || '', name: s.tiktok.name || '' } : null,
