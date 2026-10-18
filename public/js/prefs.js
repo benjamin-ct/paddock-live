@@ -18,6 +18,7 @@ const DEFAULTS = {
   teamLogos: true,        // logos des écuries (classement, championnat) plutôt que barres de couleur
   logoColor: true,        // logos dans leurs couleurs officielles (sinon logo blanc sur la couleur d'équipe)
   keepAwake: true,        // écran toujours allumé pendant une séance
+  phoneFull: false,       // téléphone : tous les onglets et réglages de l'ordinateur (sinon version simplifiée)
   motion: true,           // animations de l'interface (désactivées aussi si le système le demande)
   momentsSpoil: false,    // replay : détail des moments clés à venir affiché
   lang: LANG,             // langue de l'interface : 'fr' | 'en' (voir i18n.js)

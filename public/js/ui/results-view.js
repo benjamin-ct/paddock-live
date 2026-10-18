@@ -1,7 +1,7 @@
 // Page Résultats (barre latérale, « Voir les résultats » de l'accueil) : la séance en cartes
 // (podium, remontées, stratégies, neutralisations, abandons, meilleur tour) et le classement complet.
 // Séance chargée (direct, replay ou dernière séance), au rythme du délai TV.
-import { $ } from '../util.js';
+import { $, placeView } from '../util.js';
 import { store, versionOf } from '../store.js';
 import { t, EN } from '../i18n.js';
 import { gpShort, sessionLabel } from '/shared/gp-names.js';
@@ -39,9 +39,7 @@ function render() {
 export function openResults() {
   const view = $('#resultsView');
   if (!view) return;
-  view.style.top = `${Math.round(document.querySelector('.topbar').getBoundingClientRect().bottom)}px`;
-  const nav = $('#mobNav');
-  view.style.bottom = nav && !nav.hidden ? `${nav.offsetHeight}px` : '';
+  placeView(view);
   view.hidden = false;
   lastKey = '';
   render();

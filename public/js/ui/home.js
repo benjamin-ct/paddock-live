@@ -2,7 +2,7 @@
 // résultat (replay depuis le début ou tableau de bord), dernières actualités, raccourcis.
 // Ouverte au lancement quand aucune séance n'est en cours ; pendant une séance, l'appli s'ouvre
 // directement sur le Direct.
-import { $, $$, esc, api, drivers } from '../util.js';
+import { $, $$, esc, api, drivers, placeView } from '../util.js';
 import { store, on } from '../store.js';
 import { icon } from '../icons.js';
 import { LOCALE, EN, t } from '../i18n.js';
@@ -233,12 +233,6 @@ async function news(again = true) {
   } catch { box.innerHTML = '<div class="muted small">Actualités indisponibles.</div>'; }
 }
 
-// Entre la barre du haut et, sur téléphone, la barre de navigation du bas
-function place(view = $('#homeView')) {
-  const nav = $('#mobNav');
-  view.style.top = `${Math.round(document.querySelector('.topbar').getBoundingClientRect().bottom)}px`;
-  view.style.bottom = nav && !nav.hidden ? `${nav.offsetHeight}px` : '';
-}
 
 export function openHome() {
   const view = $('#homeView');
@@ -246,7 +240,7 @@ export function openHome() {
   import('./season.js').then((m) => m.closeSeason());
   import('./news.js').then((m) => m.closeNews());
   import('./replays.js').then((m) => m.closeReplays());
-  place();
+  placeView($('#homeView'));
   view.hidden = false;
   render();
   clearInterval(timer);
@@ -304,7 +298,7 @@ export function initHome() {
   const view = $('#homeView');
   // Fenêtres détachées (second écran) : pas d'accueil
   if (!view || new URLSearchParams(location.search).has('win')) return;
-  addEventListener('resize', () => { if (isHomeOpen()) place(); });
+  addEventListener('resize', () => { if (isHomeOpen()) placeView($('#homeView')); });
   view.addEventListener('click', (e) => {
     const b = e.target.closest('[data-home]');
     if (b) act(b.dataset.home);
@@ -345,7 +339,7 @@ function noLiveCheck(show = true) {
   const covered = COVERS.some((s) => $(s) && !$(s).hidden);
   if (!schedule || running || covered || resultsOpen || store.status?.mode === 'replay') { view.hidden = true; return; }
   if (view.hidden && !show) return;
-  if (view.hidden) { place(view); view.hidden = false; noLiveKey = ''; }
+  if (view.hidden) { placeView(view); view.hidden = false; noLiveKey = ''; }
   const nx = nextSession(), ls = lastSession();
   const key = `${nx?.t}|${ls?.t}|${nx ? countdown(nx.t - Date.now()) : ''}`;
   if (key === noLiveKey) return;
@@ -377,7 +371,7 @@ export function initNoLive() {
   let mode = store.status?.mode;
   on('status', (s) => { noLiveCheck(mode === 'replay' && s?.mode !== 'replay'); mode = s?.mode; });
   on('events', (events) => { if (events.some(([t]) => t === 'SessionStatus' || t === 'SessionInfo')) noLiveCheck(false); });
-  addEventListener('resize', () => { if (!view.hidden) place(view); });
+  addEventListener('resize', () => { if (!view.hidden) placeView(view); });
   setInterval(() => noLiveCheck(false), 5000);
   noLiveCheck();
 }

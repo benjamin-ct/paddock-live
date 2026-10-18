@@ -38,6 +38,14 @@ l'application (Réglages → Application → Nouveautés).
 ### Téléphone et tablette
 - iPhone, appli ajoutée à l'écran d'accueil : le haut de l'écran n'est plus flou. La page commence sous la
   barre d'état (l'heure, la batterie), claire ou noire selon l'apparence choisie.
+- Version simplifiée sur téléphone, avec l'essentiel seulement :
+  - Direct : classement, circuit, direction de course et radios ;
+  - Saison : calendrier, classements, course au titre, résultats et pronostics ;
+  - Actu : toute l'actu, importantes et favoris ;
+  - Réglages : apparence, alertes et favoris, délai TV, à propos.
+  La version complète reste disponible dans Réglages → Application.
+- La barre du bas reste affichée dans la Saison et l'Actu (le bouton « Direct » remplace « Retour au direct »).
+- Saison : chaque rubrique s'ouvre en haut de la page, et le calendrier directement sur le prochain Grand Prix.
 
 ## v1.27.33 — 2026-10-18
 

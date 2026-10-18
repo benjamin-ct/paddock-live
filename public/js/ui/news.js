@@ -1,6 +1,6 @@
 // Espace « Actu » : toute l'actualité de la F1 au même endroit (F1, FIA, écuries, pilotes, médias
 // du monde entier), traduite d'avance par le serveur Paddock Live, avec des alertes pour ce qui compte.
-import { $, $$, esc, api, storageGet, storageSet, drivers, teamColor } from '../util.js';
+import { $, $$, esc, api, storageGet, storageSet, drivers, teamColor, placeView } from '../util.js';
 import { store, on } from '../store.js';
 import { prefs, setPref, isFav } from '../prefs.js';
 import { NEWS_TEAMS, newsTags, webLink } from '/shared/news.js';
@@ -613,7 +613,7 @@ export function openNews(sec) {
   import('./season.js').then((m) => m.closeSeason());
   import('./home.js').then((m) => { m.homeTouched(); m.closeHome(); });
   import('./replays.js').then((m) => m.closeReplays());
-  $('#newsView').style.top = `${Math.round(document.querySelector('.topbar').getBoundingClientRect().bottom)}px`;
+  placeView($('#newsView'));
   $('#newsView').hidden = false;
   $('#newsBtn')?.classList.add('on');
   limit = PAGE;
