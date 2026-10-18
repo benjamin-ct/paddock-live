@@ -9,7 +9,7 @@ process.env.PADDOCK_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'paddock-st
 const CODE = 'ESSAI-42';
 const HASH = (await import('node:crypto')).createHash('sha256').update(`paddock-live:${CODE}`).digest('hex');
 process.env.PADDOCK_CREATOR_HASH = HASH;
-const { studioApi, freshF1tv, runSchedule } = await import('../analytics/studio.js');
+const { studioApi, freshF1tv, runSchedule, seasonRow } = await import('../analytics/studio.js');
 const { studioKey, enableStudio, syncStudio, disableStudio, studioInfo, studioRewrite } = await import('../server/studio-sync.js');
 const { saveConfig, getConfig } = await import('../server/config.js');
 const { timing } = await import('../shared/meta-publish.js');
@@ -490,4 +490,32 @@ test('appli : post écrit à la main mis en forme par l\'IA du serveur (page web
   assert.equal(seen.key, 'cle-studio');
   assert.equal(seen.body.text, 'Norris prolonge chez McLaren jusqu\'en 2030.');
   saveConfig({ studio: null });
+});
+
+test('Studio : saison résumée par le serveur, gardée 30 minutes, ancienne version si Jolpica ne répond pas', async () => {
+  const urls = [];
+  let down = false;
+  const page = (extra) => ({ MRData: { total: '1', ...extra } });
+  const fetchFn = async (u) => {
+    urls.push(String(u));
+    if (down) return new Response('', { status: 503 });
+    const p = new URL(u).pathname;
+    if (p.endsWith('/driverstandings.json')) return new Response(JSON.stringify(page({ StandingsTable: { StandingsLists: [{ DriverStandings: [{ position: '1', points: '300', wins: '7', Driver: { givenName: 'Lando', familyName: 'Norris', code: 'NOR', permanentNumber: '4' }, Constructors: [{ name: 'McLaren', constructorId: 'mclaren' }] }] }] } })));
+    if (p.endsWith('/constructorstandings.json')) return new Response(JSON.stringify(page({ StandingsTable: { StandingsLists: [{ ConstructorStandings: [] }] } })));
+    if (p.endsWith('/2026.json')) return new Response(JSON.stringify(page({ RaceTable: { Races: [{ round: '1', raceName: 'Australian Grand Prix', date: '2026-03-08', time: '04:00:00Z', Circuit: { circuitId: 'albert_park', Location: { country: 'Australia' } } }] } })));
+    return new Response(JSON.stringify({ MRData: { total: '0', RaceTable: { Races: [] } } }));
+  };
+  const wait = async () => {};
+  const t0 = Date.parse('2026-10-18T08:00:00Z');
+  const a = await seasonRow(env, 2026, { now: t0, fetchFn, wait });
+  assert.equal(a.v.races[0].name, 'Australian Grand Prix');
+  assert.equal(a.v.drivers[0].points, 300);
+  const n = urls.length;
+  assert.equal(n, 6);
+  // Moins de 30 minutes après : version gardée, aucune demande
+  assert.equal((await seasonRow(env, 2026, { now: t0 + 29 * 60e3, fetchFn, wait })).at, t0);
+  assert.equal(urls.length, n);
+  // Plus tard, Jolpica en panne : l'ancienne version sert
+  down = true;
+  assert.equal((await seasonRow(env, 2026, { now: t0 + 31 * 60e3, fetchFn, wait })).at, t0);
 });

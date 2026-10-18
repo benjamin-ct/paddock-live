@@ -182,8 +182,7 @@ function renderNews(body, items, { at, stale = false }) {
     ${kinds.length > 1 ? `<div class="chips" id="nkinds"><button data-k="" class="${state.nkind ? '' : 'on'}">Tout <small>${big.length}</small></button>${kinds.map((k) => `<button data-k="${k.key}" class="${state.nkind === k.key ? 'on' : ''}"><i style="background:${k.color}"></i>${esc(KIND_NAMES[k.key] || k.label)} <small>${k.n}</small></button>`).join('')}</div>` : ''}
     <p class="status">${stale ? '<span class="dot"></span>Mise à jour…' : `À jour · ${new Date(at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`}</p>
     <div class="features"><button class="card feature" id="manual">${icon('pen')}<span class="grow"><b>Écrire un post</b><small>Votre texte, mis en forme par l'IA si besoin ; visuels faits tout seuls</small></span>${icon('next')}</button>
-    <button class="card feature" id="recap">${icon('spark')}<span class="grow"><b>Récap de la semaine</b><small>Carrousel des 5 plus grosses news des 7 derniers jours</small></span>${icon('next')}</button>
-    <button class="card feature" id="launch">${icon('rocket')}<span class="grow"><b>Kit de lancement</b><small>Les posts de lancement sur tous les réseaux, au même endroit</small></span>${icon('next')}</button></div>
+    <button class="card feature" id="recap">${icon('spark')}<span class="grow"><b>Récap de la semaine</b><small>Carrousel des 5 plus grosses news des 7 derniers jours</small></span>${icon('next')}</button></div>
     ${list.length ? `<div class="list">${list.map((it, i) => {
       const k = newsKind(it);
       const posted = done.get(it);
@@ -201,7 +200,6 @@ function renderNews(body, items, { at, stale = false }) {
   $$('#nkinds [data-k]', body).forEach((b) => { b.onclick = () => { state.nkind = b.dataset.k || null; renderNews(body, items, { at, stale }); }; });
   $('#manual', body).onclick = (e) => open(e.currentTarget, async () => (await posts()).manualEditor(back));
   $('#recap', body).onclick = (e) => open(e.currentTarget, async () => (await posts()).recapEditor(back));
-  $('#launch', body).onclick = (e) => open(e.currentTarget, async () => (await import('./launch.js')).launchKit(back));
   $$('[data-i]', body).forEach((b) => { b.onclick = () => { setRead(list[Number(b.dataset.i)].id); open(b, async () => (await posts()).newsEditor(list[Number(b.dataset.i)], done.get(list[Number(b.dataset.i)]), back)); }; });
 }
 
@@ -255,7 +253,7 @@ function renderStats(body, r, stale) {
   body.innerHTML = `${f.length ? `<div class="tiles">${f.map(([n, v]) => `<div class="tile"><b>${fmtN(v)}</b><small>abonnés ${esc(NET_NAMES[n] || n)}</small></div>`).join('')}</div>` : ''}
     ${stale ? '<p class="status"><span class="dot"></span>Mise à jour…</p>' : ''}
     <div id="schedlist"></div>
-    <div class="row section-row"><h3 class="section grow">Posts publiés</h3><button class="btn small" id="statsimport" title="Ajoute aux statistiques les posts des 30 derniers jours publiés à la main ou depuis le kit de démarrage">${icon('refresh')}Retrouver mes posts</button></div>
+    <div class="row section-row"><h3 class="section grow">Posts publiés</h3><button class="btn small" id="statsimport" title="Ajoute aux statistiques les posts des 30 derniers jours publiés hors du Studio">${icon('refresh')}Retrouver mes posts</button></div>
     ${(r.posts || []).length ? `<div class="list">${r.posts.map((p) => `<div class="card post"><div class="card-top"><time>${esc(new Date(p.at).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))}</time><span class="grow"></span><button class="iconbtn small" data-statsremove="${esc(p.key)}" aria-label="Retirer des statistiques" title="Retirer des statistiques">${icon('close')}</button></div><div class="t">${esc(p.title || 'Post')}</div>
       ${Object.entries(p.nets).map(([n, x]) => {
         const s = p.stats?.[n];

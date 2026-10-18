@@ -17,6 +17,7 @@ import { recentPosts, importEntries } from './post-import.js';
 import { pushApi } from './alerts.js';
 import { packFeeds } from '../shared/feed-pack.js';
 import { cleanPostRequest, rewritePost } from './summarize.js';
+import { buildSeason, SEASON_TTL } from './season-cache.js';
 
 // Empreinte du code (la même que dans l'appli) : SHA-256 de « paddock-live:<CODE> » (STUDIO_CODE_HASH :
 // autre empreinte, pour les tests)
@@ -45,6 +46,23 @@ async function getRow(env, k) {
 }
 async function setRow(env, k, v) {
   await env.DB.prepare('INSERT INTO studio (k, v, at) VALUES (?, ?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v, at = excluded.at').bind(k, v, Date.now()).run();
+}
+
+// ---------- Saison résumée (onglet Saison du Studio) ----------
+// Gardée dans la base, relue au plus toutes les 30 minutes (par la tâche planifiée, sinon à la
+// demande) ; l'ancienne version sert si Jolpica ne répond pas.
+export async function seasonRow(env, year, { now = Date.now(), fetchFn, wait } = {}) {
+  const key = `season:${year}`;
+  const row = JSON.parse(await getRow(env, key) || 'null');
+  if (row && now - row.at < SEASON_TTL) return row;
+  try {
+    const fresh = { at: now, v: await buildSeason(year, { fetchFn, wait }) };
+    await setRow(env, key, JSON.stringify(fresh));
+    return fresh;
+  } catch (err) {
+    if (row) return row;
+    throw err;
+  }
 }
 
 // ---------- Essais ratés ----------
@@ -616,6 +634,11 @@ export async function studioApi(req, env, url) {
     const v = await refresh(env, a.raw, vault);
     // 8 posts au plus : nombre de requêtes du serveur limité par appel
     return json(await postStats(JSON.parse(await getRow(env, 'history') || '[]'), { meta: v.meta, threads: v.threads, bluesky: v.bluesky }, { limit: 8 }));
+  }
+  if (path === 'season' && req.method === 'GET') {
+    const year = Number(url.searchParams.get('year'));
+    if (!Number.isInteger(year) || year < 1950 || year > new Date().getUTCFullYear() + 1) return json({ error: 'Année invalide' }, 400);
+    try { return json(await seasonRow(env, year)); } catch (err) { return json({ error: String(err?.message || err) }, 502); }
   }
   if (path === 'feed' && req.method === 'GET') return feed(req, url);
   if (path === 'feeds' && req.method === 'GET') return feeds();

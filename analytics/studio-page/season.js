@@ -3,7 +3,6 @@
 import { builtinNomination } from '/shared/tyres.js';
 import { raceWeekData, weekendData, recordsData, ratingsData, teamDuelsData, raceLapsData, seasonCaptions } from '/shared/social-season.js';
 import { raceFrame, raceVideoTiming } from '/shared/social-draw-season.js';
-import { summarize } from '/shared/season-data.js';
 import { parseRaceLaps } from '/shared/race-laps.js';
 import { circuitInfo } from '/shared/circuits-info.js';
 import { editionOf, recordsOf, recordYears } from '/shared/circuit-records.js';
@@ -48,13 +47,8 @@ const memoOf = (k, fn, ttl = Infinity) => {
   }
   return seasonMemo.get(k);
 };
-const seasonOf = (year) => memoOf(`s3-${year}`, async () => {
-  const races = (pages) => pages.flatMap((m) => m?.RaceTable?.Races || []);
-  // Calendrier et classements ensemble, puis les résultats (4 demandes par seconde au plus)
-  const [schedule, ds, cs] = await Promise.all([jolpica(`${year}`).then(races), jolpica(`${year}/driverstandings`), jolpica(`${year}/constructorstandings`)]);
-  const [results, quali, sprint] = await Promise.all([jolpica(`${year}/results`).then(races), jolpica(`${year}/qualifying`).then(races), jolpica(`${year}/sprint`).then(races)]);
-  return summarize({ schedule, driverStandings: ds[0]?.StandingsTable?.StandingsLists?.[0]?.DriverStandings, constructorStandings: cs[0]?.StandingsTable?.StandingsLists?.[0]?.ConstructorStandings, results, quali, sprint });
-}, 30 * 60e3);
+// Saison résumée par le serveur (lue chez Jolpica et tenue à jour toutes les 30 minutes) : une seule demande
+const seasonOf = (year) => memoOf(`s4-${year}`, async () => (await api(`season?year=${year}`)).v, 10 * 60e3);
 // Records du circuit : éditions précédentes lues dans les archives de la F1 (gardées sur le
 // téléphone, définitives ; une archive pas encore publiée sera relue la fois suivante)
 const readArchive = async (p) => JSON.parse((await (await api(`archive?p=${encodeURIComponent(p)}`, { raw: true })).text()).replace(/^﻿/, ''));
@@ -113,7 +107,7 @@ function raceList(races, def, upcoming) {
 export async function seasonTab(body, back) {
   const year = new Date().getUTCFullYear();
   const bar = `<div class="chips" id="stypes">${STYPES.map(([k, v]) => `<button data-st="${k}" class="${state.stype === k ? 'on' : ''}">${v}</button>`).join('')}</div>`;
-  body.innerHTML = `${bar}${skeleton(5)}<p class="hint center">Lecture de la saison (jusqu'à une minute la première fois)…</p>`;
+  body.innerHTML = `${bar}${skeleton(5)}<p class="hint center">Lecture de la saison…</p>`;
   const data = await seasonOf(year);
   if (!body.isConnected) return;
   const upcoming = ['raceweek', 'weekend', 'records'].includes(state.stype);

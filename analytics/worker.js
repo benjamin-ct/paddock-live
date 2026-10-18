@@ -12,7 +12,7 @@
 //   fichiers de la dernière version (download.js).
 // - tâche planifiée (toutes les 5 min) : alertes des grosses news sur le téléphone du créateur (alerts.js).
 import { cleanBatch, LABELS, FEATURE_GROUPS } from '../shared/stats.js';
-import { studioApi, runSchedule } from './studio.js';
+import { studioApi, runSchedule, seasonRow } from './studio.js';
 import { loginPage, dashboardPage } from './page.js';
 import { cleanRequest, translateBatch } from './translate.js';
 import { cleanSummaryRequest, summarizeArticle } from './summarize.js';
@@ -192,11 +192,13 @@ const periodOf = (url) => {
 
 export default {
   // Toutes les minutes : publications programmées de la page du créateur (un réseau par passage) ;
-  // toutes les 5 minutes, grosses news signalées sur son téléphone (s'il est abonné)
+  // toutes les 5 minutes, grosses news signalées sur son téléphone (s'il est abonné) ; saison du
+  // Studio tenue à jour (relue toutes les 30 minutes)
   async scheduled(event, env, ctx) {
     ctx.waitUntil((async () => {
       const sent = await runSchedule(env).catch(() => null);
       if (!sent && new Date(event.scheduledTime || Date.now()).getUTCMinutes() % 5 === 0) await newsAlerts(env).catch(() => null);
+      if (!sent && env.DB) await seasonRow(env, new Date().getUTCFullYear()).catch(() => null);
     })());
   },
   async fetch(req, env) {
