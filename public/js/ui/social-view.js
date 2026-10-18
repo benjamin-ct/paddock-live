@@ -578,6 +578,24 @@ async function render(dlg, keepHead = false) {
 // ---------- Statistiques des posts publiés ----------
 const fmtN = (v) => (v == null ? '—' : Number(v).toLocaleString());
 const STAT_LABELS = [['views', 'Vues'], ['reach', 'Portée'], ['likes', "J'aime"], ['comments', 'Comm.'], ['shares', 'Partages'], ['saves', 'Enreg.']];
+// Comptes (page web activée, comme dans le Studio) : abonnés et activité des 28 derniers jours par
+// réseau ; réseaux sans chiffres regroupés en bas. Libellé au singulier pour 1.
+const SINGULAR = { 'nouveaux abonnés': 'nouvel abonné', vues: 'vue', 'vues au total': 'vue au total', 'comptes touchés': 'compte touché', 'visites du profil': 'visite du profil',
+  'comptes engagés': 'compte engagé', interactions: 'interaction', partages: 'partage', publications: 'publication', abonnés: 'abonné' };
+const one = (n, l) => t((n === 1 && SINGULAR[l]) || l);
+const ACC_LABELS = [['newFollowers', 'nouveaux abonnés'], ['views', 'vues'], ['totalViews', 'vues au total'], ['reach', 'comptes touchés'], ['profileViews', 'visites du profil'],
+  ['engaged', 'comptes engagés'], ['interactions', 'interactions'], ['likes', "j'aime"], ['comments', 'comm.'], ['shares', 'partages'], ['posts', 'publications']];
+const netLink = (n, url) => (url ? `<a href="${esc(url)}" target="_blank" rel="noopener">${esc(NET_NAMES[n] || n)}</a>` : esc(NET_NAMES[n] || n));
+const accountsHtml = (accounts) => `<h4>${t('Mes comptes')} <span class="small muted">${t('activité des 28 derniers jours')}</span></h4>
+  <div class="posts-accs">${accounts.map((a) => {
+    const nets = Object.entries(a.nets);
+    const live = nets.filter(([, x]) => x.stats), off = nets.filter(([, x]) => !x.stats);
+    const total = live.reduce((n, [, x]) => n + (x.stats.followers || 0), 0);
+    return `<div class="posts-acc"><div class="row"><b>${esc(a.name)}</b><span class="spacer"></span><span><b>${fmtN(total)}</b> ${one(total, 'abonnés')}</span></div>
+      ${live.map(([n, x]) => `<div class="small"><b>${netLink(n, x.url)}</b> · <b>${fmtN(x.stats.followers)}</b> ${one(x.stats.followers, 'abonnés')}
+        <span class="muted">· ${ACC_LABELS.filter(([k]) => x.stats[k]).map(([k, l]) => `<b>${fmtN(x.stats[k])}</b> ${one(x.stats[k], l)}`).join(' · ') || t('aucune activité')}</span></div>`).join('')}
+      ${off.length ? `<div class="small muted">${off.map(([n, x]) => `${netLink(n, x.url)} · ${esc(x.note || x.error || t('indisponible'))}`).join(' — ')}</div>` : ''}</div>`;
+  }).join('')}</div>`;
 async function openStats() {
   let dlg = $('#postsStatsDlg');
   if (!dlg) {
@@ -594,7 +612,7 @@ async function openStats() {
   try {
     const r = await fetch('/api/social/stats').then((x) => x.json());
     const f = Object.entries(r.followers || {});
-    body.innerHTML = `${f.length ? `<div class="posts-stats-fol">${f.map(([n, v]) => `<div><b>${fmtN(v)}</b><span class="small muted">${t('abonnés')} ${NET_NAMES[n] || n}</span></div>`).join('')}</div>` : ''}
+    body.innerHTML = `${r.accounts?.length ? accountsHtml(r.accounts) : f.length ? `<div class="posts-stats-fol">${f.map(([n, v]) => `<div><b>${fmtN(v)}</b><span class="small muted">${t('abonnés')} ${NET_NAMES[n] || n}</span></div>`).join('')}</div>` : ''}
       ${(r.posts || []).length ? (r.posts || []).map((p) => `<div class="posts-stats-post">
         <div class="row"><b>${esc(p.title || t('Post'))}</b><span class="spacer"></span><span class="small muted">${esc(new Date(p.at).toLocaleString())}</span>
           <button class="btn small" data-statsremove="${esc(p.key)}" title="${t('Post supprimé sur les réseaux : le retirer des statistiques')}">${t('Retirer')}</button></div>

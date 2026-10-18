@@ -2481,6 +2481,9 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; gap: 5
 .posts-stats-fol { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
 .posts-stats-fol > div { background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px; padding: 8px 14px; display: flex; flex-direction: column; }
 .posts-stats-fol b { font-size: 20px; }
+.posts-accs { display: grid; gap: 10px; margin-bottom: 14px; }
+.posts-acc { background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; display: grid; gap: 5px; }
+.posts-acc a { color: inherit; }
 .posts-stats-post { border-top: 1px solid var(--border); padding: 10px 0; display: grid; gap: 3px; }
 /* Posts « news » : choix de la nouvelle, titre et résumé modifiables */
 .posts-news-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 10px; }
@@ -2888,6 +2891,7 @@ html.float-mini .float-bar { top: auto; bottom: 4px; right: 24px; }   /* en bas 
 .posts-dlg .posts-item:hover { border-color: var(--line-2); }
 .posts-dlg .posts-item canvas { border-radius: 9px; border: 0; }
 .posts-dlg .posts-caps { margin-top: 18px; padding: 14px; border: 1px solid var(--border); border-radius: 14px; background: var(--panel-2); }
+.posts-caps:not(:has(*)) { display: none; }   /* format Story : pas de texte à publier */
 .posts-dlg .posts-cap { background: var(--panel); }
 @media (max-width: 900px) {
   .posts-dlg { width: 100vw !important; height: 100dvh; max-height: 100dvh; border-radius: 0; border: 0; margin: 0; }

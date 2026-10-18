@@ -88,13 +88,13 @@ export async function syncStudio({ force = false, fetchFn } = {}) {
 }
 
 // Requête authentifiée vers la page web (si activée) ; null si désactivée ou injoignable
-export async function studioCall(path, { body, fetchFn = fetch } = {}) {
+export async function studioCall(path, { body, fetchFn = fetch, timeout = 15000 } = {}) {
   const st = getConfig().studio;
   if (!st?.key || !creatorEnabled()) return null;
   try {
     const res = await fetchFn(`${STUDIO_URL}/studio/api/${path}`, {
       method: body ? 'POST' : 'GET', headers: { 'X-Studio-Key': st.key, ...(body ? { 'Content-Type': 'application/json' } : {}) },
-      body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(15000),
+      body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(timeout),
     });
     return res.ok ? await res.json() : null;
   } catch { return null; }

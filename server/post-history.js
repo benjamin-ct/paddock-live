@@ -32,8 +32,11 @@ export async function removePost(key, { fetchFn } = {}) {
   return r.items;
 }
 
-// Statistiques des posts avec les comptes de cet ordinateur
-export async function statsOfPosts() {
+// Statistiques des posts : celles de la page web quand elle est activée (mêmes chiffres que le Studio,
+// avec l'activité de tous les comptes), sinon avec les comptes de cet ordinateur
+export async function statsOfPosts({ fetchFn } = {}) {
+  const remote = await studioCall('stats', { fetchFn, timeout: 60000 });
+  if (remote?.posts) return remote;
   const s = getConfig().social || {};
   return postStats(await postHistory(), { meta: s.meta, threads: s.threads, bluesky: s.bluesky });
 }
