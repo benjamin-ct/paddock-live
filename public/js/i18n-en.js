@@ -2419,4 +2419,6 @@ export default {
   "Envoi indisponible": "Sending unavailable",
   "Trop de messages aujourd'hui : réessayez demain": "Too many messages today: try again tomorrow",
   "Serveur Paddock Live indisponible (HTTP {})": "Paddock Live server unavailable (HTTP {})",
+  "Vous avez un compte GitHub ? Les bugs et idées peuvent aussi être suivis publiquement :": "Got a GitHub account? Bugs and ideas can also be tracked publicly:",
+  "ouvrir un ticket sur GitHub": "open an issue on GitHub",
 };
