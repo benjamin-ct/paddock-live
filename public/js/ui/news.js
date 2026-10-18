@@ -1,6 +1,6 @@
 // Espace « Actu » : toute l'actualité de la F1 au même endroit (F1, FIA, écuries, pilotes, médias
 // du monde entier), traduite d'avance par le serveur Paddock Live, avec des alertes pour ce qui compte.
-import { $, $$, esc, api, storageGet, storageSet, drivers, teamColor } from '../util.js';
+import { $, $$, esc, api, storageGet, storageSet, drivers, teamColor, placeView } from '../util.js';
 import { store, on } from '../store.js';
 import { prefs, setPref, isFav } from '../prefs.js';
 import { NEWS_TEAMS, newsTags, webLink } from '/shared/news.js';
@@ -613,7 +613,7 @@ export function openNews(sec) {
   import('./season.js').then((m) => m.closeSeason());
   import('./home.js').then((m) => { m.homeTouched(); m.closeHome(); });
   import('./replays.js').then((m) => m.closeReplays());
-  $('#newsView').style.top = `${Math.round(document.querySelector('.topbar').getBoundingClientRect().bottom)}px`;
+  placeView($('#newsView'));
   $('#newsView').hidden = false;
   $('#newsBtn')?.classList.add('on');
   limit = PAGE;
@@ -641,11 +641,19 @@ export function closeNews() {
   markRead();
 }
 
-// Dernières actualités (page d'accueil) : titre traduit si besoin, source, date
-export async function latestNews(n = 4) {
+// Dernières actualités (page d'accueil) : titre traduit si besoin, source, date. Titres pas encore
+// traduits (arrivés depuis l'ouverture de l'appli) : traductions du serveur relues, sinon demandées,
+// puis onTranslated() pour réafficher
+export async function latestNews(n = 4, onTranslated = null) {
   await load();
-  return items.filter((it) => srcById[it.src]?.enabled !== false && it.kind !== 'video').sort((a, b) => b.t - a.t).slice(0, n)
-    .map((it) => ({ id: it.id, title: titleOf(it).text, link: safeUrl(it.link), src: srcById[it.src]?.name || it.src, when: ago(it.t) }));
+  const list = items.filter((it) => srcById[it.src]?.enabled !== false && it.kind !== 'video').sort((a, b) => b.t - a.t).slice(0, n);
+  const missing = prefs.newsTranslate ? list.filter((it) => needs(it.title, it.lang)) : [];
+  if (missing.length && onTranslated) {
+    loadTranslations(true)
+      .then(() => Promise.all(missing.filter((it) => needs(it.title, it.lang)).map((it) => translate(it.title, it.lang, true))))
+      .then(onTranslated);
+  }
+  return list.map((it) => ({ id: it.id, title: titleOf(it).text, link: safeUrl(it.link), src: srcById[it.src]?.name || it.src, when: ago(it.t) }));
 }
 
 export function initNews() {

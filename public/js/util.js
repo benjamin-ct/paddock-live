@@ -189,3 +189,11 @@ export async function api(path, opts = {}) {
   if (!res.ok) throw new Error(data.error || `Erreur ${res.status}`);
   return data;
 }
+
+// Espace plein écran (Accueil, Saison, Actu, Replays, Résultats) : entre la barre du haut et, sur
+// téléphone, la barre d'onglets du bas (qui reste visible)
+export function placeView(view) {
+  const nav = document.querySelector('#mobNav');
+  view.style.top = `${Math.round(document.querySelector('.topbar').getBoundingClientRect().bottom)}px`;
+  view.style.bottom = nav && !nav.hidden ? `${nav.offsetHeight}px` : '';
+}

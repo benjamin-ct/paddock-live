@@ -37,7 +37,7 @@
   <p class="date">Pole et podium de chaque Grand Prix, entre amis · <a href="/">Paddock Live</a></p>
   <div id="root"><p class="dim">Chargement…</p></div>
   <footer>Pronostics fermés au début des qualifications (pole) et au départ de la course (podium) ; ceux des autres sont révélés à la fermeture.
-    Votre pseudo est réservé à ce navigateur. Aussi visible dans l'application <a href="/">Paddock Live</a>, onglet Saison → Pronostics.</footer>
+    Votre pseudo est réservé à ce navigateur et à votre lien personnel. Aussi visible dans l'application <a href="/">Paddock Live</a>, onglet Saison → Pronostics. <a href="/p/">Créer un autre groupe</a></footer>
 </main>
 <script>
   const id = location.pathname.split('/').filter(Boolean)[1] || '';
@@ -47,14 +47,36 @@
   const fmt = (t) => (t ? new Date(t).toLocaleString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—');
   const gp = (r) => r.fr || String(r.name || '').replace(/ Grand Prix.*$/, '');
   let view = null;
+  const sig = (v) => JSON.stringify({ ...v, now: 0 });
+  // Lien personnel (#k=jeton) : le pseudo de ce joueur sur un autre appareil ; jeton gardé, adresse nettoyée
+  const k = /[#&]k=([\w-]{20,64})/.exec(location.hash)?.[1];
+  if (id && k) { store.set(KEY, k); history.replaceState(null, '', location.pathname); }
+  // Groupes ouverts dans ce navigateur (« Mes groupes »), le plus récent en tête
+  const myGroups = () => { try { return JSON.parse(store.get('pronos.groups') || '[]'); } catch { return []; } };
+  const remember = (g) => store.set('pronos.groups', JSON.stringify([{ id: g.id, name: g.name }, ...myGroups().filter((x) => x.id !== g.id)].slice(0, 20)));
 
-  async function load() {
+  // quiet : relecture automatique (pronostics des autres) ; rien n'est redessiné si rien n'a changé ou
+  // pendant la saisie, et les choix en cours sont gardés
+  async function load(quiet = false) {
     const r = await fetch(`/p/api/${id}?tok=${encodeURIComponent(store.get(KEY))}`);
-    view = await r.json();
-    if (!r.ok) { document.getElementById('root').innerHTML = `<p class="msg bad">${esc(view.error || 'Groupe indisponible')}</p>`; return; }
+    const v = await r.json();
+    if (!r.ok) { if (!quiet) document.getElementById('root').innerHTML = `<p class="msg bad">${esc(v.error || 'Groupe indisponible')}</p>`; return; }
+    const f = document.getElementById('f');
+    if (quiet && (sig(v) === sig(view) || f?.contains(document.activeElement))) return;
+    const keep = quiet && f ? Object.fromEntries(new FormData(f)) : null;
+    view = v;
+    if (!quiet) remember(view.group);
     document.getElementById('gname').textContent = view.group.name;
     document.title = `${view.group.name} · Pronostics F1`;
     render();
+    const g = document.getElementById('f');
+    if (keep && g) for (const [k, val] of Object.entries(keep)) if (g.elements[k] && !g.elements[k].disabled) g.elements[k].value = val;
+    if (g) lockPodium(g);
+  }
+  // Podium : un pilote choisi à une place ne peut pas être choisi aux deux autres
+  function lockPodium(f) {
+    const sels = ['p1', 'p2', 'p3'].map((n) => f.elements[n]);
+    for (const s of sels) for (const o of s.options) o.disabled = !!o.value && sels.some((x) => x !== s && x.value === o.value);
   }
 
   const select = (name, value, off) => `<label>${{ pole: 'Pole position', p1: '1er', p2: '2e', p3: '3e' }[name]}<select name="${name}" ${off ? 'disabled' : ''}><option value="">—</option>${view.drivers.map((d) => `<option value="${esc(d.code)}" ${d.code === value ? 'selected' : ''}>${esc(d.code)} · ${esc(d.name)}</option>`).join('')}</select></label>`;
@@ -84,6 +106,7 @@
       ${waiting.map((r) => `<section class="box"><h2>R${r.round} · ${esc(gp(r))} <small>en attente des résultats</small></h2>${table(r)}</section>`).join('')}
       ${done.map((r, i) => `<details class="box" ${i === 0 ? 'open' : ''}><summary><b>R${r.round} · ${esc(gp(r))}</b> <small>pole ${esc(r.result.pole || '—')} · podium ${esc(r.result.podium.join(', ') || '—')}</small></summary>${table(r)}</details>`).join('')}`;
     const f = document.getElementById('f');
+    if (f) f.onchange = () => lockPodium(f);
     if (f) f.onsubmit = async (e) => {
       e.preventDefault();
       const v = Object.fromEntries(new FormData(f));
@@ -95,13 +118,71 @@
         if (!r.ok) throw new Error(out.error || 'Erreur');
         store.set(KEY, out.tok);
         store.set('pronos.name', v.name.trim());
+        myLink();
         await load();
         const m = document.getElementById('msg');
         if (m) { m.className = 'msg ok'; m.textContent = 'Pronostic enregistré'; }
       } catch (err) { msg.className = 'msg bad'; msg.textContent = err.message; f.querySelector('button').disabled = false; }
     };
   }
-  load().catch(() => { document.getElementById('root').innerHTML = '<p class="msg bad">Serveur injoignable : réessayez dans un instant.</p>'; });
+  // Sans groupe dans l'adresse (paddocklive.app/p/) : création d'un groupe, sans l'application
+  function createPage() {
+    document.getElementById('gname').textContent = 'entre amis';
+    const mine = myGroups();
+    document.getElementById('root').innerHTML = `${mine.length ? `<section class="box"><h2>Mes groupes</h2>${mine.map((g) => `<p><a href="/p/${esc(g.id)}">${esc(g.name)}</a></p>`).join('')}
+      <p class="dim msg">Groupes ouverts dans ce navigateur. Sur un autre appareil, utilisez votre lien personnel (en bas de la page du groupe).</p></section>` : ''}
+      <section class="box"><h2>Créer un groupe</h2>
+      <form id="nf"><label>Nom du groupe<input name="name" maxlength="40" required placeholder="ex. Les copains"></label>
+        <p><button type="submit">Créer le groupe</button></p><p class="msg" id="msg"></p></form>
+      <p class="dim msg">Vous recevez un lien à envoyer à vos amis : chacun pronostique la pole et le podium de chaque Grand Prix depuis cette page, sans rien installer. Le groupe s'ouvre aussi dans l'application Paddock Live (Saison → Pronostics → Rejoindre).</p></section>`;
+    const f = document.getElementById('nf');
+    f.onsubmit = async (e) => {
+      e.preventDefault();
+      f.querySelector('button').disabled = true;
+      try {
+        const r = await fetch('/p/api/new', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: f.elements.name.value }) });
+        const out = await r.json();
+        if (!r.ok) throw new Error(out.error || 'Erreur');
+        location.href = `/p/${out.id}?new=1`;
+      } catch (err) { const m = document.getElementById('msg'); m.className = 'msg bad'; m.textContent = err.message; f.querySelector('button').disabled = false; }
+    };
+  }
+  // Lien du groupe à envoyer (partage du téléphone, sinon copie)
+  function invite() {
+    const url = `${location.origin}/p/${id}`;
+    // Partage du système sur téléphone ; sur ordinateur, simple copie du lien
+    const share = navigator.share && matchMedia('(pointer: coarse)').matches;
+    const box = document.createElement('section');
+    box.className = 'box';
+    box.innerHTML = `<h2>Inviter des amis</h2><p class="dim msg">Envoyez-leur ce lien : ils pronostiquent depuis cette page, sans rien installer.</p>
+      <div class="picks"><input readonly value="${esc(url)}"><button type="button" id="share">${share ? 'Partager le lien' : 'Copier le lien'}</button></div>`;
+    document.querySelector('main').insertBefore(box, document.querySelector('footer'));
+    myLink();
+    box.querySelector('#share').onclick = async () => {
+      try { if (share) await navigator.share({ title: document.title, url }); else { await navigator.clipboard.writeText(url); box.querySelector('#share').textContent = 'Lien copié'; } } catch { /* partage annulé */ }
+    };
+  }
+  // Lien personnel : après le premier pronostic (jeton du pseudo)
+  function myLink() {
+    const tok = store.get(KEY);
+    if (!tok || document.getElementById('me')) return;
+    const link = `${location.origin}/p/${id}#k=${tok}`;
+    const me = document.createElement('section');
+    me.className = 'box';
+    me.id = 'me';
+    me.innerHTML = `<h2>Votre lien personnel</h2><p class="dim msg">Pour retrouver ce groupe avec votre pseudo et vos points sur un autre appareil (nouveau téléphone, ordinateur). Gardez-le pour vous : il permet de modifier vos pronostics. Pensez aussi à ajouter cette page à vos favoris.</p>
+      <div class="picks"><input readonly value="${esc(link)}"><button type="button">Copier mon lien</button></div>`;
+    document.querySelector('main').insertBefore(me, document.querySelector('footer'));
+    const b = me.querySelector('button');
+    b.onclick = async () => { try { await navigator.clipboard.writeText(link); b.textContent = 'Lien copié'; } catch { me.querySelector('input').select(); } };
+  }
+  if (!id) createPage();
+  else {
+    load().then(() => { if (view?.group) invite(); }).catch(() => { document.getElementById('root').innerHTML = '<p class="msg bad">Serveur injoignable : réessayez dans un instant.</p>'; });
+    // Pronostics des autres relus toutes les 5 s, et au retour sur la page
+    setInterval(() => { if (!document.hidden) load(true).catch(() => {}); }, 5000);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) load(true).catch(() => {}); });
+  }
 </script>
 </body>
 </html>

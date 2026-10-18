@@ -673,6 +673,26 @@ async function handleApi(req, res, url) {
       return sendJSON(res, 200, { ok: true });
     }
 
+    // Commandes à distance (Stream Deck, Bitfocus Companion…) : simples adresses à ouvrir depuis cet
+    // ordinateur. do = delay+ / delay- / delay (s = secondes), pause / play / toggle / back / forward (replay)
+    case 'GET /api/remote': {
+      if (!isLoopback(req.socket.remoteAddress)) return sendJSON(res, 403, { error: 'Commande disponible uniquement sur l\'ordinateur' });
+      const act = (url.searchParams.get('do') || '').replace(' ', '+');   // « + » d'une adresse lu comme une espace
+      const s = Number(url.searchParams.get('s'));
+      if (/^delay[+-]?$/.test(act)) {
+        const sign = act.endsWith('-') ? -1 : act === 'delay' ? 0 : 1;
+        const step = (Number.isFinite(s) && s >= 0 ? s : 1) * 1000;
+        return sendJSON(res, 200, { ok: true, delay: hub.setHostDelay(sign ? (hub.hostDelay ?? 0) + sign * step : step) / 1000 });
+      }
+      if (!['pause', 'play', 'toggle', 'back', 'forward'].includes(act)) return sendJSON(res, 400, { error: 'Commande inconnue' });
+      if (!replay.isActive()) return sendJSON(res, 409, { error: 'Aucun replay en cours' });
+      const paused = hub.pausedAt !== null;
+      if (act === 'pause' || (act === 'toggle' && !paused)) replay.pause();
+      else if (act === 'play' || act === 'toggle') replay.resume();
+      else replay.seek(replay.position() + (act === 'back' ? -1 : 1) * (Number.isFinite(s) && s > 0 ? s : 10) * 1000);
+      return sendJSON(res, 200, { ok: true, paused: hub.pausedAt !== null });
+    }
+
     case 'GET /api/auth':
       return sendJSON(res, 200, authInfo());
 
@@ -761,7 +781,8 @@ const wss = new WebSocketServer({
   // Connexion depuis l'interface uniquement (pas depuis la page d'un autre site)
   verifyClient: ({ req }) => (!loopbackOnly || localHost(req.headers.host)) && sameSiteRequest({ origin: req.headers.origin, host: req.headers.host }),
 });
-wss.on('connection', (ws, req) => hub.addClient(ws, { host: isLoopback(req.socket.remoteAddress) }));
+// follow : overlay de streaming (OBS, Streamlabs, Meld Studio) : suit le délai TV de l'appli au lieu d'imposer le sien
+wss.on('connection', (ws, req) => hub.addClient(ws, { host: isLoopback(req.socket.remoteAddress) && !/[?&]follow=1(&|$)/.test(req.url || '') }));
 lan = createLan({ handler, onSocket: (ws) => hub.addClient(ws, { host: false }) });
 
 server.on('error', (err) => {

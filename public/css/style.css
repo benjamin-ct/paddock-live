@@ -1049,7 +1049,7 @@ body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-selec
 .sz-table tr.muted td { color: var(--muted); }
 .sz-chip { display: inline-block; border-left: 3px solid var(--tc); background: color-mix(in srgb, var(--tc) 18%, transparent); padding: 1px 7px; border-radius: 4px; font-weight: 700; font-size: 12.5px; }
 .sz-cal { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; align-items: start; }
-.sz-race { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; }
+.sz-race { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; scroll-margin-top: 10px; }
 .sz-race.is-next { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
 .sz-race summary { cursor: pointer; list-style: none; display: flex; flex-direction: column; gap: 3px; }
 .sz-race summary::-webkit-details-marker { display: none; }
@@ -1274,6 +1274,7 @@ body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-selec
    Mode mobile (téléphone, tablette en portrait) : un panneau à la fois
    ====================================================================== */
 .mob-nav, .mob-panels { display: none; }
+html:not(.phone) [data-phone] { display: none !important; }
 .tb-break { display: none; }
 @media (max-width: 900px) {
   .topbar .tb-break { display: block; flex-basis: 100%; height: 0; }
@@ -1334,6 +1335,10 @@ body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-selec
   .mob-nav[hidden] { display: none; }
   /* Saison, Actu, Commentaires et Réglages sont dans la barre du bas : la barre du haut garde une ligne de moins */
   body:has(#mobNav:not([hidden])) .topbar :is(#seasonBtn, #newsBtn, #commBtn, #settingsBtn) { display: none; }
+  /* « Retour au direct » : bouton Direct de la barre du bas, qui reste visible sous les espaces */
+  body:has(#mobNav:not([hidden])) :is(#szClose, #nwClose) { display: none; }
+  /* Téléphone, version simplifiée : l'essentiel seulement (data-full : ordinateur ou version complète) */
+  html.phone.simple [data-full] { display: none !important; }
   /* Panneaux du Direct en onglets, sous la barre du haut */
   .mob-panels:not([hidden]) { display: flex; flex: none; gap: 4px; overflow-x: auto; scrollbar-width: none; padding: 6px 8px; background: var(--panel); border-bottom: 1px solid var(--border); }
   .mob-panels::-webkit-scrollbar { display: none; }
@@ -2901,3 +2906,41 @@ html.float-mini .float-bar { top: auto; bottom: 4px; right: 24px; }   /* en bas 
 .pd-group .pd-actions { margin-top: 10px; }
 .pd-group input { flex: 1 1 220px; min-width: 0; }
 .pd-group summary { cursor: pointer; }
+
+/* Overlays de streaming (sources navigateur d'OBS, Streamlabs, Meld Studio : ?overlay=1) : rien
+   d'interactif ni de message, seulement le contenu sur fond transparent */
+html.overlay :is(.float-bar, .float-resize, .toast) { display: none !important; }
+html.overlay.float-mini body.mini-body { padding-bottom: 4px; cursor: default; }
+html.overlay .mini-foot, html.overlay #miniMode { display: none !important; }
+
+/* Overlays d'un seul élément (overlay.html?w=…) : taille de base fixe, mise à l'échelle de la source */
+html.overlay body.ov-body { background: transparent; margin: 0; overflow: hidden; }
+.ov { display: inline-block; padding: 6px; }
+.ov-banner { width: 800px; }
+.ov-banner .flag-banner { border-radius: 10px; font-size: 26px; padding: 12px 18px; }
+.ov-banner .flag-banner .fb-sub { font-size: 16px; }
+.ov-banner .flag-banner.chequered { background: #f2f4f8; color: #0b0c0f; animation: none; }
+.ov-banner .flag-banner.chequered .fb-icon { background: repeating-conic-gradient(#0b0c0f 0 25%, #fff 0 50%) 0 0 / 9px 9px; }
+.ov-laps { width: 280px; } .ov-countdown { width: 420px; } .ov-podium { width: 440px; } .ov-telemetry { width: 300px; }
+.ov-card { background: color-mix(in srgb, var(--panel) 86%, transparent); border-radius: 12px; padding: 12px 16px; color: var(--text); }
+.ov-label { font-size: 13px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ov-big { font: 900 44px/1.1 var(--font-mono, var(--font)); font-variant-numeric: tabular-nums; margin: 2px 0; }
+.ov-big small { font-size: .55em; color: var(--muted); font-weight: 700; }
+.ov-sub { font-size: 14px; font-weight: 600; color: var(--text-2); }
+.ov-bar { height: 5px; border-radius: 3px; background: var(--panel-3); margin: 6px 0; overflow: hidden; }
+.ov-bar i { display: block; height: 100%; background: var(--red); }
+.ov-wait { font-size: 14px; color: var(--muted); }
+.ov-pod { display: flex; align-items: center; gap: 10px; padding: 7px 0; }
+.ov-pod + .ov-pod { border-top: 1px solid var(--line-2, var(--border)); }
+.ov-pod > i { width: 5px; align-self: stretch; border-radius: 3px; }
+.ov-pos { font-size: 24px; font-weight: 900; min-width: 22px; text-align: center; }
+.ov-name { flex: 1; min-width: 0; font-size: 17px; line-height: 1.2; }
+.ov-name b { text-transform: uppercase; }
+.ov-name small { display: block; font-size: 12px; color: var(--muted); }
+.ov-val { font: 700 16px var(--font-mono, var(--font)); font-variant-numeric: tabular-nums; }
+.ov-telemetry .dial { max-width: none; }
+
+/* Réglages → Streaming : adresses à copier */
+.stream-row { display: grid; gap: 4px; margin: 10px 0; }
+.stream-row .row { flex-wrap: nowrap; }
+.stream-row input { flex: 1; min-width: 0; font: 12px var(--mono, monospace); }

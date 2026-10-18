@@ -161,6 +161,8 @@ export function initSettings() {
   // Réglages : rubriques à gauche (Compte F1 TV, Apparence, Disposition, Alertes, Application, À propos),
   // titre de la rubrique en haut, et recherche dans tous les réglages
   const search = $('#setSearch');
+  // Première rubrique affichée (téléphone, version simplifiée : pas de Compte F1 TV)
+  const firstGroup = () => [...document.querySelectorAll('#setNav .set-tab')].find((b) => getComputedStyle(b).display !== 'none')?.dataset.sgroup || 'f1tv';
   const showGroup = (g) => {
     const tab = $(`#setNav .set-tab[data-sgroup="${g}"]`);
     for (const b of document.querySelectorAll('#setNav .set-tab')) b.classList.toggle('active', b === tab);
@@ -171,7 +173,7 @@ export function initSettings() {
   };
   const find = () => {
     const q = fold(search.value.trim());
-    if (!q) { showGroup($('#setNav .set-tab.active')?.dataset.sgroup || 'f1tv'); return; }
+    if (!q) { showGroup($('#setNav .set-tab.active')?.dataset.sgroup || firstGroup()); return; }
     let n = 0;
     for (const sec of document.querySelectorAll('#settingsModal .set-block')) {
       const hit = !sec.hidden && fold(sec.textContent).includes(q);
@@ -187,6 +189,8 @@ export function initSettings() {
   const modal = $('#settingsModal');
   const open = () => {
     if (search.value) { search.value = ''; find(); }
+    // Rubrique active masquée (passage en version simplifiée) : la première visible
+    if (getComputedStyle($('#setNav .set-tab.active')).display === 'none') showGroup(firstGroup());
     modal.showModal();
     refreshAuth();
     renderFavs();
@@ -237,6 +241,8 @@ export function initSettings() {
   $('#followHost').addEventListener('change', (e) => storageSet('paddock.followHost', e.target.checked));
   $('#motionOpt').checked = prefs.motion !== false;
   $('#motionOpt').addEventListener('change', (e) => setPref('motion', e.target.checked));
+  $('#phoneFull').checked = !!prefs.phoneFull;
+  $('#phoneFull').addEventListener('change', (e) => setPref('phoneFull', e.target.checked));
   $('#keepAwake').checked = prefs.keepAwake;
   $('#keepAwake').addEventListener('change', (e) => setPref('keepAwake', e.target.checked));
   on('prefs', (k) => { if (k === 'keepAwake') $('#keepAwake').checked = prefs.keepAwake; });

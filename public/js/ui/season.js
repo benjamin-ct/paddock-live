@@ -2,7 +2,7 @@
 // séance, calendrier, classements avec évolution des points, résultats et records, duels entre
 // coéquipiers, statistiques détaillées. Données : API Jolpica (via le serveur, /api/season) et
 // analyse des archives F1 Live Timing (/api/season/stats).
-import { $, esc, api, teamColor, teamLogo, photoUrl } from '../util.js';
+import { $, esc, api, teamColor, teamLogo, photoUrl, placeView } from '../util.js';
 import { store } from '../store.js';
 import { renderDrivers, renderConsistency, renderPits, renderSpeeds, renderCircuits, renderRatings, gradeBadge } from './season-stats.js';
 import { driverRatings, qualiGaps, titleRace, placeForMaxPoints } from '/shared/season-calc.js';
@@ -24,6 +24,7 @@ const bar = (team, teamId) => `<span class="drv-bar" style="background:${color(t
 let data = null;
 let year = new Date().getFullYear();
 let section = 'home';
+let jump = false;          // rubrique choisie : affichée depuis le haut (calendrier : au prochain Grand Prix)
 let loading = false;
 let timer = null;
 let stats = null;          // analyse des courses (archives) de l'année affichée
@@ -490,6 +491,13 @@ function render() {
   $('#szContent').innerHTML = `${data.stale ? '<div class="note small">Hors ligne : dernières données enregistrées.</div>' : ''}${help}${html}`;
   tick();
   if (section === 'tech' && fiaData) translateTechDetail(ctx, fiaData);
+  if (jump) {
+    jump = false;
+    $('#szContent').scrollTop = 0;
+    $('#szContent .sz-race.is-next')?.scrollIntoView({ block: 'start' });
+    // Téléphone : la rubrique choisie visible dans le bandeau du haut
+    $('#szNav .active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }
 }
 
 function tick() {
@@ -513,10 +521,11 @@ function animate() {
 
 export function openSeason(sec) {
   if (sec) section = sec;
+  jump = true;
   import('./news.js').then((m) => m.closeNews());
   import('./home.js').then((m) => { m.homeTouched(); m.closeHome(); });
   import('./replays.js').then((m) => m.closeReplays());
-  $('#seasonView').style.top = `${Math.round(document.querySelector('.topbar').getBoundingClientRect().bottom)}px`;
+  placeView($('#seasonView'));
   $('#seasonView').hidden = false;
   animate();
   $('#seasonBtn').classList.add('on');
@@ -540,10 +549,10 @@ export function initSeason() {
   sel.addEventListener('change', () => { year = Number(sel.value); data = null; stats = null; fia = null; clearTimeout(statsTimer); clearTimeout(fiaTimer); setTechFilter(null, 'all'); load(); });
   $('#seasonBtn').addEventListener('click', () => ($('#seasonView').hidden ? openSeason() : closeSeason()));
   $('#szClose').addEventListener('click', closeSeason);
-  $('#szNav').addEventListener('click', (e) => { const b = e.target.closest('[data-sz]'); if (b) { section = b.dataset.sz; animate(); render(); } });
+  $('#szNav').addEventListener('click', (e) => { const b = e.target.closest('[data-sz]'); if (b) { section = b.dataset.sz; jump = true; animate(); render(); } });
   $('#szContent').addEventListener('click', (e) => {
     const b = e.target.closest('[data-szgo]');
-    if (b) { section = b.dataset.szgo; animate(); render(); return; }
+    if (b) { section = b.dataset.szgo; jump = true; animate(); render(); return; }
     const t = e.target.closest('[data-h2h-team]'), m = e.target.closest('[data-h2h-mode]');
     if (t) { h2hTeam = t.dataset.h2hTeam; render(); } else if (m) { h2hMode = m.dataset.h2hMode; render(); }
   });

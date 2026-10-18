@@ -4,6 +4,51 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
+## v1.27.34 — 2026-10-18
+
+### Streaming (OBS, Streamlabs, Meld Studio, Stream Deck)
+- Nouvel onglet Réglages → Streaming : le classement et la carte du circuit à ajouter comme source
+  « Navigateur » dans OBS Studio, Streamlabs ou Meld Studio, sur fond transparent. Ils suivent le délai
+  TV réglé dans l'application ; le classement montre toujours tous les pilotes, réduit à la taille de la
+  source.
+- Commandes pour le Stream Deck (ou Bitfocus Companion) : délai TV ±1 s ou ±0,1 s, replay en lecture ou
+  pause, −10 s / +10 s. Le délai change aussi dans les overlays et sur les téléphones.
+- Cinq nouveaux overlays, chacun dans sa propre source :
+  - bandeaux : drapeau rouge, voiture de sécurité, VSC, drapeau jaune, reprise, damier à l'arrivée ;
+  - compteur de tours (partie et temps restant en qualifications) ;
+  - compte à rebours de la séance en cours, ou de la prochaine séance entre deux Grands Prix ;
+  - podium : les trois premiers et leurs écarts ;
+  - télémétrie (vitesse, régime, rapport, accélérateur, frein) du pilote suivi dans l'application, qui change
+    dès que vous en choisissez un autre.
+
+### Pronostics entre amis
+- Podium : un pilote choisi à une place ne peut plus être choisi aux deux autres.
+- Les pronostics des autres joueurs s'affichent tout seuls en quelques secondes, sans recharger (dans l'application et sur
+  la page web du groupe), sans effacer un pronostic en cours de saisie.
+- Retrouvez vos groupes toute la saison : la liste « Mes groupes » (dans Saison → Pronostics et sur
+  paddocklive.app/p) les rouvre en un clic, et l'application passe d'un groupe à l'autre. Un lien personnel
+  rouvre le groupe avec votre pseudo et vos points sur un autre appareil (téléphone, autre ordinateur).
+- Page web du groupe : sur ordinateur, le bouton copie directement le lien ; le partage du téléphone reste sur
+  mobile.
+- Changer de groupe est immédiat : le groupe choisi s'affiche dès la réponse du serveur, sans attendre la
+  mise à jour automatique suivante, et la page web du groupe s'ouvre sans attendre la mise à jour du calendrier.
+
+### Actualités
+- Accueil : les dernières actualités sont traduites, y compris celles arrivées depuis l'ouverture de
+  l'application.
+
+### Téléphone et tablette
+- iPhone, appli ajoutée à l'écran d'accueil : le haut de l'écran n'est plus flou. La page commence sous la
+  barre d'état (l'heure, la batterie), claire ou noire selon l'apparence choisie.
+- Version simplifiée sur téléphone, avec l'essentiel seulement :
+  - Direct : classement, circuit, direction de course et radios ;
+  - Saison : calendrier, classements, course au titre, résultats et pronostics ;
+  - Actu : toute l'actu, importantes et favoris ;
+  - Réglages : apparence, alertes et favoris, délai TV, à propos.
+  La version complète reste disponible dans Réglages → Application.
+- La barre du bas reste affichée dans la Saison et l'Actu (le bouton « Direct » remplace « Retour au direct »).
+- Saison : chaque rubrique s'ouvre en haut de la page, et le calendrier directement sur le prochain Grand Prix.
+
 ## v1.27.33 — 2026-10-18
 
 ### Pronostics entre amis

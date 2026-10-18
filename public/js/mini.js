@@ -12,7 +12,8 @@ import { FLOAT, floatChrome } from './ui/floatwin.js';
 
 translatePage();
 
-let mode = storageGet('paddock.miniMode', 'int');   // 'int' (intervalle) | 'gap' (écart au leader)
+// 'int' (intervalle) | 'gap' (écart au leader) ; overlay de streaming : ?mode=gap dans l'adresse
+let mode = new URLSearchParams(location.search).get('mode') || storageGet('paddock.miniMode', 'int');
 let lastKey = '';
 
 const list = (o) => (!o ? [] : Array.isArray(o) ? o : Object.keys(o).sort((a, b) => a - b).map((k) => o[k]));
@@ -66,7 +67,19 @@ function render() {
   });
   $('#miniRows').innerHTML = rows.join('') || '<tr><td class="m-empty" colspan="4">En attente des données de la séance…</td></tr>';
   $('#miniFoot').textContent = store.connected ? `Délai TV ${fmtDelay(store.delay)}` : 'Connexion…';
+  fitOverlay();
 }
+
+// Overlay de streaming : tout le classement dans la hauteur de la source (réduit si besoin)
+const OVERLAY = document.documentElement.classList.contains('overlay');
+function fitOverlay() {
+  if (!OVERLAY) return;
+  const html = document.documentElement;
+  html.style.zoom = '';
+  const h = document.body.scrollHeight;
+  if (h > innerHeight) html.style.zoom = String(Math.floor((innerHeight / h) * 1000) / 1000);
+}
+window.addEventListener('resize', fitOverlay);
 
 $('#miniMode').addEventListener('click', () => {
   mode = mode === 'gap' ? 'int' : 'gap';

@@ -1,6 +1,6 @@
 // Espace Replays : rejouer une séance des archives officielles F1 (compte F1 TV) ou une séance
 // enregistrée sur cet ordinateur, et revenir au direct. Remplace l'ancien onglet « Source » des réglages.
-import { $, $$, esc, api } from '../util.js';
+import { $, $$, esc, api, placeView } from '../util.js';
 import { store, on } from '../store.js';
 import { toast } from './delay.js';
 import { icon } from '../icons.js';
@@ -77,7 +77,7 @@ export function openReplays(sec) {
   import('./season.js').then((m) => m.closeSeason());
   import('./news.js').then((m) => m.closeNews());
   import('./home.js').then((m) => { m.homeTouched(); m.closeHome(); });
-  $('#replayView').style.top = `${Math.round(document.querySelector('.topbar').getBoundingClientRect().bottom)}px`;
+  placeView($('#replayView'));
   $('#replayView').hidden = false;
   openedAt = Date.now();
   render();
@@ -99,7 +99,7 @@ export function initReplays() {
   const now = new Date().getFullYear();
   $('#rvYear').innerHTML = Array.from({ length: now - 2018 + 1 }, (_, i) => now - i).map((y) => `<option>${y}</option>`).join('');
   $('#rvYear').addEventListener('change', (e) => { year = Number(e.target.value); render(); });
-  $('#rvNav').addEventListener('click', (e) => { const b = e.target.closest('[data-rv]'); if (b) { section = b.dataset.rv; render(); } });
+  $('#rvNav').addEventListener('click', (e) => { const b = e.target.closest('[data-rv]'); if (b) { section = b.dataset.rv; render(); $('#rvContent').scrollTop = 0; } });
   $('#rvLive').addEventListener('click', async () => {
     try { await api('/api/live', { method: 'POST' }); } catch (err) { toast(err.message); return; }
     closeReplays();

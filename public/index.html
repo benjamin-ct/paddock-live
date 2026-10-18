@@ -6,15 +6,16 @@
   <meta name="theme-color" content="#07080A">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <!-- Barre d'état normale (pas « black-translucent ») : sous la barre d'état, iOS 26 floute le haut de la page -->
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="Paddock Live">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <title>Paddock Live</title>
   <link rel="icon" href="/logo.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/css/style.css">
-  <script>/* Carte flottante : page transparente dès l'affichage */ if (/[?&]float=1(&|$)/.test(location.search)) document.documentElement.classList.add('float-map');</script>
-  <script>/* Thème Pitwall et apparence (sombre / clair / système) posés avant l'affichage : pas d'éclair */ try { const p = JSON.parse(localStorage.getItem('paddock.prefs') || '{}'); const s = p.schemeSet || p.scheme === 'light' ? p.scheme : 'auto'; const light = s === 'light' || (s === 'auto' && matchMedia('(prefers-color-scheme: light)').matches); document.documentElement.dataset.scheme = light ? 'light' : 'dark'; } catch { document.documentElement.dataset.scheme = 'dark'; } document.documentElement.dataset.theme = 'pitwall';</script>
+  <script>/* Carte flottante : page transparente dès l'affichage ; overlay de streaming (OBS…) : sans barre d'outils */ if (/[?&]float=1(&|$)/.test(location.search)) document.documentElement.classList.add('float-map'); if (/[?&]overlay=1(&|$)/.test(location.search)) document.documentElement.classList.add('overlay');</script>
+  <script>/* Thème Pitwall et apparence (sombre / clair / système) posés avant l'affichage : pas d'éclair */ try { const p = JSON.parse(localStorage.getItem('paddock.prefs') || '{}'); const s = p.schemeSet || p.scheme === 'light' ? p.scheme : 'auto'; const light = s === 'light' || (s === 'auto' && matchMedia('(prefers-color-scheme: light)').matches); document.documentElement.dataset.scheme = light ? 'light' : 'dark'; if (light) { document.querySelector('meta[name="theme-color"]').content = '#F4F5F7'; document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]').content = 'default'; } } catch { document.documentElement.dataset.scheme = 'dark'; } document.documentElement.dataset.theme = 'pitwall';</script>
 </head>
 <body>
   <!-- Nouveau design : barre de navigation latérale (fenêtre principale, grand écran) -->
@@ -53,10 +54,10 @@
     <div class="hstat lap-box"><div class="hstat-label" id="lapLabel">Tour</div><div class="hstat-value" id="lapValue">—</div><div class="lap-bar" id="lapBar" hidden><i></i></div></div>
     <div class="hstat" id="lapsLeftBox" hidden><div class="hstat-label">Tours restants</div><div class="hstat-value" id="lapsLeft">—</div></div>
     <div class="hstat clock-box" id="clockBox"><div class="hstat-label">Temps restant</div><div class="hstat-value" id="clockValue">—</div></div>
-    <div class="hstat" id="circuitTimeBox" hidden title="Heure locale sur le circuit (au moment affiché, délai TV compris)"><div class="hstat-label">Heure circuit</div><div class="hstat-value" id="circuitTime">—</div></div>
-    <div class="hstat weather-mini" id="weatherMini" title="Météo"></div>
+    <div data-full class="hstat" id="circuitTimeBox" hidden title="Heure locale sur le circuit (au moment affiché, délai TV compris)"><div class="hstat-label">Heure circuit</div><div class="hstat-value" id="circuitTime">—</div></div>
+    <div data-full class="hstat weather-mini" id="weatherMini" title="Météo"></div>
     <div class="hstat surface" id="surfaceBox" hidden><div class="hstat-label">État piste</div><div class="hstat-value" id="surfaceValue">—</div></div>
-    <div class="tb-tools" id="tbTools">
+    <div data-full class="tb-tools" id="tbTools">
       <button class="tb-tool" data-tool="docs" title="Documents officiels de la FIA (Grand Prix en cours)"><svg viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h6"/></svg><small>FIA</small><i class="tb-dot" hidden></i></button>
       <button class="tb-tool" data-tool="speeds" title="Vitesses : intermédiaires 1 et 2, ligne d'arrivée et speed trap de chaque pilote"><svg viewBox="0 0 24 24"><path d="M4 17a8 8 0 1 1 16 0"/><path d="M12 17l4-5"/><circle cx="12" cy="17" r="1.3"/></svg><small>Vitesses</small></button>
       <button class="tb-tool" data-tool="sectors" title="Meilleurs secteurs de chaque pilote et tour idéal"><svg viewBox="0 0 24 24"><path d="M5 20V11M10 20V5M15 20v-7M20 20V9"/></svg><small>Secteurs</small></button>
@@ -133,18 +134,18 @@
         <button data-sz="standings"><svg class="ic" aria-hidden="true"><use href="#i-trophy"/></svg> Classements</button>
         <button data-sz="title"><svg class="ic" aria-hidden="true"><use href="#i-star"/></svg> Course au titre</button>
         <button data-sz="results"><svg class="ic" aria-hidden="true"><use href="#i-checkered"/></svg> Résultats & records</button>
-        <button data-sz="h2h"><svg class="ic" aria-hidden="true"><use href="#i-duel"/></svg> Duels</button>
-        <button data-sz="ratings"><svg class="ic" aria-hidden="true"><use href="#i-medal"/></svg> Notes des pilotes</button>
+        <button data-full data-sz="h2h"><svg class="ic" aria-hidden="true"><use href="#i-duel"/></svg> Duels</button>
+        <button data-full data-sz="ratings"><svg class="ic" aria-hidden="true"><use href="#i-medal"/></svg> Notes des pilotes</button>
         <button data-sz="predict"><svg class="ic" aria-hidden="true"><use href="#i-target"/></svg> Pronostics entre amis</button>
-        <div class="sz-nav-sep">Statistiques détaillées</div>
-        <button data-sz="drivers"><svg class="ic" aria-hidden="true"><use href="#i-user"/></svg> Pilotes</button>
-        <button data-sz="consistency"><svg class="ic" aria-hidden="true"><use href="#i-ruler"/></svg> Régularité</button>
-        <button data-sz="pits"><svg class="ic" aria-hidden="true"><use href="#i-wrench"/></svg> Arrêts aux stands</button>
-        <button data-sz="speeds"><svg class="ic" aria-hidden="true"><use href="#i-bolt"/></svg> Vitesses de pointe</button>
-        <button data-sz="circuits"><svg class="ic" aria-hidden="true"><use href="#i-map"/></svg> Profil des circuits</button>
-        <div class="sz-nav-sep">Technique (documents FIA)</div>
-        <button data-sz="tech"><svg class="ic" aria-hidden="true"><use href="#i-wing"/></svg> Évolutions techniques</button>
-        <button data-sz="elements"><svg class="ic" aria-hidden="true"><use href="#i-engine"/></svg> Éléments moteur</button>
+        <div class="sz-nav-sep" data-full>Statistiques détaillées</div>
+        <button data-full data-sz="drivers"><svg class="ic" aria-hidden="true"><use href="#i-user"/></svg> Pilotes</button>
+        <button data-full data-sz="consistency"><svg class="ic" aria-hidden="true"><use href="#i-ruler"/></svg> Régularité</button>
+        <button data-full data-sz="pits"><svg class="ic" aria-hidden="true"><use href="#i-wrench"/></svg> Arrêts aux stands</button>
+        <button data-full data-sz="speeds"><svg class="ic" aria-hidden="true"><use href="#i-bolt"/></svg> Vitesses de pointe</button>
+        <button data-full data-sz="circuits"><svg class="ic" aria-hidden="true"><use href="#i-map"/></svg> Profil des circuits</button>
+        <div class="sz-nav-sep" data-full>Technique (documents FIA)</div>
+        <button data-full data-sz="tech"><svg class="ic" aria-hidden="true"><use href="#i-wing"/></svg> Évolutions techniques</button>
+        <button data-full data-sz="elements"><svg class="ic" aria-hidden="true"><use href="#i-engine"/></svg> Éléments moteur</button>
       </nav>
       <button class="btn small sz-back" id="szClose" title="Retour au direct (Échap)"><svg class="ic" aria-hidden="true"><use href="#i-arrow-left"/></svg> Retour au direct</button>
       <div class="muted small sz-src">Données : Jolpica (Ergast) et archives officielles F1 Live Timing, documents FIA</div>
@@ -186,25 +187,25 @@
         <button data-nw="all" class="active"><svg class="ic" aria-hidden="true"><use href="#i-news"/></svg> Toute l'actu</button>
         <button data-nw="important"><svg class="ic" aria-hidden="true"><use href="#i-bolt"/></svg> Important</button>
         <button data-nw="favs"><svg class="ic" aria-hidden="true"><use href="#i-star"/></svg> Mes favoris</button>
-        <div class="sz-nav-sep">Par source</div>
-        <button data-nw="official"><svg class="ic" aria-hidden="true"><use href="#i-landmark"/></svg> Officiel (F1, FIA)</button>
-        <button data-nw="team"><svg class="ic" aria-hidden="true"><use href="#i-car"/></svg> Écuries</button>
-        <button data-nw="driver"><svg class="ic" aria-hidden="true"><use href="#i-user"/></svg> Pilotes</button>
-        <button data-nw="media"><svg class="ic" aria-hidden="true"><use href="#i-globe"/></svg> Médias</button>
-        <button data-nw="video"><svg class="ic" aria-hidden="true"><use href="#i-video"/></svg> Vidéos</button>
-        <div class="sz-nav-sep">Réglages</div>
-        <button data-nw="sources"><svg class="ic" aria-hidden="true"><use href="#i-sliders"/></svg> Sources</button>
+        <div class="sz-nav-sep" data-full>Par source</div>
+        <button data-full data-nw="official"><svg class="ic" aria-hidden="true"><use href="#i-landmark"/></svg> Officiel (F1, FIA)</button>
+        <button data-full data-nw="team"><svg class="ic" aria-hidden="true"><use href="#i-car"/></svg> Écuries</button>
+        <button data-full data-nw="driver"><svg class="ic" aria-hidden="true"><use href="#i-user"/></svg> Pilotes</button>
+        <button data-full data-nw="media"><svg class="ic" aria-hidden="true"><use href="#i-globe"/></svg> Médias</button>
+        <button data-full data-nw="video"><svg class="ic" aria-hidden="true"><use href="#i-video"/></svg> Vidéos</button>
+        <div class="sz-nav-sep" data-full>Réglages</div>
+        <button data-full data-nw="sources"><svg class="ic" aria-hidden="true"><use href="#i-sliders"/></svg> Sources</button>
       </nav>
       <div class="nw-opts">
         <input type="search" id="nwSearch" placeholder="Pilote, écurie, mot…" aria-label="Rechercher dans l'actualité" title="Rechercher dans l'actualité : pilote, écurie, mot…">
-        <select id="nwLang" aria-label="Langue d'origine">
+        <select data-full id="nwLang" aria-label="Langue d'origine">
           <option value="all">Toutes les langues</option><option value="en">Anglais</option><option value="fr">Français</option><option value="es">Espagnol</option>
           <option value="it">Italien</option><option value="de">Allemand</option><option value="nl">Néerlandais</option><option value="pt">Portugais</option><option value="ja">Japonais</option>
         </select>
-        <label class="toggle" title="Titres et résumés traduits en français d'avance, dès leur arrivée, par le serveur Paddock Live (sur l'ordinateur si la traduction en ligne est désactivée)"><input type="checkbox" id="nwTranslate" checked> Traduire en français</label>
-        <label class="nw-alerts" title="Son, vibration et notification quand une actualité arrive">Alertes
+        <label data-full class="toggle" title="Titres et résumés traduits en français d'avance, dès leur arrivée, par le serveur Paddock Live (sur l'ordinateur si la traduction en ligne est désactivée)"><input type="checkbox" id="nwTranslate" checked> Traduire en français</label>
+        <label data-full class="nw-alerts" title="Son, vibration et notification quand une actualité arrive">Alertes
           <select id="nwAlerts"><option value="important">Importantes et favoris</option><option value="favs">Favoris seulement</option><option value="all">Toutes les actualités</option><option value="off">Aucune</option></select></label>
-        <label class="toggle" title="Pendant une séance en direct (pas pendant un replay) : titres masqués et alertes d'actualité suspendues, pour ne pas voir un résultat avant l'image"><input type="checkbox" id="nwSpoilers" checked> Anti-spoiler pendant les séances</label>
+        <label data-full class="toggle" title="Pendant une séance en direct (pas pendant un replay) : titres masqués et alertes d'actualité suspendues, pour ne pas voir un résultat avant l'image"><input type="checkbox" id="nwSpoilers" checked> Anti-spoiler pendant les séances</label>
       </div>
       <button class="btn small sz-back" id="nwClose" title="Retour au direct (Échap)"><svg class="ic" aria-hidden="true"><use href="#i-arrow-left"/></svg> Retour au direct</button>
       <div class="muted small sz-src">F1, FIA, chaînes officielles des écuries et des pilotes, médias en 8 langues</div>
@@ -476,11 +477,12 @@
         <div class="set-brand"><svg class="ic" aria-hidden="true"><use href="#i-gear"/></svg> Réglages</div>
         <label class="set-search"><svg class="ic" aria-hidden="true"><use href="#i-search"/></svg><input type="search" id="setSearch" placeholder="Rechercher un réglage" autocomplete="off" aria-label="Rechercher un réglage"></label>
         <nav class="set-nav" id="setNav">
-          <button class="set-tab active" data-sgroup="f1tv"><span class="set-ico"><svg class="ic" aria-hidden="true"><use href="#i-lock"/></svg></span><span class="set-lbl"><b>Compte F1 TV</b><small>GPS et télémétrie en direct</small></span></button>
+          <button data-full class="set-tab active" data-sgroup="f1tv"><span class="set-ico"><svg class="ic" aria-hidden="true"><use href="#i-lock"/></svg></span><span class="set-lbl"><b>Compte F1 TV</b><small>GPS et télémétrie en direct</small></span></button>
           <button class="set-tab" data-sgroup="look"><span class="set-ico"><svg class="ic" aria-hidden="true"><use href="#i-sliders"/></svg></span><span class="set-lbl"><b>Apparence</b><small>Thème, langue, couleurs</small></span></button>
-          <button class="set-tab" data-sgroup="display"><span class="set-ico"><svg class="ic" aria-hidden="true"><use href="#i-layout"/></svg></span><span class="set-lbl"><b>Disposition</b><small>Panneaux, colonnes, fenêtres</small></span></button>
+          <button data-full class="set-tab" data-sgroup="display"><span class="set-ico"><svg class="ic" aria-hidden="true"><use href="#i-layout"/></svg></span><span class="set-lbl"><b>Disposition</b><small>Panneaux, colonnes, fenêtres</small></span></button>
           <button class="set-tab" data-sgroup="alerts"><span class="set-ico"><svg class="ic" aria-hidden="true"><use href="#i-bell"/></svg></span><span class="set-lbl"><b>Alertes & favoris</b><small>Notifications, rappels, favoris</small></span></button>
           <button class="set-tab" data-sgroup="app"><span class="set-ico"><svg class="ic" aria-hidden="true"><use href="#i-gear"/></svg></span><span class="set-lbl"><b>Application</b><small>Mises à jour, téléphone, traductions</small></span></button>
+          <button data-full class="set-tab" data-sgroup="stream"><span class="set-ico"><svg class="ic" aria-hidden="true"><use href="#i-video"/></svg></span><span class="set-lbl"><b>Streaming</b><small>OBS, Streamlabs, Meld, Stream Deck</small></span></button>
           <button class="set-tab" data-sgroup="about"><span class="set-ico"><svg class="ic" aria-hidden="true"><use href="#i-info"/></svg></span><span class="set-lbl"><b>À propos</b><small>Nouveautés, réseaux, légal</small></span></button>
         </nav>
       </aside>
@@ -490,7 +492,7 @@
           <button class="icon-btn set-close" value="close" aria-label="Fermer"><svg class="ic" aria-hidden="true"><use href="#i-close"/></svg></button>
         </form>
     <div class="modal-body">
-      <section class="set-block" data-sgroup="f1tv">
+      <section data-full class="set-block" data-sgroup="f1tv">
         <h4><svg class="ic" aria-hidden="true"><use href="#i-signal"/></svg> Positions GPS & télémétrie en live (F1 TV)</h4>
         <div class="set-status small" id="tokenStatus"></div>
         <p class="small">Depuis 2025, la F1 réserve les positions GPS et la télémétrie du flux live aux abonnés <b>F1 TV</b>.
@@ -522,13 +524,18 @@
         </details>
       </section>
 
+      <section class="set-block" data-sgroup="app" data-phone>
+        <h4><svg class="ic" aria-hidden="true"><use href="#i-phone"/></svg> Version simplifiée</h4>
+        <div class="row"><label class="toggle small"><input type="checkbox" id="phoneFull"> Version complète sur ce téléphone : tous les onglets et réglages de l'ordinateur</label></div>
+        <p class="small muted">Décoché (conseillé) : l'essentiel seulement. Direct : classement, circuit, direction de course et radios ; Saison : calendrier, classements, course au titre, résultats et pronostics ; Actu : toute l'actu, importantes et favoris.</p>
+      </section>
       <section class="set-block" data-sgroup="app" id="followHostBlock" hidden>
         <h4><svg class="ic" aria-hidden="true"><use href="#i-stopwatch"/></svg> Délai TV</h4>
         <div class="row"><label class="toggle small"><input type="checkbox" id="followHost"> Reprendre automatiquement le délai TV réglé sur l'ordinateur</label></div>
         <p class="small muted">Décochez si cet appareil regarde une autre diffusion que l'ordinateur ; réglez alors son délai avec le bouton de synchronisation en haut de l'écran.</p>
       </section>
 
-      <section class="set-block" data-sgroup="app" id="lanBlock" hidden>
+      <section data-full class="set-block" data-sgroup="app" id="lanBlock" hidden>
         <h4><svg class="ic" aria-hidden="true"><use href="#i-phone"/></svg> Sur votre téléphone ou tablette</h4>
         <p class="muted small">Ouvrez Paddock Live sur un téléphone ou une tablette connecté au <b>même Wi-Fi</b> que cet ordinateur : l'interface s'adapte au petit écran (un panneau à la fois). Le délai TV, le pilote suivi et le replay sont ceux de cet ordinateur ; l'ordinateur doit rester allumé avec Paddock Live ouvert.</p>
         <div class="row"><label class="toggle small"><input type="checkbox" id="lanEnabled"> Autoriser l'accès depuis le réseau local</label></div>
@@ -548,7 +555,7 @@
         <div class="small" id="lanError" hidden></div>
       </section>
 
-      <section class="set-block" data-sgroup="app" id="updateBlock" hidden>
+      <section data-full class="set-block" data-sgroup="app" id="updateBlock" hidden>
         <h4><svg class="ic" aria-hidden="true"><use href="#i-refresh"/></svg> Mises à jour de l'application</h4>
         <div class="small" id="updateStatus">—</div>
         <div class="small muted" id="memUse" hidden></div>
@@ -561,13 +568,13 @@
         <details class="cl-ver cl-next" id="updateNotes" hidden><summary>Nouveautés de la version <span id="updateNotesVer"></span></summary><div class="cl-body" id="updateNotesBody"></div></details>
       </section>
 
-      <section class="set-block" data-sgroup="app" id="creatorBlock" hidden>
+      <section data-full class="set-block" data-sgroup="app" id="creatorBlock" hidden>
         <h4><svg class="ic" aria-hidden="true"><use href="#i-megaphone"/></svg> Mode créateur</h4>
         <p class="small muted">Activé sur cet ordinateur : bouton « Posts » dans la barre latérale (visuels et textes pour les réseaux sociaux après chaque séance).</p>
         <div class="row"><button class="btn small" id="creatorOff">Désactiver le mode créateur</button></div>
       </section>
 
-      <section class="set-block" data-sgroup="app">
+      <section data-full class="set-block" data-sgroup="app">
         <h4><svg class="ic" aria-hidden="true"><use href="#i-save"/></svg> Sauvegarde des réglages</h4>
         <p class="small muted">Enregistre vos réglages dans un fichier, pour les retrouver après une réinstallation ou sur un autre ordinateur : affichage, dispositions et fenêtres, colonnes, délais TV mémorisés, carte, analyse, sources d'actualités, lumières connectées.</p>
         <div class="row">
@@ -578,7 +585,7 @@
         <p class="small muted">Le fichier ne contient ni la connexion F1 TV, ni la clé d'accès du téléphone, ni les clés des lumières connectées : à refaire si besoin sur un autre ordinateur.</p>
       </section>
 
-      <section class="set-block" data-sgroup="app">
+      <section data-full class="set-block" data-sgroup="app">
         <h4><svg class="ic" aria-hidden="true"><use href="#i-globe"/></svg> Traductions</h4>
         <div class="row"><label class="toggle small"><input type="checkbox" id="cloudTranslate"> Traduire et transcrire avec le serveur Paddock Live (recommandé)</label></div>
         <p class="small muted">Actualités, radios d'équipe et documents FIA sont traduits en ligne, et les radios d'équipe transcrites, une seule fois pour tous les utilisateurs : rien à calculer sur cet ordinateur. Seuls les textes à traduire et le son des radios sont envoyés. Décoché, ou si le serveur ne répond pas, tout se fait sur cet ordinateur.</p>
@@ -620,7 +627,7 @@
         <div class="row"><span class="small">Pilotes favoris (cliquez pour ajouter/retirer — ou sur l'étoile à côté du nom dans le classement) :</span><div id="favList" class="fav-list"></div></div>
         <div class="row"><span class="small">Écuries favorites (actualités et accueil) :</span><div id="favTeamList" class="fav-list"></div></div>
       </section>
-      <section class="set-block" data-sgroup="app" id="lightsBox">
+      <section data-full class="set-block" data-sgroup="app" id="lightsBox">
         <h4><svg class="ic" aria-hidden="true"><use href="#i-bolt"/></svg> Lumières connectées <span class="muted small">(expérimental)</span></h4>
         <p class="small muted">Vos ampoules prennent la couleur des drapeaux en même temps que la télé (délai TV) : vert, jaune, voiture de sécurité, rouge, damier.</p>
         <div class="row"><label class="small">Lampes <select id="lightsProvider"><option value="off">Désactivé</option><option value="sim">Simulation à l'écran (sans ampoule)</option><option value="hue">Philips Hue</option><option value="ha">Home Assistant</option></select></label>
@@ -645,7 +652,7 @@
         </div>
       </section>
 
-      <section class="set-block" data-sgroup="display">
+      <section data-full class="set-block" data-sgroup="display">
         <h4><svg class="ic" aria-hidden="true"><use href="#i-layout"/></svg> Disposition</h4>
         <div class="small muted">Glissez un panneau par sa poignée <b><svg class="ic" aria-hidden="true"><use href="#i-grip"/></svg></b> pour le déplacer (au centre d'un autre pour les échanger), et les espaces entre les panneaux pour changer leur taille (double-clic : partage égal). <b><svg class="ic" aria-hidden="true"><use href="#i-external"/></svg></b> l'ouvre dans une nouvelle fenêtre (second écran), <b><svg class="ic" aria-hidden="true"><use href="#i-window-in"/></svg></b> le remet ici.</div>
         <div class="row"><label class="small">Disposition <select id="layoutModeSel"><option value="auto">Automatique selon la séance</option><option value="race">Toujours « Course »</option><option value="quali">Toujours « Qualif &amp; essais »</option></select></label></div>
@@ -666,16 +673,18 @@
         <h4><svg class="ic" aria-hidden="true"><use href="#i-sliders"/></svg> Apparence</h4>
         <div class="row"><label class="small" title="Automatique (par défaut) : suit le réglage de l'ordinateur ou du téléphone ; sombre : idéal le soir et en direct ; clair : en plein jour">Apparence <select id="schemeSel"><option value="auto">Automatique (comme le système)</option><option value="dark">Sombre</option><option value="light">Clair</option></select></label></div>
         <div class="row"><label class="small">Langue / Language <select id="langSel" data-no-i18n><option value="fr">Français</option><option value="en">English</option></select></label></div>
-        <div class="row"><label class="toggle small"><input type="checkbox" id="teamLogos"> Logos des écuries dans le classement et le championnat (décoché : simples barres de couleur)</label></div>
-        <div class="row"><label class="toggle small"><input type="checkbox" id="logoColor"> Logos dans leurs couleurs officielles (décoché : logo blanc sur la couleur de l'écurie)</label></div>
-        <div class="row"><label class="toggle small"><input type="checkbox" id="vividTeams"> Couleurs d'équipe contrastées (une teinte bien distincte par équipe ; décoché : couleurs officielles)</label></div>
-        <div class="row"><label class="toggle small"><input type="checkbox" id="legendsOn"> Légendes sous les panneaux (couleurs, colonnes, graphiques)</label></div>
+        <div data-full class="row"><label class="toggle small"><input type="checkbox" id="teamLogos"> Logos des écuries dans le classement et le championnat (décoché : simples barres de couleur)</label></div>
+        <div data-full class="row"><label class="toggle small"><input type="checkbox" id="logoColor"> Logos dans leurs couleurs officielles (décoché : logo blanc sur la couleur de l'écurie)</label></div>
+        <div data-full class="row"><label class="toggle small"><input type="checkbox" id="vividTeams"> Couleurs d'équipe contrastées (une teinte bien distincte par équipe ; décoché : couleurs officielles)</label></div>
+        <div data-full class="row"><label class="toggle small"><input type="checkbox" id="legendsOn"> Légendes sous les panneaux (couleurs, colonnes, graphiques)</label></div>
         <div class="row"><label class="toggle small" title="Apparition des panneaux, menus, fenêtres et listes en douceur. Décoché : interface sans animation"><input type="checkbox" id="motionOpt"> Animations de l'interface</label></div>
-        <div class="row"><label class="toggle small"><input type="checkbox" id="replayMarks"> Replays : périodes de safety car et de VSC sur la barre de lecture (les drapeaux rouges sont toujours indiqués)</label></div>
+        <div data-full class="row"><label class="toggle small"><input type="checkbox" id="replayMarks"> Replays : périodes de safety car et de VSC sur la barre de lecture (les drapeaux rouges sont toujours indiqués)</label></div>
         <div class="row"><label class="toggle small"><input type="checkbox" id="keepAwake"> Garder l'écran allumé pendant une séance (sur téléphone : touchez l'écran une fois)</label></div>
       </section>
 
-      <section class="set-block" data-sgroup="app" id="shortcutsBlock">
+      <section data-full class="set-block" data-sgroup="stream" id="streamOverlays"></section>
+      <section data-full class="set-block" data-sgroup="stream" id="streamDeck"></section>
+      <section data-full class="set-block" data-sgroup="app" id="shortcutsBlock">
         <h4><svg class="ic" aria-hidden="true"><use href="#i-keyboard"/></svg> Raccourcis</h4>
         <p class="small muted"><kbd><svg class="ic ic-s" aria-hidden="true"><use href="#i-arrow-left"/></svg></kbd> <kbd><svg class="ic ic-s" aria-hidden="true"><use href="#i-arrow-right"/></svg></kbd> : délai ±1 s · Maj : ±5 s · Alt : ±0,1 s · S : synchro TV · Espace : pause (replay) · M : couper les alertes sonores · Échap : quitter le panneau agrandi</p>
       </section>

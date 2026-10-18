@@ -270,6 +270,9 @@ let mobTab = storageGet(MOB_KEY, 'tower');
 function mobile() {
   return isMain && window.innerWidth <= 900;
 }
+// Téléphone : version simplifiée (l'essentiel seulement), sauf « version complète » dans les réglages
+const simple = () => mobile() && !prefs.phoneFull;
+const SIMPLE_TABS = ['tower', 'map', 'feed', 'radio'];
 
 export function showMobilePanel(id) {
   mobTab = id;
@@ -281,7 +284,7 @@ function renderMobile(grid) {
   grid.classList.remove('custom', 'has-max', 'free');
   for (const p of PANELS) clearFree(panelEl(p.id));
   grid.classList.add('mobile');
-  const tabs = MOB_TABS.filter(([id]) => isVisible(id));
+  const tabs = MOB_TABS.filter(([id]) => isVisible(id) && (!simple() || SIMPLE_TABS.includes(id)));
   if (!tabs.some(([id]) => id === mobTab)) mobTab = tabs[0]?.[0] || 'tower';
   for (const p of PANELS) {
     const el = panelEl(p.id);
@@ -321,10 +324,11 @@ function mobMore(btn) {
   document.querySelector('.lpop-menu')?.remove();
   const menu = document.createElement('div');
   menu.className = 'lpop-menu mob-more';
+  // Version simplifiée : sans les replays (pilotés depuis l'ordinateur) ni les commentaires audio
   menu.innerHTML = [
     ['results', 'checkered', 'Résultats de la séance'], ['replays', 'history', 'Replays'], ['comm', 'mic', 'Commentaires en direct'], ['summary', 'doc', 'Résumé de la séance'],
     ['settings', 'gear', 'Réglages'],
-  ].map(([k, ic, label]) => `<button data-more="${k}">${icon(ic)} ${label}</button>`).join('');
+  ].filter(([k]) => !simple() || !['replays', 'comm'].includes(k)).map(([k, ic, label]) => `<button data-more="${k}">${icon(ic)} ${label}</button>`).join('');
   document.body.appendChild(menu);
   const r = btn.getBoundingClientRect();
   menu.style.right = '8px';
@@ -345,8 +349,10 @@ function mobMore(btn) {
 function render(force = false) {
   if (resizing) { renderLater = true; return; }
   const grid = $('.grid');
-  const key = `${mobile()}|${narrow()}|${JSON.stringify(layout)}|${PANELS.map((p) => isVisible(p.id)).join()}`;
+  const key = `${mobile()}|${simple()}|${narrow()}|${JSON.stringify(layout)}|${PANELS.map((p) => isVisible(p.id)).join()}`;
   if (key === renderKey && !force) return;
+  document.documentElement.classList.toggle('phone', mobile());
+  document.documentElement.classList.toggle('simple', simple());
   renderKey = key;
   if (mobile()) { renderMobile(grid); return; }
   grid.classList.remove('mobile');
@@ -1012,7 +1018,7 @@ export function initLayout() {
   // Disposition modifiée dans une autre instance de la même fenêtre (rechargement) : rien à faire ;
   // la fenêtre principale suit seulement les préférences.
   on('prefs', (k) => {
-    if (k === 'hiddenPanels') render();
+    if (k === 'hiddenPanels' || k === 'phoneFull') render();
     if (['hiddenPanels', 'hiddenCols', 'extraCols', 'towerFit'].includes(k)) renderLayoutOptions();
   });
   render(true);

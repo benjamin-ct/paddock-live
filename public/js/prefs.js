@@ -18,6 +18,7 @@ const DEFAULTS = {
   teamLogos: true,        // logos des écuries (classement, championnat) plutôt que barres de couleur
   logoColor: true,        // logos dans leurs couleurs officielles (sinon logo blanc sur la couleur d'équipe)
   keepAwake: true,        // écran toujours allumé pendant une séance
+  phoneFull: false,       // téléphone : tous les onglets et réglages de l'ordinateur (sinon version simplifiée)
   motion: true,           // animations de l'interface (désactivées aussi si le système le demande)
   momentsSpoil: false,    // replay : détail des moments clés à venir affiché
   lang: LANG,             // langue de l'interface : 'fr' | 'en' (voir i18n.js)
@@ -88,6 +89,8 @@ function applyScheme() {
     touch('DriverList');   // panneaux redessinés avec les couleurs de l'apparence (pneus, carte…)
   }
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', v === 'light' ? '#F4F5F7' : '#07080A');
+  // Appli installée sur iPhone : barre d'état claire ou noire (prise en compte au lancement suivant)
+  document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]')?.setAttribute('content', v === 'light' ? 'default' : 'black');
 }
 document.documentElement.dataset.theme = 'pitwall';
 applyScheme();

@@ -165,6 +165,11 @@ export class Hub {
           const str = JSON.stringify({ type: 'hostDelay', ms: c.delay });
           for (const o of this.clients) if (!o.host) this.send(o, str);
         }
+      } else if (msg.type === 'focus' && host) {
+        // Pilote suivi dans l'appli : repris par les overlays (télémétrie)
+        this.hostFocus = msg.num == null ? null : String(msg.num).slice(0, 3);
+        const str = JSON.stringify({ type: 'hostFocus', num: this.hostFocus });
+        for (const o of this.clients) if (!o.host) this.send(o, str);
       } else if (msg.type === 'ping') {
         this.send(c, JSON.stringify({ type: 'pong', id: msg.id, serverNow: Date.now() }));
       }
@@ -172,12 +177,20 @@ export class Hub {
     ws.on('close', () => this.clients.delete(c));
     ws.on('error', () => this.clients.delete(c));
     this.send(c, JSON.stringify(this.statusPayload()));
-    this.send(c, JSON.stringify({ type: 'role', host, hostDelay: this.hostDelay ?? null }));
+    this.send(c, JSON.stringify({ type: 'role', host, hostDelay: this.hostDelay ?? null, hostFocus: this.hostFocus ?? null }));
     return c;
   }
 
   send(c, str) {
     if (c.ws.readyState === WebSocket.OPEN) c.ws.send(str);
+  }
+
+  // Délai TV changé à distance (Stream Deck…) : appliqué par les fenêtres de l'ordinateur, suivi par
+  // les overlays et les téléphones. Renvoie le nouveau délai (ms).
+  setHostDelay(ms) {
+    this.hostDelay = Math.round(Math.max(0, Math.min(this.maxDelayMs, ms)) / 100) * 100;
+    for (const o of this.clients) this.send(o, JSON.stringify(o.host ? { type: 'setDelay', ms: this.hostDelay } : { type: 'hostDelay', ms: this.hostDelay }));
+    return this.hostDelay;
   }
 
   tick() {

@@ -72,3 +72,22 @@ test('pronostics en ligne : groupe partagé, pseudo réservé, choix des autres 
   // Groupe inconnu
   assert.equal((await call(env, 'GET', '/p/api/abcdefghij', null, now)).status, 404);
 });
+
+test('pronostics en ligne : saison enregistrée utilisée sans attendre sa reconstruction', async () => {
+  const season = { drivers: [], races: [] };
+  const env = { DB: fakeD1(season) };
+  // Saison relue il y a 2 h (au-delà des 30 min du Studio) : servie telle quelle, sans appel réseau
+  env.DB.prepare('INSERT INTO pronos_groups').bind('abcdefghij', 'Test').run();
+  const old = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async () => { calls++; throw new Error('reconstruction inattendue'); };
+  try {
+    const studioRow = JSON.stringify({ at: Date.now() - 2 * 3600e3, v: season });
+    const prep = env.DB.prepare.bind(env.DB);
+    env.DB.prepare = (sql) => (sql.startsWith('SELECT v FROM studio') ? { bind: () => ({ first: async () => ({ v: studioRow }) }) } : prep(sql));
+    const r = await call(env, 'GET', '/p/api/abcdefghij?year=2026', null, Date.now());
+    assert.equal(r.status, 200);
+    assert.equal(r.group.name, 'Test');
+    assert.equal(calls, 0);
+  } finally { globalThis.fetch = old; }
+});
