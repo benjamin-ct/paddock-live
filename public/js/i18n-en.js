@@ -2422,7 +2422,7 @@ export default {
   "Vous avez un compte GitHub ? Les bugs et idées peuvent aussi être suivis publiquement :": "Got a GitHub account? Bugs and ideas can also be tracked publicly:",
   "ouvrir un ticket sur GitHub": "open an issue on GitHub",
   "Ajouter une capture ou une vidéo": "Add a screenshot or a video",
-  "3 fichiers au plus : images jusqu'à 8 Mo, vidéos jusqu'à 40 Mo": "Up to 3 files: images up to 8 MB, videos up to 40 MB",
+  "Ou glissez-les, ou collez une capture (Ctrl+V) : 3 fichiers au plus, images jusqu'à 8 Mo, vidéos jusqu'à 40 Mo": "Or drag them here, or paste a screenshot (Ctrl+V): up to 3 files, images up to 8 MB, videos up to 40 MB",
   "3 fichiers au plus": "3 files at most",
   "{} : format non accepté ou fichier trop lourd": "{}: format not accepted or file too large",
   "Envoi des pièces jointes ({}/{})…": "Sending attachments ({}/{})…",

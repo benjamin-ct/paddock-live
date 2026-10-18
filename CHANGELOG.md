@@ -8,7 +8,8 @@ l'application (Réglages → Application → Nouveautés).
 
 ### Une question, une idée ?
 - Joignez jusqu'à 3 captures d'écran ou vidéos à votre message (images jusqu'à 8 Mo, vidéos jusqu'à 40 Mo),
-  depuis Réglages → À propos ou depuis le formulaire du site : pratique pour montrer un bug.
+  depuis Réglages → À propos ou depuis le formulaire du site : pratique pour montrer un bug. Ajoutez-les avec le
+  bouton, en les glissant sur le formulaire ou en collant une capture (Ctrl+V).
 
 ### F1 TV
 - Prêt pour l'extension de navigateur **Paddock Live Companion** (bientôt sur les boutiques Chrome, Edge et

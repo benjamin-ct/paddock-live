@@ -377,6 +377,21 @@ export function initSettings() {
     const f = fbFiles();
     $('#fbFileList').textContent = f.length ? f.map((x) => `${x.name} (${(x.size / 1e6).toFixed(1)} Mo)`).join(' · ') : t(fbHint);
   });
+  // Captures et vidéos aussi collées (Ctrl+V) ou glissées sur le formulaire : ajoutées à la sélection
+  const fbAdd = (list) => {
+    const add = [...list].filter((f) => /^(image|video)\//.test(f.type));
+    if (!add.length) return false;
+    const dt = new DataTransfer();
+    [...fbFiles(), ...add].slice(0, 3).forEach((f) => dt.items.add(f));
+    $('#fbFiles').files = dt.files;
+    $('#fbFiles').dispatchEvent(new Event('change'));
+    return true;
+  };
+  const fbForm = $('#fbForm');
+  fbForm.addEventListener('paste', (e) => { if (fbAdd(e.clipboardData?.files || [])) e.preventDefault(); });
+  fbForm.addEventListener('dragover', (e) => { if (e.dataTransfer.types.includes('Files')) { e.preventDefault(); fbForm.classList.add('drag'); } });
+  fbForm.addEventListener('dragleave', (e) => { if (!fbForm.contains(e.relatedTarget)) fbForm.classList.remove('drag'); });
+  fbForm.addEventListener('drop', (e) => { e.preventDefault(); fbForm.classList.remove('drag'); fbAdd(e.dataTransfer.files); });
   $('#fbForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const text = $('#fbText').value.trim();

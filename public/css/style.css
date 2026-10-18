@@ -557,7 +557,8 @@ code { background: var(--panel-3); padding: 1px 5px; border-radius: 4px; font-si
 .cl-body ul { margin: 4px 0; padding-left: 18px; }
 .cl-body p { margin: 4px 0; }
 .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 8px 0; }
-.fb-form { display: grid; gap: 8px; margin-top: 8px; }
+.fb-form { display: grid; gap: 8px; margin-top: 8px; border-radius: 10px; }
+.fb-form.drag { outline: 2px dashed var(--accent); outline-offset: 6px; }
 .fb-form select { justify-self: start; }
 .fb-form textarea { width: 100%; resize: vertical; font: inherit; }
 .fb-form .row { margin: 0; }
