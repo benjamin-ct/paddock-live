@@ -3,6 +3,7 @@
 // Bitfocus Companion (délai TV, replay). Adresses de cet ordinateur (127.0.0.1 et le port de l'appli).
 import { $, esc } from '../util.js';
 import { icon } from '../icons.js';
+import { t } from '../i18n.js';
 import { toast } from './delay.js';
 import { store, on } from '../store.js';
 import { sendOverlayCfg } from '../conn.js';
@@ -47,7 +48,8 @@ const keyOf = (path) => (path.startsWith('/mini.html') ? 'mini' : path === MAP ?
 function overlayLine([label, path, size, bg]) {
   const layers = path === MAP ? [...document.querySelectorAll('#mapLayers input[id^="map"]')].filter((i) => !NO_LAYER.includes(i.id)) : [];
   const cols = path.startsWith('/mini.html') ? COLS : [];
-  const extra = (bg === null ? '' : `<label class="small stream-bg">Fond <input type="range" min="0" max="100" step="5" value="${bg}" data-bg> <span>${bgLabel(bg)}</span></label>`)
+  const extra = (bg === null ? '' : `<div class="stream-bg"><label class="small">Fond <input type="range" min="0" max="100" step="5" value="${bg}" data-bg> <span>${bgLabel(bg)}</span></label>
+      <button class="btn small" data-ovreset title="${cols.length ? 'Fond, colonnes de cet overlay remis comme au départ' : layers.length ? 'Fond, calques de cet overlay remis comme au départ' : 'Fond de cet overlay remis comme au départ'}">${icon('undo')} Par défaut</button></div>`)
     + (layers.length ? `<details class="small"><summary>Calques de la carte</summary><div class="row">${layers.map((i) => `<label class="toggle small"><input type="checkbox" data-layer="${i.id.slice(3).toLowerCase()}" ${i.defaultChecked ? 'checked' : ''}> ${esc(i.parentElement.textContent.trim())}</label>`).join('')}</div></details>` : '')
     + (cols.length ? `<details class="small"><summary>Colonnes du classement</summary><div class="row">${cols.map(([k, l, on]) => `<label class="toggle small"><input type="checkbox" data-col="${k}" ${on ? 'checked' : ''}> ${esc(l)}</label>`).join('')}</div>
       <p class="muted">Hors course, un seul temps (écart au meilleur tour) ; ni places ni arrêts.</p></details>` : '');
@@ -57,7 +59,7 @@ function overlayLine([label, path, size, bg]) {
 function render() {
   const ov = $('#streamOverlays');
   if (!ov) return;
-  ov.innerHTML = `<h4>${icon('video')} Overlays pour votre stream <button class="btn small" data-ovreset title="Fond, colonnes du classement et calques de la carte remis comme au départ">${icon('undo')} Réglages par défaut</button></h4>
+  ov.innerHTML = `<h4>${icon('video')} Overlays pour votre stream</h4>
     <p class="small muted">Dans OBS Studio, Streamlabs ou Meld Studio, ajoutez une source « Navigateur » avec l'une de ces adresses et la taille indiquée. Fond transparent ; le délai TV suit celui réglé dans Paddock Live, qui doit rester ouvert sur cet ordinateur.</p>
     ${OVERLAYS.map(overlayLine).join('')}
     <details class="small"><summary>Où ajouter la source ?</summary><ul>
@@ -80,14 +82,15 @@ function render() {
     clearTimeout(tm);
     tm = setTimeout(() => sendOverlayCfg(cfgOf(ov)), 250);
   });
-  // Réglages par défaut : valeurs d'origine des curseurs et des cases, envoyées tout de suite aux overlays
+  // « Par défaut » d'un overlay : valeurs d'origine de son curseur et de ses cases, envoyées tout de suite
   ov.addEventListener('click', (e) => {
-    if (!e.target.closest('[data-ovreset]')) return;
-    for (const r of ov.querySelectorAll('[data-bg]')) { r.value = r.defaultValue; r.nextElementSibling.textContent = bgLabel(r.value); }
-    for (const c of ov.querySelectorAll('[data-col], [data-layer]')) c.checked = c.defaultChecked;
+    const row = e.target.closest('[data-ovreset]')?.closest('[data-key]');
+    if (!row) return;
+    for (const r of row.querySelectorAll('[data-bg]')) { r.value = r.defaultValue; r.nextElementSibling.textContent = bgLabel(r.value); }
+    for (const c of row.querySelectorAll('[data-col], [data-layer]')) c.checked = c.defaultChecked;
     clearTimeout(tm);
     sendOverlayCfg(cfgOf(ov));
-    toast('Overlays remis aux réglages par défaut', 2500, 'check');
+    toast(t('{} : réglages par défaut', row.querySelector('b').textContent), 2500, 'check');
   });
   on('overlayCfg', (cfg) => { if (!ov.contains(document.activeElement)) show(cfg); });
 }

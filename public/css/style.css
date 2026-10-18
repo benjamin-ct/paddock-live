@@ -2993,8 +2993,7 @@ html.overlay body.ov-body { background: transparent; margin: 0; overflow: hidden
 @media (prefers-reduced-motion: reduce) { .boot-spin { animation-duration: 2.4s; } }
 .boot-cover.out { opacity: 0; pointer-events: none; }
 html:is(.float-map, .overlay) .boot-cover { display: none; }
-.stream-bg { display: flex; align-items: center; gap: 8px; margin-top: 2px; }
+.stream-bg { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 2px; }
+.stream-bg label { flex: 1; display: flex; align-items: center; gap: 8px; }
 .stream-bg input { flex: 1; max-width: 320px; accent-color: var(--accent); }
 .stream-bg span { min-width: 64px; color: var(--muted); }
-#streamOverlays > h4 { display: flex; align-items: center; gap: 8px; }
-#streamOverlays > h4 [data-ovreset] { margin-left: auto; font-weight: 600; }
