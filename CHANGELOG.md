@@ -15,7 +15,7 @@ l'application (Réglages → Application → Nouveautés).
 
 ### Pronostics entre amis
 - Podium : un pilote choisi à une place ne peut plus être choisi aux deux autres.
-- Les pronostics des autres joueurs s'affichent tout seuls, sans recharger (dans l'application et sur
+- Les pronostics des autres joueurs s'affichent tout seuls en quelques secondes, sans recharger (dans l'application et sur
   la page web du groupe), sans effacer un pronostic en cours de saisie.
 
 ## v1.27.33 — 2026-10-18

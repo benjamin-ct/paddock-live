@@ -132,8 +132,8 @@ export function renderPredict(year) {
 
 export function initPredict() {
   document.addEventListener('change', (e) => { if (e.target.closest('#pdForm')) lockPodium(); });
-  // Pronostics des autres (téléphones, groupe en ligne) relus toutes les 20 s quand la vue est affichée
-  setInterval(() => { if ($('#pdRoot')?.offsetParent && !document.hidden && viewYear) load(viewYear, true, true); }, 20000);
+  // Pronostics des autres (téléphones, groupe en ligne) relus toutes les 5 s quand la vue est affichée
+  setInterval(() => { if ($('#pdRoot')?.offsetParent && !document.hidden && viewYear) load(viewYear, true, true); }, 5000);
   document.addEventListener('click', async (e) => {
     const b = e.target.closest('[data-pd]');
     if (!b) return;

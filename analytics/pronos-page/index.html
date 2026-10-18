@@ -118,8 +118,8 @@
     };
   }
   load().catch(() => { document.getElementById('root').innerHTML = '<p class="msg bad">Serveur injoignable : réessayez dans un instant.</p>'; });
-  // Pronostics des autres relus toutes les 20 s, et au retour sur la page
-  setInterval(() => { if (!document.hidden) load(true).catch(() => {}); }, 20000);
+  // Pronostics des autres relus toutes les 5 s, et au retour sur la page
+  setInterval(() => { if (!document.hidden) load(true).catch(() => {}); }, 5000);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) load(true).catch(() => {}); });
 </script>
 </body>
