@@ -4,7 +4,7 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
-## v1.27.40 — à venir
+## v1.27.40 — 2026-10-18
 
 ### Barre du haut
 - La barre du haut ne déborde plus de la fenêtre (par exemple en replay sur un écran de 1920 pixels) : la page ne
