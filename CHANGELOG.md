@@ -18,6 +18,9 @@ l'application (Réglages → Application → Nouveautés).
 - Podium : un pilote choisi à une place ne peut plus être choisi aux deux autres.
 - Les pronostics des autres joueurs s'affichent tout seuls en quelques secondes, sans recharger (dans l'application et sur
   la page web du groupe), sans effacer un pronostic en cours de saisie.
+- Retrouvez vos groupes toute la saison : la liste « Mes groupes » (dans Saison → Pronostics et sur
+  paddocklive.app/p) les rouvre en un clic, et l'application passe d'un groupe à l'autre. Un lien personnel
+  rouvre le groupe avec votre pseudo et vos points sur un autre appareil (téléphone, autre ordinateur).
 
 ## v1.27.33 — 2026-10-18
 

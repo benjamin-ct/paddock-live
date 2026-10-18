@@ -18,6 +18,14 @@ const me = () => storageGet('paddock.player', '');
 const SITE = 'https://paddocklive.app/p/';
 const group = () => { try { return JSON.parse(storageGet('paddock.pronoGroup', '') || 'null'); } catch { return null; } };
 const tokKey = (g) => `paddock.pronoTok.${g.id}`;
+// Groupes en ligne déjà ouverts ici (« Mes groupes »), le groupe affiché en tête
+const groups = () => { let l; try { l = JSON.parse(storageGet('paddock.pronoGroups', '') || '[]'); } catch { l = []; } const g = group(); return g ? [g, ...l.filter((x) => x.id !== g.id)] : l; };
+function useGroup(g) {
+  storageSet('paddock.pronoGroups', JSON.stringify([{ id: g.id, name: g.name }, ...groups().filter((x) => x.id !== g.id)].slice(0, 20)));
+  storageSet('paddock.pronoGroup', JSON.stringify({ id: g.id, name: g.name }));
+}
+// Lien personnel : le groupe avec ce pseudo sur un autre appareil (page web ou autre appli)
+const myLink = (g) => { const t = storageGet(tokKey(g), ''); return t ? `${SITE}${g.id}#k=${t}` : ''; };
 const fmt = (t) => (t ? new Date(t).toLocaleString(LOCALE, { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—');
 
 // quiet : relecture automatique (pronostics des autres) ; rien n'est redessiné si rien n'a changé ou
@@ -73,15 +81,21 @@ function picksTable(r) {
 // Groupe en ligne : lien à partager, ou création / arrivée dans un groupe
 function groupBox() {
   const g = group();
+  const list = groups();
   if (g) {
+    const mine = myLink(g);
     return `<section class="sz-box pd-group"><h3>${icon('share')} Groupe en ligne : ${esc(g.name)}</h3>
       <p class="muted small">Vos amis pronostiquent depuis cette page web, sans l'appli ni le réseau local ; tout s'affiche ici aussi.</p>
       <div class="pd-actions"><input readonly value="${esc(SITE + g.id)}" class="pd-link"><button class="btn small" data-pd="copy">${icon('doc')} Copier le lien</button>
-        <button class="btn small" data-pd="leave" title="Revenir aux pronostics de cet ordinateur (le groupe reste en ligne)">Quitter le groupe</button></div></section>`;
+        <button class="btn small" data-pd="leave" title="Revenir aux pronostics de cet ordinateur (le groupe reste dans Mes groupes)">Quitter le groupe</button></div>
+      ${mine ? `<div class="pd-actions"><input readonly value="${esc(mine)}" class="pd-link"><button class="btn small" data-pd="mylink">${icon('doc')} Copier mon lien personnel</button></div>
+      <p class="muted small">Lien personnel : ce groupe avec votre pseudo et vos points sur un autre appareil (téléphone, autre ordinateur). Gardez-le pour vous.</p>` : ''}
+      ${list.length > 1 ? `<label class="small pd-name">Mes groupes <select data-pd-switch>${list.map((x) => `<option value="${esc(x.id)}" ${x.id === g.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></label>` : ''}</section>`;
   }
-  return `<details class="sz-box pd-group"><summary><b>${icon('share')} Jouer en ligne avec des amis</b> <span class="muted small">hors du réseau local, avec un lien à partager</span></summary>
+  return `<details class="sz-box pd-group" ${list.length ? 'open' : ''}><summary><b>${icon('share')} Jouer en ligne avec des amis</b> <span class="muted small">hors du réseau local, avec un lien à partager</span></summary>
+      ${list.length ? `<div class="pd-actions"><span class="small">Mes groupes</span>${list.map((x) => `<button class="btn small" data-pd="open" data-id="${esc(x.id)}">${esc(x.name)}</button>`).join('')}</div>` : ''}
       <div class="pd-actions"><input name="pdGroupName" maxlength="40" placeholder="Nom du groupe (ex. Les copains)"><button class="btn small" data-pd="create">Créer un groupe en ligne</button></div>
-      <div class="pd-actions"><input name="pdGroupLink" placeholder="Lien d'un groupe (paddocklive.app/p/…)"><button class="btn small" data-pd="join">Rejoindre</button></div>
+      <div class="pd-actions"><input name="pdGroupLink" placeholder="Lien d'un groupe ou lien personnel (paddocklive.app/p/…)"><button class="btn small" data-pd="join">Rejoindre</button></div>
       <p class="muted small">Le groupe et ses pronostics (pseudos et choix) sont gardés sur le serveur Paddock Live. Les pronostics de cet ordinateur restent à part.</p></details>`;
 }
 
@@ -95,10 +109,12 @@ function fill() {
   const mine = next?.picks.find((p) => p.mine) || {};
   const poleOpen = next && (!next.locks.pole || now < next.locks.pole);
   const others = next ? next.picks.filter((p) => !p.mine).length : 0;
+  // Pseudo de ce joueur dans le groupe (repris d'un lien personnel), sinon celui de cet ordinateur
+  const myName = mine.name || view.races.flatMap((r) => r.picks).find((p) => p.mine)?.name || me();
   const form = next ? `<section class="sz-box pd-next">
       <h3>${icon('target')} ${esc(gpFull(next.name, EN))} <span class="muted small">manche ${next.round}</span></h3>
       <form id="pdForm" data-round="${next.round}">
-        <label class="small pd-name">Votre prénom ou pseudo <input name="name" value="${esc(me())}" maxlength="24" placeholder="ex. Benjamin" required></label>
+        <label class="small pd-name">Votre prénom ou pseudo <input name="name" value="${esc(myName)}" maxlength="24" placeholder="ex. Benjamin" required></label>
         <div class="pd-picks">
           <label class="small">Pole position ${driverSelect('pole', mine.pole, view.drivers, !poleOpen)}</label>
           <label class="small">1er ${driverSelect('p1', mine.p1, view.drivers)}</label>
@@ -113,7 +129,7 @@ function fill() {
 
   const done = view.races.filter((r) => r.result && r.picks.length).reverse();
   const board = view.board.length ? `<table class="sz-table pd-board"><tr><th>#</th><th>Joueur</th><th>Points</th>${done.slice(0, 6).reverse().map((r) => `<th title="${esc(gpFull(r.name, EN))}">R${r.round}</th>`).join('')}</tr>
-    ${view.board.map((p, i) => `<tr class="${p.name.toLowerCase() === me().toLowerCase() ? 'pd-me' : ''}"><td>${i + 1}</td><td>${esc(p.name)}</td><td><b>${p.total}</b></td>${done.slice(0, 6).reverse().map((r) => `<td class="muted">${p.rounds[r.round] ?? '—'}</td>`).join('')}</tr>`).join('')}</table>`
+    ${view.board.map((p, i) => `<tr class="${p.name.toLowerCase() === myName.toLowerCase() ? 'pd-me' : ''}"><td>${i + 1}</td><td>${esc(p.name)}</td><td><b>${p.total}</b></td>${done.slice(0, 6).reverse().map((r) => `<td class="muted">${p.rounds[r.round] ?? '—'}</td>`).join('')}</tr>`).join('')}</table>`
     : '<p class="muted small">Le classement apparaîtra après le premier Grand Prix pronostiqué.</p>';
   const history = done.map((r, i) => `<details class="sz-box pd-round" ${i === 0 ? 'open' : ''}><summary><b>R${r.round} · ${esc(gpShort(r.name, EN))}</b>
       <span class="muted small">pole ${esc(r.result.pole || '—')} · podium ${esc(r.result.podium.join(', ') || '—')}</span></summary>${picksTable(r)}</details>`).join('');
@@ -131,7 +147,11 @@ export function renderPredict(year) {
 }
 
 export function initPredict() {
-  document.addEventListener('change', (e) => { if (e.target.closest('#pdForm')) lockPodium(); });
+  document.addEventListener('change', (e) => {
+    if (e.target.closest('#pdForm')) lockPodium();
+    const sw = e.target.closest('[data-pd-switch]');
+    if (sw) { useGroup(groups().find((x) => x.id === sw.value)); load(viewYear, true); }
+  });
   // Pronostics des autres (téléphones, groupe en ligne) relus toutes les 5 s quand la vue est affichée
   setInterval(() => { if ($('#pdRoot')?.offsetParent && !document.hidden && viewYear) load(viewYear, true, true); }, 5000);
   document.addEventListener('click', async (e) => {
@@ -141,18 +161,24 @@ export function initPredict() {
     const act = b.dataset.pd;
     try {
       if (act === 'copy') { await navigator.clipboard.writeText(SITE + group().id); toast('Lien copié', 2000, 'check'); return; }
-      if (act === 'leave') { if (!window.confirm('Quitter le groupe en ligne ? Il reste accessible avec son lien.')) return; storageSet('paddock.pronoGroup', ''); }
+      if (act === 'mylink') { await navigator.clipboard.writeText(myLink(group())); toast('Lien copié', 2000, 'check'); return; }
+      if (act === 'leave') { if (!window.confirm('Quitter le groupe en ligne ? Vous pourrez le rouvrir depuis Mes groupes.')) return; storageSet('paddock.pronoGroup', ''); }
+      if (act === 'open') useGroup(groups().find((x) => x.id === b.dataset.id));
       if (act === 'create') {
         b.disabled = true;
         const g = await api('/api/predictions/online', { method: 'POST', body: { name: $('[name="pdGroupName"]', box).value } });
-        storageSet('paddock.pronoGroup', JSON.stringify(g));
+        useGroup(g);
         toast('Groupe créé : copiez le lien et envoyez-le à vos amis', 5000, 'check');
       }
       if (act === 'join') {
-        const id = /([a-z0-9]{10})\/?$/.exec($('[name="pdGroupLink"]', box).value.trim())?.[1];
+        const link = $('[name="pdGroupLink"]', box).value.trim();
+        const id = /(?:^|\/)([a-z0-9]{10})\/?(?:[?#].*)?$/.exec(link)?.[1];
         if (!id) throw new Error('Lien de groupe invalide');
         const r = await api(`/api/predictions/online?${new URLSearchParams({ g: id, year: viewYear })}`);
-        storageSet('paddock.pronoGroup', JSON.stringify(r.group));
+        // Lien personnel (…#k=jeton) : on reprend son pseudo dans ce groupe
+        const k = /[#&]k=([\w-]{20,64})/.exec(link)?.[1];
+        if (k) storageSet(tokKey(r.group), k);
+        useGroup(r.group);
       }
       load(viewYear, true);
     } catch (err) { toast(err.message, 5000); b.disabled = false; }
