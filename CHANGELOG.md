@@ -4,6 +4,18 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
+## v1.27.39 — 2026-10-18
+
+### Streaming
+- Les overlays ajoutés dans OBS, Streamlabs ou Meld Studio se rechargent tout seuls quand l'appli redémarre, par
+  exemple après une mise à jour : ils profitent tout de suite des nouveautés, sans « Actualiser » à la main. Après
+  cette mise à jour, actualisez-les une dernière fois (clic droit sur la source → Actualiser) : les overlays ouverts
+  avant la v1.27.38 ne suivaient pas encore les réglages faits dans l'appli.
+- Réglages → Streaming : un bouton « Par défaut » sur chaque overlay remet son fond (et les colonnes du classement ou
+  les calques de la carte) comme au départ ; l'overlay suit aussitôt, les autres ne changent pas.
+- Overlay du classement : les 22 pilotes tiennent toujours dans la source, dans OBS aussi (la dernière ligne pouvait
+  être coupée).
+
 ## v1.27.38 — 2026-10-18
 
 ### Streaming

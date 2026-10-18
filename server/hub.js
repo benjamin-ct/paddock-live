@@ -200,7 +200,7 @@ export class Hub {
     ws.on('close', () => this.clients.delete(c));
     ws.on('error', () => this.clients.delete(c));
     this.send(c, JSON.stringify(this.statusPayload()));
-    this.send(c, JSON.stringify({ type: 'role', host, hostDelay: this.hostDelay ?? null, hostFocus: this.hostFocus ?? null, overlayCfg: this.overlayCfg ?? null }));
+    this.send(c, JSON.stringify({ type: 'role', host, hostDelay: this.hostDelay ?? null, hostFocus: this.hostFocus ?? null, overlayCfg: this.overlayCfg ?? null, boot: this.boot ?? null }));
     return c;
   }
 

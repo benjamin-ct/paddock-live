@@ -8,6 +8,7 @@ const OVERLAY = /[?&]overlay=1(&|$)/.test(location.search) || location.pathname 
 const OVERLAY_KEY = !OVERLAY ? null : location.pathname === '/overlay.html' ? new URLSearchParams(location.search).get('w') || 'laps'
   : location.pathname === '/mini.html' ? 'mini' : 'map';
 let ws = null;
+let boot = null;   // démarrage du serveur vu à la première connexion
 let pingTimer = null;
 let pingId = 0;
 const pending = new Map();
@@ -43,6 +44,9 @@ export function connect() {
         break;
       // Téléphone ou tablette : on reprend le délai TV réglé sur l'ordinateur
       case 'role':
+        // Overlay (OBS garde la page ouverte) : appli redémarrée, peut-être mise à jour, on recharge la page
+        if (OVERLAY && boot && msg.boot && msg.boot !== boot) { location.reload(); return; }
+        boot = msg.boot;
         store.isHost = msg.host;
         emit('role', msg.host);
         if (msg.hostDelay != null) followHost(msg.hostDelay);
