@@ -469,7 +469,7 @@ const HELP = {
   title: 'Qui peut encore être champion : un pilote (ou une écurie) est éliminé quand ses points, plus le maximum encore à prendre dans les courses et sprints restants, ne rattrapent plus le leader. La barre montre ses points (plein) et ce qu\'il peut encore marquer (hachures) ; le trait vertical, les points du leader.',
   drivers: 'Fiche d\'un pilote : ses chiffres clés et ses notes de la saison, sa position au départ et à l\'arrivée de chaque course, la répartition de ses arrivées, ses points comparés à la saison précédente, puis le détail course par course (qualification, grille, arrivée, points, tours en tête, meilleur tour, vitesse, arrêts).',
   ratings: 'Une note sur 100 et une lettre (S, A, B, C, D, F) pour chaque pilote : la note de la saison le compare à tous les pilotes, la note face au coéquipier le compare à son coéquipier dans la même voiture.',
-  predict: 'Avant chaque Grand Prix, chacun pronostique la pole et le podium, sur cet ordinateur ou sur son téléphone (accès réseau). Les choix des autres restent cachés jusqu\'à la fermeture : début des qualifications pour la pole, départ de la course pour le podium.',
+  predict: 'Avant chaque Grand Prix, chacun pronostique la pole et le podium, sur cet ordinateur, sur son téléphone (accès réseau) ou en ligne avec un groupe (lien à partager). Les choix des autres restent cachés jusqu\'à la fermeture : début des qualifications pour la pole, départ de la course pour le podium.',
   tech: 'Évolutions déclarées par chaque écurie avant chaque Grand Prix (document officiel FIA « Car Presentation Submissions ») : pièce modifiée, raison (performance, spécifique au circuit, fiabilité) et explication de l\'écurie.',
 };
 

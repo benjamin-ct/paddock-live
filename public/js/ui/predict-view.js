@@ -1,5 +1,7 @@
 // Espace Saison → Pronostics : pole et podium de chaque Grand Prix, entre amis (ordinateur et
-// téléphones de l'accès réseau), avec le classement de la saison.
+// téléphones de l'accès réseau), avec le classement de la saison. Groupe en ligne : les mêmes
+// pronostics partagés avec un lien (page paddocklive.app/p/<groupe>), hors du réseau local.
+// Pseudo d'un groupe réservé par un jeton gardé ici.
 import { $, esc, api, storageGet, storageSet } from '../util.js';
 import { icon, arrows } from '../icons.js';
 import { toast } from './delay.js';
@@ -13,13 +15,17 @@ let viewYear = null;
 let loading = false;
 
 const me = () => storageGet('paddock.player', '');
+const SITE = 'https://paddocklive.app/p/';
+const group = () => { try { return JSON.parse(storageGet('paddock.pronoGroup', '') || 'null'); } catch { return null; } };
+const tokKey = (g) => `paddock.pronoTok.${g.id}`;
 const fmt = (t) => (t ? new Date(t).toLocaleString(LOCALE, { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—');
 
 async function load(year, force = false) {
   if (loading || (!force && view && viewYear === year)) return;
   loading = true;
   try {
-    view = await api(`/api/predictions?year=${year}&me=${encodeURIComponent(me())}`);
+    const g = group();
+    view = await api(g ? `/api/predictions/online?${new URLSearchParams({ g: g.id, year, tok: storageGet(tokKey(g), '') })}` : `/api/predictions?year=${year}&me=${encodeURIComponent(me())}`);
     viewYear = year;
   } catch (err) {
     view = { error: err.message };
@@ -46,11 +52,26 @@ function picksTable(r) {
       <td><b>${p.points ? p.points.total : '—'}</b>${p.points?.perfect ? ` <small class="pd-hit">podium exact +${p.points.perfect}</small>` : ''}</td></tr>`).join('')}</table>`;
 }
 
+// Groupe en ligne : lien à partager, ou création / arrivée dans un groupe
+function groupBox() {
+  const g = group();
+  if (g) {
+    return `<section class="sz-box pd-group"><h3>${icon('share')} Groupe en ligne : ${esc(g.name)}</h3>
+      <p class="muted small">Vos amis pronostiquent depuis cette page web, sans l'appli ni le réseau local ; tout s'affiche ici aussi.</p>
+      <div class="pd-actions"><input readonly value="${esc(SITE + g.id)}" class="pd-link"><button class="btn small" data-pd="copy">${icon('doc')} Copier le lien</button>
+        <button class="btn small" data-pd="leave" title="Revenir aux pronostics de cet ordinateur (le groupe reste en ligne)">Quitter le groupe</button></div></section>`;
+  }
+  return `<details class="sz-box pd-group"><summary><b>${icon('share')} Jouer en ligne avec des amis</b> <span class="muted small">hors du réseau local, avec un lien à partager</span></summary>
+      <div class="pd-actions"><input name="pdGroupName" maxlength="40" placeholder="Nom du groupe (ex. Les copains)"><button class="btn small" data-pd="create">Créer un groupe en ligne</button></div>
+      <div class="pd-actions"><input name="pdGroupLink" placeholder="Lien d'un groupe (paddocklive.app/p/…)"><button class="btn small" data-pd="join">Rejoindre</button></div>
+      <p class="muted small">Le groupe et ses pronostics (pseudos et choix) sont gardés sur le serveur Paddock Live. Les pronostics de cet ordinateur restent à part.</p></details>`;
+}
+
 function fill() {
   const root = $('#pdRoot');
   if (!root) return;
   if (!view) { root.innerHTML = '<div class="note">Chargement des pronostics…</div>'; return; }
-  if (view.error) { root.innerHTML = `<div class="note">Pronostics indisponibles (${esc(view.error)}).</div>`; return; }
+  if (view.error) { root.innerHTML = `${groupBox()}<div class="note">Pronostics indisponibles (${esc(view.error)}).</div>`; return; }
   const now = Date.now();
   const next = view.races.find((r) => !r.result && r.locks.podium && r.locks.podium > now);
   const mine = next?.picks.find((p) => p.mine) || {};
@@ -69,7 +90,7 @@ function fill() {
         <div class="pd-actions"><button class="btn" type="submit">${icon('check')} Enregistrer mon pronostic</button>
           <span class="muted small">Pole : ${poleOpen ? `jusqu'au ${fmt(next.locks.pole)}` : 'fermé (qualifications commencées)'} · Podium : jusqu'au ${fmt(next.locks.podium)}</span></div>
       </form>
-      <p class="muted small">${others ? `${others} autre${others > 1 ? 's' : ''} joueur${others > 1 ? 's ont' : ' a'} déjà pronostiqué (choix révélés à la fermeture).` : arrows('Aucun autre joueur pour l\'instant : partagez le dashboard sur vos téléphones (Réglages → Application → accès réseau).')}</p>
+      <p class="muted small">${others ? `${others} autre${others > 1 ? 's' : ''} joueur${others > 1 ? 's ont' : ' a'} déjà pronostiqué (choix révélés à la fermeture).` : group() ? 'Aucun autre joueur pour l\'instant : partagez le lien du groupe.' : arrows('Aucun autre joueur pour l\'instant : partagez le dashboard sur vos téléphones (Réglages → Application → accès réseau), ou jouez en ligne avec un groupe.')}</p>
     </section>` : '<section class="sz-box"><p class="muted">Plus de Grand Prix à pronostiquer cette saison.</p></section>';
 
   const done = view.races.filter((r) => r.result && r.picks.length).reverse();
@@ -79,7 +100,7 @@ function fill() {
   const history = done.map((r, i) => `<details class="sz-box pd-round" ${i === 0 ? 'open' : ''}><summary><b>R${r.round} · ${esc(gpShort(r.name, EN))}</b>
       <span class="muted small">pole ${esc(r.result.pole || '—')} · podium ${esc(r.result.podium.join(', ') || '—')}</span></summary>${picksTable(r)}</details>`).join('');
   const locked = view.races.filter((r) => !r.result && r.picks.length && r !== next);
-  root.innerHTML = `${form}
+  root.innerHTML = `${groupBox()}${form}
     <section class="sz-box"><h3>${icon('trophy')} Classement des pronostics ${view.year}</h3>${board}
       <p class="muted small">Points : pole exacte ${POINTS.pole} · pilote à la bonne place du podium ${POINTS.exact} · sur le podium mais à une autre place ${POINTS.podium} · podium exact dans l'ordre +${POINTS.perfect}.</p></section>
     ${locked.map((r) => `<section class="sz-box pd-round"><h3>R${r.round} · ${esc(gpShort(r.name, EN))} <span class="muted small">en attente des résultats</span></h3>${picksTable(r)}</section>`).join('')}
@@ -92,6 +113,29 @@ export function renderPredict(year) {
 }
 
 export function initPredict() {
+  document.addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-pd]');
+    if (!b) return;
+    const box = b.closest('.pd-group');
+    const act = b.dataset.pd;
+    try {
+      if (act === 'copy') { await navigator.clipboard.writeText(SITE + group().id); toast('Lien copié', 2000, 'check'); return; }
+      if (act === 'leave') { if (!window.confirm('Quitter le groupe en ligne ? Il reste accessible avec son lien.')) return; storageSet('paddock.pronoGroup', ''); }
+      if (act === 'create') {
+        b.disabled = true;
+        const g = await api('/api/predictions/online', { method: 'POST', body: { name: $('[name="pdGroupName"]', box).value } });
+        storageSet('paddock.pronoGroup', JSON.stringify(g));
+        toast('Groupe créé : copiez le lien et envoyez-le à vos amis', 5000, 'check');
+      }
+      if (act === 'join') {
+        const id = /([a-z0-9]{10})\/?$/.exec($('[name="pdGroupLink"]', box).value.trim())?.[1];
+        if (!id) throw new Error('Lien de groupe invalide');
+        const r = await api(`/api/predictions/online?${new URLSearchParams({ g: id, year: viewYear })}`);
+        storageSet('paddock.pronoGroup', JSON.stringify(r.group));
+      }
+      load(viewYear, true);
+    } catch (err) { toast(err.message, 5000); b.disabled = false; }
+  });
   document.addEventListener('submit', async (e) => {
     const f = e.target.closest('#pdForm');
     if (!f) return;
@@ -100,7 +144,12 @@ export function initPredict() {
     const v = Object.fromEntries(new FormData(f));
     storageSet('paddock.player', v.name.trim());
     try {
-      await api('/api/predictions', { method: 'POST', body: { year: viewYear, round: Number(f.dataset.round), name: v.name, pole: v.pole || null, p1: v.p1 || null, p2: v.p2 || null, p3: v.p3 || null } });
+      const pick = { year: viewYear, round: Number(f.dataset.round), name: v.name, pole: v.pole || null, p1: v.p1 || null, p2: v.p2 || null, p3: v.p3 || null };
+      const g = group();
+      if (g) {
+        const r = await api('/api/predictions/online', { method: 'POST', body: { g: g.id, ...pick, tok: storageGet(tokKey(g), '') || undefined } });
+        storageSet(tokKey(g), r.tok);
+      } else await api('/api/predictions', { method: 'POST', body: pick });
       toast('Pronostic enregistré', 3000, 'check');
       load(viewYear, true);
     } catch (err) {

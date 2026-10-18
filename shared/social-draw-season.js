@@ -298,6 +298,66 @@ export function titre(ctx, W, H, d, o, team) {
   note(ctx, W, f, [msg, more].filter(Boolean).join('  ·  ') || 'Barre claire : points encore possibles');
 }
 
+// ---------- Course au titre : comment le leader peut être sacré (comme dans l'appli) ----------
+// Un bloc par championnat encore ouvert : quand le titre peut se jouer, et au prochain Grand Prix,
+// l'avance à prendre sur chaque rival (et la place qu'il doit faire si le leader gagne ou finit 2e)
+const gapTxt = (m) => (m === 1 ? '+1 PT OU PLUS' : m > 0 ? `+${m} PTS OU PLUS` : m === 0 ? 'ÉGALITÉ OU MIEUX' : m === -1 ? '−1 PT AU PIRE' : `−${-m} PTS AU PIRE`);
+export const titleBlocks = (d) => [['PILOTES', d.clinchD, d.champion], ['CONSTRUCTEURS', d.clinchC, d.champTeam]].filter(([, c, champ]) => c && !champ);
+export function titreComment(ctx, W, H, d, o) {
+  background(ctx, W, H, null);
+  const f = frame(ctx, W, H, d, o, 'Comment être sacré');
+  const land = W > H;
+  const u = Math.min(W, H) / 1080;
+  const gap = 30 * u;
+  const blocks = titleBlocks(d);
+  const bw = land ? (W - f.pad * 2 - gap * (blocks.length - 1)) / blocks.length : W - f.pad * 2;
+  const pw = bw - 60 * u;
+  const rowH = 62 * u;
+  // Texte de chaque bloc : conditions (tableau) ou explication ; hauteur selon le contenu
+  const list = blocks.map(([title, c]) => {
+    const top = c.needs[0];
+    const fit = c.possibleNext ? null : fitLines(ctx, top ? `Pas encore au ${c.nextGp} : il faudrait à ${c.leader} ${top.margin} points de plus que ${top.label} (${c.max} au maximum sur le week-end). Au plus tôt si ${c.leader} marque le maximum à chaque manche et ${top.label} aucun point.` : `${c.leader} en tête.`, pw, [30, 26, 22].map((v) => Math.round(v * u)), 5, BODY, 600);
+    const h = 150 * u + (fit ? fit.lines.length * fit.size * 1.35 + 10 * u : 30 * u + rowH * (c.needs.length + 1) + 50 * u);
+    return { title, c, fit, h };
+  });
+  const area = f.bottom - f.top + 10;
+  const total = land ? Math.max(...list.map((b) => b.h)) : list.reduce((a, b) => a + b.h, 0) + gap * (list.length - 1);
+  let y0 = f.top - 10 + Math.max(0, (area - total) / 2);
+  list.forEach(({ title, c, fit, h }, i) => {
+    const x = land ? f.pad + i * (bw + gap) : f.pad;
+    const bh = land ? total : h;
+    panel(ctx, x, y0, bw, bh);
+    const px = x + 30 * u;
+    let y = y0 + 52 * u;
+    txt(ctx, title, px, y, { size: Math.round(24 * u), weight: 700, family: TITLE, color: C.red, spacing: 3 });
+    y += 52 * u;
+    const head = c.possibleNext ? `TITRE POSSIBLE DÈS ${c.next.toUpperCase()}` : `TITRE AU PLUS TÔT : ${(c.earliest || 'dernière manche').toUpperCase()}`;
+    txt(ctx, head, px, y, { size: Math.round(40 * u), weight: 800, family: TITLE, color: C.gold, max: pw });
+    y += 46 * u;
+    if (fit) {
+      fit.lines.forEach((l, k) => txt(ctx, l, px, y + k * fit.size * 1.35, { size: fit.size, weight: 600, color: C.text }));
+    } else {
+      txt(ctx, `${c.needs.length > 1 ? 'Conditions pour' : 'Condition pour'} ${c.leader}${c.needs.length > 1 ? ', toutes à la fois' : ''}${c.sprint ? ' (sprint et course cumulés)' : ''}`, px, y, { size: Math.round(24 * u), weight: 600, color: C.muted, max: pw });
+      y += 20 * u;
+      const places = c.needs.some((n) => n.win);
+      const cols = places ? [0, 0.34, 0.62, 0.84] : [0, 0.5];
+      ['RIVAL', 'SUR LE WEEK-END', ...(places ? ['EN GAGNANT', 'EN FINISSANT 2E'] : [])].forEach((t, k) => txt(ctx, t, px + pw * cols[k], y + rowH * 0.75, { size: Math.round(20 * u), weight: 700, family: TITLE, color: C.muted, spacing: 2, max: pw * ((cols[k + 1] || 1) - cols[k] - 0.01) }));
+      c.needs.forEach((n, k) => {
+        const ry = y + rowH * (k + 1.75);
+        ctx.fillStyle = vivid(n.color || C.muted); ctx.fillRect(px, ry - rowH * 0.42, 6, rowH * 0.5);
+        txt(ctx, n.label.toUpperCase(), px + 18 * u, ry, { size: Math.round(30 * u), weight: 800, family: TITLE, max: pw * (cols[1] - 0.03) - 18 * u });
+        txt(ctx, gapTxt(n.margin), px + pw * cols[1], ry, { size: Math.round(28 * u), weight: 800, family: TITLE, max: pw * ((cols[2] || 1) - cols[1] - 0.02) });
+        if (places) {
+          txt(ctx, n.win.toUpperCase(), px + pw * cols[2], ry, { size: Math.round(24 * u), weight: 700, family: TITLE, color: C.muted, max: pw * 0.2 });
+          txt(ctx, n.second.toUpperCase(), px + pw * cols[3], ry, { size: Math.round(24 * u), weight: 700, family: TITLE, color: C.muted, max: pw * 0.16 });
+        }
+      });
+      txt(ctx, 'À égalité de points, le titre va au plus grand nombre de victoires.', px, y0 + bh - 26 * u, { size: Math.round(20 * u), weight: 600, color: C.muted, max: pw });
+    }
+    if (!land) y0 += h + gap;
+  });
+}
+
 // ---------- Positions tour par tour ----------
 export function positions(ctx, W, H, d, o) {
   background(ctx, W, H, d.rows[0]?.color);

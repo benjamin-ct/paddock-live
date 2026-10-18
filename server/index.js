@@ -29,7 +29,7 @@ import { parseChangelog } from '../shared/changelog.js';
 import { buildIcs } from '../shared/ics.js';
 import { headshot } from './headshots.js';
 import { osmTile } from './tiles.js';
-import { predictionsView, savePrediction } from './predict.js';
+import { predictionsView, savePrediction, pronosOnline } from './predict.js';
 import { lightsInfo, saveLights, hueDiscover, huePair, lightDevices, setLights } from './lights.js';
 import { exportServerSettings, importServerSettings } from './backup.js';
 import { creatorEnabled, setCreator, savePostImage, openPostsDir } from './creator.js';
@@ -501,6 +501,16 @@ async function handleApi(req, res, url) {
     case 'GET /api/predictions': {
       const year = yearOf(url.searchParams.get('year'));
       return sendJSON(res, 200, await predictionsView(year, url.searchParams.get('me') || ''));
+    }
+    // Groupe en ligne : g = identifiant du groupe (création : POST sans g)
+    case 'GET /api/predictions/online': {
+      const r = await pronosOnline('GET', url.searchParams.get('g') || '', { query: `?${new URLSearchParams({ year: yearOf(url.searchParams.get('year')), tok: url.searchParams.get('tok') || '' })}` });
+      return sendJSON(res, r.status, r.data);
+    }
+    case 'POST /api/predictions/online': {
+      const { g, ...body } = await readBody(req, 1e4);
+      const r = await pronosOnline('POST', g || 'new', { body });
+      return sendJSON(res, r.status, r.data);
     }
     case 'POST /api/predictions': {
       const body = await readBody(req);

@@ -3,7 +3,7 @@
 // et vidéo animée) et récap de la semaine. Données de la saison (Jolpica, format de /api/season),
 // records du circuit (archives F1) ; textes en français. Code pur, partagé par l'appli et la page web.
 import { gpNameFr } from './summary.js';
-import { driverRatings, qualiGaps, titleRace } from './season-calc.js';
+import { driverRatings, qualiGaps, titleRace, placeForMaxPoints } from './season-calc.js';
 import { cleanPace, lapsLedBy } from './race-laps.js';
 import { raceStory } from './race-story.js';
 import { hashtag, teamTag, BRAND_TAG, xLength } from './social.js';
@@ -204,16 +204,32 @@ export function titleData(season, { year, upTo = null, live = {} } = {}) {
   const latest = !season.races.some((r) => r.round > last.round && r.results.length);
   const tr = titleRace({ races, ...(latest ? { drivers: season.drivers, constructors: season.constructors } : standingsUpTo(done)) }, year);
   const gp = (r) => (r ? gpNameFr(r.name).replace(/^le /, '') : '');
-  const row = (e, label, color) => ({ pos: e.pos, label, team: e.team || e.name, color, points: e.points, behind: e.behind, maxPts: e.maxPts, alive: e.alive, outRound: e.outRound });
+  const row = (e, label, color) => ({ pos: e.pos, label, code: e.code || '', team: e.team || e.name, color, points: e.points, behind: e.behind, maxPts: e.maxPts, alive: e.alive, outRound: e.outRound });
   d.drivers = tr.drivers.map((e) => row(e, e.last || e.name, teamColor(e.teamId || e.team, live[e.code])));
   d.constructors = tr.constructors.map((e) => row(e, e.name, teamColor(e.id || e.name)));
   d.left = { races: tr.races, sprints: tr.sprints, d: tr.maxD, c: tr.maxC };
   d.champion = tr.champion ? { name: tr.champion.name, team: tr.champion.team } : null;
   d.champTeam = tr.champTeam ? { name: tr.champTeam.name } : null;
-  // Titre au plus tôt : dès la prochaine manche, sinon la première où il devient possible
-  const when = (c) => c && { leader: c.leader.name, next: c.possibleNext ? gpNameFr(c.next.name) : null, earliest: c.earliest ? gp(c.earliest) : null };
-  d.clinchD = when(tr.clinchD);
-  d.clinchC = when(tr.clinchC);
+  // Titre au plus tôt : dès la prochaine manche, sinon la première où il devient possible. Comme dans
+  // l'appli (Saison → Course au titre) : pour chaque rival, avance à prendre sur le week-end et, pour
+  // les pilotes hors sprint, place qu'il doit faire au pire si le leader gagne ou finit 2e
+  const place = (margin, lp, lpos) => {
+    const allowed = lp - margin;
+    if (allowed < 0) return '—';
+    const p = placeForMaxPoints(allowed);
+    if (p < lpos || (lpos === 1 && p <= 2)) return 'suffit';
+    return p > 10 ? 'hors des points' : `P${p === lpos ? p + 1 : p} ou plus loin`;
+  };
+  const when = (c, rows, team) => c && {
+    leader: c.leader.name, next: c.possibleNext ? gpNameFr(c.next.name) : null, earliest: c.earliest ? gp(c.earliest) : null,
+    nextGp: gp(c.next), max: c.next.max, sprint: c.next.sprint, possibleNext: c.possibleNext,
+    needs: c.needs.slice(0, 4).map((n) => {
+      const r = rows.find((e) => (n.code ? e.code === n.code : e.label === n.name)) || {};
+      return { label: r.label || n.name, color: r.color, margin: n.margin, ...(!team && !c.next.sprint ? { win: place(n.margin, 25, 1), second: place(n.margin, 18, 2) } : {}) };
+    }),
+  };
+  d.clinchD = when(tr.clinchD, d.drivers, false);
+  d.clinchC = when(tr.clinchC, d.constructors, true);
   return d;
 }
 

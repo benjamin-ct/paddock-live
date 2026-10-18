@@ -82,6 +82,8 @@ copy(path.join(ROOT, 'analytics', 'launch'), path.join(OUT, 'site'), (f) => f !=
 copy(path.join(ROOT, 'analytics', 'launch', 'img'), path.join(OUT, 'site', 'img'));
 // Présentation publique de l'appli (/app/), site officiel déclaré à TikTok
 copy(path.join(ROOT, 'analytics', 'home'), path.join(OUT, 'app'));
+// Pronostics entre amis en ligne (/p/<groupe>) : une seule page, le Worker la sert pour chaque groupe
+copy(path.join(ROOT, 'analytics', 'pronos-page'), path.join(OUT, 'p'));
 // Pages « tous les liens » à mettre en bio des réseaux (/liens/, /benjy/)
 for (const id of Object.keys(PAGES)) {
   fs.mkdirSync(path.join(OUT, id), { recursive: true });

@@ -6,6 +6,12 @@ l'application (Réglages → Application → Nouveautés).
 
 ## v1.27.33 — à venir
 
+### Pronostics entre amis
+- Jouez en ligne, hors du réseau local : créez un groupe dans Saison → Pronostics et envoyez le lien à
+  vos amis. Ils pronostiquent la pole et le podium depuis une page web, sans installer l'application ;
+  leurs pronostics et le classement s'affichent aussi dans l'application. Chaque pseudo est réservé à
+  celui qui l'a choisi. Les pronostics faits sur l'ordinateur restent disponibles à part.
+
 ### Documents FIA
 - Les documents s'ouvrent directement dans l'application, dans une visionneuse, au lieu d'être
   téléchargés. Un bouton les ouvre aussi dans le navigateur. Sur téléphone, ils s'ouvrent dans un onglet.

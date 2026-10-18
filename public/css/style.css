@@ -2896,3 +2896,8 @@ html.float-mini .float-bar { top: auto; bottom: 4px; right: 24px; }   /* en bas 
 .cal-opt > .ic { flex: none; margin-top: 2px; color: var(--accent); }
 .cal-opt span { display: grid; gap: 2px; }
 .cal-opt small { color: var(--muted); }
+
+/* Pronostics : groupe en ligne (lien à partager) */
+.pd-group .pd-actions { margin-top: 10px; }
+.pd-group input { flex: 1 1 220px; min-width: 0; }
+.pd-group summary { cursor: pointer; }

@@ -5,7 +5,7 @@
 import { teammateDuels, FLASH_KINDS, GRID_SOURCE } from './social-more.js';
 import { teamLogoPath } from './team-logos.js';
 import { followReason, questionFor } from './social-follow.js';
-import { horaires, infos, editions, topflop, notes, equipes, positions, recapCover, recapItem, raceweek, titre } from './social-draw-season.js';
+import { horaires, infos, editions, topflop, notes, equipes, positions, recapCover, recapItem, raceweek, titre, titreComment, titleBlocks } from './social-draw-season.js';
 
 export const FORMATS = {
   ig: { w: 1080, h: 1350, name: 'instagram' },
@@ -39,7 +39,7 @@ function baseSlides(d, fmt) {
   if (d.post === 'ratings') return d.rows.length ? ['couverture', 'topflop', 'notes'] : [];
   if (d.post === 'teamduels') return d.rows.length ? ['couverture', ...Array.from({ length: Math.ceil(d.rows.length / 5) }, (_, i) => `equipes-${i + 1}`)] : [];
   if (d.post === 'racelaps') return d.total ? ['couverture', 'positions'] : [];
-  if (d.post === 'title') return d.drivers.length ? ['couverture', 'titrepilotes', ...(d.constructors.length ? ['titreecuries'] : [])] : [];
+  if (d.post === 'title') return d.drivers.length ? ['couverture', 'titrepilotes', ...(d.constructors.length ? ['titreecuries'] : []), ...(titleBlocks(d).length ? ['titrecomment'] : [])] : [];
   if (d.post === 'recap') return d.items.length ? ['recapcover', ...d.items.map((_, i) => `recap-${i + 1}`)].slice(0, fmt === 'x' ? 4 : undefined) : [];
   if (!d.rows.length) return [];
   let list = ['meilleurtemps', 'podium', 'classement', ...(d.facts.length ? ['faits'] : [])];
@@ -82,7 +82,7 @@ export function pointPages(points, fmt = 'ig') {
   for (let k = 0; k < n; k++) { const take = Math.ceil((list.length - i) / (n - k)); pages.push(list.slice(i, i + take)); i += take; }
   return pages;
 }
-export const SLIDE_NAMES = { grille: 'Grille de départ', meteo: 'Météo et pneus', champpilotes: 'Championnat pilotes', champecuries: 'Championnat constructeurs', flash: 'Flash', duels: 'Duels entre coéquipiers', news: 'News', couverture: 'Couverture', vainqueur: 'Vainqueur', pole: 'Pole position', meilleurtemps: 'Meilleur temps', podium: 'Podium', classement: 'Classement', faits: 'Faits marquants', championnat: 'Championnat', abonnement: 'Abonnez-vous', question: 'Question', essentiel: "L'essentiel", raceweek: 'Race Week', horaires: 'Horaires', infos: 'Pneus et météo', records: 'Records', editions: 'Éditions précédentes', topflop: 'Tops et flops', notes: 'Toutes les notes', equipes: 'Duels par écurie', positions: 'Positions tour par tour', recapcover: 'La semaine', recap: 'Info', titrepilotes: 'Titre pilotes', titreecuries: 'Titre constructeurs' };
+export const SLIDE_NAMES = { grille: 'Grille de départ', meteo: 'Météo et pneus', champpilotes: 'Championnat pilotes', champecuries: 'Championnat constructeurs', flash: 'Flash', duels: 'Duels entre coéquipiers', news: 'News', couverture: 'Couverture', vainqueur: 'Vainqueur', pole: 'Pole position', meilleurtemps: 'Meilleur temps', podium: 'Podium', classement: 'Classement', faits: 'Faits marquants', championnat: 'Championnat', abonnement: 'Abonnez-vous', question: 'Question', essentiel: "L'essentiel", raceweek: 'Race Week', horaires: 'Horaires', infos: 'Pneus et météo', records: 'Records', editions: 'Éditions précédentes', topflop: 'Tops et flops', notes: 'Toutes les notes', equipes: 'Duels par écurie', positions: 'Positions tour par tour', recapcover: 'La semaine', recap: 'Info', titrepilotes: 'Titre pilotes', titreecuries: 'Titre constructeurs', titrecomment: 'Comment être sacré' };
 export const slideName = (s) => SLIDE_NAMES[s] || SLIDE_NAMES[String(s).replace(/-\d+$/, '')] || s;
 
 // ---------- Outils de dessin ----------
@@ -1040,6 +1040,7 @@ export function drawSlide(canvas, slide, fmt, d, o = {}) {
   else if (/^equipes-\d+$/.test(slide)) equipes(ctx, w, h, d, o, Number(slide.slice(8)));
   else if (slide === 'positions') positions(ctx, w, h, d, o);
   else if (slide === 'titrepilotes' || slide === 'titreecuries') titre(ctx, w, h, d, o, slide === 'titreecuries');
+  else if (slide === 'titrecomment') titreComment(ctx, w, h, d, o);
   else if (slide === 'recapcover') recapCover(ctx, w, h, d, o);
   else if (/^recap-\d+$/.test(slide)) recapItem(ctx, w, h, d, o, Number(slide.slice(6)), fmt);
   else if (/^essentiel-\d+$/.test(slide)) essentiel(ctx, w, h, d, o, Number(slide.slice(10)), fmt);

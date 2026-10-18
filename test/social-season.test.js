@@ -92,7 +92,11 @@ test('course au titre : points encore en jeu, éliminés, titre possible au proc
   assert.deepEqual(d.drivers.map((e) => [e.label, e.alive]), [['Leclerc', true], ['Verstappen', true], ['Hamilton', true], ['Tsunoda', false]]);
   assert.equal(d.drivers[3].outRound, 11);
   assert.equal(d.clinchD.next, 'le Grand Prix des États-Unis');
-  assert.deepEqual(slidesFor(d), ['couverture', 'titrepilotes', 'titreecuries']);
+  assert.deepEqual(slidesFor(d), ['couverture', 'titrepilotes', 'titreecuries', 'titrecomment']);
+  // Comme dans l'appli : avance à prendre sur chaque rival au prochain GP, place qu'il doit faire au pire
+  assert.equal(d.clinchD.possibleNext, true);
+  assert.deepEqual(d.clinchD.needs.map((n) => [n.label, n.margin]), [['Verstappen', -2], ['Hamilton', -9]]);
+  assert.equal(d.clinchD.needs[0].win, 'suffit');
   const ig = seasonCaptions(d, '').instagram;
   assert.match(ig, /^La course au titre après le Grand Prix des États-Unis/);
   assert.match(ig, /2\. Verstappen : 40 pts \(à 3 pts\)/);
