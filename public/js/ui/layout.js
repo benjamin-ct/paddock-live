@@ -882,21 +882,6 @@ function focusSelf() {
   else window.focus();
 }
 
-// Ouvre un panneau en grand (barre latérale) : réaffiché s'il était masqué. S'il est dans une
-// autre fenêtre (second écran), c'est cette fenêtre qui l'affiche en grand et passe devant :
-// renvoie alors 'elsewhere'.
-export function showPanelLarge(id) {
-  if (!isMain) return false;
-  const holder = [...others.entries()].find(([, o]) => o.panels.includes(id))?.[0];
-  if (holder) {
-    channel?.postMessage({ type: 'show', win: holder, panel: id });
-    return 'elsewhere';
-  }
-  if (prefs.hiddenPanels.includes(id)) setPref('hiddenPanels', prefs.hiddenPanels.filter((p) => p !== id));
-  if (mobile()) { showMobilePanel(id); return true; }
-  if (!panelEl(id).classList.contains('maximized')) maximize(id);
-  return true;
-}
 
 // ---------------- Changement de disposition (Course / Qualif & essais) ----------------
 const tabHeads = () => PANELS.map((p) => [p.id, panelEl(p.id)?.querySelector('[data-tabs]')]).filter(([, h]) => h);

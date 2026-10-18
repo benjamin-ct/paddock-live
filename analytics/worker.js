@@ -22,11 +22,15 @@ import { download } from './download.js';
 import { feedbackPost, feedbackFile } from './feedback.js';
 import { buildIcs } from '../shared/ics.js';
 import { pronosApi, GROUP_RE } from './pronos.js';
+import { pruneIpQuota } from './quota.js';
 
 const MAX_BODY = 32 * 1024;
 const COOKIE = 'pl_stats';
 const SESSION_DAYS = 30;
 
+// Adresse de l'appelant (plafonds d'IA par adresse) ; corps annoncé trop gros : refusé avant d'être lu
+const clientIp = (req) => req.headers.get('CF-Connecting-IP') || null;
+const tooBig = (req, max) => Number(req.headers.get('Content-Length') || 0) > max;
 const json = (obj, status = 200) => new Response(JSON.stringify(obj), { status, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' } });
 const redirect = (to, headers = {}) => new Response(null, { status: 303, headers: { Location: to, 'Cache-Control': 'no-store', ...headers } });
 
@@ -202,6 +206,9 @@ export default {
       const sent = await runSchedule(env).catch(() => null);
       if (!sent && new Date(event.scheduledTime || Date.now()).getUTCMinutes() % 5 === 0) await newsAlerts(env).catch(() => null);
       if (!sent && env.DB) await seasonRow(env, new Date().getUTCFullYear()).catch(() => null);
+      // Une fois par jour : compteurs d'IA par adresse des jours passés effacés
+      const t = new Date(event.scheduledTime || Date.now());
+      if (env.DB && t.getUTCHours() === 3 && t.getUTCMinutes() === 0) await pruneIpQuota(env, t.toISOString().slice(0, 10)).catch(() => null);
     })());
   },
   async fetch(req, env) {
@@ -209,9 +216,7 @@ export default {
     // Site de l'appli : liens de téléchargement vers la dernière version ; sur un nom de domaine
     // à soi (pas *.workers.dev), la racine affiche le site au lieu de la page des statistiques
     if (req.method === 'GET' && url.pathname.startsWith('/download/')) return download(url.pathname);
-    // Scènes OBS toutes prêtes : adresse courte à donner aux streamers
-    if (req.method === 'GET' && url.pathname === '/obs') return Response.redirect(new URL('/obs/paddock-live-obs.json', url), 302);
-    // Page des streamers : le bloc Streaming du site (aperçu, scènes OBS, installation)
+    // Page des streamers : le bloc Streaming du site
     if (req.method === 'GET' && url.pathname === '/streaming') return Response.redirect(new URL('/#streaming', url), 302);
     if (req.method === 'GET' && /^\/calendar(-en)?\.ics$/.test(url.pathname)) return calendar(env, new Date().getUTCFullYear(), url.pathname.includes('-en'));
     // Ancienne adresse (*.workers.dev) : les pages ouvertes dans un navigateur (connexion,
@@ -239,6 +244,7 @@ export default {
     // Traduction partagée (actualités, radios) : ouverte à l'appli, plafonnée par jour
     if (req.method === 'POST' && url.pathname === '/t') {
       if (!env.AI) return json({ error: 'Traduction indisponible' }, 503);
+      if (tooBig(req, 64 * 1024)) return json({ error: 'Trop volumineux' }, 413);
       const text = await req.text();
       if (text.length > 64 * 1024) return json({ error: 'Trop volumineux' }, 413);
       let body;
@@ -246,13 +252,14 @@ export default {
       const r = cleanRequest(body);
       if (!r) return json({ error: 'Requête invalide' }, 400);
       try {
-        const res = await translateBatch(env, r);
+        const res = await translateBatch(env, r, undefined, clientIp(req));
         return json(res, res.limited ? 429 : 200);
       } catch { return json({ error: 'Erreur' }, 500); }
     }
     // Résumé d'un article en points clés (posts « news » en plusieurs images), même plafond
     if (req.method === 'POST' && url.pathname === '/s') {
       if (!env.AI) return json({ error: 'Résumé indisponible' }, 503);
+      if (tooBig(req, 64 * 1024)) return json({ error: 'Trop volumineux' }, 413);
       const text = await req.text();
       if (text.length > 64 * 1024) return json({ error: 'Trop volumineux' }, 413);
       let body;
@@ -260,7 +267,7 @@ export default {
       const r = cleanSummaryRequest(body);
       if (!r) return json({ error: 'Requête invalide' }, 400);
       try {
-        const res = await summarizeArticle(env, r);
+        const res = await summarizeArticle(env, r, undefined, clientIp(req));
         return json(res, res.limited ? 429 : res.points ? 200 : 502);
       } catch { return json({ error: 'Erreur' }, 500); }
     }
@@ -285,7 +292,7 @@ export default {
         }
         if (req.method === 'POST' && url.pathname === '/r') {
           if (Number(req.headers.get('Content-Length') || 0) > MAX_AUDIO) return json({ error: 'Trop volumineux' }, 413);
-          const r = await transcribeRadio(env, new Uint8Array(await req.arrayBuffer()));
+          const r = await transcribeRadio(env, new Uint8Array(await req.arrayBuffer()), undefined, clientIp(req));
           if (r.invalid) return json({ error: 'Fichier son invalide' }, 400);
           if (r.limited) return json({ error: 'Plafond du jour atteint' }, 429);
           return json({ text: r.text, d: r.d });

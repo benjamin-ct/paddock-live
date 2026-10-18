@@ -5,6 +5,7 @@
 // Plusieurs textes par appel ; réponse mal formée -> modèle de traduction simple (m2m100) en secours.
 // Traduction avec des caractères d'une autre écriture (chinois glissé dans du français…) : refaite.
 import { badTranslation } from '../shared/translation-check.js';
+import { aiQuota } from './quota.js';
 export const MODEL = '@cf/mistralai/mistral-small-3.1-24b-instruct';
 export const FALLBACK = '@cf/meta/m2m100-1.2b';
 const MODEL_TAG = 'ms31';   // dans la clé du cache : changer de modèle = nouvelles traductions
@@ -75,7 +76,7 @@ async function mapLimit(list, n, fn) {
   return out;
 }
 
-export async function translateBatch(env, req, day = new Date().toISOString().slice(0, 10)) {
+export async function translateBatch(env, req, day = new Date().toISOString().slice(0, 10), ip = null) {
   const keys = await Promise.all(req.items.map((it) => keyOf(it.from, req.to, it.text)));
   const out = req.items.map((it) => (it.from === req.to ? it.text : null));
   // Déjà traduits (par n'importe quel utilisateur)
@@ -89,9 +90,7 @@ export async function translateBatch(env, req, day = new Date().toISOString().sl
   if (!todo.length) return { out, cached: true };
   // Plafond du jour
   const limit = Number(env.AI_DAILY_LIMIT) || 20000;
-  const used = (await env.DB.prepare('SELECT n FROM ai_usage WHERE day = ?1').bind(day).first())?.n || 0;
-  if (used + todo.length > limit) return { out, limited: true };
-  await env.DB.prepare('INSERT INTO ai_usage (day, n) VALUES (?1, ?2) ON CONFLICT (day) DO UPDATE SET n = n + excluded.n').bind(day, todo.length).run();
+  if (!(await aiQuota(env, { key: day, day, n: todo.length, limit, ip }))) return { out, limited: true };
   // Modèle de langage par paquets de 8 ; paquet raté -> traduction simple texte par texte
   const groups = [];
   for (let i = 0; i < todo.length; i += PER_CALL) groups.push(todo.slice(i, i + PER_CALL));

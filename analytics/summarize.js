@@ -5,6 +5,7 @@
 import { MODEL } from './translate.js';
 import { badScript } from '../shared/translation-check.js';
 import { fold } from '../shared/news.js';
+import { aiQuota } from './quota.js';
 
 const TAG = 'sum1';          // dans la clé du cache : changer les consignes = nouveaux résumés
 export const MAX_INPUT = 12000;
@@ -80,14 +81,12 @@ const REASONS = {
   copy: "Résumé trop proche du texte de l'article (phrases recopiées) : écrivez les points vous-même",
 };
 
-export async function summarizeArticle(env, req, day = new Date().toISOString().slice(0, 10)) {
+export async function summarizeArticle(env, req, day = new Date().toISOString().slice(0, 10), ip = null) {
   const k = await keyOf(req.title, req.text);
   const hit = await env.DB.prepare('SELECT out FROM translations WHERE k = ?1').bind(k).first();
   if (hit?.out) { try { return { points: JSON.parse(hit.out), cached: true }; } catch { /* entrée abîmée : refaite */ } }
   const limit = Number(env.AI_DAILY_LIMIT) || 20000;
-  const used = (await env.DB.prepare('SELECT n FROM ai_usage WHERE day = ?1').bind(day).first())?.n || 0;
-  if (used + COST > limit) return { limited: true };
-  await env.DB.prepare('INSERT INTO ai_usage (day, n) VALUES (?1, ?2) ON CONFLICT (day) DO UPDATE SET n = n + excluded.n').bind(day, COST).run();
+  if (!(await aiQuota(env, { key: day, day, n: COST, limit, ip }))) return { limited: true };
   // Deux essais : réponse mal formée ou trop proche du texte de l'article
   const why = {};
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -143,9 +142,7 @@ export function parsePostReply(reply) {
 
 export async function rewritePost(env, text, day = new Date().toISOString().slice(0, 10)) {
   const limit = Number(env.AI_DAILY_LIMIT) || 20000;
-  const used = (await env.DB.prepare('SELECT n FROM ai_usage WHERE day = ?1').bind(day).first())?.n || 0;
-  if (used + POST_COST > limit) return { limited: true };
-  await env.DB.prepare('INSERT INTO ai_usage (day, n) VALUES (?1, ?2) ON CONFLICT (day) DO UPDATE SET n = n + excluded.n').bind(day, POST_COST).run();
+  if (!(await aiQuota(env, { key: day, day, n: POST_COST, limit }))) return { limited: true };
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const r = await env.AI.run(MODEL, {

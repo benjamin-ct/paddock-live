@@ -27,13 +27,18 @@ function unwrap(raw) {
   if (s.startsWith('{')) { try { const o = JSON.parse(s); return { json: o, token: o?.data?.subscriptionToken || o?.subscriptionToken || '' }; } catch { return {}; } }
   return { token: s.replace(/^Bearer\s+/i, '') };
 }
-// Jeton d'abonnement F1 TV (JWT avec l'état de l'abonnement) contenu dans le cookie, ou null : jamais un
-// autre jeton, qui casserait le direct dans l'appli
+// Jeton d'abonnement F1 TV (JWT avec l'état de l'abonnement) encore valide contenu dans le cookie, ou
+// null : jamais un autre jeton, qui casserait le direct dans l'appli, ni un jeton expiré (vieux cookie
+// de l'ancien site), qui passerait avant la connexion du site actuel
 function subscriptionToken(raw) {
   const t = unwrap(raw).token;
   const p = String(t || '').split('.');
   if (p.length !== 3) return null;
-  try { const pl = b64json(p[1]); return pl.SubscriptionStatus || pl.subscriptionStatus || pl.SubscribedProduct ? t : null; } catch { return null; }
+  try {
+    const pl = b64json(p[1]);
+    if (pl.exp && pl.exp * 1000 < Date.now()) return null;
+    return pl.SubscriptionStatus || pl.subscriptionStatus || pl.SubscribedProduct ? t : null;
+  } catch { return null; }
 }
 // Forme d'un cookie pour le diagnostic : noms des champs seulement, jamais leurs valeurs
 function shape(raw) {

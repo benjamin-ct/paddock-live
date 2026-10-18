@@ -335,5 +335,3 @@ export function initAutoSync() {
   render();
 }
 
-// État interne (tests de bout en bout)
-export const _autoSyncRun = () => run;

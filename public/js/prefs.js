@@ -24,7 +24,7 @@ const DEFAULTS = {
   lang: LANG,             // langue de l'interface : 'fr' | 'en' (voir i18n.js)
   autoSyncAdj: 0,         // synchro TV par le son : correction ajoutée au délai trouvé (s)
   remindMin: 15,          // rappel avant chaque séance (minutes, 0 : désactivé)
-  legends: true,          // légendes sous les panneaux (couleurs, colonnes, graphiques)
+  legends: false,         // légendes sous les panneaux (couleurs et badges), à afficher dans Apparence
   replayMarks: true,      // replay : périodes de safety car / VSC sur la barre de lecture
   hotLapDim: false,       // essais / qualifs : voitures hors tour lancé estompées (carte, classement)
   layoutMode: 'auto',     // disposition : 'auto' (selon la séance) | 'race' | 'quali'
@@ -66,6 +66,10 @@ export const prefs = { ...DEFAULTS, ...saved, alerts: { ...DEFAULTS.alerts, ...(
 prefs.theme = 'pitwall';
 if ((saved.themeV || 0) < 5) storageSet('paddock.prefs', { ...storageGet('paddock.prefs', {}), theme: 'pitwall', themeV: 5 });
 prefs.themeV = 5;   // gardé dans chaque enregistrement des préférences
+// v1.27.47 : légendes masquées par défaut, aussi pour les installations existantes (une seule fois ;
+// réaffichées ensuite si on les recoche dans Réglages → Apparence)
+if (!saved.legendsV) { prefs.legends = false; storageSet('paddock.prefs', { ...storageGet('paddock.prefs', {}), legends: false, legendsV: 1 }); }
+prefs.legendsV = 1;
 // Langue retenue dès la première ouverture (sinon une autre fenêtre la redéduirait autrement)
 if (saved.lang !== LANG) storageSet('paddock.prefs', { ...storageGet('paddock.prefs', {}), lang: LANG });
 // Apparence automatique par défaut depuis la v1.20.1. En v1.20.0, « sombre » était enregistré par

@@ -75,9 +75,8 @@ fs.writeFileSync(path.join(OUT, 'stats-refresh.js'), `${ptr}\npullToRefresh(() =
 // Conditions d'utilisation et politique de confidentialité (/legal/terms, /legal/privacy), demandées
 // par TikTok pour l'app de publication en brouillon
 copy(path.join(ROOT, 'analytics', 'legal'), path.join(OUT, 'legal'));
-// Kit de lancement des comptes (visuels et vidéos des posts de lancement, page du Studio) et pack de
-// présentation pour les streamers (/kit/streamers/, lien non listé donné dans les Réglages du Studio)
-for (const acc of ['benjy', 'paddocklive', 'streamers']) copy(path.join(ROOT, 'analytics', 'launch-kit', acc), path.join(OUT, 'kit', acc));
+// Pack de présentation pour les streamers (/kit/streamers/, lien non listé donné dans les Réglages du Studio)
+copy(path.join(ROOT, 'analytics', 'launch-kit', 'streamers'), path.join(OUT, 'kit', 'streamers'));
 // Site de l'appli pour le lancement (/site/, racine d'un nom de domaine à soi), avec ses images
 copy(path.join(ROOT, 'analytics', 'launch'), path.join(OUT, 'site'), (f) => f !== 'img');
 copy(path.join(ROOT, 'analytics', 'launch', 'img'), path.join(OUT, 'site', 'img'));
@@ -85,8 +84,6 @@ copy(path.join(ROOT, 'analytics', 'launch', 'img'), path.join(OUT, 'site', 'img'
 copy(path.join(ROOT, 'analytics', 'extension'), path.join(OUT, 'extension'));
 // Présentation publique de l'appli (/app/), site officiel déclaré à TikTok
 copy(path.join(ROOT, 'analytics', 'home'), path.join(OUT, 'app'));
-// Scènes OBS toutes prêtes (paddocklive.app/obs, téléchargées : voir _headers)
-copy(path.join(ROOT, 'docs', 'obs'), path.join(OUT, 'obs'), (f) => f.endsWith('.json'));
 // Pronostics entre amis en ligne (/p/<groupe>) : une seule page, le Worker la sert pour chaque groupe
 copy(path.join(ROOT, 'analytics', 'pronos-page'), path.join(OUT, 'p'));
 // Pages « tous les liens » à mettre en bio des réseaux (/liens/, /benjy/)
@@ -121,9 +118,6 @@ fs.writeFileSync(path.join(OUT, '_headers'), `/studio/*
   Cache-Control: public, max-age=3600
 /site/img/*
   Cache-Control: public, max-age=86400
-/obs/*
-  Cache-Control: public, max-age=3600
-  Content-Disposition: attachment
 /kit/*
   Cache-Control: public, max-age=86400
   X-Robots-Tag: noindex, nofollow

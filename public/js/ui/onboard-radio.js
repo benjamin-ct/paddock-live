@@ -311,19 +311,3 @@ export function initOnboardRadio() {
   if (prefs.obRadio) reconcile();
 }
 
-// Tests de bout en bout : écoute d'un élément audio quelconque, daté à partir de `startUtc`
-export async function _obTestFeed(num, el, startUtc) {
-  const a = await audioGraph();
-  const feed = { num, state: 'on', busy: false, chunks: [], len: 0, winStart: null, lastEnd: null, note: '', el };
-  feed.player = { getPlayheadTimeAsDate: () => new Date(startUtc + el.currentTime * 1000), destroy: async () => {} };
-  feed.src = a.createMediaElementSource(el);
-  feed.tap = new AudioWorkletNode(a, 'mic-tap', { channelCount: 1, channelCountMode: 'explicit' });
-  feed.mute = a.createGain();
-  feed.mute.gain.value = 0;
-  feed.src.connect(feed.tap).connect(feed.mute).connect(a.destination);
-  feed.rs = new Resampler(a.sampleRate, SR);
-  feed.tap.port.onmessage = ({ data }) => onAudio(feed, data);
-  feeds.set(num, feed);
-  await el.play();
-  return feed;
-}

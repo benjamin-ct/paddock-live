@@ -75,9 +75,10 @@ ol b { color: var(--text); }
   </p>
 </main>
 <script>
-// Boutiques : ajouter l'adresse de Chrome et d'Edge quand l'extension y est publiée
+// Boutiques : ajouter l'adresse de Chrome et d'Edge quand l'extension y est publiée. « check » :
+// fiche lue avant d'afficher le bouton (« en cours de validation » tant qu'elle n'est pas publique)
 const STORES = [
-  { id: 'firefox', name: 'Firefox', color: '#ff7139', url: 'https://addons.mozilla.org/firefox/addon/paddock-live-companion/' },
+  { id: 'firefox', name: 'Firefox', color: '#ff7139', url: 'https://addons.mozilla.org/firefox/addon/paddock-live-companion/', check: 'https://addons.mozilla.org/api/v5/addons/addon/paddock-live-companion/' },
   { id: 'chrome', name: 'Chrome', color: '#1a73e8', url: '' },
   { id: 'edge', name: 'Edge', color: '#0c8a6f', url: '' },
 ];
@@ -89,11 +90,12 @@ function render() {
   const t = (fr, e) => (en ? e : fr);
   const list = [...STORES].sort((a, b) => (b.id === mine) - (a.id === mine));
   document.getElementById('stores').innerHTML = list.map((s) => {
-    const sub = s.id === mine ? t('Votre navigateur', 'Your browser') : '';
+    const ok = s.url && !s.check;
+    const sub = !s.url ? t('Bientôt disponible', 'Coming soon') : !ok ? t('En cours de validation', 'Under review') : s.id === mine ? t('Votre navigateur', 'Your browser') : '';
     const inner = `<span class="ic" style="background:${s.color}">${s.name[0]}</span>
-      <span><b>${s.name}</b><small>${s.url ? sub : t('Bientôt disponible', 'Coming soon')}</small></span>
-      <span class="go">${s.url ? t('Installer', 'Install') : t('Bientôt', 'Soon')}</span>`;
-    return s.url
+      <span><b>${s.name}</b><small>${sub}</small></span>
+      <span class="go">${ok ? t('Installer', 'Install') : t('Bientôt', 'Soon')}</span>`;
+    return ok
       ? `<a class="store${s.id === mine ? ' mine' : ''}" href="${s.url}" target="_blank" rel="noopener">${inner}</a>`
       : `<div class="store soon">${inner}</div>`;
   }).join('');
@@ -110,6 +112,9 @@ function setLang(l) {
 }
 document.getElementById('lang').addEventListener('click', () => setLang(en ? 'fr' : 'en'));
 setLang(new URLSearchParams(location.search).get('lang') || (/^fr\b/i.test(navigator.language) ? 'fr' : 'en'));
+for (const s of STORES) {
+  if (s.check) fetch(s.check).then((r) => { if (r.ok) { delete s.check; render(); } }).catch(() => {});
+}
 </script>
 </body>
 </html>
