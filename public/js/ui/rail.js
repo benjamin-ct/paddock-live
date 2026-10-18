@@ -108,7 +108,7 @@ function sync() {
   const replays = !$('#replayView')?.hidden;
   const results = isResultsOpen();
   const page = home ? 'home' : replays ? 'replay' : news ? 'news' : season ? 'season' : results ? 'results' : null;
-  const cur = page || (store.status?.mode === 'replay' ? 'replay' : 'live');
+  const cur = page || (store.status?.source?.mode === 'replay' ? 'replay' : 'live');
   // Tableau de bord affiché : fenêtres du second écran rouvertes (pas sur l'accueil)
   if (!page) startWindows();
   for (const b of $$('#rail [data-rail]')) {
@@ -134,8 +134,8 @@ export function initRail() {
   mo.observe($('.grid'), { attributes: true, attributeFilter: ['class'] });
   mo.observe($('#commBtn'), { attributes: true, attributeFilter: ['class'] });
   // Replay lancé ou arrêté : Replays ou Direct
-  let mode = store.status?.mode;
-  on('status', (s) => { if (s?.mode !== mode) { mode = s?.mode; sync(); } });
+  let mode = store.status?.source?.mode;
+  on('status', (s) => { if (s?.source?.mode !== mode) { mode = s?.source?.mode; sync(); } });
   sync();
   schemeButton();
   // Résumé et mini-classement : grisés tant qu'aucune séance n'est chargée

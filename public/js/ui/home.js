@@ -106,7 +106,7 @@ function weatherHtml(nx) {
 // Barre du haut entre deux séances : le prochain Grand Prix (prochaine séance, course, fiche du
 // circuit, météo prévue, fuseau horaire). null pendant une séance, un replay ou les résultats.
 export function upcoming() {
-  if (!schedule || resultsOpen || store.status?.mode === 'replay') return null;
+  if (!schedule || resultsOpen || store.status?.source?.mode === 'replay') return null;
   const st = store.state.SessionStatus?.Status;
   if (st === 'Started' || st === 'Aborted' || liveNow()) return null;
   const nx = nextSession();
@@ -307,12 +307,12 @@ export function initHome() {
   });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && isHomeOpen() && !document.querySelector('dialog[open]')) { touched = true; closeHome(); } });
   // Au lancement : accueil, sauf replay déjà en cours (page rechargée) ou séance en direct
-  if (store.status?.mode !== 'replay') openHome();
+  if (store.status?.source?.mode !== 'replay') openHome();
   // Replay lancé (ici ou depuis un autre écran) : place au tableau de bord
-  let mode = store.status?.mode;
+  let mode = store.status?.source?.mode;
   on('status', (s) => {
-    if (s?.mode === 'replay' && mode !== 'replay') closeHome();
-    mode = s?.mode;
+    if (s?.source?.mode === 'replay' && mode !== 'replay') closeHome();
+    mode = s?.source?.mode;
   });
   on('prefs', (k) => { if ((k === 'favs' || k === 'favTeams') && isHomeOpen()) renderFav(); });
   // Écran de chargement retiré quand l'accueil est complet (ou le tableau de bord, en direct)
@@ -341,7 +341,7 @@ function noLiveCheck(show = true) {
   const running = st === 'Started' || st === 'Aborted' || !!liveNow();
   if (running) resultsOpen = false;
   const covered = COVERS.some((s) => $(s) && !$(s).hidden);
-  if (!schedule || running || covered || resultsOpen || store.status?.mode === 'replay') { view.hidden = true; return; }
+  if (!schedule || running || covered || resultsOpen || store.status?.source?.mode === 'replay') { view.hidden = true; return; }
   if (view.hidden && !show) return;
   if (view.hidden) { placeView(view); view.hidden = false; noLiveKey = ''; }
   const nx = nextSession(), ls = lastSession();
@@ -372,8 +372,8 @@ export function initNoLive() {
   const mo = new MutationObserver(() => noLiveCheck());
   for (const s of COVERS) if ($(s)) mo.observe($(s), { attributes: true, attributeFilter: ['hidden'] });
   // Retour au direct après un replay : comme une arrivée sur le tableau de bord
-  let mode = store.status?.mode;
-  on('status', (s) => { noLiveCheck(mode === 'replay' && s?.mode !== 'replay'); mode = s?.mode; });
+  let mode = store.status?.source?.mode;
+  on('status', (s) => { noLiveCheck(mode === 'replay' && s?.source?.mode !== 'replay'); mode = s?.source?.mode; });
   on('events', (events) => { if (events.some(([t]) => t === 'SessionStatus' || t === 'SessionInfo')) noLiveCheck(false); });
   addEventListener('resize', () => { if (!view.hidden) placeView(view); });
   setInterval(() => noLiveCheck(false), 5000);

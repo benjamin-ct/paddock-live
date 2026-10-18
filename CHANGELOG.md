@@ -4,6 +4,14 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
+## v1.27.38 — à venir
+
+### Replays
+- Pendant un replay, « Replays » est bien allumé dans la barre latérale (et non « Direct ») : la correction de la
+  v1.27.37 ne reconnaissait pas un vrai replay.
+- Un replay lancé depuis un autre écran (téléphone, second écran) referme aussi l'accueil, et la page Replays
+  repère de nouveau la séance en cours de lecture.
+
 ## v1.27.37 — 2026-10-18
 
 ### Météo
