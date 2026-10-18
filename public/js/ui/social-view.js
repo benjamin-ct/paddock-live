@@ -427,12 +427,15 @@ async function saveImages(d, canvases) {
   return { folder, dir };
 }
 
-// Pages officielles pour écrire un post, préremplies (gratuit, sans clés d'accès)
+// Pages officielles pour écrire un post, préremplies (gratuit, sans clés d'accès). Seulement pour
+// les réseaux sans publication automatique (compte non connecté dans « Publier sur mes réseaux »).
 const INTENTS = {
-  x: { name: 'X', url: 'https://x.com/intent/post?text=' },
-  threads: { name: 'Threads', url: 'https://www.threads.com/intent/post?text=' },
-  bsky: { name: 'Bluesky', url: 'https://bsky.app/intent/compose?text=' },
+  x: { name: 'X', url: 'https://x.com/intent/post?text=', acc: 'x' },
+  threads: { name: 'Threads', url: 'https://www.threads.com/intent/post?text=', acc: 'threads' },
+  bsky: { name: 'Bluesky', url: 'https://bsky.app/intent/compose?text=', acc: 'bluesky' },
 };
+let accounts = {};   // comptes connectés (/api/social/accounts), relus à chaque ouverture
+const freeIntents = () => Object.entries(INTENTS).filter(([, v]) => !accounts[v.acc]?.connected);
 
 async function copyImage(canvas) {
   const blob = await new Promise((r) => canvas.toBlob(r, 'image/png'));
@@ -493,7 +496,7 @@ async function render(dlg, keepHead = false) {
       ${fmt === 'story' ? '' : `<label class="small muted">${fmt === 'x' ? t('Texte pour X / Threads / Bluesky') : t('Légende Instagram / Facebook')}</label>
       <textarea class="posts-cap" rows="${fmt === 'x' ? 4 : 12}" data-no-i18n>${esc(fmt === 'x' ? caps.x : caps.instagram)}</textarea>
       <div class="row"><button class="btn small" data-cap>${icon('doc')} ${t('Copier le texte')}</button>${fmt === 'x' ? `<span class="small muted" data-count></span><span class="spacer"></span>
-        <span class="small muted">${t('Publier gratuitement :')}</span>${Object.entries(INTENTS).map(([k, v]) => `<button class="btn small btn-accent" data-intent="${k}" title="${t("Ouvre la page de {} pour écrire un post, avec ce texte, et copie la première image : collez-la puis publiez. Gratuit, sans clés d'accès.", v.name)}">${icon('external')} ${v.name}</button>`).join('')}` : ''}</div>
+        ${freeIntents().length ? `<span class="small muted">${t('Publier gratuitement :')}</span>` : ''}${freeIntents().map(([k, v]) => `<button class="btn small btn-accent" data-intent="${k}" title="${t("Ouvre la page de {} pour écrire un post, avec ce texte, et copie la première image : collez-la puis publiez. Gratuit, sans clés d'accès.", v.name)}">${icon('external')} ${v.name}</button>`).join('')}` : ''}</div>
       ${fmt === 'x' && caps.comment ? `<div class="row small"><span class="muted">${t('Premier commentaire :')}</span> <span data-no-i18n>${esc(caps.comment)}</span><button class="btn small" data-copycomment>${icon('doc')} ${t('Copier')}</button></div>` : ''}
       ${fmt === 'x' ? `<p class="small muted posts-xhelp" hidden>${icon('info')} ${t("Fenêtre ouverte avec le texte : collez l'image avec Ctrl+V (Cmd+V sur Mac), puis publiez. Pour d'autres images, cliquez sur « Copier » sous chacune et collez-les aussi.")}</p>` : ''}`}
     </div>`;
@@ -753,6 +756,11 @@ function open() {
   $('[data-open]', dlg).hidden = true;
   dlg.showModal();
   render(dlg);
+  fetch('/api/social/accounts').then((r) => r.json()).then((a) => {
+    const changed = JSON.stringify(a) !== JSON.stringify(accounts);
+    accounts = a;
+    if (changed && dlg.open) render(dlg);
+  }).catch(() => {});
 }
 
 function show(on) {
