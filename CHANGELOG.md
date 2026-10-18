@@ -4,6 +4,12 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
+## v1.27.43 — 2026-10-18
+
+### Une question, une idée ?
+- Sous le formulaire (Réglages → À propos, et FAQ du site), un lien permet aussi d'ouvrir un ticket sur GitHub
+  pour suivre publiquement un bug ou une idée.
+
 ## v1.27.42 — 2026-10-18
 
 ### Une question, une idée ?
