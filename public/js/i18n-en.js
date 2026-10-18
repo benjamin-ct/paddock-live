@@ -2374,7 +2374,7 @@ export default {
   "Intervalle avec la voiture de devant": "Interval to the car ahead",
   "Pneu et nombre de tours": "Tyre and laps",
   "Hors course, un seul temps (écart au meilleur tour) ; ni places ni arrêts.": "Outside races, a single time (gap to the fastest lap); no places or pit stops.",
-  "Fond et calques : l'adresse change avec vos choix ; recopiez-la dans la source après un changement.": "Background and layers: the address changes with your choices; copy it into the source again after a change.",
+  "Fond, colonnes et calques : appliqués tout de suite aux overlays déjà ajoutés, l'adresse ne change pas.": "Background, columns and layers: applied straight away to overlays already added; the address does not change.",
   "Calques de la carte": "Map layers",
   "Chargement de Paddock Live…": "Loading Paddock Live…",
   "Calendrier, résultats et actualités": "Calendar, results and news",

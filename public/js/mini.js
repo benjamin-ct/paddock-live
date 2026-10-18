@@ -16,9 +16,13 @@ translatePage();
 // 'int' (intervalle) | 'gap' (écart au leader) ; overlay de streaming : ?mode=gap dans l'adresse
 let mode = new URLSearchParams(location.search).get('mode') || storageGet('paddock.miniMode', 'int');
 // Overlay de streaming : colonnes choisies (Réglages → Streaming) : delta (places gagnées depuis le
-// départ), int (intervalle), gap (écart au leader), tyre (pneu et tours), pits (arrêts)
-const COLS = new URLSearchParams(location.search).get('cols')?.split(',') || null;
+// départ), int (intervalle), gap (écart au leader), tyre (pneu et tours), pits (arrêts). Réglages de
+// l'appli, sinon colonnes de l'adresse (anciens liens), sinon celles cochées par défaut
+const URL_COLS = new URLSearchParams(location.search).get('cols')?.split(',') || null;
+const IS_OVERLAY = document.documentElement.classList.contains('overlay');
+let COLS = URL_COLS || (IS_OVERLAY ? ['delta', 'int', 'tyre'] : null);
 let lastKey = '';
+on('overlayCfg', (cfg) => { if (IS_OVERLAY && cfg?.mini?.cols) { COLS = cfg.mini.cols; lastKey = ''; } });
 
 const list = (o) => (!o ? [] : Array.isArray(o) ? o : Object.keys(o).sort((a, b) => a - b).map((k) => o[k]));
 

@@ -4,6 +4,9 @@ import { storageGet, fmtDelay } from './util.js';
 import { toast } from './ui/delay.js';
 
 const OVERLAY = /[?&]overlay=1(&|$)/.test(location.search) || location.pathname === '/overlay.html';
+// Overlay affiché : sa clé dans les réglages des overlays (Réglages → Streaming)
+const OVERLAY_KEY = !OVERLAY ? null : location.pathname === '/overlay.html' ? new URLSearchParams(location.search).get('w') || 'laps'
+  : location.pathname === '/mini.html' ? 'mini' : 'map';
 let ws = null;
 let pingTimer = null;
 let pingId = 0;
@@ -44,9 +47,11 @@ export function connect() {
         emit('role', msg.host);
         if (msg.hostDelay != null) followHost(msg.hostDelay);
         hostFocus(msg.hostFocus);
+        overlayCfg(msg.overlayCfg);
         break;
       case 'hostDelay': followHost(msg.ms); break;
       case 'hostFocus': hostFocus(msg.num); break;
+      case 'overlayCfg': overlayCfg(msg.cfg); break;
       // Délai changé à distance (Stream Deck)
       case 'setDelay':
         if (store.isHost && msg.ms !== store.delay) { setDelay(msg.ms); toast(`Délai TV : ${fmtDelay(store.delay)}`, 2500); }
@@ -86,6 +91,20 @@ function hostFocus(num) {
   if (!OVERLAY || num === undefined || num === store.focus) return;
   store.focus = num;
   emit('focus', num);
+}
+
+// Réglages des overlays changés dans l'appli : appliqués tout de suite, sans changer d'adresse (fond
+// ici, colonnes du classement et calques de la carte dans mini.js et map.js)
+function overlayCfg(cfg) {
+  if (cfg === undefined) return;
+  store.overlayCfg = cfg;
+  const bg = cfg?.[OVERLAY_KEY]?.bg;
+  if (OVERLAY_KEY && bg != null) document.documentElement.style.setProperty('--ov-bg', `${bg}%`);
+  emit('overlayCfg', cfg);
+}
+export function sendOverlayCfg(cfg) {
+  store.overlayCfg = cfg;
+  send({ type: 'overlays', cfg });
 }
 
 function ping() {

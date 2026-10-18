@@ -36,6 +36,22 @@ function upperBound(arr, t) {
   return lo;
 }
 
+// Réglages des overlays : par overlay, opacité du fond (0 à 100), colonnes du classement et calques
+// de la carte (clés courtes)
+const OVERLAY_KEYS = ['mini', 'map', 'laps', 'countdown', 'podium', 'telemetry'];
+export function cleanOverlayCfg(v) {
+  const out = {};
+  for (const k of OVERLAY_KEYS) {
+    const o = v?.[k];
+    if (!o || typeof o !== 'object') continue;
+    const x = {};
+    if (o.bg !== undefined && Number.isFinite(Number(o.bg))) x.bg = Math.max(0, Math.min(100, Math.round(Number(o.bg))));
+    for (const f of ['cols', 'layers']) if (Array.isArray(o[f])) x[f] = o[f].filter((n) => typeof n === 'string' && /^[a-z0-9]{1,20}$/.test(n)).slice(0, 30);
+    out[k] = x;
+  }
+  return out;
+}
+
 export class Hub {
   constructor({ maxDelayMs }) {
     this.maxDelayMs = maxDelayMs;
@@ -170,6 +186,13 @@ export class Hub {
         this.hostFocus = msg.num == null ? null : String(msg.num).slice(0, 3);
         const str = JSON.stringify({ type: 'hostFocus', num: this.hostFocus });
         for (const o of this.clients) if (!o.host) this.send(o, str);
+      } else if (msg.type === 'overlays' && host) {
+        // Réglages des overlays (Réglages → Streaming) : gardés sur l'ordinateur et appliqués tout de
+        // suite aux overlays ouverts, sans changer leur adresse
+        this.overlayCfg = cleanOverlayCfg(msg.cfg);
+        this.onOverlayCfg?.(this.overlayCfg);
+        const str = JSON.stringify({ type: 'overlayCfg', cfg: this.overlayCfg });
+        for (const o of this.clients) if (o !== c) this.send(o, str);
       } else if (msg.type === 'ping') {
         this.send(c, JSON.stringify({ type: 'pong', id: msg.id, serverNow: Date.now() }));
       }
@@ -177,7 +200,7 @@ export class Hub {
     ws.on('close', () => this.clients.delete(c));
     ws.on('error', () => this.clients.delete(c));
     this.send(c, JSON.stringify(this.statusPayload()));
-    this.send(c, JSON.stringify({ type: 'role', host, hostDelay: this.hostDelay ?? null, hostFocus: this.hostFocus ?? null }));
+    this.send(c, JSON.stringify({ type: 'role', host, hostDelay: this.hostDelay ?? null, hostFocus: this.hostFocus ?? null, overlayCfg: this.overlayCfg ?? null }));
     return c;
   }
 
