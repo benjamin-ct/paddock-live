@@ -132,7 +132,7 @@ export function initMoments() {
   btn.className = 'btn small';
   btn.id = 'rpMoments';
   btn.title = 'Moments clés de la séance : cliquer pour y aller (les noms des moments à venir restent masqués)';
-  btn.innerHTML = `${icon('highlights')} Moments`;
+  btn.innerHTML = `${icon('highlights')}<span class="rp-mo-l"> Moments</span>`;
   side.insertBefore(btn, $('#rpStart'));
   const pop = document.createElement('div');
   pop.id = 'momentsPop';

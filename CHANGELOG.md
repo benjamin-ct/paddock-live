@@ -29,6 +29,10 @@ l'application (Réglages → Application → Nouveautés).
 - Carte plus lisible sur téléphone : au premier affichage, seuls les noms des pilotes, les positions, les
   secteurs et la voie des stands restent affichés. Les autres calques se réactivent dans « Calques », et vos
   choix sont gardés.
+- Barre de replay plus compacte : deux lignes au lieu de trois (lecture et barre de progression, puis heure,
+  ±10 s, vitesses, moments et fermeture), pour laisser plus de place au panneau affiché.
+- Radios plus lisibles : en version simplifiée, la barre ne garde que le filtre des pilotes et « Lecture auto »
+  (transcription et traduction restent dans la version complète).
 
 ## v1.27.36 — 2026-10-18
 
