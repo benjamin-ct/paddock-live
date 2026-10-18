@@ -27,12 +27,13 @@ La liste complète est plus bas : **[toutes les fonctionnalités](#-toutes-les-f
 
 | | |
 |---|---|
+| ![Accueil : prochaine séance, météo du week-end, favoris et dernières actualités](docs/screenshots/accueil.png) | ![Réglages → Streaming : overlays pour OBS, Streamlabs et Meld Studio, commandes pour le Stream Deck](docs/screenshots/streaming.png) |
 | ![Classement](docs/screenshots/classement.png) | ![Carte](docs/screenshots/carte.png) |
 | ![Analyse : rythme](docs/screenshots/analyse-rythme.png) | ![Saison : accueil](docs/screenshots/saison-accueil.png) |
 | ![Saison : fiche pilote](docs/screenshots/saison-pilote.png) | ![Saison : évolutions techniques](docs/screenshots/saison-evolutions-techniques.png) |
 | ![Replay : moments clés](docs/screenshots/moments.png) | ![Résultats de la séance : podium, remontées, stratégies, classement complet](docs/screenshots/resultats.png) |
 | ![Saison : course au titre, et quand le titre peut se jouer](docs/screenshots/saison-course-au-titre.png) | ![Saison : duels entre coéquipiers ou pilote contre pilote](docs/screenshots/saison-duels.png) |
-| ![Météo : radar de la pluie autour du circuit](docs/screenshots/radar.png) | ![Saison : pronostics entre amis](docs/screenshots/pronostics.png) |
+| ![Météo du circuit : temps actuel, prévisions du week-end et radar de la pluie](docs/screenshots/radar.png) | ![Saison : pronostics entre amis](docs/screenshots/pronostics.png) |
 | ![Radios d'équipe retranscrites et traduites](docs/screenshots/radios.png) | ![Analyse : comparaison de deux tours, secteur par secteur](docs/screenshots/analyse-comparaison.png) |
 
 <img src="docs/screenshots/mini-classement.png" alt="Mini-classement flottant, toujours au premier plan" width="380" align="right">
@@ -120,7 +121,7 @@ Le détail de chacune est dans le **[guide complet](docs/GUIDE.md)**.
 - **Radio ou flux audio** de votre choix, retardé du délai TV.
 
 ### Streaming
-- **Overlays** à ajouter comme source navigateur dans OBS Studio, Streamlabs ou Meld Studio, au rythme du délai TV : classement (colonnes au choix), carte du circuit (calques au choix), bandeaux de drapeaux, compteur de tours, compte à rebours, podium, télémétrie du pilote suivi ; fond réglable de 0 à 100 %.
+- **Overlays** à ajouter comme source navigateur dans OBS Studio, Streamlabs ou Meld Studio, au rythme du délai TV : classement (colonnes au choix), carte du circuit (calques au choix), bandeaux de drapeaux, compteur de tours, compte à rebours, podium, télémétrie du pilote suivi ; fond réglable de 0 à 100 % ; adresses fixes, réglages appliqués en direct sans recopier le lien.
 - **Stream Deck** ou Bitfocus Companion : délai TV ±1 s ou ±0,1 s, lecture, pause et ±10 s en replay.
 
 ### Disposition et écrans

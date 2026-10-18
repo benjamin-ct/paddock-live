@@ -66,6 +66,9 @@ function authInfo() {
 }
 
 const hub = new Hub({ maxDelayMs: settings.maxDelayMs });
+// Réglages des overlays de streaming (Réglages → Streaming), gardés d'un lancement à l'autre
+hub.overlayCfg = getConfig().overlays || null;
+hub.onOverlayCfg = (cfg) => saveConfig({ overlays: cfg });
 const recorder = process.env.NO_RECORDING ? null : new Recorder();
 const live = new LiveSource(hub, () => {
   const token = getConfig().f1tvToken;

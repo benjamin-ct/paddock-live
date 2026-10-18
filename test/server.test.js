@@ -89,7 +89,7 @@ test('hub : les téléphones du réseau local reçoivent le délai TV de l\'ordi
   pc.emit('message', Buffer.from(JSON.stringify({ type: 'delay', ms: 42000 })));
   const phone = new FakeWs();
   hub.addClient(phone, { host: false });
-  assert.deepEqual(phone.sent.find((m) => m.type === 'role'), { type: 'role', host: false, hostDelay: 42000, hostFocus: null });
+  assert.deepEqual(phone.sent.find((m) => m.type === 'role'), { type: 'role', host: false, hostDelay: 42000, hostFocus: null, overlayCfg: null });
   // Nouveau réglage sur l'ordinateur : transmis au téléphone ; pas l'inverse
   pc.sent = [];
   pc.emit('message', Buffer.from(JSON.stringify({ type: 'delay', ms: 45000 })));
@@ -129,6 +129,28 @@ test('hub : pilote suivi dans l\'appli repris par les overlays, pas l\'inverse',
   const late = new FakeWs();
   hub.addClient(late, { host: false });
   assert.equal(late.sent.find((m) => m.type === 'role').hostFocus, '16');
+  hub.close();
+});
+
+test('hub : réglages des overlays (Réglages → Streaming) appliqués en direct, gardés et nettoyés', () => {
+  const hub = new Hub({ maxDelayMs: 600000 });
+  hub.reset({ mode: 'test' });
+  const saved = [];
+  hub.onOverlayCfg = (cfg) => saved.push(cfg);
+  const pc = new FakeWs();
+  hub.addClient(pc);
+  const overlay = new FakeWs();
+  hub.addClient(overlay, { host: false });
+  pc.emit('message', Buffer.from(JSON.stringify({ type: 'overlays', cfg: { mini: { bg: 140, cols: ['delta', 'int', '<b>'] }, map: { bg: 0, layers: ['labels'] }, autre: { bg: 5 } } })));
+  const cfg = { mini: { bg: 100, cols: ['delta', 'int'] }, map: { bg: 0, layers: ['labels'] } };
+  assert.deepEqual(overlay.sent.at(-1), { type: 'overlayCfg', cfg });
+  assert.deepEqual(saved, [cfg]);
+  // Un overlay ou un téléphone ne change pas les réglages ; un overlay ouvert plus tard les reçoit
+  overlay.emit('message', Buffer.from(JSON.stringify({ type: 'overlays', cfg: {} })));
+  assert.deepEqual(hub.overlayCfg, cfg);
+  const late = new FakeWs();
+  hub.addClient(late, { host: false });
+  assert.deepEqual(late.sent.find((m) => m.type === 'role').overlayCfg, cfg);
   hub.close();
 });
 

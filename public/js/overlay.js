@@ -20,11 +20,13 @@ let last = '';
 function fit() {
   const html = document.documentElement;
   html.style.zoom = '';
-  const w = ov.offsetWidth, h = ov.offsetHeight;
+  const { width: w, height: h } = ov.getBoundingClientRect();
   // Bandeaux : même largeur quel que soit le texte (ajustés à la largeur de la source seulement)
   if (w && h) html.style.zoom = String(Math.floor(Math.min(innerWidth / w, W === 'banner' ? Infinity : innerHeight / h) * 1000) / 1000);
 }
 window.addEventListener('resize', fit);
+// Polices chargées après le premier affichage : le texte change de taille, on réajuste
+document.fonts?.addEventListener('loadingdone', fit);
 function show(html) {
   if (html === last) return;
   last = html;

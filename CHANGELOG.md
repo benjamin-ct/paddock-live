@@ -4,6 +4,25 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
+## v1.27.38 — 2026-10-18
+
+### Streaming
+- Adresses des overlays fixes : le fond, les colonnes du classement et les calques de la carte se règlent dans
+  Réglages → Streaming et s'appliquent tout de suite aux overlays déjà ajoutés dans OBS, Streamlabs ou Meld Studio,
+  sans recopier l'adresse ni actualiser la source. Les réglages sont gardés d'un lancement à l'autre ; les anciennes
+  adresses avec leurs réglages fonctionnent toujours.
+- Overlays nets quelle que soit leur taille : tailles conseillées doublées (le classement en 680 × 1280…), le classement
+  s'agrandit maintenant avec la source, et plus rien n'est rogné en bas des overlays. Pour les agrandir dans OBS,
+  changez la taille de la source plutôt que d'étirer son cadre (c'est ce qui rendait l'image floue).
+- Réglages → Streaming : les cases des colonnes du classement et des calques de la carte sont rangées en colonnes
+  lisibles (elles se chevauchaient), et l'adresse de la carte ne dépasse plus du cadre.
+
+### Replays
+- Pendant un replay, « Replays » est bien allumé dans la barre latérale (et non « Direct ») : la correction de la
+  v1.27.37 ne reconnaissait pas un vrai replay.
+- Un replay lancé depuis un autre écran (téléphone, second écran) referme aussi l'accueil, et la page Replays
+  repère de nouveau la séance en cours de lecture.
+
 ## v1.27.37 — 2026-10-18
 
 ### Météo

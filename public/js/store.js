@@ -14,6 +14,7 @@ export const store = {
   positions: new Positions((utc) => utcToLocal(utc), () => replaySpeed()),
   duel: storageGet('paddock.duel', { a: null, b: null }),
   focus: storageGet('paddock.focus', null),
+  overlayCfg: null,       // réglages des overlays de streaming (Réglages → Streaming), gardés par le serveur
 };
 
 const listeners = new Map();

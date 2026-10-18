@@ -16,9 +16,13 @@ translatePage();
 // 'int' (intervalle) | 'gap' (écart au leader) ; overlay de streaming : ?mode=gap dans l'adresse
 let mode = new URLSearchParams(location.search).get('mode') || storageGet('paddock.miniMode', 'int');
 // Overlay de streaming : colonnes choisies (Réglages → Streaming) : delta (places gagnées depuis le
-// départ), int (intervalle), gap (écart au leader), tyre (pneu et tours), pits (arrêts)
-const COLS = new URLSearchParams(location.search).get('cols')?.split(',') || null;
+// départ), int (intervalle), gap (écart au leader), tyre (pneu et tours), pits (arrêts). Réglages de
+// l'appli, sinon colonnes de l'adresse (anciens liens), sinon celles cochées par défaut
+const URL_COLS = new URLSearchParams(location.search).get('cols')?.split(',') || null;
+const IS_OVERLAY = document.documentElement.classList.contains('overlay');
+let COLS = URL_COLS || (IS_OVERLAY ? ['delta', 'int', 'tyre'] : null);
 let lastKey = '';
+on('overlayCfg', (cfg) => { if (IS_OVERLAY && cfg?.mini?.cols) { COLS = cfg.mini.cols; lastKey = ''; } });
 
 const list = (o) => (!o ? [] : Array.isArray(o) ? o : Object.keys(o).sort((a, b) => a - b).map((k) => o[k]));
 
@@ -93,16 +97,21 @@ function columns(n, l, a, kind, val, tag, st) {
   }).join('');
 }
 
-// Overlay de streaming : tout le classement dans la source (réduit si besoin, hauteur et largeur)
+// Overlay de streaming : tout le classement dans la source
 const OVERLAY = document.documentElement.classList.contains('overlay');
 function fitOverlay() {
   if (!OVERLAY) return;
   const html = document.documentElement;
-  html.style.zoom = '';
-  const k = Math.min(1, innerHeight / document.body.scrollHeight, innerWidth / document.body.scrollWidth);
-  if (k < 1) html.style.zoom = String(Math.floor(k * 1000) / 1000);
+  // Dessiné pour 340 px de large : agrandi à la largeur de la source (net dans OBS, même en grand),
+  // puis réduit si le classement dépasse en hauteur
+  let k = innerWidth / 340;
+  html.style.zoom = String(k);
+  const h = Math.max(...[...document.body.children].map((e) => e.getBoundingClientRect().bottom)) + 4 * k;   // bas du contenu (marge de 4 px)
+  if (h > innerHeight) k *= innerHeight / h;
+  html.style.zoom = String(Math.floor(k * 1000) / 1000);
 }
 window.addEventListener('resize', fitOverlay);
+document.fonts?.addEventListener('loadingdone', fitOverlay);
 
 $('#miniMode').addEventListener('click', () => {
   mode = mode === 'gap' ? 'int' : 'gap';

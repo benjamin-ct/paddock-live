@@ -39,7 +39,7 @@ async function renderGps(body) {
     return;
   }
   if (!d.meetings.length) { body.innerHTML = `<div class="muted">Aucune séance disponible pour ${year}.</div>`; return; }
-  const playing = store.status?.mode === 'replay' ? store.status.path : null;
+  const playing = store.status?.source?.mode === 'replay' ? store.status.source.path : null;
   body.innerHTML = `<div class="rv-grid">${d.meetings.map((m) => `<section class="sz-box rv-gp">
       <div class="rv-gp-head"><b>${esc(gpFull(m.name, EN))}</b><span class="muted small">${esc([m.location, fmtDay(m.sessions.at(-1)?.start)].filter(Boolean).join(' · '))}</span></div>
       <div class="rv-sessions">${m.sessions.map((s) => `<button class="btn small${s.path === playing ? ' on' : ''}" data-rv-path="${esc(s.path)}" data-rv-name="${esc(`${gpFull(m.name, EN)} — ${sessionLabel(s.name, EN)}`)}">${icon('play')} ${esc(sessionLabel(s.name, EN))}</button>`).join('')}</div>
@@ -120,5 +120,5 @@ export function initReplays() {
   $('#sourceBadge')?.addEventListener('click', () => openReplays());
   window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !view.hidden && !document.querySelector('dialog[open]')) closeReplays(); });
   // Replay lancé ailleurs (accueil, autre écran) : place au tableau de bord
-  on('status', (s) => { if (s?.mode === 'replay' && !view.hidden && Date.now() - openedAt > 1500) closeReplays(); });
+  on('status', (s) => { if (s?.source?.mode === 'replay' && !view.hidden && Date.now() - openedAt > 1500) closeReplays(); });
 }
