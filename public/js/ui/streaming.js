@@ -57,7 +57,7 @@ function overlayLine([label, path, size, bg]) {
 function render() {
   const ov = $('#streamOverlays');
   if (!ov) return;
-  ov.innerHTML = `<h4>${icon('video')} Overlays pour votre stream</h4>
+  ov.innerHTML = `<h4>${icon('video')} Overlays pour votre stream <button class="btn small" data-ovreset title="Fond, colonnes du classement et calques de la carte remis comme au départ">${icon('undo')} Réglages par défaut</button></h4>
     <p class="small muted">Dans OBS Studio, Streamlabs ou Meld Studio, ajoutez une source « Navigateur » avec l'une de ces adresses et la taille indiquée. Fond transparent ; le délai TV suit celui réglé dans Paddock Live, qui doit rester ouvert sur cet ordinateur.</p>
     ${OVERLAYS.map(overlayLine).join('')}
     <details class="small"><summary>Où ajouter la source ?</summary><ul>
@@ -79,6 +79,15 @@ function render() {
     if (r) r.nextElementSibling.textContent = bgLabel(r.value);
     clearTimeout(tm);
     tm = setTimeout(() => sendOverlayCfg(cfgOf(ov)), 250);
+  });
+  // Réglages par défaut : valeurs d'origine des curseurs et des cases, envoyées tout de suite aux overlays
+  ov.addEventListener('click', (e) => {
+    if (!e.target.closest('[data-ovreset]')) return;
+    for (const r of ov.querySelectorAll('[data-bg]')) { r.value = r.defaultValue; r.nextElementSibling.textContent = bgLabel(r.value); }
+    for (const c of ov.querySelectorAll('[data-col], [data-layer]')) c.checked = c.defaultChecked;
+    clearTimeout(tm);
+    sendOverlayCfg(cfgOf(ov));
+    toast('Overlays remis aux réglages par défaut', 2500, 'check');
   });
   on('overlayCfg', (cfg) => { if (!ov.contains(document.activeElement)) show(cfg); });
 }

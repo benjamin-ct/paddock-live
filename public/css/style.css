@@ -2996,3 +2996,5 @@ html:is(.float-map, .overlay) .boot-cover { display: none; }
 .stream-bg { display: flex; align-items: center; gap: 8px; margin-top: 2px; }
 .stream-bg input { flex: 1; max-width: 320px; accent-color: var(--accent); }
 .stream-bg span { min-width: 64px; color: var(--muted); }
+#streamOverlays > h4 { display: flex; align-items: center; gap: 8px; }
+#streamOverlays > h4 [data-ovreset] { margin-left: auto; font-weight: 600; }

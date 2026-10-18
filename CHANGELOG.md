@@ -11,6 +11,8 @@ l'application (Réglages → Application → Nouveautés).
   exemple après une mise à jour : ils profitent tout de suite des nouveautés, sans « Actualiser » à la main. Après
   cette mise à jour, actualisez-les une dernière fois (clic droit sur la source → Actualiser) : les overlays ouverts
   avant la v1.27.38 ne suivaient pas encore les réglages faits dans l'appli.
+- Réglages → Streaming : bouton « Réglages par défaut » pour remettre le fond, les colonnes du classement et les calques
+  de la carte comme au départ ; les overlays suivent aussitôt.
 - Overlay du classement : les 22 pilotes tiennent toujours dans la source, dans OBS aussi (la dernière ligne pouvait
   être coupée).
 
