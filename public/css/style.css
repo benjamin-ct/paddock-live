@@ -2973,9 +2973,14 @@ html.overlay body.ov-body { background: transparent; margin: 0; overflow: hidden
 .ov-telemetry .dial { max-width: none; }
 
 /* Réglages → Streaming : adresses à copier */
-.stream-row { display: grid; gap: 4px; margin: 10px 0; }
-.stream-row .row { flex-wrap: nowrap; }
-.stream-row input { flex: 1; min-width: 0; font: 12px var(--mono, monospace); }
+.stream-row { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; margin: 10px 0; }
+.stream-row > .row { flex-wrap: nowrap; }
+.stream-row input[readonly] { flex: 1; min-width: 0; font: 12px var(--mono, monospace); }
+/* Colonnes du classement, calques de la carte : cases rangées en grille */
+.stream-row details .row { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px 16px; }
+.stream-row details[open] { margin-bottom: 10px; }
+.stream-row details .toggle { align-items: flex-start; line-height: 1.3; }
+.stream-row details .toggle input { flex: none; margin-top: 1px; }
 
 /* Écran de chargement du démarrage : flou sur toute l'appli tant que l'accueil n'est pas complet */
 .boot-cover { position: fixed; inset: 0; z-index: 5000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
@@ -2989,5 +2994,5 @@ html.overlay body.ov-body { background: transparent; margin: 0; overflow: hidden
 .boot-cover.out { opacity: 0; pointer-events: none; }
 html:is(.float-map, .overlay) .boot-cover { display: none; }
 .stream-bg { display: flex; align-items: center; gap: 8px; margin-top: 2px; }
-.stream-bg input { width: 180px; accent-color: var(--accent); }
+.stream-bg input { flex: 1; max-width: 320px; accent-color: var(--accent); }
 .stream-bg span { min-width: 64px; color: var(--muted); }

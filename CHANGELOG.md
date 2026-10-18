@@ -6,6 +6,10 @@ l'application (Réglages → Application → Nouveautés).
 
 ## v1.27.38 — à venir
 
+### Streaming
+- Réglages → Streaming : les cases des colonnes du classement et des calques de la carte sont rangées en colonnes
+  lisibles (elles se chevauchaient), et l'adresse de la carte ne dépasse plus du cadre.
+
 ### Replays
 - Pendant un replay, « Replays » est bien allumé dans la barre latérale (et non « Direct ») : la correction de la
   v1.27.37 ne reconnaissait pas un vrai replay.
