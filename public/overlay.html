@@ -6,7 +6,7 @@
   <title>Paddock Live — overlay</title>
   <link rel="icon" href="/logo.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/css/style.css">
-  <script>/* Overlay de streaming (OBS…) : thème sombre, fond transparent */ document.documentElement.dataset.scheme = 'dark'; document.documentElement.dataset.theme = 'pitwall';</script>
+  <script>/* Overlay de streaming (OBS…) : thème sombre, fond transparent */ document.documentElement.dataset.scheme = 'dark'; document.documentElement.dataset.theme = 'pitwall'; /* Opacité du fond (&bg=0 à 100, Réglages → Streaming) */ const bg = new URLSearchParams(location.search).get('bg'); if (bg !== null) document.documentElement.style.setProperty('--ov-bg', `${Math.min(100, Math.max(0, Number(bg) || 0))}%`);</script>
 </head>
 <body class="ov-body">
   <!-- Overlay de streaming : ?w=banner | laps | countdown | podium | telemetry (Réglages → Streaming) -->

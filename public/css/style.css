@@ -2338,6 +2338,13 @@ body.mini-body { display: block; min-height: 0; height: 100vh; overflow: hidden;
 .mini-table .m-drv i { display: inline-block; width: 3px; height: 13px; margin-right: 6px; vertical-align: -2px; border-radius: 2px; }
 .mini-table .m-val { text-align: right; font-family: "JetBrains Mono", Consolas, monospace; font-size: 12.5px; color: var(--text-2); }
 .mini-table .m-tyre { width: 24px; text-align: center; }
+/* Overlay : colonnes choisies (places gagnées, écart au leader, âge des pneus, arrêts) */
+.mini-table .m-dl { width: 26px; text-align: right; font: 700 11px "JetBrains Mono", Consolas, monospace; color: var(--muted); }
+.mini-table .m-dl.up { color: var(--green); } .mini-table .m-dl.down { color: var(--red); }
+.mini-table .m-sub { font-size: 11px; color: var(--muted); }
+.mini-table .m-age { width: auto; white-space: nowrap; }
+.mini-table .m-age .tyre-age { font-size: 10.5px; color: var(--muted); margin-left: 3px; }
+.mini-table .m-pits { width: 16px; text-align: center; font: 700 11px "JetBrains Mono", Consolas, monospace; color: var(--muted); }
 .mini-table .m-tag { font: 700 10px "Saira Condensed", sans-serif; letter-spacing: .5px; color: var(--blue); }
 .mini-table tr.focus td { background: var(--focus); }
 .mini-table tr.duel-a .m-drv { color: var(--blue); }
@@ -2634,12 +2641,12 @@ html:is(.float-map, .float-mini):hover :is(.float-bar, .float-resize), html.floa
 /* Mini-classement flottant (appli de bureau) : pas de fond, chaque ligne en pastille translucide */
 html.float-mini, html.float-mini body.mini-body { background: transparent; }
 html.float-mini body.mini-body { padding: 4px 4px 26px; cursor: grab; }
-html.float-mini :is(.mini-head, .mini-foot) { border: 0; border-radius: 7px; background: color-mix(in srgb, var(--panel) 84%, transparent); }
+html.float-mini :is(.mini-head, .mini-foot) { border: 0; border-radius: 7px; background: color-mix(in srgb, var(--panel) var(--ov-bg, 85%), transparent); }
 html.float-mini :is(.mini-head, .mini-banner) { margin-bottom: 3px; }
 html.float-mini .mini-banner { border-radius: 7px; }
 html.float-mini .mini-table { border-collapse: separate; border-spacing: 0 2px; }
-html.float-mini .mini-table td { border: 0; background: color-mix(in srgb, var(--panel) 80%, transparent); }
-html.float-mini .mini-table tr.focus td { background: linear-gradient(var(--focus), var(--focus)), color-mix(in srgb, var(--panel) 80%, transparent); }
+html.float-mini .mini-table td { border: 0; background: color-mix(in srgb, var(--panel) var(--ov-bg, 80%), transparent); }
+html.float-mini .mini-table tr.focus td { background: linear-gradient(var(--focus), var(--focus)), color-mix(in srgb, var(--panel) var(--ov-bg, 80%), transparent); }
 html.float-mini .mini-table td:first-child { border-radius: 6px 0 0 6px; }
 html.float-mini .mini-table td:last-child { border-radius: 0 6px 6px 0; }
 html.float-mini .mini-foot { left: 4px; right: 4px; bottom: 4px; }
@@ -2913,6 +2920,8 @@ html.float-mini .float-bar { top: auto; bottom: 4px; right: 24px; }   /* en bas 
 html.overlay :is(.float-bar, .float-resize, .toast) { display: none !important; }
 html.overlay.float-mini body.mini-body { padding-bottom: 4px; cursor: default; }
 html.overlay .mini-foot, html.overlay #miniMode { display: none !important; }
+/* Carte en overlay : fond réglable (transparente par défaut) */
+html.float-map.overlay .map-wrap { background: color-mix(in srgb, var(--panel) var(--ov-bg, 0%), transparent) !important; border-radius: 12px; }
 
 /* Overlays d'un seul élément (overlay.html?w=…) : taille de base fixe, mise à l'échelle de la source */
 html.overlay body.ov-body { background: transparent; margin: 0; overflow: hidden; }
@@ -2923,7 +2932,7 @@ html.overlay body.ov-body { background: transparent; margin: 0; overflow: hidden
 .ov-banner .flag-banner.chequered { background: #f2f4f8; color: #0b0c0f; animation: none; }
 .ov-banner .flag-banner.chequered .fb-icon { background: repeating-conic-gradient(#0b0c0f 0 25%, #fff 0 50%) 0 0 / 9px 9px; }
 .ov-laps { width: 280px; } .ov-countdown { width: 420px; } .ov-podium { width: 440px; } .ov-telemetry { width: 300px; }
-.ov-card { background: color-mix(in srgb, var(--panel) 86%, transparent); border-radius: 12px; padding: 12px 16px; color: var(--text); }
+.ov-card { background: color-mix(in srgb, var(--panel) var(--ov-bg, 85%), transparent); border-radius: 12px; padding: 12px 16px; color: var(--text); }
 .ov-label { font-size: 13px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ov-big { font: 900 44px/1.1 var(--font-mono, var(--font)); font-variant-numeric: tabular-nums; margin: 2px 0; }
 .ov-big small { font-size: .55em; color: var(--muted); font-weight: 700; }
@@ -2957,3 +2966,6 @@ html.overlay body.ov-body { background: transparent; margin: 0; overflow: hidden
 @media (prefers-reduced-motion: reduce) { .boot-spin { animation-duration: 2.4s; } }
 .boot-cover.out { opacity: 0; pointer-events: none; }
 html:is(.float-map, .overlay) .boot-cover { display: none; }
+.stream-bg { display: flex; align-items: center; gap: 8px; margin-top: 2px; }
+.stream-bg input { width: 180px; accent-color: var(--accent); }
+.stream-bg span { min-width: 64px; color: var(--muted); }

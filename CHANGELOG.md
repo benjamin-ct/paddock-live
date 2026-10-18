@@ -13,6 +13,11 @@ l'application (Réglages → Application → Nouveautés).
 ### Streaming
 - Carte de l'overlay : choisissez les calques affichés (noms, traînées, positions, écarts, virages, secteurs,
   voie des stands, drapeaux…) dans Réglages → Streaming ; l'adresse à copier se met à jour toute seule.
+- Fond de chaque overlay (sauf les bandeaux) : de 0 % (sans fond) à 100 %, réglable dans Réglages → Streaming.
+- Un seul overlay de classement, plus complet : places gagnées ou perdues, intervalle, écart au leader, pneu et
+  nombre de tours, arrêts. Vous cochez les colonnes à afficher (par défaut : places, intervalle et pneu). Les
+  anciennes adresses du classement fonctionnent toujours.
+- Les overlays restent en thème sombre, même si l'ordinateur est en thème clair.
 
 ## v1.27.36 — 2026-10-18
 
