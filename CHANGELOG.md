@@ -4,6 +4,12 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
+## v1.27.35 — à venir
+
+### Mises à jour
+- Le bandeau « nouvelle version prête · Redémarrer », en bas à droite, s'affiche de nouveau : il était caché
+  derrière l'accueil, la saison et l'actu.
+
 ## v1.27.34 — 2026-10-18
 
 ### Streaming (OBS, Streamlabs, Meld Studio, Stream Deck)
