@@ -4,6 +4,13 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
+## v1.27.34 — à venir
+
+### Pronostics entre amis
+- Podium : un pilote choisi à une place ne peut plus être choisi aux deux autres.
+- Les pronostics des autres joueurs s'affichent tout seuls, sans recharger (dans l'application et sur
+  la page web du groupe), sans effacer un pronostic en cours de saisie.
+
 ## v1.27.33 — 2026-10-18
 
 ### Pronostics entre amis

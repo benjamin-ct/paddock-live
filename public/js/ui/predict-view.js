@@ -20,19 +20,37 @@ const group = () => { try { return JSON.parse(storageGet('paddock.pronoGroup', '
 const tokKey = (g) => `paddock.pronoTok.${g.id}`;
 const fmt = (t) => (t ? new Date(t).toLocaleString(LOCALE, { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—');
 
-async function load(year, force = false) {
+// quiet : relecture automatique (pronostics des autres) ; rien n'est redessiné si rien n'a changé ou
+// pendant la saisie, et les choix en cours sont gardés
+async function load(year, force = false, quiet = false) {
   if (loading || (!force && view && viewYear === year)) return;
   loading = true;
+  let next;
   try {
     const g = group();
-    view = await api(g ? `/api/predictions/online?${new URLSearchParams({ g: g.id, year, tok: storageGet(tokKey(g), '') })}` : `/api/predictions?year=${year}&me=${encodeURIComponent(me())}`);
-    viewYear = year;
+    next = await api(g ? `/api/predictions/online?${new URLSearchParams({ g: g.id, year, tok: storageGet(tokKey(g), '') })}` : `/api/predictions?year=${year}&me=${encodeURIComponent(me())}`);
   } catch (err) {
-    view = { error: err.message };
+    next = quiet ? view : { error: err.message };
   } finally {
     loading = false;
   }
+  const form = $('#pdForm');
+  if (quiet && (sig(next) === sig(view) || form?.contains(document.activeElement))) return;
+  const keep = quiet && form ? Object.fromEntries(new FormData(form)) : null;
+  view = next;
+  viewYear = year;
   fill();
+  if (keep) for (const [k, v] of Object.entries(keep)) { const el = $('#pdForm')?.elements[k]; if (el && !el.disabled) el.value = v; }
+  lockPodium();
+}
+const sig = (v) => JSON.stringify({ ...v, now: 0 });
+
+// Podium : un pilote choisi à une place ne peut pas être choisi aux deux autres
+function lockPodium() {
+  const f = $('#pdForm');
+  if (!f) return;
+  const sels = ['p1', 'p2', 'p3'].map((n) => f.elements[n]);
+  for (const s of sels) for (const o of s.options) o.disabled = !!o.value && sels.some((x) => x !== s && x.value === o.value);
 }
 
 function driverSelect(name, value, drivers, disabled) {
@@ -108,11 +126,14 @@ function fill() {
 }
 
 export function renderPredict(year) {
-  setTimeout(() => (view && viewYear === year ? fill() : load(year)), 0);
+  setTimeout(() => (view && viewYear === year ? (fill(), lockPodium()) : load(year)), 0);
   return '<div id="pdRoot"><div class="note">Chargement des pronostics…</div></div>';
 }
 
 export function initPredict() {
+  document.addEventListener('change', (e) => { if (e.target.closest('#pdForm')) lockPodium(); });
+  // Pronostics des autres (téléphones, groupe en ligne) relus toutes les 20 s quand la vue est affichée
+  setInterval(() => { if ($('#pdRoot')?.offsetParent && !document.hidden && viewYear) load(viewYear, true, true); }, 20000);
   document.addEventListener('click', async (e) => {
     const b = e.target.closest('[data-pd]');
     if (!b) return;

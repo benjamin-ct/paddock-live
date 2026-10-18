@@ -47,14 +47,29 @@
   const fmt = (t) => (t ? new Date(t).toLocaleString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—');
   const gp = (r) => r.fr || String(r.name || '').replace(/ Grand Prix.*$/, '');
   let view = null;
+  const sig = (v) => JSON.stringify({ ...v, now: 0 });
 
-  async function load() {
+  // quiet : relecture automatique (pronostics des autres) ; rien n'est redessiné si rien n'a changé ou
+  // pendant la saisie, et les choix en cours sont gardés
+  async function load(quiet = false) {
     const r = await fetch(`/p/api/${id}?tok=${encodeURIComponent(store.get(KEY))}`);
-    view = await r.json();
-    if (!r.ok) { document.getElementById('root').innerHTML = `<p class="msg bad">${esc(view.error || 'Groupe indisponible')}</p>`; return; }
+    const v = await r.json();
+    if (!r.ok) { if (!quiet) document.getElementById('root').innerHTML = `<p class="msg bad">${esc(v.error || 'Groupe indisponible')}</p>`; return; }
+    const f = document.getElementById('f');
+    if (quiet && (sig(v) === sig(view) || f?.contains(document.activeElement))) return;
+    const keep = quiet && f ? Object.fromEntries(new FormData(f)) : null;
+    view = v;
     document.getElementById('gname').textContent = view.group.name;
     document.title = `${view.group.name} · Pronostics F1`;
     render();
+    const g = document.getElementById('f');
+    if (keep && g) for (const [k, val] of Object.entries(keep)) if (g.elements[k] && !g.elements[k].disabled) g.elements[k].value = val;
+    if (g) lockPodium(g);
+  }
+  // Podium : un pilote choisi à une place ne peut pas être choisi aux deux autres
+  function lockPodium(f) {
+    const sels = ['p1', 'p2', 'p3'].map((n) => f.elements[n]);
+    for (const s of sels) for (const o of s.options) o.disabled = !!o.value && sels.some((x) => x !== s && x.value === o.value);
   }
 
   const select = (name, value, off) => `<label>${{ pole: 'Pole position', p1: '1er', p2: '2e', p3: '3e' }[name]}<select name="${name}" ${off ? 'disabled' : ''}><option value="">—</option>${view.drivers.map((d) => `<option value="${esc(d.code)}" ${d.code === value ? 'selected' : ''}>${esc(d.code)} · ${esc(d.name)}</option>`).join('')}</select></label>`;
@@ -84,6 +99,7 @@
       ${waiting.map((r) => `<section class="box"><h2>R${r.round} · ${esc(gp(r))} <small>en attente des résultats</small></h2>${table(r)}</section>`).join('')}
       ${done.map((r, i) => `<details class="box" ${i === 0 ? 'open' : ''}><summary><b>R${r.round} · ${esc(gp(r))}</b> <small>pole ${esc(r.result.pole || '—')} · podium ${esc(r.result.podium.join(', ') || '—')}</small></summary>${table(r)}</details>`).join('')}`;
     const f = document.getElementById('f');
+    if (f) f.onchange = () => lockPodium(f);
     if (f) f.onsubmit = async (e) => {
       e.preventDefault();
       const v = Object.fromEntries(new FormData(f));
@@ -102,6 +118,9 @@
     };
   }
   load().catch(() => { document.getElementById('root').innerHTML = '<p class="msg bad">Serveur injoignable : réessayez dans un instant.</p>'; });
+  // Pronostics des autres relus toutes les 20 s, et au retour sur la page
+  setInterval(() => { if (!document.hidden) load(true).catch(() => {}); }, 20000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) load(true).catch(() => {}); });
 </script>
 </body>
 </html>
