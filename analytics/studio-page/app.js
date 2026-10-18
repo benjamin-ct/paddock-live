@@ -314,21 +314,64 @@ function renderStats(body, r, stale) {
   });
 }
 
+// Pack de présentation pour les streamers : page non listée (ni le site ni l'appli n'y mènent),
+// à envoyer avec un de ces messages
+const KIT = 'https://paddocklive.app/kit/streamers/';
+const PITCH = [
+  ['Message court (DM Instagram, TikTok, X, Discord)', `Salut ! Je regarde tes lives pendant les Grands Prix et je pense qu'un outil que j'ai créé pourrait te servir : Paddock Live, une appli gratuite et sans compte qui affiche la course en direct (classement, carte GPS, radios traduites, stratégie) et qui ajoute des overlays sur ton stream (OBS, Streamlabs, Meld).
+
+Elle se cale sur ta diffusion TV : zéro spoiler pour toi et ton chat.
+
+Tout est résumé en 6 images ici : ${KIT}
+
+Si tu veux tester pendant le prochain GP, je t'aide volontiers à l'installer !`],
+  ['Message complet (e-mail, adresse pro)', `Objet : Un outil gratuit pour tes lives F1
+
+Salut,
+
+Je suis tes lives pendant les Grands Prix et je voulais te présenter Paddock Live, une appli que j'ai développée pour suivre la F1 en direct comme au mur des stands. Elle est gratuite, sans compte, pour Windows, macOS et Linux.
+
+Ce qu'elle peut apporter à tes lives :
+- Des overlays prêts pour OBS, Streamlabs ou Meld : classement, carte du circuit, compteur de tours, bandeaux safety car et drapeaux, podium. Ils se mettent à jour tout seuls.
+- Zéro spoiler : le chronométrage arrive avant l'image TV, Paddock Live retarde tout pour coller à ta diffusion (un clic, ou l'appli écoute la TV).
+- De quoi commenter chaque tour : écarts, secteurs, pneus, arrêts, carte GPS, radios d'équipe retranscrites et traduites, direction de course.
+- Des pronostics avec ta communauté : ton chat pronostique la pole et le podium depuis une simple page web, avec un classement sur la saison.
+
+Le pack de présentation (6 images et un PDF) : ${KIT}
+Les scènes OBS toutes prêtes : https://paddocklive.app/obs
+
+Je serais ravi d'avoir ton avis, et je peux t'aider à tout installer avant le prochain GP.
+
+À bientôt !`],
+  ['Short message (English)', `Hi! I watch your race-day streams and I think a tool I built could help: Paddock Live, a free desktop app (no account needed) that shows the race live (timing, GPS track map, translated team radios, strategy) and adds overlays to your stream (OBS, Streamlabs, Meld).
+
+It syncs with your TV broadcast, so no spoilers for you or your chat.
+
+Everything in 6 images here (in French, the app is in English too): ${KIT}
+
+Happy to help you set it up before the next Grand Prix!`],
+];
+
 // ---------- Réglages : comptes, alertes, déconnexion ----------
 function settings() {
   const me = session.me || {};
   const accounts = [['Instagram', me.instagram], ['Facebook', me.facebook], ['Threads', me.threads], ['Bluesky', me.bluesky], ['F1 TV (archives des séances)', me.f1tv ? 'connecté' : null]];
   const pages = [['Paddock Live', 'https://paddocklive.app/liens/'], ['Benjy Paddock', 'https://paddocklive.app/benjy/']];
-  const dlg = sheet('Réglages', `<h3 class="section">Mes pages de liens</h3><div class="group">${pages.map(([n, u]) => `<div class="row-item static"><span class="grow"><b>${esc(n)}</b><small>${esc(u.replace('https://', ''))}</small></span>
-      <a class="btn small" href="${esc(u)}" target="_blank" rel="noopener">${icon('link')}Ouvrir</a><button class="btn small" data-copy="${esc(u)}">${icon('copy')}Copier</button></div>`).join('')}</div>
+  const link = ([n, u]) => `<div class="row-item static"><span class="grow"><b>${esc(n)}</b><small>${esc(u.replace('https://', ''))}</small></span>
+      <a class="btn small" href="${esc(u)}" target="_blank" rel="noopener">${icon('link')}Ouvrir</a><button class="btn small" data-copy="${esc(u)}">${icon('copy')}Copier</button></div>`;
+  const dlg = sheet('Réglages', `<h3 class="section">Mes pages de liens</h3><div class="group">${pages.map(link).join('')}</div>
     <p class="hint">Tous les réseaux sur une seule page : le lien à mettre en bio.</p>
+    <h3 class="section">Pack streamers</h3><div class="group">${link(['Présentation pour les streamers', KIT])}</div>
+    ${PITCH.map(([n, t]) => `<details class="cap"><summary><span>${esc(n)}</span></summary><textarea rows="9">${esc(t)}</textarea>
+      <button class="btn small" data-copy="">${icon('copy')}Copier le message</button></details>`).join('')}
+    <p class="hint">Page non listée : ni le site ni l'appli n'y mènent. Envoie le lien avec un des messages (modifiables avant de copier).</p>
     <h3 class="section">Comptes</h3><div class="group">${accounts.map(([n, v]) => `<div class="row-item static"><span class="grow"><b>${esc(n)}</b><small>${esc(v || 'non connecté')}</small></span><span class="state ${v ? 'on' : ''}"></span></div>`).join('')}</div>
     <p class="hint">Comptes envoyés par l'appli de bureau (Posts → Publier… → Comptes…).</p>
     <h3 class="section">Alertes des grosses news</h3><div id="alerts"></div>
     <button class="btn danger wide" id="out">${icon('logout')}Se déconnecter de cet appareil</button>
     <p class="hint center">Version du Studio : ${esc(VERSION)} · © 2026 Paddock Live · <a href="https://github.com/benjamin-ct/paddock-live/blob/main/analytics/LICENSE" target="_blank" rel="noopener">Licence AGPL v3</a></p>`);
   alertsBlock($('#alerts', dlg));
-  $$('[data-copy]', dlg).forEach((b) => { b.onclick = () => navigator.clipboard.writeText(b.dataset.copy).then(() => toast('Lien copié', 'ok'), () => toast('Copie impossible', 'bad')); });
+  $$('[data-copy]', dlg).forEach((b) => { b.onclick = () => navigator.clipboard.writeText(b.dataset.copy || b.previousElementSibling.value).then(() => toast(b.dataset.copy ? 'Lien copié' : 'Message copié', 'ok'), () => toast('Copie impossible', 'bad')); });
   $('#out', dlg).onclick = () => { dlg.close(); forgetKey(); login(); };
 }
 
