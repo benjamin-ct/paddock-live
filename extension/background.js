@@ -1,13 +1,56 @@
 // Paddock Live Companion : transmet la connexion F1 TV faite dans le navigateur (cookie
-// « login-session » de formula1.com) à l'appli Paddock Live qui tourne sur cet ordinateur.
+// « entitlement_token » de formula1.com, « login-session » sur l'ancien site) à l'appli Paddock Live
+// qui tourne sur cet ordinateur.
 // Rien d'autre n'est lu, et rien ne part ailleurs que vers 127.0.0.1.
 const api = globalThis.browser ?? globalThis.chrome;
 const PORTS = [3000, 3001, 3002, 3010];   // ports essayés par l'appli de bureau au démarrage
+const ORIGINS = ['https://*.formula1.com/*', 'http://127.0.0.1/*'];
+const onF1 = (c) => /(^|\.)formula1\.com$/.test(c.domain.replace(/^\./, ''));
+
+// Cookies de formula1.com lisibles, y compris cloisonnés (Chrome : partitionKey ; Firefox avec
+// isolation : firstPartyDomain) ; une option inconnue du navigateur est simplement ignorée
+async function f1Cookies(name) {
+  const out = [];
+  for (const extra of [{}, { partitionKey: {} }, { firstPartyDomain: null }]) {
+    try { out.push(...await api.cookies.getAll({ ...(name ? { name } : { domain: 'formula1.com' }), ...extra })); } catch { /* option non prise en charge */ }
+  }
+  return out.filter(onF1);
+}
+
+// Cookies qui portent le jeton d'abonnement F1 TV : « login-session » (ancien site du compte, jeton dans
+// un JSON) et « entitlement_token » (site F1 TV actuel, jeton seul)
+const NAMES = ['login-session', 'entitlement_token'];
+const b64json = (part) => JSON.parse(decodeURIComponent(escape(atob(part.replace(/-/g, '+').replace(/_/g, '/')))));
+function unwrap(raw) {
+  let s = String(raw || '').trim();
+  if (/^%7B/i.test(s)) { try { s = decodeURIComponent(s); } catch { /* tel quel */ } }
+  if (s.startsWith('{')) { try { const o = JSON.parse(s); return { json: o, token: o?.data?.subscriptionToken || o?.subscriptionToken || '' }; } catch { return {}; } }
+  return { token: s.replace(/^Bearer\s+/i, '') };
+}
+// Jeton d'abonnement F1 TV (JWT avec l'état de l'abonnement) contenu dans le cookie, ou null : jamais un
+// autre jeton, qui casserait le direct dans l'appli
+function subscriptionToken(raw) {
+  const t = unwrap(raw).token;
+  const p = String(t || '').split('.');
+  if (p.length !== 3) return null;
+  try { const pl = b64json(p[1]); return pl.SubscriptionStatus || pl.subscriptionStatus || pl.SubscribedProduct ? t : null; } catch { return null; }
+}
+// Forme d'un cookie pour le diagnostic : noms des champs seulement, jamais leurs valeurs
+function shape(raw) {
+  const { json, token } = unwrap(raw);
+  const p = String(token || '').split('.');
+  if (p.length === 3) { try { return `JWT (${Object.keys(b64json(p[1])).join(', ')})`; } catch { /* pas un JWT */ } }
+  if (json) return `JSON (${Object.keys(json).join(', ')})`;
+  return `${String(raw || '').length} car.`;
+}
 
 async function session() {
-  // Posé sur formula1.com ou l'un de ses sous-domaines (compte, F1 TV) : le plus durable
-  const all = await api.cookies.getAll({ domain: 'formula1.com', name: 'login-session' });
-  return all.sort((x, y) => (y.expirationDate || 0) - (x.expirationDate || 0))[0]?.value || null;
+  // Posé sur formula1.com ou l'un de ses sous-domaines (compte, F1 TV) : le plus durable d'abord
+  for (const name of NAMES) {
+    const all = (await f1Cookies(name)).sort((x, y) => (y.expirationDate || 0) - (x.expirationDate || 0));
+    for (const c of all) { const t = subscriptionToken(c.value); if (t) return t; }
+  }
+  return null;
 }
 
 // Appli Paddock Live ouverte : { port, auth } (auth : état de sa connexion F1 TV), ou null
@@ -27,7 +70,13 @@ async function findApp() {
 async function sync({ send = true, force = false } = {}) {
   const value = await session();
   const app = await findApp();
-  const out = { signedIn: !!value, app: app && { port: app.port, linked: !!app.auth.hasToken, expiresAt: app.auth.expiresAt || null } };
+  const access = await api.permissions.contains({ origins: ORIGINS }).catch(() => true);
+  const out = { signedIn: !!value, access, app: app && { port: app.port, linked: !!app.auth.hasToken, expiresAt: app.auth.expiresAt || null } };
+  // Pas de session trouvée : noms des cookies formula1.com visibles (jamais leurs valeurs), pour le diagnostic
+  if (!value && access) {
+    const all = await f1Cookies();
+    out.seen = [...new Set(all.map((c) => (NAMES.includes(c.name) ? `${c.name} : ${shape(c.value)}` : c.name)))].sort();
+  }
   if (!send || !value || !app) return out;
   const { sent } = await api.storage.local.get('sent');
   if (!force && sent === value) return out;
@@ -42,7 +91,7 @@ async function sync({ send = true, force = false } = {}) {
 
 // Connexion (ou reconnexion) sur formula1.com : transmise aussitôt
 api.cookies.onChanged.addListener(({ cookie, removed }) => {
-  if (!removed && cookie.name === 'login-session' && cookie.domain.endsWith('formula1.com')) sync();
+  if (!removed && NAMES.includes(cookie.name) && onF1(cookie)) sync();
 });
 // Appli lancée plus tard : rattrapé au démarrage du navigateur et toutes les 30 minutes
 api.runtime.onStartup.addListener(() => sync());

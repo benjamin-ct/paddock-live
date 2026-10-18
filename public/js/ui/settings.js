@@ -52,18 +52,11 @@ function renderAuthPill(a) {
   if (msg) { $('#authPillText').textContent = msg; pill.dataset.k = key; }
 }
 
-async function reconnectF1TV() {
-  if (window.f1desktop?.isDesktop) {
-    toast('Connectez-vous dans la fenêtre F1 qui vient de s\'ouvrir…', 6000);
-    const res = await window.f1desktop.loginF1TV();
-    if (res?.ok) toast('Connecté à F1 TV', 5000, 'check');
-    else if (res?.error) toast(res.error, 6000);
-    refreshAuth();
-  } else {
-    $('#settingsModal').showModal();
-    $('#setNav [data-sgroup="f1tv"]')?.click();
-    refreshAuth();
-  }
+// L'extension (mise en avant) ou la fenêtre de connexion : les deux sont dans Réglages → Compte F1 TV
+function reconnectF1TV() {
+  $('#settingsModal').showModal();
+  $('#setNav [data-sgroup="f1tv"]')?.click();
+  refreshAuth();
 }
 
 const SPEEDS = [1, 2, 5, 10, 20, 30];
@@ -291,7 +284,7 @@ export function initSettings() {
     });
   } else {
     // Navigateur : connexion par l'extension, bouton pour l'oublier
-    $('#tokenClear').hidden = false;
+    $('#tokenClearRow').hidden = false;
   }
 
   $('#tokenClear').addEventListener('click', async () => {

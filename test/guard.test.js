@@ -68,7 +68,7 @@ test('extension : manifeste valide et textes traduits en français et en anglais
   const dir = new URL('../extension/', import.meta.url);
   const manifest = JSON.parse(readFileSync(new URL('manifest.json', dir), 'utf8'));
   assert.equal(manifest.manifest_version, 3);
-  for (const f of [...Object.values(manifest.icons), 'background.js', 'popup.html', 'popup.js', 'popup.css']) assert.ok(existsSync(new URL(f, dir)), f);
+  for (const f of [...Object.values(manifest.icons), 'background.js', 'popup.html', 'popup.js']) assert.ok(existsSync(new URL(f, dir)), f);
   const fr = JSON.parse(readFileSync(new URL('_locales/fr/messages.json', dir), 'utf8'));
   const en = JSON.parse(readFileSync(new URL('_locales/en/messages.json', dir), 'utf8'));
   assert.deepEqual(Object.keys(fr).sort(), Object.keys(en).sort());
