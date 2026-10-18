@@ -32,6 +32,9 @@ Depuis le dossier `extension/` :
 zip -qrX ../paddock-live-companion-<version>.zip manifest.json background.js popup.html popup.js icons _locales
 ```
 
+Page d'installation : `paddocklive.app/extension` (`analytics/extension/index.html`, lien de l'appli), un bouton
+par boutique ; une fois l'extension acceptée sur une boutique, mettre son adresse dans `STORES`.
+
 À chaque nouvelle version : augmenter `version` dans `extension/manifest.json`, refaire le zip et l'envoyer
 comme mise à jour sur chaque boutique.
 

@@ -81,6 +81,8 @@ for (const acc of ['benjy', 'paddocklive', 'streamers']) copy(path.join(ROOT, 'a
 // Site de l'appli pour le lancement (/site/, racine d'un nom de domaine à soi), avec ses images
 copy(path.join(ROOT, 'analytics', 'launch'), path.join(OUT, 'site'), (f) => f !== 'img');
 copy(path.join(ROOT, 'analytics', 'launch', 'img'), path.join(OUT, 'site', 'img'));
+// Extension Paddock Live Companion (/extension/, adresse donnée dans l'appli) : un bouton par boutique
+copy(path.join(ROOT, 'analytics', 'extension'), path.join(OUT, 'extension'));
 // Présentation publique de l'appli (/app/), site officiel déclaré à TikTok
 copy(path.join(ROOT, 'analytics', 'home'), path.join(OUT, 'app'));
 // Scènes OBS toutes prêtes (paddocklive.app/obs, téléchargées : voir _headers)
