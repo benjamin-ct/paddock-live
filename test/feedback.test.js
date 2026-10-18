@@ -137,3 +137,16 @@ test('appli : pièce jointe relayée telle quelle avec son jeton', async () => {
   assert.equal(got.opts.headers['Content-Type'], 'image/png');
   assert.equal(got.opts.headers['Content-Length'], 2);
 });
+
+test('Studio : suppression d\'un message après le passage par les routes des alertes', async () => {
+  const { pushApi } = await import('../analytics/alerts.js');
+  const env = { DB: fakeD1() };
+  await feedbackPost(post({ kind: 'idea', text: 'À supprimer ensuite' }), env, { now: 1000 });
+  const id = env.DB.rows[0].id;
+  // Même chemin que studioApi : les alertes d'abord, puis les messages, sur la même requête
+  const req = new Request('https://paddocklive.app/studio/api/feedback/remove', { method: 'POST', body: JSON.stringify({ id }) });
+  assert.equal(await pushApi('feedback/remove', req, env), null);
+  const r = await feedbackApi('feedback/remove', req, env);
+  assert.equal(r.status, 200);
+  assert.equal(env.DB.rows.length, 0);
+});

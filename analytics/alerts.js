@@ -124,7 +124,8 @@ export function validSubscription(s) {
 export async function pushApi(path, req, env) {
   const subs = await readJSON(env, 'push', []);
   const json = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' } });
-  const body = req.method === 'POST' ? await req.json().catch(() => null) : null;
+  // Corps lu seulement pour ses routes : sinon la requête arrive vide aux routes suivantes (messages)
+  const body = req.method === 'POST' && path.startsWith('push') ? await req.json().catch(() => null) : null;
   if (path === 'push' && req.method === 'GET') return json({ key: (await vapidKeys(env)).pub, count: subs.length });
   if (path === 'push' && req.method === 'POST') {
     const s = body?.subscription;
