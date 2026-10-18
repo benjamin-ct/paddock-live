@@ -12,6 +12,13 @@ l'application (Réglages → Application → Nouveautés).
 - « Supprimer le groupe » l'efface pour tout le monde, avec les pronostics de tous les joueurs. C'est réservé à son
   créateur ; pour un groupe créé avant cette version, à son seul joueur (ou à n'importe qui s'il est vide).
 
+### Streaming
+- Les overlays Podium et Bandeaux ne sont plus décalés vers la droite ni coupés quand la source fait plus de
+  900 pixels de large (c'est le cas des bandeaux à leur taille conseillée de 1600 × 160).
+- Scènes OBS toutes prêtes : une collection de trois scènes (avant la course, course, podium) avec les overlays
+  déjà placés en 1920 × 1080, à importer dans OBS (Collection de scènes → Importer). Fichier
+  `docs/obs/paddock-live-obs.json` du dépôt, mode d'emploi dans le guide.
+
 ## v1.27.40 — 2026-10-18
 
 ### Barre du haut

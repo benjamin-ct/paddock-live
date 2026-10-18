@@ -2947,7 +2947,8 @@ html.overlay .mini-foot, html.overlay #miniMode { display: none !important; }
 html.float-map.overlay .map-wrap { background: color-mix(in srgb, var(--panel) var(--ov-bg, 0%), transparent) !important; border-radius: 12px; }
 
 /* Overlays d'un seul élément (overlay.html?w=…) : taille de base fixe, mise à l'échelle de la source */
-html.overlay body.ov-body { background: transparent; margin: 0; overflow: hidden; }
+/* padding : pas de place réservée à la barre latérale de l'appli quand la source dépasse 900 px de large */
+html.overlay body.ov-body { background: transparent; margin: 0; padding: 0; overflow: hidden; }
 .ov { display: inline-block; padding: 6px; }
 .ov-banner { width: 800px; }
 .ov-banner .flag-banner, .ov-banner .flag-banner:is(.yellow, .green) { border-radius: 10px; font-size: 24px; padding: 0 18px; height: 64px; white-space: nowrap; overflow: hidden; }

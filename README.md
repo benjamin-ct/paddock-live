@@ -123,6 +123,7 @@ Le détail de chacune est dans le **[guide complet](docs/GUIDE.md)**.
 
 ### Streaming
 - **Overlays** à ajouter comme source navigateur dans OBS Studio, Streamlabs ou Meld Studio, au rythme du délai TV : classement (colonnes au choix), carte du circuit (calques au choix), bandeaux de drapeaux, compteur de tours, compte à rebours, podium, télémétrie du pilote suivi ; fond réglable de 0 à 100 % ; adresses fixes, réglages appliqués en direct sans recopier le lien.
+- **Scènes OBS toutes prêtes** ([`docs/obs/paddock-live-obs.json`](docs/obs/paddock-live-obs.json), à importer dans OBS → Collection de scènes → Importer) : avant la course, course et podium, overlays déjà placés en 1920 × 1080 ([aperçu](docs/obs/apercu-course.png)).
 - **Stream Deck** ou Bitfocus Companion : délai TV ±1 s ou ±0,1 s, lecture, pause et ±10 s en replay.
 
 ### Disposition et écrans
