@@ -197,7 +197,7 @@ function render() {
         <div class="hm-count" id="hmCount">${countdown(nx.t - Date.now())}</div>
         <div class="muted">${esc(when(nx.t))}</div>
         ${weatherHtml(nx)}
-        <div class="hm-actions"><a class="btn small" href="/api/calendar.ics?year=${nx.year}&round=${nx.round}${EN ? '&lang=en' : ''}" download title="Séances de ce week-end dans votre agenda (Google, Apple, Outlook), avec une alarme 15 min avant">${icon('calendar')} Ajouter ce week-end à mon agenda</a></div>`
+        <div class="hm-actions"><a class="btn small" href="#" data-cal="${nx.year}" data-round="${nx.round}" title="Séances dans votre agenda (Google, Apple, Outlook) : abonnement mis à jour tout seul, ou fichier de ce week-end">${icon('calendar')} Ajouter ce week-end à mon agenda</a></div>`
           : `<div class="hm-title">${schedule ? 'Saison terminée' : 'Calendrier en chargement…'}</div>`}</section>`;
   const ls = live ? null : lastSession();
   const last = ls

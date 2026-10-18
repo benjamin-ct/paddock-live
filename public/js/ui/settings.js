@@ -213,7 +213,7 @@ export function initSettings() {
   // Application de bureau : fenêtres détachées rouvertes au lancement
   $('#remindSel').value = String(prefs.remindMin ?? 15);
   $('#remindSel').addEventListener('change', (e) => setPref('remindMin', Number(e.target.value)));
-  $('#icsSeason').href = `/api/calendar.ics?year=${new Date().getFullYear()}${LANG === 'en' ? '&lang=en' : ''}`;
+  $('#icsSeason').dataset.cal = new Date().getFullYear();
   // Langue : l'interface est rechargée pour s'afficher dans la nouvelle langue
   $('#langSel').value = LANG;
   $('#langSel').addEventListener('change', (e) => { setPref('lang', e.target.value); location.reload(); });

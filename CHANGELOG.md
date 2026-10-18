@@ -6,6 +6,17 @@ l'application (Réglages → Application → Nouveautés).
 
 ## v1.27.33 — à venir
 
+### Documents FIA
+- Les documents s'ouvrent directement dans l'application, dans une visionneuse, au lieu d'être
+  téléchargés. Un bouton les ouvre aussi dans le navigateur. Sur téléphone, ils s'ouvrent dans un onglet.
+- Les documents des autres Grands Prix de la saison s'affichent tout de suite : leurs listes sont
+  préparées pendant que le menu est ouvert, puis gardées sur l'ordinateur, comme les PDF déjà ouverts.
+
+### Agenda
+- « Ajouter à mon agenda » propose maintenant de s'abonner au calendrier des séances, sans fichier à
+  télécharger : en un clic dans Apple Calendrier, Outlook ou Google Agenda. Le calendrier se met à jour
+  tout seul si les horaires changent. Le fichier .ics reste disponible.
+
 ### Corrections
 - Résumé de fin de course : le Grand Prix de Bahreïn, couru cette année en Malaisie, porte son nom
   en français.

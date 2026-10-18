@@ -2881,3 +2881,18 @@ html.float-mini .float-bar { top: auto; bottom: 4px; right: 24px; }   /* en bas 
   .pv-sig { flex-direction: row; align-items: center; }
   .posts-dlg .posts-body { padding: 12px; }
 }
+
+/* Visionneuse des documents FIA (PDF) */
+.modal.pdf-dlg { width: min(1000px, calc(100vw - 32px)); height: calc(100vh - 60px); display: flex; flex-direction: column; }
+.modal.pdf-dlg:not([open]) { display: none; }
+.pdf-dlg .sum-head b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pdf-dlg iframe { flex: 1; width: 100%; border: 0; background: #525659; border-radius: 0 0 14px 14px; }
+
+/* Ajout des séances à son agenda : abonnement, Google Agenda ou fichier */
+.cal-dlg { width: min(460px, calc(100vw - 32px)); }
+.cal-opts { display: grid; gap: 8px; padding: 14px; }
+.cal-opt { display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; color: var(--text); text-decoration: none; }
+.cal-opt:hover { border-color: var(--accent); background: var(--panel-2); }
+.cal-opt > .ic { flex: none; margin-top: 2px; color: var(--accent); }
+.cal-opt span { display: grid; gap: 2px; }
+.cal-opt small { color: var(--muted); }

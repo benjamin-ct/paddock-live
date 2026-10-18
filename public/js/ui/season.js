@@ -212,9 +212,9 @@ function renderCalendar() {
         <div class="muted small">${esc(r.circuit || '')} · ${fmtDate(first)} – ${fmtDate(r.date)}</div>
         ${w ? `<div class="small">${icon('trophy')} ${chip(w)} ${r.quali[0] ? `· pole ${chip(r.quali.find((q) => q.pos === 1) || r.quali[0])}` : ''}</div>` : ''}</summary>
       <ul class="sz-sessions">${r.sessions.map((s) => `<li><span>${esc(s.label)}</span><span>${s.t ? `${fmtDate(s.t, { weekday: 'short', day: 'numeric', month: 'short' })} · ${fmtTime(s.t)}` : '—'}</span></li>`).join('')}</ul>
-      ${done(r) ? '' : `<a class="btn small sz-ics" href="/api/calendar.ics?year=${year}&round=${r.round}${EN ? '&lang=en' : ''}" download title="Séances de ce week-end dans votre agenda (Google, Apple, Outlook), avec une alarme 15 min avant">${icon('calendar')} Ajouter ce week-end à mon agenda</a>`}
+      ${done(r) ? '' : `<a class="btn small sz-ics" href="#" data-cal="${year}" data-round="${r.round}" title="Séances dans votre agenda (Google, Apple, Outlook) : abonnement mis à jour tout seul, ou fichier de ce week-end">${icon('calendar')} Ajouter ce week-end à mon agenda</a>`}
     </details>`;
-  }).join('')}</div><p class="muted small">Horaires affichés à l'heure de cet ordinateur. <a class="btn small" href="/api/calendar.ics?year=${year}${EN ? '&lang=en' : ''}" download title="Toutes les séances de la saison dans votre agenda (Google, Apple, Outlook), avec une alarme 15 min avant chaque séance, même Paddock Live fermé">${icon('calendar')} Ajouter toute la saison à mon agenda</a></p>`;
+  }).join('')}</div><p class="muted small">Horaires affichés à l'heure de cet ordinateur. <a class="btn small" href="#" data-cal="${year}" title="Toutes les séances de la saison dans votre agenda (Google, Apple, Outlook), même Paddock Live fermé : abonnement mis à jour tout seul, ou fichier">${icon('calendar')} Ajouter toute la saison à mon agenda</a></p>`;
 }
 
 function lineChartSvg(series, { w = 900, h = 300 } = {}) {
