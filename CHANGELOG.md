@@ -4,7 +4,7 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
-## v1.27.38 — à venir
+## v1.27.38 — 2026-10-18
 
 ### Streaming
 - Adresses des overlays fixes : le fond, les colonnes du classement et les calques de la carte se règlent dans
