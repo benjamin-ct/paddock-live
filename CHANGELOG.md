@@ -4,6 +4,13 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
+## v1.27.40 — à venir
+
+### Barre du haut
+- La barre du haut ne déborde plus de la fenêtre (par exemple en replay sur un écran de 1920 pixels) : la page ne
+  se décale plus sur le côté et la cloche des alertes reste visible. Quand la place manque, la météo de la barre
+  n'affiche que les mesures qui tiennent (tout reste dans l'onglet Météo), puis le nom de la séance se raccourcit.
+
 ## v1.27.39 — 2026-10-18
 
 ### Streaming
