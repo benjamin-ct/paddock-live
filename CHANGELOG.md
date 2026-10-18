@@ -10,6 +10,11 @@ l'application (Réglages → Application → Nouveautés).
 - Joignez jusqu'à 3 captures d'écran ou vidéos à votre message (images jusqu'à 8 Mo, vidéos jusqu'à 40 Mo),
   depuis Réglages → À propos ou depuis le formulaire du site : pratique pour montrer un bug.
 
+### F1 TV
+- Prêt pour l'extension de navigateur **Paddock Live Companion** (bientôt sur les boutiques Chrome, Edge et
+  Firefox) : connectez-vous sur formula1.com dans votre navigateur habituel, l'appli reçoit la connexion toute
+  seule (GPS et télémétrie), sans copier de jeton.
+
 ## v1.27.43 — 2026-10-18
 
 ### Une question, une idée ?

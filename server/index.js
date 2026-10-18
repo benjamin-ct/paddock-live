@@ -37,7 +37,7 @@ import { studioInfo, enableStudio, disableStudio, syncStudio, startStudioSync, s
 import { postHistory, recordPost, removePost, statsOfPosts } from './post-history.js';
 import { accountsInfo, saveAccount, tiktokLoginUrl, tiktokCallback, youtubeLoginUrl, youtubeCallback, publish as publishSocial } from './social-publish.js';
 import { startAutoRenew, renew as renewF1tv, sessionOf, state as renewState, resetRenewState } from './f1tv-auth.js';
-import { localHost, sameSiteRequest, decodePath } from './guard.js';
+import { localHost, sameSiteRequest, decodePath, extensionRequest, EXTENSION_ROUTES } from './guard.js';
 import { stats, startStats, sendFeedback, sendFeedbackFile } from './stats.js';
 import { archivePath, sendArchiveFile, archiveJSON } from './archive.js';
 import { cloud, createCloudTranslator } from './cloud-translate.js';
@@ -171,7 +171,8 @@ async function handleApi(req, res, url) {
   const route = `${req.method} ${url.pathname}`;
   // L'API ne répond qu'à l'interface elle-même : un autre site ouvert dans le navigateur ne peut
   // ni la lire ni déclencher d'action (relais F1 TV avec le jeton, réglages, enregistrements…)
-  if (!sameSiteRequest(req.headers)) return sendJSON(res, 403, { error: 'Origine refusée' });
+  const fromExtension = extensionRequest(req.headers) && EXTENSION_ROUTES.has(route) && isLoopback(req.socket.remoteAddress);
+  if (!sameSiteRequest(req.headers) && !fromExtension) return sendJSON(res, 403, { error: 'Origine refusée' });
 
   switch (route) {
     case 'GET /api/lan':
