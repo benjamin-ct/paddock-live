@@ -103,12 +103,11 @@ function fitOverlay() {
   if (!OVERLAY) return;
   const html = document.documentElement;
   // Dessiné pour 340 px de large : agrandi à la largeur de la source (net dans OBS, même en grand),
-  // puis réduit si le classement dépasse en hauteur
-  let k = innerWidth / 340;
-  html.style.zoom = String(k);
-  const h = Math.max(...[...document.body.children].map((e) => e.getBoundingClientRect().bottom)) + 4 * k;   // bas du contenu (marge de 4 px)
-  if (h > innerHeight) k *= innerHeight / h;
-  html.style.zoom = String(Math.floor(k * 1000) / 1000);
+  // réduit si le classement dépasse en hauteur. Hauteur mesurée sans zoom : le Chrome d'OBS, plus
+  // ancien, ne mesure pas les pages zoomées comme les navigateurs récents
+  html.style.zoom = '';
+  const h = Math.max(...[...document.body.children].map((e) => e.getBoundingClientRect().bottom)) + 4;   // bas du contenu (marge de 4 px)
+  html.style.zoom = String(Math.floor(Math.min(innerWidth / 340, innerHeight / h) * 1000) / 1000);
 }
 window.addEventListener('resize', fitOverlay);
 document.fonts?.addEventListener('loadingdone', fitOverlay);

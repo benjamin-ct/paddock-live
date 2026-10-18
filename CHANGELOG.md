@@ -11,6 +11,8 @@ l'application (Réglages → Application → Nouveautés).
   exemple après une mise à jour : ils profitent tout de suite des nouveautés, sans « Actualiser » à la main. Après
   cette mise à jour, actualisez-les une dernière fois (clic droit sur la source → Actualiser) : les overlays ouverts
   avant la v1.27.38 ne suivaient pas encore les réglages faits dans l'appli.
+- Overlay du classement : les 22 pilotes tiennent toujours dans la source, dans OBS aussi (la dernière ligne pouvait
+  être coupée).
 
 ## v1.27.38 — 2026-10-18
 
