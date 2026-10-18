@@ -18,6 +18,8 @@ l'application (Réglages → Application → Nouveautés).
   nombre de tours, arrêts. Vous cochez les colonnes à afficher (par défaut : places, intervalle et pneu). Les
   anciennes adresses du classement fonctionnent toujours.
 - Les overlays restent en thème sombre, même si l'ordinateur est en thème clair.
+- Bandeaux de l'overlay : tous de la même taille (VSC, voiture de sécurité, drapeaux jaune, vert, rouge, damier),
+  sur une seule ligne.
 
 ### Téléphone
 - Carte : le menu « Calques » s'ouvre au-dessus de la barre du bas et défile au doigt (il était coupé).

@@ -2932,8 +2932,9 @@ html.float-map.overlay .map-wrap { background: color-mix(in srgb, var(--panel) v
 html.overlay body.ov-body { background: transparent; margin: 0; overflow: hidden; }
 .ov { display: inline-block; padding: 6px; }
 .ov-banner { width: 800px; }
-.ov-banner .flag-banner { border-radius: 10px; font-size: 26px; padding: 12px 18px; }
-.ov-banner .flag-banner .fb-sub { font-size: 16px; }
+.ov-banner .flag-banner, .ov-banner .flag-banner:is(.yellow, .green) { border-radius: 10px; font-size: 24px; padding: 0 18px; height: 64px; white-space: nowrap; overflow: hidden; }
+.ov-banner .flag-banner .fb-icon { flex: none; }
+.ov-banner .flag-banner .fb-sub { font-size: 16px; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .ov-banner .flag-banner.chequered { background: #f2f4f8; color: #0b0c0f; animation: none; }
 .ov-banner .flag-banner.chequered .fb-icon { background: repeating-conic-gradient(#0b0c0f 0 25%, #fff 0 50%) 0 0 / 9px 9px; }
 .ov-laps { width: 280px; } .ov-countdown { width: 420px; } .ov-podium { width: 440px; } .ov-telemetry { width: 300px; }

@@ -21,7 +21,8 @@ function fit() {
   const html = document.documentElement;
   html.style.zoom = '';
   const w = ov.offsetWidth, h = ov.offsetHeight;
-  if (w && h) html.style.zoom = String(Math.floor(Math.min(innerWidth / w, innerHeight / h) * 1000) / 1000);
+  // Bandeaux : même largeur quel que soit le texte (ajustés à la largeur de la source seulement)
+  if (w && h) html.style.zoom = String(Math.floor(Math.min(innerWidth / w, W === 'banner' ? Infinity : innerHeight / h) * 1000) / 1000);
 }
 window.addEventListener('resize', fit);
 function show(html) {
