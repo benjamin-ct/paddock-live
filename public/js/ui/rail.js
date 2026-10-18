@@ -99,16 +99,18 @@ function layoutMenu(btn) {
   setTimeout(() => document.addEventListener('pointerdown', function off(e) { if (!menu.contains(e.target)) { menu.remove(); document.removeEventListener('pointerdown', off); } }), 0);
 }
 
-// Élément actif : page ouverte (Accueil, Replays, Actu, Saison, Résultats), sinon Direct
+// Élément actif : page ouverte (Accueil, Replays, Actu, Saison, Résultats), sinon le tableau de bord :
+// Replays pendant un replay, Direct sinon
 function sync() {
   const season = !$('#seasonView').hidden;
   const news = !$('#newsView').hidden;
   const home = !$('#homeView')?.hidden;
   const replays = !$('#replayView')?.hidden;
   const results = isResultsOpen();
-  const cur = home ? 'home' : replays ? 'replay' : news ? 'news' : season ? 'season' : results ? 'results' : 'live';
+  const page = home ? 'home' : replays ? 'replay' : news ? 'news' : season ? 'season' : results ? 'results' : null;
+  const cur = page || (store.status?.mode === 'replay' ? 'replay' : 'live');
   // Tableau de bord affiché : fenêtres du second écran rouvertes (pas sur l'accueil)
-  if (cur === 'live') startWindows();
+  if (!page) startWindows();
   for (const b of $$('#rail [data-rail]')) {
     const k = b.dataset.rail;
     b.classList.toggle('on', k === cur);
@@ -131,6 +133,9 @@ export function initRail() {
   for (const id of ['#homeView', '#replayView', '#resultsView']) if ($(id)) mo.observe($(id), { attributes: true, attributeFilter: ['hidden'] });
   mo.observe($('.grid'), { attributes: true, attributeFilter: ['class'] });
   mo.observe($('#commBtn'), { attributes: true, attributeFilter: ['class'] });
+  // Replay lancé ou arrêté : Replays ou Direct
+  let mode = store.status?.mode;
+  on('status', (s) => { if (s?.mode !== mode) { mode = s?.mode; sync(); } });
   sync();
   schemeButton();
   // Résumé et mini-classement : grisés tant qu'aucune séance n'est chargée

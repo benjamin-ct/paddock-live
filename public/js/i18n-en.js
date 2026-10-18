@@ -2338,6 +2338,7 @@ export default {
   "Lu": "Read",
   "Marquer comme lu": "Mark as read",
   "Marquer comme non lu": "Mark as unread",
+  "Calques de la carte": "Map layers",
   "Chargement de Paddock Live…": "Loading Paddock Live…",
   "Calendrier, résultats et actualités": "Calendar, results and news",
   "Version simplifiée": "Simplified version",

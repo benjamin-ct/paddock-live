@@ -4,6 +4,16 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
+## v1.27.37 — à venir
+
+### Replays
+- « Revoir en replay » sur l'accueil démarre 1 minute avant le départ, comme depuis la page Replays.
+- Pendant un replay, c'est « Replays » qui reste allumé dans la barre latérale (et non « Direct »).
+
+### Streaming
+- Carte de l'overlay : choisissez les calques affichés (noms, traînées, positions, écarts, virages, secteurs,
+  voie des stands, drapeaux…) dans Réglages → Streaming ; l'adresse à copier se met à jour toute seule.
+
 ## v1.27.36 — 2026-10-18
 
 ### Démarrage

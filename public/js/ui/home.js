@@ -286,7 +286,8 @@ async function act(k) {
     // Séance absente des archives (compte F1 TV non connecté) : espace Replays (enregistrements)
     if (!ls?.path) { act('replays'); return; }
     try {
-      await api('/api/replay', { method: 'POST', body: { path: ls.path, startOffsetMs: 0 } });
+      // Départ du replay : 1 min avant le début de la séance (choix par défaut du serveur)
+      await api('/api/replay', { method: 'POST', body: { path: ls.path } });
       closeHome();
       $('#noLiveView').hidden = true;
       toast(`Chargement du replay : ${gp(ls.meeting)} — ${sessionName(ls.name)}`, 4000);

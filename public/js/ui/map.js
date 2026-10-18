@@ -1327,6 +1327,12 @@ function initMapOptions() {
     el.addEventListener('change', save);
     if (id === 'mapRibbon2') el.addEventListener('change', () => { xf = null; });
   }
+  // Overlay de streaming : calques choisis dans l'adresse (&layers=labels,trails…, Réglages → Streaming)
+  const want = new URLSearchParams(location.search).get('layers');
+  if (want !== null && document.documentElement.classList.contains('overlay')) {
+    const on = new Set(want.split(','));
+    for (const id of MAP_OPTS) $(`#${id}`).checked = on.has(id.slice(3).toLowerCase());
+  }
   const hot = $('#hotLapDim');
   hot.checked = prefs.hotLapDim;
   hot.addEventListener('change', (e) => setPref('hotLapDim', e.target.checked));
