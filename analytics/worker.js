@@ -210,6 +210,8 @@ export default {
     if (req.method === 'GET' && url.pathname.startsWith('/download/')) return download(url.pathname);
     // Scènes OBS toutes prêtes : adresse courte à donner aux streamers
     if (req.method === 'GET' && url.pathname === '/obs') return Response.redirect(new URL('/obs/paddock-live-obs.json', url), 302);
+    // Page des streamers : le bloc Streaming du site (aperçu, scènes OBS, installation)
+    if (req.method === 'GET' && url.pathname === '/streaming') return Response.redirect(new URL('/#streaming', url), 302);
     if (req.method === 'GET' && /^\/calendar(-en)?\.ics$/.test(url.pathname)) return calendar(env, new Date().getUTCFullYear(), url.pathname.includes('-en'));
     // Ancienne adresse (*.workers.dev) : les pages ouvertes dans un navigateur (connexion,
     // statistiques) passent sur le nom de domaine (SITE_ORIGIN) ; l'appli y garde ses appels
