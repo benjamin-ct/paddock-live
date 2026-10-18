@@ -325,7 +325,7 @@
           <div class="rd-strip" id="radioStrip" aria-label="Radios d'équipe"></div>
           <div class="note rd-empty" id="radioEmpty" hidden></div>
           <div class="rd-feed-head"><b>Radios retranscrites</b><span class="muted small">texte et traduction</span><button class="rd-speed" id="radioSpeed" title="Vitesse de lecture des radios">1×</button></div>
-          <div class="note rd-text-off" id="radioTextOff" hidden>Activez la transcription pour lire chaque radio en texte, traduite dans votre langue. <button class="btn small btn-accent" id="radioTextOn">Activer</button></div>
+          <div class="note rd-text-off" id="radioTextOff" hidden>Radios en texte, traduites : <button class="btn small btn-accent" id="radioTextOn">Activer</button></div>
           <ul class="rd-list" id="radioList"></ul>
         </div>
       </div>
@@ -439,24 +439,18 @@
     <div class="modal-body">
       <section class="autosync" id="autoSync">
         <div class="as-head"><b><svg class="ic" aria-hidden="true"><use href="#i-mic"/></svg> Synchro automatique par le son</b> <span class="as-tag">expérimental</span></div>
-        <p class="muted small">Le micro de l'ordinateur écoute votre TV. Dès qu'une <b>radio d'équipe</b> passe à l'antenne, Paddock Live la reconnaît et règle le délai tout seul. Le son reste sur l'ordinateur : rien n'est enregistré ni envoyé.</p>
+        <p class="muted small">Le micro écoute votre TV et cale le délai sur les radios d'équipe. Rien n'est enregistré ni envoyé.</p>
         <div class="as-row">
           <button class="btn btn-accent" id="asStart" type="button"></button>
           <span class="as-meter" id="asMeter" hidden><span class="as-bar"><i id="asLevel"></i></span><span class="small muted" id="asTime"></span></span>
         </div>
         <div class="small as-status" id="asStatus" role="status"></div>
         <ul class="as-results" id="asResults"></ul>
-        <div class="as-adjust small muted">Correction <button class="btn as-step" type="button" data-asadj="-0.5">−0,5 s</button><b id="asAdj">0,0 s</b><button class="btn as-step" type="button" data-asadj="0.5">+0,5 s</button>
-          <span>si le calage par le son est toujours un peu en avance (−) ou en retard (+) sur votre image.</span></div>
+        <div class="as-adjust small muted">Correction <button class="btn as-step" type="button" data-asadj="-0.5">−0,5 s</button><b id="asAdj">0,0 s</b><button class="btn as-step" type="button" data-asadj="0.5">+0,5 s</button></div>
       </section>
       <p class="sync-or muted small">ou à la main :</p>
-      <ol class="sync-steps">
-        <li>Regardez votre diffusion TV.</li>
-        <li>Au moment <b>exact</b> où vous voyez l'un des événements ci-dessous à l'écran, cliquez sur <b>« Je le vois ! »</b>.</li>
-        <li>Le délai est calculé automatiquement. Affinez ensuite avec ±0,1 s si besoin.</li>
-      </ol>
+      <p class="small">Cliquez sur <b>« Je le vois ! »</b> au moment exact où l'événement apparaît à la TV.</p>
       <label class="toggle small spoil-toggle"><input type="checkbox" id="syncSpoilers"> Afficher le détail des événements pas encore vus à la TV (spoilers)</label>
-      <p class="muted small">Astuce : le plus précis est le <b>changement du compteur de tours</b> en course (le leader franchit la ligne), ou l'extinction des feux au départ.</p>
       <div class="sync-now">
         <div>Délai actuel : <b id="syncCurrent">—</b></div>
         <div class="muted small" id="syncBuffer"></div>
@@ -495,39 +489,36 @@
       <section data-full class="set-block" data-sgroup="f1tv">
         <h4><svg class="ic" aria-hidden="true"><use href="#i-signal"/></svg> Positions GPS & télémétrie en live (F1 TV)</h4>
         <div class="set-status small" id="tokenStatus"></div>
-        <p class="small">Depuis 2025, la F1 réserve les positions GPS et la télémétrie du flux live aux abonnés <b>F1 TV</b>.
-          Sans jeton, le dashboard <b>estime</b> la position des voitures à partir des chronos (mini-secteurs) : c'est moins précis mais fonctionne.
-          Les replays, eux, contiennent toujours le GPS.</p>
+        <p class="small">En direct, le GPS et la télémétrie sont réservés aux abonnés <b>F1 TV</b>. Sans connexion, les positions sont estimées.</p>
         <div class="ext-card">
           <div><b>Recommandé : l'extension Paddock Live Companion</b>
-            <span class="small muted">Pour Chrome, Edge et Firefox. Installez-la, puis connectez-vous sur formula1.com dans votre navigateur habituel : Paddock Live reçoit la connexion tout seul, et à nouveau à chaque reconnexion.</span></div>
+            <span class="small muted">Chrome, Edge, Firefox : connectez-vous sur formula1.com, Paddock Live reçoit la connexion tout seul.</span></div>
           <a class="btn btn-accent" href="https://paddocklive.app/extension" target="_blank" rel="noopener"><svg class="ic" aria-hidden="true"><use href="#i-external"/></svg> Installer l'extension</a>
         </div>
         <div class="row" id="desktopLogin" hidden>
           <button class="btn" id="desktopLoginBtn"><svg class="ic" aria-hidden="true"><use href="#i-lock"/></svg> Se connecter à F1 TV</button>
-          <span class="small muted">Sans extension : une fenêtre de connexion formula1.com s'ouvre ; une fois connecté, le jeton est récupéré automatiquement.</span>
+          <span class="small muted">Sans extension, dans une fenêtre de l'appli.</span>
           <button class="btn small" id="desktopLogoutBtn" title="Oublier la session F1 TV mémorisée dans l'application">Se déconnecter</button>
         </div>
         <div class="row" id="tokenClearRow" hidden>
           <button class="btn small" id="tokenClear" title="Oublier la connexion F1 TV">Se déconnecter</button>
         </div>
-        <p class="small muted">La connexion reste sur votre ordinateur et n'est envoyée qu'aux serveurs de la F1. Elle est renouvelée automatiquement tant que votre session formula1.com est valide (environ 30 jours) ; un rappel s'affiche quelques jours avant la fin.</p>
+        <p class="small muted">Reste sur votre ordinateur, renouvelée toute seule pendant environ 30 jours.</p>
       </section>
 
       <section class="set-block" data-sgroup="app" data-phone>
         <h4><svg class="ic" aria-hidden="true"><use href="#i-phone"/></svg> Version simplifiée</h4>
         <div class="row"><label class="toggle small"><input type="checkbox" id="phoneFull"> Version complète sur ce téléphone : tous les onglets et réglages de l'ordinateur</label></div>
-        <p class="small muted">Décoché (conseillé) : l'essentiel seulement. Direct : classement, circuit, direction de course et radios ; Saison : calendrier, classements, course au titre, résultats et pronostics ; Actu : toute l'actu, importantes et favoris.</p>
       </section>
       <section class="set-block" data-sgroup="app" id="followHostBlock" hidden>
         <h4><svg class="ic" aria-hidden="true"><use href="#i-stopwatch"/></svg> Délai TV</h4>
         <div class="row"><label class="toggle small"><input type="checkbox" id="followHost"> Reprendre automatiquement le délai TV réglé sur l'ordinateur</label></div>
-        <p class="small muted">Décochez si cet appareil regarde une autre diffusion que l'ordinateur ; réglez alors son délai avec le bouton de synchronisation en haut de l'écran.</p>
+        <p class="small muted">Décochez si ce téléphone regarde une autre diffusion.</p>
       </section>
 
       <section data-full class="set-block" data-sgroup="app" id="lanBlock" hidden>
         <h4><svg class="ic" aria-hidden="true"><use href="#i-phone"/></svg> Sur votre téléphone ou tablette</h4>
-        <p class="muted small">Ouvrez Paddock Live sur un téléphone ou une tablette connecté au <b>même Wi-Fi</b> que cet ordinateur : l'interface s'adapte au petit écran (un panneau à la fois). Le délai TV, le pilote suivi et le replay sont ceux de cet ordinateur ; l'ordinateur doit rester allumé avec Paddock Live ouvert.</p>
+        <p class="muted small">Sur le <b>même Wi-Fi</b>, avec Paddock Live ouvert sur cet ordinateur.</p>
         <div class="row"><label class="toggle small"><input type="checkbox" id="lanEnabled"> Autoriser l'accès depuis le réseau local</label></div>
         <div id="lanInfo" hidden>
           <div class="lan-wrap">
@@ -536,8 +527,7 @@
               <p>Scannez ce QR code avec l'appareil photo du téléphone, ou tapez l'adresse :</p>
               <p><code id="lanUrl">—</code></p>
               <p class="muted" id="lanOther"></p>
-              <p class="muted">Pour l'avoir comme une appli : dans le navigateur du téléphone, « Ajouter à l'écran d'accueil ».</p>
-              <p class="muted">L'adresse contient une clé secrète : seuls les appareils qui l'ont scannée y ont accès. Au premier lancement, Windows peut demander d'autoriser Paddock Live sur le réseau : acceptez pour les réseaux privés.</p>
+              <p class="muted">Si Windows demande d'autoriser le réseau, acceptez (réseaux privés).</p>
               <button class="btn small" id="lanRegen" title="Les appareils déjà autorisés devront rescanner le QR code">Changer la clé</button>
             </div>
           </div>
@@ -552,54 +542,51 @@
         <div class="row">
           <button class="btn" id="updateCheck">Vérifier maintenant</button>
           <button class="btn btn-accent" id="updateInstall" hidden>Redémarrer et mettre à jour</button>
-          <label class="toggle small"><input type="checkbox" id="updateAuto"> Pendant l'utilisation : télécharger les nouvelles versions et les installer à la fermeture de l'appli</label>
+          <label class="toggle small"><input type="checkbox" id="updateAuto"> Installer les mises à jour à la fermeture de l'appli</label>
         </div>
-        <p class="small muted">Au lancement, l'appli installe toujours la dernière version avant de s'ouvrir (si internet est disponible).</p>
         <details class="cl-ver cl-next" id="updateNotes" hidden><summary>Nouveautés de la version <span id="updateNotesVer"></span></summary><div class="cl-body" id="updateNotesBody"></div></details>
       </section>
 
       <section data-full class="set-block" data-sgroup="app" id="creatorBlock" hidden>
         <h4><svg class="ic" aria-hidden="true"><use href="#i-megaphone"/></svg> Mode créateur</h4>
-        <p class="small muted">Activé sur cet ordinateur : bouton « Posts » dans la barre latérale (visuels et textes pour les réseaux sociaux après chaque séance).</p>
         <div class="row"><button class="btn small" id="creatorOff">Désactiver le mode créateur</button></div>
       </section>
 
       <section data-full class="set-block" data-sgroup="app">
         <h4><svg class="ic" aria-hidden="true"><use href="#i-save"/></svg> Sauvegarde des réglages</h4>
-        <p class="small muted">Enregistre vos réglages dans un fichier, pour les retrouver après une réinstallation ou sur un autre ordinateur : affichage, dispositions et fenêtres, colonnes, délais TV mémorisés, carte, analyse, sources d'actualités, lumières connectées.</p>
         <div class="row">
           <button class="btn" id="backupExport"><svg class="ic" aria-hidden="true"><use href="#i-save"/></svg> Enregistrer mes réglages</button>
           <button class="btn" id="backupImport"><svg class="ic" aria-hidden="true"><use href="#i-history"/></svg> Restaurer une sauvegarde</button>
           <input type="file" id="backupFile" accept=".json,application/json" hidden>
         </div>
-        <p class="small muted">Le fichier ne contient ni la connexion F1 TV, ni la clé d'accès du téléphone, ni les clés des lumières connectées : à refaire si besoin sur un autre ordinateur.</p>
+        <p class="small muted">Sans la connexion F1 TV ni les clés (téléphone, lumières).</p>
       </section>
 
       <section data-full class="set-block" data-sgroup="app">
         <h4><svg class="ic" aria-hidden="true"><use href="#i-globe"/></svg> Traductions</h4>
         <div class="row"><label class="toggle small"><input type="checkbox" id="cloudTranslate"> Traduire et transcrire avec le serveur Paddock Live (recommandé)</label></div>
-        <p class="small muted">Actualités, radios d'équipe et documents FIA sont traduits en ligne, et les radios d'équipe transcrites, une seule fois pour tous les utilisateurs : rien à calculer sur cet ordinateur. Seuls les textes à traduire et le son des radios sont envoyés. Décoché, ou si le serveur ne répond pas, tout se fait sur cet ordinateur.</p>
+        <p class="small muted">Seuls les textes à traduire et le son des radios sont envoyés. Décoché : tout se fait sur cet ordinateur.</p>
       </section>
 
       <section class="set-block" data-sgroup="app" id="statsBlock" hidden>
         <h4><svg class="ic" aria-hidden="true"><use href="#i-chart"/></svg> Statistiques d'utilisation</h4>
         <div class="row"><label class="toggle small"><input type="checkbox" id="statsOn"> Envoyer des statistiques d'utilisation anonymes</label></div>
-        <p class="small muted">Pour savoir quelles fonctions servent le plus ou le moins : panneaux, onglets et fonctions utilisés, version de l'appli, système, ordinateur ou téléphone, direct ou replay, erreurs rencontrées. Ni compte F1 TV, ni identifiant, ni contenu ; l'adresse IP n'est pas conservée.</p>
+        <p class="small muted">Fonctions utilisées, version, système, erreurs. Ni compte, ni contenu, ni adresse IP.</p>
       </section>
 
       <section class="set-block" data-sgroup="about">
         <h4><svg class="ic" aria-hidden="true"><use href="#i-megaphone"/></svg> Une question, une idée ?</h4>
-        <p class="small muted">Suggestion, question ou problème : votre message arrive directement au créateur de Paddock Live.</p>
+        <p class="small muted">Votre message arrive directement au créateur de Paddock Live.</p>
         <form class="fb-form" id="fbForm">
           <select id="fbKind" aria-label="Type de message"><option value="idea">Suggestion</option><option value="question">Question</option><option value="bug">Problème</option></select>
           <textarea id="fbText" rows="4" maxlength="2000" required placeholder="Votre message…" aria-label="Votre message"></textarea>
           <div class="row"><label class="btn small" for="fbFiles"><svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg> Ajouter une capture ou une vidéo</label>
             <input type="file" id="fbFiles" multiple accept="image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm,video/quicktime" hidden>
-            <span class="small muted" id="fbFileList">Ou glissez-les, ou collez une capture (Ctrl+V) : 3 fichiers au plus, images jusqu'à 8 Mo, vidéos jusqu'à 40 Mo</span></div>
+            <span class="small muted" id="fbFileList">Ou glissez-les, ou Ctrl+V · 3 fichiers max.</span></div>
           <div class="row"><input type="text" id="fbContact" maxlength="120" placeholder="E-mail ou pseudo (facultatif, pour vous répondre)" aria-label="E-mail ou pseudo">
             <button class="btn small primary" id="fbSend"><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg> Envoyer</button></div>
         </form>
-        <p class="small muted">Vous avez un compte GitHub ? Les bugs et idées peuvent aussi être suivis publiquement : <a href="https://github.com/benjamin-ct/paddock-live/issues" target="_blank" rel="noopener">ouvrir un ticket sur GitHub</a>.</p>
+        <p class="small muted">Aussi sur <a href="https://github.com/benjamin-ct/paddock-live/issues" target="_blank" rel="noopener">GitHub</a>.</p>
       </section>
 
       <section class="set-block" data-sgroup="about">
@@ -629,12 +616,12 @@
         <div class="row" id="alertOpts"></div>
         <div class="row"><label class="small" title="Message, son et notification avant le début de chaque séance (essais, qualifications, sprint, course), quand Paddock Live est ouvert">Rappel avant chaque séance <select id="remindSel"><option value="0">Désactivé</option><option value="5">5 min avant</option><option value="15">15 min avant</option><option value="30">30 min avant</option><option value="60">1 h avant</option></select></label>
           <a class="btn small" id="icsSeason" href="#" data-cal="" title="Toutes les séances de la saison dans votre agenda (Google, Apple, Outlook), même Paddock Live fermé : abonnement mis à jour tout seul, ou fichier"><svg class="ic" aria-hidden="true"><use href="#i-calendar"/></svg> Ajouter la saison à mon agenda</a></div>
-        <div class="row"><span class="small">Pilotes favoris (cliquez pour ajouter/retirer — ou sur l'étoile à côté du nom dans le classement) :</span><div id="favList" class="fav-list"></div></div>
-        <div class="row"><span class="small">Écuries favorites (actualités et accueil) :</span><div id="favTeamList" class="fav-list"></div></div>
+        <div class="row"><span class="small">Pilotes favoris :</span><div id="favList" class="fav-list"></div></div>
+        <div class="row"><span class="small">Écuries favorites :</span><div id="favTeamList" class="fav-list"></div></div>
       </section>
       <section data-full class="set-block" data-sgroup="app" id="lightsBox">
         <h4><svg class="ic" aria-hidden="true"><use href="#i-bolt"/></svg> Lumières connectées <span class="muted small">(expérimental)</span></h4>
-        <p class="small muted">Vos ampoules prennent la couleur des drapeaux en même temps que la télé (délai TV) : vert, jaune, voiture de sécurité, rouge, damier.</p>
+        <p class="small muted">Vos ampoules prennent la couleur des drapeaux.</p>
         <div class="row"><label class="small">Lampes <select id="lightsProvider"><option value="off">Désactivé</option><option value="sim">Simulation à l'écran (sans ampoule)</option><option value="hue">Philips Hue</option><option value="ha">Home Assistant</option></select></label>
           <label class="small">Après le drapeau vert <select id="lightsAfter"><option value="normal">revenir à une lumière normale</option><option value="off">éteindre</option><option value="keep">rester en vert</option></select></label></div>
         <div class="row lights-sub" data-lp="hue" hidden>
@@ -659,14 +646,14 @@
 
       <section data-full class="set-block" data-sgroup="display">
         <h4><svg class="ic" aria-hidden="true"><use href="#i-layout"/></svg> Disposition</h4>
-        <div class="small muted">Glissez un panneau par sa poignée <b><svg class="ic" aria-hidden="true"><use href="#i-grip"/></svg></b> pour le déplacer (au centre d'un autre pour les échanger), et les espaces entre les panneaux pour changer leur taille (double-clic : partage égal). <b><svg class="ic" aria-hidden="true"><use href="#i-external"/></svg></b> l'ouvre dans une nouvelle fenêtre (second écran), <b><svg class="ic" aria-hidden="true"><use href="#i-window-in"/></svg></b> le remet ici.</div>
+        <div class="small muted">Glissez la poignée <b><svg class="ic" aria-hidden="true"><use href="#i-grip"/></svg></b> pour déplacer un panneau, ses bords pour le redimensionner.</div>
         <div class="row"><label class="small">Disposition <select id="layoutModeSel"><option value="auto">Automatique selon la séance</option><option value="race">Toujours « Course »</option><option value="quali">Toujours « Qualif &amp; essais »</option></select></label></div>
-        <div class="small muted">Une disposition pour les courses et sprints, une autre pour les qualifications et essais : chacune garde ses panneaux, tailles, colonnes et onglets. <b id="layoutProfileNow"></b></div>
+        <div class="small muted"><b id="layoutProfileNow"></b></div>
         <div class="row"><label class="small">Placement des panneaux <select id="freeSel"><option value="cols">Rangés en colonnes (redimensionnables)</option><option value="free">Libre : n'importe où, chevauchement possible</option></select></label></div>
         <div class="row"><button class="btn small" id="winSave" title="Garde la disposition de chaque fenêtre (panneaux, tailles, mode libre) et la place des fenêtres sur les écrans"><svg class="ic" aria-hidden="true"><use href="#i-save"/></svg> Enregistrer l'emplacement des fenêtres</button> <button class="btn small" id="winRestore"><svg class="ic" aria-hidden="true"><use href="#i-undo"/></svg> Revenir à l'emplacement enregistré</button></div>
         <div class="row" id="winStartRow" hidden><label class="small">Au lancement de l'application <select id="winStart"><option value="last">rouvrir les fenêtres comme à la fermeture</option><option value="saved">reprendre l'emplacement enregistré</option><option value="none">ne pas rouvrir les fenêtres détachées</option></select></label></div>
-        <div class="row"><button class="btn small" id="layoutReset">Réinitialiser l'interface</button> <span class="small muted">(aussi avec le bouton de réinitialisation en haut)</span></div>
-        <div class="row"><button class="btn small" id="tabsReset" title="Chaque onglet revient dans son panneau d'origine, dans l'ordre d'origine"><svg class="ic" aria-hidden="true"><use href="#i-undo"/></svg> Remettre les onglets à leur place</button> <span class="small muted">Glissez un onglet (Analyse, Stratégie, Course, Radios) vers un autre panneau ou à une autre place.</span></div>
+        <div class="row"><button class="btn small" id="layoutReset">Réinitialiser l'interface</button></div>
+        <div class="row"><button class="btn small" id="tabsReset" title="Chaque onglet revient dans son panneau d'origine, dans l'ordre d'origine"><svg class="ic" aria-hidden="true"><use href="#i-undo"/></svg> Remettre les onglets à leur place</button></div>
         <div class="small muted">Panneaux visibles :</div>
         <div class="row" id="panelOpts"></div>
         <div class="small muted">Colonnes du classement :</div>
@@ -680,10 +667,10 @@
         <div class="row"><label class="small">Langue / Language <select id="langSel" data-no-i18n><option value="fr">Français</option><option value="en">English</option></select></label></div>
         <div data-full class="row"><label class="toggle small"><input type="checkbox" id="teamLogos"> Logos des écuries dans le classement et le championnat (décoché : simples barres de couleur)</label></div>
         <div data-full class="row"><label class="toggle small"><input type="checkbox" id="logoColor"> Logos dans leurs couleurs officielles (décoché : logo blanc sur la couleur de l'écurie)</label></div>
-        <div data-full class="row"><label class="toggle small"><input type="checkbox" id="vividTeams"> Couleurs d'équipe contrastées (une teinte bien distincte par équipe ; décoché : couleurs officielles)</label></div>
+        <div data-full class="row"><label class="toggle small"><input type="checkbox" id="vividTeams"> Couleurs d'équipe contrastées</label></div>
         <div data-full class="row"><label class="toggle small"><input type="checkbox" id="legendsOn"> Légendes sous les panneaux (couleurs, colonnes, graphiques)</label></div>
         <div class="row"><label class="toggle small" title="Apparition des panneaux, menus, fenêtres et listes en douceur. Décoché : interface sans animation"><input type="checkbox" id="motionOpt"> Animations de l'interface</label></div>
-        <div data-full class="row"><label class="toggle small"><input type="checkbox" id="replayMarks"> Replays : périodes de safety car et de VSC sur la barre de lecture (les drapeaux rouges sont toujours indiqués)</label></div>
+        <div data-full class="row"><label class="toggle small"><input type="checkbox" id="replayMarks"> Replays : safety car et VSC sur la barre de lecture</label></div>
         <div class="row"><label class="toggle small"><input type="checkbox" id="keepAwake"> Garder l'écran allumé pendant une séance (sur téléphone : touchez l'écran une fois)</label></div>
       </section>
 
@@ -722,7 +709,7 @@
         <select id="radioLangSel" aria-label="Langue"><option value="FRA">Français</option><option value="ENG">Anglais</option><option value="DEU">Allemand</option><option value="SPA">Espagnol</option><option value="ITA">Italien</option><option value="NLD">Néerlandais</option><option value="POR">Portugais</option></select>
         <input id="radioUrl" type="url" placeholder="Adresse du flux (MP3/AAC, .m3u8, .pls, .m3u)" required>
         <div class="comm-row"><button class="btn small btn-accent" type="submit">Enregistrer</button><button class="btn small" type="button" id="radioCancel">Annuler</button></div>
-        <div class="small muted">Collez l'adresse du flux audio d'une radio qui diffuse la course dans votre langue (souvent indiquée sur son site, rubrique « écouter en direct »).</div>
+        <div class="small muted">Flux audio d'une radio qui diffuse la course.</div>
       </form>
     </div>
     <div class="comm-row">

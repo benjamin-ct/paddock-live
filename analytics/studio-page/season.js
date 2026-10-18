@@ -154,12 +154,12 @@ async function seasonEditor(year, data, race, back) {
   } else if (state.stype === 'ratings') {
     const laps = await lapsOf(year, race.round).catch(() => null);
     d = ratingsData(race, { year, laps, live });
-    note = `Note sur 10 calculée par Paddock Live : résultat, ${d.withPace ? 'rythme en course, ' : ''}places gagnées et duel avec le coéquipier.`;
+    note = `Note sur 10 : résultat, ${d.withPace ? 'rythme, ' : ''}places gagnées, duel avec le coéquipier.`;
   } else if (state.stype === 'teamduels') {
     d = teamDuelsData(data, { year, upTo: race.round, live });
   } else if (state.stype === 'title') {
     d = titleData(data, { year, upTo: race.round, live });
-    note = 'Qui peut encore être champion après cette manche : points encore en jeu (courses et sprints restants), éliminés grisés.';
+    note = 'Éliminés grisés.';
   } else {
     const [laps, rcm] = await Promise.all([lapsOf(year, race.round), raceControlOf(year, race).catch(() => null)]);
     if (!laps.total) throw new Error('Tours de cette course pas encore publiés');
@@ -176,7 +176,7 @@ async function seasonEditor(year, data, race, back) {
     subtitle: `${d.gp} · manche ${race.round}`,
     head: `${note ? `<p class="hint">${esc(note)}</p>` : ''}
       ${video ? `${musicField('race', 'depart')}<div class="row"><button class="btn" id="mkvid">${icon('video')}Créer la vidéo (${Math.round(raceVideoTiming(d).duration)} s)</button><button class="btn" id="sharevid" disabled>${icon('share')}Partager</button></div>
-        <p class="hint" id="vidst">Vidéo verticale pour TikTok, Reels, YouTube Shorts ou une story : le graphique des positions se dessine tour après tour, avec safety cars, drapeaux et moments forts. Garder l'écran allumé pendant l'enregistrement.</p>
+        <p class="hint" id="vidst">Vidéo verticale de la course, tour après tour. Garder l'écran allumé pendant l'enregistrement.</p>
         <video id="vid" controls playsinline hidden></video>` : ''}`,
     data: () => d, caps: (dd) => seasonCaptions(dd, SIG),
     record: () => ({ key: `${state.stype}:${year}-${race.round}`, kind: state.stype, title: `${typeName} · ${d.gp}` }),

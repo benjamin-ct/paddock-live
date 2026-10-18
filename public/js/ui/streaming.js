@@ -60,7 +60,7 @@ function render() {
   const ov = $('#streamOverlays');
   if (!ov) return;
   ov.innerHTML = `<h4>${icon('video')} Overlays pour votre stream</h4>
-    <p class="small muted">Dans OBS Studio, Streamlabs ou Meld Studio, ajoutez une source « Navigateur » avec l'une de ces adresses et la taille indiquée. Fond transparent ; le délai TV suit celui réglé dans Paddock Live, qui doit rester ouvert sur cet ordinateur.</p>
+    <p class="small muted">Source « Navigateur » dans OBS, Streamlabs ou Meld, à la taille indiquée. Paddock Live doit rester ouvert.</p>
     ${OVERLAYS.map(overlayLine).join('')}
     <details class="small"><summary>Où ajouter la source ?</summary><ul>
       <li>OBS Studio : Sources → + → Navigateur → collez l'adresse dans « URL », largeur et hauteur.</li>

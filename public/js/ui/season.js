@@ -105,7 +105,7 @@ async function load(force = false) {
   } catch (err) {
     if (y !== year) return;
     loading = false;
-    $('#szContent').innerHTML = `<div class="note">Données de la saison ${y} indisponibles (${esc(err.message)}). <button class="btn small" id="szRetry">Réessayer</button><br><span class="small muted">Une connexion internet est nécessaire au premier affichage.</span></div>`;
+    $('#szContent').innerHTML = `<div class="note">Données de la saison ${y} indisponibles (${esc(err.message)}). <button class="btn small" id="szRetry">Réessayer</button></div>`;
     $('#szRetry')?.addEventListener('click', () => load(true));
     return;
   }
@@ -215,7 +215,7 @@ function renderCalendar() {
       <ul class="sz-sessions">${r.sessions.map((s) => `<li><span>${esc(s.label)}</span><span>${s.t ? `${fmtDate(s.t, { weekday: 'short', day: 'numeric', month: 'short' })} · ${fmtTime(s.t)}` : '—'}</span></li>`).join('')}</ul>
       ${done(r) ? '' : `<a class="btn small sz-ics" href="#" data-cal="${year}" data-round="${r.round}" title="Séances dans votre agenda (Google, Apple, Outlook) : abonnement mis à jour tout seul, ou fichier de ce week-end">${icon('calendar')} Ajouter ce week-end à mon agenda</a>`}
     </details>`;
-  }).join('')}</div><p class="muted small">Horaires affichés à l'heure de cet ordinateur. <a class="btn small" href="#" data-cal="${year}" title="Toutes les séances de la saison dans votre agenda (Google, Apple, Outlook), même Paddock Live fermé : abonnement mis à jour tout seul, ou fichier">${icon('calendar')} Ajouter toute la saison à mon agenda</a></p>`;
+  }).join('')}</div><p class="muted small"><a class="btn small" href="#" data-cal="${year}" title="Toutes les séances de la saison dans votre agenda (Google, Apple, Outlook), même Paddock Live fermé : abonnement mis à jour tout seul, ou fichier">${icon('calendar')} Ajouter toute la saison à mon agenda</a></p>`;
 }
 
 function lineChartSvg(series, { w = 900, h = 300 } = {}) {
@@ -465,15 +465,6 @@ function renderTitle() {
 }
 
 // Explication en tête des vues qui n'en ont pas déjà une
-const HELP = {
-  standings: 'Classements officiels des pilotes et des constructeurs, mis à jour après chaque course (sprints compris).',
-  title: 'Qui peut encore être champion : un pilote (ou une écurie) est éliminé quand ses points, plus le maximum encore à prendre dans les courses et sprints restants, ne rattrapent plus le leader. La barre montre ses points (plein) et ce qu\'il peut encore marquer (hachures) ; le trait vertical, les points du leader.',
-  drivers: 'Fiche d\'un pilote : ses chiffres clés et ses notes de la saison, sa position au départ et à l\'arrivée de chaque course, la répartition de ses arrivées, ses points comparés à la saison précédente, puis le détail course par course (qualification, grille, arrivée, points, tours en tête, meilleur tour, vitesse, arrêts).',
-  ratings: 'Une note sur 100 et une lettre (S, A, B, C, D, F) pour chaque pilote : la note de la saison le compare à tous les pilotes, la note face au coéquipier le compare à son coéquipier dans la même voiture.',
-  predict: 'Avant chaque Grand Prix, chacun pronostique la pole et le podium, sur cet ordinateur, sur son téléphone (accès réseau) ou en ligne avec un groupe (lien à partager). Les choix des autres restent cachés jusqu\'à la fermeture : début des qualifications pour la pole, départ de la course pour le podium.',
-  tech: 'Évolutions déclarées par chaque écurie avant chaque Grand Prix (document officiel FIA « Car Presentation Submissions ») : pièce modifiée, raison (performance, spécifique au circuit, fiabilité) et explication de l\'écurie.',
-};
-
 function render() {
   if (!data) return;
   for (const b of document.querySelectorAll('#szNav [data-sz]')) b.classList.toggle('active', b.dataset.sz === section);
@@ -487,8 +478,7 @@ function render() {
     speeds: () => renderSpeeds(ctx, speedPt), circuits: () => renderCircuits(ctx, circSort), ratings: () => renderRatings(ctx, rateSort),
     tech: () => renderTech(ctx, fiaData), elements: () => renderElements(ctx, fiaData), predict: () => renderPredict(data.year),
   }[section]();
-  const help = HELP[section] ? `<p class="sz-help">${HELP[section]}</p>` : '';
-  $('#szContent').innerHTML = `${data.stale ? '<div class="note small">Hors ligne : dernières données enregistrées.</div>' : ''}${help}${html}`;
+  $('#szContent').innerHTML = `${data.stale ? '<div class="note small">Hors ligne : dernières données enregistrées.</div>' : ''}${html}`;
   tick();
   if (section === 'tech' && fiaData) translateTechDetail(ctx, fiaData);
   if (jump) {

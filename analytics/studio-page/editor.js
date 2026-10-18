@@ -121,8 +121,7 @@ export function editor({ back, title, subtitle = '', head = '', below = false, d
     const c = texts(d);
     const slides = slidesFor(d, { fmt: state.fmt, follow: state.follow, question: state.question });
     $('#main').innerHTML = `<div class="slides ${state.fmt}">${slides.map((sl) => `<figure class="sl"><canvas data-slide="${sl}" title="${esc(slideName(sl))} : voir en grand"></canvas>
-        <label class="pick"><input type="checkbox" data-pick="${sl}" ${state.skip.has(sl) ? '' : 'checked'}><span data-num></span>${esc(slideName(sl))}</label></figure>`).join('')}</div>
-      ${slides.length > 1 ? `<p class="hint">${slides.length} images, toutes publiées : touchez une image pour la voir en grand, son nom pour la retirer ou la remettre (sommaire et numéros suivent).</p>` : ''}`;
+        <label class="pick"><input type="checkbox" data-pick="${sl}" ${state.skip.has(sl) ? '' : 'checked'}><span data-num></span>${esc(slideName(sl))}</label></figure>`).join('')}</div>`;
     $('#texts').innerHTML = `<section class="panel"><h3 class="section">Textes</h3>${CAPS.filter(([k]) => k === 'instagram' || k === 'threads' || k === 'x' || k === 'bsky' || c[k]).map(([k, label, rows, max = 0, limit = 0], i) => `
       <details class="cap" ${i === 0 ? 'open' : ''}><summary><span>${esc(label(c))}</span><small data-count="${k}"></small></summary>
         <textarea id="cap-${k}" rows="${rows}" ${max ? `maxlength="${max}"` : ''} data-limit="${limit || max}">${esc(c[k])}</textarea>
@@ -147,9 +146,9 @@ export function editor({ back, title, subtitle = '', head = '', below = false, d
     $('#netsbox').innerHTML = `<h3 class="section">Publier sur</h3>${list.map(([k, v]) => {
       const acc = session.me?.[k.replace('-story', '')];
       return `<label class="switch net"><span><b>${v}</b><small>${esc(acc || 'non connecté')}</small><em class="st" data-st="${k}"></em></span><input type="checkbox" role="switch" data-net="${k}" ${acc ? (k === 'tiktok' || k === 'youtube' ? '' : 'checked') : 'disabled'}></label>`;
-    }).join('')}${vid ? '<div id="tkbox" class="tkbox" hidden></div>' : ''}<p class="hint">${vid ? 'Votre vidéo part en Reel sur Instagram, en vidéo sur Facebook et Threads, sur TikTok (brouillon ou publication directe, réglages ci-dessus) et en privé sur YouTube. Bluesky reçoit les visuels.'
-      : story ? 'Une story par image, dans l\'ordre, visible 24 heures, sans texte. Threads et Bluesky n\'ont pas de stories ; story TikTok : « Partager » ouvre les applis du téléphone avec ces visuels.'
-        : 'Instagram, Facebook et Threads reçoivent les visuels au format Instagram, Bluesky les 4 premiers au format X. Stories Instagram et Facebook : choisissez le format Story. X, TikTok, YouTube Shorts : « Partager » ouvre les applis du téléphone avec les visuels du format choisi.'}</p>`;
+    }).join('')}${vid ? '<div id="tkbox" class="tkbox" hidden></div>' : ''}<p class="hint">${vid ? 'Vidéo sur Instagram, Facebook, Threads, TikTok et YouTube (privé) ; visuels sur Bluesky.'
+      : story ? 'Une story par image, visible 24 heures.'
+        : 'X, TikTok, YouTube Shorts : « Partager ».'}</p>`;
     // TikTok coché : réglages (brouillon ou publication directe) ; publication bloquée tant qu'ils manquent
     const tk = $('[data-net="tiktok"]');
     if (vid && tk) {
@@ -255,7 +254,7 @@ function schedulePanel(d, o, record = null) {
   const t = new Date(Date.now() + 3600e3);
   t.setMinutes(Math.ceil(t.getMinutes() / 15) * 15, 0, 0);
   const dlg = sheet('Programmer la publication', `<label class="field"><span>Date et heure</span><input type="datetime-local" id="when" value="${localValue(t)}"></label>
-    <p class="hint">Sur ${esc(nets.map((n) => NET_NAMES[n]).join(', '))}, avec les textes et visuels du post. Le serveur publie à l'heure choisie, même page fermée, un réseau par minute (7 jours à l'avance au plus).</p>
+    <p class="hint">Sur ${esc(nets.map((n) => NET_NAMES[n]).join(', '))}, même page fermée (7 jours à l'avance au plus).</p>
     <p class="hint" id="schedst"></p>
     <button class="btn primary wide" id="dosched">${icon('clock')}Programmer</button>`);
   $('#dosched', dlg).onclick = async () => {

@@ -58,8 +58,7 @@ async function renderRecordings(body) {
   let recs;
   try { recs = await api('/api/recordings'); } catch (err) { body.textContent = err.message; return; }
   if (section !== 'rec') return;
-  body.innerHTML = `<p class="sz-help">Chaque séance suivie en direct est enregistrée sur cet ordinateur (dossier <code>recordings/</code>) et peut être revue aussitôt, sans compte F1 TV.</p>
-    ${recs.length ? `<div class="sz-box rec-list">${recs.map((r) => { const l = recLabel(r.name); return `<div class="rec"><span class="rec-name" title="${esc(r.name)}">${esc(l.title)}${l.date ? ` <span class="muted small">${esc(l.date)}</span>` : ''}</span>
+  body.innerHTML = `${recs.length ? `<div class="sz-box rec-list">${recs.map((r) => { const l = recLabel(r.name); return `<div class="rec"><span class="rec-name" title="${esc(r.name)}">${esc(l.title)}${l.date ? ` <span class="muted small">${esc(l.date)}</span>` : ''}</span>
       <span class="muted">${(r.size / 1e6).toFixed(1).replace('.', EN ? '.' : ',')} Mo</span>
       <button class="btn small" data-rv-local="${esc(r.id)}" data-rv-name="${esc(l.title)}">${icon('play')} Revoir</button><button class="btn small" data-rv-del="${esc(r.id)}" title="Supprimer">${icon('trash')}</button></div>`; }).join('')}</div>`
       : '<div class="muted">Aucun enregistrement pour l\'instant : ils se créent automatiquement pendant les séances suivies en direct.</div>'}`;

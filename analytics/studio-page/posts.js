@@ -32,7 +32,7 @@ async function detailedSummary(it) {
 
 // ---------- Vidéo « Breaking news » (TikTok, Reels, Shorts, story), commune aux news et aux posts écrits ----------
 const NEWS_VIDEO = (on) => `${toggle('brk', 'Très grosse info', on, 'Visuel et vidéo « Breaking news », réservés aux infos qui font du bruit')}<div id="vidbox" ${on ? '' : 'hidden'}>${musicField('news', 'flash')}<div class="row"><button class="btn" id="mkvid">${icon('video')}Créer la vidéo</button><button class="btn" id="sharevid" disabled>${icon('share')}Partager</button></div>
-  <p class="hint" id="vidst">Vidéo verticale « Breaking news » pour TikTok, Reels, YouTube Shorts ou une story : titre, résumé puis points clés, avec musique. Garder l'écran allumé pendant l'enregistrement.</p>
+  <p class="hint" id="vidst">Vidéo verticale avec musique. Garder l'écran allumé pendant l'enregistrement.</p>
   <video id="vid" controls playsinline hidden></video></div>`;
 // onBreaking(on) : très grosse info cochée ou décochée à la main
 // onClip(file) : vidéo prête (MP4), jointe au post pour la publier sur TikTok, Instagram, Facebook…
@@ -86,7 +86,7 @@ export async function newsEditor(it, done, back) {
       ${it.link ? `<div class="row"><button class="btn small" id="nsummary">${icon('wand')}Résumé détaillé</button><span class="hint" id="nsumst"></span></div>` : ''}
       ${toggle('linkcomment', 'Lien en premier commentaire', state.linkComment, 'Facebook, Threads, Bluesky, X')}
       ${NEWS_VIDEO(d.breaking)}
-      <p class="hint">${failed ? 'Traduction indisponible : textes en version originale, à traduire à la main.' : 'Titre et résumé traduits automatiquement : relisez-les et corrigez-les si besoin. Ni photo ni texte de l\'article repris, la source est citée.'}</p>`,
+      <p class="hint">${failed ? 'Traduction indisponible : textes en version originale, à traduire à la main.' : 'Traduction automatique : à relire.'}</p>`,
     data: () => d,
     caps: (dd) => newsCaptions(dd, SIG, { linkInComment: state.linkComment }),
     video: () => made,
@@ -146,7 +146,6 @@ export async function manualEditor(back) {
       <div class="field"><span>Vidéo <small>(facultatif : publiée avec le post, MP4 ou MOV, 50 Mo au plus)</small></span>
         <div class="row"><label class="btn small">${icon('video')}Choisir une vidéo<input type="file" id="mvid" accept="video/mp4,video/quicktime" hidden></label><button class="btn small" id="mviddel" hidden>${icon('close')}Retirer</button><span class="hint" id="mvidst"></span></div>
         <video id="mvidprev" controls playsinline hidden></video></div>
-      <p class="hint">Les pilotes et écuries cités sont reconnus dans le texte : portraits, logos et couleurs suivent tout seuls.</p>
       ${NEWS_VIDEO(false)}`,
     data: () => d,
     caps: (dd) => newsCaptions(dd, SIG),
@@ -222,7 +221,7 @@ export async function recapEditor(back) {
     back,
     title: 'Récap de la semaine',
     subtitle: `${d.items.length} grosses news des 7 derniers jours`,
-    head: '<p class="hint">Titres et résumés traduits automatiquement : relisez les visuels avant de publier.</p>',
+    head: '<p class="hint">Traduction automatique : à relire.</p>',
     data: () => d, caps: (dd) => seasonCaptions(dd, SIG),
     record: () => ({ key: `recap:${d.date}`, kind: 'recap', title: `La semaine en F1 · ${d.date}` }),
   });

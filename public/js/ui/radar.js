@@ -93,7 +93,7 @@ function build(el) {
     <div class="rd-ctl"><button class="icon-btn" data-rd-play title="Lecture / pause">${icon(playing ? 'pause' : 'play')}</button>
       <input type="range" min="0" max="${Math.max(0, frames.length - 1)}" value="${Math.max(0, frames.length - 1)}" data-rd-range aria-label="Heure de l'image radar">
       <span class="rd-time" data-rd-time></span></div>
-    <p class="muted small rd-note">Pluie détectée par les radars météo (2 dernières heures, une image toutes les 10 min) ; cercle : 25 km autour du circuit. Données : RainViewer · carte © les contributeurs d'OpenStreetMap.</p>`;
+    <p class="muted small rd-note">Pluie des 2 dernières heures · cercle : 25 km · RainViewer · © OpenStreetMap</p>`;
   idx = frames.length - 1;
   show(el);
 }

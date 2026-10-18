@@ -90,7 +90,7 @@ function renderSyncList() {
   const dl = drivers(store.state);
   const events = (st?.sync || []).slice().reverse().filter((e) => now - e.t <= (st?.maxDelayMs ?? 600000));
   if (!events.length) {
-    list.innerHTML = '<li class="empty">Aucun événement récent. Les repères (changement de tour, drapeaux, entrées aux stands, messages de la direction de course) apparaîtront ici dès qu\'ils se produisent en live.</li>';
+    list.innerHTML = '<li class="empty">Aucun événement récent.</li>';
   } else {
     const shownUntil = now - store.delay;
     list.innerHTML = events.map((e) => {

@@ -398,7 +398,7 @@ export function renderStewards() {
           <td>${last ? `T${last.lap}${last.time ? ` (${esc(last.time)})` : ''}` : '—'}</td><td>${status}</td></tr>`;
       }).join('')}</table>
       ${tlDoc ? `<p class="note"><a class="fia-doc" href="${esc(tlDoc.url)}" target="_blank" rel="noopener">${icon('doc')} Document FIA : ${esc(tlDoc.title.replace(/^Doc \d+ - /, ''))} ${icon('external', 'ic-s')}</a></p>` : ''}
-      <p class="note">${race ? 'En course, la direction de course montre en général le drapeau noir et blanc après la 3e infraction ; les suivantes sont transmises aux commissaires (pénalité possible). ' : 'Hors course, un temps supprimé ne compte pas pour le classement. '}« Tour supprimé (PIT) » : infraction pendant un tour qui se termine aux stands.</p>`
+`
     : '<div class="note">Aucun temps supprimé pour limites de piste.</div>';
 }
 

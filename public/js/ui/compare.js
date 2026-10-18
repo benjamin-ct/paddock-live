@@ -145,7 +145,7 @@ function draw() {
     <div class="cmp-sectors">${sectors}</div>
     ${d.gps ? `${summary}<div class="cmp-vis">${trackSvg(d)}<div class="cmp-right"><div class="muted small">Écart cumulé le long du tour (s) · au-dessus de 0 : <span style="color:${COL_B}">${esc(B.tla)} devant</span> · en dessous : <span style="color:${COL_A}">${esc(A.tla)} devant</span></div>${deltaSvg(d)}</div></div>${minis}` : `<div class="note small">${esc(d.reason || '')}</div>`}
     ${sp ? `<table class="cmp-speeds"><tr><th>Vitesse max (km/h)</th><th style="color:${COL_A}">${esc(A.tla)}</th><th style="color:${COL_B}">${esc(B.tla)}</th></tr>${sp}</table>` : ''}
-    <p class="muted small">${A.lap.best && B.lap.best ? 'Meilleur tour de chaque pilote' : 'Tours choisis'} (vitesses max : meilleures de la séance). Secteurs : temps officiels. Mini-secteurs : mesurés avec le GPS et recalés sur les temps officiels de chaque secteur (précision d'environ ±0,05 s) ; en pointillé, emplacement de la boucle estimé.</p>`;
+    <p class="muted small">${A.lap.best && B.lap.best ? 'Meilleur tour de chaque pilote' : 'Tours choisis'}</p>`;
 }
 
 export function renderCompare(force = false) {

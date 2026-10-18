@@ -1120,7 +1120,7 @@ export function renderLayoutOptions() {
   if (sel) {
     sel.value = prefs.layoutMode;
     sel.onchange = () => setPref('layoutMode', sel.value);
-    $('#layoutProfileNow').textContent = `Disposition affichée : « ${PROFILES[profile]} ». Panneaux, tailles, colonnes et onglets ci-dessous s'appliquent à celle-ci.`;
+    $('#layoutProfileNow').textContent = `Disposition affichée : « ${PROFILES[profile]} ».`;
   }
   $('#panelOpts').innerHTML = PANELS.map((p) => `<label class="toggle small"><input type="checkbox" data-panel="${p.id}" ${prefs.hiddenPanels.includes(p.id) ? '' : 'checked'}> ${esc(p.name)}</label>`).join('');
   $('#panelOpts').onchange = (e) => {

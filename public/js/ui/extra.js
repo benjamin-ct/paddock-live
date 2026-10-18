@@ -57,7 +57,7 @@ export function renderTelemetry() {
   const dl = drivers(store.state);
   const num = focusDriver();
   if (!store.positions.car.size) {
-    el.innerHTML = `<div class="note">Pas de télémétrie disponible.<br><br>En <b>live</b>, la F1 réserve la télémétrie (vitesse, régime, rapport, accélérateur, frein) aux abonnés F1 TV : ajoutez votre jeton dans Réglages.<br>En <b>replay</b>, elle est incluse.</div>`;
+    el.innerHTML = `<div class="note">Pas de télémétrie : en direct, connectez F1 TV dans Réglages.</div>`;
     el._k = null;
     tele = null;
     return;
@@ -146,7 +146,7 @@ function upcomingWeather(nx) {
     ${gauge('Vent', num(c.wind), `km/h ${Number.isFinite(c.windDir) ? windArrow(c.windDir) : ''}`)}${gauge('Pluie', Number(c.rain) > 0 ? `${icon('rain')} ${num(c.rain, 1)}` : 'Non', Number(c.rain) > 0 ? 'mm' : '')}
   </div>` : ''}
     ${nx.days?.length ? `<div class="hm-wx">${nx.days.map((d) => `<span><b>${esc(new Date(`${d.date}T12:00:00`).toLocaleDateString(LOCALE, { weekday: 'short', day: 'numeric' }))}</b> ${Math.round(d.tmin)}–${Math.round(d.tmax)}° ${d.rain != null ? `<small>${icon('rain')} ${d.rain} %</small>` : ''}</span>`).join('')}</div>` : ''}
-    <p class="note">${c || nx.days?.length ? esc(t('Temps actuel et prévisions du week-end à {} (Open-Meteo). La station météo du circuit prend le relais pendant les séances.', place)) : esc(t('Météo de {} en cours de chargement…', place))}</p>`;
+    <p class="note">${c || nx.days?.length ? 'Open-Meteo' : esc(t('Météo de {} en cours de chargement…', place))}</p>`;
 }
 
 export function renderWeather() {
@@ -167,7 +167,7 @@ export function renderWeather() {
     ${g('Pression', esc(w.Pressure), 'hPa')}
     ${g('Vent', Number.isFinite(wind) ? (wind * 3.6).toFixed(0) : '—', `km/h ${windArrow(dir)}`)}
     ${g('Pluie', w.Rainfall === '1' || w.Rainfall === 1 ? `${icon('rain')} Oui` : 'Non', '')}
-  </div><p class="note">Direction du vent : ${dir}° (d'où il vient). Données de la station météo du circuit.</p>`;
+  </div><p class="note">Vent : ${dir}° (d'où il vient)</p>`;
 }
 
 export function renderChampionship() {
