@@ -4,7 +4,7 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
-## v1.27.39 — à venir
+## v1.27.39 — 2026-10-18
 
 ### Streaming
 - Les overlays ajoutés dans OBS, Streamlabs ou Meld Studio se rechargent tout seuls quand l'appli redémarre, par
