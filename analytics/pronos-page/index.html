@@ -37,7 +37,7 @@
   <p class="date">Pole et podium de chaque Grand Prix, entre amis · <a href="/">Paddock Live</a></p>
   <div id="root"><p class="dim">Chargement…</p></div>
   <footer>Pronostics fermés au début des qualifications (pole) et au départ de la course (podium) ; ceux des autres sont révélés à la fermeture.
-    Votre pseudo est réservé à ce navigateur. Aussi visible dans l'application <a href="/">Paddock Live</a>, onglet Saison → Pronostics.</footer>
+    Votre pseudo est réservé à ce navigateur. Aussi visible dans l'application <a href="/">Paddock Live</a>, onglet Saison → Pronostics. <a href="/p/">Créer un autre groupe</a></footer>
 </main>
 <script>
   const id = location.pathname.split('/').filter(Boolean)[1] || '';
@@ -117,10 +117,44 @@
       } catch (err) { msg.className = 'msg bad'; msg.textContent = err.message; f.querySelector('button').disabled = false; }
     };
   }
-  load().catch(() => { document.getElementById('root').innerHTML = '<p class="msg bad">Serveur injoignable : réessayez dans un instant.</p>'; });
-  // Pronostics des autres relus toutes les 5 s, et au retour sur la page
-  setInterval(() => { if (!document.hidden) load(true).catch(() => {}); }, 5000);
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) load(true).catch(() => {}); });
+  // Sans groupe dans l'adresse (paddocklive.app/p/) : création d'un groupe, sans l'application
+  function createPage() {
+    document.getElementById('gname').textContent = 'entre amis';
+    document.getElementById('root').innerHTML = `<section class="box"><h2>Créer un groupe</h2>
+      <form id="nf"><label>Nom du groupe<input name="name" maxlength="40" required placeholder="ex. Les copains"></label>
+        <p><button type="submit">Créer le groupe</button></p><p class="msg" id="msg"></p></form>
+      <p class="dim msg">Vous recevez un lien à envoyer à vos amis : chacun pronostique la pole et le podium de chaque Grand Prix depuis cette page, sans rien installer. Le groupe s'ouvre aussi dans l'application Paddock Live (Saison → Pronostics → Rejoindre).</p></section>`;
+    const f = document.getElementById('nf');
+    f.onsubmit = async (e) => {
+      e.preventDefault();
+      f.querySelector('button').disabled = true;
+      try {
+        const r = await fetch('/p/api/new', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: f.elements.name.value }) });
+        const out = await r.json();
+        if (!r.ok) throw new Error(out.error || 'Erreur');
+        location.href = `/p/${out.id}?new=1`;
+      } catch (err) { const m = document.getElementById('msg'); m.className = 'msg bad'; m.textContent = err.message; f.querySelector('button').disabled = false; }
+    };
+  }
+  // Lien du groupe à envoyer (partage du téléphone, sinon copie)
+  function invite() {
+    const url = `${location.origin}/p/${id}`;
+    const box = document.createElement('section');
+    box.className = 'box';
+    box.innerHTML = `<h2>Inviter des amis</h2><p class="dim msg">Envoyez-leur ce lien : ils pronostiquent depuis cette page, sans rien installer.</p>
+      <div class="picks"><input readonly value="${esc(url)}"><button type="button" id="share">${navigator.share ? 'Partager le lien' : 'Copier le lien'}</button></div>`;
+    document.querySelector('main').insertBefore(box, document.querySelector('footer'));
+    box.querySelector('#share').onclick = async () => {
+      try { if (navigator.share) await navigator.share({ title: document.title, url }); else { await navigator.clipboard.writeText(url); box.querySelector('#share').textContent = 'Lien copié'; } } catch { /* partage annulé */ }
+    };
+  }
+  if (!id) createPage();
+  else {
+    load().then(() => { if (view?.group) invite(); }).catch(() => { document.getElementById('root').innerHTML = '<p class="msg bad">Serveur injoignable : réessayez dans un instant.</p>'; });
+    // Pronostics des autres relus toutes les 5 s, et au retour sur la page
+    setInterval(() => { if (!document.hidden) load(true).catch(() => {}); }, 5000);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) load(true).catch(() => {}); });
+  }
 </script>
 </body>
 </html>
