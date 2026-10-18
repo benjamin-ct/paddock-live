@@ -4,7 +4,7 @@
 
 Dashboard **Formule 1 en direct** pour suivre chaque Grand Prix sur votre ordinateur, **calé sur le délai de votre diffusion TV** (chaîne TV, box, appli de streaming…). Windows, macOS et Linux.
 
-![Paddock Live pendant une séance (replay des qualifications du Grand Prix d'Azerbaïdjan 2026)](docs/screenshots/tableau-de-bord.png)
+![Paddock Live pendant une séance (replay de la course du Grand Prix de Singapour 2026)](docs/screenshots/tableau-de-bord.png)
 
 <sub>Design « Pitwall » en mode sombre. L'application suit par défaut le mode clair ou sombre de l'ordinateur ou du téléphone (voir plus bas).</sub>
 
@@ -35,6 +35,7 @@ La liste complète est plus bas : **[toutes les fonctionnalités](#-toutes-les-f
 | ![Saison : course au titre, et quand le titre peut se jouer](docs/screenshots/saison-course-au-titre.png) | ![Saison : duels entre coéquipiers ou pilote contre pilote](docs/screenshots/saison-duels.png) |
 | ![Météo du circuit : temps actuel, prévisions du week-end et radar de la pluie](docs/screenshots/radar.png) | ![Saison : pronostics entre amis](docs/screenshots/pronostics.png) |
 | ![Radios d'équipe retranscrites et traduites](docs/screenshots/radios.png) | ![Analyse : comparaison de deux tours, secteur par secteur](docs/screenshots/analyse-comparaison.png) |
+| ![Secteurs : meilleurs secteurs, tour idéal, vitesses et records du circuit](docs/screenshots/secteurs.png) | ![Saison : profil des circuits (longueur, dépassements, pneus, circuits les plus proches)](docs/screenshots/saison-circuits.png) |
 
 <img src="docs/screenshots/mini-classement.png" alt="Mini-classement flottant, toujours au premier plan" width="380" align="right">
 
