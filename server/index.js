@@ -345,6 +345,7 @@ async function handleApi(req, res, url) {
     case 'GET /api/social/accounts':
     case 'POST /api/social/accounts':
     case 'POST /api/social/tiktok/login':
+    case 'POST /api/social/tiktok2/login':
     case 'POST /api/social/youtube/login':
     case 'POST /api/social/publish':
     case 'GET /api/social/studio':
@@ -421,6 +422,7 @@ async function handleApi(req, res, url) {
           return sendJSON(res, 200, b.off ? await disableStudio() : b.sync ? (await syncStudio({ force: true }), studioInfo()) : await enableStudio(String(b.code || '')));
         }
         if (route === 'POST /api/social/tiktok/login') return sendJSON(res, 200, { url: tiktokLoginUrl(`http://127.0.0.1:${req.socket.localPort}`) });
+        if (route === 'POST /api/social/tiktok2/login') return sendJSON(res, 200, { url: tiktokLoginUrl(`http://127.0.0.1:${req.socket.localPort}`, true) });
         if (route === 'POST /api/social/youtube/login') return sendJSON(res, 200, { url: youtubeLoginUrl(`http://127.0.0.1:${req.socket.localPort}`) });
         const body = await readBody(req, route === 'POST /api/social/publish' ? 120e6 : 1e6);
         if (route === 'POST /api/social/accounts') {

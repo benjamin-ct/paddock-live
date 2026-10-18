@@ -100,7 +100,7 @@ function cleanVault(v) {
   if (v?.meta?.pageToken) out.meta = { ...page(v.meta), pages: (Array.isArray(v.meta.pages) ? v.meta.pages : []).slice(0, 10).map(page).filter((p) => p.pageToken) };
   for (const k of ['threads', 'threads2']) if (v?.[k]?.token) out[k] = { token: s(v[k].token), userId: s(v[k].userId, 40), username: s(v[k].username, 60), expiresAt: Number(v[k].expiresAt) || null };
   if (v?.bluesky?.appPassword) out.bluesky = { handle: s(v.bluesky.handle, 120), appPassword: s(v.bluesky.appPassword, 100), did: s(v.bluesky.did, 120) };
-  if (v?.tiktok?.refreshToken) out.tiktok = { clientKey: s(v.tiktok.clientKey, 200), clientSecret: s(v.tiktok.clientSecret, 200), accessToken: s(v.tiktok.accessToken), expiresAt: Number(v.tiktok.expiresAt) || 0, refreshToken: s(v.tiktok.refreshToken), openId: s(v.tiktok.openId, 200), name: s(v.tiktok.name, 120) };
+  for (const k of ['tiktok', 'tiktok2']) if (v?.[k]?.refreshToken) out[k] = { clientKey: s(v[k].clientKey, 200), clientSecret: s(v[k].clientSecret, 200), accessToken: s(v[k].accessToken), expiresAt: Number(v[k].expiresAt) || 0, refreshToken: s(v[k].refreshToken), openId: s(v[k].openId, 200), name: s(v[k].name, 120) };
   if (v?.youtube?.refreshToken) out.youtube = { clientId: s(v.youtube.clientId, 300), clientSecret: s(v.youtube.clientSecret, 200), accessToken: s(v.youtube.accessToken), expiresAt: Number(v.youtube.expiresAt) || 0, refreshToken: s(v.youtube.refreshToken), name: s(v.youtube.name, 120) };
   if (v?.f1tv) out.f1tv = s(v.f1tv, 6000);
   if (v?.f1tvOff === true) out.f1tvOff = true;
@@ -163,7 +163,7 @@ function keepNewer(old, incoming) {
   for (const k of ['threads', 'threads2']) if (old[k]?.token && out[k]?.token && old[k].userId === out[k].userId && (old[k].expiresAt || 0) > (out[k].expiresAt || 0)) out[k] = old[k];
   if (old.f1tv && out.f1tv && jwtSession(old.f1tv) === jwtSession(out.f1tv) && jwtExp(old.f1tv) > jwtExp(out.f1tv)) out.f1tv = old.f1tv;
   // TikTok, YouTube : jetons renouvelés par le serveur gardés s'ils sont plus récents (même compte, même app)
-  if (old.tiktok && out.tiktok && old.tiktok.openId === out.tiktok.openId && old.tiktok.clientKey === out.tiktok.clientKey && (old.tiktok.expiresAt || 0) > (out.tiktok.expiresAt || 0)) out.tiktok = { ...out.tiktok, accessToken: old.tiktok.accessToken, expiresAt: old.tiktok.expiresAt, refreshToken: old.tiktok.refreshToken };
+  for (const k of ['tiktok', 'tiktok2']) if (old[k] && out[k] && old[k].openId === out[k].openId && old[k].clientKey === out[k].clientKey && (old[k].expiresAt || 0) > (out[k].expiresAt || 0)) out[k] = { ...out[k], accessToken: old[k].accessToken, expiresAt: old[k].expiresAt, refreshToken: old[k].refreshToken };
   if (old.youtube && out.youtube && old.youtube.clientId === out.youtube.clientId && old.youtube.refreshToken === out.youtube.refreshToken && (old.youtube.expiresAt || 0) > (out.youtube.expiresAt || 0)) out.youtube = { ...out.youtube, accessToken: old.youtube.accessToken, expiresAt: old.youtube.expiresAt };
   // Jeton expiré dans l'appli (restée fermée) : celui que le serveur a renouvelé est gardé
   if (old.f1tv && !out.f1tv && !out.f1tvOff && jwtExp(old.f1tv) > Date.now()) out.f1tv = old.f1tv;
@@ -411,7 +411,7 @@ async function sendClip(env, raw, vault, net, video, mime, text, direct = null) 
 
 // Compte TikTok ou YouTube aux jetons à jour (gardés par le serveur s'ils ont été renouvelés)
 async function clipAccount(env, raw, vault, net) {
-  const acc = await (net === 'tiktok' ? freshTiktok : freshYoutube)(vault[net]);
+  const acc = await (net === 'youtube' ? freshYoutube : freshTiktok)(vault[net]);
   if (acc !== vault[net]) await setRow(env, 'vault', await seal(raw, { ...vault, [net]: acc }));
   return acc;
 }
@@ -639,7 +639,7 @@ export async function studioApi(req, env, url) {
     // 8 posts au plus : nombre de requêtes du serveur limité par appel ; chiffres de chaque compte en plus
     // Jetons YouTube et TikTok renouvelés l'un après l'autre : chaque enregistrement garde le précédent
     const tokens = {};
-    for (const net of CLIPS) {
+    for (const net of [...CLIPS, 'tiktok2']) {
       const acc = v[net] ? await clipAccount(env, a.raw, v, net).catch(() => null) : null;
       if (acc) { v = { ...v, [net]: acc }; tokens[`${net}Token`] = acc.accessToken; }
     }

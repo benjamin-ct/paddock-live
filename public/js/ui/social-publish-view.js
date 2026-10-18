@@ -116,6 +116,8 @@ const HELP = {
     'Publication directe depuis la page web (téléphone) : activez aussi « Direct Post » (autorisation video.publish) dans Content Posting API, cochez « Publication directe » ci-dessous et reconnectez-vous. Tant que TikTok n\'a pas validé votre app (audit), les vidéos restent visibles par vous seul.',
     'Statistiques dans la page web (abonnés, vues, j’aime) : ajoutez aussi les autorisations user.info.profile, user.info.stats et video.list (Login Kit et Display API), cochez « Statistiques » ci-dessous et reconnectez-vous.',
     'Collez client key et client secret, enregistrez, puis « Se connecter à TikTok ».'],
+  tiktok2: ['Pour les statistiques de votre deuxième compte TikTok dans la page web (aucune publication) : même app TikTok, avec les autorisations user.info.profile, user.info.stats et video.list (ajoutez aussi ce compte comme utilisateur de test tant que l’app est en sandbox).',
+    'Dans le navigateur, connectez-vous d’abord à TikTok avec ce deuxième compte (ou utilisez une fenêtre privée), puis « Se connecter à TikTok » ci-dessous.'],
   youtube: ['console.cloud.google.com : créez un projet, puis API et services → Bibliothèque : activez « YouTube Data API v3 ».',
     'Écran de consentement OAuth (Google Auth Platform) : type « Externe », votre adresse e-mail, puis ajoutez votre compte Google (celui de la chaîne) dans « Utilisateurs test ».',
     'Identifiants (Clients) → Créer un client OAuth, type « Application de bureau » : copiez l\'ID client et le code secret du client.',
@@ -130,11 +132,12 @@ const FIELDS = {
   threads2: [['appSecret', 'Clé secrète Threads'], ['token', 'Jeton Threads']],
   bluesky: [['handle', 'Identifiant Bluesky'], ['appPassword', 'Mot de passe d\'application']],
   tiktok: [['clientKey', 'Client key'], ['clientSecret', 'Client secret']],
+  tiktok2: [],
   youtube: [['clientId', 'ID client'], ['clientSecret', 'Code secret du client']],
 };
-const TITLES = { x: 'X', meta: 'Instagram + Facebook', threads: 'Threads', threads2: 'Threads (2e compte, statistiques)', bluesky: 'Bluesky', tiktok: 'TikTok', youtube: 'YouTube Shorts' };
+const TITLES = { x: 'X', meta: 'Instagram + Facebook', threads: 'Threads', threads2: 'Threads (2e compte, statistiques)', bluesky: 'Bluesky', tiktok: 'TikTok', tiktok2: 'TikTok (2e compte, statistiques)', youtube: 'YouTube Shorts' };
 // Connexion par le navigateur (OAuth) : bouton « Se connecter à … »
-const OAUTH = { tiktok: 'TikTok', youtube: 'YouTube' };
+const OAUTH = { tiktok: 'TikTok', tiktok2: 'TikTok', youtube: 'YouTube' };
 
 // open : section gardée ouverte après un enregistrement (sinon tout se replie)
 async function accountsDialog(onChange, open = null) {
@@ -162,7 +165,7 @@ async function accountsDialog(onChange, open = null) {
         ${FIELDS[k].map(([f, l]) => `<label class="small">${esc(t(l))}<input type="password" data-f="${f}" autocomplete="off" spellcheck="false"></label>`).join('')}
         ${k === 'tiktok' ? `<label class="toggle small"><input type="checkbox" data-f="direct" ${info.tiktok?.direct ? 'checked' : ''}> ${t('Publication directe (Direct Post activé dans votre app TikTok)')}</label>
           <label class="toggle small"><input type="checkbox" data-f="stats" ${info.tiktok?.stats ? 'checked' : ''}> ${t('Statistiques (user.info.stats et video.list ajoutés dans votre app TikTok)')}</label>` : ''}
-        <div class="row"><button class="btn small btn-accent" data-save>${t('Enregistrer et vérifier')}</button>
+        <div class="row">${FIELDS[k].length ? `<button class="btn small btn-accent" data-save>${t('Enregistrer et vérifier')}</button>` : ''}
           ${OAUTH[k] ? `<button class="btn small ${info[k]?.configured && !info[k]?.connected ? 'btn-accent' : ''}" data-login ${info[k]?.configured ? '' : 'disabled'}>${t('Se connecter à {}', OAUTH[k])}</button>` : ''}
           <button class="btn small" data-remove>${t('Déconnecter')}</button></div></details>`).join('')}
       <details class="posts-acc" data-studio ${studio.enabled ? '' : 'open'}><summary><b>${t('Page web (téléphone)')}</b> ${studio.enabled ? `<span class="posts-ok">${icon('check')} ${t('Activée')}</span>` : `<span class="muted">${t('Désactivée')}</span>`}</summary>

@@ -9,7 +9,7 @@ test('statistiques des comptes : chaque réseau des deux comptes, mesures refus�
   const now = Date.parse('2026-10-18T12:00:00Z');
   const threadTokens = [];
   const j = (o, status = 200) => new Response(JSON.stringify(o), { status });
-  globalThis.fetch = async (url) => {
+  globalThis.fetch = async (url, { headers = {} } = {}) => {
     const u = new URL(String(url));
     const q = u.searchParams;
     if (u.hostname === 'graph.facebook.com') {
@@ -26,7 +26,10 @@ test('statistiques des comptes : chaque réseau des deux comptes, mesures refus�
     if (u.hostname === 'graph.threads.net') threadTokens.push(q.get('access_token'));
     if (u.hostname === 'graph.threads.net') return j({ data: [{ name: 'views', total_value: { value: 900 } }, { name: 'followers_count', total_value: { value: 20 } }, { name: 'likes', total_value: { value: 15 } }] });
     if (u.hostname === 'www.googleapis.com') return j({ items: [{ statistics: { subscriberCount: q.get('forHandle') === '@benjypaddock' ? '8' : '3', viewCount: '500', videoCount: '4', hiddenSubscriberCount: false } }] });
-    if (u.hostname === 'open.tiktokapis.com' && u.pathname.endsWith('/user/info/')) return j({ data: { user: { username: 'paddockliveapp', follower_count: 70, video_count: 9 } }, error: { code: 'ok' } });
+    if (u.hostname === 'open.tiktokapis.com' && u.pathname.endsWith('/user/info/')) {
+      const tk = { tk: ['paddockliveapp', 70], tk2: ['benjypaddock', 5] }[headers.Authorization.slice(7)];
+      return tk ? j({ data: { user: { username: tk[0], follower_count: tk[1], video_count: 9 } }, error: { code: 'ok' } }) : j({ error: { code: 'scope_not_authorized', message: 'The user did not authorize the scope required for completing this request.' } }, 401);
+    }
     if (u.hostname === 'open.tiktokapis.com') {
       const day = (d) => Date.parse(`2026-10-${d}T10:00:00Z`) / 1000;
       return j({ data: { videos: [{ create_time: day(15), view_count: 300, like_count: 20, comment_count: 2, share_count: 1 }, { create_time: day('01') - 30 * 86400, view_count: 999 }], has_more: true, cursor: 1 }, error: { code: 'ok' } });
@@ -59,7 +62,13 @@ test('statistiques des comptes : chaque réseau des deux comptes, mesures refus�
     // TikTok relié (Paddock Live) : vidéos des 28 derniers jours seulement ; l'autre compte le dit
     [benjy, pl] = await accountStats(v, { tiktokToken: 'tk', now });
     assert.deepEqual(pl.nets.tiktok.stats, { followers: 70, posts: 9, views: 300, likes: 20, comments: 2, shares: 1 });
-    assert.match(benjy.nets.tiktok.error, /@paddockliveapp/);
+    assert.match(benjy.nets.tiktok.error, /2e compte/);
+    // Deuxième compte TikTok : chacun ses chiffres ; autorisation manquante expliquée
+    [benjy, pl] = await accountStats(v, { tiktokToken: 'tk', tiktok2Token: 'tk2', now });
+    assert.equal(benjy.nets.tiktok.stats.followers, 5);
+    assert.equal(pl.nets.tiktok.stats.followers, 70);
+    [benjy] = await accountStats(v, { tiktokToken: 'sans-stats', now });
+    assert.match(benjy.nets.tiktok.error, /cochez « Statistiques »/);
     assert.equal(benjy.nets.x.url, 'https://x.com/benjypaddock');
     assert.deepEqual(Object.keys(benjy.nets), ['instagram', 'facebook', 'threads', 'youtube', 'bluesky', 'tiktok', 'x']);
   } finally { globalThis.fetch = real; }

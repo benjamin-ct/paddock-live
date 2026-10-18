@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 process.env.PADDOCK_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'paddock-social-'));
-const { oauth1, accountsInfo, saveAccount, publish, timing, youtubeLoginUrl, youtubeCallback, youtubeSnippet, tiktokLoginUrl } = await import('../server/social-publish.js');
+const { oauth1, accountsInfo, saveAccount, publish, timing, youtubeLoginUrl, youtubeCallback, youtubeSnippet, tiktokLoginUrl, tiktokCallback } = await import('../server/social-publish.js');
 const { saveConfig } = await import('../server/config.js');
 
 test('X : signature OAuth 1.0a (exemple de la documentation de X)', () => {
@@ -235,6 +235,28 @@ test('TikTok : clés vérifiées à l\'enregistrement, connexion effacée si l\'
     await saveAccount('tiktok', { clientKey: 'autre', clientSecret: 'bon', stats: true });
     assert.equal(accountsInfo().tiktok.stats, true);
     assert.equal(new URL(tiktokLoginUrl('http://127.0.0.1:4321')).searchParams.get('scope'), 'user.info.basic,video.upload,user.info.profile,user.info.stats,video.list');
+  } finally { globalThis.fetch = realFetch; }
+});
+
+test('TikTok : deuxième compte relié pour ses statistiques, sans toucher au premier', async () => {
+  const realFetch = globalThis.fetch;
+  const { getConfig } = await import('../server/config.js');
+  const first = getConfig().social.tiktok;
+  const login = new URL(tiktokLoginUrl('http://127.0.0.1:4321', true));
+  assert.equal(login.searchParams.get('scope'), 'user.info.basic,user.info.profile,user.info.stats,video.list');
+  globalThis.fetch = async (url, opts = {}) => {
+    const u = String(url);
+    const d = u.endsWith('/oauth/token/') ? (assert.equal(new URLSearchParams(String(opts.body)).get('grant_type'), 'authorization_code'), { access_token: 'a2', expires_in: 86400, refresh_token: 'r2', open_id: 'o2' })
+      : { data: { user: { display_name: 'Paddock Live', username: 'paddockliveapp' } }, error: { code: 'ok' } };
+    return { ok: true, status: 200, text: async () => JSON.stringify(d) };
+  };
+  try {
+    await tiktokCallback(new URLSearchParams({ state: login.searchParams.get('state'), code: 'c' }));
+    assert.deepEqual(accountsInfo().tiktok2, { connected: true, name: '@paddockliveapp', configured: true });
+    assert.equal(getConfig().social.tiktok2.clientKey, first.clientKey);   // renouvelé avec les clés de l'app
+    assert.deepEqual(getConfig().social.tiktok, first);
+    await saveAccount('tiktok2', { remove: true });
+    assert.equal(accountsInfo().tiktok2.connected, false);
   } finally { globalThis.fetch = realFetch; }
 });
 

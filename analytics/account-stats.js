@@ -88,16 +88,20 @@ async function bluesky(handle, now, fetchFn) {
   return { followers: p.followersCount ?? null, posts: p.postsCount ?? null, likes: sum(mine, (x) => x.likeCount), comments: sum(mine, (x) => x.replyCount), shares: sum(mine, (x) => (x.repostCount || 0) + (x.quoteCount || 0)) };
 }
 
-// TikTok : compte relié avec l'option « Statistiques » (abonnés, vidéos ; vues, j'aime, commentaires,
-// partages des vidéos des 28 derniers jours, 20 par page, 5 pages au plus)
-async function tiktok(token, handle, now) {
-  if (!token) throw new Error('compte TikTok non relié');
-  const auth = { headers: { Authorization: `Bearer ${token}` } };
-  let u;
-  try { u = (await call(`${TIKTOK}/user/info/?fields=username,follower_count,video_count`, auth))?.data?.user || {}; } catch (err) {
-    throw new Error(/scope/i.test(err.message) ? 'statistiques non autorisées : cochez « Statistiques » (TikTok) dans l\'appli et reconnectez-vous' : err.message);
+// TikTok : compte relié (le premier avec l'option « Statistiques », ou le deuxième) : abonnés, vidéos ;
+// vues, j'aime, commentaires, partages des vidéos des 28 derniers jours (20 par page, 5 pages au plus)
+async function tiktok(tokens, handle, now) {
+  let u = null; let auth; let refused = null;
+  for (const token of tokens.filter(Boolean)) {
+    auth = { headers: { Authorization: `Bearer ${token}` } };
+    try { u = (await call(`${TIKTOK}/user/info/?fields=username,follower_count,video_count`, auth))?.data?.user || {}; } catch (err) { refused = err; continue; }
+    if ((u.username || '').toLowerCase() === handle) break;
+    u = null;
   }
-  if ((u.username || '').toLowerCase() !== handle) throw new Error(u.username ? `autre compte relié (@${u.username})` : 'compte TikTok non relié');
+  if (!u) {
+    if (refused && /scope/i.test(refused.message)) throw new Error('statistiques non autorisées : cochez « Statistiques » (TikTok) dans l\'appli et reconnectez-vous');
+    throw new Error(refused && tokens.filter(Boolean).length === 1 ? refused.message : 'compte non relié : ajoutez-le dans l\'appli (TikTok, 2e compte)');
+  }
   const recent = [];
   let cursor;
   for (let page = 0; page < 5; page++) {
@@ -110,8 +114,8 @@ async function tiktok(token, handle, now) {
   return { followers: u.follower_count ?? null, posts: u.video_count ?? null, views: sum(recent, (x) => x.view_count), likes: sum(recent, (x) => x.like_count), comments: sum(recent, (x) => x.comment_count), shares: sum(recent, (x) => x.share_count) };
 }
 
-// v : coffre ; youtubeToken, tiktokToken : jetons à jour (ou null) -> [{ name, nets: { réseau: { url, handle, stats | error | note } } }]
-export async function accountStats(v, { youtubeToken = null, tiktokToken = null, now = Date.now(), fetchFn = fetch } = {}) {
+// v : coffre ; youtubeToken, tiktokToken, tiktok2Token : jetons à jour (ou null) -> [{ name, nets: { réseau: { url, handle, stats | error | note } } }]
+export async function accountStats(v, { youtubeToken = null, tiktokToken = null, tiktok2Token = null, now = Date.now(), fetchFn = fetch } = {}) {
   const pages = v.meta ? [v.meta, ...(v.meta.pages || []).filter((p) => p.pageId !== v.meta.pageId)] : [];
   return Promise.all(ACCOUNTS.map(async (acc) => {
     const nets = {};
@@ -124,7 +128,7 @@ export async function accountStats(v, { youtubeToken = null, tiktokToken = null,
         else if (n === 'threads') out.stats = await threads([v.threads, v.threads2], handle, now);
         else if (n === 'youtube') out.stats = await youtube(youtubeToken, handle);
         else if (n === 'bluesky') out.stats = await bluesky(handle, now, fetchFn);
-        else if (n === 'tiktok') out.stats = await tiktok(tiktokToken, handle, now);
+        else if (n === 'tiktok') out.stats = await tiktok([tiktokToken, tiktok2Token], handle, now);
         else out.note = 'chiffres payants chez X';
         if (out.stats) out.stats = Object.fromEntries(Object.entries(out.stats).filter(([, x]) => ok(x) && !Number.isNaN(x)));
       } catch (err) { out.error = String(err?.message || err).slice(0, 160); }

@@ -26,6 +26,7 @@ export function accountsInfo() {
     threads2: { connected: !!c.threads2?.token, name: c.threads2?.username ? `@${c.threads2.username}` : '' },
     bluesky: { connected: !!c.bluesky?.appPassword, name: c.bluesky?.handle ? `@${String(c.bluesky.handle).replace(/^@/, '')}` : '' },
     tiktok: { connected: !!c.tiktok?.refreshToken, name: c.tiktok?.name || '', configured: !!c.tiktok?.clientKey, direct: !!c.tiktok?.direct, stats: !!c.tiktok?.stats },
+    tiktok2: { connected: !!c.tiktok2?.refreshToken, name: c.tiktok2?.name || '', configured: !!c.tiktok?.clientKey },
     youtube: { connected: !!c.youtube?.refreshToken, name: c.youtube?.name || '', configured: !!c.youtube?.clientId },
   };
 }
@@ -146,18 +147,20 @@ async function threadsAccount() {
 }
 
 // ---------- TikTok : connexion (PKCE, retour sur cet ordinateur) et brouillon vidéo ----------
-const pending = new Map();   // state -> { verifier, redirect, at }
+const pending = new Map();   // state -> { verifier, redirect, at, second | net }
+const STATS = 'user.info.profile,user.info.stats,video.list';
 
-export function tiktokLoginUrl(origin) {
+// second : deuxième compte, pour ses statistiques dans la page web (même app TikTok, aucune publication)
+export function tiktokLoginUrl(origin, second = false) {
   const t = conf().tiktok;
   if (!t?.clientKey) throw new Error('Renseignez d\'abord le client key et le client secret TikTok');
   const verifier = crypto.randomBytes(48).toString('base64url');
   const state = crypto.randomBytes(16).toString('hex');
   const redirect = `${origin}/tiktok-callback/`;
-  pending.set(state, { verifier, redirect, at: Date.now() });
+  pending.set(state, { verifier, redirect, at: Date.now(), second });
   // TikTok (ordinateur) : défi PKCE = SHA-256 du vérificateur, en hexadécimal
   const challenge = crypto.createHash('sha256').update(verifier).digest('hex');
-  return `https://www.tiktok.com/v2/auth/authorize/?${new URLSearchParams({ client_key: t.clientKey, scope: `user.info.basic,video.upload${t.direct ? ',video.publish' : ''}${t.stats ? ',user.info.profile,user.info.stats,video.list' : ''}`, response_type: 'code', redirect_uri: redirect, state, code_challenge: challenge, code_challenge_method: 'S256' })}`;
+  return `https://www.tiktok.com/v2/auth/authorize/?${new URLSearchParams({ client_key: t.clientKey, scope: second ? `user.info.basic,${STATS}` : `user.info.basic,video.upload${t.direct ? ',video.publish' : ''}${t.stats ? `,${STATS}` : ''}`, response_type: 'code', redirect_uri: redirect, state, code_challenge: challenge, code_challenge_method: 'S256' })}`;
 }
 
 function storeTiktok(t, r) {
@@ -172,6 +175,12 @@ export async function tiktokCallback(params) {
   if (params.get('error')) throw new Error([params.get('error'), params.get('error_description')].filter(Boolean).join(' : '));
   const t = conf().tiktok;
   const r = await tiktokOAuth({ client_key: t.clientKey, client_secret: t.clientSecret, code: params.get('code') || '', grant_type: 'authorization_code', redirect_uri: p.redirect, code_verifier: p.verifier });
+  if (p.second) {
+    const acc = tiktokTokens({ clientKey: t.clientKey, clientSecret: t.clientSecret }, r);
+    const u = await call(`${TIKTOK}/user/info/?fields=display_name,username`, { headers: { Authorization: `Bearer ${acc.accessToken}` } }).catch(() => null);
+    save('tiktok2', { ...acc, name: u?.data?.user?.username ? `@${u.data.user.username}` : u?.data?.user?.display_name || '' });
+    return;
+  }
   const saved = storeTiktok(t, r);
   try {
     const u = await call(`${TIKTOK}/user/info/?fields=display_name`, { headers: { Authorization: `Bearer ${saved.accessToken}` } });
