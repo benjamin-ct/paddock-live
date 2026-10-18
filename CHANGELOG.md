@@ -4,7 +4,7 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
-## v1.27.32 — à venir
+## v1.27.32 — 2026-10-18
 
 ### Barre du haut
 - Entre deux séances, la barre du haut présente le prochain Grand Prix au lieu de la dernière séance :
