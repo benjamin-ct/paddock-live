@@ -33,7 +33,7 @@ import { predictionsView, savePrediction } from './predict.js';
 import { lightsInfo, saveLights, hueDiscover, huePair, lightDevices, setLights } from './lights.js';
 import { exportServerSettings, importServerSettings } from './backup.js';
 import { creatorEnabled, setCreator, savePostImage, openPostsDir } from './creator.js';
-import { studioInfo, enableStudio, disableStudio, syncStudio, startStudioSync } from './studio-sync.js';
+import { studioInfo, enableStudio, disableStudio, syncStudio, startStudioSync, studioRewrite } from './studio-sync.js';
 import { postHistory, recordPost, removePost, statsOfPosts } from './post-history.js';
 import { accountsInfo, saveAccount, tiktokLoginUrl, tiktokCallback, youtubeLoginUrl, youtubeCallback, publish as publishSocial } from './social-publish.js';
 import { startAutoRenew, renew as renewF1tv, sessionOf, state as renewState, resetRenewState } from './f1tv-auth.js';
@@ -353,6 +353,7 @@ async function handleApi(req, res, url) {
     case 'GET /api/social/history':
     case 'GET /api/social/grid':
     case 'POST /api/social/summary':
+    case 'POST /api/social/rewrite':
     case 'GET /api/social/laps':
     case 'GET /api/social/records':
     case 'GET /api/social/racecontrol':
@@ -410,6 +411,8 @@ async function handleApi(req, res, url) {
         if (route === 'POST /api/social/schedule') return sendJSON(res, 200, { item: scheduler.add(await readBody(req, 150e6)) });
         if (route === 'POST /api/social/schedule/cancel') { scheduler.cancel((await readBody(req, 1e4)).id); return sendJSON(res, 200, { items: scheduler.list() }); }
         // Résumé détaillé d'une news en points clés (images suivantes du post)
+        // Post écrit à la main : titre, résumé et points clés rédigés par l'IA à partir du texte
+        if (route === 'POST /api/social/rewrite') return sendJSON(res, 200, await studioRewrite((await readBody(req, 2e4)).text));
         if (route === 'POST /api/social/summary') return sendJSON(res, 200, { points: await summarize(String((await readBody(req, 1e4)).link || '')) });
         if (route === 'POST /api/social/history') return sendJSON(res, 200, { items: await recordPost((await readBody(req, 1e5)).entry) });
         if (route === 'POST /api/social/history/remove') return sendJSON(res, 200, { items: await removePost((await readBody(req, 1e4)).key) });

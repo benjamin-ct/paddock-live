@@ -32,13 +32,20 @@ export function studioVault(c = getConfig()) {
 }
 const digest = (v) => crypto.createHash('sha256').update(JSON.stringify(v)).digest('hex');
 
-async function post(path, body, key, fetchFn = fetch) {
+async function post(path, body, key, fetchFn = fetch, timeout = 20000) {
   const res = await fetchFn(`${STUDIO_URL}/studio/api/${path}`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json', ...(key ? { 'X-Studio-Key': key } : {}) }, body: JSON.stringify(body), signal: AbortSignal.timeout(20000),
+    method: 'POST', headers: { 'Content-Type': 'application/json', ...(key ? { 'X-Studio-Key': key } : {}) }, body: JSON.stringify(body), signal: AbortSignal.timeout(timeout),
   });
   const j = await res.json().catch(() => ({}));
   if (!res.ok) { const e = new Error(j.error || `Erreur ${res.status}`); e.status = res.status; throw e; }
   return j;
+}
+
+// Post écrit à la main dans l'appli : mise en forme par l'IA du serveur, comme sur la page web
+export async function studioRewrite(text, { fetchFn } = {}) {
+  const key = getConfig().studio?.key;
+  if (!key) throw new Error('Mise en forme par l\'IA : activez d\'abord la page web (Publier sur mes réseaux → Comptes… → Page web)');
+  return post('rewrite', { text: String(text || '').slice(0, 4000) }, key, fetchFn, 90000);
 }
 
 export function studioInfo() {

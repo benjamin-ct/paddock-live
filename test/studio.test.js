@@ -10,7 +10,7 @@ const CODE = 'ESSAI-42';
 const HASH = (await import('node:crypto')).createHash('sha256').update(`paddock-live:${CODE}`).digest('hex');
 process.env.PADDOCK_CREATOR_HASH = HASH;
 const { studioApi, freshF1tv, runSchedule } = await import('../analytics/studio.js');
-const { studioKey, enableStudio, syncStudio, disableStudio, studioInfo } = await import('../server/studio-sync.js');
+const { studioKey, enableStudio, syncStudio, disableStudio, studioInfo, studioRewrite } = await import('../server/studio-sync.js');
 const { saveConfig, getConfig } = await import('../server/config.js');
 const { timing } = await import('../shared/meta-publish.js');
 
@@ -476,4 +476,18 @@ test('page du créateur : vidéo du kit envoyée par le serveur (brouillon TikTo
     assert.equal(sent[0].source_info.video_size, 3);
   } finally { globalThis.fetch = realFetch; }
   await disableStudio({ fetchFn });
+});
+
+test('appli : post écrit à la main mis en forme par l\'IA du serveur (page web activée seulement)', async () => {
+  saveConfig({ studio: null });
+  await assert.rejects(studioRewrite('Norris prolonge chez McLaren jusqu\'en 2030.'), /activez d'abord la page web/);
+  saveConfig({ studio: { key: 'cle-studio' } });
+  let seen = null;
+  const fetchFn = async (url, opts) => { seen = { url: String(url), key: opts.headers['X-Studio-Key'], body: JSON.parse(opts.body) }; return new Response(JSON.stringify({ title: 'Norris prolonge', summary: 'Résumé.', points: ['Un'] })); };
+  const r = await studioRewrite('Norris prolonge chez McLaren jusqu\'en 2030.', { fetchFn });
+  assert.equal(r.title, 'Norris prolonge');
+  assert.match(seen.url, /\/studio\/api\/rewrite$/);
+  assert.equal(seen.key, 'cle-studio');
+  assert.equal(seen.body.text, 'Norris prolonge chez McLaren jusqu\'en 2030.');
+  saveConfig({ studio: null });
 });
