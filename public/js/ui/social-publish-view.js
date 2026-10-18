@@ -4,7 +4,7 @@ import { $, esc, storageGet, storageSet } from '../util.js';
 import { icon } from '../icons.js';
 import { t } from '../i18n.js';
 import { toast } from './delay.js';
-import { makeVideo } from '/shared/social-video.js';
+import { makeVideo, unlockAudio } from '/shared/social-video.js';
 import { TRACKS, trackOf, previewTrack } from '/shared/social-music.js';
 
 const NETS = [
@@ -273,6 +273,7 @@ export async function openPublish({ d, caps, render, folder, record = null, onPo
   draw();
   const vst = () => $('[data-vst]', dlg);
   const buildVideo = async () => {
+    unlockAudio();   // pendant le clic, avant toute attente (sinon vidéo muette sur iPhone)
     const music = dlg.querySelector('[name="pmusic"]:checked')?.value || 'gen';
     const file = $('[data-audio]', dlg).files?.[0] || null;
     if (music === 'file' && !file) { $('[data-audio]', dlg).click(); throw new Error(t('Choisissez d\'abord un fichier audio')); }
@@ -284,7 +285,7 @@ export async function openPublish({ d, caps, render, folder, record = null, onPo
     const el = $('.posts-vid', dlg);
     el.src = video.url; el.hidden = false;
     $('[data-savevideo]', dlg).disabled = false;
-    vst().textContent = t('Vidéo prête ({} Mo)', (v.blob.size / 1e6).toFixed(1).replace('.', ','));
+    vst().textContent = t('Vidéo prête ({} Mo)', (v.blob.size / 1e6).toFixed(1).replace('.', ',')) + (v.silent ? ` · ${t('sans son : le navigateur a bloqué la musique, recommencez')}` : '');
   };
   // Contenu envoyé à un réseau (visuels préparés une seule fois par format)
   const txt = (k) => $(`[data-txt="${k}"]`, dlg).value;

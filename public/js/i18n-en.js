@@ -1851,6 +1851,7 @@ export default {
   "Autorisations user.info.basic et video.upload ; ajoutez votre compte TikTok comme utilisateur de test (sandbox).": "Scopes user.info.basic and video.upload; add your TikTok account as a test user (sandbox).",
   "Publication directe depuis la page web (téléphone) : activez aussi « Direct Post » (autorisation video.publish) dans Content Posting API, cochez « Publication directe » ci-dessous et reconnectez-vous. Tant que TikTok n'a pas validé votre app (audit), les vidéos restent visibles par vous seul.": "Direct posting from the web page (phone): also turn on “Direct Post” (video.publish scope) in Content Posting API, tick “Direct posting” below and reconnect. Until TikTok has approved your app (audit), videos stay visible to you only.",
   "Publication directe (Direct Post activé dans votre app TikTok)": "Direct posting (Direct Post turned on in your TikTok app)",
+  "sans son : le navigateur a bloqué la musique, recommencez": "no sound: the browser blocked the music, try again",
   "Collez client key et client secret, enregistrez, puis « Se connecter à TikTok ».": "Paste the client key and client secret, save, then “Connect to TikTok”.",
   "Identifiant de l'app": "App ID",
   "Clé secrète de l'app": "App secret",
