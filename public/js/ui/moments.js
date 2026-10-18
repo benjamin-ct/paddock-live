@@ -6,7 +6,7 @@ import { $, esc, api, fmtDuration } from '../util.js';
 import { prefs, setPref } from '../prefs.js';
 import { icon } from '../icons.js';
 import { MOMENT_LABEL } from '/shared/moments.js';
-import { EN } from '../i18n.js';
+import { EN, t } from '../i18n.js';
 
 const KIND = {
   start: ['flag', 'flag'], part: ['flag', 'flag'], finish: ['checkered', 'flag'],
@@ -61,6 +61,40 @@ function renderMarks() {
     .map((m) => `<i class="rp-mark k-${KIND[m.kind]?.[1] || 'race'}" style="left:${(100 * Math.min(dur, m.off)) / dur}%"></i>`).join('');
 }
 
+// Moment à venir masqué (anti-spoiler) : seulement son type, sauf drapeaux et neutralisations
+const masked = (m, pos) => m.off > pos + 2000 && !prefs.momentsSpoil && !['start', 'part', 'sc', 'vsc', 'red', 'green', 'finish'].includes(m.kind);
+
+// Survol de la barre de lecture : heure, repères et zone colorée sous la souris (le curseur de
+// lecture, posé sur toute la barre, empêche les infobulles des repères eux-mêmes)
+function hover(e) {
+  const track = $('#rpTrack');
+  const s = src();
+  let tip = $('#rpTip');
+  if (!tip) {
+    tip = document.createElement('div');
+    tip.id = 'rpTip';
+    tip.className = 'rp-tip';
+    tip.dataset.noI18n = '';
+    track.appendChild(tip);
+  }
+  if (!s?.duration || e.type === 'pointerleave') { tip.hidden = true; return; }
+  const r = track.getBoundingClientRect();
+  const x = Math.max(0, Math.min(r.width, e.clientX - r.left));
+  const dur = s.duration, at = (x / r.width) * dur, pos = position();
+  const near = (off) => Math.abs((off / dur) * r.width - x) <= 5;
+  const lines = moments.filter((m) => !['start', 'part', 'finish', 'green'].includes(m.kind) && near(m.off)).slice(0, 4)
+    .map((m) => `${m.lap ? `T${m.lap} · ` : ''}${masked(m, pos) ? t(MOMENT_LABEL[m.kind] || 'Moment') : m.text}`);
+  const zones = [[s.redFlags, () => t('Drapeau rouge')]];
+  if (prefs.replayMarks) zones.push([s.neutralized, (z) => t(z.kind === 'sc' ? 'Voiture de sécurité' : 'Voiture de sécurité virtuelle')], [s.yellows, () => t('Drapeau jaune')]);
+  for (const [list, label] of zones) {
+    const z = (list || []).find((p) => at >= p.start && at <= p.end);
+    if (z) { lines.push(label(z)); break; }
+  }
+  tip.innerHTML = `<b>${fmtDuration(at)}</b>${lines.map((l) => `<span>${esc(l)}</span>`).join('')}`;
+  tip.hidden = false;
+  tip.style.left = `${Math.max(tip.offsetWidth / 2, Math.min(r.width - tip.offsetWidth / 2, x))}px`;
+}
+
 function render() {
   const pop = $('#momentsPop');
   if (!pop || !open) return;
@@ -73,8 +107,7 @@ function render() {
   const list = moments.filter((m) => filter === 'all' || KIND[m.kind]?.[1] === filter);
   const rows = list.map((m) => {
     const future = m.off > pos + 2000;
-    const masked = future && !prefs.momentsSpoil && !['start', 'part', 'sc', 'vsc', 'red', 'green', 'finish'].includes(m.kind);
-    const text = masked ? MOMENT_LABEL[m.kind] || 'Moment' : m.text;
+    const text = masked(m, pos) ? MOMENT_LABEL[m.kind] || 'Moment' : m.text;
     const when = m.lap ? `T${m.lap}` : fmtDuration(Math.max(0, m.off - start), false);
     return `<button class="mo-row k-${KIND[m.kind]?.[1] || 'race'}${future ? ' future' : ''}" data-off="${m.off}">
       <span class="mo-ic">${icon(KIND[m.kind]?.[0] || 'dot')}</span><span class="mo-when">${esc(when)}</span><span class="mo-txt">${esc(text)}</span></button>`;
@@ -121,6 +154,7 @@ export function initMoments() {
     if (r) seek(Number(r.dataset.off));
   });
   pop.querySelector('#moSpoil').addEventListener('change', (e) => setPref('momentsSpoil', e.target.checked));
+  for (const ev of ['pointermove', 'pointerleave']) $('#rpTrack')?.addEventListener(ev, hover);
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && open) toggle(false); });
   setInterval(() => {
     load();

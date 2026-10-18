@@ -2338,6 +2338,7 @@ export default {
   "Lu": "Read",
   "Marquer comme lu": "Mark as read",
   "Marquer comme non lu": "Mark as unread",
+  "Incident": "Incident",
   "Fond": "Background",
   "sans fond": "no background",
   "Colonnes du classement": "Timing columns",
