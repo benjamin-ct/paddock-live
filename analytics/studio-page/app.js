@@ -338,7 +338,6 @@ Ce qu'elle peut apporter à tes lives :
 - Des pronostics avec ta communauté : ton chat pronostique la pole et le podium depuis une simple page web, avec un classement sur la saison.
 
 Le pack de présentation (6 images et un PDF) : ${KIT}
-Les scènes OBS toutes prêtes : https://paddocklive.app/obs
 
 Je serais ravi d'avoir ton avis, et je peux t'aider à tout installer avant le prochain GP.
 
