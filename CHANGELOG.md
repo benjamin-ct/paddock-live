@@ -4,6 +4,12 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
+## v1.27.36 — à venir
+
+### Démarrage
+- Écran de chargement au lancement : l'appli reste floutée, avec le logo et un indicateur, jusqu'à ce que l'accueil
+  soit complet (prochaine séance, favoris et actualités), au lieu de s'afficher par morceaux.
+
 ## v1.27.35 — 2026-10-18
 
 ### Mises à jour

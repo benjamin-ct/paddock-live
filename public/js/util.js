@@ -197,3 +197,11 @@ export function placeView(view) {
   view.style.top = `${Math.round(document.querySelector('.topbar').getBoundingClientRect().bottom)}px`;
   view.style.bottom = nav && !nav.hidden ? `${nav.offsetHeight}px` : '';
 }
+
+// Écran de chargement du démarrage (index.html) : retiré en fondu une fois l'accueil ou le tableau de bord prêt
+export function hideBoot() {
+  const el = document.getElementById('bootCover');
+  if (!el || el.classList.contains('out')) return;
+  el.classList.add('out');
+  setTimeout(() => el.remove(), 400);
+}
