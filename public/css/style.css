@@ -2908,6 +2908,33 @@ html.overlay :is(.float-bar, .float-resize, .toast) { display: none !important; 
 html.overlay.float-mini body.mini-body { padding-bottom: 4px; cursor: default; }
 html.overlay .mini-foot, html.overlay #miniMode { display: none !important; }
 
+/* Overlays d'un seul élément (overlay.html?w=…) : taille de base fixe, mise à l'échelle de la source */
+html.overlay body.ov-body { background: transparent; margin: 0; overflow: hidden; }
+.ov { display: inline-block; padding: 6px; }
+.ov-banner { width: 800px; }
+.ov-banner .flag-banner { border-radius: 10px; font-size: 26px; padding: 12px 18px; }
+.ov-banner .flag-banner .fb-sub { font-size: 16px; }
+.ov-banner .flag-banner.chequered { background: #f2f4f8; color: #0b0c0f; animation: none; }
+.ov-banner .flag-banner.chequered .fb-icon { background: repeating-conic-gradient(#0b0c0f 0 25%, #fff 0 50%) 0 0 / 9px 9px; }
+.ov-laps { width: 280px; } .ov-countdown { width: 420px; } .ov-podium { width: 440px; } .ov-telemetry { width: 300px; }
+.ov-card { background: color-mix(in srgb, var(--panel) 86%, transparent); border-radius: 12px; padding: 12px 16px; color: var(--text); }
+.ov-label { font-size: 13px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ov-big { font: 900 44px/1.1 var(--font-mono, var(--font)); font-variant-numeric: tabular-nums; margin: 2px 0; }
+.ov-big small { font-size: .55em; color: var(--muted); font-weight: 700; }
+.ov-sub { font-size: 14px; font-weight: 600; color: var(--text-2); }
+.ov-bar { height: 5px; border-radius: 3px; background: var(--panel-3); margin: 6px 0; overflow: hidden; }
+.ov-bar i { display: block; height: 100%; background: var(--red); }
+.ov-wait { font-size: 14px; color: var(--muted); }
+.ov-pod { display: flex; align-items: center; gap: 10px; padding: 7px 0; }
+.ov-pod + .ov-pod { border-top: 1px solid var(--line-2, var(--border)); }
+.ov-pod > i { width: 5px; align-self: stretch; border-radius: 3px; }
+.ov-pos { font-size: 24px; font-weight: 900; min-width: 22px; text-align: center; }
+.ov-name { flex: 1; min-width: 0; font-size: 17px; line-height: 1.2; }
+.ov-name b { text-transform: uppercase; }
+.ov-name small { display: block; font-size: 12px; color: var(--muted); }
+.ov-val { font: 700 16px var(--font-mono, var(--font)); font-variant-numeric: tabular-nums; }
+.ov-telemetry .dial { max-width: none; }
+
 /* Réglages → Streaming : adresses à copier */
 .stream-row { display: grid; gap: 4px; margin: 10px 0; }
 .stream-row .row { flex-wrap: nowrap; }

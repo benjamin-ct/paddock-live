@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="fr" class="float-mini overlay">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Paddock Live — overlay</title>
+  <link rel="icon" href="/logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/css/style.css">
+  <script>/* Overlay de streaming (OBS…) : thème sombre, fond transparent */ document.documentElement.dataset.scheme = 'dark'; document.documentElement.dataset.theme = 'pitwall';</script>
+</head>
+<body class="ov-body">
+  <!-- Overlay de streaming : ?w=banner | laps | countdown | podium | telemetry (Réglages → Streaming) -->
+  <div class="ov" id="ov"></div>
+  <script type="module" src="/js/overlay.js"></script>
+</body>
+</html>

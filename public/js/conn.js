@@ -3,6 +3,7 @@ import { store, handleReset, handleBatch, emit, on, setDelay } from './store.js'
 import { storageGet, fmtDelay } from './util.js';
 import { toast } from './ui/delay.js';
 
+const OVERLAY = /[?&]overlay=1(&|$)/.test(location.search) || location.pathname === '/overlay.html';
 let ws = null;
 let pingTimer = null;
 let pingId = 0;
@@ -15,12 +16,13 @@ function send(obj) {
 export function connect() {
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
   // Overlay de streaming (?overlay=1) : suit le délai TV de l'appli
-  ws = new WebSocket(`${proto}://${location.host}/ws${/[?&]overlay=1(&|$)/.test(location.search) ? '?follow=1' : ''}`);
+  ws = new WebSocket(`${proto}://${location.host}/ws${OVERLAY ? '?follow=1' : ''}`);
 
   ws.onopen = () => {
     store.connected = true;
     emit('connection', true);
     send({ type: 'delay', ms: store.delay });
+    if (!OVERLAY) send({ type: 'focus', num: store.focus });
     ping();
     clearInterval(pingTimer);
     pingTimer = setInterval(ping, 5000);
@@ -41,8 +43,10 @@ export function connect() {
         store.isHost = msg.host;
         emit('role', msg.host);
         if (msg.hostDelay != null) followHost(msg.hostDelay);
+        hostFocus(msg.hostFocus);
         break;
       case 'hostDelay': followHost(msg.ms); break;
+      case 'hostFocus': hostFocus(msg.num); break;
       // Délai changé à distance (Stream Deck)
       case 'setDelay':
         if (store.isHost && msg.ms !== store.delay) { setDelay(msg.ms); toast(`Délai TV : ${fmtDelay(store.delay)}`, 2500); }
@@ -77,6 +81,13 @@ function followHost(ms) {
   toast(`Délai calé sur l'ordinateur : ${fmtDelay(store.delay)}`, 3500);
 }
 
+// Overlay : pilote suivi dans l'appli de l'ordinateur (télémétrie)
+function hostFocus(num) {
+  if (!OVERLAY || num === undefined || num === store.focus) return;
+  store.focus = num;
+  emit('focus', num);
+}
+
 function ping() {
   const id = ++pingId;
   pending.set(id, Date.now());
@@ -85,3 +96,4 @@ function ping() {
 }
 
 on('delay', (ms) => send({ type: 'delay', ms }));
+on('focus', (num) => { if (!OVERLAY) send({ type: 'focus', num }); });

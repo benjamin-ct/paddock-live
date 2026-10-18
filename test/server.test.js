@@ -89,7 +89,7 @@ test('hub : les téléphones du réseau local reçoivent le délai TV de l\'ordi
   pc.emit('message', Buffer.from(JSON.stringify({ type: 'delay', ms: 42000 })));
   const phone = new FakeWs();
   hub.addClient(phone, { host: false });
-  assert.deepEqual(phone.sent.find((m) => m.type === 'role'), { type: 'role', host: false, hostDelay: 42000 });
+  assert.deepEqual(phone.sent.find((m) => m.type === 'role'), { type: 'role', host: false, hostDelay: 42000, hostFocus: null });
   // Nouveau réglage sur l'ordinateur : transmis au téléphone ; pas l'inverse
   pc.sent = [];
   pc.emit('message', Buffer.from(JSON.stringify({ type: 'delay', ms: 45000 })));
@@ -112,6 +112,23 @@ test('hub : délai changé à distance (Stream Deck), suivi par les fenêtres, l
   assert.deepEqual(pc.sent.at(-1), { type: 'setDelay', ms: 31500 });
   assert.deepEqual(overlay.sent.at(-1), { type: 'hostDelay', ms: 31500 });
   assert.equal(hub.setHostDelay(-5000), 0);   // jamais négatif
+  hub.close();
+});
+
+test('hub : pilote suivi dans l\'appli repris par les overlays, pas l\'inverse', () => {
+  const hub = new Hub({ maxDelayMs: 600000 });
+  hub.reset({ mode: 'test' });
+  const pc = new FakeWs();
+  hub.addClient(pc);
+  const overlay = new FakeWs();
+  hub.addClient(overlay, { host: false });
+  pc.emit('message', Buffer.from(JSON.stringify({ type: 'focus', num: '16' })));
+  assert.deepEqual(overlay.sent.at(-1), { type: 'hostFocus', num: '16' });
+  overlay.emit('message', Buffer.from(JSON.stringify({ type: 'focus', num: '1' })));
+  assert.equal(hub.hostFocus, '16');
+  const late = new FakeWs();
+  hub.addClient(late, { host: false });
+  assert.equal(late.sent.find((m) => m.type === 'role').hostFocus, '16');
   hub.close();
 });
 

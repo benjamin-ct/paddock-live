@@ -13,6 +13,13 @@ l'application (Réglages → Application → Nouveautés).
   source.
 - Commandes pour le Stream Deck (ou Bitfocus Companion) : délai TV ±1 s ou ±0,1 s, replay en lecture ou
   pause, −10 s / +10 s. Le délai change aussi dans les overlays et sur les téléphones.
+- Cinq nouveaux overlays, chacun dans sa propre source :
+  - bandeaux : drapeau rouge, voiture de sécurité, VSC, drapeau jaune, reprise, damier à l'arrivée ;
+  - compteur de tours (partie et temps restant en qualifications) ;
+  - compte à rebours de la séance en cours, ou de la prochaine séance entre deux Grands Prix ;
+  - podium : les trois premiers et leurs écarts ;
+  - télémétrie (vitesse, régime, rapport, accélérateur, frein) du pilote suivi dans l'application, qui change
+    dès que vous en choisissez un autre.
 
 ### Pronostics entre amis
 - Podium : un pilote choisi à une place ne peut plus être choisi aux deux autres.

@@ -165,6 +165,11 @@ export class Hub {
           const str = JSON.stringify({ type: 'hostDelay', ms: c.delay });
           for (const o of this.clients) if (!o.host) this.send(o, str);
         }
+      } else if (msg.type === 'focus' && host) {
+        // Pilote suivi dans l'appli : repris par les overlays (télémétrie)
+        this.hostFocus = msg.num == null ? null : String(msg.num).slice(0, 3);
+        const str = JSON.stringify({ type: 'hostFocus', num: this.hostFocus });
+        for (const o of this.clients) if (!o.host) this.send(o, str);
       } else if (msg.type === 'ping') {
         this.send(c, JSON.stringify({ type: 'pong', id: msg.id, serverNow: Date.now() }));
       }
@@ -172,7 +177,7 @@ export class Hub {
     ws.on('close', () => this.clients.delete(c));
     ws.on('error', () => this.clients.delete(c));
     this.send(c, JSON.stringify(this.statusPayload()));
-    this.send(c, JSON.stringify({ type: 'role', host, hostDelay: this.hostDelay ?? null }));
+    this.send(c, JSON.stringify({ type: 'role', host, hostDelay: this.hostDelay ?? null, hostFocus: this.hostFocus ?? null }));
     return c;
   }
 

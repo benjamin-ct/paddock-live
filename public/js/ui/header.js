@@ -1,13 +1,14 @@
 // En-tête : session, drapeau/état de la piste, tour, temps restant, météo, source.
 import { store, f1Now, versionOf } from '../store.js';
 import { $, esc, fmtDuration, sessionKind, currentStint } from '../util.js';
-import { trackStatusInfo, SESSION_STATUS_FR, parseUtc, parseLapTime } from '/shared/f1.js';
+import { trackStatusInfo, SESSION_STATUS_FR } from '/shared/f1.js';
 import { FLAG_ISO } from '/shared/flags.js';
 import { gpShort, gpFull, sessionLabel } from '/shared/gp-names.js';
 import { EN, LOCALE, t } from '../i18n.js';
 import { upcoming } from './home.js';
 import { COUNTRY_ISO } from '/shared/social-season.js';
 import { circuitInfo } from '/shared/circuits-info.js';
+import { flagBanner, timeLeft } from './session-info.js';
 
 export { FLAG_ISO };
 import { icon } from '../icons.js';
@@ -107,13 +108,8 @@ export function renderHeader() {
   renderBanner();
 
   // Temps restant (recalculé à chaque image)
-  const ec = s.ExtrapolatedClock;
-  let txt = '—';
-  if (ec?.Remaining) {
-    let rem = parseLapTime(ec.Remaining) * 1000;
-    if (ec.Extrapolating) rem -= f1Now() - parseUtc(ec.Utc);
-    txt = fmtDuration(Math.max(0, rem));
-  }
+  const rem = timeLeft();
+  const txt = rem === null ? '—' : fmtDuration(rem);
   const cv = $('#clockValue');
   if (cv.textContent !== txt) cv.textContent = txt;
 
@@ -252,33 +248,16 @@ export function renderSource() {
 }
 
 // Bandeau pleine largeur : SC, VSC, drapeau rouge (et drapeau vert à la reprise).
-let bannerState = { status: null, greenUntil: 0 };
-
 function renderBanner() {
-  const st = String(store.state.TrackStatus?.Status || '');
-  const session = store.state.SessionStatus?.Status;
-  const now = performance.now();
-  if (st !== bannerState.status) {
-    if (st === '1' && ['4', '5', '6', '7'].includes(bannerState.status)) bannerState.greenUntil = now + 10000;
-    bannerState.status = st;
-  }
+  const b = flagBanner();
   const el = $('#flagBanner');
-  let cls = null, text = '', sub = '';
-  if (session === 'Started' || session === 'Aborted') {
-    if (st === '5' || session === 'Aborted') { cls = 'red'; text = 'Drapeau rouge'; sub = 'Session interrompue'; }
-    else if (st === '4') { cls = 'sc'; text = 'Voiture de sécurité'; sub = 'En piste, dépassements interdits'; }
-    else if (st === '6') { cls = 'vsc'; text = 'Voiture de sécurité virtuelle'; sub = 'Vitesse limitée sur tout le circuit'; }
-    else if (st === '7') { cls = 'vsc'; text = 'Fin de VSC'; sub = 'Reprise imminente'; }
-    else if (st === '2') { cls = 'yellow'; text = 'Drapeau jaune'; sub = 'Incident sur la piste'; }
-    else if (st === '1' && now < bannerState.greenUntil) { cls = 'green'; text = 'Drapeau vert'; sub = 'Reprise de la course'; }
-  }
-  if (!cls) { if (!el.hidden) el.hidden = true; return; }
-  const key = `${cls}|${text}`;
+  if (!b) { if (!el.hidden) el.hidden = true; return; }
+  const key = `${b.cls}|${b.text}`;
   if (el._k !== key) {
     el._k = key;
-    el.className = `flag-banner ${cls}`;
-    el.querySelector('.fb-text').textContent = text;
-    el.querySelector('.fb-sub').textContent = sub;
+    el.className = `flag-banner ${b.cls}`;
+    el.querySelector('.fb-text').textContent = b.text;
+    el.querySelector('.fb-sub').textContent = b.sub;
   }
   el.hidden = false;
 }
