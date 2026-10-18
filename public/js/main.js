@@ -113,6 +113,16 @@ initRaceTools();
 initAlerts();
 initWakeLock();
 initSelects();
+// Sur ordinateur, la page n'a pas de barre de défilement : si un focus, un scrollIntoView ou une sélection
+// de texte la fait défiler quand même, on la remet en place (sinon la barre du haut sort de l'écran)
+const desktop = matchMedia('(min-width: 901px)');
+addEventListener('scroll', () => {
+  if (!desktop.matches) return;
+  const o = getComputedStyle(document.body);
+  if ((scrollX && o.overflowX === 'hidden') || (scrollY && o.overflowY === 'hidden')) {
+    scrollTo(o.overflowX === 'hidden' ? 0 : scrollX, o.overflowY === 'hidden' ? 0 : scrollY);
+  }
+});
 initLegends();
 legendsToggle(document.querySelector('#legendsOn'));
 initRadios();
