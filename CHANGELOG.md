@@ -4,7 +4,7 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
-## v1.27.35 — à venir
+## v1.27.35 — 2026-10-18
 
 ### Mises à jour
 - Le bandeau « nouvelle version prête · Redémarrer », en bas à droite, s'affiche de nouveau : il était caché
