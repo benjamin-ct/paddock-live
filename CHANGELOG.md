@@ -7,6 +7,9 @@ l'application (Réglages → Application → Nouveautés).
 ## v1.27.37 — à venir
 
 ### Replays
+- Barre de lecture : au survol, une infobulle donne l'heure et ce que signifient les traits et les zones colorées
+  (arrêt, dépassement, incident, pénalité, voiture de sécurité, VSC, drapeaux). Les moments à venir ne montrent que
+  leur type, pour ne rien dévoiler.
 - « Revoir en replay » sur l'accueil démarre 1 minute avant le départ, comme depuis la page Replays.
 - Pendant un replay, c'est « Replays » qui reste allumé dans la barre latérale (et non « Direct »).
 
