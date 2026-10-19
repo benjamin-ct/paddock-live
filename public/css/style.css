@@ -2491,8 +2491,9 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; gap: 5
 .wxr-base.dark img { filter: invert(1) hue-rotate(180deg) brightness(.8) contrast(.9) saturate(.4); }
 .wxr-track { position: absolute; left: 0; top: 0; pointer-events: none; }
 .wxr-track polygon { fill: none; stroke-linejoin: round; }
-.wxr-track .o { stroke: rgba(0, 0, 0, .65); stroke-width: 9; }
-.wxr-track .i { stroke: var(--accent, #E10600); stroke-width: 4.5; }
+/* Tracé couleur bitume : asphalte gris bordé d'un liseré clair, lisible sur fond sombre ou clair */
+.wxr-track .o { stroke: rgba(235, 237, 240, .75); stroke-width: 8; }
+.wxr-track .i { stroke: #54585f; stroke-width: 5; }
 .wxr-dot { position: absolute; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; background: var(--accent, #E10600); box-shadow: 0 0 0 2px #fff, 0 1px 4px rgba(0, 0, 0, .5); }
 .wxr-scale { position: absolute; left: 10px; bottom: 10px; display: flex; flex-direction: column; gap: 2px; font-size: 10.5px; font-weight: 700; color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, .8); }
 .wxr-scale > i { display: block; height: 4px; border: 2px solid #fff; border-top: 0; box-shadow: 0 1px 2px rgba(0, 0, 0, .6); }
