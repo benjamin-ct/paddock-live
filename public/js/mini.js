@@ -97,17 +97,19 @@ function columns(n, l, a, kind, val, tag, st) {
   }).join('');
 }
 
-// Overlay de streaming : tout le classement dans la source
+// Tout le classement dans la fenêtre : overlay de streaming (dessiné pour 340 px, agrandi à la
+// largeur de la source, net dans OBS même en grand) et fenêtre flottante (300 px, suit la taille
+// qu'on lui donne) ; réduit si le classement dépasse en hauteur
 const OVERLAY = document.documentElement.classList.contains('overlay');
 function fitOverlay() {
-  if (!OVERLAY) return;
   const html = document.documentElement;
-  // Dessiné pour 340 px de large : agrandi à la largeur de la source (net dans OBS, même en grand),
-  // réduit si le classement dépasse en hauteur. Hauteur mesurée sans zoom : le Chrome d'OBS, plus
-  // ancien, ne mesure pas les pages zoomées comme les navigateurs récents
+  // Hauteur mesurée sans zoom (le Chrome d'OBS, plus ancien, mesure mal les pages zoomées) : bas du
+  // contenu, pied fixe à part (place réservée par la marge du bas), plus 4 px
   html.style.zoom = '';
-  const h = Math.max(...[...document.body.children].map((e) => e.getBoundingClientRect().bottom)) + 4;   // bas du contenu (marge de 4 px)
-  html.style.zoom = String(Math.floor(Math.min(innerWidth / 340, innerHeight / h) * 1000) / 1000);
+  const body = document.body;
+  const h = Math.max(...[...body.children].filter((e) => getComputedStyle(e).position !== 'fixed').map((e) => e.getBoundingClientRect().bottom))
+    + parseFloat(getComputedStyle(body).paddingBottom) + 4;
+  html.style.zoom = String(Math.floor(Math.min(innerWidth / (OVERLAY ? 340 : 300), innerHeight / h) * 1000) / 1000);
 }
 window.addEventListener('resize', fitOverlay);
 document.fonts?.addEventListener('loadingdone', fitOverlay);

@@ -49,10 +49,13 @@ async function instagram(pages, handle, now) {
 }
 
 // Facebook : page reliée (abonnés, vues et interactions des 28 derniers jours)
+// Jeton refusé par Meta (session expirée ou fermée, mot de passe changé…) : à reconnecter
+const metaExpired = (msg) => /session|expired|validating access token|access token|OAuth|\b190\b/i.test(msg);
 async function facebook(pages, handle) {
+  let refused = null;
   for (const p of pages) {
     const tok = { access_token: p.pageToken };
-    const base = await call(`${GRAPH}/${p.pageId}?${new URLSearchParams({ fields: 'username,followers_count,fan_count', ...tok })}`).catch(() => null);
+    const base = await call(`${GRAPH}/${p.pageId}?${new URLSearchParams({ fields: 'username,followers_count,fan_count', ...tok })}`).catch((err) => { refused ??= err; return null; });
     if (!base || (base.username || '').toLowerCase() !== handle) continue;
     // Chaque mesure à part : une mesure retirée par Meta ne fait pas échouer les autres
     const one = (metric) => call(`${GRAPH}/${p.pageId}/insights?${new URLSearchParams({ metric, period: 'days_28', ...tok })}`).then((r) => r?.data?.[0]?.values?.at(-1)?.value ?? null).catch(() => null);
@@ -60,6 +63,8 @@ async function facebook(pages, handle) {
     const n = (v) => (v == null ? null : typeof v === 'object' ? Object.values(v).reduce((a, x) => a + (Number(x) || 0), 0) : Number(v));
     return { followers: base.followers_count ?? base.fan_count ?? null, views: n(views), interactions: n(engaged), newFollowers: n(follows) };
   }
+  // Aucune page trouvée : la vraie raison si Meta a refusé (connexion expirée, limite…), sinon page absente
+  if (refused) throw new Error(metaExpired(refused.message) ? 'connexion Meta expirée : reconnectez Meta dans l\'appli' : `Meta : ${refused.message}`);
   throw new Error('page non reliée : reconnectez Meta dans l\'appli');
 }
 
@@ -72,8 +77,8 @@ async function threads(list, handle, now) {
 }
 
 // YouTube : chaîne retrouvée par son identifiant (abonnés, vues et vidéos depuis la création)
-async function youtube(token, handle) {
-  if (!token) throw new Error('compte YouTube non relié');
+async function youtube(token, handle, renewError) {
+  if (!token) throw new Error(renewError ? `connexion YouTube à renouveler : reconnectez YouTube dans l'appli (${renewError})` : 'compte YouTube non relié');
   const r = await call(`${YOUTUBE}/channels?${new URLSearchParams({ part: 'statistics', forHandle: `@${handle}` })}`, { headers: { Authorization: `Bearer ${token}` } });
   const s = r.items?.[0]?.statistics;
   if (!s) throw new Error('chaîne introuvable');
@@ -90,7 +95,7 @@ async function bluesky(handle, now, fetchFn) {
 
 // TikTok : compte relié (le premier avec l'option « Statistiques », ou le deuxième) : abonnés, vidéos ;
 // vues, j'aime, commentaires, partages des vidéos des 28 derniers jours (20 par page, 5 pages au plus)
-async function tiktok(tokens, handle, now) {
+async function tiktok(tokens, handle, now, renewErrors = []) {
   let u = null; let auth; let refused = null;
   for (const token of tokens.filter(Boolean)) {
     auth = { headers: { Authorization: `Bearer ${token}` } };
@@ -100,7 +105,9 @@ async function tiktok(tokens, handle, now) {
   }
   if (!u) {
     if (refused && /scope/i.test(refused.message)) throw new Error('statistiques non autorisées : cochez « Statistiques » (TikTok) dans l\'appli et reconnectez-vous');
-    throw new Error(refused && tokens.filter(Boolean).length === 1 ? refused.message : 'compte non relié : ajoutez-le dans l\'appli (TikTok, 2e compte)');
+    // Jeton non renouvelé (accès retiré ou expiré chez TikTok) : à reconnecter, plutôt que « non relié »
+    if (renewErrors.length) throw new Error(`connexion TikTok à renouveler : reconnectez TikTok dans l'appli (${renewErrors[0]})`);
+    throw new Error(refused ? `TikTok : ${refused.message}` : 'compte non relié : ajoutez-le dans l\'appli (TikTok, 2e compte)');
   }
   const recent = [];
   let cursor;
@@ -114,8 +121,9 @@ async function tiktok(tokens, handle, now) {
   return { followers: u.follower_count ?? null, posts: u.video_count ?? null, views: sum(recent, (x) => x.view_count), likes: sum(recent, (x) => x.like_count), comments: sum(recent, (x) => x.comment_count), shares: sum(recent, (x) => x.share_count) };
 }
 
-// v : coffre ; youtubeToken, tiktokToken, tiktok2Token : jetons à jour (ou null) -> [{ name, nets: { réseau: { url, handle, stats | error | note } } }]
-export async function accountStats(v, { youtubeToken = null, tiktokToken = null, tiktok2Token = null, now = Date.now(), fetchFn = fetch } = {}) {
+// v : coffre ; youtubeToken, tiktokToken, tiktok2Token : jetons à jour (ou null) ; youtubeError… : raison
+// d'un renouvellement refusé -> [{ name, nets: { réseau: { url, handle, stats | error | note } } }]
+export async function accountStats(v, { youtubeToken = null, tiktokToken = null, tiktok2Token = null, youtubeError = null, tiktokError = null, tiktok2Error = null, now = Date.now(), fetchFn = fetch } = {}) {
   const pages = v.meta ? [v.meta, ...(v.meta.pages || []).filter((p) => p.pageId !== v.meta.pageId)] : [];
   return Promise.all(ACCOUNTS.map(async (acc) => {
     const nets = {};
@@ -126,9 +134,9 @@ export async function accountStats(v, { youtubeToken = null, tiktokToken = null,
         if (n === 'instagram') out.stats = await instagram(pages, handle, now);
         else if (n === 'facebook') out.stats = await facebook(pages, handle);
         else if (n === 'threads') out.stats = await threads([v.threads, v.threads2], handle, now);
-        else if (n === 'youtube') out.stats = await youtube(youtubeToken, handle);
+        else if (n === 'youtube') out.stats = await youtube(youtubeToken, handle, youtubeError);
         else if (n === 'bluesky') out.stats = await bluesky(handle, now, fetchFn);
-        else if (n === 'tiktok') out.stats = await tiktok([tiktokToken, tiktok2Token], handle, now);
+        else if (n === 'tiktok') out.stats = await tiktok([tiktokToken, tiktok2Token], handle, now, [tiktokError, tiktok2Error].filter(Boolean));
         else out.note = 'chiffres payants chez X';
         if (out.stats) out.stats = Object.fromEntries(Object.entries(out.stats).filter(([, x]) => ok(x) && !Number.isNaN(x)));
       } catch (err) { out.error = String(err?.message || err).slice(0, 160); }

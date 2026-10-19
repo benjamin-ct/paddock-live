@@ -105,9 +105,20 @@ const floatOptions = (b, { width = 560, height = 460, title = 'Paddock Live — 
   ...(b && boundsVisible(b) ? b : { width, height }),
   webPreferences: childPrefs(),
 });
+// Au-dessus de tout, y compris d'une vidéo en plein écran. Windows remet au premier plan la fenêtre
+// plein écran (navigateur, lecteur) quand on clique dedans : la carte et le mini-classement
+// reprennent leur place dès qu'ils perdent le focus, puis toutes les 2 s tant qu'ils sont ouverts
 function floatOnTop(win) {
+  const top = () => {
+    if (win.isDestroyed() || !win.isVisible() || win.isFocused()) return;
+    win.setAlwaysOnTop(true, 'screen-saver');
+    win.moveTop();
+  };
   win.setAlwaysOnTop(true, 'screen-saver');
   win.setVisibleOnAllWorkspaces?.(true, { visibleOnFullScreen: true });
+  win.on('blur', () => setTimeout(top, 150));
+  const timer = setInterval(top, 2000);
+  win.on('closed', () => clearInterval(timer));
 }
 
 function openChild(baseUrl, c) {
@@ -288,7 +299,7 @@ function setupContents(wc, url) {
   wc.setWindowOpenHandler(({ url: target }) => {
     // Mini-classement : petite fenêtre sans cadre ni fond, toujours au premier plan (par-dessus la vidéo)
     if (target.startsWith(url) && new URL(target).pathname === '/mini.html') {
-      return { action: 'allow', overrideBrowserWindowOptions: floatOptions(null, { width: 300, height: 540, title: 'Paddock Live — mini-classement' }) };
+      return { action: 'allow', overrideBrowserWindowOptions: floatOptions(null, { width: 300, height: 640, title: 'Paddock Live — mini-classement' }) };
     }
     if (target.startsWith(url) && isPanelUrl(target) && isFloatUrl(target)) {
       return { action: 'allow', overrideBrowserWindowOptions: floatOptions() };
@@ -317,12 +328,7 @@ function setupContents(wc, url) {
   wc.on('did-create-window', (win, { url: target }) => {
     setupContents(win.webContents, url);
     if (isFloatUrl(target)) { floatOnTop(win); return; }
-    if (/\/mini\.html(\?|$)/.test(target || '')) {
-      // Au-dessus de tout, y compris d'une vidéo en plein écran
-      win.setAlwaysOnTop(true, 'screen-saver');
-      win.setVisibleOnAllWorkspaces?.(true, { visibleOnFullScreen: true });
-      return;
-    }
+    if (/\/mini\.html(\?|$)/.test(target || '')) { floatOnTop(win); return; }
     if (otherDisplay()) win.maximize();
   });
 }

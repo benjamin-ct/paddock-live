@@ -486,39 +486,129 @@
           <button class="icon-btn set-close" value="close" aria-label="Fermer"><svg class="ic" aria-hidden="true"><use href="#i-close"/></svg></button>
         </form>
     <div class="modal-body">
+      <!-- Compte F1 TV -->
       <section data-full class="set-block" data-sgroup="f1tv">
-        <h4><svg class="ic" aria-hidden="true"><use href="#i-signal"/></svg> Positions GPS & télémétrie en live (F1 TV)</h4>
+        <div class="set-bhead"><h4><svg class="ic" aria-hidden="true"><use href="#i-signal"/></svg> Positions GPS & télémétrie en live (F1 TV)</h4>
+          <p>En direct, le GPS et la télémétrie sont réservés aux abonnés <b>F1 TV</b>. Sans connexion, les positions sont estimées.</p></div>
         <div class="set-status small" id="tokenStatus"></div>
-        <p class="small">En direct, le GPS et la télémétrie sont réservés aux abonnés <b>F1 TV</b>. Sans connexion, les positions sont estimées.</p>
-        <div class="ext-card">
-          <div><b>Recommandé : l'extension Paddock Live Companion</b>
-            <span class="small muted">Connectez-vous sur formula1.com, Paddock Live reçoit la connexion.</span></div>
-          <a class="btn btn-accent" href="https://paddocklive.app/extension" target="_blank" rel="noopener"><svg class="ic" aria-hidden="true"><use href="#i-external"/></svg> Installer l'extension</a>
+        <div class="set-row">
+          <div class="set-txt"><b>Recommandé : l'extension Paddock Live Companion</b><small>Connectez-vous sur formula1.com, Paddock Live reçoit la connexion.</small></div>
+          <div class="set-ctl"><a class="btn btn-accent" href="https://paddocklive.app/extension" target="_blank" rel="noopener"><svg class="ic" aria-hidden="true"><use href="#i-external"/></svg> Installer l'extension</a></div>
         </div>
-        <div class="row" id="desktopLogin" hidden>
-          <button class="btn" id="desktopLoginBtn"><svg class="ic" aria-hidden="true"><use href="#i-lock"/></svg> Se connecter à F1 TV</button>
-          <span class="small muted">Sans extension, dans une fenêtre de l'appli.</span>
-          <button class="btn small" id="desktopLogoutBtn" title="Oublier la session F1 TV mémorisée dans l'application">Se déconnecter</button>
+        <div class="set-row" id="desktopLogin" hidden>
+          <div class="set-txt"><b>Se connecter à F1 TV</b><small>Sans extension, dans une fenêtre de l'appli.</small></div>
+          <div class="set-ctl"><button class="btn" id="desktopLoginBtn"><svg class="ic" aria-hidden="true"><use href="#i-lock"/></svg> Se connecter</button>
+            <button class="btn" id="desktopLogoutBtn" title="Oublier la session F1 TV mémorisée dans l'application">Se déconnecter</button></div>
         </div>
-        <div class="row" id="tokenClearRow" hidden>
-          <button class="btn small" id="tokenClear" title="Oublier la connexion F1 TV">Se déconnecter</button>
+        <div class="set-row" id="tokenClearRow" hidden>
+          <div class="set-txt"><b>Connexion F1 TV</b><small>Reste sur votre ordinateur, renouvelée toute seule.</small></div>
+          <div class="set-ctl"><button class="btn" id="tokenClear" title="Oublier la connexion F1 TV">Se déconnecter</button></div>
         </div>
-        <p class="small muted">Reste sur votre ordinateur, renouvelée toute seule.</p>
+      </section>
+
+      <!-- Apparence -->
+      <section class="set-block" data-sgroup="look">
+        <div class="set-bhead"><h4><svg class="ic" aria-hidden="true"><use href="#i-sliders"/></svg> Général</h4></div>
+        <div class="row"><label class="small" title="Automatique : comme l'ordinateur ou le téléphone">Apparence <select id="schemeSel"><option value="auto">Automatique (comme le système)</option><option value="dark">Sombre</option><option value="light">Clair</option></select></label></div>
+        <div class="row"><label class="small">Langue / Language <select id="langSel" data-no-i18n><option value="fr">Français</option><option value="en">English</option></select></label></div>
+        <div class="row"><label class="toggle small" title="Panneaux et menus qui apparaissent en douceur"><input type="checkbox" id="motionOpt"> Animations de l'interface</label></div>
+        <div class="row"><label class="toggle small"><input type="checkbox" id="keepAwake"> Garder l'écran allumé pendant une séance</label></div>
+      </section>
+      <section data-full class="set-block" data-sgroup="look">
+        <div class="set-bhead"><h4><svg class="ic" aria-hidden="true"><use href="#i-star"/></svg> Écuries et couleurs</h4></div>
+        <div class="row"><label class="toggle small"><input type="checkbox" id="teamLogos"> Logos des écuries dans le classement</label></div>
+        <div class="row"><label class="toggle small"><input type="checkbox" id="logoColor"> Logos en couleurs officielles</label></div>
+        <div class="row"><label class="toggle small"><input type="checkbox" id="vividTeams"> Couleurs d'équipe contrastées</label></div>
+        <div class="row"><label class="toggle small"><input type="checkbox" id="legendsOn"> Légendes sous les panneaux (couleurs et badges)</label></div>
+        <div class="row"><label class="toggle small"><input type="checkbox" id="replayMarks"> Replays : safety car et VSC sur la barre de lecture</label></div>
+      </section>
+
+      <!-- Disposition -->
+      <section data-full class="set-block" data-sgroup="display">
+        <div class="set-bhead"><h4><svg class="ic" aria-hidden="true"><use href="#i-layout"/></svg> Disposition</h4>
+          <p>Glissez la poignée <b><svg class="ic" aria-hidden="true"><use href="#i-grip"/></svg></b> pour déplacer un panneau, ses bords pour le redimensionner.</p></div>
+        <div class="set-row">
+          <div class="set-txt"><b>Disposition</b><small id="layoutProfileNow"></small></div>
+          <div class="set-ctl"><select id="layoutModeSel" aria-label="Disposition"><option value="auto">Automatique selon la séance</option><option value="race">Toujours « Course »</option><option value="quali">Toujours « Qualif &amp; essais »</option></select></div>
+        </div>
+        <div class="row"><label class="small">Placement des panneaux <select id="freeSel"><option value="cols">Rangés en colonnes (redimensionnables)</option><option value="free">Libre : n'importe où, chevauchement possible</option></select></label></div>
+        <div class="row"><label class="toggle small"><input type="checkbox" id="towerFit"> Classement sur toute la hauteur</label></div>
+      </section>
+      <section data-full class="set-block" data-sgroup="display">
+        <div class="set-bhead"><h4><svg class="ic" aria-hidden="true"><use href="#i-eye-off"/></svg> Panneaux visibles</h4></div>
+        <div class="set-tiles" id="panelOpts"></div>
+      </section>
+      <section data-full class="set-block" data-sgroup="display">
+        <div class="set-bhead"><h4><svg class="ic" aria-hidden="true"><use href="#i-columns"/></svg> Colonnes du classement</h4></div>
+        <div class="set-tiles" id="colOpts"></div>
+      </section>
+      <section data-full class="set-block" data-sgroup="display">
+        <div class="set-bhead"><h4><svg class="ic" aria-hidden="true"><use href="#i-window"/></svg> Fenêtres</h4></div>
+        <div class="row" id="winStartRow" hidden><label class="small">Au lancement de l'application <select id="winStart"><option value="last">rouvrir les fenêtres comme à la fermeture</option><option value="saved">reprendre l'emplacement enregistré</option><option value="none">ne pas rouvrir les fenêtres détachées</option></select></label></div>
+        <div class="set-row">
+          <div class="set-txt"><b>Emplacement des fenêtres</b><small>Garde les panneaux de chaque fenêtre et leur place sur les écrans</small></div>
+          <div class="set-ctl"><button class="btn" id="winSave"><svg class="ic" aria-hidden="true"><use href="#i-save"/></svg> Enregistrer</button><button class="btn" id="winRestore"><svg class="ic" aria-hidden="true"><use href="#i-undo"/></svg> Restaurer</button></div>
+        </div>
+        <div class="set-row">
+          <div class="set-txt"><b>Onglets</b><small>Chaque onglet revient à sa place d'origine</small></div>
+          <div class="set-ctl"><button class="btn" id="tabsReset"><svg class="ic" aria-hidden="true"><use href="#i-undo"/></svg> Remettre en place</button></div>
+        </div>
+        <div class="set-row">
+          <div class="set-txt"><b>Réinitialiser l'interface</b><small>Panneaux, tailles et fenêtres par défaut</small></div>
+          <div class="set-ctl"><button class="btn btn-danger" id="layoutReset">Réinitialiser</button></div>
+        </div>
+      </section>
+
+      <!-- Alertes & favoris -->
+      <section class="set-block" data-sgroup="alerts">
+        <div class="set-bhead"><h4><svg class="ic" aria-hidden="true"><use href="#i-bell"/></svg> Alertes</h4><button class="btn set-bact" id="alertTest"><svg class="ic" aria-hidden="true"><use href="#i-volume"/></svg> Tester</button>
+          <p>Synchronisées avec votre délai TV.</p></div>
+        <div class="set-tiles" id="alertOpts"></div>
+      </section>
+      <section class="set-block" data-sgroup="alerts">
+        <div class="set-bhead"><h4><svg class="ic" aria-hidden="true"><use href="#i-calendar"/></svg> Rappels et agenda</h4></div>
+        <div class="set-row">
+          <div class="set-txt"><b>Rappel avant chaque séance</b><small>Message, son et notification, appli ouverte</small></div>
+          <div class="set-ctl"><select id="remindSel" aria-label="Rappel avant chaque séance"><option value="0">Désactivé</option><option value="5">5 min avant</option><option value="15">15 min avant</option><option value="30">30 min avant</option><option value="60">1 h avant</option></select></div>
+        </div>
+        <div class="set-row">
+          <div class="set-txt"><b>Calendrier de la saison</b><small>Google, Apple, Outlook : mis à jour tout seul, même Paddock Live fermé</small></div>
+          <div class="set-ctl"><a class="btn" id="icsSeason" href="#" data-cal=""><svg class="ic" aria-hidden="true"><use href="#i-calendar"/></svg> Ajouter à mon agenda</a></div>
+        </div>
+      </section>
+      <section class="set-block" data-sgroup="alerts">
+        <div class="set-bhead"><h4><svg class="ic" aria-hidden="true"><use href="#i-star"/></svg> Pilotes favoris</h4><p>Mis en avant partout, avec leurs arrêts et messages FIA en alerte.</p></div>
+        <div id="favList" class="fav-list"></div>
+      </section>
+      <section class="set-block" data-sgroup="alerts">
+        <div class="set-bhead"><h4><svg class="ic" aria-hidden="true"><use href="#i-flag"/></svg> Écuries favorites</h4><p>Leurs actualités en premier dans l'onglet Actu.</p></div>
+        <div id="favTeamList" class="fav-list"></div>
+      </section>
+
+      <!-- Application -->
+      <section data-full class="set-block" data-sgroup="app" id="updateBlock" hidden>
+        <div class="set-bhead"><h4><svg class="ic" aria-hidden="true"><use href="#i-refresh"/></svg> Mises à jour de l'application</h4></div>
+        <div class="set-status small" id="updateStatus">—</div>
+        <div class="small muted" id="memUse" hidden></div>
+        <div class="set-row">
+          <div class="set-txt"><b>Nouvelle version</b><small>Vérifiée toute seule au démarrage</small></div>
+          <div class="set-ctl"><button class="btn" id="updateCheck">Vérifier maintenant</button><button class="btn btn-accent" id="updateInstall" hidden>Redémarrer et mettre à jour</button></div>
+        </div>
+        <div class="row"><label class="toggle small"><input type="checkbox" id="updateAuto"> Installer les mises à jour à la fermeture de l'appli</label></div>
+        <details class="cl-ver cl-next" id="updateNotes" hidden><summary>Nouveautés de la version <span id="updateNotesVer"></span></summary><div class="cl-body" id="updateNotesBody"></div></details>
       </section>
 
       <section class="set-block" data-sgroup="app" data-phone>
-        <h4><svg class="ic" aria-hidden="true"><use href="#i-phone"/></svg> Version simplifiée</h4>
+        <div class="set-bhead"><h4><svg class="ic" aria-hidden="true"><use href="#i-phone"/></svg> Version simplifiée</h4></div>
         <div class="row"><label class="toggle small"><input type="checkbox" id="phoneFull"> Version complète sur ce téléphone</label></div>
       </section>
       <section class="set-block" data-sgroup="app" id="followHostBlock" hidden>
-        <h4><svg class="ic" aria-hidden="true"><use href="#i-stopwatch"/></svg> Délai TV</h4>
+        <div class="set-bhead"><h4><svg class="ic" aria-hidden="true"><use href="#i-stopwatch"/></svg> Délai TV</h4><p>Décochez si ce téléphone regarde une autre diffusion.</p></div>
         <div class="row"><label class="toggle small"><input type="checkbox" id="followHost"> Reprendre automatiquement le délai TV réglé sur l'ordinateur</label></div>
-        <p class="small muted">Décochez si ce téléphone regarde une autre diffusion.</p>
       </section>
 
       <section data-full class="set-block" data-sgroup="app" id="lanBlock" hidden>
-        <h4><svg class="ic" aria-hidden="true"><use href="#i-phone"/></svg> Sur votre téléphone ou tablette</h4>
-        <p class="muted small">Sur le <b>même Wi-Fi</b>, avec Paddock Live ouvert sur cet ordinateur.</p>
+        <div class="set-bhead"><h4><svg class="ic" aria-hidden="true"><use href="#i-phone"/></svg> Sur votre téléphone ou tablette</h4><p>Sur le <b>même Wi-Fi</b>, avec Paddock Live ouvert sur cet ordinateur.</p></div>
         <div class="row"><label class="toggle small"><input type="checkbox" id="lanEnabled"> Autoriser l'accès depuis le réseau local</label></div>
         <div id="lanInfo" hidden>
           <div class="lan-wrap">
@@ -535,95 +625,29 @@
         <div class="small" id="lanError" hidden></div>
       </section>
 
-      <section data-full class="set-block" data-sgroup="app" id="updateBlock" hidden>
-        <h4><svg class="ic" aria-hidden="true"><use href="#i-refresh"/></svg> Mises à jour de l'application</h4>
-        <div class="small" id="updateStatus">—</div>
-        <div class="small muted" id="memUse" hidden></div>
-        <div class="row">
-          <button class="btn" id="updateCheck">Vérifier maintenant</button>
-          <button class="btn btn-accent" id="updateInstall" hidden>Redémarrer et mettre à jour</button>
-          <label class="toggle small"><input type="checkbox" id="updateAuto"> Installer les mises à jour à la fermeture de l'appli</label>
-        </div>
-        <details class="cl-ver cl-next" id="updateNotes" hidden><summary>Nouveautés de la version <span id="updateNotesVer"></span></summary><div class="cl-body" id="updateNotesBody"></div></details>
-      </section>
-
-      <section data-full class="set-block" data-sgroup="app" id="creatorBlock" hidden>
-        <h4><svg class="ic" aria-hidden="true"><use href="#i-megaphone"/></svg> Mode créateur</h4>
-        <div class="row"><button class="btn small" id="creatorOff">Désactiver le mode créateur</button></div>
-      </section>
-
       <section data-full class="set-block" data-sgroup="app">
-        <h4><svg class="ic" aria-hidden="true"><use href="#i-save"/></svg> Sauvegarde des réglages</h4>
-        <div class="row">
-          <button class="btn" id="backupExport"><svg class="ic" aria-hidden="true"><use href="#i-save"/></svg> Enregistrer mes réglages</button>
-          <button class="btn" id="backupImport"><svg class="ic" aria-hidden="true"><use href="#i-history"/></svg> Restaurer une sauvegarde</button>
-          <input type="file" id="backupFile" accept=".json,application/json" hidden>
-        </div>
-        <p class="small muted">Sans la connexion F1 TV ni les clés (téléphone, lumières).</p>
-      </section>
-
-      <section data-full class="set-block" data-sgroup="app">
-        <h4><svg class="ic" aria-hidden="true"><use href="#i-globe"/></svg> Traductions</h4>
+        <div class="set-bhead"><h4><svg class="ic" aria-hidden="true"><use href="#i-globe"/></svg> Traductions</h4><p>Seuls les textes à traduire et le son des radios sont envoyés.</p></div>
         <div class="row"><label class="toggle small"><input type="checkbox" id="cloudTranslate"> Traduire et transcrire avec le serveur Paddock Live (recommandé)</label></div>
-        <p class="small muted">Seuls les textes à traduire et le son des radios sont envoyés.</p>
+      </section>
+
+      <section data-full class="set-block" data-sgroup="app">
+        <div class="set-bhead"><h4><svg class="ic" aria-hidden="true"><use href="#i-save"/></svg> Sauvegarde des réglages</h4><p>Sans la connexion F1 TV ni les clés (téléphone, lumières).</p></div>
+        <div class="set-row">
+          <div class="set-txt"><b>Fichier de sauvegarde</b><small>Pour un autre ordinateur ou après une réinstallation</small></div>
+          <div class="set-ctl"><button class="btn" id="backupExport"><svg class="ic" aria-hidden="true"><use href="#i-save"/></svg> Enregistrer</button><button class="btn" id="backupImport"><svg class="ic" aria-hidden="true"><use href="#i-history"/></svg> Restaurer</button>
+            <input type="file" id="backupFile" accept=".json,application/json" hidden></div>
+        </div>
       </section>
 
       <section class="set-block" data-sgroup="app" id="statsBlock" hidden>
-        <h4><svg class="ic" aria-hidden="true"><use href="#i-chart"/></svg> Statistiques d'utilisation</h4>
+        <div class="set-bhead"><h4><svg class="ic" aria-hidden="true"><use href="#i-chart"/></svg> Statistiques d'utilisation</h4><p>Anonymes : ni compte, ni contenu, ni adresse IP.</p></div>
         <div class="row"><label class="toggle small"><input type="checkbox" id="statsOn"> Envoyer des statistiques d'utilisation anonymes</label></div>
-        <p class="small muted">Anonymes : ni compte, ni contenu, ni adresse IP.</p>
       </section>
 
-      <section class="set-block" data-sgroup="about">
-        <h4><svg class="ic" aria-hidden="true"><use href="#i-megaphone"/></svg> Une question, une idée ?</h4>
-        <p class="small muted">Votre message arrive directement au créateur de Paddock Live.</p>
-        <form class="fb-form" id="fbForm">
-          <select id="fbKind" aria-label="Type de message"><option value="idea">Suggestion</option><option value="question">Question</option><option value="bug">Problème</option></select>
-          <textarea id="fbText" rows="4" maxlength="2000" required placeholder="Votre message…" aria-label="Votre message"></textarea>
-          <div class="row"><label class="btn small" for="fbFiles"><svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg> Ajouter une capture ou une vidéo</label>
-            <input type="file" id="fbFiles" multiple accept="image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm,video/quicktime" hidden>
-            <span class="small muted" id="fbFileList">Ou glissez-les, ou Ctrl+V · 3 fichiers max.</span></div>
-          <div class="row"><input type="text" id="fbContact" maxlength="120" placeholder="E-mail ou pseudo (facultatif, pour vous répondre)" aria-label="E-mail ou pseudo">
-            <button class="btn small primary" id="fbSend"><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg> Envoyer</button></div>
-        </form>
-        <p class="small muted">Aussi sur <a href="https://github.com/benjamin-ct/paddock-live/issues" target="_blank" rel="noopener">GitHub</a>.</p>
-      </section>
-
-      <section class="set-block" data-sgroup="about">
-        <h4><svg class="ic" aria-hidden="true"><use href="#i-note"/></svg> Nouveautés (journal des modifications)</h4>
-        <div class="cl-list" id="changelog"><p class="muted">Chargement…</p></div>
-      </section>
-
-      <section class="set-block" data-sgroup="about">
-        <h4><svg class="ic" aria-hidden="true"><use href="#i-share"/></svg> Suivre Paddock Live</h4>
-        <div class="row"><a class="btn small" href="https://paddocklive.app/liens/" target="_blank" rel="noopener"><svg class="ic" aria-hidden="true"><use href="#i-external"/></svg> Tous nos réseaux</a>
-          <span class="small muted">Instagram, Facebook, TikTok, YouTube, X, Threads et Bluesky</span></div>
-      </section>
-
-      <section class="set-block" data-sgroup="about">
-        <h4><svg class="ic" aria-hidden="true"><use href="#i-lock"/></svg> Informations légales</h4>
-        <div class="row">
-          <a class="btn small" href="https://paddocklive.app/legal/privacy" target="_blank" rel="noopener"><svg class="ic" aria-hidden="true"><use href="#i-external"/></svg> Politique de confidentialité</a>
-          <a class="btn small" href="https://paddocklive.app/legal/terms" target="_blank" rel="noopener"><svg class="ic" aria-hidden="true"><use href="#i-external"/></svg> Conditions d'utilisation</a>
-        </div>
-        <p class="small muted">Paddock Live est un projet indépendant, non affilié à la Formula 1, à la FIA ni aux équipes. F1 et FORMULA 1 sont des marques de Formula One Licensing B.V.</p>
-        <p class="small muted">© 2026 Paddock Live · <a href="https://github.com/benjamin-ct/paddock-live/blob/main/LICENSE" target="_blank" rel="noopener">Licence MIT</a></p>
-        <p class="small muted">Le nom « Paddock Live » et le logo ne sont pas couverts par la licence.</p>
-      </section>
-
-      <section class="set-block" data-sgroup="alerts">
-        <h4><svg class="ic" aria-hidden="true"><use href="#i-bell"/></svg> Alertes (synchronisées avec votre délai TV)</h4>
-        <div class="row" id="alertOpts"></div>
-        <div class="row"><label class="small" title="Message, son et notification avant chaque séance, appli ouverte">Rappel avant chaque séance <select id="remindSel"><option value="0">Désactivé</option><option value="5">5 min avant</option><option value="15">15 min avant</option><option value="30">30 min avant</option><option value="60">1 h avant</option></select></label>
-          <a class="btn small" id="icsSeason" href="#" data-cal="" title="Toutes les séances de la saison dans votre agenda (Google, Apple, Outlook), même Paddock Live fermé : abonnement mis à jour tout seul, ou fichier"><svg class="ic" aria-hidden="true"><use href="#i-calendar"/></svg> Ajouter la saison à mon agenda</a></div>
-        <div class="row"><span class="small">Pilotes favoris :</span><div id="favList" class="fav-list"></div></div>
-        <div class="row"><span class="small">Écuries favorites :</span><div id="favTeamList" class="fav-list"></div></div>
-      </section>
       <section data-full class="set-block" data-sgroup="app" id="lightsBox">
-        <h4><svg class="ic" aria-hidden="true"><use href="#i-bolt"/></svg> Lumières connectées <span class="muted small">(expérimental)</span></h4>
-        <p class="small muted">Vos ampoules prennent la couleur des drapeaux.</p>
-        <div class="row"><label class="small">Lampes <select id="lightsProvider"><option value="off">Désactivé</option><option value="sim">Simulation à l'écran (sans ampoule)</option><option value="hue">Philips Hue</option><option value="ha">Home Assistant</option></select></label>
-          <label class="small">Après le drapeau vert <select id="lightsAfter"><option value="normal">revenir à une lumière normale</option><option value="off">éteindre</option><option value="keep">rester en vert</option></select></label></div>
+        <div class="set-bhead"><h4><svg class="ic" aria-hidden="true"><use href="#i-bolt"/></svg> Lumières connectées <span class="set-tag">expérimental</span></h4><p>Vos ampoules prennent la couleur des drapeaux.</p></div>
+        <div class="row"><label class="small">Lampes <select id="lightsProvider"><option value="off">Désactivé</option><option value="sim">Simulation à l'écran (sans ampoule)</option><option value="hue">Philips Hue</option><option value="ha">Home Assistant</option></select></label></div>
+        <div class="row"><label class="small">Après le drapeau vert <select id="lightsAfter"><option value="normal">revenir à une lumière normale</option><option value="off">éteindre</option><option value="keep">rester en vert</option></select></label></div>
         <div class="row lights-sub" data-lp="hue" hidden>
           <label class="small">Adresse du pont <input id="hueIp" placeholder="192.168.1.20" size="16"></label>
           <button class="btn small" id="hueFind" type="button">Rechercher le pont</button>
@@ -644,41 +668,57 @@
         </div>
       </section>
 
-      <section data-full class="set-block" data-sgroup="display">
-        <h4><svg class="ic" aria-hidden="true"><use href="#i-layout"/></svg> Disposition</h4>
-        <div class="small muted">Glissez la poignée <b><svg class="ic" aria-hidden="true"><use href="#i-grip"/></svg></b> pour déplacer un panneau, ses bords pour le redimensionner.</div>
-        <div class="row"><label class="small">Disposition <select id="layoutModeSel"><option value="auto">Automatique selon la séance</option><option value="race">Toujours « Course »</option><option value="quali">Toujours « Qualif &amp; essais »</option></select></label></div>
-        <div class="small muted"><b id="layoutProfileNow"></b></div>
-        <div class="row"><label class="small">Placement des panneaux <select id="freeSel"><option value="cols">Rangés en colonnes (redimensionnables)</option><option value="free">Libre : n'importe où, chevauchement possible</option></select></label></div>
-        <div class="row"><button class="btn small" id="winSave" title="Garde les panneaux de chaque fenêtre et leur place sur les écrans"><svg class="ic" aria-hidden="true"><use href="#i-save"/></svg> Enregistrer l'emplacement des fenêtres</button> <button class="btn small" id="winRestore"><svg class="ic" aria-hidden="true"><use href="#i-undo"/></svg> Revenir à l'emplacement enregistré</button></div>
-        <div class="row" id="winStartRow" hidden><label class="small">Au lancement de l'application <select id="winStart"><option value="last">rouvrir les fenêtres comme à la fermeture</option><option value="saved">reprendre l'emplacement enregistré</option><option value="none">ne pas rouvrir les fenêtres détachées</option></select></label></div>
-        <div class="row"><button class="btn small" id="layoutReset">Réinitialiser l'interface</button></div>
-        <div class="row"><button class="btn small" id="tabsReset" title="Chaque onglet revient à sa place d'origine"><svg class="ic" aria-hidden="true"><use href="#i-undo"/></svg> Remettre les onglets à leur place</button></div>
-        <div class="small muted">Panneaux visibles :</div>
-        <div class="row" id="panelOpts"></div>
-        <div class="small muted">Colonnes du classement :</div>
-        <div class="row" id="colOpts"></div>
-        <div class="row"><label class="toggle small"><input type="checkbox" id="towerFit"> Classement sur toute la hauteur</label></div>
+      <section data-full class="set-block" data-sgroup="app" id="shortcutsBlock">
+        <div class="set-bhead"><h4><svg class="ic" aria-hidden="true"><use href="#i-keyboard"/></svg> Raccourcis clavier</h4></div>
+        <div class="kbd-list">
+          <span><kbd><svg class="ic" aria-hidden="true"><use href="#i-arrow-left"/></svg></kbd><kbd><svg class="ic" aria-hidden="true"><use href="#i-arrow-right"/></svg></kbd></span><span>Délai TV ±1 s (Maj : ±5 s, Alt : ±0,1 s)</span>
+          <span><kbd>S</kbd></span><span>Synchro TV</span>
+          <span><kbd>Espace</kbd></span><span>Pause (replay)</span>
+          <span><kbd>M</kbd></span><span>Couper les alertes sonores</span>
+          <span><kbd>Échap</kbd></span><span>Quitter le panneau agrandi</span>
+        </div>
       </section>
 
-      <section class="set-block" data-sgroup="look">
-        <h4><svg class="ic" aria-hidden="true"><use href="#i-sliders"/></svg> Apparence</h4>
-        <div class="row"><label class="small" title="Automatique : comme l'ordinateur ou le téléphone">Apparence <select id="schemeSel"><option value="auto">Automatique (comme le système)</option><option value="dark">Sombre</option><option value="light">Clair</option></select></label></div>
-        <div class="row"><label class="small">Langue / Language <select id="langSel" data-no-i18n><option value="fr">Français</option><option value="en">English</option></select></label></div>
-        <div data-full class="row"><label class="toggle small"><input type="checkbox" id="teamLogos"> Logos des écuries dans le classement</label></div>
-        <div data-full class="row"><label class="toggle small"><input type="checkbox" id="logoColor"> Logos en couleurs officielles</label></div>
-        <div data-full class="row"><label class="toggle small"><input type="checkbox" id="vividTeams"> Couleurs d'équipe contrastées</label></div>
-        <div data-full class="row"><label class="toggle small"><input type="checkbox" id="legendsOn"> Légendes sous les panneaux (couleurs et badges)</label></div>
-        <div class="row"><label class="toggle small" title="Panneaux et menus qui apparaissent en douceur"><input type="checkbox" id="motionOpt"> Animations de l'interface</label></div>
-        <div data-full class="row"><label class="toggle small"><input type="checkbox" id="replayMarks"> Replays : safety car et VSC sur la barre de lecture</label></div>
-        <div class="row"><label class="toggle small"><input type="checkbox" id="keepAwake"> Garder l'écran allumé pendant une séance</label></div>
+      <section data-full class="set-block" data-sgroup="app" id="creatorBlock" hidden>
+        <div class="set-bhead"><h4><svg class="ic" aria-hidden="true"><use href="#i-megaphone"/></svg> Mode créateur</h4></div>
+        <div class="set-row"><div class="set-txt"><b>Mode créateur activé</b></div><div class="set-ctl"><button class="btn" id="creatorOff">Désactiver</button></div></div>
       </section>
 
       <section data-full class="set-block" data-sgroup="stream" id="streamOverlays"></section>
       <section data-full class="set-block" data-sgroup="stream" id="streamDeck"></section>
-      <section data-full class="set-block" data-sgroup="app" id="shortcutsBlock">
-        <h4><svg class="ic" aria-hidden="true"><use href="#i-keyboard"/></svg> Raccourcis</h4>
-        <p class="small muted"><kbd><svg class="ic ic-s" aria-hidden="true"><use href="#i-arrow-left"/></svg></kbd> <kbd><svg class="ic ic-s" aria-hidden="true"><use href="#i-arrow-right"/></svg></kbd> : délai ±1 s · Maj : ±5 s · Alt : ±0,1 s · S : synchro TV · Espace : pause (replay) · M : couper les alertes sonores · Échap : quitter le panneau agrandi</p>
+
+      <!-- À propos -->
+      <section class="set-block" data-sgroup="about">
+        <div class="set-bhead"><h4><svg class="ic" aria-hidden="true"><use href="#i-note"/></svg> Nouveautés</h4><p>Cliquez sur une version pour voir ce qui a changé.</p></div>
+        <div class="cl-list" id="changelog"><p class="muted">Chargement…</p></div>
+      </section>
+
+      <section class="set-block" data-sgroup="about">
+        <div class="set-bhead"><h4><svg class="ic" aria-hidden="true"><use href="#i-megaphone"/></svg> Une question, une idée ?</h4><p>Votre message arrive directement au créateur de Paddock Live.</p></div>
+        <form class="fb-form" id="fbForm">
+          <select id="fbKind" aria-label="Type de message"><option value="idea">Suggestion</option><option value="question">Question</option><option value="bug">Problème</option></select>
+          <textarea id="fbText" rows="4" maxlength="2000" required placeholder="Votre message…" aria-label="Votre message"></textarea>
+          <div class="row"><label class="btn small" for="fbFiles"><svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg> Ajouter une capture ou une vidéo</label>
+            <input type="file" id="fbFiles" multiple accept="image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm,video/quicktime" hidden>
+            <span class="small muted" id="fbFileList">Ou glissez-les, ou Ctrl+V · 3 fichiers max.</span></div>
+          <div class="row"><input type="text" id="fbContact" maxlength="120" placeholder="E-mail ou pseudo (facultatif, pour vous répondre)" aria-label="E-mail ou pseudo">
+            <button class="btn small primary" id="fbSend"><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg> Envoyer</button></div>
+        </form>
+        <p class="small muted">Aussi sur <a href="https://github.com/benjamin-ct/paddock-live/issues" target="_blank" rel="noopener">GitHub</a>.</p>
+      </section>
+
+      <section class="set-block" data-sgroup="about">
+        <div class="set-bhead"><h4><svg class="ic" aria-hidden="true"><use href="#i-share"/></svg> Paddock Live</h4></div>
+        <div class="set-row">
+          <div class="set-txt"><b>Suivre Paddock Live</b><small>Instagram, Facebook, TikTok, YouTube, X, Threads et Bluesky</small></div>
+          <div class="set-ctl"><a class="btn" href="https://paddocklive.app/liens/" target="_blank" rel="noopener"><svg class="ic" aria-hidden="true"><use href="#i-external"/></svg> Tous nos réseaux</a></div>
+        </div>
+        <div class="set-row">
+          <div class="set-txt"><b>Informations légales</b><small>© 2026 Paddock Live · <a href="https://github.com/benjamin-ct/paddock-live/blob/main/LICENSE" target="_blank" rel="noopener">Licence MIT</a></small></div>
+          <div class="set-ctl"><a class="btn" href="https://paddocklive.app/legal/privacy" target="_blank" rel="noopener">Politique de confidentialité</a>
+            <a class="btn" href="https://paddocklive.app/legal/terms" target="_blank" rel="noopener">Conditions d'utilisation</a></div>
+        </div>
+        <p class="set-foot">Paddock Live est un projet indépendant, non affilié à la Formula 1, à la FIA ni aux équipes. F1 et FORMULA 1 sont des marques de Formula One Licensing B.V. Le nom « Paddock Live » et le logo ne sont pas couverts par la licence.</p>
       </section>
         </div>
       </div>

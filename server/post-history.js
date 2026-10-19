@@ -35,8 +35,9 @@ export async function removePost(key, { fetchFn } = {}) {
 // Statistiques des posts : celles de la page web quand elle est activée (mêmes chiffres que le Studio,
 // avec l'activité de tous les comptes), sinon avec les comptes de cet ordinateur
 export async function statsOfPosts({ fetchFn } = {}) {
-  const remote = await studioCall('stats', { fetchFn, timeout: 60000 });
-  if (remote?.posts) return remote;
+  // Chiffres des posts et des comptes : deux appels (limite de requêtes de la page web)
+  const [remote, acc] = await Promise.all([studioCall('stats', { fetchFn, timeout: 60000 }), studioCall('stats/accounts', { fetchFn, timeout: 60000 }).catch(() => null)]);
+  if (remote?.posts) return { ...remote, accounts: acc?.accounts || remote.accounts };
   const s = getConfig().social || {};
   return postStats(await postHistory(), { meta: s.meta, threads: s.threads, bluesky: s.bluesky });
 }

@@ -2,7 +2,45 @@
 
 Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle version publiée doit avoir
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
-l'application (Réglages → Application → Nouveautés).
+l'application (Réglages → À propos → Nouveautés).
+
+## v1.27.53 — 2026-10-19
+
+### Réglages
+- Réglages redessinés, plus lisibles : chaque rubrique est rangée en cartes, chaque réglage a son nom (et une
+  courte explication) à gauche et sa commande à droite.
+- Panneaux visibles, colonnes du classement et alertes présentés en tuiles ; bouton « Tester » des alertes en haut
+  de la carte ; favoris en pastilles plus grandes.
+- Disposition : fenêtres, onglets et réinitialisation regroupés dans une carte « Fenêtres ».
+- Nouveautés : toutes les versions sont repliées et seules les 6 dernières sont listées, les autres avec
+  « Versions précédentes ».
+- Raccourcis clavier présentés en liste.
+
+### Météo
+- Fenêtre Météo refaite, beaucoup plus visuelle : ciel du moment en grand (soleil, nuages, pluie, orage…),
+  température, piste sur une échelle de couleurs, rose des vents (d'où vient le vent), humidité, pression et pluie.
+- Prochaines heures (ciel, température, risque de pluie) et jours du week-end avec les séances de chaque jour.
+- Radar de pluie zoomé sur le circuit, son tracé dessiné par-dessus ; vues « Alentours » et « Région » pour voir
+  la pluie arriver, échelle des distances, légende, et prévision à 30 min.
+- Nouvelle vue « Windy » : carte animée de la pluie, du vent et des nuages, avec ses prévisions.
+
+### Navigation
+- Touche Échap partout : elle ferme aussi le panneau Commentaires (le son continue), la page Résultats et les
+  petits menus « Dispo. » et thème (Accueil, Saison, Actu et Replays se fermaient déjà).
+- Plus de scintillement du tableau de bord en passant d'une page à l'autre (Accueil, Direct sans séance,
+  Saison, Actu…) : la nouvelle page couvre l'écran tout de suite, seul son contenu apparaît en douceur.
+
+### Mini-classement et carte flottante
+- Mini-classement toujours entier : les 20 pilotes s'adaptent à la taille de la fenêtre (plus grande à
+  l'ouverture), et grossissent quand on l'agrandit.
+- Mini-classement et carte flottante reprennent leur place au premier plan quand on clique dans une vidéo en
+  plein écran (navigateur, lecteur).
+
+### F1 TV
+- Extension Paddock Live Companion pour Firefox : paquet sans avertissement (Firefox 140 ou plus récent).
+
+### Divers
+- Petites améliorations internes.
 
 ## v1.27.52 — 2026-10-19
 

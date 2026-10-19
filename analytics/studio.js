@@ -703,20 +703,24 @@ export async function studioApi(req, env, url) {
     if (add.length) await setRow(env, 'history', JSON.stringify(add.reduce(addEntry, list)));
     return json({ added: add.length, errors });
   }
+  // Chiffres des posts et chiffres des comptes : deux appels, chacun sous la limite de 50 requêtes
+  // vers l'extérieur par appel du serveur (ensemble, Facebook ou TikTok la dépassaient)
   if (path === 'stats' && req.method === 'GET') {
+    const v = await refresh(env, a.raw, vault);
+    // 6 posts au plus
+    const posts = await postStats(JSON.parse(await getRow(env, 'history') || '[]'), { meta: v.meta, threads: v.threads, bluesky: v.bluesky }, { limit: 6 });
+    return json({ ...posts, clicks: await clickStats(env).catch(() => null) });
+  }
+  if (path === 'stats/accounts' && req.method === 'GET') {
     let v = await refresh(env, a.raw, vault);
-    // 6 posts au plus : un appel du serveur est limité à 50 requêtes (chiffres de chaque compte en plus)
     // Jetons YouTube et TikTok renouvelés l'un après l'autre : chaque enregistrement garde le précédent
     const tokens = {};
     for (const net of [...CLIPS, 'tiktok2']) {
-      const acc = v[net] ? await clipAccount(env, a.raw, v, net).catch(() => null) : null;
+      // Renouvellement refusé : sa raison est montrée (au lieu de « compte non relié »)
+      const acc = v[net] ? await clipAccount(env, a.raw, v, net).catch((err) => { tokens[`${net}Error`] = String(err?.message || err).slice(0, 120); return null; }) : null;
       if (acc) { v = { ...v, [net]: acc }; tokens[`${net}Token`] = acc.accessToken; }
     }
-    const [posts, accounts] = await Promise.all([
-      postStats(JSON.parse(await getRow(env, 'history') || '[]'), { meta: v.meta, threads: v.threads, bluesky: v.bluesky }, { limit: 6 }),
-      accountStats(v, tokens),
-    ]);
-    return json({ ...posts, accounts, clicks: await clickStats(env).catch(() => null) });
+    return json({ accounts: await accountStats(v, tokens) });
   }
   if (path === 'season' && req.method === 'GET') {
     const year = Number(url.searchParams.get('year'));
