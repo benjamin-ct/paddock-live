@@ -1959,7 +1959,8 @@ body.solo .tb-tools { display: none; }
 @media (prefers-reduced-motion: no-preference) {
   .tabpane.active { animation: pane-in .18s ease-out; }
   .grid.has-max > .panel.maximized { animation: panel-max .2s cubic-bezier(.2, .8, .3, 1); }
-  .season-view:not([hidden]) { animation: pane-in .2s ease-out; }
+  /* Pages pleine fenêtre : fond opaque tout de suite (le tableau de bord ne transparaît pas), contenu en fondu */
+  .season-view:not([hidden]) > * { animation: pane-in .2s ease-out; }
   .lpop-menu, .csel-pop, .map-layers[open] .map-layers-menu, #towerCols[open] > :not(summary) { animation: tbp-in .14s ease-out; }
   .track-status, .surface .hstat-value { transition: background-color .35s, color .35s, border-color .35s; }
   .tower tbody tr { transition: background-color .35s, opacity .35s; }
@@ -2266,7 +2267,7 @@ kbd .ic { width: 12px; height: 12px; opacity: 1; }
   /* Messages : glissent depuis le bas */
   :root:not([data-motion="off"]) .toast:not([hidden]) { animation: toast-in .32s var(--ease-spring); }
   /* Espaces Saison et Actu */
-  :root:not([data-motion="off"]) .season-view:not([hidden]) { animation: view-in .3s var(--ease-out); }
+  :root:not([data-motion="off"]) .season-view:not([hidden]) > * { animation: view-in .3s var(--ease-out); }
   :root:not([data-motion="off"]) .sz-main.sz-anim > * { animation: rise-in .3s var(--ease-out) both; }
   :root:not([data-motion="off"]) .sz-main.sz-anim > :nth-child(2) { animation-delay: .04s; }
   :root:not([data-motion="off"]) .sz-main.sz-anim > :nth-child(n+3) { animation-delay: .08s; }

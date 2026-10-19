@@ -16,6 +16,10 @@ l'application (Réglages → À propos → Nouveautés).
   « Versions précédentes ».
 - Raccourcis clavier présentés en liste.
 
+### Navigation
+- Plus de scintillement du tableau de bord en passant d'une page à l'autre (Accueil, Direct sans séance,
+  Saison, Actu…) : la nouvelle page couvre l'écran tout de suite, seul son contenu apparaît en douceur.
+
 ### Mini-classement et carte flottante
 - Mini-classement toujours entier : les 20 pilotes s'adaptent à la taille de la fenêtre (plus grande à
   l'ouverture), et grossissent quand on l'agrandit.
