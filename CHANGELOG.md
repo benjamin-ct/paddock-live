@@ -7,6 +7,7 @@ l'application (Réglages → Application → Nouveautés).
 ## v1.27.50 — à venir
 
 ### Publication
+- Instagram : le premier commentaire (lien de l'article d'une actu) est aussi publié sous le post, comme sur Facebook, Threads, X et Bluesky. Ajoutez l'autorisation instagram_manage_comments au jeton Meta (Comptes…), puis reconnectez le compte.
 - Vidéo publiée sur Instagram ou Threads : préparation bien plus légère en mémoire, plus fiable avec les vidéos lourdes.
 
 ### Divers

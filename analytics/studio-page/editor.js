@@ -40,7 +40,7 @@ const CAPS = [
   ['threads', () => 'Texte Threads', 4, 500],
   ['x', () => 'Texte X (lien = 23 caractères)', 3, 0, 280],
   ['bsky', () => 'Texte Bluesky', 3, 0, 300],
-  ['comment', () => 'Premier commentaire (Facebook, Threads, Bluesky ; X : à coller en réponse)', 2],
+  ['comment', () => 'Premier commentaire (Instagram, Facebook, Threads, Bluesky ; X : à coller en réponse)', 2],
 ];
 
 // Retour à la liste : bouton, geste « retour » de Safari (historique) et, sur l'appli installée,
@@ -261,7 +261,7 @@ async function download(canvases) {
 // Réseaux cochés, texte et premier commentaire de chacun
 const checkedNets = () => $$('[data-net]:checked').map((i) => i.dataset.net);
 const textOf = (n) => $(`#cap-${n === 'threads' ? 'threads' : n === 'bluesky' ? 'bsky' : n === 'facebook' && $('#cap-facebook') ? 'facebook' : 'instagram'}`).value;
-const commentOf = (n) => (n !== 'instagram' && $('#cap-comment')?.value.trim()) || '';
+const commentOf = () => $('#cap-comment')?.value.trim() || '';
 // JPEG de moins de max octets (qualité baissée au besoin)
 async function fitJpeg(cv, max) {
   let b = null;

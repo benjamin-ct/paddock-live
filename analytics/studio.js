@@ -8,7 +8,7 @@
 // (envoyés par l'appli) sont chiffrés avec cette clé (AES-GCM) : sans elle, la base ne contient
 // rien d'utilisable. Essais ratés limités par adresse et par jour.
 import { DEFAULT_SOURCES, feedUrl } from '../shared/news-sources.js';
-import { publishFacebook, publishInstagram, publishThreads, freshThreads, commentFacebook, replyThreads, withComment, storyInstagram, storyFacebook, reelInstagram, hostVideo, publishFacebookVideo, publishThreadsVideo } from '../shared/meta-publish.js';
+import { publishFacebook, publishInstagram, publishThreads, freshThreads, commentFacebook, commentInstagram, replyThreads, withComment, storyInstagram, storyFacebook, reelInstagram, hostVideo, publishFacebookVideo, publishThreadsVideo } from '../shared/meta-publish.js';
 import { publishBluesky, replyBluesky } from '../shared/bluesky-publish.js';
 import { freshTiktok, freshYoutube, tiktokDraft, tiktokStatus, tiktokOutcome, youtubeUpload, tiktokCreator, tiktokDirect, TIKTOK_PRIVACY } from '../shared/video-publish.js';
 import { addEntry, removeEntry, cleanKey } from '../shared/post-history.js';
@@ -296,7 +296,8 @@ async function image(req, url) {
 // Envoi sur un réseau (publication directe ou programmée). threads() : compte Threads à jour.
 // video : vidéo du créateur (Reel sur Instagram, vidéo sur Facebook et Threads ; Bluesky garde les visuels)
 async function sendTo(net, vault, { text, comment, images, small = [], video = null }, threads) {
-  if (video && net === 'instagram') return reelInstagram(vault.meta, (await hostVideo(vault.meta, video)).url, text.slice(0, 2200));
+  const igComment = (id, t) => commentInstagram(vault.meta, id, t);
+  if (video && net === 'instagram') return withComment(async () => reelInstagram(vault.meta, (await hostVideo(vault.meta, video)).url, text.slice(0, 2200)), comment, igComment);
   if (video && net === 'facebook') return withComment(() => publishFacebookVideo(vault.meta, text, video), comment, (id, t) => commentFacebook(vault.meta, id, t));
   if (video && net === 'threads') {
     const th = await threads();
@@ -307,7 +308,7 @@ async function sendTo(net, vault, { text, comment, images, small = [], video = n
     return withComment(() => publishBluesky(vault.bluesky, [...text].slice(0, 300).join(''), pics), comment, (id, t) => replyBluesky(vault.bluesky, id, t));
   }
   if (net === 'facebook') return withComment(() => publishFacebook(vault.meta, text, images), comment, (id, t) => commentFacebook(vault.meta, id, t));
-  if (net === 'instagram') return publishInstagram(vault.meta, text.slice(0, 2200), images);
+  if (net === 'instagram') return withComment(() => publishInstagram(vault.meta, text.slice(0, 2200), images), comment, igComment);
   if (net === 'instagram-story') return storyInstagram(vault.meta, images);
   if (net === 'facebook-story') return storyFacebook(vault.meta, images);
   const th = await threads();
@@ -554,7 +555,7 @@ export async function runSchedule(env, { now = Date.now() } = {}) {
         const st = j.nets[p.network];
         try {
           if (!keys) throw new Error('Jetons effacés');
-          const tr = await trackPost(env, p.network, { text: p.text, comment: p.network === 'instagram' ? '' : p.comment }, j.record?.title);
+          const tr = await trackPost(env, p.network, { text: p.text, comment: p.comment }, j.record?.title);
           const video = j.video && p.network !== 'bluesky' ? await media() : null;
           const r = CLIPS.includes(p.network)
             ? await sendClip(p.network, () => (p.network === 'youtube' ? freshYoutube : freshTiktok)(keys[p.network]), new Uint8Array(await video.arrayBuffer()), j.video, tr.text, j.tiktok)

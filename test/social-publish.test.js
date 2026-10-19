@@ -61,6 +61,7 @@ function fakeMeta({ errorOn = null } = {}) {
     }
     if (method === 'POST' && /(media_publish|threads_publish)$/.test(u.pathname)) return json({ id: 'pub1' });
     if (method === 'POST' && u.pathname.endsWith('/feed')) return json({ id: 'page_post' });
+    if (method === 'POST' && u.pathname.endsWith('/comments')) return json({ id: 'c1' });
     if (method === 'POST' && u.pathname.endsWith('/photo_stories')) return json({ success: true, post_id: `st${++n}` });
     if (u.searchParams.get('fields') === 'permalink') return json({ permalink: 'https://example.test/p/1' });
     return { ok: false, status: 404, text: async () => '{}' };
@@ -89,8 +90,11 @@ test('Threads et Instagram : chaque image du carrousel est prête avant le carro
 
     // Instagram juste après : mêmes images, rien de redéposé sur la page
     log.length = 0;
-    const ig = await publish('instagram', { text: 'Légende', images });
+    const ig = await publish('instagram', { text: 'Légende', images, comment: 'Article : https://exemple.test/a' });
     assert.equal(ig.url, 'https://example.test/p/1');
+    // Lien de l'article en premier commentaire, sous le post publié
+    assert.equal(ig.comment, true);
+    assert.match(log.find((l) => l.path.endsWith('/pub1/comments')).form.message, /^Article : /);
     assert.equal(log.filter((l) => l.path.endsWith('/photos')).length, 0);
     assert.equal(log.find((l) => l.form.media_type === 'CAROUSEL').form.caption, 'Légende');
     assert.ok(log.some((l) => l.path.endsWith('/media_publish')));
