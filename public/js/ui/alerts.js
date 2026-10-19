@@ -171,13 +171,12 @@ const OPTS = [
 
 export function renderAlertOptions() {
   const el = $('#alertOpts');
-  el.innerHTML = OPTS.filter(([k]) => k !== 'vibrate' || ('vibrate' in navigator && matchMedia('(pointer: coarse)').matches)).map(([k, label]) => `<label class="toggle small"><input type="checkbox" data-alert="${k}" ${prefs.alerts[k] ? 'checked' : ''}> ${esc(label)}</label>`).join('') +
-    '<button class="btn small" id="alertTest">Tester</button>';
+  el.innerHTML = OPTS.filter(([k]) => k !== 'vibrate' || ('vibrate' in navigator && matchMedia('(pointer: coarse)').matches)).map(([k, label]) => `<label class="toggle small"><input type="checkbox" data-alert="${k}" ${prefs.alerts[k] ? 'checked' : ''}> ${esc(label)}</label>`).join('');
   el.onchange = (e) => {
     const k = e.target.dataset.alert;
     if (!k) return;
     setPref('alerts', { ...prefs.alerts, [k]: e.target.checked });
     if (k === 'notify' && e.target.checked && 'Notification' in window) Notification.requestPermission();
   };
-  el.onclick = (e) => { if (e.target.id === 'alertTest') notify('Voiture de sécurité', 'Exemple d\'alerte', 'sc'); };
+  $('#alertTest').onclick = () => notify('Voiture de sécurité', 'Exemple d\'alerte', 'sc');
 }

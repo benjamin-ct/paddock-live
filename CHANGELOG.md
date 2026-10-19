@@ -2,7 +2,22 @@
 
 Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle version publiée doit avoir
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
-l'application (Réglages → Application → Nouveautés).
+l'application (Réglages → À propos → Nouveautés).
+
+## v1.27.53 — à venir
+
+### Réglages
+- Réglages redessinés, plus lisibles : chaque rubrique est rangée en cartes, chaque réglage a son nom (et une
+  courte explication) à gauche et sa commande à droite.
+- Panneaux visibles, colonnes du classement et alertes présentés en tuiles ; bouton « Tester » des alertes en haut
+  de la carte ; favoris en pastilles plus grandes.
+- Disposition : fenêtres, onglets et réinitialisation regroupés dans une carte « Fenêtres ».
+- Nouveautés : toutes les versions sont repliées et seules les 6 dernières sont listées, les autres avec
+  « Versions précédentes ».
+- Raccourcis clavier présentés en liste.
+
+### F1 TV
+- Extension Paddock Live Companion pour Firefox : paquet sans avertissement (Firefox 140 ou plus récent).
 
 ## v1.27.52 — 2026-10-19
 

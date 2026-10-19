@@ -2819,7 +2819,7 @@ html.float-mini .float-bar { top: auto; bottom: 4px; right: 24px; }   /* en bas 
    texte à gauche, commande à droite, lignes séparées */
 #settingsModal .set-block .row:has(> .toggle:only-child), #settingsModal .set-block .row:has(> label.small:only-child > select) {
   margin: 0; padding: 11px 0; border-top: 1px solid var(--border); }
-#settingsModal .set-block h4 + .row:has(> .toggle:only-child), #settingsModal .set-block h4 + .row:has(> label.small:only-child > select) { border-top: 0; padding-top: 2px; }
+#settingsModal .set-block :is(h4, .set-bhead) + .row:has(> .toggle:only-child), #settingsModal .set-block :is(h4, .set-bhead) + .row:has(> label.small:only-child > select) { border-top: 0; padding-top: 2px; }
 #settingsModal .set-block .row > .toggle:only-child { flex: 1; display: flex; flex-direction: row-reverse; justify-content: space-between; align-items: center; gap: 18px; font-size: 13.5px; }
 #settingsModal .set-block .row > label.small:only-child:has(> select) { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 18px; font-size: 13.5px; }
 #settingsModal .set-block .row > label.small:only-child > select { flex: 0 1 auto; width: auto; min-width: 0; max-width: 58%; }
@@ -2831,6 +2831,59 @@ html.float-mini .float-bar { top: auto; bottom: 4px; right: 24px; }   /* en bas 
 .set-more > summary::before { content: '›'; display: inline-block; transition: transform .15s; font-size: 16px; line-height: 1; }
 .set-more[open] > summary::before { transform: rotate(90deg); }
 .set-more[open] > summary { margin-bottom: 8px; }
+/* Rubriques en cartes : titre (et action) en tête, lignes « texte à gauche, commande à droite »,
+   options en tuiles, journal replié */
+#settingsModal .modal-body { gap: 16px; padding: 22px 28px 32px; }
+#settingsModal .set-block { padding: 18px 20px; border-radius: 16px; }
+.set-bhead { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 12px; margin-bottom: 14px; }
+#settingsModal .set-bhead h4 { margin: 0; font-size: 15px; }
+.set-bhead p { grid-column: 1 / -1; margin: 5px 0 0; color: var(--muted); font-size: 12.5px; line-height: 1.45; }
+.set-bhead p .ic { width: 13px; height: 13px; vertical-align: -2px; }
+.set-bact { grid-column: 2; grid-row: 1; display: inline-flex; align-items: center; gap: 6px; }
+.set-tag { margin-left: 2px; padding: 2px 8px; border-radius: 999px; background: var(--panel-3); color: var(--muted); font-size: 10.5px; font-weight: 700; letter-spacing: .4px; text-transform: uppercase; }
+.set-row { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 12px 0; border-top: 1px solid var(--border); }
+:is(.set-bhead, .set-status) + .set-row { border-top: 0; padding-top: 2px; }
+.set-txt { display: flex; flex-direction: column; gap: 3px; min-width: 0; font-size: 13.5px; }
+.set-txt b { font-weight: 500; }
+.set-txt small { color: var(--muted); font-size: 12px; line-height: 1.4; }
+.set-txt small:empty { display: none; }
+.set-ctl { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; flex: none; max-width: 62%; }
+.set-ctl select { width: auto; max-width: 100%; }
+:is(.set-ctl, .set-bhead) .btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 9px; font-size: 12.5px; }
+:is(.set-ctl, .set-bhead) .btn .ic { width: 14px; height: 14px; }
+.set-ctl a.btn:not(.btn-accent) { color: var(--text); }
+#settingsModal .lan-wrap .btn { align-self: flex-start; width: auto; }
+.btn-danger { color: var(--red); border-color: color-mix(in srgb, var(--red) 40%, var(--border)); }
+.btn-danger:hover { background: color-mix(in srgb, var(--red) 12%, transparent); }
+.set-foot { margin: 14px 0 0; color: var(--muted); font-size: 11.5px; line-height: 1.5; }
+.set-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px; }
+#settingsModal .set-tiles > .toggle { display: flex; flex-direction: row-reverse; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 12px;
+  border: 1px solid var(--border); border-radius: 11px; background: var(--panel); font-size: 13px; line-height: 1.35; transition: border-color .15s, background-color .15s; }
+#settingsModal .set-tiles > .toggle:hover { border-color: var(--line-2); }
+#settingsModal .set-tiles input { flex: none; }
+.set-tiles .col-sep { grid-column: 1 / -1; margin: 10px 0 0; color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; }
+#settingsModal .fav-list { gap: 8px; }
+#settingsModal .fav { padding: 6px 13px; font-size: 12.5px; transition: border-color .15s, background-color .15s; }
+#settingsModal .fav:not(.on):hover { border-color: var(--text-2); }
+#changelog { gap: 0; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--panel); }
+#changelog .cl-ver { padding: 0; border: 0; border-top: 1px solid var(--border); border-radius: 0; background: none; }
+#changelog .cl-ver:first-child { border-top: 0; }
+#changelog .cl-ver > summary { display: flex; align-items: center; gap: 10px; padding: 9px 14px; line-height: 1.3; list-style: none; font-size: 13.5px; }
+#changelog .cl-ver > summary::-webkit-details-marker { display: none; }
+#changelog .cl-ver > summary::after { content: '›'; margin-left: auto; color: var(--muted); font-size: 18px; line-height: 1; transition: transform .15s; }
+#changelog .cl-ver[open] > summary::after { transform: rotate(90deg); }
+#changelog .cl-ver > summary:hover { background: var(--hover, var(--panel-3)); }
+#changelog .cl-ver > summary .muted { margin: 0; font-size: 12px; }
+#changelog .cl-body { padding: 2px 16px 14px; }
+#changelog .cl-more { display: block; width: 100%; padding: 11px; border: 0; border-top: 1px solid var(--border); border-radius: 0; background: none; color: var(--accent); font-weight: 600; }
+.kbd-list { display: grid; grid-template-columns: max-content minmax(0, 1fr); align-items: center; gap: 10px 16px; font-size: 13px; }
+.kbd-list > span:nth-child(odd) { display: flex; gap: 4px; }
+.kbd-list kbd { min-width: 26px; height: 24px; padding: 0 7px; font-size: 12px; }
+@media (max-width: 640px) {
+  .set-row { flex-direction: column; align-items: stretch; gap: 10px; }
+  .set-ctl { justify-content: flex-start; max-width: none; }
+  .set-tiles { grid-template-columns: minmax(0, 1fr); }
+}
 /* Téléphone et petite fenêtre : plein écran, rubriques en bande défilante en haut */
 @media (max-width: 900px) {
   #settingsModal.set-modal { width: 100vw !important; height: 100dvh; max-width: none !important; max-height: 100dvh; inset: 0; border-radius: 0; border: 0; margin: 0; }
