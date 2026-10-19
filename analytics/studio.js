@@ -14,6 +14,7 @@ import { freshTiktok, freshYoutube, tiktokDraft, tiktokStatus, tiktokOutcome, yo
 import { addEntry, removeEntry, cleanKey } from '../shared/post-history.js';
 import { postStats } from '../shared/post-stats.js';
 import { recentPosts, importEntries } from './post-import.js';
+import { trackPost, clickStats } from './clicks.js';
 import { pushApi } from './alerts.js';
 import { feedbackApi } from './feedback.js';
 import { packFeeds } from '../shared/feed-pack.js';
@@ -331,8 +332,8 @@ async function publish(req, env, raw, vault) {
   let form;
   try { form = await req.formData(); } catch { return json({ error: 'Formulaire illisible' }, 400); }
   const net = String(form.get('network') || '');
-  const text = String(form.get('text') || '');
-  const comment = String(form.get('comment') || '').trim().slice(0, 500);
+  // Liens remplacés par des liens suivis (clics comptés dans les statistiques)
+  const { text, comment } = await trackPost(env, net, { text: String(form.get('text') || ''), comment: String(form.get('comment') || '').trim().slice(0, 500) }, String(form.get('title') || ''));
   const images = form.getAll('images').filter((f) => typeof f === 'object' && f && /^image\/(png|jpeg)$/.test(f.type) && f.size < 8e6).slice(0, 20);
   const v = form.get('video');
   const video = typeof v === 'object' && v && /^video\/(mp4|quicktime)$/.test(v.type) && v.size <= VIDEO_MAX ? v : null;
@@ -530,7 +531,8 @@ export async function runSchedule(env, { now = Date.now() } = {}) {
           }
           return list;
         };
-        const r = await sendTo(p.network, keys, { text: p.text, comment: p.network === 'instagram' ? '' : p.comment, images: p.network === 'bluesky' ? [] : await imgs('ig'), small: p.network === 'bluesky' ? await imgs('x') : [] }, () => freshThreads(keys.threads));
+        const tr = await trackPost(env, p.network, { text: p.text, comment: p.network === 'instagram' ? '' : p.comment }, j.record?.title);
+        const r = await sendTo(p.network, keys, { text: tr.text, comment: tr.comment, images: p.network === 'bluesky' ? [] : await imgs('ig'), small: p.network === 'bluesky' ? await imgs('x') : [] }, () => freshThreads(keys.threads));
         Object.assign(st, { status: 'done', at: Date.now(), ...resultOf(r) });
         if (j.record) await setRow(env, 'history', JSON.stringify(addEntry(JSON.parse(await getRow(env, 'history') || '[]'), { ...j.record, at: Date.now(), nets: { [p.network]: { id: st.id, url: st.url } } })));
       } catch (err) {
@@ -650,7 +652,7 @@ export async function studioApi(req, env, url) {
       postStats(JSON.parse(await getRow(env, 'history') || '[]'), { meta: v.meta, threads: v.threads, bluesky: v.bluesky }, { limit: 8 }),
       accountStats(v, tokens),
     ]);
-    return json({ ...posts, accounts });
+    return json({ ...posts, accounts, clicks: await clickStats(env).catch(() => null) });
   }
   if (path === 'season' && req.method === 'GET') {
     const year = Number(url.searchParams.get('year'));
@@ -669,6 +671,13 @@ export async function studioApi(req, env, url) {
     let body;
     try { body = await req.json(); } catch { return json({ error: 'JSON invalide' }, 400); }
     return scheduleCancel(env, body?.id);
+  }
+  // Texte avec ses liens suivis (X : partagé depuis le téléphone ; appli : publication directe)
+  if (path === 'links' && req.method === 'POST') {
+    let body;
+    try { body = await req.json(); } catch { return json({ error: 'JSON invalide' }, 400); }
+    const out = await trackPost(env, String(body?.net || ''), { text: String(body?.text || '').slice(0, 5000), comment: String(body?.comment || '').slice(0, 1000) }, String(body?.title || ''));
+    return json(out);
   }
   if (path === 'publish' && req.method === 'POST') {
     if (!vault.meta?.pageToken && !vault.bluesky) return json({ error: 'Comptes non envoyés : activez la page depuis l\'appli' }, 409);
