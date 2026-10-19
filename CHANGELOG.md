@@ -17,6 +17,7 @@ l'application (Réglages → À propos → Nouveautés).
 - Raccourcis clavier présentés en liste.
 
 ### Navigation
+- Commentaires : la touche Échap ferme le panneau (le son continue).
 - Plus de scintillement du tableau de bord en passant d'une page à l'autre (Accueil, Direct sans séance,
   Saison, Actu…) : la nouvelle page couvre l'écran tout de suite, seul son contenu apparaît en douceur.
 

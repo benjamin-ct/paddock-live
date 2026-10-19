@@ -400,6 +400,12 @@ export function initCommentary() {
     if (!panel.hidden && prefs.commSource !== 'radio') refreshContent();
   });
   $('#commClose').addEventListener('click', () => { panel.hidden = true; });
+  // Échap : ferme le panneau (le son continue), sans fermer aussi la page ouverte derrière
+  window.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape' || panel.hidden || document.querySelector('dialog[open]')) return;
+    e.stopPropagation();
+    panel.hidden = true;
+  }, true);
   $('#commPlay').addEventListener('click', () => (playing ? stop() : start()));
   $('#commMute').addEventListener('click', () => setPref('commMuted', !prefs.commMuted));
   $('#commVol').addEventListener('input', (e) => {
