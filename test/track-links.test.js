@@ -63,6 +63,20 @@ test('liens suivis : enregistrés à la publication, clic compté puis renvoi, r
   assert.deepEqual([s.links[0].title, s.links[0].total, s.links[0].nets, s.links[0].devices, s.links[0].countries], ['Norris prolonge', 2, { bluesky: 2 }, { mobile: 1, desktop: 1 }, { FR: 2 }]);
 });
 
+test('pages de liens en bio : clic compté puis renvoi vers le réseau, lien interne ou inconnu refusé', async () => {
+  const env = { DB: fakeDB() };
+  const waits = [];
+  const ctx = { waitUntil: (p) => waits.push(p) };
+  const r = await go(req('/go/benjy/instagram'), env, ctx, 'benjy/instagram');
+  assert.equal(r.status, 302);
+  assert.equal(r.headers.get('Location'), 'https://www.instagram.com/benjypaddock/');
+  assert.equal((await go(req('/go/liens/other'), env, ctx, 'liens/other')).status, 404);
+  assert.equal((await go(req('/go/inconnue/x'), env, ctx, 'inconnue/x')).status, 404);
+  await Promise.all(waits);
+  const s = await clickStats(env);
+  assert.deepEqual([s.links[0].title, s.links[0].url, s.links[0].total], ['Benjy Paddock (page de liens) · Instagram', 'https://www.instagram.com/benjypaddock/', 1]);
+});
+
 test('liens suivis : base indisponible, textes publiés tels quels', async () => {
   const env = { DB: { batch: async () => { throw new Error('D1'); } } };
   assert.deepEqual(await trackPost(env, 'x', { text: 'https://a.test', comment: 'c' }), { text: 'https://a.test', comment: 'c' });
