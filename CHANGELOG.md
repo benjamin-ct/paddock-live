@@ -4,7 +4,7 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
-## v1.27.51 — à venir
+## v1.27.51 — 2026-10-19
 
 ### Records du circuit
 - Pole et meilleur tour des éditions précédentes (post « Le saviez-vous », comparaison des temps) lus dans les résultats officiels publics : ils marchent de nouveau, la F1 refusant désormais ses archives même avec la connexion F1 TV.
