@@ -29,7 +29,7 @@ const CODE_HASH = '821f51db5c6d39c7ae10873a31723f8d4748fc2a925c6736f4a57afa7d2da
 const MAX_FAILS = 30;
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36';
 const ARCHIVE = 'https://livetiming.formula1.com/static/';
-const IMG_HOSTS = new Set(['media.formula1.com', 'www.formula1.com', 'flagcdn.com', 'upload.wikimedia.org', 'live.staticflickr.com']);   // + photos libres (photos.js)
+const IMG_HOSTS = new Set(['media.formula1.com', 'www.formula1.com', 'flagcdn.com', 'upload.wikimedia.org', 'thumb.wikimedia.org', 'live.staticflickr.com']);   // + photos libres (photos.js)
 
 const enc = new TextEncoder();
 const hex = (buf) => [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
@@ -291,7 +291,7 @@ async function image(req, url) {
   let u;
   try { u = new URL(url.searchParams.get('u') || ''); } catch { return json({ error: 'Adresse invalide' }, 400); }
   if (u.protocol !== 'https:' || !IMG_HOSTS.has(u.hostname)) return json({ error: 'Adresse refusée' }, 400);
-  return cached(req, u.href, { headers: { 'User-Agent': u.hostname === 'upload.wikimedia.org' ? PHOTO_UA : UA } }, 86400);
+  return cached(req, u.href, { headers: { 'User-Agent': u.hostname.endsWith('.wikimedia.org') ? PHOTO_UA : UA } }, 86400);
 }
 
 // Envoi sur un réseau (publication directe ou programmée). threads() : compte Threads à jour.
@@ -706,7 +706,7 @@ export async function studioApi(req, env, url) {
   if (path === 'feeds' && req.method === 'GET') return feeds();
   if (path === 'archive' && req.method === 'GET') return archive(req, url, await refresh(env, a.raw, vault));
   if (path === 'img' && req.method === 'GET') return image(req, url);
-  if (path === 'photos' && req.method === 'GET') return json(await freePhotos(env, url.searchParams.get('q')));
+  if (path === 'photos' && req.method === 'GET') return json(await freePhotos(url.searchParams.get('q')));
   if (path === 'fia' && req.method === 'GET') return fia(req, url);
   if (path === 'page' && req.method === 'GET') return page(req, url);
   if (path === 'schedule' && req.method === 'GET') return json({ items: (await schedJobs(env)).map(schedSummary) });

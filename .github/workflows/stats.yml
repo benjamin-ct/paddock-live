@@ -8,8 +8,7 @@ name: Statistiques
 # - CLOUDFLARE_API_TOKEN : jeton Cloudflare (modèle « Edit Cloudflare Workers » + permission
 #   Compte → D1 → Modifier ; R2 activé sur le compte pour les vidéos) ;
 # - STATS_KEY : mot de passe de la page des statistiques (/stats?key=…) ;
-# - CLOUDFLARE_ACCOUNT_ID (facultatif) : seulement si le jeton donne accès à plusieurs comptes ;
-# - FLICKR_KEY (facultatif) : clé de l'API Flickr, photos libres de droits du Studio (sinon Wikimedia seul).
+# - CLOUDFLARE_ACCOUNT_ID (facultatif) : seulement si le jeton donne accès à plusieurs comptes.
 on:
   workflow_dispatch:
   push:
@@ -112,10 +111,3 @@ jobs:
         run: |
           [ -n "$CLOUDFLARE_ACCOUNT_ID" ] || unset CLOUDFLARE_ACCOUNT_ID
           printf '%s' "$STATS_KEY" | $WRANGLER secret put STATS_KEY
-      - name: Clé Flickr (facultative)
-        env:
-          FLICKR_KEY: ${{ secrets.FLICKR_KEY }}
-        run: |
-          [ -n "$FLICKR_KEY" ] || { echo "Pas de clé Flickr : photos de Wikimedia seulement"; exit 0; }
-          [ -n "$CLOUDFLARE_ACCOUNT_ID" ] || unset CLOUDFLARE_ACCOUNT_ID
-          printf '%s' "$FLICKR_KEY" | $WRANGLER secret put FLICKR_KEY

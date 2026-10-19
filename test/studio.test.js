@@ -441,7 +441,7 @@ test('page du créateur : post « lien » sans visuels (carte de l\'article affi
   await disableStudio({ fetchFn });
 });
 
-test('page du créateur : photos libres de droits (Commons, Flickr), licences « NC » et « ND » écartées', async () => {
+test('page du créateur : photos libres de droits (Commons, Flickr par Openverse), licences « NC » et « ND » écartées', async () => {
   const { freePhotos, shortLicense } = await import('../analytics/photos.js');
   assert.equal(shortLicense('Attribution-ShareAlike License'), 'CC BY-SA');
   assert.equal(shortLicense('CC BY 4.0'), 'CC BY 4.0');
@@ -456,20 +456,24 @@ test('page du créateur : photos libres de droits (Commons, Flickr), licences «
         2: { index: 2, imageinfo: [{ thumburl: 'https://upload.wikimedia.org/w/thumb/b.jpg/1600px-b.jpg', extmetadata: { LicenseShortName: { value: 'CC BY-NC 2.0' } } }] },
       } } }));
     }
-    if (u.searchParams.get('method') === 'flickr.photos.licenses.getInfo') return new Response(JSON.stringify({ licenses: { license: [{ id: 0, name: 'All Rights Reserved' }, { id: 4, name: 'Attribution License' }, { id: 3, name: 'Attribution-NonCommercial-NoDerivs License' }] } }));
-    if (u.searchParams.get('method') === 'flickr.photos.search') {
-      assert.equal(u.searchParams.get('license'), '4');
-      return new Response(JSON.stringify({ photos: { photo: [{ id: '9', owner: 'o1', ownername: 'Fan F1', license: '4', url_l: 'https://live.staticflickr.com/1/9_b.jpg', url_m: 'https://live.staticflickr.com/1/9.jpg' }, { id: '8', license: '3', url_l: 'https://live.staticflickr.com/1/8_b.jpg' }] } }));
+    if (u.hostname === 'api.openverse.org') {
+      assert.equal(u.searchParams.get('source'), 'flickr');
+      assert.equal(u.searchParams.get('license_type'), 'commercial,modification');
+      return new Response(JSON.stringify({ results: [
+        { url: 'https://live.staticflickr.com/1/9_b.jpg', thumbnail: 'https://api.openverse.org/v1/images/9/thumb/', creator: 'Fan F1', license: 'by', license_version: '2.0', foreign_landing_url: 'https://www.flickr.com/photos/o1/9' },
+        { url: 'https://live.staticflickr.com/1/8_b.jpg', creator: 'X', license: 'by-nc', license_version: '2.0' },
+        { url: 'https://ailleurs.test/7.jpg', creator: 'Y', license: 'by', license_version: '4.0' },
+      ] }));
     }
     throw new Error(`inattendu : ${url}`);
   };
-  assert.deepEqual((await freePhotos({}, ' x ', { fetchFn })).items, []);
-  const r = await freePhotos({ FLICKR_KEY: 'k' }, 'Lando Norris', { fetchFn });
-  assert.deepEqual(r.items.map((p) => [p.site, p.author, p.license]), [['Flickr', 'Fan F1', 'CC BY'], ['Wikimedia Commons', 'Jean & Co', 'CC BY-SA 4.0']]);
-  assert.equal(r.items[1].thumb, 'https://upload.wikimedia.org/w/thumb/a/ab/N.jpg/400px-N.jpg');
+  assert.deepEqual((await freePhotos(' x ', { fetchFn })).items, []);
+  const r = await freePhotos('Lando Norris', { fetchFn });
+  assert.deepEqual(r.items.map((p) => [p.site, p.author, p.license]), [['Wikimedia Commons', 'Jean & Co', 'CC BY-SA 4.0'], ['Flickr', 'Fan F1', 'CC BY 2.0']]);
+  assert.equal(r.items[0].thumb, 'https://upload.wikimedia.org/w/thumb/a/ab/N.jpg/400px-N.jpg');
   // Même recherche : réponse gardée une heure
   const n = asked.length;
-  await freePhotos({ FLICKR_KEY: 'k' }, 'Lando Norris', { fetchFn });
+  await freePhotos('Lando Norris', { fetchFn });
   assert.equal(asked.length, n);
 });
 
