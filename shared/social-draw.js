@@ -255,31 +255,18 @@ function hero(ctx, W, H, d, o, word) {
   const col = vivid(w.color);
   background(ctx, W, H, w.color);
   const f = frame(ctx, W, H, d, o, '');
-  const land = W > H;
   const img = o.photos?.[w.num];
-  if (land) {
-    photo(ctx, img, W * 0.52, f.top - 20, W * 0.44, f.bottom - f.top + 40, w.color, 0.25);
-    const x = f.pad + 28;
-    txt(ctx, word, x, f.top + 70, { size: 54, weight: 700, family: TITLE, color: C.red, spacing: 6 });
-    txt(ctx, w.first, x, f.top + 170, { size: 60, weight: 600, family: BODY, max: W * 0.45 });
-    txt(ctx, w.last.toUpperCase(), x, f.top + 320, { size: 170, weight: 800, family: TITLE, max: W * 0.46 });
-    const lw = teamLogo(ctx, o, w.team, x, f.top + 383, 54);
-    if (!lw) { ctx.fillStyle = col; ctx.fillRect(x, f.top + 360, 12, 46); }
-    txt(ctx, w.team, x + (lw ? lw + 20 : 30), f.top + 398, { size: 42, weight: 600, family: BODY, color: C.text, max: W * 0.42 });
-    stats(ctx, d, x, f.top + 450, W * 0.44, 3);
-  } else {
-    const ph = (f.bottom - f.top) * 0.58;
-    photo(ctx, img, W * 0.12, f.top + 40, W * 0.76, ph, w.color, 0.3);
-    let y = f.top + ph + 40;
-    txt(ctx, word, f.pad, f.top + 50, { size: 50, weight: 700, family: TITLE, color: C.red, spacing: 6 });
-    txt(ctx, w.first, f.pad, y + 20, { size: 54, weight: 600 });
-    txt(ctx, w.last.toUpperCase(), f.pad, y + 165, { size: 160, weight: 800, family: TITLE, max: W - f.pad * 2 });
-    y += 200;
-    const lw = teamLogo(ctx, o, w.team, f.pad, y + 22, 52);
-    if (!lw) { ctx.fillStyle = col; ctx.fillRect(f.pad, y, 12, 44); }
-    txt(ctx, w.team, f.pad + (lw ? lw + 20 : 30), y + 37, { size: 40, weight: 600, max: W - f.pad * 2 - 30 });
-    stats(ctx, d, f.pad, y + (H > 1600 ? 130 : 100), W - f.pad * 2, 3);
-  }
+  const ph = (f.bottom - f.top) * 0.58;
+  photo(ctx, img, W * 0.12, f.top + 40, W * 0.76, ph, w.color, 0.3);
+  let y = f.top + ph + 40;
+  txt(ctx, word, f.pad, f.top + 50, { size: 50, weight: 700, family: TITLE, color: C.red, spacing: 6 });
+  txt(ctx, w.first, f.pad, y + 20, { size: 54, weight: 600 });
+  txt(ctx, w.last.toUpperCase(), f.pad, y + 165, { size: 160, weight: 800, family: TITLE, max: W - f.pad * 2 });
+  y += 200;
+  const lw = teamLogo(ctx, o, w.team, f.pad, y + 22, 52);
+  if (!lw) { ctx.fillStyle = col; ctx.fillRect(f.pad, y, 12, 44); }
+  txt(ctx, w.team, f.pad + (lw ? lw + 20 : 30), y + 37, { size: 40, weight: 600, max: W - f.pad * 2 - 30 });
+  stats(ctx, d, f.pad, y + (H > 1600 ? 130 : 100), W - f.pad * 2, 3);
 }
 
 function stats(ctx, d, x, y, w, perRow) {
@@ -312,11 +299,10 @@ function podium(ctx, W, H, d, o) {
   const f = frame(ctx, W, H, d, o, d.kind === 'race' ? 'Podium' : 'Top 3');
   const top3 = d.rows.slice(0, 3);
   const order = [1, 0, 2].filter((i) => top3[i]);
-  const land = W > H;
   const colW = (W - f.pad * 2) / 3;
-  const baseY = f.bottom - (land ? 10 : 40);
-  const heights = land ? [230, 170, 130] : H > 1600 ? [800, 670, 560] : [380, 300, 240];
-  const r = Math.min(land ? 95 : H > 1600 ? 175 : 125, colW * (H > 1600 ? 0.52 : 0.42));
+  const baseY = f.bottom - 40;
+  const heights = H > 1600 ? [800, 670, 560] : [380, 300, 240];
+  const r = Math.min(H > 1600 ? 175 : 125, colW * (H > 1600 ? 0.52 : 0.42));
   order.forEach((i, k) => {
     const p = top3[i];
     const cx = f.pad + colW * k + colW / 2;
@@ -326,13 +312,13 @@ function podium(ctx, W, H, d, o) {
     g.addColorStop(0, alpha(p.color, 0.55)); g.addColorStop(1, alpha(p.color, 0.08));
     rr(ctx, cx - colW * 0.44, y0, colW * 0.88, h, 18); ctx.fillStyle = g; ctx.fill();
     txt(ctx, String(i + 1), cx, y0 + h * 0.5 + 40, { size: Math.round(h * 0.42), weight: 800, family: TITLE, color: MEDAL[i], align: 'center' });
-    teamLogo(ctx, o, p.team, cx, y0 + (land ? 34 : 50), land ? 40 : 56, 'center', colW * 0.5);
-    const tt = y0 - (land ? 150 : 172);
+    teamLogo(ctx, o, p.team, cx, y0 + 50, 56, 'center', colW * 0.5);
+    const tt = y0 - 172;
     const cy = tt - 18 - r;
     driverPhoto(ctx, o.photos?.[p.num], cx, cy, r, p.color, p.tla);
-    txt(ctx, p.first, cx, tt + 40, { size: land ? 30 : 34, weight: 600, align: 'center', max: colW - 20 });
-    txt(ctx, p.last.toUpperCase(), cx, tt + (land ? 90 : 100), { size: land ? 50 : 60, weight: 800, family: TITLE, align: 'center', max: colW - 16 });
-    txt(ctx, i === 0 ? (d.kind !== 'race' ? p.gap || p.team : p.team) : p.gap || p.team, cx, tt + (land ? 132 : 150), { size: land ? 28 : 32, weight: 600, family: i === 0 && d.kind === 'race' ? BODY : MONO, color: C.muted, align: 'center', max: colW - 16 });
+    txt(ctx, p.first, cx, tt + 40, { size: 34, weight: 600, align: 'center', max: colW - 20 });
+    txt(ctx, p.last.toUpperCase(), cx, tt + 100, { size: 60, weight: 800, family: TITLE, align: 'center', max: colW - 16 });
+    txt(ctx, i === 0 ? (d.kind !== 'race' ? p.gap || p.team : p.team) : p.gap || p.team, cx, tt + 150, { size: 32, weight: 600, family: i === 0 && d.kind === 'race' ? BODY : MONO, color: C.muted, align: 'center', max: colW - 16 });
   });
 }
 
@@ -340,10 +326,9 @@ function classement(ctx, W, H, d, o) {
   background(ctx, W, H, null);
   const f = frame(ctx, W, H, d, o, d.kind === 'quali' ? 'Grille' : 'Classement');
   const rows = d.rows.slice(0, 22);
-  const land = W > H;
   // Deux colonnes sauf en story (assez haute pour une seule) : textes lisibles sur un téléphone
   const cols = H > 1600 || rows.length <= 12 ? 1 : 2;
-  const gapC = land ? 40 : 24;
+  const gapC = 24;
   const per = Math.ceil(rows.length / cols);
   const colW = (W - f.pad * 2 - (cols - 1) * gapC) / cols;
   const rowH = Math.min(cols === 1 ? 76 : 92, (f.bottom - f.top + 20) / per);
@@ -381,14 +366,13 @@ function classement(ctx, W, H, d, o) {
 export function faits(ctx, W, H, d, o, title = 'Faits marquants') {
   background(ctx, W, H, d.facts[0]?.color || d.rows[0]?.color);
   const f = frame(ctx, W, H, d, o, title);
-  const land = W > H;
-  const cols = land ? 3 : 2;
-  const items = d.facts.slice(0, land ? 6 : 6);
+  const cols = 2;
+  const items = d.facts.slice(0, 6);
   const gap = 24;
   const cw = (W - f.pad * 2 - gap * (cols - 1)) / cols;
   const rowsN = Math.ceil(items.length / cols);
-  const textH = land || !d.summary?.paragraphs?.length ? 0 : H > 1600 ? 520 : 300;
-  const ch = Math.min(land ? 290 : H > 1600 ? (textH ? 380 : 520) : textH ? 300 : 380, (f.bottom - f.top - textH - gap * (rowsN - 1)) / Math.max(rowsN, 1));
+  const textH = !d.summary?.paragraphs?.length ? 0 : H > 1600 ? 520 : 300;
+  const ch = Math.min(H > 1600 ? (textH ? 380 : 520) : textH ? 300 : 380, (f.bottom - f.top - textH - gap * (rowsN - 1)) / Math.max(rowsN, 1));
   items.forEach((it, i) => {
     const x = f.pad + (i % cols) * (cw + gap);
     const y = f.top + Math.floor(i / cols) * (ch + gap);
@@ -397,10 +381,10 @@ export function faits(ctx, W, H, d, o, title = 'Faits marquants') {
     rr(ctx, x, y, w, ch, 18); ctx.fillStyle = C.panel; ctx.fill();
     ctx.fillStyle = it.color ? vivid(it.color) : C.red; ctx.fillRect(x, y + 24, 8, 44);
     txt(ctx, it.label.toUpperCase(), x + 30, y + 58, { size: 26, weight: 700, family: TITLE, color: C.muted, spacing: 2, max: w - 50 });
-    txt(ctx, it.value, x + 30, y + ch * 0.55 + 20, { size: land ? 52 : 58, weight: 800, family: TITLE, max: w - 50 });
+    txt(ctx, it.value, x + 30, y + ch * 0.55 + 20, { size: 58, weight: 800, family: TITLE, max: w - 50 });
     if (it.sub) wrap(ctx, it.sub, x + 30, y + ch * 0.55 + 70, w - 56, 34, 2, { size: 27, weight: 600, color: C.muted });
   });
-  if (!land && d.summary?.paragraphs?.length) {
+  if (d.summary?.paragraphs?.length) {
     const y = f.top + rowsN * (ch + gap) + 30;
     const lh = H > 1600 ? 52 : 46;
     const lines = Math.max(2, Math.floor((f.bottom - y) / lh));
@@ -411,9 +395,8 @@ export function faits(ctx, W, H, d, o, title = 'Faits marquants') {
 function championnat(ctx, W, H, d, o) {
   background(ctx, W, H, null);
   const f = frame(ctx, W, H, d, o, 'Championnat');
-  const land = W > H;
   const drv = d.champ.drivers.slice(0, 10);
-  const teams = d.champ.teams.slice(0, land ? 10 : 5);
+  const teams = d.champ.teams.slice(0, 5);
   const list = (items, x, y, w, rowH, titleText, nameOf) => {
     txt(ctx, titleText, x, y, { size: 30, weight: 700, family: TITLE, color: C.red, spacing: 3 });
     const fs = Math.round(rowH * 0.48);
@@ -429,24 +412,16 @@ function championnat(ctx, W, H, d, o) {
       txt(ctx, `${r.points ?? ''} pts`, x + w - 16, mid, { size: Math.round(fs * 0.85), weight: 700, family: MONO, align: 'right' });
     });
   };
-  if (land) {
-    const w = (W - f.pad * 2 - 50) / 2;
-    const rowH = Math.min(56, (f.bottom - f.top - 30) / 10);
-    list(drv, f.pad, f.top + 10, w, rowH, 'PILOTES', (r) => r.last.toUpperCase());
-    list(teams, f.pad + w + 50, f.top + 10, w, rowH, 'CONSTRUCTEURS', (r) => r.name.toUpperCase());
-  } else {
-    const avail = f.bottom - f.top - 120;
-    const rowH = Math.min(H > 1600 ? 74 : 58, avail / (drv.length + teams.length));
-    list(drv, f.pad, f.top + 10, W - f.pad * 2, rowH, 'PILOTES', (r) => r.last.toUpperCase());
-    list(teams, f.pad, f.top + 10 + 20 + drv.length * rowH + 70, W - f.pad * 2, rowH, 'CONSTRUCTEURS', (r) => r.name.toUpperCase());
-  }
+  const avail = f.bottom - f.top - 120;
+  const rowH = Math.min(H > 1600 ? 74 : 58, avail / (drv.length + teams.length));
+  list(drv, f.pad, f.top + 10, W - f.pad * 2, rowH, 'PILOTES', (r) => r.last.toUpperCase());
+  list(teams, f.pad, f.top + 10 + 20 + drv.length * rowH + 70, W - f.pad * 2, rowH, 'CONSTRUCTEURS', (r) => r.name.toUpperCase());
   txt(ctx, d.final ? 'Après la course' : 'Projection en cours de course', W - f.pad, f.bottom + 20, { size: 22, weight: 600, color: C.muted, align: 'right' });
 }
 
 // Couverture du carrousel : Grand Prix, séance, date, circuit et sommaire des images suivantes
 function cover(ctx, W, H, d, o, next, fmt) {
   background(ctx, W, H, C.red);
-  const land = W > H;
   const u = Math.min(W, H) / 1080;
   const pad = Math.round(W * 0.055);
   // Damier fondu en haut à droite
@@ -470,9 +445,9 @@ function cover(ctx, W, H, d, o, next, fmt) {
   txt(ctx, `SAISON ${d.year || ''}`.trim(), pad + 28, top + 62 * u, { size: Math.round(24 * u), weight: 600, family: TITLE, color: C.muted, spacing: 3 });
 
   // Bloc central : drapeau, « Résultats », séance, nom du Grand Prix
-  const colW = land ? W * 0.5 : W - pad * 2;
+  const colW = W - pad * 2;
   const tall = H / W > 1.5;   // story : bloc et sommaire groupés au milieu
-  let y = land ? H * 0.3 : tall ? H * 0.27 : H * 0.24;
+  let y = tall ? H * 0.27 : H * 0.24;
   if (o.flag) {
     const fh = Math.round(66 * u);
     const fw = Math.round(fh * o.flag.width / o.flag.height);
@@ -499,13 +474,13 @@ function cover(ctx, W, H, d, o, next, fmt) {
 
   // Sommaire des images suivantes (numéro = place dans le carrousel publié)
   const items = next.map((s, i) => [String((o.slides ? o.slides.indexOf(s) : i + 1) + 1).padStart(2, '0'), slideName(s)]);
-  const sx = land ? W * 0.62 : pad;
+  const sx = pad;
   const end = H - Math.round(Math.min(W, H) * 0.13);   // au-dessus du pied
-  let sy = land ? H * 0.3 : tall ? y + 120 * u : Math.max(y + 80 * u, end - items.length * 52 * u - 40 * u);
+  let sy = tall ? y + 120 * u : Math.max(y + 80 * u, end - items.length * 52 * u - 40 * u);
   const lh = Math.min(52 * u, (end - sy - 22 * u) / Math.max(items.length, 1));
   txt(ctx, 'AU PROGRAMME', sx, sy, { size: Math.round(26 * u), weight: 700, family: TITLE, color: C.red, spacing: 4 });
   sy += 22 * u;
-  ctx.fillStyle = C.line; ctx.fillRect(sx, sy, (land ? W - sx - pad : W * 0.5), 2);
+  ctx.fillStyle = C.line; ctx.fillRect(sx, sy, W * 0.5, 2);
   for (const [n, name] of items) {
     sy += lh;
     txt(ctx, n, sx, sy, { size: Math.round(30 * u), weight: 700, family: MONO, color: C.muted });
@@ -583,7 +558,6 @@ export function breakingTag(ctx, x, y, h, dot = 1) {
 
 export function newsSlide(ctx, W, H, d, o, fmt = 'ig') {
   background(ctx, W, H, d.color);
-  const land = W > H;
   const u = Math.min(W, H) / 1080;
   const pad = Math.round(W * 0.055);
   const top = Math.round(Math.min(W, H) * 0.06);
@@ -619,20 +593,10 @@ export function newsSlide(ctx, W, H, d, o, fmt = 'ig') {
   let areaTop = top + 110 * u;
   let centered = false;
   const custom = d.image?.width ? d.image : null;   // photo importée : à la place des portraits
-  const side = top + (d.breaking ? 80 : 40) * u;   // visuel à droite (format X), sous l'étiquette « BREAKING »
-  if (custom && land) {
-    colW = W * 0.54;
-    coverPhoto(ctx, custom, W * 0.6, side, W * 0.36, bottom - side + 20 * u);
-    centered = true;
-  } else if (custom) {
+  if (custom) {
     const ph = (bottom - areaTop) * (H > 1600 ? 0.42 : 0.38);
     coverPhoto(ctx, custom, pad, areaTop, W - pad * 2, ph);
     areaTop += ph + 30 * u;
-  } else if (land) {
-    colW = W * 0.54;
-    if (withPhoto.length === 1) photo(ctx, o.photos[withPhoto[0].num], W * 0.6, side, W * 0.36, bottom - side + 20 * u, withPhoto[0].color, 0.25);
-    else if (d.drivers.length) d.drivers.forEach((p, i) => driverPhoto(ctx, o.photos?.[p.num], W * 0.79, side + (90 + i * 230) * u + (3 - d.drivers.length) * 115 * u, 100 * u, p.color, p.tla));
-    centered = true;
   } else if (withPhoto.length === 1) {
     const ph = (bottom - areaTop) * (H > 1600 ? 0.42 : 0.38);
     photo(ctx, o.photos[withPhoto[0].num], W * 0.18, areaTop, W * 0.64, ph, withPhoto[0].color, 0.3);
@@ -644,13 +608,13 @@ export function newsSlide(ctx, W, H, d, o, fmt = 'ig') {
   } else centered = true;
 
   // Mise en page du texte : le plus grand titre qui laisse au moins 2 lignes de résumé
-  const sumSize = Math.round((land ? 30 : 34) * u);
+  const sumSize = Math.round(34 * u);
   const sumLh = Math.round(sumSize * 1.38);
   const sumAll = d.summary ? fitLines(ctx, d.summary, colW, [sumSize], 99, BODY, 400).lines : [];
-  const maxSum = H > 1600 ? 9 : land ? 5 : 6;
+  const maxSum = H > 1600 ? 9 : 6;
   const fixed = (58 + 40 + 34 + 30) * u;
   const avail = bottom - areaTop;
-  const maxTitle = land ? 4 : H > 1600 ? 6 : 5;
+  const maxTitle = H > 1600 ? 6 : 5;
   let pick = null;
   for (const size of [104, 96, 88, 80, 72, 66, 60, 54, 48].map((v) => Math.round(v * u))) {
     const t = fitLines(ctx, d.title.toUpperCase(), colW, [size], 99, TITLE, 800);
@@ -696,26 +660,20 @@ function grille(ctx, W, H, d, o) {
   background(ctx, W, H, d.rows[0]?.color);
   const f = frame(ctx, W, H, d, o, d.sprint ? 'Grille du sprint' : 'Grille de départ');
   const rows = d.rows.slice(0, 22);
-  const land = W > H;
   // Notes sous la grille : source, puis pénalités et départs des stands
   const pens = rows.filter((r) => r.penalty);
-  const noteSize = land ? 20 : 22;
-  const notes = [GRID_SOURCE[d.gridSource] || '', ...pens.slice(0, land ? 3 : 5).map((r) => `* ${r.tla} : ${r.penalty}`)].filter(Boolean);
-  if (pens.length > (land ? 3 : 5)) notes.push(`* … et ${pens.length - (land ? 3 : 5)} autre${pens.length - (land ? 3 : 5) > 1 ? 's' : ''}`);
+  const noteSize = 22;
+  const notes = [GRID_SOURCE[d.gridSource] || '', ...pens.slice(0, 5).map((r) => `* ${r.tla} : ${r.penalty}`)].filter(Boolean);
+  if (pens.length > 5) notes.push(`* … et ${pens.length - 5} autre${pens.length - 5 > 1 ? 's' : ''}`);
   const noteH = notes.length * (noteSize + 8) + 14;
-  const groups = land ? 2 : 1;
-  const per = Math.ceil(rows.length / groups);
-  const lines = Math.ceil(per / 2);
-  const gw = (W - f.pad * 2 - (groups - 1) * 50) / groups;
-  const cw = (gw - 24) / 2;
+  const lines = Math.ceil(rows.length / 2);
+  const cw = (W - f.pad * 2 - 24) / 2;
   const rowH = (f.bottom - noteH - f.top + 10) / (lines + 0.5);
-  const fs = Math.round(Math.min(rowH * 0.36, land ? 34 : 40));
+  const fs = Math.round(Math.min(rowH * 0.36, 40));
   rows.forEach((r, i) => {
-    const g = Math.floor(i / per);
-    const k = i % per;
-    const col = k % 2;
-    const x = f.pad + g * (gw + 50) + col * (cw + 24);
-    const y = f.top - 6 + Math.floor(k / 2) * rowH + (col ? rowH * 0.5 : 0);
+    const col = i % 2;
+    const x = f.pad + col * (cw + 24);
+    const y = f.top - 6 + Math.floor(i / 2) * rowH + (col ? rowH * 0.5 : 0);
     const h = rowH * 0.86;
     rr(ctx, x, y, cw, h, 10); ctx.fillStyle = C.panel; ctx.fill();
     ctx.fillStyle = vivid(r.color); ctx.fillRect(x, y, 8, h);
@@ -731,26 +689,25 @@ function grille(ctx, W, H, d, o) {
 function meteo(ctx, W, H, d, o) {
   background(ctx, W, H, '#2b5fd9');
   const f = frame(ctx, W, H, d, o, 'Météo et pneus');
-  const land = W > H;
   const w = d.weather;
   const tiles = w ? [['Air', `${w.air == null ? '—' : String(Math.round(w.air))} °C`], ['Piste', `${w.track == null ? '—' : String(Math.round(w.track))} °C`], ['Humidité', `${w.humidity == null ? '—' : String(Math.round(w.humidity))} %`], ['Vent', `${w.wind == null ? '—' : String(Math.round(w.wind * 3.6))} km/h`], ['Pluie', w.rain ? 'Oui' : 'Non']] : [];
-  const cols = land ? 5 : 2;
+  const cols = 2;
   const gap = 20;
   const tw = (W - f.pad * 2 - gap * (cols - 1)) / cols;
   // Les cases remplissent la hauteur laissée par les pneus (sinon toute la hauteur)
   const rowsT = Math.ceil(tiles.length / cols);
-  const rT = Math.min(land ? 95 : 120, (W - f.pad * 2) / 7);
-  const tyreH = d.tyres ? rT * 2 + (land ? 150 : 190) : 0;
-  const th = rowsT ? Math.max(150, Math.min(land ? 220 : H > 1600 ? 440 : 300, (f.bottom - f.top - tyreH) / rowsT - gap)) : 0;
+  const rT = Math.min(120, (W - f.pad * 2) / 7);
+  const tyreH = d.tyres ? rT * 2 + 190 : 0;
+  const th = rowsT ? Math.max(150, Math.min(H > 1600 ? 440 : 300, (f.bottom - f.top - tyreH) / rowsT - gap)) : 0;
   tiles.forEach(([k, v], i) => {
     const x = f.pad + (i % cols) * (tw + gap);
     const y = f.top + Math.floor(i / cols) * (th + gap);
     rr(ctx, x, y, tw, th, 18); ctx.fillStyle = C.panel; ctx.fill();
     txt(ctx, k.toUpperCase(), x + 30, y + 56, { size: 28, weight: 700, family: TITLE, color: C.muted, spacing: 2 });
-    txt(ctx, v, x + 30, y + th - 40, { size: Math.round(Math.min(land ? 60 : 92, th * 0.42)), weight: 800, family: TITLE, max: tw - 50, color: k === 'Pluie' && w.rain ? '#4fc3f7' : C.text });
+    txt(ctx, v, x + 30, y + th - 40, { size: Math.round(Math.min(92, th * 0.42)), weight: 800, family: TITLE, max: tw - 50, color: k === 'Pluie' && w.rain ? '#4fc3f7' : C.text });
   });
   if (!d.tyres) return;
-  const y0 = tiles.length ? f.top + rowsT * (th + gap) + (land ? 40 : 70) : f.top + 40;
+  const y0 = tiles.length ? f.top + rowsT * (th + gap) + 70 : f.top + 40;
   txt(ctx, 'PNEUS PIRELLI DU WEEK-END', f.pad, y0, { size: 30, weight: 700, family: TITLE, color: C.red, spacing: 3 });
   const tyres = [['Durs', d.tyres.hard, '#f2f2f2'], ['Médiums', d.tyres.medium, '#f5c518'], ['Tendres', d.tyres.soft, '#e10600']];
   const r = Math.min(rT, (f.bottom - y0 - 120) / 2);
@@ -768,14 +725,13 @@ function meteo(ctx, W, H, d, o) {
 function standings(ctx, W, H, d, o, title, rows) {
   background(ctx, W, H, rows[0]?.color);
   const f = frame(ctx, W, H, d, o, title);
-  const land = W > H;
   const list = rows.slice(0, 22);
   // Deux colonnes au-delà de 12 lignes, sauf en story : textes lisibles sur un téléphone
   const cols = H > 1600 || list.length <= 12 ? 1 : 2;
-  const gapC = land ? 40 : 24;
+  const gapC = 24;
   const per = Math.ceil(list.length / cols);
   const colW = (W - f.pad * 2 - (cols - 1) * gapC) / cols;
-  const rowH = Math.min(cols === 2 ? 92 : H > 1600 ? 132 : land ? 62 : 88, (f.bottom - f.top - 24) / per);
+  const rowH = Math.min(cols === 2 ? 92 : H > 1600 ? 132 : 88, (f.bottom - f.top - 24) / per);
   const fs = Math.round(Math.min(rowH * 0.5, cols === 2 ? 32 : 44));
   list.forEach((r, i) => {
     const x = f.pad + Math.floor(i / per) * (colW + gapC);
@@ -803,12 +759,11 @@ function duels(ctx, W, H, d, o) {
   background(ctx, W, H, null);
   const f = frame(ctx, W, H, d, o, 'Duels');
   const list = teammateDuels(d).slice(0, 12);
-  const land = W > H;
-  const cols = land ? 3 : 2;
+  const cols = 2;
   const gap = 18;
   const cw = (W - f.pad * 2 - gap * (cols - 1)) / cols;
   const rowsN = Math.ceil(list.length / cols);
-  const ch = Math.min(land ? 150 : H > 1600 ? 230 : 170, (f.bottom - f.top - gap * (rowsN - 1)) / rowsN);
+  const ch = Math.min(H > 1600 ? 230 : 170, (f.bottom - f.top - gap * (rowsN - 1)) / rowsN);
   list.forEach((t, i) => {
     const x = f.pad + (i % cols) * (cw + gap);
     const y = f.top + Math.floor(i / cols) * (ch + gap);
@@ -830,7 +785,6 @@ function flash(ctx, W, H, d, o) {
   const ev = d.event;
   const k = FLASH_KINDS[ev.kind] || { label: 'FLASH', color: C.red };
   background(ctx, W, H, k.color);
-  const land = W > H;
   const u = Math.min(W, H) / 1080;
   const pad = Math.round(W * 0.055);
   const top = Math.round(Math.min(W, H) * 0.06);
@@ -841,10 +795,9 @@ function flash(ctx, W, H, d, o) {
   const bottom = fy - Math.round(Math.min(W, H) * 0.07);
   const img = ev.driver ? o.photos?.[ev.driver.num] : null;
   let y = top + 140 * u;
-  const colW = land && img ? W * 0.55 : W - pad * 2;
+  const colW = W - pad * 2;
   if (img) {
-    if (land) photo(ctx, img, W * 0.6, top + 40 * u, W * 0.36, bottom - top - 20 * u, ev.driver.color, 0.25);
-    else { const ph = Math.min((bottom - y) * (H > 1600 ? 0.6 : 0.5), bottom - y - 440 * u); y += Math.max(0, (bottom - y - ph - 440 * u) / 2); photo(ctx, img, W * 0.18, y, W * 0.64, ph, ev.driver.color, 0.3); y += ph + 40 * u; }
+    const ph = Math.min((bottom - y) * (H > 1600 ? 0.6 : 0.5), bottom - y - 440 * u); y += Math.max(0, (bottom - y - ph - 440 * u) / 2); photo(ctx, img, W * 0.18, y, W * 0.64, ph, ev.driver.color, 0.3); y += ph + 40 * u;
   } else y = (top + bottom) / 2 - 190 * u;   // sans photo : bloc centré
   // Bandeau du type d'évènement
   const label = fitLines(ctx, k.label, colW, [130, 116, 104, 92, 80, 70].map((v) => Math.round(v * u)), 2, TITLE, 800);
@@ -876,7 +829,6 @@ const FOLLOW_TOPICS = [
 // Question du post (avant-dernière image des carrousels) : faire réagir en commentaire
 function question(ctx, W, H, d, o) {
   background(ctx, W, H, C.red);
-  const land = W > H;
   const u = Math.min(W, H) / 1080;
   const pad = Math.round(W * 0.055);
   const top = Math.round(Math.min(W, H) * 0.06);
@@ -891,14 +843,14 @@ function question(ctx, W, H, d, o) {
   const main = q.replace(/\s*(Dites-le|Donnez les vôtres) en commentaire\.$/, '').replace(/\s*Votre (avis|pronostic) en commentaire\.$/, '') || q;
   // Bloc centré entre l'en-tête et le pied : titre, question, pastille
   // Mesurée telle qu'affichée (majuscules, lettres espacées) : jamais coupée sur le bord
-  const r = fitLines(ctx, main.toUpperCase(), (land ? W * 0.6 : colW) - 40 * u, [64, 58, 52, 46, 40].map((v) => Math.round(v * u)), 4, TITLE, 800);
+  const r = fitLines(ctx, main.toUpperCase(), (colW) - 40 * u, [64, 58, 52, 46, 40].map((v) => Math.round(v * u)), 4, TITLE, 800);
   const bigS = Math.round(170 * u);
   const hs = Math.round(44 * u);
   const block = bigS * 0.88 + 70 * u + r.lines.length * r.size * 1.15 + 60 * u + hs * 1.8;
   let y = Math.max(top + 120 * u, (top + 64 * u + fy - 40 * u) / 2 - block / 2) - bigS * 0.12;
   // Bulle de commentaire en grand, en filigrane
-  const bs = Math.min(W, H) * (land ? 0.62 : 0.78);
-  const bx = land ? W - pad - bs : W - pad - bs * 0.92;
+  const bs = Math.min(W, H) * 0.78;
+  const bx = W - pad - bs * 0.92;
   const byy = y - bs * 0.12;
   ctx.save();
   ctx.globalAlpha = 0.08;
@@ -922,7 +874,6 @@ function question(ctx, W, H, d, o) {
 
 function follow(ctx, W, H, d, o) {
   background(ctx, W, H, C.red);
-  const land = W > H;
   const u = Math.min(W, H) / 1080;
   const pad = Math.round(W * 0.055);
   const top = Math.round(Math.min(W, H) * 0.06);
@@ -931,11 +882,11 @@ function follow(ctx, W, H, d, o) {
   txt(ctx, 'FORMULE 1', pad + 28, top + 30 * u, { size: Math.round(34 * u), weight: 800, family: TITLE, spacing: 4 });
   txt(ctx, `SAISON ${d.year || ''}`.trim(), pad + 28, top + 62 * u, { size: Math.round(24 * u), weight: 600, family: TITLE, color: C.muted, spacing: 3 });
   const handle = o.signature || '@BenjyPaddock';
-  const colW = land ? W * 0.48 : W - pad * 2;
+  const colW = W - pad * 2;
   const fy = H - Math.round(Math.min(W, H) * 0.045);
   // Bloc d'appel : grand titre, raison adaptée au post, compte dans une pastille rouge
   const tall = H / W > 1.5;
-  let y = land ? H * 0.3 : tall ? H * 0.22 : H * 0.19;
+  let y = tall ? H * 0.22 : H * 0.19;
   const big = txt(ctx, 'ABONNEZ-VOUS', pad, y + 150 * u, { size: Math.round(170 * u), weight: 800, family: TITLE, max: colW, spacing: 2 });
   y += big * 0.88 + 60 * u;
   const reason = followReason(d);
@@ -949,9 +900,9 @@ function follow(ctx, W, H, d, o) {
   txt(ctx, handle, pad + 40 * u, y + hs * 1.17, { size: hs, weight: 800, family: TITLE, color: '#fff', max: hw - 80 * u, spacing: 1 });
   y += hs * 1.7;
   // Ce que l'on trouve sur le compte
-  const tx = land ? W * 0.58 : pad;
-  const tw = land ? W - tx - pad : W - pad * 2;
-  let ty = land ? H * 0.24 : y + (tall ? 130 : 80) * u;
+  const tx = pad;
+  const tw = W - pad * 2;
+  let ty = y + (tall ? 130 : 80) * u;
   const end = fy - Math.round(Math.min(W, H) * 0.08);
   const rowH = Math.min((tall ? 150 : 118) * u, (end - ty - 50 * u) / FOLLOW_TOPICS.length);
   txt(ctx, 'AU PROGRAMME DU COMPTE', tx, ty, { size: Math.round(26 * u), weight: 700, family: TITLE, color: C.red, spacing: 4 });
@@ -977,7 +928,6 @@ function essentiel(ctx, W, H, d, o, page, fmt) {
   // Numéros suivis d'une image gardée à l'autre (images écartées : leurs points ne comptent pas)
   const first = keptPages(o, 'essentiel', pages.map((_, i) => i + 1)).filter((k) => k < page).reduce((n, k) => n + (pages[k - 1]?.length || 0), 0);
   background(ctx, W, H, d.color);
-  const land = W > H;
   const u = Math.min(W, H) / 1080;
   const pad = Math.round(W * 0.055);
   const top = Math.round(Math.min(W, H) * 0.06);
@@ -991,7 +941,7 @@ function essentiel(ctx, W, H, d, o, page, fmt) {
   const colW = W - pad * 2;
   // Rappel du titre
   let y = top + 120 * u;
-  const t = fitLines(ctx, d.title.toUpperCase(), colW, [56, 50, 44].map((v) => Math.round(v * u)), land ? 1 : 2, TITLE, 800);
+  const t = fitLines(ctx, d.title.toUpperCase(), colW, [56, 50, 44].map((v) => Math.round(v * u)), 2, TITLE, 800);
   t.lines.forEach((l, i) => txt(ctx, l, pad, y + t.size * 0.82 + i * t.size, { size: t.size, weight: 800, family: TITLE, color: C.muted }));
   y += t.lines.length * t.size + 26 * u;
   ctx.fillStyle = d.color ? vivid(d.color) : C.red;
@@ -999,7 +949,7 @@ function essentiel(ctx, W, H, d, o, page, fmt) {
   y += 50 * u;
   // Points numérotés : le plus grand corps qui tient dans la hauteur
   const numW = 92 * u;
-  const gap = (land ? 30 : 44) * u;
+  const gap = (44) * u;
   let pick = null;
   for (const size of [68, 62, 56, 52, 48, 44, 40, 36, 33, 30, 27].map((v) => Math.round(v * u))) {
     const lh = Math.round(size * 1.32);

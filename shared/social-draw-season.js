@@ -14,36 +14,20 @@ const note = (ctx, W, f, text) => txt(ctx, text, W - f.pad, f.bottom + 6, { size
 export function horaires(ctx, W, H, d, o) {
   background(ctx, W, H, C.red);
   const f = frame(ctx, W, H, d, o, 'Horaires');
-  const land = W > H;
   const days = [];
   for (const s of d.sessions) { const k = s.dayNum; let g = days.find((x) => x.k === k); if (!g) days.push(g = { k, day: s.day, list: [] }); g.list.push(s); }
-  if (land) {
-    const cw = (W - f.pad * 2 - 30 * (days.length - 1)) / Math.max(1, days.length);
-    days.forEach((g, i) => {
-      const x = f.pad + i * (cw + 30);
-      panel(ctx, x, f.top, cw, f.bottom - f.top);
-      txt(ctx, g.day.toUpperCase(), x + 28, f.top + 58, { size: 40, weight: 800, family: TITLE, spacing: 2 });
-      txt(ctx, g.k.toUpperCase(), x + 28, f.top + 94, { size: 24, weight: 600, family: TITLE, color: C.muted, spacing: 2 });
-      g.list.forEach((s, j) => {
-        const y = f.top + 170 + j * 130;
-        txt(ctx, s.time, x + 28, y, { size: 64, weight: 700, family: MONO, color: s.main ? C.text : C.muted });
-        txt(ctx, s.label.toUpperCase(), x + 28, y + 44, { size: 28, weight: 700, family: TITLE, color: s.main ? C.red : C.muted, spacing: 1, max: cw - 56 });
-      });
-    });
-  } else {
-    const rows = d.sessions.length + days.length;
-    const unit = Math.min(H > 1600 ? 190 : 120, (f.bottom - f.top - 20) / Math.max(rows, 1));
-    let y = f.top + 10;
-    for (const g of days) {
-      txt(ctx, `${g.day} ${g.k}`.toUpperCase(), f.pad, y + unit * 0.62, { size: Math.round(unit * 0.32), weight: 800, family: TITLE, color: C.red, spacing: 3 });
-      ctx.fillStyle = C.line; ctx.fillRect(f.pad, y + unit * 0.8, W - f.pad * 2, 2);
+  const rows = d.sessions.length + days.length;
+  const unit = Math.min(H > 1600 ? 190 : 120, (f.bottom - f.top - 20) / Math.max(rows, 1));
+  let y = f.top + 10;
+  for (const g of days) {
+    txt(ctx, `${g.day} ${g.k}`.toUpperCase(), f.pad, y + unit * 0.62, { size: Math.round(unit * 0.32), weight: 800, family: TITLE, color: C.red, spacing: 3 });
+    ctx.fillStyle = C.line; ctx.fillRect(f.pad, y + unit * 0.8, W - f.pad * 2, 2);
+    y += unit;
+    for (const s of g.list) {
+      if (s.main) { panel(ctx, f.pad, y + 6, W - f.pad * 2, unit - 12, 14); ctx.fillStyle = C.red; ctx.fillRect(f.pad, y + unit * 0.2, 8, unit * 0.6); }
+      txt(ctx, s.time, f.pad + 34, y + unit * 0.64, { size: Math.round(unit * 0.44), weight: 700, family: MONO, color: s.main ? C.text : C.muted });
+      txt(ctx, s.label.toUpperCase(), f.pad + 34 + unit * 1.75, y + unit * 0.62, { size: Math.round(unit * 0.36), weight: s.main ? 800 : 700, family: TITLE, color: s.main ? C.text : C.muted, spacing: 1, max: W - f.pad * 2 - unit * 2.2 });
       y += unit;
-      for (const s of g.list) {
-        if (s.main) { panel(ctx, f.pad, y + 6, W - f.pad * 2, unit - 12, 14); ctx.fillStyle = C.red; ctx.fillRect(f.pad, y + unit * 0.2, 8, unit * 0.6); }
-        txt(ctx, s.time, f.pad + 34, y + unit * 0.64, { size: Math.round(unit * 0.44), weight: 700, family: MONO, color: s.main ? C.text : C.muted });
-        txt(ctx, s.label.toUpperCase(), f.pad + 34 + unit * 1.75, y + unit * 0.62, { size: Math.round(unit * 0.36), weight: s.main ? 800 : 700, family: TITLE, color: s.main ? C.text : C.muted, spacing: 1, max: W - f.pad * 2 - unit * 2.2 });
-        y += unit;
-      }
     }
   }
   note(ctx, W, f, 'Heures de Paris');
@@ -53,16 +37,15 @@ export function horaires(ctx, W, H, d, o) {
 export function infos(ctx, W, H, d, o) {
   background(ctx, W, H, null);
   const f = frame(ctx, W, H, d, o, 'Pneus et météo');
-  const land = W > H;
   const blocks = [d.tyres && 'tyres', d.forecast?.length && 'meteo'].filter(Boolean);
   const gap = 30;
-  const bw = land ? (W - f.pad * 2 - gap * (blocks.length - 1)) / blocks.length : W - f.pad * 2;
-  const full = land ? f.bottom - f.top : (f.bottom - f.top - gap * (blocks.length - 1)) / blocks.length;
-  const bh = Math.min(full, land ? 620 : H > 1600 ? 860 : 680);
-  const y0 = f.top + (land ? (full - bh) / 2 : (f.bottom - f.top - blocks.length * bh - gap * (blocks.length - 1)) / 2);
+  const bw = W - f.pad * 2;
+  const full = (f.bottom - f.top - gap * (blocks.length - 1)) / blocks.length;
+  const bh = Math.min(full, H > 1600 ? 860 : 680);
+  const y0 = f.top + (f.bottom - f.top - blocks.length * bh - gap * (blocks.length - 1)) / 2;
   blocks.forEach((b, i) => {
-    const x = land ? f.pad + i * (bw + gap) : f.pad;
-    const y = land ? y0 : y0 + i * (bh + gap);
+    const x = f.pad;
+    const y = y0 + i * (bh + gap);
     panel(ctx, x, y, bw, bh);
     txt(ctx, b === 'tyres' ? 'PNEUS PIRELLI' : 'MÉTÉO PRÉVUE', x + 30, y + 56, { size: 30, weight: 800, family: TITLE, color: C.muted, spacing: 3 });
     if (b === 'tyres') {
@@ -125,7 +108,6 @@ const noteColor = (n) => (n >= 8 ? C.green : n >= 6.5 ? C.gold : n >= 5 ? '#f39c
 export function topflop(ctx, W, H, d, o) {
   background(ctx, W, H, d.rows[0]?.color);
   const f = frame(ctx, W, H, d, o, 'Tops et flops');
-  const land = W > H;
   const top = d.rows.slice(0, 3);
   const flop = d.rows.slice(-3).reverse();
   const card = (r, x, y, w, h, big) => {
@@ -137,36 +119,25 @@ export function topflop(ctx, W, H, d, o) {
     const sub = `${r.team} · ${r.classified ? `P${r.pos}` : 'Abandon'}${r.grid ? ` (parti P${r.grid})` : ''}`;
     txt(ctx, sub, x + 32, y + h * 0.76, { size: Math.round(h * (big ? 0.15 : 0.17)), weight: 600, color: C.muted, max: w - ns * 2.4 });
   };
-  if (land) {
-    const cw = (W - f.pad * 2 - 30) / 2;
-    const ch = (f.bottom - f.top - 70 - 40) / 3;
-    [[top, 'LES TOPS', C.green], [flop, 'LES FLOPS', C.red]].forEach(([list, t, c], k) => {
-      const x = f.pad + k * (cw + 30);
-      txt(ctx, t, x, f.top + 30, { size: 30, weight: 800, family: TITLE, color: c, spacing: 4 });
-      list.forEach((r, i) => card(r, x, f.top + 60 + i * (ch + 20), cw, ch, k === 0));
-    });
-  } else {
-    const avail = f.bottom - f.top - 130;
-    const big = avail * 0.58 / 3;
-    const small = avail * 0.42 / 3;
-    let y = f.top;
-    txt(ctx, 'LES TOPS', f.pad, y + 30, { size: 30, weight: 800, family: TITLE, color: C.green, spacing: 4 });
-    y += 50;
-    top.forEach((r) => { card(r, f.pad, y, W - f.pad * 2, big - 14, true); y += big; });
-    y += 20;
-    txt(ctx, 'LES FLOPS', f.pad, y + 30, { size: 30, weight: 800, family: TITLE, color: C.red, spacing: 4 });
-    y += 50;
-    flop.forEach((r) => { card(r, f.pad, y, W - f.pad * 2, small - 12, false); y += small; });
-  }
+  const avail = f.bottom - f.top - 130;
+  const big = avail * 0.58 / 3;
+  const small = avail * 0.42 / 3;
+  let y = f.top;
+  txt(ctx, 'LES TOPS', f.pad, y + 30, { size: 30, weight: 800, family: TITLE, color: C.green, spacing: 4 });
+  y += 50;
+  top.forEach((r) => { card(r, f.pad, y, W - f.pad * 2, big - 14, true); y += big; });
+  y += 20;
+  txt(ctx, 'LES FLOPS', f.pad, y + 30, { size: 30, weight: 800, family: TITLE, color: C.red, spacing: 4 });
+  y += 50;
+  flop.forEach((r) => { card(r, f.pad, y, W - f.pad * 2, small - 12, false); y += small; });
   note(ctx, W, f, `Note Paddock Live : résultat, ${d.withPace ? 'rythme, ' : ''}places gagnées, duel avec le coéquipier`);
 }
 
 export function notes(ctx, W, H, d, o) {
   background(ctx, W, H, null);
   const f = frame(ctx, W, H, d, o, 'Notes des pilotes');
-  const land = W > H;
   const list = d.rows.slice(0, 22);
-  const cols = land || list.length > 12 ? 2 : 1;
+  const cols = list.length > 12 ? 2 : 1;
   const per = Math.ceil(list.length / cols);
   const colW = (W - f.pad * 2 - (cols - 1) * 36) / cols;
   const rowH = Math.min(H > 1600 ? 110 : 90, (f.bottom - f.top - 10) / per);
@@ -197,7 +168,6 @@ export function equipes(ctx, W, H, d, o, page) {
   const f = frame(ctx, W, H, d, o, `Après ${d.after} course${d.after > 1 ? 's' : ''}`);
   const per = Math.ceil(d.rows.length / Math.ceil(d.rows.length / 5));
   const list = d.rows.slice((page - 1) * per, page * per);
-  const land = W > H;
   const rowH = (f.bottom - f.top) / Math.max(per, 1);
   list.forEach((r, i) => {
     const y = f.top + i * rowH;
@@ -205,16 +175,16 @@ export function equipes(ctx, W, H, d, o, page) {
     panel(ctx, f.pad, y, W - f.pad * 2, h);
     const col = vivid(r.color);
     ctx.fillStyle = col; ctx.fillRect(f.pad, y + 14, 8, h - 28);
-    const fs = Math.round(Math.min(h * 0.2, land ? 40 : H > 1600 ? 60 : 46));
+    const fs = Math.round(Math.min(h * 0.2, H > 1600 ? 60 : 46));
     const cx = W / 2;
     txt(ctx, r.team.toUpperCase(), cx, y + fs * 1.1, { size: Math.round(fs * 0.62), weight: 700, family: TITLE, color: col, align: 'center', spacing: 3, max: W * 0.5 });
     // Noms : jusqu'aux chiffres des barres, sans les chevaucher
-    const nameMax = (W - W * (land ? 0.3 : 0.34)) / 2 - f.pad - 34 - fs * 1.1;
+    const nameMax = (W - W * 0.34) / 2 - f.pad - 34 - fs * 1.1;
     txt(ctx, r.a.last.toUpperCase(), f.pad + 34, y + h * 0.5, { size: fs, weight: 800, family: TITLE, max: nameMax });
     txt(ctx, r.b.last.toUpperCase(), W - f.pad - 30, y + h * 0.5, { size: fs, weight: 800, family: TITLE, align: 'right', max: nameMax });
     // Barres qualifs et course : part de chacun
     const bar = (label, a, b, by) => {
-      const bw = W * (land ? 0.3 : 0.34);
+      const bw = W * 0.34;
       const bx = cx - bw / 2;
       const share = a + b ? a / (a + b) : 0.5;
       txt(ctx, label, cx, by - 8, { size: Math.max(16, Math.round(fs * 0.42)), weight: 700, family: TITLE, color: C.muted, align: 'center', spacing: 2 });
@@ -241,7 +211,6 @@ export function titre(ctx, W, H, d, o, team) {
   const clinch = team ? d.clinchC : d.clinchD;
   background(ctx, W, H, all[0]?.color);
   const f = frame(ctx, W, H, d, o, team ? 'Constructeurs' : 'Pilotes');
-  const land = W > H;
   const u = Math.min(W, H) / 1080;
   // Bandeau
   const bh = Math.round(130 * u);
@@ -258,11 +227,11 @@ export function titre(ctx, W, H, d, o, team) {
     txt(ctx, rest, W - f.pad - 30 * u, by + 12 * u, { size: Math.round(30 * u), weight: 700, family: TITLE, color: C.muted, align: 'right', spacing: 2 });
   }
   // Concurrents : encore en course, puis deux éliminés
-  const max = land ? 5 : H > 1600 ? 10 : 7;
+  const max = H > 1600 ? 10 : 7;
   const alive = all.filter((e) => e.alive).length;
   const list = all.slice(0, Math.min(max, Math.max(alive + 2, 3)));
   const top = f.top - 10 + bh + 24 * u;
-  const rowH = Math.min((H > 1600 ? 190 : land ? 110 : 120) * u, (f.bottom - top - 30 * u) / Math.max(list.length, 1));
+  const rowH = Math.min((H > 1600 ? 190 : 120) * u, (f.bottom - top - 30 * u) / Math.max(list.length, 1));
   const fs = Math.round(rowH * 0.32);
   const lead = Math.max(...all.map((e) => e.points));
   const scale = Math.max(...list.map((e) => e.maxPts), 1);
@@ -306,11 +275,10 @@ export const titleBlocks = (d) => [['PILOTES', d.clinchD, d.champion], ['CONSTRU
 export function titreComment(ctx, W, H, d, o) {
   background(ctx, W, H, null);
   const f = frame(ctx, W, H, d, o, 'Comment être sacré');
-  const land = W > H;
   const u = Math.min(W, H) / 1080;
   const gap = 30 * u;
   const blocks = titleBlocks(d);
-  const bw = land ? (W - f.pad * 2 - gap * (blocks.length - 1)) / blocks.length : W - f.pad * 2;
+  const bw = W - f.pad * 2;
   const pw = bw - 60 * u;
   const rowH = 62 * u;
   // Texte de chaque bloc : conditions (tableau) ou explication ; hauteur selon le contenu
@@ -321,11 +289,11 @@ export function titreComment(ctx, W, H, d, o) {
     return { title, c, fit, h };
   });
   const area = f.bottom - f.top + 10;
-  const total = land ? Math.max(...list.map((b) => b.h)) : list.reduce((a, b) => a + b.h, 0) + gap * (list.length - 1);
+  const total = list.reduce((a, b) => a + b.h, 0) + gap * (list.length - 1);
   let y0 = f.top - 10 + Math.max(0, (area - total) / 2);
   list.forEach(({ title, c, fit, h }, i) => {
-    const x = land ? f.pad + i * (bw + gap) : f.pad;
-    const bh = land ? total : h;
+    const x = f.pad;
+    const bh = h;
     panel(ctx, x, y0, bw, bh);
     const px = x + 30 * u;
     let y = y0 + 52 * u;
@@ -354,7 +322,7 @@ export function titreComment(ctx, W, H, d, o) {
       });
       txt(ctx, 'À égalité de points, le titre va au plus grand nombre de victoires.', px, y0 + bh - 26 * u, { size: Math.round(20 * u), weight: 600, color: C.muted, max: pw });
     }
-    if (!land) y0 += h + gap;
+    y0 += h + gap;
   });
 }
 
@@ -411,22 +379,21 @@ export function positions(ctx, W, H, d, o) {
 // ---------- Récap de la semaine ----------
 export function recapCover(ctx, W, H, d, o) {
   background(ctx, W, H, C.red);
-  const land = W > H;
   const u = Math.min(W, H) / 1080;
   const pad = Math.round(W * 0.055);
   const top = Math.round(Math.min(W, H) * 0.06);
   ctx.fillStyle = C.red; ctx.fillRect(pad, top, 10, Math.round(64 * u));
   txt(ctx, 'ACTU F1', pad + 28, top + 30 * u, { size: Math.round(34 * u), weight: 800, family: TITLE, spacing: 4 });
   txt(ctx, `DU ${d.date}`.toUpperCase(), pad + 28, top + 62 * u, { size: Math.round(24 * u), weight: 600, family: TITLE, color: C.muted, spacing: 2 });
-  const colW = land ? W * 0.42 : W - pad * 2;
-  let y = land ? H * 0.32 : H * (H / W > 1.5 ? 0.18 : 0.17);
+  const colW = W - pad * 2;
+  let y = H * (H / W > 1.5 ? 0.18 : 0.17);
   const big = txt(ctx, 'LA SEMAINE', pad, y + 140 * u, { size: Math.round(170 * u), weight: 800, family: TITLE, max: colW });
   txt(ctx, 'EN F1', pad, y + 140 * u + big * 0.95, { size: big, weight: 800, family: TITLE, color: C.red });
   y += 140 * u + big * 0.95 + 70 * u;
   // Sommaire : les infos de la semaine
-  const lx = land ? W * 0.5 : pad;
-  const lw = land ? W - lx - pad : W - pad * 2;
-  let ly = land ? H * 0.24 : y;
+  const lx = pad;
+  const lw = W - pad * 2;
+  let ly = y;
   const end = H - Math.round(Math.min(W, H) * 0.12);
   // Infos gardées dans le carrousel (images écartées : retirées du sommaire)
   const kept = o.slides ? o.slides.filter((s) => /^recap-\d+$/.test(s)).map((s) => d.items[Number(s.slice(6)) - 1]).filter(Boolean) : d.items;
@@ -797,7 +764,6 @@ function drawTrack(ctx, shape, box, color, u) {
   ctx.restore();
 }
 export function raceweek(ctx, W, H, d, o) {
-  const land = W > H;
   const u = Math.min(W, H) / 1080;
   const [c1, c2] = d.palette;
   const v = d.variant || 0;
@@ -821,12 +787,12 @@ export function raceweek(ctx, W, H, d, o) {
   // Nom de la ville en filigrane
   if (d.city) {
     ctx.save();
-    ctx.translate(W / 2, H * (land ? 0.62 : 0.56));
+    ctx.translate(W / 2, H * 0.56);
     ctx.rotate(-0.14);
     const word = d.city.toUpperCase();
     let fs = 400 * u;
     ctx.font = `800 ${fs}px ${TITLE}`;
-    const wmax = (land ? W : H) * 1.15;
+    const wmax = H * 1.15;
     if (ctx.measureText(word).width > wmax) { fs *= wmax / ctx.measureText(word).width; ctx.font = `800 ${fs}px ${TITLE}`; }
     ctx.strokeStyle = 'rgba(255,255,255,0.06)'; ctx.lineWidth = 3 * u; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.strokeText(word, 0, 0);
@@ -845,36 +811,33 @@ export function raceweek(ctx, W, H, d, o) {
   const fy = H - Math.round(Math.min(W, H) * 0.045);
   const story = H / W > 1.5;
   // Bloc de texte : hauteur calculée d'abord, le tracé prend la place qui reste
-  const right = !land && v === 2;
-  const textLeft = land && v === 1 ? W * 0.52 : pad;
-  const tx = right ? W - pad : textLeft;
+  const right = v === 2;
+  const tx = right ? W - pad : pad;
   const align = right ? 'right' : 'left';
-  const colW = land ? W * 0.42 : W - pad * 2;
+  const colW = W - pad * 2;
   const facts = [[d.laps, 'TOURS'], [d.km != null ? String(d.km).replace('.', ',') : null, 'KM'], [d.corners, 'VIRAGES']].filter(([x]) => x != null);
-  let big = Math.round((land ? 150 : story ? 210 : 170) * u);
-  const titleSizes = [64, 56, 50, 44].map((x) => Math.round(x * (land ? 0.85 : 1) * u));
+  let big = Math.round((story ? 210 : 170) * u);
+  const titleSizes = [64, 56, 50, 44].map((x) => Math.round(x * u));
   const measure = (bg, withPrev) => {
     const t = fitLines(ctx, d.gp.toUpperCase(), colW, titleSizes, 2, TITLE, 800);
     const h = 30 * u + bg * 1.76 + 46 * u + t.lines.length * t.size * 1.02 + 20 * u + 60 * u + (facts.length ? 106 * u : 0) + (d.race ? 80 * u : 0) + (withPrev && d.prev ? 36 * u : 0);
     return { t, h };
   };
-  const top0 = land ? H * 0.1 : H * 0.075;
+  const top0 = H * 0.075;
   const bottom0 = fy - 56 * u;
-  const minTrack = land ? 0 : (story ? 0.3 : 0.24) * H;
+  const minTrack = (story ? 0.3 : 0.24) * H;
   let withPrev = true;
   let m = measure(big, withPrev);
   while (m.h > bottom0 - top0 - minTrack && big > 110 * u) { big -= 10 * u; m = measure(big, withPrev); }
   if (m.h > bottom0 - top0 - minTrack) { withPrev = false; m = measure(big, false); }
-  // Position du texte (en haut pour la variante 1, en bas sinon ; à gauche ou à droite en paysage)
-  const textTop = land ? top0 + Math.max(0, (bottom0 - top0 - m.h) / 2) : v === 1 ? top0 : bottom0 - m.h;
+  // Position du texte : en haut pour la variante 1, en bas sinon
+  const textTop = v === 1 ? top0 : bottom0 - m.h;
   // Tracé du circuit dans l'espace libre
   if (d.shape) {
     const gap = 30 * u;
-    const box = land
-      ? { x: v === 1 ? pad : W * 0.52, y: H * 0.12, w: W * 0.42, h: H * 0.7 }
-      : v === 1 ? { x: pad, y: textTop + m.h + gap, w: W - pad * 2, h: bottom0 - (textTop + m.h + gap) }
-        : { x: v === 2 ? pad : W * 0.3, y: Math.max(top0 + 40 * u, H * 0.15), w: W * 0.64, h: textTop - gap - Math.max(top0 + 40 * u, H * 0.15) };
-    if (box.h > 80 * u) drawTrack(ctx, d.shape, box, c1, u * (land ? 0.8 : 1));
+    const box = v === 1 ? { x: pad, y: textTop + m.h + gap, w: W - pad * 2, h: bottom0 - (textTop + m.h + gap) }
+      : { x: v === 2 ? pad : W * 0.3, y: Math.max(top0 + 40 * u, H * 0.15), w: W * 0.64, h: textTop - gap - Math.max(top0 + 40 * u, H * 0.15) };
+    if (box.h > 80 * u) drawTrack(ctx, d.shape, box, c1, u);
   }
   let y = textTop;
   txt(ctx, `MANCHE ${d.round}${d.rounds ? ` / ${d.rounds}` : ''}`, tx, y + 26 * u, { size: Math.round(30 * u), weight: 800, family: TITLE, color: /^#F5F5F5$/i.test(c1) ? c2 : c1, align, spacing: 6 * u });
