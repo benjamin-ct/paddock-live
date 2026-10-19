@@ -267,6 +267,7 @@ test('page du créateur : publication programmée, publiée par le serveur à l\
     if (u.searchParams.get('fields') === 'images') return ok({ images: [{ width: 1080, source: 'https://cdn.test/a.jpg' }] });
     if (u.pathname.endsWith('/feed')) return ok({ id: 'p1_43' });
     if (u.pathname.endsWith('/comments')) return ok({ id: 'c1' });
+    if (u.pathname.endsWith('/photo_stories')) return ok({ success: true });
     if (u.pathname.endsWith('createSession')) return ok({ accessJwt: 'jwt', did: 'did:plc:moi' });
     if (u.pathname.endsWith('uploadBlob')) return ok({ blob: { ref: 'b' } });
     if (u.pathname.endsWith('createRecord')) return ok({ uri: 'at://did:plc:moi/app.bsky.feed.post/3k', cid: 'c' });
@@ -291,6 +292,15 @@ test('page du créateur : publication programmée, publiée par le serveur à l\
     assert.deepEqual(Object.keys(hist.items[0].nets).sort(), ['bluesky', 'facebook']);
     assert.equal([...env.DB.studio.keys()].filter((k) => k.startsWith('schedimg:')).length, 0);
     assert.equal(JSON.parse(env.DB.studio.get(`sched:${item.id}`)).keys, null);
+    // Stories : sans texte, jamais mêlées aux posts du fil, absentes de l'historique
+    assert.equal((await add({ posts: [{ network: 'facebook-story' }, { network: 'facebook', text: 'x' }] })).status, 400);
+    const story = (await (await add({ posts: [{ network: 'facebook-story' }] })).json()).item;
+    calls.length = 0;
+    assert.deepEqual(await runSchedule(env, { now: at + 120e3 }), { published: 'facebook-story', id: story.id });
+    assert.equal(calls.filter((c) => c.endsWith('/photo_stories')).length, 2);
+    const sl = await (await worker('https://s.test/studio/api/schedule', { headers: key })).json();
+    assert.equal(sl.items.find((x) => x.id === story.id).nets['facebook-story'].status, 'done');
+    assert.equal((await (await worker('https://s.test/studio/api/history', { headers: key })).json()).items.length, hist.items.length);
     // Une semaine plus tard : la trace disparaît
     await runSchedule(env, { now: at + 8 * 86400e3 });
     assert.equal([...env.DB.studio.keys()].filter((k) => k.startsWith('sched')).length, 0);

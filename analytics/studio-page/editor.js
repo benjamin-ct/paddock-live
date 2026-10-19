@@ -196,7 +196,7 @@ export function editor({ back, title, subtitle = '', head = '', below = false, d
       };
     });
     $('#go').onclick = () => (xTab ? openX(canvases, $('#cap-x').value) : publishAll(d, o, record?.(), vid));
-    $('#plan').onclick = () => (vid || story ? toast(`${vid ? 'Post avec vidéo' : 'Stories'} : publication tout de suite seulement, pas de programmation`, 'bad') : schedulePanel(d, o, record?.()));
+    $('#plan').onclick = () => (vid ? toast('Post avec vidéo : publication tout de suite seulement, pas de programmation', 'bad') : schedulePanel(d, o, record?.()));
     $('#share').onclick = () => share(canvases, state.fmt === 'x' ? $('#cap-x').value : state.fmt === 'ig' ? $('#cap-instagram').value : '');
     // iPhone : « Partager » propose aussi « Enregistrer les images » (Photos)
     if ($('#dl')) $('#dl').onclick = () => download(canvases);
@@ -286,7 +286,7 @@ async function queuePost(d, o, nets, at, record) {
   form.append('at', String(at));
   form.append('title', record?.title || d.title || d.gp || 'Post');
   form.append('record', JSON.stringify(record));
-  form.append('posts', JSON.stringify(nets.map((n) => ({ network: n, text: textOf(n), comment: commentOf(n) }))));
+  form.append('posts', JSON.stringify(nets.map((n) => (isStory(n) ? { network: n } : { network: n, text: textOf(n), comment: commentOf(n) }))));
   imgs.ig.forEach((b, i) => form.append('ig', b, `image-${i + 1}.jpg`));
   imgs.x.forEach((b, i) => form.append('x', b, `x-${i + 1}.jpg`));
   await api('schedule', { method: 'POST', body: form });
@@ -325,7 +325,7 @@ function schedulePanel(d, o, record = null) {
   };
 }
 
-// Publication directe (stories, vidéo) : un réseau après l'autre, progression affichée, page ouverte
+// Publication directe (vidéo) : un réseau après l'autre, progression affichée, page ouverte
 // Envoi d'un post au serveur (réponse en continu : avancement, puis résultat ou erreur)
 // tiktok : réglages d'une publication directe sur TikTok (sinon brouillon)
 export async function sendPost(network, text, blobs, comment = '', video = null, tiktok = null, title = '') {
@@ -376,8 +376,8 @@ async function publishAll(d, o, record = null, video = null) {
   if (!confirm(`Publier maintenant sur : ${nets.map((n) => NET_NAMES[n] || n).join(', ')} ?\n\n${stories ? 'Les stories seront publiques pendant 24 heures' : `Les posts seront publics${[nets.includes('tiktok') && `TikTok : ${tk ? `publication directe, visible par : ${TIKTOK_PRIVACY[tk.privacy]}` : 'en brouillon'}`, nets.includes('youtube') && 'YouTube : en privé'].filter(Boolean).map((x, i, a) => `${i ? ' ; ' : ' ('}${x}${i === a.length - 1 ? ')' : ''}`).join('')}`}.`)) return;
   const go = $('#go');
   go.disabled = true;
-  // Post du fil (sans vidéo ni story) : confié au serveur, publié dans la minute même page fermée
-  if (!video && !stories) {
+  // Sans vidéo (post du fil ou stories) : confié au serveur, publié dans la minute même page fermée
+  if (!video) {
     for (const n of nets) { const st = $(`[data-st="${n}"]`); st.className = 'st'; st.textContent = 'Envoi au serveur…'; }
     try {
       await queuePost(d, o, nets, Date.now(), record);
@@ -394,7 +394,7 @@ async function publishAll(d, o, record = null, video = null) {
     return;
   }
   $('#netsbox').scrollIntoView({ behavior: 'smooth', block: 'center' });
-  const { ig: blobs, x: bsky } = await postImages(d, o, video ? nets.filter((n) => n === 'bluesky') : nets);
+  const { x: bsky } = await postImages(d, o, nets.filter((n) => n === 'bluesky'));
   let ok = 0;
   for (const n of nets) {
     const st = $(`[data-st="${n}"]`);
@@ -404,12 +404,10 @@ async function publishAll(d, o, record = null, video = null) {
     st.textContent = 'Envoi…';
     try {
       // Vidéo : seule envoyée (sauf Bluesky, qui garde les visuels)
-      const withVideo = video && n !== 'bluesky';
-      const result = await sendPost(n, stories ? '' : textOf(n), n === 'bluesky' ? bsky : withVideo ? [] : blobs, stories ? '' : commentOf(n), withVideo ? video : null, n === 'tiktok' ? tk : null, record?.title);
+      const result = await sendPost(n, textOf(n), n === 'bluesky' ? bsky : [], commentOf(n), n === 'bluesky' ? null : video, n === 'tiktok' ? tk : null, record?.title);
       ok++;
       st.className = 'st ok';
-      // Stories (24 heures) : pas dans l'historique, qui garde le post du fil
-      if (record && !stories) api('history', { method: 'POST', body: JSON.stringify({ entry: { ...record, at: Date.now(), nets: { [n]: { id: result.id ?? null, url: result.url || null } } } }) }).catch(() => {});
+      if (record) api('history', { method: 'POST', body: JSON.stringify({ entry: { ...record, at: Date.now(), nets: { [n]: { id: result.id ?? null, url: result.url || null } } } }) }).catch(() => {});
       st.innerHTML = (result.url ? `<a href="${esc(result.url)}" target="_blank" rel="noopener">Publié ${icon('check')}</a>` : `Publié ${icon('check')}`)
         + (result.comment ? ' · commentaire ajouté' : result.commentError ? ` <span class="err">· commentaire refusé : ${esc(result.commentError)}</span>` : '')
         + (result.note ? ` · ${esc(result.note)}` : '')

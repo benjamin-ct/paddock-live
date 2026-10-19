@@ -316,7 +316,7 @@ async function sendTo(net, vault, { text, comment, images, small = [], video = n
 const NETS = ['facebook', 'instagram', 'threads', 'bluesky'];
 const CLIPS = ['tiktok', 'youtube'];   // vidéo seulement : brouillon TikTok, Short YouTube
 const VIDEO_MAX = 50e6;
-const STORIES = ['instagram-story', 'facebook-story'];   // kit de lancement : publication directe seulement
+const STORIES = ['instagram-story', 'facebook-story'];   // une story par visuel, sans texte
 // Compte du réseau absent du coffre : raison, sinon null
 function missing(net, vault) {
   if (CLIPS.includes(net)) return vault[net] ? null : `Compte ${net === 'tiktok' ? 'TikTok' : 'YouTube'} non envoyé : connectez-le dans l'appli (Comptes…), puis « Renvoyer les comptes »`;
@@ -434,7 +434,7 @@ function tiktokOptions(raw) {
 
 // ---------- Publications programmées ----------
 // Le post (textes de chaque réseau, visuels) est gardé dans la base et publié à l'heure choisie par
-// le relevé du serveur (toutes les minutes, un réseau par passage), même page fermée. Les jetons
+// le relevé du serveur (toutes les minutes), même page fermée. Stories comprises (visuels au format Story). Les jetons
 // utiles sont copiés pour l'occasion, chiffrés avec une clé tirée du secret du serveur (STATS_KEY,
 // hors de la base) : la base seule ne permet toujours pas de publier. Visuels et jetons sont effacés
 // une fois la publication faite.
@@ -471,8 +471,11 @@ async function scheduleAdd(req, env, raw, vault, now = Date.now()) {
   let posts, record;
   try { posts = JSON.parse(String(form.get('posts') || '[]')); record = JSON.parse(String(form.get('record') || 'null')); } catch { return json({ error: 'JSON invalide' }, 400); }
   if (!Array.isArray(posts) || !posts.length || posts.length > NETS.length) return json({ error: 'Aucun réseau choisi' }, 400);
+  const nets = posts.map((p) => String(p?.network || ''));
+  // Stories ou posts du fil, jamais les deux : les visuels n'ont pas le même format
+  const allowed = nets.some((n) => STORIES.includes(n)) ? STORIES : NETS;
   posts = posts.map((p) => ({ network: String(p?.network || ''), text: String(p?.text || '').slice(0, 5000), comment: String(p?.comment || '').trim().slice(0, 500) }));
-  if (posts.some((p) => !NETS.includes(p.network)) || new Set(posts.map((p) => p.network)).size !== posts.length) return json({ error: 'Réseau inconnu' }, 400);
+  if (nets.some((n) => !allowed.includes(n)) || new Set(nets).size !== nets.length) return json({ error: 'Réseau inconnu' }, 400);
   for (const p of posts) if (missing(p.network, vault)) return json({ error: missing(p.network, vault) }, 409);
   const files = (k, n) => form.getAll(k).filter((f) => typeof f === 'object' && f && /^image\/(png|jpeg)$/.test(f.type)).slice(0, n);
   const sets = { ig: files('ig', 20), x: files('x', 4) };
@@ -482,7 +485,6 @@ async function scheduleAdd(req, env, raw, vault, now = Date.now()) {
   if ((await schedJobs(env)).filter((j) => Object.values(j.nets).some((s) => s.status === 'pending')).length >= SCHED.max) return json({ error: `${SCHED.max} publications programmées au plus` }, 409);
   // Jetons du moment (Threads prolongé si besoin), seulement ceux des réseaux choisis
   const v = await refresh(env, raw, vault);
-  const nets = posts.map((p) => p.network);
   const keys = { ...(nets.some((n) => n !== 'bluesky') ? { meta: v.meta } : {}), ...(nets.includes('threads') ? { threads: v.threads } : {}), ...(nets.includes('bluesky') ? { bluesky: v.bluesky } : {}) };
   const id = hex(crypto.getRandomValues(new Uint8Array(8)));
   for (const [set, list] of Object.entries(sets)) {
@@ -504,8 +506,8 @@ async function scheduleCancel(env, id) {
   return json({ items: (await schedJobs(env)).map(schedSummary) });
 }
 
-// Relevé du serveur : publie le premier réseau arrivé à l'heure. Renvoie { published } si un post est
-// parti (le relevé des alertes attend alors le passage suivant), null sinon.
+// Relevé du serveur : publie les réseaux arrivés à l'heure. Renvoie { published } (le dernier) si un
+// post est parti (le relevé des alertes attend alors le passage suivant), null sinon.
 export async function runSchedule(env, { now = Date.now() } = {}) {
   if (!env.DB || !env.STATS_KEY) return null;
   const jobs = await schedJobs(env);
@@ -537,7 +539,8 @@ export async function runSchedule(env, { now = Date.now() } = {}) {
         const tr = await trackPost(env, p.network, { text: p.text, comment: p.network === 'instagram' ? '' : p.comment }, j.record?.title);
         const r = await sendTo(p.network, keys, { text: tr.text, comment: tr.comment, images: p.network === 'bluesky' ? [] : await imgs('ig'), small: p.network === 'bluesky' ? await imgs('x') : [] }, () => freshThreads(keys.threads));
         Object.assign(st, { status: 'done', at: Date.now(), ...resultOf(r) });
-        if (j.record) await setRow(env, 'history', JSON.stringify(addEntry(JSON.parse(await getRow(env, 'history') || '[]'), { ...j.record, at: Date.now(), nets: { [p.network]: { id: st.id, url: st.url } } })));
+        // Stories (24 heures) : pas dans l'historique, qui garde le post du fil
+        if (j.record && !STORIES.includes(p.network)) await setRow(env, 'history', JSON.stringify(addEntry(JSON.parse(await getRow(env, 'history') || '[]'), { ...j.record, at: Date.now(), nets: { [p.network]: { id: st.id, url: st.url } } })));
       } catch (err) {
         Object.assign(st, { status: 'error', error: String(err?.message || err).slice(0, 300) });
       }
