@@ -4,7 +4,7 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
-## v1.27.50 — à venir
+## v1.27.50 — 2026-10-19
 
 ### Actu
 - Les livrées spéciales des écuries et les tenues spéciales des pilotes (combinaison, casque), présentées pour un Grand Prix, sont repérées dans toutes les langues, avec leurs étiquettes « Livrée » et « Tenue », et toujours gardées parmi les infos du moment.
