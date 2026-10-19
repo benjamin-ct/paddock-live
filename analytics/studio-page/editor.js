@@ -94,8 +94,8 @@ export function editor({ back, title, subtitle = '', head = '', below = false, d
       <section class="panel">
         <h3 class="section">Options</h3>
         ${toggle('photos', 'Photos des pilotes', state.photos)}
-        ${toggle('follow', 'Image « Abonnez-vous »', state.follow, 'À la fin des carrousels, et une ligne dans les textes')}
-        ${toggle('question', 'Question pour faire réagir', state.question, 'En fin de texte et en image avant la fin du carrousel')}
+        ${toggle('follow', 'Image « Abonnez-vous »', state.follow)}
+        ${toggle('question', 'Question pour faire réagir', state.question)}
       </section>
       <div id="texts"></div>
       <section class="panel" id="netsbox"></section>
@@ -149,12 +149,12 @@ export function editor({ back, title, subtitle = '', head = '', below = false, d
     $('#go').innerHTML = `${icon('send')}${xTab ? 'Ouvrir X' : 'Publier'}`;
     $('#plan').hidden = xTab;
     $('#go').disabled = false;
-    $('#netsbox').innerHTML = xTab ? '<p class="hint">X ne se publie pas d\'ici. « Ouvrir X » : choisissez X dans le menu de partage (images et texte). Sans ce menu, x.com s\'ouvre avec le texte et les images sont téléchargées.</p>' : `<h3 class="section">Publier sur</h3>${list.map(([k, v]) => {
+    $('#netsbox').hidden = xTab;
+    $('#texts').hidden = story;   // stories : pas de texte publié
+    $('#netsbox').innerHTML = xTab ? '' : `<h3 class="section">Publier sur</h3>${list.map(([k, v]) => {
       const acc = session.me?.[k.replace('-story', '')];
       return `<label class="switch net"><span><b>${v}</b><small>${esc(acc || 'non connecté')}</small><em class="st" data-st="${k}"></em></span><input type="checkbox" role="switch" data-net="${k}" ${acc ? (k === 'tiktok' || k === 'youtube' ? '' : 'checked') : 'disabled'}></label>`;
-    }).join('')}${vid ? '<div id="tkbox" class="tkbox" hidden></div>' : ''}<p class="hint">${vid ? 'Vidéo sur Instagram, Facebook, Threads, TikTok et YouTube (privé) ; visuels sur Bluesky.'
-      : story ? 'Une story par image, visible 24 heures.'
-        : 'X : onglet X.'}</p>`;
+    }).join('')}${vid ? '<div id="tkbox" class="tkbox" hidden></div>' : ''}${vid || story ? `<p class="hint">${vid ? 'Vidéo sur Instagram, Facebook, Threads, TikTok et YouTube (privé) ; visuels sur Bluesky.' : 'Une story par image, visible 24 heures.'}</p>` : ''}`;
     // TikTok coché : réglages (brouillon ou publication directe) ; publication bloquée tant qu'ils manquent
     const tk = $('[data-net="tiktok"]');
     if (vid && tk) {
