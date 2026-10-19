@@ -13,6 +13,7 @@ test('statistiques des comptes : chaque réseau des deux comptes, mesures refus�
     const u = new URL(String(url));
     const q = u.searchParams;
     if (u.hostname === 'graph.facebook.com') {
+      if (q.get('access_token') === 'expire') return j({ error: { message: 'Error validating access token: Session has expired on Sunday', code: 190 } }, 400);
       if (u.pathname.endsWith('/ig1/insights')) return q.get('metric') === 'profile_views' ? j({ error: { message: 'refusé' } }, 400) : j({ data: [{ name: q.get('metric'), total_value: { value: 100 } }] });
       if (u.pathname.endsWith('/ig1') && q.get('fields').startsWith('business_discovery')) {
         assert.match(q.get('fields'), /username\(paddockliveapp\)/);
@@ -71,5 +72,10 @@ test('statistiques des comptes : chaque réseau des deux comptes, mesures refus�
     assert.match(benjy.nets.tiktok.error, /cochez « Statistiques »/);
     assert.equal(benjy.nets.x.url, 'https://x.com/benjypaddock');
     assert.deepEqual(Object.keys(benjy.nets), ['instagram', 'facebook', 'threads', 'youtube', 'bluesky', 'tiktok', 'x']);
+    // Connexion refusée ou jeton non renouvelé : la vraie raison, pas « non relié »
+    [benjy] = await accountStats({ meta: { pageId: 'p1', pageToken: 'expire', pages: [] } }, { tiktokError: 'invalid_grant', youtubeError: 'invalid_grant', now });
+    assert.match(benjy.nets.facebook.error, /connexion Meta expirée/);
+    assert.match(benjy.nets.tiktok.error, /connexion TikTok à renouveler.*invalid_grant/);
+    assert.match(benjy.nets.youtube.error, /connexion YouTube à renouveler/);
   } finally { globalThis.fetch = real; }
 });

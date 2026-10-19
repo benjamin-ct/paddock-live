@@ -709,7 +709,8 @@ export async function studioApi(req, env, url) {
     // Jetons YouTube et TikTok renouvelés l'un après l'autre : chaque enregistrement garde le précédent
     const tokens = {};
     for (const net of [...CLIPS, 'tiktok2']) {
-      const acc = v[net] ? await clipAccount(env, a.raw, v, net).catch(() => null) : null;
+      // Renouvellement refusé : sa raison est montrée (au lieu de « compte non relié »)
+      const acc = v[net] ? await clipAccount(env, a.raw, v, net).catch((err) => { tokens[`${net}Error`] = String(err?.message || err).slice(0, 120); return null; }) : null;
       if (acc) { v = { ...v, [net]: acc }; tokens[`${net}Token`] = acc.accessToken; }
     }
     const [posts, accounts] = await Promise.all([
