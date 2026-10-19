@@ -510,13 +510,16 @@ export async function runSchedule(env, { now = Date.now() } = {}) {
   if (!env.DB || !env.STATS_KEY) return null;
   const jobs = await schedJobs(env);
   const setState = (j, net, st) => setRow(env, `schedpost:${j.id}:${net}`, JSON.stringify(st));
+  // Plusieurs envois par passage, commencés dans les 40 premières secondes : le passage suivant (une
+  // minute plus tard) relit les états après eux et ne renvoie jamais un post déjà parti
+  const start = Date.now();
   let out = null;
   for (const j of jobs) {
     for (const p of j.posts) {
       const st = j.nets[p.network];
       // Envoi resté « en cours » (serveur interrompu) : jamais renvoyé en double
       if (st.status === 'running' && now - (st.started || 0) > SCHED.running) { st.status = 'error'; st.error = 'Envoi interrompu : vérifiez sur le réseau'; await setState(j, p.network, st); }
-      if (out || st.status !== 'pending' || j.at > now) continue;
+      if (st.status !== 'pending' || j.at > now || Date.now() - start > 40e3) continue;
       if (now - j.at > SCHED.late) { st.status = 'expired'; await setState(j, p.network, st); continue; }
       st.status = 'running';
       await setState(j, p.network, { status: 'running', started: now });

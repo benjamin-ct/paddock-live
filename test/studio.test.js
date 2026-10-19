@@ -225,7 +225,7 @@ test("page du créateur : relais des pages d'articles (résumé détaillé) en t
   assert.equal((await worker('https://s.test/studio/api/page?u=https%3A%2F%2Fwww.formula1.com%2Fa')).status, 401);
 });
 
-test('page du créateur : publication programmée, publiée par le serveur à l\'heure (un réseau par passage)', async () => {
+test('page du créateur : publication programmée, publiée par le serveur à l\'heure (tous les réseaux en un passage)', async () => {
   saveConfig({ creator: true, social: { meta: { pageId: 'p1', pageName: 'Ma page', pageToken: 'jeton-page', igId: 'ig1', igUsername: 'moi' }, bluesky: { handle: 'moi.bsky.social', appPassword: 'mdp-app', did: 'did:plc:moi' } } });
   const fetchFn = (url, init) => worker(url, init);
   await enableStudio(CODE, { fetchFn });
@@ -276,11 +276,10 @@ test('page du créateur : publication programmée, publiée par le serveur à l\
     // Pas encore l'heure : rien ne part
     assert.equal(await runSchedule(env, { now: at - 60e3 }), null);
     assert.equal(calls.length, 0);
-    // À l'heure : un réseau par passage
-    assert.deepEqual(await runSchedule(env, { now: at + 1 }), { published: 'facebook', id: item.id });
-    assert.ok(calls.some((c) => c.endsWith('/photos')));
-    assert.deepEqual(await runSchedule(env, { now: at + 60e3 }), { published: 'bluesky', id: item.id });
-    assert.equal(await runSchedule(env, { now: at + 120e3 }), null);
+    // À l'heure : tous les réseaux dans le même passage, jamais renvoyés au suivant
+    assert.deepEqual(await runSchedule(env, { now: at + 1 }), { published: 'bluesky', id: item.id });
+    assert.ok(calls.some((c) => c.endsWith('/photos')) && calls.some((c) => c.endsWith('createRecord')));
+    assert.equal(await runSchedule(env, { now: at + 60e3 }), null);
     const list = await (await worker('https://s.test/studio/api/schedule', { headers: key })).json();
     assert.equal(list.items[0].nets.facebook.status, 'done');
     assert.equal(list.items[0].nets.facebook.url, 'https://www.facebook.com/p1_43');
@@ -298,6 +297,9 @@ test('page du créateur : publication programmée, publiée par le serveur à l\
   } finally { globalThis.fetch = realFetch; }
 
   // Annulation avant l'heure ; envoi trop en retard (serveur arrêté plus d'un jour) : abandonné
+  // « Publier » : confié au serveur avec l'heure actuelle, accepté
+  const now = (await (await add({ at: Date.now() })).json()).item;
+  await worker('https://s.test/studio/api/schedule/cancel', { method: 'POST', body: JSON.stringify({ id: now.id }), headers: key });
   const j2 = (await (await add()).json()).item;
   const after = await (await worker('https://s.test/studio/api/schedule/cancel', { method: 'POST', body: JSON.stringify({ id: j2.id }), headers: key })).json();
   assert.equal(after.items.length, 0);

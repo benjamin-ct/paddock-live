@@ -279,6 +279,19 @@ async function postImages(d, o, nets, maxIg = Infinity) {
   return { ig: nets.some((n) => n !== 'bluesky') ? await draw(nets.some(isStory) ? 'story' : 'ig', maxIg) : [], x: nets.includes('bluesky') ? await draw('x', 950 * 1024, 4) : [] };
 }
 
+// Post confié au serveur (visuels et textes), publié à l'heure `at` même page fermée
+async function queuePost(d, o, nets, at, record) {
+  const imgs = await postImages(d, o, nets, 1.3e6);
+  const form = new FormData();
+  form.append('at', String(at));
+  form.append('title', record?.title || d.title || d.gp || 'Post');
+  form.append('record', JSON.stringify(record));
+  form.append('posts', JSON.stringify(nets.map((n) => ({ network: n, text: textOf(n), comment: commentOf(n) }))));
+  imgs.ig.forEach((b, i) => form.append('ig', b, `image-${i + 1}.jpg`));
+  imgs.x.forEach((b, i) => form.append('x', b, `x-${i + 1}.jpg`));
+  await api('schedule', { method: 'POST', body: form });
+}
+
 // Publication programmée : envoyée au serveur, publiée à l'heure même page fermée
 const localValue = (t) => new Date(t - t.getTimezoneOffset() * 60e3).toISOString().slice(0, 16);
 function schedulePanel(d, o, record = null) {
@@ -300,15 +313,7 @@ function schedulePanel(d, o, record = null) {
     st.className = 'hint';
     st.textContent = 'Envoi des visuels…';
     try {
-      const imgs = await postImages(d, o, nets, 1.3e6);
-      const form = new FormData();
-      form.append('at', String(at));
-      form.append('title', record?.title || d.title || d.gp || 'Post');
-      form.append('record', JSON.stringify(record));
-      form.append('posts', JSON.stringify(nets.map((n) => ({ network: n, text: textOf(n), comment: commentOf(n) }))));
-      imgs.ig.forEach((b, i) => form.append('ig', b, `image-${i + 1}.jpg`));
-      imgs.x.forEach((b, i) => form.append('x', b, `x-${i + 1}.jpg`));
-      await api('schedule', { method: 'POST', body: form });
+      await queuePost(d, o, nets, at, record);
       dlg.close();
       toast(`Programmé pour le ${new Date(at).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' })}`, 'ok');
       schedList($('#schedlist'));
@@ -320,7 +325,7 @@ function schedulePanel(d, o, record = null) {
   };
 }
 
-// Publication : visuels au format Instagram (JPEG), un réseau après l'autre, progression affichée
+// Publication directe (stories, vidéo) : un réseau après l'autre, progression affichée, page ouverte
 // Envoi d'un post au serveur (réponse en continu : avancement, puis résultat ou erreur)
 // tiktok : réglages d'une publication directe sur TikTok (sinon brouillon)
 export async function sendPost(network, text, blobs, comment = '', video = null, tiktok = null, title = '') {
@@ -371,6 +376,23 @@ async function publishAll(d, o, record = null, video = null) {
   if (!confirm(`Publier maintenant sur : ${nets.map((n) => NET_NAMES[n] || n).join(', ')} ?\n\n${stories ? 'Les stories seront publiques pendant 24 heures' : `Les posts seront publics${[nets.includes('tiktok') && `TikTok : ${tk ? `publication directe, visible par : ${TIKTOK_PRIVACY[tk.privacy]}` : 'en brouillon'}`, nets.includes('youtube') && 'YouTube : en privé'].filter(Boolean).map((x, i, a) => `${i ? ' ; ' : ' ('}${x}${i === a.length - 1 ? ')' : ''}`).join('')}`}.`)) return;
   const go = $('#go');
   go.disabled = true;
+  // Post du fil (sans vidéo ni story) : confié au serveur, publié dans la minute même page fermée
+  if (!video && !stories) {
+    for (const n of nets) { const st = $(`[data-st="${n}"]`); st.className = 'st'; st.textContent = 'Envoi au serveur…'; }
+    try {
+      await queuePost(d, o, nets, Date.now(), record);
+      for (const n of nets) $(`[data-st="${n}"]`).textContent = 'Publication dans la minute';
+      toast('Envoyé : publication dans la minute, vous pouvez quitter la page', 'ok');
+      // Avancement relu tant que la page reste ouverte (5 minutes au plus)
+      const list = $('#schedlist');
+      schedList(list);
+      let n = 0;
+      const poll = setInterval(() => { if (++n > 20 || !list.isConnected) clearInterval(poll); else schedList(list); }, 15e3);
+    } catch (err) {
+      for (const n of nets) { const st = $(`[data-st="${n}"]`); st.className = 'st err'; st.textContent = err.message; }
+    } finally { go.disabled = false; }
+    return;
+  }
   $('#netsbox').scrollIntoView({ behavior: 'smooth', block: 'center' });
   const { ig: blobs, x: bsky } = await postImages(d, o, video ? nets.filter((n) => n === 'bluesky') : nets);
   let ok = 0;
