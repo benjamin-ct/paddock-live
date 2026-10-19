@@ -18,7 +18,8 @@ import { cleanRequest, translateBatch } from './translate.js';
 import { cleanSummaryRequest, summarizeArticle } from './summarize.js';
 import { newsAlerts } from './alerts.js';
 import { transcribeRadio, cachedRadio, HASH_RE, MAX_AUDIO } from './transcribe.js';
-import { download } from './download.js';
+import { download, FILES } from './download.js';
+import { go, countClick } from './clicks.js';
 import { feedbackPost, feedbackFile } from './feedback.js';
 import { buildIcs } from '../shared/ics.js';
 import { pronosApi, GROUP_RE } from './pronos.js';
@@ -211,11 +212,17 @@ export default {
       if (env.DB && t.getUTCHours() === 3 && t.getUTCMinutes() === 0) await pruneIpQuota(env, t.toISOString().slice(0, 10)).catch(() => null);
     })());
   },
-  async fetch(req, env) {
+  async fetch(req, env, ctx) {
     const url = new URL(req.url);
     // Site de l'appli : liens de téléchargement vers la dernière version ; sur un nom de domaine
     // à soi (pas *.workers.dev), la racine affiche le site au lieu de la page des statistiques
-    if (req.method === 'GET' && url.pathname.startsWith('/download/')) return download(url.pathname);
+    if (req.method === 'GET' && url.pathname.startsWith('/download/')) {
+      const os = url.pathname.slice(10);
+      if (FILES[os] && env.DB) ctx?.waitUntil?.(countClick(req, env, 'download', os) || Promise.resolve());
+      return download(url.pathname);
+    }
+    // Lien suivi d'un post : clic compté, puis l'adresse d'origine
+    if (req.method === 'GET' && url.pathname.startsWith('/go/') && env.DB) return go(req, env, ctx, url.pathname.slice(4));
     // Page des streamers : le bloc Streaming du site
     if (req.method === 'GET' && url.pathname === '/streaming') return Response.redirect(new URL('/#streaming', url), 302);
     if (req.method === 'GET' && /^\/calendar(-en)?\.ics$/.test(url.pathname)) return calendar(env, new Date().getUTCFullYear(), url.pathname.includes('-en'));

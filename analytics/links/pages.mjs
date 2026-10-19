@@ -51,8 +51,16 @@ export const PAGES = {
   },
 };
 
+// Lien sortant d'une page : [titre, adresse], ou null (clics comptés par /go/<page>/<pictogramme>)
+export function bioTarget(page, key) {
+  const p = PAGES[page];
+  const hit = p && [...p.main, ...p.nets].find(([k, , , href]) => k === key && !href.startsWith('/'));
+  return hit ? [hit[1], hit[3]] : null;
+}
+
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const link = ([icon, title, sub, href], cls = '', mono = '') => `<a class="lk ${cls}" href="${esc(href)}"${href.startsWith('/') ? '' : ' target="_blank" rel="noopener"'}>
+// Liens sortants : par /go/<page>/<pictogramme> (clic compté, puis l'adresse d'origine)
+const link = ([icon, title, sub, href], cls = '', mono = '', page = '') => `<a class="lk ${cls}" href="${esc(href.startsWith('/') || !page ? href : `/go/${page}/${icon}`)}"${href.startsWith('/') ? '' : ' target="_blank" rel="noopener"'}>
       <span class="ic ic-${icon}">${mono ? `<span class="mono">${esc(mono)}</span>` : svg(icon)}</span><span class="tx"><b>${esc(title)}</b><small>${esc(sub)}</small></span>${svg('arrow')}</a>`;
 
 export function linksPage(id) {
@@ -120,9 +128,9 @@ footer a { color: var(--muted); }
   <div class="av">${p.avatar}</div>
   <h1>${esc(p.name)}</h1>
   <p class="bio">${esc(p.bio)}</p>
-  ${p.main.length ? `<div class="list">${p.main.map((m, i) => link(m, i ? '' : 'main')).join('')}</div>` : ''}
+  ${p.main.length ? `<div class="list">${p.main.map((m, i) => link(m, i ? '' : 'main', '', id)).join('')}</div>` : ''}
   <div class="sep">Réseaux</div>
-  <div class="list">${p.nets.map((n) => link(n)).join('')}</div>
+  <div class="list">${p.nets.map((n) => link(n, '', '', id)).join('')}</div>
   <div class="sep">${esc(p.other[0])}</div>
   <div class="list">${link(['other', p.other[1], p.other[2], p.other[3]], '', p.other[4])}</div>
   <footer><a href="https://paddocklive.app/">paddocklive.app</a> · <a href="/legal/privacy">Confidentialité</a> · © 2026 Paddock Live</footer>

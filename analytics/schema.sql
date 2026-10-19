@@ -68,3 +68,9 @@ CREATE TABLE IF NOT EXISTS feedback_new (ip TEXT NOT NULL, day TEXT NOT NULL, n 
 CREATE TABLE IF NOT EXISTS feedback_files (msg INTEGER NOT NULL, n INTEGER NOT NULL, part INTEGER NOT NULL, type TEXT NOT NULL, size INTEGER NOT NULL,
   data BLOB NOT NULL, PRIMARY KEY (msg, n, part));
 CREATE TABLE IF NOT EXISTS feedback_up (msg INTEGER PRIMARY KEY, tok TEXT NOT NULL, files INTEGER NOT NULL, at INTEGER NOT NULL);
+
+-- Liens suivis des posts (/go/<id><réseau>) : adresse d'origine, et clics par jour, lien, réseau, pays et
+-- appareil (ni cookie ni adresse IP) ; id « download » : téléchargements de l'appli par système
+CREATE TABLE IF NOT EXISTS links (id TEXT PRIMARY KEY, url TEXT NOT NULL, title TEXT NOT NULL DEFAULT '', at INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS link_clicks (day TEXT NOT NULL, id TEXT NOT NULL, net TEXT NOT NULL, country TEXT NOT NULL, device TEXT NOT NULL,
+  n INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (day, id, net, country, device));

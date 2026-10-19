@@ -555,12 +555,19 @@ async function render(dlg, keepHead = false) {
       if (b.dataset.copy !== undefined) { await copyImage(allCanvases[Number(b.dataset.copy)]); toast(t('Image copiée'), 2000, 'check'); }
       if (b.dataset.save !== undefined) { const r = await saveImages(d, [allCanvases[Number(b.dataset.save)]]); toast(t('Image enregistrée dans {}', r.dir), 4000, 'check'); }
       if (b.dataset.cap !== undefined) { await navigator.clipboard.writeText(area.value); toast(t('Texte copié'), 2000, 'check'); }
-      if (b.dataset.copycomment !== undefined) { await navigator.clipboard.writeText(caps.comment); toast(t('Commentaire copié : publiez-le en réponse à votre post'), 3500, 'check'); }
+      if (b.dataset.copycomment !== undefined) {
+        // Lien suivi (clics comptés dans les statistiques du Studio), sinon tel quel
+        const tracked = await fetch('/api/social/links', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ net: 'x', text: caps.comment }) }).then((r) => r.json()).catch(() => null);
+        await navigator.clipboard.writeText(tracked?.text || caps.comment);
+        toast(t('Commentaire copié : publiez-le en réponse à votre post'), 3500, 'check');
+      }
       // Publication sans accès payant : page officielle du réseau préremplie, première image copiée
       const net = INTENTS[b.dataset.intent];
       if (net) {
         await copyImage(canvases[0]).catch(() => {});
-        window.open(net.url + encodeURIComponent(area.value), `paddock-${b.dataset.intent}-compose`, 'width=720,height=780');
+        // Liens suivis (clics comptés dans les statistiques du Studio), sinon texte tel quel
+        const tracked = await fetch('/api/social/links', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ net: net.acc, text: area.value }) }).then((r) => r.json()).catch(() => null);
+        window.open(net.url + encodeURIComponent(tracked?.text || area.value), `paddock-${b.dataset.intent}-compose`, 'width=720,height=780');
         $('.posts-xhelp', body).hidden = false;
         toast(t('Image 1 copiée : collez-la dans {} (Ctrl+V)', net.name), 4000, 'check');
       }

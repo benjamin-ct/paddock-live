@@ -257,6 +257,21 @@ const accountsHtml = (accounts) => `<h3 class="section">Mes comptes <small>activ
         <div class="metrics">${metricsOf(x.stats, ACC_LABELS) || '<span>aucune activité</span>'}</div></div>`).join('')}
       ${off.length ? `<div class="acc-off">${off.map(([n, x]) => `<span>${netLink(n, x.url)} · ${esc(x.note || x.error || 'indisponible')}</span>`).join('')}</div>` : ''}</div>`;
   }).join('')}</div>`;
+// Clics sur les liens suivis des posts, des pages de liens en bio et téléchargements de l'appli (30 jours)
+const OS_LABELS = { windows: 'Windows', 'windows-portable': 'Windows portable', 'mac-arm': 'Mac Apple', 'mac-intel': 'Mac Intel', linux: 'Linux', 'linux-arm': 'Linux ARM' };
+const linkName = (l) => l.title || (() => { try { const u = new URL(l.url); return `${u.hostname.replace(/^www\./, '')}${u.pathname.length > 1 ? u.pathname.slice(0, 40) : ''}`; } catch { return l.url || 'Lien'; } })();
+const clicksHtml = (c) => {
+  if (!c?.links?.length) return '';
+  const row = (l) => {
+    const dl = l.id === 'download';
+    const parts = l.id.includes('/') ? [] : Object.entries(l.nets).sort((a, b) => b[1] - a[1]).map(([n, v]) => `<span class="metric"><b>${fmtN(v)}</b>${esc(dl ? OS_LABELS[n] || n : NET_NAMES[n] || n)}</span>`);
+    const dev = [['mobile', 'téléphone'], ['desktop', 'ordinateur']].filter(([k]) => l.devices[k]).map(([k, v]) => `<span class="metric"><b>${fmtN(l.devices[k])}</b>${v}</span>`);
+    const top = Object.entries(l.countries).filter(([k]) => k !== '?').sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, v]) => `${k} ${v}`).join(' · ');
+    return `<div class="card post"><div class="card-top"><b class="grow">${esc(dl ? 'Téléchargements de l\'appli' : linkName(l))}</b><span class="metrics"><span class="metric"><b>${fmtN(l.total)}</b>${dl ? 'téléch.' : `clic${l.total > 1 ? 's' : ''}`}</span></span></div>
+      <div class="metrics">${parts.join('')}${dev.join('')}${top ? `<span>${esc(top)}</span>` : ''}</div></div>`;
+  };
+  return `<h3 class="section">Clics sur les liens <small>${c.days} derniers jours</small></h3><div class="list posts">${c.links.map(row).join('')}</div>`;
+};
 const STAT_LABELS = [['views', 'Vues'], ['reach', 'Portée'], ['likes', 'J\'aime'], ['comments', 'Comm.'], ['shares', 'Partages'], ['saves', 'Enreg.']];
 async function statsTab(body, { force, restore, current }) {
   // Statistiques relues au plus toutes les 2 minutes (sauf « Actualiser »)
@@ -276,6 +291,7 @@ function renderStats(body, r, stale) {
   body.innerHTML = `${stale ? '<p class="status"><span class="dot"></span>Mise à jour…</p>' : ''}
     ${r.accounts?.length ? accountsHtml(r.accounts) : f.length ? `<div class="tiles">${f.map(([n, v]) => `<div class="tile"><b>${fmtN(v)}</b><small>abonnés ${esc(NET_NAMES[n] || n)}</small></div>`).join('')}</div>` : ''}
     <div id="schedlist"></div>
+    ${clicksHtml(r.clicks)}
     <div class="row section-row"><h3 class="section grow">Posts publiés</h3><button class="btn small" id="statsimport" title="Ajoute aux statistiques les posts des 30 derniers jours publiés hors du Studio">${icon('refresh')}Retrouver mes posts</button></div>
     ${(r.posts || []).length ? `<div class="list posts">${r.posts.map((p) => `<div class="card post"><div class="card-top"><time>${esc(new Date(p.at).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))}</time><span class="grow"></span><button class="iconbtn small" data-statsremove="${esc(p.key)}" aria-label="Retirer des statistiques" title="Retirer des statistiques">${icon('close')}</button></div><div class="t">${esc(p.title || 'Post')}</div>
       ${Object.entries(p.nets).map(([n, x]) => {

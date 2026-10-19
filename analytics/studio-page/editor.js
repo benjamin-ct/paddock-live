@@ -136,10 +136,13 @@ export function editor({ back, title, subtitle = '', head = '', below = false, d
       $(`[data-count="${k}"]`).textContent = lim ? `${n} / ${lim}` : `${n}`;
       $(`[data-count="${k}"]`).classList.toggle('err', !!lim && n > lim);
     };
+    let prep = 0;
+    const prepare = () => { if (xTab) for (const k of ['x', 'comment']) if ($(`#cap-${k}`)) prepareX($(`#cap-${k}`).value, record?.()?.title); };
     for (const k of CAPS.map(([x]) => x).filter((x) => $(`#cap-${x}`))) {
       count(k);
-      $(`#cap-${k}`).oninput = (e) => { edited[k] = e.target.value; count(k); };
+      $(`#cap-${k}`).oninput = (e) => { edited[k] = e.target.value; count(k); clearTimeout(prep); prep = setTimeout(prepare, 800); };
     }
+    prepare();
     // Avec une vidéo : Reel, vidéo Facebook et Threads, et aussi brouillon TikTok et Short YouTube (à cocher).
     // Format Story : stories Instagram et Facebook (Threads et Bluesky n'en ont pas)
     const vid = video();
@@ -197,7 +200,7 @@ export function editor({ back, title, subtitle = '', head = '', below = false, d
     $('#share').onclick = () => share(canvases, state.fmt === 'x' ? $('#cap-x').value : state.fmt === 'ig' ? $('#cap-instagram').value : '');
     // iPhone : « Partager » propose aussi « Enregistrer les images » (Photos)
     if ($('#dl')) $('#dl').onclick = () => download(canvases);
-    if ($('#copycomment')) $('#copycomment').onclick = async () => { try { await navigator.clipboard.writeText($('#cap-comment').value); toast('Commentaire copié'); } catch { /* presse-papiers refusé */ } };
+    if ($('#copycomment')) $('#copycomment').onclick = async () => { try { await navigator.clipboard.writeText(trackedX.get($('#cap-comment').value) || $('#cap-comment').value); toast('Commentaire copié'); } catch { /* presse-papiers refusé */ } };
   };
   $('#back').onclick = goBack;
   $$('[data-fmt]').forEach((b) => { b.onclick = () => { state.fmt = b.dataset.fmt; $$('[data-fmt]').forEach((x) => x.classList.toggle('on', x === b)); glide(); redraw(); }; });
@@ -213,7 +216,16 @@ export function editor({ back, title, subtitle = '', head = '', below = false, d
 // Vers X (un lien ne transmet que le texte) : menu de partage avec les images et le texte quand le
 // navigateur sait partager des fichiers (choisir X ; texte aussi copié, à coller si l'appli ne le reprend
 // pas). Sinon : appli X sur téléphone, x.com sur ordinateur avec les images téléchargées
-async function openX(canvases, text) {
+// Texte X (et premier commentaire) avec ses liens suivis (clics comptés), préparé à l'affichage : le
+// partage part dès le toucher
+const trackedX = new Map();
+function prepareX(raw, title) {
+  if (!/https?:\/\//.test(raw) || trackedX.has(raw)) return;
+  trackedX.set(raw, raw);
+  api('links', { method: 'POST', body: JSON.stringify({ net: 'x', text: raw, title }) }).then((r) => { if (r?.text) trackedX.set(raw, r.text); }).catch(() => trackedX.delete(raw));
+}
+async function openX(canvases, raw) {
+  const text = trackedX.get(raw) || raw;
   navigator.clipboard?.writeText(text).catch(() => {});
   const files = await Promise.all(canvases.map(async (cv, i) => new File([await toBlob(cv)], `x-${i + 1}.png`, { type: 'image/png' })));
   if (navigator.canShare?.({ files })) {
@@ -311,10 +323,11 @@ function schedulePanel(d, o, record = null) {
 // Publication : visuels au format Instagram (JPEG), un réseau après l'autre, progression affichée
 // Envoi d'un post au serveur (réponse en continu : avancement, puis résultat ou erreur)
 // tiktok : réglages d'une publication directe sur TikTok (sinon brouillon)
-export async function sendPost(network, text, blobs, comment = '', video = null, tiktok = null) {
+export async function sendPost(network, text, blobs, comment = '', video = null, tiktok = null, title = '') {
   const form = new FormData();
   form.append('network', network);
   form.append('text', text);
+  if (title) form.append('title', title);   // nom du lien suivi dans les statistiques
   if (tiktok) form.append('tiktok', JSON.stringify(tiktok));
   blobs.forEach((b, i) => form.append('images', b, `image-${i + 1}.jpg`));
   if (video) form.append('video', video, video.type === 'video/quicktime' ? 'video.mov' : 'video.mp4');
@@ -370,7 +383,7 @@ async function publishAll(d, o, record = null, video = null) {
     try {
       // Vidéo : seule envoyée (sauf Bluesky, qui garde les visuels)
       const withVideo = video && n !== 'bluesky';
-      const result = await sendPost(n, stories ? '' : textOf(n), n === 'bluesky' ? bsky : withVideo ? [] : blobs, stories ? '' : commentOf(n), withVideo ? video : null, n === 'tiktok' ? tk : null);
+      const result = await sendPost(n, stories ? '' : textOf(n), n === 'bluesky' ? bsky : withVideo ? [] : blobs, stories ? '' : commentOf(n), withVideo ? video : null, n === 'tiktok' ? tk : null, record?.title);
       ok++;
       st.className = 'st ok';
       // Stories (24 heures) : pas dans l'historique, qui garde le post du fil
