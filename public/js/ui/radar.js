@@ -12,6 +12,8 @@ import { upcoming } from './home.js';
 
 const RAIN_Z = 7;      // zoom maximal des images radar gratuites (agrandies au-delà)
 const H = 300;
+const WH = 400;        // hauteur de la carte Windy (place pour ses commandes en bas)
+const WIN_BAR = 70;    // bande du bas laissée à Windy (lecture, calques) ; le reste est figé
 const VIEWS = [['circuit', 'Circuit'], ['area', 'Alentours'], ['region', 'Région'], ['windy', 'Windy']];
 
 let frames = [];       // [{ time, path }]
@@ -100,15 +102,20 @@ function tiles(W, z, tz, cx, cy) {
 }
 
 // Cadrage : zoom et centre (pixels au zoom z) ; « circuit » : le tracé occupe l'essentiel de la carte
-function frame(W, shape) {
+function frame(W, shape, h = H) {
   const c = shape?.line;
   if (view === 'circuit' && c) {
     const xs = c.map(([lon]) => lon2x(lon, 0)), ys = c.map(([, lat]) => lat2y(lat, 0));
     const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
-    const z = Math.max(12, Math.min(16, Math.floor(Math.log2(Math.min((W * 0.8) / (x1 - x0), (H * 0.8) / (y1 - y0))))));
+    const z = Math.max(12, Math.min(16, Math.floor(Math.log2(Math.min((W * 0.8) / (x1 - x0), (h * 0.8) / (y1 - y0))))));
     return { z, cx: ((x0 + x1) / 2) * 2 ** z, cy: ((y0 + y1) / 2) * 2 ** z };
   }
-  const z = view === 'circuit' ? 14 : view === 'area' ? 11 : 8;
+  // Windy : zoom 11 au plus dans sa carte intégrée, centrée sur le circuit
+  const z = view === 'circuit' ? 14 : view === 'area' || view === 'windy' ? 11 : 8;
+  if (view === 'windy' && c) {
+    const xs = c.map(([lon]) => lon2x(lon, z)), ys = c.map(([, lat]) => lat2y(lat, z));
+    return { z, cx: (Math.min(...xs) + Math.max(...xs)) / 2, cy: (Math.min(...ys) + Math.max(...ys)) / 2 };
+  }
   return { z, cx: lon2x(place.lon, z), cy: lat2y(place.lat, z) };
 }
 
@@ -128,10 +135,24 @@ function build(el) {
   built = key;
   const tabs = `<div class="tbp-seg wxr-views">${VIEWS.map(([k, l]) => `<button data-wxr-view="${k}" class="${k === view ? 'on' : ''}">${l}</button>`).join('')}</div>`;
   const head = `<div class="wxr-head"><b>${icon('rain')} Radar de pluie</b><span class="muted small">${esc(place.name)}</span>${tabs}</div>`;
+  // Tracé du circuit (polygone en pixels de la carte) ; trop petit en vue régionale : un point
+  const trackSvg = (z, left, top, h) => {
+    const pts = shape ? shape.line.map(([lon, lat]) => `${(lon2x(lon, z) - left).toFixed(1)},${(lat2y(lat, z) - top).toFixed(1)}`).join(' ') : '';
+    const small = shape && (Math.max(...shape.line.map(([lon]) => lon2x(lon, z))) - Math.min(...shape.line.map(([lon]) => lon2x(lon, z)))) < 90;
+    return pts && view !== 'region' ? `<svg class="wxr-track${small ? ' small' : ''}" width="${W}" height="${h}" aria-hidden="true"><polygon points="${pts}" class="o"/><polygon points="${pts}" class="i"/></svg>`
+      : `<i class="wxr-dot" style="left:${lon2x(place.lon, z) - left}px;top:${lat2y(place.lat, z) - top}px" title="${esc(place.name)}"></i>`;
+  };
   if (view === 'windy') {
-    const q = new URLSearchParams({ lat: place.lat.toFixed(3), lon: place.lon.toFixed(3), detailLat: place.lat.toFixed(3), detailLon: place.lon.toFixed(3), zoom: '8', level: 'surface', overlay: 'radar', product: 'radar', menu: '', message: 'true', marker: 'true', calendar: 'now', type: 'map', location: 'coordinates', detail: '', metricWind: 'km/h', metricTemp: '°C', metricRain: 'mm', radarRange: '-1' });
-    el.innerHTML = `${head}<iframe class="wxr-windy" src="https://embed.windy.com/embed.html?${q}" title="Windy" loading="lazy" referrerpolicy="no-referrer"></iframe>
-      <p class="muted small wxr-note">Carte animée Windy : pluie, vent, nuages et prévisions (changer de calque en bas à droite).</p>`;
+    // Carte Windy figée sur le circuit (ni déplacement ni zoom, sauf ses commandes du bas) : son
+    // centre et son zoom (11, le plus fort qu'elle accepte) sont connus, le tracé se dessine donc
+    // au bon endroit par-dessus
+    const { z, cx, cy } = frame(W, shape, WH);
+    const n = 256 * 2 ** z;
+    const lon = (cx / n) * 360 - 180, lat = (Math.atan(Math.sinh(Math.PI * (1 - (2 * cy) / n))) * 180) / Math.PI;
+    const q = new URLSearchParams({ lat: lat.toFixed(5), lon: lon.toFixed(5), detailLat: lat.toFixed(5), detailLon: lon.toFixed(5), zoom: String(z), level: 'surface', overlay: 'radar', product: 'radar', menu: '', message: 'true', marker: '', calendar: 'now', type: 'map', location: 'coordinates', detail: '', metricWind: 'km/h', metricTemp: '°C', metricRain: 'mm', radarRange: '-1' });
+    el.innerHTML = `${head}<div class="wxr-map wxr-wmap" style="height:${WH}px"><iframe class="wxr-windy" src="https://embed.windy.com/embed.html?${q}" title="Windy" loading="lazy" referrerpolicy="no-referrer"></iframe>
+      ${trackSvg(z, cx - W / 2, cy - WH / 2, WH)}<i class="wxr-lock" style="bottom:${WIN_BAR}px" title="Carte figée sur le circuit"></i></div>
+      <p class="muted small wxr-note">Carte animée Windy : pluie, vent, nuages et prévisions (lecture et calques en bas).</p>`;
     return;
   }
   const { z, cx, cy } = frame(W, shape);
@@ -140,10 +161,7 @@ function build(el) {
   const rainTiles = tiles(W, z, Math.min(z, RAIN_Z), cx, cy);
   const rz = Math.min(z, RAIN_Z);
   const layers = frames.map((f, i) => `<div class="wxr-frame" data-i="${i}">${rainTiles.map((tl) => `<img src="${host}${f.path}/256/${rz}/${tl.x}/${tl.y}/2/1_1.png" style="left:${tl.left}px;top:${tl.top}px;width:${tl.size}px;height:${tl.size}px" alt="" referrerpolicy="no-referrer">`).join('')}</div>`).join('');
-  // Tracé du circuit par-dessus (trop petit en vue régionale : un point)
-  const pts = shape ? shape.line.map(([lon, lat]) => `${(lon2x(lon, z) - left).toFixed(1)},${(lat2y(lat, z) - top).toFixed(1)}`).join(' ') : '';
-  const track = pts && view !== 'region' ? `<svg class="wxr-track" width="${W}" height="${H}" aria-hidden="true"><polygon points="${pts}" class="o"/><polygon points="${pts}" class="i"/></svg>`
-    : `<i class="wxr-dot" style="left:${lon2x(place.lon, z) - left}px;top:${lat2y(place.lat, z) - top}px" title="${esc(place.name)}"></i>`;
+  const track = trackSvg(z, left, top, H);
   el.innerHTML = `${head}
     <div class="wxr-map" style="height:${H}px"><div class="wxr-base${dark ? ' dark' : ''}">${base}</div>${layers}${track}${scaleBar(W, z)}
       <span class="wxr-legend" title="Intensité de la pluie"><i></i>faible · forte</span></div>

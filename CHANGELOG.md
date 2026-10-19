@@ -22,7 +22,8 @@ l'application (Réglages → À propos → Nouveautés).
 - Prochaines heures (ciel, température, risque de pluie) et jours du week-end avec les séances de chaque jour.
 - Radar de pluie zoomé sur le circuit, son tracé dessiné par-dessus ; vues « Alentours » et « Région » pour voir
   la pluie arriver, échelle des distances, légende, et prévision à 30 min.
-- Nouvelle vue « Windy » : carte animée de la pluie, du vent et des nuages, avec ses prévisions.
+- Nouvelle vue « Windy » : carte animée de la pluie, du vent et des nuages, figée sur le circuit (son tracé
+  dessiné par-dessus), lecture et calques en bas.
 
 ### Navigation
 - Touche Échap partout : elle ferme aussi le panneau Commentaires (le son continue), la page Résultats et les
