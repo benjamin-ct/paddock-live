@@ -9,9 +9,9 @@ const DIR = path.join(CACHE_DIR, 'tiles');
 const KEEP_MS = 30 * 24 * 3600e3;
 const UA = 'PaddockLive/1.25 (tableau de bord F1 personnel ; +https://github.com/benjamin-ct/paddock-live)';
 
-// Coordonnées de tuile valides (zoom limité : le radar n'a besoin que d'une vue régionale)
+// Coordonnées de tuile valides (zoom jusqu'à 16 : le radar peut montrer le circuit de près)
 export function validTile(z, x, y) {
-  return Number.isInteger(z) && z >= 0 && z <= 10 && [x, y].every((v) => Number.isInteger(v) && v >= 0 && v < 2 ** z);
+  return Number.isInteger(z) && z >= 0 && z <= 16 && [x, y].every((v) => Number.isInteger(v) && v >= 0 && v < 2 ** z);
 }
 
 export async function osmTile(z, x, y) {

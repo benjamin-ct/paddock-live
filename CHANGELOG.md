@@ -16,6 +16,14 @@ l'application (Réglages → À propos → Nouveautés).
   « Versions précédentes ».
 - Raccourcis clavier présentés en liste.
 
+### Météo
+- Fenêtre Météo refaite, beaucoup plus visuelle : ciel du moment en grand (soleil, nuages, pluie, orage…),
+  température, piste sur une échelle de couleurs, rose des vents (d'où vient le vent), humidité, pression et pluie.
+- Prochaines heures (ciel, température, risque de pluie) et jours du week-end avec les séances de chaque jour.
+- Radar de pluie zoomé sur le circuit, son tracé dessiné par-dessus ; vues « Alentours » et « Région » pour voir
+  la pluie arriver, échelle des distances, légende, et prévision à 30 min.
+- Nouvelle vue « Windy » : carte animée de la pluie, du vent et des nuages, avec ses prévisions.
+
 ### Navigation
 - Touche Échap partout : elle ferme aussi le panneau Commentaires (le son continue), la page Résultats et les
   petits menus « Dispo. » et thème (Accueil, Saison, Actu et Replays se fermaient déjà).

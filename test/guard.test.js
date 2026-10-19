@@ -50,7 +50,8 @@ test('radar : seules des tuiles valides sont demandées à OpenStreetMap', async
   const { validTile } = await import('../server/tiles.js');
   assert.equal(validTile(8, 164, 94), true);
   assert.equal(validTile(8, 256, 0), false, 'hors de la grille');
-  assert.equal(validTile(14, 1, 1), false, 'zoom trop élevé');
+  assert.equal(validTile(15, 1, 1), true, 'zoom du circuit');
+  assert.equal(validTile(17, 1, 1), false, 'zoom trop élevé');
   assert.equal(validTile(8, -1, 3), false);
   assert.equal(validTile(8, 1.5, 3), false);
   assert.equal(validTile(NaN, 1, 1), false);

@@ -465,8 +465,6 @@ code { background: var(--panel-3); padding: 1px 5px; border-radius: 4px; font-si
 .strat-legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 11.5px; color: var(--text-2); margin-bottom: 8px; }
 
 /* ---------- Météo ---------- */
-.wx { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 10px 12px; }
-.wx .gauge-val { font-size: 22px; }
 .wind-arrow { display: inline-block; transition: transform .5s; }
 
 /* ---------- Championnat ---------- */
@@ -2420,21 +2418,92 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; gap: 5
 .sum-body p { margin: 8px 0; line-height: 1.5; font-size: 14.5px; }
 .sum-foot { display: flex; align-items: center; gap: 10px; justify-content: space-between; padding: 10px 14px 14px 18px; border-top: 1px solid var(--line); }
 
-/* Météo : radar des précipitations autour du circuit */
-#wxRadar { margin-top: 10px; padding: 0 12px 12px; }
-.rd-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; }
-.rd-head b { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
-.rd-map { position: relative; overflow: hidden; border-radius: 8px; border: 1px solid var(--border); background: var(--panel-2); }
-.rd-map img { position: absolute; max-width: none; user-select: none; pointer-events: none; }
-.rd-frame { position: absolute; inset: 0; opacity: 0; transition: opacity .25s; }
-.rd-frame.on { opacity: .85; }
-.rd-dot { position: absolute; left: 50%; top: 50%; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%; background: var(--accent, #E10600); box-shadow: 0 0 0 2px #fff, 0 1px 4px rgba(0, 0, 0, .5); }
-.rd-ring { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); border: 1.5px dashed rgba(225, 6, 0, .7); border-radius: 50%; pointer-events: none; }
-.rd-ctl { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
-.rd-ctl input[type=range] { flex: 1; }
-.rd-time { font-family: "JetBrains Mono", Consolas, monospace; font-size: 12px; color: var(--text-2); white-space: nowrap; }
-.rd-note { margin: 6px 0 0; }
-.rd-base.dark img { filter: invert(1) hue-rotate(180deg) brightness(.85) contrast(.9) saturate(.5); }
+/* Météo : temps qu'il fait (ciel, température, vent, pluie), prochaines heures, jours du week-end */
+.tb-pop.tb-pop-weather { width: min(680px, calc(100vw - 16px)); max-height: min(88vh, 940px); }
+.wxv { display: flex; flex-direction: column; gap: 12px; padding: 4px 4px 0; }
+.wxv-hero { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 14px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--blue) 14%, var(--panel-2)), var(--panel-2)); border: 1px solid var(--border); }
+.wxv-now { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.wxv-sky { flex: none; width: 58px; height: 58px; display: grid; place-items: center; border-radius: 16px; background: color-mix(in srgb, var(--yellow) 16%, transparent); color: var(--yellow); }
+.wxv-sky.wet { background: color-mix(in srgb, var(--blue) 18%, transparent); color: var(--blue); }
+.wxv-sky .ic { width: 38px; height: 38px; stroke-width: 1.6; }
+.wxv-temp { font-size: 40px; font-weight: 900; line-height: 1; font-variant-numeric: tabular-nums; }
+.wxv-temp sup { font-size: 15px; font-weight: 700; color: var(--muted); margin-left: 2px; vertical-align: 18px; }
+.wxv-cond { font-size: 14px; font-weight: 600; margin-top: 3px; }
+.wxv-src { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+.wxv-track { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 0 6px; }
+.wxv-track span { font-size: 10.5px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: var(--muted); }
+.wxv-track b { font-size: 26px; font-weight: 900; line-height: 1; color: var(--orange); }
+.wxv-scale { position: relative; width: 70px; height: 5px; border-radius: 3px; background: linear-gradient(90deg, #3b82f6, #22c55e, #eab308, #f97316, #ef4444); }
+.wxv-scale > i { position: absolute; top: -3px; width: 3px; height: 11px; margin-left: -1.5px; border-radius: 2px; background: var(--text); box-shadow: 0 0 0 1.5px var(--panel); }
+.wxv-wind { display: flex; align-items: center; gap: 8px; }
+.wxv-wind > div { display: flex; flex-direction: column; line-height: 1.2; }
+.wxv-wind b { font-size: 20px; font-weight: 800; white-space: nowrap; }
+.wxv-wind b small { font-size: 11px; color: var(--muted); font-weight: 600; }
+.wxv-wind span { font-size: 12px; color: var(--text-2); white-space: nowrap; }
+.wxv-rose { width: 64px; height: 64px; flex: none; }
+.wxv-rose circle { fill: var(--panel); stroke: var(--line-2); stroke-width: 1.5; }
+.wxv-rose text { fill: var(--muted); font: 700 8px "Saira Condensed", sans-serif; text-anchor: middle; dominant-baseline: middle; }
+.wxv-rose path { fill: var(--blue); }
+.wxv-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.wxv-chips > span { display: inline-flex; align-items: center; gap: 6px; padding: 6px 11px; border-radius: 999px; background: var(--panel-2); border: 1px solid var(--border); font-size: 12.5px; color: var(--text-2); }
+.wxv-chips b { color: var(--text); }
+.wxv-chips .ic { width: 14px; height: 14px; color: var(--blue); }
+.wxv-chips .wxv-rain .ic { color: var(--yellow); }
+.wxv-chips .wxv-rain.on { background: color-mix(in srgb, var(--blue) 22%, var(--panel-2)); border-color: var(--blue); color: var(--text); font-weight: 700; }
+.wxv-chips .wxv-rain.on .ic { color: var(--blue); }
+.wxv-sec h5 { margin: 2px 0 8px; font-size: 11px; font-weight: 700; letter-spacing: .7px; text-transform: uppercase; color: var(--muted); }
+.wxv-hours { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(58px, 1fr); gap: 6px; overflow-x: auto; scrollbar-width: thin; }
+.wxv-h { display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 8px 4px; border-radius: 10px; background: var(--panel-2); border: 1px solid var(--border); font-size: 11.5px; color: var(--muted); }
+.wxv-h .ic { width: 22px; height: 22px; color: var(--text-2); }
+.wxv-h b { font-size: 14px; color: var(--text); }
+.wxv-h.wet { border-color: color-mix(in srgb, var(--blue) 55%, var(--border)); }
+.wxv-h.wet small { color: var(--blue); font-weight: 700; }
+.wxv-pbar { position: relative; width: 6px; height: 26px; border-radius: 3px; background: var(--panel-3); overflow: hidden; }
+.wxv-pbar > i { position: absolute; left: 0; right: 0; bottom: 0; background: var(--blue); border-radius: 3px; }
+.wxv-days { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
+.wxv-d { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 4px 10px; padding: 10px 12px; border-radius: 12px; background: var(--panel-2); border: 1px solid var(--border); }
+.wxv-d.race { border-color: color-mix(in srgb, var(--accent) 55%, var(--border)); }
+.wxv-d > .ic { grid-row: span 2; width: 30px; height: 30px; color: var(--text-2); }
+.wxv-dn { grid-column: 1 / -1; font-size: 12px; font-weight: 700; text-transform: capitalize; }
+.wxv-dt { font-size: 13px; color: var(--muted); white-space: nowrap; }
+.wxv-dt b { font-size: 17px; color: var(--text); }
+.wxv-dr { display: block; height: 5px; border-radius: 3px; background: var(--panel-3); overflow: hidden; }
+.wxv-dr > i { display: block; height: 100%; background: var(--blue); border-radius: 3px; }
+.wxv-d small { grid-column: 1 / -1; display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; color: var(--muted); }
+.wxv-d small .ic { width: 12px; height: 12px; color: var(--blue); }
+.wxv-d em { grid-column: 1 / -1; font-style: normal; font-size: 10.5px; font-weight: 700; letter-spacing: .4px; text-transform: uppercase; color: var(--accent); }
+@media (max-width: 600px) {
+  .wxv-hero { grid-template-columns: minmax(0, 1fr) auto; }
+  .wxv-wind { grid-column: 1 / -1; }
+}
+
+/* Météo : radar de pluie (circuit de près avec son tracé, alentours, région) et carte Windy */
+#wxRadar { margin-top: 14px; padding: 0 4px 6px; }
+.wxr-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+.wxr-head b { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
+.wxr-views { margin-left: auto; }
+.wxr-views button.on { background: var(--accent); color: #fff; }
+.wxr-map { position: relative; overflow: hidden; border-radius: 12px; border: 1px solid var(--border); background: var(--panel-2); }
+.wxr-map img { position: absolute; max-width: none; user-select: none; pointer-events: none; }
+.wxr-frame { position: absolute; inset: 0; opacity: 0; transition: opacity .25s; }
+.wxr-frame.on { opacity: .8; }
+.wxr-base.dark img { filter: invert(1) hue-rotate(180deg) brightness(.8) contrast(.9) saturate(.4); }
+.wxr-track { position: absolute; left: 0; top: 0; pointer-events: none; }
+.wxr-track polygon { fill: none; stroke-linejoin: round; }
+.wxr-track .o { stroke: rgba(0, 0, 0, .65); stroke-width: 9; }
+.wxr-track .i { stroke: var(--accent, #E10600); stroke-width: 4.5; }
+.wxr-dot { position: absolute; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; background: var(--accent, #E10600); box-shadow: 0 0 0 2px #fff, 0 1px 4px rgba(0, 0, 0, .5); }
+.wxr-scale { position: absolute; left: 10px; bottom: 10px; display: flex; flex-direction: column; gap: 2px; font-size: 10.5px; font-weight: 700; color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, .8); }
+.wxr-scale > i { display: block; height: 4px; border: 2px solid #fff; border-top: 0; box-shadow: 0 1px 2px rgba(0, 0, 0, .6); }
+.wxr-legend { position: absolute; right: 10px; bottom: 10px; display: flex; flex-direction: column; gap: 3px; font-size: 10px; font-weight: 700; color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, .8); }
+.wxr-legend > i { display: block; width: 90px; height: 6px; border-radius: 3px; background: linear-gradient(90deg, #9be7ff, #2f80ed, #00b050, #ffd400, #ff7a00, #e00000); box-shadow: 0 1px 2px rgba(0, 0, 0, .5); }
+.wxr-ctl { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.wxr-ctl input[type=range] { flex: 1; }
+.wxr-time { font-family: "JetBrains Mono", Consolas, monospace; font-size: 12px; color: var(--text-2); white-space: nowrap; }
+.wxr-time.future { color: var(--blue); }
+.wxr-note { margin: 6px 0 0; }
+.wxr-windy { display: block; width: 100%; height: 380px; border: 0; border-radius: 12px; background: var(--panel-2); }
 
 /* Saison : pronostics entre amis */
 .pd-next form { display: flex; flex-direction: column; gap: 10px; }
