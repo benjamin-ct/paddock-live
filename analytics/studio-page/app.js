@@ -308,7 +308,7 @@ function renderStats(body, r, stale) {
       ${Object.entries(p.nets).map(([n, x]) => {
         const s = p.stats?.[n];
         const name = x.url ? `<a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(NET_NAMES[n] || n)}</a>` : esc(NET_NAMES[n] || n);
-        const vals = s && !s.error ? metricsOf(s, STAT_LABELS) || '<span>pas encore d\'interaction</span>' : `<span class="hint">statistiques indisponibles${s?.error ? ` (${esc(s.error)})` : ''}</span>`;
+        const vals = s && !s.error ? metricsOf(s, STAT_LABELS) || '<span>pas encore d\'interaction</span>' : `<span class="hint">${s?.note ? esc(s.note) : `statistiques indisponibles${s?.error ? ` (${esc(s.error)})` : ''}`}</span>`;
         return `<div class="net-stats"><span class="net">${name}</span><div class="metrics">${vals}</div></div>`;
       }).join('')}</div>`).join('')}</div>` : empty('Aucun post publié pour le moment.', 'chart')}`;
   schedList($('#schedlist', body));

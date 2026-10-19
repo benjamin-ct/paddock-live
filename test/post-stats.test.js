@@ -40,9 +40,9 @@ test('statistiques des posts : Instagram, Facebook, Threads, Bluesky et abonnés
     const fb = await postStats([{ key: 'a', at: 2, nets: { facebook: { id: 'p_2' } } }, { key: 'b', at: 1, nets: { facebook: { id: 'p_3' } } }], { meta: { pageToken: 't' } });
     assert.deepEqual(fb.posts[0].stats.facebook, { likes: 5, comments: 0, shares: 1, reach: 240, views: 310 });
     assert.deepEqual(fb.posts[1].stats.facebook, { likes: 1, comments: 0, shares: 0, reach: 77 });
-    // Post supprimé ou refusé partout : raison du réseau gardée
+    // Refusé partout : raison du réseau gardée, avec un message lisible
     const gone = await postStats([{ key: 'c', at: 3, nets: { instagram: { id: 'zz' }, threads: { id: 'zz' } } }], { meta: { pageToken: 't' }, threads: { token: 'u' } });
-    assert.deepEqual(gone.posts[0].stats.instagram, { error: '(#10) Application does not have permission' });
-    assert.deepEqual(gone.posts[0].stats.threads, { error: '(#10) Application does not have permission' });
+    assert.deepEqual(gone.posts[0].stats.instagram, { error: '(#10) Application does not have permission', note: 'Autorisation manquante : reconnectez le compte' });
+    assert.deepEqual(gone.posts[0].stats.threads, { error: '(#10) Application does not have permission', note: 'Autorisation manquante : reconnectez le compte' });
   } finally { globalThis.fetch = realFetch; }
 });

@@ -700,7 +700,7 @@ export async function studioApi(req, env, url) {
   }
   if (path === 'stats' && req.method === 'GET') {
     let v = await refresh(env, a.raw, vault);
-    // 8 posts au plus : nombre de requêtes du serveur limité par appel ; chiffres de chaque compte en plus
+    // 6 posts au plus : un appel du serveur est limité à 50 requêtes (chiffres de chaque compte en plus)
     // Jetons YouTube et TikTok renouvelés l'un après l'autre : chaque enregistrement garde le précédent
     const tokens = {};
     for (const net of [...CLIPS, 'tiktok2']) {
@@ -708,7 +708,7 @@ export async function studioApi(req, env, url) {
       if (acc) { v = { ...v, [net]: acc }; tokens[`${net}Token`] = acc.accessToken; }
     }
     const [posts, accounts] = await Promise.all([
-      postStats(JSON.parse(await getRow(env, 'history') || '[]'), { meta: v.meta, threads: v.threads, bluesky: v.bluesky }, { limit: 8 }),
+      postStats(JSON.parse(await getRow(env, 'history') || '[]'), { meta: v.meta, threads: v.threads, bluesky: v.bluesky }, { limit: 6 }),
       accountStats(v, tokens),
     ]);
     return json({ ...posts, accounts, clicks: await clickStats(env).catch(() => null) });

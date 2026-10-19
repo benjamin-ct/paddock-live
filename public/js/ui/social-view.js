@@ -623,7 +623,7 @@ async function openStats() {
       ${(r.posts || []).length ? (r.posts || []).map((p) => `<div class="posts-stats-post">
         <div class="row"><b>${esc(p.title || t('Post'))}</b><span class="spacer"></span><span class="small muted">${esc(new Date(p.at).toLocaleString())}</span>
           <button class="btn small" data-statsremove="${esc(p.key)}" title="${t('Post supprimé sur les réseaux : le retirer des statistiques')}">${t('Retirer')}</button></div>
-        ${Object.entries(p.nets).map(([n, x]) => { const s = p.stats?.[n]; const vals = s && !s.error ? STAT_LABELS.filter(([k]) => s[k] != null).map(([k, l]) => `${t(l)} <b>${fmtN(s[k])}</b>`).join(' · ') : s?.error ? `${t('statistiques indisponibles')} <span class="muted">(${esc(s.error)})</span>` : t('statistiques indisponibles'); return `<div class="small">${x.url ? `<a href="${esc(x.url)}" target="_blank" rel="noopener">${NET_NAMES[n] || n}</a>` : NET_NAMES[n] || n} : ${vals}</div>`; }).join('')}
+        ${Object.entries(p.nets).map(([n, x]) => { const s = p.stats?.[n]; const vals = s && !s.error ? STAT_LABELS.filter(([k]) => s[k] != null).map(([k, l]) => `${t(l)} <b>${fmtN(s[k])}</b>`).join(' · ') : s?.note ? `<span class="muted">${esc(t(s.note))}</span>` : s?.error ? `${t('statistiques indisponibles')} <span class="muted">(${esc(s.error)})</span>` : t('statistiques indisponibles'); return `<div class="small">${x.url ? `<a href="${esc(x.url)}" target="_blank" rel="noopener">${NET_NAMES[n] || n}</a>` : NET_NAMES[n] || n} : ${vals}</div>`; }).join('')}
       </div>`).join('') : `<p class="muted">${t('Aucun post publié depuis Paddock Live pour le moment.')}</p>`}`;
     body.querySelectorAll('[data-statsremove]').forEach((b) => {
       b.onclick = async () => {

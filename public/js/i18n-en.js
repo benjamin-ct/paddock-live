@@ -2432,4 +2432,9 @@ export default {
   "Légendes sous les panneaux (couleurs et badges)": "Legends under the panels (colours and badges)",
   "(pas encore analysé)": "(not analysed yet)",
   ", traduites (original au survol)": ", translated (original on hover)",
+  "Post supprimé ou introuvable": "Post deleted or not found",
+  "Trop de demandes d'un coup : rechargez dans un instant": "Too many requests at once: reload in a moment",
+  "Connexion expirée : reconnectez le compte": "Connection expired: reconnect the account",
+  "Limite du réseau atteinte : réessayez plus tard": "Network limit reached: try again later",
+  "Autorisation manquante : reconnectez le compte": "Missing permission: reconnect the account",
 };

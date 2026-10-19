@@ -8,7 +8,18 @@ const BSKY = 'https://public.api.bsky.app/xrpc';
 const safe = (p) => p.catch(() => null);
 // Appel dont l'erreur est gardée (raison affichée quand aucune statistique n'est lisible)
 const tryCall = (p, errs) => p.catch((err) => { errs.push(err.message); return null; });
-const unavailable = (errs) => ({ error: errs[0] || 'refusé par le réseau' });
+// Raison lisible (note) pour les cas courants, l'erreur du réseau sinon
+const NOTES = [
+  [/does not exist|cannot be loaded|not found|could not find/i, 'Post supprimé ou introuvable'],
+  [/too many subrequests/i, 'Trop de demandes d\'un coup : rechargez dans un instant'],
+  [/#190|expired|session has been invalidated|invalid oauth/i, 'Connexion expirée : reconnectez le compte'],
+  [/rate limit|request limit|\(#(4|17|32|613)\)/i, 'Limite du réseau atteinte : réessayez plus tard'],
+  [/permission|\(#(10|200)\)/i, 'Autorisation manquante : reconnectez le compte'],
+];
+const unavailable = (errs) => {
+  const error = errs[0] || 'refusé par le réseau';
+  return { error, note: NOTES.find(([re]) => re.test(error))?.[1] || null };
+};
 const metric = (r, name) => r?.data?.find((m) => m.name === name)?.values?.[0]?.value ?? r?.data?.find((m) => m.name === name)?.total_value?.value ?? null;
 
 async function instagram(meta, id) {

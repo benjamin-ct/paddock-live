@@ -14,6 +14,7 @@ l'application (Réglages → Application → Nouveautés).
 
 ### Statistiques
 - Une actu republiée sur un réseau où elle l'était déjà a sa propre ligne dans les statistiques des posts : les chiffres de la première publication ne sont plus remplacés.
+- Statistiques d'un post indisponibles : message clair (post supprimé, autorisation manquante, connexion expirée…) au lieu de l'erreur brute du réseau.
 
 ### Interface
 - Explications plus courtes partout : réglages, info-bulles, légendes, messages, Saison et Pronostics (en français et en anglais).
