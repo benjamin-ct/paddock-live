@@ -241,6 +241,16 @@ test('records du circuit : éditions lues dans les archives (commun à l\'appli 
   assert.equal(rec.editions.length, 1);
   assert.equal(rec.bestPole.year, 2025);
   assert.equal(rec.bestRaceLap.time, 80.901);
+  // D'après les résultats publics (Jolpica) : pole = meilleur temps de Q3 (sinon Q2, Q1), meilleur tour en course
+  const { editionFromResults } = await import('../shared/circuit-records.js');
+  const drv = (code, team) => ({ Driver: { code }, Constructor: { name: team } });
+  const ej = editionFromResults(2024, [{ raceName: 'United States Grand Prix', Results: [
+    { ...drv('LEC', 'Ferrari'), FastestLap: { lap: '40', Time: { time: '1:37.900' } } },
+    { ...drv('OCO', 'Alpine F1 Team'), FastestLap: { lap: '56', Time: { time: '1:37.330' } } },
+    { ...drv('MAG', 'Haas F1 Team') },
+  ] }], [{ QualifyingResults: [{ position: '1', ...drv('NOR', 'McLaren'), Q1: '1:33.4', Q2: '1:32.9', Q3: '1:32.330' }] }]);
+  assert.deepEqual(ej, { year: 2024, name: 'United States Grand Prix', pole: { time: 92.33, tla: 'NOR', team: 'McLaren', color: '', lap: null }, fastest: { time: 97.33, tla: 'OCO', team: 'Alpine F1 Team', color: '', lap: 56 } });
+  assert.equal(editionFromResults(2024, [], []), null);   // pas couru sur ce circuit cette année-là
 });
 
 test('vidéo de course : safety car, VSC, drapeaux et moments forts (direction de course ou estimation)', async () => {

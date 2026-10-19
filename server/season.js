@@ -47,6 +47,9 @@ async function all(pathname, pick) {
   return out;
 }
 
+// Courses (résultats) ou qualifications d'un Grand Prix : chemin de l'API (ex. 2024/circuits/monza/results)
+export const jolpicaRaces = (pathname) => all(pathname, (m) => m?.RaceTable?.Races || []);
+
 // Format des données enregistrées : une copie plus ancienne est rechargée une fois
 const FORMAT = 3;
 

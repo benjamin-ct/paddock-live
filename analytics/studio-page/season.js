@@ -5,8 +5,7 @@ import { raceWeekData, weekendData, recordsData, ratingsData, teamDuelsData, tit
 import { raceFrame, raceVideoTiming } from '/shared/social-draw-season.js';
 import { parseRaceLaps } from '/shared/race-laps.js';
 import { circuitInfo } from '/shared/circuits-info.js';
-import { recordsOf, recordYears } from '/shared/circuit-records.js';
-import { parseLapTime } from '/shared/f1.js';
+import { recordsOf, recordYears, editionFromResults } from '/shared/circuit-records.js';
 import { parseRaceControl, raceSessionPath } from '/shared/race-story.js';
 import { makeAnimation, unlockAudio } from '/shared/social-video.js';
 import { $, $$, esc, api, icon, store, skeleton, toast, state, SIG, musicField, bindMusic, clipFile } from './ui.js';
@@ -53,15 +52,10 @@ const seasonOf = (year) => memoOf(`s4-${year}`, async () => (await api(`season?y
 const readArchive = async (p) => JSON.parse((await (await api(`archive?p=${encodeURIComponent(p)}`, { raw: true })).text()).replace(/^﻿/, ''));
 // Records du circuit : pole et meilleur tour en course des éditions précédentes, d'après les résultats
 // officiels publics (Jolpica : sans connexion F1 TV, que la F1 refuse depuis un serveur) ; gardés sur le téléphone
-const fastestOf = (list, timeOf) => list.map((x) => ({ x, t: parseLapTime(timeOf(x)) })).filter((o) => o.t > 0).sort((a, b) => a.t - b.t)[0];
-const who = ({ x, t }, lap = null) => ({ time: t, tla: x.Driver?.code || '', team: x.Constructor?.name || '', color: '', lap });
 async function editionJolpica(y, circuitId) {
   const races = (path) => jolpica(`${y}/circuits/${circuitId}/${path}`).then((l) => l.flatMap((m) => m?.RaceTable?.Races || []));
   const [res, quali] = await Promise.all([races('results'), races('qualifying')]);
-  if (!res.length) return null;
-  const fast = fastestOf(res[0].Results || [], (r) => r.FastestLap?.Time?.time);
-  const pole = (quali[0]?.QualifyingResults || []).find((q) => q.position === '1');
-  return { year: y, name: res[0].raceName, pole: pole ? who({ x: pole, t: parseLapTime(pole.Q3 || pole.Q2 || pole.Q1) }) : null, fastest: fast ? who(fast, Number(fast.x.FastestLap.lap) || null) : null };
+  return editionFromResults(y, res, quali);
 }
 async function recordsFor(year, key, circuitId) {
   let failed = null;
