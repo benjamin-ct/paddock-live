@@ -27,11 +27,12 @@ export async function latestVersion({ fetchFn = fetch, now = Date.now() } = {}) 
   return v;
 }
 
-export async function download(path, opts) {
+export async function download(path, opts = {}) {
   const what = path.replace(/^\/download\/?/, '');
   const cache = { 'Cache-Control': 'public, max-age=300' };
-  let v = null;
-  try { v = await latestVersion(opts); } catch { /* GitHub injoignable : page des versions */ }
+  // Version copiée sur Cloudflare d'abord (GitHub limite les demandes venant de Cloudflare)
+  let v = (await (await opts.env?.MEDIA?.get('releases/version').catch(() => null))?.text())?.trim() || null;
+  if (!v) try { v = await latestVersion(opts); } catch { /* GitHub injoignable : page des versions */ }
   if (what === 'latest.json') {
     return new Response(JSON.stringify({ version: v, files: Object.fromEntries(Object.entries(FILES).map(([k, f]) => [k, v ? f(v) : null])) }), { headers: { 'Content-Type': 'application/json; charset=utf-8', ...cache } });
   }

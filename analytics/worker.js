@@ -219,7 +219,7 @@ export default {
     if (req.method === 'GET' && url.pathname.startsWith('/download/')) {
       const os = url.pathname.slice(10);
       if (FILES[os] && env.DB) ctx?.waitUntil?.(countClick(req, env, 'download', os) || Promise.resolve());
-      return download(url.pathname);
+      return download(url.pathname, { env });
     }
     if (req.method === 'GET' && url.pathname.startsWith('/dl/')) return mirror(req, env, decodeURIComponent(url.pathname.slice(4)));
     // Lien suivi d'un post : clic compté, puis l'adresse d'origine
