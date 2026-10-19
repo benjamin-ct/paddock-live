@@ -6,7 +6,7 @@ import { gpNameFr } from './summary.js';
 import { driverRatings, qualiGaps, titleRace, placeForMaxPoints } from './season-calc.js';
 import { cleanPace, lapsLedBy } from './race-laps.js';
 import { raceStory } from './race-story.js';
-import { hashtag, teamTag, BRAND_TAG, xLength } from './social.js';
+import { hashtag, teamTag, BRAND_TAG, xLength, gpFlag, MEDALS } from './social.js';
 import { circuitInfo, trackShape, flagColors } from './circuits-info.js';
 
 const TZ = 'Europe/Paris';
@@ -282,69 +282,75 @@ function finish(d, head, lines, sig, extra, shortLines = lines) {
   return { instagram, x, bsky: [...x].length <= 300 ? x : `${[...x].slice(0, 299).join('')}…`, threads, story: head };
 }
 
+// Séance du programme : emoji selon son type
+const sessionIcon = (label) => (/^(course|sprint)$/i.test(label) ? '🏁' : /qualif/i.test(label) ? '⏱️' : '🔧');
+const sessionLine = (s) => `${sessionIcon(s.label)} ${s.day.slice(0, 3)}. ${s.time} · ${s.label}`;
+// Nombre en emoji (1️⃣ à 9️⃣), sinon « 10. »
+const keycap = (n) => (n < 10 ? `${n}\uFE0F\u20E3` : `${n}.`);
+
 export function seasonCaptions(d, sig = '') {
   if (d.post === 'weekend') {
-    const lines = d.sessions.map((s) => `${s.day.slice(0, 3)}. ${s.time} · ${s.label}`);
+    const lines = d.sessions.map(sessionLine);
     const extra = [];
-    if (d.tyres) extra.push(`Pneus Pirelli : C${d.tyres.hard} (durs), C${d.tyres.medium} (médiums), C${d.tyres.soft} (tendres).`);
+    if (d.tyres) extra.push(`🛞 Pneus Pirelli : C${d.tyres.hard} (durs), C${d.tyres.medium} (médiums), C${d.tyres.soft} (tendres).`);
     const sun = d.forecast?.at(-1);
-    if (sun) extra.push(`Météo prévue ${sun.day.toLowerCase()} : ${Math.round(sun.tmax)} °C, ${Math.round(sun.rain ?? 0)} % de risque de pluie.`);
-    return finish(d, `Programme du week-end : ${d.gp}${d.sprint ? ' (format sprint)' : ''}`, [...lines, '(heures de Paris)', ...(extra.length ? ['', ...extra] : [])], sig, ['#RaceWeek'],
-      d.sessions.filter((s) => s.main).map((s) => `${s.day.slice(0, 3)}. ${s.time} · ${s.label}`));
+    if (sun) extra.push(`${(sun.rain ?? 0) >= 40 ? '🌧️' : '☀️'} Météo prévue ${sun.day.toLowerCase()} : ${Math.round(sun.tmax)} °C, ${Math.round(sun.rain ?? 0)} % de risque de pluie.`);
+    return finish(d, `🗓️ PROGRAMME DU WEEK-END | ${gpFlag(d, capFirst(d.gp))}${d.sprint ? ' (format sprint)' : ''}`, [...lines, '🕒 Heures de Paris', ...(extra.length ? ['', ...extra] : [])], sig, ['#RaceWeek'],
+      d.sessions.filter((s) => s.main).map(sessionLine));
   }
   if (d.post === 'raceweek') {
-    const lines = [`Manche ${d.round}${d.rounds ? `/${d.rounds}` : ''} · du ${d.date}${d.city ? ` · ${d.city}` : ''}`];
-    if (d.race) lines.push(`Course ${d.race.day.toLowerCase()} à ${d.race.time} (heure de Paris)`);
+    const lines = [`📍 Manche ${d.round}${d.rounds ? `/${d.rounds}` : ''} · du ${d.date}${d.city ? ` · ${d.city}` : ''}`];
+    if (d.race) lines.push(`🏁 Course ${d.race.day.toLowerCase()} à ${d.race.time} (heure de Paris)`);
     const facts = [d.laps && `${d.laps} tours`, d.km && `${dec(d.km, 3)} km`, d.corners && `${d.corners} virage${d.corners > 1 ? 's' : ''}`].filter(Boolean);
-    if (facts.length) lines.push(facts.join(' · '));
-    if (d.prev) lines.push(`Vainqueur ${d.prev.year} : ${d.prev.name} (${d.prev.team})`);
-    if (d.tyres) lines.push(`Pneus : C${d.tyres.hard}, C${d.tyres.medium}, C${d.tyres.soft}`);
-    return finish(d, `RACE WEEK | ${capFirst(d.gp)}${d.sprint ? ' (format sprint)' : ''}`, lines, sig, ['#RaceWeek', d.city ? hashtag(d.city) : ''], lines.slice(0, 3));
+    if (facts.length) lines.push(`🛣️ ${facts.join(' · ')}`);
+    if (d.prev) lines.push(`🏆 Vainqueur ${d.prev.year} : ${d.prev.name} (${d.prev.team})`);
+    if (d.tyres) lines.push(`🛞 Pneus : C${d.tyres.hard}, C${d.tyres.medium}, C${d.tyres.soft}`);
+    return finish(d, `🔥 RACE WEEK | ${gpFlag(d, capFirst(d.gp))}${d.sprint ? ' (format sprint)' : ''}`, lines, sig, ['#RaceWeek', d.city ? hashtag(d.city) : ''], lines.slice(0, 3));
   }
   if (d.post === 'records') {
-    const lines = d.facts.map((f) => `${f.label} : ${f.value} — ${f.sub}`);
-    return finish(d, `Le saviez-vous ? Les records du ${d.gp}`, lines, sig, ['#F1Facts'], lines.slice(0, 2));
+    const lines = d.facts.map((f) => `📌 ${f.label} : ${f.value} — ${f.sub}`);
+    return finish(d, `🤓 Le saviez-vous ? Les records du ${gpFlag(d)}`, lines, sig, ['#F1Facts'], lines.slice(0, 2));
   }
   if (d.post === 'ratings') {
-    const top = d.rows.slice(0, 3).map((r, i) => `${i + 1}. ${r.first} ${r.last} : ${dec(r.note)}/10`);
+    const top = d.rows.slice(0, 3).map((r, i) => `${MEDALS[i]} ${r.first} ${r.last} : ${dec(r.note)}/10`);
     const flop = d.rows.slice(-2).reverse().map((r) => `${r.last} : ${dec(r.note)}/10`);
-    const lines = ['Les mieux notés :', ...top, '', `Les moins bien notés : ${flop.join(', ')}`, '', `Note Paddock Live : résultat, ${d.withPace ? 'rythme, ' : ''}places gagnées et duel avec le coéquipier.`];
-    return finish(d, `Les notes des pilotes après ${gpNameFr(d.gpEn)}`, lines, sig, ['#DriverRatings', hashtag(`${d.rows[0]?.first}${d.rows[0]?.last}`)], top);
+    const lines = ['🔥 Les mieux notés :', ...top, '', `🧊 Les moins bien notés : ${flop.join(', ')}`, '', `ℹ️ Note Paddock Live : résultat, ${d.withPace ? 'rythme, ' : ''}places gagnées et duel avec le coéquipier.`];
+    return finish(d, `📝 Les notes des pilotes après ${gpFlag(d, gpNameFr(d.gpEn))}`, lines, sig, ['#DriverRatings', hashtag(`${d.rows[0]?.first}${d.rows[0]?.last}`)], top);
   }
   if (d.post === 'teamduels') {
-    const lines = d.rows.map((r) => `${r.team} : ${r.a.last} ${r.a.q}-${r.b.q} ${r.b.last} en qualifs, ${r.a.r}-${r.b.r} en course`);
-    return finish(d, `Duels entre coéquipiers après ${d.after} course${d.after > 1 ? 's' : ''}`, lines, sig, ['#Teammates'], lines.slice(0, 4));
+    const lines = d.rows.map((r) => `🆚 ${r.team} : ${r.a.last} ${r.a.q}-${r.b.q} ${r.b.last} en qualifs, ${r.a.r}-${r.b.r} en course`);
+    return finish(d, `⚔️ Duels entre coéquipiers après ${d.after} course${d.after > 1 ? 's' : ''}`, lines, sig, ['#Teammates'], lines.slice(0, 4));
   }
   if (d.post === 'title') {
     const part = (list, champ, clinch, max, team) => {
       if (!list.length) return [];
-      if (champ) return [`${team ? 'Constructeurs' : 'Pilotes'} : ${champ.name} ${team ? 'champion du monde des constructeurs' : 'champion du monde'} !`];
+      if (champ) return [`👑 ${team ? 'Constructeurs' : 'Pilotes'} : ${champ.name} ${team ? 'champion du monde des constructeurs' : 'champion du monde'} !`];
       const alive = list.filter((e) => e.alive);
-      const out = [`${team ? 'Constructeurs' : 'Pilotes'} (${max} pts encore en jeu) :`,
-        ...alive.slice(0, 5).map((e) => `${e.pos}. ${e.label} : ${e.points} pts${e.behind ? ` (à ${e.behind} pts)` : ''}`)];
+      const out = [`${team ? '🔧 Constructeurs' : '🏎️ Pilotes'} (${max} pts encore en jeu) :`,
+        ...alive.slice(0, 5).map((e) => `${MEDALS[e.pos - 1] || `${e.pos}.`} ${e.label} : ${e.points} pts${e.behind ? ` (à ${e.behind} pts)` : ''}`)];
       if (alive.length > 5) out.push(`… et ${alive.length - 5} autre${alive.length > 6 ? 's' : ''} encore en course`);
-      if (clinch?.next) out.push(`${clinch.leader} peut être sacré dès ${clinch.next}.`);
-      else if (clinch?.earliest) out.push(`Titre possible au plus tôt : ${clinch.earliest}.`);
+      if (clinch?.next) out.push(`🔥 ${clinch.leader} peut être sacré dès ${clinch.next}.`);
+      else if (clinch?.earliest) out.push(`⏳ Titre possible au plus tôt : ${clinch.earliest}.`);
       return out;
     };
     const dl = part(d.drivers, d.champion, d.clinchD, d.left.d, false);
     const cl = part(d.constructors, d.champTeam, d.clinchC, d.left.c, true);
-    const left = d.left.races ? `Encore ${d.left.races} Grand${d.left.races > 1 ? 's' : ''} Prix${d.left.sprints ? `, dont ${d.left.sprints} en format sprint` : ''}.` : 'Saison terminée.';
+    const left = d.left.races ? `🗓️ Encore ${d.left.races} Grand${d.left.races > 1 ? 's' : ''} Prix${d.left.sprints ? `, dont ${d.left.sprints} en format sprint` : ''}.` : 'Saison terminée.';
     const lines = [...dl, ...(dl.length && cl.length ? [''] : []), ...cl, '', left];
-    return finish(d, d.champion ? `${d.champion.name} champion du monde ${d.year} !` : `La course au titre après ${gpNameFr(d.gpEn)}`, lines, sig, ['#F1Championship'], [...dl.slice(0, 3), '', ...cl.slice(0, 2)]);
+    return finish(d, d.champion ? `👑 ${d.champion.name} champion du monde ${d.year} !` : `🏆 La course au titre après ${gpFlag(d, gpNameFr(d.gpEn))}`, lines, sig, ['#F1Championship'], [...dl.slice(0, 3), '', ...cl.slice(0, 2)]);
   }
   if (d.post === 'racelaps') {
     const lines = [];
-    if (d.led.length) lines.push(`En tête : ${d.led.slice(0, 3).map((x) => `${x.last} (${x.n} tour${x.n > 1 ? 's' : ''})`).join(', ')}`);
-    if (d.leadChanges) lines.push(`${d.leadChanges} changement${d.leadChanges > 1 ? 's' : ''} de leader`);
+    if (d.led.length) lines.push(`🥇 En tête : ${d.led.slice(0, 3).map((x) => `${x.last} (${x.n} tour${x.n > 1 ? 's' : ''})`).join(', ')}`);
+    if (d.leadChanges) lines.push(`🔄 ${d.leadChanges} changement${d.leadChanges > 1 ? 's' : ''} de leader`);
     const c = d.climbs.filter((x) => x.gain > 0);
-    if (c.length) lines.push(`Plus belles remontées : ${c.map((x) => `${x.last} (P${x.grid} → P${x.finish})`).join(', ')}`);
-    return finish(d, `${capFirst(gpNameFr(d.gpEn))} tour par tour`, lines, sig, ['#RaceDay'], lines);
+    if (c.length) lines.push(`🚀 Plus belles remontées : ${c.map((x) => `${x.last} (P${x.grid} → P${x.finish})`).join(', ')}`);
+    return finish(d, `📈 ${gpFlag(d, capFirst(gpNameFr(d.gpEn)))} tour par tour`, lines, sig, ['#RaceDay'], lines);
   }
   if (d.post === 'recap') {
-    const lines = d.items.map((it, i) => `${i + 1}. ${it.badge.label} | ${it.title}`);
+    const lines = d.items.map((it, i) => `${keycap(i + 1)} ${it.badge.label} | ${it.title}`);
     const src = [...new Set(d.items.map((it) => it.source).filter(Boolean))];
-    return finish({ ...d, gpEn: '' }, `La semaine en F1 : les ${d.items.length} infos à retenir`, [...lines, ...(src.length ? ['', `Sources : ${src.join(', ')}`] : [])], sig, ['#F1News'], lines.slice(0, 3));
+    return finish({ ...d, gpEn: '' }, `📰 La semaine en F1 : les ${d.items.length} infos à retenir`, [...lines, ...(src.length ? ['', `📚 Sources : ${src.join(', ')}`] : [])], sig, ['#F1News'], lines.slice(0, 3));
   }
   return { instagram: '', x: '', bsky: '', threads: '', story: '' };
 }

@@ -30,9 +30,9 @@ test('programme du week-end : horaires en heure de Paris, météo des jours de s
   assert.deepEqual(d.forecast.map((f) => f.day), ['Vendredi', 'Dimanche']);
   assert.deepEqual(slidesFor(d), ['couverture', 'horaires', 'infos']);
   const c = seasonCaptions(d, '@moi');
-  assert.match(c.instagram, /^Programme du week-end : Grand Prix des États-Unis/);
-  assert.match(c.instagram, /Dim\. 20:00 · Course/);
-  assert.match(c.instagram, /Météo prévue dimanche : 27 °C, 30 % de risque de pluie/);
+  assert.match(c.instagram, /^🗓️ PROGRAMME DU WEEK-END \| Grand Prix des États-Unis 🇺🇸/);
+  assert.match(c.instagram, /🏁 Dim\. 20:00 · Course/);
+  assert.match(c.instagram, /(☀️|🌧️) Météo prévue dimanche : 27 °C, 30 % de risque de pluie/);
   assert.ok(xLength(c.x) <= 280 && c.threads.length <= 500);
 });
 
@@ -61,7 +61,7 @@ test('notes des pilotes : résultat, places gagnées, duel avec le coéquipier, 
   const d = ratingsData(R1, { year: 2026, laps });
   assert.ok(d.withPace);
   assert.deepEqual(slidesFor(d), ['couverture', 'topflop', 'notes']);
-  assert.match(seasonCaptions(d, '').instagram, /1\. Max Verstappen : \d,\d\/10/);
+  assert.match(seasonCaptions(d, '').instagram, /🥇 Max Verstappen : \d,\d\/10/);
 });
 
 test('duels entre coéquipiers sur la saison', () => {
@@ -74,7 +74,7 @@ test('duels entre coéquipiers sur la saison', () => {
   assert.deepEqual([fer.a.q, fer.b.q, fer.a.r, fer.b.r], [2, 0, 2, 0]);
   assert.equal(fer.gap, -0.4);
   assert.deepEqual(slidesFor(d), ['couverture', 'equipes-1']);
-  assert.match(seasonCaptions(d, '').instagram, /Ferrari : Leclerc 2-0 Hamilton en qualifs, 2-0 en course/);
+  assert.match(seasonCaptions(d, '').instagram, /🆚 Ferrari : Leclerc 2-0 Hamilton en qualifs, 2-0 en course/);
   assert.equal(teamColor('red_bull'), '#3671C6');
   assert.equal(teamColor('Racing Bulls'), '#6692FF');
 });
@@ -98,10 +98,10 @@ test('course au titre : points encore en jeu, éliminés, titre possible au proc
   assert.deepEqual(d.clinchD.needs.map((n) => [n.label, n.margin]), [['Verstappen', -2], ['Hamilton', -9]]);
   assert.equal(d.clinchD.needs[0].win, 'suffit');
   const ig = seasonCaptions(d, '').instagram;
-  assert.match(ig, /^La course au titre après le Grand Prix des États-Unis/);
-  assert.match(ig, /2\. Verstappen : 40 pts \(à 3 pts\)/);
-  assert.match(ig, /Charles Leclerc peut être sacré dès le Grand Prix des États-Unis\./);
-  assert.match(ig, /Encore 1 Grand Prix\./);
+  assert.match(ig, /^🏆 La course au titre après le Grand Prix des États-Unis 🇺🇸/);
+  assert.match(ig, /🥈 Verstappen : 40 pts \(à 3 pts\)/);
+  assert.match(ig, /🔥 Charles Leclerc peut être sacré dès le Grand Prix des États-Unis\./);
+  assert.match(ig, /🗓️ Encore 1 Grand Prix\./);
   // Manche plus ancienne : classement recalculé d'après les résultats jusqu'à elle
   const old = titleData(season, { year: 2026, upTo: 10 });
   assert.deepEqual(old.drivers.slice(0, 2).map((e) => [e.label, e.points]), [['Verstappen', 25], ['Leclerc', 18]]);
@@ -109,7 +109,7 @@ test('course au titre : points encore en jeu, éliminés, titre possible au proc
   // Plus qu'un pilote en course : champion
   const won = titleData({ ...season, drivers: [season.drivers[0], { ...season.drivers[1], points: 10 }, { ...season.drivers[2], points: 5 }, season.drivers[3]] }, { year: 2026 });
   assert.equal(won.champion.name, 'Charles Leclerc');
-  assert.match(seasonCaptions(won, '').instagram, /^Charles Leclerc champion du monde 2026 !/);
+  assert.match(seasonCaptions(won, '').instagram, /^👑 Charles Leclerc champion du monde 2026 !/);
 });
 
 test('course tour par tour : pages de l\'API regroupées, leaders et remontées', () => {
@@ -131,7 +131,7 @@ test('course tour par tour : pages de l\'API regroupées, leaders et remontées'
   const d = raceLapsData(R1, laps, { year: 2026 });
   assert.equal(d.climbs[0].code, 'HAM');
   assert.deepEqual(slidesFor(d), ['couverture', 'positions']);
-  assert.match(seasonCaptions(d, '').instagram, /Plus belles remontées : Hamilton \(P5 → P3\)/);
+  assert.match(seasonCaptions(d, '').instagram, /🚀 Plus belles remontées : Hamilton \(P5 → P3\)/);
 });
 
 test('récap de la semaine et questions en fin de texte', () => {
@@ -141,10 +141,10 @@ test('récap de la semaine et questions en fin de texte', () => {
   assert.deepEqual(slidesFor(d), ['recapcover', 'recap-1', 'recap-2', 'recap-3']);
   assert.equal(d.date, '10 octobre au 16 octobre');
   const c = seasonCaptions(d, '@moi');
-  assert.match(c.instagram, /^La semaine en F1 : les 3 infos à retenir\n\n1\. TRANSFERT \| Hamilton signs new Ferrari deal\n2\. PÉNALITÉ/);
+  assert.match(c.instagram, /^📰 La semaine en F1 : les 3 infos à retenir\n\n1️⃣ TRANSFERT \| Hamilton signs new Ferrari deal\n2️⃣ PÉNALITÉ/);
   // Question adaptée, avant la signature
   const q = questionCaptions(c, d, '@moi');
-  assert.match(q.instagram, /\n\nQuelle info vous a le plus marqué cette semaine \?\n\n@moi\n\n#/);
+  assert.match(q.instagram, /\n\n💬 Quelle info vous a le plus marqué cette semaine \?\n\n@moi\n\n#/);
   assert.match(questionFor({ kind: 'quali', sprint: false }), /Qui gagne la course/);
   assert.match(questionFor({ news: true, badge: { key: 'penalite' } }), /Sanction méritée/);
   assert.match(questionFor({ post: 'flash', event: { kind: 'sc' } }), /Qui va en profiter/);
@@ -207,7 +207,7 @@ test('race week : tracé du circuit, couleurs du pays, vainqueur précédent, mi
   assert.deepEqual(d.palette, flagColors('us'));
   assert.deepEqual(slidesFor(d), ['raceweek', 'horaires', 'infos']);
   const c = seasonCaptions(d, '@moi');
-  assert.match(c.instagram, /^RACE WEEK \| Grand Prix des États-Unis\n\nManche 18\/23 · du 23 au 25 octobre 2026 · Austin\nCourse dimanche à 20:00 \(heure de Paris\)\n56 tours · 5,513 km · 1 virage\nVainqueur 2025 : Max Verstappen \(Red Bull\)/);
+  assert.match(c.instagram, /^🔥 RACE WEEK \| Grand Prix des États-Unis 🇺🇸\n\n📍 Manche 18\/23 · du 23 au 25 octobre 2026 · Austin\n🏁 Course dimanche à 20:00 \(heure de Paris\)\n🛣️ 56 tours · 5,513 km · 1 virage\n🏆 Vainqueur 2025 : Max Verstappen \(Red Bull\)/);
   assert.match(c.instagram, /#RaceWeek #Austin/);
   assert.ok(xLength(c.x) <= 280);
   assert.equal(raceWeekData({ ...race, round: 19 }, { year: 2026 }).variant, 1);

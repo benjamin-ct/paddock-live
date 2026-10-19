@@ -1,7 +1,7 @@
 // Autres posts de séance (mode créateur) : avant-course (grille, météo, pneus Pirelli), championnat
 // après la course, « flash » pendant la séance (drapeau rouge, voiture de sécurité, abandon,
 // pénalité) et duels entre coéquipiers. Données tirées de l'état de la séance, textes en français.
-import { postData, hashtag, teamTag, BRAND_TAG } from './social.js';
+import { postData, hashtag, teamTag, BRAND_TAG, gpFlag, MEDALS, xLength } from './social.js';
 import { portraitUrl } from './portraits.js';
 
 const list = (o) => (!o ? [] : Array.isArray(o) ? o : Object.keys(o).sort((a, b) => a - b).map((k) => o[k]));
@@ -64,8 +64,8 @@ export function champData(state) {
 // ---------- Flash : faits marquants pendant la séance ----------
 const FR_REASON = { 'CAUSING A COLLISION': 'collision', 'LEAVING THE TRACK AND GAINING AN ADVANTAGE': 'avantage pris hors piste', 'SPEEDING IN THE PIT LANE': 'excès de vitesse aux stands', 'FORCING ANOTHER DRIVER OFF THE TRACK': 'pilote poussé hors de la piste', 'UNSAFE RELEASE': 'sortie des stands dangereuse', 'TRACK LIMITS': 'limites de piste' };
 export const FLASH_KINDS = {
-  red: { label: 'DRAPEAU ROUGE', color: '#e10600' }, sc: { label: 'VOITURE DE SÉCURITÉ', color: '#f5c518' }, vsc: { label: 'VOITURE DE SÉCURITÉ VIRTUELLE', color: '#f5c518' },
-  retire: { label: 'ABANDON', color: '#9aa3b2' }, penalty: { label: 'PÉNALITÉ', color: '#f5a524' },
+  red: { label: 'DRAPEAU ROUGE', color: '#e10600', emoji: '🔴' }, sc: { label: 'VOITURE DE SÉCURITÉ', color: '#f5c518', emoji: '🚨' }, vsc: { label: 'VOITURE DE SÉCURITÉ VIRTUELLE', color: '#f5c518', emoji: '🟡' },
+  retire: { label: 'ABANDON', color: '#9aa3b2', emoji: '💥' }, penalty: { label: 'PÉNALITÉ', color: '#f5a524', emoji: '⚠️' },
 };
 
 // Évènements de la séance, du plus récent au plus ancien
@@ -114,25 +114,25 @@ export function moreCaptions(d, signature = '') {
   let extra = [];
   if (d.post === 'prerace') {
     const [p1, p2, p3] = d.rows;
-    head = `${d.sprint ? 'Grille de la course sprint' : 'Grille de départ'} : ${d.gp}${d.gridSource === 'fia-provisional' ? ' (provisoire)' : ''}`;
+    head = `🚦 ${d.sprint ? 'GRILLE DU SPRINT' : 'GRILLE DE DÉPART'} | ${gpFlag(d)}${d.gridSource === 'fia-provisional' ? ' (provisoire)' : ''}`;
     const lines = [];
-    if (p1) lines.push(`${d.gridSource === 'fia' || d.gridSource === 'live' ? 'En pole' : 'Pole'} : ${p1.first} ${p1.last} (${p1.team})${p2 ? `, devant ${p2.last}${p3 ? ` et ${p3.last}` : ''}` : ''}.`);
+    if (p1) lines.push(`🥇 ${d.gridSource === 'fia' || d.gridSource === 'live' ? 'En pole' : 'Pole'} : ${p1.first} ${p1.last} (${p1.team})${p2 ? `, devant ${p2.last}${p3 ? ` et ${p3.last}` : ''}` : ''}.`);
     const pens = d.rows.filter((r) => r.penalty);
-    if (pens.length) lines.push(`Pénalités :\n${pens.map((r) => `– ${r.last}${r.pitlane ? '' : ` (${r.pos}e)`} : ${r.penalty}`).join('\n')}`);
-    if (d.weather) lines.push(`Météo : ${dec(d.weather.air)} °C dans l'air, ${dec(d.weather.track)} °C sur la piste, ${d.weather.rain ? 'pluie' : 'pas de pluie'}.`);
-    if (d.tyres) lines.push(`Pneus Pirelli : C${d.tyres.hard} (durs), C${d.tyres.medium} (médiums), C${d.tyres.soft} (tendres).`);
+    if (pens.length) lines.push(`⚠️ Pénalités :\n${pens.map((r) => `– ${r.last}${r.pitlane ? '' : ` (${r.pos}e)`} : ${r.penalty}`).join('\n')}`);
+    if (d.weather) lines.push(`${d.weather.rain ? '🌧️' : '☀️'} Météo : ${dec(d.weather.air)} °C dans l'air, ${dec(d.weather.track)} °C sur la piste, ${d.weather.rain ? 'pluie' : 'pas de pluie'}.`);
+    if (d.tyres) lines.push(`🛞 Pneus Pirelli : C${d.tyres.hard} (durs), C${d.tyres.medium} (médiums), C${d.tyres.soft} (tendres).`);
     body = lines.join('\n');
-    bodyX = lines.map((l) => (l.startsWith('Pénalités') ? `Pénalités : ${pens.map((r) => r.last).join(', ')}.` : l)).join('\n');
+    bodyX = lines.map((l) => (l.startsWith('⚠️ Pénalités') ? `⚠️ Pénalités : ${pens.map((r) => r.last).join(', ')}.` : l)).join('\n');
     extra = ['#RaceDay', p1 ? hashtag(`${p1.first}${p1.last}`) : ''];
   } else if (d.post === 'champ') {
     const [a, b, c] = d.champ.drivers;
     const t = d.champ.teams[0];
-    head = `Championnat ${d.final ? 'après' : 'en direct de'} ${d.sprint ? 'la course sprint du ' : 'le '}${d.gp}`;
-    body = [a && `1. ${a.last} : ${a.points} pts${a.gained ? ` (+${a.gained})` : ''}`, b && `2. ${b.last} : ${b.points} pts${a ? ` (à ${a.points - b.points})` : ''}`, c && `3. ${c.last} : ${c.points} pts`, t && `\nConstructeurs : ${t.name} en tête avec ${t.points} pts`].filter(Boolean).join('\n');
+    head = `🏆 Championnat ${d.final ? 'après' : 'en direct de'} ${d.sprint ? 'la course sprint du ' : 'le '}${gpFlag(d)}`;
+    body = [a && `${MEDALS[0]} ${a.last} : ${a.points} pts${a.gained ? ` (+${a.gained})` : ''}`, b && `${MEDALS[1]} ${b.last} : ${b.points} pts${a ? ` (à ${a.points - b.points})` : ''}`, c && `${MEDALS[2]} ${c.last} : ${c.points} pts`, t && `\n🔧 Constructeurs : ${t.name} en tête avec ${t.points} pts`].filter(Boolean).join('\n');
     extra = ['#F1Championship', a ? hashtag(a.last) : '', t ? teamTag(t.name) : ''];
   } else if (d.post === 'flash') {
     const k = FLASH_KINDS[d.event.kind];
-    head = `${k.label} | ${d.gp}`;
+    head = `${k.emoji} ${k.label} | ${gpFlag(d)}`;
     body = [d.event.title, d.event.sub].filter(Boolean).join(' — ');
     extra = d.event.driver ? [hashtag(`${d.event.driver.first}${d.event.driver.last}`), teamTag(d.event.driver.team)] : [];
   }
@@ -143,10 +143,10 @@ export function moreCaptions(d, signature = '') {
   const bodyLines = (bodyX ?? body).split('\n');
   const make = () => `${head}\n\n${bodyLines.join('\n')}\n\n${shortTags.join(' ')}`;
   let x = make();
-  while (x.length > 280 && shortTags.length > 3) { shortTags.pop(); x = make(); }
-  while (x.length > 280 && bodyLines.length > 1) { bodyLines.pop(); x = make(); }
-  while (x.length > 280 && shortTags.length > 1) { shortTags.pop(); x = make(); }
-  if (x.length > 280) x = `${head}\n\n${bodyLines.join('\n')}`.slice(0, 278) + '…';
+  while (xLength(x) > 280 && shortTags.length > 3) { shortTags.pop(); x = make(); }
+  while (xLength(x) > 280 && bodyLines.length > 1) { bodyLines.pop(); x = make(); }
+  while (xLength(x) > 280 && shortTags.length > 1) { shortTags.pop(); x = make(); }
+  if (xLength(x) > 280) x = `${head}\n\n${bodyLines.join('\n')}`.slice(0, 260) + '…';
   const threads = `${head}\n\n${body}${sig}\n\n#F1 ${BRAND_TAG}`.slice(0, 500);
   return { instagram, x, bsky: x, threads, story: head };
 }

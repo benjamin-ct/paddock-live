@@ -50,7 +50,7 @@ function insert(text, line, handle) {
 // Question ajoutée juste avant la signature (ou les hashtags), dans la limite de chaque réseau
 export function questionCaptions(caps, d, handle = '') {
   const h = String(handle || '').trim();
-  const q = questionFor(d);
+  const q = `💬 ${questionFor(d)}`;
   const before = (text) => {
     if (!text) return text;
     if (h && text.includes(`\n\n${h}\n\n`)) return text.replace(`\n\n${h}\n\n`, `\n\n${q}\n\n${h}\n\n`);
@@ -68,8 +68,8 @@ export function questionCaptions(caps, d, handle = '') {
 // caps : textes des réseaux (instagram, facebook, threads, x, bsky…) ; handle : compte (@…)
 export function followCaptions(caps, d, handle = '') {
   const h = String(handle || '').trim();
-  const long = `${h ? `Abonnez-vous à ${h}` : 'Abonnez-vous'} ${followReason(d)}.`;
-  const short = h ? `Suivez ${h} pour toute l'actu F1.` : '';
+  const long = `🔔 ${h ? `Abonnez-vous à ${h}` : 'Abonnez-vous'} ${followReason(d)} !`;
+  const short = h ? `🔔 Suivez ${h} pour toute l'actu F1 !` : '';
   const out = { ...caps };
   for (const k of ['instagram', 'facebook']) if (out[k]) out[k] = insert(out[k], long, h);
   if (out.threads) { const t = insert(out.threads, long, h); if (t.length <= 500) out.threads = t; }

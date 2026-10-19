@@ -3,6 +3,7 @@
 import { slidesFor, drawSlide, slideName, chosenSlides, keptData } from '/shared/social-draw.js';
 import { openImageViewer } from '/shared/image-viewer.js';
 import { followCaptions, questionCaptions } from '/shared/social-follow.js';
+import { xLength } from '/shared/social.js';
 import { FLAG_ISO } from '/shared/flags.js';
 import { loadTeamLogos } from '/shared/team-logos.js';
 import { $, $$, esc, api, icon, toast, toggle, sheet, schedList, glide, state, session, SIG, NET_NAMES, IOS, installed } from './ui.js';
@@ -40,7 +41,6 @@ const CAPS = [
   ['bsky', () => 'Texte Bluesky', 3, 0, 300],
   ['comment', () => 'Premier commentaire (Facebook, Threads, Bluesky ; X : à coller en réponse)', 2],
 ];
-const xLen = (s) => String(s || '').replace(/https?:\/\/\S+/g, 'x'.repeat(23)).length;
 
 // Retour à la liste : bouton, geste « retour » de Safari (historique) et, sur l'appli installée,
 // glissement depuis le bord gauche de l'écran
@@ -128,7 +128,7 @@ export function editor({ back, title, subtitle = '', head = '', below = false, d
         ${k === 'comment' ? `<div class="row end"><button class="btn small" id="copycomment">${icon('copy')}Copier</button></div>` : ''}</details>`).join('')}</section>`;
     const count = (k) => {
       const el = $(`#cap-${k}`);
-      const n = k === 'x' ? xLen(el.value) : el.value.length;
+      const n = k === 'x' ? xLength(el.value) : el.value.length;
       const lim = Number(el.dataset.limit) || 0;
       $(`[data-count="${k}"]`).textContent = lim ? `${n} / ${lim}` : `${n}`;
       $(`[data-count="${k}"]`).classList.toggle('err', !!lim && n > lim);

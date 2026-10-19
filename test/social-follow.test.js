@@ -24,6 +24,13 @@ test('abonnement : dernière image des carrousels et du format X, pas sur une im
   assert.match(followReason({ news: true }), /actu/);
 });
 
+test('longueur X : emojis et flèches comptent double, liens 23', () => {
+  assert.equal(xLength('Pole à 1:20'), 11);
+  assert.equal(xLength('⚡ P1 → P2'), 11);
+  assert.equal(xLength('⏱️🏆1️⃣'), 6);
+  assert.equal(xLength('https://exemple.test/une/longue/adresse'), 23);
+});
+
 test('abonnement : ligne ajoutée aux textes, dans la limite de chaque réseau', () => {
   const d = { kind: 'race', rows: [{}] };
   const caps = {
@@ -35,9 +42,9 @@ test('abonnement : ligne ajoutée aux textes, dans la limite de chaque réseau',
   };
   const f = followCaptions(caps, d, '@moi');
   // Signature seule remplacée par l'appel, hashtags toujours à la fin
-  assert.match(f.instagram, /\n\nAbonnez-vous à @moi pour suivre toute l'actualité de la Formule 1\.\n\n#/);
+  assert.match(f.instagram, /\n\n🔔 Abonnez-vous à @moi pour suivre toute l'actualité de la Formule 1 !\n\n#/);
   assert.ok(!f.instagram.includes('\n\n@moi\n\n'));
-  assert.match(f.x, /Suivez @moi pour toute l'actu F1\./);
+  assert.match(f.x, /🔔 Suivez @moi pour toute l'actu F1 !/);
   assert.ok(xLength(f.x) <= 280);
   assert.ok(f.threads.length <= 500);
   assert.equal(f.story, caps.story);
@@ -46,7 +53,7 @@ test('abonnement : ligne ajoutée aux textes, dans la limite de chaque réseau',
   assert.equal(followCaptions(full, d, '@moi').x, full.x);
   // Sans compte : appel générique, pas de ligne sur X
   const g = followCaptions({ instagram: 'Titre\n\n#F1', x: 'Titre\n\n#F1' }, d, '');
-  assert.equal(g.instagram, "Titre\n\nAbonnez-vous pour suivre toute l'actualité de la Formule 1.\n\n#F1");
+  assert.equal(g.instagram, "Titre\n\n🔔 Abonnez-vous pour suivre toute l'actualité de la Formule 1 !\n\n#F1");
   assert.equal(g.x, 'Titre\n\n#F1');
 });
 
@@ -69,7 +76,7 @@ test("news en plusieurs images : points clés répartis, légendes avec l'essent
   assert.deepEqual(slidesFor(d, { fmt: 'x', follow: true, question: true }), ['news', 'essentiel-1', 'question', 'abonnement']);
   assert.ok(slidesFor(d, { fmt: 'x', follow: true }).length <= 4);
   const c = newsCaptions(d, '@moi');
-  assert.match(c.instagram, /L'essentiel :\n– Ferrari prolonge Hamilton de deux saisons\.\n– Le Britannique/);
+  assert.match(c.instagram, /📌 L'essentiel :\n👉 Ferrari prolonge Hamilton de deux saisons\.\n👉 Le Britannique/);
   assert.match(c.facebook, /L'essentiel :/);
   assert.ok(!c.x.includes("L'essentiel"));
   // Instagram : 2 200 caractères au plus, les points restent sur les images
