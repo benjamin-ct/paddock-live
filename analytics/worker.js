@@ -18,7 +18,7 @@ import { cleanRequest, translateBatch } from './translate.js';
 import { cleanSummaryRequest, summarizeArticle } from './summarize.js';
 import { newsAlerts } from './alerts.js';
 import { transcribeRadio, cachedRadio, HASH_RE, MAX_AUDIO } from './transcribe.js';
-import { download, FILES } from './download.js';
+import { download, mirror, FILES } from './download.js';
 import { go, countClick } from './clicks.js';
 import { feedbackPost, feedbackFile } from './feedback.js';
 import { buildIcs } from '../shared/ics.js';
@@ -221,6 +221,7 @@ export default {
       if (FILES[os] && env.DB) ctx?.waitUntil?.(countClick(req, env, 'download', os) || Promise.resolve());
       return download(url.pathname);
     }
+    if (req.method === 'GET' && url.pathname.startsWith('/dl/')) return mirror(req, env, decodeURIComponent(url.pathname.slice(4)));
     // Lien suivi d'un post : clic compté, puis l'adresse d'origine
     if (req.method === 'GET' && url.pathname.startsWith('/go/') && env.DB) return go(req, env, ctx, url.pathname.slice(4));
     // Page des streamers : le bloc Streaming du site

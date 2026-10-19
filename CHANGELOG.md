@@ -7,7 +7,7 @@ l'application (Réglages → Application → Nouveautés).
 ## v1.27.51 — à venir
 
 ### Mises à jour
-- Téléchargement des mises à jour bien plus rapide : le fichier arrive en plusieurs morceaux à la fois (les serveurs de GitHub sont aux États-Unis, une seule connexion était lente depuis l'Europe). Effet à partir de la mise à jour suivante.
+- Téléchargement de l'appli et des mises à jour bien plus rapide : les fichiers viennent d'un serveur proche (Cloudflare) au lieu de GitHub aux États-Unis, en plusieurs morceaux à la fois (GitHub reste en secours). Pour les mises à jour, effet à partir de la suivante.
 
 ## v1.27.50 — 2026-10-19
 

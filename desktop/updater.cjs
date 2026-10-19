@@ -1,5 +1,5 @@
 // Mise à jour automatique de l'application (Windows, Linux AppImage, macOS).
-// Téléchargement en plusieurs morceaux à la fois (un seul flux si le serveur ne découpe pas).
+// Fichiers copiés sur Cloudflare (paddocklive.app/dl/…, GitHub en secours), en plusieurs morceaux à la fois.
 // Les versions sont lues sur les Releases du dépôt public (package.json → paddockLive.updateRepo),
 // téléchargées en arrière-plan, vérifiées (empreinte SHA-256 fournie par GitHub), puis installées :
 // - Windows, installateur : exécution silencieuse du nouvel installateur, puis relance de l'appli ;
@@ -21,6 +21,8 @@ const CHECK_EVERY_MS = 6 * 3600 * 1000;
 const CHECK_TIMEOUT_MS = 10000;     // réponse de GitHub
 const STALL_TIMEOUT_MS = 30000;     // téléchargement sans aucune donnée reçue
 const PARTS = 6;                     // morceaux téléchargés en même temps
+// Copie des fichiers sur Cloudflare (serveur Paddock Live), bien plus rapide en Europe ; GitHub en secours
+const MIRROR = process.env.PADDOCK_DL_URL ?? 'https://paddocklive.app/dl/';
 
 // Bundle « Paddock Live.app » de l'appli macOS, s'il peut être remplacé (pas lancé depuis l'image disque)
 // macOS lance une appli non signée par Apple et encore « en quarantaine » depuis une copie temporaire
@@ -190,7 +192,22 @@ async function fetchParts(asset, tmp, ctrl) {
   return `sha256:${hash.digest('hex')}`;
 }
 
+// Copie sur Cloudflare d'abord, fichier de GitHub si elle échoue (absente, coupée, empreinte différente)
 async function fetchTo(asset, tmp, ctrl) {
+  const urls = [MIRROR && `${MIRROR}${encodeURIComponent(asset.name)}`, asset.browser_download_url].filter(Boolean);
+  for (let i = 0; ; i++) {
+    const ac = new AbortController();
+    const stop = () => ac.abort();
+    ctrl.signal.addEventListener('abort', stop);
+    try {
+      return await fetchFrom({ ...asset, browser_download_url: urls[i], url: i === urls.length - 1 ? asset.url : null }, tmp, ac);
+    } catch (err) {
+      if (ctrl.signal.aborted || i === urls.length - 1) throw err;
+    } finally { ctrl.signal.removeEventListener('abort', stop); }
+  }
+}
+
+async function fetchFrom(asset, tmp, ctrl) {
   if (asset.size > 8e6 && asset.browser_download_url) {
     const digest = await fetchParts(asset, tmp, ctrl).catch((err) => { if (!err.noRange) throw err; return null; });
     if (digest) {
