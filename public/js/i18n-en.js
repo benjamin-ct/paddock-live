@@ -2500,12 +2500,11 @@ export default {
   "Windy": "Windy",
   "Radar de pluie": "Rain radar",
   "{} Radar de pluie": "{} Rain radar",
+  "Carte animée Windy : pluie, vent, nuages et prévisions (changer de calque en bas à droite).": "Windy animated map: rain, wind, clouds and forecasts (change layer at the bottom right).",
   "faible · forte": "light · heavy",
   "Intensité de la pluie": "Rain intensity",
   "Pluie des 2 dernières heures et prévision à 30 min · RainViewer · © OpenStreetMap": "Rain over the last 2 hours and 30-min forecast · RainViewer · © OpenStreetMap",
   "{} (prévision)": "{} (forecast)",
   "{} (il y a {} min)": "{} ({} min ago)",
   "{} (maintenant)": "{} (now)",
-  "Carte figée sur le circuit": "Map locked on the circuit",
-  "Carte animée Windy : pluie, vent, nuages et prévisions (lecture et calques en bas).": "Windy animated map: rain, wind, clouds and forecasts (playback and layers at the bottom).",
 };
