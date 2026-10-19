@@ -127,6 +127,14 @@ export function initRail() {
     ACTIONS[b.dataset.rail]?.(b);
     sync();
   });
+  // Échap : ferme d'abord un petit menu ouvert (Dispo., thème), seul ; sinon la page Résultats
+  // (Accueil, Saison, Actu, Replays : leur propre Échap)
+  window.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape' || document.querySelector('dialog[open]')) return;
+    const menu = document.querySelector('.lpop-menu');
+    if (menu) { e.stopPropagation(); menu.remove(); return; }
+    if (isResultsOpen()) { closeResults(); sync(); }
+  }, true);
   const mo = new MutationObserver(sync);
   mo.observe($('#seasonView'), { attributes: true, attributeFilter: ['hidden'] });
   mo.observe($('#newsView'), { attributes: true, attributeFilter: ['hidden'] });
