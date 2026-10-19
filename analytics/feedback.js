@@ -2,8 +2,8 @@
 // serveur local) ou le site (FAQ), gardées dans la base, signalées sur le téléphone du créateur et lues
 // dans le Studio (bouton Messages). Limitées par adresse et par jour.
 // Pièces jointes (captures, vidéos) : le message annonce leur nombre et reçoit un jeton d'envoi, puis
-// chaque fichier arrive seul (POST /f/file), découpé en morceaux de 1 Mo dans la base (une ligne D1 est
-// limitée à 2 Mo). Les plus anciennes sont effacées au-delà de MAX_STORED.
+// chaque fichier arrive seul (POST /f/file), gardé dans le stockage R2 (MEDIA, fb/<message>/<n>), sa
+// liste dans la base. Les plus anciennes sont effacées au-delà de MAX_STORED.
 import { notifyPhones } from './alerts.js';
 
 const json = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' } });
@@ -14,8 +14,15 @@ const MAX_KEPT = 500;
 export const MAX_FILES = 3;
 // Formats acceptés (pas de SVG : il peut contenir du code) et taille maximale de chaque fichier
 export const FILE_TYPES = { 'image/png': 8e6, 'image/jpeg': 8e6, 'image/webp': 8e6, 'image/gif': 8e6, 'video/mp4': 40e6, 'video/webm': 40e6, 'video/quicktime': 40e6 };
-const PART = 1e6;
-const MAX_STORED = 200e6;
+const MAX_STORED = 2e9;   // R2 : 10 Go gratuits
+const fileKey = (msg, n) => `fb/${msg}/${n}`;
+// Pièces jointes des messages choisis effacées (fichiers et liste)
+async function dropFiles(env, where, ...args) {
+  const { results } = await env.DB.prepare(`SELECT msg, n FROM feedback_media WHERE ${where}`).bind(...args).all();
+  if (!results?.length) return;
+  await env.MEDIA?.delete(results.map((f) => fileKey(f.msg, f.n)));
+  await env.DB.prepare(`DELETE FROM feedback_media WHERE ${where}`).bind(...args).run();
+}
 const UPLOAD_TTL = 3600e3;
 const line = (s, n) => String(s ?? '').replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, n);
 
@@ -49,7 +56,7 @@ export async function feedbackPost(req, env, { now = Date.now(), fetchFn = fetch
   const { id } = await env.DB.prepare('INSERT INTO feedback (at, kind, text, contact, src, version, os, lang, seen) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0) RETURNING id')
     .bind(now, m.kind, m.text, m.contact, m.src, m.version, m.os, m.lang).first();
   await env.DB.prepare('DELETE FROM feedback WHERE id NOT IN (SELECT id FROM feedback ORDER BY at DESC LIMIT ?)').bind(MAX_KEPT).run();
-  await env.DB.prepare('DELETE FROM feedback_files WHERE msg NOT IN (SELECT id FROM feedback)').run();
+  await dropFiles(env, 'msg NOT IN (SELECT id FROM feedback)');
   await env.DB.prepare('DELETE FROM feedback_up WHERE at < ?').bind(now - UPLOAD_TTL).run();
   let up = null;
   if (m.files) {
@@ -63,7 +70,7 @@ export async function feedbackPost(req, env, { now = Date.now(), fetchFn = fetch
 
 // POST /f/file?id=…&up=…&n=… : une pièce jointe (corps brut, type dans Content-Type)
 export async function feedbackFile(req, env, url, { now = Date.now() } = {}) {
-  if (!env.DB) return json({ error: 'Envoi indisponible' }, 503);
+  if (!env.DB || !env.MEDIA) return json({ error: 'Envoi indisponible' }, 503);
   const id = Number(url.searchParams.get('id')), n = Number(url.searchParams.get('n'));
   const type = String(req.headers.get('Content-Type') || '').split(';')[0].trim().toLowerCase();
   const max = FILE_TYPES[type];
@@ -72,19 +79,17 @@ export async function feedbackFile(req, env, url, { now = Date.now() } = {}) {
   const up = Number.isInteger(id) ? await env.DB.prepare('SELECT tok, files, at FROM feedback_up WHERE msg = ?').bind(id).first() : null;
   if (!up || up.tok !== url.searchParams.get('up') || now - up.at > UPLOAD_TTL) return json({ error: 'Envoi expiré : renvoyez le message' }, 403);
   if (!Number.isInteger(n) || n < 0 || n >= up.files) return json({ error: 'Pièce jointe inattendue' }, 400);
-  if (await env.DB.prepare('SELECT 1 AS x FROM feedback_files WHERE msg = ? AND n = ? AND part = 0').bind(id, n).first()) return json({ error: 'Pièce jointe déjà reçue' }, 409);
+  if (await env.DB.prepare('SELECT 1 AS x FROM feedback_media WHERE msg = ? AND n = ?').bind(id, n).first()) return json({ error: 'Pièce jointe déjà reçue' }, 409);
   const data = new Uint8Array(await req.arrayBuffer());
   if (!data.length) return json({ error: 'Fichier vide' }, 400);
   if (data.length > max) return json({ error: `Fichier trop lourd (${max / 1e6} Mo au plus)` }, 413);
-  for (let p = 0; p * PART < data.length; p++) {
-    await env.DB.prepare('INSERT INTO feedback_files (msg, n, part, type, size, data) VALUES (?, ?, ?, ?, ?, ?)')
-      .bind(id, n, p, type, data.length, data.slice(p * PART, (p + 1) * PART).buffer).run();
-  }
+  await env.MEDIA.put(fileKey(id, n), data, { httpMetadata: { contentType: type } });
+  await env.DB.prepare('INSERT INTO feedback_media (msg, n, type, size) VALUES (?, ?, ?, ?)').bind(id, n, type, data.length).run();
   // Place limitée : pièces jointes des messages les plus anciens effacées
   for (;;) {
-    const t = (await env.DB.prepare('SELECT SUM(LENGTH(data)) AS t, MIN(msg) AS old FROM feedback_files').first()) || {};
+    const t = (await env.DB.prepare('SELECT SUM(size) AS t, MIN(msg) AS old FROM feedback_media').first()) || {};
     if (!(t.t > MAX_STORED) || t.old === id) break;
-    await env.DB.prepare('DELETE FROM feedback_files WHERE msg = ?').bind(t.old).run();
+    await dropFiles(env, 'msg = ?', t.old);
   }
   return json({ ok: true });
 }
@@ -93,17 +98,15 @@ export async function feedbackFile(req, env, url, { now = Date.now() } = {}) {
 export async function feedbackApi(path, req, env, url) {
   if (path === 'feedback' && req.method === 'GET') {
     const { results } = await env.DB.prepare('SELECT id, at, kind, text, contact, src, version, os, lang, seen FROM feedback ORDER BY at DESC').all();
-    const { results: files } = await env.DB.prepare('SELECT msg, n, type, size FROM feedback_files WHERE part = 0 ORDER BY msg, n').all();
+    const { results: files } = await env.DB.prepare('SELECT msg, n, type, size FROM feedback_media ORDER BY msg, n').all();
     return json({ items: (results || []).map((m) => ({ ...m, files: (files || []).filter((f) => f.msg === m.id).map(({ n, type, size }) => ({ n, type, size })) })) });
   }
   if (path === 'feedback/file' && req.method === 'GET') {
-    const { results } = await env.DB.prepare('SELECT type, data FROM feedback_files WHERE msg = ? AND n = ? ORDER BY part')
-      .bind(Number(url.searchParams.get('msg')), Number(url.searchParams.get('n'))).all();
-    if (!results?.length || !FILE_TYPES[results[0].type]) return json({ error: 'Pièce jointe introuvable' }, 404);
-    const parts = results.map((r) => new Uint8Array(r.data));
-    const out = new Uint8Array(parts.reduce((s, p) => s + p.length, 0));
-    parts.reduce((o, p) => { out.set(p, o); return o + p.length; }, 0);
-    return new Response(out, { headers: { 'Content-Type': results[0].type, 'Cache-Control': 'private, max-age=3600', 'X-Content-Type-Options': 'nosniff' } });
+    const msg = Number(url.searchParams.get('msg')), n = Number(url.searchParams.get('n'));
+    const f = await env.DB.prepare('SELECT type FROM feedback_media WHERE msg = ? AND n = ?').bind(msg, n).first();
+    const o = f && FILE_TYPES[f.type] ? await env.MEDIA?.get(fileKey(msg, n)) : null;
+    if (!o) return json({ error: 'Pièce jointe introuvable' }, 404);
+    return new Response(o.body, { headers: { 'Content-Type': f.type, 'Cache-Control': 'private, max-age=3600', 'X-Content-Type-Options': 'nosniff' } });
   }
   if (path === 'feedback/seen' && req.method === 'POST') {
     await env.DB.prepare('UPDATE feedback SET seen = 1 WHERE seen = 0').run();
@@ -113,7 +116,7 @@ export async function feedbackApi(path, req, env, url) {
     const id = Number((await req.json().catch(() => null))?.id);
     if (!Number.isInteger(id)) return json({ error: 'Message inconnu' }, 400);
     await env.DB.prepare('DELETE FROM feedback WHERE id = ?').bind(id).run();
-    await env.DB.prepare('DELETE FROM feedback_files WHERE msg = ?').bind(id).run();
+    await dropFiles(env, 'msg = ?', id);
     await env.DB.prepare('DELETE FROM feedback_up WHERE msg = ?').bind(id).run();
     return json({ ok: true });
   }
