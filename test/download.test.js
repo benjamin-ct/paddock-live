@@ -20,6 +20,10 @@ test('téléchargement : chaque système mène au bon fichier de la dernière ve
   const j = await (await download('/download/latest.json', { fetchFn: gh, now: 2 })).json();
   assert.equal(j.version, '1.27.19');
   assert.equal(j.files.windows, 'Paddock-Live-1.27.19-x64-win.exe');
+  // Version copiée sur Cloudflare : sans demander à GitHub
+  const env = { MEDIA: { get: async (k) => (k === 'releases/version' ? { text: async () => '1.27.51' } : null) } };
+  const nope = async () => { throw new Error('GitHub ne doit pas être appelé'); };
+  assert.equal((await download('/download/windows', { env, fetchFn: nope })).headers.get('Location'), '/dl/Paddock-Live-1.27.51-x64-win.exe');
   // Système inconnu : page des versions
   assert.match((await download('/download/amiga', { fetchFn: gh, now: 3 })).headers.get('Location'), /releases\/latest$/);
 });

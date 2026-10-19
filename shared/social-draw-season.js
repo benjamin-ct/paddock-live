@@ -688,7 +688,7 @@ export function raceFrame(ctx, W, H, d, o, time) {
     const lead = d.drivers.find((x) => posAt(x, Math.max(1, L)) === 1);
     if (lead) {
       rr(ctx, pad, bandY + 20 * u, W - 2 * pad, bandH - 40 * u, 14 * u); ctx.fillStyle = C.panel; ctx.fill();
-      ctx.fillStyle = vivid(lead.color); ctx.fillRect(pad, bandY + 20 * u, 10 * u, bandH - 40 * u);
+      rr(ctx, pad + 14 * u, bandY + 38 * u, 6 * u, bandH - 76 * u, 3 * u); ctx.fillStyle = vivid(lead.color); ctx.fill();   // trait de l'écurie, dans le cadre
       txt(ctx, 'EN TÊTE', pad + 36 * u, bandY + bandH / 2 - 14 * u, { size: Math.round(22 * u), weight: 700, family: TITLE, color: C.muted, spacing: 3 });
       txt(ctx, `${lead.first} ${lead.last}`.toUpperCase(), pad + 36 * u, bandY + bandH / 2 + 28 * u, { size: Math.round(40 * u), weight: 800, family: TITLE, max: W * 0.5 });
       const c = story.events.filter((e) => e.lap <= L + 1);
@@ -707,7 +707,7 @@ export function raceFrame(ctx, W, H, d, o, time) {
     rr(ctx, pad, bandY, W - 2 * pad, bandH, 18 * u); ctx.fillStyle = 'rgba(8,9,12,0.92)'; ctx.fill();
     ctx.strokeStyle = C.gold; ctx.lineWidth = 3 * u; ctx.stroke();
     if (w0) {
-      ctx.fillStyle = vivid(w0.color); ctx.fillRect(pad, bandY, 12 * u, bandH);
+      rr(ctx, pad + 18 * u, bandY + 26 * u, 6 * u, bandH - 52 * u, 3 * u); ctx.fillStyle = vivid(w0.color); ctx.fill();   // trait de l'écurie, dans le cadre doré
       txt(ctx, 'VAINQUEUR', pad + 40 * u, bandY + 50 * u, { size: Math.round(24 * u), weight: 800, family: TITLE, color: C.gold, spacing: 5 });
       txt(ctx, `${w0.first} ${w0.last}`.toUpperCase(), pad + 40 * u, bandY + 112 * u, { size: Math.round(64 * u), weight: 800, family: TITLE, max: W * 0.55 });
       txt(ctx, w0.team.toUpperCase(), pad + 40 * u, bandY + 150 * u, { size: Math.round(24 * u), weight: 700, family: TITLE, color: C.muted, spacing: 2 });

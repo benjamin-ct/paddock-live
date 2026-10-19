@@ -19,6 +19,12 @@
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 'Titillium Web', system-ui, sans-serif; -webkit-font-smoothing: antialiased; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; accent-color: var(--brand); }
+/* Barres de défilement fines aux couleurs du Studio (sans les flèches du navigateur) */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: var(--line-2) padding-box; border: 2px solid transparent; border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background-color: rgba(255, 255, 255, .28); }
+::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }
+@supports not selector(::-webkit-scrollbar) { * { scrollbar-width: thin; scrollbar-color: var(--line-2) transparent; } }
 /* iPhone : pas de sélection de texte ni de menu au toucher long sur les commandes, pas de zoom au
    double toucher, page figée sous une feuille ouverte */
 button, .card, .row-item, .chips, .seg, .tabbar, .pick, .switch, summary { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: manipulation; }
@@ -404,7 +410,11 @@ dialog.sheet .group, dialog.sheet input { background: rgba(255, 255, 255, .05); 
   .editing .page { display: grid; grid-template-columns: minmax(0, 1fr) 400px; column-gap: 28px; align-items: start; padding-top: 12px; }
   .editing .page > * { grid-column: 2; min-width: 0; }
   .editing .page > #fmt { margin-top: 0; }
-  .editing .page > .preview { grid-column: 1; grid-row: 1 / span 12; position: sticky; top: 72px; max-height: calc(100vh - 96px); overflow: auto; padding-right: 4px; }
+  /* Une seule barre de défilement quand tout tient : les visuels défilent dans leur colonne, la page ne
+     dépasse l'écran que si la colonne de droite est plus haute (marge du bouton Publier sous elle seule) */
+  .editing .page { min-height: 0; padding-bottom: 0; }
+  .editing .page > #schedlist { padding-bottom: calc(110px + env(safe-area-inset-bottom)); }
+  .editing .page > .preview { grid-column: 1; grid-row: 1 / span 12; position: sticky; top: 72px; max-height: calc(100vh - 100px); overflow: auto; padding-right: 4px; }
   .editing .slides { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; margin: 0; padding: 2px; overflow: visible; scroll-snap-type: none; }
   .editing .slides.story { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
   .editing .slides .sl { width: auto; }
