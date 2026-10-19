@@ -2873,7 +2873,6 @@ html.float-mini .float-bar { top: auto; bottom: 4px; right: 24px; }   /* en bas 
 .pv-ratio { display: block; border: 2px solid currentColor; border-radius: 3px; }
 .pv-ratio.r45 { width: 13px; height: 16px; }
 .pv-ratio.r916 { width: 10px; height: 17px; }
-.pv-ratio.r11 { width: 14px; height: 14px; }
 .pv-opts { display: flex; flex-direction: column; padding: 2px 10px; }
 .pv-opts .toggle { display: flex; flex-direction: row-reverse; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
 .pv-opts .toggle[hidden] { display: none; }

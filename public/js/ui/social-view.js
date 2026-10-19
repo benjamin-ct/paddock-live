@@ -661,7 +661,7 @@ function open() {
     dlg.id = 'postsDlg';
     dlg.className = 'modal posts-dlg';
     const MODES = [['session', 'Séance', 'Résultats, avant-course, flash', 'checkered'], ['season', 'Saison', 'Race week, records, notes', 'calendar'], ['news', 'News', 'Grosses news et récap', 'news'], ['manual', 'Écrire', 'Votre propre post', 'note']];
-    const FMTS = [['ig', 'Instagram / Facebook', 'Carrousel 4:5', 'r45'], ['story', 'Story / TikTok / Shorts', 'Vertical 9:16', 'r916'], ['x', 'X / Threads / Bluesky', 'Carré 1:1', 'r11']];
+    const FMTS = [['ig', 'Instagram / Facebook', 'Carrousel 4:5', 'r45'], ['story', 'Story / TikTok / Shorts', 'Vertical 9:16', 'r916'], ['x', 'X / Threads / Bluesky', 'Carrousel 4:5', 'r45']];
     dlg.innerHTML = `<div class="pv-shell">
       <aside class="pv-side">
         <div class="pv-brand">${icon('megaphone')} ${t('Posts')}</div>
