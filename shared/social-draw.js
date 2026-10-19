@@ -21,12 +21,14 @@ export const MEDAL = [C.gold, C.silver, C.bronze];
 
 // Diapositives selon la séance, après une couverture « Résultats » (anti-spoiler : le vainqueur
 // n'est pas dévoilé dès la première image, ni dans l'aperçu du réseau). follow : dernière image
-// « Abonnez-vous » sur les carrousels (pas au format X : X et Bluesky publient 4 images au plus) ;
-// question : avant-dernière image avec la question du post, pour faire réagir en commentaire.
+// « Abonnez-vous » sur les carrousels ; question : avant-dernière image avec la question du post,
+// pour faire réagir en commentaire. Format X (X et Bluesky : 4 images au plus) : ces images de fin
+// passent avant les dernières images du post.
 export function slidesFor(d, { fmt = 'ig', follow = false, question = false } = {}) {
   const list = baseSlides(d, fmt);
-  if (fmt === 'x' || list.length < 2) return list;
-  return [...list, ...(question ? ['question'] : []), ...(follow ? ['abonnement'] : [])];
+  if (list.length < 2) return list;
+  const end = [...(question ? ['question'] : []), ...(follow ? ['abonnement'] : [])];
+  return [...(fmt === 'x' && end.length ? list.slice(0, 4 - end.length) : list), ...end];
 }
 function baseSlides(d, fmt) {
   if (d.news) return ['news', ...pointPages(d.points, fmt).map((_, i) => `essentiel-${i + 1}`)];
