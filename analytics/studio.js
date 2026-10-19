@@ -302,7 +302,7 @@ async function sendTo(net, vault, { text, comment, images, small = [], video = n
     return withComment(() => publishThreadsVideo(th, vault.meta, text.slice(0, 500), video), comment, (id, t) => replyThreads(th, id, t));
   }
   if (net === 'bluesky') {
-    const pics = small.slice(0, 4).map((blob) => ({ blob, width: 1600, height: 900 }));
+    const pics = small.slice(0, 4).map((blob) => ({ blob, width: 1080, height: 1350 }));   // format X de shared/social-draw.js
     return withComment(() => publishBluesky(vault.bluesky, [...text].slice(0, 300).join(''), pics), comment, (id, t) => replyBluesky(vault.bluesky, id, t));
   }
   if (net === 'facebook') return withComment(() => publishFacebook(vault.meta, text, images), comment, (id, t) => commentFacebook(vault.meta, id, t));

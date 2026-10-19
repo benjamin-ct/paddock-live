@@ -57,7 +57,7 @@ test('avant-course : grille officielle prioritaire sur les qualifications', () =
   assert.deepEqual([alo.pos, alo.tla, alo.color, alo.penalty], [21, 'ALO', '#229971', 'recul de 30 places (éléments moteur supplémentaires)']);
   assert.equal(d.rows[3].tla, 'HAD');   // pilote absent de la séance : nom tiré du document
   const c = moreCaptions(d, '');
-  assert.match(c.instagram, /^Grille de départ : Grand Prix d'Azerbaïdjan\n\nEn pole : George Russell/);
+  assert.match(c.instagram, /^🚦 GRILLE DE DÉPART \| Grand Prix d'Azerbaïdjan( 🇦🇿)?\n\n🥇 En pole : George Russell/);
   assert.match(c.instagram, /– Alonso \(21e\) : recul de 30 places/);
   assert.match(c.x, /Pénalités : Sainz, Perez, Alonso, Stroll\./);
   assert.ok(c.x.length <= 280);

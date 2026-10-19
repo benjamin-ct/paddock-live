@@ -46,10 +46,10 @@ test('autres posts : avant-course (grille de départ, météo, pneus)', () => {
   assert.deepEqual(d.weather, { air: 24.6, track: 38.1, humidity: 40, wind: 1.5, rain: false });
   assert.deepEqual(slidesFor(d), ['couverture', 'grille', 'meteo']);
   const c = moreCaptions(d, '@sig');
-  assert.match(c.instagram, /^Grille de départ : Grand Prix d'Italie/);
+  assert.match(c.instagram, /^🚦 GRILLE DE DÉPART \| Grand Prix d'Italie/);
   assert.equal(d.gridSource, 'live');   // positions de départ du flux de la course
-  assert.match(c.instagram, /En pole : Charles Leclerc \(Ferrari\), devant Norris et Piastri\./);
-  assert.match(c.instagram, /Pneus Pirelli : C3 \(durs\), C4 \(médiums\), C5 \(tendres\)\./);
+  assert.match(c.instagram, /🥇 En pole : Charles Leclerc \(Ferrari\), devant Norris et Piastri\./);
+  assert.match(c.instagram, /🛞 Pneus Pirelli : C3 \(durs\), C4 \(médiums\), C5 \(tendres\)\./);
   assert.ok(c.x.length <= 280);
   // Sans météo ni pneus : pas de diapositive météo
   assert.deepEqual(slidesFor(preraceData({ ...state, WeatherData: undefined })), ['couverture', 'grille']);
@@ -60,8 +60,8 @@ test('autres posts : championnat après la course', () => {
   assert.equal(d.post, 'champ');
   assert.deepEqual(slidesFor(d), ['couverture', 'champpilotes', 'champecuries']);
   const c = moreCaptions(d, '');
-  assert.match(c.instagram, /1\. Norris : 325 pts \(\+25\)\n2\. Piastri : 322 pts \(à 3\)/);
-  assert.match(c.instagram, /Constructeurs : McLaren en tête avec 647 pts/);
+  assert.match(c.instagram, /🥇 Norris : 325 pts \(\+25\)\n🥈 Piastri : 322 pts \(à 3\)/);
+  assert.match(c.instagram, /🔧 Constructeurs : McLaren en tête avec 647 pts/);
   assert.equal(champData({ ...state, ChampionshipPrediction: undefined }), null);
 });
 
@@ -76,6 +76,6 @@ test('autres posts : flash (drapeau rouge, voiture de sécurité, pénalité, ab
   assert.deepEqual(slidesFor(d), ['flash']);
   assert.deepEqual(d.rows.map((r) => r.tla), ['HAM']);
   const c = moreCaptions(d, '@sig');
-  assert.match(c.x, /^PÉNALITÉ \| Grand Prix d'Italie\n\nLewis Hamilton : 5 s de pénalité — collision/);
+  assert.match(c.x, /^⚠️ PÉNALITÉ \| Grand Prix d'Italie( 🇮🇹)?\n\nLewis Hamilton : 5 s de pénalité — collision/);
   assert.match(c.instagram, /#LewisHamilton/);
 });

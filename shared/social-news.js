@@ -170,11 +170,14 @@ export function newsPost(item, { title, summary, points = [], driverList = {}, s
   };
 }
 
+// Emoji du type de nouvelle, en tête des textes (🚨 pour les très grosses infos)
+const NEWS_EMOJI = { penalite: '⚠️', transfert: '✍️', depart: '👋', accident: '💥', officiel: '📢', actu: '🏎️' };
+
 // Légendes prêtes à copier (Instagram / Facebook, X, Threads, story). linkInComment : le lien de
 // l'article part en premier commentaire (Facebook, Threads, X) au lieu d'être dans le texte.
 export function newsCaptions(nd, signature = '', { linkInComment = false } = {}) {
   const sig = signature ? `\n\n${signature}` : '';
-  const src = nd.source ? `Source : ${nd.source}${nd.sources > 1 ? ` (repris par ${nd.sources - 1} autre${nd.sources > 2 ? 's' : ''} média${nd.sources > 2 ? 's' : ''})` : ''}` : '';
+  const src = nd.source ? `📰 Source : ${nd.source}${nd.sources > 1 ? ` (repris par ${nd.sources - 1} autre${nd.sources > 2 ? 's' : ''} média${nd.sources > 2 ? 's' : ''})` : ''}` : '';
   const people = [
     ...nd.drivers.map((d) => hashtag(`${d.first}${d.last}`)),
     ...nd.drivers.map((d) => d.team).filter(Boolean).map(teamTag),
@@ -184,13 +187,13 @@ export function newsCaptions(nd, signature = '', { linkInComment = false } = {})
   const seen = new Set();
   const tags = [BRAND_TAG, '#F1', '#Formula1', '#F1News', '#Formule1', ...people, nd.year ? `#F1${nd.year}` : '']
     .filter((t) => t && t.length > 2 && !seen.has(t.toLowerCase()) && seen.add(t.toLowerCase()));
-  const head = `${nd.badge.label} | ${nd.title}`;
+  const head = `${nd.breaking ? '🚨' : NEWS_EMOJI[nd.badge.key] || '🏎️'} ${nd.badge.label} | ${nd.title}`;
   // Lien de l'article : Facebook, Threads et X (pas Instagram, où il n'est pas cliquable)
   const url = /^https:\/\//.test(nd.link || '') ? nd.link : '';
-  const comment = url && linkInComment ? `Lire l'article : ${url}` : '';
+  const comment = url && linkInComment ? `🔗 Lire l'article : ${url}` : '';
   const link = comment ? '' : url;
-  const srcLink = `${src}${link ? `${src ? '\n' : ''}Lire l'article : ${link}` : ''}`;
-  const pts = nd.points?.length ? `\n\nL'essentiel :\n${nd.points.map((p) => `– ${p}`).join('\n')}` : '';
+  const srcLink = `${src}${link ? `${src ? '\n' : ''}🔗 Lire l'article : ${link}` : ''}`;
+  const pts = nd.points?.length ? `\n\n📌 L'essentiel :\n${nd.points.map((p) => `👉 ${p}`).join('\n')}` : '';
   let instagram = `${head}\n\n${nd.summary}${pts}${src ? `\n\n${src}` : ''}${sig}\n\n${tags.join(' ')}`;
   // Instagram : 2 200 caractères au plus (les points restent lisibles sur les images)
   if (instagram.length > 2200) instagram = instagram.replace(pts, '');

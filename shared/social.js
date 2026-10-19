@@ -5,6 +5,7 @@
 import { buildSummary, gpNameFr, sessionKindOf } from './summary.js';
 import { realStints } from './pits.js';
 import { portraitUrl } from './portraits.js';
+import { FLAG_ISO } from './flags.js';
 
 const list = (o) => (!o ? [] : Array.isArray(o) ? o : Object.keys(o).sort((a, b) => a - b).map((k) => o[k]));
 const RACE_PTS = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
@@ -22,7 +23,11 @@ export function gapFr(v) {
 }
 
 // Longueur d'un texte pour X : chaque lien compte pour 23 caractères (raccourci t.co)
-export const xLength = (s) => String(s || '').replace(/https?:\/\/\S+/g, 'x'.repeat(23)).length;
+// Longueur comptée par X : lien = 23, lettres latines = 1, emojis et autres signes (flèches…) = 2.
+// Sélecteur de variante et liaison d'emoji comptent 0 ; un drapeau compte 4 (X en compte 2).
+const light = (c) => c <= 4351 || (c >= 8192 && c <= 8205) || (c >= 8208 && c <= 8223) || (c >= 8242 && c <= 8247);
+export const xLength = (s) => [...String(s || '').replace(/https?:\/\/\S+/g, 'x'.repeat(23))]
+  .reduce((n, ch) => { const c = ch.codePointAt(0); return n + (c === 0xfe0f || c === 0x200d ? 0 : c === 0x20e3 || light(c) ? 1 : 2); }, 0);
 
 export const hashtag = (s) => `#${String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]/g, '')}`;
 
@@ -160,11 +165,22 @@ export function hashtags(d, { spoiler = true } = {}) {
   };
 }
 
+// Drapeau du pays du Grand Prix en emoji (« 🇮🇹 »), vide si le pays est inconnu
+export function flagEmoji(d) {
+  const iso = d.iso || FLAG_ISO[String(d.country || '').toUpperCase()] || '';
+  return /^[a-z]{2}$/i.test(iso) ? [...iso.toUpperCase()].map((c) => String.fromCodePoint(0x1f1a5 + c.charCodeAt(0))).join('') : '';
+}
+// Nom du Grand Prix suivi de son drapeau
+export const gpFlag = (d, name = d.gp) => [name, flagEmoji(d)].filter(Boolean).join(' ');
+export const MEDALS = ['🥇', '🥈', '🥉'];
+// Faits marquants : un emoji par type
+const FACT_ICON = { 'Meilleur tour': '⏱️', 'Plus belle remontée': '🚀', 'Stratégie du vainqueur': '🛞', Neutralisations: '🚨', Abandons: '💥', 'Éliminés': '❌', 'Pneus du meilleur temps': '🛞', 'Le plus de tours': '🔁', 'Tours bouclés': '🔁', 'Dans la seconde': '🔥' };
+
 // Accroche sans le nom du vainqueur (texte « sans spoiler », avec la couverture des visuels)
 function teaser(d) {
-  if (d.kind === 'race') return `Résultats ${d.sprint ? 'du sprint du' : 'du'} ${d.gp} : qui l'a emporté ? Réponse en images.`;
-  if (d.kind === 'quali') return `${d.label} du ${d.gp} : qui part en pole ? Réponse en images.`;
-  return `${d.label} du ${d.gp} : qui signe le meilleur temps ? Réponse en images.`;
+  if (d.kind === 'race') return `🏁 Résultats ${d.sprint ? 'du sprint du' : 'du'} ${gpFlag(d)} : qui l'a emporté ? 👀 Réponse en images.`;
+  if (d.kind === 'quali') return `🚦 ${d.label} du ${gpFlag(d)} : qui part en pole ? 👀 Réponse en images.`;
+  return `⏱️ ${d.label} du ${gpFlag(d)} : qui signe le meilleur temps ? 👀 Réponse en images.`;
 }
 
 // Légendes prêtes à copier. spoiler: false : premières lignes et texte court sans le vainqueur
@@ -175,30 +191,34 @@ export function captions(d, signature = '', { spoiler = true } = {}) {
   const sig = signature ? `\n\n${signature}` : '';
   const tags = hashtags(d, { spoiler });
   // Essais et qualifs : temps du premier aussi ; course : écarts seulement
-  const podium = [p1, p2, p3].filter(Boolean).map((r, i) => `${i + 1}. ${r.first} ${r.last} (${r.team})${(i || d.kind !== 'race') && r.gap ? ` ${r.gap}` : ''}`).join('\n');
+  const podium = [p1, p2, p3].filter(Boolean).map((r, i) => `${MEDALS[i]} ${r.first} ${r.last} (${r.team})${(i || d.kind !== 'race') && r.gap ? ` ${r.gap}` : ''}`).join('\n');
+  // Texte court : le premier, puis ses deux poursuivants avec leur médaille
+  const chase = [p2, p3].map((r, i) => r && `${MEDALS[i + 1]} ${r.last}`).filter(Boolean).join(' · ');
+  const gp = gpFlag(d);
   let head; let short;
   if (d.kind === 'race') {
-    head = `${p1.first} ${p1.last} remporte ${d.sprint ? 'le sprint du ' : 'le '}${d.gp} !`;
-    short = `${p1.last} remporte ${d.sprint ? 'le sprint du ' : 'le '}${d.gp} devant ${p2?.last || ''}${p3 ? ` et ${p3.last}` : ''}.`;
+    head = `🏆 ${p1.first} ${p1.last} remporte ${d.sprint ? 'le sprint du ' : 'le '}${gp} !`;
+    short = `🏆 ${p1.last.toUpperCase()} remporte ${d.sprint ? 'le sprint du ' : 'le '}${gp} !`;
   } else if (d.kind === 'quali') {
-    head = `Pole position pour ${p1.first} ${p1.last} au ${d.gp}${d.sprint ? ' (sprint)' : ''} !`;
-    short = `Pole pour ${p1.last}${p1.gap ? ` en ${p1.gap}` : ''} au ${d.gp}${d.sprint ? ' (sprint)' : ''}, devant ${p2?.last || ''}${p3 ? ` et ${p3.last}` : ''}.`;
+    head = `⚡ Pole position pour ${p1.first} ${p1.last} au ${gp}${d.sprint ? ' (sprint)' : ''} !`;
+    short = `⚡ POLE pour ${p1.last}${p1.gap ? ` en ${p1.gap}` : ''} au ${gp}${d.sprint ? ' (sprint)' : ''} !`;
   } else {
-    head = `${d.label} du ${d.gp} : ${p1.first} ${p1.last} en tête.`;
-    short = `${d.label} du ${d.gp} : meilleur temps pour ${p1.last}, devant ${p2?.last || ''}${p3 ? ` et ${p3.last}` : ''}.`;
+    head = `⏱️ ${d.label} du ${gp} : ${p1.first} ${p1.last} en tête !`;
+    short = `⏱️ ${d.label} du ${gp} : ${p1.last} en tête !`;
   }
-  const facts = d.facts.filter((f) => f.value && f.value !== 'Aucun').map((f) => `${f.label} : ${f.value}${f.sub ? ` (${f.sub})` : ''}`).join('\n');
+  if (chase) short += `\n${chase}`;
+  const facts = d.facts.filter((f) => f.value && f.value !== 'Aucun').map((f) => `${FACT_ICON[f.label] || '📌'} ${f.label} : ${f.value}${f.sub ? ` (${f.sub})` : ''}`).join('\n');
   const story = d.summary.paragraphs.slice(0, 2).join(' ');
   if (!spoiler) {
-    head = `${teaser(d)}\nFaites défiler pour ${d.kind === 'practice' ? 'le top 3' : d.kind === 'quali' ? 'la grille' : 'le podium'} et tous les détails.\n\n.\n.\n.\n\n${head}`;
+    head = `${teaser(d)}\n👉 Faites défiler pour ${d.kind === 'practice' ? 'le top 3' : d.kind === 'quali' ? 'la grille' : 'le podium'} et tous les détails.\n\n.\n.\n.\n\n${head}`;
     short = teaser(d);
   }
-  const instagram = `${head}\n\n${d.kind === 'quali' ? 'Grille de départ' : d.kind === 'race' ? 'Podium' : 'Top 3'} :\n${podium}${facts ? `\n\n${facts}` : ''}\n\n${story}${sig}\n\n${tags.all.join(' ')}`;
+  const instagram = `${head}\n\n${d.kind === 'quali' ? '🚦 Grille de départ' : d.kind === 'race' ? '🏁 Podium' : '📊 Top 3'} :\n${podium}${facts ? `\n\n${facts}` : ''}\n\n${story}${sig}\n\n${tags.all.join(' ')}`;
   // X : 280 caractères, hashtags retirés un à un si besoin (le compte du créateur reste)
   const xt = [...tags.x];
   let x = `${short}\n\n${xt.join(' ')}`;
-  while (x.length > 280 && xt.length > 1) { xt.pop(); x = `${short}\n\n${xt.join(' ')}`; }
-  if (x.length > 280) x = `${short.slice(0, 276 - xt[0].length)}… ${xt[0]}`;
+  while (xLength(x) > 280 && xt.length > 1) { xt.pop(); x = `${short}\n\n${xt.join(' ')}`; }
+  if (xLength(x) > 280) x = `${short.slice(0, 260 - xt[0].length)}… ${xt[0]}`;
   // Threads affiche tout le texte : sans spoiler, seulement l'accroche
   let threads = spoiler ? `${head}\n\n${podium}${sig}\n\n${tags.threads.join(' ')}` : `${short}${sig}\n\n${tags.threads.join(' ')}`;
   if (threads.length > 500) threads = `${spoiler ? head : short}\n\n${tags.threads.join(' ')}`.slice(0, 500);

@@ -44,8 +44,8 @@ test('posts : données de la course (classement, points, faits marquants, champi
 
 test('posts : légendes Instagram et X', () => {
   const c = captions(postData(state), '@BenjyPaddock');
-  assert.match(c.instagram, /^Lando Norris remporte le Grand Prix d'Italie !/);
-  assert.match(c.instagram, /2\. Charles Leclerc \(Ferrari\) \+2,5 s/);
+  assert.match(c.instagram, /^🏆 Lando Norris remporte le Grand Prix d'Italie 🇮🇹 !/);
+  assert.match(c.instagram, /🥈 Charles Leclerc \(Ferrari\) \+2,5 s/);
   assert.match(c.instagram, /\n\n@BenjyPaddock\n\n/);
   const tags = c.instagram.split('\n').at(-1).split(' ');
   assert.deepEqual(tags.slice(0, 9), ['#BenjyPaddock', '#F1', '#Formula1', '#Formule1', '#ItalianGP', '#F12026', '#RaceDay', '#LandoNorris', '#Norris']);
@@ -55,8 +55,8 @@ test('posts : légendes Instagram et X', () => {
   assert.match(c.threads, /#F1 #BenjyPaddock$/);
   assert.ok(c.x.length <= 280);
   assert.ok(c.threads.length <= 500);
-  assert.match(c.threads, /^Lando Norris remporte/);
-  assert.match(c.x, /^Norris remporte le Grand Prix d'Italie devant Leclerc et Hamilton\./);
+  assert.match(c.threads, /^🏆 Lando Norris remporte/);
+  assert.match(c.x, /^🏆 NORRIS remporte le Grand Prix d'Italie 🇮🇹 !\n🥈 Leclerc · 🥉 Hamilton\n/);
 });
 
 test('posts : qualifications', () => {
@@ -73,7 +73,7 @@ test('posts : qualifications', () => {
   assert.equal(d.kind, 'quali');
   assert.deepEqual(d.rows.map((r) => r.gap), ['1:19.8', '+0,100', '1:21.0']);
   assert.equal(d.rows[2].koPart, 1);
-  assert.match(captions(d).instagram, /^Pole position pour Lando Norris au Grand Prix d'Italie !/);
+  assert.match(captions(d).instagram, /^⚡ Pole position pour Lando Norris au Grand Prix d'Italie 🇮🇹 !/);
 });
 
 test('posts : couverture « Résultats » (anti-spoiler) en première image de chaque format', () => {
@@ -90,13 +90,13 @@ test('posts : texte sans spoiler (début de légende et texte court sans le vain
     rows: [{ first: 'Max', last: 'Verstappen', team: 'Red Bull Racing', gap: '' }, { first: 'Lando', last: 'Norris', team: 'McLaren', gap: '+2,1 s' }, { first: 'Charles', last: 'Leclerc', team: 'Ferrari', gap: '+4,0 s' }] };
   const c = captions(d, '@moi', { spoiler: false });
   // Instagram : les premières lignes (visibles sans « plus ») ne citent pas le vainqueur, le détail suit
-  assert.match(c.instagram, /^Résultats du Grand Prix d'Azerbaïdjan : qui l'a emporté \? Réponse en images\.\nFaites défiler/);
+  assert.match(c.instagram, /^🏁 Résultats du Grand Prix d'Azerbaïdjan : qui l'a emporté \? 👀 Réponse en images\.\n👉 Faites défiler/);
   assert.ok(!c.instagram.split('\n.\n')[0].includes('Verstappen'));
   assert.match(c.instagram, /Max Verstappen remporte/);
   for (const k of ['x', 'threads', 'story']) assert.ok(!c[k].includes('Verstappen'), k);
   assert.ok(c.x.length <= 280 && c.threads.length <= 500);
   // Par défaut : comme avant
-  assert.match(captions(d, '').x, /^Verstappen remporte/);
+  assert.match(captions(d, '').x, /^🏆 VERSTAPPEN remporte/);
 });
 
 test('posts : essais libres (meilleur temps, top 3, faits marquants)', () => {
@@ -122,6 +122,6 @@ test('posts : essais libres (meilleur temps, top 3, faits marquants)', () => {
   assert.equal(f['Dans la seconde'], "2 pilotes | à moins d'1 s du meilleur temps");
   assert.deepEqual(slidesFor(d), ['couverture', 'meilleurtemps', 'podium', 'classement', 'faits']);
   const c = captions(d);
-  assert.match(c.instagram, /^Essais libres 2 du Grand Prix d'Italie : Lando Norris en tête\.\n\nTop 3 :\n1\. Lando Norris \(McLaren\) 1:20\.100\n/);
-  assert.match(captions(d, '', { spoiler: false }).x, /^Essais libres 2 du Grand Prix d'Italie : qui signe le meilleur temps \?/);
+  assert.match(c.instagram, /^⏱️ Essais libres 2 du Grand Prix d'Italie 🇮🇹 : Lando Norris en tête !\n\n📊 Top 3 :\n🥇 Lando Norris \(McLaren\) 1:20\.100\n/);
+  assert.match(captions(d, '', { spoiler: false }).x, /^⏱️ Essais libres 2 du Grand Prix d'Italie 🇮🇹 : qui signe le meilleur temps \?/);
 });

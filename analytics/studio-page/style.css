@@ -277,7 +277,6 @@ button.row-item:active { background: var(--surface-2); }
 .slides { display: flex; gap: 12px; margin: 14px calc(-1 * var(--gutter)) 0; padding: 4px var(--gutter) 6px; overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding: 0 var(--gutter); scrollbar-width: none; }
 .slides::-webkit-scrollbar { display: none; }
 .slides .sl { flex: 0 0 auto; width: min(72vw, 300px); margin: 0; scroll-snap-align: start; }
-.slides.x .sl { width: min(86vw, 440px); }
 .slides.story .sl { width: min(56vw, 240px); }
 .slides canvas { cursor: zoom-in; }
 .slides canvas { display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 6px 22px rgba(0, 0, 0, .22); transition: opacity .2s, filter .2s; }
@@ -407,7 +406,6 @@ dialog.sheet .group, dialog.sheet input { background: rgba(255, 255, 255, .05); 
   .editing .page > #fmt { margin-top: 0; }
   .editing .page > .preview { grid-column: 1; grid-row: 1 / span 12; position: sticky; top: 72px; max-height: calc(100vh - 96px); overflow: auto; padding-right: 4px; }
   .editing .slides { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; margin: 0; padding: 2px; overflow: visible; scroll-snap-type: none; }
-  .editing .slides.x { grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); }
   .editing .slides.story { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
   .editing .slides .sl { width: auto; }
   .editing .actionbar { left: auto; right: max(var(--gutter), calc((100vw - var(--w)) / 2 + var(--gutter))); width: 400px; }

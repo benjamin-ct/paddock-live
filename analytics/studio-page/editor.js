@@ -3,6 +3,7 @@
 import { slidesFor, drawSlide, slideName, chosenSlides, keptData } from '/shared/social-draw.js';
 import { openImageViewer } from '/shared/image-viewer.js';
 import { followCaptions, questionCaptions } from '/shared/social-follow.js';
+import { xLength } from '/shared/social.js';
 import { FLAG_ISO } from '/shared/flags.js';
 import { loadTeamLogos } from '/shared/team-logos.js';
 import { $, $$, esc, api, icon, toast, toggle, sheet, schedList, glide, state, session, SIG, NET_NAMES, IOS, installed } from './ui.js';
@@ -31,7 +32,8 @@ export async function assets(d) {
   return { photos, flag, logos, signature: SIG };
 }
 
-const FORMATS = [['ig', 'Instagram'], ['story', 'Story'], ['x', 'X']];
+// Post : Instagram, Facebook, Threads et Bluesky ; X : ses 4 images et son texte, publiés dans l'appli X
+const FORMATS = [['ig', 'Post'], ['story', 'Story'], ['x', 'X']];
 const CAPS = [
   ['instagram', (c) => (c.facebook ? 'Légende Instagram' : 'Légende Instagram et Facebook'), 8],
   ['facebook', () => 'Texte Facebook (avec le lien de l\'article)', 8],
@@ -40,7 +42,6 @@ const CAPS = [
   ['bsky', () => 'Texte Bluesky', 3, 0, 300],
   ['comment', () => 'Premier commentaire (Facebook, Threads, Bluesky ; X : à coller en réponse)', 2],
 ];
-const xLen = (s) => String(s || '').replace(/https?:\/\/\S+/g, 'x'.repeat(23)).length;
 
 // Retour à la liste : bouton, geste « retour » de Safari (historique) et, sur l'appli installée,
 // glissement depuis le bord gauche de l'écran
@@ -93,8 +94,8 @@ export function editor({ back, title, subtitle = '', head = '', below = false, d
       <section class="panel">
         <h3 class="section">Options</h3>
         ${toggle('photos', 'Photos des pilotes', state.photos)}
-        ${toggle('follow', 'Image « Abonnez-vous »', state.follow, 'À la fin des carrousels, et une ligne dans les textes')}
-        ${toggle('question', 'Question pour faire réagir', state.question, 'En fin de texte et en image avant la fin du carrousel')}
+        ${toggle('follow', 'Image « Abonnez-vous »', state.follow)}
+        ${toggle('question', 'Question pour faire réagir', state.question)}
       </section>
       <div id="texts"></div>
       <section class="panel" id="netsbox"></section>
@@ -122,13 +123,15 @@ export function editor({ back, title, subtitle = '', head = '', below = false, d
     const slides = slidesFor(d, { fmt: state.fmt, follow: state.follow, question: state.question });
     $('#main').innerHTML = `<div class="slides ${state.fmt}">${slides.map((sl) => `<figure class="sl"><canvas data-slide="${sl}" title="${esc(slideName(sl))} : voir en grand"></canvas>
         <label class="pick"><input type="checkbox" data-pick="${sl}" ${state.skip.has(sl) ? '' : 'checked'}><span data-num></span>${esc(slideName(sl))}</label></figure>`).join('')}</div>`;
-    $('#texts').innerHTML = `<section class="panel"><h3 class="section">Textes</h3>${CAPS.filter(([k]) => k === 'instagram' || k === 'threads' || k === 'x' || k === 'bsky' || c[k]).map(([k, label, rows, max = 0, limit = 0], i) => `
+    const xTab = state.fmt === 'x';
+    const shown = ([k]) => (xTab ? k === 'x' || (k === 'comment' && c[k]) : k !== 'x' && (k === 'instagram' || k === 'threads' || k === 'bsky' || c[k]));
+    $('#texts').innerHTML = `<section class="panel"><h3 class="section">Textes</h3>${CAPS.filter(shown).map(([k, label, rows, max = 0, limit = 0], i) => `
       <details class="cap" ${i === 0 ? 'open' : ''}><summary><span>${esc(label(c))}</span><small data-count="${k}"></small></summary>
         <textarea id="cap-${k}" rows="${rows}" ${max ? `maxlength="${max}"` : ''} data-limit="${limit || max}">${esc(c[k])}</textarea>
         ${k === 'comment' ? `<div class="row end"><button class="btn small" id="copycomment">${icon('copy')}Copier</button></div>` : ''}</details>`).join('')}</section>`;
     const count = (k) => {
       const el = $(`#cap-${k}`);
-      const n = k === 'x' ? xLen(el.value) : el.value.length;
+      const n = k === 'x' ? xLength(el.value) : el.value.length;
       const lim = Number(el.dataset.limit) || 0;
       $(`[data-count="${k}"]`).textContent = lim ? `${n} / ${lim}` : `${n}`;
       $(`[data-count="${k}"]`).classList.toggle('err', !!lim && n > lim);
@@ -143,12 +146,15 @@ export function editor({ back, title, subtitle = '', head = '', below = false, d
     const story = !vid && state.fmt === 'story';
     const list = story ? [['instagram-story', 'Story Instagram'], ['facebook-story', 'Story Facebook']]
       : [['instagram', 'Instagram'], ['facebook', 'Facebook'], ['threads', 'Threads'], ['bluesky', 'Bluesky'], ...(vid ? [['tiktok', 'TikTok'], ['youtube', 'YouTube Shorts']] : [])];
-    $('#netsbox').innerHTML = `<h3 class="section">Publier sur</h3>${list.map(([k, v]) => {
+    $('#go').innerHTML = `${icon('send')}${xTab ? 'Ouvrir X' : 'Publier'}`;
+    $('#plan').hidden = xTab;
+    $('#go').disabled = false;
+    $('#netsbox').hidden = xTab;
+    $('#texts').hidden = story;   // stories : pas de texte publié
+    $('#netsbox').innerHTML = xTab ? '' : `<h3 class="section">Publier sur</h3>${list.map(([k, v]) => {
       const acc = session.me?.[k.replace('-story', '')];
       return `<label class="switch net"><span><b>${v}</b><small>${esc(acc || 'non connecté')}</small><em class="st" data-st="${k}"></em></span><input type="checkbox" role="switch" data-net="${k}" ${acc ? (k === 'tiktok' || k === 'youtube' ? '' : 'checked') : 'disabled'}></label>`;
-    }).join('')}${vid ? '<div id="tkbox" class="tkbox" hidden></div>' : ''}<p class="hint">${vid ? 'Vidéo sur Instagram, Facebook, Threads, TikTok et YouTube (privé) ; visuels sur Bluesky.'
-      : story ? 'Une story par image, visible 24 heures.'
-        : 'X, TikTok, YouTube Shorts : « Partager ».'}</p>`;
+    }).join('')}${vid ? '<div id="tkbox" class="tkbox" hidden></div>' : ''}${vid || story ? `<p class="hint">${vid ? 'Vidéo sur Instagram, Facebook, Threads, TikTok et YouTube (privé) ; visuels sur Bluesky.' : 'Une story par image, visible 24 heures.'}</p>` : ''}`;
     // TikTok coché : réglages (brouillon ou publication directe) ; publication bloquée tant qu'ils manquent
     const tk = $('[data-net="tiktok"]');
     if (vid && tk) {
@@ -186,7 +192,7 @@ export function editor({ back, title, subtitle = '', head = '', below = false, d
         for (const k of Object.keys(t)) if (!(k in edited) && $(`#cap-${k}`)) { $(`#cap-${k}`).value = t[k]; count(k); }
       };
     });
-    $('#go').onclick = () => publishAll(d, o, record?.(), vid);
+    $('#go').onclick = () => (xTab ? openX(canvases, $('#cap-x').value) : publishAll(d, o, record?.(), vid));
     $('#plan').onclick = () => (vid || story ? toast(`${vid ? 'Post avec vidéo' : 'Stories'} : publication tout de suite seulement, pas de programmation`, 'bad') : schedulePanel(d, o, record?.()));
     $('#share').onclick = () => share(canvases, state.fmt === 'x' ? $('#cap-x').value : state.fmt === 'ig' ? $('#cap-instagram').value : '');
     // iPhone : « Partager » propose aussi « Enregistrer les images » (Photos)
@@ -202,6 +208,21 @@ export function editor({ back, title, subtitle = '', head = '', below = false, d
   glide();
   redraw();
   schedList($('#schedlist'));
+}
+
+// Vers X (un lien ne transmet que le texte) : menu de partage avec les images et le texte quand le
+// navigateur sait partager des fichiers (choisir X ; texte aussi copié, à coller si l'appli ne le reprend
+// pas). Sinon : appli X sur téléphone, x.com sur ordinateur avec les images téléchargées
+async function openX(canvases, text) {
+  navigator.clipboard?.writeText(text).catch(() => {});
+  const files = await Promise.all(canvases.map(async (cv, i) => new File([await toBlob(cv)], `x-${i + 1}.png`, { type: 'image/png' })));
+  if (navigator.canShare?.({ files })) {
+    try { await navigator.share({ files, text }); } catch { /* partage annulé */ }
+    return;
+  }
+  if (IOS || /Android/.test(navigator.userAgent)) { location.href = `twitter://post?message=${encodeURIComponent(text)}`; return; }
+  open(`https://x.com/intent/post?text=${encodeURIComponent(text)}`, '_blank', 'noopener');
+  download(canvases);
 }
 
 const toBlob = (cv, type = 'image/png', q) => new Promise((r) => cv.toBlob(r, type, q));
