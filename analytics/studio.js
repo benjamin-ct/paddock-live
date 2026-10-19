@@ -582,9 +582,12 @@ export async function runSchedule(env, { now = Date.now() } = {}) {
         out = { published: p.network, id: j.id };
       }
     }
-    // Programmation terminée : visuels, vidéo et jetons effacés, puis la trace au bout de 7 jours
+    // Programmation terminée : tout publié sans souci, effacée aussitôt (plus dans la liste du Studio) ;
+    // sinon (erreur, commentaire refusé…) visuels, vidéo et jetons effacés, la trace gardée 7 jours
     const states = Object.values(j.nets);
-    if (states.every((s) => !['pending', 'running'].includes(s.status))) {
+    if (states.every((s) => s.status === 'done' && !s.commentError && s.visible !== false)) {
+      await delLike(env, `schedimg:${j.id}:`); await env.MEDIA?.delete(`sched/${j.id}`); await delLike(env, `schedpost:${j.id}:`); await delLike(env, `sched:${j.id}`);
+    } else if (states.every((s) => !['pending', 'running'].includes(s.status))) {
       if (j.keys) { await delLike(env, `schedimg:${j.id}:`); await env.MEDIA?.delete(`sched/${j.id}`); const { nets, ...rest } = j; await setRow(env, `sched:${j.id}`, JSON.stringify({ ...rest, keys: null })); }
       if (now - j.at > SCHED.keep) { await delLike(env, `schedpost:${j.id}:`); await delLike(env, `sched:${j.id}`); }
     }

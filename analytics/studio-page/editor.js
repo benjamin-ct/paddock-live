@@ -311,7 +311,7 @@ async function queuePost(d, o, nets, at, record, video = null, tk = null, link =
   imgs.x.forEach((b, i) => form.append('x', b, `x-${i + 1}.jpg`));
   if (video) form.append('video', video, video.type === 'video/quicktime' ? 'video.mov' : 'video.mp4');
   if (tk) form.append('tiktok', JSON.stringify(tk));
-  await api('schedule', { method: 'POST', body: form });
+  return (await api('schedule', { method: 'POST', body: form })).item;
 }
 
 // Publication programmée : envoyée au serveur, publiée à l'heure même page fermée
@@ -370,14 +370,21 @@ async function publishAll(d, o, record = null, video = null, link = null) {
   // Confié au serveur (visuels ou vidéo envoyés une fois) : publié dans la minute, même page fermée
   for (const n of nets) { const st = $(`[data-st="${n}"]`); st.className = 'st'; st.textContent = video ? 'Envoi de la vidéo au serveur…' : 'Envoi au serveur…'; }
   try {
-    await queuePost(d, o, nets, Date.now(), record, video, tk, link);
+    const item = await queuePost(d, o, nets, Date.now(), record, video, tk, link);
     for (const n of nets) $(`[data-st="${n}"]`).textContent = 'Publication dans la minute';
     toast('Envoyé : publication dans la minute, vous pouvez quitter la page', 'ok');
-    // Avancement relu tant que la page reste ouverte (5 minutes au plus)
+    // Avancement relu tant que la page reste ouverte (5 minutes au plus) ; tout publié : retirée de la liste
     const list = $('#schedlist');
     schedList(list);
     let n = 0;
-    const poll = setInterval(() => { if (++n > 20 || !list.isConnected) clearInterval(poll); else schedList(list); }, 15e3);
+    const poll = setInterval(async () => {
+      if (++n > 20 || !list.isConnected) { clearInterval(poll); return; }
+      const items = await schedList(list);
+      if (items && !items.some((x) => x.id === item?.id)) {
+        clearInterval(poll);
+        for (const k of nets) { const st = $(`[data-st="${k}"]`); if (st) { st.className = 'st ok'; st.innerHTML = `Publié ${icon('check')}`; } }
+      }
+    }, 15e3);
   } catch (err) {
     for (const n of nets) { const st = $(`[data-st="${n}"]`); st.className = 'st err'; st.textContent = err.message; }
   } finally { go.disabled = false; }

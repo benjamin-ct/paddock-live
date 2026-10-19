@@ -281,26 +281,33 @@ test('page du créateur : publication programmée, publiée par le serveur à l\
     assert.deepEqual(await runSchedule(env, { now: at + 1 }), { published: 'bluesky', id: item.id });
     assert.ok(calls.some((c) => c.endsWith('/photos')) && calls.some((c) => c.endsWith('createRecord')));
     assert.equal(await runSchedule(env, { now: at + 60e3 }), null);
+    // Tout publié : retirée aussitôt de la liste (visuels, jetons et trace effacés), journal complété
     const list = await (await worker('https://s.test/studio/api/schedule', { headers: key })).json();
-    assert.equal(list.items[0].nets.facebook.status, 'done');
-    assert.equal(list.items[0].nets.facebook.url, 'https://www.facebook.com/p1_43');
-    assert.equal(list.items[0].nets.facebook.comment, true);
-    assert.equal(list.items[0].nets.bluesky.status, 'done');
-    // Journal des publications complété, visuels et jetons effacés une fois publiés
+    assert.equal(list.items.length, 0);
+    assert.equal([...env.DB.studio.keys()].filter((k) => k.startsWith('sched')).length, 0);
     const hist = await (await worker('https://s.test/studio/api/history', { headers: key })).json();
     assert.equal(hist.items[0].key, 'race-2026-18');
     assert.deepEqual(Object.keys(hist.items[0].nets).sort(), ['bluesky', 'facebook']);
-    assert.equal([...env.DB.studio.keys()].filter((k) => k.startsWith('schedimg:')).length, 0);
-    assert.equal(JSON.parse(env.DB.studio.get(`sched:${item.id}`)).keys, null);
+    assert.equal(hist.items[0].nets.facebook.url, 'https://www.facebook.com/p1_43');
     // Stories : sans texte, jamais mêlées aux posts du fil, absentes de l'historique
     assert.equal((await add({ posts: [{ network: 'facebook-story' }, { network: 'facebook', text: 'x' }] })).status, 400);
     const story = (await (await add({ posts: [{ network: 'facebook-story' }] })).json()).item;
     calls.length = 0;
     assert.deepEqual(await runSchedule(env, { now: at + 120e3 }), { published: 'facebook-story', id: story.id });
     assert.equal(calls.filter((c) => c.endsWith('/photo_stories')).length, 2);
-    const sl = await (await worker('https://s.test/studio/api/schedule', { headers: key })).json();
-    assert.equal(sl.items.find((x) => x.id === story.id).nets['facebook-story'].status, 'done');
+    assert.equal((await (await worker('https://s.test/studio/api/schedule', { headers: key })).json()).items.length, 0);
     assert.equal((await (await worker('https://s.test/studio/api/history', { headers: key })).json()).items.length, hist.items.length);
+    // Échec sur un réseau : gardée dans la liste avec l'erreur, visuels et jetons effacés
+    const bad = (await (await add()).json()).item;
+    const ok = globalThis.fetch;
+    globalThis.fetch = async (url, opts) => (new URL(url).pathname.endsWith('/feed') ? new Response(JSON.stringify({ error: { message: 'Refusé' } }), { status: 400 }) : ok(url, opts));
+    await runSchedule(env, { now: at + 180e3 });
+    globalThis.fetch = ok;
+    const kept = (await (await worker('https://s.test/studio/api/schedule', { headers: key })).json()).items.find((x) => x.id === bad.id);
+    assert.equal(kept.nets.facebook.status, 'error');
+    assert.equal(kept.nets.bluesky.status, 'done');
+    assert.equal([...env.DB.studio.keys()].filter((k) => k.startsWith('schedimg:')).length, 0);
+    assert.equal(JSON.parse(env.DB.studio.get(`sched:${bad.id}`)).keys, null);
     // Une semaine plus tard : la trace disparaît
     await runSchedule(env, { now: at + 8 * 86400e3 });
     assert.equal([...env.DB.studio.keys()].filter((k) => k.startsWith('sched')).length, 0);
@@ -373,11 +380,9 @@ test('page du créateur : vidéo confiée au serveur (stockage R2), publiée par
   } finally { globalThis.fetch = realFetch; }
   // Vidéo envoyée à YouTube, visuels à Bluesky ; vidéo effacée du stockage une fois publiée
   assert.deepEqual(sent, { youtube: 4, bluesky: true });
-  const list = await (await worker('https://s.test/studio/api/schedule', { headers: key })).json();
-  const nets = list.items.find((x) => x.id === item.id).nets;
-  assert.equal(nets.youtube.status, 'done');
-  assert.equal(nets.youtube.url, 'https://youtube.com/shorts/v42');
-  assert.equal(nets.bluesky.status, 'done');
+  assert.equal((await (await worker('https://s.test/studio/api/schedule', { headers: key })).json()).items.length, 0);
+  const hist = await (await worker('https://s.test/studio/api/history', { headers: key })).json();
+  assert.equal(hist.items.find((x) => x.key === 'post:v1').nets.youtube.url, 'https://youtube.com/shorts/v42');
   assert.equal(bucket.size, 0);
   // Annulation avant l'heure : vidéo effacée aussi
   const later = (await (await add()).json()).item;
@@ -423,9 +428,7 @@ test('page du créateur : post « lien » sans visuels (carte de l\'article affi
   assert.deepEqual(sent.facebook, { message: 'Texte Facebook https://www.formula1.com/a', link: 'https://www.formula1.com/a', access_token: 'jeton-page' });
   assert.equal(sent.bluesky.embed.$type, 'app.bsky.embed.external');
   assert.deepEqual({ ...sent.bluesky.embed.external, uri: 'x' }, { uri: 'x', title: 'Le titre', description: 'Le résumé' });
-  const nets = (await (await worker('https://s.test/studio/api/schedule', { headers: key })).json()).items.find((x) => x.id === item.id).nets;
-  assert.equal(nets.facebook.status, 'done');
-  assert.equal(nets.bluesky.status, 'done');
+  assert.equal((await (await worker('https://s.test/studio/api/schedule', { headers: key })).json()).items.some((x) => x.id === item.id), false);
   await disableStudio({ fetchFn });
 });
 
