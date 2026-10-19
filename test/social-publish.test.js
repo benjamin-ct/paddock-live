@@ -84,6 +84,7 @@ test('Threads et Instagram : chaque image du carrousel est prête avant le carro
     assert.ok(kids.every((k) => /^https:\/\/cdn\.test\/.+\.jpg$/.test(k.form.image_url) && k.form.media_type === 'IMAGE'));
     const car = log.find((l) => l.form.media_type === 'CAROUSEL');
     assert.equal(car.form.text, 'Bonjour');
+    assert.equal(car.form.topic_tag, 'F1 Thread');
     assert.equal(log.filter((l) => l.path.endsWith('/photos')).length, 3);
 
     // Instagram juste après : mêmes images, rien de redéposé sur la page
@@ -367,7 +368,7 @@ test('vidéo du créateur : déposée une fois sur la page, Reel Instagram, vid�
     assert.equal(log.find((l) => l.path.endsWith('/ig1/media')).form.video_url, 'https://video.test/v.mp4');
     assert.equal(log.find((l) => l.path.endsWith('/ig1/media')).form.media_type, 'REELS');
     const tc = log.find((l) => l.path.endsWith('/th1/threads')).form;
-    assert.deepEqual([tc.media_type, tc.video_url, tc.text], ['VIDEO', 'https://video.test/v.mp4', 'Texte']);
+    assert.deepEqual([tc.media_type, tc.video_url, tc.text, tc.topic_tag], ['VIDEO', 'https://video.test/v.mp4', 'Texte', 'F1 Thread']);
     // Facebook : vidéo publiée avec le texte
     const fb = await publishFacebookVideo(meta, 'Post', video);
     assert.equal(fb.url, 'https://www.facebook.com/page1/videos/vid2');

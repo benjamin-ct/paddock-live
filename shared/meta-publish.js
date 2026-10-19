@@ -6,6 +6,9 @@
 
 export const GRAPH = 'https://graph.facebook.com/v25.0';
 export const THREADS = 'https://graph.threads.net/v1.0';
+// Sujet des posts Threads (« > F1 Thread » à côté du nom) : sans lui, Threads prend le premier
+// hashtag du texte (#F1)
+export const THREADS_TOPIC = 'F1 Thread';
 export const timing = { poll: 1500, maxPoll: 5000, readyMs: 4 * 60e3, visible: [8e3, 15e3, 20e3] };
 const HOST_TTL = 60 * 60e3;
 const hostedCache = new Map();   // empreinte de l'image + page -> { id, url, at }
@@ -198,7 +201,7 @@ export async function publishFacebookVideo(meta, text, video) {
 export async function publishThreadsVideo(th, meta, text, video) {
   const hosted = await hostVideo(meta, video);
   const base = `${THREADS}/${th.userId}`;
-  const c = await call(`${base}/threads`, { method: 'POST', form: { media_type: 'VIDEO', video_url: hosted.url, text, access_token: th.token } });
+  const c = await call(`${base}/threads`, { method: 'POST', form: { media_type: 'VIDEO', video_url: hosted.url, text, topic_tag: THREADS_TOPIC, access_token: th.token } });
   await ready(`${THREADS}/${c.id}?${new URLSearchParams({ fields: 'status,error_message', access_token: th.token })}`, 'status', 'Vidéo');
   const pub = await call(`${base}/threads_publish`, { method: 'POST', form: { creation_id: c.id, access_token: th.token } });
   const link = await call(`${THREADS}/${pub.id}?${new URLSearchParams({ fields: 'permalink', access_token: th.token })}`).catch(() => ({}));
@@ -225,10 +228,10 @@ export async function publishThreads(th, meta, text, images) {
   const container = (form) => call(`${base}/threads`, { method: 'POST', form: { ...form, access_token: token } });
   let creation;
   if (hosted.length === 1) {
-    creation = (await container({ media_type: 'IMAGE', image_url: hosted[0].url, text })).id;
+    creation = (await container({ media_type: 'IMAGE', image_url: hosted[0].url, text, topic_tag: THREADS_TOPIC })).id;
   } else {
     const kids = await carousel(hosted, (h) => container({ media_type: 'IMAGE', image_url: h.url, is_carousel_item: 'true' }), status, 'status');
-    creation = (await container({ media_type: 'CAROUSEL', children: kids.join(','), text })).id;
+    creation = (await container({ media_type: 'CAROUSEL', children: kids.join(','), text, topic_tag: THREADS_TOPIC })).id;
   }
   await ready(status(creation), 'status', 'Post');
   const pub = await call(`${base}/threads_publish`, { method: 'POST', form: { creation_id: creation, access_token: token } });
