@@ -16,6 +16,12 @@ l'application (Réglages → À propos → Nouveautés).
   « Versions précédentes ».
 - Raccourcis clavier présentés en liste.
 
+### Mini-classement et carte flottante
+- Mini-classement toujours entier : les 20 pilotes s'adaptent à la taille de la fenêtre (plus grande à
+  l'ouverture), et grossissent quand on l'agrandit.
+- Mini-classement et carte flottante reprennent leur place au premier plan quand on clique dans une vidéo en
+  plein écran (navigateur, lecteur).
+
 ### F1 TV
 - Extension Paddock Live Companion pour Firefox : paquet sans avertissement (Firefox 140 ou plus récent).
 

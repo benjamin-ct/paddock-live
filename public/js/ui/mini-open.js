@@ -8,7 +8,7 @@ let pip = null;
 
 async function openMini() {
   if (pip && !pip.closed) { pip.focus?.(); return; }
-  const size = { width: 300, height: 540 };
+  const size = { width: 300, height: 640 };   // les 20 pilotes en entier
   if (!window.f1desktop && window.documentPictureInPicture) {
     try {
       pip = await window.documentPictureInPicture.requestWindow(size);
