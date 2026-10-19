@@ -460,21 +460,28 @@ test('page du créateur : photos libres de droits (Commons, Flickr par Openverse
       // Fichiers au nom du pilote, le plus récent (année du nom, sinon de l'envoi) en tête
       if (q === 'intitle:"Lando Norris" filetype:bitmap') return new Response(JSON.stringify({ query: { pages: {
         1: { index: 1, title: 'File:2019 Monaco GP - Lando Norris.jpg', imageinfo: info('Old.jpg', 'CC BY 2.0', { timestamp: '2026-05-01T00:00:00Z' }) },
-        2: { index: 2, title: 'File:Lando Norris (028A8482).jpg', imageinfo: info('N.jpg', 'CC BY-SA 4.0', { timestamp: '2026-03-01T00:00:00Z', descriptionurl: 'https://commons.wikimedia.org/wiki/File:N.jpg', extmetadata: { Artist: { value: '<a href="x">Jean &amp; Co</a>' }, LicenseShortName: { value: 'CC BY-SA 4.0' } } }) },
+        2: { index: 2, title: 'File:Lando Norris (028A8482).jpg', imageinfo: info('N.jpg', 'CC BY-SA 4.0', { timestamp: '2026-03-01T00:00:00Z', descriptionurl: 'https://commons.wikimedia.org/wiki/File:N.jpg', extmetadata: { Artist: { value: '<a href="x">Jean &amp; Co</a>' }, LicenseShortName: { value: 'CC BY-SA 4.0' }, Categories: { value: 'Formula One drivers|McLaren' } } }) },
         3: { index: 3, title: 'File:2025 Lando Norris.jpg', imageinfo: info('b.jpg', 'CC BY-NC 2.0') },
+        // Même nom, mais pas en F1 (homonyme, autre sport) : écartée
+        4: { index: 4, title: 'File:Lando Norris Street.jpg', imageinfo: info('Z.jpg', 'CC BY 4.0', { timestamp: '2026-09-01T00:00:00Z' }) },
       } } }));
-      // Peu de fichiers au nom : complétés par la recherche dans les descriptions, sans doublon
+      // Puis la recherche dans les descriptions (par pertinence, pas par date), sans doublon, et seulement les
+      // photos dont le titre, la description ou les catégories citent le pilote
       assert.equal(q, 'Lando Norris Formula 1 filetype:bitmap');
+      assert.equal(u.searchParams.get('gsrsort'), null);
       return new Response(JSON.stringify({ query: { pages: {
         1: { index: 1, title: 'File:Stepro 1.jpg', imageinfo: info('N.jpg', 'CC BY-SA 4.0') },
-        2: { index: 2, title: 'File:Stepro 2.jpg', imageinfo: info('S.jpg', 'CC BY-SA 4.0', { timestamp: '2025-08-01T00:00:00Z' }) },
+        2: { index: 2, title: 'File:Stepro 2.jpg', imageinfo: info('S.jpg', 'CC BY-SA 4.0', { extmetadata: { LicenseShortName: { value: 'CC BY-SA 4.0' }, Categories: { value: 'Lando Norris in 2025|McLaren MCL39|Formula One cars' } } }) },
+        3: { index: 3, title: 'File:Rathaus 1.jpg', imageinfo: info('T.jpg', 'CC BY 4.0', { extmetadata: { LicenseShortName: { value: 'CC BY 4.0' }, ImageDescription: { value: 'Marktplatz' } } }) },
       } } }));
     }
     if (u.hostname === 'api.openverse.org') {
       assert.equal(u.searchParams.get('source'), 'flickr');
+      assert.equal(u.searchParams.get('q'), 'Lando Norris');
       assert.equal(u.searchParams.get('license_type'), 'commercial,modification');
       return new Response(JSON.stringify({ results: [
-        { url: 'https://live.staticflickr.com/1/9_b.jpg', thumbnail: 'https://api.openverse.org/v1/images/9/thumb/', creator: 'Fan F1', license: 'by', license_version: '2.0', foreign_landing_url: 'https://www.flickr.com/photos/o1/9' },
+        { url: 'https://live.staticflickr.com/1/9_b.jpg', thumbnail: 'https://api.openverse.org/v1/images/9/thumb/', title: 'Lando Norris', creator: 'Fan F1', license: 'by', license_version: '2.0', foreign_landing_url: 'https://www.flickr.com/photos/o1/9' },
+        { url: 'https://live.staticflickr.com/1/6_b.jpg', title: 'Coucher de soleil', tags: [{ name: 'norris' }], creator: 'Z', license: 'by', license_version: '2.0' },
         { url: 'https://live.staticflickr.com/1/8_b.jpg', creator: 'X', license: 'by-nc', license_version: '2.0' },
         { url: 'https://ailleurs.test/7.jpg', creator: 'Y', license: 'by', license_version: '4.0' },
       ] }));
