@@ -1,7 +1,7 @@
 // Studio : posts des news (et récap de la semaine) et des séances (résultats, avant-course,
 // championnat, flash). Chargé à l'ouverture d'un post.
 import { decodeBody } from '/shared/news-collect.js';
-import { bigNews, newsPost, newsCaptions, OTHER_SERIES, NEWS_BADGES } from '/shared/social-news.js';
+import { bigNews, newsPost, newsCaptions, newsKind, OTHER_SERIES, NEWS_BADGES } from '/shared/social-news.js';
 import { newsTags } from '/shared/news.js';
 import { postData, captions } from '/shared/social.js';
 import { preraceData, champData, flashEvents, flashData, moreCaptions, FLASH_KINDS } from '/shared/social-more.js';
@@ -78,7 +78,8 @@ export async function newsEditor(it, done, back) {
   const failed = title === null || summary === null;
   let breaking = null;   // très grosse info choisie à la main (sinon : détectée)
   let made = null;       // vidéo Breaking news fabriquée (MP4), jointe au post
-  let pic = null;        // photo libre de droits choisie : { image, credit }
+  let pic = null;        // photo choisie (libre de droits, ou celle de l'article d'une livrée) : { image, credit }
+  const livery = !!it.link && newsKind(it).key === 'livree';
   const make = async (t, s, p = '') => {
     const nd = newsPost(it, { title: t, summary: s, points: p, driverList: await latestDrivers(), sourceName: it.srcName });
     if (breaking !== null) nd.breaking = breaking;
@@ -98,6 +99,8 @@ export async function newsEditor(it, done, back) {
       <label class="field"><span>Points clés, un par ligne <small>(images suivantes du carrousel)</small></span><textarea id="npoints" rows="5" maxlength="1600" placeholder="Facultatif : « Résumé détaillé » ou à écrire soi-même"></textarea></label>
       ${it.link ? `<div class="row"><button class="btn small" id="nsummary">${icon('wand')}Résumé détaillé</button><span class="hint" id="nsumst"></span></div>` : ''}
       ${PHOTO_ROW('n')}
+      ${livery ? `<div class="row"><button class="btn small" id="nartimg">${icon('image')}Photo de la livrée (article)</button></div>
+        <p class="hint">Photo de l'article, souvent fournie par l'écurie à la presse : ses droits restent les siens (« via ${esc(it.srcName)} » crédité).</p>` : ''}
       ${toggle('linkcomment', 'Lien en premier commentaire', state.linkComment, 'Facebook, Threads, Bluesky, X')}
       ${NEWS_VIDEO(d.breaking)}
       <p class="hint">${failed ? 'Traduction indisponible : textes en version originale, à traduire à la main.' : 'Traduction automatique : à relire.'}</p>`,
@@ -124,6 +127,18 @@ export async function newsEditor(it, done, back) {
         } catch (err) { $('#nsumst').textContent = err.message; } finally { btn.disabled = false; btn.classList.remove('busy'); }
       };
       bindPhoto('n', () => d, (p) => { pic = p; upd(); });
+      // Livrée spéciale : la photo de l'article (rendu ou photo de l'écurie)
+      if ($('#nartimg')) {
+        $('#nartimg').onclick = async () => {
+          const b = $('#nartimg');
+          b.disabled = true; b.classList.add('busy');
+          try {
+            pic = { image: await createImageBitmap(await (await api(`artimg?u=${encodeURIComponent(it.link)}`, { raw: true })).blob()), credit: `Photo : via ${it.srcName}` };
+            $('#nphotost').textContent = pic.credit; $('#nphotodel').hidden = false;
+            upd();
+          } catch (err) { $('#nphotost').textContent = err.message; } finally { b.disabled = false; b.classList.remove('busy'); }
+        };
+      }
       $('#linkcomment').onchange = (e) => { state.linkComment = e.target.checked; redraw(true); };
       bindNewsVideo(() => d, 'breaking-news', (on) => { breaking = on; d.breaking = on; redraw(true); }, (file) => { made = file; redraw(); });
     },

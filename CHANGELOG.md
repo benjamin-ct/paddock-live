@@ -6,6 +6,9 @@ l'application (Réglages → Application → Nouveautés).
 
 ## v1.27.50 — à venir
 
+### Actu
+- Les livrées spéciales des écuries (présentées pour un Grand Prix) sont repérées dans toutes les langues, avec leur propre étiquette « Livrée », et toujours gardées parmi les infos du moment.
+
 ### Publication
 - Vidéo publiée sur Instagram ou Threads : préparation bien plus légère en mémoire, plus fiable avec les vidéos lourdes.
 

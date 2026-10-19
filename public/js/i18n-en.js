@@ -1940,6 +1940,7 @@ export default {
   "VOITURE DE SÉCURITÉ VIRTUELLE": "VIRTUAL SAFETY CAR",
   "ABANDON": "RETIREMENT",
   "PÉNALITÉ": "PENALTY",
+  "LIVRÉE": "LIVERY",
   "Grille de départ": "Starting grid",
   "Météo et pneus": "Weather and tyres",
   "Championnat pilotes": "Drivers' championship",

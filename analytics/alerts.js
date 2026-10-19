@@ -184,7 +184,8 @@ export async function newsAlerts(env, { fetchFn = fetch, now = Date.now() } = {}
   let sentToday = alerts.filter((a) => new Date(a.at).toISOString().slice(0, 10) === day).length;
   // La FIA publie aussi pour ses autres championnats : sujets F1 seulement
   const f1 = (it) => !it.src.startsWith('fia') || /formula 1|formula one|\bf1\b/i.test(`${it.title} ${it.summary}`);
-  const fresh = items.filter((it) => (it.imp || 0) >= 2 && f1(it) && it.t >= now - FRESH && it.t <= now + 10 * 60e3)
+  // Grosses news, et livrées spéciales des écuries (photos à reprendre dans un post)
+  const fresh = items.filter((it) => ((it.imp || 0) >= 2 || newsKind(it).key === 'livree') && f1(it) && it.t >= now - FRESH && it.t <= now + 10 * 60e3)
     .sort((a, b) => (b.imp - a.imp) || (b.cat === 'official') - (a.cat === 'official') || b.t - a.t);
   const added = [];
   for (const it of fresh) {

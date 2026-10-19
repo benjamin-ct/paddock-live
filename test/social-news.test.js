@@ -14,6 +14,9 @@ test('posts news : type de nouvelle', () => {
   assert.equal(newsKind({ title: 'Ten things we learned in Austin' }).key, 'actu');
   assert.equal(newsKind({ title: 'Camara signs multi-year deal with Haas' }).key, 'transfert');
   assert.equal(newsKind({ title: 'Russell handed grid penalty for new engine' }).label, 'PÉNALITÉ');
+  // Livrées spéciales (toutes langues), gardées même peu reprises
+  for (const t of ['Red Bull reveals special livery for Las Vegas Grand Prix', 'Alpine dévoile une livrée spéciale pour Mexico', 'Ferrari svela la livrea speciale per Monza', 'Haas mit Sonderlackierung in Austin']) assert.equal(newsKind({ title: t }).label, 'LIVRÉE');
+  assert.equal(bigNews([{ id: 'l', title: 'McLaren unveil one-off look for Silverstone', t: Date.now(), imp: 0 }]).length, 1);
   assert.equal(newsKind({ title: 'Bottas annonce sa retraite' }).key, 'depart');
   assert.equal(newsKind({ title: 'Calendar update', cat: 'official' }).key, 'officiel');
 });

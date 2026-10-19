@@ -8,6 +8,8 @@
 // (envoyés par l'appli) sont chiffrés avec cette clé (AES-GCM) : sans elle, la base ne contient
 // rien d'utilisable. Essais ratés limités par adresse et par jour.
 import { DEFAULT_SOURCES, feedUrl } from '../shared/news-sources.js';
+import { extractArticle } from '../shared/article.js';
+import { decodeBody } from '../shared/news-collect.js';
 import { publishFacebook, publishInstagram, publishThreads, freshThreads, commentFacebook, replyThreads, withComment, storyInstagram, storyFacebook, reelInstagram, hostVideo, publishFacebookVideo, publishThreadsVideo, publishFacebookLink, publishThreadsLink } from '../shared/meta-publish.js';
 import { publishBluesky, replyBluesky } from '../shared/bluesky-publish.js';
 import { freshTiktok, freshYoutube, tiktokDraft, tiktokStatus, tiktokOutcome, youtubeUpload, tiktokCreator, tiktokDirect, TIKTOK_PRIVACY } from '../shared/video-publish.js';
@@ -276,6 +278,19 @@ async function page(req, url) {
   // Rendue comme du texte (jamais comme une page du serveur), encodage d'origine gardé
   const charset = /charset=([\w-]+)/i.exec(res.headers.get('Content-Type') || '')?.[1];
   return new Response(res.body, { headers: { 'Content-Type': `text/plain${charset ? `; charset=${charset}` : ''}`, 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'no-store' } });
+}
+
+// Photo principale d'un article (livrée spéciale d'une écurie…) : lue sur la page, image seulement
+async function articleImage(req, url) {
+  const u = articleUrl(url.searchParams.get('u') || '');
+  if (!u) return json({ error: 'Adresse refusée' }, 400);
+  const res = await cached(req, u, { headers: { 'User-Agent': UA, Accept: 'text/html,application/xhtml+xml' } }, 1800);
+  if (res.status !== 200) return json({ error: 'Le site refuse la lecture de cet article' }, 502);
+  const src = articleUrl(extractArticle(await decodeBody(res), u).image || '');
+  if (!src) return json({ error: 'Pas de photo sur cet article' }, 404);
+  const img = await cached(req, src, { headers: { 'User-Agent': UA } }, 86400);
+  if (img.status !== 200 || !/^image\/(jpeg|png|webp)/.test(img.headers.get('Content-Type') || '')) return json({ error: 'Photo de l\'article illisible' }, 502);
+  return img;
 }
 
 // Documents de la FIA (liste des documents d'un Grand Prix, PDF des commissaires) : grille officielle
@@ -709,6 +724,7 @@ export async function studioApi(req, env, url) {
   if (path === 'photos' && req.method === 'GET') return json(await freePhotos(url.searchParams.get('q')));
   if (path === 'fia' && req.method === 'GET') return fia(req, url);
   if (path === 'page' && req.method === 'GET') return page(req, url);
+  if (path === 'artimg' && req.method === 'GET') return articleImage(req, url);
   if (path === 'schedule' && req.method === 'GET') return json({ items: (await schedJobs(env)).map(schedSummary) });
   if (path === 'schedule' && req.method === 'POST') return scheduleAdd(req, env, a.raw, vault);
   if (path === 'schedule/cancel' && req.method === 'POST') {

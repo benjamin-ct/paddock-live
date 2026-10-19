@@ -98,6 +98,7 @@ test('alertes : relevé des flux, grosse news envoyée une seule fois, abonnemen
     [F1_URL]: rss([
       { title: 'Verstappen disqualified from the Mexico City Grand Prix', link: 'https://www.formula1.com/a/dsq', t: NOW - 30 * 60e3 },
       { title: 'Pirelli tyre choices for Brazil', link: 'https://www.formula1.com/a/tyres', t: NOW - 20 * 60e3 },
+      { title: 'Williams reveal special livery for Las Vegas', link: 'https://www.formula1.com/a/livery', t: NOW - 25 * 60e3 },
       { title: 'Official: Hamilton signs new contract', link: 'https://www.formula1.com/a/old', t: NOW - 30 * 3600e3 },
     ]),
     // Autre championnat de la FIA : pas d'alerte
@@ -108,8 +109,8 @@ test('alertes : relevé des flux, grosse news envoyée une seule fois, abonnemen
     return feeds[url] ? new Response(feeds[url], { headers: { 'Content-Type': 'application/rss+xml' } }) : new Response('', { status: 404 });
   };
   const r = await newsAlerts(env, { fetchFn, now: NOW });
-  assert.equal(r.alerts, 1);   // nouvelle F1 importante et récente seulement
-  assert.equal(pushes.length, 1);
+  assert.equal(r.alerts, 2);   // nouvelle F1 importante et récente, et livrée spéciale, seulement
+  assert.equal(pushes.length, 2);
   assert.equal(pushes[0].headers['Content-Encoding'], 'aes128gcm');
   await checkVapid(pushes[0].headers.Authorization, key, sub.endpoint);
   const msg = await decrypt(new Uint8Array(pushes[0].body));
@@ -120,9 +121,10 @@ test('alertes : relevé des flux, grosse news envoyée une seule fois, abonnemen
   assert.equal(alerts[0].id, msg.id);
   assert.equal(alerts[0].link, 'https://www.formula1.com/a/dsq');
 
-  // Même nouvelle reprise au passage suivant : pas de deuxième alerte
+  assert.equal(alerts[1].link, 'https://www.formula1.com/a/livery');
+  // Mêmes nouvelles reprises au passage suivant : pas de deuxième alerte
   assert.equal((await newsAlerts(env, { fetchFn, now: NOW + 5 * 60e3 })).sent, 0);
-  assert.equal(pushes.length, 1);
+  assert.equal(pushes.length, 2);
 
   // Téléphone désabonné du côté du navigateur (410) : abonnement retiré
   feeds[F1_URL] = rss([{ title: 'Ferrari team principal leaves the team', link: 'https://www.formula1.com/a/tp', t: NOW + 9 * 60e3 }]);

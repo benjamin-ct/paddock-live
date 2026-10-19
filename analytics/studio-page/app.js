@@ -487,8 +487,15 @@ async function alertsBlock(el) {
   const sub = await currentSub().catch(() => null);
   const on = !!sub && Notification.permission === 'granted';
   el.innerHTML = `<div class="group"><div class="row-item static"><span class="grow"><b>${on ? `Actives sur ${/iPhone|Android.*Mobile/.test(navigator.userAgent) ? 'ce téléphone' : IOS || matchMedia('(pointer: coarse)').matches ? 'cet appareil' : 'cet ordinateur'}` : 'Désactivées'}</b><small>À chaque grosse news, avec le post prêt</small></span><span class="state ${on ? 'on' : ''}"></span></div></div>
-    <div class="row">${on ? `<button class="btn" id="alerttest">${icon('bell')}Tester</button><button class="btn" id="alertoff">Couper</button>` : `<button class="btn primary" id="alerton">${icon('bell')}Activer</button>`}</div>`;
+    <div class="row">${on ? `<button class="btn" id="alerttest">${icon('bell')}Tester</button><button class="btn" id="alertoff">Couper</button>` : `<button class="btn primary" id="alerton">${icon('bell')}Activer</button>`}</div>
+    <div id="alertlist"></div>`;
   const fail = (err) => toast(err.message, 'bad');
+  // Abonnement redonné au serveur (perdu de son côté : plus rien n'arriverait), et dernières alertes envoyées
+  if (on) api('push', { method: 'POST', body: JSON.stringify({ subscription: sub.toJSON() }) }).catch(() => {});
+  api('alerts').then((r) => {
+    const items = (r.items || []).slice(0, 5);
+    $('#alertlist', el).innerHTML = `<h3 class="section">Dernières alertes envoyées</h3>${items.length ? `<div class="group">${items.map((a) => `<div class="row-item static"><span class="grow"><b>${esc(a.titleFr || a.title)}</b><small>${esc(a.srcName || '')} · il y a ${esc(ago(a.at))}</small></span></div>`).join('')}</div>` : '<p class="hint">Aucune pour le moment.</p>'}`;
+  }).catch(() => {});
   if ($('#alerton', el)) $('#alerton', el).onclick = () => enableAlerts().then(() => { toast('Alertes activées', 'ok'); alertsBlock(el); }).catch(fail);
   if ($('#alerttest', el)) $('#alerttest', el).onclick = () => api('push/test', { method: 'POST', body: JSON.stringify({ endpoint: sub.endpoint }) }).then(() => toast('Envoyée : elle arrive dans quelques secondes')).catch(fail);
   if ($('#alertoff', el)) $('#alertoff', el).onclick = async () => { try { await api('push/off', { method: 'POST', body: JSON.stringify({ endpoint: sub.endpoint }) }); await sub.unsubscribe(); toast('Alertes coupées'); alertsBlock(el); } catch (err) { fail(err); } };

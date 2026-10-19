@@ -477,6 +477,28 @@ test('page du créateur : photos libres de droits (Commons, Flickr par Openverse
   assert.equal(asked.length, n);
 });
 
+test('page du créateur : photo principale d\'un article (livrée spéciale)', async () => {
+  const fetchFn = (url, init) => worker(url, init);
+  saveConfig({ creator: true, social: {} });
+  await enableStudio(CODE, { fetchFn });
+  const key = { 'X-Studio-Key': studioKey(CODE) };
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    if (url === 'https://media.test/livree') return new Response('<html><head><meta property="og:image" content="https://cdn.media.test/williams-vegas.jpg"></head><body><p>Texte</p></body></html>', { headers: { 'Content-Type': 'text/html' } });
+    if (url === 'https://cdn.media.test/williams-vegas.jpg') return new Response(new Uint8Array([0xff, 0xd8, 0xff, 1]), { headers: { 'Content-Type': 'image/jpeg' } });
+    if (url === 'https://media.test/sans-photo') return new Response('<html><body>Rien</body></html>', { headers: { 'Content-Type': 'text/html' } });
+    throw new Error(`inattendu : ${url}`);
+  };
+  try {
+    const r = await worker(`https://s.test/studio/api/artimg?u=${encodeURIComponent('https://media.test/livree')}`, { headers: key });
+    assert.equal(r.headers.get('Content-Type'), 'image/jpeg');
+    assert.equal((await r.arrayBuffer()).byteLength, 4);
+    assert.equal((await worker(`https://s.test/studio/api/artimg?u=${encodeURIComponent('https://media.test/sans-photo')}`, { headers: key })).status, 404);
+    assert.equal((await worker(`https://s.test/studio/api/artimg?u=${encodeURIComponent('http://127.0.0.1/x')}`, { headers: key })).status, 400);
+  } finally { globalThis.fetch = realFetch; }
+  await disableStudio({ fetchFn });
+});
+
 test('page du créateur : toutes les sources d\'actu en une réponse (octets d\'origine, sources en panne écartées)', async () => {
   const { packFeeds, unpackFeeds } = await import('../shared/feed-pack.js');
   const { feeds } = await import('../analytics/studio.js');

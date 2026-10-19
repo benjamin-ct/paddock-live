@@ -12,6 +12,7 @@ const KINDS = [
   ['transfert', 'TRANSFERT', '#3ddc84', /\bsigns?\b|signed|signe |s'engage|engage avec|rejoindra|remplacera|contract|contrat|contratto|contrato|vertrag|joins|rejoint|\bdeal\b|accord |agreement|replace|remplace|\bseat\b|baquet|line-?up/],
   ['depart', 'DÉPART', '#c792ea', /retire|retraite|ritiro|leaves|quitte|quits|sacked|fired|limoge|licenzia|despedido|resign|demission|entlassen|steps down/],
   ['accident', 'ACCIDENT', '#ff5252', /crash|accident|incidente|unfall|injur|blesse|infortun|verletz|hospital|hopital/],
+  ['livree', 'LIVRÉE', '#00b2ff', /livery|liveries|livree|livrea|lackierung|decoracion|special (paint|colou?rs)|one-?off (look|design|colou?rs)/],
   ['officiel', 'OFFICIEL', '#e10600', /official|officiel|ufficiale|oficial|offiziell|confirm|announce|annonce|annuncia|anuncia|statement|communique/],
 ];
 // Types au choix (post écrit à la main), « Actu F1 » compris
@@ -49,7 +50,7 @@ const sameStory = (a, b) => kindsMatch(a, b) && Math.abs(a.t - b.t) < 30 * 3600e
 export function bigNews(items, { now = Date.now(), hours = 48, all = false } = {}) {
   const score = (it) => (it.imp || 0) * 2 + Math.min(it.sources || 1, 5) + (it.cat === 'official' ? 1 : 0);
   const keep = (it) => it.kind !== 'video' && it.kind !== 'post' && it.t >= now - hours * 3600e3
-    && (all || (it.imp || 0) >= 2 || ((it.sources || 1) >= 3 && (it.imp || 0) >= 1));
+    && (all || (it.imp || 0) >= 2 || ((it.sources || 1) >= 3 && (it.imp || 0) >= 1) || newsKind(it).key === 'livree');   // livrées spéciales toujours gardées
   // Article retenu pour un sujet : officiel, puis le plus repris (l'annonce elle-même plutôt que les
   // analyses qui suivent), en français ou en anglais (mieux traduit), puis le premier paru
   const lang = (it) => (it.lang === 'fr' ? 0 : it.lang === 'en' ? 1 : 2);
@@ -171,7 +172,7 @@ export function newsPost(item, { title, summary, points = [], driverList = {}, s
 }
 
 // Emoji du type de nouvelle, en tête des textes (🚨 pour les très grosses infos)
-const NEWS_EMOJI = { penalite: '⚠️', transfert: '✍️', depart: '👋', accident: '💥', officiel: '📢', actu: '🏎️' };
+const NEWS_EMOJI = { penalite: '⚠️', transfert: '✍️', depart: '👋', accident: '💥', livree: '🎨', officiel: '📢', actu: '🏎️' };
 
 // Légendes prêtes à copier (Instagram / Facebook, X, Threads, story). linkInComment : le lien de
 // l'article part en premier commentaire (Facebook, Threads, X) au lieu d'être dans le texte.
