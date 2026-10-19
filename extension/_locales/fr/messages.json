@@ -27,7 +27,7 @@
     "message": "Pas trouvée : lancez Paddock Live"
   },
   "appLinked": {
-    "message": "GPS et télémétrie activés (connexion F1 TV reçue)"
+    "message": "GPS et télémétrie activés"
   },
   "appUnlinked": {
     "message": "Pas encore connectée à F1 TV"
@@ -39,10 +39,10 @@
     "message": "Connexion envoyée : GPS et télémétrie activés."
   },
   "auto": {
-    "message": "Ensuite, rien à faire : à chaque connexion sur formula1.com, Paddock Live est prévenu tout seul."
+    "message": "Ensuite, rien à faire : Paddock Live est prévenu à chaque connexion."
   },
   "privacy": {
-    "message": "Votre connexion F1 TV ne quitte pas votre ordinateur : elle n'est envoyée qu'à l'appli Paddock Live (127.0.0.1)."
+    "message": "Votre connexion ne quitte pas votre ordinateur."
   },
   "download": {
     "message": "Télécharger Paddock Live"
