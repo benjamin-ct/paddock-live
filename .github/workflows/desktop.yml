@@ -115,3 +115,23 @@ jobs:
             dist/*.AppImage
             dist/*.deb
           body_path: release-notes.md
+      # Copie sur Cloudflare (R2) : téléchargements et mises à jour bien plus rapides en Europe (/dl/… du
+      # serveur). Version retirée pendant la copie : le serveur renvoie vers GitHub tant qu'elle n'est pas
+      # finie (ou si elle échoue, sans bloquer la publication sur GitHub)
+      - name: Copie des fichiers sur Cloudflare
+        continue-on-error: true
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          [ -n "$CLOUDFLARE_API_TOKEN" ] || { echo "::warning::Pas de jeton Cloudflare : fichiers sur GitHub seulement"; exit 0; }
+          [ -n "$CLOUDFLARE_ACCOUNT_ID" ] || unset CLOUDFLARE_ACCOUNT_ID
+          W="npx --yes wrangler@4 r2 object"
+          v="${RELEASE_TAG#v}"
+          $W delete paddock-live-media/releases/version --remote || true
+          for f in dist/*.exe dist/*.dmg dist/*.zip dist/*.AppImage dist/*.deb; do
+            n=$(basename "$f")
+            $W put "paddock-live-media/releases/${n#Paddock-Live-$v-}" --file "$f" --remote
+          done
+          printf '%s' "$v" > version.txt
+          $W put paddock-live-media/releases/version --file version.txt --remote

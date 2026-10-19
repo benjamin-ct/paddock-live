@@ -40,6 +40,18 @@ export async function editionOf(year, circuitKey, read) {
   return { year, name: meeting.name, pole, fastest };
 }
 
+// Une édition d'après les résultats officiels publics (API Jolpica : course et qualifications du Grand
+// Prix sur ce circuit cette année-là), sans les archives de la F1 que la F1 réserve et refuse parfois
+export function editionFromResults(year, races = [], qualis = []) {
+  const race = races[0];
+  if (!race) return null;
+  const who = (x, time, lap = null) => ({ time, tla: x.Driver?.code || '', team: x.Constructor?.name || '', color: '', lap });
+  const fast = (race.Results || []).map((x) => ({ x, t: parseLapTime(x.FastestLap?.Time?.time) })).filter((o) => o.t > 0).sort((a, b) => a.t - b.t)[0];
+  const p = (qualis[0]?.QualifyingResults || []).find((q) => q.position === '1');
+  const poleTime = p && parseLapTime(p.Q3 || p.Q2 || p.Q1);
+  return { year, name: race.raceName, pole: poleTime > 0 ? who(p, poleTime) : null, fastest: fast ? who(fast.x, fast.t, Number(fast.x.FastestLap.lap) || null) : null };
+}
+
 // Éditions retenues -> records (les plus rapides)
 export function recordsOf(circuitKey, editions) {
   const list = editions.filter((e) => e && !e.pending);

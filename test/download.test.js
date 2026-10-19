@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { download, FILES } from '../analytics/download.js';
+import { download, mirror, FILES } from '../analytics/download.js';
 
 const names = ['Paddock-Live-1.27.19-x64-win.exe', 'Paddock-Live-1.27.19-portable.exe', 'Paddock-Live-1.27.19-mac-arm64.dmg', 'Paddock-Live-1.27.19-mac-arm64.zip', 'Paddock-Live-1.27.19-mac-x64.dmg', 'Paddock-Live-1.27.19-linux-x86_64.AppImage', 'Paddock-Live-1.27.19-linux-arm64.AppImage', 'Paddock-Live-1.27.19-linux-amd64.deb'];
 const gh = async (url, opts) => {
@@ -13,8 +13,8 @@ test('téléchargement : chaque système mène au bon fichier de la dernière ve
     const r = await download(`/download/${os}`, { fetchFn: gh, now: 1 });
     assert.equal(r.status, 302);
     assert.ok(r.headers.get('Location').endsWith(file), os);
-    // Nom réel d'un fichier publié (liste de la version 1.27.19)
-    assert.ok(names.some((n) => r.headers.get('Location').endsWith(`/v1.27.19/${n}`)), os);
+    // Nom réel d'un fichier publié (liste de la version 1.27.19), servi par la copie sur Cloudflare
+    assert.ok(names.some((n) => r.headers.get('Location') === `/dl/${n}`), os);
   }
   assert.equal(Object.keys(FILES).length, 7);
   const j = await (await download('/download/latest.json', { fetchFn: gh, now: 2 })).json();
@@ -22,6 +22,37 @@ test('téléchargement : chaque système mène au bon fichier de la dernière ve
   assert.equal(j.files.windows, 'Paddock-Live-1.27.19-x64-win.exe');
   // Système inconnu : page des versions
   assert.match((await download('/download/amiga', { fetchFn: gh, now: 3 })).headers.get('Location'), /releases\/latest$/);
+});
+
+test('téléchargement : copie de la dernière version sur Cloudflare (morceaux acceptés), sinon GitHub', async () => {
+  const data = new TextEncoder().encode('0123456789');
+  const store = { 'releases/version': '1.27.19\n', 'releases/x64-win.exe': data };
+  const MEDIA = {
+    async get(key, { range } = {}) {
+      const v = store[key];
+      if (v == null) return null;
+      if (typeof v === 'string') return { text: async () => v };
+      const m = range && /bytes=(\d+)-(\d+)/.exec(range.get('Range'));
+      const r = m ? { offset: +m[1], length: +m[2] - +m[1] + 1 } : null;
+      return { body: new Blob([r ? v.slice(r.offset, r.offset + r.length) : v]).stream(), size: v.length, range: r, httpEtag: '"e"' };
+    },
+  };
+  const env = { MEDIA };
+  let r = await mirror(new Request('https://p.test/dl/Paddock-Live-1.27.19-x64-win.exe'), env, 'Paddock-Live-1.27.19-x64-win.exe');
+  assert.equal(r.status, 200);
+  assert.equal(await r.text(), '0123456789');
+  assert.equal(r.headers.get('Accept-Ranges'), 'bytes');
+  r = await mirror(new Request('https://p.test/dl/x', { headers: { Range: 'bytes=2-5' } }), env, 'Paddock-Live-1.27.19-x64-win.exe');
+  assert.equal(r.status, 206);
+  assert.equal(r.headers.get('Content-Range'), 'bytes 2-5/10');
+  assert.equal(await r.text(), '2345');
+  // Autre version que la copie, ou fichier absent : GitHub
+  r = await mirror(new Request('https://p.test/dl/x'), env, 'Paddock-Live-1.27.18-x64-win.exe');
+  assert.equal(r.headers.get('Location'), 'https://github.com/benjamin-ct/paddock-live/releases/download/v1.27.18/Paddock-Live-1.27.18-x64-win.exe');
+  r = await mirror(new Request('https://p.test/dl/x'), env, 'Paddock-Live-1.27.19-mac-x64.dmg');
+  assert.equal(r.status, 302);
+  assert.equal((await mirror(new Request('https://p.test/dl/x'), {}, 'Paddock-Live-1.27.19-x64-win.exe')).status, 302);
+  assert.equal((await mirror(new Request('https://p.test/dl/x'), env, '../secret')).status, 404);
 });
 
 test('nom de domaine : racine = site de l\'appli, www redirigé, workers.dev inchangé', async () => {

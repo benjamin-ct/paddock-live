@@ -5,10 +5,10 @@ import { raceWeekData, weekendData, recordsData, ratingsData, teamDuelsData, tit
 import { raceFrame, raceVideoTiming } from '/shared/social-draw-season.js';
 import { parseRaceLaps } from '/shared/race-laps.js';
 import { circuitInfo } from '/shared/circuits-info.js';
-import { editionOf, recordsOf, recordYears } from '/shared/circuit-records.js';
+import { recordsOf, recordYears, editionFromResults } from '/shared/circuit-records.js';
 import { parseRaceControl, raceSessionPath } from '/shared/race-story.js';
 import { makeAnimation, unlockAudio } from '/shared/social-video.js';
-import { $, $$, esc, api, icon, store, skeleton, toast, state, session, SIG, musicField, bindMusic, clipFile } from './ui.js';
+import { $, $$, esc, api, icon, store, skeleton, toast, state, SIG, musicField, bindMusic, clipFile } from './ui.js';
 import { latestDrivers } from './data.js';
 import { editor, assets } from './editor.js';
 
@@ -49,18 +49,19 @@ const memoOf = (k, fn, ttl = Infinity) => {
 };
 // Saison résumée par le serveur (lue chez Jolpica et tenue à jour toutes les 30 minutes) : une seule demande
 const seasonOf = (year) => memoOf(`s4-${year}`, async () => (await api(`season?year=${year}`)).v, 10 * 60e3);
-// Records du circuit : éditions précédentes lues dans les archives de la F1 (gardées sur le
-// téléphone, définitives ; une archive pas encore publiée sera relue la fois suivante)
 const readArchive = async (p) => JSON.parse((await (await api(`archive?p=${encodeURIComponent(p)}`, { raw: true })).text()).replace(/^﻿/, ''));
-async function recordsFor(year, key) {
+// Records du circuit : pole et meilleur tour en course des éditions précédentes, d'après les résultats
+// officiels publics (Jolpica : sans connexion F1 TV, que la F1 refuse depuis un serveur) ; gardés sur le téléphone
+async function editionJolpica(y, circuitId) {
+  const races = (path) => jolpica(`${y}/circuits/${circuitId}/${path}`).then((l) => l.flatMap((m) => m?.RaceTable?.Races || []));
+  const [res, quali] = await Promise.all([races('results'), races('qualifying')]);
+  return editionFromResults(y, res, quali);
+}
+async function recordsFor(year, key, circuitId) {
   let failed = null;
-  const editions = await Promise.all(recordYears(year).map((y) => memoOf(`r${key}-${y}`, async () => {
-    const e = await editionOf(y, key, readArchive);
-    if (e?.pending) throw new Error('Archive pas encore publiée');
-    return e;
-  }).catch((err) => { failed ||= err; return null; })));
+  const editions = await Promise.all(recordYears(year).map((y) => memoOf(`rj${circuitId}-${y}`, () => editionJolpica(y, circuitId)).catch((err) => { failed ||= err; return null; })));
   const rec = recordsOf(key, editions);
-  if (!rec.editions.length && failed) throw new Error(session.me.f1tv ? 'Archives de la F1 indisponibles pour le moment' : 'Archives réservées aux abonnés F1 TV : connectez F1 TV dans l\'appli, puis réactivez la page');
+  if (!rec.editions.length && failed) throw failed;
   return rec;
 }
 const lapsOf = (year, round) => memoOf(`l2${year}-${round}`, async () => {
@@ -151,8 +152,8 @@ async function seasonEditor(year, data, race, back) {
   } else if (state.stype === 'records') {
     const key = circuitInfo(race.circuitId)?.key;
     if (!key) throw new Error('Circuit inconnu : records indisponibles pour ce Grand Prix');
-    d = recordsData(race, await recordsFor(year, key), { year, names: Object.fromEntries((data.drivers || []).map((x) => [x.code, x.name])) });
-    if (!d.facts.length) throw new Error('Pas encore de records connus pour ce circuit (archives de la F1 depuis 2018).');
+    d = recordsData(race, await recordsFor(year, key, race.circuitId), { year, names: Object.fromEntries((data.drivers || []).map((x) => [x.code, x.name])) });
+    if (!d.facts.length) throw new Error('Pas encore de records connus pour ce circuit (résultats depuis 2018).');
   } else if (state.stype === 'ratings') {
     const laps = await lapsOf(year, race.round).catch(() => null);
     d = ratingsData(race, { year, laps, live });

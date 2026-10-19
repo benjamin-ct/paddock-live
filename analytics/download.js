@@ -36,5 +36,23 @@ export async function download(path, opts) {
     return new Response(JSON.stringify({ version: v, files: Object.fromEntries(Object.entries(FILES).map(([k, f]) => [k, v ? f(v) : null])) }), { headers: { 'Content-Type': 'application/json; charset=utf-8', ...cache } });
   }
   const file = FILES[what] && v ? FILES[what](v) : null;
-  return new Response(null, { status: 302, headers: { Location: file ? `https://github.com/${REPO}/releases/download/v${v}/${file}` : RELEASES, ...cache } });
+  return new Response(null, { status: 302, headers: { Location: file ? `/dl/${file}` : RELEASES, ...cache } });
+}
+
+// /dl/<fichier> : copie de la dernière version sur Cloudflare (R2, déposée par le workflow « Application de
+// bureau »), bien plus rapide depuis l'Europe que GitHub (serveurs aux États-Unis) ; morceaux (Range) acceptés
+// pour la mise à jour de l'appli. releases/version : version copiée ; releases/<fin du nom> : fichier, remplacé
+// à chaque version. Autre version, ou copie absente : fichier de GitHub.
+export async function mirror(req, env, name) {
+  const m = /^Paddock-Live-(\d+\.\d+\.\d+)-([\w.-]+)$/.exec(name);
+  if (!m) return new Response('Fichier inconnu', { status: 404 });
+  const github = Response.redirect(`https://github.com/${REPO}/releases/download/v${m[1]}/${name}`, 302);
+  if ((await (await env.MEDIA?.get('releases/version'))?.text())?.trim() !== m[1]) return github;
+  const obj = await env.MEDIA.get(`releases/${m[2]}`, req.headers.has('Range') ? { range: req.headers } : {});
+  if (!obj?.body) return github;
+  const part = req.headers.has('Range') && obj.range;
+  const headers = { 'Content-Type': 'application/octet-stream', 'Content-Disposition': `attachment; filename="${name}"`, 'Accept-Ranges': 'bytes', ETag: obj.httpEtag };
+  if (!part) return new Response(obj.body, { headers: { ...headers, 'Content-Length': String(obj.size) } });
+  const end = part.offset + part.length - 1;
+  return new Response(obj.body, { status: 206, headers: { ...headers, 'Content-Length': String(part.length), 'Content-Range': `bytes ${part.offset}-${end}/${obj.size}` } });
 }

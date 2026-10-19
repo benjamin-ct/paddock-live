@@ -24,6 +24,7 @@ import { getTranslations, addTranslations } from './translations.js';
 import { compareLaps } from './compare.js';
 import { weekendTyres } from './tyres.js';
 import { circuitRecords } from './records.js';
+import { circuitInfo } from '../shared/circuits-info.js';
 import { startNews, refreshNews, newsSnapshot, onNews, addNewsSource, removeNewsSource, setNewsSourceEnabled } from './news.js';
 import { parseChangelog } from '../shared/changelog.js';
 import { buildIcs } from '../shared/ics.js';
@@ -394,9 +395,9 @@ async function handleApi(req, res, url) {
           const year = yearOf(url.searchParams.get('year'));
           const race = (await season(year)).races.find((r) => r.round === Number(url.searchParams.get('round')));
           if (!race) return sendJSON(res, 404, { error: 'Manche inconnue' });
-          let key = null;
+          let key = circuitInfo(race.circuitId)?.key || null;
           let failed = null;
-          for (const y of [year, year - 1, year - 2]) {
+          for (const y of key ? [] : [year, year - 1, year - 2]) {
             let idx = [];
             try { idx = await seasonIndex(y); } catch (err) { failed ||= err; }
             key = idx.find((m) => m.name === race.name && m.circuitKey)?.circuitKey || null;
