@@ -410,7 +410,11 @@ dialog.sheet .group, dialog.sheet input { background: rgba(255, 255, 255, .05); 
   .editing .page { display: grid; grid-template-columns: minmax(0, 1fr) 400px; column-gap: 28px; align-items: start; padding-top: 12px; }
   .editing .page > * { grid-column: 2; min-width: 0; }
   .editing .page > #fmt { margin-top: 0; }
-  .editing .page > .preview { grid-column: 1; grid-row: 1 / span 12; position: sticky; top: 72px; max-height: calc(100vh - 96px); overflow: auto; padding-right: 4px; }
+  /* Une seule barre de défilement quand tout tient : les visuels défilent dans leur colonne, la page ne
+     dépasse l'écran que si la colonne de droite est plus haute (marge du bouton Publier sous elle seule) */
+  .editing .page { min-height: 0; padding-bottom: 0; }
+  .editing .page > #schedlist { padding-bottom: calc(110px + env(safe-area-inset-bottom)); }
+  .editing .page > .preview { grid-column: 1; grid-row: 1 / span 12; position: sticky; top: 72px; max-height: calc(100vh - 100px); overflow: auto; padding-right: 4px; }
   .editing .slides { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; margin: 0; padding: 2px; overflow: visible; scroll-snap-type: none; }
   .editing .slides.story { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
   .editing .slides .sl { width: auto; }
