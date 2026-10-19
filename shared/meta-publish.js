@@ -87,10 +87,6 @@ export async function publishFacebook(meta, text, images) {
 export async function commentFacebook(meta, postId, text) {
   return call(`${GRAPH}/${postId}/comments`, { method: 'POST', form: { message: text, access_token: meta.pageToken } });
 }
-// Même chose sous un post Instagram (lien affiché, non cliquable) : permission instagram_manage_comments
-export async function commentInstagram(meta, mediaId, text) {
-  return call(`${GRAPH}/${mediaId}/comments`, { method: 'POST', form: { message: text, access_token: meta.pageToken } });
-}
 
 // Conteneur prêt : le réseau a fini de récupérer et de préparer l'image (sinon le carrousel ou la
 // publication sont refusés). Statut relu toutes les 1,5 à 5 secondes, 4 minutes au plus.

@@ -6,7 +6,7 @@ import { getConfig, saveConfig } from './config.js';
 import { xLength } from '../shared/social.js';
 import { studioTrack } from './studio-sync.js';
 import { bskySession, publishBluesky, replyBluesky } from '../shared/bluesky-publish.js';
-import { call, GRAPH, THREADS, timing, publishFacebook, publishInstagram, publishThreads, freshThreads, commentFacebook, commentInstagram, replyThreads, withComment } from '../shared/meta-publish.js';
+import { call, GRAPH, THREADS, timing, publishFacebook, publishInstagram, publishThreads, freshThreads, commentFacebook, replyThreads, withComment } from '../shared/meta-publish.js';
 import { YOUTUBE, tiktokOAuth, googleOAuth, tiktokTokens, youtubeTokens, freshTiktok, freshYoutube, tiktokDraft, youtubeUpload, youtubeSnippet } from '../shared/video-publish.js';
 
 const XAPI = 'https://api.x.com/2';
@@ -264,11 +264,11 @@ async function publishYoutube(video, mime, text) {
 export async function publish(net, { text = '', images = [], video = null, mime = 'video/mp4', comment = '' }) {
   // Images PNG (ou JPEG pour Bluesky, 1 Mo au plus par image)
   const imgs = images.map((b) => Buffer.from(String(b), 'base64')).filter((b) => b.length > 8 && (b.readUInt32BE(0) === 0x89504e47 || (net === 'bluesky' && b[0] === 0xff && b[1] === 0xd8)));
-  // Liens suivis (clics comptés) ; premier commentaire (lien de l'article d'une news) : tous sauf TikTok et YouTube
+  // Liens suivis (clics comptés) ; premier commentaire (lien de l'article d'une news) : X, Facebook, Threads
   const { text: body, comment: note } = await studioTrack(net, String(text || ''), String(comment || '').trim().slice(0, 500));
   if (net === 'x') return withComment(() => publishX(xLength(body) > 280 ? body.slice(0, 280) : body, imgs), note, replyX);
   if (net === 'facebook') return withComment(() => publishFacebook(conf().meta, body, blobs(imgs)), note, (id, t) => commentFacebook(conf().meta, id, t));
-  if (net === 'instagram') return withComment(() => publishInstagram(conf().meta, body.slice(0, 2200), blobs(imgs)), note, (id, t) => commentInstagram(conf().meta, id, t));
+  if (net === 'instagram') return publishInstagram(conf().meta, body.slice(0, 2200), blobs(imgs));
   if (net === 'bluesky') {
     const acc = conf().bluesky;
     const pics = imgs.map((b) => ({ blob: new Blob([b], { type: b[0] === 0xff ? 'image/jpeg' : 'image/png' }), width: 1080, height: 1350 }));   // format X de shared/social-draw.js

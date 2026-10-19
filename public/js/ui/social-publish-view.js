@@ -102,7 +102,7 @@ const HELP = {
     '« Keys and tokens » : copiez API Key et API Key Secret, puis générez Access Token et Access Token Secret (après le passage en lecture-écriture).'],
   meta: ['Passez votre compte Instagram en compte professionnel (créateur) et reliez-le à votre page Facebook.',
     'developers.facebook.com : créez une app (type Business) ; identifiant et clé secrète dans Paramètres → Général.',
-    'Outils → Explorateur de l\'API Graph : choisissez l\'app, ajoutez pages_show_list, pages_read_engagement, pages_manage_posts, pages_manage_engagement, read_insights, instagram_basic, instagram_content_publish, instagram_manage_comments, instagram_manage_insights et business_management, puis « Generate Access Token » et collez-le ici.'],
+    'Outils → Explorateur de l\'API Graph : choisissez l\'app, ajoutez pages_show_list, pages_read_engagement, pages_manage_posts, pages_manage_engagement, read_insights, instagram_basic, instagram_content_publish, instagram_manage_insights et business_management, puis « Generate Access Token » et collez-le ici.'],
   threads: ['Dans l\'app Meta, ajoutez le cas d\'usage « Accéder à l\'API Threads » (threads_basic, threads_content_publish, threads_manage_replies, threads_manage_insights).',
     'Ajoutez votre compte Threads comme testeur, puis acceptez l\'invitation dans Threads (Paramètres → Compte → Autorisations du site web).',
     'Copiez la clé secrète Threads de l\'app et générez un jeton avec « User Token Generator ». Il est prolongé automatiquement.'],
@@ -253,7 +253,7 @@ export async function openPublish({ d, caps, render, folder, record = null, onPo
         <label class="small muted">${t('Texte Threads (500 caractères max.)')}<textarea rows="3" data-txt="threads" maxlength="500">${esc(caps.threads)}</textarea></label>
         <label class="small muted">${t('Texte X (280 caractères max.)')}<textarea rows="3" data-txt="x">${esc(caps.x)}</textarea></label>
         <label class="small muted">${t('Texte Bluesky (300 caractères max.)')}<textarea rows="3" data-txt="bsky">${esc(caps.bsky || caps.x)}</textarea></label>
-        ${caps.comment ? `<label class="small muted">${t('Premier commentaire (Instagram, Facebook, Threads, X, Bluesky)')}<textarea rows="2" data-txt="comment">${esc(caps.comment)}</textarea></label>` : ''}
+        ${caps.comment ? `<label class="small muted">${t('Premier commentaire (Facebook, Threads, X, Bluesky)')}<textarea rows="2" data-txt="comment">${esc(caps.comment)}</textarea></label>` : ''}
         <label class="small muted">${t('Texte YouTube Shorts (1re ligne = titre, 100 caractères max.)')}<textarea rows="3" data-txt="youtube">${esc(caps.youtube || youtubeText(caps))}</textarea></label>
         <fieldset class="posts-video"><legend class="small">${t('Vidéo TikTok / YouTube Shorts')}</legend>
           <div class="row small">
@@ -312,7 +312,7 @@ export async function openPublish({ d, caps, render, folder, record = null, onPo
       return { network: n, text: txt('x'), images: xs, comment: caps.comment ? txt('comment') : '' };
     }
     ig ||= await Promise.all((await render('ig')).map(png));
-    return { network: n, text: txt(n === 'threads' ? 'threads' : n === 'facebook' && caps.facebook ? 'facebook' : 'instagram'), images: ig, comment: caps.comment ? txt('comment') : '' };
+    return { network: n, text: txt(n === 'threads' ? 'threads' : n === 'facebook' && caps.facebook ? 'facebook' : 'instagram'), images: ig, comment: n === 'instagram' || !caps.comment ? '' : txt('comment') };
   };
   // Publications programmées : liste (à venir, puis récentes) avec annulation
   const schedList = async () => {
