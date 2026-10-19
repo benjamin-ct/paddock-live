@@ -46,7 +46,7 @@ function update(panel, id) {
     el.classList.toggle('compact', panel.getBoundingClientRect().height < COMPACT_H && !panel.closest('.grid.mobile'));
     panel.appendChild(el);
   }
-  const html = `<button class="lg-more" title="Afficher la légende de ce panneau">${icon('info')} Légende</button><div class="lg-body">${items.join('')}</div><button class="lg-hide" title="Masquer les légendes (réaffichables dans Réglages, onglet Apparence)">${icon('close')} Masquer</button>`;
+  const html = `<button class="lg-more" title="Afficher la légende de ce panneau">${icon('info')} Légende</button><div class="lg-body">${items.join('')}</div><button class="lg-hide" title="Masquer les légendes">${icon('close')} Masquer</button>`;
   const k = `${id}|${tab}|${document.documentElement.dataset.scheme}`;
   if (el.dataset.k !== k) { el.innerHTML = html; el.dataset.k = k; }
 }
@@ -85,7 +85,7 @@ export function initLegends() {
     for (const open of document.querySelectorAll('.panel-legend.open')) if (!open.contains(e.target)) open.classList.remove('open');
     if (!e.target.closest('.lg-hide')) return;
     setPref('legends', false);
-    toast('Légendes masquées — pour les réafficher : Réglages → Apparence → « Légendes sous les panneaux »', 6000);
+    toast('Légendes masquées (Réglages → Apparence pour les remettre)', 6000);
   });
   updateAll();
 }

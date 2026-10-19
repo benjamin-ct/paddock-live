@@ -121,7 +121,7 @@ export function renderStrategy() {
   total = Math.max(total, ...rows.map((r) => r.laps), 1);
   $('#strategy').innerHTML = `<div class="strat">
     <div class="strat-legend">${Object.values(COMPOUNDS).map((c) => `<span><span class="tyre" style="--tc:${c.color}">${c.letter}</span> ${c.name}</span>`).join('')}</div>
-    <div class="strat-row strat-headrow"><span></span><span></span><span class="small muted" title="Moyenne des 5 derniers tours propres du relais en cours">Rythme</span><span class="small muted" title="Évolution du temps au tour sur le relais en cours (régression linéaire, hors tours perturbés)">Usure</span></div>
+    <div class="strat-row strat-headrow"><span></span><span></span><span class="small muted" title="Moyenne des 5 derniers tours propres du relais en cours">Rythme</span><span class="small muted" title="Évolution du temps au tour sur le relais">Usure</span></div>
     ${rows.map((r) => `<div class="strat-row"><div class="strat-name" style="border-left:3px solid ${teamColor(dl[r.num])};padding-left:5px">${esc(dl[r.num].Tla)}</div>
       <div class="strat-track">${r.stints.map((st) => {
         const ci = compoundInfo(st.Compound);
@@ -130,7 +130,7 @@ export function renderStrategy() {
       <span class="strat-pace">${r.pace ? fmtLap(r.pace.avg) : '<span class="dim">—</span>'}</span>
       <span class="strat-deg ${r.pace?.deg > 0.08 ? 'down' : r.pace?.deg < -0.02 ? 'up' : ''}">${r.pace && r.pace.n >= 4 ? `${fmtSigned(r.pace.deg, 2)} s/t` : '<span class="dim">—</span>'}</span></div>`).join('')}
     <div class="strat-axis"><span></span><span style="display:flex;justify-content:space-between"><span>Tour 0</span><span>Tour ${total}</span></span></div>
-    <p class="small muted">Usure : variation moyenne du temps au tour sur le relais en cours (positive = le pilote ralentit, les pneus se dégradent). Le carburant qui s'allège fait gagner ~0,05 s/tour, à garder en tête.</p>
+    <p class="small muted">Usure : perte moyenne par tour sur le relais (positif = le pilote ralentit).</p>
   </div>`;
 }
 
@@ -177,7 +177,7 @@ export function renderChampionship() {
   const cp = store.state.ChampionshipPrediction;
   const dl = drivers(store.state);
   if (!cp?.Drivers) {
-    $('#champ').innerHTML = '<div class="note">La projection du championnat est publiée par la F1 pendant les courses (et sprints).</div>';
+    $('#champ').innerHTML = '<div class="note">Projection du championnat pendant les courses et sprints.</div>';
     return;
   }
   const rows = Object.values(cp.Drivers).filter(Boolean).sort((a, b) => (a.PredictedPosition || 99) - (b.PredictedPosition || 99));

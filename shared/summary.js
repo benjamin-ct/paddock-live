@@ -145,7 +145,7 @@ export function buildSummary(state, { lang = 'fr' } = {}) {
     const red = msgs.filter((m) => m?.Flag === 'RED').length;
     if (red) out.paragraphs.push(`Séance interrompue ${red === 1 ? 'une fois' : `${red} fois`} par le drapeau rouge.`);
   }
-  if (!finished) out.paragraphs.push('Résumé provisoire : la séance n\'est pas terminée (au rythme de votre délai TV).');
+  if (!finished) out.paragraphs.push('Résumé provisoire : séance pas terminée.');
   return out;
 }
 

@@ -166,7 +166,7 @@ async function seasonEditor(year, data, race, back) {
     const [laps, rcm] = await Promise.all([lapsOf(year, race.round), raceControlOf(year, race).catch(() => null)]);
     if (!laps.total) throw new Error('Tours de cette course pas encore publiés');
     d = raceLapsData(race, laps, { year, live, rcm: rcm?.length ? rcm : null });
-    if (d.story.estimated) note = 'Direction de course indisponible (archives de la F1) : neutralisations estimées d\'après les temps au tour.';
+    if (d.story.estimated) note = 'Direction de course indisponible : neutralisations estimées.';
   }
   const video = state.stype === 'racelaps';
   const typeName = STYPES.find(([k]) => k === state.stype)[1];
@@ -178,7 +178,7 @@ async function seasonEditor(year, data, race, back) {
     subtitle: state.stype === 'title' ? `Classement après la manche ${race.round} · ${d.gp}` : `${d.gp} · manche ${race.round}`,
     head: `${note ? `<p class="hint">${esc(note)}</p>` : ''}
       ${video ? `${musicField('race', 'depart')}<div class="row"><button class="btn" id="mkvid">${icon('video')}Créer la vidéo (${Math.round(raceVideoTiming(d).duration)} s)</button><button class="btn" id="sharevid" disabled>${icon('share')}Partager</button></div>
-        <p class="hint" id="vidst">Vidéo verticale de la course, tour après tour. Garder l'écran allumé pendant l'enregistrement.</p>
+        <p class="hint" id="vidst">Garder l'écran allumé pendant l'enregistrement.</p>
         <video id="vid" controls playsinline hidden></video>` : ''}`,
     data: () => d, caps: (dd) => seasonCaptions(dd, SIG),
     record: () => ({ key: `${state.stype}:${year}-${race.round}`, kind: state.stype, title: `${typeName} · ${d.gp}` }),

@@ -231,13 +231,13 @@ export function renderRatings(ctx, sortBy = 'season') {
         ${SEASON_CRITERIA.map(([k]) => heat(e.parts[k] === null || e.parts[k] === undefined ? null : 1 - e.parts[k], `${METRIC_FMT[k](e.metrics[k])}`)).join('')}
         <td>${e.h2h.qa}–${e.h2h.qb} / ${e.h2h.ra}–${e.h2h.rb}</td><td>${e.gapPct === null ? '—' : `${e.gapPct <= 0 ? '−' : '+'}${fr(Math.abs(e.gapPct), 2)} %`}</td></tr>`).join('')}</table></div></section>
     <section class="sz-box sz-how"><h3>Comment les notes sont calculées</h3>
-      <p><b>Note de la saison (sur 100)</b> : chaque pilote est classé parmi ceux qui ont couru au moins 40 % des Grands Prix, critère par critère. Son rang devient un score de 0 (dernier) à 100 (premier), puis les critères sont pondérés :</p>
+      <p><b>Note de la saison (sur 100)</b> : rang parmi les pilotes présents à 40 % des Grands Prix, pour chaque critère :</p>
       <ul>${SEASON_CRITERIA.map(([, w, l]) => `<li>${esc(l)} : <b>${w} %</b></li>`).join('')}</ul>
-      <p class="small muted">Rythme de course : écart moyen entre le tour médian « propre » du pilote et celui du plus rapide de chaque course (archives officielles F1${noPace ? ' — pas encore analysées, critère ignoré pour l\'instant' : ''}). Place moyenne à l'arrivée : un abandon compte comme une 20e place. Places gagnées : de la grille à l'arrivée, courses terminées seulement.</p>
+      <p class="small muted">Rythme : écart au plus rapide de chaque course${noPace ? ' (pas encore analysé)' : ''}. Abandon = 20e place.</p>
       <p><b>Note face au coéquipier (sur 100, 50 = à égalité)</b> : comparaison avec le coéquipier de chaque course.</p>
       <ul>${MATE_CRITERIA.map(([, w, l]) => `<li>${esc(l)} : <b>${w} %</b></li>`).join('')}</ul>
-      <p class="small muted">Écart en qualification : médiane des écarts dans la dernière partie disputée par les deux (Q3, sinon Q2, sinon Q1) ; 1 % plus rapide donne le maximum. Les écarts de plus de 3 % (incident, piste qui change) sont ignorés. Ces notes résument des chiffres : elles ne tiennent pas compte de la voiture, des pannes subies ou de la stratégie de l'écurie.</p>
-      <p class="small muted">Notation inspirée des scores SPS / TMS de formula1dashboard.com, calculée ici à partir des résultats officiels.</p>
+      <p class="small muted">Écart en qualification : médiane, dans la dernière partie disputée par les deux ; écarts de plus de 3 % ignorés. La voiture n'est pas prise en compte.</p>
+      <p class="small muted">Inspirée des scores SPS / TMS de formula1dashboard.com.</p>
     </section>`;
 }
 
@@ -284,7 +284,7 @@ export function renderConsistency(ctx) {
   const lo = Math.min(...allSig), hi = Math.max(...allSig);
   const k = (v) => (v === undefined ? null : (v - lo) / ((hi - lo) || 1));
   return `${pendingNote(stats)}
-    <p class="muted small">Régularité = écart-type des temps au tour « propres » de chaque pilote (hors 1er tour, tours aux stands, safety car / VSC et tours à plus de 7 % de sa médiane). Plus la valeur est basse, plus le pilote enchaîne des tours identiques. Le rythme est l'écart moyen de son tour médian à celui du pilote le plus rapide de chaque course.</p>
+    <p class="muted small">Régularité = écart-type des tours propres (hors 1er tour, stands, safety car) : plus bas = plus régulier. Rythme = écart au plus rapide de chaque course.</p>
     <div class="sz-grid2">
       <section class="sz-box"><h3>Les plus réguliers (écart-type médian)</h3>${hbars(rows.map((e) => ({ html: `${mark(e.d.team, e.d.color)}<b>${esc(e.d.tla)}</b>`, v: e.score, text: `${fr(e.score, 3)} s`, color: tcol(e.d.team, e.d.color) })), { invert: true })}</section>
       <section class="sz-box"><h3>Rythme de course (écart au plus rapide)</h3>${hbars([...rows].sort((a, b) => a.paceAvg - b.paceAvg).map((e) => ({ html: `${mark(e.d.team, e.d.color)}<b>${esc(e.d.tla)}</b>`, v: e.paceAvg, text: `+${fr(e.paceAvg, 2)} %`, color: tcol(e.d.team, e.d.color) })), { invert: true })}</section>
@@ -372,7 +372,7 @@ export function renderSpeeds(ctx, point = 'ST') {
     <section class="sz-box"><h3>Vitesse maximale par Grand Prix</h3><table class="sz-table"><tr><th>Manche</th><th>Grand Prix</th><th>Vitesse</th><th>Pilote</th></tr>
       ${rounds.map((rd) => { const b = R.get(rd).race.drivers.filter((d) => d.speeds?.[point]).sort((a, c) => c.speeds[point] - a.speeds[point])[0];
         return `<tr><td>R${rd}</td><td>${esc(short(data.races.find((r) => r.round === rd)?.name))}</td><td><b>${b ? `${b.speeds[point]} km/h` : '—'}</b></td><td>${b ? `${mark(b.team, b.color)}${esc(b.tla)}` : ''}</td></tr>`; }).join('')}</table></section>
-    <p class="muted small">Meilleure vitesse de chaque pilote au point de mesure choisi pendant la course (archives officielles F1).</p>`;
+    <p class="muted small">Meilleure vitesse de chaque pilote au point de mesure choisi.</p>`;
 }
 
 // ---------------- Profil des circuits ----------------

@@ -130,12 +130,12 @@ function sessionSource(sig) {
   }
   if (postType === 'champ') {
     const d = champData(state);
-    if (!d) return { head: `${types}<p class="muted">${t('Championnat disponible après une course ou un sprint : ouvrez la séance en direct ou en replay.')}</p>` };
+    if (!d) return { head: `${types}<p class="muted">${t('Championnat disponible après une course ou un sprint.')}</p>` };
     return { d, caps: (dd) => moreCaptions(dd, sig), head: types, record: { key: `champ:${folderOf(d)}`, kind: 'champ', title: `${t('Championnat')} · ${d.gp}` } };
   }
   if (postType === 'flash') {
     const evs = flashEvents(state);
-    if (!evs.length) return { head: `${types}<p class="muted">${t("Aucun fait marquant dans cette séance pour l'instant (drapeau rouge, voiture de sécurité, abandon, pénalité).")}</p>` };
+    if (!evs.length) return { head: `${types}<p class="muted">${t("Aucun fait marquant pour l'instant.")}</p>` };
     const ev = evs.find((x) => x.id === flashSel) || evs[0];
     flashSel = ev.id;
     const d = flashData(state, ev);
@@ -143,7 +143,7 @@ function sessionSource(sig) {
     return { d, caps: (dd) => moreCaptions(dd, sig), head: types + pick, record: { key: `flash:${folderOf(d)}`, kind: 'flash', title: `${ev.title} · ${d.gp}` } };
   }
   const d = postData(state);
-  const warn = d.final ? '' : `<p class="posts-warn small">${icon('warning')} ${t('Séance pas terminée : résultats provisoires, au rythme de votre délai TV.')}</p>`;
+  const warn = d.final ? '' : `<p class="posts-warn small">${icon('warning')} ${t('Séance pas terminée : résultats provisoires.')}</p>`;
   return { d, caps: (dd) => captions(dd, sig, { spoiler: !noSpoiler }), head: types + warn, record: { key: `session:${folderOf(d)}`, kind: 'session', title: `${d.label} · ${d.gp}` } };
 }
 
@@ -207,10 +207,10 @@ async function seasonSource(sig) {
   } else if (seasonType === 'ratings') {
     const laps = await lapsOf().catch(() => null);
     d = ratingsData(race, { year, laps, live });
-    extra = msg(t(d.withPace ? 'Note sur 10 calculée par Paddock Live : résultat, rythme en course, places gagnées et duel avec le coéquipier.' : 'Tours de cette course indisponibles : notes calculées sans le rythme en course.'));
+    extra = msg(t(d.withPace ? 'Note sur 10 : résultat, rythme, places gagnées et duel avec le coéquipier.' : 'Tours de cette course indisponibles : notes calculées sans le rythme en course.'));
   } else if (seasonType === 'teamduels') {
     d = teamDuelsData(data, { year, upTo: race.round, live });
-    extra = msg(t('Bilan de la saison jusqu\'à la manche choisie : qui devance l\'autre en qualifications et en course.'));
+    extra = msg(t('Qui devance l\'autre en qualifs et en course, jusqu\'à la manche choisie.'));
   } else if (seasonType === 'title') {
     d = titleData(data, { year, upTo: race.round, live });
     extra = msg(t('Qui peut encore être champion après cette manche : points encore en jeu (courses et sprints restants), éliminés grisés.'));
@@ -225,7 +225,7 @@ async function seasonSource(sig) {
     const sec = Math.round(raceVideoTiming(d).duration);
     extra = `<div class="row posts-news-bar"><button class="btn small btn-accent" data-racevideo>${icon('video')} ${t('Créer la vidéo animée')}</button> ${musicSelect('race')}
       <button class="btn small" data-racevideosave disabled>${icon('save')} ${t('Enregistrer la vidéo')}</button><span class="small muted" data-rvst>${esc(t('Vidéo verticale (story, TikTok, Reels, Shorts) de {} s : le graphique des positions se dessine tour après tour, avec safety cars, drapeaux et moments forts.', sec))}</span></div>
-      ${d.story.estimated ? msg(t('Direction de course indisponible (archives de la F1) : neutralisations estimées d\'après les temps au tour.')) : ''}
+      ${d.story.estimated ? msg(t('Direction de course indisponible : neutralisations estimées.')) : ''}
       <video class="posts-vid" data-rv controls playsinline hidden></video>`;
   }
   const label = SEASON_TYPES.find(([k]) => k === seasonType)[1];
@@ -319,7 +319,7 @@ async function newsSource(sig) {
       <label class="toggle small" title="${t('Carrousel des 5 grosses news des 7 derniers jours')}"><input type="checkbox" data-recap ${recapMode ? 'checked' : ''}> ${t('Récap de la semaine')}</label>
       ${sel?.link ? `<a class="btn small" href="${esc(sel.link)}" target="_blank" rel="noopener">${icon('external')} ${t("Lire l'article")}</a>` : ''}</div>`;
   if (recapMode) return recapSource(sig, data, bar);
-  if (!list.length) return { head: `${bar(null)}<p class="muted">${t('Aucune grosse news ces dernières 48 heures : cochez « Toutes les actus » pour en choisir une autre.')}</p>` };
+  if (!list.length) return { head: `${bar(null)}<p class="muted">${t('Aucune grosse news en 48 h : cochez « Toutes les actus ».')}</p>` };
   const it = list.find((x) => x.id === newsSel) || list[0];
   newsSel = it.id;
   const [title, summary] = edits.get(it.id) ? [edits.get(it.id).title, edits.get(it.id).summary]
@@ -335,13 +335,13 @@ async function newsSource(sig) {
       <label class="small muted">${t('Titre')}<input type="text" data-ntitle maxlength="160" value="${esc(d.title)}"></label>
       <label class="small muted">${t('Résumé')}<textarea data-nsum rows="3" maxlength="400">${esc(d.summary)}</textarea></label>
       <label class="small muted">${t('Points clés, un par ligne (images suivantes du carrousel)')}<textarea data-npoints rows="4" maxlength="1600" placeholder="${t('Facultatif : cliquez sur « Résumé détaillé » ou écrivez-les vous-même')}">${esc(points)}</textarea></label>
-      <div class="row">${it.link ? `<button class="btn small" data-nsummary title="${t("Résumé de l'article en 3 à 5 points, reformulés par l'IA du serveur Paddock Live : relisez-les avant de publier")}">${icon('doc')} ${t('Résumé détaillé')}</button>` : ''}<span class="small muted" data-nsumst></span></div>
-      <label class="toggle small" title="${t("Facebook, Threads et X : le lien de l'article est publié en premier commentaire plutôt que dans le texte (Instagram : pas de lien)")}"><input type="checkbox" data-linkcomment ${linkComment ? 'checked' : ''}> ${t("Lien de l'article en premier commentaire")}</label>
-      <label class="toggle small" title="${t('Visuel et vidéo « Breaking news », réservés aux infos qui font du bruit')}"><input type="checkbox" data-breaking ${d.breaking ? 'checked' : ''}> ${t('Très grosse info')}</label>
+      <div class="row">${it.link ? `<button class="btn small" data-nsummary title="${t("Résumé en 3 à 5 points par l'IA : relisez avant de publier")}">${icon('doc')} ${t('Résumé détaillé')}</button>` : ''}<span class="small muted" data-nsumst></span></div>
+      <label class="toggle small" title="${t("Lien de l'article en premier commentaire (Facebook, Threads, X)")}"><input type="checkbox" data-linkcomment ${linkComment ? 'checked' : ''}> ${t("Lien de l'article en premier commentaire")}</label>
+      <label class="toggle small" title="${t('Visuel et vidéo « Breaking news »')}"><input type="checkbox" data-breaking ${d.breaking ? 'checked' : ''}> ${t('Très grosse info')}</label>
       ${d.breaking ? `<div class="row"><button class="btn small btn-accent" data-racevideo>${icon('video')} ${t('Créer la vidéo Breaking news')}</button> ${musicSelect('news')}
-        <button class="btn small" data-racevideosave disabled>${icon('save')} ${t('Enregistrer la vidéo')}</button><span class="small muted" data-rvst>${esc(t('Vidéo verticale (story, TikTok, Reels, Shorts) : titre, résumé puis points clés, avec musique. Aussi utilisée pour TikTok et YouTube à la publication.'))}</span></div>
+        <button class="btn small" data-racevideosave disabled>${icon('save')} ${t('Enregistrer la vidéo')}</button><span class="small muted" data-rvst>${esc(t('Vidéo verticale avec musique : titre, résumé et points clés.'))}</span></div>
       <video class="posts-vid" data-rv controls playsinline hidden></video>` : ''}
-      <p class="small muted">${icon('info')} ${t(failed ? 'Traduction indisponible : textes en version originale, à traduire à la main.' : "Titre et résumé traduits automatiquement : relisez-les et corrigez-les si besoin. Les photos et le texte de l'article ne sont jamais repris, la source est citée.")}</p>
+      <p class="small muted">${icon('info')} ${t(failed ? 'Traduction indisponible : textes en version originale, à traduire à la main.' : "Titre et résumé traduits automatiquement : relisez-les. La source est citée.")}</p>
     </div>`;
   const record = { key: `news:${it.id}`, kind: 'news', title: d.title, srcTitle: it.title, link: it.link || '', summary: String(it.summary || '').slice(0, 300) };
   return { d, caps: (dd) => newsCaptions(dd, sig, { linkInComment: linkComment }), head, record };
@@ -376,11 +376,11 @@ function manualSource(sig) {
       <div class="row"><label class="btn small">${icon('plus')} ${t('Choisir une photo')}<input type="file" data-mimg accept="image/*" hidden></label>
         ${m.image ? `<button class="btn small" data-mimgdel>${icon('close')} ${t('Retirer la photo')}</button>` : `<span class="small muted">${t('Facultatif : remplace les portraits des pilotes')}</span>`}
         <span class="spacer"></span><button class="btn small" data-mnew title="${t('Vider le formulaire pour écrire un autre post')}">${icon('plus')} ${t('Nouveau post')}</button></div>
-      <label class="toggle small" title="${t('Visuel et vidéo « Breaking news », réservés aux infos qui font du bruit')}"><input type="checkbox" data-mbreaking ${m.breaking ? 'checked' : ''}> ${t('Très grosse info')}</label>
+      <label class="toggle small" title="${t('Visuel et vidéo « Breaking news »')}"><input type="checkbox" data-mbreaking ${m.breaking ? 'checked' : ''}> ${t('Très grosse info')}</label>
       ${m.breaking ? `<div class="row"><button class="btn small btn-accent" data-racevideo>${icon('video')} ${t('Créer la vidéo Breaking news')}</button> ${musicSelect('news')}
-        <button class="btn small" data-racevideosave disabled>${icon('save')} ${t('Enregistrer la vidéo')}</button><span class="small muted" data-rvst>${esc(t('Vidéo verticale (story, TikTok, Reels, Shorts) : titre, résumé puis points clés, avec musique. Aussi utilisée pour TikTok et YouTube à la publication.'))}</span></div>
+        <button class="btn small" data-racevideosave disabled>${icon('save')} ${t('Enregistrer la vidéo')}</button><span class="small muted" data-rvst>${esc(t('Vidéo verticale avec musique : titre, résumé et points clés.'))}</span></div>
       <video class="posts-vid" data-rv controls playsinline hidden></video>` : ''}
-      <p class="small muted">${icon('info')} ${t('Les pilotes et écuries cités sont reconnus dans le texte : portraits, logos et couleurs suivent tout seuls.')}</p>
+      <p class="small muted">${icon('info')} ${t('Pilotes et écuries reconnus dans le texte : portraits et couleurs suivent.')}</p>
     </div>`;
   return { d, caps, head, record };
 }
@@ -405,7 +405,7 @@ async function recapSource(sig, data, bar) {
   const f1 = (l) => l.filter((it) => !OTHER_SERIES.test(`${it.title} ${it.summary || ''}`));
   let list = f1(bigNews(data.items, { hours: 7 * 24 })).slice(0, 5);
   if (list.length < 3) list = f1(bigNews(data.items, { hours: 7 * 24, all: true })).slice(0, 5);
-  if (!list.length) return { head: `${bar(null)}<p class="muted">${t("Pas assez d'actus ces 7 derniers jours (l'appli garde les actus 10 jours quand elle est ouverte).")}</p>` };
+  if (!list.length) return { head: `${bar(null)}<p class="muted">${t("Pas assez d'actus ces 7 derniers jours.")}</p>` };
   const fr = await toFrench(list.flatMap((it) => [{ text: it.title, from: it.lang }, { text: it.summary, from: it.lang }]));
   const posts = list.map((it, i) => newsPost(it, { title: fr[2 * i] ?? it.title, summary: fr[2 * i + 1] ?? it.summary, driverList: store.state?.DriverList || {}, sourceName: data.sources.find((s) => s.id === it.src)?.name || it.src }));
   const d = recapData(posts);
@@ -487,7 +487,7 @@ async function render(dlg, keepHead = false) {
   };
   caps = textsOf();
   if (!slides.length || (!d.rows?.length && !d.post && !d.news)) { body.innerHTML = `${mode !== 'news' ? head : ''}<p class="muted">${t('Pas encore de classement pour cette séance : lancez un live ou un replay.')}</p>`; return; }
-  const main = `<p class="small muted">${icon('info')} ${t('Toutes les images sont publiées : décochez celles à laisser de côté (sommaire, nombre de points et numéros suivent).')}</p>
+  const main = `<p class="small muted">${icon('info')} ${t('Décochez les images à laisser de côté.')}</p>
     <div class="posts-grid">${slides.map((s, i) => `<figure class="posts-item" data-fig="${i}"><canvas data-slide="${s}" title="${t('Cliquer pour voir en grand')}"></canvas>
       <figcaption><span><label class="posts-pick"><input type="checkbox" data-pick="${s}" ${skip.has(s) ? '' : 'checked'}> <b data-num></b> ${esc(t(slideName(s)))}</label></span>
         <button class="btn small" data-copy="${i}" title="${t('Copier l\'image, à coller dans le réseau social')}">${icon('doc')} ${t('Copier')}</button>
@@ -498,7 +498,7 @@ async function render(dlg, keepHead = false) {
       <div class="row"><button class="btn small" data-cap>${icon('doc')} ${t('Copier le texte')}</button>${fmt === 'x' ? `<span class="small muted" data-count></span><span class="spacer"></span>
         ${freeIntents().length ? `<span class="small muted">${t('Publier gratuitement :')}</span>` : ''}${freeIntents().map(([k, v]) => `<button class="btn small btn-accent" data-intent="${k}" title="${t("Ouvre la page de {} pour écrire un post, avec ce texte, et copie la première image : collez-la puis publiez. Gratuit, sans clés d'accès.", v.name)}">${icon('external')} ${v.name}</button>`).join('')}` : ''}</div>
       ${fmt === 'x' && caps.comment ? `<div class="row small"><span class="muted">${t('Premier commentaire :')}</span> <span data-no-i18n>${esc(caps.comment)}</span><button class="btn small" data-copycomment>${icon('doc')} ${t('Copier')}</button></div>` : ''}
-      ${fmt === 'x' ? `<p class="small muted posts-xhelp" hidden>${icon('info')} ${t("Fenêtre ouverte avec le texte : collez l'image avec Ctrl+V (Cmd+V sur Mac), puis publiez. Pour d'autres images, cliquez sur « Copier » sous chacune et collez-les aussi.")}</p>` : ''}`}
+      ${fmt === 'x' ? `<p class="small muted posts-xhelp" hidden>${icon('info')} ${t("Collez l'image (Ctrl+V, Cmd+V sur Mac), puis publiez.")}</p>` : ''}`}
     </div>`;
   // Titre ou résumé d'une news en cours de saisie : seuls les visuels et les textes sont redessinés
   if (keepHead && $('.posts-main', body)) $('.posts-main', body).innerHTML = main;
@@ -627,7 +627,7 @@ async function openStats() {
       </div>`).join('') : `<p class="muted">${t('Aucun post publié depuis Paddock Live pour le moment.')}</p>`}`;
     body.querySelectorAll('[data-statsremove]').forEach((b) => {
       b.onclick = async () => {
-        if (!confirm(t('Retirer ce post des statistiques ? (À faire si vous l\'avez supprimé sur les réseaux ; rien n\'est supprimé chez eux.)'))) return;
+        if (!confirm(t('Retirer ce post des statistiques ? (Rien n\'est supprimé sur les réseaux.)'))) return;
         b.disabled = true;
         try {
           const r = await fetch('/api/social/history/remove', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: b.dataset.statsremove }) });
@@ -679,9 +679,9 @@ function open() {
         <div class="pv-sec">${t('Options')}</div>
         <div class="pv-opts">
           <label class="toggle"><input type="checkbox" data-photos> ${t('Photos des pilotes')}</label>
-          <label class="toggle" title="${t("Début du texte sans le nom du vainqueur : le résultat se découvre en faisant défiler les images")}"><input type="checkbox" data-nospoil> ${t('Texte sans spoiler')}</label>
-          <label class="toggle" title="${t('Une question adaptée au post en fin de texte et en avant-dernière image des carrousels, pour faire réagir en commentaire')}"><input type="checkbox" data-question> ${t('Question en fin de texte')}</label>
-          <label class="toggle" title="${t("Dernière image des carrousels et une ligne dans les textes pour inviter à s'abonner au compte (X et Bluesky : dans le texte seulement)")}"><input type="checkbox" data-follow> ${t('Image « Abonnez-vous »')}</label>
+          <label class="toggle" title="${t("Texte sans le nom du vainqueur au début")}"><input type="checkbox" data-nospoil> ${t('Texte sans spoiler')}</label>
+          <label class="toggle" title="${t('Une question à la fin pour faire réagir')}"><input type="checkbox" data-question> ${t('Question en fin de texte')}</label>
+          <label class="toggle" title="${t("Image et ligne « Abonnez-vous » à la fin des posts")}"><input type="checkbox" data-follow> ${t('Image « Abonnez-vous »')}</label>
           <label class="pv-sig"><span>${t('Signature')}</span><input type="text" class="posts-sig" maxlength="40" spellcheck="false"></label>
         </div>
         <button class="pv-item pv-stats" data-stats><span class="pv-ico">${icon('chart')}</span><span class="pv-lbl"><b>${t('Statistiques')}</b><small>${t('Vues, abonnés, meilleurs posts')}</small></span></button>

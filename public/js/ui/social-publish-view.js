@@ -14,7 +14,7 @@ const NETS = [
   { id: 'x', name: 'X', what: '4 visuels au format X' },
   { id: 'bluesky', name: 'Bluesky', what: '4 visuels au format X (gratuit)' },
   { id: 'tiktok', name: 'TikTok', what: 'Vidéo en brouillon : vous ajoutez le son et publiez dans l\'appli TikTok' },
-  { id: 'youtube', name: 'YouTube Shorts', what: 'Vidéo envoyée en privé, à rendre publique dans YouTube Studio (possible seulement après l\'audit YouTube de votre projet Google)' },
+  { id: 'youtube', name: 'YouTube Shorts', what: 'Vidéo envoyée en privé (publique après l\'audit YouTube)' },
 ];
 const VIDEO_NETS = ['tiktok', 'youtube'];
 // Texte YouTube par défaut : titre = accroche du post, description = texte Instagram (sans l'accroche répétée)
@@ -59,7 +59,7 @@ export function bestHour(posts) {
   if (n < 3) return null;
   return [...by.entries()].map(([h, l]) => [h, l.reduce((a, b) => a + b, 0) / l.length]).sort((a, b) => b[1] - a[1])[0][0];
 }
-const KEYS_NOTE = "Les clés restent sur cet ordinateur (fichier de configuration de l'application) et ne sont jamais incluses dans une sauvegarde des réglages.";
+const KEYS_NOTE = "Les clés restent sur cet ordinateur, hors des sauvegardes de réglages.";
 // ---------- Musique des vidéos : morceaux fabriqués sur place (libres de droits) ----------
 // Choix gardé par type de vidéo (course, news, diaporama), à écouter avant (15 s)
 const TRACK_KEY = 'paddock.videoTrack';
@@ -91,39 +91,39 @@ export function musicEvent(e) {
 }
 export { endPreview };
 
-const MUSIC_NOTE = "Pour une musique de votre choix, vérifiez que vous avez le droit de l'utiliser. Dans TikTok, vous pouvez aussi ajouter un son de la bibliothèque avant de publier.";
-const PUBLIC_NOTE = "Les posts seront publics (TikTok : brouillon à finir dans l'appli ; YouTube : Short privé, verrouillé tant que votre projet Google n'a pas passé l'audit de l'API YouTube).";
+const MUSIC_NOTE = "Votre musique : vérifiez que vous avez le droit de l'utiliser.";
+const PUBLIC_NOTE = "Les posts seront publics (TikTok : brouillon ; YouTube : Short privé avant l'audit).";
 
 // ---------- Comptes ----------
 const HELP = {
-  x: ["Gratuit et sans clés : dans la fenêtre Posts, format X, boutons « Publier gratuitement » (X, Threads, Bluesky : texte prérempli, image à coller). Les clés ci-dessous ne servent qu'à publier automatiquement.",
+  x: ["Sans clés : boutons « Publier gratuitement » dans la fenêtre Posts. Les clés ne servent qu'à publier automatiquement.",
     'developer.x.com : créez un projet et une app (accès payant à l\'usage, environ 0,015 $ par post).',
     'Dans l\'app, « User authentication settings » : autorisations « Read and write ».',
-    '« Keys and tokens » : copiez API Key et API Key Secret, puis générez Access Token et Access Token Secret (après le passage en lecture-écriture).'],
+    '« Keys and tokens » : copiez API Key et API Key Secret, puis générez Access Token et Access Token Secret.'],
   meta: ['Passez votre compte Instagram en compte professionnel (créateur) et reliez-le à votre page Facebook.',
     'developers.facebook.com : créez une app (type Business) ; identifiant et clé secrète dans Paramètres → Général.',
-    'Outils → Explorateur de l\'API Graph : choisissez l\'app, ajoutez pages_show_list, pages_read_engagement, pages_manage_posts, pages_manage_engagement, read_insights, instagram_basic, instagram_content_publish, instagram_manage_insights et business_management, puis « Generate Access Token » et collez-le ici.'],
-  threads: ['Dans l\'app Meta, ajoutez le cas d\'usage « Accéder à l\'API Threads » (threads_basic, threads_content_publish, threads_manage_replies, threads_manage_insights).',
-    'Ajoutez votre compte Threads comme testeur, puis acceptez l\'invitation dans Threads (Paramètres → Compte → Autorisations du site web).',
-    'Copiez la clé secrète Threads de l\'app et générez un jeton avec « User Token Generator ». Il est prolongé automatiquement.'],
-  threads2: ['Pour les statistiques de votre deuxième compte Threads dans la page web (aucune publication) : même app Meta, ajoutez ce compte comme testeur et acceptez l’invitation dans Threads.',
-    'Générez un jeton pour ce compte avec « User Token Generator », puis collez la clé secrète Threads et ce jeton ici.'],
-  bluesky: ['Gratuit : dans Bluesky, Paramètres → Confidentialité et sécurité → Mots de passe d\'application → « Ajouter un mot de passe d\'application ».',
-    'Collez ici votre identifiant (ex. benjy.paddocklive.app ou pseudo.bsky.social) et ce mot de passe d\'application (jamais votre mot de passe principal).'],
+    'Outils → Explorateur de l\'API Graph : ajoutez pages_show_list, pages_read_engagement, pages_manage_posts, pages_manage_engagement, read_insights, instagram_basic, instagram_content_publish, instagram_manage_insights et business_management, puis « Generate Access Token ».'],
+  threads: ['Dans l\'app Meta, ajoutez « Accéder à l\'API Threads » (threads_basic, threads_content_publish, threads_manage_replies, threads_manage_insights).',
+    'Ajoutez votre compte Threads comme testeur et acceptez l\'invitation dans Threads.',
+    'Copiez la clé secrète Threads et générez un jeton avec « User Token Generator ».'],
+  threads2: ['Statistiques d\'un deuxième compte Threads : même app Meta, compte ajouté comme testeur (invitation à accepter dans Threads).',
+    'Générez un jeton pour ce compte (« User Token Generator ») et collez-le avec la clé secrète.'],
+  bluesky: ['Bluesky : Paramètres → Confidentialité et sécurité → Mots de passe d\'application.',
+    'Votre identifiant (ex. pseudo.bsky.social) et ce mot de passe d\'application (pas votre mot de passe principal).'],
   tiktok: ['developers.tiktok.com → Manage apps : créez une app avec Login Kit (plateforme Desktop) et Content Posting API.',
     'Login Kit : ajoutez l\'adresse de redirection {}.',
     'Autorisations user.info.basic et video.upload ; ajoutez votre compte TikTok comme utilisateur de test (sandbox).',
-    'Publication directe depuis la page web (téléphone) : activez aussi « Direct Post » (autorisation video.publish) dans Content Posting API, cochez « Publication directe » ci-dessous et reconnectez-vous. Tant que TikTok n\'a pas validé votre app (audit), les vidéos restent visibles par vous seul.',
-    'Statistiques dans la page web (abonnés, vues, j’aime) : ajoutez aussi les autorisations user.info.profile, user.info.stats et video.list (Login Kit et Display API), cochez « Statistiques » ci-dessous et reconnectez-vous.',
+    'Publication directe : activez « Direct Post » (video.publish) dans Content Posting API, cochez « Publication directe » et reconnectez-vous. Avant l\'audit TikTok, vidéos visibles par vous seul.',
+    'Statistiques : ajoutez user.info.profile, user.info.stats et video.list, cochez « Statistiques » et reconnectez-vous.',
     'Collez client key et client secret, enregistrez, puis « Se connecter à TikTok ».'],
-  tiktok2: ['Pour les statistiques de votre deuxième compte TikTok dans la page web (aucune publication) : même app TikTok, avec les autorisations user.info.profile, user.info.stats et video.list (ajoutez aussi ce compte comme utilisateur de test tant que l’app est en sandbox).',
-    'Dans le navigateur, connectez-vous d’abord à TikTok avec ce deuxième compte (ou utilisez une fenêtre privée), puis « Se connecter à TikTok » ci-dessous.'],
+  tiktok2: ['Statistiques d\'un deuxième compte TikTok : même app, autorisations user.info.profile, user.info.stats et video.list, compte ajouté comme utilisateur de test.',
+    'Connectez-vous d\'abord à TikTok avec ce compte dans le navigateur, puis « Se connecter à TikTok ».'],
   youtube: ['console.cloud.google.com : créez un projet, puis API et services → Bibliothèque : activez « YouTube Data API v3 ».',
-    'Écran de consentement OAuth (Google Auth Platform) : type « Externe », votre adresse e-mail, puis ajoutez votre compte Google (celui de la chaîne) dans « Utilisateurs test ».',
-    'Identifiants (Clients) → Créer un client OAuth, type « Application de bureau » : copiez l\'ID client et le code secret du client.',
-    'Collez-les ici, enregistrez, puis « Se connecter à YouTube » et choisissez votre chaîne. Google affiche « application non validée » : c\'est votre propre projet, continuez.',
-    'En mode « Test », Google déconnecte au bout de 7 jours : pour éviter ça, publiez l\'application dans l\'écran de consentement (aucune validation nécessaire pour votre propre compte).',
-    'Important : tant que votre projet Google n\'a pas passé l\'audit de l\'API YouTube, YouTube verrouille en privé les vidéos envoyées (impossible de les rendre publiques). Demande gratuite : support.google.com/youtube/contact/yt_api_form. Après l\'audit, les Shorts envoyés se rendent publics dans YouTube Studio.'],
+    'Écran de consentement OAuth : type « Externe », puis ajoutez le compte Google de la chaîne dans « Utilisateurs test ».',
+    'Identifiants → Créer un client OAuth « Application de bureau » : copiez l\'ID et le code secret.',
+    'Collez-les ici, enregistrez, puis « Se connecter à YouTube ». « Application non validée » : continuez, c\'est votre projet.',
+    'En mode « Test », Google déconnecte au bout de 7 jours : publiez l\'application dans l\'écran de consentement.',
+    'Tant que votre projet Google n\'a pas passé l\'audit de l\'API YouTube (demande gratuite : support.google.com/youtube/contact/yt_api_form), les vidéos restent privées.'],
 };
 const FIELDS = {
   x: [['apiKey', 'API Key'], ['apiSecret', 'API Key Secret'], ['accessToken', 'Access Token'], ['accessSecret', 'Access Token Secret']],
@@ -169,10 +169,10 @@ async function accountsDialog(onChange, open = null) {
           ${OAUTH[k] ? `<button class="btn small ${info[k]?.configured && !info[k]?.connected ? 'btn-accent' : ''}" data-login ${info[k]?.configured ? '' : 'disabled'}>${t('Se connecter à {}', OAUTH[k])}</button>` : ''}
           <button class="btn small" data-remove>${t('Déconnecter')}</button></div></details>`).join('')}
       <details class="posts-acc" data-studio ${studio.enabled ? '' : 'open'}><summary><b>${t('Page web (téléphone)')}</b> ${studio.enabled ? `<span class="posts-ok">${icon('check')} ${t('Activée')}</span>` : `<span class="muted">${t('Désactivée')}</span>`}</summary>
-        <p class="small">${t("Préparez et publiez les posts depuis votre téléphone, même ordinateur éteint : grosses news et séances, publication sur Instagram, Facebook et Threads après confirmation, partage vers les autres applis. Les comptes ci-dessus et la connexion F1 TV sont envoyés chiffrés au serveur Paddock Live.")}</p>
+        <p class="small">${t("Préparez et publiez les posts depuis votre téléphone, même ordinateur éteint. Comptes et connexion F1 TV envoyés chiffrés au serveur.")}</p>
         ${studio.enabled ? `<p class="small">${t('Adresse :')} <a href="${esc(studio.url)}" target="_blank" rel="noopener">${esc(studio.url)}</a> — ${t('entrez avec le code du mode créateur.')}</p>
           ${studio.error ? `<p class="small posts-warn">${icon('warning')} ${esc(studio.error)}</p>` : ''}
-          ${studio.f1tv ? '' : `<p class="small muted">${icon('info')} ${t('Posts des séances : connectez F1 TV (Réglages → Compte F1 TV), les archives de la F1 sont réservées aux abonnés.')}</p>`}
+          ${studio.f1tv ? '' : `<p class="small muted">${icon('info')} ${t('Posts des séances : connectez F1 TV (Réglages → Compte F1 TV).')}</p>`}
           <div class="row"><button class="btn small" data-studio-copy>${icon('doc')} ${t("Copier l'adresse")}</button><button class="btn small" data-studio-sync>${t('Renvoyer les comptes')}</button><button class="btn small" data-studio-off>${t('Désactiver')}</button></div>`
         : `<label class="small">${t('Code du mode créateur')}<input type="password" data-studio-code autocomplete="off" spellcheck="false"></label>
           <div class="row"><button class="btn small btn-accent" data-studio-on>${t('Activer la page web')}</button></div>`}
@@ -242,7 +242,7 @@ export async function openPublish({ d, caps, render, folder, record = null, onPo
   const draw = () => {
     dlg.innerHTML = `<div class="sum-head"><b>${icon('megaphone')} ${t('Publier sur mes réseaux')}</b><button class="icon-btn" data-close title="${t('Fermer')}">${icon('close')}</button></div>
       <div class="posts-pub-body">
-        ${d.final ? '' : `<p class="posts-warn small">${icon('warning')} ${t('Séance pas terminée : résultats provisoires, au rythme de votre délai TV.')}</p>`}
+        ${d.final ? '' : `<p class="posts-warn small">${icon('warning')} ${t('Séance pas terminée : résultats provisoires.')}</p>`}
         <div class="posts-nets">${NETS.map((n) => `<label class="posts-net ${info[n.id]?.connected ? '' : 'off'}">
           <input type="checkbox" data-net="${n.id}" ${info[n.id]?.connected ? 'checked' : 'disabled'}>
           <span><b>${n.name}</b> <span class="small muted">${esc(info[n.id]?.connected ? info[n.id].name || t('Connecté') : t('Non connecté'))}</span><br><span class="small muted">${esc(t(n.what))}</span></span>
@@ -273,7 +273,7 @@ export async function openPublish({ d, caps, render, folder, record = null, onPo
             <button class="btn small" data-schedquick="tonight">${t('Ce soir 19:00')}</button><button class="btn small" data-schedquick="tomorrow">${t('Demain 12:00')}</button>
             <button class="btn small" data-schedbest title="${t("Heure où vos posts ont le mieux marché, d'après leurs statistiques")}">${t('Meilleure heure')}</button>
             <span class="spacer"></span><button class="btn small btn-accent" data-schedule>${icon('calendar')} ${t('Programmer')}</button></div>
-          <p class="small muted" data-schedhint>${t("Publié à l'heure choisie sur les réseaux cochés, tant que l'appli reste ouverte (sinon à sa réouverture, dans les 24 heures).")}</p>
+          <p class="small muted" data-schedhint>${t("Publié à l'heure choisie, appli ouverte (sinon à sa réouverture, dans les 24 h).")}</p>
           <div class="posts-sched" data-schedlist></div>
         </fieldset>
       </div>`;
@@ -350,7 +350,7 @@ export async function openPublish({ d, caps, render, folder, record = null, onPo
         btn.disabled = true;
         const h = bestHour((await api('/api/social/stats').catch(() => ({}))).posts || []);
         btn.disabled = false;
-        if (h === null) { toast(t('Pas encore assez de posts avec des statistiques : essayez entre 18 h et 21 h'), 4500, 'info'); return; }
+        if (h === null) { toast(t('Pas encore assez de posts avec des statistiques'), 4500, 'info'); return; }
         const x = new Date(); x.setHours(h, 0, 0, 0); if (x < Date.now()) x.setDate(x.getDate() + 1);
         $('[data-schedat]', dlg).value = localInput(x.getTime());
         toast(t('Vos posts marchent le mieux vers {} h', h), 3500, 'check');

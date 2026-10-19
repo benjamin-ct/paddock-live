@@ -200,7 +200,7 @@ export function renderTech(ctx, fia) {
         ${u.geometry ? `<div class="small"><span class="muted">Ce qui change :</span> ${trSpan(u.geometry)}</div>` : ''}
         ${u.description ? `<div class="small sz-upd-desc"><span class="muted">Pourquoi :</span> ${trSpan(u.description)}</div>` : ''}
       </article>`).join('') || '<div class="note">Aucune évolution.</div>'}</div>
-      <p class="muted small">Descriptions fournies par les écuries à la FIA (« Car Presentation Submissions »)${showOriginal() ? '' : ', traduites automatiquement sur cet ordinateur : survolez un texte pour voir l\'original'}.</p></section>`;
+      <p class="muted small">Descriptions fournies par les écuries à la FIA${showOriginal() ? '' : ', traduites (original au survol)'}.</p></section>`;
 }
 
 // Textes du détail affiché à traduire (appelé après l'affichage)
@@ -274,5 +274,5 @@ export function renderElements(ctx, fia) {
         for (const f of e.fresh) by.set(f.driver, [...(by.get(f.driver) || []), f.element]);
         return `<tr><td>${esc(e.label)} ${esc(short(e.name))}</td><td class="small">${[...by].map(([drv, list]) => `<b>${esc(drv.split(' ').slice(-1)[0])}</b> ${esc([...new Set(list)].join(', '))}`).join(' · ')}</td></tr>`;
       }).join('')}</table></section>
-    <p class="muted small">Sources : documents FIA « PU Elements used per Driver up to now », « New PU Elements for this Competition » et décisions des commissaires.</p>`;
+    <p class="muted small">Source : documents FIA et décisions des commissaires.</p>`;
 }

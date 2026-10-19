@@ -331,7 +331,7 @@ function renderStats(body, r, stale) {
   // Post supprimé sur les réseaux : retiré des statistiques (ici et dans l'appli)
   $$('[data-statsremove]', body).forEach((b) => {
     b.onclick = async () => {
-      if (!confirm('Retirer ce post des statistiques ?\n\nÀ faire si vous l\'avez supprimé sur les réseaux : rien n\'est supprimé chez eux.')) return;
+      if (!confirm('Retirer ce post des statistiques ?\n\nRien n\'est supprimé sur les réseaux.')) return;
       b.disabled = true;
       try {
         await api('history/remove', { method: 'POST', body: JSON.stringify({ key: b.dataset.statsremove }) });

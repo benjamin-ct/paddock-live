@@ -128,7 +128,7 @@ export function editor({ back, title, subtitle = '', head = '', below = false, d
     const slides = linkTab ? [] : slidesFor(d, { fmt: state.fmt, follow: state.follow, question: state.question });
     const lk = linkTab ? link() : null;
     $('#main').innerHTML = linkTab ? `<div class="linkcard"><div id="lcimg"></div><small>${esc(new URL(lk.url).hostname.replace(/^www\./, ''))}</small><b>${esc(lk.title)}</b><p>${esc(lk.description)}</p></div>
-      <p class="hint">Aperçu de la carte que Facebook, Threads et X affichent (photo de l'article, pas celle choisie pour le Post) ; Bluesky : titre et résumé.</p>
+      <p class="hint">Carte de l'article sur Facebook, Threads et X ; titre et résumé sur Bluesky.</p>
       <div class="row"><button class="btn small" id="xlink">${icon('send')}Ouvrir X avec le lien</button></div>` : `<div class="slides ${state.fmt}">${slides.map((sl) => `<figure class="sl"><canvas data-slide="${sl}" title="${esc(slideName(sl))} : voir en grand"></canvas>
         <label class="pick"><input type="checkbox" data-pick="${sl}" ${state.skip.has(sl) ? '' : 'checked'}><span data-num></span>${esc(slideName(sl))}</label></figure>`).join('')}</div>`;
     const xTab = state.fmt === 'x';

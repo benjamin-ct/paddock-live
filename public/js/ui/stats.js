@@ -111,9 +111,9 @@ function apply(state) {
   if (box) box.checked = on;
 }
 
-const STATS_TEXT = "Paddock Live peut envoyer des statistiques d'utilisation anonymes pour savoir quelles fonctions servent le plus ou le moins : panneaux, onglets et fonctions utilisés, version de l'appli, système (Windows, macOS, Linux), ordinateur ou téléphone, direct ou replay, et les erreurs rencontrées.";
-const STATS_SHORT = "Envoyer des statistiques d'utilisation anonymes : fonctions utilisées et erreurs rencontrées.";
-const STATS_PRIVACY = "Rien qui permette de vous identifier : ni compte F1 TV, ni identifiant, ni contenu, et l'adresse IP n'est pas conservée. Seuls des totaux par jour sont envoyés.";
+const STATS_TEXT = "Statistiques anonymes pour savoir quelles fonctions servent : fonctions utilisées, version, système et erreurs.";
+const STATS_SHORT = "Envoyer des statistiques anonymes";
+const STATS_PRIVACY = "Rien qui vous identifie : ni compte, ni contenu, ni adresse IP.";
 
 // Bandeau discret dans un coin (rien n'est bloqué) : Oui, Non merci, Détails. La croix le referme
 // sans réponse : il revient au prochain lancement.

@@ -42,8 +42,8 @@ function bindPhoto(p, getD, onPhoto) {
 }
 
 // ---------- Vidéo « Breaking news » (TikTok, Reels, Shorts, story), commune aux news et aux posts écrits ----------
-const NEWS_VIDEO = (on) => `${toggle('brk', 'Très grosse info', on, 'Visuel et vidéo « Breaking news », réservés aux infos qui font du bruit')}<div id="vidbox" ${on ? '' : 'hidden'}>${musicField('news', 'flash')}<div class="row"><button class="btn" id="mkvid">${icon('video')}Créer la vidéo</button><button class="btn" id="sharevid" disabled>${icon('share')}Partager</button></div>
-  <p class="hint" id="vidst">Vidéo verticale avec musique. Garder l'écran allumé pendant l'enregistrement.</p>
+const NEWS_VIDEO = (on) => `${toggle('brk', 'Très grosse info', on, 'Visuel et vidéo « Breaking news »')}<div id="vidbox" ${on ? '' : 'hidden'}>${musicField('news', 'flash')}<div class="row"><button class="btn" id="mkvid">${icon('video')}Créer la vidéo</button><button class="btn" id="sharevid" disabled>${icon('share')}Partager</button></div>
+  <p class="hint" id="vidst">Garder l'écran allumé pendant l'enregistrement.</p>
   <video id="vid" controls playsinline hidden></video></div>`;
 // onBreaking(on) : très grosse info cochée ou décochée à la main
 // onClip(file) : vidéo prête (MP4), jointe au post pour la publier sur TikTok, Instagram, Facebook…
@@ -100,7 +100,7 @@ export async function newsEditor(it, done, back) {
       ${it.link ? `<div class="row"><button class="btn small" id="nsummary">${icon('wand')}Résumé détaillé</button><span class="hint" id="nsumst"></span></div>` : ''}
       ${PHOTO_ROW('n')}
       ${look ? `<div class="row"><button class="btn small" id="nartimg">${icon('image')}Photo de la ${look === 'tenue' ? 'tenue' : 'livrée'} (article)</button></div>
-        <p class="hint">Photo de l'article, souvent fournie par l'écurie à la presse : ses droits restent les siens (« via ${esc(it.srcName)} » crédité).</p>` : ''}
+        <p class="hint">Photo de l'article (« via ${esc(it.srcName)} » crédité).</p>` : ''}
       ${toggle('linkcomment', 'Lien en premier commentaire', state.linkComment, 'Facebook, Threads, Bluesky, X')}
       ${NEWS_VIDEO(d.breaking)}
       <p class="hint">${failed ? 'Traduction indisponible : textes en version originale, à traduire à la main.' : 'Traduction automatique : à relire.'}</p>`,

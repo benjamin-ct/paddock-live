@@ -947,8 +947,8 @@ export function initLayout() {
     const fb = $('#soloFreeBtn');
     if (fb) {
       fb.hidden = false;
-      const sync = () => { fb.classList.toggle('on', !!layout.free); fb.title = layout.free ? 'Disposition libre (cliquer pour ranger les panneaux en colonnes)' : 'Panneaux en colonnes (cliquer pour les placer librement : poignée pour déplacer, coin pour redimensionner)'; };
-      fb.addEventListener('click', () => { unmaximize(); setFreeLayout(!layout.free); sync(); toast(layout.free ? 'Disposition libre : glissez la poignée pour déplacer un panneau, son coin pour le redimensionner' : 'Panneaux rangés en colonnes', 2500, layout.free ? 'move' : 'columns'); });
+      const sync = () => { fb.classList.toggle('on', !!layout.free); fb.title = layout.free ? 'Disposition libre (cliquer pour ranger les panneaux en colonnes)' : 'Panneaux en colonnes (cliquer pour les placer librement)'; };
+      fb.addEventListener('click', () => { unmaximize(); setFreeLayout(!layout.free); sync(); toast(layout.free ? 'Disposition libre : poignée pour déplacer, coin pour redimensionner' : 'Panneaux rangés en colonnes', 2500, layout.free ? 'move' : 'columns'); });
       sync();
     }
   }
@@ -957,9 +957,9 @@ export function initLayout() {
     const head = panelEl(p.id).querySelector('.panel-head');
     const ctrl = document.createElement('div');
     ctrl.className = 'panel-ctrl';
-    ctrl.innerHTML = `<button data-act="drag" class="lgrip" title="Glisser pour déplacer ce panneau (colonnes : à côté, au-dessus, en dessous d'un autre ou échange ; disposition libre : n'importe où)">${icon('grip')}</button>`
+    ctrl.innerHTML = `<button data-act="drag" class="lgrip" title="Glisser pour déplacer ce panneau">${icon('grip')}</button>`
       + `<button data-act="max" title="Agrandir / réduire (Échap)">${icon('maximize')}</button>`
-      + `<button data-act="pop" title="Envoyer vers une autre fenêtre (second écran) : nouvelle fenêtre ou fenêtre déjà ouverte">${icon('external')}</button>`
+      + `<button data-act="pop" title="Envoyer vers une autre fenêtre (second écran)">${icon('external')}</button>`
       + (isMain ? `<button data-act="hide" title="Masquer ce panneau (réaffichable dans Réglages)">${icon('close')}</button>`
         : `<button data-act="back" title="Remettre ce panneau dans la fenêtre principale">${icon('window-in')}</button>`);
     head.appendChild(ctrl);
@@ -1071,7 +1071,7 @@ export async function restoreWindowsSnapshot() {
       const feat = b ? `left=${b.x},top=${b.y},width=${b.w},height=${b.h}` : 'width=1200,height=800';
       if (!window.open(`/?win=${encodeURIComponent(w.win)}`, `paddock-${w.win}`, feat)) blocked++;
     }
-    if (blocked) toast(`${blocked} fenêtre(s) bloquée(s) par le navigateur : autorisez les fenêtres pop-up de Paddock Live`, 5000);
+    if (blocked) toast(`${blocked} fenêtre(s) bloquée(s) : autorisez les pop-up`, 5000);
   }
   render(true);
   renderLayoutOptions();
@@ -1081,7 +1081,7 @@ export async function restoreWindowsSnapshot() {
 // les fenêtres secondaires se ferment (leurs panneaux reviennent dans la fenêtre principale).
 export function resetLayout(ask = true) {
   if (!isMain) return;
-  if (ask && !window.confirm('Réinitialiser l\'interface ?\n\nDisposition des panneaux et des onglets, panneaux masqués, colonnes du classement et fenêtres secondaires reviennent à l\'état par défaut.')) return;
+  if (ask && !window.confirm('Réinitialiser l\'interface ?\n\nPanneaux, onglets, colonnes et fenêtres reviennent par défaut.')) return;
   channel?.postMessage({ type: 'reset', win: WIN });
   others.clear();
   storageSet(LAYOUTS_KEY, {});

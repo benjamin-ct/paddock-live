@@ -24,7 +24,7 @@ function schemeButton() {
   if (!b) return;
   const [, short, long, svg] = schemeOf();
   b.innerHTML = `<svg viewBox="0 0 24 24">${svg}</svg><small>${short}</small>`;
-  b.title = `Apparence : ${long}. Cliquer pour changer (automatique, sombre ou clair)`;
+  b.title = `Apparence : ${long}`;
 }
 function schemeMenu(btn) {
   document.querySelector('.lpop-menu')?.remove();
@@ -73,9 +73,9 @@ function layoutMenu(btn) {
   const menu = document.createElement('div');
   menu.className = 'lpop-menu rail-menu';
   menu.innerHTML = `<button data-l="cols">${icon('columns')} Panneaux rangés en colonnes${free ? '' : icon('check', 'ic-on')}</button>
-    <button data-l="free">${icon('move')} Disposition libre : panneaux n'importe où (poignée pour déplacer, coin pour redimensionner)${free ? icon('check', 'ic-on') : ''}</button>
+    <button data-l="free">${icon('move')} Disposition libre : panneaux n'importe où${free ? icon('check', 'ic-on') : ''}</button>
     <div class="rail-sep"></div>
-    <button data-l="save">${icon('save')} Enregistrer l'emplacement des fenêtres (panneaux, tailles, second écran)</button>
+    <button data-l="save">${icon('save')} Enregistrer l'emplacement des fenêtres</button>
     <button data-l="restore" ${hasWindowsSnapshot() ? '' : 'disabled'}>${icon('undo')} Revenir à l'emplacement enregistré</button>
     <div class="rail-sep"></div>
     <button data-l="reset">${icon('refresh')} Réinitialiser l'interface</button>`;
@@ -93,7 +93,7 @@ function layoutMenu(btn) {
     else {
       unmaximize();
       setFreeLayout(k === 'free');
-      toast(k === 'free' ? 'Disposition libre : glissez la poignée pour déplacer un panneau, son coin pour le redimensionner' : 'Panneaux rangés en colonnes', 2500, k === 'free' ? 'move' : 'columns');
+      toast(k === 'free' ? 'Disposition libre : poignée pour déplacer, coin pour redimensionner' : 'Panneaux rangés en colonnes', 2500, k === 'free' ? 'move' : 'columns');
     }
   });
   setTimeout(() => document.addEventListener('pointerdown', function off(e) { if (!menu.contains(e.target)) { menu.remove(); document.removeEventListener('pointerdown', off); } }), 0);

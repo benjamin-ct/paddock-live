@@ -39,8 +39,7 @@
   <h1><span>Pronostics</span> <b id="gname">F1</b></h1>
   <p class="date">Pole et podium de chaque Grand Prix, entre amis · <a href="/">Paddock Live</a></p>
   <div id="root"><p class="dim">Chargement…</p></div>
-  <footer>Pronostics fermés au début des qualifications (pole) et au départ de la course (podium) ; ceux des autres sont révélés à la fermeture.
-    Votre pseudo est réservé à ce navigateur et à votre lien personnel. Aussi visible dans l'application <a href="/">Paddock Live</a>, onglet Saison → Pronostics. <a href="/p/">Créer un autre groupe</a></footer>
+  <footer>Fermés au début des qualifs (pole) et au départ de la course (podium), puis révélés. <a href="/p/">Créer un autre groupe</a></footer>
 </main>
 <script>
   const id = location.pathname.split('/').filter(Boolean)[1] || '';
@@ -107,7 +106,7 @@
       : '<p class="dim">Le classement apparaîtra après le premier Grand Prix pronostiqué.</p>';
     const waiting = view.races.filter((r) => !r.result && r.picks.length && r !== next);
     document.getElementById('root').innerHTML = `${form}
-      <section class="box"><h2>Classement ${view.year}</h2>${board}<p class="dim msg">Points : pole exacte 3 · pilote à la bonne place du podium 3 · sur le podium mais à une autre place 1 · podium exact dans l'ordre +2.</p></section>
+      <section class="box"><h2>Classement ${view.year}</h2>${board}<p class="dim msg">Points : pole 3 · bonne place du podium 3 · sur le podium 1 · podium exact +2.</p></section>
       ${waiting.map((r) => `<section class="box"><h2>R${r.round} · ${esc(gp(r))} <small>en attente des résultats</small></h2>${table(r)}</section>`).join('')}
       ${done.map((r, i) => `<details class="box" ${i === 0 ? 'open' : ''}><summary><b>R${r.round} · ${esc(gp(r))}</b> <small>pole ${esc(r.result.pole || '—')} · podium ${esc(r.result.podium.join(', ') || '—')}</small></summary>${table(r)}</details>`).join('')}`;
     const f = document.getElementById('f');
@@ -134,12 +133,12 @@
   function createPage() {
     document.getElementById('gname').textContent = 'entre amis';
     const mine = myGroups();
-    document.getElementById('root').innerHTML = `${mine.length ? `<section class="box"><h2>Mes groupes</h2>${mine.map((g) => `<p class="mg"><a href="/p/${esc(g.id)}">${esc(g.name)}</a><button type="button" class="link" data-forget="${esc(g.id)}" title="Le groupe disparaît de ce navigateur ; il reste en ligne pour les autres joueurs">Retirer</button></p>`).join('')}
-      <p class="dim msg">Groupes ouverts dans ce navigateur. Sur un autre appareil, utilisez votre lien personnel (en bas de la page du groupe).</p></section>` : ''}
+    document.getElementById('root').innerHTML = `${mine.length ? `<section class="box"><h2>Mes groupes</h2>${mine.map((g) => `<p class="mg"><a href="/p/${esc(g.id)}">${esc(g.name)}</a><button type="button" class="link" data-forget="${esc(g.id)}" title="Retirer de ce navigateur">Retirer</button></p>`).join('')}
+      <p class="dim msg">Sur un autre appareil : votre lien personnel, en bas de la page du groupe.</p></section>` : ''}
       <section class="box"><h2>Créer un groupe</h2>
       <form id="nf"><label>Nom du groupe<input name="name" maxlength="40" required placeholder="ex. Les copains"></label>
         <p><button type="submit">Créer le groupe</button></p><p class="msg" id="msg"></p></form>
-      <p class="dim msg">Vous recevez un lien à envoyer à vos amis : chacun pronostique la pole et le podium de chaque Grand Prix depuis cette page, sans rien installer. Le groupe s'ouvre aussi dans l'application Paddock Live (Saison → Pronostics → Rejoindre).</p></section>`;
+      <p class="dim msg">Vous recevez un lien à envoyer à vos amis : ils jouent depuis cette page, sans rien installer.</p></section>`;
     document.querySelectorAll('[data-forget]').forEach((b) => { b.onclick = () => { forget(b.dataset.forget); createPage(); }; });
     const f = document.getElementById('nf');
     f.onsubmit = async (e) => {
@@ -161,7 +160,7 @@
     const share = navigator.share && matchMedia('(pointer: coarse)').matches;
     const box = document.createElement('section');
     box.className = 'box';
-    box.innerHTML = `<h2>Inviter des amis</h2><p class="dim msg">Envoyez-leur ce lien : ils pronostiquent depuis cette page, sans rien installer.</p>
+    box.innerHTML = `<h2>Inviter des amis</h2><p class="dim msg">Ils jouent depuis cette page, sans rien installer.</p>
       <div class="picks"><input readonly value="${esc(url)}"><button type="button" id="share">${share ? 'Partager le lien' : 'Copier le lien'}</button></div>`;
     document.querySelector('main').insertBefore(box, document.querySelector('footer'));
     myLink();
@@ -177,7 +176,7 @@
     const me = document.createElement('section');
     me.className = 'box';
     me.id = 'me';
-    me.innerHTML = `<h2>Votre lien personnel</h2><p class="dim msg">Pour retrouver ce groupe avec votre pseudo et vos points sur un autre appareil (nouveau téléphone, ordinateur). Gardez-le pour vous : il permet de modifier vos pronostics. Pensez aussi à ajouter cette page à vos favoris.</p>
+    me.innerHTML = `<h2>Votre lien personnel</h2><p class="dim msg">Pour jouer sur un autre appareil. Gardez-le pour vous.</p>
       <div class="picks"><input readonly value="${esc(link)}"><button type="button">Copier mon lien</button></div>`;
     document.querySelector('main').insertBefore(me, document.querySelector('footer'));
     const b = me.querySelector('button');
@@ -188,7 +187,7 @@
     const admin = store.get(`pronos.admin.${id}`);
     const box = document.createElement('section');
     box.className = 'box';
-    box.innerHTML = `<h2>Retirer ou supprimer le groupe</h2><p class="dim msg">Retirer : le groupe disparaît de ce navigateur et reste en ligne pour les autres joueurs.${admin || store.get(KEY) ? ' Supprimer : le groupe et les pronostics de tous les joueurs sont effacés (créateur du groupe seulement).' : ''}</p>
+    box.innerHTML = `<h2>Retirer ou supprimer le groupe</h2><p class="dim msg">Retirer : de ce navigateur seulement.${admin || store.get(KEY) ? ' Supprimer : pour tout le monde.' : ''}</p>
       <div class="picks"><button type="button" class="ghost" id="forget">Retirer de mes groupes</button>${admin || store.get(KEY) ? '<button type="button" class="ghost" id="del">Supprimer le groupe</button>' : ''}</div><p class="msg" id="delMsg"></p>`;
     document.querySelector('main').insertBefore(box, document.querySelector('footer'));
     box.querySelector('#forget').onclick = () => {

@@ -60,19 +60,19 @@ function render() {
   const ov = $('#streamOverlays');
   if (!ov) return;
   ov.innerHTML = `<h4>${icon('video')} Overlays pour votre stream</h4>
-    <p class="small muted">Source « Navigateur » dans OBS, Streamlabs ou Meld, à la taille indiquée. Paddock Live doit rester ouvert.</p>
+    <p class="small muted">Source « Navigateur » dans OBS, Streamlabs ou Meld. Paddock Live doit rester ouvert.</p>
     ${OVERLAYS.map(overlayLine).join('')}
     <details class="small"><summary>Où ajouter la source ?</summary><ul>
       <li>OBS Studio : Sources → + → Navigateur → collez l'adresse dans « URL », largeur et hauteur.</li>
       <li>Streamlabs Desktop : Sources → + → Source navigateur → collez l'adresse.</li>
       <li>Meld Studio : ajoutez une couche Navigateur (Browser) à la scène → collez l'adresse.</li>
-      <li>La carte affiche le circuit pendant une séance ou un replay. Pour recharger une source : clic droit → Actualiser.</li>
-      <li>Pour agrandir un overlay, augmentez la largeur et la hauteur de la source (double-clic sur la source) plutôt que d'étirer son cadre : il se redessine net. Étiré, il est agrandi comme une image et devient flou.</li>
-      <li>Chaque overlay s'adapte à la taille de la source. Les bandeaux n'apparaissent que pendant un drapeau (et 30 s au drapeau à damier) : laissez la source affichée en permanence.</li>
-      <li>La télémétrie montre le pilote suivi dans Paddock Live (clic sur son nom dans le classement), sinon le leader : changez de pilote dans l'appli, l'overlay suit.</li>
-      <li>Fond, colonnes et calques : appliqués tout de suite aux overlays déjà ajoutés, l'adresse ne change pas.</li></ul></details>`;
+      <li>Pour recharger une source : clic droit → Actualiser.</li>
+      <li>Pour agrandir un overlay, changez la largeur et la hauteur de la source plutôt que d'étirer son cadre (sinon il devient flou).</li>
+      <li>Les bandeaux n'apparaissent que pendant un drapeau : laissez la source affichée.</li>
+      <li>La télémétrie suit le pilote suivi dans Paddock Live (sinon le leader).</li>
+      <li>Appliqué tout de suite aux overlays déjà ajoutés.</li></ul></details>`;
   $('#streamDeck').innerHTML = `<h4>${icon('keyboard')} Stream Deck et télécommandes</h4>
-    <p class="small muted">Adresses à appeler depuis cet ordinateur. Stream Deck : action Système → « Site web », collez l'adresse et cochez l'accès en arrière-plan (« GET request in background ») pour que rien ne s'ouvre. Fonctionne aussi avec Bitfocus Companion (requête HTTP GET). Le délai change dans l'appli, les overlays et les téléphones.</p>
+    <p class="small muted">Stream Deck : action Système → « Site web », collez l'adresse et cochez « GET request in background ». Marche aussi avec Bitfocus Companion.</p>
     ${COMMANDS.map(([l, p]) => line(l, p)).join('')}`;
   show(store.overlayCfg);
   let tm = null;

@@ -53,7 +53,7 @@ function pirelliCard(d) {
       ${n?.url ? `<a class="ty-src" href="${esc(n.url)}" target="_blank" rel="noopener">source ${icon('external', 'ic-s')}</a>` : ''}</div>
     ${n ? `<div class="ty-comps">${comp('HARD', n.hard)}${comp('MEDIUM', n.medium)}${comp('SOFT', n.soft)}</div>`
       : `<div class="note">Composés pas encore annoncés par Pirelli pour ce Grand Prix.</div>`}
-    <div class="small muted">Allocation par pilote : ${a.HARD + a.MEDIUM + a.SOFT} jeux pour piste sèche, plus des intermédiaires et des pneus pluie. En course sur le sec, deux composés différents sont obligatoires. C1 = le plus dur, C5 = le plus tendre.</div>
+    <div class="small muted">Par pilote : ${a.HARD + a.MEDIUM + a.SOFT} jeux pour le sec, plus intermédiaires et pluie. C1 = le plus dur, C5 = le plus tendre.</div>
   </div>`;
 }
 

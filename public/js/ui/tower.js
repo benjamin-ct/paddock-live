@@ -81,7 +81,7 @@ export function renderTower(force = false) {
     head = TH('', 'Pos') + TH('', 'Pilote') + TH('c-tags', '') + TH('t-gap', 'Écart') + TH('t-int c-int', 'Interv.') + TH('t-lap c-last', 'Dernier') + TH('t-lap c-best', 'Meilleur') +
       secHead + TH('c-tyre', 'Pneu') + TH('c-pits', 'Arr.', 'Arrêts aux stands') + TH('c-speed', 'V.max', 'Vitesse au speed trap') + extraHead + TH('c-duel', 'Duel');
   } else if (kind === 'quali') {
-    head = TH('', 'Pos') + TH('', 'Pilote') + TH('c-tags', '') + TH('t-lap', 'Meilleur') + TH('t-gap', 'Écart') + TH('t-int c-int', 'Interv.') + TH('t-lap c-pred', 'Tour en cours', 'Temps prévu du tour lancé (secteurs réalisés + meilleurs secteurs du pilote) et position visée') +
+    head = TH('', 'Pos') + TH('', 'Pilote') + TH('c-tags', '') + TH('t-lap', 'Meilleur') + TH('t-gap', 'Écart') + TH('t-int c-int', 'Interv.') + TH('t-lap c-pred', 'Tour en cours', 'Temps prévu du tour lancé et position visée') +
       TH('t-lap c-last', 'Dernier') + secHead + TH('t-lap c-q', 'Q1') + TH('t-lap c-q', 'Q2') + TH('t-lap c-q', 'Q3') + TH('c-tyre', 'Pneu') + extraHead + TH('c-duel', 'Duel');
   } else {
     head = TH('', 'Pos') + TH('', 'Pilote') + TH('c-tags', '') + TH('t-lap', 'Meilleur') + TH('t-gap', 'Écart') + TH('t-int c-int', 'Interv.') + TH('t-lap c-pred', 'Tour en cours', 'Temps prévu du tour lancé') +

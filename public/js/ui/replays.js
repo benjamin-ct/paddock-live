@@ -61,7 +61,7 @@ async function renderRecordings(body) {
   body.innerHTML = `${recs.length ? `<div class="sz-box rec-list">${recs.map((r) => { const l = recLabel(r.name); return `<div class="rec"><span class="rec-name" title="${esc(r.name)}">${esc(l.title)}${l.date ? ` <span class="muted small">${esc(l.date)}</span>` : ''}</span>
       <span class="muted">${(r.size / 1e6).toFixed(1).replace('.', EN ? '.' : ',')} Mo</span>
       <button class="btn small" data-rv-local="${esc(r.id)}" data-rv-name="${esc(l.title)}">${icon('play')} Revoir</button><button class="btn small" data-rv-del="${esc(r.id)}" title="Supprimer">${icon('trash')}</button></div>`; }).join('')}</div>`
-      : '<div class="muted">Aucun enregistrement pour l\'instant : ils se créent automatiquement pendant les séances suivies en direct.</div>'}`;
+      : '<div class="muted">Aucun enregistrement : ils se créent pendant les séances en direct.</div>'}`;
 }
 
 function render() {

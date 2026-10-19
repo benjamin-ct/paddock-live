@@ -96,20 +96,20 @@ function groupBox() {
   if (g) {
     const mine = myLink(g);
     return `<section class="sz-box pd-group"><h3>${icon('share')} Groupe en ligne : ${esc(g.name)}</h3>
-      <p class="muted small">Vos amis pronostiquent depuis cette page web, sans l'appli ni le réseau local ; tout s'affiche ici aussi.</p>
+      <p class="muted small">Vos amis jouent depuis la page web, sans l'appli.</p>
       <div class="pd-actions"><input readonly value="${esc(SITE + g.id)}" class="pd-link"><button class="btn small" data-pd="copy">${icon('doc')} Copier le lien</button>
-        <button class="btn small" data-pd="leave" title="Revenir aux pronostics de cet ordinateur (le groupe reste dans Mes groupes)">Quitter le groupe</button></div>
-      <div class="pd-actions"><button class="btn small" data-pd="forget" title="Le groupe disparaît de cet appareil ; il reste en ligne pour les autres joueurs">Retirer de mes groupes</button>
-        ${storageGet(adminKey(g), '') || storageGet(tokKey(g), '') ? '<button class="btn small" data-pd="delete" title="Efface le groupe et les pronostics de tous les joueurs (créateur du groupe seulement)">Supprimer le groupe</button>' : ''}</div>
+        <button class="btn small" data-pd="leave" title="Revenir aux pronostics de cet ordinateur">Quitter le groupe</button></div>
+      <div class="pd-actions"><button class="btn small" data-pd="forget" title="Retiré de cet appareil, il reste en ligne pour les autres">Retirer de mes groupes</button>
+        ${storageGet(adminKey(g), '') || storageGet(tokKey(g), '') ? '<button class="btn small" data-pd="delete" title="Efface le groupe pour tous (créateur seulement)">Supprimer le groupe</button>' : ''}</div>
       ${mine ? `<div class="pd-actions"><input readonly value="${esc(mine)}" class="pd-link"><button class="btn small" data-pd="mylink">${icon('doc')} Copier mon lien personnel</button></div>
-      <p class="muted small">Lien personnel : ce groupe avec votre pseudo et vos points sur un autre appareil (téléphone, autre ordinateur). Gardez-le pour vous.</p>` : ''}
+      <p class="muted small">Votre lien personnel, pour jouer sur un autre appareil. Gardez-le pour vous.</p>` : ''}
       ${list.length > 1 ? `<label class="small pd-name">Mes groupes <select data-pd-switch>${list.map((x) => `<option value="${esc(x.id)}" ${x.id === g.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></label>` : ''}</section>`;
   }
   return `<details class="sz-box pd-group" ${list.length ? 'open' : ''}><summary><b>${icon('share')} Jouer en ligne avec des amis</b> <span class="muted small">hors du réseau local, avec un lien à partager</span></summary>
       ${list.length ? `<div class="pd-actions"><span class="small">Mes groupes</span>${list.map((x) => `<button class="btn small" data-pd="open" data-id="${esc(x.id)}">${esc(x.name)}</button>`).join('')}</div>` : ''}
       <div class="pd-actions"><input name="pdGroupName" maxlength="40" placeholder="Nom du groupe (ex. Les copains)"><button class="btn small" data-pd="create">Créer un groupe en ligne</button></div>
       <div class="pd-actions"><input name="pdGroupLink" placeholder="Lien d'un groupe ou lien personnel (paddocklive.app/p/…)"><button class="btn small" data-pd="join">Rejoindre</button></div>
-      <p class="muted small">Le groupe et ses pronostics (pseudos et choix) sont gardés sur le serveur Paddock Live. Les pronostics de cet ordinateur restent à part.</p></details>`;
+      <p class="muted small">Groupe gardé sur le serveur Paddock Live.</p></details>`;
 }
 
 function fill() {
@@ -149,7 +149,7 @@ function fill() {
   const locked = view.races.filter((r) => !r.result && r.picks.length && r !== next);
   root.innerHTML = `${groupBox()}${form}
     <section class="sz-box"><h3>${icon('trophy')} Classement des pronostics ${view.year}</h3>${board}
-      <p class="muted small">Points : pole exacte ${POINTS.pole} · pilote à la bonne place du podium ${POINTS.exact} · sur le podium mais à une autre place ${POINTS.podium} · podium exact dans l'ordre +${POINTS.perfect}.</p></section>
+      <p class="muted small">Points : pole ${POINTS.pole} · bonne place du podium ${POINTS.exact} · sur le podium ${POINTS.podium} · podium exact +${POINTS.perfect}.</p></section>
     ${locked.map((r) => `<section class="sz-box pd-round"><h3>R${r.round} · ${esc(gpShort(r.name, EN))} <span class="muted small">en attente des résultats</span></h3>${picksTable(r)}</section>`).join('')}
     ${history}`;
 }
