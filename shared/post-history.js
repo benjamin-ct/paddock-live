@@ -25,14 +25,17 @@ export function cleanEntry(e, now = Date.now()) {
   };
 }
 
-// Ajout (ou complément d'une entrée existante, mêmes clé : autres réseaux publiés ensuite)
+// Ajout (ou complément d'une entrée existante, même clé : autres réseaux publiés ensuite)
 export function addEntry(list, entry) {
   const e = cleanEntry(entry);
   if (!e) return list;
   const out = (Array.isArray(list) ? list : []).filter(Boolean);
-  const i = out.findIndex((x) => x.key === e.key);
+  // Entrée à compléter : même clé (ou republication de cette clé), sans autre post déjà noté sur ces réseaux ;
+  // sinon (même post republié sur un réseau) entrée à part, les identifiants du premier envoi gardés
+  const same = (a, b) => JSON.stringify(a?.id ?? null) === JSON.stringify(b?.id ?? null);
+  const i = out.findIndex((x) => (x.key === e.key || x.key.startsWith(`${e.key}~`)) && Object.entries(e.nets).every(([n, r]) => !x.nets?.[n] || same(x.nets[n], r)));
   if (i >= 0) out[i] = { ...out[i], nets: { ...out[i].nets, ...e.nets } };
-  else out.unshift(e);
+  else out.unshift(out.some((x) => x.key === e.key) ? { ...e, key: `${e.key.slice(0, 70)}~${e.at.toString(36)}` } : e);
   return out.sort((a, b) => b.at - a.at).slice(0, HISTORY_MAX);
 }
 

@@ -9,6 +9,9 @@ l'application (Réglages → Application → Nouveautés).
 ### Publication
 - Vidéo publiée sur Instagram ou Threads : préparation bien plus légère en mémoire, plus fiable avec les vidéos lourdes.
 
+### Statistiques
+- Une actu republiée sur un réseau où elle l'était déjà a sa propre ligne dans les statistiques des posts : les chiffres de la première publication ne sont plus remplacés.
+
 ### Divers
 - Petites améliorations internes.
 

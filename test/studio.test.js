@@ -175,6 +175,15 @@ test('page du créateur : journal des publications partagé et news déjà publi
   // Entrée invalide ignorée ; fusion appli + page web sans doublon
   assert.equal(addEntry(list, { key: 'x', nets: {} }).length, 1);
   assert.equal(mergeHistory(list, list, [{ ...entry, key: 'news:2' }]).length, 2);
+  // Même news republiée sur Instagram (autre post) : entrée à part, le premier post et ses chiffres gardés ;
+  // les autres réseaux de ce nouvel envoi la complètent, et la fusion appli + page web ne la double pas
+  let repub = addEntry(list, { ...entry, at: now + 1000, nets: { instagram: { id: '99', url: 'https://www.instagram.com/p/y' } } });
+  repub = addEntry(repub, { ...entry, at: now + 2000, nets: { facebook: { id: 'p_1', url: 'https://www.facebook.com/p_1' } } });
+  assert.equal(repub.length, 2);
+  assert.equal(repub.find((e) => e.key === 'news:1').nets.instagram.id, '17');
+  assert.deepEqual(Object.keys(repub[0].nets).sort(), ['facebook', 'instagram']);
+  assert.match(repub[0].key, /^news:1~/);
+  assert.equal(mergeHistory(repub, repub).length, 2);
   // Post supprimé sur les réseaux : retiré du journal, sa clé gardée pour que l'appli ne le renvoie pas
   const rm = await (await worker('https://s.test/studio/api/history/remove', { method: 'POST', headers: h, body: JSON.stringify({ key: 'news:1' }) })).json();
   assert.deepEqual(rm.items, []);
