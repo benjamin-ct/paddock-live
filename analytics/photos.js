@@ -16,16 +16,19 @@ export function shortLicense(name) {
   return n;
 }
 
-// Plus récentes d'abord : photos du moment (pilote, écurie, circuit de cette saison)
+// Plus récentes d'abord : photos du moment (pilote, écurie, circuit de cette saison). « Formula 1 » ajouté
+// à la recherche (sinon « Ocon » trouve aussi des gravures anciennes) ; tailles d'images acceptées par
+// Wikimedia seulement (330, 1280… : les autres sont refusées)
 async function commons(q, fetchFn) {
-  const p = new URLSearchParams({ action: 'query', format: 'json', generator: 'search', gsrsearch: `${q} filetype:bitmap`, gsrnamespace: '6', gsrlimit: '15', gsrsort: 'create_timestamp_desc',
-    prop: 'imageinfo', iiprop: 'url|extmetadata', iiurlwidth: '1600', iiextmetadatafilter: 'Artist|LicenseShortName' });
+  const term = /\bf1\b|formul|formel|grand prix/i.test(q) ? q : `${q} Formula 1`;
+  const p = new URLSearchParams({ action: 'query', format: 'json', generator: 'search', gsrsearch: `${term} filetype:bitmap`, gsrnamespace: '6', gsrlimit: '15', gsrsort: 'create_timestamp_desc',
+    prop: 'imageinfo', iiprop: 'url|extmetadata', iiurlwidth: '1280', iiextmetadatafilter: 'Artist|LicenseShortName' });
   const j = await (await fetchFn(`https://commons.wikimedia.org/w/api.php?${p}`, { headers: { 'User-Agent': PHOTO_UA } })).json();
   return Object.values(j.query?.pages || {}).sort((a, b) => (a.index || 0) - (b.index || 0)).map((pg) => {
     const ii = pg.imageinfo?.[0];
     const license = strip(ii?.extmetadata?.LicenseShortName?.value);
     if (!ii?.thumburl || !FREE(license)) return null;
-    return { url: ii.thumburl, thumb: ii.thumburl.replace(/\/\d+px-/, '/400px-'), author: strip(ii.extmetadata?.Artist?.value).slice(0, 80) || 'Wikimedia Commons', license: shortLicense(license), site: 'Wikimedia Commons', page: ii.descriptionurl || '' };
+    return { url: ii.thumburl, thumb: ii.thumburl.replace(/\/\d+px-/, '/330px-'), author: strip(ii.extmetadata?.Artist?.value).slice(0, 80) || 'Wikimedia Commons', license: shortLicense(license), site: 'Wikimedia Commons', page: ii.descriptionurl || '' };
   }).filter(Boolean);
 }
 
