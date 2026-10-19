@@ -388,6 +388,79 @@ test('page du créateur : vidéo confiée au serveur (stockage R2), publiée par
   await disableStudio({ fetchFn });
 });
 
+test('page du créateur : post « lien » sans visuels (carte de l\'article affichée par le réseau)', async () => {
+  saveConfig({ creator: true, social: { meta: { pageId: 'p1', pageName: 'Ma page', pageToken: 'jeton-page', igId: 'ig1', igUsername: 'moi' }, bluesky: { handle: 'moi.bsky.social', appPassword: 'mdp-app', did: 'did:plc:moi' } } });
+  const fetchFn = (url, init) => worker(url, init);
+  await enableStudio(CODE, { fetchFn });
+  const key = { 'X-Studio-Key': studioKey(CODE) };
+  const add = (link, posts = [{ network: 'facebook', text: 'Texte Facebook https://www.formula1.com/a' }, { network: 'bluesky', text: 'Texte Bluesky' }]) => {
+    const f = new FormData();
+    f.append('at', String(Date.now()));
+    f.append('title', 'Article');
+    f.append('posts', JSON.stringify(posts));
+    f.append('link', JSON.stringify(link));
+    return worker('https://s.test/studio/api/schedule', { method: 'POST', body: f, headers: key });
+  };
+  const link = { url: 'https://www.formula1.com/a', title: 'Le titre', description: 'Le résumé' };
+  assert.equal((await add({ url: 'http://pas-https.test/a' })).status, 400);
+  assert.equal((await add(link, [{ network: 'instagram', text: 'x' }])).status, 400);   // Instagram : pas de lien
+  const { item } = await (await add(link)).json();
+  const realFetch = globalThis.fetch;
+  const sent = {};
+  globalThis.fetch = async (url, opts = {}) => {
+    const u = new URL(url);
+    const ok = (d) => new Response(JSON.stringify(d));
+    if (u.pathname.endsWith('/feed')) { sent.facebook = Object.fromEntries(opts.body); return ok({ id: 'p1_9' }); }
+    if (u.pathname.endsWith('createSession')) return ok({ accessJwt: 'jwt', did: 'did:plc:moi' });
+    if (u.pathname.endsWith('createRecord')) { sent.bluesky = JSON.parse(opts.body).record; return ok({ uri: 'at://did:plc:moi/app.bsky.feed.post/3k', cid: 'c' }); }
+    throw new Error(`inattendu : ${url}`);
+  };
+  try {
+    assert.deepEqual(await runSchedule(env), { published: 'bluesky', id: item.id });
+  } finally { globalThis.fetch = realFetch; }
+  // Facebook : texte et lien (adresse d'origine : la base de test n'a pas les liens suivis), sans photo ;
+  // Bluesky : carte du lien sans image
+  assert.deepEqual(sent.facebook, { message: 'Texte Facebook https://www.formula1.com/a', link: 'https://www.formula1.com/a', access_token: 'jeton-page' });
+  assert.equal(sent.bluesky.embed.$type, 'app.bsky.embed.external');
+  assert.deepEqual({ ...sent.bluesky.embed.external, uri: 'x' }, { uri: 'x', title: 'Le titre', description: 'Le résumé' });
+  const nets = (await (await worker('https://s.test/studio/api/schedule', { headers: key })).json()).items.find((x) => x.id === item.id).nets;
+  assert.equal(nets.facebook.status, 'done');
+  assert.equal(nets.bluesky.status, 'done');
+  await disableStudio({ fetchFn });
+});
+
+test('page du créateur : photos libres de droits (Commons, Flickr), licences « NC » et « ND » écartées', async () => {
+  const { freePhotos, shortLicense } = await import('../analytics/photos.js');
+  assert.equal(shortLicense('Attribution-ShareAlike License'), 'CC BY-SA');
+  assert.equal(shortLicense('CC BY 4.0'), 'CC BY 4.0');
+  const asked = [];
+  const fetchFn = async (url) => {
+    const u = new URL(url);
+    asked.push(u.hostname);
+    if (u.hostname === 'commons.wikimedia.org') {
+      assert.match(u.searchParams.get('gsrsearch'), /^Lando Norris filetype:bitmap$/);
+      return new Response(JSON.stringify({ query: { pages: {
+        1: { index: 1, imageinfo: [{ thumburl: 'https://upload.wikimedia.org/w/thumb/a/ab/N.jpg/1600px-N.jpg', descriptionurl: 'https://commons.wikimedia.org/wiki/File:N.jpg', extmetadata: { Artist: { value: '<a href="x">Jean &amp; Co</a>' }, LicenseShortName: { value: 'CC BY-SA 4.0' } } }] },
+        2: { index: 2, imageinfo: [{ thumburl: 'https://upload.wikimedia.org/w/thumb/b.jpg/1600px-b.jpg', extmetadata: { LicenseShortName: { value: 'CC BY-NC 2.0' } } }] },
+      } } }));
+    }
+    if (u.searchParams.get('method') === 'flickr.photos.licenses.getInfo') return new Response(JSON.stringify({ licenses: { license: [{ id: 0, name: 'All Rights Reserved' }, { id: 4, name: 'Attribution License' }, { id: 3, name: 'Attribution-NonCommercial-NoDerivs License' }] } }));
+    if (u.searchParams.get('method') === 'flickr.photos.search') {
+      assert.equal(u.searchParams.get('license'), '4');
+      return new Response(JSON.stringify({ photos: { photo: [{ id: '9', owner: 'o1', ownername: 'Fan F1', license: '4', url_l: 'https://live.staticflickr.com/1/9_b.jpg', url_m: 'https://live.staticflickr.com/1/9.jpg' }, { id: '8', license: '3', url_l: 'https://live.staticflickr.com/1/8_b.jpg' }] } }));
+    }
+    throw new Error(`inattendu : ${url}`);
+  };
+  assert.deepEqual((await freePhotos({}, ' x ', { fetchFn })).items, []);
+  const r = await freePhotos({ FLICKR_KEY: 'k' }, 'Lando Norris', { fetchFn });
+  assert.deepEqual(r.items.map((p) => [p.site, p.author, p.license]), [['Flickr', 'Fan F1', 'CC BY'], ['Wikimedia Commons', 'Jean & Co', 'CC BY-SA 4.0']]);
+  assert.equal(r.items[1].thumb, 'https://upload.wikimedia.org/w/thumb/a/ab/N.jpg/400px-N.jpg');
+  // Même recherche : réponse gardée une heure
+  const n = asked.length;
+  await freePhotos({ FLICKR_KEY: 'k' }, 'Lando Norris', { fetchFn });
+  assert.equal(asked.length, n);
+});
+
 test('page du créateur : toutes les sources d\'actu en une réponse (octets d\'origine, sources en panne écartées)', async () => {
   const { packFeeds, unpackFeeds } = await import('../shared/feed-pack.js');
   const { feeds } = await import('../analytics/studio.js');

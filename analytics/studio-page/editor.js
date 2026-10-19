@@ -11,7 +11,7 @@ import { tiktokPanel, tiktokProblem, tiktokChoice, TIKTOK_PRIVACY } from './tikt
 
 // ---------- Images (photos des pilotes, drapeaux) par le relais du serveur ----------
 const imgCache = new Map();
-function loadImage(url) {
+export function loadImage(url) {
   if (!url) return Promise.resolve(null);
   if (!imgCache.has(url)) {
     imgCache.set(url, api(`img?u=${encodeURIComponent(url)}`, { raw: true }).then((r) => r.blob()).then((b) => createImageBitmap(b)).catch(() => null));
@@ -32,7 +32,8 @@ export async function assets(d) {
   return { photos, flag, logos, signature: SIG };
 }
 
-// Post : Instagram, Facebook, Threads et Bluesky ; X : ses 4 images et son texte, publiés dans l'appli X
+// Post : Instagram, Facebook, Threads et Bluesky ; X : ses 4 images et son texte, publiés dans l'appli X ;
+// Lien (news avec un article) : texte et lien seuls, la carte de l'article affichée par le réseau
 const FORMATS = [['ig', 'Post'], ['story', 'Story'], ['x', 'X']];
 const CAPS = [
   ['instagram', (c) => (c.facebook ? 'Légende Instagram' : 'Légende Instagram et Facebook'), 8],
@@ -77,8 +78,11 @@ addEventListener('touchend', () => {
 // back : retour ; title / subtitle : en-tête ; head : réglages propres au post (HTML), au-dessus des
 // visuels ou en dessous (below) ; data : données des visuels ; caps(d) : textes des données d (sans ce
 // que montrent les images écartées) ; bind(redraw) :
-// branchement des réglages ; record : entrée du journal ; video() : vidéo du créateur jointe au post
-export function editor({ back, title, subtitle = '', head = '', below = false, data, caps, bind = () => {}, record, video = () => null }) {
+// branchement des réglages ; record : entrée du journal ; video() : vidéo du créateur jointe au post ;
+// link() : article { url, title, description } pour un post « lien » (onglet Lien)
+export function editor({ back, title, subtitle = '', head = '', below = false, data, caps, bind = () => {}, record, video = () => null, link = null }) {
+  const formats = link ? [...FORMATS, ['link', 'Lien']] : FORMATS;
+  if (!formats.some(([k]) => k === state.fmt)) state.fmt = 'ig';
   let canvases = [];
   let edited = {};          // textes retouchés à la main : gardés en changeant de format
   state.skip = new Set();   // images écartées de ce post (toutes publiées par défaut)
@@ -87,11 +91,11 @@ export function editor({ back, title, subtitle = '', head = '', below = false, d
   root.innerHTML = `<header class="appbar"><button class="iconbtn" id="back" aria-label="Retour">${icon('back')}</button>
       <div class="titles"><b>${esc(title)}</b>${subtitle ? `<small>${esc(subtitle)}</small>` : ''}</div></header>
     <main class="page">
-      <div class="seg wide" id="fmt">${FORMATS.map(([k, v]) => `<button data-fmt="${k}" class="${state.fmt === k ? 'on' : ''}">${v}</button>`).join('')}</div>
+      <div class="seg wide" id="fmt">${formats.map(([k, v]) => `<button data-fmt="${k}" class="${state.fmt === k ? 'on' : ''}">${v}</button>`).join('')}</div>
       ${head.trim() && !below ? `<section class="panel">${head}</section>` : ''}
       <div id="main" class="preview"></div>
       ${head.trim() && below ? `<section class="panel">${head}</section>` : ''}
-      <section class="panel">
+      <section class="panel" id="opts">
         <h3 class="section">Options</h3>
         ${toggle('photos', 'Photos des pilotes', state.photos)}
         ${toggle('follow', 'Image « Abonnez-vous »', state.follow)}
@@ -120,11 +124,15 @@ export function editor({ back, title, subtitle = '', head = '', below = false, d
     if (changed) edited = {};
     const d = data();
     const c = texts(d);
-    const slides = slidesFor(d, { fmt: state.fmt, follow: state.follow, question: state.question });
-    $('#main').innerHTML = `<div class="slides ${state.fmt}">${slides.map((sl) => `<figure class="sl"><canvas data-slide="${sl}" title="${esc(slideName(sl))} : voir en grand"></canvas>
+    const linkTab = state.fmt === 'link';
+    const slides = linkTab ? [] : slidesFor(d, { fmt: state.fmt, follow: state.follow, question: state.question });
+    const lk = linkTab ? link() : null;
+    $('#main').innerHTML = linkTab ? `<div class="linkcard"><small>${esc(new URL(lk.url).hostname.replace(/^www\./, ''))}</small><b>${esc(lk.title)}</b><p>${esc(lk.description)}</p></div>
+      <p class="hint">Sans visuels : Facebook, Threads et X affichent la photo et le titre de l'article ; Bluesky, le titre et le résumé.</p>
+      <div class="row"><button class="btn small" id="xlink">${icon('send')}Ouvrir X avec le lien</button></div>` : `<div class="slides ${state.fmt}">${slides.map((sl) => `<figure class="sl"><canvas data-slide="${sl}" title="${esc(slideName(sl))} : voir en grand"></canvas>
         <label class="pick"><input type="checkbox" data-pick="${sl}" ${state.skip.has(sl) ? '' : 'checked'}><span data-num></span>${esc(slideName(sl))}</label></figure>`).join('')}</div>`;
     const xTab = state.fmt === 'x';
-    const shown = ([k]) => (xTab ? k === 'x' || (k === 'comment' && c[k]) : k !== 'x' && (k === 'instagram' || k === 'threads' || k === 'bsky' || c[k]));
+    const shown = ([k]) => (linkTab ? ['facebook', 'threads', 'bsky', 'x'].includes(k) : xTab ? k === 'x' || (k === 'comment' && c[k]) : k !== 'x' && (k === 'instagram' || k === 'threads' || k === 'bsky' || c[k]));
     $('#texts').innerHTML = `<section class="panel"><h3 class="section">Textes</h3>${CAPS.filter(shown).map(([k, label, rows, max = 0, limit = 0], i) => `
       <details class="cap" ${i === 0 ? 'open' : ''}><summary><span>${esc(label(c))}</span><small data-count="${k}"></small></summary>
         <textarea id="cap-${k}" rows="${rows}" ${max ? `maxlength="${max}"` : ''} data-limit="${limit || max}">${esc(c[k])}</textarea>
@@ -137,7 +145,7 @@ export function editor({ back, title, subtitle = '', head = '', below = false, d
       $(`[data-count="${k}"]`).classList.toggle('err', !!lim && n > lim);
     };
     let prep = 0;
-    const prepare = () => { if (xTab) for (const k of ['x', 'comment']) if ($(`#cap-${k}`)) prepareX($(`#cap-${k}`).value, record?.()?.title); };
+    const prepare = () => { if (xTab || linkTab) for (const k of ['x', 'comment']) if ($(`#cap-${k}`)) prepareX($(`#cap-${k}`).value, record?.()?.title); };
     for (const k of CAPS.map(([x]) => x).filter((x) => $(`#cap-${x}`))) {
       count(k);
       $(`#cap-${k}`).oninput = (e) => { edited[k] = e.target.value; count(k); clearTimeout(prep); prep = setTimeout(prepare, 800); };
@@ -148,12 +156,14 @@ export function editor({ back, title, subtitle = '', head = '', below = false, d
     const vid = video();
     const story = !vid && state.fmt === 'story';
     const list = story ? [['instagram-story', 'Story Instagram'], ['facebook-story', 'Story Facebook']]
+      : linkTab ? [['facebook', 'Facebook'], ['threads', 'Threads'], ['bluesky', 'Bluesky']]
       : [['instagram', 'Instagram'], ['facebook', 'Facebook'], ['threads', 'Threads'], ['bluesky', 'Bluesky'], ...(vid ? [['tiktok', 'TikTok'], ['youtube', 'YouTube Shorts']] : [])];
     $('#go').innerHTML = `${icon('send')}${xTab ? 'Ouvrir X' : 'Publier'}`;
     $('#plan').hidden = xTab;
     $('#go').disabled = false;
     $('#netsbox').hidden = xTab;
     $('#texts').hidden = story;   // stories : pas de texte publié
+    for (const el of [$('#opts'), $('#share'), $('#dl')]) if (el) el.hidden = linkTab;   // post « lien » : pas de visuels
     $('#netsbox').innerHTML = xTab ? '' : `<h3 class="section">Publier sur</h3>${list.map(([k, v]) => {
       const acc = session.me?.[k.replace('-story', '')];
       return `<label class="switch net"><span><b>${v}</b><small>${esc(acc || 'non connecté')}</small><em class="st" data-st="${k}"></em></span><input type="checkbox" role="switch" data-net="${k}" ${acc ? (k === 'tiktok' || k === 'youtube' ? '' : 'checked') : 'disabled'}></label>`;
@@ -169,6 +179,13 @@ export function editor({ back, title, subtitle = '', head = '', below = false, d
       const show = () => { $('#tkbox').hidden = !tk.checked; if (tk.checked) tiktokPanel($('#tkbox'), vid, textOf('tiktok'), check); else check(); };
       tk.onchange = show;
       show();
+    }
+    if (linkTab) {
+      canvases = [];
+      $('#go').onclick = () => publishAll(d, null, record?.(), null, link());
+      $('#plan').onclick = () => schedulePanel(d, null, record?.(), null, link());
+      $('#xlink').onclick = () => openX([], $('#cap-x').value);
+      return;
     }
     const o = await assets(d);
     const all = $$('#main canvas');
@@ -280,14 +297,16 @@ async function postImages(d, o, nets, maxIg = Infinity) {
 }
 
 // Post confié au serveur (visuels ou vidéo, textes), publié à l'heure `at` même page fermée
-// video : envoyée à tous les réseaux sauf Bluesky (visuels) ; tk : réglages d'une publication directe TikTok
-async function queuePost(d, o, nets, at, record, video = null, tk = null) {
-  const imgs = await postImages(d, o, video ? nets.filter((n) => n === 'bluesky') : nets, 1.3e6);
+// video : envoyée à tous les réseaux sauf Bluesky (visuels) ; tk : réglages d'une publication directe TikTok ;
+// link : post « lien » sans visuels (carte de l'article)
+async function queuePost(d, o, nets, at, record, video = null, tk = null, link = null) {
+  const imgs = link ? { ig: [], x: [] } : await postImages(d, o, video ? nets.filter((n) => n === 'bluesky') : nets, 1.3e6);
   const form = new FormData();
   form.append('at', String(at));
   form.append('title', record?.title || d.title || d.gp || 'Post');
   form.append('record', JSON.stringify(record));
-  form.append('posts', JSON.stringify(nets.map((n) => (isStory(n) ? { network: n } : { network: n, text: textOf(n), comment: commentOf(n) }))));
+  form.append('posts', JSON.stringify(nets.map((n) => (isStory(n) ? { network: n } : { network: n, text: textOf(n), comment: link ? '' : commentOf(n) }))));
+  if (link) form.append('link', JSON.stringify(link));
   imgs.ig.forEach((b, i) => form.append('ig', b, `image-${i + 1}.jpg`));
   imgs.x.forEach((b, i) => form.append('x', b, `x-${i + 1}.jpg`));
   if (video) form.append('video', video, video.type === 'video/quicktime' ? 'video.mov' : 'video.mp4');
@@ -297,7 +316,7 @@ async function queuePost(d, o, nets, at, record, video = null, tk = null) {
 
 // Publication programmée : envoyée au serveur, publiée à l'heure même page fermée
 const localValue = (t) => new Date(t - t.getTimezoneOffset() * 60e3).toISOString().slice(0, 16);
-function schedulePanel(d, o, record = null, video = null) {
+function schedulePanel(d, o, record = null, video = null, link = null) {
   const nets = checkedNets();
   if (!nets.length) { toast('Cochez au moins un réseau', 'bad'); return; }
   const tk = nets.includes('tiktok') ? tiktokChoice() : null;
@@ -318,7 +337,7 @@ function schedulePanel(d, o, record = null, video = null) {
     st.className = 'hint';
     st.textContent = video ? 'Envoi de la vidéo…' : 'Envoi des visuels…';
     try {
-      await queuePost(d, o, nets, at, record, video, tk);
+      await queuePost(d, o, nets, at, record, video, tk, link);
       dlg.close();
       toast(`Programmé pour le ${new Date(at).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' })}`, 'ok');
       schedList($('#schedlist'));
@@ -338,7 +357,7 @@ export function enterPage(back) {
 }
 export { goBack };
 
-async function publishAll(d, o, record = null, video = null) {
+async function publishAll(d, o, record = null, video = null, link = null) {
   const nets = checkedNets();
   if (!nets.length) { toast('Cochez au moins un réseau', 'bad'); return; }
   const stories = nets.some(isStory);
@@ -351,7 +370,7 @@ async function publishAll(d, o, record = null, video = null) {
   // Confié au serveur (visuels ou vidéo envoyés une fois) : publié dans la minute, même page fermée
   for (const n of nets) { const st = $(`[data-st="${n}"]`); st.className = 'st'; st.textContent = video ? 'Envoi de la vidéo au serveur…' : 'Envoi au serveur…'; }
   try {
-    await queuePost(d, o, nets, Date.now(), record, video, tk);
+    await queuePost(d, o, nets, Date.now(), record, video, tk, link);
     for (const n of nets) $(`[data-st="${n}"]`).textContent = 'Publication dans la minute';
     toast('Envoyé : publication dans la minute, vous pouvez quitter la page', 'ok');
     // Avancement relu tant que la page reste ouverte (5 minutes au plus)

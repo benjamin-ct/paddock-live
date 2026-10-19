@@ -241,6 +241,21 @@ export async function publishThreads(th, meta, text, images) {
   return { url: link.permalink || `https://www.threads.net/@${th.username || ''}`, id: pub.id, visible };
 }
 
+// Post avec seulement le lien d'un article : Facebook et Threads affichent eux-mêmes sa carte (photo et
+// titre que le site publie pour les aperçus), sans que l'image soit recopiée
+export async function publishFacebookLink(meta, text, link) {
+  const r = await call(`${GRAPH}/${meta.pageId}/feed`, { method: 'POST', form: { message: text, link, access_token: meta.pageToken } });
+  return { url: `https://www.facebook.com/${r.id}`, id: r.id };
+}
+export async function publishThreadsLink(th, text, link) {
+  const base = `${THREADS}/${th.userId}`;
+  const c = await call(`${base}/threads`, { method: 'POST', form: { media_type: 'TEXT', text, link_attachment: link, topic_tag: THREADS_TOPIC, access_token: th.token } });
+  await ready(`${THREADS}/${c.id}?${new URLSearchParams({ fields: 'status,error_message', access_token: th.token })}`, 'status', 'Post');
+  const pub = await call(`${base}/threads_publish`, { method: 'POST', form: { creation_id: c.id, access_token: th.token } });
+  const p = await call(`${THREADS}/${pub.id}?${new URLSearchParams({ fields: 'permalink', access_token: th.token })}`).catch(() => ({}));
+  return { url: p.permalink || `https://www.threads.net/@${th.username || ''}`, id: pub.id };
+}
+
 // Le post est-il visible sans être connecté ? La page publique (lue comme un aperçu de lien) porte
 // « (@compte) on Threads » ; un post caché ou introuvable renvoie la page de connexion. Plusieurs
 // essais espacés (le temps que le post soit en ligne) ; null si la page n'a pas pu être lue.

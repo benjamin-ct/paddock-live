@@ -228,6 +228,12 @@ export function coverPhoto(ctx, img, x, y, w, h, r = 24) {
   ctx.restore();
 }
 
+// Crédit d'une photo libre de droits (auteur et licence), en bas à droite de la photo
+export function photoCredit(ctx, credit, x, y, w, h, u) {
+  if (!credit) return;
+  txt(ctx, credit, x + w - 18 * u, y + h - 18 * u, { size: Math.round(20 * u), weight: 600, color: 'rgba(255,255,255,0.85)', align: 'right', max: w - 36 * u });
+}
+
 // Logo blanc d'une écurie (o.logos) calé sur la hauteur h, centré verticalement sur cy ; largeur au plus
 // maxW. Renvoie la largeur dessinée (0 sans logo : à l'appelant de mettre une barre de couleur)
 export function teamLogo(ctx, o, team, x, cy, h, align = 'left', maxW = h * 1.8) {
@@ -596,6 +602,7 @@ export function newsSlide(ctx, W, H, d, o, fmt = 'ig') {
   if (custom) {
     const ph = (bottom - areaTop) * (H > 1600 ? 0.42 : 0.38);
     coverPhoto(ctx, custom, pad, areaTop, W - pad * 2, ph);
+    photoCredit(ctx, d.credit, pad, areaTop, W - pad * 2, ph, u);
     areaTop += ph + 30 * u;
   } else if (withPhoto.length === 1) {
     const ph = (bottom - areaTop) * (H > 1600 ? 0.42 : 0.38);

@@ -2,7 +2,7 @@
 // news (newsPost), enregistrée dans le navigateur par makeAnimation. Quatre temps : intro « BREAKING »,
 // l'info (photo, type, titre, résumé), les points clés un par un, puis « Abonnez-vous ». Même style que
 // l'image : liseré rouge tout autour, étiquette « ● BREAKING » en haut à droite.
-import { C, TITLE, BODY, rr, txt, fitLines, vivid, alpha, lightColor, background, photo, coverPhoto, driverPhoto, breakingFrame, breakingTag } from './social-draw.js';
+import { C, TITLE, BODY, rr, txt, fitLines, vivid, alpha, lightColor, background, photo, coverPhoto, photoCredit, driverPhoto, breakingFrame, breakingTag } from './social-draw.js';
 
 const clamp01 = (x) => Math.max(0, Math.min(1, x));
 const out3 = (x) => 1 - (1 - clamp01(x)) ** 3;
@@ -118,6 +118,7 @@ function mainScene(ctx, W, H, d, o, u, s, dur) {
     rr(ctx, x, L.top + dy, w, h, 24 * u); ctx.clip();
     coverPhoto(ctx, L.custom, x - w * (zoom - 1) / 2, L.top + dy - h * (zoom - 1) / 2, w * zoom, h * zoom, 0);
     ctx.restore();
+    photoCredit(ctx, d.credit, x, L.top + dy, w, h, u);
   } else if (L.vis === 'photo') {
     const p = L.withPhoto[0];
     const w = W * 0.7 * zoom; const h = L.visH * zoom;
