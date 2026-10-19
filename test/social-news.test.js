@@ -17,6 +17,10 @@ test('posts news : type de nouvelle', () => {
   // Livrées spéciales (toutes langues), gardées même peu reprises
   for (const t of ['Red Bull reveals special livery for Las Vegas Grand Prix', 'Alpine dévoile une livrée spéciale pour Mexico', 'Ferrari svela la livrea speciale per Monza', 'Haas mit Sonderlackierung in Austin']) assert.equal(newsKind({ title: t }).label, 'LIVRÉE');
   assert.equal(bigNews([{ id: 'l', title: 'McLaren unveil one-off look for Silverstone', t: Date.now(), imp: 0 }]).length, 1);
+  // Tenues des pilotes (combinaison, casque spécial) ; un accident où le casque est cité reste un accident
+  for (const t of ['Hamilton to wear special helmet design for Mexico', 'Norris dévoile un casque spécial pour Silverstone', 'Alpine dévoile une combinaison spéciale', 'Verstappen mit Sonderhelm in Zandvoort']) assert.equal(newsKind({ title: t }).label, 'TENUE');
+  assert.equal(newsKind({ title: 'Stroll crash: helmet damaged after FP1 accident' }).key, 'accident');
+  assert.equal(bigNews([{ id: 'h', title: 'Leclerc unveils tribute helmet for Monza', t: Date.now(), imp: 0 }]).length, 1);
   assert.equal(newsKind({ title: 'Bottas annonce sa retraite' }).key, 'depart');
   assert.equal(newsKind({ title: 'Calendar update', cat: 'official' }).key, 'officiel');
 });
