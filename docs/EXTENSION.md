@@ -45,7 +45,7 @@ comme mise à jour sur chaque boutique.
 1. Créer le compte développeur sur https://chrome.google.com/webstore/devconsole (paiement unique de 5 $).
 2. **Nouvel élément** → envoyer le zip.
 3. Fiche : textes ci-dessous, catégorie **Divertissement** (ou Sport), langue par défaut anglais avec une
-   fiche française, icône 128 px (déjà dans le zip), capture 1280×800, vignette 440×280.
+   fiche française, icône 128 px (déjà dans le zip), visuels de `docs/store/extension/` (voir Visuels).
 4. Onglet **Confidentialité** : objectif unique et justifications ci-dessous ; données traitées :
    « Informations d'authentification » ; cocher les trois certifications (pas de vente, pas d'usage sans
    rapport avec l'objectif, pas d'évaluation de solvabilité) ; politique de confidentialité :
@@ -122,5 +122,11 @@ Paddock Live installée sur l'ordinateur de l'utilisateur.
 
 ## Visuels
 
-Capture 1280×800 (français et anglais) et vignette 440×280 : générées à partir de la fenêtre réelle de
-l'extension ; à refaire si la fenêtre change.
+Dans `docs/store/extension/`, en français (`fr-…`, fiche localisée) et en anglais (`en-…`, fiche
+internationale), PNG 24 bits sans transparence, à partir de la fenêtre réelle de l'extension (à refaire si
+elle change) et des captures de l'appli :
+
+- 4 captures 1280×800, dans l'ordre : `capture-1-hero` (présentation), `capture-2-steps` (les trois
+  étapes), `capture-3-privacy` (la connexion reste sur l'ordinateur), `capture-4-app` (l'appli en course) ;
+- petite vignette promotionnelle 440×280 : `vignette-440x280` ;
+- vignette promotionnelle en haut de page 1400×560 : `banniere-1400x560`.
