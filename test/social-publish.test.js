@@ -173,7 +173,7 @@ test('Bluesky : images, liens et hashtags cliquables, lien de l\'article en rép
     assert.equal(r.comment, true);
     assert.deepEqual(uploads, ['image/jpeg', 'image/jpeg']);
     assert.equal(records[0].embed.images.length, 2);
-    assert.deepEqual(records[0].embed.images[0].aspectRatio, { width: 1600, height: 900 });
+    assert.deepEqual(records[0].embed.images[0].aspectRatio, { width: 1200, height: 1200 });
     assert.deepEqual(records[0].facets.map((f) => f.features[0].tag), ['F1', 'BenjyPaddock']);
     assert.deepEqual(records[1].reply.parent, { uri: 'at://did:plc:moi/app.bsky.feed.post/r1', cid: 'c1' });
     assert.equal(records[1].facets[0].features[0].uri, 'https://a.test/x');

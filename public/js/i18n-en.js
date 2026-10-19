@@ -2272,7 +2272,7 @@ export default {
   "Grosses news et récap": "Big news and recap",
   "Carrousel 4:5": "Carousel 4:5",
   "Vertical 9:16": "Vertical 9:16",
-  "Paysage 16:9": "Landscape 16:9",
+  "Carré 1:1": "Square 1:1",
   "Vues, abonnés, meilleurs posts": "Views, followers, top posts",
   "Tout enregistrer": "Save all",
   "Lu": "Read",

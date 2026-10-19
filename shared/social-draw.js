@@ -1,6 +1,7 @@
 // Visuels des posts pour les réseaux sociaux (mode créateur), dessinés sur un canvas aux formats
 // des réseaux : Instagram / Facebook (1080 × 1350), story (1080 × 1920), X / Threads / Bluesky
-// (1600 × 900). Les textes des visuels sont en français (contenu publié).
+// (1200 × 1200 : le carrousel de X recadre les images plus larges que hautes). Les textes des visuels
+// sont en français (contenu publié).
 
 import { teammateDuels, FLASH_KINDS, GRID_SOURCE } from './social-more.js';
 import { teamLogoPath } from './team-logos.js';
@@ -10,7 +11,7 @@ import { horaires, infos, editions, topflop, notes, equipes, positions, recapCov
 export const FORMATS = {
   ig: { w: 1080, h: 1350, name: 'instagram' },
   story: { w: 1080, h: 1920, name: 'story' },
-  x: { w: 1600, h: 900, name: 'x' },
+  x: { w: 1200, h: 1200, name: 'x' },
 };
 
 export const C = { bg: '#0b0d12', bg2: '#151a24', panel: 'rgba(255,255,255,0.045)', line: 'rgba(255,255,255,0.10)', text: '#f3f5f9', muted: '#9aa3b2', red: '#e10600', gold: '#e8c35a', silver: '#c7ccd6', bronze: '#d08a4f', green: '#3ddc84' };
@@ -267,7 +268,7 @@ function hero(ctx, W, H, d, o, word) {
     txt(ctx, w.team, x + (lw ? lw + 20 : 30), f.top + 398, { size: 42, weight: 600, family: BODY, color: C.text, max: W * 0.42 });
     stats(ctx, d, x, f.top + 450, W * 0.44, 3);
   } else {
-    const ph = (f.bottom - f.top) * 0.58;
+    const ph = Math.min((f.bottom - f.top) * 0.58, f.bottom - f.top - 424);   // carré (X) : photo réduite
     photo(ctx, img, W * 0.12, f.top + 40, W * 0.76, ph, w.color, 0.3);
     let y = f.top + ph + 40;
     txt(ctx, word, f.pad, f.top + 50, { size: 50, weight: 700, family: TITLE, color: C.red, spacing: 6 });
@@ -471,7 +472,7 @@ function cover(ctx, W, H, d, o, next, fmt) {
   // Bloc central : drapeau, « Résultats », séance, nom du Grand Prix
   const colW = land ? W * 0.5 : W - pad * 2;
   const tall = H / W > 1.5;   // story : bloc et sommaire groupés au milieu
-  let y = land ? H * 0.3 : tall ? H * 0.27 : H * 0.24;
+  let y = land ? H * 0.3 : tall ? H * 0.27 : H < W * 1.1 ? H * 0.17 : H * 0.24;   // carré (X) : bloc plus haut
   if (o.flag) {
     const fh = Math.round(66 * u);
     const fw = Math.round(fh * o.flag.width / o.flag.height);
@@ -497,10 +498,12 @@ function cover(ctx, W, H, d, o, next, fmt) {
   if (info) txt(ctx, info, pad, y, { size: Math.round(30 * u), weight: 600, family: TITLE, color: C.muted, max: colW, spacing: 2 });
 
   // Sommaire des images suivantes (numéro = place dans le carrousel publié)
-  const items = next.map((s, i) => [String((o.slides ? o.slides.indexOf(s) : i + 1) + 1).padStart(2, '0'), slideName(s)]);
   const sx = land ? W * 0.62 : pad;
   const end = H - Math.round(Math.min(W, H) * 0.13);   // au-dessus du pied
-  let sy = land ? H * 0.3 : tall ? y + 120 * u : Math.max(y + 80 * u, end - items.length * 52 * u - 40 * u);
+  let sy = land ? H * 0.3 : tall ? y + 120 * u : Math.max(y + 80 * u, end - next.length * 52 * u - 40 * u);
+  // Lignes qui tiennent sans se chevaucher (titre du Grand Prix sur deux lignes en carré)
+  const items = next.slice(0, Math.max(1, Math.floor((end - sy - 22 * u) / (44 * u))))
+    .map((s, i) => [String((o.slides ? o.slides.indexOf(s) : i + 1) + 1).padStart(2, '0'), slideName(s)]);
   const lh = Math.min(52 * u, (end - sy - 22 * u) / Math.max(items.length, 1));
   txt(ctx, 'AU PROGRAMME', sx, sy, { size: Math.round(26 * u), weight: 700, family: TITLE, color: C.red, spacing: 4 });
   sy += 22 * u;

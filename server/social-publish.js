@@ -271,7 +271,7 @@ export async function publish(net, { text = '', images = [], video = null, mime 
   if (net === 'instagram') return publishInstagram(conf().meta, body.slice(0, 2200), blobs(imgs));
   if (net === 'bluesky') {
     const acc = conf().bluesky;
-    const pics = imgs.map((b) => ({ blob: new Blob([b], { type: b[0] === 0xff ? 'image/jpeg' : 'image/png' }), width: 1600, height: 900 }));
+    const pics = imgs.map((b) => ({ blob: new Blob([b], { type: b[0] === 0xff ? 'image/jpeg' : 'image/png' }), width: 1200, height: 1200 }));   // format X de shared/social-draw.js
     return withComment(() => publishBluesky(acc, [...body].slice(0, 300).join(''), pics), note, (id, t) => replyBluesky(acc, id, t));
   }
   if (net === 'threads') {
