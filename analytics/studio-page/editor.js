@@ -149,7 +149,7 @@ export function editor({ back, title, subtitle = '', head = '', below = false, d
     $('#go').innerHTML = `${icon('send')}${xTab ? 'Ouvrir X' : 'Publier'}`;
     $('#plan').hidden = xTab;
     $('#go').disabled = false;
-    $('#netsbox').innerHTML = xTab ? '<p class="hint">X ne se publie pas d\'ici : « Ouvrir X » ouvre X avec le texte (l\'appli sur téléphone). Images : bouton Partager ou Télécharger.</p>' : `<h3 class="section">Publier sur</h3>${list.map(([k, v]) => {
+    $('#netsbox').innerHTML = xTab ? '<p class="hint">X ne se publie pas d\'ici. « Ouvrir X » : sur téléphone, choisissez X dans le menu de partage (images et texte) ; sur ordinateur, x.com s\'ouvre avec le texte et les images sont téléchargées, à glisser dans le post.</p>' : `<h3 class="section">Publier sur</h3>${list.map(([k, v]) => {
       const acc = session.me?.[k.replace('-story', '')];
       return `<label class="switch net"><span><b>${v}</b><small>${esc(acc || 'non connecté')}</small><em class="st" data-st="${k}"></em></span><input type="checkbox" role="switch" data-net="${k}" ${acc ? (k === 'tiktok' || k === 'youtube' ? '' : 'checked') : 'disabled'}></label>`;
     }).join('')}${vid ? '<div id="tkbox" class="tkbox" hidden></div>' : ''}<p class="hint">${vid ? 'Vidéo sur Instagram, Facebook, Threads, TikTok et YouTube (privé) ; visuels sur Bluesky.'
@@ -192,7 +192,7 @@ export function editor({ back, title, subtitle = '', head = '', below = false, d
         for (const k of Object.keys(t)) if (!(k in edited) && $(`#cap-${k}`)) { $(`#cap-${k}`).value = t[k]; count(k); }
       };
     });
-    $('#go').onclick = () => (xTab ? openX($('#cap-x').value) : publishAll(d, o, record?.(), vid));
+    $('#go').onclick = () => (xTab ? openX(canvases, $('#cap-x').value) : publishAll(d, o, record?.(), vid));
     $('#plan').onclick = () => (vid || story ? toast(`${vid ? 'Post avec vidéo' : 'Stories'} : publication tout de suite seulement, pas de programmation`, 'bad') : schedulePanel(d, o, record?.()));
     $('#share').onclick = () => share(canvases, state.fmt === 'x' ? $('#cap-x').value : state.fmt === 'ig' ? $('#cap-instagram').value : '');
     // iPhone : « Partager » propose aussi « Enregistrer les images » (Photos)
@@ -210,12 +210,23 @@ export function editor({ back, title, subtitle = '', head = '', below = false, d
   schedList($('#schedlist'));
 }
 
-// X avec le texte prêt : l'appli sur téléphone (x.com si elle n'est pas installée), x.com sur ordinateur
-function openX(text) {
-  const web = `https://x.com/intent/post?text=${encodeURIComponent(text)}`;
-  if (!IOS && !/Android/.test(navigator.userAgent)) { open(web, '_blank', 'noopener'); return; }
-  location.href = `twitter://post?message=${encodeURIComponent(text)}`;
-  setTimeout(() => { if (document.visibilityState === 'visible') open(web, '_blank', 'noopener'); }, 1500);
+// Vers X (un lien ne transmet que le texte) : sur téléphone, menu de partage avec les images et le texte
+// (choisir X ; texte aussi copié, à coller si l'appli ne le reprend pas) ; sur ordinateur, x.com avec le
+// texte et les images téléchargées, à glisser dans le post
+async function openX(canvases, text) {
+  const mobile = IOS || /Android/.test(navigator.userAgent);
+  if (mobile) {
+    navigator.clipboard?.writeText(text).catch(() => {});
+    const files = await Promise.all(canvases.map(async (cv, i) => new File([await toBlob(cv)], `x-${i + 1}.png`, { type: 'image/png' })));
+    if (navigator.canShare?.({ files })) {
+      try { await navigator.share({ files, text }); } catch { /* partage annulé */ }
+      return;
+    }
+    location.href = `twitter://post?message=${encodeURIComponent(text)}`;
+    return;
+  }
+  open(`https://x.com/intent/post?text=${encodeURIComponent(text)}`, '_blank', 'noopener');
+  download(canvases);
 }
 
 const toBlob = (cv, type = 'image/png', q) => new Promise((r) => cv.toBlob(r, type, q));
