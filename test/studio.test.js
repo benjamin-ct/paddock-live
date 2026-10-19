@@ -450,10 +450,19 @@ test('page du créateur : photos libres de droits (Commons, Flickr par Openverse
     const u = new URL(url);
     asked.push(u.hostname);
     if (u.hostname === 'commons.wikimedia.org') {
-      assert.match(u.searchParams.get('gsrsearch'), /^Lando Norris Formula 1 filetype:bitmap$/);
+      const q = u.searchParams.get('gsrsearch');
+      const info = (name, license, extra = {}) => [{ thumburl: `https://upload.wikimedia.org/w/thumb/${name}/1600px-${name}`, extmetadata: { LicenseShortName: { value: license } }, ...extra }];
+      // Fichiers au nom du pilote, le plus récent (année du nom, sinon de l'envoi) en tête
+      if (q === 'intitle:"Lando Norris" filetype:bitmap') return new Response(JSON.stringify({ query: { pages: {
+        1: { index: 1, title: 'File:2019 Monaco GP - Lando Norris.jpg', imageinfo: info('Old.jpg', 'CC BY 2.0', { timestamp: '2026-05-01T00:00:00Z' }) },
+        2: { index: 2, title: 'File:Lando Norris (028A8482).jpg', imageinfo: info('N.jpg', 'CC BY-SA 4.0', { timestamp: '2026-03-01T00:00:00Z', descriptionurl: 'https://commons.wikimedia.org/wiki/File:N.jpg', extmetadata: { Artist: { value: '<a href="x">Jean &amp; Co</a>' }, LicenseShortName: { value: 'CC BY-SA 4.0' } } }) },
+        3: { index: 3, title: 'File:2025 Lando Norris.jpg', imageinfo: info('b.jpg', 'CC BY-NC 2.0') },
+      } } }));
+      // Peu de fichiers au nom : complétés par la recherche dans les descriptions, sans doublon
+      assert.equal(q, 'Lando Norris Formula 1 filetype:bitmap');
       return new Response(JSON.stringify({ query: { pages: {
-        1: { index: 1, imageinfo: [{ thumburl: 'https://upload.wikimedia.org/w/thumb/a/ab/N.jpg/1600px-N.jpg', descriptionurl: 'https://commons.wikimedia.org/wiki/File:N.jpg', extmetadata: { Artist: { value: '<a href="x">Jean &amp; Co</a>' }, LicenseShortName: { value: 'CC BY-SA 4.0' } } }] },
-        2: { index: 2, imageinfo: [{ thumburl: 'https://upload.wikimedia.org/w/thumb/b.jpg/1600px-b.jpg', extmetadata: { LicenseShortName: { value: 'CC BY-NC 2.0' } } }] },
+        1: { index: 1, title: 'File:Stepro 1.jpg', imageinfo: info('N.jpg', 'CC BY-SA 4.0') },
+        2: { index: 2, title: 'File:Stepro 2.jpg', imageinfo: info('S.jpg', 'CC BY-SA 4.0', { timestamp: '2025-08-01T00:00:00Z' }) },
       } } }));
     }
     if (u.hostname === 'api.openverse.org') {
@@ -469,8 +478,11 @@ test('page du créateur : photos libres de droits (Commons, Flickr par Openverse
   };
   assert.deepEqual((await freePhotos(' x ', { fetchFn })).items, []);
   const r = await freePhotos('Lando Norris', { fetchFn });
-  assert.deepEqual(r.items.map((p) => [p.site, p.author, p.license]), [['Wikimedia Commons', 'Jean & Co', 'CC BY-SA 4.0'], ['Flickr', 'Fan F1', 'CC BY 2.0']]);
-  assert.equal(r.items[0].thumb, 'https://upload.wikimedia.org/w/thumb/a/ab/N.jpg/330px-N.jpg');
+  assert.deepEqual(r.items.map((p) => [p.site, p.author, p.license]), [['Wikimedia Commons', 'Jean & Co', 'CC BY-SA 4.0'], ['Wikimedia Commons', 'Wikimedia Commons', 'CC BY 2.0'],
+    ['Wikimedia Commons', 'Wikimedia Commons', 'CC BY-SA 4.0'], ['Flickr', 'Fan F1', 'CC BY 2.0']]);
+  assert.equal(r.items[0].thumb, 'https://upload.wikimedia.org/w/thumb/N.jpg/330px-N.jpg');
+  assert.equal(r.items[2].url, 'https://upload.wikimedia.org/w/thumb/S.jpg/1600px-S.jpg');
+  assert.equal(r.items[0].year, undefined);
   // Même recherche : réponse gardée une heure
   const n = asked.length;
   await freePhotos('Lando Norris', { fetchFn });

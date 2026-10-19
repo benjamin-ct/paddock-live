@@ -16,20 +16,31 @@ export function shortLicense(name) {
   return n;
 }
 
-// Plus récentes d'abord : photos du moment (pilote, écurie, circuit de cette saison). « Formula 1 » ajouté
-// à la recherche (sinon « Ocon » trouve aussi des gravures anciennes) ; tailles d'images acceptées par
-// Wikimedia seulement (330, 1280… : les autres sont refusées)
-async function commons(q, fetchFn) {
-  const term = /\bf1\b|formul|formel|grand prix/i.test(q) ? q : `${q} Formula 1`;
-  const p = new URLSearchParams({ action: 'query', format: 'json', generator: 'search', gsrsearch: `${term} filetype:bitmap`, gsrnamespace: '6', gsrlimit: '15', gsrsort: 'create_timestamp_desc',
-    prop: 'imageinfo', iiprop: 'url|extmetadata', iiurlwidth: '1280', iiextmetadatafilter: 'Artist|LicenseShortName' });
+// Année de la photo : celle du nom du fichier (« 2025 Japan GP - Haas - Esteban Ocon ») sinon celle de l'envoi
+const year = (title, at) => +(String(title).match(/\b(?:19[5-9]\d|20\d\d)\b/)?.[0] || String(at || '').slice(0, 4)) || 0;
+const recent = (list) => list.sort((a, b) => b.year - a.year);
+
+// Tailles d'images acceptées par Wikimedia seulement (330, 1280… : les autres sont refusées)
+async function commonsSearch(search, fetchFn) {
+  const p = new URLSearchParams({ action: 'query', format: 'json', generator: 'search', gsrsearch: `${search} filetype:bitmap`, gsrnamespace: '6', gsrlimit: '20', gsrsort: 'create_timestamp_desc',
+    prop: 'imageinfo', iiprop: 'url|extmetadata|timestamp', iiurlwidth: '1280', iiextmetadatafilter: 'Artist|LicenseShortName' });
   const j = await (await fetchFn(`https://commons.wikimedia.org/w/api.php?${p}`, { headers: { 'User-Agent': PHOTO_UA } })).json();
   return Object.values(j.query?.pages || {}).sort((a, b) => (a.index || 0) - (b.index || 0)).map((pg) => {
     const ii = pg.imageinfo?.[0];
     const license = strip(ii?.extmetadata?.LicenseShortName?.value);
     if (!ii?.thumburl || !FREE(license)) return null;
-    return { url: ii.thumburl, thumb: ii.thumburl.replace(/\/\d+px-/, '/330px-'), author: strip(ii.extmetadata?.Artist?.value).slice(0, 80) || 'Wikimedia Commons', license: shortLicense(license), site: 'Wikimedia Commons', page: ii.descriptionurl || '' };
+    return { url: ii.thumburl, thumb: ii.thumburl.replace(/\/\d+px-/, '/330px-'), author: strip(ii.extmetadata?.Artist?.value).slice(0, 80) || 'Wikimedia Commons', license: shortLicense(license), site: 'Wikimedia Commons', page: ii.descriptionurl || '', year: year(pg.title, ii.timestamp) };
   }).filter(Boolean);
+}
+// D'abord les fichiers qui portent le nom cherché (« Haas VF-26 of Esteban Ocon »), plus récents en tête ; s'il
+// y en a peu, complétés par une recherche dans les descriptions, « Formula 1 » ajouté (sinon « Ocon » trouve
+// aussi des gravures anciennes)
+async function commons(q, fetchFn) {
+  const named = recent(await commonsSearch(`intitle:"${q.replace(/"/g, '')}"`, fetchFn));
+  if (named.length >= 12) return named;
+  const term = /\bf1\b|formul|formel|grand prix/i.test(q) ? q : `${q} Formula 1`;
+  const seen = new Set(named.map((p) => p.url));
+  return [...named, ...recent(await commonsSearch(term, fetchFn).catch(() => [])).filter((p) => !seen.has(p.url))];
 }
 
 // Photos Flickr sous licence libre, par Openverse (moteur de recherche de la fondation WordPress, sans
@@ -52,8 +63,8 @@ export async function freePhotos(q, { fetchFn = fetch, now = Date.now() } = {}) 
   const hit = memo.get(q);
   if (hit && now - hit.at < 3600e3) return hit.v;
   const [a, b] = await Promise.all([flickr(q, fetchFn).catch(() => []), commons(q, fetchFn).catch(() => [])]);
-  // Les deux sources en alternance, Wikimedia d'abord (ses photos les plus récentes en tête)
-  const v = { items: Array.from({ length: Math.max(a.length, b.length) }, (_, i) => [b[i], a[i]]).flat().filter(Boolean).slice(0, 24) };
+  // Wikimedia d'abord (photos récentes, nommées) ; Flickr ensuite : ce qu'Openverse en garde est surtout ancien
+  const v = { items: [...b, ...a].slice(0, 30).map(({ year: _, ...p }) => p) };
   if (v.items.length) memo.set(q, { at: now, v });
   if (memo.size > 200) memo.delete(memo.keys().next().value);
   return v;
