@@ -6,7 +6,7 @@ name: Statistiques
 # Au premier lancement, la base D1 et sa table sont créées sur le compte du jeton.
 # Secrets du dépôt :
 # - CLOUDFLARE_API_TOKEN : jeton Cloudflare (modèle « Edit Cloudflare Workers » + permission
-#   Compte → D1 → Modifier) ;
+#   Compte → D1 → Modifier ; R2 activé sur le compte pour les vidéos) ;
 # - STATS_KEY : mot de passe de la page des statistiques (/stats?key=…) ;
 # - CLOUDFLARE_ACCOUNT_ID (facultatif) : seulement si le jeton donne accès à plusieurs comptes.
 on:
@@ -90,6 +90,14 @@ jobs:
           echo "Base : $id"
           sed -i "s/^database_id = .*/database_id = \"$id\"/" wrangler.toml
           $WRANGLER d1 execute paddock-live-stats --remote --file schema.sql
+      - name: Stockage R2 des vidéos (créé si besoin)
+        run: |
+          [ -n "$CLOUDFLARE_ACCOUNT_ID" ] || unset CLOUDFLARE_ACCOUNT_ID
+          if ! $WRANGLER r2 bucket info paddock-live-media >/dev/null 2>&1 && ! $WRANGLER r2 bucket create paddock-live-media; then
+            # R2 non activé ou jeton sans la permission R2 : serveur déployé sans, vidéos publiées page ouverte impossibles
+            echo "::warning::Stockage R2 indisponible (activez R2 et la permission Workers R2 Storage du jeton) : déploiement sans les vidéos confiées au serveur"
+            sed -i '/^\[\[r2_buckets\]\]/,/^bucket_name/d' wrangler.toml
+          fi
       - name: Déploiement
         run: |
           [ -n "$CLOUDFLARE_ACCOUNT_ID" ] || unset CLOUDFLARE_ACCOUNT_ID

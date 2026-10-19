@@ -321,6 +321,73 @@ test('page du créateur : publication programmée, publiée par le serveur à l\
   await disableStudio({ fetchFn });
 });
 
+test('page du créateur : vidéo confiée au serveur (stockage R2), publiée par le relevé puis effacée', async () => {
+  saveConfig({ creator: true, social: {
+    meta: { pageId: 'p1', pageName: 'Ma page', pageToken: 'jeton-page', igId: 'ig1', igUsername: 'moi' },
+    bluesky: { handle: 'moi.bsky.social', appPassword: 'mdp-app', did: 'did:plc:moi' },
+    youtube: { clientId: '1-a.apps.googleusercontent.com', clientSecret: 'secret-google', accessToken: 'yat', expiresAt: Date.now() + 3600e3, refreshToken: 'rt-google', name: 'Benjy Paddock' },
+  } });
+  const fetchFn = (url, init) => worker(url, init);
+  await enableStudio(CODE, { fetchFn });
+  const key = { 'X-Studio-Key': studioKey(CODE) };
+  const form = (o = {}) => {
+    const f = new FormData();
+    f.append('at', String(Date.now()));
+    f.append('title', 'Ma vidéo');
+    f.append('record', JSON.stringify({ key: 'post:v1', kind: 'post', title: 'Ma vidéo' }));
+    f.append('posts', JSON.stringify(o.posts ?? [{ network: 'youtube', text: 'Titre\nTexte' }, { network: 'bluesky', text: 'Salut' }]));
+    f.append('x', new Blob([new Uint8Array([0xff, 0xd8, 0xff, 1])], { type: 'image/jpeg' }), 'x.jpg');
+    f.append('video', o.video ?? new Blob([new Uint8Array([1, 2, 3, 4])], { type: 'video/mp4' }), 'v.mp4');
+    if (o.tiktok) f.append('tiktok', JSON.stringify(o.tiktok));
+    return f;
+  };
+  const add = (o) => worker('https://s.test/studio/api/schedule', { method: 'POST', body: form(o), headers: key });
+  // Sans stockage R2 : refusée ; vidéo d'un autre format : refusée
+  assert.equal((await add()).status, 503);
+  const bucket = new Map();
+  env.MEDIA = {
+    put: async (k, v, o) => { bucket.set(k, { bytes: new Uint8Array(await v.arrayBuffer()), type: o.httpMetadata.contentType }); },
+    get: async (k) => (bucket.has(k) ? { arrayBuffer: async () => bucket.get(k).bytes.buffer } : null),
+    delete: async (k) => { bucket.delete(k); },
+  };
+  assert.equal((await add({ video: new Blob(['x'], { type: 'image/gif' }) })).status, 400);
+  assert.equal((await add({ posts: [{ network: 'tiktok', text: 'x' }], tiktok: { privacy: 'SELF_ONLY', brandContent: true } })).status, 409);   // TikTok non connecté
+  const { item } = await (await add()).json();
+  assert.deepEqual([...bucket.keys()], [`sched/${item.id}`]);
+  assert.equal(bucket.get(`sched/${item.id}`).type, 'video/mp4');
+
+  const realFetch = globalThis.fetch;
+  const sent = {};
+  globalThis.fetch = async (url, opts = {}) => {
+    const u = String(url);
+    if (u.startsWith('https://www.googleapis.com/upload/youtube/v3/videos')) return new Response('{}', { headers: { location: 'https://up.test/yt' } });
+    if (u === 'https://up.test/yt') { sent.youtube = opts.body.length; return new Response(JSON.stringify({ id: 'v42' })); }
+    const p = new URL(u).pathname;
+    if (p.endsWith('createSession')) return new Response(JSON.stringify({ accessJwt: 'jwt', did: 'did:plc:moi' }));
+    if (p.endsWith('uploadBlob')) return new Response(JSON.stringify({ blob: { ref: 'b' } }));
+    if (p.endsWith('createRecord')) { sent.bluesky = true; return new Response(JSON.stringify({ uri: 'at://did:plc:moi/app.bsky.feed.post/3k', cid: 'c' })); }
+    throw new Error(`inattendu : ${u}`);
+  };
+  try {
+    assert.deepEqual(await runSchedule(env), { published: 'bluesky', id: item.id });
+  } finally { globalThis.fetch = realFetch; }
+  // Vidéo envoyée à YouTube, visuels à Bluesky ; vidéo effacée du stockage une fois publiée
+  assert.deepEqual(sent, { youtube: 4, bluesky: true });
+  const list = await (await worker('https://s.test/studio/api/schedule', { headers: key })).json();
+  const nets = list.items.find((x) => x.id === item.id).nets;
+  assert.equal(nets.youtube.status, 'done');
+  assert.equal(nets.youtube.url, 'https://youtube.com/shorts/v42');
+  assert.equal(nets.bluesky.status, 'done');
+  assert.equal(bucket.size, 0);
+  // Annulation avant l'heure : vidéo effacée aussi
+  const later = (await (await add()).json()).item;
+  assert.equal(bucket.size, 1);
+  await worker('https://s.test/studio/api/schedule/cancel', { method: 'POST', body: JSON.stringify({ id: later.id }), headers: key });
+  assert.equal(bucket.size, 0);
+  delete env.MEDIA;
+  await disableStudio({ fetchFn });
+});
+
 test('page du créateur : toutes les sources d\'actu en une réponse (octets d\'origine, sources en panne écartées)', async () => {
   const { packFeeds, unpackFeeds } = await import('../shared/feed-pack.js');
   const { feeds } = await import('../analytics/studio.js');

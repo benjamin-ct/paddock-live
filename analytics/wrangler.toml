@@ -17,6 +17,12 @@ database_name = "paddock-live-stats"
 # Rempli par le workflow (base créée au premier déploiement si elle n'existe pas)
 database_id = "00000000-0000-0000-0000-000000000000"
 
+# Vidéos des publications confiées au serveur (« Publier » ou programmées), effacées une fois publiées.
+# Espace créé par le workflow s'il n'existe pas (R2 activé sur le compte Cloudflare)
+[[r2_buckets]]
+binding = "MEDIA"
+bucket_name = "paddock-live-media"
+
 # Workers AI : traduction des actualités et des radios (Mistral Small 3.1), transcription des radios (Whisper)
 # Toutes les minutes : publications programmées de la page du créateur ; toutes les 5 minutes,
 # relevé des flux d'actu pour ses alertes (rien si personne n'est abonné)

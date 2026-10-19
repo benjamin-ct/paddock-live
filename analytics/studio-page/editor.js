@@ -196,7 +196,7 @@ export function editor({ back, title, subtitle = '', head = '', below = false, d
       };
     });
     $('#go').onclick = () => (xTab ? openX(canvases, $('#cap-x').value) : publishAll(d, o, record?.(), vid));
-    $('#plan').onclick = () => (vid ? toast('Post avec vidéo : publication tout de suite seulement, pas de programmation', 'bad') : schedulePanel(d, o, record?.()));
+    $('#plan').onclick = () => schedulePanel(d, o, record?.(), vid);
     $('#share').onclick = () => share(canvases, state.fmt === 'x' ? $('#cap-x').value : state.fmt === 'ig' ? $('#cap-instagram').value : '');
     // iPhone : « Partager » propose aussi « Enregistrer les images » (Photos)
     if ($('#dl')) $('#dl').onclick = () => download(canvases);
@@ -279,9 +279,10 @@ async function postImages(d, o, nets, maxIg = Infinity) {
   return { ig: nets.some((n) => n !== 'bluesky') ? await draw(nets.some(isStory) ? 'story' : 'ig', maxIg) : [], x: nets.includes('bluesky') ? await draw('x', 950 * 1024, 4) : [] };
 }
 
-// Post confié au serveur (visuels et textes), publié à l'heure `at` même page fermée
-async function queuePost(d, o, nets, at, record) {
-  const imgs = await postImages(d, o, nets, 1.3e6);
+// Post confié au serveur (visuels ou vidéo, textes), publié à l'heure `at` même page fermée
+// video : envoyée à tous les réseaux sauf Bluesky (visuels) ; tk : réglages d'une publication directe TikTok
+async function queuePost(d, o, nets, at, record, video = null, tk = null) {
+  const imgs = await postImages(d, o, video ? nets.filter((n) => n === 'bluesky') : nets, 1.3e6);
   const form = new FormData();
   form.append('at', String(at));
   form.append('title', record?.title || d.title || d.gp || 'Post');
@@ -289,14 +290,18 @@ async function queuePost(d, o, nets, at, record) {
   form.append('posts', JSON.stringify(nets.map((n) => (isStory(n) ? { network: n } : { network: n, text: textOf(n), comment: commentOf(n) }))));
   imgs.ig.forEach((b, i) => form.append('ig', b, `image-${i + 1}.jpg`));
   imgs.x.forEach((b, i) => form.append('x', b, `x-${i + 1}.jpg`));
+  if (video) form.append('video', video, video.type === 'video/quicktime' ? 'video.mov' : 'video.mp4');
+  if (tk) form.append('tiktok', JSON.stringify(tk));
   await api('schedule', { method: 'POST', body: form });
 }
 
 // Publication programmée : envoyée au serveur, publiée à l'heure même page fermée
 const localValue = (t) => new Date(t - t.getTimezoneOffset() * 60e3).toISOString().slice(0, 16);
-function schedulePanel(d, o, record = null) {
+function schedulePanel(d, o, record = null, video = null) {
   const nets = checkedNets();
   if (!nets.length) { toast('Cochez au moins un réseau', 'bad'); return; }
+  const tk = nets.includes('tiktok') ? tiktokChoice() : null;
+  if (nets.includes('tiktok') && tiktokProblem()) { toast(tiktokProblem(), 'bad'); return; }
   const t = new Date(Date.now() + 3600e3);
   t.setMinutes(Math.ceil(t.getMinutes() / 15) * 15, 0, 0);
   const dlg = sheet('Programmer la publication', `<label class="field"><span>Date et heure</span><input type="datetime-local" id="when" value="${localValue(t)}"></label>
@@ -311,9 +316,9 @@ function schedulePanel(d, o, record = null) {
     const btn = $('#dosched', dlg);
     btn.disabled = true;
     st.className = 'hint';
-    st.textContent = 'Envoi des visuels…';
+    st.textContent = video ? 'Envoi de la vidéo…' : 'Envoi des visuels…';
     try {
-      await queuePost(d, o, nets, at, record);
+      await queuePost(d, o, nets, at, record, video, tk);
       dlg.close();
       toast(`Programmé pour le ${new Date(at).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' })}`, 'ok');
       schedList($('#schedlist'));
@@ -323,39 +328,6 @@ function schedulePanel(d, o, record = null) {
       btn.disabled = false;
     }
   };
-}
-
-// Publication directe (vidéo) : un réseau après l'autre, progression affichée, page ouverte
-// Envoi d'un post au serveur (réponse en continu : avancement, puis résultat ou erreur)
-// tiktok : réglages d'une publication directe sur TikTok (sinon brouillon)
-export async function sendPost(network, text, blobs, comment = '', video = null, tiktok = null, title = '') {
-  const form = new FormData();
-  form.append('network', network);
-  form.append('text', text);
-  if (title) form.append('title', title);   // nom du lien suivi dans les statistiques
-  if (tiktok) form.append('tiktok', JSON.stringify(tiktok));
-  blobs.forEach((b, i) => form.append('images', b, `image-${i + 1}.jpg`));
-  if (video) form.append('video', video, video.type === 'video/quicktime' ? 'video.mov' : 'video.mp4');
-  if (comment) form.append('comment', comment);
-  const res = await api('publish', { method: 'POST', body: form, raw: true });
-  const reader = res.body.getReader();
-  const dec = new TextDecoder();
-  let buf = '';
-  let result = null;
-  for (;;) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    buf += dec.decode(value, { stream: true });
-    let nl;
-    while ((nl = buf.indexOf('\n')) >= 0) {
-      const msg = JSON.parse(buf.slice(0, nl) || '{}');
-      buf = buf.slice(nl + 1);
-      if (msg.error) throw new Error(msg.error);
-      if (msg.done) result = msg;
-    }
-  }
-  if (!result) throw new Error('Réponse interrompue : vérifiez sur le réseau avant de réessayer');
-  return result;
 }
 
 // Page plein écran avec retour (bouton, geste retour de Safari, glissement depuis le bord)
@@ -376,47 +348,18 @@ async function publishAll(d, o, record = null, video = null) {
   if (!confirm(`Publier maintenant sur : ${nets.map((n) => NET_NAMES[n] || n).join(', ')} ?\n\n${stories ? 'Les stories seront publiques pendant 24 heures' : `Les posts seront publics${[nets.includes('tiktok') && `TikTok : ${tk ? `publication directe, visible par : ${TIKTOK_PRIVACY[tk.privacy]}` : 'en brouillon'}`, nets.includes('youtube') && 'YouTube : en privé'].filter(Boolean).map((x, i, a) => `${i ? ' ; ' : ' ('}${x}${i === a.length - 1 ? ')' : ''}`).join('')}`}.`)) return;
   const go = $('#go');
   go.disabled = true;
-  // Sans vidéo (post du fil ou stories) : confié au serveur, publié dans la minute même page fermée
-  if (!video) {
-    for (const n of nets) { const st = $(`[data-st="${n}"]`); st.className = 'st'; st.textContent = 'Envoi au serveur…'; }
-    try {
-      await queuePost(d, o, nets, Date.now(), record);
-      for (const n of nets) $(`[data-st="${n}"]`).textContent = 'Publication dans la minute';
-      toast('Envoyé : publication dans la minute, vous pouvez quitter la page', 'ok');
-      // Avancement relu tant que la page reste ouverte (5 minutes au plus)
-      const list = $('#schedlist');
-      schedList(list);
-      let n = 0;
-      const poll = setInterval(() => { if (++n > 20 || !list.isConnected) clearInterval(poll); else schedList(list); }, 15e3);
-    } catch (err) {
-      for (const n of nets) { const st = $(`[data-st="${n}"]`); st.className = 'st err'; st.textContent = err.message; }
-    } finally { go.disabled = false; }
-    return;
-  }
-  $('#netsbox').scrollIntoView({ behavior: 'smooth', block: 'center' });
-  const { x: bsky } = await postImages(d, o, nets.filter((n) => n === 'bluesky'));
-  let ok = 0;
-  for (const n of nets) {
-    const st = $(`[data-st="${n}"]`);
-    st.className = 'st';
-    const t0 = Date.now();
-    const tick = setInterval(() => { st.textContent = `Envoi… ${Math.round((Date.now() - t0) / 1000)} s`; }, 1000);
-    st.textContent = 'Envoi…';
-    try {
-      // Vidéo : seule envoyée (sauf Bluesky, qui garde les visuels)
-      const result = await sendPost(n, textOf(n), n === 'bluesky' ? bsky : [], commentOf(n), n === 'bluesky' ? null : video, n === 'tiktok' ? tk : null, record?.title);
-      ok++;
-      st.className = 'st ok';
-      if (record) api('history', { method: 'POST', body: JSON.stringify({ entry: { ...record, at: Date.now(), nets: { [n]: { id: result.id ?? null, url: result.url || null } } } }) }).catch(() => {});
-      st.innerHTML = (result.url ? `<a href="${esc(result.url)}" target="_blank" rel="noopener">Publié ${icon('check')}</a>` : `Publié ${icon('check')}`)
-        + (result.comment ? ' · commentaire ajouté' : result.commentError ? ` <span class="err">· commentaire refusé : ${esc(result.commentError)}</span>` : '')
-        + (result.note ? ` · ${esc(result.note)}` : '')
-        + (result.visible === false ? ' <span class="err">· pas visible publiquement sur Threads : vérifiez le post (compte ou post masqué)</span>' : '');
-    } catch (err) {
-      st.className = 'st err';
-      st.textContent = err.message;
-    } finally { clearInterval(tick); }
-  }
-  go.disabled = !!(nets.includes('tiktok') && tiktokProblem());
-  toast(ok === nets.length ? 'Publié partout' : ok ? `Publié sur ${ok} réseau${ok > 1 ? 'x' : ''} sur ${nets.length}` : 'Rien n\'a été publié', ok === nets.length ? 'ok' : 'bad');
+  // Confié au serveur (visuels ou vidéo envoyés une fois) : publié dans la minute, même page fermée
+  for (const n of nets) { const st = $(`[data-st="${n}"]`); st.className = 'st'; st.textContent = video ? 'Envoi de la vidéo au serveur…' : 'Envoi au serveur…'; }
+  try {
+    await queuePost(d, o, nets, Date.now(), record, video, tk);
+    for (const n of nets) $(`[data-st="${n}"]`).textContent = 'Publication dans la minute';
+    toast('Envoyé : publication dans la minute, vous pouvez quitter la page', 'ok');
+    // Avancement relu tant que la page reste ouverte (5 minutes au plus)
+    const list = $('#schedlist');
+    schedList(list);
+    let n = 0;
+    const poll = setInterval(() => { if (++n > 20 || !list.isConnected) clearInterval(poll); else schedList(list); }, 15e3);
+  } catch (err) {
+    for (const n of nets) { const st = $(`[data-st="${n}"]`); st.className = 'st err'; st.textContent = err.message; }
+  } finally { go.disabled = false; }
 }

@@ -351,7 +351,7 @@ async function publish(req, env, raw, vault) {
   (async () => {
     try {
       await line({ step: video ? 'Envoi de la vidéo…' : 'Envoi des images…' });
-      const r = CLIPS.includes(net) ? await sendClip(env, raw, vault, net, new Uint8Array(await video.arrayBuffer()), video.type, text, direct)
+      const r = CLIPS.includes(net) ? await sendClip(net, () => clipAccount(env, raw, vault, net), new Uint8Array(await video.arrayBuffer()), video.type, text, direct)
         : await sendTo(net, vault, { text, comment, images, small: images, video }, async () => (await refresh(env, raw, vault)).threads);
       await line({ done: true, ...resultOf(r), ...(r.note ? { note: r.note } : {}) });
     } catch (err) {
@@ -395,15 +395,15 @@ async function sendVideo(req, env, raw, vault, url) {
   const file = await env.ASSETS.fetch(new Request(new URL(src, url)));
   if (!file.ok) return json({ error: 'Vidéo du kit introuvable' }, 404);
   try {
-    const r = await sendClip(env, raw, vault, net, new Uint8Array(await file.arrayBuffer()), 'video/mp4', String(body?.text || ''));
+    const r = await sendClip(net, () => clipAccount(env, raw, vault, net), new Uint8Array(await file.arrayBuffer()), 'video/mp4', String(body?.text || ''));
     return json({ ok: true, url: r.url || null, id: r.id ?? null, note: r.note, ...(r.pending ? { pending: true } : {}) });
   } catch (err) { return json({ error: err.message }, 502); }
 }
-// Brouillon TikTok ou Short YouTube (jeton renouvelé au besoin, gardé dans le coffre)
+// Brouillon TikTok ou Short YouTube. account() : compte aux jetons à jour
 // direct : réglages d'une publication directe sur TikTok (sinon brouillon)
-async function sendClip(env, raw, vault, net, video, mime, text, direct = null) {
+async function sendClip(net, account, video, mime, text, direct = null) {
   try {
-    const acc = await clipAccount(env, raw, vault, net);
+    const acc = await account();
     if (net === 'youtube') return await youtubeUpload(acc.accessToken, video, mime, text);
     return direct ? await tiktokDirect(acc.accessToken, video, mime, direct) : await tiktokDraft(acc.accessToken, video, mime);
   } catch (err) {
@@ -437,7 +437,7 @@ function tiktokOptions(raw) {
 // le relevé du serveur (toutes les minutes), même page fermée. Stories comprises (visuels au format Story). Les jetons
 // utiles sont copiés pour l'occasion, chiffrés avec une clé tirée du secret du serveur (STATS_KEY,
 // hors de la base) : la base seule ne permet toujours pas de publier. Visuels et jetons sont effacés
-// une fois la publication faite.
+// une fois la publication faite. Vidéo (50 Mo au plus) gardée dans le stockage R2 (MEDIA), pas dans la base.
 const SCHED = { max: 20, ahead: 7 * 86400e3, late: 24 * 3600e3, keep: 7 * 86400e3, running: 15 * 60e3, img: 1.4e6 };
 const schedKey = async (env) => new Uint8Array(await crypto.subtle.digest('SHA-256', enc.encode(`paddock-live-schedule-v1:${env.STATS_KEY}`)));
 // Base64 par morceaux (visuels de plus d'un Mo)
@@ -470,27 +470,34 @@ async function scheduleAdd(req, env, raw, vault, now = Date.now()) {
   if (!Number.isFinite(at) || at < now - 60e3 || at > now + SCHED.ahead) return json({ error: 'Date de publication invalide (dans les 7 prochains jours)' }, 400);
   let posts, record;
   try { posts = JSON.parse(String(form.get('posts') || '[]')); record = JSON.parse(String(form.get('record') || 'null')); } catch { return json({ error: 'JSON invalide' }, 400); }
-  if (!Array.isArray(posts) || !posts.length || posts.length > NETS.length) return json({ error: 'Aucun réseau choisi' }, 400);
+  const v0 = form.get('video');
+  const video = typeof v0 === 'object' && v0 && /^video\/(mp4|quicktime)$/.test(v0.type) && v0.size <= VIDEO_MAX ? v0 : null;
+  if (v0 && !video) return json({ error: 'Vidéo MP4 ou MOV de 50 Mo au plus' }, 400);
+  if (video && !env.MEDIA) return json({ error: 'Stockage des vidéos (R2) absent du serveur' }, 503);
+  if (!Array.isArray(posts) || !posts.length) return json({ error: 'Aucun réseau choisi' }, 400);
   const nets = posts.map((p) => String(p?.network || ''));
-  // Stories ou posts du fil, jamais les deux : les visuels n'ont pas le même format
-  const allowed = nets.some((n) => STORIES.includes(n)) ? STORIES : NETS;
+  // Stories ou posts du fil, jamais les deux : les visuels n'ont pas le même format ; TikTok et YouTube avec une vidéo
+  const allowed = video ? [...NETS, ...CLIPS] : nets.some((n) => STORIES.includes(n)) ? STORIES : NETS;
   posts = posts.map((p) => ({ network: String(p?.network || ''), text: String(p?.text || '').slice(0, 5000), comment: String(p?.comment || '').trim().slice(0, 500) }));
   if (nets.some((n) => !allowed.includes(n)) || new Set(nets).size !== nets.length) return json({ error: 'Réseau inconnu' }, 400);
   for (const p of posts) if (missing(p.network, vault)) return json({ error: missing(p.network, vault) }, 409);
   const files = (k, n) => form.getAll(k).filter((f) => typeof f === 'object' && f && /^image\/(png|jpeg)$/.test(f.type)).slice(0, n);
   const sets = { ig: files('ig', 20), x: files('x', 4) };
   if ([...sets.ig, ...sets.x].some((f) => f.size > SCHED.img)) return json({ error: 'Visuel trop lourd (1,4 Mo au plus)' }, 413);
-  if (posts.some((p) => p.network !== 'bluesky') && !sets.ig.length) return json({ error: 'Aucune image' }, 400);
+  if (!video && posts.some((p) => p.network !== 'bluesky') && !sets.ig.length) return json({ error: 'Aucune image' }, 400);
   if (posts.some((p) => p.network === 'bluesky') && !sets.x.length) return json({ error: 'Aucune image' }, 400);
+  const tiktok = video && nets.includes('tiktok') && form.get('tiktok') ? tiktokOptions(form.get('tiktok')) : null;
+  if (tiktok?.error) return json({ error: tiktok.error }, 400);
   if ((await schedJobs(env)).filter((j) => Object.values(j.nets).some((s) => s.status === 'pending')).length >= SCHED.max) return json({ error: `${SCHED.max} publications programmées au plus` }, 409);
   // Jetons du moment (Threads prolongé si besoin), seulement ceux des réseaux choisis
   const v = await refresh(env, raw, vault);
-  const keys = { ...(nets.some((n) => n !== 'bluesky') ? { meta: v.meta } : {}), ...(nets.includes('threads') ? { threads: v.threads } : {}), ...(nets.includes('bluesky') ? { bluesky: v.bluesky } : {}) };
+  const keys = { ...(nets.some((n) => n !== 'bluesky' && !CLIPS.includes(n)) ? { meta: v.meta } : {}), ...Object.fromEntries(['threads', 'bluesky', ...CLIPS].filter((n) => nets.includes(n)).map((n) => [n, v[n]])) };
   const id = hex(crypto.getRandomValues(new Uint8Array(8)));
   for (const [set, list] of Object.entries(sets)) {
     for (const [i, f] of list.entries()) await setRow(env, `schedimg:${id}:${set}:${i}`, JSON.stringify({ type: f.type, data: b64big(new Uint8Array(await f.arrayBuffer())) }));
   }
-  const job = { id, at, title: String(form.get('title') || '').slice(0, 200), record: record && typeof record === 'object' ? record : null, posts, sets: { ig: sets.ig.length, x: sets.x.length }, keys: await seal(await schedKey(env), keys), created: now };
+  if (video) await env.MEDIA.put(`sched/${id}`, video, { httpMetadata: { contentType: video.type } });
+  const job = { id, at, title: String(form.get('title') || '').slice(0, 200), record: record && typeof record === 'object' ? record : null, posts, sets: { ig: sets.ig.length, x: sets.x.length }, video: video ? video.type : null, tiktok, keys: await seal(await schedKey(env), keys), created: now };
   await setRow(env, `sched:${id}`, JSON.stringify(job));
   return json({ item: schedSummary({ ...job, nets: Object.fromEntries(nets.map((n) => [n, { status: 'pending' }])) }) });
 }
@@ -501,57 +508,71 @@ async function scheduleCancel(env, id) {
   if (!j) return json({ error: 'Publication inconnue' }, 404);
   if (Object.values(j.nets).some((s) => s.status === 'running')) return json({ error: 'Publication en cours' }, 409);
   await delLike(env, `schedimg:${id}:`);
+  await env.MEDIA?.delete(`sched/${id}`);
   await delLike(env, `schedpost:${id}:`);
   await delLike(env, `sched:${id}`);
   return json({ items: (await schedJobs(env)).map(schedSummary) });
 }
 
-// Relevé du serveur : publie les réseaux arrivés à l'heure. Renvoie { published } (le dernier) si un
-// post est parti (le relevé des alertes attend alors le passage suivant), null sinon.
+// Relevé du serveur : publie les programmations arrivées à l'heure. Renvoie { published } (le dernier
+// réseau) si un post est parti (le relevé des alertes attend alors le passage suivant), null sinon.
 export async function runSchedule(env, { now = Date.now() } = {}) {
   if (!env.DB || !env.STATS_KEY) return null;
   const jobs = await schedJobs(env);
   const setState = (j, net, st) => setRow(env, `schedpost:${j.id}:${net}`, JSON.stringify(st));
-  // Plusieurs envois par passage, commencés dans les 40 premières secondes : le passage suivant (une
-  // minute plus tard) relit les états après eux et ne renvoie jamais un post déjà parti
+  // Programmation prise en entier (tous ses réseaux « en cours »), puis publiée réseau après réseau ; les
+  // nouvelles sont commencées dans les 40 premières secondes : le passage suivant (une minute plus tard,
+  // parfois en même temps que celui-ci) relit les états après elles et ne renvoie jamais un post
   const start = Date.now();
   let out = null;
   for (const j of jobs) {
-    for (const p of j.posts) {
-      const st = j.nets[p.network];
-      // Envoi resté « en cours » (serveur interrompu) : jamais renvoyé en double
-      if (st.status === 'running' && now - (st.started || 0) > SCHED.running) { st.status = 'error'; st.error = 'Envoi interrompu : vérifiez sur le réseau'; await setState(j, p.network, st); }
-      if (st.status !== 'pending' || j.at > now || Date.now() - start > 40e3) continue;
-      if (now - j.at > SCHED.late) { st.status = 'expired'; await setState(j, p.network, st); continue; }
-      st.status = 'running';
-      await setState(j, p.network, { status: 'running', started: now });
-      try {
-        const keys = await open(await schedKey(env), j.keys);
-        if (!keys) throw new Error('Jetons effacés');
-        const imgs = async (set) => {
-          const list = [];
-          for (let i = 0; i < (j.sets?.[set] || 0); i++) {
-            const row = JSON.parse(await getRow(env, `schedimg:${j.id}:${set}:${i}`) || 'null');
-            if (row) list.push(new Blob([unb64(row.data)], { type: row.type }));
-          }
-          return list;
-        };
-        const tr = await trackPost(env, p.network, { text: p.text, comment: p.network === 'instagram' ? '' : p.comment }, j.record?.title);
-        const r = await sendTo(p.network, keys, { text: tr.text, comment: tr.comment, images: p.network === 'bluesky' ? [] : await imgs('ig'), small: p.network === 'bluesky' ? await imgs('x') : [] }, () => freshThreads(keys.threads));
-        Object.assign(st, { status: 'done', at: Date.now(), ...resultOf(r) });
-        // Stories (24 heures) : pas dans l'historique, qui garde le post du fil
-        if (j.record && !STORIES.includes(p.network)) await setRow(env, 'history', JSON.stringify(addEntry(JSON.parse(await getRow(env, 'history') || '[]'), { ...j.record, at: Date.now(), nets: { [p.network]: { id: st.id, url: st.url } } })));
-      } catch (err) {
-        Object.assign(st, { status: 'error', error: String(err?.message || err).slice(0, 300) });
-      }
-      delete st.started;
-      await setState(j, p.network, st);
-      out = { published: p.network, id: j.id };
+    // Envoi resté « en cours » (serveur interrompu) : jamais renvoyé en double
+    for (const [net, st] of Object.entries(j.nets)) {
+      if (st.status === 'running' && now - (st.started || 0) > SCHED.running) { st.status = 'error'; st.error = 'Envoi interrompu : vérifiez sur le réseau'; await setState(j, net, st); }
     }
-    // Programmation terminée : visuels et jetons effacés, puis la trace au bout de 7 jours
+    const due = j.at <= now && Date.now() - start <= 40e3 ? j.posts.filter((p) => j.nets[p.network].status === 'pending') : [];
+    if (due.length && now - j.at > SCHED.late) {
+      for (const p of due) { j.nets[p.network].status = 'expired'; await setState(j, p.network, j.nets[p.network]); }
+    } else if (due.length) {
+      for (const p of due) { j.nets[p.network].status = 'running'; await setState(j, p.network, { status: 'running', started: now }); }
+      const keys = await open(await schedKey(env), j.keys).catch(() => null);
+      const imgs = async (set) => {
+        const list = [];
+        for (let i = 0; i < (j.sets?.[set] || 0); i++) {
+          const row = JSON.parse(await getRow(env, `schedimg:${j.id}:${set}:${i}`) || 'null');
+          if (row) list.push(new Blob([unb64(row.data)], { type: row.type }));
+        }
+        return list;
+      };
+      // Vidéo relue pour chaque réseau : une seule copie en mémoire à la fois
+      const media = async () => {
+        const o = await env.MEDIA?.get(`sched/${j.id}`);
+        if (!o) throw new Error('Vidéo effacée du serveur');
+        return new Blob([await o.arrayBuffer()], { type: j.video });
+      };
+      for (const p of due) {
+        const st = j.nets[p.network];
+        try {
+          if (!keys) throw new Error('Jetons effacés');
+          const tr = await trackPost(env, p.network, { text: p.text, comment: p.network === 'instagram' ? '' : p.comment }, j.record?.title);
+          const video = j.video && p.network !== 'bluesky' ? await media() : null;
+          const r = CLIPS.includes(p.network)
+            ? await sendClip(p.network, () => (p.network === 'youtube' ? freshYoutube : freshTiktok)(keys[p.network]), new Uint8Array(await video.arrayBuffer()), j.video, tr.text, j.tiktok)
+            : await sendTo(p.network, keys, { text: tr.text, comment: tr.comment, images: p.network === 'bluesky' || video ? [] : await imgs('ig'), small: p.network === 'bluesky' ? await imgs('x') : [], video }, () => freshThreads(keys.threads));
+          Object.assign(st, { status: 'done', at: Date.now(), ...resultOf(r), ...(r.note ? { note: r.note } : {}) });
+          // Stories (24 heures) : pas dans l'historique, qui garde le post du fil
+          if (j.record && !STORIES.includes(p.network)) await setRow(env, 'history', JSON.stringify(addEntry(JSON.parse(await getRow(env, 'history') || '[]'), { ...j.record, at: Date.now(), nets: { [p.network]: { id: st.id, url: st.url } } })));
+        } catch (err) {
+          Object.assign(st, { status: 'error', error: String(err?.message || err).slice(0, 300) });
+        }
+        await setState(j, p.network, st);
+        out = { published: p.network, id: j.id };
+      }
+    }
+    // Programmation terminée : visuels, vidéo et jetons effacés, puis la trace au bout de 7 jours
     const states = Object.values(j.nets);
     if (states.every((s) => !['pending', 'running'].includes(s.status))) {
-      if (j.keys) { await delLike(env, `schedimg:${j.id}:`); const { nets, ...rest } = j; await setRow(env, `sched:${j.id}`, JSON.stringify({ ...rest, keys: null })); }
+      if (j.keys) { await delLike(env, `schedimg:${j.id}:`); await env.MEDIA?.delete(`sched/${j.id}`); const { nets, ...rest } = j; await setRow(env, `sched:${j.id}`, JSON.stringify({ ...rest, keys: null })); }
       if (now - j.at > SCHED.keep) { await delLike(env, `schedpost:${j.id}:`); await delLike(env, `sched:${j.id}`); }
     }
   }
