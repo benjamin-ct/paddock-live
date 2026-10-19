@@ -113,7 +113,9 @@ export async function seasonTab(body, back) {
   const upcoming = ['raceweek', 'weekend', 'records'].includes(state.stype);
   const races = upcoming ? data.races : data.races.filter((r) => r.results.length);
   const def = upcoming ? (races.find((r) => Date.parse(r.date) > Date.now() - 12 * 3600e3) || races.at(-1)) : races.at(-1);
-  body.innerHTML = `${bar}${def ? raceList(races, def, upcoming) : '<p class="hint">Aucune course terminée pour le moment.</p>'}`;
+  // Course au titre : le championnat tel qu'il est, après la dernière course (pas de Grand Prix à choisir)
+  const standings = (r) => `<button class="card hero" data-r="${r.round}"><span class="eyebrow">Classement actuel</span><div class="t">Pilotes et constructeurs</div><div class="meta">Après la manche ${r.round} sur ${data.races.length} · ${esc(r.name)}</div>${icon('next', 'go')}</button>`;
+  body.innerHTML = `${bar}${!def ? '<p class="hint">Aucune course terminée pour le moment.</p>' : state.stype === 'title' ? standings(def) : raceList(races, def, upcoming)}`;
   // Type choisi visible dans la barre (qui défile sur téléphone)
   const on = $('#stypes .on');
   if (on) $('#stypes').scrollLeft = on.offsetLeft - ($('#stypes').clientWidth - on.offsetWidth) / 2;
@@ -173,7 +175,7 @@ async function seasonEditor(year, data, race, back) {
   editor({
     back,
     title: typeName,
-    subtitle: `${d.gp} · manche ${race.round}`,
+    subtitle: state.stype === 'title' ? `Classement après la manche ${race.round} · ${d.gp}` : `${d.gp} · manche ${race.round}`,
     head: `${note ? `<p class="hint">${esc(note)}</p>` : ''}
       ${video ? `${musicField('race', 'depart')}<div class="row"><button class="btn" id="mkvid">${icon('video')}Créer la vidéo (${Math.round(raceVideoTiming(d).duration)} s)</button><button class="btn" id="sharevid" disabled>${icon('share')}Partager</button></div>
         <p class="hint" id="vidst">Vidéo verticale de la course, tour après tour. Garder l'écran allumé pendant l'enregistrement.</p>
