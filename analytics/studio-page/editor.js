@@ -127,8 +127,8 @@ export function editor({ back, title, subtitle = '', head = '', below = false, d
     const linkTab = state.fmt === 'link';
     const slides = linkTab ? [] : slidesFor(d, { fmt: state.fmt, follow: state.follow, question: state.question });
     const lk = linkTab ? link() : null;
-    $('#main').innerHTML = linkTab ? `<div class="linkcard"><small>${esc(new URL(lk.url).hostname.replace(/^www\./, ''))}</small><b>${esc(lk.title)}</b><p>${esc(lk.description)}</p></div>
-      <p class="hint">Sans visuels : Facebook, Threads et X affichent la photo et le titre de l'article ; Bluesky, le titre et le résumé.</p>
+    $('#main').innerHTML = linkTab ? `<div class="linkcard"><div id="lcimg"></div><small>${esc(new URL(lk.url).hostname.replace(/^www\./, ''))}</small><b>${esc(lk.title)}</b><p>${esc(lk.description)}</p></div>
+      <p class="hint">Aperçu de la carte que Facebook, Threads et X affichent (photo de l'article, pas celle choisie pour le Post) ; Bluesky : titre et résumé.</p>
       <div class="row"><button class="btn small" id="xlink">${icon('send')}Ouvrir X avec le lien</button></div>` : `<div class="slides ${state.fmt}">${slides.map((sl) => `<figure class="sl"><canvas data-slide="${sl}" title="${esc(slideName(sl))} : voir en grand"></canvas>
         <label class="pick"><input type="checkbox" data-pick="${sl}" ${state.skip.has(sl) ? '' : 'checked'}><span data-num></span>${esc(slideName(sl))}</label></figure>`).join('')}</div>`;
     const xTab = state.fmt === 'x';
@@ -182,6 +182,7 @@ export function editor({ back, title, subtitle = '', head = '', below = false, d
     }
     if (linkTab) {
       canvases = [];
+      articlePhoto(lk.url).then((src) => { if (src && $('#lcimg')) $('#lcimg').innerHTML = `<img src="${src}" alt="">`; });
       $('#go').onclick = () => publishAll(d, null, record?.(), null, link());
       $('#plan').onclick = () => schedulePanel(d, null, record?.(), null, link());
       $('#xlink').onclick = () => openX([], $('#cap-x').value);
@@ -228,6 +229,13 @@ export function editor({ back, title, subtitle = '', head = '', below = false, d
   glide();
   redraw();
   schedList($('#schedlist'));
+}
+
+// Photo de l'article (celle des aperçus de lien), lue par le serveur : adresse locale, ou null
+const artPhotos = new Map();
+function articlePhoto(url) {
+  if (!artPhotos.has(url)) artPhotos.set(url, api(`artimg?u=${encodeURIComponent(url)}`, { raw: true }).then((r) => r.blob()).then((b) => URL.createObjectURL(b)).catch(() => null));
+  return artPhotos.get(url);
 }
 
 // Vers X (un lien ne transmet que le texte) : menu de partage avec les images et le texte quand le

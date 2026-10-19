@@ -480,3 +480,4 @@ details.cap[open] textarea { animation: in-up .3s var(--ease); }
 .linkcard { display: flex; flex-direction: column; gap: 6px; padding: 16px; border: 1px solid var(--line-2); border-radius: 16px; background: var(--surface); }
 .linkcard small { color: var(--muted); text-transform: uppercase; letter-spacing: .06em; font-size: 11px; }
 .linkcard p { margin: 0; color: var(--text-2); font-size: 14px; }
+.linkcard #lcimg img { display: block; width: 100%; aspect-ratio: 1.91; object-fit: cover; border-radius: 10px; margin-bottom: 6px; }
