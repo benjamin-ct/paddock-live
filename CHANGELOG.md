@@ -4,6 +4,11 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
+## v1.27.51 — à venir
+
+### Mises à jour
+- Téléchargement des mises à jour bien plus rapide : le fichier arrive en plusieurs morceaux à la fois (les serveurs de GitHub sont aux États-Unis, une seule connexion était lente depuis l'Europe). Effet à partir de la mise à jour suivante.
+
 ## v1.27.50 — 2026-10-19
 
 ### Actu

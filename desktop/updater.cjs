@@ -1,4 +1,5 @@
 // Mise à jour automatique de l'application (Windows, Linux AppImage, macOS).
+// Téléchargement en plusieurs morceaux à la fois (un seul flux si le serveur ne découpe pas).
 // Les versions sont lues sur les Releases du dépôt public (package.json → paddockLive.updateRepo),
 // téléchargées en arrière-plan, vérifiées (empreinte SHA-256 fournie par GitHub), puis installées :
 // - Windows, installateur : exécution silencieuse du nouvel installateur, puis relance de l'appli ;
@@ -19,6 +20,7 @@ const REPO = process.env.PADDOCK_UPDATE_REPO || pkg.paddockLive?.updateRepo || '
 const CHECK_EVERY_MS = 6 * 3600 * 1000;
 const CHECK_TIMEOUT_MS = 10000;     // réponse de GitHub
 const STALL_TIMEOUT_MS = 30000;     // téléchargement sans aucune donnée reçue
+const PARTS = 6;                     // morceaux téléchargés en même temps
 
 // Bundle « Paddock Live.app » de l'appli macOS, s'il peut être remplacé (pas lancé depuis l'image disque)
 // macOS lance une appli non signée par Apple et encore « en quarantaine » depuis une copie temporaire
@@ -141,7 +143,61 @@ function within(promise, ms, ctrl) {
   ]).finally(() => clearTimeout(t));
 }
 
+// Fichier en plusieurs morceaux à la fois : les serveurs de GitHub sont aux États-Unis et le débit d'une
+// seule connexion depuis l'Europe est limité. Faux si le serveur ne découpe pas (un seul flux alors).
+async function fetchParts(asset, tmp, ctrl) {
+  const total = asset.size;
+  const size = Math.ceil(total / PARTS);
+  const pc = new AbortController();
+  const stop = () => pc.abort();
+  ctrl.signal.addEventListener('abort', stop);
+  const fd = await fs.promises.open(tmp, 'w');
+  const got = new Array(PARTS).fill(0);
+  let lastBroadcast = 0;
+  try {
+    await Promise.all(got.map(async (_, i) => {
+      const start = i * size;
+      const end = Math.min(total, start + size) - 1;
+      const res = await within(fetch(asset.browser_download_url, { headers: { 'User-Agent': 'Paddock-Live-updater', Range: `bytes=${start}-${end}` }, signal: pc.signal }), STALL_TIMEOUT_MS, pc);
+      if (res.status !== 206 || !res.body) throw Object.assign(new Error('Pas de téléchargement par morceaux'), { noRange: true });
+      const reader = res.body.getReader();
+      let pos = start;
+      try {
+        while (pos <= end) {
+          const { done, value } = await within(reader.read(), STALL_TIMEOUT_MS, pc);
+          if (done) break;
+          const n = Math.min(value.length, end + 1 - pos);
+          await fd.write(value, 0, n, pos);
+          pos += n;
+          got[i] += n;
+          if (Date.now() - lastBroadcast > 300) {
+            lastBroadcast = Date.now();
+            set({ progress: Math.min(1, got.reduce((a, b) => a + b, 0) / total) });
+          }
+        }
+      } finally { reader.cancel().catch(() => {}); }
+      if (pos <= end) throw new Error('Téléchargement incomplet');
+    }));
+  } catch (err) {
+    pc.abort();
+    throw err;
+  } finally {
+    ctrl.signal.removeEventListener('abort', stop);
+    await fd.close();
+  }
+  const hash = crypto.createHash('sha256');
+  for await (const chunk of fs.createReadStream(tmp)) hash.update(chunk);
+  return `sha256:${hash.digest('hex')}`;
+}
+
 async function fetchTo(asset, tmp, ctrl) {
+  if (asset.size > 8e6 && asset.browser_download_url) {
+    const digest = await fetchParts(asset, tmp, ctrl).catch((err) => { if (!err.noRange) throw err; return null; });
+    if (digest) {
+      if (asset.digest && asset.digest !== digest) throw new Error('Fichier téléchargé corrompu (empreinte SHA-256 différente)');
+      return;
+    }
+  }
   // Lien public direct, sinon l'API GitHub (qui redirige vers le même fichier).
   const get = (url, headers) => within(fetch(url, { headers: { 'User-Agent': 'Paddock-Live-updater', ...headers }, signal: ctrl.signal }), STALL_TIMEOUT_MS, ctrl);
   let res = await get(asset.browser_download_url);
