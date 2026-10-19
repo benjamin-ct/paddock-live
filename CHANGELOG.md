@@ -38,6 +38,8 @@ l'application (Réglages → À propos → Nouveautés).
 
 ### F1 TV
 - Extension Paddock Live Companion pour Firefox : paquet sans avertissement (Firefox 140 ou plus récent).
+### Divers
+- Petites améliorations internes.
 
 ## v1.27.52 — 2026-10-19
 

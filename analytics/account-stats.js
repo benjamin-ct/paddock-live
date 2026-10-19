@@ -107,7 +107,7 @@ async function tiktok(tokens, handle, now, renewErrors = []) {
     if (refused && /scope/i.test(refused.message)) throw new Error('statistiques non autorisées : cochez « Statistiques » (TikTok) dans l\'appli et reconnectez-vous');
     // Jeton non renouvelé (accès retiré ou expiré chez TikTok) : à reconnecter, plutôt que « non relié »
     if (renewErrors.length) throw new Error(`connexion TikTok à renouveler : reconnectez TikTok dans l'appli (${renewErrors[0]})`);
-    throw new Error(refused && tokens.filter(Boolean).length === 1 ? refused.message : 'compte non relié : ajoutez-le dans l\'appli (TikTok, 2e compte)');
+    throw new Error(refused ? `TikTok : ${refused.message}` : 'compte non relié : ajoutez-le dans l\'appli (TikTok, 2e compte)');
   }
   const recent = [];
   let cursor;

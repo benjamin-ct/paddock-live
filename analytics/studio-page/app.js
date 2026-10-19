@@ -284,6 +284,11 @@ const clicksHtml = (c) => {
   return `<h3 class="section">Clics sur les liens <small>${c.days} derniers jours</small></h3><div class="list posts">${c.links.map(row).join('')}</div>`;
 };
 const STAT_LABELS = [['views', 'Vues'], ['reach', 'Portée'], ['likes', 'J\'aime'], ['comments', 'Comm.'], ['shares', 'Partages'], ['saves', 'Enreg.']];
+// Chiffres des posts et des comptes : deux appels au serveur, en même temps
+async function loadStats() {
+  const [r, acc] = await Promise.all([api('stats'), api('stats/accounts').catch(() => null)]);
+  return { ...r, accounts: acc?.accounts || r.accounts };
+}
 async function statsTab(body, { force, restore, current }) {
   // Statistiques relues au plus toutes les 2 minutes (sauf « Actualiser »)
   const known = store.get('stats');
@@ -292,7 +297,7 @@ async function statsTab(body, { force, restore, current }) {
   else body.innerHTML = skeleton(4);
   restoreScroll(restore);
   if (recent) return;
-  const r = await api('stats');
+  const r = await loadStats();
   if (!current()) return;
   store.set('stats', r);
   renderStats(body, r, false);
@@ -322,7 +327,7 @@ function renderStats(body, r, stale) {
       const fails = Object.keys(imp.errors || {}).map((n) => NET_NAMES[n] || n);
       toast(`${imp.added ? `${imp.added} post${imp.added > 1 ? 's' : ''} ajouté${imp.added > 1 ? 's' : ''}` : 'Aucun nouveau post trouvé'}${fails.length ? ` (illisible : ${fails.join(', ')})` : ''}`, imp.added ? 'ok' : undefined);
       if (imp.added) {
-        const next = await api('stats');
+        const next = await loadStats();
         store.set('stats', next);
         renderStats(body, next, false);
       }
