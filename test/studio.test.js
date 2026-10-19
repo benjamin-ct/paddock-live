@@ -133,6 +133,17 @@ test('page du créateur : relais limités (sources connues, archives F1, images 
   assert.equal((await worker('https://s.test/studio/api/feed?id=inconnu', h)).status, 404);
   assert.equal((await worker('https://s.test/studio/api/archive?p=../../etc/passwd', h)).status, 400);
   assert.equal((await worker('https://s.test/studio/api/archive?p=2026/x/../y/Index.json', h)).status, 400);
+  // Archives refusées sans connexion F1 TV (401 depuis octobre 2026) ou pas encore publiées : raison précise
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => new Response('', { status: String(url).includes('/2026/') ? 404 : 401 });
+  try {
+    let r = await worker('https://s.test/studio/api/archive?p=2025/Index.json', h);
+    assert.equal(r.status, 502);
+    assert.match((await r.json()).error, /réservées aux abonnés F1 TV/);
+    r = await worker('https://s.test/studio/api/archive?p=2026/Index.json', h);
+    assert.equal(r.status, 404);
+    assert.equal((await r.json()).error, 'Archive pas encore publiée');
+  } finally { globalThis.fetch = realFetch; }
   assert.equal((await worker(`https://s.test/studio/api/img?u=${encodeURIComponent('https://evil.test/a.png')}`, h)).status, 400);
   assert.equal((await worker('https://s.test/studio/api/publish', { method: 'POST', body: new FormData(), ...h })).status, 409);   // pas de comptes
 });

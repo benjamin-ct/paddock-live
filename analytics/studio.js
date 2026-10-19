@@ -185,7 +185,7 @@ async function cached(req, url, init, ttl) {
   const hit = await cache.match(key);
   if (hit) return hit;
   const res = await fetch(url, init);
-  if (res.status !== 200) return new Response(null, { status: res.status === 404 ? 404 : 502 });
+  if (res.status !== 200) return new Response(null, { status: [401, 403, 404].includes(res.status) ? res.status : 502 });
   const out = new Response(res.body, { status: 200, headers: { 'Content-Type': res.headers.get('Content-Type') || 'application/octet-stream', 'Cache-Control': `max-age=${ttl}` } });
   await cache.put(key, out.clone());
   return out;
@@ -251,13 +251,18 @@ async function archive(req, url, vault) {
   const p = url.searchParams.get('p') || '';
   if (!/^\d{4}\/[\w .,'()-]+(\/[\w .,'()-]+)*\.(json|jsonStream)$/.test(p) || p.includes('..')) return json({ error: 'Chemin invalide' }, 400);
   const ttl = p.endsWith('Index.json') ? 300 : 600;
-  // Archives de la F1 : accès libre, sinon avec la connexion F1 TV de l'appli
+  // Archives de la F1 : accès libre, sinon avec la connexion F1 TV de l'appli (refusées sans depuis octobre 2026)
   let res = await cached(req, ARCHIVE + p, { headers: { 'User-Agent': UA } }, ttl);
-  if ((res.status === 502 || res.status === 404) && vault?.f1tv) {
-    res = await cached(req, ARCHIVE + p, { headers: { 'User-Agent': UA, Authorization: `Bearer ${vault.f1tv}`, ascendontoken: vault.f1tv } }, ttl);
-  }
-  if (res.status !== 200) return json({ error: vault?.f1tv ? 'Archive indisponible (pas encore publiée, ou session formula1.com expirée après ~30 jours : reconnectez F1 TV dans l\'appli)' : 'Archives réservées aux abonnés F1 TV : connectez F1 TV dans l\'appli, puis réactivez la page' }, res.status === 404 ? 404 : 502);
-  return res;
+  const live = vault?.f1tv && jwtExp(vault.f1tv) > Date.now();
+  if (res.status !== 200 && live) res = await cached(req, ARCHIVE + p, { headers: { 'User-Agent': UA, Authorization: `Bearer ${vault.f1tv}`, ascendontoken: vault.f1tv } }, ttl);
+  if (res.status === 200) return res;
+  // Raison précise, affichée par le Studio
+  const error = res.status === 404 ? 'Archive pas encore publiée'
+    : !vault?.f1tv ? 'Archives réservées aux abonnés F1 TV : connectez F1 TV dans l\'appli'
+    : !live ? 'Connexion F1 TV expirée : ouvrez l\'appli Paddock Live pour la renvoyer (sinon reconnectez-vous sur formula1.com)'
+    : res.status === 401 || res.status === 403 ? 'La F1 refuse la connexion F1 TV envoyée par l\'appli : reconnectez-vous sur formula1.com'
+    : 'Archives de la F1 injoignables pour le moment';
+  return json({ error }, res.status === 404 ? 404 : 502);
 }
 
 // Page d'un article de l'Actu (résumé détaillé, lu dans le navigateur) : https seulement, nom de site

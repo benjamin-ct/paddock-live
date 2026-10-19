@@ -8,7 +8,7 @@ import { circuitInfo } from '/shared/circuits-info.js';
 import { editionOf, recordsOf, recordYears } from '/shared/circuit-records.js';
 import { parseRaceControl, raceSessionPath } from '/shared/race-story.js';
 import { makeAnimation, unlockAudio } from '/shared/social-video.js';
-import { $, $$, esc, api, icon, store, skeleton, toast, state, session, SIG, musicField, bindMusic, clipFile } from './ui.js';
+import { $, $$, esc, api, icon, store, skeleton, toast, state, SIG, musicField, bindMusic, clipFile } from './ui.js';
 import { latestDrivers } from './data.js';
 import { editor, assets } from './editor.js';
 
@@ -60,7 +60,7 @@ async function recordsFor(year, key) {
     return e;
   }).catch((err) => { failed ||= err; return null; })));
   const rec = recordsOf(key, editions);
-  if (!rec.editions.length && failed) throw new Error(session.me.f1tv ? 'Archives de la F1 indisponibles pour le moment' : 'Archives réservées aux abonnés F1 TV : connectez F1 TV dans l\'appli, puis réactivez la page');
+  if (!rec.editions.length && failed) throw failed;   // raison donnée par le serveur (connexion F1 TV expirée, refusée…)
   return rec;
 }
 const lapsOf = (year, round) => memoOf(`l2${year}-${round}`, async () => {
