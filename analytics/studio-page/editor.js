@@ -128,11 +128,11 @@ export function editor({ back, title, subtitle = '', head = '', below = false, d
     const slides = linkTab ? [] : slidesFor(d, { fmt: state.fmt, follow: state.follow, question: state.question });
     const lk = linkTab ? link() : null;
     $('#main').innerHTML = linkTab ? `<div class="linkcard"><div id="lcimg"></div><small>${esc(new URL(lk.url).hostname.replace(/^www\./, ''))}</small><b>${esc(lk.title)}</b><p>${esc(lk.description)}</p></div>
-      <p class="hint">Carte de l'article sur Facebook, Threads et X ; titre et résumé sur Bluesky.</p>
+      <p class="hint">Carte de l'article sur Facebook, Threads et X ; titre et résumé sur Bluesky ; Instagram : visuels de l'onglet Post.</p>
       <div class="row"><button class="btn small" id="xlink">${icon('send')}Ouvrir X avec le lien</button></div>` : `<div class="slides ${state.fmt}">${slides.map((sl) => `<figure class="sl"><canvas data-slide="${sl}" title="${esc(slideName(sl))} : voir en grand"></canvas>
         <label class="pick"><input type="checkbox" data-pick="${sl}" ${state.skip.has(sl) ? '' : 'checked'}><span data-num></span>${esc(slideName(sl))}</label></figure>`).join('')}</div>`;
     const xTab = state.fmt === 'x';
-    const shown = ([k]) => (linkTab ? ['facebook', 'threads', 'bsky', 'x'].includes(k) : xTab ? k === 'x' || (k === 'comment' && c[k]) : k !== 'x' && (k === 'instagram' || k === 'threads' || k === 'bsky' || c[k]));
+    const shown = ([k]) => (linkTab ? ['instagram', 'facebook', 'threads', 'bsky', 'x'].includes(k) : xTab ? k === 'x' || (k === 'comment' && c[k]) : k !== 'x' && (k === 'instagram' || k === 'threads' || k === 'bsky' || c[k]));
     $('#texts').innerHTML = `<section class="panel"><h3 class="section">Textes</h3>${CAPS.filter(shown).map(([k, label, rows, max = 0, limit = 0], i) => `
       <details class="cap" ${i === 0 ? 'open' : ''}><summary><span>${esc(label(c))}</span><small data-count="${k}"></small></summary>
         <textarea id="cap-${k}" rows="${rows}" ${max ? `maxlength="${max}"` : ''} data-limit="${limit || max}">${esc(c[k])}</textarea>
@@ -156,7 +156,7 @@ export function editor({ back, title, subtitle = '', head = '', below = false, d
     const vid = video();
     const story = !vid && state.fmt === 'story';
     const list = story ? [['instagram-story', 'Story Instagram'], ['facebook-story', 'Story Facebook']]
-      : linkTab ? [['facebook', 'Facebook'], ['threads', 'Threads'], ['bluesky', 'Bluesky']]
+      : linkTab ? [['instagram', 'Instagram'], ['facebook', 'Facebook'], ['threads', 'Threads'], ['bluesky', 'Bluesky']]
       : [['instagram', 'Instagram'], ['facebook', 'Facebook'], ['threads', 'Threads'], ['bluesky', 'Bluesky'], ...(vid ? [['tiktok', 'TikTok'], ['youtube', 'YouTube Shorts']] : [])];
     $('#go').innerHTML = `${icon('send')}${xTab ? 'Ouvrir X' : 'Publier'}`;
     $('#plan').hidden = xTab;
@@ -306,9 +306,10 @@ async function postImages(d, o, nets, maxIg = Infinity) {
 
 // Post confié au serveur (visuels ou vidéo, textes), publié à l'heure `at` même page fermée
 // video : envoyée à tous les réseaux sauf Bluesky (visuels) ; tk : réglages d'une publication directe TikTok ;
-// link : post « lien » sans visuels (carte de l'article)
+// link : post « lien » (carte de l'article), sauf Instagram qui n'en a pas : visuels de l'onglet Post
 async function queuePost(d, o, nets, at, record, video = null, tk = null, link = null) {
-  const imgs = link ? { ig: [], x: [] } : await postImages(d, o, video ? nets.filter((n) => n === 'bluesky') : nets, 1.3e6);
+  const imgs = !link ? await postImages(d, o, video ? nets.filter((n) => n === 'bluesky') : nets, 1.3e6)
+    : { ig: nets.includes('instagram') ? (await postImages(d, o || await assets(d), ['instagram'], 1.3e6)).ig : [], x: [] };
   const form = new FormData();
   form.append('at', String(at));
   form.append('title', record?.title || d.title || d.gp || 'Post');

@@ -78,7 +78,7 @@ export async function newsEditor(it, done, back) {
   const failed = title === null || summary === null;
   let breaking = null;   // très grosse info choisie à la main (sinon : détectée)
   let made = null;       // vidéo Breaking news fabriquée (MP4), jointe au post
-  let pic = null;        // photo choisie (libre de droits, ou celle de l'article d'une livrée) : { image, credit }
+  let pic = null;        // photo choisie (libre de droits, ou celle de l'article) : { image, credit }
   const look = it.link && LOOKS.has(newsKind(it).key) ? newsKind(it).key : '';   // livrée ou tenue spéciale
   const make = async (t, s, p = '') => {
     const nd = newsPost(it, { title: t, summary: s, points: p, driverList: await latestDrivers(), sourceName: it.srcName });
@@ -99,8 +99,8 @@ export async function newsEditor(it, done, back) {
       <label class="field"><span>Points clés, un par ligne <small>(images suivantes du carrousel)</small></span><textarea id="npoints" rows="5" maxlength="1600" placeholder="Facultatif : « Résumé détaillé » ou à écrire soi-même"></textarea></label>
       ${it.link ? `<div class="row"><button class="btn small" id="nsummary">${icon('wand')}Résumé détaillé</button><span class="hint" id="nsumst"></span></div>` : ''}
       ${PHOTO_ROW('n')}
-      ${look ? `<div class="row"><button class="btn small" id="nartimg">${icon('image')}Photo de la ${look === 'tenue' ? 'tenue' : 'livrée'} (article)</button></div>
-        <p class="hint">Photo de l'article (« via ${esc(it.srcName)} » crédité).</p>` : ''}
+      ${/^https:\/\//.test(it.link || '') ? `<div class="row"><button class="btn small" id="nartimg">${icon('image')}${look ? `Photo de la ${look === 'tenue' ? 'tenue' : 'livrée'} (article)` : 'Photo de l\'article'}</button></div>
+        <p class="hint">Dans les visuels, « via ${esc(it.srcName)} » crédité.</p>` : ''}
       ${toggle('linkcomment', 'Lien en premier commentaire', state.linkComment, 'Facebook, Threads, Bluesky, X')}
       ${NEWS_VIDEO(d.breaking)}
       <p class="hint">${failed ? 'Traduction indisponible : textes en version originale, à traduire à la main.' : 'Traduction automatique : à relire.'}</p>`,

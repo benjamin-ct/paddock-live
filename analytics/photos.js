@@ -2,6 +2,8 @@
 // les licences qui permettent de réutiliser et de modifier la photo, usage commercial compris (ni « NC »
 // ni « ND ») ; chaque photo vient avec son auteur et sa licence, à créditer sur le visuel.
 export const PHOTO_UA = 'PaddockLive/1.0 (https://paddocklive.app; Studio du créateur)';
+// Source trop lente : abandonnée au bout de 8 s (les autres répondent quand même)
+const get = (fetchFn, url) => fetchFn(url, { headers: { 'User-Agent': PHOTO_UA }, signal: AbortSignal.timeout(8000) });
 const FREE = (name) => !!name && !/\b(NC|ND)\b|non-?commercial|no ?deriv|all rights reserved|fair use/i.test(name);
 const strip = (h) => String(h || '').replace(/<[^>]*>/g, '').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
 // Nom court de la licence pour le crédit (« CC BY-SA 2.0 »)
@@ -24,7 +26,7 @@ const recent = (list) => list.sort((a, b) => b.year - a.year);
 async function commonsSearch(search, fetchFn) {
   const p = new URLSearchParams({ action: 'query', format: 'json', generator: 'search', gsrsearch: `${search} filetype:bitmap`, gsrnamespace: '6', gsrlimit: '20', gsrsort: 'create_timestamp_desc',
     prop: 'imageinfo', iiprop: 'url|extmetadata|timestamp', iiurlwidth: '1280', iiextmetadatafilter: 'Artist|LicenseShortName' });
-  const j = await (await fetchFn(`https://commons.wikimedia.org/w/api.php?${p}`, { headers: { 'User-Agent': PHOTO_UA } })).json();
+  const j = await (await get(fetchFn, `https://commons.wikimedia.org/w/api.php?${p}`)).json();
   return Object.values(j.query?.pages || {}).sort((a, b) => (a.index || 0) - (b.index || 0)).map((pg) => {
     const ii = pg.imageinfo?.[0];
     const license = strip(ii?.extmetadata?.LicenseShortName?.value);
@@ -32,22 +34,21 @@ async function commonsSearch(search, fetchFn) {
     return { url: ii.thumburl, thumb: ii.thumburl.replace(/\/\d+px-/, '/330px-'), author: strip(ii.extmetadata?.Artist?.value).slice(0, 80) || 'Wikimedia Commons', license: shortLicense(license), site: 'Wikimedia Commons', page: ii.descriptionurl || '', year: year(pg.title, ii.timestamp) };
   }).filter(Boolean);
 }
-// D'abord les fichiers qui portent le nom cherché (« Haas VF-26 of Esteban Ocon »), plus récents en tête ; s'il
-// y en a peu, complétés par une recherche dans les descriptions, « Formula 1 » ajouté (sinon « Ocon » trouve
-// aussi des gravures anciennes)
+// D'abord les fichiers qui portent le nom cherché (« Haas VF-26 of Esteban Ocon »), plus récents en tête ;
+// ensuite la recherche dans les descriptions, « Formula 1 » ajouté (sinon « Ocon » trouve aussi des gravures
+// anciennes). Les deux recherches en même temps.
 async function commons(q, fetchFn) {
-  const named = recent(await commonsSearch(`intitle:"${q.replace(/"/g, '')}"`, fetchFn));
-  if (named.length >= 12) return named;
   const term = /\bf1\b|formul|formel|grand prix/i.test(q) ? q : `${q} Formula 1`;
+  const [named, loose] = await Promise.all([commonsSearch(`intitle:"${q.replace(/"/g, '')}"`, fetchFn).catch(() => []), commonsSearch(term, fetchFn).catch(() => [])]);
   const seen = new Set(named.map((p) => p.url));
-  return [...named, ...recent(await commonsSearch(term, fetchFn).catch(() => [])).filter((p) => !seen.has(p.url))];
+  return [...recent(named), ...recent(loose).filter((p) => !seen.has(p.url))];
 }
 
 // Photos Flickr sous licence libre, par Openverse (moteur de recherche de la fondation WordPress, sans
 // clé : l'API de Flickr est réservée aux comptes payants). Licences filtrées par Openverse et ici.
 async function flickr(q, fetchFn) {
   const p = new URLSearchParams({ q, source: 'flickr', license_type: 'commercial,modification', page_size: '15', mature: 'false' });
-  const j = await (await fetchFn(`https://api.openverse.org/v1/images/?${p}`, { headers: { 'User-Agent': PHOTO_UA } })).json();
+  const j = await (await get(fetchFn, `https://api.openverse.org/v1/images/?${p}`)).json();
   return (j.results || []).map((r) => {
     const license = r.license === 'cc0' ? 'CC0' : r.license === 'pdm' ? 'Domaine public' : `CC ${String(r.license || '').toUpperCase()} ${r.license_version || ''}`.trim();
     return /^https:\/\/live\.staticflickr\.com\//.test(r.url || '') && FREE(license)

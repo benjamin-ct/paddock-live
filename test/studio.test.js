@@ -407,17 +407,22 @@ test('page du créateur : post « lien » sans visuels (carte de l\'article affi
   const fetchFn = (url, init) => worker(url, init);
   await enableStudio(CODE, { fetchFn });
   const key = { 'X-Studio-Key': studioKey(CODE) };
-  const add = (link, posts = [{ network: 'facebook', text: 'Texte Facebook https://www.formula1.com/a' }, { network: 'bluesky', text: 'Texte Bluesky' }]) => {
+  const add = (link, posts = [{ network: 'facebook', text: 'Texte Facebook https://www.formula1.com/a' }, { network: 'bluesky', text: 'Texte Bluesky' }], ig = 0, at = Date.now()) => {
     const f = new FormData();
-    f.append('at', String(Date.now()));
+    f.append('at', String(at));
     f.append('title', 'Article');
     f.append('posts', JSON.stringify(posts));
     f.append('link', JSON.stringify(link));
+    for (let i = 0; i < ig; i++) f.append('ig', new Blob([new Uint8Array([0xff, 0xd8, 0xff, i])], { type: 'image/jpeg' }), `image-${i + 1}.jpg`);
     return worker('https://s.test/studio/api/schedule', { method: 'POST', body: f, headers: key });
   };
   const link = { url: 'https://www.formula1.com/a', title: 'Le titre', description: 'Le résumé' };
   assert.equal((await add({ url: 'http://pas-https.test/a' })).status, 400);
-  assert.equal((await add(link, [{ network: 'instagram', text: 'x' }])).status, 400);   // Instagram : pas de lien
+  // Instagram n'a pas de lien : visuels de l'onglet Post, obligatoires
+  assert.equal((await add(link, [{ network: 'instagram', text: 'x' }])).status, 400);
+  const igItem = (await (await add(link, [{ network: 'instagram', text: 'x' }], 1, Date.now() + 3600e3)).json()).item;
+  assert.ok(igItem.id);
+  await worker('https://s.test/studio/api/schedule/cancel', { method: 'POST', body: JSON.stringify({ id: igItem.id }), headers: key });
   const { item } = await (await add(link)).json();
   const realFetch = globalThis.fetch;
   const sent = {};
