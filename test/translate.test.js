@@ -95,6 +95,8 @@ test('traduction partagée : consignes F1 envoyées, réponse mal formée -> tra
   const sys = f.calls[0].input.messages[0].content;
   assert.match(sys, /Keep names of drivers/);
   assert.match(sys, /rentre aux stands/);
+  assert.match(sys, /not word for word/);
+  assert.match(sys, /LES CHIFFRES/);
   const g = fakeEnv({ garbled: true });
   const r = await translateBatch(g.env, { to: 'fr', items: [{ text: 'a', from: 'en' }, { text: 'b', from: 'de' }] }, 'd');
   assert.deepEqual(r.out, ['[fr] a', '[fr] b']);

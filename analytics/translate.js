@@ -1,14 +1,15 @@
 // Traduction partagée (Workers AI) : chaque texte n'est traduit qu'une fois pour tous les utilisateurs
 // de Paddock Live, puis gardé dans la base. Plafond quotidien contre les abus ; au-delà, l'appli
 // traduit sur l'ordinateur comme avant.
-// Modèle de langage (Mistral Small 3.1) avec des consignes F1 : noms propres gardés, jargon des fans.
+// Modèle de langage (Mistral Small 3.1) avec des consignes F1 : noms propres gardés, jargon des fans,
+// sens traduit plutôt que mot à mot (titres écrits comme dans la presse sportive, exemples à l'appui).
 // Plusieurs textes par appel ; réponse mal formée -> modèle de traduction simple (m2m100) en secours.
 // Traduction avec des caractères d'une autre écriture (chinois glissé dans du français…) : refaite.
 import { badTranslation } from '../shared/translation-check.js';
 import { aiQuota } from './quota.js';
 export const MODEL = '@cf/mistralai/mistral-small-3.1-24b-instruct';
 export const FALLBACK = '@cf/meta/m2m100-1.2b';
-const MODEL_TAG = 'ms31';   // dans la clé du cache : changer de modèle = nouvelles traductions
+const MODEL_TAG = 'ms31b';  // dans la clé du cache : changer de modèle ou de consignes = nouvelles traductions
 const PER_CALL = 8;
 const NAMES = { fr: 'French', en: 'English', es: 'Spanish', de: 'German', it: 'Italian', nl: 'Dutch', pt: 'Portuguese', ja: 'Japanese', zh: 'Chinese' };
 export const LANGS = ['fr', 'en', 'es', 'de', 'it', 'nl', 'pt', 'ja', 'zh'];
@@ -21,11 +22,19 @@ export async function keyOf(from, to, text) {
   return hex(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${MODEL_TAG}|${from}|${to}|${text}`)));
 }
 
-const system = (to) => `You are a professional translator for a Formula 1 app. Translate each input text into ${NAMES[to]}.
+const FR = ` Team radio jargon: "box, box" = "rentre aux stands", "copy" = "reçu", "lift and coast" = "lever le pied", "deg" = "dégradation", "softs/mediums/hards" = "tendres/mediums/durs", "pole" = "pole position". Race control: "stewards" = "commissaires", "track limits" = "limites de piste", "time deleted" = "temps supprimé", "noted" = "noté", "under investigation" = "sous enquête", "safety car" = "voiture de sécurité", "timed at" = "à", "pass holders" = "titulaires d’un pass". News: "team/equipe" = "écurie", "car/carro" = "monoplace", "FP1/TL1" = "EL1", "qualifying/classificação" = "qualifications", "power unit" = "moteur", "pit stop" = "arrêt au stand", "upgrades" = "évolutions", "revenue/receita" = "chiffre d’affaires" or "recettes", "vice-champion/vice-campeão" = "vice-champion". French typography: space before ":" ";" "?" "!". Write French accents and cedillas correctly, even in capital letters.
+Examples of good French:
+"F1: VICE-CAMPEÃ DE 2025, MERCEDES SUPERA RECEITA BILIONÁRIA DA MCLAREN; VEJA NÚMEROS" -> "F1 : VICE-CHAMPIONNE 2025, MERCEDES DÉPASSE LE MILLIARD DE RECETTES DE MCLAREN : LES CHIFFRES"
+"Hamilton reveals what went wrong in Brazil" -> "Hamilton explique ce qui n’a pas marché au Brésil"
+"Watch: Norris's stunning lap that secured pole" -> "Vidéo : le tour magique de Norris pour la pole"`;
+
+const system = (to) => `You are a professional ${NAMES[to]}-speaking F1 journalist translating for a Formula 1 app. Translate each input text into ${NAMES[to]}.
 Rules:
+- Translate the meaning, not word for word: write what a native ${NAMES[to]}-speaking sports journalist would write. Rephrase expressions that sound unnatural when translated literally; never invent or drop a fact.
+- Headlines stay short headlines in the style of ${NAMES[to]} sports media. Calls to action such as "see the numbers", "watch", "veja", "confira", "check out" become a short label (the figures, video…) or are dropped.
 - Keep names of drivers, teams, people, circuits, cities, sponsors and car models exactly as written (e.g. Câmara, Verstappen, Red Bull, Haas, Marina Bay). Never translate a surname as a common word.
-- Use the natural vocabulary of ${NAMES[to]}-speaking F1 fans and commentators.${to === 'fr' ? ' Team radio jargon: "box, box" = "rentre aux stands", "copy" = "reçu", "lift and coast" = "lever le pied", "deg" = "dégradation", "softs/mediums/hards" = "tendres/mediums/durs", "pole" = "pole position". Race control: "stewards" = "commissaires", "track limits" = "limites de piste", "time deleted" = "temps supprimé", "noted" = "noté", "under investigation" = "sous enquête", "safety car" = "voiture de sécurité", "timed at" = "à", "pass holders" = "titulaires d’un pass". Write French accents and cedillas correctly, even in capital letters.' : ''}
-- Keep quotes, numbers, units and punctuation. Do not add explanations, notes or quotes around the result.
+- Use the natural vocabulary of ${NAMES[to]}-speaking F1 fans and commentators.${to === 'fr' ? FR : ''}
+- Keep the capitalisation style, quotes, numbers, units and the meaning of punctuation. Do not add explanations, notes or quotes around the result.
 - The input is a JSON array of strings. Answer ONLY with a JSON array of the translations, same order, same length.`;
 
 // Réponse du modèle -> liste de chaînes (ou null si mal formée)
