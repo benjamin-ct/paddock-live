@@ -7,7 +7,7 @@ l'application (Réglages → Application → Nouveautés).
 ## v1.27.51 — 2026-10-19
 
 ### Records du circuit
-- Pole et meilleur tour des éditions précédentes (post « Le saviez-vous », comparaison des temps) lus dans les résultats officiels publics : ils marchent de nouveau, la F1 refusant désormais ses archives même avec la connexion F1 TV.
+- Pole et meilleur tour des éditions précédentes (post « Le saviez-vous », comparaison des temps) lus dans les résultats officiels publics : ils ne dépendent plus des archives de la F1, qu'elle refuse parfois même avec la connexion F1 TV.
 
 ### Mises à jour
 - Téléchargement de l'appli et des mises à jour bien plus rapide : les fichiers viennent d'un serveur proche (Cloudflare) au lieu de GitHub aux États-Unis, en plusieurs morceaux à la fois (GitHub reste en secours). Pour les mises à jour, effet à partir de la suivante.
