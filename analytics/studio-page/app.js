@@ -14,8 +14,19 @@ import { cachedNews, freshNews, toFrench, knownFrench, cachedSessions, seasonSes
 const app = $('#app');
 // Ancienne adresse (*.workers.dev) : même page sur le nom de domaine (code à entrer une fois de plus)
 if (/\.workers\.dev$/.test(location.hostname)) location.replace(`https://paddocklive.app${location.pathname}${location.search}${location.hash}`);
-const posts = () => import('./posts.js');
-const season = () => import('./season.js');
+// Studio mis à jour pendant que la page était ouverte : les fichiers de son ancienne version n'existent
+// plus sur le serveur, la page est rechargée (une fois par version) pour prendre la nouvelle. Seulement
+// à l'ouverture d'un écran : un préchargement raté (appli en veille) ne recharge rien
+const lazy = (load) => () => load().catch((err) => {
+  let again = true;
+  try { again = sessionStorage.getItem('studio.reload') !== import.meta.url; sessionStorage.setItem('studio.reload', import.meta.url); } catch { /* stockage refusé */ }
+  if (!again) throw err;
+  location.reload();
+  return new Promise(() => {});
+});
+const loadPosts = () => import('./posts.js');
+const posts = lazy(loadPosts);
+const season = lazy(() => import('./season.js'));
 const scrolls = {};   // position dans chaque onglet, retrouvée au retour d'un post
 
 // ---------- Accès ----------
@@ -146,7 +157,7 @@ async function newsTab(body, { force, restore, current }) {
   const y = scrollY;
   renderNews(body, items, { at: Date.now() });
   if (known) scrollTo(0, y);
-  setTimeout(() => posts().catch(() => {}), 300);   // éditeur préchargé
+  setTimeout(() => loadPosts().catch(() => {}), 300);   // éditeur préchargé
 }
 
 // Titres pas encore traduits de la liste affichée : demandés au serveur, remplacés dès qu'ils
@@ -214,7 +225,7 @@ async function sessionsTab(body, { force, restore, current }) {
   const list = await seasonSessions({ force });
   if (!current()) return;
   renderSessions(body, list);
-  setTimeout(() => posts().catch(() => {}), 300);
+  setTimeout(() => loadPosts().catch(() => {}), 300);
 }
 function renderSessions(body, list) {
   if (!list.length) {
