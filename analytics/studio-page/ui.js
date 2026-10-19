@@ -203,8 +203,9 @@ export function sheet(title, html) {
 const SCHED_ST = { pending: 'à venir', running: 'en cours…', done: 'publié', error: 'erreur', expired: 'abandonné (plus de 24 h de retard)' };
 export async function schedList(el) {
   if (!el) return;
-  const r = await api('schedule').catch(() => ({ items: [] }));
-  const items = (r.items || []).filter((j) => j.at > Date.now() - 2 * 86400e3);
+  // Publications du serveur (null si la liste n'a pas pu être lue)
+  const r = await api('schedule').catch(() => null);
+  const items = (r?.items || []).filter((j) => j.at > Date.now() - 2 * 86400e3);
   el.innerHTML = items.length ? `<h3 class="section">Publications programmées</h3><div class="list">${items.map((j) => {
     const states = Object.values(j.nets);
     const cancel = states.some((x) => x.status === 'pending') && !states.some((x) => x.status === 'running' || x.status === 'done');
@@ -223,6 +224,7 @@ export async function schedList(el) {
       schedList(el);
     };
   });
+  return r && (r.items || []);
 }
 
 // ---------- Musique des vidéos : morceaux fabriqués sur place (libres de droits), à écouter avant ----------

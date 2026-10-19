@@ -213,7 +213,7 @@ function renderCalendar() {
         <div class="muted small">${esc(r.circuit || '')} · ${fmtDate(first)} – ${fmtDate(r.date)}</div>
         ${w ? `<div class="small">${icon('trophy')} ${chip(w)} ${r.quali[0] ? `· pole ${chip(r.quali.find((q) => q.pos === 1) || r.quali[0])}` : ''}</div>` : ''}</summary>
       <ul class="sz-sessions">${r.sessions.map((s) => `<li><span>${esc(s.label)}</span><span>${s.t ? `${fmtDate(s.t, { weekday: 'short', day: 'numeric', month: 'short' })} · ${fmtTime(s.t)}` : '—'}</span></li>`).join('')}</ul>
-      ${done(r) ? '' : `<a class="btn small sz-ics" href="#" data-cal="${year}" data-round="${r.round}" title="Séances dans votre agenda (Google, Apple, Outlook) : abonnement mis à jour tout seul, ou fichier de ce week-end">${icon('calendar')} Ajouter ce week-end à mon agenda</a>`}
+      ${done(r) ? '' : `<a class="btn small sz-ics" href="#" data-cal="${year}" data-round="${r.round}" title="Séances dans votre agenda (Google, Apple, Outlook)">${icon('calendar')} Ajouter ce week-end à mon agenda</a>`}
     </details>`;
   }).join('')}</div><p class="muted small"><a class="btn small" href="#" data-cal="${year}" title="Toutes les séances de la saison dans votre agenda (Google, Apple, Outlook), même Paddock Live fermé : abonnement mis à jour tout seul, ou fichier">${icon('calendar')} Ajouter toute la saison à mon agenda</a></p>`;
 }
@@ -386,7 +386,7 @@ function renderH2H() {
     </section>
     ${qualiGapBox(gaps, A, B, ca)}
     </div>
-    <p class="muted small">Duel en course : meilleure place à l'arrivée quand les deux pilotes ont couru (un abandon compte comme une défaite). Écart en qualification : dans la dernière partie disputée par les deux (Q3, sinon Q2, sinon Q1) ; les écarts de plus de 3 % (incident, piste qui change) sont montrés en transparence mais pas comptés.</p>`;
+    <p class="muted small">Course : meilleure place à l'arrivée (abandon = défaite). Qualif : dernière partie disputée par les deux ; écarts de plus de 3 % non comptés.</p>`;
 }
 
 // Course au titre : pilotes et constructeurs encore capables d'être champions ; les autres grisés,

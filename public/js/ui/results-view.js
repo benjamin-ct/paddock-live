@@ -30,7 +30,7 @@ function render() {
       <span class="rp-status${f.final ? ' done' : ''}">${statusLabel(f)}</span></div>
     <div class="rp-layout"><div class="rp-left">${reportHtml(store.state)}${chartHtml(store.state)}</div>
       <div class="rp-right"><section class="sz-box rp-class"><h3>${t('Classement')}</h3>${classificationHtml(store.state)}</section>${numbersHtml(store.state)}</div></div>
-    <div class="rp-foot">${f.final ? `<span class="muted small">${t('Résultats définitifs de la séance.')}</span>` : `<span class="muted small">${t('Résultats provisoires : la séance n\'est pas terminée (au rythme de votre délai TV).')}</span>`}
+    <div class="rp-foot">${f.final ? `<span class="muted small">${t('Résultats définitifs de la séance.')}</span>` : `<span class="muted small">${t('Résultats provisoires : séance pas terminée.')}</span>`}
       <div class="rp-foot-actions"><button class="btn small" data-res="summary">${icon('doc')} ${t('Résumé à copier')}</button>
         <button class="btn small" data-res="standings">${icon('trophy')} ${t('Classement du championnat')}</button>
         <button class="btn small" data-res="title">${icon('star')} ${t('Course au titre')}</button></div></div>`;

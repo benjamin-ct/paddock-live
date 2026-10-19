@@ -11,7 +11,7 @@ import { tiktokPanel, tiktokProblem, tiktokChoice, TIKTOK_PRIVACY } from './tikt
 
 // ---------- Images (photos des pilotes, drapeaux) par le relais du serveur ----------
 const imgCache = new Map();
-function loadImage(url) {
+export function loadImage(url) {
   if (!url) return Promise.resolve(null);
   if (!imgCache.has(url)) {
     imgCache.set(url, api(`img?u=${encodeURIComponent(url)}`, { raw: true }).then((r) => r.blob()).then((b) => createImageBitmap(b)).catch(() => null));
@@ -32,7 +32,8 @@ export async function assets(d) {
   return { photos, flag, logos, signature: SIG };
 }
 
-// Post : Instagram, Facebook, Threads et Bluesky ; X : ses 4 images et son texte, publiés dans l'appli X
+// Post : Instagram, Facebook, Threads et Bluesky ; X : ses 4 images et son texte, publiés dans l'appli X ;
+// Lien (news avec un article) : texte et lien seuls, la carte de l'article affichée par le réseau
 const FORMATS = [['ig', 'Post'], ['story', 'Story'], ['x', 'X']];
 const CAPS = [
   ['instagram', (c) => (c.facebook ? 'Légende Instagram' : 'Légende Instagram et Facebook'), 8],
@@ -77,8 +78,11 @@ addEventListener('touchend', () => {
 // back : retour ; title / subtitle : en-tête ; head : réglages propres au post (HTML), au-dessus des
 // visuels ou en dessous (below) ; data : données des visuels ; caps(d) : textes des données d (sans ce
 // que montrent les images écartées) ; bind(redraw) :
-// branchement des réglages ; record : entrée du journal ; video() : vidéo du créateur jointe au post
-export function editor({ back, title, subtitle = '', head = '', below = false, data, caps, bind = () => {}, record, video = () => null }) {
+// branchement des réglages ; record : entrée du journal ; video() : vidéo du créateur jointe au post ;
+// link() : article { url, title, description } pour un post « lien » (onglet Lien)
+export function editor({ back, title, subtitle = '', head = '', below = false, data, caps, bind = () => {}, record, video = () => null, link = null }) {
+  const formats = link ? [...FORMATS, ['link', 'Lien']] : FORMATS;
+  if (!formats.some(([k]) => k === state.fmt)) state.fmt = 'ig';
   let canvases = [];
   let edited = {};          // textes retouchés à la main : gardés en changeant de format
   state.skip = new Set();   // images écartées de ce post (toutes publiées par défaut)
@@ -87,11 +91,11 @@ export function editor({ back, title, subtitle = '', head = '', below = false, d
   root.innerHTML = `<header class="appbar"><button class="iconbtn" id="back" aria-label="Retour">${icon('back')}</button>
       <div class="titles"><b>${esc(title)}</b>${subtitle ? `<small>${esc(subtitle)}</small>` : ''}</div></header>
     <main class="page">
-      <div class="seg wide" id="fmt">${FORMATS.map(([k, v]) => `<button data-fmt="${k}" class="${state.fmt === k ? 'on' : ''}">${v}</button>`).join('')}</div>
+      <div class="seg wide" id="fmt">${formats.map(([k, v]) => `<button data-fmt="${k}" class="${state.fmt === k ? 'on' : ''}">${v}</button>`).join('')}</div>
       ${head.trim() && !below ? `<section class="panel">${head}</section>` : ''}
       <div id="main" class="preview"></div>
       ${head.trim() && below ? `<section class="panel">${head}</section>` : ''}
-      <section class="panel">
+      <section class="panel" id="opts">
         <h3 class="section">Options</h3>
         ${toggle('photos', 'Photos des pilotes', state.photos)}
         ${toggle('follow', 'Image « Abonnez-vous »', state.follow)}
@@ -120,11 +124,15 @@ export function editor({ back, title, subtitle = '', head = '', below = false, d
     if (changed) edited = {};
     const d = data();
     const c = texts(d);
-    const slides = slidesFor(d, { fmt: state.fmt, follow: state.follow, question: state.question });
-    $('#main').innerHTML = `<div class="slides ${state.fmt}">${slides.map((sl) => `<figure class="sl"><canvas data-slide="${sl}" title="${esc(slideName(sl))} : voir en grand"></canvas>
+    const linkTab = state.fmt === 'link';
+    const slides = linkTab ? [] : slidesFor(d, { fmt: state.fmt, follow: state.follow, question: state.question });
+    const lk = linkTab ? link() : null;
+    $('#main').innerHTML = linkTab ? `<div class="linkcard"><div id="lcimg"></div><small>${esc(new URL(lk.url).hostname.replace(/^www\./, ''))}</small><b>${esc(lk.title)}</b><p>${esc(lk.description)}</p></div>
+      <p class="hint">Carte de l'article sur Facebook, Threads et X ; titre et résumé sur Bluesky ; Instagram : visuels de l'onglet Post.</p>
+      <div class="row"><button class="btn small" id="xlink">${icon('send')}Ouvrir X avec le lien</button></div>` : `<div class="slides ${state.fmt}">${slides.map((sl) => `<figure class="sl"><canvas data-slide="${sl}" title="${esc(slideName(sl))} : voir en grand"></canvas>
         <label class="pick"><input type="checkbox" data-pick="${sl}" ${state.skip.has(sl) ? '' : 'checked'}><span data-num></span>${esc(slideName(sl))}</label></figure>`).join('')}</div>`;
     const xTab = state.fmt === 'x';
-    const shown = ([k]) => (xTab ? k === 'x' || (k === 'comment' && c[k]) : k !== 'x' && (k === 'instagram' || k === 'threads' || k === 'bsky' || c[k]));
+    const shown = ([k]) => (linkTab ? ['instagram', 'facebook', 'threads', 'bsky', 'x'].includes(k) : xTab ? k === 'x' || (k === 'comment' && c[k]) : k !== 'x' && (k === 'instagram' || k === 'threads' || k === 'bsky' || c[k]));
     $('#texts').innerHTML = `<section class="panel"><h3 class="section">Textes</h3>${CAPS.filter(shown).map(([k, label, rows, max = 0, limit = 0], i) => `
       <details class="cap" ${i === 0 ? 'open' : ''}><summary><span>${esc(label(c))}</span><small data-count="${k}"></small></summary>
         <textarea id="cap-${k}" rows="${rows}" ${max ? `maxlength="${max}"` : ''} data-limit="${limit || max}">${esc(c[k])}</textarea>
@@ -137,7 +145,7 @@ export function editor({ back, title, subtitle = '', head = '', below = false, d
       $(`[data-count="${k}"]`).classList.toggle('err', !!lim && n > lim);
     };
     let prep = 0;
-    const prepare = () => { if (xTab) for (const k of ['x', 'comment']) if ($(`#cap-${k}`)) prepareX($(`#cap-${k}`).value, record?.()?.title); };
+    const prepare = () => { if (xTab || linkTab) for (const k of ['x', 'comment']) if ($(`#cap-${k}`)) prepareX($(`#cap-${k}`).value, record?.()?.title); };
     for (const k of CAPS.map(([x]) => x).filter((x) => $(`#cap-${x}`))) {
       count(k);
       $(`#cap-${k}`).oninput = (e) => { edited[k] = e.target.value; count(k); clearTimeout(prep); prep = setTimeout(prepare, 800); };
@@ -148,12 +156,14 @@ export function editor({ back, title, subtitle = '', head = '', below = false, d
     const vid = video();
     const story = !vid && state.fmt === 'story';
     const list = story ? [['instagram-story', 'Story Instagram'], ['facebook-story', 'Story Facebook']]
+      : linkTab ? [['instagram', 'Instagram'], ['facebook', 'Facebook'], ['threads', 'Threads'], ['bluesky', 'Bluesky']]
       : [['instagram', 'Instagram'], ['facebook', 'Facebook'], ['threads', 'Threads'], ['bluesky', 'Bluesky'], ...(vid ? [['tiktok', 'TikTok'], ['youtube', 'YouTube Shorts']] : [])];
     $('#go').innerHTML = `${icon('send')}${xTab ? 'Ouvrir X' : 'Publier'}`;
     $('#plan').hidden = xTab;
     $('#go').disabled = false;
     $('#netsbox').hidden = xTab;
     $('#texts').hidden = story;   // stories : pas de texte publié
+    for (const el of [$('#opts'), $('#share'), $('#dl')]) if (el) el.hidden = linkTab;   // post « lien » : pas de visuels
     $('#netsbox').innerHTML = xTab ? '' : `<h3 class="section">Publier sur</h3>${list.map(([k, v]) => {
       const acc = session.me?.[k.replace('-story', '')];
       return `<label class="switch net"><span><b>${v}</b><small>${esc(acc || 'non connecté')}</small><em class="st" data-st="${k}"></em></span><input type="checkbox" role="switch" data-net="${k}" ${acc ? (k === 'tiktok' || k === 'youtube' ? '' : 'checked') : 'disabled'}></label>`;
@@ -169,6 +179,14 @@ export function editor({ back, title, subtitle = '', head = '', below = false, d
       const show = () => { $('#tkbox').hidden = !tk.checked; if (tk.checked) tiktokPanel($('#tkbox'), vid, textOf('tiktok'), check); else check(); };
       tk.onchange = show;
       show();
+    }
+    if (linkTab) {
+      canvases = [];
+      articlePhoto(lk.url).then((src) => { if (src && $('#lcimg')) $('#lcimg').innerHTML = `<img src="${src}" alt="">`; });
+      $('#go').onclick = () => publishAll(d, null, record?.(), null, link());
+      $('#plan').onclick = () => schedulePanel(d, null, record?.(), null, link());
+      $('#xlink').onclick = () => openX([], $('#cap-x').value);
+      return;
     }
     const o = await assets(d);
     const all = $$('#main canvas');
@@ -196,7 +214,7 @@ export function editor({ back, title, subtitle = '', head = '', below = false, d
       };
     });
     $('#go').onclick = () => (xTab ? openX(canvases, $('#cap-x').value) : publishAll(d, o, record?.(), vid));
-    $('#plan').onclick = () => (vid || story ? toast(`${vid ? 'Post avec vidéo' : 'Stories'} : publication tout de suite seulement, pas de programmation`, 'bad') : schedulePanel(d, o, record?.()));
+    $('#plan').onclick = () => schedulePanel(d, o, record?.(), vid);
     $('#share').onclick = () => share(canvases, state.fmt === 'x' ? $('#cap-x').value : state.fmt === 'ig' ? $('#cap-instagram').value : '');
     // iPhone : « Partager » propose aussi « Enregistrer les images » (Photos)
     if ($('#dl')) $('#dl').onclick = () => download(canvases);
@@ -211,6 +229,13 @@ export function editor({ back, title, subtitle = '', head = '', below = false, d
   glide();
   redraw();
   schedList($('#schedlist'));
+}
+
+// Photo de l'article (celle des aperçus de lien), lue par le serveur : adresse locale, ou null
+const artPhotos = new Map();
+function articlePhoto(url) {
+  if (!artPhotos.has(url)) artPhotos.set(url, api(`artimg?u=${encodeURIComponent(url)}`, { raw: true }).then((r) => r.blob()).then((b) => URL.createObjectURL(b)).catch(() => null));
+  return artPhotos.get(url);
 }
 
 // Vers X (un lien ne transmet que le texte) : menu de partage avec les images et le texte quand le
@@ -279,11 +304,32 @@ async function postImages(d, o, nets, maxIg = Infinity) {
   return { ig: nets.some((n) => n !== 'bluesky') ? await draw(nets.some(isStory) ? 'story' : 'ig', maxIg) : [], x: nets.includes('bluesky') ? await draw('x', 950 * 1024, 4) : [] };
 }
 
+// Post confié au serveur (visuels ou vidéo, textes), publié à l'heure `at` même page fermée
+// video : envoyée à tous les réseaux sauf Bluesky (visuels) ; tk : réglages d'une publication directe TikTok ;
+// link : post « lien » (carte de l'article), sauf Instagram qui n'en a pas : visuels de l'onglet Post
+async function queuePost(d, o, nets, at, record, video = null, tk = null, link = null) {
+  const imgs = !link ? await postImages(d, o, video ? nets.filter((n) => n === 'bluesky') : nets, 1.3e6)
+    : { ig: nets.includes('instagram') ? (await postImages(d, o || await assets(d), ['instagram'], 1.3e6)).ig : [], x: [] };
+  const form = new FormData();
+  form.append('at', String(at));
+  form.append('title', record?.title || d.title || d.gp || 'Post');
+  form.append('record', JSON.stringify(record));
+  form.append('posts', JSON.stringify(nets.map((n) => (isStory(n) ? { network: n } : { network: n, text: textOf(n), comment: link ? '' : commentOf(n) }))));
+  if (link) form.append('link', JSON.stringify(link));
+  imgs.ig.forEach((b, i) => form.append('ig', b, `image-${i + 1}.jpg`));
+  imgs.x.forEach((b, i) => form.append('x', b, `x-${i + 1}.jpg`));
+  if (video) form.append('video', video, video.type === 'video/quicktime' ? 'video.mov' : 'video.mp4');
+  if (tk) form.append('tiktok', JSON.stringify(tk));
+  return (await api('schedule', { method: 'POST', body: form })).item;
+}
+
 // Publication programmée : envoyée au serveur, publiée à l'heure même page fermée
 const localValue = (t) => new Date(t - t.getTimezoneOffset() * 60e3).toISOString().slice(0, 16);
-function schedulePanel(d, o, record = null) {
+function schedulePanel(d, o, record = null, video = null, link = null) {
   const nets = checkedNets();
   if (!nets.length) { toast('Cochez au moins un réseau', 'bad'); return; }
+  const tk = nets.includes('tiktok') ? tiktokChoice() : null;
+  if (nets.includes('tiktok') && tiktokProblem()) { toast(tiktokProblem(), 'bad'); return; }
   const t = new Date(Date.now() + 3600e3);
   t.setMinutes(Math.ceil(t.getMinutes() / 15) * 15, 0, 0);
   const dlg = sheet('Programmer la publication', `<label class="field"><span>Date et heure</span><input type="datetime-local" id="when" value="${localValue(t)}"></label>
@@ -298,17 +344,9 @@ function schedulePanel(d, o, record = null) {
     const btn = $('#dosched', dlg);
     btn.disabled = true;
     st.className = 'hint';
-    st.textContent = 'Envoi des visuels…';
+    st.textContent = video ? 'Envoi de la vidéo…' : 'Envoi des visuels…';
     try {
-      const imgs = await postImages(d, o, nets, 1.3e6);
-      const form = new FormData();
-      form.append('at', String(at));
-      form.append('title', record?.title || d.title || d.gp || 'Post');
-      form.append('record', JSON.stringify(record));
-      form.append('posts', JSON.stringify(nets.map((n) => ({ network: n, text: textOf(n), comment: commentOf(n) }))));
-      imgs.ig.forEach((b, i) => form.append('ig', b, `image-${i + 1}.jpg`));
-      imgs.x.forEach((b, i) => form.append('x', b, `x-${i + 1}.jpg`));
-      await api('schedule', { method: 'POST', body: form });
+      await queuePost(d, o, nets, at, record, video, tk, link);
       dlg.close();
       toast(`Programmé pour le ${new Date(at).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' })}`, 'ok');
       schedList($('#schedlist'));
@@ -320,39 +358,6 @@ function schedulePanel(d, o, record = null) {
   };
 }
 
-// Publication : visuels au format Instagram (JPEG), un réseau après l'autre, progression affichée
-// Envoi d'un post au serveur (réponse en continu : avancement, puis résultat ou erreur)
-// tiktok : réglages d'une publication directe sur TikTok (sinon brouillon)
-export async function sendPost(network, text, blobs, comment = '', video = null, tiktok = null, title = '') {
-  const form = new FormData();
-  form.append('network', network);
-  form.append('text', text);
-  if (title) form.append('title', title);   // nom du lien suivi dans les statistiques
-  if (tiktok) form.append('tiktok', JSON.stringify(tiktok));
-  blobs.forEach((b, i) => form.append('images', b, `image-${i + 1}.jpg`));
-  if (video) form.append('video', video, video.type === 'video/quicktime' ? 'video.mov' : 'video.mp4');
-  if (comment) form.append('comment', comment);
-  const res = await api('publish', { method: 'POST', body: form, raw: true });
-  const reader = res.body.getReader();
-  const dec = new TextDecoder();
-  let buf = '';
-  let result = null;
-  for (;;) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    buf += dec.decode(value, { stream: true });
-    let nl;
-    while ((nl = buf.indexOf('\n')) >= 0) {
-      const msg = JSON.parse(buf.slice(0, nl) || '{}');
-      buf = buf.slice(nl + 1);
-      if (msg.error) throw new Error(msg.error);
-      if (msg.done) result = msg;
-    }
-  }
-  if (!result) throw new Error('Réponse interrompue : vérifiez sur le réseau avant de réessayer');
-  return result;
-}
-
 // Page plein écran avec retour (bouton, geste retour de Safari, glissement depuis le bord)
 export function enterPage(back) {
   scrollTo(0, 0);
@@ -361,7 +366,7 @@ export function enterPage(back) {
 }
 export { goBack };
 
-async function publishAll(d, o, record = null, video = null) {
+async function publishAll(d, o, record = null, video = null, link = null) {
   const nets = checkedNets();
   if (!nets.length) { toast('Cochez au moins un réseau', 'bad'); return; }
   const stories = nets.some(isStory);
@@ -371,32 +376,25 @@ async function publishAll(d, o, record = null, video = null) {
   if (!confirm(`Publier maintenant sur : ${nets.map((n) => NET_NAMES[n] || n).join(', ')} ?\n\n${stories ? 'Les stories seront publiques pendant 24 heures' : `Les posts seront publics${[nets.includes('tiktok') && `TikTok : ${tk ? `publication directe, visible par : ${TIKTOK_PRIVACY[tk.privacy]}` : 'en brouillon'}`, nets.includes('youtube') && 'YouTube : en privé'].filter(Boolean).map((x, i, a) => `${i ? ' ; ' : ' ('}${x}${i === a.length - 1 ? ')' : ''}`).join('')}`}.`)) return;
   const go = $('#go');
   go.disabled = true;
-  $('#netsbox').scrollIntoView({ behavior: 'smooth', block: 'center' });
-  const { ig: blobs, x: bsky } = await postImages(d, o, video ? nets.filter((n) => n === 'bluesky') : nets);
-  let ok = 0;
-  for (const n of nets) {
-    const st = $(`[data-st="${n}"]`);
-    st.className = 'st';
-    const t0 = Date.now();
-    const tick = setInterval(() => { st.textContent = `Envoi… ${Math.round((Date.now() - t0) / 1000)} s`; }, 1000);
-    st.textContent = 'Envoi…';
-    try {
-      // Vidéo : seule envoyée (sauf Bluesky, qui garde les visuels)
-      const withVideo = video && n !== 'bluesky';
-      const result = await sendPost(n, stories ? '' : textOf(n), n === 'bluesky' ? bsky : withVideo ? [] : blobs, stories ? '' : commentOf(n), withVideo ? video : null, n === 'tiktok' ? tk : null, record?.title);
-      ok++;
-      st.className = 'st ok';
-      // Stories (24 heures) : pas dans l'historique, qui garde le post du fil
-      if (record && !stories) api('history', { method: 'POST', body: JSON.stringify({ entry: { ...record, at: Date.now(), nets: { [n]: { id: result.id ?? null, url: result.url || null } } } }) }).catch(() => {});
-      st.innerHTML = (result.url ? `<a href="${esc(result.url)}" target="_blank" rel="noopener">Publié ${icon('check')}</a>` : `Publié ${icon('check')}`)
-        + (result.comment ? ' · commentaire ajouté' : result.commentError ? ` <span class="err">· commentaire refusé : ${esc(result.commentError)}</span>` : '')
-        + (result.note ? ` · ${esc(result.note)}` : '')
-        + (result.visible === false ? ' <span class="err">· pas visible publiquement sur Threads : vérifiez le post (compte ou post masqué)</span>' : '');
-    } catch (err) {
-      st.className = 'st err';
-      st.textContent = err.message;
-    } finally { clearInterval(tick); }
-  }
-  go.disabled = !!(nets.includes('tiktok') && tiktokProblem());
-  toast(ok === nets.length ? 'Publié partout' : ok ? `Publié sur ${ok} réseau${ok > 1 ? 'x' : ''} sur ${nets.length}` : 'Rien n\'a été publié', ok === nets.length ? 'ok' : 'bad');
+  // Confié au serveur (visuels ou vidéo envoyés une fois) : publié dans la minute, même page fermée
+  for (const n of nets) { const st = $(`[data-st="${n}"]`); st.className = 'st'; st.textContent = video ? 'Envoi de la vidéo au serveur…' : 'Envoi au serveur…'; }
+  try {
+    const item = await queuePost(d, o, nets, Date.now(), record, video, tk, link);
+    for (const n of nets) $(`[data-st="${n}"]`).textContent = 'Publication dans la minute';
+    toast('Envoyé : publication dans la minute, vous pouvez quitter la page', 'ok');
+    // Avancement relu tant que la page reste ouverte (5 minutes au plus) ; tout publié : retirée de la liste
+    const list = $('#schedlist');
+    schedList(list);
+    let n = 0;
+    const poll = setInterval(async () => {
+      if (++n > 20 || !list.isConnected) { clearInterval(poll); return; }
+      const items = await schedList(list);
+      if (items && !items.some((x) => x.id === item?.id)) {
+        clearInterval(poll);
+        for (const k of nets) { const st = $(`[data-st="${k}"]`); if (st) { st.className = 'st ok'; st.innerHTML = `Publié ${icon('check')}`; } }
+      }
+    }, 15e3);
+  } catch (err) {
+    for (const n of nets) { const st = $(`[data-st="${n}"]`); st.className = 'st err'; st.textContent = err.message; }
+  } finally { go.disabled = false; }
 }

@@ -20,24 +20,26 @@ function fakeD1() {
             return { id };
           }
           if (sql.startsWith('SELECT tok, files, at FROM feedback_up')) return ups.get(a[0]) || null;
-          if (sql.startsWith('SELECT 1 AS x FROM feedback_files')) return files.find((x) => x.msg === a[0] && x.n === a[1]) ? { x: 1 } : null;
-          if (sql.startsWith('SELECT SUM(LENGTH(data))')) return files.length ? { t: files.reduce((t, x) => t + x.data.byteLength, 0), old: Math.min(...files.map((x) => x.msg)) } : { t: null, old: null };
+          if (sql.startsWith('SELECT 1 AS x FROM feedback_media')) return files.find((x) => x.msg === a[0] && x.n === a[1]) ? { x: 1 } : null;
+          if (sql.startsWith('SELECT type FROM feedback_media')) return files.find((x) => x.msg === a[0] && x.n === a[1]) || null;
+          if (sql.startsWith('SELECT SUM(size)')) return files.length ? { t: files.reduce((t, x) => t + x.size, 0), old: Math.min(...files.map((x) => x.msg)) } : { t: null, old: null };
           throw new Error(`requête inattendue : ${sql}`);
         },
         async all() {
           if (sql.startsWith('SELECT id, at, kind')) return { results: [...rows].sort((x, y) => y.at - x.at) };
-          if (sql.startsWith('SELECT msg, n, type, size FROM feedback_files')) return { results: files.filter((x) => x.part === 0).map(({ msg, n, type, size }) => ({ msg, n, type, size })) };
-          if (sql.startsWith('SELECT type, data FROM feedback_files')) return { results: files.filter((x) => x.msg === a[0] && x.n === a[1]).sort((x, y) => x.part - y.part).map(({ type, data }) => ({ type, data: [...new Uint8Array(data)] })) };
+          if (sql.startsWith('SELECT msg, n, type, size FROM feedback_media')) return { results: files.map(({ msg, n, type, size }) => ({ msg, n, type, size })) };
+          if (sql.startsWith('SELECT msg, n FROM feedback_media WHERE msg NOT IN')) return { results: files.filter((x) => !rows.some((r) => r.id === x.msg)) };
+          if (sql.startsWith('SELECT msg, n FROM feedback_media WHERE msg = ?')) return { results: files.filter((x) => x.msg === a[0]) };
           throw new Error(`requête inattendue : ${sql}`);
         },
         async run() {
           const drop = (keep) => files.splice(0, files.length, ...files.filter(keep));
           if (sql.startsWith('INSERT INTO feedback_new')) sent.set(`${a[0]}|${a[1]}`, (sent.get(`${a[0]}|${a[1]}`) || 0) + 1);
           else if (sql.startsWith('INSERT INTO feedback_up')) ups.set(a[0], { tok: a[1], files: a[2], at: a[3] });
-          else if (sql.startsWith('INSERT INTO feedback_files')) { const [msg, n, part, type, size, data] = a; files.push({ msg, n, part, type, size, data }); }
+          else if (sql.startsWith('INSERT INTO feedback_media')) { const [msg, n, type, size] = a; files.push({ msg, n, type, size }); }
           else if (sql.startsWith('DELETE FROM feedback WHERE id NOT IN')) { /* moins de 500 messages */ }
-          else if (sql.startsWith('DELETE FROM feedback_files WHERE msg NOT IN')) drop((x) => rows.some((r) => r.id === x.msg));
-          else if (sql.startsWith('DELETE FROM feedback_files WHERE msg = ?')) drop((x) => x.msg !== a[0]);
+          else if (sql.startsWith('DELETE FROM feedback_media WHERE msg NOT IN')) drop((x) => rows.some((r) => r.id === x.msg));
+          else if (sql.startsWith('DELETE FROM feedback_media WHERE msg = ?')) drop((x) => x.msg !== a[0]);
           else if (sql.startsWith('DELETE FROM feedback_up')) { for (const [k, v] of ups) if (sql.includes('msg = ?') ? k === a[0] : v.at < a[0]) ups.delete(k); }
           else if (sql.startsWith('UPDATE feedback SET seen')) rows.forEach((r) => { r.seen = 1; });
           else if (sql.startsWith('DELETE FROM feedback WHERE id = ?')) rows.splice(rows.findIndex((r) => r.id === a[0]), 1);
@@ -46,6 +48,16 @@ function fakeD1() {
       });
       return { bind: (...a) => st(a), ...st([]) };
     },
+  };
+}
+// Stockage R2 réduit à put, get et delete
+function fakeR2() {
+  const objs = new Map();
+  return {
+    objs,
+    put: async (k, v, o) => { objs.set(k, { bytes: new Uint8Array(v), type: o.httpMetadata.contentType }); },
+    get: async (k) => (objs.has(k) ? { body: new Blob([objs.get(k).bytes]).stream() } : null),
+    delete: async (ks) => { for (const k of [ks].flat()) objs.delete(k); },
   };
 }
 const post = (body, ip = '1.2.3.4') => new Request('https://paddocklive.app/f', { method: 'POST', body: JSON.stringify(body), headers: { 'CF-Connecting-IP': ip } });
@@ -96,8 +108,8 @@ test('appli : message relayé avec la version et le système', async () => {
   assert.equal(down.status, 502);
 });
 
-test('pièces jointes : jeton du message, formats et tailles, morceaux recollés dans le Studio', async () => {
-  const env = { DB: fakeD1() };
+test('pièces jointes : jeton du message, formats et tailles, gardées dans R2 et lues dans le Studio', async () => {
+  const env = { DB: fakeD1(), MEDIA: fakeR2() };
   const r = await (await feedbackPost(post({ kind: 'bug', text: 'La carte se fige', files: 2 }), env, { now: 5000 })).json();
   assert.ok(r.id && r.up);
   const send = (q, body, type, now = 6000) => {
@@ -111,7 +123,8 @@ test('pièces jointes : jeton du message, formats et tailles, morceaux recollés
   assert.equal((await send({ id: r.id, up: r.up, n: 2 }, big, 'video/mp4')).status, 400);
   assert.equal((await send({ id: r.id, up: r.up, n: 0 }, big, 'video/mp4', 5000 + 3601e3)).status, 403);
   assert.equal((await send({ id: r.id, up: r.up, n: 0 }, big, 'video/mp4')).status, 200);
-  assert.equal(env.DB.files.length, 3);   // 2,5 Mo en morceaux de 1 Mo
+  assert.deepEqual([...env.MEDIA.objs.keys()], [`fb/${r.id}/0`]);
+  assert.equal(env.MEDIA.objs.get(`fb/${r.id}/0`).type, 'video/mp4');
   assert.equal((await send({ id: r.id, up: r.up, n: 0 }, big, 'video/mp4')).status, 409);
   assert.equal((await send({ id: r.id, up: r.up, n: 1 }, new Uint8Array([1, 2, 3]), 'image/jpeg')).status, 200);
 
@@ -124,6 +137,10 @@ test('pièces jointes : jeton du message, formats et tailles, morceaux recollés
   assert.equal((await studio(`feedback/file?msg=${r.id}&n=7`)).status, 404);
   await feedbackApi('feedback/remove', new Request('https://x/', { method: 'POST', body: JSON.stringify({ id: r.id }) }), env);
   assert.equal(env.DB.files.length, 0);
+  assert.equal(env.MEDIA.objs.size, 0);
+  // Sans stockage R2 : pièces jointes refusées
+  delete env.MEDIA;
+  assert.equal((await send({ id: r.id, up: r.up, n: 0 }, big, 'video/mp4')).status, 503);
 });
 
 test('appli : pièce jointe relayée telle quelle avec son jeton', async () => {

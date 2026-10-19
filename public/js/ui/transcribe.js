@@ -147,7 +147,7 @@ function markHighFailed(use, err) {
 // Texte d'état : niveau de chaque modèle et, s'il est léger, pourquoi
 function describe() {
   const why = (use) => {
-    if (qualityPref !== 'high') return 'économe en mémoire (« Haute » dans le choix de qualité pour de meilleurs textes)';
+    if (qualityPref !== 'high') return 'économe en mémoire';
     if (gpuInfo && !gpuInfo.ok) return gpuInfo.why;
     const f = highFail[use];
     if (f) {

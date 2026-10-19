@@ -191,7 +191,7 @@ export function renderPitSim(force = false) {
         </div>
       </div>
       <div id="simOut"></div>
-      <p class="small muted">Estimation : écart au leader actuel + temps perdu dans la voie des stands, mesuré sur les arrêts de la course dès qu'il y en a assez (secteur d'entrée et de sortie comparés aux tours normaux), sinon valeur du circuit (MultiViewer) ; ajustable. Ne tient pas compte des pneus neufs ni du trafic.</p>
+      <p class="small muted">Estimation : écart au leader + temps perdu dans les stands (ajustable). Sans pneus neufs ni trafic.</p>
     </div>`;
     $('#simDriver').onchange = (e) => { simDriver = e.target.value; renderPitSim(true); };
     const setLoss = (v) => { lossOverride = Math.round(Math.max(5, Math.min(60, v)) * 10) / 10; renderPitSim(true); };
@@ -234,7 +234,7 @@ export function renderBattles(force = false) {
   battleKey = key;
   const s = store.state;
   if (sessionKind(s) !== 'race') {
-    el.innerHTML = '<div class="note">Les bagarres sont détectées pendant les courses : pilotes à moins de 1,5 s l\'un de l\'autre.</div>';
+    el.innerHTML = '<div class="note">Bagarres en course : pilotes à moins de 1,5 s.</div>';
     return;
   }
   el.innerHTML = battleList(s) || '<div class="note">Aucune bagarre en cours (aucun écart sous 1,5 s).</div>';

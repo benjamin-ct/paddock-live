@@ -25,9 +25,9 @@ document.addEventListener('click', (e) => {
   const opt = (href, ic, title, sub, extra = 'target="_blank" rel="noopener"') => `<a class="cal-opt" href="${esc(href)}" ${extra}>${icon(ic)}<span><b>${title}</b><small>${sub}</small></span></a>`;
   dlg.innerHTML = `<div class="sum-head"><b>${icon('calendar')} Ajouter à mon agenda</b><button class="icon-btn" data-close title="Fermer">${icon('close')}</button></div>
     <div class="cal-opts">
-      ${opt(`webcal://${FEED}`, 'calendar', 'S’abonner au calendrier', 'Apple Calendrier, Outlook… : toute la saison, mise à jour toute seule si les horaires changent')}
+      ${opt(`webcal://${FEED}`, 'calendar', 'S’abonner au calendrier', 'Apple Calendrier, Outlook… : toute la saison, mise à jour toute seule')}
       ${opt(google, 'external', 'Google Agenda', 'Même abonnement, dans Google Agenda (téléphone Android compris)')}
-      ${opt(file, 'save', round ? 'Fichier de ce week-end (.ics)' : 'Fichier de la saison (.ics)', 'À ouvrir avec votre agenda, avec une alarme 15 min avant chaque séance', 'download')}
+      ${opt(file, 'save', round ? 'Fichier de ce week-end (.ics)' : 'Fichier de la saison (.ics)', 'Alarme 15 min avant chaque séance', 'download')}
     </div>`;
   if (!dlg.open) dlg.showModal();
 });

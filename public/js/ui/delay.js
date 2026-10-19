@@ -64,7 +64,7 @@ function renderWarning() {
   const available = serverNow() - st.bufferStart;
   if (store.delay > available + 1000) {
     warn.hidden = false;
-    warn.title = `Historique insuffisant : le serveur n'a que ${Math.floor(available / 1000)} s de données. L'affichage sera exact une fois ce délai écoulé.`;
+    warn.title = `Seulement ${Math.floor(available / 1000)} s d'historique : affichage exact une fois le délai écoulé.`;
   } else warn.hidden = true;
 }
 

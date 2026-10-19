@@ -1,7 +1,7 @@
 // Studio : posts des news (et récap de la semaine) et des séances (résultats, avant-course,
 // championnat, flash). Chargé à l'ouverture d'un post.
 import { decodeBody } from '/shared/news-collect.js';
-import { bigNews, newsPost, newsCaptions, OTHER_SERIES, NEWS_BADGES } from '/shared/social-news.js';
+import { bigNews, newsPost, newsCaptions, newsKind, LOOKS, OTHER_SERIES, NEWS_BADGES } from '/shared/social-news.js';
 import { newsTags } from '/shared/news.js';
 import { postData, captions } from '/shared/social.js';
 import { preraceData, champData, flashEvents, flashData, moreCaptions, FLASH_KINDS } from '/shared/social-more.js';
@@ -13,6 +13,7 @@ import { recapData, seasonCaptions } from '/shared/social-season.js';
 import { $, $$, esc, api, ago, icon, toggle, glide, state, SIG, NET_NAMES, musicField, bindMusic, clipFile } from './ui.js';
 import { toFrench, freshNews, cachedNews, latestDrivers, loadState, rememberDrivers, SESSION_FR } from './data.js';
 import { editor, assets } from './editor.js';
+import { photoPicker } from './photos.js';
 import { makeAnimation, unlockAudio } from '/shared/social-video.js';
 import { newsFrame, newsVideoTiming } from '/shared/social-news-video.js';
 
@@ -30,9 +31,19 @@ async function detailedSummary(it) {
   return j.points;
 }
 
+// ---------- Photo libre de droits (Wikimedia Commons, Flickr) à la place des portraits ----------
+// Recherche proposée : le premier pilote cité, sinon l'écurie, sinon la F1
+const freeQuery = (d) => (d.drivers?.[0] ? `${d.drivers[0].first} ${d.drivers[0].last}` : d.teams?.find((t) => t.key !== 'fia')?.name || 'Formula 1');
+const PHOTO_ROW = (p) => `<div class="row"><button class="btn small" id="${p}photo">${icon('image')}Photo libre de droits</button><button class="btn small" id="${p}photodel" hidden>${icon('close')}Retirer</button><span class="hint" id="${p}photost"></span></div>`;
+// onPhoto({ image, credit } ou null) : photo choisie ou retirée
+function bindPhoto(p, getD, onPhoto) {
+  $(`#${p}photo`).onclick = () => photoPicker(freeQuery(getD()), (pic) => { onPhoto(pic); $(`#${p}photost`).textContent = pic.credit; $(`#${p}photodel`).hidden = false; });
+  $(`#${p}photodel`).onclick = () => { onPhoto(null); $(`#${p}photost`).textContent = ''; $(`#${p}photodel`).hidden = true; };
+}
+
 // ---------- Vidéo « Breaking news » (TikTok, Reels, Shorts, story), commune aux news et aux posts écrits ----------
-const NEWS_VIDEO = (on) => `${toggle('brk', 'Très grosse info', on, 'Visuel et vidéo « Breaking news », réservés aux infos qui font du bruit')}<div id="vidbox" ${on ? '' : 'hidden'}>${musicField('news', 'flash')}<div class="row"><button class="btn" id="mkvid">${icon('video')}Créer la vidéo</button><button class="btn" id="sharevid" disabled>${icon('share')}Partager</button></div>
-  <p class="hint" id="vidst">Vidéo verticale avec musique. Garder l'écran allumé pendant l'enregistrement.</p>
+const NEWS_VIDEO = (on) => `${toggle('brk', 'Très grosse info', on, 'Visuel et vidéo « Breaking news »')}<div id="vidbox" ${on ? '' : 'hidden'}>${musicField('news', 'flash')}<div class="row"><button class="btn" id="mkvid">${icon('video')}Créer la vidéo</button><button class="btn" id="sharevid" disabled>${icon('share')}Partager</button></div>
+  <p class="hint" id="vidst">Garder l'écran allumé pendant l'enregistrement.</p>
   <video id="vid" controls playsinline hidden></video></div>`;
 // onBreaking(on) : très grosse info cochée ou décochée à la main
 // onClip(file) : vidéo prête (MP4), jointe au post pour la publier sur TikTok, Instagram, Facebook…
@@ -67,9 +78,12 @@ export async function newsEditor(it, done, back) {
   const failed = title === null || summary === null;
   let breaking = null;   // très grosse info choisie à la main (sinon : détectée)
   let made = null;       // vidéo Breaking news fabriquée (MP4), jointe au post
+  let pic = null;        // photo choisie (libre de droits, ou celle de l'article) : { image, credit }
+  const look = it.link && LOOKS.has(newsKind(it).key) ? newsKind(it).key : '';   // livrée ou tenue spéciale
   const make = async (t, s, p = '') => {
     const nd = newsPost(it, { title: t, summary: s, points: p, driverList: await latestDrivers(), sourceName: it.srcName });
     if (breaking !== null) nd.breaking = breaking;
+    if (pic) Object.assign(nd, pic);
     return nd;
   };
   let d = await make(title ?? it.title, summary ?? it.summary);
@@ -84,12 +98,16 @@ export async function newsEditor(it, done, back) {
       <label class="field"><span>Résumé</span><textarea id="nsum" rows="4" maxlength="400">${esc(d.summary)}</textarea></label>
       <label class="field"><span>Points clés, un par ligne <small>(images suivantes du carrousel)</small></span><textarea id="npoints" rows="5" maxlength="1600" placeholder="Facultatif : « Résumé détaillé » ou à écrire soi-même"></textarea></label>
       ${it.link ? `<div class="row"><button class="btn small" id="nsummary">${icon('wand')}Résumé détaillé</button><span class="hint" id="nsumst"></span></div>` : ''}
+      ${PHOTO_ROW('n')}
+      ${/^https:\/\//.test(it.link || '') ? `<div class="row"><button class="btn small" id="nartimg">${icon('image')}${look ? `Photo de la ${look === 'tenue' ? 'tenue' : 'livrée'} (article)` : 'Photo de l\'article'}</button></div>
+        <p class="hint">Dans les visuels, « via ${esc(it.srcName)} » crédité.</p>` : ''}
       ${toggle('linkcomment', 'Lien en premier commentaire', state.linkComment, 'Facebook, Threads, Bluesky, X')}
       ${NEWS_VIDEO(d.breaking)}
       <p class="hint">${failed ? 'Traduction indisponible : textes en version originale, à traduire à la main.' : 'Traduction automatique : à relire.'}</p>`,
     data: () => d,
-    caps: (dd) => newsCaptions(dd, SIG, { linkInComment: state.linkComment }),
+    caps: (dd) => newsCaptions(dd, SIG, { linkInComment: state.linkComment && state.fmt !== 'link' }),
     video: () => made,
+    link: /^https:\/\//.test(it.link || '') ? () => ({ url: it.link, title: d.title, description: d.summary }) : null,
     record: () => ({ key: `news:${it.id}`, kind: 'news', title: d.title, srcTitle: it.title, link: it.link || '', summary: String(it.summary || '').slice(0, 300) }),
     bind: (redraw) => {
       let tm = null;
@@ -108,6 +126,19 @@ export async function newsEditor(it, done, back) {
           upd();
         } catch (err) { $('#nsumst').textContent = err.message; } finally { btn.disabled = false; btn.classList.remove('busy'); }
       };
+      bindPhoto('n', () => d, (p) => { pic = p; upd(); });
+      // Livrée ou tenue spéciale : la photo de l'article (rendu ou photo de l'écurie)
+      if ($('#nartimg')) {
+        $('#nartimg').onclick = async () => {
+          const b = $('#nartimg');
+          b.disabled = true; b.classList.add('busy');
+          try {
+            pic = { image: await createImageBitmap(await (await api(`artimg?u=${encodeURIComponent(it.link)}`, { raw: true })).blob()), credit: `Photo : via ${it.srcName}` };
+            $('#nphotost').textContent = pic.credit; $('#nphotodel').hidden = false;
+            upd();
+          } catch (err) { $('#nphotost').textContent = err.message; } finally { b.disabled = false; b.classList.remove('busy'); }
+        };
+      }
       $('#linkcomment').onchange = (e) => { state.linkComment = e.target.checked; redraw(true); };
       bindNewsVideo(() => d, 'breaking-news', (on) => { breaking = on; d.breaking = on; redraw(true); }, (file) => { made = file; redraw(); });
     },
@@ -125,7 +156,7 @@ export async function manualEditor(back) {
     const title = f.title.trim() || 'Votre titre ici';
     const d = newsPost({ ...it, title, summary: f.summary, tags: newsTags(text) }, { title, summary: f.summary, points: f.points, driverList: drivers, sourceName: f.source.trim() });
     if (f.kind) d.badge = NEWS_BADGES.find((b) => b.key === f.kind) || d.badge;
-    if (f.image) d.image = f.image;
+    if (f.image) Object.assign(d, { image: f.image, credit: f.credit });
     d.breaking = f.breaking;
     return d;
   };
@@ -142,7 +173,7 @@ export async function manualEditor(back) {
       <label class="field"><span>Type d'info</span><select id="mkind"><option value="">Deviné d'après le texte</option>${NEWS_BADGES.map((b) => `<option value="${b.key}">${esc(b.label.charAt(0) + b.label.slice(1).toLowerCase())}</option>`).join('')}</select></label>
       <label class="field"><span>Source <small>(facultatif, citée en bas de l'image)</small></span><input type="text" id="msrc" maxlength="60" placeholder="Ex. : communiqué de McLaren"></label>
       <div class="field"><span>Photo <small>(facultatif : remplace les portraits des pilotes)</small></span>
-        <div class="row"><label class="btn small">${icon('image')}Choisir une photo<input type="file" id="mimg" accept="image/*" hidden></label><button class="btn small" id="mimgdel" hidden>${icon('close')}Retirer</button><span class="hint" id="mimgst"></span></div></div>
+        <div class="row"><label class="btn small">${icon('image')}Choisir une photo<input type="file" id="mimg" accept="image/*" hidden></label><button class="btn small" id="mfree">${icon('image')}Photo libre de droits</button><button class="btn small" id="mimgdel" hidden>${icon('close')}Retirer</button><span class="hint" id="mimgst"></span></div></div>
       <div class="field"><span>Vidéo <small>(facultatif : publiée avec le post, MP4 ou MOV, 50 Mo au plus)</small></span>
         <div class="row"><label class="btn small">${icon('video')}Choisir une vidéo<input type="file" id="mvid" accept="video/mp4,video/quicktime" hidden></label><button class="btn small" id="mviddel" hidden>${icon('close')}Retirer</button><span class="hint" id="mvidst"></span></div>
         <video id="mvidprev" controls playsinline hidden></video></div>
@@ -183,12 +214,14 @@ export async function manualEditor(back) {
         if (!file) return;
         try {
           f.image = await createImageBitmap(file);
+          f.credit = '';
           $('#mimgst').textContent = file.name;
           $('#mimgdel').hidden = false;
           upd(true);
         } catch { $('#mimgst').textContent = 'Image illisible'; }
       };
-      $('#mimgdel').onclick = () => { f.image = null; $('#mimg').value = ''; $('#mimgst').textContent = ''; $('#mimgdel').hidden = true; upd(true); };
+      $('#mfree').onclick = () => photoPicker(freeQuery(d), (p) => { f.image = p.image; f.credit = p.credit; $('#mimgst').textContent = p.credit; $('#mimgdel').hidden = false; upd(true); });
+      $('#mimgdel').onclick = () => { f.image = null; f.credit = ''; $('#mimg').value = ''; $('#mimgst').textContent = ''; $('#mimgdel').hidden = true; upd(true); };
       $('#mvid').onchange = (e) => {
         const file = e.target.files?.[0];
         if (!file) return;

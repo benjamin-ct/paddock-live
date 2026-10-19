@@ -157,7 +157,7 @@ async function start() {
   showBrowserLink(false);
   if (prefs.commSource === 'radio') return startRadio();
   await refreshContent();
-  if (!content) { status('Pas de vidéo F1 TV pour cette séance : impossible de lancer les commentaires.', 'err'); return; }
+  if (!content) { status('Pas de vidéo F1 TV pour cette séance.', 'err'); return; }
   playing = true;
   renderButtons();
   status('Demande du flux à F1 TV…');
@@ -171,7 +171,7 @@ async function start() {
       const who = [acc.product && `offre « ${acc.product} »`, acc.country && `pays ${acc.country}`].filter(Boolean).join(', ');
       const t = tried.map((x) => `${x.format} : HTTP ${x.status}${x.message ? ` (${x.message})` : ''}`).join('\n');
       if (tried.some((x) => /technical package not available/i.test(x.message || ''))) {
-        throw new Error(`F1 TV refuse la vidéo : elle n'est pas incluse dans votre abonnement${who ? ` (${who})` : ''}. Le son et la vidéo des séances font partie de l'offre F1 TV Pro ; l'offre F1 TV Access (la seule proposée dans certains pays, dont la France) ne les inclut pas.\n\nDétail :\n${t}`);
+        throw new Error(`F1 TV refuse la vidéo : il faut l'offre F1 TV Pro${who ? ` (${who})` : ''}.\n\nDétail :\n${t}`);
       }
       throw new Error(`F1 TV a refusé le flux${who ? ` (${who})` : ''}. Vérifiez que votre abonnement est « Pro » et que le jeton est valide.\n${t}`);
     }
@@ -372,9 +372,9 @@ function syncStep() {
       const r = player.seekRange();
       const want = Math.max(r.start, r.end - 3 - Math.max(0, prefs.commOffset));
       if (Math.abs(m.currentTime - want) > 1.5) m.currentTime = want;
-      status('Lecture en cours · flux sans horodatage : calé sur le direct, ajustez le « décalage du son » à l\'oreille.', 'ok');
+      status('Lecture en cours · ajustez le décalage du son à l\'oreille.', 'ok');
       return;
-    } status('Lecture en cours · pas d\'horodatage dans ce flux : calage automatique impossible (réglez le décalage à la main).', 'ok'); return; }
+    } status('Lecture en cours · réglez le décalage à la main.', 'ok'); return; }
   const target = f1Now() - prefs.commOffset * 1000;
   const diff = (date.getTime() - target) / 1000; // > 0 : le son est en avance sur le dashboard
   const range = player.seekRange();
@@ -383,8 +383,8 @@ function syncStep() {
     const t = Math.max(range.start, Math.min(range.end, want));
     m.currentTime = t;
     m.playbackRate = 1;
-    if (want > range.end + 1) status(`Le flux F1 TV a ${(want - range.end).toFixed(0)} s de retard sur le dashboard : augmentez le délai du dashboard (ou réduisez le décalage du son) pour les caler.`, 'err');
-    else if (want < range.start - 1) status('Le moment affiché est trop ancien pour ce flux (hors de la fenêtre disponible).', 'err');
+    if (want > range.end + 1) status(`Le flux F1 TV a ${(want - range.end).toFixed(0)} s de retard : augmentez le délai du dashboard.`, 'err');
+    else if (want < range.start - 1) status('Moment trop ancien pour ce flux.', 'err');
   } else {
     // Petits écarts : on accélère ou ralentit légèrement, sans coupure
     m.playbackRate = Math.abs(diff) < 0.25 ? 1 : diff > 0 ? 0.97 : 1.03;
@@ -429,7 +429,7 @@ export function initCommentary() {
   $('#radioForm').addEventListener('submit', (e) => {
     e.preventDefault();
     const url = $('#radioUrl').value.trim();
-    try { const u = new URL(url); if (!/^https?:$/.test(u.protocol)) throw new Error(); } catch { status('Adresse de flux invalide (elle doit commencer par http:// ou https://).', 'err'); return; }
+    try { const u = new URL(url); if (!/^https?:$/.test(u.protocol)) throw new Error(); } catch { status('Adresse invalide : http:// ou https:// attendu.', 'err'); return; }
     const st = { id: Date.now().toString(36), name: $('#radioName').value.trim() || 'Radio', lang: $('#radioLangSel').value, url };
     setPref('radioStations', [...prefs.radioStations, st]);
     setPref('radioStation', st.id);

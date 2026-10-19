@@ -1097,7 +1097,7 @@ function drawCars(dt) {
   if (mode.textContent !== modeTxt) {
     mode.textContent = modeTxt;
     mode.className = `map-mode ${gps ? 'gps' : 'est'}`;
-    mode.title = gps ? 'Positions GPS officielles' : 'Sans GPS (jeton F1 TV absent) : positions déduites des mini-secteurs du chronométrage';
+    mode.title = gps ? 'Positions GPS officielles' : 'Sans GPS (F1 TV non connecté) : positions estimées';
   }
 
   const order = Object.keys(dl).sort((a, b) => (Number(lines[b]?.Position) || 99) - (Number(lines[a]?.Position) || 99));

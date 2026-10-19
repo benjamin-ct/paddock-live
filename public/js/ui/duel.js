@@ -321,8 +321,7 @@ export function renderDuel() {
   if (!a || !b || !dl[a] || !dl[b]) {
     if (skeletonFor !== 'empty') {
       skeletonFor = 'empty';
-      $('#duelBody').innerHTML = `<div class="duel-empty">Choisissez deux pilotes ci-dessus,<br>ou cliquez sur <b style="color:var(--blue)">A</b> et <b style="color:var(--orange)">B</b> dans le classement.<br><br>
-        Vous verrez l'écart en direct, sa tendance tour par tour, l'estimation du rattrapage,<br>les temps au tour, secteurs, pneus et télémétrie côte à côte.</div>`;
+      $('#duelBody').innerHTML = `<div class="duel-empty">Choisissez deux pilotes ci-dessus,<br>ou cliquez sur <b style="color:var(--blue)">A</b> et <b style="color:var(--orange)">B</b> dans le classement.</div>`;
     }
     return;
   }

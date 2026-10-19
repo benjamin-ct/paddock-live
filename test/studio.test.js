@@ -175,6 +175,15 @@ test('page du créateur : journal des publications partagé et news déjà publi
   // Entrée invalide ignorée ; fusion appli + page web sans doublon
   assert.equal(addEntry(list, { key: 'x', nets: {} }).length, 1);
   assert.equal(mergeHistory(list, list, [{ ...entry, key: 'news:2' }]).length, 2);
+  // Même news republiée sur Instagram (autre post) : entrée à part, le premier post et ses chiffres gardés ;
+  // les autres réseaux de ce nouvel envoi la complètent, et la fusion appli + page web ne la double pas
+  let repub = addEntry(list, { ...entry, at: now + 1000, nets: { instagram: { id: '99', url: 'https://www.instagram.com/p/y' } } });
+  repub = addEntry(repub, { ...entry, at: now + 2000, nets: { facebook: { id: 'p_1', url: 'https://www.facebook.com/p_1' } } });
+  assert.equal(repub.length, 2);
+  assert.equal(repub.find((e) => e.key === 'news:1').nets.instagram.id, '17');
+  assert.deepEqual(Object.keys(repub[0].nets).sort(), ['facebook', 'instagram']);
+  assert.match(repub[0].key, /^news:1~/);
+  assert.equal(mergeHistory(repub, repub).length, 2);
   // Post supprimé sur les réseaux : retiré du journal, sa clé gardée pour que l'appli ne le renvoie pas
   const rm = await (await worker('https://s.test/studio/api/history/remove', { method: 'POST', headers: h, body: JSON.stringify({ key: 'news:1' }) })).json();
   assert.deepEqual(rm.items, []);
@@ -225,7 +234,7 @@ test("page du créateur : relais des pages d'articles (résumé détaillé) en t
   assert.equal((await worker('https://s.test/studio/api/page?u=https%3A%2F%2Fwww.formula1.com%2Fa')).status, 401);
 });
 
-test('page du créateur : publication programmée, publiée par le serveur à l\'heure (un réseau par passage)', async () => {
+test('page du créateur : publication programmée, publiée par le serveur à l\'heure (tous les réseaux en un passage)', async () => {
   saveConfig({ creator: true, social: { meta: { pageId: 'p1', pageName: 'Ma page', pageToken: 'jeton-page', igId: 'ig1', igUsername: 'moi' }, bluesky: { handle: 'moi.bsky.social', appPassword: 'mdp-app', did: 'did:plc:moi' } } });
   const fetchFn = (url, init) => worker(url, init);
   await enableStudio(CODE, { fetchFn });
@@ -267,6 +276,7 @@ test('page du créateur : publication programmée, publiée par le serveur à l\
     if (u.searchParams.get('fields') === 'images') return ok({ images: [{ width: 1080, source: 'https://cdn.test/a.jpg' }] });
     if (u.pathname.endsWith('/feed')) return ok({ id: 'p1_43' });
     if (u.pathname.endsWith('/comments')) return ok({ id: 'c1' });
+    if (u.pathname.endsWith('/photo_stories')) return ok({ success: true });
     if (u.pathname.endsWith('createSession')) return ok({ accessJwt: 'jwt', did: 'did:plc:moi' });
     if (u.pathname.endsWith('uploadBlob')) return ok({ blob: { ref: 'b' } });
     if (u.pathname.endsWith('createRecord')) return ok({ uri: 'at://did:plc:moi/app.bsky.feed.post/3k', cid: 'c' });
@@ -276,28 +286,46 @@ test('page du créateur : publication programmée, publiée par le serveur à l\
     // Pas encore l'heure : rien ne part
     assert.equal(await runSchedule(env, { now: at - 60e3 }), null);
     assert.equal(calls.length, 0);
-    // À l'heure : un réseau par passage
-    assert.deepEqual(await runSchedule(env, { now: at + 1 }), { published: 'facebook', id: item.id });
-    assert.ok(calls.some((c) => c.endsWith('/photos')));
-    assert.deepEqual(await runSchedule(env, { now: at + 60e3 }), { published: 'bluesky', id: item.id });
-    assert.equal(await runSchedule(env, { now: at + 120e3 }), null);
+    // À l'heure : tous les réseaux dans le même passage, jamais renvoyés au suivant
+    assert.deepEqual(await runSchedule(env, { now: at + 1 }), { published: 'bluesky', id: item.id });
+    assert.ok(calls.some((c) => c.endsWith('/photos')) && calls.some((c) => c.endsWith('createRecord')));
+    assert.equal(await runSchedule(env, { now: at + 60e3 }), null);
+    // Tout publié : retirée aussitôt de la liste (visuels, jetons et trace effacés), journal complété
     const list = await (await worker('https://s.test/studio/api/schedule', { headers: key })).json();
-    assert.equal(list.items[0].nets.facebook.status, 'done');
-    assert.equal(list.items[0].nets.facebook.url, 'https://www.facebook.com/p1_43');
-    assert.equal(list.items[0].nets.facebook.comment, true);
-    assert.equal(list.items[0].nets.bluesky.status, 'done');
-    // Journal des publications complété, visuels et jetons effacés une fois publiés
+    assert.equal(list.items.length, 0);
+    assert.equal([...env.DB.studio.keys()].filter((k) => k.startsWith('sched')).length, 0);
     const hist = await (await worker('https://s.test/studio/api/history', { headers: key })).json();
     assert.equal(hist.items[0].key, 'race-2026-18');
     assert.deepEqual(Object.keys(hist.items[0].nets).sort(), ['bluesky', 'facebook']);
+    assert.equal(hist.items[0].nets.facebook.url, 'https://www.facebook.com/p1_43');
+    // Stories : sans texte, jamais mêlées aux posts du fil, absentes de l'historique
+    assert.equal((await add({ posts: [{ network: 'facebook-story' }, { network: 'facebook', text: 'x' }] })).status, 400);
+    const story = (await (await add({ posts: [{ network: 'facebook-story' }] })).json()).item;
+    calls.length = 0;
+    assert.deepEqual(await runSchedule(env, { now: at + 120e3 }), { published: 'facebook-story', id: story.id });
+    assert.equal(calls.filter((c) => c.endsWith('/photo_stories')).length, 2);
+    assert.equal((await (await worker('https://s.test/studio/api/schedule', { headers: key })).json()).items.length, 0);
+    assert.equal((await (await worker('https://s.test/studio/api/history', { headers: key })).json()).items.length, hist.items.length);
+    // Échec sur un réseau : gardée dans la liste avec l'erreur, visuels et jetons effacés
+    const bad = (await (await add()).json()).item;
+    const ok = globalThis.fetch;
+    globalThis.fetch = async (url, opts) => (new URL(url).pathname.endsWith('/feed') ? new Response(JSON.stringify({ error: { message: 'Refusé' } }), { status: 400 }) : ok(url, opts));
+    await runSchedule(env, { now: at + 180e3 });
+    globalThis.fetch = ok;
+    const kept = (await (await worker('https://s.test/studio/api/schedule', { headers: key })).json()).items.find((x) => x.id === bad.id);
+    assert.equal(kept.nets.facebook.status, 'error');
+    assert.equal(kept.nets.bluesky.status, 'done');
     assert.equal([...env.DB.studio.keys()].filter((k) => k.startsWith('schedimg:')).length, 0);
-    assert.equal(JSON.parse(env.DB.studio.get(`sched:${item.id}`)).keys, null);
+    assert.equal(JSON.parse(env.DB.studio.get(`sched:${bad.id}`)).keys, null);
     // Une semaine plus tard : la trace disparaît
     await runSchedule(env, { now: at + 8 * 86400e3 });
     assert.equal([...env.DB.studio.keys()].filter((k) => k.startsWith('sched')).length, 0);
   } finally { globalThis.fetch = realFetch; }
 
   // Annulation avant l'heure ; envoi trop en retard (serveur arrêté plus d'un jour) : abandonné
+  // « Publier » : confié au serveur avec l'heure actuelle, accepté
+  const now = (await (await add({ at: Date.now() })).json()).item;
+  await worker('https://s.test/studio/api/schedule/cancel', { method: 'POST', body: JSON.stringify({ id: now.id }), headers: key });
   const j2 = (await (await add()).json()).item;
   const after = await (await worker('https://s.test/studio/api/schedule/cancel', { method: 'POST', body: JSON.stringify({ id: j2.id }), headers: key })).json();
   assert.equal(after.items.length, 0);
@@ -306,6 +334,192 @@ test('page du créateur : publication programmée, publiée par le serveur à l\
   assert.equal(await runSchedule(env, { now: at + 2 * 86400e3 }), null);
   const l3 = await (await worker('https://s.test/studio/api/schedule', { headers: key })).json();
   assert.equal(l3.items.find((x) => x.id === j3.id).nets.facebook.status, 'expired');
+  await disableStudio({ fetchFn });
+});
+
+test('page du créateur : vidéo confiée au serveur (stockage R2), publiée par le relevé puis effacée', async () => {
+  saveConfig({ creator: true, social: {
+    meta: { pageId: 'p1', pageName: 'Ma page', pageToken: 'jeton-page', igId: 'ig1', igUsername: 'moi' },
+    bluesky: { handle: 'moi.bsky.social', appPassword: 'mdp-app', did: 'did:plc:moi' },
+    youtube: { clientId: '1-a.apps.googleusercontent.com', clientSecret: 'secret-google', accessToken: 'yat', expiresAt: Date.now() + 3600e3, refreshToken: 'rt-google', name: 'Benjy Paddock' },
+  } });
+  const fetchFn = (url, init) => worker(url, init);
+  await enableStudio(CODE, { fetchFn });
+  const key = { 'X-Studio-Key': studioKey(CODE) };
+  const form = (o = {}) => {
+    const f = new FormData();
+    f.append('at', String(Date.now()));
+    f.append('title', 'Ma vidéo');
+    f.append('record', JSON.stringify({ key: 'post:v1', kind: 'post', title: 'Ma vidéo' }));
+    f.append('posts', JSON.stringify(o.posts ?? [{ network: 'youtube', text: 'Titre\nTexte' }, { network: 'bluesky', text: 'Salut' }]));
+    f.append('x', new Blob([new Uint8Array([0xff, 0xd8, 0xff, 1])], { type: 'image/jpeg' }), 'x.jpg');
+    f.append('video', o.video ?? new Blob([new Uint8Array([1, 2, 3, 4])], { type: 'video/mp4' }), 'v.mp4');
+    if (o.tiktok) f.append('tiktok', JSON.stringify(o.tiktok));
+    return f;
+  };
+  const add = (o) => worker('https://s.test/studio/api/schedule', { method: 'POST', body: form(o), headers: key });
+  // Sans stockage R2 : refusée ; vidéo d'un autre format : refusée
+  assert.equal((await add()).status, 503);
+  const bucket = new Map();
+  env.MEDIA = {
+    put: async (k, v, o) => { bucket.set(k, { bytes: new Uint8Array(await v.arrayBuffer()), type: o.httpMetadata.contentType }); },
+    get: async (k) => (bucket.has(k) ? { arrayBuffer: async () => bucket.get(k).bytes.buffer } : null),
+    delete: async (k) => { bucket.delete(k); },
+  };
+  assert.equal((await add({ video: new Blob(['x'], { type: 'image/gif' }) })).status, 400);
+  assert.equal((await add({ posts: [{ network: 'tiktok', text: 'x' }], tiktok: { privacy: 'SELF_ONLY', brandContent: true } })).status, 409);   // TikTok non connecté
+  const { item } = await (await add()).json();
+  assert.deepEqual([...bucket.keys()], [`sched/${item.id}`]);
+  assert.equal(bucket.get(`sched/${item.id}`).type, 'video/mp4');
+
+  const realFetch = globalThis.fetch;
+  const sent = {};
+  globalThis.fetch = async (url, opts = {}) => {
+    const u = String(url);
+    if (u.startsWith('https://www.googleapis.com/upload/youtube/v3/videos')) return new Response('{}', { headers: { location: 'https://up.test/yt' } });
+    if (u === 'https://up.test/yt') { sent.youtube = opts.body.length; return new Response(JSON.stringify({ id: 'v42' })); }
+    const p = new URL(u).pathname;
+    if (p.endsWith('createSession')) return new Response(JSON.stringify({ accessJwt: 'jwt', did: 'did:plc:moi' }));
+    if (p.endsWith('uploadBlob')) return new Response(JSON.stringify({ blob: { ref: 'b' } }));
+    if (p.endsWith('createRecord')) { sent.bluesky = true; return new Response(JSON.stringify({ uri: 'at://did:plc:moi/app.bsky.feed.post/3k', cid: 'c' })); }
+    throw new Error(`inattendu : ${u}`);
+  };
+  try {
+    assert.deepEqual(await runSchedule(env), { published: 'bluesky', id: item.id });
+  } finally { globalThis.fetch = realFetch; }
+  // Vidéo envoyée à YouTube, visuels à Bluesky ; vidéo effacée du stockage une fois publiée
+  assert.deepEqual(sent, { youtube: 4, bluesky: true });
+  assert.equal((await (await worker('https://s.test/studio/api/schedule', { headers: key })).json()).items.length, 0);
+  const hist = await (await worker('https://s.test/studio/api/history', { headers: key })).json();
+  assert.equal(hist.items.find((x) => x.key === 'post:v1').nets.youtube.url, 'https://youtube.com/shorts/v42');
+  assert.equal(bucket.size, 0);
+  // Annulation avant l'heure : vidéo effacée aussi
+  const later = (await (await add()).json()).item;
+  assert.equal(bucket.size, 1);
+  await worker('https://s.test/studio/api/schedule/cancel', { method: 'POST', body: JSON.stringify({ id: later.id }), headers: key });
+  assert.equal(bucket.size, 0);
+  delete env.MEDIA;
+  await disableStudio({ fetchFn });
+});
+
+test('page du créateur : post « lien » sans visuels (carte de l\'article affichée par le réseau)', async () => {
+  saveConfig({ creator: true, social: { meta: { pageId: 'p1', pageName: 'Ma page', pageToken: 'jeton-page', igId: 'ig1', igUsername: 'moi' }, bluesky: { handle: 'moi.bsky.social', appPassword: 'mdp-app', did: 'did:plc:moi' } } });
+  const fetchFn = (url, init) => worker(url, init);
+  await enableStudio(CODE, { fetchFn });
+  const key = { 'X-Studio-Key': studioKey(CODE) };
+  const add = (link, posts = [{ network: 'facebook', text: 'Texte Facebook https://www.formula1.com/a' }, { network: 'bluesky', text: 'Texte Bluesky' }], ig = 0, at = Date.now()) => {
+    const f = new FormData();
+    f.append('at', String(at));
+    f.append('title', 'Article');
+    f.append('posts', JSON.stringify(posts));
+    f.append('link', JSON.stringify(link));
+    for (let i = 0; i < ig; i++) f.append('ig', new Blob([new Uint8Array([0xff, 0xd8, 0xff, i])], { type: 'image/jpeg' }), `image-${i + 1}.jpg`);
+    return worker('https://s.test/studio/api/schedule', { method: 'POST', body: f, headers: key });
+  };
+  const link = { url: 'https://www.formula1.com/a', title: 'Le titre', description: 'Le résumé' };
+  assert.equal((await add({ url: 'http://pas-https.test/a' })).status, 400);
+  // Instagram n'a pas de lien : visuels de l'onglet Post, obligatoires
+  assert.equal((await add(link, [{ network: 'instagram', text: 'x' }])).status, 400);
+  const igItem = (await (await add(link, [{ network: 'instagram', text: 'x' }], 1, Date.now() + 3600e3)).json()).item;
+  assert.ok(igItem.id);
+  await worker('https://s.test/studio/api/schedule/cancel', { method: 'POST', body: JSON.stringify({ id: igItem.id }), headers: key });
+  const { item } = await (await add(link)).json();
+  const realFetch = globalThis.fetch;
+  const sent = {};
+  globalThis.fetch = async (url, opts = {}) => {
+    const u = new URL(url);
+    const ok = (d) => new Response(JSON.stringify(d));
+    if (u.pathname.endsWith('/feed')) { sent.facebook = Object.fromEntries(opts.body); return ok({ id: 'p1_9' }); }
+    if (u.pathname.endsWith('createSession')) return ok({ accessJwt: 'jwt', did: 'did:plc:moi' });
+    if (u.pathname.endsWith('createRecord')) { sent.bluesky = JSON.parse(opts.body).record; return ok({ uri: 'at://did:plc:moi/app.bsky.feed.post/3k', cid: 'c' }); }
+    throw new Error(`inattendu : ${url}`);
+  };
+  try {
+    assert.deepEqual(await runSchedule(env), { published: 'bluesky', id: item.id });
+  } finally { globalThis.fetch = realFetch; }
+  // Facebook : texte et lien (adresse d'origine : la base de test n'a pas les liens suivis), sans photo ;
+  // Bluesky : carte du lien sans image
+  assert.deepEqual(sent.facebook, { message: 'Texte Facebook https://www.formula1.com/a', link: 'https://www.formula1.com/a', access_token: 'jeton-page' });
+  assert.equal(sent.bluesky.embed.$type, 'app.bsky.embed.external');
+  assert.deepEqual({ ...sent.bluesky.embed.external, uri: 'x' }, { uri: 'x', title: 'Le titre', description: 'Le résumé' });
+  assert.equal((await (await worker('https://s.test/studio/api/schedule', { headers: key })).json()).items.some((x) => x.id === item.id), false);
+  await disableStudio({ fetchFn });
+});
+
+test('page du créateur : photos libres de droits (Commons, Flickr par Openverse), licences « NC » et « ND » écartées', async () => {
+  const { freePhotos, shortLicense } = await import('../analytics/photos.js');
+  assert.equal(shortLicense('Attribution-ShareAlike License'), 'CC BY-SA');
+  assert.equal(shortLicense('CC BY 4.0'), 'CC BY 4.0');
+  const asked = [];
+  const fetchFn = async (url) => {
+    const u = new URL(url);
+    asked.push(u.hostname);
+    if (u.hostname === 'commons.wikimedia.org') {
+      const q = u.searchParams.get('gsrsearch');
+      const info = (name, license, extra = {}) => [{ thumburl: `https://upload.wikimedia.org/w/thumb/${name}/1600px-${name}`, extmetadata: { LicenseShortName: { value: license } }, ...extra }];
+      // Fichiers au nom du pilote, le plus récent (année du nom, sinon de l'envoi) en tête
+      if (q === 'intitle:"Lando Norris" filetype:bitmap') return new Response(JSON.stringify({ query: { pages: {
+        1: { index: 1, title: 'File:2019 Monaco GP - Lando Norris.jpg', imageinfo: info('Old.jpg', 'CC BY 2.0', { timestamp: '2026-05-01T00:00:00Z' }) },
+        2: { index: 2, title: 'File:Lando Norris (028A8482).jpg', imageinfo: info('N.jpg', 'CC BY-SA 4.0', { timestamp: '2026-03-01T00:00:00Z', descriptionurl: 'https://commons.wikimedia.org/wiki/File:N.jpg', extmetadata: { Artist: { value: '<a href="x">Jean &amp; Co</a>' }, LicenseShortName: { value: 'CC BY-SA 4.0' }, Categories: { value: 'Formula One drivers|McLaren' } } }) },
+        3: { index: 3, title: 'File:2025 Lando Norris.jpg', imageinfo: info('b.jpg', 'CC BY-NC 2.0') },
+        // Même nom, mais pas en F1 (homonyme, autre sport) : écartée
+        4: { index: 4, title: 'File:Lando Norris Street.jpg', imageinfo: info('Z.jpg', 'CC BY 4.0', { timestamp: '2026-09-01T00:00:00Z' }) },
+      } } }));
+      // Puis la recherche dans les descriptions (par pertinence, pas par date), sans doublon, et seulement les
+      // photos dont le titre, la description ou les catégories citent le pilote
+      assert.equal(q, 'Lando Norris Formula 1 filetype:bitmap');
+      assert.equal(u.searchParams.get('gsrsort'), null);
+      return new Response(JSON.stringify({ query: { pages: {
+        1: { index: 1, title: 'File:Stepro 1.jpg', imageinfo: info('N.jpg', 'CC BY-SA 4.0') },
+        2: { index: 2, title: 'File:Stepro 2.jpg', imageinfo: info('S.jpg', 'CC BY-SA 4.0', { extmetadata: { LicenseShortName: { value: 'CC BY-SA 4.0' }, Categories: { value: 'Lando Norris in 2025|McLaren MCL39|Formula One cars' } } }) },
+        3: { index: 3, title: 'File:Rathaus 1.jpg', imageinfo: info('T.jpg', 'CC BY 4.0', { extmetadata: { LicenseShortName: { value: 'CC BY 4.0' }, ImageDescription: { value: 'Marktplatz' } } }) },
+      } } }));
+    }
+    if (u.hostname === 'api.openverse.org') {
+      assert.equal(u.searchParams.get('source'), 'flickr');
+      assert.equal(u.searchParams.get('q'), 'Lando Norris');
+      assert.equal(u.searchParams.get('license_type'), 'commercial,modification');
+      return new Response(JSON.stringify({ results: [
+        { url: 'https://live.staticflickr.com/1/9_b.jpg', thumbnail: 'https://api.openverse.org/v1/images/9/thumb/', title: 'Lando Norris', creator: 'Fan F1', license: 'by', license_version: '2.0', foreign_landing_url: 'https://www.flickr.com/photos/o1/9' },
+        { url: 'https://live.staticflickr.com/1/6_b.jpg', title: 'Coucher de soleil', tags: [{ name: 'norris' }], creator: 'Z', license: 'by', license_version: '2.0' },
+        { url: 'https://live.staticflickr.com/1/8_b.jpg', creator: 'X', license: 'by-nc', license_version: '2.0' },
+        { url: 'https://ailleurs.test/7.jpg', creator: 'Y', license: 'by', license_version: '4.0' },
+      ] }));
+    }
+    throw new Error(`inattendu : ${url}`);
+  };
+  assert.deepEqual((await freePhotos(' x ', { fetchFn })).items, []);
+  const r = await freePhotos('Lando Norris', { fetchFn });
+  assert.deepEqual(r.items.map((p) => [p.site, p.author, p.license]), [['Wikimedia Commons', 'Jean & Co', 'CC BY-SA 4.0'], ['Wikimedia Commons', 'Wikimedia Commons', 'CC BY 2.0'],
+    ['Wikimedia Commons', 'Wikimedia Commons', 'CC BY-SA 4.0'], ['Flickr', 'Fan F1', 'CC BY 2.0']]);
+  assert.equal(r.items[0].thumb, 'https://upload.wikimedia.org/w/thumb/N.jpg/330px-N.jpg');
+  assert.equal(r.items[2].url, 'https://upload.wikimedia.org/w/thumb/S.jpg/1600px-S.jpg');
+  assert.equal(r.items[0].year, undefined);
+  // Même recherche : réponse gardée une heure
+  const n = asked.length;
+  await freePhotos('Lando Norris', { fetchFn });
+  assert.equal(asked.length, n);
+});
+
+test('page du créateur : photo principale d\'un article (livrée spéciale)', async () => {
+  const fetchFn = (url, init) => worker(url, init);
+  saveConfig({ creator: true, social: {} });
+  await enableStudio(CODE, { fetchFn });
+  const key = { 'X-Studio-Key': studioKey(CODE) };
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    if (url === 'https://media.test/livree') return new Response('<html><head><meta property="og:image" content="https://cdn.media.test/williams-vegas.jpg"></head><body><p>Texte</p></body></html>', { headers: { 'Content-Type': 'text/html' } });
+    if (url === 'https://cdn.media.test/williams-vegas.jpg') return new Response(new Uint8Array([0xff, 0xd8, 0xff, 1]), { headers: { 'Content-Type': 'image/jpeg' } });
+    if (url === 'https://media.test/sans-photo') return new Response('<html><body>Rien</body></html>', { headers: { 'Content-Type': 'text/html' } });
+    throw new Error(`inattendu : ${url}`);
+  };
+  try {
+    const r = await worker(`https://s.test/studio/api/artimg?u=${encodeURIComponent('https://media.test/livree')}`, { headers: key });
+    assert.equal(r.headers.get('Content-Type'), 'image/jpeg');
+    assert.equal((await r.arrayBuffer()).byteLength, 4);
+    assert.equal((await worker(`https://s.test/studio/api/artimg?u=${encodeURIComponent('https://media.test/sans-photo')}`, { headers: key })).status, 404);
+    assert.equal((await worker(`https://s.test/studio/api/artimg?u=${encodeURIComponent('http://127.0.0.1/x')}`, { headers: key })).status, 400);
+  } finally { globalThis.fetch = realFetch; }
   await disableStudio({ fetchFn });
 });
 

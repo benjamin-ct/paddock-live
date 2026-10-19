@@ -289,7 +289,7 @@ function sourcesView() {
   };
   const block = (cat, title) => (by[cat].length ? `<div class="sz-box"><h3>${title}</h3><table class="sz-table nw-src-table">${by[cat].map(row).join('')}</table></div>` : '');
   return `<div class="sz-box"><h3>${icon('plus')} Ajouter une source</h3>
-      <p class="muted small">Adresse d'un site ou de son flux RSS, d'une chaîne YouTube (ex. https://www.youtube.com/@Formula1) ou d'un compte Bluesky (ex. @compte.bsky.social).</p>
+      <p class="muted small">Site, flux RSS, chaîne YouTube ou compte Bluesky</p>
       <form class="nw-add" id="nwAdd"><input type="text" id="nwAddUrl" placeholder="https://… ou @compte.bsky.social" required>
         <select id="nwAddCat"><option value="media">Média</option><option value="team">Écurie</option><option value="driver">Pilote</option><option value="official">Officiel</option></select>
         <button class="btn" type="submit">Ajouter</button></form>
@@ -384,8 +384,8 @@ function render() {
   const head = `<div class="nw-head"><div><h2>${$(`#nwNav [data-nw="${section}"]`)?.innerHTML.trim() || 'Actualités'}</h2>
       <div class="muted small">${tagFilter ? `<button class="nw-filter" data-tag-clear style="--tc:${tagColor(tagFilter)}">${esc(tagName(tagFilter))} ${icon('close')}</button> ` : ''}${okSources} sources suivies · ${list.length} sujet${list.length > 1 ? 's' : ''}${section === 'favs' && !favTags().size ? ' · aucun favori : ajoutez-en avec l\'étoile du classement' : ''}</div></div>
       <div class="nw-actions"><button class="btn small" id="nwRefresh" title="Relire toutes les sources maintenant">${icon('refresh')} Actualiser</button>
-      <button class="btn small" id="nwMarkRead" title="Tous les articles de la liste marqués lus (grisés, sans pastille « nouveau »)">${icon('check')} Tout marquer comme lu</button></div></div>`;
-  const banner = guard ? `<div class="nw-guard">${icon('eye-off')} <b>Anti-spoiler</b> : séance en cours, les titres sont masqués et les alertes d'actualité suspendues.
+      <button class="btn small" id="nwMarkRead" title="Tout marquer comme lu">${icon('check')} Tout marquer comme lu</button></div></div>`;
+  const banner = guard ? `<div class="nw-guard">${icon('eye-off')} <b>Anti-spoiler</b> : séance en cours, titres masqués.
       <button class="btn small" id="nwReveal">Afficher quand même</button></div>` : '';
   const body = shown.length
     ? `<div class="nw-list${guard ? ' guarded' : ''}${Date.now() < cascadeUntil ? ' cascade' : ''}">${shown.map((g, i) => card(g, favs, i)).join('')}</div>${list.length > limit ? '<button class="btn nw-more" id="nwMore">Voir plus</button>' : ''}`

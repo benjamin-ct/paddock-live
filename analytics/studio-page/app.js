@@ -14,8 +14,19 @@ import { cachedNews, freshNews, toFrench, knownFrench, cachedSessions, seasonSes
 const app = $('#app');
 // Ancienne adresse (*.workers.dev) : même page sur le nom de domaine (code à entrer une fois de plus)
 if (/\.workers\.dev$/.test(location.hostname)) location.replace(`https://paddocklive.app${location.pathname}${location.search}${location.hash}`);
-const posts = () => import('./posts.js');
-const season = () => import('./season.js');
+// Studio mis à jour pendant que la page était ouverte : les fichiers de son ancienne version n'existent
+// plus sur le serveur, la page est rechargée (une fois par version) pour prendre la nouvelle. Seulement
+// à l'ouverture d'un écran : un préchargement raté (appli en veille) ne recharge rien
+const lazy = (load) => () => load().catch((err) => {
+  let again = true;
+  try { again = sessionStorage.getItem('studio.reload') !== import.meta.url; sessionStorage.setItem('studio.reload', import.meta.url); } catch { /* stockage refusé */ }
+  if (!again) throw err;
+  location.reload();
+  return new Promise(() => {});
+});
+const loadPosts = () => import('./posts.js');
+const posts = lazy(loadPosts);
+const season = lazy(() => import('./season.js'));
 const scrolls = {};   // position dans chaque onglet, retrouvée au retour d'un post
 
 // ---------- Accès ----------
@@ -146,7 +157,7 @@ async function newsTab(body, { force, restore, current }) {
   const y = scrollY;
   renderNews(body, items, { at: Date.now() });
   if (known) scrollTo(0, y);
-  setTimeout(() => posts().catch(() => {}), 300);   // éditeur préchargé
+  setTimeout(() => loadPosts().catch(() => {}), 300);   // éditeur préchargé
 }
 
 // Titres pas encore traduits de la liste affichée : demandés au serveur, remplacés dès qu'ils
@@ -214,7 +225,7 @@ async function sessionsTab(body, { force, restore, current }) {
   const list = await seasonSessions({ force });
   if (!current()) return;
   renderSessions(body, list);
-  setTimeout(() => posts().catch(() => {}), 300);
+  setTimeout(() => loadPosts().catch(() => {}), 300);
 }
 function renderSessions(body, list) {
   if (!list.length) {
@@ -297,7 +308,7 @@ function renderStats(body, r, stale) {
       ${Object.entries(p.nets).map(([n, x]) => {
         const s = p.stats?.[n];
         const name = x.url ? `<a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(NET_NAMES[n] || n)}</a>` : esc(NET_NAMES[n] || n);
-        const vals = s && !s.error ? metricsOf(s, STAT_LABELS) || '<span>pas encore d\'interaction</span>' : `<span class="hint">statistiques indisponibles${s?.error ? ` (${esc(s.error)})` : ''}</span>`;
+        const vals = s && !s.error ? metricsOf(s, STAT_LABELS) || '<span>pas encore d\'interaction</span>' : `<span class="hint">${s?.note ? esc(s.note) : `statistiques indisponibles${s?.error ? ` (${esc(s.error)})` : ''}`}</span>`;
         return `<div class="net-stats"><span class="net">${name}</span><div class="metrics">${vals}</div></div>`;
       }).join('')}</div>`).join('')}</div>` : empty('Aucun post publié pour le moment.', 'chart')}`;
   schedList($('#schedlist', body));
@@ -320,7 +331,7 @@ function renderStats(body, r, stale) {
   // Post supprimé sur les réseaux : retiré des statistiques (ici et dans l'appli)
   $$('[data-statsremove]', body).forEach((b) => {
     b.onclick = async () => {
-      if (!confirm('Retirer ce post des statistiques ?\n\nÀ faire si vous l\'avez supprimé sur les réseaux : rien n\'est supprimé chez eux.')) return;
+      if (!confirm('Retirer ce post des statistiques ?\n\nRien n\'est supprimé sur les réseaux.')) return;
       b.disabled = true;
       try {
         await api('history/remove', { method: 'POST', body: JSON.stringify({ key: b.dataset.statsremove }) });
@@ -487,8 +498,15 @@ async function alertsBlock(el) {
   const sub = await currentSub().catch(() => null);
   const on = !!sub && Notification.permission === 'granted';
   el.innerHTML = `<div class="group"><div class="row-item static"><span class="grow"><b>${on ? `Actives sur ${/iPhone|Android.*Mobile/.test(navigator.userAgent) ? 'ce téléphone' : IOS || matchMedia('(pointer: coarse)').matches ? 'cet appareil' : 'cet ordinateur'}` : 'Désactivées'}</b><small>À chaque grosse news, avec le post prêt</small></span><span class="state ${on ? 'on' : ''}"></span></div></div>
-    <div class="row">${on ? `<button class="btn" id="alerttest">${icon('bell')}Tester</button><button class="btn" id="alertoff">Couper</button>` : `<button class="btn primary" id="alerton">${icon('bell')}Activer</button>`}</div>`;
+    <div class="row">${on ? `<button class="btn" id="alerttest">${icon('bell')}Tester</button><button class="btn" id="alertoff">Couper</button>` : `<button class="btn primary" id="alerton">${icon('bell')}Activer</button>`}</div>
+    <div id="alertlist"></div>`;
   const fail = (err) => toast(err.message, 'bad');
+  // Abonnement redonné au serveur (perdu de son côté : plus rien n'arriverait), et dernières alertes envoyées
+  if (on) api('push', { method: 'POST', body: JSON.stringify({ subscription: sub.toJSON() }) }).catch(() => {});
+  api('alerts').then((r) => {
+    const items = (r.items || []).slice(0, 5);
+    $('#alertlist', el).innerHTML = `<h3 class="section">Dernières alertes envoyées</h3>${items.length ? `<div class="group">${items.map((a) => `<div class="row-item static"><span class="grow"><b>${esc(a.titleFr || a.title)}</b><small>${esc(a.srcName || '')} · il y a ${esc(ago(a.at))}</small></span></div>`).join('')}</div>` : '<p class="hint">Aucune pour le moment.</p>'}`;
+  }).catch(() => {});
   if ($('#alerton', el)) $('#alerton', el).onclick = () => enableAlerts().then(() => { toast('Alertes activées', 'ok'); alertsBlock(el); }).catch(fail);
   if ($('#alerttest', el)) $('#alerttest', el).onclick = () => api('push/test', { method: 'POST', body: JSON.stringify({ endpoint: sub.endpoint }) }).then(() => toast('Envoyée : elle arrive dans quelques secondes')).catch(fail);
   if ($('#alertoff', el)) $('#alertoff', el).onclick = async () => { try { await api('push/off', { method: 'POST', body: JSON.stringify({ endpoint: sub.endpoint }) }); await sub.unsubscribe(); toast('Alertes coupées'); alertsBlock(el); } catch (err) { fail(err); } };

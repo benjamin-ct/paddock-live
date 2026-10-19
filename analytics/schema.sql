@@ -64,9 +64,10 @@ CREATE TABLE IF NOT EXISTS pronos_new (ip TEXT NOT NULL, day TEXT NOT NULL, n IN
 CREATE TABLE IF NOT EXISTS feedback (id INTEGER PRIMARY KEY AUTOINCREMENT, at INTEGER NOT NULL, kind TEXT NOT NULL, text TEXT NOT NULL,
   contact TEXT NOT NULL, src TEXT NOT NULL, version TEXT NOT NULL, os TEXT NOT NULL, lang TEXT NOT NULL, seen INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS feedback_new (ip TEXT NOT NULL, day TEXT NOT NULL, n INTEGER NOT NULL, PRIMARY KEY (ip, day));
--- Pièces jointes (captures, vidéos) en morceaux de 1 Mo, et jeton d'envoi de chaque message qui en annonce
-CREATE TABLE IF NOT EXISTS feedback_files (msg INTEGER NOT NULL, n INTEGER NOT NULL, part INTEGER NOT NULL, type TEXT NOT NULL, size INTEGER NOT NULL,
-  data BLOB NOT NULL, PRIMARY KEY (msg, n, part));
+-- Pièces jointes (captures, vidéos ; fichiers dans le stockage R2), et jeton d'envoi de chaque message qui en annonce.
+-- Ancienne table des fichiers gardés dans la base, jamais utilisée : supprimée
+DROP TABLE IF EXISTS feedback_files;
+CREATE TABLE IF NOT EXISTS feedback_media (msg INTEGER NOT NULL, n INTEGER NOT NULL, type TEXT NOT NULL, size INTEGER NOT NULL, PRIMARY KEY (msg, n));
 CREATE TABLE IF NOT EXISTS feedback_up (msg INTEGER PRIMARY KEY, tok TEXT NOT NULL, files INTEGER NOT NULL, at INTEGER NOT NULL);
 
 -- Liens suivis des posts (/go/<id><réseau>) : adresse d'origine, et clics par jour, lien, réseau, pays et

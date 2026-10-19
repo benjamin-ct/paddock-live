@@ -446,7 +446,7 @@ function renderSectors() {
   $('#anaSectors').innerHTML = `${recordsStrip(rows, dl)}<table class="sector-board"><tr><th>#</th><th>Pilote</th>${cols.map(([k, label]) => `<th class="${opts.sort === k ? 'sorted' : ''}" data-sort="${k}" title="Trier">${label}</th>`).join('')}</tr>
     ${rows.map((r, i) => `<tr data-num="${r.n}" class="${ref && r === ref ? 'is-ref' : ''}"><td>${i + 1}</td><td><span class="drv"><span class="drv-bar" style="background:${teamColor(dl[r.n])}"></span><b>${esc(dl[r.n]?.Tla || r.n)}</b></span></td>
       ${cols.map(([k]) => cell(r, k)).join('')}</tr>`).join('')}</table>
-    <div class="small muted" style="padding:6px 10px">Tour idéal = somme des meilleurs secteurs du pilote · violet = meilleur de la séance · vitesses en km/h (Inter 1 / 2 : points de mesure intermédiaires, Ligne : ligne d'arrivée).</div>`;
+    <div class="small muted" style="padding:6px 10px">Tour idéal = meilleurs secteurs additionnés · violet = meilleur de la séance · vitesses en km/h</div>`;
 }
 
 // Onglets d'analyse affichés (actifs dans leur panneau, panneau visible), où qu'ils soient

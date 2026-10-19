@@ -51,7 +51,7 @@ function tidy(id, prefer = null) {
   if (!tabs.length && !empty) {
     empty = document.createElement('div');
     empty.className = 'tab-empty note';
-    empty.textContent = 'Panneau vide : glissez ici un onglet d\'un autre panneau (ou masquez ce panneau).';
+    empty.textContent = 'Panneau vide : glissez-y un onglet.';
     // Bouton pour masquer le panneau directement (fenêtre principale seulement : voir le CSS)
     const hide = document.createElement('button');
     hide.className = 'btn small';
@@ -168,7 +168,7 @@ function endDrag(commit) {
   if (from && from !== d.target.id) tidy(from);
   save();
   emit('tabsMoved');
-  if (from !== d.target.id) toast(`Onglet « ${d.btn.textContent.trim()} » déplacé. Pour tout remettre en place : Réglages → Disposition.`, 3500, 'move');
+  if (from !== d.target.id) toast(`Onglet « ${d.btn.textContent.trim()} » déplacé.`, 3500, 'move');
 }
 
 function onDown(e) {

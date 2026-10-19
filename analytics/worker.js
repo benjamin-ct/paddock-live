@@ -199,7 +199,7 @@ const periodOf = (url) => {
 };
 
 export default {
-  // Toutes les minutes : publications programmées de la page du créateur (un réseau par passage) ;
+  // Toutes les minutes : publications de la page du créateur (programmées ou « Publier ») ;
   // toutes les 5 minutes, grosses news signalées sur son téléphone (s'il est abonné) ; saison du
   // Studio tenue à jour (relue toutes les 30 minutes)
   async scheduled(event, env, ctx) {

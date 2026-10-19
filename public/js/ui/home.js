@@ -135,14 +135,14 @@ const pts = (x) => `${x.points} pts${x.wins ? ` · ${x.wins} victoire${x.wins > 
 const byName = (a, b) => a.localeCompare(b, LOCALE);
 
 function favEditor(ds, teams) {
-  if (!ds.length && !teams.length) return '<div class="hm-fav-edit muted small">Classement indisponible pour l\'instant : les favoris se choisissent aussi avec l\'étoile du classement du Direct.</div>';
+  if (!ds.length && !teams.length) return '<div class="hm-fav-edit muted small">Classement indisponible : choisissez vos favoris avec l\'étoile du classement du Direct.</div>';
   const dChips = [...ds].sort((a, b) => byName(a.last || a.name, b.last || b.name))
     .map((d) => `<button class="fav${isFavDriver(d) ? ' on' : ''}" data-home="favd:${esc(d.code)}" title="${esc(d.team)}">${esc(d.name)}</button>`).join('');
   const tChips = [...teams].sort((a, b) => byName(a.name, b.name))
     .map((c) => `<button class="fav${prefs.favTeams.includes(c.key) ? ' on' : ''}" data-home="favt:${esc(c.key)}">${esc(c.name)}</button>`).join('');
   return `<div class="hm-fav-edit"><div class="small muted">Pilotes</div><div class="fav-list">${dChips}</div>
     <div class="small muted">Écuries</div><div class="fav-list">${tChips}</div>
-    <div class="small muted">Vos favoris sont mis en avant dans le classement, les alertes et les actualités.</div></div>`;
+    <div class="small muted">Mis en avant dans le classement, les alertes et l'actu.</div></div>`;
 }
 
 function favHtml() {
@@ -198,7 +198,7 @@ function render() {
         <div class="hm-count" id="hmCount">${countdown(nx.t - Date.now())}</div>
         <div class="muted">${esc(when(nx.t))}</div>
         ${weatherHtml(nx)}
-        <div class="hm-actions"><a class="btn small" href="#" data-cal="${nx.year}" data-round="${nx.round}" title="Séances dans votre agenda (Google, Apple, Outlook) : abonnement mis à jour tout seul, ou fichier de ce week-end">${icon('calendar')} Ajouter ce week-end à mon agenda</a></div>`
+        <div class="hm-actions"><a class="btn small" href="#" data-cal="${nx.year}" data-round="${nx.round}" title="Séances dans votre agenda (Google, Apple, Outlook)">${icon('calendar')} Ajouter ce week-end à mon agenda</a></div>`
           : `<div class="hm-title">${schedule ? 'Saison terminée' : 'Calendrier en chargement…'}</div>`}</section>`;
   const ls = live ? null : lastSession();
   const last = ls
@@ -206,7 +206,7 @@ function render() {
         <div class="hm-title">${esc(gp(ls.meeting))} : ${esc(sessionName(ls.name))}</div>
         <div class="muted">${esc(ago(ls.t))} · résultat masqué</div>
         <div class="hm-actions"><button class="btn btn-accent" data-home="replay">${icon('play')} Revoir en replay</button>
-          <button class="btn" data-home="results" title="Page Résultats : podium, remontées, stratégies, abandons et classement complet de la séance (résultat visible)">${icon('checkered')} Voir les résultats</button></div></section>`
+          <button class="btn" data-home="results" title="Résultats de la séance (résultat visible)">${icon('checkered')} Voir les résultats</button></div></section>`
     : '';
   view.querySelector('.hm-main').innerHTML = `<h1 class="hm-hello">Paddock Live</h1>
     <div class="hm-grid">${card}${last}</div>
@@ -355,7 +355,7 @@ function noLiveCheck(show = true) {
     <p class="muted small">Le tableau de bord s'ouvre tout seul au début de la séance.</p>
     <div class="nl-actions">
       ${ls ? `<button class="btn btn-accent" data-nl="replay">${icon('play')} ${esc(t('Revoir {} : {}', gp(ls.meeting), sessionName(ls.name)))}</button>` : ''}
-      <button class="btn" data-nl="results" title="Page Résultats de la dernière séance : podium, remontées, stratégies et classement complet (résultat visible)">${icon('checkered')} Voir les résultats</button>
+      <button class="btn" data-nl="results" title="Résultats de la dernière séance (résultat visible)">${icon('checkered')} Voir les résultats</button>
       <button class="btn" data-nl="replays">${icon('history')} Toutes les séances</button>
     </div>`;
 }

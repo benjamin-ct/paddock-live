@@ -4,6 +4,24 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
+## v1.27.50 — 2026-10-19
+
+### Actu
+- Les livrées spéciales des écuries et les tenues spéciales des pilotes (combinaison, casque), présentées pour un Grand Prix, sont repérées dans toutes les langues, avec leurs étiquettes « Livrée » et « Tenue », et toujours gardées parmi les infos du moment.
+
+### Publication
+- Vidéo publiée sur Instagram ou Threads : préparation bien plus légère en mémoire, plus fiable avec les vidéos lourdes.
+
+### Statistiques
+- Une actu republiée sur un réseau où elle l'était déjà a sa propre ligne dans les statistiques des posts : les chiffres de la première publication ne sont plus remplacés.
+- Statistiques d'un post indisponibles : message clair (post supprimé, autorisation manquante, connexion expirée…) au lieu de l'erreur brute du réseau.
+
+### Interface
+- Explications plus courtes partout : réglages, info-bulles, légendes, messages, Saison et Pronostics (en français et en anglais).
+
+### Divers
+- Petites améliorations internes.
+
 ## v1.27.49 — 2026-10-19
 
 ### Divers

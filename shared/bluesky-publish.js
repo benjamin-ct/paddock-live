@@ -42,7 +42,8 @@ export function facets(text) {
 const postUrl = (handle, uri) => `https://bsky.app/profile/${handle}/post/${String(uri).split('/').pop()}`;
 
 // images : [{ blob, width, height, alt }]
-export async function publishBluesky(acc, text, images = []) {
+// external : carte de lien { url, title, description } (sans image) à la place des images
+export async function publishBluesky(acc, text, images = [], external = null) {
   const s = await bskySession(acc);
   const imgs = [];
   for (const im of images.slice(0, 4)) {
@@ -53,6 +54,7 @@ export async function publishBluesky(acc, text, images = []) {
   const record = {
     $type: 'app.bsky.feed.post', text, createdAt: new Date().toISOString(), langs: ['fr'], facets: facets(text),
     ...(imgs.length ? { embed: { $type: 'app.bsky.embed.images', images: imgs } } : {}),
+    ...(!imgs.length && external ? { embed: { $type: 'app.bsky.embed.external', external: { uri: external.url, title: external.title || '', description: external.description || '' } } } : {}),
   };
   const r = await xrpc('com.atproto.repo.createRecord', { token: s.token, json: { repo: s.did, collection: 'app.bsky.feed.post', record } });
   return { url: postUrl(s.handle, r.uri), id: { uri: r.uri, cid: r.cid } };

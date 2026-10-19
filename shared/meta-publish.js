@@ -42,9 +42,10 @@ async function mapLimit(list, n, fn) {
   return out;
 }
 
+// Empreinte du fichier (sans le recopier octet par octet : vidéos de 50 Mo sur le serveur)
 async function digest(blob, salt) {
-  const buf = await crypto.subtle.digest('SHA-256', new Uint8Array([...new TextEncoder().encode(salt), ...new Uint8Array(await blob.arrayBuffer())]));
-  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+  const buf = await crypto.subtle.digest('SHA-256', await blob.arrayBuffer());
+  return `${salt}:${[...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('')}`;
 }
 
 async function hostOne(img, m, fresh) {
@@ -238,6 +239,21 @@ export async function publishThreads(th, meta, text, images) {
   const link = await call(`${THREADS}/${pub.id}?${new URLSearchParams({ fields: 'permalink', access_token: token })}`).catch(() => ({}));
   const visible = link.permalink ? await threadsVisible(link.permalink, th.username) : null;
   return { url: link.permalink || `https://www.threads.net/@${th.username || ''}`, id: pub.id, visible };
+}
+
+// Post avec seulement le lien d'un article : Facebook et Threads affichent eux-mêmes sa carte (photo et
+// titre que le site publie pour les aperçus), sans que l'image soit recopiée
+export async function publishFacebookLink(meta, text, link) {
+  const r = await call(`${GRAPH}/${meta.pageId}/feed`, { method: 'POST', form: { message: text, link, access_token: meta.pageToken } });
+  return { url: `https://www.facebook.com/${r.id}`, id: r.id };
+}
+export async function publishThreadsLink(th, text, link) {
+  const base = `${THREADS}/${th.userId}`;
+  const c = await call(`${base}/threads`, { method: 'POST', form: { media_type: 'TEXT', text, link_attachment: link, topic_tag: THREADS_TOPIC, access_token: th.token } });
+  await ready(`${THREADS}/${c.id}?${new URLSearchParams({ fields: 'status,error_message', access_token: th.token })}`, 'status', 'Post');
+  const pub = await call(`${base}/threads_publish`, { method: 'POST', form: { creation_id: c.id, access_token: th.token } });
+  const p = await call(`${THREADS}/${pub.id}?${new URLSearchParams({ fields: 'permalink', access_token: th.token })}`).catch(() => ({}));
+  return { url: p.permalink || `https://www.threads.net/@${th.username || ''}`, id: pub.id };
 }
 
 // Le post est-il visible sans être connecté ? La page publique (lue comme un aperçu de lien) porte

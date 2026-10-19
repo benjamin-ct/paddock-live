@@ -189,7 +189,7 @@ function apply(c, startIdx, score) {
   setDelay(nd);
   run.matches.unshift({ who, delay: store.delay, ok: true, score, at: Date.now() });
   toast(`Synchro par le son : radio de ${who} reconnue, délai ${fmtDelay(store.delay)}`, 4000, 'check');
-  setStatus(`Calé sur la radio de ${who}. L'écoute continue pour confirmer avec la suivante.`, 'ok');
+  setStatus(`Calé sur la radio de ${who}.`, 'ok');
 }
 
 async function tick() {
@@ -197,7 +197,7 @@ async function tick() {
   run.ticking = true;
   try {
     if (performance.now() - run.started > MAX_LISTEN_MS) { stop('Écoute arrêtée au bout de 15 minutes.'); return; }
-    if (replaySpeed() !== 1) { setStatus('Remettez la lecture en vitesse normale (1x) : la TV, elle, ne va pas plus vite.', 'err'); return; }
+    if (replaySpeed() !== 1) { setStatus('Remettez la lecture en vitesse normale (1x).', 'err'); return; }
     if (performance.now() - run.lastFetch > 10000) await refreshRadios();
     if (!run) return;
     if (!run.base) { setStatus('Pas de séance en cours : aucune radio à reconnaître.', 'err'); return; }
@@ -206,13 +206,13 @@ async function tick() {
     if (!run.noise) {
       const total = [...run.clips.values()].filter((c) => !c.failed).length;
       setStatus(total < MIN_NOISE_CLIPS
-        ? `En écoute, en attente : il faut au moins ${MIN_NOISE_CLIPS} radios publiées dans la séance pour les reconnaître sans erreur (pour l'instant : ${total}).`
+        ? `En attente de radios publiées (${total} sur ${MIN_NOISE_CLIPS}).`
         : 'Préparation des radios de la séance…', '');
       return;
     }
     if (!run.ready) {
       run.ready = true;
-      setStatus('En écoute : laissez la TV allumée avec le son. Dès qu\'une radio d\'équipe passe à l\'antenne, le délai se règle tout seul.', 'ok');
+      setStatus('En écoute : laissez le son de la TV, le délai se règle à la prochaine radio.', 'ok');
     }
     await searchAll();
   } finally {
@@ -224,13 +224,13 @@ async function tick() {
 // ---------- Démarrer / arrêter ----------
 async function start() {
   if (run) return;
-  if (replaySpeed() !== 1) { setStatus('Remettez la lecture en vitesse normale (1x) pour la synchro par le son.', 'err'); return; }
+  if (replaySpeed() !== 1) { setStatus('Remettez la lecture en vitesse normale (1x).', 'err'); return; }
   let stream;
   try {
     stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 } });
   } catch (err) {
     setStatus(err.name === 'NotAllowedError'
-      ? 'Accès au micro refusé : autorisez le micro pour Paddock Live (réglages de confidentialité du système ou du navigateur).'
+      ? 'Accès au micro refusé : autorisez-le pour Paddock Live.'
       : `Micro indisponible (${err.message}).`, 'err');
     return;
   }

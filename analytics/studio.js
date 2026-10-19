@@ -8,7 +8,9 @@
 // (envoyés par l'appli) sont chiffrés avec cette clé (AES-GCM) : sans elle, la base ne contient
 // rien d'utilisable. Essais ratés limités par adresse et par jour.
 import { DEFAULT_SOURCES, feedUrl } from '../shared/news-sources.js';
-import { publishFacebook, publishInstagram, publishThreads, freshThreads, commentFacebook, replyThreads, withComment, storyInstagram, storyFacebook, reelInstagram, hostVideo, publishFacebookVideo, publishThreadsVideo } from '../shared/meta-publish.js';
+import { extractArticle } from '../shared/article.js';
+import { decodeBody } from '../shared/news-collect.js';
+import { publishFacebook, publishInstagram, publishThreads, freshThreads, commentFacebook, replyThreads, withComment, storyInstagram, storyFacebook, reelInstagram, hostVideo, publishFacebookVideo, publishThreadsVideo, publishFacebookLink, publishThreadsLink } from '../shared/meta-publish.js';
 import { publishBluesky, replyBluesky } from '../shared/bluesky-publish.js';
 import { freshTiktok, freshYoutube, tiktokDraft, tiktokStatus, tiktokOutcome, youtubeUpload, tiktokCreator, tiktokDirect, TIKTOK_PRIVACY } from '../shared/video-publish.js';
 import { addEntry, removeEntry, cleanKey } from '../shared/post-history.js';
@@ -17,6 +19,7 @@ import { recentPosts, importEntries } from './post-import.js';
 import { trackPost, clickStats } from './clicks.js';
 import { pushApi } from './alerts.js';
 import { feedbackApi } from './feedback.js';
+import { freePhotos, PHOTO_UA } from './photos.js';
 import { packFeeds } from '../shared/feed-pack.js';
 import { cleanPostRequest, rewritePost } from './summarize.js';
 import { buildSeason, SEASON_TTL } from './season-cache.js';
@@ -28,7 +31,7 @@ const CODE_HASH = '821f51db5c6d39c7ae10873a31723f8d4748fc2a925c6736f4a57afa7d2da
 const MAX_FAILS = 30;
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36';
 const ARCHIVE = 'https://livetiming.formula1.com/static/';
-const IMG_HOSTS = new Set(['media.formula1.com', 'www.formula1.com', 'flagcdn.com']);
+const IMG_HOSTS = new Set(['media.formula1.com', 'www.formula1.com', 'flagcdn.com', 'upload.wikimedia.org', 'thumb.wikimedia.org', 'live.staticflickr.com']);   // + photos libres (photos.js)
 
 const enc = new TextEncoder();
 const hex = (buf) => [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
@@ -277,6 +280,19 @@ async function page(req, url) {
   return new Response(res.body, { headers: { 'Content-Type': `text/plain${charset ? `; charset=${charset}` : ''}`, 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'no-store' } });
 }
 
+// Photo principale d'un article (livrée spéciale d'une écurie…) : lue sur la page, image seulement
+async function articleImage(req, url) {
+  const u = articleUrl(url.searchParams.get('u') || '');
+  if (!u) return json({ error: 'Adresse refusée' }, 400);
+  const res = await cached(req, u, { headers: { 'User-Agent': UA, Accept: 'text/html,application/xhtml+xml' } }, 1800);
+  if (res.status !== 200) return json({ error: 'Le site refuse la lecture de cet article' }, 502);
+  const src = articleUrl(extractArticle(await decodeBody(res), u).image || '');
+  if (!src) return json({ error: 'Pas de photo sur cet article' }, 404);
+  const img = await cached(req, src, { headers: { 'User-Agent': UA } }, 86400);
+  if (img.status !== 200 || !/^image\/(jpeg|png|webp)/.test(img.headers.get('Content-Type') || '')) return json({ error: 'Photo de l\'article illisible' }, 502);
+  return img;
+}
+
 // Documents de la FIA (liste des documents d'un Grand Prix, PDF des commissaires) : grille officielle
 const FIA_PAGE = /^\/documents\/championships\/fia-formula-one-world-championship-14(\/season\/season-\d{4}-\d+(\/event\/[\w%.'()-]+)?)?$/;
 const FIA_PDF = /^\/system\/files\/decision-document\/[\w%.'()-]+\.pdf$/;
@@ -290,12 +306,16 @@ async function image(req, url) {
   let u;
   try { u = new URL(url.searchParams.get('u') || ''); } catch { return json({ error: 'Adresse invalide' }, 400); }
   if (u.protocol !== 'https:' || !IMG_HOSTS.has(u.hostname)) return json({ error: 'Adresse refusée' }, 400);
-  return cached(req, u.href, { headers: { 'User-Agent': UA } }, 86400);
+  return cached(req, u.href, { headers: { 'User-Agent': u.hostname.endsWith('.wikimedia.org') ? PHOTO_UA : UA } }, 86400);
 }
 
 // Envoi sur un réseau (publication directe ou programmée). threads() : compte Threads à jour.
 // video : vidéo du créateur (Reel sur Instagram, vidéo sur Facebook et Threads ; Bluesky garde les visuels)
-async function sendTo(net, vault, { text, comment, images, small = [], video = null }, threads) {
+// link : post « lien » { url, title, description } sans visuels, la carte de l'article affichée par le réseau
+async function sendTo(net, vault, { text, comment, images, small = [], video = null, link = null }, threads) {
+  if (link && net === 'facebook') return publishFacebookLink(vault.meta, text, link.url);
+  if (link && net === 'threads') return publishThreadsLink(await threads(), text.slice(0, 500), link.url);
+  if (link && net === 'bluesky') return publishBluesky(vault.bluesky, [...text].slice(0, 300).join(''), [], link);
   if (video && net === 'instagram') return reelInstagram(vault.meta, (await hostVideo(vault.meta, video)).url, text.slice(0, 2200));
   if (video && net === 'facebook') return withComment(() => publishFacebookVideo(vault.meta, text, video), comment, (id, t) => commentFacebook(vault.meta, id, t));
   if (video && net === 'threads') {
@@ -316,7 +336,9 @@ async function sendTo(net, vault, { text, comment, images, small = [], video = n
 const NETS = ['facebook', 'instagram', 'threads', 'bluesky'];
 const CLIPS = ['tiktok', 'youtube'];   // vidéo seulement : brouillon TikTok, Short YouTube
 const VIDEO_MAX = 50e6;
-const STORIES = ['instagram-story', 'facebook-story'];   // kit de lancement : publication directe seulement
+const STORIES = ['instagram-story', 'facebook-story'];   // une story par visuel, sans texte
+// Post « lien » : carte de l'article affichée par le réseau (Instagram, sans lien : visuels de l'onglet Post)
+const LINKS = ['facebook', 'threads', 'bluesky'];
 // Compte du réseau absent du coffre : raison, sinon null
 function missing(net, vault) {
   if (CLIPS.includes(net)) return vault[net] ? null : `Compte ${net === 'tiktok' ? 'TikTok' : 'YouTube'} non envoyé : connectez-le dans l'appli (Comptes…), puis « Renvoyer les comptes »`;
@@ -351,7 +373,7 @@ async function publish(req, env, raw, vault) {
   (async () => {
     try {
       await line({ step: video ? 'Envoi de la vidéo…' : 'Envoi des images…' });
-      const r = CLIPS.includes(net) ? await sendClip(env, raw, vault, net, new Uint8Array(await video.arrayBuffer()), video.type, text, direct)
+      const r = CLIPS.includes(net) ? await sendClip(net, () => clipAccount(env, raw, vault, net), new Uint8Array(await video.arrayBuffer()), video.type, text, direct)
         : await sendTo(net, vault, { text, comment, images, small: images, video }, async () => (await refresh(env, raw, vault)).threads);
       await line({ done: true, ...resultOf(r), ...(r.note ? { note: r.note } : {}) });
     } catch (err) {
@@ -395,15 +417,15 @@ async function sendVideo(req, env, raw, vault, url) {
   const file = await env.ASSETS.fetch(new Request(new URL(src, url)));
   if (!file.ok) return json({ error: 'Vidéo du kit introuvable' }, 404);
   try {
-    const r = await sendClip(env, raw, vault, net, new Uint8Array(await file.arrayBuffer()), 'video/mp4', String(body?.text || ''));
+    const r = await sendClip(net, () => clipAccount(env, raw, vault, net), new Uint8Array(await file.arrayBuffer()), 'video/mp4', String(body?.text || ''));
     return json({ ok: true, url: r.url || null, id: r.id ?? null, note: r.note, ...(r.pending ? { pending: true } : {}) });
   } catch (err) { return json({ error: err.message }, 502); }
 }
-// Brouillon TikTok ou Short YouTube (jeton renouvelé au besoin, gardé dans le coffre)
+// Brouillon TikTok ou Short YouTube. account() : compte aux jetons à jour
 // direct : réglages d'une publication directe sur TikTok (sinon brouillon)
-async function sendClip(env, raw, vault, net, video, mime, text, direct = null) {
+async function sendClip(net, account, video, mime, text, direct = null) {
   try {
-    const acc = await clipAccount(env, raw, vault, net);
+    const acc = await account();
     if (net === 'youtube') return await youtubeUpload(acc.accessToken, video, mime, text);
     return direct ? await tiktokDirect(acc.accessToken, video, mime, direct) : await tiktokDraft(acc.accessToken, video, mime);
   } catch (err) {
@@ -434,10 +456,10 @@ function tiktokOptions(raw) {
 
 // ---------- Publications programmées ----------
 // Le post (textes de chaque réseau, visuels) est gardé dans la base et publié à l'heure choisie par
-// le relevé du serveur (toutes les minutes, un réseau par passage), même page fermée. Les jetons
+// le relevé du serveur (toutes les minutes), même page fermée. Stories comprises (visuels au format Story). Les jetons
 // utiles sont copiés pour l'occasion, chiffrés avec une clé tirée du secret du serveur (STATS_KEY,
 // hors de la base) : la base seule ne permet toujours pas de publier. Visuels et jetons sont effacés
-// une fois la publication faite.
+// une fois la publication faite. Vidéo (50 Mo au plus) gardée dans le stockage R2 (MEDIA), pas dans la base.
 const SCHED = { max: 20, ahead: 7 * 86400e3, late: 24 * 3600e3, keep: 7 * 86400e3, running: 15 * 60e3, img: 1.4e6 };
 const schedKey = async (env) => new Uint8Array(await crypto.subtle.digest('SHA-256', enc.encode(`paddock-live-schedule-v1:${env.STATS_KEY}`)));
 // Base64 par morceaux (visuels de plus d'un Mo)
@@ -470,25 +492,40 @@ async function scheduleAdd(req, env, raw, vault, now = Date.now()) {
   if (!Number.isFinite(at) || at < now - 60e3 || at > now + SCHED.ahead) return json({ error: 'Date de publication invalide (dans les 7 prochains jours)' }, 400);
   let posts, record;
   try { posts = JSON.parse(String(form.get('posts') || '[]')); record = JSON.parse(String(form.get('record') || 'null')); } catch { return json({ error: 'JSON invalide' }, 400); }
-  if (!Array.isArray(posts) || !posts.length || posts.length > NETS.length) return json({ error: 'Aucun réseau choisi' }, 400);
+  const v0 = form.get('video');
+  const video = typeof v0 === 'object' && v0 && /^video\/(mp4|quicktime)$/.test(v0.type) && v0.size <= VIDEO_MAX ? v0 : null;
+  if (v0 && !video) return json({ error: 'Vidéo MP4 ou MOV de 50 Mo au plus' }, 400);
+  if (video && !env.MEDIA) return json({ error: 'Stockage des vidéos (R2) absent du serveur' }, 503);
+  let link = null;
+  try { link = JSON.parse(String(form.get('link') || 'null')); } catch { return json({ error: 'JSON invalide' }, 400); }
+  if (link) {
+    if (video || !/^https:\/\/\S+$/.test(String(link.url || '')) || String(link.url).length > 1000) return json({ error: 'Lien invalide' }, 400);
+    link = { url: String(link.url), title: String(link.title || '').slice(0, 300), description: String(link.description || '').slice(0, 500) };
+  }
+  if (!Array.isArray(posts) || !posts.length) return json({ error: 'Aucun réseau choisi' }, 400);
+  const nets = posts.map((p) => String(p?.network || ''));
+  // Stories ou posts du fil, jamais les deux : les visuels n'ont pas le même format ; TikTok et YouTube avec une vidéo
+  const allowed = link ? [...LINKS, 'instagram'] : video ? [...NETS, ...CLIPS] : nets.some((n) => STORIES.includes(n)) ? STORIES : NETS;
   posts = posts.map((p) => ({ network: String(p?.network || ''), text: String(p?.text || '').slice(0, 5000), comment: String(p?.comment || '').trim().slice(0, 500) }));
-  if (posts.some((p) => !NETS.includes(p.network)) || new Set(posts.map((p) => p.network)).size !== posts.length) return json({ error: 'Réseau inconnu' }, 400);
+  if (nets.some((n) => !allowed.includes(n)) || new Set(nets).size !== nets.length) return json({ error: 'Réseau inconnu' }, 400);
   for (const p of posts) if (missing(p.network, vault)) return json({ error: missing(p.network, vault) }, 409);
   const files = (k, n) => form.getAll(k).filter((f) => typeof f === 'object' && f && /^image\/(png|jpeg)$/.test(f.type)).slice(0, n);
   const sets = { ig: files('ig', 20), x: files('x', 4) };
   if ([...sets.ig, ...sets.x].some((f) => f.size > SCHED.img)) return json({ error: 'Visuel trop lourd (1,4 Mo au plus)' }, 413);
-  if (posts.some((p) => p.network !== 'bluesky') && !sets.ig.length) return json({ error: 'Aucune image' }, 400);
-  if (posts.some((p) => p.network === 'bluesky') && !sets.x.length) return json({ error: 'Aucune image' }, 400);
+  if ((link ? nets.includes('instagram') : !video && posts.some((p) => p.network !== 'bluesky')) && !sets.ig.length) return json({ error: 'Aucune image' }, 400);
+  if (!link && posts.some((p) => p.network === 'bluesky') && !sets.x.length) return json({ error: 'Aucune image' }, 400);
+  const tiktok = video && nets.includes('tiktok') && form.get('tiktok') ? tiktokOptions(form.get('tiktok')) : null;
+  if (tiktok?.error) return json({ error: tiktok.error }, 400);
   if ((await schedJobs(env)).filter((j) => Object.values(j.nets).some((s) => s.status === 'pending')).length >= SCHED.max) return json({ error: `${SCHED.max} publications programmées au plus` }, 409);
   // Jetons du moment (Threads prolongé si besoin), seulement ceux des réseaux choisis
   const v = await refresh(env, raw, vault);
-  const nets = posts.map((p) => p.network);
-  const keys = { ...(nets.some((n) => n !== 'bluesky') ? { meta: v.meta } : {}), ...(nets.includes('threads') ? { threads: v.threads } : {}), ...(nets.includes('bluesky') ? { bluesky: v.bluesky } : {}) };
+  const keys = { ...(nets.some((n) => n !== 'bluesky' && !CLIPS.includes(n)) ? { meta: v.meta } : {}), ...Object.fromEntries(['threads', 'bluesky', ...CLIPS].filter((n) => nets.includes(n)).map((n) => [n, v[n]])) };
   const id = hex(crypto.getRandomValues(new Uint8Array(8)));
   for (const [set, list] of Object.entries(sets)) {
     for (const [i, f] of list.entries()) await setRow(env, `schedimg:${id}:${set}:${i}`, JSON.stringify({ type: f.type, data: b64big(new Uint8Array(await f.arrayBuffer())) }));
   }
-  const job = { id, at, title: String(form.get('title') || '').slice(0, 200), record: record && typeof record === 'object' ? record : null, posts, sets: { ig: sets.ig.length, x: sets.x.length }, keys: await seal(await schedKey(env), keys), created: now };
+  if (video) await env.MEDIA.put(`sched/${id}`, video, { httpMetadata: { contentType: video.type } });
+  const job = { id, at, title: String(form.get('title') || '').slice(0, 200), record: record && typeof record === 'object' ? record : null, posts, sets: { ig: sets.ig.length, x: sets.x.length }, video: video ? video.type : null, tiktok, link, keys: await seal(await schedKey(env), keys), created: now };
   await setRow(env, `sched:${id}`, JSON.stringify(job));
   return json({ item: schedSummary({ ...job, nets: Object.fromEntries(nets.map((n) => [n, { status: 'pending' }])) }) });
 }
@@ -499,53 +536,75 @@ async function scheduleCancel(env, id) {
   if (!j) return json({ error: 'Publication inconnue' }, 404);
   if (Object.values(j.nets).some((s) => s.status === 'running')) return json({ error: 'Publication en cours' }, 409);
   await delLike(env, `schedimg:${id}:`);
+  await env.MEDIA?.delete(`sched/${id}`);
   await delLike(env, `schedpost:${id}:`);
   await delLike(env, `sched:${id}`);
   return json({ items: (await schedJobs(env)).map(schedSummary) });
 }
 
-// Relevé du serveur : publie le premier réseau arrivé à l'heure. Renvoie { published } si un post est
-// parti (le relevé des alertes attend alors le passage suivant), null sinon.
+// Relevé du serveur : publie les programmations arrivées à l'heure. Renvoie { published } (le dernier
+// réseau) si un post est parti (le relevé des alertes attend alors le passage suivant), null sinon.
 export async function runSchedule(env, { now = Date.now() } = {}) {
   if (!env.DB || !env.STATS_KEY) return null;
   const jobs = await schedJobs(env);
   const setState = (j, net, st) => setRow(env, `schedpost:${j.id}:${net}`, JSON.stringify(st));
+  // Programmation prise en entier (tous ses réseaux « en cours »), puis publiée réseau après réseau ; les
+  // nouvelles sont commencées dans les 40 premières secondes : le passage suivant (une minute plus tard,
+  // parfois en même temps que celui-ci) relit les états après elles et ne renvoie jamais un post
+  const start = Date.now();
   let out = null;
   for (const j of jobs) {
-    for (const p of j.posts) {
-      const st = j.nets[p.network];
-      // Envoi resté « en cours » (serveur interrompu) : jamais renvoyé en double
-      if (st.status === 'running' && now - (st.started || 0) > SCHED.running) { st.status = 'error'; st.error = 'Envoi interrompu : vérifiez sur le réseau'; await setState(j, p.network, st); }
-      if (out || st.status !== 'pending' || j.at > now) continue;
-      if (now - j.at > SCHED.late) { st.status = 'expired'; await setState(j, p.network, st); continue; }
-      st.status = 'running';
-      await setState(j, p.network, { status: 'running', started: now });
-      try {
-        const keys = await open(await schedKey(env), j.keys);
-        if (!keys) throw new Error('Jetons effacés');
-        const imgs = async (set) => {
-          const list = [];
-          for (let i = 0; i < (j.sets?.[set] || 0); i++) {
-            const row = JSON.parse(await getRow(env, `schedimg:${j.id}:${set}:${i}`) || 'null');
-            if (row) list.push(new Blob([unb64(row.data)], { type: row.type }));
-          }
-          return list;
-        };
-        const tr = await trackPost(env, p.network, { text: p.text, comment: p.network === 'instagram' ? '' : p.comment }, j.record?.title);
-        const r = await sendTo(p.network, keys, { text: tr.text, comment: tr.comment, images: p.network === 'bluesky' ? [] : await imgs('ig'), small: p.network === 'bluesky' ? await imgs('x') : [] }, () => freshThreads(keys.threads));
-        Object.assign(st, { status: 'done', at: Date.now(), ...resultOf(r) });
-        if (j.record) await setRow(env, 'history', JSON.stringify(addEntry(JSON.parse(await getRow(env, 'history') || '[]'), { ...j.record, at: Date.now(), nets: { [p.network]: { id: st.id, url: st.url } } })));
-      } catch (err) {
-        Object.assign(st, { status: 'error', error: String(err?.message || err).slice(0, 300) });
-      }
-      delete st.started;
-      await setState(j, p.network, st);
-      out = { published: p.network, id: j.id };
+    // Envoi resté « en cours » (serveur interrompu) : jamais renvoyé en double
+    for (const [net, st] of Object.entries(j.nets)) {
+      if (st.status === 'running' && now - (st.started || 0) > SCHED.running) { st.status = 'error'; st.error = 'Envoi interrompu : vérifiez sur le réseau'; await setState(j, net, st); }
     }
-    // Programmation terminée : visuels et jetons effacés, puis la trace au bout de 7 jours
+    const due = j.at <= now && Date.now() - start <= 40e3 ? j.posts.filter((p) => j.nets[p.network].status === 'pending') : [];
+    if (due.length && now - j.at > SCHED.late) {
+      for (const p of due) { j.nets[p.network].status = 'expired'; await setState(j, p.network, j.nets[p.network]); }
+    } else if (due.length) {
+      for (const p of due) { j.nets[p.network].status = 'running'; await setState(j, p.network, { status: 'running', started: now }); }
+      const keys = await open(await schedKey(env), j.keys).catch(() => null);
+      const imgs = async (set) => {
+        const list = [];
+        for (let i = 0; i < (j.sets?.[set] || 0); i++) {
+          const row = JSON.parse(await getRow(env, `schedimg:${j.id}:${set}:${i}`) || 'null');
+          if (row) list.push(new Blob([unb64(row.data)], { type: row.type }));
+        }
+        return list;
+      };
+      // Vidéo relue pour chaque réseau : une seule copie en mémoire à la fois
+      const media = async () => {
+        const o = await env.MEDIA?.get(`sched/${j.id}`);
+        if (!o) throw new Error('Vidéo effacée du serveur');
+        return new Blob([await o.arrayBuffer()], { type: j.video });
+      };
+      for (const p of due) {
+        const st = j.nets[p.network];
+        try {
+          if (!keys) throw new Error('Jetons effacés');
+          const tr = await trackPost(env, p.network, { text: p.text, comment: p.network === 'instagram' ? '' : p.comment }, j.record?.title);
+          const video = j.video && p.network !== 'bluesky' ? await media() : null;
+          const r = CLIPS.includes(p.network)
+            ? await sendClip(p.network, () => (p.network === 'youtube' ? freshYoutube : freshTiktok)(keys[p.network]), new Uint8Array(await video.arrayBuffer()), j.video, tr.text, j.tiktok)
+            : j.link && LINKS.includes(p.network) ? await sendTo(p.network, keys, { text: tr.text, link: { ...j.link, url: (await trackPost(env, p.network, { text: j.link.url }, j.record?.title)).text } }, () => freshThreads(keys.threads))
+            : await sendTo(p.network, keys, { text: tr.text, comment: tr.comment, images: p.network === 'bluesky' || video ? [] : await imgs('ig'), small: p.network === 'bluesky' ? await imgs('x') : [], video }, () => freshThreads(keys.threads));
+          Object.assign(st, { status: 'done', at: Date.now(), ...resultOf(r), ...(r.note ? { note: r.note } : {}) });
+          // Stories (24 heures) : pas dans l'historique, qui garde le post du fil
+          if (j.record && !STORIES.includes(p.network)) await setRow(env, 'history', JSON.stringify(addEntry(JSON.parse(await getRow(env, 'history') || '[]'), { ...j.record, at: Date.now(), nets: { [p.network]: { id: st.id, url: st.url } } })));
+        } catch (err) {
+          Object.assign(st, { status: 'error', error: String(err?.message || err).slice(0, 300) });
+        }
+        await setState(j, p.network, st);
+        out = { published: p.network, id: j.id };
+      }
+    }
+    // Programmation terminée : tout publié sans souci, effacée aussitôt (plus dans la liste du Studio) ;
+    // sinon (erreur, commentaire refusé…) visuels, vidéo et jetons effacés, la trace gardée 7 jours
     const states = Object.values(j.nets);
-    if (states.every((s) => !['pending', 'running'].includes(s.status))) {
-      if (j.keys) { await delLike(env, `schedimg:${j.id}:`); const { nets, ...rest } = j; await setRow(env, `sched:${j.id}`, JSON.stringify({ ...rest, keys: null })); }
+    if (states.every((s) => s.status === 'done' && !s.commentError && s.visible !== false)) {
+      await delLike(env, `schedimg:${j.id}:`); await env.MEDIA?.delete(`sched/${j.id}`); await delLike(env, `schedpost:${j.id}:`); await delLike(env, `sched:${j.id}`);
+    } else if (states.every((s) => !['pending', 'running'].includes(s.status))) {
+      if (j.keys) { await delLike(env, `schedimg:${j.id}:`); await env.MEDIA?.delete(`sched/${j.id}`); const { nets, ...rest } = j; await setRow(env, `sched:${j.id}`, JSON.stringify({ ...rest, keys: null })); }
       if (now - j.at > SCHED.keep) { await delLike(env, `schedpost:${j.id}:`); await delLike(env, `sched:${j.id}`); }
     }
   }
@@ -641,7 +700,7 @@ export async function studioApi(req, env, url) {
   }
   if (path === 'stats' && req.method === 'GET') {
     let v = await refresh(env, a.raw, vault);
-    // 8 posts au plus : nombre de requêtes du serveur limité par appel ; chiffres de chaque compte en plus
+    // 6 posts au plus : un appel du serveur est limité à 50 requêtes (chiffres de chaque compte en plus)
     // Jetons YouTube et TikTok renouvelés l'un après l'autre : chaque enregistrement garde le précédent
     const tokens = {};
     for (const net of [...CLIPS, 'tiktok2']) {
@@ -649,7 +708,7 @@ export async function studioApi(req, env, url) {
       if (acc) { v = { ...v, [net]: acc }; tokens[`${net}Token`] = acc.accessToken; }
     }
     const [posts, accounts] = await Promise.all([
-      postStats(JSON.parse(await getRow(env, 'history') || '[]'), { meta: v.meta, threads: v.threads, bluesky: v.bluesky }, { limit: 8 }),
+      postStats(JSON.parse(await getRow(env, 'history') || '[]'), { meta: v.meta, threads: v.threads, bluesky: v.bluesky }, { limit: 6 }),
       accountStats(v, tokens),
     ]);
     return json({ ...posts, accounts, clicks: await clickStats(env).catch(() => null) });
@@ -663,8 +722,10 @@ export async function studioApi(req, env, url) {
   if (path === 'feeds' && req.method === 'GET') return feeds();
   if (path === 'archive' && req.method === 'GET') return archive(req, url, await refresh(env, a.raw, vault));
   if (path === 'img' && req.method === 'GET') return image(req, url);
+  if (path === 'photos' && req.method === 'GET') return json(await freePhotos(url.searchParams.get('q')));
   if (path === 'fia' && req.method === 'GET') return fia(req, url);
   if (path === 'page' && req.method === 'GET') return page(req, url);
+  if (path === 'artimg' && req.method === 'GET') return articleImage(req, url);
   if (path === 'schedule' && req.method === 'GET') return json({ items: (await schedJobs(env)).map(schedSummary) });
   if (path === 'schedule' && req.method === 'POST') return scheduleAdd(req, env, a.raw, vault);
   if (path === 'schedule/cancel' && req.method === 'POST') {

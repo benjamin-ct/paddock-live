@@ -228,7 +228,7 @@ export function renderPits() {
       <td>${chip(p.num)} <span class="muted small">${p.k ? `${p.k}${p.k === 1 ? 'er' : 'e'} arrêt` : 'passage'}</span></td>
       <td class="pit-tyres">${sameTyres(p) ? `${tyre(p.from)} <span class="muted small">mêmes pneus</span>` : p.from || p.to ? `${tyre(p.from)} <span class="muted">${icon('arrow-right', 'ic-s')}</span> ${fitted(p.to)}` : '<span class="muted">—</span>'}</td>
       <td>${p.duration ? `<div class="pit-cell">${bar(p.duration, laneMin, laneMax, 'lane')}<span class="pit-val">${sec(p.duration)}</span>${laneNote(p)}</div>` : '—'}</td>
-      <td>${p.st ? `<div class="pit-cell">${bar(p.st, stMin, stMax, stClass(p.st))}<span class="pit-val ${stClass(p.st)}"${p.est ? ' title="Estimé par la télémétrie (vitesse nulle) : la F1 ne fournit pas le temps officiel pour cette séance"' : ''}>${p.est ? '≈' : ''}${sec(p.st)}</span></div>` : '<span class="muted">—</span>'}</td></tr>`).join('')}</table>`;
+      <td>${p.st ? `<div class="pit-cell">${bar(p.st, stMin, stMax, stClass(p.st))}<span class="pit-val ${stClass(p.st)}"${p.est ? ' title="Estimé par la télémétrie (pas de temps officiel)"' : ''}>${p.est ? '≈' : ''}${sec(p.st)}</span></div>` : '<span class="muted">—</span>'}</td></tr>`).join('')}</table>`;
   }
   $('#pitList').innerHTML = summary + body;
   for (const r of document.querySelectorAll('input[name=pitView]')) r.onchange = (e) => setPref('pitView', e.target.value);

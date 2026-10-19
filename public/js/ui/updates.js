@@ -13,9 +13,9 @@ function fmt(s) {
     case 'up-to-date': return `Vous avez la dernière version (${s.current}).`;
     case 'available': return `Nouvelle version ${s.latest?.version} disponible (vous avez ${s.current}).`;
     case 'downloading': return `Téléchargement de la version ${s.latest?.version}… ${Math.round((s.progress || 0) * 100)} %`;
-    case 'ready': return `Version ${s.latest?.version} prête : elle sera installée à la fermeture de l'appli, ou tout de suite avec « Redémarrer ».`;
+    case 'ready': return `Version ${s.latest?.version} prête : installée à la fermeture, ou avec « Redémarrer ».`;
     case 'error': return `Erreur : ${s.error}`;
-    case 'unsupported': return 'Mise à jour automatique indisponible pour cette installation (paquet .deb, appli lancée depuis l\'image disque, ou sur Mac appli hors du dossier Applications) : installez la nouvelle version depuis la page des versions du projet sur GitHub.';
+    case 'unsupported': return 'Mise à jour automatique impossible ici : installez la nouvelle version depuis GitHub.';
     default: return `Version ${s.current}`;
   }
 }
@@ -36,7 +36,7 @@ function render(s) {
   if (s.current) {
     let seen = null;
     try { seen = localStorage.getItem('paddock.seenVersion'); localStorage.setItem('paddock.seenVersion', s.current); } catch { /* stockage indisponible */ }
-    if (seen && seen !== s.current) toast(`Paddock Live a été mise à jour en ${s.current} : les nouveautés sont dans Réglages → Application`, 8000);
+    if (seen && seen !== s.current) toast(`Mis à jour en ${s.current} : nouveautés dans Réglages → Application`, 8000);
   }
 }
 

@@ -154,7 +154,7 @@ export function chartHtml(state) {
       return `<div class="rp-bar-row">${label(n)}<div class="rp-stints">${segs}</div></div>`;
     }).join('');
     return `<section class="rp-tile rp-chart"><h4>${t('Stratégies')}</h4>${rows}
-      <div class="muted small">${t('Chaque bloc = un relais : pneu et nombre de tours. Pilotes dans leur ordre final.')}</div></section>`;
+      <div class="muted small">${t('Un bloc = un relais (pneu, tours), pilotes dans l\'ordre final.')}</div></section>`;
   }
   // Qualifications et essais : écart au meilleur tour de la séance (en qualifs : le meilleur des parties)
   const best = (n) => Math.min(...[lines[n]?.BestLapTime?.Value, ...list(lines[n]?.BestLapTimes).map((x) => x?.Value)].map(sec).filter((v) => v > 0));
