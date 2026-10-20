@@ -164,11 +164,13 @@ export function unlockAudio() {
   } catch { /* pas de son possible dans ce navigateur */ }
 }
 
-// Zone sûre : sur les téléphones (écran plus allongé que 9:16), les réseaux remplissent l'écran en rognant
-// les côtés (environ 9 % de chaque côté) et posent leurs boutons par-dessus. Image dessinée à SAFE de sa
-// taille au centre, sur un fond tiré d'elle-même (floutée en passant par une toute petite image, assombrie) :
-// rien de coupé, pas de bandes noires.
-const SAFE = 0.86;
+// Zone sûre : sur les téléphones (écran plus allongé que 9:16), Reels, TikTok et Shorts remplissent l'écran
+// en rognant les côtés (environ 9 % de chaque côté, ~100 px) et posent leur interface par-dessus : en haut
+// l'onglet et la barre de progression (~10 %), à droite la colonne J'aime / Commentaire / Partage (~110 px
+// visibles), en bas le compte, la légende et la musique (~18 %). Image dessinée réduite (SAFE.s) dans le
+// rectangle libre, sur un fond tiré d'elle-même (floutée en passant par une toute petite image, assombrie) :
+// rien de coupé ni caché, pas de bandes noires.
+const SAFE = { x: 120, y: 200, s: 0.72 };
 export function safeFrame(paint) {
   const inner = document.createElement('canvas');
   inner.width = W; inner.height = H;
@@ -185,7 +187,7 @@ export function safeFrame(paint) {
     ctx.drawImage(tiny, 0, 0, W, H);
     ctx.fillStyle = 'rgba(0, 0, 0, .3)';
     ctx.fillRect(0, 0, W, H);
-    ctx.drawImage(inner, (W - W * SAFE) / 2, (H - H * SAFE) / 2, W * SAFE, H * SAFE);
+    ctx.drawImage(inner, SAFE.x, SAFE.y, W * SAFE.s, H * SAFE.s);
   };
 }
 
