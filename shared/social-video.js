@@ -166,11 +166,11 @@ export function unlockAudio() {
 
 // Zone sûre : sur les téléphones (écran plus allongé que 9:16), Reels, TikTok et Shorts remplissent l'écran
 // en rognant les côtés (environ 9 % de chaque côté, ~100 px) et posent leur interface par-dessus : en haut
-// l'onglet et la barre de progression (~10 %), à droite la colonne J'aime / Commentaire / Partage (~110 px
+// l'onglet, la recherche ou le retour (~13 %), à droite la colonne J'aime / Commentaire / Partage (~110 px
 // visibles), en bas le compte, la légende et la musique (~18 %). Image dessinée réduite (SAFE.s) dans le
 // rectangle libre, sur un fond tiré d'elle-même (floutée en passant par une toute petite image, assombrie) :
 // rien de coupé ni caché, pas de bandes noires.
-const SAFE = { x: 120, y: 200, s: 0.72 };
+const SAFE = { x: 120, y: 260, s: 0.68 };
 export function safeFrame(paint) {
   const inner = document.createElement('canvas');
   inner.width = W; inner.height = H;
