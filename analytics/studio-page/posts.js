@@ -65,7 +65,7 @@ function bindNewsVideo(getD, onBreaking, onClip) {
       clip = await makeAnimation((ctx, t, w, h) => newsFrame(ctx, w, h, d, o, t), duration, { box: true, cover: (ctx) => videoCover(ctx, 1080, 1920, d, o), music: 'gen', track: track(), onProgress: (p) => { $('#vidst').textContent = `Enregistrement… ${Math.round(p * 100)} %`; } });
       $('#vid').src = URL.createObjectURL(clip.blob); $('#vid').hidden = false;
       $('#sharevid').disabled = false; $('#sharefull').disabled = false;
-      $('#vidst').textContent = `Vidéo prête : ${Math.round(duration)} s, ${(clip.blob.size / 1e6).toFixed(1).replace('.', ',')} Mo${clip.silent ? ' · sans son : le navigateur a bloqué la musique, recommencez' : ''}${clipFile(clip, name()) ? ' · jointe au post (à décocher à l'étape Publier pour garder les visuels)' : ' · format WebM : à partager seulement (publication en MP4)'}`;
+      $('#vidst').textContent = `Vidéo prête : ${Math.round(duration)} s, ${(clip.blob.size / 1e6).toFixed(1).replace('.', ',')} Mo${clip.silent ? ' · sans son : le navigateur a bloqué la musique, recommencez' : ''}${clipFile(clip, name()) ? ' · jointe au post (à décocher à l\'étape Publier pour garder les visuels)' : ' · format WebM : à partager seulement (publication en MP4)'}`;
       onClip(clipFile(clip, name()));
     } catch (err) { $('#vidst').textContent = err.message; } finally { $('#mkvid').disabled = false; }
   };
