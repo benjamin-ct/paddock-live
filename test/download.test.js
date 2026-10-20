@@ -59,6 +59,18 @@ test('téléchargement : copie de la dernière version sur Cloudflare (morceaux 
   assert.equal((await mirror(new Request('https://p.test/dl/x'), env, '../secret')).status, 404);
 });
 
+test('téléchargements : comptés seulement sur un clic dans un navigateur', async () => {
+  const { default: worker } = await import('../analytics/worker.js');
+  const runs = [];
+  const env = { MEDIA: { get: async () => ({ text: async () => '1.27.51' }) }, DB: { prepare: () => ({ bind: (...a) => ({ run: async () => { runs.push(a); return {}; } }) }) } };
+  const ctx = { waitUntil: (p) => p };
+  const ua = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/141.0' };
+  await worker.fetch(new Request('https://paddocklive.app/download/deb', { headers: ua }), env, ctx);
+  await worker.fetch(new Request('https://paddocklive.app/download/deb', { headers: { ...ua, 'Sec-Fetch-User': '?1' } }), env, ctx);
+  await new Promise((r) => setTimeout(r, 0));
+  assert.deepEqual(runs.map((a) => [a[1], a[2], a[4]]), [['download', 'deb', 'desktop']]);
+});
+
 test('nom de domaine : racine = site de l\'appli, www redirigé, workers.dev inchangé', async () => {
   const { default: worker } = await import('../analytics/worker.js');
   const env = { ASSETS: { fetch: async (req) => new Response(`site:${new URL(req.url).pathname}`) } };

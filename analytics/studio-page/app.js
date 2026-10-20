@@ -269,7 +269,7 @@ const accountsHtml = (accounts) => `<h3 class="section">Mes comptes <small>activ
       ${off.length ? `<div class="acc-off">${off.map(([n, x]) => `<span>${netLink(n, x.url)} · ${esc(x.note || x.error || 'indisponible')}</span>`).join('')}</div>` : ''}</div>`;
   }).join('')}</div>`;
 // Clics sur les liens suivis des posts, des pages de liens en bio et téléchargements de l'appli (30 jours)
-const OS_LABELS = { windows: 'Windows', 'windows-portable': 'Windows portable', 'mac-arm': 'Mac Apple', 'mac-intel': 'Mac Intel', linux: 'Linux', 'linux-arm': 'Linux ARM' };
+const OS_LABELS = { windows: 'Windows', 'windows-portable': 'Windows portable', 'mac-arm': 'Mac Apple', 'mac-intel': 'Mac Intel', linux: 'Linux', 'linux-arm': 'Linux ARM', deb: 'Paquet .deb' };
 const linkName = (l) => l.title || (() => { try { const u = new URL(l.url); return `${u.hostname.replace(/^www\./, '')}${u.pathname.length > 1 ? u.pathname.slice(0, 40) : ''}`; } catch { return l.url || 'Lien'; } })();
 const clicksHtml = (c) => {
   if (!c?.links?.length) return '';

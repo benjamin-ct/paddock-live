@@ -219,7 +219,9 @@ export default {
     // à soi (pas *.workers.dev), la racine affiche le site au lieu de la page des statistiques
     if (req.method === 'GET' && url.pathname.startsWith('/download/')) {
       const os = url.pathname.slice(10);
-      if (FILES[os] && env.DB) ctx?.waitUntil?.(countClick(req, env, 'download', os) || Promise.resolve());
+      // Compté seulement si quelqu'un a cliqué dans un navigateur (Sec-Fetch-User) : pas les programmes
+      // qui suivent tous les liens de la page (antivirus, analyseurs de liens, moteurs de recherche)
+      if (FILES[os] && env.DB && req.headers.get('Sec-Fetch-User') === '?1') ctx?.waitUntil?.(countClick(req, env, 'download', os) || Promise.resolve());
       return download(url.pathname, { env });
     }
     if (req.method === 'GET' && url.pathname.startsWith('/dl/')) return mirror(req, env, decodeURIComponent(url.pathname.slice(4)));
