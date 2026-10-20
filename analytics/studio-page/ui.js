@@ -209,18 +209,21 @@ export async function schedList(el) {
   el.innerHTML = items.length ? `<h3 class="section">Publications programmées</h3><div class="list">${items.map((j) => {
     const states = Object.values(j.nets);
     const cancel = states.some((x) => x.status === 'pending') && !states.some((x) => x.status === 'running' || x.status === 'done' || x.sent);
+    // Terminée (avec une erreur ou un envoi interrompu) : retirée de la liste à la main
+    const over = states.every((x) => !['pending', 'running'].includes(x.status));
     return `<div class="card"><div class="card-top">${icon('clock')}<span>${esc(new Date(j.at).toLocaleString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }))}</span></div><div class="t">${esc(j.title || 'Post')}</div>
       <div class="nets-st">${Object.entries(j.nets).map(([n, x]) => `<div><span>${esc(NET_NAMES[n] || n)}</span>${x.status === 'done' && x.url ? `<a class="pill ok" href="${esc(x.url)}" target="_blank" rel="noopener">${SCHED_ST.done} ${icon('check')}</a>` : `<span class="pill ${x.status === 'error' || x.status === 'expired' ? 'bad' : ''}">${x.sent && x.status !== 'error' ? `en cours (${x.sent}/${x.total})` : esc(SCHED_ST[x.status] || x.status)}</span>`}`
         + (x.error ? `<small class="err">${esc(x.error)}</small>` : '')
         + (x.commentError ? `<small class="err">Commentaire refusé : ${esc(x.commentError)}</small>` : '')
         + (x.visible === false ? '<small class="err">Pas visible publiquement sur Threads : vérifiez le post (compte ou post masqué)</small>' : '') + '</div>').join('')}</div>
-      ${cancel ? `<div class="row end"><button class="btn small" data-cancel="${esc(j.id)}">Annuler</button></div>` : ''}</div>`;
+      ${cancel || over ? `<div class="row end"><button class="btn small" data-cancel="${esc(j.id)}" ${over ? 'data-over' : ''}>${over ? 'Retirer de la liste' : 'Annuler'}</button></div>` : ''}</div>`;
   }).join('')}</div>` : '';
   el.querySelectorAll('[data-cancel]').forEach((b) => {
     b.onclick = async () => {
-      if (!confirm('Annuler cette publication programmée ?')) return;
+      const over = 'over' in b.dataset;
+      if (!confirm(over ? 'Retirer cette publication de la liste ?\n\nRien n\'est supprimé sur les réseaux.' : 'Annuler cette publication programmée ?')) return;
       b.disabled = true;
-      try { await api('schedule/cancel', { method: 'POST', body: JSON.stringify({ id: b.dataset.cancel }) }); toast('Publication annulée'); } catch (err) { alert(err.message); }
+      try { await api('schedule/cancel', { method: 'POST', body: JSON.stringify({ id: b.dataset.cancel }) }); toast(over ? 'Retirée de la liste' : 'Publication annulée'); } catch (err) { alert(err.message); }
       schedList(el);
     };
   });
