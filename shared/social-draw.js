@@ -42,7 +42,7 @@ function baseSlides(d, fmt) {
   if (d.post === 'ratings') return d.rows.length ? ['couverture', 'topflop', 'notes'] : [];
   if (d.post === 'teamduels') return d.rows.length ? ['couverture', ...Array.from({ length: Math.ceil(d.rows.length / 5) }, (_, i) => `equipes-${i + 1}`)] : [];
   if (d.post === 'racelaps') return d.total ? ['couverture', 'positions'] : [];
-  if (d.post === 'title') return d.drivers.length ? ['couverture', 'titrepilotes', ...(d.constructors.length ? ['titreecuries'] : []), ...(titleBlocks(d).length ? ['titrecomment'] : [])] : [];
+  if (d.post === 'title') return d.drivers.length || d.constructors.length ? ['couverture', ...(d.drivers.length ? ['titrepilotes'] : []), ...(d.constructors.length ? ['titreecuries'] : []), ...(titleBlocks(d).length ? ['titrecomment'] : [])] : [];
   if (d.post === 'recap') return d.items.length ? ['recapcover', ...d.items.map((_, i) => `recap-${i + 1}`)].slice(0, fmt === 'x' ? 4 : undefined) : [];
   if (!d.rows.length) return [];
   let list = ['meilleurtemps', 'podium', 'classement', ...(d.facts.length ? ['faits'] : [])];

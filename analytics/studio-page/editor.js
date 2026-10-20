@@ -83,14 +83,16 @@ const STEPS = [['contenu', 'Contenu'], ['visuels', 'Visuels'], ['video', 'Vidéo
 // vhead : fabrication ou choix de la vidéo (étape Vidéo) ; note : remarque sur les données (étape Visuels) ; data : données des visuels ; caps(d) : textes
 // des données d (sans ce que montrent les images écartées) ; bind(redraw) : branchement des réglages ;
 // record : entrée du journal ; video() : vidéo jointe au post ; link() : article { url, title, description }
-// pour un post « lien » (format Lien)
-export function editor({ back, title, subtitle = '', head = '', vhead = '', note = '', data, caps, bind = () => {}, record, video = () => null, link = null }) {
+// pour un post « lien » (format Lien) ; twin : post jumeau publié en même temps, au choix
+// { label(), data(), record() } (ses visuels et ses textes faits d'office, sans retouche)
+export function editor({ back, title, subtitle = '', head = '', vhead = '', note = '', data, caps, bind = () => {}, record, video = () => null, link = null, twin = null }) {
   const formats = link ? [...FORMATS, ['link', 'Lien']] : FORMATS;
   if (!formats.some(([k]) => k === state.fmt)) state.fmt = 'ig';
   let canvases = [];
   let edited = {};          // textes retouchés à la main : gardés en changeant de format
   state.skip = new Set();   // images écartées de ce post (toutes publiées par défaut)
   state.noVideo = false;    // vidéo prête laissée de côté (visuels publiés)
+  state.noTwin = false;     // post jumeau laissé de côté
   const root = $('#app');
   const steps = STEPS.filter(([k]) => (k === 'contenu' ? head.trim() : k === 'video' ? vhead.trim() : true));
   root.className = 'shell editing';
@@ -144,11 +146,11 @@ export function editor({ back, title, subtitle = '', head = '', vhead = '', note
   leave = back;
 
   // Textes : question et abonnement seulement si leur image est gardée ; retouches à la main conservées
-  const texts = (d) => {
-    let base = caps(keptData(d, state.skip, state.fmt));
-    if (state.question && !state.skip.has('question')) base = questionCaptions(base, d, SIG);
-    if (state.follow && !state.skip.has('abonnement')) base = followCaptions(base, d, SIG);
-    const c = { ...base, ...edited };
+  const texts = (d, skip = state.skip, mine = edited) => {
+    let base = caps(keptData(d, skip, state.fmt));
+    if (state.question && !skip.has('question')) base = questionCaptions(base, d, SIG);
+    if (state.follow && !skip.has('abonnement')) base = followCaptions(base, d, SIG);
+    const c = { ...base, ...mine };
     if (!c.bsky) c.bsky = c.x;
     return c;
   };
@@ -213,11 +215,14 @@ export function editor({ back, title, subtitle = '', head = '', vhead = '', note
     $('[data-go="textes"]').hidden = story;   // stories : pas de texte publié
     if (story && root.dataset.step === 'textes') setStep('publier');
     for (const el of [$('#opts'), $('#share'), $('#dl')]) if (el) el.hidden = linkTab;   // post « lien » : pas de visuels
-    $('#netsbox').innerHTML = xTab ? '' : `<h3 class="section">Publier sur</h3>${withVid}${list.map(([k, v]) => {
+    $('#netsbox').innerHTML = xTab ? '' : `<h3 class="section">Publier sur</h3>${twin && !linkTab ? `<label class="switch net"><span><b>Publier aussi « ${esc(twin.label())} »</b><small>Son propre post, sur les mêmes réseaux, en même temps</small></span><input type="checkbox" role="switch" id="withtwin" ${state.noTwin ? '' : 'checked'}></label>` : ''}${withVid}${list.map(([k, v]) => {
       const acc = session.me?.[k.replace('-story', '')];
       return `<label class="switch net"><span><b>${v}</b><small>${esc(acc || 'non connecté')}</small><em class="st" data-st="${k}"></em></span><input type="checkbox" role="switch" data-net="${k}" ${acc ? (k === 'tiktok' || k === 'youtube' ? '' : 'checked') : 'disabled'}></label>`;
     }).join('')}${vid ? '<div id="tkbox" class="tkbox" hidden></div>' : ''}${vid || story ? `<p class="hint">${story ? `${vid ? 'La vidéo en story' : 'Une story par image'}, visible 24 heures.` : `Vidéo sur tous les réseaux${vid.full ? ' : plein écran sur Facebook, Threads et Bluesky, zone sûre sur Instagram, TikTok et YouTube (privé)' : ''}.`}</p>` : ''}`;
     if ($('#withvid')) $('#withvid').onchange = (e) => { state.noVideo = !e.target.checked; redraw(); };
+    if ($('#withtwin')) $('#withtwin').onchange = (e) => { state.noTwin = !e.target.checked; };
+    // Post jumeau à publier aussi : ses textes faits d'office (toutes ses images gardées)
+    const pair = () => (twin && !state.noTwin && !xTab && !linkTab ? { data: twin.data(), record: twin.record(), texts: texts(twin.data(), new Set(), {}) } : null);
     // TikTok coché : réglages (brouillon ou publication directe) ; publication bloquée tant qu'ils manquent
     const tk = $('[data-net="tiktok"]');
     if (vid && tk) {
@@ -264,8 +269,8 @@ export function editor({ back, title, subtitle = '', head = '', vhead = '', note
         prepare();
       };
     });
-    $('#go').onclick = () => (xTab ? openX(canvases, $('#cap-x').value, vid) : publishAll(d, o, record?.(), vid));
-    $('#plan').onclick = () => schedulePanel(d, o, record?.(), vid);
+    $('#go').onclick = () => (xTab ? openX(canvases, $('#cap-x').value, vid) : publishAll(d, o, record?.(), vid, null, pair()));
+    $('#plan').onclick = () => schedulePanel(d, o, record?.(), vid, null, pair());
     $('#share').onclick = () => share(canvases, state.fmt === 'x' ? $('#cap-x').value : state.fmt === 'ig' ? $('#cap-instagram').value : '');
     // iPhone : « Partager » propose aussi « Enregistrer les images » (Photos)
     if ($('#dl')) $('#dl').onclick = () => download(canvases);
@@ -346,6 +351,7 @@ async function download(canvases) {
 // Réseaux cochés, texte et premier commentaire de chacun
 const checkedNets = () => $$('[data-net]:checked').map((i) => i.dataset.net);
 const textOf = (n) => $(`#cap-${n === 'threads' ? 'threads' : n === 'bluesky' ? 'bsky' : n === 'facebook' && $('#cap-facebook') ? 'facebook' : 'instagram'}`).value;
+const capOf = (c, n) => c[n === 'threads' ? 'threads' : n === 'bluesky' ? 'bsky' : n === 'facebook' && c.facebook ? 'facebook' : 'instagram'] || '';
 const commentOf = (n) => (n !== 'instagram' && $('#cap-comment')?.value.trim()) || '';
 // JPEG de moins de max octets (qualité baissée au besoin)
 async function fitJpeg(cv, max) {
@@ -355,10 +361,10 @@ async function fitJpeg(cv, max) {
 }
 // Visuels : format Instagram (Instagram, Facebook, Threads) ou Story (stories) ; Bluesky : 4 au format X, moins de 1 Mo
 const isStory = (n) => n.endsWith('-story');
-async function postImages(d, o, nets, maxIg = Infinity) {
+async function postImages(d, o, nets, maxIg = Infinity, skip = state.skip) {
   // Images gardées seulement (sommaire et numéros suivent)
   const draw = (fmt, max, n = 99) => {
-    const list = chosenSlides(slidesFor(d, { fmt, follow: state.follow, question: state.question }), [...(state.skip || [])]).slice(0, n);
+    const list = chosenSlides(slidesFor(d, { fmt, follow: state.follow, question: state.question }), [...(skip || [])]).slice(0, n);
     return Promise.all(list.map((sl) => fitJpeg(drawSlide(document.createElement('canvas'), sl, fmt, d, { ...o, slides: list }), max)));
   };
   return { ig: nets.some((n) => n !== 'bluesky') ? await draw(nets.some(isStory) ? 'story' : 'ig', maxIg) : [], x: nets.includes('bluesky') ? await draw('x', 950 * 1024, 4) : [] };
@@ -368,14 +374,15 @@ async function postImages(d, o, nets, maxIg = Infinity) {
 // video : envoyée à tous les réseaux (video.full : version plein écran hors Reels, TikTok et Shorts) ;
 // tk : réglages d'une publication directe TikTok ;
 // link : post « lien » (carte de l'article), sauf Instagram qui n'en a pas : visuels de l'onglet Post
-async function queuePost(d, o, nets, at, record, video = null, tk = null, link = null) {
-  const imgs = video ? { ig: [], x: [] } : !link ? await postImages(d, o, nets, 1.3e6)
+// alt : post jumeau (textes donnés, toutes ses images)
+async function queuePost(d, o, nets, at, record, video = null, tk = null, link = null, alt = null) {
+  const imgs = video ? { ig: [], x: [] } : !link ? await postImages(d, o, nets, 1.3e6, alt ? new Set() : state.skip)
     : { ig: nets.includes('instagram') ? (await postImages(d, o || await assets(d), ['instagram'], 1.3e6)).ig : [], x: [] };
   const form = new FormData();
   form.append('at', String(at));
   form.append('title', record?.title || d.title || d.gp || 'Post');
   form.append('record', JSON.stringify(record));
-  form.append('posts', JSON.stringify(nets.map((n) => (isStory(n) ? { network: n } : { network: n, text: textOf(n), comment: link ? '' : commentOf(n) }))));
+  form.append('posts', JSON.stringify(nets.map((n) => (isStory(n) ? { network: n } : { network: n, text: alt ? capOf(alt.texts, n) : textOf(n), comment: link ? '' : alt ? (n !== 'instagram' && alt.texts.comment?.trim()) || '' : commentOf(n) }))));
   if (link) form.append('link', JSON.stringify(link));
   imgs.ig.forEach((b, i) => form.append('ig', b, `image-${i + 1}.jpg`));
   imgs.x.forEach((b, i) => form.append('x', b, `x-${i + 1}.jpg`));
@@ -389,7 +396,7 @@ async function queuePost(d, o, nets, at, record, video = null, tk = null, link =
 
 // Publication programmée : envoyée au serveur, publiée à l'heure même page fermée
 const localValue = (t) => new Date(t - t.getTimezoneOffset() * 60e3).toISOString().slice(0, 16);
-function schedulePanel(d, o, record = null, video = null, link = null) {
+function schedulePanel(d, o, record = null, video = null, link = null, twin = null) {
   const nets = checkedNets();
   if (!nets.length) { toast('Cochez au moins un réseau', 'bad'); return; }
   const tk = nets.includes('tiktok') ? tiktokChoice() : null;
@@ -404,13 +411,14 @@ function schedulePanel(d, o, record = null, video = null, link = null) {
     const at = new Date($('#when', dlg).value).getTime();
     const st = $('#schedst', dlg);
     if (!Number.isFinite(at) || at < Date.now() - 60e3) { st.className = 'hint err'; st.textContent = 'Choisissez une heure à venir'; return; }
-    if (!confirm(`Programmer pour le ${new Date(at).toLocaleString('fr-FR', { dateStyle: 'full', timeStyle: 'short' })} sur : ${nets.map((n) => NET_NAMES[n]).join(', ')} ?\n\nLes posts seront publics à cette heure-là.`)) return;
+    if (!confirm(`Programmer pour le ${new Date(at).toLocaleString('fr-FR', { dateStyle: 'full', timeStyle: 'short' })} sur : ${nets.map((n) => NET_NAMES[n]).join(', ')} ?${twin ? `\n\nDeux posts : celui-ci et « ${twin.record.title} ».` : ''}\n\nLes posts seront publics à cette heure-là.`)) return;
     const btn = $('#dosched', dlg);
     btn.disabled = true;
     st.className = 'hint';
     st.textContent = video ? 'Envoi de la vidéo…' : 'Envoi des visuels…';
     try {
       await queuePost(d, o, nets, at, record, video, tk, link);
+      if (twin) await queuePost(twin.data, o, nets, at, twin.record, null, null, null, twin);
       dlg.close();
       toast(`Programmé pour le ${new Date(at).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' })}`, 'ok');
       schedList($('#schedlist'));
@@ -430,20 +438,21 @@ export function enterPage(back) {
 }
 export { goBack };
 
-async function publishAll(d, o, record = null, video = null, link = null) {
+async function publishAll(d, o, record = null, video = null, link = null, twin = null) {
   const nets = checkedNets();
   if (!nets.length) { toast('Cochez au moins un réseau', 'bad'); return; }
   const stories = nets.some(isStory);
   // TikTok : publication directe avec les réglages choisis, sinon brouillon ; rien n'est envoyé sans confirmation
   const tk = nets.includes('tiktok') ? tiktokChoice() : null;
   if (nets.includes('tiktok') && tiktokProblem()) { toast(tiktokProblem(), 'bad'); return; }
-  if (!confirm(`Publier maintenant sur : ${nets.map((n) => NET_NAMES[n] || n).join(', ')} ?\n\n${stories ? 'Les stories seront publiques pendant 24 heures' : `Les posts seront publics${[nets.includes('tiktok') && `TikTok : ${tk ? `publication directe, visible par : ${TIKTOK_PRIVACY[tk.privacy]}` : 'en brouillon'}`, nets.includes('youtube') && 'YouTube : en privé'].filter(Boolean).map((x, i, a) => `${i ? ' ; ' : ' ('}${x}${i === a.length - 1 ? ')' : ''}`).join('')}`}.`)) return;
+  if (!confirm(`Publier maintenant sur : ${nets.map((n) => NET_NAMES[n] || n).join(', ')} ?${twin ? `\n\nDeux posts : celui-ci et « ${twin.record.title} ».` : ''}\n\n${stories ? 'Les stories seront publiques pendant 24 heures' : `Les posts seront publics${[nets.includes('tiktok') && `TikTok : ${tk ? `publication directe, visible par : ${TIKTOK_PRIVACY[tk.privacy]}` : 'en brouillon'}`, nets.includes('youtube') && 'YouTube : en privé'].filter(Boolean).map((x, i, a) => `${i ? ' ; ' : ' ('}${x}${i === a.length - 1 ? ')' : ''}`).join('')}`}.`)) return;
   const go = $('#go');
   go.disabled = true;
   // Confié au serveur (visuels ou vidéo envoyés une fois) : publié dans la minute, même page fermée
   for (const n of nets) { const st = $(`[data-st="${n}"]`); st.className = 'st'; st.textContent = video ? 'Envoi de la vidéo au serveur…' : 'Envoi au serveur…'; }
   try {
     const item = await queuePost(d, o, nets, Date.now(), record, video, tk, link);
+    if (twin) await queuePost(twin.data, o, nets, Date.now(), twin.record, null, null, null, twin);
     for (const n of nets) $(`[data-st="${n}"]`).textContent = 'Publication dans la minute';
     toast('Envoyé : publication dans la minute, vous pouvez quitter la page', 'ok');
     // Avancement relu tant que la page reste ouverte (5 minutes au plus) ; tout publié : retirée de la liste
