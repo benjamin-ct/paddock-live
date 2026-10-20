@@ -2533,6 +2533,8 @@ export default {
   "{} messages · {} champs": "{} messages · {} fields",
   "Aucun.": "None.",
   "nouveau": "new",
+  "Énergie estimée : calibrage": "Estimated energy: calibration",
+  "(plein gaz : km/h gagnés en 1 s, selon la vitesse)": "(full throttle: km/h gained in 1 s, by speed)",
   "Flux cachés testés en direct": "Hidden feeds tested live",
   "(énergie, batterie, Boost, mode dépassement…)": "(energy, battery, Boost, overtake mode…)",
   "Pas encore testé : ça se fait tout seul à la prochaine séance en direct.": "Not tested yet: it happens automatically at the next live session.",

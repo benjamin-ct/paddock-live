@@ -56,3 +56,17 @@ test('diagnostic : chronologie du mode dépassement (OvertakeState, indicateurs 
   assert.deepEqual(overtakes, [{ tla: 'LEC', n: 1, sum: 1 }]);
   assert.deepEqual(summary.find((x) => x.change === 'OvertakeState → 1'), { change: 'OvertakeState → 1', n: 1, median: 0.64, under1: 1, known: 1 });
 });
+
+test('diagnostic : calibrage de l\'énergie (vitesse gagnée en 1 s à plein gaz)', async () => {
+  const { energyCalibration } = await import('../server/feed-diag.js');
+  const cal = energyCalibration();
+  // Voiture 1 : 270 → 282 km/h en 1 s (débite) ; voiture 2 : plafonne à 300 (batterie vide ?) ; voiture 3 : freine
+  const at = (ms, cars) => ({ Entries: [{ Utc: new Date(Date.UTC(2026, 9, 11, 12, 0, 0, ms)).toISOString(), Cars: cars }] });
+  const ch = (v, thr = 100, brk = 0) => ({ Channels: { 2: v, 4: thr, 5: brk } });
+  for (let i = 0; i <= 4; i++) cal.add(at(i * 250, { 1: ch(270 + i * 3), 2: ch(300 - (i % 2)), 3: ch(250, 0, 100) }));
+  const { gains, bands } = cal.result();
+  assert.deepEqual(gains, [0, 3, 6, 10]);
+  assert.deepEqual(bands.find((b) => b.from === 270), { from: 270, n: 1, bins: [0, 0, 0, 0, 1] });
+  assert.deepEqual(bands.find((b) => b.from === 290), { from: 290, n: 1, bins: [1, 0, 0, 0, 0] });
+  assert.equal(bands.find((b) => b.from === 240).n, 0);
+});

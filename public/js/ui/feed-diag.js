@@ -38,6 +38,18 @@ function probeHtml(p) {
     ${rows.length ? `<ul class="small diag-list" data-no-i18n>${rows.map(({ k, f, guess }) => `<li${guess ? ' class="diag-new"' : ''}>${esc(k)} · ${f.n} messages · ${esc(f.sample || '')}</li>`).join('')}</ul>` : ''}`;
 }
 
+// Calibrage de l'énergie estimée : part du temps à plein gaz par vitesse gagnée en 1 s, tranche par tranche
+const binNames = (g) => [`≤ ${g[0]}`, ...g.slice(1).map((x, i) => `${g[i] + 1}–${x}`), `> ${g.at(-1)}`];
+const pct = (b, x) => (b.n ? `${Math.round((x / b.n) * 100)} %` : '—');
+const band = (b, next) => (next ? `${b.from}–${next.from}` : `${b.from}+`);
+function energyHtml(e) {
+  if (!e?.bands?.some((b) => b.n)) return '';
+  const names = binNames(e.gains);
+  return `<p class="small"><b>${t('Énergie estimée : calibrage')}</b> <span class="muted">${t('(plein gaz : km/h gagnés en 1 s, selon la vitesse)')}</span></p>
+    <table class="small diag-table" data-no-i18n><tr><th>km/h</th>${names.map((n) => `<th>${esc(n)}</th>`).join('')}<th>n</th></tr>
+      ${e.bands.map((b, i) => `<tr><td>${band(b, e.bands[i + 1])}</td>${b.bins.map((x) => `<td>${pct(b, x)}</td>`).join('')}<td>${b.n}</td></tr>`).join('')}</table>`;
+}
+
 // Rapport texte complet (à copier ou enregistrer, pour l'analyser ailleurs)
 function report(r, p) {
   const out = [`Paddock Live · données F1 · ${r.path}`];
@@ -46,6 +58,8 @@ function report(r, p) {
     out.push('', `## ${f.name}${KNOWN_FEEDS.has(f.name) ? '' : ' (nouveau)'} · ${f.lines} messages${f.error ? ` · erreur : ${f.error}` : ''}`);
     for (const x of f.fields) out.push(line(x));
   }
+  const e = r.energy;
+  if (e?.bands) out.push('', `## Énergie estimée : calibrage (plein gaz, km/h gagnés en 1 s) · ${binNames(e.gains).join(' | ')}`, ...e.bands.map((b, i) => `${band(b, e.bands[i + 1])} km/h · n ${b.n} · ${b.bins.map((x) => pct(b, x)).join(' | ')}`));
   const o = r.overtake;
   if (o?.events.length) out.push('', '## Mode dépassement 2026 (chronologie)', ...o.summary.map(changes), `OvertakeSeries par pilote : ${perDriver(o)}`, '', ...o.events.map(change));
   return out.join('\n');
@@ -62,6 +76,7 @@ function render(r) {
       ${t('{} champs lus dans toute la séance, en {} s.', fields.length, Math.round(r.ms / 1000))}</p>
     <p class="small"><b>${t('Canaux de télémétrie')}</b></p>
     <ul class="small diag-list" data-no-i18n>${channels.map((x) => { const k = channelOf(x.path); return `<li>${CHANNELS[k] ? t('Canal {} ({})', k, t(CHANNELS[k])) : `<b class="diag-new">${t('Canal {} ({})', k, t('nouveau'))}</b>`} : ${x.min} → ${x.max} · ${t('{} valeurs', `${x.distinct}${x.more ? '+' : ''}`)} · ${esc(vals(x.top))} · max ${esc(vals(x.highest))}</li>`; }).join('') || `<li>${t('Aucune télémétrie dans cette séance.')}</li>`}</ul>
+    ${energyHtml(r.energy)}
     ${r.overtake?.events.length ? `<p class="small"><b>${t('Mode dépassement 2026 (pistes)')}</b> <span class="muted">${t('OvertakeState, indicateurs 4096 / 8192 du statut des pilotes, OvertakeSeries')}</span></p>
     <ul class="small diag-list" data-no-i18n>${r.overtake.summary.map((x) => `<li>${esc(changes(x))}</li>`).join('')}${r.overtake.overtakes.length ? `<li>${t('OvertakeSeries par pilote : {}', esc(perDriver(r.overtake)))}</li>` : ''}</ul>
     <details class="small"><summary>${t('Chronologie : {} changements (clic : aller au moment dans le replay)', r.overtake.events.length)}</summary>

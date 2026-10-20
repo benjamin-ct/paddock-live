@@ -4,6 +4,7 @@
 // nouvelle (énergie de la batterie, mode Boost…).
 import zlib from 'node:zlib';
 import { archiveGet, archiveJSON } from './archive.js';
+import { parseUtc } from '../shared/f1.js';
 
 const SAMPLES = 6;     // valeurs d'exemple gardées par champ
 const DISTINCT = 400;  // valeurs comptées par champ (au-delà : seulement min/max)
@@ -84,6 +85,39 @@ export function overtakeChrono(events) {
   return { summary: changes.filter((x) => !x.change.startsWith('Overtake ')), overtakes: [...per.values()].sort((a, b) => b.n - a.n), events: out };
 }
 
+// Calibrage de l'énergie estimée (shared/energy.js) : à plein gaz (sans frein), vitesse gagnée en ~1 s selon
+// la vitesse. Une voiture qui débite encore gagne nettement ; batterie vide : gain nul, voire perte
+const BANDS = [200, 240, 270, 290];   // km/h (bas de chaque tranche)
+const GAINS = [0, 3, 6, 10];          // km/h gagnés en 1 s (haut de chaque classe, puis « plus »)
+export function energyCalibration() {
+  const hist = new Map();
+  const bands = BANDS.map((from) => ({ from, n: 0, bins: new Array(GAINS.length + 1).fill(0) }));
+  return {
+    add(data) {
+      for (const e of data?.Entries || []) {
+        const t = parseUtc(e.Utc);
+        for (const [num, c] of Object.entries(e.Cars || {})) {
+          const ch = c?.Channels;
+          if (!ch || !Number.isFinite(t)) continue;
+          const s = { t, v: ch['2'], full: ch['4'] >= 98 && ch['4'] <= 100 && !ch['5'] };
+          let h = hist.get(num);
+          if (!h) hist.set(num, (h = []));
+          h.push(s);
+          while (t - h[0].t > 1500) h.shift();
+          const p = h[0];
+          if (!s.full || !p.full || t - p.t < 900 || s.v < BANDS[0] || h.some((x) => !x.full)) continue;
+          const gain = ((s.v - p.v) * 1000) / (t - p.t);
+          const b = bands.findLast((x) => s.v >= x.from);
+          b.n++;
+          const k = GAINS.findIndex((g) => gain <= g);
+          b.bins[k < 0 ? GAINS.length : k]++;
+        }
+      }
+    },
+    result: () => ({ gains: GAINS, bands }),
+  };
+}
+
 function summary(fields) {
   return [...fields].sort((a, b) => (a[0] < b[0] ? -1 : 1)).map(([path, f]) => {
     const byCount = [...f.counts].sort((a, b) => b[1] - a[1]);
@@ -101,6 +135,7 @@ export async function feedDiag(path, { get = archiveGet, getJSON = archiveJSON }
   const t0 = Date.now();
   const feeds = (await getJSON(`${path}Index.json`)).Feeds || {};
   const chrono = [];
+  const cal = energyCalibration();
   const out = await Promise.all(Object.entries(feeds).map(async ([name, f]) => {
     const fields = new Map();
     let lines = 0, error = null;
@@ -120,11 +155,12 @@ export async function feedDiag(path, { get = archiveGet, getJSON = archiveJSON }
           const data = decode(JSON.parse(line.slice(i)));
           walk(fields, data, name);
           if (CHRONO.has(name)) chrono.push({ off: offOf(line), feed: name, data });
+          else if (name === 'CarData.z') cal.add(data);
           lines++;
         } catch { /* ligne illisible */ }
       }
     } catch (err) { error = err.message; }
     return { name, lines, error, fields: summary(fields) };
   }));
-  return { path, ms: Date.now() - t0, feeds: out.sort((a, b) => (a.name < b.name ? -1 : 1)), overtake: overtakeChrono(chrono) };
+  return { path, ms: Date.now() - t0, feeds: out.sort((a, b) => (a.name < b.name ? -1 : 1)), overtake: overtakeChrono(chrono), energy: cal.result() };
 }
