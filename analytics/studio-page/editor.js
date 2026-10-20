@@ -76,38 +76,67 @@ addEventListener('touchend', () => {
   if (done) goBack();
 });
 
-// back : retour ; title / subtitle : en-tête ; head : réglages propres au post (HTML), au-dessus des
-// visuels ou en dessous (below) ; data : données des visuels ; caps(d) : textes des données d (sans ce
-// que montrent les images écartées) ; bind(redraw) :
-// branchement des réglages ; record : entrée du journal ; video() : vidéo du créateur jointe au post ;
-// link() : article { url, title, description } pour un post « lien » (onglet Lien)
-export function editor({ back, title, subtitle = '', head = '', below = false, data, caps, bind = () => {}, record, video = () => null, link = null }) {
+// Étapes de l'éditeur, dans l'ordre : chacune son écran (sur ordinateur, l'aperçu reste affiché à gauche)
+const STEPS = [['contenu', 'Contenu'], ['visuels', 'Visuels'], ['video', 'Vidéo'], ['textes', 'Textes'], ['publier', 'Publier']];
+
+// back : retour ; title / subtitle : en-tête ; head : réglages propres au post (HTML, étape Contenu) ;
+// vhead : fabrication ou choix de la vidéo (étape Vidéo) ; note : remarque sur les données (étape Visuels) ; data : données des visuels ; caps(d) : textes
+// des données d (sans ce que montrent les images écartées) ; bind(redraw) : branchement des réglages ;
+// record : entrée du journal ; video() : vidéo jointe au post ; link() : article { url, title, description }
+// pour un post « lien » (format Lien)
+export function editor({ back, title, subtitle = '', head = '', vhead = '', note = '', data, caps, bind = () => {}, record, video = () => null, link = null }) {
   const formats = link ? [...FORMATS, ['link', 'Lien']] : FORMATS;
   if (!formats.some(([k]) => k === state.fmt)) state.fmt = 'ig';
   let canvases = [];
   let edited = {};          // textes retouchés à la main : gardés en changeant de format
   state.skip = new Set();   // images écartées de ce post (toutes publiées par défaut)
   const root = $('#app');
+  const steps = STEPS.filter(([k]) => (k === 'contenu' ? head.trim() : k === 'video' ? vhead.trim() : true));
   root.className = 'shell editing';
   root.innerHTML = `<header class="appbar"><button class="iconbtn" id="back" aria-label="Retour">${icon('back')}</button>
       <div class="titles"><b>${esc(title)}</b>${subtitle ? `<small>${esc(subtitle)}</small>` : ''}</div></header>
     <main class="page">
-      <div class="seg wide" id="fmt">${formats.map(([k, v]) => `<button data-fmt="${k}" class="${state.fmt === k ? 'on' : ''}">${v}</button>`).join('')}</div>
-      ${head.trim() && !below ? `<section class="panel">${head}</section>` : ''}
-      <div id="main" class="preview"></div>
-      ${head.trim() && below ? `<section class="panel">${head}</section>` : ''}
-      <section class="panel" id="opts">
+      <nav class="steps" id="steps">${steps.map(([k, v]) => `<button data-go="${k}"><i></i><span>${v}</span></button>`).join('')}</nav>
+      ${head.trim() ? `<section class="panel" data-in="contenu">${head}</section>` : ''}
+      ${note ? `<p class="hint" data-in="visuels">${esc(note)}</p>` : ''}
+      <div class="seg wide" id="fmt" data-in="visuels">${formats.map(([k, v]) => `<button data-fmt="${k}" class="${state.fmt === k ? 'on' : ''}">${v}</button>`).join('')}</div>
+      <div id="main" class="preview" data-in="visuels"></div>
+      <section class="panel" id="opts" data-in="visuels">
         <h3 class="section">Options</h3>
         ${toggle('photos', 'Photos des pilotes', state.photos)}
         ${toggle('follow', 'Image « Abonnez-vous »', state.follow)}
         ${toggle('question', 'Question pour faire réagir', state.question)}
       </section>
-      <div id="texts"></div>
-      <section class="panel" id="netsbox"></section>
-      <div id="schedlist"></div>
+      ${vhead.trim() ? `<section class="panel" data-in="video">${vhead}</section>` : ''}
+      <div id="texts" data-in="textes"></div>
+      <section class="panel" id="netsbox" data-in="publier"></section>
+      <div id="schedlist" data-in="publier"></div>
     </main>
-    <div class="actionbar"><button class="btn primary" id="go">${icon('send')}Publier</button><button class="btn" id="plan">${icon('clock')}Programmer</button><button class="iconbtn boxed" id="share" aria-label="Partager ou enregistrer">${icon('share')}</button>${IOS ? '' : `<button class="iconbtn boxed" id="dl" aria-label="Télécharger">${icon('download')}</button>`}</div>`;
+    <div class="actionbar"><button class="iconbtn boxed" id="prev" aria-label="Étape précédente">${icon('back')}</button><button class="btn primary" id="next"></button>
+      <button class="btn primary" id="go">${icon('send')}Publier</button><button class="btn" id="plan">${icon('clock')}Programmer</button><button class="iconbtn boxed" id="share" aria-label="Partager ou enregistrer">${icon('share')}</button>${IOS ? '' : `<button class="iconbtn boxed" id="dl" aria-label="Télécharger">${icon('download')}</button>`}</div>`;
   scrollTo(0, 0);
+  // Étape affichée (#app[data-step] : la feuille de style montre ses blocs et ses boutons) ; étapes
+  // masquées (Textes pour une story) sautées par Précédent / Suivant
+  const shown = () => steps.filter(([k]) => !$(`[data-go="${k}"]`).hidden);
+  const setStep = (k) => {
+    const list = shown();
+    const i = Math.max(0, list.findIndex(([x]) => x === k));
+    root.dataset.step = list[i][0];
+    $$('#steps [data-go]').forEach((b) => {
+      const j = list.findIndex(([x]) => x === b.dataset.go);
+      b.classList.toggle('on', j === i);
+      b.classList.toggle('done', j >= 0 && j < i);
+    });
+    $('#prev').hidden = i === 0;
+    const nx = list[i + 1];
+    $('#next').innerHTML = nx ? `${esc(nx[1])}${icon('next')}` : '';
+    if (nx) $('#next').onclick = () => setStep(nx[0]);
+    scrollTo({ top: 0 });
+    glide();
+  };
+  $('#prev').onclick = () => { const list = shown(); setStep(list[Math.max(0, list.findIndex(([x]) => x === root.dataset.step) - 1)][0]); };
+  $$('#steps [data-go]').forEach((b) => { b.onclick = () => setStep(b.dataset.go); });
+  setStep(steps[0][0]);
   // Entrée dans l'historique : le geste « retour » ramène à la liste au lieu de quitter la page
   if (!history.state?.editor) history.pushState({ editor: 1 }, '');
   leave = back;
@@ -179,7 +208,8 @@ export function editor({ back, title, subtitle = '', head = '', below = false, d
     $('#plan').hidden = xTab;
     $('#go').disabled = false;
     $('#netsbox').hidden = xTab;
-    $('#texts').hidden = story;   // stories : pas de texte publié
+    $('[data-go="textes"]').hidden = story;   // stories : pas de texte publié
+    if (story && root.dataset.step === 'textes') setStep('publier');
     for (const el of [$('#opts'), $('#share'), $('#dl')]) if (el) el.hidden = linkTab;   // post « lien » : pas de visuels
     $('#netsbox').innerHTML = xTab ? '' : `<h3 class="section">Publier sur</h3>${storyVid}${list.map(([k, v]) => {
       const acc = session.me?.[k.replace('-story', '')];
