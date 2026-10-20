@@ -145,7 +145,21 @@ export function editor({ back, title, subtitle = '', head = '', below = false, d
       $(`[data-count="${k}"]`).classList.toggle('err', !!lim && n > lim);
     };
     let prep = 0;
-    const prepare = () => { if (xTab || linkTab) for (const k of ['x', 'comment']) if ($(`#cap-${k}`)) prepareX($(`#cap-${k}`).value, record?.()?.title); };
+    // Texte X : lien de l'article remplacé d'office par son lien court suivi (pdkl.app), dans la case même
+    const prepare = () => {
+      if (!xTab && !linkTab) return;
+      for (const k of ['x', 'comment']) {
+        const el = $(`#cap-${k}`);
+        if (!el) continue;
+        const raw = el.value;
+        prepareX(raw, record?.()?.title).then((t) => {
+          if (t === raw || !el.isConnected || el.value !== raw) return;
+          el.value = t;
+          if (k in edited) edited[k] = t;
+          count(k);
+        });
+      }
+    };
     for (const k of CAPS.map(([x]) => x).filter((x) => $(`#cap-${x}`))) {
       count(k);
       $(`#cap-${k}`).oninput = (e) => { edited[k] = e.target.value; count(k); clearTimeout(prep); prep = setTimeout(prepare, 800); };
@@ -218,7 +232,7 @@ export function editor({ back, title, subtitle = '', head = '', below = false, d
     $('#share').onclick = () => share(canvases, state.fmt === 'x' ? $('#cap-x').value : state.fmt === 'ig' ? $('#cap-instagram').value : '');
     // iPhone : « Partager » propose aussi « Enregistrer les images » (Photos)
     if ($('#dl')) $('#dl').onclick = () => download(canvases);
-    if ($('#copycomment')) $('#copycomment').onclick = async () => { try { await navigator.clipboard.writeText(trackedX.get($('#cap-comment').value) || $('#cap-comment').value); toast('Commentaire copié'); } catch { /* presse-papiers refusé */ } };
+    if ($('#copycomment')) $('#copycomment').onclick = async () => { try { await navigator.clipboard.writeText(trackedNow($('#cap-comment').value)); toast('Commentaire copié'); } catch { /* presse-papiers refusé */ } };
   };
   $('#back').onclick = goBack;
   $$('[data-fmt]').forEach((b) => { b.onclick = () => { state.fmt = b.dataset.fmt; $$('[data-fmt]').forEach((x) => x.classList.toggle('on', x === b)); glide(); redraw(); }; });
@@ -243,14 +257,19 @@ function articlePhoto(url) {
 // pas). Sinon : appli X sur téléphone, x.com sur ordinateur avec les images téléchargées
 // Texte X (et premier commentaire) avec ses liens suivis (clics comptés), préparé à l'affichage : le
 // partage part dès le toucher
-const trackedX = new Map();
+const trackedX = new Map();   // texte -> texte suivi (ou demande en cours)
+const trackedNow = (raw) => (typeof trackedX.get(raw) === 'string' ? trackedX.get(raw) : raw);
 function prepareX(raw, title) {
-  if (!/https?:\/\//.test(raw) || trackedX.has(raw)) return;
-  trackedX.set(raw, raw);
-  api('links', { method: 'POST', body: JSON.stringify({ net: 'x', text: raw, title }) }).then((r) => { if (r?.text) trackedX.set(raw, r.text); }).catch(() => trackedX.delete(raw));
+  if (!/https?:\/\//.test(raw)) return Promise.resolve(raw);
+  if (!trackedX.has(raw)) {
+    trackedX.set(raw, api('links', { method: 'POST', body: JSON.stringify({ net: 'x', text: raw, title }) })
+      .then((r) => { const t = r?.text || raw; trackedX.set(raw, t); return t; })
+      .catch(() => { trackedX.delete(raw); return raw; }));
+  }
+  return Promise.resolve(trackedX.get(raw));
 }
 async function openX(canvases, raw) {
-  const text = trackedX.get(raw) || raw;
+  const text = trackedNow(raw);
   navigator.clipboard?.writeText(text).catch(() => {});
   const files = await Promise.all(canvases.map(async (cv, i) => new File([await toBlob(cv)], `x-${i + 1}.png`, { type: 'image/png' })));
   if (navigator.canShare?.({ files })) {
