@@ -20,7 +20,7 @@ import { newsAlerts } from './alerts.js';
 import { transcribeRadio, cachedRadio, HASH_RE, MAX_AUDIO } from './transcribe.js';
 import { download, mirror, FILES } from './download.js';
 import { go, countClick } from './clicks.js';
-import { SHORT_RE } from '../shared/track-links.js';
+import { SHORT_RE, SHORT } from '../shared/track-links.js';
 import { feedbackPost, feedbackFile } from './feedback.js';
 import { buildIcs } from '../shared/ics.js';
 import { pronosApi, GROUP_RE } from './pronos.js';
@@ -226,6 +226,8 @@ export default {
     // Lien suivi d'un post : clic compté, puis l'adresse d'origine
     if (req.method === 'GET' && url.pathname.startsWith('/go/') && env.DB) return go(req, env, ctx, url.pathname.slice(4));
     if (req.method === 'GET' && SHORT_RE.test(url.pathname.slice(1)) && env.DB) return go(req, env, ctx, url.pathname.slice(1));
+    // Nom court des liens (pdkl.app) : tout le reste renvoie sur le site
+    if (env.SITE_ORIGIN && url.hostname === new URL(SHORT).hostname) return Response.redirect(`${env.SITE_ORIGIN}${url.pathname}${url.search}`, 301);
     // Page des streamers : le bloc Streaming du site
     if (req.method === 'GET' && url.pathname === '/streaming') return Response.redirect(new URL('/#streaming', url), 302);
     if (req.method === 'GET' && /^\/calendar(-en)?\.ics$/.test(url.pathname)) return calendar(env, new Date().getUTCFullYear(), url.pathname.includes('-en'));

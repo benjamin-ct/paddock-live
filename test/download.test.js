@@ -69,6 +69,10 @@ test('nom de domaine : racine = site de l\'appli, www redirigé, workers.dev inc
   assert.equal(r.headers.get('location'), 'https://paddocklive.app/legal/privacy?x=1');
   r = await worker.fetch(new Request('https://paddock-live-stats.paddock-live.workers.dev/'), env);
   assert.notEqual(await r.text(), 'site:/site/');
+  // Nom court des liens suivis : hors liens, renvoi sur le site
+  r = await worker.fetch(new Request('https://pdkl.app/download?x=1'), { ...env, SITE_ORIGIN: 'https://paddocklive.app' });
+  assert.equal(r.status, 301);
+  assert.equal(r.headers.get('location'), 'https://paddocklive.app/download?x=1');
 });
 
 test('ancienne adresse workers.dev : connexion et statistiques renvoyées sur le nom de domaine, appels de l\'appli inchangés', async () => {

@@ -1,7 +1,7 @@
 // Liens suivis des posts : réécriture des textes, redirection /go/ avec comptage, statistiques
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { trackText, linksIn, GO, SITE, linkId } from '../shared/track-links.js';
+import { trackText, linksIn, GO, SHORT, linkId } from '../shared/track-links.js';
 import { trackPost, go, clickStats } from '../analytics/clicks.js';
 
 // Base D1 réduite aux deux tables des liens
@@ -36,11 +36,11 @@ const req = (path, ua = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)'
 test('liens suivis : adresses remplacées par réseau, ponctuation finale gardée', async () => {
   const { text, links } = await trackText('🔗 Lire l\'article : https://a.test/x?y=1.\nVoir https://a.test/x?y=1/plus', 'threads');
   assert.equal(links.length, 2);
-  // Lien court : https://paddocklive.app/ + 6 lettres ou chiffres (dont une majuscule ou un chiffre) + réseau
-  assert.match(text, /^🔗 Lire l'article : https:\/\/paddocklive\.app\/[A-Za-z0-9]{6}t\.\nVoir https:\/\/paddocklive\.app\/[A-Za-z0-9]{6}t$/);
+  // Lien court : https://pdkl.app/ + 6 lettres ou chiffres (dont une majuscule ou un chiffre) + réseau
+  assert.match(text, /^🔗 Lire l'article : https:\/\/pdkl\.app\/[A-Za-z0-9]{6}t\.\nVoir https:\/\/pdkl\.app\/[A-Za-z0-9]{6}t$/);
   assert.notEqual(text.split('\n')[0].slice(-8), text.split('\n')[1].slice(-7));
   assert.deepEqual(linksIn(text), [], 'liens déjà suivis : pas réécrits');
-  assert.deepEqual(linksIn(`${GO}abcdefgh_t et https://paddocklive.app/download`), ['https://paddocklive.app/download'], 'anciens liens suivis ignorés, pages du site suivies');
+  assert.deepEqual(linksIn(`${GO}abcdefgh_t https://paddocklive.app/Ab3dE9t et https://paddocklive.app/download`), ['https://paddocklive.app/download'], 'anciens liens suivis ignorés, pages du site suivies');
   for (const u of ['https://a.test/1', 'https://a.test/2', 'https://a.test/3']) assert.match(await linkId(u), /^(?=.*[A-Z0-9])[A-Za-z0-9]{6}$/);
   assert.equal((await trackText('Sans lien #F1', 'x')).text, 'Sans lien #F1');
 });
@@ -48,7 +48,7 @@ test('liens suivis : adresses remplacées par réseau, ponctuation finale gardé
 test('liens suivis : enregistrés à la publication, clic compté puis renvoi, robots ignorés', async () => {
   const env = { DB: fakeDB() };
   const out = await trackPost(env, 'bluesky', { text: 'Titre https://media.test/article', comment: '' }, 'Norris prolonge');
-  const code = out.text.slice(out.text.indexOf(SITE) + SITE.length);
+  const code = out.text.slice(out.text.indexOf(SHORT) + SHORT.length);
   assert.match(code, /^[A-Za-z0-9]{6}b$/);
   assert.deepEqual([...env.DB.links.values()].map((l) => [l.url, l.title]), [['https://media.test/article', 'Norris prolonge']]);
   const waits = [];
