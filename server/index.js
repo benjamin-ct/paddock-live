@@ -42,6 +42,7 @@ import { localHost, sameSiteRequest, decodePath, extensionRequest, EXTENSION_ROU
 import { stats, startStats, sendFeedback, sendFeedbackFile } from './stats.js';
 import { archivePath, sendArchiveFile, archiveJSON } from './archive.js';
 import { feedDiag } from './feed-diag.js';
+import { probeState } from './feed-probe.js';
 import { cloud, createCloudTranslator } from './cloud-translate.js';
 import { cloudRadio } from './cloud-transcribe.js';
 import { createNewsTranslator, startNewsTranslation } from './news-translate.js';
@@ -647,6 +648,10 @@ async function handleApi(req, res, url) {
     }
     case 'GET /api/archive/file':
       return sendArchiveFile(res, url.searchParams.get('p') || '');
+
+    // Diagnostic des données F1 : flux cachés testés en direct (server/feed-probe.js)
+    case 'GET /api/feeds/probe':
+      return sendJSON(res, 200, probeState());
 
     // Diagnostic des données F1 : toute la séance lue dans les archives (gardé pour la session)
     case 'GET /api/feeds/diag': {
