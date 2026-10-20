@@ -164,8 +164,34 @@ export function unlockAudio() {
   } catch { /* pas de son possible dans ce navigateur */ }
 }
 
-// Animation : paint(ctx, t) dessine l'image à l'instant t (secondes)
-export async function makeAnimation(paint, duration, opts = {}) {
+// Zone sûre : sur les téléphones (écran plus allongé que 9:16), les réseaux remplissent l'écran en rognant
+// les côtés (environ 9 % de chaque côté) et posent leurs boutons par-dessus. Image dessinée à SAFE de sa
+// taille au centre, sur un fond tiré d'elle-même (floutée en passant par une toute petite image, assombrie) :
+// rien de coupé, pas de bandes noires.
+const SAFE = 0.86;
+export function safeFrame(paint) {
+  const inner = document.createElement('canvas');
+  inner.width = W; inner.height = H;
+  const ic = inner.getContext('2d');
+  const tiny = document.createElement('canvas');
+  tiny.width = 9; tiny.height = 16;
+  const tc = tiny.getContext('2d');
+  return (ctx, t) => {
+    paint(ic, t);
+    tc.drawImage(inner, 0, 0, tiny.width, tiny.height);
+    ctx.globalAlpha = 1;
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(tiny, 0, 0, W, H);
+    ctx.fillStyle = 'rgba(0, 0, 0, .3)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.drawImage(inner, (W - W * SAFE) / 2, (H - H * SAFE) / 2, W * SAFE, H * SAFE);
+  };
+}
+
+// Animation : paint(ctx, t) dessine l'image à l'instant t (secondes), placée dans la zone sûre
+export async function makeAnimation(draw, duration, opts = {}) {
+  const paint = safeFrame(draw);
   try {
     const v = await encodeFrames(paint, duration, { music: 'gen', ...opts });
     if (v) return v;
