@@ -12,7 +12,7 @@
 //   fichiers de la dernière version (download.js).
 // - tâche planifiée (toutes les 5 min) : alertes des grosses news sur le téléphone du créateur (alerts.js).
 import { cleanBatch, LABELS, FEATURE_GROUPS } from '../shared/stats.js';
-import { studioApi, runSchedule, seasonRow } from './studio.js';
+import { studioApi, runSchedule, schedInternal, seasonRow } from './studio.js';
 import { loginPage, dashboardPage } from './page.js';
 import { cleanRequest, translateBatch } from './translate.js';
 import { cleanSummaryRequest, summarizeArticle } from './summarize.js';
@@ -20,6 +20,7 @@ import { newsAlerts } from './alerts.js';
 import { transcribeRadio, cachedRadio, HASH_RE, MAX_AUDIO } from './transcribe.js';
 import { download, mirror, FILES } from './download.js';
 import { go, countClick } from './clicks.js';
+import { SHORT_RE, SHORT } from '../shared/track-links.js';
 import { feedbackPost, feedbackFile } from './feedback.js';
 import { buildIcs } from '../shared/ics.js';
 import { pronosApi, GROUP_RE } from './pronos.js';
@@ -218,12 +219,17 @@ export default {
     // à soi (pas *.workers.dev), la racine affiche le site au lieu de la page des statistiques
     if (req.method === 'GET' && url.pathname.startsWith('/download/')) {
       const os = url.pathname.slice(10);
-      if (FILES[os] && env.DB) ctx?.waitUntil?.(countClick(req, env, 'download', os) || Promise.resolve());
+      // Compté seulement si quelqu'un a cliqué dans un navigateur (Sec-Fetch-User) : pas les programmes
+      // qui suivent tous les liens de la page (antivirus, analyseurs de liens, moteurs de recherche)
+      if (FILES[os] && env.DB && req.headers.get('Sec-Fetch-User') === '?1') ctx?.waitUntil?.(countClick(req, env, 'download', os) || Promise.resolve());
       return download(url.pathname, { env });
     }
     if (req.method === 'GET' && url.pathname.startsWith('/dl/')) return mirror(req, env, decodeURIComponent(url.pathname.slice(4)));
     // Lien suivi d'un post : clic compté, puis l'adresse d'origine
     if (req.method === 'GET' && url.pathname.startsWith('/go/') && env.DB) return go(req, env, ctx, url.pathname.slice(4));
+    if (req.method === 'GET' && SHORT_RE.test(url.pathname.slice(1)) && env.DB) return go(req, env, ctx, url.pathname.slice(1));
+    // Nom court des liens (pdkl.app) : tout le reste renvoie sur le site
+    if (env.SITE_ORIGIN && url.hostname === new URL(SHORT).hostname) return Response.redirect(`${env.SITE_ORIGIN}${url.pathname}${url.search}`, 301);
     // Page des streamers : le bloc Streaming du site
     if (req.method === 'GET' && url.pathname === '/streaming') return Response.redirect(new URL('/#streaming', url), 302);
     if (req.method === 'GET' && /^\/calendar(-en)?\.ics$/.test(url.pathname)) return calendar(env, new Date().getUTCFullYear(), url.pathname.includes('-en'));
@@ -287,6 +293,8 @@ export default {
       return env.ASSETS.fetch(new Request(new URL('/p/', url), req));
     }
     // Page web du créateur : API (la page elle-même est un fichier statique, dossier site/)
+    // Publication d'un réseau, appelée par la tâche planifiée elle-même (voir runSchedule)
+    if (req.method === 'POST' && url.pathname === '/internal/sched') return schedInternal(req, env);
     if (url.pathname.startsWith('/studio/api/')) {
       try { return await studioApi(req, env, url); } catch { return json({ error: 'Erreur' }, 500); }
     }

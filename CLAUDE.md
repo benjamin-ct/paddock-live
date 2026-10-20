@@ -1,21 +1,31 @@
 # Consignes du projet Paddock Live
 
 - Le projet, les messages de commit et la documentation sont en français.
-- **Chaque nouvelle version a son entrée dans `CHANGELOG.md`** : section `## vX.Y.Z — AAAA-MM-JJ`
-  en tête du fichier (`— à venir` tant qu'elle n'est pas publiée), nouveautés écrites pour les
-  utilisateurs, regroupées par thème (`### …`). Toute modification visible ajoutée à une version
-  en préparation y est notée au fil de l'eau.
-- Publication : remplacer « à venir » par la date du jour, fusionner la PR, puis lancer le workflow
-  « Application de bureau » avec la version (ex. `v1.15.0`). La page de la version reprend la section
-  du journal (`scripts/release-notes.mjs`) ; le workflow échoue si elle manque.
-- Ne fusionner et publier que lorsque l'utilisateur le demande (« merge et publie »).
+- **Branches et versions** : le travail se fait sur `develop` (toutes les PRs ont `develop` pour base) ;
+  `main` ne reçoit que les versions finales. Numéros : `X.Y.0` pour une version avec des nouveautés
+  (1.28.0, 1.29.0…), `X.Y.Z` pour une version de corrections seulement (1.28.1…).
+- **Journal** : la version en préparation a sa section `## vX.Y.0 — à venir` en tête de `CHANGELOG.md` ;
+  chaque PR y ajoute ses nouveautés au fil de l'eau (écrites pour les utilisateurs, regroupées par thème
+  `### …`), plusieurs PRs s'accumulent dans la même section. Après une publication, la PR suivante ouvre
+  la section de la version d'après.
+- **« Merge »** (ou « merge et publie » tant qu'aucune version finale n'est demandée) = fusionner la PR dans
+  `develop` : une **bêta** part toute seule si l'appli change (workflow « Application de bureau » : pré-version
+  GitHub `vX.Y.0-beta.<n>`, reçue seulement par les applis inscrites aux bêtas, Réglages → Application ;
+  les 3 dernières gardées). Sa page montre « Nouveau dans cette bêta » (ajouté au journal depuis la bêta
+  précédente, calculé tout seul) puis tout ce qui arrive dans la version ; la page de la version finale reprend
+  toute la section du journal.
+- **« Publie » / « publie la version »** = version finale pour tout le monde : remplacer « à venir » par la date
+  du jour sur `develop`, PR `develop` → `main` fusionnée, puis workflow « Application de bureau » lancé sur
+  `main` avec la version (ex. `v1.28.0`). La page de la version reprend la section du journal
+  (`scripts/release-notes.mjs`) ; le workflow échoue si elle manque. Correction urgente : branche depuis
+  `main`, version `X.Y.Z`, puis `main` refusionné dans `develop`.
+- Ne fusionner et ne publier que lorsque l'utilisateur le demande.
 - **Modifications du serveur seul, sans nouvelle version de l'appli** : quand une PR ne touche que le serveur des
   statistiques (Worker : `analytics/**`, page du Studio, `scripts/build-studio.mjs`, et les fichiers de `shared/`
   que l'appli n'importe pas, ni directement ni par un autre fichier de `shared/` — vérifier avec
-  `grep -rl <fichier> public server shared`), pas d'entrée dans `CHANGELOG.md` ni de
-  version : le workflow « Statistiques » déploie le Worker tout seul à chaque push. « Merge et publie » = fusionner la
-  PR, sans lancer « Application de bureau ». Dès qu'un fichier de l'appli change (`public/`, `server/`, `desktop/`,
-  fichier de `shared/` importé par l'appli), c'est une version normale.
+  `grep -rl <fichier> public server shared`), pas d'entrée dans `CHANGELOG.md` : le workflow « Statistiques »
+  déploie le Worker tout seul à chaque push. Dès qu'un fichier de l'appli change (`public/`, `server/`,
+  `desktop/`, fichier de `shared/` importé par l'appli), ses nouveautés vont dans la version en préparation.
 - Avant de pousser : `npm test`.
 - **Version anglaise** : tout nouveau texte affiché a sa traduction dans `public/js/i18n-en.js` (clé = texte
   français, `{}` pour les valeurs) ; `node scripts/i18n-missing.mjs` liste ceux qui manquent.

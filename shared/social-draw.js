@@ -42,7 +42,7 @@ function baseSlides(d, fmt) {
   if (d.post === 'ratings') return d.rows.length ? ['couverture', 'topflop', 'notes'] : [];
   if (d.post === 'teamduels') return d.rows.length ? ['couverture', ...Array.from({ length: Math.ceil(d.rows.length / 5) }, (_, i) => `equipes-${i + 1}`)] : [];
   if (d.post === 'racelaps') return d.total ? ['couverture', 'positions'] : [];
-  if (d.post === 'title') return d.drivers.length ? ['couverture', 'titrepilotes', ...(d.constructors.length ? ['titreecuries'] : []), ...(titleBlocks(d).length ? ['titrecomment'] : [])] : [];
+  if (d.post === 'title') return d.drivers.length || d.constructors.length ? ['couverture', ...(d.drivers.length ? ['titrepilotes'] : []), ...(d.constructors.length ? ['titreecuries'] : []), ...(titleBlocks(d).length ? ['titrecomment'] : [])] : [];
   if (d.post === 'recap') return d.items.length ? ['recapcover', ...d.items.map((_, i) => `recap-${i + 1}`)].slice(0, fmt === 'x' ? 4 : undefined) : [];
   if (!d.rows.length) return [];
   let list = ['meilleurtemps', 'podium', 'classement', ...(d.facts.length ? ['faits'] : [])];
@@ -986,6 +986,53 @@ export function drawSlide(canvas, slide, fmt, d, o = {}) {
   canvas.height = h;
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, w, h);
+  paintSlide(ctx, slide, fmt, d, o);
+  // Vidéo : visuel redessiné directement (plus petit, dans la zone sûre des applis) plutôt que réduit
+  canvas.paint = (c) => paintSlide(c, slide, fmt, d, o);
+  return canvas;
+}
+
+// Couverture des vidéos (Reels, TikTok, Shorts), plein cadre 9:16 : news → étiquette, photo et titre en très
+// gros ; autres posts → leur visuel de couverture. L'essentiel tient dans la partie centrale 3:4 que montrent
+// les grilles de profil (240 px rognés en haut et en bas).
+export function videoCover(ctx, W, H, d, o = {}) {
+  if (!d.news) { paintSlide(ctx, slidesFor(d, { fmt: 'story' }).includes('couverture') ? 'couverture' : slidesFor(d, { fmt: 'story' })[0], 'story', d, o); return; }
+  const u = W / 1080;
+  const pad = Math.round(W * 0.055);
+  const lead = d.drivers.find((p) => o.photos?.[p.num]);
+  background(ctx, W, H, lead?.color || d.color);
+  // Étiquette du type de nouvelle (ou BREAKING), comme sur les visuels
+  const top = Math.round(260 * u);
+  if (d.breaking) breakingTag(ctx, pad + 300 * u, top, 72 * u);
+  else {
+    ctx.font = `800 ${Math.round(40 * u)}px ${TITLE}`;
+    const bw = ctx.measureText(d.badge.label).width + 70 * u;
+    rr(ctx, pad, top, bw, 72 * u, 12 * u); ctx.fillStyle = d.badge.color; ctx.fill();
+    txt(ctx, d.badge.label, pad + bw / 2, top + 50 * u, { size: Math.round(40 * u), weight: 800, family: TITLE, align: 'center', spacing: 3 });
+  }
+  // Photo : celle de l'article, sinon le pilote cité ; titre en très gros dessous (centré sans photo)
+  const custom = d.image?.width ? d.image : null;
+  let y = top + 110 * u;
+  const ph = Math.round(H * 0.33);
+  if (custom) { coverPhoto(ctx, custom, pad, y, W - pad * 2, ph, 28 * u); y += ph + 50 * u; }
+  else if (lead) { photo(ctx, o.photos[lead.num], W * 0.04, y, W * 0.92, ph, lead.color, 0.3); y += ph + 40 * u; }
+  const bottom = H - 330 * u;
+  let pick = null;
+  for (const size of [190, 170, 152, 136, 122, 110, 98, 88, 78].map((v) => Math.round(v * u))) {
+    const t = fitLines(ctx, d.title.toUpperCase(), W - pad * 2, [size], 99, TITLE, 800);
+    pick = { size, lines: t.lines };
+    ctx.font = `800 ${size}px ${TITLE}`;   // chaque ligne (mot long compris) tient sans être resserrée
+    if (t.lines.length * size * 0.96 <= bottom - y && t.lines.every((l) => ctx.measureText(l).width <= W - pad * 2)) break;
+  }
+  const lh = Math.round(pick.size * 0.96);
+  if (!custom && !lead) y += Math.max(0, (bottom - y - pick.lines.length * lh) / 2);
+  pick.lines.forEach((line, i) => txt(ctx, line, pad, y + pick.size * 0.82 + i * lh, { size: pick.size, weight: 800, family: TITLE, max: W - pad * 2 }));
+  txt(ctx, o.signature || '@BenjyPaddock', pad, H - 270 * u, { size: Math.round(40 * u), weight: 700, family: TITLE, spacing: 1 });
+}
+
+// Visuel dessiné sur un contexte (taille du format, transformation du contexte respectée)
+export function paintSlide(ctx, slide, fmt, d, o = {}) {
+  const { w, h } = FORMATS[fmt];
   // X : 4 images au plus par post, le sommaire n'annonce que celles publiées
   if (slide === 'news') newsSlide(ctx, w, h, d, o, fmt);
   else if (slide === 'abonnement') follow(ctx, w, h, d, o);
@@ -1018,5 +1065,4 @@ export function drawSlide(canvas, slide, fmt, d, o = {}) {
   else if (slide === 'classement') classement(ctx, w, h, d, o);
   else if (slide === 'faits') faits(ctx, w, h, d, o);
   else if (slide === 'championnat' && d.champ) championnat(ctx, w, h, d, o);
-  return canvas;
 }

@@ -65,7 +65,6 @@ a { color: inherit; }
    d'état), une page plus courte remontait les barres fixées en bas de la hauteur de la barre d'état */
 html { min-height: 100%; overflow-x: hidden; }
 .page { overflow-x: clip; }
-body { min-height: 100vh; min-height: 100lvh; }
 .appbar {
   position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 8px;
   padding: calc(6px + env(safe-area-inset-top)) max(12px, env(safe-area-inset-right), calc((100vw - var(--w)) / 2 + 12px)) 8px max(12px, env(safe-area-inset-left), calc((100vw - var(--w)) / 2 + 12px));
@@ -83,7 +82,10 @@ body { min-height: 100vh; min-height: 100lvh; }
 /* Boutons ronds de l'en-tête : relief léger, sans ombre portée (elle faisait un halo sombre) ni flou */
 .appbar .iconbtn { border-radius: 50%; background: var(--surface-2); border: 1px solid var(--glass-line); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12); }
 .appbar .iconbtn .ic { width: 20px; height: 20px; }
-.page { max-width: var(--w); min-height: calc(100lvh - 64px - env(safe-area-inset-top)); margin: 0 auto; padding: 16px var(--gutter) calc(104px + env(safe-area-inset-bottom)); }
+.chips.wrap { flex-wrap: wrap; overflow: visible; }
+/* Pas de hauteur minimale en unités d'écran : sur l'iPhone (appli installée), 100lvh dépasse un peu la hauteur
+   visible et une page courte défilait de quelques points (barres du haut et du bas décalées) */
+.page { max-width: var(--w); margin: 0 auto; padding: 16px var(--gutter) calc(104px + env(safe-area-inset-bottom)); }
 /* Barre d'onglets et barre d'actions : capsules qui flottent au-dessus de l'indicateur d'accueil */
 .tabbar, .actionbar {
   position: fixed; z-index: 10;
@@ -235,6 +237,10 @@ button.row-item:active { background: var(--surface-2); }
 .status .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--brand); animation: pulse .8s infinite alternate; }
 .hint { margin: 8px 2px; font-size: 13px; line-height: 1.45; color: var(--muted); }
 .hint.err { color: var(--bad); }
+.card.short { display: grid; gap: 8px; }
+.card.short .row > input { flex: 1 1 180px; width: auto; }
+.card.short select { width: auto; }
+.card.short code { overflow-wrap: anywhere; font-size: 15px; color: var(--text); }
 .center { text-align: center; }
 .notice { display: flex; gap: 8px; align-items: flex-start; margin: 10px 0; padding: 10px 12px; border-radius: 12px; background: var(--surface-2); font-size: 13.5px; text-align: left; }
 .notice .ic { width: 18px; height: 18px; }
@@ -319,7 +325,9 @@ dialog.sheet { transition: transform .3s var(--spring); overscroll-behavior: con
 dialog.sheet.drag { animation: none; transition: none; }
 .sheet-body { overscroll-behavior: contain; }
 .sheet-head b { font-size: 17px; }
-.sheet-body { max-height: calc(88vh - 60px); overflow: auto; padding: 0 16px 22px; }
+.sheet-body { max-height: calc(88vh - 60px); overflow: hidden auto; padding: 0 16px 22px; }
+/* iPhone : le champ date et heure garde sa largeur propre (plus large que la fenêtre) sans ces règles */
+input[type=datetime-local] { display: block; min-width: 0; max-width: 100%; -webkit-appearance: none; appearance: none; }
 dialog.sheet .group, dialog.sheet input { background: rgba(255, 255, 255, .05); }
 .sheet-body > .section:first-child { margin-top: 8px; }
 .sheet-body .btn.wide { margin-top: 18px; }
@@ -371,7 +379,7 @@ dialog.sheet .group, dialog.sheet input { background: rgba(255, 255, 255, .05); 
   .shell:not(.editing) { --w: 1180px; padding-left: var(--side); }
   .shell:not(.editing) .appbar { padding: 14px var(--gutter) 6px; }
   .shell:not(.editing) .appbar .brand { display: none; }
-  .shell:not(.editing) .page { min-height: calc(100vh - 64px); padding: 6px var(--gutter) 48px; }
+  .shell:not(.editing) .page { padding: 6px var(--gutter) 48px; }
   /* Barre d'onglets -> barre latérale */
   .tabbar {
     top: 0; bottom: 0; left: 0; right: auto; width: var(--side); display: flex; flex-direction: column; gap: 4px;
@@ -407,20 +415,49 @@ dialog.sheet .group, dialog.sheet input { background: rgba(255, 255, 255, .05); 
 
   /* Post : aperçu à gauche (défile à part), réglages à droite, actions sous les réglages */
   .editing { --w: 1280px; }
-  .editing .page { display: grid; grid-template-columns: minmax(0, 1fr) 400px; column-gap: 28px; align-items: start; padding-top: 12px; }
+  .editing .page { display: grid; grid-template-columns: minmax(0, 1fr) 440px; column-gap: 28px; align-items: start; padding-top: 12px; }
   .editing .page > * { grid-column: 2; min-width: 0; }
   .editing .page > #fmt { margin-top: 0; }
   /* Une seule barre de défilement quand tout tient : les visuels défilent dans leur colonne, la page ne
      dépasse l'écran que si la colonne de droite est plus haute (marge du bouton Publier sous elle seule) */
-  .editing .page { min-height: 0; padding-bottom: 0; }
-  .editing .page > #schedlist { padding-bottom: calc(110px + env(safe-area-inset-bottom)); }
+  .editing .page { min-height: 0; padding-bottom: calc(110px + env(safe-area-inset-bottom)); }
   .editing .page > .preview { grid-column: 1; grid-row: 1 / span 12; position: sticky; top: 72px; max-height: calc(100vh - 100px); overflow: auto; padding-right: 4px; }
   .editing .slides { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; margin: 0; padding: 2px; overflow: visible; scroll-snap-type: none; }
   .editing .slides.story { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
   .editing .slides .sl { width: auto; }
-  .editing .actionbar { left: auto; right: max(var(--gutter), calc((100vw - var(--w)) / 2 + var(--gutter))); width: 400px; }
+  .editing .actionbar { left: auto; right: max(var(--gutter), calc((100vw - var(--w)) / 2 + var(--gutter))); width: 440px; }
   .editing:has(textarea:focus, input[type=text]:focus) .actionbar { transform: none; }
+  /* Étapes : l'aperçu des visuels reste affiché à gauche */
+  .editing .page > .preview { display: block !important; }
+  .steps button { flex-direction: row; justify-content: center; gap: 8px; padding: 9px 6px; font-size: 14px; }
+  .steps button:hover:not(.on) { color: var(--text); background: rgba(255, 255, 255, .05); }
 }
+
+/* ---------- Éditeur en étapes : Contenu, Visuels, Vidéo, Textes, Publier ---------- */
+.steps { display: flex; gap: 2px; margin: 0 0 14px; padding: 4px; border-radius: 18px; background: var(--surface-2); box-shadow: inset 0 1px 2px rgba(0, 0, 0, .25); counter-reset: st; }
+.steps button { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 7px 2px 6px; border: 0; border-radius: 14px; background: none; color: var(--muted); font: 600 12.5px 'Titillium Web', sans-serif; cursor: pointer; transition: background .25s, color .25s; }
+.steps i { counter-increment: st; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: rgba(255, 255, 255, .08); color: var(--text-2); font: 700 12px 'JetBrains Mono', monospace; font-style: normal; transition: background .25s, color .25s; }
+.steps i::before { content: counter(st); }
+.steps span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.steps button.done { color: var(--text-2); }
+.steps button.done i { background: rgba(225, 6, 0, .4); color: #fff; }
+.steps button.on { background: rgba(255, 255, 255, .11); color: var(--text); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .14); }
+.steps button.on i { background: var(--brand); color: #fff; }
+/* Seuls les blocs de l'étape affichée */
+.editing[data-step="contenu"] [data-in]:not([data-in~="contenu"]),
+.editing[data-step="visuels"] [data-in]:not([data-in~="visuels"]),
+.editing[data-step="video"] [data-in]:not([data-in~="video"]),
+.editing[data-step="textes"] [data-in]:not([data-in~="textes"]),
+.editing[data-step="publier"] [data-in]:not([data-in~="publier"]) { display: none; }
+.editing [data-in] { animation: in-up .3s var(--ease); }
+.editing [data-in] > .section:first-child { margin-top: 4px; }
+/* Barre du bas : précédent et étape suivante ; Publier et Programmer à la dernière étape ; partage des
+   visuels aux étapes Visuels et Publier */
+.editing:not([data-step="publier"]) .actionbar :is(#go, #plan) { display: none; }
+.editing[data-step="publier"] #next { display: none; }
+.editing:not([data-step="visuels"]):not([data-step="publier"]) .actionbar :is(#share, #dl) { display: none; }
+.actionbar #next { flex: 2; }
+.actionbar #next .ic { width: 18px; height: 18px; }
 
 /* ---------- Animations ---------- */
 @keyframes in-right { from { opacity: 0; transform: translateX(28px); } }

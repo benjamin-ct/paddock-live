@@ -1,14 +1,15 @@
 // Studio : posts de la saison (Race Week, programme, records, notes, duels, course tour par tour),
 // d'après l'API publique Jolpica, les archives de la F1 et la météo. Chargé à l'ouverture de l'onglet.
 import { builtinNomination } from '/shared/tyres.js';
-import { raceWeekData, weekendData, recordsData, ratingsData, teamDuelsData, titleData, raceLapsData, seasonCaptions } from '/shared/social-season.js';
+import { raceWeekData, weekendData, recordsData, ratingsData, teamDuelsData, titleData, titleSide, raceLapsData, seasonCaptions } from '/shared/social-season.js';
 import { raceFrame, raceVideoTiming } from '/shared/social-draw-season.js';
 import { parseRaceLaps } from '/shared/race-laps.js';
 import { circuitInfo } from '/shared/circuits-info.js';
 import { recordsOf, recordYears, editionFromResults } from '/shared/circuit-records.js';
 import { parseRaceControl, raceSessionPath } from '/shared/race-story.js';
 import { makeAnimation, unlockAudio } from '/shared/social-video.js';
-import { $, $$, esc, api, icon, store, skeleton, toast, state, SIG, musicField, bindMusic, clipFile } from './ui.js';
+import { videoCover } from '/shared/social-draw.js';
+import { $, $$, esc, api, icon, store, skeleton, toast, state, glide, SIG, musicField, bindMusic, clipFile, shareClip } from './ui.js';
 import { latestDrivers } from './data.js';
 import { editor, assets } from './editor.js';
 
@@ -107,7 +108,7 @@ function raceList(races, def, upcoming) {
 
 export async function seasonTab(body, back) {
   const year = new Date().getUTCFullYear();
-  const bar = `<div class="chips" id="stypes">${STYPES.map(([k, v]) => `<button data-st="${k}" class="${state.stype === k ? 'on' : ''}">${v}</button>`).join('')}</div>`;
+  const bar = `<div class="chips wrap" id="stypes">${STYPES.map(([k, v]) => `<button data-st="${k}" class="${state.stype === k ? 'on' : ''}">${v}</button>`).join('')}</div>`;
   body.innerHTML = `${bar}${skeleton(5)}<p class="hint center">Lecture de la saison…</p>`;
   const data = await seasonOf(year);
   if (!body.isConnected) return;
@@ -134,6 +135,7 @@ async function seasonEditor(year, data, race, back) {
   const live = Object.fromEntries(Object.values(await latestDrivers()).filter((x) => x?.Tla && x.TeamColour).map((x) => [x.Tla, `#${String(x.TeamColour).replace('#', '')}`]));
   let d;
   let note = '';
+  let full = null;   // course au titre : les deux championnats (un post chacun)
   if (state.stype === 'raceweek') {
     const info = circuitInfo(race.circuitId);
     const [fc, track, winners] = await Promise.all([
@@ -161,7 +163,8 @@ async function seasonEditor(year, data, race, back) {
   } else if (state.stype === 'teamduels') {
     d = teamDuelsData(data, { year, upTo: race.round, live });
   } else if (state.stype === 'title') {
-    d = titleData(data, { year, upTo: race.round, live });
+    full = titleData(data, { year, upTo: race.round, live });
+    d = titleSide(full, state.titleSide);
     note = 'Éliminés grisés.';
   } else {
     const [laps, rcm] = await Promise.all([lapsOf(year, race.round), raceControlOf(year, race).catch(() => null)]);
@@ -173,18 +176,36 @@ async function seasonEditor(year, data, race, back) {
   const typeName = STYPES.find(([k]) => k === state.stype)[1];
   let clip = null;
   let file = null;   // vidéo prête en MP4, jointe au post
+  // Course au titre : pilotes ou constructeurs, l'autre championnat publié en même temps (au choix)
+  const SIDES = { drivers: 'Pilotes', teams: 'Constructeurs' };
+  const side = () => (state.titleSide === 'teams' ? 'teams' : 'drivers');
+  const other = () => (side() === 'teams' ? 'drivers' : 'teams');
+  const recordOf = (k) => (full ? { key: `title:${year}-${race.round}:${k}`, kind: 'title', title: `Titre ${SIDES[k].toLowerCase()} · ${d.gp}` }
+    : { key: `${state.stype}:${year}-${race.round}`, kind: state.stype, title: `${typeName} · ${d.gp}` });
   editor({
     back,
     title: typeName,
     subtitle: state.stype === 'title' ? `Classement après la manche ${race.round} · ${d.gp}` : `${d.gp} · manche ${race.round}`,
-    head: `${note ? `<p class="hint">${esc(note)}</p>` : ''}
-      ${video ? `${musicField('race', 'depart')}<div class="row"><button class="btn" id="mkvid">${icon('video')}Créer la vidéo (${Math.round(raceVideoTiming(d).duration)} s)</button><button class="btn" id="sharevid" disabled>${icon('share')}Partager</button></div>
+    note,
+    head: full ? `<h3 class="section">Championnat</h3><div class="seg wide" id="tside">${Object.entries(SIDES).map(([k, v]) => `<button data-side="${k}" class="${side() === k ? 'on' : ''}">${v}</button>`).join('')}</div>
+      <p class="hint">Un post par championnat ; l'autre peut partir en même temps (étape Publier).</p>` : '',
+    vhead: `${video ? `<h3 class="section">Vidéo de la course</h3>${musicField('race', 'depart')}<div class="row"><button class="btn" id="mkvid">${icon('video')}Créer la vidéo (${Math.round(raceVideoTiming(d).duration)} s)</button><button class="btn" id="sharevid" disabled title="Zone sûre : Reels, TikTok, Shorts">${icon('share')}Partager</button><button class="btn" id="sharefull" disabled title="X, Bluesky, Facebook, Threads…">${icon('share')}Plein écran</button></div>
         <p class="hint" id="vidst">Garder l'écran allumé pendant l'enregistrement.</p>
         <video id="vid" controls playsinline hidden></video>` : ''}`,
     data: () => d, caps: (dd) => seasonCaptions(dd, SIG),
-    record: () => ({ key: `${state.stype}:${year}-${race.round}`, kind: state.stype, title: `${typeName} · ${d.gp}` }),
+    record: () => recordOf(side()),
+    twin: full ? { label: () => `Titre ${SIDES[other()].toLowerCase()}`, data: () => titleSide(full, other()), record: () => recordOf(other()) } : null,
     video: () => file,
     bind: (redraw) => {
+      $$('[data-side]').forEach((b) => {
+        b.onclick = () => {
+          state.titleSide = b.dataset.side;
+          d = titleSide(full, side());
+          $$('[data-side]').forEach((x) => x.classList.toggle('on', x === b));
+          glide();
+          redraw(true);
+        };
+      });
       if (!video) return;
       const track = bindMusic('race');
       $('#mkvid').onclick = async () => {
@@ -192,19 +213,16 @@ async function seasonEditor(year, data, race, back) {
         $('#mkvid').disabled = true;
         try {
           const o = await assets(d);
-          clip = await makeAnimation((ctx, t) => raceFrame(ctx, 1080, 1920, d, o, t), raceVideoTiming(d).duration, { music: 'gen', track: track(), onProgress: (p) => { $('#vidst').textContent = `Enregistrement… ${Math.round(p * 100)} %`; } });
+          clip = await makeAnimation((ctx, t, w, h) => raceFrame(ctx, w, h, d, o, t), raceVideoTiming(d).duration, { box: true, cover: (ctx) => videoCover(ctx, 1080, 1920, d, o), music: 'gen', track: track(), onProgress: (p) => { $('#vidst').textContent = `Enregistrement… ${Math.round(p * 100)} %`; } });
           $('#vid').src = URL.createObjectURL(clip.blob); $('#vid').hidden = false;
-          $('#sharevid').disabled = false;
-          $('#vidst').textContent = `Vidéo prête (${(clip.blob.size / 1e6).toFixed(1).replace('.', ',')} Mo)${clip.silent ? ' · sans son : le navigateur a bloqué la musique, recommencez' : ''}${(file = clipFile(clip, `course-${race.round}`)) ? ' · cochez TikTok, Instagram… dans « Publier sur » pour la publier' : ' · format WebM : à partager seulement (publication en MP4)'}`;
+          $('#sharevid').disabled = false; $('#sharefull').disabled = false;
+          $('#vidst').textContent = `Vidéo prête (${(clip.blob.size / 1e6).toFixed(1).replace('.', ',')} Mo)${clip.silent ? ' · sans son : le navigateur a bloqué la musique, recommencez' : ''}${(file = clipFile(clip, `course-${race.round}`)) ? ' · jointe au post (à décocher à l\'étape Publier pour garder les visuels)' : ' · format WebM : à partager seulement (publication en MP4)'}`;
+          state.noVideo = false;
           redraw();
         } catch (err) { $('#vidst').textContent = err.message; } finally { $('#mkvid').disabled = false; }
       };
-      $('#sharevid').onclick = async () => {
-        if (!clip) return;
-        const file = new File([clip.blob], `course-${race.round}.${clip.mime.includes('mp4') ? 'mp4' : 'webm'}`, { type: clip.mime });
-        if (navigator.canShare?.({ files: [file] })) { try { await navigator.share({ files: [file] }); } catch { /* annulé */ } return; }
-        const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = file.name; a.click();
-      };
+      $('#sharevid').onclick = () => clip && shareClip(clip, `course-${race.round}`);
+      $('#sharefull').onclick = () => clip && shareClip(clip, `course-${race.round}`, true);
     },
   });
 }

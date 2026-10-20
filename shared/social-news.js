@@ -182,7 +182,7 @@ const NEWS_EMOJI = { penalite: '⚠️', transfert: '✍️', depart: '👋', ac
 // l'article part en premier commentaire (Facebook, Threads, X) au lieu d'être dans le texte.
 export function newsCaptions(nd, signature = '', { linkInComment = false } = {}) {
   const sig = signature ? `\n\n${signature}` : '';
-  const src = nd.source ? `📰 Source : ${nd.source}${nd.sources > 1 ? ` (repris par ${nd.sources - 1} autre${nd.sources > 2 ? 's' : ''} média${nd.sources > 2 ? 's' : ''})` : ''}` : '';
+  const src = nd.source ? `📰 Source : ${nd.source}` : '';
   const people = [
     ...nd.drivers.map((d) => hashtag(`${d.first}${d.last}`)),
     ...nd.drivers.map((d) => d.team).filter(Boolean).map(teamTag),

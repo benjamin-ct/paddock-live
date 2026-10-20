@@ -23,6 +23,12 @@ database_id = "00000000-0000-0000-0000-000000000000"
 binding = "MEDIA"
 bucket_name = "paddock-live-media"
 
+# Le Worker lié à lui-même : chaque réseau d'une publication envoyé par un appel à part (avec ses propres
+# limites), tous en même temps, au lieu d'un réseau par minute
+[[services]]
+binding = "SELF"
+service = "paddock-live-stats"
+
 # Workers AI : traduction des actualités et des radios (Mistral Small 3.1), transcription des radios (Whisper)
 # Toutes les minutes : publications programmées de la page du créateur ; toutes les 5 minutes,
 # relevé des flux d'actu pour ses alertes (rien si personne n'est abonné)

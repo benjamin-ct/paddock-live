@@ -10,14 +10,14 @@
 import { DEFAULT_SOURCES, feedUrl } from '../shared/news-sources.js';
 import { extractArticle } from '../shared/article.js';
 import { decodeBody } from '../shared/news-collect.js';
-import { publishFacebook, publishInstagram, publishThreads, freshThreads, commentFacebook, replyThreads, withComment, storyInstagram, storyFacebook, reelInstagram, hostVideo, publishFacebookVideo, publishThreadsVideo, publishFacebookLink, publishThreadsLink } from '../shared/meta-publish.js';
+import { publishFacebook, publishInstagram, publishThreads, freshThreads, commentFacebook, replyThreads, withComment, storyInstagram, storyFacebook, storyVideoInstagram, storyVideoFacebook, reelInstagram, hostVideo, hostOnPage, publishFacebookVideo, publishThreadsVideo, publishFacebookLink, publishThreadsLink } from '../shared/meta-publish.js';
 import { publishBluesky, replyBluesky } from '../shared/bluesky-publish.js';
 import { freshTiktok, freshYoutube, tiktokDraft, tiktokStatus, tiktokOutcome, youtubeUpload, tiktokCreator, tiktokDirect, TIKTOK_PRIVACY } from '../shared/video-publish.js';
 import { addEntry, removeEntry, cleanKey } from '../shared/post-history.js';
 import { postStats } from '../shared/post-stats.js';
 import { recentPosts, importEntries } from './post-import.js';
 import { trackPost, clickStats } from './clicks.js';
-import { pushApi } from './alerts.js';
+import { pushApi, notifyPhones } from './alerts.js';
 import { feedbackApi } from './feedback.js';
 import { freePhotos, PHOTO_UA } from './photos.js';
 import { packFeeds } from '../shared/feed-pack.js';
@@ -315,17 +315,22 @@ async function image(req, url) {
 }
 
 // Envoi sur un réseau (publication directe ou programmée). threads() : compte Threads à jour.
-// video : vidéo du créateur (Reel sur Instagram, vidéo sur Facebook et Threads ; Bluesky garde les visuels)
+// video : vidéo du créateur (Reel sur Instagram, vidéo sur Facebook, Threads et Bluesky) ; vsize : [largeur, hauteur]
 // link : post « lien » { url, title, description } sans visuels, la carte de l'article affichée par le réseau
-async function sendTo(net, vault, { text, comment, images, small = [], video = null, link = null }, threads) {
+async function sendTo(net, vault, { text, comment, images, small = [], video = null, vsize = null, cover = null, link = null }, threads) {
   if (link && net === 'facebook') return publishFacebookLink(vault.meta, text, link.url);
   if (link && net === 'threads') return publishThreadsLink(await threads(), text.slice(0, 500), link.url);
   if (link && net === 'bluesky') return publishBluesky(vault.bluesky, [...text].slice(0, 300).join(''), [], link);
-  if (video && net === 'instagram') return reelInstagram(vault.meta, (await hostVideo(vault.meta, video)).url, text.slice(0, 2200));
-  if (video && net === 'facebook') return withComment(() => publishFacebookVideo(vault.meta, text, video), comment, (id, t) => commentFacebook(vault.meta, id, t));
+  // cover : couverture de la vidéo (Reel : par son adresse publique, déposée sur la page ; Facebook : jointe)
+  if (video && net === 'instagram') return reelInstagram(vault.meta, (await hostVideo(vault.meta, video)).url, text.slice(0, 2200), cover ? (await hostOnPage(vault.meta, [cover]))[0].url : null);
+  if (video && net === 'facebook') return withComment(() => publishFacebookVideo(vault.meta, text, video, cover), comment, (id, t) => commentFacebook(vault.meta, id, t));
   if (video && net === 'threads') {
     const th = await threads();
     return withComment(() => publishThreadsVideo(th, vault.meta, text.slice(0, 500), video), comment, (id, t) => replyThreads(th, id, t));
+  }
+  if (video && net === 'bluesky') {
+    const clip = { blob: video, ...(vsize ? { width: vsize[0], height: vsize[1] } : {}) };
+    return withComment(() => publishBluesky(vault.bluesky, [...text].slice(0, 300).join(''), [], null, clip), comment, (id, t) => replyBluesky(vault.bluesky, id, t));
   }
   if (net === 'bluesky') {
     const pics = small.slice(0, 4).map((blob) => ({ blob, width: 1080, height: 1350 }));   // format X de shared/social-draw.js
@@ -333,6 +338,8 @@ async function sendTo(net, vault, { text, comment, images, small = [], video = n
   }
   if (net === 'facebook') return withComment(() => publishFacebook(vault.meta, text, images), comment, (id, t) => commentFacebook(vault.meta, id, t));
   if (net === 'instagram') return publishInstagram(vault.meta, text.slice(0, 2200), images);
+  if (video && net === 'instagram-story') return storyVideoInstagram(vault.meta, video);
+  if (video && net === 'facebook-story') return storyVideoFacebook(vault.meta, video);
   if (net === 'instagram-story') return storyInstagram(vault.meta, images);
   if (net === 'facebook-story') return storyFacebook(vault.meta, images);
   const th = await threads();
@@ -341,9 +348,12 @@ async function sendTo(net, vault, { text, comment, images, small = [], video = n
 const NETS = ['facebook', 'instagram', 'threads', 'bluesky'];
 const CLIPS = ['tiktok', 'youtube'];   // vidéo seulement : brouillon TikTok, Short YouTube
 const VIDEO_MAX = 50e6;
-const STORIES = ['instagram-story', 'facebook-story'];   // une story par visuel, sans texte
+const STORIES = ['instagram-story', 'facebook-story'];   // une story par visuel (ou la vidéo), sans texte
+const STORY_STEP = 4;   // stories programmées : images envoyées par passage du serveur (limite de 50 sous-requêtes)
 // Post « lien » : carte de l'article affichée par le réseau (Instagram, sans lien : visuels de l'onglet Post)
 const LINKS = ['facebook', 'threads', 'bluesky'];
+// Vidéo dans la zone sûre (écran rogné et recouvert par l'interface) ; les autres réseaux ont la version plein écran
+const SAFE_NETS = ['instagram', ...CLIPS, ...STORIES];
 // Compte du réseau absent du coffre : raison, sinon null
 function missing(net, vault) {
   if (CLIPS.includes(net)) return vault[net] ? null : `Compte ${net === 'tiktok' ? 'TikTok' : 'YouTube'} non envoyé : connectez-le dans l'appli (Comptes…), puis « Renvoyer les comptes »`;
@@ -368,7 +378,7 @@ async function publish(req, env, raw, vault) {
   if (!NETS.includes(net) && !STORIES.includes(net) && !CLIPS.includes(net)) return json({ error: 'Réseau inconnu' }, 400);
   if (missing(net, vault)) return json({ error: missing(net, vault) }, 409);
   if (CLIPS.includes(net) && !video) return json({ error: 'Aucune vidéo' }, 400);
-  if (!CLIPS.includes(net) && !images.length && !(video && net !== 'bluesky')) return json({ error: 'Aucune image' }, 400);
+  if (!CLIPS.includes(net) && !images.length && !video) return json({ error: 'Aucune image' }, 400);
   // TikTok : publication directe si la page envoie ses réglages, sinon brouillon
   const direct = net === 'tiktok' && form.get('tiktok') ? tiktokOptions(form.get('tiktok')) : null;
   if (direct?.error) return json({ error: direct.error }, 400);
@@ -500,6 +510,10 @@ async function scheduleAdd(req, env, raw, vault, now = Date.now()) {
   const v0 = form.get('video');
   const video = typeof v0 === 'object' && v0 && /^video\/(mp4|quicktime)$/.test(v0.type) && v0.size <= VIDEO_MAX ? v0 : null;
   if (v0 && !video) return json({ error: 'Vidéo MP4 ou MOV de 50 Mo au plus' }, 400);
+  // Vidéo fabriquée par le Studio : sa version plein écran (vidéo du créateur : la même pour tous) et sa taille
+  const f0 = form.get('videofull');
+  const full = video && typeof f0 === 'object' && f0 && f0.type === 'video/mp4' && f0.size <= VIDEO_MAX ? f0 : null;
+  const vsize = String(form.get('vsize') || '').match(/^(\d{2,5})x(\d{2,5})$/)?.slice(1).map(Number) || null;
   if (video && !env.MEDIA) return json({ error: 'Stockage des vidéos (R2) absent du serveur' }, 503);
   let link = null;
   try { link = JSON.parse(String(form.get('link') || 'null')); } catch { return json({ error: 'JSON invalide' }, 400); }
@@ -510,15 +524,16 @@ async function scheduleAdd(req, env, raw, vault, now = Date.now()) {
   if (!Array.isArray(posts) || !posts.length) return json({ error: 'Aucun réseau choisi' }, 400);
   const nets = posts.map((p) => String(p?.network || ''));
   // Stories ou posts du fil, jamais les deux : les visuels n'ont pas le même format ; TikTok et YouTube avec une vidéo
-  const allowed = link ? [...LINKS, 'instagram'] : video ? [...NETS, ...CLIPS] : nets.some((n) => STORIES.includes(n)) ? STORIES : NETS;
+  const allowed = link ? [...LINKS, 'instagram'] : video ? [...NETS, ...CLIPS, ...STORIES] : nets.some((n) => STORIES.includes(n)) ? STORIES : NETS;
   posts = posts.map((p) => ({ network: String(p?.network || ''), text: String(p?.text || '').slice(0, 5000), comment: String(p?.comment || '').trim().slice(0, 500) }));
   if (nets.some((n) => !allowed.includes(n)) || new Set(nets).size !== nets.length) return json({ error: 'Réseau inconnu' }, 400);
   for (const p of posts) if (missing(p.network, vault)) return json({ error: missing(p.network, vault) }, 409);
   const files = (k, n) => form.getAll(k).filter((f) => typeof f === 'object' && f && /^image\/(png|jpeg)$/.test(f.type)).slice(0, n);
-  const sets = { ig: files('ig', 20), x: files('x', 4) };
-  if ([...sets.ig, ...sets.x].some((f) => f.size > SCHED.img)) return json({ error: 'Visuel trop lourd (1,4 Mo au plus)' }, 413);
+  // cover : couverture de la vidéo fabriquée par l'appli (Reel Instagram, vidéo Facebook)
+  const sets = { ig: files('ig', 20), x: files('x', 4), cover: video ? files('cover', 1) : [] };
+  if ([...sets.ig, ...sets.x, ...sets.cover].some((f) => f.size > SCHED.img)) return json({ error: 'Visuel trop lourd (1,4 Mo au plus)' }, 413);
   if ((link ? nets.includes('instagram') : !video && posts.some((p) => p.network !== 'bluesky')) && !sets.ig.length) return json({ error: 'Aucune image' }, 400);
-  if (!link && posts.some((p) => p.network === 'bluesky') && !sets.x.length) return json({ error: 'Aucune image' }, 400);
+  if (!link && !video && posts.some((p) => p.network === 'bluesky') && !sets.x.length) return json({ error: 'Aucune image' }, 400);
   const tiktok = video && nets.includes('tiktok') && form.get('tiktok') ? tiktokOptions(form.get('tiktok')) : null;
   if (tiktok?.error) return json({ error: tiktok.error }, 400);
   if ((await schedJobs(env)).filter((j) => Object.values(j.nets).some((s) => s.status === 'pending')).length >= SCHED.max) return json({ error: `${SCHED.max} publications programmées au plus` }, 409);
@@ -530,10 +545,13 @@ async function scheduleAdd(req, env, raw, vault, now = Date.now()) {
     for (const [i, f] of list.entries()) await setRow(env, `schedimg:${id}:${set}:${i}`, JSON.stringify({ type: f.type, data: b64big(new Uint8Array(await f.arrayBuffer())) }));
   }
   if (video) await env.MEDIA.put(`sched/${id}`, video, { httpMetadata: { contentType: video.type } });
-  const job = { id, at, title: String(form.get('title') || '').slice(0, 200), record: record && typeof record === 'object' ? record : null, posts, sets: { ig: sets.ig.length, x: sets.x.length }, video: video ? video.type : null, tiktok, link, keys: await seal(await schedKey(env), keys), created: now };
+  if (full) await env.MEDIA.put(`sched/${id}-full`, full, { httpMetadata: { contentType: full.type } });
+  const job = { id, at, title: String(form.get('title') || '').slice(0, 200), record: record && typeof record === 'object' ? record : null, posts, sets: { ig: sets.ig.length, x: sets.x.length, cover: sets.cover.length }, video: video ? video.type : null, full: !!full, vsize, tiktok, link, keys: await seal(await schedKey(env), keys), created: now };
   await setRow(env, `sched:${id}`, JSON.stringify(job));
   return json({ item: schedSummary({ ...job, nets: Object.fromEntries(nets.map((n) => [n, { status: 'pending' }])) }) });
 }
+
+const dropMedia = (env, id) => env.MEDIA?.delete([`sched/${id}`, `sched/${id}-full`]);
 
 async function scheduleCancel(env, id) {
   if (!/^[a-f0-9]{16}$/.test(String(id))) return json({ error: 'Publication inconnue' }, 404);
@@ -541,75 +559,131 @@ async function scheduleCancel(env, id) {
   if (!j) return json({ error: 'Publication inconnue' }, 404);
   if (Object.values(j.nets).some((s) => s.status === 'running')) return json({ error: 'Publication en cours' }, 409);
   await delLike(env, `schedimg:${id}:`);
-  await env.MEDIA?.delete(`sched/${id}`);
+  await dropMedia(env, id);
   await delLike(env, `schedpost:${id}:`);
   await delLike(env, `sched:${id}`);
   return json({ items: (await schedJobs(env)).map(schedSummary) });
 }
 
-// Relevé du serveur : publie les programmations arrivées à l'heure. Renvoie { published } (le dernier
-// réseau) si un post est parti (le relevé des alertes attend alors le passage suivant), null sinon.
-export async function runSchedule(env, { now = Date.now() } = {}) {
+// Notification de fin d'une programmation : réseaux publiés, ou ceux en erreur
+const NET_LABEL = { instagram: 'Instagram', facebook: 'Facebook', threads: 'Threads', bluesky: 'Bluesky', tiktok: 'TikTok', youtube: 'YouTube', 'instagram-story': 'Story Instagram', 'facebook-story': 'Story Facebook' };
+function schedNotice(j) {
+  const nets = Object.entries(j.nets);
+  const bad = nets.filter(([, s]) => s.status !== 'done' || s.commentError || s.visible === false).map(([n]) => NET_LABEL[n] || n);
+  const ok = nets.filter(([, s]) => s.status === 'done').map(([n]) => NET_LABEL[n] || n);
+  return {
+    title: bad.length ? `Publication programmée : souci sur ${bad.join(', ')}` : 'Publication programmée : publiée',
+    body: `${j.title || 'Post'}${ok.length ? ` · publié sur ${ok.join(', ')}` : ''}`,
+    id: `sched-${j.id}`, url: '/studio/?alert=schedule',
+  };
+}
+
+// Relevé du serveur : publie les programmations arrivées à l'heure, un réseau par passage. Renvoie
+// { published } si un post est parti (le relevé des alertes attend alors le passage suivant), null sinon.
+// Réseau réservé avant l'envoi : passé de « à venir » à « en cours » d'un seul coup dans la base (seulement
+// si personne ne l'a fait entre-temps) ; null si un autre passage l'a déjà pris : jamais publié deux fois
+async function claim(env, k) {
+  const raw = await getRow(env, k);
+  const cur = raw ? JSON.parse(raw) : { status: 'pending' };
+  if (cur.status !== 'pending') return null;
+  const next = { ...cur, status: 'running', started: Date.now() };
+  const v = JSON.stringify(next);
+  const r = raw === null
+    ? await env.DB.prepare('INSERT INTO studio (k, v, at) VALUES (?, ?, ?) ON CONFLICT(k) DO NOTHING').bind(k, v, Date.now()).run()
+    : await env.DB.prepare('UPDATE studio SET v = ?, at = ? WHERE k = ? AND v = ?').bind(v, Date.now(), k, raw).run();
+  return r?.meta?.changes === 1 ? next : null;
+}
+
+// Envoi d'un réseau demandé par la tâche planifiée (appel du Worker à lui-même, clé du serveur exigée)
+export async function schedInternal(req, env) {
+  if (!env.STATS_KEY || req.headers.get('X-Sched-Key') !== env.STATS_KEY) return json({ error: 'Interdit' }, 403);
+  let only;
+  try { only = await req.json(); } catch { return json({ error: 'JSON invalide' }, 400); }
+  return json({ out: await runSchedule(env, { now: Number(only?.now) || Date.now(), only: { id: String(only?.id || ''), net: String(only?.net || '') } }) });
+}
+
+// Toutes les minutes. Avec env.SELF (le Worker lié à lui-même) : chaque réseau à publier envoyé par un appel
+// à part, tous en même temps ; chaque appel a toutes les sous-requêtes permises à un passage du Worker (50 ;
+// un carrousel Instagram en prend déjà une bonne part). Sinon (ou only : réseau demandé) : un réseau par
+// passage. Réseau réservé (claim) avant l'envoi, commencé dans les 40 premières secondes : jamais renvoyé
+export async function runSchedule(env, { now = Date.now(), only = null } = {}) {
   if (!env.DB || !env.STATS_KEY) return null;
   const jobs = await schedJobs(env);
   const setState = (j, net, st) => setRow(env, `schedpost:${j.id}:${net}`, JSON.stringify(st));
-  // Programmation prise en entier (tous ses réseaux « en cours »), puis publiée réseau après réseau ; les
-  // nouvelles sont commencées dans les 40 premières secondes : le passage suivant (une minute plus tard,
-  // parfois en même temps que celui-ci) relit les états après elles et ne renvoie jamais un post
+  if (env.SELF && !only) {
+    const todo = jobs.flatMap((j) => (j.at <= now && now - j.at <= SCHED.late ? j.posts.filter((p) => j.nets[p.network].status === 'pending').map((p) => ({ id: j.id, net: p.network })) : []));
+    if (todo.length) {
+      // Au plus 10 appels par passage (32 au plus par exécution) ; le reste au passage suivant
+      await Promise.all(todo.slice(0, 10).map((t) => env.SELF.fetch('https://self/internal/sched', { method: 'POST', headers: { 'X-Sched-Key': env.STATS_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify({ ...t, now }) }).catch(() => null)));
+      return { published: todo.slice(0, 10).map((t) => t.net), parallel: true };
+    }
+  }
   const start = Date.now();
   let out = null;
   for (const j of jobs) {
+    if (only && j.id !== only.id) continue;
     // Envoi resté « en cours » (serveur interrompu) : jamais renvoyé en double
     for (const [net, st] of Object.entries(j.nets)) {
       if (st.status === 'running' && now - (st.started || 0) > SCHED.running) { st.status = 'error'; st.error = 'Envoi interrompu : vérifiez sur le réseau'; await setState(j, net, st); }
     }
-    const due = j.at <= now && Date.now() - start <= 40e3 ? j.posts.filter((p) => j.nets[p.network].status === 'pending') : [];
-    if (due.length && now - j.at > SCHED.late) {
-      for (const p of due) { j.nets[p.network].status = 'expired'; await setState(j, p.network, j.nets[p.network]); }
+    const pending = j.at <= now ? j.posts.filter((p) => j.nets[p.network].status === 'pending' && (!only || p.network === only.net)) : [];
+    let due = !out && Date.now() - start <= 40e3 ? pending.slice(0, 1) : [];
+    if (pending.length && now - j.at > SCHED.late) {
+      for (const p of pending) { j.nets[p.network].status = 'expired'; await setState(j, p.network, j.nets[p.network]); }
     } else if (due.length) {
-      for (const p of due) { j.nets[p.network].status = 'running'; await setState(j, p.network, { status: 'running', started: now }); }
+      for (const p of due) { const st = await claim(env, `schedpost:${j.id}:${p.network}`); if (st) j.nets[p.network] = st; }
+      due = due.filter((p) => j.nets[p.network].status === 'running');
       const keys = await open(await schedKey(env), j.keys).catch(() => null);
-      const imgs = async (set) => {
+      const imgs = async (set, from = 0, to = j.sets?.[set] || 0) => {
         const list = [];
-        for (let i = 0; i < (j.sets?.[set] || 0); i++) {
+        for (let i = from; i < Math.min(to, j.sets?.[set] || 0); i++) {
           const row = JSON.parse(await getRow(env, `schedimg:${j.id}:${set}:${i}`) || 'null');
           if (row) list.push(new Blob([unb64(row.data)], { type: row.type }));
         }
         return list;
       };
-      // Vidéo relue pour chaque réseau : une seule copie en mémoire à la fois
-      const media = async () => {
-        const o = await env.MEDIA?.get(`sched/${j.id}`);
+      // Vidéo relue pour chaque réseau : une seule copie en mémoire à la fois ; version plein écran hors zone sûre
+      const media = async (net) => {
+        const full = j.full && !SAFE_NETS.includes(net);
+        const o = await env.MEDIA?.get(`sched/${j.id}${full ? '-full' : ''}`);
         if (!o) throw new Error('Vidéo effacée du serveur');
-        return new Blob([await o.arrayBuffer()], { type: j.video });
+        return new Blob([await o.arrayBuffer()], { type: full ? 'video/mp4' : j.video });
       };
       for (const p of due) {
         const st = j.nets[p.network];
         try {
           if (!keys) throw new Error('Jetons effacés');
           const tr = await trackPost(env, p.network, { text: p.text, comment: p.network === 'instagram' ? '' : p.comment }, j.record?.title);
-          const video = j.video && p.network !== 'bluesky' ? await media() : null;
-          const r = CLIPS.includes(p.network)
+          const video = j.video ? await media(p.network) : null;
+          // Stories : STORY_STEP images par passage (Instagram fait 4 à 6 demandes par image), suite au passage suivant
+          const story = STORIES.includes(p.network) && !video && { from: st.sent || 0, total: Math.min(j.sets?.ig || 0, 10) };
+          const r = story ? await sendTo(p.network, keys, { images: await imgs('ig', story.from, story.from + STORY_STEP) })
+            : CLIPS.includes(p.network)
             ? await sendClip(p.network, () => (p.network === 'youtube' ? freshYoutube : freshTiktok)(keys[p.network]), new Uint8Array(await video.arrayBuffer()), j.video, tr.text, j.tiktok)
             : j.link && LINKS.includes(p.network) ? await sendTo(p.network, keys, { text: tr.text, link: { ...j.link, url: (await trackPost(env, p.network, { text: j.link.url }, j.record?.title)).text } }, () => freshThreads(keys.threads))
-            : await sendTo(p.network, keys, { text: tr.text, comment: tr.comment, images: p.network === 'bluesky' || video ? [] : await imgs('ig'), small: p.network === 'bluesky' ? await imgs('x') : [], video }, () => freshThreads(keys.threads));
-          Object.assign(st, { status: 'done', at: Date.now(), ...resultOf(r), ...(r.note ? { note: r.note } : {}) });
+            : await sendTo(p.network, keys, { text: tr.text, comment: tr.comment, images: p.network === 'bluesky' || video ? [] : await imgs('ig'), small: p.network === 'bluesky' && !video ? await imgs('x') : [], video, vsize: j.vsize, cover: video ? (await imgs('cover'))[0] : null }, () => freshThreads(keys.threads));
+          if (story) Object.assign(st, { sent: story.from + r.count, total: story.total });
+          Object.assign(st, { status: story && st.sent < story.total ? 'pending' : 'done', at: Date.now(), ...resultOf(r), ...(r.note ? { note: r.note } : {}) });
           // Stories (24 heures) : pas dans l'historique, qui garde le post du fil
           if (j.record && !STORIES.includes(p.network)) await setRow(env, 'history', JSON.stringify(addEntry(JSON.parse(await getRow(env, 'history') || '[]'), { ...j.record, at: Date.now(), nets: { [p.network]: { id: st.id, url: st.url } } })));
         } catch (err) {
-          Object.assign(st, { status: 'error', error: String(err?.message || err).slice(0, 300) });
+          Object.assign(st, { status: 'error', error: `${String(err?.message || err).slice(0, 300)}${st.sent ? ` (${st.sent} stories publiées sur ${st.total})` : ''}` });
         }
         await setState(j, p.network, st);
         out = { published: p.network, id: j.id };
       }
     }
     // Programmation terminée : tout publié sans souci, effacée aussitôt (plus dans la liste du Studio) ;
-    // sinon (erreur, commentaire refusé…) visuels, vidéo et jetons effacés, la trace gardée 7 jours
+    // sinon (erreur, commentaire refusé…) visuels, vidéo et jetons effacés, la trace gardée 7 jours.
+    // Une fois, au passage suivant le dernier envoi (sous-requêtes de celui-ci) : notification sur le téléphone
     const states = Object.values(j.nets);
+    const finish = out?.id !== j.id && j.keys;   // jetons effacés après la première fin : une seule notification
+    if (finish && states.every((s) => !['pending', 'running'].includes(s.status))) await notifyPhones(env, schedNotice(j), { now }).catch(() => 0);
+    if (out?.id === j.id) continue;
     if (states.every((s) => s.status === 'done' && !s.commentError && s.visible !== false)) {
-      await delLike(env, `schedimg:${j.id}:`); await env.MEDIA?.delete(`sched/${j.id}`); await delLike(env, `schedpost:${j.id}:`); await delLike(env, `sched:${j.id}`);
+      await delLike(env, `schedimg:${j.id}:`); await dropMedia(env, j.id); await delLike(env, `schedpost:${j.id}:`); await delLike(env, `sched:${j.id}`);
     } else if (states.every((s) => !['pending', 'running'].includes(s.status))) {
-      if (j.keys) { await delLike(env, `schedimg:${j.id}:`); await env.MEDIA?.delete(`sched/${j.id}`); const { nets, ...rest } = j; await setRow(env, `sched:${j.id}`, JSON.stringify({ ...rest, keys: null })); }
+      if (j.keys) { await delLike(env, `schedimg:${j.id}:`); await dropMedia(env, j.id); const { nets, ...rest } = j; await setRow(env, `sched:${j.id}`, JSON.stringify({ ...rest, keys: null })); }
       if (now - j.at > SCHED.keep) { await delLike(env, `schedpost:${j.id}:`); await delLike(env, `sched:${j.id}`); }
     }
   }

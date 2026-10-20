@@ -85,7 +85,7 @@ function home({ from = 'up' } = {}) {
   app.className = 'shell';
   app.innerHTML = `<header class="appbar"><div class="brand">${LOGO}<span>Paddock <b>Studio</b></span></div><span class="grow"></span>
       <a class="iconbtn" href="https://paddocklive.app/" aria-label="Retour au site" title="Retour au site">${icon('home')}</a>
-      <button class="iconbtn" id="refresh" aria-label="Actualiser">${icon('refresh')}</button><button class="iconbtn" id="inbox" aria-label="Messages">${icon('mail')}<i class="count" hidden></i></button><button class="iconbtn" id="settings" aria-label="Réglages">${icon('settings')}</button></header>
+      <button class="iconbtn" id="refresh" aria-label="Actualiser" title="Actualiser">${icon('refresh')}</button><button class="iconbtn" id="inbox" aria-label="Messages" title="Messages">${icon('mail')}<i class="count" hidden></i></button><button class="iconbtn" id="settings" aria-label="Réglages" title="Réglages">${icon('settings')}</button></header>
     <main class="page" id="body"></main>
     <nav class="tabbar" style="--i:${tabIndex(state.tab)}"><div class="side-brand">${LOGO}<span>Paddock <b>Studio</b></span></div><span class="lens"></span>${TABS.map(([k, v, ic]) => `<button data-tab="${k}" class="${state.tab === k ? 'on' : ''}">${icon(ic)}<span>${v}</span></button>`).join('')}</nav>`;
   $('#settings').onclick = settings;
@@ -189,7 +189,7 @@ function renderNews(body, items, { at, stale = false }) {
   shown = list;
   body.innerHTML = `<div class="toolbar">
       <div class="seg" id="nsort"><button data-by="top" class="${state.nsort === 'top' ? 'on' : ''}">À la une</button><button data-by="recent" class="${state.nsort === 'recent' ? 'on' : ''}">Récentes</button></div>
-      <label class="chip-toggle"><input type="checkbox" id="all" ${state.all ? 'checked' : ''}><span>Toutes</span></label>
+      <label class="chip-toggle" title="Afficher aussi les petites infos"><input type="checkbox" id="all" ${state.all ? 'checked' : ''}><span>Toutes</span></label>
       <label class="chip-toggle"><input type="checkbox" id="hideread" ${state.hideRead ? 'checked' : ''}><span>Non lues</span></label>
     </div>
     ${kinds.length > 1 ? `<div class="chips" id="nkinds"><button data-k="" class="${state.nkind ? '' : 'on'}">Tout <small>${big.length}</small></button>${kinds.map((k) => `<button data-k="${k.key}" class="${state.nkind === k.key ? 'on' : ''}"><i style="background:${k.color}"></i>${esc(KIND_NAMES[k.key] || k.label)} <small>${k.n}</small></button>`).join('')}</div>` : ''}
@@ -229,7 +229,7 @@ async function sessionsTab(body, { force, restore, current }) {
 }
 function renderSessions(body, list) {
   if (!list.length) {
-    body.innerHTML = `<div class="empty">${icon('flag')}<p>${session.me.f1tv ? 'Archives indisponibles pour le moment.' : 'Les archives de la F1 sont réservées aux abonnés F1 TV : connectez F1 TV dans l\'appli (Réglages → Compte F1 TV), puis réactivez la page (Posts → Publier… → Comptes…).'}</p></div>`;
+    body.innerHTML = `<div class="empty">${icon('flag')}<p>${session.me.f1tv ? 'Archives indisponibles pour le moment.' : 'Séances indisponibles : il faut un abonnement F1 TV. Dans l\'appli de bureau, connectez F1 TV (Réglages, Compte F1 TV), puis renvoyez les comptes au Studio (Posts, Publier, Comptes).'}</p></div>`;
     return;
   }
   const groups = [];
@@ -269,7 +269,7 @@ const accountsHtml = (accounts) => `<h3 class="section">Mes comptes <small>activ
       ${off.length ? `<div class="acc-off">${off.map(([n, x]) => `<span>${netLink(n, x.url)} · ${esc(x.note || x.error || 'indisponible')}</span>`).join('')}</div>` : ''}</div>`;
   }).join('')}</div>`;
 // Clics sur les liens suivis des posts, des pages de liens en bio et téléchargements de l'appli (30 jours)
-const OS_LABELS = { windows: 'Windows', 'windows-portable': 'Windows portable', 'mac-arm': 'Mac Apple', 'mac-intel': 'Mac Intel', linux: 'Linux', 'linux-arm': 'Linux ARM' };
+const OS_LABELS = { windows: 'Windows', 'windows-portable': 'Windows portable', 'mac-arm': 'Mac Apple', 'mac-intel': 'Mac Intel', linux: 'Linux', 'linux-arm': 'Linux ARM', deb: 'Paquet .deb' };
 const linkName = (l) => l.title || (() => { try { const u = new URL(l.url); return `${u.hostname.replace(/^www\./, '')}${u.pathname.length > 1 ? u.pathname.slice(0, 40) : ''}`; } catch { return l.url || 'Lien'; } })();
 const clicksHtml = (c) => {
   if (!c?.links?.length) return '';
@@ -283,6 +283,8 @@ const clicksHtml = (c) => {
   };
   return `<h3 class="section">Clics sur les liens <small>${c.days} derniers jours</small></h3><div class="list posts">${c.links.map(row).join('')}</div>`;
 };
+const STATS_SUBS = [['accounts', 'Comptes'], ['posts', 'Posts'], ['links', 'Liens']];
+const SHORT_NETS = ['instagram', 'facebook', 'threads', 'x', 'bluesky', 'tiktok', 'youtube'];
 const STAT_LABELS = [['views', 'Vues'], ['reach', 'Portée'], ['likes', 'J\'aime'], ['comments', 'Comm.'], ['shares', 'Partages'], ['saves', 'Enreg.']];
 // Chiffres des posts et des comptes : deux appels au serveur, en même temps
 async function loadStats() {
@@ -304,10 +306,18 @@ async function statsTab(body, { force, restore, current }) {
 }
 function renderStats(body, r, stale) {
   const f = Object.entries(r.followers || {});
-  body.innerHTML = `${stale ? '<p class="status"><span class="dot"></span>Mise à jour…</p>' : ''}
-    ${r.accounts?.length ? accountsHtml(r.accounts) : f.length ? `<div class="tiles">${f.map(([n, v]) => `<div class="tile"><b>${fmtN(v)}</b><small>abonnés ${esc(NET_NAMES[n] || n)}</small></div>`).join('')}</div>` : ''}
-    <div id="schedlist"></div>
-    ${clicksHtml(r.clicks)}
+  // Chiffres mis à jour pendant la saisie d'un lien : saisie et lien obtenu gardés
+  const typed = ['#shorturl', '#shortname', '#shortnet', '#shortout'].map((id) => $(id, body));
+  body.innerHTML = `<div class="seg wide" id="ssub">${STATS_SUBS.map(([k, v]) => `<button data-sub="${k}" class="${state.ssub === k ? 'on' : ''}">${v}</button>`).join('')}</div>
+    ${stale ? '<p class="status"><span class="dot"></span>Mise à jour…</p>' : ''}
+    <div data-pane="accounts">${r.accounts?.length ? accountsHtml(r.accounts) : f.length ? `<div class="tiles">${f.map(([n, v]) => `<div class="tile"><b>${fmtN(v)}</b><small>abonnés ${esc(NET_NAMES[n] || n)}</small></div>`).join('')}</div>` : empty('Aucun compte relié.', 'chart')}</div>
+    <div data-pane="links">
+    <h3 class="section">Raccourcir un lien</h3>
+    <form class="card short" id="shortform"><input type="text" id="shorturl" placeholder="https://…" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false" required>
+      <div class="row"><input type="text" id="shortname" placeholder="Nom dans les statistiques (facultatif)"><select id="shortnet" title="Réseau où le lien sera partagé (clics comptés par réseau)"><option value="">Autre</option>${SHORT_NETS.map((n) => `<option value="${n}">${NET_NAMES[n]}</option>`).join('')}</select><button class="btn primary small">Raccourcir</button></div>
+      <div id="shortout"></div></form>
+    ${clicksHtml(r.clicks) || empty('Aucun clic ces 30 derniers jours.', 'chart')}</div>
+    <div data-pane="posts"><div id="schedlist"></div>
     <div class="row section-row"><h3 class="section grow">Posts publiés</h3><button class="btn small" id="statsimport" title="Ajoute aux statistiques les posts des 30 derniers jours publiés hors du Studio">${icon('refresh')}Retrouver mes posts</button></div>
     ${(r.posts || []).length ? `<div class="list posts">${r.posts.map((p) => `<div class="card post"><div class="card-top"><time>${esc(new Date(p.at).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))}</time><span class="grow"></span><button class="iconbtn small" data-statsremove="${esc(p.key)}" aria-label="Retirer des statistiques" title="Retirer des statistiques">${icon('close')}</button></div><div class="t">${esc(p.title || 'Post')}</div>
       ${Object.entries(p.nets).map(([n, x]) => {
@@ -315,8 +325,36 @@ function renderStats(body, r, stale) {
         const name = x.url ? `<a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(NET_NAMES[n] || n)}</a>` : esc(NET_NAMES[n] || n);
         const vals = s && !s.error ? metricsOf(s, STAT_LABELS) || '<span>pas encore d\'interaction</span>' : `<span class="hint">${s?.note ? esc(s.note) : `statistiques indisponibles${s?.error ? ` (${esc(s.error)})` : ''}`}</span>`;
         return `<div class="net-stats"><span class="net">${name}</span><div class="metrics">${vals}</div></div>`;
-      }).join('')}</div>`).join('')}</div>` : empty('Aucun post publié pour le moment.', 'chart')}`;
+      }).join('')}</div>`).join('')}</div>` : empty('Aucun post publié pour le moment.', 'chart')}</div>`;
+  // Sous-menus : comptes, posts, liens (une seule partie affichée)
+  const sub = (k) => {
+    state.ssub = k;
+    $$('#ssub [data-sub]', body).forEach((b) => b.classList.toggle('on', b.dataset.sub === k));
+    $$('[data-pane]', body).forEach((el) => { el.hidden = el.dataset.pane !== k; });
+    glide(body);
+  };
+  $$('#ssub [data-sub]', body).forEach((b) => { b.onclick = () => sub(b.dataset.sub); });
+  sub(state.ssub);
+  if (typed[0]) ['#shorturl', '#shortname', '#shortnet'].forEach((id, i) => { $(id, body).value = typed[i].value; });
+  if (typed[3]) $('#shortout', body).innerHTML = typed[3].innerHTML;
   schedList($('#schedlist', body));
+  // Lien court suivi (pdkl.app) : clics comptés comme ceux des posts
+  $('#shortform', body).onsubmit = async (e) => {
+    e.preventDefault();
+    const b = $('#shortform button', body), out = $('#shortout', body);
+    let url = $('#shorturl', body).value.trim();
+    if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
+    b.classList.add('busy');
+    b.disabled = true;
+    try {
+      const { text } = await api('links', { method: 'POST', body: JSON.stringify({ net: $('#shortnet', body).value, text: url, title: $('#shortname', body).value.trim() }) });
+      if (text === url) throw new Error('Adresse invalide');
+      out.innerHTML = `<div class="row"><code class="grow">${esc(text)}</code><button type="button" class="btn small">${icon('copy')}Copier</button></div>`;
+    } catch (err) { toast(err.message, 'bad'); } finally { b.classList.remove('busy'); b.disabled = false; }
+  };
+  $('#shortout', body).onclick = (e) => {
+    if (e.target.closest('button')) navigator.clipboard.writeText($('#shortout code', body).textContent).then(() => toast('Lien copié', 'ok'), () => toast('Copie impossible', 'bad'));
+  };
   // Posts publiés hors du Studio : relus sur les comptes reliés
   $('#statsimport', body).onclick = async (e) => {
     const b = e.currentTarget;
@@ -521,6 +559,8 @@ async function alertsBlock(el) {
 async function openAlert(id) {
   if (!id) return;
   if (id === 'messages') { messages(); return; }
+  // Publication programmée terminée : Stats → Posts (liste des programmations)
+  if (id === 'schedule') { state.tab = 'stats'; state.ssub = 'posts'; home(); return; }
   try {
     const it = ((await api('alerts')).items || []).find((a) => a.id === id);
     if (!it) return;

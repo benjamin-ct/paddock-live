@@ -8,7 +8,7 @@ import { t } from '../i18n.js';
 import { toast } from './delay.js';
 import { FLAG_ISO } from './header.js';
 import { postData, captions, xLength } from '/shared/social.js';
-import { FORMATS, slidesFor, drawSlide, slideName, chosenSlides, keptData } from '/shared/social-draw.js';
+import { FORMATS, slidesFor, drawSlide, slideName, chosenSlides, keptData, videoCover } from '/shared/social-draw.js';
 import { followCaptions, questionCaptions } from '/shared/social-follow.js';
 import { raceWeekData, weekendData, recordsData, ratingsData, teamDuelsData, titleData, raceLapsData, recapData, seasonCaptions } from '/shared/social-season.js';
 import { raceFrame, raceVideoTiming } from '/shared/social-draw-season.js';
@@ -234,8 +234,8 @@ async function seasonSource(sig) {
 
 // Vidéo animée (format story) de la course ou d'une news (« Breaking news ») : enregistrée dans le navigateur
 let raceVideo = null;
-const raceVideoMaker = (d, o) => (d.post === 'racelaps' ? (opts) => makeAnimation((ctx, tt) => raceFrame(ctx, 1080, 1920, d, o, tt), raceVideoTiming(d).duration, opts)
-  : d.news && d.breaking ? (opts) => makeAnimation((ctx, tt) => newsFrame(ctx, 1080, 1920, d, o, tt), newsVideoTiming(d).duration, opts) : null);
+const raceVideoMaker = (d, o) => (d.post === 'racelaps' ? (opts) => makeAnimation((ctx, tt, w, h) => raceFrame(ctx, w, h, d, o, tt), raceVideoTiming(d).duration, { box: true, cover: (ctx) => videoCover(ctx, 1080, 1920, d, o), ...opts })
+  : d.news ? (opts) => makeAnimation((ctx, tt, w, h) => newsFrame(ctx, w, h, d, o, tt), newsVideoTiming(d).duration, { box: true, cover: (ctx) => videoCover(ctx, 1080, 1920, d, o), ...opts }) : null);
 async function buildRaceVideo(dlg, btn) {
   const make = curPost && raceVideoMaker(curPost.d, curPost.o);
   if (!make) return;
@@ -338,9 +338,9 @@ async function newsSource(sig) {
       <div class="row">${it.link ? `<button class="btn small" data-nsummary title="${t("Résumé en 3 à 5 points par l'IA : relisez avant de publier")}">${icon('doc')} ${t('Résumé détaillé')}</button>` : ''}<span class="small muted" data-nsumst></span></div>
       <label class="toggle small" title="${t("Lien de l'article en premier commentaire (Facebook, Threads, X)")}"><input type="checkbox" data-linkcomment ${linkComment ? 'checked' : ''}> ${t("Lien de l'article en premier commentaire")}</label>
       <label class="toggle small" title="${t('Visuel et vidéo « Breaking news »')}"><input type="checkbox" data-breaking ${d.breaking ? 'checked' : ''}> ${t('Très grosse info')}</label>
-      ${d.breaking ? `<div class="row"><button class="btn small btn-accent" data-racevideo>${icon('video')} ${t('Créer la vidéo Breaking news')}</button> ${musicSelect('news')}
+      <div class="row"><button class="btn small btn-accent" data-racevideo>${icon('video')} ${d.breaking ? t('Créer la vidéo Breaking news') : t('Créer la vidéo')}</button> ${musicSelect('news')}
         <button class="btn small" data-racevideosave disabled>${icon('save')} ${t('Enregistrer la vidéo')}</button><span class="small muted" data-rvst>${esc(t('Vidéo verticale avec musique : titre, résumé et points clés.'))}</span></div>
-      <video class="posts-vid" data-rv controls playsinline hidden></video>` : ''}
+      <video class="posts-vid" data-rv controls playsinline hidden></video>
       <p class="small muted">${icon('info')} ${t(failed ? 'Traduction indisponible : textes en version originale, à traduire à la main.' : "Titre et résumé traduits automatiquement : relisez-les. La source est citée.")}</p>
     </div>`;
   const record = { key: `news:${it.id}`, kind: 'news', title: d.title, srcTitle: it.title, link: it.link || '', summary: String(it.summary || '').slice(0, 300) };
@@ -377,9 +377,9 @@ function manualSource(sig) {
         ${m.image ? `<button class="btn small" data-mimgdel>${icon('close')} ${t('Retirer la photo')}</button>` : `<span class="small muted">${t('Facultatif : remplace les portraits des pilotes')}</span>`}
         <span class="spacer"></span><button class="btn small" data-mnew title="${t('Vider le formulaire pour écrire un autre post')}">${icon('plus')} ${t('Nouveau post')}</button></div>
       <label class="toggle small" title="${t('Visuel et vidéo « Breaking news »')}"><input type="checkbox" data-mbreaking ${m.breaking ? 'checked' : ''}> ${t('Très grosse info')}</label>
-      ${m.breaking ? `<div class="row"><button class="btn small btn-accent" data-racevideo>${icon('video')} ${t('Créer la vidéo Breaking news')}</button> ${musicSelect('news')}
+      <div class="row"><button class="btn small btn-accent" data-racevideo>${icon('video')} ${m.breaking ? t('Créer la vidéo Breaking news') : t('Créer la vidéo')}</button> ${musicSelect('news')}
         <button class="btn small" data-racevideosave disabled>${icon('save')} ${t('Enregistrer la vidéo')}</button><span class="small muted" data-rvst>${esc(t('Vidéo verticale avec musique : titre, résumé et points clés.'))}</span></div>
-      <video class="posts-vid" data-rv controls playsinline hidden></video>` : ''}
+      <video class="posts-vid" data-rv controls playsinline hidden></video>
       <p class="small muted">${icon('info')} ${t('Pilotes et écuries reconnus dans le texte : portraits et couleurs suivent.')}</p>
     </div>`;
   return { d, caps, head, record };
@@ -542,6 +542,12 @@ async function render(dlg, keepHead = false) {
   const area = $('.posts-cap', body);
   const upd = () => { if (count) count.textContent = t('{} / 280 caractères', xLength(area.value)); };
   area?.addEventListener('input', upd); upd();
+  // Liens remplacés d'office par leur lien court suivi (Studio activé ; la lettre du réseau est remise à
+  // celle du réseau au moment de publier), dans la case et le premier commentaire
+  const short = (net, text) => (/https?:\/\//.test(text || '') ? fetch('/api/social/links', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ net, text }) }).then((r) => r.json()).then((j) => j?.text || text).catch(() => text) : Promise.resolve(text));
+  if (area) { const raw = area.value; short(fmt === 'x' ? 'x' : 'facebook', raw).then((v) => { if (v !== raw && area.isConnected && area.value === raw) { area.value = v; upd(); } }); }
+  const note = $('[data-copycomment]', body)?.previousElementSibling;
+  if (note) short('x', caps.comment).then((v) => { if (note.isConnected) note.textContent = v; caps.comment = v; });
   body.onclick = async (e) => {
     // Image cliquée : vue en grand (toutes les images du post, flèches pour passer de l'une à l'autre)
     const cv = e.target.closest('.posts-item canvas');
@@ -554,11 +560,10 @@ async function render(dlg, keepHead = false) {
     try {
       if (b.dataset.copy !== undefined) { await copyImage(allCanvases[Number(b.dataset.copy)]); toast(t('Image copiée'), 2000, 'check'); }
       if (b.dataset.save !== undefined) { const r = await saveImages(d, [allCanvases[Number(b.dataset.save)]]); toast(t('Image enregistrée dans {}', r.dir), 4000, 'check'); }
-      if (b.dataset.cap !== undefined) { await navigator.clipboard.writeText(area.value); toast(t('Texte copié'), 2000, 'check'); }
+      if (b.dataset.cap !== undefined) { await navigator.clipboard.writeText(await short(fmt === 'x' ? 'x' : 'facebook', area.value)); toast(t('Texte copié'), 2000, 'check'); }
       if (b.dataset.copycomment !== undefined) {
         // Lien suivi (clics comptés dans les statistiques du Studio), sinon tel quel
-        const tracked = await fetch('/api/social/links', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ net: 'x', text: caps.comment }) }).then((r) => r.json()).catch(() => null);
-        await navigator.clipboard.writeText(tracked?.text || caps.comment);
+        await navigator.clipboard.writeText(await short('x', caps.comment));
         toast(t('Commentaire copié : publiez-le en réponse à votre post'), 3500, 'check');
       }
       // Publication sans accès payant : page officielle du réseau préremplie, première image copiée

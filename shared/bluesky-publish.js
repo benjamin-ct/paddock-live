@@ -43,8 +43,10 @@ const postUrl = (handle, uri) => `https://bsky.app/profile/${handle}/post/${Stri
 
 // images : [{ blob, width, height, alt }]
 // external : carte de lien { url, title, description } (sans image) à la place des images
-export async function publishBluesky(acc, text, images = [], external = null) {
+// video : { blob, width, height } à la place des images (traitée par Bluesky après la publication)
+export async function publishBluesky(acc, text, images = [], external = null, video = null) {
   const s = await bskySession(acc);
+  const vid = video && (await xrpc('com.atproto.repo.uploadBlob', { token: s.token, body: video.blob, type: video.blob.type || 'video/mp4' })).blob;
   const imgs = [];
   for (const im of images.slice(0, 4)) {
     if (im.blob.size > BSKY_MAX_IMAGE) throw new Error('Image trop lourde pour Bluesky (1 Mo au plus)');
@@ -53,8 +55,9 @@ export async function publishBluesky(acc, text, images = [], external = null) {
   }
   const record = {
     $type: 'app.bsky.feed.post', text, createdAt: new Date().toISOString(), langs: ['fr'], facets: facets(text),
-    ...(imgs.length ? { embed: { $type: 'app.bsky.embed.images', images: imgs } } : {}),
-    ...(!imgs.length && external ? { embed: { $type: 'app.bsky.embed.external', external: { uri: external.url, title: external.title || '', description: external.description || '' } } } : {}),
+    ...(vid ? { embed: { $type: 'app.bsky.embed.video', video: vid, ...(video.width && video.height ? { aspectRatio: { width: video.width, height: video.height } } : {}) } } : {}),
+    ...(!vid && imgs.length ? { embed: { $type: 'app.bsky.embed.images', images: imgs } } : {}),
+    ...(!vid && !imgs.length && external ? { embed: { $type: 'app.bsky.embed.external', external: { uri: external.url, title: external.title || '', description: external.description || '' } } } : {}),
   };
   const r = await xrpc('com.atproto.repo.createRecord', { token: s.token, json: { repo: s.did, collection: 'app.bsky.feed.post', record } });
   return { url: postUrl(s.handle, r.uri), id: { uri: r.uri, cid: r.cid } };

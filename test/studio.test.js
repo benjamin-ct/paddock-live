@@ -9,7 +9,7 @@ process.env.PADDOCK_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'paddock-st
 const CODE = 'ESSAI-42';
 const HASH = (await import('node:crypto')).createHash('sha256').update(`paddock-live:${CODE}`).digest('hex');
 process.env.PADDOCK_CREATOR_HASH = HASH;
-const { studioApi, freshF1tv, runSchedule, seasonRow } = await import('../analytics/studio.js');
+const { studioApi, freshF1tv, runSchedule, schedInternal, seasonRow } = await import('../analytics/studio.js');
 const { studioKey, enableStudio, syncStudio, disableStudio, studioInfo, studioRewrite } = await import('../server/studio-sync.js');
 const { saveConfig, getConfig } = await import('../server/config.js');
 const { timing } = await import('../shared/meta-publish.js');
@@ -34,6 +34,8 @@ function fakeDB() {
           throw new Error(`SQL inattendu : ${sql}`);
         },
         async run() {
+          if (/^INSERT INTO studio \(.*DO NOTHING$/.test(sql)) { if (studio.has(args[0])) return { meta: { changes: 0 } }; studio.set(args[0], args[1]); return { meta: { changes: 1 } }; }
+          if (/^UPDATE studio SET v = \?, at = \? WHERE k = \? AND v = \?$/.test(sql)) { if (studio.get(args[2]) !== args[3]) return { meta: { changes: 0 } }; studio.set(args[2], args[0]); return { meta: { changes: 1 } }; }
           if (/^INSERT INTO studio \(/.test(sql)) studio.set(args[0], args[1]);
           else if (/^INSERT INTO studio_fail/.test(sql)) fails.set(`${args[0]}|${args[1]}`, (fails.get(`${args[0]}|${args[1]}`) || 0) + 1);
           else if (/^DELETE FROM studio$/.test(sql)) studio.clear();
@@ -245,7 +247,7 @@ test("page du créateur : relais des pages d'articles (résumé détaillé) en t
   assert.equal((await worker('https://s.test/studio/api/page?u=https%3A%2F%2Fwww.formula1.com%2Fa')).status, 401);
 });
 
-test('page du créateur : publication programmée, publiée par le serveur à l\'heure (tous les réseaux en un passage)', async () => {
+test('page du créateur : publication programmée, publiée par le serveur à l\'heure (un réseau par passage, stories par lots)', async () => {
   saveConfig({ creator: true, social: { meta: { pageId: 'p1', pageName: 'Ma page', pageToken: 'jeton-page', igId: 'ig1', igUsername: 'moi' }, bluesky: { handle: 'moi.bsky.social', appPassword: 'mdp-app', did: 'did:plc:moi' } } });
   const fetchFn = (url, init) => worker(url, init);
   await enableStudio(CODE, { fetchFn });
@@ -261,6 +263,7 @@ test('page du créateur : publication programmée, publiée par le serveur à l\
     f.append('ig', jpeg(1.2e6), 'a.jpg');
     f.append('ig', jpeg(10), 'b.jpg');
     f.append('x', jpeg(10), 'c.jpg');
+    for (let i = 0; i < (o.more || 0); i++) f.append('ig', jpeg(10), `d${i}.jpg`);
     return f;
   };
   const add = async (o) => worker('https://s.test/studio/api/schedule', { method: 'POST', body: form(o), headers: key });
@@ -279,8 +282,14 @@ test('page du créateur : publication programmée, publiée par le serveur à l\
 
   const realFetch = globalThis.fetch;
   const calls = [];
+  // Téléphone abonné aux notifications du Studio
+  const pair = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits']);
+  const b64u = (b) => Buffer.from(b).toString('base64url');
+  env.DB.studio.set('push', JSON.stringify([{ endpoint: 'https://push.test/abc', keys: { p256dh: b64u(new Uint8Array(await crypto.subtle.exportKey('raw', pair.publicKey))), auth: b64u(crypto.getRandomValues(new Uint8Array(16))) } }]));
+  let pushes = 0;
   globalThis.fetch = async (url, opts = {}) => {
     const u = new URL(url);
+    if (u.hostname === 'push.test') { pushes++; return new Response('', { status: 201 }); }
     calls.push(u.pathname);
     const ok = (d) => new Response(JSON.stringify(d), { status: 200 });
     if (u.pathname.endsWith('/photos')) return ok({ id: 'ph1' });
@@ -297,10 +306,17 @@ test('page du créateur : publication programmée, publiée par le serveur à l\
     // Pas encore l'heure : rien ne part
     assert.equal(await runSchedule(env, { now: at - 60e3 }), null);
     assert.equal(calls.length, 0);
-    // À l'heure : tous les réseaux dans le même passage, jamais renvoyés au suivant
-    assert.deepEqual(await runSchedule(env, { now: at + 1 }), { published: 'bluesky', id: item.id });
-    assert.ok(calls.some((c) => c.endsWith('/photos')) && calls.some((c) => c.endsWith('createRecord')));
-    assert.equal(await runSchedule(env, { now: at + 60e3 }), null);
+    // À l'heure : un réseau par passage (limite de sous-requêtes du Worker), jamais renvoyé au suivant
+    assert.deepEqual(await runSchedule(env, { now: at + 1 }), { published: 'facebook', id: item.id });
+    const photos = calls.filter((c) => c.endsWith('/photos')).length;
+    assert.ok(photos && !calls.some((c) => c.endsWith('createRecord')));
+    assert.equal((await (await worker('https://s.test/studio/api/schedule', { headers: key })).json()).items[0].nets.bluesky.status, 'pending');
+    assert.deepEqual(await runSchedule(env, { now: at + 60e3 }), { published: 'bluesky', id: item.id });
+    assert.equal(calls.filter((c) => c.endsWith('/photos')).length, photos, 'Facebook pas renvoyé');
+    // Fin : notification sur le téléphone au passage suivant (une seule fois), liste nettoyée
+    assert.equal(pushes, 0);
+    assert.equal(await runSchedule(env, { now: at + 120e3 }), null);
+    assert.equal(pushes, 1);
     // Tout publié : retirée aussitôt de la liste (visuels, jetons et trace effacés), journal complété
     const list = await (await worker('https://s.test/studio/api/schedule', { headers: key })).json();
     assert.equal(list.items.length, 0);
@@ -309,12 +325,41 @@ test('page du créateur : publication programmée, publiée par le serveur à l\
     assert.equal(hist.items[0].key, 'race-2026-18');
     assert.deepEqual(Object.keys(hist.items[0].nets).sort(), ['bluesky', 'facebook']);
     assert.equal(hist.items[0].nets.facebook.url, 'https://www.facebook.com/p1_43');
+    // Worker lié à lui-même : chaque réseau envoyé par un appel à part (clé du serveur exigée), tous au même
+    // passage ; un réseau déjà pris n'est jamais renvoyé, même demandé à nouveau
+    const par = (await (await add()).json()).item;
+    const asked = [];
+    env.SELF = { fetch: async (u, init) => { asked.push(JSON.parse(init.body).net); return schedInternal(new Request(u, init), env); } };
+    try {
+      assert.deepEqual(await runSchedule(env, { now: at + 1 }), { published: ['facebook', 'bluesky'], parallel: true });
+      assert.deepEqual(asked.sort(), ['bluesky', 'facebook']);
+      const nets = (await (await worker('https://s.test/studio/api/schedule', { headers: key })).json()).items.find((x) => x.id === par.id).nets;
+      assert.deepEqual([nets.facebook.status, nets.bluesky.status], ['done', 'done']);
+      const n = calls.length;
+      assert.equal(await runSchedule(env, { now: at + 2, only: { id: par.id, net: 'facebook' } }), null);
+      assert.equal(calls.length, n);
+      assert.equal((await schedInternal(new Request('https://self/internal/sched', { method: 'POST', body: '{}' }), env)).status, 403);
+    } finally { delete env.SELF; }
+    await runSchedule(env, { now: at + 60e3 });   // passage suivant : notification et nettoyage
+    assert.equal((await (await worker('https://s.test/studio/api/schedule', { headers: key })).json()).items.length, 0);
     // Stories : sans texte, jamais mêlées aux posts du fil, absentes de l'historique
     assert.equal((await add({ posts: [{ network: 'facebook-story' }, { network: 'facebook', text: 'x' }] })).status, 400);
     const story = (await (await add({ posts: [{ network: 'facebook-story' }] })).json()).item;
     calls.length = 0;
     assert.deepEqual(await runSchedule(env, { now: at + 120e3 }), { published: 'facebook-story', id: story.id });
     assert.equal(calls.filter((c) => c.endsWith('/photo_stories')).length, 2);
+    await runSchedule(env, { now: at + 121e3 });
+    assert.equal((await (await worker('https://s.test/studio/api/schedule', { headers: key })).json()).items.length, 0);
+    // 6 stories : 4 au premier passage, la suite au suivant (limite de sous-requêtes)
+    const many = (await (await add({ posts: [{ network: 'facebook-story' }], more: 4 })).json()).item;
+    calls.length = 0;
+    await runSchedule(env, { now: at + 125e3 });
+    assert.equal(calls.filter((c) => c.endsWith('/photo_stories')).length, 4);
+    const half = (await (await worker('https://s.test/studio/api/schedule', { headers: key })).json()).items.find((x) => x.id === many.id);
+    assert.deepEqual([half.nets['facebook-story'].status, half.nets['facebook-story'].sent, half.nets['facebook-story'].total], ['pending', 4, 6]);
+    await runSchedule(env, { now: at + 185e3 });
+    assert.equal(calls.filter((c) => c.endsWith('/photo_stories')).length, 6);
+    await runSchedule(env, { now: at + 186e3 });
     assert.equal((await (await worker('https://s.test/studio/api/schedule', { headers: key })).json()).items.length, 0);
     assert.equal((await (await worker('https://s.test/studio/api/history', { headers: key })).json()).items.length, hist.items.length);
     // Échec sur un réseau : gardée dans la liste avec l'erreur, visuels et jetons effacés
@@ -322,6 +367,11 @@ test('page du créateur : publication programmée, publiée par le serveur à l\
     const ok = globalThis.fetch;
     globalThis.fetch = async (url, opts) => (new URL(url).pathname.endsWith('/feed') ? new Response(JSON.stringify({ error: { message: 'Refusé' } }), { status: 400 }) : ok(url, opts));
     await runSchedule(env, { now: at + 180e3 });
+    await runSchedule(env, { now: at + 240e3 });
+    const before = pushes;
+    await runSchedule(env, { now: at + 300e3 });
+    await runSchedule(env, { now: at + 360e3 });
+    assert.equal(pushes, before + 1, 'erreur : une seule notification');
     globalThis.fetch = ok;
     const kept = (await (await worker('https://s.test/studio/api/schedule', { headers: key })).json()).items.find((x) => x.id === bad.id);
     assert.equal(kept.nets.facebook.status, 'error');
@@ -362,9 +412,11 @@ test('page du créateur : vidéo confiée au serveur (stockage R2), publiée par
     f.append('at', String(Date.now()));
     f.append('title', 'Ma vidéo');
     f.append('record', JSON.stringify({ key: 'post:v1', kind: 'post', title: 'Ma vidéo' }));
-    f.append('posts', JSON.stringify(o.posts ?? [{ network: 'youtube', text: 'Titre\nTexte' }, { network: 'bluesky', text: 'Salut' }]));
+    f.append('posts', JSON.stringify(o.posts ?? [{ network: 'youtube', text: 'Titre\nTexte' }, { network: 'bluesky', text: 'Salut' }, { network: 'facebook-story' }]));
     f.append('x', new Blob([new Uint8Array([0xff, 0xd8, 0xff, 1])], { type: 'image/jpeg' }), 'x.jpg');
     f.append('video', o.video ?? new Blob([new Uint8Array([1, 2, 3, 4])], { type: 'video/mp4' }), 'v.mp4');
+    f.append('videofull', new Blob([new Uint8Array([5, 6, 7, 8, 9, 10])], { type: 'video/mp4' }), 'v-full.mp4');
+    f.append('vsize', '1080x1920');
     if (o.tiktok) f.append('tiktok', JSON.stringify(o.tiktok));
     return f;
   };
@@ -375,12 +427,12 @@ test('page du créateur : vidéo confiée au serveur (stockage R2), publiée par
   env.MEDIA = {
     put: async (k, v, o) => { bucket.set(k, { bytes: new Uint8Array(await v.arrayBuffer()), type: o.httpMetadata.contentType }); },
     get: async (k) => (bucket.has(k) ? { arrayBuffer: async () => bucket.get(k).bytes.buffer } : null),
-    delete: async (k) => { bucket.delete(k); },
+    delete: async (k) => { [k].flat().forEach((x) => bucket.delete(x)); },
   };
   assert.equal((await add({ video: new Blob(['x'], { type: 'image/gif' }) })).status, 400);
   assert.equal((await add({ posts: [{ network: 'tiktok', text: 'x' }], tiktok: { privacy: 'SELF_ONLY', brandContent: true } })).status, 409);   // TikTok non connecté
   const { item } = await (await add()).json();
-  assert.deepEqual([...bucket.keys()], [`sched/${item.id}`]);
+  assert.deepEqual([...bucket.keys()], [`sched/${item.id}`, `sched/${item.id}-full`]);
   assert.equal(bucket.get(`sched/${item.id}`).type, 'video/mp4');
 
   const realFetch = globalThis.fetch;
@@ -389,24 +441,29 @@ test('page du créateur : vidéo confiée au serveur (stockage R2), publiée par
     const u = String(url);
     if (u.startsWith('https://www.googleapis.com/upload/youtube/v3/videos')) return new Response('{}', { headers: { location: 'https://up.test/yt' } });
     if (u === 'https://up.test/yt') { sent.youtube = opts.body.length; return new Response(JSON.stringify({ id: 'v42' })); }
+    if (u.includes('/p1/video_stories')) return new Response(JSON.stringify({ video_id: 's1', upload_url: 'https://up.test/story' }));
+    if (u === 'https://up.test/story') { sent.story = opts.body.size; return new Response(JSON.stringify({ success: true })); }
     const p = new URL(u).pathname;
     if (p.endsWith('createSession')) return new Response(JSON.stringify({ accessJwt: 'jwt', did: 'did:plc:moi' }));
-    if (p.endsWith('uploadBlob')) return new Response(JSON.stringify({ blob: { ref: 'b' } }));
-    if (p.endsWith('createRecord')) { sent.bluesky = true; return new Response(JSON.stringify({ uri: 'at://did:plc:moi/app.bsky.feed.post/3k', cid: 'c' })); }
+    if (p.endsWith('uploadBlob')) { sent.blob = [opts.headers['Content-Type'], opts.body.size]; return new Response(JSON.stringify({ blob: { ref: 'b' } })); }
+    if (p.endsWith('createRecord')) { sent.bluesky = JSON.parse(opts.body).record.embed; return new Response(JSON.stringify({ uri: 'at://did:plc:moi/app.bsky.feed.post/3k', cid: 'c' })); }
     throw new Error(`inattendu : ${u}`);
   };
   try {
+    assert.equal((await runSchedule(env)).id, item.id);
     assert.deepEqual(await runSchedule(env), { published: 'bluesky', id: item.id });
+    assert.deepEqual(await runSchedule(env), { published: 'facebook-story', id: item.id });
+    await runSchedule(env);
   } finally { globalThis.fetch = realFetch; }
-  // Vidéo envoyée à YouTube, visuels à Bluesky ; vidéo effacée du stockage une fois publiée
-  assert.deepEqual(sent, { youtube: 4, bluesky: true });
+  // Vidéo de la zone sûre envoyée à YouTube et en story, version plein écran à Bluesky ; vidéos effacées une fois publiées
+  assert.deepEqual(sent, { youtube: 4, story: 4, blob: ['video/mp4', 6], bluesky: { $type: 'app.bsky.embed.video', video: { ref: 'b' }, aspectRatio: { width: 1080, height: 1920 } } });
   assert.equal((await (await worker('https://s.test/studio/api/schedule', { headers: key })).json()).items.length, 0);
   const hist = await (await worker('https://s.test/studio/api/history', { headers: key })).json();
   assert.equal(hist.items.find((x) => x.key === 'post:v1').nets.youtube.url, 'https://youtube.com/shorts/v42');
   assert.equal(bucket.size, 0);
   // Annulation avant l'heure : vidéo effacée aussi
   const later = (await (await add()).json()).item;
-  assert.equal(bucket.size, 1);
+  assert.equal(bucket.size, 2);
   await worker('https://s.test/studio/api/schedule/cancel', { method: 'POST', body: JSON.stringify({ id: later.id }), headers: key });
   assert.equal(bucket.size, 0);
   delete env.MEDIA;
@@ -446,7 +503,9 @@ test('page du créateur : post « lien » sans visuels (carte de l\'article affi
     throw new Error(`inattendu : ${url}`);
   };
   try {
+    assert.deepEqual(await runSchedule(env), { published: 'facebook', id: item.id });
     assert.deepEqual(await runSchedule(env), { published: 'bluesky', id: item.id });
+    await runSchedule(env);
   } finally { globalThis.fetch = realFetch; }
   // Facebook : texte et lien (adresse d'origine : la base de test n'a pas les liens suivis), sans photo ;
   // Bluesky : carte du lien sans image

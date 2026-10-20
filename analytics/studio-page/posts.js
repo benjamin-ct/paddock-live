@@ -10,11 +10,12 @@ import { CHAMPIONSHIP, parseSeasons, parseDocumentList, pickEvent } from '/share
 import { gridDocument, parseStartingGrid } from '/shared/fia-grid.js';
 import { extractArticle } from '/shared/article.js';
 import { recapData, seasonCaptions } from '/shared/social-season.js';
-import { $, $$, esc, api, ago, icon, toggle, glide, state, SIG, NET_NAMES, musicField, bindMusic, clipFile } from './ui.js';
+import { $, $$, esc, api, ago, icon, toggle, glide, state, SIG, NET_NAMES, musicField, bindMusic, clipFile, shareClip } from './ui.js';
 import { toFrench, freshNews, cachedNews, latestDrivers, loadState, rememberDrivers, SESSION_FR } from './data.js';
 import { editor, assets } from './editor.js';
 import { photoPicker } from './photos.js';
 import { makeAnimation, unlockAudio } from '/shared/social-video.js';
+import { videoCover } from '/shared/social-draw.js';
 import { newsFrame, newsVideoTiming } from '/shared/social-news-video.js';
 
 // Résumé détaillé : page de l'article lue par le serveur, texte extrait ici, points clés rédigés par
@@ -41,16 +42,19 @@ function bindPhoto(p, getD, onPhoto) {
   $(`#${p}photodel`).onclick = () => { onPhoto(null); $(`#${p}photost`).textContent = ''; $(`#${p}photodel`).hidden = true; };
 }
 
-// ---------- Vidéo « Breaking news » (TikTok, Reels, Shorts, story), commune aux news et aux posts écrits ----------
-const NEWS_VIDEO = (on) => `${toggle('brk', 'Très grosse info', on, 'Visuel et vidéo « Breaking news »')}<div id="vidbox" ${on ? '' : 'hidden'}>${musicField('news', 'flash')}<div class="row"><button class="btn" id="mkvid">${icon('video')}Créer la vidéo</button><button class="btn" id="sharevid" disabled>${icon('share')}Partager</button></div>
+// ---------- Vidéo de la news (TikTok, Reels, Shorts, story…), commune aux news et aux posts écrits ----------
+// Style « Breaking news » quand la très grosse info est cochée (BREAKING, étape Contenu)
+const BREAKING = (on) => toggle('brk', 'Très grosse info', on, 'Style « Breaking news » du visuel et de la vidéo');
+const NEWS_VIDEO = () => `<h3 class="section">Vidéo de la news</h3>${musicField('news', 'flash')}<div class="row"><button class="btn" id="mkvid">${icon('video')}Créer la vidéo</button><button class="btn" id="sharevid" disabled title="Zone sûre : Reels, TikTok, Shorts">${icon('share')}Partager</button><button class="btn" id="sharefull" disabled title="X, Bluesky, Facebook, Threads…">${icon('share')}Plein écran</button></div>
   <p class="hint" id="vidst">Garder l'écran allumé pendant l'enregistrement.</p>
-  <video id="vid" controls playsinline hidden></video></div>`;
+  <video id="vid" controls playsinline hidden></video>`;
 // onBreaking(on) : très grosse info cochée ou décochée à la main
 // onClip(file) : vidéo prête (MP4), jointe au post pour la publier sur TikTok, Instagram, Facebook…
-function bindNewsVideo(getD, name, onBreaking, onClip) {
+function bindNewsVideo(getD, onBreaking, onClip) {
   let clip = null;
+  const name = () => (getD().breaking ? 'breaking-news' : 'actu-f1');   // nom du fichier
   const track = bindMusic('news');
-  $('#brk').onchange = (e) => { $('#vidbox').hidden = !e.target.checked; onBreaking(e.target.checked); };
+  $('#brk').onchange = (e) => onBreaking(e.target.checked);
   $('#mkvid').onclick = async () => {
     unlockAudio();   // pendant le toucher, avant toute attente (sinon vidéo muette sur iPhone)
     $('#mkvid').disabled = true;
@@ -58,19 +62,15 @@ function bindNewsVideo(getD, name, onBreaking, onClip) {
       const d = getD();
       const o = await assets(d);
       const { duration } = newsVideoTiming(d);
-      clip = await makeAnimation((ctx, t) => newsFrame(ctx, 1080, 1920, d, o, t), duration, { music: 'gen', track: track(), onProgress: (p) => { $('#vidst').textContent = `Enregistrement… ${Math.round(p * 100)} %`; } });
+      clip = await makeAnimation((ctx, t, w, h) => newsFrame(ctx, w, h, d, o, t), duration, { box: true, cover: (ctx) => videoCover(ctx, 1080, 1920, d, o), music: 'gen', track: track(), onProgress: (p) => { $('#vidst').textContent = `Enregistrement… ${Math.round(p * 100)} %`; } });
       $('#vid').src = URL.createObjectURL(clip.blob); $('#vid').hidden = false;
-      $('#sharevid').disabled = false;
-      $('#vidst').textContent = `Vidéo prête : ${Math.round(duration)} s, ${(clip.blob.size / 1e6).toFixed(1).replace('.', ',')} Mo${clip.silent ? ' · sans son : le navigateur a bloqué la musique, recommencez' : ''}${clipFile(clip, name) ? ' · cochez TikTok, Instagram… dans « Publier sur » pour la publier' : ' · format WebM : à partager seulement (publication en MP4)'}`;
-      onClip(clipFile(clip, name));
+      $('#sharevid').disabled = false; $('#sharefull').disabled = false;
+      $('#vidst').textContent = `Vidéo prête : ${Math.round(duration)} s, ${(clip.blob.size / 1e6).toFixed(1).replace('.', ',')} Mo${clip.silent ? ' · sans son : le navigateur a bloqué la musique, recommencez' : ''}${clipFile(clip, name()) ? ' · jointe au post (à décocher à l\'étape Publier pour garder les visuels)' : ' · format WebM : à partager seulement (publication en MP4)'}`;
+      onClip(clipFile(clip, name()));
     } catch (err) { $('#vidst').textContent = err.message; } finally { $('#mkvid').disabled = false; }
   };
-  $('#sharevid').onclick = async () => {
-    if (!clip) return;
-    const file = new File([clip.blob], `${name}.${clip.mime.includes('mp4') ? 'mp4' : 'webm'}`, { type: clip.mime });
-    if (navigator.canShare?.({ files: [file] })) { try { await navigator.share({ files: [file] }); } catch { /* annulé */ } return; }
-    const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = file.name; a.click();
-  };
+  $('#sharevid').onclick = () => clip && shareClip(clip, name());
+  $('#sharefull').onclick = () => clip && shareClip(clip, name(), true);
 }
 
 export async function newsEditor(it, done, back) {
@@ -91,7 +91,6 @@ export async function newsEditor(it, done, back) {
     back,
     title: 'News',
     subtitle: `${it.srcName} · il y a ${ago(it.t)}`,
-    below: true,
     head: `<div class="row"><span class="badge" style="background:${d.badge.color}">${esc(d.badge.label)}</span>${it.link ? `<a class="link" href="${esc(it.link)}" target="_blank" rel="noopener">Lire l'article ${icon('link')}</a>` : ''}</div>
       ${done ? `<p class="notice ok">${icon('check')}Déjà publiée le ${esc(new Date(done.at).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' }))} sur ${esc(Object.keys(done.nets).map((n) => NET_NAMES[n] || n).join(', '))}</p>` : ''}
       <label class="field"><span>Titre</span><input type="text" id="ntitle" maxlength="160" value="${esc(d.title)}"></label>
@@ -102,8 +101,9 @@ export async function newsEditor(it, done, back) {
       ${/^https:\/\//.test(it.link || '') ? `<div class="row"><button class="btn small" id="nartimg">${icon('image')}${look ? `Photo de la ${look === 'tenue' ? 'tenue' : 'livrée'} (article)` : 'Photo de l\'article'}</button></div>
         <p class="hint">Dans les visuels, « via ${esc(it.srcName)} » crédité.</p>` : ''}
       ${toggle('linkcomment', 'Lien en premier commentaire', state.linkComment, 'Facebook, Threads, Bluesky, X')}
-      ${NEWS_VIDEO(d.breaking)}
+      ${BREAKING(d.breaking)}
       <p class="hint">${failed ? 'Traduction indisponible : textes en version originale, à traduire à la main.' : 'Traduction automatique : à relire.'}</p>`,
+    vhead: NEWS_VIDEO(),
     data: () => d,
     caps: (dd) => newsCaptions(dd, SIG, { linkInComment: state.linkComment && state.fmt !== 'link' }),
     video: () => made,
@@ -140,7 +140,7 @@ export async function newsEditor(it, done, back) {
         };
       }
       $('#linkcomment').onchange = (e) => { state.linkComment = e.target.checked; redraw(true); };
-      bindNewsVideo(() => d, 'breaking-news', (on) => { breaking = on; d.breaking = on; redraw(true); }, (file) => { made = file; redraw(); });
+      bindNewsVideo(() => d, (on) => { breaking = on; d.breaking = on; redraw(true); }, (file) => { made = file; state.noVideo = false; redraw(); });
     },
   });
 }
@@ -174,10 +174,11 @@ export async function manualEditor(back) {
       <label class="field"><span>Source <small>(facultatif, citée en bas de l'image)</small></span><input type="text" id="msrc" maxlength="60" placeholder="Ex. : communiqué de McLaren"></label>
       <div class="field"><span>Photo <small>(facultatif : remplace les portraits des pilotes)</small></span>
         <div class="row"><label class="btn small">${icon('image')}Choisir une photo<input type="file" id="mimg" accept="image/*" hidden></label><button class="btn small" id="mfree">${icon('image')}Photo libre de droits</button><button class="btn small" id="mimgdel" hidden>${icon('close')}Retirer</button><span class="hint" id="mimgst"></span></div></div>
-      <div class="field"><span>Vidéo <small>(facultatif : publiée avec le post, MP4 ou MOV, 50 Mo au plus)</small></span>
+      ${BREAKING(false)}`,
+    vhead: `<div class="field"><span>Votre vidéo <small>(facultatif : publiée avec le post, MP4 ou MOV, 50 Mo au plus)</small></span>
         <div class="row"><label class="btn small">${icon('video')}Choisir une vidéo<input type="file" id="mvid" accept="video/mp4,video/quicktime" hidden></label><button class="btn small" id="mviddel" hidden>${icon('close')}Retirer</button><span class="hint" id="mvidst"></span></div>
         <video id="mvidprev" controls playsinline hidden></video></div>
-      ${NEWS_VIDEO(false)}`,
+      ${NEWS_VIDEO()}`,
     data: () => d,
     caps: (dd) => newsCaptions(dd, SIG),
     record: () => ({ key: `manual:${it.id}`, kind: 'manual', title: d.title }),
@@ -231,11 +232,12 @@ export async function manualEditor(back) {
         $('#mvidst').textContent = `${file.name} · ${(file.size / 1e6).toFixed(1).replace('.', ',')} Mo`;
         if ($('#mvidprev').src) URL.revokeObjectURL($('#mvidprev').src);
         $('#mvidprev').src = URL.createObjectURL(file); $('#mvidprev').hidden = false;
+        $('#mvidprev').onloadedmetadata = (ev) => { file.vsize = `${ev.target.videoWidth}x${ev.target.videoHeight}`; };   // format de la vidéo pour Bluesky
         $('#mviddel').hidden = false;
         upd(true);
       };
       $('#mviddel').onclick = () => { f.video = null; $('#mvid').value = ''; $('#mvidst').textContent = ''; $('#mviddel').hidden = true; $('#mvidprev').hidden = true; $('#mvidprev').removeAttribute('src'); upd(true); };
-      bindNewsVideo(() => d, 'breaking-news', (on) => { f.breaking = on; upd(true); }, (file) => { f.made = file; redraw(); });
+      bindNewsVideo(() => d, (on) => { f.breaking = on; upd(true); }, (file) => { f.made = file; state.noVideo = false; redraw(); });
     },
   });
 }
@@ -254,7 +256,7 @@ export async function recapEditor(back) {
     back,
     title: 'Récap de la semaine',
     subtitle: `${d.items.length} grosses news des 7 derniers jours`,
-    head: '<p class="hint">Traduction automatique : à relire.</p>',
+    note: 'Traduction automatique : à relire.',
     data: () => d, caps: (dd) => seasonCaptions(dd, SIG),
     record: () => ({ key: `recap:${d.date}`, kind: 'recap', title: `La semaine en F1 · ${d.date}` }),
   });

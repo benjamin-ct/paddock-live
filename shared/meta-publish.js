@@ -6,9 +6,9 @@
 
 export const GRAPH = 'https://graph.facebook.com/v25.0';
 export const THREADS = 'https://graph.threads.net/v1.0';
-// Sujet des posts Threads (« > F1 Thread » à côté du nom) : sans lui, Threads prend le premier
+// Sujet des posts Threads (« > F1 Threads » à côté du nom, la communauté F1 de Threads) : sans lui, Threads prend le premier
 // hashtag du texte (#F1)
-export const THREADS_TOPIC = 'F1 Thread';
+export const THREADS_TOPIC = 'F1 Threads';
 export const timing = { poll: 1500, maxPoll: 5000, readyMs: 4 * 60e3, visible: [8e3, 15e3, 20e3] };
 const HOST_TTL = 60 * 60e3;
 const hostedCache = new Map();   // empreinte de l'image + page -> { id, url, at }
@@ -153,12 +153,31 @@ export async function storyFacebook(meta, images) {
   return { url: `https://www.facebook.com/${meta.pageId}`, id: null, count: hosted.length };
 }
 
-// Reel Instagram : vidéo lue par Instagram à une adresse publique (fichier du site), montrée aussi
-// dans le fil. La préparation d'une vidéo prend souvent une à deux minutes.
-export async function reelInstagram(meta, videoUrl, caption) {
+// Story vidéo (une seule) : Instagram lit la vidéo à son adresse publique (déposée sur la page) ; la page
+// Facebook la reçoit en trois temps (ouverture, envoi du fichier, publication)
+export async function storyVideoInstagram(meta, video) {
   if (!meta?.igId) throw new Error('Aucun compte Instagram professionnel relié à la page Facebook');
   const tok = { access_token: meta.pageToken };
-  const c = await call(`${GRAPH}/${meta.igId}/media`, { method: 'POST', form: { media_type: 'REELS', video_url: videoUrl, caption: String(caption || '').slice(0, 2200), share_to_feed: 'true', ...tok } });
+  const c = await call(`${GRAPH}/${meta.igId}/media`, { method: 'POST', form: { media_type: 'STORIES', video_url: (await hostVideo(meta, video)).url, ...tok } });
+  await ready(`${GRAPH}/${c.id}?${new URLSearchParams({ fields: 'status_code,status', ...tok })}`, 'status_code', 'Story');
+  await call(`${GRAPH}/${meta.igId}/media_publish`, { method: 'POST', form: { creation_id: c.id, ...tok } });
+  return { url: `https://www.instagram.com/stories/${meta.igUsername || ''}/`, id: null, count: 1 };
+}
+export async function storyVideoFacebook(meta, video) {
+  const tok = { access_token: meta.pageToken };
+  const s = await call(`${GRAPH}/${meta.pageId}/video_stories`, { method: 'POST', form: { upload_phase: 'start', ...tok } });
+  await call(s.upload_url, { method: 'POST', headers: { Authorization: `OAuth ${meta.pageToken}`, offset: '0', file_size: String(video.size) }, body: video });
+  await call(`${GRAPH}/${meta.pageId}/video_stories`, { method: 'POST', form: { upload_phase: 'finish', video_id: s.video_id, ...tok } });
+  return { url: `https://www.facebook.com/${meta.pageId}`, id: null, count: 1 };
+}
+
+// Reel Instagram : vidéo lue par Instagram à une adresse publique (fichier du site), montrée aussi
+// dans le fil. La préparation d'une vidéo prend souvent une à deux minutes.
+// coverUrl : couverture (image publique), sinon une image choisie par Instagram
+export async function reelInstagram(meta, videoUrl, caption, coverUrl = null) {
+  if (!meta?.igId) throw new Error('Aucun compte Instagram professionnel relié à la page Facebook');
+  const tok = { access_token: meta.pageToken };
+  const c = await call(`${GRAPH}/${meta.igId}/media`, { method: 'POST', form: { media_type: 'REELS', video_url: videoUrl, caption: String(caption || '').slice(0, 2200), share_to_feed: 'true', ...(coverUrl ? { cover_url: coverUrl } : {}), ...tok } });
   await ready(`${GRAPH}/${c.id}?${new URLSearchParams({ fields: 'status_code,status', ...tok })}`, 'status_code', 'Reel');
   const pub = await call(`${GRAPH}/${meta.igId}/media_publish`, { method: 'POST', form: { creation_id: c.id, ...tok } });
   const link = await call(`${GRAPH}/${pub.id}?${new URLSearchParams({ fields: 'permalink', ...tok })}`).catch(() => ({}));
@@ -169,10 +188,11 @@ export async function reelInstagram(meta, videoUrl, caption) {
 // Déposée sur la page Facebook sans être publiée : son adresse publique sert à Instagram (Reel) et à
 // Threads, comme pour les images. Prête quand Facebook a fini de la traiter.
 const GRAPH_VIDEO = GRAPH.replace('//graph.', '//graph-video.');
-async function uploadVideo(meta, video, fields) {
+async function uploadVideo(meta, video, fields, thumb = null) {
   if (!meta?.pageToken) throw new Error('Page Facebook non connectée (nécessaire aussi pour Instagram et Threads)');
   const form = new FormData();
   form.append('source', video, video.type === 'video/quicktime' ? 'video.mov' : 'video.mp4');
+  if (thumb) form.append('thumb', thumb, 'cover.jpg');
   for (const [k, v] of Object.entries({ ...fields, access_token: meta.pageToken })) form.append(k, v);
   return call(`${GRAPH_VIDEO}/${meta.pageId}/videos`, { method: 'POST', form });
 }
@@ -195,8 +215,9 @@ export async function hostVideo(meta, video) {
     await wait(Math.min(timing.poll * (i + 1), timing.maxPoll));
   }
 }
-export async function publishFacebookVideo(meta, text, video) {
-  const r = await uploadVideo(meta, video, { description: text, published: 'true' });
+// cover : couverture de la vidéo (JPEG), sinon une image choisie par Facebook
+export async function publishFacebookVideo(meta, text, video, cover = null) {
+  const r = await uploadVideo(meta, video, { description: text, published: 'true' }, cover);
   return { url: `https://www.facebook.com/${meta.pageId}/videos/${r.id}`, id: r.id };
 }
 export async function publishThreadsVideo(th, meta, text, video) {

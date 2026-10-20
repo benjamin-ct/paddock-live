@@ -84,7 +84,7 @@ test('Threads et Instagram : chaque image du carrousel est prête avant le carro
     assert.ok(kids.every((k) => /^https:\/\/cdn\.test\/.+\.jpg$/.test(k.form.image_url) && k.form.media_type === 'IMAGE'));
     const car = log.find((l) => l.form.media_type === 'CAROUSEL');
     assert.equal(car.form.text, 'Bonjour');
-    assert.equal(car.form.topic_tag, 'F1 Thread');
+    assert.equal(car.form.topic_tag, 'F1 Threads');
     assert.equal(log.filter((l) => l.path.endsWith('/photos')).length, 3);
 
     // Instagram juste après : mêmes images, rien de redéposé sur la page
@@ -330,9 +330,9 @@ test('YouTube : connexion Google (PKCE), Short envoyé en privé, reconnexion de
   } finally { globalThis.fetch = realFetch; }
 });
 
-test('vidéo du créateur : déposée une fois sur la page, Reel Instagram, vidéo Threads et vidéo Facebook', async () => {
+test('vidéo du créateur : déposée une fois sur la page, Reel Instagram, vidéo Threads, vidéo Facebook et stories', async () => {
   const realFetch = globalThis.fetch;
-  const { hostVideo, publishFacebookVideo, publishThreadsVideo, reelInstagram } = await import('../shared/meta-publish.js');
+  const { hostVideo, publishFacebookVideo, publishThreadsVideo, reelInstagram, storyVideoInstagram, storyVideoFacebook } = await import('../shared/meta-publish.js');
   Object.assign(timing, { poll: 1, maxPoll: 1, readyMs: 2000, visible: [] });
   const meta = { pageId: 'page1', pageToken: 'jp', igId: 'ig1', igUsername: 'moi' };
   const log = [];
@@ -341,8 +341,10 @@ test('vidéo du créateur : déposée une fois sur la page, Reel Instagram, vid�
     const u = new URL(url);
     const form = opts.body instanceof FormData ? Object.fromEntries([...opts.body].map(([k, v]) => [k, typeof v === 'string' ? v : `<${v.type}>`]))
       : opts.body ? Object.fromEntries(new URLSearchParams(String(opts.body))) : {};
-    log.push({ host: u.hostname, path: u.pathname, form, query: Object.fromEntries(u.searchParams) });
+    log.push({ host: u.hostname, path: u.pathname, form, query: Object.fromEntries(u.searchParams), headers: opts.headers, body: opts.body });
     const j = (o) => new Response(JSON.stringify(o));
+    if (u.pathname.endsWith('/page1/video_stories')) return j(form.upload_phase === 'start' ? { video_id: 's1', upload_url: 'https://rupload.facebook.com/video-upload/v21.0/s1' } : { success: true, post_id: 'sp1' });
+    if (u.hostname === 'rupload.facebook.com') return j({ success: true });
     if (u.pathname.endsWith('/page1/videos')) return j({ id: form.published === 'false' ? 'vid1' : 'vid2' });
     if (u.pathname.endsWith('/vid1')) return j(++checks < 2 ? { status: { video_status: 'processing' } } : { status: { video_status: 'ready' }, source: 'https://video.test/v.mp4' });
     if (u.pathname.endsWith('/media') || u.pathname.endsWith('/threads')) return j({ id: 'c1' });
@@ -368,12 +370,29 @@ test('vidéo du créateur : déposée une fois sur la page, Reel Instagram, vid�
     assert.equal(log.find((l) => l.path.endsWith('/ig1/media')).form.video_url, 'https://video.test/v.mp4');
     assert.equal(log.find((l) => l.path.endsWith('/ig1/media')).form.media_type, 'REELS');
     const tc = log.find((l) => l.path.endsWith('/th1/threads')).form;
-    assert.deepEqual([tc.media_type, tc.video_url, tc.text, tc.topic_tag], ['VIDEO', 'https://video.test/v.mp4', 'Texte', 'F1 Thread']);
+    assert.deepEqual([tc.media_type, tc.video_url, tc.text, tc.topic_tag], ['VIDEO', 'https://video.test/v.mp4', 'Texte', 'F1 Threads']);
     // Facebook : vidéo publiée avec le texte
     const fb = await publishFacebookVideo(meta, 'Post', video);
     assert.equal(fb.url, 'https://www.facebook.com/page1/videos/vid2');
     const pub = log.findLast((l) => l.path.endsWith('/page1/videos')).form;
     assert.deepEqual([pub.published, pub.description], ['true', 'Post']);
+    assert.equal(pub.thumb, undefined);
+    // Couverture : adresse publique pour le Reel, image jointe à la vidéo Facebook
+    await reelInstagram(meta, 'https://video.test/v.mp4', 'Légende', 'https://img.test/cover.jpg');
+    assert.equal(log.findLast((l) => l.path.endsWith('/ig1/media')).form.cover_url, 'https://img.test/cover.jpg');
+    await publishFacebookVideo(meta, 'Post', video, new Blob([new Uint8Array([0xff, 0xd8, 0xff])], { type: 'image/jpeg' }));
+    assert.equal(log.findLast((l) => l.path.endsWith('/page1/videos')).form.thumb, '<image/jpeg>');
+    // Story vidéo : Instagram par l'adresse de la vidéo déposée, Facebook en trois temps (fichier envoyé tel quel)
+    log.length = 0;
+    assert.equal((await storyVideoInstagram(meta, video)).count, 1);
+    const st = log.find((l) => l.path.endsWith('/ig1/media')).form;
+    assert.deepEqual([st.media_type, st.video_url], ['STORIES', 'https://video.test/v.mp4']);
+    assert.ok(log.some((l) => l.path.endsWith('/ig1/media_publish')));
+    log.length = 0;
+    assert.equal((await storyVideoFacebook(meta, video)).count, 1);
+    assert.deepEqual(log.map((l) => l.form.upload_phase || l.host), ['start', 'rupload.facebook.com', 'finish']);
+    assert.deepEqual([log[1].headers.Authorization, log[1].headers.offset, log[1].headers.file_size, log[1].body], ['OAuth jp', '0', String(video.size), video]);
+    assert.equal(log[2].form.video_id, 's1');
   } finally {
     globalThis.fetch = realFetch;
   }

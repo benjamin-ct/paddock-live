@@ -194,6 +194,9 @@ function standingsUpTo(races) {
   const rank = (m) => [...m.values()].sort((a, b) => b.points - a.points || b.wins - a.wins).map((e, i) => ({ ...e, pos: i + 1 }));
   return { drivers: rank(dm), constructors: rank(cm) };
 }
+// Course au titre d'un seul championnat (deux posts séparés) : side 'drivers' (pilotes) ou 'teams' (constructeurs)
+export const titleSide = (d, side) => (side === 'teams' ? { ...d, side, drivers: [], clinchD: null, champion: null } : { ...d, side, constructors: [], clinchC: null, champTeam: null });
+
 export function titleData(season, { year, upTo = null, live = {} } = {}) {
   const done = season.races.filter((r) => r.results.length && (!upTo || r.round <= upTo));
   const last = done.at(-1);
@@ -337,7 +340,9 @@ export function seasonCaptions(d, sig = '') {
     const cl = part(d.constructors, d.champTeam, d.clinchC, d.left.c, true);
     const left = d.left.races ? `🗓️ Encore ${d.left.races} Grand${d.left.races > 1 ? 's' : ''} Prix${d.left.sprints ? `, dont ${d.left.sprints} en format sprint` : ''}.` : 'Saison terminée.';
     const lines = [...dl, ...(dl.length && cl.length ? [''] : []), ...cl, '', left];
-    return finish(d, d.champion ? `👑 ${d.champion.name} champion du monde ${d.year} !` : `🏆 La course au titre après ${gpFlag(d, gpNameFr(d.gpEn))}`, lines, sig, ['#F1Championship'], [...dl.slice(0, 3), '', ...cl.slice(0, 2)]);
+    const which = d.side === 'teams' ? ' constructeurs' : d.side === 'drivers' ? ' pilotes' : '';
+    const head = d.champion ? `👑 ${d.champion.name} champion du monde ${d.year} !` : d.champTeam && d.side === 'teams' ? `👑 ${d.champTeam.name} champion du monde des constructeurs ${d.year} !` : `🏆 La course au titre${which} après ${gpFlag(d, gpNameFr(d.gpEn))}`;
+    return finish(d, head, lines, sig, ['#F1Championship'], [...dl.slice(0, 3), '', ...cl.slice(0, 2)]);
   }
   if (d.post === 'racelaps') {
     const lines = [];

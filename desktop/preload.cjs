@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld('f1desktop', {
   checkUpdate: () => ipcRenderer.invoke('update-check'),
   installUpdate: () => ipcRenderer.invoke('update-install'),
   setAutoUpdate: (v) => ipcRenderer.invoke('update-auto', v),
+  setBetaUpdates: (v) => ipcRenderer.invoke('update-beta', v),
   onUpdate: (fn) => ipcRenderer.on('update-state', (_e, s) => fn(s)),
   getRestoreWindows: () => ipcRenderer.invoke('restore-windows-get'),
   setRestoreWindows: (v) => ipcRenderer.invoke('restore-windows-set', v),
