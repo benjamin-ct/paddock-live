@@ -559,6 +559,8 @@ async function alertsBlock(el) {
 async function openAlert(id) {
   if (!id) return;
   if (id === 'messages') { messages(); return; }
+  // Publication programmée terminée : Stats → Posts (liste des programmations)
+  if (id === 'schedule') { state.tab = 'stats'; state.ssub = 'posts'; home(); return; }
   try {
     const it = ((await api('alerts')).items || []).find((a) => a.id === id);
     if (!it) return;

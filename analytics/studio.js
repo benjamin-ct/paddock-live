@@ -17,7 +17,7 @@ import { addEntry, removeEntry, cleanKey } from '../shared/post-history.js';
 import { postStats } from '../shared/post-stats.js';
 import { recentPosts, importEntries } from './post-import.js';
 import { trackPost, clickStats } from './clicks.js';
-import { pushApi } from './alerts.js';
+import { pushApi, notifyPhones } from './alerts.js';
 import { feedbackApi } from './feedback.js';
 import { freePhotos, PHOTO_UA } from './photos.js';
 import { packFeeds } from '../shared/feed-pack.js';
@@ -548,6 +548,19 @@ async function scheduleCancel(env, id) {
   return json({ items: (await schedJobs(env)).map(schedSummary) });
 }
 
+// Notification de fin d'une programmation : réseaux publiés, ou ceux en erreur
+const NET_LABEL = { instagram: 'Instagram', facebook: 'Facebook', threads: 'Threads', bluesky: 'Bluesky', tiktok: 'TikTok', youtube: 'YouTube', 'instagram-story': 'Story Instagram', 'facebook-story': 'Story Facebook' };
+function schedNotice(j) {
+  const nets = Object.entries(j.nets);
+  const bad = nets.filter(([, s]) => s.status !== 'done' || s.commentError || s.visible === false).map(([n]) => NET_LABEL[n] || n);
+  const ok = nets.filter(([, s]) => s.status === 'done').map(([n]) => NET_LABEL[n] || n);
+  return {
+    title: bad.length ? `Publication programmée : souci sur ${bad.join(', ')}` : 'Publication programmée : publiée',
+    body: `${j.title || 'Post'}${ok.length ? ` · publié sur ${ok.join(', ')}` : ''}`,
+    id: `sched-${j.id}`, url: '/studio/?alert=schedule',
+  };
+}
+
 // Relevé du serveur : publie les programmations arrivées à l'heure, un réseau par passage. Renvoie
 // { published } si un post est parti (le relevé des alertes attend alors le passage suivant), null sinon.
 export async function runSchedule(env, { now = Date.now() } = {}) {
@@ -611,8 +624,12 @@ export async function runSchedule(env, { now = Date.now() } = {}) {
       }
     }
     // Programmation terminée : tout publié sans souci, effacée aussitôt (plus dans la liste du Studio) ;
-    // sinon (erreur, commentaire refusé…) visuels, vidéo et jetons effacés, la trace gardée 7 jours
+    // sinon (erreur, commentaire refusé…) visuels, vidéo et jetons effacés, la trace gardée 7 jours.
+    // Une fois, au passage suivant le dernier envoi (sous-requêtes de celui-ci) : notification sur le téléphone
     const states = Object.values(j.nets);
+    const finish = out?.id !== j.id && j.keys;   // jetons effacés après la première fin : une seule notification
+    if (finish && states.every((s) => !['pending', 'running'].includes(s.status))) await notifyPhones(env, schedNotice(j), { now }).catch(() => 0);
+    if (out?.id === j.id) continue;
     if (states.every((s) => s.status === 'done' && !s.commentError && s.visible !== false)) {
       await delLike(env, `schedimg:${j.id}:`); await env.MEDIA?.delete(`sched/${j.id}`); await delLike(env, `schedpost:${j.id}:`); await delLike(env, `sched:${j.id}`);
     } else if (states.every((s) => !['pending', 'running'].includes(s.status))) {

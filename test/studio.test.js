@@ -280,8 +280,14 @@ test('page du créateur : publication programmée, publiée par le serveur à l\
 
   const realFetch = globalThis.fetch;
   const calls = [];
+  // Téléphone abonné aux notifications du Studio
+  const pair = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits']);
+  const b64u = (b) => Buffer.from(b).toString('base64url');
+  env.DB.studio.set('push', JSON.stringify([{ endpoint: 'https://push.test/abc', keys: { p256dh: b64u(new Uint8Array(await crypto.subtle.exportKey('raw', pair.publicKey))), auth: b64u(crypto.getRandomValues(new Uint8Array(16))) } }]));
+  let pushes = 0;
   globalThis.fetch = async (url, opts = {}) => {
     const u = new URL(url);
+    if (u.hostname === 'push.test') { pushes++; return new Response('', { status: 201 }); }
     calls.push(u.pathname);
     const ok = (d) => new Response(JSON.stringify(d), { status: 200 });
     if (u.pathname.endsWith('/photos')) return ok({ id: 'ph1' });
@@ -305,7 +311,10 @@ test('page du créateur : publication programmée, publiée par le serveur à l\
     assert.equal((await (await worker('https://s.test/studio/api/schedule', { headers: key })).json()).items[0].nets.bluesky.status, 'pending');
     assert.deepEqual(await runSchedule(env, { now: at + 60e3 }), { published: 'bluesky', id: item.id });
     assert.equal(calls.filter((c) => c.endsWith('/photos')).length, photos, 'Facebook pas renvoyé');
+    // Fin : notification sur le téléphone au passage suivant (une seule fois), liste nettoyée
+    assert.equal(pushes, 0);
     assert.equal(await runSchedule(env, { now: at + 120e3 }), null);
+    assert.equal(pushes, 1);
     // Tout publié : retirée aussitôt de la liste (visuels, jetons et trace effacés), journal complété
     const list = await (await worker('https://s.test/studio/api/schedule', { headers: key })).json();
     assert.equal(list.items.length, 0);
@@ -320,6 +329,7 @@ test('page du créateur : publication programmée, publiée par le serveur à l\
     calls.length = 0;
     assert.deepEqual(await runSchedule(env, { now: at + 120e3 }), { published: 'facebook-story', id: story.id });
     assert.equal(calls.filter((c) => c.endsWith('/photo_stories')).length, 2);
+    await runSchedule(env, { now: at + 121e3 });
     assert.equal((await (await worker('https://s.test/studio/api/schedule', { headers: key })).json()).items.length, 0);
     // 6 stories : 4 au premier passage, la suite au suivant (limite de sous-requêtes)
     const many = (await (await add({ posts: [{ network: 'facebook-story' }], more: 4 })).json()).item;
@@ -330,6 +340,7 @@ test('page du créateur : publication programmée, publiée par le serveur à l\
     assert.deepEqual([half.nets['facebook-story'].status, half.nets['facebook-story'].sent, half.nets['facebook-story'].total], ['pending', 4, 6]);
     await runSchedule(env, { now: at + 185e3 });
     assert.equal(calls.filter((c) => c.endsWith('/photo_stories')).length, 6);
+    await runSchedule(env, { now: at + 186e3 });
     assert.equal((await (await worker('https://s.test/studio/api/schedule', { headers: key })).json()).items.length, 0);
     assert.equal((await (await worker('https://s.test/studio/api/history', { headers: key })).json()).items.length, hist.items.length);
     // Échec sur un réseau : gardée dans la liste avec l'erreur, visuels et jetons effacés
@@ -338,6 +349,10 @@ test('page du créateur : publication programmée, publiée par le serveur à l\
     globalThis.fetch = async (url, opts) => (new URL(url).pathname.endsWith('/feed') ? new Response(JSON.stringify({ error: { message: 'Refusé' } }), { status: 400 }) : ok(url, opts));
     await runSchedule(env, { now: at + 180e3 });
     await runSchedule(env, { now: at + 240e3 });
+    const before = pushes;
+    await runSchedule(env, { now: at + 300e3 });
+    await runSchedule(env, { now: at + 360e3 });
+    assert.equal(pushes, before + 1, 'erreur : une seule notification');
     globalThis.fetch = ok;
     const kept = (await (await worker('https://s.test/studio/api/schedule', { headers: key })).json()).items.find((x) => x.id === bad.id);
     assert.equal(kept.nets.facebook.status, 'error');
@@ -414,6 +429,7 @@ test('page du créateur : vidéo confiée au serveur (stockage R2), publiée par
   try {
     assert.equal((await runSchedule(env)).id, item.id);
     assert.deepEqual(await runSchedule(env), { published: 'bluesky', id: item.id });
+    await runSchedule(env);
   } finally { globalThis.fetch = realFetch; }
   // Vidéo envoyée à YouTube, visuels à Bluesky ; vidéo effacée du stockage une fois publiée
   assert.deepEqual(sent, { youtube: 4, bluesky: true });
@@ -465,6 +481,7 @@ test('page du créateur : post « lien » sans visuels (carte de l\'article affi
   try {
     assert.deepEqual(await runSchedule(env), { published: 'facebook', id: item.id });
     assert.deepEqual(await runSchedule(env), { published: 'bluesky', id: item.id });
+    await runSchedule(env);
   } finally { globalThis.fetch = realFetch; }
   // Facebook : texte et lien (adresse d'origine : la base de test n'a pas les liens suivis), sans photo ;
   // Bluesky : carte du lien sans image
