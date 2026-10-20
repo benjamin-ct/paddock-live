@@ -166,7 +166,7 @@ export function editor({ back, title, subtitle = '', head = '', below = false, d
       $(`#cap-${k}`).oninput = (e) => { edited[k] = e.target.value; count(k); clearTimeout(prep); prep = setTimeout(prepare, 800); };
     }
     prepare();
-    // Avec une vidéo : Reel, vidéo Facebook et Threads, et aussi brouillon TikTok et Short YouTube (à cocher).
+    // Avec une vidéo : Reel, vidéo Facebook, Threads et Bluesky, et aussi brouillon TikTok et Short YouTube (à cocher).
     // Format Story : stories Instagram et Facebook (Threads et Bluesky n'en ont pas)
     const vid = video();
     const story = !vid && state.fmt === 'story';
@@ -182,7 +182,7 @@ export function editor({ back, title, subtitle = '', head = '', below = false, d
     $('#netsbox').innerHTML = xTab ? '' : `<h3 class="section">Publier sur</h3>${list.map(([k, v]) => {
       const acc = session.me?.[k.replace('-story', '')];
       return `<label class="switch net"><span><b>${v}</b><small>${esc(acc || 'non connecté')}</small><em class="st" data-st="${k}"></em></span><input type="checkbox" role="switch" data-net="${k}" ${acc ? (k === 'tiktok' || k === 'youtube' ? '' : 'checked') : 'disabled'}></label>`;
-    }).join('')}${vid ? '<div id="tkbox" class="tkbox" hidden></div>' : ''}${vid || story ? `<p class="hint">${vid ? 'Vidéo sur Instagram, Facebook, Threads, TikTok et YouTube (privé) ; visuels sur Bluesky.' : 'Une story par image, visible 24 heures.'}</p>` : ''}`;
+    }).join('')}${vid ? '<div id="tkbox" class="tkbox" hidden></div>' : ''}${vid || story ? `<p class="hint">${vid ? `Vidéo sur tous les réseaux${vid.full ? ' : plein écran sur Facebook, Threads et Bluesky, zone sûre sur Instagram, TikTok et YouTube (privé)' : ''}.` : 'Une story par image, visible 24 heures.'}</p>` : ''}`;
     // TikTok coché : réglages (brouillon ou publication directe) ; publication bloquée tant qu'ils manquent
     const tk = $('[data-net="tiktok"]');
     if (vid && tk) {
@@ -229,7 +229,7 @@ export function editor({ back, title, subtitle = '', head = '', below = false, d
         prepare();
       };
     });
-    $('#go').onclick = () => (xTab ? openX(canvases, $('#cap-x').value) : publishAll(d, o, record?.(), vid));
+    $('#go').onclick = () => (xTab ? openX(canvases, $('#cap-x').value, vid) : publishAll(d, o, record?.(), vid));
     $('#plan').onclick = () => schedulePanel(d, o, record?.(), vid);
     $('#share').onclick = () => share(canvases, state.fmt === 'x' ? $('#cap-x').value : state.fmt === 'ig' ? $('#cap-instagram').value : '');
     // iPhone : « Partager » propose aussi « Enregistrer les images » (Photos)
@@ -272,17 +272,19 @@ function prepareX(raw, title, net = 'x') {
   }
   return Promise.resolve(trackedX.get(key));
 }
-async function openX(canvases, raw) {
+// video : vidéo jointe au post, partagée à la place des visuels (en plein écran si elle en a une version)
+async function openX(canvases, raw, video = null) {
   const text = trackedNow(raw);
   navigator.clipboard?.writeText(text).catch(() => {});
-  const files = await Promise.all(canvases.map(async (cv, i) => new File([await toBlob(cv)], `x-${i + 1}.png`, { type: 'image/png' })));
+  const files = video ? [video.full || video] : await Promise.all(canvases.map(async (cv, i) => new File([await toBlob(cv)], `x-${i + 1}.png`, { type: 'image/png' })));
   if (navigator.canShare?.({ files })) {
     try { await navigator.share({ files, text }); } catch { /* partage annulé */ }
     return;
   }
   if (IOS || /Android/.test(navigator.userAgent)) { location.href = `twitter://post?message=${encodeURIComponent(text)}`; return; }
   open(`https://x.com/intent/post?text=${encodeURIComponent(text)}`, '_blank', 'noopener');
-  download(canvases);
+  if (!video) { download(canvases); return; }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(files[0]); a.download = files[0].name; a.click();
 }
 
 const toBlob = (cv, type = 'image/png', q) => new Promise((r) => cv.toBlob(r, type, q));
@@ -328,10 +330,11 @@ async function postImages(d, o, nets, maxIg = Infinity) {
 }
 
 // Post confié au serveur (visuels ou vidéo, textes), publié à l'heure `at` même page fermée
-// video : envoyée à tous les réseaux sauf Bluesky (visuels) ; tk : réglages d'une publication directe TikTok ;
+// video : envoyée à tous les réseaux (video.full : version plein écran hors Reels, TikTok et Shorts) ;
+// tk : réglages d'une publication directe TikTok ;
 // link : post « lien » (carte de l'article), sauf Instagram qui n'en a pas : visuels de l'onglet Post
 async function queuePost(d, o, nets, at, record, video = null, tk = null, link = null) {
-  const imgs = !link ? await postImages(d, o, video ? nets.filter((n) => n === 'bluesky') : nets, 1.3e6)
+  const imgs = video ? { ig: [], x: [] } : !link ? await postImages(d, o, nets, 1.3e6)
     : { ig: nets.includes('instagram') ? (await postImages(d, o || await assets(d), ['instagram'], 1.3e6)).ig : [], x: [] };
   const form = new FormData();
   form.append('at', String(at));
@@ -343,6 +346,8 @@ async function queuePost(d, o, nets, at, record, video = null, tk = null, link =
   imgs.x.forEach((b, i) => form.append('x', b, `x-${i + 1}.jpg`));
   if (video) form.append('video', video, video.type === 'video/quicktime' ? 'video.mov' : 'video.mp4');
   if (video?.cover) form.append('cover', video.cover, 'cover.jpg');
+  if (video?.full) form.append('videofull', video.full, 'video-full.mp4');
+  if (video?.vsize) form.append('vsize', video.vsize);
   if (tk) form.append('tiktok', JSON.stringify(tk));
   return (await api('schedule', { method: 'POST', body: form })).item;
 }

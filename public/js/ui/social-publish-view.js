@@ -339,6 +339,8 @@ export async function openPublish({ d, caps, render, folder, record = null, onPo
       if (btn.dataset.mkvideo !== undefined) { btn.disabled = true; await buildVideo(); btn.disabled = false; }
       if (btn.dataset.savevideo !== undefined && video) {
         const r = await api('/api/posts/save', { folder, name: 'tiktok-video', data: await b64(video.blob) });
+        // Version plein écran (X, Bluesky, Facebook…) à côté de celle de TikTok, Reels et Shorts
+        if (video.full) await api('/api/posts/save', { folder, name: 'video-plein-ecran', data: await b64(video.full.blob) });
         toast(t('Vidéo enregistrée dans {}', r.dir), 4000, 'check');
       }
       if (btn.dataset.schedquick) {

@@ -9,7 +9,7 @@ import { recordsOf, recordYears, editionFromResults } from '/shared/circuit-reco
 import { parseRaceControl, raceSessionPath } from '/shared/race-story.js';
 import { makeAnimation, unlockAudio } from '/shared/social-video.js';
 import { videoCover } from '/shared/social-draw.js';
-import { $, $$, esc, api, icon, store, skeleton, toast, state, SIG, musicField, bindMusic, clipFile } from './ui.js';
+import { $, $$, esc, api, icon, store, skeleton, toast, state, SIG, musicField, bindMusic, clipFile, shareClip } from './ui.js';
 import { latestDrivers } from './data.js';
 import { editor, assets } from './editor.js';
 
@@ -179,7 +179,7 @@ async function seasonEditor(year, data, race, back) {
     title: typeName,
     subtitle: state.stype === 'title' ? `Classement après la manche ${race.round} · ${d.gp}` : `${d.gp} · manche ${race.round}`,
     head: `${note ? `<p class="hint">${esc(note)}</p>` : ''}
-      ${video ? `${musicField('race', 'depart')}<div class="row"><button class="btn" id="mkvid">${icon('video')}Créer la vidéo (${Math.round(raceVideoTiming(d).duration)} s)</button><button class="btn" id="sharevid" disabled>${icon('share')}Partager</button></div>
+      ${video ? `${musicField('race', 'depart')}<div class="row"><button class="btn" id="mkvid">${icon('video')}Créer la vidéo (${Math.round(raceVideoTiming(d).duration)} s)</button><button class="btn" id="sharevid" disabled title="Zone sûre : Reels, TikTok, Shorts">${icon('share')}Partager</button><button class="btn" id="sharefull" disabled title="X, Bluesky, Facebook, Threads…">${icon('share')}Plein écran</button></div>
         <p class="hint" id="vidst">Garder l'écran allumé pendant l'enregistrement.</p>
         <video id="vid" controls playsinline hidden></video>` : ''}`,
     data: () => d, caps: (dd) => seasonCaptions(dd, SIG),
@@ -195,17 +195,13 @@ async function seasonEditor(year, data, race, back) {
           const o = await assets(d);
           clip = await makeAnimation((ctx, t, w, h) => raceFrame(ctx, w, h, d, o, t), raceVideoTiming(d).duration, { box: true, cover: (ctx) => videoCover(ctx, 1080, 1920, d, o), music: 'gen', track: track(), onProgress: (p) => { $('#vidst').textContent = `Enregistrement… ${Math.round(p * 100)} %`; } });
           $('#vid').src = URL.createObjectURL(clip.blob); $('#vid').hidden = false;
-          $('#sharevid').disabled = false;
+          $('#sharevid').disabled = false; $('#sharefull').disabled = false;
           $('#vidst').textContent = `Vidéo prête (${(clip.blob.size / 1e6).toFixed(1).replace('.', ',')} Mo)${clip.silent ? ' · sans son : le navigateur a bloqué la musique, recommencez' : ''}${(file = clipFile(clip, `course-${race.round}`)) ? ' · cochez TikTok, Instagram… dans « Publier sur » pour la publier' : ' · format WebM : à partager seulement (publication en MP4)'}`;
           redraw();
         } catch (err) { $('#vidst').textContent = err.message; } finally { $('#mkvid').disabled = false; }
       };
-      $('#sharevid').onclick = async () => {
-        if (!clip) return;
-        const file = new File([clip.blob], `course-${race.round}.${clip.mime.includes('mp4') ? 'mp4' : 'webm'}`, { type: clip.mime });
-        if (navigator.canShare?.({ files: [file] })) { try { await navigator.share({ files: [file] }); } catch { /* annulé */ } return; }
-        const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = file.name; a.click();
-      };
+      $('#sharevid').onclick = () => clip && shareClip(clip, `course-${race.round}`);
+      $('#sharefull').onclick = () => clip && shareClip(clip, `course-${race.round}`, true);
     },
   });
 }

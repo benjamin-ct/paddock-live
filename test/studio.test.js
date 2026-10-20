@@ -396,6 +396,8 @@ test('page du créateur : vidéo confiée au serveur (stockage R2), publiée par
     f.append('posts', JSON.stringify(o.posts ?? [{ network: 'youtube', text: 'Titre\nTexte' }, { network: 'bluesky', text: 'Salut' }]));
     f.append('x', new Blob([new Uint8Array([0xff, 0xd8, 0xff, 1])], { type: 'image/jpeg' }), 'x.jpg');
     f.append('video', o.video ?? new Blob([new Uint8Array([1, 2, 3, 4])], { type: 'video/mp4' }), 'v.mp4');
+    f.append('videofull', new Blob([new Uint8Array([5, 6, 7, 8, 9, 10])], { type: 'video/mp4' }), 'v-full.mp4');
+    f.append('vsize', '1080x1920');
     if (o.tiktok) f.append('tiktok', JSON.stringify(o.tiktok));
     return f;
   };
@@ -406,12 +408,12 @@ test('page du créateur : vidéo confiée au serveur (stockage R2), publiée par
   env.MEDIA = {
     put: async (k, v, o) => { bucket.set(k, { bytes: new Uint8Array(await v.arrayBuffer()), type: o.httpMetadata.contentType }); },
     get: async (k) => (bucket.has(k) ? { arrayBuffer: async () => bucket.get(k).bytes.buffer } : null),
-    delete: async (k) => { bucket.delete(k); },
+    delete: async (k) => { [k].flat().forEach((x) => bucket.delete(x)); },
   };
   assert.equal((await add({ video: new Blob(['x'], { type: 'image/gif' }) })).status, 400);
   assert.equal((await add({ posts: [{ network: 'tiktok', text: 'x' }], tiktok: { privacy: 'SELF_ONLY', brandContent: true } })).status, 409);   // TikTok non connecté
   const { item } = await (await add()).json();
-  assert.deepEqual([...bucket.keys()], [`sched/${item.id}`]);
+  assert.deepEqual([...bucket.keys()], [`sched/${item.id}`, `sched/${item.id}-full`]);
   assert.equal(bucket.get(`sched/${item.id}`).type, 'video/mp4');
 
   const realFetch = globalThis.fetch;
@@ -422,8 +424,8 @@ test('page du créateur : vidéo confiée au serveur (stockage R2), publiée par
     if (u === 'https://up.test/yt') { sent.youtube = opts.body.length; return new Response(JSON.stringify({ id: 'v42' })); }
     const p = new URL(u).pathname;
     if (p.endsWith('createSession')) return new Response(JSON.stringify({ accessJwt: 'jwt', did: 'did:plc:moi' }));
-    if (p.endsWith('uploadBlob')) return new Response(JSON.stringify({ blob: { ref: 'b' } }));
-    if (p.endsWith('createRecord')) { sent.bluesky = true; return new Response(JSON.stringify({ uri: 'at://did:plc:moi/app.bsky.feed.post/3k', cid: 'c' })); }
+    if (p.endsWith('uploadBlob')) { sent.blob = [opts.headers['Content-Type'], opts.body.size]; return new Response(JSON.stringify({ blob: { ref: 'b' } })); }
+    if (p.endsWith('createRecord')) { sent.bluesky = JSON.parse(opts.body).record.embed; return new Response(JSON.stringify({ uri: 'at://did:plc:moi/app.bsky.feed.post/3k', cid: 'c' })); }
     throw new Error(`inattendu : ${u}`);
   };
   try {
@@ -431,15 +433,15 @@ test('page du créateur : vidéo confiée au serveur (stockage R2), publiée par
     assert.deepEqual(await runSchedule(env), { published: 'bluesky', id: item.id });
     await runSchedule(env);
   } finally { globalThis.fetch = realFetch; }
-  // Vidéo envoyée à YouTube, visuels à Bluesky ; vidéo effacée du stockage une fois publiée
-  assert.deepEqual(sent, { youtube: 4, bluesky: true });
+  // Vidéo de la zone sûre envoyée à YouTube, version plein écran à Bluesky ; vidéos effacées une fois publiées
+  assert.deepEqual(sent, { youtube: 4, blob: ['video/mp4', 6], bluesky: { $type: 'app.bsky.embed.video', video: { ref: 'b' }, aspectRatio: { width: 1080, height: 1920 } } });
   assert.equal((await (await worker('https://s.test/studio/api/schedule', { headers: key })).json()).items.length, 0);
   const hist = await (await worker('https://s.test/studio/api/history', { headers: key })).json();
   assert.equal(hist.items.find((x) => x.key === 'post:v1').nets.youtube.url, 'https://youtube.com/shorts/v42');
   assert.equal(bucket.size, 0);
   // Annulation avant l'heure : vidéo effacée aussi
   const later = (await (await add()).json()).item;
-  assert.equal(bucket.size, 1);
+  assert.equal(bucket.size, 2);
   await worker('https://s.test/studio/api/schedule/cancel', { method: 'POST', body: JSON.stringify({ id: later.id }), headers: key });
   assert.equal(bucket.size, 0);
   delete env.MEDIA;
