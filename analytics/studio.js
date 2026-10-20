@@ -10,7 +10,7 @@
 import { DEFAULT_SOURCES, feedUrl } from '../shared/news-sources.js';
 import { extractArticle } from '../shared/article.js';
 import { decodeBody } from '../shared/news-collect.js';
-import { publishFacebook, publishInstagram, publishThreads, freshThreads, commentFacebook, replyThreads, withComment, storyInstagram, storyFacebook, reelInstagram, hostVideo, hostOnPage, publishFacebookVideo, publishThreadsVideo, publishFacebookLink, publishThreadsLink } from '../shared/meta-publish.js';
+import { publishFacebook, publishInstagram, publishThreads, freshThreads, commentFacebook, replyThreads, withComment, storyInstagram, storyFacebook, storyVideoInstagram, storyVideoFacebook, reelInstagram, hostVideo, hostOnPage, publishFacebookVideo, publishThreadsVideo, publishFacebookLink, publishThreadsLink } from '../shared/meta-publish.js';
 import { publishBluesky, replyBluesky } from '../shared/bluesky-publish.js';
 import { freshTiktok, freshYoutube, tiktokDraft, tiktokStatus, tiktokOutcome, youtubeUpload, tiktokCreator, tiktokDirect, TIKTOK_PRIVACY } from '../shared/video-publish.js';
 import { addEntry, removeEntry, cleanKey } from '../shared/post-history.js';
@@ -338,6 +338,8 @@ async function sendTo(net, vault, { text, comment, images, small = [], video = n
   }
   if (net === 'facebook') return withComment(() => publishFacebook(vault.meta, text, images), comment, (id, t) => commentFacebook(vault.meta, id, t));
   if (net === 'instagram') return publishInstagram(vault.meta, text.slice(0, 2200), images);
+  if (video && net === 'instagram-story') return storyVideoInstagram(vault.meta, video);
+  if (video && net === 'facebook-story') return storyVideoFacebook(vault.meta, video);
   if (net === 'instagram-story') return storyInstagram(vault.meta, images);
   if (net === 'facebook-story') return storyFacebook(vault.meta, images);
   const th = await threads();
@@ -346,12 +348,12 @@ async function sendTo(net, vault, { text, comment, images, small = [], video = n
 const NETS = ['facebook', 'instagram', 'threads', 'bluesky'];
 const CLIPS = ['tiktok', 'youtube'];   // vidéo seulement : brouillon TikTok, Short YouTube
 const VIDEO_MAX = 50e6;
-const STORIES = ['instagram-story', 'facebook-story'];   // une story par visuel, sans texte
+const STORIES = ['instagram-story', 'facebook-story'];   // une story par visuel (ou la vidéo), sans texte
 const STORY_STEP = 4;   // stories programmées : images envoyées par passage du serveur (limite de 50 sous-requêtes)
 // Post « lien » : carte de l'article affichée par le réseau (Instagram, sans lien : visuels de l'onglet Post)
 const LINKS = ['facebook', 'threads', 'bluesky'];
 // Vidéo dans la zone sûre (écran rogné et recouvert par l'interface) ; les autres réseaux ont la version plein écran
-const SAFE_NETS = ['instagram', ...CLIPS];
+const SAFE_NETS = ['instagram', ...CLIPS, ...STORIES];
 // Compte du réseau absent du coffre : raison, sinon null
 function missing(net, vault) {
   if (CLIPS.includes(net)) return vault[net] ? null : `Compte ${net === 'tiktok' ? 'TikTok' : 'YouTube'} non envoyé : connectez-le dans l'appli (Comptes…), puis « Renvoyer les comptes »`;
@@ -522,7 +524,7 @@ async function scheduleAdd(req, env, raw, vault, now = Date.now()) {
   if (!Array.isArray(posts) || !posts.length) return json({ error: 'Aucun réseau choisi' }, 400);
   const nets = posts.map((p) => String(p?.network || ''));
   // Stories ou posts du fil, jamais les deux : les visuels n'ont pas le même format ; TikTok et YouTube avec une vidéo
-  const allowed = link ? [...LINKS, 'instagram'] : video ? [...NETS, ...CLIPS] : nets.some((n) => STORIES.includes(n)) ? STORIES : NETS;
+  const allowed = link ? [...LINKS, 'instagram'] : video ? [...NETS, ...CLIPS, ...STORIES] : nets.some((n) => STORIES.includes(n)) ? STORIES : NETS;
   posts = posts.map((p) => ({ network: String(p?.network || ''), text: String(p?.text || '').slice(0, 5000), comment: String(p?.comment || '').trim().slice(0, 500) }));
   if (nets.some((n) => !allowed.includes(n)) || new Set(nets).size !== nets.length) return json({ error: 'Réseau inconnu' }, 400);
   for (const p of posts) if (missing(p.network, vault)) return json({ error: missing(p.network, vault) }, 409);
@@ -622,7 +624,7 @@ export async function runSchedule(env, { now = Date.now() } = {}) {
           const tr = await trackPost(env, p.network, { text: p.text, comment: p.network === 'instagram' ? '' : p.comment }, j.record?.title);
           const video = j.video ? await media(p.network) : null;
           // Stories : STORY_STEP images par passage (Instagram fait 4 à 6 demandes par image), suite au passage suivant
-          const story = STORIES.includes(p.network) && { from: st.sent || 0, total: Math.min(j.sets?.ig || 0, 10) };
+          const story = STORIES.includes(p.network) && !video && { from: st.sent || 0, total: Math.min(j.sets?.ig || 0, 10) };
           const r = story ? await sendTo(p.network, keys, { images: await imgs('ig', story.from, story.from + STORY_STEP) })
             : CLIPS.includes(p.network)
             ? await sendClip(p.network, () => (p.network === 'youtube' ? freshYoutube : freshTiktok)(keys[p.network]), new Uint8Array(await video.arrayBuffer()), j.video, tr.text, j.tiktok)

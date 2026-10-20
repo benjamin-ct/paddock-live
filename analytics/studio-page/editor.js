@@ -167,22 +167,25 @@ export function editor({ back, title, subtitle = '', head = '', below = false, d
     }
     prepare();
     // Avec une vidéo : Reel, vidéo Facebook, Threads et Bluesky, et aussi brouillon TikTok et Short YouTube (à cocher).
-    // Format Story : stories Instagram et Facebook (Threads et Bluesky n'en ont pas)
-    const vid = video();
-    const story = !vid && state.fmt === 'story';
+    // Format Story : stories Instagram et Facebook (Threads et Bluesky n'en ont pas), la vidéo en une story
+    // ou une story par visuel (au choix quand une vidéo est jointe)
+    const story = state.fmt === 'story';
+    const vid = story && state.storyImages ? null : video();
     const list = story ? [['instagram-story', 'Story Instagram'], ['facebook-story', 'Story Facebook']]
       : linkTab ? [['instagram', 'Instagram'], ['facebook', 'Facebook'], ['threads', 'Threads'], ['bluesky', 'Bluesky']]
       : [['instagram', 'Instagram'], ['facebook', 'Facebook'], ['threads', 'Threads'], ['bluesky', 'Bluesky'], ...(vid ? [['tiktok', 'TikTok'], ['youtube', 'YouTube Shorts']] : [])];
+    const storyVid = story && video() ? `<label class="switch net"><span><b>Vidéo en story</b><small>sinon une story par visuel</small></span><input type="checkbox" role="switch" id="storyvid" ${vid ? 'checked' : ''}></label>` : '';
     $('#go').innerHTML = `${icon('send')}${xTab ? 'Ouvrir X' : 'Publier'}`;
     $('#plan').hidden = xTab;
     $('#go').disabled = false;
     $('#netsbox').hidden = xTab;
     $('#texts').hidden = story;   // stories : pas de texte publié
     for (const el of [$('#opts'), $('#share'), $('#dl')]) if (el) el.hidden = linkTab;   // post « lien » : pas de visuels
-    $('#netsbox').innerHTML = xTab ? '' : `<h3 class="section">Publier sur</h3>${list.map(([k, v]) => {
+    $('#netsbox').innerHTML = xTab ? '' : `<h3 class="section">Publier sur</h3>${storyVid}${list.map(([k, v]) => {
       const acc = session.me?.[k.replace('-story', '')];
       return `<label class="switch net"><span><b>${v}</b><small>${esc(acc || 'non connecté')}</small><em class="st" data-st="${k}"></em></span><input type="checkbox" role="switch" data-net="${k}" ${acc ? (k === 'tiktok' || k === 'youtube' ? '' : 'checked') : 'disabled'}></label>`;
-    }).join('')}${vid ? '<div id="tkbox" class="tkbox" hidden></div>' : ''}${vid || story ? `<p class="hint">${vid ? `Vidéo sur tous les réseaux${vid.full ? ' : plein écran sur Facebook, Threads et Bluesky, zone sûre sur Instagram, TikTok et YouTube (privé)' : ''}.` : 'Une story par image, visible 24 heures.'}</p>` : ''}`;
+    }).join('')}${vid ? '<div id="tkbox" class="tkbox" hidden></div>' : ''}${vid || story ? `<p class="hint">${story ? `${vid ? 'La vidéo en story' : 'Une story par image'}, visible 24 heures.` : `Vidéo sur tous les réseaux${vid.full ? ' : plein écran sur Facebook, Threads et Bluesky, zone sûre sur Instagram, TikTok et YouTube (privé)' : ''}.`}</p>` : ''}`;
+    if ($('#storyvid')) $('#storyvid').onchange = (e) => { state.storyImages = !e.target.checked; redraw(); };
     // TikTok coché : réglages (brouillon ou publication directe) ; publication bloquée tant qu'ils manquent
     const tk = $('[data-net="tiktok"]');
     if (vid && tk) {

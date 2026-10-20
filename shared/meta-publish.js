@@ -153,6 +153,24 @@ export async function storyFacebook(meta, images) {
   return { url: `https://www.facebook.com/${meta.pageId}`, id: null, count: hosted.length };
 }
 
+// Story vidéo (une seule) : Instagram lit la vidéo à son adresse publique (déposée sur la page) ; la page
+// Facebook la reçoit en trois temps (ouverture, envoi du fichier, publication)
+export async function storyVideoInstagram(meta, video) {
+  if (!meta?.igId) throw new Error('Aucun compte Instagram professionnel relié à la page Facebook');
+  const tok = { access_token: meta.pageToken };
+  const c = await call(`${GRAPH}/${meta.igId}/media`, { method: 'POST', form: { media_type: 'STORIES', video_url: (await hostVideo(meta, video)).url, ...tok } });
+  await ready(`${GRAPH}/${c.id}?${new URLSearchParams({ fields: 'status_code,status', ...tok })}`, 'status_code', 'Story');
+  await call(`${GRAPH}/${meta.igId}/media_publish`, { method: 'POST', form: { creation_id: c.id, ...tok } });
+  return { url: `https://www.instagram.com/stories/${meta.igUsername || ''}/`, id: null, count: 1 };
+}
+export async function storyVideoFacebook(meta, video) {
+  const tok = { access_token: meta.pageToken };
+  const s = await call(`${GRAPH}/${meta.pageId}/video_stories`, { method: 'POST', form: { upload_phase: 'start', ...tok } });
+  await call(s.upload_url, { method: 'POST', headers: { Authorization: `OAuth ${meta.pageToken}`, offset: '0', file_size: String(video.size) }, body: video });
+  await call(`${GRAPH}/${meta.pageId}/video_stories`, { method: 'POST', form: { upload_phase: 'finish', video_id: s.video_id, ...tok } });
+  return { url: `https://www.facebook.com/${meta.pageId}`, id: null, count: 1 };
+}
+
 // Reel Instagram : vidéo lue par Instagram à une adresse publique (fichier du site), montrée aussi
 // dans le fil. La préparation d'une vidéo prend souvent une à deux minutes.
 // coverUrl : couverture (image publique), sinon une image choisie par Instagram

@@ -2071,6 +2071,7 @@ export default {
   "Qui devance l'autre en qualifs et en course, jusqu'à la manche choisie.": "Who beats whom in qualifying and races, up to the chosen round.",
   "Tours de cette course pas encore publiés.": "Laps of this race not published yet.",
   "Créer la vidéo animée": "Create the animated video",
+  "Créer la vidéo": "Create the video",
   "Créer la vidéo Breaking news": "Create the Breaking news video",
   "Préparation…": "Preparing…",
   "Musique fabriquée sur place, libre de droits": "Music made on the spot, royalty-free",

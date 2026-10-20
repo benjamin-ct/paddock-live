@@ -1,7 +1,7 @@
-// Vidéo « Breaking news » (mode créateur) : animation verticale 1080 × 1920 tirée des données d'un post
-// news (newsPost), enregistrée dans le navigateur par makeAnimation. Quatre temps : intro « BREAKING »,
-// l'info (photo, type, titre, résumé), les points clés un par un, puis « Abonnez-vous ». Même style que
-// l'image : liseré rouge tout autour, étiquette « ● BREAKING » en haut à droite.
+// Vidéo d'une news (mode créateur) : animation verticale 1080 × 1920 tirée des données d'un post news
+// (newsPost), enregistrée dans le navigateur par makeAnimation. Quatre temps : intro (« BREAKING » ou
+// « ACTU F1 »), l'info (photo, type, titre, résumé), les points clés un par un, puis « Abonnez-vous ».
+// Très grosse info (d.breaking) : même style que l'image, liseré rouge tout autour, étiquette « ● BREAKING ».
 import { C, TITLE, BODY, rr, txt, fitLines, vivid, alpha, lightColor, background, photo, coverPhoto, photoCredit, driverPhoto, breakingFrame, breakingTag } from './social-draw.js';
 
 const clamp01 = (x) => Math.max(0, Math.min(1, x));
@@ -38,18 +38,25 @@ function header(ctx, W, d, o, u, t) {
   ctx.fillStyle = C.red; ctx.fillRect(pad, top, 12 * u, 84 * u);
   txt(ctx, 'ACTU F1', pad + 34 * u, top + 40 * u, { size: Math.round(46 * u), weight: 800, family: TITLE, spacing: 4 });
   txt(ctx, d.date.toUpperCase(), pad + 34 * u, top + 80 * u, { size: Math.round(32 * u), weight: 600, family: TITLE, color: C.muted, spacing: 2 });
-  breakingTag(ctx, W - pad, top, 72 * u, blink(t));
-  txt(ctx, o.signature || '@BenjyPaddock', W - pad, top + 116 * u, { size: Math.round(32 * u), weight: 700, family: TITLE, color: C.muted, align: 'right', spacing: 1 });
+  if (d.breaking) breakingTag(ctx, W - pad, top, 72 * u, blink(t));
+  txt(ctx, o.signature || '@BenjyPaddock', W - pad, top + (d.breaking ? 116 : 52) * u, { size: Math.round(32 * u), weight: 700, family: TITLE, color: C.muted, align: 'right', spacing: 1 });
 }
 
-// Intro : le liseré se dessine, la grande étiquette « BREAKING » arrive au centre, puis le type d'info
-// et la date
+// Intro : le liseré se dessine, la grande étiquette « BREAKING » (ou « ACTU F1 ») arrive au centre, puis
+// le type d'info et la date
 function intro(ctx, W, H, d, u, s) {
-  background(ctx, W, H, C.red);
+  background(ctx, W, H, d.breaking ? C.red : d.color);
   u *= 1.25;   // écran centré : tout un cran plus grand
   const cy = H * 0.42;
   const kt = out3((s - 0.15) / 0.45);
-  if (kt > 0) {
+  if (kt > 0 && !d.breaking) {
+    ctx.save();
+    ctx.globalAlpha = kt;
+    ctx.translate(W / 2, cy); ctx.scale(1.25 - 0.25 * kt, 1.25 - 0.25 * kt);
+    txt(ctx, 'ACTU F1', 0, 45 * u, { size: Math.round(130 * u), weight: 800, family: TITLE, align: 'center', spacing: 6 });
+    ctx.fillStyle = C.red; ctx.fillRect(-90 * u, 80 * u, 180 * u * kt, 10 * u);
+    ctx.restore();
+  } else if (kt > 0) {
     ctx.save();
     ctx.globalAlpha = kt;
     ctx.translate(W / 2, cy); ctx.scale(1.25 - 0.25 * kt, 1.25 - 0.25 * kt);
@@ -64,7 +71,7 @@ function intro(ctx, W, H, d, u, s) {
     ctx.save(); ctx.globalAlpha = kc;
     ctx.font = `700 ${Math.round(40 * u)}px ${TITLE}`;
     const w = ctx.measureText(d.badge.label).width + 6 * d.badge.label.length * u + 44 * u;
-    chip(ctx, d.badge, (W - w) / 2, cy + 150 * u + (1 - kc) * 40 * u, u, 40);
+    if (d.breaking || d.badge.label !== 'ACTU F1') chip(ctx, d.badge, (W - w) / 2, cy + 150 * u + (1 - kc) * 40 * u, u, 40);   // pas deux fois « ACTU F1 »
     txt(ctx, d.date.toUpperCase(), W / 2, cy + 290 * u + (1 - kc) * 40 * u, { size: Math.round(34 * u), weight: 600, family: TITLE, color: C.muted, align: 'center', spacing: 4 });
     ctx.restore();
   }
@@ -280,5 +287,5 @@ export function newsFrame(ctx, W, H, d, o, t) {
     const k = 1 - Math.abs(t - b) / (FADE / 2);
     if (k > 0) { ctx.fillStyle = `rgba(11,13,18,${k})`; ctx.fillRect(0, 0, W, H); }
   }
-  breakingFrame(ctx, W, H, u, t < INTRO ? out3(t / 0.7) : 1);
+  if (d.breaking) breakingFrame(ctx, W, H, u, t < INTRO ? out3(t / 0.7) : 1);
 }

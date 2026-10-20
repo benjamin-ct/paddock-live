@@ -42,16 +42,18 @@ function bindPhoto(p, getD, onPhoto) {
   $(`#${p}photodel`).onclick = () => { onPhoto(null); $(`#${p}photost`).textContent = ''; $(`#${p}photodel`).hidden = true; };
 }
 
-// ---------- Vidéo « Breaking news » (TikTok, Reels, Shorts, story), commune aux news et aux posts écrits ----------
-const NEWS_VIDEO = (on) => `${toggle('brk', 'Très grosse info', on, 'Visuel et vidéo « Breaking news »')}<div id="vidbox" ${on ? '' : 'hidden'}>${musicField('news', 'flash')}<div class="row"><button class="btn" id="mkvid">${icon('video')}Créer la vidéo</button><button class="btn" id="sharevid" disabled title="Zone sûre : Reels, TikTok, Shorts">${icon('share')}Partager</button><button class="btn" id="sharefull" disabled title="X, Bluesky, Facebook, Threads…">${icon('share')}Plein écran</button></div>
+// ---------- Vidéo de la news (TikTok, Reels, Shorts, story…), commune aux news et aux posts écrits ----------
+// Style « Breaking news » quand la très grosse info est cochée
+const NEWS_VIDEO = (on) => `${toggle('brk', 'Très grosse info', on, 'Visuel et vidéo « Breaking news »')}<div id="vidbox">${musicField('news', 'flash')}<div class="row"><button class="btn" id="mkvid">${icon('video')}Créer la vidéo</button><button class="btn" id="sharevid" disabled title="Zone sûre : Reels, TikTok, Shorts">${icon('share')}Partager</button><button class="btn" id="sharefull" disabled title="X, Bluesky, Facebook, Threads…">${icon('share')}Plein écran</button></div>
   <p class="hint" id="vidst">Garder l'écran allumé pendant l'enregistrement.</p>
   <video id="vid" controls playsinline hidden></video></div>`;
 // onBreaking(on) : très grosse info cochée ou décochée à la main
 // onClip(file) : vidéo prête (MP4), jointe au post pour la publier sur TikTok, Instagram, Facebook…
-function bindNewsVideo(getD, name, onBreaking, onClip) {
+function bindNewsVideo(getD, onBreaking, onClip) {
   let clip = null;
+  const name = () => (getD().breaking ? 'breaking-news' : 'actu-f1');   // nom du fichier
   const track = bindMusic('news');
-  $('#brk').onchange = (e) => { $('#vidbox').hidden = !e.target.checked; onBreaking(e.target.checked); };
+  $('#brk').onchange = (e) => onBreaking(e.target.checked);
   $('#mkvid').onclick = async () => {
     unlockAudio();   // pendant le toucher, avant toute attente (sinon vidéo muette sur iPhone)
     $('#mkvid').disabled = true;
@@ -62,12 +64,12 @@ function bindNewsVideo(getD, name, onBreaking, onClip) {
       clip = await makeAnimation((ctx, t, w, h) => newsFrame(ctx, w, h, d, o, t), duration, { box: true, cover: (ctx) => videoCover(ctx, 1080, 1920, d, o), music: 'gen', track: track(), onProgress: (p) => { $('#vidst').textContent = `Enregistrement… ${Math.round(p * 100)} %`; } });
       $('#vid').src = URL.createObjectURL(clip.blob); $('#vid').hidden = false;
       $('#sharevid').disabled = false; $('#sharefull').disabled = false;
-      $('#vidst').textContent = `Vidéo prête : ${Math.round(duration)} s, ${(clip.blob.size / 1e6).toFixed(1).replace('.', ',')} Mo${clip.silent ? ' · sans son : le navigateur a bloqué la musique, recommencez' : ''}${clipFile(clip, name) ? ' · cochez TikTok, Instagram… dans « Publier sur » pour la publier' : ' · format WebM : à partager seulement (publication en MP4)'}`;
-      onClip(clipFile(clip, name));
+      $('#vidst').textContent = `Vidéo prête : ${Math.round(duration)} s, ${(clip.blob.size / 1e6).toFixed(1).replace('.', ',')} Mo${clip.silent ? ' · sans son : le navigateur a bloqué la musique, recommencez' : ''}${clipFile(clip, name()) ? ' · cochez TikTok, Instagram… dans « Publier sur » pour la publier' : ' · format WebM : à partager seulement (publication en MP4)'}`;
+      onClip(clipFile(clip, name()));
     } catch (err) { $('#vidst').textContent = err.message; } finally { $('#mkvid').disabled = false; }
   };
-  $('#sharevid').onclick = () => clip && shareClip(clip, name);
-  $('#sharefull').onclick = () => clip && shareClip(clip, name, true);
+  $('#sharevid').onclick = () => clip && shareClip(clip, name());
+  $('#sharefull').onclick = () => clip && shareClip(clip, name(), true);
 }
 
 export async function newsEditor(it, done, back) {
@@ -137,7 +139,7 @@ export async function newsEditor(it, done, back) {
         };
       }
       $('#linkcomment').onchange = (e) => { state.linkComment = e.target.checked; redraw(true); };
-      bindNewsVideo(() => d, 'breaking-news', (on) => { breaking = on; d.breaking = on; redraw(true); }, (file) => { made = file; redraw(); });
+      bindNewsVideo(() => d, (on) => { breaking = on; d.breaking = on; redraw(true); }, (file) => { made = file; redraw(); });
     },
   });
 }
@@ -233,7 +235,7 @@ export async function manualEditor(back) {
         upd(true);
       };
       $('#mviddel').onclick = () => { f.video = null; $('#mvid').value = ''; $('#mvidst').textContent = ''; $('#mviddel').hidden = true; $('#mvidprev').hidden = true; $('#mvidprev').removeAttribute('src'); upd(true); };
-      bindNewsVideo(() => d, 'breaking-news', (on) => { f.breaking = on; upd(true); }, (file) => { f.made = file; redraw(); });
+      bindNewsVideo(() => d, (on) => { f.breaking = on; upd(true); }, (file) => { f.made = file; redraw(); });
     },
   });
 }

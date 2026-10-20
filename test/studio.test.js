@@ -393,7 +393,7 @@ test('page du créateur : vidéo confiée au serveur (stockage R2), publiée par
     f.append('at', String(Date.now()));
     f.append('title', 'Ma vidéo');
     f.append('record', JSON.stringify({ key: 'post:v1', kind: 'post', title: 'Ma vidéo' }));
-    f.append('posts', JSON.stringify(o.posts ?? [{ network: 'youtube', text: 'Titre\nTexte' }, { network: 'bluesky', text: 'Salut' }]));
+    f.append('posts', JSON.stringify(o.posts ?? [{ network: 'youtube', text: 'Titre\nTexte' }, { network: 'bluesky', text: 'Salut' }, { network: 'facebook-story' }]));
     f.append('x', new Blob([new Uint8Array([0xff, 0xd8, 0xff, 1])], { type: 'image/jpeg' }), 'x.jpg');
     f.append('video', o.video ?? new Blob([new Uint8Array([1, 2, 3, 4])], { type: 'video/mp4' }), 'v.mp4');
     f.append('videofull', new Blob([new Uint8Array([5, 6, 7, 8, 9, 10])], { type: 'video/mp4' }), 'v-full.mp4');
@@ -422,6 +422,8 @@ test('page du créateur : vidéo confiée au serveur (stockage R2), publiée par
     const u = String(url);
     if (u.startsWith('https://www.googleapis.com/upload/youtube/v3/videos')) return new Response('{}', { headers: { location: 'https://up.test/yt' } });
     if (u === 'https://up.test/yt') { sent.youtube = opts.body.length; return new Response(JSON.stringify({ id: 'v42' })); }
+    if (u.includes('/p1/video_stories')) return new Response(JSON.stringify({ video_id: 's1', upload_url: 'https://up.test/story' }));
+    if (u === 'https://up.test/story') { sent.story = opts.body.size; return new Response(JSON.stringify({ success: true })); }
     const p = new URL(u).pathname;
     if (p.endsWith('createSession')) return new Response(JSON.stringify({ accessJwt: 'jwt', did: 'did:plc:moi' }));
     if (p.endsWith('uploadBlob')) { sent.blob = [opts.headers['Content-Type'], opts.body.size]; return new Response(JSON.stringify({ blob: { ref: 'b' } })); }
@@ -431,10 +433,11 @@ test('page du créateur : vidéo confiée au serveur (stockage R2), publiée par
   try {
     assert.equal((await runSchedule(env)).id, item.id);
     assert.deepEqual(await runSchedule(env), { published: 'bluesky', id: item.id });
+    assert.deepEqual(await runSchedule(env), { published: 'facebook-story', id: item.id });
     await runSchedule(env);
   } finally { globalThis.fetch = realFetch; }
-  // Vidéo de la zone sûre envoyée à YouTube, version plein écran à Bluesky ; vidéos effacées une fois publiées
-  assert.deepEqual(sent, { youtube: 4, blob: ['video/mp4', 6], bluesky: { $type: 'app.bsky.embed.video', video: { ref: 'b' }, aspectRatio: { width: 1080, height: 1920 } } });
+  // Vidéo de la zone sûre envoyée à YouTube et en story, version plein écran à Bluesky ; vidéos effacées une fois publiées
+  assert.deepEqual(sent, { youtube: 4, story: 4, blob: ['video/mp4', 6], bluesky: { $type: 'app.bsky.embed.video', video: { ref: 'b' }, aspectRatio: { width: 1080, height: 1920 } } });
   assert.equal((await (await worker('https://s.test/studio/api/schedule', { headers: key })).json()).items.length, 0);
   const hist = await (await worker('https://s.test/studio/api/history', { headers: key })).json();
   assert.equal(hist.items.find((x) => x.key === 'post:v1').nets.youtube.url, 'https://youtube.com/shorts/v42');

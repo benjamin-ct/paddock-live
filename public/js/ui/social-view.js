@@ -235,7 +235,7 @@ async function seasonSource(sig) {
 // Vidéo animée (format story) de la course ou d'une news (« Breaking news ») : enregistrée dans le navigateur
 let raceVideo = null;
 const raceVideoMaker = (d, o) => (d.post === 'racelaps' ? (opts) => makeAnimation((ctx, tt, w, h) => raceFrame(ctx, w, h, d, o, tt), raceVideoTiming(d).duration, { box: true, cover: (ctx) => videoCover(ctx, 1080, 1920, d, o), ...opts })
-  : d.news && d.breaking ? (opts) => makeAnimation((ctx, tt, w, h) => newsFrame(ctx, w, h, d, o, tt), newsVideoTiming(d).duration, { box: true, cover: (ctx) => videoCover(ctx, 1080, 1920, d, o), ...opts }) : null);
+  : d.news ? (opts) => makeAnimation((ctx, tt, w, h) => newsFrame(ctx, w, h, d, o, tt), newsVideoTiming(d).duration, { box: true, cover: (ctx) => videoCover(ctx, 1080, 1920, d, o), ...opts }) : null);
 async function buildRaceVideo(dlg, btn) {
   const make = curPost && raceVideoMaker(curPost.d, curPost.o);
   if (!make) return;
@@ -338,9 +338,9 @@ async function newsSource(sig) {
       <div class="row">${it.link ? `<button class="btn small" data-nsummary title="${t("Résumé en 3 à 5 points par l'IA : relisez avant de publier")}">${icon('doc')} ${t('Résumé détaillé')}</button>` : ''}<span class="small muted" data-nsumst></span></div>
       <label class="toggle small" title="${t("Lien de l'article en premier commentaire (Facebook, Threads, X)")}"><input type="checkbox" data-linkcomment ${linkComment ? 'checked' : ''}> ${t("Lien de l'article en premier commentaire")}</label>
       <label class="toggle small" title="${t('Visuel et vidéo « Breaking news »')}"><input type="checkbox" data-breaking ${d.breaking ? 'checked' : ''}> ${t('Très grosse info')}</label>
-      ${d.breaking ? `<div class="row"><button class="btn small btn-accent" data-racevideo>${icon('video')} ${t('Créer la vidéo Breaking news')}</button> ${musicSelect('news')}
+      <div class="row"><button class="btn small btn-accent" data-racevideo>${icon('video')} ${d.breaking ? t('Créer la vidéo Breaking news') : t('Créer la vidéo')}</button> ${musicSelect('news')}
         <button class="btn small" data-racevideosave disabled>${icon('save')} ${t('Enregistrer la vidéo')}</button><span class="small muted" data-rvst>${esc(t('Vidéo verticale avec musique : titre, résumé et points clés.'))}</span></div>
-      <video class="posts-vid" data-rv controls playsinline hidden></video>` : ''}
+      <video class="posts-vid" data-rv controls playsinline hidden></video>
       <p class="small muted">${icon('info')} ${t(failed ? 'Traduction indisponible : textes en version originale, à traduire à la main.' : "Titre et résumé traduits automatiquement : relisez-les. La source est citée.")}</p>
     </div>`;
   const record = { key: `news:${it.id}`, kind: 'news', title: d.title, srcTitle: it.title, link: it.link || '', summary: String(it.summary || '').slice(0, 300) };
@@ -377,9 +377,9 @@ function manualSource(sig) {
         ${m.image ? `<button class="btn small" data-mimgdel>${icon('close')} ${t('Retirer la photo')}</button>` : `<span class="small muted">${t('Facultatif : remplace les portraits des pilotes')}</span>`}
         <span class="spacer"></span><button class="btn small" data-mnew title="${t('Vider le formulaire pour écrire un autre post')}">${icon('plus')} ${t('Nouveau post')}</button></div>
       <label class="toggle small" title="${t('Visuel et vidéo « Breaking news »')}"><input type="checkbox" data-mbreaking ${m.breaking ? 'checked' : ''}> ${t('Très grosse info')}</label>
-      ${m.breaking ? `<div class="row"><button class="btn small btn-accent" data-racevideo>${icon('video')} ${t('Créer la vidéo Breaking news')}</button> ${musicSelect('news')}
+      <div class="row"><button class="btn small btn-accent" data-racevideo>${icon('video')} ${m.breaking ? t('Créer la vidéo Breaking news') : t('Créer la vidéo')}</button> ${musicSelect('news')}
         <button class="btn small" data-racevideosave disabled>${icon('save')} ${t('Enregistrer la vidéo')}</button><span class="small muted" data-rvst>${esc(t('Vidéo verticale avec musique : titre, résumé et points clés.'))}</span></div>
-      <video class="posts-vid" data-rv controls playsinline hidden></video>` : ''}
+      <video class="posts-vid" data-rv controls playsinline hidden></video>
       <p class="small muted">${icon('info')} ${t('Pilotes et écuries reconnus dans le texte : portraits et couleurs suivent.')}</p>
     </div>`;
   return { d, caps, head, record };
