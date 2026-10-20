@@ -245,7 +245,7 @@ test("page du créateur : relais des pages d'articles (résumé détaillé) en t
   assert.equal((await worker('https://s.test/studio/api/page?u=https%3A%2F%2Fwww.formula1.com%2Fa')).status, 401);
 });
 
-test('page du créateur : publication programmée, publiée par le serveur à l\'heure (tous les réseaux en un passage)', async () => {
+test('page du créateur : publication programmée, publiée par le serveur à l\'heure (un réseau par passage, stories par lots)', async () => {
   saveConfig({ creator: true, social: { meta: { pageId: 'p1', pageName: 'Ma page', pageToken: 'jeton-page', igId: 'ig1', igUsername: 'moi' }, bluesky: { handle: 'moi.bsky.social', appPassword: 'mdp-app', did: 'did:plc:moi' } } });
   const fetchFn = (url, init) => worker(url, init);
   await enableStudio(CODE, { fetchFn });
@@ -261,6 +261,7 @@ test('page du créateur : publication programmée, publiée par le serveur à l\
     f.append('ig', jpeg(1.2e6), 'a.jpg');
     f.append('ig', jpeg(10), 'b.jpg');
     f.append('x', jpeg(10), 'c.jpg');
+    for (let i = 0; i < (o.more || 0); i++) f.append('ig', jpeg(10), `d${i}.jpg`);
     return f;
   };
   const add = async (o) => worker('https://s.test/studio/api/schedule', { method: 'POST', body: form(o), headers: key });
@@ -319,6 +320,16 @@ test('page du créateur : publication programmée, publiée par le serveur à l\
     calls.length = 0;
     assert.deepEqual(await runSchedule(env, { now: at + 120e3 }), { published: 'facebook-story', id: story.id });
     assert.equal(calls.filter((c) => c.endsWith('/photo_stories')).length, 2);
+    assert.equal((await (await worker('https://s.test/studio/api/schedule', { headers: key })).json()).items.length, 0);
+    // 6 stories : 4 au premier passage, la suite au suivant (limite de sous-requêtes)
+    const many = (await (await add({ posts: [{ network: 'facebook-story' }], more: 4 })).json()).item;
+    calls.length = 0;
+    await runSchedule(env, { now: at + 125e3 });
+    assert.equal(calls.filter((c) => c.endsWith('/photo_stories')).length, 4);
+    const half = (await (await worker('https://s.test/studio/api/schedule', { headers: key })).json()).items.find((x) => x.id === many.id);
+    assert.deepEqual([half.nets['facebook-story'].status, half.nets['facebook-story'].sent, half.nets['facebook-story'].total], ['pending', 4, 6]);
+    await runSchedule(env, { now: at + 185e3 });
+    assert.equal(calls.filter((c) => c.endsWith('/photo_stories')).length, 6);
     assert.equal((await (await worker('https://s.test/studio/api/schedule', { headers: key })).json()).items.length, 0);
     assert.equal((await (await worker('https://s.test/studio/api/history', { headers: key })).json()).items.length, hist.items.length);
     // Échec sur un réseau : gardée dans la liste avec l'erreur, visuels et jetons effacés

@@ -342,6 +342,7 @@ const NETS = ['facebook', 'instagram', 'threads', 'bluesky'];
 const CLIPS = ['tiktok', 'youtube'];   // vidéo seulement : brouillon TikTok, Short YouTube
 const VIDEO_MAX = 50e6;
 const STORIES = ['instagram-story', 'facebook-story'];   // une story par visuel, sans texte
+const STORY_STEP = 4;   // stories programmées : images envoyées par passage du serveur (limite de 50 sous-requêtes)
 // Post « lien » : carte de l'article affichée par le réseau (Instagram, sans lien : visuels de l'onglet Post)
 const LINKS = ['facebook', 'threads', 'bluesky'];
 // Compte du réseau absent du coffre : raison, sinon null
@@ -569,11 +570,11 @@ export async function runSchedule(env, { now = Date.now() } = {}) {
     if (pending.length && now - j.at > SCHED.late) {
       for (const p of pending) { j.nets[p.network].status = 'expired'; await setState(j, p.network, j.nets[p.network]); }
     } else if (due.length) {
-      for (const p of due) { j.nets[p.network].status = 'running'; await setState(j, p.network, { status: 'running', started: now }); }
+      for (const p of due) { Object.assign(j.nets[p.network], { status: 'running', started: now }); await setState(j, p.network, j.nets[p.network]); }
       const keys = await open(await schedKey(env), j.keys).catch(() => null);
-      const imgs = async (set) => {
+      const imgs = async (set, from = 0, to = j.sets?.[set] || 0) => {
         const list = [];
-        for (let i = 0; i < (j.sets?.[set] || 0); i++) {
+        for (let i = from; i < Math.min(to, j.sets?.[set] || 0); i++) {
           const row = JSON.parse(await getRow(env, `schedimg:${j.id}:${set}:${i}`) || 'null');
           if (row) list.push(new Blob([unb64(row.data)], { type: row.type }));
         }
@@ -591,15 +592,19 @@ export async function runSchedule(env, { now = Date.now() } = {}) {
           if (!keys) throw new Error('Jetons effacés');
           const tr = await trackPost(env, p.network, { text: p.text, comment: p.network === 'instagram' ? '' : p.comment }, j.record?.title);
           const video = j.video && p.network !== 'bluesky' ? await media() : null;
-          const r = CLIPS.includes(p.network)
+          // Stories : STORY_STEP images par passage (Instagram fait 4 à 6 demandes par image), suite au passage suivant
+          const story = STORIES.includes(p.network) && { from: st.sent || 0, total: Math.min(j.sets?.ig || 0, 10) };
+          const r = story ? await sendTo(p.network, keys, { images: await imgs('ig', story.from, story.from + STORY_STEP) })
+            : CLIPS.includes(p.network)
             ? await sendClip(p.network, () => (p.network === 'youtube' ? freshYoutube : freshTiktok)(keys[p.network]), new Uint8Array(await video.arrayBuffer()), j.video, tr.text, j.tiktok)
             : j.link && LINKS.includes(p.network) ? await sendTo(p.network, keys, { text: tr.text, link: { ...j.link, url: (await trackPost(env, p.network, { text: j.link.url }, j.record?.title)).text } }, () => freshThreads(keys.threads))
             : await sendTo(p.network, keys, { text: tr.text, comment: tr.comment, images: p.network === 'bluesky' || video ? [] : await imgs('ig'), small: p.network === 'bluesky' ? await imgs('x') : [], video }, () => freshThreads(keys.threads));
-          Object.assign(st, { status: 'done', at: Date.now(), ...resultOf(r), ...(r.note ? { note: r.note } : {}) });
+          if (story) Object.assign(st, { sent: story.from + r.count, total: story.total });
+          Object.assign(st, { status: story && st.sent < story.total ? 'pending' : 'done', at: Date.now(), ...resultOf(r), ...(r.note ? { note: r.note } : {}) });
           // Stories (24 heures) : pas dans l'historique, qui garde le post du fil
           if (j.record && !STORIES.includes(p.network)) await setRow(env, 'history', JSON.stringify(addEntry(JSON.parse(await getRow(env, 'history') || '[]'), { ...j.record, at: Date.now(), nets: { [p.network]: { id: st.id, url: st.url } } })));
         } catch (err) {
-          Object.assign(st, { status: 'error', error: String(err?.message || err).slice(0, 300) });
+          Object.assign(st, { status: 'error', error: `${String(err?.message || err).slice(0, 300)}${st.sent ? ` (${st.sent} stories publiées sur ${st.total})` : ''}` });
         }
         await setState(j, p.network, st);
         out = { published: p.network, id: j.id };
