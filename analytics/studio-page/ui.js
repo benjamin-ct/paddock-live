@@ -9,7 +9,7 @@ export const SIG = '@BenjyPaddock';
 export const NET_NAMES = { instagram: 'Instagram', facebook: 'Facebook', threads: 'Threads', x: 'X', bluesky: 'Bluesky', tiktok: 'TikTok', youtube: 'YouTube', 'instagram-story': 'Story Instagram', 'facebook-story': 'Story Facebook' };
 
 // Réglages de la page (gardés pendant la visite) et comptes connectés (réponse de /me)
-export const state = { tab: 'news', fmt: 'ig', noSpoiler: true, photos: true, all: false, linkComment: true, follow: true, question: true, stype: 'raceweek', round: null, nsort: 'top', nkind: null, skip: new Set() };
+export const state = { tab: 'news', fmt: 'ig', noSpoiler: true, photos: true, all: false, linkComment: true, follow: true, question: true, stype: 'raceweek', round: null, nsort: 'top', nkind: null, ssub: 'accounts', skip: new Set() };
 export const session = { me: null };
 
 // iPhone / iPad, et page ouverte depuis l'écran d'accueil (sans la barre de Safari)
