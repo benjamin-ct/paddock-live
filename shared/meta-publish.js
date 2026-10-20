@@ -6,9 +6,9 @@
 
 export const GRAPH = 'https://graph.facebook.com/v25.0';
 export const THREADS = 'https://graph.threads.net/v1.0';
-// Sujet des posts Threads (« > F1 Thread » à côté du nom) : sans lui, Threads prend le premier
+// Sujet des posts Threads (« > F1 Threads » à côté du nom, la communauté F1 de Threads) : sans lui, Threads prend le premier
 // hashtag du texte (#F1)
-export const THREADS_TOPIC = 'F1 Thread';
+export const THREADS_TOPIC = 'F1 Threads';
 export const timing = { poll: 1500, maxPoll: 5000, readyMs: 4 * 60e3, visible: [8e3, 15e3, 20e3] };
 const HOST_TTL = 60 * 60e3;
 const hostedCache = new Map();   // empreinte de l'image + page -> { id, url, at }
