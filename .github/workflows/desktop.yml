@@ -5,7 +5,7 @@ name: Application de bureau
 # - version finale, pour tout le monde : à la demande sur main (onglet Actions → « Application de
 #   bureau » → Run workflow, « Version à publier » ex. v1.28.0) ou en poussant un tag v* ;
 # - version bêta, automatique à chaque modification de l'appli fusionnée dans develop : pré-version
-#   GitHub v<version « à venir » du journal>-beta.<n>, reçue seulement par les applis inscrites aux bêtas
+#   GitHub v<version « à venir » du journal>-beta.<n> (1, 2, 3… pour chaque version), reçue seulement par les applis inscrites aux bêtas
 #   (ni sur les liens de téléchargement du site, ni pour les autres) ; les 3 dernières gardées.
 on:
   workflow_dispatch:
@@ -17,7 +17,7 @@ on:
   push:
     tags: ['v*']
     branches: [develop]
-    paths: ['public/**', 'server/**', 'shared/**', 'desktop/**', 'package.json', 'package-lock.json', 'CHANGELOG.md']
+    paths: ['public/**', 'server/**', 'shared/**', 'desktop/**', 'package.json', 'package-lock.json', 'CHANGELOG.md', '.github/workflows/desktop.yml']
 
 permissions:
   contents: write
@@ -40,13 +40,17 @@ jobs:
         name: Version à publier
         env:
           INPUT_TAG: ${{ inputs.release_tag }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           tag="$INPUT_TAG"
           if [ -z "$tag" ] && [[ "$GITHUB_REF" == refs/tags/v* ]]; then tag="$GITHUB_REF_NAME"; fi
           if [ -z "$tag" ] && [ "$GITHUB_EVENT_NAME" = push ] && [ "$GITHUB_REF" = refs/heads/develop ]; then
             head=$(grep -m1 -E '^## v[0-9]+\.[0-9]+\.[0-9]+' CHANGELOG.md)
             if echo "$head" | grep -q 'à venir'; then
-              tag="$(echo "$head" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+')-beta.$GITHUB_RUN_NUMBER"
+              # Numéro suivant la dernière bêta de cette version : beta.1, beta.2…
+              v=$(echo "$head" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+')
+              n=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq "[.[].tag_name | select(startswith(\"$v-beta.\")) | ltrimstr(\"$v-beta.\") | tonumber] | max // 0")
+              tag="$v-beta.$((n + 1))"
             else
               echo "::warning::Pas de version « à venir » en tête de CHANGELOG.md : pas de bêta"
             fi
