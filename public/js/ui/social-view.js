@@ -542,6 +542,12 @@ async function render(dlg, keepHead = false) {
   const area = $('.posts-cap', body);
   const upd = () => { if (count) count.textContent = t('{} / 280 caractères', xLength(area.value)); };
   area?.addEventListener('input', upd); upd();
+  // Liens remplacés d'office par leur lien court suivi (Studio activé ; la lettre du réseau est remise à
+  // celle du réseau au moment de publier), dans la case et le premier commentaire
+  const short = (net, text) => (/https?:\/\//.test(text || '') ? fetch('/api/social/links', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ net, text }) }).then((r) => r.json()).then((j) => j?.text || text).catch(() => text) : Promise.resolve(text));
+  if (area) { const raw = area.value; short(fmt === 'x' ? 'x' : 'facebook', raw).then((v) => { if (v !== raw && area.isConnected && area.value === raw) { area.value = v; upd(); } }); }
+  const note = $('[data-copycomment]', body)?.previousElementSibling;
+  if (note) short('x', caps.comment).then((v) => { if (note.isConnected) note.textContent = v; caps.comment = v; });
   body.onclick = async (e) => {
     // Image cliquée : vue en grand (toutes les images du post, flèches pour passer de l'une à l'autre)
     const cv = e.target.closest('.posts-item canvas');
@@ -554,11 +560,10 @@ async function render(dlg, keepHead = false) {
     try {
       if (b.dataset.copy !== undefined) { await copyImage(allCanvases[Number(b.dataset.copy)]); toast(t('Image copiée'), 2000, 'check'); }
       if (b.dataset.save !== undefined) { const r = await saveImages(d, [allCanvases[Number(b.dataset.save)]]); toast(t('Image enregistrée dans {}', r.dir), 4000, 'check'); }
-      if (b.dataset.cap !== undefined) { await navigator.clipboard.writeText(area.value); toast(t('Texte copié'), 2000, 'check'); }
+      if (b.dataset.cap !== undefined) { await navigator.clipboard.writeText(await short(fmt === 'x' ? 'x' : 'facebook', area.value)); toast(t('Texte copié'), 2000, 'check'); }
       if (b.dataset.copycomment !== undefined) {
         // Lien suivi (clics comptés dans les statistiques du Studio), sinon tel quel
-        const tracked = await fetch('/api/social/links', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ net: 'x', text: caps.comment }) }).then((r) => r.json()).catch(() => null);
-        await navigator.clipboard.writeText(tracked?.text || caps.comment);
+        await navigator.clipboard.writeText(await short('x', caps.comment));
         toast(t('Commentaire copié : publiez-le en réponse à votre post'), 3500, 'check');
       }
       // Publication sans accès payant : page officielle du réseau préremplie, première image copiée

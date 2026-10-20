@@ -23,10 +23,14 @@ export async function linkId(url) {
   return /[A-Z0-9]/.test(id) ? id : B62[h[6] % 10] + id.slice(1);
 }
 
+// Lien court déjà dans le texte (case préremplie par le Studio ou l'appli) : lettre du réseau remise à
+// celle du réseau de publication
+const SHORT_IN = new RegExp(`${SHORT.replace(/[.]/g, '\\.')}((?=.{0,5}[A-Z0-9])[A-Za-z0-9]{6})[a-z](?![A-Za-z0-9])`, 'g');
+
 // Texte avec ses liens remplacés par les liens suivis du réseau, et les adresses à enregistrer ({ id, url })
 export async function trackText(text, net) {
   const links = await Promise.all(linksIn(text).map(async (url) => ({ id: await linkId(url), url })));
-  let out = String(text || '');
+  let out = String(text || '').replace(SHORT_IN, (m, id) => `${SHORT}${id}${NET_CODE[net] || 'o'}`);
   // Les plus longues d'abord : une adresse qui en prolonge une autre reste entière
   for (const { id, url } of [...links].sort((x, y) => y.url.length - x.url.length)) out = out.split(url).join(`${SHORT}${id}${NET_CODE[net] || 'o'}`);
   return { text: out, links };

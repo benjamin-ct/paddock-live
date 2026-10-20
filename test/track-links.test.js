@@ -43,6 +43,10 @@ test('liens suivis : adresses remplacées par réseau, ponctuation finale gardé
   assert.deepEqual(linksIn(`${GO}abcdefgh_t https://paddocklive.app/Ab3dE9t et https://paddocklive.app/download`), ['https://paddocklive.app/download'], 'anciens liens suivis ignorés, pages du site suivies');
   for (const u of ['https://a.test/1', 'https://a.test/2', 'https://a.test/3']) assert.match(await linkId(u), /^(?=.*[A-Z0-9])[A-Za-z0-9]{6}$/);
   assert.equal((await trackText('Sans lien #F1', 'x')).text, 'Sans lien #F1');
+  // Lien court déjà dans le texte (case préremplie) : lettre remise à celle du réseau de publication
+  const pre = await trackText('Lire https://pdkl.app/Ab3dE9x.\nhttps://pdkl.app/Zz9Zz9f', 'threads');
+  assert.equal(pre.text, 'Lire https://pdkl.app/Ab3dE9t.\nhttps://pdkl.app/Zz9Zz9t');
+  assert.deepEqual(pre.links, []);
 });
 
 test('liens suivis : enregistrés à la publication, clic compté puis renvoi, robots ignorés', async () => {

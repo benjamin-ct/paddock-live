@@ -4,6 +4,7 @@ import { slidesFor, drawSlide, slideName, chosenSlides, keptData } from '/shared
 import { openImageViewer } from '/shared/image-viewer.js';
 import { followCaptions, questionCaptions } from '/shared/social-follow.js';
 import { xLength } from '/shared/social.js';
+import { linksIn } from '/shared/track-links.js';
 import { FLAG_ISO } from '/shared/flags.js';
 import { loadTeamLogos } from '/shared/team-logos.js';
 import { $, $$, esc, api, icon, toast, toggle, sheet, schedList, glide, state, session, SIG, NET_NAMES, IOS, installed } from './ui.js';
@@ -145,14 +146,14 @@ export function editor({ back, title, subtitle = '', head = '', below = false, d
       $(`[data-count="${k}"]`).classList.toggle('err', !!lim && n > lim);
     };
     let prep = 0;
-    // Texte X : lien de l'article remplacé d'office par son lien court suivi (pdkl.app), dans la case même
+    // Liens remplacés d'office par leur lien court suivi (pdkl.app) dans chaque case, avec la lettre de son
+    // réseau (remise à celle du réseau de publication par le serveur : premier commentaire commun)
     const prepare = () => {
-      if (!xTab && !linkTab) return;
-      for (const k of ['x', 'comment']) {
+      for (const k of CAPS.map(([x]) => x)) {
         const el = $(`#cap-${k}`);
         if (!el) continue;
         const raw = el.value;
-        prepareX(raw, record?.()?.title).then((t) => {
+        prepareX(raw, record?.()?.title, CAP_NET[k] || (xTab ? 'x' : 'facebook')).then((t) => {
           if (t === raw || !el.isConnected || el.value !== raw) return;
           el.value = t;
           if (k in edited) edited[k] = t;
@@ -225,6 +226,7 @@ export function editor({ back, title, subtitle = '', head = '', below = false, d
         paint();
         const t = texts(d);
         for (const k of Object.keys(t)) if (!(k in edited) && $(`#cap-${k}`)) { $(`#cap-${k}`).value = t[k]; count(k); }
+        prepare();
       };
     });
     $('#go').onclick = () => (xTab ? openX(canvases, $('#cap-x').value) : publishAll(d, o, record?.(), vid));
@@ -257,16 +259,18 @@ function articlePhoto(url) {
 // pas). Sinon : appli X sur téléphone, x.com sur ordinateur avec les images téléchargées
 // Texte X (et premier commentaire) avec ses liens suivis (clics comptés), préparé à l'affichage : le
 // partage part dès le toucher
-const trackedX = new Map();   // texte -> texte suivi (ou demande en cours)
-const trackedNow = (raw) => (typeof trackedX.get(raw) === 'string' ? trackedX.get(raw) : raw);
-function prepareX(raw, title) {
-  if (!/https?:\/\//.test(raw)) return Promise.resolve(raw);
-  if (!trackedX.has(raw)) {
-    trackedX.set(raw, api('links', { method: 'POST', body: JSON.stringify({ net: 'x', text: raw, title }) })
-      .then((r) => { const t = r?.text || raw; trackedX.set(raw, t); return t; })
-      .catch(() => { trackedX.delete(raw); return raw; }));
+const CAP_NET = { instagram: 'instagram', facebook: 'facebook', threads: 'threads', x: 'x', bsky: 'bluesky' };
+const trackedX = new Map();   // réseau|texte -> texte suivi (ou demande en cours)
+const trackedNow = (raw, net = 'x') => { const t = trackedX.get(`${net}|${raw}`); return typeof t === 'string' ? t : raw; };
+function prepareX(raw, title, net = 'x') {
+  if (!/https?:\/\//.test(raw) || !linksIn(raw).length) return Promise.resolve(raw);
+  const key = `${net}|${raw}`;
+  if (!trackedX.has(key)) {
+    trackedX.set(key, api('links', { method: 'POST', body: JSON.stringify({ net, text: raw, title }) })
+      .then((r) => { const t = r?.text || raw; trackedX.set(key, t); return t; })
+      .catch(() => { trackedX.delete(key); return raw; }));
   }
-  return Promise.resolve(trackedX.get(raw));
+  return Promise.resolve(trackedX.get(key));
 }
 async function openX(canvases, raw) {
   const text = trackedNow(raw);
