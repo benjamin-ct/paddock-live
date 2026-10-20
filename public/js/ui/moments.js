@@ -41,7 +41,7 @@ async function load() {
   renderMarks();
 }
 
-function seek(off) {
+export function seek(off) {
   const s = src();
   // Quelques secondes avant le moment, pour le voir arriver ; délai TV pris en compte
   api('/api/replay/control', { method: 'POST', body: { action: 'seek', toMs: Math.max(0, off - 8000) + store.delay * (s?.speed || 1) } }).catch(() => {});

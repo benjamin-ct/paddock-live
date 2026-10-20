@@ -27,6 +27,62 @@ function walk(fields, node, path, parent) {
 
 const inflate = (s) => JSON.parse(zlib.inflateRawSync(Buffer.from(s, 'base64')).toString('utf8'));
 const decode = (v) => (typeof v === 'string' ? inflate(v) : v);
+const offOf = (line) => { const m = /^(\d+):(\d\d):(\d\d)\.(\d+)/.exec(line); return m ? ((+m[1] * 60 + +m[2]) * 60 + +m[3]) * 1000 + Math.round(+`0.${m[4]}` * 1000) : 0; };
+
+// Chronologie des indices possibles du mode dépassement 2026 : chaque changement d'OvertakeState
+// (DriverRaceInfo) et des indicateurs 4096 / 8192 du statut d'un pilote (TimingData, absents de
+// TimingDataF1), avec tour, position et écart sur la voiture de devant à cet instant ; et chaque entrée
+// d'OvertakeSeries (dépassements, sens encore à confirmer : deux pilotes par instant, « count » rarement > 1)
+const CHRONO = new Set(['DriverList', 'DriverRaceInfo', 'TimingData', 'OvertakeSeries']);
+const FLAGS = 4096 | 8192;
+const secs = (v) => { const m = /^\+?(\d+(?:\.\d+)?)$/.exec(String(v ?? '').trim()); return m ? +m[1] : null; };
+
+export function overtakeChrono(events) {
+  const cars = new Map(), out = [];
+  const car = (n) => { if (!cars.has(n)) cars.set(n, { tla: n, lap: 0, pos: null, gap: null, state: null, flags: 0 }); return cars.get(n); };
+  const at = (off, n, c, what, from, to) => out.push({ off, num: n, tla: c.tla, lap: c.lap, pos: c.pos, gap: c.gap, what, from, to });
+  for (const { off, feed, data } of events.sort((a, b) => a.off - b.off)) {
+    if (feed === 'DriverList') {
+      for (const [n, d] of Object.entries(data || {})) if (d?.Tla) car(n).tla = d.Tla;
+    } else if (feed === 'OvertakeSeries') {
+      for (const [n, list] of Object.entries(data?.Overtakes || {})) {
+        for (const o of Object.values(list || {})) if (o?.Timestamp) at(off, n, car(n), 'Overtake', null, o.count);
+      }
+    } else if (feed === 'DriverRaceInfo') {
+      for (const [n, d] of Object.entries(data || {})) {
+        if (!d || typeof d !== 'object') continue;
+        const c = car(n);
+        if (d.Position) c.pos = +d.Position;
+        if (d.Interval !== undefined) c.gap = secs(d.Interval);
+        if (d.OvertakeState !== undefined && d.OvertakeState !== c.state) { if (c.state !== null) at(off, n, c, 'OvertakeState', c.state, d.OvertakeState); c.state = d.OvertakeState; }
+      }
+    } else {
+      for (const [n, l] of Object.entries(data?.Lines || {})) {
+        if (!l || typeof l !== 'object') continue;
+        const c = car(n);
+        if (l.NumberOfLaps !== undefined) c.lap = +l.NumberOfLaps;
+        if (l.Position) c.pos = +l.Position;
+        if (l.IntervalToPositionAhead?.Value !== undefined) c.gap = secs(l.IntervalToPositionAhead.Value);
+        if (typeof l.Status === 'number' && (l.Status & FLAGS) !== c.flags) { at(off, n, c, 'Status', c.flags, l.Status & FLAGS); c.flags = l.Status & FLAGS; }
+      }
+    }
+  }
+  // Résumé : écart médian sur la voiture de devant au moment de chaque passage
+  const groups = new Map();
+  for (const e of out) {
+    const k = `${e.what} → ${e.to}`;
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(e.gap);
+  }
+  const changes = [...groups].sort().map(([k, gaps]) => {
+    const g = gaps.filter((x) => x !== null).sort((a, b) => a - b);
+    return { change: k, n: gaps.length, median: g.length ? g[g.length >> 1] : null, under1: g.filter((x) => x <= 1).length, known: g.length };
+  });
+  // Entrées d'OvertakeSeries par pilote (nombre et total des « count »)
+  const per = new Map();
+  for (const e of out) if (e.what === 'Overtake') { const p = per.get(e.tla) || { tla: e.tla, n: 0, sum: 0 }; p.n++; p.sum += Number(e.to) || 0; per.set(e.tla, p); }
+  return { summary: changes.filter((x) => !x.change.startsWith('Overtake ')), overtakes: [...per.values()].sort((a, b) => b.n - a.n), events: out };
+}
 
 function summary(fields) {
   return [...fields].sort((a, b) => (a[0] < b[0] ? -1 : 1)).map(([path, f]) => {
@@ -44,21 +100,31 @@ function summary(fields) {
 export async function feedDiag(path, { get = archiveGet, getJSON = archiveJSON } = {}) {
   const t0 = Date.now();
   const feeds = (await getJSON(`${path}Index.json`)).Feeds || {};
+  const chrono = [];
   const out = await Promise.all(Object.entries(feeds).map(async ([name, f]) => {
     const fields = new Map();
     let lines = 0, error = null;
     try {
-      if (f.KeyFramePath) walk(fields, decode(await getJSON(`${path}${f.KeyFramePath}`)), name);
+      if (f.KeyFramePath) {
+        const kf = decode(await getJSON(`${path}${f.KeyFramePath}`));
+        walk(fields, kf, name);
+        if (name === 'DriverList') chrono.push({ off: -1, feed: name, data: kf });   // les autres : état de fin de séance
+      }
     } catch { /* image de départ absente : le flux suffit */ }
     try {
       const text = f.StreamPath ? await get(`${path}${f.StreamPath}`, { timeout: 180000 }) : '';
       for (const line of text.split(/\r?\n/)) {
         const i = line.search(/[{"[]/);
         if (i < 0) continue;
-        try { walk(fields, decode(JSON.parse(line.slice(i))), name); lines++; } catch { /* ligne illisible */ }
+        try {
+          const data = decode(JSON.parse(line.slice(i)));
+          walk(fields, data, name);
+          if (CHRONO.has(name)) chrono.push({ off: offOf(line), feed: name, data });
+          lines++;
+        } catch { /* ligne illisible */ }
       }
     } catch (err) { error = err.message; }
     return { name, lines, error, fields: summary(fields) };
   }));
-  return { path, ms: Date.now() - t0, feeds: out.sort((a, b) => (a.name < b.name ? -1 : 1)) };
+  return { path, ms: Date.now() - t0, feeds: out.sort((a, b) => (a.name < b.name ? -1 : 1)), overtake: overtakeChrono(chrono) };
 }

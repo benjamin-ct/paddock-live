@@ -4,7 +4,8 @@
 // batterie, mode Boost…). Les nouveautés sont signalées ; le rapport complet se copie ou s'enregistre.
 import { store } from '../store.js';
 import { $, esc } from '../util.js';
-import { t } from '../i18n.js';
+import { t, dec } from '../i18n.js';
+import { seek } from './moments.js';
 
 // Flux et canaux déjà connus (saisons précédentes)
 const KNOWN_FEEDS = new Set(['SessionInfo', 'ArchiveStatus', 'TrackStatus', 'SessionData', 'ContentStreams', 'AudioStreams', 'ExtrapolatedClock',
@@ -19,6 +20,13 @@ const watched = (path) => path.split('.').some((s) => WATCH.test(s));
 const channelOf = (path) => path.match(/\.Channels\.(\d+)$/)?.[1];
 const vals = (list) => list.map(([v, n]) => `${v} ×${n}`).join(', ');
 const line = (f) => `${f.path} · ${f.n}${f.max !== undefined ? ` · ${f.min} → ${f.max}` : ''} · ${vals(f.top)}${f.highest ? ` · max ${vals(f.highest)}` : ''}${f.more ? ' · …' : ''}`;
+// Mode dépassement 2026 : changements d'OvertakeState et des indicateurs 4096 / 8192, avec l'écart sur la
+// voiture de devant (disponible à moins d'une seconde ?)
+const clock = (ms) => { const s = Math.max(0, Math.round(ms / 1000)); return `${Math.floor(s / 3600)}:${String(Math.floor(s / 60) % 60).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`; };
+const gap = (g) => (g === null ? '—' : `${dec(g.toFixed(3))} s`);
+const change = (e) => `${clock(e.off)} · ${t('tour {}', e.lap)} · ${e.tla} P${e.pos ?? '?'} · ${e.what} ${e.from === null ? `count ${e.to}` : `${e.from} → ${e.to}`} · ${gap(e.gap)}`;
+const perDriver = (o) => o.overtakes.map((p) => `${p.tla} ${p.n} (count ${p.sum})`).join(', ');
+const changes = (x) => t('{} : {} fois · écart médian {} · {}/{} à moins d\'1 s', x.change, x.n, gap(x.median), x.under1, x.known);
 
 // Rapport texte complet (à copier ou enregistrer, pour l'analyser ailleurs)
 function report(r) {
@@ -27,6 +35,8 @@ function report(r) {
     out.push('', `## ${f.name}${KNOWN_FEEDS.has(f.name) ? '' : ' (nouveau)'} · ${f.lines} messages${f.error ? ` · erreur : ${f.error}` : ''}`);
     for (const x of f.fields) out.push(line(x));
   }
+  const o = r.overtake;
+  if (o?.events.length) out.push('', '## Mode dépassement 2026 (chronologie)', ...o.summary.map(changes), `OvertakeSeries par pilote : ${perDriver(o)}`, '', ...o.events.map(change));
   return out.join('\n');
 }
 
@@ -41,6 +51,10 @@ function render(r) {
       ${t('{} champs lus dans toute la séance, en {} s.', fields.length, Math.round(r.ms / 1000))}</p>
     <p class="small"><b>${t('Canaux de télémétrie')}</b></p>
     <ul class="small diag-list" data-no-i18n>${channels.map((x) => { const k = channelOf(x.path); return `<li>${CHANNELS[k] ? t('Canal {} ({})', k, t(CHANNELS[k])) : `<b class="diag-new">${t('Canal {} ({})', k, t('nouveau'))}</b>`} : ${x.min} → ${x.max} · ${t('{} valeurs', `${x.distinct}${x.more ? '+' : ''}`)} · ${esc(vals(x.top))} · max ${esc(vals(x.highest))}</li>`; }).join('') || `<li>${t('Aucune télémétrie dans cette séance.')}</li>`}</ul>
+    ${r.overtake?.events.length ? `<p class="small"><b>${t('Mode dépassement 2026 (pistes)')}</b> <span class="muted">${t('OvertakeState, indicateurs 4096 / 8192 du statut des pilotes, OvertakeSeries')}</span></p>
+    <ul class="small diag-list" data-no-i18n>${r.overtake.summary.map((x) => `<li>${esc(changes(x))}</li>`).join('')}${r.overtake.overtakes.length ? `<li>${t('OvertakeSeries par pilote : {}', esc(perDriver(r.overtake)))}</li>` : ''}</ul>
+    <details class="small"><summary>${t('Chronologie : {} changements (clic : aller au moment dans le replay)', r.overtake.events.length)}</summary>
+      <ul class="diag-list" data-no-i18n>${r.overtake.events.map((e) => `<li><a href="#" data-off="${e.off}">${esc(change(e))}</a></li>`).join('')}</ul></details>` : ''}
     <p class="small"><b>${t('Champs à regarder')}</b> <span class="muted">${t('(énergie, batterie, Boost, dépassement, aileron, mode…)')}</span></p>
     <ul class="small diag-list" data-no-i18n>${watch.map((x) => `<li class="diag-new">${esc(x.feed)} · ${esc(line(x))}</li>`).join('') || `<li>${t('Aucun.')}</li>`}</ul>
     ${r.feeds.map((f) => `<details class="small"><summary>${esc(f.name)} · ${t('{} messages · {} champs', f.lines, f.fields.length)}${f.error ? ` · ${esc(f.error)}` : ''}</summary>
@@ -60,6 +74,7 @@ export function initFeedDiag() {
       const r = await res.json();
       if (!res.ok) throw new Error(r.error || `HTTP ${res.status}`);
       out.innerHTML = render(r);
+      out.onclick = (ev) => { const a = ev.target.closest('[data-off]'); if (a) { ev.preventDefault(); seek(+a.dataset.off); } };
       const text = report(r);
       $('#feedDiagCopy').onclick = (ev) => navigator.clipboard.writeText(text).then(() => { ev.target.textContent = t('Copié'); });
       $('#feedDiagSave').onclick = () => {
