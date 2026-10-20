@@ -4,7 +4,11 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → À propos → Nouveautés).
 
-## v1.27.55 — à venir
+## v1.28.0 — à venir
+
+### Mises à jour
+- Versions bêta : nouveau réglage « Recevoir les versions bêta » (Réglages → Application) pour essayer les
+  nouveautés avant leur sortie pour tout le monde. Décoché, l'appli ne reçoit que les versions finales.
 
 ### Divers
 - Petites améliorations internes.

@@ -1,6 +1,6 @@
 // Texte de la page d'une version publiée : nouveautés de cette version (CHANGELOG.md), puis
 // les instructions d'installation (.github/release-footer.md).
-// Usage : node scripts/release-notes.mjs v1.15.0 > notes.md — échoue si la version n'a pas
+// Usage : node scripts/release-notes.mjs v1.15.0 (ou v1.28.0-beta.3) > notes.md — échoue si la version n'a pas
 // sa section dans CHANGELOG.md (chaque version publiée doit avoir son journal).
 import fs from 'node:fs';
 import path from 'node:path';
@@ -15,4 +15,6 @@ if (!entry || !entry.body) {
   process.exit(1);
 }
 const footer = fs.readFileSync(path.join(root, '.github', 'release-footer.md'), 'utf8').trim();
-process.stdout.write(`## Nouveautés de la version ${entry.version}\n\n${entry.body}\n\n---\n\n${footer}\n`);
+// Bêta (v1.28.0-beta.3) : nouveautés de la version à venir, signalée comme version de test
+const beta = /-beta\.\d+$/.test(tag) ? `> Version bêta (de test) : reçue seulement par les applis inscrites aux bêtas (Réglages → Application).\n\n` : '';
+process.stdout.write(`${beta}## Nouveautés de la version ${entry.version}\n\n${entry.body}\n\n---\n\n${footer}\n`);

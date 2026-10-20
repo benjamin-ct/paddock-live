@@ -23,6 +23,7 @@ function fmt(s) {
 function render(s) {
   $('#updateStatus').textContent = `${fmt(s)} ${{ portable: '· version portable', installer: '· version installée', appimage: '· AppImage', mac: '· macOS' }[s.kind] || ''}`;
   $('#updateAuto').checked = s.auto;
+  $('#updateBeta').checked = !!s.beta;
   $('#updateInstall').hidden = s.status !== 'ready';
   $('#updateCheck').hidden = s.status === 'unsupported';
   const pill = $('#updatePill');
@@ -71,4 +72,7 @@ export function initUpdates() {
   $('#updatePillBtn').addEventListener('click', install);
   $('#updatePillClose').addEventListener('click', () => { dismissed = true; $('#updatePill').hidden = true; });
   $('#updateAuto').addEventListener('change', async (e) => render(await desk.setAutoUpdate(e.target.checked)));
+  // Ancienne appli de bureau (sans les bêtas) : réglage caché
+  if (!desk.setBetaUpdates) $('#updateBeta').closest('.row').hidden = true;
+  else $('#updateBeta').addEventListener('change', async (e) => render(await desk.setBetaUpdates(e.target.checked)));
 }

@@ -15,8 +15,8 @@ export function parseChangelog(text) {
   return out.map(({ lines, ...v }) => ({ ...v, body: lines.join('\n').trim() }));
 }
 
-// Section d'une version (« v1.15.0 » ou « 1.15.0 »), ou null
+// Section d'une version (« v1.15.0 » ou « 1.15.0 » ; bêta « v1.28.0-beta.3 » : celle de la 1.28.0), ou null
 export function changelogFor(text, tag) {
-  const v = String(tag || '').replace(/^v/, '');
+  const v = String(tag || '').replace(/^v/, '').replace(/-.*$/, '');
   return parseChangelog(text).find((x) => x.version === v) || null;
 }

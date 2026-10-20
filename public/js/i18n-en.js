@@ -2357,6 +2357,8 @@ export default {
   ", avec Paddock Live ouvert sur cet ordinateur.": ", with Paddock Live open on this computer.",
   "Si Windows le demande, autorisez le réseau privé.": "If Windows asks, allow private networks.",
   "Installer les mises à jour à la fermeture de l'appli": "Install updates when the app closes",
+  "Recevoir les versions bêta (nouveautés en avant-première)": "Get beta versions (new features early)",
+  "Versions de test, avant leur sortie pour tout le monde ; on revient aux versions finales en décochant": "Test versions, before they are released to everyone; uncheck to go back to final versions",
   "Sans la connexion F1 TV ni les clés (téléphone, lumières).": "Without the F1 TV connection or keys (phone, lights).",
   "Seuls les textes à traduire et le son des radios sont envoyés.": "Only texts to translate and radio audio are sent.",
   "Anonymes : ni compte, ni contenu, ni adresse IP.": "Anonymous: no account, no content, no IP address.",

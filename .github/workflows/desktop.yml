@@ -2,37 +2,63 @@ name: Application de bureau
 
 # Génère l'application pour Windows (installateur + portable), macOS (Apple Silicon et Intel :
 # .dmg + .zip pour les mises à jour) et Linux (AppImage x86_64 / ARM + paquet .deb) :
-# - à la demande (onglet Actions → « Application de bureau » → Run workflow) ;
-#   en renseignant « Version à publier » (ex. v1.1.0), le tag et la Release GitHub sont créés ;
-# - ou en poussant un tag v* (ex. v1.1.0), qui crée aussi une Release GitHub.
+# - version finale, pour tout le monde : à la demande sur main (onglet Actions → « Application de
+#   bureau » → Run workflow, « Version à publier » ex. v1.28.0) ou en poussant un tag v* ;
+# - version bêta, automatique à chaque modification de l'appli fusionnée dans develop : pré-version
+#   GitHub v<version « à venir » du journal>-beta.<n>, reçue seulement par les applis inscrites aux bêtas
+#   (ni sur les liens de téléchargement du site, ni pour les autres) ; les 3 dernières gardées.
 on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: 'Version à publier (ex. v1.1.0) — laisser vide pour un simple test'
+        description: 'Version à publier (ex. v1.28.0) — laisser vide pour un simple test'
         required: false
         default: ''
   push:
     tags: ['v*']
+    branches: [develop]
+    paths: ['public/**', 'server/**', 'shared/**', 'desktop/**', 'package.json', 'package-lock.json', 'CHANGELOG.md']
 
 permissions:
   contents: write
 
-env:
-  RELEASE_TAG: ${{ inputs.release_tag || (startsWith(github.ref, 'refs/tags/v') && github.ref_name) || '' }}
+# Bêtas : une nouvelle fusion dans develop remplace la compilation encore en cours
+concurrency:
+  group: desktop-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref == 'refs/heads/develop' }}
 
 jobs:
-  # Une version publiée doit avoir ses nouveautés dans CHANGELOG.md : vérifié avant de compiler
-  changelog:
+  # Version à publier (bêta : celle « à venir » du journal, numérotée) ; ses nouveautés doivent être
+  # dans CHANGELOG.md : vérifié avant de compiler
+  version:
     runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.v.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
+      - id: v
+        name: Version à publier
+        env:
+          INPUT_TAG: ${{ inputs.release_tag }}
+        run: |
+          tag="$INPUT_TAG"
+          if [ -z "$tag" ] && [[ "$GITHUB_REF" == refs/tags/v* ]]; then tag="$GITHUB_REF_NAME"; fi
+          if [ -z "$tag" ] && [ "$GITHUB_EVENT_NAME" = push ] && [ "$GITHUB_REF" = refs/heads/develop ]; then
+            head=$(grep -m1 -E '^## v[0-9]+\.[0-9]+\.[0-9]+' CHANGELOG.md)
+            if echo "$head" | grep -q 'à venir'; then
+              tag="$(echo "$head" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+')-beta.$GITHUB_RUN_NUMBER"
+            else
+              echo "::warning::Pas de version « à venir » en tête de CHANGELOG.md : pas de bêta"
+            fi
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "Version : ${tag:-(simple test)}"
       - name: Nouveautés de la version dans CHANGELOG.md
-        if: env.RELEASE_TAG != ''
-        run: node scripts/release-notes.mjs "$RELEASE_TAG" > /dev/null
+        if: steps.v.outputs.tag != ''
+        run: node scripts/release-notes.mjs "${{ steps.v.outputs.tag }}" > /dev/null
 
   build:
-    needs: changelog
+    needs: version
     strategy:
       fail-fast: false
       matrix:
@@ -55,6 +81,8 @@ jobs:
               desktop/dist/*.AppImage
               desktop/dist/*.deb
     runs-on: ${{ matrix.os }}
+    env:
+      RELEASE_TAG: ${{ needs.version.outputs.tag }}
     defaults:
       run:
         working-directory: desktop
@@ -88,9 +116,12 @@ jobs:
           if-no-files-found: error
 
   release:
-    needs: build
-    if: startsWith(inputs.release_tag || github.ref_name, 'v')
+    needs: [version, build]
+    if: startsWith(needs.version.outputs.tag, 'v')
     runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: ${{ needs.version.outputs.tag }}
+      BETA: ${{ contains(needs.version.outputs.tag, '-') }}
     steps:
       - uses: actions/checkout@v4
       # Nouveautés de la version (CHANGELOG.md) + instructions d'installation ; échoue si la
@@ -106,8 +137,11 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.RELEASE_TAG }}
-          name: Paddock Live ${{ env.RELEASE_TAG }}
+          name: Paddock Live ${{ env.RELEASE_TAG }}${{ env.BETA == 'true' && ' (bêta)' || '' }}
           target_commitish: ${{ github.sha }}
+          # Bêta : pré-version, jamais « la dernière version » (celle des mises à jour de tout le monde)
+          prerelease: ${{ env.BETA == 'true' }}
+          make_latest: ${{ env.BETA == 'true' && 'false' || 'true' }}
           files: |
             dist/*.exe
             dist/*.dmg
@@ -119,6 +153,7 @@ jobs:
       # serveur). Version retirée pendant la copie : le serveur renvoie vers GitHub tant qu'elle n'est pas
       # finie (ou si elle échoue, sans bloquer la publication sur GitHub)
       - name: Copie des fichiers sur Cloudflare
+        if: env.BETA != 'true'
         continue-on-error: true
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -135,3 +170,17 @@ jobs:
           done
           printf '%s' "$v" > version.txt
           $W put paddock-live-media/releases/version --file version.txt --remote
+      # Bêtas : les 3 dernières gardées ; version finale : ses bêtas effacées
+      - name: Anciennes bêtas effacées
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "$BETA" = true ]; then
+            q='[.[] | select(.prerelease)] | sort_by(.created_at) | reverse | .[3:] | .[].tag_name'
+          else
+            q="[.[] | select(.prerelease and (.tag_name | startswith(\"$RELEASE_TAG-\")))] | .[].tag_name"
+          fi
+          gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq "$q" | while read -r t; do
+            [ -n "$t" ] && gh release delete "$t" --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes
+          done

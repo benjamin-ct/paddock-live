@@ -36,6 +36,7 @@
       "main.cjs",
       "preload.cjs",
       "updater.cjs",
+      "version.cjs",
       "f1-cookies.cjs",
       "splash.html",
       "icon.png",
