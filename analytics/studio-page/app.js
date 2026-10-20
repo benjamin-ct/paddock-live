@@ -283,6 +283,7 @@ const clicksHtml = (c) => {
   };
   return `<h3 class="section">Clics sur les liens <small>${c.days} derniers jours</small></h3><div class="list posts">${c.links.map(row).join('')}</div>`;
 };
+const SHORT_NETS = ['instagram', 'facebook', 'threads', 'x', 'bluesky', 'tiktok', 'youtube'];
 const STAT_LABELS = [['views', 'Vues'], ['reach', 'Portée'], ['likes', 'J\'aime'], ['comments', 'Comm.'], ['shares', 'Partages'], ['saves', 'Enreg.']];
 // Chiffres des posts et des comptes : deux appels au serveur, en même temps
 async function loadStats() {
@@ -307,6 +308,10 @@ function renderStats(body, r, stale) {
   body.innerHTML = `${stale ? '<p class="status"><span class="dot"></span>Mise à jour…</p>' : ''}
     ${r.accounts?.length ? accountsHtml(r.accounts) : f.length ? `<div class="tiles">${f.map(([n, v]) => `<div class="tile"><b>${fmtN(v)}</b><small>abonnés ${esc(NET_NAMES[n] || n)}</small></div>`).join('')}</div>` : ''}
     <div id="schedlist"></div>
+    <h3 class="section">Raccourcir un lien</h3>
+    <form class="card short" id="shortform"><input type="text" id="shorturl" placeholder="https://…" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false" required>
+      <div class="row"><input type="text" id="shortname" placeholder="Nom dans les statistiques (facultatif)"><select id="shortnet" title="Réseau où le lien sera partagé (clics comptés par réseau)"><option value="">Autre</option>${SHORT_NETS.map((n) => `<option value="${n}">${NET_NAMES[n]}</option>`).join('')}</select><button class="btn primary small">Raccourcir</button></div>
+      <div id="shortout"></div></form>
     ${clicksHtml(r.clicks)}
     <div class="row section-row"><h3 class="section grow">Posts publiés</h3><button class="btn small" id="statsimport" title="Ajoute aux statistiques les posts des 30 derniers jours publiés hors du Studio">${icon('refresh')}Retrouver mes posts</button></div>
     ${(r.posts || []).length ? `<div class="list posts">${r.posts.map((p) => `<div class="card post"><div class="card-top"><time>${esc(new Date(p.at).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))}</time><span class="grow"></span><button class="iconbtn small" data-statsremove="${esc(p.key)}" aria-label="Retirer des statistiques" title="Retirer des statistiques">${icon('close')}</button></div><div class="t">${esc(p.title || 'Post')}</div>
@@ -317,6 +322,21 @@ function renderStats(body, r, stale) {
         return `<div class="net-stats"><span class="net">${name}</span><div class="metrics">${vals}</div></div>`;
       }).join('')}</div>`).join('')}</div>` : empty('Aucun post publié pour le moment.', 'chart')}`;
   schedList($('#schedlist', body));
+  // Lien court suivi (pdkl.app) : clics comptés comme ceux des posts
+  $('#shortform', body).onsubmit = async (e) => {
+    e.preventDefault();
+    const b = $('#shortform button', body), out = $('#shortout', body);
+    let url = $('#shorturl', body).value.trim();
+    if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
+    b.classList.add('busy');
+    b.disabled = true;
+    try {
+      const { text } = await api('links', { method: 'POST', body: JSON.stringify({ net: $('#shortnet', body).value, text: url, title: $('#shortname', body).value.trim() }) });
+      if (text === url) throw new Error('Adresse invalide');
+      out.innerHTML = `<div class="row"><code class="grow">${esc(text)}</code><button type="button" class="btn small">${icon('copy')}Copier</button></div>`;
+      $('button', out).onclick = () => navigator.clipboard.writeText(text).then(() => toast('Lien copié', 'ok'), () => toast('Copie impossible', 'bad'));
+    } catch (err) { toast(err.message, 'bad'); } finally { b.classList.remove('busy'); b.disabled = false; }
+  };
   // Posts publiés hors du Studio : relus sur les comptes reliés
   $('#statsimport', body).onclick = async (e) => {
     const b = e.currentTarget;

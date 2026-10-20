@@ -235,6 +235,10 @@ button.row-item:active { background: var(--surface-2); }
 .status .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--brand); animation: pulse .8s infinite alternate; }
 .hint { margin: 8px 2px; font-size: 13px; line-height: 1.45; color: var(--muted); }
 .hint.err { color: var(--bad); }
+.card.short { display: grid; gap: 8px; }
+.card.short .row > input { flex: 1 1 180px; width: auto; }
+.card.short select { width: auto; }
+.card.short code { overflow-wrap: anywhere; font-size: 15px; color: var(--text); }
 .center { text-align: center; }
 .notice { display: flex; gap: 8px; align-items: flex-start; margin: 10px 0; padding: 10px 12px; border-radius: 12px; background: var(--surface-2); font-size: 13.5px; text-align: left; }
 .notice .ic { width: 18px; height: 18px; }
