@@ -11,7 +11,9 @@
 - **« Merge »** (ou « merge et publie » tant qu'aucune version finale n'est demandée) = fusionner la PR dans
   `develop` : une **bêta** part toute seule si l'appli change (workflow « Application de bureau » : pré-version
   GitHub `vX.Y.0-beta.<n>`, reçue seulement par les applis inscrites aux bêtas, Réglages → Application ;
-  les 3 dernières gardées).
+  les 3 dernières gardées). Sa page montre « Nouveau dans cette bêta » (ajouté au journal depuis la bêta
+  précédente, calculé tout seul) puis tout ce qui arrive dans la version ; la page de la version finale reprend
+  toute la section du journal.
 - **« Publie » / « publie la version »** = version finale pour tout le monde : remplacer « à venir » par la date
   du jour sur `develop`, PR `develop` → `main` fusionnée, puis workflow « Application de bureau » lancé sur
   `main` avec la version (ex. `v1.28.0`). La page de la version reprend la section du journal

@@ -126,8 +126,19 @@ jobs:
       - uses: actions/checkout@v4
       # Nouveautés de la version (CHANGELOG.md) + instructions d'installation ; échoue si la
       # version n'a pas sa section dans le journal des modifications
+      # Bêta : « Nouveau dans cette bêta » d'après le journal de la bêta précédente (sa pré-version GitHub)
       - name: Notes de version
-        run: node scripts/release-notes.mjs "$RELEASE_TAG" > release-notes.md && cat release-notes.md
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          prev=""
+          if [ "$BETA" = true ]; then
+            prev=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=30" --jq '[.[] | select(.prerelease)][0].tag_name // empty' || true)
+            if [ -n "$prev" ] && git fetch -q --depth=1 origin "refs/tags/$prev:refs/tags/$prev"; then
+              git show "$prev:CHANGELOG.md" > prev-changelog.md || rm -f prev-changelog.md
+            fi
+          fi
+          node scripts/release-notes.mjs "$RELEASE_TAG" prev-changelog.md > release-notes.md && cat release-notes.md
       - uses: actions/download-artifact@v4
         with:
           path: dist

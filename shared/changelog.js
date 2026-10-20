@@ -20,3 +20,24 @@ export function changelogFor(text, tag) {
   const v = String(tag || '').replace(/^v/, '').replace(/-.*$/, '');
   return parseChangelog(text).find((x) => x.version === v) || null;
 }
+
+// Nouveautés d'une section (« ### thème » puis « - nouveauté », lignes suivantes comprises)
+function items(body) {
+  const out = [];
+  let theme = '';
+  let cur = null;
+  for (const line of String(body || '').split(/\r?\n/)) {
+    const h = /^###\s+(.*)$/.exec(line);
+    if (h) { theme = h[1].trim(); cur = null; } else if (/^[-*]\s+/.test(line)) { cur = { theme, text: line }; out.push(cur); } else if (cur && line.trim()) cur.text += `\n${line}`;
+  }
+  return out;
+}
+
+// Ce qu'une section a de plus qu'avant (bêta : ajouté depuis la bêta précédente), regroupé par thème ; '' si rien
+export function newItems(prevBody, body) {
+  const key = (x) => `${x.theme}|${x.text.replace(/\s+/g, ' ').trim()}`;
+  const seen = new Set(items(prevBody).map(key));
+  const fresh = items(body).filter((x) => !seen.has(key(x)));
+  return [...new Set(fresh.map((x) => x.theme))]
+    .map((t) => `${t ? `### ${t}\n` : ''}${fresh.filter((x) => x.theme === t).map((x) => x.text).join('\n')}`).join('\n\n');
+}
