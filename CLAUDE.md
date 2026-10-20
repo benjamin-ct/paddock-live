@@ -27,6 +27,11 @@
   déploie le Worker tout seul à chaque push, mais seulement
   depuis une branche qui contient tout `develop` (la branche de travail reste donc à jour de `develop`). Dès qu'un fichier de l'appli change (`public/`, `server/`,
   `desktop/`, fichier de `shared/` importé par l'appli), ses nouveautés vont dans la version en préparation.
+- **Worker compatible avec les anciennes applis** : il n'y a qu'un Worker, toujours à la dernière version, alors que
+  les applis installées (version finale, bêtas) peuvent avoir du retard. Les adresses que l'appli appelle (`/studio/api/…`
+  dans `server/studio-sync.js` et `server/post-history.js`, `/e`, `/f`, `/t`, `/r`, `/p/api`) gardent leurs noms, leurs
+  paramètres et leurs réponses : on ajoute sans retirer ni changer, et on ne supprime une ancienne forme que quand
+  plus aucune version publiée ne l'utilise.
 - Avant de pousser : `npm test`.
 - **Version anglaise** : tout nouveau texte affiché a sa traduction dans `public/js/i18n-en.js` (clé = texte
   français, `{}` pour les valeurs) ; `node scripts/i18n-missing.mjs` liste ceux qui manquent.
