@@ -342,6 +342,7 @@ async function queuePost(d, o, nets, at, record, video = null, tk = null, link =
   imgs.ig.forEach((b, i) => form.append('ig', b, `image-${i + 1}.jpg`));
   imgs.x.forEach((b, i) => form.append('x', b, `x-${i + 1}.jpg`));
   if (video) form.append('video', video, video.type === 'video/quicktime' ? 'video.mov' : 'video.mp4');
+  if (video?.cover) form.append('cover', video.cover, 'cover.jpg');
   if (tk) form.append('tiktok', JSON.stringify(tk));
   return (await api('schedule', { method: 'POST', body: form })).item;
 }

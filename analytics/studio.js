@@ -10,7 +10,7 @@
 import { DEFAULT_SOURCES, feedUrl } from '../shared/news-sources.js';
 import { extractArticle } from '../shared/article.js';
 import { decodeBody } from '../shared/news-collect.js';
-import { publishFacebook, publishInstagram, publishThreads, freshThreads, commentFacebook, replyThreads, withComment, storyInstagram, storyFacebook, reelInstagram, hostVideo, publishFacebookVideo, publishThreadsVideo, publishFacebookLink, publishThreadsLink } from '../shared/meta-publish.js';
+import { publishFacebook, publishInstagram, publishThreads, freshThreads, commentFacebook, replyThreads, withComment, storyInstagram, storyFacebook, reelInstagram, hostVideo, hostOnPage, publishFacebookVideo, publishThreadsVideo, publishFacebookLink, publishThreadsLink } from '../shared/meta-publish.js';
 import { publishBluesky, replyBluesky } from '../shared/bluesky-publish.js';
 import { freshTiktok, freshYoutube, tiktokDraft, tiktokStatus, tiktokOutcome, youtubeUpload, tiktokCreator, tiktokDirect, TIKTOK_PRIVACY } from '../shared/video-publish.js';
 import { addEntry, removeEntry, cleanKey } from '../shared/post-history.js';
@@ -317,12 +317,13 @@ async function image(req, url) {
 // Envoi sur un réseau (publication directe ou programmée). threads() : compte Threads à jour.
 // video : vidéo du créateur (Reel sur Instagram, vidéo sur Facebook et Threads ; Bluesky garde les visuels)
 // link : post « lien » { url, title, description } sans visuels, la carte de l'article affichée par le réseau
-async function sendTo(net, vault, { text, comment, images, small = [], video = null, link = null }, threads) {
+async function sendTo(net, vault, { text, comment, images, small = [], video = null, cover = null, link = null }, threads) {
   if (link && net === 'facebook') return publishFacebookLink(vault.meta, text, link.url);
   if (link && net === 'threads') return publishThreadsLink(await threads(), text.slice(0, 500), link.url);
   if (link && net === 'bluesky') return publishBluesky(vault.bluesky, [...text].slice(0, 300).join(''), [], link);
-  if (video && net === 'instagram') return reelInstagram(vault.meta, (await hostVideo(vault.meta, video)).url, text.slice(0, 2200));
-  if (video && net === 'facebook') return withComment(() => publishFacebookVideo(vault.meta, text, video), comment, (id, t) => commentFacebook(vault.meta, id, t));
+  // cover : couverture de la vidéo (Reel : par son adresse publique, déposée sur la page ; Facebook : jointe)
+  if (video && net === 'instagram') return reelInstagram(vault.meta, (await hostVideo(vault.meta, video)).url, text.slice(0, 2200), cover ? (await hostOnPage(vault.meta, [cover]))[0].url : null);
+  if (video && net === 'facebook') return withComment(() => publishFacebookVideo(vault.meta, text, video, cover), comment, (id, t) => commentFacebook(vault.meta, id, t));
   if (video && net === 'threads') {
     const th = await threads();
     return withComment(() => publishThreadsVideo(th, vault.meta, text.slice(0, 500), video), comment, (id, t) => replyThreads(th, id, t));
@@ -516,8 +517,9 @@ async function scheduleAdd(req, env, raw, vault, now = Date.now()) {
   if (nets.some((n) => !allowed.includes(n)) || new Set(nets).size !== nets.length) return json({ error: 'Réseau inconnu' }, 400);
   for (const p of posts) if (missing(p.network, vault)) return json({ error: missing(p.network, vault) }, 409);
   const files = (k, n) => form.getAll(k).filter((f) => typeof f === 'object' && f && /^image\/(png|jpeg)$/.test(f.type)).slice(0, n);
-  const sets = { ig: files('ig', 20), x: files('x', 4) };
-  if ([...sets.ig, ...sets.x].some((f) => f.size > SCHED.img)) return json({ error: 'Visuel trop lourd (1,4 Mo au plus)' }, 413);
+  // cover : couverture de la vidéo fabriquée par l'appli (Reel Instagram, vidéo Facebook)
+  const sets = { ig: files('ig', 20), x: files('x', 4), cover: video ? files('cover', 1) : [] };
+  if ([...sets.ig, ...sets.x, ...sets.cover].some((f) => f.size > SCHED.img)) return json({ error: 'Visuel trop lourd (1,4 Mo au plus)' }, 413);
   if ((link ? nets.includes('instagram') : !video && posts.some((p) => p.network !== 'bluesky')) && !sets.ig.length) return json({ error: 'Aucune image' }, 400);
   if (!link && posts.some((p) => p.network === 'bluesky') && !sets.x.length) return json({ error: 'Aucune image' }, 400);
   const tiktok = video && nets.includes('tiktok') && form.get('tiktok') ? tiktokOptions(form.get('tiktok')) : null;
@@ -531,7 +533,7 @@ async function scheduleAdd(req, env, raw, vault, now = Date.now()) {
     for (const [i, f] of list.entries()) await setRow(env, `schedimg:${id}:${set}:${i}`, JSON.stringify({ type: f.type, data: b64big(new Uint8Array(await f.arrayBuffer())) }));
   }
   if (video) await env.MEDIA.put(`sched/${id}`, video, { httpMetadata: { contentType: video.type } });
-  const job = { id, at, title: String(form.get('title') || '').slice(0, 200), record: record && typeof record === 'object' ? record : null, posts, sets: { ig: sets.ig.length, x: sets.x.length }, video: video ? video.type : null, tiktok, link, keys: await seal(await schedKey(env), keys), created: now };
+  const job = { id, at, title: String(form.get('title') || '').slice(0, 200), record: record && typeof record === 'object' ? record : null, posts, sets: { ig: sets.ig.length, x: sets.x.length, cover: sets.cover.length }, video: video ? video.type : null, tiktok, link, keys: await seal(await schedKey(env), keys), created: now };
   await setRow(env, `sched:${id}`, JSON.stringify(job));
   return json({ item: schedSummary({ ...job, nets: Object.fromEntries(nets.map((n) => [n, { status: 'pending' }])) }) });
 }
@@ -611,7 +613,7 @@ export async function runSchedule(env, { now = Date.now() } = {}) {
             : CLIPS.includes(p.network)
             ? await sendClip(p.network, () => (p.network === 'youtube' ? freshYoutube : freshTiktok)(keys[p.network]), new Uint8Array(await video.arrayBuffer()), j.video, tr.text, j.tiktok)
             : j.link && LINKS.includes(p.network) ? await sendTo(p.network, keys, { text: tr.text, link: { ...j.link, url: (await trackPost(env, p.network, { text: j.link.url }, j.record?.title)).text } }, () => freshThreads(keys.threads))
-            : await sendTo(p.network, keys, { text: tr.text, comment: tr.comment, images: p.network === 'bluesky' || video ? [] : await imgs('ig'), small: p.network === 'bluesky' ? await imgs('x') : [], video }, () => freshThreads(keys.threads));
+            : await sendTo(p.network, keys, { text: tr.text, comment: tr.comment, images: p.network === 'bluesky' || video ? [] : await imgs('ig'), small: p.network === 'bluesky' ? await imgs('x') : [], video, cover: video ? (await imgs('cover'))[0] : null }, () => freshThreads(keys.threads));
           if (story) Object.assign(st, { sent: story.from + r.count, total: story.total });
           Object.assign(st, { status: story && st.sent < story.total ? 'pending' : 'done', at: Date.now(), ...resultOf(r), ...(r.note ? { note: r.note } : {}) });
           // Stories (24 heures) : pas dans l'historique, qui garde le post du fil

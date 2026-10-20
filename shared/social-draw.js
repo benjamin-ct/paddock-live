@@ -992,6 +992,44 @@ export function drawSlide(canvas, slide, fmt, d, o = {}) {
   return canvas;
 }
 
+// Couverture des vidéos (Reels, TikTok, Shorts), au format 9:16 : news → étiquette, photo et titre en très
+// gros ; autres posts → leur visuel de couverture. Dessinée dans la zone sûre par la vidéo (social-video.js),
+// elle tient aussi dans la partie centrale que montrent les grilles de profil.
+export function videoCover(ctx, W, H, d, o = {}) {
+  if (!d.news) { paintSlide(ctx, slidesFor(d, { fmt: 'story' }).includes('couverture') ? 'couverture' : slidesFor(d, { fmt: 'story' })[0], 'story', d, o); return; }
+  const u = W / 1080;
+  const pad = Math.round(W * 0.055);
+  const lead = d.drivers.find((p) => o.photos?.[p.num]);
+  background(ctx, W, H, lead?.color || d.color);
+  // Étiquette du type de nouvelle (ou BREAKING), comme sur les visuels
+  const top = Math.round(70 * u);
+  if (d.breaking) breakingTag(ctx, pad + 300 * u, top, 72 * u);
+  else {
+    ctx.font = `800 ${Math.round(40 * u)}px ${TITLE}`;
+    const bw = ctx.measureText(d.badge.label).width + 70 * u;
+    rr(ctx, pad, top, bw, 72 * u, 12 * u); ctx.fillStyle = d.badge.color; ctx.fill();
+    txt(ctx, d.badge.label, pad + bw / 2, top + 50 * u, { size: Math.round(40 * u), weight: 800, family: TITLE, align: 'center', spacing: 3 });
+  }
+  // Photo : celle de l'article, sinon le pilote cité ; titre en très gros dessous (centré sans photo)
+  const custom = d.image?.width ? d.image : null;
+  let y = top + 120 * u;
+  const ph = Math.round(H * 0.36);
+  if (custom) { coverPhoto(ctx, custom, pad, y, W - pad * 2, ph, 28 * u); y += ph + 50 * u; }
+  else if (lead) { photo(ctx, o.photos[lead.num], W * 0.08, y, W * 0.84, ph, lead.color, 0.3); y += ph + 40 * u; }
+  const bottom = H - 150 * u;
+  let pick = null;
+  for (const size of [190, 170, 152, 136, 122, 110, 98, 88, 78].map((v) => Math.round(v * u))) {
+    const t = fitLines(ctx, d.title.toUpperCase(), W - pad * 2, [size], 99, TITLE, 800);
+    pick = { size, lines: t.lines };
+    ctx.font = `800 ${size}px ${TITLE}`;   // chaque ligne (mot long compris) tient sans être resserrée
+    if (t.lines.length * size * 0.96 <= bottom - y && t.lines.every((l) => ctx.measureText(l).width <= W - pad * 2)) break;
+  }
+  const lh = Math.round(pick.size * 0.96);
+  if (!custom && !lead) y += Math.max(0, (bottom - y - pick.lines.length * lh) / 2);
+  pick.lines.forEach((line, i) => txt(ctx, line, pad, y + pick.size * 0.82 + i * lh, { size: pick.size, weight: 800, family: TITLE, max: W - pad * 2 }));
+  txt(ctx, o.signature || '@BenjyPaddock', pad, H - 70 * u, { size: Math.round(40 * u), weight: 700, family: TITLE, spacing: 1 });
+}
+
 // Visuel dessiné sur un contexte (taille du format, transformation du contexte respectée)
 export function paintSlide(ctx, slide, fmt, d, o = {}) {
   const { w, h } = FORMATS[fmt];

@@ -188,14 +188,29 @@ export function safeFrame(paint) {
   };
 }
 
-// Animation : paint(ctx, t) dessine l'image à l'instant t (secondes), placée dans la zone sûre
-export async function makeAnimation(draw, duration, opts = {}) {
-  const paint = safeFrame(draw);
+// Couverture (miniature) : montrée COVER secondes au début de la vidéo (première image, couverture par
+// défaut de TikTok) et rendue en JPEG (couverture envoyée à Instagram et Facebook)
+const COVER = 0.4;
+async function coverJpeg(paint) {
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  paint(c.getContext('2d'), 0);
+  return new Promise((resolve) => c.toBlob(resolve, 'image/jpeg', 0.9));
+}
+
+// Animation : paint(ctx, t) dessine l'image à l'instant t (secondes), placée dans la zone sûre ;
+// opts.cover(ctx) : couverture dessinée au format de la vidéo (résultat : { blob, mime, cover })
+export async function makeAnimation(draw, duration, { cover = null, ...opts } = {}) {
+  const body = safeFrame(draw);
+  const front = cover && safeFrame((ctx) => cover(ctx));
+  const paint = front ? (ctx, t) => (t < COVER ? front(ctx, 0) : body(ctx, t - COVER)) : body;
+  const total = duration + (front ? COVER : 0);
+  const extra = front ? { cover: await coverJpeg(front).catch(() => null) } : {};
   try {
-    const v = await encodeFrames(paint, duration, { music: 'gen', ...opts });
-    if (v) return v;
+    const v = await encodeFrames(paint, total, { music: 'gen', ...opts });
+    if (v) return { ...v, ...extra };
   } catch { /* encodeur du navigateur en échec : enregistrement en temps réel */ }
-  return recordLive(paint, duration, opts);
+  return { ...await recordLive(paint, total, opts), ...extra };
 }
 
 // Enregistrement en temps réel (navigateur sans WebCodecs)
@@ -284,5 +299,6 @@ export async function makeVideo(slides, { perSlide = 3.2, ...opts } = {}) {
     }
     ctx.globalAlpha = 1;
   };
-  return makeAnimation(draw, duration, opts);
+  // Couverture : le premier visuel (sa couverture le plus souvent)
+  return makeAnimation(draw, duration, { cover: slides[0]?.paint ? (ctx) => slides[0].paint(ctx) : null, ...opts });
 }

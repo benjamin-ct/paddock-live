@@ -374,6 +374,12 @@ test('vidéo du créateur : déposée une fois sur la page, Reel Instagram, vid�
     assert.equal(fb.url, 'https://www.facebook.com/page1/videos/vid2');
     const pub = log.findLast((l) => l.path.endsWith('/page1/videos')).form;
     assert.deepEqual([pub.published, pub.description], ['true', 'Post']);
+    assert.equal(pub.thumb, undefined);
+    // Couverture : adresse publique pour le Reel, image jointe à la vidéo Facebook
+    await reelInstagram(meta, 'https://video.test/v.mp4', 'Légende', 'https://img.test/cover.jpg');
+    assert.equal(log.findLast((l) => l.path.endsWith('/ig1/media')).form.cover_url, 'https://img.test/cover.jpg');
+    await publishFacebookVideo(meta, 'Post', video, new Blob([new Uint8Array([0xff, 0xd8, 0xff])], { type: 'image/jpeg' }));
+    assert.equal(log.findLast((l) => l.path.endsWith('/page1/videos')).form.thumb, '<image/jpeg>');
   } finally {
     globalThis.fetch = realFetch;
   }

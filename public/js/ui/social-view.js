@@ -8,7 +8,7 @@ import { t } from '../i18n.js';
 import { toast } from './delay.js';
 import { FLAG_ISO } from './header.js';
 import { postData, captions, xLength } from '/shared/social.js';
-import { FORMATS, slidesFor, drawSlide, slideName, chosenSlides, keptData } from '/shared/social-draw.js';
+import { FORMATS, slidesFor, drawSlide, slideName, chosenSlides, keptData, videoCover } from '/shared/social-draw.js';
 import { followCaptions, questionCaptions } from '/shared/social-follow.js';
 import { raceWeekData, weekendData, recordsData, ratingsData, teamDuelsData, titleData, raceLapsData, recapData, seasonCaptions } from '/shared/social-season.js';
 import { raceFrame, raceVideoTiming } from '/shared/social-draw-season.js';
@@ -234,8 +234,8 @@ async function seasonSource(sig) {
 
 // Vidéo animée (format story) de la course ou d'une news (« Breaking news ») : enregistrée dans le navigateur
 let raceVideo = null;
-const raceVideoMaker = (d, o) => (d.post === 'racelaps' ? (opts) => makeAnimation((ctx, tt) => raceFrame(ctx, 1080, 1920, d, o, tt), raceVideoTiming(d).duration, opts)
-  : d.news && d.breaking ? (opts) => makeAnimation((ctx, tt) => newsFrame(ctx, 1080, 1920, d, o, tt), newsVideoTiming(d).duration, opts) : null);
+const raceVideoMaker = (d, o) => (d.post === 'racelaps' ? (opts) => makeAnimation((ctx, tt) => raceFrame(ctx, 1080, 1920, d, o, tt), raceVideoTiming(d).duration, { cover: (ctx) => videoCover(ctx, 1080, 1920, d, o), ...opts })
+  : d.news && d.breaking ? (opts) => makeAnimation((ctx, tt) => newsFrame(ctx, 1080, 1920, d, o, tt), newsVideoTiming(d).duration, { cover: (ctx) => videoCover(ctx, 1080, 1920, d, o), ...opts }) : null);
 async function buildRaceVideo(dlg, btn) {
   const make = curPost && raceVideoMaker(curPost.d, curPost.o);
   if (!make) return;
