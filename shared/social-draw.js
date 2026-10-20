@@ -986,6 +986,15 @@ export function drawSlide(canvas, slide, fmt, d, o = {}) {
   canvas.height = h;
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, w, h);
+  paintSlide(ctx, slide, fmt, d, o);
+  // Vidéo : visuel redessiné directement (plus petit, dans la zone sûre des applis) plutôt que réduit
+  canvas.paint = (c) => paintSlide(c, slide, fmt, d, o);
+  return canvas;
+}
+
+// Visuel dessiné sur un contexte (taille du format, transformation du contexte respectée)
+export function paintSlide(ctx, slide, fmt, d, o = {}) {
+  const { w, h } = FORMATS[fmt];
   // X : 4 images au plus par post, le sommaire n'annonce que celles publiées
   if (slide === 'news') newsSlide(ctx, w, h, d, o, fmt);
   else if (slide === 'abonnement') follow(ctx, w, h, d, o);
@@ -1018,5 +1027,4 @@ export function drawSlide(canvas, slide, fmt, d, o = {}) {
   else if (slide === 'classement') classement(ctx, w, h, d, o);
   else if (slide === 'faits') faits(ctx, w, h, d, o);
   else if (slide === 'championnat' && d.champ) championnat(ctx, w, h, d, o);
-  return canvas;
 }

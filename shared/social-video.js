@@ -167,27 +167,24 @@ export function unlockAudio() {
 // Zone sûre : sur les téléphones (écran plus allongé que 9:16), Reels, TikTok et Shorts remplissent l'écran
 // en rognant les côtés (environ 9 % de chaque côté, ~100 px) et posent leur interface par-dessus : en haut
 // l'onglet, la recherche ou le retour (~13 %), à droite la colonne J'aime / Commentaire / Partage (~110 px
-// visibles), en bas le compte, la légende et la musique (~18 %). Image dessinée réduite (SAFE.s) dans le
-// rectangle libre, sur un fond tiré d'elle-même (floutée en passant par une toute petite image, assombrie) :
-// rien de coupé ni caché, pas de bandes noires.
+// visibles), en bas le compte, la légende et la musique (~18 %). L'image est dessinée réduite (SAFE.s) dans
+// le rectangle libre ; ses aplats pleine page (fond, lueurs, fondus) couvrent toute la vidéo : un seul fond
+// continu, rien de coupé ni caché, ni bandes noires ni cadre.
 const SAFE = { x: 120, y: 260, s: 0.68 };
 export function safeFrame(paint) {
-  const inner = document.createElement('canvas');
-  inner.width = W; inner.height = H;
-  const ic = inner.getContext('2d');
-  const tiny = document.createElement('canvas');
-  tiny.width = 9; tiny.height = 16;
-  const tc = tiny.getContext('2d');
   return (ctx, t) => {
-    paint(ic, t);
-    tc.drawImage(inner, 0, 0, tiny.width, tiny.height);
-    ctx.globalAlpha = 1;
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(tiny, 0, 0, W, H);
-    ctx.fillStyle = 'rgba(0, 0, 0, .3)';
-    ctx.fillRect(0, 0, W, H);
-    ctx.drawImage(inner, SAFE.x, SAFE.y, W * SAFE.s, H * SAFE.s);
+    const fill = ctx.fillRect;
+    ctx.fillRect = function fullRect(x, y, w, h) {
+      if (x !== 0 || y !== 0 || w !== W || h !== H) return fill.call(this, x, y, w, h);
+      // Aplat de toute l'image : étendu à toute la vidéo (coins de la vidéo ramenés dans le repère courant)
+      const m = this.getTransform().invertSelf();
+      const pts = [[0, 0], [W, 0], [0, H], [W, H]].map(([a, b]) => m.transformPoint({ x: a, y: b }));
+      const xs = pts.map((q) => q.x); const ys = pts.map((q) => q.y);
+      return fill.call(this, Math.min(...xs), Math.min(...ys), Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys));
+    };
+    ctx.save();
+    ctx.setTransform(SAFE.s, 0, 0, SAFE.s, SAFE.x, SAFE.y);
+    try { paint(ctx, t); } finally { ctx.restore(); delete ctx.fillRect; }
   };
 }
 
@@ -270,8 +267,12 @@ export async function makeVideo(slides, { perSlide = 3.2, ...opts } = {}) {
     const local = t - i * perSlide;
     const paint = (c, k, alpha, dy = 0) => {
       const s = 1 + 0.045 * k;
+      ctx.save();
       ctx.globalAlpha = alpha;
-      ctx.drawImage(c, (W - W * s) / 2, (H - H * s) / 2 + dy, W * s, H * s);
+      ctx.translate((W - W * s) / 2, (H - H * s) / 2 + dy);
+      ctx.scale(s, s);
+      if (c.paint) c.paint(ctx); else ctx.drawImage(c, 0, 0, W, H);
+      ctx.restore();
     };
     ctx.globalAlpha = 1;
     ctx.fillStyle = '#0b0d12'; ctx.fillRect(0, 0, W, H);
