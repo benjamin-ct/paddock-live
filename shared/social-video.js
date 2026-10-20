@@ -202,7 +202,8 @@ async function coverJpeg(paint) {
 // opts.cover(ctx) : couverture dessinée au format de la vidéo (résultat : { blob, mime, cover })
 export async function makeAnimation(draw, duration, { cover = null, ...opts } = {}) {
   const body = safeFrame(draw);
-  const front = cover && safeFrame((ctx) => cover(ctx));
+  // Couverture en plein cadre (son contenu reste dans la partie centrale, celle des grilles de profil)
+  const front = cover && ((ctx) => { ctx.save(); ctx.globalAlpha = 1; cover(ctx); ctx.restore(); });
   const paint = front ? (ctx, t) => (t < COVER ? front(ctx, 0) : body(ctx, t - COVER)) : body;
   const total = duration + (front ? COVER : 0);
   const extra = front ? { cover: await coverJpeg(front).catch(() => null) } : {};
