@@ -12,7 +12,7 @@
 //   fichiers de la dernière version (download.js).
 // - tâche planifiée (toutes les 5 min) : alertes des grosses news sur le téléphone du créateur (alerts.js).
 import { cleanBatch, LABELS, FEATURE_GROUPS } from '../shared/stats.js';
-import { studioApi, runSchedule, seasonRow } from './studio.js';
+import { studioApi, runSchedule, schedInternal, seasonRow } from './studio.js';
 import { loginPage, dashboardPage } from './page.js';
 import { cleanRequest, translateBatch } from './translate.js';
 import { cleanSummaryRequest, summarizeArticle } from './summarize.js';
@@ -293,6 +293,8 @@ export default {
       return env.ASSETS.fetch(new Request(new URL('/p/', url), req));
     }
     // Page web du créateur : API (la page elle-même est un fichier statique, dossier site/)
+    // Publication d'un réseau, appelée par la tâche planifiée elle-même (voir runSchedule)
+    if (req.method === 'POST' && url.pathname === '/internal/sched') return schedInternal(req, env);
     if (url.pathname.startsWith('/studio/api/')) {
       try { return await studioApi(req, env, url); } catch { return json({ error: 'Erreur' }, 500); }
     }

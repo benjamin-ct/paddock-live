@@ -9,7 +9,7 @@ process.env.PADDOCK_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'paddock-st
 const CODE = 'ESSAI-42';
 const HASH = (await import('node:crypto')).createHash('sha256').update(`paddock-live:${CODE}`).digest('hex');
 process.env.PADDOCK_CREATOR_HASH = HASH;
-const { studioApi, freshF1tv, runSchedule, seasonRow } = await import('../analytics/studio.js');
+const { studioApi, freshF1tv, runSchedule, schedInternal, seasonRow } = await import('../analytics/studio.js');
 const { studioKey, enableStudio, syncStudio, disableStudio, studioInfo, studioRewrite } = await import('../server/studio-sync.js');
 const { saveConfig, getConfig } = await import('../server/config.js');
 const { timing } = await import('../shared/meta-publish.js');
@@ -34,6 +34,8 @@ function fakeDB() {
           throw new Error(`SQL inattendu : ${sql}`);
         },
         async run() {
+          if (/^INSERT INTO studio \(.*DO NOTHING$/.test(sql)) { if (studio.has(args[0])) return { meta: { changes: 0 } }; studio.set(args[0], args[1]); return { meta: { changes: 1 } }; }
+          if (/^UPDATE studio SET v = \?, at = \? WHERE k = \? AND v = \?$/.test(sql)) { if (studio.get(args[2]) !== args[3]) return { meta: { changes: 0 } }; studio.set(args[2], args[0]); return { meta: { changes: 1 } }; }
           if (/^INSERT INTO studio \(/.test(sql)) studio.set(args[0], args[1]);
           else if (/^INSERT INTO studio_fail/.test(sql)) fails.set(`${args[0]}|${args[1]}`, (fails.get(`${args[0]}|${args[1]}`) || 0) + 1);
           else if (/^DELETE FROM studio$/.test(sql)) studio.clear();
@@ -323,6 +325,23 @@ test('page du créateur : publication programmée, publiée par le serveur à l\
     assert.equal(hist.items[0].key, 'race-2026-18');
     assert.deepEqual(Object.keys(hist.items[0].nets).sort(), ['bluesky', 'facebook']);
     assert.equal(hist.items[0].nets.facebook.url, 'https://www.facebook.com/p1_43');
+    // Worker lié à lui-même : chaque réseau envoyé par un appel à part (clé du serveur exigée), tous au même
+    // passage ; un réseau déjà pris n'est jamais renvoyé, même demandé à nouveau
+    const par = (await (await add()).json()).item;
+    const asked = [];
+    env.SELF = { fetch: async (u, init) => { asked.push(JSON.parse(init.body).net); return schedInternal(new Request(u, init), env); } };
+    try {
+      assert.deepEqual(await runSchedule(env, { now: at + 1 }), { published: ['facebook', 'bluesky'], parallel: true });
+      assert.deepEqual(asked.sort(), ['bluesky', 'facebook']);
+      const nets = (await (await worker('https://s.test/studio/api/schedule', { headers: key })).json()).items.find((x) => x.id === par.id).nets;
+      assert.deepEqual([nets.facebook.status, nets.bluesky.status], ['done', 'done']);
+      const n = calls.length;
+      assert.equal(await runSchedule(env, { now: at + 2, only: { id: par.id, net: 'facebook' } }), null);
+      assert.equal(calls.length, n);
+      assert.equal((await schedInternal(new Request('https://self/internal/sched', { method: 'POST', body: '{}' }), env)).status, 403);
+    } finally { delete env.SELF; }
+    await runSchedule(env, { now: at + 60e3 });   // passage suivant : notification et nettoyage
+    assert.equal((await (await worker('https://s.test/studio/api/schedule', { headers: key })).json()).items.length, 0);
     // Stories : sans texte, jamais mêlées aux posts du fil, absentes de l'historique
     assert.equal((await add({ posts: [{ network: 'facebook-story' }, { network: 'facebook', text: 'x' }] })).status, 400);
     const story = (await (await add({ posts: [{ network: 'facebook-story' }] })).json()).item;
