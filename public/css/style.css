@@ -2953,6 +2953,8 @@ html.float-mini .float-bar { top: auto; bottom: 4px; right: 24px; }   /* en bas 
 #changelog .cl-more { display: block; width: 100%; padding: 11px; border: 0; border-top: 1px solid var(--border); border-radius: 0; background: none; color: var(--accent); font-weight: 600; }
 .diag-new { color: var(--orange); }
 .diag-list { margin: 4px 0 0; padding-left: 18px; line-height: 1.6; }
+.diag-table { border-collapse: collapse; margin: 4px 0 8px; font-variant-numeric: tabular-nums; }
+.diag-table th, .diag-table td { padding: 2px 8px; text-align: right; border-bottom: 1px solid var(--border); }
 #feedDiagOut:empty { display: none; }
 .kbd-list { display: grid; grid-template-columns: max-content minmax(0, 1fr); align-items: center; gap: 10px 16px; font-size: 13px; }
 .kbd-list > span:nth-child(odd) { display: flex; gap: 4px; }

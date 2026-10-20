@@ -95,8 +95,6 @@ export class LiveSource {
       ws.on('open', () => {
         ws.send(JSON.stringify({ protocol: 'json', version: 1 }) + RS);
         ws.send(JSON.stringify({ type: 1, invocationId: '1', target: 'Subscribe', arguments: [LIVE_TOPICS] }) + RS);
-        // À part : flux cachés testés (diagnostic des données F1), sans effet sur l'abonnement principal
-        ws.send(JSON.stringify({ type: 1, invocationId: '2', target: 'Subscribe', arguments: [PROBE_TOPICS] }) + RS);
         this.lastMessageAt = Date.now();
         this.timers.push(setInterval(() => {
           if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 6 }) + RS);
@@ -142,9 +140,12 @@ export class LiveSource {
         return;
       }
       this.retry = 0;
+      this.session = sessionLabel(msg.result?.SessionInfo);
       this.onSnapshot(msg.result || {}, now);
+      // À part, une fois la séance connue : flux cachés testés (diagnostic des données F1)
+      this.ws?.send(JSON.stringify({ type: 1, invocationId: '2', target: 'Subscribe', arguments: [PROBE_TOPICS] }) + RS);
     } else if (msg.type === 3 && msg.invocationId === '2') {
-      probeAnswer(msg.result, msg.error, this.hub.source.session);
+      probeAnswer(msg.result, msg.error, this.session);
     } else if (msg.type === 1 && msg.target === 'feed' && Array.isArray(msg.arguments)) {
       const [rawTopic, data] = msg.arguments;
       this.onFeed(rawTopic, data, now);
