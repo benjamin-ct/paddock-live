@@ -24,7 +24,8 @@
   statistiques (Worker : `analytics/**`, page du Studio, `scripts/build-studio.mjs`, et les fichiers de `shared/`
   que l'appli n'importe pas, ni directement ni par un autre fichier de `shared/` — vérifier avec
   `grep -rl <fichier> public server shared`), pas d'entrée dans `CHANGELOG.md` : le workflow « Statistiques »
-  déploie le Worker tout seul à chaque push. Dès qu'un fichier de l'appli change (`public/`, `server/`,
+  déploie le Worker tout seul à chaque push, mais seulement
+  depuis une branche qui contient tout `develop` (la branche de travail reste donc à jour de `develop`). Dès qu'un fichier de l'appli change (`public/`, `server/`,
   `desktop/`, fichier de `shared/` importé par l'appli), ses nouveautés vont dans la version en préparation.
 - Avant de pousser : `npm test`.
 - **Version anglaise** : tout nouveau texte affiché a sa traduction dans `public/js/i18n-en.js` (clé = texte

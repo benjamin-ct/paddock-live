@@ -56,7 +56,24 @@ permissions:
   contents: read
 
 jobs:
+  # Un seul Studio, en production : on ne déploie que depuis une branche qui contient tout develop,
+  # sinon une branche en retard (correction faite depuis main…) remettrait une ancienne version.
+  a-jour:
+    runs-on: ubuntu-latest
+    outputs:
+      ok: ${{ steps.c.outputs.ok }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: c
+        run: |
+          if git merge-base --is-ancestor origin/develop HEAD; then echo ok=1 >> "$GITHUB_OUTPUT"
+          else echo "::notice::Studio non déployé : cette branche n'a pas toutes les modifications de develop"; fi
+
   deploy:
+    needs: a-jour
+    if: needs.a-jour.outputs.ok == '1'
     runs-on: ubuntu-latest
     defaults:
       run:
