@@ -12,6 +12,16 @@ l'application (Réglages → À propos → Nouveautés).
   n'accélère plus, et le temps passé dans chaque cas sur le dernier tour. La F1 ne publie pas la charge de la
   batterie : ce sont des estimations tirées de la vitesse, de l'accélérateur et du frein.
 
+### Direction de course
+- Messages de la direction de course en vrai français : drapeaux, incidents, enquêtes, pénalités, tours
+  supprimés, voiture de sécurité… sont traduits par l'appli elle-même, sans les phrases incompréhensibles de la
+  traduction automatique (« incident inclusif »…), et même sans connexion au serveur. Les alertes de vos pilotes
+  favoris et la liste des événements sont aussi en français.
+
+### Navigation
+- Bouton « Direct » de la barre latérale pendant un replay : retour au direct (écran d'attente s'il n'y a pas
+  de séance en cours), au lieu de rester sur le replay.
+
 ### Mises à jour
 - Versions bêta : nouveau réglage « Recevoir les versions bêta » (Réglages → Application) pour essayer les
   nouveautés avant leur sortie pour tout le monde. Décoché, l'appli ne reçoit que les versions finales.
