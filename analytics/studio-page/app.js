@@ -84,8 +84,8 @@ function enter(el, dir) {
 function home({ from = 'up' } = {}) {
   app.className = 'shell';
   app.innerHTML = `<header class="appbar"><div class="brand">${LOGO}<span>Paddock <b>Studio</b></span></div><span class="grow"></span>
-      <a class="iconbtn labeled" href="https://paddocklive.app/" title="Retour au site">${icon('home')}<small>Site</small></a>
-      <button class="iconbtn labeled" id="refresh">${icon('refresh')}<small>Actualiser</small></button><button class="iconbtn labeled" id="inbox">${icon('mail')}<i class="count" hidden></i><small>Messages</small></button><button class="iconbtn labeled" id="settings">${icon('settings')}<small>Réglages</small></button></header>
+      <a class="iconbtn" href="https://paddocklive.app/" aria-label="Retour au site" title="Retour au site">${icon('home')}</a>
+      <button class="iconbtn" id="refresh" aria-label="Actualiser" title="Actualiser">${icon('refresh')}</button><button class="iconbtn" id="inbox" aria-label="Messages" title="Messages">${icon('mail')}<i class="count" hidden></i></button><button class="iconbtn" id="settings" aria-label="Réglages" title="Réglages">${icon('settings')}</button></header>
     <main class="page" id="body"></main>
     <nav class="tabbar" style="--i:${tabIndex(state.tab)}"><div class="side-brand">${LOGO}<span>Paddock <b>Studio</b></span></div><span class="lens"></span>${TABS.map(([k, v, ic]) => `<button data-tab="${k}" class="${state.tab === k ? 'on' : ''}">${icon(ic)}<span>${v}</span></button>`).join('')}</nav>`;
   $('#settings').onclick = settings;
