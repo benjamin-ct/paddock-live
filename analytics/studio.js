@@ -547,15 +547,16 @@ async function scheduleCancel(env, id) {
   return json({ items: (await schedJobs(env)).map(schedSummary) });
 }
 
-// Relevé du serveur : publie les programmations arrivées à l'heure. Renvoie { published } (le dernier
-// réseau) si un post est parti (le relevé des alertes attend alors le passage suivant), null sinon.
+// Relevé du serveur : publie les programmations arrivées à l'heure, un réseau par passage. Renvoie
+// { published } si un post est parti (le relevé des alertes attend alors le passage suivant), null sinon.
 export async function runSchedule(env, { now = Date.now() } = {}) {
   if (!env.DB || !env.STATS_KEY) return null;
   const jobs = await schedJobs(env);
   const setState = (j, net, st) => setRow(env, `schedpost:${j.id}:${net}`, JSON.stringify(st));
-  // Programmation prise en entier (tous ses réseaux « en cours »), puis publiée réseau après réseau ; les
-  // nouvelles sont commencées dans les 40 premières secondes : le passage suivant (une minute plus tard,
-  // parfois en même temps que celui-ci) relit les états après elles et ne renvoie jamais un post
+  // Un seul réseau par passage (toutes les minutes) : chacun a toutes les sous-requêtes permises à un passage
+  // du Worker (50 ; un carrousel Instagram en prend déjà une bonne part). Réseau marqué « en cours » avant
+  // l'envoi, commencé dans les 40 premières secondes : le passage suivant (une minute plus tard, parfois en
+  // même temps que celui-ci) relit les états après lui et ne renvoie jamais un post
   const start = Date.now();
   let out = null;
   for (const j of jobs) {
@@ -563,9 +564,10 @@ export async function runSchedule(env, { now = Date.now() } = {}) {
     for (const [net, st] of Object.entries(j.nets)) {
       if (st.status === 'running' && now - (st.started || 0) > SCHED.running) { st.status = 'error'; st.error = 'Envoi interrompu : vérifiez sur le réseau'; await setState(j, net, st); }
     }
-    const due = j.at <= now && Date.now() - start <= 40e3 ? j.posts.filter((p) => j.nets[p.network].status === 'pending') : [];
-    if (due.length && now - j.at > SCHED.late) {
-      for (const p of due) { j.nets[p.network].status = 'expired'; await setState(j, p.network, j.nets[p.network]); }
+    const pending = j.at <= now ? j.posts.filter((p) => j.nets[p.network].status === 'pending') : [];
+    const due = !out && Date.now() - start <= 40e3 ? pending.slice(0, 1) : [];
+    if (pending.length && now - j.at > SCHED.late) {
+      for (const p of pending) { j.nets[p.network].status = 'expired'; await setState(j, p.network, j.nets[p.network]); }
     } else if (due.length) {
       for (const p of due) { j.nets[p.network].status = 'running'; await setState(j, p.network, { status: 'running', started: now }); }
       const keys = await open(await schedKey(env), j.keys).catch(() => null);

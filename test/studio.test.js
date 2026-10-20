@@ -297,10 +297,14 @@ test('page du créateur : publication programmée, publiée par le serveur à l\
     // Pas encore l'heure : rien ne part
     assert.equal(await runSchedule(env, { now: at - 60e3 }), null);
     assert.equal(calls.length, 0);
-    // À l'heure : tous les réseaux dans le même passage, jamais renvoyés au suivant
-    assert.deepEqual(await runSchedule(env, { now: at + 1 }), { published: 'bluesky', id: item.id });
-    assert.ok(calls.some((c) => c.endsWith('/photos')) && calls.some((c) => c.endsWith('createRecord')));
-    assert.equal(await runSchedule(env, { now: at + 60e3 }), null);
+    // À l'heure : un réseau par passage (limite de sous-requêtes du Worker), jamais renvoyé au suivant
+    assert.deepEqual(await runSchedule(env, { now: at + 1 }), { published: 'facebook', id: item.id });
+    const photos = calls.filter((c) => c.endsWith('/photos')).length;
+    assert.ok(photos && !calls.some((c) => c.endsWith('createRecord')));
+    assert.equal((await (await worker('https://s.test/studio/api/schedule', { headers: key })).json()).items[0].nets.bluesky.status, 'pending');
+    assert.deepEqual(await runSchedule(env, { now: at + 60e3 }), { published: 'bluesky', id: item.id });
+    assert.equal(calls.filter((c) => c.endsWith('/photos')).length, photos, 'Facebook pas renvoyé');
+    assert.equal(await runSchedule(env, { now: at + 120e3 }), null);
     // Tout publié : retirée aussitôt de la liste (visuels, jetons et trace effacés), journal complété
     const list = await (await worker('https://s.test/studio/api/schedule', { headers: key })).json();
     assert.equal(list.items.length, 0);
@@ -322,6 +326,7 @@ test('page du créateur : publication programmée, publiée par le serveur à l\
     const ok = globalThis.fetch;
     globalThis.fetch = async (url, opts) => (new URL(url).pathname.endsWith('/feed') ? new Response(JSON.stringify({ error: { message: 'Refusé' } }), { status: 400 }) : ok(url, opts));
     await runSchedule(env, { now: at + 180e3 });
+    await runSchedule(env, { now: at + 240e3 });
     globalThis.fetch = ok;
     const kept = (await (await worker('https://s.test/studio/api/schedule', { headers: key })).json()).items.find((x) => x.id === bad.id);
     assert.equal(kept.nets.facebook.status, 'error');
@@ -396,6 +401,7 @@ test('page du créateur : vidéo confiée au serveur (stockage R2), publiée par
     throw new Error(`inattendu : ${u}`);
   };
   try {
+    assert.equal((await runSchedule(env)).id, item.id);
     assert.deepEqual(await runSchedule(env), { published: 'bluesky', id: item.id });
   } finally { globalThis.fetch = realFetch; }
   // Vidéo envoyée à YouTube, visuels à Bluesky ; vidéo effacée du stockage une fois publiée
@@ -446,6 +452,7 @@ test('page du créateur : post « lien » sans visuels (carte de l\'article affi
     throw new Error(`inattendu : ${url}`);
   };
   try {
+    assert.deepEqual(await runSchedule(env), { published: 'facebook', id: item.id });
     assert.deepEqual(await runSchedule(env), { published: 'bluesky', id: item.id });
   } finally { globalThis.fetch = realFetch; }
   // Facebook : texte et lien (adresse d'origine : la base de test n'a pas les liens suivis), sans photo ;
