@@ -171,11 +171,15 @@ export function unlockAudio() {
 // le rectangle libre ; ses aplats pleine page (fond, lueurs, fondus) couvrent toute la vidéo : un seul fond
 // continu, rien de coupé ni caché, ni bandes noires ni cadre.
 const SAFE = { x: 120, y: 260, s: 0.68 };
-export function safeFrame(paint) {
+// Vidéos animées (course, Breaking news) : mise en page refaite à la taille du rectangle libre (texte et
+// graphique plus grands qu'une image réduite) ; paint(ctx, t, w, h)
+const BOX = { x: 100, y: 240, w: 790, h: 1340 };
+export function safeFrame(paint, { box = false } = {}) {
+  const [ox, oy, s, fw, fh] = box ? [BOX.x, BOX.y, 1, BOX.w, BOX.h] : [SAFE.x, SAFE.y, SAFE.s, W, H];
   return (ctx, t) => {
     const fill = ctx.fillRect;
     ctx.fillRect = function fullRect(x, y, w, h) {
-      if (x !== 0 || y !== 0 || w !== W || h !== H) return fill.call(this, x, y, w, h);
+      if (x !== 0 || y !== 0 || w !== fw || h !== fh) return fill.call(this, x, y, w, h);
       // Aplat de toute l'image : étendu à toute la vidéo (coins de la vidéo ramenés dans le repère courant)
       const m = this.getTransform().invertSelf();
       const pts = [[0, 0], [W, 0], [0, H], [W, H]].map(([a, b]) => m.transformPoint({ x: a, y: b }));
@@ -183,8 +187,8 @@ export function safeFrame(paint) {
       return fill.call(this, Math.min(...xs), Math.min(...ys), Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys));
     };
     ctx.save();
-    ctx.setTransform(SAFE.s, 0, 0, SAFE.s, SAFE.x, SAFE.y);
-    try { paint(ctx, t); } finally { ctx.restore(); delete ctx.fillRect; }
+    ctx.setTransform(s, 0, 0, s, ox, oy);
+    try { paint(ctx, t, fw, fh); } finally { ctx.restore(); delete ctx.fillRect; }
   };
 }
 
@@ -199,9 +203,10 @@ async function coverJpeg(paint) {
 }
 
 // Animation : paint(ctx, t) dessine l'image à l'instant t (secondes), placée dans la zone sûre ;
-// opts.cover(ctx) : couverture dessinée au format de la vidéo (résultat : { blob, mime, cover })
-export async function makeAnimation(draw, duration, { cover = null, ...opts } = {}) {
-  const body = safeFrame(draw);
+// opts.cover(ctx) : couverture dessinée au format de la vidéo (résultat : { blob, mime, cover }) ;
+// opts.box : draw(ctx, t, w, h) mis en page à la taille du rectangle libre (sinon image réduite)
+export async function makeAnimation(draw, duration, { cover = null, box = false, ...opts } = {}) {
+  const body = safeFrame(draw, { box });
   // Couverture en plein cadre (son contenu reste dans la partie centrale, celle des grilles de profil)
   const front = cover && ((ctx) => { ctx.save(); ctx.globalAlpha = 1; cover(ctx); ctx.restore(); });
   const paint = front ? (ctx, t) => (t < COVER ? front(ctx, 0) : body(ctx, t - COVER)) : body;

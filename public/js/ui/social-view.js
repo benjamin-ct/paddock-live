@@ -234,8 +234,8 @@ async function seasonSource(sig) {
 
 // Vidéo animée (format story) de la course ou d'une news (« Breaking news ») : enregistrée dans le navigateur
 let raceVideo = null;
-const raceVideoMaker = (d, o) => (d.post === 'racelaps' ? (opts) => makeAnimation((ctx, tt) => raceFrame(ctx, 1080, 1920, d, o, tt), raceVideoTiming(d).duration, { cover: (ctx) => videoCover(ctx, 1080, 1920, d, o), ...opts })
-  : d.news && d.breaking ? (opts) => makeAnimation((ctx, tt) => newsFrame(ctx, 1080, 1920, d, o, tt), newsVideoTiming(d).duration, { cover: (ctx) => videoCover(ctx, 1080, 1920, d, o), ...opts }) : null);
+const raceVideoMaker = (d, o) => (d.post === 'racelaps' ? (opts) => makeAnimation((ctx, tt, w, h) => raceFrame(ctx, w, h, d, o, tt), raceVideoTiming(d).duration, { box: true, cover: (ctx) => videoCover(ctx, 1080, 1920, d, o), ...opts })
+  : d.news && d.breaking ? (opts) => makeAnimation((ctx, tt, w, h) => newsFrame(ctx, w, h, d, o, tt), newsVideoTiming(d).duration, { box: true, cover: (ctx) => videoCover(ctx, 1080, 1920, d, o), ...opts }) : null);
 async function buildRaceVideo(dlg, btn) {
   const make = curPost && raceVideoMaker(curPost.d, curPost.o);
   if (!make) return;
