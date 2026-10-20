@@ -186,9 +186,23 @@ export function safeFrame(paint, { box = false } = {}) {
       const xs = pts.map((q) => q.x); const ys = pts.map((q) => q.y);
       return fill.call(this, Math.min(...xs), Math.min(...ys), Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys));
     };
+    // Liseré pleine image (Breaking news) : autour de tout l'écran, pas du contenu réduit
+    const stroke = ctx.strokeRect;
+    ctx.strokeRect = function edgeRect(x, y, w, h) {
+      if (Math.abs(x * 2 + w - fw) > 1 || Math.abs(y * 2 + h - fh) > 1 || x > fw * 0.05) return stroke.call(this, x, y, w, h);
+      const k = this.getTransform().a;
+      const per = (2 * (W + H)) / (2 * (fw + fh) * k);   // tirets (tracé progressif) à l'échelle du tour d'écran
+      this.save();
+      this.setTransform(1, 0, 0, 1, 0, 0);
+      this.lineWidth *= k;
+      this.setLineDash(this.getLineDash().map((v) => v * k * per));
+      const lw = this.lineWidth;
+      stroke.call(this, lw / 2, lw / 2, W - lw, H - lw);
+      this.restore();
+    };
     ctx.save();
     ctx.setTransform(s, 0, 0, s, ox, oy);
-    try { paint(ctx, t, fw, fh); } finally { ctx.restore(); delete ctx.fillRect; }
+    try { paint(ctx, t, fw, fh); } finally { ctx.restore(); delete ctx.fillRect; delete ctx.strokeRect; }
   };
 }
 
