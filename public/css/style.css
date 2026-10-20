@@ -733,6 +733,10 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
 .dl-rpm { fill: var(--text); font-size: 15px; font-weight: 700; text-anchor: middle; font-variant-numeric: tabular-nums; }
 .dl-unit { fill: var(--muted); font-size: 9px; font-weight: 700; letter-spacing: .8px; text-anchor: middle; }
 .dl-gear { fill: var(--text); font-size: 20px; font-weight: 900; text-anchor: middle; }
+/* Énergie estimée : recharge (pied levé) et batterie vide (plein gaz sans accélérer) */
+.dl-energy { font-size: 11px; font-weight: 800; letter-spacing: .8px; text-anchor: middle; }
+.dl-energy.harvest { fill: var(--green); }
+.dl-energy.clip { fill: var(--orange); }
 .tele-trace { width: 100%; height: 110px; }
 .tele-photo { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; object-position: top; background: var(--panel-3); }
 

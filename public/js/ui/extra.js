@@ -1,6 +1,6 @@
 // Onglets : télémétrie du pilote suivi, stratégie pneus, météo, championnat (prévision).
 import { store, displayNow, versionOf, setFocus } from '../store.js';
-import { Dial, SpeedTrace, animate, carNow } from './gauge.js';
+import { Dial, SpeedTrace, animate, carNow, energyOf } from './gauge.js';
 import { $, esc, drivers, orderedNumbers, teamColor, teamMark, stintsOf, compoundInfo, COMPOUNDS, fmtLap, fmtSigned, lapSeconds } from '../util.js';
 import { icon } from '../icons.js';
 import { realStints } from '/shared/pits.js';
@@ -31,12 +31,12 @@ function animateTelemetry() {
     const disp = displayNow();
     const colA = teamColor(dl[tele.num] || {});
     tele.dialA.setColor(colA);
-    tele.dialA.update(carNow(tele.num, disp), dt);
+    tele.dialA.update(carNow(tele.num, disp), dt, energyOf(tele.num, disp));
     let colB = null;
     if (tele.numB && tele.dialB) {
       colB = teamColor(dl[tele.numB] || {});
       tele.dialB.setColor(colB);
-      tele.dialB.update(carNow(tele.numB, disp), dt);
+      tele.dialB.update(carNow(tele.numB, disp), dt, energyOf(tele.numB, disp));
     }
     tele.trace.update([
       { num: tele.num, color: colA },

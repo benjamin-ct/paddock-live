@@ -4,7 +4,7 @@ import { prefs } from '../prefs.js';
 import { $, esc, drivers, orderedNumbers, sessionKind, teamColor, tyreBadge, currentStint, fmtLap, fmtSigned, photoUrl } from '../util.js';
 import { parseGap, parseLapTime } from '/shared/f1.js';
 import { lineChart } from './charts.js';
-import { Dial, animate, carNow } from './gauge.js';
+import { Dial, animate, carNow, energyOf } from './gauge.js';
 import { DEC } from '../i18n.js';
 import { realStopCount } from '/shared/pits.js';
 
@@ -286,8 +286,8 @@ function renderDuelTele(a, b) {
     const t = duelTele;
     if (!t || !t.dialA.el.isConnected || !t.dialA.el.getClientRects().length) return false;
     const disp = displayNow();
-    t.dialA.update(carNow(t.a, disp), dt);
-    t.dialB.update(carNow(t.b, disp), dt);
+    t.dialA.update(carNow(t.a, disp), dt, energyOf(t.a, disp));
+    t.dialB.update(carNow(t.b, disp), dt, energyOf(t.b, disp));
     return true;
   });
 }

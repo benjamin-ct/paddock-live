@@ -3,6 +3,9 @@
 // stroke-dasharray) et les textes changent. Les valeurs viennent de la télémétrie interpolée
 // (positions.carLerp) puis d'un léger lissage, pour un mouvement continu à 60 images/s.
 import { store, displayNow } from '../store.js';
+import { t, dec } from '../i18n.js';
+import { energyNow, energyTotals } from '/shared/energy.js';
+import { parseLapTime } from '/shared/f1.js';
 
 const NS = 'http://www.w3.org/2000/svg';
 export const SPEED_MAX = 360;
@@ -66,7 +69,9 @@ export class Dial {
       <text x="${cx}" y="${cy + 10}" class="dl-unit">KM/H</text>
       <text x="${cx}" y="${cy + 33}" class="dl-rpm" data-k="rpmTxt">—</text>
       <text x="${cx}" y="${cy + 46}" class="dl-unit">TR/MIN</text>
-      <text x="${cx}" y="${cy + 108}" class="dl-gear"><tspan class="dl-unit">RAPPORT </tspan><tspan data-k="gearTxt">—</tspan></text>
+      <text x="${cx}" y="${cy + 70}" class="dl-energy" data-k="energy"></text>
+      <text x="${cx}" y="${cy + 116}" class="dl-unit" data-k="energyLap"></text>
+      <text x="${cx}" y="${cy + 96}" class="dl-gear"><tspan class="dl-unit">RAPPORT </tspan><tspan data-k="gearTxt">—</tspan></text>
     </svg>`;
     this.el = wrap.firstElementChild;
     this.k = {};
@@ -93,8 +98,9 @@ export class Dial {
     if (this.txt[key] !== s) { this.txt[key] = s; this.k[key].textContent = s; }
   }
 
-  // c : télémétrie interpolée (ou null) ; dt : secondes depuis l'image précédente
-  update(c, dt = 0) {
+  // c : télémétrie interpolée (ou null) ; dt : secondes depuis l'image précédente ; e : énergie estimée
+  // (energyOf), sous le régime
+  update(c, dt = 0, e = null) {
     const tgt = c ? { speed: c.speed ?? 0, thr: c.thr ?? 0, brk: c.brk ?? 0, rpm: c.rpm ?? 0 } : { speed: 0, thr: 0, brk: 0, rpm: 0 };
     // Lissage exponentiel très court (~50 ms) : gomme les cassures entre échantillons sans retard visible
     const a = !this.v || !dt ? 1 : 1 - Math.exp(-dt / 0.05);
@@ -107,7 +113,26 @@ export class Dial {
     this.text('speedTxt', c?.speed === null || c?.speed === undefined ? '—' : String(Math.round(v.speed)));
     this.text('rpmTxt', c?.rpm === null || c?.rpm === undefined ? '—' : String(Math.round(v.rpm / 10) * 10));
     this.text('gearTxt', c?.gear === 0 ? 'N' : c?.gear === null || c?.gear === undefined ? '—' : String(c.gear));
+    const now = c ? e?.now : null;
+    this.text('energy', now === 'harvest' ? t('RECHARGE') : now === 'clip' ? t('BATTERIE VIDE ?') : '');
+    if (this.k.energy._k !== now) { this.k.energy._k = now; this.k.energy.setAttribute('class', `dl-energy ${now || ''}`); }
+    const lap = e?.lap;
+    this.text('energyLap', lap && (lap.harvest >= 0.5 || lap.clip >= 0.5) ? t('1 TOUR : RECHARGE {} S · VIDE {} S', dec(lap.harvest.toFixed(1)), dec(lap.clip.toFixed(1))) : '');
   }
+}
+
+// Énergie estimée d'un pilote (shared/energy.js) : état du moment (recharge, batterie vide) et
+// secondes de chaque sur le dernier tour (durée du dernier tour bouclé), recalculées chaque seconde
+const lapEnergy = new Map();
+export function energyOf(num, at = displayNow()) {
+  const hist = (from) => store.positions.carHistory(num, from, at);
+  let lap = lapEnergy.get(num);
+  if (!lap || Math.abs(at - lap.at) > 1000) {
+    const dur = parseLapTime(store.state.TimingData?.Lines?.[num]?.LastLapTime?.Value) || 90;
+    lap = { at, ...energyTotals(hist(at - dur * 1000)) };
+    lapEnergy.set(num, lap);
+  }
+  return { now: energyNow(hist(at - 2500)), lap };
 }
 
 // Télémétrie d'un pilote à l'heure affichée (interpolée). Sans délai TV, l'échantillon suivant

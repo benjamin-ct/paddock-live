@@ -4,7 +4,7 @@
 // batterie, mode Boost…). Les nouveautés sont signalées ; le rapport complet se copie ou s'enregistre.
 import { store } from '../store.js';
 import { $, esc } from '../util.js';
-import { t, dec } from '../i18n.js';
+import { t, dec, EN } from '../i18n.js';
 import { seek } from './moments.js';
 
 // Flux et canaux déjà connus (saisons précédentes)
@@ -28,9 +28,20 @@ const change = (e) => `${clock(e.off)} · ${t('tour {}', e.lap)} · ${e.tla} P${
 const perDriver = (o) => o.overtakes.map((p) => `${p.tla} ${p.n} (count ${p.sum})`).join(', ');
 const changes = (x) => t('{} : {} fois · écart médian {} · {}/{} à moins d\'1 s', x.change, x.n, gap(x.median), x.under1, x.known);
 
+// Flux cachés testés en direct (server/feed-probe.js) : noms devinés pour l'énergie 2026 en évidence
+const probeRows = (p) => Object.entries(p?.found || {}).map(([k, f]) => ({ k, f, guess: !KNOWN_FEEDS.has(k) }));
+function probeHtml(p) {
+  const head = `<p class="small"><b>${t('Flux cachés testés en direct')}</b> <span class="muted">${t('(énergie, batterie, Boost, mode dépassement…)')}</span></p>`;
+  if (!p?.at) return `${head}<p class="small muted">${t('Pas encore testé : ça se fait tout seul à la prochaine séance en direct.')}</p>`;
+  const rows = probeRows(p);
+  return `${head}<p class="small ${rows.some((r) => r.guess) ? 'diag-new' : 'muted'}">${t('Testé le {} ({}) : {} nom(s) sur {} ont répondu.', esc(new Date(p.at).toLocaleString(EN ? 'en-GB' : 'fr-FR')), esc(p.session || '—'), rows.length, p.asked.length)}${p.error ? ` ${esc(p.error)}` : ''}</p>
+    ${rows.length ? `<ul class="small diag-list" data-no-i18n>${rows.map(({ k, f, guess }) => `<li${guess ? ' class="diag-new"' : ''}>${esc(k)} · ${f.n} messages · ${esc(f.sample || '')}</li>`).join('')}</ul>` : ''}`;
+}
+
 // Rapport texte complet (à copier ou enregistrer, pour l'analyser ailleurs)
-function report(r) {
+function report(r, p) {
   const out = [`Paddock Live · données F1 · ${r.path}`];
+  if (p?.at) out.push('', `## Flux cachés testés en direct · ${new Date(p.at).toISOString()} · ${p.session || '—'} · ${p.asked.length} noms${p.error ? ` · erreur : ${p.error}` : ''}`, ...probeRows(p).map(({ k, f }) => `${k} · ${f.n} messages · ${f.sample || ''}`));
   for (const f of r.feeds) {
     out.push('', `## ${f.name}${KNOWN_FEEDS.has(f.name) ? '' : ' (nouveau)'} · ${f.lines} messages${f.error ? ` · erreur : ${f.error}` : ''}`);
     for (const x of f.fields) out.push(line(x));
@@ -66,16 +77,17 @@ export function initFeedDiag() {
   $('#feedDiagBtn')?.addEventListener('click', async (e) => {
     const out = $('#feedDiagOut'), btn = e.currentTarget;
     const path = store.state.SessionInfo?.Path;
-    if (!path) { out.innerHTML = `<p class="small muted">${t('Aucune séance chargée : lancez un replay ou attendez une séance.')}</p>`; return; }
+    const probe = await fetch('/api/feeds/probe').then((r) => r.json()).catch(() => null);
+    if (!path) { out.innerHTML = `${probeHtml(probe)}<p class="small muted">${t('Aucune séance chargée : lancez un replay ou attendez une séance.')}</p>`; return; }
     btn.disabled = true;
     out.innerHTML = `<p class="small muted">${t('Lecture de toute la séance dans les archives F1 (jusqu\'à une minute)…')}</p>`;
     try {
       const res = await fetch(`/api/feeds/diag?path=${encodeURIComponent(path)}`);
       const r = await res.json();
       if (!res.ok) throw new Error(r.error || `HTTP ${res.status}`);
-      out.innerHTML = render(r);
+      out.innerHTML = probeHtml(probe) + render(r);
       out.onclick = (ev) => { const a = ev.target.closest('[data-off]'); if (a) { ev.preventDefault(); seek(+a.dataset.off); } };
-      const text = report(r);
+      const text = report(r, probe);
       $('#feedDiagCopy').onclick = (ev) => navigator.clipboard.writeText(text).then(() => { ev.target.textContent = t('Copié'); });
       $('#feedDiagSave').onclick = () => {
         const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(new Blob([text], { type: 'text/plain' })), download: `donnees-f1-${path.split('/').filter(Boolean).pop()}.txt` });

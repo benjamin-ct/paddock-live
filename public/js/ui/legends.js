@@ -11,6 +11,9 @@ const sw = (color, label, shape = 'bar') => `<span class="lg-i"><i class="lg-${s
 const tag = (cls, text, label) => `<span class="lg-i"><span class="tag ${cls}">${text}</span>${label}</span>`;
 const tyre = (color, letter, label) => `<span class="lg-i"><span class="tyre lg-tyre" style="--tc:${color}">${letter}</span>${label}</span>`;
 
+// Énergie estimée sur les compteurs (shared/energy.js) : la F1 ne publie pas la batterie
+const ENERGY = [sw('var(--green)', 'recharge : pied levé à haute vitesse'), sw('var(--orange)', 'batterie vide ? plein gaz sans accélérer (estimations)')];
+
 const L = {
   tower: {
     // Recalculée à chaque affichage : couleurs des pneus selon l'apparence (sombre / claire)
@@ -24,10 +27,11 @@ const L = {
     _: [sw('#3cc86e', 'ligne droite', 'dash'), sw('#ff4fd8', 'détection'), sw('#3ce08a', 'activation'), sw('#4a4a55', 'voie des stands')],
   },
   duel: {
-    _: [sw('var(--blue)', 'pilote A'), sw('var(--orange)', 'pilote B')],
+    _: [sw('var(--blue)', 'pilote A'), sw('var(--orange)', 'pilote B'), ...ENERGY],
   },
   analysis: {
     compare: [sw('var(--blue)', 'pilote A plus rapide'), sw('var(--orange)', 'pilote B plus rapide')],
+    telemetry: ENERGY,
   },
 };
 

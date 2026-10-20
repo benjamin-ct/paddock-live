@@ -5,6 +5,7 @@ import { WebSocket } from 'ws';
 import { agent, request, USER_AGENT } from './net.js';
 import { LIVE_TOPICS, topicName } from '../shared/f1.js';
 import { readRecording } from './recorder.js';
+import { PROBE_TOPICS, isProbe, probeAnswer, probeFeed } from './feed-probe.js';
 
 const BASE = 'https://livetiming.formula1.com/signalrcore';
 const WS_URL = 'wss://livetiming.formula1.com/signalrcore';
@@ -94,6 +95,8 @@ export class LiveSource {
       ws.on('open', () => {
         ws.send(JSON.stringify({ protocol: 'json', version: 1 }) + RS);
         ws.send(JSON.stringify({ type: 1, invocationId: '1', target: 'Subscribe', arguments: [LIVE_TOPICS] }) + RS);
+        // À part : flux cachés testés (diagnostic des données F1), sans effet sur l'abonnement principal
+        ws.send(JSON.stringify({ type: 1, invocationId: '2', target: 'Subscribe', arguments: [PROBE_TOPICS] }) + RS);
         this.lastMessageAt = Date.now();
         this.timers.push(setInterval(() => {
           if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 6 }) + RS);
@@ -140,6 +143,8 @@ export class LiveSource {
       }
       this.retry = 0;
       this.onSnapshot(msg.result || {}, now);
+    } else if (msg.type === 3 && msg.invocationId === '2') {
+      probeAnswer(msg.result, msg.error, this.hub.source.session);
     } else if (msg.type === 1 && msg.target === 'feed' && Array.isArray(msg.arguments)) {
       const [rawTopic, data] = msg.arguments;
       this.onFeed(rawTopic, data, now);
@@ -203,6 +208,7 @@ export class LiveSource {
   }
 
   onFeed(rawTopic, data, now) {
+    if (isProbe(rawTopic)) { probeFeed(rawTopic, data); return; }
     if (this.pending) { this.pending.push([rawTopic, data, now]); return; }
     const topic = topicName(rawTopic);
     if (topic === 'TimingData') this.lastTimingAt = Date.now();   // séance en cours (statistiques)

@@ -6,6 +6,12 @@ l'application (Réglages → À propos → Nouveautés).
 
 ## v1.28.0 — à venir
 
+### Télémétrie
+- Énergie 2026 estimée sur les compteurs (Télémétrie, Duel, overlay de streaming) : « RECHARGE » quand le
+  pilote lève le pied à haute vitesse sans freiner, « BATTERIE VIDE ? » quand il est à fond mais que la voiture
+  n'accélère plus, et le temps passé dans chaque cas sur le dernier tour. La F1 ne publie pas la charge de la
+  batterie : ce sont des estimations tirées de la vitesse, de l'accélérateur et du frein.
+
 ### Mises à jour
 - Versions bêta : nouveau réglage « Recevoir les versions bêta » (Réglages → Application) pour essayer les
   nouveautés avant leur sortie pour tout le monde. Décoché, l'appli ne reçoit que les versions finales.
