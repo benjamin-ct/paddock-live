@@ -41,6 +41,7 @@ import { startAutoRenew, renew as renewF1tv, sessionOf, state as renewState, res
 import { localHost, sameSiteRequest, decodePath, extensionRequest, EXTENSION_ROUTES } from './guard.js';
 import { stats, startStats, sendFeedback, sendFeedbackFile } from './stats.js';
 import { archivePath, sendArchiveFile, archiveJSON } from './archive.js';
+import { feedDiag } from './feed-diag.js';
 import { cloud, createCloudTranslator } from './cloud-translate.js';
 import { cloudRadio } from './cloud-transcribe.js';
 import { createNewsTranslator, startNewsTranslation } from './news-translate.js';
@@ -78,6 +79,7 @@ const live = new LiveSource(hub, () => {
   return token && !tokenInfo(token).expired ? token : null;
 }, recorder);
 const replay = new ReplaySource(hub);
+const feedDiags = new Map();   // diagnostic des données F1, par séance
 // Articles de l'Actu lus dans l'appli (server/article.js)
 const articles = createArticleReader({ items: () => newsSnapshot().items });
 const summarize = createNewsSummarizer({ articles });
@@ -645,6 +647,18 @@ async function handleApi(req, res, url) {
     }
     case 'GET /api/archive/file':
       return sendArchiveFile(res, url.searchParams.get('p') || '');
+
+    // Diagnostic des données F1 : toute la séance lue dans les archives (gardé pour la session)
+    case 'GET /api/feeds/diag': {
+      const p = url.searchParams.get('path') || '';
+      if (!/^\d{4}\/[\w\-./]+\/$/.test(p) || p.includes('..')) return sendJSON(res, 400, { error: 'Chemin invalide' });
+      try {
+        if (!feedDiags.has(p)) feedDiags.set(p, feedDiag(p).catch((err) => { feedDiags.delete(p); throw err; }));
+        return sendJSON(res, 200, await feedDiags.get(p));
+      } catch (err) {
+        return sendJSON(res, err.status || 502, { error: err.message });
+      }
+    }
 
     case 'GET /api/recordings':
       return sendJSON(res, 200, listRecordings());

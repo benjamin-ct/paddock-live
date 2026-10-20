@@ -1,46 +1,75 @@
-// Diagnostic des données F1 (Réglages → Application, mode créateur) : flux publiés pour la séance
-// chargée (Index.json de l'archive officielle, connexion F1 TV) et canaux de télémétrie reçus, pour
-// repérer une donnée nouvelle (énergie de la batterie, mode Boost…). Les nouveautés sont signalées.
+// Diagnostic des données F1 (Réglages → Application, mode créateur) : le serveur lit toute la séance
+// chargée dans les archives (chaque flux de l'Index.json, sans regarder le replay) et dresse
+// l'inventaire des champs et des canaux de télémétrie, pour repérer une donnée nouvelle (énergie de la
+// batterie, mode Boost…). Les nouveautés sont signalées ; le rapport complet se copie ou s'enregistre.
 import { store } from '../store.js';
 import { $, esc } from '../util.js';
-import { carChannels } from '../positions.js';
+import { t } from '../i18n.js';
 
 // Flux et canaux déjà connus (saisons précédentes)
 const KNOWN_FEEDS = new Set(['SessionInfo', 'ArchiveStatus', 'TrackStatus', 'SessionData', 'ContentStreams', 'AudioStreams', 'ExtrapolatedClock',
   'DriverList', 'TimingDataF1', 'TimingData', 'LapSeries', 'TopThree', 'TimingAppData', 'TimingStats', 'SessionStatus', 'TyreStintSeries', 'Heartbeat',
   'Position.z', 'WeatherData', 'WeatherDataSeries', 'CarData.z', 'TeamRadio', 'TlaRcm', 'RaceControlMessages', 'PitLaneTimeCollection', 'CurrentTyres',
   'DriverRaceInfo', 'ChampionshipPrediction', 'OvertakeSeries', 'DriverScore', 'SPFeed', 'PitStopSeries', 'PitStop', 'LapCount', 'DriverTracker']);
-const KNOWN_CHANNELS = { 0: 'régime', 2: 'vitesse', 3: 'rapport', 4: 'accélérateur', 5: 'frein', 45: 'DRS' };
+const CHANNELS = { 0: 'régime', 2: 'vitesse', 3: 'rapport', 4: 'accélérateur', 5: 'frein', 45: 'DRS' };
+// Mots d'un champ qui peut cacher une donnée 2026 (énergie, mode dépassement, aileron actif…)
+const WATCH = /energ|batt|boost|overtak|deploy|harvest|charg|^soc$|^ers|mgu|aero|wing|mode|power/i;
 
-async function feeds() {
-  const path = store.state.SessionInfo?.Path;
-  if (!path) return '<p class="small muted">Aucune séance chargée : lancez un replay ou attendez une séance.</p>';
-  try {
-    const r = await fetch(`/api/archive/file?p=${encodeURIComponent(`${path}Index.json`)}`);
-    if (!r.ok) throw new Error(await r.text() || `HTTP ${r.status}`);
-    const list = Object.keys((await r.json()).Feeds || {}).sort();
-    const fresh = list.filter((f) => !KNOWN_FEEDS.has(f));
-    return `<p class="small"><b>Flux publiés</b> (${esc(path)}) : ${list.map((f) => (KNOWN_FEEDS.has(f) ? esc(f) : `<b class="diag-new">${esc(f)} (nouveau)</b>`)).join(', ')}</p>
-      <p class="small ${fresh.length ? 'diag-new' : 'muted'}">${fresh.length ? `${fresh.length} flux nouveau(x) par rapport aux saisons précédentes.` : 'Aucun flux nouveau.'}</p>`;
-  } catch (err) { return `<p class="small muted">Liste des flux indisponible : ${esc(String(err.message || err).slice(0, 160))}</p>`; }
+const watched = (path) => path.split('.').some((s) => WATCH.test(s));
+const channelOf = (path) => path.match(/\.Channels\.(\d+)$/)?.[1];
+const vals = (list) => list.map(([v, n]) => `${v} ×${n}`).join(', ');
+const line = (f) => `${f.path} · ${f.n}${f.max !== undefined ? ` · ${f.min} → ${f.max}` : ''} · ${vals(f.top)}${f.highest ? ` · max ${vals(f.highest)}` : ''}${f.more ? ' · …' : ''}`;
+
+// Rapport texte complet (à copier ou enregistrer, pour l'analyser ailleurs)
+function report(r) {
+  const out = [`Paddock Live · données F1 · ${r.path}`];
+  for (const f of r.feeds) {
+    out.push('', `## ${f.name}${KNOWN_FEEDS.has(f.name) ? '' : ' (nouveau)'} · ${f.lines} messages${f.error ? ` · erreur : ${f.error}` : ''}`);
+    for (const x of f.fields) out.push(line(x));
+  }
+  return out.join('\n');
 }
 
-function channels() {
-  if (!carChannels.size) return '<p class="small muted">Aucune télémétrie reçue pour l\'instant (connexion F1 TV et séance ou replay en cours).</p>';
-  const rows = [...carChannels].sort((a, b) => Number(a[0]) - Number(b[0])).map(([k, c]) => {
-    const name = KNOWN_CHANNELS[k];
-    const range = Number.isFinite(c.min) ? `${c.min} à ${c.max}` : '—';
-    return `<li>${name ? `Canal ${esc(k)} (${name})` : `<b class="diag-new">Canal ${esc(k)} (nouveau)</b>`} : ${range} · ${[...c.vals].slice(0, 8).map((v) => esc(String(v))).join(', ')}</li>`;
-  });
-  return `<p class="small"><b>Canaux de télémétrie reçus</b></p><ul class="small diag-list">${rows.join('')}</ul>`;
+function render(r) {
+  const fields = r.feeds.flatMap((f) => f.fields.map((x) => ({ ...x, feed: f.name })));
+  const fresh = r.feeds.filter((f) => !KNOWN_FEEDS.has(f.name));
+  const watch = fields.filter((x) => watched(x.path));
+  const channels = fields.filter((x) => x.feed === 'CarData.z' && channelOf(x.path));
+  const li = (x) => `<li>${esc(line(x))}</li>`;
+  return `<p class="small"><b>${t('Flux publiés')}</b> (${esc(r.path)}) : ${r.feeds.map((f) => (KNOWN_FEEDS.has(f.name) ? esc(f.name) : `<b class="diag-new">${esc(f.name)} (${t('nouveau')})</b>`)).join(', ')}</p>
+    <p class="small ${fresh.length ? 'diag-new' : 'muted'}">${fresh.length ? t('{} flux nouveau(x) par rapport aux saisons précédentes.', fresh.length) : t('Aucun flux nouveau.')}
+      ${t('{} champs lus dans toute la séance, en {} s.', fields.length, Math.round(r.ms / 1000))}</p>
+    <p class="small"><b>${t('Canaux de télémétrie')}</b></p>
+    <ul class="small diag-list" data-no-i18n>${channels.map((x) => { const k = channelOf(x.path); return `<li>${CHANNELS[k] ? t('Canal {} ({})', k, t(CHANNELS[k])) : `<b class="diag-new">${t('Canal {} ({})', k, t('nouveau'))}</b>`} : ${x.min} → ${x.max} · ${t('{} valeurs', `${x.distinct}${x.more ? '+' : ''}`)} · ${esc(vals(x.top))} · max ${esc(vals(x.highest))}</li>`; }).join('') || `<li>${t('Aucune télémétrie dans cette séance.')}</li>`}</ul>
+    <p class="small"><b>${t('Champs à regarder')}</b> <span class="muted">${t('(énergie, batterie, Boost, dépassement, aileron, mode…)')}</span></p>
+    <ul class="small diag-list" data-no-i18n>${watch.map((x) => `<li class="diag-new">${esc(x.feed)} · ${esc(line(x))}</li>`).join('') || `<li>${t('Aucun.')}</li>`}</ul>
+    ${r.feeds.map((f) => `<details class="small"><summary>${esc(f.name)} · ${t('{} messages · {} champs', f.lines, f.fields.length)}${f.error ? ` · ${esc(f.error)}` : ''}</summary>
+      <ul class="diag-list" data-no-i18n>${f.fields.map(li).join('')}</ul></details>`).join('')}
+    <p><button class="btn" id="feedDiagCopy">${t('Copier le rapport')}</button> <button class="btn" id="feedDiagSave">${t('Enregistrer (.txt)')}</button></p>`;
 }
 
 export function initFeedDiag() {
   $('#feedDiagBtn')?.addEventListener('click', async (e) => {
     const out = $('#feedDiagOut'), btn = e.currentTarget;
+    const path = store.state.SessionInfo?.Path;
+    if (!path) { out.innerHTML = `<p class="small muted">${t('Aucune séance chargée : lancez un replay ou attendez une séance.')}</p>`; return; }
     btn.disabled = true;
-    out.innerHTML = '<p class="small muted">Analyse…</p>';
-    out.innerHTML = `${await feeds()}${channels()}`;
+    out.innerHTML = `<p class="small muted">${t('Lecture de toute la séance dans les archives F1 (jusqu\'à une minute)…')}</p>`;
+    try {
+      const res = await fetch(`/api/feeds/diag?path=${encodeURIComponent(path)}`);
+      const r = await res.json();
+      if (!res.ok) throw new Error(r.error || `HTTP ${res.status}`);
+      out.innerHTML = render(r);
+      const text = report(r);
+      $('#feedDiagCopy').onclick = (ev) => navigator.clipboard.writeText(text).then(() => { ev.target.textContent = t('Copié'); });
+      $('#feedDiagSave').onclick = () => {
+        const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(new Blob([text], { type: 'text/plain' })), download: `donnees-f1-${path.split('/').filter(Boolean).pop()}.txt` });
+        a.click();
+        URL.revokeObjectURL(a.href);
+      };
+    } catch (err) {
+      out.innerHTML = `<p class="small muted">${t('Analyse impossible : {}', esc(String(err.message || err).slice(0, 160)))}</p>`;
+    }
     btn.disabled = false;
   });
 }
