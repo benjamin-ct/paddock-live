@@ -323,7 +323,9 @@ dialog.sheet { transition: transform .3s var(--spring); overscroll-behavior: con
 dialog.sheet.drag { animation: none; transition: none; }
 .sheet-body { overscroll-behavior: contain; }
 .sheet-head b { font-size: 17px; }
-.sheet-body { max-height: calc(88vh - 60px); overflow: auto; padding: 0 16px 22px; }
+.sheet-body { max-height: calc(88vh - 60px); overflow: hidden auto; padding: 0 16px 22px; }
+/* iPhone : le champ date et heure garde sa largeur propre (plus large que la fenêtre) sans ces règles */
+input[type=datetime-local] { display: block; min-width: 0; max-width: 100%; -webkit-appearance: none; appearance: none; }
 dialog.sheet .group, dialog.sheet input { background: rgba(255, 255, 255, .05); }
 .sheet-body > .section:first-child { margin-top: 8px; }
 .sheet-body .btn.wide { margin-top: 18px; }
