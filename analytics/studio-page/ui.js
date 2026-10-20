@@ -161,6 +161,12 @@ export function glide(root = document) {
   }
 }
 addEventListener('resize', () => glide());
+// iPhone : clavier refermé en laissant toute la page décalée vers le haut (barre du haut cachée, barre du bas
+// remontée) : défilement ramené dans les limites de la page, ce qui remet tout en place
+const typing = () => document.activeElement?.matches('input:not([type=checkbox]):not([type=radio]), textarea, select, [contenteditable]');
+addEventListener('focusout', () => setTimeout(() => {
+  if (!typing()) scrollTo({ top: Math.max(0, Math.min(scrollY, document.documentElement.scrollHeight - innerHeight)) });
+}, 120));
 
 // Interrupteur (case à cocher) avec libellé et explication
 export const toggle = (id, label, on, hint = '', attrs = '') => `<label class="switch"><span><b>${esc(label)}</b>${hint ? `<small>${esc(hint)}</small>` : ''}</span><input type="checkbox" role="switch" ${id ? `id="${id}"` : ''} ${attrs} ${on ? 'checked' : ''}></label>`;

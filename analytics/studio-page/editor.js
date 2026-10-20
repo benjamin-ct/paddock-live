@@ -120,6 +120,7 @@ export function editor({ back, title, subtitle = '', head = '', vhead = '', note
   // masquées (Textes pour une story) sautées par Précédent / Suivant
   const shown = () => steps.filter(([k]) => !$(`[data-go="${k}"]`).hidden);
   const setStep = (k) => {
+    document.activeElement?.blur();   // clavier refermé avant de masquer le champ (iPhone : page décalée sinon)
     const list = shown();
     const i = Math.max(0, list.findIndex(([x]) => x === k));
     root.dataset.step = list[i][0];
