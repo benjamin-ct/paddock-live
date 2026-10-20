@@ -9,6 +9,7 @@ import { DEC, EN } from '../i18n.js';
 import { cloudOn, cloudTranslate } from '../cloud.js';
 import { continuesStint } from '/shared/pits.js';
 import { pdfHref } from './pdf-view.js';
+import { rcmFr, reasonFr as rcmReasonFr } from '/shared/rcm-fr.js';
 
 function list(obj) {
   if (!obj) return [];
@@ -47,15 +48,23 @@ function rcmShown(m) {
   return true;
 }
 
-// Traduction des messages par le serveur Paddock Live (une fois pour tous, gardée en mémoire ici)
+// Messages en français : formules connues traduites ici (drapeaux, incidents, pénalités…), les autres
+// par le serveur Paddock Live (une fois pour tous, gardées en mémoire ici)
 const rcmTr = new Map();   // message -> traduction (null : en cours ou refusée)
 let rcmTrVer = 0;
-const rcmTranslating = () => !EN && prefs.rcmTranslate !== false && cloudOn();
+const rcmTranslating = () => !EN && prefs.rcmTranslate !== false;
+const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+// Majuscules partout : la traduction automatique les prend pour des sigles. En minuscules, sauf les
+// codes pilotes et les sigles connus.
+const sentence = (msg) => cap(msg.toLowerCase().replace(/\b(fia|drs|vsc|sc|[a-z]{3}(?=\)))\b/g, (w) => w.toUpperCase()));
 function rcmTranslation(msg) {
   if (!msg || !rcmTranslating()) return null;
+  const local = rcmFr(msg);
+  if (local) return local;
+  if (!cloudOn()) return null;
   if (rcmTr.has(msg)) return rcmTr.get(msg);
   rcmTr.set(msg, null);
-  cloudTranslate(msg, 'en', 'fr').then((t) => {
+  cloudTranslate(sentence(msg), 'en', 'fr').then((t) => {
     if (t) { rcmTr.set(msg, t); rcmTrVer++; renderRcm(); }
     else if (!cloudOn()) rcmTr.delete(msg);   // serveur indisponible : nouvel essai plus tard
   });
@@ -252,26 +261,7 @@ export function initRcmFilters() {
 }
 
 // ---- Enquêtes des commissaires et limites de piste ----
-const REASONS_FR = {
-  'CAUSING A COLLISION': 'Accrochage provoqué',
-  'LEAVING THE TRACK AND GAINING AN ADVANTAGE': 'Avantage pris hors de la piste',
-  'FORCING ANOTHER DRIVER OFF THE TRACK': 'Pilote poussé hors de la piste',
-  'YELLOW FLAG INFRINGEMENT': 'Non-respect du drapeau jaune',
-  'SPEEDING IN THE PIT LANE': 'Excès de vitesse dans la voie des stands',
-  'IMPEDING': 'Gêne d\'un autre pilote',
-  'MOVING UNDER BRAKING': 'Changement de trajectoire au freinage',
-  'STARTING PROCEDURE INFRINGEMENT': 'Infraction à la procédure de départ',
-  'UNSAFE RELEASE': 'Relâchement dangereux aux stands',
-  'TRACK LIMITS': 'Limites de piste',
-  'FAILING TO FOLLOW RACE DIRECTORS INSTRUCTIONS': 'Consignes du directeur de course non respectées',
-  'PRACTICE START INFRINGEMENT': 'départ d\'entraînement non conforme',
-  'ESCAPE ROAD INSTRUCTIONS': 'utilisation de l\'échappatoire',
-};
-
-function reasonFr(reason) {
-  if (!reason) return '';
-  return reason.split(/\s[–-]\s/).map((p) => REASONS_FR[p.trim()] || p.trim().toLowerCase()).join(' — ');
-}
+const reasonFr = (reason) => cap(rcmReasonFr(reason));
 
 let stwVer = -1, stwCache = null;
 

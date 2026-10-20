@@ -6,6 +6,8 @@ import { prefs, setPref, isFav } from '../prefs.js';
 import { toast } from './delay.js';
 import { icon } from '../icons.js';
 import { FLOAT } from './floatwin.js';
+import { EN } from '../i18n.js';
+import { rcmFr } from '/shared/rcm-fr.js';
 
 let audio = null;
 
@@ -120,7 +122,7 @@ function onEvents(events) {
       for (const m of msgs) {
         const nums = new Set([m?.RacingNumber, ...String(m?.Message || '').matchAll(/CAR (\d+)/g)].map((x) => (Array.isArray(x) ? x[1] : x)).filter(Boolean).map(String));
         const fav = [...nums].find((n) => isFav(n));
-        if (fav && m.Flag !== 'BLUE') notify(`${tla(fav)} — direction de course`, m.Message, 'fav');
+        if (fav && m.Flag !== 'BLUE') notify(`${tla(fav)} — direction de course`, (!EN && rcmFr(m.Message)) || m.Message, 'fav');
       }
     }
   }

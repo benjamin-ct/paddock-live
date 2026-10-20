@@ -1,6 +1,6 @@
 // Barre de navigation latérale (Accueil, Direct, Résultats, Saison, Replays, Radios,
 // Réglages). Elle reprend les actions des boutons du haut, masqués.
-import { $, $$ } from '../util.js';
+import { $, $$, api } from '../util.js';
 import { openSeason, closeSeason } from './season.js';
 import { openNews, closeNews } from './news.js';
 import { openHome, closeHome, homeTouched, startWindows } from './home.js';
@@ -52,7 +52,11 @@ function openSettings(group) {
 
 const ACTIONS = {
   home: () => openHome(),
-  live: () => { homeTouched(); closeHome(); closeReplays(); closeSeason(); closeNews(); closeResults(); unmaximize(); },
+  live: () => {
+    homeTouched(); closeHome(); closeReplays(); closeSeason(); closeNews(); closeResults(); unmaximize();
+    // Pendant un replay : retour au direct (écran d'attente s'il n'y a pas de séance)
+    if (store.status?.source?.mode === 'replay') api('/api/live', { method: 'POST' }).then(() => toast('Retour au direct'), (err) => toast(err.message));
+  },
   results: () => {
     if (isResultsOpen()) { closeResults(); return; }
     homeTouched(); closeHome(); closeReplays(); closeSeason(); closeNews(); openResults();
