@@ -169,6 +169,7 @@ export async function newsEditor(it, done, back) {
           const q = who ? `${who} ${look === 'tenue' ? 'helmet' : 'livery'}` : '';
           if (!teams.length && !q) return [];
           const r = await api(`socialphotos?${new URLSearchParams({ teams: teams.join(','), q, since: String(it.t - 4 * 86400e3) })}`);
+          socialErrors = r.errors || [];
           const list = await Promise.all(r.items.map(async (p) => {
             const blob = await (await api(`img?u=${encodeURIComponent(p.url)}`, { raw: true })).blob();
             const image = await createImageBitmap(blob);
@@ -176,6 +177,7 @@ export async function newsEditor(it, done, back) {
           }).map((p) => p.catch(() => null)));
           return list.filter(Boolean);
         };
+        let socialErrors = [];
         const add = (list) => {
           for (const a of list) {
             if (arts.some((b) => sameFingerprint(a.key, b.key))) URL.revokeObjectURL(a.url);
@@ -208,7 +210,7 @@ export async function newsEditor(it, done, back) {
             add(await loadSocial().catch(() => []));
             if (arts.length > before) { found++; show(); upd(); }
           }
-          $('#nartst').textContent = arts.length ? `${arts.length} photo${arts.length > 1 ? 's' : ''}${found ? ` (dont ${found} autre${found > 1 ? 's' : ''} source${found > 1 ? 's' : ''})` : ''}` : (err?.message || 'Pas de photo');
+          $('#nartst').textContent = (arts.length ? `${arts.length} photo${arts.length > 1 ? 's' : ''}${found ? ` (dont ${found} autre${found > 1 ? 's' : ''} source${found > 1 ? 's' : ''})` : ''}` : (err?.message || 'Pas de photo')) + (socialErrors.length ? ` · ${socialErrors.join(' · ')}` : '');
           b.disabled = false; b.classList.remove('busy');
         };
       }
