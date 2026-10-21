@@ -98,7 +98,56 @@ function htmlBlocks(html) {
   return out;
 }
 
-// Page HTML -> { title, site, author, published, image, blocks: [{ p } | { h }], description }
+// Photos de l'article (livrée spéciale sous tous les angles…) : celles du bloc principal, sans logos ni
+// icônes, ni vignettes des autres articles (images dans un lien vers une page) ; une seule taille par
+// photo, la plus grande proposée
+const MAX_IMAGES = 12;
+const NOT_PHOTO = /logo|icon|avatar|sprite|placeholder|author|profile|badge|emoji|\.svg|\.gif|^data:/i;
+const attr = (tag, name) => decodeEntities(tag.match(new RegExp(`\\s${name}=["']([^"']*)["']`, 'i'))?.[1] || '');
+// Adresse de la plus grande taille proposée ; null pour une vignette (moins de 500 px de large)
+function bestSrc(tag) {
+  const set = (attr(tag, 'data-srcset') || attr(tag, 'srcset')).split(/,\s+/).map((c) => c.trim().split(/\s+/))
+    .filter(([u, w]) => u && /^\d+w$/.test(w || '')).sort((x, y) => parseInt(y[1], 10) - parseInt(x[1], 10));
+  if (set.length && parseInt(set[0][1], 10) < 500) return null;
+  if (/^\d+px$/.test(attr(tag, 'sizes')) && parseInt(attr(tag, 'sizes'), 10) < 300) return null;
+  const src = set[0]?.[0] || attr(tag, 'data-src') || attr(tag, 'data-lazy-src') || attr(tag, 'src');
+  const w = src.match(/[,/_]w_(\d+)\b|[?&](?:w|width)=(\d+)\b/);
+  return w && Number(w[1] || w[2]) < 500 ? null : src;
+}
+// Même photo à une autre taille : même dossier et même nom, sans les suffixes de taille
+const photoKey = (u) => {
+  const parts = new URL(u).pathname.toLowerCase().split('/').filter(Boolean);
+  const name = (parts.pop() || '').replace(/(\.(jpe?g|png|webp|avif))+$/, '').replace(/-\d+x\d+$|-scaled$/, '');
+  return `${parts.pop() || ''}/${name}`;
+};
+function articleImages(html, url, first) {
+  const block = mainBlock(html).replace(/<!--[\s\S]*?-->/g, ' ')
+    .replace(/<(aside|nav|footer|header|form|template)\b[\s\S]*?<\/\1>/gi, ' ')
+    .replace(/<a\b(?![^>]*href=["'][^"']*\.(?:jpe?g|png|webp|avif)(?:\?[^"']*)?["'])[^>]*>[\s\S]*?<\/a>/gi, ' ');
+  const out = [];
+  const seen = new Set();
+  const add = (src) => {
+    let u;
+    try { u = new URL(src, url || undefined).href; } catch { return; }
+    if (!/^https:\/\//i.test(u) || NOT_PHOTO.test(u)) return;
+    const k = photoKey(u);
+    if (seen.has(k)) return;
+    seen.add(k);
+    out.push(u);
+  };
+  if (first) add(first);
+  for (const [tag] of block.matchAll(/<img\b[^>]*>/gi)) {
+    const w = Number(attr(tag, 'width')) || 0;
+    const h = Number(attr(tag, 'height')) || 0;
+    if ((w && w < 300) || (h && h < 200) || NOT_PHOTO.test(`${attr(tag, 'class')} ${attr(tag, 'alt')}`)) continue;
+    const src = bestSrc(tag);
+    if (src) add(src);
+    if (out.length >= MAX_IMAGES) break;
+  }
+  return out;
+}
+
+// Page HTML -> { title, site, author, published, image, images, blocks: [{ p } | { h }], description }
 export function extractArticle(html, url = '') {
   html = String(html || '');
   const ld = jsonLd(html);
@@ -129,6 +178,7 @@ export function extractArticle(html, url = '') {
     author: text(authorOf(art?.author) || meta(html, 'author')).slice(0, 120),
     published: art?.datePublished || meta(html, 'article:published_time') || '',
     image: /^https:\/\//i.test(image) ? image : '',
+    images: articleImages(html, url, /^https:\/\//i.test(image) ? image : ''),
     description: (text(art?.description) || meta(html, 'og:description') || meta(html, 'description')).slice(0, 600),
     blocks,
   };

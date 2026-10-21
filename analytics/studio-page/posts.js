@@ -78,12 +78,18 @@ export async function newsEditor(it, done, back) {
   const failed = title === null || summary === null;
   let breaking = null;   // très grosse info choisie à la main (sinon : détectée)
   let made = null;       // vidéo Breaking news fabriquée (MP4), jointe au post
-  let pic = null;        // photo choisie (libre de droits, ou celle de l'article) : { image, credit }
+  let pic = null;        // photo libre de droits choisie : { image, credit }
+  let arts = [];         // photos de l'article : { image, url, on } ; la première gardée en couverture (sans photo libre)
   const look = it.link && LOOKS.has(newsKind(it).key) ? newsKind(it).key : '';   // livrée ou tenue spéciale
   const make = async (t, s, p = '') => {
     const nd = newsPost(it, { title: t, summary: s, points: p, driverList: await latestDrivers(), sourceName: it.srcName });
     if (breaking !== null) nd.breaking = breaking;
+    const on = arts.filter((a) => a.on);
+    const credit = `Photo : via ${it.srcName}`;
     if (pic) Object.assign(nd, pic);
+    else if (on[0]) Object.assign(nd, { image: on[0].image, credit });
+    nd.gallery = (pic ? on : on.slice(1)).map((a) => a.image);
+    nd.galleryCredit = credit;
     return nd;
   };
   let d = await make(title ?? it.title, summary ?? it.summary);
@@ -98,8 +104,9 @@ export async function newsEditor(it, done, back) {
       <label class="field"><span>Points clés, un par ligne <small>(images suivantes du carrousel)</small></span><textarea id="npoints" rows="5" maxlength="1600" placeholder="Facultatif : « Résumé détaillé » ou à écrire soi-même"></textarea></label>
       ${it.link ? `<div class="row"><button class="btn small" id="nsummary">${icon('wand')}Résumé détaillé</button><span class="hint" id="nsumst"></span></div>` : ''}
       ${PHOTO_ROW('n')}
-      ${/^https:\/\//.test(it.link || '') ? `<div class="row"><button class="btn small" id="nartimg">${icon('image')}${look ? `Photo de la ${look === 'tenue' ? 'tenue' : 'livrée'} (article)` : 'Photo de l\'article'}</button></div>
-        <p class="hint">Dans les visuels, « via ${esc(it.srcName)} » crédité.</p>` : ''}
+      ${/^https:\/\//.test(it.link || '') ? `<div class="row"><button class="btn small" id="nartimg">${icon('image')}${look ? `Photos de la ${look === 'tenue' ? 'tenue' : 'livrée'} (article)` : 'Photos de l\'article'}</button><span class="hint" id="nartst"></span></div>
+        <div class="photos" id="nartlist"></div>
+        <p class="hint">Une image par photo dans le carrousel (la première en couverture), « via ${esc(it.srcName)} » crédité. Touchez une photo pour l'écarter.</p>` : ''}
       ${toggle('linkcomment', 'Lien en premier commentaire', state.linkComment, 'Facebook, Threads, Bluesky, X')}
       ${BREAKING(d.breaking)}
       <p class="hint">${failed ? 'Traduction indisponible : textes en version originale, à traduire à la main.' : 'Traduction automatique : à relire.'}</p>`,
@@ -126,17 +133,32 @@ export async function newsEditor(it, done, back) {
           upd();
         } catch (err) { $('#nsumst').textContent = err.message; } finally { btn.disabled = false; btn.classList.remove('busy'); }
       };
-      bindPhoto('n', () => d, (p) => { pic = p; upd(); });
-      // Livrée ou tenue spéciale : la photo de l'article (rendu ou photo de l'écurie)
+      let showArts = () => {};
+      bindPhoto('n', () => d, (p) => { pic = p; showArts(); upd(); });
+      // Livrée ou tenue spéciale : toutes les photos de l'article (rendus, photos de l'écurie)
       if ($('#nartimg')) {
+        const load = async (i) => {
+          const res = await api(`artimg?u=${encodeURIComponent(it.link)}&i=${i}`, { raw: true });
+          const blob = await res.blob();
+          return { image: await createImageBitmap(blob), url: URL.createObjectURL(blob), on: true, n: Number(res.headers.get('X-Photos')) || 1 };
+        };
+        const show = showArts = () => {
+          $('#nartlist').innerHTML = arts.map((a, i) => `<button type="button" data-art="${i}" class="${a.on ? '' : 'off'}"><img src="${a.url}" alt=""><small>${a.on ? (arts.slice(0, i).some((x) => x.on) || pic ? 'Image suivante' : 'Couverture') : 'Écartée'}</small></button>`).join('');
+          for (const b of $$('#nartlist [data-art]')) b.onclick = () => { arts[b.dataset.art].on = !arts[b.dataset.art].on; show(); upd(); };
+        };
         $('#nartimg').onclick = async () => {
           const b = $('#nartimg');
           b.disabled = true; b.classList.add('busy');
+          $('#nartst').textContent = 'Lecture des photos…';
           try {
-            pic = { image: await createImageBitmap(await (await api(`artimg?u=${encodeURIComponent(it.link)}`, { raw: true })).blob()), credit: `Photo : via ${it.srcName}` };
-            $('#nphotost').textContent = pic.credit; $('#nphotodel').hidden = false;
+            for (const a of arts) URL.revokeObjectURL(a.url);
+            const first = await load(0);
+            const rest = await Promise.all(Array.from({ length: first.n - 1 }, (_, k) => load(k + 1).catch(() => null)));
+            arts = [first, ...rest.filter(Boolean)];
+            $('#nartst').textContent = `${arts.length} photo${arts.length > 1 ? 's' : ''}`;
+            show();
             upd();
-          } catch (err) { $('#nphotost').textContent = err.message; } finally { b.disabled = false; b.classList.remove('busy'); }
+          } catch (err) { $('#nartst').textContent = err.message; } finally { b.disabled = false; b.classList.remove('busy'); }
         };
       }
       $('#linkcomment').onchange = (e) => { state.linkComment = e.target.checked; redraw(true); };
