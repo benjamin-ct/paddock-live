@@ -103,6 +103,8 @@ function htmlBlocks(html) {
 // photo, la plus grande proposée
 const MAX_IMAGES = 12;
 const NOT_PHOTO = /logo|icon|avatar|sprite|placeholder|author|profile|badge|emoji|\.svg|\.gif|^data:/i;
+// Encadrés autour d'une image qui n'est pas une photo de l'article : vidéo, encart, pub, articles liés
+const NOT_ARTICLE = /video|player|poster|tile|teaser|promo|related|recommend|advert|sponsor|outbrain|taboola|newsletter/i;
 const attr = (tag, name) => decodeEntities(tag.match(new RegExp(`\\s${name}=["']([^"']*)["']`, 'i'))?.[1] || '');
 // Adresse de la plus grande taille proposée ; null pour une vignette (moins de 500 px de large)
 function bestSrc(tag) {
@@ -120,6 +122,16 @@ const photoKey = (u) => {
   const name = (parts.pop() || '').replace(/(\.(jpe?g|png|webp|avif))+$/, '').replace(/-\d+x\d+$|-scaled$/, '');
   return `${parts.pop() || ''}/${name}`;
 };
+// Classes des éléments encore ouverts à la fin d'un morceau de page (ceux qui entourent ce qui suit),
+// les 3 plus proches
+const VOID = /^(img|br|hr|source|meta|link|input|wbr|col|area|base|embed|track|param)$/i;
+function wrappers(before) {
+  const open = [];
+  for (const [t, close, name] of before.matchAll(/<(\/?)([a-z][\w-]*)\b[^>]*>/gi)) {
+    if (close) { const i = open.map((o) => o.name).lastIndexOf(name.toLowerCase()); if (i >= 0) open.length = i; } else if (!VOID.test(name) && !t.endsWith('/>')) open.push({ name: name.toLowerCase(), cls: attr(t, 'class') });
+  }
+  return open.slice(-3).map((o) => o.cls).join(' ');
+}
 function articleImages(html, url, first) {
   const block = mainBlock(html).replace(/<!--[\s\S]*?-->/g, ' ')
     .replace(/<(aside|nav|footer|header|form|template)\b[\s\S]*?<\/\1>/gi, ' ')
@@ -136,7 +148,8 @@ function articleImages(html, url, first) {
     out.push(u);
   };
   if (first) add(first);
-  for (const [tag] of block.matchAll(/<img\b[^>]*>/gi)) {
+  for (const { 0: tag, index } of block.matchAll(/<img\b[^>]*>/gi)) {
+    if (NOT_ARTICLE.test(`${wrappers(block.slice(Math.max(0, index - 1500), index))} ${attr(tag, 'class')}`)) continue;
     const w = Number(attr(tag, 'width')) || 0;
     const h = Number(attr(tag, 'height')) || 0;
     if ((w && w < 300) || (h && h < 200) || NOT_PHOTO.test(`${attr(tag, 'class')} ${attr(tag, 'alt')}`)) continue;

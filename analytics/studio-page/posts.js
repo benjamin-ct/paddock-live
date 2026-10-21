@@ -1,7 +1,7 @@
 // Studio : posts des news (et récap de la semaine) et des séances (résultats, avant-course,
 // championnat, flash). Chargé à l'ouverture d'un post.
 import { decodeBody } from '/shared/news-collect.js';
-import { bigNews, newsPost, newsCaptions, newsKind, LOOKS, OTHER_SERIES, NEWS_BADGES } from '/shared/social-news.js';
+import { bigNews, newsPost, newsCaptions, newsKind, similarArticles, LOOKS, OTHER_SERIES, NEWS_BADGES } from '/shared/social-news.js';
 import { newsTags } from '/shared/news.js';
 import { postData, captions } from '/shared/social.js';
 import { preraceData, champData, flashEvents, flashData, moreCaptions, FLASH_KINDS } from '/shared/social-more.js';
@@ -31,6 +31,20 @@ async function detailedSummary(it) {
   if (!res.ok || !Array.isArray(j.points)) throw new Error(j.error || 'Résumé indisponible pour le moment');
   return j.points;
 }
+
+// Empreinte d'une photo (8 × 8 en gris, comparée à la moyenne) : la même photo reprise par deux médias, à
+// une autre taille ou recadrée de peu, a une empreinte presque identique
+function fingerprint(image) {
+  const c = document.createElement('canvas');
+  c.width = 8; c.height = 8;
+  const ctx = c.getContext('2d', { willReadFrequently: true });
+  ctx.drawImage(image, 0, 0, 8, 8);
+  const px = ctx.getImageData(0, 0, 8, 8).data;
+  const g = Array.from({ length: 64 }, (_, i) => px[i * 4] * 0.3 + px[i * 4 + 1] * 0.59 + px[i * 4 + 2] * 0.11);
+  const mean = g.reduce((n, v) => n + v, 0) / 64;
+  return g.map((v) => (v > mean ? 1 : 0));
+}
+const sameFingerprint = (a, b) => a.reduce((n, v, i) => n + (v !== b[i]), 0) <= 5;
 
 // ---------- Photo libre de droits (Wikimedia Commons, Flickr) à la place des portraits ----------
 // Recherche proposée : le premier pilote cité, sinon l'écurie, sinon la F1
@@ -79,17 +93,15 @@ export async function newsEditor(it, done, back) {
   let breaking = null;   // très grosse info choisie à la main (sinon : détectée)
   let made = null;       // vidéo Breaking news fabriquée (MP4), jointe au post
   let pic = null;        // photo libre de droits choisie : { image, credit }
-  let arts = [];         // photos de l'article : { image, url, on } ; la première gardée en couverture (sans photo libre)
+  let arts = [];         // photos de l'article et des articles proches : { image, url, on, src } ; la première gardée en couverture (sans photo libre)
   const look = it.link && LOOKS.has(newsKind(it).key) ? newsKind(it).key : '';   // livrée ou tenue spéciale
   const make = async (t, s, p = '') => {
     const nd = newsPost(it, { title: t, summary: s, points: p, driverList: await latestDrivers(), sourceName: it.srcName });
     if (breaking !== null) nd.breaking = breaking;
-    const on = arts.filter((a) => a.on);
-    const credit = `Photo : via ${it.srcName}`;
+    const on = arts.filter((a) => a.on).map((a) => ({ image: a.image, credit: `Photo : via ${a.src}` }));
     if (pic) Object.assign(nd, pic);
-    else if (on[0]) Object.assign(nd, { image: on[0].image, credit });
-    nd.gallery = (pic ? on : on.slice(1)).map((a) => a.image);
-    nd.galleryCredit = credit;
+    else if (on[0]) Object.assign(nd, on[0]);
+    nd.gallery = pic ? on : on.slice(1);
     return nd;
   };
   let d = await make(title ?? it.title, summary ?? it.summary);
@@ -106,7 +118,7 @@ export async function newsEditor(it, done, back) {
       ${PHOTO_ROW('n')}
       ${/^https:\/\//.test(it.link || '') ? `<div class="row"><button class="btn small" id="nartimg">${icon('image')}${look ? `Photos de la ${look === 'tenue' ? 'tenue' : 'livrée'} (article)` : 'Photos de l\'article'}</button><span class="hint" id="nartst"></span></div>
         <div class="photos" id="nartlist"></div>
-        <p class="hint">Une image par photo dans le carrousel (la première en couverture), « via ${esc(it.srcName)} » crédité. Touchez une photo pour l'écarter.</p>` : ''}
+        <p class="hint">Photos de cet article et des autres médias sur la même info : une image par photo dans le carrousel (la première en couverture), « via » le média crédité. Touchez une photo pour l'écarter.</p>` : ''}
       ${toggle('linkcomment', 'Lien en premier commentaire', state.linkComment, 'Facebook, Threads, Bluesky, X')}
       ${BREAKING(d.breaking)}
       <p class="hint">${failed ? 'Traduction indisponible : textes en version originale, à traduire à la main.' : 'Traduction automatique : à relire.'}</p>`,
@@ -135,30 +147,49 @@ export async function newsEditor(it, done, back) {
       };
       let showArts = () => {};
       bindPhoto('n', () => d, (p) => { pic = p; showArts(); upd(); });
-      // Livrée ou tenue spéciale : toutes les photos de l'article (rendus, photos de l'écurie)
+      // Livrée ou tenue spéciale : toutes les photos de l'article (rendus, photos de l'écurie), puis celles
+      // des autres médias sur la même info ; une photo reprise par plusieurs médias n'est gardée qu'une fois
       if ($('#nartimg')) {
-        const load = async (i) => {
-          const res = await api(`artimg?u=${encodeURIComponent(it.link)}&i=${i}`, { raw: true });
+        const load = async (link, i) => {
+          const res = await api(`artimg?u=${encodeURIComponent(link)}&i=${i}`, { raw: true });
           const blob = await res.blob();
-          return { image: await createImageBitmap(blob), url: URL.createObjectURL(blob), on: true, n: Number(res.headers.get('X-Photos')) || 1 };
+          const image = await createImageBitmap(blob);
+          return { image, url: URL.createObjectURL(blob), on: true, n: Number(res.headers.get('X-Photos')) || 1, key: fingerprint(image) };
+        };
+        // Photos d'un article (max au plus) : la première donne leur nombre
+        const loadArticle = async (x, max) => {
+          const first = await load(x.link, 0);
+          const rest = await Promise.all(Array.from({ length: Math.min(first.n, max) - 1 }, (_, k) => load(x.link, k + 1).catch(() => null)));
+          return [first, ...rest].filter(Boolean).map((a) => ({ ...a, src: x.srcName }));
+        };
+        const add = (list) => {
+          for (const a of list) {
+            if (arts.some((b) => sameFingerprint(a.key, b.key))) URL.revokeObjectURL(a.url);
+            else arts.push(a);
+          }
         };
         const show = showArts = () => {
-          $('#nartlist').innerHTML = arts.map((a, i) => `<button type="button" data-art="${i}" class="${a.on ? '' : 'off'}"><img src="${a.url}" alt=""><small>${a.on ? (arts.slice(0, i).some((x) => x.on) || pic ? 'Image suivante' : 'Couverture') : 'Écartée'}</small></button>`).join('');
+          $('#nartlist').innerHTML = arts.map((a, i) => `<button type="button" data-art="${i}" class="${a.on ? '' : 'off'}"><img src="${a.url}" alt=""><small>${a.on ? (arts.slice(0, i).some((x) => x.on) || pic ? 'Image suivante' : 'Couverture') : 'Écartée'} · ${esc(a.src)}</small></button>`).join('');
           for (const b of $$('#nartlist [data-art]')) b.onclick = () => { arts[b.dataset.art].on = !arts[b.dataset.art].on; show(); upd(); };
         };
         $('#nartimg').onclick = async () => {
           const b = $('#nartimg');
           b.disabled = true; b.classList.add('busy');
           $('#nartst').textContent = 'Lecture des photos…';
-          try {
-            for (const a of arts) URL.revokeObjectURL(a.url);
-            const first = await load(0);
-            const rest = await Promise.all(Array.from({ length: first.n - 1 }, (_, k) => load(k + 1).catch(() => null)));
-            arts = [first, ...rest.filter(Boolean)];
-            $('#nartst').textContent = `${arts.length} photo${arts.length > 1 ? 's' : ''}`;
-            show();
-            upd();
-          } catch (err) { $('#nartst').textContent = err.message; } finally { b.disabled = false; b.classList.remove('busy'); }
+          for (const a of arts) URL.revokeObjectURL(a.url);
+          arts = [];
+          let err = null;
+          try { add(await loadArticle(it, 12)); show(); upd(); } catch (e) { err = e; }
+          const others = similarArticles(it, await freshNews().catch(() => cachedNews()?.items || []));
+          let found = 0;
+          for (const [k, x] of others.entries()) {
+            $('#nartst').textContent = `${arts.length} photo${arts.length > 1 ? 's' : ''} · autres médias (${k + 1}/${others.length})…`;
+            const before = arts.length;
+            add(await loadArticle(x, 6).catch(() => []));
+            if (arts.length > before) { found++; show(); upd(); }
+          }
+          $('#nartst').textContent = arts.length ? `${arts.length} photo${arts.length > 1 ? 's' : ''}${found ? ` (dont ${found} autre${found > 1 ? 's' : ''} média${found > 1 ? 's' : ''})` : ''}` : (err?.message || 'Pas de photo');
+          b.disabled = false; b.classList.remove('busy');
         };
       }
       $('#linkcomment').onchange = (e) => { state.linkComment = e.target.checked; redraw(true); };

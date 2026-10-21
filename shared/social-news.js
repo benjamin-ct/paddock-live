@@ -81,6 +81,17 @@ export function bigNews(items, { now = Date.now(), hours = 48, all = false } = {
     .sort((a, b) => b.score - a.score || b.t - a.t);
 }
 
+// Autres articles sur la même nouvelle (autres médias) : pour leurs photos (livrée sous d'autres angles…).
+// Un par média, les plus proches dans le temps d'abord ; vidéos et publications exclues.
+export function similarArticles(it, items, max = 4) {
+  const seen = new Set([it.src]);
+  return items.filter((x) => x.id !== it.id && /^https:\/\//.test(x.link || '') && x.kind !== 'video' && x.kind !== 'post'
+    && ((it.cluster && x.cluster === it.cluster) || sameStoryOf(it, x)))
+    .sort((a, b) => Math.abs(a.t - it.t) - Math.abs(b.t - it.t))
+    .filter((x) => !seen.has(x.src) && seen.add(x.src))
+    .slice(0, max);
+}
+
 // Très grosse info (vidéo « Breaking news ») : importance maximale, ou reprise par au moins 10 médias et
 // importante (annonce officielle, décision) ou transfert, départ, accident, pénalité
 export function isBreaking(it) {

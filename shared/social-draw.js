@@ -984,7 +984,7 @@ function essentiel(ctx, W, H, d, o, page, fmt) {
 // ---------- News : photos de l'article (livrée spéciale sous tous les angles…), une par image ----------
 // Photo entière (rien de coupé) sur un fond fait de la même photo assombrie
 function newsPhoto(ctx, W, H, d, o, n) {
-  const img = d.gallery?.[n - 1];
+  const { image: img, credit } = d.gallery?.[n - 1] || {};
   const kept = keptPages(o, 'photo', (d.gallery || []).map((_, i) => i + 1));
   background(ctx, W, H, d.color);
   const u = Math.min(W, H) / 1080;
@@ -1007,7 +1007,7 @@ function newsPhoto(ctx, W, H, d, o, n) {
     const dw = img.width * k; const dh = img.height * k;
     const x = pad + (w - dw) / 2; const y = y0 + (h - dh) / 2;
     ctx.save(); rr(ctx, x, y, dw, dh, 24); ctx.clip(); ctx.drawImage(img, x, y, dw, dh); ctx.restore();
-    photoCredit(ctx, d.galleryCredit, x, y, dw, dh, u);
+    photoCredit(ctx, credit, x, y, dw, dh, u);
   }
   ctx.fillStyle = C.line;
   ctx.fillRect(pad, fy - Math.round(Math.min(W, H) * 0.04), W - pad * 2, 2);

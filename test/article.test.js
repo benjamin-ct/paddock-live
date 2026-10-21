@@ -65,7 +65,7 @@ test('lecture d\'article : liens de l\'Actu seulement, nouvel essai, page illisi
   assert.match(v.reason, /pas de texte lisible/);
 });
 
-test('photos de l\'article : la principale en tête, une taille par photo, sans logos ni vignettes', () => {
+test('photos de l\'article : la principale en tête, une taille par photo, sans logos, vignettes, vidéos ni encarts', () => {
   const big = (n) => `<img src="https://cdn.test/2026/livree-${n}-600x400.jpg" srcset="https://cdn.test/2026/livree-${n}-600x400.jpg 600w, https://cdn.test/2026/livree-${n}-2048x1365.jpg 2048w">`;
   const html = `<meta property="og:image" content="https://cdn.test/2026/livree-1.jpg"><img src="https://cdn.test/logo.png">
     <article>${[1, 2, 3].map((n) => `<p>${para(n)}</p>`).join('')}
@@ -74,11 +74,15 @@ test('photos de l\'article : la principale en tête, une taille par photo, sans 
       <a href="/autre-article"><img src="https://cdn.test/2026/autre.jpg"></a>
       <img src="https://media.test/image/upload/c_fill,w_352/v1/autre-2.webp">
       <img src="https://cdn.test/2026/auteur.jpg" srcset="https://cdn.test/2026/auteur.jpg?height=270 270w" sizes="100px">
+      <div class="sdc-site-video__poster"><img src="https://cdn.test/2026/podcast.jpg"></div>
+      <div class="sdc-site-tile__image-wrap"><img src="https://cdn.test/2026/abonnement-sky.jpg"></div>
+      <figure class="kg-card kg-image-card"><img src="https://cdn.test/2026/livree-4.jpg"></figure>
     </article>`;
   assert.deepEqual(extractArticle(html, 'https://cdn.test/a').images, [
     'https://cdn.test/2026/livree-1.jpg',
     'https://cdn.test/2026/livree-2-2048x1365.jpg',
     'https://cdn.test/2026/livree-3.webp',
+    'https://cdn.test/2026/livree-4.jpg',
   ]);
   assert.deepEqual(extractArticle('<p>Rien</p>').images, []);
 });
