@@ -353,10 +353,18 @@ const checkedNets = () => $$('[data-net]:checked').map((i) => i.dataset.net);
 const textOf = (n) => $(`#cap-${n === 'threads' ? 'threads' : n === 'bluesky' ? 'bsky' : n === 'facebook' && $('#cap-facebook') ? 'facebook' : 'instagram'}`).value;
 const capOf = (c, n) => c[n === 'threads' ? 'threads' : n === 'bluesky' ? 'bsky' : n === 'facebook' && c.facebook ? 'facebook' : 'instagram'] || '';
 const commentOf = (n) => (n !== 'instagram' && $('#cap-comment')?.value.trim()) || '';
-// JPEG de moins de max octets (qualité baissée au besoin)
+// JPEG de moins de max octets : qualité baissée au besoin, puis visuel réduit (diapo photo très détaillée,
+// encodeur de Safari qui produit des fichiers bien plus lourds)
 async function fitJpeg(cv, max) {
   let b = null;
-  for (const q of [0.92, 0.85, 0.75, 0.6, 0.45]) { b = await toBlob(cv, 'image/jpeg', q); if (b.size <= max) break; }
+  for (const q of [0.92, 0.85, 0.75, 0.6, 0.45]) { b = await toBlob(cv, 'image/jpeg', q); if (b.size <= max) return b; }
+  for (const k of [0.85, 0.7, 0.55, 0.4]) {
+    const c = document.createElement('canvas');
+    c.width = Math.round(cv.width * k); c.height = Math.round(cv.height * k);
+    c.getContext('2d').drawImage(cv, 0, 0, c.width, c.height);
+    b = await toBlob(c, 'image/jpeg', 0.8);
+    if (b.size <= max) break;
+  }
   return b;
 }
 // Visuels : format Instagram (Instagram, Facebook, Threads) ou Story (stories) ; Bluesky : 4 au format X, moins de 1 Mo
