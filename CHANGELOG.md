@@ -22,6 +22,10 @@ l'application (Réglages → À propos → Nouveautés).
 - Bouton « Direct » de la barre latérale pendant un replay : retour au direct (écran d'attente s'il n'y a pas
   de séance en cours), au lieu de rester sur le replay.
 
+### Posts (mode créateur)
+- Instagram : un post bien en ligne n'est plus marqué « erreur » quand Instagram répond quand même par un refus
+  (« Nous restreignons certaines activités… ») : l'appli vérifie s'il a été publié et donne son lien.
+
 ### Mises à jour
 - Versions bêta : nouveau réglage « Recevoir les versions bêta » (Réglages → Application) pour essayer les
   nouveautés avant leur sortie pour tout le monde. Décoché, l'appli ne reçoit que les versions finales.

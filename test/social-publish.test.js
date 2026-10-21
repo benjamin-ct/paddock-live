@@ -31,9 +31,10 @@ test('comptes : jamais de clé ni de jeton renvoyé à l\'interface', async () =
 });
 
 // Faux serveurs Meta : images déposées sur la page, conteneurs « en cours » puis prêts
-function fakeMeta({ errorOn = null } = {}) {
+function fakeMeta({ errorOn = null, blocked = false } = {}) {
   const log = [];
   const polls = {};
+  const published = new Set();
   let n = 0;
   globalThis.fetch = async (url, opts = {}) => {
     const u = new URL(url);
@@ -57,9 +58,15 @@ function fakeMeta({ errorOn = null } = {}) {
       polls[id] = (polls[id] || 0) + 1;
       const field = u.searchParams.get('fields').startsWith('status_code') ? 'status_code' : 'status';
       if (errorOn === id) return json({ [field]: 'ERROR', ...(field === 'status' ? { error_message: 'Image illisible' } : { status: 'Error: Media download has failed.' }) });
-      return json({ [field]: polls[id] >= 2 ? 'FINISHED' : 'IN_PROGRESS' });
+      return json({ [field]: published.has(id) ? 'PUBLISHED' : polls[id] >= 2 ? 'FINISHED' : 'IN_PROGRESS' });
     }
-    if (method === 'POST' && /(media_publish|threads_publish)$/.test(u.pathname)) return json({ id: 'pub1' });
+    if (method === 'POST' && /(media_publish|threads_publish)$/.test(u.pathname)) {
+      published.add(form.creation_id);
+      // Publié, mais réponse en erreur (blocage d'activité d'Instagram)
+      if (blocked) return { ok: false, status: 400, text: async () => JSON.stringify({ error: { code: 368, error_user_msg: 'Nous restreignons certaines activités afin de protéger notre communauté.' } }) };
+      return json({ id: 'pub1' });
+    }
+    if (method === 'GET' && u.pathname.endsWith('/media') && u.searchParams.get('fields') === 'id,permalink') return json({ data: [{ id: 'ig-post', permalink: 'https://example.test/p/ig' }] });
     if (method === 'POST' && u.pathname.endsWith('/feed')) return json({ id: 'page_post' });
     if (method === 'POST' && u.pathname.endsWith('/photo_stories')) return json({ success: true, post_id: `st${++n}` });
     if (u.searchParams.get('fields') === 'permalink') return json({ permalink: 'https://example.test/p/1' });
@@ -103,6 +110,18 @@ test('Threads et Instagram : chaque image du carrousel est prête avant le carro
   } finally {
     globalThis.fetch = realFetch;
   }
+});
+
+test('Instagram : post bien publié malgré une réponse en erreur (blocage d\'activité) compté comme publié', async () => {
+  const realFetch = globalThis.fetch;
+  Object.assign(timing, { poll: 1, maxPoll: 1, readyMs: 2000, visible: [] });
+  const { publishInstagram } = await import('../shared/meta-publish.js');
+  const meta = { pageId: 'page8', pageToken: 'jp', igId: 'ig8', igUsername: 'moi' };
+  const img = new Blob([Buffer.from(PNG(5), 'base64')], { type: 'image/png' });
+  try {
+    fakeMeta({ blocked: true });
+    assert.deepEqual(await publishInstagram(meta, 'Légende', [img]), { url: 'https://example.test/p/ig', id: 'ig-post' });
+  } finally { globalThis.fetch = realFetch; }
 });
 
 test('Stories Instagram et Facebook : une story par image, dans l\'ordre', async () => {
