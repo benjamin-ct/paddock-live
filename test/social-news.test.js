@@ -124,4 +124,8 @@ test('autres articles sur la même nouvelle : un par média, vidéos et liens no
     { id: 'f', src: 'x', cluster: 'c1', title: 'Cadillac', link: 'http://x.test/f', t },
     { id: 'g', src: 'rt', cluster: 'c9', title: 'Verstappen wins in Mexico', link: 'https://rt.test/g', t }];
   assert.deepEqual(similarArticles(it, items).map((x) => x.id), ['e', 'b']);
+  // Livrée : pas les autres nouvelles du même sujet (statistiques, avant-course)
+  items.push({ id: 'h', src: 'mm', cluster: 'c1', title: 'Cadillac in Austin: the statistics', link: 'https://mm.test/h', t: t + 600e3 });
+  assert.deepEqual(similarArticles(it, items, 4, 'livree').map((x) => x.id), ['e', 'b']);
+  assert.equal(similarArticles(it, items)[0].id, 'h');
 });

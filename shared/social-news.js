@@ -82,11 +82,12 @@ export function bigNews(items, { now = Date.now(), hours = 48, all = false } = {
 }
 
 // Autres articles sur la même nouvelle (autres médias) : pour leurs photos (livrée sous d'autres angles…).
-// Un par média, les plus proches dans le temps d'abord ; vidéos et publications exclues.
-export function similarArticles(it, items, max = 4) {
+// Un par média, les plus proches dans le temps d'abord ; vidéos et publications exclues. kind : seulement
+// les nouvelles de ce type (une livrée : pas les statistiques ni les avant-courses du même Grand Prix)
+export function similarArticles(it, items, max = 4, kind = '') {
   const seen = new Set([it.src]);
   return items.filter((x) => x.id !== it.id && /^https:\/\//.test(x.link || '') && x.kind !== 'video' && x.kind !== 'post'
-    && ((it.cluster && x.cluster === it.cluster) || sameStoryOf(it, x)))
+    && (!kind || newsKind(x).key === kind) && ((it.cluster && x.cluster === it.cluster) || sameStoryOf(it, x)))
     .sort((a, b) => Math.abs(a.t - it.t) - Math.abs(b.t - it.t))
     .filter((x) => !seen.has(x.src) && seen.add(x.src))
     .slice(0, max);

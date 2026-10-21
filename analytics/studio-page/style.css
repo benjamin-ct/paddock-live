@@ -518,10 +518,10 @@ details.cap[open] textarea { animation: in-up .3s var(--ease); }
 /* Photos libres de droits : grille de choix */
 #pform input { flex: 1; min-width: 0; }
 .photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
-.photos button { display: flex; flex-direction: column; gap: 4px; padding: 0; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--surface-2); color: var(--muted); text-align: left; cursor: pointer; }
+.photos button { position: relative; display: flex; flex-direction: column; gap: 4px; padding: 0; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--surface-2); color: var(--muted); text-align: left; cursor: pointer; }
 .photos button.busy { opacity: .5; }
-.photos button.off { opacity: .4; }
-.photos button.off img { filter: grayscale(1); }
+.photos button.on { border-color: var(--brand); box-shadow: 0 0 0 2px var(--brand); color: var(--text); }
+.photos .pick { position: absolute; top: 6px; left: 6px; min-width: 26px; height: 26px; padding: 0 6px; border-radius: 13px; background: var(--brand); color: #fff; font-size: 14px; line-height: 26px; text-align: center; }
 .photos img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; display: block; background: var(--surface); }
 .photos small { padding: 0 8px 8px; font-size: 11px; line-height: 1.3; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 

@@ -818,7 +818,7 @@ export async function studioApi(req, env, url) {
   if (path === 'socialphotos' && req.method === 'GET') {
     const v = await refresh(env, a.raw, vault);
     const teams = (url.searchParams.get('teams') || '').split(',').filter(Boolean);
-    return json(await socialPhotos({ meta: v.meta, teams, q: (url.searchParams.get('q') || '').slice(0, 100), since: Number(url.searchParams.get('since')) || 0 }));
+    return json(await socialPhotos({ meta: v.meta, teams, look: url.searchParams.get('look') || '', q: (url.searchParams.get('q') || '').slice(0, 100), since: Number(url.searchParams.get('since')) || 0 }));
   }
   if (path === 'schedule' && req.method === 'GET') return json({ items: (await schedJobs(env)).map(schedSummary) });
   if (path === 'schedule' && req.method === 'POST') return scheduleAdd(req, env, a.raw, vault);

@@ -23,12 +23,19 @@ export const TEAM_INSTAGRAM = {
   cadillac: ['cadillacf1', 'cadillacformula1team'],
 };
 
-// Réponse « business discovery » -> [{ url, t, src }] : photos et photos des carrousels, depuis since (ms)
-export function igPhotos(bd, username, since = 0) {
+// Légende d'un post qui parle du look (livrée de la voiture, tenue des pilotes), dans les langues des écuries
+export const LOOK_WORDS = {
+  livree: /liver(y|ies)|livr[ée]e|livrea|lackierung|decoraci[oó]n|special (paint|colou?rs?|design|look)|one-?off|new look|car design/i,
+  tenue: /helmet|casque|casco|\bhelm|race ?suits?|overalls|combinaison|tuta|teamwear|\bkit\b|special (suit|design|look)/i,
+};
+
+// Réponse « business discovery » -> [{ url, t, src }] : photos et photos des carrousels, depuis since (ms),
+// des posts dont la légende correspond à match (tous sans match)
+export function igPhotos(bd, username, since = 0, match = null) {
   const out = [];
   for (const m of bd?.media?.data || []) {
     const t = Date.parse(m.timestamp) || 0;
-    if (t < since) continue;
+    if (t < since || (match && !match.test(m.caption || ''))) continue;
     const items = m.media_type === 'CAROUSEL_ALBUM' ? m.children?.data || [] : [m];
     for (const c of items) if (c.media_type === 'IMAGE' && /^https:\/\//.test(c.media_url || '')) out.push({ url: c.media_url, t, src: `Instagram @${username}` });
   }
@@ -46,8 +53,9 @@ export function bskyPhotos(res) {
   return out.slice(0, MAX_BSKY);
 }
 
-// Photos d'Instagram (écuries teams) et de Bluesky (recherche q), depuis since (ms) -> { items, errors }
-export async function socialPhotos({ meta, teams = [], q = '', since = 0, fetchFn = fetch }) {
+// Photos d'Instagram (écuries teams, posts sur le look) et de Bluesky (recherche q), depuis since (ms)
+// -> { items, errors }
+export async function socialPhotos({ meta, teams = [], look = '', q = '', since = 0, fetchFn = fetch }) {
   const items = [];
   const errors = [];
   const page = meta ? [meta, ...(meta.pages || [])].find((p) => p.igId && p.pageToken) : null;
@@ -55,10 +63,10 @@ export async function socialPhotos({ meta, teams = [], q = '', since = 0, fetchF
     if (!page) { errors.push('Instagram : compte non relié'); break; }
     let found = false;
     for (const username of TEAM_INSTAGRAM[key]) {
-      const fields = `business_discovery.username(${username}){media.limit(20){media_type,media_url,timestamp,children{media_type,media_url}}}`;
+      const fields = `business_discovery.username(${username}){media.limit(25){caption,media_type,media_url,timestamp,children{media_type,media_url}}}`;
       const r = await call(`${GRAPH}/${page.igId}?${new URLSearchParams({ fields, access_token: page.pageToken })}`).catch(() => null);
       if (!r?.business_discovery) continue;
-      items.push(...igPhotos(r.business_discovery, username, since));
+      items.push(...igPhotos(r.business_discovery, username, since, LOOK_WORDS[look] || null));
       found = true;
       break;
     }

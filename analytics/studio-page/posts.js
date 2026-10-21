@@ -93,12 +93,12 @@ export async function newsEditor(it, done, back) {
   let breaking = null;   // très grosse info choisie à la main (sinon : détectée)
   let made = null;       // vidéo Breaking news fabriquée (MP4), jointe au post
   let pic = null;        // photo libre de droits choisie : { image, credit }
-  let arts = [];         // photos de l'article et des articles proches : { image, url, on, src } ; la première gardée en couverture (sans photo libre)
+  let arts = [];         // photos trouvées : { image, url, pick, src } ; pick : rang choisi (0 : pas dans le post), le 1er en couverture (sans photo libre)
   const look = it.link && LOOKS.has(newsKind(it).key) ? newsKind(it).key : '';   // livrée ou tenue spéciale
   const make = async (t, s, p = '') => {
     const nd = newsPost(it, { title: t, summary: s, points: p, driverList: await latestDrivers(), sourceName: it.srcName });
     if (breaking !== null) nd.breaking = breaking;
-    const on = arts.filter((a) => a.on).map((a) => ({ image: a.image, credit: `Photo : via ${a.src}` }));
+    const on = arts.filter((a) => a.pick).sort((a, b) => a.pick - b.pick).map((a) => ({ image: a.image, credit: `Photo : via ${a.src}` }));
     if (pic) Object.assign(nd, pic);
     else if (on[0]) Object.assign(nd, on[0]);
     nd.gallery = pic ? on : on.slice(1);
@@ -118,7 +118,7 @@ export async function newsEditor(it, done, back) {
       ${PHOTO_ROW('n')}
       ${/^https:\/\//.test(it.link || '') ? `<div class="row"><button class="btn small" id="nartimg">${icon('image')}${look ? `Photos de la ${look === 'tenue' ? 'tenue' : 'livrée'} (article)` : 'Photos de l\'article'}</button><span class="hint" id="nartst"></span></div>
         <div class="photos" id="nartlist"></div>
-        <p class="hint">Photos de cet article, des autres médias sur la même info${look ? ', d\'Instagram (comptes des écuries) et de Bluesky' : ''} : une image par photo dans le carrousel (la première en couverture), « via » la source crédité. Touchez une photo pour l'écarter.</p>` : ''}
+        <p class="hint">Photos de cet article, des autres médias sur la même info${look ? ', d\'Instagram (posts des écuries sur leur look) et de Bluesky' : ''}. Touchez celles à mettre dans le post, dans l'ordre : la première en couverture, puis une image par photo, « via » la source crédité.</p>` : ''}
       ${toggle('linkcomment', 'Lien en premier commentaire', state.linkComment, 'Facebook, Threads, Bluesky, X')}
       ${BREAKING(d.breaking)}
       <p class="hint">${failed ? 'Traduction indisponible : textes en version originale, à traduire à la main.' : 'Traduction automatique : à relire.'}</p>`,
@@ -154,7 +154,7 @@ export async function newsEditor(it, done, back) {
           const res = await api(`artimg?u=${encodeURIComponent(link)}&i=${i}`, { raw: true });
           const blob = await res.blob();
           const image = await createImageBitmap(blob);
-          return { image, url: URL.createObjectURL(blob), on: true, n: Number(res.headers.get('X-Photos')) || 1, key: fingerprint(image) };
+          return { image, url: URL.createObjectURL(blob), pick: 0, n: Number(res.headers.get('X-Photos')) || 1, key: fingerprint(image) };
         };
         // Photos d'un article (max au plus) : la première donne leur nombre
         const loadArticle = async (x, max) => {
@@ -168,12 +168,12 @@ export async function newsEditor(it, done, back) {
           const who = look === 'tenue' ? d.drivers[0]?.last || d.teams.find((t) => t.key !== 'fia')?.name : d.teams.find((t) => t.key !== 'fia')?.name;
           const q = who ? `${who} ${look === 'tenue' ? 'helmet' : 'livery'}` : '';
           if (!teams.length && !q) return [];
-          const r = await api(`socialphotos?${new URLSearchParams({ teams: teams.join(','), q, since: String(it.t - 4 * 86400e3) })}`);
+          const r = await api(`socialphotos?${new URLSearchParams({ teams: teams.join(','), look, q, since: String(it.t - 4 * 86400e3) })}`);
           socialErrors = r.errors || [];
           const list = await Promise.all(r.items.map(async (p) => {
             const blob = await (await api(`img?u=${encodeURIComponent(p.url)}`, { raw: true })).blob();
             const image = await createImageBitmap(blob);
-            return { image, url: URL.createObjectURL(blob), on: true, key: fingerprint(image), src: p.src };
+            return { image, url: URL.createObjectURL(blob), pick: 0, key: fingerprint(image), src: p.src };
           }).map((p) => p.catch(() => null)));
           return list.filter(Boolean);
         };
@@ -185,8 +185,15 @@ export async function newsEditor(it, done, back) {
           }
         };
         const show = showArts = () => {
-          $('#nartlist').innerHTML = arts.map((a, i) => `<button type="button" data-art="${i}" class="${a.on ? '' : 'off'}"><img src="${a.url}" alt=""><small>${a.on ? (arts.slice(0, i).some((x) => x.on) || pic ? 'Image suivante' : 'Couverture') : 'Écartée'} · ${esc(a.src)}</small></button>`).join('');
-          for (const b of $$('#nartlist [data-art]')) b.onclick = () => { arts[b.dataset.art].on = !arts[b.dataset.art].on; show(); upd(); };
+          $('#nartlist').innerHTML = arts.map((a, i) => `<button type="button" data-art="${i}" class="${a.pick ? 'on' : ''}">${a.pick ? `<b class="pick">${a.pick}</b>` : ''}<img src="${a.url}" alt=""><small>${a.pick ? (a.pick === 1 && !pic ? 'Couverture' : `Image ${a.pick + (pic ? 1 : 0)}`) : 'Touchez pour ajouter'} · ${esc(a.src)}</small></button>`).join('');
+          for (const b of $$('#nartlist [data-art]')) {
+            b.onclick = () => {
+              const a = arts[b.dataset.art];
+              // Retirée : les suivantes avancent d'un rang ; ajoutée : à la fin
+              if (a.pick) { for (const x of arts) if (x.pick > a.pick) x.pick--; a.pick = 0; } else a.pick = Math.max(0, ...arts.map((x) => x.pick)) + 1;
+              show(); upd();
+            };
+          }
         };
         $('#nartimg').onclick = async () => {
           const b = $('#nartimg');
@@ -196,7 +203,7 @@ export async function newsEditor(it, done, back) {
           arts = [];
           let err = null;
           try { add(await loadArticle(it, 12)); show(); upd(); } catch (e) { err = e; }
-          const others = similarArticles(it, await freshNews().catch(() => cachedNews()?.items || []));
+          const others = similarArticles(it, await freshNews().catch(() => cachedNews()?.items || []), 4, look);
           let found = 0;
           for (const [k, x] of others.entries()) {
             $('#nartst').textContent = `${arts.length} photo${arts.length > 1 ? 's' : ''} · autres médias (${k + 1}/${others.length})…`;

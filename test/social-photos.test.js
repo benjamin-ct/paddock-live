@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { igPhotos, bskyPhotos, socialPhotos, isSocialImageHost, TEAM_INSTAGRAM } from '../analytics/social-photos.js';
+import { igPhotos, bskyPhotos, socialPhotos, isSocialImageHost, TEAM_INSTAGRAM, LOOK_WORDS } from '../analytics/social-photos.js';
 
 test('photos Instagram d\'une écurie : photos et carrousels récents, sans vidéos', () => {
   const bd = { media: { data: [
@@ -14,6 +14,11 @@ test('photos Instagram d\'une écurie : photos et carrousels récents, sans vid�
   assert.deepEqual(out.map((p) => p.url.split('/').pop()), ['a.jpg', 'b.jpg']);
   assert.equal(out[0].src, 'Instagram @cadillacf1');
   assert.ok(TEAM_INSTAGRAM.ferrari.length && TEAM_INSTAGRAM.cadillac.length);
+  // Livrée : seulement les posts dont la légende en parle
+  bd.media.data[0].caption = 'Our special livery for the #USGP';
+  bd.media.data[2].caption = 'Fans in Austin';
+  assert.deepEqual(igPhotos(bd, 'haasf1team', Date.parse('2026-10-15T00:00:00Z'), LOOK_WORDS.livree).map((p) => p.url.split('/').pop()), ['a.jpg']);
+  assert.ok(LOOK_WORDS.tenue.test('New race suit for Austin') && !LOOK_WORDS.livree.test('Fans in Austin'));
 });
 
 test('photos Bluesky : images des posts (et des citations avec photos), hôtes autorisés', async () => {
