@@ -42,10 +42,12 @@ export function igPhotos(bd, username, since = 0, match = null) {
   return out.slice(0, MAX_IG);
 }
 
-// Réponse de la recherche Bluesky -> [{ url, t, src }] : photos en taille réelle des posts
-export function bskyPhotos(res) {
+// Réponse de la recherche Bluesky -> [{ url, t, src }] : photos en taille réelle des posts dont le texte
+// passe keep (la recherche ramène aussi des posts qui n'ont que des mots en commun)
+export function bskyPhotos(res, keep = () => true) {
   const out = [];
   for (const p of res?.posts || []) {
+    if (!keep(String(p.record?.text || ''))) continue;
     const e = p.embed || {};
     const images = e.images || e.media?.images || [];
     for (const im of images) if (/^https:\/\/cdn\.bsky\.app\//.test(im.fullsize || '')) out.push({ url: im.fullsize, t: Date.parse(p.indexedAt) || 0, src: `Bluesky @${p.author?.handle || ''}` });
@@ -53,9 +55,9 @@ export function bskyPhotos(res) {
   return out.slice(0, MAX_BSKY);
 }
 
-// Photos d'Instagram (écuries teams, posts sur le look) et de Bluesky (recherche q), depuis since (ms)
-// -> { items, errors }
-export async function socialPhotos({ meta, teams = [], look = '', q = '', since = 0, fetchFn = fetch }) {
+// Photos d'Instagram (écuries teams, posts sur le look) et de Bluesky (posts qui citent who et parlent du
+// look), depuis since (ms) -> { items, errors }
+export async function socialPhotos({ meta, teams = [], look = '', who = '', since = 0, fetchFn = fetch }) {
   const items = [];
   const errors = [];
   const page = meta ? [meta, ...(meta.pages || [])].find((p) => p.igId && p.pageToken) : null;
@@ -72,12 +74,15 @@ export async function socialPhotos({ meta, teams = [], look = '', q = '', since 
     }
     if (!found) errors.push(`Instagram : compte de ${key} introuvable`);
   }
-  if (q) {
+  if (who) {
+    const q = `${who} ${look === 'tenue' ? 'helmet' : 'livery'}`;
+    const name = who.toLowerCase();
+    const keep = (text) => text.toLowerCase().includes(name) && (!LOOK_WORDS[look] || LOOK_WORDS[look].test(text));
     try {
       const params = new URLSearchParams({ q, limit: '40', sort: 'top', ...(since ? { since: new Date(since).toISOString() } : {}) });
       const res = await fetchFn(`${BSKY_SEARCH}?${params}`, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(8000) });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      items.push(...bskyPhotos(await res.json()));
+      items.push(...bskyPhotos(await res.json(), keep));
     } catch (err) { errors.push(`Bluesky : ${err.message}`); }
   }
   return { items, errors };

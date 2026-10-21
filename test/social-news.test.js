@@ -128,4 +128,10 @@ test('autres articles sur la même nouvelle : un par média, vidéos et liens no
   items.push({ id: 'h', src: 'mm', cluster: 'c1', title: 'Cadillac in Austin: the statistics', link: 'https://mm.test/h', t: t + 600e3 });
   assert.deepEqual(similarArticles(it, items, 4, 'livree').map((x) => x.id), ['e', 'b']);
   assert.equal(similarArticles(it, items)[0].id, 'h');
+  // Écurie du sujet : celle du titre, pas celles du résumé
+  const { mainTeam, mentionsTeam } = await import('../shared/social-news.js');
+  const teams = [{ key: 'ferrari', name: 'Ferrari' }, { key: 'haas', name: 'Haas' }, { key: 'redbull', name: 'Red Bull' }];
+  assert.equal(mainTeam('Design spécial : Haas avec la livrée Godzilla', teams).key, 'haas');
+  assert.equal(mainTeam('Livrées spéciales à Austin', teams).key, 'ferrari');
+  assert.ok(mentionsTeam('Red Bull unveil Mobil tribute', 'redbull') && !mentionsTeam('Haas Godzilla livery', 'redbull'));
 });

@@ -1,7 +1,7 @@
 // Studio : posts des news (et récap de la semaine) et des séances (résultats, avant-course,
 // championnat, flash). Chargé à l'ouverture d'un post.
 import { decodeBody } from '/shared/news-collect.js';
-import { bigNews, newsPost, newsCaptions, newsKind, similarArticles, LOOKS, OTHER_SERIES, NEWS_BADGES } from '/shared/social-news.js';
+import { bigNews, newsPost, newsCaptions, newsKind, similarArticles, mainTeam, mentionsTeam, LOOKS, OTHER_SERIES, NEWS_BADGES } from '/shared/social-news.js';
 import { newsTags } from '/shared/news.js';
 import { postData, captions } from '/shared/social.js';
 import { preraceData, champData, flashEvents, flashData, moreCaptions, FLASH_KINDS } from '/shared/social-more.js';
@@ -164,11 +164,11 @@ export async function newsEditor(it, done, back) {
         };
         // Photos des réseaux (Instagram des écuries, Bluesky), lues par le serveur
         const loadSocial = async () => {
-          const teams = d.teams.filter((t) => t.key !== 'fia').map((t) => t.key);
-          const who = look === 'tenue' ? d.drivers[0]?.last || d.teams.find((t) => t.key !== 'fia')?.name : d.teams.find((t) => t.key !== 'fia')?.name;
-          const q = who ? `${who} ${look === 'tenue' ? 'helmet' : 'livery'}` : '';
-          if (!teams.length && !q) return [];
-          const r = await api(`socialphotos?${new URLSearchParams({ teams: teams.join(','), look, q, since: String(it.t - 4 * 86400e3) })}`);
+          // Seulement l'écurie du sujet (pas celles citées en passant dans le résumé)
+          const main = mainTeam(d.title, d.teams);
+          const who = look === 'tenue' ? d.drivers[0]?.last || main?.name : main?.name;
+          if (!main && !who) return [];
+          const r = await api(`socialphotos?${new URLSearchParams({ teams: main?.key || '', look, who: who || '', since: String(it.t - 4 * 86400e3) })}`);
           socialErrors = r.errors || [];
           const list = await Promise.all(r.items.map(async (p) => {
             const blob = await (await api(`img?u=${encodeURIComponent(p.url)}`, { raw: true })).blob();
@@ -203,7 +203,9 @@ export async function newsEditor(it, done, back) {
           arts = [];
           let err = null;
           try { add(await loadArticle(it, 12)); show(); upd(); } catch (e) { err = e; }
-          const others = similarArticles(it, await freshNews().catch(() => cachedNews()?.items || []), 4, look);
+          // Autres médias : articles du même type dont le titre cite l'écurie du sujet
+          const main = mainTeam(d.title, d.teams);
+          const others = similarArticles(it, await freshNews().catch(() => cachedNews()?.items || []), 12, look).filter((x) => !main || mentionsTeam(x.title, main.key)).slice(0, 4);
           let found = 0;
           for (const [k, x] of others.entries()) {
             $('#nartst').textContent = `${arts.length} photo${arts.length > 1 ? 's' : ''} · autres médias (${k + 1}/${others.length})…`;
