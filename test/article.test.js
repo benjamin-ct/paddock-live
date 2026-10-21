@@ -77,6 +77,7 @@ test('photos de l\'article : la principale en tête, une taille par photo, sans 
       <div class="sdc-site-video__poster"><img src="https://cdn.test/2026/podcast.jpg"></div>
       <div class="sdc-site-tile__image-wrap"><img src="https://cdn.test/2026/abonnement-sky.jpg"></div>
       <figure class="kg-card kg-image-card"><img src="https://cdn.test/2026/livree-4.jpg"></figure>
+      <div class="sdc-site-tile"><figure><div><picture>${'<source srcset="https://cdn.test/2026/promo.jpg?w=1" media="(min-width: 1px)">'.repeat(40)}<img src="https://cdn.test/2026/promo-sky-now.jpg"></picture></div></figure></div>
     </article>`;
   assert.deepEqual(extractArticle(html, 'https://cdn.test/a').images, [
     'https://cdn.test/2026/livree-1.jpg',

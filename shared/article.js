@@ -122,16 +122,7 @@ const photoKey = (u) => {
   const name = (parts.pop() || '').replace(/(\.(jpe?g|png|webp|avif))+$/, '').replace(/-\d+x\d+$|-scaled$/, '');
   return `${parts.pop() || ''}/${name}`;
 };
-// Classes des éléments encore ouverts à la fin d'un morceau de page (ceux qui entourent ce qui suit),
-// les 3 plus proches
 const VOID = /^(img|br|hr|source|meta|link|input|wbr|col|area|base|embed|track|param)$/i;
-function wrappers(before) {
-  const open = [];
-  for (const [t, close, name] of before.matchAll(/<(\/?)([a-z][\w-]*)\b[^>]*>/gi)) {
-    if (close) { const i = open.map((o) => o.name).lastIndexOf(name.toLowerCase()); if (i >= 0) open.length = i; } else if (!VOID.test(name) && !t.endsWith('/>')) open.push({ name: name.toLowerCase(), cls: attr(t, 'class') });
-  }
-  return open.slice(-3).map((o) => o.cls).join(' ');
-}
 function articleImages(html, url, first) {
   const block = mainBlock(html).replace(/<!--[\s\S]*?-->/g, ' ')
     .replace(/<(aside|nav|footer|header|form|template)\b[\s\S]*?<\/\1>/gi, ' ')
@@ -148,8 +139,14 @@ function articleImages(html, url, first) {
     out.push(u);
   };
   if (first) add(first);
-  for (const { 0: tag, index } of block.matchAll(/<img\b[^>]*>/gi)) {
-    if (NOT_ARTICLE.test(`${wrappers(block.slice(Math.max(0, index - 1500), index))} ${attr(tag, 'class')}`)) continue;
+  // Une seule lecture des balises : les éléments ouverts autour de chaque image (encart, vidéo…), aussi loin
+  // que soit leur ouverture
+  const open = [];
+  for (const [tag, close, name] of block.matchAll(/<(\/?)([a-z][\w-]*)\b[^>]*>/gi)) {
+    const n = name.toLowerCase();
+    if (close) { const i = open.map((o) => o.name).lastIndexOf(n); if (i >= 0) open.length = i; continue; }
+    if (n !== 'img') { if (!VOID.test(n) && !tag.endsWith('/>')) open.push({ name: n, cls: attr(tag, 'class') }); continue; }
+    if (NOT_ARTICLE.test(`${open.slice(-5).map((o) => o.cls).join(' ')} ${attr(tag, 'class')}`)) continue;
     const w = Number(attr(tag, 'width')) || 0;
     const h = Number(attr(tag, 'height')) || 0;
     if ((w && w < 300) || (h && h < 200) || NOT_PHOTO.test(`${attr(tag, 'class')} ${attr(tag, 'alt')}`)) continue;
