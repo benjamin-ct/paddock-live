@@ -20,6 +20,7 @@ import { trackPost, clickStats } from './clicks.js';
 import { pushApi, notifyPhones } from './alerts.js';
 import { feedbackApi } from './feedback.js';
 import { freePhotos, PHOTO_UA } from './photos.js';
+import { socialPhotos, isSocialImageHost } from './social-photos.js';
 import { packFeeds } from '../shared/feed-pack.js';
 import { cleanPostRequest, rewritePost } from './summarize.js';
 import { buildSeason, SEASON_TTL } from './season-cache.js';
@@ -314,7 +315,7 @@ async function fia(req, url) {
 async function image(req, url) {
   let u;
   try { u = new URL(url.searchParams.get('u') || ''); } catch { return json({ error: 'Adresse invalide' }, 400); }
-  if (u.protocol !== 'https:' || !IMG_HOSTS.has(u.hostname)) return json({ error: 'Adresse refusée' }, 400);
+  if (u.protocol !== 'https:' || !(IMG_HOSTS.has(u.hostname) || isSocialImageHost(u.hostname))) return json({ error: 'Adresse refusée' }, 400);
   return cached(req, u.href, { headers: { 'User-Agent': u.hostname.endsWith('.wikimedia.org') ? PHOTO_UA : UA } }, 86400);
 }
 
@@ -813,6 +814,12 @@ export async function studioApi(req, env, url) {
   if (path === 'fia' && req.method === 'GET') return fia(req, url);
   if (path === 'page' && req.method === 'GET') return page(req, url);
   if (path === 'artimg' && req.method === 'GET') return articleImage(req, url);
+  // Photos des réseaux pour une livrée ou une tenue : Instagram des écuries, recherche Bluesky
+  if (path === 'socialphotos' && req.method === 'GET') {
+    const v = await refresh(env, a.raw, vault);
+    const teams = (url.searchParams.get('teams') || '').split(',').filter(Boolean);
+    return json(await socialPhotos({ meta: v.meta, teams, q: (url.searchParams.get('q') || '').slice(0, 100), since: Number(url.searchParams.get('since')) || 0 }));
+  }
   if (path === 'schedule' && req.method === 'GET') return json({ items: (await schedJobs(env)).map(schedSummary) });
   if (path === 'schedule' && req.method === 'POST') return scheduleAdd(req, env, a.raw, vault);
   if (path === 'schedule/cancel' && req.method === 'POST') {

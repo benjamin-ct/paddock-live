@@ -118,7 +118,7 @@ export async function newsEditor(it, done, back) {
       ${PHOTO_ROW('n')}
       ${/^https:\/\//.test(it.link || '') ? `<div class="row"><button class="btn small" id="nartimg">${icon('image')}${look ? `Photos de la ${look === 'tenue' ? 'tenue' : 'livrée'} (article)` : 'Photos de l\'article'}</button><span class="hint" id="nartst"></span></div>
         <div class="photos" id="nartlist"></div>
-        <p class="hint">Photos de cet article et des autres médias sur la même info : une image par photo dans le carrousel (la première en couverture), « via » le média crédité. Touchez une photo pour l'écarter.</p>` : ''}
+        <p class="hint">Photos de cet article, des autres médias sur la même info${look ? ', d\'Instagram (comptes des écuries) et de Bluesky' : ''} : une image par photo dans le carrousel (la première en couverture), « via » la source crédité. Touchez une photo pour l'écarter.</p>` : ''}
       ${toggle('linkcomment', 'Lien en premier commentaire', state.linkComment, 'Facebook, Threads, Bluesky, X')}
       ${BREAKING(d.breaking)}
       <p class="hint">${failed ? 'Traduction indisponible : textes en version originale, à traduire à la main.' : 'Traduction automatique : à relire.'}</p>`,
@@ -162,6 +162,20 @@ export async function newsEditor(it, done, back) {
           const rest = await Promise.all(Array.from({ length: Math.min(first.n, max) - 1 }, (_, k) => load(x.link, k + 1).catch(() => null)));
           return [first, ...rest].filter(Boolean).map((a) => ({ ...a, src: x.srcName }));
         };
+        // Photos des réseaux (Instagram des écuries, Bluesky), lues par le serveur
+        const loadSocial = async () => {
+          const teams = d.teams.filter((t) => t.key !== 'fia').map((t) => t.key);
+          const who = look === 'tenue' ? d.drivers[0]?.last || d.teams.find((t) => t.key !== 'fia')?.name : d.teams.find((t) => t.key !== 'fia')?.name;
+          const q = who ? `${who} ${look === 'tenue' ? 'helmet' : 'livery'}` : '';
+          if (!teams.length && !q) return [];
+          const r = await api(`socialphotos?${new URLSearchParams({ teams: teams.join(','), q, since: String(it.t - 4 * 86400e3) })}`);
+          const list = await Promise.all(r.items.map(async (p) => {
+            const blob = await (await api(`img?u=${encodeURIComponent(p.url)}`, { raw: true })).blob();
+            const image = await createImageBitmap(blob);
+            return { image, url: URL.createObjectURL(blob), on: true, key: fingerprint(image), src: p.src };
+          }).map((p) => p.catch(() => null)));
+          return list.filter(Boolean);
+        };
         const add = (list) => {
           for (const a of list) {
             if (arts.some((b) => sameFingerprint(a.key, b.key))) URL.revokeObjectURL(a.url);
@@ -188,7 +202,13 @@ export async function newsEditor(it, done, back) {
             add(await loadArticle(x, 6).catch(() => []));
             if (arts.length > before) { found++; show(); upd(); }
           }
-          $('#nartst').textContent = arts.length ? `${arts.length} photo${arts.length > 1 ? 's' : ''}${found ? ` (dont ${found} autre${found > 1 ? 's' : ''} média${found > 1 ? 's' : ''})` : ''}` : (err?.message || 'Pas de photo');
+          if (look) {
+            $('#nartst').textContent = `${arts.length} photo${arts.length > 1 ? 's' : ''} · Instagram et Bluesky…`;
+            const before = arts.length;
+            add(await loadSocial().catch(() => []));
+            if (arts.length > before) { found++; show(); upd(); }
+          }
+          $('#nartst').textContent = arts.length ? `${arts.length} photo${arts.length > 1 ? 's' : ''}${found ? ` (dont ${found} autre${found > 1 ? 's' : ''} source${found > 1 ? 's' : ''})` : ''}` : (err?.message || 'Pas de photo');
           b.disabled = false; b.classList.remove('busy');
         };
       }
