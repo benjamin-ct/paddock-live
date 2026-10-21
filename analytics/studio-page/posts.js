@@ -13,7 +13,7 @@ import { recapData, seasonCaptions } from '/shared/social-season.js';
 import { $, $$, esc, api, ago, icon, toggle, glide, state, SIG, NET_NAMES, musicField, bindMusic, clipFile, shareClip } from './ui.js';
 import { toFrench, freshNews, cachedNews, latestDrivers, loadState, rememberDrivers, SESSION_FR } from './data.js';
 import { editor, assets } from './editor.js';
-import { photoPicker } from './photos.js';
+import { photoPicker, cropImage, bitmapUrl } from './photos.js';
 import { makeAnimation, unlockAudio } from '/shared/social-video.js';
 import { videoCover } from '/shared/social-draw.js';
 import { newsFrame, newsVideoTiming } from '/shared/social-news-video.js';
@@ -49,11 +49,13 @@ const sameFingerprint = (a, b) => a.reduce((n, v, i) => n + (v !== b[i]), 0) <= 
 // ---------- Photo libre de droits (Wikimedia Commons, Flickr) à la place des portraits ----------
 // Recherche proposée : le premier pilote cité, sinon l'écurie, sinon la F1
 const freeQuery = (d) => (d.drivers?.[0] ? `${d.drivers[0].first} ${d.drivers[0].last}` : d.teams?.find((t) => t.key !== 'fia')?.name || 'Formula 1');
-const PHOTO_ROW = (p) => `<div class="row"><button class="btn small" id="${p}photo">${icon('image')}Photo libre de droits</button><button class="btn small" id="${p}photodel" hidden>${icon('close')}Retirer</button><span class="hint" id="${p}photost"></span></div>`;
-// onPhoto({ image, credit } ou null) : photo choisie ou retirée
+const PHOTO_ROW = (p) => `<div class="row"><button class="btn small" id="${p}photo">${icon('image')}Photo libre de droits</button><button class="btn small" id="${p}photocrop" hidden>${icon('image')}Recadrer</button><button class="btn small" id="${p}photodel" hidden>${icon('close')}Retirer</button><span class="hint" id="${p}photost"></span></div>`;
+// onPhoto({ image, credit } ou null) : photo choisie, recadrée ou retirée
 function bindPhoto(p, getD, onPhoto) {
-  $(`#${p}photo`).onclick = () => photoPicker(freeQuery(getD()), (pic) => { onPhoto(pic); $(`#${p}photost`).textContent = pic.credit; $(`#${p}photodel`).hidden = false; });
-  $(`#${p}photodel`).onclick = () => { onPhoto(null); $(`#${p}photost`).textContent = ''; $(`#${p}photodel`).hidden = true; };
+  let cur = null;   // photo choisie : { image (originale), credit }
+  $(`#${p}photo`).onclick = () => photoPicker(freeQuery(getD()), (pic) => { cur = pic; onPhoto(pic); $(`#${p}photost`).textContent = pic.credit; $(`#${p}photodel`).hidden = false; $(`#${p}photocrop`).hidden = false; });
+  $(`#${p}photocrop`).onclick = async () => { const image = cur && await cropImage(cur.image); if (image) onPhoto({ image, credit: cur.credit }); };
+  $(`#${p}photodel`).onclick = () => { cur = null; onPhoto(null); $(`#${p}photost`).textContent = ''; $(`#${p}photodel`).hidden = true; $(`#${p}photocrop`).hidden = true; };
 }
 
 // ---------- Vidéo de la news (TikTok, Reels, Shorts, story…), commune aux news et aux posts écrits ----------
@@ -185,7 +187,20 @@ export async function newsEditor(it, done, back) {
           }
         };
         const show = showArts = () => {
-          $('#nartlist').innerHTML = arts.map((a, i) => `<button type="button" data-art="${i}" class="${a.pick ? 'on' : ''}">${a.pick ? `<b class="pick">${a.pick}</b>` : ''}<img src="${a.url}" alt=""><small>${a.pick ? (a.pick === 1 && !pic ? 'Couverture' : `Image ${a.pick + (pic ? 1 : 0)}`) : 'Touchez pour ajouter'} · ${esc(a.src)}</small></button>`).join('');
+          $('#nartlist').innerHTML = arts.map((a, i) => `<div class="ph"><button type="button" data-art="${i}" class="${a.pick ? 'on' : ''}">${a.pick ? `<b class="pick">${a.pick}</b>` : ''}<img src="${a.url}" alt=""><small>${a.pick ? (a.pick === 1 && !pic ? 'Couverture' : `Image ${a.pick + (pic ? 1 : 0)}`) : 'Touchez pour ajouter'} · ${esc(a.src)}</small></button>${a.pick ? `<button type="button" class="cropbtn" data-crop="${i}">Recadrer</button>` : ''}</div>`).join('');
+          // Recadrage : toujours depuis la photo d'origine
+          for (const b of $$('#nartlist [data-crop]')) {
+            b.onclick = async () => {
+              const a = arts[b.dataset.crop];
+              a.orig ||= a.image;
+              const image = await cropImage(a.orig);
+              if (!image) return;
+              a.image = image;
+              URL.revokeObjectURL(a.url);
+              a.url = await bitmapUrl(image);
+              show(); upd();
+            };
+          }
           for (const b of $$('#nartlist [data-art]')) {
             b.onclick = () => {
               const a = arts[b.dataset.art];
@@ -257,7 +272,7 @@ export async function manualEditor(back) {
       <label class="field"><span>Type d'info</span><select id="mkind"><option value="">Deviné d'après le texte</option>${NEWS_BADGES.map((b) => `<option value="${b.key}">${esc(b.label.charAt(0) + b.label.slice(1).toLowerCase())}</option>`).join('')}</select></label>
       <label class="field"><span>Source <small>(facultatif, citée en bas de l'image)</small></span><input type="text" id="msrc" maxlength="60" placeholder="Ex. : communiqué de McLaren"></label>
       <div class="field"><span>Photo <small>(facultatif : remplace les portraits des pilotes)</small></span>
-        <div class="row"><label class="btn small">${icon('image')}Choisir une photo<input type="file" id="mimg" accept="image/*" hidden></label><button class="btn small" id="mfree">${icon('image')}Photo libre de droits</button><button class="btn small" id="mimgdel" hidden>${icon('close')}Retirer</button><span class="hint" id="mimgst"></span></div></div>
+        <div class="row"><label class="btn small">${icon('image')}Choisir une photo<input type="file" id="mimg" accept="image/*" hidden></label><button class="btn small" id="mfree">${icon('image')}Photo libre de droits</button><button class="btn small" id="mimgcrop" hidden>${icon('image')}Recadrer</button><button class="btn small" id="mimgdel" hidden>${icon('close')}Retirer</button><span class="hint" id="mimgst"></span></div></div>
       ${BREAKING(false)}`,
     vhead: `<div class="field"><span>Votre vidéo <small>(facultatif : publiée avec le post, MP4 ou MOV, 50 Mo au plus)</small></span>
         <div class="row"><label class="btn small">${icon('video')}Choisir une vidéo<input type="file" id="mvid" accept="video/mp4,video/quicktime" hidden></label><button class="btn small" id="mviddel" hidden>${icon('close')}Retirer</button><span class="hint" id="mvidst"></span></div>
@@ -298,15 +313,17 @@ export async function manualEditor(back) {
         const file = e.target.files?.[0];
         if (!file) return;
         try {
-          f.image = await createImageBitmap(file);
+          f.image = f.orig = await createImageBitmap(file);
           f.credit = '';
           $('#mimgst').textContent = file.name;
           $('#mimgdel').hidden = false;
+          $('#mimgcrop').hidden = false;
           upd(true);
         } catch { $('#mimgst').textContent = 'Image illisible'; }
       };
-      $('#mfree').onclick = () => photoPicker(freeQuery(d), (p) => { f.image = p.image; f.credit = p.credit; $('#mimgst').textContent = p.credit; $('#mimgdel').hidden = false; upd(true); });
-      $('#mimgdel').onclick = () => { f.image = null; f.credit = ''; $('#mimg').value = ''; $('#mimgst').textContent = ''; $('#mimgdel').hidden = true; upd(true); };
+      $('#mfree').onclick = () => photoPicker(freeQuery(d), (p) => { f.image = f.orig = p.image; f.credit = p.credit; $('#mimgst').textContent = p.credit; $('#mimgdel').hidden = false; $('#mimgcrop').hidden = false; upd(true); });
+      $('#mimgcrop').onclick = async () => { const image = f.orig && await cropImage(f.orig); if (image) { f.image = image; upd(true); } };
+      $('#mimgdel').onclick = () => { f.image = f.orig = null; f.credit = ''; $('#mimg').value = ''; $('#mimgst').textContent = ''; $('#mimgdel').hidden = true; $('#mimgcrop').hidden = true; upd(true); };
       $('#mvid').onchange = (e) => {
         const file = e.target.files?.[0];
         if (!file) return;
