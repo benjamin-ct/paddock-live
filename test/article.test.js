@@ -87,3 +87,11 @@ test('photos de l\'article : la principale en tête, une taille par photo, sans 
   ]);
   assert.deepEqual(extractArticle('<p>Rien</p>').images, []);
 });
+
+test('photos de l\'article : encart isolé loin du texte écarté, galerie qui suit le texte gardée', () => {
+  const pad = (n) => `<div class="x">${' '.repeat(n)}</div>`;
+  const html = `<article>${[1, 2, 3].map((n) => `<p>${para(n)}</p>`).join('')}
+    <img src="https://cdn.test/g1.jpg">${pad(2000)}<img src="https://cdn.test/g2.jpg">${pad(2000)}<img src="https://cdn.test/g3.jpg">
+    ${pad(9000)}<div class="sdc-x"><img src="https://cdn.test/offre-abonnement.jpg"></div></article>`;
+  assert.deepEqual(extractArticle(html, 'https://cdn.test/a').images.map((u) => u.split('/').pop()), ['g1.jpg', 'g2.jpg', 'g3.jpg']);
+});

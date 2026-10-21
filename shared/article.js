@@ -139,10 +139,15 @@ function articleImages(html, url, first) {
     out.push(u);
   };
   if (first) add(first);
+  // Images au milieu du texte : à moins de NEAR caractères d'un paragraphe ou de la photo gardée
+  // précédente (galerie) ; les encarts isolés en fin de page (offres d'abonnement…) sont écartés
+  const NEAR = 3000;
+  const ends = [...block.matchAll(/<\/p>/gi)].map((m) => m.index);
+  let last = -Infinity;
   // Une seule lecture des balises : les éléments ouverts autour de chaque image (encart, vidéo…), aussi loin
   // que soit leur ouverture
   const open = [];
-  for (const [tag, close, name] of block.matchAll(/<(\/?)([a-z][\w-]*)\b[^>]*>/gi)) {
+  for (const { 0: tag, 1: close, 2: name, index } of block.matchAll(/<(\/?)([a-z][\w-]*)\b[^>]*>/gi)) {
     const n = name.toLowerCase();
     if (close) { const i = open.map((o) => o.name).lastIndexOf(n); if (i >= 0) open.length = i; continue; }
     if (n !== 'img') { if (!VOID.test(n) && !tag.endsWith('/>')) open.push({ name: n, cls: attr(tag, 'class') }); continue; }
@@ -150,8 +155,11 @@ function articleImages(html, url, first) {
     const w = Number(attr(tag, 'width')) || 0;
     const h = Number(attr(tag, 'height')) || 0;
     if ((w && w < 300) || (h && h < 200) || NOT_PHOTO.test(`${attr(tag, 'class')} ${attr(tag, 'alt')}`)) continue;
+    if (index - last > NEAR && !ends.some((e) => Math.abs(e - index) <= NEAR)) continue;
     const src = bestSrc(tag);
-    if (src) add(src);
+    if (!src) continue;
+    last = index;
+    add(src);
     if (out.length >= MAX_IMAGES) break;
   }
   return out;
