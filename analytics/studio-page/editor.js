@@ -384,8 +384,8 @@ async function postImages(d, o, nets, maxIg = Infinity, skip = state.skip) {
 // link : post « lien » (carte de l'article), sauf Instagram qui n'en a pas : visuels de l'onglet Post
 // alt : post jumeau (textes donnés, toutes ses images)
 async function queuePost(d, o, nets, at, record, video = null, tk = null, link = null, alt = null) {
-  const imgs = video ? { ig: [], x: [] } : !link ? await postImages(d, o, nets, 1.3e6, alt ? new Set() : state.skip)
-    : { ig: nets.includes('instagram') ? (await postImages(d, o || await assets(d), ['instagram'], 1.3e6)).ig : [], x: [] };
+  const imgs = video ? { ig: [], x: [] } : !link ? await postImages(d, o, nets, 3.5e6, alt ? new Set() : state.skip)
+    : { ig: nets.includes('instagram') ? (await postImages(d, o || await assets(d), ['instagram'], 3.5e6)).ig : [], x: [] };
   const form = new FormData();
   form.append('at', String(at));
   form.append('title', record?.title || d.title || d.gp || 'Post');

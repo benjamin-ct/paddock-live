@@ -51,7 +51,17 @@ function fakeDB() {
 }
 globalThis.caches = { default: { match: async () => null, put: async () => {} } };
 
-const env = { DB: fakeDB(), STUDIO_CODE_HASH: HASH, STATS_KEY: 'secret-du-serveur' };
+// Stockage R2 (visuels et vidéos des publications programmées)
+function fakeR2() {
+  const objs = new Map();
+  return {
+    objs,
+    put: async (k, v, o) => { objs.set(k, { bytes: new Uint8Array(await new Response(v).arrayBuffer()), type: o?.httpMetadata?.contentType }); },
+    get: async (k) => (objs.has(k) ? { arrayBuffer: async () => objs.get(k).bytes.slice().buffer, httpMetadata: { contentType: objs.get(k).type } } : null),
+    delete: async (k) => { [k].flat().forEach((x) => objs.delete(x)); },
+  };
+}
+const env = { DB: fakeDB(), MEDIA: fakeR2(), STUDIO_CODE_HASH: HASH, STATS_KEY: 'secret-du-serveur' };
 const worker = (url, init) => studioApi(new Request(url, init), env, new URL(url));
 
 test('page du créateur : clé dérivée identique dans l\'appli et dans le navigateur (PBKDF2)', async () => {
@@ -277,7 +287,10 @@ test('page du créateur : publication programmée, publiée par le serveur à l\
   assert.deepEqual(item.nets, { facebook: { status: 'pending' }, bluesky: { status: 'pending' } });
   // Jetons chiffrés avec le secret du serveur : absents de la base en clair
   const rows = [...env.DB.studio].filter(([k]) => k.startsWith('sched'));
-  assert.ok(rows.length >= 4);
+  assert.ok(rows.length >= 1);
+  // Visuels dans le stockage R2, pas dans la base
+  assert.deepEqual([...env.MEDIA.objs.keys()].filter((k) => k.startsWith(`sched/${item.id}/`)).sort(), [`sched/${item.id}/ig/0`, `sched/${item.id}/ig/1`, `sched/${item.id}/x/0`]);
+  assert.equal(env.MEDIA.objs.get(`sched/${item.id}/ig/0`).bytes.length, 1.2e6);
   for (const [, v] of rows) for (const sec of ['jeton-page', 'mdp-app']) assert.ok(!v.includes(sec));
 
   const realFetch = globalThis.fetch;
@@ -321,6 +334,7 @@ test('page du créateur : publication programmée, publiée par le serveur à l\
     const list = await (await worker('https://s.test/studio/api/schedule', { headers: key })).json();
     assert.equal(list.items.length, 0);
     assert.equal([...env.DB.studio.keys()].filter((k) => k.startsWith('sched')).length, 0);
+    assert.equal([...env.MEDIA.objs.keys()].filter((k) => k.startsWith(`sched/${item.id}`)).length, 0);
     const hist = await (await worker('https://s.test/studio/api/history', { headers: key })).json();
     assert.equal(hist.items[0].key, 'race-2026-18');
     assert.deepEqual(Object.keys(hist.items[0].nets).sort(), ['bluesky', 'facebook']);
@@ -422,17 +436,15 @@ test('page du créateur : vidéo confiée au serveur (stockage R2), publiée par
   };
   const add = (o) => worker('https://s.test/studio/api/schedule', { method: 'POST', body: form(o), headers: key });
   // Sans stockage R2 : refusée ; vidéo d'un autre format : refusée
+  const r2 = env.MEDIA;
+  delete env.MEDIA;
   assert.equal((await add()).status, 503);
-  const bucket = new Map();
-  env.MEDIA = {
-    put: async (k, v, o) => { bucket.set(k, { bytes: new Uint8Array(await v.arrayBuffer()), type: o.httpMetadata.contentType }); },
-    get: async (k) => (bucket.has(k) ? { arrayBuffer: async () => bucket.get(k).bytes.buffer } : null),
-    delete: async (k) => { [k].flat().forEach((x) => bucket.delete(x)); },
-  };
+  env.MEDIA = fakeR2();
+  const bucket = env.MEDIA.objs;
   assert.equal((await add({ video: new Blob(['x'], { type: 'image/gif' }) })).status, 400);
   assert.equal((await add({ posts: [{ network: 'tiktok', text: 'x' }], tiktok: { privacy: 'SELF_ONLY', brandContent: true } })).status, 409);   // TikTok non connecté
   const { item } = await (await add()).json();
-  assert.deepEqual([...bucket.keys()], [`sched/${item.id}`, `sched/${item.id}-full`]);
+  assert.deepEqual([...bucket.keys()].sort(), [`sched/${item.id}`, `sched/${item.id}-full`, `sched/${item.id}/x/0`]);
   assert.equal(bucket.get(`sched/${item.id}`).type, 'video/mp4');
 
   const realFetch = globalThis.fetch;
@@ -463,10 +475,10 @@ test('page du créateur : vidéo confiée au serveur (stockage R2), publiée par
   assert.equal(bucket.size, 0);
   // Annulation avant l'heure : vidéo effacée aussi
   const later = (await (await add()).json()).item;
-  assert.equal(bucket.size, 2);
+  assert.equal(bucket.size, 3);
   await worker('https://s.test/studio/api/schedule/cancel', { method: 'POST', body: JSON.stringify({ id: later.id }), headers: key });
   assert.equal(bucket.size, 0);
-  delete env.MEDIA;
+  env.MEDIA = r2;
   await disableStudio({ fetchFn });
 });
 

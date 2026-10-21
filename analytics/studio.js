@@ -475,19 +475,15 @@ function tiktokOptions(raw) {
 }
 
 // ---------- Publications programmées ----------
-// Le post (textes de chaque réseau, visuels) est gardé dans la base et publié à l'heure choisie par
+// Le post (textes de chaque réseau) est gardé dans la base et publié à l'heure choisie par
 // le relevé du serveur (toutes les minutes), même page fermée. Stories comprises (visuels au format Story). Les jetons
 // utiles sont copiés pour l'occasion, chiffrés avec une clé tirée du secret du serveur (STATS_KEY,
 // hors de la base) : la base seule ne permet toujours pas de publier. Visuels et jetons sont effacés
-// une fois la publication faite. Vidéo (50 Mo au plus) gardée dans le stockage R2 (MEDIA), pas dans la base.
-const SCHED = { max: 20, ahead: 7 * 86400e3, late: 24 * 3600e3, keep: 7 * 86400e3, running: 15 * 60e3, img: 1.4e6 };
+// une fois la publication faite. Visuels (4 Mo au plus : limite des photos d'une Page Facebook, qui les
+// héberge aussi pour Instagram) et vidéo (50 Mo au plus) gardés dans le stockage R2 (MEDIA), pas dans la base.
+const SCHED = { max: 20, ahead: 7 * 86400e3, late: 24 * 3600e3, keep: 7 * 86400e3, running: 15 * 60e3, img: 4e6 };
+const SETS = { ig: 20, x: 4, cover: 1 };
 const schedKey = async (env) => new Uint8Array(await crypto.subtle.digest('SHA-256', enc.encode(`paddock-live-schedule-v1:${env.STATS_KEY}`)));
-// Base64 par morceaux (visuels de plus d'un Mo)
-function b64big(bytes) {
-  let out = '';
-  for (let i = 0; i < bytes.length; i += 0x8000) out += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  return btoa(out);
-}
 async function rowsLike(env, prefix) {
   const r = await env.DB.prepare('SELECT k, v FROM studio WHERE k LIKE ?').bind(`${prefix}%`).all();
   return r.results || [];
@@ -519,7 +515,7 @@ async function scheduleAdd(req, env, raw, vault, now = Date.now()) {
   const f0 = form.get('videofull');
   const full = video && typeof f0 === 'object' && f0 && f0.type === 'video/mp4' && f0.size <= VIDEO_MAX ? f0 : null;
   const vsize = String(form.get('vsize') || '').match(/^(\d{2,5})x(\d{2,5})$/)?.slice(1).map(Number) || null;
-  if (video && !env.MEDIA) return json({ error: 'Stockage des vidéos (R2) absent du serveur' }, 503);
+  if (!env.MEDIA) return json({ error: 'Stockage des fichiers (R2) absent du serveur' }, 503);
   let link = null;
   try { link = JSON.parse(String(form.get('link') || 'null')); } catch { return json({ error: 'JSON invalide' }, 400); }
   if (link) {
@@ -535,8 +531,8 @@ async function scheduleAdd(req, env, raw, vault, now = Date.now()) {
   for (const p of posts) if (missing(p.network, vault)) return json({ error: missing(p.network, vault) }, 409);
   const files = (k, n) => form.getAll(k).filter((f) => typeof f === 'object' && f && /^image\/(png|jpeg)$/.test(f.type)).slice(0, n);
   // cover : couverture de la vidéo fabriquée par l'appli (Reel Instagram, vidéo Facebook)
-  const sets = { ig: files('ig', 20), x: files('x', 4), cover: video ? files('cover', 1) : [] };
-  if ([...sets.ig, ...sets.x, ...sets.cover].some((f) => f.size > SCHED.img)) return json({ error: 'Visuel trop lourd (1,4 Mo au plus)' }, 413);
+  const sets = { ig: files('ig', SETS.ig), x: files('x', SETS.x), cover: video ? files('cover', SETS.cover) : [] };
+  if ([...sets.ig, ...sets.x, ...sets.cover].some((f) => f.size > SCHED.img)) return json({ error: 'Visuel trop lourd (4 Mo au plus)' }, 413);
   if ((link ? nets.includes('instagram') : !video && posts.some((p) => p.network !== 'bluesky')) && !sets.ig.length) return json({ error: 'Aucune image' }, 400);
   if (!link && !video && posts.some((p) => p.network === 'bluesky') && !sets.x.length) return json({ error: 'Aucune image' }, 400);
   const tiktok = video && nets.includes('tiktok') && form.get('tiktok') ? tiktokOptions(form.get('tiktok')) : null;
@@ -547,16 +543,17 @@ async function scheduleAdd(req, env, raw, vault, now = Date.now()) {
   const keys = { ...(nets.some((n) => n !== 'bluesky' && !CLIPS.includes(n)) ? { meta: v.meta } : {}), ...Object.fromEntries(['threads', 'bluesky', ...CLIPS].filter((n) => nets.includes(n)).map((n) => [n, v[n]])) };
   const id = hex(crypto.getRandomValues(new Uint8Array(8)));
   for (const [set, list] of Object.entries(sets)) {
-    for (const [i, f] of list.entries()) await setRow(env, `schedimg:${id}:${set}:${i}`, JSON.stringify({ type: f.type, data: b64big(new Uint8Array(await f.arrayBuffer())) }));
+    for (const [i, f] of list.entries()) await env.MEDIA.put(`sched/${id}/${set}/${i}`, f, { httpMetadata: { contentType: f.type } });
   }
   if (video) await env.MEDIA.put(`sched/${id}`, video, { httpMetadata: { contentType: video.type } });
   if (full) await env.MEDIA.put(`sched/${id}-full`, full, { httpMetadata: { contentType: full.type } });
-  const job = { id, at, title: String(form.get('title') || '').slice(0, 200), record: record && typeof record === 'object' ? record : null, posts, sets: { ig: sets.ig.length, x: sets.x.length, cover: sets.cover.length }, video: video ? video.type : null, full: !!full, vsize, tiktok, link, keys: await seal(await schedKey(env), keys), created: now };
+  const job = { id, r2: true, at, title: String(form.get('title') || '').slice(0, 200), record: record && typeof record === 'object' ? record : null, posts, sets: { ig: sets.ig.length, x: sets.x.length, cover: sets.cover.length }, video: video ? video.type : null, full: !!full, vsize, tiktok, link, keys: await seal(await schedKey(env), keys), created: now };
   await setRow(env, `sched:${id}`, JSON.stringify(job));
   return json({ item: schedSummary({ ...job, nets: Object.fromEntries(nets.map((n) => [n, { status: 'pending' }])) }) });
 }
 
-const dropMedia = (env, id) => env.MEDIA?.delete([`sched/${id}`, `sched/${id}-full`]);
+// Vidéos et visuels (toutes les places possibles : effacer un fichier absent ne fait rien)
+const dropMedia = (env, id) => env.MEDIA?.delete([`sched/${id}`, `sched/${id}-full`, ...Object.entries(SETS).flatMap(([set, n]) => Array.from({ length: n }, (_, i) => `sched/${id}/${set}/${i}`))]);
 
 async function scheduleCancel(env, id) {
   if (!/^[a-f0-9]{16}$/.test(String(id))) return json({ error: 'Publication inconnue' }, 404);
@@ -642,8 +639,10 @@ export async function runSchedule(env, { now = Date.now(), only = null } = {}) {
       const imgs = async (set, from = 0, to = j.sets?.[set] || 0) => {
         const list = [];
         for (let i = from; i < Math.min(to, j.sets?.[set] || 0); i++) {
-          const row = JSON.parse(await getRow(env, `schedimg:${j.id}:${set}:${i}`) || 'null');
-          if (row) list.push(new Blob([unb64(row.data)], { type: row.type }));
+          // shortcut: visuels des programmations d'avant R2 (dans la base) ; à retirer après le 29 octobre 2026
+          if (!j.r2) { const row = JSON.parse(await getRow(env, `schedimg:${j.id}:${set}:${i}`) || 'null'); if (row) list.push(new Blob([unb64(row.data)], { type: row.type })); continue; }
+          const o = await env.MEDIA?.get(`sched/${j.id}/${set}/${i}`);
+          if (o) list.push(new Blob([await o.arrayBuffer()], { type: o.httpMetadata?.contentType || 'image/jpeg' }));
         }
         return list;
       };
