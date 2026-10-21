@@ -168,7 +168,7 @@ export async function newsEditor(it, done, back) {
           const main = mainTeam(d.title, d.teams);
           const who = look === 'tenue' ? d.drivers[0]?.last || main?.name : main?.name;
           if (!main && !who) return [];
-          const r = await api(`socialphotos?${new URLSearchParams({ teams: main?.key || '', look, who: who || '', since: String(it.t - 4 * 86400e3) })}`);
+          const r = await api(`socialphotos?${new URLSearchParams({ teams: main?.key || '', look, who: who || '', since: String(it.t - 3 * 86400e3), until: String(it.t + 2 * 86400e3) })}`);
           socialErrors = r.errors || [];
           const list = await Promise.all(r.items.map(async (p) => {
             const blob = await (await api(`img?u=${encodeURIComponent(p.url)}`, { raw: true })).blob();

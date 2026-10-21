@@ -29,13 +29,14 @@ export const LOOK_WORDS = {
   tenue: /helmet|casque|casco|\bhelm|race ?suits?|overalls|combinaison|tuta|teamwear|\bkit\b|special (suit|design|look)/i,
 };
 
-// Réponse « business discovery » -> [{ url, t, src }] : photos et photos des carrousels, depuis since (ms),
-// des posts dont la légende correspond à match (tous sans match)
-export function igPhotos(bd, username, since = 0, match = null) {
+// Réponse « business discovery » -> [{ url, t, src }] : photos et photos des carrousels publiées entre since
+// et until (ms), des posts dont le début de la légende correspond à match (tous sans match) : la livrée est
+// le sujet du post, pas un mot glissé dans l'aperçu du week-end
+export function igPhotos(bd, username, since = 0, match = null, until = Infinity) {
   const out = [];
   for (const m of bd?.media?.data || []) {
     const t = Date.parse(m.timestamp) || 0;
-    if (t < since || (match && !match.test(m.caption || ''))) continue;
+    if (t < since || t > until || (match && !match.test(String(m.caption || '').slice(0, 160)))) continue;
     const items = m.media_type === 'CAROUSEL_ALBUM' ? m.children?.data || [] : [m];
     for (const c of items) if (c.media_type === 'IMAGE' && /^https:\/\//.test(c.media_url || '')) out.push({ url: c.media_url, t, src: `Instagram @${username}` });
   }
@@ -57,7 +58,7 @@ export function bskyPhotos(res, keep = () => true) {
 
 // Photos d'Instagram (écuries teams, posts sur le look) et de Bluesky (posts qui citent who et parlent du
 // look), depuis since (ms) -> { items, errors }
-export async function socialPhotos({ meta, teams = [], look = '', who = '', since = 0, fetchFn = fetch }) {
+export async function socialPhotos({ meta, teams = [], look = '', who = '', since = 0, until = Infinity, fetchFn = fetch }) {
   const items = [];
   const errors = [];
   const page = meta ? [meta, ...(meta.pages || [])].find((p) => p.igId && p.pageToken) : null;
@@ -68,7 +69,7 @@ export async function socialPhotos({ meta, teams = [], look = '', who = '', sinc
       const fields = `business_discovery.username(${username}){media.limit(25){caption,media_type,media_url,timestamp,children{media_type,media_url}}}`;
       const r = await call(`${GRAPH}/${page.igId}?${new URLSearchParams({ fields, access_token: page.pageToken })}`).catch(() => null);
       if (!r?.business_discovery) continue;
-      items.push(...igPhotos(r.business_discovery, username, since, LOOK_WORDS[look] || null));
+      items.push(...igPhotos(r.business_discovery, username, since, LOOK_WORDS[look] || null, until));
       found = true;
       break;
     }

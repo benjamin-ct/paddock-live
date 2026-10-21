@@ -19,6 +19,11 @@ test('photos Instagram d\'une écurie : photos et carrousels récents, sans vid�
   bd.media.data[2].caption = 'Fans in Austin';
   assert.deepEqual(igPhotos(bd, 'haasf1team', Date.parse('2026-10-15T00:00:00Z'), LOOK_WORDS.livree).map((p) => p.url.split('/').pop()), ['a.jpg']);
   assert.ok(LOOK_WORDS.tenue.test('New race suit for Austin') && !LOOK_WORDS.livree.test('Fans in Austin'));
+  // Livrée glissée en fin d'aperçu du week-end : pas le sujet du post ; post trop récent : écarté
+  bd.media.data[0].caption = `Race week in Austin! ${'Quotes from the team ahead of COTA. '.repeat(6)}Our special livery is coming.`;
+  assert.deepEqual(igPhotos(bd, 'haasf1team', 0, LOOK_WORDS.livree), []);
+  bd.media.data[0].caption = 'Godzilla livery 🇺🇸';
+  assert.deepEqual(igPhotos(bd, 'haasf1team', 0, LOOK_WORDS.livree, Date.parse('2026-10-19T00:00:00Z')), []);
 });
 
 test('photos Bluesky : images des posts (et des citations avec photos), hôtes autorisés', async () => {
