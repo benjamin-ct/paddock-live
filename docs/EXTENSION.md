@@ -65,8 +65,8 @@ https://addons.mozilla.org/developers/ → **Soumettre un nouveau module** → m
 
 **Nom** : Paddock Live Companion
 
-**Résumé (FR)** : Connecte Paddock Live à F1 TV : connectez-vous sur formula1.com dans votre navigateur,
-l'appli de bureau reçoit la connexion toute seule.
+**Résumé (FR)** (132 caractères au plus, coupé au-delà par le Chrome Web Store) : Connectez-vous sur
+formula1.com dans votre navigateur : l'appli Paddock Live reçoit votre connexion F1 TV toute seule.
 
 **Summary (EN)** : Connects Paddock Live to F1 TV: sign in on formula1.com in your browser and the desktop
 app receives the connection automatically.
