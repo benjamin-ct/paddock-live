@@ -610,7 +610,7 @@ async function claim(env, k) {
 
 // Envoi d'un réseau demandé par la tâche planifiée (appel du Worker à lui-même, clé du serveur exigée)
 export async function schedInternal(req, env) {
-  if (!env.STATS_KEY || req.headers.get('X-Sched-Key') !== env.STATS_KEY) return json({ error: 'Interdit' }, 403);
+  if (!env.STATS_KEY || !sameHex(req.headers.get('X-Sched-Key') || '', env.STATS_KEY)) return json({ error: 'Interdit' }, 403);
   let only;
   try { only = await req.json(); } catch { return json({ error: 'JSON invalide' }, 400); }
   return json({ out: await runSchedule(env, { now: Number(only?.now) || Date.now(), only: { id: String(only?.id || ''), net: String(only?.net || '') } }) });
@@ -620,16 +620,31 @@ export async function schedInternal(req, env) {
 // à part, tous en même temps ; chaque appel a toutes les sous-requêtes permises à un passage du Worker (50 ;
 // un carrousel Instagram en prend déjà une bonne part). Sinon (ou only : réseau demandé) : un réseau par
 // passage. Réseau réservé (claim) avant l'envoi, commencé dans les 40 premières secondes : jamais renvoyé
+// Publication en retard de plus de 5 minutes (appels qui échouent, réseau en panne…) : une notification sur
+// le téléphone, une seule fois par programmation (ligne schedpost:<id>:late, effacée avec les autres)
+async function lateAlert(env, jobs, now) {
+  for (const j of jobs) {
+    if (now - j.at < 5 * 60e3 || now - j.at > SCHED.late || !Object.values(j.nets).some((s) => s.status === 'pending')) continue;
+    if (await getRow(env, `schedpost:${j.id}:late`)) continue;
+    await setRow(env, `schedpost:${j.id}:late`, '1');
+    await notifyPhones(env, { title: 'Publication programmée en retard', body: `${j.title || 'Post'} : pas encore publié, le serveur réessaie`, id: `sched-late-${j.id}`, url: '/studio/?alert=schedule' }, { now }).catch(() => 0);
+  }
+}
+
 export async function runSchedule(env, { now = Date.now(), only = null } = {}) {
   if (!env.DB || !env.STATS_KEY) return null;
   const jobs = await schedJobs(env);
+  if (!only) await lateAlert(env, jobs, now);
   const setState = (j, net, st) => setRow(env, `schedpost:${j.id}:${net}`, JSON.stringify(st));
   if (env.SELF && !only) {
     const todo = jobs.flatMap((j) => (j.at <= now && now - j.at <= SCHED.late ? j.posts.filter((p) => j.nets[p.network].status === 'pending').map((p) => ({ id: j.id, net: p.network })) : []));
     if (todo.length) {
       // Au plus 10 appels par passage (32 au plus par exécution) ; le reste au passage suivant
-      await Promise.all(todo.slice(0, 10).map((t) => env.SELF.fetch('https://self/internal/sched', { method: 'POST', headers: { 'X-Sched-Key': env.STATS_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify({ ...t, now }) }).catch(() => null)));
-      return { published: todo.slice(0, 10).map((t) => t.net), parallel: true };
+      // Réponse de chaque appel vérifiée : un appel qui échoue ne compte pas comme publié (réessayé au passage
+      // suivant ; prévenu sur le téléphone s'il dure, voir lateAlert)
+      const ok = await Promise.all(todo.slice(0, 10).map((t) => env.SELF.fetch('https://self/internal/sched', { method: 'POST', headers: { 'X-Sched-Key': env.STATS_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify({ ...t, now }) }).then((r) => r.ok, () => false)));
+      const sent = todo.slice(0, 10).filter((_, k) => ok[k]);
+      if (sent.length) return { published: sent.map((t) => t.net), parallel: true };
     }
   }
   const start = Date.now();

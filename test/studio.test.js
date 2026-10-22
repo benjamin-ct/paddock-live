@@ -852,3 +852,15 @@ test('page du créateur : brouillons de posts (enregistrés, repris, mis à jour
   assert.deepEqual((await (await call('drafts/remove', { id: dr.id })).json()).items, []);
   assert.equal((await call(`draft?id=${dr.id}`)).status, 404);
 });
+
+test('publications programmées : retard de plus de 5 minutes signalé une seule fois', async () => {
+  const e = { DB: fakeDB(), STATS_KEY: 'secret-du-serveur' };
+  const at = Date.now() - 6 * 60e3;
+  e.DB.studio.set('sched:bbbbbbbbbbbbbbbb', JSON.stringify({ id: 'bbbbbbbbbbbbbbbb', at, title: 'Résultats', posts: [{ network: 'facebook', text: 'x' }], sets: {} }));
+  await runSchedule(e, { now: at + 6 * 60e3 });
+  assert.equal(e.DB.studio.get('schedpost:bbbbbbbbbbbbbbbb:late'), '1');
+  // Trop tôt : rien
+  e.DB.studio.set('sched:cccccccccccccccc', JSON.stringify({ id: 'cccccccccccccccc', at: Date.now(), title: 'Grille', posts: [{ network: 'facebook', text: 'x' }], sets: {} }));
+  await runSchedule(e, { now: Date.now() + 60e3 });
+  assert.equal(e.DB.studio.get('schedpost:cccccccccccccccc:late'), undefined);
+});
