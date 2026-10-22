@@ -8,6 +8,8 @@ test('statistiques : lot nettoyé (noms, appareils, nombres), doublons additionn
   const b = cleanBatch({ v: '1.27.0', os: 'win', items: [['rail.season', 'desktop', 2], ['rail.season', 'desktop', 3], ['Bad Name', 'desktop', 1], ['tab.map', 'tv', 1], ['tab.map', 'phone', 0], ['tab.map', 'phone', 1.5], ['x', '-', 1e9], 'nope'] });
   assert.deepEqual(b, { version: '1.27.0', os: 'win', items: [['rail.season', 'desktop', 5], ['x', '-', MAX_COUNT]] });
   assert.equal(cleanBatch({ v: 'abc', os: 'win', items: [['a', '-', 1]] }), null);
+  assert.equal(cleanBatch({ v: '1.28.0-beta.11', os: 'win', items: [['a', '-', 1]] })?.version, '1.28.0-beta.11');
+  assert.equal(cleanBatch({ v: '1.28.0-rc.1', os: 'win', items: [['a', '-', 1]] }), null);
   assert.equal(cleanBatch({ v: 'dev', os: 'amiga', items: [['a', '-', 1]] }), null);
   assert.equal(cleanBatch({ v: 'dev', os: 'linux', items: [] }), null);
   assert.equal(cleanBatch(null), null);

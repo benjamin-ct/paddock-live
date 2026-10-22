@@ -5,7 +5,7 @@
 export const DEVICES = ['desktop', 'phone', 'browser', '-'];
 export const SYSTEMS = ['win', 'mac', 'linux', 'other'];
 export const EVENT_RE = /^[a-z0-9][a-z0-9._:-]{0,63}$/;
-export const VERSION_RE = /^(\d{1,4}\.\d{1,4}\.\d{1,4}|dev)$/;
+export const VERSION_RE = /^(\d{1,4}\.\d{1,4}\.\d{1,4}(-beta\.\d{1,4})?|dev)$/;
 export const MAX_ITEMS = 300;
 export const MAX_COUNT = 5000;
 
