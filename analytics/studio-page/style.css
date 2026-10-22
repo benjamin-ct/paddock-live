@@ -75,8 +75,8 @@ html { min-height: 100%; overflow-x: hidden; }
 .page { max-width: var(--w); margin: 0 auto; padding: 16px var(--gutter) calc(104px + env(safe-area-inset-bottom)); }
 /* Barre d'onglets et barre d'actions : pleine largeur en bas, noires, au-dessus de l'indicateur d'accueil */
 .tabbar, .actionbar { position: fixed; z-index: 10; left: 0; right: 0; bottom: 0; border-width: 1px 0 0; border-radius: 0; background: #000; }
-.tabbar { display: grid; grid-template-columns: repeat(4, 1fr); padding: 4px 0 max(6px, env(safe-area-inset-bottom)); }
-.actionbar { padding: 8px 12px max(8px, env(safe-area-inset-bottom)); }
+.tabbar { display: grid; grid-template-columns: repeat(4, 1fr); padding: 4px 0 calc(10px + env(safe-area-inset-bottom)); }
+.actionbar { padding: 8px 12px calc(10px + env(safe-area-inset-bottom)); }
 /* Onglet choisi : trait rouge au-dessus */
 .tabbar .lens { position: absolute; top: 0; left: 0; width: 25%; height: 3px; background: var(--brand); transform: translateX(calc(var(--i, 0) * 100%)); transition: transform .3s var(--ease); pointer-events: none; }
 .tabbar button { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 7px 0 6px; border: 0; background: none; color: var(--text-2); font: 700 10px 'Titillium Web', sans-serif; letter-spacing: .06em; text-transform: uppercase; cursor: pointer; transition: color .2s; }
