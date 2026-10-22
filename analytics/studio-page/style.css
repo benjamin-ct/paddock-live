@@ -556,3 +556,39 @@ details.cap[open] textarea { animation: in-up .3s var(--ease); }
 .card.health small { display: block; color: var(--muted); margin-top: 3px; line-height: 1.4; }
 .card.usage-never { display: flex; flex-wrap: wrap; gap: 6px; padding: 12px; }
 .card.usage-never span { padding: 4px 10px; border-radius: 999px; background: var(--surface-2); color: var(--text-2); font-size: 13px; }
+
+/* ---------- Habillage « Broadcast » (même langage que l'appli) ----------
+   Fonds plus noirs, coins peu arrondis, intitulés de section en étiquette rouge, barre d'onglets
+   noire avec un trait rouge sur l'onglet choisi. */
+:root {
+  --bg: #030406; --surface: #101218; --surface-2: #171A21; --line: rgba(255, 255, 255, .08);
+  --text: #fff; --text-2: #B9BCC6; --muted: #858A96;
+  --glass: rgba(16, 18, 24, .94); --glass-strong: rgba(16, 18, 24, .98);
+}
+.card, .group, .tile, .panel, .notice, .card.hero, .card.acc { border-radius: 6px; }
+.chips button, .chip-toggle span, .seg, .seg > .thumb, .seg button, .pill { border-radius: 4px; }
+.btn, input[type=text], input[type=password], input[type=datetime-local], textarea, select { border-radius: 6px; }
+.chips button { font-weight: 700; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; }
+.chips button.on { background: #fff; border-color: #fff; color: #000; }
+.section { display: inline-flex; align-items: center; gap: 8px; height: 24px; margin-left: 0; padding: 0 9px; border-radius: 4px; background: var(--brand); color: #fff; font-size: 11.5px; letter-spacing: .08em; }
+.section small { color: rgba(255, 255, 255, .75); font-weight: 600; letter-spacing: .02em; text-transform: none; }
+.section-row .section { margin: 0; }
+/* Téléphone : barre d'onglets pleine largeur, noire, trait rouge au-dessus de l'onglet choisi */
+@media (max-width: 959px) {
+  .tabbar { left: 0; right: 0; bottom: 0; border-radius: 0; border-width: 1px 0 0; padding: 4px 0 max(6px, env(safe-area-inset-bottom));
+    background: #000; -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none; }
+  .tabbar .lens { top: 0; bottom: auto; left: 0; height: 3px; width: calc(100% / 4); border-radius: 0; background: var(--brand); box-shadow: none; }
+  .tabbar button { border-radius: 0; font-weight: 700; font-size: 10px; letter-spacing: .06em; text-transform: uppercase; }
+  .tabbar button.on { color: #fff; }
+  .actionbar { border-radius: 8px; }
+  .actionbar .btn, .actionbar .iconbtn.boxed { border-radius: 6px; }
+}
+/* Ordinateur : barre latérale noire comme dans l'appli */
+@media (min-width: 960px) {
+  .tabbar { background: #000; }
+  .tabbar button { border-radius: 6px; }
+  .tabbar button.on { position: relative; background: rgba(255, 255, 255, .06); color: #fff; }
+  .tabbar button.on::before { content: ''; position: absolute; left: -14px; top: 8px; bottom: 8px; width: 3px; background: var(--brand); }
+  dialog.sheet { border-radius: 8px; }
+}
+.appbar .iconbtn { border-radius: 6px; }
