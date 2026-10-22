@@ -16,7 +16,7 @@ import { seasonStats, archiveError } from './race-stats.js';
 import { seasonTech } from './fia-tech.js';
 import { fiaDocuments, fiaPdf, fiaPdfUrl } from './fia.js';
 import { officialGrid } from './fia-grid.js';
-import { findSessionContent, playback, proxy as f1tvProxy, allowHost, resolvePlaylist } from './f1tv.js';
+import { findSessionContent, playback, proxy as f1tvProxy, allowHost, resolvePlaylist, localHost } from './f1tv.js';
 import { Recorder, listRecordings, recordingPath } from './recorder.js';
 import { ROOT, DATA_DIR, settings, getConfig, saveConfig, parseF1tvToken, tokenInfo } from './config.js';
 import { createLan, isLoopback } from './lan.js';
@@ -639,6 +639,7 @@ async function handleApi(req, res, url) {
       const body = await readBody(req);
       let host;
       try { host = new URL(body.url).host; } catch { return sendJSON(res, 400, { error: 'Adresse de flux invalide' }); }
+      if (localHost(new URL(body.url).hostname)) return sendJSON(res, 400, { error: 'Adresse locale refusée' });
       const hosts = [...new Set([...(getConfig().radioHosts || []), host])];
       saveConfig({ radioHosts: hosts });
       allowHost(host);
@@ -648,9 +649,11 @@ async function handleApi(req, res, url) {
     case 'GET /api/radio/resolve': {
       const target = url.searchParams.get('u') || '';
       if (!URL.canParse(target)) return sendJSON(res, 400, { error: 'Adresse invalide' });
-      const stream = await resolvePlaylist(target);
-      allowHost(new URL(stream).host);
-      return sendJSON(res, 200, { url: stream });
+      try {
+        const stream = await resolvePlaylist(target);
+        allowHost(new URL(stream).host);
+        return sendJSON(res, 200, { url: stream });
+      } catch (err) { return sendJSON(res, 400, { error: err.message }); }
     }
 
     case 'GET /api/f1tv/proxy':

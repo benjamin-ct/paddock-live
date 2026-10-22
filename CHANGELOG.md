@@ -78,6 +78,10 @@ l'application (Réglages → À propos → Nouveautés).
 - Versions bêta : nouveau réglage « Recevoir les versions bêta » (Réglages → Application) pour essayer les
   nouveautés avant leur sortie pour tout le monde. Décoché, l'appli ne reçoit que les versions finales.
 
+### Fiabilité et sécurité
+- Le relais des radios et de F1 TV refuse les adresses de l'ordinateur et du réseau local : un appareil connecté par
+  le QR code ne peut plus s'en servir pour agir comme s'il était l'ordinateur.
+
 ### Divers
 - Petites améliorations internes.
 
