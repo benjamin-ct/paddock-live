@@ -6,6 +6,17 @@ l'application (Réglages → À propos → Nouveautés).
 
 ## v1.28.0 — à venir
 
+### Nouveau design « Broadcast »
+- Habillage façon retransmission TV, en sombre comme en clair : barre du haut et barre de lecture noires, tour
+  en cours dans une case blanche, titres des panneaux en étiquette rouge, position du classement dans une case,
+  grand écart du duel en chiffres condensés. La carte et tous ses calques restent identiques.
+- Bandeau en bas de l'écran avec le dernier message de la direction de course (couleur du drapeau, tour).
+- Radios : photo carrée soulignée de la couleur de l'écurie, onde sous chaque message retranscrit.
+- Interface Essentiel : sa propre disposition (classement, grande carte avec le duel dessous, radios et direction
+  de course à droite), indépendante de celle de l'interface Complète ; classement compact avec le code pilote,
+  l'écart, les secteurs en couleur et les pneus.
+- Studio et site aux mêmes couleurs.
+
 ### Prise en main
 - Premier lancement guidé (nouvelles installations, sur ordinateur) : choix des pilotes et écuries favoris, le
   délai TV expliqué en deux lignes (« Synchro TV », puis « Je le vois ! »), connexion F1 TV Pro si vous l'avez, et
