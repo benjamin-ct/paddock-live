@@ -1313,6 +1313,17 @@ html:not(.phone) [data-phone] { display: none !important; }
 html.phone [data-desk] { display: none !important; }
 /* Ordinateur, mode Essentiel : le principal seulement (data-expert : mode Complet) */
 html.essential [data-expert] { display: none !important; }
+/* Mode Essentiel : classement compact (code pilote, écart, secteurs en couleur, pneus), sans nom complet ni mini-secteurs */
+html.essential .tower :is(.c-int, .c-last, .c-best, .c-pits, .c-speed, .c-duel, .drv-last) { display: none !important; }
+html.essential .p-tower .panel-tools .hint { display: none; }
+html.essential .tower .c-sec .segs { display: none; }
+html.essential .tower td.c-sec .sector-val { font-size: 0; width: 22px; height: 8px; margin: 0 auto; border-radius: 2px; background: #E3B505; }
+html.essential .tower td.c-sec .sector-val.green { background: var(--green); }
+html.essential .tower td.c-sec .sector-val.purple { background: var(--purple); }
+html.essential .tower td.c-sec .sector-val:has(.dim) { background: var(--line-2); }
+
+/* Design classique : pas de bandeau du bas (il fait partie du design Broadcast) */
+html[data-design="classic"] .rc-bar { display: none !important; }
 .tb-break { display: none; }
 @media (max-width: 900px) {
   .topbar .tb-break { display: block; flex-basis: 100%; height: 0; }
