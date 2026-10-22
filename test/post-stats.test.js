@@ -46,3 +46,14 @@ test('statistiques des posts : Instagram, Facebook, Threads, Bluesky et abonnés
     assert.deepEqual(gone.posts[0].stats.threads, { error: '(#10) Application does not have permission', note: 'Autorisation manquante : reconnectez le compte' });
   } finally { globalThis.fetch = realFetch; }
 });
+
+test('créneau conseillé : tranche horaire dont les posts ont le plus de réactions (heure de Paris)', async () => {
+  const { bestSlot } = await import('../shared/post-history.js');
+  const at = (h, day) => Date.parse(`2026-10-${String(day).padStart(2, '0')}T${String(h - 2).padStart(2, '0')}:30:00Z`);   // heure d'été : UTC+2
+  const post = (h, day, likes) => ({ at: at(h, day), stats: { instagram: { likes, comments: 0 } } });
+  const evening = [1, 2, 3, 4].map((d) => post(19, d, 100));
+  const morning = [5, 6, 7, 8].map((d) => post(10, d, 20));
+  assert.deepEqual(bestSlot([...evening, ...morning]), { from: 18, to: 21, n: 8, ratio: 1.7 });
+  assert.equal(bestSlot(evening), null, 'trop peu de posts');
+  assert.equal(bestSlot([...[1, 2, 3, 4].map((d) => post(19, d, 50)), ...[5, 6, 7, 8].map((d) => post(10, d, 50))]), null, 'pas d\'écart');
+});

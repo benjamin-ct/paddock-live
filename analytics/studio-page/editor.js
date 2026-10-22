@@ -7,7 +7,8 @@ import { xLength } from '/shared/social.js';
 import { linksIn } from '/shared/track-links.js';
 import { FLAG_ISO } from '/shared/flags.js';
 import { loadTeamLogos } from '/shared/team-logos.js';
-import { $, $$, esc, api, icon, toast, toggle, sheet, schedList, glide, state, session, SIG, NET_NAMES, IOS, installed } from './ui.js';
+import { $, $$, esc, api, icon, toast, toggle, sheet, schedList, glide, state, session, store, SIG, NET_NAMES, IOS, installed } from './ui.js';
+import { bestSlot } from '/shared/post-history.js';
 import { tiktokPanel, tiktokProblem, tiktokChoice, TIKTOK_PRIVACY } from './tiktok.js';
 import { packDraftImages } from '/shared/post-draft.js';
 
@@ -435,10 +436,22 @@ function schedulePanel(d, o, record = null, video = null, link = null, twin = nu
   if (nets.includes('tiktok') && tiktokProblem()) { toast(tiktokProblem(), 'bad'); return; }
   const t = new Date(Date.now() + 3600e3);
   t.setMinutes(Math.ceil(t.getMinutes() / 15) * 15, 0, 0);
+  // Créneau conseillé d'après les chiffres des posts déjà publiés (onglet Stats, gardés sur le téléphone)
+  const slot = bestSlot(store.get('stats')?.v?.posts);
   const dlg = sheet('Programmer la publication', `<label class="field"><span>Date et heure</span><input type="datetime-local" id="when" value="${localValue(t)}"></label>
+    ${slot ? `<p class="hint">Conseil : d'après vos ${slot.n} derniers posts, ceux publiés entre ${slot.from} h et ${slot.to} h ont ${String(slot.ratio).replace('.', ',')} fois plus de réactions que la moyenne.</p>
+    <div class="row"><button class="btn small" id="bestslot">${icon('clock')}Choisir ${slot.from + 1} h</button></div>` : ''}
     <p class="hint">Sur ${esc(nets.map((n) => NET_NAMES[n]).join(', '))}, même page fermée (7 jours à l'avance au plus).</p>
     <p class="hint" id="schedst"></p>
     <button class="btn primary wide" id="dosched">${icon('clock')}Programmer</button>`);
+  if (slot) {
+    $('#bestslot', dlg).onclick = () => {
+      const next = new Date();
+      next.setHours(slot.from + 1, 0, 0, 0);
+      if (next.getTime() < Date.now() + 10 * 60e3) next.setDate(next.getDate() + 1);
+      $('#when', dlg).value = localValue(next);
+    };
+  }
   $('#dosched', dlg).onclick = async () => {
     const at = new Date($('#when', dlg).value).getTime();
     const st = $('#schedst', dlg);

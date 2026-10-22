@@ -59,3 +59,27 @@ export function postedEntry(item, history = []) {
     || (Math.abs((item.t || 0) - e.at) < 72 * 3600e3 && sameStoryOf({ title: e.srcTitle || e.title, summary: e.summary, t: item.t }, item))
   )) || null;
 }
+
+// Créneau conseillé pour publier, d'après les chiffres des posts déjà publiés (onglet Stats) : la tranche de
+// 3 heures (heure de Paris) dont les posts ont eu le plus de réactions (j'aime, commentaires, partages,
+// enregistrements), comparées à la médiane pour ne pas dépendre d'un seul post. null tant qu'il y a trop peu
+// de posts (8 au moins, 3 par tranche, 2 tranches) ou pas d'écart net (20 % au-dessus de la moyenne).
+const SLOTS = [[6, 9], [9, 12], [12, 15], [15, 18], [18, 21], [21, 24]];
+const parisHour = (t) => Number(new Intl.DateTimeFormat('en-GB', { hour: 'numeric', hourCycle: 'h23', timeZone: 'Europe/Paris' }).format(t));
+export function bestSlot(posts) {
+  const scored = (posts || []).map((p) => {
+    const nets = Object.values(p?.stats || {}).filter(Boolean);
+    return nets.length && p.at ? { at: p.at, e: nets.reduce((s, x) => s + (x.likes || 0) + (x.comments || 0) + (x.shares || 0) + (x.saves || 0), 0) } : null;
+  }).filter(Boolean);
+  if (scored.length < 8) return null;
+  const sorted = scored.map((p) => p.e).sort((a, b) => a - b);
+  const median = sorted[Math.floor(sorted.length / 2)] || 1;
+  const all = scored.reduce((s, p) => s + p.e / median, 0) / scored.length;
+  const slots = SLOTS.map(([from, to]) => {
+    const list = scored.filter((p) => { const h = parisHour(p.at); return h >= from && h < to; });
+    return { from, to, n: list.length, mean: list.reduce((s, p) => s + p.e / median, 0) / (list.length || 1) };
+  }).filter((s) => s.n >= 3);
+  if (slots.length < 2) return null;
+  const best = slots.sort((a, b) => b.mean - a.mean)[0];
+  return best.mean >= all * 1.2 ? { from: best.from, to: best.to, n: scored.length, ratio: Math.round((best.mean / all) * 10) / 10 } : null;
+}
