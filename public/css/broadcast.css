@@ -106,12 +106,3 @@ html.float-map .rc-bar { display: none !important; }
 
 /* Duel : grand écart en chiffres condensés */
 [data-theme="pitwall"] .duel-gap-val { font-family: var(--font-cond); font-weight: 800; letter-spacing: 0; }
-
-/* Mode Allégé : classement compact (code pilote, écart, secteurs en couleur, pneus), sans nom complet ni mini-secteurs */
-html.essential .tower :is(.c-int, .c-last, .c-best, .c-pits, .c-speed, .c-duel, .drv-last) { display: none !important; }
-html.essential .p-tower .panel-tools .hint { display: none; }
-html.essential .tower .c-sec .segs { display: none; }
-html.essential .tower td.c-sec .sector-val { font-size: 0; width: 22px; height: 8px; margin: 0 auto; border-radius: 2px; background: #E3B505; }
-html.essential .tower td.c-sec .sector-val.green { background: var(--green); }
-html.essential .tower td.c-sec .sector-val.purple { background: var(--purple); }
-html.essential .tower td.c-sec .sector-val:has(.dim) { background: var(--line-2); }

@@ -16,6 +16,7 @@ l'application (Réglages → À propos → Nouveautés).
   de course à droite), indépendante de celle de l'interface Complète ; classement compact avec le code pilote,
   l'écart, les secteurs en couleur et les pneus.
 - Studio et site aux mêmes couleurs.
+- Envie de l'ancien look ? Réglages → Apparence → Design : « Classique » le remet (le bandeau du bas en moins).
 
 ### Prise en main
 - Premier lancement guidé (nouvelles installations, sur ordinateur) : choix des pilotes et écuries favoris, le

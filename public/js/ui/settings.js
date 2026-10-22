@@ -217,6 +217,9 @@ export function initSettings() {
   $('#schemeSel').value = prefs.scheme || 'auto';
   $('#schemeSel').addEventListener('change', (e) => setPref('scheme', e.target.value));
   on('prefs', (k) => { if (k === 'scheme') $('#schemeSel').value = prefs.scheme; });
+  $('#designSel').value = prefs.design;
+  $('#designSel').addEventListener('change', (e) => setPref('design', e.target.value));
+  on('prefs', (k) => { if (k === 'design') $('#designSel').value = prefs.design; });
   const fullSel = $('#fullModeSel');
   fullSel.value = prefs.fullMode ? '1' : '0';
   fullSel.addEventListener('change', () => setPref('fullMode', fullSel.value === '1'));

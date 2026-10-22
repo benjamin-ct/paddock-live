@@ -12,6 +12,7 @@ const DEFAULTS = {
   extraCols: [],          // colonnes facultatives ajoutées au classement (voir EXTRA_COLUMNS)
   towerFit: true,         // classement agrandi pour remplir la hauteur disponible
   theme: 'pitwall',       // thème unique de l'application
+  design: 'broadcast',    // habillage : 'broadcast' (façon retransmission TV) | 'classic' (ancien design Pitwall)
   scheme: 'auto',         // apparence : 'auto' (comme le système) | 'dark' (sombre) | 'light' (clair)
   schemeSet: false,       // apparence choisie par l'utilisateur (sinon : automatique)
   vividTeams: false,      // couleurs d'équipe contrastées plutôt qu'officielles
@@ -106,7 +107,14 @@ function applyScheme() {
   // Appli installée sur iPhone : barre d'état claire ou noire (prise en compte au lancement suivant)
   document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]')?.setAttribute('content', v === 'light' ? 'default' : 'black');
 }
+// Habillage : la feuille broadcast.css (posée par-dessus le thème Pitwall) est coupée en design classique
+function applyDesign() {
+  document.documentElement.dataset.design = prefs.design;
+  const css = document.querySelector('link[href="/css/broadcast.css"]');
+  if (css) css.disabled = prefs.design === 'classic';
+}
 document.documentElement.dataset.theme = 'pitwall';
+applyDesign();
 applyScheme();
 systemLight?.addEventListener?.('change', () => { if (prefs.scheme === 'auto') applyScheme(); });
 
@@ -122,6 +130,7 @@ export function setPref(key, value) {
   prefs[key] = value;
   if (['vividTeams', 'teamLogos', 'logoColor'].includes(key)) applyTeamColors();
   if (key === 'scheme') { prefs.schemeSet = true; applyScheme(); }
+  if (key === 'design') applyDesign();
   if (key === 'motion') document.documentElement.dataset.motion = value ? 'on' : 'off';
   storageSet('paddock.prefs', prefs);
   emit('prefs', key);
@@ -151,6 +160,7 @@ window.addEventListener('storage', (e) => {
     prefs[key] = key === 'alerts' ? { ...DEFAULTS.alerts, ...next.alerts } : next[key];
     if (['vividTeams', 'teamLogos', 'logoColor'].includes(key)) applyTeamColors();
     if (key === 'scheme') applyScheme();
+    if (key === 'design') applyDesign();
     emit('prefs', key);
   }
 });
