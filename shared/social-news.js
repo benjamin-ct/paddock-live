@@ -46,12 +46,13 @@ const GENERIC = new Set(['actu', 'officiel']);
 const kindsMatch = (a, b) => { const x = newsKind(a).key; const y = newsKind(b).key; return x === y || GENERIC.has(x) || GENERIC.has(y); };
 // Même sujet pour deux nouvelles quelconques (noms propres calculés ici)
 export const sameStoryOf = (a, b) => sameStory({ ...a, _names: names(a.title) }, { ...b, _names: names(b.title) });
-const sameStory = (a, b) => kindsMatch(a, b) && Math.abs(a.t - b.t) < 30 * 3600e3
-  && ([...a._names].some((w) => b._names.has(w)) || newsSimilarity(a, b) >= 0.3);
+const sameStory = (a, b) => kindsMatch(a._fr || a, b._fr || b) && Math.abs(a.t - b.t) < 30 * 3600e3
+  && ([...a._names].some((w) => b._names.has(w)) || newsSimilarity(a._fr || a, b._fr || b) >= 0.3);
 
 // Grosses nouvelles des dernières heures : importantes (alerte), ou reprises par plusieurs médias.
-// Une seule par sujet. Vidéos et publications exclues.
-export function bigNews(items, { now = Date.now(), hours = 48, all = false } = {}) {
+// Une seule par sujet. Vidéos et publications exclues. frTitle(it) : titre traduit en français s'il est
+// connu (le même article publié en plusieurs langues est alors reconnu, type compris)
+export function bigNews(items, { now = Date.now(), hours = 48, all = false, frTitle = null } = {}) {
   const score = (it) => (it.imp || 0) * 2 + Math.min(it.sources || 1, 5) + (it.cat === 'official' ? 1 : 0);
   const keep = (it) => it.kind !== 'video' && it.kind !== 'post' && it.t >= now - hours * 3600e3
     && (all || (it.imp || 0) >= 2 || ((it.sources || 1) >= 3 && (it.imp || 0) >= 1) || LOOKS.has(newsKind(it).key));   // livrées et tenues spéciales toujours gardées
@@ -67,7 +68,10 @@ export function bigNews(items, { now = Date.now(), hours = 48, all = false } = {
     if (!cur || better(it, cur)) best.set(k, it);
   }
   // Sujets séparés par l'Actu mais identiques (même personne, autre langue…) : réunis
-  const list = [...best.values()].map((it) => ({ ...it, _names: names(it.title), sources: it.sources || 1 }))
+  const list = [...best.values()].map((it) => {
+    const fr = frTitle?.(it);
+    return { ...it, _names: names(fr || it.title), _fr: fr ? { title: fr, tags: it.tags, cat: it.cat } : null, sources: it.sources || 1 };
+  })
     .sort((a, b) => score(b) - score(a) || b.t - a.t);
   const out = [];
   for (const it of list) {
@@ -77,7 +81,7 @@ export function bigNews(items, { now = Date.now(), hours = 48, all = false } = {
     twin.imp = Math.max(twin.imp, it.imp || 0);
     if (better(it, twin.item)) twin.item = it;
   }
-  return out.map(({ item: { _names, _tok, ...it }, total, imp }) => ({ ...it, imp, sources: total, score: score({ ...it, imp, sources: total }) }))
+  return out.map(({ item: { _names, _tok, _fr, ...it }, total, imp }) => ({ ...it, imp, sources: total, score: score({ ...it, imp, sources: total }) }))
     .sort((a, b) => b.score - a.score || b.t - a.t);
 }
 

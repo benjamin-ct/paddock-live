@@ -25,7 +25,7 @@ import { compareLaps } from './compare.js';
 import { weekendTyres } from './tyres.js';
 import { circuitRecords } from './records.js';
 import { circuitInfo } from '../shared/circuits-info.js';
-import { startNews, refreshNews, newsSnapshot, onNews, addNewsSource, removeNewsSource, setNewsSourceEnabled } from './news.js';
+import { startNews, refreshNews, newsSnapshot, onNews, addNewsSource, removeNewsSource, setNewsSourceEnabled, setClusterTitle } from './news.js';
 import { parseChangelog } from '../shared/changelog.js';
 import { buildIcs } from '../shared/ics.js';
 import { headshot } from './headshots.js';
@@ -99,6 +99,11 @@ const newsTranslator = createNewsTranslator({
   known: getTranslations,
   store: addTranslations,
   lang: () => getConfig().newsTranslateLang || null,
+});
+// Actus regroupées sur leurs titres traduits : le même article publié en plusieurs langues réuni
+setClusterTitle((it) => {
+  const lang = getConfig().newsTranslateLang;
+  return lang && it.lang !== lang ? getTranslations(lang)[it.title]?.t : null;
 });
 for (const h of getConfig().radioHosts || []) allowHost(h);
 

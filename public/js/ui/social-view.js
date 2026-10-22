@@ -302,7 +302,9 @@ const ago = (ts) => { const m = Math.round((Date.now() - ts) / 60e3); return m <
 
 async function newsSource(sig) {
   const data = await newsList();
-  const big = bigNews(data.items, { all: newsAll });
+  // Titres traduits en français d'abord : le même article publié en plusieurs langues est réuni
+  await toFrench(bigNews(data.items, { all: newsAll }).slice(0, 60).map((it) => ({ text: it.title, from: it.lang })));
+  const big = bigNews(data.items, { all: newsAll, frTitle: (it) => (it.lang === 'fr' ? it.title : frCache.get(`${it.lang}|${it.title}`)) });
   const history = await postHistory();
   const postedOf = new Map(big.map((it) => [it, postedEntry(it, history)]));
   // Tri (à la une ou récentes), filtre par type, news déjà publiées en dernier

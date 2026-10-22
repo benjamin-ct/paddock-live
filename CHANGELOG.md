@@ -60,6 +60,8 @@ l'application (Réglages → À propos → Nouveautés).
   F1, pas le foot ni la F1 Academy).
 - Les chaînes YouTube qui parlent aussi d'autre chose (Ferrari, Alpine) ne montrent plus que leurs vidéos F1 dans l'appli,
   comme déjà dans le Studio.
+- Moins de doublons : le même article publié en plusieurs langues (Motorsport.com en anglais, en français, en espagnol…)
+  est reconnu grâce aux titres traduits et compté comme un seul sujet, dans l'Actu, les posts d'actu et le Studio.
 
 ### Mises à jour
 - Versions bêta : nouveau réglage « Recevoir les versions bêta » (Réglages → Application) pour essayer les

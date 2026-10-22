@@ -162,16 +162,16 @@ async function newsTab(body, { force, restore, current }) {
 
 // Titres pas encore traduits de la liste affichée : demandés au serveur, remplacés dès qu'ils
 // arrivent (à chaque affichage : chargement, tri, filtre, « Toutes »)
-async function translateShown(body, list) {
+// Titres traduits, puis liste refaite : le même article publié en plusieurs langues y est réuni
+async function translateShown(body, list, redraw) {
   const todo = list.filter((it) => it.lang !== 'fr' && !knownFrench(it.title, it.lang));
   if (!todo.length) return;
   await toFrench(todo.map((it) => ({ text: it.title, from: it.lang })));
-  if (list !== shown || !body.isConnected) return;
-  list.forEach((it, i) => {
-    const fr = knownFrench(it.title, it.lang);
-    const t = $(`[data-i="${i}"] .t`, body);
-    if (t && fr && t.textContent !== fr) t.textContent = fr;
-  });
+  // Rien de traduit (serveur indisponible) : pas de nouvel essai en boucle
+  if (list !== shown || !body.isConnected || !todo.some((it) => knownFrench(it.title, it.lang))) return;
+  const y = scrollY;
+  redraw();
+  scrollTo(0, y);
 }
 
 let shown = [];
@@ -180,7 +180,7 @@ const READ = new Set(store.get('read')?.v || []);
 const setRead = (id, on = true) => { if (on) READ.add(id); else READ.delete(id); store.set('read', [...READ].slice(-2000)); };
 const KIND_NAMES = { transfert: 'Transferts', penalite: 'Pénalités', depart: 'Départs', accident: 'Accidents', officiel: 'Officiel', actu: 'Actu F1' };
 function renderNews(body, items, { at, stale = false }) {
-  const big = bigNews(items, { all: state.all });
+  const big = bigNews(items, { all: state.all, frTitle: (it) => knownFrench(it.title, it.lang) });
   const done = new Map(big.map((it) => [it, postedEntry(it, postLog)]));
   // Tri (à la une ou récentes), filtre par type, news déjà publiées en dernier
   const kinds = newsKinds(big);
@@ -205,7 +205,7 @@ function renderNews(body, items, { at, stale = false }) {
         <button class="readmark${read ? ' on' : ''}" data-r="${i}" aria-label="${read ? 'Lue : marquer comme non lue' : 'Marquer comme lue'}" title="${read ? 'Lue : marquer comme non lue' : 'Marquer comme lue'}">${icon('check')}</button></div>`;
     }).join('')}</div>` : empty(state.all ? 'Aucune actu ces dernières 48 heures.' : 'Aucune grosse news ces dernières 48 heures : essayez « Toutes ».')}`;
   glide(body);
-  translateShown(body, list);
+  translateShown(body, list, () => renderNews(body, items, { at, stale }));
   $('#all', body).onchange = (e) => { state.all = e.target.checked; renderNews(body, items, { at, stale }); };
   $('#hideread', body).onchange = (e) => { state.hideRead = e.target.checked; renderNews(body, items, { at, stale }); };
   $$('[data-r]', body).forEach((b) => { b.onclick = () => { const y = scrollY; setRead(list[Number(b.dataset.r)].id, !b.classList.contains('on')); renderNews(body, items, { at, stale }); scrollTo(0, y); }; });

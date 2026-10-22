@@ -122,10 +122,14 @@ function clusterSizes(list) {
   return Object.fromEntries([...m].map(([k, v]) => [k, v.size]));
 }
 
+// Titre traduit d'un article, s'il est connu (branché par index.js sur les traductions des actus)
+let clusterTitle = null;
+export function setClusterTitle(fn) { clusterTitle = fn; }
+
 function recluster() {
   const since = Date.now() - 3 * 24 * 3600e3;
   const recent = [...items.values()].filter((it) => it.t >= since).sort((a, b) => a.t - b.t);
-  clusterNews(recent);
+  clusterNews(recent, { titleOf: clusterTitle });
 }
 
 function prune() {
