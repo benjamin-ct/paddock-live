@@ -77,6 +77,8 @@ l'application (Réglages → À propos → Nouveautés).
 ### Mises à jour
 - Versions bêta : nouveau réglage « Recevoir les versions bêta » (Réglages → Application) pour essayer les
   nouveautés avant leur sortie pour tout le monde. Décoché, l'appli ne reçoit que les versions finales.
+- Au lancement, une mise à jour en cours de téléchargement peut attendre : « Plus tard » ouvre l'appli tout de suite,
+  la nouvelle version s'installe à la fermeture.
 
 ### Fiabilité et sécurité
 - Le relais des radios et de F1 TV refuse les adresses de l'ordinateur et du réseau local : un appareil connecté par

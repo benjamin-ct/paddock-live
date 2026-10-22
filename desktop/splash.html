@@ -35,6 +35,9 @@
   <div id="title">Recherche de mise à jour…</div>
   <div class="bar busy" id="bar"><i></i></div>
   <div id="detail"></div>
+  <div class="btns" id="later" hidden>
+    <a class="btn" href="paddock://later">Plus tard (installer à la fermeture)</a>
+  </div>
   <div class="btns" id="btns" hidden>
     <a class="btn main" href="paddock://download">Télécharger la nouvelle version</a>
     <a class="btn" href="paddock://continue">Continuer</a>
@@ -51,12 +54,14 @@
   }
   function setVersion(v) { document.getElementById('ver').textContent = `Version ${v}`; }
   function ask(show) { document.getElementById('btns').hidden = !show; }
+  function later(show) { document.getElementById('later').hidden = !show; }
   // Interface en anglais
   if (new URLSearchParams(location.search).get('lang') === 'en') {
     document.documentElement.lang = 'en';
     document.getElementById('title').textContent = 'Checking for updates…';
     document.querySelector('.btn.main').textContent = 'Download the new version';
-    document.querySelector('.btn:not(.main)').textContent = 'Continue';
+    document.querySelector('#btns .btn:not(.main)').textContent = 'Continue';
+    document.querySelector('#later .btn').textContent = 'Later (install when closing)';
   }
 </script>
 </body>

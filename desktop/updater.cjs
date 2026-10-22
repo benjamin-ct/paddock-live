@@ -69,6 +69,9 @@ let settingsFile = null;
 // Dernière installation lancée au démarrage ({ version }) : si l'appli redémarre sans avoir
 // changé de version, l'installation a échoué et on ne bloque pas l'ouverture une seconde fois.
 let installTry = null;
+// « Plus tard » sur l'écran de démarrage : la version téléchargée s'installe à la fermeture de l'appli
+let deferred = false;
+const defer = () => { deferred = true; };
 
 function loadSettings() {
   try {
@@ -375,6 +378,7 @@ async function startup(onState = () => {}) {
       set({ status: 'ready', error: null });
       return { action: 'open', reason: `L'installation automatique de la version ${version} n'a pas abouti` };
     }
+    if (deferred) return { action: 'open' };
     installTry = { version, at: Date.now() };
     saveSettings();
     const r = install(true);
@@ -412,7 +416,7 @@ function init(ipcMain) {
 
   // Mise à jour prête et installation automatique activée : appliquée à la fermeture de l'appli.
   app.on('will-quit', () => {
-    if (state.auto && state.status === 'ready' && !state.installing) install(false);
+    if ((state.auto || deferred) && state.status === 'ready' && !state.installing) install(false);
   });
 
   if (state.kind === 'unsupported') { state.status = 'unsupported'; return; }
@@ -420,4 +424,4 @@ function init(ipcMain) {
   setInterval(() => check(), CHECK_EVERY_MS);
 }
 
-module.exports = { init, startup, check, install, state, newer };
+module.exports = { init, startup, check, install, defer, state, newer };

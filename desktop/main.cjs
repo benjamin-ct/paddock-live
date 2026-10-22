@@ -377,11 +377,15 @@ const mo = (b) => `${Math.round(b / 1048576)} ${T('Mo', 'MB')}`;
 function splashUpdate(win, st) {
   if (st.status === 'checking') splashSay(win, T('Recherche de mise à jour…', 'Checking for updates…'));
   else if (st.status === 'downloading') {
+    win.webContents.executeJavaScript('later(true)').catch(() => {});
     const size = st.asset?.size;
     const next = T('l\'appli s\'ouvrira sur la nouvelle version', 'the app will open on the new version');
     splashSay(win, T(`Téléchargement de la version ${st.latest?.version}…`, `Downloading version ${st.latest?.version}…`),
       size ? `${mo(size * (st.progress || 0))} / ${mo(size)} · ${next}` : next, st.progress || 0);
-  } else if (st.status === 'ready') splashSay(win, T(`Installation de la version ${st.latest?.version}…`, `Installing version ${st.latest?.version}…`), T('L\'appli va redémarrer toute seule dans quelques secondes.', 'The app will restart by itself in a few seconds.'));
+  } else if (st.status === 'ready') {
+    win.webContents.executeJavaScript('later(false)').catch(() => {});
+    splashSay(win, T(`Installation de la version ${st.latest?.version}…`, `Installing version ${st.latest?.version}…`), T('L\'appli va redémarrer toute seule dans quelques secondes.', 'The app will restart by itself in a few seconds.'));
+  }
 }
 
 // Nouvelle version qui ne s'installe pas toute seule (.deb, appli lancée depuis l'image disque) :
@@ -485,7 +489,16 @@ async function start() {
   updater.init(ipcMain);
   const splash = createSplash();
   splash.webContents.once('did-finish-load', () => splash.webContents.executeJavaScript(`setVersion(${JSON.stringify(app.getVersion())})`).catch(() => {}));
-  const res = await updater.startup((st) => splashUpdate(splash, st));
+  // « Plus tard » pendant le téléchargement : l'appli s'ouvre tout de suite, la version s'installe à la fermeture
+  const later = new Promise((resolve) => {
+    splash.webContents.on('will-navigate', (e, target) => {
+      if (!String(target).startsWith('paddock://later')) return;
+      e.preventDefault();
+      updater.defer();
+      resolve({ action: 'open', reason: null });
+    });
+  });
+  const res = await Promise.race([updater.startup((st) => { if (!splash.isDestroyed()) splashUpdate(splash, st); }), later]);
   console.log('[mise à jour]', JSON.stringify(res));
   if (res.action === 'installing') { splashDone = true; return; }   // l'appli se ferme puis redémarre
   if (res.action === 'notify' && await splashAsk(splash, res.version) === 'download') shell.openExternal(res.url);
