@@ -12,7 +12,6 @@ process.env.PADDOCK_CREATOR_HASH = HASH;
 const { studioApi, freshF1tv, runSchedule, schedInternal, seasonRow } = await import('../analytics/studio.js');
 const { studioKey, enableStudio, syncStudio, disableStudio, studioInfo, studioRewrite } = await import('../server/studio-sync.js');
 const { saveConfig, getConfig } = await import('../server/config.js');
-const { timing } = await import('../shared/meta-publish.js');
 
 // Base D1 réduite aux requêtes de la page du créateur
 function fakeDB() {
@@ -99,35 +98,36 @@ test('page du créateur : coffre chiffré, sans le code rien n\'est lisible', as
   const me2 = await (await worker('https://s.test/studio/api/me', { headers: { 'X-Studio-Key': studioKey(CODE) } })).json();
   assert.equal(me2.threads, '@moi2');
 
-  // Publication sur Facebook : progression puis lien
+  // Publication sur Facebook par le serveur : lien du post ; commentaire refusé (permission manquante) :
+  // le post part quand même, avec la raison
   const realFetch = globalThis.fetch;
   let refuse = false;
-  Object.assign(timing, { poll: 1, maxPoll: 1, visible: [] });
   globalThis.fetch = async (url, opts = {}) => {
     const u = new URL(url);
     const ok = (d) => new Response(JSON.stringify(d), { status: 200 });
     if (u.pathname.endsWith('/photos')) return ok({ id: 'ph1' });
-    if (u.searchParams.get('fields') === 'images') return ok({ images: [{ width: 1080, source: 'https://cdn.test/a.jpg' }] });
     if (u.pathname.endsWith('/feed')) return ok({ id: 'p1_42' });
     if (u.pathname.endsWith('/comments')) return refuse ? new Response(JSON.stringify({ error: { message: '(#200) Permissions error' } }), { status: 403 }) : ok({ id: 'c1' });
     return realFetch(url, opts);
   };
   try {
-    const form = new FormData();
-    form.append('network', 'facebook');
-    form.append('text', 'Bonjour');
-    form.append('images', new Blob([new Uint8Array([0xff, 0xd8, 0xff, 1, 2])], { type: 'image/jpeg' }), 'a.jpg');
-    form.append('comment', "Lire l'article : https://a.test/x");
+    const key = { 'X-Studio-Key': studioKey(CODE) };
     const send = async () => {
-      const r = await worker('https://s.test/studio/api/publish', { method: 'POST', body: form, headers: { 'X-Studio-Key': studioKey(CODE) } });
-      return (await r.text()).trim().split('\n').map((l) => JSON.parse(l)).at(-1);
+      const form = new FormData();
+      form.append('at', String(Date.now()));
+      form.append('posts', JSON.stringify([{ network: 'facebook', text: 'Bonjour', comment: "Lire l'article : https://a.test/x" }]));
+      form.append('ig', new Blob([new Uint8Array([0xff, 0xd8, 0xff, 1, 2])], { type: 'image/jpeg' }), 'a.jpg');
+      const { item } = await (await worker('https://s.test/studio/api/schedule', { method: 'POST', body: form, headers: key })).json();
+      await runSchedule(env);
+      const st = (await (await worker('https://s.test/studio/api/schedule', { headers: key })).json()).items.find((x) => x.id === item.id).nets.facebook;
+      await runSchedule(env);   // passage suivant : nettoyage
+      return st;
     };
-    assert.deepEqual(await send(), { done: true, url: 'https://www.facebook.com/p1_42', id: 'p1_42', comment: true, commentError: null });
-    // Commentaire refusé (permission manquante) : le post est publié quand même, avec la raison
+    const st = await send();
+    assert.deepEqual([st.status, st.url, st.comment, st.commentError], ['done', 'https://www.facebook.com/p1_42', true, null]);
     refuse = true;
     const r2 = await send();
-    assert.equal(r2.done, true);
-    assert.equal(r2.comment, false);
+    assert.deepEqual([r2.status, r2.comment], ['done', false]);
     assert.match(r2.commentError, /Permissions error.*permission manquante/);
   } finally { globalThis.fetch = realFetch; }
 
@@ -157,7 +157,6 @@ test('page du créateur : relais limités (sources connues, archives F1, images 
     assert.equal((await r.json()).error, 'Archive pas encore publiée');
   } finally { globalThis.fetch = realFetch; }
   assert.equal((await worker(`https://s.test/studio/api/img?u=${encodeURIComponent('https://evil.test/a.png')}`, h)).status, 400);
-  assert.equal((await worker('https://s.test/studio/api/publish', { method: 'POST', body: new FormData(), ...h })).status, 409);   // pas de comptes
 });
 
 const jwt = (payload) => `x.${Buffer.from(JSON.stringify(payload)).toString('base64url')}.y`;
@@ -682,7 +681,7 @@ test('page du créateur : toutes les sources d\'actu en une réponse (octets d\'
   assert.equal(urls.length, m + rss.length); // relu
 });
 
-test('page du créateur : vidéo du kit envoyée par le serveur (brouillon TikTok, Short YouTube en privé)', async () => {
+test('page du créateur : vidéo programmée sur TikTok (brouillon ou publication directe) et en Short YouTube privé', async () => {
   saveConfig({ creator: true, social: {
     meta: { pageId: 'p1', pageName: 'Ma page', pageToken: 'jeton-page', igId: 'ig1', igUsername: 'benjypaddock' },
     tiktok: { clientKey: 'ck', clientSecret: 'secret-tiktok', accessToken: 'vieux', expiresAt: 0, refreshToken: 'rt-tiktok', openId: 'o1', name: 'Benjy Paddock' },
@@ -698,118 +697,70 @@ test('page du créateur : vidéo du kit envoyée par le serveur (brouillon TikTo
   assert.equal(me.youtube, 'Benjy Paddock');
   for (const s of ['secret-tiktok', 'secret-google', 'rt-tiktok', 'rt-google', '"yat"']) assert.ok(!JSON.stringify(me).includes(s));
 
-  env.ASSETS = { fetch: async (req) => (new URL(req.url).pathname === '/kit/benjy/video.mp4' ? new Response(new Uint8Array([1, 2, 3, 4])) : new Response(null, { status: 404 })) };
-  const realFetch = globalThis.fetch;
-  const calls = [];
-  const polls = {};
-  let pid = 0;
   const { draftTiming } = await import('../shared/video-publish.js');
   Object.assign(draftTiming, { poll: 1, max: 2000 });
+  const realFetch = globalThis.fetch;
+  const sent = [];
+  const polls = {};
   globalThis.fetch = async (url, opts = {}) => {
     const u = String(url);
-    calls.push(u);
     if (u === 'https://open.tiktokapis.com/v2/oauth/token/') {
       assert.equal(new URLSearchParams(String(opts.body)).get('client_secret'), 'secret-tiktok');
       return new Response(JSON.stringify({ access_token: 'neuf', expires_in: 86400, refresh_token: 'rt-tiktok' }));
     }
+    if (u.endsWith('/post/publish/creator_info/query/')) {
+      return new Response(JSON.stringify({ data: { creator_nickname: 'Benjy Paddock', creator_username: 'benjypaddock', privacy_level_options: ['PUBLIC_TO_EVERYONE', 'SELF_ONLY', 'AUTRE'], comment_disabled: false, duet_disabled: true, stitch_disabled: false, max_video_post_duration_sec: 600 }, error: { code: 'ok' } }));
+    }
     if (u.endsWith('/post/publish/inbox/video/init/')) {
       assert.equal(opts.headers.Authorization, 'Bearer neuf');
-      return new Response(JSON.stringify({ data: { upload_url: 'https://up.test/tt', publish_id: `pid${++pid}` } }));
+      return new Response(JSON.stringify({ data: { upload_url: 'https://up.test/tt', publish_id: 'pid1' } }));
     }
-    // État relu après l'envoi : d'abord en traitement, puis reçu (ou refusé pour le 3e envoi)
+    if (u.endsWith('/post/publish/video/init/')) { sent.push(JSON.parse(opts.body)); return new Response(JSON.stringify({ data: { upload_url: 'https://up.test/tt', publish_id: 'd1' }, error: { code: 'ok' } })); }
+    if (u === 'https://up.test/tt') { assert.equal(opts.body.length, 4); return new Response(null, { status: 201 }); }
+    // État relu après l'envoi : brouillon d'abord en traitement, puis reçu ; publication directe finie
     if (u.endsWith('/post/publish/status/fetch/')) {
       const id = JSON.parse(opts.body).publish_id;
       polls[id] = (polls[id] || 0) + 1;
-      if (id === 'pid3') return new Response(JSON.stringify({ data: { status: 'FAILED', fail_reason: 'spam_risk_too_many_pending_share' } }));
+      if (id === 'd1') return new Response(JSON.stringify({ data: { status: 'PUBLISH_COMPLETE', publicaly_available_post_id: [7123] }, error: { code: 'ok' } }));
       return new Response(JSON.stringify({ data: { status: polls[id] < 2 ? 'PROCESSING_UPLOAD' : 'SEND_TO_USER_INBOX' } }));
     }
-    if (u === 'https://up.test/tt') { assert.equal(opts.body.length, 4); return new Response(null, { status: 201 }); }
     if (u.startsWith('https://www.googleapis.com/upload/youtube/v3/videos')) {
       assert.equal(JSON.parse(opts.body).status.privacyStatus, 'private');
       return new Response('{}', { headers: { location: 'https://up.test/yt' } });
     }
     if (u === 'https://up.test/yt') return new Response(JSON.stringify({ id: 'v42' }));
-    if (u.includes('graph.facebook.com')) {
-      const g = new URL(u);
-      const form = opts.body instanceof URLSearchParams ? Object.fromEntries(opts.body) : {};
-      if (g.pathname.endsWith('/ig1/media')) {
-        assert.equal(form.media_type, 'REELS');
-        assert.equal(form.video_url, 'https://s.test/kit/benjy/video.mp4');
-        assert.equal(form.caption, 'Bienvenue au paddock');
-        return new Response(JSON.stringify({ id: 'r1' }));
-      }
-      if (g.searchParams.get('fields') === 'status_code,status') return new Response(JSON.stringify({ status_code: 'FINISHED' }));
-      if (g.pathname.endsWith('/media_publish')) return new Response(JSON.stringify({ id: 'pub9' }));
-      if (g.searchParams.get('fields') === 'permalink') return new Response(JSON.stringify({ permalink: 'https://www.instagram.com/reel/abc/' }));
-    }
     throw new Error(`inattendu : ${u}`);
   };
-  const send = (body) => worker('https://s.test/studio/api/video', { method: 'POST', headers: key, body: JSON.stringify(body) });
-  try {
-    let r = await send({ network: 'tiktok', src: '/kit/benjy/video.mp4' });
-    assert.equal(r.status, 200);
-    assert.match((await r.json()).note, /Brouillon reçu par TikTok.*Notifications système/);
-    // Jeton renouvelé gardé par le serveur : pas de nouveau renouvellement au 2e envoi
-    r = await send({ network: 'tiktok', src: '/kit/benjy/video.mp4' });
-    assert.equal(r.status, 200);
-    assert.equal(calls.filter((u) => u.endsWith('/oauth/token/')).length, 1);
-    // L'appli renvoie ses jetons (plus anciens) : ceux du serveur sont gardés
-    await syncStudio({ force: true, fetchFn });
-    r = await send({ network: 'tiktok', src: '/kit/benjy/video.mp4' });
-    assert.equal(calls.filter((u) => u.endsWith('/oauth/token/')).length, 1);
-    // Refus de TikTok après l'envoi : la raison est donnée
-    assert.equal(r.status, 502);
-    assert.match((await r.json()).error, /trop de brouillons en attente/);
-    // État relu plus tard : encore en traitement (avec l'état de TikTok), puis reçu
-    let st = await (await send({ network: 'tiktok-status', id: 'pid9' })).json();
-    assert.equal(st.pending, true);
-    assert.match(st.note, /état TikTok : PROCESSING_UPLOAD/);
-    st = await (await send({ network: 'tiktok-status', id: 'pid9' })).json();
-    assert.match(st.note, /Brouillon reçu par TikTok/);
-    assert.equal((await send({ network: 'tiktok-status', id: '../x y' })).status, 400);
-    r = await send({ network: 'youtube', src: '/kit/benjy/video.mp4', text: 'Bienvenue\nLe récap' });
-    assert.equal((await r.json()).url, 'https://youtube.com/shorts/v42');
-    // Reel Instagram : Instagram lit la vidéo à son adresse publique
-    r = await send({ network: 'instagram-reel', src: '/kit/benjy/video.mp4', text: 'Bienvenue au paddock' });
-    assert.equal((await r.json()).url, 'https://www.instagram.com/reel/abc/');
-    assert.equal((await send({ network: 'instagram-reel', src: 'https://ailleurs.test/v.mp4' })).status, 400);
-    // Seulement les vidéos du kit, seulement TikTok et YouTube
-    assert.equal((await send({ network: 'tiktok', src: 'https://ailleurs.test/v.mp4' })).status, 400);
-    assert.equal((await send({ network: 'tiktok', src: '/kit/../secret.mp4' })).status, 400);
-    assert.equal((await send({ network: 'x', src: '/kit/benjy/video.mp4' })).status, 400);
-    assert.equal((await send({ network: 'tiktok', src: '/kit/autre/video.mp4' })).status, 404);
-    // Vidéo envoyée avec un post écrit à la main : Short YouTube par la publication du Studio
-    const post = (net, file) => { const f = new FormData(); f.append('network', net); f.append('text', 'Titre\nTexte'); if (file) f.append('video', file, 'v.mp4'); return worker('https://s.test/studio/api/publish', { method: 'POST', headers: key, body: f }); };
-    r = await post('youtube', new Blob([new Uint8Array([1, 2, 3, 4])], { type: 'video/mp4' }));
-    assert.match(await r.text(), /"done":true.*"url":"https:\/\/youtube\.com\/shorts\/v42".*"note":"Short envoyé en privé/);
-    assert.equal((await post('youtube')).status, 400);   // TikTok et YouTube : vidéo obligatoire
-    assert.equal((await post('youtube', new Blob(['x'], { type: 'image/gif' }))).status, 400);
-  } finally { globalThis.fetch = realFetch; delete env.ASSETS; }
-
-  // Publication directe sur TikTok : compte relu, réglages vérifiés, puis publiée
-  const sent = [];
-  globalThis.fetch = async (url, opts = {}) => {
-    const u = String(url);
-    if (u.endsWith('/post/publish/creator_info/query/')) {
-      return new Response(JSON.stringify({ data: { creator_nickname: 'Benjy Paddock', creator_username: 'benjypaddock', privacy_level_options: ['PUBLIC_TO_EVERYONE', 'SELF_ONLY', 'AUTRE'], comment_disabled: false, duet_disabled: true, stitch_disabled: false, max_video_post_duration_sec: 600 }, error: { code: 'ok' } }));
-    }
-    if (u.endsWith('/post/publish/video/init/')) { sent.push(JSON.parse(opts.body)); return new Response(JSON.stringify({ data: { upload_url: 'https://up.test/tt', publish_id: 'd1' }, error: { code: 'ok' } })); }
-    if (u === 'https://up.test/tt') return new Response(null, { status: 201 });
-    if (u.endsWith('/post/publish/status/fetch/')) return new Response(JSON.stringify({ data: { status: 'PUBLISH_COMPLETE', publicaly_available_post_id: [7123] }, error: { code: 'ok' } }));
-    throw new Error(`inattendu : ${u}`);
+  const add = (posts, tiktok) => {
+    const f = new FormData();
+    f.append('at', String(Date.now()));
+    f.append('posts', JSON.stringify(posts));
+    f.append('video', new Blob([new Uint8Array([1, 2, 3, 4])], { type: 'video/mp4' }), 'v.mp4');
+    if (tiktok) f.append('tiktok', JSON.stringify(tiktok));
+    return worker('https://s.test/studio/api/schedule', { method: 'POST', body: f, headers: key });
   };
+  const nets = async (id) => (await (await worker('https://s.test/studio/api/schedule', { headers: key })).json()).items.find((x) => x.id === id)?.nets;
   try {
+    // Brouillon TikTok (jeton renouvelé) et Short YouTube en privé
+    const a = (await (await add([{ network: 'tiktok', text: 'Titre' }, { network: 'youtube', text: 'Titre\nTexte' }])).json()).item;
+    await runSchedule(env);
+    await runSchedule(env);
+    const na = await nets(a.id);
+    assert.equal(na.tiktok.status, 'done');
+    assert.match(na.tiktok.note, /Brouillon reçu par TikTok/);
+    assert.equal(na.youtube.url, 'https://youtube.com/shorts/v42');
+    await runSchedule(env);
+    // Publication directe : compte relu, réglages vérifiés (visibilité obligatoire, contenu de marque jamais privé)
     const info = await (await worker('https://s.test/studio/api/tiktok-creator', { headers: key })).json();
     assert.deepEqual(info, { nickname: 'Benjy Paddock', username: 'benjypaddock', avatar: '', privacy: ['PUBLIC_TO_EVERYONE', 'SELF_ONLY'], comment: true, duet: false, stitch: true, maxDuration: 600 });
-    const direct = (o) => { const f = new FormData(); f.append('network', 'tiktok'); f.append('text', 'Texte'); f.append('video', new Blob([new Uint8Array([1, 2, 3])], { type: 'video/mp4' }), 'v.mp4'); f.append('tiktok', JSON.stringify(o)); return worker('https://s.test/studio/api/publish', { method: 'POST', headers: key, body: f }); };
-    // Visibilité obligatoire, contenu de marque jamais privé
-    assert.equal((await direct({ title: 'x' })).status, 400);
-    assert.equal((await direct({ privacy: 'SELF_ONLY', brandContent: true })).status, 400);
-    assert.equal(sent.length, 0);
-    const r = await direct({ title: 'Mon titre #F1', privacy: 'PUBLIC_TO_EVERYONE', comment: true, brandOrganic: true, username: 'benjypaddock' });
-    assert.match(await r.text(), /"done":true.*"url":"https:\/\/www\.tiktok\.com\/@benjypaddock\/video\/7123"/);
+    assert.equal((await add([{ network: 'tiktok', text: 'x' }], { title: 'x' })).status, 400);
+    assert.equal((await add([{ network: 'tiktok', text: 'x' }], { privacy: 'SELF_ONLY', brandContent: true })).status, 400);
+    const d = (await (await add([{ network: 'tiktok', text: 'Texte' }], { title: 'Mon titre #F1', privacy: 'PUBLIC_TO_EVERYONE', comment: true, brandOrganic: true, username: 'benjypaddock' })).json()).item;
+    await runSchedule(env);
+    assert.equal((await nets(d.id)).tiktok.url, 'https://www.tiktok.com/@benjypaddock/video/7123');
     assert.deepEqual(sent[0].post_info, { title: 'Mon titre #F1', privacy_level: 'PUBLIC_TO_EVERYONE', disable_comment: false, disable_duet: true, disable_stitch: true, brand_organic_toggle: true, brand_content_toggle: false });
-    assert.equal(sent[0].source_info.video_size, 3);
+    assert.equal(sent[0].source_info.video_size, 4);
+    await runSchedule(env);
   } finally { globalThis.fetch = realFetch; }
   await disableStudio({ fetchFn });
 });

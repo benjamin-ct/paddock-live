@@ -313,3 +313,14 @@ test('serveur des statistiques : lignes écrites plafonnées par adresse (IPv6 :
   assert.equal(await q('1.2.3.4'), false);
   assert.equal(await q('5.6.7.8'), true);
 });
+
+test('serveur : ménage du jour (traductions de plus de 90 jours, erreurs de plus d\'un an) ; /dl mal encodé refusé', async () => {
+  const { prune } = await import('../analytics/worker.js');
+  const ran = [];
+  const env = { DB: { prepare: (sql) => ({ bind: (...a) => ({ run: async () => { ran.push([sql.replace(/\s+/g, ' '), a]); } }) }) } };
+  const now = Date.parse('2026-10-22T03:00:00Z');
+  await prune(env, now);
+  assert.deepEqual(ran.slice(1), [['DELETE FROM translations WHERE at < ?1', [now - 90 * 86400e3]], ['DELETE FROM error_details WHERE day < ?1', ['2025-10-22']]]);
+  const r = await worker.fetch(new Request('https://p.test/dl/%E0%A4%A'), {}, {});
+  assert.equal(r.status, 404);
+});

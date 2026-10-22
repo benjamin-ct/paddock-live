@@ -13,13 +13,13 @@ import { extractArticle } from '../shared/article.js';
 import { decodeBody } from '../shared/news-collect.js';
 import { publishFacebook, publishInstagram, publishThreads, freshThreads, commentFacebook, replyThreads, withComment, storyInstagram, storyFacebook, storyVideoInstagram, storyVideoFacebook, reelInstagram, hostVideo, hostOnPage, publishFacebookVideo, publishThreadsVideo, publishFacebookLink, publishThreadsLink } from '../shared/meta-publish.js';
 import { publishBluesky, replyBluesky } from '../shared/bluesky-publish.js';
-import { freshTiktok, freshYoutube, tiktokDraft, tiktokStatus, tiktokOutcome, youtubeUpload, tiktokCreator, tiktokDirect, TIKTOK_PRIVACY } from '../shared/video-publish.js';
+import { freshTiktok, freshYoutube, tiktokDraft, youtubeUpload, tiktokCreator, tiktokDirect, TIKTOK_PRIVACY } from '../shared/video-publish.js';
 import { addEntry, removeEntry, cleanKey, keepStats } from '../shared/post-history.js';
 import { cleanDraft, draftSummary, isDraftId, DRAFTS_MAX, DRAFT_BYTES } from '../shared/post-draft.js';
 import { postStats } from '../shared/post-stats.js';
 import { recentPosts, importEntries } from './post-import.js';
 import { trackPost, clickStats } from './clicks.js';
-import { pushApi, notifyPhones } from './alerts.js';
+import { pushApi, notifyPhones, getRow, setRow } from './alerts.js';
 import { noteExpiries } from './health.js';
 import { feedbackApi } from './feedback.js';
 import { freePhotos, PHOTO_UA } from './photos.js';
@@ -53,12 +53,6 @@ const sameHex = (a, b) => {
   return d === 0;
 };
 
-async function getRow(env, k) {
-  return (await env.DB.prepare('SELECT v FROM studio WHERE k = ?').bind(k).first())?.v ?? null;
-}
-async function setRow(env, k, v) {
-  await env.DB.prepare('INSERT INTO studio (k, v, at) VALUES (?, ?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v, at = excluded.at').bind(k, v, Date.now()).run();
-}
 
 // ---------- Saison résumée (onglet Saison du Studio) ----------
 // Gardée dans la base, relue au plus toutes les 30 minutes (par la tâche planifiée, sinon à la
@@ -375,78 +369,6 @@ function missing(net, vault) {
 }
 const resultOf = (r) => ({ url: r.url || null, id: r.id ?? null, comment: !!r.comment, commentError: r.commentError || null, ...(r.visible != null ? { visible: r.visible } : {}) });
 
-// ---------- Publication : progression ligne par ligne (JSON), puis le résultat ----------
-async function publish(req, env, raw, vault) {
-  let form;
-  try { form = await req.formData(); } catch { return json({ error: 'Formulaire illisible' }, 400); }
-  const net = String(form.get('network') || '');
-  // Liens remplacés par des liens suivis (clics comptés dans les statistiques)
-  const { text, comment } = await trackPost(env, net, { text: String(form.get('text') || ''), comment: String(form.get('comment') || '').trim().slice(0, 500) }, String(form.get('title') || ''));
-  const images = form.getAll('images').filter((f) => typeof f === 'object' && f && /^image\/(png|jpeg)$/.test(f.type) && f.size < 8e6).slice(0, 20);
-  const v = form.get('video');
-  const video = typeof v === 'object' && v && /^video\/(mp4|quicktime)$/.test(v.type) && v.size <= VIDEO_MAX ? v : null;
-  if (v && !video) return json({ error: 'Vidéo MP4 ou MOV de 50 Mo au plus' }, 400);
-  if (!NETS.includes(net) && !STORIES.includes(net) && !CLIPS.includes(net)) return json({ error: 'Réseau inconnu' }, 400);
-  if (missing(net, vault)) return json({ error: missing(net, vault) }, 409);
-  if (CLIPS.includes(net) && !video) return json({ error: 'Aucune vidéo' }, 400);
-  if (!CLIPS.includes(net) && !images.length && !video) return json({ error: 'Aucune image' }, 400);
-  // TikTok : publication directe si la page envoie ses réglages, sinon brouillon
-  const direct = net === 'tiktok' && form.get('tiktok') ? tiktokOptions(form.get('tiktok')) : null;
-  if (direct?.error) return json({ error: direct.error }, 400);
-  const { readable, writable } = new TransformStream();
-  const w = writable.getWriter();
-  const line = (o) => w.write(enc.encode(`${JSON.stringify(o)}\n`));
-  (async () => {
-    try {
-      await line({ step: video ? 'Envoi de la vidéo…' : 'Envoi des images…' });
-      const r = CLIPS.includes(net) ? await sendClip(net, () => clipAccount(env, raw, vault, net), new Uint8Array(await video.arrayBuffer()), video.type, text, direct)
-        : await sendTo(net, vault, { text, comment, images, small: images, video }, async () => (await refresh(env, raw, vault)).threads);
-      await line({ done: true, ...resultOf(r), ...(r.note ? { note: r.note } : {}) });
-    } catch (err) {
-      await line({ error: String(err?.message || err).slice(0, 300) });
-    } finally {
-      await w.close();
-    }
-  })();
-  return new Response(readable, { headers: { 'Content-Type': 'application/x-ndjson; charset=utf-8', 'Cache-Control': 'no-store' } });
-}
-
-// ---------- Vidéo du kit de lancement : brouillon TikTok, Short YouTube en privé, Reel Instagram ----------
-// Seulement les vidéos du kit (fichiers du site) : rien d'autre ne transite par ici.
-async function sendVideo(req, env, raw, vault, url) {
-  let body;
-  try { body = await req.json(); } catch { return json({ error: 'JSON invalide' }, 400); }
-  const net = String(body?.network || '');
-  const src = String(body?.src || '');
-  // État d'un brouillon TikTok déjà envoyé (encore en traitement au premier coup d'œil)
-  if (net === 'tiktok-status') {
-    const id = String(body?.id || '');
-    if (!vault.tiktok || !/^[\w.~-]{1,120}$/.test(id)) return json({ error: 'Envoi inconnu' }, 400);
-    try {
-      const acc = await freshTiktok(vault.tiktok);
-      if (acc !== vault.tiktok) await setRow(env, 'vault', await seal(raw, { ...vault, tiktok: acc }));
-      return json({ ok: true, ...tiktokOutcome(id, await tiktokStatus(acc.accessToken, id)) });
-    } catch (err) { return json({ error: String(err?.message || err).slice(0, 300) }, 502); }
-  }
-  if (net !== 'tiktok' && net !== 'youtube' && net !== 'instagram-reel') return json({ error: 'Réseau inconnu' }, 400);
-  if (!/^\/kit\/[a-z]+\/video\.mp4$/.test(src)) return json({ error: 'Vidéo inconnue' }, 400);
-  if (net === 'instagram-reel') {
-    if (!vault.meta?.igId) return json({ error: 'Compte Instagram non envoyé : connectez-le dans l\'appli' }, 409);
-    // Instagram lit lui-même la vidéo à son adresse publique
-    try {
-      const r = await reelInstagram(vault.meta, new URL(src, url).href, String(body?.text || ''));
-      return json({ ok: true, url: r.url, id: r.id ?? null, note: 'Reel publié' });
-    } catch (err) { return json({ error: String(err?.message || err).slice(0, 300) }, 502); }
-  }
-  if (missing(net, vault)) return json({ error: missing(net, vault) }, 409);
-  if (!/^\/kit\/[a-z]+\/video\.mp4$/.test(src) || !env.ASSETS) return json({ error: 'Vidéo inconnue' }, 400);
-  const file = await env.ASSETS.fetch(new Request(new URL(src, url)));
-  if (!file.ok) return json({ error: 'Vidéo du kit introuvable' }, 404);
-  try {
-    const r = await sendClip(net, () => clipAccount(env, raw, vault, net), new Uint8Array(await file.arrayBuffer()), 'video/mp4', String(body?.text || ''));
-    return json({ ok: true, url: r.url || null, id: r.id ?? null, note: r.note, ...(r.pending ? { pending: true } : {}) });
-  } catch (err) { return json({ error: err.message }, 502); }
-}
 // Brouillon TikTok ou Short YouTube. account() : compte aux jetons à jour
 // direct : réglages d'une publication directe sur TikTok (sinon brouillon)
 async function sendClip(net, account, video, mime, text, direct = null) {
@@ -954,11 +876,6 @@ export async function studioApi(req, env, url) {
     const out = await trackPost(env, String(body?.net || ''), { text: String(body?.text || '').slice(0, 5000), comment: String(body?.comment || '').slice(0, 1000) }, String(body?.title || ''));
     return json(out);
   }
-  if (path === 'publish' && req.method === 'POST') {
-    if (!vault.meta?.pageToken && !vault.bluesky) return json({ error: 'Comptes non envoyés : activez la page depuis l\'appli' }, 409);
-    return publish(req, env, a.raw, vault);
-  }
-  if (path === 'video' && req.method === 'POST') return sendVideo(req, env, a.raw, vault, url);
   // Compte TikTok relu avant une publication directe : nom, visibilités et interactions permises, durée maximale
   if (path === 'tiktok-creator' && req.method === 'GET') {
     if (!vault.tiktok) return json({ error: missing('tiktok', vault) }, 409);

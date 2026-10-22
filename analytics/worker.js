@@ -127,9 +127,10 @@ export default {
       const sent = await runSchedule(env).catch(() => null);
       if (!sent && new Date(event.scheduledTime || Date.now()).getUTCMinutes() % 5 === 0) await newsAlerts(env).catch(() => null);
       if (!sent && env.DB) await seasonRow(env, new Date().getUTCFullYear()).catch(() => null);
-      // Une fois par jour : compteurs d'IA par adresse des jours passés effacés
+      // Une fois par jour : compteurs d'IA par adresse des jours passés, traductions de plus de 90 jours et
+      // détail des erreurs de plus d'un an effacés
       const t = new Date(event.scheduledTime || Date.now());
-      if (env.DB && t.getUTCHours() === 3 && t.getUTCMinutes() === 0) await pruneIpQuota(env, t.toISOString().slice(0, 10)).catch(() => null);
+      if (env.DB && t.getUTCHours() === 3 && t.getUTCMinutes() === 0) await prune(env, t.getTime()).catch(() => null);
       // Toutes les 6 heures : bilan de santé (flux F1, erreurs de l'appli, jetons), sur le téléphone si besoin
       if (t.getUTCMinutes() === 7 && t.getUTCHours() % HEALTH.every === 1) await healthCheck(env).catch(() => null);
     })());
@@ -145,7 +146,11 @@ export default {
       if (FILES[os] && env.DB && req.headers.get('Sec-Fetch-User') === '?1') ctx?.waitUntil?.(countClick(req, env, 'download', os) || Promise.resolve());
       return download(url.pathname, { env });
     }
-    if (req.method === 'GET' && url.pathname.startsWith('/dl/')) return mirror(req, env, decodeURIComponent(url.pathname.slice(4)));
+    if (req.method === 'GET' && url.pathname.startsWith('/dl/')) {
+      let name;
+      try { name = decodeURIComponent(url.pathname.slice(4)); } catch { return json({ error: 'Introuvable' }, 404); }
+      return mirror(req, env, name);
+    }
     // Lien suivi d'un post : clic compté, puis l'adresse d'origine
     if (req.method === 'GET' && url.pathname.startsWith('/go/') && env.DB) return go(req, env, ctx, url.pathname.slice(4));
     if (req.method === 'GET' && SHORT_RE.test(url.pathname.slice(1)) && env.DB) return go(req, env, ctx, url.pathname.slice(1));
@@ -271,11 +276,18 @@ export default {
   },
 };
 
+export async function prune(env, now) {
+  await pruneIpQuota(env, new Date(now).toISOString().slice(0, 10));
+  await env.DB.prepare('DELETE FROM translations WHERE at < ?1').bind(now - 90 * 86400e3).run();
+  await env.DB.prepare('DELETE FROM error_details WHERE day < ?1').bind(new Date(now - 365 * 86400e3).toISOString().slice(0, 10)).run();
+}
+
 // Calendrier des séances auquel on s'abonne depuis l'appli (webcal://paddocklive.app/calendar.ics,
 // ou Google Agenda) : saison en cours, gardée dans la base et relue par la tâche planifiée ; l'agenda
-// se met à jour tout seul quand les horaires changent.
+// se met à jour tout seul quand les horaires changent. Jamais relue chez Jolpica pour un abonné (la tâche
+// planifiée s'en charge toutes les 30 minutes) : seulement si la saison gardée a plus de 6 heures
 export async function calendar(env, year, en = false, opts = {}) {
-  const row = await seasonRow(env, year, opts).catch(() => null);
+  const row = await seasonRow(env, year, { maxAge: 6 * 3600e3, ...opts }).catch(() => null);
   if (!row) return new Response('Calendrier indisponible', { status: 503 });
   return new Response(buildIcs(row.v.races, { year, lang: en ? 'en' : 'fr', subscribe: true }), {
     headers: { 'Content-Type': 'text/calendar; charset=utf-8', 'Content-Disposition': `inline; filename="f1${en ? '-en' : ''}.ics"`, 'Cache-Control': 'public, max-age=3600', 'Access-Control-Allow-Origin': '*' },
