@@ -571,7 +571,7 @@ async function openReader(id) {
   const yt = youtubeId(it.link);
   let body;
   if (yt) {
-    body = `${textEl('h1', it.title)}<div class="nwr-video"><iframe src="https://www.youtube-nocookie.com/embed/${yt}?autoplay=1&rel=0" title="${esc(it.title)}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>
+    body = `${textEl('h1', it.title)}<div class="nwr-video"><iframe src="https://www.youtube-nocookie.com/embed/${yt}?autoplay=1&rel=0&enablejsapi=1&origin=${encodeURIComponent(location.origin)}" title="${esc(it.title)}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>
       ${it.summary ? textEl('p', it.summary) : ''}`;
   } else if (it.kind === 'post') {
     body = `${textEl('p', it.summary || it.title, 'nwr-post')}${it.img ? `<img class="nwr-img" src="${safeUrl(it.img)}" alt="" referrerpolicy="no-referrer" onerror="this.remove()">` : ''}`;
@@ -593,6 +593,7 @@ async function openReader(id) {
       ${a.readable ? `<div class="nwr-end muted small">Texte lu sur ${esc(a.site || src)} · <a href="${safeUrl(it.link)}" target="_blank" rel="noopener">article d'origine</a></div>` : ''}`;
   }
   readerEl.innerHTML = `${bar}<article class="nwr">${body}</article>`;
+  if (yt) watchEmbed(readerEl.querySelector('.nwr-video iframe'), it.link, yt);
   if (!translate) return true;
   // Traduction du titre et du résumé (en général déjà faite d'avance)
   const els = [...readerEl.querySelectorAll('[data-orig]')];
@@ -605,6 +606,29 @@ async function openReader(id) {
     if (voBtn?.getAttribute('aria-pressed') !== 'true') el.textContent = t;
   }));
   return true;
+}
+
+// Vidéo que sa chaîne ne laisse lire que sur certains sites (chaîne officielle de la F1…) : le lecteur YouTube
+// le signale (erreur 101, 150…) ; à la place, son image et « Regarder sur YouTube » (navigateur)
+let embedWatch = null;
+function watchEmbed(frame, link, id) {
+  if (embedWatch) removeEventListener('message', embedWatch);
+  if (!frame) return;
+  const box = frame.parentElement;
+  embedWatch = (e) => {
+    if (e.source !== frame.contentWindow) return;
+    let d;
+    try { d = JSON.parse(e.data); } catch { return; }
+    if (d?.event !== 'onError') return;
+    removeEventListener('message', embedWatch);
+    box.classList.add('off');
+    box.innerHTML = `<img src="https://i.ytimg.com/vi/${encodeURIComponent(id)}/hqdefault.jpg" alt="" referrerpolicy="no-referrer" onerror="this.remove()">
+      <div><a class="btn btn-accent" href="${safeUrl(link)}" target="_blank" rel="noopener">${icon('play')} Regarder sur YouTube</a>
+      <p class="small">La chaîne ne permet pas de lire cette vidéo en dehors de YouTube.</p></div>`;
+  };
+  addEventListener('message', embedWatch);
+  // Le lecteur n'envoie ses évènements (dont les erreurs) qu'une fois prévenu qu'on l'écoute
+  frame.addEventListener('load', () => frame.contentWindow?.postMessage(JSON.stringify({ event: 'listening', id: 'nwr', channel: 'widget' }), '*'));
 }
 
 // ---- Ouverture / fermeture ----

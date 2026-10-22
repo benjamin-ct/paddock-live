@@ -2672,4 +2672,6 @@ export default {
   "Collez identifiant, clé secrète et ID de configuration, puis « Se connecter à Facebook ». Sans configuration : Outils → Explorateur de l'API Graph, mêmes autorisations, « Generate Access Token », et collez le jeton.": "Paste the app ID, secret and configuration ID, then “Connect to Facebook”. Without a configuration: Tools → Graph API Explorer, same permissions, “Generate Access Token”, and paste the token.",
   "ID de configuration (Facebook Login for Business)": "Configuration ID (Facebook Login for Business)",
   "Jeton d'accès (Explorateur de l'API Graph, sans « Se connecter »)": "Access token (Graph API Explorer, without “Connect”)",
+  "{} Regarder sur YouTube": "{} Watch on YouTube",
+  "La chaîne ne permet pas de lire cette vidéo en dehors de YouTube.": "The channel doesn't allow this video to play outside YouTube.",
 };
