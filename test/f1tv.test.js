@@ -57,10 +57,10 @@ test('F1 TV : canaux de commentaires et caméras embarquées', () => {
 });
 
 test('relais : jamais vers cet ordinateur ni le réseau local (même autorisé comme station de radio)', async () => {
-  const { privateAddress, localHost, proxy, allowHost } = await import('../server/f1tv.js');
+  const { privateAddress, localTarget, proxy, allowHost } = await import('../server/f1tv.js');
   for (const ip of ['127.0.0.1', '10.0.0.5', '192.168.1.20', '172.20.0.1', '169.254.1.1', '::1', 'fd00::1', '::ffff:127.0.0.1']) assert.ok(privateAddress(ip), ip);
   for (const ip of ['8.8.8.8', '151.101.1.1', '2606:4700::1']) assert.ok(!privateAddress(ip), ip);
-  assert.ok(localHost('localhost') && localHost('[::1]') && !localHost('f1tv.formula1.com'));
+  assert.ok(localTarget('localhost') && localTarget('[::1]') && !localTarget('f1tv.formula1.com'));
   allowHost('127.0.0.1:3000');
   let status = 0;
   await proxy({ method: 'POST', headers: {} }, { writeHead: (s) => { status = s; }, end() {} }, 'http://127.0.0.1:3000/api/social/publish', null);

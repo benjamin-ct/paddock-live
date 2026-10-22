@@ -145,10 +145,10 @@ export function privateAddress(ip) {
   }
   return false;
 }
-export const localHost = (hostname) => /(^|\.)(localhost|local)$/i.test(hostname) || privateAddress(String(hostname).replace(/^\[|\]$/g, ''));
+export const localTarget = (hostname) => /(^|\.)(localhost|local)$/i.test(hostname) || privateAddress(String(hostname).replace(/^\[|\]$/g, ''));
 // Nom qui pointe vers une adresse locale (127.0.0.1…) : refusé aussi
 async function publicTarget(u) {
-  if (localHost(u.hostname)) return false;
+  if (localTarget(u.hostname)) return false;
   if (net.isIP(u.hostname.replace(/^\[|\]$/g, ''))) return true;
   try { return !(await dns.promises.lookup(u.hostname, { all: true })).some((a) => privateAddress(a.address)); } catch { return true; }
 }
@@ -215,7 +215,7 @@ export async function resolvePlaylist(target, { allowLocal = false } = {}) {
     })).slice(0, 20000);
   const m = /^(?:File\d+=)?\s*(https?:\/\/\S+)/im.exec(text);
   if (!m) throw new Error('Aucun flux trouvé dans la liste de lecture');
-  if (localHost(new URL(m[1].trim()).hostname)) throw new Error('Adresse locale refusée');
+  if (localTarget(new URL(m[1].trim()).hostname)) throw new Error('Adresse locale refusée');
   return m[1].trim();
 }
 
