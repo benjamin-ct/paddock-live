@@ -4,6 +4,11 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → À propos → Nouveautés).
 
+## v1.28.1 — à venir
+
+### Divers
+- Petites améliorations internes.
+
 ## v1.28.0 — 2026-10-22
 
 ### Nouveau design « Broadcast »
@@ -15,7 +20,7 @@ l'application (Réglages → À propos → Nouveautés).
 - Interface Essentiel : sa propre disposition (classement, grande carte avec le duel dessous, radios et direction
   de course à droite), indépendante de celle de l'interface Complète ; classement compact avec le code pilote,
   l'écart, les secteurs en couleur et les pneus.
-- Studio et site aux mêmes couleurs.
+- Site aux mêmes couleurs.
 - Accueil et calendrier (Saison → Calendrier) au même style : prochain Grand Prix en grand avec son drapeau, compte à
   rebours et programme du week-end jour par jour ; calendrier de la saison en liste groupée par mois (manche, drapeau,
   dates, sprint, vainqueur et pole), une ligne s'ouvre sur ses séances.
@@ -64,54 +69,14 @@ l'application (Réglages → À propos → Nouveautés).
 - Bouton « Direct » de la barre latérale pendant un replay : retour au direct (écran d'attente s'il n'y a pas
   de séance en cours), au lieu de rester sur le replay.
 
-### Posts (mode créateur)
-- Slide « Faits marquants » : seulement les cases, plus grandes ; le résumé de la course, qui répétait le podium et
-  les remontées, reste dans le texte du post.
-- Post de résultats d'une course : le nombre de dépassements s'ajoute aux faits marquants (échanges de places en
-  piste, sans le départ, les arrêts ni les abandons), dans l'appli comme dans le Studio.
-- TikTok : une publication directe refusée parce que l'app TikTok n'a pas encore passé l'audit le dit clairement,
-  avec quoi faire (« Brouillon », ou compte privé et « Moi uniquement »), au lieu du message anglais de TikTok.
-- « Se connecter à Facebook » (Comptes → Instagram + Facebook) : Facebook et Instagram se relient en un clic avec
-  la connexion Facebook, au lieu du jeton à copier depuis l'Explorateur de l'API Graph (toujours possible).
-- La fenêtre Posts prend l'habillage du Studio : fond noir, barre latérale noire avec un trait rouge sur l'élément
-  choisi, intitulés en étiquette rouge, puces blanches pour le type de post.
-- Statistiques refaites comme l'onglet Stats du Studio, directement dans la fenêtre Posts (« Statistiques » dans la
-  barre latérale) : Comptes (abonnés et activité de chaque réseau, en cartes), Posts (chiffres de chaque post,
-  « Retrouver mes posts » publiés ailleurs) et Liens (raccourcir un lien suivi, clics et téléchargements de l'appli).
-- Instagram : un post bien en ligne n'est plus marqué « erreur » quand Instagram répond quand même par un refus, même quand il n'apparaît que quelques secondes après la réponse
-  (« Nous restreignons certaines activités… ») : l'appli vérifie s'il a été publié et donne son lien.
-- Hashtags aux règles actuelles des réseaux : 5 au plus sur Instagram (sa nouvelle limite), les plus précis d'abord
-  (Grand Prix, pilote, écurie) puis celui du compte ; 2 sur X et Bluesky ; un seul sur Threads (#F1, son sujet).
-  Sur Facebook, où ils ne servent à rien, le texte reprend celui d'Instagram sans les hashtags.
-- Hashtag du Grand Prix : celui de la F1 quand il diffère du nom (#USGP, #MexicoGP, #BrazilGP).
-- « Meilleure heure » (programmer une publication) s'appuie sur les chiffres de vos 60 derniers posts, gardés par
-  le serveur, et plus seulement sur les 6 derniers.
-- Vérification avant d'envoyer : un texte trop long pour un réseau (X 280, Bluesky 300, Threads 500, Instagram
-  2 200 caractères) est signalé avant la publication au lieu d'être refusé par le réseau, et un carrousel de plus
-  de 10 visuels prévient que seuls les 10 premiers partiront sur Instagram et Facebook.
-- Texte alternatif sur chaque image publiée sur Instagram, Facebook, Threads et Bluesky (lu par les lecteurs
-  d'écran) : ce que montre l'image, avec le podium ou le classement quand il y en a un.
-- Studio, « Programmer » : créneau conseillé d'après les réactions de tes posts, et un bouton pour le choisir.
-  Il apparaît une fois les chiffres d'au moins 8 posts lus dans l'onglet Stats (ils s'accumulent au fil des visites).
-- Un seul appel à la fin du post : « Question pour faire réagir » ou « Abonnez-vous », l'un ou l'autre (cocher
-  l'un grise l'autre).
-- Les posts tutoient : « Abonne-toi », « Ton pronostic en commentaire », « À toi ! », « Le savais-tu ? »…
-- Une courte ligne en fin de texte : « 🤖 Fait par IA avec l'appli @paddockliveapp » (sur X et Bluesky seulement
-  si la place le permet ; pas sur les posts écrits à la main).
-- Brouillons : « Brouillon » garde le post affiché (visuels, images écartées, format, options et texte retouché)
-  pour y revenir plus tard, dans l'appli (Posts → Brouillons) comme dans le Studio (bouton crayon en haut). Les
-  brouillons sont partagés entre l'ordinateur et le téléphone (page web activée) et s'effacent une fois le post publié
-  ou programmé. La vidéo n'est pas gardée : elle se refait à la reprise.
-
 ### Actu
 - Vidéos YouTube que leur chaîne ne laisse lire que sur YouTube (chaîne officielle de la F1…) : au lieu de « Cette
   vidéo n'est pas disponible », leur image et un bouton « Regarder sur YouTube ».
 - Trois sources françaises de plus : Nextgen-Auto, Le Figaro et la chaîne YouTube CANAL+ Sport (seulement ses vidéos
   F1, pas le foot ni la F1 Academy).
-- Les chaînes YouTube qui parlent aussi d'autre chose (Ferrari, Alpine) ne montrent plus que leurs vidéos F1 dans l'appli,
-  comme déjà dans le Studio.
+- Les chaînes YouTube qui parlent aussi d'autre chose (Ferrari, Alpine) ne montrent plus que leurs vidéos F1 dans l'appli.
 - Moins de doublons : le même article publié en plusieurs langues (Motorsport.com en anglais, en français, en espagnol…)
-  est reconnu grâce aux titres traduits et compté comme un seul sujet, dans l'Actu, les posts d'actu et le Studio.
+  est reconnu grâce aux titres traduits et compté comme un seul sujet dans l'Actu.
 - Type de news (transfert, départ, pénalité…) lu sur le titre : un mot du résumé ne suffit plus à afficher
   « TRANSFERT » sur une news qui n'en est pas une.
 
@@ -201,7 +166,7 @@ l'application (Réglages → À propos → Nouveautés).
 ## v1.27.51 — 2026-10-19
 
 ### Records du circuit
-- Pole et meilleur tour des éditions précédentes (post « Le saviez-vous », comparaison des temps) lus dans les résultats officiels publics : ils ne dépendent plus des archives de la F1, qu'elle refuse parfois même avec la connexion F1 TV.
+- Pole et meilleur tour des éditions précédentes (comparaison des temps) lus dans les résultats officiels publics : ils ne dépendent plus des archives de la F1, qu'elle refuse parfois même avec la connexion F1 TV.
 
 ### Mises à jour
 - Téléchargement de l'appli et des mises à jour bien plus rapide : les fichiers viennent d'un serveur proche (Cloudflare) au lieu de GitHub aux États-Unis, en plusieurs morceaux à la fois (GitHub reste en secours). Pour les mises à jour, effet à partir de la suivante.
@@ -210,13 +175,6 @@ l'application (Réglages → À propos → Nouveautés).
 
 ### Actu
 - Les livrées spéciales des écuries et les tenues spéciales des pilotes (combinaison, casque), présentées pour un Grand Prix, sont repérées dans toutes les langues, avec leurs étiquettes « Livrée » et « Tenue », et toujours gardées parmi les infos du moment.
-
-### Publication
-- Vidéo publiée sur Instagram ou Threads : préparation bien plus légère en mémoire, plus fiable avec les vidéos lourdes.
-
-### Statistiques
-- Une actu republiée sur un réseau où elle l'était déjà a sa propre ligne dans les statistiques des posts : les chiffres de la première publication ne sont plus remplacés.
-- Statistiques d'un post indisponibles : message clair (post supprimé, autorisation manquante, connexion expirée…) au lieu de l'erreur brute du réseau.
 
 ### Interface
 - Explications plus courtes partout : réglages, info-bulles, légendes, messages, Saison et Pronostics (en français et en anglais).
@@ -487,7 +445,7 @@ l'application (Réglages → À propos → Nouveautés).
 ## v1.27.31 — 2026-10-17
 
 ### À propos
-- L'application est publiée sous licence MIT (le serveur et le Studio sous licence AGPL v3) :
+- L'application est publiée sous licence MIT (le serveur sous licence AGPL v3) :
   mention « © 2026 Paddock Live · Licence MIT » dans Réglages → À propos (lien vers le texte de la
   licence), sur le site et dans les conditions d'utilisation. Le nom « Paddock Live » et le logo ne
   sont pas couverts par la licence.

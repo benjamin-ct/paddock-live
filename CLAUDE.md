@@ -4,6 +4,10 @@
 - **Branches et versions** : le travail se fait sur `develop` (toutes les PRs ont `develop` pour base) ;
   `main` ne reçoit que les versions finales. Numéros : `X.Y.0` pour une version avec des nouveautés
   (1.28.0, 1.29.0…), `X.Y.Z` pour une version de corrections seulement (1.28.1…).
+- **Mode créateur secret** : le mode créateur (Posts, Studio, publication et statistiques des réseaux, diagnostic
+  des données F1, tout ce qui demande le code créateur) n'apparaît jamais dans `CHANGELOG.md` (repris sur la page
+  de la version et dans l'appli) ni sur le site : un changement qui ne touche que lui s'écrit « Petites améliorations
+  internes » dans `### Divers`.
 - **Journal** : la version en préparation a sa section `## vX.Y.0 — à venir` en tête de `CHANGELOG.md` ;
   chaque PR y ajoute ses nouveautés au fil de l'eau (écrites pour les utilisateurs, regroupées par thème
   `### …`), plusieurs PRs s'accumulent dans la même section. Après une publication, la PR suivante ouvre
