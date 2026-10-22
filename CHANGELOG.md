@@ -50,6 +50,8 @@ l'application (Réglages → À propos → Nouveautés).
   pour la prochaine fois.
 - Radios d'équipe : réglage du volume ; les commentaires F1 TV baissent pendant une radio (« Plus bas pendant
   les radios », dans le panneau des commentaires).
+- Radios d'équipe : les radios affichées « (pas de parole reconnue) » après un ancien échec de transcription sont
+  redemandées au serveur et retrouvent leur texte.
 
 ### Direction de course
 - Messages de la direction de course en vrai français : drapeaux, incidents, enquêtes, pénalités, tours
