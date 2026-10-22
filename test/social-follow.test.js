@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { slidesFor, pointPages, slideName } from '../shared/social-draw.js';
-import { followCaptions, followReason } from '../shared/social-follow.js';
+import { creditCaptions, followCaptions, followReason } from '../shared/social-follow.js';
 import { newsPost, newsCaptions, cleanPoints } from '../shared/social-news.js';
 import { xLength } from '../shared/social.js';
 
@@ -128,4 +128,14 @@ test('news avec les photos de l\'article : une image par photo, avant l\'essenti
   d.gallery = [{}, {}];
   assert.deepEqual(slidesFor(d), ['news', 'photo-1', 'photo-2', 'essentiel-1']);
   assert.equal(slideName('photo-2'), 'Photo');
+});
+
+test('mention IA et appli : ligne avant les hashtags, compte de l\'appli selon le réseau, dans la limite', () => {
+  const caps = { instagram: 'Titre\n\n@moi\n\n#F1 #BenjyPaddock', facebook: 'Titre\n\n@moi', threads: 'Titre\n\n#F1', x: 'Titre\n\n#BenjyPaddock', bsky: 'Titre\n\n#BenjyPaddock' };
+  const c = creditCaptions(caps);
+  assert.equal(c.instagram, "Titre\n\n@moi\n\n🤖 Fait par IA avec l'appli @paddockliveapp\n\n#F1 #BenjyPaddock");
+  assert.equal(c.facebook, "Titre\n\n@moi\n\n🤖 Fait par IA avec l'appli @paddockliveapp");
+  assert.match(c.threads, /@paddockliveapp\n\n#F1$/);
+  assert.match(c.bsky, /avec l'appli @paddocklive\.app\n\n#BenjyPaddock$/);
+  assert.equal(creditCaptions({ x: `${'a'.repeat(260)}\n\n#F1` }).x, `${'a'.repeat(260)}\n\n#F1`, 'X plein : texte inchangé');
 });

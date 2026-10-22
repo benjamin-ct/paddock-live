@@ -2,7 +2,7 @@
 // séances et posts de la saison.
 import { slidesFor, drawSlide, slideName, chosenSlides, keptData } from '/shared/social-draw.js';
 import { openImageViewer } from '/shared/image-viewer.js';
-import { followCaptions, questionCaptions } from '/shared/social-follow.js';
+import { creditCaptions, followCaptions, questionCaptions } from '/shared/social-follow.js';
 import { xLength } from '/shared/social.js';
 import { linksIn } from '/shared/track-links.js';
 import { FLAG_ISO } from '/shared/flags.js';
@@ -150,9 +150,9 @@ export function editor({ back, title, subtitle = '', head = '', vhead = '', note
     let base = caps(keptData(d, skip, state.fmt));
     if (state.question && !skip.has('question')) base = questionCaptions(base, d, SIG);
     if (state.follow && !skip.has('abonnement')) base = followCaptions(base, d, SIG);
-    const c = { ...base, ...mine };
-    if (!c.bsky) c.bsky = c.x;
-    return c;
+    if (!base.bsky) base = { ...base, bsky: base.x };
+    // Mention « Fait par IA avec l'appli », sauf pour les posts écrits à la main
+    return { ...(record?.()?.kind === 'manual' ? base : creditCaptions(base)), ...mine };
   };
   const redraw = async (changed = false) => {
     if (changed) edited = {};

@@ -78,3 +78,15 @@ export function followCaptions(caps, d, handle = '') {
   if (short && out.bsky) { const t = insert(out.bsky, short, h); if ([...t].length <= 300) out.bsky = t; }
   return out;
 }
+
+// Ligne discrète en fin de texte : texte fait par IA, avec l'appli (compte de l'appli sur chaque réseau)
+const APP_HANDLE = '@paddockliveapp';
+export function creditCaptions(caps) {
+  const line = (h) => `🤖 Fait par IA avec l'appli ${h}`;
+  const out = { ...caps };
+  for (const k of ['instagram', 'facebook']) if (out[k]) out[k] = insert(out[k], line(APP_HANDLE), '');
+  if (out.threads) { const t = insert(out.threads, line(APP_HANDLE), ''); if (t.length <= 500) out.threads = t; }
+  if (out.x) { const t = insert(out.x, line(APP_HANDLE), ''); if (xLength(t) <= 280) out.x = t; }
+  if (out.bsky) { const t = insert(out.bsky, line('@paddocklive.app'), ''); if ([...t].length <= 300) out.bsky = t; }
+  return out;
+}

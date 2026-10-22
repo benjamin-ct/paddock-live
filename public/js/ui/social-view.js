@@ -9,7 +9,7 @@ import { toast } from './delay.js';
 import { FLAG_ISO } from './header.js';
 import { postData, captions, xLength } from '/shared/social.js';
 import { FORMATS, slidesFor, drawSlide, slideName, chosenSlides, keptData, videoCover } from '/shared/social-draw.js';
-import { followCaptions, questionCaptions } from '/shared/social-follow.js';
+import { creditCaptions, followCaptions, questionCaptions } from '/shared/social-follow.js';
 import { raceWeekData, weekendData, recordsData, ratingsData, teamDuelsData, titleData, raceLapsData, recapData, seasonCaptions } from '/shared/social-season.js';
 import { raceFrame, raceVideoTiming } from '/shared/social-draw-season.js';
 import { makeAnimation } from '/shared/social-video.js';
@@ -483,7 +483,8 @@ async function render(dlg, keepHead = false) {
     let c = capsOf(keptData(d, skip, fmt));
     if (withQuestion && !skip.has('question')) c = questionCaptions(c, d, sig);
     if (follow && !skip.has('abonnement')) c = followCaptions(c, d, sig);
-    return c;
+    // Mention « Fait par IA avec l'appli », sauf pour les posts écrits à la main
+    return mode === 'manual' ? c : creditCaptions(c);
   };
   caps = textsOf();
   if (!slides.length || (!d.rows?.length && !d.post && !d.news)) { body.innerHTML = `${mode !== 'news' ? head : ''}<p class="muted">${t('Pas encore de classement pour cette séance : lancez un live ou un replay.')}</p>`; return; }

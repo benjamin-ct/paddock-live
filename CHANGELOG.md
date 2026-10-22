@@ -52,6 +52,8 @@ l'application (Réglages → À propos → Nouveautés).
 - Un seul appel à la fin du post : « Question pour faire réagir » ou « Abonnez-vous », l'un ou l'autre (cocher
   l'un grise l'autre).
 - Les posts tutoient : « Abonne-toi », « Ton pronostic en commentaire », « À toi ! », « Le savais-tu ? »…
+- Une courte ligne en fin de texte : « 🤖 Fait par IA avec l'appli @paddockliveapp » (sur X et Bluesky seulement
+  si la place le permet ; pas sur les posts écrits à la main).
 
 ### Mises à jour
 - Versions bêta : nouveau réglage « Recevoir les versions bêta » (Réglages → Application) pour essayer les
