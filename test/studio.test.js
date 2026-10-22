@@ -274,6 +274,7 @@ test('page du créateur : publication programmée, publiée par le serveur à l\
     f.append('ig', jpeg(10), 'b.jpg');
     f.append('x', jpeg(10), 'c.jpg');
     for (let i = 0; i < (o.more || 0); i++) f.append('ig', jpeg(10), `d${i}.jpg`);
+    f.append('alts', JSON.stringify({ ig: ['Podium', 'Classement', 'en trop'], x: ['Podium X'] }));
     return f;
   };
   const add = async (o) => worker('https://s.test/studio/api/schedule', { method: 'POST', body: form(o), headers: key });
@@ -291,6 +292,8 @@ test('page du créateur : publication programmée, publiée par le serveur à l\
   // Visuels dans le stockage R2, pas dans la base
   assert.deepEqual([...env.MEDIA.objs.keys()].filter((k) => k.startsWith(`sched/${item.id}/`)).sort(), [`sched/${item.id}/ig/0`, `sched/${item.id}/ig/1`, `sched/${item.id}/x/0`]);
   assert.equal(env.MEDIA.objs.get(`sched/${item.id}/ig/0`).bytes.length, 1.2e6);
+  // Texte alternatif de chaque visuel, un par image (le surplus écarté)
+  assert.deepEqual(JSON.parse(env.DB.studio.get(`sched:${item.id}`)).alts, { ig: ['Podium', 'Classement'], x: ['Podium X'] });
   for (const [, v] of rows) for (const sec of ['jeton-page', 'mdp-app']) assert.ok(!v.includes(sec));
 
   const realFetch = globalThis.fetch;

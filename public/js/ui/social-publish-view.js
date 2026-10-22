@@ -298,21 +298,23 @@ export async function openPublish({ d, caps, render, folder, record = null, onPo
   // Contenu envoyé à un réseau (visuels préparés une seule fois par format)
   const txt = (k) => $(`[data-txt="${k}"]`, dlg).value;
   let ig = null; let xs = null; let bs = null;
+  // Images et leur texte alternatif (lecteurs d'écran), dans le même ordre
+  const pack = async (canvases, enc) => ({ images: await Promise.all(canvases.map(enc)), alts: canvases.map((c) => c.dataset.alt || '') });
   const bodyFor = async (n) => {
     if (VIDEO_NETS.includes(n)) {
       if (!video) await buildVideo();
       return { network: n, video: await b64(video.blob), mime: video.mime, ...(n === 'youtube' ? { text: txt('youtube') } : {}) };
     }
     if (n === 'bluesky') {
-      bs ||= await Promise.all((await render('x')).slice(0, 4).map((c) => jpegUnder(c)));
-      return { network: n, text: txt('bsky'), images: bs, comment: caps.comment ? txt('comment') : '' };
+      bs ||= await pack((await render('x')).slice(0, 4), (c) => jpegUnder(c));
+      return { network: n, text: txt('bsky'), ...bs, comment: caps.comment ? txt('comment') : '' };
     }
     if (n === 'x') {
-      xs ||= await Promise.all((await render('x')).slice(0, 4).map(png));
-      return { network: n, text: txt('x'), images: xs, comment: caps.comment ? txt('comment') : '' };
+      xs ||= await pack((await render('x')).slice(0, 4), png);
+      return { network: n, text: txt('x'), ...xs, comment: caps.comment ? txt('comment') : '' };
     }
-    ig ||= await Promise.all((await render('ig')).map(png));
-    return { network: n, text: txt(n === 'threads' ? 'threads' : n === 'facebook' && caps.facebook ? 'facebook' : 'instagram'), images: ig, comment: n === 'instagram' || !caps.comment ? '' : txt('comment') };
+    ig ||= await pack(await render('ig'), png);
+    return { network: n, text: txt(n === 'threads' ? 'threads' : n === 'facebook' && caps.facebook ? 'facebook' : 'instagram'), ...ig, comment: n === 'instagram' || !caps.comment ? '' : txt('comment') };
   };
   // Publications programmées : liste (à venir, puis récentes) avec annulation
   const schedList = async () => {

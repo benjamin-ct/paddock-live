@@ -138,7 +138,8 @@ async function replyX(postId, text) {
 
 // ---------- Meta : Facebook, Instagram, Threads (code partagé avec la page web du créateur) ----------
 export { timing };
-const blobs = (images) => images.map((b) => new Blob([b], { type: 'image/png' }));
+// alt : texte alternatif de chaque image (lecteurs d'écran), repris par chaque réseau
+const blobs = (images) => images.map((b) => Object.assign(new Blob([b], { type: 'image/png' }), { alt: b.alt || '' }));
 
 async function threadsAccount() {
   const t = conf().threads;
@@ -261,9 +262,9 @@ async function publishYoutube(video, mime, text) {
 }
 
 // ---------- Publication ----------
-export async function publish(net, { text = '', images = [], video = null, mime = 'video/mp4', comment = '' }) {
-  // Images PNG (ou JPEG pour Bluesky, 1 Mo au plus par image)
-  const imgs = images.map((b) => Buffer.from(String(b), 'base64')).filter((b) => b.length > 8 && (b.readUInt32BE(0) === 0x89504e47 || (net === 'bluesky' && b[0] === 0xff && b[1] === 0xd8)));
+export async function publish(net, { text = '', images = [], alts = [], video = null, mime = 'video/mp4', comment = '' }) {
+  // Images PNG (ou JPEG pour Bluesky, 1 Mo au plus par image), avec leur texte alternatif
+  const imgs = images.map((b, i) => Object.assign(Buffer.from(String(b), 'base64'), { alt: String((Array.isArray(alts) && alts[i]) || '').slice(0, 1000) })).filter((b) => b.length > 8 && (b.readUInt32BE(0) === 0x89504e47 || (net === 'bluesky' && b[0] === 0xff && b[1] === 0xd8)));
   // Liens suivis (clics comptés) ; premier commentaire (lien de l'article d'une news) : X, Facebook, Threads
   const { text: body, comment: note } = await studioTrack(net, String(text || ''), String(comment || '').trim().slice(0, 500));
   if (net === 'x') return withComment(() => publishX(xLength(body) > 280 ? body.slice(0, 280) : body, imgs), note, replyX);
@@ -271,7 +272,7 @@ export async function publish(net, { text = '', images = [], video = null, mime 
   if (net === 'instagram') return publishInstagram(conf().meta, body.slice(0, 2200), blobs(imgs));
   if (net === 'bluesky') {
     const acc = conf().bluesky;
-    const pics = imgs.map((b) => ({ blob: new Blob([b], { type: b[0] === 0xff ? 'image/jpeg' : 'image/png' }), width: 1080, height: 1350 }));   // format X de shared/social-draw.js
+    const pics = imgs.map((b) => ({ blob: new Blob([b], { type: b[0] === 0xff ? 'image/jpeg' : 'image/png' }), width: 1080, height: 1350, alt: b.alt }));   // format X de shared/social-draw.js
     return withComment(() => publishBluesky(acc, [...body].slice(0, 300).join(''), pics), note, (id, t) => replyBluesky(acc, id, t));
   }
   if (net === 'threads') {

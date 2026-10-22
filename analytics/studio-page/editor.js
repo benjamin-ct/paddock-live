@@ -1,6 +1,6 @@
 // Studio : éditeur d'un post (visuels, textes, publication, programmation, partage), commun aux news,
 // séances et posts de la saison.
-import { slidesFor, drawSlide, slideName, chosenSlides, keptData } from '/shared/social-draw.js';
+import { slidesFor, drawSlide, slideName, slideAlt, chosenSlides, keptData } from '/shared/social-draw.js';
 import { openImageViewer } from '/shared/image-viewer.js';
 import { creditCaptions, followCaptions, questionCaptions } from '/shared/social-follow.js';
 import { xLength } from '/shared/social.js';
@@ -396,7 +396,7 @@ async function postImages(d, o, nets, maxIg = Infinity, skip = state.skip) {
   // Images gardées seulement (sommaire et numéros suivent)
   const draw = (fmt, max, n = 99) => {
     const list = chosenSlides(slidesFor(d, { fmt, follow: state.follow, question: state.question }), [...(skip || [])]).slice(0, n);
-    return Promise.all(list.map((sl) => fitJpeg(drawSlide(document.createElement('canvas'), sl, fmt, d, { ...o, slides: list }), max)));
+    return Promise.all(list.map(async (sl) => Object.assign(await fitJpeg(drawSlide(document.createElement('canvas'), sl, fmt, d, { ...o, slides: list }), max), { alt: slideAlt(d, sl) })));
   };
   return { ig: nets.some((n) => n !== 'bluesky') ? await draw(nets.some(isStory) ? 'story' : 'ig', maxIg) : [], x: nets.includes('bluesky') ? await draw('x', 950 * 1024, 4) : [] };
 }
@@ -416,6 +416,7 @@ async function queuePost(d, o, nets, at, record, video = null, tk = null, link =
   form.append('posts', JSON.stringify(nets.map((n) => (isStory(n) ? { network: n } : { network: n, text: alt ? capOf(alt.texts, n) : textOf(n), comment: link ? '' : alt ? (n !== 'instagram' && alt.texts.comment?.trim()) || '' : commentOf(n) }))));
   if (link) form.append('link', JSON.stringify(link));
   imgs.ig.forEach((b, i) => form.append('ig', b, `image-${i + 1}.jpg`));
+  form.append('alts', JSON.stringify({ ig: imgs.ig.map((b) => b.alt || ''), x: imgs.x.map((b) => b.alt || '') }));
   imgs.x.forEach((b, i) => form.append('x', b, `x-${i + 1}.jpg`));
   if (video) form.append('video', video, video.type === 'video/quicktime' ? 'video.mov' : 'video.mp4');
   if (video?.cover) form.append('cover', video.cover, 'cover.jpg');

@@ -39,7 +39,8 @@ function fakeMeta({ errorOn = null, blocked = false, lagged = false, caption = n
   globalThis.fetch = async (url, opts = {}) => {
     const u = new URL(url);
     const method = opts.method || 'GET';
-    const form = opts.body instanceof URLSearchParams ? Object.fromEntries(opts.body) : {};
+    const form = opts.body instanceof URLSearchParams ? Object.fromEntries(opts.body)
+      : opts.body instanceof FormData ? Object.fromEntries([...opts.body].filter(([, v]) => typeof v === 'string')) : {};
     log.push({ method, path: u.pathname, form, fields: u.searchParams.get('fields') });
     const json = (d) => ({ ok: true, status: 200, text: async () => JSON.stringify(d) });
     if (method === 'POST' && u.pathname.endsWith('/photos')) return json({ id: `ph${++n}` });
@@ -85,11 +86,13 @@ test('Threads et Instagram : chaque image du carrousel est prête avant le carro
   try {
     const { log } = fakeMeta();
     const images = [PNG(1), PNG(2), PNG(3)];
-    const th = await publish('threads', { text: 'Bonjour', images });
+    const alts = ['Podium : 1. Norris', 'Classement', 'Faits marquants'];
+    const th = await publish('threads', { text: 'Bonjour', images, alts });
     assert.equal(th.url, 'https://example.test/p/1');
     const kids = log.filter((l) => l.form.is_carousel_item === 'true');
     assert.equal(kids.length, 3);
     assert.ok(kids.every((k) => /^https:\/\/cdn\.test\/.+\.jpg$/.test(k.form.image_url) && k.form.media_type === 'IMAGE'));
+    assert.deepEqual(kids.map((k) => k.form.alt_text).sort(), [...alts].sort());   // texte alternatif de chaque image
     const car = log.find((l) => l.form.media_type === 'CAROUSEL');
     assert.equal(car.form.text, 'Bonjour');
     assert.equal(car.form.topic_tag, 'F1 Threads');
@@ -97,16 +100,18 @@ test('Threads et Instagram : chaque image du carrousel est prête avant le carro
 
     // Instagram juste après : mêmes images, rien de redéposé sur la page
     log.length = 0;
-    const ig = await publish('instagram', { text: 'Légende', images });
+    const ig = await publish('instagram', { text: 'Légende', images, alts });
     assert.equal(ig.url, 'https://example.test/p/1');
     assert.equal(log.filter((l) => l.path.endsWith('/photos')).length, 0);
     assert.equal(log.find((l) => l.form.media_type === 'CAROUSEL').form.caption, 'Légende');
+    assert.deepEqual(log.filter((l) => l.form.is_carousel_item === 'true').map((l) => l.form.alt_text).sort(), [...alts].sort());
     assert.ok(log.some((l) => l.path.endsWith('/media_publish')));
 
     // Facebook : nouvel envoi (une photo jointe à un post ne peut pas l'être à un autre)
     log.length = 0;
-    await publish('facebook', { text: 'Post', images });
+    await publish('facebook', { text: 'Post', images, alts });
     assert.equal(log.filter((l) => l.path.endsWith('/photos')).length, 3);
+    assert.deepEqual(log.filter((l) => l.path.endsWith('/photos')).map((l) => l.form.alt_text_custom).sort(), [...alts].sort());
     assert.equal(Object.keys(log.find((l) => l.path.endsWith('/feed')).form).filter((k) => k.startsWith('attached_media')).length, 3);
   } finally {
     globalThis.fetch = realFetch;

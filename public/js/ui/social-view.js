@@ -8,7 +8,7 @@ import { t } from '../i18n.js';
 import { toast } from './delay.js';
 import { FLAG_ISO } from './header.js';
 import { postData, captions, xLength } from '/shared/social.js';
-import { FORMATS, slidesFor, drawSlide, slideName, chosenSlides, keptData, videoCover } from '/shared/social-draw.js';
+import { FORMATS, slidesFor, drawSlide, slideName, slideAlt, chosenSlides, keptData, videoCover } from '/shared/social-draw.js';
 import { creditCaptions, followCaptions, questionCaptions } from '/shared/social-follow.js';
 import { raceWeekData, weekendData, recordsData, ratingsData, teamDuelsData, titleData, raceLapsData, recapData, seasonCaptions } from '/shared/social-season.js';
 import { raceFrame, raceVideoTiming } from '/shared/social-draw-season.js';
@@ -551,7 +551,11 @@ async function render(dlg, keepHead = false) {
   curPost = { d, o };
   // Publication : visuels de n'importe quel format, dessinés à part
   // Publication : images gardées, de n'importe quel format, dessinées à part
-  const drawChosen = (f) => { const list = chosenOf(slidesFor(d, { fmt: f, follow, question: withQuestion })); return list.map((sl) => drawSlide(document.createElement('canvas'), sl, f, d, { ...o, slides: list })); };
+  // Chaque visuel avec son texte alternatif (data-alt), envoyé aux réseaux avec l'image
+  const drawChosen = (f) => {
+    const list = chosenOf(slidesFor(d, { fmt: f, follow, question: withQuestion }));
+    return list.map((sl) => { const c = drawSlide(document.createElement('canvas'), sl, f, d, { ...o, slides: list }); c.dataset.alt = slideAlt(d, sl); return c; });
+  };
   // Brouillon publié : effacé
   const posted = () => { histCache = null; if (mode === 'news') render(dlg); if (mode === 'draft') draftApi('drafts/remove', { id: curDraft.id }).catch(() => {}); };
   dlg.publish = () => openPublish({ d, caps, folder: folderOf(d), record, onPosted: posted, render: async (f) => drawChosen(f), videoMaker: raceVideoMaker(d, o) });

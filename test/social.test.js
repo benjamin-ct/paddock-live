@@ -143,3 +143,10 @@ test('posts : hashtag du Grand Prix, celui de la F1 quand il diffère du nom', a
   assert.deepEqual(['United States Grand Prix', 'Mexico City Grand Prix', 'São Paulo Grand Prix', 'Italian Grand Prix', 'Las Vegas Grand Prix', ''].map(gpTag),
     ['#USGP', '#MexicoGP', '#BrazilGP', '#ItalianGP', '#LasVegasGP', '']);
 });
+
+test('posts : texte alternatif de chaque image (ce qu\'elle montre, classement compris)', async () => {
+  const { slideAlt } = await import('../shared/social-draw.js');
+  const d = postData(state);
+  assert.match(slideAlt(d, 'podium'), /^Podium — Course · Grand Prix d'Italie : 1\. Lando Norris \(McLaren\), 2\. Charles Leclerc \(Ferrari\), 3\./);
+  assert.equal(slideAlt({ news: true, title: 'Haas engage Câmara', summary: 'Pour 2027.' }, 'news'), 'News : Haas engage Câmara. Pour 2027.');
+});

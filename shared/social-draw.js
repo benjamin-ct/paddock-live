@@ -87,6 +87,16 @@ export function pointPages(points, fmt = 'ig') {
 }
 export const SLIDE_NAMES = { grille: 'Grille de départ', meteo: 'Météo et pneus', champpilotes: 'Championnat pilotes', champecuries: 'Championnat constructeurs', flash: 'Flash', duels: 'Duels entre coéquipiers', news: 'News', couverture: 'Couverture', vainqueur: 'Vainqueur', pole: 'Pole position', meilleurtemps: 'Meilleur temps', podium: 'Podium', classement: 'Classement', faits: 'Faits marquants', championnat: 'Championnat', abonnement: 'Abonnez-vous', question: 'Question', essentiel: "L'essentiel", photo: 'Photo', raceweek: 'Race Week', horaires: 'Horaires', infos: 'Pneus et météo', records: 'Records', editions: 'Éditions précédentes', topflop: 'Tops et flops', notes: 'Toutes les notes', equipes: 'Duels par écurie', positions: 'Positions tour par tour', recapcover: 'La semaine', recap: 'Info', titrepilotes: 'Titre pilotes', titreecuries: 'Titre constructeurs', titrecomment: 'Comment être sacré' };
 export const slideName = (s) => SLIDE_NAMES[s] || SLIDE_NAMES[String(s).replace(/-\d+$/, '')] || s;
+// Texte alternatif d'une image publiée (lecteurs d'écran) : ce qu'elle montre, avec le classement s'il y en a un
+const RANKED = { vainqueur: 3, pole: 3, meilleurtemps: 3, podium: 3, classement: 10, grille: 10 };
+export function slideAlt(d, slide) {
+  const name = slideName(slide);
+  if (d.news) return `${name} : ${d.title}${d.summary ? `. ${d.summary}` : ''}`.slice(0, 500);
+  const what = [d.label, d.gp].filter(Boolean).join(' · ');
+  const n = RANKED[slide] && d.rows?.[0]?.pos ? RANKED[slide] : 0;
+  const top = n ? ` : ${d.rows.slice(0, n).map((r) => `${r.pos}. ${[r.first, r.last].filter(Boolean).join(' ')}${r.team ? ` (${r.team})` : ''}`).join(', ')}` : '';
+  return `${name}${what ? ` — ${what}` : ''}${top}`.slice(0, 500);
+}
 
 // ---------- Outils de dessin ----------
 export function rr(ctx, x, y, w, h, r) {

@@ -341,7 +341,7 @@ async function sendTo(net, vault, { text, comment, images, small = [], video = n
     return withComment(() => publishBluesky(vault.bluesky, [...text].slice(0, 300).join(''), [], null, clip), comment, (id, t) => replyBluesky(vault.bluesky, id, t));
   }
   if (net === 'bluesky') {
-    const pics = small.slice(0, 4).map((blob) => ({ blob, width: 1080, height: 1350 }));   // format X de shared/social-draw.js
+    const pics = small.slice(0, 4).map((blob) => ({ blob, width: 1080, height: 1350, alt: blob.alt || '' }));   // format X de shared/social-draw.js
     return withComment(() => publishBluesky(vault.bluesky, [...text].slice(0, 300).join(''), pics), comment, (id, t) => replyBluesky(vault.bluesky, id, t));
   }
   if (net === 'facebook') return withComment(() => publishFacebook(vault.meta, text, images), comment, (id, t) => commentFacebook(vault.meta, id, t));
@@ -535,6 +535,10 @@ async function scheduleAdd(req, env, raw, vault, now = Date.now()) {
   const files = (k, n) => form.getAll(k).filter((f) => typeof f === 'object' && f && /^image\/(png|jpeg)$/.test(f.type)).slice(0, n);
   // cover : couverture de la vidéo fabriquée par l'appli (Reel Instagram, vidéo Facebook)
   const sets = { ig: files('ig', SETS.ig), x: files('x', SETS.x), cover: video ? files('cover', SETS.cover) : [] };
+  // Texte alternatif de chaque visuel (lecteurs d'écran) : { ig: [...], x: [...] }, facultatif (anciennes versions)
+  let alts = {};
+  try { alts = JSON.parse(String(form.get('alts') || '{}')) || {}; } catch { alts = {}; }
+  alts = Object.fromEntries(['ig', 'x'].map((k) => [k, (Array.isArray(alts[k]) ? alts[k] : []).slice(0, sets[k].length).map((a) => String(a || '').slice(0, 1000))]));
   if ([...sets.ig, ...sets.x, ...sets.cover].some((f) => f.size > SCHED.img)) return json({ error: 'Visuel trop lourd (4 Mo au plus)' }, 413);
   if ((link ? nets.includes('instagram') : !video && posts.some((p) => p.network !== 'bluesky')) && !sets.ig.length) return json({ error: 'Aucune image' }, 400);
   if (!link && !video && posts.some((p) => p.network === 'bluesky') && !sets.x.length) return json({ error: 'Aucune image' }, 400);
@@ -550,7 +554,7 @@ async function scheduleAdd(req, env, raw, vault, now = Date.now()) {
   }
   if (video) await env.MEDIA.put(`sched/${id}`, video, { httpMetadata: { contentType: video.type } });
   if (full) await env.MEDIA.put(`sched/${id}-full`, full, { httpMetadata: { contentType: full.type } });
-  const job = { id, at, title: String(form.get('title') || '').slice(0, 200), record: record && typeof record === 'object' ? record : null, posts, sets: { ig: sets.ig.length, x: sets.x.length, cover: sets.cover.length }, video: video ? video.type : null, full: !!full, vsize, tiktok, link, keys: await seal(await schedKey(env), keys), created: now };
+  const job = { id, at, title: String(form.get('title') || '').slice(0, 200), record: record && typeof record === 'object' ? record : null, posts, sets: { ig: sets.ig.length, x: sets.x.length, cover: sets.cover.length }, alts, video: video ? video.type : null, full: !!full, vsize, tiktok, link, keys: await seal(await schedKey(env), keys), created: now };
   await setRow(env, `sched:${id}`, JSON.stringify(job));
   return json({ item: schedSummary({ ...job, nets: Object.fromEntries(nets.map((n) => [n, { status: 'pending' }])) }) });
 }
@@ -642,7 +646,7 @@ export async function runSchedule(env, { now = Date.now(), only = null } = {}) {
         const list = [];
         for (let i = from; i < Math.min(to, j.sets?.[set] || 0); i++) {
           const o = await env.MEDIA?.get(`sched/${j.id}/${set}/${i}`);
-          if (o) list.push(new Blob([await o.arrayBuffer()], { type: o.httpMetadata?.contentType || 'image/jpeg' }));
+          if (o) list.push(Object.assign(new Blob([await o.arrayBuffer()], { type: o.httpMetadata?.contentType || 'image/jpeg' }), { alt: j.alts?.[set]?.[i] || '' }));
         }
         return list;
       };
