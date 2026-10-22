@@ -1,7 +1,7 @@
 // Autres posts de séance (mode créateur) : avant-course (grille, météo, pneus Pirelli), championnat
 // après la course, « flash » pendant la séance (drapeau rouge, voiture de sécurité, abandon,
 // pénalité) et duels entre coéquipiers. Données tirées de l'état de la séance, textes en français.
-import { postData, hashtag, teamTag, BRAND_TAG, gpFlag, MEDALS, xLength } from './social.js';
+import { postData, hashtag, teamTag, fiveTags, twoTags, THREADS_TAG, gpFlag, MEDALS, xLength } from './social.js';
 import { portraitUrl } from './portraits.js';
 
 const list = (o) => (!o ? [] : Array.isArray(o) ? o : Object.keys(o).sort((a, b) => a - b).map((k) => o[k]));
@@ -107,7 +107,6 @@ export function flashData(state, ev) {
 export function moreCaptions(d, signature = '') {
   const sig = signature ? `\n\n${signature}` : '';
   const gpTag = hashtag(`${String(d.gpEn || '').replace(/ Grand Prix$/i, '')}GP`);
-  const tags = (extra = []) => [BRAND_TAG, '#F1', '#Formula1', gpTag, d.year ? `#F1${d.year}` : '', ...extra].filter((t) => t && t.length > 2);
   let head = '';
   let body = '';
   let bodyX = null;   // version courte pour X
@@ -136,9 +135,9 @@ export function moreCaptions(d, signature = '') {
     body = [d.event.title, d.event.sub].filter(Boolean).join(' — ');
     extra = d.event.driver ? [hashtag(`${d.event.driver.first}${d.event.driver.last}`), teamTag(d.event.driver.team)] : [];
   }
-  const all = tags(extra);
+  const all = fiveTags(['#F1', gpTag, ...extra]);
   const instagram = `${head}\n\n${body}${sig}\n\n${all.join(' ')}`;
-  const shortTags = all.slice(0, 4);
+  const shortTags = twoTags(all);
   // X : mots-clés puis dernières lignes du texte retirés tant que le post dépasse 280 caractères
   const bodyLines = (bodyX ?? body).split('\n');
   const make = () => `${head}\n\n${bodyLines.join('\n')}\n\n${shortTags.join(' ')}`;
@@ -147,6 +146,6 @@ export function moreCaptions(d, signature = '') {
   while (xLength(x) > 280 && bodyLines.length > 1) { bodyLines.pop(); x = make(); }
   while (xLength(x) > 280 && shortTags.length > 1) { shortTags.pop(); x = make(); }
   if (xLength(x) > 280) x = `${head}\n\n${bodyLines.join('\n')}`.slice(0, 260) + '…';
-  const threads = `${head}\n\n${body}${sig}\n\n#F1 ${BRAND_TAG}`.slice(0, 500);
+  const threads = `${head}\n\n${body}${sig}\n\n${THREADS_TAG}`.slice(0, 500);
   return { instagram, x, bsky: x, threads, story: head };
 }

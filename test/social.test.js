@@ -48,11 +48,10 @@ test('posts : légendes Instagram et X', () => {
   assert.match(c.instagram, /🥈 Charles Leclerc \(Ferrari\) \+2,5 s/);
   assert.match(c.instagram, /\n\n@BenjyPaddock\n\n/);
   const tags = c.instagram.split('\n').at(-1).split(' ');
-  assert.deepEqual(tags.slice(0, 9), ['#BenjyPaddock', '#F1', '#Formula1', '#Formule1', '#ItalianGP', '#F12026', '#RaceDay', '#LandoNorris', '#Norris']);
-  for (const t of ['#Leclerc', '#Hamilton', '#McLaren', '#ScuderiaFerrari', '#Italy', '#GrandPrix']) assert.ok(tags.includes(t), t);
-  assert.equal(new Set(tags.map((t) => t.toLowerCase())).size, tags.length, 'pas de doublon');
-  assert.match(c.x, /#BenjyPaddock #F1 #ItalianGP #LandoNorris$/);
-  assert.match(c.threads, /#F1 #BenjyPaddock$/);
+  // Instagram : 5 hashtags au plus, les plus précis, le compte du créateur en dernier ; X 2 ; Threads 1
+  assert.deepEqual(tags, ['#F1', '#ItalianGP', '#LandoNorris', '#McLaren', '#BenjyPaddock']);
+  assert.match(c.x, /\n\n#BenjyPaddock #ItalianGP$/);
+  assert.match(c.threads, /\n\n#F1$/);
   assert.ok(c.x.length <= 280);
   assert.ok(c.threads.length <= 500);
   assert.match(c.threads, /^🏆 Lando Norris remporte/);

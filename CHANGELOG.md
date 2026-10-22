@@ -46,6 +46,8 @@ l'application (Réglages → À propos → Nouveautés).
 ### Posts (mode créateur)
 - Instagram : un post bien en ligne n'est plus marqué « erreur » quand Instagram répond quand même par un refus, même quand il n'apparaît que quelques secondes après la réponse
   (« Nous restreignons certaines activités… ») : l'appli vérifie s'il a été publié et donne son lien.
+- Hashtags aux règles actuelles des réseaux : 5 au plus sur Instagram (sa nouvelle limite), les plus précis d'abord
+  (Grand Prix, pilote, écurie) puis celui du compte ; 2 sur X et Bluesky ; un seul sur Threads (#F1, son sujet).
 
 ### Mises à jour
 - Versions bêta : nouveau réglage « Recevoir les versions bêta » (Réglages → Application) pour essayer les

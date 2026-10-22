@@ -3,7 +3,7 @@
 // visuels (jamais les photos ni le texte des articles : titre et court résumé traduits, source citée).
 // Code pur, partagé par l'appli et la page web du créateur.
 import { NEWS_DRIVERS, NEWS_TEAMS, fold, newsSimilarity } from './news.js';
-import { hashtag, teamTag, BRAND_TAG, xLength } from './social.js';
+import { hashtag, teamTag, fiveTags, twoTags, THREADS_TAG, xLength } from './social.js';
 import { portraitUrl, portraitTeam } from './portraits.js';
 
 // Type de nouvelle, d'après le titre et le résumé (toutes langues des sources, sans accents)
@@ -209,9 +209,7 @@ export function newsCaptions(nd, signature = '', { linkInComment = false } = {})
     ...nd.teams.filter((t) => t.key !== 'fia').map((t) => teamTag(t.name)),
     ...(nd.teams.some((t) => t.key === 'fia') ? ['#FIA'] : []),
   ];
-  const seen = new Set();
-  const tags = [BRAND_TAG, '#F1', '#Formula1', '#F1News', '#Formule1', ...people, nd.year ? `#F1${nd.year}` : '']
-    .filter((t) => t && t.length > 2 && !seen.has(t.toLowerCase()) && seen.add(t.toLowerCase()));
+  const tags = fiveTags(['#F1', ...people, '#F1News']);
   const head = `${nd.breaking ? '🚨' : NEWS_EMOJI[nd.badge.key] || '🏎️'} ${nd.badge.label} | ${nd.title}`;
   // Lien de l'article : Facebook, Threads et X (pas Instagram, où il n'est pas cliquable)
   const url = /^https:\/\//.test(nd.link || '') ? nd.link : '';
@@ -227,7 +225,7 @@ export function newsCaptions(nd, signature = '', { linkInComment = false } = {})
   const xLink = link ? `\n${link}` : '';
   // Texte court (X : 280, lien compté 23 ; Bluesky : 300, lien compté en entier)
   const short = (len, max) => {
-    const xt = [BRAND_TAG, '#F1', ...people.slice(0, 2)];
+    const xt = twoTags(tags);
     const build = (withSrc) => `${head}${withSrc && src ? `\n\n${src}` : '\n'}${xLink}\n\n${xt.join(' ')}`;
     let t = build(true);
     while (len(t) > max && xt.length > 1) { xt.pop(); t = build(true); }
@@ -237,8 +235,8 @@ export function newsCaptions(nd, signature = '', { linkInComment = false } = {})
   };
   const x = short(xLength, 280);
   const bsky = short((t) => [...t].length, 300);
-  let threads = `${head}\n\n${nd.summary}${srcLink ? `\n\n${srcLink}` : ''}${sig}\n\n#F1 ${BRAND_TAG}`;
-  if (threads.length > 500) threads = `${head}${srcLink ? `\n\n${srcLink}` : ''}\n\n#F1 ${BRAND_TAG}`;
+  let threads = `${head}\n\n${nd.summary}${srcLink ? `\n\n${srcLink}` : ''}${sig}\n\n${THREADS_TAG}`;
+  if (threads.length > 500) threads = `${head}${srcLink ? `\n\n${srcLink}` : ''}\n\n${THREADS_TAG}`;
   if (threads.length > 500) threads = `${head.slice(0, 500 - (threads.length - head.length) - 1)}…${threads.slice(head.length)}`;
   return { instagram, facebook, x, bsky, threads, story: head, comment };
 }

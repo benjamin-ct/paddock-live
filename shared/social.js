@@ -135,7 +135,7 @@ export function postData(state) {
   };
 }
 
-// Hashtags ajoutés automatiquement : compte du créateur, F1, Grand Prix, séance, pilotes, écuries, lieu
+// Hashtag du compte du créateur, et hashtags des écuries
 export const BRAND_TAG = '#BenjyPaddock';
 const TEAM_TAGS = [
   [/racing bulls|visa|\brb\b/i, 'RacingBulls'], [/red bull/i, 'RedBullRacing'], [/ferrari/i, 'ScuderiaFerrari'],
@@ -144,24 +144,24 @@ const TEAM_TAGS = [
 ];
 export const teamTag = (team) => hashtag(TEAM_TAGS.find(([re]) => re.test(team || ''))?.[1] || team);
 
-export function hashtags(d, { spoiler = true } = {}) {
-  const [p1, p2, p3] = d.rows;
+// Hashtags selon les règles 2026 des réseaux : Instagram en refuse plus de 5 (les plus précis d'abord, le
+// compte du créateur en dernier), X et Bluesky 2 au plus, Threads un seul (son sujet)
+export function fiveTags(list) {
+  const seen = new Set([BRAND_TAG.toLowerCase()]);
+  return [...list.filter((t) => t && t.length > 2 && !seen.has(t.toLowerCase()) && seen.add(t.toLowerCase())).slice(0, 4), BRAND_TAG];
+}
+// X et Bluesky : le compte du créateur et le mot-clé le plus précis
+export const twoTags = (tags) => [BRAND_TAG, tags.find((t) => t !== '#F1' && t !== BRAND_TAG) || '#F1'];
+export const THREADS_TAG = '#F1';
+
+export function hashtags(d) {
+  const [p1] = d.rows;
   const gpTag = hashtag(`${d.gpEn.replace(/ Grand Prix$/i, '')}GP`);
-  const session = d.kind === 'race' ? (d.sprint ? ['#F1Sprint', '#Sprint'] : ['#RaceDay']) : d.kind === 'quali' ? ['#Qualifying', '#Qualifs'] : ['#F1Practice'];
-  const people = d.kind === 'practice' ? [p1] : [p1, p2, p3];
-  const winnerTag = p1 && spoiler ? hashtag(`${p1.first}${p1.last}`) : '';
-  const raw = [
-    BRAND_TAG, '#F1', '#Formula1', '#Formule1', gpTag, d.year ? `#F1${d.year}` : '', ...session,
-    p1 ? hashtag(`${p1.first}${p1.last}`) : '', ...people.filter(Boolean).map((r) => hashtag(r.last)),
-    ...[...new Set(people.filter(Boolean).map((r) => r.team))].map(teamTag),
-    d.countryName ? hashtag(d.countryName) : '', d.circuit ? hashtag(d.circuit) : '', '#GrandPrix', '#Motorsport',
-  ];
-  const seen = new Set();
-  const all = raw.filter((t) => t && t.length > 2 && !seen.has(t.toLowerCase()) && seen.add(t.toLowerCase())).slice(0, 25);
+  const all = fiveTags(['#F1', gpTag, p1 ? hashtag(`${p1.first}${p1.last}`) : '', p1 ? teamTag(p1.team) : '']);
   return {
     all,
-    x: [BRAND_TAG, '#F1', gpTag, winnerTag].filter((t) => t.length > 2),
-    threads: ['#F1', BRAND_TAG],
+    x: twoTags(all),
+    threads: [THREADS_TAG],
   };
 }
 
@@ -189,7 +189,7 @@ export function captions(d, signature = '', { spoiler = true } = {}) {
   if (!d.rows.length) return { instagram: '', x: '', threads: '', story: '' };
   const [p1, p2, p3] = d.rows;
   const sig = signature ? `\n\n${signature}` : '';
-  const tags = hashtags(d, { spoiler });
+  const tags = hashtags(d);
   // Essais et qualifs : temps du premier aussi ; course : écarts seulement
   const podium = [p1, p2, p3].filter(Boolean).map((r, i) => `${MEDALS[i]} ${r.first} ${r.last} (${r.team})${(i || d.kind !== 'race') && r.gap ? ` ${r.gap}` : ''}`).join('\n');
   // Texte court : le premier, puis ses deux poursuivants avec leur médaille

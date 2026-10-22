@@ -6,7 +6,7 @@ import { gpNameFr } from './summary.js';
 import { driverRatings, qualiGaps, titleRace, placeForMaxPoints } from './season-calc.js';
 import { cleanPace, lapsLedBy } from './race-laps.js';
 import { raceStory } from './race-story.js';
-import { hashtag, teamTag, BRAND_TAG, xLength, gpFlag, MEDALS } from './social.js';
+import { hashtag, teamTag, fiveTags, twoTags, THREADS_TAG, xLength, gpFlag, MEDALS } from './social.js';
 import { circuitInfo, trackShape, flagColors } from './circuits-info.js';
 
 const TZ = 'Europe/Paris';
@@ -45,11 +45,7 @@ function base(race, year, post, label) {
   };
 }
 const gpTagOf = (d) => hashtag(`${String(d.gpEn || '').replace(/ Grand Prix$/i, '')}GP`);
-const tagsOf = (d, extra = []) => {
-  const seen = new Set();
-  return [BRAND_TAG, '#F1', '#Formula1', '#Formule1', d.gpEn ? gpTagOf(d) : '', d.year ? `#F1${d.year}` : '', ...extra]
-    .filter((t) => t && t.length > 2 && !seen.has(t.toLowerCase()) && seen.add(t.toLowerCase()));
-};
+const tagsOf = (d, extra = []) => fiveTags(['#F1', d.gpEn ? gpTagOf(d) : '', ...extra]);
 
 // ---------- 1. Programme du week-end ----------
 // race : manche de /api/season ; tyres : composés Pirelli ; forecast : [{ date: 'AAAA-MM-JJ', tmax, tmin, rain }]
@@ -271,12 +267,12 @@ function finish(d, head, lines, sig, extra, shortLines = lines) {
   const s = sig ? `\n\n${sig}` : '';
   const body = lines.join('\n');
   const instagram = `${head}\n\n${body}${s}\n\n${tags.join(' ')}`;
-  let threads = `${head}\n\n${body}${s}\n\n#F1 ${BRAND_TAG}`;
-  if (threads.length > 500) threads = `${head}\n\n${shortLines.join('\n')}${s}\n\n#F1 ${BRAND_TAG}`;
-  if (threads.length > 500) threads = `${threads.slice(0, 497 - `\n\n#F1 ${BRAND_TAG}`.length)}…\n\n#F1 ${BRAND_TAG}`;
+  let threads = `${head}\n\n${body}${s}\n\n${THREADS_TAG}`;
+  if (threads.length > 500) threads = `${head}\n\n${shortLines.join('\n')}${s}\n\n${THREADS_TAG}`;
+  if (threads.length > 500) threads = `${threads.slice(0, 497 - `\n\n${THREADS_TAG}`.length)}…\n\n${THREADS_TAG}`;
   // X : lignes puis mots-clés retirés tant que le post dépasse 280 caractères
   const xl = [...shortLines];
-  const xt = tags.slice(0, 4);
+  const xt = twoTags(tags);
   const make = () => `${head}\n\n${xl.join('\n')}\n\n${xt.join(' ')}`.replace(/\n\n\n\n/, '\n\n');
   let x = make();
   while (xLength(x) > 280 && xl.length > 1) { xl.pop(); x = make(); }
