@@ -51,11 +51,11 @@ export async function studioRewrite(text, { fetchFn } = {}) {
 
 // Liens suivis par le serveur (clics comptés dans les statistiques du Studio) ; page web désactivée ou
 // serveur injoignable : textes tels quels
-export async function studioTrack(net, text = '', comment = '', { fetchFn } = {}) {
+export async function studioTrack(net, text = '', comment = '', { fetchFn, title } = {}) {
   const key = getConfig().studio?.key;
   if (!key || !/https?:\/\//.test(`${text} ${comment}`)) return { text, comment };
   try {
-    const r = await post('links', { net, text, comment }, key, fetchFn, 8000);
+    const r = await post('links', { net, text, comment, ...(title ? { title } : {}) }, key, fetchFn, 8000);
     return { text: typeof r.text === 'string' ? r.text : text, comment: typeof r.comment === 'string' ? r.comment : comment };
   } catch {
     return { text, comment };

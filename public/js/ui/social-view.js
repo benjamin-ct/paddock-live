@@ -490,6 +490,7 @@ async function render(dlg, keepHead = false) {
   const body = $('.posts-body', dlg);
   let d; let caps; let head = ''; let record = null;
   if (mode === 'drafts') { await draftsList(dlg, body); return; }
+  if (mode === 'stats') { await statsPage(dlg, body); return; }
   if (mode === 'draft') {
     ({ d, caps, record } = draftSource(sig));
   } else if (mode === 'news') {
@@ -648,62 +649,139 @@ async function render(dlg, keepHead = false) {
   dlg.dataset.ready = '1';
 }
 
-// ---------- Statistiques des posts publiés ----------
+// ---------- Statistiques (comme l'onglet Stats du Studio : comptes, posts, liens) ----------
 const fmtN = (v) => (v == null ? '—' : Number(v).toLocaleString());
 const STAT_LABELS = [['views', 'Vues'], ['reach', 'Portée'], ['likes', "J'aime"], ['comments', 'Comm.'], ['shares', 'Partages'], ['saves', 'Enreg.']];
-// Comptes (page web activée, comme dans le Studio) : abonnés et activité des 28 derniers jours par
-// réseau ; réseaux sans chiffres regroupés en bas. Libellé au singulier pour 1.
+// Libellé au singulier pour 1 (« 1 abonné », « 1 nouvel abonné »)
 const SINGULAR = { 'nouveaux abonnés': 'nouvel abonné', vues: 'vue', 'vues au total': 'vue au total', 'comptes touchés': 'compte touché', 'visites du profil': 'visite du profil',
   'comptes engagés': 'compte engagé', interactions: 'interaction', partages: 'partage', publications: 'publication', abonnés: 'abonné' };
 const one = (n, l) => t((n === 1 && SINGULAR[l]) || l);
 const ACC_LABELS = [['newFollowers', 'nouveaux abonnés'], ['views', 'vues'], ['totalViews', 'vues au total'], ['reach', 'comptes touchés'], ['profileViews', 'visites du profil'],
   ['engaged', 'comptes engagés'], ['interactions', 'interactions'], ['likes', "j'aime"], ['comments', 'comm.'], ['shares', 'partages'], ['posts', 'publications']];
+const metricsOf = (s, labels, word) => labels.filter(([k]) => s[k]).map(([k, l]) => `<span class="pst-metric"><b>${fmtN(s[k])}</b>${word(s[k], l)}</span>`).join('');
 const netLink = (n, url) => (url ? `<a href="${esc(url)}" target="_blank" rel="noopener">${esc(NET_NAMES[n] || n)}</a>` : esc(NET_NAMES[n] || n));
-const accountsHtml = (accounts) => `<h4>${t('Mes comptes')} <span class="small muted">${t('activité des 28 derniers jours')}</span></h4>
-  <div class="posts-accs">${accounts.map((a) => {
+const accountsHtml = (accounts) => `<h4 class="pst-section">${t('Mes comptes')} <small>${t('activité des 28 derniers jours')}</small></h4>
+  <div class="pst-accs">${accounts.map((a) => {
     const nets = Object.entries(a.nets);
     const live = nets.filter(([, x]) => x.stats), off = nets.filter(([, x]) => !x.stats);
     const total = live.reduce((n, [, x]) => n + (x.stats.followers || 0), 0);
-    return `<div class="posts-acc"><div class="row"><b>${esc(a.name)}</b><span class="spacer"></span><span><b>${fmtN(total)}</b> ${one(total, 'abonnés')}</span></div>
-      ${live.map(([n, x]) => `<div class="small"><b>${netLink(n, x.url)}</b> · <b>${fmtN(x.stats.followers)}</b> ${one(x.stats.followers, 'abonnés')}
-        <span class="muted">· ${ACC_LABELS.filter(([k]) => x.stats[k]).map(([k, l]) => `<b>${fmtN(x.stats[k])}</b> ${one(x.stats[k], l)}`).join(' · ') || t('aucune activité')}</span></div>`).join('')}
-      ${off.length ? `<div class="small muted">${off.map(([n, x]) => `${netLink(n, x.url)} · ${esc(x.note || x.error || t('indisponible'))}`).join(' — ')}</div>` : ''}</div>`;
+    return `<div class="pst-card"><div class="pst-acc-head"><b>${esc(a.name)}</b><span class="pst-acc-total"><b>${fmtN(total)}</b>${one(total, 'abonnés')}</span></div>
+      ${live.map(([n, x]) => `<div class="pst-acc-net"><span class="pst-net">${netLink(n, x.url)}</span><span class="pst-acc-f"><b>${fmtN(x.stats.followers)}</b>${one(x.stats.followers, 'abonnés')}</span>
+        <div class="pst-metrics">${metricsOf(x.stats, ACC_LABELS, one) || `<span>${t('aucune activité')}</span>`}</div></div>`).join('')}
+      ${off.length ? `<div class="pst-acc-off">${off.map(([n, x]) => `<span>${netLink(n, x.url)} · ${esc(t(x.note || x.error || 'indisponible'))}</span>`).join('')}</div>` : ''}</div>`;
   }).join('')}</div>`;
-async function openStats() {
-  let dlg = $('#postsStatsDlg');
-  if (!dlg) {
-    dlg = document.createElement('dialog');
-    dlg.id = 'postsStatsDlg';
-    dlg.className = 'modal posts-pub-dlg';
-    document.body.appendChild(dlg);
-    dlg.addEventListener('click', (e) => { if (e.target === dlg || e.target.closest('[data-close]')) dlg.close(); });
-  }
-  dlg.innerHTML = `<div class="sum-head"><b>${icon('chart')} ${t('Statistiques des posts')}</b><button class="icon-btn" data-close title="${t('Fermer')}">${icon('close')}</button></div>
-    <div class="posts-pub-body"><p class="muted">${t('Lecture des statistiques…')}</p></div>`;
-  if (!dlg.open) dlg.showModal();
-  const body = $('.posts-pub-body', dlg);
+const postHtml = (p) => `<div class="pst-card"><div class="pst-top"><time>${esc(new Date(p.at).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))}</time><span class="spacer"></span>
+    <button class="icon-btn" data-statsremove="${esc(p.key)}" title="${t('Post supprimé sur les réseaux : le retirer des statistiques')}">${icon('close')}</button></div>
+  <div class="pst-t" data-no-i18n>${esc(p.title || t('Post'))}</div>
+  ${Object.entries(p.nets).map(([n, x]) => {
+    const s = p.stats?.[n];
+    const vals = s && !s.error && !s.note ? metricsOf(s, STAT_LABELS, (v, l) => t(l)) || `<span>${t("pas encore d'interaction")}</span>`
+      : `<span>${s?.note ? esc(t(s.note)) : `${t('statistiques indisponibles')}${s?.error ? ` (${esc(s.error)})` : ''}`}</span>`;
+    return `<div class="pst-net-stats"><span class="pst-net">${netLink(n, x.url)}</span><div class="pst-metrics">${vals}</div></div>`;
+  }).join('')}</div>`;
+// Clics sur les liens suivis des posts et téléchargements de l'appli (30 jours)
+const OS_LABELS = { windows: 'Windows', 'windows-portable': 'Windows portable', 'mac-arm': 'Mac Apple', 'mac-intel': 'Mac Intel', linux: 'Linux', 'linux-arm': 'Linux ARM', deb: 'Paquet .deb' };
+const linkName = (l) => l.title || (() => { try { const u = new URL(l.url); return `${u.hostname.replace(/^www\./, '')}${u.pathname.length > 1 ? u.pathname.slice(0, 40) : ''}`; } catch { return l.url || t('Lien'); } })();
+const clickHtml = (l) => {
+  const dl = l.id === 'download';
+  const parts = l.id.includes('/') ? [] : Object.entries(l.nets).sort((a, b) => b[1] - a[1]).map(([n, v]) => `<span class="pst-metric"><b>${fmtN(v)}</b>${esc(dl ? OS_LABELS[n] || n : NET_NAMES[n] || n)}</span>`);
+  const dev = [['mobile', 'téléphone'], ['desktop', 'ordinateur']].filter(([k]) => l.devices[k]).map(([k, v]) => `<span class="pst-metric"><b>${fmtN(l.devices[k])}</b>${t(v)}</span>`);
+  const top = Object.entries(l.countries).filter(([k]) => k !== '?').sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, v]) => `${k} ${v}`).join(' · ');
+  return `<div class="pst-card"><div class="pst-top"><b class="spacer" data-no-i18n>${esc(dl ? t("Téléchargements de l'appli") : linkName(l))}</b><span class="pst-metric"><b>${fmtN(l.total)}</b>${dl ? t('téléch.') : t(l.total > 1 ? 'clics' : 'clic')}</span></div>
+    <div class="pst-metrics">${parts.join('')}${dev.join('')}${top ? `<span>${esc(top)}</span>` : ''}</div></div>`;
+};
+const SHORT_NETS = ['instagram', 'facebook', 'threads', 'x', 'bluesky', 'tiktok', 'youtube'];
+const STATS_SUBS = [['accounts', 'Comptes'], ['posts', 'Posts'], ['links', 'Liens']];
+let statsSub = 'accounts';
+let statsCache = null;   // { at, r } : relus au plus toutes les 2 minutes (sauf « Actualiser »)
+async function statsPage(dlg, body, force = false) {
+  const fresh = statsCache && Date.now() - statsCache.at < 2 * 60e3 && !force;
+  if (statsCache) drawStats(dlg, body, statsCache.r, !fresh);
+  else body.innerHTML = `<p class="muted">${t('Lecture des statistiques…')}</p>`;
+  if (fresh) return;
   try {
-    const r = await fetch('/api/social/stats').then((x) => x.json());
-    const f = Object.entries(r.followers || {});
-    body.innerHTML = `${r.accounts?.length ? accountsHtml(r.accounts) : f.length ? `<div class="posts-stats-fol">${f.map(([n, v]) => `<div><b>${fmtN(v)}</b><span class="small muted">${t('abonnés')} ${NET_NAMES[n] || n}</span></div>`).join('')}</div>` : ''}
-      ${(r.posts || []).length ? (r.posts || []).map((p) => `<div class="posts-stats-post">
-        <div class="row"><b>${esc(p.title || t('Post'))}</b><span class="spacer"></span><span class="small muted">${esc(new Date(p.at).toLocaleString())}</span>
-          <button class="btn small" data-statsremove="${esc(p.key)}" title="${t('Post supprimé sur les réseaux : le retirer des statistiques')}">${t('Retirer')}</button></div>
-        ${Object.entries(p.nets).map(([n, x]) => { const s = p.stats?.[n]; const vals = s && !s.error ? STAT_LABELS.filter(([k]) => s[k] != null).map(([k, l]) => `${t(l)} <b>${fmtN(s[k])}</b>`).join(' · ') : s?.note ? `<span class="muted">${esc(t(s.note))}</span>` : s?.error ? `${t('statistiques indisponibles')} <span class="muted">(${esc(s.error)})</span>` : t('statistiques indisponibles'); return `<div class="small">${x.url ? `<a href="${esc(x.url)}" target="_blank" rel="noopener">${NET_NAMES[n] || n}</a>` : NET_NAMES[n] || n} : ${vals}</div>`; }).join('')}
-      </div>`).join('') : `<p class="muted">${t('Aucun post publié depuis Paddock Live pour le moment.')}</p>`}`;
-    body.querySelectorAll('[data-statsremove]').forEach((b) => {
-      b.onclick = async () => {
-        if (!confirm(t('Retirer ce post des statistiques ? (Rien n\'est supprimé sur les réseaux.)'))) return;
-        b.disabled = true;
-        try {
-          const r = await fetch('/api/social/history/remove', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: b.dataset.statsremove }) });
-          if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || `Erreur ${r.status}`);
-          histCache = null;
-          b.closest('.posts-stats-post').remove();
-        } catch (err) { b.disabled = false; toast(err.message, 4000, 'warning'); }
-      };
-    });
-  } catch (err) { body.innerHTML = `<p class="muted">${esc(err.message)}</p>`; }
+    const res = await fetch('/api/social/stats');
+    const r = await res.json();
+    if (!res.ok) throw new Error(r.error || `Erreur ${res.status}`);
+    statsCache = { at: Date.now(), r };
+    if (mode === 'stats' && body.isConnected) drawStats(dlg, body, r, false);
+  } catch (err) {
+    if (statsCache) toast(t('Actualisation impossible : {}', err.message), 4000, 'warning');
+    else body.innerHTML = `<p class="muted">${esc(err.message)}</p>`;
+  }
+}
+function drawStats(dlg, body, r, stale) {
+  const f = Object.entries(r.followers || {});
+  const typed = ['[data-shorturl]', '[data-shortname]', '[data-shortnet]'].map((s) => $(s, body)?.value);
+  const shortOut = $('[data-shortout]', body)?.innerHTML || '';
+  const posts = r.posts || [];
+  body.innerHTML = `<div class="pst">
+    <div class="pst-bar"><div class="pst-seg">${STATS_SUBS.map(([k, v]) => `<button data-ssub="${k}" class="${statsSub === k ? 'on' : ''}">${t(v)}</button>`).join('')}</div>
+      <button class="btn" data-statsreload title="${t('Actualiser')}">${icon('refresh')}</button></div>
+    ${stale ? `<p class="pst-status"><span class="dot"></span>${t('Mise à jour…')}</p>` : ''}
+    <div data-pane="accounts">${r.accounts?.length ? accountsHtml(r.accounts) : f.length ? `<div class="pst-tiles">${f.map(([n, v]) => `<div class="pst-tile"><b>${fmtN(v)}</b><small>${t('abonnés')} ${esc(NET_NAMES[n] || n)}</small></div>`).join('')}</div>` : `<p class="pst-empty">${icon('chart')}${t('Aucun compte relié.')}</p>`}</div>
+    <div data-pane="posts"><div class="pst-row"><h4 class="pst-section">${t('Posts publiés')}</h4><span class="spacer"></span>
+      <button class="btn small" data-statsimport title="${t('Ajoute aux statistiques les posts des 30 derniers jours publiés hors du Studio')}">${icon('refresh')} ${t('Retrouver mes posts')}</button></div>
+      ${posts.length ? `<div class="pst-list">${posts.map(postHtml).join('')}</div>` : `<p class="pst-empty">${icon('chart')}${t('Aucun post publié pour le moment.')}</p>`}</div>
+    <div data-pane="links"><h4 class="pst-section">${t('Raccourcir un lien')}</h4>
+      <form class="pst-card pst-short" data-shortform><input type="text" data-shorturl placeholder="https://…" spellcheck="false" required>
+        <div class="pst-row"><input type="text" data-shortname placeholder="${t('Nom dans les statistiques (facultatif)')}"><select data-shortnet title="${t('Réseau où le lien sera partagé (clics comptés par réseau)')}"><option value="">${t('Autre')}</option>${SHORT_NETS.map((n) => `<option value="${n}">${NET_NAMES[n]}</option>`).join('')}</select><button class="btn btn-accent small">${t('Raccourcir')}</button></div>
+        <div data-shortout>${shortOut}</div></form>
+      ${r.clicks?.links?.length ? `<h4 class="pst-section">${t('Clics sur les liens')} <small>${t('{} derniers jours', r.clicks.days)}</small></h4><div class="pst-list">${r.clicks.links.map(clickHtml).join('')}</div>` : `<p class="pst-empty">${icon('chart')}${t('Aucun clic ces 30 derniers jours.')}</p>`}</div>
+  </div>`;
+  ['[data-shorturl]', '[data-shortname]', '[data-shortnet]'].forEach((s, i) => { if (typed[i]) $(s, body).value = typed[i]; });
+  const sub = (k) => {
+    statsSub = k;
+    body.querySelectorAll('[data-ssub]').forEach((b) => b.classList.toggle('on', b.dataset.ssub === k));
+    body.querySelectorAll('[data-pane]').forEach((el) => { el.hidden = el.dataset.pane !== k; });
+  };
+  body.querySelectorAll('[data-ssub]').forEach((b) => { b.onclick = () => sub(b.dataset.ssub); });
+  sub(statsSub);
+  $('[data-statsreload]', body).onclick = () => statsPage(dlg, body, true);
+  // Lien court suivi : clics comptés comme ceux des posts
+  $('[data-shortform]', body).onsubmit = async (e) => {
+    e.preventDefault();
+    const b = $('[data-shortform] button', body);
+    let url = $('[data-shorturl]', body).value.trim();
+    if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
+    b.disabled = true;
+    try {
+      const res = await fetch('/api/social/links', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ net: $('[data-shortnet]', body).value, text: url, title: $('[data-shortname]', body).value.trim() }) });
+      const { text } = await res.json();
+      if (!res.ok || !text || text === url) throw new Error(t('Lien court indisponible (page web activée ?)'));
+      $('[data-shortout]', body).innerHTML = `<div class="pst-row"><code class="spacer selectable">${esc(text)}</code><button type="button" class="btn small" data-shortcopy>${t('Copier')}</button></div>`;
+    } catch (err) { toast(err.message, 4000, 'warning'); } finally { b.disabled = false; }
+  };
+  $('[data-shortout]', body).onclick = (e) => {
+    if (e.target.closest('[data-shortcopy]')) navigator.clipboard.writeText($('[data-shortout] code', body).textContent).then(() => toast(t('Lien copié'), 2000, 'check'), () => toast(t('Copie impossible'), 3000, 'warning'));
+  };
+  // Posts publiés hors du Studio et de l'appli : relus sur les comptes reliés
+  $('[data-statsimport]', body).onclick = async (e) => {
+    const b = e.currentTarget;
+    b.disabled = true;
+    try {
+      const res = await fetch('/api/social/history/import', { method: 'POST' });
+      const imp = await res.json();
+      if (!res.ok) throw new Error(imp.error || `Erreur ${res.status}`);
+      const fails = Object.keys(imp.errors || {}).map((n) => NET_NAMES[n] || n);
+      toast(`${imp.added ? t('{} post(s) ajouté(s)', imp.added) : t('Aucun nouveau post trouvé')}${fails.length ? ` (${t('illisible : {}', fails.join(', '))})` : ''}`, 4000, imp.added ? 'check' : 'info');
+      if (imp.added) { histCache = null; statsPage(dlg, body, true); }
+    } catch (err) { toast(err.message, 4000, 'warning'); } finally { b.disabled = false; }
+  };
+  // Post supprimé sur les réseaux : retiré des statistiques (ici et dans le Studio)
+  body.querySelectorAll('[data-statsremove]').forEach((b) => {
+    b.onclick = async () => {
+      if (!confirm(t('Retirer ce post des statistiques ? (Rien n\'est supprimé sur les réseaux.)'))) return;
+      b.disabled = true;
+      try {
+        const res = await fetch('/api/social/history/remove', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: b.dataset.statsremove }) });
+        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `Erreur ${res.status}`);
+        histCache = null;
+        statsCache = { ...statsCache, r: { ...r, posts: posts.filter((p) => p.key !== b.dataset.statsremove) } };
+        b.closest('.pst-card').remove();
+      } catch (err) { b.disabled = false; toast(err.message, 4000, 'warning'); }
+    };
+  });
 }
 
 // Résumé détaillé de la news choisie : points clés rédigés par le serveur, à relire et corriger
@@ -733,24 +811,23 @@ function open() {
     dlg = document.createElement('dialog');
     dlg.id = 'postsDlg';
     dlg.className = 'modal posts-dlg';
-    const MODES = [['session', 'Séance', 'Résultats, avant-course, flash', 'checkered'], ['season', 'Saison', 'Race week, records, notes', 'calendar'], ['news', 'News', 'Grosses news et récap', 'news'], ['manual', 'Écrire', 'Votre propre post', 'note'], ['drafts', 'Brouillons', 'Posts gardés pour plus tard', 'doc']];
+    const MODES = [['session', 'Séance', 'Résultats, avant-course, flash', 'checkered'], ['season', 'Saison', 'Race week, records, notes', 'calendar'], ['news', 'News', 'Grosses news et récap', 'news'], ['manual', 'Écrire', 'Votre propre post', 'note'], ['drafts', 'Brouillons', 'Posts gardés pour plus tard', 'doc'], ['stats', 'Statistiques', 'Comptes, posts, liens', 'chart']];
     const FMTS = [['ig', 'Instagram / Facebook', 'Carrousel 4:5', 'r45'], ['story', 'Story / TikTok / Shorts', 'Vertical 9:16', 'r916'], ['x', 'X / Threads / Bluesky', 'Carrousel 4:5', 'r45']];
     dlg.innerHTML = `<div class="pv-shell">
       <aside class="pv-side">
-        <div class="pv-brand">${icon('megaphone')} ${t('Posts')}</div>
+        <div class="pv-brand">Paddock <b>${t('Posts')}</b></div>
         <div class="pv-sec">${t('Contenu')}</div>
         <nav class="pv-nav">${MODES.map(([k, v, sub, ic]) => `<button class="pv-item" data-mode="${k}"><span class="pv-ico">${icon(ic)}</span><span class="pv-lbl"><b>${t(v)}</b><small>${t(sub)}</small></span></button>`).join('')}</nav>
-        <div class="pv-sec">${t('Format')}</div>
-        <nav class="pv-nav">${FMTS.map(([k, v, sub, r]) => `<button class="pv-item" data-fmt="${k}"><span class="pv-ico"><i class="pv-ratio ${r}"></i></span><span class="pv-lbl"><b>${v}</b><small>${t(sub)}</small></span></button>`).join('')}</nav>
-        <div class="pv-sec">${t('Options')}</div>
-        <div class="pv-opts">
+        <div class="pv-sec" data-pvfmt>${t('Format')}</div>
+        <nav class="pv-nav" data-pvfmt>${FMTS.map(([k, v, sub, r]) => `<button class="pv-item" data-fmt="${k}"><span class="pv-ico"><i class="pv-ratio ${r}"></i></span><span class="pv-lbl"><b>${v}</b><small>${t(sub)}</small></span></button>`).join('')}</nav>
+        <div class="pv-sec" data-pvfmt>${t('Options')}</div>
+        <div class="pv-opts" data-pvfmt>
           <label class="toggle"><input type="checkbox" data-photos> ${t('Photos des pilotes')}</label>
           <label class="toggle" title="${t("Texte sans le nom du vainqueur au début")}"><input type="checkbox" data-nospoil> ${t('Texte sans spoiler')}</label>
           <label class="toggle" title="${t('Une question à la fin pour faire réagir')}"><input type="checkbox" data-question> ${t('Question en fin de texte')}</label>
           <label class="toggle" title="${t("Image et ligne « Abonnez-vous » à la fin des posts")}"><input type="checkbox" data-follow> ${t('Image « Abonnez-vous »')}</label>
           <label class="pv-sig"><span>${t('Signature')}</span><input type="text" class="posts-sig" maxlength="40" spellcheck="false"></label>
         </div>
-        <button class="pv-item pv-stats" data-stats><span class="pv-ico">${icon('chart')}</span><span class="pv-lbl"><b>${t('Statistiques')}</b><small>${t('Vues, abonnés, meilleurs posts')}</small></span></button>
       </aside>
       <div class="pv-main">
         <header class="pv-head">
@@ -770,11 +847,12 @@ function open() {
     const sync = () => {
       const m = MODES.find(([k]) => k === (mode === 'draft' ? 'drafts' : mode));
       $('[data-ptitle]', dlg).textContent = t(m[1]);
-      $('[data-psub]', dlg).textContent = `${t(m[2])} · ${FMTS.find(([k]) => k === fmt)[1]}`;
+      $('[data-psub]', dlg).textContent = mode === 'drafts' || mode === 'stats' ? t(m[2]) : `${t(m[2])} · ${FMTS.find(([k]) => k === fmt)[1]}`;
       for (const b of dlg.querySelectorAll('[data-fmt]')) b.classList.toggle('active', b.dataset.fmt === fmt);
       $('[data-photos]', dlg).checked = withPhotos;
       for (const b of dlg.querySelectorAll('[data-mode]')) b.classList.toggle('active', b.dataset.mode === (mode === 'draft' ? 'drafts' : mode));
-      for (const b of dlg.querySelectorAll('[data-savedraft], [data-all], [data-publish]')) b.hidden = mode === 'drafts';
+      // Brouillons et statistiques : ni boutons d'enregistrement ou de publication, ni format, ni options
+      for (const b of dlg.querySelectorAll('[data-savedraft], [data-all], [data-publish], [data-pvfmt]')) b.hidden = mode === 'drafts' || mode === 'stats';
       if (mode === 'draft') $('[data-psub]', dlg).textContent = curDraft.title;
       $('[data-nospoil]', dlg).checked = noSpoiler;
       $('[data-follow]', dlg).checked = follow;
@@ -799,7 +877,6 @@ function open() {
       if (pt && pt !== postType) { postType = pt; sync(); render(dlg); }
       const f = e.target.closest('[data-fmt]')?.dataset.fmt;
       if (f && f !== fmt) { fmt = f; sync(); render(dlg); }
-      if (e.target.closest('[data-stats]')) openStats();
       if (e.target.closest('[data-nsummary]')) detailedSummary(dlg, e.target.closest('[data-nsummary]'));
       if (e.target.closest('[data-mai]')) manualRewrite(dlg, e.target.closest('[data-mai]'));
       if (e.target.closest('[data-mimgdel]')) { manual.image = null; render(dlg); }

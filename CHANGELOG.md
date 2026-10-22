@@ -63,6 +63,11 @@ l'application (Réglages → À propos → Nouveautés).
   de séance en cours), au lieu de rester sur le replay.
 
 ### Posts (mode créateur)
+- La fenêtre Posts prend l'habillage du Studio : fond noir, barre latérale noire avec un trait rouge sur l'élément
+  choisi, intitulés en étiquette rouge, puces blanches pour le type de post.
+- Statistiques refaites comme l'onglet Stats du Studio, directement dans la fenêtre Posts (« Statistiques » dans la
+  barre latérale) : Comptes (abonnés et activité de chaque réseau, en cartes), Posts (chiffres de chaque post,
+  « Retrouver mes posts » publiés ailleurs) et Liens (raccourcir un lien suivi, clics et téléchargements de l'appli).
 - Instagram : un post bien en ligne n'est plus marqué « erreur » quand Instagram répond quand même par un refus, même quand il n'apparaît que quelques secondes après la réponse
   (« Nous restreignons certaines activités… ») : l'appli vérifie s'il a été publié et donne son lien.
 - Hashtags aux règles actuelles des réseaux : 5 au plus sur Instagram (sa nouvelle limite), les plus précis d'abord

@@ -32,6 +32,13 @@ export async function removePost(key, { fetchFn } = {}) {
   return r.items;
 }
 
+// Posts publiés hors de Paddock Live (30 derniers jours) ajoutés au journal par la page web
+export async function importPosts({ fetchFn } = {}) {
+  const r = await studioCall('history/import', { body: {}, fetchFn, timeout: 60000 });
+  if (!r) throw new Error('Page web non activée ou injoignable');
+  return r;
+}
+
 // Statistiques des posts : celles de la page web quand elle est activée (mêmes chiffres que le Studio,
 // avec l'activité de tous les comptes), sinon avec les comptes de cet ordinateur
 export async function statsOfPosts({ fetchFn } = {}) {

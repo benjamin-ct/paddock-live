@@ -35,7 +35,7 @@ import { lightsInfo, saveLights, hueDiscover, huePair, lightDevices, setLights }
 import { exportServerSettings, importServerSettings } from './backup.js';
 import { creatorEnabled, setCreator, savePostImage, openPostsDir } from './creator.js';
 import { studioInfo, enableStudio, disableStudio, syncStudio, startStudioSync, studioRewrite, studioTrack, studioDrafts } from './studio-sync.js';
-import { postHistory, recordPost, removePost, statsOfPosts } from './post-history.js';
+import { postHistory, recordPost, removePost, statsOfPosts, importPosts } from './post-history.js';
 import { accountsInfo, saveAccount, tiktokLoginUrl, tiktokCallback, youtubeLoginUrl, youtubeCallback, publish as publishSocial } from './social-publish.js';
 import { startAutoRenew, renew as renewF1tv, sessionOf, state as renewState, resetRenewState } from './f1tv-auth.js';
 import { localHost, sameSiteRequest, decodePath, extensionRequest, EXTENSION_ROUTES } from './guard.js';
@@ -383,6 +383,7 @@ async function handleApi(req, res, url) {
     case 'POST /api/social/schedule/cancel':
     case 'POST /api/social/history':
     case 'POST /api/social/history/remove':
+    case 'POST /api/social/history/import':
     case 'GET /api/social/drafts':
     case 'GET /api/social/draft':
     case 'POST /api/social/drafts':
@@ -437,11 +438,13 @@ async function handleApi(req, res, url) {
         // Résumé détaillé d'une news en points clés (images suivantes du post)
         // Post écrit à la main : titre, résumé et points clés rédigés par l'IA à partir du texte
         // Texte avec ses liens suivis (pages des réseaux ouvertes avec le texte : X…)
-        if (route === 'POST /api/social/links') { const b = await readBody(req, 2e4); return sendJSON(res, 200, await studioTrack(String(b.net || ''), String(b.text || ''))); }
+        if (route === 'POST /api/social/links') { const b = await readBody(req, 2e4); return sendJSON(res, 200, await studioTrack(String(b.net || ''), String(b.text || ''), '', { title: String(b.title || '').slice(0, 80) })); }
         if (route === 'POST /api/social/rewrite') return sendJSON(res, 200, await studioRewrite((await readBody(req, 2e4)).text));
         if (route === 'POST /api/social/summary') return sendJSON(res, 200, { points: await summarize(String((await readBody(req, 1e4)).link || '')) });
         if (route === 'POST /api/social/history') return sendJSON(res, 200, { items: await recordPost((await readBody(req, 1e5)).entry) });
         if (route === 'POST /api/social/history/remove') return sendJSON(res, 200, { items: await removePost((await readBody(req, 1e4)).key) });
+        // Posts publiés hors de Paddock Live : relus sur les comptes reliés (page web)
+        if (route === 'POST /api/social/history/import') return sendJSON(res, 200, await importPosts());
         // Brouillons de posts (gardés par la page web, partagés avec le Studio)
         if (route === 'GET /api/social/drafts') return sendJSON(res, 200, await studioDrafts('drafts'));
         if (route === 'GET /api/social/draft') return sendJSON(res, 200, await studioDrafts(`draft?id=${encodeURIComponent(url.searchParams.get('id') || '')}`));
