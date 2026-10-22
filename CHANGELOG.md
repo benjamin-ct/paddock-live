@@ -65,6 +65,8 @@ l'application (Réglages → À propos → Nouveautés).
   de séance en cours), au lieu de rester sur le replay.
 
 ### Posts (mode créateur)
+- Slide « Faits marquants » : seulement les cases, plus grandes ; le résumé de la course, qui répétait le podium et
+  les remontées, reste dans le texte du post.
 - Post de résultats d'une course : le nombre de dépassements s'ajoute aux faits marquants (échanges de places en
   piste, sans le départ, les arrêts ni les abandons), dans l'appli comme dans le Studio.
 - TikTok : une publication directe refusée parce que l'app TikTok n'a pas encore passé l'audit le dit clairement,

@@ -387,8 +387,8 @@ export function faits(ctx, W, H, d, o, title = 'Faits marquants') {
   const gap = 24;
   const cw = (W - f.pad * 2 - gap * (cols - 1)) / cols;
   const rowsN = Math.ceil(items.length / cols);
-  const textH = !d.summary?.paragraphs?.length ? 0 : H > 1600 ? 520 : 300;
-  const ch = Math.min(H > 1600 ? (textH ? 380 : 520) : textH ? 300 : 380, (f.bottom - f.top - textH - gap * (rowsN - 1)) / Math.max(rowsN, 1));
+  // Cases seules sur la slide : le résumé de la course reste dans le texte du post
+  const ch = Math.min(H > 1600 ? 520 : 380, (f.bottom - f.top - gap * (rowsN - 1)) / Math.max(rowsN, 1));
   items.forEach((it, i) => {
     const x = f.pad + (i % cols) * (cw + gap);
     const y = f.top + Math.floor(i / cols) * (ch + gap);
@@ -400,12 +400,6 @@ export function faits(ctx, W, H, d, o, title = 'Faits marquants') {
     txt(ctx, it.value, x + 30, y + ch * 0.55 + 20, { size: 58, weight: 800, family: TITLE, max: w - 50 });
     if (it.sub) wrap(ctx, it.sub, x + 30, y + ch * 0.55 + 70, w - 56, 34, 2, { size: 27, weight: 600, color: C.muted });
   });
-  if (d.summary?.paragraphs?.length) {
-    const y = f.top + rowsN * (ch + gap) + 30;
-    const lh = H > 1600 ? 52 : 46;
-    const lines = Math.max(2, Math.floor((f.bottom - y) / lh));
-    wrap(ctx, d.summary.paragraphs.slice(0, 3).join(' '), f.pad, y + 30, W - f.pad * 2, lh, lines, { size: H > 1600 ? 36 : 32, weight: 400, color: C.text });
-  }
 }
 
 function championnat(ctx, W, H, d, o) {
