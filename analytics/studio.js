@@ -15,6 +15,7 @@ import { publishFacebook, publishInstagram, publishThreads, freshThreads, commen
 import { publishBluesky, replyBluesky } from '../shared/bluesky-publish.js';
 import { freshTiktok, freshYoutube, tiktokDraft, tiktokStatus, tiktokOutcome, youtubeUpload, tiktokCreator, tiktokDirect, TIKTOK_PRIVACY } from '../shared/video-publish.js';
 import { addEntry, removeEntry, cleanKey } from '../shared/post-history.js';
+import { cleanDraft, draftSummary, isDraftId, DRAFTS_MAX, DRAFT_BYTES } from '../shared/post-draft.js';
 import { postStats } from '../shared/post-stats.js';
 import { recentPosts, importEntries } from './post-import.js';
 import { trackPost, clickStats } from './clicks.js';
@@ -775,6 +776,33 @@ export async function studioApi(req, env, url) {
       if (k && removed.includes(k)) await setRow(env, 'history-removed', JSON.stringify(removed.filter((x) => x !== k)));
       return json({ items: next });
     }
+  }
+  // Brouillons de posts (appli et Studio) : un par ligne, leur liste (titres, dates) à part
+  if (path === 'drafts' && req.method === 'GET') return json({ items: JSON.parse(await getRow(env, 'drafts') || '[]') });
+  if (path === 'draft' && req.method === 'GET') {
+    const id = url.searchParams.get('id');
+    const v = isDraftId(id) ? await getRow(env, `draft:${id}`) : null;
+    return v ? new Response(v, { headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' } }) : json({ error: 'Brouillon introuvable' }, 404);
+  }
+  if ((path === 'drafts' || path === 'drafts/remove') && req.method === 'POST') {
+    const raw = await req.text();
+    if (raw.length > DRAFT_BYTES * 2) return json({ error: 'Brouillon trop lourd' }, 413);
+    let body;
+    try { body = JSON.parse(raw); } catch { return json({ error: 'JSON invalide' }, 400); }
+    let list = JSON.parse(await getRow(env, 'drafts') || '[]');
+    if (path === 'drafts/remove') {
+      if (!isDraftId(body?.id)) return json({ error: 'Brouillon inconnu' }, 400);
+      await delLike(env, `draft:${body.id}`);
+      list = list.filter((x) => x.id !== body.id);
+    } else {
+      const dr = cleanDraft(body);
+      if (!dr) return json({ error: 'Brouillon invalide ou trop lourd (photo trop grande ?)' }, 400);
+      if (!list.some((x) => x.id === dr.id) && list.length >= DRAFTS_MAX) return json({ error: `${DRAFTS_MAX} brouillons au plus : supprimez-en un` }, 400);
+      await setRow(env, `draft:${dr.id}`, JSON.stringify(dr));
+      list = [draftSummary(dr), ...list.filter((x) => x.id !== dr.id)];
+    }
+    await setRow(env, 'drafts', JSON.stringify(list));
+    return json({ items: list });
   }
   // Posts publiés hors du Studio (à la main, kit de démarrage) : retrouvés sur les comptes reliés
   if (path === 'history/import' && req.method === 'POST') {

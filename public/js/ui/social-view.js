@@ -23,6 +23,7 @@ import { circuitInfo } from '/shared/circuits-info.js';
 import { loadTeamLogos } from '/shared/team-logos.js';
 import { openPublish, musicSelect, musicEvent, endPreview } from './social-publish-view.js';
 import { openImageViewer } from '/shared/image-viewer.js';
+import { captionsFor, packDraftImages, unpackDraftImages } from '/shared/post-draft.js';
 
 const SIG_KEY = 'paddock.postSignature';
 const OPT_KEY = 'paddock.postOptions';
@@ -444,16 +445,54 @@ async function copyImage(canvas) {
   await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
 }
 
+// ---------- Brouillons (gardés par la page web, partagés avec le Studio) ----------
+let curDraft = null;   // brouillon repris : { id, title, kind, key, d, edited… }
+const draftApi = async (path, body) => {
+  const r = await fetch(`/api/social/${path}`, body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {});
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || t('Brouillons indisponibles'));
+  return j;
+};
+function draftSource(sig) {
+  const dr = curDraft;
+  return { d: dr.d, caps: (dd) => captionsFor(dd, sig, { spoiler: !noSpoiler, linkInComment: linkComment }), record: { key: dr.key || `draft:${dr.id}`, kind: dr.kind, title: dr.title } };
+}
+async function draftsList(dlg, body) {
+  let items;
+  try { items = (await draftApi('drafts')).items || []; } catch (err) { body.innerHTML = `<p class="muted">${esc(err.message)}</p>`; return; }
+  body.innerHTML = items.length ? `<div class="posts-drafts">${items.map((x) => `<div class="row posts-draft" data-draft-id="${esc(x.id)}">
+      <button class="btn" data-draftopen>${icon('note')} <b data-no-i18n>${esc(x.title)}</b></button>
+      <span class="small muted">${new Date(x.at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</span><span class="spacer"></span>
+      <button class="icon-btn" data-draftdel title="${t('Supprimer le brouillon')}">${icon('trash')}</button></div>`).join('')}</div>`
+    : `<p class="muted">${t('Aucun brouillon. « Brouillon » garde le post affiché pour plus tard, ici et dans le Studio.')}</p>`;
+}
+async function openDraft(dlg, id) {
+  const dr = await draftApi(`draft?id=${encodeURIComponent(id)}`);
+  curDraft = { ...dr, d: await unpackDraftImages(dr.d) };
+  const o = dr.opts || {};
+  follow = o.follow ?? follow; withQuestion = o.question ?? withQuestion; withPhotos = o.photos ?? withPhotos;
+  noSpoiler = o.noSpoiler ?? noSpoiler; linkComment = o.linkComment ?? linkComment;
+  fmt = dr.fmt === 'link' ? 'ig' : dr.fmt;
+  skipSlides = { key: dr.key || `draft:${dr.id}`, set: new Set(dr.skip) };
+  mode = 'draft';
+  dlg.syncPosts();
+  render(dlg);
+}
+
 let renderId = 0;
 const renderNewsOnly = (dlg) => render(dlg, true);
 async function render(dlg, keepHead = false) {
   const id = ++renderId;
   dlg.dataset.ready = '';
   dlg.publish = null;
+  dlg.saveDraft = null;
   const sig = storageGet(SIG_KEY, '@BenjyPaddock');
   const body = $('.posts-body', dlg);
   let d; let caps; let head = ''; let record = null;
-  if (mode === 'news') {
+  if (mode === 'drafts') { await draftsList(dlg, body); return; }
+  if (mode === 'draft') {
+    ({ d, caps, record } = draftSource(sig));
+  } else if (mode === 'news') {
     let r;
     try { r = await newsSource(sig); } catch (err) { r = { head: `<p class="muted">${esc(err.message)}</p>` }; }
     if (id !== renderId) return;
@@ -485,7 +524,8 @@ async function render(dlg, keepHead = false) {
     let c = capsOf(keptData(d, skip, fmt));
     if (withQuestion && !skip.has('question')) c = questionCaptions(c, d, sig);
     if (follow && !skip.has('abonnement')) c = followCaptions(c, d, sig);
-    // Mention « Fait par IA avec l'appli », sauf pour les posts écrits à la main
+    // Mention « Fait par IA avec l'appli », sauf pour les posts écrits à la main ; textes retouchés d'un brouillon
+    if (mode === 'draft') return { ...(curDraft.kind === 'manual' ? c : creditCaptions(c)), ...curDraft.edited };
     return mode === 'manual' ? c : creditCaptions(c);
   };
   caps = textsOf();
@@ -512,7 +552,21 @@ async function render(dlg, keepHead = false) {
   // Publication : visuels de n'importe quel format, dessinés à part
   // Publication : images gardées, de n'importe quel format, dessinées à part
   const drawChosen = (f) => { const list = chosenOf(slidesFor(d, { fmt: f, follow, question: withQuestion })); return list.map((sl) => drawSlide(document.createElement('canvas'), sl, f, d, { ...o, slides: list })); };
-  dlg.publish = () => openPublish({ d, caps, folder: folderOf(d), record, onPosted: () => { histCache = null; if (mode === 'news') render(dlg); }, render: async (f) => drawChosen(f), videoMaker: raceVideoMaker(d, o) });
+  // Brouillon publié : effacé
+  const posted = () => { histCache = null; if (mode === 'news') render(dlg); if (mode === 'draft') draftApi('drafts/remove', { id: curDraft.id }).catch(() => {}); };
+  dlg.publish = () => openPublish({ d, caps, folder: folderOf(d), record, onPosted: posted, render: async (f) => drawChosen(f), videoMaker: raceVideoMaker(d, o) });
+  // Brouillon : de quoi refaire le post (ici ou dans le Studio) ; texte de la case gardé s'il a été retouché
+  dlg.saveDraft = async () => {
+    const area = $('.posts-cap', body);
+    const k = fmt === 'x' ? 'x' : 'instagram';
+    const edited = { ...(mode === 'draft' ? curDraft.edited : {}) };
+    if (area && area.value !== caps[k]) edited[k] = area.value;
+    const dr = { id: mode === 'draft' ? curDraft.id : crypto.randomUUID(), title: record?.title || d.title || d.gp || 'Post', kind: record?.kind || mode, key: record?.key || '', at: Date.now(),
+      d: packDraftImages(d), fmt, skip: [...skip], edited, opts: { follow, question: withQuestion, photos: withPhotos, noSpoiler, linkComment } };
+    await draftApi('drafts', dr);
+    if (mode === 'draft') curDraft = { ...curDraft, ...dr, d };
+    toast(t('Brouillon enregistré'), 2500);
+  };
   const allCanvases = [...body.querySelectorAll('canvas')];
   let canvases = [];
   // Images gardées : redessinées (sommaire, points, numéros) ; écartées : grisées, sans numéro
@@ -675,7 +729,7 @@ function open() {
     dlg = document.createElement('dialog');
     dlg.id = 'postsDlg';
     dlg.className = 'modal posts-dlg';
-    const MODES = [['session', 'Séance', 'Résultats, avant-course, flash', 'checkered'], ['season', 'Saison', 'Race week, records, notes', 'calendar'], ['news', 'News', 'Grosses news et récap', 'news'], ['manual', 'Écrire', 'Votre propre post', 'note']];
+    const MODES = [['session', 'Séance', 'Résultats, avant-course, flash', 'checkered'], ['season', 'Saison', 'Race week, records, notes', 'calendar'], ['news', 'News', 'Grosses news et récap', 'news'], ['manual', 'Écrire', 'Votre propre post', 'note'], ['drafts', 'Brouillons', 'Posts gardés pour plus tard', 'doc']];
     const FMTS = [['ig', 'Instagram / Facebook', 'Carrousel 4:5', 'r45'], ['story', 'Story / TikTok / Shorts', 'Vertical 9:16', 'r916'], ['x', 'X / Threads / Bluesky', 'Carrousel 4:5', 'r45']];
     dlg.innerHTML = `<div class="pv-shell">
       <aside class="pv-side">
@@ -699,6 +753,7 @@ function open() {
           <div><h3 data-ptitle tabindex="-1" autofocus></h3><p data-psub></p></div>
           <div class="pv-actions">
             <button class="btn" data-open hidden>${icon('external')} ${t('Ouvrir le dossier')}</button>
+            <button class="btn" data-savedraft title="${t('Garder ce post pour plus tard (aussi dans le Studio)')}">${icon('note')} ${t('Brouillon')}</button>
             <button class="btn" data-all>${icon('save')} ${t('Tout enregistrer')}</button>
             <button class="btn btn-accent" data-publish>${icon('megaphone')} ${t('Publier…')}</button>
             <button class="icon-btn" data-close title="${t('Fermer')}">${icon('close')}</button>
@@ -709,12 +764,14 @@ function open() {
     </div>`;
     document.body.appendChild(dlg);
     const sync = () => {
-      const m = MODES.find(([k]) => k === mode);
+      const m = MODES.find(([k]) => k === (mode === 'draft' ? 'drafts' : mode));
       $('[data-ptitle]', dlg).textContent = t(m[1]);
       $('[data-psub]', dlg).textContent = `${t(m[2])} · ${FMTS.find(([k]) => k === fmt)[1]}`;
       for (const b of dlg.querySelectorAll('[data-fmt]')) b.classList.toggle('active', b.dataset.fmt === fmt);
       $('[data-photos]', dlg).checked = withPhotos;
-      for (const b of dlg.querySelectorAll('[data-mode]')) b.classList.toggle('active', b.dataset.mode === mode);
+      for (const b of dlg.querySelectorAll('[data-mode]')) b.classList.toggle('active', b.dataset.mode === (mode === 'draft' ? 'drafts' : mode));
+      for (const b of dlg.querySelectorAll('[data-savedraft], [data-all], [data-publish]')) b.hidden = mode === 'drafts';
+      if (mode === 'draft') $('[data-psub]', dlg).textContent = curDraft.title;
       $('[data-nospoil]', dlg).checked = noSpoiler;
       $('[data-follow]', dlg).checked = follow;
       $('[data-question]', dlg).checked = withQuestion;
@@ -723,6 +780,7 @@ function open() {
       $('[data-nospoil]', dlg).closest('label').hidden = mode !== 'session' || postType !== 'results';
       storageSet(OPT_KEY, { fmt, photos: withPhotos, noSpoiler, mode, linkComment, postType, follow, question: withQuestion, seasonType });
     };
+    dlg.syncPosts = sync;
     dlg.addEventListener('close', endPreview);
     dlg.addEventListener('click', async (e) => {
       if (musicEvent(e)) return;
@@ -742,6 +800,11 @@ function open() {
       if (e.target.closest('[data-mai]')) manualRewrite(dlg, e.target.closest('[data-mai]'));
       if (e.target.closest('[data-mimgdel]')) { manual.image = null; render(dlg); }
       if (e.target.closest('[data-mnew]')) { manual = blankManual(); render(dlg); }
+      if (e.target.closest('[data-savedraft]')) { try { if (dlg.saveDraft) await dlg.saveDraft(); else toast(t('Visuels en préparation, réessayez dans un instant'), 3000); } catch (err) { toast(err.message, 5000, 'warning'); } }
+      const dOpen = e.target.closest('[data-draftopen]');
+      if (dOpen) { try { await openDraft(dlg, dOpen.closest('[data-draft-id]').dataset.draftId); } catch (err) { toast(err.message, 5000, 'warning'); } }
+      const dDel = e.target.closest('[data-draftdel]');
+      if (dDel && confirm(t('Supprimer ce brouillon ?'))) { try { await draftApi('drafts/remove', { id: dDel.closest('[data-draft-id]').dataset.draftId }); render(dlg); } catch (err) { toast(err.message, 5000, 'warning'); } }
       if (e.target.closest('[data-all]')) { try { await dlg.onSaveAll?.(); } catch (err) { toast(err.message, 5000, 'warning'); } }
       if (e.target.closest('[data-publish]')) { if (dlg.publish) dlg.publish(); else toast(t('Visuels en préparation, réessayez dans un instant'), 3000); }
       if (e.target.closest('[data-open]')) fetch('/api/posts/open', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ folder: dlg.dataset.folder }) });

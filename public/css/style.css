@@ -2605,6 +2605,9 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; gap: 5
 .posts-stats-post { border-top: 1px solid var(--border); padding: 10px 0; display: grid; gap: 3px; }
 /* Posts « news » : choix de la nouvelle, titre et résumé modifiables */
 .posts-news-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 10px; }
+/* Brouillons de posts : un par ligne (reprendre, date, supprimer) */
+.posts-draft { gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.posts-draft .btn b { font-weight: 600; }
 .posts-news-sel { flex: 1 1 320px; min-width: 0; max-width: 100%; }
 .posts-news-edit { display: grid; gap: 8px; margin-bottom: 14px; }
 .posts-news-edit select { display: block; margin-top: 4px; }

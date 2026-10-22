@@ -127,3 +127,13 @@ test('posts : essais libres (meilleur temps, top 3, faits marquants)', () => {
   assert.match(c.instagram, /^⏱️ Essais libres 2 du Grand Prix d'Italie 🇮🇹 : Lando Norris en tête !\n\n📊 Top 3 :\n🥇 Lando Norris \(McLaren\) 1:20\.100\n/);
   assert.match(captions(d, '', { spoiler: false }).x, /^⏱️ Essais libres 2 du Grand Prix d'Italie 🇮🇹 : qui signe le meilleur temps \?/);
 });
+
+test('brouillons : textes refaits d\'après les données, comme dans l\'éditeur qui a fait le post', async () => {
+  const { captionsFor, cleanDraft } = await import('../shared/post-draft.js');
+  const d = postData(state);
+  assert.equal(captionsFor(d, '@moi').instagram, captions(d, '@moi').instagram);
+  assert.equal(captionsFor(d, '@moi', { spoiler: false }).instagram, captions(d, '@moi', { spoiler: false }).instagram);
+  assert.equal(cleanDraft({ id: 'pas-un-uuid', d }), null);
+  const ok = cleanDraft({ id: '0b5c1e9a-1111-4a2b-9c3d-123456789abc', d, fmt: 'tiktok', skip: ['question', 3], edited: { x: 'Texte', 'bad key': 'non' } });
+  assert.deepEqual([ok.fmt, ok.skip, ok.edited], ['ig', ['question'], { x: 'Texte' }]);
+});

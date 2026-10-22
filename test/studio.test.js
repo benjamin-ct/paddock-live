@@ -821,3 +821,23 @@ test('Studio : saison résumée par le serveur, gardée 30 minutes, ancienne ver
   down = true;
   assert.equal((await seasonRow(env, 2026, { now: t0 + 31 * 60e3, fetchFn, wait })).at, t0);
 });
+
+test('page du créateur : brouillons de posts (enregistrés, repris, mis à jour, supprimés)', async () => {
+  saveConfig({ creator: true });
+  await enableStudio(CODE, { fetchFn: (url, init) => worker(url, init) });
+  const h = { 'X-Studio-Key': studioKey(CODE) };
+  const call = (path, body) => worker(`https://s.test/studio/api/${path}`, body ? { method: 'POST', headers: h, body: JSON.stringify(body) } : { headers: h });
+  const dr = { id: '0b5c1e9a-1111-4a2b-9c3d-123456789abc', title: 'Haas engage Câmara', kind: 'news', key: 'news:1', at: 1, fmt: 'ig', skip: ['question'], opts: { follow: false, question: true, hack: 'x' }, edited: { instagram: 'Mon texte' }, d: { news: true, title: 'Haas engage Câmara' } };
+  assert.deepEqual((await (await call('drafts', dr)).json()).items, [{ id: dr.id, title: dr.title, kind: 'news', at: 1 }]);
+  const got = await (await call(`draft?id=${dr.id}`)).json();
+  assert.deepEqual(got.opts, { follow: false, question: true });   // champs inconnus écartés
+  assert.equal(got.edited.instagram, 'Mon texte');
+  assert.deepEqual(got.d, dr.d);
+  // Même brouillon enregistré de nouveau : mis à jour, pas en double
+  assert.equal((await (await call('drafts', { ...dr, title: 'Titre corrigé', at: 2 })).json()).items.length, 1);
+  assert.equal((await (await call('drafts')).json()).items[0].title, 'Titre corrigé');
+  assert.equal((await call('drafts', { ...dr, id: '../x' })).status, 400);
+  assert.equal((await call('drafts', { ...dr, id: '0b5c1e9a-2222-4a2b-9c3d-123456789abc', d: { image: 'x'.repeat(1600000) } })).status, 400);   // trop lourd
+  assert.deepEqual((await (await call('drafts/remove', { id: dr.id })).json()).items, []);
+  assert.equal((await call(`draft?id=${dr.id}`)).status, 404);
+});

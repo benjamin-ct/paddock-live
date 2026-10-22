@@ -27,6 +27,7 @@ const lazy = (load) => () => load().catch((err) => {
 const loadPosts = () => import('./posts.js');
 const posts = lazy(loadPosts);
 const season = lazy(() => import('./season.js'));
+const drafts = lazy(() => import('./drafts.js'));
 const scrolls = {};   // position dans chaque onglet, retrouvée au retour d'un post
 
 // ---------- Accès ----------
@@ -85,13 +86,15 @@ function home({ from = 'up' } = {}) {
   app.className = 'shell';
   app.innerHTML = `<header class="appbar"><div class="brand">${LOGO}<span>Paddock <b>Studio</b></span></div><span class="grow"></span>
       <a class="iconbtn" href="https://paddocklive.app/" aria-label="Retour au site" title="Retour au site">${icon('home')}</a>
-      <button class="iconbtn" id="refresh" aria-label="Actualiser" title="Actualiser">${icon('refresh')}</button><button class="iconbtn" id="inbox" aria-label="Messages" title="Messages">${icon('mail')}<i class="count" hidden></i></button><button class="iconbtn" id="settings" aria-label="Réglages" title="Réglages">${icon('settings')}</button></header>
+      <button class="iconbtn" id="refresh" aria-label="Actualiser" title="Actualiser">${icon('refresh')}</button><button class="iconbtn" id="drafts" aria-label="Brouillons" title="Brouillons">${icon('pen')}<i class="count" hidden></i></button><button class="iconbtn" id="inbox" aria-label="Messages" title="Messages">${icon('mail')}<i class="count" hidden></i></button><button class="iconbtn" id="settings" aria-label="Réglages" title="Réglages">${icon('settings')}</button></header>
     <main class="page" id="body"></main>
     <nav class="tabbar" style="--i:${tabIndex(state.tab)}"><div class="side-brand">${LOGO}<span>Paddock <b>Studio</b></span></div><span class="lens"></span>${TABS.map(([k, v, ic]) => `<button data-tab="${k}" class="${state.tab === k ? 'on' : ''}">${icon(ic)}<span>${v}</span></button>`).join('')}</nav>`;
   $('#settings').onclick = settings;
   $('#inbox').onclick = messages;
-  $('#refresh').onclick = () => { inboxCount(); showTab({ force: true }); };
+  $('#drafts').onclick = (e) => open(e.currentTarget, async () => (await drafts()).draftsSheet(back, draftCount));
+  $('#refresh').onclick = () => { inboxCount(); countDrafts(); showTab({ force: true }); };
   inboxCount();
+  countDrafts();
   $$('[data-tab]').forEach((b) => {
     b.onclick = () => {
       if (state.tab === b.dataset.tab) { scrollTo({ top: 0, behavior: 'smooth' }); return; }
@@ -433,6 +436,14 @@ const showCount = (items) => {
   const c = $('#inbox .count'), n = items.filter((m) => !m.seen).length;
   if (c) { c.hidden = !n; c.textContent = n > 9 ? '9+' : n; }
 };
+// Brouillons de posts : leur nombre sur le bouton de l'en-tête
+function draftCount(items) {
+  const c = $('#drafts .count');
+  if (!c) return;
+  c.hidden = !items.length;
+  c.textContent = items.length;
+}
+const countDrafts = () => api('drafts').then((r) => draftCount(r.items || [])).catch(() => {});
 const inboxCount = () => api('feedback').then((r) => showCount(r.items || [])).catch(() => {});
 function msgHtml(m) {
   const from = m.src === 'app' ? ['Appli', /^\d/.test(m.version) ? `v${m.version}` : '', SYS[m.os] || m.os].filter(Boolean).join(' ') : 'Site';

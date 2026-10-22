@@ -9,6 +9,7 @@ import { FLAG_ISO } from '/shared/flags.js';
 import { loadTeamLogos } from '/shared/team-logos.js';
 import { $, $$, esc, api, icon, toast, toggle, sheet, schedList, glide, state, session, SIG, NET_NAMES, IOS, installed } from './ui.js';
 import { tiktokPanel, tiktokProblem, tiktokChoice, TIKTOK_PRIVACY } from './tiktok.js';
+import { packDraftImages } from '/shared/post-draft.js';
 
 // ---------- Images (photos des pilotes, drapeaux) par le relais du serveur ----------
 const imgCache = new Map();
@@ -77,6 +78,10 @@ addEventListener('touchend', () => {
 });
 
 // Étapes de l'éditeur, dans l'ordre : chacune son écran (sur ordinateur, l'aperçu reste affiché à gauche)
+// Brouillon du post ouvert : effacé une fois le post publié ou programmé
+let draftId = null;
+const dropDraft = () => { if (draftId) api('drafts/remove', { method: 'POST', body: JSON.stringify({ id: draftId }) }).catch(() => {}); draftId = null; };
+
 const STEPS = [['contenu', 'Contenu'], ['visuels', 'Visuels'], ['video', 'Vidéo'], ['textes', 'Textes'], ['publier', 'Publier']];
 
 // back : retour ; title / subtitle : en-tête ; head : réglages propres au post (HTML, étape Contenu) ;
@@ -84,20 +89,23 @@ const STEPS = [['contenu', 'Contenu'], ['visuels', 'Visuels'], ['video', 'Vidéo
 // des données d (sans ce que montrent les images écartées) ; bind(redraw) : branchement des réglages ;
 // record : entrée du journal ; video() : vidéo jointe au post ; link() : article { url, title, description }
 // pour un post « lien » (format Lien) ; twin : post jumeau publié en même temps, au choix
-// { label(), data(), record() } (ses visuels et ses textes faits d'office, sans retouche)
-export function editor({ back, title, subtitle = '', head = '', vhead = '', note = '', data, caps, bind = () => {}, record, video = () => null, link = null, twin = null }) {
+// { label(), data(), record() } (ses visuels et ses textes faits d'office, sans retouche) ; draft : brouillon
+// repris (drafts.js), mis à jour par « Brouillon » et effacé une fois le post publié ou programmé
+export function editor({ back, title, subtitle = '', head = '', vhead = '', note = '', data, caps, bind = () => {}, record, video = () => null, link = null, twin = null, draft = null }) {
   const formats = link ? [...FORMATS, ['link', 'Lien']] : FORMATS;
   if (!formats.some(([k]) => k === state.fmt)) state.fmt = 'ig';
   let canvases = [];
-  let edited = {};          // textes retouchés à la main : gardés en changeant de format
-  state.skip = new Set();   // images écartées de ce post (toutes publiées par défaut)
+  let edited = { ...draft?.edited };   // textes retouchés à la main : gardés en changeant de format
+  state.skip = new Set(draft?.skip);   // images écartées de ce post (toutes publiées par défaut)
+  draftId = draft?.id || null;
   state.noVideo = false;    // vidéo prête laissée de côté (visuels publiés)
   state.noTwin = false;     // post jumeau laissé de côté
   const root = $('#app');
   const steps = STEPS.filter(([k]) => (k === 'contenu' ? head.trim() : k === 'video' ? vhead.trim() : true));
   root.className = 'shell editing';
   root.innerHTML = `<header class="appbar"><button class="iconbtn" id="back" aria-label="Retour">${icon('back')}</button>
-      <div class="titles"><b>${esc(title)}</b>${subtitle ? `<small>${esc(subtitle)}</small>` : ''}</div></header>
+      <div class="titles"><b>${esc(title)}</b>${subtitle ? `<small>${esc(subtitle)}</small>` : ''}</div>
+      <button class="btn small" id="savedraft" title="Garder ce post pour plus tard (aussi dans l'appli)">${icon('pen')}Brouillon</button></header>
     <main class="page">
       <nav class="steps" id="steps">${steps.map(([k, v]) => `<button data-go="${k}"><i></i><span>${v}</span></button>`).join('')}</nav>
       ${head.trim() ? `<section class="panel" data-in="contenu">${head}</section>` : ''}
@@ -277,6 +285,20 @@ export function editor({ back, title, subtitle = '', head = '', vhead = '', note
     if ($('#copycomment')) $('#copycomment').onclick = async () => { try { await navigator.clipboard.writeText(trackedNow($('#cap-comment').value)); toast('Commentaire copié'); } catch { /* presse-papiers refusé */ } };
   };
   $('#back').onclick = goBack;
+  // Brouillon : de quoi refaire le post (ici ou dans l'appli) ; un deuxième clic met à jour le même
+  $('#savedraft').onclick = async () => {
+    const b = $('#savedraft');
+    b.disabled = true;
+    try {
+      const rec = record?.() || {};
+      const id = draftId || crypto.randomUUID();
+      await api('drafts', { method: 'POST', body: JSON.stringify({ id, title: rec.title || title, kind: rec.kind || '', key: rec.key || '', at: Date.now(),
+        d: packDraftImages(data()), fmt: state.fmt, skip: [...state.skip], edited,
+        opts: { follow: state.follow, question: state.question, photos: state.photos, noSpoiler: state.noSpoiler, linkComment: state.linkComment } }) });
+      draftId = id;
+      toast('Brouillon enregistré', 'ok');
+    } catch (err) { toast(err.message, 'bad'); } finally { b.disabled = false; }
+  };
   $$('[data-fmt]').forEach((b) => { b.onclick = () => { state.fmt = b.dataset.fmt; $$('[data-fmt]').forEach((x) => x.classList.toggle('on', x === b)); glide(); redraw(); }; });
   $('#photos').onchange = (e) => { state.photos = e.target.checked; redraw(); };
   // Question et abonnement : un seul appel par post
@@ -430,6 +452,7 @@ function schedulePanel(d, o, record = null, video = null, link = null, twin = nu
       if (twin) await queuePost(twin.data, o, nets, at, twin.record, null, null, null, twin);
       dlg.close();
       toast(`Programmé pour le ${new Date(at).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' })}`, 'ok');
+      dropDraft();
       schedList($('#schedlist'));
     } catch (err) {
       st.className = 'hint err';
@@ -464,6 +487,7 @@ async function publishAll(d, o, record = null, video = null, link = null, twin =
     if (twin) await queuePost(twin.data, o, nets, Date.now(), twin.record, null, null, null, twin);
     for (const n of nets) $(`[data-st="${n}"]`).textContent = 'Publication dans la minute';
     toast('Envoyé : publication dans la minute, vous pouvez quitter la page', 'ok');
+    dropDraft();
     // Avancement relu tant que la page reste ouverte (5 minutes au plus) ; tout publié : retirée de la liste
     const list = $('#schedlist');
     schedList(list);

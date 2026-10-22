@@ -54,6 +54,10 @@ l'application (Réglages → À propos → Nouveautés).
 - Les posts tutoient : « Abonne-toi », « Ton pronostic en commentaire », « À toi ! », « Le savais-tu ? »…
 - Une courte ligne en fin de texte : « 🤖 Fait par IA avec l'appli @paddockliveapp » (sur X et Bluesky seulement
   si la place le permet ; pas sur les posts écrits à la main).
+- Brouillons : « Brouillon » garde le post affiché (visuels, images écartées, format, options et texte retouché)
+  pour y revenir plus tard, dans l'appli (Posts → Brouillons) comme dans le Studio (bouton crayon en haut). Les
+  brouillons sont partagés entre l'ordinateur et le téléphone (page web activée) et s'effacent une fois le post publié
+  ou programmé. La vidéo n'est pas gardée : elle se refait à la reprise.
 
 ### Actu
 - Trois sources françaises de plus : Nextgen-Auto, Le Figaro et la chaîne YouTube CANAL+ Sport (seulement ses vidéos

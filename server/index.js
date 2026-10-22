@@ -34,7 +34,7 @@ import { predictionsView, savePrediction, pronosOnline } from './predict.js';
 import { lightsInfo, saveLights, hueDiscover, huePair, lightDevices, setLights } from './lights.js';
 import { exportServerSettings, importServerSettings } from './backup.js';
 import { creatorEnabled, setCreator, savePostImage, openPostsDir } from './creator.js';
-import { studioInfo, enableStudio, disableStudio, syncStudio, startStudioSync, studioRewrite, studioTrack } from './studio-sync.js';
+import { studioInfo, enableStudio, disableStudio, syncStudio, startStudioSync, studioRewrite, studioTrack, studioDrafts } from './studio-sync.js';
 import { postHistory, recordPost, removePost, statsOfPosts } from './post-history.js';
 import { accountsInfo, saveAccount, tiktokLoginUrl, tiktokCallback, youtubeLoginUrl, youtubeCallback, publish as publishSocial } from './social-publish.js';
 import { startAutoRenew, renew as renewF1tv, sessionOf, state as renewState, resetRenewState } from './f1tv-auth.js';
@@ -382,7 +382,11 @@ async function handleApi(req, res, url) {
     case 'POST /api/social/schedule':
     case 'POST /api/social/schedule/cancel':
     case 'POST /api/social/history':
-    case 'POST /api/social/history/remove': {
+    case 'POST /api/social/history/remove':
+    case 'GET /api/social/drafts':
+    case 'GET /api/social/draft':
+    case 'POST /api/social/drafts':
+    case 'POST /api/social/drafts/remove': {
       if (!isLoopback(req.socket.remoteAddress) || !creatorEnabled()) return sendJSON(res, 403, { error: 'Mode créateur désactivé' });
       try {
         if (route === 'GET /api/social/accounts') return sendJSON(res, 200, accountsInfo());
@@ -438,6 +442,11 @@ async function handleApi(req, res, url) {
         if (route === 'POST /api/social/summary') return sendJSON(res, 200, { points: await summarize(String((await readBody(req, 1e4)).link || '')) });
         if (route === 'POST /api/social/history') return sendJSON(res, 200, { items: await recordPost((await readBody(req, 1e5)).entry) });
         if (route === 'POST /api/social/history/remove') return sendJSON(res, 200, { items: await removePost((await readBody(req, 1e4)).key) });
+        // Brouillons de posts (gardés par la page web, partagés avec le Studio)
+        if (route === 'GET /api/social/drafts') return sendJSON(res, 200, await studioDrafts('drafts'));
+        if (route === 'GET /api/social/draft') return sendJSON(res, 200, await studioDrafts(`draft?id=${encodeURIComponent(url.searchParams.get('id') || '')}`));
+        if (route === 'POST /api/social/drafts') return sendJSON(res, 200, await studioDrafts('drafts', await readBody(req, 4e6)));
+        if (route === 'POST /api/social/drafts/remove') return sendJSON(res, 200, await studioDrafts('drafts/remove', await readBody(req, 1e4)));
         if (route === 'POST /api/social/studio') {
           const b = await readBody(req, 1e4);
           return sendJSON(res, 200, b.off ? await disableStudio() : b.sync ? (await syncStudio({ force: true }), studioInfo()) : await enableStudio(String(b.code || '')));

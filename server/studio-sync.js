@@ -113,6 +113,20 @@ export async function studioCall(path, { body, fetchFn = fetch, timeout = 15000 
   } catch { return null; }
 }
 
+// Brouillons de posts, gardés par la page web (partagés avec le Studio) : réponse du serveur, ou son
+// message d'erreur
+export async function studioDrafts(path, body = null, { fetchFn = fetch } = {}) {
+  const st = getConfig().studio;
+  if (!st?.key || !creatorEnabled()) throw new Error('Activez la page web (téléphone) dans « Publier… » pour garder des brouillons');
+  const res = await fetchFn(`${STUDIO_URL}/studio/api/${path}`, {
+    method: body ? 'POST' : 'GET', headers: { 'X-Studio-Key': st.key, ...(body ? { 'Content-Type': 'application/json' } : {}) },
+    body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(30000),
+  });
+  const j = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(j.error || `Page web indisponible (${res.status})`);
+  return j;
+}
+
 export function startStudioSync() {
   setTimeout(() => syncStudio(), 30000).unref?.();
   setInterval(() => syncStudio(), EVERY).unref?.();
