@@ -35,6 +35,22 @@ function forget(g) {
 const myLink = (g) => { const t = storageGet(tokKey(g), ''); return t ? `${SITE}${g.id}#k=${t}` : ''; };
 const fmt = (t) => (t ? new Date(t).toLocaleString(LOCALE, { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—');
 
+function source(year) {
+  const g = group();
+  return g ? `/api/predictions/online?${new URLSearchParams({ g: g.id, year, tok: storageGet(tokKey(g), '') })}` : `/api/predictions?year=${year}&me=${encodeURIComponent(me())}`;
+}
+
+// Rappel avant la fermeture (reminders.js) : ce joueur n'a pas encore choisi field ('pole' ou 'p1')
+// pour le prochain Grand Prix ; jamais pour qui n'a jamais joué ici
+export async function pronoMissing(year, field) {
+  if (!group() && !me()) return false;
+  try {
+    const v = await api(source(year));
+    const next = v.races.find((r) => !r.result && r.locks.podium && r.locks.podium > Date.now());
+    return !!next && !next.picks.find((p) => p.mine)?.[field];
+  } catch { return false; }
+}
+
 // quiet : relecture automatique (pronostics des autres) ; rien n'est redessiné si rien n'a changé ou
 // pendant la saisie, et les choix en cours sont gardés
 // Une lecture demandée (groupe changé…) n'attend pas la relecture automatique en cours : elle part
@@ -45,8 +61,7 @@ async function load(year, force = false, quiet = false) {
   loading = true;
   let next;
   try {
-    const g = group();
-    next = await api(g ? `/api/predictions/online?${new URLSearchParams({ g: g.id, year, tok: storageGet(tokKey(g), '') })}` : `/api/predictions?year=${year}&me=${encodeURIComponent(me())}`);
+    next = await api(source(year));
   } catch (err) {
     next = quiet ? view : { error: err.message };
   } finally {

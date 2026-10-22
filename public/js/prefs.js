@@ -6,7 +6,7 @@ import { LANG } from './i18n.js';
 const DEFAULTS = {
   favs: [],               // numéros des pilotes favoris
   favTeams: [],           // écuries favorites (clés de shared/news.js : 'ferrari', 'redbull'…)
-  alerts: { sound: true, vibrate: true, notify: false, flags: true, fastest: true, favPit: true, favRcm: true, retire: true, finish: true },
+  alerts: { sound: true, vibrate: true, notify: false, flags: true, fastest: true, favPit: true, favRcm: true, retire: true, finish: true, favCut: true, rain: true, prono: true },
   hiddenPanels: [],
   hiddenCols: [],
   extraCols: [],          // colonnes facultatives ajoutées au classement (voir EXTRA_COLUMNS)
@@ -43,6 +43,8 @@ const DEFAULTS = {
   pitView: 'chrono',      // onglet Arrêts : 'chrono' ou 'driver'
   commLang: 'FRA',        // commentaires F1 TV : langue
   commVolume: 0.8,
+  commDuck: true,         // commentaires plus bas pendant une radio d'équipe
+  radioVolume: 1,
   commMuted: false,
   commSync: true,         // caler le son sur le délai du dashboard
   commOffset: 0,          // décalage manuel du son (s)

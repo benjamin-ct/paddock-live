@@ -24,6 +24,7 @@ import { renderTelemetry, renderStrategy, renderWeather, renderChampionship } fr
 import { initSettings } from './ui/settings.js';
 import { renderPitSim, renderBattles, initRaceTools } from './ui/race-tools.js';
 import { initAlerts } from './ui/alerts.js';
+import { initMissed } from './ui/missed.js';
 import { initWakeLock } from './ui/wakelock.js';
 import { initSelects } from './ui/select.js';
 import { initLegends, legendsToggle } from './ui/legends.js';
@@ -113,6 +114,7 @@ initDuel();
 initSettings();
 initRaceTools();
 initAlerts();
+initMissed();
 initWakeLock();
 initSelects();
 // Sur ordinateur, la page n'a pas de barre de défilement : si un focus, un scrollIntoView ou une sélection

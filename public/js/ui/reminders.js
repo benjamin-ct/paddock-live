@@ -7,6 +7,9 @@ import { notifyReminder } from './alerts.js';
 import { dueReminders } from '/shared/ics.js';
 import { LOCALE, EN } from '../i18n.js';
 import { gpFull } from '/shared/gp-names.js';
+import { pronoMissing } from './predict-view.js';
+
+const PRONO = { Qualifications: ['pole', 'Pole'], Course: ['p1', 'Podium'] };
 
 let schedule = [];   // [{ name, label, t }]
 let loadedAt = 0;
@@ -21,8 +24,24 @@ async function load() {
 }
 
 
+// Pronostics : une heure avant leur fermeture (début des qualifs, départ de la course), s'il manque
+async function pronoCheck() {
+  if (!prefs.alerts.prono) return;
+  const done = storageGet('paddock.reminded', []);
+  const due = dueReminders(schedule.filter((s) => PRONO[s.label]), Date.now(), 60, done.filter((k) => k.startsWith('prono|')).map((k) => k.slice(6)));
+  if (!due.length) return;
+  storageSet('paddock.reminded', [...done, ...due.map((s) => `prono|${s.t}|${s.label}`)].slice(-60));
+  for (const s of due) {
+    const [field, what] = PRONO[s.label];
+    if (await pronoMissing(new Date(s.t).getFullYear(), field)) {
+      notifyReminder(`Pronostics — ${gpFull(s.name, EN, 'GP')}`, `${what} : fermeture dans ${Math.max(1, Math.round((s.t - Date.now()) / 60e3))} min, votre pronostic n'est pas encore fait`);
+    }
+  }
+}
+
 function check() {
   if (Date.now() - loadedAt > 6 * 3600e3) load();
+  pronoCheck();
   const done = storageGet('paddock.reminded', []);
   const due = dueReminders(schedule, Date.now(), Number(prefs.remindMin) || 0, done);
   if (!due.length) return;

@@ -5,6 +5,7 @@ import { prefs, isFav, toggleFav } from '../prefs.js';
 import { segmentClass, parseUtc } from '/shared/f1.js';
 import { icon } from '../icons.js';
 import { realStopCount } from '/shared/pits.js';
+import { stewardsData } from './feed.js';
 
 let lastKey = '';
 let lastRender = 0;
@@ -94,6 +95,14 @@ export function renderTower(force = false) {
   const focusGap = store.focus ? gapSec(store.focus) : null;
 
   const hot = hotLaps();
+  // Course : pénalités en temps pas encore purgées (au prochain arrêt, sinon ajoutées à l'arrivée)
+  const pens = {};
+  if (kind === 'race') {
+    for (const d of stewardsData().decisions) {
+      const sec = !d.servedAt && /(\d+) SECOND TIME PENALTY/.exec(d.text)?.[1];
+      if (sec) for (const c of d.cars) pens[c.num] = (pens[c.num] || 0) + Number(sec);
+    }
+  }
   const rows = nums.map((num) => {
     const d = dl[num] || {};
     const l = lines[num] || {};
@@ -111,6 +120,7 @@ export function renderTower(force = false) {
     }
     const pred = kind !== 'race' ? predictLap(l, stats[num]) : null;
     if (pred) tags.push('<span class="tag push" title="Tour rapide en cours">TOUR</span>');
+    if (pens[num]) tags.push(`<span class="tag pen" title="Pénalité en temps : purgée au prochain arrêt, sinon ajoutée à son temps de course">+${pens[num]} s</span>`);
 
     // Changement de position : surbrillance verte / rouge (animation CSS, voir syncRows)
     const p = Number(pos);

@@ -344,14 +344,19 @@ function selectLanguage() {
   else if (avail.length) status(`Langue « ${LANG_NAMES[prefs.commLang] || prefs.commLang} » absente de ce flux : ${avail.map((l) => LANG_NAMES[FROM_ISO[iso(l.language)]] || l.language).join(', ')}.`, 'err');
 }
 
+// Radio d'équipe en cours (radios.js) : commentaires à 30 % de leur volume
+let ducked = false;
+window.addEventListener('paddock:radio', (e) => { ducked = e.detail && prefs.commDuck; if (playing) applyVolume(); });
+
 function applyVolume() {
   const m = media();
+  const vol = prefs.commVolume * (ducked ? 0.3 : 1);
   if (gainNode) {
     m.volume = 1;
     m.muted = false;
-    gainNode.gain.value = prefs.commMuted ? 0 : prefs.commVolume;
+    gainNode.gain.value = prefs.commMuted ? 0 : vol;
   } else {
-    m.volume = prefs.commVolume;
+    m.volume = vol;
     m.muted = prefs.commMuted;
   }
   $('#commVol').value = prefs.commVolume;
@@ -441,6 +446,8 @@ export function initCommentary() {
   }, true);
   $('#commPlay').addEventListener('click', () => { if (playing) stop(); else { retries = 0; start(); } });
   $('#commMute').addEventListener('click', () => setPref('commMuted', !prefs.commMuted));
+  $('#commDuck').checked = prefs.commDuck;
+  $('#commDuck').addEventListener('change', (e) => { setPref('commDuck', e.target.checked); if (!e.target.checked) ducked = false; if (playing) applyVolume(); });
   $('#commVol').addEventListener('input', (e) => {
     setPref('commVolume', Number(e.target.value));
     if (prefs.commMuted && prefs.commVolume > 0) setPref('commMuted', false);

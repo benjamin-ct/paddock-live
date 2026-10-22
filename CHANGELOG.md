@@ -33,11 +33,25 @@ l'application (Réglages → À propos → Nouveautés).
   n'accélère plus, et le temps passé dans chaque cas sur le dernier tour. La F1 ne publie pas la charge de la
   batterie : ce sont des estimations tirées de la vitesse, de l'accélérateur et du frein.
 
+### En direct
+- Pause (touche P ou bouton ⏸ à côté du délai) : vous mettez la TV en pause, l'appli aussi ; le délai grandit
+  pendant la pause et l'appli reprend en même temps que votre image.
+- « Pendant votre absence » : fenêtre réduite plus de 2 minutes pendant une séance, la liste des moments clés
+  passés entre-temps (drapeaux, changements de leader, arrêts, abandons, pénalités) s'affiche à votre retour.
+- Classement : les pénalités en temps pas encore purgées s'affichent à côté du pilote (« +5 s »).
+- Nouvelles alertes (Réglages → Alertes) : pluie qui commence ou s'arrête sur le circuit, pilote favori qui passe
+  en zone d'élimination en Q1 et Q2, et pronostic pas encore fait une heure avant sa fermeture.
+- Mini-classement : colonnes au choix (menu ⋮ : places gagnées, intervalle, écart, pneu, arrêts) et ligne
+  d'élimination en qualifications.
+- Radios d'équipe : réglage du volume ; les commentaires F1 TV baissent pendant une radio (« Plus bas pendant
+  les radios », dans le panneau des commentaires).
+
 ### Direction de course
 - Messages de la direction de course en vrai français : drapeaux, incidents, enquêtes, pénalités, tours
   supprimés, voiture de sécurité… sont traduits par l'appli elle-même, sans les phrases incompréhensibles de la
   traduction automatique (« incident inclusif »…), et même sans connexion au serveur. Les alertes de vos pilotes
   favoris et la liste des événements sont aussi en français.
+- Nouveau filtre « Mes favoris et le duel » : seulement les messages qui parlent de vos pilotes.
 
 ### Navigation
 - Bouton « Direct » de la barre latérale pendant un replay : retour au direct (écran d'attente s'il n'y a pas

@@ -8,7 +8,7 @@ import { icon } from '../icons.js';
 import { MOMENT_LABEL } from '/shared/moments.js';
 import { EN, t } from '../i18n.js';
 
-const KIND = {
+export const KIND = {
   start: ['flag', 'flag'], part: ['flag', 'flag'], finish: ['checkered', 'flag'],
   sc: ['siren', 'flag'], vsc: ['siren', 'flag'], red: ['flag', 'flag'], green: ['flag', 'flag'],
   lead: ['trophy', 'race'], overtake: ['tri-up', 'race'], fastest: ['stopwatch', 'race'],
