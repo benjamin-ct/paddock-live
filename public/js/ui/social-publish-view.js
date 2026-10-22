@@ -249,7 +249,7 @@ export async function openPublish({ d, caps, render, folder, record = null, onPo
           <span class="posts-st small" data-st="${n.id}"></span></label>`).join('')}</div>
         <button class="btn small" data-acc>${icon('lock')} ${t('Comptes…')}</button>
         <label class="small muted">${t(caps.facebook ? 'Texte Instagram' : 'Texte Instagram / Facebook')}<textarea rows="6" data-txt="instagram">${esc(caps.instagram)}</textarea></label>
-        ${caps.facebook ? `<label class="small muted">${t("Texte Facebook (avec le lien de l'article)")}<textarea rows="6" data-txt="facebook">${esc(caps.facebook)}</textarea></label>` : ''}
+        ${caps.facebook ? `<label class="small muted">${t('Texte Facebook')}<textarea rows="6" data-txt="facebook">${esc(caps.facebook)}</textarea></label>` : ''}
         <label class="small muted">${t('Texte Threads (500 caractères max.)')}<textarea rows="3" data-txt="threads" maxlength="500">${esc(caps.threads)}</textarea></label>
         <label class="small muted">${t('Texte X (280 caractères max.)')}<textarea rows="3" data-txt="x">${esc(caps.x)}</textarea></label>
         <label class="small muted">${t('Texte Bluesky (300 caractères max.)')}<textarea rows="3" data-txt="bsky">${esc(caps.bsky || caps.x)}</textarea></label>

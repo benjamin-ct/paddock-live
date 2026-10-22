@@ -220,7 +220,7 @@ export function newsCaptions(nd, signature = '', { linkInComment = false } = {})
   let instagram = `${head}\n\n${nd.summary}${pts}${src ? `\n\n${src}` : ''}${sig}\n\n${tags.join(' ')}`;
   // Instagram : 2 200 caractères au plus (les points restent lisibles sur les images)
   if (instagram.length > 2200) instagram = instagram.replace(pts, '');
-  const facebook = `${head}\n\n${nd.summary}${pts}${srcLink ? `\n\n${srcLink}` : ''}${sig}\n\n${tags.join(' ')}`;
+  const facebook = `${head}\n\n${nd.summary}${pts}${srcLink ? `\n\n${srcLink}` : ''}${sig}`;
   // X : 280 caractères (lien = 23) ; hashtags retirés un à un, puis la ligne de la source, puis le titre raccourci
   const xLink = link ? `\n${link}` : '';
   // Texte court (X : 280, lien compté 23 ; Bluesky : 300, lien compté en entier)

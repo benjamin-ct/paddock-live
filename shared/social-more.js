@@ -1,7 +1,7 @@
 // Autres posts de séance (mode créateur) : avant-course (grille, météo, pneus Pirelli), championnat
 // après la course, « flash » pendant la séance (drapeau rouge, voiture de sécurité, abandon,
 // pénalité) et duels entre coéquipiers. Données tirées de l'état de la séance, textes en français.
-import { postData, hashtag, teamTag, fiveTags, twoTags, THREADS_TAG, gpFlag, MEDALS, xLength } from './social.js';
+import { postData, hashtag, teamTag, fiveTags, twoTags, noTags, THREADS_TAG, gpFlag, MEDALS, xLength } from './social.js';
 import { portraitUrl } from './portraits.js';
 
 const list = (o) => (!o ? [] : Array.isArray(o) ? o : Object.keys(o).sort((a, b) => a - b).map((k) => o[k]));
@@ -147,5 +147,5 @@ export function moreCaptions(d, signature = '') {
   while (xLength(x) > 280 && shortTags.length > 1) { shortTags.pop(); x = make(); }
   if (xLength(x) > 280) x = `${head}\n\n${bodyLines.join('\n')}`.slice(0, 260) + '…';
   const threads = `${head}\n\n${body}${sig}\n\n${THREADS_TAG}`.slice(0, 500);
-  return { instagram, x, bsky: x, threads, story: head };
+  return { instagram, facebook: noTags(instagram), x, bsky: x, threads, story: head };
 }

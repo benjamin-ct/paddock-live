@@ -39,7 +39,7 @@ let recapMode = false; // news : récap de la semaine
 let curPost = null;    // post affiché et ses visuels (vidéo animée de la course)
 let skipSlides = { key: '', set: new Set() };   // images écartées du post affiché (toutes publiées par défaut)
 let linkComment = storageGet(OPT_KEY, {}).linkComment !== false;   // news : lien de l'article en premier commentaire
-let follow = storageGet(OPT_KEY, {}).follow !== false;   // image « Abonnez-vous » et ligne dans les textes
+let follow = storageGet(OPT_KEY, {}).follow !== false && !withQuestion;   // image « Abonnez-vous » et ligne dans les textes (pas avec la question : un seul appel par post)
 const POST_TYPES = [['results', 'Résultats'], ['prerace', 'Avant-course'], ['champ', 'Championnat'], ['flash', 'Flash']];
 let postType = POST_TYPES.some(([k]) => k === storageGet(OPT_KEY, {}).postType) ? storageGet(OPT_KEY, {}).postType : 'results';   // séance : type de post
 let flashSel = null;   // évènement choisi pour un post flash
@@ -715,6 +715,8 @@ function open() {
       $('[data-nospoil]', dlg).checked = noSpoiler;
       $('[data-follow]', dlg).checked = follow;
       $('[data-question]', dlg).checked = withQuestion;
+      $('[data-follow]', dlg).disabled = withQuestion;
+      $('[data-question]', dlg).disabled = follow;
       $('[data-nospoil]', dlg).closest('label').hidden = mode !== 'session' || postType !== 'results';
       storageSet(OPT_KEY, { fmt, photos: withPhotos, noSpoiler, mode, linkComment, postType, follow, question: withQuestion, seasonType });
     };

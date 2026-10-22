@@ -38,7 +38,7 @@ export async function assets(d) {
 const FORMATS = [['ig', 'Post'], ['story', 'Story'], ['x', 'X']];
 const CAPS = [
   ['instagram', (c) => (c.facebook ? 'Légende Instagram' : 'Légende Instagram et Facebook'), 8],
-  ['facebook', () => 'Texte Facebook (avec le lien de l\'article)', 8],
+  ['facebook', () => 'Texte Facebook', 8],
   ['threads', () => 'Texte Threads', 4, 500],
   ['x', () => 'Texte X (lien = 23 caractères)', 3, 0, 280],
   ['bsky', () => 'Texte Bluesky', 3, 0, 300],
@@ -107,8 +107,8 @@ export function editor({ back, title, subtitle = '', head = '', vhead = '', note
       <section class="panel" id="opts" data-in="visuels">
         <h3 class="section">Options</h3>
         ${toggle('photos', 'Photos des pilotes', state.photos)}
-        ${toggle('follow', 'Image « Abonnez-vous »', state.follow)}
-        ${toggle('question', 'Question pour faire réagir', state.question)}
+        ${toggle('follow', 'Image « Abonnez-vous »', state.follow, '', state.question ? 'disabled' : '')}
+        ${toggle('question', 'Question pour faire réagir', state.question, '', state.follow ? 'disabled' : '')}
       </section>
       ${vhead.trim() ? `<section class="panel" data-in="video">${vhead}<p class="hint">Facultatif : sans vidéo, ce sont les visuels qui sont publiés.</p></section>` : ''}
       <div id="texts" data-in="textes"></div>
@@ -279,8 +279,9 @@ export function editor({ back, title, subtitle = '', head = '', vhead = '', note
   $('#back').onclick = goBack;
   $$('[data-fmt]').forEach((b) => { b.onclick = () => { state.fmt = b.dataset.fmt; $$('[data-fmt]').forEach((x) => x.classList.toggle('on', x === b)); glide(); redraw(); }; });
   $('#photos').onchange = (e) => { state.photos = e.target.checked; redraw(); };
-  $('#follow').onchange = (e) => { state.follow = e.target.checked; redraw(true); };
-  $('#question').onchange = (e) => { state.question = e.target.checked; redraw(true); };
+  // Question et abonnement : un seul appel par post
+  $('#follow').onchange = (e) => { state.follow = e.target.checked; $('#question').disabled = state.follow; redraw(true); };
+  $('#question').onchange = (e) => { state.question = e.target.checked; $('#follow').disabled = state.question; redraw(true); };
   bind(redraw);
   glide();
   redraw();

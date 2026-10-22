@@ -1609,7 +1609,7 @@ export default {
   "commentaire refusé : {}": "comment refused: {}",
   "pas visible publiquement sur Threads : vérifiez le post (compte ou post masqué)": "not publicly visible on Threads: check the post (hidden account or post)",
   "Texte Instagram": "Instagram text",
-  "Texte Facebook (avec le lien de l'article)": "Facebook text (with the article link)",
+  "Texte Facebook": "Facebook text",
   "Page web (téléphone)": "Web page (phone)",
   "Activée": "On",
   "Désactivée": "Off",

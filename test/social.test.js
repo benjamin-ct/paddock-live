@@ -52,6 +52,9 @@ test('posts : légendes Instagram et X', () => {
   assert.deepEqual(tags, ['#F1', '#ItalianGP', '#LandoNorris', '#McLaren', '#BenjyPaddock']);
   assert.match(c.x, /\n\n#BenjyPaddock #ItalianGP$/);
   assert.match(c.threads, /\n\n#F1$/);
+  // Facebook : même texte qu'Instagram, sans les hashtags
+  assert.equal(c.facebook, c.instagram.slice(0, c.instagram.lastIndexOf('\n\n')));
+  assert.match(c.facebook, /\n\n@BenjyPaddock$/);
   assert.ok(c.x.length <= 280);
   assert.ok(c.threads.length <= 500);
   assert.match(c.threads, /^🏆 Lando Norris remporte/);

@@ -153,6 +153,8 @@ export function fiveTags(list) {
 // X et Bluesky : le compte du créateur et le mot-clé le plus précis
 export const twoTags = (tags) => [BRAND_TAG, tags.find((t) => t !== '#F1' && t !== BRAND_TAG) || '#F1'];
 export const THREADS_TAG = '#F1';
+// Facebook : hashtags sans effet, retirés du texte Instagram
+export const noTags = (text) => text.replace(/\n\n#[^\n]*$/, '');
 
 export function hashtags(d) {
   const [p1] = d.rows;
@@ -223,5 +225,5 @@ export function captions(d, signature = '', { spoiler = true } = {}) {
   let threads = spoiler ? `${head}\n\n${podium}${sig}\n\n${tags.threads.join(' ')}` : `${short}${sig}\n\n${tags.threads.join(' ')}`;
   if (threads.length > 500) threads = `${spoiler ? head : short}\n\n${tags.threads.join(' ')}`.slice(0, 500);
   // Bluesky : même texte que X (300 caractères, pas de lien dans les posts des séances)
-  return { instagram, x, bsky: x, threads, story: spoiler ? head : short };
+  return { instagram, facebook: noTags(instagram), x, bsky: x, threads, story: spoiler ? head : short };
 }

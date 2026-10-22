@@ -6,7 +6,7 @@ import { gpNameFr } from './summary.js';
 import { driverRatings, qualiGaps, titleRace, placeForMaxPoints } from './season-calc.js';
 import { cleanPace, lapsLedBy } from './race-laps.js';
 import { raceStory } from './race-story.js';
-import { hashtag, teamTag, fiveTags, twoTags, THREADS_TAG, xLength, gpFlag, MEDALS } from './social.js';
+import { hashtag, teamTag, fiveTags, twoTags, noTags, THREADS_TAG, xLength, gpFlag, MEDALS } from './social.js';
 import { circuitInfo, trackShape, flagColors } from './circuits-info.js';
 
 const TZ = 'Europe/Paris';
@@ -278,7 +278,7 @@ function finish(d, head, lines, sig, extra, shortLines = lines) {
   while (xLength(x) > 280 && xl.length > 1) { xl.pop(); x = make(); }
   while (xLength(x) > 280 && xt.length > 1) { xt.pop(); x = make(); }
   if (xLength(x) > 280) x = `${x.slice(0, 278)}…`;
-  return { instagram, x, bsky: [...x].length <= 300 ? x : `${[...x].slice(0, 299).join('')}…`, threads, story: head };
+  return { instagram, facebook: noTags(instagram), x, bsky: [...x].length <= 300 ? x : `${[...x].slice(0, 299).join('')}…`, threads, story: head };
 }
 
 // Séance du programme : emoji selon son type
