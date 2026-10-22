@@ -568,7 +568,9 @@ details.cap[open] textarea { animation: in-up .3s var(--ease); }
 .card, .group, .tile, .panel, .notice, .card.hero, .card.acc { border-radius: 6px; }
 .chips button, .chip-toggle span, .seg, .seg > .thumb, .seg button, .pill { border-radius: 4px; }
 .btn, input[type=text], input[type=password], input[type=datetime-local], textarea, select { border-radius: 6px; }
-.chips button { font-weight: 700; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; }
+.chips button { font-weight: 600; font-size: 13.5px; }
+/* Puces sur plusieurs lignes (types de posts Saison) : chaque ligne remplie sur toute la largeur */
+.chips.wrap button { flex: 1 1 auto; justify-content: center; padding-inline: 10px; }
 .chips button.on { background: #fff; border-color: #fff; color: #000; }
 .section { display: inline-flex; align-items: center; gap: 8px; height: 24px; margin-left: 0; padding: 0 9px; border-radius: 4px; background: var(--brand); color: #fff; font-size: 11.5px; letter-spacing: .08em; }
 .section small { color: rgba(255, 255, 255, .75); font-weight: 600; letter-spacing: .02em; text-transform: none; }
