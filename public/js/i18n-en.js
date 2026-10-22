@@ -1053,7 +1053,7 @@ export default {
   "Note face au coéquipier": "Rating vs teammate",
   "Note face au coéquipier (sur 100, 50 = à égalité)": "Rating vs teammate (out of 100, 50 = level)",
   "Notes des pilotes": "Driver ratings",
-  "Notification Windows (onglet en arrière-plan)": "Windows notification (tab in the background)",
+  "Notification du système (fenêtre en arrière-plan)": "System notification (window in the background)",
   "Nouveautés (journal des modifications)": "What's new (changelog)",
   "Nouveautés de la version": "What's new in version",
   "Nouveaux éléments": "New elements",
@@ -2608,4 +2608,5 @@ export default {
   "LIVE · figé": "LIVE · frozen",
   "Plus de données reçues depuis 25 s : reconnexion automatique si ça dure": "No data received for 25 s: reconnecting automatically if it lasts",
   "Une séance est en cours : le replay interrompt le direct (« Direct » dans le menu de gauche pour y revenir). Lancer le replay ?": "A session is live: the replay interrupts it (“Live” in the left menu takes you back). Start the replay?",
+  "Coupure du flux : reconnexion (essai {}/3)…": "Stream dropped: reconnecting (attempt {}/3)…",
 };

@@ -407,6 +407,18 @@ function splashAsk(win, version) {
   });
 }
 
+// Fenêtre plantée (mémoire épuisée, plantage du moteur) : rechargée toute seule au lieu de rester blanche,
+// 3 fois au plus par fenêtre (le délai et la disposition sont gardés : on reprend au même endroit)
+app.on('web-contents-created', (_e, wc) => {
+  let crashes = 0;
+  wc.on('render-process-gone', (_ev, d) => {
+    if (!['crashed', 'oom', 'abnormal-exit'].includes(d.reason) || crashes >= 3) return;
+    crashes++;
+    console.warn('[fenêtre]', d.reason, '→ rechargement');
+    setTimeout(() => { if (!wc.isDestroyed()) wc.reload(); }, 1000);
+  });
+});
+
 // Langue choisie dans l'interface (écran de démarrage suivant)
 ipcMain.on('ui-lang', (_e, l) => { if ((l === 'en' || l === 'fr') && readState().uiLang !== l) writeState({ uiLang: l }); });
 ipcMain.handle('restore-windows-get', () => readState().restoreWindows !== false);

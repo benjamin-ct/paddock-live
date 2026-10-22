@@ -89,6 +89,10 @@ l'application (Réglages → À propos → Nouveautés).
   (Wi-Fi d'hôtel, sortie de veille) est relancée au bout de 15 s.
 - Lancer un replay pendant une séance en direct demande confirmation ; un replay qui ne se charge pas le dit
   clairement, avec le chemin du retour au direct.
+- Commentaires F1 TV et radios : après une coupure passagère, la lecture repart toute seule (3 essais).
+- Une fenêtre qui plante se recharge toute seule au lieu de rester blanche.
+- Notifications du système traduites en anglais avec l'interface ; l'option s'appelle « Notification du système »
+  (et plus « Windows ») sur tous les systèmes.
 
 ### Divers
 - Petites améliorations internes.

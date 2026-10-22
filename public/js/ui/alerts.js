@@ -6,7 +6,7 @@ import { prefs, setPref, isFav } from '../prefs.js';
 import { toast } from './delay.js';
 import { icon } from '../icons.js';
 import { FLOAT } from './floatwin.js';
-import { EN } from '../i18n.js';
+import { EN, tx } from '../i18n.js';
 import { rcmFr } from '/shared/rcm-fr.js';
 
 let audio = null;
@@ -56,7 +56,7 @@ function notify(title, body, kind) {
   buzz(kind);
   toast(`${title}${body ? ' — ' + body : ''}`, 5000, KIND_ICON[kind] || 'bell');
   if (prefs.alerts.notify && document.hidden && 'Notification' in window && Notification.permission === 'granted') {
-    try { new Notification(title, { body, silent: true }); } catch { /* ignore */ }
+    try { new Notification(tx(title), { body: tx(body), silent: true }); } catch { /* ignore */ }
   }
 }
 
@@ -67,7 +67,7 @@ export function notifyReminder(title, body) {
   buzz('info');
   toast(`${title} — ${body}`, 10000, 'bell');
   if (prefs.alerts.notify && 'Notification' in window && Notification.permission === 'granted') {
-    try { new Notification(title, { body, silent: true }); } catch { /* ignore */ }
+    try { new Notification(tx(title), { body: tx(body), silent: true }); } catch { /* ignore */ }
   }
 }
 
@@ -79,7 +79,7 @@ export function notifyNews(title, body, kind, onClick) {
   toast(`${title} — ${body}`, 8000, 'news');
   if (prefs.alerts.notify && document.hidden && 'Notification' in window && Notification.permission === 'granted') {
     try {
-      const n = new Notification(title, { body, silent: true });
+      const n = new Notification(tx(title), { body: tx(body), silent: true });
       n.onclick = () => { window.focus(); onClick?.(); n.close(); };
     } catch { /* ignore */ }
   }
@@ -166,7 +166,7 @@ export function initAlerts() {
 }
 
 const OPTS = [
-  ['sound', 'Son'], ['vibrate', 'Vibration (téléphone)'], ['notify', 'Notification Windows (onglet en arrière-plan)'], ['flags', 'SC / VSC / drapeau rouge'],
+  ['sound', 'Son'], ['vibrate', 'Vibration (téléphone)'], ['notify', 'Notification du système (fenêtre en arrière-plan)'], ['flags', 'SC / VSC / drapeau rouge'],
   ['fastest', 'Meilleur tour'], ['favPit', 'Arrêt d\'un favori'], ['favRcm', 'Messages FIA sur un favori'],
   ['retire', 'Abandons'], ['finish', 'Arrivée'],
 ];
