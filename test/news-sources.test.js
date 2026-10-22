@@ -19,3 +19,9 @@ test('chaîne qui parle d\'autre chose (Ferrari) : seules les vidéos F1 gardée
   const williams = DEFAULT_SOURCES.find((s) => s.name === 'Williams');
   assert.equal(feedItems(williams, feed(['Factory tour', 'Behind the scenes']), Date.parse('2026-10-16T12:00:00Z')).length, 2);
 });
+
+test('CANAL+ Sport : seules les vidéos F1 gardées (pas le foot ni la F1 Academy)', () => {
+  const canal = DEFAULT_SOURCES.find((s) => s.name === 'CANAL+ Sport');
+  const list = feedItems(canal, feed(['Le résumé de Bayern Munich / Arsenal', '🏎️ 🔴 F1 ACADEMY : Grand Prix des États-Unis (Course 3)', 'Le résumé du Grand Prix des États-Unis - F1', 'Formule 1 : le debrief de Canal+', 'MotoGP : Grand Prix de Malaisie']), Date.parse('2026-10-16T12:00:00Z'));
+  assert.deepEqual(list.map((it) => it.title), ['Le résumé du Grand Prix des États-Unis - F1', 'Formule 1: le debrief de Canal+']);
+});

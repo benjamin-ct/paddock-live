@@ -55,6 +55,12 @@ l'application (Réglages → À propos → Nouveautés).
 - Une courte ligne en fin de texte : « 🤖 Fait par IA avec l'appli @paddockliveapp » (sur X et Bluesky seulement
   si la place le permet ; pas sur les posts écrits à la main).
 
+### Actu
+- Trois sources françaises de plus : Nextgen-Auto, Le Figaro et la chaîne YouTube CANAL+ Sport (seulement ses vidéos
+  F1, pas le foot ni la F1 Academy).
+- Les chaînes YouTube qui parlent aussi d'autre chose (Ferrari, Alpine) ne montrent plus que leurs vidéos F1 dans l'appli,
+  comme déjà dans le Studio.
+
 ### Mises à jour
 - Versions bêta : nouveau réglage « Recevoir les versions bêta » (Réglages → Application) pour essayer les
   nouveautés avant leur sortie pour tout le monde. Décoché, l'appli ne reçoit que les versions finales.

@@ -153,6 +153,7 @@ async function poll(s) {
         const id = hash(`${s.id}|${normLink(raw.link) || raw.guid}`);
         if (items.has(id)) continue;
         if (s.filter === 'f1' && !F1_ONLY.test(`${raw.title} ${raw.summary}`)) continue;
+        if (s.match && !new RegExp(s.match, 'i').test(`${raw.title} ${raw.summary}`)) continue;
         // Date absente ou illisible : heure de découverte si la source était déjà suivie ; à la
         // première lecture, l'article est placé plus bas (il peut être ancien)
         const dated = !!raw.t && raw.t <= now + 10 * 60e3;
