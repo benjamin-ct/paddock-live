@@ -9,6 +9,7 @@ import { icon } from '../icons.js';
 import { LOCALE, EN } from '../i18n.js';
 import { gpFull } from '/shared/gp-names.js';
 import { pdfHref } from './pdf-view.js';
+import { upcoming } from './home.js';
 
 let open = null;      // outil ouvert : 'docs' | 'speeds' | 'sectors' | 'weather'
 let pop = null;
@@ -21,16 +22,25 @@ let speedMode = 'best';   // 'best' : meilleures vitesses de la séance ; 'last'
 const list = (o) => (!o ? [] : Array.isArray(o) ? o : Object.keys(o).sort((a, b) => a - b).map((k) => o[k]));
 
 // Documents d'un autre Grand Prix de la saison (choisi dans la liste) : chargés une fois, et ceux de
-// tous les Grands Prix déjà commencés lus d'avance, l'un après l'autre (liste aussitôt affichée)
-let docGp = '';       // '' : Grand Prix de la séance affichée
-let races = null;     // Grands Prix déjà commencés de la saison, du plus récent au plus ancien
+// tous les Grands Prix déjà commencés lus d'avance, l'un après l'autre (liste aussitôt affichée).
+// Le prochain Grand Prix y est dès 7 jours avant sa première séance (la FIA publie ses premiers
+// documents avant les essais) ; entre deux Grands Prix (barre du haut sur le prochain), il est choisi
+// d'office
+let docGp = null;     // null : choix automatique ; '' : Grand Prix de la séance affichée
+let races = null;     // Grands Prix commencés ou tout proches, du plus récent au plus ancien
+const nextGp = () => {
+  const nx = upcoming();
+  return nx && nx.race !== store.state.SessionInfo?.Meeting?.Name && races?.some((r) => r.name === nx.race) ? nx.race : '';
+};
+const shownGp = () => docGp ?? nextGp();
 const otherDocs = new Map();
 function loadRaces() {
   if (races) return;
   races = [];
   const year = new Date().getFullYear();
   api(`/api/schedule?year=${year}`).then((d) => {
-    races = d.races.filter((r) => r.sessions.some((s) => Date.parse(s.t) < Date.now())).reverse().map((r) => ({ name: r.name, locality: r.locality || '', year }));
+    races = d.races.filter((r) => r.sessions.some((s) => Date.parse(s.t) < Date.now() + 7 * 864e5)).reverse()
+      .map((r) => ({ name: r.name, locality: r.locality || '', year, next: !r.sessions.some((s) => Date.parse(s.t) < Date.now()) }));
     render(true);
     (async () => { for (const r of races) await otherState(r).job; })();
   }).catch(() => { races = null; });
@@ -43,7 +53,7 @@ function otherState(r) {
     o.job = api(`/api/fia-docs?${new URLSearchParams({ year: r.year, name: r.name, location: r.locality, country: '' })}`)
       .then((x) => { o.docs = x.docs || []; o.page = x.page; })
       .catch((err) => { o.error = err.message; otherDocs.delete(r.name); })
-      .finally(() => { o.loading = false; if (docGp === r.name) render(true); });
+      .finally(() => { o.loading = false; if (shownGp() === r.name) render(true); });
   }
   return o;
 }
@@ -52,7 +62,8 @@ function otherState(r) {
 // all = false : Grand Prix de la séance seulement (point de nouveauté sur l'icône)
 function visibleDocs(all = true) {
   const current = store.state.SessionInfo?.Meeting?.Name;
-  const r = all && docGp && docGp !== current ? races?.find((x) => x.name === docGp) : null;
+  const sel = shownGp();
+  const r = all && sel && sel !== current ? races?.find((x) => x.name === sel) : null;
   if (r) { const f = otherState(r); return { f, docs: f.docs || [] }; }
   const f = fiaState();
   const now = f1Now();
@@ -76,8 +87,9 @@ function docsHtml() {
   };
   loadRaces();
   const current = store.state.SessionInfo?.Meeting?.Name || '';
-  const choices = [['', current ? `${gpFull(current, EN)} (séance affichée)` : 'Grand Prix de la séance'], ...(races || []).filter((r) => r.name !== current).map((r) => [r.name, gpFull(r.name, EN)])];
-  const gpSel = `<select id="tbDocGp" aria-label="Grand Prix">${choices.map(([v, l]) => `<option value="${esc(v)}"${v === (docGp === current ? '' : docGp) ? ' selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
+  const choices = [['', current ? `${gpFull(current, EN)} (séance affichée)` : 'Grand Prix de la séance'], ...(races || []).filter((r) => r.name !== current).map((r) => [r.name, r.next ? `${gpFull(r.name, EN)} (à venir)` : gpFull(r.name, EN)])];
+  const sel = shownGp();
+  const gpSel = `<select id="tbDocGp" aria-label="Grand Prix">${choices.map(([v, l]) => `<option value="${esc(v)}"${v === (sel === current ? '' : sel) ? ' selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
   const body = rows.length ? rows.map(({ d, sum, cars }) => `<div class="tbd-doc">
       <div class="tbd-main"><div class="tbd-title">${esc(d.title)}</div>
         <div class="tbd-sum">${cars.length ? `<b>${esc(cars.join(', '))}</b> · ` : ''}${esc(sum.text)}</div></div>
