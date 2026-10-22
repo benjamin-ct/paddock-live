@@ -138,6 +138,7 @@ l'application (Réglages → À propos → Nouveautés).
 - Saison : graphiques des pilotes, des duels et des évolutions techniques à la bonne taille sur les grands écrans ;
   courbe des points un peu plus haute.
 - Barre latérale : « Commentaires » ne dépasse plus de son bouton.
+- Compteur de tours (design Broadcast) : « TOURS » et le numéro sont centrés dans leur case blanche.
 - Petites améliorations internes.
 
 ## v1.27.54 — 2026-10-20
