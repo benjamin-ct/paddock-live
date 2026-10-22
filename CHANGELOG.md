@@ -65,6 +65,8 @@ l'application (Réglages → À propos → Nouveautés).
   de séance en cours), au lieu de rester sur le replay.
 
 ### Posts (mode créateur)
+- Slide « Faits marquants » : seulement les cases, plus grandes ; le résumé de la course, qui répétait le podium et
+  les remontées, reste dans le texte du post.
 - Post de résultats d'une course : le nombre de dépassements s'ajoute aux faits marquants (échanges de places en
   piste, sans le départ, les arrêts ni les abandons), dans l'appli comme dans le Studio.
 - TikTok : une publication directe refusée parce que l'app TikTok n'a pas encore passé l'audit le dit clairement,
@@ -142,6 +144,8 @@ l'application (Réglages → À propos → Nouveautés).
 - Saison : graphiques des pilotes, des duels et des évolutions techniques à la bonne taille sur les grands écrans ;
   courbe des points un peu plus haute.
 - Barre latérale : « Commentaires » ne dépasse plus de son bouton.
+- Documents FIA (barre du haut) : ceux du prochain Grand Prix apparaissent dès leur publication, avant les premiers
+  essais, et sont affichés d'office entre deux week-ends (au lieu de ceux du Grand Prix précédent).
 - Compteur de tours (design Broadcast) : « TOURS » et le numéro sont centrés dans leur case blanche, avec la barre
   d'avancement (séance en cours) comme sans elle (séance terminée).
 - Petites améliorations internes.

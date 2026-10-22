@@ -2674,4 +2674,5 @@ export default {
   "Jeton d'accès (Explorateur de l'API Graph, sans « Se connecter »)": "Access token (Graph API Explorer, without “Connect”)",
   "{} Regarder sur YouTube": "{} Watch on YouTube",
   "La chaîne ne permet pas de lire cette vidéo en dehors de YouTube.": "The channel doesn't allow this video to play outside YouTube.",
+  "{} (à venir)": "{} (upcoming)",
 };
