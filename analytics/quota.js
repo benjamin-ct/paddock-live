@@ -23,6 +23,9 @@ export async function aiQuota(env, { key, day, n, limit, ip }) {
   return spend(env, key, n, limit);
 }
 
+// Studio (code créateur) : plafond à lui, qui ne dépend pas de celui partagé par les applis
+export const studioQuota = (env, day) => ({ key: `${day}|studio`, limit: Number(env.STUDIO_AI_LIMIT) || 4000 });
+
 // Compteurs par adresse des jours passés : effacés (appelé une fois par jour)
 export function pruneIpQuota(env, day) {
   return env.DB.prepare("DELETE FROM ai_usage WHERE day LIKE '____-__-__|%' AND day < ?1").bind(day).run();

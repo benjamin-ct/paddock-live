@@ -5,7 +5,7 @@
 import { MODEL } from './translate.js';
 import { badScript } from '../shared/translation-check.js';
 import { fold } from '../shared/news.js';
-import { aiQuota } from './quota.js';
+import { aiQuota, studioQuota } from './quota.js';
 
 const TAG = 'sum1';          // dans la clé du cache : changer les consignes = nouveaux résumés
 export const MAX_INPUT = 12000;
@@ -81,12 +81,12 @@ const REASONS = {
   copy: "Résumé trop proche du texte de l'article (phrases recopiées) : écrivez les points vous-même",
 };
 
-export async function summarizeArticle(env, req, day = new Date().toISOString().slice(0, 10), ip = null) {
+export async function summarizeArticle(env, req, day = new Date().toISOString().slice(0, 10), ip = null, quota = null) {
   const k = await keyOf(req.title, req.text);
   const hit = await env.DB.prepare('SELECT out FROM translations WHERE k = ?1').bind(k).first();
   if (hit?.out) { try { return { points: JSON.parse(hit.out), cached: true }; } catch { /* entrée abîmée : refaite */ } }
-  const limit = Number(env.AI_DAILY_LIMIT) || 20000;
-  if (!(await aiQuota(env, { key: day, day, n: COST, limit, ip }))) return { limited: true };
+  const q = quota || { key: day, limit: Number(env.AI_DAILY_LIMIT) || 20000 };
+  if (!(await aiQuota(env, { key: q.key, day, n: COST, limit: q.limit, ip }))) return { limited: true };
   // Deux essais : réponse mal formée ou trop proche du texte de l'article
   const why = {};
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -141,8 +141,8 @@ export function parsePostReply(reply) {
 }
 
 export async function rewritePost(env, text, day = new Date().toISOString().slice(0, 10)) {
-  const limit = Number(env.AI_DAILY_LIMIT) || 20000;
-  if (!(await aiQuota(env, { key: day, day, n: POST_COST, limit }))) return { limited: true };
+  const q = studioQuota(env, day);
+  if (!(await aiQuota(env, { key: q.key, day, n: POST_COST, limit: q.limit }))) return { limited: true };
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const r = await env.AI.run(MODEL, {

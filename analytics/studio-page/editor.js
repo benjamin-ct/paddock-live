@@ -11,6 +11,7 @@ import { $, $$, esc, api, icon, toast, toggle, sheet, schedList, glide, state, s
 import { bestSlot } from '/shared/post-history.js';
 import { tiktokPanel, tiktokProblem, tiktokChoice, TIKTOK_PRIVACY } from './tiktok.js';
 import { packDraftImages } from '/shared/post-draft.js';
+import { postProblems, problemText } from '/shared/post-check.js';
 
 // ---------- Images (photos des pilotes, drapeaux) par le relais du serveur ----------
 const imgCache = new Map();
@@ -379,8 +380,15 @@ async function download(canvases) {
 
 // Réseaux cochés, texte et premier commentaire de chacun
 const checkedNets = () => $$('[data-net]:checked').map((i) => i.dataset.net);
-const textOf = (n) => $(`#cap-${n === 'threads' ? 'threads' : n === 'bluesky' ? 'bsky' : n === 'facebook' && $('#cap-facebook') ? 'facebook' : 'instagram'}`).value;
+const textOf = (n) => $(`#cap-${n === 'threads' ? 'threads' : n === 'bluesky' ? 'bsky' : n === 'facebook' && $('#cap-facebook') ? 'facebook' : 'instagram'}`)?.value ?? '';
 const capOf = (c, n) => c[n === 'threads' ? 'threads' : n === 'bluesky' ? 'bsky' : n === 'facebook' && c.facebook ? 'facebook' : 'instagram'] || '';
+// Avant d'envoyer : texte trop long (refusé, message affiché), visuels au-delà du carrousel (texte d'avertissement)
+function checkPost(d, nets, carousel) {
+  const pb = postProblems(nets, textOf, carousel ? chosenSlides(slidesFor(d, { fmt: 'ig', follow: state.follow, question: state.question }), [...(state.skip || [])]).length : 0);
+  const block = pb.find((p) => p.block);
+  if (block) { toast(problemText(block), 'bad'); return null; }
+  return pb.map((p) => `\n\n${problemText(p)}`).join('');
+}
 const commentOf = (n) => (n !== 'instagram' && $('#cap-comment')?.value.trim()) || '';
 // JPEG de moins de max octets : qualité baissée au besoin, puis visuel réduit (diapo photo très détaillée,
 // encodeur de Safari qui produit des fichiers bien plus lourds)
@@ -444,6 +452,8 @@ function schedulePanel(d, o, record = null, video = null, link = null, twin = nu
   if (!nets.length) { toast('Cochez au moins un réseau', 'bad'); return; }
   const tk = nets.includes('tiktok') ? tiktokChoice() : null;
   if (nets.includes('tiktok') && tiktokProblem()) { toast(tiktokProblem(), 'bad'); return; }
+  const warn = checkPost(d, nets, !video && !link);
+  if (warn === null) return;
   const t = new Date(Date.now() + 3600e3);
   t.setMinutes(Math.ceil(t.getMinutes() / 15) * 15, 0, 0);
   // Créneau conseillé d'après les chiffres des posts déjà publiés (lus dans l'onglet Stats au fil du temps)
@@ -452,6 +462,7 @@ function schedulePanel(d, o, record = null, video = null, link = null, twin = nu
     ${slot ? `<p class="hint">Conseil : d'après vos ${slot.n} derniers posts, ceux publiés entre ${slot.from} h et ${slot.to} h ont ${String(slot.ratio).replace('.', ',')} fois plus de réactions que la moyenne.</p>
     <div class="row"><button class="btn small" id="bestslot">${icon('clock')}Choisir ${slot.from + 1} h</button></div>` : ''}
     <p class="hint">Sur ${esc(nets.map((n) => NET_NAMES[n]).join(', '))}, même page fermée (7 jours à l'avance au plus).</p>
+    ${warn ? `<p class="hint err">${esc(warn.trim())}</p>` : ''}
     <p class="hint" id="schedst"></p>
     <button class="btn primary wide" id="dosched">${icon('clock')}Programmer</button>`);
   if (slot) {
@@ -503,7 +514,9 @@ async function publishAll(d, o, record = null, video = null, link = null, twin =
   // TikTok : publication directe avec les réglages choisis, sinon brouillon ; rien n'est envoyé sans confirmation
   const tk = nets.includes('tiktok') ? tiktokChoice() : null;
   if (nets.includes('tiktok') && tiktokProblem()) { toast(tiktokProblem(), 'bad'); return; }
-  if (!confirm(`Publier maintenant sur : ${nets.map((n) => NET_NAMES[n] || n).join(', ')} ?${twin ? `\n\nDeux posts : celui-ci et « ${twin.record.title} ».` : ''}\n\n${stories ? 'Les stories seront publiques pendant 24 heures' : `Les posts seront publics${[nets.includes('tiktok') && `TikTok : ${tk ? `publication directe, visible par : ${TIKTOK_PRIVACY[tk.privacy]}` : 'en brouillon'}`, nets.includes('youtube') && 'YouTube : en privé'].filter(Boolean).map((x, i, a) => `${i ? ' ; ' : ' ('}${x}${i === a.length - 1 ? ')' : ''}`).join('')}`}.`)) return;
+  const warn = checkPost(d, nets, !video && !link);
+  if (warn === null) return;
+  if (!confirm(`Publier maintenant sur : ${nets.map((n) => NET_NAMES[n] || n).join(', ')} ?${twin ? `\n\nDeux posts : celui-ci et « ${twin.record.title} ».` : ''}${warn}\n\n${stories ? 'Les stories seront publiques pendant 24 heures' : `Les posts seront publics${[nets.includes('tiktok') && `TikTok : ${tk ? `publication directe, visible par : ${TIKTOK_PRIVACY[tk.privacy]}` : 'en brouillon'}`, nets.includes('youtube') && 'YouTube : en privé'].filter(Boolean).map((x, i, a) => `${i ? ' ; ' : ' ('}${x}${i === a.length - 1 ? ')' : ''}`).join('')}`}.`)) return;
   const go = $('#go');
   go.disabled = true;
   // Confié au serveur (visuels ou vidéo envoyés une fois) : publié dans la minute, même page fermée

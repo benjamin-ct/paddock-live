@@ -25,10 +25,11 @@ import { feedbackApi } from './feedback.js';
 import { freePhotos, PHOTO_UA } from './photos.js';
 import { socialPhotos, isSocialImageHost } from './social-photos.js';
 import { packFeeds } from '../shared/feed-pack.js';
-import { cleanPostRequest, rewritePost } from './summarize.js';
+import { cleanPostRequest, rewritePost, cleanSummaryRequest, summarizeArticle } from './summarize.js';
+import { cleanRequest, translateBatch } from './translate.js';
 import { buildSeason, SEASON_TTL } from './season-cache.js';
 import { accountStats } from './account-stats.js';
-import { callerIp } from './quota.js';
+import { callerIp, studioQuota } from './quota.js';
 
 // Empreinte du code (la même que dans l'appli) : SHA-256 de « paddock-live:<CODE> » (STUDIO_CODE_HASH :
 // autre empreinte, pour les tests)
@@ -787,6 +788,18 @@ export async function studioApi(req, env, url) {
     if (!text) return json({ error: 'Texte trop court' }, 400);
     const r = await rewritePost(env, text);
     return json(r.limited ? { error: 'Plafond du jour atteint, réessayez demain' } : r, r.limited ? 429 : r.error ? 502 : 200);
+  }
+  // Traduction et résumé d'articles du Studio : même travail que /t et /s, plafond à part (studioQuota)
+  if ((path === 'translate' || path === 'summary') && req.method === 'POST') {
+    if (!env.AI) return json({ error: 'Indisponible' }, 503);
+    let body;
+    try { body = await req.json(); } catch { return json({ error: 'JSON invalide' }, 400); }
+    const r = path === 'translate' ? cleanRequest(body) : cleanSummaryRequest(body);
+    if (!r) return json({ error: 'Requête invalide' }, 400);
+    const day = today();
+    if (path === 'translate') return json(await translateBatch(env, r, day, null, studioQuota(env, day)));
+    const res = await summarizeArticle(env, r, day, null, studioQuota(env, day));
+    return json(res.limited ? { error: 'Plafond du jour atteint, réessayez demain' } : res.points ? res : { error: 'Résumé indisponible pour le moment' }, res.limited ? 429 : res.points ? 200 : 502);
   }
   // Journal des publications (partagé avec l'appli)
   if (path === 'history' || path === 'history/remove') {

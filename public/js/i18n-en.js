@@ -2629,4 +2629,7 @@ export default {
   "Volume des radios": "Radio volume",
   "Pendant une radio d'équipe, les commentaires passent à 30 % de leur volume": "During a team radio, commentary drops to 30% of its volume",
   "Plus bas pendant les radios": "Lower during radios",
+  "Programmer quand même ?": "Schedule anyway?",
+  "Texte {} trop long : {} caractères pour {} au plus": "{} text too long: {} characters, {} at most",
+  "{} : {} visuels, seuls les {} premiers seront publiés": "{}: {} images, only the first {} will be posted",
 };

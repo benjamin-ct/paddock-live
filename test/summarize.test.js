@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { studioQuota } from '../analytics/quota.js';
 import { cleanSummaryRequest, copiedFrom, parsePoints, summarizeArticle, cleanPostRequest, parsePostReply, rewritePost } from '../analytics/summarize.js';
 import { MODEL } from '../analytics/translate.js';
 import { createNewsSummarizer, articleText } from '../server/news-summary.js';
@@ -31,6 +32,7 @@ function fakeEnv({ limit = 100, replies = [] } = {}) {
     tr, usage, calls,
     env: {
       AI_DAILY_LIMIT: String(limit),
+      STUDIO_AI_LIMIT: String(limit),
       DB: { prepare: (sql) => stmt(sql) },
       AI: { async run(model, input) { calls.push({ model, input }); return { response: replies.shift() ?? '' }; } },
     },
@@ -67,6 +69,11 @@ test('résumé détaillé : une fois par article, plafond du jour, nouvel essai 
   const g = fakeEnv({ limit: 3 });
   assert.deepEqual(await summarizeArticle(g.env, req, '2026-10-16'), { limited: true });
   assert.equal(g.calls.length, 0);
+  // Studio : son propre plafond, même quand celui des applis est épuisé
+  const st = fakeEnv({ limit: 3, replies: [JSON.stringify(POINTS)] });
+  st.env.STUDIO_AI_LIMIT = '50';
+  assert.deepEqual(await summarizeArticle(st.env, req, '2026-10-16', null, studioQuota(st.env, '2026-10-16')), { points: POINTS });
+  assert.equal(st.usage.get('2026-10-16|studio'), 5);
   const h = fakeEnv({ replies: ['x', 'y'] });
   assert.deepEqual(await summarizeArticle(h.env, req, '2026-10-16'), { points: null, error: "Réponse de l'IA inutilisable pour cet article, réessayez" });
 });

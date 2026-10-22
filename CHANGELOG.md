@@ -64,6 +64,9 @@ l'application (Réglages → À propos → Nouveautés).
   (Grand Prix, pilote, écurie) puis celui du compte ; 2 sur X et Bluesky ; un seul sur Threads (#F1, son sujet).
   Sur Facebook, où ils ne servent à rien, le texte reprend celui d'Instagram sans les hashtags.
 - Hashtag du Grand Prix : celui de la F1 quand il diffère du nom (#USGP, #MexicoGP, #BrazilGP).
+- Vérification avant d'envoyer : un texte trop long pour un réseau (X 280, Bluesky 300, Threads 500, Instagram
+  2 200 caractères) est signalé avant la publication au lieu d'être refusé par le réseau, et un carrousel de plus
+  de 10 visuels prévient que seuls les 10 premiers partiront sur Instagram et Facebook.
 - Texte alternatif sur chaque image publiée sur Instagram, Facebook, Threads et Bluesky (lu par les lecteurs
   d'écran) : ce que montre l'image, avec le podium ou le classement quand il y en a un.
 - Studio, « Programmer » : créneau conseillé d'après les réactions de tes posts, et un bouton pour le choisir.

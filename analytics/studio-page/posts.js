@@ -25,10 +25,8 @@ async function detailedSummary(it) {
   const a = extractArticle(html, it.link);
   const text = a.blocks.map((b) => b.h || b.p || '').filter(Boolean).join('\n\n').slice(0, 12000);
   if (text.length < 400) throw new Error('Pas de texte lisible sur cette page (vidéo, accès réservé…)');
-  const res = await fetch('/s', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: it.title || a.title, text }) });
-  const j = await res.json().catch(() => ({}));
-  if (res.status === 429) throw new Error('Plafond du jour atteint, réessayez demain');
-  if (!res.ok || !Array.isArray(j.points)) throw new Error(j.error || 'Résumé indisponible pour le moment');
+  const j = await api('summary', { method: 'POST', body: JSON.stringify({ title: it.title || a.title, text }) });
+  if (!Array.isArray(j.points)) throw new Error('Résumé indisponible pour le moment');
   return j.points;
 }
 

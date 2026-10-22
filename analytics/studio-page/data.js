@@ -20,7 +20,7 @@ export async function toFrench(list) {
   const parts = [];
   for (let i = 0; i < todo.length; i += 30) parts.push(todo.slice(i, i + 30));
   await Promise.all(parts.map(async (part) => {
-    const res = await fetch('/t', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ to: 'fr', items: part.map((x) => ({ text: x.text.slice(0, 1500), from: x.from })) }) }).then((r) => r.json()).catch(() => ({}));
+    const res = await api('translate', { method: 'POST', body: JSON.stringify({ to: 'fr', items: part.map((x) => ({ text: x.text.slice(0, 1500), from: x.from })) }) }).catch(() => ({}));
     part.forEach((x, j) => { if (res.out?.[j]) frCache.set(`${x.from}|${x.text}`, res.out[j]); });
   }));
   if (todo.length) keepFr();
