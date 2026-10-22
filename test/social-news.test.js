@@ -111,3 +111,27 @@ test('très grosse info (Breaking news) : importance maximale, ou reprise partou
   assert.equal(isBreaking(it({ imp: 2, sources: 4 })), false);
   assert.equal(newsPost(it({ imp: 3, tags: [] }), {}).breaking, true);
 });
+
+test('autres articles sur la même nouvelle : un par média, vidéos et liens non https exclus', async () => {
+  const { similarArticles } = await import('../shared/social-news.js');
+  const t = Date.parse('2026-10-20T10:00:00Z');
+  const it = { id: 'a', src: 'sky', cluster: 'c1', title: 'Cadillac reveals special livery for Austin', link: 'https://sky.test/a', t };
+  const items = [it,
+    { id: 'b', src: 'f1', cluster: 'c1', title: 'Cadillac unveil Austin livery', link: 'https://f1.test/b', t: t + 3600e3 },
+    { id: 'c', src: 'f1', cluster: 'c1', title: 'Cadillac livery gallery', link: 'https://f1.test/c', t: t + 7200e3 },
+    { id: 'd', src: 'yt', cluster: 'c1', title: 'Cadillac livery video', link: 'https://yt.test/d', t, kind: 'video' },
+    { id: 'e', src: 'ms', title: 'Cadillac special livery for Austin revealed', link: 'https://ms.test/e', t: t + 1800e3 },
+    { id: 'f', src: 'x', cluster: 'c1', title: 'Cadillac', link: 'http://x.test/f', t },
+    { id: 'g', src: 'rt', cluster: 'c9', title: 'Verstappen wins in Mexico', link: 'https://rt.test/g', t }];
+  assert.deepEqual(similarArticles(it, items).map((x) => x.id), ['e', 'b']);
+  // Livrée : pas les autres nouvelles du même sujet (statistiques, avant-course)
+  items.push({ id: 'h', src: 'mm', cluster: 'c1', title: 'Cadillac in Austin: the statistics', link: 'https://mm.test/h', t: t + 600e3 });
+  assert.deepEqual(similarArticles(it, items, 4, 'livree').map((x) => x.id), ['e', 'b']);
+  assert.equal(similarArticles(it, items)[0].id, 'h');
+  // Écurie du sujet : celle du titre, pas celles du résumé
+  const { mainTeam, mentionsTeam } = await import('../shared/social-news.js');
+  const teams = [{ key: 'ferrari', name: 'Ferrari' }, { key: 'haas', name: 'Haas' }, { key: 'redbull', name: 'Red Bull' }];
+  assert.equal(mainTeam('Design spécial : Haas avec la livrée Godzilla', teams).key, 'haas');
+  assert.equal(mainTeam('Livrées spéciales à Austin', teams).key, 'ferrari');
+  assert.ok(mentionsTeam('Red Bull unveil Mobil tribute', 'redbull') && !mentionsTeam('Haas Godzilla livery', 'redbull'));
+});

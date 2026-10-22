@@ -122,3 +122,10 @@ test('images choisies : écartées du post, sommaire et numéros des points suiv
   drawSlide(canvas, 'essentiel-2', 'ig', d, {});   // sans choix : numéros d'origine
   assert.ok(texts.includes('04') && texts.includes('05'));
 });
+
+test('news avec les photos de l\'article : une image par photo, avant l\'essentiel', () => {
+  const d = newsPost({ id: 'l', title: 'Livrée spéciale', summary: 'S', t: 0, cat: 'news' }, { title: 'Livrée spéciale', summary: 'S', points: 'Un\nDeux' });
+  d.gallery = [{}, {}];
+  assert.deepEqual(slidesFor(d), ['news', 'photo-1', 'photo-2', 'essentiel-1']);
+  assert.equal(slideName('photo-2'), 'Photo');
+});

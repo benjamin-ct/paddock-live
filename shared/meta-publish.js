@@ -128,7 +128,16 @@ export async function publishInstagram(meta, text, images) {
     creation = (await media({ media_type: 'CAROUSEL', children: kids.join(','), caption: text })).id;
   }
   await ready(status(creation), 'status_code', 'Post');
-  const pub = await call(`${GRAPH}/${meta.igId}/media_publish`, { method: 'POST', form: { creation_id: creation, ...tok } });
+  let pub;
+  try {
+    pub = await call(`${GRAPH}/${meta.igId}/media_publish`, { method: 'POST', form: { creation_id: creation, ...tok } });
+  } catch (err) {
+    // Instagram répond parfois une erreur (« Nous restreignons certaines activités… ») alors que le post est
+    // bien en ligne : conteneur publié, dernier post du compte repris (jamais republié en double)
+    if ((await call(status(creation)).catch(() => ({}))).status_code !== 'PUBLISHED') throw err;
+    const last = (await call(`${GRAPH}/${meta.igId}/media?${new URLSearchParams({ fields: 'id,permalink', limit: '1', ...tok })}`).catch(() => ({}))).data?.[0] || {};
+    return { url: last.permalink || `https://www.instagram.com/${meta.igUsername || ''}`, id: last.id || null };
+  }
   const link = await call(`${GRAPH}/${pub.id}?${new URLSearchParams({ fields: 'permalink', ...tok })}`).catch(() => ({}));
   return { url: link.permalink || `https://www.instagram.com/${meta.igUsername || ''}`, id: pub.id };
 }
