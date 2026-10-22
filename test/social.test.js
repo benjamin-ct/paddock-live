@@ -137,3 +137,9 @@ test('brouillons : textes refaits d\'après les données, comme dans l\'éditeur
   const ok = cleanDraft({ id: '0b5c1e9a-1111-4a2b-9c3d-123456789abc', d, fmt: 'tiktok', skip: ['question', 3], edited: { x: 'Texte', 'bad key': 'non' } });
   assert.deepEqual([ok.fmt, ok.skip, ok.edited], ['ig', ['question'], { x: 'Texte' }]);
 });
+
+test('posts : hashtag du Grand Prix, celui de la F1 quand il diffère du nom', async () => {
+  const { gpTag } = await import('../shared/social.js');
+  assert.deepEqual(['United States Grand Prix', 'Mexico City Grand Prix', 'São Paulo Grand Prix', 'Italian Grand Prix', 'Las Vegas Grand Prix', ''].map(gpTag),
+    ['#USGP', '#MexicoGP', '#BrazilGP', '#ItalianGP', '#LasVegasGP', '']);
+});

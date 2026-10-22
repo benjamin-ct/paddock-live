@@ -1,7 +1,7 @@
 // Autres posts de séance (mode créateur) : avant-course (grille, météo, pneus Pirelli), championnat
 // après la course, « flash » pendant la séance (drapeau rouge, voiture de sécurité, abandon,
 // pénalité) et duels entre coéquipiers. Données tirées de l'état de la séance, textes en français.
-import { postData, hashtag, teamTag, fiveTags, twoTags, noTags, THREADS_TAG, gpFlag, MEDALS, xLength } from './social.js';
+import { postData, hashtag, teamTag, gpTag, fiveTags, twoTags, noTags, THREADS_TAG, gpFlag, MEDALS, xLength } from './social.js';
 import { portraitUrl } from './portraits.js';
 
 const list = (o) => (!o ? [] : Array.isArray(o) ? o : Object.keys(o).sort((a, b) => a - b).map((k) => o[k]));
@@ -106,7 +106,6 @@ export function flashData(state, ev) {
 // ---------- Légendes ----------
 export function moreCaptions(d, signature = '') {
   const sig = signature ? `\n\n${signature}` : '';
-  const gpTag = hashtag(`${String(d.gpEn || '').replace(/ Grand Prix$/i, '')}GP`);
   let head = '';
   let body = '';
   let bodyX = null;   // version courte pour X
@@ -135,7 +134,7 @@ export function moreCaptions(d, signature = '') {
     body = [d.event.title, d.event.sub].filter(Boolean).join(' — ');
     extra = d.event.driver ? [hashtag(`${d.event.driver.first}${d.event.driver.last}`), teamTag(d.event.driver.team)] : [];
   }
-  const all = fiveTags(['#F1', gpTag, ...extra]);
+  const all = fiveTags(['#F1', gpTag(d.gpEn), ...extra]);
   const instagram = `${head}\n\n${body}${sig}\n\n${all.join(' ')}`;
   const shortTags = twoTags(all);
   // X : mots-clés puis dernières lignes du texte retirés tant que le post dépasse 280 caractères

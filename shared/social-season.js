@@ -6,7 +6,7 @@ import { gpNameFr } from './summary.js';
 import { driverRatings, qualiGaps, titleRace, placeForMaxPoints } from './season-calc.js';
 import { cleanPace, lapsLedBy } from './race-laps.js';
 import { raceStory } from './race-story.js';
-import { hashtag, teamTag, fiveTags, twoTags, noTags, THREADS_TAG, xLength, gpFlag, MEDALS } from './social.js';
+import { hashtag, teamTag, gpTag, fiveTags, twoTags, noTags, THREADS_TAG, xLength, gpFlag, MEDALS } from './social.js';
 import { circuitInfo, trackShape, flagColors } from './circuits-info.js';
 
 const TZ = 'Europe/Paris';
@@ -44,8 +44,7 @@ function base(race, year, post, label) {
     sprint: !!race?.sprint, rows: [], facts: [], summary: { paragraphs: [] },
   };
 }
-const gpTagOf = (d) => hashtag(`${String(d.gpEn || '').replace(/ Grand Prix$/i, '')}GP`);
-const tagsOf = (d, extra = []) => fiveTags(['#F1', d.gpEn ? gpTagOf(d) : '', ...extra]);
+const tagsOf = (d, extra = []) => fiveTags(['#F1', gpTag(d.gpEn), ...extra]);
 
 // ---------- 1. Programme du week-end ----------
 // race : manche de /api/season ; tyres : composés Pirelli ; forecast : [{ date: 'AAAA-MM-JJ', tmax, tmin, rain }]

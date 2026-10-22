@@ -49,6 +49,7 @@ l'application (Réglages → À propos → Nouveautés).
 - Hashtags aux règles actuelles des réseaux : 5 au plus sur Instagram (sa nouvelle limite), les plus précis d'abord
   (Grand Prix, pilote, écurie) puis celui du compte ; 2 sur X et Bluesky ; un seul sur Threads (#F1, son sujet).
   Sur Facebook, où ils ne servent à rien, le texte reprend celui d'Instagram sans les hashtags.
+- Hashtag du Grand Prix : celui de la F1 quand il diffère du nom (#USGP, #MexicoGP, #BrazilGP).
 - Un seul appel à la fin du post : « Question pour faire réagir » ou « Abonnez-vous », l'un ou l'autre (cocher
   l'un grise l'autre).
 - Les posts tutoient : « Abonne-toi », « Ton pronostic en commentaire », « À toi ! », « Le savais-tu ? »…

@@ -142,6 +142,10 @@ const TEAM_TAGS = [
   [/mclaren/i, 'McLaren'], [/mercedes/i, 'MercedesAMGF1'], [/aston/i, 'AstonMartinF1'], [/williams/i, 'WilliamsRacing'],
   [/alpine/i, 'AlpineF1Team'], [/haas/i, 'HaasF1'], [/audi|sauber|kick/i, 'AudiF1'], [/cadillac/i, 'CadillacF1'],
 ];
+// Hashtag d'un Grand Prix : celui qu'utilisent la F1 et les fans quand il diffère du nom (« United States
+// Grand Prix » : #USGP), sinon le nom suivi de GP (#ItalianGP)
+const GP_TAGS = { 'United States': 'USGP', 'Mexico City': 'MexicoGP', 'São Paulo': 'BrazilGP' };
+export const gpTag = (gpEn) => { const n = String(gpEn || '').replace(/ Grand Prix$/i, '').trim(); return n ? hashtag(GP_TAGS[n] || `${n}GP`) : ''; };
 export const teamTag = (team) => hashtag(TEAM_TAGS.find(([re]) => re.test(team || ''))?.[1] || team);
 
 // Hashtags selon les règles 2026 des réseaux : Instagram en refuse plus de 5 (les plus précis d'abord, le
@@ -158,8 +162,7 @@ export const noTags = (text) => text.replace(/\n\n#[^\n]*$/, '');
 
 export function hashtags(d) {
   const [p1] = d.rows;
-  const gpTag = hashtag(`${d.gpEn.replace(/ Grand Prix$/i, '')}GP`);
-  const all = fiveTags(['#F1', gpTag, p1 ? hashtag(`${p1.first}${p1.last}`) : '', p1 ? teamTag(p1.team) : '']);
+  const all = fiveTags(['#F1', gpTag(d.gpEn), p1 ? hashtag(`${p1.first}${p1.last}`) : '', p1 ? teamTag(p1.team) : '']);
   return {
     all,
     x: twoTags(all),
