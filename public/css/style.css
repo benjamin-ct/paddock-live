@@ -2857,7 +2857,7 @@ html.float-mini body.mini-body { padding: 4px 4px 26px; cursor: grab; }
 html.float-mini :is(.mini-head, .mini-foot) { border: 0; border-radius: 7px; background: color-mix(in srgb, var(--panel) var(--ov-bg, 85%), transparent); }
 html.float-mini :is(.mini-head, .mini-banner) { margin-bottom: 3px; }
 html.float-mini .mini-banner { border-radius: 7px; }
-html.float-mini .mini-table { border-collapse: separate; border-spacing: 0 2px; }
+html.float-mini .mini-table { border-collapse: separate; border-spacing: 0 2px; width: max-content; min-width: 100%; }
 html.float-mini .mini-table td { border: 0; background: color-mix(in srgb, var(--panel) var(--ov-bg, 80%), transparent); }
 html.float-mini .mini-table tr.focus td { background: linear-gradient(var(--focus), var(--focus)), color-mix(in srgb, var(--panel) var(--ov-bg, 80%), transparent); }
 html.float-mini .mini-table td:first-child { border-radius: 6px 0 0 6px; }

@@ -45,7 +45,9 @@ l'application (Réglages → À propos → Nouveautés).
 - Nouvelles alertes (Réglages → Alertes) : pluie qui commence ou s'arrête sur le circuit, pilote favori qui passe
   en zone d'élimination en Q1 et Q2, et pronostic pas encore fait une heure avant sa fermeture.
 - Mini-classement : colonnes au choix (menu ⋮ : places gagnées, intervalle, écart, pneu, arrêts) et ligne
-  d'élimination en qualifications.
+  d'élimination en qualifications. Dans l'application de bureau, sa fenêtre prend toute seule la taille de son
+  contenu (colonnes choisies, nombre de pilotes) ; − / +, Ctrl + molette ou le coin règlent sa taille, gardée
+  pour la prochaine fois.
 - Radios d'équipe : réglage du volume ; les commentaires F1 TV baissent pendant une radio (« Plus bas pendant
   les radios », dans le panneau des commentaires).
 
