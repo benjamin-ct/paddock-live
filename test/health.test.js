@@ -74,6 +74,12 @@ test('bilan de santé : pic d\'erreurs de l\'appli et jetons bientôt expirés',
   assert.equal(h.problems[0].m, 'Erreurs de l\'appli : 40 hier, contre 5 par jour avant (surtout tower.js:12, v1.28.0)');
   assert.match(h.problems[1].m, /Threads : expire dans 3 jours/);
   assert.match(h.problems[2].m, /F1 TV expiré/);
+  // F1 TV : jeton de 4 jours prolongé par le Studio, pas d'alerte à 3 jours, alerte à moins d'un jour
+  const f1 = { DB: fakeDB({ errors: {} }) };
+  await noteExpiries(f1, { f1tv: 'jwt' }, () => now + 3 * 86400e3);
+  assert.deepEqual((await healthCheck(f1, { now, fetchFn: ok })).problems, []);
+  await noteExpiries(f1, { f1tv: 'jwt' }, () => now + 10 * 3600e3);
+  assert.match((await healthCheck(f1, { now, fetchFn: ok })).problems[0].m, /F1 TV : expire dans 10 h/);
   // Erreurs habituelles (pas de pic) : rien
   const usual = { '2026-10-21': 12 };
   for (let d = 14; d <= 20; d++) usual[`2026-10-${d}`] = 9;

@@ -33,13 +33,16 @@ async function appErrors(env, now) {
 
 // Jetons bientôt expirés (dates notées par le Studio)
 const TOKEN_NAMES = { threads: 'Threads', threads2: 'Threads (2e compte)', f1tv: 'F1 TV' };
+// Le jeton F1 TV ne vit que 4 jours et le Studio le prolonge à moins d'un jour : alerte seulement à ce moment-là
+const TOKEN_DAYS = { f1tv: 1 };
 function tokens(exp, now) {
   const out = [];
   for (const [k, name] of Object.entries(TOKEN_NAMES)) {
     const t = exp?.[k];
-    if (!t || t - now > HEALTH.tokenDays * DAY) continue;
+    if (!t || t - now > (TOKEN_DAYS[k] ?? HEALTH.tokenDays) * DAY) continue;
     const d = Math.ceil((t - now) / DAY);
-    out.push([`token.${k}`, t <= now ? `Jeton ${name} expiré : ouvrez le Studio ou reconnectez-le dans l'appli` : `Jeton ${name} : expire dans ${d} jour${d > 1 ? 's' : ''} (ouvrez le Studio pour le prolonger)`]);
+    const when = t - now < DAY ? `${Math.max(1, Math.round((t - now) / 3600e3))} h` : `${d} jour${d > 1 ? 's' : ''}`;
+    out.push([`token.${k}`, t <= now ? `Jeton ${name} expiré : ouvrez le Studio ou reconnectez-le dans l'appli` : `Jeton ${name} : expire dans ${when} (ouvrez le Studio pour le prolonger)`]);
   }
   return out;
 }
