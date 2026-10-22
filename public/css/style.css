@@ -709,7 +709,7 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
 .tower td.c-team { white-space: nowrap; color: var(--text-2); max-width: 130px; overflow: hidden; text-overflow: ellipsis; }
 .tower td.c-gapf.ahead { color: var(--green); }
 .tower td.c-gapf.behind { color: var(--orange); }
-.tower-cols .map-layers-menu { min-width: 250px; }
+.tower-cols .map-layers-menu { min-width: 250px; left: 0; right: auto; }   /* bouton à gauche du panneau : menu ouvert vers la droite */
 .tower-cols .col-sep { font-size: 11px; color: var(--muted); padding: 6px 8px 2px; text-transform: uppercase; letter-spacing: .6px; }
 .tag.push { background: var(--purple); color: #1a0030; }
 .pred { font-size: 12px; font-weight: 700; }
@@ -917,7 +917,7 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
 .mf-banner { font-weight: 900; letter-spacing: 1px; text-transform: uppercase; font-size: 13px; padding: 3px 10px; border-radius: 6px; }
 .mf-banner.red { background: var(--red); color: #fff; animation: pulse 1s infinite; }
 .mf-banner.sc { background: var(--sc, #ffb020); color: #1d1200; animation: pulse 1.2s infinite; }
-.mf-banner.vsc { background: transparent; color: var(--sc, #ffb020); border: 2px dashed var(--sc, #ffb020); }
+.mf-banner.vsc { background: rgba(0, 0, 0, .82); color: var(--sc, #ffb020); border: 2px dashed var(--sc, #ffb020); }   /* fond sombre : les voitures de la carte ne passent pas à travers */
 .mf-item { font-size: 12px; background: rgba(0, 0, 0, .82); border-left: 3px solid #f5c518; border-radius: 4px; padding: 2px 8px; color: #F1F3F6; }   /* pastille toujours sombre, aussi en thème clair */
 .mf-item.dy { border-left-color: #ff9f1a; }
 .mf-item b { color: #f5c518; }
@@ -1723,6 +1723,9 @@ body.solo #muteBtn { display: none; }
 [data-theme="pitwall"] .dmore { display: grid; place-items: center; order: 2; align-self: stretch; min-width: 28px; padding: 0 6px; background: none; border: 0; border-left: 1px solid var(--line-2);
   color: var(--text-2); font-weight: 700; font-size: 14px; cursor: pointer; }
 [data-theme="pitwall"] .dmore:hover, [data-theme="pitwall"] .delay.open .dmore { background: var(--panel-2); color: var(--text); }
+[data-theme="pitwall"] .dpause { order: 3; align-self: stretch; min-width: 30px; padding: 0 6px; background: none; border: 0; border-left: 1px solid var(--line-2); border-radius: 0; color: var(--text-2); }
+[data-theme="pitwall"] .dpause:hover { background: var(--panel-2); color: var(--text); }
+[data-theme="pitwall"] .dpause.on { background: var(--accent); color: #fff; }
 [data-theme="pitwall"] .delay-steps { display: none; }
 [data-theme="pitwall"] .delay.open .delay-steps {
   display: grid; grid-template-columns: repeat(6, auto); gap: 4px; position: absolute; top: calc(100% + 8px); left: 0; z-index: 960;
