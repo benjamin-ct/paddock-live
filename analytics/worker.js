@@ -26,7 +26,7 @@ import { SHORT_RE, SHORT } from '../shared/track-links.js';
 import { feedbackPost, feedbackFile } from './feedback.js';
 import { buildIcs } from '../shared/ics.js';
 import { pronosApi, GROUP_RE } from './pronos.js';
-import { pruneIpQuota } from './quota.js';
+import { pruneIpQuota, callerIp, ipQuota } from './quota.js';
 import { healthCheck, HEALTH } from './health.js';
 
 const MAX_BODY = 32 * 1024;
@@ -34,7 +34,7 @@ const COOKIE = 'pl_stats';
 const SESSION_DAYS = 30;
 
 // Adresse de l'appelant (plafonds d'IA par adresse) ; corps annoncé trop gros : refusé avant d'être lu
-const clientIp = (req) => req.headers.get('CF-Connecting-IP') || null;
+const clientIp = callerIp;
 const tooBig = (req, max) => Number(req.headers.get('Content-Length') || 0) > max;
 const json = (obj, status = 200) => new Response(JSON.stringify(obj), { status, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' } });
 const redirect = (to, headers = {}) => new Response(null, { status: 303, headers: { Location: to, 'Cache-Control': 'no-store', ...headers } });
@@ -96,6 +96,11 @@ async function ingest(req, env) {
   const batch = cleanBatch(body);
   if (!batch) return json({ error: 'Lot invalide' }, 400);
   const day = new Date().toISOString().slice(0, 10);
+  // Lignes écrites par adresse et par jour (une appli en écrit quelques milliers au plus) : un script ne peut
+  // pas remplir la base ni épuiser ses écritures du jour
+  const rows = batch.items.length + (batch.errors?.length || 0);
+  const ip = clientIp(req);
+  if (ip && rows && !(await ipQuota(env, { key: 'ingest', day, ip, n: rows, limit: 10000 }))) return json({ error: 'Trop d\'envois aujourd\'hui' }, 429);
   const stmt = env.DB.prepare('INSERT INTO counts (day, event, device, version, os, n) VALUES (?1, ?2, ?3, ?4, ?5, ?6) ON CONFLICT (day, event, device, version, os) DO UPDATE SET n = n + excluded.n');
   const estmt = env.DB.prepare('INSERT INTO error_details (day, version, os, device, kind, place, msg, stack, n) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9) ON CONFLICT (day, version, os, device, kind, place, msg, stack) DO UPDATE SET n = n + excluded.n');
   const all = [

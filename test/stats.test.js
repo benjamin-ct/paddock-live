@@ -300,3 +300,16 @@ test('statistiques : tirer vers le bas dans un script à part (jamais recopié d
   assert.match(js, /\npullToRefresh\(\(\) => \{ location\.reload\(\)/);
   new Function(js);   // syntaxe valide
 });
+
+test('serveur des statistiques : lignes écrites plafonnées par adresse (IPv6 : par bloc /64)', async () => {
+  const { callerIp, ipQuota } = await import('../analytics/quota.js');
+  const req = (ip) => new Request(W, { headers: { 'CF-Connecting-IP': ip } });
+  assert.equal(callerIp(req('2a01:cb00:1:2:aaaa::1')), '2a01:cb00:1:2::/64');
+  assert.equal(callerIp(req('203.0.113.9')), '203.0.113.9');
+  const rows = new Map();
+  const env = { DB: { prepare: () => ({ bind: (...a) => ({ first: async () => (rows.has(a[0]) ? { n: rows.get(a[0]) } : null), run: async () => { rows.set(a[0], (rows.get(a[0]) || 0) + a[1]); } }) }) } };
+  const q = (ip) => ipQuota(env, { key: 'ingest', day: '2026-10-22', ip, n: 6000, limit: 10000 });
+  assert.equal(await q('1.2.3.4'), true);
+  assert.equal(await q('1.2.3.4'), false);
+  assert.equal(await q('5.6.7.8'), true);
+});

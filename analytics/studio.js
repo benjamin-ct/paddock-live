@@ -28,6 +28,7 @@ import { packFeeds } from '../shared/feed-pack.js';
 import { cleanPostRequest, rewritePost } from './summarize.js';
 import { buildSeason, SEASON_TTL } from './season-cache.js';
 import { accountStats } from './account-stats.js';
+import { callerIp } from './quota.js';
 
 // Empreinte du code (la même que dans l'appli) : SHA-256 de « paddock-live:<CODE> » (STUDIO_CODE_HASH :
 // autre empreinte, pour les tests)
@@ -78,7 +79,7 @@ export async function seasonRow(env, year, { now = Date.now(), fetchFn, wait, ma
 }
 
 // ---------- Essais ratés ----------
-const ipOf = (req) => req.headers.get('CF-Connecting-IP') || 'local';
+const ipOf = (req) => callerIp(req) || 'local';
 const today = () => new Date().toISOString().slice(0, 10);
 async function fails(env, req) {
   return (await env.DB.prepare('SELECT n FROM studio_fail WHERE ip = ? AND day = ?').bind(ipOf(req), today()).first())?.n || 0;

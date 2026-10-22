@@ -7,6 +7,16 @@ async function spend(env, key, n, limit) {
   return true;
 }
 
+// Adresse de l'appelant pour les plafonds : en IPv6, son bloc /64 (une connexion en a des milliards, qu'un
+// abuseur changerait à chaque appel) ; null hors de Cloudflare
+export function callerIp(req) {
+  const ip = req.headers.get('CF-Connecting-IP');
+  return ip && ip.includes(':') ? `${ip.split(':').slice(0, 4).join(':')}::/64` : ip || null;
+}
+
+// Envois anonymes d'un appelant (statistiques de l'appli) : au plus `limit` par jour et par adresse
+export const ipQuota = (env, { key, day, ip, n = 1, limit }) => spend(env, `${day}|${ip}|${key}`, n, limit);
+
 // key : compteur du jour (« 2026-10-18 », « radio:2026-10-18 ») ; day : date du jour ; ip : appelant
 export async function aiQuota(env, { key, day, n, limit, ip }) {
   if (ip && !(await spend(env, `${day}|${ip}|${key}`, n, Math.ceil(limit / 4)))) return false;
