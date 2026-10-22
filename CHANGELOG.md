@@ -114,6 +114,8 @@ l'application (Réglages → À propos → Nouveautés).
   (et plus « Windows ») sur tous les systèmes.
 
 ### Divers
+- Carte : le bandeau « Fin de VSC » reste lisible quand une voiture passe dessous.
+- Menu « Colonnes » du classement : il n'est plus coupé à gauche quand le panneau est étroit.
 - Petites améliorations internes.
 
 ## v1.27.54 — 2026-10-20
