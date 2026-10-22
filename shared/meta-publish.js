@@ -27,7 +27,9 @@ export async function call(url, { method = 'GET', headers = {}, json, form, body
   const err = data?.error;
   if (!res.ok || (err && (typeof err === 'string' || err.message || (err.code && err.code !== 'ok')))) {
     const msg = (typeof err === 'string' ? err : err?.error_user_msg || err?.message) || data?.detail || data?.title || data?.errors?.[0]?.message || data?.error_description || `HTTP ${res.status}`;
-    throw new Error(String(msg).slice(0, 300));
+    const e = new Error(String(msg).slice(0, 300));
+    if (typeof err?.code === 'string') e.code = err.code;   // code de l'erreur (TikTok), pour un message clair
+    throw e;
   }
   return data;
 }

@@ -65,6 +65,8 @@ l'application (Réglages → À propos → Nouveautés).
   de séance en cours), au lieu de rester sur le replay.
 
 ### Posts (mode créateur)
+- TikTok : une publication directe refusée parce que l'app TikTok n'a pas encore passé l'audit le dit clairement,
+  avec quoi faire (« Brouillon », ou compte privé et « Moi uniquement »), au lieu du message anglais de TikTok.
 - « Se connecter à Facebook » (Comptes → Instagram + Facebook) : Facebook et Instagram se relient en un clic avec
   la connexion Facebook, au lieu du jeton à copier depuis l'Explorateur de l'API Graph (toujours possible).
 - La fenêtre Posts prend l'habillage du Studio : fond noir, barre latérale noire avec un trait rouge sur l'élément
