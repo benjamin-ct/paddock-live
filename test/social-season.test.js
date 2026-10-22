@@ -155,7 +155,7 @@ test('récap de la semaine et questions en fin de texte', () => {
   assert.match(c.instagram, /^📰 La semaine en F1 : les 3 infos à retenir\n\n1️⃣ TRANSFERT \| Hamilton signs new Ferrari deal\n2️⃣ PÉNALITÉ/);
   // Question adaptée, avant la signature
   const q = questionCaptions(c, d, '@moi');
-  assert.match(q.instagram, /\n\n💬 Quelle info vous a le plus marqué cette semaine \?\n\n@moi\n\n#/);
+  assert.match(q.instagram, /\n\n💬 Quelle info t'a le plus marqué cette semaine \?\n\n@moi\n\n#/);
   assert.match(questionFor({ kind: 'quali', sprint: false }), /Qui gagne la course/);
   assert.match(questionFor({ news: true, badge: { key: 'penalite' } }), /Sanction méritée/);
   assert.match(questionFor({ post: 'flash', event: { kind: 'sc' } }), /Qui va en profiter/);

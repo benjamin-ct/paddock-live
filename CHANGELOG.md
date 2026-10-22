@@ -51,6 +51,7 @@ l'application (Réglages → À propos → Nouveautés).
   Sur Facebook, où ils ne servent à rien, le texte reprend celui d'Instagram sans les hashtags.
 - Un seul appel à la fin du post : « Question pour faire réagir » ou « Abonnez-vous », l'un ou l'autre (cocher
   l'un grise l'autre).
+- Les posts tutoient : « Abonne-toi », « Ton pronostic en commentaire », « À toi ! », « Le savais-tu ? »…
 
 ### Mises à jour
 - Versions bêta : nouveau réglage « Recevoir les versions bêta » (Réglages → Application) pour essayer les

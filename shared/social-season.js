@@ -308,7 +308,7 @@ export function seasonCaptions(d, sig = '') {
   }
   if (d.post === 'records') {
     const lines = d.facts.map((f) => `📌 ${f.label} : ${f.value} — ${f.sub}`);
-    return finish(d, `🤓 Le saviez-vous ? Les records du ${gpFlag(d)}`, lines, sig, ['#F1Facts'], lines.slice(0, 2));
+    return finish(d, `🤓 Le savais-tu ? Les records du ${gpFlag(d)}`, lines, sig, ['#F1Facts'], lines.slice(0, 2));
   }
   if (d.post === 'ratings') {
     const top = d.rows.slice(0, 3).map((r, i) => `${MEDALS[i]} ${r.first} ${r.last} : ${dec(r.note)}/10`);

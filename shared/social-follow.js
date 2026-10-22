@@ -15,26 +15,26 @@ export function followReason(d) {
 }
 
 // Question en fin de texte, pour faire réagir en commentaire (adaptée au post)
-const FLASH_Q = { penalty: 'Pénalité méritée selon vous ? Dites-le en commentaire.', red: 'Votre réaction en commentaire.', retire: 'Votre réaction en commentaire.', sc: 'Qui va en profiter ? Votre avis en commentaire.', vsc: 'Qui va en profiter ? Votre avis en commentaire.' };
-const NEWS_Q = { penalite: 'Sanction méritée selon vous ? Dites-le en commentaire.', transfert: 'Bon choix selon vous ? Dites-le en commentaire.', depart: 'Votre réaction en commentaire.', accident: 'Votre réaction en commentaire.' };
+const FLASH_Q = { penalty: 'Pénalité méritée selon toi ? Dis-le en commentaire.', red: 'Ta réaction en commentaire.', retire: 'Ta réaction en commentaire.', sc: 'Qui va en profiter ? Ton avis en commentaire.', vsc: 'Qui va en profiter ? Ton avis en commentaire.' };
+const NEWS_Q = { penalite: 'Sanction méritée selon toi ? Dis-le en commentaire.', transfert: 'Bon choix selon toi ? Dis-le en commentaire.', depart: 'Ta réaction en commentaire.', accident: 'Ta réaction en commentaire.' };
 export function questionFor(d) {
-  if (d.news) return NEWS_Q[d.badge?.key] || 'Votre avis en commentaire.';
+  if (d.news) return NEWS_Q[d.badge?.key] || 'Ton avis en commentaire.';
   switch (d.post) {
-    case 'prerace': return `Votre pronostic pour le podium ${d.sprint ? 'du sprint' : 'de la course'} ? Dites-le en commentaire.`;
-    case 'champ': case 'title': return 'Qui sera champion ? Votre pronostic en commentaire.';
-    case 'flash': return FLASH_Q[d.event?.kind] || "Qu'en pensez-vous ? Dites-le en commentaire.";
-    case 'weekend': return 'Qui gagne ce week-end ? Votre pronostic en commentaire.';
-    case 'raceweek': return 'Qui gagne ce week-end ? Votre pronostic en commentaire.';
-    case 'records': return 'Un record va-t-il tomber ce week-end ? Votre avis en commentaire.';
-    case 'ratings': return "D'accord avec ces notes ? Donnez les vôtres en commentaire.";
-    case 'teamduels': return 'Quel duel vous surprend le plus ? Dites-le en commentaire.';
-    case 'racelaps': return 'Quel a été le moment fort de la course pour vous ?';
-    case 'recap': return 'Quelle info vous a le plus marqué cette semaine ?';
+    case 'prerace': return `Ton pronostic pour le podium ${d.sprint ? 'du sprint' : 'de la course'} ? Dis-le en commentaire.`;
+    case 'champ': case 'title': return 'Qui sera champion ? Ton pronostic en commentaire.';
+    case 'flash': return FLASH_Q[d.event?.kind] || "Qu'en penses-tu ? Dis-le en commentaire.";
+    case 'weekend': return 'Qui gagne ce week-end ? Ton pronostic en commentaire.';
+    case 'raceweek': return 'Qui gagne ce week-end ? Ton pronostic en commentaire.';
+    case 'records': return 'Un record va-t-il tomber ce week-end ? Ton avis en commentaire.';
+    case 'ratings': return "D'accord avec ces notes ? Donne les tiennes en commentaire.";
+    case 'teamduels': return 'Quel duel te surprend le plus ? Dis-le en commentaire.';
+    case 'racelaps': return 'Quel a été le moment fort de la course pour toi ?';
+    case 'recap': return "Quelle info t'a le plus marqué cette semaine ?";
     default: break;
   }
-  if (d.kind === 'race') return 'Votre pilote du jour ? Dites-le en commentaire.';
-  if (d.kind === 'quali') return `Qui gagne ${d.sprint ? 'le sprint' : 'la course'} ? Votre pronostic en commentaire.`;
-  return 'Qui sera en pole ? Votre pronostic en commentaire.';
+  if (d.kind === 'race') return 'Ton pilote du jour ? Dis-le en commentaire.';
+  if (d.kind === 'quali') return `Qui gagne ${d.sprint ? 'le sprint' : 'la course'} ? Ton pronostic en commentaire.`;
+  return 'Qui sera en pole ? Ton pronostic en commentaire.';
 }
 
 // Ligne placée à la place de la signature seule, sinon juste avant les hashtags
@@ -68,8 +68,8 @@ export function questionCaptions(caps, d, handle = '') {
 // caps : textes des réseaux (instagram, facebook, threads, x, bsky…) ; handle : compte (@…)
 export function followCaptions(caps, d, handle = '') {
   const h = String(handle || '').trim();
-  const long = `🔔 ${h ? `Abonnez-vous à ${h}` : 'Abonnez-vous'} ${followReason(d)} !`;
-  const short = h ? `🔔 Suivez ${h} pour toute l'actu F1 !` : '';
+  const long = `🔔 ${h ? `Abonne-toi à ${h}` : 'Abonne-toi'} ${followReason(d)} !`;
+  const short = h ? `🔔 Suis ${h} pour toute l'actu F1 !` : '';
   const out = { ...caps };
   for (const k of ['instagram', 'facebook']) if (out[k]) out[k] = insert(out[k], long, h);
   if (out.threads) { const t = insert(out.threads, long, h); if (t.length <= 500) out.threads = t; }

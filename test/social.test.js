@@ -92,7 +92,7 @@ test('posts : texte sans spoiler (début de légende et texte court sans le vain
     rows: [{ first: 'Max', last: 'Verstappen', team: 'Red Bull Racing', gap: '' }, { first: 'Lando', last: 'Norris', team: 'McLaren', gap: '+2,1 s' }, { first: 'Charles', last: 'Leclerc', team: 'Ferrari', gap: '+4,0 s' }] };
   const c = captions(d, '@moi', { spoiler: false });
   // Instagram : les premières lignes (visibles sans « plus ») ne citent pas le vainqueur, le détail suit
-  assert.match(c.instagram, /^🏁 Résultats du Grand Prix d'Azerbaïdjan : qui l'a emporté \? 👀 Réponse en images\.\n👉 Faites défiler/);
+  assert.match(c.instagram, /^🏁 Résultats du Grand Prix d'Azerbaïdjan : qui l'a emporté \? 👀 Réponse en images\.\n👉 Fais défiler/);
   assert.ok(!c.instagram.split('\n.\n')[0].includes('Verstappen'));
   assert.match(c.instagram, /Max Verstappen remporte/);
   for (const k of ['x', 'threads', 'story']) assert.ok(!c[k].includes('Verstappen'), k);

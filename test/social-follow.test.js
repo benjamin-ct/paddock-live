@@ -42,9 +42,9 @@ test('abonnement : ligne ajoutée aux textes, dans la limite de chaque réseau',
   };
   const f = followCaptions(caps, d, '@moi');
   // Signature seule remplacée par l'appel, hashtags toujours à la fin
-  assert.match(f.instagram, /\n\n🔔 Abonnez-vous à @moi pour suivre toute l'actualité de la Formule 1 !\n\n#/);
+  assert.match(f.instagram, /\n\n🔔 Abonne-toi à @moi pour suivre toute l'actualité de la Formule 1 !\n\n#/);
   assert.ok(!f.instagram.includes('\n\n@moi\n\n'));
-  assert.match(f.x, /🔔 Suivez @moi pour toute l'actu F1 !/);
+  assert.match(f.x, /🔔 Suis @moi pour toute l'actu F1 !/);
   assert.ok(xLength(f.x) <= 280);
   assert.ok(f.threads.length <= 500);
   assert.equal(f.story, caps.story);
@@ -53,7 +53,7 @@ test('abonnement : ligne ajoutée aux textes, dans la limite de chaque réseau',
   assert.equal(followCaptions(full, d, '@moi').x, full.x);
   // Sans compte : appel générique, pas de ligne sur X
   const g = followCaptions({ instagram: 'Titre\n\n#F1', x: 'Titre\n\n#F1' }, d, '');
-  assert.equal(g.instagram, "Titre\n\n🔔 Abonnez-vous pour suivre toute l'actualité de la Formule 1 !\n\n#F1");
+  assert.equal(g.instagram, "Titre\n\n🔔 Abonne-toi pour suivre toute l'actualité de la Formule 1 !\n\n#F1");
   assert.equal(g.x, 'Titre\n\n#F1');
 });
 

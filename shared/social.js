@@ -212,7 +212,7 @@ export function captions(d, signature = '', { spoiler = true } = {}) {
   const facts = d.facts.filter((f) => f.value && f.value !== 'Aucun').map((f) => `${FACT_ICON[f.label] || '📌'} ${f.label} : ${f.value}${f.sub ? ` (${f.sub})` : ''}`).join('\n');
   const story = d.summary.paragraphs.slice(0, 2).join(' ');
   if (!spoiler) {
-    head = `${teaser(d)}\n👉 Faites défiler pour ${d.kind === 'practice' ? 'le top 3' : d.kind === 'quali' ? 'la grille' : 'le podium'} et tous les détails.\n\n.\n.\n.\n\n${head}`;
+    head = `${teaser(d)}\n👉 Fais défiler pour ${d.kind === 'practice' ? 'le top 3' : d.kind === 'quali' ? 'la grille' : 'le podium'} et tous les détails.\n\n.\n.\n.\n\n${head}`;
     short = teaser(d);
   }
   const instagram = `${head}\n\n${d.kind === 'quali' ? '🚦 Grille de départ' : d.kind === 'race' ? '🏁 Podium' : '📊 Top 3'} :\n${podium}${facts ? `\n\n${facts}` : ''}\n\n${story}${sig}\n\n${tags.all.join(' ')}`;
