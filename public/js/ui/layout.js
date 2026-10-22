@@ -78,11 +78,23 @@ let profile = prefs.layoutMode === 'race' || prefs.layoutMode === 'quali' ? pref
 if (!PROFILES[profile]) profile = 'race';
 // Fenêtre principale : une disposition par type de séance. Fenêtres secondaires (second écran) :
 // une seule, quelle que soit la séance (sinon un changement de séance leur reprenait des panneaux)
-const lkey = (win = WIN, prof = profile) => (prof === 'race' || win !== 'main' ? win : `${win}@${prof}`);
+// Mode Allégé : sa propre disposition, celle du mode Complet reste telle quelle
+const lkey = (win = WIN, prof = profile) => (prof === 'race' || win !== 'main' ? win : `${win}@${prof}`) + (win === 'main' && !prefs.fullMode ? '~ess' : '');
 
 function defaultLayout(prof = profile) {
   if (!isMain) return { cols: [] };
   const quali = prof === 'quali';
+  // Allégé : classement, grande carte avec le duel dessous, radios et direction de course à droite
+  if (!prefs.fullMode) {
+    return window.innerWidth <= 1500 ? { cols: [
+      { w: 1, items: [{ id: 'tower', h: 1.5 }, { id: 'feed', h: 0.7 }] },
+      { w: 1.2, items: [{ id: 'map', h: 1.4 }, { id: 'duel', h: 0.9 }, { id: 'radio', h: 0.8 }, { id: 'extra', h: 0.6 }] },
+    ] } : { cols: [
+      { w: 1.05, items: [{ id: 'tower', h: 1 }] },
+      { w: 1.5, items: [{ id: 'map', h: 1.6 }, { id: 'duel', h: 1 }] },
+      { w: 1, items: [{ id: 'radio', h: 1.1 }, { id: 'feed', h: 0.85 }, { id: 'extra', h: 0.75 }] },
+    ] };
+  }
   if (window.innerWidth <= 1500) {
     return quali ? { cols: [
       { w: 1.3, items: [{ id: 'tower', h: 1.5 }, { id: 'feed', h: 0.7 }, { id: 'radio', h: 0.6 }] },
@@ -1016,6 +1028,7 @@ export function initLayout() {
   // Disposition modifiée dans une autre instance de la même fenêtre (rechargement) : rien à faire ;
   // la fenêtre principale suit seulement les préférences.
   on('prefs', (k) => {
+    if (k === 'fullMode' && isMain) layout = normalize(allLayouts()[lkey()] || defaultLayout());
     if (k === 'hiddenPanels' || k === 'phoneFull' || k === 'fullMode') render();
     if (k === 'fullMode') visibleTabs();
     if (['hiddenPanels', 'hiddenCols', 'extraCols', 'towerFit'].includes(k)) renderLayoutOptions();
