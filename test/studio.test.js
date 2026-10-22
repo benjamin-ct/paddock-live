@@ -390,7 +390,7 @@ test('page du créateur : publication programmée, publiée par le serveur à l\
     const kept = (await (await worker('https://s.test/studio/api/schedule', { headers: key })).json()).items.find((x) => x.id === bad.id);
     assert.equal(kept.nets.facebook.status, 'error');
     assert.equal(kept.nets.bluesky.status, 'done');
-    assert.equal([...env.DB.studio.keys()].filter((k) => k.startsWith('schedimg:')).length, 0);
+    assert.equal([...env.MEDIA.objs.keys()].filter((k) => k.startsWith(`sched/${bad.id}`)).length, 0);   // visuels effacés
     assert.equal(JSON.parse(env.DB.studio.get(`sched:${bad.id}`)).keys, null);
     // Une semaine plus tard : la trace disparaît
     await runSchedule(env, { now: at + 8 * 86400e3 });

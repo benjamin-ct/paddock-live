@@ -550,7 +550,7 @@ async function scheduleAdd(req, env, raw, vault, now = Date.now()) {
   }
   if (video) await env.MEDIA.put(`sched/${id}`, video, { httpMetadata: { contentType: video.type } });
   if (full) await env.MEDIA.put(`sched/${id}-full`, full, { httpMetadata: { contentType: full.type } });
-  const job = { id, r2: true, at, title: String(form.get('title') || '').slice(0, 200), record: record && typeof record === 'object' ? record : null, posts, sets: { ig: sets.ig.length, x: sets.x.length, cover: sets.cover.length }, video: video ? video.type : null, full: !!full, vsize, tiktok, link, keys: await seal(await schedKey(env), keys), created: now };
+  const job = { id, at, title: String(form.get('title') || '').slice(0, 200), record: record && typeof record === 'object' ? record : null, posts, sets: { ig: sets.ig.length, x: sets.x.length, cover: sets.cover.length }, video: video ? video.type : null, full: !!full, vsize, tiktok, link, keys: await seal(await schedKey(env), keys), created: now };
   await setRow(env, `sched:${id}`, JSON.stringify(job));
   return json({ item: schedSummary({ ...job, nets: Object.fromEntries(nets.map((n) => [n, { status: 'pending' }])) }) });
 }
@@ -563,7 +563,6 @@ async function scheduleCancel(env, id) {
   const j = (await schedJobs(env)).find((x) => x.id === id);
   if (!j) return json({ error: 'Publication inconnue' }, 404);
   if (Object.values(j.nets).some((s) => s.status === 'running')) return json({ error: 'Publication en cours' }, 409);
-  await delLike(env, `schedimg:${id}:`);
   await dropMedia(env, id);
   await delLike(env, `schedpost:${id}:`);
   await delLike(env, `sched:${id}`);
@@ -642,8 +641,6 @@ export async function runSchedule(env, { now = Date.now(), only = null } = {}) {
       const imgs = async (set, from = 0, to = j.sets?.[set] || 0) => {
         const list = [];
         for (let i = from; i < Math.min(to, j.sets?.[set] || 0); i++) {
-          // shortcut: visuels des programmations d'avant R2 (dans la base) ; à retirer après le 29 octobre 2026
-          if (!j.r2) { const row = JSON.parse(await getRow(env, `schedimg:${j.id}:${set}:${i}`) || 'null'); if (row) list.push(new Blob([unb64(row.data)], { type: row.type })); continue; }
           const o = await env.MEDIA?.get(`sched/${j.id}/${set}/${i}`);
           if (o) list.push(new Blob([await o.arrayBuffer()], { type: o.httpMetadata?.contentType || 'image/jpeg' }));
         }
@@ -688,9 +685,9 @@ export async function runSchedule(env, { now = Date.now(), only = null } = {}) {
     if (finish && states.every((s) => !['pending', 'running'].includes(s.status))) await notifyPhones(env, schedNotice(j), { now }).catch(() => 0);
     if (out?.id === j.id) continue;
     if (states.every((s) => s.status === 'done' && !s.commentError && s.visible !== false)) {
-      await delLike(env, `schedimg:${j.id}:`); await dropMedia(env, j.id); await delLike(env, `schedpost:${j.id}:`); await delLike(env, `sched:${j.id}`);
+      await dropMedia(env, j.id); await delLike(env, `schedpost:${j.id}:`); await delLike(env, `sched:${j.id}`);
     } else if (states.every((s) => !['pending', 'running'].includes(s.status))) {
-      if (j.keys) { await delLike(env, `schedimg:${j.id}:`); await dropMedia(env, j.id); const { nets, ...rest } = j; await setRow(env, `sched:${j.id}`, JSON.stringify({ ...rest, keys: null })); }
+      if (j.keys) { await dropMedia(env, j.id); const { nets, ...rest } = j; await setRow(env, `sched:${j.id}`, JSON.stringify({ ...rest, keys: null })); }
       if (now - j.at > SCHED.keep) { await delLike(env, `schedpost:${j.id}:`); await delLike(env, `sched:${j.id}`); }
     }
   }
