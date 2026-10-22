@@ -66,6 +66,8 @@ l'application (Réglages → À propos → Nouveautés).
   comme déjà dans le Studio.
 - Moins de doublons : le même article publié en plusieurs langues (Motorsport.com en anglais, en français, en espagnol…)
   est reconnu grâce aux titres traduits et compté comme un seul sujet, dans l'Actu, les posts d'actu et le Studio.
+- Type de news (transfert, départ, pénalité…) lu sur le titre : un mot du résumé ne suffit plus à afficher
+  « TRANSFERT » sur une news qui n'en est pas une.
 
 ### Mises à jour
 - Versions bêta : nouveau réglage « Recevoir les versions bêta » (Réglages → Application) pour essayer les

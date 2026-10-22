@@ -23,6 +23,9 @@ test('posts news : type de nouvelle', () => {
   assert.equal(bigNews([{ id: 'h', title: 'Leclerc unveils tribute helmet for Monza', t: Date.now(), imp: 0 }]).length, 1);
   assert.equal(newsKind({ title: 'Bottas annonce sa retraite' }).key, 'depart');
   assert.equal(newsKind({ title: 'Calendar update', cat: 'official' }).key, 'officiel');
+  // Le résumé ne change pas le type (sauf livrée ou tenue)
+  assert.equal(newsKind({ title: '15 ans sans changer de pneus en course : Mercedes révèle sa prouesse', summary: 'Le mécanicien qui remplace le titulaire a signé un contrat…' }).key, 'actu');
+  assert.equal(newsKind({ title: 'Ferrari unveil new look for Austin', summary: 'The team will race a special livery this weekend.' }).key, 'livree');
 });
 
 test('posts news : grosses news seulement, un seul article par sujet (même dans deux langues)', () => {

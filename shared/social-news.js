@@ -22,8 +22,11 @@ export const LOOKS = new Set(['tenue', 'livree']);
 // Types au choix (post écrit à la main), « Actu F1 » compris
 export const NEWS_BADGES = [...KINDS.map(([key, label, color]) => ({ key, label, color })), { key: 'actu', label: 'ACTU F1', color: '#e10600' }];
 export function newsKind(item) {
-  const t = fold(`${item.title} ${item.summary || ''}`.slice(0, 500));
-  const k = KINDS.find(([, , , re]) => re.test(t));
+  // D'après le titre ; le résumé ne compte que pour les livrées et les tenues (un mot du résumé suffisait
+  // à classer en « transfert » une news sur les pneus ou un simple coup de fil)
+  const title = fold(String(item.title || '').slice(0, 300));
+  const summary = fold(String(item.summary || '').slice(0, 500));
+  const k = KINDS.find(([, , , re]) => re.test(title)) || KINDS.find(([key, , , re]) => LOOKS.has(key) && re.test(summary));
   if (k) return { key: k[0], label: k[1], color: k[2] };
   return item.cat === 'official' ? { key: 'officiel', label: 'OFFICIEL', color: '#e10600' } : { key: 'actu', label: 'ACTU F1', color: '#e10600' };
 }
