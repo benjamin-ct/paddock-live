@@ -6,6 +6,15 @@ l'application (Réglages → À propos → Nouveautés).
 
 ## v1.28.0 — à venir
 
+### Prise en main
+- Premier lancement guidé (nouvelles installations, sur ordinateur) : choix des pilotes et écuries favoris, le
+  délai TV expliqué en deux lignes (« Synchro TV », puis « Je le vois ! »), connexion F1 TV Pro si vous l'avez, et
+  le choix de l'interface. Chaque écran peut être passé.
+- Interface « Essentiel » ou « Complète » sur ordinateur (Réglages → Apparence → Interface). Essentiel garde
+  l'essentiel : classement, carte, radios, duel, arrêts, stratégie, bagarres et alertes ; l'analyse détaillée, les
+  outils techniques, le streaming et les lumières reviennent en un clic avec « Complète ». Les nouvelles
+  installations démarrent en Essentiel ; rien ne change pour les installations existantes.
+
 ### Télémétrie
 - Énergie 2026 estimée sur les compteurs (Télémétrie, Duel, overlay de streaming) : « RECHARGE » quand le
   pilote lève le pied à haute vitesse sans freiner, « BATTERIE VIDE ? » quand il est à fond mais que la voiture

@@ -541,3 +541,18 @@ details.cap[open] textarea { animation: in-up .3s var(--ease); }
 .linkcard small { color: var(--muted); text-transform: uppercase; letter-spacing: .06em; font-size: 11px; }
 .linkcard p { margin: 0; color: var(--text-2); font-size: 14px; }
 .linkcard #lcimg img { display: block; width: 100%; aspect-ratio: 1.91; object-fit: cover; border-radius: 10px; margin-bottom: 6px; }
+
+/* Stats → Appli : bilan des fonctions (utilisations pour 100 ouvertures) */
+.card.usage { padding: 4px 14px; }
+.usage-row { position: relative; display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--line); }
+.usage-row:last-child { border-bottom: 0; }
+.usage-row .grow small { display: block; color: var(--muted); font-size: 12px; }
+.usage-row b { font-variant-numeric: tabular-nums; min-width: 42px; text-align: right; }
+.usage-row i { position: absolute; left: 0; bottom: -1px; height: 2px; width: var(--pct); background: var(--brand); border-radius: 2px; }
+.card.health { display: flex; gap: 12px; align-items: flex-start; padding: 14px; margin-top: 14px; }
+.card.health > .ic { flex: none; width: 22px; height: 22px; }
+.card.health.ok > .ic { color: var(--ok); }
+.card.health.bad > .ic { color: var(--bad); }
+.card.health small { display: block; color: var(--muted); margin-top: 3px; line-height: 1.4; }
+.card.usage-never { display: flex; flex-wrap: wrap; gap: 6px; padding: 12px; }
+.card.usage-never span { padding: 4px 10px; border-radius: 999px; background: var(--surface-2); color: var(--text-2); font-size: 13px; }

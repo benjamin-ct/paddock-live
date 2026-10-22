@@ -34,7 +34,7 @@
     <button class="rail-btn" data-rail="posts" id="postsBtn" hidden title="Posts pour les réseaux sociaux"><svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="M8.2 10.8l7.6-4.4M8.2 13.2l7.6 4.4"/></svg><small>Posts</small></button>
     <div class="rail-sp"></div>
     <button class="rail-btn" data-rail="scheme" title="Apparence : automatique, sombre ou clair"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></svg><small>Auto</small></button>
-    <button class="rail-btn" data-rail="reset" title="Disposition des panneaux"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M10 4v16M3 10h7"/></svg><small>Dispo.</small></button>
+    <button class="rail-btn" data-expert data-rail="reset" title="Disposition des panneaux"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M10 4v16M3 10h7"/></svg><small>Dispo.</small></button>
     <button class="rail-btn" data-rail="settings" title="Réglages : source, compte F1 TV, affichage, alertes, application"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><small>Réglages</small></button>
   </nav>
   <header class="topbar">
@@ -59,8 +59,8 @@
     <div class="hstat surface" id="surfaceBox" hidden><div class="hstat-label">État piste</div><div class="hstat-value" id="surfaceValue">—</div></div>
     <div data-full class="tb-tools" id="tbTools">
       <button class="tb-tool" data-tool="docs" title="Documents officiels de la FIA (Grand Prix en cours)"><svg viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h6"/></svg><small>FIA</small><i class="tb-dot" hidden></i></button>
-      <button class="tb-tool" data-tool="speeds" title="Vitesses aux points de mesure"><svg viewBox="0 0 24 24"><path d="M4 17a8 8 0 1 1 16 0"/><path d="M12 17l4-5"/><circle cx="12" cy="17" r="1.3"/></svg><small>Vitesses</small></button>
-      <button class="tb-tool" data-tool="sectors" title="Meilleurs secteurs de chaque pilote et tour idéal"><svg viewBox="0 0 24 24"><path d="M5 20V11M10 20V5M15 20v-7M20 20V9"/></svg><small>Secteurs</small></button>
+      <button class="tb-tool" data-expert data-tool="speeds" title="Vitesses aux points de mesure"><svg viewBox="0 0 24 24"><path d="M4 17a8 8 0 1 1 16 0"/><path d="M12 17l4-5"/><circle cx="12" cy="17" r="1.3"/></svg><small>Vitesses</small></button>
+      <button class="tb-tool" data-expert data-tool="sectors" title="Meilleurs secteurs de chaque pilote et tour idéal"><svg viewBox="0 0 24 24"><path d="M5 20V11M10 20V5M15 20v-7M20 20V9"/></svg><small>Secteurs</small></button>
       <button class="tb-tool" data-tool="weather" title="Météo et radar de pluie du circuit"><svg viewBox="0 0 24 24"><path d="M7 18a4 4 0 0 1-.6-8A6 6 0 0 1 18 9a4.5 4.5 0 0 1-.5 9z"/></svg><small>Météo</small></button>
     </div>
 
@@ -313,7 +313,7 @@
             <select id="radioFilter" aria-label="Filtrer les radios"><option value="all">Tous les pilotes</option><option value="fav">Mes favoris</option><option value="duel">Pilotes du duel</option></select>
             <label class="toggle" title="Joue chaque nouvelle radio"><input type="checkbox" id="radioAuto"> Lecture auto</label>
             <label data-full class="toggle" title="Chaque radio d'équipe en texte, par le serveur Paddock Live ou sur cet ordinateur."><input type="checkbox" id="radioText"> Texte</label>
-            <label class="toggle" hidden title="Expérimental, F1 TV Pro : retranscrit toutes les radios des caméras embarquées, en direct"><input type="checkbox" id="obRadio"> Caméras embarquées</label>
+            <label class="toggle" data-expert hidden title="Expérimental, F1 TV Pro : retranscrit toutes les radios des caméras embarquées, en direct"><input type="checkbox" id="obRadio"> Caméras embarquées</label>
             <span class="rd-opts" id="obRadioOpts" hidden><select id="obRadioWho" aria-label="Pilotes écoutés"><option value="auto">Pilote suivi + duel</option><option value="favs">Mes favoris (3 max)</option></select></span>
             <span class="rd-opts" id="radioOpts" data-full>
               <label class="small">Traduction <select id="radioLang" aria-label="Langue de traduction"><option value="fr">Français</option><option value="es">Español</option><option value="de">Deutsch</option><option value="it">Italiano</option><option value="none">Aucune (anglais)</option></select></label>
@@ -411,10 +411,10 @@
       <div class="panel-head tabs" data-tabs="extra">
         <button class="tab active" data-tab="pits">Arrêts</button>
         <button class="tab" data-tab="strategy" title="Relais et pneus de chaque pilote">Stratégie</button>
-        <button class="tab" data-tab="tyres" title="Jeux de pneus du week-end et préconisations Pirelli">Pneus</button>
-        <button class="tab" data-tab="pitsim" title="Simulateur d'arrêt au stand">Simul.</button>
+        <button class="tab" data-expert data-tab="tyres" title="Jeux de pneus du week-end et préconisations Pirelli">Pneus</button>
+        <button class="tab" data-expert data-tab="pitsim" title="Simulateur d'arrêt au stand">Simul.</button>
         <button class="tab" data-tab="battles">Bagarres</button>
-        <button class="tab" data-tab="champ" title="Projection du championnat">Champ.</button>
+        <button class="tab" data-expert data-tab="champ" title="Projection du championnat">Champ.</button>
       </div>
       <div class="panel-body">
         <div class="tabpane active" data-pane="pits"><div id="pitList"></div></div>
@@ -476,7 +476,7 @@
           <button data-full class="set-tab" data-sgroup="display"><span class="set-ico"><svg class="ic" aria-hidden="true"><use href="#i-layout"/></svg></span><span class="set-lbl"><b>Disposition</b><small>Panneaux, colonnes, fenêtres</small></span></button>
           <button class="set-tab" data-sgroup="alerts"><span class="set-ico"><svg class="ic" aria-hidden="true"><use href="#i-bell"/></svg></span><span class="set-lbl"><b>Alertes & favoris</b><small>Notifications, rappels, favoris</small></span></button>
           <button class="set-tab" data-sgroup="app"><span class="set-ico"><svg class="ic" aria-hidden="true"><use href="#i-gear"/></svg></span><span class="set-lbl"><b>Application</b><small>Mises à jour, téléphone, traductions</small></span></button>
-          <button data-full class="set-tab" data-sgroup="stream"><span class="set-ico"><svg class="ic" aria-hidden="true"><use href="#i-video"/></svg></span><span class="set-lbl"><b>Streaming</b><small>OBS, Streamlabs, Meld, Stream Deck</small></span></button>
+          <button data-full data-expert class="set-tab" data-sgroup="stream"><span class="set-ico"><svg class="ic" aria-hidden="true"><use href="#i-video"/></svg></span><span class="set-lbl"><b>Streaming</b><small>OBS, Streamlabs, Meld, Stream Deck</small></span></button>
           <button class="set-tab" data-sgroup="about"><span class="set-ico"><svg class="ic" aria-hidden="true"><use href="#i-info"/></svg></span><span class="set-lbl"><b>À propos</b><small>Nouveautés, réseaux, légal</small></span></button>
         </nav>
       </aside>
@@ -510,6 +510,7 @@
       <section class="set-block" data-sgroup="look">
         <div class="set-bhead"><h4><svg class="ic" aria-hidden="true"><use href="#i-sliders"/></svg> Général</h4></div>
         <div class="row"><label class="small" title="Automatique : comme l'ordinateur ou le téléphone">Apparence <select id="schemeSel"><option value="auto">Automatique (comme le système)</option><option value="dark">Sombre</option><option value="light">Clair</option></select></label></div>
+        <div class="row" data-desk><label class="small" title="Essentiel : classement, carte, radios, duel, arrêts et alertes. Complet : aussi l'analyse détaillée, les outils techniques, le streaming et les lumières.">Interface <select id="fullModeSel"><option value="0">Essentiel (le principal, plus simple)</option><option value="1">Complète (toutes les fonctions)</option></select></label></div>
         <div class="row"><label class="small">Langue / Language <select id="langSel" data-no-i18n><option value="fr">Français</option><option value="en">English</option></select></label></div>
         <div class="row"><label class="toggle small" title="Panneaux et menus qui apparaissent en douceur"><input type="checkbox" id="motionOpt"> Animations de l'interface</label></div>
         <div class="row"><label class="toggle small"><input type="checkbox" id="keepAwake"> Garder l'écran allumé pendant une séance</label></div>
@@ -645,7 +646,7 @@
         <div class="row"><label class="toggle small"><input type="checkbox" id="statsOn"> Envoyer des statistiques d'utilisation anonymes</label></div>
       </section>
 
-      <section data-full class="set-block" data-sgroup="app" id="lightsBox">
+      <section data-full data-expert class="set-block" data-sgroup="app" id="lightsBox">
         <div class="set-bhead"><h4><svg class="ic" aria-hidden="true"><use href="#i-bolt"/></svg> Lumières connectées <span class="set-tag">expérimental</span></h4><p>Vos ampoules prennent la couleur des drapeaux.</p></div>
         <div class="row"><label class="small">Lampes <select id="lightsProvider"><option value="off">Désactivé</option><option value="sim">Simulation à l'écran (sans ampoule)</option><option value="hue">Philips Hue</option><option value="ha">Home Assistant</option></select></label></div>
         <div class="row"><label class="small">Après le drapeau vert <select id="lightsAfter"><option value="normal">revenir à une lumière normale</option><option value="off">éteindre</option><option value="keep">rester en vert</option></select></label></div>
@@ -688,8 +689,8 @@
         <div id="feedDiagOut"></div>
       </section>
 
-      <section data-full class="set-block" data-sgroup="stream" id="streamOverlays"></section>
-      <section data-full class="set-block" data-sgroup="stream" id="streamDeck"></section>
+      <section data-full data-expert class="set-block" data-sgroup="stream" id="streamOverlays"></section>
+      <section data-full data-expert class="set-block" data-sgroup="stream" id="streamDeck"></section>
 
       <!-- À propos -->
       <section class="set-block" data-sgroup="about">

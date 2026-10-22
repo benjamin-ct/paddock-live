@@ -283,7 +283,44 @@ const clicksHtml = (c) => {
   };
   return `<h3 class="section">Clics sur les liens <small>${c.days} derniers jours</small></h3><div class="list posts">${c.links.map(row).join('')}</div>`;
 };
-const STATS_SUBS = [['accounts', 'Comptes'], ['posts', 'Posts'], ['links', 'Liens']];
+const STATS_SUBS = [['accounts', 'Comptes'], ['posts', 'Posts'], ['links', 'Liens'], ['app', 'Appli']];
+// Bilan des fonctions de l'appli (statistiques anonymes) : souvent, parfois, rarement, jamais utilisées
+const USAGE_LEVELS = [['often', 'Souvent utilisées', '20 fois ou plus pour 100 ouvertures'], ['some', 'Parfois', 'de 2 à 20 fois pour 100 ouvertures'],
+  ['rare', 'Rarement', 'moins de 2 fois pour 100 ouvertures : à cacher ou retirer ?'], ['never', 'Jamais utilisées', 'sur la période']];
+// Bilan de santé (vérifié toutes les 6 heures par le serveur)
+function healthHtml(h) {
+  if (!h) return '';
+  const when = ago(h.at);
+  if (!h.problems?.length) return `<div class="card health ok">${icon('check')}<span class="grow"><b>Tout va bien</b><small>Flux F1, erreurs de l'appli et jetons vérifiés ${esc(when)}${h.f1 && !h.f1ok ? ' · flux F1 jamais joignable depuis le serveur : non surveillé' : ''}</small></span></div>`;
+  return `<div class="card health bad">${icon('alert')}<span class="grow"><b>À vérifier</b>${h.problems.map((p) => `<small>${esc(p.m)}</small>`).join('')}<small>Vérifié ${esc(when)}</small></span></div>`;
+}
+function usageHtml(u) {
+  if (!u.opens) return healthHtml(u.health) + empty('Pas encore de statistiques reçues sur 30 jours.', 'chart');
+  const n = (v) => fmtN(v).replace('.', ',');
+  const row = (r) => `<div class="usage-row"><span class="grow">${esc(r.label)}<small>${esc(r.group)}</small></span><b>${r.n ? n(r.per100) : '0'}</b><i style="--pct:${Math.min(100, r.per100)}%"></i></div>`;
+  return `${healthHtml(u.health)}<h3 class="section">Fonctions de l'appli <small>${u.days} derniers jours · ${fmtN(u.opens)} ouvertures</small></h3>
+    <p class="hint">Utilisations pour 100 ouvertures de l'interface (clics comptés), d'après les statistiques anonymes des utilisateurs qui les ont acceptées.</p>
+    <div class="tiles"><div class="tile"><b>${fmtN(u.modes.essential)}</b><small>ouvertures en Essentiel</small></div><div class="tile"><b>${fmtN(u.modes.full)}</b><small>ouvertures en Complète</small></div>
+      <div class="tile"><b>${fmtN(u.welcome.done)}</b><small>accueils suivis jusqu'au bout</small></div><div class="tile"><b>${fmtN(u.welcome.skip)}</b><small>accueils passés</small></div></div>
+    ${USAGE_LEVELS.map(([k, title, sub]) => {
+      const rows = u.rows.filter((r) => r.level === k);
+      if (!rows.length) return '';
+      // Jamais utilisées : noms seuls, à la suite
+      const list = k === 'never' ? `<div class="card usage-never">${rows.map((r) => `<span>${esc(r.label)}</span>`).join('')}</div>` : `<div class="card usage">${rows.map(row).join('')}</div>`;
+      return `<h3 class="section">${title} <small>${sub}</small></h3>${list}`;
+    }).join('')}`;
+}
+async function loadUsage(box) {
+  const known = store.get('usage');
+  if (known) box.innerHTML = usageHtml(known.v);
+  else box.innerHTML = skeleton(3);
+  if (known && Date.now() - known.at < 10 * 60e3) return;
+  try {
+    const u = await api('usage');
+    store.set('usage', u);
+    if (box.isConnected) box.innerHTML = usageHtml(u);
+  } catch (err) { if (!known && box.isConnected) box.innerHTML = failure(err.message); }
+}
 const SHORT_NETS = ['instagram', 'facebook', 'threads', 'x', 'bluesky', 'tiktok', 'youtube'];
 const STAT_LABELS = [['views', 'Vues'], ['reach', 'Portée'], ['likes', 'J\'aime'], ['comments', 'Comm.'], ['shares', 'Partages'], ['saves', 'Enreg.']];
 // Chiffres des posts et des comptes : deux appels au serveur, en même temps
@@ -310,6 +347,7 @@ function renderStats(body, r, stale) {
   const typed = ['#shorturl', '#shortname', '#shortnet', '#shortout'].map((id) => $(id, body));
   body.innerHTML = `<div class="seg wide" id="ssub">${STATS_SUBS.map(([k, v]) => `<button data-sub="${k}" class="${state.ssub === k ? 'on' : ''}">${v}</button>`).join('')}</div>
     ${stale ? '<p class="status"><span class="dot"></span>Mise à jour…</p>' : ''}
+    <div data-pane="app" id="usagepane"></div>
     <div data-pane="accounts">${r.accounts?.length ? accountsHtml(r.accounts) : f.length ? `<div class="tiles">${f.map(([n, v]) => `<div class="tile"><b>${fmtN(v)}</b><small>abonnés ${esc(NET_NAMES[n] || n)}</small></div>`).join('')}</div>` : empty('Aucun compte relié.', 'chart')}</div>
     <div data-pane="links">
     <h3 class="section">Raccourcir un lien</h3>
@@ -331,6 +369,7 @@ function renderStats(body, r, stale) {
     state.ssub = k;
     $$('#ssub [data-sub]', body).forEach((b) => b.classList.toggle('on', b.dataset.sub === k));
     $$('[data-pane]', body).forEach((el) => { el.hidden = el.dataset.pane !== k; });
+    if (k === 'app') loadUsage($('#usagepane', body));
     glide(body);
   };
   $$('#ssub [data-sub]', body).forEach((b) => { b.onclick = () => sub(b.dataset.sub); });
@@ -561,6 +600,8 @@ async function openAlert(id) {
   if (id === 'messages') { messages(); return; }
   // Publication programmée terminée : Stats → Posts (liste des programmations)
   if (id === 'schedule') { state.tab = 'stats'; state.ssub = 'posts'; home(); return; }
+  // Bilan de santé : Stats → Appli
+  if (id === 'health') { state.tab = 'stats'; state.ssub = 'app'; home(); return; }
   try {
     const it = ((await api('alerts')).items || []).find((a) => a.id === id);
     if (!it) return;

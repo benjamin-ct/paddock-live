@@ -19,6 +19,8 @@ const DEFAULTS = {
   logoColor: true,        // logos dans leurs couleurs officielles (sinon logo blanc sur la couleur d'équipe)
   keepAwake: true,        // écran toujours allumé pendant une séance
   phoneFull: false,       // téléphone : tous les onglets et réglages de l'ordinateur (sinon version simplifiée)
+  fullMode: true,         // ordinateur : interface complète (sinon mode Essentiel : le principal seulement)
+  welcomed: true,         // écrans d'accueil du premier lancement déjà vus
   motion: true,           // animations de l'interface (désactivées aussi si le système le demande)
   momentsSpoil: false,    // replay : détail des moments clés à venir affiché
   lang: LANG,             // langue de l'interface : 'fr' | 'en' (voir i18n.js)
@@ -61,6 +63,12 @@ const DEFAULTS = {
 
 const saved = storageGet('paddock.prefs', {});
 export const prefs = { ...DEFAULTS, ...saved, alerts: { ...DEFAULTS.alerts, ...(saved.alerts || {}) } };
+// v1.28 : nouvelle installation (aucun réglage enregistré) : mode Essentiel et écrans d'accueil ; les
+// installations existantes gardent toute l'interface
+if (!Object.keys(saved).length) {
+  Object.assign(prefs, { fullMode: false, welcomed: false });
+  storageSet('paddock.prefs', { ...storageGet('paddock.prefs', {}), fullMode: false, welcomed: false });
+}
 // Un seul thème depuis la v1.20 : Pitwall, en mode sombre ou clair. Les anciens thèmes (F1 Pro,
 // F1 sobre, Classique, Bleu nuit) passent sur Pitwall, en mode sombre.
 prefs.theme = 'pitwall';
