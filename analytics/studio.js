@@ -33,7 +33,7 @@ import { callerIp, studioQuota } from './quota.js';
 
 // Empreinte du code (la même que dans l'appli) : SHA-256 de « paddock-live:<CODE> » (STUDIO_CODE_HASH :
 // autre empreinte, pour les tests)
-const CODE_HASH = '821f51db5c6d39c7ae10873a31723f8d4748fc2a925c6736f4a57afa7d2dacc0';
+const CODE_HASH = 'b8c23e870aa1ad8a9f8b0c4b4b38fb5911b92b1ff024e14044915ee3a6cee216';
 const MAX_FAILS = 30;
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36';
 const ARCHIVE = 'https://livetiming.formula1.com/static/';
