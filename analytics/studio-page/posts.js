@@ -11,7 +11,7 @@ import { gridDocument, parseStartingGrid } from '/shared/fia-grid.js';
 import { extractArticle } from '/shared/article.js';
 import { recapData, seasonCaptions } from '/shared/social-season.js';
 import { $, $$, esc, api, ago, icon, toggle, glide, state, SIG, NET_NAMES, musicField, bindMusic, clipFile, shareClip } from './ui.js';
-import { toFrench, freshNews, cachedNews, latestDrivers, loadState, rememberDrivers, SESSION_FR } from './data.js';
+import { toFrench, freshNews, cachedNews, latestDrivers, loadState, lapsOf, rememberDrivers, SESSION_FR } from './data.js';
 import { editor, assets } from './editor.js';
 import { photoPicker, cropImage, bitmapUrl } from './photos.js';
 import { makeAnimation, unlockAudio } from '/shared/social-video.js';
@@ -393,7 +393,7 @@ export async function sessionEditor(s, back) {
   const meet = st.SessionInfo?.Meeting || {};
   const tyres = builtinNomination(Number(String(s.path).slice(0, 4)), { name: meet.Name, location: meet.Location, country: meet.Country?.Name });
   const events = flashEvents(st);
-  const results = postData(st);
+  const results = postData(st, { laps: lapsOf(st) });
   const champ = champData(st);
   let type = 'results';
   let ev = events[0] || null;

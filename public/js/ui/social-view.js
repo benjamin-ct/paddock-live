@@ -143,7 +143,7 @@ function sessionSource(sig) {
     const pick = `<div class="row posts-news-bar"><select class="posts-news-sel" data-flashpick>${evs.map((x) => `<option value="${esc(x.id)}" ${x === ev ? 'selected' : ''}>${esc(t(FLASH_KINDS[x.kind].label))} · ${esc(x.title)}${x.lap ? ` · ${esc(t('tour {}', x.lap))}` : ''}</option>`).join('')}</select></div>`;
     return { d, caps: (dd) => moreCaptions(dd, sig), head: types + pick, record: { key: `flash:${folderOf(d)}`, kind: 'flash', title: `${ev.title} · ${d.gp}` } };
   }
-  const d = postData(state);
+  const d = postData(state, { laps: store.derived?.laps });
   const warn = d.final ? '' : `<p class="posts-warn small">${icon('warning')} ${t('Séance pas terminée : résultats provisoires.')}</p>`;
   return { d, caps: (dd) => captions(dd, sig, { spoiler: !noSpoiler }), head: types + warn, record: { key: `session:${folderOf(d)}`, kind: 'session', title: `${d.label} · ${d.gp}` } };
 }

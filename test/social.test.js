@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { postData, captions, gapFr } from '../shared/social.js';
+import { postData, captions, gapFr, countOvertakes } from '../shared/social.js';
 import { slidesFor } from '../shared/social-draw.js';
 
 const state = {
@@ -149,4 +149,17 @@ test('posts : texte alternatif de chaque image (ce qu\'elle montre, classement c
   const d = postData(state);
   assert.match(slideAlt(d, 'podium'), /^Podium — Course · Grand Prix d'Italie : 1\. Lando Norris \(McLaren\), 2\. Charles Leclerc \(Ferrari\), 3\./);
   assert.equal(slideAlt({ news: true, title: 'Haas engage Câmara', summary: 'Pour 2027.' }, 'news'), 'News : Haas engage Câmara. Pour 2027.');
+});
+
+test('dépassements : échanges de places en piste, sans le départ, les arrêts ni les abandons', () => {
+  const L = (rows) => rows.map(([lap, pos, pit = false]) => ({ lap, pos, pit }));
+  const laps = {
+    1: L([[1, 1], [2, 2], [3, 2], [4, 2]]),             // dépassé par 16 au tour 2
+    16: L([[1, 2], [2, 1], [3, 1], [4, 1]]),            // dépasse 1 au tour 2
+    44: L([[1, 3], [2, 3], [3, 4, true], [4, 3]]),      // arrêt au tour 3 : ni perte ni gain comptés
+    55: L([[1, 4], [2, 4], [3, 3]]),                    // gagne une place grâce à l'arrêt de 44, puis abandon
+  };
+  assert.equal(countOvertakes(laps), 1);
+  assert.equal(countOvertakes({}), 0);
+  assert.equal(countOvertakes(null), 0);
 });

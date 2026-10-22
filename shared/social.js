@@ -31,7 +31,35 @@ export const xLength = (s) => [...String(s || '').replace(/https?:\/\/\S+/g, 'x'
 
 export const hashtag = (s) => `#${String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]/g, '')}`;
 
-export function postData(state) {
+// Dépassements en piste : à partir du 2e tour, paires de pilotes qui ont échangé leurs places entre la fin
+// du tour précédent et celle-ci, sans passage aux stands de l'un ou de l'autre sur ces deux tours (le
+// départ, les arrêts et les abandons ne comptent pas). laps : num -> [{ lap, pos, pit }] (données dérivées)
+export function countOvertakes(laps) {
+  const at = new Map();   // tour -> Map(num -> tour du pilote)
+  for (const [num, arr] of Object.entries(laps || {})) {
+    for (const l of arr || []) {
+      const lap = Number(l?.lap);
+      if (!(lap > 0) || !(l.pos > 0)) continue;
+      if (!at.has(lap)) at.set(lap, new Map());
+      at.get(lap).set(num, l);
+    }
+  }
+  let n = 0;
+  for (const [lap, cur] of at) {
+    const prev = at.get(lap - 1);
+    if (lap < 2 || !prev) continue;
+    const ok = [...cur.keys()].filter((k) => prev.has(k) && !cur.get(k).pit && !prev.get(k).pit);
+    for (let i = 0; i < ok.length; i++) {
+      for (let j = i + 1; j < ok.length; j++) {
+        if ((prev.get(ok[i]).pos - prev.get(ok[j]).pos) * (cur.get(ok[i]).pos - cur.get(ok[j]).pos) < 0) n++;
+      }
+    }
+  }
+  return n;
+}
+
+// laps : tours de chaque pilote (données dérivées), pour compter les dépassements de la course
+export function postData(state, { laps = null } = {}) {
   const kind = sessionKindOf(state);
   const info = state?.SessionInfo || {};
   const sprint = /sprint/i.test(info.Name || '');
@@ -85,6 +113,8 @@ export function postData(state) {
     const red = msgs.filter((m) => m?.Flag === 'RED').length;
     const neut = [sc && `${sc} safety car${sc > 1 ? 's' : ''}`, vsc && `${vsc} VSC`, red && `${red} drapeau${red > 1 ? 'x' : ''} rouge${red > 1 ? 's' : ''}`].filter(Boolean);
     facts.push({ label: 'Neutralisations', value: neut.length ? neut.join(' · ') : 'Aucune', sub: neut.length ? '' : 'Drapeau vert de bout en bout' });
+    const passes = laps ? countOvertakes(laps) : 0;
+    if (passes) facts.push({ label: 'Dépassements', value: String(passes), sub: 'en piste, hors départ et arrêts' });
     const outs = rows.filter((r) => r.out);
     facts.push({ label: 'Abandons', value: outs.length ? String(outs.length) : 'Aucun', sub: outs.map((r) => r.last).join(', ') });
   } else if (kind === 'quali' && rows.length) {
@@ -179,7 +209,7 @@ export function flagEmoji(d) {
 export const gpFlag = (d, name = d.gp) => [name, flagEmoji(d)].filter(Boolean).join(' ');
 export const MEDALS = ['🥇', '🥈', '🥉'];
 // Faits marquants : un emoji par type
-const FACT_ICON = { 'Meilleur tour': '⏱️', 'Plus belle remontée': '🚀', 'Stratégie du vainqueur': '🛞', Neutralisations: '🚨', Abandons: '💥', 'Éliminés': '❌', 'Pneus du meilleur temps': '🛞', 'Le plus de tours': '🔁', 'Tours bouclés': '🔁', 'Dans la seconde': '🔥' };
+const FACT_ICON = { 'Meilleur tour': '⏱️', 'Plus belle remontée': '🚀', 'Stratégie du vainqueur': '🛞', Neutralisations: '🚨', Abandons: '💥', 'Éliminés': '❌', 'Pneus du meilleur temps': '🛞', 'Le plus de tours': '🔁', 'Tours bouclés': '🔁', 'Dans la seconde': '🔥', Dépassements: '⚔️' };
 
 // Accroche sans le nom du vainqueur (texte « sans spoiler », avec la couverture des visuels)
 function teaser(d) {

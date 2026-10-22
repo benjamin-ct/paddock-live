@@ -51,7 +51,7 @@ l'application (Réglages → À propos → Nouveautés).
 - Radios d'équipe : réglage du volume ; les commentaires F1 TV baissent pendant une radio (« Plus bas pendant
   les radios », dans le panneau des commentaires).
 - Radios d'équipe : les radios affichées « (pas de parole reconnue) » après un ancien échec de transcription sont
-  redemandées au serveur et retrouvent leur texte.
+  redemandées au serveur (une fois à chaque lancement) et retrouvent leur texte.
 
 ### Direction de course
 - Messages de la direction de course en vrai français : drapeaux, incidents, enquêtes, pénalités, tours
@@ -65,6 +65,10 @@ l'application (Réglages → À propos → Nouveautés).
   de séance en cours), au lieu de rester sur le replay.
 
 ### Posts (mode créateur)
+- Post de résultats d'une course : le nombre de dépassements s'ajoute aux faits marquants (échanges de places en
+  piste, sans le départ, les arrêts ni les abandons), dans l'appli comme dans le Studio.
+- TikTok : une publication directe refusée parce que l'app TikTok n'a pas encore passé l'audit le dit clairement,
+  avec quoi faire (« Brouillon », ou compte privé et « Moi uniquement »), au lieu du message anglais de TikTok.
 - « Se connecter à Facebook » (Comptes → Instagram + Facebook) : Facebook et Instagram se relient en un clic avec
   la connexion Facebook, au lieu du jeton à copier depuis l'Explorateur de l'API Graph (toujours possible).
 - La fenêtre Posts prend l'habillage du Studio : fond noir, barre latérale noire avec un trait rouge sur l'élément
@@ -98,6 +102,8 @@ l'application (Réglages → À propos → Nouveautés).
   ou programmé. La vidéo n'est pas gardée : elle se refait à la reprise.
 
 ### Actu
+- Vidéos YouTube que leur chaîne ne laisse lire que sur YouTube (chaîne officielle de la F1…) : au lieu de « Cette
+  vidéo n'est pas disponible », leur image et un bouton « Regarder sur YouTube ».
 - Trois sources françaises de plus : Nextgen-Auto, Le Figaro et la chaîne YouTube CANAL+ Sport (seulement ses vidéos
   F1, pas le foot ni la F1 Academy).
 - Les chaînes YouTube qui parlent aussi d'autre chose (Ferrari, Alpine) ne montrent plus que leurs vidéos F1 dans l'appli,
@@ -136,6 +142,8 @@ l'application (Réglages → À propos → Nouveautés).
 - Saison : graphiques des pilotes, des duels et des évolutions techniques à la bonne taille sur les grands écrans ;
   courbe des points un peu plus haute.
 - Barre latérale : « Commentaires » ne dépasse plus de son bouton.
+- Compteur de tours (design Broadcast) : « TOURS » et le numéro sont centrés dans leur case blanche, avec la barre
+  d'avancement (séance en cours) comme sans elle (séance terminée).
 - Petites améliorations internes.
 
 ## v1.27.54 — 2026-10-20

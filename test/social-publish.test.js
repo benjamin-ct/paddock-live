@@ -463,3 +463,12 @@ test('Facebook : connexion par Facebook Login, retour par la page du site, jeton
     await assert.rejects(metaCallback(new URLSearchParams({ state: v.searchParams.get('state'), error: 'access_denied', error_reason: 'user_denied' })), /refusée/);
   } finally { globalThis.fetch = realFetch; }
 });
+
+test('TikTok : publication directe refusée avant l\'audit, message qui dit quoi faire', async () => {
+  const { tiktokDirect } = await import('../shared/video-publish.js');
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({ ok: false, status: 403, text: async () => JSON.stringify({ error: { code: 'unaudited_client_can_only_post_to_private_accounts', message: 'Please review our integration guidelines at https://developers.tiktok.com/doc/content-sharing-guidelines/' } }) });
+  try {
+    await assert.rejects(tiktokDirect('jeton', new Uint8Array(10), 'video/mp4', { title: 't', privacy: 'PUBLIC_TO_EVERYONE' }), /pas encore auditée.*Brouillon/);
+  } finally { globalThis.fetch = realFetch; }
+});
