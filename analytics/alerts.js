@@ -33,13 +33,13 @@ const concat = (...parts) => {
   return out;
 };
 
-async function getRow(env, k) {
+export async function getRow(env, k) {
   return (await env.DB.prepare('SELECT v FROM studio WHERE k = ?').bind(k).first())?.v ?? null;
 }
-async function setRow(env, k, v) {
+export async function setRow(env, k, v) {
   await env.DB.prepare('INSERT INTO studio (k, v, at) VALUES (?, ?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v, at = excluded.at').bind(k, v, Date.now()).run();
 }
-const readJSON = async (env, k, fallback) => { try { return JSON.parse(await getRow(env, k)) ?? fallback; } catch { return fallback; } };
+export const readJSON = async (env, k, fallback) => { try { return JSON.parse(await getRow(env, k)) ?? fallback; } catch { return fallback; } };
 
 // ---------- Clés du serveur (VAPID) ----------
 export async function vapidKeys(env) {

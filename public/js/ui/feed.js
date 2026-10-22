@@ -95,6 +95,15 @@ export function renderRcm() {
         <div class="rcm-flag ${rcmFlagClass(m)}" title="${esc(title)}"></div>${msgHtml(m.Message)}</li>`;
     }).join('')
     : '<li class="note">Aucun message de la direction de course.</li>';
+  const bar = $('#rcBar'), last = msgs[msgs.length - 1];
+  if (bar) {
+    bar.hidden = !last;
+    if (last) {
+      bar.querySelector('.rcm-flag').className = `rcm-flag ${rcmFlagClass(last)}`;
+      bar.querySelector('.rc-msg').outerHTML = msgHtml(last.Message).replace('rcm-msg', 'rc-msg');
+      bar.querySelector('.rc-lap').textContent = last.Lap ? `Tour ${last.Lap}` : '';
+    }
+  }
 }
 
 // Immobilisation estimée par la télémétrie (vitesse nulle) quand la F1 ne fournit pas le temps

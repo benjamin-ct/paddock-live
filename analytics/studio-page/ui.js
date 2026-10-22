@@ -161,12 +161,19 @@ export function glide(root = document) {
   }
 }
 addEventListener('resize', () => glide());
-// iPhone : clavier refermé en laissant toute la page décalée vers le haut (barre du haut cachée, barre du bas
-// remontée) : défilement ramené dans les limites de la page, ce qui remet tout en place
+// iPhone : clavier refermé, ou retour dans le Studio depuis une autre appli (Snapchat…), en laissant toute la
+// page décalée vers le haut (barre du haut cachée, barre du bas remontée au milieu de l'écran) : défilement
+// ramené dans les limites de la page, ce qui remet tout en place
 const typing = () => document.activeElement?.matches('input:not([type=checkbox]):not([type=radio]), textarea, select, [contenteditable]');
-addEventListener('focusout', () => setTimeout(() => {
+const unshift = (ms) => setTimeout(() => {
   if (!typing()) scrollTo({ top: Math.max(0, Math.min(scrollY, document.documentElement.scrollHeight - innerHeight)) });
-}, 120));
+}, ms);
+addEventListener('focusout', () => unshift(120));
+addEventListener('pageshow', () => unshift(120));
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') unshift(300); });
+// Écran visible qui s'agrandit (clavier d'une autre appli refermé pendant le retour)
+let vvh = visualViewport?.height || 0;
+visualViewport?.addEventListener('resize', () => { if (visualViewport.height > vvh + 50) unshift(120); vvh = visualViewport.height; });
 
 // Interrupteur (case à cocher) avec libellé et explication
 export const toggle = (id, label, on, hint = '', attrs = '') => `<label class="switch"><span><b>${esc(label)}</b>${hint ? `<small>${esc(hint)}</small>` : ''}</span><input type="checkbox" role="switch" ${id ? `id="${id}"` : ''} ${attrs} ${on ? 'checked' : ''}></label>`;

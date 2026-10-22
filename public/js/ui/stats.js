@@ -6,6 +6,7 @@ import { t, EN } from '../i18n.js';
 import { icon } from '../icons.js';
 import { toast } from './delay.js';
 import { cleanErrorText, stackFrames } from '/shared/stats.js';
+import { prefs } from '../prefs.js';
 
 let on = null;   // null tant que le réglage n'est pas connu : les événements attendent
 const queue = new Map();
@@ -48,6 +49,8 @@ const CLICKS = [
   ['#rail [data-rail]', (b) => (b.dataset.rail === 'posts' ? null : `rail.${b.dataset.rail}`)],
   ['#setNav [data-sgroup]', (b) => `settings.${b.dataset.sgroup}`],
   ['#szNav [data-sz]', (b) => `season.${b.dataset.sz}`],
+  ['#tbTools [data-tool]', (b) => `tool.${b.dataset.tool}`],
+  ['#streamOverlays [data-copy], #streamDeck [data-copy]', () => 'feature.stream'],
   ['.panel [data-tab]', (b) => `tab.${b.dataset.tab}`],
   ['[data-track]', (b) => b.dataset.track],
   ['#asStart', () => 'feature.autosync'],
@@ -58,6 +61,8 @@ const CHANGES = [
   ['#lanEnabled', (el) => (el.checked ? 'feature.lan' : null)],
   ['#lightsProvider', (el) => (el.value && el.value !== 'none' ? 'feature.lights' : null)],
   ['#remindSel', (el) => (el.value && el.value !== '0' ? 'feature.reminders' : null)],
+  ['#obRadio', (el) => (el.checked ? 'feature.obradio' : null)],
+  ['#legendsOn', (el) => (el.checked ? 'feature.legends' : null)],
 ];
 
 function listen() {
@@ -118,6 +123,7 @@ const STATS_PRIVACY = "Rien qui vous identifie : ni compte, ni contenu, ni adres
 // Bandeau discret dans un coin (rien n'est bloqué) : Oui, Non merci, Détails. La croix le referme
 // sans réponse : il revient au prochain lancement.
 function ask() {
+  if (document.documentElement.dataset.welcome) { setTimeout(ask, 3000); return; }
   const bar = document.createElement('div');
   bar.className = 'stats-bar';
   bar.setAttribute('role', 'region');
@@ -151,6 +157,8 @@ export async function initStats() {
   listen();
   const main = !new URLSearchParams(location.search).has('win');   // pas les fenêtres détachées
   if (main) { track('app.open'); track(EN ? 'lang.en' : 'lang.fr'); }
+  // Interface de l'ordinateur : Essentiel ou Complète
+  if (main && innerWidth > 900) track(prefs.fullMode ? 'mode.full' : 'mode.essential');
   let state;
   try { state = await (await fetch('/api/stats')).json(); } catch { on = false; return; }
   apply(state);

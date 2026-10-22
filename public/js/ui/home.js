@@ -122,11 +122,23 @@ export function upcoming() {
 
 // Pilotes et écuries favoris : position et points au championnat. Masqué juste après une séance (il
 // peut dévoiler le résultat) tant qu'on ne demande pas à le voir. Les favoris se choisissent ici aussi.
-async function loadStandings() {
-  if (standings) return;
-  standings = { drivers: [], constructors: [] };
-  try { standings = await api(`/api/season?year=${new Date().getFullYear()}`); } catch { /* hors ligne */ }
-  renderFav();
+let standingsLoad = null;
+function loadStandings() {
+  return (standingsLoad ||= (async () => {
+    standings = { drivers: [], constructors: [] };
+    try { standings = await api(`/api/season?year=${new Date().getFullYear()}`); } catch { /* hors ligne */ }
+    renderFav();
+  })());
+}
+
+// Choix des favoris hors de l'accueil (premier lancement) : mêmes boutons, mêmes actions
+export async function favPicker() {
+  await loadStandings();
+  return favEditor(standings.drivers || [], teamsOf(standings.constructors || []));
+}
+export function favAction(k) {
+  if (k.startsWith('favd:')) toggleDriver(k.slice(5));
+  else if (k.startsWith('favt:')) toggleTeamFav(k.slice(5));
 }
 
 // Numéro de course : celui de la séance chargée (le champion porte le n° 1), sinon le numéro permanent

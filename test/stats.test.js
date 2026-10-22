@@ -239,6 +239,18 @@ test('serveur des statistiques : chiffres du tableau de bord', async () => {
   // Erreur d'une version sans détail (1.27.0) : compteur seul, signalée comme telle
   assert.deepEqual(s.errors.map((e) => [e.place, e.legacy, e.total, e.versions[0].v]), [['tower.js:12', true, 1, '1.27.0']]);
   assert.equal(s.features.some((f) => f.event === 'test.deploy'), false);
+  // Bilan des fonctions (Studio) : pour 100 ouvertures (6), souvent / parfois / rarement / jamais
+  const lvl = (k) => s.usage.rows.find((r) => r.event === k);
+  assert.equal(s.usage.opens, 6);
+  assert.deepEqual([lvl('rail.season').per100, lvl('rail.season').level], [116.7, 'often']);
+  assert.deepEqual([lvl('tab.trace').per100, lvl('tab.trace').level], [16.7, 'some']);
+  assert.equal(lvl('rail.mini').level, 'never');
+  assert.equal(s.usage.rows[0].event, 'rail.season');
+  assert.ok(!s.usage.rows.some((r) => r.event.startsWith('settings.') || r.event.startsWith('app.')));
+  const { usageReport } = await import('../analytics/usage.js');
+  const rare = usageReport(new Map([['app.open', { total: 1000 }], ['tool.docs', { total: 5 }], ['mode.essential', { total: 7 }]]));
+  assert.deepEqual([rare.rows.find((r) => r.event === 'tool.docs').per100, rare.rows.find((r) => r.event === 'tool.docs').level], [0.5, 'rare']);
+  assert.equal(rare.modes.essential, 7);
 });
 
 test('statistiques : détail des erreurs nettoyé, envoyé, regroupé sur la page', async () => {

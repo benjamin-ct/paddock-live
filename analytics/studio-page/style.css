@@ -40,25 +40,12 @@ a { color: inherit; }
 @keyframes pulse { from { opacity: .35; } }
 @keyframes up { from { transform: translateY(40px); opacity: 0; } }
 
-/* ---------- Verre (style « Liquid Glass » d'iOS 26) ----------
-   Matière translucide qui floute et sature ce qui défile dessous, liseré clair en haut (reflet),
-   ombre douce : barre d'onglets et barre d'actions flottantes, boutons ronds de l'en-tête, feuilles,
-   messages. Imitation en CSS : Safari ne donne pas accès à la réfraction du vrai Liquid Glass. */
+/* ---------- Barres et feuilles : fond plein, filet fin, sans flou, reflet ni rebond ---------- */
 :root {
-  --glass: rgba(30, 32, 38, .7); --glass-strong: rgba(28, 30, 36, .86);
-  --glass-blur: blur(22px) saturate(1.8); --glass-line: rgba(255, 255, 255, .13);
-  --glass-hi: inset 0 1px 0 rgba(255, 255, 255, .16), inset 0 -1px 0 rgba(255, 255, 255, .04);
-  --glass-shadow: 0 10px 30px rgba(0, 0, 0, .45), 0 1px 3px rgba(0, 0, 0, .3);
-  --spring: cubic-bezier(.3, 1.35, .5, 1); --ease: cubic-bezier(.2, .8, .2, 1);
+  --glass: #101218; --glass-strong: #101218; --glass-line: rgba(255, 255, 255, .1);
+  --spring: cubic-bezier(.2, .8, .2, 1); --ease: cubic-bezier(.2, .8, .2, 1);
 }
-.glass, .tabbar, .actionbar, .toast, dialog.sheet {
-  background: var(--glass); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
-  border: 1px solid var(--glass-line); box-shadow: var(--glass-hi), var(--glass-shadow);
-}
-/* Navigateur sans flou : matière plus opaque */
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .glass, .tabbar, .actionbar, .toast, dialog.sheet { background: var(--glass-strong); }
-}
+.glass, .tabbar, .actionbar, .toast, dialog.sheet { background: var(--glass); border: 1px solid var(--glass-line); }
 
 /* ---------- Structure : en-tête, page, barres flottantes ---------- */
 /* Page toujours au moins aussi haute que l'écran : sur l'iPhone (page installée sous la barre
@@ -80,35 +67,27 @@ html { min-height: 100%; overflow-x: hidden; }
 .titles b { display: block; font-size: 16.5px; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .titles small { display: block; color: var(--muted); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* Boutons ronds de l'en-tête : relief léger, sans ombre portée (elle faisait un halo sombre) ni flou */
-.appbar .iconbtn { border-radius: 50%; background: var(--surface-2); border: 1px solid var(--glass-line); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12); }
+.appbar .iconbtn { border-radius: 6px; background: var(--surface-2); border: 1px solid var(--glass-line); }
 .appbar .iconbtn .ic { width: 20px; height: 20px; }
 .chips.wrap { flex-wrap: wrap; overflow: visible; }
 /* Pas de hauteur minimale en unités d'écran : sur l'iPhone (appli installée), 100lvh dépasse un peu la hauteur
    visible et une page courte défilait de quelques points (barres du haut et du bas décalées) */
 .page { max-width: var(--w); margin: 0 auto; padding: 16px var(--gutter) calc(104px + env(safe-area-inset-bottom)); }
-/* Barre d'onglets et barre d'actions : capsules qui flottent au-dessus de l'indicateur d'accueil */
-.tabbar, .actionbar {
-  position: fixed; z-index: 10;
-  left: max(14px, env(safe-area-inset-left), calc((100vw - var(--w)) / 2 + 14px)); right: max(14px, env(safe-area-inset-right), calc((100vw - var(--w)) / 2 + 14px));
-  bottom: max(14px, calc(env(safe-area-inset-bottom) - 6px));
-  border-radius: 32px; padding: 5px;
-}
-.tabbar { display: grid; grid-template-columns: repeat(4, 1fr); }
-.tabbar .lens { position: absolute; top: 5px; bottom: 5px; left: 5px; width: calc((100% - 10px) / 4); border-radius: 26px; background: rgba(255, 255, 255, .11); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .14), 0 4px 14px rgba(0, 0, 0, .25); transform: translateX(calc(var(--i, 0) * 100%)); transition: transform .5s var(--spring); pointer-events: none; }
-.tabbar button { position: relative; z-index: 1; }
-.tabbar button { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 7px 0 6px; border: 0; border-radius: 26px; background: none; color: var(--text-2); font: 600 11px 'Titillium Web', sans-serif; cursor: pointer; transition: background .25s, color .25s; }
-/* Onglet choisi : lentille claire derrière l'icône, comme sur iOS 26 */
-.tabbar button.on { color: var(--brand); }
-.tabbar button .ic { transition: transform .35s var(--spring); }
-.tabbar button.on .ic { transform: translateY(-1px) scale(1.08); }
-.tabbar button:active .ic { transform: scale(.86); }
+/* Barre d'onglets et barre d'actions : pleine largeur en bas, noires, au-dessus de l'indicateur d'accueil */
+.tabbar, .actionbar { position: fixed; z-index: 10; left: 0; right: 0; bottom: 0; border-width: 1px 0 0; border-radius: 0; background: #000; }
+.tabbar { display: grid; grid-template-columns: repeat(4, 1fr); padding: 4px 0 calc(10px + env(safe-area-inset-bottom)); }
+.actionbar { padding: 8px 12px calc(10px + env(safe-area-inset-bottom)); }
+/* Onglet choisi : trait rouge au-dessus */
+.tabbar .lens { position: absolute; top: 0; left: 0; width: 25%; height: 3px; background: var(--brand); transform: translateX(calc(var(--i, 0) * 100%)); transition: transform .3s var(--ease); pointer-events: none; }
+.tabbar button { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 7px 0 6px; border: 0; background: none; color: var(--text-2); font: 700 10px 'Titillium Web', sans-serif; letter-spacing: .06em; text-transform: uppercase; cursor: pointer; transition: color .2s; }
+.tabbar button.on { color: #fff; }
 .tabbar .ic { width: 23px; height: 23px; }
 .actionbar { display: flex; gap: 6px; transition: transform .25s; }
 /* Clavier ouvert (texte en cours de saisie) : barre d'actions rangée, elle flotterait au-dessus */
 .editing:has(textarea:focus, input[type=text]:focus) .actionbar { transform: translateY(calc(100% + 40px)); }
-.actionbar .btn { flex: 1; min-height: 46px; border-radius: 24px; border-color: transparent; background: rgba(255, 255, 255, .08); }
-.actionbar .btn.primary { flex: 1.5; background: var(--brand); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .25); }
-.actionbar .iconbtn.boxed { width: 52px; height: auto; border: 0; border-radius: 24px; background: rgba(255, 255, 255, .08); }
+.actionbar .btn { flex: 1; min-height: 46px; border-radius: 6px; border-color: transparent; background: rgba(255, 255, 255, .08); }
+.actionbar .btn.primary { flex: 1.5; background: var(--brand); }
+.actionbar .iconbtn.boxed { width: 52px; height: auto; border: 0; border-radius: 6px; background: rgba(255, 255, 255, .08); }
 /* Téléphone : « Télécharger » rangé (« Partager » enregistre aussi les images), boutons resserrés : la barre tient en largeur */
 .actionbar .btn { padding-inline: 10px; gap: 6px; }
 @media (max-width: 480px) { .actionbar #dl { display: none; } }
@@ -137,8 +116,8 @@ html { min-height: 100%; overflow-x: hidden; }
 .row.end { justify-content: flex-end; margin-top: 8px; }
 
 /* ---------- Commandes : segments, puces, interrupteurs ---------- */
-.seg { position: relative; display: inline-flex; gap: 2px; padding: 3px; border-radius: 999px; background: var(--surface-2); max-width: 100%; box-shadow: inset 0 1px 2px rgba(0, 0, 0, .25); }
-.seg > .thumb { position: absolute; top: 3px; bottom: 3px; left: 0; border-radius: 999px; background: rgba(255, 255, 255, .14); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .18), 0 2px 8px rgba(0, 0, 0, .3); transition: transform .45s var(--spring), width .45s var(--spring), opacity .2s; pointer-events: none; }
+.seg { position: relative; display: inline-flex; gap: 2px; padding: 3px; border-radius: 6px; background: var(--surface-2); max-width: 100%; }
+.seg > .thumb { position: absolute; top: 3px; bottom: 3px; left: 0; border-radius: 999px; background: rgba(255, 255, 255, .14); transition: transform .45s var(--spring), width .45s var(--spring), opacity .2s; pointer-events: none; }
 .seg button { position: relative; z-index: 1; }
 .seg button { border: 0; border-radius: 999px; background: none; color: var(--text-2); font: 600 14.5px 'Titillium Web', sans-serif; padding: 9px 14px; cursor: pointer; white-space: nowrap; }
 .seg button.on { color: var(--text); }
@@ -316,10 +295,10 @@ details.cap textarea { margin-bottom: 12px; }
 video { display: block; width: 100%; margin-top: 10px; border-radius: 12px; }
 
 /* ---------- Feuille du bas (réglages, programmation) ---------- */
-dialog.sheet { width: calc(100% - 16px); max-width: 640px; max-height: 88vh; margin: auto auto max(8px, calc(env(safe-area-inset-bottom) - 14px)); padding: 0; border-radius: 34px; background: var(--glass-strong); color: var(--text); animation: up .25s cubic-bezier(.2, .9, .3, 1.1); }
+dialog.sheet { width: calc(100% - 16px); max-width: 640px; max-height: 88vh; margin: auto auto max(8px, calc(env(safe-area-inset-bottom) - 14px)); padding: 0; border-radius: 8px; background: var(--glass-strong); color: var(--text); animation: up .25s var(--ease); }
 dialog.sheet::backdrop { background: rgba(0, 0, 0, .35); }
 .sheet-head { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; justify-content: space-between; padding: 18px 10px 4px 20px; touch-action: none; }
-.sheet-head .iconbtn { border-radius: 50%; background: rgba(255, 255, 255, .08); width: 38px; height: 38px; }
+.sheet-head .iconbtn { border-radius: 6px; background: rgba(255, 255, 255, .08); width: 38px; height: 38px; }
 .sheet-head::before { content: ''; position: absolute; top: 7px; left: 50%; width: 38px; height: 5px; margin-left: -19px; border-radius: 3px; background: var(--line-2); }
 dialog.sheet { transition: transform .3s var(--spring); overscroll-behavior: contain; }
 dialog.sheet.drag { animation: none; transition: none; }
@@ -334,14 +313,14 @@ dialog.sheet .group, dialog.sheet input { background: rgba(255, 255, 255, .05); 
 .sheet-body .row { margin-top: 10px; }
 
 /* ---------- Message passager ---------- */
-.toast { position: fixed; left: 50%; bottom: calc(86px + env(safe-area-inset-bottom)); z-index: 50; max-width: calc(100vw - 32px); padding: 11px 18px; border-radius: 999px; color: var(--text); font-weight: 600; font-size: 14px; opacity: 0; transform: translate(-50%, 16px); transition: opacity .2s, transform .2s; pointer-events: none; }
+.toast { position: fixed; left: 50%; bottom: calc(86px + env(safe-area-inset-bottom)); z-index: 50; max-width: calc(100vw - 32px); padding: 11px 18px; border-radius: 6px; color: var(--text); font-weight: 600; font-size: 14px; opacity: 0; transform: translate(-50%, 16px); transition: opacity .2s, transform .2s; pointer-events: none; }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
-.toast.ok { background: rgba(47, 191, 113, .55); color: #fff; }
-.toast.bad { background: rgba(255, 107, 107, .5); color: #fff; }
+.toast.ok { background: #1d7a4a; color: #fff; }
+.toast.bad { background: #a33a3a; color: #fff; }
 
 /* ---------- Connexion ---------- */
 .login-screen { min-height: 100vh; min-height: 100dvh; display: grid; place-items: center; padding: calc(24px + env(safe-area-inset-top)) var(--gutter) calc(24px + env(safe-area-inset-bottom)); }
-.login { width: 100%; max-width: 380px; padding: 30px 22px 24px; border: 1px solid var(--line); border-radius: 22px; background: var(--surface); box-shadow: var(--shadow); text-align: center; }
+.login { width: 100%; max-width: 380px; padding: 30px 22px 24px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); text-align: center; }
 .login .logo { display: block; width: 64px; height: 64px; margin: 0 auto 14px; }
 .login h1 { margin: 0; font: 800 30px/1.1 'Saira Condensed', sans-serif; letter-spacing: .3px; }
 .login .sub { margin: 6px 0 18px; font-size: 14px; color: var(--muted); }
@@ -355,7 +334,7 @@ dialog.sheet .group, dialog.sheet input { background: rgba(255, 255, 255, .05); 
 .editing .page { transition: transform .2s; }
 .editing.swiping .page { transition: none; }
 /* « Tirer pour actualiser » : sous la barre d'état et l'encoche, au-dessus de l'en-tête, en verre */
-.ptr { top: env(safe-area-inset-top) !important; z-index: 30 !important; background: var(--surface-2) !important; color: var(--text) !important; border: 1px solid var(--glass-line); box-shadow: var(--glass-hi) !important; }
+.ptr { top: env(safe-area-inset-top) !important; z-index: 30 !important; background: var(--surface-2) !important; color: var(--text) !important; border: 1px solid var(--glass-line); box-shadow: none !important; }
 
 /* ---------- Fonctions (accueil) ---------- */
 .features { display: grid; gap: 10px; margin-bottom: 10px; }
@@ -384,7 +363,7 @@ dialog.sheet .group, dialog.sheet input { background: rgba(255, 255, 255, .05); 
   .tabbar {
     top: 0; bottom: 0; left: 0; right: auto; width: var(--side); display: flex; flex-direction: column; gap: 4px;
     padding: 20px 14px; border-width: 0 1px 0 0; border-color: var(--line); border-radius: 0;
-    background: var(--surface); -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none;
+    background: #000;
   }
   .tabbar .lens { display: none; }
   .side-brand { display: flex; align-items: center; gap: 10px; margin: 0 6px 22px; }
@@ -409,7 +388,7 @@ dialog.sheet .group, dialog.sheet input { background: rgba(255, 255, 255, .05); 
 
   .toast { bottom: 28px; }
   /* Feuilles : fenêtre centrée */
-  dialog.sheet { width: min(560px, calc(100% - 48px)); margin: auto; border-radius: 24px; }
+  dialog.sheet { width: min(560px, calc(100% - 48px)); margin: auto; }
   .sheet-head { padding-top: 14px; }
   .sheet-head::before { display: none; }
 
@@ -425,7 +404,7 @@ dialog.sheet .group, dialog.sheet input { background: rgba(255, 255, 255, .05); 
   .editing .slides { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; margin: 0; padding: 2px; overflow: visible; scroll-snap-type: none; }
   .editing .slides.story { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
   .editing .slides .sl { width: auto; }
-  .editing .actionbar { left: auto; right: max(var(--gutter), calc((100vw - var(--w)) / 2 + var(--gutter))); width: 440px; }
+  .editing .actionbar { left: auto; right: max(var(--gutter), calc((100vw - var(--w)) / 2 + var(--gutter))); bottom: 20px; width: 440px; padding: 8px; border-width: 1px; border-radius: 8px; background: var(--surface); }
   .editing:has(textarea:focus, input[type=text]:focus) .actionbar { transform: none; }
   /* Étapes : l'aperçu des visuels reste affiché à gauche */
   .editing .page > .preview { display: block !important; }
@@ -441,7 +420,7 @@ dialog.sheet .group, dialog.sheet input { background: rgba(255, 255, 255, .05); 
 .steps span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .steps button.done { color: var(--text-2); }
 .steps button.done i { background: rgba(225, 6, 0, .4); color: #fff; }
-.steps button.on { background: rgba(255, 255, 255, .11); color: var(--text); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .14); }
+.steps button.on { background: rgba(255, 255, 255, .11); color: var(--text); }
 .steps button.on i { background: var(--brand); color: #fff; }
 /* Seuls les blocs de l'étape affichée */
 .editing[data-step="contenu"] [data-in]:not([data-in~="contenu"]),
@@ -463,7 +442,6 @@ dialog.sheet .group, dialog.sheet input { background: rgba(255, 255, 255, .05); 
 @keyframes in-right { from { opacity: 0; transform: translateX(28px); } }
 @keyframes in-left { from { opacity: 0; transform: translateX(-28px); } }
 @keyframes in-up { from { opacity: 0; transform: translateY(12px); } }
-@keyframes pop { from { opacity: 0; transform: scale(.96); } }
 .page.in-right { animation: in-right .38s var(--ease); }
 .page.in-left { animation: in-left .38s var(--ease); }
 .page.in-up { animation: in-up .4s var(--ease); }
@@ -481,7 +459,6 @@ dialog.sheet .group, dialog.sheet input { background: rgba(255, 255, 255, .05); 
 .btn:active, .chips button:active, .chip-toggle span:active, .iconbtn:active { transform: scale(.93); }
 button.card:active { transform: scale(.975); }
 button.row-item:active { transform: scale(.985); }
-.chips button.on { animation: pop .3s var(--spring); }
 .slides canvas { transition: opacity .25s, filter .25s, transform .3s var(--spring); }
 .sl.off canvas { transform: scale(.96); }
 details.cap[open] textarea { animation: in-up .3s var(--ease); }
@@ -541,3 +518,42 @@ details.cap[open] textarea { animation: in-up .3s var(--ease); }
 .linkcard small { color: var(--muted); text-transform: uppercase; letter-spacing: .06em; font-size: 11px; }
 .linkcard p { margin: 0; color: var(--text-2); font-size: 14px; }
 .linkcard #lcimg img { display: block; width: 100%; aspect-ratio: 1.91; object-fit: cover; border-radius: 10px; margin-bottom: 6px; }
+
+/* Stats → Appli : bilan des fonctions (utilisations pour 100 ouvertures) */
+.card.usage { padding: 4px 14px; }
+.usage-row { position: relative; display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--line); }
+.usage-row:last-child { border-bottom: 0; }
+.usage-row .grow small { display: block; color: var(--muted); font-size: 12px; }
+.usage-row b { font-variant-numeric: tabular-nums; min-width: 42px; text-align: right; }
+.usage-row i { position: absolute; left: 0; bottom: -1px; height: 2px; width: var(--pct); background: var(--brand); border-radius: 2px; }
+.card.health { display: flex; gap: 12px; align-items: flex-start; padding: 14px; margin-top: 14px; }
+.card.health > .ic { flex: none; width: 22px; height: 22px; }
+.card.health.ok > .ic { color: var(--ok); }
+.card.health.bad > .ic { color: var(--bad); }
+.card.health small { display: block; color: var(--muted); margin-top: 3px; line-height: 1.4; }
+.card.usage-never { display: flex; flex-wrap: wrap; gap: 6px; padding: 12px; }
+.card.usage-never span { padding: 4px 10px; border-radius: 999px; background: var(--surface-2); color: var(--text-2); font-size: 13px; }
+
+/* ---------- Habillage « Broadcast » (même langage que l'appli) ----------
+   Fonds plus noirs, coins peu arrondis, intitulés de section en étiquette rouge, barre d'onglets
+   noire avec un trait rouge sur l'onglet choisi. */
+:root {
+  --bg: #030406; --surface: #101218; --surface-2: #171A21; --line: rgba(255, 255, 255, .08);
+  --text: #fff; --text-2: #B9BCC6; --muted: #858A96;
+}
+.card, .group, .tile, .panel, .notice, .card.hero, .card.acc { border-radius: 6px; }
+.chips button, .chip-toggle span, .seg, .seg > .thumb, .seg button, .pill { border-radius: 4px; }
+.btn, input[type=text], input[type=password], input[type=datetime-local], textarea, select { border-radius: 6px; }
+.chips button { font-weight: 600; font-size: 13.5px; }
+/* Puces sur plusieurs lignes (types de posts Saison) : chaque ligne remplie sur toute la largeur */
+.chips.wrap button { flex: 1 1 auto; justify-content: center; padding-inline: 10px; }
+.chips button.on { background: #fff; border-color: #fff; color: #000; }
+.section { display: inline-flex; align-items: center; gap: 8px; height: 24px; margin-left: 0; padding: 0 9px; border-radius: 4px; background: var(--brand); color: #fff; font-size: 11.5px; letter-spacing: .08em; }
+.section small { color: rgba(255, 255, 255, .75); font-weight: 600; letter-spacing: .02em; text-transform: none; }
+.section-row .section { margin: 0; }
+/* Ordinateur : barre latérale noire comme dans l'appli */
+@media (min-width: 960px) {
+  .tabbar button { border-radius: 6px; font-weight: 600; letter-spacing: 0; text-transform: none; }
+  .tabbar button.on { position: relative; background: rgba(255, 255, 255, .06); color: #fff; }
+  .tabbar button.on::before { content: ''; position: absolute; left: -14px; top: 8px; bottom: 8px; width: 3px; background: var(--brand); }
+}

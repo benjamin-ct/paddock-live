@@ -138,6 +138,7 @@ Le détail de chacune est dans le **[guide complet](docs/GUIDE.md)**.
 ### Apparence, langue et application
 - Design « Pitwall » en **clair, sombre ou automatique**, logos et couleurs des écuries (officielles ou contrastées), légendes sous les panneaux (au choix), animations désactivables.
 - Interface en **français ou en anglais**, noms des Grands Prix et des séances traduits.
+- **Premier lancement guidé** (favoris, délai TV, F1 TV Pro) et interface **Essentiel** ou **Complète** sur ordinateur.
 - **Réglages** avec recherche, rubriques et « À propos » (nouveautés, réseaux, informations légales).
 - **Mise à jour automatique** (Windows, macOS, AppImage), **sauvegarde des réglages** dans un fichier.
 - **Connexion F1 TV** (facultative) : positions GPS exactes et télémétrie, jeton renouvelé automatiquement ; sans compte, positions estimées.

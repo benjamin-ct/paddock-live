@@ -6,6 +6,26 @@ l'application (Réglages → À propos → Nouveautés).
 
 ## v1.28.0 — à venir
 
+### Nouveau design « Broadcast »
+- Habillage façon retransmission TV, en sombre comme en clair : barre du haut et barre de lecture noires, tour
+  en cours dans une case blanche, titres des panneaux en étiquette rouge, position du classement dans une case,
+  grand écart du duel en chiffres condensés. La carte et tous ses calques restent identiques.
+- Bandeau en bas de l'écran avec le dernier message de la direction de course (couleur du drapeau, tour).
+- Radios : photo carrée soulignée de la couleur de l'écurie, onde sous chaque message retranscrit.
+- Interface Essentiel : sa propre disposition (classement, grande carte avec le duel dessous, radios et direction
+  de course à droite), indépendante de celle de l'interface Complète ; classement compact avec le code pilote,
+  l'écart, les secteurs en couleur et les pneus.
+- Studio et site aux mêmes couleurs.
+
+### Prise en main
+- Premier lancement guidé (nouvelles installations, sur ordinateur) : choix des pilotes et écuries favoris, le
+  délai TV expliqué en deux lignes (« Synchro TV », puis « Je le vois ! »), connexion F1 TV Pro si vous l'avez, et
+  le choix de l'interface. Chaque écran peut être passé.
+- Interface « Essentiel » ou « Complète » sur ordinateur (Réglages → Apparence → Interface). Essentiel garde
+  l'essentiel : classement, carte, radios, duel, arrêts, stratégie, bagarres et alertes ; l'analyse détaillée, les
+  outils techniques, le streaming et les lumières reviennent en un clic avec « Complète ». Les nouvelles
+  installations démarrent en Essentiel ; rien ne change pour les installations existantes.
+
 ### Télémétrie
 - Énergie 2026 estimée sur les compteurs (Télémétrie, Duel, overlay de streaming) : « RECHARGE » quand le
   pilote lève le pied à haute vitesse sans freiner, « BATTERIE VIDE ? » quand il est à fond mais que la voiture
@@ -23,7 +43,7 @@ l'application (Réglages → À propos → Nouveautés).
   de séance en cours), au lieu de rester sur le replay.
 
 ### Posts (mode créateur)
-- Instagram : un post bien en ligne n'est plus marqué « erreur » quand Instagram répond quand même par un refus
+- Instagram : un post bien en ligne n'est plus marqué « erreur » quand Instagram répond quand même par un refus, même quand il n'apparaît que quelques secondes après la réponse
   (« Nous restreignons certaines activités… ») : l'appli vérifie s'il a été publié et donne son lien.
 
 ### Mises à jour

@@ -31,7 +31,7 @@ test('comptes : jamais de clé ni de jeton renvoyé à l\'interface', async () =
 });
 
 // Faux serveurs Meta : images déposées sur la page, conteneurs « en cours » puis prêts
-function fakeMeta({ errorOn = null, blocked = false } = {}) {
+function fakeMeta({ errorOn = null, blocked = false, lagged = false, caption = null } = {}) {
   const log = [];
   const polls = {};
   const published = new Set();
@@ -61,12 +61,13 @@ function fakeMeta({ errorOn = null, blocked = false } = {}) {
       return json({ [field]: published.has(id) ? 'PUBLISHED' : polls[id] >= 2 ? 'FINISHED' : 'IN_PROGRESS' });
     }
     if (method === 'POST' && /(media_publish|threads_publish)$/.test(u.pathname)) {
-      published.add(form.creation_id);
+      // Instagram en retard : conteneur pas encore marqué publié après la réponse
+      if (!lagged) published.add(form.creation_id);
       // Publié, mais réponse en erreur (blocage d'activité d'Instagram)
       if (blocked) return { ok: false, status: 400, text: async () => JSON.stringify({ error: { code: 368, error_user_msg: 'Nous restreignons certaines activités afin de protéger notre communauté.' } }) };
       return json({ id: 'pub1' });
     }
-    if (method === 'GET' && u.pathname.endsWith('/media') && u.searchParams.get('fields') === 'id,permalink') return json({ data: [{ id: 'ig-post', permalink: 'https://example.test/p/ig' }] });
+    if (method === 'GET' && u.pathname.endsWith('/media') && (u.searchParams.get('fields') || '').startsWith('id,permalink')) return json({ data: [{ id: 'ig-post', permalink: 'https://example.test/p/ig', caption: caption ?? 'Ancien post', timestamp: new Date().toISOString() }] });
     if (method === 'POST' && u.pathname.endsWith('/feed')) return json({ id: 'page_post' });
     if (method === 'POST' && u.pathname.endsWith('/photo_stories')) return json({ success: true, post_id: `st${++n}` });
     if (u.searchParams.get('fields') === 'permalink') return json({ permalink: 'https://example.test/p/1' });
@@ -121,6 +122,12 @@ test('Instagram : post bien publié malgré une réponse en erreur (blocage d\'a
   try {
     fakeMeta({ blocked: true });
     assert.deepEqual(await publishInstagram(meta, 'Légende', [img]), { url: 'https://example.test/p/ig', id: 'ig-post' });
+    // Conteneur pas encore marqué publié, mais le dernier post du compte porte la légende : publié
+    fakeMeta({ blocked: true, lagged: true, caption: 'Légende' });
+    assert.deepEqual(await publishInstagram(meta, 'Légende', [img]), { url: 'https://example.test/p/ig', id: 'ig-post' });
+    // Rien en ligne (dernier post différent) : l'erreur d'Instagram est bien rendue
+    fakeMeta({ blocked: true, lagged: true });
+    await assert.rejects(publishInstagram(meta, 'Légende', [img]), /restreignons/);
   } finally { globalThis.fetch = realFetch; }
 });
 

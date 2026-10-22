@@ -133,10 +133,16 @@ export async function publishInstagram(meta, text, images) {
     pub = await call(`${GRAPH}/${meta.igId}/media_publish`, { method: 'POST', form: { creation_id: creation, ...tok } });
   } catch (err) {
     // Instagram répond parfois une erreur (« Nous restreignons certaines activités… ») alors que le post est
-    // bien en ligne : conteneur publié, dernier post du compte repris (jamais republié en double)
-    if ((await call(status(creation)).catch(() => ({}))).status_code !== 'PUBLISHED') throw err;
-    const last = (await call(`${GRAPH}/${meta.igId}/media?${new URLSearchParams({ fields: 'id,permalink', limit: '1', ...tok })}`).catch(() => ({}))).data?.[0] || {};
-    return { url: last.permalink || `https://www.instagram.com/${meta.igUsername || ''}`, id: last.id || null };
+    // bien en ligne, parfois quelques secondes plus tard : conteneur relu plusieurs fois, et dernier post du
+    // compte comparé à la légende ; repris s'il est là (jamais republié en double)
+    for (const ms of [0, ...timing.visible]) {
+      if (ms) await wait(ms);
+      const done = (await call(status(creation)).catch(() => ({}))).status_code === 'PUBLISHED';
+      const last = (await call(`${GRAPH}/${meta.igId}/media?${new URLSearchParams({ fields: 'id,permalink,caption,timestamp', limit: '1', ...tok })}`).catch(() => ({}))).data?.[0] || {};
+      const same = last.caption && last.caption.trim().slice(0, 80) === text.trim().slice(0, 80) && Date.now() - Date.parse(last.timestamp) < 15 * 60e3;
+      if (done || same) return { url: last.permalink || `https://www.instagram.com/${meta.igUsername || ''}`, id: last.id || null };
+    }
+    throw err;
   }
   const link = await call(`${GRAPH}/${pub.id}?${new URLSearchParams({ fields: 'permalink', ...tok })}`).catch(() => ({}));
   return { url: link.permalink || `https://www.instagram.com/${meta.igUsername || ''}`, id: pub.id };

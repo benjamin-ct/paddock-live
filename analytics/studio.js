@@ -7,6 +7,7 @@
 // le code lui-même sauf à l'activation, vérifiée contre son empreinte). Les jetons des réseaux
 // (envoyés par l'appli) sont chiffrés avec cette clé (AES-GCM) : sans elle, la base ne contient
 // rien d'utilisable. Essais ratés limités par adresse et par jour.
+import { summary } from './usage.js';
 import { DEFAULT_SOURCES, feedUrl } from '../shared/news-sources.js';
 import { extractArticle } from '../shared/article.js';
 import { decodeBody } from '../shared/news-collect.js';
@@ -18,6 +19,7 @@ import { postStats } from '../shared/post-stats.js';
 import { recentPosts, importEntries } from './post-import.js';
 import { trackPost, clickStats } from './clicks.js';
 import { pushApi, notifyPhones } from './alerts.js';
+import { noteExpiries } from './health.js';
 import { feedbackApi } from './feedback.js';
 import { freePhotos, PHOTO_UA } from './photos.js';
 import { socialPhotos, isSocialImageHost } from './social-photos.js';
@@ -730,6 +732,7 @@ export async function studioApi(req, env, url) {
   }
   if (path === 'me' && req.method === 'GET') {
     vault = await refresh(env, a.raw, vault);
+    await noteExpiries(env, vault, jwtExp).catch(() => {});
     return json({
       facebook: vault.meta?.pageName || null, instagram: vault.meta?.igId ? `@${vault.meta.igUsername || ''}` : null,
       threads: vault.threads?.token ? `@${vault.threads.username || ''}` : null, bluesky: vault.bluesky ? `@${vault.bluesky.handle}` : null, f1tv: !!vault.f1tv, at: vault.at || null,
@@ -737,6 +740,8 @@ export async function studioApi(req, env, url) {
       sources: DEFAULT_SOURCES.filter((s) => s.kind === 'rss').map(({ id, name, cat, lang, filter }) => ({ id, name, cat, lang, filter: filter || null })),
     });
   }
+  // Bilan des fonctions de l'appli (statistiques anonymes des 30 derniers jours)
+  if (path === 'usage' && req.method === 'GET') return json({ days: 30, ...(await summary(env, 30)).usage, health: JSON.parse(await getRow(env, 'health') || 'null') });
   // Post écrit à la main : texte mis en forme par l'IA (titre, résumé, points clés)
   if (path === 'rewrite' && req.method === 'POST') {
     if (!env.AI) return json({ error: 'IA indisponible' }, 503);
