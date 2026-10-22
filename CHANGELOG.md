@@ -102,6 +102,8 @@ l'application (Réglages → À propos → Nouveautés).
   ou programmé. La vidéo n'est pas gardée : elle se refait à la reprise.
 
 ### Actu
+- Vidéos YouTube que leur chaîne ne laisse lire que sur YouTube (chaîne officielle de la F1…) : au lieu de « Cette
+  vidéo n'est pas disponible », leur image et un bouton « Regarder sur YouTube ».
 - Trois sources françaises de plus : Nextgen-Auto, Le Figaro et la chaîne YouTube CANAL+ Sport (seulement ses vidéos
   F1, pas le foot ni la F1 Academy).
 - Les chaînes YouTube qui parlent aussi d'autre chose (Ferrari, Alpine) ne montrent plus que leurs vidéos F1 dans l'appli,
@@ -140,7 +142,8 @@ l'application (Réglages → À propos → Nouveautés).
 - Saison : graphiques des pilotes, des duels et des évolutions techniques à la bonne taille sur les grands écrans ;
   courbe des points un peu plus haute.
 - Barre latérale : « Commentaires » ne dépasse plus de son bouton.
-- Compteur de tours (design Broadcast) : « TOURS » et le numéro sont centrés dans leur case blanche.
+- Compteur de tours (design Broadcast) : « TOURS » et le numéro sont centrés dans leur case blanche, avec la barre
+  d'avancement (séance en cours) comme sans elle (séance terminée).
 - Petites améliorations internes.
 
 ## v1.27.54 — 2026-10-20
