@@ -48,7 +48,7 @@ export async function saveAccount(net, b) {
     save('x', { ...k, username: me?.data?.username ? `@${me.data.username}` : '' });
   } else if (net === 'facebook' || net === 'instagram') {
     const appId = str(b.appId); const appSecret = str(b.appSecret); const userToken = str(b.userToken, 1000);
-    if (!appId || !appSecret || !userToken) throw new Error('Identifiant de l\'app, clé secrète et jeton nécessaires');
+    if (!appId || !appSecret || !userToken) throw new Error('Identifiant de l\'app, clé secrète et jeton nécessaires (ou « Se connecter avec Facebook »)');
     // Jeton longue durée, puis jeton de la page (sans date d'expiration) et compte Instagram relié
     const long = await call(`${GRAPH}/oauth/access_token?${new URLSearchParams({ grant_type: 'fb_exchange_token', client_id: appId, client_secret: appSecret, fb_exchange_token: userToken })}`);
     const pages = await call(`${GRAPH}/me/accounts?${new URLSearchParams({ fields: 'id,name,access_token,instagram_business_account{id,username}', access_token: long.access_token })}`);
@@ -57,7 +57,7 @@ export async function saveAccount(net, b) {
     if (!page) throw new Error('Aucune page Facebook accessible avec ce jeton');
     // Toutes les pages du compte (et leurs comptes Instagram) gardées pour les statistiques de chaque compte
     const all = list.slice(0, 10).map((p) => ({ pageId: p.id, pageName: p.name, pageToken: p.access_token, igId: p.instagram_business_account?.id || '', igUsername: p.instagram_business_account?.username || '' }));
-    saveConfig({ social: { ...conf(), meta: { appId, appSecret, pageId: page.id, pageName: page.name, pageToken: page.access_token, igId: page.instagram_business_account?.id || '', igUsername: page.instagram_business_account?.username || '', pages: all } } });
+    saveConfig({ social: { ...conf(), meta: { appId, appSecret, ...(str(b.configId) ? { configId: str(b.configId) } : {}), pageId: page.id, pageName: page.name, pageToken: page.access_token, igId: page.instagram_business_account?.id || '', igUsername: page.instagram_business_account?.username || '', pages: all } } });
   } else if (net === 'threads' || net === 'threads2') {
     // threads2 : deuxième compte Threads, pour ses statistiques dans le Studio (pas de publication)
     const appSecret = str(b.appSecret); const token = str(b.token, 1000);
@@ -148,8 +148,34 @@ async function threadsAccount() {
   return fresh;
 }
 
-// ---------- TikTok : connexion (PKCE, retour sur cet ordinateur) et brouillon vidéo ----------
 const pending = new Map();   // state -> { verifier, redirect, at, second | net }
+
+// ---------- Facebook et Instagram : connexion Facebook (Facebook Login for Business) ----------
+// Meta n'accepte que des adresses https : retour sur la page du site, qui renvoie le navigateur ici (port au
+// début de « state »). Avec l'ID d'une configuration « Facebook Login for Business », ses autorisations ;
+// sinon la liste ci-dessous. Le jeton obtenu suit ensuite le même chemin qu'un jeton collé à la main.
+export const META_REDIRECT = 'https://paddocklive.app/fb-callback';
+const META_SCOPES = 'pages_show_list,pages_read_engagement,pages_manage_posts,pages_manage_engagement,read_insights,instagram_basic,instagram_content_publish,instagram_manage_insights,business_management';
+export function metaLoginUrl(port, b = {}) {
+  const m = conf().meta || {};
+  const appId = str(b.appId) || m.appId || ''; const appSecret = str(b.appSecret) || m.appSecret || ''; const configId = str(b.configId) || m.configId || '';
+  if (!/^\d{5,20}$/.test(appId) || !appSecret) throw new Error('Renseignez d\'abord l\'identifiant et la clé secrète de l\'app Meta');
+  if (configId && !/^\d{5,20}$/.test(configId)) throw new Error('ID de configuration invalide (chiffres seulement)');
+  const state = `${port}.${crypto.randomBytes(16).toString('hex')}`;
+  pending.set(state, { net: 'meta', at: Date.now(), appId, appSecret, configId });
+  return `${GRAPH.replace('//graph.', '//www.')}/dialog/oauth?${new URLSearchParams({ client_id: appId, redirect_uri: META_REDIRECT, state, response_type: 'code', ...(configId ? { config_id: configId } : { scope: META_SCOPES }) })}`;
+}
+
+export async function metaCallback(params) {
+  const p = pending.get(params.get('state'));
+  if (!p || p.net !== 'meta' || Date.now() - p.at > 15 * 60e3) throw new Error('Demande de connexion expirée : recommencez depuis l\'application');
+  pending.delete(params.get('state'));
+  if (params.get('error')) throw new Error(params.get('error_reason') === 'user_denied' ? 'Connexion refusée dans Facebook' : params.get('error_description') || params.get('error'));
+  const r = await call(`${GRAPH}/oauth/access_token?${new URLSearchParams({ client_id: p.appId, client_secret: p.appSecret, redirect_uri: META_REDIRECT, code: params.get('code') || '' })}`);
+  await saveAccount('facebook', { appId: p.appId, appSecret: p.appSecret, configId: p.configId, userToken: r.access_token, pageId: conf().meta?.pageId });
+}
+
+// ---------- TikTok : connexion (PKCE, retour sur cet ordinateur) et brouillon vidéo ----------
 const STATS = 'user.info.profile,user.info.stats,video.list';
 
 // second : deuxième compte, pour ses statistiques dans la page web (même app TikTok, aucune publication)

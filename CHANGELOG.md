@@ -65,6 +65,8 @@ l'application (Réglages → À propos → Nouveautés).
   de séance en cours), au lieu de rester sur le replay.
 
 ### Posts (mode créateur)
+- « Se connecter à Facebook » (Comptes → Instagram + Facebook) : Facebook et Instagram se relient en un clic avec
+  la connexion Facebook, au lieu du jeton à copier depuis l'Explorateur de l'API Graph (toujours possible).
 - La fenêtre Posts prend l'habillage du Studio : fond noir, barre latérale noire avec un trait rouge sur l'élément
   choisi, intitulés en étiquette rouge, puces blanches pour le type de post.
 - Statistiques refaites comme l'onglet Stats du Studio, directement dans la fenêtre Posts (« Statistiques » dans la

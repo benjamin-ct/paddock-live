@@ -100,3 +100,15 @@ test('ancienne adresse workers.dev : connexion et statistiques renvoyées sur le
   r = await worker.fetch(new Request(`${W}/e`, { method: 'POST', body: '{}' }), env);
   assert.notEqual(r.status, 302);
 });
+
+test('retour de la connexion Facebook : renvoyé vers l\'appli de bureau (port de « state »), rien d\'autre', async () => {
+  const { default: worker } = await import('../analytics/worker.js');
+  const state = `3000.${'a'.repeat(32)}`;
+  let r = await worker.fetch(new Request(`https://paddocklive.app/fb-callback?code=abc&state=${state}&autre=x`), {});
+  assert.equal(r.status, 302);
+  assert.equal(r.headers.get('location'), `http://127.0.0.1:3000/meta-callback/?code=abc&state=${state}`);
+  for (const bad of ['evil.com', `80.${'a'.repeat(32)}`, `3000.${'a'.repeat(31)}`, '']) {
+    r = await worker.fetch(new Request(`https://paddocklive.app/fb-callback?code=abc&state=${encodeURIComponent(bad)}`), {});
+    assert.equal(r.status, 400);
+  }
+});

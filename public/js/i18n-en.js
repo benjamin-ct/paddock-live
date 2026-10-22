@@ -1837,7 +1837,6 @@ export default {
   "Collez client key et client secret, enregistrez, puis « Se connecter à TikTok ».": "Paste the client key and client secret, save, then “Connect to TikTok”.",
   "Identifiant de l'app": "App ID",
   "Clé secrète de l'app": "App secret",
-  "Jeton d'accès (Explorateur de l'API Graph)": "Access token (Graph API Explorer)",
   "Clé secrète Threads": "Threads app secret",
   "Jeton Threads": "Threads token",
   "Non connecté": "Not connected",
@@ -2669,4 +2668,8 @@ export default {
   "Actualiser": "Refresh",
   "Actualisation impossible : {}": "Refresh failed: {}",
   "Aucun clic ces 30 derniers jours.": "No clicks in the last 30 days.",
+  "Facebook Login for Business → Paramètres : ajoutez {} dans « URI de redirection OAuth valides ». Créez une configuration (jeton d'accès utilisateur) avec pages_show_list, pages_read_engagement, pages_manage_posts, pages_manage_engagement, read_insights, instagram_basic, instagram_content_publish, instagram_manage_insights et business_management, et copiez son ID.": "Facebook Login for Business → Settings: add {} to “Valid OAuth Redirect URIs”. Create a configuration (user access token) with pages_show_list, pages_read_engagement, pages_manage_posts, pages_manage_engagement, read_insights, instagram_basic, instagram_content_publish, instagram_manage_insights and business_management, and copy its ID.",
+  "Collez identifiant, clé secrète et ID de configuration, puis « Se connecter à Facebook ». Sans configuration : Outils → Explorateur de l'API Graph, mêmes autorisations, « Generate Access Token », et collez le jeton.": "Paste the app ID, secret and configuration ID, then “Connect to Facebook”. Without a configuration: Tools → Graph API Explorer, same permissions, “Generate Access Token”, and paste the token.",
+  "ID de configuration (Facebook Login for Business)": "Configuration ID (Facebook Login for Business)",
+  "Jeton d'accès (Explorateur de l'API Graph, sans « Se connecter »)": "Access token (Graph API Explorer, without “Connect”)",
 };

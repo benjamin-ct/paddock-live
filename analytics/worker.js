@@ -118,6 +118,19 @@ const periodOf = (url) => {
   return [7, 30, 90, 365].includes(d) ? d : 30;
 };
 
+// Retour de la connexion Facebook de l'appli de bureau (mode créateur) : Meta n'accepte que des adresses
+// https, cette page renvoie donc le navigateur vers l'appli de la personne (127.0.0.1, port écrit au début de
+// « state » par l'appli), avec la réponse de Meta telle quelle. Rien n'est lu ni gardé ici ; seule l'appli
+// qui a ouvert la connexion connaît le reste de « state » et la clé secrète pour utiliser le code.
+const FB_STATE = /^(\d{2,5})\.[0-9a-f]{32}$/;
+export function fbCallback(url) {
+  const port = Number(FB_STATE.exec(url.searchParams.get('state') || '')?.[1]);
+  if (!(port >= 1024 && port <= 65535)) return new Response('Connexion Facebook : demande invalide, recommencez depuis Paddock Live.', { status: 400, headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' } });
+  const keep = new URLSearchParams();
+  for (const k of ['code', 'state', 'error', 'error_reason', 'error_description']) if (url.searchParams.has(k)) keep.set(k, url.searchParams.get(k).slice(0, 2000));
+  return new Response(null, { status: 302, headers: { Location: `http://127.0.0.1:${port}/meta-callback/?${keep}`, 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' } });
+}
+
 export default {
   // Toutes les minutes : publications de la page du créateur (programmées ou « Publier ») ;
   // toutes les 5 minutes, grosses news signalées sur son téléphone (s'il est abonné) ; saison du
@@ -168,6 +181,7 @@ export default {
     // www.paddocklive.app -> paddocklive.app (même chemin ; les fichiers du site, servis avant le
     // Worker, restent aussi lisibles sur www)
     if (ownDomain && url.hostname.startsWith('www.')) return Response.redirect(`https://${url.hostname.slice(4)}${url.pathname}${url.search}`, 301);
+    if (req.method === 'GET' && url.pathname === '/fb-callback') return fbCallback(url);
     if (req.method === 'GET' && url.pathname === '/' && ownDomain && env.ASSETS) {
       return env.ASSETS.fetch(new Request(new URL('/site/', url), req));
     }
