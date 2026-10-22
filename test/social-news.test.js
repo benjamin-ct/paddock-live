@@ -23,6 +23,9 @@ test('posts news : type de nouvelle', () => {
   assert.equal(bigNews([{ id: 'h', title: 'Leclerc unveils tribute helmet for Monza', t: Date.now(), imp: 0 }]).length, 1);
   assert.equal(newsKind({ title: 'Bottas annonce sa retraite' }).key, 'depart');
   assert.equal(newsKind({ title: 'Calendar update', cat: 'official' }).key, 'officiel');
+  // Le résumé ne change pas le type (sauf livrée ou tenue)
+  assert.equal(newsKind({ title: '15 ans sans changer de pneus en course : Mercedes révèle sa prouesse', summary: 'Le mécanicien qui remplace le titulaire a signé un contrat…' }).key, 'actu');
+  assert.equal(newsKind({ title: 'Ferrari unveil new look for Austin', summary: 'The team will race a special livery this weekend.' }).key, 'livree');
 });
 
 test('posts news : grosses news seulement, un seul article par sujet (même dans deux langues)', () => {
@@ -39,6 +42,24 @@ test('posts news : grosses news seulement, un seul article par sujet (même dans
   assert.deepEqual(big.map((x) => x.title), ['Rafael Camara signs multi-year deal with Haas', 'Mekies extends Red Bull contract']);
   assert.equal(big[0].sources, 17);   // articles des trois sujets réunis
   assert.equal(bigNews(items, { now: NOW, all: true }).length, 3);
+});
+
+test('posts news : même article publié en plusieurs langues, reconnu par les titres traduits en français', () => {
+  const items = [
+    it({ title: 'The figures that show Mercedes has lost its supremacy in F1 2026', sources: 3, imp: 2 }),
+    it({ title: 'Ces chiffres qui montrent la suprématie déclinante de Mercedes en 2026', lang: 'fr', sources: 2, imp: 2 }),
+    it({ title: 'Red Bull called Christian Horner to thank him for F1 engine project after maiden win', sources: 4, imp: 2 }),
+    it({ title: 'Red Bull F1 llamó a Horner para darle las gracias tras su primera victoria con motor propio', lang: 'es', imp: 2 }),
+  ];
+  const FR = {
+    'The figures that show Mercedes has lost its supremacy in F1 2026': 'Les chiffres qui montrent que Mercedes a perdu sa suprématie en F1 en 2026',
+    'Red Bull called Christian Horner to thank him for F1 engine project after maiden win': 'Red Bull a appelé Christian Horner pour le remercier du projet moteur après la première victoire',
+    'Red Bull F1 llamó a Horner para darle las gracias tras su primera victoria con motor propio': 'Red Bull a appelé Horner pour le remercier après sa première victoire avec son propre moteur',
+  };
+  // Sans les traductions, les deux articles sur Mercedes (aucun nom propre commun) restent séparés
+  assert.equal(bigNews(items, { now: NOW }).length, 3);
+  const big = bigNews(items, { now: NOW, frTitle: (x) => (x.lang === 'fr' ? x.title : FR[x.title]) });
+  assert.deepEqual(big.map((x) => [x.title.slice(0, 12), x.sources]), [['Red Bull cal', 5], ['The figures ', 5]]);
 });
 
 test('posts news : données du post et légendes', () => {

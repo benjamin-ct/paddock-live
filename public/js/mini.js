@@ -20,7 +20,9 @@ let mode = new URLSearchParams(location.search).get('mode') || storageGet('paddo
 // l'appli, sinon colonnes de l'adresse (anciens liens), sinon celles cochées par défaut
 const URL_COLS = new URLSearchParams(location.search).get('cols')?.split(',') || null;
 const IS_OVERLAY = document.documentElement.classList.contains('overlay');
-let COLS = URL_COLS || (IS_OVERLAY ? ['delta', 'int', 'tyre'] : null);
+// Mini-classement : colonnes choisies dans son menu (⋮), sinon temps et pneu
+let COLS = URL_COLS || (IS_OVERLAY ? ['delta', 'int', 'tyre'] : storageGet('paddock.miniCols', null));
+const COL_LABELS = [['delta', 'Places gagnées depuis le départ'], ['int', 'Intervalle'], ['gap', 'Écart au leader'], ['tyre', 'Pneu et tours'], ['pits', 'Arrêts']];
 let lastKey = '';
 on('overlayCfg', (cfg) => { if (IS_OVERLAY && cfg?.mini?.cols) { COLS = cfg.mini.cols; lastKey = ''; } });
 
@@ -41,6 +43,9 @@ function render() {
   const lines = s.TimingData?.Lines || {};
   const app = s.TimingAppData?.Lines || {};
   const part = Number(s.TimingData?.SessionPart) || 1;
+  // Qualifs (Q1, Q2) : ligne d'élimination sous la dernière place qualifiée
+  const no = list(s.TimingData?.NoEntries);
+  const cutoff = kind === 'quali' && part < 3 ? Number(no[part]) || null : null;
 
   // En-tête : drapeau et tour (ou partie de la qualification)
   const ts = trackStatusInfo(s.TrackStatus?.Status || '1');
@@ -50,7 +55,7 @@ function render() {
   const lc = s.LapCount;
   $('#miniLap').textContent = kind === 'race' && lc?.TotalLaps ? `Tour ${lc.CurrentLap || 0} / ${lc.TotalLaps}`
     : kind === 'quali' ? `Q${part}` : (s.SessionInfo?.Name || '—');
-  $('#miniMode').hidden = kind !== 'race';
+  $('#miniMode').hidden = kind !== 'race' || !!COLS;
   $('#miniMode').textContent = mode === 'gap' ? 'ÉCART' : 'INT';
   const banner = $('#miniBanner');
   const special = ['4', '5', '6', '7'].includes(String(s.TrackStatus?.Status));
@@ -67,7 +72,8 @@ function render() {
     const st = currentStint(app[n]);
     const ci = st?.Compound ? compoundInfo(st.Compound) : null;
     const tag = l.Retired ? 'ABD' : l.InPit ? 'STAND' : l.PitOut ? 'SORTIE' : l.KnockedOut ? 'ÉLIM.' : '';
-    const cls = [store.focus === n ? 'focus' : '', store.duel.a === n ? 'duel-a' : '', store.duel.b === n ? 'duel-b' : '', isFav(n) ? 'fav' : '', l.Retired || l.KnockedOut ? 'out' : ''].filter(Boolean).join(' ');
+    const cls = [store.focus === n ? 'focus' : '', store.duel.a === n ? 'duel-a' : '', store.duel.b === n ? 'duel-b' : '', isFav(n) ? 'fav' : '', l.Retired || l.KnockedOut ? 'out' : '',
+      cutoff && Number(l.Position) === cutoff ? 'cut' : '', cutoff && Number(l.Position) > cutoff && !l.KnockedOut ? 'danger' : ''].filter(Boolean).join(' ');
     const head = `<tr class="${cls}"><td class="m-pos">${esc(l.Position || '')}</td>
       <td class="m-drv"><i style="background:${teamColor(d)}"></i>${esc(d.Tla || n)}${isFav(n) ? icon('star-fill') : ''}</td>`;
     if (COLS) return `${head}${columns(n, l, app[n], kind, val, tag, st)}</tr>`;
@@ -113,6 +119,26 @@ function fitOverlay() {
 }
 window.addEventListener('resize', fitOverlay);
 document.fonts?.addEventListener('loadingdone', fitOverlay);
+
+// Menu des colonnes (pas dans l'overlay de streaming : réglé dans Réglages → Streaming)
+const colsBtn = $('#miniCols');
+colsBtn.hidden = IS_OVERLAY || !!URL_COLS;
+colsBtn.addEventListener('click', () => {
+  let menu = $('#miniColsMenu');
+  if (menu) { menu.remove(); return; }
+  menu = document.createElement('div');
+  menu.id = 'miniColsMenu';
+  menu.className = 'mini-menu';
+  const cur = COLS || ['int', 'tyre'];
+  menu.innerHTML = COL_LABELS.map(([k, l]) => `<label class="toggle small"><input type="checkbox" data-col="${k}" ${cur.includes(k) ? 'checked' : ''}> ${esc(l)}</label>`).join('');
+  menu.addEventListener('change', () => {
+    COLS = [...menu.querySelectorAll('[data-col]:checked')].map((i) => i.dataset.col);
+    storageSet('paddock.miniCols', COLS);
+    lastKey = '';
+    render();
+  });
+  $('#miniHead').after(menu);
+});
 
 $('#miniMode').addEventListener('click', () => {
   mode = mode === 'gap' ? 'int' : 'gap';

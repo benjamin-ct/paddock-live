@@ -46,3 +46,35 @@ test('statistiques des posts : Instagram, Facebook, Threads, Bluesky et abonnés
     assert.deepEqual(gone.posts[0].stats.threads, { error: '(#10) Application does not have permission', note: 'Autorisation manquante : reconnectez le compte' });
   } finally { globalThis.fetch = realFetch; }
 });
+
+test('créneau conseillé : tranche horaire dont les posts ont le plus de réactions (heure de Paris)', async () => {
+  const { bestSlot } = await import('../shared/post-history.js');
+  const at = (h, day) => Date.parse(`2026-10-${String(day).padStart(2, '0')}T${String(h - 2).padStart(2, '0')}:30:00Z`);   // heure d'été : UTC+2
+  const post = (h, day, likes) => ({ at: at(h, day), stats: { instagram: { likes, comments: 0 } } });
+  const evening = [1, 2, 3, 4].map((d) => post(19, d, 100));
+  const morning = [5, 6, 7, 8].map((d) => post(10, d, 20));
+  assert.deepEqual(bestSlot([...evening, ...morning]), { from: 18, to: 21, n: 8, ratio: 1.7 });
+  assert.equal(bestSlot(evening), null, 'trop peu de posts');
+  assert.equal(bestSlot([...[1, 2, 3, 4].map((d) => post(19, d, 50)), ...[5, 6, 7, 8].map((d) => post(10, d, 50))]), null, 'pas d\'écart');
+});
+
+test('plan du week-end : posts faits d\'après le journal (séances et posts de la saison)', async () => {
+  const { weekendPlan } = await import('../shared/post-history.js');
+  const race = { round: 19, name: 'United States Grand Prix', date: '2026-10-25T19:00:00Z', sprint: true,
+    sessions: [{ label: 'Sprint', t: '2026-10-24T17:00:00Z' }, { label: 'Qualifications', t: '2026-10-24T21:00:00Z' }] };
+  const keys = ['raceweek:2026-19', 'session:2026/2026-10-25_United_States_Grand_Prix/2026-10-24_Sprint_Qualifying/', 'session:2026/2026-10-25_United_States_Grand_Prix/2026-10-25_Race/~k1', 'ratings:2026-18'];
+  const plan = weekendPlan(race, 2026, keys);
+  assert.deepEqual(plan.map((p) => [p.label, p.done]), [['Race Week', true], ['Programme du week-end', false], ['Résultats du sprint', false],
+    ['Grille (qualifications)', false], ['Résultats de la course', true], ['Notes des pilotes', false], ['Course au titre', false]]);
+  assert.equal(new Date(plan[0].at).toISOString(), '2026-10-19T08:00:00.000Z');   // lundi de la semaine
+});
+
+test('chiffres gardés : les posts relus remplacent les anciens, 60 au plus, les plus récents d\'abord', async () => {
+  const { keepStats } = await import('../shared/post-history.js');
+  const old = Array.from({ length: 60 }, (_, i) => ({ key: `k${i}`, at: 1000 + i, stats: { instagram: { likes: i } } }));
+  const kept = keepStats(old, [{ key: 'k59', at: 1059, stats: { instagram: { likes: 99 } } }, { key: 'neuf', at: 2000, stats: { x: { likes: 1 } } }, { key: 'vide', at: 3000, stats: {} }]);
+  assert.equal(kept.length, 60);
+  assert.deepEqual(kept.slice(0, 2).map((p) => [p.key, Object.values(p.stats)[0].likes]), [['neuf', 1], ['k59', 99]]);
+  assert.ok(!kept.some((p) => p.key === 'k0' || p.key === 'vide'));
+  assert.deepEqual(keepStats('abîmé', []), []);
+});

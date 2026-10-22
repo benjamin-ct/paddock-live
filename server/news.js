@@ -122,10 +122,14 @@ function clusterSizes(list) {
   return Object.fromEntries([...m].map(([k, v]) => [k, v.size]));
 }
 
+// Titre traduit d'un article, s'il est connu (branché par index.js sur les traductions des actus)
+let clusterTitle = null;
+export function setClusterTitle(fn) { clusterTitle = fn; }
+
 function recluster() {
   const since = Date.now() - 3 * 24 * 3600e3;
   const recent = [...items.values()].filter((it) => it.t >= since).sort((a, b) => a.t - b.t);
-  clusterNews(recent);
+  clusterNews(recent, { titleOf: clusterTitle });
 }
 
 function prune() {
@@ -153,6 +157,7 @@ async function poll(s) {
         const id = hash(`${s.id}|${normLink(raw.link) || raw.guid}`);
         if (items.has(id)) continue;
         if (s.filter === 'f1' && !F1_ONLY.test(`${raw.title} ${raw.summary}`)) continue;
+        if (s.match && !new RegExp(s.match, 'i').test(`${raw.title} ${raw.summary}`)) continue;
         // Date absente ou illisible : heure de découverte si la source était déjà suivie ; à la
         // première lecture, l'article est placé plus bas (il peut être ancien)
         const dated = !!raw.t && raw.t <= now + 10 * 60e3;

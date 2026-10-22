@@ -3,7 +3,7 @@
 // visuels (jamais les photos ni le texte des articles : titre et court résumé traduits, source citée).
 // Code pur, partagé par l'appli et la page web du créateur.
 import { NEWS_DRIVERS, NEWS_TEAMS, fold, newsSimilarity } from './news.js';
-import { hashtag, teamTag, BRAND_TAG, xLength } from './social.js';
+import { hashtag, teamTag, fiveTags, twoTags, THREADS_TAG, xLength } from './social.js';
 import { portraitUrl, portraitTeam } from './portraits.js';
 
 // Type de nouvelle, d'après le titre et le résumé (toutes langues des sources, sans accents)
@@ -22,8 +22,11 @@ export const LOOKS = new Set(['tenue', 'livree']);
 // Types au choix (post écrit à la main), « Actu F1 » compris
 export const NEWS_BADGES = [...KINDS.map(([key, label, color]) => ({ key, label, color })), { key: 'actu', label: 'ACTU F1', color: '#e10600' }];
 export function newsKind(item) {
-  const t = fold(`${item.title} ${item.summary || ''}`.slice(0, 500));
-  const k = KINDS.find(([, , , re]) => re.test(t));
+  // D'après le titre ; le résumé ne compte que pour les livrées et les tenues (un mot du résumé suffisait
+  // à classer en « transfert » une news sur les pneus ou un simple coup de fil)
+  const title = fold(String(item.title || '').slice(0, 300));
+  const summary = fold(String(item.summary || '').slice(0, 500));
+  const k = KINDS.find(([, , , re]) => re.test(title)) || KINDS.find(([key, , , re]) => LOOKS.has(key) && re.test(summary));
   if (k) return { key: k[0], label: k[1], color: k[2] };
   return item.cat === 'official' ? { key: 'officiel', label: 'OFFICIEL', color: '#e10600' } : { key: 'actu', label: 'ACTU F1', color: '#e10600' };
 }
@@ -46,12 +49,13 @@ const GENERIC = new Set(['actu', 'officiel']);
 const kindsMatch = (a, b) => { const x = newsKind(a).key; const y = newsKind(b).key; return x === y || GENERIC.has(x) || GENERIC.has(y); };
 // Même sujet pour deux nouvelles quelconques (noms propres calculés ici)
 export const sameStoryOf = (a, b) => sameStory({ ...a, _names: names(a.title) }, { ...b, _names: names(b.title) });
-const sameStory = (a, b) => kindsMatch(a, b) && Math.abs(a.t - b.t) < 30 * 3600e3
-  && ([...a._names].some((w) => b._names.has(w)) || newsSimilarity(a, b) >= 0.3);
+const sameStory = (a, b) => kindsMatch(a._fr || a, b._fr || b) && Math.abs(a.t - b.t) < 30 * 3600e3
+  && ([...a._names].some((w) => b._names.has(w)) || newsSimilarity(a._fr || a, b._fr || b) >= 0.3);
 
 // Grosses nouvelles des dernières heures : importantes (alerte), ou reprises par plusieurs médias.
-// Une seule par sujet. Vidéos et publications exclues.
-export function bigNews(items, { now = Date.now(), hours = 48, all = false } = {}) {
+// Une seule par sujet. Vidéos et publications exclues. frTitle(it) : titre traduit en français s'il est
+// connu (le même article publié en plusieurs langues est alors reconnu, type compris)
+export function bigNews(items, { now = Date.now(), hours = 48, all = false, frTitle = null } = {}) {
   const score = (it) => (it.imp || 0) * 2 + Math.min(it.sources || 1, 5) + (it.cat === 'official' ? 1 : 0);
   const keep = (it) => it.kind !== 'video' && it.kind !== 'post' && it.t >= now - hours * 3600e3
     && (all || (it.imp || 0) >= 2 || ((it.sources || 1) >= 3 && (it.imp || 0) >= 1) || LOOKS.has(newsKind(it).key));   // livrées et tenues spéciales toujours gardées
@@ -67,7 +71,10 @@ export function bigNews(items, { now = Date.now(), hours = 48, all = false } = {
     if (!cur || better(it, cur)) best.set(k, it);
   }
   // Sujets séparés par l'Actu mais identiques (même personne, autre langue…) : réunis
-  const list = [...best.values()].map((it) => ({ ...it, _names: names(it.title), sources: it.sources || 1 }))
+  const list = [...best.values()].map((it) => {
+    const fr = frTitle?.(it);
+    return { ...it, _names: names(fr || it.title), _fr: fr ? { title: fr, tags: it.tags, cat: it.cat } : null, sources: it.sources || 1 };
+  })
     .sort((a, b) => score(b) - score(a) || b.t - a.t);
   const out = [];
   for (const it of list) {
@@ -77,7 +84,7 @@ export function bigNews(items, { now = Date.now(), hours = 48, all = false } = {
     twin.imp = Math.max(twin.imp, it.imp || 0);
     if (better(it, twin.item)) twin.item = it;
   }
-  return out.map(({ item: { _names, _tok, ...it }, total, imp }) => ({ ...it, imp, sources: total, score: score({ ...it, imp, sources: total }) }))
+  return out.map(({ item: { _names, _tok, _fr, ...it }, total, imp }) => ({ ...it, imp, sources: total, score: score({ ...it, imp, sources: total }) }))
     .sort((a, b) => b.score - a.score || b.t - a.t);
 }
 
@@ -209,9 +216,7 @@ export function newsCaptions(nd, signature = '', { linkInComment = false } = {})
     ...nd.teams.filter((t) => t.key !== 'fia').map((t) => teamTag(t.name)),
     ...(nd.teams.some((t) => t.key === 'fia') ? ['#FIA'] : []),
   ];
-  const seen = new Set();
-  const tags = [BRAND_TAG, '#F1', '#Formula1', '#F1News', '#Formule1', ...people, nd.year ? `#F1${nd.year}` : '']
-    .filter((t) => t && t.length > 2 && !seen.has(t.toLowerCase()) && seen.add(t.toLowerCase()));
+  const tags = fiveTags(['#F1', ...people, '#F1News']);
   const head = `${nd.breaking ? '🚨' : NEWS_EMOJI[nd.badge.key] || '🏎️'} ${nd.badge.label} | ${nd.title}`;
   // Lien de l'article : Facebook, Threads et X (pas Instagram, où il n'est pas cliquable)
   const url = /^https:\/\//.test(nd.link || '') ? nd.link : '';
@@ -222,12 +227,12 @@ export function newsCaptions(nd, signature = '', { linkInComment = false } = {})
   let instagram = `${head}\n\n${nd.summary}${pts}${src ? `\n\n${src}` : ''}${sig}\n\n${tags.join(' ')}`;
   // Instagram : 2 200 caractères au plus (les points restent lisibles sur les images)
   if (instagram.length > 2200) instagram = instagram.replace(pts, '');
-  const facebook = `${head}\n\n${nd.summary}${pts}${srcLink ? `\n\n${srcLink}` : ''}${sig}\n\n${tags.join(' ')}`;
+  const facebook = `${head}\n\n${nd.summary}${pts}${srcLink ? `\n\n${srcLink}` : ''}${sig}`;
   // X : 280 caractères (lien = 23) ; hashtags retirés un à un, puis la ligne de la source, puis le titre raccourci
   const xLink = link ? `\n${link}` : '';
   // Texte court (X : 280, lien compté 23 ; Bluesky : 300, lien compté en entier)
   const short = (len, max) => {
-    const xt = [BRAND_TAG, '#F1', ...people.slice(0, 2)];
+    const xt = twoTags(tags);
     const build = (withSrc) => `${head}${withSrc && src ? `\n\n${src}` : '\n'}${xLink}\n\n${xt.join(' ')}`;
     let t = build(true);
     while (len(t) > max && xt.length > 1) { xt.pop(); t = build(true); }
@@ -237,8 +242,8 @@ export function newsCaptions(nd, signature = '', { linkInComment = false } = {})
   };
   const x = short(xLength, 280);
   const bsky = short((t) => [...t].length, 300);
-  let threads = `${head}\n\n${nd.summary}${srcLink ? `\n\n${srcLink}` : ''}${sig}\n\n#F1 ${BRAND_TAG}`;
-  if (threads.length > 500) threads = `${head}${srcLink ? `\n\n${srcLink}` : ''}\n\n#F1 ${BRAND_TAG}`;
+  let threads = `${head}\n\n${nd.summary}${srcLink ? `\n\n${srcLink}` : ''}${sig}\n\n${THREADS_TAG}`;
+  if (threads.length > 500) threads = `${head}${srcLink ? `\n\n${srcLink}` : ''}\n\n${THREADS_TAG}`;
   if (threads.length > 500) threads = `${head.slice(0, 500 - (threads.length - head.length) - 1)}…${threads.slice(head.length)}`;
   return { instagram, facebook, x, bsky, threads, story: head, comment };
 }

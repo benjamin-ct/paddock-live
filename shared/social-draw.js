@@ -87,6 +87,16 @@ export function pointPages(points, fmt = 'ig') {
 }
 export const SLIDE_NAMES = { grille: 'Grille de départ', meteo: 'Météo et pneus', champpilotes: 'Championnat pilotes', champecuries: 'Championnat constructeurs', flash: 'Flash', duels: 'Duels entre coéquipiers', news: 'News', couverture: 'Couverture', vainqueur: 'Vainqueur', pole: 'Pole position', meilleurtemps: 'Meilleur temps', podium: 'Podium', classement: 'Classement', faits: 'Faits marquants', championnat: 'Championnat', abonnement: 'Abonnez-vous', question: 'Question', essentiel: "L'essentiel", photo: 'Photo', raceweek: 'Race Week', horaires: 'Horaires', infos: 'Pneus et météo', records: 'Records', editions: 'Éditions précédentes', topflop: 'Tops et flops', notes: 'Toutes les notes', equipes: 'Duels par écurie', positions: 'Positions tour par tour', recapcover: 'La semaine', recap: 'Info', titrepilotes: 'Titre pilotes', titreecuries: 'Titre constructeurs', titrecomment: 'Comment être sacré' };
 export const slideName = (s) => SLIDE_NAMES[s] || SLIDE_NAMES[String(s).replace(/-\d+$/, '')] || s;
+// Texte alternatif d'une image publiée (lecteurs d'écran) : ce qu'elle montre, avec le classement s'il y en a un
+const RANKED = { vainqueur: 3, pole: 3, meilleurtemps: 3, podium: 3, classement: 10, grille: 10 };
+export function slideAlt(d, slide) {
+  const name = slideName(slide);
+  if (d.news) return `${name} : ${d.title}${d.summary ? `. ${d.summary}` : ''}`.slice(0, 500);
+  const what = [d.label, d.gp].filter(Boolean).join(' · ');
+  const n = RANKED[slide] && d.rows?.[0]?.pos ? RANKED[slide] : 0;
+  const top = n ? ` : ${d.rows.slice(0, n).map((r) => `${r.pos}. ${[r.first, r.last].filter(Boolean).join(' ')}${r.team ? ` (${r.team})` : ''}`).join(', ')}` : '';
+  return `${name}${what ? ` — ${what}` : ''}${top}`.slice(0, 500);
+}
 
 // ---------- Outils de dessin ----------
 export function rr(ctx, x, y, w, h, r) {
@@ -848,7 +858,7 @@ function question(ctx, W, H, d, o) {
   const fy = H - Math.round(Math.min(W, H) * 0.045);
   // Titre, question (sans l'invitation finale, reprise dans la pastille), pastille rouge
   const q = questionFor(d);
-  const main = q.replace(/\s*(Dites-le|Donnez les vôtres) en commentaire\.$/, '').replace(/\s*Votre (avis|pronostic) en commentaire\.$/, '') || q;
+  const main = q.replace(/\s*(Dis-le|Donne les tiennes) en commentaire\.$/, '').replace(/\s*Ton (avis|pronostic) en commentaire\.$/, '') || q;
   // Bloc centré entre l'en-tête et le pied : titre, question, pastille
   // Mesurée telle qu'affichée (majuscules, lettres espacées) : jamais coupée sur le bord
   const r = fitLines(ctx, main.toUpperCase(), (colW) - 40 * u, [64, 58, 52, 46, 40].map((v) => Math.round(v * u)), 4, TITLE, 800);
@@ -865,11 +875,11 @@ function question(ctx, W, H, d, o) {
   rr(ctx, bx, byy, bs, bs * 0.66, bs * 0.12); ctx.fillStyle = '#fff'; ctx.fill();
   ctx.beginPath(); ctx.moveTo(bx + bs * 0.2, byy + bs * 0.64); ctx.lineTo(bx + bs * 0.14, byy + bs * 0.86); ctx.lineTo(bx + bs * 0.42, byy + bs * 0.64); ctx.closePath(); ctx.fill();
   ctx.restore();
-  txt(ctx, 'À VOUS !', pad, y + bigS * 0.88, { size: bigS, weight: 800, family: TITLE, max: colW, spacing: 2 });
+  txt(ctx, 'À TOI !', pad, y + bigS * 0.88, { size: bigS, weight: 800, family: TITLE, max: colW, spacing: 2 });
   y += bigS * 0.88 + 70 * u;
   r.lines.forEach((l, i) => txt(ctx, l.toUpperCase(), pad, y + r.size * 0.85 + i * r.size * 1.15, { size: r.size, weight: 800, family: TITLE, spacing: 1 }));
   y += r.lines.length * r.size * 1.15 + 60 * u;
-  const label = 'RÉPONDEZ EN COMMENTAIRE';
+  const label = 'RÉPONDS EN COMMENTAIRE';
   ctx.font = `800 ${hs}px ${TITLE}`;
   const hw = Math.min(colW, ctx.measureText(label).width + label.length * 2 * u + 90 * u);
   rr(ctx, pad, y, hw, hs * 1.8, hs * 0.9); ctx.fillStyle = C.red; ctx.fill();
@@ -895,7 +905,7 @@ function follow(ctx, W, H, d, o) {
   // Bloc d'appel : grand titre, raison adaptée au post, compte dans une pastille rouge
   const tall = H / W > 1.5;
   let y = tall ? H * 0.22 : H * 0.19;
-  const big = txt(ctx, 'ABONNEZ-VOUS', pad, y + 150 * u, { size: Math.round(170 * u), weight: 800, family: TITLE, max: colW, spacing: 2 });
+  const big = txt(ctx, 'ABONNE-TOI', pad, y + 150 * u, { size: Math.round(170 * u), weight: 800, family: TITLE, max: colW, spacing: 2 });
   y += big * 0.88 + 60 * u;
   const reason = followReason(d);
   const r = fitLines(ctx, reason.charAt(0).toUpperCase() + reason.slice(1), colW, [46, 42, 38].map((v) => Math.round(v * u)), 3, BODY, 600);
@@ -1075,7 +1085,7 @@ export function paintSlide(ctx, slide, fmt, d, o = {}) {
   else if (slide === 'raceweek') raceweek(ctx, w, h, d, o);
   else if (slide === 'horaires') horaires(ctx, w, h, d, o);
   else if (slide === 'infos') infos(ctx, w, h, d, o);
-  else if (slide === 'records') faits(ctx, w, h, d, o, 'Le saviez-vous ?');
+  else if (slide === 'records') faits(ctx, w, h, d, o, 'Le savais-tu ?');
   else if (slide === 'editions') editions(ctx, w, h, d, o);
   else if (slide === 'topflop') topflop(ctx, w, h, d, o);
   else if (slide === 'notes') notes(ctx, w, h, d, o);

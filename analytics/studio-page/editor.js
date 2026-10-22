@@ -1,14 +1,17 @@
 // Studio : éditeur d'un post (visuels, textes, publication, programmation, partage), commun aux news,
 // séances et posts de la saison.
-import { slidesFor, drawSlide, slideName, chosenSlides, keptData } from '/shared/social-draw.js';
+import { slidesFor, drawSlide, slideName, slideAlt, chosenSlides, keptData } from '/shared/social-draw.js';
 import { openImageViewer } from '/shared/image-viewer.js';
-import { followCaptions, questionCaptions } from '/shared/social-follow.js';
+import { creditCaptions, followCaptions, questionCaptions } from '/shared/social-follow.js';
 import { xLength } from '/shared/social.js';
 import { linksIn } from '/shared/track-links.js';
 import { FLAG_ISO } from '/shared/flags.js';
 import { loadTeamLogos } from '/shared/team-logos.js';
-import { $, $$, esc, api, icon, toast, toggle, sheet, schedList, glide, state, session, SIG, NET_NAMES, IOS, installed } from './ui.js';
+import { $, $$, esc, api, icon, toast, toggle, sheet, schedList, glide, state, session, store, SIG, NET_NAMES, IOS, installed } from './ui.js';
+import { bestSlot } from '/shared/post-history.js';
 import { tiktokPanel, tiktokProblem, tiktokChoice, TIKTOK_PRIVACY } from './tiktok.js';
+import { packDraftImages } from '/shared/post-draft.js';
+import { postProblems, problemText } from '/shared/post-check.js';
 
 // ---------- Images (photos des pilotes, drapeaux) par le relais du serveur ----------
 const imgCache = new Map();
@@ -38,7 +41,7 @@ export async function assets(d) {
 const FORMATS = [['ig', 'Post'], ['story', 'Story'], ['x', 'X']];
 const CAPS = [
   ['instagram', (c) => (c.facebook ? 'Légende Instagram' : 'Légende Instagram et Facebook'), 8],
-  ['facebook', () => 'Texte Facebook (avec le lien de l\'article)', 8],
+  ['facebook', () => 'Texte Facebook', 8],
   ['threads', () => 'Texte Threads', 4, 500],
   ['x', () => 'Texte X (lien = 23 caractères)', 3, 0, 280],
   ['bsky', () => 'Texte Bluesky', 3, 0, 300],
@@ -77,6 +80,14 @@ addEventListener('touchend', () => {
 });
 
 // Étapes de l'éditeur, dans l'ordre : chacune son écran (sur ordinateur, l'aperçu reste affiché à gauche)
+// Brouillon du post ouvert : effacé une fois le post publié ou programmé
+let draftId = null;
+// Identifiants des envois du post ouvert (lui et son jumeau), gardés jusqu'à la réussite : un nouvel appui
+// après une erreur ne programme pas une deuxième fois ce qui était déjà parti
+let sendIds = null;
+const newSendIds = () => { const id = () => [...crypto.getRandomValues(new Uint8Array(8))].map((b) => b.toString(16).padStart(2, '0')).join(''); return { main: id(), twin: id() }; };
+const dropDraft = () => { if (draftId) api('drafts/remove', { method: 'POST', body: JSON.stringify({ id: draftId }) }).catch(() => {}); draftId = null; };
+
 const STEPS = [['contenu', 'Contenu'], ['visuels', 'Visuels'], ['video', 'Vidéo'], ['textes', 'Textes'], ['publier', 'Publier']];
 
 // back : retour ; title / subtitle : en-tête ; head : réglages propres au post (HTML, étape Contenu) ;
@@ -84,20 +95,24 @@ const STEPS = [['contenu', 'Contenu'], ['visuels', 'Visuels'], ['video', 'Vidéo
 // des données d (sans ce que montrent les images écartées) ; bind(redraw) : branchement des réglages ;
 // record : entrée du journal ; video() : vidéo jointe au post ; link() : article { url, title, description }
 // pour un post « lien » (format Lien) ; twin : post jumeau publié en même temps, au choix
-// { label(), data(), record() } (ses visuels et ses textes faits d'office, sans retouche)
-export function editor({ back, title, subtitle = '', head = '', vhead = '', note = '', data, caps, bind = () => {}, record, video = () => null, link = null, twin = null }) {
+// { label(), data(), record() } (ses visuels et ses textes faits d'office, sans retouche) ; draft : brouillon
+// repris (drafts.js), mis à jour par « Brouillon » et effacé une fois le post publié ou programmé
+export function editor({ back, title, subtitle = '', head = '', vhead = '', note = '', data, caps, bind = () => {}, record, video = () => null, link = null, twin = null, draft = null }) {
   const formats = link ? [...FORMATS, ['link', 'Lien']] : FORMATS;
   if (!formats.some(([k]) => k === state.fmt)) state.fmt = 'ig';
   let canvases = [];
-  let edited = {};          // textes retouchés à la main : gardés en changeant de format
-  state.skip = new Set();   // images écartées de ce post (toutes publiées par défaut)
+  let edited = { ...draft?.edited };   // textes retouchés à la main : gardés en changeant de format
+  state.skip = new Set(draft?.skip);   // images écartées de ce post (toutes publiées par défaut)
+  draftId = draft?.id || null;
+  sendIds = null;
   state.noVideo = false;    // vidéo prête laissée de côté (visuels publiés)
   state.noTwin = false;     // post jumeau laissé de côté
   const root = $('#app');
   const steps = STEPS.filter(([k]) => (k === 'contenu' ? head.trim() : k === 'video' ? vhead.trim() : true));
   root.className = 'shell editing';
   root.innerHTML = `<header class="appbar"><button class="iconbtn" id="back" aria-label="Retour">${icon('back')}</button>
-      <div class="titles"><b>${esc(title)}</b>${subtitle ? `<small>${esc(subtitle)}</small>` : ''}</div></header>
+      <div class="titles"><b>${esc(title)}</b>${subtitle ? `<small>${esc(subtitle)}</small>` : ''}</div>
+      <button class="btn small" id="savedraft" title="Garder ce post pour plus tard (aussi dans l'appli)">${icon('pen')}Brouillon</button></header>
     <main class="page">
       <nav class="steps" id="steps">${steps.map(([k, v]) => `<button data-go="${k}"><i></i><span>${v}</span></button>`).join('')}</nav>
       ${head.trim() ? `<section class="panel" data-in="contenu">${head}</section>` : ''}
@@ -107,8 +122,8 @@ export function editor({ back, title, subtitle = '', head = '', vhead = '', note
       <section class="panel" id="opts" data-in="visuels">
         <h3 class="section">Options</h3>
         ${toggle('photos', 'Photos des pilotes', state.photos)}
-        ${toggle('follow', 'Image « Abonnez-vous »', state.follow)}
-        ${toggle('question', 'Question pour faire réagir', state.question)}
+        ${toggle('follow', 'Image « Abonnez-vous »', state.follow, '', state.question ? 'disabled' : '')}
+        ${toggle('question', 'Question pour faire réagir', state.question, '', state.follow ? 'disabled' : '')}
       </section>
       ${vhead.trim() ? `<section class="panel" data-in="video">${vhead}<p class="hint">Facultatif : sans vidéo, ce sont les visuels qui sont publiés.</p></section>` : ''}
       <div id="texts" data-in="textes"></div>
@@ -150,9 +165,9 @@ export function editor({ back, title, subtitle = '', head = '', vhead = '', note
     let base = caps(keptData(d, skip, state.fmt));
     if (state.question && !skip.has('question')) base = questionCaptions(base, d, SIG);
     if (state.follow && !skip.has('abonnement')) base = followCaptions(base, d, SIG);
-    const c = { ...base, ...mine };
-    if (!c.bsky) c.bsky = c.x;
-    return c;
+    if (!base.bsky) base = { ...base, bsky: base.x };
+    // Mention « Fait par IA avec l'appli », sauf pour les posts écrits à la main
+    return { ...(record?.()?.kind === 'manual' ? base : creditCaptions(base)), ...mine };
   };
   const redraw = async (changed = false) => {
     if (changed) edited = {};
@@ -277,10 +292,25 @@ export function editor({ back, title, subtitle = '', head = '', vhead = '', note
     if ($('#copycomment')) $('#copycomment').onclick = async () => { try { await navigator.clipboard.writeText(trackedNow($('#cap-comment').value)); toast('Commentaire copié'); } catch { /* presse-papiers refusé */ } };
   };
   $('#back').onclick = goBack;
+  // Brouillon : de quoi refaire le post (ici ou dans l'appli) ; un deuxième clic met à jour le même
+  $('#savedraft').onclick = async () => {
+    const b = $('#savedraft');
+    b.disabled = true;
+    try {
+      const rec = record?.() || {};
+      const id = draftId || crypto.randomUUID();
+      await api('drafts', { method: 'POST', body: JSON.stringify({ id, title: rec.title || title, kind: rec.kind || '', key: rec.key || '', at: Date.now(),
+        d: packDraftImages(data()), fmt: state.fmt, skip: [...state.skip], edited,
+        opts: { follow: state.follow, question: state.question, photos: state.photos, noSpoiler: state.noSpoiler, linkComment: state.linkComment } }) });
+      draftId = id;
+      toast('Brouillon enregistré', 'ok');
+    } catch (err) { toast(err.message, 'bad'); } finally { b.disabled = false; }
+  };
   $$('[data-fmt]').forEach((b) => { b.onclick = () => { state.fmt = b.dataset.fmt; $$('[data-fmt]').forEach((x) => x.classList.toggle('on', x === b)); glide(); redraw(); }; });
   $('#photos').onchange = (e) => { state.photos = e.target.checked; redraw(); };
-  $('#follow').onchange = (e) => { state.follow = e.target.checked; redraw(true); };
-  $('#question').onchange = (e) => { state.question = e.target.checked; redraw(true); };
+  // Question et abonnement : un seul appel par post
+  $('#follow').onchange = (e) => { state.follow = e.target.checked; $('#question').disabled = state.follow; redraw(true); };
+  $('#question').onchange = (e) => { state.question = e.target.checked; $('#follow').disabled = state.question; redraw(true); };
   bind(redraw);
   glide();
   redraw();
@@ -350,8 +380,15 @@ async function download(canvases) {
 
 // Réseaux cochés, texte et premier commentaire de chacun
 const checkedNets = () => $$('[data-net]:checked').map((i) => i.dataset.net);
-const textOf = (n) => $(`#cap-${n === 'threads' ? 'threads' : n === 'bluesky' ? 'bsky' : n === 'facebook' && $('#cap-facebook') ? 'facebook' : 'instagram'}`).value;
+const textOf = (n) => $(`#cap-${n === 'threads' ? 'threads' : n === 'bluesky' ? 'bsky' : n === 'facebook' && $('#cap-facebook') ? 'facebook' : 'instagram'}`)?.value ?? '';
 const capOf = (c, n) => c[n === 'threads' ? 'threads' : n === 'bluesky' ? 'bsky' : n === 'facebook' && c.facebook ? 'facebook' : 'instagram'] || '';
+// Avant d'envoyer : texte trop long (refusé, message affiché), visuels au-delà du carrousel (texte d'avertissement)
+function checkPost(d, nets, carousel) {
+  const pb = postProblems(nets, textOf, carousel ? chosenSlides(slidesFor(d, { fmt: 'ig', follow: state.follow, question: state.question }), [...(state.skip || [])]).length : 0);
+  const block = pb.find((p) => p.block);
+  if (block) { toast(problemText(block), 'bad'); return null; }
+  return pb.map((p) => `\n\n${problemText(p)}`).join('');
+}
 const commentOf = (n) => (n !== 'instagram' && $('#cap-comment')?.value.trim()) || '';
 // JPEG de moins de max octets : qualité baissée au besoin, puis visuel réduit (diapo photo très détaillée,
 // encodeur de Safari qui produit des fichiers bien plus lourds)
@@ -373,7 +410,7 @@ async function postImages(d, o, nets, maxIg = Infinity, skip = state.skip) {
   // Images gardées seulement (sommaire et numéros suivent)
   const draw = (fmt, max, n = 99) => {
     const list = chosenSlides(slidesFor(d, { fmt, follow: state.follow, question: state.question }), [...(skip || [])]).slice(0, n);
-    return Promise.all(list.map((sl) => fitJpeg(drawSlide(document.createElement('canvas'), sl, fmt, d, { ...o, slides: list }), max)));
+    return Promise.all(list.map(async (sl) => Object.assign(await fitJpeg(drawSlide(document.createElement('canvas'), sl, fmt, d, { ...o, slides: list }), max), { alt: slideAlt(d, sl) })));
   };
   return { ig: nets.some((n) => n !== 'bluesky') ? await draw(nets.some(isStory) ? 'story' : 'ig', maxIg) : [], x: nets.includes('bluesky') ? await draw('x', 950 * 1024, 4) : [] };
 }
@@ -383,16 +420,22 @@ async function postImages(d, o, nets, maxIg = Infinity, skip = state.skip) {
 // tk : réglages d'une publication directe TikTok ;
 // link : post « lien » (carte de l'article), sauf Instagram qui n'en a pas : visuels de l'onglet Post
 // alt : post jumeau (textes donnés, toutes ses images)
-async function queuePost(d, o, nets, at, record, video = null, tk = null, link = null, alt = null) {
+// Post jumeau, après le principal : son échec dit que le principal, lui, est parti
+async function queueTwin(twin, o, nets, at) {
+  try { await queuePost(twin.data, o, nets, at, twin.record, null, null, null, twin, sendIds.twin); } catch (err) { throw new Error(`Post principal envoyé ; « ${twin.record.title} » : ${err.message}`); }
+}
+async function queuePost(d, o, nets, at, record, video = null, tk = null, link = null, alt = null, id = null) {
   const imgs = video ? { ig: [], x: [] } : !link ? await postImages(d, o, nets, 3.5e6, alt ? new Set() : state.skip)
     : { ig: nets.includes('instagram') ? (await postImages(d, o || await assets(d), ['instagram'], 3.5e6)).ig : [], x: [] };
   const form = new FormData();
+  if (id) form.append('id', id);
   form.append('at', String(at));
   form.append('title', record?.title || d.title || d.gp || 'Post');
   form.append('record', JSON.stringify(record));
   form.append('posts', JSON.stringify(nets.map((n) => (isStory(n) ? { network: n } : { network: n, text: alt ? capOf(alt.texts, n) : textOf(n), comment: link ? '' : alt ? (n !== 'instagram' && alt.texts.comment?.trim()) || '' : commentOf(n) }))));
   if (link) form.append('link', JSON.stringify(link));
   imgs.ig.forEach((b, i) => form.append('ig', b, `image-${i + 1}.jpg`));
+  form.append('alts', JSON.stringify({ ig: imgs.ig.map((b) => b.alt || ''), x: imgs.x.map((b) => b.alt || '') }));
   imgs.x.forEach((b, i) => form.append('x', b, `x-${i + 1}.jpg`));
   if (video) form.append('video', video, video.type === 'video/quicktime' ? 'video.mov' : 'video.mp4');
   if (video?.cover) form.append('cover', video.cover, 'cover.jpg');
@@ -409,12 +452,27 @@ function schedulePanel(d, o, record = null, video = null, link = null, twin = nu
   if (!nets.length) { toast('Cochez au moins un réseau', 'bad'); return; }
   const tk = nets.includes('tiktok') ? tiktokChoice() : null;
   if (nets.includes('tiktok') && tiktokProblem()) { toast(tiktokProblem(), 'bad'); return; }
+  const warn = checkPost(d, nets, !video && !link);
+  if (warn === null) return;
   const t = new Date(Date.now() + 3600e3);
   t.setMinutes(Math.ceil(t.getMinutes() / 15) * 15, 0, 0);
+  // Créneau conseillé d'après les chiffres des posts déjà publiés (lus dans l'onglet Stats au fil du temps)
+  const slot = bestSlot(store.get('poststats')?.v);
   const dlg = sheet('Programmer la publication', `<label class="field"><span>Date et heure</span><input type="datetime-local" id="when" value="${localValue(t)}"></label>
+    ${slot ? `<p class="hint">Conseil : d'après vos ${slot.n} derniers posts, ceux publiés entre ${slot.from} h et ${slot.to} h ont ${String(slot.ratio).replace('.', ',')} fois plus de réactions que la moyenne.</p>
+    <div class="row"><button class="btn small" id="bestslot">${icon('clock')}Choisir ${slot.from + 1} h</button></div>` : ''}
     <p class="hint">Sur ${esc(nets.map((n) => NET_NAMES[n]).join(', '))}, même page fermée (7 jours à l'avance au plus).</p>
+    ${warn ? `<p class="hint err">${esc(warn.trim())}</p>` : ''}
     <p class="hint" id="schedst"></p>
     <button class="btn primary wide" id="dosched">${icon('clock')}Programmer</button>`);
+  if (slot) {
+    $('#bestslot', dlg).onclick = () => {
+      const next = new Date();
+      next.setHours(slot.from + 1, 0, 0, 0);
+      if (next.getTime() < Date.now() + 10 * 60e3) next.setDate(next.getDate() + 1);
+      $('#when', dlg).value = localValue(next);
+    };
+  }
   $('#dosched', dlg).onclick = async () => {
     const at = new Date($('#when', dlg).value).getTime();
     const st = $('#schedst', dlg);
@@ -425,10 +483,13 @@ function schedulePanel(d, o, record = null, video = null, link = null, twin = nu
     st.className = 'hint';
     st.textContent = video ? 'Envoi de la vidéo…' : 'Envoi des visuels…';
     try {
-      await queuePost(d, o, nets, at, record, video, tk, link);
-      if (twin) await queuePost(twin.data, o, nets, at, twin.record, null, null, null, twin);
+      sendIds ||= newSendIds();
+      await queuePost(d, o, nets, at, record, video, tk, link, null, sendIds.main);
+      if (twin) await queueTwin(twin, o, nets, at);
+      sendIds = null;
       dlg.close();
       toast(`Programmé pour le ${new Date(at).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' })}`, 'ok');
+      dropDraft();
       schedList($('#schedlist'));
     } catch (err) {
       st.className = 'hint err';
@@ -453,16 +514,21 @@ async function publishAll(d, o, record = null, video = null, link = null, twin =
   // TikTok : publication directe avec les réglages choisis, sinon brouillon ; rien n'est envoyé sans confirmation
   const tk = nets.includes('tiktok') ? tiktokChoice() : null;
   if (nets.includes('tiktok') && tiktokProblem()) { toast(tiktokProblem(), 'bad'); return; }
-  if (!confirm(`Publier maintenant sur : ${nets.map((n) => NET_NAMES[n] || n).join(', ')} ?${twin ? `\n\nDeux posts : celui-ci et « ${twin.record.title} ».` : ''}\n\n${stories ? 'Les stories seront publiques pendant 24 heures' : `Les posts seront publics${[nets.includes('tiktok') && `TikTok : ${tk ? `publication directe, visible par : ${TIKTOK_PRIVACY[tk.privacy]}` : 'en brouillon'}`, nets.includes('youtube') && 'YouTube : en privé'].filter(Boolean).map((x, i, a) => `${i ? ' ; ' : ' ('}${x}${i === a.length - 1 ? ')' : ''}`).join('')}`}.`)) return;
+  const warn = checkPost(d, nets, !video && !link);
+  if (warn === null) return;
+  if (!confirm(`Publier maintenant sur : ${nets.map((n) => NET_NAMES[n] || n).join(', ')} ?${twin ? `\n\nDeux posts : celui-ci et « ${twin.record.title} ».` : ''}${warn}\n\n${stories ? 'Les stories seront publiques pendant 24 heures' : `Les posts seront publics${[nets.includes('tiktok') && `TikTok : ${tk ? `publication directe, visible par : ${TIKTOK_PRIVACY[tk.privacy]}` : 'en brouillon'}`, nets.includes('youtube') && 'YouTube : en privé'].filter(Boolean).map((x, i, a) => `${i ? ' ; ' : ' ('}${x}${i === a.length - 1 ? ')' : ''}`).join('')}`}.`)) return;
   const go = $('#go');
   go.disabled = true;
   // Confié au serveur (visuels ou vidéo envoyés une fois) : publié dans la minute, même page fermée
   for (const n of nets) { const st = $(`[data-st="${n}"]`); st.className = 'st'; st.textContent = video ? 'Envoi de la vidéo au serveur…' : 'Envoi au serveur…'; }
   try {
-    const item = await queuePost(d, o, nets, Date.now(), record, video, tk, link);
-    if (twin) await queuePost(twin.data, o, nets, Date.now(), twin.record, null, null, null, twin);
+    sendIds ||= newSendIds();
+    const item = await queuePost(d, o, nets, Date.now(), record, video, tk, link, null, sendIds.main);
+    if (twin) await queueTwin(twin, o, nets, Date.now());
+    sendIds = null;
     for (const n of nets) $(`[data-st="${n}"]`).textContent = 'Publication dans la minute';
     toast('Envoyé : publication dans la minute, vous pouvez quitter la page', 'ok');
+    dropDraft();
     // Avancement relu tant que la page reste ouverte (5 minutes au plus) ; tout publié : retirée de la liste
     const list = $('#schedlist');
     schedList(list);

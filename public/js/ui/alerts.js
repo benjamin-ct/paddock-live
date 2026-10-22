@@ -1,12 +1,12 @@
 // Alertes sonores / visuelles. Elles sont déclenchées par les événements *retardés* :
 // elles arrivent donc en même temps que l'image TV, jamais avant (pas de spoiler).
 import { store, on } from '../store.js';
-import { $, esc, drivers } from '../util.js';
+import { $, esc, drivers, sessionKind } from '../util.js';
 import { prefs, setPref, isFav } from '../prefs.js';
 import { toast } from './delay.js';
 import { icon } from '../icons.js';
 import { FLOAT } from './floatwin.js';
-import { EN } from '../i18n.js';
+import { EN, tx } from '../i18n.js';
 import { rcmFr } from '/shared/rcm-fr.js';
 
 let audio = null;
@@ -56,7 +56,7 @@ function notify(title, body, kind) {
   buzz(kind);
   toast(`${title}${body ? ' — ' + body : ''}`, 5000, KIND_ICON[kind] || 'bell');
   if (prefs.alerts.notify && document.hidden && 'Notification' in window && Notification.permission === 'granted') {
-    try { new Notification(title, { body, silent: true }); } catch { /* ignore */ }
+    try { new Notification(tx(title), { body: tx(body), silent: true }); } catch { /* ignore */ }
   }
 }
 
@@ -67,7 +67,7 @@ export function notifyReminder(title, body) {
   buzz('info');
   toast(`${title} — ${body}`, 10000, 'bell');
   if (prefs.alerts.notify && 'Notification' in window && Notification.permission === 'granted') {
-    try { new Notification(title, { body, silent: true }); } catch { /* ignore */ }
+    try { new Notification(tx(title), { body: tx(body), silent: true }); } catch { /* ignore */ }
   }
 }
 
@@ -79,7 +79,7 @@ export function notifyNews(title, body, kind, onClick) {
   toast(`${title} — ${body}`, 8000, 'news');
   if (prefs.alerts.notify && document.hidden && 'Notification' in window && Notification.permission === 'granted') {
     try {
-      const n = new Notification(title, { body, silent: true });
+      const n = new Notification(tx(title), { body: tx(body), silent: true });
       n.onclick = () => { window.focus(); onClick?.(); n.close(); };
     } catch { /* ignore */ }
   }
@@ -92,6 +92,26 @@ const TRACK_ALERT = {
 };
 
 let lastTrack = null;
+let lastRain = null;
+const inZone = new Map();   // qualifs : favori sous la ligne d'élimination ? (clé « partie|numéro »)
+
+const rainOf = (w) => (w?.Rainfall === undefined ? null : w.Rainfall === '1' || w.Rainfall === 1);
+
+// Qualifs (Q1, Q2) : favori qui passe sous la ligne d'élimination
+function favCut(tla) {
+  const s = store.state;
+  const part = Number(s.TimingData?.SessionPart) || 1;
+  const no = s.TimingData?.NoEntries;
+  const cutoff = sessionKind(s) === 'quali' && part < 3 ? Number((Array.isArray(no) ? no : Object.values(no || {}))[part]) || null : null;
+  if (!cutoff || s.SessionStatus?.Status !== 'Started') return;
+  for (const [num, l] of Object.entries(s.TimingData?.Lines || {})) {
+    if (!isFav(num) || !l?.Position) continue;
+    const out = Number(l.Position) > cutoff && !l.KnockedOut;
+    const key = `${part}|${num}`;
+    if (out && inZone.get(key) === false) notify(`${tla(num)} en zone d'élimination`, `P${l.Position}`, 'fav');
+    inZone.set(key, out);
+  }
+}
 
 function onEvents(events) {
   const a = prefs.alerts;
@@ -106,6 +126,10 @@ function onEvents(events) {
         else if (st === '1' && ['4', '5', '6', '7'].includes(lastTrack)) notify('Piste dégagée', 'Reprise de la course', 'green');
         lastTrack = st;
       }
+    } else if (topic === 'WeatherData' && rainOf(data) !== null) {
+      const rain = rainOf(data);
+      if (a.rain && lastRain !== null && rain !== lastRain) notify(rain ? 'Pluie sur le circuit' : 'La pluie s\'arrête', '', 'info');
+      lastRain = rain;
     } else if (topic === 'SessionStatus' && data.Status === 'Finished' && a.finish) {
       notify('Drapeau à damier', '', 'green');
     } else if (topic === 'TimingData' && data.Lines) {
@@ -126,12 +150,17 @@ function onEvents(events) {
       }
     }
   }
+  if (a.favCut && events.some(([t]) => t === 'TimingData')) favCut(tla);
 }
 
 export function initAlerts() {
   // Carte flottante : pas d'alertes (message et son déjà donnés par la fenêtre principale)
   if (FLOAT) return;
-  on('reset', () => { lastTrack = String(store.state.TrackStatus?.Status || ''); });
+  on('reset', () => {
+    lastTrack = String(store.state.TrackStatus?.Status || '');
+    lastRain = rainOf(store.state.WeatherData);
+    inZone.clear();
+  });
   on('events', onEvents);
   // Téléphones et tablettes : le son n'est autorisé qu'après un premier appui sur l'écran
   window.addEventListener('pointerdown', () => {
@@ -166,9 +195,10 @@ export function initAlerts() {
 }
 
 const OPTS = [
-  ['sound', 'Son'], ['vibrate', 'Vibration (téléphone)'], ['notify', 'Notification Windows (onglet en arrière-plan)'], ['flags', 'SC / VSC / drapeau rouge'],
+  ['sound', 'Son'], ['vibrate', 'Vibration (téléphone)'], ['notify', 'Notification du système (fenêtre en arrière-plan)'], ['flags', 'SC / VSC / drapeau rouge'],
   ['fastest', 'Meilleur tour'], ['favPit', 'Arrêt d\'un favori'], ['favRcm', 'Messages FIA sur un favori'],
-  ['retire', 'Abandons'], ['finish', 'Arrivée'],
+  ['favCut', 'Favori en zone d\'élimination (qualifs)'], ['rain', 'Pluie sur le circuit'],
+  ['retire', 'Abandons'], ['finish', 'Arrivée'], ['prono', 'Pronostic pas encore fait (1 h avant la fermeture)'],
 ];
 
 export function renderAlertOptions() {

@@ -6,7 +6,7 @@
 // Chargement rapide : les listes s'affichent d'abord avec les données gardées sur le téléphone, puis
 // se mettent à jour ; l'éditeur et la Saison ne sont chargés qu'à l'ouverture (préchargés ensuite).
 import { bigNews, newsKind, newsKinds, sortNews, isBreaking } from '/shared/social-news.js';
-import { postedEntry } from '/shared/post-history.js';
+import { postedEntry, keepStats } from '/shared/post-history.js';
 import { pullToRefresh } from '/shared/pull-refresh.js';
 import { $, $$, esc, api, ago, fmtN, icon, LOGO, toast, skeleton, empty, failure, sheet, schedList, store, state, session, hasKey, setKey, forgetKey, onLogout, glide, NET_NAMES, IOS, installed } from './ui.js';
 import { cachedNews, freshNews, toFrench, knownFrench, cachedSessions, seasonSessions, SESSION_FR } from './data.js';
@@ -27,6 +27,7 @@ const lazy = (load) => () => load().catch((err) => {
 const loadPosts = () => import('./posts.js');
 const posts = lazy(loadPosts);
 const season = lazy(() => import('./season.js'));
+const drafts = lazy(() => import('./drafts.js'));
 const scrolls = {};   // position dans chaque onglet, retrouvée au retour d'un post
 
 // ---------- Accès ----------
@@ -85,13 +86,15 @@ function home({ from = 'up' } = {}) {
   app.className = 'shell';
   app.innerHTML = `<header class="appbar"><div class="brand">${LOGO}<span>Paddock <b>Studio</b></span></div><span class="grow"></span>
       <a class="iconbtn" href="https://paddocklive.app/" aria-label="Retour au site" title="Retour au site">${icon('home')}</a>
-      <button class="iconbtn" id="refresh" aria-label="Actualiser" title="Actualiser">${icon('refresh')}</button><button class="iconbtn" id="inbox" aria-label="Messages" title="Messages">${icon('mail')}<i class="count" hidden></i></button><button class="iconbtn" id="settings" aria-label="Réglages" title="Réglages">${icon('settings')}</button></header>
+      <button class="iconbtn" id="refresh" aria-label="Actualiser" title="Actualiser">${icon('refresh')}</button><button class="iconbtn" id="drafts" aria-label="Brouillons" title="Brouillons">${icon('pen')}<i class="count" hidden></i></button><button class="iconbtn" id="inbox" aria-label="Messages" title="Messages">${icon('mail')}<i class="count" hidden></i></button><button class="iconbtn" id="settings" aria-label="Réglages" title="Réglages">${icon('settings')}</button></header>
     <main class="page" id="body"></main>
     <nav class="tabbar" style="--i:${tabIndex(state.tab)}"><div class="side-brand">${LOGO}<span>Paddock <b>Studio</b></span></div><span class="lens"></span>${TABS.map(([k, v, ic]) => `<button data-tab="${k}" class="${state.tab === k ? 'on' : ''}">${icon(ic)}<span>${v}</span></button>`).join('')}</nav>`;
   $('#settings').onclick = settings;
   $('#inbox').onclick = messages;
-  $('#refresh').onclick = () => { inboxCount(); showTab({ force: true }); };
+  $('#drafts').onclick = (e) => open(e.currentTarget, async () => (await drafts()).draftsSheet(back, draftCount));
+  $('#refresh').onclick = () => { inboxCount(); countDrafts(); showTab({ force: true }); };
   inboxCount();
+  countDrafts();
   $$('[data-tab]').forEach((b) => {
     b.onclick = () => {
       if (state.tab === b.dataset.tab) { scrollTo({ top: 0, behavior: 'smooth' }); return; }
@@ -162,16 +165,16 @@ async function newsTab(body, { force, restore, current }) {
 
 // Titres pas encore traduits de la liste affichée : demandés au serveur, remplacés dès qu'ils
 // arrivent (à chaque affichage : chargement, tri, filtre, « Toutes »)
-async function translateShown(body, list) {
+// Titres traduits, puis liste refaite : le même article publié en plusieurs langues y est réuni
+async function translateShown(body, list, redraw) {
   const todo = list.filter((it) => it.lang !== 'fr' && !knownFrench(it.title, it.lang));
   if (!todo.length) return;
   await toFrench(todo.map((it) => ({ text: it.title, from: it.lang })));
-  if (list !== shown || !body.isConnected) return;
-  list.forEach((it, i) => {
-    const fr = knownFrench(it.title, it.lang);
-    const t = $(`[data-i="${i}"] .t`, body);
-    if (t && fr && t.textContent !== fr) t.textContent = fr;
-  });
+  // Rien de traduit (serveur indisponible) : pas de nouvel essai en boucle
+  if (list !== shown || !body.isConnected || !todo.some((it) => knownFrench(it.title, it.lang))) return;
+  const y = scrollY;
+  redraw();
+  scrollTo(0, y);
 }
 
 let shown = [];
@@ -180,7 +183,7 @@ const READ = new Set(store.get('read')?.v || []);
 const setRead = (id, on = true) => { if (on) READ.add(id); else READ.delete(id); store.set('read', [...READ].slice(-2000)); };
 const KIND_NAMES = { transfert: 'Transferts', penalite: 'Pénalités', depart: 'Départs', accident: 'Accidents', officiel: 'Officiel', actu: 'Actu F1' };
 function renderNews(body, items, { at, stale = false }) {
-  const big = bigNews(items, { all: state.all });
+  const big = bigNews(items, { all: state.all, frTitle: (it) => knownFrench(it.title, it.lang) });
   const done = new Map(big.map((it) => [it, postedEntry(it, postLog)]));
   // Tri (à la une ou récentes), filtre par type, news déjà publiées en dernier
   const kinds = newsKinds(big);
@@ -205,7 +208,7 @@ function renderNews(body, items, { at, stale = false }) {
         <button class="readmark${read ? ' on' : ''}" data-r="${i}" aria-label="${read ? 'Lue : marquer comme non lue' : 'Marquer comme lue'}" title="${read ? 'Lue : marquer comme non lue' : 'Marquer comme lue'}">${icon('check')}</button></div>`;
     }).join('')}</div>` : empty(state.all ? 'Aucune actu ces dernières 48 heures.' : 'Aucune grosse news ces dernières 48 heures : essayez « Toutes ».')}`;
   glide(body);
-  translateShown(body, list);
+  translateShown(body, list, () => renderNews(body, items, { at, stale }));
   $('#all', body).onchange = (e) => { state.all = e.target.checked; renderNews(body, items, { at, stale }); };
   $('#hideread', body).onchange = (e) => { state.hideRead = e.target.checked; renderNews(body, items, { at, stale }); };
   $$('[data-r]', body).forEach((b) => { b.onclick = () => { const y = scrollY; setRead(list[Number(b.dataset.r)].id, !b.classList.contains('on')); renderNews(body, items, { at, stale }); scrollTo(0, y); }; });
@@ -323,6 +326,9 @@ async function loadUsage(box) {
 }
 const SHORT_NETS = ['instagram', 'facebook', 'threads', 'x', 'bluesky', 'tiktok', 'youtube'];
 const STAT_LABELS = [['views', 'Vues'], ['reach', 'Portée'], ['likes', 'J\'aime'], ['comments', 'Comm.'], ['shares', 'Partages'], ['saves', 'Enreg.']];
+// Chiffres de chaque post lus jusqu'ici (le serveur n'en lit que 6 à la fois), gardés sur le téléphone
+// pour le créneau conseillé de « Programmer » (8 posts au moins)
+const keepPostStats = (r) => store.set('poststats', keepStats(r.kept || store.get('poststats')?.v, r.posts));
 // Chiffres des posts et des comptes : deux appels au serveur, en même temps
 async function loadStats() {
   const [r, acc] = await Promise.all([api('stats'), api('stats/accounts').catch(() => null)]);
@@ -339,6 +345,7 @@ async function statsTab(body, { force, restore, current }) {
   const r = await loadStats();
   if (!current()) return;
   store.set('stats', r);
+  keepPostStats(r);
   renderStats(body, r, false);
 }
 function renderStats(body, r, stale) {
@@ -406,6 +413,7 @@ function renderStats(body, r, stale) {
       if (imp.added) {
         const next = await loadStats();
         store.set('stats', next);
+        keepPostStats(next);
         renderStats(body, next, false);
       }
     } catch (err) { toast(err.message, 'bad'); } finally { b.classList.remove('busy'); b.disabled = false; }
@@ -433,6 +441,14 @@ const showCount = (items) => {
   const c = $('#inbox .count'), n = items.filter((m) => !m.seen).length;
   if (c) { c.hidden = !n; c.textContent = n > 9 ? '9+' : n; }
 };
+// Brouillons de posts : leur nombre sur le bouton de l'en-tête
+function draftCount(items) {
+  const c = $('#drafts .count');
+  if (!c) return;
+  c.hidden = !items.length;
+  c.textContent = items.length;
+}
+const countDrafts = () => api('drafts').then((r) => draftCount(r.items || [])).catch(() => {});
 const inboxCount = () => api('feedback').then((r) => showCount(r.items || [])).catch(() => {});
 function msgHtml(m) {
   const from = m.src === 'app' ? ['Appli', /^\d/.test(m.version) ? `v${m.version}` : '', SYS[m.os] || m.os].filter(Boolean).join(' ') : 'Site';

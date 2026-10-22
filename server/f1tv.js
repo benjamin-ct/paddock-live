@@ -3,6 +3,8 @@
 // lecteur (manifestes, segments, licence DRM) pour éviter les blocages CORS du navigateur.
 import https from 'node:https';
 import http from 'node:http';
+import dns from 'node:dns';
+import net from 'node:net';
 import { getJSON, request, agent, USER_AGENT } from './net.js';
 
 const BASE = 'https://f1tv.formula1.com';
@@ -129,10 +131,33 @@ export async function playback(contentId, channelId, token) {
   return { ok: false, tried };
 }
 
+// Adresses de cet ordinateur ou du réseau local : jamais relayées (un appareil du réseau ferait passer ses
+// requêtes pour celles de l'ordinateur, qui ont tous les droits : publication, sauvegarde…)
+export function privateAddress(ip) {
+  const v = net.isIP(ip);
+  if (v === 4) {
+    const [a, b] = ip.split('.').map(Number);
+    return a === 0 || a === 10 || a === 127 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127);
+  }
+  if (v === 6) {
+    const x = ip.toLowerCase();
+    return x === '::' || x === '::1' || /^f[cd]/.test(x) || /^fe[89ab]/.test(x) || (x.startsWith('::ffff:') && privateAddress(x.slice(7)));
+  }
+  return false;
+}
+export const localTarget = (hostname) => /(^|\.)(localhost|local)$/i.test(hostname) || privateAddress(String(hostname).replace(/^\[|\]$/g, ''));
+// Nom qui pointe vers une adresse locale (127.0.0.1…) : refusé aussi
+async function publicTarget(u) {
+  if (localTarget(u.hostname)) return false;
+  if (net.isIP(u.hostname.replace(/^\[|\]$/g, ''))) return true;
+  try { return !(await dns.promises.lookup(u.hostname, { all: true })).some((a) => privateAddress(a.address)); } catch { return true; }
+}
+
 // Relais local : GET (manifestes, segments) et POST (licence DRM).
-export function proxy(req, res, target, token, redirects = 5) {
+export async function proxy(req, res, target, token, redirects = 5) {
   let u;
   try { u = new URL(target); } catch { res.writeHead(400); res.end('URL invalide'); return; }
+  if (!(await publicTarget(u))) { res.writeHead(403); res.end('Adresse locale refusée'); return; }
   // HTTPS pour F1 TV ; HTTP accepté seulement pour les stations radio ajoutées par l'utilisateur
   const okProto = u.protocol === 'https:' || (u.protocol === 'http:' && allowedHosts.has(u.host));
   if (!okProto || !hostAllowed(u.host)) { res.writeHead(403); res.end('Hôte non autorisé'); return; }
@@ -169,9 +194,11 @@ export function proxy(req, res, target, token, redirects = 5) {
 }
 
 // Liste de lecture radio (.pls / .m3u) : première adresse de flux trouvée.
-export async function resolvePlaylist(target) {
+// allowLocal : tests seulement (serveur de test sur cet ordinateur)
+export async function resolvePlaylist(target, { allowLocal = false } = {}) {
   const u = new URL(target);
   if (u.protocol !== 'https:' && u.protocol !== 'http:') throw new Error('Adresse invalide');
+  if (!allowLocal && !(await publicTarget(u))) throw new Error('Adresse locale refusée');
   const text = (u.protocol === 'https:'
     ? (await request(u.toString(), { headers: { 'User-Agent': UA } })).body.toString('utf8')
     : await new Promise((resolve, reject) => {
@@ -188,6 +215,7 @@ export async function resolvePlaylist(target) {
     })).slice(0, 20000);
   const m = /^(?:File\d+=)?\s*(https?:\/\/\S+)/im.exec(text);
   if (!m) throw new Error('Aucun flux trouvé dans la liste de lecture');
+  if (localTarget(new URL(m[1].trim()).hostname)) throw new Error('Adresse locale refusée');
   return m[1].trim();
 }
 

@@ -91,6 +91,19 @@ test('actualités : regroupement des articles d\'un même sujet', () => {
   assert.ok(newsSimilarity(list[0], list[1]) >= 0.6);
 });
 
+test('actualités : même article en plusieurs langues réuni grâce aux titres traduits', () => {
+  const mk = (id, src, title, t) => ({ id, src, title, t, tags: newsTags(title) });
+  const h = 3600e3;
+  const FR = { 'Verstappen handed five-place grid penalty for Singapore': 'Verstappen reçoit une pénalité de cinq places sur la grille à Singapour',
+    'Verstappen, cinco puestos de penalización en Singapur': 'Verstappen, pénalité de cinq places sur la grille à Singapour' };
+  const list = clusterNews([
+    mk('a', 'autosport', 'Verstappen handed five-place grid penalty for Singapore', 0),
+    mk('b', 'lequipe', 'Pénalité de cinq places sur la grille pour Verstappen à Singapour', 1 * h),
+    mk('c', 'marca', 'Verstappen, cinco puestos de penalización en Singapur', 2 * h),
+  ], { titleOf: (x) => FR[x.title] });
+  assert.deepEqual(list.map((x) => x.cluster), ['a', 'a', 'a']);
+});
+
 test('actualités : dates avec fuseau en lettres', async () => {
   const { parseDate } = await import('../shared/news.js');
   assert.equal(parseDate('Wed, 14 Oct 2026 06:00:00 BST'), Date.parse('2026-10-14T05:00:00Z'));

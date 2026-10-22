@@ -124,6 +124,8 @@ code { background: var(--panel-3); padding: 1px 5px; border-radius: 4px; font-si
   padding: 3px 7px; cursor: pointer; font-weight: 600; min-width: 34px;
 }
 .dbtn:hover { border-color: var(--muted); }
+.dpause { display: grid; place-items: center; }
+.dpause.on { background: var(--accent); color: #fff; border-color: var(--accent); }
 .delay-input {
   width: 84px; text-align: center; font-size: 20px; font-weight: 900;
   background: var(--deep); border: 1px solid var(--border); border-radius: 6px; padding: 1px 4px;
@@ -153,6 +155,7 @@ code { background: var(--panel-3); padding: 1px 5px; border-radius: 4px; font-si
 .source-badge.live .src-dot { background: var(--red); box-shadow: 0 0 8px var(--red); animation: pulse 1.4s infinite; }
 .source-badge.replay .src-dot { background: var(--blue); }
 .source-badge.error .src-dot { background: var(--orange); }
+.source-badge.stale .src-dot { background: var(--orange); animation: pulse 1.4s infinite; }
 
 /* ---------- Barre de replay ---------- */
 .replaybar {
@@ -302,6 +305,7 @@ code { background: var(--panel-3); padding: 1px 5px; border-radius: 4px; font-si
 .tag.out { background: var(--green); color: #002012; }
 .tag.ret { background: #5a6272; color: #fff; }
 .tag.stop { background: var(--red); color: #fff; }
+.tag.pen { background: #ff8a3d; color: #2a1200; }
 .tag.drs { background: var(--green); color: #002012; }
 .tag.flag-blue { background: var(--blue); color: #001526; }
 .tag.catch { background: rgba(53,208,127,.18); color: var(--green); }
@@ -985,7 +989,8 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
 /* Fil des radios retranscrites */
 .rd-feed-head { flex: none; display: flex; align-items: baseline; gap: 8px; padding: 8px 14px 4px; }
 .rd-feed-head b { font-size: 13.5px; }
-.rd-speed { margin-left: auto; min-width: 36px; height: 22px; border-radius: 6px; border: 1px solid var(--border); background: var(--panel-3); color: var(--text); font-size: 12px; cursor: pointer; }
+.rd-vol { margin-left: auto; width: 70px; }
+.rd-speed { min-width: 36px; height: 22px; border-radius: 6px; border: 1px solid var(--border); background: var(--panel-3); color: var(--text); font-size: 12px; cursor: pointer; }
 .rd-text-off { margin: 4px 12px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .rd-list { list-style: none; margin: 0; padding: 0 4px 6px; flex: 1; min-height: 0; overflow-y: auto; }
 .rd-line { display: flex; align-items: flex-start; gap: 12px; padding: 9px 10px; border-radius: 8px; cursor: pointer; }
@@ -2409,6 +2414,9 @@ body.mini-body { display: block; min-height: 0; height: 100vh; overflow: hidden;
 .mini-table tr.duel-a .m-drv { color: var(--blue); }
 .mini-table tr.duel-b .m-drv { color: var(--orange); }
 .mini-table tr.out td { opacity: .45; }
+.mini-table tr.cut td { border-bottom: 2px solid var(--red); }
+.mini-table tr.danger .m-pos { color: var(--red); }
+.mini-menu { display: grid; gap: 4px; padding: 6px 8px; background: var(--panel); border-bottom: 1px solid var(--border); }
 .mini-table .m-empty { color: var(--muted); font-size: 12px; white-space: normal; padding: 10px 8px; }
 .mini-foot { position: fixed; bottom: 0; left: 0; right: 0; padding: 3px 8px; font-size: 10.5px; color: var(--muted); background: var(--panel); border-top: 1px solid var(--border); }
 .mini-table .m-drv .ic { width: 10px; height: 10px; margin-left: 4px; vertical-align: 0; color: var(--yellow); fill: currentColor; }
@@ -2605,6 +2613,9 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; gap: 5
 .posts-stats-post { border-top: 1px solid var(--border); padding: 10px 0; display: grid; gap: 3px; }
 /* Posts « news » : choix de la nouvelle, titre et résumé modifiables */
 .posts-news-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 10px; }
+/* Brouillons de posts : un par ligne (reprendre, date, supprimer) */
+.posts-draft { gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.posts-draft .btn b { font-weight: 600; }
 .posts-news-sel { flex: 1 1 320px; min-width: 0; max-width: 100%; }
 .posts-news-edit { display: grid; gap: 8px; margin-bottom: 14px; }
 .posts-news-edit select { display: block; margin-top: 4px; }

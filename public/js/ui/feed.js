@@ -1,6 +1,6 @@
 // Direction de course, radios d'équipe, arrêts aux stands.
 import { store, versionOf, on, f1Now, displayNow } from '../store.js';
-import { prefs, setPref } from '../prefs.js';
+import { prefs, setPref, isFav } from '../prefs.js';
 import { $, esc, drivers, teamColor, fmtClock, fmtLap, api, stintsOf, tyreBadge, orderedNumbers } from '../util.js';
 import { parseUtc, parseLapTime } from '/shared/f1.js';
 import { analyzeStewards, isOpen, STATUS_LABEL, linkFiaDocs, parseFiaDoc, deletedLapsDoc } from '/shared/stewards.js';
@@ -44,9 +44,12 @@ export function rcmType(m) {
 function rcmShown(m) {
   if (!prefs.rcmBlue && m.Flag === 'BLUE') return false;
   if (!prefs.rcmDeleted && /\bDELETED\b/.test(m.Message || '')) return false;
+  if (prefs.rcmType === 'mine') return carsOf(m).some((n) => isFav(n) || n === store.duel.a || n === store.duel.b);
   if (prefs.rcmType && prefs.rcmType !== 'all' && rcmType(m) !== prefs.rcmType) return false;
   return true;
 }
+// Voitures nommées dans un message (« CAR 44 (HAM) », « CARS 1 (VER) AND 4 (NOR) ») et son numéro
+const carsOf = (m) => [m.RacingNumber, ...[...String(m.Message || '').matchAll(/\b(\d{1,2}) \([A-Z]{3}\)/g)].map((x) => x[1])].filter(Boolean).map(String);
 
 // Messages en français : formules connues traduites ici (drapeaux, incidents, pénalités…), les autres
 // par le serveur Paddock Live (une fois pour tous, gardées en mémoire ici)
@@ -72,7 +75,7 @@ function rcmTranslation(msg) {
 }
 
 export function renderRcm() {
-  const v = `${versionOf(['RaceControlMessages', '__reset'])}|${prefs.rcmBlue}|${prefs.rcmDeleted}|${prefs.rcmType}|${rcmTranslating()}|${rcmTrVer}`;
+  const v = `${versionOf(['RaceControlMessages', '__reset'])}|${prefs.rcmBlue}|${prefs.rcmDeleted}|${prefs.rcmType}|${rcmTranslating()}|${rcmTrVer}|${prefs.rcmType === 'mine' ? `${prefs.favs}|${store.duel.a}|${store.duel.b}` : ''}`;
   if (v === rcmVer) return;
   const sameList = String(rcmVer).split('|')[0] === v.split('|')[0] || rcmVer === -1;
   rcmVer = v;
@@ -274,7 +277,7 @@ const reasonFr = (reason) => cap(rcmReasonFr(reason));
 
 let stwVer = -1, stwCache = null;
 
-function stewardsData() {
+export function stewardsData() {
   const v = versionOf(['RaceControlMessages', '__reset']);
   if (v !== stwVer) {
     stwVer = v;

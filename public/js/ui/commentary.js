@@ -155,6 +155,7 @@ async function widevineAvailable() {
 
 async function start() {
   showBrowserLink(false);
+  media().onerror = media().onended = null;   // surveillance propre au flux radio (remise par startRadio)
   if (prefs.commSource === 'radio') return startRadio();
   await refreshContent();
   if (!content) { status('Pas de vidéo F1 TV pour cette séance.', 'err'); return; }
@@ -194,6 +195,7 @@ async function start() {
     await media().play().catch(() => {});
     showBrowserLink(false);
     status(`Lecture en cours · ${stream.streamType || stream.format}${stream.drm ? ` · DRM ${stream.drm}` : ''}`, 'ok');
+    steady();
     renderLanguages();
     startSync();
   } catch (err) {
@@ -246,12 +248,15 @@ async function startRadio() {
       await p.load(url);
     } else {
       if (player) await player.unload().catch(() => {});
+      // Flux radio coupé (erreur ou fin d'un flux en direct) : reconnexion comme pour F1 TV
+      m.onerror = m.onended = () => { if (m.getAttribute('src')) fail({ recoverable: true, message: 'Flux radio interrompu' }); };
       m.src = proxied(url);
     }
     applyVolume();
     setAudioDelay(radioDelay());
     radioStarted = performance.now();
     await m.play();
+    steady();
     startSync();
   } catch (err) {
     fail(err);
@@ -284,14 +289,42 @@ function describe(err) {
   return err.message || String(err);
 }
 
+// Coupure passagère (réseau, segment en erreur 5xx, flux radio interrompu) : lecture relancée toute seule,
+// 3 essais espacés ; compteur remis à zéro après une minute de lecture sans souci. Licence ou offre refusée :
+// arrêt avec l'explication
+let retries = 0;
+let retryTimer = null;
+let steadyTimer = null;
+function recoverable(err) {
+  if (err?.code && window.shaka) {
+    const http = err.data?.find?.((d) => typeof d === 'number' && d >= 400);
+    return err.category === window.shaka.util.Error.Category.NETWORK && !(http >= 400 && http < 500);
+  }
+  return err?.recoverable === true;
+}
+function steady() {
+  clearTimeout(steadyTimer);
+  steadyTimer = setTimeout(() => { if (playing) retries = 0; }, 60000);
+}
+
 function fail(err) {
   console.warn('[commentaires]', err);
+  if (playing && recoverable(err) && retries < 3) {
+    retries++;
+    status(`Coupure du flux : reconnexion (essai ${retries}/3)…`);
+    stop(false);
+    clearTimeout(retryTimer);
+    retryTimer = setTimeout(() => start(), 3000 * retries);
+    return;
+  }
   status(describe(err), 'err');
   stop(false);
 }
 
 async function stop(clearStatus = true) {
   playing = false;
+  clearTimeout(steadyTimer);
+  if (clearStatus) clearTimeout(retryTimer);   // arrêt demandé : pas de reconnexion
   clearInterval(syncTimer);
   syncTimer = null;
   try { await player?.unload(); } catch { /* ignore */ }
@@ -311,14 +344,19 @@ function selectLanguage() {
   else if (avail.length) status(`Langue « ${LANG_NAMES[prefs.commLang] || prefs.commLang} » absente de ce flux : ${avail.map((l) => LANG_NAMES[FROM_ISO[iso(l.language)]] || l.language).join(', ')}.`, 'err');
 }
 
+// Radio d'équipe en cours (radios.js) : commentaires à 30 % de leur volume
+let ducked = false;
+window.addEventListener('paddock:radio', (e) => { ducked = e.detail && prefs.commDuck; if (playing) applyVolume(); });
+
 function applyVolume() {
   const m = media();
+  const vol = prefs.commVolume * (ducked ? 0.3 : 1);
   if (gainNode) {
     m.volume = 1;
     m.muted = false;
-    gainNode.gain.value = prefs.commMuted ? 0 : prefs.commVolume;
+    gainNode.gain.value = prefs.commMuted ? 0 : vol;
   } else {
-    m.volume = prefs.commVolume;
+    m.volume = vol;
     m.muted = prefs.commMuted;
   }
   $('#commVol').value = prefs.commVolume;
@@ -406,8 +444,10 @@ export function initCommentary() {
     e.stopPropagation();
     panel.hidden = true;
   }, true);
-  $('#commPlay').addEventListener('click', () => (playing ? stop() : start()));
+  $('#commPlay').addEventListener('click', () => { if (playing) stop(); else { retries = 0; start(); } });
   $('#commMute').addEventListener('click', () => setPref('commMuted', !prefs.commMuted));
+  $('#commDuck').checked = prefs.commDuck;
+  $('#commDuck').addEventListener('change', (e) => { setPref('commDuck', e.target.checked); if (!e.target.checked) ducked = false; if (playing) applyVolume(); });
   $('#commVol').addEventListener('input', (e) => {
     setPref('commVolume', Number(e.target.value));
     if (prefs.commMuted && prefs.commVolume > 0) setPref('commMuted', false);

@@ -9,6 +9,7 @@ import { upcoming } from './home.js';
 import { COUNTRY_ISO } from '/shared/social-season.js';
 import { circuitInfo } from '/shared/circuits-info.js';
 import { flagBanner, timeLeft } from './session-info.js';
+import { toast } from './delay.js';
 
 export { FLAG_ISO };
 import { icon } from '../icons.js';
@@ -223,6 +224,7 @@ export function trackSurface(s) {
   return { cls: 'dry', label: 'Sèche', why: `Piste sèche${declared === 'dry' ? ' (déclarée par la direction de course)' : ''} · ${tyres}` };
 }
 
+let shownReplayError = null;
 export function renderSource() {
   const st = store.status;
   const badge = $('#sourceBadge');
@@ -237,10 +239,16 @@ export function renderSource() {
     badge.className = 'source-badge replay';
     lbl.textContent = src.loading ? `Chargement ${Math.round((src.progress || 0) * 100)} %` : (src.error ? 'Erreur replay' : 'REPLAY');
     badge.title = src.error || src.session || '';
+    // Replay qui ne se charge pas : dit clairement, avec le retour au direct (une fois par erreur)
+    if (src.error && src.error !== shownReplayError) {
+      shownReplayError = src.error;
+      toast(`Replay impossible : ${src.error} — « Direct » dans le menu de gauche pour revenir au direct`, 10000, 'warning');
+    }
   } else if (src.mode === 'live') {
-    badge.className = `source-badge ${src.connected ? 'live' : 'error'}`;
-    lbl.textContent = src.connected ? 'LIVE' : 'Connexion F1…';
-    badge.title = src.error || (src.authenticated ? 'Flux live (avec GPS F1 TV)' : 'Flux live (sans GPS : positions estimées)');
+    const stale = src.connected && src.stale;
+    badge.className = `source-badge ${stale ? 'stale' : src.connected ? 'live' : 'error'}`;
+    lbl.textContent = stale ? 'LIVE · figé' : src.connected ? 'LIVE' : 'Connexion F1…';
+    badge.title = stale ? 'Plus de données reçues depuis 25 s : reconnexion automatique si ça dure' : src.error || (src.authenticated ? 'Flux live (avec GPS F1 TV)' : 'Flux live (sans GPS : positions estimées)');
   } else {
     badge.className = 'source-badge';
     lbl.textContent = 'Inactif';

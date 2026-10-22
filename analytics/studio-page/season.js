@@ -11,6 +11,7 @@ import { makeAnimation, unlockAudio } from '/shared/social-video.js';
 import { videoCover } from '/shared/social-draw.js';
 import { $, $$, esc, api, icon, store, skeleton, toast, state, glide, SIG, musicField, bindMusic, clipFile, shareClip } from './ui.js';
 import { latestDrivers } from './data.js';
+import { weekendPlan } from '/shared/post-history.js';
 import { editor, assets } from './editor.js';
 
 const JOLPICA = 'https://api.jolpi.ca/ergast/f1';
@@ -106,6 +107,17 @@ function raceList(races, def, upcoming) {
     ${before.length ? `<h3 class="section">${upcoming ? 'Déjà courus' : 'Courses précédentes'}</h3><div class="group">${before.map(row).join('')}</div>` : ''}`;
 }
 
+// Plan du week-end : le Grand Prix des 8 prochains jours (ou d'il y a moins de 2 jours), ses posts publiés
+// (journal des publications) ou à faire, avec leur moment
+function planCard(year, races) {
+  const r = races.find((x) => Date.parse(x.date) > Date.now() - 2 * 86400e3);
+  if (!r || Date.parse(r.date) - Date.now() > 8 * 86400e3) return '';
+  const keys = (store.get('history')?.v || []).map((e) => e.key);
+  const when = (p) => (p.at ? `${p.after ? 'après, ' : ''}${new Date(p.at).toLocaleString('fr-FR', { weekday: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}` : '');
+  return `<div class="card plan"><span class="eyebrow">Plan du week-end</span><div class="t">${esc(r.name)}</div>
+    ${weekendPlan(r, year, keys).map((p) => `<div class="plan-row ${p.done ? 'done' : ''}">${icon(p.done ? 'check' : 'clock')}<span>${esc(p.label)}</span><small>${esc(p.done ? 'publié' : when(p))}</small></div>`).join('')}</div>`;
+}
+
 export async function seasonTab(body, back) {
   const year = new Date().getUTCFullYear();
   const bar = `<div class="chips wrap" id="stypes">${STYPES.map(([k, v]) => `<button data-st="${k}" class="${state.stype === k ? 'on' : ''}">${v}</button>`).join('')}</div>`;
@@ -117,7 +129,7 @@ export async function seasonTab(body, back) {
   const def = upcoming ? (races.find((r) => Date.parse(r.date) > Date.now() - 12 * 3600e3) || races.at(-1)) : races.at(-1);
   // Course au titre : le championnat tel qu'il est, après la dernière course (pas de Grand Prix à choisir)
   const standings = (r) => `<button class="card hero" data-r="${r.round}"><span class="eyebrow">Classement actuel</span><div class="t">Pilotes et constructeurs</div><div class="meta">Après la manche ${r.round} sur ${data.races.length} · ${esc(r.name)}</div>${icon('next', 'go')}</button>`;
-  body.innerHTML = `${bar}${!def ? '<p class="hint">Aucune course terminée pour le moment.</p>' : state.stype === 'title' ? standings(def) : raceList(races, def, upcoming)}`;
+  body.innerHTML = `${bar}${planCard(year, data.races)}${!def ? '<p class="hint">Aucune course terminée pour le moment.</p>' : state.stype === 'title' ? standings(def) : raceList(races, def, upcoming)}`;
   // Type choisi visible dans la barre (qui défile sur téléphone)
   const on = $('#stypes .on');
   if (on) $('#stypes').scrollLeft = on.offsetLeft - ($('#stypes').clientWidth - on.offsetWidth) / 2;

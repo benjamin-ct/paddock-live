@@ -9,7 +9,7 @@ export const SIG = '@BenjyPaddock';
 export const NET_NAMES = { instagram: 'Instagram', facebook: 'Facebook', threads: 'Threads', x: 'X', bluesky: 'Bluesky', tiktok: 'TikTok', youtube: 'YouTube', 'instagram-story': 'Story Instagram', 'facebook-story': 'Story Facebook' };
 
 // Réglages de la page (gardés pendant la visite) et comptes connectés (réponse de /me)
-export const state = { tab: 'news', fmt: 'ig', noSpoiler: true, photos: true, all: false, linkComment: true, follow: true, question: true, stype: 'raceweek', round: null, nsort: 'top', nkind: null, ssub: 'accounts', skip: new Set() };
+export const state = { tab: 'news', fmt: 'ig', noSpoiler: true, photos: true, all: false, linkComment: true, follow: false, question: true, stype: 'raceweek', round: null, nsort: 'top', nkind: null, ssub: 'accounts', skip: new Set() };
 export const session = { me: null };
 
 // iPhone / iPad, et page ouverte depuis l'écran d'accueil (sans la barre de Safari)
@@ -227,9 +227,10 @@ export async function schedList(el) {
     return `<div class="card"><div class="card-top">${icon('clock')}<span>${esc(new Date(j.at).toLocaleString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }))}</span></div><div class="t">${esc(j.title || 'Post')}</div>
       <div class="nets-st">${Object.entries(j.nets).map(([n, x]) => `<div><span>${esc(NET_NAMES[n] || n)}</span>${x.status === 'done' && x.url ? `<a class="pill ok" href="${esc(x.url)}" target="_blank" rel="noopener">${SCHED_ST.done} ${icon('check')}</a>` : `<span class="pill ${x.status === 'error' || x.status === 'expired' ? 'bad' : ''}">${x.sent && x.status !== 'error' ? `en cours (${x.sent}/${x.total})` : esc(SCHED_ST[x.status] || x.status)}</span>`}`
         + (x.error ? `<small class="err">${esc(x.error)}</small>` : '')
+        + (j.retry && ['error', 'expired'].includes(x.status) ? `<button class="btn small" data-retry="${esc(j.id)}" data-net="${esc(n)}">Réessayer</button>` : '')
         + (x.commentError ? `<small class="err">Commentaire refusé : ${esc(x.commentError)}</small>` : '')
         + (x.visible === false ? '<small class="err">Pas visible publiquement sur Threads : vérifiez le post (compte ou post masqué)</small>' : '') + '</div>').join('')}</div>
-      ${cancel || over ? `<div class="row end"><button class="btn small" data-cancel="${esc(j.id)}" ${over ? 'data-over' : ''}>${over ? 'Retirer de la liste' : 'Annuler'}</button></div>` : ''}</div>`;
+      ${cancel || over ? `<div class="row end">${cancel ? `<button class="btn small" data-edit="${esc(j.id)}">Modifier</button>` : ''}<button class="btn small" data-cancel="${esc(j.id)}" ${over ? 'data-over' : ''}>${over ? 'Retirer de la liste' : 'Annuler'}</button></div>` : ''}</div>`;
   }).join('')}</div>` : '';
   el.querySelectorAll('[data-cancel]').forEach((b) => {
     b.onclick = async () => {
@@ -238,6 +239,34 @@ export async function schedList(el) {
       b.disabled = true;
       try { await api('schedule/cancel', { method: 'POST', body: JSON.stringify({ id: b.dataset.cancel }) }); toast(over ? 'Retirée de la liste' : 'Publication annulée'); } catch (err) { alert(err.message); }
       schedList(el);
+    };
+  });
+  // Réseau en erreur : renvoyé au relevé suivant (visuels gardés 24 h après la fin)
+  el.querySelectorAll('[data-retry]').forEach((b) => {
+    b.onclick = async () => {
+      if (!confirm(`Réessayer sur ${NET_NAMES[b.dataset.net] || b.dataset.net} ?\n\nSi l'erreur dit « vérifiez sur le réseau », regardez d'abord que le post n'y est pas déjà.`)) return;
+      b.disabled = true;
+      try { await api('schedule/retry', { method: 'POST', body: JSON.stringify({ id: b.dataset.retry, net: b.dataset.net }) }); toast('Nouvel essai dans la minute', 'ok'); } catch (err) { alert(err.message); }
+      schedList(el);
+    };
+  });
+  // Pas encore parti : heure et textes modifiables
+  el.querySelectorAll('[data-edit]').forEach((b) => {
+    b.onclick = () => {
+      const j = items.find((x) => x.id === b.dataset.edit);
+      const local = (t) => new Date(t - new Date(t).getTimezoneOffset() * 60e3).toISOString().slice(0, 16);
+      const dlg = sheet('Modifier la publication', `<label class="field"><span>Date et heure</span><input type="datetime-local" id="edwhen" value="${local(j.at)}"></label>
+        ${Object.entries(j.texts || {}).map(([n, t]) => `<label class="field"><span>${esc(NET_NAMES[n] || n)}</span><textarea rows="5" data-edtxt="${esc(n)}">${esc(t)}</textarea></label>`).join('')}
+        <p class="hint" id="edst"></p><button class="btn primary wide" id="edsave">${icon('check')}Enregistrer</button>`);
+      dlg.querySelector('#edsave').onclick = async () => {
+        const texts = Object.fromEntries([...dlg.querySelectorAll('[data-edtxt]')].map((x) => [x.dataset.edtxt, x.value]));
+        try {
+          await api('schedule/update', { method: 'POST', body: JSON.stringify({ id: j.id, at: new Date(dlg.querySelector('#edwhen').value).getTime(), texts }) });
+          dlg.close();
+          toast('Publication modifiée', 'ok');
+          schedList(el);
+        } catch (err) { const st = dlg.querySelector('#edst'); st.className = 'hint err'; st.textContent = err.message; }
+      };
     };
   });
   return r && (r.items || []);

@@ -75,6 +75,7 @@
       </div>
       <div class="delay-controls">
         <input id="delayInput" class="delay-input" type="text" inputmode="decimal" aria-label="Délai en secondes">
+        <button class="dbtn dpause" id="pauseBtn" type="button" title="Pause : l'affichage s'arrête avec votre TV, le délai augmente (touche P)" aria-pressed="false"><svg class="ic" aria-hidden="true"><use href="#i-pause"/></svg></button>
         <button class="dmore" id="delayMore" type="button" title="Ajuster le délai : ±0,1 / ±1 / ±5 s (flèches du clavier)" aria-expanded="false">±</button>
         <div class="delay-steps" id="delaySteps">
           <button class="dbtn m" data-step="-5000" title="−5 s (Maj + flèche gauche)">−5</button>
@@ -285,7 +286,7 @@
             <label class="toggle"><input type="checkbox" id="rcmDeleted"> Temps supprimés</label>
             <select id="rcmType" aria-label="Type de messages" title="N'afficher qu'un type de messages">
               <option value="all">Tous les messages</option><option value="flags">Drapeaux</option><option value="sc">Safety car / VSC</option>
-              <option value="stewards">Enquêtes et pénalités</option><option value="limits">Limites de piste</option><option value="other">Autres</option>
+              <option value="stewards">Enquêtes et pénalités</option><option value="limits">Limites de piste</option><option value="other">Autres</option><option value="mine">Mes favoris et le duel</option>
             </select>
             <label class="toggle" id="rcmTranslateBox" title="Messages traduits en français (original au survol)"><input type="checkbox" id="rcmTranslate"> Traduire</label>
             <span class="muted small" id="rcmHidden"></span>
@@ -325,7 +326,7 @@
           <div class="muted small rd-status" id="obRadioStatus" data-full></div>
           <div class="rd-strip" id="radioStrip" aria-label="Radios d'équipe"></div>
           <div class="note rd-empty" id="radioEmpty" hidden></div>
-          <div class="rd-feed-head"><b>Radios retranscrites</b><span class="muted small">texte et traduction</span><button class="rd-speed" id="radioSpeed" title="Vitesse de lecture des radios">1×</button></div>
+          <div class="rd-feed-head"><b>Radios retranscrites</b><span class="muted small">texte et traduction</span><input type="range" class="rd-vol" id="radioVol" min="0" max="1" step="0.05" title="Volume des radios" aria-label="Volume des radios"><button class="rd-speed" id="radioSpeed" title="Vitesse de lecture des radios">1×</button></div>
           <div class="note rd-text-off" id="radioTextOff" hidden>Radios en texte, traduites : <button class="btn small btn-accent" id="radioTextOn">Activer</button></div>
           <ul class="rd-list" id="radioList"></ul>
         </div>
@@ -767,6 +768,7 @@
       <button class="btn" id="commMute" title="Couper / remettre le son (touche C)"><svg class="ic" aria-hidden="true"><use href="#i-volume"/></svg></button>
       <input type="range" id="commVol" min="0" max="1" step="0.05" aria-label="Volume">
       <span class="small muted" id="commVolVal"></span>
+      <label class="toggle small" title="Pendant une radio d'équipe, les commentaires passent à 30 % de leur volume"><input type="checkbox" id="commDuck"> Plus bas pendant les radios</label>
     </div>
     <div class="comm-row">
       <label class="toggle small"><input type="checkbox" id="commSync"> <span id="commSyncLbl">Caler sur le dashboard (délai TV)</span></label>

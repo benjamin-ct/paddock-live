@@ -26,6 +26,21 @@ async function pages(path, fetchFn, wait) {
   return out;
 }
 
+// Résultats parus depuis la lecture précédente (Grand Prix des 3 derniers jours) : un message par séance
+// pour le téléphone du créateur (post prêt dans le Studio)
+const READY = [['sprintResults', 'du sprint', 'sprint'], ['quali', 'des qualifications', 'qualifs'], ['results', 'de la course', 'course']];
+export function resultsReady(before, after, now = Date.now()) {
+  const out = [];
+  for (const r of after?.races || []) {
+    if (Math.abs(now - Date.parse(r.date)) > 3 * 86400e3) continue;
+    const old = before?.races?.find((x) => x.round === r.round);
+    for (const [k, label, id] of READY) {
+      if (r[k]?.length && !old?.[k]?.length) out.push({ title: `Post prêt : résultats ${label}`, body: `${r.name} : à publier depuis le Studio`, id: `ready-${r.round}-${id}`, url: '/studio/' });
+    }
+  }
+  return out;
+}
+
 export async function buildSeason(year, { fetchFn = fetch, wait = sleep } = {}) {
   const races = (list) => list.flatMap((m) => m?.RaceTable?.Races || []);
   const get = (p) => pages(p, fetchFn, wait);

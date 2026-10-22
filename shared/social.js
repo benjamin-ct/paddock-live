@@ -135,33 +135,38 @@ export function postData(state) {
   };
 }
 
-// Hashtags ajoutés automatiquement : compte du créateur, F1, Grand Prix, séance, pilotes, écuries, lieu
+// Hashtag du compte du créateur, et hashtags des écuries
 export const BRAND_TAG = '#BenjyPaddock';
 const TEAM_TAGS = [
   [/racing bulls|visa|\brb\b/i, 'RacingBulls'], [/red bull/i, 'RedBullRacing'], [/ferrari/i, 'ScuderiaFerrari'],
   [/mclaren/i, 'McLaren'], [/mercedes/i, 'MercedesAMGF1'], [/aston/i, 'AstonMartinF1'], [/williams/i, 'WilliamsRacing'],
   [/alpine/i, 'AlpineF1Team'], [/haas/i, 'HaasF1'], [/audi|sauber|kick/i, 'AudiF1'], [/cadillac/i, 'CadillacF1'],
 ];
+// Hashtag d'un Grand Prix : celui qu'utilisent la F1 et les fans quand il diffère du nom (« United States
+// Grand Prix » : #USGP), sinon le nom suivi de GP (#ItalianGP)
+const GP_TAGS = { 'United States': 'USGP', 'Mexico City': 'MexicoGP', 'São Paulo': 'BrazilGP' };
+export const gpTag = (gpEn) => { const n = String(gpEn || '').replace(/ Grand Prix$/i, '').trim(); return n ? hashtag(GP_TAGS[n] || `${n}GP`) : ''; };
 export const teamTag = (team) => hashtag(TEAM_TAGS.find(([re]) => re.test(team || ''))?.[1] || team);
 
-export function hashtags(d, { spoiler = true } = {}) {
-  const [p1, p2, p3] = d.rows;
-  const gpTag = hashtag(`${d.gpEn.replace(/ Grand Prix$/i, '')}GP`);
-  const session = d.kind === 'race' ? (d.sprint ? ['#F1Sprint', '#Sprint'] : ['#RaceDay']) : d.kind === 'quali' ? ['#Qualifying', '#Qualifs'] : ['#F1Practice'];
-  const people = d.kind === 'practice' ? [p1] : [p1, p2, p3];
-  const winnerTag = p1 && spoiler ? hashtag(`${p1.first}${p1.last}`) : '';
-  const raw = [
-    BRAND_TAG, '#F1', '#Formula1', '#Formule1', gpTag, d.year ? `#F1${d.year}` : '', ...session,
-    p1 ? hashtag(`${p1.first}${p1.last}`) : '', ...people.filter(Boolean).map((r) => hashtag(r.last)),
-    ...[...new Set(people.filter(Boolean).map((r) => r.team))].map(teamTag),
-    d.countryName ? hashtag(d.countryName) : '', d.circuit ? hashtag(d.circuit) : '', '#GrandPrix', '#Motorsport',
-  ];
-  const seen = new Set();
-  const all = raw.filter((t) => t && t.length > 2 && !seen.has(t.toLowerCase()) && seen.add(t.toLowerCase())).slice(0, 25);
+// Hashtags selon les règles 2026 des réseaux : Instagram en refuse plus de 5 (les plus précis d'abord, le
+// compte du créateur en dernier), X et Bluesky 2 au plus, Threads un seul (son sujet)
+export function fiveTags(list) {
+  const seen = new Set([BRAND_TAG.toLowerCase()]);
+  return [...list.filter((t) => t && t.length > 2 && !seen.has(t.toLowerCase()) && seen.add(t.toLowerCase())).slice(0, 4), BRAND_TAG];
+}
+// X et Bluesky : le compte du créateur et le mot-clé le plus précis
+export const twoTags = (tags) => [BRAND_TAG, tags.find((t) => t !== '#F1' && t !== BRAND_TAG) || '#F1'];
+export const THREADS_TAG = '#F1';
+// Facebook : hashtags sans effet, retirés du texte Instagram
+export const noTags = (text) => text.replace(/\n\n#[^\n]*$/, '');
+
+export function hashtags(d) {
+  const [p1] = d.rows;
+  const all = fiveTags(['#F1', gpTag(d.gpEn), p1 ? hashtag(`${p1.first}${p1.last}`) : '', p1 ? teamTag(p1.team) : '']);
   return {
     all,
-    x: [BRAND_TAG, '#F1', gpTag, winnerTag].filter((t) => t.length > 2),
-    threads: ['#F1', BRAND_TAG],
+    x: twoTags(all),
+    threads: [THREADS_TAG],
   };
 }
 
@@ -189,7 +194,7 @@ export function captions(d, signature = '', { spoiler = true } = {}) {
   if (!d.rows.length) return { instagram: '', x: '', threads: '', story: '' };
   const [p1, p2, p3] = d.rows;
   const sig = signature ? `\n\n${signature}` : '';
-  const tags = hashtags(d, { spoiler });
+  const tags = hashtags(d);
   // Essais et qualifs : temps du premier aussi ; course : écarts seulement
   const podium = [p1, p2, p3].filter(Boolean).map((r, i) => `${MEDALS[i]} ${r.first} ${r.last} (${r.team})${(i || d.kind !== 'race') && r.gap ? ` ${r.gap}` : ''}`).join('\n');
   // Texte court : le premier, puis ses deux poursuivants avec leur médaille
@@ -210,7 +215,7 @@ export function captions(d, signature = '', { spoiler = true } = {}) {
   const facts = d.facts.filter((f) => f.value && f.value !== 'Aucun').map((f) => `${FACT_ICON[f.label] || '📌'} ${f.label} : ${f.value}${f.sub ? ` (${f.sub})` : ''}`).join('\n');
   const story = d.summary.paragraphs.slice(0, 2).join(' ');
   if (!spoiler) {
-    head = `${teaser(d)}\n👉 Faites défiler pour ${d.kind === 'practice' ? 'le top 3' : d.kind === 'quali' ? 'la grille' : 'le podium'} et tous les détails.\n\n.\n.\n.\n\n${head}`;
+    head = `${teaser(d)}\n👉 Fais défiler pour ${d.kind === 'practice' ? 'le top 3' : d.kind === 'quali' ? 'la grille' : 'le podium'} et tous les détails.\n\n.\n.\n.\n\n${head}`;
     short = teaser(d);
   }
   const instagram = `${head}\n\n${d.kind === 'quali' ? '🚦 Grille de départ' : d.kind === 'race' ? '🏁 Podium' : '📊 Top 3'} :\n${podium}${facts ? `\n\n${facts}` : ''}\n\n${story}${sig}\n\n${tags.all.join(' ')}`;
@@ -223,5 +228,5 @@ export function captions(d, signature = '', { spoiler = true } = {}) {
   let threads = spoiler ? `${head}\n\n${podium}${sig}\n\n${tags.threads.join(' ')}` : `${short}${sig}\n\n${tags.threads.join(' ')}`;
   if (threads.length > 500) threads = `${spoiler ? head : short}\n\n${tags.threads.join(' ')}`.slice(0, 500);
   // Bluesky : même texte que X (300 caractères, pas de lien dans les posts des séances)
-  return { instagram, x, bsky: x, threads, story: spoiler ? head : short };
+  return { instagram, facebook: noTags(instagram), x, bsky: x, threads, story: spoiler ? head : short };
 }

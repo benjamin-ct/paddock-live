@@ -226,10 +226,11 @@ export function newsSimilarity(a, b, weight = null) {
 // Range chaque article dans un sujet (cluster) : celui d'un article proche des 36 dernières
 // heures, sinon un nouveau sujet. Il doit aussi rester proche du premier article du sujet, pour
 // éviter les chaînes (A ressemble à B qui ressemble à C…). items : du plus ancien au plus récent.
-export function clusterNews(items, { window = 36 * 3600e3, threshold = 0.45 } = {}) {
+// titleOf(it) : titre traduit s'il est connu (le même article publié en plusieurs langues est réuni)
+export function clusterNews(items, { window = 36 * 3600e3, threshold = 0.45, titleOf = null } = {}) {
   const recent = [];
   const founder = new Map();
-  for (const it of items) it._tok = newsTokens(it);
+  for (const it of items) { const tr = titleOf?.(it); it._tok = newsTokens(tr ? { ...it, title: tr } : it); }
   // Poids des mots : inverse de leur fréquence dans les titres de la période
   const df = new Map();
   for (const it of items) for (const w of it._tok.words) df.set(w, (df.get(w) || 0) + 1);

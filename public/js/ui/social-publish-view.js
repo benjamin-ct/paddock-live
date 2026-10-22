@@ -6,6 +6,7 @@ import { t } from '../i18n.js';
 import { toast } from './delay.js';
 import { makeVideo, unlockAudio } from '/shared/social-video.js';
 import { TRACKS, trackOf, previewTrack } from '/shared/social-music.js';
+import { postProblems } from '/shared/post-check.js';
 
 const NETS = [
   { id: 'instagram', name: 'Instagram', what: 'Carrousel des visuels (format Instagram)' },
@@ -249,7 +250,7 @@ export async function openPublish({ d, caps, render, folder, record = null, onPo
           <span class="posts-st small" data-st="${n.id}"></span></label>`).join('')}</div>
         <button class="btn small" data-acc>${icon('lock')} ${t('Comptes…')}</button>
         <label class="small muted">${t(caps.facebook ? 'Texte Instagram' : 'Texte Instagram / Facebook')}<textarea rows="6" data-txt="instagram">${esc(caps.instagram)}</textarea></label>
-        ${caps.facebook ? `<label class="small muted">${t("Texte Facebook (avec le lien de l'article)")}<textarea rows="6" data-txt="facebook">${esc(caps.facebook)}</textarea></label>` : ''}
+        ${caps.facebook ? `<label class="small muted">${t('Texte Facebook')}<textarea rows="6" data-txt="facebook">${esc(caps.facebook)}</textarea></label>` : ''}
         <label class="small muted">${t('Texte Threads (500 caractères max.)')}<textarea rows="3" data-txt="threads" maxlength="500">${esc(caps.threads)}</textarea></label>
         <label class="small muted">${t('Texte X (280 caractères max.)')}<textarea rows="3" data-txt="x">${esc(caps.x)}</textarea></label>
         <label class="small muted">${t('Texte Bluesky (300 caractères max.)')}<textarea rows="3" data-txt="bsky">${esc(caps.bsky || caps.x)}</textarea></label>
@@ -298,21 +299,32 @@ export async function openPublish({ d, caps, render, folder, record = null, onPo
   // Contenu envoyé à un réseau (visuels préparés une seule fois par format)
   const txt = (k) => $(`[data-txt="${k}"]`, dlg).value;
   let ig = null; let xs = null; let bs = null;
+  // Images et leur texte alternatif (lecteurs d'écran), dans le même ordre
+  const pack = async (canvases, enc) => ({ images: await Promise.all(canvases.map(enc)), alts: canvases.map((c) => c.dataset.alt || '') });
   const bodyFor = async (n) => {
     if (VIDEO_NETS.includes(n)) {
       if (!video) await buildVideo();
       return { network: n, video: await b64(video.blob), mime: video.mime, ...(n === 'youtube' ? { text: txt('youtube') } : {}) };
     }
     if (n === 'bluesky') {
-      bs ||= await Promise.all((await render('x')).slice(0, 4).map((c) => jpegUnder(c)));
-      return { network: n, text: txt('bsky'), images: bs, comment: caps.comment ? txt('comment') : '' };
+      bs ||= await pack((await render('x')).slice(0, 4), (c) => jpegUnder(c));
+      return { network: n, text: txt('bsky'), ...bs, comment: caps.comment ? txt('comment') : '' };
     }
     if (n === 'x') {
-      xs ||= await Promise.all((await render('x')).slice(0, 4).map(png));
-      return { network: n, text: txt('x'), images: xs, comment: caps.comment ? txt('comment') : '' };
+      xs ||= await pack((await render('x')).slice(0, 4), png);
+      return { network: n, text: txt('x'), ...xs, comment: caps.comment ? txt('comment') : '' };
     }
-    ig ||= await Promise.all((await render('ig')).map(png));
-    return { network: n, text: txt(n === 'threads' ? 'threads' : n === 'facebook' && caps.facebook ? 'facebook' : 'instagram'), images: ig, comment: n === 'instagram' || !caps.comment ? '' : txt('comment') };
+    ig ||= await pack(await render('ig'), png);
+    return { network: n, text: txt(n === 'threads' ? 'threads' : n === 'facebook' && caps.facebook ? 'facebook' : 'instagram'), ...ig, comment: n === 'instagram' || !caps.comment ? '' : txt('comment') };
+  };
+  // Avant d'envoyer : texte trop long (bloque), visuels au-delà du carrousel (prévient)
+  const check = async (nets) => {
+    const carousel = nets.some((n) => ['instagram', 'facebook', 'threads'].includes(n));
+    if (carousel) ig ||= await pack(await render('ig'), png);
+    const pb = postProblems(nets, (n) => txt(n === 'bluesky' ? 'bsky' : n === 'facebook' ? (caps.facebook ? 'facebook' : 'instagram') : n), carousel ? ig.images.length : 0);
+    const block = pb.find((p) => p.block);
+    if (block) { toast(t(block.msg, ...block.vals), 6000, 'warning'); return null; }
+    return pb.map((p) => t(p.msg, ...p.vals));
   };
   // Publications programmées : liste (à venir, puis récentes) avec annulation
   const schedList = async () => {
@@ -350,7 +362,8 @@ export async function openPublish({ d, caps, render, folder, record = null, onPo
       }
       if (btn.dataset.schedbest !== undefined) {
         btn.disabled = true;
-        const h = bestHour((await api('/api/social/stats').catch(() => ({}))).posts || []);
+        const st = await api('/api/social/stats').catch(() => ({}));
+        const h = bestHour(st.kept || st.posts || []);
         btn.disabled = false;
         if (h === null) { toast(t('Pas encore assez de posts avec des statistiques'), 4500, 'info'); return; }
         const x = new Date(); x.setHours(h, 0, 0, 0); if (x < Date.now()) x.setDate(x.getDate() + 1);
@@ -363,6 +376,8 @@ export async function openPublish({ d, caps, render, folder, record = null, onPo
         if (!nets.length) { toast(t('Cochez au moins un réseau'), 3000, 'warning'); return; }
         const at = new Date($('[data-schedat]', dlg).value).getTime();
         if (!(at > Date.now())) { toast(t('Choisissez une date à venir'), 3000, 'warning'); return; }
+        const warn = await check(nets);
+        if (!warn || (warn.length && !window.confirm(`${warn.join('\n')}\n\n${t('Programmer quand même ?')}`))) return;
         btn.disabled = true;
         try {
           const posts = [];
@@ -375,7 +390,9 @@ export async function openPublish({ d, caps, render, folder, record = null, onPo
       if (btn.dataset.go !== undefined) {
         const nets = [...dlg.querySelectorAll('[data-net]:checked')].map((i) => i.dataset.net);
         if (!nets.length) { toast(t('Cochez au moins un réseau'), 3000, 'warning'); return; }
-        if (!window.confirm(`${t('Publier maintenant sur : {} ?', nets.map((n) => NETS.find((x) => x.id === n).name).join(', '))}\n\n${t(PUBLIC_NOTE)}`)) return;
+        const warn = await check(nets);
+        if (!warn) return;
+        if (!window.confirm(`${t('Publier maintenant sur : {} ?', nets.map((n) => NETS.find((x) => x.id === n).name).join(', '))}${warn.length ? `\n\n${warn.join('\n')}` : ''}\n\n${t(PUBLIC_NOTE)}`)) return;
         btn.disabled = true;
         for (const n of nets) {
           const st = $(`[data-st="${n}"]`, dlg);

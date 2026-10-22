@@ -111,8 +111,33 @@ function renderSyncList() {
   $('#syncBuffer').textContent = `Historique disponible : ${buf >= 3600 ? Math.floor(buf / 60) + ' min' : buf + ' s'}`;
 }
 
+// Pause du direct (TV mise en pause) : l'affichage reste figé, le délai grandit tant que dure la
+// pause et reste ensuite (comme la box TV, on reprend en différé)
+let pause = null;
+function togglePause() {
+  const btn = $('#pauseBtn');
+  if (pause) {
+    clearInterval(pause.timer);
+    pause = null;
+    toast(`Reprise : délai ${fmtDelay(store.delay)}`, 2500, 'play');
+  } else {
+    const at = Date.now();
+    const from = store.delay;
+    pause = { timer: setInterval(() => {
+      const want = from + Date.now() - at;
+      setDelay(want);
+      if (store.delay < want - 500) { toast(`Délai maximal atteint (${fmtDelay(store.delay)}) : fin de la pause`, 4000, 'warning'); togglePause(); }
+    }, 500) };
+    toast('Pause : touche P ou ⏸ pour reprendre', 2500, 'pause');
+  }
+  btn.innerHTML = icon(pause ? 'play' : 'pause');
+  btn.classList.toggle('on', !!pause);
+  btn.setAttribute('aria-pressed', String(!!pause));
+}
+
 export function initDelay() {
   renderValue();
+  $('#pauseBtn').addEventListener('click', togglePause);
 
   $('#delayBox').addEventListener('click', (e) => {
     const b = e.target.closest('[data-step]');
@@ -191,6 +216,8 @@ export function initDelay() {
       e.preventDefault();
     } else if (e.key === 's' || e.key === 'S') {
       openSync();
+    } else if (e.key === 'p' || e.key === 'P') {
+      togglePause();
     }
   });
 

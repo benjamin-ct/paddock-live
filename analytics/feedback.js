@@ -5,6 +5,7 @@
 // chaque fichier arrive seul (POST /f/file), gardé dans le stockage R2 (MEDIA, fb/<message>/<n>), sa
 // liste dans la base. Les plus anciennes sont effacées au-delà de MAX_STORED.
 import { notifyPhones } from './alerts.js';
+import { callerIp } from './quota.js';
 
 const json = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' } });
 export const KINDS = { idea: 'Idée', question: 'Question', bug: 'Problème' };
@@ -48,7 +49,7 @@ export async function feedbackPost(req, env, { now = Date.now(), fetchFn = fetch
   try { body = JSON.parse(text); } catch { /* illisible */ }
   const m = cleanFeedback(body);
   if (!m) return json({ error: 'Message trop court' }, 400);
-  const ip = req.headers.get('CF-Connecting-IP') || 'local';
+  const ip = callerIp(req) || 'local';
   const day = new Date(now).toISOString().slice(0, 10);
   const n = (await env.DB.prepare('SELECT n FROM feedback_new WHERE ip = ? AND day = ?').bind(ip, day).first())?.n || 0;
   if (n >= MAX_PER_DAY) return json({ error: 'Trop de messages aujourd\'hui : réessayez demain' }, 429);
