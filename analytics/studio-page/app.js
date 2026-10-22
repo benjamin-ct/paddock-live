@@ -6,7 +6,7 @@
 // Chargement rapide : les listes s'affichent d'abord avec les données gardées sur le téléphone, puis
 // se mettent à jour ; l'éditeur et la Saison ne sont chargés qu'à l'ouverture (préchargés ensuite).
 import { bigNews, newsKind, newsKinds, sortNews, isBreaking } from '/shared/social-news.js';
-import { postedEntry } from '/shared/post-history.js';
+import { postedEntry, keepStats } from '/shared/post-history.js';
 import { pullToRefresh } from '/shared/pull-refresh.js';
 import { $, $$, esc, api, ago, fmtN, icon, LOGO, toast, skeleton, empty, failure, sheet, schedList, store, state, session, hasKey, setKey, forgetKey, onLogout, glide, NET_NAMES, IOS, installed } from './ui.js';
 import { cachedNews, freshNews, toFrench, knownFrench, cachedSessions, seasonSessions, SESSION_FR } from './data.js';
@@ -27,6 +27,7 @@ const lazy = (load) => () => load().catch((err) => {
 const loadPosts = () => import('./posts.js');
 const posts = lazy(loadPosts);
 const season = lazy(() => import('./season.js'));
+const drafts = lazy(() => import('./drafts.js'));
 const scrolls = {};   // position dans chaque onglet, retrouvée au retour d'un post
 
 // ---------- Accès ----------
@@ -85,13 +86,15 @@ function home({ from = 'up' } = {}) {
   app.className = 'shell';
   app.innerHTML = `<header class="appbar"><div class="brand">${LOGO}<span>Paddock <b>Studio</b></span></div><span class="grow"></span>
       <a class="iconbtn" href="https://paddocklive.app/" aria-label="Retour au site" title="Retour au site">${icon('home')}</a>
-      <button class="iconbtn" id="refresh" aria-label="Actualiser">${icon('refresh')}</button><button class="iconbtn" id="inbox" aria-label="Messages">${icon('mail')}<i class="count" hidden></i></button><button class="iconbtn" id="settings" aria-label="Réglages">${icon('settings')}</button></header>
+      <button class="iconbtn" id="refresh" aria-label="Actualiser" title="Actualiser">${icon('refresh')}</button><button class="iconbtn" id="drafts" aria-label="Brouillons" title="Brouillons">${icon('pen')}<i class="count" hidden></i></button><button class="iconbtn" id="inbox" aria-label="Messages" title="Messages">${icon('mail')}<i class="count" hidden></i></button><button class="iconbtn" id="settings" aria-label="Réglages" title="Réglages">${icon('settings')}</button></header>
     <main class="page" id="body"></main>
     <nav class="tabbar" style="--i:${tabIndex(state.tab)}"><div class="side-brand">${LOGO}<span>Paddock <b>Studio</b></span></div><span class="lens"></span>${TABS.map(([k, v, ic]) => `<button data-tab="${k}" class="${state.tab === k ? 'on' : ''}">${icon(ic)}<span>${v}</span></button>`).join('')}</nav>`;
   $('#settings').onclick = settings;
   $('#inbox').onclick = messages;
-  $('#refresh').onclick = () => { inboxCount(); showTab({ force: true }); };
+  $('#drafts').onclick = (e) => open(e.currentTarget, async () => (await drafts()).draftsSheet(back, draftCount));
+  $('#refresh').onclick = () => { inboxCount(); countDrafts(); showTab({ force: true }); };
   inboxCount();
+  countDrafts();
   $$('[data-tab]').forEach((b) => {
     b.onclick = () => {
       if (state.tab === b.dataset.tab) { scrollTo({ top: 0, behavior: 'smooth' }); return; }
@@ -162,16 +165,16 @@ async function newsTab(body, { force, restore, current }) {
 
 // Titres pas encore traduits de la liste affichée : demandés au serveur, remplacés dès qu'ils
 // arrivent (à chaque affichage : chargement, tri, filtre, « Toutes »)
-async function translateShown(body, list) {
+// Titres traduits, puis liste refaite : le même article publié en plusieurs langues y est réuni
+async function translateShown(body, list, redraw) {
   const todo = list.filter((it) => it.lang !== 'fr' && !knownFrench(it.title, it.lang));
   if (!todo.length) return;
   await toFrench(todo.map((it) => ({ text: it.title, from: it.lang })));
-  if (list !== shown || !body.isConnected) return;
-  list.forEach((it, i) => {
-    const fr = knownFrench(it.title, it.lang);
-    const t = $(`[data-i="${i}"] .t`, body);
-    if (t && fr && t.textContent !== fr) t.textContent = fr;
-  });
+  // Rien de traduit (serveur indisponible) : pas de nouvel essai en boucle
+  if (list !== shown || !body.isConnected || !todo.some((it) => knownFrench(it.title, it.lang))) return;
+  const y = scrollY;
+  redraw();
+  scrollTo(0, y);
 }
 
 let shown = [];
@@ -180,7 +183,7 @@ const READ = new Set(store.get('read')?.v || []);
 const setRead = (id, on = true) => { if (on) READ.add(id); else READ.delete(id); store.set('read', [...READ].slice(-2000)); };
 const KIND_NAMES = { transfert: 'Transferts', penalite: 'Pénalités', depart: 'Départs', accident: 'Accidents', officiel: 'Officiel', actu: 'Actu F1' };
 function renderNews(body, items, { at, stale = false }) {
-  const big = bigNews(items, { all: state.all });
+  const big = bigNews(items, { all: state.all, frTitle: (it) => knownFrench(it.title, it.lang) });
   const done = new Map(big.map((it) => [it, postedEntry(it, postLog)]));
   // Tri (à la une ou récentes), filtre par type, news déjà publiées en dernier
   const kinds = newsKinds(big);
@@ -189,7 +192,7 @@ function renderNews(body, items, { at, stale = false }) {
   shown = list;
   body.innerHTML = `<div class="toolbar">
       <div class="seg" id="nsort"><button data-by="top" class="${state.nsort === 'top' ? 'on' : ''}">À la une</button><button data-by="recent" class="${state.nsort === 'recent' ? 'on' : ''}">Récentes</button></div>
-      <label class="chip-toggle"><input type="checkbox" id="all" ${state.all ? 'checked' : ''}><span>Toutes</span></label>
+      <label class="chip-toggle" title="Afficher aussi les petites infos"><input type="checkbox" id="all" ${state.all ? 'checked' : ''}><span>Toutes</span></label>
       <label class="chip-toggle"><input type="checkbox" id="hideread" ${state.hideRead ? 'checked' : ''}><span>Non lues</span></label>
     </div>
     ${kinds.length > 1 ? `<div class="chips" id="nkinds"><button data-k="" class="${state.nkind ? '' : 'on'}">Tout <small>${big.length}</small></button>${kinds.map((k) => `<button data-k="${k.key}" class="${state.nkind === k.key ? 'on' : ''}"><i style="background:${k.color}"></i>${esc(KIND_NAMES[k.key] || k.label)} <small>${k.n}</small></button>`).join('')}</div>` : ''}
@@ -205,7 +208,7 @@ function renderNews(body, items, { at, stale = false }) {
         <button class="readmark${read ? ' on' : ''}" data-r="${i}" aria-label="${read ? 'Lue : marquer comme non lue' : 'Marquer comme lue'}" title="${read ? 'Lue : marquer comme non lue' : 'Marquer comme lue'}">${icon('check')}</button></div>`;
     }).join('')}</div>` : empty(state.all ? 'Aucune actu ces dernières 48 heures.' : 'Aucune grosse news ces dernières 48 heures : essayez « Toutes ».')}`;
   glide(body);
-  translateShown(body, list);
+  translateShown(body, list, () => renderNews(body, items, { at, stale }));
   $('#all', body).onchange = (e) => { state.all = e.target.checked; renderNews(body, items, { at, stale }); };
   $('#hideread', body).onchange = (e) => { state.hideRead = e.target.checked; renderNews(body, items, { at, stale }); };
   $$('[data-r]', body).forEach((b) => { b.onclick = () => { const y = scrollY; setRead(list[Number(b.dataset.r)].id, !b.classList.contains('on')); renderNews(body, items, { at, stale }); scrollTo(0, y); }; });
@@ -229,7 +232,7 @@ async function sessionsTab(body, { force, restore, current }) {
 }
 function renderSessions(body, list) {
   if (!list.length) {
-    body.innerHTML = `<div class="empty">${icon('flag')}<p>${session.me.f1tv ? 'Archives indisponibles pour le moment.' : 'Les archives de la F1 sont réservées aux abonnés F1 TV : connectez F1 TV dans l\'appli (Réglages → Compte F1 TV), puis réactivez la page (Posts → Publier… → Comptes…).'}</p></div>`;
+    body.innerHTML = `<div class="empty">${icon('flag')}<p>${session.me.f1tv ? 'Archives indisponibles pour le moment.' : 'Séances indisponibles : il faut un abonnement F1 TV. Dans l\'appli de bureau, connectez F1 TV (Réglages, Compte F1 TV), puis renvoyez les comptes au Studio (Posts, Publier, Comptes).'}</p></div>`;
     return;
   }
   const groups = [];
@@ -269,7 +272,7 @@ const accountsHtml = (accounts) => `<h3 class="section">Mes comptes <small>activ
       ${off.length ? `<div class="acc-off">${off.map(([n, x]) => `<span>${netLink(n, x.url)} · ${esc(x.note || x.error || 'indisponible')}</span>`).join('')}</div>` : ''}</div>`;
   }).join('')}</div>`;
 // Clics sur les liens suivis des posts, des pages de liens en bio et téléchargements de l'appli (30 jours)
-const OS_LABELS = { windows: 'Windows', 'windows-portable': 'Windows portable', 'mac-arm': 'Mac Apple', 'mac-intel': 'Mac Intel', linux: 'Linux', 'linux-arm': 'Linux ARM' };
+const OS_LABELS = { windows: 'Windows', 'windows-portable': 'Windows portable', 'mac-arm': 'Mac Apple', 'mac-intel': 'Mac Intel', linux: 'Linux', 'linux-arm': 'Linux ARM', deb: 'Paquet .deb' };
 const linkName = (l) => l.title || (() => { try { const u = new URL(l.url); return `${u.hostname.replace(/^www\./, '')}${u.pathname.length > 1 ? u.pathname.slice(0, 40) : ''}`; } catch { return l.url || 'Lien'; } })();
 const clicksHtml = (c) => {
   if (!c?.links?.length) return '';
@@ -283,7 +286,49 @@ const clicksHtml = (c) => {
   };
   return `<h3 class="section">Clics sur les liens <small>${c.days} derniers jours</small></h3><div class="list posts">${c.links.map(row).join('')}</div>`;
 };
+const STATS_SUBS = [['accounts', 'Comptes'], ['posts', 'Posts'], ['links', 'Liens'], ['app', 'Appli']];
+// Bilan des fonctions de l'appli (statistiques anonymes) : souvent, parfois, rarement, jamais utilisées
+const USAGE_LEVELS = [['often', 'Souvent utilisées', '20 fois ou plus pour 100 ouvertures'], ['some', 'Parfois', 'de 2 à 20 fois pour 100 ouvertures'],
+  ['rare', 'Rarement', 'moins de 2 fois pour 100 ouvertures : à cacher ou retirer ?'], ['never', 'Jamais utilisées', 'sur la période']];
+// Bilan de santé (vérifié toutes les 6 heures par le serveur)
+function healthHtml(h) {
+  if (!h) return '';
+  const when = ago(h.at);
+  if (!h.problems?.length) return `<div class="card health ok">${icon('check')}<span class="grow"><b>Tout va bien</b><small>Flux F1, erreurs de l'appli et jetons vérifiés ${esc(when)}${h.f1 && !h.f1ok ? ' · flux F1 jamais joignable depuis le serveur : non surveillé' : ''}</small></span></div>`;
+  return `<div class="card health bad">${icon('alert')}<span class="grow"><b>À vérifier</b>${h.problems.map((p) => `<small>${esc(p.m)}</small>`).join('')}<small>Vérifié ${esc(when)}</small></span></div>`;
+}
+function usageHtml(u) {
+  if (!u.opens) return healthHtml(u.health) + empty('Pas encore de statistiques reçues sur 30 jours.', 'chart');
+  const n = (v) => fmtN(v).replace('.', ',');
+  const row = (r) => `<div class="usage-row"><span class="grow">${esc(r.label)}<small>${esc(r.group)}</small></span><b>${r.n ? n(r.per100) : '0'}</b><i style="--pct:${Math.min(100, r.per100)}%"></i></div>`;
+  return `${healthHtml(u.health)}<h3 class="section">Fonctions de l'appli <small>${u.days} derniers jours · ${fmtN(u.opens)} ouvertures</small></h3>
+    <p class="hint">Utilisations pour 100 ouvertures de l'interface (clics comptés), d'après les statistiques anonymes des utilisateurs qui les ont acceptées.</p>
+    <div class="tiles"><div class="tile"><b>${fmtN(u.modes.essential)}</b><small>ouvertures en Essentiel</small></div><div class="tile"><b>${fmtN(u.modes.full)}</b><small>ouvertures en Complète</small></div>
+      <div class="tile"><b>${fmtN(u.welcome.done)}</b><small>accueils suivis jusqu'au bout</small></div><div class="tile"><b>${fmtN(u.welcome.skip)}</b><small>accueils passés</small></div></div>
+    ${USAGE_LEVELS.map(([k, title, sub]) => {
+      const rows = u.rows.filter((r) => r.level === k);
+      if (!rows.length) return '';
+      // Jamais utilisées : noms seuls, à la suite
+      const list = k === 'never' ? `<div class="card usage-never">${rows.map((r) => `<span>${esc(r.label)}</span>`).join('')}</div>` : `<div class="card usage">${rows.map(row).join('')}</div>`;
+      return `<h3 class="section">${title} <small>${sub}</small></h3>${list}`;
+    }).join('')}`;
+}
+async function loadUsage(box) {
+  const known = store.get('usage');
+  if (known) box.innerHTML = usageHtml(known.v);
+  else box.innerHTML = skeleton(3);
+  if (known && Date.now() - known.at < 10 * 60e3) return;
+  try {
+    const u = await api('usage');
+    store.set('usage', u);
+    if (box.isConnected) box.innerHTML = usageHtml(u);
+  } catch (err) { if (!known && box.isConnected) box.innerHTML = failure(err.message); }
+}
+const SHORT_NETS = ['instagram', 'facebook', 'threads', 'x', 'bluesky', 'tiktok', 'youtube'];
 const STAT_LABELS = [['views', 'Vues'], ['reach', 'Portée'], ['likes', 'J\'aime'], ['comments', 'Comm.'], ['shares', 'Partages'], ['saves', 'Enreg.']];
+// Chiffres de chaque post lus jusqu'ici (le serveur n'en lit que 6 à la fois), gardés sur le téléphone
+// pour le créneau conseillé de « Programmer » (8 posts au moins)
+const keepPostStats = (r) => store.set('poststats', keepStats(r.kept || store.get('poststats')?.v, r.posts));
 // Chiffres des posts et des comptes : deux appels au serveur, en même temps
 async function loadStats() {
   const [r, acc] = await Promise.all([api('stats'), api('stats/accounts').catch(() => null)]);
@@ -300,14 +345,24 @@ async function statsTab(body, { force, restore, current }) {
   const r = await loadStats();
   if (!current()) return;
   store.set('stats', r);
+  keepPostStats(r);
   renderStats(body, r, false);
 }
 function renderStats(body, r, stale) {
   const f = Object.entries(r.followers || {});
-  body.innerHTML = `${stale ? '<p class="status"><span class="dot"></span>Mise à jour…</p>' : ''}
-    ${r.accounts?.length ? accountsHtml(r.accounts) : f.length ? `<div class="tiles">${f.map(([n, v]) => `<div class="tile"><b>${fmtN(v)}</b><small>abonnés ${esc(NET_NAMES[n] || n)}</small></div>`).join('')}</div>` : ''}
-    <div id="schedlist"></div>
-    ${clicksHtml(r.clicks)}
+  // Chiffres mis à jour pendant la saisie d'un lien : saisie et lien obtenu gardés
+  const typed = ['#shorturl', '#shortname', '#shortnet', '#shortout'].map((id) => $(id, body));
+  body.innerHTML = `<div class="seg wide" id="ssub">${STATS_SUBS.map(([k, v]) => `<button data-sub="${k}" class="${state.ssub === k ? 'on' : ''}">${v}</button>`).join('')}</div>
+    ${stale ? '<p class="status"><span class="dot"></span>Mise à jour…</p>' : ''}
+    <div data-pane="app" id="usagepane"></div>
+    <div data-pane="accounts">${r.accounts?.length ? accountsHtml(r.accounts) : f.length ? `<div class="tiles">${f.map(([n, v]) => `<div class="tile"><b>${fmtN(v)}</b><small>abonnés ${esc(NET_NAMES[n] || n)}</small></div>`).join('')}</div>` : empty('Aucun compte relié.', 'chart')}</div>
+    <div data-pane="links">
+    <h3 class="section">Raccourcir un lien</h3>
+    <form class="card short" id="shortform"><input type="text" id="shorturl" placeholder="https://…" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false" required>
+      <div class="row"><input type="text" id="shortname" placeholder="Nom dans les statistiques (facultatif)"><select id="shortnet" title="Réseau où le lien sera partagé (clics comptés par réseau)"><option value="">Autre</option>${SHORT_NETS.map((n) => `<option value="${n}">${NET_NAMES[n]}</option>`).join('')}</select><button class="btn primary small">Raccourcir</button></div>
+      <div id="shortout"></div></form>
+    ${clicksHtml(r.clicks) || empty('Aucun clic ces 30 derniers jours.', 'chart')}</div>
+    <div data-pane="posts"><div id="schedlist"></div>
     <div class="row section-row"><h3 class="section grow">Posts publiés</h3><button class="btn small" id="statsimport" title="Ajoute aux statistiques les posts des 30 derniers jours publiés hors du Studio">${icon('refresh')}Retrouver mes posts</button></div>
     ${(r.posts || []).length ? `<div class="list posts">${r.posts.map((p) => `<div class="card post"><div class="card-top"><time>${esc(new Date(p.at).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))}</time><span class="grow"></span><button class="iconbtn small" data-statsremove="${esc(p.key)}" aria-label="Retirer des statistiques" title="Retirer des statistiques">${icon('close')}</button></div><div class="t">${esc(p.title || 'Post')}</div>
       ${Object.entries(p.nets).map(([n, x]) => {
@@ -315,8 +370,37 @@ function renderStats(body, r, stale) {
         const name = x.url ? `<a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(NET_NAMES[n] || n)}</a>` : esc(NET_NAMES[n] || n);
         const vals = s && !s.error ? metricsOf(s, STAT_LABELS) || '<span>pas encore d\'interaction</span>' : `<span class="hint">${s?.note ? esc(s.note) : `statistiques indisponibles${s?.error ? ` (${esc(s.error)})` : ''}`}</span>`;
         return `<div class="net-stats"><span class="net">${name}</span><div class="metrics">${vals}</div></div>`;
-      }).join('')}</div>`).join('')}</div>` : empty('Aucun post publié pour le moment.', 'chart')}`;
+      }).join('')}</div>`).join('')}</div>` : empty('Aucun post publié pour le moment.', 'chart')}</div>`;
+  // Sous-menus : comptes, posts, liens (une seule partie affichée)
+  const sub = (k) => {
+    state.ssub = k;
+    $$('#ssub [data-sub]', body).forEach((b) => b.classList.toggle('on', b.dataset.sub === k));
+    $$('[data-pane]', body).forEach((el) => { el.hidden = el.dataset.pane !== k; });
+    if (k === 'app') loadUsage($('#usagepane', body));
+    glide(body);
+  };
+  $$('#ssub [data-sub]', body).forEach((b) => { b.onclick = () => sub(b.dataset.sub); });
+  sub(state.ssub);
+  if (typed[0]) ['#shorturl', '#shortname', '#shortnet'].forEach((id, i) => { $(id, body).value = typed[i].value; });
+  if (typed[3]) $('#shortout', body).innerHTML = typed[3].innerHTML;
   schedList($('#schedlist', body));
+  // Lien court suivi (pdkl.app) : clics comptés comme ceux des posts
+  $('#shortform', body).onsubmit = async (e) => {
+    e.preventDefault();
+    const b = $('#shortform button', body), out = $('#shortout', body);
+    let url = $('#shorturl', body).value.trim();
+    if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
+    b.classList.add('busy');
+    b.disabled = true;
+    try {
+      const { text } = await api('links', { method: 'POST', body: JSON.stringify({ net: $('#shortnet', body).value, text: url, title: $('#shortname', body).value.trim() }) });
+      if (text === url) throw new Error('Adresse invalide');
+      out.innerHTML = `<div class="row"><code class="grow">${esc(text)}</code><button type="button" class="btn small">${icon('copy')}Copier</button></div>`;
+    } catch (err) { toast(err.message, 'bad'); } finally { b.classList.remove('busy'); b.disabled = false; }
+  };
+  $('#shortout', body).onclick = (e) => {
+    if (e.target.closest('button')) navigator.clipboard.writeText($('#shortout code', body).textContent).then(() => toast('Lien copié', 'ok'), () => toast('Copie impossible', 'bad'));
+  };
   // Posts publiés hors du Studio : relus sur les comptes reliés
   $('#statsimport', body).onclick = async (e) => {
     const b = e.currentTarget;
@@ -329,6 +413,7 @@ function renderStats(body, r, stale) {
       if (imp.added) {
         const next = await loadStats();
         store.set('stats', next);
+        keepPostStats(next);
         renderStats(body, next, false);
       }
     } catch (err) { toast(err.message, 'bad'); } finally { b.classList.remove('busy'); b.disabled = false; }
@@ -356,6 +441,14 @@ const showCount = (items) => {
   const c = $('#inbox .count'), n = items.filter((m) => !m.seen).length;
   if (c) { c.hidden = !n; c.textContent = n > 9 ? '9+' : n; }
 };
+// Brouillons de posts : leur nombre sur le bouton de l'en-tête
+function draftCount(items) {
+  const c = $('#drafts .count');
+  if (!c) return;
+  c.hidden = !items.length;
+  c.textContent = items.length;
+}
+const countDrafts = () => api('drafts').then((r) => draftCount(r.items || [])).catch(() => {});
 const inboxCount = () => api('feedback').then((r) => showCount(r.items || [])).catch(() => {});
 function msgHtml(m) {
   const from = m.src === 'app' ? ['Appli', /^\d/.test(m.version) ? `v${m.version}` : '', SYS[m.os] || m.os].filter(Boolean).join(' ') : 'Site';
@@ -521,6 +614,10 @@ async function alertsBlock(el) {
 async function openAlert(id) {
   if (!id) return;
   if (id === 'messages') { messages(); return; }
+  // Publication programmée terminée : Stats → Posts (liste des programmations)
+  if (id === 'schedule') { state.tab = 'stats'; state.ssub = 'posts'; home(); return; }
+  // Bilan de santé : Stats → Appli
+  if (id === 'health') { state.tab = 'stats'; state.ssub = 'app'; home(); return; }
   try {
     const it = ((await api('alerts')).items || []).find((a) => a.id === id);
     if (!it) return;

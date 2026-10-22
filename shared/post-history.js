@@ -59,3 +59,60 @@ export function postedEntry(item, history = []) {
     || (Math.abs((item.t || 0) - e.at) < 72 * 3600e3 && sameStoryOf({ title: e.srcTitle || e.title, summary: e.summary, t: item.t }, item))
   )) || null;
 }
+
+// Créneau conseillé pour publier, d'après les chiffres des posts déjà publiés (onglet Stats) : la tranche de
+// 3 heures (heure de Paris) dont les posts ont eu le plus de réactions (j'aime, commentaires, partages,
+// enregistrements), comparées à la médiane pour ne pas dépendre d'un seul post. null tant qu'il y a trop peu
+// de posts (8 au moins, 3 par tranche, 2 tranches) ou pas d'écart net (20 % au-dessus de la moyenne).
+const SLOTS = [[6, 9], [9, 12], [12, 15], [15, 18], [18, 21], [21, 24]];
+const parisHour = (t) => Number(new Intl.DateTimeFormat('en-GB', { hour: 'numeric', hourCycle: 'h23', timeZone: 'Europe/Paris' }).format(t));
+export function bestSlot(posts) {
+  const scored = (posts || []).map((p) => {
+    const nets = Object.values(p?.stats || {}).filter(Boolean);
+    return nets.length && p.at ? { at: p.at, e: nets.reduce((s, x) => s + (x.likes || 0) + (x.comments || 0) + (x.shares || 0) + (x.saves || 0), 0) } : null;
+  }).filter(Boolean);
+  if (scored.length < 8) return null;
+  const sorted = scored.map((p) => p.e).sort((a, b) => a - b);
+  const median = sorted[Math.floor(sorted.length / 2)] || 1;
+  const all = scored.reduce((s, p) => s + p.e / median, 0) / scored.length;
+  const slots = SLOTS.map(([from, to]) => {
+    const list = scored.filter((p) => { const h = parisHour(p.at); return h >= from && h < to; });
+    return { from, to, n: list.length, mean: list.reduce((s, p) => s + p.e / median, 0) / (list.length || 1) };
+  }).filter((s) => s.n >= 3);
+  if (slots.length < 2) return null;
+  const best = slots.sort((a, b) => b.mean - a.mean)[0];
+  return best.mean >= all * 1.2 ? { from: best.from, to: best.to, n: scored.length, ratio: Math.round((best.mean / all) * 10) / 10 } : null;
+}
+
+// Plan des posts d'un week-end de Grand Prix (Studio, onglet Saison) : chaque post, son moment, et s'il est
+// déjà dans le journal (keys : clés des posts publiés). race : Grand Prix de la saison résumée (Jolpica)
+export function weekendPlan(race, year, keys) {
+  const at = (label) => Date.parse(race.sessions?.find((s) => s.label === label)?.t || '') || null;
+  const day = Date.parse(race.date);
+  const monday = new Date(day);
+  monday.setUTCDate(monday.getUTCDate() - ((monday.getUTCDay() + 6) % 7));
+  monday.setUTCHours(8, 0, 0, 0);
+  const id = `${year}-${race.round}`;
+  const gp = String(race.name || '').replace(/ /g, '_');
+  const has = (test) => keys.some((k) => typeof k === 'string' && test(k));
+  const own = (kind) => (k) => k.startsWith(`${kind}:${id}`);
+  // Post d'une séance : clé « session:<chemin des archives F1> » (…/2026-10-18_Qualifying/)
+  const session = (type) => (k) => k.startsWith('session:') && k.includes(gp) && new RegExp(`\\d_${type}/`).test(k);
+  return [
+    { label: 'Race Week', at: monday.getTime(), done: has(own('raceweek')) },
+    { label: 'Programme du week-end', at: monday.getTime() + 3 * 86400e3, done: has(own('weekend')) },
+    race.sprint && { label: 'Résultats du sprint', at: at('Sprint'), after: true, done: has(session('Sprint')) },
+    { label: 'Grille (qualifications)', at: at('Qualifications'), after: true, done: has(session('Qualifying')) },
+    { label: 'Résultats de la course', at: day, after: true, done: has(session('Race')) },
+    { label: 'Notes des pilotes', at: day, after: true, done: has(own('ratings')) },
+    { label: 'Course au titre', at: day, after: true, done: has(own('title')) },
+  ].filter(Boolean);
+}
+
+// Chiffres gardés des posts (60 derniers) : ceux relus à chaque fois (6) s'ajoutent aux précédents, pour
+// l'heure conseillée (il en faut 8 au moins). Gardés par le serveur (Studio et appli) et sur le téléphone
+export function keepStats(prev, posts, max = 60) {
+  const all = new Map((Array.isArray(prev) ? prev : []).map((p) => [p.key, p]));
+  for (const p of posts || []) if (p.key && p.at && Object.keys(p.stats || {}).length) all.set(p.key, { key: p.key, at: p.at, stats: p.stats });
+  return [...all.values()].sort((a, b) => b.at - a.at).slice(0, max);
+}

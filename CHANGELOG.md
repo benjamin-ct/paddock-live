@@ -4,6 +4,152 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → À propos → Nouveautés).
 
+## v1.28.0 — 2026-10-22
+
+### Nouveau design « Broadcast »
+- Habillage façon retransmission TV, en sombre comme en clair : barre du haut et barre de lecture noires, tour
+  en cours dans une case blanche, titres des panneaux en étiquette rouge, position du classement dans une case,
+  grand écart du duel en chiffres condensés. La carte et tous ses calques restent identiques.
+- Bandeau en bas de l'écran avec le dernier message de la direction de course (couleur du drapeau, tour).
+- Radios : photo carrée soulignée de la couleur de l'écurie, onde sous chaque message retranscrit.
+- Interface Essentiel : sa propre disposition (classement, grande carte avec le duel dessous, radios et direction
+  de course à droite), indépendante de celle de l'interface Complète ; classement compact avec le code pilote,
+  l'écart, les secteurs en couleur et les pneus.
+- Studio et site aux mêmes couleurs.
+- Accueil et calendrier (Saison → Calendrier) au même style : prochain Grand Prix en grand avec son drapeau, compte à
+  rebours et programme du week-end jour par jour ; calendrier de la saison en liste groupée par mois (manche, drapeau,
+  dates, sprint, vainqueur et pole), une ligne s'ouvre sur ses séances.
+- Envie de l'ancien look ? Réglages → Apparence → Design : « Classique » le remet (le bandeau du bas en moins).
+
+### Prise en main
+- Premier lancement guidé (nouvelles installations, sur ordinateur) : choix des pilotes et écuries favoris, le
+  délai TV expliqué en deux lignes (« Synchro TV », puis « Je le vois ! »), connexion F1 TV Pro si vous l'avez, et
+  le choix de l'interface. Chaque écran peut être passé.
+- Interface « Essentiel » ou « Complète » sur ordinateur (Réglages → Apparence → Interface). Essentiel garde
+  l'essentiel : classement, carte, radios, duel, arrêts, stratégie, bagarres et alertes ; l'analyse détaillée, les
+  outils techniques, le streaming et les lumières reviennent en un clic avec « Complète ». Les nouvelles
+  installations démarrent en Essentiel ; rien ne change pour les installations existantes.
+
+### Télémétrie
+- Énergie 2026 estimée sur les compteurs (Télémétrie, Duel, overlay de streaming) : « RECHARGE » quand le
+  pilote lève le pied à haute vitesse sans freiner, « BATTERIE VIDE ? » quand il est à fond mais que la voiture
+  n'accélère plus, et le temps passé dans chaque cas sur le dernier tour. La F1 ne publie pas la charge de la
+  batterie : ce sont des estimations tirées de la vitesse, de l'accélérateur et du frein.
+
+### En direct
+- Pause (touche P ou bouton ⏸ à côté du délai) : vous mettez la TV en pause, l'appli aussi ; le délai grandit
+  pendant la pause et l'appli reprend en même temps que votre image.
+- « Pendant votre absence » : fenêtre réduite plus de 2 minutes pendant une séance, la liste des moments clés
+  passés entre-temps (drapeaux, changements de leader, arrêts, abandons, pénalités) s'affiche à votre retour.
+- Classement : les pénalités en temps pas encore purgées s'affichent à côté du pilote (« +5 s »).
+- Nouvelles alertes (Réglages → Alertes) : pluie qui commence ou s'arrête sur le circuit, pilote favori qui passe
+  en zone d'élimination en Q1 et Q2, et pronostic pas encore fait une heure avant sa fermeture.
+- Mini-classement : colonnes au choix (menu ⋮ : places gagnées, intervalle, écart, pneu, arrêts) et ligne
+  d'élimination en qualifications. Dans l'application de bureau, sa fenêtre prend toute seule la taille de son
+  contenu (colonnes choisies, nombre de pilotes) ; − / +, Ctrl + molette ou le coin règlent sa taille, gardée
+  pour la prochaine fois.
+- Radios d'équipe : réglage du volume ; les commentaires F1 TV baissent pendant une radio (« Plus bas pendant
+  les radios », dans le panneau des commentaires).
+- Radios d'équipe : les radios affichées « (pas de parole reconnue) » après un ancien échec de transcription sont
+  redemandées au serveur (une fois à chaque lancement) et retrouvent leur texte.
+
+### Direction de course
+- Messages de la direction de course en vrai français : drapeaux, incidents, enquêtes, pénalités, tours
+  supprimés, voiture de sécurité… sont traduits par l'appli elle-même, sans les phrases incompréhensibles de la
+  traduction automatique (« incident inclusif »…), et même sans connexion au serveur. Les alertes de vos pilotes
+  favoris et la liste des événements sont aussi en français.
+- Nouveau filtre « Mes favoris et le duel » : seulement les messages qui parlent de vos pilotes.
+
+### Navigation
+- Bouton « Direct » de la barre latérale pendant un replay : retour au direct (écran d'attente s'il n'y a pas
+  de séance en cours), au lieu de rester sur le replay.
+
+### Posts (mode créateur)
+- Slide « Faits marquants » : seulement les cases, plus grandes ; le résumé de la course, qui répétait le podium et
+  les remontées, reste dans le texte du post.
+- Post de résultats d'une course : le nombre de dépassements s'ajoute aux faits marquants (échanges de places en
+  piste, sans le départ, les arrêts ni les abandons), dans l'appli comme dans le Studio.
+- TikTok : une publication directe refusée parce que l'app TikTok n'a pas encore passé l'audit le dit clairement,
+  avec quoi faire (« Brouillon », ou compte privé et « Moi uniquement »), au lieu du message anglais de TikTok.
+- « Se connecter à Facebook » (Comptes → Instagram + Facebook) : Facebook et Instagram se relient en un clic avec
+  la connexion Facebook, au lieu du jeton à copier depuis l'Explorateur de l'API Graph (toujours possible).
+- La fenêtre Posts prend l'habillage du Studio : fond noir, barre latérale noire avec un trait rouge sur l'élément
+  choisi, intitulés en étiquette rouge, puces blanches pour le type de post.
+- Statistiques refaites comme l'onglet Stats du Studio, directement dans la fenêtre Posts (« Statistiques » dans la
+  barre latérale) : Comptes (abonnés et activité de chaque réseau, en cartes), Posts (chiffres de chaque post,
+  « Retrouver mes posts » publiés ailleurs) et Liens (raccourcir un lien suivi, clics et téléchargements de l'appli).
+- Instagram : un post bien en ligne n'est plus marqué « erreur » quand Instagram répond quand même par un refus, même quand il n'apparaît que quelques secondes après la réponse
+  (« Nous restreignons certaines activités… ») : l'appli vérifie s'il a été publié et donne son lien.
+- Hashtags aux règles actuelles des réseaux : 5 au plus sur Instagram (sa nouvelle limite), les plus précis d'abord
+  (Grand Prix, pilote, écurie) puis celui du compte ; 2 sur X et Bluesky ; un seul sur Threads (#F1, son sujet).
+  Sur Facebook, où ils ne servent à rien, le texte reprend celui d'Instagram sans les hashtags.
+- Hashtag du Grand Prix : celui de la F1 quand il diffère du nom (#USGP, #MexicoGP, #BrazilGP).
+- « Meilleure heure » (programmer une publication) s'appuie sur les chiffres de vos 60 derniers posts, gardés par
+  le serveur, et plus seulement sur les 6 derniers.
+- Vérification avant d'envoyer : un texte trop long pour un réseau (X 280, Bluesky 300, Threads 500, Instagram
+  2 200 caractères) est signalé avant la publication au lieu d'être refusé par le réseau, et un carrousel de plus
+  de 10 visuels prévient que seuls les 10 premiers partiront sur Instagram et Facebook.
+- Texte alternatif sur chaque image publiée sur Instagram, Facebook, Threads et Bluesky (lu par les lecteurs
+  d'écran) : ce que montre l'image, avec le podium ou le classement quand il y en a un.
+- Studio, « Programmer » : créneau conseillé d'après les réactions de tes posts, et un bouton pour le choisir.
+  Il apparaît une fois les chiffres d'au moins 8 posts lus dans l'onglet Stats (ils s'accumulent au fil des visites).
+- Un seul appel à la fin du post : « Question pour faire réagir » ou « Abonnez-vous », l'un ou l'autre (cocher
+  l'un grise l'autre).
+- Les posts tutoient : « Abonne-toi », « Ton pronostic en commentaire », « À toi ! », « Le savais-tu ? »…
+- Une courte ligne en fin de texte : « 🤖 Fait par IA avec l'appli @paddockliveapp » (sur X et Bluesky seulement
+  si la place le permet ; pas sur les posts écrits à la main).
+- Brouillons : « Brouillon » garde le post affiché (visuels, images écartées, format, options et texte retouché)
+  pour y revenir plus tard, dans l'appli (Posts → Brouillons) comme dans le Studio (bouton crayon en haut). Les
+  brouillons sont partagés entre l'ordinateur et le téléphone (page web activée) et s'effacent une fois le post publié
+  ou programmé. La vidéo n'est pas gardée : elle se refait à la reprise.
+
+### Actu
+- Vidéos YouTube que leur chaîne ne laisse lire que sur YouTube (chaîne officielle de la F1…) : au lieu de « Cette
+  vidéo n'est pas disponible », leur image et un bouton « Regarder sur YouTube ».
+- Trois sources françaises de plus : Nextgen-Auto, Le Figaro et la chaîne YouTube CANAL+ Sport (seulement ses vidéos
+  F1, pas le foot ni la F1 Academy).
+- Les chaînes YouTube qui parlent aussi d'autre chose (Ferrari, Alpine) ne montrent plus que leurs vidéos F1 dans l'appli,
+  comme déjà dans le Studio.
+- Moins de doublons : le même article publié en plusieurs langues (Motorsport.com en anglais, en français, en espagnol…)
+  est reconnu grâce aux titres traduits et compté comme un seul sujet, dans l'Actu, les posts d'actu et le Studio.
+- Type de news (transfert, départ, pénalité…) lu sur le titre : un mot du résumé ne suffit plus à afficher
+  « TRANSFERT » sur une news qui n'en est pas une.
+
+### Mises à jour
+- Versions bêta : nouveau réglage « Recevoir les versions bêta » (Réglages → Application) pour essayer les
+  nouveautés avant leur sortie pour tout le monde. Décoché, l'appli ne reçoit que les versions finales.
+- Au lancement, une mise à jour en cours de téléchargement peut attendre : « Plus tard » ouvre l'appli tout de suite,
+  la nouvelle version s'installe à la fermeture.
+
+### Fiabilité et sécurité
+- Le relais des radios et de F1 TV refuse les adresses de l'ordinateur et du réseau local : un appareil connecté par
+  le QR code ne peut plus s'en servir pour agir comme s'il était l'ordinateur.
+- Enregistrements des séances : les 15 plus récents sont gardés (environ 3 week-ends), les plus anciens s'effacent
+  tout seuls ; « Mes enregistrements » montre la place prise et propose « Tout supprimer ».
+- Badge « LIVE · figé » (orange) quand le flux F1 n'envoie plus rien depuis 25 s ; une connexion bloquée au départ
+  (Wi-Fi d'hôtel, sortie de veille) est relancée au bout de 15 s.
+- Lancer un replay pendant une séance en direct demande confirmation ; un replay qui ne se charge pas le dit
+  clairement, avec le chemin du retour au direct.
+- Commentaires F1 TV et radios : après une coupure passagère, la lecture repart toute seule (3 essais).
+- Une fenêtre qui plante se recharge toute seule au lieu de rester blanche.
+- Notifications du système traduites en anglais avec l'interface ; l'option s'appelle « Notification du système »
+  (et plus « Windows ») sur tous les systèmes.
+
+### Divers
+- Carte : le bandeau « Fin de VSC » reste lisible quand une voiture passe dessous.
+- Menu « Colonnes » du classement : il n'est plus coupé à gauche quand le panneau est étroit.
+- Replays : toujours lancés 1 minute avant le départ (le choix « début de l'enregistrement » disparaît).
+- Un clic ou un double-clic dans le vide ne surligne plus de texte ; les textes à copier (articles, radios, direction de
+  course, champs) restent sélectionnables.
+- Saison : graphiques des pilotes, des duels et des évolutions techniques à la bonne taille sur les grands écrans ;
+  courbe des points un peu plus haute.
+- Barre latérale : « Commentaires » ne dépasse plus de son bouton.
+- Documents FIA (barre du haut) : ceux du prochain Grand Prix apparaissent dès leur publication, avant les premiers
+  essais, et sont affichés d'office entre deux week-ends (au lieu de ceux du Grand Prix précédent).
+- Compteur de tours (design Broadcast) : « TOURS » et le numéro sont centrés dans leur case blanche, avec la barre
+  d'avancement (séance en cours) comme sans elle (séance terminée).
+- Petites améliorations internes.
+
 ## v1.27.54 — 2026-10-20
 
 ### Divers

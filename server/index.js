@@ -16,8 +16,8 @@ import { seasonStats, archiveError } from './race-stats.js';
 import { seasonTech } from './fia-tech.js';
 import { fiaDocuments, fiaPdf, fiaPdfUrl } from './fia.js';
 import { officialGrid } from './fia-grid.js';
-import { findSessionContent, playback, proxy as f1tvProxy, allowHost, resolvePlaylist } from './f1tv.js';
-import { Recorder, listRecordings, recordingPath } from './recorder.js';
+import { findSessionContent, playback, proxy as f1tvProxy, allowHost, resolvePlaylist, localTarget } from './f1tv.js';
+import { Recorder, listRecordings, pruneRecordings, recordingPath } from './recorder.js';
 import { ROOT, DATA_DIR, settings, getConfig, saveConfig, parseF1tvToken, tokenInfo } from './config.js';
 import { createLan, isLoopback } from './lan.js';
 import { getTranslations, addTranslations } from './translations.js';
@@ -25,7 +25,7 @@ import { compareLaps } from './compare.js';
 import { weekendTyres } from './tyres.js';
 import { circuitRecords } from './records.js';
 import { circuitInfo } from '../shared/circuits-info.js';
-import { startNews, refreshNews, newsSnapshot, onNews, addNewsSource, removeNewsSource, setNewsSourceEnabled } from './news.js';
+import { startNews, refreshNews, newsSnapshot, onNews, addNewsSource, removeNewsSource, setNewsSourceEnabled, setClusterTitle } from './news.js';
 import { parseChangelog } from '../shared/changelog.js';
 import { buildIcs } from '../shared/ics.js';
 import { headshot } from './headshots.js';
@@ -34,13 +34,15 @@ import { predictionsView, savePrediction, pronosOnline } from './predict.js';
 import { lightsInfo, saveLights, hueDiscover, huePair, lightDevices, setLights } from './lights.js';
 import { exportServerSettings, importServerSettings } from './backup.js';
 import { creatorEnabled, setCreator, savePostImage, openPostsDir } from './creator.js';
-import { studioInfo, enableStudio, disableStudio, syncStudio, startStudioSync, studioRewrite, studioTrack } from './studio-sync.js';
-import { postHistory, recordPost, removePost, statsOfPosts } from './post-history.js';
-import { accountsInfo, saveAccount, tiktokLoginUrl, tiktokCallback, youtubeLoginUrl, youtubeCallback, publish as publishSocial } from './social-publish.js';
+import { studioInfo, enableStudio, disableStudio, syncStudio, startStudioSync, studioRewrite, studioTrack, studioDrafts } from './studio-sync.js';
+import { postHistory, recordPost, removePost, statsOfPosts, importPosts } from './post-history.js';
+import { accountsInfo, saveAccount, tiktokLoginUrl, tiktokCallback, youtubeLoginUrl, youtubeCallback, metaLoginUrl, metaCallback, publish as publishSocial } from './social-publish.js';
 import { startAutoRenew, renew as renewF1tv, sessionOf, state as renewState, resetRenewState } from './f1tv-auth.js';
 import { localHost, sameSiteRequest, decodePath, extensionRequest, EXTENSION_ROUTES } from './guard.js';
 import { stats, startStats, sendFeedback, sendFeedbackFile } from './stats.js';
 import { archivePath, sendArchiveFile, archiveJSON } from './archive.js';
+import { feedDiag } from './feed-diag.js';
+import { probeState } from './feed-probe.js';
 import { cloud, createCloudTranslator } from './cloud-translate.js';
 import { cloudRadio } from './cloud-transcribe.js';
 import { createNewsTranslator, startNewsTranslation } from './news-translate.js';
@@ -78,6 +80,7 @@ const live = new LiveSource(hub, () => {
   return token && !tokenInfo(token).expired ? token : null;
 }, recorder);
 const replay = new ReplaySource(hub);
+const feedDiags = new Map();   // diagnostic des données F1, par séance
 // Articles de l'Actu lus dans l'appli (server/article.js)
 const articles = createArticleReader({ items: () => newsSnapshot().items });
 const summarize = createNewsSummarizer({ articles });
@@ -96,6 +99,11 @@ const newsTranslator = createNewsTranslator({
   known: getTranslations,
   store: addTranslations,
   lang: () => getConfig().newsTranslateLang || null,
+});
+// Actus regroupées sur leurs titres traduits : le même article publié en plusieurs langues réuni
+setClusterTitle((it) => {
+  const lang = getConfig().newsTranslateLang;
+  return lang && it.lang !== lang ? getTranslations(lang)[it.title]?.t : null;
 });
 for (const h of getConfig().radioHosts || []) allowHost(h);
 
@@ -355,6 +363,7 @@ async function handleApi(req, res, url) {
     case 'GET /api/social/accounts':
     case 'POST /api/social/accounts':
     case 'POST /api/social/tiktok/login':
+    case 'POST /api/social/meta/login':
     case 'POST /api/social/tiktok2/login':
     case 'POST /api/social/youtube/login':
     case 'POST /api/social/publish':
@@ -374,7 +383,12 @@ async function handleApi(req, res, url) {
     case 'POST /api/social/schedule':
     case 'POST /api/social/schedule/cancel':
     case 'POST /api/social/history':
-    case 'POST /api/social/history/remove': {
+    case 'POST /api/social/history/remove':
+    case 'POST /api/social/history/import':
+    case 'GET /api/social/drafts':
+    case 'GET /api/social/draft':
+    case 'POST /api/social/drafts':
+    case 'POST /api/social/drafts/remove': {
       if (!isLoopback(req.socket.remoteAddress) || !creatorEnabled()) return sendJSON(res, 403, { error: 'Mode créateur désactivé' });
       try {
         if (route === 'GET /api/social/accounts') return sendJSON(res, 200, accountsInfo());
@@ -425,15 +439,23 @@ async function handleApi(req, res, url) {
         // Résumé détaillé d'une news en points clés (images suivantes du post)
         // Post écrit à la main : titre, résumé et points clés rédigés par l'IA à partir du texte
         // Texte avec ses liens suivis (pages des réseaux ouvertes avec le texte : X…)
-        if (route === 'POST /api/social/links') { const b = await readBody(req, 2e4); return sendJSON(res, 200, await studioTrack(String(b.net || ''), String(b.text || ''))); }
+        if (route === 'POST /api/social/links') { const b = await readBody(req, 2e4); return sendJSON(res, 200, await studioTrack(String(b.net || ''), String(b.text || ''), '', { title: String(b.title || '').slice(0, 80) })); }
         if (route === 'POST /api/social/rewrite') return sendJSON(res, 200, await studioRewrite((await readBody(req, 2e4)).text));
         if (route === 'POST /api/social/summary') return sendJSON(res, 200, { points: await summarize(String((await readBody(req, 1e4)).link || '')) });
         if (route === 'POST /api/social/history') return sendJSON(res, 200, { items: await recordPost((await readBody(req, 1e5)).entry) });
         if (route === 'POST /api/social/history/remove') return sendJSON(res, 200, { items: await removePost((await readBody(req, 1e4)).key) });
+        // Posts publiés hors de Paddock Live : relus sur les comptes reliés (page web)
+        if (route === 'POST /api/social/history/import') return sendJSON(res, 200, await importPosts());
+        // Brouillons de posts (gardés par la page web, partagés avec le Studio)
+        if (route === 'GET /api/social/drafts') return sendJSON(res, 200, await studioDrafts('drafts'));
+        if (route === 'GET /api/social/draft') return sendJSON(res, 200, await studioDrafts(`draft?id=${encodeURIComponent(url.searchParams.get('id') || '')}`));
+        if (route === 'POST /api/social/drafts') return sendJSON(res, 200, await studioDrafts('drafts', await readBody(req, 4e6)));
+        if (route === 'POST /api/social/drafts/remove') return sendJSON(res, 200, await studioDrafts('drafts/remove', await readBody(req, 1e4)));
         if (route === 'POST /api/social/studio') {
           const b = await readBody(req, 1e4);
           return sendJSON(res, 200, b.off ? await disableStudio() : b.sync ? (await syncStudio({ force: true }), studioInfo()) : await enableStudio(String(b.code || '')));
         }
+        if (route === 'POST /api/social/meta/login') return sendJSON(res, 200, { url: metaLoginUrl(req.socket.localPort, await readBody(req, 4e3)) });
         if (route === 'POST /api/social/tiktok/login') return sendJSON(res, 200, { url: tiktokLoginUrl(`http://127.0.0.1:${req.socket.localPort}`) });
         if (route === 'POST /api/social/tiktok2/login') return sendJSON(res, 200, { url: tiktokLoginUrl(`http://127.0.0.1:${req.socket.localPort}`, true) });
         if (route === 'POST /api/social/youtube/login') return sendJSON(res, 200, { url: youtubeLoginUrl(`http://127.0.0.1:${req.socket.localPort}`) });
@@ -622,6 +644,7 @@ async function handleApi(req, res, url) {
       const body = await readBody(req);
       let host;
       try { host = new URL(body.url).host; } catch { return sendJSON(res, 400, { error: 'Adresse de flux invalide' }); }
+      if (localTarget(new URL(body.url).hostname)) return sendJSON(res, 400, { error: 'Adresse locale refusée' });
       const hosts = [...new Set([...(getConfig().radioHosts || []), host])];
       saveConfig({ radioHosts: hosts });
       allowHost(host);
@@ -631,9 +654,11 @@ async function handleApi(req, res, url) {
     case 'GET /api/radio/resolve': {
       const target = url.searchParams.get('u') || '';
       if (!URL.canParse(target)) return sendJSON(res, 400, { error: 'Adresse invalide' });
-      const stream = await resolvePlaylist(target);
-      allowHost(new URL(stream).host);
-      return sendJSON(res, 200, { url: stream });
+      try {
+        const stream = await resolvePlaylist(target);
+        allowHost(new URL(stream).host);
+        return sendJSON(res, 200, { url: stream });
+      } catch (err) { return sendJSON(res, 400, { error: err.message }); }
     }
 
     case 'GET /api/f1tv/proxy':
@@ -646,10 +671,28 @@ async function handleApi(req, res, url) {
     case 'GET /api/archive/file':
       return sendArchiveFile(res, url.searchParams.get('p') || '');
 
+    // Diagnostic des données F1 : flux cachés testés en direct (server/feed-probe.js)
+    case 'GET /api/feeds/probe':
+      return sendJSON(res, 200, probeState());
+
+    // Diagnostic des données F1 : toute la séance lue dans les archives (gardé pour la session)
+    case 'GET /api/feeds/diag': {
+      const p = url.searchParams.get('path') || '';
+      if (!/^\d{4}\/[\w\-./]+\/$/.test(p) || p.includes('..')) return sendJSON(res, 400, { error: 'Chemin invalide' });
+      try {
+        if (!feedDiags.has(p)) feedDiags.set(p, feedDiag(p).catch((err) => { feedDiags.delete(p); throw err; }));
+        return sendJSON(res, 200, await feedDiags.get(p));
+      } catch (err) {
+        return sendJSON(res, err.status || 502, { error: err.message });
+      }
+    }
+
     case 'GET /api/recordings':
       return sendJSON(res, 200, listRecordings());
 
     case 'DELETE /api/recordings': {
+      // Tout supprimer (sauf la séance en cours d'enregistrement)
+      if (url.searchParams.get('all') === '1') { pruneRecordings(0, recorder?.file || null); return sendJSON(res, 200, { ok: true }); }
       const file = recordingPath(url.searchParams.get('id') || '');
       if (!file) return sendJSON(res, 404, { error: 'Enregistrement introuvable' });
       if (recorder?.file === file) return sendJSON(res, 409, { error: 'Enregistrement en cours' });
@@ -779,8 +822,8 @@ async function handler(req, res) {
     return;
   }
   const url = new URL(req.url, 'http://localhost');
-  // Retour de la connexion TikTok (mode créateur) : page ouverte par le navigateur depuis tiktok.com
-  const oauthNet = { '/tiktok-callback/': ['TikTok', tiktokCallback], '/youtube-callback/': ['YouTube', youtubeCallback] }[url.pathname];
+  // Retour des connexions TikTok, YouTube et Facebook (mode créateur) : page ouverte par le navigateur
+  const oauthNet = { '/tiktok-callback/': ['TikTok', tiktokCallback], '/youtube-callback/': ['YouTube', youtubeCallback], '/meta-callback/': ['Facebook', metaCallback] }[url.pathname];
   if (oauthNet && isLoopback(req.socket.remoteAddress)) {
     const [name, callback] = oauthNet;
     let msg = `Compte ${name} connecté. Vous pouvez fermer cet onglet et revenir à Paddock Live.`;

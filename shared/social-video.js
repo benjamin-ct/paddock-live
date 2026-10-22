@@ -97,18 +97,24 @@ async function pickPlan(withAudio) {
   return null;
 }
 
-// Vidéo fabriquée image par image : chaque image dessinée puis encodée, sans limite de temps.
-// null si le navigateur ne sait pas faire (enregistrement en temps réel à la place).
-async function encodeFrames(paint, duration, { music, file, track, onProgress }) {
+// Vidéos fabriquées image par image : chaque image dessinée puis encodée, sans limite de temps.
+// paints : une vidéo par fonction de dessin, même musique ; null si le navigateur ne sait pas faire
+// (enregistrement en temps réel à la place).
+async function encodeFrames(paints, duration, { music, file, track, onProgress }) {
   const withAudio = music !== 'none';
   const plan = await pickPlan(withAudio);
   if (!plan) return null;
   const { Muxer, ArrayBufferTarget } = await plan.lib();
-  const target = new ArrayBufferTarget();
-  const muxer = new Muxer({
-    target, firstTimestampBehavior: 'offset', ...plan.opts,
-    video: { codec: plan.name, width: W, height: H, frameRate: FPS },
-    ...(withAudio ? { audio: { codec: plan.audio[1], numberOfChannels: 2, sampleRate: 48000 } } : {}),
+  const outs = paints.map((paint) => {
+    const target = new ArrayBufferTarget();
+    const muxer = new Muxer({
+      target, firstTimestampBehavior: 'offset', ...plan.opts,
+      video: { codec: plan.name, width: W, height: H, frameRate: FPS },
+      ...(withAudio ? { audio: { codec: plan.audio[1], numberOfChannels: 2, sampleRate: 48000 } } : {}),
+    });
+    const canvas = document.createElement('canvas');
+    canvas.width = W; canvas.height = H;
+    return { paint, target, muxer, canvas, ctx: canvas.getContext('2d') };
   });
   let failure = null;
   let silent = false;   // musique rendue muette par le navigateur : signalée à l'appelant
@@ -116,7 +122,8 @@ async function encodeFrames(paint, duration, { music, file, track, onProgress })
   if (withAudio) {
     const buf = await renderMusic(music, file, track, duration);
     silent = !buf.getChannelData(0).some((x) => Math.abs(x) > 1e-4);
-    const enc = new AudioEncoder({ output: (c, m) => muxer.addAudioChunk(c, m), error: fail });
+    // Son encodé une fois, copié dans chaque vidéo
+    const enc = new AudioEncoder({ output: (c, m) => outs.forEach((o) => o.muxer.addAudioChunk(c, m)), error: fail });
     enc.configure({ codec: plan.audio[0], sampleRate: 48000, numberOfChannels: 2, bitrate: 192e3 });
     const step = 4800;
     for (let i = 0; i < buf.length; i += step) {
@@ -129,27 +136,33 @@ async function encodeFrames(paint, duration, { music, file, track, onProgress })
     }
     await enc.flush(); enc.close();
   }
-  const out = document.createElement('canvas');
-  out.width = W; out.height = H;
-  const ctx = out.getContext('2d');
-  const enc = new VideoEncoder({ output: (c, m) => muxer.addVideoChunk(c, m), error: fail });
-  enc.configure(plan.config);
+  for (const o of outs) {
+    o.enc = new VideoEncoder({ output: (c, m) => o.muxer.addVideoChunk(c, m), error: fail });
+    o.enc.configure(plan.config);
+  }
   const frames = Math.round(duration * FPS);
   for (let i = 0; i < frames && !failure; i++) {
-    paint(ctx, Math.min(i / FPS, duration - 0.001));
-    const vf = new VideoFrame(out, { timestamp: Math.round(i * 1e6 / FPS), duration: Math.round(1e6 / FPS) });
-    enc.encode(vf, { keyFrame: i % (FPS * 2) === 0 });
-    vf.close();
-    // Encodeur en retard : on l'attend ; et la page respire (avancement affiché)
-    while (enc.encodeQueueSize > 3) await new Promise((r) => setTimeout(r, 2));
+    for (const o of outs) {
+      o.paint(o.ctx, Math.min(i / FPS, duration - 0.001));
+      const vf = new VideoFrame(o.canvas, { timestamp: Math.round(i * 1e6 / FPS), duration: Math.round(1e6 / FPS) });
+      o.enc.encode(vf, { keyFrame: i % (FPS * 2) === 0 });
+      vf.close();
+      // Encodeur en retard : on l'attend
+      while (o.enc.encodeQueueSize > 3) await new Promise((r) => setTimeout(r, 2));
+    }
+    // La page respire (avancement affiché)
     if (i % 5 === 4) { onProgress?.((i + 1) / frames); await new Promise((r) => setTimeout(r, 0)); }
   }
-  if (!failure) await enc.flush();
-  enc.close();
+  for (const o of outs) {
+    if (!failure) await o.enc.flush();
+    o.enc.close();
+  }
   if (failure) throw failure;
-  muxer.finalize();
   onProgress?.(1);
-  return { blob: new Blob([target.buffer], { type: plan.mime }), mime: plan.mime, ...(silent ? { silent } : {}) };
+  return outs.map((o) => {
+    o.muxer.finalize();
+    return { blob: new Blob([o.target.buffer], { type: plan.mime }), mime: plan.mime, ...(silent ? { silent } : {}) };
+  });
 }
 
 // Son des vidéos enregistrées en temps réel : le contexte audio doit démarrer pendant le geste
@@ -164,25 +177,84 @@ export function unlockAudio() {
   } catch { /* pas de son possible dans ce navigateur */ }
 }
 
-// Animation : paint(ctx, t) dessine l'image à l'instant t (secondes)
-export async function makeAnimation(paint, duration, opts = {}) {
-  try {
-    const v = await encodeFrames(paint, duration, { music: 'gen', ...opts });
-    if (v) return v;
-  } catch { /* encodeur du navigateur en échec : enregistrement en temps réel */ }
-  return recordLive(paint, duration, opts);
+// Zone sûre : sur les téléphones (écran plus allongé que 9:16), Reels, TikTok et Shorts remplissent l'écran
+// en rognant les côtés (environ 9 % de chaque côté, ~100 px) et posent leur interface par-dessus : en haut
+// l'onglet, la recherche ou le retour (~13 %), à droite la colonne J'aime / Commentaire / Partage (~110 px
+// visibles), en bas le compte, la légende et la musique (~18 %). L'image est dessinée réduite (SAFE.s) dans
+// le rectangle libre ; ses aplats pleine page (fond, lueurs, fondus) couvrent toute la vidéo : un seul fond
+// continu, rien de coupé ni caché, ni bandes noires ni cadre.
+const SAFE = { x: 120, y: 260, s: 0.68 };
+// Vidéos animées (course, Breaking news) : mise en page refaite à la taille du rectangle libre (texte et
+// graphique plus grands qu'une image réduite) ; paint(ctx, t, w, h)
+const BOX = { x: 100, y: 240, w: 790, h: 1340 };
+export function safeFrame(paint, { box = false } = {}) {
+  const [ox, oy, s, fw, fh] = box ? [BOX.x, BOX.y, 1, BOX.w, BOX.h] : [SAFE.x, SAFE.y, SAFE.s, W, H];
+  return (ctx, t) => {
+    const fill = ctx.fillRect;
+    ctx.fillRect = function fullRect(x, y, w, h) {
+      if (x !== 0 || y !== 0 || w !== fw || h !== fh) return fill.call(this, x, y, w, h);
+      // Aplat de toute l'image : étendu à toute la vidéo (coins de la vidéo ramenés dans le repère courant)
+      const m = this.getTransform().invertSelf();
+      const pts = [[0, 0], [W, 0], [0, H], [W, H]].map(([a, b]) => m.transformPoint({ x: a, y: b }));
+      const xs = pts.map((q) => q.x); const ys = pts.map((q) => q.y);
+      return fill.call(this, Math.min(...xs), Math.min(...ys), Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys));
+    };
+    // Liseré pleine image (Breaking news) : autour de tout l'écran, pas du contenu réduit
+    const stroke = ctx.strokeRect;
+    ctx.strokeRect = function edgeRect(x, y, w, h) {
+      if (Math.abs(x * 2 + w - fw) > 1 || Math.abs(y * 2 + h - fh) > 1 || x > fw * 0.05) return stroke.call(this, x, y, w, h);
+      const k = this.getTransform().a;
+      const per = (2 * (W + H)) / (2 * (fw + fh) * k);   // tirets (tracé progressif) à l'échelle du tour d'écran
+      this.save();
+      this.setTransform(1, 0, 0, 1, 0, 0);
+      this.lineWidth *= k;
+      this.setLineDash(this.getLineDash().map((v) => v * k * per));
+      const lw = this.lineWidth;
+      stroke.call(this, lw / 2, lw / 2, W - lw, H - lw);
+      this.restore();
+    };
+    ctx.save();
+    ctx.setTransform(s, 0, 0, s, ox, oy);
+    try { paint(ctx, t, fw, fh); } finally { ctx.restore(); delete ctx.fillRect; delete ctx.strokeRect; }
+  };
 }
 
-// Enregistrement en temps réel (navigateur sans WebCodecs)
-async function recordLive(paint, duration, { music = 'gen', file = null, track, onProgress } = {}) {
+// Couverture (miniature) : montrée COVER secondes au début de la vidéo (première image, couverture par
+// défaut de TikTok) et rendue en JPEG (couverture envoyée à Instagram et Facebook)
+const COVER = 0.4;
+async function coverJpeg(paint) {
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  paint(c.getContext('2d'), 0);
+  return new Promise((resolve) => c.toBlob(resolve, 'image/jpeg', 0.9));
+}
+
+// Animation : draw(ctx, t) dessine l'image à l'instant t (secondes). Deux vidéos fabriquées ensemble :
+// l'une placée dans la zone sûre (Reels, TikTok, Shorts), l'autre en plein écran (full : Facebook, Threads,
+// Bluesky, X, partage). Résultat : { blob, mime, cover, full: { blob, mime } } ;
+// opts.cover(ctx) : couverture dessinée au format de la vidéo ;
+// opts.box : draw(ctx, t, w, h) mis en page à la taille du rectangle libre (sinon image réduite)
+export async function makeAnimation(draw, duration, { cover = null, box = false, ...opts } = {}) {
+  // Couverture en plein cadre (son contenu reste dans la partie centrale, celle des grilles de profil)
+  const front = cover && ((ctx) => { ctx.save(); ctx.globalAlpha = 1; cover(ctx); ctx.restore(); });
+  const withCover = (body) => (front ? (ctx, t) => (t < COVER ? front(ctx, 0) : body(ctx, t - COVER)) : body);
+  const paints = [safeFrame(draw, { box }), (ctx, t) => draw(ctx, t, W, H)].map(withCover);
+  const total = duration + (front ? COVER : 0);
+  const extra = front ? { cover: await coverJpeg(front).catch(() => null) } : {};
+  let vids = null;
+  try {
+    vids = await encodeFrames(paints, total, { music: 'gen', ...opts });
+  } catch { /* encodeur du navigateur en échec : enregistrement en temps réel */ }
+  const [safe, full] = vids || await recordLive(paints, total, opts);
+  return { ...safe, ...extra, full: { blob: full.blob, mime: full.mime } };
+}
+
+// Enregistrement en temps réel (navigateur sans WebCodecs) : une vidéo par fonction de dessin, même son
+async function recordLive(paints, duration, { music = 'gen', file = null, track, onProgress } = {}) {
   let silent = false;   // son bloqué par le navigateur : vidéo muette, signalée à l'appelant
   if (!window.MediaRecorder) throw new Error('Enregistrement vidéo indisponible dans ce navigateur');
-  const out = document.createElement('canvas');
-  out.width = W; out.height = H;
-  const ctx = out.getContext('2d');
-  const video = out.captureStream(30);
   let ac = null;
-  const tracks = [...video.getVideoTracks()];
+  const audio = [];
   let master = null;
   if (music !== 'none') {
     ac = liveAc && liveAc.state !== 'closed' ? liveAc : new AudioContext();
@@ -201,17 +273,23 @@ async function recordLive(paint, duration, { music = 'gen', file = null, track, 
       src.buffer = buf; src.loop = buf.duration < duration;
       src.connect(master); src.start();
     } else playTrack(ac, master, track, duration);
-    tracks.push(...dest.stream.getAudioTracks());
+    audio.push(...dest.stream.getAudioTracks());
   }
-  const mimeType = pickMime(tracks.length > 1);
-  const rec = new MediaRecorder(new MediaStream(tracks), { ...(mimeType ? { mimeType } : {}), videoBitsPerSecond: 8e6, audioBitsPerSecond: 192e3 });
-  const chunks = [];
-  rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
-  const done = new Promise((resolve) => { rec.onstop = resolve; });
+  const mimeType = pickMime(audio.length > 0);
+  const outs = paints.map((paint) => {
+    const out = document.createElement('canvas');
+    out.width = W; out.height = H;
+    const video = out.captureStream(30);
+    const rec = new MediaRecorder(new MediaStream([...video.getVideoTracks(), ...audio]), { ...(mimeType ? { mimeType } : {}), videoBitsPerSecond: 8e6, audioBitsPerSecond: 192e3 });
+    const chunks = [];
+    rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+    const done = new Promise((resolve) => { rec.onstop = resolve; });
+    return { paint, ctx: out.getContext('2d'), video, rec, chunks, done };
+  });
 
-  const draw = (t) => paint(ctx, t);
+  const draw = (t) => outs.forEach((o) => o.paint(o.ctx, t));
   draw(0);
-  rec.start(500);
+  outs.forEach((o) => o.rec.start(500));
   const start = performance.now();
   await new Promise((resolve) => {
     const tick = () => {
@@ -222,15 +300,17 @@ async function recordLive(paint, duration, { music = 'gen', file = null, track, 
     };
     requestAnimationFrame(tick);
   });
-  rec.stop();
-  await done;
-  video.getTracks().forEach((tr) => tr.stop());
+  outs.forEach((o) => o.rec.stop());
+  await Promise.all(outs.map((o) => o.done));
+  outs.forEach((o) => o.video.getTracks().forEach((tr) => tr.stop()));
   // Contexte ouvert pendant le geste : gardé pour la vidéo suivante, seul le son de celle-ci est coupé
   if (ac === liveAc) master?.disconnect(); else await ac?.close();
-  const type = (rec.mimeType || mimeType || 'video/webm').split(';')[0];
-  let blob = new Blob(chunks, { type });
-  if (type === 'video/webm') blob = new Blob([webmWithDuration(await blob.arrayBuffer(), duration * 1000)], { type });
-  return { blob, mime: type, ...(silent ? { silent } : {}) };
+  return Promise.all(outs.map(async ({ rec, chunks }) => {
+    const type = (rec.mimeType || mimeType || 'video/webm').split(';')[0];
+    let blob = new Blob(chunks, { type });
+    if (type === 'video/webm') blob = new Blob([webmWithDuration(await blob.arrayBuffer(), duration * 1000)], { type });
+    return { blob, mime: type, ...(silent ? { silent } : {}) };
+  }));
 }
 
 // Diaporama des visuels au format story : léger zoom et fondu enchaîné
@@ -242,8 +322,12 @@ export async function makeVideo(slides, { perSlide = 3.2, ...opts } = {}) {
     const local = t - i * perSlide;
     const paint = (c, k, alpha, dy = 0) => {
       const s = 1 + 0.045 * k;
+      ctx.save();
       ctx.globalAlpha = alpha;
-      ctx.drawImage(c, (W - W * s) / 2, (H - H * s) / 2 + dy, W * s, H * s);
+      ctx.translate((W - W * s) / 2, (H - H * s) / 2 + dy);
+      ctx.scale(s, s);
+      if (c.paint) c.paint(ctx); else ctx.drawImage(c, 0, 0, W, H);
+      ctx.restore();
     };
     ctx.globalAlpha = 1;
     ctx.fillStyle = '#0b0d12'; ctx.fillRect(0, 0, W, H);
@@ -255,5 +339,6 @@ export async function makeVideo(slides, { perSlide = 3.2, ...opts } = {}) {
     }
     ctx.globalAlpha = 1;
   };
-  return makeAnimation(draw, duration, opts);
+  // Couverture : le premier visuel (sa couverture le plus souvent)
+  return makeAnimation(draw, duration, { cover: slides[0]?.paint ? (ctx) => slides[0].paint(ctx) : null, ...opts });
 }

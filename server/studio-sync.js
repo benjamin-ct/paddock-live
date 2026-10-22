@@ -51,11 +51,11 @@ export async function studioRewrite(text, { fetchFn } = {}) {
 
 // Liens suivis par le serveur (clics comptés dans les statistiques du Studio) ; page web désactivée ou
 // serveur injoignable : textes tels quels
-export async function studioTrack(net, text = '', comment = '', { fetchFn } = {}) {
+export async function studioTrack(net, text = '', comment = '', { fetchFn, title } = {}) {
   const key = getConfig().studio?.key;
   if (!key || !/https?:\/\//.test(`${text} ${comment}`)) return { text, comment };
   try {
-    const r = await post('links', { net, text, comment }, key, fetchFn, 8000);
+    const r = await post('links', { net, text, comment, ...(title ? { title } : {}) }, key, fetchFn, 8000);
     return { text: typeof r.text === 'string' ? r.text : text, comment: typeof r.comment === 'string' ? r.comment : comment };
   } catch {
     return { text, comment };
@@ -111,6 +111,20 @@ export async function studioCall(path, { body, fetchFn = fetch, timeout = 15000 
     });
     return res.ok ? await res.json() : null;
   } catch { return null; }
+}
+
+// Brouillons de posts, gardés par la page web (partagés avec le Studio) : réponse du serveur, ou son
+// message d'erreur
+export async function studioDrafts(path, body = null, { fetchFn = fetch } = {}) {
+  const st = getConfig().studio;
+  if (!st?.key || !creatorEnabled()) throw new Error('Activez la page web (téléphone) dans « Publier… » pour garder des brouillons');
+  const res = await fetchFn(`${STUDIO_URL}/studio/api/${path}`, {
+    method: body ? 'POST' : 'GET', headers: { 'X-Studio-Key': st.key, ...(body ? { 'Content-Type': 'application/json' } : {}) },
+    body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(30000),
+  });
+  const j = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(j.error || `Page web indisponible (${res.status})`);
+  return j;
 }
 
 export function startStudioSync() {

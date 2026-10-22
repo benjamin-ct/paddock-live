@@ -9,10 +9,9 @@ process.env.PADDOCK_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'paddock-st
 const CODE = 'ESSAI-42';
 const HASH = (await import('node:crypto')).createHash('sha256').update(`paddock-live:${CODE}`).digest('hex');
 process.env.PADDOCK_CREATOR_HASH = HASH;
-const { studioApi, freshF1tv, runSchedule, seasonRow } = await import('../analytics/studio.js');
+const { studioApi, freshF1tv, runSchedule, schedInternal, seasonRow } = await import('../analytics/studio.js');
 const { studioKey, enableStudio, syncStudio, disableStudio, studioInfo, studioRewrite } = await import('../server/studio-sync.js');
 const { saveConfig, getConfig } = await import('../server/config.js');
-const { timing } = await import('../shared/meta-publish.js');
 
 // Base D1 réduite aux requêtes de la page du créateur
 function fakeDB() {
@@ -34,6 +33,8 @@ function fakeDB() {
           throw new Error(`SQL inattendu : ${sql}`);
         },
         async run() {
+          if (/^INSERT INTO studio \(.*DO NOTHING$/.test(sql)) { if (studio.has(args[0])) return { meta: { changes: 0 } }; studio.set(args[0], args[1]); return { meta: { changes: 1 } }; }
+          if (/^UPDATE studio SET v = \?, at = \? WHERE k = \? AND v = \?$/.test(sql)) { if (studio.get(args[2]) !== args[3]) return { meta: { changes: 0 } }; studio.set(args[2], args[0]); return { meta: { changes: 1 } }; }
           if (/^INSERT INTO studio \(/.test(sql)) studio.set(args[0], args[1]);
           else if (/^INSERT INTO studio_fail/.test(sql)) fails.set(`${args[0]}|${args[1]}`, (fails.get(`${args[0]}|${args[1]}`) || 0) + 1);
           else if (/^DELETE FROM studio$/.test(sql)) studio.clear();
@@ -49,7 +50,17 @@ function fakeDB() {
 }
 globalThis.caches = { default: { match: async () => null, put: async () => {} } };
 
-const env = { DB: fakeDB(), STUDIO_CODE_HASH: HASH, STATS_KEY: 'secret-du-serveur' };
+// Stockage R2 (visuels et vidéos des publications programmées)
+function fakeR2() {
+  const objs = new Map();
+  return {
+    objs,
+    put: async (k, v, o) => { objs.set(k, { bytes: new Uint8Array(await new Response(v).arrayBuffer()), type: o?.httpMetadata?.contentType }); },
+    get: async (k) => (objs.has(k) ? { arrayBuffer: async () => objs.get(k).bytes.slice().buffer, httpMetadata: { contentType: objs.get(k).type } } : null),
+    delete: async (k) => { [k].flat().forEach((x) => objs.delete(x)); },
+  };
+}
+const env = { DB: fakeDB(), MEDIA: fakeR2(), STUDIO_CODE_HASH: HASH, STATS_KEY: 'secret-du-serveur' };
 const worker = (url, init) => studioApi(new Request(url, init), env, new URL(url));
 
 test('page du créateur : clé dérivée identique dans l\'appli et dans le navigateur (PBKDF2)', async () => {
@@ -87,35 +98,36 @@ test('page du créateur : coffre chiffré, sans le code rien n\'est lisible', as
   const me2 = await (await worker('https://s.test/studio/api/me', { headers: { 'X-Studio-Key': studioKey(CODE) } })).json();
   assert.equal(me2.threads, '@moi2');
 
-  // Publication sur Facebook : progression puis lien
+  // Publication sur Facebook par le serveur : lien du post ; commentaire refusé (permission manquante) :
+  // le post part quand même, avec la raison
   const realFetch = globalThis.fetch;
   let refuse = false;
-  Object.assign(timing, { poll: 1, maxPoll: 1, visible: [] });
   globalThis.fetch = async (url, opts = {}) => {
     const u = new URL(url);
     const ok = (d) => new Response(JSON.stringify(d), { status: 200 });
     if (u.pathname.endsWith('/photos')) return ok({ id: 'ph1' });
-    if (u.searchParams.get('fields') === 'images') return ok({ images: [{ width: 1080, source: 'https://cdn.test/a.jpg' }] });
     if (u.pathname.endsWith('/feed')) return ok({ id: 'p1_42' });
     if (u.pathname.endsWith('/comments')) return refuse ? new Response(JSON.stringify({ error: { message: '(#200) Permissions error' } }), { status: 403 }) : ok({ id: 'c1' });
     return realFetch(url, opts);
   };
   try {
-    const form = new FormData();
-    form.append('network', 'facebook');
-    form.append('text', 'Bonjour');
-    form.append('images', new Blob([new Uint8Array([0xff, 0xd8, 0xff, 1, 2])], { type: 'image/jpeg' }), 'a.jpg');
-    form.append('comment', "Lire l'article : https://a.test/x");
+    const key = { 'X-Studio-Key': studioKey(CODE) };
     const send = async () => {
-      const r = await worker('https://s.test/studio/api/publish', { method: 'POST', body: form, headers: { 'X-Studio-Key': studioKey(CODE) } });
-      return (await r.text()).trim().split('\n').map((l) => JSON.parse(l)).at(-1);
+      const form = new FormData();
+      form.append('at', String(Date.now()));
+      form.append('posts', JSON.stringify([{ network: 'facebook', text: 'Bonjour', comment: "Lire l'article : https://a.test/x" }]));
+      form.append('ig', new Blob([new Uint8Array([0xff, 0xd8, 0xff, 1, 2])], { type: 'image/jpeg' }), 'a.jpg');
+      const { item } = await (await worker('https://s.test/studio/api/schedule', { method: 'POST', body: form, headers: key })).json();
+      await runSchedule(env);
+      const st = (await (await worker('https://s.test/studio/api/schedule', { headers: key })).json()).items.find((x) => x.id === item.id).nets.facebook;
+      await runSchedule(env);   // passage suivant : nettoyage
+      return st;
     };
-    assert.deepEqual(await send(), { done: true, url: 'https://www.facebook.com/p1_42', id: 'p1_42', comment: true, commentError: null });
-    // Commentaire refusé (permission manquante) : le post est publié quand même, avec la raison
+    const st = await send();
+    assert.deepEqual([st.status, st.url, st.comment, st.commentError], ['done', 'https://www.facebook.com/p1_42', true, null]);
     refuse = true;
     const r2 = await send();
-    assert.equal(r2.done, true);
-    assert.equal(r2.comment, false);
+    assert.deepEqual([r2.status, r2.comment], ['done', false]);
     assert.match(r2.commentError, /Permissions error.*permission manquante/);
   } finally { globalThis.fetch = realFetch; }
 
@@ -145,7 +157,6 @@ test('page du créateur : relais limités (sources connues, archives F1, images 
     assert.equal((await r.json()).error, 'Archive pas encore publiée');
   } finally { globalThis.fetch = realFetch; }
   assert.equal((await worker(`https://s.test/studio/api/img?u=${encodeURIComponent('https://evil.test/a.png')}`, h)).status, 400);
-  assert.equal((await worker('https://s.test/studio/api/publish', { method: 'POST', body: new FormData(), ...h })).status, 409);   // pas de comptes
 });
 
 const jwt = (payload) => `x.${Buffer.from(JSON.stringify(payload)).toString('base64url')}.y`;
@@ -245,7 +256,7 @@ test("page du créateur : relais des pages d'articles (résumé détaillé) en t
   assert.equal((await worker('https://s.test/studio/api/page?u=https%3A%2F%2Fwww.formula1.com%2Fa')).status, 401);
 });
 
-test('page du créateur : publication programmée, publiée par le serveur à l\'heure (tous les réseaux en un passage)', async () => {
+test('page du créateur : publication programmée, publiée par le serveur à l\'heure (un réseau par passage, stories par lots)', async () => {
   saveConfig({ creator: true, social: { meta: { pageId: 'p1', pageName: 'Ma page', pageToken: 'jeton-page', igId: 'ig1', igUsername: 'moi' }, bluesky: { handle: 'moi.bsky.social', appPassword: 'mdp-app', did: 'did:plc:moi' } } });
   const fetchFn = (url, init) => worker(url, init);
   await enableStudio(CODE, { fetchFn });
@@ -254,6 +265,7 @@ test('page du créateur : publication programmée, publiée par le serveur à l\
   const jpeg = (n) => new Blob([new Uint8Array(n).fill(7).map((x, i) => (i < 3 ? [0xff, 0xd8, 0xff][i] : x))], { type: 'image/jpeg' });
   const form = (o = {}) => {
     const f = new FormData();
+    if (o.id) f.append('id', o.id);
     f.append('at', String(o.at ?? at));
     f.append('title', 'Résultats');
     f.append('record', JSON.stringify({ key: 'race-2026-18', kind: 'race', title: 'Résultats' }));
@@ -261,6 +273,8 @@ test('page du créateur : publication programmée, publiée par le serveur à l\
     f.append('ig', jpeg(1.2e6), 'a.jpg');
     f.append('ig', jpeg(10), 'b.jpg');
     f.append('x', jpeg(10), 'c.jpg');
+    for (let i = 0; i < (o.more || 0); i++) f.append('ig', jpeg(10), `d${i}.jpg`);
+    f.append('alts', JSON.stringify({ ig: ['Podium', 'Classement', 'en trop'], x: ['Podium X'] }));
     return f;
   };
   const add = async (o) => worker('https://s.test/studio/api/schedule', { method: 'POST', body: form(o), headers: key });
@@ -274,13 +288,31 @@ test('page du créateur : publication programmée, publiée par le serveur à l\
   assert.deepEqual(item.nets, { facebook: { status: 'pending' }, bluesky: { status: 'pending' } });
   // Jetons chiffrés avec le secret du serveur : absents de la base en clair
   const rows = [...env.DB.studio].filter(([k]) => k.startsWith('sched'));
-  assert.ok(rows.length >= 4);
+  assert.ok(rows.length >= 1);
+  // Visuels dans le stockage R2, pas dans la base
+  assert.deepEqual([...env.MEDIA.objs.keys()].filter((k) => k.startsWith(`sched/${item.id}/`)).sort(), [`sched/${item.id}/ig/0`, `sched/${item.id}/ig/1`, `sched/${item.id}/x/0`]);
+  assert.equal(env.MEDIA.objs.get(`sched/${item.id}/ig/0`).bytes.length, 1.2e6);
+  // Même identifiant envoyé deux fois (réponse perdue, nouvel appui) : une seule programmation
+  const first = await (await add({ id: 'aaaaaaaaaaaaaaaa' })).json();
+  const again = await (await add({ id: 'aaaaaaaaaaaaaaaa' })).json();
+  assert.equal(first.item.id, 'aaaaaaaaaaaaaaaa');
+  assert.equal(again.item.id, 'aaaaaaaaaaaaaaaa');
+  assert.equal([...env.DB.studio.keys()].filter((k) => k === 'sched:aaaaaaaaaaaaaaaa').length, 1);
+  await worker('https://s.test/studio/api/schedule/cancel', { method: 'POST', headers: key, body: JSON.stringify({ id: 'aaaaaaaaaaaaaaaa' }) });
+  // Texte alternatif de chaque visuel, un par image (le surplus écarté)
+  assert.deepEqual(JSON.parse(env.DB.studio.get(`sched:${item.id}`)).alts, { ig: ['Podium', 'Classement'], x: ['Podium X'] });
   for (const [, v] of rows) for (const sec of ['jeton-page', 'mdp-app']) assert.ok(!v.includes(sec));
 
   const realFetch = globalThis.fetch;
   const calls = [];
+  // Téléphone abonné aux notifications du Studio
+  const pair = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits']);
+  const b64u = (b) => Buffer.from(b).toString('base64url');
+  env.DB.studio.set('push', JSON.stringify([{ endpoint: 'https://push.test/abc', keys: { p256dh: b64u(new Uint8Array(await crypto.subtle.exportKey('raw', pair.publicKey))), auth: b64u(crypto.getRandomValues(new Uint8Array(16))) } }]));
+  let pushes = 0;
   globalThis.fetch = async (url, opts = {}) => {
     const u = new URL(url);
+    if (u.hostname === 'push.test') { pushes++; return new Response('', { status: 201 }); }
     calls.push(u.pathname);
     const ok = (d) => new Response(JSON.stringify(d), { status: 200 });
     if (u.pathname.endsWith('/photos')) return ok({ id: 'ph1' });
@@ -297,42 +329,113 @@ test('page du créateur : publication programmée, publiée par le serveur à l\
     // Pas encore l'heure : rien ne part
     assert.equal(await runSchedule(env, { now: at - 60e3 }), null);
     assert.equal(calls.length, 0);
-    // À l'heure : tous les réseaux dans le même passage, jamais renvoyés au suivant
-    assert.deepEqual(await runSchedule(env, { now: at + 1 }), { published: 'bluesky', id: item.id });
-    assert.ok(calls.some((c) => c.endsWith('/photos')) && calls.some((c) => c.endsWith('createRecord')));
-    assert.equal(await runSchedule(env, { now: at + 60e3 }), null);
+    // À l'heure : un réseau par passage (limite de sous-requêtes du Worker), jamais renvoyé au suivant
+    assert.deepEqual(await runSchedule(env, { now: at + 1 }), { published: 'facebook', id: item.id });
+    const photos = calls.filter((c) => c.endsWith('/photos')).length;
+    assert.ok(photos && !calls.some((c) => c.endsWith('createRecord')));
+    assert.equal((await (await worker('https://s.test/studio/api/schedule', { headers: key })).json()).items[0].nets.bluesky.status, 'pending');
+    assert.deepEqual(await runSchedule(env, { now: at + 60e3 }), { published: 'bluesky', id: item.id });
+    assert.equal(calls.filter((c) => c.endsWith('/photos')).length, photos, 'Facebook pas renvoyé');
+    // Fin : notification sur le téléphone au passage suivant (une seule fois), liste nettoyée
+    assert.equal(pushes, 0);
+    assert.equal(await runSchedule(env, { now: at + 120e3 }), null);
+    assert.equal(pushes, 1);
     // Tout publié : retirée aussitôt de la liste (visuels, jetons et trace effacés), journal complété
     const list = await (await worker('https://s.test/studio/api/schedule', { headers: key })).json();
     assert.equal(list.items.length, 0);
     assert.equal([...env.DB.studio.keys()].filter((k) => k.startsWith('sched')).length, 0);
+    assert.equal([...env.MEDIA.objs.keys()].filter((k) => k.startsWith(`sched/${item.id}`)).length, 0);
     const hist = await (await worker('https://s.test/studio/api/history', { headers: key })).json();
     assert.equal(hist.items[0].key, 'race-2026-18');
     assert.deepEqual(Object.keys(hist.items[0].nets).sort(), ['bluesky', 'facebook']);
     assert.equal(hist.items[0].nets.facebook.url, 'https://www.facebook.com/p1_43');
+    // Worker lié à lui-même : chaque réseau envoyé par un appel à part (clé du serveur exigée), tous au même
+    // passage ; un réseau déjà pris n'est jamais renvoyé, même demandé à nouveau
+    const par = (await (await add()).json()).item;
+    const asked = [];
+    env.SELF = { fetch: async (u, init) => { asked.push(JSON.parse(init.body).net); return schedInternal(new Request(u, init), env); } };
+    try {
+      assert.deepEqual(await runSchedule(env, { now: at + 1 }), { published: ['facebook', 'bluesky'], parallel: true });
+      assert.deepEqual(asked.sort(), ['bluesky', 'facebook']);
+      const nets = (await (await worker('https://s.test/studio/api/schedule', { headers: key })).json()).items.find((x) => x.id === par.id).nets;
+      assert.deepEqual([nets.facebook.status, nets.bluesky.status], ['done', 'done']);
+      const n = calls.length;
+      assert.equal(await runSchedule(env, { now: at + 2, only: { id: par.id, net: 'facebook' } }), null);
+      assert.equal(calls.length, n);
+      assert.equal((await schedInternal(new Request('https://self/internal/sched', { method: 'POST', body: '{}' }), env)).status, 403);
+    } finally { delete env.SELF; }
+    await runSchedule(env, { now: at + 60e3 });   // passage suivant : notification et nettoyage
+    assert.equal((await (await worker('https://s.test/studio/api/schedule', { headers: key })).json()).items.length, 0);
     // Stories : sans texte, jamais mêlées aux posts du fil, absentes de l'historique
     assert.equal((await add({ posts: [{ network: 'facebook-story' }, { network: 'facebook', text: 'x' }] })).status, 400);
     const story = (await (await add({ posts: [{ network: 'facebook-story' }] })).json()).item;
     calls.length = 0;
     assert.deepEqual(await runSchedule(env, { now: at + 120e3 }), { published: 'facebook-story', id: story.id });
     assert.equal(calls.filter((c) => c.endsWith('/photo_stories')).length, 2);
+    await runSchedule(env, { now: at + 121e3 });
+    assert.equal((await (await worker('https://s.test/studio/api/schedule', { headers: key })).json()).items.length, 0);
+    // 6 stories : 4 au premier passage, la suite au suivant (limite de sous-requêtes)
+    const many = (await (await add({ posts: [{ network: 'facebook-story' }], more: 4 })).json()).item;
+    calls.length = 0;
+    await runSchedule(env, { now: at + 125e3 });
+    assert.equal(calls.filter((c) => c.endsWith('/photo_stories')).length, 4);
+    const half = (await (await worker('https://s.test/studio/api/schedule', { headers: key })).json()).items.find((x) => x.id === many.id);
+    assert.deepEqual([half.nets['facebook-story'].status, half.nets['facebook-story'].sent, half.nets['facebook-story'].total], ['pending', 4, 6]);
+    await runSchedule(env, { now: at + 185e3 });
+    assert.equal(calls.filter((c) => c.endsWith('/photo_stories')).length, 6);
+    await runSchedule(env, { now: at + 186e3 });
     assert.equal((await (await worker('https://s.test/studio/api/schedule', { headers: key })).json()).items.length, 0);
     assert.equal((await (await worker('https://s.test/studio/api/history', { headers: key })).json()).items.length, hist.items.length);
-    // Échec sur un réseau : gardée dans la liste avec l'erreur, visuels et jetons effacés
-    const bad = (await (await add()).json()).item;
+    // Échec sur un réseau : gardée dans la liste avec l'erreur ; visuels et jetons gardés 24 h (« Réessayer »)
+    const post = (path, body) => worker(`https://s.test/studio/api/schedule/${path}`, { method: 'POST', headers: key, body: JSON.stringify(body) });
+    const listed = async (id) => (await (await worker('https://s.test/studio/api/schedule', { headers: key })).json()).items.find((x) => x.id === id);
+    const media = (id) => [...env.MEDIA.objs.keys()].filter((k) => k.startsWith(`sched/${id}`)).length;
     const ok = globalThis.fetch;
-    globalThis.fetch = async (url, opts) => (new URL(url).pathname.endsWith('/feed') ? new Response(JSON.stringify({ error: { message: 'Refusé' } }), { status: 400 }) : ok(url, opts));
+    const refuse = async (url, opts) => (new URL(url).pathname.endsWith('/feed') ? new Response(JSON.stringify({ error: { message: 'Refusé' } }), { status: 400 }) : ok(url, opts));
+    const bad = (await (await add()).json()).item;
+    globalThis.fetch = refuse;
     await runSchedule(env, { now: at + 180e3 });
+    await runSchedule(env, { now: at + 240e3 });
+    const before = pushes;
+    await runSchedule(env, { now: at + 300e3 });
+    await runSchedule(env, { now: at + 360e3 });
+    assert.equal(pushes, before + 1, 'erreur : une seule notification');
     globalThis.fetch = ok;
-    const kept = (await (await worker('https://s.test/studio/api/schedule', { headers: key })).json()).items.find((x) => x.id === bad.id);
-    assert.equal(kept.nets.facebook.status, 'error');
-    assert.equal(kept.nets.bluesky.status, 'done');
-    assert.equal([...env.DB.studio.keys()].filter((k) => k.startsWith('schedimg:')).length, 0);
-    assert.equal(JSON.parse(env.DB.studio.get(`sched:${bad.id}`)).keys, null);
-    // Une semaine plus tard : la trace disparaît
+    const kept = await listed(bad.id);
+    assert.deepEqual([kept.nets.facebook.status, kept.nets.bluesky.status, kept.retry], ['error', 'done', true]);
+    assert.ok(media(bad.id) > 0);
+    // Réessayer : seulement un réseau en erreur ; publié au relevé suivant, puis tout est effacé
+    assert.equal((await post('retry', { id: bad.id, net: 'bluesky' })).status, 409);
+    assert.equal((await post('retry', { id: bad.id, net: 'facebook' })).status, 200);
+    assert.equal((await listed(bad.id)).nets.facebook.status, 'pending');
+    const t0 = Date.now();
+    assert.deepEqual(await runSchedule(env, { now: t0 + 1e3 }), { published: 'facebook', id: bad.id });
+    await runSchedule(env, { now: t0 + 2e3 });
+    assert.equal(await listed(bad.id), undefined);
+    assert.equal(media(bad.id), 0);
+    // Sans « Réessayer » : visuels et jetons effacés au bout de 24 h, la trace une semaine après
+    const bad2 = (await (await add()).json()).item;
+    globalThis.fetch = refuse;
+    for (const k of [400, 460, 520]) await runSchedule(env, { now: at + k * 1e3 });
+    globalThis.fetch = ok;
+    assert.ok(media(bad2.id) > 0);
+    await runSchedule(env, { now: at + 26 * 3600e3 });
+    assert.equal(media(bad2.id), 0);
+    assert.equal(JSON.parse(env.DB.studio.get(`sched:${bad2.id}`)).keys, null);
+    assert.equal((await post('retry', { id: bad2.id, net: 'facebook' })).status, 410);
     await runSchedule(env, { now: at + 8 * 86400e3 });
     assert.equal([...env.DB.studio.keys()].filter((k) => k.startsWith('sched')).length, 0);
   } finally { globalThis.fetch = realFetch; }
 
+  // Modifier avant l'heure : nouvelle heure et textes ; plus possible une fois parti
+  const ed = (await (await add()).json()).item;
+  const upd = (body) => worker('https://s.test/studio/api/schedule/update', { method: 'POST', headers: key, body: JSON.stringify({ id: ed.id, ...body }) });
+  assert.equal((await upd({ at: Date.now() + 30 * 86400e3 })).status, 400);
+  const edited = (await (await upd({ at: at + 7200e3, texts: { facebook: 'Texte corrigé', bluesky: '' } })).json()).items.find((x) => x.id === ed.id);
+  assert.equal(edited.at, at + 7200e3);
+  assert.equal(edited.texts.facebook, 'Texte corrigé');
+  assert.ok(edited.texts.bluesky);   // texte vide : l'ancien gardé
+  await worker('https://s.test/studio/api/schedule/cancel', { method: 'POST', body: JSON.stringify({ id: ed.id }), headers: key });
   // Annulation avant l'heure ; envoi trop en retard (serveur arrêté plus d'un jour) : abandonné
   // « Publier » : confié au serveur avec l'heure actuelle, accepté
   const now = (await (await add({ at: Date.now() })).json()).item;
@@ -362,25 +465,25 @@ test('page du créateur : vidéo confiée au serveur (stockage R2), publiée par
     f.append('at', String(Date.now()));
     f.append('title', 'Ma vidéo');
     f.append('record', JSON.stringify({ key: 'post:v1', kind: 'post', title: 'Ma vidéo' }));
-    f.append('posts', JSON.stringify(o.posts ?? [{ network: 'youtube', text: 'Titre\nTexte' }, { network: 'bluesky', text: 'Salut' }]));
+    f.append('posts', JSON.stringify(o.posts ?? [{ network: 'youtube', text: 'Titre\nTexte' }, { network: 'bluesky', text: 'Salut' }, { network: 'facebook-story' }]));
     f.append('x', new Blob([new Uint8Array([0xff, 0xd8, 0xff, 1])], { type: 'image/jpeg' }), 'x.jpg');
     f.append('video', o.video ?? new Blob([new Uint8Array([1, 2, 3, 4])], { type: 'video/mp4' }), 'v.mp4');
+    f.append('videofull', new Blob([new Uint8Array([5, 6, 7, 8, 9, 10])], { type: 'video/mp4' }), 'v-full.mp4');
+    f.append('vsize', '1080x1920');
     if (o.tiktok) f.append('tiktok', JSON.stringify(o.tiktok));
     return f;
   };
   const add = (o) => worker('https://s.test/studio/api/schedule', { method: 'POST', body: form(o), headers: key });
   // Sans stockage R2 : refusée ; vidéo d'un autre format : refusée
+  const r2 = env.MEDIA;
+  delete env.MEDIA;
   assert.equal((await add()).status, 503);
-  const bucket = new Map();
-  env.MEDIA = {
-    put: async (k, v, o) => { bucket.set(k, { bytes: new Uint8Array(await v.arrayBuffer()), type: o.httpMetadata.contentType }); },
-    get: async (k) => (bucket.has(k) ? { arrayBuffer: async () => bucket.get(k).bytes.buffer } : null),
-    delete: async (k) => { bucket.delete(k); },
-  };
+  env.MEDIA = fakeR2();
+  const bucket = env.MEDIA.objs;
   assert.equal((await add({ video: new Blob(['x'], { type: 'image/gif' }) })).status, 400);
   assert.equal((await add({ posts: [{ network: 'tiktok', text: 'x' }], tiktok: { privacy: 'SELF_ONLY', brandContent: true } })).status, 409);   // TikTok non connecté
   const { item } = await (await add()).json();
-  assert.deepEqual([...bucket.keys()], [`sched/${item.id}`]);
+  assert.deepEqual([...bucket.keys()].sort(), [`sched/${item.id}`, `sched/${item.id}-full`, `sched/${item.id}/x/0`]);
   assert.equal(bucket.get(`sched/${item.id}`).type, 'video/mp4');
 
   const realFetch = globalThis.fetch;
@@ -389,27 +492,32 @@ test('page du créateur : vidéo confiée au serveur (stockage R2), publiée par
     const u = String(url);
     if (u.startsWith('https://www.googleapis.com/upload/youtube/v3/videos')) return new Response('{}', { headers: { location: 'https://up.test/yt' } });
     if (u === 'https://up.test/yt') { sent.youtube = opts.body.length; return new Response(JSON.stringify({ id: 'v42' })); }
+    if (u.includes('/p1/video_stories')) return new Response(JSON.stringify({ video_id: 's1', upload_url: 'https://up.test/story' }));
+    if (u === 'https://up.test/story') { sent.story = opts.body.size; return new Response(JSON.stringify({ success: true })); }
     const p = new URL(u).pathname;
     if (p.endsWith('createSession')) return new Response(JSON.stringify({ accessJwt: 'jwt', did: 'did:plc:moi' }));
-    if (p.endsWith('uploadBlob')) return new Response(JSON.stringify({ blob: { ref: 'b' } }));
-    if (p.endsWith('createRecord')) { sent.bluesky = true; return new Response(JSON.stringify({ uri: 'at://did:plc:moi/app.bsky.feed.post/3k', cid: 'c' })); }
+    if (p.endsWith('uploadBlob')) { sent.blob = [opts.headers['Content-Type'], opts.body.size]; return new Response(JSON.stringify({ blob: { ref: 'b' } })); }
+    if (p.endsWith('createRecord')) { sent.bluesky = JSON.parse(opts.body).record.embed; return new Response(JSON.stringify({ uri: 'at://did:plc:moi/app.bsky.feed.post/3k', cid: 'c' })); }
     throw new Error(`inattendu : ${u}`);
   };
   try {
+    assert.equal((await runSchedule(env)).id, item.id);
     assert.deepEqual(await runSchedule(env), { published: 'bluesky', id: item.id });
+    assert.deepEqual(await runSchedule(env), { published: 'facebook-story', id: item.id });
+    await runSchedule(env);
   } finally { globalThis.fetch = realFetch; }
-  // Vidéo envoyée à YouTube, visuels à Bluesky ; vidéo effacée du stockage une fois publiée
-  assert.deepEqual(sent, { youtube: 4, bluesky: true });
+  // Vidéo de la zone sûre envoyée à YouTube et en story, version plein écran à Bluesky ; vidéos effacées une fois publiées
+  assert.deepEqual(sent, { youtube: 4, story: 4, blob: ['video/mp4', 6], bluesky: { $type: 'app.bsky.embed.video', video: { ref: 'b' }, aspectRatio: { width: 1080, height: 1920 } } });
   assert.equal((await (await worker('https://s.test/studio/api/schedule', { headers: key })).json()).items.length, 0);
   const hist = await (await worker('https://s.test/studio/api/history', { headers: key })).json();
   assert.equal(hist.items.find((x) => x.key === 'post:v1').nets.youtube.url, 'https://youtube.com/shorts/v42');
   assert.equal(bucket.size, 0);
   // Annulation avant l'heure : vidéo effacée aussi
   const later = (await (await add()).json()).item;
-  assert.equal(bucket.size, 1);
+  assert.equal(bucket.size, 3);
   await worker('https://s.test/studio/api/schedule/cancel', { method: 'POST', body: JSON.stringify({ id: later.id }), headers: key });
   assert.equal(bucket.size, 0);
-  delete env.MEDIA;
+  env.MEDIA = r2;
   await disableStudio({ fetchFn });
 });
 
@@ -446,7 +554,9 @@ test('page du créateur : post « lien » sans visuels (carte de l\'article affi
     throw new Error(`inattendu : ${url}`);
   };
   try {
+    assert.deepEqual(await runSchedule(env), { published: 'facebook', id: item.id });
     assert.deepEqual(await runSchedule(env), { published: 'bluesky', id: item.id });
+    await runSchedule(env);
   } finally { globalThis.fetch = realFetch; }
   // Facebook : texte et lien (adresse d'origine : la base de test n'a pas les liens suivis), sans photo ;
   // Bluesky : carte du lien sans image
@@ -571,7 +681,7 @@ test('page du créateur : toutes les sources d\'actu en une réponse (octets d\'
   assert.equal(urls.length, m + rss.length); // relu
 });
 
-test('page du créateur : vidéo du kit envoyée par le serveur (brouillon TikTok, Short YouTube en privé)', async () => {
+test('page du créateur : vidéo programmée sur TikTok (brouillon ou publication directe) et en Short YouTube privé', async () => {
   saveConfig({ creator: true, social: {
     meta: { pageId: 'p1', pageName: 'Ma page', pageToken: 'jeton-page', igId: 'ig1', igUsername: 'benjypaddock' },
     tiktok: { clientKey: 'ck', clientSecret: 'secret-tiktok', accessToken: 'vieux', expiresAt: 0, refreshToken: 'rt-tiktok', openId: 'o1', name: 'Benjy Paddock' },
@@ -587,118 +697,70 @@ test('page du créateur : vidéo du kit envoyée par le serveur (brouillon TikTo
   assert.equal(me.youtube, 'Benjy Paddock');
   for (const s of ['secret-tiktok', 'secret-google', 'rt-tiktok', 'rt-google', '"yat"']) assert.ok(!JSON.stringify(me).includes(s));
 
-  env.ASSETS = { fetch: async (req) => (new URL(req.url).pathname === '/kit/benjy/video.mp4' ? new Response(new Uint8Array([1, 2, 3, 4])) : new Response(null, { status: 404 })) };
-  const realFetch = globalThis.fetch;
-  const calls = [];
-  const polls = {};
-  let pid = 0;
   const { draftTiming } = await import('../shared/video-publish.js');
   Object.assign(draftTiming, { poll: 1, max: 2000 });
+  const realFetch = globalThis.fetch;
+  const sent = [];
+  const polls = {};
   globalThis.fetch = async (url, opts = {}) => {
     const u = String(url);
-    calls.push(u);
     if (u === 'https://open.tiktokapis.com/v2/oauth/token/') {
       assert.equal(new URLSearchParams(String(opts.body)).get('client_secret'), 'secret-tiktok');
       return new Response(JSON.stringify({ access_token: 'neuf', expires_in: 86400, refresh_token: 'rt-tiktok' }));
     }
+    if (u.endsWith('/post/publish/creator_info/query/')) {
+      return new Response(JSON.stringify({ data: { creator_nickname: 'Benjy Paddock', creator_username: 'benjypaddock', privacy_level_options: ['PUBLIC_TO_EVERYONE', 'SELF_ONLY', 'AUTRE'], comment_disabled: false, duet_disabled: true, stitch_disabled: false, max_video_post_duration_sec: 600 }, error: { code: 'ok' } }));
+    }
     if (u.endsWith('/post/publish/inbox/video/init/')) {
       assert.equal(opts.headers.Authorization, 'Bearer neuf');
-      return new Response(JSON.stringify({ data: { upload_url: 'https://up.test/tt', publish_id: `pid${++pid}` } }));
+      return new Response(JSON.stringify({ data: { upload_url: 'https://up.test/tt', publish_id: 'pid1' } }));
     }
-    // État relu après l'envoi : d'abord en traitement, puis reçu (ou refusé pour le 3e envoi)
+    if (u.endsWith('/post/publish/video/init/')) { sent.push(JSON.parse(opts.body)); return new Response(JSON.stringify({ data: { upload_url: 'https://up.test/tt', publish_id: 'd1' }, error: { code: 'ok' } })); }
+    if (u === 'https://up.test/tt') { assert.equal(opts.body.length, 4); return new Response(null, { status: 201 }); }
+    // État relu après l'envoi : brouillon d'abord en traitement, puis reçu ; publication directe finie
     if (u.endsWith('/post/publish/status/fetch/')) {
       const id = JSON.parse(opts.body).publish_id;
       polls[id] = (polls[id] || 0) + 1;
-      if (id === 'pid3') return new Response(JSON.stringify({ data: { status: 'FAILED', fail_reason: 'spam_risk_too_many_pending_share' } }));
+      if (id === 'd1') return new Response(JSON.stringify({ data: { status: 'PUBLISH_COMPLETE', publicaly_available_post_id: [7123] }, error: { code: 'ok' } }));
       return new Response(JSON.stringify({ data: { status: polls[id] < 2 ? 'PROCESSING_UPLOAD' : 'SEND_TO_USER_INBOX' } }));
     }
-    if (u === 'https://up.test/tt') { assert.equal(opts.body.length, 4); return new Response(null, { status: 201 }); }
     if (u.startsWith('https://www.googleapis.com/upload/youtube/v3/videos')) {
       assert.equal(JSON.parse(opts.body).status.privacyStatus, 'private');
       return new Response('{}', { headers: { location: 'https://up.test/yt' } });
     }
     if (u === 'https://up.test/yt') return new Response(JSON.stringify({ id: 'v42' }));
-    if (u.includes('graph.facebook.com')) {
-      const g = new URL(u);
-      const form = opts.body instanceof URLSearchParams ? Object.fromEntries(opts.body) : {};
-      if (g.pathname.endsWith('/ig1/media')) {
-        assert.equal(form.media_type, 'REELS');
-        assert.equal(form.video_url, 'https://s.test/kit/benjy/video.mp4');
-        assert.equal(form.caption, 'Bienvenue au paddock');
-        return new Response(JSON.stringify({ id: 'r1' }));
-      }
-      if (g.searchParams.get('fields') === 'status_code,status') return new Response(JSON.stringify({ status_code: 'FINISHED' }));
-      if (g.pathname.endsWith('/media_publish')) return new Response(JSON.stringify({ id: 'pub9' }));
-      if (g.searchParams.get('fields') === 'permalink') return new Response(JSON.stringify({ permalink: 'https://www.instagram.com/reel/abc/' }));
-    }
     throw new Error(`inattendu : ${u}`);
   };
-  const send = (body) => worker('https://s.test/studio/api/video', { method: 'POST', headers: key, body: JSON.stringify(body) });
-  try {
-    let r = await send({ network: 'tiktok', src: '/kit/benjy/video.mp4' });
-    assert.equal(r.status, 200);
-    assert.match((await r.json()).note, /Brouillon reçu par TikTok.*Notifications système/);
-    // Jeton renouvelé gardé par le serveur : pas de nouveau renouvellement au 2e envoi
-    r = await send({ network: 'tiktok', src: '/kit/benjy/video.mp4' });
-    assert.equal(r.status, 200);
-    assert.equal(calls.filter((u) => u.endsWith('/oauth/token/')).length, 1);
-    // L'appli renvoie ses jetons (plus anciens) : ceux du serveur sont gardés
-    await syncStudio({ force: true, fetchFn });
-    r = await send({ network: 'tiktok', src: '/kit/benjy/video.mp4' });
-    assert.equal(calls.filter((u) => u.endsWith('/oauth/token/')).length, 1);
-    // Refus de TikTok après l'envoi : la raison est donnée
-    assert.equal(r.status, 502);
-    assert.match((await r.json()).error, /trop de brouillons en attente/);
-    // État relu plus tard : encore en traitement (avec l'état de TikTok), puis reçu
-    let st = await (await send({ network: 'tiktok-status', id: 'pid9' })).json();
-    assert.equal(st.pending, true);
-    assert.match(st.note, /état TikTok : PROCESSING_UPLOAD/);
-    st = await (await send({ network: 'tiktok-status', id: 'pid9' })).json();
-    assert.match(st.note, /Brouillon reçu par TikTok/);
-    assert.equal((await send({ network: 'tiktok-status', id: '../x y' })).status, 400);
-    r = await send({ network: 'youtube', src: '/kit/benjy/video.mp4', text: 'Bienvenue\nLe récap' });
-    assert.equal((await r.json()).url, 'https://youtube.com/shorts/v42');
-    // Reel Instagram : Instagram lit la vidéo à son adresse publique
-    r = await send({ network: 'instagram-reel', src: '/kit/benjy/video.mp4', text: 'Bienvenue au paddock' });
-    assert.equal((await r.json()).url, 'https://www.instagram.com/reel/abc/');
-    assert.equal((await send({ network: 'instagram-reel', src: 'https://ailleurs.test/v.mp4' })).status, 400);
-    // Seulement les vidéos du kit, seulement TikTok et YouTube
-    assert.equal((await send({ network: 'tiktok', src: 'https://ailleurs.test/v.mp4' })).status, 400);
-    assert.equal((await send({ network: 'tiktok', src: '/kit/../secret.mp4' })).status, 400);
-    assert.equal((await send({ network: 'x', src: '/kit/benjy/video.mp4' })).status, 400);
-    assert.equal((await send({ network: 'tiktok', src: '/kit/autre/video.mp4' })).status, 404);
-    // Vidéo envoyée avec un post écrit à la main : Short YouTube par la publication du Studio
-    const post = (net, file) => { const f = new FormData(); f.append('network', net); f.append('text', 'Titre\nTexte'); if (file) f.append('video', file, 'v.mp4'); return worker('https://s.test/studio/api/publish', { method: 'POST', headers: key, body: f }); };
-    r = await post('youtube', new Blob([new Uint8Array([1, 2, 3, 4])], { type: 'video/mp4' }));
-    assert.match(await r.text(), /"done":true.*"url":"https:\/\/youtube\.com\/shorts\/v42".*"note":"Short envoyé en privé/);
-    assert.equal((await post('youtube')).status, 400);   // TikTok et YouTube : vidéo obligatoire
-    assert.equal((await post('youtube', new Blob(['x'], { type: 'image/gif' }))).status, 400);
-  } finally { globalThis.fetch = realFetch; delete env.ASSETS; }
-
-  // Publication directe sur TikTok : compte relu, réglages vérifiés, puis publiée
-  const sent = [];
-  globalThis.fetch = async (url, opts = {}) => {
-    const u = String(url);
-    if (u.endsWith('/post/publish/creator_info/query/')) {
-      return new Response(JSON.stringify({ data: { creator_nickname: 'Benjy Paddock', creator_username: 'benjypaddock', privacy_level_options: ['PUBLIC_TO_EVERYONE', 'SELF_ONLY', 'AUTRE'], comment_disabled: false, duet_disabled: true, stitch_disabled: false, max_video_post_duration_sec: 600 }, error: { code: 'ok' } }));
-    }
-    if (u.endsWith('/post/publish/video/init/')) { sent.push(JSON.parse(opts.body)); return new Response(JSON.stringify({ data: { upload_url: 'https://up.test/tt', publish_id: 'd1' }, error: { code: 'ok' } })); }
-    if (u === 'https://up.test/tt') return new Response(null, { status: 201 });
-    if (u.endsWith('/post/publish/status/fetch/')) return new Response(JSON.stringify({ data: { status: 'PUBLISH_COMPLETE', publicaly_available_post_id: [7123] }, error: { code: 'ok' } }));
-    throw new Error(`inattendu : ${u}`);
+  const add = (posts, tiktok) => {
+    const f = new FormData();
+    f.append('at', String(Date.now()));
+    f.append('posts', JSON.stringify(posts));
+    f.append('video', new Blob([new Uint8Array([1, 2, 3, 4])], { type: 'video/mp4' }), 'v.mp4');
+    if (tiktok) f.append('tiktok', JSON.stringify(tiktok));
+    return worker('https://s.test/studio/api/schedule', { method: 'POST', body: f, headers: key });
   };
+  const nets = async (id) => (await (await worker('https://s.test/studio/api/schedule', { headers: key })).json()).items.find((x) => x.id === id)?.nets;
   try {
+    // Brouillon TikTok (jeton renouvelé) et Short YouTube en privé
+    const a = (await (await add([{ network: 'tiktok', text: 'Titre' }, { network: 'youtube', text: 'Titre\nTexte' }])).json()).item;
+    await runSchedule(env);
+    await runSchedule(env);
+    const na = await nets(a.id);
+    assert.equal(na.tiktok.status, 'done');
+    assert.match(na.tiktok.note, /Brouillon reçu par TikTok/);
+    assert.equal(na.youtube.url, 'https://youtube.com/shorts/v42');
+    await runSchedule(env);
+    // Publication directe : compte relu, réglages vérifiés (visibilité obligatoire, contenu de marque jamais privé)
     const info = await (await worker('https://s.test/studio/api/tiktok-creator', { headers: key })).json();
     assert.deepEqual(info, { nickname: 'Benjy Paddock', username: 'benjypaddock', avatar: '', privacy: ['PUBLIC_TO_EVERYONE', 'SELF_ONLY'], comment: true, duet: false, stitch: true, maxDuration: 600 });
-    const direct = (o) => { const f = new FormData(); f.append('network', 'tiktok'); f.append('text', 'Texte'); f.append('video', new Blob([new Uint8Array([1, 2, 3])], { type: 'video/mp4' }), 'v.mp4'); f.append('tiktok', JSON.stringify(o)); return worker('https://s.test/studio/api/publish', { method: 'POST', headers: key, body: f }); };
-    // Visibilité obligatoire, contenu de marque jamais privé
-    assert.equal((await direct({ title: 'x' })).status, 400);
-    assert.equal((await direct({ privacy: 'SELF_ONLY', brandContent: true })).status, 400);
-    assert.equal(sent.length, 0);
-    const r = await direct({ title: 'Mon titre #F1', privacy: 'PUBLIC_TO_EVERYONE', comment: true, brandOrganic: true, username: 'benjypaddock' });
-    assert.match(await r.text(), /"done":true.*"url":"https:\/\/www\.tiktok\.com\/@benjypaddock\/video\/7123"/);
+    assert.equal((await add([{ network: 'tiktok', text: 'x' }], { title: 'x' })).status, 400);
+    assert.equal((await add([{ network: 'tiktok', text: 'x' }], { privacy: 'SELF_ONLY', brandContent: true })).status, 400);
+    const d = (await (await add([{ network: 'tiktok', text: 'Texte' }], { title: 'Mon titre #F1', privacy: 'PUBLIC_TO_EVERYONE', comment: true, brandOrganic: true, username: 'benjypaddock' })).json()).item;
+    await runSchedule(env);
+    assert.equal((await nets(d.id)).tiktok.url, 'https://www.tiktok.com/@benjypaddock/video/7123');
     assert.deepEqual(sent[0].post_info, { title: 'Mon titre #F1', privacy_level: 'PUBLIC_TO_EVERYONE', disable_comment: false, disable_duet: true, disable_stitch: true, brand_organic_toggle: true, brand_content_toggle: false });
-    assert.equal(sent[0].source_info.video_size, 3);
+    assert.equal(sent[0].source_info.video_size, 4);
+    await runSchedule(env);
   } finally { globalThis.fetch = realFetch; }
   await disableStudio({ fetchFn });
 });
@@ -749,4 +811,56 @@ test('Studio : saison résumée par le serveur, gardée 30 minutes, ancienne ver
   // Plus tard, Jolpica en panne : l'ancienne version sert
   down = true;
   assert.equal((await seasonRow(env, 2026, { now: t0 + 31 * 60e3, fetchFn, wait })).at, t0);
+});
+
+test('Studio : résultats parus signalés une fois (post prêt), seulement pour un Grand Prix récent', async () => {
+  const { resultsReady } = await import('../analytics/season-cache.js');
+  const now = Date.parse('2026-10-19T22:00:00Z');
+  const gp = (extra) => ({ round: 19, name: 'United States Grand Prix', date: '2026-10-19T19:00:00Z', results: [], quali: [], sprintResults: [], ...extra });
+  const before = { races: [gp({ quali: [{ code: 'NOR' }] }), { ...gp({}), round: 1, date: '2026-03-08T04:00:00Z' }] };
+  const after = { races: [gp({ quali: [{ code: 'NOR' }], results: [{ code: 'VER' }] }), { ...gp({ results: [{ code: 'NOR' }] }), round: 1, date: '2026-03-08T04:00:00Z' }] };
+  assert.deepEqual(resultsReady(before, after, now), [{ title: 'Post prêt : résultats de la course', body: 'United States Grand Prix : à publier depuis le Studio', id: 'ready-19-course', url: '/studio/' }]);
+  assert.deepEqual(resultsReady(after, after, now), []);
+});
+
+test('page du créateur : brouillons de posts (enregistrés, repris, mis à jour, supprimés)', async () => {
+  saveConfig({ creator: true });
+  await enableStudio(CODE, { fetchFn: (url, init) => worker(url, init) });
+  const h = { 'X-Studio-Key': studioKey(CODE) };
+  const call = (path, body) => worker(`https://s.test/studio/api/${path}`, body ? { method: 'POST', headers: h, body: JSON.stringify(body) } : { headers: h });
+  const dr = { id: '0b5c1e9a-1111-4a2b-9c3d-123456789abc', title: 'Haas engage Câmara', kind: 'news', key: 'news:1', at: 1, fmt: 'ig', skip: ['question'], opts: { follow: false, question: true, hack: 'x' }, edited: { instagram: 'Mon texte' }, d: { news: true, title: 'Haas engage Câmara' } };
+  assert.deepEqual((await (await call('drafts', dr)).json()).items, [{ id: dr.id, title: dr.title, kind: 'news', at: 1 }]);
+  const got = await (await call(`draft?id=${dr.id}`)).json();
+  assert.deepEqual(got.opts, { follow: false, question: true });   // champs inconnus écartés
+  assert.equal(got.edited.instagram, 'Mon texte');
+  assert.deepEqual(got.d, dr.d);
+  // Même brouillon enregistré de nouveau : mis à jour, pas en double
+  assert.equal((await (await call('drafts', { ...dr, title: 'Titre corrigé', at: 2 })).json()).items.length, 1);
+  assert.equal((await (await call('drafts')).json()).items[0].title, 'Titre corrigé');
+  assert.equal((await call('drafts', { ...dr, id: '../x' })).status, 400);
+  assert.equal((await call('drafts', { ...dr, id: '0b5c1e9a-2222-4a2b-9c3d-123456789abc', d: { image: 'x'.repeat(1600000) } })).status, 400);   // trop lourd
+  assert.deepEqual((await (await call('drafts/remove', { id: dr.id })).json()).items, []);
+  assert.equal((await call(`draft?id=${dr.id}`)).status, 404);
+});
+
+test('publications programmées : retard de plus de 5 minutes signalé une seule fois', async () => {
+  const e = { DB: fakeDB(), STATS_KEY: 'secret-du-serveur' };
+  const at = Date.now() - 6 * 60e3;
+  e.DB.studio.set('sched:bbbbbbbbbbbbbbbb', JSON.stringify({ id: 'bbbbbbbbbbbbbbbb', at, title: 'Résultats', posts: [{ network: 'facebook', text: 'x' }], sets: {} }));
+  await runSchedule(e, { now: at + 6 * 60e3 });
+  assert.equal(e.DB.studio.get('schedpost:bbbbbbbbbbbbbbbb:late'), '1');
+  // Trop tôt : rien
+  e.DB.studio.set('sched:cccccccccccccccc', JSON.stringify({ id: 'cccccccccccccccc', at: Date.now(), title: 'Grille', posts: [{ network: 'facebook', text: 'x' }], sets: {} }));
+  await runSchedule(e, { now: Date.now() + 60e3 });
+  assert.equal(e.DB.studio.get('schedpost:cccccccccccccccc:late'), undefined);
+});
+
+test('journal des publications : deux réseaux qui finissent en même temps sont gardés tous les deux', async () => {
+  const e = { DB: fakeDB(), STATS_KEY: 'secret-du-serveur' };
+  const { _addHistory } = await import('../analytics/studio.js');
+  const rec = { key: 'race-2026-19', kind: 'session', title: 'Résultats', at: Date.now() };
+  // Lectures simultanées : la deuxième écriture voit que la ligne a changé et recommence
+  await Promise.all([_addHistory(e, { ...rec, nets: { facebook: { id: 'f1', url: 'https://f.test/1' } } }), _addHistory(e, { ...rec, nets: { bluesky: { id: { uri: 'at://b', cid: 'c' }, url: 'https://b.test/1' } } })]);
+  const h = JSON.parse(e.DB.studio.get('history'));
+  assert.deepEqual(Object.keys(h[0].nets).sort(), ['bluesky', 'facebook']);
 });

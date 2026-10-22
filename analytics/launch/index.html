@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Paddock Live · La Formule 1 en direct, calée sur ta TV</title>
 <meta name="description" content="Application gratuite pour suivre chaque Grand Prix en direct sur ton ordinateur : chronos, carte GPS, radios traduites, stratégie, calés sur ta diffusion TV pour ne jamais te spoiler la course. Windows, macOS, Linux.">
-<meta name="theme-color" content="#0b0c0f">
+<meta name="theme-color" content="#000000">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Paddock Live : la F1 en direct, calée sur ta TV">
 <meta property="og:description" content="Chronos, carte GPS, radios traduites et stratégie en direct, sans spoiler. Gratuit, pour Windows, macOS et Linux.">
@@ -173,6 +173,27 @@ footer .brand { -webkit-user-select: none; user-select: none; -webkit-touch-call
   .hero { padding-top: 56px; }
   .btn { padding: 13px 20px; }
 }
+
+/* ---------- Habillage « Broadcast » (même langage que l'appli et le Studio) ----------
+   Fonds plus noirs et pleins (pas de flou ni de lueur), coins peu arrondis, intitulés en étiquette rouge. */
+:root { --bg: #030406; --bg-2: #0B0C11; --card: #101218; --card-2: #171A21; --text: #fff; --text-2: #B9BCC6; --muted: #858A96; }
+.nav { background: #000; -webkit-backdrop-filter: none; backdrop-filter: none; }
+.links a { font-size: 13px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.lang, .btn { border-radius: 6px; }
+.btn.primary, .btn.primary:hover { box-shadow: none; }
+.btn:hover { transform: none; }
+.eyebrow { display: inline-flex; align-items: center; height: 26px; padding: 0 10px; border-radius: 4px; background: var(--red); color: #fff; font-size: 12px; letter-spacing: .08em; }
+.hero::before { display: none; }
+.shot { border-radius: 6px; border: 1px solid var(--line); border-top: 4px solid var(--red); box-shadow: none; }
+.facts span::before { transform: none; border-radius: 1px; }
+.frame { border-radius: 6px; border-color: var(--line); box-shadow: none; }
+.tile, .os, .ask { border-radius: 6px; background: var(--card); }
+.os.mine { box-shadow: none; border-color: var(--red); }
+.ask select, .ask textarea, .ask input { border-radius: 6px; }
+.download { background: var(--bg-2); }
+dialog.hide { border-radius: 8px; box-shadow: none; }
+dialog.hide::backdrop { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(0, 0, 0, .75); }
+dialog.hide a { border-radius: 6px; }
 </style>
 </head>
 <body>

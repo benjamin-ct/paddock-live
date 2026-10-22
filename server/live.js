@@ -5,6 +5,7 @@ import { WebSocket } from 'ws';
 import { agent, request, USER_AGENT } from './net.js';
 import { LIVE_TOPICS, topicName } from '../shared/f1.js';
 import { readRecording } from './recorder.js';
+import { PROBE_TOPICS, isProbe, probeAnswer, probeFeed } from './feed-probe.js';
 
 const BASE = 'https://livetiming.formula1.com/signalrcore';
 const WS_URL = 'wss://livetiming.formula1.com/signalrcore';
@@ -87,6 +88,7 @@ export class LiveSource {
       const ws = new WebSocket(`${WS_URL}?id=${encodeURIComponent(id)}`, {
         agent,
         headers: { 'User-Agent': USER_AGENT, ...(cookies ? { Cookie: cookies } : {}), ...authHeaders },
+        handshakeTimeout: 15000,   // connexion bloquée (Wi-Fi d'hôtel, sortie de veille) : erreur, donc nouvel essai
       });
       this.ws = ws;
       let buffer = '';
@@ -95,8 +97,11 @@ export class LiveSource {
         ws.send(JSON.stringify({ protocol: 'json', version: 1 }) + RS);
         ws.send(JSON.stringify({ type: 1, invocationId: '1', target: 'Subscribe', arguments: [LIVE_TOPICS] }) + RS);
         this.lastMessageAt = Date.now();
+        this.setStatus({ stale: false });
         this.timers.push(setInterval(() => {
           if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 6 }) + RS);
+          // Données figées depuis 25 s : signalé (badge « LIVE » en orange) avant la reconnexion des 60 s
+          if (Date.now() - this.lastMessageAt > 25000 && !this.status.stale) this.setStatus({ stale: true });
           if (Date.now() - this.lastMessageAt > 60000) {
             this.setStatus({ error: 'Plus de données depuis 60 s, reconnexion…' });
             this.scheduleReconnect();
@@ -106,6 +111,7 @@ export class LiveSource {
 
       ws.on('message', (data) => {
         this.lastMessageAt = Date.now();
+        if (this.status.stale) this.setStatus({ stale: false });
         buffer += data.toString();
         let idx;
         while ((idx = buffer.indexOf(RS)) >= 0) {
@@ -139,7 +145,12 @@ export class LiveSource {
         return;
       }
       this.retry = 0;
+      this.session = sessionLabel(msg.result?.SessionInfo);
       this.onSnapshot(msg.result || {}, now);
+      // À part, une fois la séance connue : flux cachés testés (diagnostic des données F1)
+      this.ws?.send(JSON.stringify({ type: 1, invocationId: '2', target: 'Subscribe', arguments: [PROBE_TOPICS] }) + RS);
+    } else if (msg.type === 3 && msg.invocationId === '2') {
+      probeAnswer(msg.result, msg.error, this.session);
     } else if (msg.type === 1 && msg.target === 'feed' && Array.isArray(msg.arguments)) {
       const [rawTopic, data] = msg.arguments;
       this.onFeed(rawTopic, data, now);
@@ -203,6 +214,7 @@ export class LiveSource {
   }
 
   onFeed(rawTopic, data, now) {
+    if (isProbe(rawTopic)) { probeFeed(rawTopic, data); return; }
     if (this.pending) { this.pending.push([rawTopic, data, now]); return; }
     const topic = topicName(rawTopic);
     if (topic === 'TimingData') this.lastTimingAt = Date.now();   // séance en cours (statistiques)

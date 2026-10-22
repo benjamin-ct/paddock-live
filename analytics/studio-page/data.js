@@ -3,7 +3,7 @@
 import { clusterNews } from '/shared/news.js';
 import { feedItems, decodeBody } from '/shared/news-collect.js';
 import { unpackFeeds } from '/shared/feed-pack.js';
-import { merge } from '/shared/merge.js';
+import { createDerived, applyEvent } from '/shared/derive.js';
 import { api, mapLimit, session, store } from './ui.js';
 
 // ---------- Traductions (serveur Paddock Live), gardées sur le téléphone ----------
@@ -20,7 +20,7 @@ export async function toFrench(list) {
   const parts = [];
   for (let i = 0; i < todo.length; i += 30) parts.push(todo.slice(i, i + 30));
   await Promise.all(parts.map(async (part) => {
-    const res = await fetch('/t', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ to: 'fr', items: part.map((x) => ({ text: x.text.slice(0, 1500), from: x.from })) }) }).then((r) => r.json()).catch(() => ({}));
+    const res = await api('translate', { method: 'POST', body: JSON.stringify({ to: 'fr', items: part.map((x) => ({ text: x.text.slice(0, 1500), from: x.from })) }) }).catch(() => ({}));
     part.forEach((x, j) => { if (res.out?.[j]) frCache.set(`${x.from}|${x.text}`, res.out[j]); });
   }));
   if (todo.length) keepFr();
@@ -121,10 +121,15 @@ export async function loadState(path, topics = TOPICS) {
   });
   const events = parts.flat().sort((a, b) => a.off - b.off);
   if (!events.length) throw new Error('Archive de la séance indisponible (pas encore publiée, ou connexion F1 TV à renouveler dans l\'appli)');
+  // État de fin de séance et tours de chaque pilote (dépassements des posts de résultats)
   const st = {};
-  for (const e of events) st[e.topic] = merge(st[e.topic], e.data);
+  const derived = createDerived();
+  for (const e of events) applyEvent(st, derived, e.topic, e.data, e.off);
+  LAPS.set(st, derived.laps);
   return st;
 }
+const LAPS = new WeakMap();
+export const lapsOf = (st) => LAPS.get(st) || null;
 
 function parseOffset(v) {
   const m = /^\s*([+-])?(\d{1,2}):(\d{2})/.exec(String(v || ''));

@@ -3,7 +3,8 @@ import { store, setDelay, serverNow, on } from '../store.js';
 import { $, esc, fmtDelay, storageGet, storageSet, drivers } from '../util.js';
 import { prefs, setPref } from '../prefs.js';
 import { icon, arrows } from '../icons.js';
-import { DEC } from '../i18n.js';
+import { DEC, EN } from '../i18n.js';
+import { rcmFr } from '/shared/rcm-fr.js';
 
 // Valeurs de départ indicatives : chaque installation (box, satellite, appli, TNT...) a son
 // propre retard. Utilisez la synchro TV puis enregistrez votre propre préréglage.
@@ -99,7 +100,7 @@ function renderSyncList() {
       // sauf les changements de tour qui ne révèlent rien.
       const hidden = !prefs.spoilers && e.t > shownUntil && e.kind !== 'lap' && e.kind !== 'session';
       const who = e.num && !hidden ? `${dl[e.num]?.Tla || '#' + e.num} ` : '';
-      const text = hidden ? MASKED[e.kind] || 'Événement (masqué)' : e.text;
+      const text = hidden ? MASKED[e.kind] || 'Événement (masqué)' : (e.kind === 'rcm' && !EN && rcmFr(e.text)) || e.text;
       return `<li class="${e.kind}">
         <div><div class="se-text"><span class="se-kind">${KIND_LABEL[e.kind] || e.kind}</span>${esc(who + text)}</div>
         <div class="se-meta">Il y a ${ago.toFixed(1).replace('.', DEC)} s en live${e.hint ? ' · ' + esc(e.hint) : ''}</div></div>
@@ -110,8 +111,33 @@ function renderSyncList() {
   $('#syncBuffer').textContent = `Historique disponible : ${buf >= 3600 ? Math.floor(buf / 60) + ' min' : buf + ' s'}`;
 }
 
+// Pause du direct (TV mise en pause) : l'affichage reste figé, le délai grandit tant que dure la
+// pause et reste ensuite (comme la box TV, on reprend en différé)
+let pause = null;
+function togglePause() {
+  const btn = $('#pauseBtn');
+  if (pause) {
+    clearInterval(pause.timer);
+    pause = null;
+    toast(`Reprise : délai ${fmtDelay(store.delay)}`, 2500, 'play');
+  } else {
+    const at = Date.now();
+    const from = store.delay;
+    pause = { timer: setInterval(() => {
+      const want = from + Date.now() - at;
+      setDelay(want);
+      if (store.delay < want - 500) { toast(`Délai maximal atteint (${fmtDelay(store.delay)}) : fin de la pause`, 4000, 'warning'); togglePause(); }
+    }, 500) };
+    toast('Pause : touche P ou ⏸ pour reprendre', 2500, 'pause');
+  }
+  btn.innerHTML = icon(pause ? 'play' : 'pause');
+  btn.classList.toggle('on', !!pause);
+  btn.setAttribute('aria-pressed', String(!!pause));
+}
+
 export function initDelay() {
   renderValue();
+  $('#pauseBtn').addEventListener('click', togglePause);
 
   $('#delayBox').addEventListener('click', (e) => {
     const b = e.target.closest('[data-step]');
@@ -190,6 +216,8 @@ export function initDelay() {
       e.preventDefault();
     } else if (e.key === 's' || e.key === 'S') {
       openSync();
+    } else if (e.key === 'p' || e.key === 'P') {
+      togglePause();
     }
   });
 

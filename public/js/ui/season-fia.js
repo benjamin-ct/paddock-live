@@ -147,7 +147,7 @@ export function renderTech(ctx, fia) {
   const pct = (n) => `${Math.round((n / tot) * 1000) / 10} %`.replace('.', DEC);
 
   // Cumul par écurie (SVG)
-  const W = 900, H = 260, pl = 34, pr = 96, pt = 10, pb = 22;
+  const W = Math.max(600, (document.querySelector('#szContent')?.clientWidth || 934) - 34), H = 260, pl = 34, pr = 96, pt = 10, pb = 22;
   const maxCum = Math.max(...teams.map((t) => t.n));
   const X = (i) => pl + (i / Math.max(1, evs.length - 1)) * (W - pl - pr);
   const Y = (v) => pt + (1 - v / maxCum) * (H - pt - pb);

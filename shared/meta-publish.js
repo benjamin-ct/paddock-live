@@ -6,9 +6,9 @@
 
 export const GRAPH = 'https://graph.facebook.com/v25.0';
 export const THREADS = 'https://graph.threads.net/v1.0';
-// Sujet des posts Threads (« > F1 Thread » à côté du nom) : sans lui, Threads prend le premier
+// Sujet des posts Threads (« > F1 Threads » à côté du nom, la communauté F1 de Threads) : sans lui, Threads prend le premier
 // hashtag du texte (#F1)
-export const THREADS_TOPIC = 'F1 Thread';
+export const THREADS_TOPIC = 'F1 Threads';
 export const timing = { poll: 1500, maxPoll: 5000, readyMs: 4 * 60e3, visible: [8e3, 15e3, 20e3] };
 const HOST_TTL = 60 * 60e3;
 const hostedCache = new Map();   // empreinte de l'image + page -> { id, url, at }
@@ -27,7 +27,9 @@ export async function call(url, { method = 'GET', headers = {}, json, form, body
   const err = data?.error;
   if (!res.ok || (err && (typeof err === 'string' || err.message || (err.code && err.code !== 'ok')))) {
     const msg = (typeof err === 'string' ? err : err?.error_user_msg || err?.message) || data?.detail || data?.title || data?.errors?.[0]?.message || data?.error_description || `HTTP ${res.status}`;
-    throw new Error(String(msg).slice(0, 300));
+    const e = new Error(String(msg).slice(0, 300));
+    if (typeof err?.code === 'string') e.code = err.code;   // code de l'erreur (TikTok), pour un message clair
+    throw e;
   }
   return data;
 }
@@ -48,15 +50,18 @@ async function digest(blob, salt) {
   return `${salt}:${[...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('')}`;
 }
 
-async function hostOne(img, m, fresh) {
+async function hostOne(img, m, fresh, withUrl = true) {
   const key = await digest(img, m.pageId);
   const hit = hostedCache.get(key);
   if (!fresh && hit && Date.now() - hit.at < HOST_TTL) return hit;
   const form = new FormData();
   form.append('source', img, img.type === 'image/jpeg' ? 'image.jpg' : 'image.png');
   form.append('published', 'false');
+  if (img.alt) form.append('alt_text_custom', img.alt);   // texte alternatif (photo du post Facebook)
   form.append('access_token', m.pageToken);
   const r = await call(`${GRAPH}/${m.pageId}/photos`, { method: 'POST', form });
+  // Post Facebook : l'identifiant de la photo suffit (une demande de moins par image, limite du serveur)
+  if (!withUrl) return { id: r.id };
   const info = await call(`${GRAPH}/${r.id}?${new URLSearchParams({ fields: 'images', access_token: m.pageToken })}`);
   const best = (info.images || []).sort((a, b) => b.width - a.width)[0];
   if (!best?.source) throw new Error('Image déposée sur la page Facebook sans adresse publique');
@@ -69,13 +74,13 @@ async function hostOne(img, m, fresh) {
 // Images (Blob PNG ou JPEG) déposées sur la page, une heure de mémoire pour tous les réseaux d'une
 // même publication. fresh : nouvel envoi obligatoire (une photo déjà jointe à un post Facebook ne
 // peut pas l'être à un autre).
-export async function hostOnPage(meta, images, { fresh = false } = {}) {
+export async function hostOnPage(meta, images, { fresh = false, withUrl = true } = {}) {
   if (!meta?.pageToken) throw new Error('Page Facebook non connectée (nécessaire aussi pour Instagram et Threads)');
-  return mapLimit(images, 3, (img) => hostOne(img, meta, fresh));
+  return mapLimit(images, 3, (img) => hostOne(img, meta, fresh, withUrl));
 }
 
 export async function publishFacebook(meta, text, images) {
-  const hosted = await hostOnPage(meta, images, { fresh: true });
+  const hosted = await hostOnPage(meta, images, { fresh: true, withUrl: false });
   const form = { message: text, access_token: meta.pageToken };
   hosted.forEach((h, i) => { form[`attached_media[${i}]`] = JSON.stringify({ media_fbid: h.id }); });
   const r = await call(`${GRAPH}/${meta.pageId}/feed`, { method: 'POST', form });
@@ -108,11 +113,14 @@ async function ready(url, field, what) {
 // Carrousel : images préparées en parallèle, chacune attendue, puis le carrousel lui-même
 async function carousel(hosted, makeItem, status, field) {
   const kids = await mapLimit(hosted, 3, async (h, i) => {
-    try { return (await makeItem(h)).id; } catch (err) { throw new Error(`Image ${i + 1} : ${err.message}`); }
+    try { return (await makeItem(h, i)).id; } catch (err) { throw new Error(`Image ${i + 1} : ${err.message}`); }
   });
   await Promise.all(kids.map((id, i) => ready(status(id), field, `Image ${i + 1}`)));
   return kids;
 }
+
+// Texte alternatif d'une image (image.alt, lecteurs d'écran) : Instagram et Threads, images du fil
+const altOf = (img) => (img?.alt ? { alt_text: String(img.alt).slice(0, 1000) } : {});
 
 export async function publishInstagram(meta, text, images) {
   if (!meta?.igId) throw new Error('Aucun compte Instagram professionnel relié à la page Facebook');
@@ -122,13 +130,28 @@ export async function publishInstagram(meta, text, images) {
   const media = (form) => call(`${GRAPH}/${meta.igId}/media`, { method: 'POST', form: { ...form, ...tok } });
   let creation;
   if (hosted.length === 1) {
-    creation = (await media({ image_url: hosted[0].url, caption: text })).id;
+    creation = (await media({ image_url: hosted[0].url, caption: text, ...altOf(images[0]) })).id;
   } else {
-    const kids = await carousel(hosted, (h) => media({ image_url: h.url, is_carousel_item: 'true' }), status, 'status_code');
+    const kids = await carousel(hosted, (h, i) => media({ image_url: h.url, is_carousel_item: 'true', ...altOf(images[i]) }), status, 'status_code');
     creation = (await media({ media_type: 'CAROUSEL', children: kids.join(','), caption: text })).id;
   }
   await ready(status(creation), 'status_code', 'Post');
-  const pub = await call(`${GRAPH}/${meta.igId}/media_publish`, { method: 'POST', form: { creation_id: creation, ...tok } });
+  let pub;
+  try {
+    pub = await call(`${GRAPH}/${meta.igId}/media_publish`, { method: 'POST', form: { creation_id: creation, ...tok } });
+  } catch (err) {
+    // Instagram répond parfois une erreur (« Nous restreignons certaines activités… ») alors que le post est
+    // bien en ligne, parfois quelques secondes plus tard : conteneur relu plusieurs fois, et dernier post du
+    // compte comparé à la légende ; repris s'il est là (jamais republié en double)
+    for (const ms of [0, ...timing.visible]) {
+      if (ms) await wait(ms);
+      const done = (await call(status(creation)).catch(() => ({}))).status_code === 'PUBLISHED';
+      const last = (await call(`${GRAPH}/${meta.igId}/media?${new URLSearchParams({ fields: 'id,permalink,caption,timestamp', limit: '1', ...tok })}`).catch(() => ({}))).data?.[0] || {};
+      const same = last.caption && last.caption.trim().slice(0, 80) === text.trim().slice(0, 80) && Date.now() - Date.parse(last.timestamp) < 15 * 60e3;
+      if (done || same) return { url: last.permalink || `https://www.instagram.com/${meta.igUsername || ''}`, id: last.id || null };
+    }
+    throw err;
+  }
   const link = await call(`${GRAPH}/${pub.id}?${new URLSearchParams({ fields: 'permalink', ...tok })}`).catch(() => ({}));
   return { url: link.permalink || `https://www.instagram.com/${meta.igUsername || ''}`, id: pub.id };
 }
@@ -153,12 +176,31 @@ export async function storyFacebook(meta, images) {
   return { url: `https://www.facebook.com/${meta.pageId}`, id: null, count: hosted.length };
 }
 
-// Reel Instagram : vidéo lue par Instagram à une adresse publique (fichier du site), montrée aussi
-// dans le fil. La préparation d'une vidéo prend souvent une à deux minutes.
-export async function reelInstagram(meta, videoUrl, caption) {
+// Story vidéo (une seule) : Instagram lit la vidéo à son adresse publique (déposée sur la page) ; la page
+// Facebook la reçoit en trois temps (ouverture, envoi du fichier, publication)
+export async function storyVideoInstagram(meta, video) {
   if (!meta?.igId) throw new Error('Aucun compte Instagram professionnel relié à la page Facebook');
   const tok = { access_token: meta.pageToken };
-  const c = await call(`${GRAPH}/${meta.igId}/media`, { method: 'POST', form: { media_type: 'REELS', video_url: videoUrl, caption: String(caption || '').slice(0, 2200), share_to_feed: 'true', ...tok } });
+  const c = await call(`${GRAPH}/${meta.igId}/media`, { method: 'POST', form: { media_type: 'STORIES', video_url: (await hostVideo(meta, video)).url, ...tok } });
+  await ready(`${GRAPH}/${c.id}?${new URLSearchParams({ fields: 'status_code,status', ...tok })}`, 'status_code', 'Story');
+  await call(`${GRAPH}/${meta.igId}/media_publish`, { method: 'POST', form: { creation_id: c.id, ...tok } });
+  return { url: `https://www.instagram.com/stories/${meta.igUsername || ''}/`, id: null, count: 1 };
+}
+export async function storyVideoFacebook(meta, video) {
+  const tok = { access_token: meta.pageToken };
+  const s = await call(`${GRAPH}/${meta.pageId}/video_stories`, { method: 'POST', form: { upload_phase: 'start', ...tok } });
+  await call(s.upload_url, { method: 'POST', headers: { Authorization: `OAuth ${meta.pageToken}`, offset: '0', file_size: String(video.size) }, body: video });
+  await call(`${GRAPH}/${meta.pageId}/video_stories`, { method: 'POST', form: { upload_phase: 'finish', video_id: s.video_id, ...tok } });
+  return { url: `https://www.facebook.com/${meta.pageId}`, id: null, count: 1 };
+}
+
+// Reel Instagram : vidéo lue par Instagram à une adresse publique (fichier du site), montrée aussi
+// dans le fil. La préparation d'une vidéo prend souvent une à deux minutes.
+// coverUrl : couverture (image publique), sinon une image choisie par Instagram
+export async function reelInstagram(meta, videoUrl, caption, coverUrl = null) {
+  if (!meta?.igId) throw new Error('Aucun compte Instagram professionnel relié à la page Facebook');
+  const tok = { access_token: meta.pageToken };
+  const c = await call(`${GRAPH}/${meta.igId}/media`, { method: 'POST', form: { media_type: 'REELS', video_url: videoUrl, caption: String(caption || '').slice(0, 2200), share_to_feed: 'true', ...(coverUrl ? { cover_url: coverUrl } : {}), ...tok } });
   await ready(`${GRAPH}/${c.id}?${new URLSearchParams({ fields: 'status_code,status', ...tok })}`, 'status_code', 'Reel');
   const pub = await call(`${GRAPH}/${meta.igId}/media_publish`, { method: 'POST', form: { creation_id: c.id, ...tok } });
   const link = await call(`${GRAPH}/${pub.id}?${new URLSearchParams({ fields: 'permalink', ...tok })}`).catch(() => ({}));
@@ -169,10 +211,11 @@ export async function reelInstagram(meta, videoUrl, caption) {
 // Déposée sur la page Facebook sans être publiée : son adresse publique sert à Instagram (Reel) et à
 // Threads, comme pour les images. Prête quand Facebook a fini de la traiter.
 const GRAPH_VIDEO = GRAPH.replace('//graph.', '//graph-video.');
-async function uploadVideo(meta, video, fields) {
+async function uploadVideo(meta, video, fields, thumb = null) {
   if (!meta?.pageToken) throw new Error('Page Facebook non connectée (nécessaire aussi pour Instagram et Threads)');
   const form = new FormData();
   form.append('source', video, video.type === 'video/quicktime' ? 'video.mov' : 'video.mp4');
+  if (thumb) form.append('thumb', thumb, 'cover.jpg');
   for (const [k, v] of Object.entries({ ...fields, access_token: meta.pageToken })) form.append(k, v);
   return call(`${GRAPH_VIDEO}/${meta.pageId}/videos`, { method: 'POST', form });
 }
@@ -195,8 +238,9 @@ export async function hostVideo(meta, video) {
     await wait(Math.min(timing.poll * (i + 1), timing.maxPoll));
   }
 }
-export async function publishFacebookVideo(meta, text, video) {
-  const r = await uploadVideo(meta, video, { description: text, published: 'true' });
+// cover : couverture de la vidéo (JPEG), sinon une image choisie par Facebook
+export async function publishFacebookVideo(meta, text, video, cover = null) {
+  const r = await uploadVideo(meta, video, { description: text, published: 'true' }, cover);
   return { url: `https://www.facebook.com/${meta.pageId}/videos/${r.id}`, id: r.id };
 }
 export async function publishThreadsVideo(th, meta, text, video) {
@@ -229,9 +273,9 @@ export async function publishThreads(th, meta, text, images) {
   const container = (form) => call(`${base}/threads`, { method: 'POST', form: { ...form, access_token: token } });
   let creation;
   if (hosted.length === 1) {
-    creation = (await container({ media_type: 'IMAGE', image_url: hosted[0].url, text, topic_tag: THREADS_TOPIC })).id;
+    creation = (await container({ media_type: 'IMAGE', image_url: hosted[0].url, text, topic_tag: THREADS_TOPIC, ...altOf(images[0]) })).id;
   } else {
-    const kids = await carousel(hosted, (h) => container({ media_type: 'IMAGE', image_url: h.url, is_carousel_item: 'true' }), status, 'status');
+    const kids = await carousel(hosted, (h, i) => container({ media_type: 'IMAGE', image_url: h.url, is_carousel_item: 'true', ...altOf(images[i]) }), status, 'status');
     creation = (await container({ media_type: 'CAROUSEL', children: kids.join(','), text, topic_tag: THREADS_TOPIC })).id;
   }
   await ready(status(creation), 'status', 'Post');

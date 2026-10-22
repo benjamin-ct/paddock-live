@@ -8,7 +8,7 @@ import { $, esc, api, drivers, orderedNumbers, sessionKind, teamColor, fmtDurati
 import { gpShort, gpFull, sessionLabel } from '/shared/gp-names.js';
 import { connect } from './conn.js';
 import { flagBanner, timeLeft } from './ui/session-info.js';
-import { Dial, animate, carNow } from './ui/gauge.js';
+import { Dial, animate, carNow, energyOf } from './ui/gauge.js';
 
 translatePage();
 const W = new URLSearchParams(location.search).get('w') || 'laps';
@@ -134,7 +134,7 @@ function telemetry() {
     fit();
   }
 }
-if (W === 'telemetry') animate('ov', (dt) => { if (dial && dialNum) dial.update(carNow(dialNum), dt); });
+if (W === 'telemetry') animate('ov', (dt) => { if (dial && dialNum) dial.update(carNow(dialNum), dt, energyOf(dialNum)); });
 
 const RENDER = { banner, laps, countdown, podium, telemetry };
 const render = RENDER[W] || laps;

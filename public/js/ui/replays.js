@@ -13,7 +13,6 @@ let year = new Date().getFullYear();
 const cache = new Map();   // année -> { meetings } | { error }
 
 const fmtDay = (iso) => (iso ? new Date(`${iso.slice(0, 10)}T12:00:00`).toLocaleDateString(LOCALE, { day: 'numeric', month: 'short' }) : '');
-const startAt = () => ($$('input[name=rvStart]').find((i) => i.checked)?.value === 'begin' ? { startOffsetMs: 0 } : {});
 
 async function loadYear(y) {
   if (!cache.has(y)) {
@@ -58,7 +57,8 @@ async function renderRecordings(body) {
   let recs;
   try { recs = await api('/api/recordings'); } catch (err) { body.textContent = err.message; return; }
   if (section !== 'rec') return;
-  body.innerHTML = `${recs.length ? `<div class="sz-box rec-list">${recs.map((r) => { const l = recLabel(r.name); return `<div class="rec"><span class="rec-name" title="${esc(r.name)}">${esc(l.title)}${l.date ? ` <span class="muted small">${esc(l.date)}</span>` : ''}</span>
+  const total = recs.reduce((n, r) => n + r.size, 0);
+  body.innerHTML = `${recs.length ? `<div class="row small muted rec-total">${recs.length} enregistrement${recs.length > 1 ? 's' : ''} · ${(total / 1e6).toFixed(0)} Mo · les 15 plus récents sont gardés<span class="spacer"></span><button class="btn small" data-rv-delall>${icon('close')} Tout supprimer</button></div>` : ''}${recs.length ? `<div class="sz-box rec-list">${recs.map((r) => { const l = recLabel(r.name); return `<div class="rec"><span class="rec-name" title="${esc(r.name)}">${esc(l.title)}${l.date ? ` <span class="muted small">${esc(l.date)}</span>` : ''}</span>
       <span class="muted">${(r.size / 1e6).toFixed(1).replace('.', EN ? '.' : ',')} Mo</span>
       <button class="btn small" data-rv-local="${esc(r.id)}" data-rv-name="${esc(l.title)}">${icon('play')} Revoir</button><button class="btn small" data-rv-del="${esc(r.id)}" title="Supprimer">${icon('trash')}</button></div>`; }).join('')}</div>`
       : '<div class="muted">Aucun enregistrement : ils se créent pendant les séances en direct.</div>'}`;
@@ -85,6 +85,9 @@ export function openReplays(sec) {
 export function closeReplays() { if ($('#replayView')) $('#replayView').hidden = true; }
 
 async function play(body, name) {
+  // Séance en direct : le replay l'interrompt (« Direct » pour y revenir)
+  const live = store.status?.source?.mode === 'live' && ['Started', 'Aborted'].includes(store.state?.SessionStatus?.Status);
+  if (live && !confirm('Une séance est en cours : le replay interrompt le direct (« Direct » dans le menu de gauche pour y revenir). Lancer le replay ?')) return;
   try {
     await api('/api/replay', { method: 'POST', body });
     closeReplays();
@@ -105,13 +108,17 @@ export function initReplays() {
     toast('Connexion au flux live…');
   });
   view.addEventListener('click', async (e) => {
-    const t = e.target.closest('[data-rv-path], [data-rv-local], [data-rv-del], [data-rv-f1tv], [data-rv-go]');
+    const t = e.target.closest('[data-rv-path], [data-rv-local], [data-rv-del], [data-rv-delall], [data-rv-f1tv], [data-rv-go]');
     if (!t) return;
-    if (t.dataset.rvPath) play({ path: t.dataset.rvPath, ...startAt() }, t.dataset.rvName);
+    if (t.dataset.rvPath) play({ path: t.dataset.rvPath }, t.dataset.rvName);
     else if (t.dataset.rvLocal) play({ local: t.dataset.rvLocal }, t.dataset.rvName);
     else if (t.dataset.rvGo) { section = t.dataset.rvGo; render(); }
     else if ('rvF1tv' in t.dataset) { $('#settingsBtn').click(); $('#setNav [data-sgroup="f1tv"]')?.click(); }
-    else if (t.dataset.rvDel && confirm('Supprimer définitivement cet enregistrement ?')) {
+    else if ('rvDelall' in t.dataset) {
+      if (confirm('Supprimer définitivement tous les enregistrements (sauf la séance en cours) ?')) {
+        try { await api('/api/recordings?all=1', { method: 'DELETE' }); render(); } catch (err) { toast(err.message); }
+      }
+    } else if (t.dataset.rvDel && confirm('Supprimer définitivement cet enregistrement ?')) {
       try { await api(`/api/recordings?id=${encodeURIComponent(t.dataset.rvDel)}`, { method: 'DELETE' }); render(); } catch (err) { toast(err.message); }
     }
   });

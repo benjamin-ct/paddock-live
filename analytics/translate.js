@@ -85,7 +85,8 @@ async function mapLimit(list, n, fn) {
   return out;
 }
 
-export async function translateBatch(env, req, day = new Date().toISOString().slice(0, 10), ip = null) {
+// quota : { key, limit } (Studio : studioQuota), sinon le plafond du jour partagé par les applis
+export async function translateBatch(env, req, day = new Date().toISOString().slice(0, 10), ip = null, quota = null) {
   const keys = await Promise.all(req.items.map((it) => keyOf(it.from, req.to, it.text)));
   const out = req.items.map((it) => (it.from === req.to ? it.text : null));
   // Déjà traduits (par n'importe quel utilisateur)
@@ -98,8 +99,8 @@ export async function translateBatch(env, req, day = new Date().toISOString().sl
   const todo = [...new Set(keys.filter((k, i) => out[i] === null))].map((k) => ({ k, it: req.items[keys.indexOf(k)] }));
   if (!todo.length) return { out, cached: true };
   // Plafond du jour
-  const limit = Number(env.AI_DAILY_LIMIT) || 20000;
-  if (!(await aiQuota(env, { key: day, day, n: todo.length, limit, ip }))) return { out, limited: true };
+  const q = quota || { key: day, limit: Number(env.AI_DAILY_LIMIT) || 20000 };
+  if (!(await aiQuota(env, { key: q.key, day, n: todo.length, limit: q.limit, ip }))) return { out, limited: true };
   // Modèle de langage par paquets de 8 ; paquet raté -> traduction simple texte par texte
   const groups = [];
   for (let i = 0; i < todo.length; i += PER_CALL) groups.push(todo.slice(i, i + PER_CALL));

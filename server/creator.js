@@ -9,7 +9,7 @@ import { spawn } from 'node:child_process';
 import { getConfig, saveConfig, DATA_DIR } from './config.js';
 
 // Empreinte remplaçable seulement pour les tests (variable d'environnement de l'ordinateur)
-const HASH = process.env.PADDOCK_CREATOR_HASH || '821f51db5c6d39c7ae10873a31723f8d4748fc2a925c6736f4a57afa7d2dacc0';
+const HASH = process.env.PADDOCK_CREATOR_HASH || 'b8c23e870aa1ad8a9f8b0c4b4b38fb5911b92b1ff024e14044915ee3a6cee216';
 const sha = (s) => crypto.createHash('sha256').update(s).digest();
 
 export const creatorEnabled = () => getConfig().creator === true;

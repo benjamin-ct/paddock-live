@@ -16,6 +16,7 @@ const crypto = require('node:crypto');
 const { spawn } = require('node:child_process');
 
 const pkg = require('./package.json');
+const { newer } = require('./version.cjs');
 const REPO = process.env.PADDOCK_UPDATE_REPO || pkg.paddockLive?.updateRepo || 'benjamin-ct/paddock-live';
 const CHECK_EVERY_MS = 6 * 3600 * 1000;
 const CHECK_TIMEOUT_MS = 10000;     // réponse de GitHub
@@ -60,23 +61,29 @@ const state = {
   file: null,
   checkedAt: null,
   auto: true,
+  // Versions bêta (pré-versions GitHub) : seulement pour qui s'y inscrit ; d'office si une bêta est installée
+  beta: /-beta\./.test(app.getVersion()),
 };
 
 let settingsFile = null;
 // Dernière installation lancée au démarrage ({ version }) : si l'appli redémarre sans avoir
 // changé de version, l'installation a échoué et on ne bloque pas l'ouverture une seconde fois.
 let installTry = null;
+// « Plus tard » sur l'écran de démarrage : la version téléchargée s'installe à la fermeture de l'appli
+let deferred = false;
+const defer = () => { deferred = true; };
 
 function loadSettings() {
   try {
     const st = JSON.parse(fs.readFileSync(settingsFile, 'utf8'));
     state.auto = st.auto !== false;
+    if (typeof st.beta === 'boolean') state.beta = st.beta;
     installTry = st.installTry || null;
   } catch { /* défaut */ }
 }
 
 function saveSettings() {
-  try { fs.writeFileSync(settingsFile, JSON.stringify({ auto: state.auto, installTry })); } catch { /* ignore */ }
+  try { fs.writeFileSync(settingsFile, JSON.stringify({ auto: state.auto, beta: state.beta, installTry })); } catch { /* ignore */ }
 }
 
 const listeners = new Set();
@@ -99,14 +106,17 @@ function set(patch) {
   broadcast();
 }
 
-// "1.2.10" > "1.2.9"
-function newer(a, b) {
-  const pa = String(a).replace(/^v/, '').split('.').map((n) => parseInt(n, 10) || 0);
-  const pb = String(b).replace(/^v/, '').split('.').map((n) => parseInt(n, 10) || 0);
-  for (let i = 0; i < 3; i++) {
-    if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) > (pb[i] || 0);
-  }
-  return false;
+// Dernière version à proposer : la dernière publiée pour tous, ou, inscrit aux bêtas, la plus récente des
+// versions (pré-versions comprises). null si aucune
+const GH = { Accept: 'application/vnd.github+json', 'User-Agent': 'Paddock-Live-updater' };
+async function latestRelease() {
+  const res = await fetch(`https://api.github.com/repos/${REPO}/releases${state.beta ? '?per_page=15' : '/latest'}`, { headers: GH, signal: AbortSignal.timeout(CHECK_TIMEOUT_MS) });
+  if (res.status === 404) throw new Error(`Aucune version publiée sur ${REPO}`);
+  if (!res.ok) throw new Error(`GitHub a répondu ${res.status}`);
+  const data = await res.json();
+  if (!state.beta) return data;
+  const tag = (r) => String(r.tag_name || '').replace(/^v/, '');
+  return data.filter((r) => !r.draft && /^\d+\.\d+\.\d+(-beta\.\d+)?$/.test(tag(r))).reduce((best, r) => (!best || newer(tag(r), tag(best)) ? r : best), null);
 }
 
 function pickAsset(release) {
@@ -257,13 +267,8 @@ async function check({ manual = false } = {}) {
   running = (async () => {
     set({ status: state.status === 'ready' ? 'ready' : 'checking', error: null });
     try {
-      const res = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, {
-        headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'Paddock-Live-updater' },
-        signal: AbortSignal.timeout(CHECK_TIMEOUT_MS),
-      });
-      if (res.status === 404) throw new Error(`Aucune version publiée sur ${REPO}`);
-      if (!res.ok) throw new Error(`GitHub a répondu ${res.status}`);
-      const release = await res.json();
+      const release = await latestRelease();
+      if (!release) throw new Error(`Aucune version publiée sur ${REPO}`);
       const version = String(release.tag_name || '').replace(/^v/, '');
       set({ checkedAt: Date.now(), latest: { version, notes: release.body || '', url: release.html_url } });
       if (!newer(version, state.current)) { set({ status: 'up-to-date' }); return; }
@@ -341,6 +346,14 @@ function setAuto(value) {
   if (state.auto && state.status === 'available') check();
 }
 
+// Inscription aux versions bêta : nouvelle recherche aussitôt (une bêta plus récente, ou rien en la quittant :
+// la version installée reste jusqu'à la prochaine version finale plus récente)
+function setBeta(value) {
+  set({ beta: !!value });
+  saveSettings();
+  return check({ manual: true });
+}
+
 // Au lancement, avant d'ouvrir l'appli : recherche d'une nouvelle version, téléchargement et
 // installation (l'appli redémarre alors toute seule sur la nouvelle version).
 // onState(état) suit l'avancement. Renvoie :
@@ -353,11 +366,7 @@ async function startup(onState = () => {}) {
     if (state.kind === 'unsupported') {
       if (!app.isPackaged && !process.env.PADDOCK_UPDATER_DEV) return { action: 'open' };
       // Pas d'installation automatique possible : on signale seulement la nouvelle version
-      const res = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, {
-        headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'Paddock-Live-updater' },
-        signal: AbortSignal.timeout(CHECK_TIMEOUT_MS),
-      }).catch(() => null);
-      const release = res?.ok ? await res.json().catch(() => null) : null;
+      const release = await latestRelease().catch(() => null);
       const version = String(release?.tag_name || '').replace(/^v/, '');
       return version && newer(version, state.current) ? { action: 'notify', version, url: release.html_url } : { action: 'open' };
     }
@@ -369,6 +378,7 @@ async function startup(onState = () => {}) {
       set({ status: 'ready', error: null });
       return { action: 'open', reason: `L'installation automatique de la version ${version} n'a pas abouti` };
     }
+    if (deferred) return { action: 'open' };
     installTry = { version, at: Date.now() };
     saveSettings();
     const r = install(true);
@@ -393,7 +403,7 @@ function init(ipcMain) {
   try {
     const dir = path.join(app.getPath('userData'), 'updates');
     for (const f of fs.readdirSync(dir)) {
-      const v = /(\d+\.\d+\.\d+)/.exec(f)?.[1];
+      const v = /(\d+\.\d+\.\d+(?:-beta\.\d+)?)/.exec(f)?.[1];
       if (f.endsWith('.part') || (v && !newer(v, state.current))) fs.rmSync(path.join(dir, f), { force: true });
     }
   } catch { /* pas de dossier */ }
@@ -402,10 +412,11 @@ function init(ipcMain) {
   ipcMain.handle('update-check', () => check({ manual: true }));
   ipcMain.handle('update-install', () => install());
   ipcMain.handle('update-auto', (_e, v) => { setAuto(v); return publicState(); });
+  ipcMain.handle('update-beta', (_e, v) => setBeta(v));
 
   // Mise à jour prête et installation automatique activée : appliquée à la fermeture de l'appli.
   app.on('will-quit', () => {
-    if (state.auto && state.status === 'ready' && !state.installing) install(false);
+    if ((state.auto || deferred) && state.status === 'ready' && !state.installing) install(false);
   });
 
   if (state.kind === 'unsupported') { state.status = 'unsupported'; return; }
@@ -413,4 +424,4 @@ function init(ipcMain) {
   setInterval(() => check(), CHECK_EVERY_MS);
 }
 
-module.exports = { init, startup, check, install, state, newer };
+module.exports = { init, startup, check, install, defer, state, newer };

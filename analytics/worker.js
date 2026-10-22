@@ -10,9 +10,11 @@
 //   (studio.js : accès par clé dérivée du code, jetons chiffrés, relais, publication) ;
 // - /site/ : site de présentation de l'appli (racine d'un nom de domaine à soi) ; /download/… :
 //   fichiers de la dernière version (download.js).
-// - tâche planifiée (toutes les 5 min) : alertes des grosses news sur le téléphone du créateur (alerts.js).
-import { cleanBatch, LABELS, FEATURE_GROUPS } from '../shared/stats.js';
-import { studioApi, runSchedule, seasonRow } from './studio.js';
+// - tâche planifiée (toutes les 5 min) : alertes des grosses news sur le téléphone du créateur (alerts.js) ;
+//   toutes les 6 heures, bilan de santé (health.js) : flux F1, erreurs de l'appli, jetons.
+import { cleanBatch } from '../shared/stats.js';
+import { summary } from './usage.js';
+import { studioApi, runSchedule, schedInternal, seasonRow } from './studio.js';
 import { loginPage, dashboardPage } from './page.js';
 import { cleanRequest, translateBatch } from './translate.js';
 import { cleanSummaryRequest, summarizeArticle } from './summarize.js';
@@ -20,17 +22,19 @@ import { newsAlerts } from './alerts.js';
 import { transcribeRadio, cachedRadio, HASH_RE, MAX_AUDIO } from './transcribe.js';
 import { download, mirror, FILES } from './download.js';
 import { go, countClick } from './clicks.js';
+import { SHORT_RE, SHORT } from '../shared/track-links.js';
 import { feedbackPost, feedbackFile } from './feedback.js';
 import { buildIcs } from '../shared/ics.js';
 import { pronosApi, GROUP_RE } from './pronos.js';
-import { pruneIpQuota } from './quota.js';
+import { pruneIpQuota, callerIp, ipQuota } from './quota.js';
+import { healthCheck, HEALTH } from './health.js';
 
 const MAX_BODY = 32 * 1024;
 const COOKIE = 'pl_stats';
 const SESSION_DAYS = 30;
 
 // Adresse de l'appelant (plafonds d'IA par adresse) ; corps annoncé trop gros : refusé avant d'être lu
-const clientIp = (req) => req.headers.get('CF-Connecting-IP') || null;
+const clientIp = callerIp;
 const tooBig = (req, max) => Number(req.headers.get('Content-Length') || 0) > max;
 const json = (obj, status = 200) => new Response(JSON.stringify(obj), { status, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' } });
 const redirect = (to, headers = {}) => new Response(null, { status: 303, headers: { Location: to, 'Cache-Control': 'no-store', ...headers } });
@@ -92,6 +96,11 @@ async function ingest(req, env) {
   const batch = cleanBatch(body);
   if (!batch) return json({ error: 'Lot invalide' }, 400);
   const day = new Date().toISOString().slice(0, 10);
+  // Lignes écrites par adresse et par jour (une appli en écrit quelques milliers au plus) : un script ne peut
+  // pas remplir la base ni épuiser ses écritures du jour
+  const rows = batch.items.length + (batch.errors?.length || 0);
+  const ip = clientIp(req);
+  if (ip && rows && !(await ipQuota(env, { key: 'ingest', day, ip, n: rows, limit: 10000 }))) return json({ error: 'Trop d\'envois aujourd\'hui' }, 429);
   const stmt = env.DB.prepare('INSERT INTO counts (day, event, device, version, os, n) VALUES (?1, ?2, ?3, ?4, ?5, ?6) ON CONFLICT (day, event, device, version, os) DO UPDATE SET n = n + excluded.n');
   const estmt = env.DB.prepare('INSERT INTO error_details (day, version, os, device, kind, place, msg, stack, n) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9) ON CONFLICT (day, version, os, device, kind, place, msg, stack) DO UPDATE SET n = n + excluded.n');
   const all = [
@@ -102,101 +111,25 @@ async function ingest(req, env) {
   return new Response(null, { status: 204 });
 }
 
-const dayOf = (t) => new Date(t).toISOString().slice(0, 10);
-const TIMELINE = { 'app.active': 'active', 'app.open': 'open', 'app.install': 'install', 'session.live': 'live', 'session.replay': 'replay' };
-const OS_NAMES = { win: 'Windows', mac: 'macOS', linux: 'Linux', other: 'Autre' };
-const DEVICE_NAMES = { desktop: 'Ordinateur (appli)', phone: 'Téléphone / tablette', browser: 'Navigateur' };
-
-// Chiffres du tableau de bord pour les `days` derniers jours (et la période d'avant, pour comparer)
-export async function summary(env, days, now = Date.now()) {
-  const until = dayOf(now);
-  const since = dayOf(now - (days - 1) * 86400e3);
-  const prevSince = dayOf(now - (2 * days - 1) * 86400e3);
-  const q = (sql, ...p) => env.DB.prepare(sql).bind(...p).all().then((r) => r.results || []);
-  const [daily, events, versions, systems, errDetails, errCounts] = await Promise.all([
-    q("/*daily*/ SELECT day, event, SUM(n) AS n FROM counts WHERE day >= ?1 AND (event IN ('app.active', 'app.open', 'app.install', 'session.live', 'session.replay') OR event LIKE 'error.%') GROUP BY day, event", prevSince),
-    q('/*events*/ SELECT event, device, SUM(n) AS n FROM counts WHERE day >= ?1 GROUP BY event, device', since),
-    q("/*versions*/ SELECT version, SUM(n) AS n FROM counts WHERE day >= ?1 AND event = 'app.active' GROUP BY version ORDER BY n DESC", since),
-    q("/*systems*/ SELECT os, SUM(n) AS n FROM counts WHERE day >= ?1 AND event = 'app.active' GROUP BY os ORDER BY n DESC", since),
-    q('/*errdetails*/ SELECT place, kind, msg, stack, version, device, SUM(n) AS n, MAX(day) AS last FROM error_details WHERE day >= ?1 GROUP BY place, kind, msg, stack, version, device', since).catch(() => []),
-    q("/*errcounts*/ SELECT event, version, device, SUM(n) AS n, MAX(day) AS last FROM counts WHERE day >= ?1 AND event LIKE 'error.%' GROUP BY event, version, device", since),
-  ]);
-
-  // Séries jour par jour (jours sans données = 0) et totaux de la période précédente
-  const dates = Array.from({ length: days }, (_, i) => dayOf(now - (days - 1 - i) * 86400e3));
-  const idx = new Map(dates.map((d, i) => [d, i]));
-  const keys = ['active', 'open', 'install', 'live', 'replay', 'errors'];
-  const series = { dates, ...Object.fromEntries(keys.map((k) => [k, Array(days).fill(0)])) };
-  const prev = Object.fromEntries(keys.map((k) => [k, 0]));
-  for (const r of daily) {
-    const k = TIMELINE[r.event] || (r.event.startsWith('error.') ? 'errors' : null);
-    if (!k) continue;
-    if (idx.has(r.day)) series[k][idx.get(r.day)] += r.n;
-    else if (r.day < since) prev[k] += r.n;
-  }
-  prev.activeAvg = prev.active / days;
-
-  const byEvent = new Map();
-  for (const r of events) {
-    const e = byEvent.get(r.event) || { event: r.event, total: 0, desktop: 0, phone: 0, browser: 0 };
-    e.total += r.n;
-    if (r.device in e) e[r.device] += r.n;
-    byEvent.set(r.event, e);
-  }
-  const all = [...byEvent.values()].sort((a, b) => b.total - a.total || a.event.localeCompare(b.event));
-  const groupOf = (ev) => (ev.split('.')[0] in FEATURE_GROUPS ? ev.split('.')[0] : null);
-  const features = all.filter((e) => groupOf(e.event)).map((e) => ({ ...e, group: groupOf(e.event), label: LABELS[e.event] || e.event }));
-  const used = new Set(features.map((f) => f.event));
-  const unused = Object.keys(LABELS).filter((k) => ['rail', 'tab', 'season', 'feature'].includes(k.split('.')[0]) && !used.has(k)).map((k) => LABELS[k]);
-  const devices = Object.entries(byEvent.get('app.open') || {}).filter(([k, n]) => k in DEVICE_NAMES && n > 0)
-    .map(([k, n]) => ({ label: DEVICE_NAMES[k], n })).sort((a, b) => b.n - a.n);
-  const langs = [['lang.fr', 'Français'], ['lang.en', 'Anglais']].map(([k, label]) => ({ label, n: byEvent.get(k)?.total || 0 })).filter((r) => r.n).sort((a, b) => b.n - a.n);
-
-  return {
-    days, since, until, series, prev,
-    groups: FEATURE_GROUPS,
-    features, unused,
-    versions: versions.map((r) => ({ label: r.version === 'dev' ? 'dev (développement)' : `v${r.version}`, n: r.n })),
-    systems: systems.map((r) => ({ label: OS_NAMES[r.os] || r.os, n: r.n })),
-    devices, langs,
-    errors: errorRows(errDetails, errCounts),
-  };
-}
-
-// Erreurs regroupées (endroit, type, message, chemin d'appel) avec versions, appareils et dernier jour.
-// Versions d'avant le détail des erreurs (1.27.4 et avant) : compteur seul, « sans détail ».
-export const DETAIL_SINCE = [1, 27, 5];
-const olderThanDetail = (v) => {
-  const p = String(v).split('.').map(Number);
-  if (p.length !== 3 || p.some((x) => !Number.isFinite(x))) return false;   // « dev »
-  for (let i = 0; i < 3; i++) if (p[i] !== DETAIL_SINCE[i]) return p[i] < DETAIL_SINCE[i];
-  return false;
-};
-function errorRows(details, counts) {
-  const rows = new Map();
-  const row = (key, base) => rows.get(key) || rows.set(key, { ...base, versions: {}, desktop: 0, phone: 0, browser: 0, total: 0, last: '' }).get(key);
-  const addTo = (r, version, device, n, last) => {
-    r.versions[version] = (r.versions[version] || 0) + n;
-    if (device in r && device !== 'total') r[device] += n;
-    r.total += n;
-    if (last > r.last) r.last = last;
-  };
-  for (const d of details) {
-    addTo(row(['d', d.place, d.kind, d.msg, d.stack].join('\u0001'), { place: d.place, kind: d.kind, msg: d.msg, stack: d.stack }), d.version, d.device, d.n, d.last);
-  }
-  for (const c of counts) {
-    if (!olderThanDetail(c.version)) continue;
-    const place = c.event.replace(/^error\./, '');
-    addTo(row(`c\u0001${place}`, { place, kind: place === 'server' ? 'server' : '', msg: '', stack: '', legacy: true }), c.version, c.device, c.n, c.last);
-  }
-  return [...rows.values()].map((r) => ({ ...r, versions: Object.entries(r.versions).sort((a, b) => b[1] - a[1]).map(([v, n]) => ({ v, n })) }))
-    .sort((a, b) => b.total - a.total || b.last.localeCompare(a.last)).slice(0, 60);
-}
+export { summary };
 
 const periodOf = (url) => {
   const d = Number(url.searchParams.get('days'));
   return [7, 30, 90, 365].includes(d) ? d : 30;
 };
+
+// Retour de la connexion Facebook de l'appli de bureau (mode créateur) : Meta n'accepte que des adresses
+// https, cette page renvoie donc le navigateur vers l'appli de la personne (127.0.0.1, port écrit au début de
+// « state » par l'appli), avec la réponse de Meta telle quelle. Rien n'est lu ni gardé ici ; seule l'appli
+// qui a ouvert la connexion connaît le reste de « state » et la clé secrète pour utiliser le code.
+const FB_STATE = /^(\d{2,5})\.[0-9a-f]{32}$/;
+export function fbCallback(url) {
+  const port = Number(FB_STATE.exec(url.searchParams.get('state') || '')?.[1]);
+  if (!(port >= 1024 && port <= 65535)) return new Response('Connexion Facebook : demande invalide, recommencez depuis Paddock Live.', { status: 400, headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' } });
+  const keep = new URLSearchParams();
+  for (const k of ['code', 'state', 'error', 'error_reason', 'error_description']) if (url.searchParams.has(k)) keep.set(k, url.searchParams.get(k).slice(0, 2000));
+  return new Response(null, { status: 302, headers: { Location: `http://127.0.0.1:${port}/meta-callback/?${keep}`, 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' } });
+}
 
 export default {
   // Toutes les minutes : publications de la page du créateur (programmées ou « Publier ») ;
@@ -207,9 +140,12 @@ export default {
       const sent = await runSchedule(env).catch(() => null);
       if (!sent && new Date(event.scheduledTime || Date.now()).getUTCMinutes() % 5 === 0) await newsAlerts(env).catch(() => null);
       if (!sent && env.DB) await seasonRow(env, new Date().getUTCFullYear()).catch(() => null);
-      // Une fois par jour : compteurs d'IA par adresse des jours passés effacés
+      // Une fois par jour : compteurs d'IA par adresse des jours passés, traductions de plus de 90 jours et
+      // détail des erreurs de plus d'un an effacés
       const t = new Date(event.scheduledTime || Date.now());
-      if (env.DB && t.getUTCHours() === 3 && t.getUTCMinutes() === 0) await pruneIpQuota(env, t.toISOString().slice(0, 10)).catch(() => null);
+      if (env.DB && t.getUTCHours() === 3 && t.getUTCMinutes() === 0) await prune(env, t.getTime()).catch(() => null);
+      // Toutes les 6 heures : bilan de santé (flux F1, erreurs de l'appli, jetons), sur le téléphone si besoin
+      if (t.getUTCMinutes() === 7 && t.getUTCHours() % HEALTH.every === 1) await healthCheck(env).catch(() => null);
     })());
   },
   async fetch(req, env, ctx) {
@@ -218,12 +154,21 @@ export default {
     // à soi (pas *.workers.dev), la racine affiche le site au lieu de la page des statistiques
     if (req.method === 'GET' && url.pathname.startsWith('/download/')) {
       const os = url.pathname.slice(10);
-      if (FILES[os] && env.DB) ctx?.waitUntil?.(countClick(req, env, 'download', os) || Promise.resolve());
+      // Compté seulement si quelqu'un a cliqué dans un navigateur (Sec-Fetch-User) : pas les programmes
+      // qui suivent tous les liens de la page (antivirus, analyseurs de liens, moteurs de recherche)
+      if (FILES[os] && env.DB && req.headers.get('Sec-Fetch-User') === '?1') ctx?.waitUntil?.(countClick(req, env, 'download', os) || Promise.resolve());
       return download(url.pathname, { env });
     }
-    if (req.method === 'GET' && url.pathname.startsWith('/dl/')) return mirror(req, env, decodeURIComponent(url.pathname.slice(4)));
+    if (req.method === 'GET' && url.pathname.startsWith('/dl/')) {
+      let name;
+      try { name = decodeURIComponent(url.pathname.slice(4)); } catch { return json({ error: 'Introuvable' }, 404); }
+      return mirror(req, env, name);
+    }
     // Lien suivi d'un post : clic compté, puis l'adresse d'origine
     if (req.method === 'GET' && url.pathname.startsWith('/go/') && env.DB) return go(req, env, ctx, url.pathname.slice(4));
+    if (req.method === 'GET' && SHORT_RE.test(url.pathname.slice(1)) && env.DB) return go(req, env, ctx, url.pathname.slice(1));
+    // Nom court des liens (pdkl.app) : tout le reste renvoie sur le site
+    if (env.SITE_ORIGIN && url.hostname === new URL(SHORT).hostname) return Response.redirect(`${env.SITE_ORIGIN}${url.pathname}${url.search}`, 301);
     // Page des streamers : le bloc Streaming du site
     if (req.method === 'GET' && url.pathname === '/streaming') return Response.redirect(new URL('/#streaming', url), 302);
     if (req.method === 'GET' && /^\/calendar(-en)?\.ics$/.test(url.pathname)) return calendar(env, new Date().getUTCFullYear(), url.pathname.includes('-en'));
@@ -236,6 +181,7 @@ export default {
     // www.paddocklive.app -> paddocklive.app (même chemin ; les fichiers du site, servis avant le
     // Worker, restent aussi lisibles sur www)
     if (ownDomain && url.hostname.startsWith('www.')) return Response.redirect(`https://${url.hostname.slice(4)}${url.pathname}${url.search}`, 301);
+    if (req.method === 'GET' && url.pathname === '/fb-callback') return fbCallback(url);
     if (req.method === 'GET' && url.pathname === '/' && ownDomain && env.ASSETS) {
       return env.ASSETS.fetch(new Request(new URL('/site/', url), req));
     }
@@ -287,6 +233,8 @@ export default {
       return env.ASSETS.fetch(new Request(new URL('/p/', url), req));
     }
     // Page web du créateur : API (la page elle-même est un fichier statique, dossier site/)
+    // Publication d'un réseau, appelée par la tâche planifiée elle-même (voir runSchedule)
+    if (req.method === 'POST' && url.pathname === '/internal/sched') return schedInternal(req, env);
     if (url.pathname.startsWith('/studio/api/')) {
       try { return await studioApi(req, env, url); } catch { return json({ error: 'Erreur' }, 500); }
     }
@@ -342,11 +290,18 @@ export default {
   },
 };
 
+export async function prune(env, now) {
+  await pruneIpQuota(env, new Date(now).toISOString().slice(0, 10));
+  await env.DB.prepare('DELETE FROM translations WHERE at < ?1').bind(now - 90 * 86400e3).run();
+  await env.DB.prepare('DELETE FROM error_details WHERE day < ?1').bind(new Date(now - 365 * 86400e3).toISOString().slice(0, 10)).run();
+}
+
 // Calendrier des séances auquel on s'abonne depuis l'appli (webcal://paddocklive.app/calendar.ics,
 // ou Google Agenda) : saison en cours, gardée dans la base et relue par la tâche planifiée ; l'agenda
-// se met à jour tout seul quand les horaires changent.
+// se met à jour tout seul quand les horaires changent. Jamais relue chez Jolpica pour un abonné (la tâche
+// planifiée s'en charge toutes les 30 minutes) : seulement si la saison gardée a plus de 6 heures
 export async function calendar(env, year, en = false, opts = {}) {
-  const row = await seasonRow(env, year, opts).catch(() => null);
+  const row = await seasonRow(env, year, { maxAge: 6 * 3600e3, ...opts }).catch(() => null);
   if (!row) return new Response('Calendrier indisponible', { status: 503 });
   return new Response(buildIcs(row.v.races, { year, lang: en ? 'en' : 'fr', subscribe: true }), {
     headers: { 'Content-Type': 'text/calendar; charset=utf-8', 'Content-Disposition': `inline; filename="f1${en ? '-en' : ''}.ics"`, 'Cache-Control': 'public, max-age=3600', 'Access-Control-Allow-Origin': '*' },

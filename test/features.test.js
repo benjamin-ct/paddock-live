@@ -96,3 +96,22 @@ test('temps d\'immobilisation du topic PitStop', () => {
   applyEvent(state, derived, 'PitStop', { RacingNumber: '3', PitStopTime: '2.4', PitLaneTime: '31.067' }, 2000);
   assert.deepEqual(derived.pitStops.map((p) => [p.num, p.lap, p.time]), [['12', 14, 3], ['3', null, 2.4]]);
 });
+
+test('enregistrements : les plus anciens effacés à chaque nouvelle séance (jamais celle en cours)', async () => {
+  const { REC_DIR, pruneRecordings, KEEP_RECORDINGS } = await import('../server/recorder.js');
+  for (const f of fs.readdirSync(REC_DIR)) fs.unlinkSync(path.join(REC_DIR, f));
+  const old = Date.now() / 1000 - 86400;
+  for (let i = 0; i < KEEP_RECORDINGS + 3; i++) {
+    const f = path.join(REC_DIR, `2026-01-${String(i + 1).padStart(2, '0')}_GP_Race_${i}.jsonl`);
+    fs.writeFileSync(f, '[]\n');
+    fs.utimesSync(f, old + i, old + i);
+  }
+  const rec = new Recorder();
+  const file = rec.open({ StartDate: '2026-10-25T19:00:00', Meeting: { Name: 'United States Grand Prix' }, Name: 'Race', Key: 99 });
+  assert.equal(listRecordings().length, KEEP_RECORDINGS);
+  assert.ok(fs.existsSync(file));
+  assert.ok(!fs.existsSync(path.join(REC_DIR, '2026-01-01_GP_Race_0.jsonl')), 'le plus ancien est effacé');
+  pruneRecordings(0, file);   // « Tout supprimer » : la séance en cours reste
+  assert.deepEqual(fs.readdirSync(REC_DIR), [path.basename(file)]);
+  rec.close();
+});

@@ -49,6 +49,10 @@ export const DEFAULT_SOURCES = [
 
   rss('lequipe', "L'Équipe", 'https://dwh.lequipe.fr/api/edito/rss?path=/Formule-1/', 'media', 'fr'),
   rss('motorsport-fr', 'Motorsport.com France', 'https://fr.motorsport.com/rss/f1/news/', 'media', 'fr'),
+  rss('nextgen', 'Nextgen-Auto', 'https://motorsport.nextgen-auto.com/fr/rss/', 'media', 'fr'),
+  rss('lefigaro', 'Le Figaro', 'https://www.lefigaro.fr/rss/figaro_formule-1.xml', 'media', 'fr'),
+  // Diffuseur de la F1 en France ; la chaîne parle surtout de foot (et de MotoGP, de F1 Academy)
+  yt('UC8ggH3zU61XO0nMskSQwZdA', 'CANAL+ Sport', 'media', 'fr', { match: 'formule 1|formula 1|\\bf1\\b(?!\\s*academy)' }),
 
   rss('marca', 'Marca', 'https://e00-marca.uecdn.es/rss/motor/formula1.xml', 'media', 'es'),
   rss('as', 'AS', 'https://feeds.as.com/mrss-s/pages/as/site/as.com/section/motor/subsection/formula_1/', 'media', 'es'),

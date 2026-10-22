@@ -6,7 +6,7 @@ import { gpNameFr } from './summary.js';
 import { driverRatings, qualiGaps, titleRace, placeForMaxPoints } from './season-calc.js';
 import { cleanPace, lapsLedBy } from './race-laps.js';
 import { raceStory } from './race-story.js';
-import { hashtag, teamTag, BRAND_TAG, xLength, gpFlag, MEDALS } from './social.js';
+import { hashtag, teamTag, gpTag, fiveTags, twoTags, noTags, THREADS_TAG, xLength, gpFlag, MEDALS } from './social.js';
 import { circuitInfo, trackShape, flagColors } from './circuits-info.js';
 
 const TZ = 'Europe/Paris';
@@ -44,12 +44,7 @@ function base(race, year, post, label) {
     sprint: !!race?.sprint, rows: [], facts: [], summary: { paragraphs: [] },
   };
 }
-const gpTagOf = (d) => hashtag(`${String(d.gpEn || '').replace(/ Grand Prix$/i, '')}GP`);
-const tagsOf = (d, extra = []) => {
-  const seen = new Set();
-  return [BRAND_TAG, '#F1', '#Formula1', '#Formule1', d.gpEn ? gpTagOf(d) : '', d.year ? `#F1${d.year}` : '', ...extra]
-    .filter((t) => t && t.length > 2 && !seen.has(t.toLowerCase()) && seen.add(t.toLowerCase()));
-};
+const tagsOf = (d, extra = []) => fiveTags(['#F1', gpTag(d.gpEn), ...extra]);
 
 // ---------- 1. Programme du week-end ----------
 // race : manche de /api/season ; tyres : composés Pirelli ; forecast : [{ date: 'AAAA-MM-JJ', tmax, tmin, rain }]
@@ -194,6 +189,9 @@ function standingsUpTo(races) {
   const rank = (m) => [...m.values()].sort((a, b) => b.points - a.points || b.wins - a.wins).map((e, i) => ({ ...e, pos: i + 1 }));
   return { drivers: rank(dm), constructors: rank(cm) };
 }
+// Course au titre d'un seul championnat (deux posts séparés) : side 'drivers' (pilotes) ou 'teams' (constructeurs)
+export const titleSide = (d, side) => (side === 'teams' ? { ...d, side, drivers: [], clinchD: null, champion: null } : { ...d, side, constructors: [], clinchC: null, champTeam: null });
+
 export function titleData(season, { year, upTo = null, live = {} } = {}) {
   const done = season.races.filter((r) => r.results.length && (!upTo || r.round <= upTo));
   const last = done.at(-1);
@@ -268,18 +266,18 @@ function finish(d, head, lines, sig, extra, shortLines = lines) {
   const s = sig ? `\n\n${sig}` : '';
   const body = lines.join('\n');
   const instagram = `${head}\n\n${body}${s}\n\n${tags.join(' ')}`;
-  let threads = `${head}\n\n${body}${s}\n\n#F1 ${BRAND_TAG}`;
-  if (threads.length > 500) threads = `${head}\n\n${shortLines.join('\n')}${s}\n\n#F1 ${BRAND_TAG}`;
-  if (threads.length > 500) threads = `${threads.slice(0, 497 - `\n\n#F1 ${BRAND_TAG}`.length)}…\n\n#F1 ${BRAND_TAG}`;
+  let threads = `${head}\n\n${body}${s}\n\n${THREADS_TAG}`;
+  if (threads.length > 500) threads = `${head}\n\n${shortLines.join('\n')}${s}\n\n${THREADS_TAG}`;
+  if (threads.length > 500) threads = `${threads.slice(0, 497 - `\n\n${THREADS_TAG}`.length)}…\n\n${THREADS_TAG}`;
   // X : lignes puis mots-clés retirés tant que le post dépasse 280 caractères
   const xl = [...shortLines];
-  const xt = tags.slice(0, 4);
+  const xt = twoTags(tags);
   const make = () => `${head}\n\n${xl.join('\n')}\n\n${xt.join(' ')}`.replace(/\n\n\n\n/, '\n\n');
   let x = make();
   while (xLength(x) > 280 && xl.length > 1) { xl.pop(); x = make(); }
   while (xLength(x) > 280 && xt.length > 1) { xt.pop(); x = make(); }
   if (xLength(x) > 280) x = `${x.slice(0, 278)}…`;
-  return { instagram, x, bsky: [...x].length <= 300 ? x : `${[...x].slice(0, 299).join('')}…`, threads, story: head };
+  return { instagram, facebook: noTags(instagram), x, bsky: [...x].length <= 300 ? x : `${[...x].slice(0, 299).join('')}…`, threads, story: head };
 }
 
 // Séance du programme : emoji selon son type
@@ -309,7 +307,7 @@ export function seasonCaptions(d, sig = '') {
   }
   if (d.post === 'records') {
     const lines = d.facts.map((f) => `📌 ${f.label} : ${f.value} — ${f.sub}`);
-    return finish(d, `🤓 Le saviez-vous ? Les records du ${gpFlag(d)}`, lines, sig, ['#F1Facts'], lines.slice(0, 2));
+    return finish(d, `🤓 Le savais-tu ? Les records du ${gpFlag(d)}`, lines, sig, ['#F1Facts'], lines.slice(0, 2));
   }
   if (d.post === 'ratings') {
     const top = d.rows.slice(0, 3).map((r, i) => `${MEDALS[i]} ${r.first} ${r.last} : ${dec(r.note)}/10`);
@@ -337,7 +335,9 @@ export function seasonCaptions(d, sig = '') {
     const cl = part(d.constructors, d.champTeam, d.clinchC, d.left.c, true);
     const left = d.left.races ? `🗓️ Encore ${d.left.races} Grand${d.left.races > 1 ? 's' : ''} Prix${d.left.sprints ? `, dont ${d.left.sprints} en format sprint` : ''}.` : 'Saison terminée.';
     const lines = [...dl, ...(dl.length && cl.length ? [''] : []), ...cl, '', left];
-    return finish(d, d.champion ? `👑 ${d.champion.name} champion du monde ${d.year} !` : `🏆 La course au titre après ${gpFlag(d, gpNameFr(d.gpEn))}`, lines, sig, ['#F1Championship'], [...dl.slice(0, 3), '', ...cl.slice(0, 2)]);
+    const which = d.side === 'teams' ? ' constructeurs' : d.side === 'drivers' ? ' pilotes' : '';
+    const head = d.champion ? `👑 ${d.champion.name} champion du monde ${d.year} !` : d.champTeam && d.side === 'teams' ? `👑 ${d.champTeam.name} champion du monde des constructeurs ${d.year} !` : `🏆 La course au titre${which} après ${gpFlag(d, gpNameFr(d.gpEn))}`;
+    return finish(d, head, lines, sig, ['#F1Championship'], [...dl.slice(0, 3), '', ...cl.slice(0, 2)]);
   }
   if (d.post === 'racelaps') {
     const lines = [];

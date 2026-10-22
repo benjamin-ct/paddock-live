@@ -1,6 +1,6 @@
 // Direction de course, radios d'équipe, arrêts aux stands.
 import { store, versionOf, on, f1Now, displayNow } from '../store.js';
-import { prefs, setPref } from '../prefs.js';
+import { prefs, setPref, isFav } from '../prefs.js';
 import { $, esc, drivers, teamColor, fmtClock, fmtLap, api, stintsOf, tyreBadge, orderedNumbers } from '../util.js';
 import { parseUtc, parseLapTime } from '/shared/f1.js';
 import { analyzeStewards, isOpen, STATUS_LABEL, linkFiaDocs, parseFiaDoc, deletedLapsDoc } from '/shared/stewards.js';
@@ -9,6 +9,7 @@ import { DEC, EN } from '../i18n.js';
 import { cloudOn, cloudTranslate } from '../cloud.js';
 import { continuesStint } from '/shared/pits.js';
 import { pdfHref } from './pdf-view.js';
+import { rcmFr, reasonFr as rcmReasonFr } from '/shared/rcm-fr.js';
 
 function list(obj) {
   if (!obj) return [];
@@ -43,19 +44,30 @@ export function rcmType(m) {
 function rcmShown(m) {
   if (!prefs.rcmBlue && m.Flag === 'BLUE') return false;
   if (!prefs.rcmDeleted && /\bDELETED\b/.test(m.Message || '')) return false;
+  if (prefs.rcmType === 'mine') return carsOf(m).some((n) => isFav(n) || n === store.duel.a || n === store.duel.b);
   if (prefs.rcmType && prefs.rcmType !== 'all' && rcmType(m) !== prefs.rcmType) return false;
   return true;
 }
+// Voitures nommées dans un message (« CAR 44 (HAM) », « CARS 1 (VER) AND 4 (NOR) ») et son numéro
+const carsOf = (m) => [m.RacingNumber, ...[...String(m.Message || '').matchAll(/\b(\d{1,2}) \([A-Z]{3}\)/g)].map((x) => x[1])].filter(Boolean).map(String);
 
-// Traduction des messages par le serveur Paddock Live (une fois pour tous, gardée en mémoire ici)
+// Messages en français : formules connues traduites ici (drapeaux, incidents, pénalités…), les autres
+// par le serveur Paddock Live (une fois pour tous, gardées en mémoire ici)
 const rcmTr = new Map();   // message -> traduction (null : en cours ou refusée)
 let rcmTrVer = 0;
-const rcmTranslating = () => !EN && prefs.rcmTranslate !== false && cloudOn();
+const rcmTranslating = () => !EN && prefs.rcmTranslate !== false;
+const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+// Majuscules partout : la traduction automatique les prend pour des sigles. En minuscules, sauf les
+// codes pilotes et les sigles connus.
+const sentence = (msg) => cap(msg.toLowerCase().replace(/\b(fia|drs|vsc|sc|[a-z]{3}(?=\)))\b/g, (w) => w.toUpperCase()));
 function rcmTranslation(msg) {
   if (!msg || !rcmTranslating()) return null;
+  const local = rcmFr(msg);
+  if (local) return local;
+  if (!cloudOn()) return null;
   if (rcmTr.has(msg)) return rcmTr.get(msg);
   rcmTr.set(msg, null);
-  cloudTranslate(msg, 'en', 'fr').then((t) => {
+  cloudTranslate(sentence(msg), 'en', 'fr').then((t) => {
     if (t) { rcmTr.set(msg, t); rcmTrVer++; renderRcm(); }
     else if (!cloudOn()) rcmTr.delete(msg);   // serveur indisponible : nouvel essai plus tard
   });
@@ -63,7 +75,7 @@ function rcmTranslation(msg) {
 }
 
 export function renderRcm() {
-  const v = `${versionOf(['RaceControlMessages', '__reset'])}|${prefs.rcmBlue}|${prefs.rcmDeleted}|${prefs.rcmType}|${rcmTranslating()}|${rcmTrVer}`;
+  const v = `${versionOf(['RaceControlMessages', '__reset'])}|${prefs.rcmBlue}|${prefs.rcmDeleted}|${prefs.rcmType}|${rcmTranslating()}|${rcmTrVer}|${prefs.rcmType === 'mine' ? `${prefs.favs}|${store.duel.a}|${store.duel.b}` : ''}`;
   if (v === rcmVer) return;
   const sameList = String(rcmVer).split('|')[0] === v.split('|')[0] || rcmVer === -1;
   rcmVer = v;
@@ -86,6 +98,15 @@ export function renderRcm() {
         <div class="rcm-flag ${rcmFlagClass(m)}" title="${esc(title)}"></div>${msgHtml(m.Message)}</li>`;
     }).join('')
     : '<li class="note">Aucun message de la direction de course.</li>';
+  const bar = $('#rcBar'), last = msgs[msgs.length - 1];
+  if (bar) {
+    bar.hidden = !last;
+    if (last) {
+      bar.querySelector('.rcm-flag').className = `rcm-flag ${rcmFlagClass(last)}`;
+      bar.querySelector('.rc-msg').outerHTML = msgHtml(last.Message).replace('rcm-msg', 'rc-msg');
+      bar.querySelector('.rc-lap').textContent = last.Lap ? `Tour ${last.Lap}` : '';
+    }
+  }
 }
 
 // Immobilisation estimée par la télémétrie (vitesse nulle) quand la F1 ne fournit pas le temps
@@ -252,30 +273,11 @@ export function initRcmFilters() {
 }
 
 // ---- Enquêtes des commissaires et limites de piste ----
-const REASONS_FR = {
-  'CAUSING A COLLISION': 'Accrochage provoqué',
-  'LEAVING THE TRACK AND GAINING AN ADVANTAGE': 'Avantage pris hors de la piste',
-  'FORCING ANOTHER DRIVER OFF THE TRACK': 'Pilote poussé hors de la piste',
-  'YELLOW FLAG INFRINGEMENT': 'Non-respect du drapeau jaune',
-  'SPEEDING IN THE PIT LANE': 'Excès de vitesse dans la voie des stands',
-  'IMPEDING': 'Gêne d\'un autre pilote',
-  'MOVING UNDER BRAKING': 'Changement de trajectoire au freinage',
-  'STARTING PROCEDURE INFRINGEMENT': 'Infraction à la procédure de départ',
-  'UNSAFE RELEASE': 'Relâchement dangereux aux stands',
-  'TRACK LIMITS': 'Limites de piste',
-  'FAILING TO FOLLOW RACE DIRECTORS INSTRUCTIONS': 'Consignes du directeur de course non respectées',
-  'PRACTICE START INFRINGEMENT': 'départ d\'entraînement non conforme',
-  'ESCAPE ROAD INSTRUCTIONS': 'utilisation de l\'échappatoire',
-};
-
-function reasonFr(reason) {
-  if (!reason) return '';
-  return reason.split(/\s[–-]\s/).map((p) => REASONS_FR[p.trim()] || p.trim().toLowerCase()).join(' — ');
-}
+const reasonFr = (reason) => cap(rcmReasonFr(reason));
 
 let stwVer = -1, stwCache = null;
 
-function stewardsData() {
+export function stewardsData() {
   const v = versionOf(['RaceControlMessages', '__reset']);
   if (v !== stwVer) {
     stwVer = v;

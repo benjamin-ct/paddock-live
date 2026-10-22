@@ -23,6 +23,9 @@ test('posts news : type de nouvelle', () => {
   assert.equal(bigNews([{ id: 'h', title: 'Leclerc unveils tribute helmet for Monza', t: Date.now(), imp: 0 }]).length, 1);
   assert.equal(newsKind({ title: 'Bottas annonce sa retraite' }).key, 'depart');
   assert.equal(newsKind({ title: 'Calendar update', cat: 'official' }).key, 'officiel');
+  // Le résumé ne change pas le type (sauf livrée ou tenue)
+  assert.equal(newsKind({ title: '15 ans sans changer de pneus en course : Mercedes révèle sa prouesse', summary: 'Le mécanicien qui remplace le titulaire a signé un contrat…' }).key, 'actu');
+  assert.equal(newsKind({ title: 'Ferrari unveil new look for Austin', summary: 'The team will race a special livery this weekend.' }).key, 'livree');
 });
 
 test('posts news : grosses news seulement, un seul article par sujet (même dans deux langues)', () => {
@@ -41,6 +44,24 @@ test('posts news : grosses news seulement, un seul article par sujet (même dans
   assert.equal(bigNews(items, { now: NOW, all: true }).length, 3);
 });
 
+test('posts news : même article publié en plusieurs langues, reconnu par les titres traduits en français', () => {
+  const items = [
+    it({ title: 'The figures that show Mercedes has lost its supremacy in F1 2026', sources: 3, imp: 2 }),
+    it({ title: 'Ces chiffres qui montrent la suprématie déclinante de Mercedes en 2026', lang: 'fr', sources: 2, imp: 2 }),
+    it({ title: 'Red Bull called Christian Horner to thank him for F1 engine project after maiden win', sources: 4, imp: 2 }),
+    it({ title: 'Red Bull F1 llamó a Horner para darle las gracias tras su primera victoria con motor propio', lang: 'es', imp: 2 }),
+  ];
+  const FR = {
+    'The figures that show Mercedes has lost its supremacy in F1 2026': 'Les chiffres qui montrent que Mercedes a perdu sa suprématie en F1 en 2026',
+    'Red Bull called Christian Horner to thank him for F1 engine project after maiden win': 'Red Bull a appelé Christian Horner pour le remercier du projet moteur après la première victoire',
+    'Red Bull F1 llamó a Horner para darle las gracias tras su primera victoria con motor propio': 'Red Bull a appelé Horner pour le remercier après sa première victoire avec son propre moteur',
+  };
+  // Sans les traductions, les deux articles sur Mercedes (aucun nom propre commun) restent séparés
+  assert.equal(bigNews(items, { now: NOW }).length, 3);
+  const big = bigNews(items, { now: NOW, frTitle: (x) => (x.lang === 'fr' ? x.title : FR[x.title]) });
+  assert.deepEqual(big.map((x) => [x.title.slice(0, 12), x.sources]), [['Red Bull cal', 5], ['The figures ', 5]]);
+});
+
 test('posts news : données du post et légendes', () => {
   const item = it({ title: 'Norris signs new McLaren contract', tags: ['NOR', 'mclaren'], sources: 4, link: 'https://x.test/a' });
   const dl = { 4: { Tla: 'NOR', FirstName: 'Lando', LastName: 'Norris', TeamName: 'McLaren', TeamColour: 'FF8000', HeadshotUrl: 'https://h.test/n.png' } };
@@ -56,13 +77,14 @@ test('posts news : données du post et légendes', () => {
   assert.deepEqual(slidesFor(d), ['news']);
   const c = newsCaptions(d, '@moi');
   assert.match(c.instagram, /^✍️ TRANSFERT \| Norris prolonge avec McLaren\n\nPremière phrase\./);
-  assert.match(c.instagram, /📰 Source : Autosport \(repris par 3 autres médias\)/);
+  assert.match(c.instagram, /📰 Source : Autosport\n/);
+  assert.doesNotMatch(c.instagram, /repris par/);
   assert.match(c.instagram, /#LandoNorris #McLaren/);
   assert.ok(xLength(c.x) <= 280 && c.threads.length <= 500);
   // Lien de l'article : Facebook, Threads et X, pas Instagram (non cliquable)
   for (const k of ['facebook', 'threads', 'x']) assert.ok(c[k].includes('https://x.test/a'), k);
   assert.ok(!c.instagram.includes('https://x.test/a'));
-  assert.match(c.facebook, /📰 Source : Autosport \(repris par 3 autres médias\)\n🔗 Lire l'article : https:\/\/x\.test\/a/);
+  assert.match(c.facebook, /📰 Source : Autosport\n🔗 Lire l'article : https:\/\/x\.test\/a/);
   // Titre très long et lien très long : X tient en 280 (lien compté 23), lien gardé
   const long = newsCaptions({ ...d, title: 'Très long titre '.repeat(30), link: `https://x.test/${'a'.repeat(200)}` }, '@moi');
   assert.ok(xLength(long.x) <= 280, String(xLength(long.x)));
@@ -109,4 +131,28 @@ test('très grosse info (Breaking news) : importance maximale, ou reprise partou
   assert.equal(isBreaking(it({ imp: 1, sources: 6, title: 'Russell handed engine penalty' })), false);
   assert.equal(isBreaking(it({ imp: 2, sources: 4 })), false);
   assert.equal(newsPost(it({ imp: 3, tags: [] }), {}).breaking, true);
+});
+
+test('autres articles sur la même nouvelle : un par média, vidéos et liens non https exclus', async () => {
+  const { similarArticles } = await import('../shared/social-news.js');
+  const t = Date.parse('2026-10-20T10:00:00Z');
+  const it = { id: 'a', src: 'sky', cluster: 'c1', title: 'Cadillac reveals special livery for Austin', link: 'https://sky.test/a', t };
+  const items = [it,
+    { id: 'b', src: 'f1', cluster: 'c1', title: 'Cadillac unveil Austin livery', link: 'https://f1.test/b', t: t + 3600e3 },
+    { id: 'c', src: 'f1', cluster: 'c1', title: 'Cadillac livery gallery', link: 'https://f1.test/c', t: t + 7200e3 },
+    { id: 'd', src: 'yt', cluster: 'c1', title: 'Cadillac livery video', link: 'https://yt.test/d', t, kind: 'video' },
+    { id: 'e', src: 'ms', title: 'Cadillac special livery for Austin revealed', link: 'https://ms.test/e', t: t + 1800e3 },
+    { id: 'f', src: 'x', cluster: 'c1', title: 'Cadillac', link: 'http://x.test/f', t },
+    { id: 'g', src: 'rt', cluster: 'c9', title: 'Verstappen wins in Mexico', link: 'https://rt.test/g', t }];
+  assert.deepEqual(similarArticles(it, items).map((x) => x.id), ['e', 'b']);
+  // Livrée : pas les autres nouvelles du même sujet (statistiques, avant-course)
+  items.push({ id: 'h', src: 'mm', cluster: 'c1', title: 'Cadillac in Austin: the statistics', link: 'https://mm.test/h', t: t + 600e3 });
+  assert.deepEqual(similarArticles(it, items, 4, 'livree').map((x) => x.id), ['e', 'b']);
+  assert.equal(similarArticles(it, items)[0].id, 'h');
+  // Écurie du sujet : celle du titre, pas celles du résumé
+  const { mainTeam, mentionsTeam } = await import('../shared/social-news.js');
+  const teams = [{ key: 'ferrari', name: 'Ferrari' }, { key: 'haas', name: 'Haas' }, { key: 'redbull', name: 'Red Bull' }];
+  assert.equal(mainTeam('Design spécial : Haas avec la livrée Godzilla', teams).key, 'haas');
+  assert.equal(mainTeam('Livrées spéciales à Austin', teams).key, 'ferrari');
+  assert.ok(mentionsTeam('Red Bull unveil Mobil tribute', 'redbull') && !mentionsTeam('Haas Godzilla livery', 'redbull'));
 });

@@ -7,5 +7,6 @@ recordings/
 predictions.json
 posts/
 stats-pending.json
+feed-probe.json
 analytics/site/
 paddock-live-companion-*.zip

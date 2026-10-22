@@ -35,20 +35,6 @@ class OffsetEstimator {
   }
 }
 
-
-// Canaux de télémétrie reçus (numéro -> plage et quelques valeurs) : diagnostic des données F1
-// (Réglages, mode créateur), pour repérer un canal nouveau (énergie, mode Boost…)
-export const carChannels = new Map();
-function noteChannels(ch) {
-  for (const [k, v] of Object.entries(ch)) {
-    let c = carChannels.get(k);
-    if (!c) carChannels.set(k, (c = { n: 0, min: Infinity, max: -Infinity, vals: new Set() }));
-    c.n++;
-    if (typeof v === 'number') { c.min = Math.min(c.min, v); c.max = Math.max(c.max, v); }
-    if (c.vals.size < 12) c.vals.add(v);
-  }
-}
-
 export class Positions {
   // mapUtc(utc) : heure F1 -> heure locale de réception, via le Heartbeat (null si inconnu).
   // Place GPS et télémétrie sur la même échelle de temps que les chronos (et gère le replay accéléré).
@@ -115,7 +101,6 @@ export class Positions {
       for (const [num, c] of Object.entries(entry.Cars || {})) {
         const ch = c?.Channels;
         if (!ch) continue;
-        noteChannels(ch);
         let arr = this.car.get(num);
         if (!arr) this.car.set(num, (arr = []));
         if (arr.length && ts <= arr[arr.length - 1].t) continue;

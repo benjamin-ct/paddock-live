@@ -6,6 +6,7 @@ import { t } from '../i18n.js';
 import { toast } from './delay.js';
 import { makeVideo, unlockAudio } from '/shared/social-video.js';
 import { TRACKS, trackOf, previewTrack } from '/shared/social-music.js';
+import { postProblems } from '/shared/post-check.js';
 
 const NETS = [
   { id: 'instagram', name: 'Instagram', what: 'Carrousel des visuels (format Instagram)' },
@@ -102,7 +103,8 @@ const HELP = {
     '« Keys and tokens » : copiez API Key et API Key Secret, puis générez Access Token et Access Token Secret.'],
   meta: ['Passez votre compte Instagram en compte professionnel (créateur) et reliez-le à votre page Facebook.',
     'developers.facebook.com : créez une app (type Business) ; identifiant et clé secrète dans Paramètres → Général.',
-    'Outils → Explorateur de l\'API Graph : ajoutez pages_show_list, pages_read_engagement, pages_manage_posts, pages_manage_engagement, read_insights, instagram_basic, instagram_content_publish, instagram_manage_insights et business_management, puis « Generate Access Token ».'],
+    'Facebook Login for Business → Paramètres : ajoutez {} dans « URI de redirection OAuth valides ». Créez une configuration (jeton d\'accès utilisateur) avec pages_show_list, pages_read_engagement, pages_manage_posts, pages_manage_engagement, read_insights, instagram_basic, instagram_content_publish, instagram_manage_insights et business_management, et copiez son ID.',
+    'Collez identifiant, clé secrète et ID de configuration, puis « Se connecter à Facebook ». Sans configuration : Outils → Explorateur de l\'API Graph, mêmes autorisations, « Generate Access Token », et collez le jeton.'],
   threads: ['Dans l\'app Meta, ajoutez « Accéder à l\'API Threads » (threads_basic, threads_content_publish, threads_manage_replies, threads_manage_insights).',
     'Ajoutez votre compte Threads comme testeur et acceptez l\'invitation dans Threads.',
     'Copiez la clé secrète Threads et générez un jeton avec « User Token Generator ».'],
@@ -127,7 +129,7 @@ const HELP = {
 };
 const FIELDS = {
   x: [['apiKey', 'API Key'], ['apiSecret', 'API Key Secret'], ['accessToken', 'Access Token'], ['accessSecret', 'Access Token Secret']],
-  meta: [['appId', 'Identifiant de l\'app'], ['appSecret', 'Clé secrète de l\'app'], ['userToken', 'Jeton d\'accès (Explorateur de l\'API Graph)']],
+  meta: [['appId', 'Identifiant de l\'app'], ['appSecret', 'Clé secrète de l\'app'], ['configId', 'ID de configuration (Facebook Login for Business)'], ['userToken', 'Jeton d\'accès (Explorateur de l\'API Graph, sans « Se connecter »)']],
   threads: [['appSecret', 'Clé secrète Threads'], ['token', 'Jeton Threads']],
   threads2: [['appSecret', 'Clé secrète Threads'], ['token', 'Jeton Threads']],
   bluesky: [['handle', 'Identifiant Bluesky'], ['appPassword', 'Mot de passe d\'application']],
@@ -136,8 +138,9 @@ const FIELDS = {
   youtube: [['clientId', 'ID client'], ['clientSecret', 'Code secret du client']],
 };
 const TITLES = { x: 'X', meta: 'Instagram + Facebook', threads: 'Threads', threads2: 'Threads (2e compte, statistiques)', bluesky: 'Bluesky', tiktok: 'TikTok', tiktok2: 'TikTok (2e compte, statistiques)', youtube: 'YouTube Shorts' };
-// Connexion par le navigateur (OAuth) : bouton « Se connecter à … »
-const OAUTH = { tiktok: 'TikTok', tiktok2: 'TikTok', youtube: 'YouTube' };
+// Connexion par le navigateur (OAuth) : bouton « Se connecter à … » ; Facebook revient par la page du site
+const META_REDIRECT = 'https://paddocklive.app/fb-callback';
+const OAUTH = { meta: 'Facebook', tiktok: 'TikTok', tiktok2: 'TikTok', youtube: 'YouTube' };
 
 // open : section gardée ouverte après un enregistrement (sinon tout se replie)
 async function accountsDialog(onChange, open = null) {
@@ -161,12 +164,12 @@ async function accountsDialog(onChange, open = null) {
     <div class="posts-acc-body">
       <p class="small muted">${t(KEYS_NOTE)}</p>
       ${Object.keys(FIELDS).map((k) => `<details class="posts-acc" data-net="${k}" ${k === open ? 'open' : ''}><summary><b>${TITLES[k]}</b> ${status(k)}</summary>
-        <ol class="small">${HELP[k].map((h) => `<li>${esc(t(h, redirect))}</li>`).join('')}</ol>
+        <ol class="small">${HELP[k].map((h) => `<li>${esc(t(h, k === 'meta' ? META_REDIRECT : redirect))}</li>`).join('')}</ol>
         ${FIELDS[k].map(([f, l]) => `<label class="small">${esc(t(l))}<input type="password" data-f="${f}" autocomplete="off" spellcheck="false"></label>`).join('')}
         ${k === 'tiktok' ? `<label class="toggle small"><input type="checkbox" data-f="direct" ${info.tiktok?.direct ? 'checked' : ''}> ${t('Publication directe (Direct Post activé dans votre app TikTok)')}</label>
           <label class="toggle small"><input type="checkbox" data-f="stats" ${info.tiktok?.stats ? 'checked' : ''}> ${t('Statistiques (user.info.stats et video.list ajoutés dans votre app TikTok)')}</label>` : ''}
         <div class="row">${FIELDS[k].length ? `<button class="btn small btn-accent" data-save>${t('Enregistrer et vérifier')}</button>` : ''}
-          ${OAUTH[k] ? `<button class="btn small ${info[k]?.configured && !info[k]?.connected ? 'btn-accent' : ''}" data-login ${info[k]?.configured ? '' : 'disabled'}>${t('Se connecter à {}', OAUTH[k])}</button>` : ''}
+          ${OAUTH[k] ? `<button class="btn small ${info[k]?.configured && !info[k]?.connected ? 'btn-accent' : ''}" data-login ${info[k]?.configured || k === 'meta' ? '' : 'disabled'}>${t('Se connecter à {}', OAUTH[k])}</button>` : ''}
           <button class="btn small" data-remove>${t('Déconnecter')}</button></div></details>`).join('')}
       <details class="posts-acc" data-studio ${studio.enabled ? '' : 'open'}><summary><b>${t('Page web (téléphone)')}</b> ${studio.enabled ? `<span class="posts-ok">${icon('check')} ${t('Activée')}</span>` : `<span class="muted">${t('Désactivée')}</span>`}</summary>
         <p class="small">${t("Préparez et publiez les posts depuis votre téléphone, même ordinateur éteint. Comptes et connexion F1 TV envoyés chiffrés au serveur.")}</p>
@@ -218,7 +221,10 @@ async function accountsDialog(onChange, open = null) {
       } else if (btn.dataset.remove !== undefined) {
         await api('/api/social/accounts', { network, remove: true });
       } else if (btn.dataset.login !== undefined) {
-        const { url } = await api(`/api/social/${k}/login`, {});
+        // Facebook : identifiants tapés (sinon ceux déjà enregistrés), envoyés avec la demande de connexion
+        const body = {};
+        if (k === 'meta') for (const i of box.querySelectorAll('[data-f]')) if (i.value.trim()) body[i.dataset.f] = i.value;
+        const { url } = await api(`/api/social/${k}/login`, body);
         window.open(url, '_blank');
         toast(t('Connectez-vous dans le navigateur, puis revenez ici et rouvrez cette fenêtre'), 6000, 'external');
       }
@@ -249,7 +255,7 @@ export async function openPublish({ d, caps, render, folder, record = null, onPo
           <span class="posts-st small" data-st="${n.id}"></span></label>`).join('')}</div>
         <button class="btn small" data-acc>${icon('lock')} ${t('Comptes…')}</button>
         <label class="small muted">${t(caps.facebook ? 'Texte Instagram' : 'Texte Instagram / Facebook')}<textarea rows="6" data-txt="instagram">${esc(caps.instagram)}</textarea></label>
-        ${caps.facebook ? `<label class="small muted">${t("Texte Facebook (avec le lien de l'article)")}<textarea rows="6" data-txt="facebook">${esc(caps.facebook)}</textarea></label>` : ''}
+        ${caps.facebook ? `<label class="small muted">${t('Texte Facebook')}<textarea rows="6" data-txt="facebook">${esc(caps.facebook)}</textarea></label>` : ''}
         <label class="small muted">${t('Texte Threads (500 caractères max.)')}<textarea rows="3" data-txt="threads" maxlength="500">${esc(caps.threads)}</textarea></label>
         <label class="small muted">${t('Texte X (280 caractères max.)')}<textarea rows="3" data-txt="x">${esc(caps.x)}</textarea></label>
         <label class="small muted">${t('Texte Bluesky (300 caractères max.)')}<textarea rows="3" data-txt="bsky">${esc(caps.bsky || caps.x)}</textarea></label>
@@ -298,21 +304,32 @@ export async function openPublish({ d, caps, render, folder, record = null, onPo
   // Contenu envoyé à un réseau (visuels préparés une seule fois par format)
   const txt = (k) => $(`[data-txt="${k}"]`, dlg).value;
   let ig = null; let xs = null; let bs = null;
+  // Images et leur texte alternatif (lecteurs d'écran), dans le même ordre
+  const pack = async (canvases, enc) => ({ images: await Promise.all(canvases.map(enc)), alts: canvases.map((c) => c.dataset.alt || '') });
   const bodyFor = async (n) => {
     if (VIDEO_NETS.includes(n)) {
       if (!video) await buildVideo();
       return { network: n, video: await b64(video.blob), mime: video.mime, ...(n === 'youtube' ? { text: txt('youtube') } : {}) };
     }
     if (n === 'bluesky') {
-      bs ||= await Promise.all((await render('x')).slice(0, 4).map((c) => jpegUnder(c)));
-      return { network: n, text: txt('bsky'), images: bs, comment: caps.comment ? txt('comment') : '' };
+      bs ||= await pack((await render('x')).slice(0, 4), (c) => jpegUnder(c));
+      return { network: n, text: txt('bsky'), ...bs, comment: caps.comment ? txt('comment') : '' };
     }
     if (n === 'x') {
-      xs ||= await Promise.all((await render('x')).slice(0, 4).map(png));
-      return { network: n, text: txt('x'), images: xs, comment: caps.comment ? txt('comment') : '' };
+      xs ||= await pack((await render('x')).slice(0, 4), png);
+      return { network: n, text: txt('x'), ...xs, comment: caps.comment ? txt('comment') : '' };
     }
-    ig ||= await Promise.all((await render('ig')).map(png));
-    return { network: n, text: txt(n === 'threads' ? 'threads' : n === 'facebook' && caps.facebook ? 'facebook' : 'instagram'), images: ig, comment: n === 'instagram' || !caps.comment ? '' : txt('comment') };
+    ig ||= await pack(await render('ig'), png);
+    return { network: n, text: txt(n === 'threads' ? 'threads' : n === 'facebook' && caps.facebook ? 'facebook' : 'instagram'), ...ig, comment: n === 'instagram' || !caps.comment ? '' : txt('comment') };
+  };
+  // Avant d'envoyer : texte trop long (bloque), visuels au-delà du carrousel (prévient)
+  const check = async (nets) => {
+    const carousel = nets.some((n) => ['instagram', 'facebook', 'threads'].includes(n));
+    if (carousel) ig ||= await pack(await render('ig'), png);
+    const pb = postProblems(nets, (n) => txt(n === 'bluesky' ? 'bsky' : n === 'facebook' ? (caps.facebook ? 'facebook' : 'instagram') : n), carousel ? ig.images.length : 0);
+    const block = pb.find((p) => p.block);
+    if (block) { toast(t(block.msg, ...block.vals), 6000, 'warning'); return null; }
+    return pb.map((p) => t(p.msg, ...p.vals));
   };
   // Publications programmées : liste (à venir, puis récentes) avec annulation
   const schedList = async () => {
@@ -339,6 +356,8 @@ export async function openPublish({ d, caps, render, folder, record = null, onPo
       if (btn.dataset.mkvideo !== undefined) { btn.disabled = true; await buildVideo(); btn.disabled = false; }
       if (btn.dataset.savevideo !== undefined && video) {
         const r = await api('/api/posts/save', { folder, name: 'tiktok-video', data: await b64(video.blob) });
+        // Version plein écran (X, Bluesky, Facebook…) à côté de celle de TikTok, Reels et Shorts
+        if (video.full) await api('/api/posts/save', { folder, name: 'video-plein-ecran', data: await b64(video.full.blob) });
         toast(t('Vidéo enregistrée dans {}', r.dir), 4000, 'check');
       }
       if (btn.dataset.schedquick) {
@@ -348,7 +367,8 @@ export async function openPublish({ d, caps, render, folder, record = null, onPo
       }
       if (btn.dataset.schedbest !== undefined) {
         btn.disabled = true;
-        const h = bestHour((await api('/api/social/stats').catch(() => ({}))).posts || []);
+        const st = await api('/api/social/stats').catch(() => ({}));
+        const h = bestHour(st.kept || st.posts || []);
         btn.disabled = false;
         if (h === null) { toast(t('Pas encore assez de posts avec des statistiques'), 4500, 'info'); return; }
         const x = new Date(); x.setHours(h, 0, 0, 0); if (x < Date.now()) x.setDate(x.getDate() + 1);
@@ -361,6 +381,8 @@ export async function openPublish({ d, caps, render, folder, record = null, onPo
         if (!nets.length) { toast(t('Cochez au moins un réseau'), 3000, 'warning'); return; }
         const at = new Date($('[data-schedat]', dlg).value).getTime();
         if (!(at > Date.now())) { toast(t('Choisissez une date à venir'), 3000, 'warning'); return; }
+        const warn = await check(nets);
+        if (!warn || (warn.length && !window.confirm(`${warn.join('\n')}\n\n${t('Programmer quand même ?')}`))) return;
         btn.disabled = true;
         try {
           const posts = [];
@@ -373,7 +395,9 @@ export async function openPublish({ d, caps, render, folder, record = null, onPo
       if (btn.dataset.go !== undefined) {
         const nets = [...dlg.querySelectorAll('[data-net]:checked')].map((i) => i.dataset.net);
         if (!nets.length) { toast(t('Cochez au moins un réseau'), 3000, 'warning'); return; }
-        if (!window.confirm(`${t('Publier maintenant sur : {} ?', nets.map((n) => NETS.find((x) => x.id === n).name).join(', '))}\n\n${t(PUBLIC_NOTE)}`)) return;
+        const warn = await check(nets);
+        if (!warn) return;
+        if (!window.confirm(`${t('Publier maintenant sur : {} ?', nets.map((n) => NETS.find((x) => x.id === n).name).join(', '))}${warn.length ? `\n\n${warn.join('\n')}` : ''}\n\n${t(PUBLIC_NOTE)}`)) return;
         btn.disabled = true;
         for (const n of nets) {
           const st = $(`[data-st="${n}"]`, dlg);

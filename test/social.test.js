@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { postData, captions, gapFr } from '../shared/social.js';
+import { postData, captions, gapFr, countOvertakes } from '../shared/social.js';
 import { slidesFor } from '../shared/social-draw.js';
 
 const state = {
@@ -48,11 +48,13 @@ test('posts : légendes Instagram et X', () => {
   assert.match(c.instagram, /🥈 Charles Leclerc \(Ferrari\) \+2,5 s/);
   assert.match(c.instagram, /\n\n@BenjyPaddock\n\n/);
   const tags = c.instagram.split('\n').at(-1).split(' ');
-  assert.deepEqual(tags.slice(0, 9), ['#BenjyPaddock', '#F1', '#Formula1', '#Formule1', '#ItalianGP', '#F12026', '#RaceDay', '#LandoNorris', '#Norris']);
-  for (const t of ['#Leclerc', '#Hamilton', '#McLaren', '#ScuderiaFerrari', '#Italy', '#GrandPrix']) assert.ok(tags.includes(t), t);
-  assert.equal(new Set(tags.map((t) => t.toLowerCase())).size, tags.length, 'pas de doublon');
-  assert.match(c.x, /#BenjyPaddock #F1 #ItalianGP #LandoNorris$/);
-  assert.match(c.threads, /#F1 #BenjyPaddock$/);
+  // Instagram : 5 hashtags au plus, les plus précis, le compte du créateur en dernier ; X 2 ; Threads 1
+  assert.deepEqual(tags, ['#F1', '#ItalianGP', '#LandoNorris', '#McLaren', '#BenjyPaddock']);
+  assert.match(c.x, /\n\n#BenjyPaddock #ItalianGP$/);
+  assert.match(c.threads, /\n\n#F1$/);
+  // Facebook : même texte qu'Instagram, sans les hashtags
+  assert.equal(c.facebook, c.instagram.slice(0, c.instagram.lastIndexOf('\n\n')));
+  assert.match(c.facebook, /\n\n@BenjyPaddock$/);
   assert.ok(c.x.length <= 280);
   assert.ok(c.threads.length <= 500);
   assert.match(c.threads, /^🏆 Lando Norris remporte/);
@@ -90,7 +92,7 @@ test('posts : texte sans spoiler (début de légende et texte court sans le vain
     rows: [{ first: 'Max', last: 'Verstappen', team: 'Red Bull Racing', gap: '' }, { first: 'Lando', last: 'Norris', team: 'McLaren', gap: '+2,1 s' }, { first: 'Charles', last: 'Leclerc', team: 'Ferrari', gap: '+4,0 s' }] };
   const c = captions(d, '@moi', { spoiler: false });
   // Instagram : les premières lignes (visibles sans « plus ») ne citent pas le vainqueur, le détail suit
-  assert.match(c.instagram, /^🏁 Résultats du Grand Prix d'Azerbaïdjan : qui l'a emporté \? 👀 Réponse en images\.\n👉 Faites défiler/);
+  assert.match(c.instagram, /^🏁 Résultats du Grand Prix d'Azerbaïdjan : qui l'a emporté \? 👀 Réponse en images\.\n👉 Fais défiler/);
   assert.ok(!c.instagram.split('\n.\n')[0].includes('Verstappen'));
   assert.match(c.instagram, /Max Verstappen remporte/);
   for (const k of ['x', 'threads', 'story']) assert.ok(!c[k].includes('Verstappen'), k);
@@ -124,4 +126,40 @@ test('posts : essais libres (meilleur temps, top 3, faits marquants)', () => {
   const c = captions(d);
   assert.match(c.instagram, /^⏱️ Essais libres 2 du Grand Prix d'Italie 🇮🇹 : Lando Norris en tête !\n\n📊 Top 3 :\n🥇 Lando Norris \(McLaren\) 1:20\.100\n/);
   assert.match(captions(d, '', { spoiler: false }).x, /^⏱️ Essais libres 2 du Grand Prix d'Italie 🇮🇹 : qui signe le meilleur temps \?/);
+});
+
+test('brouillons : textes refaits d\'après les données, comme dans l\'éditeur qui a fait le post', async () => {
+  const { captionsFor, cleanDraft } = await import('../shared/post-draft.js');
+  const d = postData(state);
+  assert.equal(captionsFor(d, '@moi').instagram, captions(d, '@moi').instagram);
+  assert.equal(captionsFor(d, '@moi', { spoiler: false }).instagram, captions(d, '@moi', { spoiler: false }).instagram);
+  assert.equal(cleanDraft({ id: 'pas-un-uuid', d }), null);
+  const ok = cleanDraft({ id: '0b5c1e9a-1111-4a2b-9c3d-123456789abc', d, fmt: 'tiktok', skip: ['question', 3], edited: { x: 'Texte', 'bad key': 'non' } });
+  assert.deepEqual([ok.fmt, ok.skip, ok.edited], ['ig', ['question'], { x: 'Texte' }]);
+});
+
+test('posts : hashtag du Grand Prix, celui de la F1 quand il diffère du nom', async () => {
+  const { gpTag } = await import('../shared/social.js');
+  assert.deepEqual(['United States Grand Prix', 'Mexico City Grand Prix', 'São Paulo Grand Prix', 'Italian Grand Prix', 'Las Vegas Grand Prix', ''].map(gpTag),
+    ['#USGP', '#MexicoGP', '#BrazilGP', '#ItalianGP', '#LasVegasGP', '']);
+});
+
+test('posts : texte alternatif de chaque image (ce qu\'elle montre, classement compris)', async () => {
+  const { slideAlt } = await import('../shared/social-draw.js');
+  const d = postData(state);
+  assert.match(slideAlt(d, 'podium'), /^Podium — Course · Grand Prix d'Italie : 1\. Lando Norris \(McLaren\), 2\. Charles Leclerc \(Ferrari\), 3\./);
+  assert.equal(slideAlt({ news: true, title: 'Haas engage Câmara', summary: 'Pour 2027.' }, 'news'), 'News : Haas engage Câmara. Pour 2027.');
+});
+
+test('dépassements : échanges de places en piste, sans le départ, les arrêts ni les abandons', () => {
+  const L = (rows) => rows.map(([lap, pos, pit = false]) => ({ lap, pos, pit }));
+  const laps = {
+    1: L([[1, 1], [2, 2], [3, 2], [4, 2]]),             // dépassé par 16 au tour 2
+    16: L([[1, 2], [2, 1], [3, 1], [4, 1]]),            // dépasse 1 au tour 2
+    44: L([[1, 3], [2, 3], [3, 4, true], [4, 3]]),      // arrêt au tour 3 : ni perte ni gain comptés
+    55: L([[1, 4], [2, 4], [3, 3]]),                    // gagne une place grâce à l'arrêt de 44, puis abandon
+  };
+  assert.equal(countOvertakes(laps), 1);
+  assert.equal(countOvertakes({}), 0);
+  assert.equal(countOvertakes(null), 0);
 });

@@ -7,27 +7,33 @@
 // le code lui-même sauf à l'activation, vérifiée contre son empreinte). Les jetons des réseaux
 // (envoyés par l'appli) sont chiffrés avec cette clé (AES-GCM) : sans elle, la base ne contient
 // rien d'utilisable. Essais ratés limités par adresse et par jour.
+import { summary } from './usage.js';
 import { DEFAULT_SOURCES, feedUrl } from '../shared/news-sources.js';
 import { extractArticle } from '../shared/article.js';
 import { decodeBody } from '../shared/news-collect.js';
-import { publishFacebook, publishInstagram, publishThreads, freshThreads, commentFacebook, replyThreads, withComment, storyInstagram, storyFacebook, reelInstagram, hostVideo, publishFacebookVideo, publishThreadsVideo, publishFacebookLink, publishThreadsLink } from '../shared/meta-publish.js';
+import { publishFacebook, publishInstagram, publishThreads, freshThreads, commentFacebook, replyThreads, withComment, storyInstagram, storyFacebook, storyVideoInstagram, storyVideoFacebook, reelInstagram, hostVideo, hostOnPage, publishFacebookVideo, publishThreadsVideo, publishFacebookLink, publishThreadsLink } from '../shared/meta-publish.js';
 import { publishBluesky, replyBluesky } from '../shared/bluesky-publish.js';
-import { freshTiktok, freshYoutube, tiktokDraft, tiktokStatus, tiktokOutcome, youtubeUpload, tiktokCreator, tiktokDirect, TIKTOK_PRIVACY } from '../shared/video-publish.js';
-import { addEntry, removeEntry, cleanKey } from '../shared/post-history.js';
+import { freshTiktok, freshYoutube, tiktokDraft, youtubeUpload, tiktokCreator, tiktokDirect, TIKTOK_PRIVACY } from '../shared/video-publish.js';
+import { addEntry, removeEntry, cleanKey, keepStats } from '../shared/post-history.js';
+import { cleanDraft, draftSummary, isDraftId, DRAFTS_MAX, DRAFT_BYTES } from '../shared/post-draft.js';
 import { postStats } from '../shared/post-stats.js';
 import { recentPosts, importEntries } from './post-import.js';
 import { trackPost, clickStats } from './clicks.js';
-import { pushApi } from './alerts.js';
+import { pushApi, notifyPhones, getRow, setRow } from './alerts.js';
+import { noteExpiries } from './health.js';
 import { feedbackApi } from './feedback.js';
 import { freePhotos, PHOTO_UA } from './photos.js';
+import { socialPhotos, isSocialImageHost } from './social-photos.js';
 import { packFeeds } from '../shared/feed-pack.js';
-import { cleanPostRequest, rewritePost } from './summarize.js';
-import { buildSeason, SEASON_TTL } from './season-cache.js';
+import { cleanPostRequest, rewritePost, cleanSummaryRequest, summarizeArticle } from './summarize.js';
+import { cleanRequest, translateBatch } from './translate.js';
+import { buildSeason, SEASON_TTL, resultsReady } from './season-cache.js';
 import { accountStats } from './account-stats.js';
+import { callerIp, studioQuota } from './quota.js';
 
 // Empreinte du code (la même que dans l'appli) : SHA-256 de « paddock-live:<CODE> » (STUDIO_CODE_HASH :
 // autre empreinte, pour les tests)
-const CODE_HASH = '821f51db5c6d39c7ae10873a31723f8d4748fc2a925c6736f4a57afa7d2dacc0';
+const CODE_HASH = 'b8c23e870aa1ad8a9f8b0c4b4b38fb5911b92b1ff024e14044915ee3a6cee216';
 const MAX_FAILS = 30;
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36';
 const ARCHIVE = 'https://livetiming.formula1.com/static/';
@@ -47,12 +53,6 @@ const sameHex = (a, b) => {
   return d === 0;
 };
 
-async function getRow(env, k) {
-  return (await env.DB.prepare('SELECT v FROM studio WHERE k = ?').bind(k).first())?.v ?? null;
-}
-async function setRow(env, k, v) {
-  await env.DB.prepare('INSERT INTO studio (k, v, at) VALUES (?, ?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v, at = excluded.at').bind(k, v, Date.now()).run();
-}
 
 // ---------- Saison résumée (onglet Saison du Studio) ----------
 // Gardée dans la base, relue au plus toutes les 30 minutes (par la tâche planifiée, sinon à la
@@ -66,6 +66,7 @@ export async function seasonRow(env, year, { now = Date.now(), fetchFn, wait, ma
   try {
     const fresh = { at: now, v: await buildSeason(year, { fetchFn, wait }) };
     await setRow(env, key, JSON.stringify(fresh));
+    if (row) for (const m of resultsReady(row.v, fresh.v, now)) await notifyPhones(env, m, { now }).catch(() => 0);
     return fresh;
   } catch (err) {
     if (row) return row;
@@ -74,7 +75,7 @@ export async function seasonRow(env, year, { now = Date.now(), fetchFn, wait, ma
 }
 
 // ---------- Essais ratés ----------
-const ipOf = (req) => req.headers.get('CF-Connecting-IP') || 'local';
+const ipOf = (req) => callerIp(req) || 'local';
 const today = () => new Date().toISOString().slice(0, 10);
 async function fails(env, req) {
   return (await env.DB.prepare('SELECT n FROM studio_fail WHERE ip = ? AND day = ?').bind(ipOf(req), today()).first())?.n || 0;
@@ -285,17 +286,21 @@ async function page(req, url) {
   return new Response(res.body, { headers: { 'Content-Type': `text/plain${charset ? `; charset=${charset}` : ''}`, 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'no-store' } });
 }
 
-// Photo principale d'un article (livrée spéciale d'une écurie…) : lue sur la page, image seulement
+// Photos d'un article (livrée spéciale d'une écurie sous tous les angles…) : lues sur la page, image
+// seulement. i : numéro de la photo (0, la principale, par défaut) ; X-Photos : nombre de photos de l'article
 async function articleImage(req, url) {
   const u = articleUrl(url.searchParams.get('u') || '');
   if (!u) return json({ error: 'Adresse refusée' }, 400);
   const res = await cached(req, u, { headers: { 'User-Agent': UA, Accept: 'text/html,application/xhtml+xml' } }, 1800);
   if (res.status !== 200) return json({ error: 'Le site refuse la lecture de cet article' }, 502);
-  const src = articleUrl(extractArticle(await decodeBody(res), u).image || '');
+  const list = extractArticle(await decodeBody(res), u).images;
+  const src = articleUrl(list[Number(url.searchParams.get('i')) || 0] || '');
   if (!src) return json({ error: 'Pas de photo sur cet article' }, 404);
   const img = await cached(req, src, { headers: { 'User-Agent': UA } }, 86400);
-  if (img.status !== 200 || !/^image\/(jpeg|png|webp)/.test(img.headers.get('Content-Type') || '')) return json({ error: 'Photo de l\'article illisible' }, 502);
-  return img;
+  if (img.status !== 200 || !/^image\/(jpeg|png|webp|avif)/.test(img.headers.get('Content-Type') || '')) return json({ error: 'Photo de l\'article illisible' }, 502);
+  const out = new Response(img.body, img);
+  out.headers.set('X-Photos', String(list.length));
+  return out;
 }
 
 // Documents de la FIA (liste des documents d'un Grand Prix, PDF des commissaires) : grille officielle
@@ -310,29 +315,36 @@ async function fia(req, url) {
 async function image(req, url) {
   let u;
   try { u = new URL(url.searchParams.get('u') || ''); } catch { return json({ error: 'Adresse invalide' }, 400); }
-  if (u.protocol !== 'https:' || !IMG_HOSTS.has(u.hostname)) return json({ error: 'Adresse refusée' }, 400);
+  if (u.protocol !== 'https:' || !(IMG_HOSTS.has(u.hostname) || isSocialImageHost(u.hostname))) return json({ error: 'Adresse refusée' }, 400);
   return cached(req, u.href, { headers: { 'User-Agent': u.hostname.endsWith('.wikimedia.org') ? PHOTO_UA : UA } }, 86400);
 }
 
 // Envoi sur un réseau (publication directe ou programmée). threads() : compte Threads à jour.
-// video : vidéo du créateur (Reel sur Instagram, vidéo sur Facebook et Threads ; Bluesky garde les visuels)
+// video : vidéo du créateur (Reel sur Instagram, vidéo sur Facebook, Threads et Bluesky) ; vsize : [largeur, hauteur]
 // link : post « lien » { url, title, description } sans visuels, la carte de l'article affichée par le réseau
-async function sendTo(net, vault, { text, comment, images, small = [], video = null, link = null }, threads) {
+async function sendTo(net, vault, { text, comment, images, small = [], video = null, vsize = null, cover = null, link = null }, threads) {
   if (link && net === 'facebook') return publishFacebookLink(vault.meta, text, link.url);
   if (link && net === 'threads') return publishThreadsLink(await threads(), text.slice(0, 500), link.url);
   if (link && net === 'bluesky') return publishBluesky(vault.bluesky, [...text].slice(0, 300).join(''), [], link);
-  if (video && net === 'instagram') return reelInstagram(vault.meta, (await hostVideo(vault.meta, video)).url, text.slice(0, 2200));
-  if (video && net === 'facebook') return withComment(() => publishFacebookVideo(vault.meta, text, video), comment, (id, t) => commentFacebook(vault.meta, id, t));
+  // cover : couverture de la vidéo (Reel : par son adresse publique, déposée sur la page ; Facebook : jointe)
+  if (video && net === 'instagram') return reelInstagram(vault.meta, (await hostVideo(vault.meta, video)).url, text.slice(0, 2200), cover ? (await hostOnPage(vault.meta, [cover]))[0].url : null);
+  if (video && net === 'facebook') return withComment(() => publishFacebookVideo(vault.meta, text, video, cover), comment, (id, t) => commentFacebook(vault.meta, id, t));
   if (video && net === 'threads') {
     const th = await threads();
     return withComment(() => publishThreadsVideo(th, vault.meta, text.slice(0, 500), video), comment, (id, t) => replyThreads(th, id, t));
   }
+  if (video && net === 'bluesky') {
+    const clip = { blob: video, ...(vsize ? { width: vsize[0], height: vsize[1] } : {}) };
+    return withComment(() => publishBluesky(vault.bluesky, [...text].slice(0, 300).join(''), [], null, clip), comment, (id, t) => replyBluesky(vault.bluesky, id, t));
+  }
   if (net === 'bluesky') {
-    const pics = small.slice(0, 4).map((blob) => ({ blob, width: 1080, height: 1350 }));   // format X de shared/social-draw.js
+    const pics = small.slice(0, 4).map((blob) => ({ blob, width: 1080, height: 1350, alt: blob.alt || '' }));   // format X de shared/social-draw.js
     return withComment(() => publishBluesky(vault.bluesky, [...text].slice(0, 300).join(''), pics), comment, (id, t) => replyBluesky(vault.bluesky, id, t));
   }
   if (net === 'facebook') return withComment(() => publishFacebook(vault.meta, text, images), comment, (id, t) => commentFacebook(vault.meta, id, t));
   if (net === 'instagram') return publishInstagram(vault.meta, text.slice(0, 2200), images);
+  if (video && net === 'instagram-story') return storyVideoInstagram(vault.meta, video);
+  if (video && net === 'facebook-story') return storyVideoFacebook(vault.meta, video);
   if (net === 'instagram-story') return storyInstagram(vault.meta, images);
   if (net === 'facebook-story') return storyFacebook(vault.meta, images);
   const th = await threads();
@@ -341,9 +353,12 @@ async function sendTo(net, vault, { text, comment, images, small = [], video = n
 const NETS = ['facebook', 'instagram', 'threads', 'bluesky'];
 const CLIPS = ['tiktok', 'youtube'];   // vidéo seulement : brouillon TikTok, Short YouTube
 const VIDEO_MAX = 50e6;
-const STORIES = ['instagram-story', 'facebook-story'];   // une story par visuel, sans texte
+const STORIES = ['instagram-story', 'facebook-story'];   // une story par visuel (ou la vidéo), sans texte
+const STORY_STEP = 4;   // stories programmées : images envoyées par passage du serveur (limite de 50 sous-requêtes)
 // Post « lien » : carte de l'article affichée par le réseau (Instagram, sans lien : visuels de l'onglet Post)
 const LINKS = ['facebook', 'threads', 'bluesky'];
+// Vidéo dans la zone sûre (écran rogné et recouvert par l'interface) ; les autres réseaux ont la version plein écran
+const SAFE_NETS = ['instagram', ...CLIPS, ...STORIES];
 // Compte du réseau absent du coffre : raison, sinon null
 function missing(net, vault) {
   if (CLIPS.includes(net)) return vault[net] ? null : `Compte ${net === 'tiktok' ? 'TikTok' : 'YouTube'} non envoyé : connectez-le dans l'appli (Comptes…), puis « Renvoyer les comptes »`;
@@ -354,78 +369,6 @@ function missing(net, vault) {
 }
 const resultOf = (r) => ({ url: r.url || null, id: r.id ?? null, comment: !!r.comment, commentError: r.commentError || null, ...(r.visible != null ? { visible: r.visible } : {}) });
 
-// ---------- Publication : progression ligne par ligne (JSON), puis le résultat ----------
-async function publish(req, env, raw, vault) {
-  let form;
-  try { form = await req.formData(); } catch { return json({ error: 'Formulaire illisible' }, 400); }
-  const net = String(form.get('network') || '');
-  // Liens remplacés par des liens suivis (clics comptés dans les statistiques)
-  const { text, comment } = await trackPost(env, net, { text: String(form.get('text') || ''), comment: String(form.get('comment') || '').trim().slice(0, 500) }, String(form.get('title') || ''));
-  const images = form.getAll('images').filter((f) => typeof f === 'object' && f && /^image\/(png|jpeg)$/.test(f.type) && f.size < 8e6).slice(0, 20);
-  const v = form.get('video');
-  const video = typeof v === 'object' && v && /^video\/(mp4|quicktime)$/.test(v.type) && v.size <= VIDEO_MAX ? v : null;
-  if (v && !video) return json({ error: 'Vidéo MP4 ou MOV de 50 Mo au plus' }, 400);
-  if (!NETS.includes(net) && !STORIES.includes(net) && !CLIPS.includes(net)) return json({ error: 'Réseau inconnu' }, 400);
-  if (missing(net, vault)) return json({ error: missing(net, vault) }, 409);
-  if (CLIPS.includes(net) && !video) return json({ error: 'Aucune vidéo' }, 400);
-  if (!CLIPS.includes(net) && !images.length && !(video && net !== 'bluesky')) return json({ error: 'Aucune image' }, 400);
-  // TikTok : publication directe si la page envoie ses réglages, sinon brouillon
-  const direct = net === 'tiktok' && form.get('tiktok') ? tiktokOptions(form.get('tiktok')) : null;
-  if (direct?.error) return json({ error: direct.error }, 400);
-  const { readable, writable } = new TransformStream();
-  const w = writable.getWriter();
-  const line = (o) => w.write(enc.encode(`${JSON.stringify(o)}\n`));
-  (async () => {
-    try {
-      await line({ step: video ? 'Envoi de la vidéo…' : 'Envoi des images…' });
-      const r = CLIPS.includes(net) ? await sendClip(net, () => clipAccount(env, raw, vault, net), new Uint8Array(await video.arrayBuffer()), video.type, text, direct)
-        : await sendTo(net, vault, { text, comment, images, small: images, video }, async () => (await refresh(env, raw, vault)).threads);
-      await line({ done: true, ...resultOf(r), ...(r.note ? { note: r.note } : {}) });
-    } catch (err) {
-      await line({ error: String(err?.message || err).slice(0, 300) });
-    } finally {
-      await w.close();
-    }
-  })();
-  return new Response(readable, { headers: { 'Content-Type': 'application/x-ndjson; charset=utf-8', 'Cache-Control': 'no-store' } });
-}
-
-// ---------- Vidéo du kit de lancement : brouillon TikTok, Short YouTube en privé, Reel Instagram ----------
-// Seulement les vidéos du kit (fichiers du site) : rien d'autre ne transite par ici.
-async function sendVideo(req, env, raw, vault, url) {
-  let body;
-  try { body = await req.json(); } catch { return json({ error: 'JSON invalide' }, 400); }
-  const net = String(body?.network || '');
-  const src = String(body?.src || '');
-  // État d'un brouillon TikTok déjà envoyé (encore en traitement au premier coup d'œil)
-  if (net === 'tiktok-status') {
-    const id = String(body?.id || '');
-    if (!vault.tiktok || !/^[\w.~-]{1,120}$/.test(id)) return json({ error: 'Envoi inconnu' }, 400);
-    try {
-      const acc = await freshTiktok(vault.tiktok);
-      if (acc !== vault.tiktok) await setRow(env, 'vault', await seal(raw, { ...vault, tiktok: acc }));
-      return json({ ok: true, ...tiktokOutcome(id, await tiktokStatus(acc.accessToken, id)) });
-    } catch (err) { return json({ error: String(err?.message || err).slice(0, 300) }, 502); }
-  }
-  if (net !== 'tiktok' && net !== 'youtube' && net !== 'instagram-reel') return json({ error: 'Réseau inconnu' }, 400);
-  if (!/^\/kit\/[a-z]+\/video\.mp4$/.test(src)) return json({ error: 'Vidéo inconnue' }, 400);
-  if (net === 'instagram-reel') {
-    if (!vault.meta?.igId) return json({ error: 'Compte Instagram non envoyé : connectez-le dans l\'appli' }, 409);
-    // Instagram lit lui-même la vidéo à son adresse publique
-    try {
-      const r = await reelInstagram(vault.meta, new URL(src, url).href, String(body?.text || ''));
-      return json({ ok: true, url: r.url, id: r.id ?? null, note: 'Reel publié' });
-    } catch (err) { return json({ error: String(err?.message || err).slice(0, 300) }, 502); }
-  }
-  if (missing(net, vault)) return json({ error: missing(net, vault) }, 409);
-  if (!/^\/kit\/[a-z]+\/video\.mp4$/.test(src) || !env.ASSETS) return json({ error: 'Vidéo inconnue' }, 400);
-  const file = await env.ASSETS.fetch(new Request(new URL(src, url)));
-  if (!file.ok) return json({ error: 'Vidéo du kit introuvable' }, 404);
-  try {
-    const r = await sendClip(net, () => clipAccount(env, raw, vault, net), new Uint8Array(await file.arrayBuffer()), 'video/mp4', String(body?.text || ''));
-    return json({ ok: true, url: r.url || null, id: r.id ?? null, note: r.note, ...(r.pending ? { pending: true } : {}) });
-  } catch (err) { return json({ error: err.message }, 502); }
-}
 // Brouillon TikTok ou Short YouTube. account() : compte aux jetons à jour
 // direct : réglages d'une publication directe sur TikTok (sinon brouillon)
 async function sendClip(net, account, video, mime, text, direct = null) {
@@ -460,19 +403,15 @@ function tiktokOptions(raw) {
 }
 
 // ---------- Publications programmées ----------
-// Le post (textes de chaque réseau, visuels) est gardé dans la base et publié à l'heure choisie par
+// Le post (textes de chaque réseau) est gardé dans la base et publié à l'heure choisie par
 // le relevé du serveur (toutes les minutes), même page fermée. Stories comprises (visuels au format Story). Les jetons
 // utiles sont copiés pour l'occasion, chiffrés avec une clé tirée du secret du serveur (STATS_KEY,
 // hors de la base) : la base seule ne permet toujours pas de publier. Visuels et jetons sont effacés
-// une fois la publication faite. Vidéo (50 Mo au plus) gardée dans le stockage R2 (MEDIA), pas dans la base.
-const SCHED = { max: 20, ahead: 7 * 86400e3, late: 24 * 3600e3, keep: 7 * 86400e3, running: 15 * 60e3, img: 1.4e6 };
+// une fois la publication faite. Visuels (4 Mo au plus : limite des photos d'une Page Facebook, qui les
+// héberge aussi pour Instagram) et vidéo (50 Mo au plus) gardés dans le stockage R2 (MEDIA), pas dans la base.
+const SCHED = { max: 20, ahead: 7 * 86400e3, late: 24 * 3600e3, keep: 7 * 86400e3, running: 15 * 60e3, img: 4e6 };
+const SETS = { ig: 20, x: 4, cover: 1 };
 const schedKey = async (env) => new Uint8Array(await crypto.subtle.digest('SHA-256', enc.encode(`paddock-live-schedule-v1:${env.STATS_KEY}`)));
-// Base64 par morceaux (visuels de plus d'un Mo)
-function b64big(bytes) {
-  let out = '';
-  for (let i = 0; i < bytes.length; i += 0x8000) out += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  return btoa(out);
-}
 async function rowsLike(env, prefix) {
   const r = await env.DB.prepare('SELECT k, v FROM studio WHERE k LIKE ?').bind(`${prefix}%`).all();
   return r.results || [];
@@ -487,12 +426,18 @@ async function schedJobs(env) {
     return { ...j, nets: Object.fromEntries(j.posts.map((p) => [p.network, states.get(`schedpost:${j.id}:${p.network}`) || { status: 'pending' }])) };
   }).sort((a, b) => a.at - b.at);
 }
-const schedSummary = (j) => ({ id: j.id, at: j.at, title: j.title, nets: j.nets });
+// texts : textes de chaque réseau (Modifier) ; retry : visuels et jetons encore là (Réessayer)
+const schedSummary = (j) => ({ id: j.id, at: j.at, title: j.title, nets: j.nets, texts: Object.fromEntries((j.posts || []).filter((p) => p.text).map((p) => [p.network, p.text])), retry: !!j.keys });
 
 async function scheduleAdd(req, env, raw, vault, now = Date.now()) {
   if (!env.STATS_KEY) return json({ error: 'Secret du serveur absent : programmation impossible' }, 503);
   let form;
   try { form = await req.formData(); } catch { return json({ error: 'Formulaire illisible' }, 400); }
+  // Identifiant choisi par la page (facultatif) : un nouvel envoi après une erreur ou une réponse perdue
+  // ne programme pas le même post une deuxième fois
+  const asked = /^[a-f0-9]{16}$/.test(String(form.get('id') || '')) ? String(form.get('id')) : null;
+  const old = asked && (await schedJobs(env)).find((j) => j.id === asked);
+  if (old) return json({ item: schedSummary(old) });
   const at = Number(form.get('at'));
   if (!Number.isFinite(at) || at < now - 60e3 || at > now + SCHED.ahead) return json({ error: 'Date de publication invalide (dans les 7 prochains jours)' }, 400);
   let posts, record;
@@ -500,7 +445,11 @@ async function scheduleAdd(req, env, raw, vault, now = Date.now()) {
   const v0 = form.get('video');
   const video = typeof v0 === 'object' && v0 && /^video\/(mp4|quicktime)$/.test(v0.type) && v0.size <= VIDEO_MAX ? v0 : null;
   if (v0 && !video) return json({ error: 'Vidéo MP4 ou MOV de 50 Mo au plus' }, 400);
-  if (video && !env.MEDIA) return json({ error: 'Stockage des vidéos (R2) absent du serveur' }, 503);
+  // Vidéo fabriquée par le Studio : sa version plein écran (vidéo du créateur : la même pour tous) et sa taille
+  const f0 = form.get('videofull');
+  const full = video && typeof f0 === 'object' && f0 && f0.type === 'video/mp4' && f0.size <= VIDEO_MAX ? f0 : null;
+  const vsize = String(form.get('vsize') || '').match(/^(\d{2,5})x(\d{2,5})$/)?.slice(1).map(Number) || null;
+  if (!env.MEDIA) return json({ error: 'Stockage des fichiers (R2) absent du serveur' }, 503);
   let link = null;
   try { link = JSON.parse(String(form.get('link') || 'null')); } catch { return json({ error: 'JSON invalide' }, 400); }
   if (link) {
@@ -510,106 +459,231 @@ async function scheduleAdd(req, env, raw, vault, now = Date.now()) {
   if (!Array.isArray(posts) || !posts.length) return json({ error: 'Aucun réseau choisi' }, 400);
   const nets = posts.map((p) => String(p?.network || ''));
   // Stories ou posts du fil, jamais les deux : les visuels n'ont pas le même format ; TikTok et YouTube avec une vidéo
-  const allowed = link ? [...LINKS, 'instagram'] : video ? [...NETS, ...CLIPS] : nets.some((n) => STORIES.includes(n)) ? STORIES : NETS;
+  const allowed = link ? [...LINKS, 'instagram'] : video ? [...NETS, ...CLIPS, ...STORIES] : nets.some((n) => STORIES.includes(n)) ? STORIES : NETS;
   posts = posts.map((p) => ({ network: String(p?.network || ''), text: String(p?.text || '').slice(0, 5000), comment: String(p?.comment || '').trim().slice(0, 500) }));
   if (nets.some((n) => !allowed.includes(n)) || new Set(nets).size !== nets.length) return json({ error: 'Réseau inconnu' }, 400);
   for (const p of posts) if (missing(p.network, vault)) return json({ error: missing(p.network, vault) }, 409);
   const files = (k, n) => form.getAll(k).filter((f) => typeof f === 'object' && f && /^image\/(png|jpeg)$/.test(f.type)).slice(0, n);
-  const sets = { ig: files('ig', 20), x: files('x', 4) };
-  if ([...sets.ig, ...sets.x].some((f) => f.size > SCHED.img)) return json({ error: 'Visuel trop lourd (1,4 Mo au plus)' }, 413);
+  // cover : couverture de la vidéo fabriquée par l'appli (Reel Instagram, vidéo Facebook)
+  const sets = { ig: files('ig', SETS.ig), x: files('x', SETS.x), cover: video ? files('cover', SETS.cover) : [] };
+  // Texte alternatif de chaque visuel (lecteurs d'écran) : { ig: [...], x: [...] }, facultatif (anciennes versions)
+  let alts = {};
+  try { alts = JSON.parse(String(form.get('alts') || '{}')) || {}; } catch { alts = {}; }
+  alts = Object.fromEntries(['ig', 'x'].map((k) => [k, (Array.isArray(alts[k]) ? alts[k] : []).slice(0, sets[k].length).map((a) => String(a || '').slice(0, 1000))]));
+  if ([...sets.ig, ...sets.x, ...sets.cover].some((f) => f.size > SCHED.img)) return json({ error: 'Visuel trop lourd (4 Mo au plus)' }, 413);
   if ((link ? nets.includes('instagram') : !video && posts.some((p) => p.network !== 'bluesky')) && !sets.ig.length) return json({ error: 'Aucune image' }, 400);
-  if (!link && posts.some((p) => p.network === 'bluesky') && !sets.x.length) return json({ error: 'Aucune image' }, 400);
+  if (!link && !video && posts.some((p) => p.network === 'bluesky') && !sets.x.length) return json({ error: 'Aucune image' }, 400);
   const tiktok = video && nets.includes('tiktok') && form.get('tiktok') ? tiktokOptions(form.get('tiktok')) : null;
   if (tiktok?.error) return json({ error: tiktok.error }, 400);
   if ((await schedJobs(env)).filter((j) => Object.values(j.nets).some((s) => s.status === 'pending')).length >= SCHED.max) return json({ error: `${SCHED.max} publications programmées au plus` }, 409);
   // Jetons du moment (Threads prolongé si besoin), seulement ceux des réseaux choisis
   const v = await refresh(env, raw, vault);
   const keys = { ...(nets.some((n) => n !== 'bluesky' && !CLIPS.includes(n)) ? { meta: v.meta } : {}), ...Object.fromEntries(['threads', 'bluesky', ...CLIPS].filter((n) => nets.includes(n)).map((n) => [n, v[n]])) };
-  const id = hex(crypto.getRandomValues(new Uint8Array(8)));
+  const id = asked || hex(crypto.getRandomValues(new Uint8Array(8)));
   for (const [set, list] of Object.entries(sets)) {
-    for (const [i, f] of list.entries()) await setRow(env, `schedimg:${id}:${set}:${i}`, JSON.stringify({ type: f.type, data: b64big(new Uint8Array(await f.arrayBuffer())) }));
+    for (const [i, f] of list.entries()) await env.MEDIA.put(`sched/${id}/${set}/${i}`, f, { httpMetadata: { contentType: f.type } });
   }
   if (video) await env.MEDIA.put(`sched/${id}`, video, { httpMetadata: { contentType: video.type } });
-  const job = { id, at, title: String(form.get('title') || '').slice(0, 200), record: record && typeof record === 'object' ? record : null, posts, sets: { ig: sets.ig.length, x: sets.x.length }, video: video ? video.type : null, tiktok, link, keys: await seal(await schedKey(env), keys), created: now };
+  if (full) await env.MEDIA.put(`sched/${id}-full`, full, { httpMetadata: { contentType: full.type } });
+  const job = { id, at, title: String(form.get('title') || '').slice(0, 200), record: record && typeof record === 'object' ? record : null, posts, sets: { ig: sets.ig.length, x: sets.x.length, cover: sets.cover.length }, alts, video: video ? video.type : null, full: !!full, vsize, tiktok, link, keys: await seal(await schedKey(env), keys), created: now };
   await setRow(env, `sched:${id}`, JSON.stringify(job));
   return json({ item: schedSummary({ ...job, nets: Object.fromEntries(nets.map((n) => [n, { status: 'pending' }])) }) });
 }
+
+// Vidéos et visuels (toutes les places possibles : effacer un fichier absent ne fait rien)
+const dropMedia = (env, id) => env.MEDIA?.delete([`sched/${id}`, `sched/${id}-full`, ...Object.entries(SETS).flatMap(([set, n]) => Array.from({ length: n }, (_, i) => `sched/${id}/${set}/${i}`))]);
 
 async function scheduleCancel(env, id) {
   if (!/^[a-f0-9]{16}$/.test(String(id))) return json({ error: 'Publication inconnue' }, 404);
   const j = (await schedJobs(env)).find((x) => x.id === id);
   if (!j) return json({ error: 'Publication inconnue' }, 404);
   if (Object.values(j.nets).some((s) => s.status === 'running')) return json({ error: 'Publication en cours' }, 409);
-  await delLike(env, `schedimg:${id}:`);
-  await env.MEDIA?.delete(`sched/${id}`);
+  await dropMedia(env, id);
   await delLike(env, `schedpost:${id}:`);
   await delLike(env, `sched:${id}`);
   return json({ items: (await schedJobs(env)).map(schedSummary) });
 }
 
-// Relevé du serveur : publie les programmations arrivées à l'heure. Renvoie { published } (le dernier
-// réseau) si un post est parti (le relevé des alertes attend alors le passage suivant), null sinon.
-export async function runSchedule(env, { now = Date.now() } = {}) {
+// Réessayer un réseau en erreur ou expiré : renvoyé au relevé suivant (visuels et jetons gardés 24 h après la fin)
+async function scheduleRetry(env, b, now = Date.now()) {
+  const j = (await schedJobs(env)).find((x) => x.id === b?.id);
+  const st = j?.nets[b?.net];
+  if (!st) return json({ error: 'Publication inconnue' }, 404);
+  if (!['error', 'expired'].includes(st.status)) return json({ error: 'Rien à refaire sur ce réseau' }, 409);
+  if (!j.keys) return json({ error: 'Visuels déjà effacés (plus de 24 h) : refaites le post' }, 410);
+  const { nets, ...rest } = j;
+  await setRow(env, `sched:${j.id}`, JSON.stringify({ ...rest, at: now, ended: null }));
+  await setRow(env, `schedpost:${j.id}:${b.net}`, JSON.stringify({ status: 'pending', ...(st.sent ? { sent: st.sent, total: st.total } : {}) }));
+  return json({ items: (await schedJobs(env)).map(schedSummary) });
+}
+
+// Modifier un post pas encore parti : heure et textes
+async function scheduleUpdate(env, b, now = Date.now()) {
+  const j = (await schedJobs(env)).find((x) => x.id === b?.id);
+  if (!j) return json({ error: 'Publication inconnue' }, 404);
+  if (Object.values(j.nets).some((s) => s.status !== 'pending' || s.sent)) return json({ error: 'Publication déjà commencée' }, 409);
+  const at = b.at === undefined ? j.at : Number(b.at);
+  if (!Number.isFinite(at) || at < now - 60e3 || at > now + SCHED.ahead) return json({ error: 'Date de publication invalide (dans les 7 prochains jours)' }, 400);
+  const texts = b.texts && typeof b.texts === 'object' ? b.texts : {};
+  const posts = j.posts.map((p) => (p.text && typeof texts[p.network] === 'string' && texts[p.network].trim() ? { ...p, text: texts[p.network].slice(0, 5000) } : p));
+  const { nets, ...rest } = j;
+  await setRow(env, `sched:${j.id}`, JSON.stringify({ ...rest, at, posts }));
+  return json({ items: (await schedJobs(env)).map(schedSummary) });
+}
+
+// Notification de fin d'une programmation : réseaux publiés, ou ceux en erreur
+const NET_LABEL = { instagram: 'Instagram', facebook: 'Facebook', threads: 'Threads', bluesky: 'Bluesky', tiktok: 'TikTok', youtube: 'YouTube', 'instagram-story': 'Story Instagram', 'facebook-story': 'Story Facebook' };
+function schedNotice(j) {
+  const nets = Object.entries(j.nets);
+  const bad = nets.filter(([, s]) => s.status !== 'done' || s.commentError || s.visible === false).map(([n]) => NET_LABEL[n] || n);
+  const ok = nets.filter(([, s]) => s.status === 'done').map(([n]) => NET_LABEL[n] || n);
+  return {
+    title: bad.length ? `Publication programmée : souci sur ${bad.join(', ')}` : 'Publication programmée : publiée',
+    body: `${j.title || 'Post'}${ok.length ? ` · publié sur ${ok.join(', ')}` : ''}`,
+    id: `sched-${j.id}`, url: '/studio/?alert=schedule',
+  };
+}
+
+// Relevé du serveur : publie les programmations arrivées à l'heure, un réseau par passage. Renvoie
+// { published } si un post est parti (le relevé des alertes attend alors le passage suivant), null sinon.
+// Réseau réservé avant l'envoi : passé de « à venir » à « en cours » d'un seul coup dans la base (seulement
+// si personne ne l'a fait entre-temps) ; null si un autre passage l'a déjà pris : jamais publié deux fois
+async function claim(env, k) {
+  const raw = await getRow(env, k);
+  const cur = raw ? JSON.parse(raw) : { status: 'pending' };
+  if (cur.status !== 'pending') return null;
+  const next = { ...cur, status: 'running', started: Date.now() };
+  const v = JSON.stringify(next);
+  const r = raw === null
+    ? await env.DB.prepare('INSERT INTO studio (k, v, at) VALUES (?, ?, ?) ON CONFLICT(k) DO NOTHING').bind(k, v, Date.now()).run()
+    : await env.DB.prepare('UPDATE studio SET v = ?, at = ? WHERE k = ? AND v = ?').bind(v, Date.now(), k, raw).run();
+  return r?.meta?.changes === 1 ? next : null;
+}
+
+// Envoi d'un réseau demandé par la tâche planifiée (appel du Worker à lui-même, clé du serveur exigée)
+export async function schedInternal(req, env) {
+  if (!env.STATS_KEY || !sameHex(req.headers.get('X-Sched-Key') || '', env.STATS_KEY)) return json({ error: 'Interdit' }, 403);
+  let only;
+  try { only = await req.json(); } catch { return json({ error: 'JSON invalide' }, 400); }
+  return json({ out: await runSchedule(env, { now: Number(only?.now) || Date.now(), only: { id: String(only?.id || ''), net: String(only?.net || '') } }) });
+}
+
+// Toutes les minutes. Avec env.SELF (le Worker lié à lui-même) : chaque réseau à publier envoyé par un appel
+// à part, tous en même temps ; chaque appel a toutes les sous-requêtes permises à un passage du Worker (50 ;
+// un carrousel Instagram en prend déjà une bonne part). Sinon (ou only : réseau demandé) : un réseau par
+// passage. Réseau réservé (claim) avant l'envoi, commencé dans les 40 premières secondes : jamais renvoyé
+// Journal des publications complété par un réseau : écrit seulement si personne ne l'a changé depuis sa
+// lecture (les réseaux d'un même post finissent souvent en même temps et s'écrasaient), 5 essais
+async function addHistory(env, entry) {
+  for (let i = 0; i < 5; i++) {
+    const raw = await getRow(env, 'history');
+    const v = JSON.stringify(addEntry(JSON.parse(raw || '[]'), entry));
+    const r = raw === null
+      ? await env.DB.prepare('INSERT INTO studio (k, v, at) VALUES (?, ?, ?) ON CONFLICT(k) DO NOTHING').bind('history', v, Date.now()).run()
+      : await env.DB.prepare('UPDATE studio SET v = ?, at = ? WHERE k = ? AND v = ?').bind(v, Date.now(), 'history', raw).run();
+    if (r?.meta?.changes === 1) return;
+  }
+}
+
+// Publication en retard de plus de 5 minutes (appels qui échouent, réseau en panne…) : une notification sur
+// le téléphone, une seule fois par programmation (ligne schedpost:<id>:late, effacée avec les autres)
+async function lateAlert(env, jobs, now) {
+  for (const j of jobs) {
+    if (now - j.at < 5 * 60e3 || now - j.at > SCHED.late || !Object.values(j.nets).some((s) => s.status === 'pending')) continue;
+    if (await getRow(env, `schedpost:${j.id}:late`)) continue;
+    await setRow(env, `schedpost:${j.id}:late`, '1');
+    await notifyPhones(env, { title: 'Publication programmée en retard', body: `${j.title || 'Post'} : pas encore publié, le serveur réessaie`, id: `sched-late-${j.id}`, url: '/studio/?alert=schedule' }, { now }).catch(() => 0);
+  }
+}
+
+export async function runSchedule(env, { now = Date.now(), only = null } = {}) {
   if (!env.DB || !env.STATS_KEY) return null;
   const jobs = await schedJobs(env);
+  if (!only) await lateAlert(env, jobs, now);
   const setState = (j, net, st) => setRow(env, `schedpost:${j.id}:${net}`, JSON.stringify(st));
-  // Programmation prise en entier (tous ses réseaux « en cours »), puis publiée réseau après réseau ; les
-  // nouvelles sont commencées dans les 40 premières secondes : le passage suivant (une minute plus tard,
-  // parfois en même temps que celui-ci) relit les états après elles et ne renvoie jamais un post
+  if (env.SELF && !only) {
+    const todo = jobs.flatMap((j) => (j.at <= now && now - j.at <= SCHED.late ? j.posts.filter((p) => j.nets[p.network].status === 'pending').map((p) => ({ id: j.id, net: p.network })) : []));
+    if (todo.length) {
+      // Au plus 10 appels par passage (32 au plus par exécution) ; le reste au passage suivant
+      // Réponse de chaque appel vérifiée : un appel qui échoue ne compte pas comme publié (réessayé au passage
+      // suivant ; prévenu sur le téléphone s'il dure, voir lateAlert)
+      const ok = await Promise.all(todo.slice(0, 10).map((t) => env.SELF.fetch('https://self/internal/sched', { method: 'POST', headers: { 'X-Sched-Key': env.STATS_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify({ ...t, now }) }).then((r) => r.ok, () => false)));
+      const sent = todo.slice(0, 10).filter((_, k) => ok[k]);
+      if (sent.length) return { published: sent.map((t) => t.net), parallel: true };
+    }
+  }
   const start = Date.now();
   let out = null;
   for (const j of jobs) {
+    if (only && j.id !== only.id) continue;
     // Envoi resté « en cours » (serveur interrompu) : jamais renvoyé en double
     for (const [net, st] of Object.entries(j.nets)) {
       if (st.status === 'running' && now - (st.started || 0) > SCHED.running) { st.status = 'error'; st.error = 'Envoi interrompu : vérifiez sur le réseau'; await setState(j, net, st); }
     }
-    const due = j.at <= now && Date.now() - start <= 40e3 ? j.posts.filter((p) => j.nets[p.network].status === 'pending') : [];
-    if (due.length && now - j.at > SCHED.late) {
-      for (const p of due) { j.nets[p.network].status = 'expired'; await setState(j, p.network, j.nets[p.network]); }
+    const pending = j.at <= now ? j.posts.filter((p) => j.nets[p.network].status === 'pending' && (!only || p.network === only.net)) : [];
+    let due = !out && Date.now() - start <= 40e3 ? pending.slice(0, 1) : [];
+    if (pending.length && now - j.at > SCHED.late) {
+      for (const p of pending) { j.nets[p.network].status = 'expired'; await setState(j, p.network, j.nets[p.network]); }
     } else if (due.length) {
-      for (const p of due) { j.nets[p.network].status = 'running'; await setState(j, p.network, { status: 'running', started: now }); }
+      for (const p of due) { const st = await claim(env, `schedpost:${j.id}:${p.network}`); if (st) j.nets[p.network] = st; }
+      due = due.filter((p) => j.nets[p.network].status === 'running');
       const keys = await open(await schedKey(env), j.keys).catch(() => null);
-      const imgs = async (set) => {
+      const imgs = async (set, from = 0, to = j.sets?.[set] || 0) => {
         const list = [];
-        for (let i = 0; i < (j.sets?.[set] || 0); i++) {
-          const row = JSON.parse(await getRow(env, `schedimg:${j.id}:${set}:${i}`) || 'null');
-          if (row) list.push(new Blob([unb64(row.data)], { type: row.type }));
+        for (let i = from; i < Math.min(to, j.sets?.[set] || 0); i++) {
+          const o = await env.MEDIA?.get(`sched/${j.id}/${set}/${i}`);
+          if (o) list.push(Object.assign(new Blob([await o.arrayBuffer()], { type: o.httpMetadata?.contentType || 'image/jpeg' }), { alt: j.alts?.[set]?.[i] || '' }));
         }
         return list;
       };
-      // Vidéo relue pour chaque réseau : une seule copie en mémoire à la fois
-      const media = async () => {
-        const o = await env.MEDIA?.get(`sched/${j.id}`);
+      // Vidéo relue pour chaque réseau : une seule copie en mémoire à la fois ; version plein écran hors zone sûre
+      // bytes : octets seuls (TikTok, YouTube), sans copie de plus dans un Blob (50 Mo, mémoire limitée)
+      const media = async (net, bytes = false) => {
+        const full = j.full && !SAFE_NETS.includes(net);
+        const o = await env.MEDIA?.get(`sched/${j.id}${full ? '-full' : ''}`);
         if (!o) throw new Error('Vidéo effacée du serveur');
-        return new Blob([await o.arrayBuffer()], { type: j.video });
+        const buf = await o.arrayBuffer();
+        return bytes ? new Uint8Array(buf) : new Blob([buf], { type: full ? 'video/mp4' : j.video });
       };
       for (const p of due) {
         const st = j.nets[p.network];
         try {
           if (!keys) throw new Error('Jetons effacés');
           const tr = await trackPost(env, p.network, { text: p.text, comment: p.network === 'instagram' ? '' : p.comment }, j.record?.title);
-          const video = j.video && p.network !== 'bluesky' ? await media() : null;
-          const r = CLIPS.includes(p.network)
-            ? await sendClip(p.network, () => (p.network === 'youtube' ? freshYoutube : freshTiktok)(keys[p.network]), new Uint8Array(await video.arrayBuffer()), j.video, tr.text, j.tiktok)
+          const video = j.video && !CLIPS.includes(p.network) ? await media(p.network) : null;
+          // Stories : STORY_STEP images par passage (Instagram fait 4 à 6 demandes par image), suite au passage suivant
+          const story = STORIES.includes(p.network) && !video && { from: st.sent || 0, total: Math.min(j.sets?.ig || 0, 10) };
+          const r = story ? await sendTo(p.network, keys, { images: await imgs('ig', story.from, story.from + STORY_STEP) })
+            : CLIPS.includes(p.network)
+            ? await sendClip(p.network, () => (p.network === 'youtube' ? freshYoutube : freshTiktok)(keys[p.network]), await media(p.network, true), j.video, tr.text, j.tiktok)
             : j.link && LINKS.includes(p.network) ? await sendTo(p.network, keys, { text: tr.text, link: { ...j.link, url: (await trackPost(env, p.network, { text: j.link.url }, j.record?.title)).text } }, () => freshThreads(keys.threads))
-            : await sendTo(p.network, keys, { text: tr.text, comment: tr.comment, images: p.network === 'bluesky' || video ? [] : await imgs('ig'), small: p.network === 'bluesky' ? await imgs('x') : [], video }, () => freshThreads(keys.threads));
-          Object.assign(st, { status: 'done', at: Date.now(), ...resultOf(r), ...(r.note ? { note: r.note } : {}) });
+            : await sendTo(p.network, keys, { text: tr.text, comment: tr.comment, images: p.network === 'bluesky' || video ? [] : await imgs('ig'), small: p.network === 'bluesky' && !video ? await imgs('x') : [], video, vsize: j.vsize, cover: video ? (await imgs('cover'))[0] : null }, () => freshThreads(keys.threads));
+          if (story) Object.assign(st, { sent: story.from + r.count, total: story.total });
+          Object.assign(st, { status: story && st.sent < story.total ? 'pending' : 'done', at: Date.now(), ...resultOf(r), ...(r.note ? { note: r.note } : {}) });
           // Stories (24 heures) : pas dans l'historique, qui garde le post du fil
-          if (j.record && !STORIES.includes(p.network)) await setRow(env, 'history', JSON.stringify(addEntry(JSON.parse(await getRow(env, 'history') || '[]'), { ...j.record, at: Date.now(), nets: { [p.network]: { id: st.id, url: st.url } } })));
+          if (j.record && !STORIES.includes(p.network)) await addHistory(env, { ...j.record, at: Date.now(), nets: { [p.network]: { id: st.id, url: st.url } } });
         } catch (err) {
-          Object.assign(st, { status: 'error', error: String(err?.message || err).slice(0, 300) });
+          Object.assign(st, { status: 'error', error: `${String(err?.message || err).slice(0, 300)}${st.sent ? ` (${st.sent} stories publiées sur ${st.total})` : ''}` });
         }
         await setState(j, p.network, st);
         out = { published: p.network, id: j.id };
       }
     }
     // Programmation terminée : tout publié sans souci, effacée aussitôt (plus dans la liste du Studio) ;
-    // sinon (erreur, commentaire refusé…) visuels, vidéo et jetons effacés, la trace gardée 7 jours
+    // sinon (erreur, commentaire refusé…) visuels, vidéo et jetons effacés, la trace gardée 7 jours.
+    // Une fois, au passage suivant le dernier envoi (sous-requêtes de celui-ci) : notification sur le téléphone
     const states = Object.values(j.nets);
+    const over = states.every((s) => !['pending', 'running'].includes(s.status));
+    // Une seule notification par fin (ended posé aussitôt ; remis à zéro par « Réessayer »)
+    if (out?.id !== j.id && over && j.keys && !j.ended) await notifyPhones(env, schedNotice(j), { now }).catch(() => 0);
+    if (out?.id === j.id) continue;
     if (states.every((s) => s.status === 'done' && !s.commentError && s.visible !== false)) {
-      await delLike(env, `schedimg:${j.id}:`); await env.MEDIA?.delete(`sched/${j.id}`); await delLike(env, `schedpost:${j.id}:`); await delLike(env, `sched:${j.id}`);
-    } else if (states.every((s) => !['pending', 'running'].includes(s.status))) {
-      if (j.keys) { await delLike(env, `schedimg:${j.id}:`); await env.MEDIA?.delete(`sched/${j.id}`); const { nets, ...rest } = j; await setRow(env, `sched:${j.id}`, JSON.stringify({ ...rest, keys: null })); }
+      await dropMedia(env, j.id); await delLike(env, `schedpost:${j.id}:`); await delLike(env, `sched:${j.id}`);
+    } else if (over) {
+      // Souci sur un réseau : visuels, vidéo et jetons gardés 24 h (« Réessayer »), puis effacés ; trace 7 jours
+      const { nets, ...rest } = j;
+      if (j.keys && !j.ended) await setRow(env, `sched:${j.id}`, JSON.stringify({ ...rest, ended: now }));
+      else if (j.keys && now - j.ended > SCHED.late) { await dropMedia(env, j.id); await setRow(env, `sched:${j.id}`, JSON.stringify({ ...rest, keys: null })); }
       if (now - j.at > SCHED.keep) { await delLike(env, `schedpost:${j.id}:`); await delLike(env, `sched:${j.id}`); }
     }
   }
@@ -652,6 +726,7 @@ export async function studioApi(req, env, url) {
   }
   if (path === 'me' && req.method === 'GET') {
     vault = await refresh(env, a.raw, vault);
+    await noteExpiries(env, vault, jwtExp).catch(() => {});
     return json({
       facebook: vault.meta?.pageName || null, instagram: vault.meta?.igId ? `@${vault.meta.igUsername || ''}` : null,
       threads: vault.threads?.token ? `@${vault.threads.username || ''}` : null, bluesky: vault.bluesky ? `@${vault.bluesky.handle}` : null, f1tv: !!vault.f1tv, at: vault.at || null,
@@ -659,6 +734,8 @@ export async function studioApi(req, env, url) {
       sources: DEFAULT_SOURCES.filter((s) => s.kind === 'rss').map(({ id, name, cat, lang, filter }) => ({ id, name, cat, lang, filter: filter || null })),
     });
   }
+  // Bilan des fonctions de l'appli (statistiques anonymes des 30 derniers jours)
+  if (path === 'usage' && req.method === 'GET') return json({ days: 30, ...(await summary(env, 30)).usage, health: JSON.parse(await getRow(env, 'health') || 'null') });
   // Post écrit à la main : texte mis en forme par l'IA (titre, résumé, points clés)
   if (path === 'rewrite' && req.method === 'POST') {
     if (!env.AI) return json({ error: 'IA indisponible' }, 503);
@@ -668,6 +745,18 @@ export async function studioApi(req, env, url) {
     if (!text) return json({ error: 'Texte trop court' }, 400);
     const r = await rewritePost(env, text);
     return json(r.limited ? { error: 'Plafond du jour atteint, réessayez demain' } : r, r.limited ? 429 : r.error ? 502 : 200);
+  }
+  // Traduction et résumé d'articles du Studio : même travail que /t et /s, plafond à part (studioQuota)
+  if ((path === 'translate' || path === 'summary') && req.method === 'POST') {
+    if (!env.AI) return json({ error: 'Indisponible' }, 503);
+    let body;
+    try { body = await req.json(); } catch { return json({ error: 'JSON invalide' }, 400); }
+    const r = path === 'translate' ? cleanRequest(body) : cleanSummaryRequest(body);
+    if (!r) return json({ error: 'Requête invalide' }, 400);
+    const day = today();
+    if (path === 'translate') return json(await translateBatch(env, r, day, null, studioQuota(env, day)));
+    const res = await summarizeArticle(env, r, day, null, studioQuota(env, day));
+    return json(res.limited ? { error: 'Plafond du jour atteint, réessayez demain' } : res.points ? res : { error: 'Résumé indisponible pour le moment' }, res.limited ? 429 : res.points ? 200 : 502);
   }
   // Journal des publications (partagé avec l'appli)
   if (path === 'history' || path === 'history/remove') {
@@ -693,6 +782,33 @@ export async function studioApi(req, env, url) {
       return json({ items: next });
     }
   }
+  // Brouillons de posts (appli et Studio) : un par ligne, leur liste (titres, dates) à part
+  if (path === 'drafts' && req.method === 'GET') return json({ items: JSON.parse(await getRow(env, 'drafts') || '[]') });
+  if (path === 'draft' && req.method === 'GET') {
+    const id = url.searchParams.get('id');
+    const v = isDraftId(id) ? await getRow(env, `draft:${id}`) : null;
+    return v ? new Response(v, { headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' } }) : json({ error: 'Brouillon introuvable' }, 404);
+  }
+  if ((path === 'drafts' || path === 'drafts/remove') && req.method === 'POST') {
+    const raw = await req.text();
+    if (raw.length > DRAFT_BYTES * 2) return json({ error: 'Brouillon trop lourd' }, 413);
+    let body;
+    try { body = JSON.parse(raw); } catch { return json({ error: 'JSON invalide' }, 400); }
+    let list = JSON.parse(await getRow(env, 'drafts') || '[]');
+    if (path === 'drafts/remove') {
+      if (!isDraftId(body?.id)) return json({ error: 'Brouillon inconnu' }, 400);
+      await delLike(env, `draft:${body.id}`);
+      list = list.filter((x) => x.id !== body.id);
+    } else {
+      const dr = cleanDraft(body);
+      if (!dr) return json({ error: 'Brouillon invalide ou trop lourd (photo trop grande ?)' }, 400);
+      if (!list.some((x) => x.id === dr.id) && list.length >= DRAFTS_MAX) return json({ error: `${DRAFTS_MAX} brouillons au plus : supprimez-en un` }, 400);
+      await setRow(env, `draft:${dr.id}`, JSON.stringify(dr));
+      list = [draftSummary(dr), ...list.filter((x) => x.id !== dr.id)];
+    }
+    await setRow(env, 'drafts', JSON.stringify(list));
+    return json({ items: list });
+  }
   // Posts publiés hors du Studio (à la main, kit de démarrage) : retrouvés sur les comptes reliés
   if (path === 'history/import' && req.method === 'POST') {
     const v = await refresh(env, a.raw, vault);
@@ -709,7 +825,12 @@ export async function studioApi(req, env, url) {
     const v = await refresh(env, a.raw, vault);
     // 6 posts au plus
     const posts = await postStats(JSON.parse(await getRow(env, 'history') || '[]'), { meta: v.meta, threads: v.threads, bluesky: v.bluesky }, { limit: 6 });
-    return json({ ...posts, clicks: await clickStats(env).catch(() => null) });
+    // kept : chiffres des 60 derniers posts gardés ici (heure conseillée, sur tous les appareils)
+    let kept = [];
+    try { kept = JSON.parse(await getRow(env, 'poststats') || '[]'); } catch { /* ligne abîmée : refaite */ }
+    kept = keepStats(kept, posts.posts);
+    await setRow(env, 'poststats', JSON.stringify(kept));
+    return json({ ...posts, kept, clicks: await clickStats(env).catch(() => null) });
   }
   if (path === 'stats/accounts' && req.method === 'GET') {
     let v = await refresh(env, a.raw, vault);
@@ -735,12 +856,18 @@ export async function studioApi(req, env, url) {
   if (path === 'fia' && req.method === 'GET') return fia(req, url);
   if (path === 'page' && req.method === 'GET') return page(req, url);
   if (path === 'artimg' && req.method === 'GET') return articleImage(req, url);
+  // Photos des réseaux pour une livrée ou une tenue : Instagram des écuries, recherche Bluesky
+  if (path === 'socialphotos' && req.method === 'GET') {
+    const v = await refresh(env, a.raw, vault);
+    const teams = (url.searchParams.get('teams') || '').split(',').filter(Boolean);
+    return json(await socialPhotos({ meta: v.meta, teams, look: url.searchParams.get('look') || '', who: (url.searchParams.get('who') || '').slice(0, 60), since: Number(url.searchParams.get('since')) || 0, until: Number(url.searchParams.get('until')) || Infinity }));
+  }
   if (path === 'schedule' && req.method === 'GET') return json({ items: (await schedJobs(env)).map(schedSummary) });
   if (path === 'schedule' && req.method === 'POST') return scheduleAdd(req, env, a.raw, vault);
-  if (path === 'schedule/cancel' && req.method === 'POST') {
+  if (['schedule/cancel', 'schedule/retry', 'schedule/update'].includes(path) && req.method === 'POST') {
     let body;
     try { body = await req.json(); } catch { return json({ error: 'JSON invalide' }, 400); }
-    return scheduleCancel(env, body?.id);
+    return path === 'schedule/cancel' ? scheduleCancel(env, body?.id) : path === 'schedule/retry' ? scheduleRetry(env, body) : scheduleUpdate(env, body);
   }
   // Texte avec ses liens suivis (X : partagé depuis le téléphone ; appli : publication directe)
   if (path === 'links' && req.method === 'POST') {
@@ -749,11 +876,6 @@ export async function studioApi(req, env, url) {
     const out = await trackPost(env, String(body?.net || ''), { text: String(body?.text || '').slice(0, 5000), comment: String(body?.comment || '').slice(0, 1000) }, String(body?.title || ''));
     return json(out);
   }
-  if (path === 'publish' && req.method === 'POST') {
-    if (!vault.meta?.pageToken && !vault.bluesky) return json({ error: 'Comptes non envoyés : activez la page depuis l\'appli' }, 409);
-    return publish(req, env, a.raw, vault);
-  }
-  if (path === 'video' && req.method === 'POST') return sendVideo(req, env, a.raw, vault, url);
   // Compte TikTok relu avant une publication directe : nom, visibilités et interactions permises, durée maximale
   if (path === 'tiktok-creator' && req.method === 'GET') {
     if (!vault.tiktok) return json({ error: missing('tiktok', vault) }, 409);
@@ -772,3 +894,4 @@ export async function studioApi(req, env, url) {
   if (fb) return fb;
   return json({ error: 'Introuvable' }, 404);
 }
+export { addHistory as _addHistory };

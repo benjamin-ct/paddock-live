@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 process.env.PADDOCK_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'paddock-social-'));
-const { oauth1, accountsInfo, saveAccount, publish, timing, youtubeLoginUrl, youtubeCallback, youtubeSnippet, tiktokLoginUrl, tiktokCallback } = await import('../server/social-publish.js');
+const { oauth1, accountsInfo, saveAccount, publish, timing, youtubeLoginUrl, youtubeCallback, youtubeSnippet, tiktokLoginUrl, tiktokCallback, metaLoginUrl, metaCallback, META_REDIRECT } = await import('../server/social-publish.js');
 const { saveConfig } = await import('../server/config.js');
 
 test('X : signature OAuth 1.0a (exemple de la documentation de X)', () => {
@@ -31,14 +31,16 @@ test('comptes : jamais de clé ni de jeton renvoyé à l\'interface', async () =
 });
 
 // Faux serveurs Meta : images déposées sur la page, conteneurs « en cours » puis prêts
-function fakeMeta({ errorOn = null } = {}) {
+function fakeMeta({ errorOn = null, blocked = false, lagged = false, caption = null } = {}) {
   const log = [];
   const polls = {};
+  const published = new Set();
   let n = 0;
   globalThis.fetch = async (url, opts = {}) => {
     const u = new URL(url);
     const method = opts.method || 'GET';
-    const form = opts.body instanceof URLSearchParams ? Object.fromEntries(opts.body) : {};
+    const form = opts.body instanceof URLSearchParams ? Object.fromEntries(opts.body)
+      : opts.body instanceof FormData ? Object.fromEntries([...opts.body].filter(([, v]) => typeof v === 'string')) : {};
     log.push({ method, path: u.pathname, form, fields: u.searchParams.get('fields') });
     const json = (d) => ({ ok: true, status: 200, text: async () => JSON.stringify(d) });
     if (method === 'POST' && u.pathname.endsWith('/photos')) return json({ id: `ph${++n}` });
@@ -57,9 +59,16 @@ function fakeMeta({ errorOn = null } = {}) {
       polls[id] = (polls[id] || 0) + 1;
       const field = u.searchParams.get('fields').startsWith('status_code') ? 'status_code' : 'status';
       if (errorOn === id) return json({ [field]: 'ERROR', ...(field === 'status' ? { error_message: 'Image illisible' } : { status: 'Error: Media download has failed.' }) });
-      return json({ [field]: polls[id] >= 2 ? 'FINISHED' : 'IN_PROGRESS' });
+      return json({ [field]: published.has(id) ? 'PUBLISHED' : polls[id] >= 2 ? 'FINISHED' : 'IN_PROGRESS' });
     }
-    if (method === 'POST' && /(media_publish|threads_publish)$/.test(u.pathname)) return json({ id: 'pub1' });
+    if (method === 'POST' && /(media_publish|threads_publish)$/.test(u.pathname)) {
+      // Instagram en retard : conteneur pas encore marqué publié après la réponse
+      if (!lagged) published.add(form.creation_id);
+      // Publié, mais réponse en erreur (blocage d'activité d'Instagram)
+      if (blocked) return { ok: false, status: 400, text: async () => JSON.stringify({ error: { code: 368, error_user_msg: 'Nous restreignons certaines activités afin de protéger notre communauté.' } }) };
+      return json({ id: 'pub1' });
+    }
+    if (method === 'GET' && u.pathname.endsWith('/media') && (u.searchParams.get('fields') || '').startsWith('id,permalink')) return json({ data: [{ id: 'ig-post', permalink: 'https://example.test/p/ig', caption: caption ?? 'Ancien post', timestamp: new Date().toISOString() }] });
     if (method === 'POST' && u.pathname.endsWith('/feed')) return json({ id: 'page_post' });
     if (method === 'POST' && u.pathname.endsWith('/photo_stories')) return json({ success: true, post_id: `st${++n}` });
     if (u.searchParams.get('fields') === 'permalink') return json({ permalink: 'https://example.test/p/1' });
@@ -77,32 +86,54 @@ test('Threads et Instagram : chaque image du carrousel est prête avant le carro
   try {
     const { log } = fakeMeta();
     const images = [PNG(1), PNG(2), PNG(3)];
-    const th = await publish('threads', { text: 'Bonjour', images });
+    const alts = ['Podium : 1. Norris', 'Classement', 'Faits marquants'];
+    const th = await publish('threads', { text: 'Bonjour', images, alts });
     assert.equal(th.url, 'https://example.test/p/1');
     const kids = log.filter((l) => l.form.is_carousel_item === 'true');
     assert.equal(kids.length, 3);
     assert.ok(kids.every((k) => /^https:\/\/cdn\.test\/.+\.jpg$/.test(k.form.image_url) && k.form.media_type === 'IMAGE'));
+    assert.deepEqual(kids.map((k) => k.form.alt_text).sort(), [...alts].sort());   // texte alternatif de chaque image
     const car = log.find((l) => l.form.media_type === 'CAROUSEL');
     assert.equal(car.form.text, 'Bonjour');
-    assert.equal(car.form.topic_tag, 'F1 Thread');
+    assert.equal(car.form.topic_tag, 'F1 Threads');
     assert.equal(log.filter((l) => l.path.endsWith('/photos')).length, 3);
 
     // Instagram juste après : mêmes images, rien de redéposé sur la page
     log.length = 0;
-    const ig = await publish('instagram', { text: 'Légende', images });
+    const ig = await publish('instagram', { text: 'Légende', images, alts });
     assert.equal(ig.url, 'https://example.test/p/1');
     assert.equal(log.filter((l) => l.path.endsWith('/photos')).length, 0);
     assert.equal(log.find((l) => l.form.media_type === 'CAROUSEL').form.caption, 'Légende');
+    assert.deepEqual(log.filter((l) => l.form.is_carousel_item === 'true').map((l) => l.form.alt_text).sort(), [...alts].sort());
     assert.ok(log.some((l) => l.path.endsWith('/media_publish')));
 
     // Facebook : nouvel envoi (une photo jointe à un post ne peut pas l'être à un autre)
     log.length = 0;
-    await publish('facebook', { text: 'Post', images });
+    await publish('facebook', { text: 'Post', images, alts });
     assert.equal(log.filter((l) => l.path.endsWith('/photos')).length, 3);
+    assert.deepEqual(log.filter((l) => l.path.endsWith('/photos')).map((l) => l.form.alt_text_custom).sort(), [...alts].sort());
     assert.equal(Object.keys(log.find((l) => l.path.endsWith('/feed')).form).filter((k) => k.startsWith('attached_media')).length, 3);
   } finally {
     globalThis.fetch = realFetch;
   }
+});
+
+test('Instagram : post bien publié malgré une réponse en erreur (blocage d\'activité) compté comme publié', async () => {
+  const realFetch = globalThis.fetch;
+  Object.assign(timing, { poll: 1, maxPoll: 1, readyMs: 2000, visible: [] });
+  const { publishInstagram } = await import('../shared/meta-publish.js');
+  const meta = { pageId: 'page8', pageToken: 'jp', igId: 'ig8', igUsername: 'moi' };
+  const img = new Blob([Buffer.from(PNG(5), 'base64')], { type: 'image/png' });
+  try {
+    fakeMeta({ blocked: true });
+    assert.deepEqual(await publishInstagram(meta, 'Légende', [img]), { url: 'https://example.test/p/ig', id: 'ig-post' });
+    // Conteneur pas encore marqué publié, mais le dernier post du compte porte la légende : publié
+    fakeMeta({ blocked: true, lagged: true, caption: 'Légende' });
+    assert.deepEqual(await publishInstagram(meta, 'Légende', [img]), { url: 'https://example.test/p/ig', id: 'ig-post' });
+    // Rien en ligne (dernier post différent) : l'erreur d'Instagram est bien rendue
+    fakeMeta({ blocked: true, lagged: true });
+    await assert.rejects(publishInstagram(meta, 'Légende', [img]), /restreignons/);
+  } finally { globalThis.fetch = realFetch; }
 });
 
 test('Stories Instagram et Facebook : une story par image, dans l\'ordre', async () => {
@@ -330,9 +361,9 @@ test('YouTube : connexion Google (PKCE), Short envoyé en privé, reconnexion de
   } finally { globalThis.fetch = realFetch; }
 });
 
-test('vidéo du créateur : déposée une fois sur la page, Reel Instagram, vidéo Threads et vidéo Facebook', async () => {
+test('vidéo du créateur : déposée une fois sur la page, Reel Instagram, vidéo Threads, vidéo Facebook et stories', async () => {
   const realFetch = globalThis.fetch;
-  const { hostVideo, publishFacebookVideo, publishThreadsVideo, reelInstagram } = await import('../shared/meta-publish.js');
+  const { hostVideo, publishFacebookVideo, publishThreadsVideo, reelInstagram, storyVideoInstagram, storyVideoFacebook } = await import('../shared/meta-publish.js');
   Object.assign(timing, { poll: 1, maxPoll: 1, readyMs: 2000, visible: [] });
   const meta = { pageId: 'page1', pageToken: 'jp', igId: 'ig1', igUsername: 'moi' };
   const log = [];
@@ -341,8 +372,10 @@ test('vidéo du créateur : déposée une fois sur la page, Reel Instagram, vid�
     const u = new URL(url);
     const form = opts.body instanceof FormData ? Object.fromEntries([...opts.body].map(([k, v]) => [k, typeof v === 'string' ? v : `<${v.type}>`]))
       : opts.body ? Object.fromEntries(new URLSearchParams(String(opts.body))) : {};
-    log.push({ host: u.hostname, path: u.pathname, form, query: Object.fromEntries(u.searchParams) });
+    log.push({ host: u.hostname, path: u.pathname, form, query: Object.fromEntries(u.searchParams), headers: opts.headers, body: opts.body });
     const j = (o) => new Response(JSON.stringify(o));
+    if (u.pathname.endsWith('/page1/video_stories')) return j(form.upload_phase === 'start' ? { video_id: 's1', upload_url: 'https://rupload.facebook.com/video-upload/v21.0/s1' } : { success: true, post_id: 'sp1' });
+    if (u.hostname === 'rupload.facebook.com') return j({ success: true });
     if (u.pathname.endsWith('/page1/videos')) return j({ id: form.published === 'false' ? 'vid1' : 'vid2' });
     if (u.pathname.endsWith('/vid1')) return j(++checks < 2 ? { status: { video_status: 'processing' } } : { status: { video_status: 'ready' }, source: 'https://video.test/v.mp4' });
     if (u.pathname.endsWith('/media') || u.pathname.endsWith('/threads')) return j({ id: 'c1' });
@@ -368,13 +401,74 @@ test('vidéo du créateur : déposée une fois sur la page, Reel Instagram, vid�
     assert.equal(log.find((l) => l.path.endsWith('/ig1/media')).form.video_url, 'https://video.test/v.mp4');
     assert.equal(log.find((l) => l.path.endsWith('/ig1/media')).form.media_type, 'REELS');
     const tc = log.find((l) => l.path.endsWith('/th1/threads')).form;
-    assert.deepEqual([tc.media_type, tc.video_url, tc.text, tc.topic_tag], ['VIDEO', 'https://video.test/v.mp4', 'Texte', 'F1 Thread']);
+    assert.deepEqual([tc.media_type, tc.video_url, tc.text, tc.topic_tag], ['VIDEO', 'https://video.test/v.mp4', 'Texte', 'F1 Threads']);
     // Facebook : vidéo publiée avec le texte
     const fb = await publishFacebookVideo(meta, 'Post', video);
     assert.equal(fb.url, 'https://www.facebook.com/page1/videos/vid2');
     const pub = log.findLast((l) => l.path.endsWith('/page1/videos')).form;
     assert.deepEqual([pub.published, pub.description], ['true', 'Post']);
+    assert.equal(pub.thumb, undefined);
+    // Couverture : adresse publique pour le Reel, image jointe à la vidéo Facebook
+    await reelInstagram(meta, 'https://video.test/v.mp4', 'Légende', 'https://img.test/cover.jpg');
+    assert.equal(log.findLast((l) => l.path.endsWith('/ig1/media')).form.cover_url, 'https://img.test/cover.jpg');
+    await publishFacebookVideo(meta, 'Post', video, new Blob([new Uint8Array([0xff, 0xd8, 0xff])], { type: 'image/jpeg' }));
+    assert.equal(log.findLast((l) => l.path.endsWith('/page1/videos')).form.thumb, '<image/jpeg>');
+    // Story vidéo : Instagram par l'adresse de la vidéo déposée, Facebook en trois temps (fichier envoyé tel quel)
+    log.length = 0;
+    assert.equal((await storyVideoInstagram(meta, video)).count, 1);
+    const st = log.find((l) => l.path.endsWith('/ig1/media')).form;
+    assert.deepEqual([st.media_type, st.video_url], ['STORIES', 'https://video.test/v.mp4']);
+    assert.ok(log.some((l) => l.path.endsWith('/ig1/media_publish')));
+    log.length = 0;
+    assert.equal((await storyVideoFacebook(meta, video)).count, 1);
+    assert.deepEqual(log.map((l) => l.form.upload_phase || l.host), ['start', 'rupload.facebook.com', 'finish']);
+    assert.deepEqual([log[1].headers.Authorization, log[1].headers.offset, log[1].headers.file_size, log[1].body], ['OAuth jp', '0', String(video.size), video]);
+    assert.equal(log[2].form.video_id, 's1');
   } finally {
     globalThis.fetch = realFetch;
   }
+});
+
+test('Facebook : connexion par Facebook Login, retour par la page du site, jeton de la page enregistré', async () => {
+  const realFetch = globalThis.fetch;
+  const { getConfig } = await import('../server/config.js');
+  assert.throws(() => metaLoginUrl(4321, {}), /identifiant et la clé secrète/);
+  // Configuration « Facebook Login for Business » : ses autorisations à la place de la liste
+  let u = new URL(metaLoginUrl(4321, { appId: '123456789', appSecret: 's3cret', configId: '987654321' }));
+  assert.equal(u.origin + u.pathname, 'https://www.facebook.com/v25.0/dialog/oauth');
+  assert.equal(u.searchParams.get('config_id'), '987654321');
+  assert.equal(u.searchParams.get('scope'), null);
+  assert.equal(u.searchParams.get('redirect_uri'), META_REDIRECT);
+  assert.match(u.searchParams.get('state'), /^4321\.[0-9a-f]{32}$/);
+  assert.ok(!u.toString().includes('s3cret'));
+  u = new URL(metaLoginUrl(4321, { appId: '123456789', appSecret: 's3cret' }));
+  assert.match(u.searchParams.get('scope'), /instagram_content_publish/);
+  const calls = [];
+  globalThis.fetch = async (url) => {
+    const x = new URL(url);
+    calls.push(x.pathname + (x.searchParams.get('grant_type') ? `:${x.searchParams.get('grant_type')}` : ''));
+    const d = x.pathname.endsWith('/oauth/access_token') && x.searchParams.get('code') ? (assert.equal(x.searchParams.get('redirect_uri'), META_REDIRECT), assert.equal(x.searchParams.get('client_secret'), 's3cret'), { access_token: 'court' })
+      : x.pathname.endsWith('/oauth/access_token') ? (assert.equal(x.searchParams.get('fb_exchange_token'), 'court'), { access_token: 'long' })
+      : { data: [{ id: 'p1', name: 'Paddock Live', access_token: 'jeton-page', instagram_business_account: { id: 'ig1', username: 'paddocklive' } }] };
+    return { ok: true, status: 200, text: async () => JSON.stringify(d) };
+  };
+  try {
+    await metaCallback(new URLSearchParams({ state: u.searchParams.get('state'), code: 'c' }));
+    assert.deepEqual(calls, ['/v25.0/oauth/access_token', '/v25.0/oauth/access_token:fb_exchange_token', '/v25.0/me/accounts']);
+    assert.equal(getConfig().social.meta.pageToken, 'jeton-page');
+    assert.equal(accountsInfo().instagram.name, '@paddocklive');
+    // Demande déjà utilisée ou refusée dans Facebook : message clair
+    await assert.rejects(metaCallback(new URLSearchParams({ state: u.searchParams.get('state'), code: 'c' })), /expirée/);
+    const v = new URL(metaLoginUrl(4321, {}));   // identifiants déjà enregistrés
+    await assert.rejects(metaCallback(new URLSearchParams({ state: v.searchParams.get('state'), error: 'access_denied', error_reason: 'user_denied' })), /refusée/);
+  } finally { globalThis.fetch = realFetch; }
+});
+
+test('TikTok : publication directe refusée avant l\'audit, message qui dit quoi faire', async () => {
+  const { tiktokDirect } = await import('../shared/video-publish.js');
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({ ok: false, status: 403, text: async () => JSON.stringify({ error: { code: 'unaudited_client_can_only_post_to_private_accounts', message: 'Please review our integration guidelines at https://developers.tiktok.com/doc/content-sharing-guidelines/' } }) });
+  try {
+    await assert.rejects(tiktokDirect('jeton', new Uint8Array(10), 'video/mp4', { title: 't', privacy: 'PUBLIC_TO_EVERYONE' }), /pas encore auditée.*Brouillon/);
+  } finally { globalThis.fetch = realFetch; }
 });

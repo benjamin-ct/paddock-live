@@ -6,12 +6,13 @@ import { LANG } from './i18n.js';
 const DEFAULTS = {
   favs: [],               // numéros des pilotes favoris
   favTeams: [],           // écuries favorites (clés de shared/news.js : 'ferrari', 'redbull'…)
-  alerts: { sound: true, vibrate: true, notify: false, flags: true, fastest: true, favPit: true, favRcm: true, retire: true, finish: true },
+  alerts: { sound: true, vibrate: true, notify: false, flags: true, fastest: true, favPit: true, favRcm: true, retire: true, finish: true, favCut: true, rain: true, prono: true },
   hiddenPanels: [],
   hiddenCols: [],
   extraCols: [],          // colonnes facultatives ajoutées au classement (voir EXTRA_COLUMNS)
   towerFit: true,         // classement agrandi pour remplir la hauteur disponible
   theme: 'pitwall',       // thème unique de l'application
+  design: 'broadcast',    // habillage : 'broadcast' (façon retransmission TV) | 'classic' (ancien design Pitwall)
   scheme: 'auto',         // apparence : 'auto' (comme le système) | 'dark' (sombre) | 'light' (clair)
   schemeSet: false,       // apparence choisie par l'utilisateur (sinon : automatique)
   vividTeams: false,      // couleurs d'équipe contrastées plutôt qu'officielles
@@ -19,6 +20,8 @@ const DEFAULTS = {
   logoColor: true,        // logos dans leurs couleurs officielles (sinon logo blanc sur la couleur d'équipe)
   keepAwake: true,        // écran toujours allumé pendant une séance
   phoneFull: false,       // téléphone : tous les onglets et réglages de l'ordinateur (sinon version simplifiée)
+  fullMode: true,         // ordinateur : interface complète (sinon mode Essentiel : le principal seulement)
+  welcomed: true,         // écrans d'accueil du premier lancement déjà vus
   motion: true,           // animations de l'interface (désactivées aussi si le système le demande)
   momentsSpoil: false,    // replay : détail des moments clés à venir affiché
   lang: LANG,             // langue de l'interface : 'fr' | 'en' (voir i18n.js)
@@ -40,6 +43,8 @@ const DEFAULTS = {
   pitView: 'chrono',      // onglet Arrêts : 'chrono' ou 'driver'
   commLang: 'FRA',        // commentaires F1 TV : langue
   commVolume: 0.8,
+  commDuck: true,         // commentaires plus bas pendant une radio d'équipe
+  radioVolume: 1,
   commMuted: false,
   commSync: true,         // caler le son sur le délai du dashboard
   commOffset: 0,          // décalage manuel du son (s)
@@ -61,6 +66,12 @@ const DEFAULTS = {
 
 const saved = storageGet('paddock.prefs', {});
 export const prefs = { ...DEFAULTS, ...saved, alerts: { ...DEFAULTS.alerts, ...(saved.alerts || {}) } };
+// v1.28 : nouvelle installation (aucun réglage enregistré) : mode Essentiel et écrans d'accueil ; les
+// installations existantes gardent toute l'interface
+if (!Object.keys(saved).length) {
+  Object.assign(prefs, { fullMode: false, welcomed: false });
+  storageSet('paddock.prefs', { ...storageGet('paddock.prefs', {}), fullMode: false, welcomed: false });
+}
 // Un seul thème depuis la v1.20 : Pitwall, en mode sombre ou clair. Les anciens thèmes (F1 Pro,
 // F1 sobre, Classique, Bleu nuit) passent sur Pitwall, en mode sombre.
 prefs.theme = 'pitwall';
@@ -98,7 +109,14 @@ function applyScheme() {
   // Appli installée sur iPhone : barre d'état claire ou noire (prise en compte au lancement suivant)
   document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]')?.setAttribute('content', v === 'light' ? 'default' : 'black');
 }
+// Habillage : la feuille broadcast.css (posée par-dessus le thème Pitwall) est coupée en design classique
+function applyDesign() {
+  document.documentElement.dataset.design = prefs.design;
+  const css = document.querySelector('link[href="/css/broadcast.css"]');
+  if (css) css.disabled = prefs.design === 'classic';
+}
 document.documentElement.dataset.theme = 'pitwall';
+applyDesign();
 applyScheme();
 systemLight?.addEventListener?.('change', () => { if (prefs.scheme === 'auto') applyScheme(); });
 
@@ -114,6 +132,7 @@ export function setPref(key, value) {
   prefs[key] = value;
   if (['vividTeams', 'teamLogos', 'logoColor'].includes(key)) applyTeamColors();
   if (key === 'scheme') { prefs.schemeSet = true; applyScheme(); }
+  if (key === 'design') applyDesign();
   if (key === 'motion') document.documentElement.dataset.motion = value ? 'on' : 'off';
   storageSet('paddock.prefs', prefs);
   emit('prefs', key);
@@ -143,6 +162,7 @@ window.addEventListener('storage', (e) => {
     prefs[key] = key === 'alerts' ? { ...DEFAULTS.alerts, ...next.alerts } : next[key];
     if (['vividTeams', 'teamLogos', 'logoColor'].includes(key)) applyTeamColors();
     if (key === 'scheme') applyScheme();
+    if (key === 'design') applyDesign();
     emit('prefs', key);
   }
 });

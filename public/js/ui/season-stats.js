@@ -46,11 +46,15 @@ export const gradeBadge = (score, g, big = false) => (score === null || score ==
   : `<span class="sz-grade g-${g}${big ? ' big' : ''}">${g}</span><span class="sz-grade-n">${score}</span>`);
 
 // Répartition des arrivées : nombre de courses terminées à chaque place, et abandons
+// Graphiques dessinés à la largeur réelle de la page (textes et traits gardent leur taille, pas étirés)
+const pageWidth = () => Math.max(600, (document.querySelector('#szContent')?.clientWidth || 934) - 34);
+const halfWidth = () => Math.max(300, Math.round(pageWidth() / 2 - 30));
+
 function finishHistogram(started, col) {
   const n = new Array(21).fill(0);
   for (const x of started) n[isNum(x.res) && x.res.pos <= 20 ? x.res.pos - 1 : 20]++;
   const hi = Math.max(1, ...n);
-  const W = 440, H = 170, pl = 6, pb = 22, bw = (W - pl * 2) / 21;
+  const W = halfWidth(), H = 170, pl = 6, pb = 22, bw = (W - pl * 2) / 21;
   const bars = n.map((v, i) => {
     const h = ((H - pb - 16) * v) / hi;
     const x = pl + i * bw;
@@ -75,7 +79,7 @@ function pointsVsPrev(drv, data, prev, col) {
   const now = cum(data, drv.code);
   const before = prev.races.some((r) => r.results.some((x) => x.code === drv.code)) ? cum(prev, drv.code) : null;
   if (!before) return `<div class="note small">${esc(drv.last || drv.name)} n'a pas couru en ${data.year - 1}.</div>`;
-  const W = 440, H = 170, pl = 34, pr = 50, pt = 8, pb = 22;
+  const W = halfWidth(), H = 170, pl = 34, pr = 50, pt = 8, pb = 22;
   const nMax = Math.max(now.length, before.length);
   const yMax = Math.max(1, ...now, ...before);
   const X = (i) => pl + (i / Math.max(1, nMax - 1)) * (W - pl - pr);
@@ -151,7 +155,7 @@ export function renderDrivers(ctx, code) {
   const climb = started.filter((x) => x.res.grid && isNum(x.res)).sort((a, b) => (b.res.grid - b.res.pos) - (a.res.grid - a.res.pos))[0];
 
   // Graphique : position au départ (pointillés) et à l'arrivée, manche par manche
-  const W = 900, H = 230, pl = 30, pr = 12, pt = 10, pb = 24;
+  const W = pageWidth(), H = 230, pl = 30, pr = 12, pt = 10, pb = 24;
   const rounds = races.map((r) => r.round);
   const X = (rd) => pl + ((rounds.indexOf(rd)) / Math.max(1, rounds.length - 1)) * (W - pl - pr);
   const Y = (p) => pt + ((p - 1) / 21) * (H - pt - pb);

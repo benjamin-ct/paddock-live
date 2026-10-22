@@ -11,6 +11,7 @@ import { icon } from '../icons.js';
 import { renderPredict, initPredict } from './predict-view.js';
 import { DEC, LOCALE, EN, t } from '../i18n.js';
 import { gpShort, gpFull } from '/shared/gp-names.js';
+import { COUNTRY_ISO } from '/shared/social-season.js';
 
 // Couleurs officielles (utilisées si les couleurs contrastées sont désactivées)
 const OFFICIAL = {
@@ -201,21 +202,62 @@ function renderHome() {
     </div>`;
 }
 
+// Calendrier façon habillage TV : le prochain Grand Prix en grand (programme jour par jour, compte à
+// rebours), puis toute la saison en liste groupée par mois ; une ligne s'ouvre sur ses séances
+const flagOf = (r) => (COUNTRY_ISO[r.country] ? `<img class="cal-flag" src="https://flagcdn.com/w80/${COUNTRY_ISO[r.country]}.png" alt="" loading="lazy" onerror="this.remove()">` : '');
+const calIcs = (r) => `<a class="btn small" href="#" data-cal="${year}" data-round="${r.round}" title="Séances dans votre agenda (Google, Apple, Outlook)">${icon('calendar')} Ajouter ce week-end à mon agenda</a>`;
+// Dates du week-end : « 23 – 25 oct. » (« 30 oct. – 1 nov. » d'un mois à l'autre)
+function calSpan(r) {
+  const a = r.sessions[0]?.t || r.date;
+  const same = new Date(a).getMonth() === new Date(r.date).getMonth();
+  return `${fmtDate(a, same ? { day: 'numeric' } : { day: 'numeric', month: 'short' })} – ${fmtDate(r.date, { day: 'numeric', month: 'short' })}`;
+}
+function calDays(r) {
+  const days = new Map();
+  for (const s of r.sessions.filter((x) => x.t)) {
+    const k = new Date(s.t).toDateString();
+    if (!days.has(k)) days.set(k, { t: s.t, list: [] });
+    days.get(k).list.push(s);
+  }
+  return `<div class="cal-days">${[...days.values()].map((d) => `<div class="cal-day"><div class="cal-day-h">${esc(fmtDate(d.t, { weekday: 'short', day: 'numeric' }))}</div>
+    ${d.list.map((s) => `<div class="cal-s ${Date.parse(s.t) < Date.now() ? 'past' : ''}"><span>${esc(s.label)}</span><b>${fmtTime(s.t)}</b></div>`).join('')}</div>`).join('')}</div>`;
+}
 function renderCalendar() {
   const nx = nextSession();
-  return `<div class="sz-cal">${data.races.map((r) => {
-    const first = r.sessions[0]?.t || r.date;
-    const status = done(r) ? '<span class="sz-tag done">Terminé</span>' : nx?.race.round === r.round ? '<span class="sz-tag next">Prochain</span>' : '<span class="sz-tag">À venir</span>';
+  const next = nx?.race;
+  const ran = data.races.filter(done).length;
+  const hero = next ? `<section class="cal-hero">
+      <div class="cal-hero-main">
+        <div class="cal-hero-top"><span class="cal-tag">Prochain Grand Prix</span><span class="cal-round">Manche ${next.round} / ${data.races.length}</span>${next.sprint ? '<span class="sz-tag sprint">Sprint</span>' : ''}</div>
+        <h2 class="cal-hero-name">${flagOf(next)}${esc(gpShort(next.name, EN))}</h2>
+        <div class="cal-hero-sub">${esc([next.circuit, next.locality].filter(Boolean).join(' · '))} · ${calSpan(next)}</div>
+        <div class="cal-next">${esc(nx.s.label)} dans</div>
+        <div class="sz-countdown" id="szCountdown" data-t="${esc(nx.s.t)}"></div>
+        ${calIcs(next)}
+      </div>
+      ${calDays(next)}
+    </section>` : '';
+  let month = '';
+  const rows = data.races.map((r) => {
+    const m = fmtDate(r.date, { month: 'long' });
+    const sep = m !== month ? `<div class="cal-month">${esc(m)}</div>` : '';
+    month = m;
     const w = r.results[0];
-    return `<details class="sz-race ${nx?.race.round === r.round ? 'is-next' : ''}" ${nx?.race.round === r.round ? 'open' : ''}>
-      <summary><div class="sz-race-top"><span class="muted">R${r.round}</span> ${r.sprint ? '<span class="sz-tag sprint">Sprint</span>' : ''} ${status}</div>
-        <div class="sz-race-name">${esc(gpShort(r.name, EN))}</div>
-        <div class="muted small">${esc(r.circuit || '')} · ${fmtDate(first)} – ${fmtDate(r.date)}</div>
-        ${w ? `<div class="small">${icon('trophy')} ${chip(w)} ${r.quali[0] ? `· pole ${chip(r.quali.find((q) => q.pos === 1) || r.quali[0])}` : ''}</div>` : ''}</summary>
-      <ul class="sz-sessions">${r.sessions.map((s) => `<li><span>${esc(s.label)}</span><span>${s.t ? `${fmtDate(s.t, { weekday: 'short', day: 'numeric', month: 'short' })} · ${fmtTime(s.t)}` : '—'}</span></li>`).join('')}</ul>
-      ${done(r) ? '' : `<a class="btn small sz-ics" href="#" data-cal="${year}" data-round="${r.round}" title="Séances dans votre agenda (Google, Apple, Outlook)">${icon('calendar')} Ajouter ce week-end à mon agenda</a>`}
+    const pole = r.quali.find((q) => q.pos === 1) || r.quali[0];
+    const state = done(r) ? 'done' : next?.round === r.round ? 'next' : 'future';
+    const right = w ? `<span class="cal-res">${icon('trophy')} ${chip(w)}${pole ? ` <span class="muted">pole</span> ${chip(pole)}` : ''}</span>`
+      : `<span class="cal-state">${state === 'next' ? 'Prochain' : 'À venir'}</span>`;
+    return `${sep}<details class="cal-row ${state}">
+      <summary><span class="cal-num">${r.round}</span>${flagOf(r)}<span class="cal-name"><b>${esc(gpShort(r.name, EN))}</b><small>${esc(r.circuit || '')}</small></span>
+        <span class="cal-date">${calSpan(r)}</span>
+        <span class="cal-sprint">${r.sprint ? '<span class="sz-tag sprint">Sprint</span>' : ''}</span>${right}${icon('chevron-down', 'cal-chev')}</summary>
+      <div class="cal-row-body">${calDays(r)}${done(r) ? '' : calIcs(r)}</div>
     </details>`;
-  }).join('')}</div><p class="muted small"><a class="btn small" href="#" data-cal="${year}" title="Toutes les séances de la saison dans votre agenda (Google, Apple, Outlook), même Paddock Live fermé : abonnement mis à jour tout seul, ou fichier">${icon('calendar')} Ajouter toute la saison à mon agenda</a></p>`;
+  }).join('');
+  return `<div class="cal">${hero}
+    <div class="cal-progress"><span>Saison ${data.year} · <b>${ran} / ${data.races.length}</b> Grands Prix courus</span><div class="sz-progress"><i style="width:${data.races.length ? (ran / data.races.length) * 100 : 0}%"></i></div></div>
+    <div class="cal-list">${rows}</div>
+    <p class="muted small"><a class="btn small" href="#" data-cal="${year}" title="Toutes les séances de la saison dans votre agenda (Google, Apple, Outlook), même Paddock Live fermé : abonnement mis à jour tout seul, ou fichier">${icon('calendar')} Ajouter toute la saison à mon agenda</a></p></div>`;
 }
 
 function lineChartSvg(series, { w = 900, h = 300 } = {}) {
@@ -250,7 +292,7 @@ function renderStandings() {
   });
   // Dessiné à la largeur réelle de la page : textes et traits gardent leur taille (pas étirés)
   const w = Math.max(600, ($('#szContent')?.clientWidth || 934) - 34);
-  return `<section class="sz-box"><h3>Évolution des points — 10 premiers</h3>${lineChartSvg(top, { w, h: 280 })}</section>
+  return `<section class="sz-box"><h3>Évolution des points — 10 premiers</h3>${lineChartSvg(top, { w, h: 340 })}</section>
     <div class="sz-grid2">
       <section class="sz-box"><h3>Pilotes</h3>${standingsTable(data.drivers, 'd')}</section>
       <section class="sz-box"><h3>Constructeurs</h3>${standingsTable(data.constructors, 'c')}</section>
@@ -286,7 +328,7 @@ function qualiGapBox(g, A, B, ca) {
   if (!g.rounds.length) return '<section class="sz-box"><h3>Écart en qualification</h3><div class="note small">Temps de qualification indisponibles pour cette saison.</div></section>';
   const f3 = (v) => `${Math.abs(v).toFixed(3).replace('.', DEC)} s`;
   const lead = g.median <= 0 ? A : B;
-  const W = 900, H = 200, pl = 44, pr = 10, pt = 14, pb = 34, mid = (H - pb + pt) / 2;
+  const W = Math.max(600, ($('#szContent')?.clientWidth || 934) - 34), H = 200, pl = 44, pr = 10, pt = 14, pb = 34, mid = (H - pb + pt) / 2;
   // Échelle calée sur le 2e plus grand écart : un écart isolé est coupé (sa valeur est écrite)
   const abs = g.rounds.filter((x) => !x.outlier).map((x) => Math.abs(x.s)).sort((a, b) => b - a);
   const cap = Math.max(0.2, Math.min(abs[0] || 0, (abs[1] ?? abs[0] ?? 0) * 1.4));
@@ -484,7 +526,6 @@ function render() {
   if (jump) {
     jump = false;
     $('#szContent').scrollTop = 0;
-    $('#szContent .sz-race.is-next')?.scrollIntoView({ block: 'start' });
     // Téléphone : la rubrique choisie visible dans le bandeau du haut
     $('#szNav .active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }

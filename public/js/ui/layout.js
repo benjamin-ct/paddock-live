@@ -78,11 +78,23 @@ let profile = prefs.layoutMode === 'race' || prefs.layoutMode === 'quali' ? pref
 if (!PROFILES[profile]) profile = 'race';
 // Fenêtre principale : une disposition par type de séance. Fenêtres secondaires (second écran) :
 // une seule, quelle que soit la séance (sinon un changement de séance leur reprenait des panneaux)
-const lkey = (win = WIN, prof = profile) => (prof === 'race' || win !== 'main' ? win : `${win}@${prof}`);
+// Mode Allégé : sa propre disposition, celle du mode Complet reste telle quelle
+const lkey = (win = WIN, prof = profile) => (prof === 'race' || win !== 'main' ? win : `${win}@${prof}`) + (win === 'main' && !prefs.fullMode ? '~ess' : '');
 
 function defaultLayout(prof = profile) {
   if (!isMain) return { cols: [] };
   const quali = prof === 'quali';
+  // Allégé : classement, grande carte avec le duel dessous, radios et direction de course à droite
+  if (!prefs.fullMode) {
+    return window.innerWidth <= 1500 ? { cols: [
+      { w: 1, items: [{ id: 'tower', h: 1.5 }, { id: 'feed', h: 0.7 }] },
+      { w: 1.2, items: [{ id: 'map', h: 1.4 }, { id: 'duel', h: 0.9 }, { id: 'radio', h: 0.8 }, { id: 'extra', h: 0.6 }] },
+    ] } : { cols: [
+      { w: 1.05, items: [{ id: 'tower', h: 1 }] },
+      { w: 1.5, items: [{ id: 'map', h: 1.6 }, { id: 'duel', h: 1 }] },
+      { w: 1, items: [{ id: 'radio', h: 1.1 }, { id: 'feed', h: 0.85 }, { id: 'extra', h: 0.75 }] },
+    ] };
+  }
   if (window.innerWidth <= 1500) {
     return quali ? { cols: [
       { w: 1.3, items: [{ id: 'tower', h: 1.5 }, { id: 'feed', h: 0.7 }, { id: 'radio', h: 0.6 }] },
@@ -235,7 +247,7 @@ function detachedElsewhere(id) {
 
 function isVisible(id) {
   if (!isMain) return !!locate(id);
-  return !prefs.hiddenPanels.includes(id) && !detachedElsewhere(id);
+  return !prefs.hiddenPanels.includes(id) && !detachedElsewhere(id) && !(essential() && EXPERT_PANELS.includes(id));
 }
 
 // ---------------- Rendu ----------------
@@ -272,6 +284,9 @@ function mobile() {
 }
 // Téléphone : version simplifiée (l'essentiel seulement), sauf « version complète » dans les réglages
 const simple = () => mobile() && !prefs.phoneFull;
+// Ordinateur, mode Essentiel : le principal seulement (data-expert et EXPERT_PANELS : mode Complet)
+const essential = () => isMain && !mobile() && !prefs.fullMode;
+const EXPERT_PANELS = ['analysis'];
 const SIMPLE_TABS = ['tower', 'map', 'feed', 'radio'];
 
 export function showMobilePanel(id) {
@@ -349,10 +364,11 @@ function mobMore(btn) {
 function render(force = false) {
   if (resizing) { renderLater = true; return; }
   const grid = $('.grid');
-  const key = `${mobile()}|${simple()}|${narrow()}|${JSON.stringify(layout)}|${PANELS.map((p) => isVisible(p.id)).join()}`;
+  const key = `${mobile()}|${simple()}|${essential()}|${narrow()}|${JSON.stringify(layout)}|${PANELS.map((p) => isVisible(p.id)).join()}`;
   if (key === renderKey && !force) return;
   document.documentElement.classList.toggle('phone', mobile());
   document.documentElement.classList.toggle('simple', simple());
+  document.documentElement.classList.toggle('essential', essential());
   renderKey = key;
   if (mobile()) { renderMobile(grid); return; }
   grid.classList.remove('mobile');
@@ -893,6 +909,15 @@ function applyTabs() {
     const b = want && head.querySelector(`[data-tab="${want}"]`);
     if (b && !b.classList.contains('active')) b.click();
   }
+  visibleTabs();
+}
+
+// Onglet ouvert masqué (mode Essentiel) : premier onglet affiché du panneau à la place
+function visibleTabs() {
+  for (const [, head] of tabHeads()) {
+    const cur = head.querySelector(':scope > [data-tab].active');
+    if (cur && getComputedStyle(cur).display === 'none') [...head.querySelectorAll(':scope > [data-tab]')].find((b) => getComputedStyle(b).display !== 'none')?.click();
+  }
 }
 
 function switchProfile(next, quiet = false) {
@@ -1003,7 +1028,9 @@ export function initLayout() {
   // Disposition modifiée dans une autre instance de la même fenêtre (rechargement) : rien à faire ;
   // la fenêtre principale suit seulement les préférences.
   on('prefs', (k) => {
-    if (k === 'hiddenPanels' || k === 'phoneFull') render();
+    if (k === 'fullMode' && isMain) layout = normalize(allLayouts()[lkey()] || defaultLayout());
+    if (k === 'hiddenPanels' || k === 'phoneFull' || k === 'fullMode') render();
+    if (k === 'fullMode') visibleTabs();
     if (['hiddenPanels', 'hiddenCols', 'extraCols', 'towerFit'].includes(k)) renderLayoutOptions();
   });
   render(true);
@@ -1107,7 +1134,7 @@ export function renderLayoutOptions() {
     sel.onchange = () => setPref('layoutMode', sel.value);
     $('#layoutProfileNow').textContent = `Disposition affichée : « ${PROFILES[profile]} ».`;
   }
-  $('#panelOpts').innerHTML = PANELS.map((p) => `<label class="toggle small"><input type="checkbox" data-panel="${p.id}" ${prefs.hiddenPanels.includes(p.id) ? '' : 'checked'}> ${esc(p.name)}</label>`).join('');
+  $('#panelOpts').innerHTML = PANELS.map((p) => `<label class="toggle small"${EXPERT_PANELS.includes(p.id) ? ' data-expert' : ''}><input type="checkbox" data-panel="${p.id}" ${prefs.hiddenPanels.includes(p.id) ? '' : 'checked'}> ${esc(p.name)}</label>`).join('');
   $('#panelOpts').onchange = (e) => {
     const id = e.target.dataset.panel;
     if (!id) return;

@@ -1,7 +1,7 @@
 // Studio : posts des news (et récap de la semaine) et des séances (résultats, avant-course,
 // championnat, flash). Chargé à l'ouverture d'un post.
 import { decodeBody } from '/shared/news-collect.js';
-import { bigNews, newsPost, newsCaptions, newsKind, LOOKS, OTHER_SERIES, NEWS_BADGES } from '/shared/social-news.js';
+import { bigNews, newsPost, newsCaptions, newsKind, similarArticles, mainTeam, mentionsTeam, LOOKS, OTHER_SERIES, NEWS_BADGES } from '/shared/social-news.js';
 import { newsTags } from '/shared/news.js';
 import { postData, captions } from '/shared/social.js';
 import { preraceData, champData, flashEvents, flashData, moreCaptions, FLASH_KINDS } from '/shared/social-more.js';
@@ -10,11 +10,12 @@ import { CHAMPIONSHIP, parseSeasons, parseDocumentList, pickEvent } from '/share
 import { gridDocument, parseStartingGrid } from '/shared/fia-grid.js';
 import { extractArticle } from '/shared/article.js';
 import { recapData, seasonCaptions } from '/shared/social-season.js';
-import { $, $$, esc, api, ago, icon, toggle, glide, state, SIG, NET_NAMES, musicField, bindMusic, clipFile } from './ui.js';
-import { toFrench, freshNews, cachedNews, latestDrivers, loadState, rememberDrivers, SESSION_FR } from './data.js';
+import { $, $$, esc, api, ago, icon, toggle, glide, state, SIG, NET_NAMES, musicField, bindMusic, clipFile, shareClip } from './ui.js';
+import { toFrench, freshNews, cachedNews, latestDrivers, loadState, lapsOf, rememberDrivers, SESSION_FR } from './data.js';
 import { editor, assets } from './editor.js';
-import { photoPicker } from './photos.js';
+import { photoPicker, cropImage, bitmapUrl } from './photos.js';
 import { makeAnimation, unlockAudio } from '/shared/social-video.js';
+import { videoCover } from '/shared/social-draw.js';
 import { newsFrame, newsVideoTiming } from '/shared/social-news-video.js';
 
 // Résumé détaillé : page de l'article lue par le serveur, texte extrait ici, points clés rédigés par
@@ -24,33 +25,50 @@ async function detailedSummary(it) {
   const a = extractArticle(html, it.link);
   const text = a.blocks.map((b) => b.h || b.p || '').filter(Boolean).join('\n\n').slice(0, 12000);
   if (text.length < 400) throw new Error('Pas de texte lisible sur cette page (vidéo, accès réservé…)');
-  const res = await fetch('/s', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: it.title || a.title, text }) });
-  const j = await res.json().catch(() => ({}));
-  if (res.status === 429) throw new Error('Plafond du jour atteint, réessayez demain');
-  if (!res.ok || !Array.isArray(j.points)) throw new Error(j.error || 'Résumé indisponible pour le moment');
+  const j = await api('summary', { method: 'POST', body: JSON.stringify({ title: it.title || a.title, text }) });
+  if (!Array.isArray(j.points)) throw new Error('Résumé indisponible pour le moment');
   return j.points;
 }
+
+// Empreinte d'une photo (8 × 8 en gris, comparée à la moyenne) : la même photo reprise par deux médias, à
+// une autre taille ou recadrée de peu, a une empreinte presque identique
+function fingerprint(image) {
+  const c = document.createElement('canvas');
+  c.width = 8; c.height = 8;
+  const ctx = c.getContext('2d', { willReadFrequently: true });
+  ctx.drawImage(image, 0, 0, 8, 8);
+  const px = ctx.getImageData(0, 0, 8, 8).data;
+  const g = Array.from({ length: 64 }, (_, i) => px[i * 4] * 0.3 + px[i * 4 + 1] * 0.59 + px[i * 4 + 2] * 0.11);
+  const mean = g.reduce((n, v) => n + v, 0) / 64;
+  return g.map((v) => (v > mean ? 1 : 0));
+}
+const sameFingerprint = (a, b) => a.reduce((n, v, i) => n + (v !== b[i]), 0) <= 5;
 
 // ---------- Photo libre de droits (Wikimedia Commons, Flickr) à la place des portraits ----------
 // Recherche proposée : le premier pilote cité, sinon l'écurie, sinon la F1
 const freeQuery = (d) => (d.drivers?.[0] ? `${d.drivers[0].first} ${d.drivers[0].last}` : d.teams?.find((t) => t.key !== 'fia')?.name || 'Formula 1');
-const PHOTO_ROW = (p) => `<div class="row"><button class="btn small" id="${p}photo">${icon('image')}Photo libre de droits</button><button class="btn small" id="${p}photodel" hidden>${icon('close')}Retirer</button><span class="hint" id="${p}photost"></span></div>`;
-// onPhoto({ image, credit } ou null) : photo choisie ou retirée
+const PHOTO_ROW = (p) => `<div class="row"><button class="btn small" id="${p}photo">${icon('image')}Photo libre de droits</button><button class="btn small" id="${p}photocrop" hidden>${icon('image')}Recadrer</button><button class="btn small" id="${p}photodel" hidden>${icon('close')}Retirer</button><span class="hint" id="${p}photost"></span></div>`;
+// onPhoto({ image, credit } ou null) : photo choisie, recadrée ou retirée
 function bindPhoto(p, getD, onPhoto) {
-  $(`#${p}photo`).onclick = () => photoPicker(freeQuery(getD()), (pic) => { onPhoto(pic); $(`#${p}photost`).textContent = pic.credit; $(`#${p}photodel`).hidden = false; });
-  $(`#${p}photodel`).onclick = () => { onPhoto(null); $(`#${p}photost`).textContent = ''; $(`#${p}photodel`).hidden = true; };
+  let cur = null;   // photo choisie : { image (originale), credit }
+  $(`#${p}photo`).onclick = () => photoPicker(freeQuery(getD()), (pic) => { cur = pic; onPhoto(pic); $(`#${p}photost`).textContent = pic.credit; $(`#${p}photodel`).hidden = false; $(`#${p}photocrop`).hidden = false; });
+  $(`#${p}photocrop`).onclick = async () => { const image = cur && await cropImage(cur.image); if (image) onPhoto({ image, credit: cur.credit }); };
+  $(`#${p}photodel`).onclick = () => { cur = null; onPhoto(null); $(`#${p}photost`).textContent = ''; $(`#${p}photodel`).hidden = true; $(`#${p}photocrop`).hidden = true; };
 }
 
-// ---------- Vidéo « Breaking news » (TikTok, Reels, Shorts, story), commune aux news et aux posts écrits ----------
-const NEWS_VIDEO = (on) => `${toggle('brk', 'Très grosse info', on, 'Visuel et vidéo « Breaking news »')}<div id="vidbox" ${on ? '' : 'hidden'}>${musicField('news', 'flash')}<div class="row"><button class="btn" id="mkvid">${icon('video')}Créer la vidéo</button><button class="btn" id="sharevid" disabled>${icon('share')}Partager</button></div>
+// ---------- Vidéo de la news (TikTok, Reels, Shorts, story…), commune aux news et aux posts écrits ----------
+// Style « Breaking news » quand la très grosse info est cochée (BREAKING, étape Contenu)
+const BREAKING = (on) => toggle('brk', 'Très grosse info', on, 'Style « Breaking news » du visuel et de la vidéo');
+const NEWS_VIDEO = () => `<h3 class="section">Vidéo de la news</h3>${musicField('news', 'flash')}<div class="row"><button class="btn" id="mkvid">${icon('video')}Créer la vidéo</button><button class="btn" id="sharevid" disabled title="Zone sûre : Reels, TikTok, Shorts">${icon('share')}Partager</button><button class="btn" id="sharefull" disabled title="X, Bluesky, Facebook, Threads…">${icon('share')}Plein écran</button></div>
   <p class="hint" id="vidst">Garder l'écran allumé pendant l'enregistrement.</p>
-  <video id="vid" controls playsinline hidden></video></div>`;
+  <video id="vid" controls playsinline hidden></video>`;
 // onBreaking(on) : très grosse info cochée ou décochée à la main
 // onClip(file) : vidéo prête (MP4), jointe au post pour la publier sur TikTok, Instagram, Facebook…
-function bindNewsVideo(getD, name, onBreaking, onClip) {
+function bindNewsVideo(getD, onBreaking, onClip) {
   let clip = null;
+  const name = () => (getD().breaking ? 'breaking-news' : 'actu-f1');   // nom du fichier
   const track = bindMusic('news');
-  $('#brk').onchange = (e) => { $('#vidbox').hidden = !e.target.checked; onBreaking(e.target.checked); };
+  $('#brk').onchange = (e) => onBreaking(e.target.checked);
   $('#mkvid').onclick = async () => {
     unlockAudio();   // pendant le toucher, avant toute attente (sinon vidéo muette sur iPhone)
     $('#mkvid').disabled = true;
@@ -58,19 +76,15 @@ function bindNewsVideo(getD, name, onBreaking, onClip) {
       const d = getD();
       const o = await assets(d);
       const { duration } = newsVideoTiming(d);
-      clip = await makeAnimation((ctx, t) => newsFrame(ctx, 1080, 1920, d, o, t), duration, { music: 'gen', track: track(), onProgress: (p) => { $('#vidst').textContent = `Enregistrement… ${Math.round(p * 100)} %`; } });
+      clip = await makeAnimation((ctx, t, w, h) => newsFrame(ctx, w, h, d, o, t), duration, { box: true, cover: (ctx) => videoCover(ctx, 1080, 1920, d, o), music: 'gen', track: track(), onProgress: (p) => { $('#vidst').textContent = `Enregistrement… ${Math.round(p * 100)} %`; } });
       $('#vid').src = URL.createObjectURL(clip.blob); $('#vid').hidden = false;
-      $('#sharevid').disabled = false;
-      $('#vidst').textContent = `Vidéo prête : ${Math.round(duration)} s, ${(clip.blob.size / 1e6).toFixed(1).replace('.', ',')} Mo${clip.silent ? ' · sans son : le navigateur a bloqué la musique, recommencez' : ''}${clipFile(clip, name) ? ' · cochez TikTok, Instagram… dans « Publier sur » pour la publier' : ' · format WebM : à partager seulement (publication en MP4)'}`;
-      onClip(clipFile(clip, name));
+      $('#sharevid').disabled = false; $('#sharefull').disabled = false;
+      $('#vidst').textContent = `Vidéo prête : ${Math.round(duration)} s, ${(clip.blob.size / 1e6).toFixed(1).replace('.', ',')} Mo${clip.silent ? ' · sans son : le navigateur a bloqué la musique, recommencez' : ''}${clipFile(clip, name()) ? ' · jointe au post (à décocher à l\'étape Publier pour garder les visuels)' : ' · format WebM : à partager seulement (publication en MP4)'}`;
+      onClip(clipFile(clip, name()));
     } catch (err) { $('#vidst').textContent = err.message; } finally { $('#mkvid').disabled = false; }
   };
-  $('#sharevid').onclick = async () => {
-    if (!clip) return;
-    const file = new File([clip.blob], `${name}.${clip.mime.includes('mp4') ? 'mp4' : 'webm'}`, { type: clip.mime });
-    if (navigator.canShare?.({ files: [file] })) { try { await navigator.share({ files: [file] }); } catch { /* annulé */ } return; }
-    const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = file.name; a.click();
-  };
+  $('#sharevid').onclick = () => clip && shareClip(clip, name());
+  $('#sharefull').onclick = () => clip && shareClip(clip, name(), true);
 }
 
 export async function newsEditor(it, done, back) {
@@ -78,12 +92,16 @@ export async function newsEditor(it, done, back) {
   const failed = title === null || summary === null;
   let breaking = null;   // très grosse info choisie à la main (sinon : détectée)
   let made = null;       // vidéo Breaking news fabriquée (MP4), jointe au post
-  let pic = null;        // photo choisie (libre de droits, ou celle de l'article) : { image, credit }
+  let pic = null;        // photo libre de droits choisie : { image, credit }
+  let arts = [];         // photos trouvées : { image, url, pick, src } ; pick : rang choisi (0 : pas dans le post), le 1er en couverture (sans photo libre)
   const look = it.link && LOOKS.has(newsKind(it).key) ? newsKind(it).key : '';   // livrée ou tenue spéciale
   const make = async (t, s, p = '') => {
     const nd = newsPost(it, { title: t, summary: s, points: p, driverList: await latestDrivers(), sourceName: it.srcName });
     if (breaking !== null) nd.breaking = breaking;
+    const on = arts.filter((a) => a.pick).sort((a, b) => a.pick - b.pick).map((a) => ({ image: a.image, credit: `Photo : via ${a.src}` }));
     if (pic) Object.assign(nd, pic);
+    else if (on[0]) Object.assign(nd, on[0]);
+    nd.gallery = pic ? on : on.slice(1);
     return nd;
   };
   let d = await make(title ?? it.title, summary ?? it.summary);
@@ -91,7 +109,6 @@ export async function newsEditor(it, done, back) {
     back,
     title: 'News',
     subtitle: `${it.srcName} · il y a ${ago(it.t)}`,
-    below: true,
     head: `<div class="row"><span class="badge" style="background:${d.badge.color}">${esc(d.badge.label)}</span>${it.link ? `<a class="link" href="${esc(it.link)}" target="_blank" rel="noopener">Lire l'article ${icon('link')}</a>` : ''}</div>
       ${done ? `<p class="notice ok">${icon('check')}Déjà publiée le ${esc(new Date(done.at).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' }))} sur ${esc(Object.keys(done.nets).map((n) => NET_NAMES[n] || n).join(', '))}</p>` : ''}
       <label class="field"><span>Titre</span><input type="text" id="ntitle" maxlength="160" value="${esc(d.title)}"></label>
@@ -99,11 +116,13 @@ export async function newsEditor(it, done, back) {
       <label class="field"><span>Points clés, un par ligne <small>(images suivantes du carrousel)</small></span><textarea id="npoints" rows="5" maxlength="1600" placeholder="Facultatif : « Résumé détaillé » ou à écrire soi-même"></textarea></label>
       ${it.link ? `<div class="row"><button class="btn small" id="nsummary">${icon('wand')}Résumé détaillé</button><span class="hint" id="nsumst"></span></div>` : ''}
       ${PHOTO_ROW('n')}
-      ${/^https:\/\//.test(it.link || '') ? `<div class="row"><button class="btn small" id="nartimg">${icon('image')}${look ? `Photo de la ${look === 'tenue' ? 'tenue' : 'livrée'} (article)` : 'Photo de l\'article'}</button></div>
-        <p class="hint">Dans les visuels, « via ${esc(it.srcName)} » crédité.</p>` : ''}
+      ${/^https:\/\//.test(it.link || '') ? `<div class="row"><button class="btn small" id="nartimg">${icon('image')}${look ? `Photos de la ${look === 'tenue' ? 'tenue' : 'livrée'} (article)` : 'Photos de l\'article'}</button><span class="hint" id="nartst"></span></div>
+        <div class="photos" id="nartlist"></div>
+        <p class="hint">Photos de cet article, des autres médias sur la même info${look ? ', d\'Instagram (posts des écuries sur leur look) et de Bluesky' : ''}. Touchez celles à mettre dans le post, dans l'ordre : la première en couverture, puis une image par photo, « via » la source crédité.</p>` : ''}
       ${toggle('linkcomment', 'Lien en premier commentaire', state.linkComment, 'Facebook, Threads, Bluesky, X')}
-      ${NEWS_VIDEO(d.breaking)}
+      ${BREAKING(d.breaking)}
       <p class="hint">${failed ? 'Traduction indisponible : textes en version originale, à traduire à la main.' : 'Traduction automatique : à relire.'}</p>`,
+    vhead: NEWS_VIDEO(),
     data: () => d,
     caps: (dd) => newsCaptions(dd, SIG, { linkInComment: state.linkComment && state.fmt !== 'link' }),
     video: () => made,
@@ -126,21 +145,99 @@ export async function newsEditor(it, done, back) {
           upd();
         } catch (err) { $('#nsumst').textContent = err.message; } finally { btn.disabled = false; btn.classList.remove('busy'); }
       };
-      bindPhoto('n', () => d, (p) => { pic = p; upd(); });
-      // Livrée ou tenue spéciale : la photo de l'article (rendu ou photo de l'écurie)
+      let showArts = () => {};
+      bindPhoto('n', () => d, (p) => { pic = p; showArts(); upd(); });
+      // Livrée ou tenue spéciale : toutes les photos de l'article (rendus, photos de l'écurie), puis celles
+      // des autres médias sur la même info ; une photo reprise par plusieurs médias n'est gardée qu'une fois
       if ($('#nartimg')) {
+        const load = async (link, i) => {
+          const res = await api(`artimg?u=${encodeURIComponent(link)}&i=${i}`, { raw: true });
+          const blob = await res.blob();
+          const image = await createImageBitmap(blob);
+          return { image, url: URL.createObjectURL(blob), pick: 0, n: Number(res.headers.get('X-Photos')) || 1, key: fingerprint(image) };
+        };
+        // Photos d'un article (max au plus) : la première donne leur nombre
+        const loadArticle = async (x, max) => {
+          const first = await load(x.link, 0);
+          const rest = await Promise.all(Array.from({ length: Math.min(first.n, max) - 1 }, (_, k) => load(x.link, k + 1).catch(() => null)));
+          return [first, ...rest].filter(Boolean).map((a) => ({ ...a, src: x.srcName }));
+        };
+        // Photos des réseaux (Instagram des écuries, Bluesky), lues par le serveur
+        const loadSocial = async () => {
+          // Seulement l'écurie du sujet (pas celles citées en passant dans le résumé)
+          const main = mainTeam(d.title, d.teams);
+          const who = look === 'tenue' ? d.drivers[0]?.last || main?.name : main?.name;
+          if (!main && !who) return [];
+          const r = await api(`socialphotos?${new URLSearchParams({ teams: main?.key || '', look, who: who || '', since: String(it.t - 3 * 86400e3), until: String(it.t + 2 * 86400e3) })}`);
+          socialErrors = r.errors || [];
+          const list = await Promise.all(r.items.map(async (p) => {
+            const blob = await (await api(`img?u=${encodeURIComponent(p.url)}`, { raw: true })).blob();
+            const image = await createImageBitmap(blob);
+            return { image, url: URL.createObjectURL(blob), pick: 0, key: fingerprint(image), src: p.src };
+          }).map((p) => p.catch(() => null)));
+          return list.filter(Boolean);
+        };
+        let socialErrors = [];
+        const add = (list) => {
+          for (const a of list) {
+            if (arts.some((b) => sameFingerprint(a.key, b.key))) URL.revokeObjectURL(a.url);
+            else arts.push(a);
+          }
+        };
+        const show = showArts = () => {
+          $('#nartlist').innerHTML = arts.map((a, i) => `<div class="ph"><button type="button" data-art="${i}" class="${a.pick ? 'on' : ''}">${a.pick ? `<b class="pick">${a.pick}</b>` : ''}<img src="${a.url}" alt=""><small>${a.pick ? (a.pick === 1 && !pic ? 'Couverture' : `Image ${a.pick + (pic ? 1 : 0)}`) : 'Touchez pour ajouter'} · ${esc(a.src)}</small></button>${a.pick ? `<button type="button" class="cropbtn" data-crop="${i}">Recadrer</button>` : ''}</div>`).join('');
+          // Recadrage : toujours depuis la photo d'origine
+          for (const b of $$('#nartlist [data-crop]')) {
+            b.onclick = async () => {
+              const a = arts[b.dataset.crop];
+              a.orig ||= a.image;
+              const image = await cropImage(a.orig);
+              if (!image) return;
+              a.image = image;
+              URL.revokeObjectURL(a.url);
+              a.url = await bitmapUrl(image);
+              show(); upd();
+            };
+          }
+          for (const b of $$('#nartlist [data-art]')) {
+            b.onclick = () => {
+              const a = arts[b.dataset.art];
+              // Retirée : les suivantes avancent d'un rang ; ajoutée : à la fin
+              if (a.pick) { for (const x of arts) if (x.pick > a.pick) x.pick--; a.pick = 0; } else a.pick = Math.max(0, ...arts.map((x) => x.pick)) + 1;
+              show(); upd();
+            };
+          }
+        };
         $('#nartimg').onclick = async () => {
           const b = $('#nartimg');
           b.disabled = true; b.classList.add('busy');
-          try {
-            pic = { image: await createImageBitmap(await (await api(`artimg?u=${encodeURIComponent(it.link)}`, { raw: true })).blob()), credit: `Photo : via ${it.srcName}` };
-            $('#nphotost').textContent = pic.credit; $('#nphotodel').hidden = false;
-            upd();
-          } catch (err) { $('#nphotost').textContent = err.message; } finally { b.disabled = false; b.classList.remove('busy'); }
+          $('#nartst').textContent = 'Lecture des photos…';
+          for (const a of arts) URL.revokeObjectURL(a.url);
+          arts = [];
+          let err = null;
+          try { add(await loadArticle(it, 12)); show(); upd(); } catch (e) { err = e; }
+          // Autres médias : articles du même type dont le titre cite l'écurie du sujet
+          const main = mainTeam(d.title, d.teams);
+          const others = similarArticles(it, await freshNews().catch(() => cachedNews()?.items || []), 12, look).filter((x) => !main || mentionsTeam(x.title, main.key)).slice(0, 4);
+          let found = 0;
+          for (const [k, x] of others.entries()) {
+            $('#nartst').textContent = `${arts.length} photo${arts.length > 1 ? 's' : ''} · autres médias (${k + 1}/${others.length})…`;
+            const before = arts.length;
+            add(await loadArticle(x, 6).catch(() => []));
+            if (arts.length > before) { found++; show(); upd(); }
+          }
+          if (look) {
+            $('#nartst').textContent = `${arts.length} photo${arts.length > 1 ? 's' : ''} · Instagram et Bluesky…`;
+            const before = arts.length;
+            add(await loadSocial().catch(() => []));
+            if (arts.length > before) { found++; show(); upd(); }
+          }
+          $('#nartst').textContent = (arts.length ? `${arts.length} photo${arts.length > 1 ? 's' : ''}${found ? ` (dont ${found} autre${found > 1 ? 's' : ''} source${found > 1 ? 's' : ''})` : ''}` : (err?.message || 'Pas de photo')) + (socialErrors.length ? ` · ${socialErrors.join(' · ')}` : '');
+          b.disabled = false; b.classList.remove('busy');
         };
       }
       $('#linkcomment').onchange = (e) => { state.linkComment = e.target.checked; redraw(true); };
-      bindNewsVideo(() => d, 'breaking-news', (on) => { breaking = on; d.breaking = on; redraw(true); }, (file) => { made = file; redraw(); });
+      bindNewsVideo(() => d, (on) => { breaking = on; d.breaking = on; redraw(true); }, (file) => { made = file; state.noVideo = false; redraw(); });
     },
   });
 }
@@ -173,11 +270,12 @@ export async function manualEditor(back) {
       <label class="field"><span>Type d'info</span><select id="mkind"><option value="">Deviné d'après le texte</option>${NEWS_BADGES.map((b) => `<option value="${b.key}">${esc(b.label.charAt(0) + b.label.slice(1).toLowerCase())}</option>`).join('')}</select></label>
       <label class="field"><span>Source <small>(facultatif, citée en bas de l'image)</small></span><input type="text" id="msrc" maxlength="60" placeholder="Ex. : communiqué de McLaren"></label>
       <div class="field"><span>Photo <small>(facultatif : remplace les portraits des pilotes)</small></span>
-        <div class="row"><label class="btn small">${icon('image')}Choisir une photo<input type="file" id="mimg" accept="image/*" hidden></label><button class="btn small" id="mfree">${icon('image')}Photo libre de droits</button><button class="btn small" id="mimgdel" hidden>${icon('close')}Retirer</button><span class="hint" id="mimgst"></span></div></div>
-      <div class="field"><span>Vidéo <small>(facultatif : publiée avec le post, MP4 ou MOV, 50 Mo au plus)</small></span>
+        <div class="row"><label class="btn small">${icon('image')}Choisir une photo<input type="file" id="mimg" accept="image/*" hidden></label><button class="btn small" id="mfree">${icon('image')}Photo libre de droits</button><button class="btn small" id="mimgcrop" hidden>${icon('image')}Recadrer</button><button class="btn small" id="mimgdel" hidden>${icon('close')}Retirer</button><span class="hint" id="mimgst"></span></div></div>
+      ${BREAKING(false)}`,
+    vhead: `<div class="field"><span>Votre vidéo <small>(facultatif : publiée avec le post, MP4 ou MOV, 50 Mo au plus)</small></span>
         <div class="row"><label class="btn small">${icon('video')}Choisir une vidéo<input type="file" id="mvid" accept="video/mp4,video/quicktime" hidden></label><button class="btn small" id="mviddel" hidden>${icon('close')}Retirer</button><span class="hint" id="mvidst"></span></div>
         <video id="mvidprev" controls playsinline hidden></video></div>
-      ${NEWS_VIDEO(false)}`,
+      ${NEWS_VIDEO()}`,
     data: () => d,
     caps: (dd) => newsCaptions(dd, SIG),
     record: () => ({ key: `manual:${it.id}`, kind: 'manual', title: d.title }),
@@ -213,15 +311,17 @@ export async function manualEditor(back) {
         const file = e.target.files?.[0];
         if (!file) return;
         try {
-          f.image = await createImageBitmap(file);
+          f.image = f.orig = await createImageBitmap(file);
           f.credit = '';
           $('#mimgst').textContent = file.name;
           $('#mimgdel').hidden = false;
+          $('#mimgcrop').hidden = false;
           upd(true);
         } catch { $('#mimgst').textContent = 'Image illisible'; }
       };
-      $('#mfree').onclick = () => photoPicker(freeQuery(d), (p) => { f.image = p.image; f.credit = p.credit; $('#mimgst').textContent = p.credit; $('#mimgdel').hidden = false; upd(true); });
-      $('#mimgdel').onclick = () => { f.image = null; f.credit = ''; $('#mimg').value = ''; $('#mimgst').textContent = ''; $('#mimgdel').hidden = true; upd(true); };
+      $('#mfree').onclick = () => photoPicker(freeQuery(d), (p) => { f.image = f.orig = p.image; f.credit = p.credit; $('#mimgst').textContent = p.credit; $('#mimgdel').hidden = false; $('#mimgcrop').hidden = false; upd(true); });
+      $('#mimgcrop').onclick = async () => { const image = f.orig && await cropImage(f.orig); if (image) { f.image = image; upd(true); } };
+      $('#mimgdel').onclick = () => { f.image = f.orig = null; f.credit = ''; $('#mimg').value = ''; $('#mimgst').textContent = ''; $('#mimgdel').hidden = true; $('#mimgcrop').hidden = true; upd(true); };
       $('#mvid').onchange = (e) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -231,11 +331,12 @@ export async function manualEditor(back) {
         $('#mvidst').textContent = `${file.name} · ${(file.size / 1e6).toFixed(1).replace('.', ',')} Mo`;
         if ($('#mvidprev').src) URL.revokeObjectURL($('#mvidprev').src);
         $('#mvidprev').src = URL.createObjectURL(file); $('#mvidprev').hidden = false;
+        $('#mvidprev').onloadedmetadata = (ev) => { file.vsize = `${ev.target.videoWidth}x${ev.target.videoHeight}`; };   // format de la vidéo pour Bluesky
         $('#mviddel').hidden = false;
         upd(true);
       };
       $('#mviddel').onclick = () => { f.video = null; $('#mvid').value = ''; $('#mvidst').textContent = ''; $('#mviddel').hidden = true; $('#mvidprev').hidden = true; $('#mvidprev').removeAttribute('src'); upd(true); };
-      bindNewsVideo(() => d, 'breaking-news', (on) => { f.breaking = on; upd(true); }, (file) => { f.made = file; redraw(); });
+      bindNewsVideo(() => d, (on) => { f.breaking = on; upd(true); }, (file) => { f.made = file; state.noVideo = false; redraw(); });
     },
   });
 }
@@ -254,7 +355,7 @@ export async function recapEditor(back) {
     back,
     title: 'Récap de la semaine',
     subtitle: `${d.items.length} grosses news des 7 derniers jours`,
-    head: '<p class="hint">Traduction automatique : à relire.</p>',
+    note: 'Traduction automatique : à relire.',
     data: () => d, caps: (dd) => seasonCaptions(dd, SIG),
     record: () => ({ key: `recap:${d.date}`, kind: 'recap', title: `La semaine en F1 · ${d.date}` }),
   });
@@ -292,7 +393,7 @@ export async function sessionEditor(s, back) {
   const meet = st.SessionInfo?.Meeting || {};
   const tyres = builtinNomination(Number(String(s.path).slice(0, 4)), { name: meet.Name, location: meet.Location, country: meet.Country?.Name });
   const events = flashEvents(st);
-  const results = postData(st);
+  const results = postData(st, { laps: lapsOf(st) });
   const champ = champData(st);
   let type = 'results';
   let ev = events[0] || null;

@@ -27,6 +27,7 @@ let gpuInfo = null;                           // { ok, name, why }
 const highFail = { asr: null, mt: null };     // { msg, at, wait }
 const effective = { asr: null, mt: null };    // niveau utilisé en dernier ('high' | 'light')
 const noCloud = new Set();                      // radios que le serveur Paddock Live n'a pas pu transcrire
+const rechecked = new Set();                    // radios sans texte déjà redemandées au serveur (une fois par lancement)
 const RETRY_MS = { pref: 2 * 60000, auto: 10 * 60000 };
 let isTranscriber = !navigator.locks;
 let status = { state: 'idle', msg: '' };
@@ -175,8 +176,12 @@ export function requestTranscripts(items) {
     const t = texts[url];
     // Haute qualité disponible : les radios faites en qualité légère sont refaites (transcription,
     // ou seulement la traduction si la transcription est déjà en haute qualité)
-    // Transcription en ligne disponible : les radios faites sur l'ordinateur en qualité légère sont refaites
-    const redoAsr = t && t.q !== 'high' && t.q !== 'cloud' && (effective.asr === 'high' || (t.q === 'light' && cloudAsrOn() && !noCloud.has(url)));
+    // Transcription en ligne disponible : les radios faites sur l'ordinateur en qualité légère sont refaites ;
+    // celles restées sans texte (échec, ancienne version, quelle que soit leur origine) sont redemandées au
+    // serveur une fois par lancement
+    const empty = t && !t.en && cloudAsrOn() && !noCloud.has(url) && !rechecked.has(url);
+    if (empty) rechecked.add(url);
+    const redoAsr = t && (empty || (t.q !== 'high' && t.q !== 'cloud' && (effective.asr === 'high' || (t.q === 'light' && cloudAsrOn() && !noCloud.has(url)))));
     const redoMt = t && t.en && lang !== 'none' && effective.mt === 'high' && t.tr?.[lang] !== undefined && t.tq?.[lang] !== 'high' && t.tq?.[lang] !== 'cloud';
     const kind = !t || redoAsr ? 'asr' : (lang !== 'none' && t.en && (t.tr?.[lang] === undefined || redoMt) ? 'mt' : null);
     if (!kind) continue;

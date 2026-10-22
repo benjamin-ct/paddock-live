@@ -1,7 +1,8 @@
-// Clics sur les liens des posts : liens suivis enregistrés à la publication, redirection /go/<id><réseau>
+// Clics sur les liens des posts : liens suivis enregistrés à la publication, redirection /<id><réseau>
+// (anciens liens : /go/<id><réseau>)
 // avec comptage (par jour, réseau, pays et appareil ; ni cookie ni adresse IP), téléchargements de l'appli,
 // et totaux pour les statistiques du Studio.
-import { trackText, GO_RE, NET_OF } from '../shared/track-links.js';
+import { trackText, GO_RE, SHORT_RE, NET_OF } from '../shared/track-links.js';
 import { PAGES, bioTarget } from './links/pages.mjs';
 
 // Robots des réseaux (aperçus de liens) et moteurs : redirigés sans être comptés
@@ -26,7 +27,7 @@ export async function go(req, env, ctx, code) {
     url = bioTarget(bio[1], bio[2])?.[1];
     [id, net] = [code, 'bio'];
   } else {
-    const m = GO_RE.exec(code);
+    const m = SHORT_RE.exec(code) || GO_RE.exec(code);
     url = m && (await env.DB.prepare('SELECT url FROM links WHERE id = ?1').bind(m[1]).first())?.url;
     [id, net] = [m?.[1], NET_OF[m?.[2]] || 'autre'];
   }

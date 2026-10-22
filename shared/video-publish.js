@@ -53,6 +53,13 @@ const TIKTOK_FAIL = {
   spam_risk_user_banned_from_posting: 'compte TikTok privé de publication pour le moment',
   spam_risk: 'envoi bloqué par TikTok (trop d\'envois rapprochés)', app_version_check_failed: 'appli TikTok trop ancienne : mettez-la à jour',
 };
+// Refus d'une publication directe (code de l'erreur TikTok) : ce qu'il faut faire
+const TIKTOK_REFUSED = {
+  unaudited_client_can_only_post_to_private_accounts: 'App TikTok pas encore auditée : en publication directe, TikTok n\'accepte que « Moi uniquement » sur un compte privé. Choisissez « Brouillon », ou passez le compte TikTok en privé et choisissez « Moi uniquement », en attendant l\'audit.',
+  privacy_level_option_mismatch: 'Visibilité refusée par TikTok pour ce compte : choisissez-en une autre',
+  spam_risk_too_many_posts: 'Limite de publications du jour atteinte sur ce compte TikTok : réessayez demain',
+  spam_risk_user_banned_from_posting: 'Compte TikTok privé de publication pour le moment',
+};
 // État d'un envoi chez TikTok : { status, fail_reason } ; lecture impossible -> { error }
 export async function tiktokStatus(token, id) {
   try {
@@ -81,7 +88,7 @@ export async function tiktokDirect(token, video, mime = 'video/mp4', o = {}) {
   const init = await call(`${TIKTOK}/post/publish/video/init/`, { method: 'POST', headers: auth, json: {
     post_info: { title: String(o.title || '').slice(0, 2200), privacy_level: o.privacy, disable_comment: !o.comment, disable_duet: !o.duet, disable_stitch: !o.stitch, brand_organic_toggle: !!o.brandOrganic, brand_content_toggle: !!o.brandContent },
     source_info: { source: 'FILE_UPLOAD', video_size: video.length, chunk_size: video.length, total_chunk_count: 1 },
-  } });
+  } }).catch((err) => { throw TIKTOK_REFUSED[err.code] ? new Error(TIKTOK_REFUSED[err.code]) : err; });
   const res = await fetch(init.data.upload_url, { method: 'PUT', headers: { 'Content-Type': mime, 'Content-Range': `bytes 0-${video.length - 1}/${video.length}` }, body: video, signal: AbortSignal.timeout(300000) });
   if (!res.ok) throw new Error(`Envoi de la vidéo refusé par TikTok (HTTP ${res.status})`);
   const id = init.data.publish_id;

@@ -7,6 +7,7 @@
 import { seasonRow } from './studio.js';
 import { predictView, checkPick, playerKey } from '../shared/predict.js';
 import { gpFull } from '../shared/gp-names.js';
+import { callerIp } from './quota.js';
 
 const json = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' } });
 export const GROUP_RE = /^[a-z0-9]{10}$/;
@@ -31,7 +32,7 @@ export async function pronosApi(req, env, url, { now = Date.now() } = {}) {
   if (path === 'new' && req.method === 'POST') {
     const b = await req.json().catch(() => ({}));
     const name = String(b.name || '').replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 40) || 'Pronostics F1';
-    const ip = req.headers.get('CF-Connecting-IP') || 'local';
+    const ip = callerIp(req) || 'local';
     const day = new Date(now).toISOString().slice(0, 10);
     const n = (await env.DB.prepare('SELECT n FROM pronos_new WHERE ip = ? AND day = ?').bind(ip, day).first())?.n || 0;
     if (n >= MAX_NEW) return json({ error: 'Trop de groupes créés aujourd\'hui : réessayez demain' }, 429);

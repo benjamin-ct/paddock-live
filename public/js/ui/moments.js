@@ -8,7 +8,7 @@ import { icon } from '../icons.js';
 import { MOMENT_LABEL } from '/shared/moments.js';
 import { EN, t } from '../i18n.js';
 
-const KIND = {
+export const KIND = {
   start: ['flag', 'flag'], part: ['flag', 'flag'], finish: ['checkered', 'flag'],
   sc: ['siren', 'flag'], vsc: ['siren', 'flag'], red: ['flag', 'flag'], green: ['flag', 'flag'],
   lead: ['trophy', 'race'], overtake: ['tri-up', 'race'], fastest: ['stopwatch', 'race'],
@@ -41,7 +41,7 @@ async function load() {
   renderMarks();
 }
 
-function seek(off) {
+export function seek(off) {
   const s = src();
   // Quelques secondes avant le moment, pour le voir arriver ; délai TV pris en compte
   api('/api/replay/control', { method: 'POST', body: { action: 'seek', toMs: Math.max(0, off - 8000) + store.delay * (s?.speed || 1) } }).catch(() => {});

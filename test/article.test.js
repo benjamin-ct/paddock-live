@@ -64,3 +64,34 @@ test('lecture d\'article : liens de l\'Actu seulement, nouvel essai, page illisi
   assert.equal(v.readable, false);
   assert.match(v.reason, /pas de texte lisible/);
 });
+
+test('photos de l\'article : la principale en tête, une taille par photo, sans logos, vignettes, vidéos ni encarts', () => {
+  const big = (n) => `<img src="https://cdn.test/2026/livree-${n}-600x400.jpg" srcset="https://cdn.test/2026/livree-${n}-600x400.jpg 600w, https://cdn.test/2026/livree-${n}-2048x1365.jpg 2048w">`;
+  const html = `<meta property="og:image" content="https://cdn.test/2026/livree-1.jpg"><img src="https://cdn.test/logo.png">
+    <article>${[1, 2, 3].map((n) => `<p>${para(n)}</p>`).join('')}
+      <figure>${big(1)}</figure><figure>${big(2)}</figure><img data-src="/2026/livree-3.webp" width="1600">
+      <img src="https://cdn.test/2026/pub.jpg" width="120"><img src="https://cdn.test/icon-share.png">
+      <a href="/autre-article"><img src="https://cdn.test/2026/autre.jpg"></a>
+      <img src="https://media.test/image/upload/c_fill,w_352/v1/autre-2.webp">
+      <img src="https://cdn.test/2026/auteur.jpg" srcset="https://cdn.test/2026/auteur.jpg?height=270 270w" sizes="100px">
+      <div class="sdc-site-video__poster"><img src="https://cdn.test/2026/podcast.jpg"></div>
+      <div class="sdc-site-tile__image-wrap"><img src="https://cdn.test/2026/abonnement-sky.jpg"></div>
+      <figure class="kg-card kg-image-card"><img src="https://cdn.test/2026/livree-4.jpg"></figure>
+      <div class="sdc-site-tile"><figure><div><picture>${'<source srcset="https://cdn.test/2026/promo.jpg?w=1" media="(min-width: 1px)">'.repeat(40)}<img src="https://cdn.test/2026/promo-sky-now.jpg"></picture></div></figure></div>
+    </article>`;
+  assert.deepEqual(extractArticle(html, 'https://cdn.test/a').images, [
+    'https://cdn.test/2026/livree-1.jpg',
+    'https://cdn.test/2026/livree-2-2048x1365.jpg',
+    'https://cdn.test/2026/livree-3.webp',
+    'https://cdn.test/2026/livree-4.jpg',
+  ]);
+  assert.deepEqual(extractArticle('<p>Rien</p>').images, []);
+});
+
+test('photos de l\'article : encart isolé loin du texte écarté, galerie qui suit le texte gardée', () => {
+  const pad = (n) => `<div class="x">${' '.repeat(n)}</div>`;
+  const html = `<article>${[1, 2, 3].map((n) => `<p>${para(n)}</p>`).join('')}
+    <img src="https://cdn.test/g1.jpg">${pad(2000)}<img src="https://cdn.test/g2.jpg">${pad(2000)}<img src="https://cdn.test/g3.jpg">
+    ${pad(9000)}<div class="sdc-x"><img src="https://cdn.test/offre-abonnement.jpg"></div></article>`;
+  assert.deepEqual(extractArticle(html, 'https://cdn.test/a').images.map((u) => u.split('/').pop()), ['g1.jpg', 'g2.jpg', 'g3.jpg']);
+});

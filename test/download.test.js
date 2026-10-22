@@ -59,6 +59,18 @@ test('téléchargement : copie de la dernière version sur Cloudflare (morceaux 
   assert.equal((await mirror(new Request('https://p.test/dl/x'), env, '../secret')).status, 404);
 });
 
+test('téléchargements : comptés seulement sur un clic dans un navigateur', async () => {
+  const { default: worker } = await import('../analytics/worker.js');
+  const runs = [];
+  const env = { MEDIA: { get: async () => ({ text: async () => '1.27.51' }) }, DB: { prepare: () => ({ bind: (...a) => ({ run: async () => { runs.push(a); return {}; } }) }) } };
+  const ctx = { waitUntil: (p) => p };
+  const ua = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/141.0' };
+  await worker.fetch(new Request('https://paddocklive.app/download/deb', { headers: ua }), env, ctx);
+  await worker.fetch(new Request('https://paddocklive.app/download/deb', { headers: { ...ua, 'Sec-Fetch-User': '?1' } }), env, ctx);
+  await new Promise((r) => setTimeout(r, 0));
+  assert.deepEqual(runs.map((a) => [a[1], a[2], a[4]]), [['download', 'deb', 'desktop']]);
+});
+
 test('nom de domaine : racine = site de l\'appli, www redirigé, workers.dev inchangé', async () => {
   const { default: worker } = await import('../analytics/worker.js');
   const env = { ASSETS: { fetch: async (req) => new Response(`site:${new URL(req.url).pathname}`) } };
@@ -69,6 +81,10 @@ test('nom de domaine : racine = site de l\'appli, www redirigé, workers.dev inc
   assert.equal(r.headers.get('location'), 'https://paddocklive.app/legal/privacy?x=1');
   r = await worker.fetch(new Request('https://paddock-live-stats.paddock-live.workers.dev/'), env);
   assert.notEqual(await r.text(), 'site:/site/');
+  // Nom court des liens suivis : hors liens, renvoi sur le site
+  r = await worker.fetch(new Request('https://pdkl.app/download?x=1'), { ...env, SITE_ORIGIN: 'https://paddocklive.app' });
+  assert.equal(r.status, 301);
+  assert.equal(r.headers.get('location'), 'https://paddocklive.app/download?x=1');
 });
 
 test('ancienne adresse workers.dev : connexion et statistiques renvoyées sur le nom de domaine, appels de l\'appli inchangés', async () => {
@@ -83,4 +99,16 @@ test('ancienne adresse workers.dev : connexion et statistiques renvoyées sur le
   // Envoi des statistiques de l'appli : pas de redirection
   r = await worker.fetch(new Request(`${W}/e`, { method: 'POST', body: '{}' }), env);
   assert.notEqual(r.status, 302);
+});
+
+test('retour de la connexion Facebook : renvoyé vers l\'appli de bureau (port de « state »), rien d\'autre', async () => {
+  const { default: worker } = await import('../analytics/worker.js');
+  const state = `3000.${'a'.repeat(32)}`;
+  let r = await worker.fetch(new Request(`https://paddocklive.app/fb-callback?code=abc&state=${state}&autre=x`), {});
+  assert.equal(r.status, 302);
+  assert.equal(r.headers.get('location'), `http://127.0.0.1:3000/meta-callback/?code=abc&state=${state}`);
+  for (const bad of ['evil.com', `80.${'a'.repeat(32)}`, `3000.${'a'.repeat(31)}`, '']) {
+    r = await worker.fetch(new Request(`https://paddocklive.app/fb-callback?code=abc&state=${encodeURIComponent(bad)}`), {});
+    assert.equal(r.status, 400);
+  }
 });

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { weekendData, recordsData, ratingsData, raceRatings, teamDuelsData, titleData, raceLapsData, recapData, seasonCaptions, teamColor } from '../shared/social-season.js';
+import { weekendData, recordsData, ratingsData, raceRatings, teamDuelsData, titleData, titleSide, raceLapsData, recapData, seasonCaptions, teamColor } from '../shared/social-season.js';
 import { parseRaceLaps, cleanPace, lapsLedBy } from '../shared/race-laps.js';
 import { questionCaptions, questionFor } from '../shared/social-follow.js';
 import { slidesFor } from '../shared/social-draw.js';
@@ -102,6 +102,17 @@ test('course au titre : points encore en jeu, éliminés, titre possible au proc
   assert.match(ig, /🥈 Verstappen : 40 pts \(à 3 pts\)/);
   assert.match(ig, /🔥 Charles Leclerc peut être sacré dès le Grand Prix des États-Unis\./);
   assert.match(ig, /🗓️ Encore 1 Grand Prix\./);
+  // Un post par championnat (pilotes, constructeurs) : visuels et texte du sien seulement
+  const dp = titleSide(d, 'drivers');
+  const dc = titleSide(d, 'teams');
+  assert.deepEqual(slidesFor(dp), ['couverture', 'titrepilotes', 'titrecomment']);
+  assert.deepEqual(slidesFor(dc), ['couverture', 'titreecuries', 'titrecomment']);
+  const igp = seasonCaptions(dp, '').instagram;
+  const igc = seasonCaptions(dc, '').instagram;
+  assert.match(igp, /^🏆 La course au titre pilotes après/);
+  assert.ok(igp.includes('Pilotes') && !igp.includes('Constructeurs'));
+  assert.match(igc, /^🏆 La course au titre constructeurs après/);
+  assert.ok(igc.includes('Constructeurs') && !igc.includes('🏎️ Pilotes'));
   // Manche plus ancienne : classement recalculé d'après les résultats jusqu'à elle
   const old = titleData(season, { year: 2026, upTo: 10 });
   assert.deepEqual(old.drivers.slice(0, 2).map((e) => [e.label, e.points]), [['Verstappen', 25], ['Leclerc', 18]]);
@@ -144,7 +155,7 @@ test('récap de la semaine et questions en fin de texte', () => {
   assert.match(c.instagram, /^📰 La semaine en F1 : les 3 infos à retenir\n\n1️⃣ TRANSFERT \| Hamilton signs new Ferrari deal\n2️⃣ PÉNALITÉ/);
   // Question adaptée, avant la signature
   const q = questionCaptions(c, d, '@moi');
-  assert.match(q.instagram, /\n\n💬 Quelle info vous a le plus marqué cette semaine \?\n\n@moi\n\n#/);
+  assert.match(q.instagram, /\n\n💬 Quelle info t'a le plus marqué cette semaine \?\n\n@moi\n\n#/);
   assert.match(questionFor({ kind: 'quali', sprint: false }), /Qui gagne la course/);
   assert.match(questionFor({ news: true, badge: { key: 'penalite' } }), /Sanction méritée/);
   assert.match(questionFor({ post: 'flash', event: { kind: 'sc' } }), /Qui va en profiter/);

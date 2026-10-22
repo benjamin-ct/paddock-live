@@ -16,6 +16,7 @@ import { radioEntry, requestTranscripts, setTranscribe, transcribeStatus } from 
 import { icon } from '../icons.js';
 import { visibleOnboard, onboardStatus } from './onboard-radio.js';
 import { track } from './stats.js';
+import { DEC } from '../i18n.js';
 
 const HEARD_KEY = 'paddock.radioHeard';
 const SPEEDS = [1, 1.25, 1.5, 2];
@@ -190,6 +191,11 @@ function player() {
   if (audio) return audio;
   audio = new Audio();
   audio.preload = 'auto';
+  audio.volume = prefs.radioVolume;
+  // Radio en cours : les commentaires baissent (commentary.js)
+  const duck = (on) => window.dispatchEvent(new CustomEvent('paddock:radio', { detail: on }));
+  audio.addEventListener('playing', () => duck(true));
+  for (const ev of ['pause', 'ended', 'error']) audio.addEventListener(ev, () => duck(false));
   audio.addEventListener('loadedmetadata', () => {
     if (cur && Number.isFinite(audio.duration)) { durations.set(cur.url, audio.duration); refresh(cur.url); }
   });
@@ -320,8 +326,11 @@ export function initRadios() {
   $('#radioSpeed').addEventListener('click', () => {
     speed = SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length];
     if (audio) audio.playbackRate = speed;
-    $('#radioSpeed').textContent = `${String(speed).replace('.', ',')}×`;
+    $('#radioSpeed').textContent = `${String(speed).replace('.', DEC)}×`;
   });
+  const vol = $('#radioVol');
+  vol.value = prefs.radioVolume;
+  vol.addEventListener('input', () => { setPref('radioVolume', Number(vol.value)); if (audio) audio.volume = prefs.radioVolume; });
 
   // Nouvelles radios (au rythme du délai TV) : lecture automatique, l'une après l'autre
   on('events', (events) => {
