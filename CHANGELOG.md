@@ -81,6 +81,8 @@ l'application (Réglages → À propos → Nouveautés).
 ### Fiabilité et sécurité
 - Le relais des radios et de F1 TV refuse les adresses de l'ordinateur et du réseau local : un appareil connecté par
   le QR code ne peut plus s'en servir pour agir comme s'il était l'ordinateur.
+- Enregistrements des séances : les 15 plus récents sont gardés (environ 3 week-ends), les plus anciens s'effacent
+  tout seuls ; « Mes enregistrements » montre la place prise et propose « Tout supprimer ».
 
 ### Divers
 - Petites améliorations internes.

@@ -2602,4 +2602,6 @@ export default {
   "Aucun brouillon. « Brouillon » garde le post affiché pour plus tard, ici et dans le Studio.": "No drafts. “Draft” keeps the post on screen for later, here and in the Studio.",
   "Activez la page web (téléphone) dans « Publier… » pour garder des brouillons": "Turn on the web page (phone) in “Publish…” to keep drafts",
   "Page web indisponible ({})": "Web page unavailable ({})",
+  "{} enregistrement{} · {} Mo · les 15 plus récents sont gardés": "{} recording{} · {} MB · the 15 most recent are kept",
+  "Supprimer définitivement tous les enregistrements (sauf la séance en cours) ?": "Permanently delete all recordings (except the session in progress)?",
 };

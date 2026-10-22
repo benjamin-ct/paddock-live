@@ -17,7 +17,7 @@ import { seasonTech } from './fia-tech.js';
 import { fiaDocuments, fiaPdf, fiaPdfUrl } from './fia.js';
 import { officialGrid } from './fia-grid.js';
 import { findSessionContent, playback, proxy as f1tvProxy, allowHost, resolvePlaylist, localHost } from './f1tv.js';
-import { Recorder, listRecordings, recordingPath } from './recorder.js';
+import { Recorder, listRecordings, pruneRecordings, recordingPath } from './recorder.js';
 import { ROOT, DATA_DIR, settings, getConfig, saveConfig, parseF1tvToken, tokenInfo } from './config.js';
 import { createLan, isLoopback } from './lan.js';
 import { getTranslations, addTranslations } from './translations.js';
@@ -686,6 +686,8 @@ async function handleApi(req, res, url) {
       return sendJSON(res, 200, listRecordings());
 
     case 'DELETE /api/recordings': {
+      // Tout supprimer (sauf la séance en cours d'enregistrement)
+      if (url.searchParams.get('all') === '1') { pruneRecordings(0, recorder?.file || null); return sendJSON(res, 200, { ok: true }); }
       const file = recordingPath(url.searchParams.get('id') || '');
       if (!file) return sendJSON(res, 404, { error: 'Enregistrement introuvable' });
       if (recorder?.file === file) return sendJSON(res, 409, { error: 'Enregistrement en cours' });

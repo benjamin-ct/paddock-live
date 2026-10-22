@@ -32,9 +32,12 @@ export class Recorder {
     const file = this.fileFor(info);
     if (file === this.file) return file;
     this.close();
+    const fresh = !fs.existsSync(file);
+    if (fresh) try { fs.closeSync(fs.openSync(file, 'a')); } catch { /* erreur signalée par le flux */ }   // créé tout de suite : compté parmi les plus récents
     this.file = file;
     this.stream = fs.createWriteStream(file, { flags: 'a' });
     this.stream.on('error', (err) => { console.warn('[enregistrement]', err.message); this.stream = null; });
+    if (fresh) pruneRecordings(KEEP_RECORDINGS, file);
     return file;
   }
 
@@ -68,6 +71,17 @@ export async function readRecording(file) {
   events.sort(byT);
   stream.sort(byT);
   return { events, stream };
+}
+
+// Enregistrements gardés : les plus récents (environ 3 week-ends de 5 séances), les plus anciens effacés à
+// chaque nouvelle séance (avec F1 TV, plusieurs Go par saison s'accumulaient sans qu'on le sache)
+export const KEEP_RECORDINGS = 15;
+export function pruneRecordings(keep = KEEP_RECORDINGS, current = null) {
+  const list = listRecordings().sort((a, b) => b.modified - a.modified);
+  for (const r of list.slice(keep)) {
+    const f = path.join(REC_DIR, `${r.id}.jsonl`);
+    if (f !== current) try { fs.unlinkSync(f); } catch { /* déjà effacé */ }
+  }
 }
 
 export function listRecordings() {
