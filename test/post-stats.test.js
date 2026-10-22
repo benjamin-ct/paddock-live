@@ -68,3 +68,13 @@ test('plan du week-end : posts faits d\'après le journal (séances et posts de 
     ['Grille (qualifications)', false], ['Résultats de la course', true], ['Notes des pilotes', false], ['Course au titre', false]]);
   assert.equal(new Date(plan[0].at).toISOString(), '2026-10-19T08:00:00.000Z');   // lundi de la semaine
 });
+
+test('chiffres gardés : les posts relus remplacent les anciens, 60 au plus, les plus récents d\'abord', async () => {
+  const { keepStats } = await import('../shared/post-history.js');
+  const old = Array.from({ length: 60 }, (_, i) => ({ key: `k${i}`, at: 1000 + i, stats: { instagram: { likes: i } } }));
+  const kept = keepStats(old, [{ key: 'k59', at: 1059, stats: { instagram: { likes: 99 } } }, { key: 'neuf', at: 2000, stats: { x: { likes: 1 } } }, { key: 'vide', at: 3000, stats: {} }]);
+  assert.equal(kept.length, 60);
+  assert.deepEqual(kept.slice(0, 2).map((p) => [p.key, Object.values(p.stats)[0].likes]), [['neuf', 1], ['k59', 99]]);
+  assert.ok(!kept.some((p) => p.key === 'k0' || p.key === 'vide'));
+  assert.deepEqual(keepStats('abîmé', []), []);
+});

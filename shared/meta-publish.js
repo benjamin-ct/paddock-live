@@ -48,7 +48,7 @@ async function digest(blob, salt) {
   return `${salt}:${[...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('')}`;
 }
 
-async function hostOne(img, m, fresh) {
+async function hostOne(img, m, fresh, withUrl = true) {
   const key = await digest(img, m.pageId);
   const hit = hostedCache.get(key);
   if (!fresh && hit && Date.now() - hit.at < HOST_TTL) return hit;
@@ -58,6 +58,8 @@ async function hostOne(img, m, fresh) {
   if (img.alt) form.append('alt_text_custom', img.alt);   // texte alternatif (photo du post Facebook)
   form.append('access_token', m.pageToken);
   const r = await call(`${GRAPH}/${m.pageId}/photos`, { method: 'POST', form });
+  // Post Facebook : l'identifiant de la photo suffit (une demande de moins par image, limite du serveur)
+  if (!withUrl) return { id: r.id };
   const info = await call(`${GRAPH}/${r.id}?${new URLSearchParams({ fields: 'images', access_token: m.pageToken })}`);
   const best = (info.images || []).sort((a, b) => b.width - a.width)[0];
   if (!best?.source) throw new Error('Image déposée sur la page Facebook sans adresse publique');
@@ -70,13 +72,13 @@ async function hostOne(img, m, fresh) {
 // Images (Blob PNG ou JPEG) déposées sur la page, une heure de mémoire pour tous les réseaux d'une
 // même publication. fresh : nouvel envoi obligatoire (une photo déjà jointe à un post Facebook ne
 // peut pas l'être à un autre).
-export async function hostOnPage(meta, images, { fresh = false } = {}) {
+export async function hostOnPage(meta, images, { fresh = false, withUrl = true } = {}) {
   if (!meta?.pageToken) throw new Error('Page Facebook non connectée (nécessaire aussi pour Instagram et Threads)');
-  return mapLimit(images, 3, (img) => hostOne(img, meta, fresh));
+  return mapLimit(images, 3, (img) => hostOne(img, meta, fresh, withUrl));
 }
 
 export async function publishFacebook(meta, text, images) {
-  const hosted = await hostOnPage(meta, images, { fresh: true });
+  const hosted = await hostOnPage(meta, images, { fresh: true, withUrl: false });
   const form = { message: text, access_token: meta.pageToken };
   hosted.forEach((h, i) => { form[`attached_media[${i}]`] = JSON.stringify({ media_fbid: h.id }); });
   const r = await call(`${GRAPH}/${meta.pageId}/feed`, { method: 'POST', form });

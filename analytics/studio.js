@@ -14,7 +14,7 @@ import { decodeBody } from '../shared/news-collect.js';
 import { publishFacebook, publishInstagram, publishThreads, freshThreads, commentFacebook, replyThreads, withComment, storyInstagram, storyFacebook, storyVideoInstagram, storyVideoFacebook, reelInstagram, hostVideo, hostOnPage, publishFacebookVideo, publishThreadsVideo, publishFacebookLink, publishThreadsLink } from '../shared/meta-publish.js';
 import { publishBluesky, replyBluesky } from '../shared/bluesky-publish.js';
 import { freshTiktok, freshYoutube, tiktokDraft, tiktokStatus, tiktokOutcome, youtubeUpload, tiktokCreator, tiktokDirect, TIKTOK_PRIVACY } from '../shared/video-publish.js';
-import { addEntry, removeEntry, cleanKey } from '../shared/post-history.js';
+import { addEntry, removeEntry, cleanKey, keepStats } from '../shared/post-history.js';
 import { cleanDraft, draftSummary, isDraftId, DRAFTS_MAX, DRAFT_BYTES } from '../shared/post-draft.js';
 import { postStats } from '../shared/post-stats.js';
 import { recentPosts, importEntries } from './post-import.js';
@@ -715,23 +715,25 @@ export async function runSchedule(env, { now = Date.now(), only = null } = {}) {
         return list;
       };
       // Vidéo relue pour chaque réseau : une seule copie en mémoire à la fois ; version plein écran hors zone sûre
-      const media = async (net) => {
+      // bytes : octets seuls (TikTok, YouTube), sans copie de plus dans un Blob (50 Mo, mémoire limitée)
+      const media = async (net, bytes = false) => {
         const full = j.full && !SAFE_NETS.includes(net);
         const o = await env.MEDIA?.get(`sched/${j.id}${full ? '-full' : ''}`);
         if (!o) throw new Error('Vidéo effacée du serveur');
-        return new Blob([await o.arrayBuffer()], { type: full ? 'video/mp4' : j.video });
+        const buf = await o.arrayBuffer();
+        return bytes ? new Uint8Array(buf) : new Blob([buf], { type: full ? 'video/mp4' : j.video });
       };
       for (const p of due) {
         const st = j.nets[p.network];
         try {
           if (!keys) throw new Error('Jetons effacés');
           const tr = await trackPost(env, p.network, { text: p.text, comment: p.network === 'instagram' ? '' : p.comment }, j.record?.title);
-          const video = j.video ? await media(p.network) : null;
+          const video = j.video && !CLIPS.includes(p.network) ? await media(p.network) : null;
           // Stories : STORY_STEP images par passage (Instagram fait 4 à 6 demandes par image), suite au passage suivant
           const story = STORIES.includes(p.network) && !video && { from: st.sent || 0, total: Math.min(j.sets?.ig || 0, 10) };
           const r = story ? await sendTo(p.network, keys, { images: await imgs('ig', story.from, story.from + STORY_STEP) })
             : CLIPS.includes(p.network)
-            ? await sendClip(p.network, () => (p.network === 'youtube' ? freshYoutube : freshTiktok)(keys[p.network]), new Uint8Array(await video.arrayBuffer()), j.video, tr.text, j.tiktok)
+            ? await sendClip(p.network, () => (p.network === 'youtube' ? freshYoutube : freshTiktok)(keys[p.network]), await media(p.network, true), j.video, tr.text, j.tiktok)
             : j.link && LINKS.includes(p.network) ? await sendTo(p.network, keys, { text: tr.text, link: { ...j.link, url: (await trackPost(env, p.network, { text: j.link.url }, j.record?.title)).text } }, () => freshThreads(keys.threads))
             : await sendTo(p.network, keys, { text: tr.text, comment: tr.comment, images: p.network === 'bluesky' || video ? [] : await imgs('ig'), small: p.network === 'bluesky' && !video ? await imgs('x') : [], video, vsize: j.vsize, cover: video ? (await imgs('cover'))[0] : null }, () => freshThreads(keys.threads));
           if (story) Object.assign(st, { sent: story.from + r.count, total: story.total });
@@ -901,7 +903,12 @@ export async function studioApi(req, env, url) {
     const v = await refresh(env, a.raw, vault);
     // 6 posts au plus
     const posts = await postStats(JSON.parse(await getRow(env, 'history') || '[]'), { meta: v.meta, threads: v.threads, bluesky: v.bluesky }, { limit: 6 });
-    return json({ ...posts, clicks: await clickStats(env).catch(() => null) });
+    // kept : chiffres des 60 derniers posts gardés ici (heure conseillée, sur tous les appareils)
+    let kept = [];
+    try { kept = JSON.parse(await getRow(env, 'poststats') || '[]'); } catch { /* ligne abîmée : refaite */ }
+    kept = keepStats(kept, posts.posts);
+    await setRow(env, 'poststats', JSON.stringify(kept));
+    return json({ ...posts, kept, clicks: await clickStats(env).catch(() => null) });
   }
   if (path === 'stats/accounts' && req.method === 'GET') {
     let v = await refresh(env, a.raw, vault);

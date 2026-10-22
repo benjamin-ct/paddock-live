@@ -362,7 +362,8 @@ export async function openPublish({ d, caps, render, folder, record = null, onPo
       }
       if (btn.dataset.schedbest !== undefined) {
         btn.disabled = true;
-        const h = bestHour((await api('/api/social/stats').catch(() => ({}))).posts || []);
+        const st = await api('/api/social/stats').catch(() => ({}));
+        const h = bestHour(st.kept || st.posts || []);
         btn.disabled = false;
         if (h === null) { toast(t('Pas encore assez de posts avec des statistiques'), 4500, 'info'); return; }
         const x = new Date(); x.setHours(h, 0, 0, 0); if (x < Date.now()) x.setDate(x.getDate() + 1);

@@ -108,3 +108,11 @@ export function weekendPlan(race, year, keys) {
     { label: 'Course au titre', at: day, after: true, done: has(own('title')) },
   ].filter(Boolean);
 }
+
+// Chiffres gardés des posts (60 derniers) : ceux relus à chaque fois (6) s'ajoutent aux précédents, pour
+// l'heure conseillée (il en faut 8 au moins). Gardés par le serveur (Studio et appli) et sur le téléphone
+export function keepStats(prev, posts, max = 60) {
+  const all = new Map((Array.isArray(prev) ? prev : []).map((p) => [p.key, p]));
+  for (const p of posts || []) if (p.key && p.at && Object.keys(p.stats || {}).length) all.set(p.key, { key: p.key, at: p.at, stats: p.stats });
+  return [...all.values()].sort((a, b) => b.at - a.at).slice(0, max);
+}
