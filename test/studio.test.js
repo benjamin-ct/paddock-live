@@ -387,10 +387,14 @@ test('page du créateur : publication programmée, publiée par le serveur à l\
     await runSchedule(env, { now: at + 186e3 });
     assert.equal((await (await worker('https://s.test/studio/api/schedule', { headers: key })).json()).items.length, 0);
     assert.equal((await (await worker('https://s.test/studio/api/history', { headers: key })).json()).items.length, hist.items.length);
-    // Échec sur un réseau : gardée dans la liste avec l'erreur, visuels et jetons effacés
-    const bad = (await (await add()).json()).item;
+    // Échec sur un réseau : gardée dans la liste avec l'erreur ; visuels et jetons gardés 24 h (« Réessayer »)
+    const post = (path, body) => worker(`https://s.test/studio/api/schedule/${path}`, { method: 'POST', headers: key, body: JSON.stringify(body) });
+    const listed = async (id) => (await (await worker('https://s.test/studio/api/schedule', { headers: key })).json()).items.find((x) => x.id === id);
+    const media = (id) => [...env.MEDIA.objs.keys()].filter((k) => k.startsWith(`sched/${id}`)).length;
     const ok = globalThis.fetch;
-    globalThis.fetch = async (url, opts) => (new URL(url).pathname.endsWith('/feed') ? new Response(JSON.stringify({ error: { message: 'Refusé' } }), { status: 400 }) : ok(url, opts));
+    const refuse = async (url, opts) => (new URL(url).pathname.endsWith('/feed') ? new Response(JSON.stringify({ error: { message: 'Refusé' } }), { status: 400 }) : ok(url, opts));
+    const bad = (await (await add()).json()).item;
+    globalThis.fetch = refuse;
     await runSchedule(env, { now: at + 180e3 });
     await runSchedule(env, { now: at + 240e3 });
     const before = pushes;
@@ -398,16 +402,41 @@ test('page du créateur : publication programmée, publiée par le serveur à l\
     await runSchedule(env, { now: at + 360e3 });
     assert.equal(pushes, before + 1, 'erreur : une seule notification');
     globalThis.fetch = ok;
-    const kept = (await (await worker('https://s.test/studio/api/schedule', { headers: key })).json()).items.find((x) => x.id === bad.id);
-    assert.equal(kept.nets.facebook.status, 'error');
-    assert.equal(kept.nets.bluesky.status, 'done');
-    assert.equal([...env.MEDIA.objs.keys()].filter((k) => k.startsWith(`sched/${bad.id}`)).length, 0);   // visuels effacés
-    assert.equal(JSON.parse(env.DB.studio.get(`sched:${bad.id}`)).keys, null);
-    // Une semaine plus tard : la trace disparaît
+    const kept = await listed(bad.id);
+    assert.deepEqual([kept.nets.facebook.status, kept.nets.bluesky.status, kept.retry], ['error', 'done', true]);
+    assert.ok(media(bad.id) > 0);
+    // Réessayer : seulement un réseau en erreur ; publié au relevé suivant, puis tout est effacé
+    assert.equal((await post('retry', { id: bad.id, net: 'bluesky' })).status, 409);
+    assert.equal((await post('retry', { id: bad.id, net: 'facebook' })).status, 200);
+    assert.equal((await listed(bad.id)).nets.facebook.status, 'pending');
+    const t0 = Date.now();
+    assert.deepEqual(await runSchedule(env, { now: t0 + 1e3 }), { published: 'facebook', id: bad.id });
+    await runSchedule(env, { now: t0 + 2e3 });
+    assert.equal(await listed(bad.id), undefined);
+    assert.equal(media(bad.id), 0);
+    // Sans « Réessayer » : visuels et jetons effacés au bout de 24 h, la trace une semaine après
+    const bad2 = (await (await add()).json()).item;
+    globalThis.fetch = refuse;
+    for (const k of [400, 460, 520]) await runSchedule(env, { now: at + k * 1e3 });
+    globalThis.fetch = ok;
+    assert.ok(media(bad2.id) > 0);
+    await runSchedule(env, { now: at + 26 * 3600e3 });
+    assert.equal(media(bad2.id), 0);
+    assert.equal(JSON.parse(env.DB.studio.get(`sched:${bad2.id}`)).keys, null);
+    assert.equal((await post('retry', { id: bad2.id, net: 'facebook' })).status, 410);
     await runSchedule(env, { now: at + 8 * 86400e3 });
     assert.equal([...env.DB.studio.keys()].filter((k) => k.startsWith('sched')).length, 0);
   } finally { globalThis.fetch = realFetch; }
 
+  // Modifier avant l'heure : nouvelle heure et textes ; plus possible une fois parti
+  const ed = (await (await add()).json()).item;
+  const upd = (body) => worker('https://s.test/studio/api/schedule/update', { method: 'POST', headers: key, body: JSON.stringify({ id: ed.id, ...body }) });
+  assert.equal((await upd({ at: Date.now() + 30 * 86400e3 })).status, 400);
+  const edited = (await (await upd({ at: at + 7200e3, texts: { facebook: 'Texte corrigé', bluesky: '' } })).json()).items.find((x) => x.id === ed.id);
+  assert.equal(edited.at, at + 7200e3);
+  assert.equal(edited.texts.facebook, 'Texte corrigé');
+  assert.ok(edited.texts.bluesky);   // texte vide : l'ancien gardé
+  await worker('https://s.test/studio/api/schedule/cancel', { method: 'POST', body: JSON.stringify({ id: ed.id }), headers: key });
   // Annulation avant l'heure ; envoi trop en retard (serveur arrêté plus d'un jour) : abandonné
   // « Publier » : confié au serveur avec l'heure actuelle, accepté
   const now = (await (await add({ at: Date.now() })).json()).item;

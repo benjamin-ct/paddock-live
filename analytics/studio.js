@@ -503,7 +503,8 @@ async function schedJobs(env) {
     return { ...j, nets: Object.fromEntries(j.posts.map((p) => [p.network, states.get(`schedpost:${j.id}:${p.network}`) || { status: 'pending' }])) };
   }).sort((a, b) => a.at - b.at);
 }
-const schedSummary = (j) => ({ id: j.id, at: j.at, title: j.title, nets: j.nets });
+// texts : textes de chaque réseau (Modifier) ; retry : visuels et jetons encore là (Réessayer)
+const schedSummary = (j) => ({ id: j.id, at: j.at, title: j.title, nets: j.nets, texts: Object.fromEntries((j.posts || []).filter((p) => p.text).map((p) => [p.network, p.text])), retry: !!j.keys });
 
 async function scheduleAdd(req, env, raw, vault, now = Date.now()) {
   if (!env.STATS_KEY) return json({ error: 'Secret du serveur absent : programmation impossible' }, 503);
@@ -577,6 +578,33 @@ async function scheduleCancel(env, id) {
   await dropMedia(env, id);
   await delLike(env, `schedpost:${id}:`);
   await delLike(env, `sched:${id}`);
+  return json({ items: (await schedJobs(env)).map(schedSummary) });
+}
+
+// Réessayer un réseau en erreur ou expiré : renvoyé au relevé suivant (visuels et jetons gardés 24 h après la fin)
+async function scheduleRetry(env, b, now = Date.now()) {
+  const j = (await schedJobs(env)).find((x) => x.id === b?.id);
+  const st = j?.nets[b?.net];
+  if (!st) return json({ error: 'Publication inconnue' }, 404);
+  if (!['error', 'expired'].includes(st.status)) return json({ error: 'Rien à refaire sur ce réseau' }, 409);
+  if (!j.keys) return json({ error: 'Visuels déjà effacés (plus de 24 h) : refaites le post' }, 410);
+  const { nets, ...rest } = j;
+  await setRow(env, `sched:${j.id}`, JSON.stringify({ ...rest, at: now, ended: null }));
+  await setRow(env, `schedpost:${j.id}:${b.net}`, JSON.stringify({ status: 'pending', ...(st.sent ? { sent: st.sent, total: st.total } : {}) }));
+  return json({ items: (await schedJobs(env)).map(schedSummary) });
+}
+
+// Modifier un post pas encore parti : heure et textes
+async function scheduleUpdate(env, b, now = Date.now()) {
+  const j = (await schedJobs(env)).find((x) => x.id === b?.id);
+  if (!j) return json({ error: 'Publication inconnue' }, 404);
+  if (Object.values(j.nets).some((s) => s.status !== 'pending' || s.sent)) return json({ error: 'Publication déjà commencée' }, 409);
+  const at = b.at === undefined ? j.at : Number(b.at);
+  if (!Number.isFinite(at) || at < now - 60e3 || at > now + SCHED.ahead) return json({ error: 'Date de publication invalide (dans les 7 prochains jours)' }, 400);
+  const texts = b.texts && typeof b.texts === 'object' ? b.texts : {};
+  const posts = j.posts.map((p) => (p.text && typeof texts[p.network] === 'string' && texts[p.network].trim() ? { ...p, text: texts[p.network].slice(0, 5000) } : p));
+  const { nets, ...rest } = j;
+  await setRow(env, `sched:${j.id}`, JSON.stringify({ ...rest, at, posts }));
   return json({ items: (await schedJobs(env)).map(schedSummary) });
 }
 
@@ -720,13 +748,17 @@ export async function runSchedule(env, { now = Date.now(), only = null } = {}) {
     // sinon (erreur, commentaire refusé…) visuels, vidéo et jetons effacés, la trace gardée 7 jours.
     // Une fois, au passage suivant le dernier envoi (sous-requêtes de celui-ci) : notification sur le téléphone
     const states = Object.values(j.nets);
-    const finish = out?.id !== j.id && j.keys;   // jetons effacés après la première fin : une seule notification
-    if (finish && states.every((s) => !['pending', 'running'].includes(s.status))) await notifyPhones(env, schedNotice(j), { now }).catch(() => 0);
+    const over = states.every((s) => !['pending', 'running'].includes(s.status));
+    // Une seule notification par fin (ended posé aussitôt ; remis à zéro par « Réessayer »)
+    if (out?.id !== j.id && over && j.keys && !j.ended) await notifyPhones(env, schedNotice(j), { now }).catch(() => 0);
     if (out?.id === j.id) continue;
     if (states.every((s) => s.status === 'done' && !s.commentError && s.visible !== false)) {
       await dropMedia(env, j.id); await delLike(env, `schedpost:${j.id}:`); await delLike(env, `sched:${j.id}`);
-    } else if (states.every((s) => !['pending', 'running'].includes(s.status))) {
-      if (j.keys) { await dropMedia(env, j.id); const { nets, ...rest } = j; await setRow(env, `sched:${j.id}`, JSON.stringify({ ...rest, keys: null })); }
+    } else if (over) {
+      // Souci sur un réseau : visuels, vidéo et jetons gardés 24 h (« Réessayer »), puis effacés ; trace 7 jours
+      const { nets, ...rest } = j;
+      if (j.keys && !j.ended) await setRow(env, `sched:${j.id}`, JSON.stringify({ ...rest, ended: now }));
+      else if (j.keys && now - j.ended > SCHED.late) { await dropMedia(env, j.id); await setRow(env, `sched:${j.id}`, JSON.stringify({ ...rest, keys: null })); }
       if (now - j.at > SCHED.keep) { await delLike(env, `schedpost:${j.id}:`); await delLike(env, `sched:${j.id}`); }
     }
   }
@@ -902,10 +934,10 @@ export async function studioApi(req, env, url) {
   }
   if (path === 'schedule' && req.method === 'GET') return json({ items: (await schedJobs(env)).map(schedSummary) });
   if (path === 'schedule' && req.method === 'POST') return scheduleAdd(req, env, a.raw, vault);
-  if (path === 'schedule/cancel' && req.method === 'POST') {
+  if (['schedule/cancel', 'schedule/retry', 'schedule/update'].includes(path) && req.method === 'POST') {
     let body;
     try { body = await req.json(); } catch { return json({ error: 'JSON invalide' }, 400); }
-    return scheduleCancel(env, body?.id);
+    return path === 'schedule/cancel' ? scheduleCancel(env, body?.id) : path === 'schedule/retry' ? scheduleRetry(env, body) : scheduleUpdate(env, body);
   }
   // Texte avec ses liens suivis (X : partagé depuis le téléphone ; appli : publication directe)
   if (path === 'links' && req.method === 'POST') {
