@@ -88,6 +88,7 @@ export class LiveSource {
       const ws = new WebSocket(`${WS_URL}?id=${encodeURIComponent(id)}`, {
         agent,
         headers: { 'User-Agent': USER_AGENT, ...(cookies ? { Cookie: cookies } : {}), ...authHeaders },
+        handshakeTimeout: 15000,   // connexion bloquée (Wi-Fi d'hôtel, sortie de veille) : erreur, donc nouvel essai
       });
       this.ws = ws;
       let buffer = '';
@@ -96,8 +97,11 @@ export class LiveSource {
         ws.send(JSON.stringify({ protocol: 'json', version: 1 }) + RS);
         ws.send(JSON.stringify({ type: 1, invocationId: '1', target: 'Subscribe', arguments: [LIVE_TOPICS] }) + RS);
         this.lastMessageAt = Date.now();
+        this.setStatus({ stale: false });
         this.timers.push(setInterval(() => {
           if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 6 }) + RS);
+          // Données figées depuis 25 s : signalé (badge « LIVE » en orange) avant la reconnexion des 60 s
+          if (Date.now() - this.lastMessageAt > 25000 && !this.status.stale) this.setStatus({ stale: true });
           if (Date.now() - this.lastMessageAt > 60000) {
             this.setStatus({ error: 'Plus de données depuis 60 s, reconnexion…' });
             this.scheduleReconnect();
@@ -107,6 +111,7 @@ export class LiveSource {
 
       ws.on('message', (data) => {
         this.lastMessageAt = Date.now();
+        if (this.status.stale) this.setStatus({ stale: false });
         buffer += data.toString();
         let idx;
         while ((idx = buffer.indexOf(RS)) >= 0) {

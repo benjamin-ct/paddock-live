@@ -86,6 +86,9 @@ export function openReplays(sec) {
 export function closeReplays() { if ($('#replayView')) $('#replayView').hidden = true; }
 
 async function play(body, name) {
+  // Séance en direct : le replay l'interrompt (« Direct » pour y revenir)
+  const live = store.status?.source?.mode === 'live' && ['Started', 'Aborted'].includes(store.state?.SessionStatus?.Status);
+  if (live && !confirm('Une séance est en cours : le replay interrompt le direct (« Direct » dans le menu de gauche pour y revenir). Lancer le replay ?')) return;
   try {
     await api('/api/replay', { method: 'POST', body });
     closeReplays();

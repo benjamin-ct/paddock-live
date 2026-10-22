@@ -153,6 +153,7 @@ code { background: var(--panel-3); padding: 1px 5px; border-radius: 4px; font-si
 .source-badge.live .src-dot { background: var(--red); box-shadow: 0 0 8px var(--red); animation: pulse 1.4s infinite; }
 .source-badge.replay .src-dot { background: var(--blue); }
 .source-badge.error .src-dot { background: var(--orange); }
+.source-badge.stale .src-dot { background: var(--orange); animation: pulse 1.4s infinite; }
 
 /* ---------- Barre de replay ---------- */
 .replaybar {

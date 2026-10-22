@@ -85,6 +85,10 @@ l'application (Réglages → À propos → Nouveautés).
   le QR code ne peut plus s'en servir pour agir comme s'il était l'ordinateur.
 - Enregistrements des séances : les 15 plus récents sont gardés (environ 3 week-ends), les plus anciens s'effacent
   tout seuls ; « Mes enregistrements » montre la place prise et propose « Tout supprimer ».
+- Badge « LIVE · figé » (orange) quand le flux F1 n'envoie plus rien depuis 25 s ; une connexion bloquée au départ
+  (Wi-Fi d'hôtel, sortie de veille) est relancée au bout de 15 s.
+- Lancer un replay pendant une séance en direct demande confirmation ; un replay qui ne se charge pas le dit
+  clairement, avec le chemin du retour au direct.
 
 ### Divers
 - Petites améliorations internes.
