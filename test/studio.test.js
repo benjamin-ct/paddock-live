@@ -864,3 +864,13 @@ test('publications programmées : retard de plus de 5 minutes signalé une seule
   await runSchedule(e, { now: Date.now() + 60e3 });
   assert.equal(e.DB.studio.get('schedpost:cccccccccccccccc:late'), undefined);
 });
+
+test('journal des publications : deux réseaux qui finissent en même temps sont gardés tous les deux', async () => {
+  const e = { DB: fakeDB(), STATS_KEY: 'secret-du-serveur' };
+  const { _addHistory } = await import('../analytics/studio.js');
+  const rec = { key: 'race-2026-19', kind: 'session', title: 'Résultats', at: Date.now() };
+  // Lectures simultanées : la deuxième écriture voit que la ligne a changé et recommence
+  await Promise.all([_addHistory(e, { ...rec, nets: { facebook: { id: 'f1', url: 'https://f.test/1' } } }), _addHistory(e, { ...rec, nets: { bluesky: { id: { uri: 'at://b', cid: 'c' }, url: 'https://b.test/1' } } })]);
+  const h = JSON.parse(e.DB.studio.get('history'));
+  assert.deepEqual(Object.keys(h[0].nets).sort(), ['bluesky', 'facebook']);
+});

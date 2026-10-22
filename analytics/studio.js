@@ -620,6 +620,19 @@ export async function schedInternal(req, env) {
 // à part, tous en même temps ; chaque appel a toutes les sous-requêtes permises à un passage du Worker (50 ;
 // un carrousel Instagram en prend déjà une bonne part). Sinon (ou only : réseau demandé) : un réseau par
 // passage. Réseau réservé (claim) avant l'envoi, commencé dans les 40 premières secondes : jamais renvoyé
+// Journal des publications complété par un réseau : écrit seulement si personne ne l'a changé depuis sa
+// lecture (les réseaux d'un même post finissent souvent en même temps et s'écrasaient), 5 essais
+async function addHistory(env, entry) {
+  for (let i = 0; i < 5; i++) {
+    const raw = await getRow(env, 'history');
+    const v = JSON.stringify(addEntry(JSON.parse(raw || '[]'), entry));
+    const r = raw === null
+      ? await env.DB.prepare('INSERT INTO studio (k, v, at) VALUES (?, ?, ?) ON CONFLICT(k) DO NOTHING').bind('history', v, Date.now()).run()
+      : await env.DB.prepare('UPDATE studio SET v = ?, at = ? WHERE k = ? AND v = ?').bind(v, Date.now(), 'history', raw).run();
+    if (r?.meta?.changes === 1) return;
+  }
+}
+
 // Publication en retard de plus de 5 minutes (appels qui échouent, réseau en panne…) : une notification sur
 // le téléphone, une seule fois par programmation (ligne schedpost:<id>:late, effacée avec les autres)
 async function lateAlert(env, jobs, now) {
@@ -694,7 +707,7 @@ export async function runSchedule(env, { now = Date.now(), only = null } = {}) {
           if (story) Object.assign(st, { sent: story.from + r.count, total: story.total });
           Object.assign(st, { status: story && st.sent < story.total ? 'pending' : 'done', at: Date.now(), ...resultOf(r), ...(r.note ? { note: r.note } : {}) });
           // Stories (24 heures) : pas dans l'historique, qui garde le post du fil
-          if (j.record && !STORIES.includes(p.network)) await setRow(env, 'history', JSON.stringify(addEntry(JSON.parse(await getRow(env, 'history') || '[]'), { ...j.record, at: Date.now(), nets: { [p.network]: { id: st.id, url: st.url } } })));
+          if (j.record && !STORIES.includes(p.network)) await addHistory(env, { ...j.record, at: Date.now(), nets: { [p.network]: { id: st.id, url: st.url } } });
         } catch (err) {
           Object.assign(st, { status: 'error', error: `${String(err?.message || err).slice(0, 300)}${st.sent ? ` (${st.sent} stories publiées sur ${st.total})` : ''}` });
         }
@@ -911,3 +924,4 @@ export async function studioApi(req, env, url) {
   if (fb) return fb;
   return json({ error: 'Introuvable' }, 404);
 }
+export { addHistory as _addHistory };
