@@ -107,7 +107,13 @@ function columns(n, l, a, kind, val, tag, st) {
 // largeur de la source, net dans OBS même en grand) et fenêtre flottante (300 px, suit la taille
 // qu'on lui donne) ; réduit si le classement dépasse en hauteur
 const OVERLAY = document.documentElement.classList.contains('overlay');
-function fitOverlay() {
+// Fenêtre flottante de l'appli de bureau : la fenêtre prend la taille du contenu (colonnes choisies,
+// nombre de pilotes) à l'échelle choisie ; −/+, Ctrl + molette et le coin changent l'échelle
+const AUTO = FLOAT && !OVERLAY && !!window.f1desktop?.floatBounds;
+let scaleK = Number(storageGet('paddock.miniScale', 1.2)) || 1.2;
+let asked = null;   // taille demandée par la page (pas un redimensionnement fait à la main)
+// resized : appelé par un redimensionnement de la fenêtre (peut-être fait à la main)
+function fitOverlay(resized = false) {
   const html = document.documentElement;
   // Hauteur mesurée sans zoom (le Chrome d'OBS, plus ancien, mesure mal les pages zoomées) : bas du
   // contenu, pied fixe à part (place réservée par la marge du bas), plus 4 px
@@ -115,10 +121,28 @@ function fitOverlay() {
   const body = document.body;
   const h = Math.max(...[...body.children].filter((e) => getComputedStyle(e).position !== 'fixed').map((e) => e.getBoundingClientRect().bottom))
     + parseFloat(getComputedStyle(body).paddingBottom) + 4;
-  html.style.zoom = String(Math.floor(Math.min(innerWidth / (OVERLAY ? 340 : 300), innerHeight / h) * 1000) / 1000);
+  if (!AUTO) {
+    html.style.zoom = String(Math.floor(Math.min(innerWidth / (OVERLAY ? 340 : 300), innerHeight / h) * 1000) / 1000);
+    return;
+  }
+  // Largeur naturelle du classement (sans être étiré à la fenêtre), bords de la page compris
+  const table = $('.mini-table');
+  table.style.minWidth = '0';
+  const pad = parseFloat(getComputedStyle(body).paddingLeft) + parseFloat(getComputedStyle(body).paddingRight);
+  const w = Math.max(200, Math.ceil(table.getBoundingClientRect().width + pad));
+  table.style.minWidth = '';
+  // Fenêtre changée à la main (pas à la taille demandée) : sa largeur donne la nouvelle échelle
+  if (resized && asked && Math.abs(innerWidth - asked.w) > 3) {
+    scaleK = Math.min(3, Math.max(0.6, innerWidth / w));
+    storageSet('paddock.miniScale', scaleK);
+  }
+  html.style.zoom = String(scaleK);
+  const want = { w: Math.round(w * scaleK), h: Math.round(h * scaleK) };
+  if (Math.abs(innerWidth - want.w) > 2 || Math.abs(innerHeight - want.h) > 2) window.f1desktop.floatBounds({ width: want.w, height: want.h });
+  asked = want;
 }
-window.addEventListener('resize', fitOverlay);
-document.fonts?.addEventListener('loadingdone', fitOverlay);
+window.addEventListener('resize', () => fitOverlay(true));
+document.fonts?.addEventListener('loadingdone', () => fitOverlay());
 
 // Menu des colonnes (pas dans l'overlay de streaming : réglé dans Réglages → Streaming)
 const colsBtn = $('#miniCols');

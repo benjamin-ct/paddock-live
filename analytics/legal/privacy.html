@@ -12,7 +12,7 @@
 
 <section id="fr" lang="fr">
 <h1><span>Paddock Live</span> : politique de confidentialité</h1>
-<p class="date">Dernière mise à jour : 17 octobre 2026</p>
+<p class="date">Dernière mise à jour : 22 octobre 2026</p>
 
 <p>Paddock Live est une application de bureau gratuite qui affiche le direct des séances de Formule 1 (chronos, radios, actualités) et aide à préparer des publications pour les réseaux sociaux. Elle s'exécute sur l'ordinateur de la personne qui l'utilise.</p>
 
@@ -21,17 +21,33 @@
 <li>Quand vous connectez un compte (par exemple TikTok via « Se connecter à TikTok »), l'application reçoit un jeton d'accès. Ce jeton est enregistré sur votre ordinateur, dans le fichier de configuration de l'application. Seulement si vous activez la publication depuis un téléphone, il est aussi envoyé chiffré au serveur de Paddock Live, qui ne s'en sert que pour publier ce que vous demandez ; désactiver cette option l'efface du serveur.</li>
 <li>Pour TikTok, seules les autorisations <code>user.info.basic</code> (nom affiché du compte, pour indiquer quel compte est connecté) et <code>video.upload</code> (envoi d'une vidéo en brouillon) sont demandées, plus <code>video.publish</code> (publication directe) si vous cochez « Publication directe », et <code>user.info.profile</code>, <code>user.info.stats</code> et <code>video.list</code> (statistiques) si vous cochez « Statistiques ».</li>
 <li>Les vidéos sont envoyées vers TikTok uniquement quand vous le demandez et après votre confirmation. En brouillon, vous les relisez et les publiez vous-même dans l'application TikTok. En publication directe, la page de publication relit d'abord votre compte TikTok (nom affiché, visibilités et interactions permises, durée maximale) ; vous choisissez le texte, qui peut voir la vidéo, les interactions autorisées (commentaires, Duo, Collage) et déclarez un éventuel contenu commercial avant de publier. Ces informations du compte ne sont ni enregistrées ni utilisées à d'autres fins.</li>
-<li>Avec l'option « Statistiques », la page Studio lit, quand vous l'ouvrez, votre nom d'utilisateur, votre nombre d'abonnés et de vidéos, et les vues, j'aime, commentaires et partages de vos vidéos des 28 derniers jours, pour vous les afficher. Ces chiffres ne sont ni enregistrés ni partagés. Sans cette option, Paddock Live ne lit ni vos vidéos, ni vos abonnés, ni vos statistiques TikTok. Il ne lit jamais vos messages et ne publie rien sans action de votre part.</li>
+<li>Avec l'option « Statistiques », la page Studio lit, quand vous l'ouvrez, votre nom d'utilisateur, votre nombre d'abonnés et de vidéos, et les vues, j'aime, commentaires et partages de vos vidéos des 28 derniers jours, pour vous les afficher. Ces chiffres ne sont pas gardés sur le serveur ni partagés (seul le navigateur de votre téléphone garde le dernier affichage). Sans cette option, Paddock Live ne lit ni vos vidéos, ni vos abonnés, ni vos statistiques TikTok. Il ne lit jamais vos messages et ne publie rien sans action de votre part.</li>
 <li>Vous pouvez déconnecter un compte à tout moment dans l'application, ou retirer l'accès depuis les paramètres de TikTok (Paramètres et confidentialité → Sécurité → Applications et services). Désinstaller l'application supprime les jetons enregistrés.</li>
 </ul>
 
 <h2 id="youtube">YouTube (services d'API YouTube)</h2>
 <ul>
 <li>Paddock Live utilise les services d'API YouTube pour envoyer, à votre demande, une vidéo verticale (Short) sur votre propre chaîne. En connectant votre compte YouTube, vous acceptez les <a href="https://www.youtube.com/t/terms">conditions d'utilisation de YouTube</a>. Les données transmises à Google sont traitées selon les <a href="https://policies.google.com/privacy">règles de confidentialité de Google</a>.</li>
-<li>Autorisations demandées : <code>youtube.upload</code> (envoyer la vidéo) et <code>youtube.readonly</code> (lire le nom de votre chaîne, pour indiquer quel compte est connecté). Paddock Live ne lit ni vos vidéos, ni vos abonnés, ni vos commentaires, ni vos statistiques YouTube.</li>
+<li>Autorisations demandées : <code>youtube.upload</code> (envoyer la vidéo) et <code>youtube.readonly</code> (lire le nom de votre chaîne, pour indiquer quel compte est connecté, et ses chiffres publics : abonnés, vues totales et nombre de vidéos, affichés dans le Studio). Paddock Live ne lit ni le contenu de vos vidéos, ni vos commentaires, ni vos statistiques YouTube Analytics.</li>
 <li>Données conservées sur votre ordinateur, dans le fichier de configuration de l'application : le jeton d'accès Google, le nom de la chaîne, et l'adresse des vidéos envoyées (historique des publications). Si vous activez la publication depuis un téléphone, le jeton et le nom de la chaîne sont aussi envoyés chiffrés au serveur de Paddock Live, uniquement pour envoyer les vidéos que vous demandez. Rien n'est partagé avec des tiers.</li>
 <li>Les vidéos sont envoyées en privé ; vous choisissez vous-même de les rendre publiques dans YouTube Studio.</li>
 <li>Suppression : « Déconnecter » dans l'application efface le jeton et le nom de la chaîne (et, au prochain envoi, du serveur) ; désinstaller l'application efface toutes ces données. Vous pouvez aussi retirer l'accès à tout moment depuis la <a href="https://security.google.com/settings/security/permissions">page des autorisations de votre compte Google</a>.</li>
+</ul>
+
+<h2 id="meta">Instagram, Facebook et Threads (Meta)</h2>
+<ul>
+<li>Paddock Live publie, à votre demande, sur votre compte Instagram professionnel, votre page Facebook et votre compte Threads, avec l'app Meta que vous créez et dont vous collez les identifiants dans l'application. La connexion se fait avec « Se connecter à Facebook » : Facebook renvoie votre navigateur vers <code>paddocklive.app/fb-callback</code>, qui le renvoie aussitôt vers l'application sur votre ordinateur sans rien lire ni garder ; seule l'application obtient le jeton.</li>
+<li>Autorisations demandées et usage : <code>pages_show_list</code> et <code>business_management</code> (trouver votre page et le compte Instagram qui lui est relié) ; <code>pages_manage_posts</code> (publier sur la page, y compris en story) ; <code>pages_read_engagement</code> et <code>read_insights</code> (abonnés de la page et chiffres de vos posts : vues, réactions, commentaires, partages) ; <code>pages_manage_engagement</code> (ajouter, si vous le choisissez, un premier commentaire de la page sous votre post, par exemple le lien de l'article) ; <code>instagram_basic</code>, <code>instagram_content_publish</code> et <code>instagram_manage_insights</code> (nom du compte, publication des images, carrousels, Reels et stories, abonnés et chiffres de vos posts et du compte) ; <code>threads_basic</code>, <code>threads_content_publish</code>, <code>threads_manage_replies</code> et <code>threads_manage_insights</code> (nom du compte, publication, premier commentaire sous votre post, abonnés et chiffres de vos posts).</li>
+<li>Rien n'est publié sans votre action : vous relisez le texte et les visuels, puis confirmez. Paddock Live ne lit pas vos messages privés, ne lit pas les publications ni les données d'autres personnes, et ne commente ni n'aime rien d'autre que le premier commentaire que vous demandez sous votre propre post.</li>
+<li>Données conservées : le jeton d'accès, l'identifiant de votre page, de votre compte Instagram et de votre compte Threads, sur votre ordinateur (fichier de configuration de l'application). Si vous activez la publication depuis un téléphone (page web du Studio), elles sont aussi gardées chiffrées sur le serveur de Paddock Live, avec le journal de vos publications (titre, date, lien et identifiant de chaque post) et les chiffres de vos 60 derniers posts, qui servent à vous proposer la meilleure heure pour publier. Les chiffres des comptes sont lus à l'ouverture des statistiques et ne sont pas gardés sur le serveur. Rien n'est vendu ni partagé avec des tiers.</li>
+<li>Les données reçues de Meta sont traitées selon les <a href="https://developers.facebook.com/terms">conditions de la plateforme Meta</a> ; voir aussi la <a href="https://www.facebook.com/privacy/policy">politique de confidentialité de Meta</a>.</li>
+</ul>
+
+<h2 id="suppression">Supprimer vos données</h2>
+<ul>
+<li>Dans l'application : fenêtre Posts → « Publier… » → Comptes, videz les champs d'un réseau et enregistrez pour effacer son jeton ; désactivez la page web (téléphone) pour effacer du serveur de Paddock Live tout ce qui y est gardé (jetons, journal des publications, chiffres des posts, brouillons, publications programmées). Désinstaller l'application efface les données gardées sur votre ordinateur.</li>
+<li>Retirer l'accès chez les réseaux : Facebook et Instagram (Paramètres → Applications et sites web, ou Espace Comptes → Intégrations professionnelles), Threads (Paramètres → Compte → Sites web et applications), TikTok (Paramètres et confidentialité → Sécurité → Applications et services), Google (page des autorisations du compte).</li>
+<li>Vous pouvez aussi demander la suppression par e-mail à <a href="mailto:contact@paddocklive.app">contact@paddocklive.app</a> : elle est faite sous 30 jours et confirmée par retour d'e-mail.</li>
 </ul>
 
 <h2>Statistiques d'utilisation anonymes</h2>
@@ -63,7 +79,7 @@
 
 <section id="en" lang="en">
 <h1><span>Paddock Live</span>: Privacy Policy</h1>
-<p class="date">Last updated: October 17, 2026</p>
+<p class="date">Last updated: October 22, 2026</p>
 
 <p>Paddock Live is a free desktop application that shows live Formula 1 sessions (timing, team radio, news) and helps prepare social media posts. It runs on the user's own computer.</p>
 
@@ -72,17 +88,33 @@
 <li>When you connect an account (for example TikTok via “Connect to TikTok”), the app receives an access token. This token is stored on your computer, in the app's configuration file. Only if you turn on publishing from a phone is it also sent, encrypted, to the Paddock Live server, which uses it only to publish what you ask for; turning this option off deletes it from the server.</li>
 <li>For TikTok, only the <code>user.info.basic</code> scope (account display name, to show which account is connected) and the <code>video.upload</code> scope (uploading a video as a draft) are requested, plus <code>video.publish</code> (direct posting) if you tick “Direct posting”, and <code>user.info.profile</code>, <code>user.info.stats</code> and <code>video.list</code> (statistics) if you tick “Statistics”.</li>
 <li>Videos are sent to TikTok only when you ask for it and after you confirm. As drafts, you review and publish them yourself in the TikTok app. With direct posting, the posting page first reads your TikTok account (display name, allowed privacy levels and interactions, maximum duration); you choose the caption, who can view the video and which interactions are allowed (comments, Duet, Stitch), and disclose any commercial content before posting. This account information is neither stored nor used for anything else.</li>
-<li>With the “Statistics” option, the Studio page reads, when you open it, your username, follower and video counts, and the views, likes, comments and shares of your videos from the last 28 days, to show them to you. These figures are neither stored nor shared. Without this option, Paddock Live does not read your TikTok videos, followers or analytics. It never reads your messages and never posts anything without your action.</li>
+<li>With the “Statistics” option, the Studio page reads, when you open it, your username, follower and video counts, and the views, likes, comments and shares of your videos from the last 28 days, to show them to you. These figures are not kept on the server nor shared (only your phone's browser keeps the last display). Without this option, Paddock Live does not read your TikTok videos, followers or analytics. It never reads your messages and never posts anything without your action.</li>
 <li>You can disconnect an account at any time in the app, or revoke access in TikTok's settings (Settings and privacy → Security → Apps and services). Uninstalling the app deletes the stored tokens.</li>
 </ul>
 
 <h2 id="youtube-en">YouTube (YouTube API Services)</h2>
 <ul>
 <li>Paddock Live uses YouTube API Services to upload, at your request, a vertical video (Short) to your own channel. By connecting your YouTube account, you agree to the <a href="https://www.youtube.com/t/terms">YouTube Terms of Service</a>. Data sent to Google is handled under the <a href="https://policies.google.com/privacy">Google Privacy Policy</a>.</li>
-<li>Scopes requested: <code>youtube.upload</code> (upload the video) and <code>youtube.readonly</code> (read your channel name, to show which account is connected). Paddock Live does not read your YouTube videos, subscribers, comments or analytics.</li>
+<li>Scopes requested: <code>youtube.upload</code> (upload the video) and <code>youtube.readonly</code> (read your channel name, to show which account is connected, and its public figures: subscribers, total views and video count, shown in the Studio). Paddock Live does not read the content of your videos, your comments or your YouTube Analytics.</li>
 <li>Data stored on your computer, in the app's configuration file: the Google access token, the channel name, and the links of uploaded videos (post history). If you turn on publishing from a phone, the token and channel name are also sent, encrypted, to the Paddock Live server, only to upload the videos you ask for. Nothing is shared with third parties.</li>
 <li>Videos are uploaded as private; you decide yourself to make them public in YouTube Studio.</li>
 <li>Deletion: “Disconnect” in the app erases the token and channel name (and from the server at the next sync); uninstalling the app erases all of this data. You can also revoke access at any time from your <a href="https://security.google.com/settings/security/permissions">Google Account permissions page</a>.</li>
+</ul>
+
+<h2 id="meta-en">Instagram, Facebook and Threads (Meta)</h2>
+<ul>
+<li>Paddock Live posts, at your request, to your Instagram professional account, your Facebook Page and your Threads account, through the Meta app you create and whose credentials you paste into the application. You connect with “Connect to Facebook”: Facebook sends your browser back to <code>paddocklive.app/fb-callback</code>, which immediately forwards it to the application on your computer without reading or keeping anything; only the application obtains the token.</li>
+<li>Permissions requested and use: <code>pages_show_list</code> and <code>business_management</code> (find your Page and the Instagram account linked to it); <code>pages_manage_posts</code> (post to the Page, including stories); <code>pages_read_engagement</code> and <code>read_insights</code> (Page followers and your posts' figures: views, reactions, comments, shares); <code>pages_manage_engagement</code> (add, if you choose to, a first comment from the Page under your post, for example the article link); <code>instagram_basic</code>, <code>instagram_content_publish</code> and <code>instagram_manage_insights</code> (account name, publishing images, carousels, Reels and stories, followers and figures of your posts and account); <code>threads_basic</code>, <code>threads_content_publish</code>, <code>threads_manage_replies</code> and <code>threads_manage_insights</code> (account name, publishing, a first reply under your post, followers and figures of your posts).</li>
+<li>Nothing is posted without your action: you review the text and visuals, then confirm. Paddock Live does not read your private messages, does not read other people's posts or data, and does not comment on or like anything other than the first comment you ask for under your own post.</li>
+<li>Data stored: the access token and the IDs of your Page, Instagram account and Threads account, on your computer (the app's configuration file). If you turn on publishing from a phone (Studio web page), they are also kept encrypted on the Paddock Live server, together with your post log (title, date, link and ID of each post) and the figures of your last 60 posts, used to suggest the best time to post. Account figures are read when you open the statistics and are not kept on the server. Nothing is sold or shared with third parties.</li>
+<li>Data received from Meta is handled under the <a href="https://developers.facebook.com/terms">Meta Platform Terms</a>; see also the <a href="https://www.facebook.com/privacy/policy">Meta Privacy Policy</a>.</li>
+</ul>
+
+<h2 id="data-deletion">Deleting your data</h2>
+<ul>
+<li>In the app: Posts window → “Publish…” → Accounts, clear a network's fields and save to erase its token; turn off the web page (phone) to erase from the Paddock Live server everything kept there (tokens, post log, post figures, drafts, scheduled posts). Uninstalling the app erases the data kept on your computer.</li>
+<li>Revoke access on the networks: Facebook and Instagram (Settings → Apps and websites, or Accounts Center → Business integrations), Threads (Settings → Account → Website permissions), TikTok (Settings and privacy → Security → Apps and services), Google (your Google Account permissions page).</li>
+<li>You can also request deletion by email at <a href="mailto:contact@paddocklive.app">contact@paddocklive.app</a>: it is done within 30 days and confirmed by email.</li>
 </ul>
 
 <h2>Anonymous usage statistics</h2>

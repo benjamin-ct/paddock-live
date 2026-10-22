@@ -16,6 +16,9 @@ l'application (Réglages → À propos → Nouveautés).
   de course à droite), indépendante de celle de l'interface Complète ; classement compact avec le code pilote,
   l'écart, les secteurs en couleur et les pneus.
 - Studio et site aux mêmes couleurs.
+- Accueil et calendrier (Saison → Calendrier) au même style : prochain Grand Prix en grand avec son drapeau, compte à
+  rebours et programme du week-end jour par jour ; calendrier de la saison en liste groupée par mois (manche, drapeau,
+  dates, sprint, vainqueur et pole), une ligne s'ouvre sur ses séances.
 - Envie de l'ancien look ? Réglages → Apparence → Design : « Classique » le remet (le bandeau du bas en moins).
 
 ### Prise en main
@@ -42,9 +45,13 @@ l'application (Réglages → À propos → Nouveautés).
 - Nouvelles alertes (Réglages → Alertes) : pluie qui commence ou s'arrête sur le circuit, pilote favori qui passe
   en zone d'élimination en Q1 et Q2, et pronostic pas encore fait une heure avant sa fermeture.
 - Mini-classement : colonnes au choix (menu ⋮ : places gagnées, intervalle, écart, pneu, arrêts) et ligne
-  d'élimination en qualifications.
+  d'élimination en qualifications. Dans l'application de bureau, sa fenêtre prend toute seule la taille de son
+  contenu (colonnes choisies, nombre de pilotes) ; − / +, Ctrl + molette ou le coin règlent sa taille, gardée
+  pour la prochaine fois.
 - Radios d'équipe : réglage du volume ; les commentaires F1 TV baissent pendant une radio (« Plus bas pendant
   les radios », dans le panneau des commentaires).
+- Radios d'équipe : les radios affichées « (pas de parole reconnue) » après un ancien échec de transcription sont
+  redemandées au serveur et retrouvent leur texte.
 
 ### Direction de course
 - Messages de la direction de course en vrai français : drapeaux, incidents, enquêtes, pénalités, tours
@@ -58,6 +65,13 @@ l'application (Réglages → À propos → Nouveautés).
   de séance en cours), au lieu de rester sur le replay.
 
 ### Posts (mode créateur)
+- « Se connecter à Facebook » (Comptes → Instagram + Facebook) : Facebook et Instagram se relient en un clic avec
+  la connexion Facebook, au lieu du jeton à copier depuis l'Explorateur de l'API Graph (toujours possible).
+- La fenêtre Posts prend l'habillage du Studio : fond noir, barre latérale noire avec un trait rouge sur l'élément
+  choisi, intitulés en étiquette rouge, puces blanches pour le type de post.
+- Statistiques refaites comme l'onglet Stats du Studio, directement dans la fenêtre Posts (« Statistiques » dans la
+  barre latérale) : Comptes (abonnés et activité de chaque réseau, en cartes), Posts (chiffres de chaque post,
+  « Retrouver mes posts » publiés ailleurs) et Liens (raccourcir un lien suivi, clics et téléchargements de l'appli).
 - Instagram : un post bien en ligne n'est plus marqué « erreur » quand Instagram répond quand même par un refus, même quand il n'apparaît que quelques secondes après la réponse
   (« Nous restreignons certaines activités… ») : l'appli vérifie s'il a été publié et donne son lien.
 - Hashtags aux règles actuelles des réseaux : 5 au plus sur Instagram (sa nouvelle limite), les plus précis d'abord
@@ -114,6 +128,14 @@ l'application (Réglages → À propos → Nouveautés).
   (et plus « Windows ») sur tous les systèmes.
 
 ### Divers
+- Carte : le bandeau « Fin de VSC » reste lisible quand une voiture passe dessous.
+- Menu « Colonnes » du classement : il n'est plus coupé à gauche quand le panneau est étroit.
+- Replays : toujours lancés 1 minute avant le départ (le choix « début de l'enregistrement » disparaît).
+- Un clic ou un double-clic dans le vide ne surligne plus de texte ; les textes à copier (articles, radios, direction de
+  course, champs) restent sélectionnables.
+- Saison : graphiques des pilotes, des duels et des évolutions techniques à la bonne taille sur les grands écrans ;
+  courbe des points un peu plus haute.
+- Barre latérale : « Commentaires » ne dépasse plus de son bouton.
 - Petites améliorations internes.
 
 ## v1.27.54 — 2026-10-20

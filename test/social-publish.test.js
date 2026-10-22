@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 process.env.PADDOCK_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'paddock-social-'));
-const { oauth1, accountsInfo, saveAccount, publish, timing, youtubeLoginUrl, youtubeCallback, youtubeSnippet, tiktokLoginUrl, tiktokCallback } = await import('../server/social-publish.js');
+const { oauth1, accountsInfo, saveAccount, publish, timing, youtubeLoginUrl, youtubeCallback, youtubeSnippet, tiktokLoginUrl, tiktokCallback, metaLoginUrl, metaCallback, META_REDIRECT } = await import('../server/social-publish.js');
 const { saveConfig } = await import('../server/config.js');
 
 test('X : signature OAuth 1.0a (exemple de la documentation de X)', () => {
@@ -427,4 +427,39 @@ test('vidéo du créateur : déposée une fois sur la page, Reel Instagram, vid�
   } finally {
     globalThis.fetch = realFetch;
   }
+});
+
+test('Facebook : connexion par Facebook Login, retour par la page du site, jeton de la page enregistré', async () => {
+  const realFetch = globalThis.fetch;
+  const { getConfig } = await import('../server/config.js');
+  assert.throws(() => metaLoginUrl(4321, {}), /identifiant et la clé secrète/);
+  // Configuration « Facebook Login for Business » : ses autorisations à la place de la liste
+  let u = new URL(metaLoginUrl(4321, { appId: '123456789', appSecret: 's3cret', configId: '987654321' }));
+  assert.equal(u.origin + u.pathname, 'https://www.facebook.com/v25.0/dialog/oauth');
+  assert.equal(u.searchParams.get('config_id'), '987654321');
+  assert.equal(u.searchParams.get('scope'), null);
+  assert.equal(u.searchParams.get('redirect_uri'), META_REDIRECT);
+  assert.match(u.searchParams.get('state'), /^4321\.[0-9a-f]{32}$/);
+  assert.ok(!u.toString().includes('s3cret'));
+  u = new URL(metaLoginUrl(4321, { appId: '123456789', appSecret: 's3cret' }));
+  assert.match(u.searchParams.get('scope'), /instagram_content_publish/);
+  const calls = [];
+  globalThis.fetch = async (url) => {
+    const x = new URL(url);
+    calls.push(x.pathname + (x.searchParams.get('grant_type') ? `:${x.searchParams.get('grant_type')}` : ''));
+    const d = x.pathname.endsWith('/oauth/access_token') && x.searchParams.get('code') ? (assert.equal(x.searchParams.get('redirect_uri'), META_REDIRECT), assert.equal(x.searchParams.get('client_secret'), 's3cret'), { access_token: 'court' })
+      : x.pathname.endsWith('/oauth/access_token') ? (assert.equal(x.searchParams.get('fb_exchange_token'), 'court'), { access_token: 'long' })
+      : { data: [{ id: 'p1', name: 'Paddock Live', access_token: 'jeton-page', instagram_business_account: { id: 'ig1', username: 'paddocklive' } }] };
+    return { ok: true, status: 200, text: async () => JSON.stringify(d) };
+  };
+  try {
+    await metaCallback(new URLSearchParams({ state: u.searchParams.get('state'), code: 'c' }));
+    assert.deepEqual(calls, ['/v25.0/oauth/access_token', '/v25.0/oauth/access_token:fb_exchange_token', '/v25.0/me/accounts']);
+    assert.equal(getConfig().social.meta.pageToken, 'jeton-page');
+    assert.equal(accountsInfo().instagram.name, '@paddocklive');
+    // Demande déjà utilisée ou refusée dans Facebook : message clair
+    await assert.rejects(metaCallback(new URLSearchParams({ state: u.searchParams.get('state'), code: 'c' })), /expirée/);
+    const v = new URL(metaLoginUrl(4321, {}));   // identifiants déjà enregistrés
+    await assert.rejects(metaCallback(new URLSearchParams({ state: v.searchParams.get('state'), error: 'access_denied', error_reason: 'user_denied' })), /refusée/);
+  } finally { globalThis.fetch = realFetch; }
 });

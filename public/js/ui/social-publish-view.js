@@ -103,7 +103,8 @@ const HELP = {
     '« Keys and tokens » : copiez API Key et API Key Secret, puis générez Access Token et Access Token Secret.'],
   meta: ['Passez votre compte Instagram en compte professionnel (créateur) et reliez-le à votre page Facebook.',
     'developers.facebook.com : créez une app (type Business) ; identifiant et clé secrète dans Paramètres → Général.',
-    'Outils → Explorateur de l\'API Graph : ajoutez pages_show_list, pages_read_engagement, pages_manage_posts, pages_manage_engagement, read_insights, instagram_basic, instagram_content_publish, instagram_manage_insights et business_management, puis « Generate Access Token ».'],
+    'Facebook Login for Business → Paramètres : ajoutez {} dans « URI de redirection OAuth valides ». Créez une configuration (jeton d\'accès utilisateur) avec pages_show_list, pages_read_engagement, pages_manage_posts, pages_manage_engagement, read_insights, instagram_basic, instagram_content_publish, instagram_manage_insights et business_management, et copiez son ID.',
+    'Collez identifiant, clé secrète et ID de configuration, puis « Se connecter à Facebook ». Sans configuration : Outils → Explorateur de l\'API Graph, mêmes autorisations, « Generate Access Token », et collez le jeton.'],
   threads: ['Dans l\'app Meta, ajoutez « Accéder à l\'API Threads » (threads_basic, threads_content_publish, threads_manage_replies, threads_manage_insights).',
     'Ajoutez votre compte Threads comme testeur et acceptez l\'invitation dans Threads.',
     'Copiez la clé secrète Threads et générez un jeton avec « User Token Generator ».'],
@@ -128,7 +129,7 @@ const HELP = {
 };
 const FIELDS = {
   x: [['apiKey', 'API Key'], ['apiSecret', 'API Key Secret'], ['accessToken', 'Access Token'], ['accessSecret', 'Access Token Secret']],
-  meta: [['appId', 'Identifiant de l\'app'], ['appSecret', 'Clé secrète de l\'app'], ['userToken', 'Jeton d\'accès (Explorateur de l\'API Graph)']],
+  meta: [['appId', 'Identifiant de l\'app'], ['appSecret', 'Clé secrète de l\'app'], ['configId', 'ID de configuration (Facebook Login for Business)'], ['userToken', 'Jeton d\'accès (Explorateur de l\'API Graph, sans « Se connecter »)']],
   threads: [['appSecret', 'Clé secrète Threads'], ['token', 'Jeton Threads']],
   threads2: [['appSecret', 'Clé secrète Threads'], ['token', 'Jeton Threads']],
   bluesky: [['handle', 'Identifiant Bluesky'], ['appPassword', 'Mot de passe d\'application']],
@@ -137,8 +138,9 @@ const FIELDS = {
   youtube: [['clientId', 'ID client'], ['clientSecret', 'Code secret du client']],
 };
 const TITLES = { x: 'X', meta: 'Instagram + Facebook', threads: 'Threads', threads2: 'Threads (2e compte, statistiques)', bluesky: 'Bluesky', tiktok: 'TikTok', tiktok2: 'TikTok (2e compte, statistiques)', youtube: 'YouTube Shorts' };
-// Connexion par le navigateur (OAuth) : bouton « Se connecter à … »
-const OAUTH = { tiktok: 'TikTok', tiktok2: 'TikTok', youtube: 'YouTube' };
+// Connexion par le navigateur (OAuth) : bouton « Se connecter à … » ; Facebook revient par la page du site
+const META_REDIRECT = 'https://paddocklive.app/fb-callback';
+const OAUTH = { meta: 'Facebook', tiktok: 'TikTok', tiktok2: 'TikTok', youtube: 'YouTube' };
 
 // open : section gardée ouverte après un enregistrement (sinon tout se replie)
 async function accountsDialog(onChange, open = null) {
@@ -162,12 +164,12 @@ async function accountsDialog(onChange, open = null) {
     <div class="posts-acc-body">
       <p class="small muted">${t(KEYS_NOTE)}</p>
       ${Object.keys(FIELDS).map((k) => `<details class="posts-acc" data-net="${k}" ${k === open ? 'open' : ''}><summary><b>${TITLES[k]}</b> ${status(k)}</summary>
-        <ol class="small">${HELP[k].map((h) => `<li>${esc(t(h, redirect))}</li>`).join('')}</ol>
+        <ol class="small">${HELP[k].map((h) => `<li>${esc(t(h, k === 'meta' ? META_REDIRECT : redirect))}</li>`).join('')}</ol>
         ${FIELDS[k].map(([f, l]) => `<label class="small">${esc(t(l))}<input type="password" data-f="${f}" autocomplete="off" spellcheck="false"></label>`).join('')}
         ${k === 'tiktok' ? `<label class="toggle small"><input type="checkbox" data-f="direct" ${info.tiktok?.direct ? 'checked' : ''}> ${t('Publication directe (Direct Post activé dans votre app TikTok)')}</label>
           <label class="toggle small"><input type="checkbox" data-f="stats" ${info.tiktok?.stats ? 'checked' : ''}> ${t('Statistiques (user.info.stats et video.list ajoutés dans votre app TikTok)')}</label>` : ''}
         <div class="row">${FIELDS[k].length ? `<button class="btn small btn-accent" data-save>${t('Enregistrer et vérifier')}</button>` : ''}
-          ${OAUTH[k] ? `<button class="btn small ${info[k]?.configured && !info[k]?.connected ? 'btn-accent' : ''}" data-login ${info[k]?.configured ? '' : 'disabled'}>${t('Se connecter à {}', OAUTH[k])}</button>` : ''}
+          ${OAUTH[k] ? `<button class="btn small ${info[k]?.configured && !info[k]?.connected ? 'btn-accent' : ''}" data-login ${info[k]?.configured || k === 'meta' ? '' : 'disabled'}>${t('Se connecter à {}', OAUTH[k])}</button>` : ''}
           <button class="btn small" data-remove>${t('Déconnecter')}</button></div></details>`).join('')}
       <details class="posts-acc" data-studio ${studio.enabled ? '' : 'open'}><summary><b>${t('Page web (téléphone)')}</b> ${studio.enabled ? `<span class="posts-ok">${icon('check')} ${t('Activée')}</span>` : `<span class="muted">${t('Désactivée')}</span>`}</summary>
         <p class="small">${t("Préparez et publiez les posts depuis votre téléphone, même ordinateur éteint. Comptes et connexion F1 TV envoyés chiffrés au serveur.")}</p>
@@ -219,7 +221,10 @@ async function accountsDialog(onChange, open = null) {
       } else if (btn.dataset.remove !== undefined) {
         await api('/api/social/accounts', { network, remove: true });
       } else if (btn.dataset.login !== undefined) {
-        const { url } = await api(`/api/social/${k}/login`, {});
+        // Facebook : identifiants tapés (sinon ceux déjà enregistrés), envoyés avec la demande de connexion
+        const body = {};
+        if (k === 'meta') for (const i of box.querySelectorAll('[data-f]')) if (i.value.trim()) body[i.dataset.f] = i.value;
+        const { url } = await api(`/api/social/${k}/login`, body);
         window.open(url, '_blank');
         toast(t('Connectez-vous dans le navigateur, puis revenez ici et rouvrez cette fenêtre'), 6000, 'external');
       }

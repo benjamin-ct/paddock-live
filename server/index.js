@@ -35,8 +35,8 @@ import { lightsInfo, saveLights, hueDiscover, huePair, lightDevices, setLights }
 import { exportServerSettings, importServerSettings } from './backup.js';
 import { creatorEnabled, setCreator, savePostImage, openPostsDir } from './creator.js';
 import { studioInfo, enableStudio, disableStudio, syncStudio, startStudioSync, studioRewrite, studioTrack, studioDrafts } from './studio-sync.js';
-import { postHistory, recordPost, removePost, statsOfPosts } from './post-history.js';
-import { accountsInfo, saveAccount, tiktokLoginUrl, tiktokCallback, youtubeLoginUrl, youtubeCallback, publish as publishSocial } from './social-publish.js';
+import { postHistory, recordPost, removePost, statsOfPosts, importPosts } from './post-history.js';
+import { accountsInfo, saveAccount, tiktokLoginUrl, tiktokCallback, youtubeLoginUrl, youtubeCallback, metaLoginUrl, metaCallback, publish as publishSocial } from './social-publish.js';
 import { startAutoRenew, renew as renewF1tv, sessionOf, state as renewState, resetRenewState } from './f1tv-auth.js';
 import { localHost, sameSiteRequest, decodePath, extensionRequest, EXTENSION_ROUTES } from './guard.js';
 import { stats, startStats, sendFeedback, sendFeedbackFile } from './stats.js';
@@ -363,6 +363,7 @@ async function handleApi(req, res, url) {
     case 'GET /api/social/accounts':
     case 'POST /api/social/accounts':
     case 'POST /api/social/tiktok/login':
+    case 'POST /api/social/meta/login':
     case 'POST /api/social/tiktok2/login':
     case 'POST /api/social/youtube/login':
     case 'POST /api/social/publish':
@@ -383,6 +384,7 @@ async function handleApi(req, res, url) {
     case 'POST /api/social/schedule/cancel':
     case 'POST /api/social/history':
     case 'POST /api/social/history/remove':
+    case 'POST /api/social/history/import':
     case 'GET /api/social/drafts':
     case 'GET /api/social/draft':
     case 'POST /api/social/drafts':
@@ -437,11 +439,13 @@ async function handleApi(req, res, url) {
         // Résumé détaillé d'une news en points clés (images suivantes du post)
         // Post écrit à la main : titre, résumé et points clés rédigés par l'IA à partir du texte
         // Texte avec ses liens suivis (pages des réseaux ouvertes avec le texte : X…)
-        if (route === 'POST /api/social/links') { const b = await readBody(req, 2e4); return sendJSON(res, 200, await studioTrack(String(b.net || ''), String(b.text || ''))); }
+        if (route === 'POST /api/social/links') { const b = await readBody(req, 2e4); return sendJSON(res, 200, await studioTrack(String(b.net || ''), String(b.text || ''), '', { title: String(b.title || '').slice(0, 80) })); }
         if (route === 'POST /api/social/rewrite') return sendJSON(res, 200, await studioRewrite((await readBody(req, 2e4)).text));
         if (route === 'POST /api/social/summary') return sendJSON(res, 200, { points: await summarize(String((await readBody(req, 1e4)).link || '')) });
         if (route === 'POST /api/social/history') return sendJSON(res, 200, { items: await recordPost((await readBody(req, 1e5)).entry) });
         if (route === 'POST /api/social/history/remove') return sendJSON(res, 200, { items: await removePost((await readBody(req, 1e4)).key) });
+        // Posts publiés hors de Paddock Live : relus sur les comptes reliés (page web)
+        if (route === 'POST /api/social/history/import') return sendJSON(res, 200, await importPosts());
         // Brouillons de posts (gardés par la page web, partagés avec le Studio)
         if (route === 'GET /api/social/drafts') return sendJSON(res, 200, await studioDrafts('drafts'));
         if (route === 'GET /api/social/draft') return sendJSON(res, 200, await studioDrafts(`draft?id=${encodeURIComponent(url.searchParams.get('id') || '')}`));
@@ -451,6 +455,7 @@ async function handleApi(req, res, url) {
           const b = await readBody(req, 1e4);
           return sendJSON(res, 200, b.off ? await disableStudio() : b.sync ? (await syncStudio({ force: true }), studioInfo()) : await enableStudio(String(b.code || '')));
         }
+        if (route === 'POST /api/social/meta/login') return sendJSON(res, 200, { url: metaLoginUrl(req.socket.localPort, await readBody(req, 4e3)) });
         if (route === 'POST /api/social/tiktok/login') return sendJSON(res, 200, { url: tiktokLoginUrl(`http://127.0.0.1:${req.socket.localPort}`) });
         if (route === 'POST /api/social/tiktok2/login') return sendJSON(res, 200, { url: tiktokLoginUrl(`http://127.0.0.1:${req.socket.localPort}`, true) });
         if (route === 'POST /api/social/youtube/login') return sendJSON(res, 200, { url: youtubeLoginUrl(`http://127.0.0.1:${req.socket.localPort}`) });
@@ -817,8 +822,8 @@ async function handler(req, res) {
     return;
   }
   const url = new URL(req.url, 'http://localhost');
-  // Retour de la connexion TikTok (mode créateur) : page ouverte par le navigateur depuis tiktok.com
-  const oauthNet = { '/tiktok-callback/': ['TikTok', tiktokCallback], '/youtube-callback/': ['YouTube', youtubeCallback] }[url.pathname];
+  // Retour des connexions TikTok, YouTube et Facebook (mode créateur) : page ouverte par le navigateur
+  const oauthNet = { '/tiktok-callback/': ['TikTok', tiktokCallback], '/youtube-callback/': ['YouTube', youtubeCallback], '/meta-callback/': ['Facebook', metaCallback] }[url.pathname];
   if (oauthNet && isLoopback(req.socket.remoteAddress)) {
     const [name, callback] = oauthNet;
     let msg = `Compte ${name} connecté. Vous pouvez fermer cet onglet et revenir à Paddock Live.`;
