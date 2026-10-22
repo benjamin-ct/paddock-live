@@ -13,7 +13,6 @@ let year = new Date().getFullYear();
 const cache = new Map();   // année -> { meetings } | { error }
 
 const fmtDay = (iso) => (iso ? new Date(`${iso.slice(0, 10)}T12:00:00`).toLocaleDateString(LOCALE, { day: 'numeric', month: 'short' }) : '');
-const startAt = () => ($$('input[name=rvStart]').find((i) => i.checked)?.value === 'begin' ? { startOffsetMs: 0 } : {});
 
 async function loadYear(y) {
   if (!cache.has(y)) {
@@ -111,7 +110,7 @@ export function initReplays() {
   view.addEventListener('click', async (e) => {
     const t = e.target.closest('[data-rv-path], [data-rv-local], [data-rv-del], [data-rv-delall], [data-rv-f1tv], [data-rv-go]');
     if (!t) return;
-    if (t.dataset.rvPath) play({ path: t.dataset.rvPath, ...startAt() }, t.dataset.rvName);
+    if (t.dataset.rvPath) play({ path: t.dataset.rvPath }, t.dataset.rvName);
     else if (t.dataset.rvLocal) play({ local: t.dataset.rvLocal }, t.dataset.rvName);
     else if (t.dataset.rvGo) { section = t.dataset.rvGo; render(); }
     else if ('rvF1tv' in t.dataset) { $('#settingsBtn').click(); $('#setNav [data-sgroup="f1tv"]')?.click(); }

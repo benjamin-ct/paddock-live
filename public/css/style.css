@@ -37,6 +37,10 @@
 
 * { box-sizing: border-box; }
 html, body { height: 100%; }
+/* Appli : un clic ou un double-clic dans le vide ne surligne rien ; texte sélectionnable seulement là
+   où on peut vouloir le copier (champs, article, radios, direction de course, adresses) */
+body { -webkit-user-select: none; user-select: none; }
+:is(input, textarea, [contenteditable], .nw-reader, .rd-text, .rd-orig, .rcm-msg, .rc-msg, pre, code, .selectable) { -webkit-user-select: text; user-select: text; }
 body {
   margin: 0;
   background: var(--bg);
@@ -1088,19 +1092,68 @@ body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-selec
 .sz-big .drv-bar { height: 22px; }
 .sz-table tr.muted td { color: var(--muted); }
 .sz-chip { display: inline-block; border-left: 3px solid var(--tc); background: color-mix(in srgb, var(--tc) 18%, transparent); padding: 1px 7px; border-radius: 4px; font-weight: 700; font-size: 12.5px; }
-.sz-cal { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; align-items: start; }
-.sz-race { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; scroll-margin-top: 10px; }
-.sz-race.is-next { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
-.sz-race summary { cursor: pointer; list-style: none; display: flex; flex-direction: column; gap: 3px; }
-.sz-race summary::-webkit-details-marker { display: none; }
-.sz-race-name { font-size: 19px; font-weight: 900; }
 .sz-tag { display: inline-block; font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .4px; padding: 1px 6px; border-radius: 4px; background: var(--panel-3); color: var(--text-2); margin-right: 3px; }
 .sz-tag.done { background: rgba(53, 208, 127, .15); color: var(--green); }
 .sz-tag.next { background: var(--accent); color: #fff; }
 .sz-tag.sprint { background: rgba(199, 125, 255, .18); color: var(--purple); }
-.sz-race-top { display: flex; align-items: center; gap: 6px; }
-.sz-sessions { list-style: none; margin: 10px 0 0; padding: 0; font-size: 13px; }
-.sz-sessions li { display: flex; justify-content: space-between; padding: 4px 0; border-top: 1px solid var(--line); }
+/* Calendrier : prochain Grand Prix en grand, puis la saison en liste groupée par mois */
+.cal { display: flex; flex-direction: column; gap: 14px; }
+.cal-hero { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 20px; align-items: stretch; padding: 18px 20px; border-radius: 6px;
+  background: linear-gradient(110deg, color-mix(in srgb, var(--accent) 26%, var(--panel)) 0%, var(--panel) 58%); border: 1px solid var(--border); border-left: 4px solid var(--accent); }
+.cal-hero-main { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; }
+.cal-hero-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.cal-tag { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 4px; background: var(--accent); color: #fff; font: 700 11px/1 var(--font); letter-spacing: .08em; text-transform: uppercase; }
+.cal-round { font-size: 11.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text-2); }
+.cal-hero-name { display: flex; align-items: center; gap: 12px; margin: 2px 0 0; font: 800 34px/1.05 var(--font-cond, var(--font)); text-transform: uppercase; letter-spacing: .01em; text-wrap: balance; }
+.cal-hero-name .cal-flag { width: 42px; height: 28px; }
+.cal-hero-sub { color: var(--text-2); font-size: 13px; }
+.cal-next { margin-top: 6px; font-size: 11.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.cal-hero .sz-countdown { margin: 0 0 6px; }
+.cal-days { display: flex; gap: 8px; align-self: center; }
+.cal-day { min-width: 132px; background: color-mix(in srgb, var(--bg) 55%, transparent); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+.cal-day-h { padding: 5px 10px; background: var(--bc-pos-bg, var(--text)); color: var(--bc-pos-fg, var(--bg)); font: 800 12px/1.3 var(--font-cond, var(--font)); letter-spacing: .08em; text-transform: uppercase; }
+.cal-s { display: flex; justify-content: space-between; gap: 12px; padding: 6px 10px; font-size: 13px; border-top: 1px solid var(--line); }
+.cal-s:first-of-type { border-top: 0; }
+.cal-s b { font-variant-numeric: tabular-nums; }
+.cal-s.past { color: var(--muted); }
+.cal-progress { display: flex; align-items: center; gap: 14px; color: var(--text-2); font-size: 13px; }
+.cal-progress .sz-progress { flex: 1; margin: 0; }
+.cal-list { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 6px; background: var(--panel); overflow: hidden; }
+.cal-month { padding: 7px 14px 5px; background: var(--panel-2); color: var(--muted); font: 700 11px/1.2 var(--font); letter-spacing: .1em; text-transform: uppercase; border-top: 1px solid var(--line); }
+.cal-month:first-child { border-top: 0; }
+.cal-row { border-top: 1px solid var(--line); scroll-margin-top: 80px; }
+.cal-month + .cal-row { border-top: 0; }
+.cal-row > summary { display: grid; grid-template-columns: 34px 28px minmax(0, 1fr) 120px 70px minmax(0, 300px) 16px; align-items: center; gap: 12px; padding: 9px 14px; cursor: pointer; list-style: none; }
+.cal-row > summary::-webkit-details-marker { display: none; }
+.cal-row > summary:hover { background: var(--hover); }
+.cal-num { display: grid; place-items: center; height: 26px; border-radius: 3px; background: var(--panel-3); color: var(--text-2); font: 800 15px/1 var(--font-cond, var(--font)); font-variant-numeric: tabular-nums; }
+.cal-row.next .cal-num { background: var(--bc-pos-bg, var(--text)); color: var(--bc-pos-fg, var(--bg)); }
+.cal-row.next { background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 22%, transparent), transparent 70%); box-shadow: inset 4px 0 var(--accent); }
+.cal-flag { width: 28px; height: 19px; object-fit: cover; border-radius: 2px; box-shadow: 0 0 0 1px var(--line-2); }
+.cal-name { display: flex; flex-direction: column; min-width: 0; }
+.cal-name b { font: 700 15px/1.2 var(--font); text-transform: uppercase; letter-spacing: .02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cal-name small { color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cal-date { color: var(--text-2); font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cal-res { display: flex; align-items: center; gap: 6px; font-size: 12.5px; white-space: nowrap; overflow: hidden; }
+.cal-res .ic { color: #ffd166; flex: none; }
+.cal-state { color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.cal-row.next .cal-state { color: var(--accent); }
+.cal-row.done > summary :is(.cal-name b, .cal-date) { color: var(--text-2); }
+.cal-chev { color: var(--muted); transition: transform .15s; }
+.cal-row[open] .cal-chev { transform: rotate(180deg); }
+.cal-row-body { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 4px 14px 14px 88px; }
+.cal-row-body .cal-days { align-self: auto; flex-wrap: wrap; }
+@media (max-width: 1100px) {
+  .cal-hero { grid-template-columns: 1fr; }
+  .cal-days { flex-wrap: wrap; }
+}
+@media (max-width: 760px) {
+  .cal-row > summary { grid-template-columns: 30px 26px minmax(0, 1fr) 16px; row-gap: 4px; }
+  .cal-row > summary :is(.cal-date, .cal-sprint, .cal-res, .cal-state) { grid-column: 3; }
+  .cal-row > summary .cal-sprint:empty { display: none; }
+  .cal-row-body { padding-left: 14px; }
+  .cal-hero-name { font-size: 26px; }
+}
 .sz-svg { width: 100%; height: auto; }
 .sz-gl { stroke: var(--line-2); stroke-width: 1; }
 .sz-ax { fill: var(--muted); font-size: 11px; }
@@ -1771,7 +1824,7 @@ body.solo #muteBtn { display: none; }
 [data-theme="pitwall"] .tyre-age { color: var(--muted); }
 
 /* Autres panneaux */
-[data-theme="pitwall"] :is(.duel-name, .duel-gap-val, .gauge-val, .battle-gap, .pit-big, .sz-big, .sz-race-name, .sz-drv-name, .mf-banner) { font-weight: 700; }
+[data-theme="pitwall"] :is(.duel-name, .duel-gap-val, .gauge-val, .battle-gap, .pit-big, .sz-big, .sz-drv-name, .mf-banner) { font-weight: 700; }
 [data-theme="pitwall"] :is(.gauge, .pit-card, .cmp-sector) { background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; }
 [data-theme="pitwall"] .chart-title { letter-spacing: 1.1px; font-size: 10px; }
 [data-theme="pitwall"] .rcm li { border-bottom-color: var(--line); }
@@ -2327,8 +2380,8 @@ kbd .ic { width: 12px; height: 12px; opacity: 1; }
   :root:not([data-motion="off"]) .nw-list.cascade > .nw-card:nth-child(6) { animation-delay: .15s; }
   :root:not([data-motion="off"]) .nw-list.cascade > .nw-card:nth-child(n+7) { animation-delay: .18s; }
   :root:not([data-motion="off"]) .nw-card.arrived { animation: card-arrive 1.6s var(--ease-out); }
-  :root:not([data-motion="off"]) :is(.nw-card, .sz-card, .sz-race, .nwa-top, .nwa-vids a) { transition: transform .2s var(--ease-out), border-color .2s, background-color .2s, box-shadow .2s; }
-  :root:not([data-motion="off"]) :is(.nw-card, .sz-card, .sz-race):hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(0, 0, 0, .35); }
+  :root:not([data-motion="off"]) :is(.nw-card, .sz-card, .nwa-top, .nwa-vids a) { transition: transform .2s var(--ease-out), border-color .2s, background-color .2s, box-shadow .2s; }
+  :root:not([data-motion="off"]) :is(.nw-card, .sz-card):hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(0, 0, 0, .35); }
   :root:not([data-motion="off"]) .nwa-vthumb img { transition: transform .4s var(--ease-out); }
   :root:not([data-motion="off"]) .nwa-vids a:hover .nwa-vthumb img, :root:not([data-motion="off"]) .nw-thumb:hover .nw-img { transform: scale(1.05); }
   :root:not([data-motion="off"]) .nw-img { transition: transform .4s var(--ease-out); }
@@ -2706,7 +2759,15 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; gap: 5
 .hm-dot { width: 8px; height: 8px; border-radius: 50%; background: #fff; animation: hm-pulse 1.4s ease-in-out infinite; }
 @keyframes hm-pulse { 50% { opacity: .3; } }
 .hm-title { font-size: 20px; font-weight: 800; }
-.hm-round { background: rgba(0, 0, 0, .3); border-radius: 5px; padding: 1px 6px; font-size: 12px; vertical-align: 3px; margin-right: 2px; }
+.hm-round { font-size: 11.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; opacity: .85; }
+.hm-tag { display: inline-flex; align-items: center; gap: 6px; }
+.hm-next { flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 18px; }
+.hm-next-main { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; }
+.hm-next .hm-kicker { justify-content: flex-start; gap: 10px; }
+.hm-next .cal-days { flex-wrap: wrap; align-self: center; }
+.hm-title { display: flex; align-items: center; gap: 10px; }
+.hm-title small { margin-left: 6px; font-size: .78em; font-weight: 700; opacity: .8; }
+.cal-s.now { background: color-mix(in srgb, var(--accent) 20%, transparent); font-weight: 700; }
 .hm-count { font-size: 34px; font-weight: 900; line-height: 1.1; font-variant-numeric: tabular-nums; }
 .hm-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .hm-actions .btn { display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }
@@ -2733,7 +2794,6 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; gap: 5
 }
 
 /* Espace Replays (js/ui/replays.js) */
-.rv-opt { padding: 4px 10px; font-size: 13px; color: var(--text-2); }
 .rv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
 .rv-gp { display: flex; flex-direction: column; gap: 10px; }
 .rv-gp-head { display: flex; flex-direction: column; gap: 2px; }
@@ -2751,7 +2811,8 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; gap: 5
 .hm-wx small { display: inline-flex; align-items: center; gap: 3px; opacity: .85; }
 .hm-wx .ic { width: 13px; height: 13px; }
 .hm-favs { display: flex; flex-direction: column; gap: 6px; transition: filter .2s; }
-.hm-fav-row { display: grid; grid-template-columns: 2.8em minmax(0, 210px) minmax(0, 170px) minmax(0, 1fr); gap: 10px; align-items: baseline; }
+.hm-fav-row { display: grid; grid-template-columns: 2.8em minmax(0, 1fr) minmax(0, 130px) auto; gap: 10px; align-items: baseline; }
+.hm-fav-row > :last-child { white-space: nowrap; }
 @media (max-width: 600px) { .hm-fav-row { grid-template-columns: 2.8em minmax(0, 1fr) auto; } .hm-fav-row > :nth-child(3) { display: none; } }
 .hm-fav-row b { font-size: 16px; }
 .hm-fav-pos { font-size: 20px; font-weight: 900; color: var(--accent); }

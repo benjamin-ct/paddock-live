@@ -16,6 +16,9 @@ l'application (Réglages → À propos → Nouveautés).
   de course à droite), indépendante de celle de l'interface Complète ; classement compact avec le code pilote,
   l'écart, les secteurs en couleur et les pneus.
 - Studio et site aux mêmes couleurs.
+- Accueil et calendrier (Saison → Calendrier) au même style : prochain Grand Prix en grand avec son drapeau, compte à
+  rebours et programme du week-end jour par jour ; calendrier de la saison en liste groupée par mois (manche, drapeau,
+  dates, sprint, vainqueur et pole), une ligne s'ouvre sur ses séances.
 - Envie de l'ancien look ? Réglages → Apparence → Design : « Classique » le remet (le bandeau du bas en moins).
 
 ### Prise en main
@@ -116,6 +119,12 @@ l'application (Réglages → À propos → Nouveautés).
 ### Divers
 - Carte : le bandeau « Fin de VSC » reste lisible quand une voiture passe dessous.
 - Menu « Colonnes » du classement : il n'est plus coupé à gauche quand le panneau est étroit.
+- Replays : toujours lancés 1 minute avant le départ (le choix « début de l'enregistrement » disparaît).
+- Un clic ou un double-clic dans le vide ne surligne plus de texte ; les textes à copier (articles, radios, direction de
+  course, champs) restent sélectionnables.
+- Saison : graphiques des pilotes, des duels et des évolutions techniques à la bonne taille sur les grands écrans ;
+  courbe des points un peu plus haute.
+- Barre latérale : « Commentaires » ne dépasse plus de son bouton.
 - Petites améliorations internes.
 
 ## v1.27.54 — 2026-10-20

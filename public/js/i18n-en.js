@@ -2632,4 +2632,10 @@ export default {
   "Programmer quand même ?": "Schedule anyway?",
   "Texte {} trop long : {} caractères pour {} au plus": "{} text too long: {} characters, {} at most",
   "{} : {} visuels, seuls les {} premiers seront publiés": "{}: {} images, only the first {} will be posted",
+  "Prochain Grand Prix": "Next Grand Prix",
+  "Manche {} / {}": "Round {} / {}",
+  "{} dans": "{} in",
+  "Saison {} ·": "Season {} ·",
+  "Grands Prix courus": "Grands Prix raced",
+  "jours": "days",
 };

@@ -11,6 +11,7 @@ import { toast } from './delay.js';
 import { prefs, setPref, toggleFav, toggleTeamFav } from '../prefs.js';
 import { teamKey } from '/shared/news.js';
 import { openResults } from './results-view.js';
+import { COUNTRY_ISO } from '/shared/social-season.js';
 
 let schedule = null;   // [{ race, round, label, t }]
 let archive = null;    // dernière séance rejouable { meeting, name, path, t }
@@ -80,6 +81,19 @@ function ago(t) {
   return d === 1 ? 'hier' : `il y a ${d} jours`;
 }
 const when = (t) => new Date(t).toLocaleString(LOCALE, { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+const flag = (country) => (COUNTRY_ISO[country] ? `<img class="cal-flag" src="https://flagcdn.com/w80/${COUNTRY_ISO[country]}.png" alt="" onerror="this.remove()">` : '');
+// Programme du week-end du prochain Grand Prix, jour par jour (même présentation que le calendrier)
+function daysHtml(nx) {
+  const days = new Map();
+  for (const s of schedule.filter((x) => x.race === nx.race && x.year === nx.year)) {
+    const k = new Date(s.t).toDateString();
+    if (!days.has(k)) days.set(k, { t: s.t, list: [] });
+    days.get(k).list.push(s);
+  }
+  const hm = (t) => new Date(t).toLocaleTimeString(LOCALE, { hour: '2-digit', minute: '2-digit' });
+  return `<div class="cal-days">${[...days.values()].map((d) => `<div class="cal-day"><div class="cal-day-h">${esc(new Date(d.t).toLocaleDateString(LOCALE, { weekday: 'short', day: 'numeric' }))}</div>
+    ${d.list.map((s) => `<div class="cal-s ${s.t < Date.now() ? 'past' : ''} ${s === nx ? 'now' : ''}"><span>${esc(s.label)}</span><b>${hm(s.t)}</b></div>`).join('')}</div>`).join('')}</div>`;
+}
 const gp = (name) => gpShort(name, EN);
 
 // Météo prévue des jours du prochain week-end (Open-Meteo, 16 jours au plus)
@@ -166,7 +180,7 @@ function favHtml() {
   const favT = teams.filter((c) => prefs.favTeams.includes(c.key));
   const count = favD.length + favT.length;
   const edit = `<button class="btn small" data-home="editfav">${icon(editFav ? 'check' : 'star')} ${editFav ? 'Terminé' : count ? 'Modifier' : 'Choisir mes favoris'}</button>`;
-  const head = `<div class="hm-kicker">${count === 1 ? 'Mon favori au championnat' : 'Mes favoris au championnat'} ${edit}</div>`;
+  const head = `<div class="hm-kicker"><span class="hm-tag">${count === 1 ? 'Mon favori au championnat' : 'Mes favoris au championnat'}</span> ${edit}</div>`;
   if (!count) {
     return `<section class="hm-card hm-fav" id="hmFav">${head}${editFav ? favEditor(ds, teams)
       : '<div class="muted">Ajoutez vos pilotes et écuries favoris.</div>'}</section>`;
@@ -203,29 +217,30 @@ function render() {
   const live = liveNow();
   const nx = nextSession();
   const card = live
-    ? `<section class="hm-card hm-live"><div class="hm-kicker"><span class="hm-dot"></span>Séance en cours</div>
+    ? `<section class="hm-card hm-live"><div class="hm-kicker"><span class="hm-tag"><span class="hm-dot"></span>Séance en cours</span></div>
         <div class="hm-title">${esc(gp(live.race))} : ${esc(live.label)}</div>
         <div class="muted">Commencée à ${esc(new Date(live.t).toLocaleTimeString(LOCALE, { hour: '2-digit', minute: '2-digit' }))}</div>
         <div class="hm-actions"><button class="btn btn-accent" data-home="live">${icon('signal')} Regarder en direct</button></div></section>`
-    : `<section class="hm-card hm-next"><div class="hm-kicker">Prochaine séance</div>
-        ${nx ? `<div class="hm-title"><span class="hm-round">R${nx.round}</span> ${esc(gp(nx.race))} : ${esc(nx.label)}</div>
+    : `<section class="hm-card hm-next"><div class="hm-next-main"><div class="hm-kicker"><span class="hm-tag">Prochaine séance</span>${nx ? `<span class="hm-round">Manche ${nx.round}</span>` : ''}</div>
+        ${nx ? `<div class="hm-title">${flag(nx.country)}<span>${esc(gp(nx.race))} <small>${esc(nx.label)}</small></span></div>
         <div class="hm-count" id="hmCount">${countdown(nx.t - Date.now())}</div>
         <div class="muted">${esc(when(nx.t))}</div>
         ${weatherHtml(nx)}
-        <div class="hm-actions"><a class="btn small" href="#" data-cal="${nx.year}" data-round="${nx.round}" title="Séances dans votre agenda (Google, Apple, Outlook)">${icon('calendar')} Ajouter ce week-end à mon agenda</a></div>`
-          : `<div class="hm-title">${schedule ? 'Saison terminée' : 'Calendrier en chargement…'}</div>`}</section>`;
+        <div class="hm-actions"><a class="btn small" href="#" data-cal="${nx.year}" data-round="${nx.round}" title="Séances dans votre agenda (Google, Apple, Outlook)">${icon('calendar')} Ajouter ce week-end à mon agenda</a></div></div>
+        ${daysHtml(nx)}`
+          : `<div class="hm-title">${schedule ? 'Saison terminée' : 'Calendrier en chargement…'}</div></div>`}</section>`;
   const ls = live ? null : lastSession();
   const last = ls
-    ? `<section class="hm-card"><div class="hm-kicker">Dernière séance</div>
-        <div class="hm-title">${esc(gp(ls.meeting))} : ${esc(sessionName(ls.name))}</div>
+    ? `<section class="hm-card hm-last"><div class="hm-kicker"><span class="hm-tag">Dernière séance</span></div>
+        <div class="hm-title"><span>${esc(gp(ls.meeting))} <small>${esc(sessionName(ls.name))}</small></span></div>
         <div class="muted">${esc(ago(ls.t))} · résultat masqué</div>
         <div class="hm-actions"><button class="btn btn-accent" data-home="replay">${icon('play')} Revoir en replay</button>
           <button class="btn" data-home="results" title="Résultats de la séance (résultat visible)">${icon('checkered')} Voir les résultats</button></div></section>`
     : '';
   view.querySelector('.hm-main').innerHTML = `<h1 class="hm-hello">Paddock Live</h1>
-    <div class="hm-grid">${card}${last}</div>
-    ${favHtml()}
-    <section class="hm-card hm-news"><div class="hm-kicker">Dernières actus <button class="btn small" data-home="news">Toute l'actu ${icon('arrow-right', 'ic-s')}</button></div><div id="hmNews" class="hm-list"><div class="muted small">Chargement…</div></div></section>
+    ${card}
+    <div class="hm-grid">${last}${favHtml()}</div>
+    <section class="hm-card hm-news"><div class="hm-kicker"><span class="hm-tag">Dernières actus</span> <button class="btn small" data-home="news">Toute l'actu ${icon('arrow-right', 'ic-s')}</button></div><div id="hmNews" class="hm-list"><div class="muted small">Chargement…</div></div></section>
     <nav class="hm-go">
       <button data-home="live">${icon('signal')}<b>Direct</b><small>Tableau de bord</small></button>
       <button data-home="season">${icon('trophy')}<b>Saison</b><small>Calendrier, classements</small></button>

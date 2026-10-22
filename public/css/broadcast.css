@@ -45,6 +45,8 @@
 [data-theme="pitwall"] .rail-btn.on { background: transparent; color: #fff; }
 [data-theme="pitwall"] .rail-btn.on::before { background: var(--accent); width: 3px; }
 [data-theme="pitwall"] .rail-btn small { font-family: var(--font); font-weight: 700; letter-spacing: .06em; }
+/* Libellé long (« Commentaires ») : tient dans la largeur du bouton */
+[data-theme="pitwall"] .rail-btn small.rail-long { font-size: 8.5px; letter-spacing: 0; }
 [data-theme="pitwall"] .rail-logo { border-radius: 9px; }
 
 /* Barre du haut : habillage TV, toujours sombre (y compris en clair) */
@@ -106,3 +108,37 @@ html.float-map .rc-bar { display: none !important; }
 
 /* Duel : grand écart en chiffres condensés */
 [data-theme="pitwall"] .duel-gap-val { font-family: var(--font-cond); font-weight: 800; letter-spacing: 0; }
+
+/* Accueil : habillage TV (titres en étiquette rouge, prochaine séance façon générique, positions en case blanche) */
+[data-theme="pitwall"] .hm-main { max-width: 1180px; }
+[data-theme="pitwall"] .hm-hello { font: 800 30px/1 var(--font-cond); text-transform: uppercase; letter-spacing: .02em; }
+[data-theme="pitwall"] .hm-hello::after { content: ''; display: block; width: 48px; height: 4px; margin-top: 8px; background: var(--accent); }
+[data-theme="pitwall"] .hm-card { border-radius: 6px; }
+[data-theme="pitwall"] .hm-kicker { opacity: 1; }
+[data-theme="pitwall"] .hm-tag { height: 24px; padding: 0 9px; border-radius: 4px; background: var(--accent); color: #fff; font: 700 11.5px/1 var(--font); letter-spacing: .08em; }
+[data-theme="pitwall"] .hm-round { color: var(--text-2); opacity: 1; }
+[data-theme="pitwall"] :is(.hm-next, .hm-live) { color: var(--text); border-color: var(--border); border-left: 4px solid var(--accent);
+  background: linear-gradient(110deg, color-mix(in srgb, var(--accent) 26%, var(--panel)) 0%, var(--panel) 58%); }
+[data-theme="pitwall"] :is(.hm-next, .hm-live) .muted { color: var(--text-2); }
+[data-theme="pitwall"] .hm-next .btn { background: var(--panel-2); border-color: var(--line-2); color: var(--text); }
+[data-theme="pitwall"] .hm-live .btn-accent { background: var(--accent); border-color: var(--accent); color: #fff; }
+[data-theme="pitwall"] .hm-title { font: 800 28px/1.05 var(--font-cond); text-transform: uppercase; letter-spacing: .01em; }
+[data-theme="pitwall"] .hm-title small { font: 700 14px var(--font); letter-spacing: .06em; color: var(--text-2); opacity: 1; }
+[data-theme="pitwall"] .hm-last .hm-title { font-size: 22px; }
+[data-theme="pitwall"] .hm-count { font: 800 44px/1 var(--font-cond); letter-spacing: .01em; }
+[data-theme="pitwall"] .hm-fav-row { grid-template-columns: 34px minmax(0, 1fr) minmax(0, 110px) auto; align-items: center; padding: 6px 0; border-top: 1px solid var(--line); }
+[data-theme="pitwall"] .hm-fav-row > * { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 1100px) {
+  [data-theme="pitwall"] .hm-fav-row { grid-template-columns: 34px minmax(0, 1fr) auto; }
+  [data-theme="pitwall"] .hm-fav-row > :nth-child(3) { display: none; }
+}
+[data-theme="pitwall"] .hm-fav-row:first-child { border-top: 0; }
+[data-theme="pitwall"] .hm-fav-row b { font-size: 14.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .02em; }
+[data-theme="pitwall"] .hm-fav-pos { display: grid; place-items: center; width: 34px; height: 24px; border-radius: 3px; background: var(--bc-pos-bg); color: var(--bc-pos-fg); font: 800 15px/1 var(--font-cond); }
+[data-theme="pitwall"] .hm-news-item { padding: 10px 2px 10px 12px; border-left: 3px solid transparent; }
+[data-theme="pitwall"] .hm-news-item:hover { border-left-color: var(--accent); background: var(--hover); }
+[data-theme="pitwall"] .hm-news-t { font-weight: 700; }
+[data-theme="pitwall"] .hm-go button { border-radius: 6px; border-top: 3px solid var(--line-2); }
+[data-theme="pitwall"] .hm-go button:hover { border-top-color: var(--accent); }
+[data-theme="pitwall"] .hm-go b { font: 700 13.5px var(--font); text-transform: uppercase; letter-spacing: .06em; }
+[data-theme="pitwall"] .hm-follow { border-radius: 4px; }
