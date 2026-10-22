@@ -192,6 +192,13 @@ button.card:active { transform: scale(.985); background: var(--surface-2); }
 .card.hero .t { margin: 6px 0 4px; font: 800 27px/1.05 'Saira Condensed', sans-serif; letter-spacing: .2px; }
 .card.hero .go { position: absolute; right: 14px; top: 50%; width: 20px; height: 20px; margin-top: -10px; color: var(--muted); }
 .card.hero.busy .go { display: none; }
+.card.plan { margin-bottom: 14px; }
+.card.plan .t { margin: 4px 0 8px; font: 800 22px/1.1 'Saira Condensed', sans-serif; }
+.plan-row { display: flex; gap: 8px; align-items: center; padding: 6px 0; border-top: 1px solid var(--line); font-size: 14px; }
+.plan-row span { flex: 1; }
+.plan-row small { color: var(--muted); }
+.plan-row.done { color: var(--muted); }
+.plan-row.done svg { color: var(--ok); }
 .eyebrow { font-size: 11.5px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--brand); }
 .badge { display: inline-block; padding: 2px 8px; border-radius: 6px; color: #0b0d12; font: 700 11.5px/1.5 'Saira Condensed', sans-serif; letter-spacing: 1.2px; }
 .badge.breaking { background: #e10600; color: #fff; margin-left: 6px; }

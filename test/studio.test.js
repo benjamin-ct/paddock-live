@@ -862,6 +862,16 @@ test('Studio : saison résumée par le serveur, gardée 30 minutes, ancienne ver
   assert.equal((await seasonRow(env, 2026, { now: t0 + 31 * 60e3, fetchFn, wait })).at, t0);
 });
 
+test('Studio : résultats parus signalés une fois (post prêt), seulement pour un Grand Prix récent', async () => {
+  const { resultsReady } = await import('../analytics/season-cache.js');
+  const now = Date.parse('2026-10-19T22:00:00Z');
+  const gp = (extra) => ({ round: 19, name: 'United States Grand Prix', date: '2026-10-19T19:00:00Z', results: [], quali: [], sprintResults: [], ...extra });
+  const before = { races: [gp({ quali: [{ code: 'NOR' }] }), { ...gp({}), round: 1, date: '2026-03-08T04:00:00Z' }] };
+  const after = { races: [gp({ quali: [{ code: 'NOR' }], results: [{ code: 'VER' }] }), { ...gp({ results: [{ code: 'NOR' }] }), round: 1, date: '2026-03-08T04:00:00Z' }] };
+  assert.deepEqual(resultsReady(before, after, now), [{ title: 'Post prêt : résultats de la course', body: 'United States Grand Prix : à publier depuis le Studio', id: 'ready-19-course', url: '/studio/' }]);
+  assert.deepEqual(resultsReady(after, after, now), []);
+});
+
 test('page du créateur : brouillons de posts (enregistrés, repris, mis à jour, supprimés)', async () => {
   saveConfig({ creator: true });
   await enableStudio(CODE, { fetchFn: (url, init) => worker(url, init) });

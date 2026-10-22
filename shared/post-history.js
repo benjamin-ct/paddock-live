@@ -83,3 +83,28 @@ export function bestSlot(posts) {
   const best = slots.sort((a, b) => b.mean - a.mean)[0];
   return best.mean >= all * 1.2 ? { from: best.from, to: best.to, n: scored.length, ratio: Math.round((best.mean / all) * 10) / 10 } : null;
 }
+
+// Plan des posts d'un week-end de Grand Prix (Studio, onglet Saison) : chaque post, son moment, et s'il est
+// déjà dans le journal (keys : clés des posts publiés). race : Grand Prix de la saison résumée (Jolpica)
+export function weekendPlan(race, year, keys) {
+  const at = (label) => Date.parse(race.sessions?.find((s) => s.label === label)?.t || '') || null;
+  const day = Date.parse(race.date);
+  const monday = new Date(day);
+  monday.setUTCDate(monday.getUTCDate() - ((monday.getUTCDay() + 6) % 7));
+  monday.setUTCHours(8, 0, 0, 0);
+  const id = `${year}-${race.round}`;
+  const gp = String(race.name || '').replace(/ /g, '_');
+  const has = (test) => keys.some((k) => typeof k === 'string' && test(k));
+  const own = (kind) => (k) => k.startsWith(`${kind}:${id}`);
+  // Post d'une séance : clé « session:<chemin des archives F1> » (…/2026-10-18_Qualifying/)
+  const session = (type) => (k) => k.startsWith('session:') && k.includes(gp) && new RegExp(`\\d_${type}/`).test(k);
+  return [
+    { label: 'Race Week', at: monday.getTime(), done: has(own('raceweek')) },
+    { label: 'Programme du week-end', at: monday.getTime() + 3 * 86400e3, done: has(own('weekend')) },
+    race.sprint && { label: 'Résultats du sprint', at: at('Sprint'), after: true, done: has(session('Sprint')) },
+    { label: 'Grille (qualifications)', at: at('Qualifications'), after: true, done: has(session('Qualifying')) },
+    { label: 'Résultats de la course', at: day, after: true, done: has(session('Race')) },
+    { label: 'Notes des pilotes', at: day, after: true, done: has(own('ratings')) },
+    { label: 'Course au titre', at: day, after: true, done: has(own('title')) },
+  ].filter(Boolean);
+}

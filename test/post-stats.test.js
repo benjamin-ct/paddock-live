@@ -57,3 +57,14 @@ test('créneau conseillé : tranche horaire dont les posts ont le plus de réact
   assert.equal(bestSlot(evening), null, 'trop peu de posts');
   assert.equal(bestSlot([...[1, 2, 3, 4].map((d) => post(19, d, 50)), ...[5, 6, 7, 8].map((d) => post(10, d, 50))]), null, 'pas d\'écart');
 });
+
+test('plan du week-end : posts faits d\'après le journal (séances et posts de la saison)', async () => {
+  const { weekendPlan } = await import('../shared/post-history.js');
+  const race = { round: 19, name: 'United States Grand Prix', date: '2026-10-25T19:00:00Z', sprint: true,
+    sessions: [{ label: 'Sprint', t: '2026-10-24T17:00:00Z' }, { label: 'Qualifications', t: '2026-10-24T21:00:00Z' }] };
+  const keys = ['raceweek:2026-19', 'session:2026/2026-10-25_United_States_Grand_Prix/2026-10-24_Sprint_Qualifying/', 'session:2026/2026-10-25_United_States_Grand_Prix/2026-10-25_Race/~k1', 'ratings:2026-18'];
+  const plan = weekendPlan(race, 2026, keys);
+  assert.deepEqual(plan.map((p) => [p.label, p.done]), [['Race Week', true], ['Programme du week-end', false], ['Résultats du sprint', false],
+    ['Grille (qualifications)', false], ['Résultats de la course', true], ['Notes des pilotes', false], ['Course au titre', false]]);
+  assert.equal(new Date(plan[0].at).toISOString(), '2026-10-19T08:00:00.000Z');   // lundi de la semaine
+});

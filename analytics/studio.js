@@ -27,7 +27,7 @@ import { socialPhotos, isSocialImageHost } from './social-photos.js';
 import { packFeeds } from '../shared/feed-pack.js';
 import { cleanPostRequest, rewritePost, cleanSummaryRequest, summarizeArticle } from './summarize.js';
 import { cleanRequest, translateBatch } from './translate.js';
-import { buildSeason, SEASON_TTL } from './season-cache.js';
+import { buildSeason, SEASON_TTL, resultsReady } from './season-cache.js';
 import { accountStats } from './account-stats.js';
 import { callerIp, studioQuota } from './quota.js';
 
@@ -72,6 +72,7 @@ export async function seasonRow(env, year, { now = Date.now(), fetchFn, wait, ma
   try {
     const fresh = { at: now, v: await buildSeason(year, { fetchFn, wait }) };
     await setRow(env, key, JSON.stringify(fresh));
+    if (row) for (const m of resultsReady(row.v, fresh.v, now)) await notifyPhones(env, m, { now }).catch(() => 0);
     return fresh;
   } catch (err) {
     if (row) return row;
