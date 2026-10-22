@@ -326,6 +326,13 @@ async function loadUsage(box) {
 }
 const SHORT_NETS = ['instagram', 'facebook', 'threads', 'x', 'bluesky', 'tiktok', 'youtube'];
 const STAT_LABELS = [['views', 'Vues'], ['reach', 'Portée'], ['likes', 'J\'aime'], ['comments', 'Comm.'], ['shares', 'Partages'], ['saves', 'Enreg.']];
+// Chiffres de chaque post lus jusqu'ici (le serveur n'en lit que 6 à la fois), gardés sur le téléphone
+// pour le créneau conseillé de « Programmer » (8 posts au moins)
+function keepPostStats(posts) {
+  const all = new Map((store.get('poststats')?.v || []).map((p) => [p.key, p]));
+  for (const p of posts || []) if (p.key && p.at && Object.keys(p.stats || {}).length) all.set(p.key, { key: p.key, at: p.at, stats: p.stats });
+  store.set('poststats', [...all.values()].sort((a, b) => b.at - a.at).slice(0, 60));
+}
 // Chiffres des posts et des comptes : deux appels au serveur, en même temps
 async function loadStats() {
   const [r, acc] = await Promise.all([api('stats'), api('stats/accounts').catch(() => null)]);
@@ -342,6 +349,7 @@ async function statsTab(body, { force, restore, current }) {
   const r = await loadStats();
   if (!current()) return;
   store.set('stats', r);
+  keepPostStats(r.posts);
   renderStats(body, r, false);
 }
 function renderStats(body, r, stale) {
@@ -409,6 +417,7 @@ function renderStats(body, r, stale) {
       if (imp.added) {
         const next = await loadStats();
         store.set('stats', next);
+        keepPostStats(next.posts);
         renderStats(body, next, false);
       }
     } catch (err) { toast(err.message, 'bad'); } finally { b.classList.remove('busy'); b.disabled = false; }

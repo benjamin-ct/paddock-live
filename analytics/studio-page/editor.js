@@ -436,8 +436,8 @@ function schedulePanel(d, o, record = null, video = null, link = null, twin = nu
   if (nets.includes('tiktok') && tiktokProblem()) { toast(tiktokProblem(), 'bad'); return; }
   const t = new Date(Date.now() + 3600e3);
   t.setMinutes(Math.ceil(t.getMinutes() / 15) * 15, 0, 0);
-  // Créneau conseillé d'après les chiffres des posts déjà publiés (onglet Stats, gardés sur le téléphone)
-  const slot = bestSlot(store.get('stats')?.v?.posts);
+  // Créneau conseillé d'après les chiffres des posts déjà publiés (lus dans l'onglet Stats au fil du temps)
+  const slot = bestSlot(store.get('poststats')?.v);
   const dlg = sheet('Programmer la publication', `<label class="field"><span>Date et heure</span><input type="datetime-local" id="when" value="${localValue(t)}"></label>
     ${slot ? `<p class="hint">Conseil : d'après vos ${slot.n} derniers posts, ceux publiés entre ${slot.from} h et ${slot.to} h ont ${String(slot.ratio).replace('.', ',')} fois plus de réactions que la moyenne.</p>
     <div class="row"><button class="btn small" id="bestslot">${icon('clock')}Choisir ${slot.from + 1} h</button></div>` : ''}

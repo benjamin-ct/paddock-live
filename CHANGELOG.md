@@ -52,8 +52,8 @@ l'application (Réglages → À propos → Nouveautés).
 - Hashtag du Grand Prix : celui de la F1 quand il diffère du nom (#USGP, #MexicoGP, #BrazilGP).
 - Texte alternatif sur chaque image publiée sur Instagram, Facebook, Threads et Bluesky (lu par les lecteurs
   d'écran) : ce que montre l'image, avec le podium ou le classement quand il y en a un.
-- Studio, « Programmer » : créneau conseillé d'après les réactions de tes derniers posts (onglet Stats), et un
-  bouton pour le choisir.
+- Studio, « Programmer » : créneau conseillé d'après les réactions de tes posts, et un bouton pour le choisir.
+  Il apparaît une fois les chiffres d'au moins 8 posts lus dans l'onglet Stats (ils s'accumulent au fil des visites).
 - Un seul appel à la fin du post : « Question pour faire réagir » ou « Abonnez-vous », l'un ou l'autre (cocher
   l'un grise l'autre).
 - Les posts tutoient : « Abonne-toi », « Ton pronostic en commentaire », « À toi ! », « Le savais-tu ? »…
