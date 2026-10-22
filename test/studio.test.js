@@ -266,6 +266,7 @@ test('page du créateur : publication programmée, publiée par le serveur à l\
   const jpeg = (n) => new Blob([new Uint8Array(n).fill(7).map((x, i) => (i < 3 ? [0xff, 0xd8, 0xff][i] : x))], { type: 'image/jpeg' });
   const form = (o = {}) => {
     const f = new FormData();
+    if (o.id) f.append('id', o.id);
     f.append('at', String(o.at ?? at));
     f.append('title', 'Résultats');
     f.append('record', JSON.stringify({ key: 'race-2026-18', kind: 'race', title: 'Résultats' }));
@@ -292,6 +293,13 @@ test('page du créateur : publication programmée, publiée par le serveur à l\
   // Visuels dans le stockage R2, pas dans la base
   assert.deepEqual([...env.MEDIA.objs.keys()].filter((k) => k.startsWith(`sched/${item.id}/`)).sort(), [`sched/${item.id}/ig/0`, `sched/${item.id}/ig/1`, `sched/${item.id}/x/0`]);
   assert.equal(env.MEDIA.objs.get(`sched/${item.id}/ig/0`).bytes.length, 1.2e6);
+  // Même identifiant envoyé deux fois (réponse perdue, nouvel appui) : une seule programmation
+  const first = await (await add({ id: 'aaaaaaaaaaaaaaaa' })).json();
+  const again = await (await add({ id: 'aaaaaaaaaaaaaaaa' })).json();
+  assert.equal(first.item.id, 'aaaaaaaaaaaaaaaa');
+  assert.equal(again.item.id, 'aaaaaaaaaaaaaaaa');
+  assert.equal([...env.DB.studio.keys()].filter((k) => k === 'sched:aaaaaaaaaaaaaaaa').length, 1);
+  await worker('https://s.test/studio/api/schedule/cancel', { method: 'POST', headers: key, body: JSON.stringify({ id: 'aaaaaaaaaaaaaaaa' }) });
   // Texte alternatif de chaque visuel, un par image (le surplus écarté)
   assert.deepEqual(JSON.parse(env.DB.studio.get(`sched:${item.id}`)).alts, { ig: ['Podium', 'Classement'], x: ['Podium X'] });
   for (const [, v] of rows) for (const sec of ['jeton-page', 'mdp-app']) assert.ok(!v.includes(sec));

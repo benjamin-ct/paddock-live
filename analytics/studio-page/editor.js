@@ -81,6 +81,10 @@ addEventListener('touchend', () => {
 // Étapes de l'éditeur, dans l'ordre : chacune son écran (sur ordinateur, l'aperçu reste affiché à gauche)
 // Brouillon du post ouvert : effacé une fois le post publié ou programmé
 let draftId = null;
+// Identifiants des envois du post ouvert (lui et son jumeau), gardés jusqu'à la réussite : un nouvel appui
+// après une erreur ne programme pas une deuxième fois ce qui était déjà parti
+let sendIds = null;
+const newSendIds = () => { const id = () => [...crypto.getRandomValues(new Uint8Array(8))].map((b) => b.toString(16).padStart(2, '0')).join(''); return { main: id(), twin: id() }; };
 const dropDraft = () => { if (draftId) api('drafts/remove', { method: 'POST', body: JSON.stringify({ id: draftId }) }).catch(() => {}); draftId = null; };
 
 const STEPS = [['contenu', 'Contenu'], ['visuels', 'Visuels'], ['video', 'Vidéo'], ['textes', 'Textes'], ['publier', 'Publier']];
@@ -99,6 +103,7 @@ export function editor({ back, title, subtitle = '', head = '', vhead = '', note
   let edited = { ...draft?.edited };   // textes retouchés à la main : gardés en changeant de format
   state.skip = new Set(draft?.skip);   // images écartées de ce post (toutes publiées par défaut)
   draftId = draft?.id || null;
+  sendIds = null;
   state.noVideo = false;    // vidéo prête laissée de côté (visuels publiés)
   state.noTwin = false;     // post jumeau laissé de côté
   const root = $('#app');
@@ -407,10 +412,15 @@ async function postImages(d, o, nets, maxIg = Infinity, skip = state.skip) {
 // tk : réglages d'une publication directe TikTok ;
 // link : post « lien » (carte de l'article), sauf Instagram qui n'en a pas : visuels de l'onglet Post
 // alt : post jumeau (textes donnés, toutes ses images)
-async function queuePost(d, o, nets, at, record, video = null, tk = null, link = null, alt = null) {
+// Post jumeau, après le principal : son échec dit que le principal, lui, est parti
+async function queueTwin(twin, o, nets, at) {
+  try { await queuePost(twin.data, o, nets, at, twin.record, null, null, null, twin, sendIds.twin); } catch (err) { throw new Error(`Post principal envoyé ; « ${twin.record.title} » : ${err.message}`); }
+}
+async function queuePost(d, o, nets, at, record, video = null, tk = null, link = null, alt = null, id = null) {
   const imgs = video ? { ig: [], x: [] } : !link ? await postImages(d, o, nets, 3.5e6, alt ? new Set() : state.skip)
     : { ig: nets.includes('instagram') ? (await postImages(d, o || await assets(d), ['instagram'], 3.5e6)).ig : [], x: [] };
   const form = new FormData();
+  if (id) form.append('id', id);
   form.append('at', String(at));
   form.append('title', record?.title || d.title || d.gp || 'Post');
   form.append('record', JSON.stringify(record));
@@ -462,8 +472,10 @@ function schedulePanel(d, o, record = null, video = null, link = null, twin = nu
     st.className = 'hint';
     st.textContent = video ? 'Envoi de la vidéo…' : 'Envoi des visuels…';
     try {
-      await queuePost(d, o, nets, at, record, video, tk, link);
-      if (twin) await queuePost(twin.data, o, nets, at, twin.record, null, null, null, twin);
+      sendIds ||= newSendIds();
+      await queuePost(d, o, nets, at, record, video, tk, link, null, sendIds.main);
+      if (twin) await queueTwin(twin, o, nets, at);
+      sendIds = null;
       dlg.close();
       toast(`Programmé pour le ${new Date(at).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' })}`, 'ok');
       dropDraft();
@@ -497,8 +509,10 @@ async function publishAll(d, o, record = null, video = null, link = null, twin =
   // Confié au serveur (visuels ou vidéo envoyés une fois) : publié dans la minute, même page fermée
   for (const n of nets) { const st = $(`[data-st="${n}"]`); st.className = 'st'; st.textContent = video ? 'Envoi de la vidéo au serveur…' : 'Envoi au serveur…'; }
   try {
-    const item = await queuePost(d, o, nets, Date.now(), record, video, tk, link);
-    if (twin) await queuePost(twin.data, o, nets, Date.now(), twin.record, null, null, null, twin);
+    sendIds ||= newSendIds();
+    const item = await queuePost(d, o, nets, Date.now(), record, video, tk, link, null, sendIds.main);
+    if (twin) await queueTwin(twin, o, nets, Date.now());
+    sendIds = null;
     for (const n of nets) $(`[data-st="${n}"]`).textContent = 'Publication dans la minute';
     toast('Envoyé : publication dans la minute, vous pouvez quitter la page', 'ok');
     dropDraft();

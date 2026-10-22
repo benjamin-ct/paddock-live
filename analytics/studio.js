@@ -508,6 +508,11 @@ async function scheduleAdd(req, env, raw, vault, now = Date.now()) {
   if (!env.STATS_KEY) return json({ error: 'Secret du serveur absent : programmation impossible' }, 503);
   let form;
   try { form = await req.formData(); } catch { return json({ error: 'Formulaire illisible' }, 400); }
+  // Identifiant choisi par la page (facultatif) : un nouvel envoi après une erreur ou une réponse perdue
+  // ne programme pas le même post une deuxième fois
+  const asked = /^[a-f0-9]{16}$/.test(String(form.get('id') || '')) ? String(form.get('id')) : null;
+  const old = asked && (await schedJobs(env)).find((j) => j.id === asked);
+  if (old) return json({ item: schedSummary(old) });
   const at = Number(form.get('at'));
   if (!Number.isFinite(at) || at < now - 60e3 || at > now + SCHED.ahead) return json({ error: 'Date de publication invalide (dans les 7 prochains jours)' }, 400);
   let posts, record;
@@ -549,7 +554,7 @@ async function scheduleAdd(req, env, raw, vault, now = Date.now()) {
   // Jetons du moment (Threads prolongé si besoin), seulement ceux des réseaux choisis
   const v = await refresh(env, raw, vault);
   const keys = { ...(nets.some((n) => n !== 'bluesky' && !CLIPS.includes(n)) ? { meta: v.meta } : {}), ...Object.fromEntries(['threads', 'bluesky', ...CLIPS].filter((n) => nets.includes(n)).map((n) => [n, v[n]])) };
-  const id = hex(crypto.getRandomValues(new Uint8Array(8)));
+  const id = asked || hex(crypto.getRandomValues(new Uint8Array(8)));
   for (const [set, list] of Object.entries(sets)) {
     for (const [i, f] of list.entries()) await env.MEDIA.put(`sched/${id}/${set}/${i}`, f, { httpMetadata: { contentType: f.type } });
   }
