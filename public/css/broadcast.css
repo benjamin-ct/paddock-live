@@ -1,0 +1,108 @@
+/* =====================================================================================
+   Design « Broadcast » (habillage TV) : posé par-dessus le thème Pitwall de style.css.
+   Barre du haut et barre latérale toujours sombres comme à la télé, panneaux à filet fin et
+   coins peu arrondis, titres de panneau en étiquette rouge, position du classement dans une case
+   blanche, chiffres condensés. Rien de la carte n'est redessiné ici (js/ui/map.js inchangé).
+   ===================================================================================== */
+:root[data-theme="pitwall"] {
+  --bg: #030406; --panel: #101218; --panel-2: #171A21; --panel-3: #1F232C;
+  --border: rgba(255, 255, 255, .08); --line: rgba(255, 255, 255, .06); --line-2: rgba(255, 255, 255, .14);
+  --hover: #171A21; --deep: #000; --top-1: #0B0C11; --top-2: #050608;
+  --text: #FFFFFF; --text-2: #B9BCC6; --muted: #858A96;
+  --accent: #E10600; --accent-2: #FF3B30;
+  --radius: 6px;
+  --font: 'Titillium Web', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --bc-pos-bg: #FFFFFF; --bc-pos-fg: #000000;
+}
+:root[data-theme="pitwall"][data-scheme="light"] {
+  --bg: #EEF0F4; --panel: #FFFFFF; --panel-2: #F4F5F8; --panel-3: #E9ECF1;
+  --border: rgba(10, 12, 20, .09); --line: rgba(10, 12, 20, .07); --line-2: rgba(10, 12, 20, .16);
+  --hover: #F4F5F8; --deep: #FFFFFF;
+  --text: #0B0D12; --text-2: #4B5060; --muted: #6B7080;
+  --bc-pos-bg: #0B0D12; --bc-pos-fg: #FFFFFF;
+}
+
+/* Panneaux : filet fin, coins peu arrondis, titre en étiquette rouge */
+[data-theme="pitwall"] .panel { border-radius: 6px; border-color: var(--border); }
+[data-theme="pitwall"] .panel-head h2 {
+  display: inline-flex; align-items: center; height: 24px; padding: 0 9px; border-radius: 4px;
+  background: var(--accent); color: #fff; font: 700 11.5px/1 var(--font); letter-spacing: .08em; text-transform: uppercase; white-space: nowrap;
+}
+[data-theme="pitwall"] :is(.sz-card, .sz-box) { border-radius: 6px; }
+[data-theme="pitwall"] .btn, [data-theme="pitwall"] .tabs [data-tab] { border-radius: 4px; }
+[data-theme="pitwall"] :is(.tabs [data-tab], .panel-head.tabs > .tab).active { background: var(--accent); color: #fff; }
+/* Onglets qui servent de titre au panneau : même étiquette que les titres */
+[data-theme="pitwall"] :is(.panel-head .tabs [data-tab], .panel-head.tabs > .tab) { font: 700 11.5px/1 var(--font); letter-spacing: .08em; text-transform: uppercase; height: 24px; padding: 0 9px; }
+[data-theme="pitwall"] :is(.lpop-menu, .csel-pop, .map-layers-menu, .tb-pop) { border-radius: 6px; }
+
+/* Barre latérale : noire, onglet choisi marqué d'un trait rouge */
+@media (min-width: 901px) {
+  [data-theme="pitwall"] body:not(.solo) .rail { background: #000; border-right-color: rgba(255, 255, 255, .08); }
+}
+[data-theme="pitwall"] .rail { color: #858A96; }
+[data-theme="pitwall"] .rail-btn { color: #858A96; border-radius: 6px; }
+[data-theme="pitwall"] .rail-btn:hover { background: rgba(255, 255, 255, .06); color: #fff; }
+[data-theme="pitwall"] .rail-btn.on { background: transparent; color: #fff; }
+[data-theme="pitwall"] .rail-btn.on::before { background: var(--accent); width: 3px; }
+[data-theme="pitwall"] .rail-btn small { font-family: var(--font); font-weight: 700; letter-spacing: .06em; }
+[data-theme="pitwall"] .rail-logo { border-radius: 9px; }
+
+/* Barre du haut : habillage TV, toujours sombre (y compris en clair) */
+[data-theme="pitwall"] :is(.topbar, .replaybar) { color: #fff; --text: #fff; --text-2: #B9BCC6; --muted: #858A96;
+  --panel: #101218; --panel-2: #171A21; --panel-3: #1F232C; --hover: #171A21; --border: rgba(255, 255, 255, .08); --line: rgba(255, 255, 255, .06); --line-2: rgba(255, 255, 255, .14); }
+[data-theme="pitwall"] .topbar { background: linear-gradient(180deg, #0B0C11, #050608); border-bottom-color: rgba(255, 255, 255, .08); }
+[data-theme="pitwall"] .topbar .session-name { font-family: var(--font); font-weight: 700; text-transform: uppercase; letter-spacing: .02em; }
+[data-theme="pitwall"] .topbar .session-sub { letter-spacing: .08em; }
+[data-theme="pitwall"] .topbar .hstat-label { font-family: var(--font); font-weight: 700; letter-spacing: .1em; }
+[data-theme="pitwall"] .topbar .hstat-value { font-family: var(--font-cond); font-weight: 800; letter-spacing: 0; }
+/* Tour : case blanche, gros chiffres noirs */
+[data-theme="pitwall"] .topbar .lap-box { background: #fff; color: #000; border-radius: 4px; padding: 4px 14px 10px; gap: 1px; align-self: center; justify-content: center; }
+[data-theme="pitwall"] .topbar .lap-box .hstat-label { color: #000; line-height: 1; }
+[data-theme="pitwall"] .topbar .lap-box .hstat-value { color: #000; font-size: 20px; line-height: 1; }
+[data-theme="pitwall"] .topbar .lap-box .lap-bar:not([hidden]) { left: 6px; right: 6px; bottom: 3px; height: 3px; background: rgba(0, 0, 0, .12); }
+
+/* Classement : position dans une case blanche, ligne du pilote suivi en dégradé rouge */
+[data-theme="pitwall"] .tower td.pos { position: relative; color: var(--bc-pos-fg); font-family: var(--font-cond); font-weight: 800; font-size: 17px; }
+[data-theme="pitwall"] .tower td.pos::before { content: ''; position: absolute; inset: 2px 3px; background: var(--bc-pos-bg); border-radius: 2px; z-index: -1; }
+[data-theme="pitwall"] .tower td.pos { isolation: isolate; }
+[data-theme="pitwall"] .tower tr.focus { background: linear-gradient(90deg, rgba(225, 6, 0, .32), rgba(225, 6, 0, .04) 70%); }
+[data-theme="pitwall"][data-scheme="light"] .tower tr.focus { background: linear-gradient(90deg, rgba(225, 6, 0, .16), rgba(225, 6, 0, .02) 70%); }
+[data-theme="pitwall"] .tower tr.focus td { background: transparent; }
+[data-theme="pitwall"] .tower .drv-tla { font-family: var(--font); font-weight: 700; letter-spacing: .04em; }
+[data-theme="pitwall"] .tower th { font-family: var(--font); font-weight: 700; letter-spacing: .1em; }
+
+/* Barre de lecture : noire comme la barre du haut */
+[data-theme="pitwall"] .replaybar { background: #000; border-top-color: rgba(255, 255, 255, .08); }
+[data-theme="pitwall"] .rp-play { border-radius: 6px; }
+
+/* Radios : avatar carré souligné de la couleur de l'écurie, onde sous chaque message */
+[data-theme="pitwall"] .rd-av { border-radius: 3px 3px 0 0; background: linear-gradient(135deg, #2a2d36, #121318); box-shadow: inset 0 -3px var(--tc); }
+[data-theme="pitwall"] .rd-av img { border-radius: 3px 3px 0 0; height: calc(100% - 3px); background: none; }
+[data-theme="pitwall"] .rd-av > b { font-weight: 700; }
+[data-theme="pitwall"] .rd-mic { border-radius: 3px; right: -4px; bottom: -1px; }
+[data-theme="pitwall"] :is(.rd-card, .rd-line) { border-radius: 6px; }
+[data-theme="pitwall"] .rd-l-main::after { content: ''; display: block; width: 96px; height: 13px; margin-top: 6px; background: var(--accent); opacity: .35;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 16'%3E%3Crect x='0' y='5.5' width='3' height='5'/%3E%3Crect x='5' y='3.5' width='3' height='9'/%3E%3Crect x='10' y='1.0' width='3' height='14'/%3E%3Crect x='15' y='4.0' width='3' height='8'/%3E%3Crect x='20' y='2.0' width='3' height='12'/%3E%3Crect x='25' y='0.0' width='3' height='16'/%3E%3Crect x='30' y='3.0' width='3' height='10'/%3E%3Crect x='35' y='5.0' width='3' height='6'/%3E%3Crect x='40' y='2.5' width='3' height='11'/%3E%3Crect x='45' y='0.5' width='3' height='15'/%3E%3Crect x='50' y='4.5' width='3' height='7'/%3E%3Crect x='55' y='1.5' width='3' height='13'/%3E%3Crect x='60' y='3.5' width='3' height='9'/%3E%3Crect x='65' y='5.5' width='3' height='5'/%3E%3Crect x='70' y='2.0' width='3' height='12'/%3E%3Crect x='75' y='0.0' width='3' height='16'/%3E%3Crect x='80' y='4.0' width='3' height='8'/%3E%3Crect x='85' y='2.5' width='3' height='11'/%3E%3Crect x='90' y='5.0' width='3' height='6'/%3E%3Crect x='95' y='1.0' width='3' height='14'/%3E%3Crect x='100' y='3.0' width='3' height='10'/%3E%3Crect x='105' y='4.5' width='3' height='7'/%3E%3Crect x='110' y='2.0' width='3' height='12'/%3E%3Crect x='115' y='5.5' width='3' height='5'/%3E%3C/svg%3E") left center / auto 100% no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 16'%3E%3Crect x='0' y='5.5' width='3' height='5'/%3E%3Crect x='5' y='3.5' width='3' height='9'/%3E%3Crect x='10' y='1.0' width='3' height='14'/%3E%3Crect x='15' y='4.0' width='3' height='8'/%3E%3Crect x='20' y='2.0' width='3' height='12'/%3E%3Crect x='25' y='0.0' width='3' height='16'/%3E%3Crect x='30' y='3.0' width='3' height='10'/%3E%3Crect x='35' y='5.0' width='3' height='6'/%3E%3Crect x='40' y='2.5' width='3' height='11'/%3E%3Crect x='45' y='0.5' width='3' height='15'/%3E%3Crect x='50' y='4.5' width='3' height='7'/%3E%3Crect x='55' y='1.5' width='3' height='13'/%3E%3Crect x='60' y='3.5' width='3' height='9'/%3E%3Crect x='65' y='5.5' width='3' height='5'/%3E%3Crect x='70' y='2.0' width='3' height='12'/%3E%3Crect x='75' y='0.0' width='3' height='16'/%3E%3Crect x='80' y='4.0' width='3' height='8'/%3E%3Crect x='85' y='2.5' width='3' height='11'/%3E%3Crect x='90' y='5.0' width='3' height='6'/%3E%3Crect x='95' y='1.0' width='3' height='14'/%3E%3Crect x='100' y='3.0' width='3' height='10'/%3E%3Crect x='105' y='4.5' width='3' height='7'/%3E%3Crect x='110' y='2.0' width='3' height='12'/%3E%3Crect x='115' y='5.5' width='3' height='5'/%3E%3C/svg%3E") left center / auto 100% no-repeat; }
+[data-theme="pitwall"] .rd-line.playing .rd-l-main::after { opacity: 1; }
+
+/* Bandeau du bas : dernier message de la direction de course, sur une seule ligne */
+.rc-bar { display: none; }
+@media (min-width: 901px) {
+  [data-theme="pitwall"] body:not(.solo) .rc-bar:not([hidden]) {
+    order: 4; flex: none; display: flex; align-items: center; gap: 12px; height: 44px; margin: -4px 12px 12px; padding: 0 16px 0 10px;
+    background: var(--panel); border: 1px solid var(--border); border-left: 4px solid var(--muted); border-radius: 6px; min-width: 0;
+  }
+}
+html.float-map .rc-bar { display: none !important; }
+.rc-bar:has(.flag-YELLOW, .flag-DOUBLE-YELLOW, .flag-SC) { border-left-color: var(--yellow) !important; }
+.rc-bar:has(.flag-RED) { border-left-color: var(--red) !important; }
+.rc-bar:has(.flag-GREEN, .flag-CLEAR) { border-left-color: var(--green) !important; }
+.rc-bar:has(.flag-BLUE) { border-left-color: var(--blue) !important; }
+.rc-tag { flex: none; display: inline-flex; align-items: center; height: 24px; padding: 0 9px; border-radius: 4px; background: var(--accent); color: #fff; font: 700 11.5px/1 var(--font); letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; }
+.rc-bar .rcm-flag { flex: none; margin: 0; }
+.rc-bar .rcm-flag:not([class*="flag-"]) { display: none; }
+.rc-msg { flex: 1; min-width: 0; font-weight: 700; font-size: 14.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rc-lap { flex: none; color: var(--muted); font-weight: 700; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
+
+/* Duel : grand écart en chiffres condensés */
+[data-theme="pitwall"] .duel-gap-val { font-family: var(--font-cond); font-weight: 800; letter-spacing: 0; }
