@@ -87,7 +87,10 @@ function docsHtml() {
   };
   loadRaces();
   const current = store.state.SessionInfo?.Meeting?.Name || '';
-  const choices = [['', current ? `${gpFull(current, EN)} (séance affichée)` : 'Grand Prix de la séance'], ...(races || []).filter((r) => r.name !== current).map((r) => [r.name, r.next ? `${gpFull(r.name, EN)} (à venir)` : gpFull(r.name, EN)])];
+  // Prochain Grand Prix en tête, puis celui de la séance affichée, puis les précédents
+  const others = (races || []).filter((r) => r.name !== current);
+  const choices = [...others.filter((r) => r.next).map((r) => [r.name, `${gpFull(r.name, EN)} (à venir)`]),
+    ['', current ? `${gpFull(current, EN)} (séance affichée)` : 'Grand Prix de la séance'], ...others.filter((r) => !r.next).map((r) => [r.name, gpFull(r.name, EN)])];
   const sel = shownGp();
   const gpSel = `<select id="tbDocGp" aria-label="Grand Prix">${choices.map(([v, l]) => `<option value="${esc(v)}"${v === (sel === current ? '' : sel) ? ' selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
   const body = rows.length ? rows.map(({ d, sum, cars }) => `<div class="tbd-doc">
