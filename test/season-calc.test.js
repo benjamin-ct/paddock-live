@@ -144,3 +144,19 @@ test('course au titre : sprint au prochain GP, dernière manche, titre déjà jo
   data = { races: [race(1, true)], drivers: drivers(25, 18), constructors: [] };
   assert.equal(titleRace(data, 2026).clinchD, null);
 });
+
+test('bilan de la saison : vainqueurs, poles, podiums, plus belle remontée, abandons', async () => {
+  const { seasonReview } = await import('../shared/season-calc.js');
+  const races = [
+    { round: 1, name: 'GP 1', results: [res('A', 'x', 1, 25, 1), res('B', 'x', 2, 18, 12), res('C', 'y', 3, 15, 3), res('D', 'y', 4, 0, 4, 'R')], quali: [q('A', 'x', 1, [])] },
+    { round: 2, name: 'GP 2', results: [res('C', 'y', 1, 25, 5), res('A', 'x', 2, 18, 1), res('B', 'x', 3, 15, 2)], quali: [q('A', 'x', 1, [])] },
+    { round: 3, name: 'GP 3', results: [], quali: [] },
+  ];
+  const r = seasonReview({ races, drivers: [{ code: 'A', name: 'A', points: 43 }] });
+  assert.deepEqual([r.races, r.done, r.winners, r.dnf, r.poleWins], [3, 2, 2, 1, 1]);
+  assert.deepEqual(r.wins.map((x) => [x.code, x.n]), [['A', 1], ['C', 1]]);
+  assert.deepEqual(r.poles.map((x) => [x.code, x.n]), [['A', 2]]);
+  assert.deepEqual(r.podiums.map((x) => [x.code, x.n]), [['A', 2], ['B', 2], ['C', 2]]);
+  assert.deepEqual([r.comeback.code, r.comeback.from, r.comeback.to, r.comeback.gp], ['B', 12, 2, 'GP 1']);
+  assert.equal(r.leader.code, 'A');
+});

@@ -19,6 +19,9 @@ l'application (Réglages → À propos → Nouveautés).
   pendant la course, au lieu de plusieurs fois : moins de calcul, surtout sur téléphone.
 
 ### Saison
+- Bilan de la saison (Saison → Bilan de la saison) : champion ou leader, victoires, poles, podiums, vainqueurs
+  différents, plus belle remontée, abandons, et la saison de vos pilotes favoris ; image à partager (copiée ou
+  enregistrée). Le bilan se complète à chaque course.
 - Notes des pilotes : un abandon compte comme la dernière place de la course (22 voitures en 2026), et plus
   comme une 20e place ; la répartition des arrivées montre aussi les 21e et 22e places.
 - Météo du week-end : la bonne journée pour les séances du soir (Las Vegas : la course du samedi soir n'est plus
