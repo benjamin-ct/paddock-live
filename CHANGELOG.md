@@ -33,6 +33,11 @@ l'application (Réglages → À propos → Nouveautés).
   que les autres aient la hauteur de leur contenu (2 panneaux au plus par colonne). Le dernier message de la
   direction de course reste dans la barre du bas, pneus et arrêts dans le classement ; les réafficher dans
   Dispo. Disposition déjà enregistrée : Dispo. → Réinitialiser pour en profiter.
+- Interface Essentielle (la plus simple) sur grand écran, façon tableau de bord : classement à gauche, grande
+  carte au centre avec les radios dessous, et à droite la télémétrie du duel, le championnat en direct (onglet
+  « Champ. », maintenant aussi en Essentiel) et les limites de piste. Disposition déjà enregistrée :
+  Dispo. → Réinitialiser.
+- L'onglet « Limites de piste » (ou « Enquêtes ») ouvert reste ouvert au lancement suivant.
 
 ### Saison
 - Bilan de la saison (Saison → Bilan de la saison) : champion ou leader, victoires, poles, podiums, vainqueurs

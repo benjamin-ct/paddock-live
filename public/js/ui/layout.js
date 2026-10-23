@@ -72,7 +72,9 @@ const TAB_DEFAULTS = {
   race: { feed: 'rcm', analysis: 'trace', extra: 'pits' },
   quali: { feed: 'rcm', analysis: 'compare', extra: 'tyres' },
 };
-const profileDefaults = () => ({ hiddenPanels: shortScreenHidden(), hiddenCols: [] });
+// Essentiel : championnat et limites de piste ouverts à droite (tableau de bord simple)
+const ESS_TABS = { extra: 'champ', feed: 'tracklimits' };
+const profileDefaults = () => ({ hiddenPanels: shortScreenHidden(prefs.fullMode), hiddenCols: [] });
 const profileFor = (mode, kind) => (mode === 'race' || mode === 'quali' ? mode : kind === 'race' ? 'race' : 'quali');
 let profile = prefs.layoutMode === 'race' || prefs.layoutMode === 'quali' ? prefs.layoutMode : storageGet('paddock.lastProfile', 'race');
 if (!PROFILES[profile]) profile = 'race';
@@ -84,15 +86,16 @@ const lkey = (win = WIN, prof = profile) => (prof === 'race' || win !== 'main' ?
 function defaultLayout(prof = profile) {
   if (!isMain) return { cols: [] };
   const quali = prof === 'quali';
-  // Allégé : classement, grande carte avec le duel dessous, radios et direction de course à droite
+  // Essentiel : classement compact, grande carte (radios dessous) ; à droite télémétrie du duel, championnat
+  // et limites de piste. Écran plus étroit : classement, puis carte, duel, radios et arrêts
   if (!prefs.fullMode) {
     return window.innerWidth <= 1500 ? { cols: [
       { w: 1, items: [{ id: 'tower', h: 1.5 }, { id: 'feed', h: 0.7 }] },
       { w: 1.2, items: [{ id: 'map', h: 1.4 }, { id: 'duel', h: 0.9 }, { id: 'radio', h: 0.8 }, { id: 'extra', h: 0.6 }] },
     ] } : { cols: [
-      { w: 1.05, items: [{ id: 'tower', h: 1 }] },
-      { w: 1.5, items: [{ id: 'map', h: 1.6 }, { id: 'duel', h: 1 }] },
-      { w: 1, items: [{ id: 'radio', h: 1.1 }, { id: 'feed', h: 0.85 }, { id: 'extra', h: 0.75 }] },
+      { w: 1, items: [{ id: 'tower', h: 1 }] },
+      { w: 1.9, items: [{ id: 'map', h: 1.5 }, { id: 'radio', h: 0.5 }] },
+      { w: 1, items: [{ id: 'duel', h: 1.1 }, { id: 'extra', h: 0.9 }, { id: 'feed', h: 0.8 }] },
     ] };
   }
   if (window.innerWidth <= 1500) {
@@ -905,7 +908,7 @@ const tabHeads = () => PANELS.map((p) => [p.id, panelEl(p.id)?.querySelector('[d
 function applyTabs() {
   const saved = storageGet(TABS_KEY, {})[profile] || {};
   for (const [id, head] of tabHeads()) {
-    const want = saved[id] || TAB_DEFAULTS[profile]?.[id];
+    const want = saved[id] || (essential() && ESS_TABS[id]) || TAB_DEFAULTS[profile]?.[id];
     const b = want && head.querySelector(`[data-tab="${want}"]`);
     if (b && !b.classList.contains('active')) b.click();
   }
@@ -916,7 +919,8 @@ function applyTabs() {
 function visibleTabs() {
   for (const [, head] of tabHeads()) {
     const cur = head.querySelector(':scope > [data-tab].active');
-    if (cur && getComputedStyle(cur).display === 'none') [...head.querySelectorAll(':scope > [data-tab]')].find((b) => getComputedStyle(b).display !== 'none')?.click();
+    // Onglet regroupé (limites de piste, enquêtes…) : bouton caché par principe, choisi dans son sélecteur
+    if (cur && !cur.classList.contains('tab-member') && getComputedStyle(cur).display === 'none') [...head.querySelectorAll(':scope > [data-tab]')].find((b) => getComputedStyle(b).display !== 'none')?.click();
   }
 }
 
@@ -1028,9 +1032,14 @@ export function initLayout() {
   // Disposition modifiée dans une autre instance de la même fenêtre (rechargement) : rien à faire ;
   // la fenêtre principale suit seulement les préférences.
   on('prefs', (k) => {
-    if (k === 'fullMode' && isMain) layout = normalize(allLayouts()[lkey()] || defaultLayout());
+    if (k === 'fullMode' && isMain) {
+      // Premier passage dans ce mode, panneaux masqués encore ceux par défaut de l'autre : ceux de ce mode
+      const same = (a, b) => a.length === b.length && a.every((x) => b.includes(x));
+      if (!allLayouts()[lkey()] && same(prefs.hiddenPanels, shortScreenHidden(!prefs.fullMode))) setPref('hiddenPanels', shortScreenHidden(prefs.fullMode));
+      layout = normalize(allLayouts()[lkey()] || defaultLayout());
+    }
     if (k === 'hiddenPanels' || k === 'phoneFull' || k === 'fullMode') render();
-    if (k === 'fullMode') visibleTabs();
+    if (k === 'fullMode') applyTabs();
     if (['hiddenPanels', 'hiddenCols', 'extraCols', 'towerFit'].includes(k)) renderLayoutOptions();
   });
   render(true);
