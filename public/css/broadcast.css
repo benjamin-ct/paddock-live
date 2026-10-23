@@ -128,10 +128,13 @@ html.float-map .rc-bar { display: none !important; }
 [data-theme="pitwall"] .hm-title small { font: 700 14px var(--font); letter-spacing: .06em; color: var(--text-2); opacity: 1; }
 [data-theme="pitwall"] .hm-last .hm-title { font-size: 22px; }
 [data-theme="pitwall"] .hm-count { font: 800 44px/1 var(--font-cond); letter-spacing: .01em; }
-[data-theme="pitwall"] .hm-fav-row { grid-template-columns: 34px minmax(0, 1fr) minmax(0, 110px) auto; align-items: center; padding: 6px 0; border-top: 1px solid var(--line); }
+[data-theme="pitwall"] .hm-favs { grid-template-columns: 34px minmax(0, 1fr) minmax(0, 110px) auto; row-gap: 0; }
+[data-theme="pitwall"] .hm-fav-row { align-items: center; padding: 6px 0; border-top: 1px solid var(--line); }
+[data-theme="pitwall"] .hm-fav-group { padding: 10px 0 4px; margin: 0; }
+[data-theme="pitwall"] .hm-fav-group + .hm-fav-row { border-top: 0; }
 [data-theme="pitwall"] .hm-fav-row > * { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 @media (max-width: 1100px) {
-  [data-theme="pitwall"] .hm-fav-row { grid-template-columns: 34px minmax(0, 1fr) auto; }
+  [data-theme="pitwall"] .hm-favs { grid-template-columns: 34px minmax(0, 1fr) auto; }
   [data-theme="pitwall"] .hm-fav-row > :nth-child(3) { display: none; }
 }
 [data-theme="pitwall"] .hm-fav-row:first-child { border-top: 0; }
