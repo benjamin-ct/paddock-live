@@ -5,14 +5,14 @@
 // gardée dans config.json comme les jetons eux-mêmes. Nouvel envoi automatique quand un jeton change.
 import crypto from 'node:crypto';
 import { getConfig, saveConfig, tokenInfo } from './config.js';
-import { checkCode, creatorEnabled } from './creator.js';
+import { checkCode, creatorEnabled, studioKey } from './creator.js';
 
 export const STUDIO_URL = process.env.PADDOCK_STUDIO_URL ?? 'https://paddock-live-stats.paddock-live.workers.dev';
 // Adresse de la page à ouvrir dans le navigateur (l'appli garde STUDIO_URL pour ses appels)
 export const STUDIO_PAGE = process.env.PADDOCK_STUDIO_PAGE ?? 'https://paddocklive.app/studio/';
 const EVERY = 6 * 3600e3;
 
-export const studioKey = (code) => crypto.pbkdf2Sync(String(code).trim().toUpperCase(), 'paddock-live-studio', 200000, 32, 'sha256').toString('base64url');
+export { studioKey };
 
 // Ce qui part sur le serveur : jetons des réseaux et connexion F1 TV valide. Clés secrètes d'app
 // seulement pour TikTok et YouTube : leur jeton (24 h, 1 h) ne se renouvelle qu'avec elles, et le

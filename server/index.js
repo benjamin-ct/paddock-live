@@ -673,10 +673,13 @@ async function handleApi(req, res, url) {
 
     // Diagnostic des données F1 : flux cachés testés en direct (server/feed-probe.js)
     case 'GET /api/feeds/probe':
+      if (!isLoopback(req.socket.remoteAddress) || !creatorEnabled()) return sendJSON(res, 403, { error: 'Mode créateur désactivé' });
       return sendJSON(res, 200, probeState());
 
     // Diagnostic des données F1 : toute la séance lue dans les archives (gardé pour la session)
     case 'GET /api/feeds/diag': {
+      // Mode créateur, sur l'ordinateur seulement : la lecture d'une séance entière peut prendre plusieurs secondes
+      if (!isLoopback(req.socket.remoteAddress) || !creatorEnabled()) return sendJSON(res, 403, { error: 'Mode créateur désactivé' });
       const p = url.searchParams.get('path') || '';
       if (!/^\d{4}\/[\w\-./]+\/$/.test(p) || p.includes('..')) return sendJSON(res, 400, { error: 'Chemin invalide' });
       try {

@@ -6,9 +6,38 @@ l'application (Réglages → À propos → Nouveautés).
 
 ## v1.28.2 — à venir
 
+### En direct
+- Une pénalité purgée n'apparaît plus une deuxième fois (résumé de la séance, moments clés, « Pendant votre
+  absence »).
+- « Pendant votre absence » fonctionne aussi quand on s'absente pendant un drapeau rouge.
+- Onglets d'analyse (race trace, positions, rythme, temps au tour) redessinés une fois par seconde au plus
+  pendant la course, au lieu de plusieurs fois : moins de calcul, surtout sur téléphone.
+
+### Saison
+- Notes des pilotes : un abandon compte comme la dernière place de la course (22 voitures en 2026), et plus
+  comme une 20e place ; la répartition des arrivées montre aussi les 21e et 22e places.
+- Météo du week-end : la bonne journée pour les séances du soir (Las Vegas : la course du samedi soir n'est plus
+  rangée le dimanche).
+
+### Fiabilité et sécurité
+- Accès depuis le téléphone : un site ouvert sur l'ordinateur ne peut plus se faire passer pour l'ordinateur
+  afin d'utiliser l'appli sans la clé du QR code.
+- Le relais des radios et de F1 TV refuse aussi les adresses locales écrites autrement (forme IPv6).
+- Réglages et pronostics enregistrés sans risque d'être perdus en cas de coupure pendant l'écriture ; un fichier
+  de réglages abîmé est mis de côté (config.json.bad) au lieu d'être écrasé.
+- Fenêtres de connexion F1 et de publication sur X, Threads et Bluesky : position, micro, caméra et
+  notifications refusés d'office.
+- « Installer les mises à jour à la fermeture » décoché : l'appli n'installe plus la nouvelle version au
+  lancement, elle la signale seulement.
+- L'appli démarre même quand ses ports habituels (3000, 3001, 3002, 3010) sont tous occupés, au lieu de se
+  fermer sans message.
+- Appli ouverte plusieurs jours : la liste de l'Actu et les traductions gardées en mémoire ne grossissent
+  plus sans fin.
+
 ### Divers
 - Statistiques d'utilisation (si vous les avez acceptées) : les versions bêta les envoient aussi ; elles
   étaient jusqu'ici écartées sans rien dire.
+- Petites améliorations internes.
 
 ## v1.28.1 — 2026-10-23
 

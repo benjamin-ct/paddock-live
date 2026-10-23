@@ -44,6 +44,7 @@ test('notes : le pilote qui domine obtient la meilleure note', () => {
   assert.ok(by.A.mate > 85 && by.B.mate < 15);
   assert.equal(by.A.h2h.qa, 4);
   assert.equal(by.D.metrics.finishRate, 0);
+  assert.equal(by.D.metrics.avgFinish, 4, 'abandon = dernière place (ici 4 partants), pas 20e : 22 voitures en 2026');
   assert.deepEqual(by.A.mates, ['B']);
 });
 

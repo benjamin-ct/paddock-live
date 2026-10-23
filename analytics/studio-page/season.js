@@ -122,7 +122,9 @@ export async function seasonTab(body, back) {
   const year = new Date().getUTCFullYear();
   const bar = `<div class="chips wrap" id="stypes">${STYPES.map(([k, v]) => `<button data-st="${k}" class="${state.stype === k ? 'on' : ''}">${v}</button>`).join('')}</div>`;
   body.innerHTML = `${bar}${skeleton(5)}<p class="hint center">Lecture de la saison…</p>`;
-  const data = await seasonOf(year);
+  // Journal des posts relu à chaque affichage : le plan du week-end marque aussi ce qui vient d'être publié
+  // (ici, depuis l'appli ou par une programmation)
+  const [data] = await Promise.all([seasonOf(year), api('history').then((r) => store.set('history', r.items || [])).catch(() => {})]);
   if (!body.isConnected) return;
   const upcoming = ['raceweek', 'weekend', 'records'].includes(state.stype);
   const races = upcoming ? data.races : data.races.filter((r) => r.results.length);

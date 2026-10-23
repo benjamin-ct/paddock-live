@@ -44,7 +44,7 @@ function penalties(msgs, name, en = false) {
   const out = [];
   for (const m of msgs) {
     const t = String(m?.Message || '');
-    if (!/^FIA STEWARDS:.*PENALTY FOR/.test(t) || /NO FURTHER|REVIEWED/.test(t)) continue;
+    if (!/^FIA STEWARDS:.*PENALTY FOR/.test(t) || /NO FURTHER|REVIEWED|PENALTY SERVED/.test(t)) continue;   // purgée : déjà comptée
     const who = [...t.matchAll(/CAR (\d+) \((\w{3})\)/g)].map((x) => name(x[1]) || x[2]);
     const sec = t.match(/(\d+) SECOND TIME PENALTY/);
     const what = sec ? `${sec[1]} s` : /DRIVE THROUGH/.test(t) ? 'drive-through' : /STOP\/GO/.test(t) ? 'stop & go' : /GRID/.test(t) ? (en ? 'grid penalty' : 'pénalité sur la grille') : (en ? 'penalty' : 'pénalité');

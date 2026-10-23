@@ -7,7 +7,8 @@ import path from 'node:path';
 process.env.PADDOCK_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'paddock-studio-'));
 // Code d'essai (le vrai code n'est jamais dans le dépôt) : son empreinte remplace celle du créateur
 const CODE = 'ESSAI-42';
-const HASH = (await import('node:crypto')).createHash('sha256').update(`paddock-live:${CODE}`).digest('hex');
+const nodeCrypto = await import('node:crypto');
+const HASH = nodeCrypto.createHash('sha256').update(nodeCrypto.pbkdf2Sync(CODE, 'paddock-live-studio', 200000, 32, 'sha256')).digest('hex');
 process.env.PADDOCK_CREATOR_HASH = HASH;
 const { studioApi, freshF1tv, runSchedule, schedInternal, seasonRow } = await import('../analytics/studio.js');
 const { studioKey, enableStudio, syncStudio, disableStudio, studioInfo, studioRewrite } = await import('../server/studio-sync.js');
@@ -60,7 +61,7 @@ function fakeR2() {
     delete: async (k) => { [k].flat().forEach((x) => objs.delete(x)); },
   };
 }
-const env = { DB: fakeDB(), MEDIA: fakeR2(), STUDIO_CODE_HASH: HASH, STATS_KEY: 'secret-du-serveur' };
+const env = { DB: fakeDB(), MEDIA: fakeR2(), STUDIO_KEY_HASH: HASH, STATS_KEY: 'secret-du-serveur' };
 const worker = (url, init) => studioApi(new Request(url, init), env, new URL(url));
 
 test('page du créateur : clé dérivée identique dans l\'appli et dans le navigateur (PBKDF2)', async () => {

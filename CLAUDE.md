@@ -21,8 +21,13 @@
 - **« Publie » / « publie la version »** = version finale pour tout le monde : remplacer « à venir » par la date
   du jour sur `develop`, PR `develop` → `main` fusionnée, puis workflow « Application de bureau » lancé sur
   `main` avec la version (ex. `v1.28.0`). La page de la version reprend la section du journal
-  (`scripts/release-notes.mjs`) ; le workflow échoue si elle manque. Correction urgente : branche depuis
-  `main`, version `X.Y.Z`, puis `main` refusionné dans `develop`.
+  (`scripts/release-notes.mjs`) ; le workflow échoue si elle manque.
+- **Correction urgente** (bug de la version finale) : branche depuis `main`, section `## vX.Y.Z — à venir` dans
+  le journal (si `develop` prépare déjà ce numéro, sa section passe au suivant), puis **bêta de test d'abord** :
+  workflow « Application de bureau » lancé sur cette branche avec `vX.Y.Z-beta.<n>` (reçue seulement par les
+  applis inscrites aux bêtas, dont celle de l'utilisateur ; elle n'a pas les nouveautés de `develop`, qui
+  reviennent à la bêta suivante). Une autre bêta à chaque retouche. Sur « publie » : date du jour, fusion dans
+  `main`, workflow lancé sur `main` avec `vX.Y.Z`, puis `main` refusionné dans `develop`.
 - Ne fusionner et ne publier que lorsque l'utilisateur le demande.
 - **Modifications du serveur seul, sans nouvelle version de l'appli** : quand une PR ne touche que le serveur des
   statistiques (Worker : `analytics/**`, page du Studio, `scripts/build-studio.mjs`, et les fichiers de `shared/`

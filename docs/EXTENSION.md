@@ -54,12 +54,15 @@ comme mise à jour sur chaque boutique.
 
 ### Microsoft Edge Add-ons (gratuit)
 
-https://partner.microsoft.com/dashboard/microsoftedge → même zip, mêmes textes et visuels.
+https://partner.microsoft.com/dashboard/microsoftedge → même zip, mêmes textes et visuels. Pas publiée pour le
+moment (pas de bouton Edge sur paddocklive.app/extension : Edge installe l'extension depuis le Chrome Web Store).
 
 ### Firefox Add-ons (gratuit)
 
 https://addons.mozilla.org/developers/ → **Soumettre un nouveau module** → même zip (identifiant
 `companion@paddocklive.app` déjà dans le manifeste ; le code n'est pas minifié, aucune source à fournir).
+Publiée : https://addons.mozilla.org/firefox/addon/paddock-live-companion/ (bouton « Installer » de
+paddocklive.app/extension).
 
 ## Textes de la fiche
 

@@ -16,7 +16,8 @@ let away = null;   // { at, events }
 
 function leave() {
   const s = store.state;
-  if (store.status?.source?.mode !== 'live' || s.SessionStatus?.Status !== 'Started') return;
+  // Séance en cours, drapeau rouge compris (« Aborted ») : c'est là qu'on s'absente le plus
+  if (store.status?.source?.mode !== 'live' || !['Started', 'Aborted'].includes(s.SessionStatus?.Status)) return;
   const at = Date.now();
   // État de départ (pilotes, positions, drapeau), copié : seuls les moments de l'absence sont gardés
   away = { at, events: TOPICS.filter((k) => s[k] && k !== 'RaceControlMessages').map((topic) => ({ topic, data: structuredClone(s[topic]), off: at - 1 })) };

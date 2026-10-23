@@ -101,7 +101,7 @@ export function driverRatings(data, stats) {
       e.team = x.team; e.teamId = x.teamId;
       e.starts++;
       e.pts += x.points;
-      e.finAll.push(classified(x) ? x.pos : 20);
+      e.finAll.push(classified(x) ? x.pos : r.results.length);   // abandon : dernière place (22 voitures en 2026)
       if (classified(x)) { e.fin.push(x.pos); if (x.grid) e.gained.push(x.grid - x.pos); }
       if (best && meds.has(x.code)) e.pace.push(((meds.get(x.code) - best) / best) * 100);
       e.led += lapsLed(statsBy.get(r.round)?.get(x.code));

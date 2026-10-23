@@ -52,7 +52,7 @@ function statusFromControl(msgs, total) {
     } else if (m.flag === 'RED' || /(^|[^A-Z])RED FLAG/.test(t)) { next = 'red'; events.push({ lap, kind: 'red' }); }
     else if (cur === 'red' && (m.flag === 'GREEN' || /RESUME|TRACK CLEAR|GREEN LIGHT/.test(t))) { fill(lap, cur); from = lap + 1; cur = 'green'; events.push({ lap: Math.min(total, lap + 1), kind: 'restart' }); continue; }
     else if (/DOUBLE YELLOW/.test(`${m.flag} ${t}`) && cur === 'green' && lap > 1) { if (status[lap - 1] === 'green') status[lap - 1] = 'yellow'; }
-    else if (/PENALTY/.test(t) && /STEWARDS/.test(t)) {
+    else if (/PENALTY/.test(t) && /STEWARDS/.test(t) && !/PENALTY SERVED/.test(t)) {   // purgée : déjà montrée
       const code = /\(([A-Z]{3})\)/.exec(t)?.[1];
       const what = /(\d+) SECOND/.exec(t) ? `${/(\d+) SECOND/.exec(t)[1]} S` : /DRIVE THROUGH/.test(t) ? 'DRIVE-THROUGH' : /STOP AND GO/.test(t) ? 'STOP & GO' : 'PÉNALITÉ';
       if (code) events.push({ lap, kind: 'penalty', code, text: what });

@@ -101,13 +101,17 @@ function fakeD1() {
     for (const r of list) { const k = key(r); m.set(k, (m.get(k) || 0) + r.n); }
     return [...m];
   };
+  const fails = new Map();
   return {
-    rows,
+    rows, fails,
     prepare(sql) {
       return {
         bind(...a) {
           return {
             sql, a,
+            // Essais ratés du mot de passe (studio_fail)
+            async first() { return fails.has(`${a[0]}|${a[1]}`) ? { n: fails.get(`${a[0]}|${a[1]}`) } : null; },
+            async run() { fails.set(`${a[0]}|${a[1]}`, (fails.get(`${a[0]}|${a[1]}`) || 0) + 1); return { meta: { changes: 1 } }; },
             async all() {
               const list = [...rows.values()].filter((r) => r.day >= a[0]);
               const tag = sql.match(/\/\*(\w+)\*\//)?.[1];
@@ -182,6 +186,7 @@ test('serveur des statistiques : connexion par mot de passe et session', async (
   assert.equal(bad.status, 401);
   assert.match(await bad.text(), /Mot de passe incorrect/);
   assert.equal(bad.headers.get('Set-Cookie'), null);
+  assert.equal(env.DB.fails.get(`local|${new Date().toISOString().slice(0, 10)}`), 1);   // essai raté compté
 
   const ok = await login(env, 'secret-123');
   assert.equal(ok.status, 303);
@@ -204,6 +209,13 @@ test('serveur des statistiques : connexion par mot de passe et session', async (
   const out = await get(env, '/logout', cookie);
   assert.match(out.headers.get('Set-Cookie'), /Max-Age=0/);
   assert.equal(out.headers.get('Location'), '/login');
+});
+
+test('serveur des statistiques : mot de passe bloqué après 30 essais ratés dans la journée', async () => {
+  const env = { DB: fakeD1(), STATS_KEY: 'secret-123' };
+  env.DB.fails.set(`local|${new Date().toISOString().slice(0, 10)}`, 30);
+  assert.equal((await login(env, 'secret-123')).status, 429);
+  assert.equal((await get(env, '/stats.json?key=secret-123')).status, 403);
 });
 
 test('serveur des statistiques : chiffres du tableau de bord', async () => {
@@ -309,7 +321,7 @@ test('serveur des statistiques : lignes écrites plafonnées par adresse (IPv6 :
   assert.equal(callerIp(req('2a01:cb00:1:2:aaaa::1')), '2a01:cb00:1:2::/64');
   assert.equal(callerIp(req('203.0.113.9')), '203.0.113.9');
   const rows = new Map();
-  const env = { DB: { prepare: () => ({ bind: (...a) => ({ first: async () => (rows.has(a[0]) ? { n: rows.get(a[0]) } : null), run: async () => { rows.set(a[0], (rows.get(a[0]) || 0) + a[1]); } }) }) } };
+  const env = { DB: { prepare: () => ({ bind: (...a) => ({ first: async () => (rows.has(a[0]) ? { n: rows.get(a[0]) } : null), run: async () => { const v = (rows.get(a[0]) || 0) + a[1]; if (v > a[2]) return { meta: { changes: 0 } }; rows.set(a[0], v); return { meta: { changes: 1 } }; } }) }) } };
   const q = (ip) => ipQuota(env, { key: 'ingest', day: '2026-10-22', ip, n: 6000, limit: 10000 });
   assert.equal(await q('1.2.3.4'), true);
   assert.equal(await q('1.2.3.4'), false);
@@ -322,7 +334,11 @@ test('serveur : ménage du jour (traductions de plus de 90 jours, erreurs de plu
   const env = { DB: { prepare: (sql) => ({ bind: (...a) => ({ run: async () => { ran.push([sql.replace(/\s+/g, ' '), a]); } }) }) } };
   const now = Date.parse('2026-10-22T03:00:00Z');
   await prune(env, now);
-  assert.deepEqual(ran.slice(1), [['DELETE FROM translations WHERE at < ?1', [now - 90 * 86400e3]], ['DELETE FROM error_details WHERE day < ?1', ['2025-10-22']]]);
+  assert.deepEqual(ran.slice(1), [
+    ['DELETE FROM translations WHERE at < ?1', [now - 90 * 86400e3]], ['DELETE FROM error_details WHERE day < ?1', ['2025-10-22']],
+    ['DELETE FROM studio_fail WHERE day < ?1', ['2026-10-22']], ['DELETE FROM feedback_new WHERE day < ?1', ['2026-10-22']], ['DELETE FROM pronos_new WHERE day < ?1', ['2026-10-22']],
+    ['DELETE FROM radio_texts WHERE at < ?1', [now - 365 * 86400e3]],
+  ]);
   const r = await worker.fetch(new Request('https://p.test/dl/%E0%A4%A'), {}, {});
   assert.equal(r.status, 404);
 });

@@ -12,7 +12,7 @@ function fakeEnv({ limit = 100, fail = false, garbled = false } = {}) {
     bind: (...a) => stmt(sql, a),
     async all() { return { results: args.filter((k) => tr.has(k)).map((k) => ({ k, out: tr.get(k) })) }; },
     async first() { return usage.has(args[0]) ? { n: usage.get(args[0]) } : null; },
-    async run() { usage.set(args[0], (usage.get(args[0]) || 0) + args[1]); },
+    async run() { const v = (usage.get(args[0]) || 0) + args[1]; if (v > args[2]) return { meta: { changes: 0 } }; usage.set(args[0], v); return { meta: { changes: 1 } }; },
     exec() { tr.set(args[0], args[1]); },
   });
   return {

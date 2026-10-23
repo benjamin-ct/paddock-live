@@ -488,7 +488,8 @@ on('news', (list) => {
   for (const it of list) sizes[it.cluster] = it.sources;
   for (const it of items) if (sizes[it.cluster]) it.sources = sizes[it.cluster];
   const fresh = list.filter((x) => !known.has(x.id));
-  items = [...fresh.map(({ fresh: f, ...x }) => x), ...items].sort((a, b) => b.t - a.t);
+  // 800 plus récentes, comme au chargement (appli ouverte des jours : la liste ne grossit plus sans fin)
+  items = [...fresh.map(({ fresh: f, ...x }) => x), ...items].sort((a, b) => b.t - a.t).slice(0, 800);
   for (const it of fresh) justArrived.add(it.id);
   // Pas de traduction de toutes les nouvelles en arrière-plan sur l'ordinateur (beaucoup de calcul) :
   // le serveur de l'appli les fait traduire d'avance en ligne ; ici, seulement les alertes et l'écran

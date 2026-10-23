@@ -90,12 +90,15 @@ export function renderHeader() {
     const w = s.WeatherData;
     const wind = Number(w?.WindSpeed), dir = Number(w?.WindDirection) || 0;
     const wm = (cls, label, val, title = '') => `<div class="wm ${cls}"${title ? ` title="${esc(title)}"` : ''}><span class="muted">${label}</span><b>${val}</b></div>`;
-    $('#weatherMini').innerHTML = w ? wm('wm-wind', 'Vent', Number.isFinite(wind) ? `${(wind * 3.6).toFixed(0)}<small> km/h</small> <i class="wind-arrow" style="transform:rotate(${dir + 180}deg)">${icon('arrow-up')}</i>` : '—', `Vent venant de ${dir}°`)
+    const wmHtml = w ? wm('wm-wind', 'Vent', Number.isFinite(wind) ? `${(wind * 3.6).toFixed(0)}<small> km/h</small> <i class="wind-arrow" style="transform:rotate(${dir + 180}deg)">${icon('arrow-up')}</i>` : '—', `Vent venant de ${dir}°`)
       + wm('wm-track', 'Piste', `${esc(w.TrackTemp)}°`)
       + wm('wm-air', 'Air', `${esc(w.AirTemp)}°`)
       + wm('wm-hum', 'Humidité', `${esc(Math.round(Number(w.Humidity)) || w.Humidity)}<small> %</small>`)
       + wm('wm-pres', 'Pression', `${esc(Math.round(Number(w.Pressure)) || w.Pressure)}<small> hPa</small>`)
       + wm('wm-rain', 'Pluie', w.Rainfall === '1' || w.Rainfall === 1 ? `${icon('rain')} Oui` : 'Non') : '';
+    // Réécrite seulement si elle change (cette partie suit aussi le chronométrage, plusieurs fois par seconde)
+    const wmEl = $('#weatherMini');
+    if (wmEl._html !== wmHtml) { wmEl.innerHTML = wmHtml; wmEl._html = wmHtml; }
     const surf = trackSurface(s);
     const sb = $('#surfaceBox');
     sb.hidden = !surf;

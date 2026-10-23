@@ -370,8 +370,9 @@ async function startup(onState = () => {}) {
       const version = String(release?.tag_name || '').replace(/^v/, '');
       return version && newer(version, state.current) ? { action: 'notify', version, url: release.html_url } : { action: 'open' };
     }
-    await check({ manual: true });
-    if (state.status !== 'ready') return { action: 'open', reason: state.status === 'error' ? state.error : null };
+    // « Installer les mises à jour à la fermeture » décoché : nouvelle version seulement signalée (Réglages)
+    await check({ manual: state.auto });
+    if (state.status !== 'ready' || !state.auto) return { action: 'open', reason: state.status === 'error' ? state.error : null };
     const version = state.latest?.version;
     // Déjà tenté au lancement précédent sans succès : on n'insiste pas (bouton dans les réglages)
     if (installTry?.version === version) {

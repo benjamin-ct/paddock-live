@@ -138,7 +138,7 @@ export function keyMoments(events, { kind = 'race', lang = 'fr' } = {}) {
       case 'RaceControlMessages':
         for (const m of messages(d)) {
           const msg = String(m?.Message || '');
-          if (/^FIA STEWARDS:.*PENALTY FOR/.test(msg) && !/NO FURTHER|REVIEWED/.test(msg)) {
+          if (/^FIA STEWARDS:.*PENALTY FOR/.test(msg) && !/NO FURTHER|REVIEWED|PENALTY SERVED/.test(msg)) {
             const p = penaltyText(msg, en);
             if (p) add(e.off, 'penalty', `${tlas(msg).join(', ')}${en ? ':' : ' :'} ${p.what}${p.reason ? ` (${p.reason})` : ''}`, tlas(msg));
           } else if (/INCIDENT INVOLVING CARS? .* NOTED/.test(msg) && !/^(FIA STEWARDS|UPDATE)/.test(msg) && /COLLISION|TURN \d+ INCIDENT/.test(msg) && tlas(msg).length) {

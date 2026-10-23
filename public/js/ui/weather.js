@@ -2,7 +2,7 @@
 // vents, pluie), les prochaines heures et les jours du week-end. En séance : station météo de la F1
 // (air, piste…) et prévisions Open-Meteo du circuit ; entre deux séances : prochain Grand Prix.
 import { store, versionOf } from '../store.js';
-import { $, esc, api } from '../util.js';
+import { $, esc, api, dayIn } from '../util.js';
 import { icon } from '../icons.js';
 import { upcoming } from './home.js';
 import { placeNow } from './radar.js';
@@ -72,12 +72,12 @@ function hoursHtml(hours) {
   }).join('')}</div></div>`;
 }
 
-function daysHtml(days, week, title = 'Jours du week-end') {
+function daysHtml(days, week, tz, title = 'Jours du week-end') {
   if (!days?.length) return '';
   return `<div class="wxv-sec"><h5>${title}</h5><div class="wxv-days">${days.map((d) => {
     const s = sky(d.code) || { icon: 'cloud', label: '' };
     const r = Number(d.rain) || 0;
-    const sess = (week || []).filter((x) => new Date(x.t).toISOString().slice(0, 10) === d.date).map((x) => x.label);
+    const sess = (week || []).filter((x) => dayIn(x.t, tz) === d.date).map((x) => x.label);
     return `<div class="wxv-d${sess.includes('Course') ? ' race' : ''}" title="${esc(s.label)}">
       <span class="wxv-dn">${esc(new Date(`${d.date}T12:00:00`).toLocaleDateString(LOCALE, { weekday: 'short', day: 'numeric' }))}</span>
       ${icon(s.icon)}<span class="wxv-dt"><b>${num(d.tmax)}°</b> ${num(d.tmin)}°</span>
@@ -102,13 +102,13 @@ export function renderWeather() {
   if (nx) {
     const c = nx.current;
     box.innerHTML = c ? `<div class="wxv">${hero({ air: c.air, hum: c.humidity, pressure: c.pressure, wind: c.wind, dir: Number(c.windDir), raining: Number(c.rain) > 0, code: c.code, src: esc(t('{} · Open-Meteo', nx.locality || nx.race)) })}
-      ${hoursHtml(nx.hours)}${daysHtml(nx.days, nx.week)}</div>`
+      ${hoursHtml(nx.hours)}${daysHtml(nx.days, nx.week, nx.tz)}</div>`
       : `<p class="note">${esc(t('Météo de {} en cours de chargement…', nx.locality || nx.race))}</p>`;
     return;
   }
   if (!w) { box.innerHTML = '<div class="note">Pas de données météo.</div>'; return; }
-  const today = new Date().toISOString().slice(0, 10);
+  const today = dayIn(Date.now(), f?.tz);
   box.innerHTML = `<div class="wxv">${hero({ air: w.AirTemp, track: w.TrackTemp, hum: w.Humidity, pressure: w.Pressure, wind: Number(w.WindSpeed) * 3.6, dir: Number(w.WindDirection),
     raining: w.Rainfall === '1' || w.Rainfall === 1, code: f?.current?.code, src: 'Station météo du circuit (F1)' })}
-    ${hoursHtml(f?.hours)}${daysHtml((f?.days || []).filter((d) => d.date >= today).slice(0, 3), null, 'Prochains jours')}</div>`;
+    ${hoursHtml(f?.hours)}${daysHtml((f?.days || []).filter((d) => d.date >= today).slice(0, 3), null, null, 'Prochains jours')}</div>`;
 }

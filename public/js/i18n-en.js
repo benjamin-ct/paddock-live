@@ -1352,7 +1352,7 @@ export default {
   "Rythme de course": "Race pace",
   "Rythme de course :": "Race pace:",
   "Rythme de course : écart moyen entre le tour médian « propre » du pilote et celui du plus rapide de chaque course (archives officielles F1 — pas encore analysées, critère ignoré pour l'instant). Place moyenne à l'arrivée : un abandon compte comme une 20e place. Places gagnées : de la grille à l'arrivée, courses terminées seulement.": "Race pace: average gap between the driver's median “clean” lap and the fastest driver's in each race (official F1 archives — not analysed yet, criterion ignored for now). Average finishing place: a retirement counts as 20th. Places gained: from grid to finish, finished races only.",
-  "Rythme : écart au plus rapide de chaque course{}. Abandon = 20e place.": "Pace: gap to the fastest in each race{}. Retirement = 20th place.",
+  "Rythme : écart au plus rapide de chaque course{}. Abandon = dernière place.": "Pace: gap to the fastest in each race{}. Retirement = last place.",
   "Rythme : tours propres de chaque pilote": "Pace: each driver's clean laps",
   "Rythme de course (écart au plus rapide)": "Race pace (gap to the fastest)",
   "s de pénalité": "s penalty",
