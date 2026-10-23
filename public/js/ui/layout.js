@@ -72,8 +72,8 @@ const TAB_DEFAULTS = {
   race: { feed: 'rcm', analysis: 'trace', extra: 'pits' },
   quali: { feed: 'rcm', analysis: 'compare', extra: 'tyres' },
 };
-// Essentiel : championnat et limites de piste ouverts à droite (tableau de bord simple)
-const ESS_TABS = { extra: 'champ', feed: 'tracklimits' };
+// Essentiel : limites de piste ouvertes à droite, et le championnat en course (sa projection ne sert qu'en course)
+const ESS_TABS = { race: { extra: 'champ', feed: 'tracklimits' }, quali: { feed: 'tracklimits' } };
 const profileDefaults = () => ({ hiddenPanels: shortScreenHidden(prefs.fullMode), hiddenCols: [] });
 const profileFor = (mode, kind) => (mode === 'race' || mode === 'quali' ? mode : kind === 'race' ? 'race' : 'quali');
 let profile = prefs.layoutMode === 'race' || prefs.layoutMode === 'quali' ? prefs.layoutMode : storageGet('paddock.lastProfile', 'race');
@@ -908,7 +908,7 @@ const tabHeads = () => PANELS.map((p) => [p.id, panelEl(p.id)?.querySelector('[d
 function applyTabs() {
   const saved = storageGet(TABS_KEY, {})[profile] || {};
   for (const [id, head] of tabHeads()) {
-    const want = saved[id] || (essential() && ESS_TABS[id]) || TAB_DEFAULTS[profile]?.[id];
+    const want = saved[id] || (essential() && ESS_TABS[profile]?.[id]) || TAB_DEFAULTS[profile]?.[id];
     const b = want && head.querySelector(`[data-tab="${want}"]`);
     if (b && !b.classList.contains('active')) b.click();
   }
@@ -1077,7 +1077,8 @@ export function initLayout() {
   }
   applyTabs();
   on('reset', checkProfile);
-  on('events', (events) => { if (events.some(([t]) => t === 'SessionInfo')) checkProfile(); });
+  // Séance connue par son message, ou par l'instantané du début (direct ouvert avant la séance, replay)
+  on('events', (events) => { if (events.some(([t]) => t === 'SessionInfo' || t === '__snapshot')) checkProfile(); });
   on('prefs', (k) => { if (k === 'layoutMode') checkProfile(); });
   checkProfile();
 }

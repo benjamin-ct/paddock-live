@@ -38,6 +38,8 @@ l'application (Réglages → À propos → Nouveautés).
   « Champ. », maintenant aussi en Essentiel) et les limites de piste. Disposition déjà enregistrée :
   Dispo. → Réinitialiser.
 - L'onglet « Limites de piste » (ou « Enquêtes ») ouvert reste ouvert au lancement suivant.
+- Disposition « Qualif & essais » ou « Course » et onglets adaptés à la séance (championnat seulement en course…)
+  choisis aussi quand l'appli est ouverte avant le début de la séance, ou pour un replay.
 
 ### Saison
 - Bilan de la saison (Saison → Bilan de la saison) : champion ou leader, victoires, poles, podiums, vainqueurs
