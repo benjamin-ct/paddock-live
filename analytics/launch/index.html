@@ -18,6 +18,9 @@
 <meta property="og:site_name" content="Paddock Live">
 <meta name="twitter:image" content="https://paddocklive.app/site/img/apercu.png">
 <link rel="canonical" href="https://paddocklive.app/">
+<link rel="alternate" hreflang="fr" href="https://paddocklive.app/">
+<link rel="alternate" hreflang="en" href="https://paddocklive.app/?lang=en">
+<link rel="alternate" hreflang="x-default" href="https://paddocklive.app/">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="/site/img/logo.png">
 <link rel="apple-touch-icon" href="/site/img/apple-touch-icon.png">
@@ -444,16 +447,22 @@ const SOCIAL = [
 ];
 document.getElementById('social').innerHTML = SOCIAL.map(([n, u]) => `<a href="${u}" target="_blank" rel="noopener">${n}</a>`).join('');
 
-// Langue : français par défaut, anglais si le navigateur n'est pas en français (ou bouton EN / FR)
+// Langue : français par défaut, anglais si le navigateur n'est pas en français (ou bouton EN / FR). Les robots des
+// moteurs de recherche (réglés en anglais) gardent le français sur / : la version anglaise a sa propre adresse
+// (/?lang=en, annoncée par hreflang), avec son titre, sa description et son adresse canonique
 const els = [...document.querySelectorAll('[data-en]')];
 for (const el of els) el.dataset.fr = el.innerHTML;
 const META = { fr: document.title, en: 'Paddock Live · Live Formula 1, synced to your TV' };
+const DESC = { fr: document.querySelector('meta[name="description"]').content, en: 'Free app to follow every Grand Prix live on your computer: timing, GPS map, translated team radio and strategy, synced to your TV so the race is never spoiled. Windows, macOS, Linux.' };
+const bot = /bot|crawl|spider|slurp|lighthouse|preview/i.test(navigator.userAgent);
 let lang;
 function setLang(l) {
   lang = l;
   document.documentElement.lang = l;
   for (const el of els) el.innerHTML = l === 'en' ? el.dataset.en : el.dataset.fr;
   document.title = META[l];
+  document.querySelector('meta[name="description"]').content = DESC[l];
+  document.querySelector('link[rel="canonical"]').href = l === 'en' ? 'https://paddocklive.app/?lang=en' : 'https://paddocklive.app/';
   for (const el of document.querySelectorAll('[data-ph-en]')) { el.dataset.phFr ??= el.placeholder; el.placeholder = l === 'en' ? el.dataset.phEn : el.dataset.phFr; }
   const b = document.getElementById('lang');
   b.textContent = l === 'en' ? 'FR' : 'EN';
@@ -546,7 +555,8 @@ ask.addEventListener('drop', (e) => { e.preventDefault(); ask.classList.remove('
 
 let saved = null;
 try { saved = localStorage.getItem('pl.lang'); } catch { /* sans stockage */ }
-setLang(new URLSearchParams(location.search).get('lang') || saved || (/^fr\b/i.test(navigator.language) ? 'fr' : 'en'));
+const asked = new URLSearchParams(location.search).get('lang');
+setLang(asked === 'en' || asked === 'fr' ? asked : bot ? 'fr' : saved || (/^fr\b/i.test(navigator.language) ? 'fr' : 'en'));
 
 // Menu caché : 5 touches rapides sur le logo du bas de page (ou l'adresse se terminant par #paddock)
 // -> statistiques d'utilisation et Studio (chacun protégé par son mot de passe ou son code)
