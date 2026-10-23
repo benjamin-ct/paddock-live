@@ -60,6 +60,8 @@ https://partner.microsoft.com/dashboard/microsoftedge → même zip, mêmes text
 
 https://addons.mozilla.org/developers/ → **Soumettre un nouveau module** → même zip (identifiant
 `companion@paddocklive.app` déjà dans le manifeste ; le code n'est pas minifié, aucune source à fournir).
+Publiée : https://addons.mozilla.org/firefox/addon/paddock-live-companion/ (bouton « Installer » de
+paddocklive.app/extension).
 
 ## Textes de la fiche
 
