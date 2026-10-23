@@ -199,7 +199,7 @@ footer a { color: var(--text-2); }
 // Plan du site pour les moteurs de recherche, et règles d'exploration (Studio, outils et pages privées exclus)
 export const sitemap = () => `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${['', ...GUIDES.map((g) => `${g.slug}/`), 'extension/', 'p/', 'legal/terms', 'legal/privacy'].map((p) => `  <url><loc>${SITE}/${p}</loc></url>`).join('\n')}
+${['', ...GUIDES.map((g) => `${g.slug}/`), 'alertes/', 'extension/', 'p/', 'legal/terms', 'legal/privacy'].map((p) => `  <url><loc>${SITE}/${p}</loc></url>`).join('\n')}
 </urlset>
 `;
 export const robots = () => `User-agent: *

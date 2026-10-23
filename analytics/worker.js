@@ -28,6 +28,7 @@ import { buildIcs } from '../shared/ics.js';
 import { pronosApi, GROUP_RE } from './pronos.js';
 import { pruneIpQuota, callerIp, ipQuota } from './quota.js';
 import { healthCheck, HEALTH } from './health.js';
+import { publicPushApi, pushRun, queuePush, sessionReminders } from './push-public.js';
 
 const MAX_BODY = 32 * 1024;
 const COOKIE = 'pl_stats';
@@ -140,6 +141,9 @@ export default {
       const sent = await runSchedule(env).catch(() => null);
       if (!sent && new Date(event.scheduledTime || Date.now()).getUTCMinutes() % 5 === 0) await newsAlerts(env).catch(() => null);
       if (!sent && env.DB) await seasonRow(env, new Date().getUTCFullYear()).catch(() => null);
+      // Alertes du téléphone : rappels des séances proches mis en file, puis un lot de la file envoyé (appel du
+      // Worker à lui-même : ses envois ont leurs propres limites)
+      if (env.DB) await publicPush(env, event.scheduledTime || Date.now()).catch(() => null);
       // Une fois par jour : compteurs d'IA par adresse des jours passés, traductions de plus de 90 jours et
       // détail des erreurs de plus d'un an effacés
       const t = new Date(event.scheduledTime || Date.now());
@@ -235,6 +239,14 @@ export default {
     // Page web du créateur : API (la page elle-même est un fichier statique, dossier site/)
     // Publication d'un réseau, appelée par la tâche planifiée elle-même (voir runSchedule)
     if (req.method === 'POST' && url.pathname === '/internal/sched') return schedInternal(req, env);
+    if (req.method === 'POST' && url.pathname === '/internal/push') {
+      if (!env.STATS_KEY || !sameKey(req.headers.get('X-Sched-Key') || '', env.STATS_KEY)) return json({ error: 'Interdit' }, 403);
+      return json(await pushRun(env));
+    }
+    // Alertes sur le téléphone (page /alertes/) : clé du serveur, abonnement, désabonnement, essai
+    if (url.pathname.startsWith('/a/') && /^(key|sub|off|test)$/.test(url.pathname.slice(3))) {
+      try { return await publicPushApi(req, env, url.pathname.slice(3)); } catch { return json({ error: 'Erreur' }, 500); }
+    }
     if (url.pathname.startsWith('/studio/api/')) {
       try { return await studioApi(req, env, url); } catch { return json({ error: 'Erreur' }, 500); }
     }
@@ -298,6 +310,14 @@ async function statsKey(req, env, key) {
   return false;
 }
 
+async function publicPush(env, now) {
+  const row = JSON.parse(await env.DB.prepare('SELECT v FROM studio WHERE k = ?1').bind(`season:${new Date(now).getUTCFullYear()}`).first('v') || 'null');
+  for (const r of sessionReminders(row?.v, now)) await queuePush(env, r.k, 'sessions', r.msg, now);
+  if (!(await env.DB.prepare('SELECT 1 FROM push_out LIMIT 1').first())) return;
+  if (env.SELF && env.STATS_KEY) await env.SELF.fetch(new Request('https://self/internal/push', { method: 'POST', headers: { 'X-Sched-Key': env.STATS_KEY } }));
+  else await pushRun(env, { now });
+}
+
 export async function prune(env, now) {
   await pruneIpQuota(env, new Date(now).toISOString().slice(0, 10));
   await env.DB.prepare('DELETE FROM translations WHERE at < ?1').bind(now - 90 * 86400e3).run();
@@ -307,6 +327,7 @@ export async function prune(env, now) {
   const today = new Date(now).toISOString().slice(0, 10);
   for (const t of ['studio_fail', 'feedback_new', 'pronos_new']) await env.DB.prepare(`DELETE FROM ${t} WHERE day < ?1`).bind(today).run();
   await env.DB.prepare('DELETE FROM radio_texts WHERE at < ?1').bind(now - 365 * 86400e3).run();
+  await env.DB.prepare('DELETE FROM push_sent WHERE at < ?1').bind(now - 30 * 86400e3).run();
 }
 
 // Calendrier des séances auquel on s'abonne depuis l'appli (webcal://paddocklive.app/calendar.ics,

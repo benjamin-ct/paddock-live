@@ -20,6 +20,7 @@ import { postStats } from '../shared/post-stats.js';
 import { recentPosts, importEntries } from './post-import.js';
 import { trackPost, clickStats } from './clicks.js';
 import { pushApi, notifyPhones, getRow, setRow } from './alerts.js';
+import { queuePush, resultMessages } from './push-public.js';
 import { noteExpiries } from './health.js';
 import { feedbackApi } from './feedback.js';
 import { freePhotos, PHOTO_UA } from './photos.js';
@@ -67,6 +68,8 @@ export async function seasonRow(env, year, { now = Date.now(), fetchFn, wait, ma
     const fresh = { at: now, v: await buildSeason(year, { fetchFn, wait }) };
     await setRow(env, key, JSON.stringify(fresh));
     if (row) for (const m of resultsReady(row.v, fresh.v, now)) await notifyPhones(env, m, { now }).catch(() => 0);
+    // Alertes du téléphone : résultats pour ceux qui ont choisi de les recevoir
+    if (row) for (const m of resultMessages(row.v, fresh.v, now)) await queuePush(env, m.k, 'results', m.msg, now).catch(() => false);
     return fresh;
   } catch (err) {
     if (row) return row;

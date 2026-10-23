@@ -88,6 +88,8 @@ for (const g of GUIDES) {
 fs.writeFileSync(path.join(OUT, 'sitemap.xml'), sitemap());
 fs.writeFileSync(path.join(OUT, 'robots.txt'), robots());
 copy(path.join(ROOT, 'analytics', 'launch', 'img'), path.join(OUT, 'site', 'img'));
+// Alertes sur le téléphone pour tout le monde (/alertes/, page à ajouter à l'écran d'accueil)
+copy(path.join(ROOT, 'analytics', 'alertes'), path.join(OUT, 'alertes'));
 // Extension Paddock Live Companion (/extension/, adresse donnée dans l'appli) : un bouton par boutique
 copy(path.join(ROOT, 'analytics', 'extension'), path.join(OUT, 'extension'));
 // Présentation publique de l'appli (/app/), site officiel déclaré à TikTok
@@ -116,6 +118,8 @@ fs.writeFileSync(path.join(OUT, '_headers'), `/studio/*
   Cache-Control: public, max-age=2592000
 /legal/*
   Cache-Control: public, max-age=3600
+/alertes/*
+  Cache-Control: no-cache
 /app/*
   Cache-Control: public, max-age=3600
 /site/*

@@ -19,7 +19,7 @@ import { officialGrid } from './fia-grid.js';
 import { findSessionContent, playback, proxy as f1tvProxy, allowHost, resolvePlaylist, localTarget } from './f1tv.js';
 import { Recorder, listRecordings, pruneRecordings, recordingPath } from './recorder.js';
 import { ROOT, DATA_DIR, settings, getConfig, saveConfig, parseF1tvToken, tokenInfo } from './config.js';
-import { createLan, isLoopback } from './lan.js';
+import { createLan, isLoopback, qrSvg } from './lan.js';
 import { getTranslations, addTranslations } from './translations.js';
 import { compareLaps } from './compare.js';
 import { weekendTyres } from './tyres.js';
@@ -184,6 +184,9 @@ async function handleApi(req, res, url) {
   if (!sameSiteRequest(req.headers) && !fromExtension) return sendJSON(res, 403, { error: 'Origine refusée' });
 
   switch (route) {
+    // QR code de la page des alertes du téléphone (paddocklive.app/alertes), affiché dans les Réglages
+    case 'GET /api/qr/alertes':
+      return sendJSON(res, 200, { url: 'https://paddocklive.app/alertes/', svg: qrSvg('https://paddocklive.app/alertes/') });
     case 'GET /api/lan':
     case 'POST /api/lan': {
       // Réglage de l'accès réseau : uniquement depuis cet ordinateur
