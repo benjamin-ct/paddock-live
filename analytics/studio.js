@@ -31,9 +31,9 @@ import { buildSeason, SEASON_TTL, resultsReady } from './season-cache.js';
 import { accountStats } from './account-stats.js';
 import { callerIp, studioQuota } from './quota.js';
 
-// Empreinte du code (la même que dans l'appli) : SHA-256 de « paddock-live:<CODE> » (STUDIO_CODE_HASH :
-// autre empreinte, pour les tests)
-const CODE_HASH = 'b8c23e870aa1ad8a9f8b0c4b4b38fb5911b92b1ff024e14044915ee3a6cee216';
+// Empreinte de la clé tirée du code (la même que dans l'appli, server/creator.js) : SHA-256 de la clé PBKDF2 de
+// 200 000 tours, longue à essayer à la chaîne (STUDIO_KEY_HASH : autre empreinte, pour les tests)
+const KEY_HASH = 'be805284f800e563ff899b7888cbc9a2d06db8223a7c903bb488ed99f105f05b';
 export const MAX_FAILS = 30;
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36';
 const ARCHIVE = 'https://livetiming.formula1.com/static/';
@@ -706,11 +706,11 @@ export async function studioApi(req, env, url) {
     if (await fails(env, req) >= MAX_FAILS) return json({ error: 'Trop d\'essais aujourd\'hui' }, 429);
     let body;
     try { body = await req.json(); } catch { return json({ error: 'JSON invalide' }, 400); }
-    const code = String(body?.code || '').trim().toUpperCase();
-    if (!sameHex(await sha(`paddock-live:${code}`), env.STUDIO_CODE_HASH || CODE_HASH)) { await failed(env, req); return json({ error: 'Code incorrect' }, 401); }
+    // L'appli envoie aussi le code (anciennes versions) : seule la clé qui en est tirée est vérifiée
     let raw;
-    try { raw = unb64url(body.key); } catch { raw = null; }
+    try { raw = unb64url(body?.key); } catch { raw = null; }
     if (!raw || raw.length !== 32) return json({ error: 'Clé invalide' }, 400);
+    if (!sameHex(await sha(raw), env.STUDIO_KEY_HASH || KEY_HASH)) { await failed(env, req); return json({ error: 'Code incorrect' }, 401); }
     await setRow(env, 'verifier', await sha(raw));
     await setRow(env, 'vault', await seal(raw, cleanVault(body.vault)));
     return json({ ok: true });
