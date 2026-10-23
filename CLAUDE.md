@@ -41,6 +41,12 @@
   dans `server/studio-sync.js` et `server/post-history.js`, `/e`, `/f`, `/t`, `/r`, `/p/api`) gardent leurs noms, leurs
   paramètres et leurs réponses : on ajoute sans retirer ni changer, et on ne supprime une ancienne forme que quand
   plus aucune version publiée ne l'utilise.
+- **Suivi dans Google Drive** (connecteurs Google Drive, Docs et Sheets) : après chaque action (code fusionné,
+  version publiée, posts préparés, démarche faite), tenir à jour le dossier « Paddock Live · Réseaux » :
+  la liste « À faire · Paddock Live » (cocher ce qui est fait, ajouter ce qui reste), la feuille
+  « Suivi réseaux · Paddock Live » (onglet Journal : une ligne par action, la plus récente en haut ; onglet Posts :
+  les posts préparés) et, pour chaque Grand Prix, un Google Doc des textes et un dossier
+  « Paddock Live · Médias · <Grand Prix> » (fichiers envoyés avec les secrets `GDRIVE_*` de l'environnement).
 - Avant de pousser : `npm test`.
 - **Version anglaise** : tout nouveau texte affiché a sa traduction dans `public/js/i18n-en.js` (clé = texte
   français, `{}` pour les valeurs) ; `node scripts/i18n-missing.mjs` liste ceux qui manquent.
