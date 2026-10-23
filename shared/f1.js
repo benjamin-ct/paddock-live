@@ -8,6 +8,10 @@ export const LIVE_TOPICS = [
   'PitLaneTimeCollection', 'PitStopSeries', 'PitStop', 'ChampionshipPrediction', 'TyreStintSeries',
 ];
 
+// Délai TV minimal : le GPS et la télémétrie arrivent 2 à 3 s après les chronos, parfois plus ; en dessous, la carte et la
+// télémétrie n'ont pas encore le point suivant et avancent par à-coups
+export const MIN_DELAY_MS = 5000;
+
 // Topics chargés depuis les archives (replay).
 export const ARCHIVE_TOPICS = [
   'SessionInfo', 'SessionData', 'SessionStatus', 'TrackStatus', 'ExtrapolatedClock', 'Heartbeat',

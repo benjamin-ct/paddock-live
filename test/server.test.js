@@ -111,7 +111,7 @@ test('hub : délai changé à distance (Stream Deck), suivi par les fenêtres, l
   assert.equal(hub.setHostDelay(hub.hostDelay + 1500), 31500);
   assert.deepEqual(pc.sent.at(-1), { type: 'setDelay', ms: 31500 });
   assert.deepEqual(overlay.sent.at(-1), { type: 'hostDelay', ms: 31500 });
-  assert.equal(hub.setHostDelay(-5000), 0);   // jamais négatif
+  assert.equal(hub.setHostDelay(-5000), 5000);   // jamais sous le minimum (GPS et télémétrie fluides)
   hub.close();
 });
 

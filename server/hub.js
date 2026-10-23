@@ -5,6 +5,7 @@
 import zlib from 'node:zlib';
 import { WebSocket } from 'ws';
 import { applyEvent, createDerived, createSyncContext, extractSyncEvents } from '../shared/derive.js';
+import { MIN_DELAY_MS } from '../shared/f1.js';
 
 const TICK_MS = 100;
 const LOOKAHEAD_MS = 6000;       // GPS/télémétrie envoyés en avance (ils arrivent ~2-3 s après les chronos)
@@ -168,14 +169,14 @@ export class Hub {
   // host : fenêtre ouverte sur l'ordinateur lui-même. Les téléphones et tablettes du réseau
   // local reçoivent son délai TV pour pouvoir s'y caler (« hostDelay »).
   addClient(ws, { host = true } = {}) {
-    const c = { ws, host, delay: 0, gen: -1, ei: 0, si: 0, cutoff: -Infinity };
+    const c = { ws, host, delay: MIN_DELAY_MS, gen: -1, ei: 0, si: 0, cutoff: -Infinity };
     this.clients.add(c);
     ws.on('message', (buf) => {
       let msg;
       try { msg = JSON.parse(buf.toString()); } catch { return; }
       if (msg.type === 'delay') {
         const ms = Number(msg.ms);
-        if (Number.isFinite(ms)) c.delay = Math.max(0, Math.min(this.maxDelayMs, ms));
+        if (Number.isFinite(ms)) c.delay = Math.max(MIN_DELAY_MS, Math.min(this.maxDelayMs, ms));
         if (host && Number.isFinite(ms) && c.delay !== this.hostDelay) {
           this.hostDelay = c.delay;
           const str = JSON.stringify({ type: 'hostDelay', ms: c.delay });
@@ -211,7 +212,7 @@ export class Hub {
   // Délai TV changé à distance (Stream Deck…) : appliqué par les fenêtres de l'ordinateur, suivi par
   // les overlays et les téléphones. Renvoie le nouveau délai (ms).
   setHostDelay(ms) {
-    this.hostDelay = Math.round(Math.max(0, Math.min(this.maxDelayMs, ms)) / 100) * 100;
+    this.hostDelay = Math.round(Math.max(MIN_DELAY_MS, Math.min(this.maxDelayMs, ms)) / 100) * 100;
     for (const o of this.clients) this.send(o, JSON.stringify(o.host ? { type: 'setDelay', ms: this.hostDelay } : { type: 'hostDelay', ms: this.hostDelay }));
     return this.hostDelay;
   }

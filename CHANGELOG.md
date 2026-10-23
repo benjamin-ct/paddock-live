@@ -9,6 +9,8 @@ l'application (Réglages → À propos → Nouveautés).
 ### En direct
 - Connexion F1 TV : l'appli ouverte avant le début d'une séance reçoit maintenant le GPS et la télémétrie environ
   une minute après le départ. Jusqu'ici, elle restait en positions estimées (carte saccadée) jusqu'à ce qu'on la redémarre.
+- Délai TV de 5 s au minimum (« Temps réel (5 s) ») : le GPS et la télémétrie arrivent quelques secondes après
+  les chronos ; à 0 s, la carte et la télémétrie avançaient par à-coups.
 
 ## v1.28.2 — 2026-10-23
 
