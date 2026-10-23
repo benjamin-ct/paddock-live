@@ -34,7 +34,7 @@ import { predictionsView, savePrediction, pronosOnline } from './predict.js';
 import { lightsInfo, saveLights, hueDiscover, huePair, lightDevices, setLights } from './lights.js';
 import { exportServerSettings, importServerSettings } from './backup.js';
 import { creatorEnabled, setCreator, savePostImage, openPostsDir } from './creator.js';
-import { studioInfo, enableStudio, disableStudio, syncStudio, startStudioSync, studioRewrite, studioTrack, studioDrafts } from './studio-sync.js';
+import { studioInfo, enableStudio, disableStudio, restoreAccounts, syncStudio, startStudioSync, studioRewrite, studioTrack, studioDrafts } from './studio-sync.js';
 import { postHistory, recordPost, removePost, statsOfPosts, importPosts } from './post-history.js';
 import { accountsInfo, saveAccount, tiktokLoginUrl, tiktokCallback, youtubeLoginUrl, youtubeCallback, metaLoginUrl, metaCallback, publish as publishSocial } from './social-publish.js';
 import { startAutoRenew, renew as renewF1tv, sessionOf, state as renewState, resetRenewState } from './f1tv-auth.js';
@@ -524,7 +524,8 @@ async function handleApi(req, res, url) {
       const body = await readBody(req, route === 'POST /api/posts/save' ? 120e6 : 1e6);
       if (route === 'POST /api/creator') {
         if (body.off) return sendJSON(res, 200, { enabled: setCreator(null, false) });
-        return setCreator(body.code) ? sendJSON(res, 200, { enabled: true }) : sendJSON(res, 403, { error: 'Code incorrect' });
+        if (!setCreator(body.code)) return sendJSON(res, 403, { error: 'Code incorrect' });
+        return sendJSON(res, 200, { enabled: true, restored: await restoreAccounts(body.code) });
       }
       if (!creatorEnabled()) return sendJSON(res, 403, { error: 'Mode créateur désactivé' });
       try {

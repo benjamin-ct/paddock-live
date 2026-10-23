@@ -119,6 +119,12 @@ function cleanVault(v) {
   return out;
 }
 
+// Copie de tous les comptes, chiffrée par l'appli avec une clé que le serveur ne reçoit jamais : gardée
+// telle quelle, rendue sur un nouvel ordinateur (anciennes applis : rien d'envoyé, rien d'effacé)
+async function keepAccounts(env, box) {
+  if (typeof box === 'string' && box.length <= 100000 && /^[\w-]+\.[\w-]+\.[\w-]+$/.test(box)) await setRow(env, 'accounts', box);
+}
+
 // Clé de l'en-tête vérifiée : octets de la clé, ou réponse d'erreur
 async function auth(req, env) {
   if (await fails(env, req) >= MAX_FAILS) return { error: json({ error: 'Trop d\'essais aujourd\'hui, réessayez demain' }, 429) };
@@ -716,6 +722,7 @@ export async function studioApi(req, env, url) {
     if (!sameHex(await sha(raw), env.STUDIO_KEY_HASH || KEY_HASH)) { await failed(env, req); return json({ error: 'Code incorrect' }, 401); }
     await setRow(env, 'verifier', await sha(raw));
     await setRow(env, 'vault', await seal(raw, cleanVault(body.vault)));
+    await keepAccounts(env, body.accounts);
     return json({ ok: true });
   }
 
@@ -727,8 +734,11 @@ export async function studioApi(req, env, url) {
     let body;
     try { body = await req.json(); } catch { return json({ error: 'JSON invalide' }, 400); }
     await setRow(env, 'vault', await seal(a.raw, keepNewer(vault, cleanVault(body?.vault))));
+    await keepAccounts(env, body?.accounts);
     return json({ ok: true });
   }
+  // Nouvel ordinateur : copie des comptes (chiffrée par l'appli) et jetons du coffre, peut-être renouvelés ici
+  if (path === 'accounts' && req.method === 'GET') return json({ accounts: await getRow(env, 'accounts'), vault: await refresh(env, a.raw, vault) });
   if (path === 'forget' && req.method === 'POST') {
     // Visuels et vidéos des programmations en attente : effacés avec elles (plus rien ne les retrouverait)
     for (const j of await schedJobs(env)) await dropMedia(env, j.id);

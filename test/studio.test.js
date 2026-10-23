@@ -137,6 +137,42 @@ test('page du créateur : coffre chiffré, sans le code rien n\'est lisible', as
   assert.equal(env.DB.studio.size, 0);
 });
 
+test('page du créateur : comptes repris sur un nouvel ordinateur, copie illisible par le serveur', async () => {
+  const { restoreAccounts } = await import('../server/studio-sync.js');
+  const fetchFn = (url, init) => worker(url, init);
+  // Page jamais activée : rien à reprendre
+  saveConfig({ creator: true, studio: null, social: {} });
+  assert.equal(await restoreAccounts(CODE, { fetchFn }), 0);
+  assert.equal(getConfig().studio, null);
+  // Ancien ordinateur : X et clés des apps, absents du coffre
+  const social = { x: { apiKey: 'cle-x', apiSecret: 'secret-x', accessToken: 'jeton-x', accessSecret: 'secret-jx', username: '@moi' }, meta: { appId: 'app1', appSecret: 'secret-app', pageId: 'p1', pageName: 'Ma page', pageToken: 'jeton-page', igId: 'ig1', igUsername: 'moi' }, threads: { appSecret: 'secret-th', token: 'jeton-th', userId: 't1', username: 'moi' } };
+  saveConfig({ social });
+  assert.equal(studioInfo().backup, false);
+  await enableStudio(CODE, { fetchFn });
+  assert.equal(studioInfo().backup, true);
+  const box = env.DB.studio.get('accounts');
+  for (const s of ['cle-x', 'secret-x', 'secret-app', 'secret-th', 'jeton-page', 'moi']) assert.ok(!box.includes(s));
+  // Une ancienne appli qui renvoie ses comptes sans copie : la copie reste
+  await worker('https://s.test/studio/api/sync', { method: 'POST', headers: { 'X-Studio-Key': studioKey(CODE) }, body: JSON.stringify({ vault: { meta: social.meta } }) });
+  assert.equal(env.DB.studio.get('accounts'), box);
+  // Le serveur a renouvelé le jeton Threads entre-temps
+  await worker('https://s.test/studio/api/sync', { method: 'POST', headers: { 'X-Studio-Key': studioKey(CODE) }, body: JSON.stringify({ vault: { meta: social.meta, threads: { ...social.threads, token: 'jeton-th-2', expiresAt: Date.now() + 9e9 } } }) });
+
+  // Nouvel ordinateur : rien de connecté, sauf Bluesky (gardé)
+  saveConfig({ studio: null, f1tvToken: null, social: { bluesky: { handle: 'ici.bsky.social', appPassword: 'mdp-ici', did: 'did:ici' } } });
+  assert.equal(await restoreAccounts(CODE, { fetchFn }), 3);
+  const c = getConfig();
+  assert.deepEqual(c.social.x, social.x);
+  assert.equal(c.social.meta.appSecret, 'secret-app');
+  assert.deepEqual([c.social.threads.appSecret, c.social.threads.token], ['secret-th', 'jeton-th-2']);
+  assert.equal(c.social.bluesky.appPassword, 'mdp-ici');
+  assert.equal(studioInfo().enabled, true);   // page web reliée à ce nouvel ordinateur
+  assert.equal(await syncStudio({ fetchFn }), true);
+  assert.equal(await restoreAccounts(CODE, { fetchFn }), 0);   // déjà tout là
+  await disableStudio({ fetchFn });
+  assert.equal(env.DB.studio.size, 0);
+});
+
 test('page du créateur : relais limités (sources connues, archives F1, images F1 et drapeaux)', async () => {
   // Activation directe (sans code réel) pour essayer les relais : vérificateur d'une clé de test
   const key = studioKey('TEST');

@@ -176,6 +176,9 @@ async function accountsDialog(onChange, open = null) {
         ${studio.enabled ? `<p class="small">${t('Adresse :')} <a href="${esc(studio.url)}" target="_blank" rel="noopener">${esc(studio.url)}</a> — ${t('entrez avec le code du mode créateur.')}</p>
           ${studio.error ? `<p class="small posts-warn">${icon('warning')} ${esc(studio.error)}</p>` : ''}
           ${studio.f1tv ? '' : `<p class="small muted">${icon('info')} ${t('Posts des séances : connectez F1 TV (Réglages → Compte F1 TV).')}</p>`}
+          ${studio.backup ? '' : `<p class="small muted">${icon('info')} ${t('Pour retrouver tous les comptes sur un autre ordinateur (en y activant le mode créateur), entrez le code une fois : copie chiffrée ici, illisible par le serveur.')}</p>
+          <label class="small">${t('Code du mode créateur')}<input type="password" data-studio-code autocomplete="off" spellcheck="false"></label>
+          <div class="row"><button class="btn small" data-studio-on>${t('Garder une copie des comptes')}</button></div>`}
           <div class="row"><button class="btn small" data-studio-copy>${icon('doc')} ${t("Copier l'adresse")}</button><button class="btn small" data-studio-sync>${t('Renvoyer les comptes')}</button><button class="btn small" data-studio-off>${t('Désactiver')}</button></div>`
         : `<label class="small">${t('Code du mode créateur')}<input type="password" data-studio-code autocomplete="off" spellcheck="false"></label>
           <div class="row"><button class="btn small btn-accent" data-studio-on>${t('Activer la page web')}</button></div>`}
@@ -189,7 +192,7 @@ async function accountsDialog(onChange, open = null) {
         sbtn.disabled = true;
         if (sbtn.dataset.studioOn !== undefined) {
           await api('/api/social/studio', { code: $('[data-studio-code]', dlg).value });
-          toast(t('Page web activée'), 3000, 'check');
+          toast(t(studio.enabled ? 'Copie des comptes enregistrée' : 'Page web activée'), 3000, 'check');
         } else if (sbtn.dataset.studioSync !== undefined) {
           const r = await api('/api/social/studio', { sync: true });
           if (r.error) throw new Error(r.error);
