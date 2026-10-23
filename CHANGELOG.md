@@ -27,6 +27,8 @@ l'application (Réglages → À propos → Nouveautés).
 - « Pendant votre absence » fonctionne aussi quand on s'absente pendant un drapeau rouge.
 - Onglets d'analyse (race trace, positions, rythme, temps au tour) redessinés une fois par seconde au plus
   pendant la course, au lieu de plusieurs fois : moins de calcul, surtout sur téléphone.
+- Menus « Calques » (circuit) et « Colonnes » (classement) affichés en entier, même dans un petit panneau :
+  ouverts par-dessus l'écran, vers le haut s'il y a plus de place, avec défilement si la fenêtre est basse.
 
 ### Saison
 - Bilan de la saison (Saison → Bilan de la saison) : champion ou leader, victoires, poles, podiums, vainqueurs

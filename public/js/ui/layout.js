@@ -1041,6 +1041,21 @@ export function initLayout() {
     document.addEventListener('pointerdown', (e) => { if (colMenu.open && !colMenu.contains(e.target)) colMenu.open = false; });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') colMenu.open = false; });
   }
+  // Menus « Colonnes » et « Calques » : posés par-dessus l'écran (coupés par le bord d'un petit panneau sinon),
+  // sous le bouton ou au-dessus s'il y a plus de place, avec défilement si la fenêtre est trop basse
+  document.addEventListener('toggle', (e) => {
+    const d = e.target;
+    const menu = d.matches?.('.map-layers') && d.open && !d.closest('.float-bar, .grid.mobile') && d.querySelector('.map-layers-menu');
+    if (!menu) return;
+    const r = d.querySelector('summary').getBoundingClientRect();
+    const below = innerHeight - r.bottom - 14, above = r.top - 14;
+    const up = below < 280 && above > below;
+    Object.assign(menu.style, { position: 'fixed', right: 'auto', overflowY: 'auto', maxHeight: `${Math.max(120, up ? above : below)}px`,
+      top: up ? 'auto' : `${r.bottom + 6}px`, bottom: up ? `${innerHeight - r.top + 6}px` : 'auto' });
+    const w = menu.offsetWidth;
+    menu.style.left = `${Math.max(8, Math.min(innerWidth - w - 8, d.classList.contains('tower-cols') ? r.left : r.right - w))}px`;
+  }, true);
+  addEventListener('resize', () => { for (const d of document.querySelectorAll('.map-layers[open]')) d.open = false; });
   // Onglets ouverts : mémorisés pour chaque disposition
   for (const [id, head] of tabHeads()) {
     head.addEventListener('click', (e) => {
