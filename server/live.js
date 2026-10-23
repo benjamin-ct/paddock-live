@@ -52,6 +52,7 @@ export class LiveSource {
       try { this.ws.terminate(); } catch { /* ignore */ }
       this.ws = null;
     }
+    this.connectedAt = 0;
     this.setStatus({ connected: false });
   }
 
@@ -60,11 +61,16 @@ export class LiveSource {
     if (this.hub.source.mode === 'live') Object.assign(this.hub.source, this.status);
   }
 
-  // Connecté sans GPS alors qu'un autre jeton valide est arrivé depuis (jeton expiré au lancement puis
-  // renouvelé tout seul, « Renouveler maintenant ») : nouvelle connexion avec ce jeton
-  tokenChanged() {
+  // Séance en cours (chronos reçus), jeton F1 TV présent, mais pas de GPS une minute après la connexion :
+  // nouvelle connexion, une fois par séance et par jeton. La F1 n'envoie pas le GPS à une connexion ouverte
+  // avant le début de la séance, ni à une connexion faite sans jeton (expiré au lancement, renouvelé ensuite)
+  gpsRetry(now = Date.now()) {
     const token = this.getToken();
-    return !this.status.authenticated && !!token && token !== this.usedToken;
+    if (!token || this.status.authenticated || !this.connectedAt || now - this.connectedAt < 60000 || now - (this.lastTimingAt || 0) > 30000) return false;
+    const key = `${this.hub.sessionKey}|${token}`;
+    if (this.gpsRetried === key) return false;
+    this.gpsRetried = key;
+    return true;
   }
 
   scheduleReconnect() {
@@ -77,7 +83,6 @@ export class LiveSource {
   async connect() {
     if (!this.active) return;
     const token = this.getToken();
-    this.usedToken = token;
     const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
     try {
       const res = await request(`${BASE}/negotiate?negotiateVersion=1`, {
@@ -107,7 +112,7 @@ export class LiveSource {
         this.lastMessageAt = Date.now();
         this.setStatus({ stale: false });
         this.timers.push(setInterval(() => {
-          if (this.tokenChanged()) { this.restart(); return; }
+          if (this.gpsRetry()) { this.restart(); return; }
           if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 6 }) + RS);
           // Données figées depuis 25 s : signalé (badge « LIVE » en orange) avant la reconnexion des 60 s
           if (Date.now() - this.lastMessageAt > 25000 && !this.status.stale) this.setStatus({ stale: true });
@@ -187,6 +192,7 @@ export class LiveSource {
       }
       this.addEvent('__snapshot', snapshot, now);
       const authenticated = 'Position.z' in result || 'CarData.z' in result;
+      this.connectedAt = now;
       this.setStatus({ connected: true, error: null, authenticated });
       this.hub.source.session = sessionLabel(result.SessionInfo);
     };

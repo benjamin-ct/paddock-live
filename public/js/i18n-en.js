@@ -1494,7 +1494,7 @@ export default {
   "Temps perdu au stand": "Time lost in the pits",
   "Temps prévu du tour lancé": "Predicted time of the flying lap",
   "Temps prévu du tour lancé et position visée": "Predicted lap time and target position",
-  "Temps réel (0 s)": "Real time (0 s)",
+  "Temps réel (5 s)": "Real time (5 s)",
   "Temps restant": "Time left",
   "Temps supprimés": "Deleted times",
   "Temps supprimés pour une autre raison (double drapeau jaune…)": "Times deleted for another reason (double yellow…)",

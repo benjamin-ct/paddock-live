@@ -17,6 +17,10 @@ l'application (Réglages → À propos → Nouveautés).
   compte à rebours du premier Grand Prix dès que le calendrier est connu.
 
 ### En direct
+- Connexion F1 TV : l'appli ouverte avant le début d'une séance reçoit maintenant le GPS et la télémétrie environ
+  une minute après le départ. Jusqu'ici, elle restait en positions estimées (carte saccadée) jusqu'à ce qu'on la redémarre.
+- Délai TV de 5 s au minimum (« Temps réel (5 s) ») : le GPS et la télémétrie arrivent quelques secondes après
+  les chronos ; à 0 s, la carte et la télémétrie avançaient par à-coups.
 - Une pénalité purgée n'apparaît plus une deuxième fois (résumé de la séance, moments clés, « Pendant votre
   absence »).
 - « Pendant votre absence » fonctionne aussi quand on s'absente pendant un drapeau rouge.
