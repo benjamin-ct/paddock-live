@@ -977,7 +977,11 @@ async function unlock() {
   const code = await askCode();
   if (!code) return;
   const res = await fetch('/api/creator', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code }) }).catch(() => null);
-  if (res?.ok) { show(true); toast(t('Mode créateur activé : bouton « Posts » dans la barre latérale'), 4000, 'check'); } else toast(t(res?.status === 403 ? 'Code incorrect' : 'Activation impossible'), 3000, 'warning');
+  if (res?.ok) {
+    const { restored } = await res.json().catch(() => ({}));
+    show(true);
+    toast(restored ? t('Mode créateur activé : {} compte(s) repris de la page web', restored) : t('Mode créateur activé : bouton « Posts » dans la barre latérale'), 4000, 'check');
+  } else toast(t(res?.status === 403 ? 'Code incorrect' : 'Activation impossible'), 3000, 'warning');
 }
 
 export function initSocial() {
