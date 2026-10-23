@@ -551,8 +551,10 @@ function animate() {
   animate.t = setTimeout(() => el.classList.remove('sz-anim'), 500);
 }
 
-export function openSeason(sec) {
+// y : saison à afficher (bilan de la saison passée depuis l'accueil hors saison)
+export function openSeason(sec, y) {
   if (sec) section = sec;
+  if (y && y !== year) { year = y; data = null; stats = null; fia = null; $('#szYear').value = String(y); }
   jump = true;
   import('./news.js').then((m) => m.closeNews());
   import('./home.js').then((m) => { m.homeTouched(); m.closeHome(); });

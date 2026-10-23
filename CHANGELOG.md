@@ -11,6 +11,11 @@ l'application (Réglages → À propos → Nouveautés).
   le voulez, et les grosses news, sur votre téléphone. Page paddocklive.app/alertes, à ouvrir sur le téléphone
   (QR code dans Réglages → Alertes & favoris) ; sur iPhone, l'ajouter d'abord à l'écran d'accueil. Sans compte.
 
+### Accueil
+- Hors saison (prochaine séance dans plus de 3 semaines, ou calendrier pas encore publié) : l'accueil met en avant
+  le bilan de la saison passée, les replays des courses et l'actu (transferts, nouvelles voitures), avec le
+  compte à rebours du premier Grand Prix dès que le calendrier est connu.
+
 ### En direct
 - Une pénalité purgée n'apparaît plus une deuxième fois (résumé de la séance, moments clés, « Pendant votre
   absence »).
