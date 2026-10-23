@@ -3,7 +3,7 @@
 // et au départ de la course (podium) ; pronostics des autres cachés jusque-là.
 import fs from 'node:fs';
 import path from 'node:path';
-import { DATA_DIR } from './config.js';
+import { DATA_DIR, writeFileAtomic } from './config.js';
 import { season } from './season.js';
 import { request } from './net.js';
 import { playerKey, predictView, checkPick } from '../shared/predict.js';
@@ -18,7 +18,7 @@ function load() {
   return data;
 }
 function save() {
-  try { fs.writeFileSync(FILE, JSON.stringify(data, null, 1)); } catch (err) { console.warn('[pronostics]', err.message); }
+  try { writeFileAtomic(FILE, JSON.stringify(data, null, 1)); } catch (err) { console.warn('[pronostics]', err.message); }
 }
 
 export async function predictionsView(year, me, now = Date.now()) {

@@ -23,7 +23,7 @@ async function postJSON(url, body) {
 export function createCloudTranslator({ url = TRANSLATE_URL, post = postJSON, now = Date.now } = {}) {
   const pending = new Map();   // to -> [{ text, from, resolve }]
   const timers = new Map();
-  const memo = new Map();      // `${from}|${to}|${text}` -> traduction (mémoire de la session)
+  const memo = new Map();      // `${from}|${to}|${text}` -> traduction (5 000 dernières : appli ouverte des jours)
   let pausedUntil = 0;
 
   const available = () => !!url && now() >= pausedUntil;
@@ -55,6 +55,7 @@ export function createCloudTranslator({ url = TRANSLATE_URL, post = postJSON, no
       part.forEach((p, j) => {
         const t = typeof out[j] === 'string' && out[j].trim() && !badScript(out[j], to) ? out[j] : null;
         if (t) memo.set(`${p.from}|${to}|${p.text}`, t);
+        if (memo.size > 5000) memo.delete(memo.keys().next().value);
         p.resolve(t);
       });
     }
@@ -64,7 +65,7 @@ export function createCloudTranslator({ url = TRANSLATE_URL, post = postJSON, no
     available,
     // Traduction d'un texte, ou null (serveur indisponible, langue non prise en charge…)
     translate(text, from, to) {
-      text = String(text || '').trim();
+      text = String(text || '').trim().slice(0, 2000);   // coupé avant la mémoire : même clé à l'envoi et à la lecture
       if (!text || !LANGS.includes(to)) return Promise.resolve(null);
       if (!LANGS.includes(from)) from = 'en';
       if (from === to) return Promise.resolve(text);
@@ -73,7 +74,7 @@ export function createCloudTranslator({ url = TRANSLATE_URL, post = postJSON, no
       if (!available()) return Promise.resolve(null);
       return new Promise((resolve) => {
         const list = pending.get(to) || [];
-        list.push({ text: text.slice(0, 2000), from, resolve });
+        list.push({ text, from, resolve });
         pending.set(to, list);
         if (list.length >= BATCH) flush(to);
         else if (!timers.has(to)) timers.set(to, setTimeout(() => flush(to), WAIT_MS));

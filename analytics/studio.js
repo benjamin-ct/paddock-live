@@ -34,7 +34,7 @@ import { callerIp, studioQuota } from './quota.js';
 // Empreinte du code (la même que dans l'appli) : SHA-256 de « paddock-live:<CODE> » (STUDIO_CODE_HASH :
 // autre empreinte, pour les tests)
 const CODE_HASH = 'b8c23e870aa1ad8a9f8b0c4b4b38fb5911b92b1ff024e14044915ee3a6cee216';
-const MAX_FAILS = 30;
+export const MAX_FAILS = 30;
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36';
 const ARCHIVE = 'https://livetiming.formula1.com/static/';
 const IMG_HOSTS = new Set(['media.formula1.com', 'www.formula1.com', 'flagcdn.com', 'upload.wikimedia.org', 'thumb.wikimedia.org', 'live.staticflickr.com']);   // + photos libres (photos.js)
@@ -77,10 +77,11 @@ export async function seasonRow(env, year, { now = Date.now(), fetchFn, wait, ma
 // ---------- Essais ratés ----------
 const ipOf = (req) => callerIp(req) || 'local';
 const today = () => new Date().toISOString().slice(0, 10);
-async function fails(env, req) {
+// Essais ratés par adresse et par jour (code du Studio, mot de passe des statistiques)
+export async function fails(env, req) {
   return (await env.DB.prepare('SELECT n FROM studio_fail WHERE ip = ? AND day = ?').bind(ipOf(req), today()).first())?.n || 0;
 }
-async function failed(env, req) {
+export async function failed(env, req) {
   await env.DB.prepare('INSERT INTO studio_fail (ip, day, n) VALUES (?, ?, 1) ON CONFLICT(ip, day) DO UPDATE SET n = n + 1').bind(ipOf(req), today()).run();
   await new Promise((r) => setTimeout(r, 600));
 }
@@ -562,7 +563,8 @@ async function claim(env, k) {
 
 // Envoi d'un réseau demandé par la tâche planifiée (appel du Worker à lui-même, clé du serveur exigée)
 export async function schedInternal(req, env) {
-  if (!env.STATS_KEY || !sameHex(req.headers.get('X-Sched-Key') || '', env.STATS_KEY)) return json({ error: 'Interdit' }, 403);
+  if (await fails(env, req) >= MAX_FAILS) return json({ error: 'Trop d\'essais aujourd\'hui' }, 429);
+  if (!env.STATS_KEY || !sameHex(req.headers.get('X-Sched-Key') || '', env.STATS_KEY)) { await failed(env, req); return json({ error: 'Interdit' }, 403); }
   let only;
   try { only = await req.json(); } catch { return json({ error: 'JSON invalide' }, 400); }
   return json({ out: await runSchedule(env, { now: Number(only?.now) || Date.now(), only: { id: String(only?.id || ''), net: String(only?.net || '') } }) });
@@ -572,18 +574,22 @@ export async function schedInternal(req, env) {
 // à part, tous en même temps ; chaque appel a toutes les sous-requêtes permises à un passage du Worker (50 ;
 // un carrousel Instagram en prend déjà une bonne part). Sinon (ou only : réseau demandé) : un réseau par
 // passage. Réseau réservé (claim) avant l'envoi, commencé dans les 40 premières secondes : jamais renvoyé
-// Journal des publications complété par un réseau : écrit seulement si personne ne l'a changé depuis sa
-// lecture (les réseaux d'un même post finissent souvent en même temps et s'écrasaient), 5 essais
-async function addHistory(env, entry) {
+// Journal des publications modifié (fn : liste -> nouvelle liste) : écrit seulement si personne ne l'a changé
+// depuis sa lecture (réseaux d'un même post, appli et publication programmée en même temps), 5 essais
+async function updateHistory(env, fn) {
+  let next = [];
   for (let i = 0; i < 5; i++) {
     const raw = await getRow(env, 'history');
-    const v = JSON.stringify(addEntry(JSON.parse(raw || '[]'), entry));
+    next = fn(JSON.parse(raw || '[]'));
+    const v = JSON.stringify(next);
     const r = raw === null
       ? await env.DB.prepare('INSERT INTO studio (k, v, at) VALUES (?, ?, ?) ON CONFLICT(k) DO NOTHING').bind('history', v, Date.now()).run()
       : await env.DB.prepare('UPDATE studio SET v = ?, at = ? WHERE k = ? AND v = ?').bind(v, Date.now(), 'history', raw).run();
-    if (r?.meta?.changes === 1) return;
+    if (r?.meta?.changes === 1) break;
   }
+  return next;
 }
+const addHistory = (env, entry) => updateHistory(env, (list) => addEntry(list, entry));
 
 // Publication en retard de plus de 5 minutes (appels qui échouent, réseau en panne…) : une notification sur
 // le téléphone, une seule fois par programmation (ligne schedpost:<id>:late, effacée avec les autres)
@@ -721,6 +727,8 @@ export async function studioApi(req, env, url) {
     return json({ ok: true });
   }
   if (path === 'forget' && req.method === 'POST') {
+    // Visuels et vidéos des programmations en attente : effacés avec elles (plus rien ne les retrouverait)
+    for (const j of await schedJobs(env)) await dropMedia(env, j.id);
     await env.DB.prepare('DELETE FROM studio').run();
     return json({ ok: true });
   }
@@ -770,12 +778,11 @@ export async function studioApi(req, env, url) {
       if (path === 'history/remove') {
         if (!cleanKey(body?.key)) return json({ error: 'Post inconnu' }, 400);
         const r = removeEntry(list, removed, body.key);
-        await setRow(env, 'history', JSON.stringify(r.items));
+        r.items = await updateHistory(env, (l) => removeEntry(l, [], body.key).items);
         await setRow(env, 'history-removed', JSON.stringify(r.removed));
         return json(r);
       }
-      const next = addEntry(list, body?.entry);
-      await setRow(env, 'history', JSON.stringify(next));
+      const next = await addHistory(env, body?.entry);
       // Même post republié : il compte de nouveau
       const k = cleanKey(body?.entry?.key);
       if (k && removed.includes(k)) await setRow(env, 'history-removed', JSON.stringify(removed.filter((x) => x !== k)));
@@ -813,11 +820,10 @@ export async function studioApi(req, env, url) {
   if (path === 'history/import' && req.method === 'POST') {
     const v = await refresh(env, a.raw, vault);
     const { posts, errors } = await recentPosts({ meta: v.meta, threads: v.threads, bluesky: v.bluesky });
-    const list = JSON.parse(await getRow(env, 'history') || '[]');
     const removed = JSON.parse(await getRow(env, 'history-removed') || '[]');
-    const add = importEntries(list, removed, posts);
-    if (add.length) await setRow(env, 'history', JSON.stringify(add.reduce(addEntry, list)));
-    return json({ added: add.length, errors });
+    let added = 0;
+    await updateHistory(env, (list) => { const add = importEntries(list, removed, posts); added = add.length; return add.reduce(addEntry, list); });
+    return json({ added, errors });
   }
   // Chiffres des posts et chiffres des comptes : deux appels, chacun sous la limite de 50 requêtes
   // vers l'extérieur par appel du serveur (ensemble, Facebook ou TikTok la dépassaient)

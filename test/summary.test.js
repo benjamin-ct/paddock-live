@@ -13,7 +13,8 @@ const state = {
   } },
   TimingAppData: { Lines: { 1: { GridPos: '2', Stints: [{ Compound: 'MEDIUM' }, { Compound: 'HARD' }] }, 16: { GridPos: '1' }, 44: { GridPos: '10' }, 18: { GridPos: '8' }, 14: { GridPos: '6' } } },
   TimingStats: { Lines: { 44: { PersonalBestLapTime: { Value: '1:21.000', Position: 1, Lap: 50 } } } },
-  RaceControlMessages: { Messages: [{ Message: 'SAFETY CAR DEPLOYED', Lap: 12 }, { Message: 'FIA STEWARDS: 5 SECOND TIME PENALTY FOR CAR 18 (STR) - SPEEDING IN THE PIT LANE' }] },
+  RaceControlMessages: { Messages: [{ Message: 'SAFETY CAR DEPLOYED', Lap: 12 }, { Message: 'FIA STEWARDS: 5 SECOND TIME PENALTY FOR CAR 18 (STR) - SPEEDING IN THE PIT LANE' },
+    { Message: 'FIA STEWARDS: PENALTY SERVED - 5 SECOND TIME PENALTY FOR CAR 18 (STR) - SPEEDING IN THE PIT LANE' }] },   // purgée : pas une 2e
 };
 
 test('résumé : course terminée (vainqueur, écart, remontée, stratégie, neutralisations, abandons, pénalités)', () => {

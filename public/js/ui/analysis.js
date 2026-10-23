@@ -450,14 +450,21 @@ function renderSectors() {
 }
 
 // Onglets d'analyse affichés (actifs dans leur panneau, panneau visible), où qu'ils soient
+// Données du chronométrage seules changées (plusieurs fois par seconde en course) : une fois par seconde au plus ;
+// réglages, survol, pilote suivi, taille : tout de suite
+const lastAt = {};
 export function renderAnalysis(force = false) {
-  const base = `${versionOf(['TimingData', 'TimingAppData', 'TimingStats', 'DriverList', 'RaceControlMessages', '__reset'])}|${JSON.stringify(opts)}|${highlight}|${hoverX}|${store.duel.a}|${store.duel.b}|${prefs.favs.join()}`;
+  const data = versionOf(['TimingData', 'TimingAppData', 'TimingStats', 'DriverList', 'RaceControlMessages', '__reset']);
+  const ui = `${JSON.stringify(opts)}|${highlight}|${hoverX}|${store.duel.a}|${store.duel.b}|${prefs.favs.join()}`;
   for (const [tab, fn] of Object.entries(RENDER)) {
     const pane = document.querySelector(`[data-pane="${tab}"]`);
     if (!pane?.classList.contains('active') || !pane.offsetParent) continue;
-    const key = `${base}|${pane.clientWidth}x${pane.clientHeight}`;
+    const view = `|${ui}|${pane.clientWidth}x${pane.clientHeight}`;
+    const key = `${data}${view}`;
     if (!force && key === lastKeys[tab]) continue;
+    if (!force && lastKeys[tab]?.endsWith(view) && performance.now() - (lastAt[tab] || 0) < 1000) continue;
     lastKeys[tab] = key;
+    lastAt[tab] = performance.now();
     fn();
   }
 }

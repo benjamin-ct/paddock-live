@@ -28,7 +28,12 @@ function portFree(port) {
 async function pickPort() {
   // Port fixe de préférence (le favori « jeton F1 TV » pointe vers http://127.0.0.1:3000).
   for (const p of [3000, 3001, 3002, 3010]) if (await portFree(p)) return p;
-  return 0;
+  // Tous pris : un port libre donné par le système (l'appli se fermait sans message sur le port 3000 occupé)
+  return new Promise((resolve) => {
+    const srv = net.createServer();
+    srv.once('error', () => resolve(0));
+    srv.listen(0, '127.0.0.1', () => { const { port } = srv.address(); srv.close(() => resolve(port)); });
+  });
 }
 
 let mainWindow = null;
@@ -186,9 +191,15 @@ async function sendToken(value) {
   return data;
 }
 
+// Fenêtres de sites extérieurs (connexion F1, publication sur X / Threads / Bluesky) : position, micro,
+// caméra, notifications… refusés sans rien demander (Electron accepte tout par défaut) ; presse-papiers
+// gardé pour coller l'image d'un post
+const denyPermissions = (ses) => ses.setPermissionRequestHandler((_wc, permission, cb) => cb(/^clipboard/.test(permission)));
+
 function loginF1TV() {
   if (loginWindow) { loginWindow.focus(); return Promise.resolve({ pending: true }); }
   const ses = session.fromPartition('persist:f1tv');
+  denyPermissions(ses);
   return new Promise((resolve) => {
     loginWindow = new BrowserWindow({
       width: 1000,
@@ -279,6 +290,7 @@ function openCompose(url) {
     width: 720, height: 780, title, autoHideMenuBar: true, icon: APP_ICON, backgroundColor: '#000000',
     webPreferences: { partition: `persist:${net}`, contextIsolation: true, sandbox: true },
   });
+  denyPermissions(win.webContents.session);
   composeWindows.set(net, win);
   // Liens vers d'autres sites : navigateur par défaut
   win.webContents.setWindowOpenHandler(({ url: target }) => {

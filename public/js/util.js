@@ -158,6 +158,13 @@ export function orderedNumbers(state) {
   return [...nums].filter((n) => lines[n] || dl[n]).sort((a, b) => rank(a) - rank(b));
 }
 
+// Date (AAAA-MM-JJ) d'un instant dans un fuseau : les prévisions météo sont datées à l'heure du circuit (la course du
+// soir à Las Vegas est le lendemain en UTC) ; sans fuseau connu, la date UTC
+export function dayIn(t, tz) {
+  try { if (tz) return new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(t)); } catch { /* fuseau inconnu */ }
+  return new Date(t).toISOString().slice(0, 10);
+}
+
 export function throttle(fn, ms) {
   let last = 0, timer = null;
   return (...args) => {

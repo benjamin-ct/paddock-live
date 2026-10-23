@@ -18,6 +18,7 @@ test('moments clés : départ, voiture de sécurité, leader, arrêts groupés, 
     ev(150000, 'TrackStatus', { Status: '1' }),
     ev(160000, 'RaceControlMessages', { Messages: { 3: { Message: 'FIA STEWARDS: 5 SECOND TIME PENALTY FOR CAR 44 (HAM) - CAUSING A COLLISION (14:00:00)' } } }),
     ev(170000, 'RaceControlMessages', { Messages: { 4: { Message: 'FIA STEWARDS: TURN 1 INCIDENT INVOLVING CARS 1 (NOR) AND 16 (LEC) NO FURTHER ACTION' } } }),
+    ev(180000, 'RaceControlMessages', { Messages: { 5: { Message: 'FIA STEWARDS: PENALTY SERVED - 5 SECOND TIME PENALTY FOR CAR 44 (HAM) - CAUSING A COLLISION (14:02:00)' } } }),
     ev(200000, 'SessionStatus', { Status: 'Finished' }),
     ev(205000, 'TimingData', { Lines: { 44: { Stopped: true } } }),
   ];

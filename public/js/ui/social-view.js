@@ -145,7 +145,7 @@ function sessionSource(sig) {
   }
   const d = postData(state, { laps: store.derived?.laps });
   const warn = d.final ? '' : `<p class="posts-warn small">${icon('warning')} ${t('Séance pas terminée : résultats provisoires.')}</p>`;
-  return { d, caps: (dd) => captions(dd, sig, { spoiler: !noSpoiler }), head: types + warn, record: { key: `session:${folderOf(d)}`, kind: 'session', title: `${d.label} · ${d.gp}` } };
+  return { d, caps: (dd) => captions(dd, sig, { spoiler: !noSpoiler }), head: types + warn, record: { key: `session:${state.SessionInfo?.Path || folderOf(d)}`, kind: 'session', title: `${d.label} · ${d.gp}` } };   // chemin des archives : même clé que le Studio (plan du week-end)
 }
 
 // ---------- Posts de saison : programme, records, notes, duels, course tour par tour ----------

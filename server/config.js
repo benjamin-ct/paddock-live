@@ -14,10 +14,20 @@ const defaults = {
   f1tvToken: null,
 };
 
+// Écriture complète ou rien : fichier temporaire renommé (une coupure pendant l'écriture laissait un fichier vide)
+export function writeFileAtomic(file, data) {
+  const tmp = `${file}.tmp`;
+  fs.writeFileSync(tmp, data);
+  fs.renameSync(tmp, file);
+}
+
 let current = { ...defaults };
 try {
   current = { ...defaults, ...JSON.parse(fs.readFileSync(FILE, 'utf8')) };
-} catch { /* pas encore de config */ }
+} catch (err) {
+  // Fichier abîmé : mis de côté (config.json.bad) avant d'être remplacé par les réglages par défaut
+  if (err.code !== 'ENOENT') try { fs.copyFileSync(FILE, `${FILE}.bad`); } catch { /* illisible */ }
+}
 
 if (process.env.F1TV_TOKEN) current.f1tvToken = process.env.F1TV_TOKEN;
 
@@ -33,7 +43,7 @@ export function getConfig() {
 
 export function saveConfig(patch) {
   current = { ...current, ...patch };
-  fs.writeFileSync(FILE, JSON.stringify(current, null, 2));
+  writeFileAtomic(FILE, JSON.stringify(current, null, 2));
   return current;
 }
 
