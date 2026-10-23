@@ -52,6 +52,13 @@ l'application (Réglages → À propos → Nouveautés).
   étaient jusqu'ici écartées sans rien dire.
 - Petites améliorations internes.
 
+## v1.28.2 — 2026-10-23
+
+### En direct
+- Connexion F1 TV : les positions GPS et la télémétrie arrivent même quand l'appli est restée fermée plus de
+  4 jours. Le jeton, renouvelé tout seul au lancement, n'était pas utilisé par le direct déjà en cours : positions
+  estimées (carte saccadée) pendant toute la séance.
+
 ## v1.28.1 — 2026-10-23
 
 ### Divers
