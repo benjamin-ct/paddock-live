@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Paddock Live · La Formule 1 en direct, calée sur ta TV</title>
-<meta name="description" content="Application gratuite pour suivre chaque Grand Prix en direct sur ton ordinateur : chronos, carte GPS, radios traduites, stratégie, calés sur ta diffusion TV pour ne jamais te spoiler la course. Windows, macOS, Linux.">
+<title>Paddock Live · Live timing F1 gratuit, calé sur ta TV</title>
+<meta name="description" content="Live timing F1 gratuit sur ton ordinateur : chronos, carte GPS, radios traduites et stratégie de chaque Grand Prix, calés sur ta diffusion TV pour ne jamais te spoiler la course. Windows, macOS, Linux.">
 <meta name="theme-color" content="#000000">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Paddock Live : la F1 en direct, calée sur ta TV">
@@ -18,6 +18,10 @@
 <meta property="og:site_name" content="Paddock Live">
 <meta name="twitter:image" content="https://paddocklive.app/site/img/apercu.png">
 <link rel="canonical" href="https://paddocklive.app/">
+<link rel="alternate" hreflang="fr" href="https://paddocklive.app/">
+<link rel="alternate" hreflang="en" href="https://paddocklive.app/?lang=en">
+<link rel="alternate" hreflang="x-default" href="https://paddocklive.app/">
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Paddock Live","url":"https://paddocklive.app/"},{"@type":"SoftwareApplication","name":"Paddock Live","description":"Live timing F1 gratuit : chronos, carte GPS, radios traduites et stratégie, calés sur ta diffusion TV.","operatingSystem":"Windows, macOS, Linux","applicationCategory":"SportsApplication","offers":{"@type":"Offer","price":"0","priceCurrency":"EUR"},"url":"https://paddocklive.app/","image":"https://paddocklive.app/site/img/apercu.png","sameAs":["https://www.instagram.com/paddockliveapp/","https://www.facebook.com/paddockliveapp","https://www.tiktok.com/@paddockliveapp","https://x.com/paddockliveapp","https://www.threads.com/@paddockliveapp","https://bsky.app/profile/paddocklive.app","https://www.youtube.com/@paddockliveapp","https://github.com/benjamin-ct/paddock-live"]}]}</script>
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="/site/img/logo.png">
 <link rel="apple-touch-icon" href="/site/img/apple-touch-icon.png">
@@ -233,7 +237,7 @@ dialog.hide a { border-radius: 6px; }
     <div class="wrap">
       <span class="eyebrow" data-en="Free app · Windows, macOS, Linux">Appli gratuite · Windows, macOS, Linux</span>
       <h1 data-en="The F1 pit wall, <span class='red'>in your living room</span>">Le mur des stands <span class="red">à la maison</span></h1>
-      <p class="lead" data-en="Live timing, GPS map, translated team radio and strategy, synced to your TV. Without a single spoiler.">Chronos, carte GPS, radios traduites et stratégie en direct, calés sur ta TV. Sans jamais te faire spoiler.</p>
+      <p class="lead" data-en="F1 live timing, GPS map, team radio and strategy, synced to your TV. Without a single spoiler.">Live timing F1, carte GPS, radios traduites et stratégie en direct, calés sur ta TV. Sans jamais te faire spoiler.</p>
       <div class="cta">
         <a class="btn primary" id="cta" href="#telecharger"><svg><use href="#i-dl"/></svg><span data-en="Download for free">Télécharger gratuitement</span></a>
         <a class="btn" href="#fonctions" data-en="See the features">Voir les fonctionnalités</a>
@@ -385,6 +389,7 @@ dialog.hide a { border-radius: 6px; }
       <details><summary data-en="Do I need F1 TV?">Faut-il F1 TV ?</summary><p data-en="No. With F1 TV you also get exact GPS and telemetry.">Non. Avec F1 TV, tu as en plus le GPS exact et la télémétrie.</p></details>
       <details><summary data-en="How does it avoid spoilers?">Comment ça évite les spoilers ?</summary><p data-en="Set your broadcast delay once (or let the app find it): everything shows with your picture.">Tu règles le délai de ta diffusion une fois (ou l'appli le trouve) : tout s'affiche avec ton image.</p></details>
       <details><summary data-en="Does it work on a phone?">Ça marche sur téléphone ?</summary><p data-en="Yes: scan the QR code shown by your computer.">Oui : scanne le QR code affiché par ton ordinateur.</p></details>
+      <details><summary data-en="How is it different from MultiViewer?">Quelle différence avec MultiViewer ?</summary><p data-en="MultiViewer is mainly for watching F1 TV in several windows. Paddock Live doesn't stream video: it goes alongside your broadcast with live timing, the map and team radio, synced to your TV. <a href='/en/multiviewer-alternative/'>The comparison</a>.">MultiViewer sert surtout à regarder F1 TV sur plusieurs fenêtres. Paddock Live ne diffuse pas de vidéo : il accompagne ta diffusion avec le live timing, la carte et les radios, calés sur ta TV. <a href="/alternative-multiviewer/">Le comparatif</a>.</p></details>
       <details><summary data-en="Is it an official F1 app?">C'est une appli officielle de la F1 ?</summary><p data-en="No. Paddock Live is an independent project, not affiliated with Formula 1, the FIA or the teams.">Non. Paddock Live est un projet indépendant, sans lien avec la Formula 1, la FIA ni les écuries.</p></details>
       <details><summary data-en="What about my data?">Et mes données ?</summary><p data-en="Your accounts stay on your computer; only anonymous usage stats are sent.">Tes comptes restent sur ton ordinateur ; seules des statistiques anonymes sont envoyées.</p></details>
       <form class="ask" id="ask">
@@ -419,11 +424,13 @@ dialog.hide a { border-radius: 6px; }
       <a href="#telecharger" data-en="Download">Télécharger</a>
       <a href="https://github.com/benjamin-ct/paddock-live/releases" data-en="All versions">Toutes les versions</a>
       <a href="/p/" data-en="Predictions with friends (online)">Pronostics entre amis (en ligne)</a>
-      <a href="/radios-f1-traduites/" data-en="Translated team radios">Radios F1 traduites</a>
-      <a href="/timing-f1-sans-spoiler/" data-en="Spoiler-free live timing">Live timing sans spoiler</a>
-      <a href="/carte-gps-f1/" data-en="Live track map">Carte GPS en direct</a>
-      <a href="/replays-f1/" data-en="Session replays">Replays des séances</a>
-      <a href="/overlay-f1-obs/" data-en="Overlays for OBS">Overlays pour OBS</a>
+      <a href="/live-timing-f1/" data-href-en="/en/f1-live-timing/" data-en="F1 live timing">Live timing F1</a>
+      <a href="/radios-f1-traduites/" data-href-en="/en/f1-team-radio-translated/" data-en="Team radio, transcribed">Radios F1 traduites</a>
+      <a href="/timing-f1-sans-spoiler/" data-href-en="/en/spoiler-free-f1-live-timing/" data-en="Spoiler-free live timing">Live timing sans spoiler</a>
+      <a href="/carte-gps-f1/" data-href-en="/en/f1-live-track-map/" data-en="Live track map">Carte GPS en direct</a>
+      <a href="/replays-f1/" data-href-en="/en/f1-session-replays/" data-en="Session replays">Replays des séances</a>
+      <a href="/overlay-f1-obs/" data-href-en="/en/f1-obs-overlay/" data-en="Overlays for OBS">Overlays pour OBS</a>
+      <a href="/alternative-multiviewer/" data-href-en="/en/multiviewer-alternative/" data-en="MultiViewer alternative">Alternative à MultiViewer</a>
       <a href="/legal/terms" data-en="Terms of Service">Conditions d'utilisation</a>
       <a href="/legal/privacy" data-en="Privacy Policy">Confidentialité</a>
     </div>
@@ -444,16 +451,23 @@ const SOCIAL = [
 ];
 document.getElementById('social').innerHTML = SOCIAL.map(([n, u]) => `<a href="${u}" target="_blank" rel="noopener">${n}</a>`).join('');
 
-// Langue : français par défaut, anglais si le navigateur n'est pas en français (ou bouton EN / FR)
+// Langue : français par défaut, anglais si le navigateur n'est pas en français (ou bouton EN / FR). Les robots des
+// moteurs de recherche (réglés en anglais) gardent le français sur / : la version anglaise a sa propre adresse
+// (/?lang=en, annoncée par hreflang), avec son titre, sa description et son adresse canonique
 const els = [...document.querySelectorAll('[data-en]')];
 for (const el of els) el.dataset.fr = el.innerHTML;
-const META = { fr: document.title, en: 'Paddock Live · Live Formula 1, synced to your TV' };
+const META = { fr: document.title, en: 'Paddock Live · Free F1 live timing, synced to your TV' };
+const DESC = { fr: document.querySelector('meta[name="description"]').content, en: 'Free F1 live timing on your computer: timing, GPS track map, team radio and strategy for every Grand Prix, synced to your TV so the race is never spoiled. Windows, macOS, Linux.' };
+const bot = /bot|crawl|spider|slurp|lighthouse|preview/i.test(navigator.userAgent);
 let lang;
 function setLang(l) {
   lang = l;
   document.documentElement.lang = l;
   for (const el of els) el.innerHTML = l === 'en' ? el.dataset.en : el.dataset.fr;
   document.title = META[l];
+  document.querySelector('meta[name="description"]').content = DESC[l];
+  document.querySelector('link[rel="canonical"]').href = l === 'en' ? 'https://paddocklive.app/?lang=en' : 'https://paddocklive.app/';
+  for (const el of document.querySelectorAll('[data-href-en]')) { el.dataset.hrefFr ??= el.getAttribute('href'); el.setAttribute('href', l === 'en' ? el.dataset.hrefEn : el.dataset.hrefFr); }
   for (const el of document.querySelectorAll('[data-ph-en]')) { el.dataset.phFr ??= el.placeholder; el.placeholder = l === 'en' ? el.dataset.phEn : el.dataset.phFr; }
   const b = document.getElementById('lang');
   b.textContent = l === 'en' ? 'FR' : 'EN';
@@ -546,7 +560,8 @@ ask.addEventListener('drop', (e) => { e.preventDefault(); ask.classList.remove('
 
 let saved = null;
 try { saved = localStorage.getItem('pl.lang'); } catch { /* sans stockage */ }
-setLang(new URLSearchParams(location.search).get('lang') || saved || (/^fr\b/i.test(navigator.language) ? 'fr' : 'en'));
+const asked = new URLSearchParams(location.search).get('lang');
+setLang(asked === 'en' || asked === 'fr' ? asked : bot ? 'fr' : saved || (/^fr\b/i.test(navigator.language) ? 'fr' : 'en'));
 
 // Menu caché : 5 touches rapides sur le logo du bas de page (ou l'adresse se terminant par #paddock)
 // -> statistiques d'utilisation et Studio (chacun protégé par son mot de passe ou son code)
