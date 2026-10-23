@@ -126,6 +126,7 @@ jobs:
     env:
       RELEASE_TAG: ${{ needs.version.outputs.tag }}
       BETA: ${{ contains(needs.version.outputs.tag, '-') }}
+      WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
     steps:
       - uses: actions/checkout@v4
       # Nouveautés de la version (CHANGELOG.md) + instructions d'installation ; échoue si la
@@ -185,6 +186,17 @@ jobs:
           done
           printf '%s' "$v" > version.txt
           $W put paddock-live-media/releases/version --file version.txt --remote
+      # Catalogue Windows (winget) : nouvelle version envoyée à microsoft/winget-pkgs, une fois la première version
+      # acceptée et le jeton WINGET_TOKEN ajouté aux secrets du dépôt (docs/CATALOGUES.md) ; sinon rien
+      - name: Catalogue winget
+        if: env.BETA != 'true' && env.WINGET_TOKEN != ''
+        continue-on-error: true
+        uses: vedantmgoyal9/winget-releaser@v2
+        with:
+          identifier: PaddockLive.PaddockLive
+          release-tag: ${{ env.RELEASE_TAG }}
+          installers-regex: '-x64-win\.exe$'
+          token: ${{ secrets.WINGET_TOKEN }}
       # Bêtas : les 3 dernières gardées ; version finale : ses bêtas effacées
       - name: Anciennes bêtas effacées
         continue-on-error: true

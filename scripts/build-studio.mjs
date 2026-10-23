@@ -6,6 +6,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { PAGES, linksPage } from '../analytics/links/pages.mjs';
+import { GUIDES, guidePage, sitemap, robots } from '../analytics/launch/guides.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = path.join(ROOT, 'analytics', 'site');
@@ -78,8 +79,17 @@ copy(path.join(ROOT, 'analytics', 'legal'), path.join(OUT, 'legal'));
 // Pack de présentation pour les streamers (/kit/streamers/, lien non listé donné dans les Réglages du Studio)
 copy(path.join(ROOT, 'analytics', 'launch-kit', 'streamers'), path.join(OUT, 'kit', 'streamers'));
 // Site de l'appli pour le lancement (/site/, racine d'un nom de domaine à soi), avec ses images
-copy(path.join(ROOT, 'analytics', 'launch'), path.join(OUT, 'site'), (f) => f !== 'img');
+copy(path.join(ROOT, 'analytics', 'launch'), path.join(OUT, 'site'), (f) => f !== 'img' && !f.endsWith('.mjs'));
+// Une page par grande fonction (/radios-f1-traduites/…), plan du site et règles pour les moteurs de recherche
+for (const g of GUIDES) {
+  fs.mkdirSync(path.join(OUT, g.slug), { recursive: true });
+  fs.writeFileSync(path.join(OUT, g.slug, 'index.html'), guidePage(g.slug));
+}
+fs.writeFileSync(path.join(OUT, 'sitemap.xml'), sitemap());
+fs.writeFileSync(path.join(OUT, 'robots.txt'), robots());
 copy(path.join(ROOT, 'analytics', 'launch', 'img'), path.join(OUT, 'site', 'img'));
+// Alertes sur le téléphone pour tout le monde (/alertes/, page à ajouter à l'écran d'accueil)
+copy(path.join(ROOT, 'analytics', 'alertes'), path.join(OUT, 'alertes'));
 // Extension Paddock Live Companion (/extension/, adresse donnée dans l'appli) : un bouton par boutique
 copy(path.join(ROOT, 'analytics', 'extension'), path.join(OUT, 'extension'));
 // Présentation publique de l'appli (/app/), site officiel déclaré à TikTok
@@ -108,6 +118,8 @@ fs.writeFileSync(path.join(OUT, '_headers'), `/studio/*
   Cache-Control: public, max-age=2592000
 /legal/*
   Cache-Control: public, max-age=3600
+/alertes/*
+  Cache-Control: no-cache
 /app/*
   Cache-Control: public, max-age=3600
 /site/*

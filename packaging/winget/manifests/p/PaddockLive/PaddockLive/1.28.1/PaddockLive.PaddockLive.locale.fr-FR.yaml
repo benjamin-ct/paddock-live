@@ -1,0 +1,25 @@
+PackageIdentifier: PaddockLive.PaddockLive
+PackageVersion: 1.28.1
+PackageLocale: fr-FR
+Publisher: Paddock Live
+PublisherUrl: https://paddocklive.app/
+PublisherSupportUrl: https://github.com/benjamin-ct/paddock-live/issues
+PrivacyUrl: https://paddocklive.app/legal/privacy
+PackageName: Paddock Live
+PackageUrl: https://paddocklive.app/
+License: MIT
+LicenseUrl: https://github.com/benjamin-ct/paddock-live/blob/main/LICENSE
+ShortDescription: Le timing de la Formule 1 en direct, calé sur la TV, sans spoiler.
+Description: |-
+  Application gratuite pour suivre chaque Grand Prix en direct : chronos, carte du circuit, radios d'équipe
+  retranscrites et traduites, stratégie et replays, calés sur votre diffusion TV pour ne jamais être spoilé.
+  Projet indépendant, sans lien avec la Formula 1, la FIA ni les écuries.
+Tags:
+- f1
+- formula-1
+- motorsport
+- live-timing
+- racing
+ReleaseNotesUrl: https://github.com/benjamin-ct/paddock-live/releases/tag/v1.28.1
+ManifestType: defaultLocale
+ManifestVersion: 1.10.0

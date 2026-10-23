@@ -4,7 +4,17 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → À propos → Nouveautés).
 
-## v1.28.2 — à venir
+## v1.29.0 — à venir
+
+### Alertes sur le téléphone
+- Même loin de l'ordinateur : un rappel 30 minutes avant chaque séance, les résultats (vainqueur, pole) si vous
+  le voulez, et les grosses news, sur votre téléphone. Page paddocklive.app/alertes, à ouvrir sur le téléphone
+  (QR code dans Réglages → Alertes & favoris) ; sur iPhone, l'ajouter d'abord à l'écran d'accueil. Sans compte.
+
+### Accueil
+- Hors saison (prochaine séance dans plus de 3 semaines, ou calendrier pas encore publié) : l'accueil met en avant
+  le bilan de la saison passée, les replays des courses et l'actu (transferts, nouvelles voitures), avec le
+  compte à rebours du premier Grand Prix dès que le calendrier est connu.
 
 ### En direct
 - Une pénalité purgée n'apparaît plus une deuxième fois (résumé de la séance, moments clés, « Pendant votre
@@ -14,6 +24,9 @@ l'application (Réglages → À propos → Nouveautés).
   pendant la course, au lieu de plusieurs fois : moins de calcul, surtout sur téléphone.
 
 ### Saison
+- Bilan de la saison (Saison → Bilan de la saison) : champion ou leader, victoires, poles, podiums, vainqueurs
+  différents, plus belle remontée, abandons, et la saison de vos pilotes favoris ; image à partager (copiée ou
+  enregistrée). Le bilan se complète à chaque course.
 - Notes des pilotes : un abandon compte comme la dernière place de la course (22 voitures en 2026), et plus
   comme une 20e place ; la répartition des arrivées montre aussi les 21e et 22e places.
 - Météo du week-end : la bonne journée pour les séances du soir (Las Vegas : la course du samedi soir n'est plus

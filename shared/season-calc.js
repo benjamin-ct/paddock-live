@@ -270,3 +270,29 @@ export function placeForMaxPoints(pts) {
   const i = RACE_POINTS.findIndex((p) => p <= pts);
   return i < 0 ? 11 : i + 1;
 }
+
+// Bilan de la saison (Saison → Bilan) : courses disputées, vainqueurs, poles, podiums, plus belle remontée,
+// abandons, victoires depuis la pole. Pilotes repérés par leur code (« VER »)
+export function seasonReview(data) {
+  const races = [...(data?.races || [])].sort((a, b) => a.round - b.round);
+  const done = races.filter((r) => r.results?.length);
+  const tally = (pick) => {
+    const m = new Map();
+    for (const r of done) for (const x of pick(r)) if (x) m.set(x.code, { name: x.name, last: x.last, code: x.code, team: x.team, teamId: x.teamId, n: (m.get(x.code)?.n || 0) + 1 });
+    return [...m.values()].sort((a, b) => b.n - a.n || a.name.localeCompare(b.name));
+  };
+  const wins = tally((r) => [r.results.find((x) => x.pos === 1)]);
+  const poles = tally((r) => [r.quali?.find((x) => x.pos === 1) || r.results.find((x) => x.grid === 1)]);
+  const podiums = tally((r) => r.results.filter((x) => x.pos >= 1 && x.pos <= 3 && classified(x)));
+  let comeback = null, dnf = 0, poleWins = 0;
+  for (const r of done) {
+    for (const x of r.results) {
+      if (!classified(x)) { dnf++; continue; }
+      const gain = x.grid ? x.grid - x.pos : 0;   // départ des stands (grille 0) : pas compté
+      if (gain > (comeback?.gain || 0)) comeback = { name: x.name, last: x.last, code: x.code, team: x.team, teamId: x.teamId, gp: r.name, from: x.grid, to: x.pos, gain };
+    }
+    const w = r.results.find((x) => x.pos === 1);
+    if (w && w.grid === 1) poleWins++;
+  }
+  return { races: races.length, done: done.length, wins, poles, podiums, winners: wins.length, comeback, dnf, poleWins, leader: data?.drivers?.[0] || null, leaderTeam: data?.constructors?.[0] || null };
+}

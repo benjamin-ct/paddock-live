@@ -211,6 +211,7 @@ export function initSettings() {
   $('#remindSel').value = String(prefs.remindMin ?? 15);
   $('#remindSel').addEventListener('change', (e) => setPref('remindMin', Number(e.target.value)));
   $('#icsSeason').dataset.cal = new Date().getFullYear();
+  api('/api/qr/alertes').then((r) => { $('#alertQr').innerHTML = r.svg; }).catch(() => {});
   // Langue : l'interface est rechargée pour s'afficher dans la nouvelle langue
   $('#langSel').value = LANG;
   $('#langSel').addEventListener('change', (e) => { setPref('lang', e.target.value); location.reload(); });
