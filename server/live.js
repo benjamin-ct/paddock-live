@@ -60,6 +60,13 @@ export class LiveSource {
     if (this.hub.source.mode === 'live') Object.assign(this.hub.source, this.status);
   }
 
+  // Connecté sans GPS alors qu'un autre jeton valide est arrivé depuis (jeton expiré au lancement puis
+  // renouvelé tout seul, « Renouveler maintenant ») : nouvelle connexion avec ce jeton
+  tokenChanged() {
+    const token = this.getToken();
+    return !this.status.authenticated && !!token && token !== this.usedToken;
+  }
+
   scheduleReconnect() {
     if (!this.active) return;
     this.cleanup();
@@ -70,6 +77,7 @@ export class LiveSource {
   async connect() {
     if (!this.active) return;
     const token = this.getToken();
+    this.usedToken = token;
     const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
     try {
       const res = await request(`${BASE}/negotiate?negotiateVersion=1`, {
@@ -99,6 +107,7 @@ export class LiveSource {
         this.lastMessageAt = Date.now();
         this.setStatus({ stale: false });
         this.timers.push(setInterval(() => {
+          if (this.tokenChanged()) { this.restart(); return; }
           if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 6 }) + RS);
           // Données figées depuis 25 s : signalé (badge « LIVE » en orange) avant la reconnexion des 60 s
           if (Date.now() - this.lastMessageAt > 25000 && !this.status.stale) this.setStatus({ stale: true });
