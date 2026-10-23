@@ -1,11 +1,14 @@
 // Pages du site, une par grande fonction (/radios-f1-traduites/…) : ce que les gens cherchent sur Google
 // (« radios F1 traduites », « live timing F1 sans spoiler »…), chacune avec ses captures, ses questions et
-// le lien de téléchargement. Écrites par scripts/build-studio.mjs, listées dans /sitemap.xml.
+// le lien de téléchargement, en français et en anglais (/en/…). Écrites par scripts/build-studio.mjs, listées
+// dans /sitemap.xml.
 const SITE = 'https://paddocklive.app';
 
 export const GUIDES = [
   {
     slug: 'radios-f1-traduites',
+    lang: 'fr',
+    pair: 'en/f1-team-radio-translated',
     title: 'Radios F1 traduites en français, en direct',
     description: 'Écoute les radios d\'équipe de F1 et lis chaque message retranscrit et traduit en français, au moment où il passe à la TV. Appli gratuite pour Windows, macOS et Linux.',
     eyebrow: 'Radios d\'équipe',
@@ -25,6 +28,8 @@ export const GUIDES = [
   },
   {
     slug: 'timing-f1-sans-spoiler',
+    lang: 'fr',
+    pair: 'en/spoiler-free-f1-live-timing',
     title: 'Live timing F1 calé sur ta TV, sans spoiler',
     description: 'Le live timing de la F1 en retard exactement comme ta diffusion TV : chronos, carte, radios et alertes sans jamais spoiler la course. Gratuit pour Windows, macOS et Linux.',
     eyebrow: 'Synchro TV',
@@ -44,6 +49,8 @@ export const GUIDES = [
   },
   {
     slug: 'carte-gps-f1',
+    lang: 'fr',
+    pair: 'en/f1-live-track-map',
     title: 'Carte GPS F1 en direct : toutes les voitures sur le circuit',
     description: 'Suis toutes les voitures de F1 sur le tracé réel du circuit, en direct ou en replay : écarts, drapeaux par secteur, safety car, stands. Appli gratuite, sans spoiler.',
     eyebrow: 'Carte du circuit',
@@ -63,6 +70,8 @@ export const GUIDES = [
   },
   {
     slug: 'replays-f1',
+    lang: 'fr',
+    pair: 'en/f1-session-replays',
     title: 'Replays F1 : revois chaque séance avec ses chronos',
     description: 'Revois toutes les séances de F1 (essais, qualifs, sprint, course) avec les chronos, la carte, les radios et les moments clés, sans spoiler. Appli gratuite.',
     eyebrow: 'Replays',
@@ -82,6 +91,8 @@ export const GUIDES = [
   },
   {
     slug: 'overlay-f1-obs',
+    lang: 'fr',
+    pair: 'en/f1-obs-overlay',
     title: 'Overlay F1 pour OBS, Streamlabs et Meld',
     description: 'Ajoute le classement, la carte du circuit, les drapeaux et la télémétrie de la F1 en overlay sur ton live OBS, Streamlabs ou Meld, calés sur ton délai TV. Gratuit.',
     eyebrow: 'Pour les streamers',
@@ -99,14 +110,223 @@ export const GUIDES = [
       ['L\'overlay a-t-il le même délai que ma TV ?', 'Oui : il suit le délai réglé dans l\'appli, comme le reste.'],
     ],
   },
+  {
+    slug: 'live-timing-f1',
+    lang: 'fr',
+    pair: 'en/f1-live-timing',
+    title: 'Live timing F1 gratuit : chronos, écarts et pneus en direct',
+    description: 'Le live timing de la Formule 1 sur ton ordinateur : classement, écarts, secteurs, pneus, arrêts, carte GPS et radios traduites, en direct ou en replay. Gratuit, sans compte, pour Windows, macOS et Linux.',
+    eyebrow: 'Live timing',
+    h1: 'Le live timing de la F1, gratuit et en français',
+    intro: 'Classement, écarts, secteurs, pneus et arrêts de chaque voiture, mis à jour en direct pendant les essais, les qualifs, le sprint et la course. Paddock Live rassemble tout le live timing de la F1 dans une seule appli, avec la carte du circuit et les radios traduites.',
+    img: ['tableau-de-bord.webp', 1600, 888, 'Live timing F1 dans Paddock Live : classement, carte du circuit, radios et direction de course'],
+    points: [
+      'Classement complet : écart, intervalle, dernier et meilleur tour, secteurs et mini-secteurs',
+      'Pneus et âge des gommes, arrêts, speed trap, drapeaux bleus et abandons',
+      'En qualif : ligne d\'élimination, temps à battre et tour en cours',
+      'Analyse : race trace, positions, rythme, temps au tour et télémétrie',
+      'Direction de course et documents de la FIA traduits en français',
+    ],
+    faq: [
+      ['Le live timing est-il vraiment gratuit ?', 'Oui : pas d\'abonnement, pas de publicité, pas de compte. Les données viennent du chronométrage officiel de la F1, diffusé pendant chaque séance.'],
+      ['Ça marche sur téléphone ?', 'Oui : l\'appli tourne sur ton ordinateur, et ton téléphone s\'y connecte par le Wi-Fi de la maison avec un QR code.'],
+      ['Peut-on éviter les spoilers ?', 'Oui : tout le live timing se cale sur le retard de ta diffusion TV, pour voir chaque dépassement en même temps qu\'à l\'image.'],
+    ],
+  },
+  {
+    slug: 'alternative-multiviewer',
+    lang: 'fr',
+    pair: 'en/multiviewer-alternative',
+    title: 'Alternative à MultiViewer pour suivre la F1',
+    description: 'Tu cherches une appli comme MultiViewer pour la F1 ? Paddock Live : live timing, carte GPS, radios traduites en français et synchro TV, gratuit et sans abonnement F1 TV obligatoire.',
+    eyebrow: 'Alternative à MultiViewer',
+    h1: 'Une alternative à MultiViewer pour la F1',
+    intro: 'MultiViewer est surtout connu pour regarder F1 TV sur plusieurs fenêtres. Paddock Live fait autre chose : il ne diffuse pas la vidéo, il l\'accompagne, avec tout le live timing de la course calé sur ta TV, en français.',
+    img: ['tableau-de-bord.webp', 1600, 888, 'Paddock Live pendant une course : classement, carte du circuit, radios et direction de course'],
+    points: [
+      'Sans abonnement F1 TV : tu regardes la course où tu veux (TV, streaming)',
+      'Live timing, carte GPS, pneus, stratégie et analyse de course',
+      'Radios d\'équipe retranscrites et traduites en français',
+      'Tout est retardé exactement comme ta diffusion : aucun spoiler',
+      'Second écran, carte flottante, et ton téléphone par QR code',
+    ],
+    faq: [
+      ['Paddock Live affiche-t-il la vidéo de F1 TV ?', 'Non. Paddock Live ne diffuse aucune vidéo : tu regardes la course sur ta TV ou ton service habituel, et l\'appli affiche les données à côté. Avec F1 TV Pro, elle ajoute les commentaires audio en direct.'],
+      ['Peut-on utiliser les deux ?', 'Oui : les deux applis sont indépendantes et peuvent tourner sur le même ordinateur.'],
+      ['Paddock Live est-il lié à MultiViewer ?', 'Non. MultiViewer appartient à ses auteurs ; Paddock Live est un projet indépendant, sans lien avec eux ni avec la Formula 1.'],
+    ],
+  },
+  // Versions anglaises (/en/…), chacune liée à sa page française par hreflang
+  {
+    slug: 'en/f1-live-timing',
+    lang: 'en',
+    pair: 'live-timing-f1',
+    title: 'Free F1 live timing app: timing, gaps and tyres live',
+    description: 'Formula 1 live timing on your computer: standings, gaps, sectors, tyres, pit stops, GPS track map and team radio, live or in replay. Free, no account, for Windows, macOS and Linux.',
+    eyebrow: 'Live timing',
+    h1: 'F1 live timing, free on your computer',
+    intro: 'Standings, gaps, sectors, tyres and pit stops for every car, updated live during practice, qualifying, the sprint and the race. Paddock Live brings all of F1 live timing into one app, with the track map and team radio.',
+    img: ['tableau-de-bord.webp', 1600, 888, 'F1 live timing in Paddock Live: standings, track map, team radio and race control'],
+    points: [
+      'Full timing tower: gap, interval, last and best lap, sectors and mini-sectors',
+      'Tyres and tyre age, pit stops, speed trap, blue flags and retirements',
+      'In qualifying: elimination line, time to beat and the lap in progress',
+      'Analysis: race trace, positions, pace, lap times and telemetry',
+      'Race control messages and official FIA documents',
+    ],
+    faq: [
+      ['Is the live timing really free?', 'Yes: no subscription, no ads, no account. The data comes from the official F1 timing feed, broadcast during every session.'],
+      ['Does it work on a phone?', 'Yes: the app runs on your computer, and your phone connects to it over your home Wi-Fi with a QR code.'],
+      ['Can I avoid spoilers?', 'Yes: all the live timing is delayed to match your TV broadcast, so you see every overtake at the same time as on screen.'],
+    ],
+  },
+  {
+    slug: 'en/multiviewer-alternative',
+    lang: 'en',
+    pair: 'alternative-multiviewer',
+    title: 'MultiViewer alternative for following F1',
+    description: 'Looking for an app like MultiViewer for F1? Paddock Live: live timing, GPS track map, transcribed team radio and TV sync, free and with no F1 TV subscription required.',
+    eyebrow: 'MultiViewer alternative',
+    h1: 'A MultiViewer alternative for F1',
+    intro: 'MultiViewer is best known for watching F1 TV in several windows. Paddock Live does something else: it doesn\'t stream the video, it goes alongside it, with all the race\'s live timing synced to your TV.',
+    img: ['tableau-de-bord.webp', 1600, 888, 'Paddock Live during a race: standings, track map, team radio and race control'],
+    points: [
+      'No F1 TV subscription needed: watch the race wherever you like (TV, streaming)',
+      'Live timing, GPS track map, tyres, strategy and race analysis',
+      'Team radio transcribed, and translated into French, Spanish, German or Italian',
+      'Everything is delayed exactly like your broadcast: zero spoilers',
+      'Second screen, floating map, and your phone via a QR code',
+    ],
+    faq: [
+      ['Does Paddock Live show the F1 TV video?', 'No. Paddock Live doesn\'t stream any video: you watch the race on your usual TV or service, and the app shows the data next to it. With F1 TV Pro, it adds the live audio commentary.'],
+      ['Can I use both?', 'Yes: the two apps are independent and can run on the same computer.'],
+      ['Is Paddock Live related to MultiViewer?', 'No. MultiViewer belongs to its authors; Paddock Live is an independent project, not affiliated with them or with Formula 1.'],
+    ],
+  },
+  {
+    slug: 'en/f1-team-radio-translated',
+    lang: 'en',
+    pair: 'radios-f1-traduites',
+    title: 'F1 team radio, live: every message transcribed',
+    description: 'Listen to F1 team radio and read every message transcribed (and translated if you like) as it airs on TV. Free app for Windows, macOS and Linux.',
+    eyebrow: 'Team radio',
+    h1: 'Every F1 team radio, transcribed as it airs',
+    intro: 'During the race, radio messages between drivers and engineers go by fast and are hard to hear. Paddock Live shows them one by one, with the transcribed text, synced to your TV broadcast.',
+    img: ['radios.webp', 1600, 888, 'Team radio transcribed in Paddock Live'],
+    points: [
+      'One card per message: driver photo, lap, length, played or not',
+      'Transcribed text, translated into French, Spanish, German or Italian if you like',
+      'Auto-play at the pace of your TV, without revealing anything early',
+      'Radio from past sessions too, in the replays',
+    ],
+    faq: [
+      ['Do I need F1 TV?', 'No. Team radio and its transcription work without an account. F1 TV Pro only adds exact GPS positions and the commentary.'],
+      ['Is the transcription done live?', 'Yes: each message is transcribed as soon as it\'s broadcast, once for all users, and shown when it airs on your TV.'],
+    ],
+  },
+  {
+    slug: 'en/spoiler-free-f1-live-timing',
+    lang: 'en',
+    pair: 'timing-f1-sans-spoiler',
+    title: 'Spoiler-free F1 live timing, synced to your TV',
+    description: 'F1 live timing delayed exactly like your TV broadcast: timing, map, team radio and alerts without ever spoiling the race. Free for Windows, macOS and Linux.',
+    eyebrow: 'TV sync',
+    h1: 'F1 live timing, synced to your TV',
+    intro: 'Your TV is often 20 to 60 seconds behind the race. Regular live timing shows you overtakes before you see them. Paddock Live delays everything (timing, map, radio, alerts) by your broadcast\'s delay.',
+    img: ['classement.webp', 1600, 888, 'Paddock Live live standings, synced to the TV'],
+    points: [
+      'One click on « I see it! » at the right moment, or the app listens to your TV and sets the delay',
+      'Delay up to 10 minutes, adjustable to a tenth of a second',
+      'Presets for each of your TVs and streaming services',
+      'Your phone follows the computer\'s delay',
+    ],
+    faq: [
+      ['Why a delay?', 'The TV broadcast always arrives after the real race. Without a delay, timing reveals overtakes, pit stops and flags before you see them.'],
+      ['Does it work with any channel?', 'Yes: you set the delay for whatever you watch, whether it\'s TV, F1 TV or another streaming service.'],
+    ],
+  },
+  {
+    slug: 'en/f1-live-track-map',
+    lang: 'en',
+    pair: 'carte-gps-f1',
+    title: 'Live F1 track map: every car on the circuit',
+    description: 'Follow every F1 car on the real circuit layout, live or in replay: gaps, flags by sector, safety car, pit lane. Free app, spoiler-free.',
+    eyebrow: 'Track map',
+    h1: 'Every car on the track map',
+    intro: 'The real circuit layout with every car moving, numbered corners, flags by sector and the pit lane. To understand the race at a glance.',
+    img: ['carte.webp', 1600, 888, 'Track map with every car in Paddock Live'],
+    points: [
+      'Real layout, corner numbers, straight-line zones and pit lane',
+      'Yellow flags by sector, safety car, VSC and red flag on the map',
+      'Gaps under one second and driver tracking, with telemetry',
+      'Layers of your choice: show only what you care about',
+    ],
+    faq: [
+      ['Are the positions exact?', 'With an F1 TV Pro subscription, they are the official GPS positions. Without an account, they are estimated from the timing and stay close to reality.'],
+      ['Can I put the map on another screen?', 'Yes: transparent floating map, second screen, or on your phone with the QR code.'],
+    ],
+  },
+  {
+    slug: 'en/f1-session-replays',
+    lang: 'en',
+    pair: 'replays-f1',
+    title: 'F1 replays: rewatch every session with its timing',
+    description: 'Replay every F1 session (practice, qualifying, sprint, race) with the timing, track map, team radio and key moments, spoiler-free. Free app.',
+    eyebrow: 'Replays',
+    h1: 'Every F1 session, to replay with its timing',
+    intro: 'Missed the race, or want to rewatch qualifying? Paddock Live replays every session from the official archives, with the standings, map, team radio and key moments, at the speed you want.',
+    img: ['moments.webp', 1600, 888, 'Replay of a session with its key moments in Paddock Live'],
+    points: [
+      'Every session: practice, qualifying, sprint and race',
+      'Clickable key moments: start, flags, leaders, overtakes, pit stops, penalties',
+      'Pause, ±10 seconds, speed from 1x to 30x',
+      'Spoiler-free: results stay hidden until you ask for them',
+    ],
+    faq: [
+      ['Do I need to record the session?', 'No: sessions come from the official F1 archives. The ones you follow live are recorded too, so you can rewatch them right away.'],
+      ['Does the replay show the video?', 'No, Paddock Live replays the data (timing, map, radio). It syncs to your video, which you watch elsewhere.'],
+    ],
+  },
+  {
+    slug: 'en/f1-obs-overlay',
+    lang: 'en',
+    pair: 'overlay-f1-obs',
+    title: 'F1 overlay for OBS, Streamlabs and Meld',
+    description: 'Add F1 standings, the track map, flags and telemetry as overlays on your OBS, Streamlabs or Meld stream, synced to your TV delay. Free.',
+    eyebrow: 'For streamers',
+    h1: 'The F1 race as overlays on your stream',
+    intro: 'Standings, map, flags, lap counter and telemetry, to add as a browser source in your streaming software. Everything follows your TV delay, so your chat never gets spoiled.',
+    img: ['obs-course.webp', 1600, 900, 'Paddock Live overlays in OBS: standings, laps, track map, telemetry and flag banner'],
+    points: [
+      'Standings (columns of your choice), track map, flag banners',
+      'Lap counter, countdown, podium, telemetry of the driver you follow',
+      'Adjustable background, fixed URLs: settings apply without copying the link again',
+      'Stream Deck and Bitfocus Companion buttons for the delay and replays',
+    ],
+    faq: [
+      ['Which software?', 'OBS Studio, Streamlabs, Meld Studio and any software that accepts a browser source.'],
+      ['Does the overlay have the same delay as my TV?', 'Yes: it follows the delay set in the app, like everything else.'],
+    ],
+  },
 ];
+
+// Textes de la page dans chaque langue (les pages anglaises renvoient vers /?lang=en)
+const UI = {
+  fr: { home: '/', dl: 'Télécharger', cta: 'Télécharger Paddock Live gratuitement', os: 'Windows, macOS et Linux', faq: 'Questions fréquentes', more: 'Aussi dans Paddock Live', all: 'Toutes les fonctions', terms: 'Conditions d\'utilisation', privacy: 'Confidentialité', locale: 'fr_FR',
+    legal: 'Paddock Live est un projet indépendant, sans lien avec la Formula 1, la FIA ni les écuries. F1, FORMULA 1 et les marques associées appartiennent à Formula One Licensing B.V.' },
+  en: { home: '/?lang=en', dl: 'Download', cta: 'Download Paddock Live for free', os: 'Windows, macOS and Linux', faq: 'Frequently asked questions', more: 'Also in Paddock Live', all: 'All features', terms: 'Terms of Service', privacy: 'Privacy', locale: 'en_US',
+    legal: 'Paddock Live is an independent project, not affiliated with Formula 1, the FIA or the teams. F1, FORMULA 1 and related marks are trademarks of Formula One Licensing B.V.' },
+};
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 export function guidePage(slug) {
   const g = GUIDES.find((x) => x.slug === slug);
   const url = `${SITE}/${g.slug}/`;
-  const others = GUIDES.filter((x) => x !== g);
+  const others = GUIDES.filter((x) => x !== g && x.lang === g.lang);
+  const ui = UI[g.lang];
+  const href = (x) => `${SITE}/${x}/`;
+  const fr = g.lang === 'fr' ? g.slug : g.pair, en = g.lang === 'en' ? g.slug : g.pair;
   const ld = {
     '@context': 'https://schema.org',
     '@graph': [
@@ -116,7 +336,7 @@ export function guidePage(slug) {
   };
   const [img, w, h, alt] = g.img;
   return `<!doctype html>
-<html lang="fr">
+<html lang="${g.lang}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -124,6 +344,10 @@ export function guidePage(slug) {
 <meta name="description" content="${esc(g.description)}">
 <meta name="theme-color" content="#000000">
 <link rel="canonical" href="${url}">
+<link rel="alternate" hreflang="fr" href="${href(fr)}">
+<link rel="alternate" hreflang="en" href="${href(en)}">
+<link rel="alternate" hreflang="x-default" href="${href(en)}">
+<meta property="og:locale" content="${ui.locale}">
 <meta property="og:type" content="website">
 <meta property="og:title" content="${esc(g.title)}">
 <meta property="og:description" content="${esc(g.description)}">
@@ -172,8 +396,8 @@ footer a { color: var(--text-2); }
 </head>
 <body>
 <header class="nav"><div class="wrap">
-  <a class="brand" href="/"><img src="/site/img/logo.png" alt="" width="32" height="32">Paddock <b>Live</b></a>
-  <a class="btn" href="/#telecharger">Télécharger</a>
+  <a class="brand" href="${ui.home}"><img src="/site/img/logo.png" alt="" width="32" height="32">Paddock <b>Live</b></a>
+  <a class="btn" href="${ui.home}#telecharger">${ui.dl}</a>
 </div></header>
 <main class="wrap">
   <span class="eyebrow">${esc(g.eyebrow)}</span>
@@ -181,15 +405,15 @@ footer a { color: var(--text-2); }
   <p class="lead">${esc(g.intro)}</p>
   <div class="frame"><img src="/site/img/${img}" width="${w}" height="${h}" alt="${esc(alt)}"></div>
   <ul class="points">${g.points.map((p) => `<li>${esc(p)}</li>`).join('')}</ul>
-  <div class="cta"><a class="btn" href="/#telecharger">Télécharger Paddock Live gratuitement</a><small>Windows, macOS et Linux</small></div>
-  <h2>Questions fréquentes</h2>
+  <div class="cta"><a class="btn" href="${ui.home}#telecharger">${ui.cta}</a><small>${ui.os}</small></div>
+  <h2>${ui.faq}</h2>
   ${g.faq.map(([q, a]) => `<details><summary>${esc(q)}</summary><p>${esc(a)}</p></details>`).join('\n  ')}
-  <h2>Aussi dans Paddock Live</h2>
-  <div class="more">${others.map((x) => `<a href="/${x.slug}/">${esc(x.eyebrow)}</a>`).join('')}<a href="/">Toutes les fonctions</a></div>
+  <h2>${ui.more}</h2>
+  <div class="more">${others.map((x) => `<a href="/${x.slug}/">${esc(x.eyebrow)}</a>`).join('')}<a href="${ui.home}">${ui.all}</a></div>
 </main>
 <footer><div class="wrap">
-  <p><a href="/">Paddock Live</a> · <a href="/legal/terms">Conditions d'utilisation</a> · <a href="/legal/privacy">Confidentialité</a></p>
-  <p>Paddock Live est un projet indépendant, sans lien avec la Formula 1, la FIA ni les écuries. F1, FORMULA 1 et les marques associées appartiennent à Formula One Licensing B.V.</p>
+  <p><a href="${ui.home}">Paddock Live</a> · <a href="/legal/terms">${ui.terms}</a> · <a href="/legal/privacy">${ui.privacy}</a> · <a href="/${g.pair}/">${g.lang === 'fr' ? 'English' : 'Français'}</a></p>
+  <p>${ui.legal}</p>
 </div></footer>
 </body>
 </html>
