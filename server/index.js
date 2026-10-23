@@ -19,7 +19,7 @@ import { officialGrid } from './fia-grid.js';
 import { findSessionContent, playback, proxy as f1tvProxy, allowHost, resolvePlaylist, localTarget } from './f1tv.js';
 import { Recorder, listRecordings, pruneRecordings, recordingPath } from './recorder.js';
 import { ROOT, DATA_DIR, settings, getConfig, saveConfig, parseF1tvToken, tokenInfo } from './config.js';
-import { createLan, isLoopback } from './lan.js';
+import { createLan, isLoopback, qrSvg } from './lan.js';
 import { getTranslations, addTranslations } from './translations.js';
 import { compareLaps } from './compare.js';
 import { weekendTyres } from './tyres.js';
@@ -34,7 +34,7 @@ import { predictionsView, savePrediction, pronosOnline } from './predict.js';
 import { lightsInfo, saveLights, hueDiscover, huePair, lightDevices, setLights } from './lights.js';
 import { exportServerSettings, importServerSettings } from './backup.js';
 import { creatorEnabled, setCreator, savePostImage, openPostsDir } from './creator.js';
-import { studioInfo, enableStudio, disableStudio, syncStudio, startStudioSync, studioRewrite, studioTrack, studioDrafts } from './studio-sync.js';
+import { studioInfo, enableStudio, disableStudio, restoreAccounts, syncStudio, startStudioSync, studioRewrite, studioTrack, studioDrafts } from './studio-sync.js';
 import { postHistory, recordPost, removePost, statsOfPosts, importPosts } from './post-history.js';
 import { accountsInfo, saveAccount, tiktokLoginUrl, tiktokCallback, youtubeLoginUrl, youtubeCallback, metaLoginUrl, metaCallback, publish as publishSocial } from './social-publish.js';
 import { startAutoRenew, renew as renewF1tv, sessionOf, state as renewState, resetRenewState } from './f1tv-auth.js';
@@ -184,6 +184,9 @@ async function handleApi(req, res, url) {
   if (!sameSiteRequest(req.headers) && !fromExtension) return sendJSON(res, 403, { error: 'Origine refusée' });
 
   switch (route) {
+    // QR code de la page des alertes du téléphone (paddocklive.app/alertes), affiché dans les Réglages
+    case 'GET /api/qr/alertes':
+      return sendJSON(res, 200, { url: 'https://paddocklive.app/alertes/', svg: qrSvg('https://paddocklive.app/alertes/') });
     case 'GET /api/lan':
     case 'POST /api/lan': {
       // Réglage de l'accès réseau : uniquement depuis cet ordinateur
@@ -521,7 +524,8 @@ async function handleApi(req, res, url) {
       const body = await readBody(req, route === 'POST /api/posts/save' ? 120e6 : 1e6);
       if (route === 'POST /api/creator') {
         if (body.off) return sendJSON(res, 200, { enabled: setCreator(null, false) });
-        return setCreator(body.code) ? sendJSON(res, 200, { enabled: true }) : sendJSON(res, 403, { error: 'Code incorrect' });
+        if (!setCreator(body.code)) return sendJSON(res, 403, { error: 'Code incorrect' });
+        return sendJSON(res, 200, { enabled: true, restored: await restoreAccounts(body.code) });
       }
       if (!creatorEnabled()) return sendJSON(res, 403, { error: 'Mode créateur désactivé' });
       try {
@@ -673,10 +677,13 @@ async function handleApi(req, res, url) {
 
     // Diagnostic des données F1 : flux cachés testés en direct (server/feed-probe.js)
     case 'GET /api/feeds/probe':
+      if (!isLoopback(req.socket.remoteAddress) || !creatorEnabled()) return sendJSON(res, 403, { error: 'Mode créateur désactivé' });
       return sendJSON(res, 200, probeState());
 
     // Diagnostic des données F1 : toute la séance lue dans les archives (gardé pour la session)
     case 'GET /api/feeds/diag': {
+      // Mode créateur, sur l'ordinateur seulement : la lecture d'une séance entière peut prendre plusieurs secondes
+      if (!isLoopback(req.socket.remoteAddress) || !creatorEnabled()) return sendJSON(res, 403, { error: 'Mode créateur désactivé' });
       const p = url.searchParams.get('path') || '';
       if (!/^\d{4}\/[\w\-./]+\/$/.test(p) || p.includes('..')) return sendJSON(res, 400, { error: 'Chemin invalide' });
       try {

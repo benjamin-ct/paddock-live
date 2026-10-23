@@ -4,13 +4,57 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → À propos → Nouveautés).
 
-## v1.28.3 — à venir
+## v1.29.0 — à venir
+
+### Alertes sur le téléphone
+- Même loin de l'ordinateur : un rappel 30 minutes avant chaque séance, les résultats (vainqueur, pole) si vous
+  le voulez, et les grosses news, sur votre téléphone. Page paddocklive.app/alertes, à ouvrir sur le téléphone
+  (QR code dans Réglages → Alertes & favoris) ; sur iPhone, l'ajouter d'abord à l'écran d'accueil. Sans compte.
+
+### Accueil
+- Hors saison (prochaine séance dans plus de 3 semaines, ou calendrier pas encore publié) : l'accueil met en avant
+  le bilan de la saison passée, les replays des courses et l'actu (transferts, nouvelles voitures), avec le
+  compte à rebours du premier Grand Prix dès que le calendrier est connu.
 
 ### En direct
 - Connexion F1 TV : l'appli ouverte avant le début d'une séance reçoit maintenant le GPS et la télémétrie environ
   une minute après le départ. Jusqu'ici, elle restait en positions estimées (carte saccadée) jusqu'à ce qu'on la redémarre.
 - Délai TV de 5 s au minimum (« Temps réel (5 s) ») : le GPS et la télémétrie arrivent quelques secondes après
   les chronos ; à 0 s, la carte et la télémétrie avançaient par à-coups.
+- Une pénalité purgée n'apparaît plus une deuxième fois (résumé de la séance, moments clés, « Pendant votre
+  absence »).
+- « Pendant votre absence » fonctionne aussi quand on s'absente pendant un drapeau rouge.
+- Onglets d'analyse (race trace, positions, rythme, temps au tour) redessinés une fois par seconde au plus
+  pendant la course, au lieu de plusieurs fois : moins de calcul, surtout sur téléphone.
+
+### Saison
+- Bilan de la saison (Saison → Bilan de la saison) : champion ou leader, victoires, poles, podiums, vainqueurs
+  différents, plus belle remontée, abandons, et la saison de vos pilotes favoris ; image à partager (copiée ou
+  enregistrée). Le bilan se complète à chaque course.
+- Notes des pilotes : un abandon compte comme la dernière place de la course (22 voitures en 2026), et plus
+  comme une 20e place ; la répartition des arrivées montre aussi les 21e et 22e places.
+- Météo du week-end : la bonne journée pour les séances du soir (Las Vegas : la course du samedi soir n'est plus
+  rangée le dimanche).
+
+### Fiabilité et sécurité
+- Accès depuis le téléphone : un site ouvert sur l'ordinateur ne peut plus se faire passer pour l'ordinateur
+  afin d'utiliser l'appli sans la clé du QR code.
+- Le relais des radios et de F1 TV refuse aussi les adresses locales écrites autrement (forme IPv6).
+- Réglages et pronostics enregistrés sans risque d'être perdus en cas de coupure pendant l'écriture ; un fichier
+  de réglages abîmé est mis de côté (config.json.bad) au lieu d'être écrasé.
+- Fenêtres de connexion F1 et de publication sur X, Threads et Bluesky : position, micro, caméra et
+  notifications refusés d'office.
+- « Installer les mises à jour à la fermeture » décoché : l'appli n'installe plus la nouvelle version au
+  lancement, elle la signale seulement.
+- L'appli démarre même quand ses ports habituels (3000, 3001, 3002, 3010) sont tous occupés, au lieu de se
+  fermer sans message.
+- Appli ouverte plusieurs jours : la liste de l'Actu et les traductions gardées en mémoire ne grossissent
+  plus sans fin.
+
+### Divers
+- Statistiques d'utilisation (si vous les avez acceptées) : les versions bêta les envoient aussi ; elles
+  étaient jusqu'ici écartées sans rien dire.
+- Petites améliorations internes.
 
 ## v1.28.2 — 2026-10-23
 

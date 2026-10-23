@@ -11,6 +11,7 @@ import qrcode from 'qrcode-generator';
 import fs from 'node:fs';
 import path from 'node:path';
 import { getConfig, saveConfig, ROOT } from './config.js';
+import { localHost } from './guard.js';
 
 const COOKIE = 'paddock_key';
 const DEFAULT_PORT = 3030;
@@ -33,9 +34,10 @@ const safeEqual = (a, b) => {
   return x.length === y.length && crypto.timingSafeEqual(x, y);
 };
 
-// Requête autorisée : depuis cet ordinateur, ou avec la bonne clé (cookie ou ?k=)
+// Requête autorisée : depuis cet ordinateur (adresse locale demandée : pas un site extérieur qui se fait passer
+// pour 127.0.0.1, « DNS rebinding »), ou avec la bonne clé (cookie ou ?k=)
 export function authorized(req, key) {
-  if (isLoopback(req.socket.remoteAddress)) return true;
+  if (isLoopback(req.socket.remoteAddress) && localHost(req.headers.host)) return true;
   if (!key) return false;
   if (safeEqual(cookieKey(req), key)) return true;
   const k = new URL(req.url, 'http://x').searchParams.get('k');

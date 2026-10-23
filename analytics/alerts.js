@@ -10,6 +10,7 @@ import { feedItems, decodeBody } from '../shared/news-collect.js';
 import { newsSimilarity } from '../shared/news.js';
 import { newsKind, sameStoryOf, isBreaking, LOOKS } from '../shared/social-news.js';
 import { translateBatch } from './translate.js';
+import { queuePush, subscribers } from './push-public.js';
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36';
 // Services de notification des navigateurs (Chrome/Android, Firefox, Safari/iPhone, Edge)
@@ -166,7 +167,8 @@ async function frenchTitle(env, it) {
 export async function newsAlerts(env, { fetchFn = fetch, now = Date.now() } = {}) {
   if (!env.DB) return { skipped: 'db' };
   const subs = await readJSON(env, 'push', []);
-  if (!subs.length) return { skipped: 'no-subscriber' };   // personne à prévenir : rien à relever
+  // Personne à prévenir (ni le créateur, ni un téléphone abonné aux grosses news) : rien à relever
+  if (!subs.length && !(await subscribers(env, 'news').catch(() => 0))) return { skipped: 'no-subscriber' };
   // Sources du passage : officielles + quelques médias à tour de rôle
   const media = DEFAULT_SOURCES.filter((s) => s.kind === 'rss' && !OFFICIAL.has(s.id));
   const turn = Number(await getRow(env, 'alerts-turn')) || 0;
@@ -199,7 +201,10 @@ export async function newsAlerts(env, { fetchFn = fetch, now = Date.now() } = {}
   // Envoi à chaque téléphone abonné
   let sent = 0;
   for (const a of added) {
-    sent += await notifyPhones(env, { title: `${isBreaking(a) ? 'BREAKING · ' : ''}${newsKind(a).label} · ${a.srcName}`, body: a.titleFr, id: a.id, url: `/studio/?alert=${encodeURIComponent(a.id)}` }, { fetchFn, now });
+    const title = `${isBreaking(a) ? 'BREAKING · ' : ''}${newsKind(a).label} · ${a.srcName}`;
+    sent += await notifyPhones(env, { title, body: a.titleFr, id: a.id, url: `/studio/?alert=${encodeURIComponent(a.id)}` }, { fetchFn, now });
+    // Téléphones abonnés aux grosses news (page /alertes/) : l'article lui-même
+    if (/^https:\/\//.test(a.link || '')) await queuePush(env, `news:${a.id}`, 'news', { fr: { title, body: a.titleFr }, en: { title: `${isBreaking(a) ? 'BREAKING · ' : ''}${a.srcName}`, body: a.lang === 'en' ? a.title : a.titleFr }, url: a.link }, now).catch(() => false);
   }
   return { checked: picked.length, items: items.length, alerts: added.length, sent };
 }

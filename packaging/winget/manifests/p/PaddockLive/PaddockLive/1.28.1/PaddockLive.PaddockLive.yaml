@@ -1,0 +1,7 @@
+# Manifeste winget (catalogue Windows de Microsoft) : copié tel quel dans microsoft/winget-pkgs pour la
+# première version ; les suivantes sont envoyées par le workflow « Application de bureau » (docs/CATALOGUES.md)
+PackageIdentifier: PaddockLive.PaddockLive
+PackageVersion: 1.28.1
+DefaultLocale: fr-FR
+ManifestType: version
+ManifestVersion: 1.10.0

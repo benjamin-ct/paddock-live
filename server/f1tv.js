@@ -141,6 +141,9 @@ export function privateAddress(ip) {
   }
   if (v === 6) {
     const x = ip.toLowerCase();
+    // Adresse IPv4 écrite en IPv6 : ::ffff:127.0.0.1, ou ::ffff:7f00:1 (forme donnée par new URL())
+    const hexV4 = /^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/.exec(x);
+    if (hexV4) { const [h, l] = [parseInt(hexV4[1], 16), parseInt(hexV4[2], 16)]; return privateAddress(`${h >> 8}.${h & 255}.${l >> 8}.${l & 255}`); }
     return x === '::' || x === '::1' || /^f[cd]/.test(x) || /^fe[89ab]/.test(x) || (x.startsWith('::ffff:') && privateAddress(x.slice(7)));
   }
   return false;

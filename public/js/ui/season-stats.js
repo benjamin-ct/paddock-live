@@ -50,17 +50,18 @@ export const gradeBadge = (score, g, big = false) => (score === null || score ==
 const pageWidth = () => Math.max(600, (document.querySelector('#szContent')?.clientWidth || 934) - 34);
 const halfWidth = () => Math.max(300, Math.round(pageWidth() / 2 - 30));
 
+const PLACES = 22;   // voitures en 2026 ; la dernière colonne : abandons
 function finishHistogram(started, col) {
-  const n = new Array(21).fill(0);
-  for (const x of started) n[isNum(x.res) && x.res.pos <= 20 ? x.res.pos - 1 : 20]++;
+  const n = new Array(PLACES + 1).fill(0);
+  for (const x of started) n[isNum(x.res) && x.res.pos <= PLACES ? x.res.pos - 1 : PLACES]++;
   const hi = Math.max(1, ...n);
-  const W = halfWidth(), H = 170, pl = 6, pb = 22, bw = (W - pl * 2) / 21;
+  const W = halfWidth(), H = 170, pl = 6, pb = 22, bw = (W - pl * 2) / (PLACES + 1);
   const bars = n.map((v, i) => {
     const h = ((H - pb - 16) * v) / hi;
     const x = pl + i * bw;
-    const c = i === 20 ? 'var(--red)' : i < 3 ? '#ffd166' : col;
-    return `${v ? `<rect x="${x + 2}" y="${H - pb - h}" width="${bw - 4}" height="${h}" rx="2" fill="${c}"><title>${i === 20 ? 'Abandons' : `P${i + 1}`} : ${v}</title></rect><text x="${x + bw / 2}" y="${H - pb - h - 4}" class="sz-ax" text-anchor="middle">${v}</text>` : ''}
-      <text x="${x + bw / 2}" y="${H - 6}" class="sz-ax" text-anchor="middle">${i === 20 ? 'Ab' : i + 1}</text>`;
+    const c = i === PLACES ? 'var(--red)' : i < 3 ? '#ffd166' : col;
+    return `${v ? `<rect x="${x + 2}" y="${H - pb - h}" width="${bw - 4}" height="${h}" rx="2" fill="${c}"><title>${i === PLACES ? 'Abandons' : `P${i + 1}`} : ${v}</title></rect><text x="${x + bw / 2}" y="${H - pb - h - 4}" class="sz-ax" text-anchor="middle">${v}</text>` : ''}
+      <text x="${x + bw / 2}" y="${H - 6}" class="sz-ax" text-anchor="middle">${i === PLACES ? 'Ab' : i + 1}</text>`;
   }).join('');
   return `<svg viewBox="0 0 ${W} ${H}" class="sz-svg">${bars}</svg>`;
 }
@@ -237,7 +238,7 @@ export function renderRatings(ctx, sortBy = 'season') {
     <section class="sz-box sz-how"><h3>Comment les notes sont calculées</h3>
       <p><b>Note de la saison (sur 100)</b> : rang parmi les pilotes présents à 40 % des Grands Prix, pour chaque critère :</p>
       <ul>${SEASON_CRITERIA.map(([, w, l]) => `<li>${esc(l)} : <b>${w} %</b></li>`).join('')}</ul>
-      <p class="small muted">Rythme : écart au plus rapide de chaque course${noPace ? ' (pas encore analysé)' : ''}. Abandon = 20e place.</p>
+      <p class="small muted">Rythme : écart au plus rapide de chaque course${noPace ? ' (pas encore analysé)' : ''}. Abandon = dernière place.</p>
       <p><b>Note face au coéquipier (sur 100, 50 = à égalité)</b> : comparaison avec le coéquipier de chaque course.</p>
       <ul>${MATE_CRITERIA.map(([, w, l]) => `<li>${esc(l)} : <b>${w} %</b></li>`).join('')}</ul>
       <p class="small muted">Écart en qualification : médiane, dans la dernière partie disputée par les deux ; écarts de plus de 3 % ignorés. La voiture n'est pas prise en compte.</p>

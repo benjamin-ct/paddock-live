@@ -25,7 +25,7 @@ function fakeEnv({ limit = 100, replies = [] } = {}) {
     },
     async run() {
       if (/INTO translations/.test(sql)) tr.set(args[0], args[1]);
-      else usage.set(args[0], (usage.get(args[0]) || 0) + args[1]);
+      else { const v = (usage.get(args[0]) || 0) + args[1]; if (v > args[2]) return { meta: { changes: 0 } }; usage.set(args[0], v); return { meta: { changes: 1 } }; }
     },
   });
   return {
