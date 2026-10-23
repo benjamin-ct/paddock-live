@@ -4,6 +4,12 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → À propos → Nouveautés).
 
+## v1.28.3 — à venir
+
+### En direct
+- Connexion F1 TV : l'appli ouverte avant le début d'une séance reçoit maintenant le GPS et la télémétrie environ
+  une minute après le départ. Jusqu'ici, elle restait en positions estimées (carte saccadée) jusqu'à ce qu'on la redémarre.
+
 ## v1.28.2 — 2026-10-23
 
 ### En direct
