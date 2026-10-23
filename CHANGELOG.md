@@ -29,6 +29,10 @@ l'application (Réglages → À propos → Nouveautés).
   pendant la course, au lieu de plusieurs fois : moins de calcul, surtout sur téléphone.
 - Menus « Calques » (circuit) et « Colonnes » (classement) affichés en entier, même dans un petit panneau :
   ouverts par-dessus l'écran, vers le haut s'il y a plus de place, avec défilement si la fenêtre est basse.
+- Écran large mais peu haut (1080p) : panneaux « Direction de course » et « Stratégie » masqués par défaut, pour
+  que les autres aient la hauteur de leur contenu (2 panneaux au plus par colonne). Le dernier message de la
+  direction de course reste dans la barre du bas, pneus et arrêts dans le classement ; les réafficher dans
+  Dispo. Disposition déjà enregistrée : Dispo. → Réinitialiser pour en profiter.
 
 ### Saison
 - Bilan de la saison (Saison → Bilan de la saison) : champion ou leader, victoires, poles, podiums, vainqueurs

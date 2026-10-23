@@ -1,7 +1,7 @@
 // Disposition libre : colonnes et panneaux redimensionnables, panneaux déplaçables par glisser-déposer,
 // fenêtres secondaires (second écran) pouvant regrouper plusieurs panneaux, colonnes du classement.
 import { $, $$, esc, storageGet, storageSet, sessionKind } from '../util.js';
-import { prefs, setPref } from '../prefs.js';
+import { prefs, setPref, shortScreenHidden } from '../prefs.js';
 import { store, on } from '../store.js';
 import { toast } from './delay.js';
 import { icon } from '../icons.js';
@@ -72,7 +72,7 @@ const TAB_DEFAULTS = {
   race: { feed: 'rcm', analysis: 'trace', extra: 'pits' },
   quali: { feed: 'rcm', analysis: 'compare', extra: 'tyres' },
 };
-const PROFILE_DEFAULTS = { race: { hiddenPanels: [], hiddenCols: [] }, quali: { hiddenPanels: [], hiddenCols: [] } };
+const profileDefaults = () => ({ hiddenPanels: shortScreenHidden(), hiddenCols: [] });
 const profileFor = (mode, kind) => (mode === 'race' || mode === 'quali' ? mode : kind === 'race' ? 'race' : 'quali');
 let profile = prefs.layoutMode === 'race' || prefs.layoutMode === 'quali' ? prefs.layoutMode : storageGet('paddock.lastProfile', 'race');
 if (!PROFILES[profile]) profile = 'race';
@@ -927,7 +927,7 @@ function switchProfile(next, quiet = false) {
     const st = storageGet(PROFILE_KEY, {});
     st[profile] = { hiddenPanels: prefs.hiddenPanels, hiddenCols: prefs.hiddenCols, extraCols: prefs.extraCols };
     storageSet(PROFILE_KEY, st);
-    const n = st[next] || PROFILE_DEFAULTS[next];
+    const n = st[next] || profileDefaults();
     profile = next;
     storageSet('paddock.lastProfile', next);
     setPref('hiddenPanels', n.hiddenPanels || []);
@@ -1130,7 +1130,7 @@ export function resetLayout(ask = true) {
   storageSet(PROFILE_KEY, {});
   storageSet(TABS_KEY, {});
   unmaximize();
-  const def = PROFILE_DEFAULTS[profile];
+  const def = profileDefaults();
   setPref('hiddenPanels', [...def.hiddenPanels]);
   setPref('hiddenCols', [...def.hiddenCols]);
   setPref('extraCols', []);

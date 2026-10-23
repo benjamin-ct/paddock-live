@@ -3,11 +3,15 @@ import { storageGet, storageSet, setVividTeams, setTeamLogos, setLogoColor } fro
 import { emit, touch } from './store.js';
 import { LANG } from './i18n.js';
 
+// Écran large mais peu haut (1080p) : direction de course (dernier message dans la barre du bas) et panneau
+// Stratégie (pneus et arrêts dans le classement) masqués par défaut, 2 panneaux au plus par colonne
+export const shortScreenHidden = () => (window.innerWidth > 1500 && window.innerHeight < 1150 ? ['feed', 'extra'] : []);
+
 const DEFAULTS = {
   favs: [],               // numéros des pilotes favoris
   favTeams: [],           // écuries favorites (clés de shared/news.js : 'ferrari', 'redbull'…)
   alerts: { sound: true, vibrate: true, notify: false, flags: true, fastest: true, favPit: true, favRcm: true, retire: true, finish: true, favCut: true, rain: true, prono: true },
-  hiddenPanels: [],
+  hiddenPanels: shortScreenHidden(),
   hiddenCols: [],
   extraCols: [],          // colonnes facultatives ajoutées au classement (voir EXTRA_COLUMNS)
   towerFit: true,         // classement agrandi pour remplir la hauteur disponible
