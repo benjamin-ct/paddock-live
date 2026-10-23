@@ -187,9 +187,12 @@ function favHtml() {
   }
   const recent = lastSession() && Date.now() - lastSession().t < 72 * 3600e3;
   const hide = recent && !showFav;
+  // Pilotes puis écuries, chacun sous son titre ; mêmes colonnes pour toutes les lignes (grille commune)
   const rows = [
+    ...(favD.length ? ['<div class="hm-fav-group muted">Pilotes</div>'] : []),
     ...favD.map((d) => `<div class="hm-fav-row"><span class="hm-fav-pos">P${d.pos}</span><b>${esc(d.name)}</b><span class="muted">${esc(d.team)}</span><span class="muted">${pts(d)}</span></div>`),
-    ...favT.map((c) => `<div class="hm-fav-row"><span class="hm-fav-pos">P${c.pos}</span><b>${esc(c.name)}</b><span class="muted">Constructeurs</span><span class="muted">${pts(c)}</span></div>`),
+    ...(favT.length ? ['<div class="hm-fav-group muted">Écuries</div>'] : []),
+    ...favT.map((c) => `<div class="hm-fav-row"><span class="hm-fav-pos">P${c.pos}</span><b>${esc(c.name)}</b><span></span><span class="muted">${pts(c)}</span></div>`),
   ];
   return `<section class="hm-card hm-fav" id="hmFav">${head}
     <div class="hm-favs${hide ? ' hm-blur' : ''}">${rows.join('')}</div>

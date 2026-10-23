@@ -15,6 +15,7 @@ l'application (Réglages → À propos → Nouveautés).
 - Hors saison (prochaine séance dans plus de 3 semaines, ou calendrier pas encore publié) : l'accueil met en avant
   le bilan de la saison passée, les replays des courses et l'actu (transferts, nouvelles voitures), avec le
   compte à rebours du premier Grand Prix dès que le calendrier est connu.
+- Mes favoris au championnat : pilotes et écuries séparés, colonnes alignées d'une ligne à l'autre.
 
 ### En direct
 - Connexion F1 TV : l'appli ouverte avant le début d'une séance reçoit maintenant le GPS et la télémétrie environ
