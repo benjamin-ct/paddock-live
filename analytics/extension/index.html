@@ -75,16 +75,15 @@ ol b { color: var(--text); }
   </p>
 </main>
 <script>
-// Boutiques : ajouter l'adresse d'Edge quand l'extension y est publiée. « check » :
+// Boutiques (Edge : pas de fiche pour le moment, ses utilisateurs passent par le Chrome Web Store). « check » :
 // fiche lue avant d'afficher le bouton (« en cours de validation » tant qu'elle n'est pas publique) ; « review » :
 // envoyée, pas encore d'adresse
 const STORES = [
   { id: 'firefox', name: 'Firefox', color: '#ff7139', url: 'https://addons.mozilla.org/firefox/addon/paddock-live-companion/' },
   { id: 'chrome', name: 'Chrome', color: '#1a73e8', url: 'https://chromewebstore.google.com/detail/paddock-live-companion/bbhpcbnopodhlieogggfclfkelclpjka' },
-  { id: 'edge', name: 'Edge', color: '#0c8a6f', url: '' },
 ];
 const ua = navigator.userAgent;
-const mine = /Firefox\//.test(ua) ? 'firefox' : /Edg\//.test(ua) ? 'edge' : /Chrome\//.test(ua) ? 'chrome' : '';
+const mine = /Firefox\//.test(ua) ? 'firefox' : /Chrome\//.test(ua) ? 'chrome' : '';
 let en = false;
 
 function render() {

@@ -54,7 +54,8 @@ comme mise à jour sur chaque boutique.
 
 ### Microsoft Edge Add-ons (gratuit)
 
-https://partner.microsoft.com/dashboard/microsoftedge → même zip, mêmes textes et visuels.
+https://partner.microsoft.com/dashboard/microsoftedge → même zip, mêmes textes et visuels. Pas publiée pour le
+moment (pas de bouton Edge sur paddocklive.app/extension : Edge installe l'extension depuis le Chrome Web Store).
 
 ### Firefox Add-ons (gratuit)
 
