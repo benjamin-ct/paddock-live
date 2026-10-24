@@ -2711,4 +2711,8 @@ export default {
   "{} Regarder sur YouTube": "{} Watch on YouTube",
   "La chaîne ne permet pas de lire cette vidéo en dehors de YouTube.": "The channel doesn't allow this video to play outside YouTube.",
   "{} (à venir)": "{} (upcoming)",
+  "Délai TV : l'affichage attend autant que votre diffusion": "TV delay: the display waits as long as your broadcast",
+  "Télécharger l'appli Paddock Live": "Download the Paddock Live app",
+  "Version web allégée : positions estimées d'après les chronos. Toutes les fonctions dans l'appli de bureau.": "Lightweight web version: positions estimated from timing. Every feature in the desktop app.",
+  "Appli complète": "Full app",
 };

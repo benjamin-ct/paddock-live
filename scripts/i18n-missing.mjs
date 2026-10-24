@@ -78,7 +78,7 @@ walk(path.join(ROOT, 'public/js'));
 // Hors interface : moteurs (radios, son), dictionnaires, textes rédigés directement en anglais
 const SKIP = /workers\/|icons\.js|i18n|fia-docs-fr|audio-sync|calibrate/;
 for (const f of files.filter((x) => x.endsWith('.js') && !SKIP.test(x))) literals(fs.readFileSync(f, 'utf8'), path.relative(ROOT, f));
-for (const f of ['public/index.html', 'public/mini.html']) segments(fs.readFileSync(path.join(ROOT, f), 'utf8'), f);
+for (const f of ['public/index.html', 'public/mini.html', 'analytics/live-page/index.html']) segments(fs.readFileSync(path.join(ROOT, f), 'utf8'), f);
 
 // Fragments de gabarits imbriqués (code), polices et textes déjà en anglais ou noms propres : ignorés
 const CODE = /\$\{|card\(|const |\? '|: ''|\)\.join|=>|sans-serif|^&\w+=/;

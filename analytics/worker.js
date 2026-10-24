@@ -29,6 +29,9 @@ import { pronosApi, GROUP_RE } from './pronos.js';
 import { pruneIpQuota, callerIp, ipQuota } from './quota.js';
 import { healthCheck, HEALTH } from './health.js';
 import { publicPushApi, pushRun, queuePush, sessionReminders } from './push-public.js';
+import { liveSocket, liveApi } from './live-relay.js';
+
+export { LiveRelay } from './live-relay.js';
 
 const MAX_BODY = 32 * 1024;
 const COOKIE = 'pl_stats';
@@ -238,6 +241,9 @@ export default {
     }
     // Page web du créateur : API (la page elle-même est un fichier statique, dossier site/)
     // Publication d'un réseau, appelée par la tâche planifiée elle-même (voir runSchedule)
+    // Version web du direct (/live/, fichiers statiques) : relais du flux F1 et tracé des circuits
+    if (url.pathname === '/live/ws') return liveSocket(req, env);
+    if (req.method === 'GET' && url.pathname.startsWith('/live/api/')) return liveApi(req, url);
     if (req.method === 'POST' && url.pathname === '/internal/sched') return schedInternal(req, env);
     if (req.method === 'POST' && url.pathname === '/internal/push') {
       if (!env.STATS_KEY || !sameKey(req.headers.get('X-Sched-Key') || '', env.STATS_KEY)) return json({ error: 'Interdit' }, 403);

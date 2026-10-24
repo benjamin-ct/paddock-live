@@ -32,6 +32,15 @@ service = "paddock-live-stats"
 # Workers AI : traduction des actualités et des radios (Mistral Small 3.1), transcription des radios (Whisper)
 # Toutes les minutes : publications programmées de la page du créateur ; toutes les 5 minutes,
 # relevé des flux d'actu pour ses alertes (rien si personne n'est abonné)
+# Version web du direct (/live/) : une seule connexion au flux F1, redistribuée à tous les navigateurs
+[[durable_objects.bindings]]
+name = "LIVE"
+class_name = "LiveRelay"
+
+[[migrations]]
+tag = "v1-live"
+new_sqlite_classes = ["LiveRelay"]
+
 [triggers]
 crons = ["* * * * *"]
 

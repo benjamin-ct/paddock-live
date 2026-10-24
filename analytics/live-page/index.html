@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#07080A">
+  <meta name="robots" content="noindex">
+  <title>Paddock Live · Direct</title>
+  <link rel="icon" href="/live/logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/live/css/style.css">
+  <link rel="stylesheet" href="/live/css/broadcast.css">
+  <script>/* Apparence (sombre / clair / système) posée avant l'affichage : pas d'éclair */ try { const p = JSON.parse(localStorage.getItem('paddock.prefs') || '{}'); const s = p.schemeSet || p.scheme === 'light' ? p.scheme : 'auto'; const light = s === 'light' || (s === 'auto' && matchMedia('(prefers-color-scheme: light)').matches); document.documentElement.dataset.scheme = light ? 'light' : 'dark'; } catch { document.documentElement.dataset.scheme = 'dark'; } document.documentElement.dataset.theme = 'pitwall'; document.documentElement.classList.add('web');</script>
+  <style>
+    /* Version web : quatre panneaux, sans menu latéral ni outils de l'appli */
+    .web body { padding-left: 0 !important; }
+    .web .grid { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, .8fr); grid-template-rows: minmax(0, 1.1fr) minmax(0, 1fr);
+      grid-template-areas: "tower map radio" "tower feed radio"; }
+    .web .p-radio { grid-area: radio; }
+    .web .topbar .web-delay { display: flex; align-items: center; gap: 6px; }
+    .web .topbar .web-delay input { width: 64px; }
+    .web .web-note { font-size: 11px; color: var(--text-2); max-width: 260px; line-height: 1.3; }
+    .web [data-full], .web [data-expert], .web #rcmTranslateBox, .web .map-mode + label + #mapFloatBtn { display: none !important; }
+    @media (max-width: 1300px) {
+      .web body { overflow: auto; }
+      .web .grid { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); grid-template-rows: 560px 460px;
+        grid-template-areas: "tower map" "feed radio"; }
+    }
+    @media (max-width: 900px) {
+      .web .grid { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto; grid-template-areas: "map" "tower" "feed" "radio"; }
+      .web .p-map { height: 380px; } .web .p-tower { height: 680px; } .web .p-feed, .web .p-radio { height: 440px; }
+      .web .web-note, .web .web-delay .hstat-label { display: none; }
+      .web .web-delay, .web #sourceBadge, .web .topbar > .btn { order: 5; }
+      .web .web-delay { margin-right: auto; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><img class="logo" src="/live/logo.svg" alt="Paddock Live"><span class="brand-name">PADDOCK LIVE</span></div>
+    <div class="session">
+      <img class="session-flag" id="sessionFlag" alt="" hidden>
+      <div class="session-txt">
+        <div class="session-name" id="sessionName">Connexion…</div>
+        <div class="session-sub" id="sessionSub"></div>
+      </div>
+    </div>
+    <div class="track-status" id="trackStatus"><span class="ts-dot"></span><span class="ts-label">—</span></div>
+    <div class="tb-break b1"></div>
+    <div class="hstat lap-box"><div class="hstat-label" id="lapLabel">Tour</div><div class="hstat-value" id="lapValue">—</div><div class="lap-bar" id="lapBar" hidden><i></i></div></div>
+    <div class="hstat" id="lapsLeftBox" hidden><div class="hstat-label">Tours restants</div><div class="hstat-value" id="lapsLeft">—</div></div>
+    <div class="hstat clock-box" id="clockBox"><div class="hstat-label">Temps restant</div><div class="hstat-value" id="clockValue">—</div></div>
+    <div class="hstat" id="circuitTimeBox" hidden><div class="hstat-label">Heure circuit</div><div class="hstat-value" id="circuitTime">—</div></div>
+    <div class="hstat weather-mini" id="weatherMini" hidden></div>
+    <div class="hstat surface" id="surfaceBox" hidden><div class="hstat-label">État piste</div><div class="hstat-value" id="surfaceValue">—</div></div>
+    <div class="spacer"></div>
+    <div class="tb-break b2"></div>
+    <div class="web-note">Version web allégée : positions estimées d'après les chronos. Toutes les fonctions dans l'appli de bureau.</div>
+    <div class="web-delay" title="Délai TV : l'affichage attend autant que votre diffusion">
+      <span class="hstat-label">Délai</span>
+      <button class="dbtn m" data-step="-5000">−5</button>
+      <button class="dbtn m" data-step="-1000">−1</button>
+      <input id="delayInput" class="delay-input" type="text" inputmode="decimal" aria-label="Délai en secondes">
+      <button class="dbtn" data-step="1000">+1</button>
+      <button class="dbtn" data-step="5000">+5</button>
+    </div>
+    <button class="source-badge" id="sourceBadge"><span class="src-dot"></span><span id="sourceLabel">—</span></button>
+    <a class="btn small btn-accent" href="/" title="Télécharger l'appli Paddock Live">Appli complète</a>
+  </header>
+
+  <div class="flag-banner" id="flagBanner" hidden><span class="fb-icon"></span><span class="fb-text"></span><span class="fb-sub"></span></div>
+
+  <main class="grid">
+    <!--panel:tower-->
+    <!--panel:map-->
+    <!--panel:feed-->
+    <!--panel:radio-->
+  </main>
+
+  <div class="toast" id="toast" popover="manual" hidden></div>
+  <script type="module" src="/live/js/web.js"></script>
+</body>
+</html>

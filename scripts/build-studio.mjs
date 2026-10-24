@@ -101,6 +101,45 @@ for (const id of Object.keys(PAGES)) {
   fs.mkdirSync(path.join(OUT, id), { recursive: true });
   fs.writeFileSync(path.join(OUT, id, 'index.html'), linksPage(id));
 }
+// Version web du direct (/live/) : interface de l'appli (public/) et code partagé sous /live/, reliés au relais
+// du Worker (analytics/live-relay.js) ; page et point d'entrée dans analytics/live-page
+const LIVE = path.join(OUT, 'live');
+const LIVE_PAGE = path.join(ROOT, 'analytics', 'live-page');
+const toLive = (s) => s.replace(/(['"`(])\/(api|shared|js|css|fonts|data|vendor|logo\.svg)(?=[/'"`)?])/g, '$1/live/$2');
+const copyLive = (from, to) => {
+  fs.mkdirSync(to, { recursive: true });
+  for (const e of fs.readdirSync(from, { withFileTypes: true })) {
+    const src = path.join(from, e.name), dst = path.join(to, e.name);
+    if (e.isDirectory()) copyLive(src, dst);
+    else if (/\.(js|css)$/.test(e.name)) fs.writeFileSync(dst, toLive(fs.readFileSync(src, 'utf8')));
+    else fs.copyFileSync(src, dst);
+  }
+};
+for (const d of ['js', 'css', 'fonts', 'data']) copyLive(path.join(ROOT, 'public', d), path.join(LIVE, d));
+copyLive(path.join(ROOT, 'public', 'vendor', 'nosleep'), path.join(LIVE, 'vendor', 'nosleep'));
+copyLive(SHARED, path.join(LIVE, 'shared'));
+fs.copyFileSync(path.join(ROOT, 'public', 'logo.svg'), path.join(LIVE, 'logo.svg'));
+for (const f of ['web.js', 'web-hub.js']) fs.writeFileSync(path.join(LIVE, 'js', f), toLive(fs.readFileSync(path.join(LIVE_PAGE, f), 'utf8')));
+// Panneaux repris tels quels de la page de l'appli
+const appPage = fs.readFileSync(path.join(ROOT, 'public', 'index.html'), 'utf8');
+const livePage = fs.readFileSync(path.join(LIVE_PAGE, 'index.html'), 'utf8').replace(/<!--panel:(\w+)-->/g, (_, id) => {
+  const m = appPage.match(new RegExp(`<section class="panel p-${id}">[\\s\\S]*?</section>`));
+  if (!m) throw new Error(`public/index.html : panneau ${id} introuvable`);
+  return toLive(m[0]);
+});
+fs.writeFileSync(path.join(LIVE, 'index.html'), livePage);
+// Modules de la page : tous présents (un import manquant bloquerait toute la page)
+const liveGraph = new Set();
+const liveVisit = (file) => {
+  if (liveGraph.has(file)) return;
+  if (!fs.existsSync(file)) throw new Error(`Version web : module manquant ${path.relative(OUT, file)}`);
+  liveGraph.add(file);
+  for (const m of fs.readFileSync(file, 'utf8').matchAll(IMPORT)) {
+    const to = m[1].startsWith('/live/') ? path.join(OUT, m[1]) : m[1].startsWith('.') ? path.resolve(path.dirname(file), m[1]) : null;
+    if (to) liveVisit(to);
+  }
+};
+liveVisit(path.join(LIVE, 'js', 'web.js'));
 // Fichiers servis à la racine du site (vérification du domaine par TikTok)
 copy(path.join(ROOT, 'analytics', 'root'), OUT);
 copy(path.join(ROOT, 'public', 'fonts'), path.join(OUT, 'fonts'), (f) => /^(titillium|sairacondensed|jetbrainsmono).*\.woff2$|^OFL/.test(f));
@@ -133,6 +172,9 @@ fs.writeFileSync(path.join(OUT, '_headers'), `/studio/*
 /kit/*
   Cache-Control: public, max-age=86400
   X-Robots-Tag: noindex, nofollow
+/live/*
+  Cache-Control: no-cache
+  X-Robots-Tag: noindex, nofollow
 `);
 const n = (d) => fs.readdirSync(path.join(OUT, d)).length;
-console.log(`Site prêt : version ${VERSION}, ${n(`m/${VERSION}/studio`)} fichiers studio, ${n(`m/${VERSION}/shared`)} modules partagés (${graph.length} chargés d'emblée), ${n('fonts')} polices`);
+console.log(`Site prêt : version ${VERSION}, ${n(`m/${VERSION}/studio`)} fichiers studio, ${n(`m/${VERSION}/shared`)} modules partagés (${graph.length} chargés d'emblée), ${n('fonts')} polices, version web : ${liveGraph.size} modules`);
