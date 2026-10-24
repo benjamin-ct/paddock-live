@@ -324,9 +324,9 @@ function articlePhoto(url) {
   return artPhotos.get(url);
 }
 
-// Vers X (un lien ne transmet que le texte) : menu de partage avec les images et le texte quand le
-// navigateur sait partager des fichiers (choisir X ; texte aussi copié, à coller si l'appli ne le reprend
-// pas). Sinon : appli X sur téléphone, x.com sur ordinateur avec les images téléchargées
+// Vers X (un lien ne transmet que le texte) : sur téléphone, menu de partage avec les images et le texte
+// (choisir X ; texte aussi copié, à coller si l'appli ne le reprend pas), sinon l'appli X. Sur ordinateur,
+// x.com avec le texte et les images ou la vidéo téléchargées (le menu de partage de Windows ne propose pas X)
 // Texte X (et premier commentaire) avec ses liens suivis (clics comptés), préparé à l'affichage : le
 // partage part dès le toucher
 const CAP_NET = { instagram: 'instagram', facebook: 'facebook', threads: 'threads', x: 'x', bsky: 'bluesky' };
@@ -347,11 +347,12 @@ async function openX(canvases, raw, video = null) {
   const text = trackedNow(raw);
   navigator.clipboard?.writeText(text).catch(() => {});
   const files = video ? [video.full || video] : await Promise.all(canvases.map(async (cv, i) => new File([await toBlob(cv)], `x-${i + 1}.png`, { type: 'image/png' })));
-  if (navigator.canShare?.({ files })) {
+  const phone = IOS || /Android/.test(navigator.userAgent);
+  if (phone && navigator.canShare?.({ files })) {
     try { await navigator.share({ files, text }); } catch { /* partage annulé */ }
     return;
   }
-  if (IOS || /Android/.test(navigator.userAgent)) { location.href = `twitter://post?message=${encodeURIComponent(text)}`; return; }
+  if (phone) { location.href = `twitter://post?message=${encodeURIComponent(text)}`; return; }
   open(`https://x.com/intent/post?text=${encodeURIComponent(text)}`, '_blank', 'noopener');
   if (!video) { download(canvases); return; }
   const a = document.createElement('a'); a.href = URL.createObjectURL(files[0]); a.download = files[0].name; a.click();
