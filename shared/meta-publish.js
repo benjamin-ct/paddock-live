@@ -183,7 +183,12 @@ async function igVideo(meta, video, fields, what) {
   const tok = { access_token: meta.pageToken };
   const c = await call(`${GRAPH}/${meta.igId}/media`, { method: 'POST', form: { ...fields, upload_type: 'resumable', ...tok } });
   await call(c.uri || `${GRAPH.replace('//graph.', '//rupload.').replace('.com/', '.com/ig-api-upload/')}/${c.id}`, { method: 'POST', headers: { Authorization: `OAuth ${meta.pageToken}`, offset: '0', file_size: String(video.size) }, body: video })
-    .catch((err) => { throw new Error(`Envoi de la vidéo à Instagram refusé : ${err.message}`); });
+    .catch(async (err) => {
+      // État du conteneur chez Instagram (envoi, traitement) : dit où ça bloque
+      const s = await call(`${GRAPH}/${c.id}?${new URLSearchParams({ fields: 'status,video_status', ...tok })}`).catch(() => null);
+      const at = [s?.status, s?.video_status?.uploading_phase?.error?.message, s?.video_status?.processing_phase?.error?.message].filter(Boolean).join(' ; ');
+      throw new Error(`Envoi de la vidéo à Instagram refusé : ${err.message}${at ? ` (${at})` : ''}`.slice(0, 300));
+    });
   await ready(`${GRAPH}/${c.id}?${new URLSearchParams({ fields: 'status_code,status', ...tok })}`, 'status_code', what);
   return c.id;
 }
@@ -209,10 +214,17 @@ export async function storyVideoFacebook(meta, video) {
 export async function reelInstagram(meta, video, caption, coverUrl = null) {
   if (!meta?.igId) throw new Error('Aucun compte Instagram professionnel relié à la page Facebook');
   const tok = { access_token: meta.pageToken };
-  const id = await igVideo(meta, video, { media_type: 'REELS', caption: String(caption || '').slice(0, 2200), ...(coverUrl ? { cover_url: coverUrl } : {}) }, 'Reel');
+  const reel = (cover) => igVideo(meta, video, { media_type: 'REELS', caption: String(caption || '').slice(0, 2200), ...(cover ? { cover_url: cover } : {}) }, 'Reel');
+  // Refus avec la couverture (même vidéo acceptée en story) : un essai sans elle, image choisie par Instagram
+  let note = null;
+  const id = await reel(coverUrl).catch((err) => {
+    if (!coverUrl) throw err;
+    note = `Couverture refusée par Instagram (${err.message.slice(0, 120)}) : image choisie par Instagram`;
+    return reel(null);
+  });
   const pub = await call(`${GRAPH}/${meta.igId}/media_publish`, { method: 'POST', form: { creation_id: id, ...tok } });
   const link = await call(`${GRAPH}/${pub.id}?${new URLSearchParams({ fields: 'permalink', ...tok })}`).catch(() => ({}));
-  return { url: link.permalink || `https://www.instagram.com/${meta.igUsername || ''}`, id: pub.id };
+  return { url: link.permalink || `https://www.instagram.com/${meta.igUsername || ''}`, id: pub.id, ...(note ? { note } : {}) };
 }
 
 // ---------- Vidéo envoyée par le créateur (MP4 ou MOV) ----------
