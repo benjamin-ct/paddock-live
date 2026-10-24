@@ -17,7 +17,6 @@ function focusDriver() {
 
 // Pilote B de la télémétrie (comparaison) : choisi dans l'onglet, sinon pilote B du duel
 let teleB = null;
-let teleBOff = false;
 
 // Compteurs et courbe : construits une fois par choix de pilotes, puis animés image par image
 // (voir gauge.js) ; ce rendu périodique ne gère que la structure.
@@ -61,9 +60,8 @@ export function renderTelemetry() {
     return;
   }
   if (!num) return;
-  // Pilote B : choisi ici, sinon pilote B (ou A) du duel s'il est différent du pilote suivi
-  const numB = teleBOff ? null : teleB && dl[teleB] && teleB !== num ? teleB
-    : [store.duel.b, store.duel.a].find((n) => n && n !== num && dl[n]) || null;
+  // Le pilote suivi seul ; second pilote seulement s'il est choisi ici (« + Comparer… »)
+  const numB = teleB && dl[teleB] && teleB !== num ? teleB : null;
   const nums = orderedNumbers(store.state).filter((n) => dl[n]);
   const key = `${num}|${numB}|${nums.join(',')}`;
   if (el._k !== key) {
@@ -84,8 +82,8 @@ export function renderTelemetry() {
       </div>
       <div class="trace"><div class="chart-title"><span>Vitesse — 30 dernières secondes (km/h)</span></div><div id="teleTrace"></div></div></div>`;
     $('#teleSel').addEventListener('change', (e) => setFocus(e.target.value));
-    $('#teleSelB').addEventListener('change', (e) => { teleB = e.target.value || null; teleBOff = !teleB; el._k = null; lastTele = 0; renderTelemetry(); });
-    $('#teleClearB')?.addEventListener('click', () => { teleB = null; teleBOff = true; el._k = null; lastTele = 0; renderTelemetry(); });
+    $('#teleSelB').addEventListener('change', (e) => { teleB = e.target.value || null; el._k = null; lastTele = 0; renderTelemetry(); });
+    $('#teleClearB')?.addEventListener('click', () => { teleB = null; el._k = null; lastTele = 0; renderTelemetry(); });
     tele = { num, numB, dialA: new Dial(teamColor(dl[num] || {})), dialB: numB ? new Dial(teamColor(dl[numB] || {})) : null, trace: new SpeedTrace($('#teleTrace')) };
     $('#teleDialA').appendChild(tele.dialA.el);
     if (tele.dialB) $('#teleDialB').appendChild(tele.dialB.el);
