@@ -41,6 +41,7 @@ export class LiveRelay {
   }
 
   async fetch(req) {
+    if (new URL(req.url).pathname === '/live/api/session') return json(await this.session());
     if (req.headers.get('Upgrade') !== 'websocket') return new Response('WebSocket attendu', { status: 426 });
     if (this.clients.size >= MAX_CLIENTS) return new Response('Trop de connexions', { status: 503 });
     const [client, server] = Object.values(new WebSocketPair());
@@ -60,6 +61,21 @@ export class LiveRelay {
     this.hello(server, Date.now() - (Number.isFinite(d) ? Math.min(Math.max(d, 0), KEEP_MS) : KEEP_MS) - HIST_MS);
     this.start();
     return new Response(null, { status: 101, webSocket: client });
+  }
+
+  // Séance en cours ou qui vient de finir (page du créateur : la F1 ne l'ajoute à l'index de la saison que bien
+  // après le drapeau à damier). Relais à l'arrêt : une connexion courte, fermée une minute après
+  async session(wait = 10000) {
+    if (!this.base.t) {
+      this.start();
+      if (!this.clients.size && !this.idle) this.idle = setTimeout(() => this.stop(), IDLE_MS);
+      for (let n = 0; n < wait / 250 && !this.base.t; n++) await new Promise((r) => setTimeout(r, 250));
+    }
+    const info = this.base.state.SessionInfo;
+    if (!info?.Path) return null;
+    let status = this.base.state.SessionStatus?.Status || info.SessionStatus || null;
+    for (const [topic, data] of this.recent) if (topic === 'SessionStatus' && data?.Status) status = data.Status;
+    return { path: info.Path, name: info.Name, type: info.Type, gp: info.Meeting?.Name, country: info.Meeting?.Country?.Code, endDate: info.EndDate, gmtOffset: info.GmtOffset, status };
   }
 
   send(ws, str) {
@@ -306,6 +322,7 @@ function audioResponse(req, bytes, rel) {
 // directement sur le site de la F1 ; son, texte et traduction des radios (transcription et traduction
 // partagées du serveur, mêmes plafonds que l'appli) ; le reste n'existe pas en ligne
 export async function liveApi(req, url, env = {}) {
+  if (url.pathname === '/live/api/session' && req.method === 'GET') return env.LIVE ? env.LIVE.get(env.LIVE.idFromName('f1')).fetch(req) : json(null);
   if (url.pathname === '/live/api/archive/file' && req.method === 'GET') {
     const rel = url.searchParams.get('p') || '';
     const bytes = await radioFile(env, rel);

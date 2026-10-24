@@ -152,3 +152,16 @@ test('version web : son des radios relayé (par morceaux pour Safari), chemins h
     delete globalThis.caches;
   }
 });
+
+test('relais web : séance en cours pour la page du créateur (avant l\'index de la saison de la F1)', async () => {
+  const relay = new LiveRelay({}, {});
+  const t0 = 1e12;
+  relay.onFrame(JSON.stringify({ type: 3, invocationId: '1', result: { SessionInfo: { Key: 10, Name: 'Qualifying', Type: 'Qualifying', Path: '2026/2026-10-25_United_States_Grand_Prix/2026-10-24_Qualifying/', EndDate: '2026-10-24T17:00:00', GmtOffset: '-05:00:00', Meeting: { Name: 'United States Grand Prix', Country: { Code: 'USA' } } }, SessionStatus: { Status: 'Started' } } }), t0);
+  relay.onFrame(feed('SessionStatus', { Status: 'Finished' }), t0 + 1000);
+  assert.deepEqual(await relay.session(), { path: '2026/2026-10-25_United_States_Grand_Prix/2026-10-24_Qualifying/', name: 'Qualifying', type: 'Qualifying', gp: 'United States Grand Prix', country: 'USA', endDate: '2026-10-24T17:00:00', gmtOffset: '-05:00:00', status: 'Finished' });
+  const idle = new LiveRelay({}, {});
+  idle.start = () => { idle.started = true; };   // pas de vraie connexion à la F1 dans les tests
+  idle.idle = true;
+  assert.equal(await idle.session(0), null);   // rien de connu : connexion courte lancée, rien à donner
+  assert.equal(idle.started, true);
+});
