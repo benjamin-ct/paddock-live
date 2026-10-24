@@ -27,6 +27,19 @@ l'application (Réglages → À propos → Nouveautés).
 - « Pendant votre absence » fonctionne aussi quand on s'absente pendant un drapeau rouge.
 - Onglets d'analyse (race trace, positions, rythme, temps au tour) redessinés une fois par seconde au plus
   pendant la course, au lieu de plusieurs fois : moins de calcul, surtout sur téléphone.
+- Menus « Calques » (circuit) et « Colonnes » (classement) affichés en entier, même dans un petit panneau :
+  ouverts par-dessus l'écran, vers le haut s'il y a plus de place, avec défilement si la fenêtre est basse.
+- Écran large mais peu haut (1080p) : panneaux « Direction de course » et « Stratégie » masqués par défaut, pour
+  que les autres aient la hauteur de leur contenu (2 panneaux au plus par colonne). Le dernier message de la
+  direction de course reste dans la barre du bas, pneus et arrêts dans le classement ; les réafficher dans
+  Dispo. Disposition déjà enregistrée : Dispo. → Réinitialiser pour en profiter.
+- Interface Essentielle (la plus simple) sur grand écran, façon tableau de bord : classement à gauche, grande
+  carte au centre avec les radios dessous, et à droite la télémétrie du duel, le championnat en direct (onglet
+  « Champ. », maintenant aussi en Essentiel) et les limites de piste. Disposition déjà enregistrée :
+  Dispo. → Réinitialiser.
+- L'onglet « Limites de piste » (ou « Enquêtes ») ouvert reste ouvert au lancement suivant.
+- Disposition « Qualif & essais » ou « Course » et onglets adaptés à la séance (championnat seulement en course…)
+  choisis aussi quand l'appli est ouverte avant le début de la séance, ou pour un replay.
 
 ### Saison
 - Bilan de la saison (Saison → Bilan de la saison) : champion ou leader, victoires, poles, podiums, vainqueurs

@@ -296,7 +296,7 @@ export function initTabMove() {
   on('prefs', (k) => { if (k === 'tabLayout') apply(prefs.tabLayout); if (k === 'layoutMode') setTimeout(applySession, 0); });
   applySession();
   on('reset', applySession);
-  on('events', (events) => { if (events.some(([t]) => t === 'SessionInfo')) setTimeout(applySession, 0); });
+  on('events', (events) => { if (events.some(([t]) => t === 'SessionInfo' || t === '__snapshot')) setTimeout(applySession, 0); });
   document.addEventListener('pointerdown', onDown);
   $('#tabsReset')?.addEventListener('click', () => { resetTabs(); toast('Onglets remis à leur place d\'origine', 2500, 'check'); });
 }

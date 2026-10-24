@@ -3,6 +3,11 @@ import { storageGet, storageSet, setVividTeams, setTeamLogos, setLogoColor } fro
 import { emit, touch } from './store.js';
 import { LANG } from './i18n.js';
 
+// Écran large mais peu haut (1080p), interface complète : direction de course (dernier message dans la barre
+// du bas) et panneau Stratégie (pneus et arrêts dans le classement) masqués par défaut, 2 panneaux au plus
+// par colonne. Le mode Essentiel garde les siens (championnat et limites de piste à droite)
+export const shortScreenHidden = (full = true) => (full && window.innerWidth > 1500 && window.innerHeight < 1150 ? ['feed', 'extra'] : []);
+
 const DEFAULTS = {
   favs: [],               // numéros des pilotes favoris
   favTeams: [],           // écuries favorites (clés de shared/news.js : 'ferrari', 'redbull'…)

@@ -1,7 +1,7 @@
 // Disposition libre : colonnes et panneaux redimensionnables, panneaux déplaçables par glisser-déposer,
 // fenêtres secondaires (second écran) pouvant regrouper plusieurs panneaux, colonnes du classement.
 import { $, $$, esc, storageGet, storageSet, sessionKind } from '../util.js';
-import { prefs, setPref } from '../prefs.js';
+import { prefs, setPref, shortScreenHidden } from '../prefs.js';
 import { store, on } from '../store.js';
 import { toast } from './delay.js';
 import { icon } from '../icons.js';
@@ -72,7 +72,9 @@ const TAB_DEFAULTS = {
   race: { feed: 'rcm', analysis: 'trace', extra: 'pits' },
   quali: { feed: 'rcm', analysis: 'compare', extra: 'tyres' },
 };
-const PROFILE_DEFAULTS = { race: { hiddenPanels: [], hiddenCols: [] }, quali: { hiddenPanels: [], hiddenCols: [] } };
+// Essentiel : limites de piste ouvertes à droite, et le championnat en course (sa projection ne sert qu'en course)
+const ESS_TABS = { race: { extra: 'champ', feed: 'tracklimits' }, quali: { feed: 'tracklimits' } };
+const profileDefaults = () => ({ hiddenPanels: shortScreenHidden(prefs.fullMode), hiddenCols: [] });
 const profileFor = (mode, kind) => (mode === 'race' || mode === 'quali' ? mode : kind === 'race' ? 'race' : 'quali');
 let profile = prefs.layoutMode === 'race' || prefs.layoutMode === 'quali' ? prefs.layoutMode : storageGet('paddock.lastProfile', 'race');
 if (!PROFILES[profile]) profile = 'race';
@@ -84,15 +86,16 @@ const lkey = (win = WIN, prof = profile) => (prof === 'race' || win !== 'main' ?
 function defaultLayout(prof = profile) {
   if (!isMain) return { cols: [] };
   const quali = prof === 'quali';
-  // Allégé : classement, grande carte avec le duel dessous, radios et direction de course à droite
+  // Essentiel : classement compact, grande carte (radios dessous) ; à droite télémétrie du duel, championnat
+  // et limites de piste. Écran plus étroit : classement, puis carte, duel, radios et arrêts
   if (!prefs.fullMode) {
     return window.innerWidth <= 1500 ? { cols: [
       { w: 1, items: [{ id: 'tower', h: 1.5 }, { id: 'feed', h: 0.7 }] },
       { w: 1.2, items: [{ id: 'map', h: 1.4 }, { id: 'duel', h: 0.9 }, { id: 'radio', h: 0.8 }, { id: 'extra', h: 0.6 }] },
     ] } : { cols: [
-      { w: 1.05, items: [{ id: 'tower', h: 1 }] },
-      { w: 1.5, items: [{ id: 'map', h: 1.6 }, { id: 'duel', h: 1 }] },
-      { w: 1, items: [{ id: 'radio', h: 1.1 }, { id: 'feed', h: 0.85 }, { id: 'extra', h: 0.75 }] },
+      { w: 1, items: [{ id: 'tower', h: 1 }] },
+      { w: 1.9, items: [{ id: 'map', h: 1.5 }, { id: 'radio', h: 0.5 }] },
+      { w: 1, items: [{ id: 'duel', h: 1.1 }, { id: 'extra', h: 0.9 }, { id: 'feed', h: 0.8 }] },
     ] };
   }
   if (window.innerWidth <= 1500) {
@@ -905,7 +908,7 @@ const tabHeads = () => PANELS.map((p) => [p.id, panelEl(p.id)?.querySelector('[d
 function applyTabs() {
   const saved = storageGet(TABS_KEY, {})[profile] || {};
   for (const [id, head] of tabHeads()) {
-    const want = saved[id] || TAB_DEFAULTS[profile]?.[id];
+    const want = saved[id] || (essential() && ESS_TABS[profile]?.[id]) || TAB_DEFAULTS[profile]?.[id];
     const b = want && head.querySelector(`[data-tab="${want}"]`);
     if (b && !b.classList.contains('active')) b.click();
   }
@@ -916,7 +919,8 @@ function applyTabs() {
 function visibleTabs() {
   for (const [, head] of tabHeads()) {
     const cur = head.querySelector(':scope > [data-tab].active');
-    if (cur && getComputedStyle(cur).display === 'none') [...head.querySelectorAll(':scope > [data-tab]')].find((b) => getComputedStyle(b).display !== 'none')?.click();
+    // Onglet regroupé (limites de piste, enquêtes…) : bouton caché par principe, choisi dans son sélecteur
+    if (cur && !cur.classList.contains('tab-member') && getComputedStyle(cur).display === 'none') [...head.querySelectorAll(':scope > [data-tab]')].find((b) => getComputedStyle(b).display !== 'none')?.click();
   }
 }
 
@@ -927,7 +931,7 @@ function switchProfile(next, quiet = false) {
     const st = storageGet(PROFILE_KEY, {});
     st[profile] = { hiddenPanels: prefs.hiddenPanels, hiddenCols: prefs.hiddenCols, extraCols: prefs.extraCols };
     storageSet(PROFILE_KEY, st);
-    const n = st[next] || PROFILE_DEFAULTS[next];
+    const n = st[next] || profileDefaults();
     profile = next;
     storageSet('paddock.lastProfile', next);
     setPref('hiddenPanels', n.hiddenPanels || []);
@@ -1028,9 +1032,14 @@ export function initLayout() {
   // Disposition modifiée dans une autre instance de la même fenêtre (rechargement) : rien à faire ;
   // la fenêtre principale suit seulement les préférences.
   on('prefs', (k) => {
-    if (k === 'fullMode' && isMain) layout = normalize(allLayouts()[lkey()] || defaultLayout());
+    if (k === 'fullMode' && isMain) {
+      // Premier passage dans ce mode, panneaux masqués encore ceux par défaut de l'autre : ceux de ce mode
+      const same = (a, b) => a.length === b.length && a.every((x) => b.includes(x));
+      if (!allLayouts()[lkey()] && same(prefs.hiddenPanels, shortScreenHidden(!prefs.fullMode))) setPref('hiddenPanels', shortScreenHidden(prefs.fullMode));
+      layout = normalize(allLayouts()[lkey()] || defaultLayout());
+    }
     if (k === 'hiddenPanels' || k === 'phoneFull' || k === 'fullMode') render();
-    if (k === 'fullMode') visibleTabs();
+    if (k === 'fullMode') applyTabs();
     if (['hiddenPanels', 'hiddenCols', 'extraCols', 'towerFit'].includes(k)) renderLayoutOptions();
   });
   render(true);
@@ -1041,6 +1050,21 @@ export function initLayout() {
     document.addEventListener('pointerdown', (e) => { if (colMenu.open && !colMenu.contains(e.target)) colMenu.open = false; });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') colMenu.open = false; });
   }
+  // Menus « Colonnes » et « Calques » : posés par-dessus l'écran (coupés par le bord d'un petit panneau sinon),
+  // sous le bouton ou au-dessus s'il y a plus de place, avec défilement si la fenêtre est trop basse
+  document.addEventListener('toggle', (e) => {
+    const d = e.target;
+    const menu = d.matches?.('.map-layers') && d.open && !d.closest('.float-bar, .grid.mobile') && d.querySelector('.map-layers-menu');
+    if (!menu) return;
+    const r = d.querySelector('summary').getBoundingClientRect();
+    const below = innerHeight - r.bottom - 14, above = r.top - 14;
+    const up = below < 280 && above > below;
+    Object.assign(menu.style, { position: 'fixed', right: 'auto', overflowY: 'auto', maxHeight: `${Math.max(120, up ? above : below)}px`,
+      top: up ? 'auto' : `${r.bottom + 6}px`, bottom: up ? `${innerHeight - r.top + 6}px` : 'auto' });
+    const w = menu.offsetWidth;
+    menu.style.left = `${Math.max(8, Math.min(innerWidth - w - 8, d.classList.contains('tower-cols') ? r.left : r.right - w))}px`;
+  }, true);
+  addEventListener('resize', () => { for (const d of document.querySelectorAll('.map-layers[open]')) d.open = false; });
   // Onglets ouverts : mémorisés pour chaque disposition
   for (const [id, head] of tabHeads()) {
     head.addEventListener('click', (e) => {
@@ -1053,7 +1077,8 @@ export function initLayout() {
   }
   applyTabs();
   on('reset', checkProfile);
-  on('events', (events) => { if (events.some(([t]) => t === 'SessionInfo')) checkProfile(); });
+  // Séance connue par son message, ou par l'instantané du début (direct ouvert avant la séance, replay)
+  on('events', (events) => { if (events.some(([t]) => t === 'SessionInfo' || t === '__snapshot')) checkProfile(); });
   on('prefs', (k) => { if (k === 'layoutMode') checkProfile(); });
   checkProfile();
 }
@@ -1115,7 +1140,7 @@ export function resetLayout(ask = true) {
   storageSet(PROFILE_KEY, {});
   storageSet(TABS_KEY, {});
   unmaximize();
-  const def = PROFILE_DEFAULTS[profile];
+  const def = profileDefaults();
   setPref('hiddenPanels', [...def.hiddenPanels]);
   setPref('hiddenCols', [...def.hiddenCols]);
   setPref('extraCols', []);
