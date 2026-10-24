@@ -443,10 +443,16 @@ test('page du créateur : publication programmée, publiée par le serveur à l\
     assert.ok(media(bad.id) > 0);
     // Réessayer : seulement un réseau en erreur ; publié au relevé suivant, puis tout est effacé
     assert.equal((await post('retry', { id: bad.id, net: 'bluesky' })).status, 409);
+    // Compte reconnecté depuis la programmation : « Réessayer » prend les jetons du coffre à ce moment
+    await worker('https://s.test/studio/api/sync', { method: 'POST', headers: key, body: JSON.stringify({ vault: { meta: { pageId: 'p1', pageName: 'Ma page', pageToken: 'jeton-page-2', igId: 'ig1', igUsername: 'moi' }, bluesky: { handle: 'moi.bsky.social', appPassword: 'mdp-app', did: 'did:plc:moi' } } }) });
     assert.equal((await post('retry', { id: bad.id, net: 'facebook' })).status, 200);
     assert.equal((await listed(bad.id)).nets.facebook.status, 'pending');
     const t0 = Date.now();
+    const sentTokens = [];
+    globalThis.fetch = async (url, opts = {}) => { if (new URL(url).pathname.endsWith('/feed')) sentTokens.push(String(opts.body)); return ok(url, opts); };
     assert.deepEqual(await runSchedule(env, { now: t0 + 1e3 }), { published: 'facebook', id: bad.id });
+    globalThis.fetch = ok;
+    assert.ok(sentTokens.length && sentTokens.every((b) => b.includes('jeton-page-2')), 'nouveau jeton utilisé');
     await runSchedule(env, { now: t0 + 2e3 });
     assert.equal(await listed(bad.id), undefined);
     assert.equal(media(bad.id), 0);

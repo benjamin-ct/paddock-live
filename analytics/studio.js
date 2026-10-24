@@ -439,6 +439,9 @@ async function schedJobs(env) {
 // texts : textes de chaque réseau (Modifier) ; retry : visuels et jetons encore là (Réessayer)
 const schedSummary = (j) => ({ id: j.id, at: j.at, title: j.title, nets: j.nets, texts: Object.fromEntries((j.posts || []).filter((p) => p.text).map((p) => [p.network, p.text])), retry: !!j.keys });
 
+// Jetons du moment (Threads prolongé si besoin), seulement ceux des réseaux choisis
+const schedKeys = (v, nets) => ({ ...(nets.some((n) => n !== 'bluesky' && !CLIPS.includes(n)) ? { meta: v.meta } : {}), ...Object.fromEntries(['threads', 'bluesky', ...CLIPS].filter((n) => nets.includes(n)).map((n) => [n, v[n]])) });
+
 async function scheduleAdd(req, env, raw, vault, now = Date.now()) {
   if (!env.STATS_KEY) return json({ error: 'Secret du serveur absent : programmation impossible' }, 503);
   let form;
@@ -486,9 +489,7 @@ async function scheduleAdd(req, env, raw, vault, now = Date.now()) {
   const tiktok = video && nets.includes('tiktok') && form.get('tiktok') ? tiktokOptions(form.get('tiktok')) : null;
   if (tiktok?.error) return json({ error: tiktok.error }, 400);
   if ((await schedJobs(env)).filter((j) => Object.values(j.nets).some((s) => s.status === 'pending')).length >= SCHED.max) return json({ error: `${SCHED.max} publications programmées au plus` }, 409);
-  // Jetons du moment (Threads prolongé si besoin), seulement ceux des réseaux choisis
-  const v = await refresh(env, raw, vault);
-  const keys = { ...(nets.some((n) => n !== 'bluesky' && !CLIPS.includes(n)) ? { meta: v.meta } : {}), ...Object.fromEntries(['threads', 'bluesky', ...CLIPS].filter((n) => nets.includes(n)).map((n) => [n, v[n]])) };
+  const keys = schedKeys(await refresh(env, raw, vault), nets);
   const id = asked || hex(crypto.getRandomValues(new Uint8Array(8)));
   for (const [set, list] of Object.entries(sets)) {
     for (const [i, f] of list.entries()) await env.MEDIA.put(`sched/${id}/${set}/${i}`, f, { httpMetadata: { contentType: f.type } });
@@ -514,15 +515,17 @@ async function scheduleCancel(env, id) {
   return json({ items: (await schedJobs(env)).map(schedSummary) });
 }
 
-// Réessayer un réseau en erreur ou expiré : renvoyé au relevé suivant (visuels et jetons gardés 24 h après la fin)
-async function scheduleRetry(env, b, now = Date.now()) {
+// Réessayer un réseau en erreur ou expiré : renvoyé au relevé suivant (visuels gardés 24 h après la fin), avec les
+// jetons du coffre à ce moment (compte reconnecté depuis la programmation)
+async function scheduleRetry(env, b, raw, vault, now = Date.now()) {
   const j = (await schedJobs(env)).find((x) => x.id === b?.id);
   const st = j?.nets[b?.net];
   if (!st) return json({ error: 'Publication inconnue' }, 404);
   if (!['error', 'expired'].includes(st.status)) return json({ error: 'Rien à refaire sur ce réseau' }, 409);
   if (!j.keys) return json({ error: 'Visuels déjà effacés (plus de 24 h) : refaites le post' }, 410);
   const { nets, ...rest } = j;
-  await setRow(env, `sched:${j.id}`, JSON.stringify({ ...rest, at: now, ended: null }));
+  const keys = await seal(await schedKey(env), schedKeys(await refresh(env, raw, vault), j.posts.map((p) => p.network)));
+  await setRow(env, `sched:${j.id}`, JSON.stringify({ ...rest, at: now, ended: null, keys }));
   await setRow(env, `schedpost:${j.id}:${b.net}`, JSON.stringify({ status: 'pending', ...(st.sent ? { sent: st.sent, total: st.total } : {}) }));
   return json({ items: (await schedJobs(env)).map(schedSummary) });
 }
@@ -886,7 +889,7 @@ export async function studioApi(req, env, url) {
   if (['schedule/cancel', 'schedule/retry', 'schedule/update'].includes(path) && req.method === 'POST') {
     let body;
     try { body = await req.json(); } catch { return json({ error: 'JSON invalide' }, 400); }
-    return path === 'schedule/cancel' ? scheduleCancel(env, body?.id) : path === 'schedule/retry' ? scheduleRetry(env, body) : scheduleUpdate(env, body);
+    return path === 'schedule/cancel' ? scheduleCancel(env, body?.id) : path === 'schedule/retry' ? scheduleRetry(env, body, a.raw, vault) : scheduleUpdate(env, body);
   }
   // Texte avec ses liens suivis (X : partagé depuis le téléphone ; appli : publication directe)
   if (path === 'links' && req.method === 'POST') {
