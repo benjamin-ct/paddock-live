@@ -90,12 +90,23 @@ if (!PROFILES[profile]) profile = 'race';
 // Mode Allégé : sa propre disposition, celle du mode Complet reste telle quelle
 const lkey = (win = WIN, prof = profile) => (prof === 'race' || win !== 'main' ? win : `${win}@${prof}`) + (win === 'main' && !prefs.fullMode ? '~ess' : '');
 
+// Écran plus grand que le 1080p (1440p, 4K…)
+const big = () => window.innerWidth >= 2200;
+
 function defaultLayout(prof = profile) {
   if (!isMain) return { cols: [] };
   const quali = prof === 'quali';
   // Essentiel : classement compact, grande carte (radios dessous) ; à droite télémétrie du duel, championnat
   // et limites de piste. Écran plus étroit : classement, puis carte, duel, radios et arrêts
   if (!prefs.fullMode) {
+    // Essentiel, écran plus grand que le 1080p : grand classement, carte et télémétrie, direction de course et radios
+    if (big()) {
+      return { cols: [
+        { w: 2.4, items: [{ id: 'tower', h: 1 }] },
+        { w: 1.6, items: [{ id: 'map', h: 1.5 }, { id: 'analysis', h: 1 }] },
+        { w: 1, items: [{ id: 'feed', h: 1.1 }, { id: 'radio', h: 1 }] },
+      ] };
+    }
     // Essentiel : classement (essais et qualifs : avec les temps, donc plus large), grande carte (radios dessous),
     // direction de course et télémétrie du pilote suivi à droite
     return window.innerWidth <= 1500 ? { cols: [
@@ -377,12 +388,13 @@ function mobMore(btn) {
 function render(force = false) {
   if (resizing) { renderLater = true; return; }
   const grid = $('.grid');
-  const key = `${mobile()}|${simple()}|${essential()}|${narrow()}|${JSON.stringify(layout)}|${PANELS.map((p) => isVisible(p.id)).join()}`;
+  const key = `${mobile()}|${simple()}|${essential()}|${narrow()}|${big()}|${JSON.stringify(layout)}|${PANELS.map((p) => isVisible(p.id)).join()}`;
   if (key === renderKey && !force) return;
   document.documentElement.classList.toggle('phone', mobile());
   document.documentElement.classList.toggle('simple', simple());
   document.documentElement.classList.toggle('essential', essential());
   document.documentElement.classList.toggle('ess-quali', essential() && profile === 'quali');
+  document.documentElement.classList.toggle('ess-big', essential() && big());
   renderKey = key;
   if (mobile()) { renderMobile(grid); return; }
   grid.classList.remove('mobile');

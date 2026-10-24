@@ -48,6 +48,9 @@ l'application (Réglages → À propos → Nouveautés).
   Disposition déjà enregistrée : Dispo. → Réinitialiser.
 - Interface Essentielle pendant les essais et les qualifs : classement avec le meilleur tour, l'écart et
   l'intervalle (secteurs en couleur, sans les mini-secteurs).
+- Interface Essentielle sur un écran plus grand que le 1080p (1440p, 4K) : grand classement à gauche (écart,
+  intervalle, dernier et meilleur tour, secteurs et mini-secteurs, pneus, tours), la carte et la télémétrie au
+  centre, la direction de course et les radios à droite.
 - Classement agrandi (bouton ⤢) : ses propres colonnes, choisies dans « Colonnes » pendant qu'il est agrandi ;
   revenu à sa taille, il reprend celles d'habitude.
 - L'onglet « Limites de piste » (ou « Enquêtes ») ouvert reste ouvert au lancement suivant.

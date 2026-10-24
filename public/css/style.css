@@ -1376,17 +1376,19 @@ html.phone [data-desk] { display: none !important; }
 html.essential [data-expert] { display: none !important; }
 /* Mode Essentiel : classement compact (code pilote, écart, secteurs en couleur, pneus), sans nom complet ni mini-secteurs ;
    agrandi (⤢) : les colonnes choisies dans son menu */
-html.essential:not(.ess-quali) .p-tower:not(.maximized) .tower :is(.c-int, .c-last, .c-best, .c-pits, .c-speed, .c-duel, .drv-last) { display: none !important; }
+html.essential:not(.ess-quali):not(.ess-big) .p-tower:not(.maximized) .tower :is(.c-int, .c-last, .c-best, .c-pits, .c-speed, .c-duel, .drv-last) { display: none !important; }
 /* Essentiel, essais et qualifs : meilleur tour, écart et intervalle, secteurs en couleur (sans mini-secteurs) */
-html.essential.ess-quali .p-tower:not(.maximized) .tower :is(.c-last, .c-pred, .c-speed, .c-duel, .drv-last) { display: none !important; }
+html.essential.ess-quali:not(.ess-big) .p-tower:not(.maximized) .tower :is(.c-last, .c-pred, .c-speed, .c-duel, .drv-last) { display: none !important; }
+/* Essentiel, écran plus grand que le 1080p : grand classement (dernier tour, secteurs et mini-secteurs), sans tour en cours, speed trap ni boutons duel */
+html.essential.ess-big .p-tower:not(.maximized) .tower :is(.c-pred, .c-speed, .c-duel) { display: none !important; }
 /* Essentiel : télémétrie seule dans le panneau Analyse */
 html.essential .p-analysis [data-tab]:not([data-tab="telemetry"]) { display: none !important; }
 html.essential .p-tower .panel-tools .hint { display: none; }
-html.essential .tower .c-sec .segs { display: none; }
-html.essential .p-tower:not(.maximized) .tower td.c-sec .sector-val { font-size: 0; width: 22px; height: 8px; margin: 0 auto; border-radius: 2px; background: #E3B505; }
-html.essential .p-tower:not(.maximized) .tower td.c-sec .sector-val.green { background: var(--green); }
-html.essential .p-tower:not(.maximized) .tower td.c-sec .sector-val.purple { background: var(--purple); }
-html.essential .p-tower:not(.maximized) .tower td.c-sec .sector-val:has(.dim) { background: var(--line-2); }
+html.essential:not(.ess-big) .tower .c-sec .segs { display: none; }
+html.essential:not(.ess-big) .p-tower:not(.maximized) .tower td.c-sec .sector-val { font-size: 0; width: 22px; height: 8px; margin: 0 auto; border-radius: 2px; background: #E3B505; }
+html.essential:not(.ess-big) .p-tower:not(.maximized) .tower td.c-sec .sector-val.green { background: var(--green); }
+html.essential:not(.ess-big) .p-tower:not(.maximized) .tower td.c-sec .sector-val.purple { background: var(--purple); }
+html.essential:not(.ess-big) .p-tower:not(.maximized) .tower td.c-sec .sector-val:has(.dim) { background: var(--line-2); }
 
 /* Design classique : pas de bandeau du bas (il fait partie du design Broadcast) */
 html[data-design="classic"] .rc-bar { display: none !important; }
