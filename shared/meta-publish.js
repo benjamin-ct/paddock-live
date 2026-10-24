@@ -245,9 +245,11 @@ export async function publishFacebookVideo(meta, text, video, cover = null) {
 // Threads lit la vidéo à une adresse publique (videoUrl : fichier gardé par le serveur Paddock Live)
 export async function publishThreadsVideo(th, videoUrl, text) {
   const base = `${THREADS}/${th.userId}`;
-  const c = await call(`${base}/threads`, { method: 'POST', form: { media_type: 'VIDEO', video_url: videoUrl, text, topic_tag: THREADS_TOPIC, access_token: th.token } });
+  // Étape en échec nommée dans le message (les refus de Threads sont souvent un « unexpected error » sans détail)
+  const step = (what) => (err) => { throw new Error(`${what} : ${err.message}`.slice(0, 300)); };
+  const c = await call(`${base}/threads`, { method: 'POST', form: { media_type: 'VIDEO', video_url: videoUrl, text, topic_tag: THREADS_TOPIC, access_token: th.token } }).catch(step('Création du post Threads refusée'));
   await ready(`${THREADS}/${c.id}?${new URLSearchParams({ fields: 'status,error_message', access_token: th.token })}`, 'status', 'Vidéo');
-  const pub = await call(`${base}/threads_publish`, { method: 'POST', form: { creation_id: c.id, access_token: th.token } });
+  const pub = await call(`${base}/threads_publish`, { method: 'POST', form: { creation_id: c.id, access_token: th.token } }).catch(step('Publication sur Threads refusée'));
   const link = await call(`${THREADS}/${pub.id}?${new URLSearchParams({ fields: 'permalink', access_token: th.token })}`).catch(() => ({}));
   const visible = link.permalink ? await threadsVisible(link.permalink, th.username) : null;
   return { url: link.permalink || `https://www.threads.net/@${th.username || ''}`, id: pub.id, visible };

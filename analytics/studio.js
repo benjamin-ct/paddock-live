@@ -504,11 +504,12 @@ async function scheduleAdd(req, env, raw, vault, now = Date.now()) {
 }
 
 // Vidéo d'une programmation à une adresse publique, pour Threads qui la lit là (identifiant de 16 caractères tiré au
-// hasard, effacée avec la programmation) ; morceaux (Range) acceptés
-const VIDEO_ORIGIN = 'https://paddock-live-stats.paddock-live.workers.dev';
+// hasard, effacée avec la programmation) ; morceaux (Range) acceptés. Sur le nom de domaine du site, en .mp4
+const videoOrigin = (env) => env.SITE_ORIGIN || 'https://paddock-live-stats.paddock-live.workers.dev';
 export async function schedVideo(req, env, name) {
-  if (!/^[a-f0-9]{16}(-full)?$/.test(name)) return new Response('Introuvable', { status: 404 });
-  const obj = await env.MEDIA?.get(`sched/${name}`, req.headers.has('Range') ? { range: req.headers } : {});
+  const m = /^([a-f0-9]{16}(?:-full)?)(?:\.mp4)?$/.exec(name);
+  if (!m) return new Response('Introuvable', { status: 404 });
+  const obj = await env.MEDIA?.get(`sched/${m[1]}`, req.headers.has('Range') ? { range: req.headers } : {});
   if (!obj?.body) return new Response('Introuvable', { status: 404 });
   return served(req, obj, { 'Content-Type': obj.httpMetadata?.contentType || 'video/mp4' });
 }
@@ -687,7 +688,7 @@ export async function runSchedule(env, { now = Date.now(), only = null } = {}) {
             : CLIPS.includes(p.network)
             ? await sendClip(p.network, () => (p.network === 'youtube' ? freshYoutube : freshTiktok)(keys[p.network]), await media(p.network, true), j.video, tr.text, j.tiktok)
             : j.link && LINKS.includes(p.network) ? await sendTo(p.network, keys, { text: tr.text, link: { ...j.link, url: (await trackPost(env, p.network, { text: j.link.url }, j.record?.title)).text } }, () => freshThreads(keys.threads))
-            : await sendTo(p.network, keys, { text: tr.text, comment: tr.comment, images: p.network === 'bluesky' || video ? [] : await imgs('ig'), small: p.network === 'bluesky' && !video ? await imgs('x') : [], video, videoUrl: video && `${VIDEO_ORIGIN}/studio/v/${j.id}${j.full && !SAFE_NETS.includes(p.network) ? '-full' : ''}`, vsize: j.vsize, cover: video ? (await imgs('cover'))[0] : null }, () => freshThreads(keys.threads));
+            : await sendTo(p.network, keys, { text: tr.text, comment: tr.comment, images: p.network === 'bluesky' || video ? [] : await imgs('ig'), small: p.network === 'bluesky' && !video ? await imgs('x') : [], video, videoUrl: video && `${videoOrigin(env)}/studio/v/${j.id}${j.full && !SAFE_NETS.includes(p.network) ? '-full' : ''}.mp4`, vsize: j.vsize, cover: video ? (await imgs('cover'))[0] : null }, () => freshThreads(keys.threads));
           if (story) Object.assign(st, { sent: story.from + r.count, total: story.total });
           Object.assign(st, { status: story && st.sent < story.total ? 'pending' : 'done', at: Date.now(), ...resultOf(r), ...(r.note ? { note: r.note } : {}) });
           // Stories (24 heures) : pas dans l'historique, qui garde le post du fil

@@ -606,7 +606,7 @@ test('page du créateur : vidéo programmée sur Instagram (fichier envoyé tel 
   } finally { globalThis.fetch = realFetch; Object.assign(timing, was); }
   assert.equal(sent.ig, 4, 'vidéo de la zone sûre envoyée à Instagram');
   assert.deepEqual([sent.igForm.media_type, sent.igForm.upload_type, sent.igForm.video_url], ['REELS', 'resumable', undefined]);
-  assert.equal(sent.threadsUrl, `https://paddock-live-stats.paddock-live.workers.dev/studio/v/${item.id}-full`);
+  assert.equal(sent.threadsUrl, `https://paddock-live-stats.paddock-live.workers.dev/studio/v/${item.id}-full.mp4`);
   assert.deepEqual(sent.served, [5, 6, 7, 8, 9, 10]);
   const nets = (await (await worker('https://s.test/studio/api/schedule', { headers: key })).json()).items.find((x) => x.id === item.id)?.nets;
   assert.ok(!nets || Object.values(nets).every((x) => x.status === 'done'));
