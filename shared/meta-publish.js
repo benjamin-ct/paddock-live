@@ -9,6 +9,9 @@ export const THREADS = 'https://graph.threads.net/v1.0';
 // Sujet des posts Threads (« > F1 Threads » à côté du nom, la communauté F1 de Threads) : sans lui, Threads prend le premier
 // hashtag du texte (#F1)
 export const THREADS_TOPIC = 'F1 Threads';
+// Sujet choisi par le créateur : 50 caractères au plus, sans « . » ni « & » (refusés par Threads) ; vide : aucun
+export const cleanTopic = (t) => String(t ?? THREADS_TOPIC).replace(/[.&]/g, '').replace(/\s+/g, ' ').trim().slice(0, 50);
+const topicOf = (topic) => (cleanTopic(topic) ? { topic_tag: cleanTopic(topic) } : {});
 export const timing = { poll: 1500, maxPoll: 5000, readyMs: 4 * 60e3, visible: [8e3, 15e3, 20e3], threadsVideo: [30e3, 20e3, 30e3] };
 const HOST_TTL = 60 * 60e3;
 const hostedCache = new Map();   // empreinte de l'image + page -> { id, url, at }
@@ -246,18 +249,21 @@ export async function publishFacebookVideo(meta, text, video, cover = null) {
   return { url: `https://www.facebook.com/${meta.pageId}/videos/${r.id}`, id: r.id };
 }
 // Threads lit la vidéo à une adresse publique (videoUrl : fichier gardé par le serveur Paddock Live)
-// Refus (préparation ou publication) : un second essai sans le sujet « F1 Threads », note à l'appui
-export async function publishThreadsVideo(th, videoUrl, text) {
-  try { return await threadsVideo(th, videoUrl, text, THREADS_TOPIC); } catch (err) {
-    const r = await threadsVideo(th, videoUrl, text, null).catch((e) => { throw new Error(`${e.message} (aussi sans le sujet « ${THREADS_TOPIC} »)`.slice(0, 300)); });
-    return { ...r, note: `Publié sans le sujet « ${THREADS_TOPIC} » (refusé avec : ${err.message.slice(0, 100)})` };
+// topic : sujet du post (« F1 Threads » d'office). Refus (préparation ou publication) : un second essai sans
+// sujet, note à l'appui (vidéos refusées avec « F1 Threads », acceptées sans)
+export async function publishThreadsVideo(th, videoUrl, text, topic = THREADS_TOPIC) {
+  const tag = cleanTopic(topic);
+  try { return await threadsVideo(th, videoUrl, text, tag); } catch (err) {
+    if (!tag) throw err;
+    const r = await threadsVideo(th, videoUrl, text, '').catch((e) => { throw new Error(`${e.message} (aussi sans le sujet « ${tag} »)`.slice(0, 300)); });
+    return { ...r, note: `Publié sans le sujet « ${tag} » (refusé avec : ${err.message.slice(0, 100)})` };
   }
 }
 async function threadsVideo(th, videoUrl, text, topic) {
   const base = `${THREADS}/${th.userId}`;
   // Étape en échec nommée dans le message (les refus de Threads sont souvent un « unexpected error » sans détail)
   const step = (what) => (err) => { throw new Error(`${what} : ${err.message}`.slice(0, 300)); };
-  const c = await call(`${base}/threads`, { method: 'POST', form: { media_type: 'VIDEO', video_url: videoUrl, text, ...(topic ? { topic_tag: topic } : {}), access_token: th.token } }).catch(step('Création du post Threads refusée'));
+  const c = await call(`${base}/threads`, { method: 'POST', form: { media_type: 'VIDEO', video_url: videoUrl, text, ...topicOf(topic), access_token: th.token } }).catch(step('Création du post Threads refusée'));
   const status = `${THREADS}/${c.id}?${new URLSearchParams({ fields: 'status,error_message', access_token: th.token })}`;
   await ready(status, 'status', 'Vidéo');
   // Vidéo prête : Threads demande encore une trentaine de secondes avant la publication (sinon « unexpected error ») ;
@@ -287,7 +293,7 @@ export async function freshThreads(th) {
   } catch { return th; }
 }
 
-export async function publishThreads(th, meta, text, images) {
+export async function publishThreads(th, meta, text, images, topic = THREADS_TOPIC) {
   const token = th.token;
   const hosted = await hostOnPage(meta, images.slice(0, 20));
   const base = `${THREADS}/${th.userId}`;
@@ -295,10 +301,10 @@ export async function publishThreads(th, meta, text, images) {
   const container = (form) => call(`${base}/threads`, { method: 'POST', form: { ...form, access_token: token } });
   let creation;
   if (hosted.length === 1) {
-    creation = (await container({ media_type: 'IMAGE', image_url: hosted[0].url, text, topic_tag: THREADS_TOPIC, ...altOf(images[0]) })).id;
+    creation = (await container({ media_type: 'IMAGE', image_url: hosted[0].url, text, ...topicOf(topic), ...altOf(images[0]) })).id;
   } else {
     const kids = await carousel(hosted, (h, i) => container({ media_type: 'IMAGE', image_url: h.url, is_carousel_item: 'true', ...altOf(images[i]) }), status, 'status');
-    creation = (await container({ media_type: 'CAROUSEL', children: kids.join(','), text, topic_tag: THREADS_TOPIC })).id;
+    creation = (await container({ media_type: 'CAROUSEL', children: kids.join(','), text, ...topicOf(topic) })).id;
   }
   await ready(status(creation), 'status', 'Post');
   const pub = await call(`${base}/threads_publish`, { method: 'POST', form: { creation_id: creation, access_token: token } });
@@ -313,9 +319,9 @@ export async function publishFacebookLink(meta, text, link) {
   const r = await call(`${GRAPH}/${meta.pageId}/feed`, { method: 'POST', form: { message: text, link, access_token: meta.pageToken } });
   return { url: `https://www.facebook.com/${r.id}`, id: r.id };
 }
-export async function publishThreadsLink(th, text, link) {
+export async function publishThreadsLink(th, text, link, topic = THREADS_TOPIC) {
   const base = `${THREADS}/${th.userId}`;
-  const c = await call(`${base}/threads`, { method: 'POST', form: { media_type: 'TEXT', text, link_attachment: link, topic_tag: THREADS_TOPIC, access_token: th.token } });
+  const c = await call(`${base}/threads`, { method: 'POST', form: { media_type: 'TEXT', text, link_attachment: link, ...topicOf(topic), access_token: th.token } });
   await ready(`${THREADS}/${c.id}?${new URLSearchParams({ fields: 'status,error_message', access_token: th.token })}`, 'status', 'Post');
   const pub = await call(`${base}/threads_publish`, { method: 'POST', form: { creation_id: c.id, access_token: th.token } });
   const p = await call(`${THREADS}/${pub.id}?${new URLSearchParams({ fields: 'permalink', access_token: th.token })}`).catch(() => ({}));

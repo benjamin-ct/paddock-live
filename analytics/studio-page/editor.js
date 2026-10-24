@@ -12,6 +12,7 @@ import { bestSlot } from '/shared/post-history.js';
 import { tiktokPanel, tiktokProblem, tiktokChoice, TIKTOK_PRIVACY } from './tiktok.js';
 import { packDraftImages } from '/shared/post-draft.js';
 import { postProblems, problemText } from '/shared/post-check.js';
+import { THREADS_TOPIC } from '/shared/meta-publish.js';
 
 // ---------- Images (photos des pilotes, drapeaux) par le relais du serveur ----------
 const imgCache = new Map();
@@ -185,7 +186,9 @@ export function editor({ back, title, subtitle = '', head = '', vhead = '', note
     $('#texts').innerHTML = `<section class="panel"><h3 class="section">Textes</h3>${CAPS.filter(shown).map(([k, label, rows, max = 0, limit = 0], i) => `
       <details class="cap" ${i === 0 ? 'open' : ''}><summary><span>${esc(label(c))}</span><small data-count="${k}"></small></summary>
         <textarea id="cap-${k}" rows="${rows}" ${max ? `maxlength="${max}"` : ''} data-limit="${limit || max}">${esc(c[k])}</textarea>
-        ${k === 'comment' ? `<div class="row end"><button class="btn small" id="copycomment">${icon('copy')}Copier</button></div>` : ''}</details>`).join('')}</section>`;
+        ${k === 'comment' ? `<div class="row end"><button class="btn small" id="copycomment">${icon('copy')}Copier</button></div>` : ''}
+        ${k === 'threads' ? `<label class="field"><span>Sujet Threads (vide : aucun)</span><input type="text" id="threadtopic" maxlength="50" value="${esc(state.topic ?? THREADS_TOPIC)}"></label>` : ''}</details>`).join('')}</section>`;
+    if ($('#threadtopic')) $('#threadtopic').oninput = (e) => { state.topic = e.target.value; };
     const count = (k) => {
       const el = $(`#cap-${k}`);
       const n = k === 'x' ? xLength(el.value) : el.value.length;
@@ -433,7 +436,7 @@ async function queuePost(d, o, nets, at, record, video = null, tk = null, link =
   form.append('at', String(at));
   form.append('title', record?.title || d.title || d.gp || 'Post');
   form.append('record', JSON.stringify(record));
-  form.append('posts', JSON.stringify(nets.map((n) => (isStory(n) ? { network: n } : { network: n, text: alt ? capOf(alt.texts, n) : textOf(n), comment: link ? '' : alt ? (n !== 'instagram' && alt.texts.comment?.trim()) || '' : commentOf(n) }))));
+  form.append('posts', JSON.stringify(nets.map((n) => (isStory(n) ? { network: n } : { network: n, text: alt ? capOf(alt.texts, n) : textOf(n), comment: link ? '' : alt ? (n !== 'instagram' && alt.texts.comment?.trim()) || '' : commentOf(n), ...(n === 'threads' ? { topic: state.topic ?? THREADS_TOPIC } : {}) }))));
   if (link) form.append('link', JSON.stringify(link));
   imgs.ig.forEach((b, i) => form.append('ig', b, `image-${i + 1}.jpg`));
   form.append('alts', JSON.stringify({ ig: imgs.ig.map((b) => b.alt || ''), x: imgs.x.map((b) => b.alt || '') }));

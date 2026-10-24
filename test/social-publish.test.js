@@ -453,6 +453,15 @@ test('vidéo du créateur : Reel et Story Instagram envoyés tels quels, vidéo 
     assert.equal(plain.url, 'https://example.test/p/1');
     assert.match(plain.note, /^Publié sans le sujet « F1 Threads »/);
     assert.deepEqual(log.filter((l) => l.path.endsWith('/th1/threads')).map((l) => l.form.topic_tag), ['F1 Threads', undefined]);
+    // Sujet choisi (« . » et « & » retirés) ; vide : aucun sujet, et pas de second essai
+    refusals = 0;
+    log.length = 0;
+    await publishThreadsVideo(th2, 'https://video.test/v.mp4', 'Texte', 'Formule 1 & GP.');
+    assert.equal(log.find((l) => l.path.endsWith('/th1/threads')).form.topic_tag, 'Formule 1 GP');
+    refusals = 9;
+    log.length = 0;
+    await assert.rejects(publishThreadsVideo(th2, 'https://video.test/v.mp4', 'Texte', ''), /^Error: Publication sur Threads refusée : An unexpected error has occurred\. Please retry your request later\.$/);
+    assert.deepEqual(log.filter((l) => l.path.endsWith('/th1/threads')).map((l) => l.form.topic_tag), [undefined]);
     // Refus, mais le post est parti (conteneur « PUBLISHED ») : compté comme publié, sans nouvel essai
     refusals = 9;
     globalThis.fetch = async (url, opts) => (new URL(url).pathname.endsWith('/c1') && new URL(url).searchParams.get('fields') === 'status,error_message' && refusals < 9 ? new Response(JSON.stringify({ status: 'PUBLISHED' })) : refuse(url, opts));

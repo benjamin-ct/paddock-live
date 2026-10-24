@@ -575,7 +575,7 @@ test('page du créateur : vidéo programmée sur Instagram (fichier envoyé tel 
   const f = new FormData();
   f.append('at', String(Date.now()));
   f.append('title', 'Ma vidéo');
-  f.append('posts', JSON.stringify([{ network: 'instagram', text: 'Légende' }, { network: 'threads', text: 'Texte' }]));
+  f.append('posts', JSON.stringify([{ network: 'instagram', text: 'Légende' }, { network: 'threads', text: 'Texte', topic: 'Formule 1' }]));
   f.append('video', new Blob([new Uint8Array([1, 2, 3, 4])], { type: 'video/mp4' }), 'v.mp4');
   f.append('videofull', new Blob([new Uint8Array([5, 6, 7, 8, 9, 10])], { type: 'video/mp4' }), 'v-full.mp4');
   const { item } = await (await worker('https://s.test/studio/api/schedule', { method: 'POST', body: f, headers: key })).json();
@@ -593,6 +593,7 @@ test('page du créateur : vidéo programmée sur Instagram (fichier envoyé tel 
     if (u.pathname.endsWith('/t1/threads')) {
       // Lu par Threads pendant l'envoi : la version plein écran, servie par le serveur
       sent.threadsUrl = new URLSearchParams(String(opts.body)).get('video_url');
+      sent.topic = new URLSearchParams(String(opts.body)).get('topic_tag');
       sent.served = [...new Uint8Array(await (await schedVideo(new Request(sent.threadsUrl), env, sent.threadsUrl.split('/studio/v/')[1])).arrayBuffer())];
       return ok({ id: 'c2' });
     }
@@ -608,6 +609,7 @@ test('page du créateur : vidéo programmée sur Instagram (fichier envoyé tel 
   assert.deepEqual([sent.igForm.media_type, sent.igForm.upload_type, sent.igForm.video_url], ['REELS', 'resumable', undefined]);
   assert.equal(sent.threadsUrl, `https://paddock-live-stats.paddock-live.workers.dev/studio/v/${item.id}-full.mp4`);
   assert.deepEqual(sent.served, [5, 6, 7, 8, 9, 10]);
+  assert.equal(sent.topic, 'Formule 1', 'sujet Threads choisi dans le Studio');
   const nets = (await (await worker('https://s.test/studio/api/schedule', { headers: key })).json()).items.find((x) => x.id === item.id)?.nets;
   assert.ok(!nets || Object.values(nets).every((x) => x.status === 'done'));
   // Nom inconnu ou mal formé : rien
