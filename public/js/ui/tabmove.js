@@ -257,7 +257,7 @@ function buildGroups() {
 
 // ---------- Onglets selon la séance ----------
 function applySession() {
-  const off = new Set(store.state.SessionInfo ? OFF[sessionKind(store.state)] || [] : []);
+  const off = new Set([...(store.state.SessionInfo ? OFF[sessionKind(store.state)] || [] : []), ...prefs.hiddenTabs]);
   for (const b of document.querySelectorAll('[data-tabs] > [data-tab]')) {
     const t = b.dataset.tab;
     const list = GROUPS[t];
@@ -278,6 +278,22 @@ function applySession() {
   for (const id of HOSTS) head(id)?.classList.toggle('many', shownTabs(id).length > 4);
 }
 
+// Onglets de chaque panneau, pour les réglages : [panneau, onglet, nom, réservé au mode Complet]
+export function tabList() {
+  return [...document.querySelectorAll('[data-tabs] > [data-tab]')].map((b) => {
+    const name = SEG[b.dataset.tab] || [...b.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent).join('').trim();
+    return [b.closest('.panel')?.className.match(/\bp-(\w+)/)?.[1], b.dataset.tab, name, b.hasAttribute('data-expert')];
+  });
+}
+
+// Onglet masquable par l'utilisateur : il en reste au moins un autre dans son panneau
+export function canHideTab(t) {
+  const h = tabBtn(t)?.parentElement;
+  if (!h) return true;
+  const off = new Set([...prefs.hiddenTabs, t]);
+  return [...h.querySelectorAll(':scope > [data-tab]:not(.tab-member)')].some((b) => !(GROUPS[b.dataset.tab] || [b.dataset.tab]).every((x) => off.has(x)));
+}
+
 export function resetTabs() {
   setPref('tabLayout', null);
 }
@@ -293,7 +309,7 @@ export function initTabMove() {
   for (const t of Object.keys(GROUPS)) follow(t);
   for (const id of HOSTS) tidy(id);
   // Disposition changée dans les réglages : ses onglets rouverts (layout.js) sont filtrés ensuite
-  on('prefs', (k) => { if (k === 'tabLayout') apply(prefs.tabLayout); if (k === 'layoutMode') setTimeout(applySession, 0); });
+  on('prefs', (k) => { if (k === 'tabLayout') apply(prefs.tabLayout); if (k === 'layoutMode' || k === 'hiddenTabs') setTimeout(applySession, 0); });
   applySession();
   on('reset', applySession);
   on('events', (events) => { if (events.some(([t]) => t === 'SessionInfo' || t === '__snapshot')) setTimeout(applySession, 0); });

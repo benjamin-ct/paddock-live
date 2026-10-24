@@ -6,6 +6,7 @@ import { store, on } from '../store.js';
 import { toast } from './delay.js';
 import { icon } from '../icons.js';
 import { track } from './stats.js';
+import { tabList, canHideTab } from './tabmove.js';
 
 export const PANELS = [
   { id: 'tower', cls: 'p-tower', name: 'Classement' },
@@ -920,7 +921,7 @@ function visibleTabs() {
   for (const [, head] of tabHeads()) {
     const cur = head.querySelector(':scope > [data-tab].active');
     // Onglet regroupé (limites de piste, enquêtes…) : bouton caché par principe, choisi dans son sélecteur
-    if (cur && !cur.classList.contains('tab-member') && getComputedStyle(cur).display === 'none') [...head.querySelectorAll(':scope > [data-tab]')].find((b) => getComputedStyle(b).display !== 'none')?.click();
+    if (cur && (cur.classList.contains('tab-member') ? prefs.hiddenTabs.includes(cur.dataset.tab) : getComputedStyle(cur).display === 'none')) [...head.querySelectorAll(':scope > [data-tab]')].find((b) => getComputedStyle(b).display !== 'none')?.click();
   }
 }
 
@@ -1040,7 +1041,7 @@ export function initLayout() {
     }
     if (k === 'hiddenPanels' || k === 'phoneFull' || k === 'fullMode') render();
     if (k === 'fullMode') applyTabs();
-    if (['hiddenPanels', 'hiddenCols', 'extraCols', 'towerFit'].includes(k)) renderLayoutOptions();
+    if (['hiddenPanels', 'hiddenTabs', 'tabLayout', 'hiddenCols', 'extraCols', 'towerFit'].includes(k)) renderLayoutOptions();
   });
   render(true);
   renderLayoutOptions();
@@ -1148,6 +1149,7 @@ export function resetLayout(ask = true) {
   setPref('hiddenCols', [...def.hiddenCols]);
   setPref('extraCols', []);
   setPref('tabLayout', null);
+  setPref('hiddenTabs', []);
   if (!prefs.towerFit) setPref('towerFit', true);
   layout = normalize(defaultLayout());
   applyTabs();
@@ -1168,6 +1170,18 @@ export function renderLayoutOptions() {
     if (!id) return;
     setPref('hiddenPanels', e.target.checked ? prefs.hiddenPanels.filter((x) => x !== id) : [...prefs.hiddenPanels, id]);
   };
+  // Onglets visibles : ceux de chaque panneau, sauf le dernier qu'il reste (masquer alors le panneau)
+  const tabs = $('#tabOpts');
+  if (tabs) {
+    tabs.innerHTML = tabList().filter(([p]) => SHORT[p]).sort((a, b) => PANELS.findIndex((x) => x.id === a[0]) - PANELS.findIndex((x) => x.id === b[0]))
+      .map(([p, t, name, expert]) => `<label class="toggle small"${expert ? ' data-expert' : ''}><input type="checkbox" data-tabopt="${t}" ${prefs.hiddenTabs.includes(t) ? '' : 'checked'}> ${esc(SHORT[p])} · ${esc(name)}</label>`).join('');
+    tabs.onchange = (e) => {
+      const t = e.target.dataset.tabopt;
+      if (!t) return;
+      if (!e.target.checked && !canHideTab(t)) { e.target.checked = true; toast('Dernier onglet de ce panneau : masquez plutôt le panneau (Panneaux visibles)', 4000, 'warning'); return; }
+      setPref('hiddenTabs', e.target.checked ? prefs.hiddenTabs.filter((x) => x !== t) : [...prefs.hiddenTabs, t]);
+    };
+  }
   $('#towerFit').checked = prefs.towerFit;
   $('#towerFit').onchange = (e) => setPref('towerFit', e.target.checked);
   for (const b of [$('#layoutReset'), $('#resetUiBtn')]) if (b) b.onclick = () => resetLayout();
