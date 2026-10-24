@@ -49,8 +49,11 @@ l'application (Réglages → À propos → Nouveautés).
 - Interface Essentielle pendant les essais et les qualifs : classement avec le meilleur tour, l'écart et
   l'intervalle (secteurs en couleur, sans les mini-secteurs).
 - Interface Essentielle sur un écran plus grand que le 1080p (1440p, 4K) : grand classement à gauche (écart,
-  intervalle, dernier et meilleur tour, secteurs et mini-secteurs, pneus, tours), la carte et la télémétrie au
-  centre, la direction de course et les radios à droite.
+  intervalle, dernier et meilleur tour, secteurs et mini-secteurs, pneus, tours), la carte en haut à droite et,
+  dessous, côte à côte, la télémétrie et la direction de course (radios sous elle). Panneaux à déplacer et
+  redimensionner librement.
+- Carte : les mini-secteurs du pilote suivi (choisi dans le classement) prennent les couleurs du classement
+  (jaune, vert, violet) pendant son tour. La bulle d'infos n'apparaît plus que pour un pilote choisi.
 - Classement agrandi (bouton ⤢) : ses propres colonnes, choisies dans « Colonnes » pendant qu'il est agrandi ;
   revenu à sa taille, il reprend celles d'habitude.
 - L'onglet « Limites de piste » (ou « Enquêtes ») ouvert reste ouvert au lancement suivant.

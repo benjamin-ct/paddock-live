@@ -99,13 +99,22 @@ function defaultLayout(prof = profile) {
   // Essentiel : classement compact, grande carte (radios dessous) ; à droite télémétrie du duel, championnat
   // et limites de piste. Écran plus étroit : classement, puis carte, duel, radios et arrêts
   if (!prefs.fullMode) {
-    // Essentiel, écran plus grand que le 1080p : grand classement, carte et télémétrie, direction de course et radios
+    // Essentiel, écran plus grand que le 1080p : grand classement à gauche, carte en haut à droite et dessous,
+    // côte à côte, la télémétrie et la direction de course (radios sous elle). Disposition libre (les colonnes ne
+    // mettent pas deux panneaux côte à côte) : chaque panneau se déplace et se redimensionne ensuite
     if (big()) {
+      const g = 0.005, L = 0.55, R = 1 - L - g, top = 0.6, half = (R - g) / 2;
       return { cols: [
         { w: 2.4, items: [{ id: 'tower', h: 1 }] },
         { w: 1.6, items: [{ id: 'map', h: 1.5 }, { id: 'analysis', h: 1 }] },
         { w: 1, items: [{ id: 'feed', h: 1.1 }, { id: 'radio', h: 1 }] },
-      ] };
+      ], free: { z: [], rects: {
+        tower: { x: 0, y: 0, w: L, h: 1 },
+        map: { x: L + g, y: 0, w: R, h: top },
+        analysis: { x: L + g, y: top + 2 * g, w: half, h: 1 - top - 2 * g },
+        feed: { x: L + 2 * g + half, y: top + 2 * g, w: half, h: (1 - top) * 0.55 - 2 * g },
+        radio: { x: L + 2 * g + half, y: top + (1 - top) * 0.55 + g, w: half, h: (1 - top) * 0.45 - g },
+      } } };
     }
     // Essentiel : classement (essais et qualifs : avec les temps, donc plus large), grande carte (radios dessous),
     // direction de course et télémétrie du pilote suivi à droite
