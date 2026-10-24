@@ -36,9 +36,11 @@ test('téléchargement : copie de la dernière version sur Cloudflare (morceaux 
       const v = store[key];
       if (v == null) return null;
       if (typeof v === 'string') return { text: async () => v };
-      const m = range && /bytes=(\d+)-(\d+)/.exec(range.get('Range'));
-      const r = m ? { offset: +m[1], length: +m[2] - +m[1] + 1 } : null;
-      return { body: new Blob([r ? v.slice(r.offset, r.offset + r.length) : v]).stream(), size: v.length, range: r, httpEtag: '"e"' };
+      // Partie comme R2 la décrit : { offset, length }, { offset } (jusqu'à la fin) ou { suffix }
+      const m = range && /bytes=(\d*)-(\d*)/.exec(range.get('Range'));
+      const r = !m ? null : !m[1] ? { suffix: +m[2] } : m[2] ? { offset: +m[1], length: +m[2] - +m[1] + 1 } : { offset: +m[1] };
+      const from = r?.suffix != null ? v.length - r.suffix : r?.offset ?? 0;
+      return { body: new Blob([v.slice(from, r?.length != null ? from + r.length : v.length)]).stream(), size: v.length, range: r, httpEtag: '"e"' };
     },
   };
   const env = { MEDIA };
@@ -50,6 +52,11 @@ test('téléchargement : copie de la dernière version sur Cloudflare (morceaux 
   assert.equal(r.status, 206);
   assert.equal(r.headers.get('Content-Range'), 'bytes 2-5/10');
   assert.equal(await r.text(), '2345');
+  // Jusqu'à la fin (« bytes=0- », lecteurs vidéo) et la fin seule
+  r = await mirror(new Request('https://p.test/dl/x', { headers: { Range: 'bytes=3-' } }), env, 'Paddock-Live-1.27.19-x64-win.exe');
+  assert.deepEqual([r.status, r.headers.get('Content-Range'), r.headers.get('Content-Length'), await r.text()], [206, 'bytes 3-9/10', '7', '3456789']);
+  r = await mirror(new Request('https://p.test/dl/x', { headers: { Range: 'bytes=-4' } }), env, 'Paddock-Live-1.27.19-x64-win.exe');
+  assert.deepEqual([r.status, r.headers.get('Content-Range'), r.headers.get('Content-Length'), await r.text()], [206, 'bytes 6-9/10', '4', '6789']);
   // Autre version que la copie, ou fichier absent : GitHub
   r = await mirror(new Request('https://p.test/dl/x'), env, 'Paddock-Live-1.27.18-x64-win.exe');
   assert.equal(r.headers.get('Location'), 'https://github.com/benjamin-ct/paddock-live/releases/download/v1.27.18/Paddock-Live-1.27.18-x64-win.exe');

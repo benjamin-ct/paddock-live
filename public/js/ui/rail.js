@@ -6,7 +6,7 @@ import { openNews, closeNews } from './news.js';
 import { openHome, closeHome, homeTouched, startWindows } from './home.js';
 import { openReplays, closeReplays } from './replays.js';
 import { openResults, closeResults, isResultsOpen } from './results-view.js';
-import { unmaximize, setFreeLayout, isFreeLayout, saveWindowsSnapshot, restoreWindowsSnapshot, hasWindowsSnapshot } from './layout.js';
+import { unmaximize } from './layout.js';
 import { toast } from './delay.js';
 import { icon } from '../icons.js';
 import { prefs, setPref } from '../prefs.js';
@@ -65,43 +65,10 @@ const ACTIONS = {
   news: () => { closeReplays(); if ($('#newsView').hidden) openNews(); else closeNews(); },
   replay: () => ($('#replayView').hidden ? openReplays() : closeReplays()),
   radio: () => $('#commBtn').click(),
-  reset: (btn) => layoutMenu(btn),
+  reset: () => openSettings('display'),   // Dispo. : réglages de la disposition (panneaux, onglets, colonnes, fenêtres)
   scheme: (btn) => schemeMenu(btn),
   settings: () => openSettings(),
 };
-
-// Menu « Dispo. » : panneaux rangés en colonnes ou placés librement, réinitialisation
-function layoutMenu(btn) {
-  document.querySelector('.lpop-menu')?.remove();
-  const free = isFreeLayout();
-  const menu = document.createElement('div');
-  menu.className = 'lpop-menu rail-menu';
-  menu.innerHTML = `<button data-l="cols">${icon('columns')} Panneaux rangés en colonnes${free ? '' : icon('check', 'ic-on')}</button>
-    <button data-l="free">${icon('move')} Disposition libre : panneaux n'importe où${free ? icon('check', 'ic-on') : ''}</button>
-    <div class="rail-sep"></div>
-    <button data-l="save">${icon('save')} Enregistrer l'emplacement des fenêtres</button>
-    <button data-l="restore" ${hasWindowsSnapshot() ? '' : 'disabled'}>${icon('undo')} Revenir à l'emplacement enregistré</button>
-    <div class="rail-sep"></div>
-    <button data-l="reset">${icon('refresh')} Réinitialiser l'interface</button>`;
-  const r = btn.getBoundingClientRect();
-  menu.style.left = `${r.right + 8}px`;
-  document.body.appendChild(menu);
-  menu.style.top = `${Math.max(8, Math.min(r.top - 40, innerHeight - menu.offsetHeight - 8))}px`;
-  menu.addEventListener('click', (e) => {
-    const k = e.target.closest('[data-l]')?.dataset.l;
-    if (!k) return;
-    menu.remove();
-    if (k === 'reset') $('#resetUiBtn').click();
-    else if (k === 'save') saveWindowsSnapshot();
-    else if (k === 'restore') restoreWindowsSnapshot();
-    else {
-      unmaximize();
-      setFreeLayout(k === 'free');
-      toast(k === 'free' ? 'Disposition libre : poignée pour déplacer, coin pour redimensionner' : 'Panneaux rangés en colonnes', 2500, k === 'free' ? 'move' : 'columns');
-    }
-  });
-  setTimeout(() => document.addEventListener('pointerdown', function off(e) { if (!menu.contains(e.target)) { menu.remove(); document.removeEventListener('pointerdown', off); } }), 0);
-}
 
 // Élément actif : page ouverte (Accueil, Replays, Actu, Saison, Résultats), sinon le tableau de bord :
 // Replays pendant un replay, Direct sinon

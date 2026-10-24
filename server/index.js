@@ -834,7 +834,11 @@ async function handler(req, res) {
   if (oauthNet && isLoopback(req.socket.remoteAddress)) {
     const [name, callback] = oauthNet;
     let msg = `Compte ${name} connecté. Vous pouvez fermer cet onglet et revenir à Paddock Live.`;
-    try { if (!creatorEnabled()) throw new Error('Mode créateur désactivé'); await callback(url.searchParams); } catch (err) { msg = `Connexion ${name} impossible : ${err.message}`; }
+    try {
+      if (!creatorEnabled()) throw new Error('Mode créateur désactivé');
+      await callback(url.searchParams);
+      syncStudio();   // page web du créateur : compte reconnecté envoyé tout de suite
+    } catch (err) { msg = `Connexion ${name} impossible : ${err.message}`; }
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
     res.end(`<!doctype html><meta charset="utf-8"><title>Paddock Live</title><body style="font:16px system-ui;background:#0b0d12;color:#f3f5f9;display:grid;place-items:center;height:90vh"><p>${msg.replace(/[<>&]/g, '')}</p></body>`);
     return;

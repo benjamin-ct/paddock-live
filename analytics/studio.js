@@ -11,7 +11,7 @@ import { summary } from './usage.js';
 import { DEFAULT_SOURCES, feedUrl } from '../shared/news-sources.js';
 import { extractArticle } from '../shared/article.js';
 import { decodeBody } from '../shared/news-collect.js';
-import { publishFacebook, publishInstagram, publishThreads, freshThreads, commentFacebook, replyThreads, withComment, storyInstagram, storyFacebook, storyVideoInstagram, storyVideoFacebook, reelInstagram, hostVideo, hostOnPage, publishFacebookVideo, publishThreadsVideo, publishFacebookLink, publishThreadsLink } from '../shared/meta-publish.js';
+import { publishFacebook, publishInstagram, publishThreads, freshThreads, commentFacebook, replyThreads, withComment, storyInstagram, storyFacebook, storyVideoInstagram, storyVideoFacebook, reelInstagram, hostOnPage, publishFacebookVideo, publishThreadsVideo, publishFacebookLink, publishThreadsLink, cleanTopic } from '../shared/meta-publish.js';
 import { publishBluesky, replyBluesky } from '../shared/bluesky-publish.js';
 import { freshTiktok, freshYoutube, tiktokDraft, youtubeUpload, tiktokCreator, tiktokDirect, TIKTOK_PRIVACY } from '../shared/video-publish.js';
 import { addEntry, removeEntry, cleanKey, keepStats } from '../shared/post-history.js';
@@ -31,6 +31,7 @@ import { cleanRequest, translateBatch } from './translate.js';
 import { buildSeason, SEASON_TTL, resultsReady } from './season-cache.js';
 import { accountStats } from './account-stats.js';
 import { callerIp, studioQuota } from './quota.js';
+import { served } from './download.js';
 
 // Empreinte de la clé tirée du code (la même que dans l'appli, server/creator.js) : SHA-256 de la clé PBKDF2 de
 // 200 000 tours, longue à essayer à la chaîne (STUDIO_KEY_HASH : autre empreinte, pour les tests)
@@ -331,17 +332,19 @@ async function image(req, url) {
 
 // Envoi sur un réseau (publication directe ou programmée). threads() : compte Threads à jour.
 // video : vidéo du créateur (Reel sur Instagram, vidéo sur Facebook, Threads et Bluesky) ; vsize : [largeur, hauteur]
-// link : post « lien » { url, title, description } sans visuels, la carte de l'article affichée par le réseau
-async function sendTo(net, vault, { text, comment, images, small = [], video = null, vsize = null, cover = null, link = null }, threads) {
+// videoUrl : adresse publique de la vidéo (Threads la lit là) ; link : post « lien » { url, title, description }
+// sans visuels, la carte de l'article affichée par le réseau
+// topic : sujet Threads choisi (sinon « F1 Threads »)
+async function sendTo(net, vault, { text, comment, images, small = [], video = null, videoUrl = null, vsize = null, cover = null, link = null, topic }, threads) {
   if (link && net === 'facebook') return publishFacebookLink(vault.meta, text, link.url);
-  if (link && net === 'threads') return publishThreadsLink(await threads(), text.slice(0, 500), link.url);
+  if (link && net === 'threads') return publishThreadsLink(await threads(), text.slice(0, 500), link.url, topic);
   if (link && net === 'bluesky') return publishBluesky(vault.bluesky, [...text].slice(0, 300).join(''), [], link);
   // cover : couverture de la vidéo (Reel : par son adresse publique, déposée sur la page ; Facebook : jointe)
-  if (video && net === 'instagram') return reelInstagram(vault.meta, (await hostVideo(vault.meta, video)).url, text.slice(0, 2200), cover ? (await hostOnPage(vault.meta, [cover]))[0].url : null);
+  if (video && net === 'instagram') return reelInstagram(vault.meta, video, text.slice(0, 2200), cover ? (await hostOnPage(vault.meta, [cover]))[0].url : null);
   if (video && net === 'facebook') return withComment(() => publishFacebookVideo(vault.meta, text, video, cover), comment, (id, t) => commentFacebook(vault.meta, id, t));
   if (video && net === 'threads') {
     const th = await threads();
-    return withComment(() => publishThreadsVideo(th, vault.meta, text.slice(0, 500), video), comment, (id, t) => replyThreads(th, id, t));
+    return withComment(() => publishThreadsVideo(th, videoUrl, text.slice(0, 500), topic), comment, (id, t) => replyThreads(th, id, t));
   }
   if (video && net === 'bluesky') {
     const clip = { blob: video, ...(vsize ? { width: vsize[0], height: vsize[1] } : {}) };
@@ -358,7 +361,7 @@ async function sendTo(net, vault, { text, comment, images, small = [], video = n
   if (net === 'instagram-story') return storyInstagram(vault.meta, images);
   if (net === 'facebook-story') return storyFacebook(vault.meta, images);
   const th = await threads();
-  return withComment(() => publishThreads(th, vault.meta, text.slice(0, 500), images), comment, (id, t) => replyThreads(th, id, t));
+  return withComment(() => publishThreads(th, vault.meta, text.slice(0, 500), images, topic), comment, (id, t) => replyThreads(th, id, t));
 }
 const NETS = ['facebook', 'instagram', 'threads', 'bluesky'];
 const CLIPS = ['tiktok', 'youtube'];   // vidéo seulement : brouillon TikTok, Short YouTube
@@ -439,6 +442,9 @@ async function schedJobs(env) {
 // texts : textes de chaque réseau (Modifier) ; retry : visuels et jetons encore là (Réessayer)
 const schedSummary = (j) => ({ id: j.id, at: j.at, title: j.title, nets: j.nets, texts: Object.fromEntries((j.posts || []).filter((p) => p.text).map((p) => [p.network, p.text])), retry: !!j.keys });
 
+// Jetons du moment (Threads prolongé si besoin), seulement ceux des réseaux choisis
+const schedKeys = (v, nets) => ({ ...(nets.some((n) => n !== 'bluesky' && !CLIPS.includes(n)) ? { meta: v.meta } : {}), ...Object.fromEntries(['threads', 'bluesky', ...CLIPS].filter((n) => nets.includes(n)).map((n) => [n, v[n]])) });
+
 async function scheduleAdd(req, env, raw, vault, now = Date.now()) {
   if (!env.STATS_KEY) return json({ error: 'Secret du serveur absent : programmation impossible' }, 503);
   let form;
@@ -470,7 +476,7 @@ async function scheduleAdd(req, env, raw, vault, now = Date.now()) {
   const nets = posts.map((p) => String(p?.network || ''));
   // Stories ou posts du fil, jamais les deux : les visuels n'ont pas le même format ; TikTok et YouTube avec une vidéo
   const allowed = link ? [...LINKS, 'instagram'] : video ? [...NETS, ...CLIPS, ...STORIES] : nets.some((n) => STORIES.includes(n)) ? STORIES : NETS;
-  posts = posts.map((p) => ({ network: String(p?.network || ''), text: String(p?.text || '').slice(0, 5000), comment: String(p?.comment || '').trim().slice(0, 500) }));
+  posts = posts.map((p) => ({ network: String(p?.network || ''), text: String(p?.text || '').slice(0, 5000), comment: String(p?.comment || '').trim().slice(0, 500), ...(typeof p?.topic === 'string' ? { topic: cleanTopic(p.topic) } : {}) }));
   if (nets.some((n) => !allowed.includes(n)) || new Set(nets).size !== nets.length) return json({ error: 'Réseau inconnu' }, 400);
   for (const p of posts) if (missing(p.network, vault)) return json({ error: missing(p.network, vault) }, 409);
   const files = (k, n) => form.getAll(k).filter((f) => typeof f === 'object' && f && /^image\/(png|jpeg)$/.test(f.type)).slice(0, n);
@@ -486,9 +492,7 @@ async function scheduleAdd(req, env, raw, vault, now = Date.now()) {
   const tiktok = video && nets.includes('tiktok') && form.get('tiktok') ? tiktokOptions(form.get('tiktok')) : null;
   if (tiktok?.error) return json({ error: tiktok.error }, 400);
   if ((await schedJobs(env)).filter((j) => Object.values(j.nets).some((s) => s.status === 'pending')).length >= SCHED.max) return json({ error: `${SCHED.max} publications programmées au plus` }, 409);
-  // Jetons du moment (Threads prolongé si besoin), seulement ceux des réseaux choisis
-  const v = await refresh(env, raw, vault);
-  const keys = { ...(nets.some((n) => n !== 'bluesky' && !CLIPS.includes(n)) ? { meta: v.meta } : {}), ...Object.fromEntries(['threads', 'bluesky', ...CLIPS].filter((n) => nets.includes(n)).map((n) => [n, v[n]])) };
+  const keys = schedKeys(await refresh(env, raw, vault), nets);
   const id = asked || hex(crypto.getRandomValues(new Uint8Array(8)));
   for (const [set, list] of Object.entries(sets)) {
     for (const [i, f] of list.entries()) await env.MEDIA.put(`sched/${id}/${set}/${i}`, f, { httpMetadata: { contentType: f.type } });
@@ -498,6 +502,17 @@ async function scheduleAdd(req, env, raw, vault, now = Date.now()) {
   const job = { id, at, title: String(form.get('title') || '').slice(0, 200), record: record && typeof record === 'object' ? record : null, posts, sets: { ig: sets.ig.length, x: sets.x.length, cover: sets.cover.length }, alts, video: video ? video.type : null, full: !!full, vsize, tiktok, link, keys: await seal(await schedKey(env), keys), created: now };
   await setRow(env, `sched:${id}`, JSON.stringify(job));
   return json({ item: schedSummary({ ...job, nets: Object.fromEntries(nets.map((n) => [n, { status: 'pending' }])) }) });
+}
+
+// Vidéo d'une programmation à une adresse publique, pour Threads qui la lit là (identifiant de 16 caractères tiré au
+// hasard, effacée avec la programmation) ; morceaux (Range) acceptés. Sur le nom de domaine du site, en .mp4 ou .mov (son type)
+const videoOrigin = (env) => env.SITE_ORIGIN || 'https://paddock-live-stats.paddock-live.workers.dev';
+export async function schedVideo(req, env, name) {
+  const m = /^([a-f0-9]{16}(?:-full)?)(?:\.mp4|\.mov)?$/.exec(name);
+  if (!m) return new Response('Introuvable', { status: 404 });
+  const obj = await env.MEDIA?.get(`sched/${m[1]}`, req.headers.has('Range') ? { range: req.headers } : {});
+  if (!obj?.body) return new Response('Introuvable', { status: 404 });
+  return served(req, obj, { 'Content-Type': obj.httpMetadata?.contentType || 'video/mp4' });
 }
 
 // Vidéos et visuels (toutes les places possibles : effacer un fichier absent ne fait rien)
@@ -514,15 +529,17 @@ async function scheduleCancel(env, id) {
   return json({ items: (await schedJobs(env)).map(schedSummary) });
 }
 
-// Réessayer un réseau en erreur ou expiré : renvoyé au relevé suivant (visuels et jetons gardés 24 h après la fin)
-async function scheduleRetry(env, b, now = Date.now()) {
+// Réessayer un réseau en erreur ou expiré : renvoyé au relevé suivant (visuels gardés 24 h après la fin), avec les
+// jetons du coffre à ce moment (compte reconnecté depuis la programmation)
+async function scheduleRetry(env, b, raw, vault, now = Date.now()) {
   const j = (await schedJobs(env)).find((x) => x.id === b?.id);
   const st = j?.nets[b?.net];
   if (!st) return json({ error: 'Publication inconnue' }, 404);
   if (!['error', 'expired'].includes(st.status)) return json({ error: 'Rien à refaire sur ce réseau' }, 409);
   if (!j.keys) return json({ error: 'Visuels déjà effacés (plus de 24 h) : refaites le post' }, 410);
   const { nets, ...rest } = j;
-  await setRow(env, `sched:${j.id}`, JSON.stringify({ ...rest, at: now, ended: null }));
+  const keys = await seal(await schedKey(env), schedKeys(await refresh(env, raw, vault), j.posts.map((p) => p.network)));
+  await setRow(env, `sched:${j.id}`, JSON.stringify({ ...rest, at: now, ended: null, keys }));
   await setRow(env, `schedpost:${j.id}:${b.net}`, JSON.stringify({ status: 'pending', ...(st.sent ? { sent: st.sent, total: st.total } : {}) }));
   return json({ items: (await schedJobs(env)).map(schedSummary) });
 }
@@ -671,8 +688,8 @@ export async function runSchedule(env, { now = Date.now(), only = null } = {}) {
           const r = story ? await sendTo(p.network, keys, { images: await imgs('ig', story.from, story.from + STORY_STEP) })
             : CLIPS.includes(p.network)
             ? await sendClip(p.network, () => (p.network === 'youtube' ? freshYoutube : freshTiktok)(keys[p.network]), await media(p.network, true), j.video, tr.text, j.tiktok)
-            : j.link && LINKS.includes(p.network) ? await sendTo(p.network, keys, { text: tr.text, link: { ...j.link, url: (await trackPost(env, p.network, { text: j.link.url }, j.record?.title)).text } }, () => freshThreads(keys.threads))
-            : await sendTo(p.network, keys, { text: tr.text, comment: tr.comment, images: p.network === 'bluesky' || video ? [] : await imgs('ig'), small: p.network === 'bluesky' && !video ? await imgs('x') : [], video, vsize: j.vsize, cover: video ? (await imgs('cover'))[0] : null }, () => freshThreads(keys.threads));
+            : j.link && LINKS.includes(p.network) ? await sendTo(p.network, keys, { text: tr.text, topic: p.topic, link: { ...j.link, url: (await trackPost(env, p.network, { text: j.link.url }, j.record?.title)).text } }, () => freshThreads(keys.threads))
+            : await sendTo(p.network, keys, { text: tr.text, comment: tr.comment, topic: p.topic, images: p.network === 'bluesky' || video ? [] : await imgs('ig'), small: p.network === 'bluesky' && !video ? await imgs('x') : [], video, videoUrl: video && `${videoOrigin(env)}/studio/v/${j.id}${j.full && !SAFE_NETS.includes(p.network) ? '-full.mp4' : j.video === 'video/quicktime' ? '.mov' : '.mp4'}`, vsize: j.vsize, cover: video ? (await imgs('cover'))[0] : null }, () => freshThreads(keys.threads));
           if (story) Object.assign(st, { sent: story.from + r.count, total: story.total });
           Object.assign(st, { status: story && st.sent < story.total ? 'pending' : 'done', at: Date.now(), ...resultOf(r), ...(r.note ? { note: r.note } : {}) });
           // Stories (24 heures) : pas dans l'historique, qui garde le post du fil
@@ -843,7 +860,8 @@ export async function studioApi(req, env, url) {
   if (path === 'stats' && req.method === 'GET') {
     const v = await refresh(env, a.raw, vault);
     // 6 posts au plus
-    const posts = await postStats(JSON.parse(await getRow(env, 'history') || '[]'), { meta: v.meta, threads: v.threads, bluesky: v.bluesky }, { limit: 6 });
+    const yt = v.youtube ? await clipAccount(env, a.raw, v, 'youtube').catch(() => null) : null;
+    const posts = await postStats(JSON.parse(await getRow(env, 'history') || '[]'), { meta: v.meta, threads: v.threads, bluesky: v.bluesky, youtubeToken: yt?.accessToken }, { limit: 6 });
     // kept : chiffres des 60 derniers posts gardés ici (heure conseillée, sur tous les appareils)
     let kept = [];
     try { kept = JSON.parse(await getRow(env, 'poststats') || '[]'); } catch { /* ligne abîmée : refaite */ }
@@ -886,7 +904,7 @@ export async function studioApi(req, env, url) {
   if (['schedule/cancel', 'schedule/retry', 'schedule/update'].includes(path) && req.method === 'POST') {
     let body;
     try { body = await req.json(); } catch { return json({ error: 'JSON invalide' }, 400); }
-    return path === 'schedule/cancel' ? scheduleCancel(env, body?.id) : path === 'schedule/retry' ? scheduleRetry(env, body) : scheduleUpdate(env, body);
+    return path === 'schedule/cancel' ? scheduleCancel(env, body?.id) : path === 'schedule/retry' ? scheduleRetry(env, body, a.raw, vault) : scheduleUpdate(env, body);
   }
   // Texte avec ses liens suivis (X : partagé depuis le téléphone ; appli : publication directe)
   if (path === 'links' && req.method === 'POST') {

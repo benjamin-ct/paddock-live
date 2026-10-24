@@ -361,63 +361,127 @@ test('YouTube : connexion Google (PKCE), Short envoyé en privé, reconnexion de
   } finally { globalThis.fetch = realFetch; }
 });
 
-test('vidéo du créateur : déposée une fois sur la page, Reel Instagram, vidéo Threads, vidéo Facebook et stories', async () => {
+test('vidéo du créateur : Reel et Story Instagram envoyés tels quels, vidéo Threads par son adresse, vidéo et story Facebook', async () => {
   const realFetch = globalThis.fetch;
-  const { hostVideo, publishFacebookVideo, publishThreadsVideo, reelInstagram, storyVideoInstagram, storyVideoFacebook } = await import('../shared/meta-publish.js');
-  Object.assign(timing, { poll: 1, maxPoll: 1, readyMs: 2000, visible: [] });
+  const { publishFacebookVideo, publishThreadsVideo, reelInstagram, storyVideoInstagram, storyVideoFacebook } = await import('../shared/meta-publish.js');
+  Object.assign(timing, { poll: 1, maxPoll: 1, readyMs: 2000, visible: [], threadsVideo: [1, 1, 1] });
   const meta = { pageId: 'page1', pageToken: 'jp', igId: 'ig1', igUsername: 'moi' };
   const log = [];
   let checks = 0;
   globalThis.fetch = async (url, opts = {}) => {
     const u = new URL(url);
     const form = opts.body instanceof FormData ? Object.fromEntries([...opts.body].map(([k, v]) => [k, typeof v === 'string' ? v : `<${v.type}>`]))
-      : opts.body ? Object.fromEntries(new URLSearchParams(String(opts.body))) : {};
+      : opts.body && !(opts.body instanceof Blob) ? Object.fromEntries(new URLSearchParams(String(opts.body))) : {};
     log.push({ host: u.hostname, path: u.pathname, form, query: Object.fromEntries(u.searchParams), headers: opts.headers, body: opts.body });
     const j = (o) => new Response(JSON.stringify(o));
     if (u.pathname.endsWith('/page1/video_stories')) return j(form.upload_phase === 'start' ? { video_id: 's1', upload_url: 'https://rupload.facebook.com/video-upload/v21.0/s1' } : { success: true, post_id: 'sp1' });
     if (u.hostname === 'rupload.facebook.com') return j({ success: true });
-    if (u.pathname.endsWith('/page1/videos')) return j({ id: form.published === 'false' ? 'vid1' : 'vid2' });
-    if (u.pathname.endsWith('/vid1')) return j(++checks < 2 ? { status: { video_status: 'processing' } } : { status: { video_status: 'ready' }, source: 'https://video.test/v.mp4' });
-    if (u.pathname.endsWith('/media') || u.pathname.endsWith('/threads')) return j({ id: 'c1' });
-    if (u.pathname.endsWith('/c1')) return j({ status_code: 'FINISHED', status: 'FINISHED' });
+    if (u.pathname.endsWith('/page1/videos')) return j({ id: 'vid2' });
+    if (u.pathname.endsWith('/ig1/media')) return j({ id: 'c1', uri: 'https://rupload.facebook.com/ig-api-upload/v25.0/c1' });
+    if (u.pathname.endsWith('/threads')) return j({ id: 'c1' });
+    if (u.pathname.endsWith('/c1')) return j(++checks < 2 ? { status_code: 'IN_PROGRESS' } : { status_code: 'FINISHED', status: 'FINISHED' });
     if (u.pathname.endsWith('/media_publish') || u.pathname.endsWith('/threads_publish')) return j({ id: 'p1' });
     if (u.pathname.endsWith('/p1')) return j({ permalink: 'https://example.test/p/1' });
     return j({});
   };
   try {
     const video = new Blob([new Uint8Array([0, 0, 0, 24, 102, 116, 121, 112, 1, 2, 3])], { type: 'video/mp4' });
-    const h = await hostVideo(meta, video);
-    assert.equal(h.url, 'https://video.test/v.mp4');
-    const up = log.find((l) => l.path.endsWith('/page1/videos'));
-    assert.equal(up.host, 'graph-video.facebook.com');
-    assert.equal(up.form.published, 'false');
-    assert.equal(up.form.source, '<video/mp4>');
-    // Instagram et Threads juste après : rien de redéposé
+    // Reel : conteneur « resumable », fichier envoyé à Instagram (aucune adresse à aller chercher), attendu, publié
+    const reel = await reelInstagram(meta, video, 'Légende');
+    assert.equal(reel.url, 'https://example.test/p/1');
+    const c = log.find((l) => l.path.endsWith('/ig1/media')).form;
+    assert.deepEqual([c.media_type, c.upload_type, c.caption, c.video_url], ['REELS', 'resumable', 'Légende', undefined]);
+    const up = log.find((l) => l.host === 'rupload.facebook.com');
+    assert.equal(up.path, '/ig-api-upload/v25.0/c1');
+    assert.deepEqual([up.headers.Authorization, up.headers.offset, up.headers.file_size, up.body], ['OAuth jp', '0', String(video.size), video]);
+    assert.ok(log.findIndex((l) => l.path.endsWith('/media_publish')) > log.findLastIndex((l) => l.path.endsWith('/c1') && l.query.fields));
+    assert.equal(log.filter((l) => l.path.endsWith('/videos')).length, 0, 'rien de déposé sur la page Facebook');
+    // Envoi du fichier refusé : la raison d'Instagram (debug_info) est montrée
+    const ok = globalThis.fetch;
+    globalThis.fetch = async (url, opts) => {
+      const u = new URL(url);
+      if (u.hostname === 'rupload.facebook.com') return new Response(JSON.stringify({ debug_info: { retriable: false, type: 'ProcessingFailedError', message: 'Request processing failed' } }), { status: 400 });
+      if (u.searchParams.get('fields') === 'status,status_code,video_status') return new Response(JSON.stringify({ status: 'Error', status_code: 'ERROR', video_status: { uploading_phase: { status: 'error', error: { message: 'File not found' } } } }));
+      return ok(url, opts);
+    };
+    await assert.rejects(reelInstagram(meta, video, 'Légende'), /Envoi de la vidéo à Instagram refusé : Request processing failed \(Error ; File not found\)/);
+    // Envoi refusé mais vidéo reçue, encore en traitement : attendue puis publiée (pas d'erreur, pas de second essai)
+    let busy = 0;
+    globalThis.fetch = async (url, opts) => {
+      const u = new URL(url);
+      if (u.hostname === 'rupload.facebook.com') return new Response(JSON.stringify({ debug_info: { message: 'Request processing failed' } }), { status: 400 });
+      if (u.pathname.endsWith('/c1') && u.searchParams.get('fields') === 'status,status_code,video_status') { busy++; return new Response(JSON.stringify({ status: 'In Progress: Media is still being processed.', status_code: 'IN_PROGRESS', video_status: { uploading_phase: { status: 'complete' } } })); }
+      return ok(url, opts);
+    };
+    const late = await reelInstagram(meta, video, 'Légende', 'https://img.test/cover.jpg');
+    assert.deepEqual([late.url, late.note, busy], ['https://example.test/p/1', undefined, 1]);
+    // Refus avec la couverture : un second essai sans elle, publié avec une note
+    let tries = 0;
+    globalThis.fetch = async (url, opts) => {
+      const u = new URL(url);
+      if (u.hostname === 'rupload.facebook.com' && !tries++) return new Response(JSON.stringify({ debug_info: { message: 'Request processing failed' } }), { status: 400 });
+      if (u.searchParams.get('fields') === 'status,status_code,video_status') return new Response(JSON.stringify({ status_code: 'ERROR' }));
+      return ok(url, opts);
+    };
     log.length = 0;
-    await reelInstagram(meta, (await hostVideo(meta, video)).url, 'Légende');
-    const th = await publishThreadsVideo({ token: 'jt', userId: 'th1', username: 'moi' }, meta, 'Texte', video);
+    const again = await reelInstagram(meta, video, 'Légende', 'https://img.test/cover.jpg');
+    assert.equal(again.url, 'https://example.test/p/1');
+    assert.match(again.note, /Couverture refusée par Instagram/);
+    assert.deepEqual(log.filter((l) => l.path.endsWith('/ig1/media')).map((l) => l.form.cover_url), ['https://img.test/cover.jpg', undefined]);
+    globalThis.fetch = ok;
+    // Couverture : adresse publique pour le Reel
+    await reelInstagram(meta, video, 'Légende', 'https://img.test/cover.jpg');
+    assert.equal(log.findLast((l) => l.path.endsWith('/ig1/media')).form.cover_url, 'https://img.test/cover.jpg');
+    // Threads : lit la vidéo à l'adresse donnée
+    const th = await publishThreadsVideo({ token: 'jt', userId: 'th1', username: 'moi' }, 'https://video.test/v.mp4', 'Texte');
     assert.equal(th.url, 'https://example.test/p/1');
-    assert.equal(log.filter((l) => l.path.endsWith('/videos')).length, 0);
-    assert.equal(log.find((l) => l.path.endsWith('/ig1/media')).form.video_url, 'https://video.test/v.mp4');
-    assert.equal(log.find((l) => l.path.endsWith('/ig1/media')).form.media_type, 'REELS');
     const tc = log.find((l) => l.path.endsWith('/th1/threads')).form;
     assert.deepEqual([tc.media_type, tc.video_url, tc.text, tc.topic_tag], ['VIDEO', 'https://video.test/v.mp4', 'Texte', 'F1 Threads']);
-    // Facebook : vidéo publiée avec le texte
+    // Publication refusée (vidéo pas encore tout à fait prête) : nouvel essai ; refus à chaque fois : étape nommée
+    const th2 = { token: 'jt', userId: 'th1', username: 'moi' };
+    const base = globalThis.fetch;
+    let refusals = 1;
+    const refuse = async (url, opts) => (new URL(url).pathname.endsWith('/threads_publish') && refusals-- > 0 ? new Response(JSON.stringify({ error: { message: 'An unexpected error has occurred. Please retry your request later.' } }), { status: 500 }) : base(url, opts));
+    globalThis.fetch = refuse;
+    assert.equal((await publishThreadsVideo(th2, 'https://video.test/v.mp4', 'Texte')).url, 'https://example.test/p/1');
+    refusals = 9;
+    await assert.rejects(publishThreadsVideo(th2, 'https://video.test/v.mp4', 'Texte'), /^Error: Publication sur Threads refusée : An unexpected error.*\(aussi sans le sujet « F1 Threads »\)$/);
+    // Refusée avec le sujet « F1 Threads » (3 essais) : nouveau post sans lui, publié avec une note
+    refusals = 3;
+    log.length = 0;
+    const plain = await publishThreadsVideo(th2, 'https://video.test/v.mp4', 'Texte');
+    assert.equal(plain.url, 'https://example.test/p/1');
+    assert.match(plain.note, /^Publié sans le sujet « F1 Threads »/);
+    assert.deepEqual(log.filter((l) => l.path.endsWith('/th1/threads')).map((l) => l.form.topic_tag), ['F1 Threads', undefined]);
+    // Sujet choisi (« . » et « & » retirés) ; vide : aucun sujet, et pas de second essai
+    refusals = 0;
+    log.length = 0;
+    await publishThreadsVideo(th2, 'https://video.test/v.mp4', 'Texte', 'Formule 1 & GP.');
+    assert.equal(log.find((l) => l.path.endsWith('/th1/threads')).form.topic_tag, 'Formule 1 GP');
+    refusals = 9;
+    log.length = 0;
+    await assert.rejects(publishThreadsVideo(th2, 'https://video.test/v.mp4', 'Texte', ''), /^Error: Publication sur Threads refusée : An unexpected error has occurred\. Please retry your request later\.$/);
+    assert.deepEqual(log.filter((l) => l.path.endsWith('/th1/threads')).map((l) => l.form.topic_tag), [undefined]);
+    // Refus, mais le post est parti (conteneur « PUBLISHED ») : compté comme publié, sans nouvel essai
+    refusals = 9;
+    globalThis.fetch = async (url, opts) => (new URL(url).pathname.endsWith('/c1') && new URL(url).searchParams.get('fields') === 'status,error_message' && refusals < 9 ? new Response(JSON.stringify({ status: 'PUBLISHED' })) : refuse(url, opts));
+    assert.deepEqual(await publishThreadsVideo(th2, 'https://video.test/v.mp4', 'Texte'), { url: 'https://www.threads.net/@moi', id: null });
+    assert.equal(refusals, 8);
+    globalThis.fetch = base;
+    // Facebook : vidéo publiée avec le texte ; couverture jointe
     const fb = await publishFacebookVideo(meta, 'Post', video);
     assert.equal(fb.url, 'https://www.facebook.com/page1/videos/vid2');
     const pub = log.findLast((l) => l.path.endsWith('/page1/videos')).form;
-    assert.deepEqual([pub.published, pub.description], ['true', 'Post']);
+    assert.deepEqual([pub.published, pub.description, pub.source], ['true', 'Post', '<video/mp4>']);
     assert.equal(pub.thumb, undefined);
-    // Couverture : adresse publique pour le Reel, image jointe à la vidéo Facebook
-    await reelInstagram(meta, 'https://video.test/v.mp4', 'Légende', 'https://img.test/cover.jpg');
-    assert.equal(log.findLast((l) => l.path.endsWith('/ig1/media')).form.cover_url, 'https://img.test/cover.jpg');
     await publishFacebookVideo(meta, 'Post', video, new Blob([new Uint8Array([0xff, 0xd8, 0xff])], { type: 'image/jpeg' }));
     assert.equal(log.findLast((l) => l.path.endsWith('/page1/videos')).form.thumb, '<image/jpeg>');
-    // Story vidéo : Instagram par l'adresse de la vidéo déposée, Facebook en trois temps (fichier envoyé tel quel)
+    // Story vidéo : Instagram reçoit le fichier aussi, Facebook en trois temps
     log.length = 0;
     assert.equal((await storyVideoInstagram(meta, video)).count, 1);
     const st = log.find((l) => l.path.endsWith('/ig1/media')).form;
-    assert.deepEqual([st.media_type, st.video_url], ['STORIES', 'https://video.test/v.mp4']);
+    assert.deepEqual([st.media_type, st.upload_type], ['STORIES', 'resumable']);
+    assert.equal(log.find((l) => l.host === 'rupload.facebook.com').body, video);
     assert.ok(log.some((l) => l.path.endsWith('/ig1/media_publish')));
     log.length = 0;
     assert.equal((await storyVideoFacebook(meta, video)).count, 1);

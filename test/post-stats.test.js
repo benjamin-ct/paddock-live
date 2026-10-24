@@ -18,6 +18,9 @@ test('statistiques des posts : Instagram, Facebook, Threads, Bluesky et abonnés
     if (u.pathname.endsWith('/p_2/insights') && m === 'post_total_media_view_unique,post_media_view') return ok({ data: [{ name: 'post_total_media_view_unique', values: [{ value: 240 }] }, { name: 'post_media_view', values: [{ value: { paid: 0, organic: 310 } }] }] });
     if (u.pathname.endsWith('/p_3') && f) return ok({ reactions: { summary: { total_count: 1 } }, comments: { summary: { total_count: 0 } } });
     if (u.pathname.endsWith('/p_3/insights') && m === 'post_impressions_unique') return ok({ data: [{ name: 'post_impressions_unique', values: [{ value: 77 }] }] });   // ancienne version de l'API
+    if (u.pathname.endsWith('/vid2') && f) return ok({ reactions: { summary: { total_count: 12 } }, comments: { summary: { total_count: 3 } } });
+    if (u.pathname.endsWith('/vid2/video_insights')) return ok({ data: [{ name: 'total_video_views', values: [{ value: 900 }] }, { name: 'total_video_views_unique', values: [{ value: 640 }] }] });
+    if (u.hostname === 'www.googleapis.com' && u.searchParams.get('id') === 'yt1') return ok({ items: [{ statistics: { viewCount: '150', likeCount: '9', commentCount: '2' } }] });
     if (u.pathname.endsWith('/th9/insights')) return ok({ data: [{ name: 'views', values: [{ value: 800 }] }, { name: 'likes', values: [{ value: 41 }] }, { name: 'replies', values: [{ value: 3 }] }, { name: 'reposts', values: [{ value: 2 }] }, { name: 'quotes', values: [{ value: 1 }] }] });
     if (u.pathname.endsWith('app.bsky.feed.getPosts')) return ok({ posts: [{ uri: 'at://a/p/1', likeCount: 7, replyCount: 1, repostCount: 2, quoteCount: 0 }] });
     if (u.pathname.endsWith('/igA') && f === 'followers_count') return ok({ followers_count: 1520 });
@@ -40,6 +43,11 @@ test('statistiques des posts : Instagram, Facebook, Threads, Bluesky et abonnés
     const fb = await postStats([{ key: 'a', at: 2, nets: { facebook: { id: 'p_2' } } }, { key: 'b', at: 1, nets: { facebook: { id: 'p_3' } } }], { meta: { pageToken: 't' } });
     assert.deepEqual(fb.posts[0].stats.facebook, { likes: 5, comments: 0, shares: 1, reach: 240, views: 310 });
     assert.deepEqual(fb.posts[1].stats.facebook, { likes: 1, comments: 0, shares: 0, reach: 77 });
+    // Vidéo de la page Facebook (video_insights), Short YouTube (jeton donné), TikTok : chiffres dans l'appli TikTok
+    const vid = await postStats([{ key: 'v', at: 4, nets: { facebook: { id: 'vid2', url: 'https://www.facebook.com/page1/videos/vid2' }, youtube: { id: 'yt1' }, tiktok: { id: null, url: null } } }], { meta: { pageToken: 't' }, youtubeToken: 'ya' });
+    assert.deepEqual(vid.posts[0].stats.facebook, { views: 900, reach: 640, likes: 12, comments: 3 });
+    assert.deepEqual(vid.posts[0].stats.youtube, { views: 150, likes: 9, comments: 2 });
+    assert.equal(vid.posts[0].stats.tiktok.note, 'Chiffres dans l\'appli TikTok');
     // Refusé partout : raison du réseau gardée, avec un message lisible
     const gone = await postStats([{ key: 'c', at: 3, nets: { instagram: { id: 'zz' }, threads: { id: 'zz' } } }], { meta: { pageToken: 't' }, threads: { token: 'u' } });
     assert.deepEqual(gone.posts[0].stats.instagram, { error: '(#10) Application does not have permission', note: 'Autorisation manquante : reconnectez le compte' });

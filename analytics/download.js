@@ -51,9 +51,16 @@ export async function mirror(req, env, name) {
   if ((await (await env.MEDIA?.get('releases/version'))?.text())?.trim() !== m[1]) return github;
   const obj = await env.MEDIA.get(`releases/${m[2]}`, req.headers.has('Range') ? { range: req.headers } : {});
   if (!obj?.body) return github;
+  return served(req, obj, { 'Content-Type': 'application/octet-stream', 'Content-Disposition': `attachment; filename="${name}"` });
+}
+
+// Fichier de R2 lu en entier ou en partie (en-tête Range de la demande). Partie donnée par R2 sous l'une de ses
+// formes : { offset, length }, { offset } (jusqu'à la fin, « bytes=0- » des lecteurs vidéo) ou { suffix } (la fin)
+export function served(req, obj, extra) {
   const part = req.headers.has('Range') && obj.range;
-  const headers = { 'Content-Type': 'application/octet-stream', 'Content-Disposition': `attachment; filename="${name}"`, 'Accept-Ranges': 'bytes', ETag: obj.httpEtag };
+  const headers = { ...extra, 'Accept-Ranges': 'bytes', ETag: obj.httpEtag };
   if (!part) return new Response(obj.body, { headers: { ...headers, 'Content-Length': String(obj.size) } });
-  const end = part.offset + part.length - 1;
-  return new Response(obj.body, { status: 206, headers: { ...headers, 'Content-Length': String(part.length), 'Content-Range': `bytes ${part.offset}-${end}/${obj.size}` } });
+  const offset = part.suffix != null ? Math.max(0, obj.size - part.suffix) : part.offset ?? 0;
+  const length = part.length ?? obj.size - offset;
+  return new Response(obj.body, { status: 206, headers: { ...headers, 'Content-Length': String(length), 'Content-Range': `bytes ${offset}-${offset + length - 1}/${obj.size}` } });
 }

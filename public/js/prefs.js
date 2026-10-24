@@ -13,6 +13,7 @@ const DEFAULTS = {
   favTeams: [],           // écuries favorites (clés de shared/news.js : 'ferrari', 'redbull'…)
   alerts: { sound: true, vibrate: true, notify: false, flags: true, fastest: true, favPit: true, favRcm: true, retire: true, finish: true, favCut: true, rain: true, prono: true },
   hiddenPanels: [],
+  hiddenTabs: [],         // onglets masqués (Réglages → Onglets visibles), comme ceux inutiles pour la séance
   hiddenCols: [],
   extraCols: [],          // colonnes facultatives ajoutées au classement (voir EXTRA_COLUMNS)
   towerFit: true,         // classement agrandi pour remplir la hauteur disponible
