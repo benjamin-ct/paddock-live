@@ -396,6 +396,11 @@ test('vidéo du créateur : Reel et Story Instagram envoyés tels quels, vidéo 
     assert.deepEqual([up.headers.Authorization, up.headers.offset, up.headers.file_size, up.body], ['OAuth jp', '0', String(video.size), video]);
     assert.ok(log.findIndex((l) => l.path.endsWith('/media_publish')) > log.findLastIndex((l) => l.path.endsWith('/c1') && l.query.fields));
     assert.equal(log.filter((l) => l.path.endsWith('/videos')).length, 0, 'rien de déposé sur la page Facebook');
+    // Envoi du fichier refusé : la raison d'Instagram (debug_info) est montrée
+    const ok = globalThis.fetch;
+    globalThis.fetch = async (url, opts) => (new URL(url).hostname === 'rupload.facebook.com' ? new Response(JSON.stringify({ debug_info: { retriable: false, type: 'ProcessingFailedError', message: 'Request processing failed' } }), { status: 400 }) : ok(url, opts));
+    await assert.rejects(reelInstagram(meta, video, 'Légende'), /Envoi de la vidéo à Instagram refusé : Request processing failed/);
+    globalThis.fetch = ok;
     // Couverture : adresse publique pour le Reel
     await reelInstagram(meta, video, 'Légende', 'https://img.test/cover.jpg');
     assert.equal(log.findLast((l) => l.path.endsWith('/ig1/media')).form.cover_url, 'https://img.test/cover.jpg');

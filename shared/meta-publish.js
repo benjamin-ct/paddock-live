@@ -26,7 +26,8 @@ export async function call(url, { method = 'GET', headers = {}, json, form, body
   try { data = text ? JSON.parse(text) : {}; } catch { data = { raw: text }; }
   const err = data?.error;
   if (!res.ok || (err && (typeof err === 'string' || err.message || (err.code && err.code !== 'ok')))) {
-    const msg = (typeof err === 'string' ? err : err?.error_user_msg || err?.message) || data?.detail || data?.title || data?.errors?.[0]?.message || data?.error_description || `HTTP ${res.status}`;
+    // debug_info : refus d'un envoi de fichier à Instagram (rupload)
+    const msg = (typeof err === 'string' ? err : err?.error_user_msg || err?.message) || data?.debug_info?.message || data?.detail || data?.title || data?.errors?.[0]?.message || data?.error_description || `HTTP ${res.status}${data?.raw ? ` : ${String(data.raw).slice(0, 200)}` : ''}`;
     const e = new Error(String(msg).slice(0, 300));
     if (typeof err?.code === 'string') e.code = err.code;   // code de l'erreur (TikTok), pour un message clair
     throw e;
@@ -181,7 +182,8 @@ export async function storyFacebook(meta, images) {
 async function igVideo(meta, video, fields, what) {
   const tok = { access_token: meta.pageToken };
   const c = await call(`${GRAPH}/${meta.igId}/media`, { method: 'POST', form: { ...fields, upload_type: 'resumable', ...tok } });
-  await call(c.uri || `${GRAPH.replace('//graph.', '//rupload.').replace('.com/', '.com/ig-api-upload/')}/${c.id}`, { method: 'POST', headers: { Authorization: `OAuth ${meta.pageToken}`, offset: '0', file_size: String(video.size) }, body: video });
+  await call(c.uri || `${GRAPH.replace('//graph.', '//rupload.').replace('.com/', '.com/ig-api-upload/')}/${c.id}`, { method: 'POST', headers: { Authorization: `OAuth ${meta.pageToken}`, offset: '0', file_size: String(video.size) }, body: video })
+    .catch((err) => { throw new Error(`Envoi de la vidéo à Instagram refusé : ${err.message}`); });
   await ready(`${GRAPH}/${c.id}?${new URLSearchParams({ fields: 'status_code,status', ...tok })}`, 'status_code', what);
   return c.id;
 }
