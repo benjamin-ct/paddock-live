@@ -684,7 +684,15 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
   background: linear-gradient(135deg, transparent 50%, var(--muted) 50%, var(--muted) 58%, transparent 58%, transparent 70%, var(--muted) 70%, var(--muted) 78%, transparent 78%);
   border-bottom-right-radius: 8px; opacity: .55; }
 .fr-rs:hover { opacity: 1; }
-.grid.free.has-max .fr-rs { display: none; }
+.grid.free.has-max :is(.fr-rs, .fr-edge) { display: none; }
+/* Bords et autres coins : zones invisibles, curseur de redimensionnement au survol */
+.fr-edge { position: absolute; z-index: 6; touch-action: none; }   /* au-dessus de l'en-tête du panneau */
+.fr-n, .fr-s { left: 12px; right: 12px; height: 6px; cursor: ns-resize; }
+.fr-n { top: -3px; } .fr-s { bottom: -3px; }
+.fr-e, .fr-w { top: 12px; bottom: 12px; width: 6px; cursor: ew-resize; }
+.fr-e { right: -3px; } .fr-w { left: -3px; }
+.fr-ne, .fr-nw, .fr-sw { width: 14px; height: 14px; }
+.fr-ne { top: -3px; right: -3px; cursor: nesw-resize; } .fr-nw { top: -3px; left: -3px; cursor: nwse-resize; } .fr-sw { bottom: -3px; left: -3px; cursor: nesw-resize; }
 .btn.small { padding: 2px 7px; font-size: 12px; }
 .btn.on { background: var(--blue); border-color: var(--blue); color: #001526; }
 .subbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 6px 12px; border-bottom: 1px solid var(--border); font-size: 12.5px; }
@@ -1374,14 +1382,21 @@ html:not(.phone) [data-phone] { display: none !important; }
 html.phone [data-desk] { display: none !important; }
 /* Ordinateur, mode Essentiel : le principal seulement (data-expert : mode Complet) */
 html.essential [data-expert] { display: none !important; }
-/* Mode Essentiel : classement compact (code pilote, écart, secteurs en couleur, pneus), sans nom complet ni mini-secteurs */
-html.essential .tower :is(.c-int, .c-last, .c-best, .c-pits, .c-speed, .c-duel, .drv-last) { display: none !important; }
+/* Mode Essentiel : classement compact (code pilote, écart, secteurs en couleur, pneus), sans nom complet ni mini-secteurs ;
+   agrandi (⤢) : les colonnes choisies dans son menu */
+html.essential:not(.ess-quali):not(.ess-big) .p-tower:not(.maximized) .tower :is(.c-int, .c-last, .c-best, .c-pits, .c-speed, .c-duel, .drv-last) { display: none !important; }
+/* Essentiel, essais et qualifs : meilleur tour, écart et intervalle, secteurs en couleur (sans mini-secteurs) */
+html.essential.ess-quali:not(.ess-big) .p-tower:not(.maximized) .tower :is(.c-last, .c-pred, .c-speed, .c-duel, .drv-last) { display: none !important; }
+/* Essentiel, écran plus grand que le 1080p : grand classement (dernier tour, secteurs et mini-secteurs), sans tour en cours, speed trap ni boutons duel */
+html.essential.ess-big .p-tower:not(.maximized) .tower :is(.c-pred, .c-speed, .c-duel) { display: none !important; }
+/* Essentiel : télémétrie seule dans le panneau Analyse */
+html.essential .p-analysis [data-tab]:not([data-tab="telemetry"]) { display: none !important; }
 html.essential .p-tower .panel-tools .hint { display: none; }
-html.essential .tower .c-sec .segs { display: none; }
-html.essential .tower td.c-sec .sector-val { font-size: 0; width: 22px; height: 8px; margin: 0 auto; border-radius: 2px; background: #E3B505; }
-html.essential .tower td.c-sec .sector-val.green { background: var(--green); }
-html.essential .tower td.c-sec .sector-val.purple { background: var(--purple); }
-html.essential .tower td.c-sec .sector-val:has(.dim) { background: var(--line-2); }
+html.essential:not(.ess-big) .tower .c-sec .segs { display: none; }
+html.essential:not(.ess-big) .p-tower:not(.maximized) .tower td.c-sec .sector-val { font-size: 0; width: 22px; height: 8px; margin: 0 auto; border-radius: 2px; background: #E3B505; }
+html.essential:not(.ess-big) .p-tower:not(.maximized) .tower td.c-sec .sector-val.green { background: var(--green); }
+html.essential:not(.ess-big) .p-tower:not(.maximized) .tower td.c-sec .sector-val.purple { background: var(--purple); }
+html.essential:not(.ess-big) .p-tower:not(.maximized) .tower td.c-sec .sector-val:has(.dim) { background: var(--line-2); }
 
 /* Design classique : pas de bandeau du bas (il fait partie du design Broadcast) */
 html[data-design="classic"] .rc-bar { display: none !important; }

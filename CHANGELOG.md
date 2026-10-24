@@ -44,10 +44,24 @@ l'application (Réglages → À propos → Nouveautés).
   direction de course reste dans la barre du bas, pneus et arrêts dans le classement ; les réafficher dans
   Dispo. Disposition déjà enregistrée : Dispo. → Réinitialiser pour en profiter.
 - Interface Essentielle (la plus simple) sur grand écran, façon tableau de bord : classement à gauche, grande
-  carte au centre avec les radios dessous, et à droite la télémétrie du duel, le championnat en direct (onglet
-  « Champ. », maintenant aussi en Essentiel) et les limites de piste. Disposition déjà enregistrée :
-  Dispo. → Réinitialiser.
+  carte au centre avec les radios dessous, et à droite la direction de course et la télémétrie du pilote suivi.
+  Disposition déjà enregistrée : Dispo. → Réinitialiser.
+- Interface Essentielle pendant les essais et les qualifs : classement avec le meilleur tour, l'écart et
+  l'intervalle (secteurs en couleur, sans les mini-secteurs).
+- Interface Essentielle sur un écran plus grand que le 1080p (1440p, 4K) : grand classement à gauche (écart,
+  intervalle, dernier et meilleur tour, secteurs et mini-secteurs, pneus, tours), la carte en haut à droite et,
+  dessous, côte à côte, la télémétrie et la direction de course (radios sous elle). Panneaux à déplacer et
+  redimensionner librement.
+- Disposition libre : chaque panneau se redimensionne par n'importe quel bord ou coin (avant : seulement par le
+  coin en bas à droite) ; les panneaux collés suivent (agrandir l'un réduit son voisin), s'aimantent plus
+  facilement et gardent tous la même marge entre eux, comme en colonnes.
+- Carte : les mini-secteurs du pilote suivi (choisi dans le classement) prennent les couleurs du classement
+  (jaune, vert, violet) pendant son tour. La bulle d'infos n'apparaît plus que pour un pilote choisi.
+- Classement agrandi (bouton ⤢) : ses propres colonnes, choisies dans « Colonnes » pendant qu'il est agrandi ;
+  revenu à sa taille, il reprend celles d'habitude.
 - L'onglet « Limites de piste » (ou « Enquêtes ») ouvert reste ouvert au lancement suivant.
+- Limites de piste : la pastille de l'onglet dit ce qu'elle compte (au survol) : les pilotes à 3 infractions ou
+  plus, c'est-à-dire au drapeau noir et blanc (pénalité à la 4e en course).
 - Disposition « Qualif & essais » ou « Course » et onglets adaptés à la séance (championnat seulement en course…)
   choisis aussi quand l'appli est ouverte avant le début de la séance, ou pour un replay.
 

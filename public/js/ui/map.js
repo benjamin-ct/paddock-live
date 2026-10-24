@@ -3,7 +3,7 @@ import { store, displayNow, f1Now, on, versionOf } from '../store.js';
 import { prefs, setPref } from '../prefs.js';
 import { $, api, drivers, teamColor, storageGet, storageSet } from '../util.js';
 import { loadTrack } from '../track.js';
-import { parseUtc } from '/shared/f1.js';
+import { parseUtc, segmentClass } from '/shared/f1.js';
 import { hotLaps } from './tower.js';
 import { icon } from '../icons.js';
 import { DEC, tx } from '../i18n.js';
@@ -469,6 +469,7 @@ function drawSectors(lay) {
     strokeDist(sec.from, sec.from + sec.len);
   }
   ctx.restore();
+  drawFocusMinis(lay, W);
   // Repères des micro-secteurs (petits traits) et des fins de secteur (grands traits)
   for (const m of lay.minis) {
     const p = screenAt(m.r);
@@ -480,6 +481,26 @@ function drawSectors(lay) {
     ctx.lineTo(p.x + p.nx * len, p.y + p.ny * len);
     ctx.stroke();
   }
+}
+
+// Pilote suivi en piste (tour lancé…) : ses micro-secteurs aux couleurs du classement (jaune, vert, violet, stand)
+const SEG_VARS = { 'seg-yellow': '--yellow', 'seg-green': '--green', 'seg-purple': '--purple', 'seg-pit': '--blue' };
+function drawFocusMinis(lay, W) {
+  const l = store.focus && store.state.TimingData?.Lines?.[store.focus];
+  const secs = l && !l.InPit && !l.Retired && !l.Stopped ? list(l.Sectors) : null;
+  if (!secs?.length) return;
+  const css = getComputedStyle(document.documentElement);
+  ctx.save();
+  ctx.lineWidth = Math.max(3, W * 0.5);
+  for (const sec of lay.sectors) {
+    let from = sec.from;
+    for (const m of lay.minis.filter((x) => x.i === sec.i)) {
+      const v = SEG_VARS[segmentClass(list(secs[sec.i]?.Segments)[m.j]?.Status)];
+      if (v) { ctx.strokeStyle = css.getPropertyValue(v).trim(); strokeDist(from, m.r); }
+      from = m.r;
+    }
+  }
+  ctx.restore();
 }
 
 // Étiquettes S1 / S2 / S3 au milieu de chaque secteur, numéros de micro-secteur en zoom
@@ -954,9 +975,9 @@ function drawGaps(cars, lines) {
   ctx.restore();
 }
 
-// Pilote suivi : bulle de télémétrie à côté de sa voiture (vitesse, rapport, accélérateur, frein, écart)
+// Pilote suivi (choisi dans le classement) : bulle de télémétrie à côté de sa voiture (vitesse, rapport, accélérateur, frein, écart)
 function drawFocusCard(cars, lines, disp) {
-  const c = cars.find((x) => x.isF) || cars.find((x) => x.isA);
+  const c = cars.find((x) => x.isF);   // seulement un pilote choisi (pas le pilote A du duel)
   if (!c) return;
   if (size.w < 360 || size.h < 260) return;   // carte trop petite : pas de bulle
   const small = size.w < 560 || size.h < 380;
