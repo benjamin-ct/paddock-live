@@ -27,8 +27,7 @@ l'application (Réglages → À propos → Nouveautés).
 - « Pendant votre absence » fonctionne aussi quand on s'absente pendant un drapeau rouge.
 - Onglets d'analyse (race trace, positions, rythme, temps au tour) redessinés une fois par seconde au plus
   pendant la course, au lieu de plusieurs fois : moins de calcul, surtout sur téléphone.
-- Télémétrie : seulement le pilote suivi (le pilote du duel ne s'ajoute plus tout seul) ; « + Comparer… »
-  pour afficher un second pilote.
+- Télémétrie : seulement le pilote suivi ; deux pilotes côte à côte, c'est la télémétrie du panneau Duel.
 - Radios d'équipe : réglages (pilotes écoutés, lecture auto, texte, traduction, qualité) et état de la
   transcription rangés dans le menu « Options » à côté du titre, pour laisser la place aux radios.
 - Menus « Calques » (circuit) et « Colonnes » (classement) affichés en entier, même dans un petit panneau :

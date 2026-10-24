@@ -16,11 +16,10 @@ function focusDriver() {
 }
 
 // Pilote B de la télémétrie (comparaison) : choisi dans l'onglet, sinon pilote B du duel
-let teleB = null;
 
 // Compteurs et courbe : construits une fois par choix de pilotes, puis animés image par image
 // (voir gauge.js) ; ce rendu périodique ne gère que la structure.
-let tele = null;   // { dialA, dialB, trace, num, numB }
+let tele = null;   // { dialA, trace, num }
 
 function animateTelemetry() {
   animate('telemetry', (dt) => {
@@ -31,16 +30,7 @@ function animateTelemetry() {
     const colA = teamColor(dl[tele.num] || {});
     tele.dialA.setColor(colA);
     tele.dialA.update(carNow(tele.num, disp), dt, energyOf(tele.num, disp));
-    let colB = null;
-    if (tele.numB && tele.dialB) {
-      colB = teamColor(dl[tele.numB] || {});
-      tele.dialB.setColor(colB);
-      tele.dialB.update(carNow(tele.numB, disp), dt, energyOf(tele.numB, disp));
-    }
-    tele.trace.update([
-      { num: tele.num, color: colA },
-      ...(tele.numB ? [{ num: tele.numB, color: colB, dash: dl[tele.numB]?.TeamName === dl[tele.num]?.TeamName }] : []),
-    ], disp);
+    tele.trace.update([{ num: tele.num, color: colA }], disp);
     return true;
   });
 }
@@ -60,33 +50,22 @@ export function renderTelemetry() {
     return;
   }
   if (!num) return;
-  // Le pilote suivi seul ; second pilote seulement s'il est choisi ici (« + Comparer… »)
-  const numB = teleB && dl[teleB] && teleB !== num ? teleB : null;
+  // Le pilote suivi seul (deux pilotes côte à côte : télémétrie du panneau Duel)
   const nums = orderedNumbers(store.state).filter((n) => dl[n]);
-  const key = `${num}|${numB}|${nums.join(',')}`;
+  const key = `${num}|${nums.join(',')}`;
   if (el._k !== key) {
     el._k = key;
-    const pick = (id, cur, none) => `<select id="${id}" class="tele-pick">${none ? '<option value="">+ Comparer…</option>' : ''}${nums.map((n) => `<option value="${n}" ${n === cur ? 'selected' : ''}>${esc(dl[n].Tla)}</option>`).join('')}</select>`;
-    const head = (n) => {
-      const d = dl[n] || {};
-      return `<div class="tele-name" style="--tc:${teamColor(d)}">${teamMark(d)}<b>${esc(d.Tla || n)}</b><span class="muted small">${esc(d.LastName || '')}</span></div>`;
-    };
+    const d = dl[num] || {};
     el.innerHTML = `<div class="tele2">
-      <div class="tele2-bar"><span class="tele-chip" style="--tc:${teamColor(dl[num] || {})}">${pick('teleSel', num)}</span>
-        <span class="tele-vs">vs</span>
-        <span class="tele-chip ${numB ? '' : 'empty'}" style="--tc:${numB ? teamColor(dl[numB] || {}) : 'var(--border)'}">${pick('teleSelB', numB, true)}${numB ? `<button class="tele-x" id="teleClearB" title="Un seul pilote" aria-label="Retirer le second pilote">${icon('close')}</button>` : ''}</span>
+      <div class="tele2-bar"><span class="tele-chip" style="--tc:${teamColor(d)}"><select id="teleSel" class="tele-pick">${nums.map((n) => `<option value="${n}" ${n === num ? 'selected' : ''}>${esc(dl[n].Tla)}</option>`).join('')}</select></span>
         <span class="muted small tele-hint">clic sur un pilote du classement = pilote suivi</span></div>
-      <div class="tele2-dials ${numB ? 'two' : 'one'}">
-        <div class="tele2-col">${head(num)}<div class="tele-dial" id="teleDialA"></div></div>
-        ${numB ? `<div class="tele2-vs">VS</div><div class="tele2-col">${head(numB)}<div class="tele-dial" id="teleDialB"></div></div>` : ''}
+      <div class="tele2-dials one">
+        <div class="tele2-col"><div class="tele-name" style="--tc:${teamColor(d)}">${teamMark(d)}<b>${esc(d.Tla || num)}</b><span class="muted small">${esc(d.LastName || '')}</span></div><div class="tele-dial" id="teleDialA"></div></div>
       </div>
       <div class="trace"><div class="chart-title"><span>Vitesse — 30 dernières secondes (km/h)</span></div><div id="teleTrace"></div></div></div>`;
     $('#teleSel').addEventListener('change', (e) => setFocus(e.target.value));
-    $('#teleSelB').addEventListener('change', (e) => { teleB = e.target.value || null; el._k = null; lastTele = 0; renderTelemetry(); });
-    $('#teleClearB')?.addEventListener('click', () => { teleB = null; el._k = null; lastTele = 0; renderTelemetry(); });
-    tele = { num, numB, dialA: new Dial(teamColor(dl[num] || {})), dialB: numB ? new Dial(teamColor(dl[numB] || {})) : null, trace: new SpeedTrace($('#teleTrace')) };
+    tele = { num, dialA: new Dial(teamColor(d)), trace: new SpeedTrace($('#teleTrace')) };
     $('#teleDialA').appendChild(tele.dialA.el);
-    if (tele.dialB) $('#teleDialB').appendChild(tele.dialB.el);
   }
   animateTelemetry();
 }
