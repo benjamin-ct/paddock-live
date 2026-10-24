@@ -582,7 +582,7 @@ test('page du créateur : vidéo programmée sur Instagram (fichier envoyé tel 
   const { schedVideo } = await import('../analytics/studio.js');
   const { timing } = await import('../shared/meta-publish.js');
   const was = { ...timing };
-  Object.assign(timing, { visible: [] });
+  Object.assign(timing, { visible: [], threadsVideo: [1] });
   const realFetch = globalThis.fetch;
   const sent = {};
   globalThis.fetch = async (url, opts = {}) => {

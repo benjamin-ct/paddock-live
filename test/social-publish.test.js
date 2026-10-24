@@ -364,7 +364,7 @@ test('YouTube : connexion Google (PKCE), Short envoyé en privé, reconnexion de
 test('vidéo du créateur : Reel et Story Instagram envoyés tels quels, vidéo Threads par son adresse, vidéo et story Facebook', async () => {
   const realFetch = globalThis.fetch;
   const { publishFacebookVideo, publishThreadsVideo, reelInstagram, storyVideoInstagram, storyVideoFacebook } = await import('../shared/meta-publish.js');
-  Object.assign(timing, { poll: 1, maxPoll: 1, readyMs: 2000, visible: [] });
+  Object.assign(timing, { poll: 1, maxPoll: 1, readyMs: 2000, visible: [], threadsVideo: [1, 1, 1] });
   const meta = { pageId: 'page1', pageToken: 'jp', igId: 'ig1', igUsername: 'moi' };
   const log = [];
   let checks = 0;
@@ -417,6 +417,21 @@ test('vidéo du créateur : Reel et Story Instagram envoyés tels quels, vidéo 
     assert.equal(th.url, 'https://example.test/p/1');
     const tc = log.find((l) => l.path.endsWith('/th1/threads')).form;
     assert.deepEqual([tc.media_type, tc.video_url, tc.text, tc.topic_tag], ['VIDEO', 'https://video.test/v.mp4', 'Texte', 'F1 Threads']);
+    // Publication refusée (vidéo pas encore tout à fait prête) : nouvel essai ; refus à chaque fois : étape nommée
+    const th2 = { token: 'jt', userId: 'th1', username: 'moi' };
+    const base = globalThis.fetch;
+    let refusals = 1;
+    const refuse = async (url, opts) => (new URL(url).pathname.endsWith('/threads_publish') && refusals-- > 0 ? new Response(JSON.stringify({ error: { message: 'An unexpected error has occurred. Please retry your request later.' } }), { status: 500 }) : base(url, opts));
+    globalThis.fetch = refuse;
+    assert.equal((await publishThreadsVideo(th2, 'https://video.test/v.mp4', 'Texte')).url, 'https://example.test/p/1');
+    refusals = 9;
+    await assert.rejects(publishThreadsVideo(th2, 'https://video.test/v.mp4', 'Texte'), /^Error: Publication sur Threads refusée : An unexpected error/);
+    // Refus, mais le post est parti (conteneur « PUBLISHED ») : compté comme publié, sans nouvel essai
+    refusals = 9;
+    globalThis.fetch = async (url, opts) => (new URL(url).pathname.endsWith('/c1') && new URL(url).searchParams.get('fields') === 'status,error_message' && refusals < 9 ? new Response(JSON.stringify({ status: 'PUBLISHED' })) : refuse(url, opts));
+    assert.deepEqual(await publishThreadsVideo(th2, 'https://video.test/v.mp4', 'Texte'), { url: 'https://www.threads.net/@moi', id: null });
+    assert.equal(refusals, 8);
+    globalThis.fetch = base;
     // Facebook : vidéo publiée avec le texte ; couverture jointe
     const fb = await publishFacebookVideo(meta, 'Post', video);
     assert.equal(fb.url, 'https://www.facebook.com/page1/videos/vid2');

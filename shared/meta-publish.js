@@ -9,7 +9,7 @@ export const THREADS = 'https://graph.threads.net/v1.0';
 // Sujet des posts Threads (« > F1 Threads » à côté du nom, la communauté F1 de Threads) : sans lui, Threads prend le premier
 // hashtag du texte (#F1)
 export const THREADS_TOPIC = 'F1 Threads';
-export const timing = { poll: 1500, maxPoll: 5000, readyMs: 4 * 60e3, visible: [8e3, 15e3, 20e3] };
+export const timing = { poll: 1500, maxPoll: 5000, readyMs: 4 * 60e3, visible: [8e3, 15e3, 20e3], threadsVideo: [30e3, 20e3, 30e3] };
 const HOST_TTL = 60 * 60e3;
 const hostedCache = new Map();   // empreinte de l'image + page -> { id, url, at }
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -248,8 +248,19 @@ export async function publishThreadsVideo(th, videoUrl, text) {
   // Étape en échec nommée dans le message (les refus de Threads sont souvent un « unexpected error » sans détail)
   const step = (what) => (err) => { throw new Error(`${what} : ${err.message}`.slice(0, 300)); };
   const c = await call(`${base}/threads`, { method: 'POST', form: { media_type: 'VIDEO', video_url: videoUrl, text, topic_tag: THREADS_TOPIC, access_token: th.token } }).catch(step('Création du post Threads refusée'));
-  await ready(`${THREADS}/${c.id}?${new URLSearchParams({ fields: 'status,error_message', access_token: th.token })}`, 'status', 'Vidéo');
-  const pub = await call(`${base}/threads_publish`, { method: 'POST', form: { creation_id: c.id, access_token: th.token } }).catch(step('Publication sur Threads refusée'));
+  const status = `${THREADS}/${c.id}?${new URLSearchParams({ fields: 'status,error_message', access_token: th.token })}`;
+  await ready(status, 'status', 'Vidéo');
+  // Vidéo prête : Threads demande encore une trentaine de secondes avant la publication (sinon « unexpected error ») ;
+  // refus : nouvel essai plus tard, sauf si le post est en fait parti (conteneur « PUBLISHED »)
+  let pub;
+  for (const [i, ms] of timing.threadsVideo.entries()) {
+    await wait(ms);
+    try { pub = await call(`${base}/threads_publish`, { method: 'POST', form: { creation_id: c.id, access_token: th.token } }); break; } catch (err) {
+      if ((await call(status).catch(() => ({}))).status === 'PUBLISHED') { pub = { id: null }; break; }
+      if (i === timing.threadsVideo.length - 1) step('Publication sur Threads refusée')(err);
+    }
+  }
+  if (!pub.id) return { url: `https://www.threads.net/@${th.username || ''}`, id: null };
   const link = await call(`${THREADS}/${pub.id}?${new URLSearchParams({ fields: 'permalink', access_token: th.token })}`).catch(() => ({}));
   const visible = link.permalink ? await threadsVisible(link.permalink, th.username) : null;
   return { url: link.permalink || `https://www.threads.net/@${th.username || ''}`, id: pub.id, visible };
