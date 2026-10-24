@@ -104,6 +104,25 @@ async function open(raw, sealed) {
   return JSON.parse(new TextDecoder().decode(pt));
 }
 
+// Coffre enregistré ; la connexion F1 TV y est aussi gardée à part, chiffrée avec une clé du serveur, pour le
+// relais de la version web (GPS et télémétrie, analytics/live-relay.js) qui la lit sans le code du créateur
+const liveKey = async (env) => new Uint8Array(await crypto.subtle.digest('SHA-256', enc.encode(`paddock-live-live-v1:${env.STATS_KEY}`)));
+async function saveVault(env, raw, v) {
+  await setRow(env, 'vault', await seal(raw, v));
+  if (env.STATS_KEY) await setRow(env, 'live:f1tv', v.f1tv ? await seal(await liveKey(env), v.f1tv) : '');
+}
+
+// Jeton F1 TV du relais (renouvelé dans ses dernières 24 heures), ou null
+export async function liveF1tv(env) {
+  if (!env.DB || !env.STATS_KEY) return null;
+  const key = await liveKey(env);
+  const token = await open(key, await getRow(env, 'live:f1tv')).catch(() => null);
+  if (!token || jwtExp(token) < Date.now()) return null;
+  const next = await freshF1tv(token);
+  if (next !== token) await setRow(env, 'live:f1tv', await seal(key, next));
+  return next;
+}
+
 // Contenu accepté du coffre (rien d'autre n'est gardé)
 function cleanVault(v) {
   const s = (x, max = 2000) => (typeof x === 'string' ? x.slice(0, max) : '');
@@ -171,7 +190,7 @@ async function refresh(env, raw, vault) {
   const f1tv = await freshF1tv(vault.f1tv);
   if (th === vault.threads && th2 === vault.threads2 && f1tv === vault.f1tv) return vault;
   const next = { ...vault, threads: th, threads2: th2, f1tv };
-  await setRow(env, 'vault', await seal(raw, next));
+  await saveVault(env, raw, next);
   return next;
 }
 
@@ -399,7 +418,7 @@ async function sendClip(net, account, video, mime, text, direct = null) {
 // Compte TikTok ou YouTube aux jetons à jour (gardés par le serveur s'ils ont été renouvelés)
 async function clipAccount(env, raw, vault, net) {
   const acc = await (net === 'youtube' ? freshYoutube : freshTiktok)(vault[net]);
-  if (acc !== vault[net]) await setRow(env, 'vault', await seal(raw, { ...vault, [net]: acc }));
+  if (acc !== vault[net]) await saveVault(env, raw, { ...vault, [net]: acc });
   return acc;
 }
 // Réglages de publication directe TikTok envoyés par la page : vérifiés, sinon raison du refus
@@ -738,7 +757,7 @@ export async function studioApi(req, env, url) {
     if (!raw || raw.length !== 32) return json({ error: 'Clé invalide' }, 400);
     if (!sameHex(await sha(raw), env.STUDIO_KEY_HASH || KEY_HASH)) { await failed(env, req); return json({ error: 'Code incorrect' }, 401); }
     await setRow(env, 'verifier', await sha(raw));
-    await setRow(env, 'vault', await seal(raw, cleanVault(body.vault)));
+    await saveVault(env, raw, cleanVault(body.vault));
     await keepAccounts(env, body.accounts);
     return json({ ok: true });
   }
@@ -750,7 +769,7 @@ export async function studioApi(req, env, url) {
   if (path === 'sync' && req.method === 'POST') {
     let body;
     try { body = await req.json(); } catch { return json({ error: 'JSON invalide' }, 400); }
-    await setRow(env, 'vault', await seal(a.raw, keepNewer(vault, cleanVault(body?.vault))));
+    await saveVault(env, a.raw, keepNewer(vault, cleanVault(body?.vault)));
     await keepAccounts(env, body?.accounts);
     return json({ ok: true });
   }

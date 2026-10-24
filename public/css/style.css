@@ -1385,10 +1385,14 @@ html.essential [data-expert] { display: none !important; }
 /* Mode Essentiel : classement compact (code pilote, écart, secteurs en couleur, pneus), sans nom complet ni mini-secteurs ;
    agrandi (⤢) : les colonnes choisies dans son menu */
 html.essential:not(.ess-quali):not(.ess-big) .p-tower:not(.maximized) .tower :is(.c-int, .c-last, .c-best, .c-pits, .c-speed, .c-duel, .drv-last) { display: none !important; }
-/* Essentiel, essais et qualifs : meilleur tour, écart et intervalle, secteurs en couleur (sans mini-secteurs) */
-html.essential.ess-quali:not(.ess-big) .p-tower:not(.maximized) .tower :is(.c-last, .c-pred, .c-speed, .c-duel, .drv-last) { display: none !important; }
-/* Essentiel, écran plus grand que le 1080p : grand classement (dernier tour, secteurs et mini-secteurs), sans tour en cours, speed trap ni boutons duel */
-html.essential.ess-big .p-tower:not(.maximized) .tower :is(.c-pred, .c-speed, .c-duel) { display: none !important; }
+/* Essentiel, essais et qualifs : meilleur tour, écart et intervalle, secteurs en couleur (sans mini-secteurs) ;
+   en qualifs (colonnes Q1-Q3), le tour en cours (temps prévu et position visée) */
+html.essential.ess-quali:not(.ess-big) .p-tower:not(.maximized) .tower :is(.c-last, .c-speed, .c-duel, .drv-last),
+html.essential.ess-quali:not(.ess-big) .p-tower:not(.maximized) .tower:not(:has(.c-q)) .c-pred { display: none !important; }
+/* Essentiel, écran plus grand que le 1080p : grand classement (dernier tour, secteurs et mini-secteurs), sans speed trap ni boutons duel ;
+   tour en cours seulement en qualifs */
+html.essential.ess-big .p-tower:not(.maximized) .tower :is(.c-speed, .c-duel),
+html.essential.ess-big .p-tower:not(.maximized) .tower:not(:has(.c-q)) .c-pred { display: none !important; }
 /* Essentiel : télémétrie seule dans le panneau Analyse */
 html.essential .p-analysis [data-tab]:not([data-tab="telemetry"]) { display: none !important; }
 html.essential .p-tower .panel-tools .hint { display: none; }

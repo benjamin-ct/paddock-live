@@ -47,7 +47,8 @@ l'application (Réglages → À propos → Nouveautés).
   carte au centre avec les radios dessous, et à droite la direction de course et la télémétrie du pilote suivi.
   Disposition déjà enregistrée : Dispo. → Réinitialiser.
 - Interface Essentielle pendant les essais et les qualifs : classement avec le meilleur tour, l'écart et
-  l'intervalle (secteurs en couleur, sans les mini-secteurs).
+  l'intervalle (secteurs en couleur, sans les mini-secteurs) ; en qualifs, aussi le tour en cours (temps prévu
+  du tour lancé et position visée).
 - Interface Essentielle sur un écran plus grand que le 1080p (1440p, 4K) : grand classement à gauche (écart,
   intervalle, dernier et meilleur tour, secteurs et mini-secteurs, pneus, tours), la carte en haut à droite et,
   dessous, côte à côte, la télémétrie et la direction de course (radios sous elle). Panneaux à déplacer et

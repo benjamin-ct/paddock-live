@@ -189,6 +189,10 @@ export default {
     // Worker, restent aussi lisibles sur www)
     if (ownDomain && url.hostname.startsWith('www.')) return Response.redirect(`https://${url.hostname.slice(4)}${url.pathname}${url.search}`, 301);
     if (req.method === 'GET' && url.pathname === '/fb-callback') return fbCallback(url);
+    // Version web du direct sur son propre nom (app.paddocklive.app) : sa page à la racine
+    if (req.method === 'GET' && url.pathname === '/' && url.hostname.startsWith('app.') && env.ASSETS) {
+      return env.ASSETS.fetch(new Request(new URL('/live/', url), req));
+    }
     if (req.method === 'GET' && url.pathname === '/' && ownDomain && env.ASSETS) {
       return env.ASSETS.fetch(new Request(new URL('/site/', url), req));
     }
@@ -241,7 +245,7 @@ export default {
     }
     // Page web du créateur : API (la page elle-même est un fichier statique, dossier site/)
     // Publication d'un réseau, appelée par la tâche planifiée elle-même (voir runSchedule)
-    // Version web du direct (/live/, fichiers statiques) : relais du flux F1 et tracé des circuits
+    // Version web du direct (fichiers statiques dans /live/) : relais du flux F1, tracé des circuits et photos
     if (url.pathname === '/live/ws') return liveSocket(req, env);
     if (req.method === 'GET' && url.pathname.startsWith('/live/api/')) return liveApi(req, url);
     if (req.method === 'POST' && url.pathname === '/internal/sched') return schedInternal(req, env);

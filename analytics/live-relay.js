@@ -1,15 +1,17 @@
-// Relais du direct F1 pour la version web (paddocklive.app/live/) : une seule connexion au flux officiel
-// F1 Live Timing (SignalR Core, sans compte F1 TV : ni GPS ni télémétrie), redistribuée à tous les
-// navigateurs. Le relais garde l'état d'il y a KEEP_MS (base) et les messages reçus depuis : chaque
-// navigateur applique lui-même son délai TV (public/js/web-hub.js), comme le serveur local de l'appli.
+// Relais du direct F1 pour la version web (app.paddocklive.app, aussi paddocklive.app/live/) : une seule connexion
+// au flux officiel F1 Live Timing (SignalR Core), redistribuée à tous les navigateurs. Avec la connexion F1 TV
+// envoyée par l'appli du créateur (liveF1tv), aussi le GPS et la télémétrie (Position.z, CarData.z), relayés
+// compressés tels quels. Le relais garde l'état d'il y a KEEP_MS (base) et les messages reçus depuis : chaque
+// navigateur applique lui-même son délai TV (analytics/live-page/web-hub.js), comme le serveur local de l'appli.
 import { LIVE_TOPICS, topicName } from '../shared/f1.js';
 import { applyEvent, createDerived } from '../shared/derive.js';
+import { liveF1tv } from './studio.js';
 
 const BASE = 'https://livetiming.formula1.com/signalrcore';
 const UA = 'Mozilla/5.0 (Paddock-Live web relay)';
 const RS = '\x1e';
-const TOPICS = LIVE_TOPICS.filter((t) => !t.endsWith('.z'));
 export const KEEP_MS = 5 * 60e3;   // délai TV possible en ligne
+export const HIST_MS = 60e3;       // GPS et télémétrie d'avant le délai (traînées, vitesse des 30 dernières secondes)
 const IDLE_MS = 60e3;              // plus personne : connexion à la F1 fermée au bout d'une minute
 const MAX_CLIENTS = 1000;
 
@@ -22,7 +24,9 @@ export class LiveRelay {
     this.timers = [];
     this.out = [];
     this.retry = 0;
-    this.status = { connected: false, error: null, session: null };
+    this.stream = [];
+    this.outStream = [];
+    this.status = { connected: false, error: null, session: null, authenticated: false };
     this.resetData(null);
   }
 
@@ -30,6 +34,7 @@ export class LiveRelay {
     this.key = key;
     this.base = { t: 0, state: {}, derived: createDerived() };
     this.recent = [];
+    this.stream = [];
   }
 
   async fetch(req) {
@@ -41,7 +46,15 @@ export class LiveRelay {
     const drop = () => this.drop(server);
     server.addEventListener('close', drop);
     server.addEventListener('error', drop);
-    this.hello(server);
+    // GPS et télémétrie plus anciens, demandés quand le délai TV s'allonge
+    server.addEventListener('message', (ev) => {
+      let m;
+      try { m = JSON.parse(ev.data); } catch { return; }
+      if (m?.type === 'stream' && Number.isFinite(m.from) && Number.isFinite(m.to)) this.send(server, JSON.stringify({ type: 'stream', items: this.streamBetween(m.from, m.to) }));
+    });
+    // ?d= : délai TV du navigateur, pour ne lui envoyer que le GPS et la télémétrie utiles
+    const d = Number(new URL(req.url).searchParams.get('d'));
+    this.hello(server, Date.now() - (Number.isFinite(d) ? Math.min(Math.max(d, 0), KEEP_MS) : KEEP_MS) - HIST_MS);
     this.start();
     return new Response(null, { status: 101, webSocket: client });
   }
@@ -54,10 +67,14 @@ export class LiveRelay {
     for (const ws of this.clients) this.send(ws, str);
   }
 
-  // Arrivée d'un navigateur (ou nouvelle séance pour tous) : état de base et messages depuis
-  hello(ws) {
-    const str = JSON.stringify({ type: 'hello', now: Date.now(), keep: KEEP_MS, status: this.status, base: this.base, events: this.recent });
+  // Arrivée d'un navigateur (ou nouvelle séance pour tous) : état de base, messages depuis et GPS depuis from
+  hello(ws, from = 0) {
+    const str = JSON.stringify({ type: 'hello', now: Date.now(), keep: KEEP_MS, status: this.status, base: this.base, events: this.recent, stream: this.streamBetween(from, Infinity) });
     if (ws) this.send(ws, str); else this.broadcast(str);
+  }
+
+  streamBetween(from, to) {
+    return this.stream.filter((s) => s[2] >= from && s[2] < to);
   }
 
   drop(ws) {
@@ -99,9 +116,10 @@ export class LiveRelay {
 
   // Messages reçus depuis le dernier envoi : un seul envoi groupé aux navigateurs
   flush() {
-    if (!this.out.length) return;
-    const str = `{"type":"evs","events":${JSON.stringify(this.out)}}`;
+    if (!this.out.length && !this.outStream.length) return;
+    const str = `{"type":"evs","events":${JSON.stringify(this.out)},"stream":${JSON.stringify(this.outStream)}}`;
     this.out = [];
+    this.outStream = [];
     this.broadcast(str);
   }
 
@@ -114,12 +132,22 @@ export class LiveRelay {
       this.base.t = t;
     }
     if (n) this.recent.splice(0, n);
+    let k = 0;
+    while (k < this.stream.length && this.stream[k][2] < now - KEEP_MS - HIST_MS) k++;
+    if (k) this.stream.splice(0, k);
   }
 
   add(topic, data, t) {
     const e = [topic, data, t];
     this.recent.push(e);
     this.out.push(e);
+  }
+
+  addStream(topic, raw, t) {
+    if (typeof raw !== 'string') return;
+    const s = [topic, raw, t];
+    this.stream.push(s);
+    this.outStream.push(s);
   }
 
   reconnectLater() {
@@ -132,15 +160,19 @@ export class LiveRelay {
   async connect() {
     if (!this.active || this.up) return;
     try {
-      const neg = await fetch(`${BASE}/negotiate?negotiateVersion=1`, { method: 'POST', headers: { 'User-Agent': UA } });
+      const token = await liveF1tv(this.env).catch(() => null);
+      const auth = token ? { Authorization: `Bearer ${token}` } : {};
+      const neg = await fetch(`${BASE}/negotiate?negotiateVersion=1`, { method: 'POST', headers: { 'User-Agent': UA, ...auth } });
       if (!neg.ok) throw new Error(`Négociation SignalR : HTTP ${neg.status}`);
       const { connectionToken, connectionId } = await neg.json();
       const cookie = (neg.headers.getSetCookie?.() || []).map((c) => c.split(';')[0]).join('; ');
-      const res = await fetch(`${BASE}?id=${encodeURIComponent(connectionToken || connectionId)}`, { headers: { Upgrade: 'websocket', 'User-Agent': UA, ...(cookie ? { Cookie: cookie } : {}) } });
+      const res = await fetch(`${BASE}?id=${encodeURIComponent(connectionToken || connectionId)}`, { headers: { Upgrade: 'websocket', 'User-Agent': UA, ...auth, ...(cookie ? { Cookie: cookie } : {}) } });
       const ws = res.webSocket;
       if (!ws) throw new Error(`Connexion refusée (HTTP ${res.status})`);
       ws.accept();
       this.up = ws;
+      this.token = token;
+      this.connectedAt = Date.now();
       let buffer = '';
       let last = Date.now();
       ws.addEventListener('message', (ev) => {
@@ -156,17 +188,28 @@ export class LiveRelay {
       ws.addEventListener('close', (ev) => { if (this.up === ws) { this.setStatus({ connected: false, error: `Connexion fermée (${ev.code})` }); this.reconnectLater(); } });
       ws.addEventListener('error', () => { if (this.up === ws) { this.setStatus({ connected: false, error: 'Erreur de connexion' }); this.reconnectLater(); } });
       ws.send(JSON.stringify({ protocol: 'json', version: 1 }) + RS);
-      ws.send(JSON.stringify({ type: 1, invocationId: '1', target: 'Subscribe', arguments: [TOPICS] }) + RS);
+      ws.send(JSON.stringify({ type: 1, invocationId: '1', target: 'Subscribe', arguments: [token ? LIVE_TOPICS : LIVE_TOPICS.filter((t) => !t.endsWith('.z'))] }) + RS);
       // Signe de vie toutes les 10 s ; plus rien depuis 60 s : nouvelle connexion
       clearInterval(this.beat);
       this.beat = setInterval(() => {
         if (Date.now() - last > 60000) { this.setStatus({ error: 'Plus de données depuis 60 s, reconnexion…' }); this.reconnectLater(); return; }
+        if (this.gpsRetry()) { this.retry = 0; this.reconnectLater(); return; }
         try { ws.send(JSON.stringify({ type: 6 }) + RS); } catch { /* fermée : géré par close */ }
       }, 10000);
     } catch (err) {
       this.setStatus({ connected: false, error: String(err?.message || err).slice(0, 200) });
       this.reconnectLater();
     }
+  }
+
+  // Séance en cours avec la connexion F1 TV mais sans GPS une minute après la connexion : la F1 ne l'envoie pas
+  // à une connexion ouverte avant le début de la séance. Nouvelle connexion, une fois par séance et par jeton
+  gpsRetry(now = Date.now()) {
+    if (!this.token || this.status.authenticated || !this.connectedAt || now - this.connectedAt < 60000 || now - (this.lastTimingAt || 0) > 30000) return false;
+    const key = `${this.key}|${this.token}`;
+    if (this.gpsRetried === key) return false;
+    this.gpsRetried = key;
+    return true;
   }
 
   onFrame(frame, now = Date.now()) {
@@ -179,22 +222,31 @@ export class LiveRelay {
       const key = result.SessionInfo?.Key ?? null;
       const snapshot = {};
       for (const [raw, value] of Object.entries(result)) if (!raw.endsWith('.z')) snapshot[topicName(raw)] = value;
+      const authenticated = 'Position.z' in result || 'CarData.z' in result;
       // Nouvelle séance (ou première connexion) : on repart de cet état
       if (key !== this.key || !this.base.t) {
         this.resetData(key);
         this.base.t = now;
         applyEvent(this.base.state, this.base.derived, '__snapshot', snapshot, now);
         this.out = [];
-        this.status = { connected: true, error: null, session: label(result.SessionInfo) };
+        this.outStream = [];
+        this.status = { connected: true, error: null, session: label(result.SessionInfo), authenticated };
         this.hello();
       } else {
         this.add('__snapshot', snapshot, now);
-        this.setStatus({ connected: true, error: null });
+        this.setStatus({ connected: true, error: null, authenticated });
       }
+      for (const z of ['Position.z', 'CarData.z']) if (typeof result[z] === 'string') this.addStream(topicName(z), result[z], now);
     } else if (msg.type === 1 && msg.target === 'feed' && Array.isArray(msg.arguments)) {
       const [raw, data] = msg.arguments;
-      if (typeof raw !== 'string' || raw.endsWith('.z')) return;
+      if (typeof raw !== 'string') return;
       const topic = topicName(raw);
+      if (raw.endsWith('.z')) {
+        this.addStream(topic, data, now);
+        if (!this.status.authenticated) this.setStatus({ authenticated: true });
+        return;
+      }
+      if (topic === 'TimingData') this.lastTimingAt = now;
       if (topic === 'SessionInfo' && data?.Key && this.key && data.Key !== this.key) { this.reconnectLater(); return; }
       this.add(topic, data, now);
     } else if (msg.type === 7) {

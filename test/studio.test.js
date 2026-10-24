@@ -10,7 +10,7 @@ const CODE = 'ESSAI-42';
 const nodeCrypto = await import('node:crypto');
 const HASH = nodeCrypto.createHash('sha256').update(nodeCrypto.pbkdf2Sync(CODE, 'paddock-live-studio', 200000, 32, 'sha256')).digest('hex');
 process.env.PADDOCK_CREATOR_HASH = HASH;
-const { studioApi, freshF1tv, runSchedule, schedInternal, seasonRow } = await import('../analytics/studio.js');
+const { studioApi, freshF1tv, runSchedule, schedInternal, seasonRow, liveF1tv } = await import('../analytics/studio.js');
 const { studioKey, enableStudio, syncStudio, disableStudio, studioInfo, studioRewrite } = await import('../server/studio-sync.js');
 const { saveConfig, getConfig } = await import('../server/config.js');
 
@@ -960,4 +960,18 @@ test('journal des publications : deux réseaux qui finissent en même temps sont
   await Promise.all([_addHistory(e, { ...rec, nets: { facebook: { id: 'f1', url: 'https://f.test/1' } } }), _addHistory(e, { ...rec, nets: { bluesky: { id: { uri: 'at://b', cid: 'c' }, url: 'https://b.test/1' } } })]);
   const h = JSON.parse(e.DB.studio.get('history'));
   assert.deepEqual(Object.keys(h[0].nets).sort(), ['bluesky', 'facebook']);
+});
+
+test('version web : connexion F1 TV gardée pour le relais (lisible sans le code), effacée à la déconnexion', async () => {
+  const jwt = (exp) => `e30.${Buffer.from(JSON.stringify({ exp: Math.floor(exp / 1000), SessionId: 'ses' })).toString('base64url')}.sig`;
+  const key = { 'X-Studio-Key': studioKey(CODE) };
+  const token = jwt(Date.now() + 3 * 86400e3);
+  let r = await worker('https://s.test/studio/api/init', { method: 'POST', body: JSON.stringify({ key: studioKey(CODE), vault: { f1tv: token } }) });
+  assert.equal(r.status, 200);
+  assert.equal(await liveF1tv(env), token);
+  assert.equal(env.DB.studio.get('live:f1tv').includes(token.split('.')[1]), false);   // chiffrée
+  assert.equal(await liveF1tv({ ...env, STATS_KEY: 'autre-secret' }), null);
+  r = await worker('https://s.test/studio/api/sync', { method: 'POST', headers: key, body: JSON.stringify({ vault: { f1tvOff: true } }) });
+  assert.equal(r.status, 200);
+  assert.equal(await liveF1tv(env), null);
 });
