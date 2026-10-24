@@ -2553,6 +2553,7 @@ export default {
   "frein": "brake",
   "Aucune séance chargée : lancez un replay ou attendez une séance.": "No session loaded: start a replay or wait for a session.",
   "{} flux nouveau(x) par rapport aux saisons précédentes.": "{} new feed(s) compared with previous seasons.",
+  "{} pilote(s) à 3 infractions ou plus (drapeau noir et blanc ; pénalité à la 4e en course)": "{} driver(s) with 3 or more offences (black and white flag; penalty on the 4th in a race)",
   "Aucun flux nouveau.": "No new feed.",
   "Paddock Live · données F1 · {}": "Paddock Live · F1 data · {}",
   "{} champs lus dans toute la séance, en {} s.": "{} fields read across the whole session, in {} s.",

@@ -60,6 +60,8 @@ l'application (Réglages → À propos → Nouveautés).
 - Classement agrandi (bouton ⤢) : ses propres colonnes, choisies dans « Colonnes » pendant qu'il est agrandi ;
   revenu à sa taille, il reprend celles d'habitude.
 - L'onglet « Limites de piste » (ou « Enquêtes ») ouvert reste ouvert au lancement suivant.
+- Limites de piste : la pastille de l'onglet dit ce qu'elle compte (au survol) : les pilotes à 3 infractions ou
+  plus, c'est-à-dire au drapeau noir et blanc (pénalité à la 4e en course).
 - Disposition « Qualif & essais » ou « Course » et onglets adaptés à la séance (championnat seulement en course…)
   choisis aussi quand l'appli est ouverte avant le début de la séance, ou pour un replay.
 

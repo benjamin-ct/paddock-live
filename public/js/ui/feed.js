@@ -5,7 +5,7 @@ import { $, esc, drivers, teamColor, fmtClock, fmtLap, api, stintsOf, tyreBadge,
 import { parseUtc, parseLapTime } from '/shared/f1.js';
 import { analyzeStewards, isOpen, STATUS_LABEL, linkFiaDocs, parseFiaDoc, deletedLapsDoc } from '/shared/stewards.js';
 import { icon } from '../icons.js';
-import { DEC, EN } from '../i18n.js';
+import { DEC, EN, t } from '../i18n.js';
 import { cloudOn, cloudTranslate } from '../cloud.js';
 import { continuesStint } from '/shared/pits.js';
 import { pdfHref } from './pdf-view.js';
@@ -343,6 +343,7 @@ export function renderStewards() {
   const tlWarn = data.trackLimits.filter((d) => d.deletions.length >= 3 || d.blackWhite).length;
   $('#tlBadge').hidden = !tlWarn;
   $('#tlBadge').textContent = tlWarn;
+  $('#tlBadge').title = t('{} pilote(s) à 3 infractions ou plus (drapeau noir et blanc ; pénalité à la 4e en course)', tlWarn);
 
   const filter = document.querySelector('input[name=stwFilter]:checked')?.value || 'open';
   const key = `${stwVer}|${filter}|${Object.keys(dl).length}|${docs.key}|${docs.docs.length}|${visible}|${sessionEnded()}`;
