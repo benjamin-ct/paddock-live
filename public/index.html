@@ -35,7 +35,7 @@
     <button class="rail-btn" data-rail="posts" id="postsBtn" hidden title="Posts pour les réseaux sociaux"><svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="M8.2 10.8l7.6-4.4M8.2 13.2l7.6 4.4"/></svg><small>Posts</small></button>
     <div class="rail-sp"></div>
     <button class="rail-btn" data-rail="scheme" title="Apparence : automatique, sombre ou clair"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></svg><small>Auto</small></button>
-    <button class="rail-btn" data-expert data-rail="reset" title="Disposition des panneaux"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M10 4v16M3 10h7"/></svg><small>Dispo.</small></button>
+    <button class="rail-btn" data-expert data-rail="reset" title="Disposition : panneaux, onglets, colonnes et fenêtres affichés"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M10 4v16M3 10h7"/></svg><small>Dispo.</small></button>
     <button class="rail-btn" data-rail="settings" title="Réglages : source, compte F1 TV, affichage, alertes, application"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><small>Réglages</small></button>
   </nav>
   <header class="topbar">
@@ -276,19 +276,23 @@
         <button class="tab active" data-tab="rcm">Direction de course</button>
         <button class="tab" data-tab="stewards" title="Suivi des enquêtes des commissaires">Enquêtes <span class="tab-badge" id="stewardsBadge" hidden></span></button>
         <button class="tab" data-tab="tracklimits" title="Tours et temps supprimés pour limites de piste">Limites de piste <span class="tab-badge" id="tlBadge" hidden></span></button>
+        <details class="map-layers rd-menu" id="rcmMenu" data-menu-for="rcm"><summary class="icon-btn small" title="Options des messages : drapeaux bleus, temps supprimés, type, traduction" aria-label="Options des messages"><svg class="ic" aria-hidden="true"><use href="#i-gear"/></svg></summary>
+          <div class="map-layers-menu rd-menu-body">
+            <div class="rd-bar">
+              <label class="toggle"><input type="checkbox" id="rcmBlue"> Drapeaux bleus</label>
+              <label class="toggle"><input type="checkbox" id="rcmDeleted"> Temps supprimés</label>
+              <select id="rcmType" aria-label="Type de messages" title="N'afficher qu'un type de messages">
+                <option value="all">Tous les messages</option><option value="flags">Drapeaux</option><option value="sc">Safety car / VSC</option>
+                <option value="stewards">Enquêtes et pénalités</option><option value="limits">Limites de piste</option><option value="other">Autres</option><option value="mine">Mes favoris et le duel</option>
+              </select>
+              <label class="toggle" id="rcmTranslateBox" title="Messages traduits en français (original au survol)"><input type="checkbox" id="rcmTranslate"> Traduire</label>
+            </div>
+          </div>
+        </details>
       </div>
       <div class="panel-body">
         <div class="tabpane active" data-pane="rcm">
-          <div class="subbar">
-            <label class="toggle"><input type="checkbox" id="rcmBlue"> Drapeaux bleus</label>
-            <label class="toggle"><input type="checkbox" id="rcmDeleted"> Temps supprimés</label>
-            <select id="rcmType" aria-label="Type de messages" title="N'afficher qu'un type de messages">
-              <option value="all">Tous les messages</option><option value="flags">Drapeaux</option><option value="sc">Safety car / VSC</option>
-              <option value="stewards">Enquêtes et pénalités</option><option value="limits">Limites de piste</option><option value="other">Autres</option><option value="mine">Mes favoris et le duel</option>
-            </select>
-            <label class="toggle" id="rcmTranslateBox" title="Messages traduits en français (original au survol)"><input type="checkbox" id="rcmTranslate"> Traduire</label>
-            <span class="muted small" id="rcmHidden"></span>
-          </div>
+          <div class="muted small rcm-hidden" id="rcmHidden"></div>
           <ul class="rcm" id="rcmList"></ul>
         </div>
         <div class="tabpane" data-pane="stewards">
@@ -306,25 +310,30 @@
     <section class="panel p-radio">
       <div class="panel-head tabs" data-tabs="radio">
         <button class="tab active" data-tab="radios" title="Radios d'équipe : écoute, texte et traduction">Radios d'équipe</button>
+        <details class="map-layers rd-menu" id="radioMenu" data-menu-for="radios"><summary class="btn small" title="Pilotes écoutés, lecture, texte et traduction des radios">Options <svg class="ic ic-s" aria-hidden="true"><use href="#i-chevron-down"/></svg></summary>
+          <div class="map-layers-menu rd-menu-body">
+            <div class="rd-bar">
+              <select id="radioFilter" aria-label="Filtrer les radios"><option value="all">Tous les pilotes</option><option value="fav">Mes favoris</option><option value="duel">Pilotes du duel</option></select>
+              <label class="toggle" title="Joue chaque nouvelle radio"><input type="checkbox" id="radioAuto"> Lecture auto</label>
+              <label data-full class="toggle" title="Chaque radio d'équipe en texte, par le serveur Paddock Live ou sur cet ordinateur."><input type="checkbox" id="radioText"> Texte</label>
+              <label class="toggle" data-expert hidden title="Expérimental, F1 TV Pro : retranscrit toutes les radios des caméras embarquées, en direct"><input type="checkbox" id="obRadio"> Caméras embarquées</label>
+              <span class="rd-opts" id="obRadioOpts" hidden><select id="obRadioWho" aria-label="Pilotes écoutés"><option value="auto">Pilote suivi + duel</option><option value="favs">Mes favoris (3 max)</option></select></span>
+              <span class="rd-opts" id="radioOpts" data-full>
+                <label class="small">Traduction <select id="radioLang" aria-label="Langue de traduction"><option value="fr">Français</option><option value="es">Español</option><option value="de">Deutsch</option><option value="it">Italiano</option><option value="none">Aucune (anglais)</option></select></label>
+                <label class="small" title="Transcription sur cet ordinateur. Légère : processeur, ~1 Go de mémoire. Haute : plus précise, carte graphique, 4,5 Go à télécharger.">Qualité <select id="radioQuality" aria-label="Qualité de transcription"><option value="auto">Légère (≈ 1 Go)</option><option value="high">Haute (carte graphique, 10 à 15 Go)</option></select></label>
+              </span>
+              <label class="small rd-row">Volume <input type="range" class="rd-vol" id="radioVol" min="0" max="1" step="0.05" title="Volume des radios" aria-label="Volume des radios"></label>
+              <span class="small rd-row">Vitesse <button class="rd-speed" id="radioSpeed" title="Vitesse de lecture des radios">1×</button></span>
+            </div>
+            <div class="muted small rd-status" id="radioTextStatus" data-full></div>
+            <div class="muted small rd-status" id="obRadioStatus" data-full></div>
+          </div>
+        </details>
       </div>
       <div class="panel-body">
         <div class="tabpane rd-pane active" data-pane="radios">
-          <div class="subbar rd-bar">
-            <select id="radioFilter" aria-label="Filtrer les radios"><option value="all">Tous les pilotes</option><option value="fav">Mes favoris</option><option value="duel">Pilotes du duel</option></select>
-            <label class="toggle" title="Joue chaque nouvelle radio"><input type="checkbox" id="radioAuto"> Lecture auto</label>
-            <label data-full class="toggle" title="Chaque radio d'équipe en texte, par le serveur Paddock Live ou sur cet ordinateur."><input type="checkbox" id="radioText"> Texte</label>
-            <label class="toggle" data-expert hidden title="Expérimental, F1 TV Pro : retranscrit toutes les radios des caméras embarquées, en direct"><input type="checkbox" id="obRadio"> Caméras embarquées</label>
-            <span class="rd-opts" id="obRadioOpts" hidden><select id="obRadioWho" aria-label="Pilotes écoutés"><option value="auto">Pilote suivi + duel</option><option value="favs">Mes favoris (3 max)</option></select></span>
-            <span class="rd-opts" id="radioOpts" data-full>
-              <label class="small">Traduction <select id="radioLang" aria-label="Langue de traduction"><option value="fr">Français</option><option value="es">Español</option><option value="de">Deutsch</option><option value="it">Italiano</option><option value="none">Aucune (anglais)</option></select></label>
-              <label class="small" title="Transcription sur cet ordinateur. Légère : processeur, ~1 Go de mémoire. Haute : plus précise, carte graphique, 4,5 Go à télécharger.">Qualité <select id="radioQuality" aria-label="Qualité de transcription"><option value="auto">Légère (≈ 1 Go)</option><option value="high">Haute (carte graphique, 10 à 15 Go)</option></select></label>
-            </span>
-          </div>
-          <div class="muted small rd-status" id="radioTextStatus" data-full></div>
-          <div class="muted small rd-status" id="obRadioStatus" data-full></div>
           <div class="rd-strip" id="radioStrip" aria-label="Radios d'équipe"></div>
           <div class="note rd-empty" id="radioEmpty" hidden></div>
-          <div class="rd-feed-head"><b>Radios retranscrites</b><span class="muted small">texte et traduction</span><input type="range" class="rd-vol" id="radioVol" min="0" max="1" step="0.05" title="Volume des radios" aria-label="Volume des radios"><button class="rd-speed" id="radioSpeed" title="Vitesse de lecture des radios">1×</button></div>
           <div class="note rd-text-off" id="radioTextOff" hidden>Radios en texte, traduites : <button class="btn small btn-accent" id="radioTextOn">Activer</button></div>
           <ul class="rd-list" id="radioList"></ul>
         </div>
@@ -476,7 +485,7 @@
         <nav class="set-nav" id="setNav">
           <button data-full class="set-tab active" data-sgroup="f1tv"><span class="set-ico"><svg class="ic" aria-hidden="true"><use href="#i-lock"/></svg></span><span class="set-lbl"><b>Compte F1 TV</b><small>GPS et télémétrie en direct</small></span></button>
           <button class="set-tab" data-sgroup="look"><span class="set-ico"><svg class="ic" aria-hidden="true"><use href="#i-sliders"/></svg></span><span class="set-lbl"><b>Apparence</b><small>Thème, langue, couleurs</small></span></button>
-          <button data-full class="set-tab" data-sgroup="display"><span class="set-ico"><svg class="ic" aria-hidden="true"><use href="#i-layout"/></svg></span><span class="set-lbl"><b>Disposition</b><small>Panneaux, colonnes, fenêtres</small></span></button>
+          <button data-full class="set-tab" data-sgroup="display"><span class="set-ico"><svg class="ic" aria-hidden="true"><use href="#i-layout"/></svg></span><span class="set-lbl"><b>Disposition</b><small>Panneaux, onglets, colonnes, fenêtres</small></span></button>
           <button class="set-tab" data-sgroup="alerts"><span class="set-ico"><svg class="ic" aria-hidden="true"><use href="#i-bell"/></svg></span><span class="set-lbl"><b>Alertes & favoris</b><small>Notifications, rappels, favoris</small></span></button>
           <button class="set-tab" data-sgroup="app"><span class="set-ico"><svg class="ic" aria-hidden="true"><use href="#i-gear"/></svg></span><span class="set-lbl"><b>Application</b><small>Mises à jour, téléphone, traductions</small></span></button>
           <button data-full data-expert class="set-tab" data-sgroup="stream"><span class="set-ico"><svg class="ic" aria-hidden="true"><use href="#i-video"/></svg></span><span class="set-lbl"><b>Streaming</b><small>OBS, Streamlabs, Meld, Stream Deck</small></span></button>
@@ -542,6 +551,10 @@
       <section data-full class="set-block" data-sgroup="display">
         <div class="set-bhead"><h4><svg class="ic" aria-hidden="true"><use href="#i-eye-off"/></svg> Panneaux visibles</h4></div>
         <div class="set-tiles" id="panelOpts"></div>
+      </section>
+      <section data-full class="set-block" data-sgroup="display">
+        <div class="set-bhead"><h4><svg class="ic" aria-hidden="true"><use href="#i-eye-off"/></svg> Onglets visibles</h4></div>
+        <div class="set-tiles" id="tabOpts"></div>
       </section>
       <section data-full class="set-block" data-sgroup="display">
         <div class="set-bhead"><h4><svg class="ic" aria-hidden="true"><use href="#i-columns"/></svg> Colonnes du classement</h4></div>

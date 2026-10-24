@@ -57,7 +57,7 @@ function fakeR2() {
   return {
     objs,
     put: async (k, v, o) => { objs.set(k, { bytes: new Uint8Array(await new Response(v).arrayBuffer()), type: o?.httpMetadata?.contentType }); },
-    get: async (k) => (objs.has(k) ? { arrayBuffer: async () => objs.get(k).bytes.slice().buffer, httpMetadata: { contentType: objs.get(k).type } } : null),
+    get: async (k) => (objs.has(k) ? { arrayBuffer: async () => objs.get(k).bytes.slice().buffer, body: new Blob([objs.get(k).bytes]).stream(), size: objs.get(k).bytes.length, httpEtag: '"e"', httpMetadata: { contentType: objs.get(k).type } } : null),
     delete: async (k) => { [k].flat().forEach((x) => objs.delete(x)); },
   };
 }
@@ -443,10 +443,16 @@ test('page du créateur : publication programmée, publiée par le serveur à l\
     assert.ok(media(bad.id) > 0);
     // Réessayer : seulement un réseau en erreur ; publié au relevé suivant, puis tout est effacé
     assert.equal((await post('retry', { id: bad.id, net: 'bluesky' })).status, 409);
+    // Compte reconnecté depuis la programmation : « Réessayer » prend les jetons du coffre à ce moment
+    await worker('https://s.test/studio/api/sync', { method: 'POST', headers: key, body: JSON.stringify({ vault: { meta: { pageId: 'p1', pageName: 'Ma page', pageToken: 'jeton-page-2', igId: 'ig1', igUsername: 'moi' }, bluesky: { handle: 'moi.bsky.social', appPassword: 'mdp-app', did: 'did:plc:moi' } } }) });
     assert.equal((await post('retry', { id: bad.id, net: 'facebook' })).status, 200);
     assert.equal((await listed(bad.id)).nets.facebook.status, 'pending');
     const t0 = Date.now();
+    const sentTokens = [];
+    globalThis.fetch = async (url, opts = {}) => { if (new URL(url).pathname.endsWith('/feed')) sentTokens.push(String(opts.body)); return ok(url, opts); };
     assert.deepEqual(await runSchedule(env, { now: t0 + 1e3 }), { published: 'facebook', id: bad.id });
+    globalThis.fetch = ok;
+    assert.ok(sentTokens.length && sentTokens.every((b) => b.includes('jeton-page-2')), 'nouveau jeton utilisé');
     await runSchedule(env, { now: t0 + 2e3 });
     assert.equal(await listed(bad.id), undefined);
     assert.equal(media(bad.id), 0);
@@ -555,6 +561,58 @@ test('page du créateur : vidéo confiée au serveur (stockage R2), publiée par
   await worker('https://s.test/studio/api/schedule/cancel', { method: 'POST', body: JSON.stringify({ id: later.id }), headers: key });
   assert.equal(bucket.size, 0);
   env.MEDIA = r2;
+  await disableStudio({ fetchFn });
+});
+
+test('page du créateur : vidéo programmée sur Instagram (fichier envoyé tel quel) et Threads (adresse du serveur)', async () => {
+  saveConfig({ creator: true, social: {
+    meta: { pageId: 'p1', pageName: 'Ma page', pageToken: 'jeton-page', igId: 'ig1', igUsername: 'moi' },
+    threads: { token: 'jeton-th', userId: 't1', username: 'moi', expiresAt: Date.now() + 9e9 },
+  } });
+  const fetchFn = (url, init) => worker(url, init);
+  await enableStudio(CODE, { fetchFn });
+  const key = { 'X-Studio-Key': studioKey(CODE) };
+  const f = new FormData();
+  f.append('at', String(Date.now()));
+  f.append('title', 'Ma vidéo');
+  f.append('posts', JSON.stringify([{ network: 'instagram', text: 'Légende' }, { network: 'threads', text: 'Texte' }]));
+  f.append('video', new Blob([new Uint8Array([1, 2, 3, 4])], { type: 'video/mp4' }), 'v.mp4');
+  f.append('videofull', new Blob([new Uint8Array([5, 6, 7, 8, 9, 10])], { type: 'video/mp4' }), 'v-full.mp4');
+  const { item } = await (await worker('https://s.test/studio/api/schedule', { method: 'POST', body: f, headers: key })).json();
+  const { schedVideo } = await import('../analytics/studio.js');
+  const { timing } = await import('../shared/meta-publish.js');
+  const was = { ...timing };
+  Object.assign(timing, { visible: [] });
+  const realFetch = globalThis.fetch;
+  const sent = {};
+  globalThis.fetch = async (url, opts = {}) => {
+    const u = new URL(url);
+    const ok = (d) => new Response(JSON.stringify(d));
+    if (u.hostname === 'rupload.facebook.com') { sent.ig = opts.body.size; return ok({ success: true }); }
+    if (u.pathname.endsWith('/ig1/media')) { sent.igForm = Object.fromEntries(new URLSearchParams(String(opts.body))); return ok({ id: 'c1', uri: 'https://rupload.facebook.com/ig-api-upload/v25.0/c1' }); }
+    if (u.pathname.endsWith('/t1/threads')) {
+      // Lu par Threads pendant l'envoi : la version plein écran, servie par le serveur
+      sent.threadsUrl = new URLSearchParams(String(opts.body)).get('video_url');
+      sent.served = [...new Uint8Array(await (await schedVideo(new Request(sent.threadsUrl), env, sent.threadsUrl.split('/studio/v/')[1])).arrayBuffer())];
+      return ok({ id: 'c2' });
+    }
+    if (/\/c[12]$/.test(u.pathname)) return ok({ status_code: 'FINISHED', status: 'FINISHED' });
+    if (u.pathname.endsWith('_publish')) return ok({ id: 'p1' });
+    if (u.pathname.endsWith('/p1')) return ok({ permalink: 'https://example.test/p/1' });
+    throw new Error(`inattendu : ${url}`);
+  };
+  try {
+    for (let i = 0; i < 3; i++) await runSchedule(env);
+  } finally { globalThis.fetch = realFetch; Object.assign(timing, was); }
+  assert.equal(sent.ig, 4, 'vidéo de la zone sûre envoyée à Instagram');
+  assert.deepEqual([sent.igForm.media_type, sent.igForm.upload_type, sent.igForm.video_url], ['REELS', 'resumable', undefined]);
+  assert.equal(sent.threadsUrl, `https://paddock-live-stats.paddock-live.workers.dev/studio/v/${item.id}-full`);
+  assert.deepEqual(sent.served, [5, 6, 7, 8, 9, 10]);
+  const nets = (await (await worker('https://s.test/studio/api/schedule', { headers: key })).json()).items.find((x) => x.id === item.id)?.nets;
+  assert.ok(!nets || Object.values(nets).every((x) => x.status === 'done'));
+  // Nom inconnu ou mal formé : rien
+  assert.equal((await schedVideo(new Request('https://s.test/'), env, '../vault')).status, 404);
+  assert.equal((await schedVideo(new Request('https://s.test/'), env, 'aaaaaaaaaaaaaaaa')).status, 404);
   await disableStudio({ fetchFn });
 });
 

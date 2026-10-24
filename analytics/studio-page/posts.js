@@ -15,7 +15,7 @@ import { toFrench, freshNews, cachedNews, latestDrivers, loadState, lapsOf, reme
 import { editor, assets } from './editor.js';
 import { photoPicker, cropImage, bitmapUrl } from './photos.js';
 import { makeAnimation, unlockAudio } from '/shared/social-video.js';
-import { videoCover } from '/shared/social-draw.js';
+import { videoCover, newsPhotoBox, FORMATS } from '/shared/social-draw.js';
 import { newsFrame, newsVideoTiming } from '/shared/social-news-video.js';
 
 // Résumé détaillé : page de l'article lue par le serveur, texte extrait ici, points clés rédigés par
@@ -46,13 +46,15 @@ const sameFingerprint = (a, b) => a.reduce((n, v, i) => n + (v !== b[i]), 0) <= 
 
 // ---------- Photo libre de droits (Wikimedia Commons, Flickr) à la place des portraits ----------
 // Recherche proposée : le premier pilote cité, sinon l'écurie, sinon la F1
+// Proportions du cadre de la photo de couverture sur le visuel du format choisi (recadrage « Visuel »)
+const coverFrame = () => { const f = FORMATS[state.fmt] || FORMATS.ig; const b = newsPhotoBox(f.w, f.h); return b.w / b.h; };
 const freeQuery = (d) => (d.drivers?.[0] ? `${d.drivers[0].first} ${d.drivers[0].last}` : d.teams?.find((t) => t.key !== 'fia')?.name || 'Formula 1');
 const PHOTO_ROW = (p) => `<div class="row"><button class="btn small" id="${p}photo">${icon('image')}Photo libre de droits</button><button class="btn small" id="${p}photocrop" hidden>${icon('image')}Recadrer</button><button class="btn small" id="${p}photodel" hidden>${icon('close')}Retirer</button><span class="hint" id="${p}photost"></span></div>`;
 // onPhoto({ image, credit } ou null) : photo choisie, recadrée ou retirée
 function bindPhoto(p, getD, onPhoto) {
   let cur = null;   // photo choisie : { image (originale), credit }
   $(`#${p}photo`).onclick = () => photoPicker(freeQuery(getD()), (pic) => { cur = pic; onPhoto(pic); $(`#${p}photost`).textContent = pic.credit; $(`#${p}photodel`).hidden = false; $(`#${p}photocrop`).hidden = false; });
-  $(`#${p}photocrop`).onclick = async () => { const image = cur && await cropImage(cur.image); if (image) onPhoto({ image, credit: cur.credit }); };
+  $(`#${p}photocrop`).onclick = async () => { const image = cur && await cropImage(cur.image, coverFrame()); if (image) onPhoto({ image, credit: cur.credit }); };
   $(`#${p}photodel`).onclick = () => { cur = null; onPhoto(null); $(`#${p}photost`).textContent = ''; $(`#${p}photodel`).hidden = true; $(`#${p}photocrop`).hidden = true; };
 }
 
@@ -191,7 +193,7 @@ export async function newsEditor(it, done, back) {
             b.onclick = async () => {
               const a = arts[b.dataset.crop];
               a.orig ||= a.image;
-              const image = await cropImage(a.orig);
+              const image = await cropImage(a.orig, a.pick === 1 && !pic ? coverFrame() : 0);   // couverture : cadre du visuel
               if (!image) return;
               a.image = image;
               URL.revokeObjectURL(a.url);
@@ -320,7 +322,7 @@ export async function manualEditor(back) {
         } catch { $('#mimgst').textContent = 'Image illisible'; }
       };
       $('#mfree').onclick = () => photoPicker(freeQuery(d), (p) => { f.image = f.orig = p.image; f.credit = p.credit; $('#mimgst').textContent = p.credit; $('#mimgdel').hidden = false; $('#mimgcrop').hidden = false; upd(true); });
-      $('#mimgcrop').onclick = async () => { const image = f.orig && await cropImage(f.orig); if (image) { f.image = image; upd(true); } };
+      $('#mimgcrop').onclick = async () => { const image = f.orig && await cropImage(f.orig, coverFrame()); if (image) { f.image = image; upd(true); } };
       $('#mimgdel').onclick = () => { f.image = f.orig = null; f.credit = ''; $('#mimg').value = ''; $('#mimgst').textContent = ''; $('#mimgdel').hidden = true; $('#mimgcrop').hidden = true; upd(true); };
       $('#mvid').onchange = (e) => {
         const file = e.target.files?.[0];

@@ -51,8 +51,13 @@ export async function mirror(req, env, name) {
   if ((await (await env.MEDIA?.get('releases/version'))?.text())?.trim() !== m[1]) return github;
   const obj = await env.MEDIA.get(`releases/${m[2]}`, req.headers.has('Range') ? { range: req.headers } : {});
   if (!obj?.body) return github;
+  return served(req, obj, { 'Content-Type': 'application/octet-stream', 'Content-Disposition': `attachment; filename="${name}"` });
+}
+
+// Fichier de R2 lu en entier ou en partie (en-tête Range de la demande)
+export function served(req, obj, extra) {
   const part = req.headers.has('Range') && obj.range;
-  const headers = { 'Content-Type': 'application/octet-stream', 'Content-Disposition': `attachment; filename="${name}"`, 'Accept-Ranges': 'bytes', ETag: obj.httpEtag };
+  const headers = { ...extra, 'Accept-Ranges': 'bytes', ETag: obj.httpEtag };
   if (!part) return new Response(obj.body, { headers: { ...headers, 'Content-Length': String(obj.size) } });
   const end = part.offset + part.length - 1;
   return new Response(obj.body, { status: 206, headers: { ...headers, 'Content-Length': String(part.length), 'Content-Range': `bytes ${part.offset}-${end}/${obj.size}` } });

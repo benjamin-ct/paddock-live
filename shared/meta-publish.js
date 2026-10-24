@@ -26,7 +26,8 @@ export async function call(url, { method = 'GET', headers = {}, json, form, body
   try { data = text ? JSON.parse(text) : {}; } catch { data = { raw: text }; }
   const err = data?.error;
   if (!res.ok || (err && (typeof err === 'string' || err.message || (err.code && err.code !== 'ok')))) {
-    const msg = (typeof err === 'string' ? err : err?.error_user_msg || err?.message) || data?.detail || data?.title || data?.errors?.[0]?.message || data?.error_description || `HTTP ${res.status}`;
+    // debug_info : refus d'un envoi de fichier à Instagram (rupload)
+    const msg = (typeof err === 'string' ? err : err?.error_user_msg || err?.message) || data?.debug_info?.message || data?.detail || data?.title || data?.errors?.[0]?.message || data?.error_description || `HTTP ${res.status}${data?.raw ? ` : ${String(data.raw).slice(0, 200)}` : ''}`;
     const e = new Error(String(msg).slice(0, 300));
     if (typeof err?.code === 'string') e.code = err.code;   // code de l'erreur (TikTok), pour un message clair
     throw e;
@@ -176,14 +177,23 @@ export async function storyFacebook(meta, images) {
   return { url: `https://www.facebook.com/${meta.pageId}`, id: null, count: hosted.length };
 }
 
-// Story vidéo (une seule) : Instagram lit la vidéo à son adresse publique (déposée sur la page) ; la page
-// Facebook la reçoit en trois temps (ouverture, envoi du fichier, publication)
+// Vidéo envoyée telle quelle à Instagram (envoi « resumable » : le fichier dans la requête, sans adresse à aller
+// chercher), prête une fois préparée. fields : type et réglages du conteneur (Reel, Story)
+async function igVideo(meta, video, fields, what) {
+  const tok = { access_token: meta.pageToken };
+  const c = await call(`${GRAPH}/${meta.igId}/media`, { method: 'POST', form: { ...fields, upload_type: 'resumable', ...tok } });
+  await call(c.uri || `${GRAPH.replace('//graph.', '//rupload.').replace('.com/', '.com/ig-api-upload/')}/${c.id}`, { method: 'POST', headers: { Authorization: `OAuth ${meta.pageToken}`, offset: '0', file_size: String(video.size) }, body: video })
+    .catch((err) => { throw new Error(`Envoi de la vidéo à Instagram refusé : ${err.message}`); });
+  await ready(`${GRAPH}/${c.id}?${new URLSearchParams({ fields: 'status_code,status', ...tok })}`, 'status_code', what);
+  return c.id;
+}
+
+// Story vidéo (une seule) : Instagram reçoit le fichier ; la page Facebook le reçoit en trois temps
+// (ouverture, envoi du fichier, publication)
 export async function storyVideoInstagram(meta, video) {
   if (!meta?.igId) throw new Error('Aucun compte Instagram professionnel relié à la page Facebook');
-  const tok = { access_token: meta.pageToken };
-  const c = await call(`${GRAPH}/${meta.igId}/media`, { method: 'POST', form: { media_type: 'STORIES', video_url: (await hostVideo(meta, video)).url, ...tok } });
-  await ready(`${GRAPH}/${c.id}?${new URLSearchParams({ fields: 'status_code,status', ...tok })}`, 'status_code', 'Story');
-  await call(`${GRAPH}/${meta.igId}/media_publish`, { method: 'POST', form: { creation_id: c.id, ...tok } });
+  const id = await igVideo(meta, video, { media_type: 'STORIES' }, 'Story');
+  await call(`${GRAPH}/${meta.igId}/media_publish`, { method: 'POST', form: { creation_id: id, access_token: meta.pageToken } });
   return { url: `https://www.instagram.com/stories/${meta.igUsername || ''}/`, id: null, count: 1 };
 }
 export async function storyVideoFacebook(meta, video) {
@@ -194,59 +204,36 @@ export async function storyVideoFacebook(meta, video) {
   return { url: `https://www.facebook.com/${meta.pageId}`, id: null, count: 1 };
 }
 
-// Reel Instagram : vidéo lue par Instagram à une adresse publique (fichier du site), montrée aussi
-// dans le fil. La préparation d'une vidéo prend souvent une à deux minutes.
+// Reel Instagram (montré aussi dans le fil). La préparation d'une vidéo prend souvent une à deux minutes.
 // coverUrl : couverture (image publique), sinon une image choisie par Instagram
-export async function reelInstagram(meta, videoUrl, caption, coverUrl = null) {
+export async function reelInstagram(meta, video, caption, coverUrl = null) {
   if (!meta?.igId) throw new Error('Aucun compte Instagram professionnel relié à la page Facebook');
   const tok = { access_token: meta.pageToken };
-  const c = await call(`${GRAPH}/${meta.igId}/media`, { method: 'POST', form: { media_type: 'REELS', video_url: videoUrl, caption: String(caption || '').slice(0, 2200), share_to_feed: 'true', ...(coverUrl ? { cover_url: coverUrl } : {}), ...tok } });
-  await ready(`${GRAPH}/${c.id}?${new URLSearchParams({ fields: 'status_code,status', ...tok })}`, 'status_code', 'Reel');
-  const pub = await call(`${GRAPH}/${meta.igId}/media_publish`, { method: 'POST', form: { creation_id: c.id, ...tok } });
+  const id = await igVideo(meta, video, { media_type: 'REELS', caption: String(caption || '').slice(0, 2200), ...(coverUrl ? { cover_url: coverUrl } : {}) }, 'Reel');
+  const pub = await call(`${GRAPH}/${meta.igId}/media_publish`, { method: 'POST', form: { creation_id: id, ...tok } });
   const link = await call(`${GRAPH}/${pub.id}?${new URLSearchParams({ fields: 'permalink', ...tok })}`).catch(() => ({}));
   return { url: link.permalink || `https://www.instagram.com/${meta.igUsername || ''}`, id: pub.id };
 }
 
 // ---------- Vidéo envoyée par le créateur (MP4 ou MOV) ----------
-// Déposée sur la page Facebook sans être publiée : son adresse publique sert à Instagram (Reel) et à
-// Threads, comme pour les images. Prête quand Facebook a fini de la traiter.
 const GRAPH_VIDEO = GRAPH.replace('//graph.', '//graph-video.');
 async function uploadVideo(meta, video, fields, thumb = null) {
-  if (!meta?.pageToken) throw new Error('Page Facebook non connectée (nécessaire aussi pour Instagram et Threads)');
+  if (!meta?.pageToken) throw new Error('Page Facebook non connectée');
   const form = new FormData();
   form.append('source', video, video.type === 'video/quicktime' ? 'video.mov' : 'video.mp4');
   if (thumb) form.append('thumb', thumb, 'cover.jpg');
   for (const [k, v] of Object.entries({ ...fields, access_token: meta.pageToken })) form.append(k, v);
   return call(`${GRAPH_VIDEO}/${meta.pageId}/videos`, { method: 'POST', form });
 }
-export async function hostVideo(meta, video) {
-  const key = await digest(video, `video:${meta?.pageId}`);
-  const hit = hostedCache.get(key);
-  if (hit && Date.now() - hit.at < HOST_TTL) return hit;
-  const { id } = await uploadVideo(meta, video, { published: 'false' });
-  const t0 = Date.now();
-  for (let i = 0; ; i++) {
-    const s = await call(`${GRAPH}/${id}?${new URLSearchParams({ fields: 'status,source', access_token: meta.pageToken })}`);
-    const st = s.status?.video_status;
-    if (st === 'ready' && s.source) {
-      const h = { id, url: s.source, at: Date.now() };
-      hostedCache.set(key, h);
-      return h;
-    }
-    if (st === 'error' || st === 'expired') throw new Error(`Vidéo refusée par Facebook${s.status?.processing_phase?.error?.message ? ` : ${s.status.processing_phase.error.message}` : ''}`.slice(0, 300));
-    if (Date.now() - t0 >= timing.readyMs) throw new Error('Vidéo : préparation trop longue, réessayez dans quelques minutes');
-    await wait(Math.min(timing.poll * (i + 1), timing.maxPoll));
-  }
-}
 // cover : couverture de la vidéo (JPEG), sinon une image choisie par Facebook
 export async function publishFacebookVideo(meta, text, video, cover = null) {
   const r = await uploadVideo(meta, video, { description: text, published: 'true' }, cover);
   return { url: `https://www.facebook.com/${meta.pageId}/videos/${r.id}`, id: r.id };
 }
-export async function publishThreadsVideo(th, meta, text, video) {
-  const hosted = await hostVideo(meta, video);
+// Threads lit la vidéo à une adresse publique (videoUrl : fichier gardé par le serveur Paddock Live)
+export async function publishThreadsVideo(th, videoUrl, text) {
   const base = `${THREADS}/${th.userId}`;
-  const c = await call(`${base}/threads`, { method: 'POST', form: { media_type: 'VIDEO', video_url: hosted.url, text, topic_tag: THREADS_TOPIC, access_token: th.token } });
+  const c = await call(`${base}/threads`, { method: 'POST', form: { media_type: 'VIDEO', video_url: videoUrl, text, topic_tag: THREADS_TOPIC, access_token: th.token } });
   await ready(`${THREADS}/${c.id}?${new URLSearchParams({ fields: 'status,error_message', access_token: th.token })}`, 'status', 'Vidéo');
   const pub = await call(`${base}/threads_publish`, { method: 'POST', form: { creation_id: c.id, access_token: th.token } });
   const link = await call(`${THREADS}/${pub.id}?${new URLSearchParams({ fields: 'permalink', access_token: th.token })}`).catch(() => ({}));

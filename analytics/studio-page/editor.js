@@ -324,9 +324,9 @@ function articlePhoto(url) {
   return artPhotos.get(url);
 }
 
-// Vers X (un lien ne transmet que le texte) : menu de partage avec les images et le texte quand le
-// navigateur sait partager des fichiers (choisir X ; texte aussi copié, à coller si l'appli ne le reprend
-// pas). Sinon : appli X sur téléphone, x.com sur ordinateur avec les images téléchargées
+// Vers X (un lien ne transmet que le texte) : sur téléphone, menu de partage avec les images et le texte
+// (choisir X ; texte aussi copié, à coller si l'appli ne le reprend pas), sinon l'appli X. Sur ordinateur,
+// x.com avec le texte et les images ou la vidéo téléchargées (le menu de partage de Windows ne propose pas X)
 // Texte X (et premier commentaire) avec ses liens suivis (clics comptés), préparé à l'affichage : le
 // partage part dès le toucher
 const CAP_NET = { instagram: 'instagram', facebook: 'facebook', threads: 'threads', x: 'x', bsky: 'bluesky' };
@@ -347,11 +347,12 @@ async function openX(canvases, raw, video = null) {
   const text = trackedNow(raw);
   navigator.clipboard?.writeText(text).catch(() => {});
   const files = video ? [video.full || video] : await Promise.all(canvases.map(async (cv, i) => new File([await toBlob(cv)], `x-${i + 1}.png`, { type: 'image/png' })));
-  if (navigator.canShare?.({ files })) {
+  const phone = IOS || /Android/.test(navigator.userAgent);
+  if (phone && navigator.canShare?.({ files })) {
     try { await navigator.share({ files, text }); } catch { /* partage annulé */ }
     return;
   }
-  if (IOS || /Android/.test(navigator.userAgent)) { location.href = `twitter://post?message=${encodeURIComponent(text)}`; return; }
+  if (phone) { location.href = `twitter://post?message=${encodeURIComponent(text)}`; return; }
   open(`https://x.com/intent/post?text=${encodeURIComponent(text)}`, '_blank', 'noopener');
   if (!video) { download(canvases); return; }
   const a = document.createElement('a'); a.href = URL.createObjectURL(files[0]); a.download = files[0].name; a.click();
@@ -517,6 +518,9 @@ async function publishAll(d, o, record = null, video = null, link = null, twin =
   const warn = checkPost(d, nets, !video && !link);
   if (warn === null) return;
   if (!confirm(`Publier maintenant sur : ${nets.map((n) => NET_NAMES[n] || n).join(', ')} ?${twin ? `\n\nDeux posts : celui-ci et « ${twin.record.title} ».` : ''}${warn}\n\n${stories ? 'Les stories seront publiques pendant 24 heures' : `Les posts seront publics${[nets.includes('tiktok') && `TikTok : ${tk ? `publication directe, visible par : ${TIKTOK_PRIVACY[tk.privacy]}` : 'en brouillon'}`, nets.includes('youtube') && 'YouTube : en privé'].filter(Boolean).map((x, i, a) => `${i ? ' ; ' : ' ('}${x}${i === a.length - 1 ? ')' : ''}`).join('')}`}.`)) return;
+  // Brouillon TikTok : TikTok ne prend pas son texte, copié pour être collé dans la description
+  const tkText = nets.includes('tiktok') && !tk && textOf('tiktok');
+  if (tkText) navigator.clipboard?.writeText(tkText).catch(() => {});
   const go = $('#go');
   go.disabled = true;
   // Confié au serveur (visuels ou vidéo envoyés une fois) : publié dans la minute, même page fermée
@@ -527,7 +531,7 @@ async function publishAll(d, o, record = null, video = null, link = null, twin =
     if (twin) await queueTwin(twin, o, nets, Date.now());
     sendIds = null;
     for (const n of nets) $(`[data-st="${n}"]`).textContent = 'Publication dans la minute';
-    toast('Envoyé : publication dans la minute, vous pouvez quitter la page', 'ok');
+    toast(`Envoyé : publication dans la minute, vous pouvez quitter la page${tkText ? '. Texte TikTok copié : collez-le dans la description du brouillon' : ''}`, 'ok');
     dropDraft();
     // Avancement relu tant que la page reste ouverte (5 minutes au plus) ; tout publié : retirée de la liste
     const list = $('#schedlist');
