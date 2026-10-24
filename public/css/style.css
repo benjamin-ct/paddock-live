@@ -296,6 +296,9 @@ code { background: var(--panel-3); padding: 1px 5px; border-radius: 4px; font-si
 .tower tr.out td { opacity: .45; }
 .tower tr.danger td { background: rgba(255, 59, 48, .07); }
 .tower tr.cut td { border-bottom: 2px dashed var(--red); }
+/* Pilote qui a passé le drapeau à damier : toute sa ligne en damier, léger (le texte reste lisible) */
+.tower tr.fin { background: var(--chequer) 0 0 / 16px 16px; }
+:root { --chequer: repeating-conic-gradient(rgba(128, 128, 128, .24) 0 25%, transparent 0 50%); }
 .pos { font-weight: 900; font-size: 15px; width: 26px; text-align: center; }
 .pos-delta { font-size: 10.5px; font-weight: 700; margin-left: 1px; }
 .up { color: var(--green); } .down { color: var(--red); }
@@ -313,9 +316,7 @@ code { background: var(--panel-3); padding: 1px 5px; border-radius: 4px; font-si
 .tag.drs { background: var(--green); color: #002012; }
 .tag.flag-blue { background: var(--blue); color: #001526; }
 .tag.catch { background: rgba(53,208,127,.18); color: var(--green); }
-/* Drapeau à damier passé */
-.tag.fin { display: inline-block; width: 22px; height: 15px; padding: 0; vertical-align: middle; box-shadow: 0 0 0 1px var(--line-2);
-  background: repeating-conic-gradient(#0b0c0f 0 25%, #fff 0 50%) 0 0 / 7.5px 7.5px; }
+
 .t-gap, .t-int, .t-lap { text-align: right; font-weight: 600; }
 .t-int.catching { color: var(--green); }
 .purple { color: var(--purple) !important; }

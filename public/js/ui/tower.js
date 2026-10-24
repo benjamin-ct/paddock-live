@@ -117,7 +117,7 @@ export function renderTower(force = false) {
     const tags = [];
     const done = tookFlag(store.derived.laps?.[num], flagAt);
     if (l.Retired) tags.push('<span class="tag ret">ABD</span>');
-    else if (done) tags.push('<span class="tag fin" title="A passé le drapeau à damier" aria-label="Drapeau à damier"></span>');
+    else if (done) { /* ligne en damier (classe fin), sans STAND ni SORTIE */ }
     else if (l.Stopped) tags.push('<span class="tag stop">ARRÊT</span>');
     else if (l.InPit) tags.push('<span class="tag pit">STAND</span>');
     else if (l.PitOut) tags.push('<span class="tag out">SORTIE</span>');
@@ -201,6 +201,7 @@ export function renderTower(force = false) {
     if (l.KnockedOut || l.Retired) cls.push('out');
     if (cutoff && Number(pos) > cutoff && !l.KnockedOut) cls.push('danger');
     if (cutoff && Number(pos) === cutoff) cls.push('cut');
+    if (done) cls.push('fin');
     if (store.focus === num) cls.push('focus');
     if (hot && !pred && store.focus !== num && store.duel.a !== num && store.duel.b !== num) cls.push('cool');
     if (store.duel.a === num) cls.push('duel-a');

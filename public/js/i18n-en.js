@@ -2715,5 +2715,4 @@ export default {
   "Télécharger l'appli Paddock Live": "Download the Paddock Live app",
   "Version web allégée. Toutes les fonctions dans l'appli de bureau.": "Lightweight web version. Every feature in the desktop app.",
   "Appli complète": "Full app",
-  "A passé le drapeau à damier": "Took the chequered flag",
 };

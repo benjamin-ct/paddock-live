@@ -65,8 +65,8 @@ l'application (Réglages → À propos → Nouveautés).
   plus, c'est-à-dire au drapeau noir et blanc (pénalité à la 4e en course).
 - Disposition « Qualif & essais » ou « Course » et onglets adaptés à la séance (championnat seulement en course…)
   choisis aussi quand l'appli est ouverte avant le début de la séance, ou pour un replay.
-- Classement : drapeau à damier à côté de chaque pilote qui l'a passé, en course comme à la fin de chaque partie
-  des qualifs et des essais.
+- Classement : la ligne de chaque pilote qui a passé le drapeau à damier prend un fond en damier, en course comme
+  à la fin de chaque partie des qualifs et des essais.
 
 ### Saison
 - Bilan de la saison (Saison → Bilan de la saison) : champion ou leader, victoires, poles, podiums, vainqueurs
