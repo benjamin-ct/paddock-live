@@ -232,9 +232,7 @@ export function editor({ back, title, subtitle = '', head = '', vhead = '', note
     for (const el of [$('#opts'), $('#share'), $('#dl')]) if (el) el.hidden = linkTab;   // post « lien » : pas de visuels
     $('#netsbox').innerHTML = xTab ? '' : `<h3 class="section">Publier sur</h3>${twin && !linkTab ? `<label class="switch net"><span><b>Publier aussi « ${esc(twin.label())} »</b><small>Son propre post, sur les mêmes réseaux, en même temps</small></span><input type="checkbox" role="switch" id="withtwin" ${state.noTwin ? '' : 'checked'}></label>` : ''}${withVid}${list.map(([k, v]) => {
       const acc = session.me?.[k.replace('-story', '')];
-      // Facebook et Threads : remplis par Instagram (partage automatique réglé dans l'appli Instagram), décochés d'office
-      const viaIg = (k === 'threads' || k === 'facebook') && session.me?.instagram;
-      return `<label class="switch net"><span><b>${v}</b><small>${esc(acc || 'non connecté')}${viaIg ? ' · déjà partagé par Instagram' : ''}</small><em class="st" data-st="${k}"></em></span><input type="checkbox" role="switch" data-net="${k}" ${acc ? (k === 'tiktok' || k === 'youtube' || viaIg ? '' : 'checked') : 'disabled'}></label>`;
+      return `<label class="switch net"><span><b>${v}</b><small>${esc(acc || 'non connecté')}</small><em class="st" data-st="${k}"></em></span><input type="checkbox" role="switch" data-net="${k}" ${acc ? (k === 'tiktok' || k === 'youtube' ? '' : 'checked') : 'disabled'}></label>`;
     }).join('')}${vid ? '<div id="tkbox" class="tkbox" hidden></div>' : ''}${vid || story ? `<p class="hint">${story ? `${vid ? 'La vidéo en story' : 'Une story par image'}, visible 24 heures.` : `Vidéo sur tous les réseaux${vid.full ? ' : plein écran sur Facebook, Threads et Bluesky, zone sûre sur Instagram, TikTok et YouTube (privé)' : ''}.`}</p>` : ''}`;
     if ($('#withvid')) $('#withvid').onchange = (e) => { state.noVideo = !e.target.checked; redraw(); };
     if ($('#withtwin')) $('#withtwin').onchange = (e) => { state.noTwin = !e.target.checked; };

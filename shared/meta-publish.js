@@ -184,9 +184,12 @@ async function igVideo(meta, video, fields, what) {
   const c = await call(`${GRAPH}/${meta.igId}/media`, { method: 'POST', form: { ...fields, upload_type: 'resumable', ...tok } });
   await call(c.uri || `${GRAPH.replace('//graph.', '//rupload.').replace('.com/', '.com/ig-api-upload/')}/${c.id}`, { method: 'POST', headers: { Authorization: `OAuth ${meta.pageToken}`, offset: '0', file_size: String(video.size) }, body: video })
     .catch(async (err) => {
-      // État du conteneur chez Instagram (envoi, traitement) : dit où ça bloque
-      const s = await call(`${GRAPH}/${c.id}?${new URLSearchParams({ fields: 'status,video_status', ...tok })}`).catch(() => null);
-      const at = [s?.status, s?.video_status?.uploading_phase?.error?.message, s?.video_status?.processing_phase?.error?.message].filter(Boolean).join(' ; ');
+      // Refus de l'envoi, mais vidéo reçue et en traitement chez Instagram (« Media is still being processed ») :
+      // on attend la fin comme d'habitude. Sinon, l'état du conteneur dit où ça bloque
+      const s = await call(`${GRAPH}/${c.id}?${new URLSearchParams({ fields: 'status,status_code,video_status', ...tok })}`).catch(() => null);
+      const upErr = s?.video_status?.uploading_phase?.error?.message;
+      if (['IN_PROGRESS', 'FINISHED'].includes(s?.status_code) && !upErr) return;
+      const at = [s?.status, upErr, s?.video_status?.processing_phase?.error?.message].filter(Boolean).join(' ; ');
       throw new Error(`Envoi de la vidéo à Instagram refusé : ${err.message}${at ? ` (${at})` : ''}`.slice(0, 300));
     });
   await ready(`${GRAPH}/${c.id}?${new URLSearchParams({ fields: 'status_code,status', ...tok })}`, 'status_code', what);

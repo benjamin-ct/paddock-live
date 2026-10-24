@@ -398,11 +398,31 @@ test('vidéo du créateur : Reel et Story Instagram envoyés tels quels, vidéo 
     assert.equal(log.filter((l) => l.path.endsWith('/videos')).length, 0, 'rien de déposé sur la page Facebook');
     // Envoi du fichier refusé : la raison d'Instagram (debug_info) est montrée
     const ok = globalThis.fetch;
-    globalThis.fetch = async (url, opts) => (new URL(url).hostname === 'rupload.facebook.com' ? new Response(JSON.stringify({ debug_info: { retriable: false, type: 'ProcessingFailedError', message: 'Request processing failed' } }), { status: 400 }) : ok(url, opts));
-    await assert.rejects(reelInstagram(meta, video, 'Légende'), /Envoi de la vidéo à Instagram refusé : Request processing failed/);
+    globalThis.fetch = async (url, opts) => {
+      const u = new URL(url);
+      if (u.hostname === 'rupload.facebook.com') return new Response(JSON.stringify({ debug_info: { retriable: false, type: 'ProcessingFailedError', message: 'Request processing failed' } }), { status: 400 });
+      if (u.searchParams.get('fields') === 'status,status_code,video_status') return new Response(JSON.stringify({ status: 'Error', status_code: 'ERROR', video_status: { uploading_phase: { status: 'error', error: { message: 'File not found' } } } }));
+      return ok(url, opts);
+    };
+    await assert.rejects(reelInstagram(meta, video, 'Légende'), /Envoi de la vidéo à Instagram refusé : Request processing failed \(Error ; File not found\)/);
+    // Envoi refusé mais vidéo reçue, encore en traitement : attendue puis publiée (pas d'erreur, pas de second essai)
+    let busy = 0;
+    globalThis.fetch = async (url, opts) => {
+      const u = new URL(url);
+      if (u.hostname === 'rupload.facebook.com') return new Response(JSON.stringify({ debug_info: { message: 'Request processing failed' } }), { status: 400 });
+      if (u.pathname.endsWith('/c1') && u.searchParams.get('fields') === 'status,status_code,video_status') { busy++; return new Response(JSON.stringify({ status: 'In Progress: Media is still being processed.', status_code: 'IN_PROGRESS', video_status: { uploading_phase: { status: 'complete' } } })); }
+      return ok(url, opts);
+    };
+    const late = await reelInstagram(meta, video, 'Légende', 'https://img.test/cover.jpg');
+    assert.deepEqual([late.url, late.note, busy], ['https://example.test/p/1', undefined, 1]);
     // Refus avec la couverture : un second essai sans elle, publié avec une note
     let tries = 0;
-    globalThis.fetch = async (url, opts) => (new URL(url).hostname === 'rupload.facebook.com' && !tries++ ? new Response(JSON.stringify({ debug_info: { message: 'Request processing failed' } }), { status: 400 }) : ok(url, opts));
+    globalThis.fetch = async (url, opts) => {
+      const u = new URL(url);
+      if (u.hostname === 'rupload.facebook.com' && !tries++) return new Response(JSON.stringify({ debug_info: { message: 'Request processing failed' } }), { status: 400 });
+      if (u.searchParams.get('fields') === 'status,status_code,video_status') return new Response(JSON.stringify({ status_code: 'ERROR' }));
+      return ok(url, opts);
+    };
     log.length = 0;
     const again = await reelInstagram(meta, video, 'Légende', 'https://img.test/cover.jpg');
     assert.equal(again.url, 'https://example.test/p/1');
