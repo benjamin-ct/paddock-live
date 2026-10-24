@@ -37,19 +37,26 @@
     @media (max-width: 900px) {
       .web .grid { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto; grid-template-areas: "map" "tower" "tele" "feed" "radio"; }
       .web .p-map { height: 380px; } .web .p-feed, .web .p-radio, .web .p-analysis { height: 440px; }
-      /* Téléphone : classement en entier dans la page (pas de défilement dans le défilement), à la largeur de
-         l'écran (colonnes essentielles, comme l'appli sur téléphone) */
       .web .grid { flex: none; }
       /* Menus en bas de l'écran, sur toute la largeur, défilement au doigt (comme l'appli sur téléphone) */
       .web .map-layers-menu { position: fixed; left: 8px; right: 8px; top: auto; bottom: calc(12px + env(safe-area-inset-bottom));
         width: auto; max-height: 60dvh; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; z-index: 900; }
       .web .map-layers-menu .toggle { white-space: normal; }
+      /* Téléphone : classement en entier, toute sa hauteur dans la page (pas de défilement vertical dans le
+         défilement) ; les colonnes défilent de côté, position et pilote restent fixes à gauche */
       .web .p-tower { height: auto; }
-      .web .p-tower .tower-wrap { overflow: visible; flex: none; height: auto; }
+      .web .p-tower .tower-wrap { overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; flex: none; height: auto; }
       .web .tower { zoom: 1 !important; --tower-row-h: 34px !important; }
-      .web .tower :is(.c-last, .c-best, .c-sec, .c-pred, .c-q, .c-speed, .drv-num, .drv-last, .fav-btn) { display: none !important; }
+      .web .tower :is(.drv-num, .drv-last, .fav-btn) { display: none !important; }
       .web .tower td, .web .tower th { padding-left: 3px; padding-right: 3px; }
       .web .tower .drv { gap: 5px; }
+      .web .tower :is(td, th):nth-child(-n+2) { position: sticky; z-index: 3; background: var(--panel); }
+      .web .tower :is(td, th):first-child { left: 0; width: 36px; min-width: 36px; max-width: 36px; box-sizing: border-box; }
+      .web .tower :is(td, th):nth-child(2) { left: 36px; box-shadow: 6px 0 6px -6px rgba(0, 0, 0, .35); }
+      .web .tower tr.danger td:nth-child(-n+2) { background: linear-gradient(rgba(255, 59, 48, .07), rgba(255, 59, 48, .07)), var(--panel); }
+      .web .tower tr.focus td:nth-child(-n+2) { background: linear-gradient(var(--focus), var(--focus)), var(--panel); }
+      .web .tower tr.out td:nth-child(-n+2) { opacity: 1; }
+      .web .tower tr.out td:nth-child(-n+2) > * { opacity: .45; }
       .web .web-note, .web .web-delay .hstat-label { display: none; }
       .web .web-delay, .web #sourceBadge, .web .topbar > .btn { order: 5; }
       .web .web-delay { margin-right: auto; }
