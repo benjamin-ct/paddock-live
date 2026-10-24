@@ -518,6 +518,9 @@ async function publishAll(d, o, record = null, video = null, link = null, twin =
   const warn = checkPost(d, nets, !video && !link);
   if (warn === null) return;
   if (!confirm(`Publier maintenant sur : ${nets.map((n) => NET_NAMES[n] || n).join(', ')} ?${twin ? `\n\nDeux posts : celui-ci et « ${twin.record.title} ».` : ''}${warn}\n\n${stories ? 'Les stories seront publiques pendant 24 heures' : `Les posts seront publics${[nets.includes('tiktok') && `TikTok : ${tk ? `publication directe, visible par : ${TIKTOK_PRIVACY[tk.privacy]}` : 'en brouillon'}`, nets.includes('youtube') && 'YouTube : en privé'].filter(Boolean).map((x, i, a) => `${i ? ' ; ' : ' ('}${x}${i === a.length - 1 ? ')' : ''}`).join('')}`}.`)) return;
+  // Brouillon TikTok : TikTok ne prend pas son texte, copié pour être collé dans la description
+  const tkText = nets.includes('tiktok') && !tk && textOf('tiktok');
+  if (tkText) navigator.clipboard?.writeText(tkText).catch(() => {});
   const go = $('#go');
   go.disabled = true;
   // Confié au serveur (visuels ou vidéo envoyés une fois) : publié dans la minute, même page fermée
@@ -528,7 +531,7 @@ async function publishAll(d, o, record = null, video = null, link = null, twin =
     if (twin) await queueTwin(twin, o, nets, Date.now());
     sendIds = null;
     for (const n of nets) $(`[data-st="${n}"]`).textContent = 'Publication dans la minute';
-    toast('Envoyé : publication dans la minute, vous pouvez quitter la page', 'ok');
+    toast(`Envoyé : publication dans la minute, vous pouvez quitter la page${tkText ? '. Texte TikTok copié : collez-le dans la description du brouillon' : ''}`, 'ok');
     dropDraft();
     // Avancement relu tant que la page reste ouverte (5 minutes au plus) ; tout publié : retirée de la liste
     const list = $('#schedlist');

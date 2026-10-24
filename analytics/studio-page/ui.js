@@ -227,6 +227,8 @@ export async function schedList(el) {
     return `<div class="card"><div class="card-top">${icon('clock')}<span>${esc(new Date(j.at).toLocaleString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }))}</span></div><div class="t">${esc(j.title || 'Post')}</div>
       <div class="nets-st">${Object.entries(j.nets).map(([n, x]) => `<div><span>${esc(NET_NAMES[n] || n)}</span>${x.status === 'done' && x.url ? `<a class="pill ok" href="${esc(x.url)}" target="_blank" rel="noopener">${SCHED_ST.done} ${icon('check')}</a>` : `<span class="pill ${x.status === 'error' || x.status === 'expired' ? 'bad' : ''}">${x.sent && x.status !== 'error' ? `en cours (${x.sent}/${x.total})` : esc(SCHED_ST[x.status] || x.status)}</span>`}`
         + (x.error ? `<small class="err">${esc(x.error)}</small>` : '')
+        // Brouillon TikTok : son texte n'y est pas (TikTok ne le prend pas), à coller dans la description
+        + (n === 'tiktok' && x.status === 'done' && !x.url && j.texts?.tiktok ? `<button class="btn small" data-copytk="${esc(j.id)}">${icon('copy')}Copier le texte</button>` : '')
         + (j.retry && ['error', 'expired'].includes(x.status) ? `<button class="btn small" data-retry="${esc(j.id)}" data-net="${esc(n)}">Réessayer</button>` : '')
         + (x.commentError ? `<small class="err">Commentaire refusé : ${esc(x.commentError)}</small>` : '')
         + (x.visible === false ? '<small class="err">Pas visible publiquement sur Threads : vérifiez le post (compte ou post masqué)</small>' : '') + '</div>').join('')}</div>
@@ -240,6 +242,10 @@ export async function schedList(el) {
       try { await api('schedule/cancel', { method: 'POST', body: JSON.stringify({ id: b.dataset.cancel }) }); toast(over ? 'Retirée de la liste' : 'Publication annulée'); } catch (err) { alert(err.message); }
       schedList(el);
     };
+  });
+  el.querySelectorAll('[data-copytk]').forEach((b) => {
+    b.onclick = () => navigator.clipboard.writeText(items.find((x) => x.id === b.dataset.copytk)?.texts?.tiktok || '')
+      .then(() => toast('Texte copié : collez-le dans la description du brouillon TikTok', 'ok'), () => toast('Copie impossible', 'bad'));
   });
   // Réseau en erreur : renvoyé au relevé suivant (visuels gardés 24 h après la fin)
   el.querySelectorAll('[data-retry]').forEach((b) => {
