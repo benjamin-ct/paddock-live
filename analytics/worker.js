@@ -14,7 +14,7 @@
 //   toutes les 6 heures, bilan de santé (health.js) : flux F1, erreurs de l'appli, jetons.
 import { cleanBatch } from '../shared/stats.js';
 import { summary } from './usage.js';
-import { studioApi, runSchedule, schedInternal, seasonRow, fails, failed, MAX_FAILS } from './studio.js';
+import { studioApi, runSchedule, schedInternal, schedVideo, seasonRow, fails, failed, MAX_FAILS } from './studio.js';
 import { loginPage, dashboardPage } from './page.js';
 import { cleanRequest, translateBatch } from './translate.js';
 import { cleanSummaryRequest, summarizeArticle } from './summarize.js';
@@ -247,6 +247,7 @@ export default {
     if (url.pathname.startsWith('/a/') && /^(key|sub|off|test)$/.test(url.pathname.slice(3))) {
       try { return await publicPushApi(req, env, url.pathname.slice(3)); } catch { return json({ error: 'Erreur' }, 500); }
     }
+    if (['GET', 'HEAD'].includes(req.method) && url.pathname.startsWith('/studio/v/')) return schedVideo(req, env, url.pathname.slice(10));
     if (url.pathname.startsWith('/studio/api/')) {
       try { return await studioApi(req, env, url); } catch { return json({ error: 'Erreur' }, 500); }
     }
