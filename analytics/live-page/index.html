@@ -20,9 +20,13 @@
     .web .p-analysis { grid-area: tele; }
     .web .p-analysis [data-tab]:not([data-tab="telemetry"]) { display: none; }
     .web .topbar .web-delay { display: flex; align-items: center; gap: 6px; }
-    .web .topbar .web-delay input { width: 64px; }
+    .web .topbar .web-delay input { width: 54px; height: 34px; padding: 0 4px; text-align: center; border: 1px solid var(--border); border-radius: 8px;
+      background: var(--panel-2); color: var(--text); font: 700 17px/1 inherit; font-variant-numeric: tabular-nums; }
+    .web .topbar .web-delay .unit { color: var(--text-2); font-weight: 700; margin-left: -2px; }
     .web .web-note { font-size: 11px; color: var(--text-2); max-width: 260px; line-height: 1.3; }
     .web [data-full], .web [data-expert], .web #rcmTranslateBox, .web .map-mode + label + #mapFloatBtn { display: none !important; }
+    /* Menu ouvert (calques, options) : son panneau passe devant les autres */
+    .web .panel:has(details[open]) { position: relative; z-index: 30; overflow: visible; }
     /* Classement sans boutons duel (pas de panneau Duel en ligne) ni menu des colonnes (réglé par l'appli) */
     .web .tower .c-duel, .web .p-tower .hint, .web #towerCols { display: none !important; }
     @media (max-width: 1300px) {
@@ -36,6 +40,10 @@
       /* Téléphone : classement en entier dans la page (pas de défilement dans le défilement), à la largeur de
          l'écran (colonnes essentielles, comme l'appli sur téléphone) */
       .web .grid { flex: none; }
+      /* Menus en bas de l'écran, sur toute la largeur, défilement au doigt (comme l'appli sur téléphone) */
+      .web .map-layers-menu { position: fixed; left: 8px; right: 8px; top: auto; bottom: calc(12px + env(safe-area-inset-bottom));
+        width: auto; max-height: 60dvh; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; z-index: 900; }
+      .web .map-layers-menu .toggle { white-space: normal; }
       .web .p-tower { height: auto; }
       .web .p-tower .tower-wrap { overflow: visible; flex: none; height: auto; }
       .web .tower { zoom: 1 !important; --tower-row-h: 34px !important; }
@@ -73,7 +81,7 @@
       <span class="hstat-label">Délai</span>
       <button class="dbtn m" data-step="-5000">−5</button>
       <button class="dbtn m" data-step="-1000">−1</button>
-      <input id="delayInput" class="delay-input" type="text" inputmode="decimal" aria-label="Délai en secondes">
+      <input id="delayInput" type="text" inputmode="decimal" aria-label="Délai en secondes"><span class="unit">s</span>
       <button class="dbtn" data-step="1000">+1</button>
       <button class="dbtn" data-step="5000">+5</button>
     </div>

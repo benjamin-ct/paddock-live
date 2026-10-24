@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import zlib from 'node:zlib';
-import { LiveRelay, KEEP_MS } from '../analytics/live-relay.js';
+import { LiveRelay, KEEP_MS, liveApi } from '../analytics/live-relay.js';
 import { WebHub } from '../analytics/live-page/web-hub.js';
 import { applyEvent, createDerived } from '../shared/derive.js';
 
@@ -125,4 +125,30 @@ test('version web : GPS et télémétrie décompressés, envoyés un peu en avan
   hub.tick(t0 + 76000);
   assert.deepEqual(got.at(-1), ['reset', [t0 + 20000, t0 + 70000, t0 + 80000, t0 + 81000]]);
   assert.equal(asked.length, 1);
+});
+
+test('version web : son des radios relayé (par morceaux pour Safari), chemins hors archives refusés', async () => {
+  const mp3 = new Uint8Array(1000).map((_, i) => i % 256);
+  const asked = [];
+  const realFetch = globalThis.fetch;
+  globalThis.caches = { default: { match: async () => null, put: async () => {} } };
+  globalThis.fetch = async (u) => { asked.push(String(u)); return new Response(mp3, { status: 200 }); };
+  try {
+    const p = '2026/2026-10-25_United_States_Grand_Prix/2026-10-24_Qualifying/TeamRadio/BEA_87_20261024_164338.mp3';
+    const get = (q, headers = {}) => { const url = new URL(`https://app.test/live/api/archive/file?p=${encodeURIComponent(q)}`); return liveApi(new Request(url, { headers }), url, {}); };
+    let r = await get(p);
+    assert.equal(r.status, 200);
+    assert.equal(r.headers.get('Content-Type'), 'audio/mpeg');
+    assert.equal((await r.arrayBuffer()).byteLength, 1000);
+    assert.equal(asked[0], `https://livetiming.formula1.com/static/${p}`);
+    r = await get(p, { Range: 'bytes=10-19' });
+    assert.equal(r.status, 206);
+    assert.equal(r.headers.get('Content-Range'), 'bytes 10-19/1000');
+    assert.deepEqual([...new Uint8Array(await r.arrayBuffer())], [10, 11, 12, 13, 14, 15, 16, 17, 18, 19]);
+    for (const bad of ['2026/../secret.mp3', 'https://autre.site/x.mp3', '2026/x.json']) assert.equal((await get(bad)).status, 404);
+    assert.equal(asked.length, 2);
+  } finally {
+    globalThis.fetch = realFetch;
+    delete globalThis.caches;
+  }
 });

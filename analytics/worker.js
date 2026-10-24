@@ -247,7 +247,9 @@ export default {
     // Publication d'un réseau, appelée par la tâche planifiée elle-même (voir runSchedule)
     // Version web du direct (fichiers statiques dans /live/) : relais du flux F1, tracé des circuits et photos
     if (url.pathname === '/live/ws') return liveSocket(req, env);
-    if (req.method === 'GET' && url.pathname.startsWith('/live/api/')) return liveApi(req, url);
+    if (url.pathname.startsWith('/live/api/')) {
+      try { return await liveApi(req, url, env); } catch { return json({ error: 'Erreur' }, 500); }
+    }
     if (req.method === 'POST' && url.pathname === '/internal/sched') return schedInternal(req, env);
     if (req.method === 'POST' && url.pathname === '/internal/push') {
       if (!env.STATS_KEY || !sameKey(req.headers.get('X-Sched-Key') || '', env.STATS_KEY)) return json({ error: 'Interdit' }, 403);

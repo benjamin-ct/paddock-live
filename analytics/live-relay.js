@@ -6,6 +6,9 @@
 import { LIVE_TOPICS, topicName } from '../shared/f1.js';
 import { applyEvent, createDerived } from '../shared/derive.js';
 import { liveF1tv } from './studio.js';
+import { cachedRadio, transcribeRadio, audioHash, MAX_AUDIO } from './transcribe.js';
+import { cleanRequest, translateBatch } from './translate.js';
+import { callerIp } from './quota.js';
 
 const BASE = 'https://livetiming.formula1.com/signalrcore';
 const UA = 'Mozilla/5.0 (Paddock-Live web relay)';
@@ -264,10 +267,72 @@ export function liveSocket(req, env) {
   return env.LIVE.get(env.LIVE.idFromName('f1')).fetch(req);
 }
 
+// Son d'une radio d'équipe (chemin dans les archives F1) : accès libre, sinon avec la connexion F1 TV du relais ;
+// gardé un jour. Octets, ou null
+const ARCHIVE = 'https://livetiming.formula1.com/static/';
+async function radioFile(env, rel) {
+  if (!/^\d{4}\/[\w\-./]+\.(mp3|m4a|aac)$/i.test(rel) || rel.includes('..')) return null;
+  const cache = caches.default;
+  const ck = new Request(`https://live.cache/radio/${rel}`);
+  const hit = await cache.match(ck);
+  if (hit) return new Uint8Array(await hit.arrayBuffer());
+  let res = await fetch(ARCHIVE + rel, { headers: { 'User-Agent': UA } }).catch(() => null);
+  if (res && (res.status === 401 || res.status === 403)) {
+    const token = await liveF1tv(env).catch(() => null);
+    if (token) res = await fetch(ARCHIVE + rel, { headers: { 'User-Agent': UA, Authorization: `Bearer ${token}`, ascendontoken: token } }).catch(() => null);
+  }
+  if (res?.status !== 200) return null;
+  const bytes = new Uint8Array(await res.arrayBuffer());
+  if (!bytes.length || bytes.length > MAX_AUDIO) return null;
+  await cache.put(ck, new Response(bytes, { headers: { 'Cache-Control': 'public, max-age=86400' } }));
+  return bytes;
+}
+
+// Partie demandée du son (Range : Safari lit l'audio par morceaux)
+function audioResponse(req, bytes, rel) {
+  const type = rel.endsWith('.mp3') ? 'audio/mpeg' : 'audio/mp4';
+  const headers = { 'Content-Type': type, 'Accept-Ranges': 'bytes', 'Cache-Control': 'public, max-age=86400' };
+  const m = /^bytes=(\d*)-(\d*)$/.exec(req.headers.get('Range') || '');
+  if (!m || (!m[1] && !m[2])) return new Response(bytes, { headers });
+  const n = bytes.length;
+  let a = m[1] ? Number(m[1]) : Math.max(0, n - Number(m[2]));
+  let b = m[1] && m[2] ? Math.min(Number(m[2]), n - 1) : n - 1;
+  if (a >= n || a > b) return new Response(null, { status: 416, headers: { 'Content-Range': `bytes */${n}` } });
+  return new Response(bytes.slice(a, b + 1), { status: 206, headers: { ...headers, 'Content-Range': `bytes ${a}-${b}/${n}` } });
+}
+
 // /live/api/… : ce dont la version web a besoin du serveur local de l'appli. Tracé du circuit (API MultiViewer,
 // l'année demandée ou une des précédentes), gardé un jour ; photos des pilotes : le navigateur les prend
-// directement sur le site de la F1 ; le reste n'existe pas en ligne
-export async function liveApi(req, url) {
+// directement sur le site de la F1 ; son, texte et traduction des radios (transcription et traduction
+// partagées du serveur, mêmes plafonds que l'appli) ; le reste n'existe pas en ligne
+export async function liveApi(req, url, env = {}) {
+  if (url.pathname === '/live/api/archive/file' && req.method === 'GET') {
+    const rel = url.searchParams.get('p') || '';
+    const bytes = await radioFile(env, rel);
+    return bytes ? audioResponse(req, bytes, rel) : json({ error: 'Radio indisponible' }, 404);
+  }
+  if (url.pathname === '/live/api/radio-text' && req.method === 'GET') {
+    if (!env.AI || !env.DB) return json({ error: 'Transcription indisponible' }, 503);
+    const u = url.searchParams.get('u') || '';
+    const bytes = u.startsWith(ARCHIVE) ? await radioFile(env, u.slice(ARCHIVE.length)) : null;
+    if (!bytes) return json({ error: 'Radio invalide' }, 400);
+    const hit = await cachedRadio(env, await audioHash(bytes));
+    const r = hit || await transcribeRadio(env, bytes, undefined, callerIp(req));
+    if (r.invalid) return json({ error: 'Fichier son invalide' }, 400);
+    if (r.limited) return json({ error: 'Plafond du jour atteint' }, 503);
+    return json({ text: r.text, d: r.d });
+  }
+  if (url.pathname === '/live/api/translate' && req.method === 'POST') {
+    if (!env.AI || !env.DB) return json({ error: 'Traduction indisponible' }, 503);
+    const text = await req.text();
+    if (text.length > 64 * 1024) return json({ error: 'Trop volumineux' }, 413);
+    let body;
+    try { body = JSON.parse(text); } catch { return json({ error: 'JSON invalide' }, 400); }
+    const r = cleanRequest(body);
+    if (!r) return json({ error: 'Requête invalide' }, 400);
+    const res = await translateBatch(env, r, undefined, callerIp(req));
+    return json(res, res.limited ? 503 : 200);
+  }
   if (url.pathname === '/live/api/headshot') {
     let u = null;
     try { u = new URL(url.searchParams.get('u')); } catch { /* adresse invalide */ }
