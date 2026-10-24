@@ -276,19 +276,23 @@
         <button class="tab active" data-tab="rcm">Direction de course</button>
         <button class="tab" data-tab="stewards" title="Suivi des enquêtes des commissaires">Enquêtes <span class="tab-badge" id="stewardsBadge" hidden></span></button>
         <button class="tab" data-tab="tracklimits" title="Tours et temps supprimés pour limites de piste">Limites de piste <span class="tab-badge" id="tlBadge" hidden></span></button>
+        <details class="map-layers rd-menu" id="rcmMenu" data-menu-for="rcm"><summary class="icon-btn small" title="Options des messages : drapeaux bleus, temps supprimés, type, traduction" aria-label="Options des messages"><svg class="ic" aria-hidden="true"><use href="#i-gear"/></svg></summary>
+          <div class="map-layers-menu rd-menu-body">
+            <div class="rd-bar">
+              <label class="toggle"><input type="checkbox" id="rcmBlue"> Drapeaux bleus</label>
+              <label class="toggle"><input type="checkbox" id="rcmDeleted"> Temps supprimés</label>
+              <select id="rcmType" aria-label="Type de messages" title="N'afficher qu'un type de messages">
+                <option value="all">Tous les messages</option><option value="flags">Drapeaux</option><option value="sc">Safety car / VSC</option>
+                <option value="stewards">Enquêtes et pénalités</option><option value="limits">Limites de piste</option><option value="other">Autres</option><option value="mine">Mes favoris et le duel</option>
+              </select>
+              <label class="toggle" id="rcmTranslateBox" title="Messages traduits en français (original au survol)"><input type="checkbox" id="rcmTranslate"> Traduire</label>
+            </div>
+          </div>
+        </details>
       </div>
       <div class="panel-body">
         <div class="tabpane active" data-pane="rcm">
-          <div class="subbar">
-            <label class="toggle"><input type="checkbox" id="rcmBlue"> Drapeaux bleus</label>
-            <label class="toggle"><input type="checkbox" id="rcmDeleted"> Temps supprimés</label>
-            <select id="rcmType" aria-label="Type de messages" title="N'afficher qu'un type de messages">
-              <option value="all">Tous les messages</option><option value="flags">Drapeaux</option><option value="sc">Safety car / VSC</option>
-              <option value="stewards">Enquêtes et pénalités</option><option value="limits">Limites de piste</option><option value="other">Autres</option><option value="mine">Mes favoris et le duel</option>
-            </select>
-            <label class="toggle" id="rcmTranslateBox" title="Messages traduits en français (original au survol)"><input type="checkbox" id="rcmTranslate"> Traduire</label>
-            <span class="muted small" id="rcmHidden"></span>
-          </div>
+          <div class="muted small rcm-hidden" id="rcmHidden"></div>
           <ul class="rcm" id="rcmList"></ul>
         </div>
         <div class="tabpane" data-pane="stewards">
@@ -306,7 +310,7 @@
     <section class="panel p-radio">
       <div class="panel-head tabs" data-tabs="radio">
         <button class="tab active" data-tab="radios" title="Radios d'équipe : écoute, texte et traduction">Radios d'équipe</button>
-        <details class="map-layers rd-menu" id="radioMenu"><summary class="btn small" title="Pilotes écoutés, lecture, texte et traduction des radios">Options <svg class="ic ic-s" aria-hidden="true"><use href="#i-chevron-down"/></svg></summary>
+        <details class="map-layers rd-menu" id="radioMenu" data-menu-for="radios"><summary class="btn small" title="Pilotes écoutés, lecture, texte et traduction des radios">Options <svg class="ic ic-s" aria-hidden="true"><use href="#i-chevron-down"/></svg></summary>
           <div class="map-layers-menu rd-menu-body">
             <div class="rd-bar">
               <select id="radioFilter" aria-label="Filtrer les radios"><option value="all">Tous les pilotes</option><option value="fav">Mes favoris</option><option value="duel">Pilotes du duel</option></select>
@@ -318,6 +322,8 @@
                 <label class="small">Traduction <select id="radioLang" aria-label="Langue de traduction"><option value="fr">Français</option><option value="es">Español</option><option value="de">Deutsch</option><option value="it">Italiano</option><option value="none">Aucune (anglais)</option></select></label>
                 <label class="small" title="Transcription sur cet ordinateur. Légère : processeur, ~1 Go de mémoire. Haute : plus précise, carte graphique, 4,5 Go à télécharger.">Qualité <select id="radioQuality" aria-label="Qualité de transcription"><option value="auto">Légère (≈ 1 Go)</option><option value="high">Haute (carte graphique, 10 à 15 Go)</option></select></label>
               </span>
+              <label class="small rd-row">Volume <input type="range" class="rd-vol" id="radioVol" min="0" max="1" step="0.05" title="Volume des radios" aria-label="Volume des radios"></label>
+              <span class="small rd-row">Vitesse <button class="rd-speed" id="radioSpeed" title="Vitesse de lecture des radios">1×</button></span>
             </div>
             <div class="muted small rd-status" id="radioTextStatus" data-full></div>
             <div class="muted small rd-status" id="obRadioStatus" data-full></div>
@@ -328,7 +334,6 @@
         <div class="tabpane rd-pane active" data-pane="radios">
           <div class="rd-strip" id="radioStrip" aria-label="Radios d'équipe"></div>
           <div class="note rd-empty" id="radioEmpty" hidden></div>
-          <div class="rd-feed-head"><b>Radios retranscrites</b><span class="muted small">texte et traduction</span><input type="range" class="rd-vol" id="radioVol" min="0" max="1" step="0.05" title="Volume des radios" aria-label="Volume des radios"><button class="rd-speed" id="radioSpeed" title="Vitesse de lecture des radios">1×</button></div>
           <div class="note rd-text-off" id="radioTextOff" hidden>Radios en texte, traduites : <button class="btn small btn-accent" id="radioTextOn">Activer</button></div>
           <ul class="rd-list" id="radioList"></ul>
         </div>

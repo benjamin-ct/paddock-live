@@ -32,8 +32,11 @@ l'application (Réglages → À propos → Nouveautés).
   exemple Comparaison, Bagarres ou Enquêtes. Le dernier onglet d'un panneau reste : masquer alors le panneau.
 - Bouton « Dispo. » : ouvre la fenêtre de la disposition, pour tout choisir au même endroit (panneaux et onglets
   affichés, colonnes du classement, placement, fenêtres, réinitialisation).
-- Radios d'équipe : réglages (pilotes écoutés, lecture auto, texte, traduction, qualité) et état de la
-  transcription rangés dans le menu « Options » à côté du titre, pour laisser la place aux radios.
+- Radios d'équipe : réglages (pilotes écoutés, lecture auto, texte, traduction, qualité, volume, vitesse) et
+  état de la transcription rangés dans le menu « Options » à côté du titre, pour laisser la place aux radios.
+- Direction de course : « Enquêtes » et « Limites de piste » sont des onglets à part, à côté de « Direction de
+  course », à masquer ou déplacer comme les autres ; les filtres des messages (drapeaux bleus, temps supprimés,
+  type, traduction) sont rangés sous l'engrenage.
 - Menus « Calques » (circuit) et « Colonnes » (classement) affichés en entier, même dans un petit panneau :
   ouverts par-dessus l'écran, vers le haut s'il y a plus de place, avec défilement si la fenêtre est basse.
 - Écran large mais peu haut (1080p) : panneaux « Direction de course » et « Stratégie » masqués par défaut, pour

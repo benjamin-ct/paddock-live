@@ -8,8 +8,8 @@ import { toast } from './delay.js';
 
 // Onglets proches réunis sous un seul onglet de la barre (le premier de la liste) : les autres sont
 // choisis par un sélecteur en haut de leur contenu, et suivent l'onglet principal s'il est déplacé.
-const GROUPS = { trace: ['trace', 'positions'], laptimes: ['laptimes', 'pace'], rcm: ['rcm', 'stewards', 'tracklimits'] };
-const SEG = { trace: 'Écarts', positions: 'Positions', laptimes: 'Tours', pace: 'Rythme', rcm: 'Messages', stewards: 'Enquêtes', tracklimits: 'Limites de piste' };
+const GROUPS = { trace: ['trace', 'positions'], laptimes: ['laptimes', 'pace'] };
+const SEG = { trace: 'Écarts', positions: 'Positions', laptimes: 'Tours', pace: 'Rythme' };
 const isMember = (t) => Object.values(GROUPS).some((g) => g.indexOf(t) > 0);
 // Onglets inutiles selon la séance chargée (masqués, de retour à la séance suivante)
 const QUALI_OFF = ['trace', 'positions', 'tyrehist', 'strategy', 'pitsim', 'battles', 'champ'];
@@ -67,7 +67,10 @@ function place(t, id, before = null) {
   const btn = tabBtn(t), p = pane(t), h = head(id), b = body(id);
   if (!btn || !p || !h || !b) return;
   const ref = before && before !== t ? tabBtn(before) : null;
-  h.insertBefore(btn, ref && ref.parentElement === h ? ref : h.querySelector(':scope > .panel-ctrl'));
+  h.insertBefore(btn, ref && ref.parentElement === h ? ref : h.querySelector(':scope > [data-menu-for], :scope > .panel-ctrl'));
+  // Menu d'options de l'onglet (engrenage) : suit son onglet, après les onglets du panneau
+  const menu = document.querySelector(`[data-menu-for="${t}"]`);
+  if (menu && menu.parentElement !== h) h.insertBefore(menu, h.querySelector(':scope > .panel-ctrl'));
   // Contenu déjà dans ce panneau : laissé en place (le déplacer remettrait sa liste en haut et
   // rejouerait ses animations, ex. toute la Direction de course)
   if (p.parentElement !== b) b.appendChild(p);

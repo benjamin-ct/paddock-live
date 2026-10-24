@@ -955,6 +955,12 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
 /* Réglages des radios : menu « Options » de l'en-tête du panneau, en colonne */
 .rd-menu { margin-left: 8px; }
 .rd-menu-body { min-width: 250px; max-width: 320px; }
+/* Menu d'options d'un onglet : seulement quand cet onglet est ouvert */
+.panel-head:has(> [data-tab="rcm"]:not(.active)) > [data-menu-for="rcm"],
+.panel-head:has(> [data-tab="radios"]:not(.active)) > [data-menu-for="radios"] { display: none; }
+.rd-row { display: flex; align-items: center; gap: 8px; padding: 0 8px; }
+.rcm-hidden { padding: 6px 12px 0; }
+.rcm-hidden:empty { display: none; }
 .rd-bar { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 4px 6px; }
 .rd-bar label { white-space: nowrap; }
 .rd-opts { display: contents; }
@@ -990,9 +996,7 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
 .rd-prog i { display: block; height: 100%; background: var(--rd-prog); transform-origin: left; transform: scaleX(0); }
 .rd-card.playing .rd-c-dur { color: var(--rd-prog); }
 /* Fil des radios retranscrites */
-.rd-feed-head { flex: none; display: flex; align-items: baseline; gap: 8px; padding: 8px 14px 4px; }
-.rd-feed-head b { font-size: 13.5px; }
-.rd-vol { margin-left: auto; width: 70px; }
+.rd-vol { width: 110px; }
 .rd-speed { min-width: 36px; height: 22px; border-radius: 6px; border: 1px solid var(--border); background: var(--panel-3); color: var(--text); font-size: 12px; cursor: pointer; }
 .rd-text-off { margin: 4px 12px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .rd-list { list-style: none; margin: 0; padding: 0 4px 6px; flex: 1; min-height: 0; overflow-y: auto; }
