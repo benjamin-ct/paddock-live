@@ -16,6 +16,7 @@ const DEFAULTS = {
   hiddenTabs: [],         // onglets masqués (Réglages → Onglets visibles), comme ceux inutiles pour la séance
   hiddenCols: [],
   extraCols: [],          // colonnes facultatives ajoutées au classement (voir EXTRA_COLUMNS)
+  bigCols: null,          // colonnes du classement agrandi (bouton ⤢) : { hidden, extra }, sinon les mêmes
   towerFit: true,         // classement agrandi pour remplir la hauteur disponible
   theme: 'pitwall',       // thème unique de l'application
   design: 'broadcast',    // habillage : 'broadcast' (façon retransmission TV) | 'classic' (ancien design Pitwall)
@@ -172,3 +173,7 @@ window.addEventListener('storage', (e) => {
     emit('prefs', key);
   }
 });
+
+// Colonnes du classement : les siennes quand il est agrandi (bouton ⤢), sinon celles de la disposition
+export const towerBig = () => !!document.querySelector('.p-tower.maximized');
+export const towerCols = () => (towerBig() && prefs.bigCols) || { hidden: prefs.hiddenCols, extra: prefs.extraCols };

@@ -496,6 +496,7 @@ export default {
   "Colonnes": "Columns",
   "Colonnes du classement :": "Standings columns:",
   "Colonnes en plus": "Extra columns",
+  "Classement agrandi : ses propres colonnes": "Enlarged standings: their own columns",
   "Comment les notes sont calculées": "How the ratings are calculated",
   "Comment récupérer mon jeton F1 TV ?": "How do I get my F1 TV token?",
   "Commentaires en direct": "Live commentary",

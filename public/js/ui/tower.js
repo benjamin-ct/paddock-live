@@ -1,7 +1,7 @@
 // Tableau de classement (course / qualifications / essais).
 import { store, setDuel, setFocus, versionOf, displayNow, f1Now, on } from '../store.js';
 import { $, esc, drivers, orderedNumbers, sessionKind, teamMark, tyreBadge, currentStint, lapSeconds, fmtLap } from '../util.js';
-import { prefs, isFav, toggleFav } from '../prefs.js';
+import { prefs, isFav, toggleFav, towerCols, towerBig } from '../prefs.js';
 import { segmentClass, parseUtc } from '/shared/f1.js';
 import { icon } from '../icons.js';
 import { realStopCount } from '/shared/pits.js';
@@ -40,7 +40,7 @@ function gapText(v) {
 
 export function renderTower(force = false) {
   const now = performance.now();
-  const key = `${versionOf(['TimingData', 'TimingAppData', 'DriverList', 'TimingStats', 'RaceControlMessages', '__reset'])}|${store.duel.a}|${store.duel.b}|${store.focus}|${prefs.hiddenCols.join()}|${prefs.extraCols.join()}|${prefs.favs.join()}|${prefs.hotLapDim}`;
+  const key = `${versionOf(['TimingData', 'TimingAppData', 'DriverList', 'TimingStats', 'RaceControlMessages', '__reset'])}|${store.duel.a}|${store.duel.b}|${store.focus}|${towerBig()}|${towerCols().hidden.join()}|${towerCols().extra.join()}|${prefs.favs.join()}|${prefs.hotLapDim}`;
   const carTick = store.positions.car.size ? Math.floor(now / 500) : 0;
   if (!force && key + carTick === lastKey) return;
   if (!force && now - lastRender < 250) return;
@@ -212,7 +212,8 @@ export function renderTower(force = false) {
   }
 
   const table = $('#tower');
-  table.className = `tower ${prefs.hiddenCols.map((c) => `hide-${c}`).join(' ')} ${prefs.extraCols.map((c) => `show-${c}`).join(' ')}`;
+  const cols = towerCols();
+  table.className = `tower ${cols.hidden.map((c) => `hide-${c}`).join(' ')} ${cols.extra.map((c) => `show-${c}`).join(' ')}`;
   syncTable(table, cutInfo, head, rows);
   fitTower();
 }
@@ -395,8 +396,9 @@ export function initTower() {
   // Ajustement à l'image suivante : le faire pendant la mesure relançait l'observateur en boucle
   let fitFrame = 0;
   if ('ResizeObserver' in window) new ResizeObserver(() => { cancelAnimationFrame(fitFrame); fitFrame = requestAnimationFrame(() => fitTower()); }).observe(wrap);
-  on('prefs', (k) => { if (k === 'towerFit') fitTower(true); });
+  on('prefs', (k) => { if (k === 'towerFit') fitTower(true); if (k === 'bigCols') renderTower(true); });
   on('reset', () => { freshReset = true; prevPos.clear(); flashes.clear(); });
+  on('towerSize', () => renderTower(true));   // agrandi ou réduit : ses colonnes
   $('#tower').addEventListener('click', (e) => {
     const b = e.target.closest('[data-duel]');
     if (b) {

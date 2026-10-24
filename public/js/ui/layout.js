@@ -1,8 +1,8 @@
 // Disposition libre : colonnes et panneaux redimensionnables, panneaux déplaçables par glisser-déposer,
 // fenêtres secondaires (second écran) pouvant regrouper plusieurs panneaux, colonnes du classement.
 import { $, $$, esc, storageGet, storageSet, sessionKind } from '../util.js';
-import { prefs, setPref, shortScreenHidden } from '../prefs.js';
-import { store, on } from '../store.js';
+import { prefs, setPref, shortScreenHidden, towerCols, towerBig } from '../prefs.js';
+import { store, on, emit } from '../store.js';
 import { toast } from './delay.js';
 import { icon } from '../icons.js';
 import { track } from './stats.js';
@@ -32,18 +32,24 @@ export const EXTRA_COLUMNS = [
   ['spd', 'Vitesses I1 / I2 / arrivée'], ['bsec', 'Meilleurs secteurs (S1 / S2 / S3)'], ['team', 'Écurie'],
 ];
 
-// Cases à cocher des colonnes (réglages et menu « Colonnes » du classement)
+// Cases à cocher des colonnes (réglages et menu « Colonnes » du classement). Classement agrandi (⤢) :
+// ses propres colonnes, d'abord les mêmes que d'habitude
 function colOptsHtml() {
-  const box = (k, name, on, extra) => `<label class="toggle small"><input type="checkbox" data-col="${k}"${extra ? ' data-extra="1"' : ''} ${on ? 'checked' : ''}> ${esc(name)}</label>`;
-  return COLUMNS.map(([k, n]) => box(k, n, !prefs.hiddenCols.includes(k), false)).join('')
+  const { hidden, extra } = towerCols();
+  const box = (k, name, on, x) => `<label class="toggle small"><input type="checkbox" data-col="${k}"${x ? ' data-extra="1"' : ''} ${on ? 'checked' : ''}> ${esc(name)}</label>`;
+  return (towerBig() ? '<div class="col-sep">Classement agrandi : ses propres colonnes</div>' : '')
+    + COLUMNS.map(([k, n]) => box(k, n, !hidden.includes(k), false)).join('')
     + '<div class="col-sep">Colonnes en plus</div>'
-    + EXTRA_COLUMNS.map(([k, n]) => box(k, n, prefs.extraCols.includes(k), true)).join('');
+    + EXTRA_COLUMNS.map(([k, n]) => box(k, n, extra.includes(k), true)).join('');
 }
 function onColChange(e) {
   const k = e.target.dataset.col;
   if (!k) return;
-  if (e.target.dataset.extra) setPref('extraCols', e.target.checked ? [...prefs.extraCols, k] : prefs.extraCols.filter((x) => x !== k));
-  else setPref('hiddenCols', e.target.checked ? prefs.hiddenCols.filter((x) => x !== k) : [...prefs.hiddenCols, k]);
+  const cur = towerCols();
+  const flip = (list, on) => (on ? [...list, k] : list.filter((x) => x !== k));
+  const next = e.target.dataset.extra ? { hidden: cur.hidden, extra: flip(cur.extra, e.target.checked) } : { hidden: flip(cur.hidden, !e.target.checked), extra: cur.extra };
+  if (towerBig()) setPref('bigCols', next);
+  else { setPref('hiddenCols', next.hidden); setPref('extraCols', next.extra); }
 }
 
 // Fenêtre courante : « main » ou une fenêtre secondaire (?win=…). « ?panel=x » : ancien lien d'un panneau seul.
@@ -73,8 +79,9 @@ const TAB_DEFAULTS = {
   race: { feed: 'rcm', analysis: 'trace', extra: 'pits' },
   quali: { feed: 'rcm', analysis: 'compare', extra: 'tyres' },
 };
-// Essentiel : limites de piste ouvertes à droite, et le championnat en course (sa projection ne sert qu'en course)
-const ESS_TABS = { race: { extra: 'champ', feed: 'tracklimits' }, quali: { feed: 'tracklimits' } };
+// Essentiel : limites de piste ouvertes à droite et le championnat en course (sa projection ne sert qu'en course) ;
+// essais et qualifs : la télémétrie du pilote suivi
+const ESS_TABS = { race: { extra: 'champ', feed: 'tracklimits' }, quali: { analysis: 'telemetry' } };
 const profileDefaults = () => ({ hiddenPanels: shortScreenHidden(prefs.fullMode), hiddenCols: [] });
 const profileFor = (mode, kind) => (mode === 'race' || mode === 'quali' ? mode : kind === 'race' ? 'race' : 'quali');
 let profile = prefs.layoutMode === 'race' || prefs.layoutMode === 'quali' ? prefs.layoutMode : storageGet('paddock.lastProfile', 'race');
@@ -90,6 +97,18 @@ function defaultLayout(prof = profile) {
   // Essentiel : classement compact, grande carte (radios dessous) ; à droite télémétrie du duel, championnat
   // et limites de piste. Écran plus étroit : classement, puis carte, duel, radios et arrêts
   if (!prefs.fullMode) {
+    // Essais et qualifs : classement avec les temps, grande carte (radios dessous), direction de course et
+    // télémétrie du pilote suivi à droite
+    if (quali) {
+      return window.innerWidth <= 1500 ? { cols: [
+        { w: 1.2, items: [{ id: 'tower', h: 1.5 }, { id: 'feed', h: 0.7 }] },
+        { w: 1, items: [{ id: 'map', h: 1.2 }, { id: 'radio', h: 0.7 }, { id: 'analysis', h: 0.9 }] },
+      ] } : { cols: [
+        { w: 1.7, items: [{ id: 'tower', h: 1 }] },
+        { w: 1.9, items: [{ id: 'map', h: 1.6 }, { id: 'radio', h: 1 }] },
+        { w: 1, items: [{ id: 'feed', h: 1 }, { id: 'analysis', h: 1.1 }] },
+      ] };
+    }
     return window.innerWidth <= 1500 ? { cols: [
       { w: 1, items: [{ id: 'tower', h: 1.5 }, { id: 'feed', h: 0.7 }] },
       { w: 1.2, items: [{ id: 'map', h: 1.4 }, { id: 'duel', h: 0.9 }, { id: 'radio', h: 0.8 }, { id: 'extra', h: 0.6 }] },
@@ -251,7 +270,7 @@ function detachedElsewhere(id) {
 
 function isVisible(id) {
   if (!isMain) return !!locate(id);
-  return !prefs.hiddenPanels.includes(id) && !detachedElsewhere(id) && !(essential() && EXPERT_PANELS.includes(id));
+  return !prefs.hiddenPanels.includes(id) && !detachedElsewhere(id) && !(essential() && (ESS_OFF[profile] || []).includes(id));
 }
 
 // ---------------- Rendu ----------------
@@ -288,9 +307,10 @@ function mobile() {
 }
 // Téléphone : version simplifiée (l'essentiel seulement), sauf « version complète » dans les réglages
 const simple = () => mobile() && !prefs.phoneFull;
-// Ordinateur, mode Essentiel : le principal seulement (data-expert et EXPERT_PANELS : mode Complet)
+// Ordinateur, mode Essentiel : le principal seulement (data-expert et ESS_OFF : mode Complet)
 const essential = () => isMain && !mobile() && !prefs.fullMode;
-const EXPERT_PANELS = ['analysis'];
+// Panneaux du mode Complet seulement, selon la séance (essais et qualifs : télémétrie au lieu du duel et de la stratégie)
+const ESS_OFF = { race: ['analysis'], quali: ['duel', 'extra'] };
 const SIMPLE_TABS = ['tower', 'map', 'feed', 'radio'];
 
 export function showMobilePanel(id) {
@@ -373,6 +393,7 @@ function render(force = false) {
   document.documentElement.classList.toggle('phone', mobile());
   document.documentElement.classList.toggle('simple', simple());
   document.documentElement.classList.toggle('essential', essential());
+  document.documentElement.classList.toggle('ess-quali', essential() && profile === 'quali');
   renderKey = key;
   if (mobile()) { renderMobile(grid); return; }
   grid.classList.remove('mobile');
@@ -882,8 +903,10 @@ function initChannel() {
 
 // ---------------- Agrandir ----------------
 export function unmaximize() {
+  const tower = $('.p-tower.maximized');
   for (const p of $$('.panel.maximized')) p.classList.remove('maximized');
   $('.grid').classList.remove('has-max');
+  if (tower) { renderLayoutOptions(); emit('towerSize'); }   // colonnes du classement : celles d'habitude
 }
 
 function maximize(id) {
@@ -893,6 +916,7 @@ function maximize(id) {
   if (!was) {
     el.classList.add('maximized');
     $('.grid').classList.add('has-max');
+    if (id === 'tower') { renderLayoutOptions(); emit('towerSize'); }   // colonnes du classement agrandi
   }
 }
 
@@ -1148,6 +1172,7 @@ export function resetLayout(ask = true) {
   setPref('hiddenPanels', [...def.hiddenPanels]);
   setPref('hiddenCols', [...def.hiddenCols]);
   setPref('extraCols', []);
+  setPref('bigCols', null);
   setPref('tabLayout', null);
   setPref('hiddenTabs', []);
   if (!prefs.towerFit) setPref('towerFit', true);
@@ -1164,7 +1189,7 @@ export function renderLayoutOptions() {
     sel.onchange = () => setPref('layoutMode', sel.value);
     $('#layoutProfileNow').textContent = `Disposition affichée : « ${PROFILES[profile]} ».`;
   }
-  $('#panelOpts').innerHTML = PANELS.map((p) => `<label class="toggle small"${EXPERT_PANELS.includes(p.id) ? ' data-expert' : ''}><input type="checkbox" data-panel="${p.id}" ${prefs.hiddenPanels.includes(p.id) ? '' : 'checked'}> ${esc(p.name)}</label>`).join('');
+  $('#panelOpts').innerHTML = PANELS.map((p) => `<label class="toggle small"${(ESS_OFF[profile] || []).includes(p.id) ? ' data-expert' : ''}><input type="checkbox" data-panel="${p.id}" ${prefs.hiddenPanels.includes(p.id) ? '' : 'checked'}> ${esc(p.name)}</label>`).join('');
   $('#panelOpts').onchange = (e) => {
     const id = e.target.dataset.panel;
     if (!id) return;
