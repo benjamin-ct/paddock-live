@@ -31,6 +31,17 @@ export function parseUtc(s) {
   return Date.parse(/[zZ]|[+-]\d\d:?\d\d$/.test(s) ? s : s + 'Z');
 }
 
+// Drapeau à damier (messages de la direction de course) : heure UTC du dernier de la séance, ou de la partie
+// des qualifs tant qu'un feu vert ne l'a pas suivi ; null sinon
+export function chequeredUtc(messages) {
+  let at = null;
+  for (const m of Array.isArray(messages) ? messages : Object.values(messages || {})) {
+    if (m?.Flag === 'CHEQUERED') at = parseUtc(m.Utc);
+    else if (m?.Flag === 'GREEN' && m.Scope === 'Track') at = null;
+  }
+  return Number.isFinite(at) ? at : null;
+}
+
 // "1:45.123" -> 105.123 ; "45.123" -> 45.123 ; "" -> null
 export function parseLapTime(s) {
   if (s === null || s === undefined || s === '') return null;

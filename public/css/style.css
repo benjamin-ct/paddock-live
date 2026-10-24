@@ -313,6 +313,9 @@ code { background: var(--panel-3); padding: 1px 5px; border-radius: 4px; font-si
 .tag.drs { background: var(--green); color: #002012; }
 .tag.flag-blue { background: var(--blue); color: #001526; }
 .tag.catch { background: rgba(53,208,127,.18); color: var(--green); }
+/* Drapeau à damier passé */
+.tag.fin { display: inline-block; width: 22px; height: 15px; padding: 0; vertical-align: middle; box-shadow: 0 0 0 1px var(--line-2);
+  background: repeating-conic-gradient(#0b0c0f 0 25%, #fff 0 50%) 0 0 / 7.5px 7.5px; }
 .t-gap, .t-int, .t-lap { text-align: right; font-weight: 600; }
 .t-int.catching { color: var(--green); }
 .purple { color: var(--purple) !important; }
