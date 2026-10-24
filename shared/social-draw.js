@@ -225,6 +225,15 @@ export function photo(ctx, img, x, y, w, h, color, fade = 0) {
   ctx.drawImage(off, dx, dy);
 }
 
+// Cadre de la photo de couverture d'une actu (photo importée) : le même pour le visuel et pour le recadrage
+export function newsPhotoBox(W, H) {
+  const m = Math.min(W, H);
+  const pad = Math.round(W * 0.055);
+  const y = Math.round(m * 0.06) + 110 * m / 1080;
+  const bottom = H - Math.round(m * 0.045) - Math.round(m * 0.07);
+  return { x: pad, y, w: W - pad * 2, h: (bottom - y) * (H > 1600 ? 0.42 : 0.38) };
+}
+
 // Photo importée (post écrit à la main) : recadrée pour remplir la zone, coins arrondis, bas assombri
 export function coverPhoto(ctx, img, x, y, w, h, r = 24) {
   const k = Math.max(w / img.width, h / img.height);
@@ -605,7 +614,7 @@ export function newsSlide(ctx, W, H, d, o, fmt = 'ig') {
   let centered = false;
   const custom = d.image?.width ? d.image : null;   // photo importée : à la place des portraits
   if (custom) {
-    const ph = (bottom - areaTop) * (H > 1600 ? 0.42 : 0.38);
+    const ph = newsPhotoBox(W, H).h;
     coverPhoto(ctx, custom, pad, areaTop, W - pad * 2, ph);
     photoCredit(ctx, d.credit, pad, areaTop, W - pad * 2, ph, u);
     areaTop += ph + 30 * u;

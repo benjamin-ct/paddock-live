@@ -32,14 +32,17 @@ export function photoPicker(query, onPick) {
 }
 
 // ---------- Recadrage d'une photo : cadre à déplacer, coins pour l'agrandir, format libre ou imposé ----------
-const RATIOS = [['Libre', 0], ['Carré', 1], ['4:5', 4 / 5], ['16:9', 16 / 9]];
+const FORMATS = [['Libre', 0], ['Carré', 1], ['4:5', 4 / 5], ['16:9', 16 / 9]];
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
-// image -> Promise de la photo recadrée (ImageBitmap), ou null si la fenêtre est fermée sans valider
-export function cropImage(image) {
+// image -> Promise de la photo recadrée (ImageBitmap), ou null si la fenêtre est fermée sans valider ;
+// frame : proportions du cadre de la photo sur le visuel (format « Visuel », proposé d'abord : la photo
+// recadrée y apparaît telle quelle, sans être recoupée)
+export function cropImage(image, frame = 0) {
+  const RATIOS = frame ? [['Visuel', frame], ...FORMATS] : FORMATS;
   return new Promise((resolve) => {
     const IW = image.width;
     const IH = image.height;
-    let ratio = 0;
+    let ratio = RATIOS[0][1];
     let box = { x: 0, y: 0, w: 1, h: 1 };   // cadre, en fraction de la photo
     const dlg = sheet('Recadrer la photo', `<div class="crop" id="crop"><canvas id="cropcv"></canvas><div class="crop-box" id="cropbox">${['nw', 'ne', 'sw', 'se'].map((h) => `<i data-h="${h}"></i>`).join('')}</div></div>
       <div class="seg wide" id="cropratio">${RATIOS.map(([l], i) => `<button type="button" data-r="${i}"${i ? '' : ' class="on"'}>${l}</button>`).join('')}</div>
@@ -109,13 +112,14 @@ export function cropImage(image) {
       glide(dlg);
     };
     for (const b of $$('#cropratio button', dlg)) b.onclick = () => { pickRatio(Number(b.dataset.r)); fit(); show(); };
-    $('#cropall', dlg).onclick = () => { pickRatio(0); box = { x: 0, y: 0, w: 1, h: 1 }; show(); };
+    $('#cropall', dlg).onclick = () => { pickRatio(RATIOS.findIndex(([, r]) => !r)); box = { x: 0, y: 0, w: 1, h: 1 }; show(); };
     $('#cropok', dlg).onclick = async () => {
       const sx = Math.round(box.x * IW);
       const sy = Math.round(box.y * IH);
       finish(await createImageBitmap(image, sx, sy, Math.max(1, Math.round(box.w * IW)), Math.max(1, Math.round(box.h * IH))));
       dlg.close();
     };
+    fit();
     show();
     glide(dlg);
   });
