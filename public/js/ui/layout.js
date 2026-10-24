@@ -79,9 +79,8 @@ const TAB_DEFAULTS = {
   race: { feed: 'rcm', analysis: 'trace', extra: 'pits' },
   quali: { feed: 'rcm', analysis: 'compare', extra: 'tyres' },
 };
-// Essentiel : limites de piste ouvertes à droite et le championnat en course (sa projection ne sert qu'en course) ;
-// essais et qualifs : la télémétrie du pilote suivi
-const ESS_TABS = { race: { extra: 'champ', feed: 'tracklimits' }, quali: { analysis: 'telemetry' } };
+// Essentiel : la télémétrie du pilote suivi dans le panneau Analyse
+const ESS_TABS = { analysis: 'telemetry' };
 const profileDefaults = () => ({ hiddenPanels: shortScreenHidden(prefs.fullMode), hiddenCols: [] });
 const profileFor = (mode, kind) => (mode === 'race' || mode === 'quali' ? mode : kind === 'race' ? 'race' : 'quali');
 let profile = prefs.layoutMode === 'race' || prefs.layoutMode === 'quali' ? prefs.layoutMode : storageGet('paddock.lastProfile', 'race');
@@ -97,25 +96,15 @@ function defaultLayout(prof = profile) {
   // Essentiel : classement compact, grande carte (radios dessous) ; à droite télémétrie du duel, championnat
   // et limites de piste. Écran plus étroit : classement, puis carte, duel, radios et arrêts
   if (!prefs.fullMode) {
-    // Essais et qualifs : classement avec les temps, grande carte (radios dessous), direction de course et
-    // télémétrie du pilote suivi à droite
-    if (quali) {
-      return window.innerWidth <= 1500 ? { cols: [
-        { w: 1.2, items: [{ id: 'tower', h: 1.5 }, { id: 'feed', h: 0.7 }] },
-        { w: 1, items: [{ id: 'map', h: 1.2 }, { id: 'radio', h: 0.7 }, { id: 'analysis', h: 0.9 }] },
-      ] } : { cols: [
-        { w: 1.7, items: [{ id: 'tower', h: 1 }] },
-        { w: 1.9, items: [{ id: 'map', h: 1.6 }, { id: 'radio', h: 1 }] },
-        { w: 1, items: [{ id: 'feed', h: 1 }, { id: 'analysis', h: 1.1 }] },
-      ] };
-    }
+    // Essentiel : classement (essais et qualifs : avec les temps, donc plus large), grande carte (radios dessous),
+    // direction de course et télémétrie du pilote suivi à droite
     return window.innerWidth <= 1500 ? { cols: [
-      { w: 1, items: [{ id: 'tower', h: 1.5 }, { id: 'feed', h: 0.7 }] },
-      { w: 1.2, items: [{ id: 'map', h: 1.4 }, { id: 'duel', h: 0.9 }, { id: 'radio', h: 0.8 }, { id: 'extra', h: 0.6 }] },
+      { w: 1.2, items: [{ id: 'tower', h: 1.5 }, { id: 'feed', h: 0.7 }] },
+      { w: 1, items: [{ id: 'map', h: 1.2 }, { id: 'radio', h: 0.7 }, { id: 'analysis', h: 0.9 }] },
     ] } : { cols: [
-      { w: 1, items: [{ id: 'tower', h: 1 }] },
-      { w: 1.9, items: [{ id: 'map', h: 1.5 }, { id: 'radio', h: 0.5 }] },
-      { w: 1, items: [{ id: 'duel', h: 1.1 }, { id: 'extra', h: 0.9 }, { id: 'feed', h: 0.8 }] },
+      { w: quali ? 1.7 : 1.2, items: [{ id: 'tower', h: 1 }] },
+      { w: 1.9, items: [{ id: 'map', h: 1.6 }, { id: 'radio', h: 1 }] },
+      { w: 1, items: [{ id: 'feed', h: 1 }, { id: 'analysis', h: 1.1 }] },
     ] };
   }
   if (window.innerWidth <= 1500) {
@@ -270,7 +259,7 @@ function detachedElsewhere(id) {
 
 function isVisible(id) {
   if (!isMain) return !!locate(id);
-  return !prefs.hiddenPanels.includes(id) && !detachedElsewhere(id) && !(essential() && (ESS_OFF[profile] || []).includes(id));
+  return !prefs.hiddenPanels.includes(id) && !detachedElsewhere(id) && !(essential() && ESS_OFF.includes(id));
 }
 
 // ---------------- Rendu ----------------
@@ -309,8 +298,8 @@ function mobile() {
 const simple = () => mobile() && !prefs.phoneFull;
 // Ordinateur, mode Essentiel : le principal seulement (data-expert et ESS_OFF : mode Complet)
 const essential = () => isMain && !mobile() && !prefs.fullMode;
-// Panneaux du mode Complet seulement, selon la séance (essais et qualifs : télémétrie au lieu du duel et de la stratégie)
-const ESS_OFF = { race: ['analysis'], quali: ['duel', 'extra'] };
+// Panneaux du mode Complet seulement (Essentiel : la télémétrie du panneau Analyse à la place)
+const ESS_OFF = ['duel', 'extra'];
 const SIMPLE_TABS = ['tower', 'map', 'feed', 'radio'];
 
 export function showMobilePanel(id) {
@@ -933,7 +922,7 @@ const tabHeads = () => PANELS.map((p) => [p.id, panelEl(p.id)?.querySelector('[d
 function applyTabs() {
   const saved = storageGet(TABS_KEY, {})[profile] || {};
   for (const [id, head] of tabHeads()) {
-    const want = saved[id] || (essential() && ESS_TABS[profile]?.[id]) || TAB_DEFAULTS[profile]?.[id];
+    const want = saved[id] || (essential() && ESS_TABS[id]) || TAB_DEFAULTS[profile]?.[id];
     const b = want && head.querySelector(`[data-tab="${want}"]`);
     if (b && !b.classList.contains('active')) b.click();
   }
@@ -1189,7 +1178,7 @@ export function renderLayoutOptions() {
     sel.onchange = () => setPref('layoutMode', sel.value);
     $('#layoutProfileNow').textContent = `Disposition affichée : « ${PROFILES[profile]} ».`;
   }
-  $('#panelOpts').innerHTML = PANELS.map((p) => `<label class="toggle small"${(ESS_OFF[profile] || []).includes(p.id) ? ' data-expert' : ''}><input type="checkbox" data-panel="${p.id}" ${prefs.hiddenPanels.includes(p.id) ? '' : 'checked'}> ${esc(p.name)}</label>`).join('');
+  $('#panelOpts').innerHTML = PANELS.map((p) => `<label class="toggle small"${ESS_OFF.includes(p.id) ? ' data-expert' : ''}><input type="checkbox" data-panel="${p.id}" ${prefs.hiddenPanels.includes(p.id) ? '' : 'checked'}> ${esc(p.name)}</label>`).join('');
   $('#panelOpts').onchange = (e) => {
     const id = e.target.dataset.panel;
     if (!id) return;

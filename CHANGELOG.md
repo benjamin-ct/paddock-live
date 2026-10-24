@@ -44,12 +44,10 @@ l'application (Réglages → À propos → Nouveautés).
   direction de course reste dans la barre du bas, pneus et arrêts dans le classement ; les réafficher dans
   Dispo. Disposition déjà enregistrée : Dispo. → Réinitialiser pour en profiter.
 - Interface Essentielle (la plus simple) sur grand écran, façon tableau de bord : classement à gauche, grande
-  carte au centre avec les radios dessous, et à droite la télémétrie du duel, le championnat en direct (onglet
-  « Champ. », maintenant aussi en Essentiel) et les limites de piste. Disposition déjà enregistrée :
-  Dispo. → Réinitialiser.
+  carte au centre avec les radios dessous, et à droite la direction de course et la télémétrie du pilote suivi.
+  Disposition déjà enregistrée : Dispo. → Réinitialiser.
 - Interface Essentielle pendant les essais et les qualifs : classement avec le meilleur tour, l'écart et
-  l'intervalle (secteurs en couleur, sans les mini-secteurs), grande carte avec les radios dessous, et à droite la
-  direction de course et la télémétrie du pilote suivi. Disposition déjà enregistrée : Dispo. → Réinitialiser.
+  l'intervalle (secteurs en couleur, sans les mini-secteurs).
 - Classement agrandi (bouton ⤢) : ses propres colonnes, choisies dans « Colonnes » pendant qu'il est agrandi ;
   revenu à sa taille, il reprend celles d'habitude.
 - L'onglet « Limites de piste » (ou « Enquêtes ») ouvert reste ouvert au lancement suivant.
