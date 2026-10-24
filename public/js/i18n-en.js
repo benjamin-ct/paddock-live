@@ -1615,6 +1615,7 @@ export default {
   "Partages": "Shares",
   "Enreg.": "Saves",
   "statistiques indisponibles": "statistics unavailable",
+  "Chiffres dans l'appli TikTok": "Figures in the TikTok app",
   "Aucun post publié depuis Paddock Live pour le moment.": "No post published from Paddock Live yet.",
   "Publiée": "Posted",
   "Déjà publiée le {} sur {}": "Already posted on {} to {}",

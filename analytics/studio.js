@@ -859,7 +859,8 @@ export async function studioApi(req, env, url) {
   if (path === 'stats' && req.method === 'GET') {
     const v = await refresh(env, a.raw, vault);
     // 6 posts au plus
-    const posts = await postStats(JSON.parse(await getRow(env, 'history') || '[]'), { meta: v.meta, threads: v.threads, bluesky: v.bluesky }, { limit: 6 });
+    const yt = v.youtube ? await clipAccount(env, a.raw, v, 'youtube').catch(() => null) : null;
+    const posts = await postStats(JSON.parse(await getRow(env, 'history') || '[]'), { meta: v.meta, threads: v.threads, bluesky: v.bluesky, youtubeToken: yt?.accessToken }, { limit: 6 });
     // kept : chiffres des 60 derniers posts gardés ici (heure conseillée, sur tous les appareils)
     let kept = [];
     try { kept = JSON.parse(await getRow(env, 'poststats') || '[]'); } catch { /* ligne abîmée : refaite */ }

@@ -1,5 +1,5 @@
 // Statistiques des posts publiés (journal des publications) et abonnés, lues chez chaque réseau :
-// Instagram, Facebook et Threads (API de Meta), Bluesky (API publique). X : lecture payante,
+// Instagram, Facebook et Threads (API de Meta), Bluesky (API publique), YouTube (jeton donné). X : lecture payante,
 // non utilisée (lien seulement). Partagé par l'appli et la page web du créateur. Chaque mesure
 // indisponible (permission manquante, post supprimé) est simplement absente.
 import { call, GRAPH, THREADS } from './meta-publish.js';
@@ -35,6 +35,28 @@ async function instagram(meta, id) {
 
 // Valeur d'une mesure : nombre, ou total d'un détail (payant / naturel…)
 const num = (v) => (v == null ? null : typeof v === 'object' ? Object.values(v).reduce((a, x) => a + (Number(x) || 0), 0) : Number(v));
+
+// Vidéo de la page (publiée par /videos) : ses propres chiffres (video_insights), pas ceux d'un post
+async function facebookVideo(meta, id) {
+  const tok = { access_token: meta.pageToken };
+  const errs = [];
+  const [base, ins] = await Promise.all([
+    tryCall(call(`${GRAPH}/${id}?${new URLSearchParams({ fields: 'reactions.summary(total_count).limit(0),comments.summary(total_count).limit(0)', ...tok })}`), errs),
+    tryCall(call(`${GRAPH}/${id}/video_insights?${new URLSearchParams({ metric: 'total_video_views,total_video_views_unique', ...tok })}`), errs),
+  ]);
+  if (!base && !ins) return unavailable(errs);
+  return { views: metric(ins, 'total_video_views'), reach: metric(ins, 'total_video_views_unique'), likes: base?.reactions?.summary?.total_count ?? null, comments: base?.comments?.summary?.total_count ?? null };
+}
+
+// Short YouTube : vues, j'aime, commentaires (token : jeton YouTube à jour)
+async function youtube(token, id) {
+  const errs = [];
+  const r = await tryCall(call(`https://www.googleapis.com/youtube/v3/videos?${new URLSearchParams({ part: 'statistics', id })}`, { headers: { Authorization: `Bearer ${token}` } }), errs);
+  const st = r?.items?.[0]?.statistics;
+  if (!st) return unavailable(errs.length ? errs : ['Post supprimé ou introuvable']);
+  const n = (v) => (v == null ? null : Number(v));
+  return { views: n(st.viewCount), likes: n(st.likeCount), comments: n(st.commentCount) };
+}
 
 async function facebook(meta, id) {
   const tok = { access_token: meta.pageToken };
@@ -94,7 +116,10 @@ export async function postStats(history, acc, { limit = 30 } = {}) {
     const n = e.nets || {};
     const jobs = [];
     if (n.instagram?.id && acc.meta?.pageToken) jobs.push(instagram(acc.meta, n.instagram.id).then((s) => { stats.instagram = s; }));
-    if (n.facebook?.id && acc.meta?.pageToken) jobs.push(facebook(acc.meta, n.facebook.id).then((s) => { stats.facebook = s; }));
+    if (n.facebook?.id && acc.meta?.pageToken) jobs.push((/\/videos\//.test(n.facebook.url || '') ? facebookVideo : facebook)(acc.meta, n.facebook.id).then((s) => { stats.facebook = s; }));
+    if (n.youtube?.id && acc.youtubeToken) jobs.push(youtube(acc.youtubeToken, n.youtube.id).then((s) => { stats.youtube = s; }));
+    // TikTok ne donne pas les chiffres d'un post (ni d'un brouillon) à l'appli
+    if (n.tiktok) stats.tiktok = { error: 'tiktok', note: 'Chiffres dans l\'appli TikTok' };
     if (n.threads?.id && acc.threads?.token) jobs.push(threads(acc.threads, n.threads.id).then((s) => { stats.threads = s; }));
     if (n.bluesky?.id?.uri) stats.bluesky = bsky[n.bluesky.id.uri] || null;
     await Promise.all(jobs);
