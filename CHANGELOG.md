@@ -53,7 +53,8 @@ l'application (Réglages → À propos → Nouveautés).
   dessous, côte à côte, la télémétrie et la direction de course (radios sous elle). Panneaux à déplacer et
   redimensionner librement.
 - Disposition libre : chaque panneau se redimensionne par n'importe quel bord ou coin (avant : seulement par le
-  coin en bas à droite).
+  coin en bas à droite) ; les panneaux collés suivent (agrandir l'un réduit son voisin), s'aimantent plus
+  facilement et gardent tous la même marge entre eux, comme en colonnes.
 - Carte : les mini-secteurs du pilote suivi (choisi dans le classement) prennent les couleurs du classement
   (jaune, vert, violet) pendant son tour. La bulle d'infos n'apparaît plus que pour un pilote choisi.
 - Classement agrandi (bouton ⤢) : ses propres colonnes, choisies dans « Colonnes » pendant qu'il est agrandi ;

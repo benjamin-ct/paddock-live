@@ -471,8 +471,39 @@ function render(force = false) {
 // Chaque panneau a sa position et sa taille (en fractions de la zone des panneaux) : on le
 // déplace avec la poignée et on le redimensionne par son coin, n'importe où ; il s'aimante aux bords
 // de la zone et des autres panneaux. Clic sur un panneau = il passe au premier plan.
-const FREE_GAP = 6;     // écart laissé entre deux panneaux aimantés (px)
-const SNAP = 12;        // distance d'aimantation (px)
+const FREE_GAP = 10;    // écart entre deux panneaux, et avec le bord de la zone (px) : le même qu'en colonnes
+const SNAP = 18;        // distance d'aimantation (px)
+const NEAR = FREE_GAP + 12;   // bords considérés comme collés (même séparation)
+
+// Rectangle d'un panneau libre en pixels { l, t, r, b } et retour en fractions de la zone
+const toPx = (f, g) => ({ l: g.left + f.x * g.width, t: g.top + f.y * g.height, r: g.left + (f.x + f.w) * g.width, b: g.top + (f.y + f.h) * g.height });
+const toFrac = (p, g) => ({ x: (p.l - g.left) / g.width, y: (p.t - g.top) / g.height, w: (p.r - p.l) / g.width, h: (p.b - p.t) / g.height });
+const overlap = (a0, a1, b0, b1) => Math.min(a1, b1) - Math.max(a0, b0) > 0;
+
+// Marges régulières : bords proches d'un voisin ou de la zone calés à FREE_GAP (après un déplacement, à l'affichage)
+function tidyFree(ids) {
+  const g = $('.grid').getBoundingClientRect();
+  if (!g.width || !g.height) return;
+  const R = ids.map((id) => [id, toPx(layout.free.rects[id], g)]);
+  for (const [, r] of R) {
+    if (r.l - g.left < NEAR) r.l = g.left + FREE_GAP;
+    if (g.right - r.r < NEAR) r.r = g.right - FREE_GAP;
+    if (r.t - g.top < NEAR) r.t = g.top + FREE_GAP;
+    if (g.bottom - r.b < NEAR) r.b = g.bottom - FREE_GAP;
+  }
+  for (const [, a] of R) {
+    for (const [, b] of R) {
+      if (a === b) continue;
+      if (overlap(a.t, a.b, b.t, b.b) && Math.abs(b.l - a.r) < NEAR) b.l = a.r + FREE_GAP;
+      if (overlap(a.l, a.r, b.l, b.r) && Math.abs(b.t - a.b) < NEAR) b.t = a.b + FREE_GAP;
+    }
+  }
+  for (const [id, r] of R) {
+    if (r.r - r.l < MIN_W || r.b - r.t < MIN_H) continue;
+    layout.free.rects[id] = toFrac(r, g);
+    applyRect(panelEl(id), layout.free.rects[id]);
+  }
+}
 
 function clearFree(el) {
   if (!el._free) return;
@@ -543,6 +574,7 @@ function renderFree(grid, stash) {
     note.textContent = isMain ? 'Tous les panneaux sont masqués ou ouverts dans une autre fenêtre.' : 'Fenêtre vide.';
     grid.insertBefore(note, stash);
   }
+  tidyFree(ids);
 }
 
 function bringToFront(id) {
@@ -561,8 +593,27 @@ function freeDrag(id, e, mode) {
   const r0 = el.getBoundingClientRect();
   const sx = e.clientX, sy = e.clientY;
   bringToFront(id);
-  // Bords auxquels s'aimanter : zone des panneaux et autres panneaux visibles
-  const others = PANELS.map((p) => p.id).filter((x) => x !== id && isVisible(x)).map((x) => panelEl(x).getBoundingClientRect());
+  const otherIds = PANELS.map((p) => p.id).filter((x) => x !== id && isVisible(x));
+  const start = Object.fromEntries(otherIds.map((x) => { const o = panelEl(x).getBoundingClientRect(); return [x, { l: o.left, t: o.top, r: o.right, b: o.bottom }]; }));
+  // Redimensionnement : les panneaux collés au bord tiré le suivent (même séparation) : bord en face (écart gardé)
+  // ou bord aligné du même côté (panneaux empilés). links : { id, edge, off } par axe
+  const links = { x: [], y: [] };
+  if (mode !== 'move') {
+    const edge = (axis, line, out, inn) => {
+      for (const x of otherIds) {
+        const o = start[x];
+        if (Math.abs(o[out] - line) < NEAR + FREE_GAP && Math.abs(o[out] - line) >= FREE_GAP / 2 && Math.sign(o[out] - line) === (out === 'l' || out === 't' ? 1 : -1)) links[axis].push({ id: x, edge: out, off: o[out] - line });
+        else if (Math.abs(o[inn] - line) < NEAR / 2) links[axis].push({ id: x, edge: inn, off: o[inn] - line });
+      }
+    };
+    if (mode.includes('e')) edge('x', r0.right, 'l', 'r');
+    if (mode.includes('w')) edge('x', r0.left, 'r', 'l');
+    if (mode.includes('s')) edge('y', r0.bottom, 't', 'b');
+    if (mode.includes('n')) edge('y', r0.top, 'b', 't');
+  }
+  const linked = new Set([...links.x, ...links.y].map((k) => k.id));
+  // Bords auxquels s'aimanter : zone des panneaux et autres panneaux visibles (sauf ceux qui suivent)
+  const others = otherIds.filter((x) => !linked.has(x)).map((x) => panelEl(x).getBoundingClientRect());
   const xs = [g.left, g.right, ...others.flatMap((o) => [o.left - FREE_GAP, o.right + FREE_GAP, o.left, o.right])];
   const ys = [g.top, g.bottom, ...others.flatMap((o) => [o.top - FREE_GAP, o.bottom + FREE_GAP, o.top, o.bottom])];
   const snap = (v, list) => { let best = v, d = SNAP; for (const c of list) if (Math.abs(c - v) < d) { d = Math.abs(c - v); best = c; } return best; };
@@ -585,11 +636,35 @@ function freeDrag(id, e, mode) {
       rect = { left, top, width: r0.width, height: r0.height };
     } else {
       // mode : bords tirés (n, s, e, w et coins) ; les autres restent en place
-      const left = mode.includes('w') ? snap(Math.max(g.left, Math.min(r0.right - MIN_W, r0.left + dx)), xs) : r0.left;
-      const right = mode.includes('e') ? snap(Math.min(g.right, Math.max(r0.left + MIN_W, r0.right + dx)), xs) : r0.right;
-      const top = mode.includes('n') ? snap(Math.max(g.top, Math.min(r0.bottom - MIN_H, r0.top + dy)), ys) : r0.top;
-      const bottom = mode.includes('s') ? snap(Math.min(g.bottom, Math.max(r0.top + MIN_H, r0.bottom + dy)), ys) : r0.bottom;
+      let left = mode.includes('w') ? snap(Math.max(g.left, Math.min(r0.right - MIN_W, r0.left + dx)), xs) : r0.left;
+      let right = mode.includes('e') ? snap(Math.min(g.right, Math.max(r0.left + MIN_W, r0.right + dx)), xs) : r0.right;
+      let top = mode.includes('n') ? snap(Math.max(g.top, Math.min(r0.bottom - MIN_H, r0.top + dy)), ys) : r0.top;
+      let bottom = mode.includes('s') ? snap(Math.min(g.bottom, Math.max(r0.top + MIN_H, r0.bottom + dy)), ys) : r0.bottom;
+      // Panneaux qui suivent : chacun garde sa taille minimale (le bord tiré s'arrête avant)
+      const keep = (v, axis) => {
+        for (const k of links[axis]) {
+          const o = start[k.id], min = axis === 'x' ? MIN_W : MIN_H;
+          const e = v + k.off;
+          if (k.edge === 'l' && o.r - e < min) v = o.r - min - k.off;
+          if (k.edge === 'r' && e - o.l < min) v = o.l + min - k.off;
+          if (k.edge === 't' && o.b - e < min) v = o.b - min - k.off;
+          if (k.edge === 'b' && e - o.t < min) v = o.t + min - k.off;
+        }
+        return v;
+      };
+      if (mode.includes('e')) right = keep(right, 'x');
+      if (mode.includes('w')) left = keep(left, 'x');
+      if (mode.includes('s')) bottom = keep(bottom, 'y');
+      if (mode.includes('n')) top = keep(top, 'y');
       rect = { left, top, width: right - left, height: bottom - top };
+      const lines = { x: mode.includes('e') ? right : left, y: mode.includes('s') ? bottom : top };
+      for (const axis of ['x', 'y']) {
+        for (const k of links[axis]) {
+          const p = { ...start[k.id], [k.edge]: lines[axis] + k.off };
+          layout.free.rects[k.id] = toFrac(p, g);
+          applyRect(panelEl(k.id), layout.free.rects[k.id]);
+        }
+      }
     }
     const r = { x: (rect.left - g.left) / g.width, y: (rect.top - g.top) / g.height, w: rect.width / g.width, h: rect.height / g.height };
     layout.free.rects[id] = r;
@@ -604,6 +679,7 @@ function freeDrag(id, e, mode) {
     window.removeEventListener('pointercancel', up);
     window.removeEventListener('blur', up);
     endResize();
+    tidyFree(PANELS.map((p) => p.id).filter(isVisible));   // marges régulières
     save();
     window.dispatchEvent(new Event('resize'));   // graphiques et carte à la nouvelle taille
   };
