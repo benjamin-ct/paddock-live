@@ -477,7 +477,7 @@ const SNAP = 12;        // distance d'aimantation (px)
 function clearFree(el) {
   if (!el._free) return;
   for (const k of ['position', 'left', 'top', 'width', 'height', 'zIndex']) el.style[k] = '';
-  el.querySelector(':scope > .fr-rs')?.remove();
+  for (const h of el.querySelectorAll(':scope > .fr-rs, :scope > .fr-edge')) h.remove();
   el._free = false;
 }
 
@@ -526,11 +526,14 @@ function renderFree(grid, stash) {
     el._free = true;
     el._model = null;
     if (!el.querySelector(':scope > .fr-rs')) {
-      const rs = document.createElement('div');
-      rs.className = 'fr-rs';
-      rs.title = 'Glisser pour redimensionner';
-      rs.addEventListener('pointerdown', (e) => freeDrag(id, e, 'resize'));
-      el.appendChild(rs);
+      // Redimensionnement par chaque bord et chaque coin (poignée visible : coin en bas à droite)
+      for (const dir of ['se', 'n', 's', 'e', 'w', 'ne', 'nw', 'sw']) {
+        const rs = document.createElement('div');
+        rs.className = dir === 'se' ? 'fr-rs' : `fr-edge fr-${dir}`;
+        rs.title = 'Glisser pour redimensionner';
+        rs.addEventListener('pointerdown', (e) => freeDrag(id, e, dir));
+        el.appendChild(rs);
+      }
     }
     grid.insertBefore(el, stash);
   }
@@ -581,9 +584,12 @@ function freeDrag(id, e, mode) {
       top = Math.max(g.top, Math.min(Math.max(g.top, g.bottom - r0.height), Math.abs(st - top) <= Math.abs(sb - top) ? st : sb));
       rect = { left, top, width: r0.width, height: r0.height };
     } else {
-      const right = snap(Math.min(g.right, Math.max(r0.left + MIN_W, r0.right + dx)), xs);
-      const bottom = snap(Math.min(g.bottom, Math.max(r0.top + MIN_H, r0.bottom + dy)), ys);
-      rect = { left: r0.left, top: r0.top, width: right - r0.left, height: bottom - r0.top };
+      // mode : bords tirés (n, s, e, w et coins) ; les autres restent en place
+      const left = mode.includes('w') ? snap(Math.max(g.left, Math.min(r0.right - MIN_W, r0.left + dx)), xs) : r0.left;
+      const right = mode.includes('e') ? snap(Math.min(g.right, Math.max(r0.left + MIN_W, r0.right + dx)), xs) : r0.right;
+      const top = mode.includes('n') ? snap(Math.max(g.top, Math.min(r0.bottom - MIN_H, r0.top + dy)), ys) : r0.top;
+      const bottom = mode.includes('s') ? snap(Math.min(g.bottom, Math.max(r0.top + MIN_H, r0.bottom + dy)), ys) : r0.bottom;
+      rect = { left, top, width: right - left, height: bottom - top };
     }
     const r = { x: (rect.left - g.left) / g.width, y: (rect.top - g.top) / g.height, w: rect.width / g.width, h: rect.height / g.height };
     layout.free.rects[id] = r;

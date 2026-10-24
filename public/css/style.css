@@ -684,7 +684,15 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
   background: linear-gradient(135deg, transparent 50%, var(--muted) 50%, var(--muted) 58%, transparent 58%, transparent 70%, var(--muted) 70%, var(--muted) 78%, transparent 78%);
   border-bottom-right-radius: 8px; opacity: .55; }
 .fr-rs:hover { opacity: 1; }
-.grid.free.has-max .fr-rs { display: none; }
+.grid.free.has-max :is(.fr-rs, .fr-edge) { display: none; }
+/* Bords et autres coins : zones invisibles, curseur de redimensionnement au survol */
+.fr-edge { position: absolute; z-index: 6; touch-action: none; }   /* au-dessus de l'en-tête du panneau */
+.fr-n, .fr-s { left: 12px; right: 12px; height: 6px; cursor: ns-resize; }
+.fr-n { top: -3px; } .fr-s { bottom: -3px; }
+.fr-e, .fr-w { top: 12px; bottom: 12px; width: 6px; cursor: ew-resize; }
+.fr-e { right: -3px; } .fr-w { left: -3px; }
+.fr-ne, .fr-nw, .fr-sw { width: 14px; height: 14px; }
+.fr-ne { top: -3px; right: -3px; cursor: nesw-resize; } .fr-nw { top: -3px; left: -3px; cursor: nwse-resize; } .fr-sw { bottom: -3px; left: -3px; cursor: nesw-resize; }
 .btn.small { padding: 2px 7px; font-size: 12px; }
 .btn.on { background: var(--blue); border-color: var(--blue); color: #001526; }
 .subbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 6px 12px; border-bottom: 1px solid var(--border); font-size: 12.5px; }

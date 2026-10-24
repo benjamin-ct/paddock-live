@@ -52,6 +52,8 @@ l'application (Réglages → À propos → Nouveautés).
   intervalle, dernier et meilleur tour, secteurs et mini-secteurs, pneus, tours), la carte en haut à droite et,
   dessous, côte à côte, la télémétrie et la direction de course (radios sous elle). Panneaux à déplacer et
   redimensionner librement.
+- Disposition libre : chaque panneau se redimensionne par n'importe quel bord ou coin (avant : seulement par le
+  coin en bas à droite).
 - Carte : les mini-secteurs du pilote suivi (choisi dans le classement) prennent les couleurs du classement
   (jaune, vert, violet) pendant son tour. La bulle d'infos n'apparaît plus que pour un pilote choisi.
 - Classement agrandi (bouton ⤢) : ses propres colonnes, choisies dans « Colonnes » pendant qu'il est agrandi ;
