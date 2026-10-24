@@ -955,13 +955,15 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
 /* Radios d'équipe (façon MultiViewer) : bande de cartes audio + fil des radios retranscrites */
 .tabpane.rd-pane.active { display: flex; flex-direction: column; height: 100%; }
 /* Réglages sur une seule ligne (défilable) : les cartes des radios restent visibles dans un petit panneau */
-.rd-bar { flex: none; gap: 8px 12px; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
-.rd-bar::-webkit-scrollbar { display: none; }
-.rd-bar > *, .rd-bar label { white-space: nowrap; flex: none; }
+/* Réglages des radios : menu « Options » de l'en-tête du panneau, en colonne */
+.rd-menu { margin-left: 8px; }
+.rd-menu-body { min-width: 250px; max-width: 320px; }
+.rd-bar { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 4px 6px; }
+.rd-bar label { white-space: nowrap; }
 .rd-opts { display: contents; }
 .rd-opts[hidden] { display: none; }
 .rd-status:empty { display: none; }
-.rd-status { flex: none; padding: 4px 12px; border-bottom: 1px solid var(--line); }
+.rd-status { padding: 6px 6px 2px; border-top: 1px solid var(--line); line-height: 1.4; }
 .rd-empty { padding: 10px 12px; }
 .rd-av { position: relative; flex: none; width: 44px; height: 44px; border-radius: 50%; background: var(--tc); display: grid; place-items: center; }
 .rd-av > b { font-size: 11px; color: #fff; letter-spacing: .02em; text-shadow: 0 1px 2px rgba(0, 0, 0, .4); }

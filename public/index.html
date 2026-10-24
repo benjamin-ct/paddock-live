@@ -306,22 +306,26 @@
     <section class="panel p-radio">
       <div class="panel-head tabs" data-tabs="radio">
         <button class="tab active" data-tab="radios" title="Radios d'équipe : écoute, texte et traduction">Radios d'équipe</button>
+        <details class="map-layers rd-menu" id="radioMenu"><summary class="btn small" title="Pilotes écoutés, lecture, texte et traduction des radios">Options <svg class="ic ic-s" aria-hidden="true"><use href="#i-chevron-down"/></svg></summary>
+          <div class="map-layers-menu rd-menu-body">
+            <div class="rd-bar">
+              <select id="radioFilter" aria-label="Filtrer les radios"><option value="all">Tous les pilotes</option><option value="fav">Mes favoris</option><option value="duel">Pilotes du duel</option></select>
+              <label class="toggle" title="Joue chaque nouvelle radio"><input type="checkbox" id="radioAuto"> Lecture auto</label>
+              <label data-full class="toggle" title="Chaque radio d'équipe en texte, par le serveur Paddock Live ou sur cet ordinateur."><input type="checkbox" id="radioText"> Texte</label>
+              <label class="toggle" data-expert hidden title="Expérimental, F1 TV Pro : retranscrit toutes les radios des caméras embarquées, en direct"><input type="checkbox" id="obRadio"> Caméras embarquées</label>
+              <span class="rd-opts" id="obRadioOpts" hidden><select id="obRadioWho" aria-label="Pilotes écoutés"><option value="auto">Pilote suivi + duel</option><option value="favs">Mes favoris (3 max)</option></select></span>
+              <span class="rd-opts" id="radioOpts" data-full>
+                <label class="small">Traduction <select id="radioLang" aria-label="Langue de traduction"><option value="fr">Français</option><option value="es">Español</option><option value="de">Deutsch</option><option value="it">Italiano</option><option value="none">Aucune (anglais)</option></select></label>
+                <label class="small" title="Transcription sur cet ordinateur. Légère : processeur, ~1 Go de mémoire. Haute : plus précise, carte graphique, 4,5 Go à télécharger.">Qualité <select id="radioQuality" aria-label="Qualité de transcription"><option value="auto">Légère (≈ 1 Go)</option><option value="high">Haute (carte graphique, 10 à 15 Go)</option></select></label>
+              </span>
+            </div>
+            <div class="muted small rd-status" id="radioTextStatus" data-full></div>
+            <div class="muted small rd-status" id="obRadioStatus" data-full></div>
+          </div>
+        </details>
       </div>
       <div class="panel-body">
         <div class="tabpane rd-pane active" data-pane="radios">
-          <div class="subbar rd-bar">
-            <select id="radioFilter" aria-label="Filtrer les radios"><option value="all">Tous les pilotes</option><option value="fav">Mes favoris</option><option value="duel">Pilotes du duel</option></select>
-            <label class="toggle" title="Joue chaque nouvelle radio"><input type="checkbox" id="radioAuto"> Lecture auto</label>
-            <label data-full class="toggle" title="Chaque radio d'équipe en texte, par le serveur Paddock Live ou sur cet ordinateur."><input type="checkbox" id="radioText"> Texte</label>
-            <label class="toggle" data-expert hidden title="Expérimental, F1 TV Pro : retranscrit toutes les radios des caméras embarquées, en direct"><input type="checkbox" id="obRadio"> Caméras embarquées</label>
-            <span class="rd-opts" id="obRadioOpts" hidden><select id="obRadioWho" aria-label="Pilotes écoutés"><option value="auto">Pilote suivi + duel</option><option value="favs">Mes favoris (3 max)</option></select></span>
-            <span class="rd-opts" id="radioOpts" data-full>
-              <label class="small">Traduction <select id="radioLang" aria-label="Langue de traduction"><option value="fr">Français</option><option value="es">Español</option><option value="de">Deutsch</option><option value="it">Italiano</option><option value="none">Aucune (anglais)</option></select></label>
-              <label class="small" title="Transcription sur cet ordinateur. Légère : processeur, ~1 Go de mémoire. Haute : plus précise, carte graphique, 4,5 Go à télécharger.">Qualité <select id="radioQuality" aria-label="Qualité de transcription"><option value="auto">Légère (≈ 1 Go)</option><option value="high">Haute (carte graphique, 10 à 15 Go)</option></select></label>
-            </span>
-          </div>
-          <div class="muted small rd-status" id="radioTextStatus" data-full></div>
-          <div class="muted small rd-status" id="obRadioStatus" data-full></div>
           <div class="rd-strip" id="radioStrip" aria-label="Radios d'équipe"></div>
           <div class="note rd-empty" id="radioEmpty" hidden></div>
           <div class="rd-feed-head"><b>Radios retranscrites</b><span class="muted small">texte et traduction</span><input type="range" class="rd-vol" id="radioVol" min="0" max="1" step="0.05" title="Volume des radios" aria-label="Volume des radios"><button class="rd-speed" id="radioSpeed" title="Vitesse de lecture des radios">1×</button></div>

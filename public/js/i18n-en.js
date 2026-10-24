@@ -2297,6 +2297,7 @@ export default {
   "Contenu": "Content",
   "Format": "Format",
   "Options": "Options",
+  "Pilotes écoutés, lecture, texte et traduction des radios": "Drivers heard, playback, text and translation of the radios",
   "Résultats, avant-course, flash": "Results, pre-race, flash",
   "Race week, records, notes": "Race week, records, ratings",
   "Grosses news et récap": "Big news and recap",
