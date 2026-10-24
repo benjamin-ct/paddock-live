@@ -246,11 +246,18 @@ export async function publishFacebookVideo(meta, text, video, cover = null) {
   return { url: `https://www.facebook.com/${meta.pageId}/videos/${r.id}`, id: r.id };
 }
 // Threads lit la vidéo à une adresse publique (videoUrl : fichier gardé par le serveur Paddock Live)
+// Refus (préparation ou publication) : un second essai sans le sujet « F1 Threads », note à l'appui
 export async function publishThreadsVideo(th, videoUrl, text) {
+  try { return await threadsVideo(th, videoUrl, text, THREADS_TOPIC); } catch (err) {
+    const r = await threadsVideo(th, videoUrl, text, null).catch((e) => { throw new Error(`${e.message} (aussi sans le sujet « ${THREADS_TOPIC} »)`.slice(0, 300)); });
+    return { ...r, note: `Publié sans le sujet « ${THREADS_TOPIC} » (refusé avec : ${err.message.slice(0, 100)})` };
+  }
+}
+async function threadsVideo(th, videoUrl, text, topic) {
   const base = `${THREADS}/${th.userId}`;
   // Étape en échec nommée dans le message (les refus de Threads sont souvent un « unexpected error » sans détail)
   const step = (what) => (err) => { throw new Error(`${what} : ${err.message}`.slice(0, 300)); };
-  const c = await call(`${base}/threads`, { method: 'POST', form: { media_type: 'VIDEO', video_url: videoUrl, text, topic_tag: THREADS_TOPIC, access_token: th.token } }).catch(step('Création du post Threads refusée'));
+  const c = await call(`${base}/threads`, { method: 'POST', form: { media_type: 'VIDEO', video_url: videoUrl, text, ...(topic ? { topic_tag: topic } : {}), access_token: th.token } }).catch(step('Création du post Threads refusée'));
   const status = `${THREADS}/${c.id}?${new URLSearchParams({ fields: 'status,error_message', access_token: th.token })}`;
   await ready(status, 'status', 'Vidéo');
   // Vidéo prête : Threads demande encore une trentaine de secondes avant la publication (sinon « unexpected error ») ;
