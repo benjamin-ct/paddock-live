@@ -121,6 +121,12 @@ export async function loadState(path, topics = TOPICS) {
     try { return parseStream(await (await api(`archive?p=${encodeURIComponent(`${path}${t}.jsonStream`)}`, { raw: true })).text(), t); } catch (err) { why ||= err.message; return []; }
   });
   const events = parts.flat().sort((a, b) => a.off - b.off);
+  // Séance qui vient de finir : archive pas encore publiée, mais le direct de la F1 garde son état final (relais
+  // de la version web) ; résultats sans l'historique des tours (pas de dépassements comptés)
+  if (!events.length && why === 'Archive pas encore publiée') {
+    const live = await api(`live-state?p=${encodeURIComponent(path)}`).catch(() => null);
+    if (live?.SessionInfo) return live;
+  }
   if (!events.length) throw new Error(why === 'Archive pas encore publiée' ? 'Archive pas encore publiée par la F1 : elle arrive environ une heure après la fin de la séance, réessayez plus tard' : why || 'Archive de la séance indisponible');
   // État de fin de séance et tours de chaque pilote (dépassements des posts de résultats)
   const st = {};
