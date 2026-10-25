@@ -71,8 +71,8 @@ l'application (Réglages → À propos → Nouveautés).
   badge au lieu d'apparaître seulement au survol.
 - Onglets : clic droit sur un onglet pour le fermer ; clic droit sur la barre d'onglets d'un panneau pour voir
   tous les onglets, remettre ceux qui sont fermés ou en amener un d'un autre panneau.
-- Carte : les pilotes du duel n'y sont plus marqués (ni suivis) quand le panneau Duel n'est pas affiché
-  (interface Essentielle, panneau masqué).
+- Carte et classement : les pilotes du duel n'y sont plus marqués (ni suivis sur la carte) quand le panneau Duel
+  n'est pas affiché (interface Essentielle, panneau masqué).
 
 ### Saison
 - Bilan de la saison (Saison → Bilan de la saison) : champion ou leader, victoires, poles, podiums, vainqueurs

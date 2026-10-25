@@ -43,7 +43,9 @@ function gapText(v) {
 
 export function renderTower(force = false) {
   const now = performance.now();
-  const key = `${versionOf(['TimingData', 'TimingAppData', 'DriverList', 'TimingStats', 'RaceControlMessages', '__reset'])}|${store.duel.a}|${store.duel.b}|${store.focus}|${towerBig()}|${towerCols().hidden.join()}|${towerCols().extra.join()}|${prefs.favs.join()}|${prefs.hotLapDim}`;
+  // Pilotes A et B marqués seulement quand le panneau Duel est affiché (comme sur la carte)
+  const duelOn = !!document.querySelector('.p-duel')?.getClientRects().length;
+  const key = `${versionOf(['TimingData', 'TimingAppData', 'DriverList', 'TimingStats', 'RaceControlMessages', '__reset'])}|${store.duel.a}|${store.duel.b}|${duelOn}|${store.focus}|${towerBig()}|${towerCols().hidden.join()}|${towerCols().extra.join()}|${prefs.favs.join()}|${prefs.hotLapDim}`;
   const carTick = store.positions.car.size ? Math.floor(now / 500) : 0;
   if (!force && key + carTick === lastKey) return;
   if (!force && now - lastRender < 250) return;
@@ -204,8 +206,8 @@ export function renderTower(force = false) {
     if (done) cls.push('fin');
     if (store.focus === num) cls.push('focus');
     if (hot && !pred && store.focus !== num && store.duel.a !== num && store.duel.b !== num) cls.push('cool');
-    if (store.duel.a === num) cls.push('duel-a');
-    if (store.duel.b === num) cls.push('duel-b');
+    if (duelOn && store.duel.a === num) cls.push('duel-a');
+    if (duelOn && store.duel.b === num) cls.push('duel-b');
     return { num, cls: cls.join(' '), cells };
   });
   freshReset = false;
