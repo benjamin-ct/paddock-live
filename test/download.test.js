@@ -94,6 +94,26 @@ test('nom de domaine : racine = site de l\'appli, www redirigé, workers.dev inc
   assert.equal(r.headers.get('location'), 'https://paddocklive.app/download?x=1');
 });
 
+test('version web : seulement sur app.paddocklive.app, paddocklive.app/live renvoyé là-bas', async () => {
+  const { default: worker } = await import('../analytics/worker.js');
+  const env = { ASSETS: { fetch: async (req) => new Response(`site:${new URL(req.url).pathname}`) } };
+  let r = await worker.fetch(new Request('https://app.paddocklive.app/'), env);
+  assert.equal(await r.text(), 'site:/live/');
+  assert.match(r.headers.get('content-security-policy'), /frame-ancestors 'none'/);
+  r = await worker.fetch(new Request('https://app.paddocklive.app/live/js/web.js'), env);
+  assert.equal(await r.text(), 'site:/live/js/web.js');
+  assert.ok(r.headers.get('strict-transport-security'));
+  for (const u of ['https://paddocklive.app/live/', 'https://paddocklive.app/live', 'https://paddock-live-stats.paddock-live.workers.dev/live/']) {
+    r = await worker.fetch(new Request(u), env);
+    assert.equal(r.status, 301);
+    assert.equal(r.headers.get('location'), 'https://app.paddocklive.app/');
+  }
+  for (const u of ['https://paddocklive.app/live/js/web.js', 'https://paddocklive.app/live/ws', 'https://paddocklive.app/live/api/session']) {
+    r = await worker.fetch(new Request(u), env);
+    assert.equal(r.status, 404);
+  }
+});
+
 test('ancienne adresse workers.dev : connexion et statistiques renvoyées sur le nom de domaine, appels de l\'appli inchangés', async () => {
   const { default: worker } = await import('../analytics/worker.js');
   const env = { SITE_ORIGIN: 'https://paddocklive.app', STATS_KEY: 'k' };

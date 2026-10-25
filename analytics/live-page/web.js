@@ -1,6 +1,6 @@
 // Point d'entrée de la version web (app.paddocklive.app) : classement, carte, télémétrie, direction de course et
 // radios de l'appli, reliés au relais du Worker au lieu du serveur local. Copié dans /live/js/ par scripts/build-studio.mjs.
-import { translatePage, DEC, EN } from './i18n.js';
+import { translatePage, DEC, EN, LOCALE, t } from './i18n.js';
 import './icons.js';
 import { store, emit, on, handleReset, handleBatch, setDelay, serverNow } from './store.js';
 import { applyEvent } from '/shared/derive.js';
@@ -28,6 +28,129 @@ const hub = new WebHub({
 });
 let relay = {};
 
+// Connexion F1 TV du visiteur, donnée par l'extension Paddock Live Companion (formula1.com) : GPS et télémétrie
+// par son propre relais, relié à la F1 avec son abonnement. Gardée en mémoire seulement ; le cookie « plu »
+// (empreinte, pas le jeton) désigne ce relais pour les radios réservées aux abonnés
+let f1tv = null, relayId = '';
+const F1TV_KEY = 'paddock.f1tv';
+const sha = async (t) => [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t)))].map((b) => b.toString(16).padStart(2, '0')).join('').slice(0, 32);
+// JWT F1 TV encore valable (contrôle d'expiration côté navigateur ; la F1 fait la vraie vérification)
+const tokenExp = (tok) => { try { return (JSON.parse(atob(tok.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).exp || 0) * 1000; } catch { return 0; } };
+// Connexion F1 TV reçue (extension, ou appairage d'un téléphone) : gardée en mémoire et sur cet appareil (son
+// propre navigateur) pour ne pas refaire l'appairage à chaque ouverture ; son relais rejoint
+async function useToken(token) {
+  if (!/^[\w-]+\.[\w-]+\.[\w-]+$/.test(token || '') || token === f1tv) return false;
+  const id = await sha(token);
+  f1tv = token;
+  try { localStorage.setItem(F1TV_KEY, token); } catch { /* stockage indisponible */ }
+  updatePairUI();
+  if (id === relayId) { if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'auth', token })); return true; }   // renouvelée
+  relayId = id;
+  document.cookie = `plu=${id}; path=/; max-age=604800; secure; samesite=strict`;
+  ws?.close();   // reconnexion à son relais
+  return true;
+}
+addEventListener('message', (e) => {
+  if (e.source !== window || e.origin !== location.origin || e.data?.source !== 'paddock-live-companion' || e.data.type !== 'f1tv') return;
+  if (typeof e.data.token === 'string') useToken(e.data.token);
+});
+postMessage({ source: 'paddock-live-web', type: 'f1tv?' }, location.origin);
+
+// Appairage d'un téléphone : partager sa connexion F1 TV avec la version web sur un appareil sans extension
+// (iPhone). Chiffré de bout en bout (ECDH P-256 + AES-GCM), le serveur ne fait que relayer (voir pair() du relais).
+// L'appareil qui a déjà la connexion affiche « F1 TV connecté » (relier un autre appareil) ; l'autre « Connexion F1 TV ».
+const b64 = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf)));
+const unb64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+const genKeys = () => crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveKey']);
+async function pubJwk(keys) { const j = await crypto.subtle.exportKey('jwk', keys.publicKey); return { kty: j.kty, crv: j.crv, x: j.x, y: j.y }; }
+async function sharedKey(priv, jwk) {
+  const pub = await crypto.subtle.importKey('jwk', { kty: 'EC', crv: 'P-256', x: jwk.x, y: jwk.y }, { name: 'ECDH', namedCurve: 'P-256' }, false, []);
+  return crypto.subtle.deriveKey({ name: 'ECDH', public: pub }, priv, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+}
+
+const pairBtn = document.querySelector('#pairBtn');
+const pairDlg = document.querySelector('#pairDlg');
+const pairBody = document.querySelector('#pairBody');
+let pairTimer = null;
+const stopPair = () => { clearInterval(pairTimer); pairTimer = null; };
+// Bouton de la barre du haut : « F1 TV connecté » (pastille verte) une fois la connexion reçue
+function updatePairUI() {
+  if (!pairBtn) return;
+  pairBtn.hidden = false;
+  pairBtn.classList.toggle('on', !!f1tv);
+  pairBtn.textContent = f1tv ? t('F1 TV connecté') : t('Connexion F1 TV');
+}
+function pairNote(text, err = false) { pairBody.innerHTML = `<p class="pair-note${err ? ' err' : ''}">${esc(text)}</p>`; }
+
+pairBtn?.addEventListener('click', () => { stopPair(); pairDlg.showModal(); if (f1tv) pairSend(); else pairReceive(); });
+pairDlg?.addEventListener('close', stopPair);
+
+// Appareil sans connexion (téléphone) : affiche un code, attend la connexion déposée par l'ordinateur
+async function pairReceive() {
+  pairNote(t('Préparation…'));
+  const keys = await genKeys();
+  const r = await fetch('/live/api/pair', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pub: await pubJwk(keys) }) }).then((x) => x.json()).catch(() => null);
+  if (!r?.code) return pairNote(t('Connexion impossible pour le moment. Réessayez.'), true);
+  pairBody.innerHTML = `<p class="pair-h">${esc(t('Sur un appareil déjà connecté à F1 TV, ouvrez Paddock Live, touchez « F1 TV connecté » et tapez ce code :'))}</p><div class="pair-code">${r.code}</div><p class="pair-note">${esc(t('En attente de l\'ordinateur…'))}</p>`;
+  const until = Date.now() + (r.ttl || 180) * 1000;
+  pairTimer = setInterval(async () => {
+    if (Date.now() > until) { stopPair(); return pairNote(t('Code expiré. Fermez et réessayez.'), true); }
+    const box = await fetch(`/live/api/pair?code=${r.code}&claim=1`).then((x) => (x.status === 200 ? x.json() : null)).catch(() => null);
+    if (!box) return;
+    stopPair();
+    try {
+      const key = await sharedKey(keys.privateKey, box.spub);
+      const token = new TextDecoder().decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(box.iv) }, key, unb64(box.data)));
+      if (await useToken(token)) { pairNote(t('Connexion reçue. GPS et télémétrie activés.')); setTimeout(() => pairDlg.close(), 1800); }
+      else pairNote(t('Connexion F1 TV invalide ou expirée côté ordinateur.'), true);
+    } catch { pairNote(t('Connexion illisible. Réessayez.'), true); }
+  }, 2000);
+}
+
+// Appareil connecté (extension) : saisir le code du téléphone, lui envoyer la connexion chiffrée
+// Appareil connecté : état de la connexion, relier un autre appareil, ou se déconnecter
+function pairSend() {
+  const exp = tokenExp(f1tv);
+  const until = new Date(exp).toLocaleString(LOCALE, { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+  pairBody.innerHTML = `<p class="pair-ok">${esc(t('Connecté à F1 TV sur cet appareil : GPS et télémétrie en direct.'))}${exp ? `<br><small>${esc(t('Connexion valable jusqu\'au {}.', until))}</small>` : ''}</p>`
+    + `<p class="pair-h">${esc(t('Sur le téléphone, ouvrez Paddock Live et touchez « Connexion F1 TV » pour afficher un code, puis tapez-le ici :'))}</p>`
+    + `<form id="pairForm"><input id="pairInput" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" placeholder="------" aria-label="${esc(t('Code à 6 chiffres'))}"><button class="btn btn-accent" type="submit">${esc(t('Relier'))}</button></form>`
+    + '<p class="pair-note" id="pairSendMsg"></p>'
+    + `<button class="btn pair-out" id="pairOut">${esc(t('Se déconnecter de F1 TV sur cet appareil'))}</button>`;
+  const form = pairBody.querySelector('#pairForm');
+  const input = pairBody.querySelector('#pairInput');
+  if (matchMedia('(pointer: fine)').matches) input.focus();   // pas de clavier qui s'ouvre tout seul sur téléphone
+  pairBody.querySelector('#pairOut').addEventListener('click', () => {
+    f1tv = null;
+    relayId = '';
+    try { localStorage.removeItem(F1TV_KEY); } catch { /* stockage indisponible */ }
+    document.cookie = 'plu=; path=/; max-age=0; secure; samesite=strict';
+    updatePairUI();
+    pairDlg.close();
+    ws?.close();   // reconnexion au relais commun
+  });
+  const msg = pairBody.querySelector('#pairSendMsg');
+  form.addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const code = (input.value.match(/\d/g) || []).join('').slice(0, 6);
+    if (code.length !== 6) { msg.textContent = t('Entrez le code à 6 chiffres.'); return; }
+    if (!f1tv) { msg.textContent = t('Aucune connexion F1 TV sur cet appareil.'); return; }
+    msg.textContent = t('Envoi…');
+    const pr = await fetch(`/live/api/pair?code=${code}`).then((x) => (x.status === 200 ? x.json() : null)).catch(() => null);
+    if (!pr?.pub) { msg.textContent = t('Code inconnu ou expiré.'); return; }
+    try {
+      const keys = await genKeys();
+      const key = await sharedKey(keys.privateKey, pr.pub);
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const data = b64(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(f1tv)));
+      const ok = await fetch(`/live/api/pair?code=${code}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ spub: await pubJwk(keys), iv: b64(iv), data }) }).then((x) => x.ok).catch(() => false);
+      pairNote(ok ? t('Téléphone relié. La connexion apparaît sur le téléphone.') : t('Échec de l\'envoi. Réessayez.'), !ok);
+    } catch { pairNote(t('Échec de l\'envoi. Réessayez.'), true); }
+  });
+}
+
+updatePairUI();
+
 function status(now) {
   store.skew = store.skew === 0 ? now - Date.now() : store.skew * 0.8 + (now - Date.now()) * 0.2;
   store.status = {
@@ -39,8 +162,12 @@ function status(now) {
 }
 
 function connect() {
-  ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/live/ws?d=${store.delay}`);
-  ws.onopen = () => { store.connected = true; emit('connection', true); };
+  ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/live/ws?d=${store.delay}${relayId ? `&u=${relayId}` : ''}`);
+  ws.onopen = () => {
+    store.connected = true;
+    emit('connection', true);
+    if (f1tv) ws.send(JSON.stringify({ type: 'auth', token: f1tv }));
+  };
   ws.onmessage = (ev) => {
     let msg;
     try { msg = JSON.parse(ev.data); } catch { return; }
@@ -106,8 +233,16 @@ document.querySelector('#webResultsBtn')?.addEventListener('click', async (e) =>
 });
 
 const safe = (fn) => { try { fn(); } catch (err) { console.error(err); } };
+// Relais qui vient de redémarrer : rien n'est montré avant que le délai TV l'ait rattrapé (pas de spoiler)
+const waitBar = document.querySelector('#webWait');
+function showWait() {
+  const s = Math.ceil(hub.wait / 1000);
+  waitBar.hidden = !s;
+  if (s) waitBar.textContent = `Mise en mémoire : affichage calé sur votre TV dans ${s} s`;
+}
 function loop() {
   safe(() => hub.tick(serverNow() - store.delay));
+  safe(showWait);
   safe(renderHeader);
   safe(renderTower);
   safe(renderRcm);
@@ -131,5 +266,12 @@ on('status', renderSource);
 on('connection', renderSource);
 on('focus', () => renderTower(true));
 on('duel', () => renderTower(true));
+// Connexion F1 TV gardée d'une ouverture à l'autre sur cet appareil : reprise avant la connexion, pour rejoindre
+// directement son relais (sinon il faudrait refaire l'appairage à chaque fois) ; effacée une fois expirée
+try {
+  const saved = localStorage.getItem(F1TV_KEY);
+  if (saved && tokenExp(saved) > Date.now()) { f1tv = saved; relayId = await sha(saved); updatePairUI(); }
+  else if (saved) localStorage.removeItem(F1TV_KEY);
+} catch { /* stockage indisponible */ }
 connect();
 loop();

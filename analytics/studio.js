@@ -14,6 +14,7 @@ import { decodeBody } from '../shared/news-collect.js';
 import { publishFacebook, publishInstagram, publishThreads, freshThreads, commentFacebook, replyThreads, withComment, storyInstagram, storyFacebook, storyVideoInstagram, storyVideoFacebook, reelInstagram, hostOnPage, publishFacebookVideo, publishThreadsVideo, publishFacebookLink, publishThreadsLink, cleanTopic } from '../shared/meta-publish.js';
 import { publishBluesky, replyBluesky } from '../shared/bluesky-publish.js';
 import { driveApi } from './drive.js';
+import { liveSession, pairSend, liveDevices } from './live-relay.js';
 import { freshTiktok, freshYoutube, tiktokDraft, youtubeUpload, tiktokCreator, tiktokDirect, TIKTOK_PRIVACY } from '../shared/video-publish.js';
 import { addEntry, removeEntry, cleanKey, keepStats } from '../shared/post-history.js';
 import { cleanDraft, draftSummary, isDraftId, DRAFTS_MAX, DRAFT_BYTES } from '../shared/post-draft.js';
@@ -105,23 +106,11 @@ async function open(raw, sealed) {
   return JSON.parse(new TextDecoder().decode(pt));
 }
 
-// Coffre enregistré ; la connexion F1 TV y est aussi gardée à part, chiffrée avec une clé du serveur, pour le
-// relais de la version web (GPS et télémétrie, analytics/live-relay.js) qui la lit sans le code du créateur
-const liveKey = async (env) => new Uint8Array(await crypto.subtle.digest('SHA-256', enc.encode(`paddock-live-live-v1:${env.STATS_KEY}`)));
+// Coffre enregistré. La connexion F1 TV du créateur ne sert plus à la version web (chaque visiteur utilise la
+// sienne) : l'ancienne copie lisible par le relais (« live:f1tv ») est effacée
 async function saveVault(env, raw, v) {
   await setRow(env, 'vault', await seal(raw, v));
-  if (env.STATS_KEY) await setRow(env, 'live:f1tv', v.f1tv ? await seal(await liveKey(env), v.f1tv) : '');
-}
-
-// Jeton F1 TV du relais (renouvelé dans ses dernières 24 heures), ou null
-export async function liveF1tv(env) {
-  if (!env.DB || !env.STATS_KEY) return null;
-  const key = await liveKey(env);
-  const token = await open(key, await getRow(env, 'live:f1tv')).catch(() => null);
-  if (!token || jwtExp(token) < Date.now()) return null;
-  const next = await freshF1tv(token);
-  if (next !== token) await setRow(env, 'live:f1tv', await seal(key, next));
-  return next;
+  if (await getRow(env, 'live:f1tv')) await setRow(env, 'live:f1tv', '');
 }
 
 // Contenu accepté du coffre (rien d'autre n'est gardé)
@@ -769,6 +758,24 @@ export async function studioApi(req, env, url) {
   if (a.error) return a.error;
   let vault = await open(a.raw, await getRow(env, 'vault')).catch(() => null) || {};
 
+  // Séance du relais de la version web (rallumé s'il est à l'arrêt) : séance qui vient de finir, avant l'index de la F1
+  if (path === 'live-session' && req.method === 'GET') return json(await liveSession(env, true).catch(() => null));
+  // Relier un téléphone à ton compte F1 TV (version web) : ta connexion, déjà dans ton coffre, est envoyée chiffrée
+  // au téléphone qui affiche le code. Rien de plus gardé que le coffre existant ; le serveur ne garde pas le code.
+  if (path === 'pair' && req.method === 'POST') {
+    let body;
+    try { body = await req.json(); } catch { return json({ error: 'JSON invalide' }, 400); }
+    vault = await refresh(env, a.raw, vault);
+    if (!vault.f1tv) return json({ error: 'Connecte F1 TV dans l\'appli (Réglages, Compte F1 TV), puis « Renvoyer les comptes ».' }, 409);
+    const r = await pairSend(env, String(body?.code || ''), vault.f1tv);
+    return json(r, r.error ? 409 : 200);
+  }
+  // Appareils reliés à ton compte F1 TV (version web) : connexions en cours sur ton relais privé
+  if (path === 'devices' && req.method === 'GET') {
+    vault = await refresh(env, a.raw, vault);
+    if (!vault.f1tv) return json({ count: 0, devices: [] });
+    return json(await liveDevices(env, vault.f1tv).catch(() => ({ count: 0, devices: [] })));
+  }
   // Onglet Suivi : dossier Google Drive lu par le serveur
   if (path.startsWith('drive/')) {
     // Remplissage de la feuille : journal des publications et chiffres des posts gardés ici

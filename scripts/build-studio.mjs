@@ -119,7 +119,8 @@ for (const d of ['js', 'css', 'fonts', 'data']) copyLive(path.join(ROOT, 'public
 copyLive(path.join(ROOT, 'public', 'vendor', 'nosleep'), path.join(LIVE, 'vendor', 'nosleep'));
 copyLive(SHARED, path.join(LIVE, 'shared'));
 fs.copyFileSync(path.join(ROOT, 'public', 'logo.svg'), path.join(LIVE, 'logo.svg'));
-for (const f of ['web.js', 'web-hub.js']) fs.writeFileSync(path.join(LIVE, 'js', f), toLive(fs.readFileSync(path.join(LIVE_PAGE, f), 'utf8')));
+// Code de la page : chemins absolus et chemin relatif du code partagé (lisible tel quel par les tests) vers /live/shared/
+for (const f of ['web.js', 'web-hub.js']) fs.writeFileSync(path.join(LIVE, 'js', f), toLive(fs.readFileSync(path.join(LIVE_PAGE, f), 'utf8')).replace(/(['"])\.\.\/\.\.\/shared\//g, '$1/live/shared/'));
 // Écran d'accueil du téléphone : manifeste et icônes de l'appli
 fs.copyFileSync(path.join(LIVE_PAGE, 'manifest.webmanifest'), path.join(LIVE, 'manifest.webmanifest'));
 for (const f of ['apple-touch-icon.png', 'icon-512.png']) fs.copyFileSync(path.join(ROOT, 'public', f), path.join(LIVE, f));
@@ -176,8 +177,6 @@ fs.writeFileSync(path.join(OUT, '_headers'), `/studio/*
 /kit/*
   Cache-Control: public, max-age=86400
   X-Robots-Tag: noindex, nofollow
-/live/*
-  Cache-Control: no-cache
 `);
 const n = (d) => fs.readdirSync(path.join(OUT, d)).length;
 console.log(`Site prêt : version ${VERSION}, ${n(`m/${VERSION}/studio`)} fichiers studio, ${n(`m/${VERSION}/shared`)} modules partagés (${graph.length} chargés d'emblée), ${n('fonts')} polices, version web : ${liveGraph.size} modules`);

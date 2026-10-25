@@ -164,6 +164,7 @@ input[type=text], input[type=password], input[type=datetime-local], textarea, se
   background: var(--bg); color: var(--text); font: 16px/1.4 var(--ui);
 }
 input:focus, textarea:focus, select:focus { border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-wash); }
+.pair-code-in { text-align: center; letter-spacing: .25em; font-weight: 700; font-variant-numeric: tabular-nums; }
 textarea { resize: vertical; }
 
 /* ---------- Listes et cartes ---------- */

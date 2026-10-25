@@ -6,9 +6,9 @@ import zlib from 'node:zlib';
 import { WebSocket } from 'ws';
 import { applyEvent, createDerived, createSyncContext, extractSyncEvents } from '../shared/derive.js';
 import { MIN_DELAY_MS } from '../shared/f1.js';
+import { LOOKAHEAD_MS } from '../shared/live-delay.js';   // GPS/télémétrie envoyés en avance
 
 const TICK_MS = 100;
-const LOOKAHEAD_MS = 6000;       // GPS/télémétrie envoyés en avance (ils arrivent ~2-3 s après les chronos)
 const STREAM_HISTORY_MS = 150000; // historique GPS envoyé lors d'une reconstruction (calcul des écarts)
 
 function inflate(raw) {

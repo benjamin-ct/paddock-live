@@ -559,10 +559,40 @@ function settings() {
     <p class="hint">Page non listée : envoie le lien avec un des messages.</p>
     <h3 class="section">Comptes</h3><div class="group">${accounts.map(([n, v]) => `<div class="row-item static"><span class="grow"><b>${esc(n)}</b><small>${esc(v || 'non connecté')}</small></span><span class="state ${v ? 'on' : ''}"></span></div>`).join('')}</div>
     <p class="hint">Comptes envoyés par l'appli de bureau (Posts → Publier… → Comptes…).</p>
+    ${me.f1tv ? `<h3 class="section">Relier un téléphone à F1 TV</h3><div class="group">
+      <div class="row-item static"><span class="grow"><b>Ton compte F1 TV sur un autre appareil</b><small>Sur le téléphone, ouvre Paddock Live (app.paddocklive.app), touche « Connexion F1 TV » et lis le code à 6 chiffres.</small></span></div>
+      <div class="row-item"><input id="pairCode" type="text" class="grow pair-code-in" inputmode="numeric" autocomplete="off" maxlength="6" placeholder="Code à 6 chiffres"><button class="btn small btn-accent" id="pairGo">Relier</button></div></div>
+    <p class="hint">Ta connexion F1 TV est envoyée chiffrée à ce téléphone (GPS et télémétrie activés). Elle n'est gardée que dans ton coffre, comme pour les archives.</p>
+    <h3 class="section">Appareils connectés <button class="btn small" id="pairRefresh">${icon('refresh')}Rafraîchir</button></h3>
+    <div class="group" id="pairDevices"><div class="row-item static"><span class="grow"><small>Chargement…</small></span></div></div>
+    <p class="hint">Appareils reliés à ton compte F1 TV en ce moment (version web). Un appareil se déconnecte seul quand tu le fermes.</p>` : ''}
     <h3 class="section">Alertes des grosses news</h3><div id="alerts"></div>
     <button class="btn danger wide" id="out">${icon('logout')}Se déconnecter de cet appareil</button>
     <p class="hint center">Version du Studio : ${esc(VERSION)} · © 2026 Paddock Live · <a href="https://github.com/benjamin-ct/paddock-live/blob/main/analytics/LICENSE" target="_blank" rel="noopener">Licence AGPL v3</a></p>`);
   alertsBlock($('#alerts', dlg));
+  if (me.f1tv) {
+    const go = $('#pairGo', dlg), inp = $('#pairCode', dlg), devs = $('#pairDevices', dlg);
+    const since = (s) => (s < 60 ? 'quelques secondes' : s < 3600 ? `${Math.round(s / 60)} min` : `${Math.floor(s / 3600)} h ${Math.round((s % 3600) / 60)}`.replace(/ 0$/, ''));
+    const loadDevices = async () => {
+      try {
+        const d = await api('devices');
+        devs.innerHTML = d.devices?.length
+          ? d.devices.map((x) => `<div class="row-item static"><span class="grow"><b>${esc(x.ua)}</b><small>connecté depuis ${esc(since(x.since))}</small></span><span class="state on"></span></div>`).join('')
+          : '<div class="row-item static"><span class="grow"><small>Aucun appareil connecté pour le moment.</small></span></div>';
+      } catch { devs.innerHTML = '<div class="row-item static"><span class="grow"><small>Liste indisponible.</small></span></div>'; }
+    };
+    go.onclick = async () => {
+      const code = (inp.value.match(/\d/g) || []).join('').slice(0, 6);
+      if (code.length !== 6) { toast('Entre le code à 6 chiffres', 'bad'); return; }
+      go.disabled = true;
+      try { await api('pair', { method: 'POST', body: JSON.stringify({ code }) }); toast('Téléphone relié', 'ok'); inp.value = ''; setTimeout(loadDevices, 1500); }
+      catch (e) { toast(e.message || 'Échec de l\'envoi', 'bad'); }
+      go.disabled = false;
+    };
+    inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') go.click(); });
+    $('#pairRefresh', dlg).onclick = loadDevices;
+    loadDevices();
+  }
   $$('[data-copy]', dlg).forEach((b) => { b.onclick = () => navigator.clipboard.writeText(b.dataset.copy || b.previousElementSibling.value).then(() => toast(b.dataset.copy ? 'Lien copié' : 'Message copié', 'ok'), () => toast('Copie impossible', 'bad')); });
   $('#out', dlg).onclick = () => { dlg.close(); forgetKey(); login(); };
 }
