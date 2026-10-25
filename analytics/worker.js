@@ -29,6 +29,9 @@ import { pronosApi, GROUP_RE } from './pronos.js';
 import { pruneIpQuota, callerIp, ipQuota } from './quota.js';
 import { healthCheck, HEALTH } from './health.js';
 import { publicPushApi, pushRun, queuePush, sessionReminders } from './push-public.js';
+import { liveSocket, liveApi } from './live-relay.js';
+
+export { LiveRelay } from './live-relay.js';
 
 const MAX_BODY = 32 * 1024;
 const COOKIE = 'pl_stats';
@@ -186,6 +189,10 @@ export default {
     // Worker, restent aussi lisibles sur www)
     if (ownDomain && url.hostname.startsWith('www.')) return Response.redirect(`https://${url.hostname.slice(4)}${url.pathname}${url.search}`, 301);
     if (req.method === 'GET' && url.pathname === '/fb-callback') return fbCallback(url);
+    // Version web du direct sur son propre nom (app.paddocklive.app) : sa page à la racine
+    if (req.method === 'GET' && url.pathname === '/' && url.hostname.startsWith('app.') && env.ASSETS) {
+      return env.ASSETS.fetch(new Request(new URL('/live/', url), req));
+    }
     if (req.method === 'GET' && url.pathname === '/' && ownDomain && env.ASSETS) {
       return env.ASSETS.fetch(new Request(new URL('/site/', url), req));
     }
@@ -238,6 +245,11 @@ export default {
     }
     // Page web du créateur : API (la page elle-même est un fichier statique, dossier site/)
     // Publication d'un réseau, appelée par la tâche planifiée elle-même (voir runSchedule)
+    // Version web du direct (fichiers statiques dans /live/) : relais du flux F1, tracé des circuits et photos
+    if (url.pathname === '/live/ws') return liveSocket(req, env);
+    if (url.pathname.startsWith('/live/api/')) {
+      try { return await liveApi(req, url, env); } catch { return json({ error: 'Erreur' }, 500); }
+    }
     if (req.method === 'POST' && url.pathname === '/internal/sched') return schedInternal(req, env);
     if (req.method === 'POST' && url.pathname === '/internal/push') {
       if (!env.STATS_KEY || !sameKey(req.headers.get('X-Sched-Key') || '', env.STATS_KEY)) return json({ error: 'Interdit' }, 403);

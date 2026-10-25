@@ -296,6 +296,9 @@ code { background: var(--panel-3); padding: 1px 5px; border-radius: 4px; font-si
 .tower tr.out td { opacity: .45; }
 .tower tr.danger td { background: rgba(255, 59, 48, .07); }
 .tower tr.cut td { border-bottom: 2px dashed var(--red); }
+/* Pilote qui a passé le drapeau à damier : toute sa ligne en damier, léger (le texte reste lisible) */
+.tower tr.fin { background: var(--chequer) 0 0 / 16px 16px; }
+:root { --chequer: repeating-conic-gradient(rgba(128, 128, 128, .24) 0 25%, transparent 0 50%); }
 .pos { font-weight: 900; font-size: 15px; width: 26px; text-align: center; }
 .pos-delta { font-size: 10.5px; font-weight: 700; margin-left: 1px; }
 .up { color: var(--green); } .down { color: var(--red); }
@@ -313,6 +316,7 @@ code { background: var(--panel-3); padding: 1px 5px; border-radius: 4px; font-si
 .tag.drs { background: var(--green); color: #002012; }
 .tag.flag-blue { background: var(--blue); color: #001526; }
 .tag.catch { background: rgba(53,208,127,.18); color: var(--green); }
+
 .t-gap, .t-int, .t-lap { text-align: right; font-weight: 600; }
 .t-int.catching { color: var(--green); }
 .purple { color: var(--purple) !important; }
@@ -1385,10 +1389,14 @@ html.essential [data-expert] { display: none !important; }
 /* Mode Essentiel : classement compact (code pilote, écart, secteurs en couleur, pneus), sans nom complet ni mini-secteurs ;
    agrandi (⤢) : les colonnes choisies dans son menu */
 html.essential:not(.ess-quali):not(.ess-big) .p-tower:not(.maximized) .tower :is(.c-int, .c-last, .c-best, .c-pits, .c-speed, .c-duel, .drv-last) { display: none !important; }
-/* Essentiel, essais et qualifs : meilleur tour, écart et intervalle, secteurs en couleur (sans mini-secteurs) */
-html.essential.ess-quali:not(.ess-big) .p-tower:not(.maximized) .tower :is(.c-last, .c-pred, .c-speed, .c-duel, .drv-last) { display: none !important; }
-/* Essentiel, écran plus grand que le 1080p : grand classement (dernier tour, secteurs et mini-secteurs), sans tour en cours, speed trap ni boutons duel */
-html.essential.ess-big .p-tower:not(.maximized) .tower :is(.c-pred, .c-speed, .c-duel) { display: none !important; }
+/* Essentiel, essais et qualifs : meilleur tour, écart et intervalle, secteurs en couleur (sans mini-secteurs) ;
+   en qualifs (colonnes Q1-Q3), le tour en cours (temps prévu et position visée) */
+html.essential.ess-quali:not(.ess-big) .p-tower:not(.maximized) .tower :is(.c-last, .c-speed, .c-duel, .drv-last),
+html.essential.ess-quali:not(.ess-big) .p-tower:not(.maximized) .tower:not(:has(.c-q)) .c-pred { display: none !important; }
+/* Essentiel, écran plus grand que le 1080p : grand classement (dernier tour, secteurs et mini-secteurs), sans speed trap ni boutons duel ;
+   tour en cours seulement en qualifs */
+html.essential.ess-big .p-tower:not(.maximized) .tower :is(.c-speed, .c-duel),
+html.essential.ess-big .p-tower:not(.maximized) .tower:not(:has(.c-q)) .c-pred { display: none !important; }
 /* Essentiel : télémétrie seule dans le panneau Analyse */
 html.essential .p-analysis [data-tab]:not([data-tab="telemetry"]) { display: none !important; }
 html.essential .p-tower .panel-tools .hint { display: none; }

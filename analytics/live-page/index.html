@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#07080A">
+  <title>Paddock Live · Direct</title>
+  <meta name="description" content="Le direct de la F1 dans le navigateur, sans rien installer : classement, carte du circuit, télémétrie, direction de course et radios d'équipe traduites, calés sur ta TV.">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Paddock Live · le direct de la F1 dans le navigateur">
+  <meta property="og:description" content="Classement, carte, télémétrie, direction de course et radios traduites, calés sur ta TV. Gratuit, sans compte.">
+  <meta property="og:url" content="https://app.paddocklive.app/">
+  <meta property="og:image" content="https://paddocklive.app/site/img/apercu.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="/live/logo.svg" type="image/svg+xml">
+  <!-- Écran d'accueil du téléphone : icône Paddock Live, ouverture en plein écran -->
+  <link rel="manifest" href="/live/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/live/apple-touch-icon.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="Paddock Live">
+  <link rel="canonical" href="https://app.paddocklive.app/">
+  <link rel="stylesheet" href="/live/css/style.css">
+  <link rel="stylesheet" href="/live/css/broadcast.css">
+  <script>/* Apparence (sombre / clair / système) posée avant l'affichage : pas d'éclair */ try { const p = JSON.parse(localStorage.getItem('paddock.prefs') || '{}'); const s = p.schemeSet || p.scheme === 'light' ? p.scheme : 'auto'; const light = s === 'light' || (s === 'auto' && matchMedia('(prefers-color-scheme: light)').matches); document.documentElement.dataset.scheme = light ? 'light' : 'dark'; } catch { document.documentElement.dataset.scheme = 'dark'; } document.documentElement.dataset.theme = 'pitwall'; document.documentElement.classList.add('web');</script>
+  <style>
+    /* Version web : quatre panneaux, sans menu latéral ni outils de l'appli */
+    .web body { padding-left: 0 !important; }
+    .web .grid { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, .85fr); grid-template-rows: minmax(0, 1.1fr) minmax(0, 1fr);
+      grid-template-areas: "tower map tele" "tower feed radio"; }
+    .web .p-radio { grid-area: radio; }
+    .web .p-analysis { grid-area: tele; }
+    .web .p-analysis [data-tab]:not([data-tab="telemetry"]) { display: none; }
+    /* Pas de séance en direct : compte à rebours, puis résultats et classements sur demande (replays dans l'appli) */
+    .web .nl-actions { display: none; }
+    .web .nolive-view { flex-direction: column; justify-content: flex-start; }
+    .web .nolive-view > .nl-box { margin-top: auto; }
+    .web .web-res { width: 100%; max-width: 820px; margin: 14px auto auto; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+    .web .web-res-grid { width: 100%; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+    .web .web-res-card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; }
+    .web .web-res-card h3 { margin: 0 0 8px; font-size: 13px; letter-spacing: .6px; text-transform: uppercase; color: var(--text-2); }
+    .web .web-res-card ol { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; font-size: 13.5px; }
+    .web .web-res-card li { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; gap: 8px; align-items: baseline; }
+    .web .web-res-card li b { font-variant-numeric: tabular-nums; }
+    .web .web-res-card li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .web .web-res-card li small { color: var(--text-2); font-variant-numeric: tabular-nums; }
+    /* Météo de la piste dans la barre du haut, comme l'appli (sur sa propre ligne sur téléphone) */
+    .web .topbar .weather-mini { display: flex !important; }
+    .web .season-view { left: 0 !important; }
+    /* Écran affiché : les panneaux vides dessous sont retirés, la page ne défile plus */
+    .web body:has(#noLiveView:not([hidden])) { overflow: hidden; }
+    .web body:has(#noLiveView:not([hidden])) .grid { display: none; }
+    .web .topbar .web-delay { display: flex; align-items: center; gap: 6px; }
+    .web .topbar .web-delay input { width: 54px; height: 34px; padding: 0 4px; text-align: center; border: 1px solid var(--border); border-radius: 8px;
+      background: var(--panel-2); color: var(--text); font: 700 17px/1 inherit; font-variant-numeric: tabular-nums; }
+    .web .topbar .web-delay .unit { color: var(--text-2); font-weight: 700; margin-left: -2px; }
+    .web .web-note { font-size: 11px; color: var(--text-2); max-width: 260px; line-height: 1.3; }
+    .web [data-full], .web [data-expert], .web .map-mode + label + #mapFloatBtn { display: none !important; }
+    /* Menu ouvert (calques, options) : son panneau passe devant les autres */
+    .web .panel:has(details[open]) { position: relative; z-index: 30; overflow: visible; }
+    /* Classement sans boutons duel (pas de panneau Duel en ligne) ni menu des colonnes (réglé par l'appli) */
+    .web .tower .c-duel, .web .p-tower .hint, .web #towerCols { display: none !important; }
+    @media (max-width: 1300px) {
+      .web body { overflow: auto; }
+      .web .grid { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); grid-template-rows: 560px 460px 460px;
+        grid-template-areas: "tower map" "tower tele" "feed radio"; }
+    }
+    @media (max-width: 900px) {
+      .web .grid { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto; grid-template-areas: "map" "tower" "tele" "feed" "radio"; }
+      .web .p-map { height: 380px; } .web .p-feed, .web .p-radio, .web .p-analysis { height: 440px; }
+      .web .grid { flex: none; }
+      /* Menus en bas de l'écran, sur toute la largeur, défilement au doigt (comme l'appli sur téléphone) */
+      .web .map-layers-menu { position: fixed; left: 8px; right: 8px; top: auto; bottom: calc(12px + env(safe-area-inset-bottom));
+        width: auto; max-height: 60dvh; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; z-index: 900; }
+      .web .map-layers-menu .toggle { white-space: normal; }
+      /* Téléphone : classement en entier, toute sa hauteur dans la page (pas de défilement vertical dans le
+         défilement) ; les colonnes défilent de côté, position et pilote restent fixes à gauche */
+      .web .p-tower { height: auto; }
+      .web .p-tower .tower-wrap { overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: none; flex: none; height: auto; }
+      .web .tower { zoom: 1 !important; --tower-row-h: 34px !important; }
+      .web .tower :is(.drv-num, .drv-last, .fav-btn) { display: none !important; }
+      .web .tower td, .web .tower th { padding-left: 3px; padding-right: 3px; }
+      .web .tower .drv { gap: 5px; }
+      .web .tower :is(td, th):nth-child(-n+2) { position: sticky; z-index: 3; background: var(--panel); }
+      .web .tower :is(td, th):first-child { left: 0; width: 36px; min-width: 36px; max-width: 36px; box-sizing: border-box; }
+      .web .tower :is(td, th):nth-child(2) { left: 36px; box-shadow: 6px 0 6px -6px rgba(0, 0, 0, .35); }
+      .web .tower tr.danger td:nth-child(-n+2) { background: linear-gradient(rgba(255, 59, 48, .07), rgba(255, 59, 48, .07)), var(--panel); }
+      .web .tower tr.focus td:nth-child(-n+2) { background: linear-gradient(var(--focus), var(--focus)), var(--panel); }
+      .web .tower tr.fin td:nth-child(-n+2) { background: var(--chequer) 0 0 / 16px 16px, var(--panel); }
+      .web .tower tr.out td:nth-child(-n+2) { opacity: 1; }
+      .web .tower tr.out td:nth-child(-n+2) > * { opacity: .45; }
+      .web .web-note, .web .web-delay .hstat-label { display: none; }
+      .web .web-delay, .web #sourceBadge, .web .topbar > .btn { order: 5; }
+      .web .web-delay { margin-right: auto; }
+      .web .topbar .weather-mini { order: 4; flex-basis: 100%; max-height: none; gap: 14px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><img class="logo" src="/live/logo.svg" alt="Paddock Live"><span class="brand-name">PADDOCK LIVE</span></div>
+    <div class="session">
+      <img class="session-flag" id="sessionFlag" alt="" hidden>
+      <div class="session-txt">
+        <div class="session-name" id="sessionName">Connexion…</div>
+        <div class="session-sub" id="sessionSub"></div>
+      </div>
+    </div>
+    <div class="track-status" id="trackStatus"><span class="ts-dot"></span><span class="ts-label">—</span></div>
+    <div class="tb-break b1"></div>
+    <div class="hstat lap-box"><div class="hstat-label" id="lapLabel">Tour</div><div class="hstat-value" id="lapValue">—</div><div class="lap-bar" id="lapBar" hidden><i></i></div></div>
+    <div class="hstat" id="lapsLeftBox" hidden><div class="hstat-label">Tours restants</div><div class="hstat-value" id="lapsLeft">—</div></div>
+    <div class="hstat clock-box" id="clockBox"><div class="hstat-label">Temps restant</div><div class="hstat-value" id="clockValue">—</div></div>
+    <div class="hstat" id="circuitTimeBox" hidden><div class="hstat-label">Heure circuit</div><div class="hstat-value" id="circuitTime">—</div></div>
+    <div class="hstat weather-mini" id="weatherMini"></div>
+    <div class="hstat surface" id="surfaceBox" hidden><div class="hstat-label">État piste</div><div class="hstat-value" id="surfaceValue">—</div></div>
+    <div class="spacer"></div>
+    <div class="tb-break b2"></div>
+    <div class="web-note">Version web allégée. Toutes les fonctions dans l'appli de bureau.</div>
+    <div class="web-delay" title="Délai TV : l'affichage attend autant que votre diffusion">
+      <span class="hstat-label">Délai</span>
+      <button class="dbtn m" data-step="-5000">−5</button>
+      <button class="dbtn m" data-step="-1000">−1</button>
+      <input id="delayInput" type="text" inputmode="decimal" aria-label="Délai en secondes"><span class="unit">s</span>
+      <button class="dbtn" data-step="1000">+1</button>
+      <button class="dbtn" data-step="5000">+5</button>
+    </div>
+    <button class="source-badge" id="sourceBadge"><span class="src-dot"></span><span id="sourceLabel">—</span></button>
+    <a class="btn small btn-accent" href="https://paddocklive.app/" title="Télécharger l'appli Paddock Live">Appli complète</a>
+  </header>
+
+  <div class="flag-banner" id="flagBanner" hidden><span class="fb-icon"></span><span class="fb-text"></span><span class="fb-sub"></span></div>
+
+  <div class="season-view nolive-view" id="noLiveView" hidden>
+    <div class="nl-box" id="noLiveBox"></div>
+    <div class="web-res" id="webResults"><button class="btn" id="webResultsBtn" title="Résultat visible : pas de spoiler tant que vous ne cliquez pas">Voir les résultats et les classements</button></div>
+  </div>
+
+  <main class="grid">
+    <!--panel:tower-->
+    <!--panel:map-->
+    <!--panel:analysis-->
+    <!--panel:feed-->
+    <!--panel:radio-->
+  </main>
+
+  <div class="toast" id="toast" popover="manual" hidden></div>
+  <script type="module" src="/live/js/web.js"></script>
+</body>
+</html>

@@ -485,9 +485,14 @@ function drawSectors(lay) {
 
 // Pilote suivi en piste (tour lancé…) : ses micro-secteurs aux couleurs du classement (jaune, vert, violet, stand)
 const SEG_VARS = { 'seg-yellow': '--yellow', 'seg-green': '--green', 'seg-purple': '--purple', 'seg-pit': '--blue' };
-function drawFocusMinis(lay, W) {
+const focusSecs = () => {
   const l = store.focus && store.state.TimingData?.Lines?.[store.focus];
-  const secs = l && !l.InPit && !l.Retired && !l.Stopped ? list(l.Sectors) : null;
+  return l && !l.InPit && !l.Retired && !l.Stopped ? list(l.Sectors) : null;
+};
+// Fond de la carte redessiné dès que le pilote suivi ou un de ses micro-secteurs change
+const focusMinisKey = () => `${store.focus}:${(focusSecs() || []).map((s) => list(s?.Segments).map((g) => g?.Status).join(',')).join(';')}`;
+function drawFocusMinis(lay, W) {
+  const secs = focusSecs();
   if (!secs?.length) return;
   const css = getComputedStyle(document.documentElement);
   ctx.save();
@@ -648,7 +653,7 @@ function draw() {
 
   const animated = red || scMode || [...flags.values()].includes('DOUBLE YELLOW');
   const bgKey = [size.w, size.h, size.dpr, view.x.toFixed(1), view.y.toFixed(1), view.z.toFixed(3), ts, [...flags].join(),
-    lay?.key, !!zones, store.positions.lineFrac().toFixed(4), MAP_OPTS.map((k) => $(`#${k}`).checked).join(), trackKey, document.fonts?.status, document.documentElement.dataset.scheme, versionOf(['TimingStats'])].join('|');
+    lay?.key, !!zones, store.positions.lineFrac().toFixed(4), MAP_OPTS.map((k) => $(`#${k}`).checked).join(), trackKey, document.fonts?.status, document.documentElement.dataset.scheme, versionOf(['TimingStats']), focusMinisKey()].join('|');
   let flagZones;
   if (!animated && bg.key === bgKey && bg.canvas) {
     ctx.drawImage(bg.canvas, 0, 0, size.w, size.h);
@@ -1122,11 +1127,13 @@ function drawCars(dt) {
   }
 
   const order = Object.keys(dl).sort((a, b) => (Number(lines[b]?.Position) || 99) - (Number(lines[a]?.Position) || 99));
-  const special = new Set([store.duel.a, store.duel.b, store.focus].filter(Boolean));
+  // Pilotes du duel marqués seulement quand le panneau Duel est affiché (pas en Essentiel, ni panneau masqué)
+  const duel = document.querySelector('.p-duel')?.getClientRects().length ? store.duel : {};
+  const special = new Set([duel.a, duel.b, store.focus].filter(Boolean));
   const drawOrder = [...order.filter((n) => !special.has(n)), ...order.filter((n) => special.has(n))];
 
   let inPit = 0;
-  const followNum = store.focus || store.duel.a;
+  const followNum = store.focus || duel.a;
   if (!followNum) followTarget = null;
   const W = trackWidth();
   const trails = $('#mapTrails').checked;
@@ -1162,7 +1169,7 @@ function drawCars(dt) {
       if (h.length > TRAIL_LEN) h.shift();
     }
     const d = dl[num];
-    const isA = store.duel.a === num, isB = store.duel.b === num, isF = store.focus === num;
+    const isA = duel.a === num, isB = duel.b === num, isF = store.focus === num;
     const sp = isA || isB || isF;
     // Avec les noms : pastille ronde avec le trigramme à l'intérieur ; sinon simple point
     const r = labels ? Math.max(12, Math.min(16, W * 0.85)) + (sp ? 1.5 : 0) : Math.max(5.5, Math.min(10, W * 0.55)) + (sp ? 1.5 : 0);

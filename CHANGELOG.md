@@ -47,7 +47,8 @@ l'application (Réglages → À propos → Nouveautés).
   carte au centre avec les radios dessous, et à droite la direction de course et la télémétrie du pilote suivi.
   Disposition déjà enregistrée : Dispo. → Réinitialiser.
 - Interface Essentielle pendant les essais et les qualifs : classement avec le meilleur tour, l'écart et
-  l'intervalle (secteurs en couleur, sans les mini-secteurs).
+  l'intervalle (secteurs en couleur, sans les mini-secteurs) ; en qualifs, aussi le tour en cours (temps prévu
+  du tour lancé et position visée).
 - Interface Essentielle sur un écran plus grand que le 1080p (1440p, 4K) : grand classement à gauche (écart,
   intervalle, dernier et meilleur tour, secteurs et mini-secteurs, pneus, tours), la carte en haut à droite et,
   dessous, côte à côte, la télémétrie et la direction de course (radios sous elle). Panneaux à déplacer et
@@ -64,6 +65,14 @@ l'application (Réglages → À propos → Nouveautés).
   plus, c'est-à-dire au drapeau noir et blanc (pénalité à la 4e en course).
 - Disposition « Qualif & essais » ou « Course » et onglets adaptés à la séance (championnat seulement en course…)
   choisis aussi quand l'appli est ouverte avant le début de la séance, ou pour un replay.
+- Classement : la ligne de chaque pilote qui a passé le drapeau à damier prend un fond en damier, en course comme
+  à la fin de chaque partie des qualifs et des essais.
+- Badge du direct : « LIVE · GPS » ou « LIVE · sans GPS » (positions estimées d'après les chronos), écrit sur le
+  badge au lieu d'apparaître seulement au survol.
+- Onglets : clic droit sur un onglet pour le fermer ; clic droit sur la barre d'onglets d'un panneau pour voir
+  tous les onglets, remettre ceux qui sont fermés ou en amener un d'un autre panneau.
+- Carte et classement : les pilotes du duel n'y sont plus marqués (ni suivis sur la carte) quand le panneau Duel
+  n'est pas affiché (interface Essentielle, panneau masqué).
 
 ### Saison
 - Bilan de la saison (Saison → Bilan de la saison) : champion ou leader, victoires, poles, podiums, vainqueurs

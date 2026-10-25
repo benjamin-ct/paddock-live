@@ -10,7 +10,7 @@ const CODE = 'ESSAI-42';
 const nodeCrypto = await import('node:crypto');
 const HASH = nodeCrypto.createHash('sha256').update(nodeCrypto.pbkdf2Sync(CODE, 'paddock-live-studio', 200000, 32, 'sha256')).digest('hex');
 process.env.PADDOCK_CREATOR_HASH = HASH;
-const { studioApi, freshF1tv, runSchedule, schedInternal, seasonRow } = await import('../analytics/studio.js');
+const { studioApi, freshF1tv, runSchedule, schedInternal, seasonRow, liveF1tv } = await import('../analytics/studio.js');
 const { studioKey, enableStudio, syncStudio, disableStudio, studioInfo, studioRewrite } = await import('../server/studio-sync.js');
 const { saveConfig, getConfig } = await import('../server/config.js');
 
@@ -960,4 +960,115 @@ test('journal des publications : deux réseaux qui finissent en même temps sont
   await Promise.all([_addHistory(e, { ...rec, nets: { facebook: { id: 'f1', url: 'https://f.test/1' } } }), _addHistory(e, { ...rec, nets: { bluesky: { id: { uri: 'at://b', cid: 'c' }, url: 'https://b.test/1' } } })]);
   const h = JSON.parse(e.DB.studio.get('history'));
   assert.deepEqual(Object.keys(h[0].nets).sort(), ['bluesky', 'facebook']);
+});
+
+test('version web : connexion F1 TV gardée pour le relais (lisible sans le code), effacée à la déconnexion', async () => {
+  const jwt = (exp) => `e30.${Buffer.from(JSON.stringify({ exp: Math.floor(exp / 1000), SessionId: 'ses' })).toString('base64url')}.sig`;
+  const key = { 'X-Studio-Key': studioKey(CODE) };
+  const token = jwt(Date.now() + 3 * 86400e3);
+  let r = await worker('https://s.test/studio/api/init', { method: 'POST', body: JSON.stringify({ key: studioKey(CODE), vault: { f1tv: token } }) });
+  assert.equal(r.status, 200);
+  assert.equal(await liveF1tv(env), token);
+  assert.equal(env.DB.studio.get('live:f1tv').includes(token.split('.')[1]), false);   // chiffrée
+  assert.equal(await liveF1tv({ ...env, STATS_KEY: 'autre-secret' }), null);
+  r = await worker('https://s.test/studio/api/sync', { method: 'POST', headers: key, body: JSON.stringify({ vault: { f1tvOff: true } }) });
+  assert.equal(r.status, 200);
+  assert.equal(await liveF1tv(env), null);
+});
+
+test('onglet Suivi : connexion Google Drive depuis le Studio (lecture seule), gardée à l\'envoi de l\'appli', async () => {
+  const key = { 'X-Studio-Key': studioKey(CODE) };
+  const call = (p, init = {}) => worker(`https://s.test/studio/api/${p}`, { ...init, headers: key });
+  let r = await worker('https://s.test/studio/api/init', { method: 'POST', body: JSON.stringify({ key: studioKey(CODE), vault: { youtube: { clientId: 'yt.apps', clientSecret: 'secret-google', refreshToken: 'rt-yt', accessToken: 'a', expiresAt: 0 } } }) });
+  assert.equal(r.status, 200);
+  assert.deepEqual(await (await call('drive/files')).json(), { connected: false, youtubeClient: true });
+  // Adresse de retour : seulement la page du Studio en https
+  assert.equal((await call('drive/start', { method: 'POST', body: JSON.stringify({ redirect: 'https://ailleurs.test/autre' }) })).status, 400);
+  const { url } = await (await call('drive/start', { method: 'POST', body: JSON.stringify({ redirect: 'https://s.test/studio/' }) })).json();
+  const q = new URL(url).searchParams;
+  assert.equal(q.get('client_id'), 'yt.apps');
+  assert.equal(q.get('scope'), 'https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/spreadsheets');
+  assert.equal(q.get('redirect_uri'), 'https://s.test/studio/');
+
+  const realFetch = globalThis.fetch;
+  let refresh = 'ok';
+  const seen = [];
+  globalThis.fetch = async (u, opts = {}) => {
+    u = String(u);
+    seen.push(u);
+    const ok = (d, status = 200) => new Response(JSON.stringify(d), { status });
+    if (u === 'https://oauth2.googleapis.com/token') {
+      const f = new URLSearchParams(String(opts.body));
+      assert.equal(f.get('client_secret'), 'secret-google');
+      if (f.get('grant_type') === 'authorization_code') { assert.equal(f.get('code'), 'c1'); assert.ok(f.get('code_verifier')); return ok({ access_token: 'at1', expires_in: 3599, refresh_token: 'rt-drive', scope: 'https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/spreadsheets' }); }
+      return refresh === 'ok' ? ok({ access_token: 'at2', expires_in: 3599 }) : ok({ error: 'invalid_grant', error_description: 'Token has been expired or revoked.' }, 400);
+    }
+    assert.match(opts.headers.Authorization, /^Bearer at[12]$/);
+    if (u.startsWith('https://www.googleapis.com/drive/v3/files?')) {
+      const s = new URL(u).searchParams.get('q');
+      return ok(s.includes("name = 'Paddock Live · Réseaux'") ? { files: [{ id: 'dossier123456', name: 'Paddock Live · Réseaux' }] } : { files: [{ id: 'docafaire123456', name: 'À faire · Paddock Live', mimeType: 'application/vnd.google-apps.document' }] });
+    }
+    if (u === 'https://docs.googleapis.com/v1/documents/docafaire123456?includeTabsContent=true') return ok({ title: 'À faire', tabs: [] });
+    if (u === 'https://sheets.googleapis.com/v4/spreadsheets/feuille1234567/values/Journal!A1%3AD400') return ok({ values: [['Date']] });
+    if (u.startsWith('https://docs.googleapis.com/v1/documents/inconnu')) return ok({ error: { message: 'Requested entity was not found.' } }, 404);
+    throw new Error(`inattendu : ${u}`);
+  };
+  try {
+    assert.equal((await call('drive/finish', { method: 'POST', body: JSON.stringify({ code: 'c1', state: 'faux' }) })).status, 400);
+    r = await call('drive/finish', { method: 'POST', body: JSON.stringify({ code: 'c1', state: q.get('state') }) });
+    assert.deepEqual(await r.json(), { ok: true });
+    assert.ok(!env.DB.studio.get('vault').includes('rt-drive'));   // dans le coffre chiffré
+    const files = await (await call('drive/files')).json();
+    assert.deepEqual(files.folder, { id: 'dossier123456', name: 'Paddock Live · Réseaux' });
+    assert.equal(files.canWrite, true);
+    assert.equal(files.files[0].name, 'À faire · Paddock Live');
+    assert.equal((await (await call('drive/doc?id=docafaire123456')).json()).title, 'À faire');
+    assert.deepEqual(await (await call(`drive/values?id=feuille1234567&range=${encodeURIComponent('Journal!A1:D400')}`)).json(), { values: [['Date']] });
+    assert.deepEqual(await (await call('drive/fill', { method: 'POST', body: JSON.stringify({ accounts: [] }) })).json(), { error: 'Feuille « Suivi réseaux » introuvable dans le dossier' });
+    assert.equal((await call('drive/doc?id=../x')).status, 400);
+    assert.equal((await call('drive/doc?id=inconnu1234567')).status, 404);
+    // Envoi de l'appli (qui ne connaît pas Drive) : connexion gardée ; pas rendue comme un compte de l'appli
+    assert.equal((await call('sync', { method: 'POST', body: JSON.stringify({ vault: { youtube: { clientId: 'yt.apps', clientSecret: 'secret-google', refreshToken: 'rt-yt' } } }) })).status, 200);
+    assert.equal((await (await call('drive/files')).json()).connected, true);
+    assert.equal(JSON.stringify(await (await call('accounts')).json()).includes('gdrive'), false);
+    // Accès retiré chez Google (mode « Test » : 7 jours) : jeton d'accès à renouveler refusé, à reconnecter
+    refresh = 'expire';
+    const { url: url2 } = await (await call('drive/start', { method: 'POST', body: JSON.stringify({ redirect: 'https://s.test/studio/' }) })).json();
+    const exchange = globalThis.fetch;
+    globalThis.fetch = async (u, opts = {}) => (new URLSearchParams(String(opts.body)).get('grant_type') === 'authorization_code'
+      ? new Response(JSON.stringify({ access_token: 'at1', expires_in: 1, refresh_token: 'rt-drive' })) : exchange(u, opts));
+    await call('drive/finish', { method: 'POST', body: JSON.stringify({ code: 'c1', state: new URL(url2).searchParams.get('state') }) });
+    assert.deepEqual(await (await call('drive/files')).json(), { connected: false, expired: true, youtubeClient: true });
+    assert.equal((await call('drive/forget', { method: 'POST' })).status, 200);
+  } finally { globalThis.fetch = realFetch; }
+  assert.ok(seen.length > 4);
+});
+
+
+test('onglet Suivi : feuille « Suivi réseaux » remplie avec les chiffres du Studio', async () => {
+  const { sheetUpdates, mondayParis } = await import('../analytics/drive.js');
+  const now = Date.UTC(2026, 9, 26, 8);   // lundi 26 octobre, 9 h à Paris
+  assert.equal(mondayParis(now), '26/10/2026');
+  assert.equal(mondayParis(Date.UTC(2026, 10, 1, 22, 59)), '26/10/2026');   // dimanche 23 h 59 à Paris
+  const head = ['Lundi', 'Instagram', 'Facebook', 'TikTok', 'X', 'Threads', 'Bluesky', 'YouTube', 'Total', 'Gagnés depuis lundi dernier'];
+  const tables = {
+    'Abonnés Paddock Live': [head, ['19/10/2026', '1', '1', '', '', '', '', '', '5'], ['26/10/2026'], ['02/11/2026']],
+    'Benjy Paddock': [[...head.slice(0, 9), 'Gagnés en une semaine', 'Meilleur post de la semaine', 'Vues du meilleur post'], ['26/10/2026', '7']],   // déjà rempli à la main : rien
+    'Posts Paddock Live': [['Date', 'Heure', 'Réseau', 'Sujet', 'Lien du post', 'Vues', "J'aime", 'Commentaires'], ['24/10/2026', '12:00', 'Instagram', 'Zéro spoiler', 'https://www.instagram.com/p/ABC/?igsh=x', '10', '', ''], ['24/10/2026', '12:00', 'X', 'Zéro spoiler', '']],
+  };
+  const accounts = [{ name: 'Benjy Paddock', nets: { instagram: { stats: { followers: 3 } } } }, { name: 'Paddock Live', nets: { instagram: { stats: { followers: 4 } }, threads: { stats: { followers: 3 } }, x: { note: 'chiffres payants chez X' } } }];
+  const history = [{ key: 'post:1', title: 'Zéro spoiler', at: now - 2 * 86400e3, nets: { instagram: { url: 'https://instagram.com/p/ABC' } } }];
+  const kept = [{ key: 'post:1', at: now, stats: { instagram: { views: 221, likes: 18, comments: 2 } } }];
+  const out = sheetUpdates(tables, accounts, { history, kept, now });
+  assert.deepEqual(out, [
+    { range: "'Abonnés Paddock Live'!B3", values: [[4]] },
+    { range: "'Abonnés Paddock Live'!F3", values: [[3]] },
+    { range: "'Abonnés Paddock Live'!I3", values: [[7]] },
+    { range: "'Abonnés Paddock Live'!J3", values: [[2]] },
+    { range: "'Posts Paddock Live'!F2", values: [[221]] },
+    { range: "'Posts Paddock Live'!G2", values: [[18]] },
+    { range: "'Posts Paddock Live'!H2", values: [[2]] },
+  ]);
+  // Semaine sans ligne dans la feuille : rien d'inventé
+  assert.equal(sheetUpdates(tables, accounts, { now: Date.UTC(2026, 9, 20) }).length, 0);
 });

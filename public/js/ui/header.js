@@ -250,8 +250,9 @@ export function renderSource() {
   } else if (src.mode === 'live') {
     const stale = src.connected && src.stale;
     badge.className = `source-badge ${stale ? 'stale' : src.connected ? 'live' : 'error'}`;
-    lbl.textContent = stale ? 'LIVE · figé' : src.connected ? 'LIVE' : 'Connexion F1…';
-    badge.title = stale ? 'Plus de données reçues depuis 25 s : reconnexion automatique si ça dure' : src.error || (src.authenticated ? 'Flux live (avec GPS F1 TV)' : 'Flux live (sans GPS : positions estimées)');
+    // GPS reçu ou non (positions estimées d'après les chronos) : écrit sur le badge, pas seulement au survol
+    lbl.textContent = stale ? 'LIVE · figé' : !src.connected ? 'Connexion F1…' : src.authenticated ? 'LIVE · GPS' : 'LIVE · sans GPS';
+    badge.title = stale ? 'Plus de données reçues depuis 25 s : reconnexion automatique si ça dure' : src.error || (src.authenticated ? 'Flux live (avec GPS F1 TV)' : src.f1tv ? 'Connexion F1 TV prête : le GPS arrive quand les voitures roulent' : 'Flux live (sans GPS : positions estimées)');
   } else {
     badge.className = 'source-badge';
     lbl.textContent = 'Inactif';

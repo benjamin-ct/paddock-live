@@ -226,6 +226,7 @@ dialog.hide a { border-radius: 6px; }
       <a href="#telecharger" data-en="Download">Télécharger</a>
       <a href="#faq" data-en="FAQ">Questions</a>
       <a href="/p/" data-en="Predictions">Pronostics</a>
+      <a href="https://app.paddocklive.app/" data-en="Web version">Version web</a>
     </nav>
     <button class="lang" id="lang" aria-label="English">EN</button>
     <a class="btn primary small" href="#telecharger"><svg><use href="#i-dl"/></svg><span data-en="Download">Télécharger</span></a>
@@ -242,6 +243,7 @@ dialog.hide a { border-radius: 6px; }
         <a class="btn primary" id="cta" href="#telecharger"><svg><use href="#i-dl"/></svg><span data-en="Download for free">Télécharger gratuitement</span></a>
         <a class="btn" href="#fonctions" data-en="See the features">Voir les fonctionnalités</a>
         <a class="btn" href="/p/"><svg><use href="#i-trophy"/></svg><span data-en="Predictions with friends">Pronostics entre amis</span></a>
+        <a class="btn" href="https://app.paddocklive.app/"><svg><use href="#i-tv"/></svg><span data-en="Live in your browser">Le direct dans le navigateur</span></a>
       </div>
       <p class="ver" id="ver"></p>
       <div class="shot reveal"><img src="/site/img/tableau-de-bord.webp" width="1600" height="888" alt="Paddock Live pendant une course : classement, carte du circuit, radios et direction de course" fetchpriority="high"></div>
@@ -378,6 +380,7 @@ dialog.hide a { border-radius: 6px; }
           <small data-en="AppImage: make it executable, then launch it. Package: sudo apt install ./Paddock-Live-….deb">AppImage : rends-la exécutable, puis lance-la. Paquet : sudo apt install ./Paddock-Live-….deb</small>
         </div>
       </div>
+      <p class="lead" data-en="Nothing to install, or on your phone: the <a href='https://app.paddocklive.app/'>web version</a> (timing, map, telemetry, race control and radios, with your TV delay).">Rien à installer, ou sur ton téléphone : la <a href="https://app.paddocklive.app/">version web</a> (classement, carte, télémétrie, direction de course et radios, avec ton délai TV).</p>
     </div>
   </section>
 
@@ -480,11 +483,14 @@ document.getElementById('lang').onclick = () => setLang(lang === 'en' ? 'fr' : '
 // Système de l'ordinateur : bouton principal direct et carte mise en avant
 const ua = navigator.userAgent;
 const os = /Windows/.test(ua) ? 'windows' : /Mac OS X|Macintosh/.test(ua) && !/iPhone|iPad/.test(ua) ? 'mac' : /Linux/.test(ua) && !/Android/.test(ua) ? 'linux' : null;
-// Téléphone ou tablette : l'appli s'installe sur un ordinateur
+// Téléphone ou tablette : l'appli s'installe sur un ordinateur ; le bouton principal ouvre la version web
 if (/iPhone|iPad|Android/.test(ua)) {
   const cta = document.querySelector('#cta span');
-  cta.dataset.fr = 'Disponible sur ordinateur';
-  cta.dataset.en = 'Available for computers';
+  cta.dataset.fr = 'Ouvrir la version web';
+  cta.dataset.en = 'Open the web version';
+  document.getElementById('cta').href = 'https://app.paddocklive.app/';
+  document.querySelector('#cta use')?.setAttribute('href', '#i-tv');
+  document.querySelector('.cta a[href="https://app.paddocklive.app/"]:not(#cta)')?.remove();   // même lien en double
 } else if (os) {
   document.querySelector(`.os[data-os="${os}"]`)?.classList.add('mine');
   const NAME = { windows: 'Windows', mac: 'macOS', linux: 'Linux' };
