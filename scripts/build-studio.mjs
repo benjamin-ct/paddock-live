@@ -177,7 +177,6 @@ fs.writeFileSync(path.join(OUT, '_headers'), `/studio/*
   X-Robots-Tag: noindex, nofollow
 /live/*
   Cache-Control: no-cache
-  X-Robots-Tag: noindex, nofollow
 `);
 const n = (d) => fs.readdirSync(path.join(OUT, d)).length;
 console.log(`Site prêt : version ${VERSION}, ${n(`m/${VERSION}/studio`)} fichiers studio, ${n(`m/${VERSION}/shared`)} modules partagés (${graph.length} chargés d'emblée), ${n('fonts')} polices, version web : ${liveGraph.size} modules`);
