@@ -116,11 +116,12 @@ const parseStream = (text, topic) => {
 };
 
 export async function loadState(path, topics = TOPICS) {
+  let why = null;   // raison donnée par le serveur (archive pas encore publiée, connexion F1 TV refusée…)
   const parts = await mapLimit(topics, 5, async (t) => {
-    try { return parseStream(await (await api(`archive?p=${encodeURIComponent(`${path}${t}.jsonStream`)}`, { raw: true })).text(), t); } catch { return []; }
+    try { return parseStream(await (await api(`archive?p=${encodeURIComponent(`${path}${t}.jsonStream`)}`, { raw: true })).text(), t); } catch (err) { why ||= err.message; return []; }
   });
   const events = parts.flat().sort((a, b) => a.off - b.off);
-  if (!events.length) throw new Error('Archive de la séance indisponible (pas encore publiée, ou connexion F1 TV à renouveler dans l\'appli)');
+  if (!events.length) throw new Error(why === 'Archive pas encore publiée' ? 'Archive pas encore publiée par la F1 : elle arrive environ une heure après la fin de la séance, réessayez plus tard' : why || 'Archive de la séance indisponible');
   // État de fin de séance et tours de chaque pilote (dépassements des posts de résultats)
   const st = {};
   const derived = createDerived();
