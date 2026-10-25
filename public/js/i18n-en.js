@@ -2641,6 +2641,8 @@ export default {
   "Supprimer définitivement tous les enregistrements (sauf la séance en cours) ?": "Permanently delete all recordings (except the session in progress)?",
   "Replay impossible : {} — « Direct » dans le menu de gauche pour revenir au direct": "Replay unavailable: {} — “Live” in the left menu takes you back to the live session",
   "LIVE · figé": "LIVE · frozen",
+  "LIVE · sans GPS": "LIVE · no GPS",
+  "Connexion F1 TV prête : le GPS arrive quand les voitures roulent": "F1 TV connection ready: GPS arrives once the cars are running",
   "Plus de données reçues depuis 25 s : reconnexion automatique si ça dure": "No data received for 25 s: reconnecting automatically if it lasts",
   "Une séance est en cours : le replay interrompt le direct (« Direct » dans le menu de gauche pour y revenir). Lancer le replay ?": "A session is live: the replay interrupts it (“Live” in the left menu takes you back). Start the replay?",
   "Coupure du flux : reconnexion (essai {}/3)…": "Stream dropped: reconnecting (attempt {}/3)…",

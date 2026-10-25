@@ -67,6 +67,8 @@ l'application (Réglages → À propos → Nouveautés).
   choisis aussi quand l'appli est ouverte avant le début de la séance, ou pour un replay.
 - Classement : la ligne de chaque pilote qui a passé le drapeau à damier prend un fond en damier, en course comme
   à la fin de chaque partie des qualifs et des essais.
+- Badge du direct : « LIVE · GPS » ou « LIVE · sans GPS » (positions estimées d'après les chronos), écrit sur le
+  badge au lieu d'apparaître seulement au survol.
 
 ### Saison
 - Bilan de la saison (Saison → Bilan de la saison) : champion ou leader, victoires, poles, podiums, vainqueurs

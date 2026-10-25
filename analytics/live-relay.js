@@ -191,6 +191,7 @@ export class LiveRelay {
       ws.accept();
       this.up = ws;
       this.token = token;
+      this.status.f1tv = !!token;   // connexion F1 TV utilisée : GPS attendu dès que la séance roule
       this.connectedAt = Date.now();
       let buffer = '';
       let last = Date.now();
@@ -249,7 +250,7 @@ export class LiveRelay {
         applyEvent(this.base.state, this.base.derived, '__snapshot', snapshot, now);
         this.out = [];
         this.outStream = [];
-        this.status = { connected: true, error: null, session: label(result.SessionInfo), authenticated };
+        this.status = { connected: true, error: null, session: label(result.SessionInfo), authenticated, f1tv: !!this.token };
         this.hello();
       } else {
         this.add('__snapshot', snapshot, now);
