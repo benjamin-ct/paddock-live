@@ -159,6 +159,9 @@ export async function checkTask(at, id, start, title, now = new Date(), call = g
   const model = h < 0 ? null : content.slice(h + 1).find((e) => heading(e) || e.paragraph?.bullet);
   if (!model?.paragraph?.bullet) throw Object.assign(new Error('Section « Fait » (avec au moins une tâche) introuvable dans le Doc'), { status: 409 });
   const runs = model.paragraph.elements.map((x) => x.textRun).filter(Boolean);
+  // Détail : mis en forme comme celui de la première tâche faite qui en a un (la première peut n'avoir qu'un titre)
+  const end = content.findIndex((e, i) => i > h && heading(e));
+  const withDetail = content.slice(h + 1, end < 0 ? undefined : end).map((e) => (e.paragraph?.elements || []).map((x) => x.textRun).filter(Boolean)).find((r) => r.length > 1);
   const date = now.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', timeZone: 'Europe/Paris' });
   const head = `${date}  ·  ${title.trim()}`;
   const rest = lines.slice(1).filter((l) => l.trim()).map((l) => `\u000b${l}`).join('');
@@ -167,7 +170,7 @@ export async function checkTask(at, id, start, title, now = new Date(), call = g
   const add = [
     { insertText: { location: { index: at0 }, text: `${head}${rest}\n` } },
     { updateTextStyle: { range: { startIndex: at0, endIndex: at0 + len(head) }, textStyle: styleOf(runs[0]?.textStyle, true), fields: STYLE } },
-    ...(rest ? [{ updateTextStyle: { range: { startIndex: at0 + len(head), endIndex: at0 + len(head) + len(rest) }, textStyle: styleOf((runs[1] || runs[0])?.textStyle, false), fields: STYLE } }] : []),
+    ...(rest ? [{ updateTextStyle: { range: { startIndex: at0 + len(head), endIndex: at0 + len(head) + len(rest) }, textStyle: styleOf((runs[1] || withDetail?.[1] || runs[0])?.textStyle, false), fields: STYLE } }] : []),
   ];
   const del = { deleteContentRange: { range: { startIndex: item.startIndex, endIndex: item.endIndex } } };
   // Le plus loin dans le Doc d'abord : l'autre modification ne décale pas ses index

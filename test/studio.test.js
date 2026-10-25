@@ -1115,3 +1115,27 @@ test('Suivi : tâche cochée déplacée en tête de « Fait » avec la date, Doc
   await assert.rejects(checkTask('jeton', 'docid0123456', 15, 'Autre tâche', new Date(), call), /La liste a changé/);
   assert.equal(sent, null);
 });
+
+test('Suivi : détail d\'une tâche cochée mis en forme comme celui d\'une tâche faite qui en a un', async () => {
+  const { checkTask } = await import('../analytics/drive.js');
+  const run = (startIndex, content, textStyle = {}) => ({ startIndex, endIndex: startIndex + content.length, textRun: { content, textStyle } });
+  const para = (startIndex, runs, extra = {}) => ({ startIndex, endIndex: runs.at(-1).endIndex, paragraph: { elements: runs, ...extra } });
+  const H = { paragraphStyle: { namedStyleType: 'HEADING_2' } };
+  const big = { fontSize: { magnitude: 12.5, unit: 'PT' } };
+  const small = { fontSize: { magnitude: 10.5, unit: 'PT' } };
+  const task = 'Tâche\u000bSon détail\n';
+  const one = '25 oct.  ·  Faite sans détail\n';
+  const two = '24 oct.  ·  Faite avec détail';
+  const doc = { revisionId: 'r', body: { content: [
+    para(1, [run(1, 'À faire\n')], H),
+    para(9, [run(9, task)], { bullet: { listId: 'a' } }),
+    para(9 + task.length, [run(9 + task.length, 'Fait\n')], H),
+    para(14 + task.length, [run(14 + task.length, one, { bold: true, ...big })], { bullet: { listId: 'b' } }),
+    para(14 + task.length + one.length, [run(14 + task.length + one.length, two, { bold: true, ...big }), run(14 + task.length + one.length + two.length, '\u000bdétail\n', small)], { bullet: { listId: 'b' } }),
+  ] } };
+  let sent = null;
+  await checkTask('j', 'docid0123456', 9, 'Tâche', new Date('2026-10-25T12:00:00Z'), async (u, a, body) => { if (body) { sent = body; return {}; } return doc; });
+  const styles = sent.requests.filter((q) => q.updateTextStyle).map((q) => q.updateTextStyle.textStyle);
+  assert.deepEqual(styles[0].fontSize, big.fontSize);     // titre : comme le titre de la première tâche faite
+  assert.deepEqual(styles[1].fontSize, small.fontSize);   // détail : comme un détail, pas comme un titre
+});
