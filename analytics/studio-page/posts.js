@@ -1,7 +1,7 @@
 // Studio : posts des news (et récap de la semaine) et des séances (résultats, avant-course,
 // championnat, flash). Chargé à l'ouverture d'un post.
 import { decodeBody } from '/shared/news-collect.js';
-import { bigNews, newsPost, newsCaptions, newsKind, similarArticles, mainTeam, mentionsTeam, LOOKS, OTHER_SERIES, NEWS_BADGES } from '/shared/social-news.js';
+import { bigNews, newsPost, newsCaptions, newsKind, similarArticles, mainTeam, mentionsTeam, LOOKS, OTHER_SERIES, NEWS_BADGES, NO_BADGE } from '/shared/social-news.js';
 import { newsTags } from '/shared/news.js';
 import { postData, captions } from '/shared/social.js';
 import { preraceData, champData, flashEvents, flashData, moreCaptions, FLASH_KINDS } from '/shared/social-more.js';
@@ -258,7 +258,7 @@ export async function manualEditor(back) {
     const text = `${f.title} ${f.summary} ${f.points}`;
     const title = f.title.trim() || 'Votre titre ici';
     const d = newsPost({ ...it, title, summary: f.summary, tags: newsTags(text) }, { title, summary: f.summary, points: f.points, driverList: drivers, sourceName: f.source.trim() });
-    if (f.kind) d.badge = NEWS_BADGES.find((b) => b.key === f.kind) || d.badge;
+    if (f.kind) d.badge = f.kind === 'none' ? NO_BADGE : NEWS_BADGES.find((b) => b.key === f.kind) || d.badge;
     if (f.image) Object.assign(d, { image: f.image, credit: f.credit });
     d.breaking = f.breaking;
     return d;
@@ -273,7 +273,7 @@ export async function manualEditor(back) {
       <label class="field"><span>Titre</span><input type="text" id="mtitle" maxlength="120" placeholder="Le titre du visuel"></label>
       <label class="field"><span>Résumé</span><textarea id="msum" rows="3" maxlength="320"></textarea></label>
       <label class="field"><span>Points clés, un par ligne <small>(images suivantes du carrousel)</small></span><textarea id="mpoints" rows="4" maxlength="1600" placeholder="Facultatif"></textarea></label>
-      <label class="field"><span>Type d'info</span><select id="mkind"><option value="">Deviné d'après le texte</option>${NEWS_BADGES.map((b) => `<option value="${b.key}">${esc(b.label.charAt(0) + b.label.slice(1).toLowerCase())}</option>`).join('')}</select></label>
+      <label class="field"><span>Type d'info</span><select id="mkind"><option value="">Deviné d'après le texte</option><option value="none">Aucun (pas d'étiquette)</option>${NEWS_BADGES.map((b) => `<option value="${b.key}">${esc(b.label.charAt(0) + b.label.slice(1).toLowerCase())}</option>`).join('')}</select></label>
       <label class="field"><span>Source <small>(facultatif, citée en bas de l'image)</small></span><input type="text" id="msrc" maxlength="60" placeholder="Ex. : communiqué de McLaren"></label>
       <div class="field"><span>Photo <small>(facultatif : remplace les portraits des pilotes)</small></span>
         <div class="row"><label class="btn small">${icon('image')}Choisir une photo<input type="file" id="mimg" accept="image/*" hidden></label><button class="btn small" id="mfree">${icon('image')}Photo libre de droits</button><button class="btn small" id="mimgcrop" hidden>${icon('image')}Recadrer</button><button class="btn small" id="mimgdel" hidden>${icon('close')}Retirer</button><span class="hint" id="mimgst"></span></div></div>

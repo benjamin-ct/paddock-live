@@ -2157,6 +2157,7 @@ export default {
   "Code secret du client": "Client secret",
   "Se connecter à {}": "Connect to {}",
   "Clés enregistrées : cliquez sur « Se connecter à YouTube »": "Keys saved: click \"Connect to YouTube\"",
+  "Aucun (pas d’étiquette)": "None (no label)",
   "Choisir une vidéo": "Choose a video",
   "Retirer la vidéo": "Remove the video",
   "Facultatif : un enregistrement d’écran par exemple, intégré au visuel ({} s au plus)": "Optional: a screen recording for example, built into the visual ({} s max.)",

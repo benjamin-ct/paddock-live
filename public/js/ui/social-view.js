@@ -15,7 +15,7 @@ import { raceFrame, raceVideoTiming } from '/shared/social-draw-season.js';
 import { makeAnimation } from '/shared/social-video.js';
 import { newsFrame, newsVideoTiming } from '/shared/social-news-video.js';
 import { makeClipVideo, CLIP_MAX } from '/shared/social-clip-video.js';
-import { bigNews, newsPost, newsCaptions, newsKind, newsKinds, sortNews, OTHER_SERIES, isBreaking, NEWS_BADGES } from '/shared/social-news.js';
+import { bigNews, newsPost, newsCaptions, newsKind, newsKinds, sortNews, OTHER_SERIES, isBreaking, NEWS_BADGES, NO_BADGE } from '/shared/social-news.js';
 import { newsTags } from '/shared/news.js';
 import { builtinNomination } from '/shared/tyres.js';
 import { preraceData, champData, flashEvents, flashData, moreCaptions, FLASH_KINDS } from '/shared/social-more.js';
@@ -362,7 +362,7 @@ function manualPost(sig) {
   const title = m.title.trim() || t('Votre titre ici');
   const d = newsPost({ id: m.id, cat: 'official', t: Date.now(), link: '', title, summary: m.summary, tags: newsTags(`${m.title} ${m.summary} ${m.points}`) },
     { title, summary: m.summary, points: m.points, driverList: store.state?.DriverList || {}, sourceName: m.source.trim() });
-  if (m.kind) d.badge = NEWS_BADGES.find((b) => b.key === m.kind) || d.badge;
+  if (m.kind) d.badge = m.kind === 'none' ? NO_BADGE : NEWS_BADGES.find((b) => b.key === m.kind) || d.badge;
   if (m.image) d.image = m.image;
   d.breaking = m.breaking;
   return { d, caps: (dd) => newsCaptions(dd, sig), record: { key: `manual:${m.id}`, kind: 'manual', title: d.title } };
@@ -377,7 +377,7 @@ function manualSource(sig) {
       <label class="small muted">${t('Résumé')}<textarea data-m="summary" rows="3" maxlength="320">${esc(m.summary)}</textarea></label>
       <label class="small muted">${t('Points clés, un par ligne (images suivantes du carrousel)')}<textarea data-m="points" rows="4" maxlength="1600" placeholder="${t('Facultatif')}">${esc(m.points)}</textarea></label>
       <div class="posts-m2">
-        <label class="small muted">${t('Type d’info')} <select data-mkind><option value="">${t('Deviné d’après le texte')}</option>${NEWS_BADGES.map((b) => `<option value="${b.key}" ${m.kind === b.key ? 'selected' : ''}>${esc(t(b.label.charAt(0) + b.label.slice(1).toLowerCase()))}</option>`).join('')}</select></label>
+        <label class="small muted">${t('Type d’info')} <select data-mkind><option value="">${t('Deviné d’après le texte')}</option><option value="none" ${m.kind === 'none' ? 'selected' : ''}>${t('Aucun (pas d’étiquette)')}</option>${NEWS_BADGES.map((b) => `<option value="${b.key}" ${m.kind === b.key ? 'selected' : ''}>${esc(t(b.label.charAt(0) + b.label.slice(1).toLowerCase()))}</option>`).join('')}</select></label>
         <label class="small muted">${t('Source (facultatif)')} <input type="text" data-m="source" maxlength="60" value="${esc(m.source)}" placeholder="${t('Ex. : communiqué de McLaren')}"></label>
       </div>
       <div class="row"><label class="btn small">${icon('plus')} ${t('Choisir une photo')}<input type="file" data-mimg accept="image/*" hidden></label>

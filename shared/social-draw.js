@@ -653,13 +653,15 @@ export function newsSlide(ctx, W, H, d, o, fmt = 'ig') {
   const blockH = fixed + pick.lines.length * lh + pick.sumN * sumLh;
   let y = centered ? areaTop + Math.max(0, (avail - blockH) / 2.2) : areaTop;
 
-  // Étiquette du type de nouvelle
+  // Étiquette du type de nouvelle (aucune si le type est « Aucun »)
   const tag = d.badge.label;
-  ctx.font = `700 ${Math.round(34 * u)}px ${TITLE}`;
-  const tw = ctx.measureText(tag).width + 6 * tag.length * u;
-  rr(ctx, x, y, tw + 44 * u, 58 * u, 8 * u); ctx.fillStyle = d.badge.color; ctx.fill();
-  txt(ctx, tag, x + 22 * u, y + 41 * u, { size: Math.round(34 * u), weight: 700, family: TITLE, color: lightColor(d.badge.color) ? C.bg : '#fff', spacing: 6 * u });
-  y += (58 + 40) * u;
+  if (tag) {
+    ctx.font = `700 ${Math.round(34 * u)}px ${TITLE}`;
+    const tw = ctx.measureText(tag).width + 6 * tag.length * u;
+    rr(ctx, x, y, tw + 44 * u, 58 * u, 8 * u); ctx.fillStyle = d.badge.color; ctx.fill();
+    txt(ctx, tag, x + 22 * u, y + 41 * u, { size: Math.round(34 * u), weight: 700, family: TITLE, color: lightColor(d.badge.color) ? C.bg : '#fff', spacing: 6 * u });
+    y += (58 + 40) * u;
+  }
   pick.lines.forEach((l, i) => txt(ctx, l, x, y + pick.size * 0.82 + i * lh, { size: pick.size, weight: 800, family: TITLE }));
   y += pick.lines.length * lh + 34 * u;
   ctx.fillStyle = d.color ? vivid(d.color) : C.red;
@@ -955,7 +957,7 @@ function essentiel(ctx, W, H, d, o, page, fmt) {
   ctx.fillStyle = C.red;
   ctx.fillRect(pad, top, 10, Math.round(64 * u));
   txt(ctx, "L'ESSENTIEL", pad + 28, top + 30 * u, { size: Math.round(34 * u), weight: 800, family: TITLE, spacing: 4 });
-  txt(ctx, d.badge.label.toUpperCase(), pad + 28, top + 62 * u, { size: Math.round(24 * u), weight: 600, family: TITLE, color: C.muted, spacing: 2 });
+  txt(ctx, (d.badge.label || 'ACTU F1').toUpperCase(), pad + 28, top + 62 * u, { size: Math.round(24 * u), weight: 600, family: TITLE, color: C.muted, spacing: 2 });
   if (pages.length > 1) txt(ctx, `${page} / ${pages.length}`, W - pad, top + 46 * u, { size: Math.round(34 * u), weight: 700, family: MONO, color: C.muted, align: 'right' });
   const fy = H - Math.round(Math.min(W, H) * 0.045);
   const bottom = fy - Math.round(Math.min(W, H) * 0.08);
@@ -1005,7 +1007,7 @@ function newsPhoto(ctx, W, H, d, o, n) {
   const top = Math.round(Math.min(W, H) * 0.06);
   ctx.fillStyle = C.red;
   ctx.fillRect(pad, top, 10, Math.round(64 * u));
-  txt(ctx, d.badge.label.toUpperCase(), pad + 28, top + 30 * u, { size: Math.round(34 * u), weight: 800, family: TITLE, spacing: 4 });
+  txt(ctx, (d.badge.label || 'ACTU F1').toUpperCase(), pad + 28, top + 30 * u, { size: Math.round(34 * u), weight: 800, family: TITLE, spacing: 4 });
   const t = fitLines(ctx, d.title.toUpperCase(), W - pad * 2 - 200 * u, [24].map((v) => Math.round(v * u)), 1, TITLE, 600);
   if (t.lines[0]) txt(ctx, t.lines[0], pad + 28, top + 62 * u, { size: t.size, weight: 600, family: TITLE, color: C.muted, spacing: 1 });
   if (kept.length > 1) txt(ctx, `${kept.indexOf(n) + 1} / ${kept.length}`, W - pad, top + 46 * u, { size: Math.round(34 * u), weight: 700, family: MONO, color: C.muted, align: 'right' });
@@ -1052,7 +1054,7 @@ export function videoCover(ctx, W, H, d, o = {}) {
   // Étiquette du type de nouvelle (ou BREAKING), comme sur les visuels
   const top = Math.round(260 * u);
   if (d.breaking) breakingTag(ctx, pad + 300 * u, top, 72 * u);
-  else {
+  else if (d.badge.label) {
     ctx.font = `800 ${Math.round(40 * u)}px ${TITLE}`;
     const bw = ctx.measureText(d.badge.label).width + 70 * u;
     rr(ctx, pad, top, bw, 72 * u, 12 * u); ctx.fillStyle = d.badge.color; ctx.fill();

@@ -71,7 +71,7 @@ function intro(ctx, W, H, d, u, s) {
     ctx.save(); ctx.globalAlpha = kc;
     ctx.font = `700 ${Math.round(40 * u)}px ${TITLE}`;
     const w = ctx.measureText(d.badge.label).width + 6 * d.badge.label.length * u + 44 * u;
-    if (d.breaking || d.badge.label !== 'ACTU F1') chip(ctx, d.badge, (W - w) / 2, cy + 150 * u + (1 - kc) * 40 * u, u, 40);   // pas deux fois « ACTU F1 »
+    if (d.badge.label && (d.breaking || d.badge.label !== 'ACTU F1')) chip(ctx, d.badge, (W - w) / 2, cy + 150 * u + (1 - kc) * 40 * u, u, 40);   // pas deux fois « ACTU F1 »
     txt(ctx, d.date.toUpperCase(), W / 2, cy + 290 * u + (1 - kc) * 40 * u, { size: Math.round(34 * u), weight: 600, family: TITLE, color: C.muted, align: 'center', spacing: 4 });
     ctx.restore();
   }
@@ -164,7 +164,7 @@ function mainScene(ctx, W, H, d, o, u, s, dur) {
   let y = L.y0;
   // Type de nouvelle : glisse depuis la gauche
   const kc = out3((s - 0.3) / 0.4);
-  if (kc > 0) { ctx.save(); ctx.globalAlpha = kc; chip(ctx, d.badge, x - (1 - kc) * 200 * u, y, u, 44); ctx.restore(); }
+  if (kc > 0 && d.badge.label) { ctx.save(); ctx.globalAlpha = kc; chip(ctx, d.badge, x - (1 - kc) * 200 * u, y, u, 44); ctx.restore(); }
   y += 110 * u;
   // Titre : lignes dévoilées une à une de gauche à droite
   L.lines.forEach((l, i) => {
