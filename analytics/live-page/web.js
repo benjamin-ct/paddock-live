@@ -32,12 +32,17 @@ let relay = {};
 // par son propre relais, relié à la F1 avec son abonnement. Gardée en mémoire seulement ; le cookie « plu »
 // (empreinte, pas le jeton) désigne ce relais pour les radios réservées aux abonnés
 let f1tv = null, relayId = '';
+const F1TV_KEY = 'paddock.f1tv';
 const sha = async (t) => [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t)))].map((b) => b.toString(16).padStart(2, '0')).join('').slice(0, 32);
-// Connexion F1 TV reçue (extension, ou appairage d'un téléphone) : gardée en mémoire, son relais rejoint
+// JWT F1 TV encore valable (contrôle d'expiration côté navigateur ; la F1 fait la vraie vérification)
+const tokenAlive = (tok) => { try { const p = JSON.parse(atob(tok.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))); return !!p.exp && p.exp * 1000 > Date.now(); } catch { return false; } };
+// Connexion F1 TV reçue (extension, ou appairage d'un téléphone) : gardée en mémoire et sur cet appareil (son
+// propre navigateur) pour ne pas refaire l'appairage à chaque ouverture ; son relais rejoint
 async function useToken(token) {
   if (!/^[\w-]+\.[\w-]+\.[\w-]+$/.test(token || '') || token === f1tv) return false;
   const id = await sha(token);
   f1tv = token;
+  try { localStorage.setItem(F1TV_KEY, token); } catch { /* stockage indisponible */ }
   updatePairUI();
   if (id === relayId) { if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'auth', token })); return true; }   // renouvelée
   relayId = id;
@@ -245,5 +250,12 @@ on('status', renderSource);
 on('connection', renderSource);
 on('focus', () => renderTower(true));
 on('duel', () => renderTower(true));
+// Connexion F1 TV gardée d'une ouverture à l'autre sur cet appareil : reprise avant la connexion, pour rejoindre
+// directement son relais (sinon il faudrait refaire l'appairage à chaque fois) ; effacée une fois expirée
+try {
+  const saved = localStorage.getItem(F1TV_KEY);
+  if (saved && tokenAlive(saved)) { f1tv = saved; relayId = await sha(saved); updatePairUI(); }
+  else if (saved) localStorage.removeItem(F1TV_KEY);
+} catch { /* stockage indisponible */ }
 connect();
 loop();

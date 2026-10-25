@@ -70,6 +70,7 @@ export class LiveRelay {
     if (url.pathname === '/session') return json(await this.session(url.searchParams.has('wake')));
     if (url.pathname === '/radio') return this.radio(url.searchParams.get('p') || '');
     if (url.pathname === '/pair') return this.pair(req, url);
+    if (url.pathname === '/clients') return json(this.clientList());
     if (req.headers.get('Upgrade') !== 'websocket') return new Response('WebSocket attendu', { status: 426 });
     // Page d'un autre site branchée sur le relais : refusée
     if (!ORIGINS.includes(req.headers.get('Origin'))) return new Response('Origine refusée', { status: 403 });
@@ -82,6 +83,8 @@ export class LiveRelay {
     this.clients.add(server);
     this.ips.set(ip, (this.ips.get(ip) || 0) + 1);
     server.ip = ip;
+    server.ua = shortUA(req.headers.get('User-Agent'));   // type d'appareil, pour la liste des appareils du Studio
+    server.since = Date.now();
     const drop = () => this.drop(server);
     server.addEventListener('close', drop);
     server.addEventListener('error', drop);
@@ -138,6 +141,12 @@ export class LiveRelay {
       return json({ ok: true });
     }
     return json({ error: 'Méthode non permise' }, 405);
+  }
+
+  // Appareils actuellement reliés à ce relais (liste des appareils du Studio) : type d'appareil et depuis quand
+  clientList() {
+    const now = Date.now();
+    return { count: this.clients.size, authenticated: !!this.userToken, devices: [...this.clients].map((c) => ({ ua: c.ua || 'Appareil', since: Math.max(0, Math.round((now - (c.since || now)) / 1000)) })).sort((a, b) => b.since - a.since) };
   }
 
   // Connexion F1 TV d'un abonné : acceptée seulement si elle correspond à ce relais (son empreinte en est le nom)
@@ -546,3 +555,18 @@ const json = (d, status = 200, headers = {}) => new Response(JSON.stringify(d), 
 
 // Clé publique ECDH (P-256) valable en apparence : le serveur ne s'en sert pas, il la relaie seulement
 const pairKey = (k) => !!k && k.kty === 'EC' && k.crv === 'P-256' && typeof k.x === 'string' && typeof k.y === 'string' && k.x.length <= 64 && k.y.length <= 64;
+
+// Nom court d'un appareil d'après son User-Agent (liste des appareils du Studio)
+function shortUA(ua = '') {
+  const os = /iPhone|iPad|iPod/.test(ua) ? 'iPhone/iPad' : /Android/.test(ua) ? 'Android' : /Mac OS X|Macintosh/.test(ua) ? 'Mac' : /Windows/.test(ua) ? 'Windows' : /Linux/.test(ua) ? 'Linux' : 'Appareil';
+  const br = /Edg/.test(ua) ? 'Edge' : /CriOS|Chrome/.test(ua) ? 'Chrome' : /Firefox|FxiOS/.test(ua) ? 'Firefox' : /Safari/.test(ua) ? 'Safari' : '';
+  return br ? `${br} sur ${os}` : os;
+}
+
+// Appareils reliés au compte F1 TV du créateur (Studio) : connexions en cours sur son relais privé
+export async function liveDevices(env, token) {
+  const id = f1tvToken(token) ? await relayId(token) : null;
+  if (!env.LIVE || !id) return { count: 0, devices: [] };
+  const name = `u:${id}`;
+  return (await relay(env, name).fetch(new Request('https://relay/clients', { headers: { 'X-Relay': name } }))).json();
+}

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import zlib from 'node:zlib';
-import { LiveRelay, KEEP_MS, liveApi, pairSend } from '../analytics/live-relay.js';
+import { LiveRelay, KEEP_MS, liveApi, pairSend, liveDevices } from '../analytics/live-relay.js';
 import { WebHub } from '../analytics/live-page/web-hub.js';
 import { applyEvent, createDerived } from '../shared/derive.js';
 
@@ -315,4 +315,24 @@ test('appairage Studio : la connexion est chiffrée pour le téléphone, lisible
   // Code inconnu, connexion absente/expirée : refusés proprement
   assert.match((await pairSend(env, '000000', token)).error, /inconnu|expir/);
   assert.match((await pairSend(env, code, 'pasunjeton')).error, /absente|expir/);
+});
+
+// Appareils connectés (Studio) : type d'appareil et depuis quand, pour le relais du créateur
+test('appareils connectés : liste des connexions du relais privé, type d\'appareil et durée', async () => {
+  const inst = new LiveRelay({}, {});
+  inst.userToken = okToken();
+  inst.clients.add({ ua: 'Chrome sur Mac', since: Date.now() - 65000 });
+  inst.clients.add({ ua: 'iPhone/iPad', since: Date.now() - 4000 });
+  const r = inst.clientList();
+  assert.equal(r.count, 2);
+  assert.equal(r.authenticated, true);
+  assert.equal(r.devices[0].ua, 'Chrome sur Mac');   // le plus ancien d'abord
+  assert.ok(r.devices[0].since >= 60 && r.devices[1].since < 60);
+  // Route interne /clients (appelée par liveDevices)
+  const res = await inst.fetch(new Request('https://relay/clients', { headers: { 'X-Relay': 'u:abc' } }));
+  assert.equal((await res.json()).count, 2);
+  // liveDevices : relais privé résolu depuis le jeton ; jeton invalide → liste vide, sans toucher au relais
+  const env = { LIVE: { idFromName: (n) => n, get: () => inst } };
+  assert.equal((await liveDevices(env, okToken())).count, 2);
+  assert.deepEqual(await liveDevices(env, 'pasunjeton'), { count: 0, devices: [] });
 });

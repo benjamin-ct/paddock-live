@@ -14,7 +14,7 @@ import { decodeBody } from '../shared/news-collect.js';
 import { publishFacebook, publishInstagram, publishThreads, freshThreads, commentFacebook, replyThreads, withComment, storyInstagram, storyFacebook, storyVideoInstagram, storyVideoFacebook, reelInstagram, hostOnPage, publishFacebookVideo, publishThreadsVideo, publishFacebookLink, publishThreadsLink, cleanTopic } from '../shared/meta-publish.js';
 import { publishBluesky, replyBluesky } from '../shared/bluesky-publish.js';
 import { driveApi } from './drive.js';
-import { liveSession, pairSend } from './live-relay.js';
+import { liveSession, pairSend, liveDevices } from './live-relay.js';
 import { freshTiktok, freshYoutube, tiktokDraft, youtubeUpload, tiktokCreator, tiktokDirect, TIKTOK_PRIVACY } from '../shared/video-publish.js';
 import { addEntry, removeEntry, cleanKey, keepStats } from '../shared/post-history.js';
 import { cleanDraft, draftSummary, isDraftId, DRAFTS_MAX, DRAFT_BYTES } from '../shared/post-draft.js';
@@ -769,6 +769,12 @@ export async function studioApi(req, env, url) {
     if (!vault.f1tv) return json({ error: 'Connecte F1 TV dans l\'appli (Réglages, Compte F1 TV), puis « Renvoyer les comptes ».' }, 409);
     const r = await pairSend(env, String(body?.code || ''), vault.f1tv);
     return json(r, r.error ? 409 : 200);
+  }
+  // Appareils reliés à ton compte F1 TV (version web) : connexions en cours sur ton relais privé
+  if (path === 'devices' && req.method === 'GET') {
+    vault = await refresh(env, a.raw, vault);
+    if (!vault.f1tv) return json({ count: 0, devices: [] });
+    return json(await liveDevices(env, vault.f1tv).catch(() => ({ count: 0, devices: [] })));
   }
   // Onglet Suivi : dossier Google Drive lu par le serveur
   if (path.startsWith('drive/')) {
