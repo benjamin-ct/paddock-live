@@ -127,41 +127,110 @@ test('version web : GPS et télémétrie décompressés, envoyés un peu en avan
   assert.equal(asked.length, 1);
 });
 
-test('version web : son des radios relayé (par morceaux pour Safari), chemins hors archives refusés', async () => {
+// Jeton F1 TV d'essai (forme d'un JWT d'abonnement, signature factice)
+const jwt = (payload) => `e30.${Buffer.from(JSON.stringify(payload)).toString('base64url')}.sig`;
+const okToken = (extra = {}) => jwt({ exp: Math.floor(Date.now() / 1000) + 86400, SubscriptionStatus: 'active', ...extra });
+
+test('version web : son des radios relayé par le relais du visiteur (séance en cours seulement, par morceaux pour Safari)', async () => {
   const mp3 = new Uint8Array(1000).map((_, i) => i % 256);
   const asked = [];
   const realFetch = globalThis.fetch;
   globalThis.caches = { default: { match: async () => null, put: async () => {} } };
-  globalThis.fetch = async (u) => { asked.push(String(u)); return new Response(mp3, { status: 200 }); };
+  const path = '2026/2026-10-25_United_States_Grand_Prix/2026-10-24_Qualifying/';
+  const p = `${path}TeamRadio/BEA_87_20261024_164338.mp3`;
+  const locked = `${path}TeamRadio/HAM_44_20261024_164400.mp3`;   // réservée aux abonnés F1 TV
+  globalThis.fetch = async (u, opts = {}) => {
+    asked.push([String(u), opts.headers?.Authorization || null]);
+    return String(u).endsWith(locked) && !opts.headers?.Authorization ? new Response(null, { status: 403 }) : new Response(mp3, { status: 200 });
+  };
+  const relays = {};
+  const make = (name) => { const r = new LiveRelay({}, {}); r.name = name; r.onFrame(JSON.stringify({ type: 3, invocationId: '1', result: { SessionInfo: { Key: 10, Path: path } } }), 1e12); return (relays[name] = r); };
+  make('f1');
+  const token = okToken();
+  const { relayId } = await import('../analytics/live-relay.js');
+  const id = await relayId(token);
+  make(`u:${id}`).userToken = token;
+  const env = { LIVE: { idFromName: (n) => n, get: (n) => relays[n] } };
   try {
-    const p = '2026/2026-10-25_United_States_Grand_Prix/2026-10-24_Qualifying/TeamRadio/BEA_87_20261024_164338.mp3';
-    const get = (q, headers = {}) => { const url = new URL(`https://app.test/live/api/archive/file?p=${encodeURIComponent(q)}`); return liveApi(new Request(url, { headers }), url, {}); };
+    const get = (q, headers = {}) => { const url = new URL(`https://app.test/live/api/archive/file?p=${encodeURIComponent(q)}`); return liveApi(new Request(url, { headers }), url, env); };
     let r = await get(p);
     assert.equal(r.status, 200);
     assert.equal(r.headers.get('Content-Type'), 'audio/mpeg');
     assert.equal((await r.arrayBuffer()).byteLength, 1000);
-    assert.equal(asked[0], `https://livetiming.formula1.com/static/${p}`);
+    assert.deepEqual(asked[0], [`https://livetiming.formula1.com/static/${p}`, null]);
     r = await get(p, { Range: 'bytes=10-19' });
     assert.equal(r.status, 206);
     assert.equal(r.headers.get('Content-Range'), 'bytes 10-19/1000');
     assert.deepEqual([...new Uint8Array(await r.arrayBuffer())], [10, 11, 12, 13, 14, 15, 16, 17, 18, 19]);
-    for (const bad of ['2026/../secret.mp3', 'https://autre.site/x.mp3', '2026/x.json']) assert.equal((await get(bad)).status, 404);
-    assert.equal(asked.length, 2);
+    asked.length = 0;
+    // Autre séance, adresses invalides : refusées sans rien demander à la F1
+    for (const bad of ['2026/2026-10-26_Autre/TeamRadio/x.mp3', '2026/../secret.mp3', 'https://autre.site/x.mp3', '2026/x.json']) assert.equal((await get(bad)).status, 404);
+    assert.equal(asked.length, 0);
+    // Radio réservée : refusée au relais commun (plus de connexion F1 TV du créateur), servie avec celle du visiteur
+    assert.equal((await get(locked)).status, 404);
+    assert.equal((await get(locked, { Cookie: `plu=${id}` })).status, 200);
+    assert.equal(asked.at(-1)[1], `Bearer ${token}`);
   } finally {
     globalThis.fetch = realFetch;
     delete globalThis.caches;
   }
 });
 
-test('relais web : séance en cours pour la page du créateur (avant l\'index de la saison de la F1)', async () => {
+test('relais web : séance en cours pour la page du créateur, sans rallumer le relais sur un appel public', async () => {
   const relay = new LiveRelay({}, {});
   const t0 = 1e12;
   relay.onFrame(JSON.stringify({ type: 3, invocationId: '1', result: { SessionInfo: { Key: 10, Name: 'Qualifying', Type: 'Qualifying', Path: '2026/2026-10-25_United_States_Grand_Prix/2026-10-24_Qualifying/', EndDate: '2026-10-24T17:00:00', GmtOffset: '-05:00:00', Meeting: { Name: 'United States Grand Prix', Country: { Code: 'USA' } } }, SessionStatus: { Status: 'Started' } } }), t0);
   relay.onFrame(feed('SessionStatus', { Status: 'Finished' }), t0 + 1000);
-  assert.deepEqual(await relay.session(), { path: '2026/2026-10-25_United_States_Grand_Prix/2026-10-24_Qualifying/', name: 'Qualifying', type: 'Qualifying', gp: 'United States Grand Prix', country: 'USA', endDate: '2026-10-24T17:00:00', gmtOffset: '-05:00:00', status: 'Finished' });
+  assert.deepEqual(await relay.session(), { path: '2026/2026-10-25_United_States_Grand_Prix/2026-10-24_Qualifying/', name: 'Qualifying', type: 'Qualifying', gp: 'United States Grand Prix', country: 'USA', endDate: '2026-10-24T17:00:00', gmtOffset: '-05:00:00', status: 'Finished', live: false });
   const idle = new LiveRelay({}, {});
   idle.start = () => { idle.started = true; };   // pas de vraie connexion à la F1 dans les tests
   idle.idle = true;
-  assert.equal(await idle.session(0), null);   // rien de connu : connexion courte lancée, rien à donner
+  assert.equal(await idle.session(), null);           // appel public : rien de connu, rien de rallumé
+  assert.equal(idle.started, undefined);
+  assert.equal(await idle.session(true, 0), null);    // Studio : connexion courte lancée
   assert.equal(idle.started, true);
+});
+
+test('relais web : GPS seulement avec la connexion F1 TV du visiteur, sur son propre relais', async () => {
+  const { f1tvToken, relayId } = await import('../analytics/live-relay.js');
+  const token = okToken();
+  assert.equal(f1tvToken(token), token);
+  for (const bad of [jwt({ exp: Math.floor(Date.now() / 1000) - 10, SubscriptionStatus: 'active' }), jwt({ exp: Math.floor(Date.now() / 1000) + 99 }), 'pas-un-jeton', null]) assert.equal(f1tvToken(bad), null);
+  // Relais commun : jamais de jeton (plus celui du créateur), donc pas d'abonnement au GPS
+  const shared = new LiveRelay({}, {});
+  assert.equal(shared.userToken, null);
+  // Relais d'un abonné : rien avant sa connexion ; une connexion qui n'est pas la sienne est ignorée
+  const mine = new LiveRelay({}, {});
+  mine.name = `u:${await relayId(token)}`;
+  let connects = 0;
+  mine.connect = () => { connects++; };
+  await mine.auth(okToken({ other: 1 }));
+  assert.equal(mine.userToken, null);
+  await mine.auth(token);
+  assert.equal(mine.userToken, token);
+  assert.equal(connects, 1);
+  await mine.auth(token);
+  assert.equal(connects, 1);   // même connexion : rien de plus
+});
+
+test('relais web : page d\'un autre site refusée, places limitées par adresse', async () => {
+  const relay = new LiveRelay({}, {});
+  const ws = (headers) => relay.fetch(new Request('https://relay/live/ws', { headers: { Upgrade: 'websocket', 'X-Relay': 'f1', ...headers } }));
+  assert.equal((await ws({ Origin: 'https://autre.site' })).status, 403);
+  assert.equal((await ws({})).status, 403);
+  relay.ips.set('1.2.3.4', 10);
+  assert.equal((await ws({ Origin: 'https://app.paddocklive.app', 'CF-Connecting-IP': '1.2.3.4' })).status, 429);
+});
+
+test('version web : rien de montré avant que le délai TV ait rattrapé un relais qui vient de démarrer', () => {
+  const shown = [];
+  const hub = new WebHub({ apply: applyEvent, reset: () => shown.push('reset'), batch: () => shown.push('batch') });
+  const t0 = 1e12;
+  hub.hello({ base: { t: t0, state: { LapCount: { CurrentLap: 40 } }, derived: createDerived() }, events: [], keep: KEEP_MS });
+  hub.tick(t0 - 45000);   // délai de 45 s : l'état de base est le direct, 45 s trop tôt
+  assert.deepEqual(shown, []);
+  assert.equal(hub.wait, 45000);
+  hub.tick(t0);
+  assert.deepEqual(shown, ['reset']);
+  assert.equal(hub.wait, 0);
 });

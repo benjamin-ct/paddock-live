@@ -163,7 +163,7 @@ export async function seasonSessions({ force = false } = {}) {
   // Séance qui vient de finir : la F1 ne l'ajoute à l'index qu'une heure environ après le drapeau à damier ; le
   // relais du direct (version web) la connaît déjà
   try {
-    const s = await (await fetch('/live/api/session')).json();
+    const s = await api('live-session');
     const end = s?.endDate ? Date.parse(`${s.endDate}Z`) - (parseOffset(s.gmtOffset) || 0) : NaN;
     const done = ['Finished', 'Finalised', 'Ends'].includes(s?.status) || end < Date.now();
     if (s?.path && done && !out.some((x) => x.path === s.path)) out.push({ path: s.path, name: s.name, type: s.type, end: Math.min(end || Date.now(), Date.now()), gp: s.gp, country: s.country });

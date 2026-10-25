@@ -102,7 +102,14 @@ api.cookies.onChanged.addListener(({ cookie, removed }) => {
 api.runtime.onStartup.addListener(() => sync());
 api.runtime.onInstalled.addListener(() => { api.alarms.create('sync', { periodInMinutes: 30 }); sync(); });
 api.alarms.onAlarm.addListener(() => sync());
-api.runtime.onMessage.addListener((msg, _sender, reply) => {
+// Version web (web.js) : la connexion F1 TV, seulement pour les pages de Paddock Live
+const WEB = /^https:\/\/(app\.paddocklive\.app\/|paddocklive\.app\/live\/)/;
+api.runtime.onMessage.addListener((msg, sender, reply) => {
+  if (msg?.type === 'f1tv-web') {
+    if (!WEB.test(sender?.url || sender?.tab?.url || '')) return false;
+    session().then((token) => reply({ token }), () => reply({}));
+    return true;
+  }
   if (msg?.type !== 'sync') return false;
   sync({ send: msg.send !== false, force: !!msg.force }).then(reply);
   return true;

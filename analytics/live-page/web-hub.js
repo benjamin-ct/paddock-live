@@ -2,8 +2,7 @@
 // (server/hub.js) : le relais du Worker (analytics/live-relay.js) envoie l'état d'il y a quelques minutes
 // (base) et tous les messages depuis ; on montre l'état à « maintenant − délai ». GPS et télémétrie (stream)
 // arrivent compressés : décompressés ici dans l'ordre, puis envoyés aux panneaux un peu en avance.
-const LOOKAHEAD_MS = 6000;   // GPS et télémétrie arrivent ~2-3 s après les chronos
-const HIST_MS = 60e3;        // GPS et télémétrie d'avant le délai, comme le relais
+import { LOOKAHEAD_MS, WEB_HIST_MS as HIST_MS } from '../../shared/live-delay.js';
 
 export class WebHub {
   // apply(state, derived, topic, data, t) : shared/derive.js ; reset/batch : store.js (handleReset/handleBatch) ;
@@ -21,6 +20,7 @@ export class WebHub {
     this.cutoff = -Infinity;
     this.queue = Promise.resolve();
     this.asked = Infinity;
+    this.wait = 0;
   }
 
   hello(msg) {
@@ -60,6 +60,10 @@ export class WebHub {
 
   tick(cutoff) {
     if (!this.base) return;
+    // Relais qui vient de (re)démarrer : son état de base est celui du direct à ce moment. Rien n'est montré
+    // avant que le délai TV l'ait rattrapé (sinon spoiler) ; wait : temps restant, pour l'affichage
+    this.wait = Math.max(0, this.base.t - cutoff);
+    if (this.wait) return;
     const st = this.stream;
     if (this.sent !== this.gen || cutoff < this.cutoff - 200) {
       const state = structuredClone(this.base.state);

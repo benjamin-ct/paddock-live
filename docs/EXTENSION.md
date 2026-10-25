@@ -10,6 +10,10 @@ ouverte sur l'ordinateur reçoit la connexion toute seule (GPS et télémétrie 
 - L'extension lit seulement le cookie de connexion de formula1.com (`entitlement_token` sur le site actuel,
   `login-session` sur l'ancien), garde le jeton d'abonnement F1 TV qu'il contient et l'envoie à l'appli sur
   `http://127.0.0.1` (ports 3000, 3001, 3002 et 3010, ceux qu'essaie l'appli de bureau) : `POST /api/auth`.
+- Version web (`app.paddocklive.app`, depuis la 1.1.0) : le script `web.js` (seulement sur les pages de Paddock
+  Live) donne la connexion à la page ouverte, qui l'envoie au relais du serveur Paddock Live pour ouvrir SA
+  connexion au direct de la F1 (GPS et télémétrie de son propre abonnement). Le relais la garde en mémoire le
+  temps de la séance, ne l'enregistre pas et ne la partage avec personne (`analytics/live-relay.js`).
 - Envoi automatique à chaque connexion sur formula1.com, au démarrage du navigateur et toutes les
   30 minutes (si l'appli était fermée au moment de la connexion). La fenêtre de l'extension montre l'état
   et permet de renvoyer la connexion.
@@ -29,7 +33,7 @@ empaquetée** → choisir le dossier `extension/`. Firefox : `about:debugging` �
 Depuis le dossier `extension/` :
 
 ```sh
-zip -qrX ../paddock-live-companion-<version>.zip manifest.json background.js popup.html popup.js icons _locales
+zip -qrX ../paddock-live-companion-<version>.zip manifest.json background.js web.js popup.html popup.js icons _locales
 ```
 
 Page d'installation : `paddocklive.app/extension` (`analytics/extension/index.html`, lien de l'appli), un bouton
@@ -84,8 +88,9 @@ app receives the connection automatically.
 > positions GPS et la télémétrie en direct. Plus besoin de copier un jeton.
 >
 > - Automatique : à chaque connexion sur formula1.com, Paddock Live est prévenu tout seul.
-> - Privé : votre connexion ne quitte jamais votre ordinateur. Elle n'est envoyée qu'à l'appli Paddock Live
->   (adresse locale 127.0.0.1), jamais à un serveur.
+> - Version web aussi : sur app.paddocklive.app, le GPS et la télémétrie arrivent avec votre propre compte F1 TV.
+> - Privé : votre connexion n'est envoyée qu'à l'appli Paddock Live (adresse locale 127.0.0.1) et, quand vous
+>   ouvrez la version web, au relais de Paddock Live pour votre seul direct, sans être enregistrée.
 > - Léger : l'extension ne lit qu'un seul cookie de formula1.com, rien d'autre.
 >
 > Nécessite l'appli Paddock Live (Windows, macOS, Linux) : https://paddocklive.app et un abonnement F1 TV.
@@ -101,15 +106,16 @@ app receives the connection automatically.
 > No more copying tokens.
 >
 > - Automatic: every time you sign in on formula1.com, Paddock Live is notified.
-> - Private: your sign-in never leaves your computer. It is only sent to the Paddock Live app (local address
->   127.0.0.1), never to a server.
+> - Web version too: on app.paddocklive.app, GPS and telemetry come with your own F1 TV account.
+> - Private: your sign-in is only sent to the Paddock Live app (local address 127.0.0.1) and, when you open the
+>   web version, to the Paddock Live relay for your own live feed, without being stored.
 > - Lightweight: the extension only reads one formula1.com cookie, nothing else.
 >
 > Requires the Paddock Live app (Windows, macOS, Linux): https://paddocklive.app and an F1 TV subscription.
 > Independent project, not affiliated with Formula 1.
 
-**Objectif unique (single purpose)** : Transmettre la connexion F1 TV du navigateur à l'appli de bureau
-Paddock Live installée sur l'ordinateur de l'utilisateur.
+**Objectif unique (single purpose)** : Transmettre la connexion F1 TV du navigateur à Paddock Live (appli de
+bureau installée sur l'ordinateur, ou version web app.paddocklive.app ouverte par l'utilisateur).
 
 **Justification des permissions** :
 
@@ -121,6 +127,8 @@ Paddock Live installée sur l'ordinateur de l'utilisateur.
 - Accès à `https://*.formula1.com/*` : nécessaire pour lire le cookie de connexion de ce site (aucune
   page n'est lue ni modifiée).
 - Accès à `http://127.0.0.1/*` : envoyer la connexion à l'appli Paddock Live qui tourne sur l'ordinateur.
+- Script sur `https://app.paddocklive.app/*` et `https://paddocklive.app/live/*` : donner la connexion à la
+  version web de Paddock Live ouverte par l'utilisateur (aucune autre page).
 - Code distant : aucun.
 
 ## Visuels

@@ -2725,5 +2725,9 @@ export default {
   "Délai TV : l'affichage attend autant que votre diffusion": "TV delay: the display waits as long as your broadcast",
   "Télécharger l'appli Paddock Live": "Download the Paddock Live app",
   "Version web allégée. Toutes les fonctions dans l'appli de bureau.": "Lightweight web version. Every feature in the desktop app.",
+  "GPS :": "GPS:",
+  "extension Paddock Live Companion": "Paddock Live Companion extension",
+  "et votre compte F1 TV. Toutes les fonctions dans l'appli de bureau.": "and your F1 TV account. Every feature in the desktop app.",
+  "Mise en mémoire : affichage calé sur votre TV dans {} s": "Buffering: display synced to your TV in {} s",
   "Appli complète": "Full app",
 };

@@ -36,6 +36,9 @@
   déploie le Worker tout seul à chaque push, mais seulement
   depuis une branche qui contient tout `develop` (la branche de travail reste donc à jour de `develop`). Dès qu'un fichier de l'appli change (`public/`, `server/`,
   `desktop/`, fichier de `shared/` importé par l'appli), ses nouveautés vont dans la version en préparation.
+- **Classe Durable Object ajoutée au Worker** (`[[migrations]]` de `analytics/wrangler.toml`) : sa PR est fusionnée
+  avant les autres PR qui touchent le Worker. Une fois déployée depuis la branche de travail, `develop` sans la classe
+  ne pourrait plus être déployé.
 - **Worker compatible avec les anciennes applis** : il n'y a qu'un Worker, toujours à la dernière version, alors que
   les applis installées (version finale, bêtas) peuvent avoir du retard. Les adresses que l'appli appelle (`/studio/api/…`
   dans `server/studio-sync.js` et `server/post-history.js`, `/e`, `/f`, `/t`, `/r`, `/p/api`) gardent leurs noms, leurs

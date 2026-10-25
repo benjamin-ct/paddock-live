@@ -39,8 +39,12 @@ jobs:
           fetch-depth: 0
       - id: c
         run: |
-          if git merge-base --is-ancestor origin/develop HEAD; then echo ok=1 >> "$GITHUB_OUTPUT"
-          else echo "::notice::Studio non déployé : cette branche n'a pas toutes les modifications de develop"; fi
+          if ! git merge-base --is-ancestor origin/develop HEAD; then echo "::notice::Studio non déployé : cette branche n'a pas toutes les modifications de develop"
+          # Séance en cours suivie sur la version web : un déploiement couperait tous ses spectateurs. Remis à
+          # plus tard (lancement à la main : onglet Actions → « Statistiques » → Run workflow)
+          elif [ "${{ github.event_name }}" = push ] && curl -s --max-time 10 https://app.paddocklive.app/live/api/session | grep -q '"status":"Started".*"live":true'; then
+            echo "::notice::Séance en cours sur la version web : déploiement remis, à relancer à la main après la séance"
+          else echo ok=1 >> "$GITHUB_OUTPUT"; fi
 
   deploy:
     needs: a-jour

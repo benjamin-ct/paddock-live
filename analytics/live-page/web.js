@@ -28,6 +28,24 @@ const hub = new WebHub({
 });
 let relay = {};
 
+// Connexion F1 TV du visiteur, donnée par l'extension Paddock Live Companion (formula1.com) : GPS et télémétrie
+// par son propre relais, relié à la F1 avec son abonnement. Gardée en mémoire seulement ; le cookie « plu »
+// (empreinte, pas le jeton) désigne ce relais pour les radios réservées aux abonnés
+let f1tv = null, relayId = '';
+const sha = async (t) => [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t)))].map((b) => b.toString(16).padStart(2, '0')).join('').slice(0, 32);
+addEventListener('message', async (e) => {
+  if (e.source !== window || e.origin !== location.origin || e.data?.source !== 'paddock-live-companion' || e.data.type !== 'f1tv') return;
+  const token = typeof e.data.token === 'string' ? e.data.token : '';
+  if (!/^[\w-]+\.[\w-]+\.[\w-]+$/.test(token) || token === f1tv) return;
+  const id = await sha(token);
+  f1tv = token;
+  if (id === relayId) { if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'auth', token })); return; }   // renouvelée
+  relayId = id;
+  document.cookie = `plu=${id}; path=/; max-age=604800; secure; samesite=strict`;
+  ws?.close();   // reconnexion à son relais
+});
+postMessage({ source: 'paddock-live-web', type: 'f1tv?' }, location.origin);
+
 function status(now) {
   store.skew = store.skew === 0 ? now - Date.now() : store.skew * 0.8 + (now - Date.now()) * 0.2;
   store.status = {
@@ -39,8 +57,12 @@ function status(now) {
 }
 
 function connect() {
-  ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/live/ws?d=${store.delay}`);
-  ws.onopen = () => { store.connected = true; emit('connection', true); };
+  ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/live/ws?d=${store.delay}${relayId ? `&u=${relayId}` : ''}`);
+  ws.onopen = () => {
+    store.connected = true;
+    emit('connection', true);
+    if (f1tv) ws.send(JSON.stringify({ type: 'auth', token: f1tv }));
+  };
   ws.onmessage = (ev) => {
     let msg;
     try { msg = JSON.parse(ev.data); } catch { return; }
@@ -106,8 +128,16 @@ document.querySelector('#webResultsBtn')?.addEventListener('click', async (e) =>
 });
 
 const safe = (fn) => { try { fn(); } catch (err) { console.error(err); } };
+// Relais qui vient de redémarrer : rien n'est montré avant que le délai TV l'ait rattrapé (pas de spoiler)
+const waitBar = document.querySelector('#webWait');
+function showWait() {
+  const s = Math.ceil(hub.wait / 1000);
+  waitBar.hidden = !s;
+  if (s) waitBar.textContent = `Mise en mémoire : affichage calé sur votre TV dans ${s} s`;
+}
 function loop() {
   safe(() => hub.tick(serverNow() - store.delay));
+  safe(showWait);
   safe(renderHeader);
   safe(renderTower);
   safe(renderRcm);

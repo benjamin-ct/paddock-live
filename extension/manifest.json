@@ -3,12 +3,13 @@
   "name": "__MSG_name__",
   "short_name": "Paddock Live",
   "description": "__MSG_description__",
-  "version": "1.0.6",
+  "version": "1.1.0",
   "default_locale": "en",
   "icons": { "16": "icons/16.png", "32": "icons/32.png", "48": "icons/48.png", "128": "icons/128.png" },
   "permissions": ["cookies", "storage", "alarms"],
   "host_permissions": ["https://*.formula1.com/*", "http://127.0.0.1/*"],
   "background": { "service_worker": "background.js", "scripts": ["background.js"] },
+  "content_scripts": [{ "matches": ["https://app.paddocklive.app/*", "https://paddocklive.app/live/*"], "js": ["web.js"], "run_at": "document_idle" }],
   "action": { "default_popup": "popup.html", "default_title": "Paddock Live Companion" },
   "browser_specific_settings": { "gecko": { "id": "companion@paddocklive.app", "strict_min_version": "140.0", "data_collection_permissions": { "required": ["none"] } }, "gecko_android": { "strict_min_version": "142.0" } }
 }

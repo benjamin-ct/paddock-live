@@ -101,6 +101,8 @@ l'application (Réglages → À propos → Nouveautés).
 ### Divers
 - Statistiques d'utilisation (si vous les avez acceptées) : les versions bêta les envoient aussi ; elles
   étaient jusqu'ici écartées sans rien dire.
+- Extension Paddock Live Companion 1.1.0 : elle donne aussi votre connexion F1 TV à la version web du direct
+  (app.paddocklive.app), qui a alors le GPS et la télémétrie avec votre propre abonnement.
 - Petites améliorations internes.
 
 ## v1.28.2 — 2026-10-23
