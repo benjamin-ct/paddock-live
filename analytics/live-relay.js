@@ -69,6 +69,7 @@ export class LiveRelay {
     this.name = req.headers.get('X-Relay') || this.name;
     if (url.pathname === '/session') return json(await this.session(url.searchParams.has('wake')));
     if (url.pathname === '/radio') return this.radio(url.searchParams.get('p') || '');
+    if (url.pathname === '/pair') return this.pair(req, url);
     if (req.headers.get('Upgrade') !== 'websocket') return new Response('WebSocket attendu', { status: 426 });
     // Page d'un autre site branchée sur le relais : refusée
     if (!ORIGINS.includes(req.headers.get('Origin'))) return new Response('Origine refusée', { status: 403 });
@@ -101,6 +102,42 @@ export class LiveRelay {
     this.hello(server, Date.now() - (Number.isFinite(d) ? Math.min(Math.max(d, 0), KEEP_MS) : KEEP_MS) - HIST_MS);
     this.start();
     return new Response(null, { status: 101, webSocket: client });
+  }
+
+  // Appairage d'un téléphone (version web sans extension, ex. iPhone) : boîte de rendez-vous éphémère, en mémoire
+  // seulement. Le téléphone publie sa clé publique et reçoit un code ; l'ordinateur lit la clé, chiffre la connexion
+  // F1 TV pour ce téléphone (ECDH) et la dépose ; le téléphone la récupère une seule fois. Le serveur ne voit que
+  // des clés publiques et un message chiffré : il ne peut pas lire la connexion, et rien n'est gardé.
+  async pair(req, url) {
+    const now = Date.now();
+    this.pairs ||= new Map();
+    for (const [k, v] of this.pairs) if (v.exp < now) this.pairs.delete(k);
+    const code = url.searchParams.get('code');
+    if (req.method === 'POST' && !code) {                              // téléphone : publie sa clé, reçoit un code
+      const body = await req.json().catch(() => null);
+      if (!pairKey(body?.pub)) return json({ error: 'Clé invalide' }, 400);
+      if (this.pairs.size >= 300) return json({ error: 'Réessayez dans un instant' }, 503);
+      let c, n = 0;
+      do { c = String(crypto.getRandomValues(new Uint32Array(1))[0] % 1e6).padStart(6, '0'); } while (this.pairs.has(c) && ++n < 30);
+      this.pairs.set(c, { pub: body.pub, box: null, exp: now + 180e3 });
+      return json({ code: c, ttl: 180 });
+    }
+    if (!/^\d{6}$/.test(code || '')) return json({ error: 'Code invalide' }, 400);
+    const e = this.pairs.get(code);
+    if (!e) return json({ error: 'Code expiré' }, 404);
+    if (req.method === 'GET' && url.searchParams.has('claim')) {       // téléphone : récupère la connexion déposée
+      if (!e.box) return new Response(null, { status: 204 });
+      this.pairs.delete(code);
+      return json(e.box);
+    }
+    if (req.method === 'GET') return json({ pub: e.pub });             // ordinateur : lit la clé du téléphone
+    if (req.method === 'PUT') {                                        // ordinateur : dépose la connexion chiffrée
+      const body = await req.json().catch(() => null);
+      if (!pairKey(body?.spub) || typeof body?.iv !== 'string' || body.iv.length > 32 || typeof body?.data !== 'string' || body.data.length > 16384) return json({ error: 'Données invalides' }, 400);
+      e.box = { spub: body.spub, iv: body.iv, data: body.data };
+      return json({ ok: true });
+    }
+    return json({ error: 'Méthode non permise' }, 405);
   }
 
   // Connexion F1 TV d'un abonné : acceptée seulement si elle correspond à ce relais (son empreinte en est le nom)
@@ -405,6 +442,12 @@ function audioResponse(req, bytes, rel) {
 // directement sur le site de la F1 ; son, texte et traduction des radios (transcription et traduction
 // partagées du serveur, mêmes plafonds que l'appli) ; le reste n'existe pas en ligne
 export async function liveApi(req, url, env = {}) {
+  // Appairage d'un téléphone : relayé à l'instance « pair » du relais (boîte chiffrée, rien gardé ; voir pair())
+  if (url.pathname === '/live/api/pair') {
+    if (!env.LIVE) return json({ error: 'Indisponible' }, 503);
+    const body = req.method === 'GET' ? undefined : await req.text();
+    return relay(env, 'pair').fetch(new Request(`https://relay/pair${url.search}`, { method: req.method, headers: { 'X-Relay': 'pair', 'Content-Type': 'application/json' }, body }));
+  }
   // Calendrier (compte à rebours de la prochaine séance) : la saison gardée par le serveur, même forme que l'appli
   if (url.pathname === '/live/api/schedule' && req.method === 'GET') {
     const year = Number(url.searchParams.get('year')), now = new Date().getUTCFullYear();
@@ -478,3 +521,6 @@ export async function liveApi(req, url, env = {}) {
 }
 
 const json = (d, status = 200, headers = {}) => new Response(JSON.stringify(d), { status, headers: { 'Content-Type': 'application/json', ...headers } });
+
+// Clé publique ECDH (P-256) valable en apparence : le serveur ne s'en sert pas, il la relaie seulement
+const pairKey = (k) => !!k && k.kty === 'EC' && k.crv === 'P-256' && typeof k.x === 'string' && typeof k.y === 'string' && k.x.length <= 64 && k.y.length <= 64;

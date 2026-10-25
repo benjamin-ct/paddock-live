@@ -234,3 +234,55 @@ test('version web : rien de montré avant que le délai TV ait rattrapé un rela
   assert.deepEqual(shown, ['reset']);
   assert.equal(hub.wait, 0);
 });
+
+// Appairage d'un téléphone : rendez-vous chiffré de bout en bout, le serveur ne voit jamais la connexion F1 TV
+test('appairage : la connexion passe chiffrée, le serveur ne la lit pas, le code sert une seule fois', async () => {
+  const { subtle } = globalThis.crypto;
+  const relay = new LiveRelay({}, {});
+  const call = (method, search = '', body) => relay.pair(
+    new Request(`https://relay/pair${search}`, { method, ...(body ? { body: JSON.stringify(body) } : {}) }),
+    new URL(`https://relay/pair${search}`));
+  const b64 = (buf) => Buffer.from(new Uint8Array(buf)).toString('base64');
+  const unb64 = (s) => Uint8Array.from(Buffer.from(s, 'base64'));
+  const keys = () => subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveKey']);
+  const jwk = async (k) => { const j = await subtle.exportKey('jwk', k.publicKey); return { kty: j.kty, crv: j.crv, x: j.x, y: j.y }; };
+  const aes = async (priv, pj) => subtle.deriveKey({ name: 'ECDH', public: await subtle.importKey('jwk', { kty: 'EC', crv: 'P-256', x: pj.x, y: pj.y }, { name: 'ECDH', namedCurve: 'P-256' }, false, []) }, priv, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+  const token = okToken();
+
+  // Téléphone : publie sa clé, reçoit un code
+  const phone = await keys();
+  const { code } = await (await call('POST', '', { pub: await jwk(phone) })).json();
+  assert.match(code, /^\d{6}$/);
+
+  // Ordinateur : lit la clé du téléphone, chiffre la connexion, la dépose
+  const { pub } = await (await call('GET', `?code=${code}`)).json();
+  const comp = await keys();
+  const key = await aes(comp.privateKey, pub);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const data = b64(await subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(token)));
+  assert.equal((await (await call('PUT', `?code=${code}`, { spub: await jwk(comp), iv: b64(iv), data })).json()).ok, true);
+
+  // Ce que le serveur garde est le message chiffré, jamais la connexion en clair
+  assert.ok(!JSON.stringify([...relay.pairs.values()]).includes(token));
+
+  // Téléphone : récupère et déchiffre exactement la connexion
+  const box = await (await call('GET', `?code=${code}&claim=1`)).json();
+  const back = new TextDecoder().decode(await subtle.decrypt({ name: 'AES-GCM', iv: unb64(box.iv) }, await aes(phone.privateKey, box.spub), unb64(box.data)));
+  assert.equal(back, token);
+
+  // Code à usage unique : plus rien après récupération
+  assert.equal((await call('GET', `?code=${code}&claim=1`)).status, 404);
+});
+
+test('appairage : clé invalide, code inconnu et données trop grosses refusés', async () => {
+  const relay = new LiveRelay({}, {});
+  const call = (method, search = '', body) => relay.pair(
+    new Request(`https://relay/pair${search}`, { method, ...(body ? { body: JSON.stringify(body) } : {}) }),
+    new URL(`https://relay/pair${search}`));
+  assert.equal((await call('POST', '', { pub: { kty: 'RSA' } })).status, 400);
+  assert.equal((await call('GET', '?code=000000')).status, 404);
+  assert.equal((await call('GET', '?code=abc')).status, 400);
+  const pub = { kty: 'EC', crv: 'P-256', x: 'a', y: 'b' };
+  const { code } = await (await call('POST', '', { pub })).json();
+  assert.equal((await call('PUT', `?code=${code}`, { spub: pub, iv: 'x', data: 'y'.repeat(20000) })).status, 400);
+});

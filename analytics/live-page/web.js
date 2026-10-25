@@ -1,6 +1,6 @@
 // Point d'entrée de la version web (app.paddocklive.app) : classement, carte, télémétrie, direction de course et
 // radios de l'appli, reliés au relais du Worker au lieu du serveur local. Copié dans /live/js/ par scripts/build-studio.mjs.
-import { translatePage, DEC, EN } from './i18n.js';
+import { translatePage, DEC, EN, t } from './i18n.js';
 import './icons.js';
 import { store, emit, on, handleReset, handleBatch, setDelay, serverNow } from './store.js';
 import { applyEvent } from '/shared/derive.js';
@@ -33,18 +33,102 @@ let relay = {};
 // (empreinte, pas le jeton) désigne ce relais pour les radios réservées aux abonnés
 let f1tv = null, relayId = '';
 const sha = async (t) => [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t)))].map((b) => b.toString(16).padStart(2, '0')).join('').slice(0, 32);
-addEventListener('message', async (e) => {
-  if (e.source !== window || e.origin !== location.origin || e.data?.source !== 'paddock-live-companion' || e.data.type !== 'f1tv') return;
-  const token = typeof e.data.token === 'string' ? e.data.token : '';
-  if (!/^[\w-]+\.[\w-]+\.[\w-]+$/.test(token) || token === f1tv) return;
+// Connexion F1 TV reçue (extension, ou appairage d'un téléphone) : gardée en mémoire, son relais rejoint
+async function useToken(token) {
+  if (!/^[\w-]+\.[\w-]+\.[\w-]+$/.test(token || '') || token === f1tv) return false;
   const id = await sha(token);
   f1tv = token;
-  if (id === relayId) { if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'auth', token })); return; }   // renouvelée
+  updatePairUI();
+  if (id === relayId) { if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'auth', token })); return true; }   // renouvelée
   relayId = id;
   document.cookie = `plu=${id}; path=/; max-age=604800; secure; samesite=strict`;
   ws?.close();   // reconnexion à son relais
+  return true;
+}
+addEventListener('message', (e) => {
+  if (e.source !== window || e.origin !== location.origin || e.data?.source !== 'paddock-live-companion' || e.data.type !== 'f1tv') return;
+  if (typeof e.data.token === 'string') useToken(e.data.token);
 });
 postMessage({ source: 'paddock-live-web', type: 'f1tv?' }, location.origin);
+
+// Appairage d'un téléphone : partager sa connexion F1 TV avec la version web sur un appareil sans extension
+// (iPhone). Chiffré de bout en bout (ECDH P-256 + AES-GCM), le serveur ne fait que relayer (voir pair() du relais).
+// L'appareil qui a déjà la connexion (extension) propose « Relier un téléphone » ; l'autre « Connexion F1 TV ».
+const b64 = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf)));
+const unb64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+const genKeys = () => crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveKey']);
+async function pubJwk(keys) { const j = await crypto.subtle.exportKey('jwk', keys.publicKey); return { kty: j.kty, crv: j.crv, x: j.x, y: j.y }; }
+async function sharedKey(priv, jwk) {
+  const pub = await crypto.subtle.importKey('jwk', { kty: 'EC', crv: 'P-256', x: jwk.x, y: jwk.y }, { name: 'ECDH', namedCurve: 'P-256' }, false, []);
+  return crypto.subtle.deriveKey({ name: 'ECDH', public: pub }, priv, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+}
+
+const pairBtn = document.querySelector('#pairBtn');
+const pairDlg = document.querySelector('#pairDlg');
+const pairBody = document.querySelector('#pairBody');
+let pairTimer = null;
+const stopPair = () => { clearInterval(pairTimer); pairTimer = null; };
+function updatePairUI() {
+  if (!pairBtn) return;
+  pairBtn.hidden = false;
+  pairBtn.textContent = f1tv ? t('Relier un téléphone') : t('Connexion F1 TV');
+}
+function pairNote(text, err = false) { pairBody.innerHTML = `<p class="pair-note${err ? ' err' : ''}">${esc(text)}</p>`; }
+
+pairBtn?.addEventListener('click', () => { stopPair(); pairDlg.showModal(); if (f1tv) pairSend(); else pairReceive(); });
+pairDlg?.addEventListener('close', stopPair);
+
+// Appareil sans connexion (téléphone) : affiche un code, attend la connexion déposée par l'ordinateur
+async function pairReceive() {
+  pairNote(t('Préparation…'));
+  const keys = await genKeys();
+  const r = await fetch('/live/api/pair', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pub: await pubJwk(keys) }) }).then((x) => x.json()).catch(() => null);
+  if (!r?.code) return pairNote(t('Connexion impossible pour le moment. Réessayez.'), true);
+  pairBody.innerHTML = `<p class="pair-h">${esc(t('Sur un ordinateur déjà connecté à F1 TV (avec l\'extension), ouvrez Paddock Live, cliquez « Relier un téléphone » et tapez ce code :'))}</p><div class="pair-code">${r.code}</div><p class="pair-note">${esc(t('En attente de l\'ordinateur…'))}</p>`;
+  const until = Date.now() + (r.ttl || 180) * 1000;
+  pairTimer = setInterval(async () => {
+    if (Date.now() > until) { stopPair(); return pairNote(t('Code expiré. Fermez et réessayez.'), true); }
+    const box = await fetch(`/live/api/pair?code=${r.code}&claim=1`).then((x) => (x.status === 200 ? x.json() : null)).catch(() => null);
+    if (!box) return;
+    stopPair();
+    try {
+      const key = await sharedKey(keys.privateKey, box.spub);
+      const token = new TextDecoder().decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(box.iv) }, key, unb64(box.data)));
+      if (await useToken(token)) { pairNote(t('Connexion reçue. GPS et télémétrie activés.')); setTimeout(() => pairDlg.close(), 1800); }
+      else pairNote(t('Connexion F1 TV invalide ou expirée côté ordinateur.'), true);
+    } catch { pairNote(t('Connexion illisible. Réessayez.'), true); }
+  }, 2000);
+}
+
+// Appareil connecté (extension) : saisir le code du téléphone, lui envoyer la connexion chiffrée
+function pairSend() {
+  pairBody.innerHTML = `<p class="pair-h">${esc(t('Sur le téléphone, ouvrez Paddock Live et touchez « Connexion F1 TV » pour afficher un code, puis tapez-le ici :'))}</p>`
+    + `<form id="pairForm"><input id="pairInput" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" placeholder="------" aria-label="${esc(t('Code à 6 chiffres'))}"><button class="btn btn-accent" type="submit">${esc(t('Relier'))}</button></form>`
+    + '<p class="pair-note" id="pairSendMsg"></p>';
+  const form = pairBody.querySelector('#pairForm');
+  const input = pairBody.querySelector('#pairInput');
+  input.focus();
+  const msg = pairBody.querySelector('#pairSendMsg');
+  form.addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const code = (input.value.match(/\d/g) || []).join('').slice(0, 6);
+    if (code.length !== 6) { msg.textContent = t('Entrez le code à 6 chiffres.'); return; }
+    if (!f1tv) { msg.textContent = t('Aucune connexion F1 TV sur cet appareil.'); return; }
+    msg.textContent = t('Envoi…');
+    const pr = await fetch(`/live/api/pair?code=${code}`).then((x) => (x.status === 200 ? x.json() : null)).catch(() => null);
+    if (!pr?.pub) { msg.textContent = t('Code inconnu ou expiré.'); return; }
+    try {
+      const keys = await genKeys();
+      const key = await sharedKey(keys.privateKey, pr.pub);
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const data = b64(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(f1tv)));
+      const ok = await fetch(`/live/api/pair?code=${code}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ spub: await pubJwk(keys), iv: b64(iv), data }) }).then((x) => x.ok).catch(() => false);
+      pairNote(ok ? t('Téléphone relié. La connexion apparaît sur le téléphone.') : t('Échec de l\'envoi. Réessayez.'), !ok);
+    } catch { pairNote(t('Échec de l\'envoi. Réessayez.'), true); }
+  });
+}
+
+updatePairUI();
 
 function status(now) {
   store.skew = store.skew === 0 ? now - Date.now() : store.skew * 0.8 + (now - Date.now()) * 0.2;
