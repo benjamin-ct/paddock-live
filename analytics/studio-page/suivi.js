@@ -1,7 +1,7 @@
 // Onglet « Suivi » : le dossier Google Drive « Paddock Live · Réseaux » lu en direct par le serveur
 // (lecture seule) : tâches, textes des posts du week-end à copier, chiffres des réseaux, journal et
 // guides. On coche et on modifie toujours dans Google Docs et Sheets (bouton « Ouvrir »).
-import { $, $$, esc, api, fmtN, icon, toast, skeleton, empty, failure, store, state } from './ui.js';
+import { $, $$, esc, api, fmtN, icon, toast, skeleton, empty, failure, store, state, glide } from './ui.js';
 
 const SUBS = [['todo', 'À faire'], ['posts', 'Posts'], ['net', 'Réseaux'], ['log', 'Journal'], ['guides', 'Guides']];
 const TAGS = [
@@ -384,6 +384,7 @@ async function showSub(body, { force, current }) {
     body.innerHTML = `<div class="seg wide" id="svsub">${SUBS.map(([k, v]) => `<button data-sub="${k}" class="${k === sub ? 'on' : ''}">${v}</button>`).join('')}</div>
       ${stale ? '<p class="status"><span class="dot"></span>Mise à jour…</p>' : ''}<div id="svpane">${m ? RENDER[sub](m) : skeleton(3)}</div>`;
     bind(body, m, { force, current });
+    glide(body);
   };
   // Rubrique relue au plus toutes les 2 minutes (sauf « Actualiser »)
   if (known && Date.now() - known.at < 2 * 60e3 && !force) { paint(known.v, false); return; }
