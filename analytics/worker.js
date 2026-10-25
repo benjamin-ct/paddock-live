@@ -32,6 +32,14 @@ import { publicPushApi, pushRun, queuePush, sessionReminders } from './push-publ
 import { liveSocket, liveApi } from './live-relay.js';
 import { LIVE_HEADERS } from './live-page/headers.js';
 
+// Fichier de la version web, avec ses en-têtes de sécurité (le fichier _headers ne s'applique pas ici)
+async function liveAsset(env, req) {
+  const res = await env.ASSETS.fetch(req);
+  const out = new Response(res.body, res);
+  for (const [k, v] of Object.entries(LIVE_HEADERS)) out.headers.set(k, v);
+  return out;
+}
+
 export { LiveRelay } from './live-relay.js';
 
 const MAX_BODY = 32 * 1024;
@@ -190,13 +198,15 @@ export default {
     // Worker, restent aussi lisibles sur www)
     if (ownDomain && url.hostname.startsWith('www.')) return Response.redirect(`https://${url.hostname.slice(4)}${url.pathname}${url.search}`, 301);
     if (req.method === 'GET' && url.pathname === '/fb-callback') return fbCallback(url);
-    // Version web du direct sur son propre nom (app.paddocklive.app) : sa page à la racine
-    if (req.method === 'GET' && url.pathname === '/' && url.hostname.startsWith('app.') && env.ASSETS) {
-      const page = await env.ASSETS.fetch(new Request(new URL('/live/', url), req));
-      const out = new Response(page.body, page);
-      for (const [k, v] of Object.entries(LIVE_HEADERS)) out.headers.set(k, v);
-      return out;
+    // Version web du direct : seulement sur son nom, app.paddocklive.app (sa page à la racine). Ailleurs
+    // (paddocklive.app/live/, adresse workers.dev) : la page renvoie là-bas, le reste n'existe pas. Les fichiers
+    // /live/* passent par le Worker d'abord (run_worker_first, wrangler.toml), avec les en-têtes de sécurité
+    const app = url.hostname.startsWith('app.');
+    if (url.pathname === '/live' || url.pathname.startsWith('/live/')) {
+      if (!app) return ['/live', '/live/'].includes(url.pathname) && req.method === 'GET' ? Response.redirect('https://app.paddocklive.app/', 301) : new Response('Introuvable', { status: 404 });
+      if (url.pathname !== '/live/ws' && !url.pathname.startsWith('/live/api/') && env.ASSETS) return liveAsset(env, req);
     }
+    if (req.method === 'GET' && url.pathname === '/' && app && env.ASSETS) return liveAsset(env, new Request(new URL('/live/', url), req));
     if (req.method === 'GET' && url.pathname === '/' && ownDomain && env.ASSETS) {
       return env.ASSETS.fetch(new Request(new URL('/site/', url), req));
     }

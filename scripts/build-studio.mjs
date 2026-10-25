@@ -7,7 +7,6 @@ import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { PAGES, linksPage } from '../analytics/links/pages.mjs';
 import { GUIDES, guidePage, sitemap, robots } from '../analytics/launch/guides.mjs';
-import { LIVE_HEADERS } from '../analytics/live-page/headers.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = path.join(ROOT, 'analytics', 'site');
@@ -178,9 +177,6 @@ fs.writeFileSync(path.join(OUT, '_headers'), `/studio/*
 /kit/*
   Cache-Control: public, max-age=86400
   X-Robots-Tag: noindex, nofollow
-/live/*
-  Cache-Control: no-cache
-${Object.entries(LIVE_HEADERS).map(([k, v]) => `  ${k}: ${v}`).join('\n')}
 `);
 const n = (d) => fs.readdirSync(path.join(OUT, d)).length;
 console.log(`Site prêt : version ${VERSION}, ${n(`m/${VERSION}/studio`)} fichiers studio, ${n(`m/${VERSION}/shared`)} modules partagés (${graph.length} chargés d'emblée), ${n('fonts')} polices, version web : ${liveGraph.size} modules`);

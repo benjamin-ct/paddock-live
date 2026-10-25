@@ -1,8 +1,8 @@
-// En-têtes de sécurité de la version web : fichiers /live/* (scripts/build-studio.mjs, fichier _headers) et page
-// servie à la racine de app.paddocklive.app (analytics/worker.js, que _headers ne couvre pas). Cloudflare
+// En-têtes de sécurité de la version web (app.paddocklive.app), ajoutés par le Worker à ses fichiers
+// (analytics/worker.js : servis par lui, le fichier _headers ne s'y applique pas). Cloudflare
 // Insights : statistiques de visite ajoutées par Cloudflare à la page
 export const LIVE_HEADERS = {
-  'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' data: blob:; connect-src 'self' wss://app.paddocklive.app wss://paddocklive.app https://cloudflareinsights.com; font-src 'self' data:; manifest-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'",
+  'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' data: blob:; connect-src 'self' wss://app.paddocklive.app https://cloudflareinsights.com; font-src 'self' data:; manifest-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'",
   'Strict-Transport-Security': 'max-age=31536000',
   'X-Frame-Options': 'DENY',
   'X-Content-Type-Options': 'nosniff',

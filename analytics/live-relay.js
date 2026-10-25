@@ -1,4 +1,4 @@
-// Relais du direct F1 pour la version web (app.paddocklive.app, aussi paddocklive.app/live/) : une connexion au
+// Relais du direct F1 pour la version web (app.paddocklive.app) : une connexion au
 // flux officiel F1 Live Timing (SignalR Core), redistribuée aux navigateurs. Relais commun (« f1 ») : le flux
 // public, sans GPS. Le GPS et la télémétrie (Position.z, CarData.z) demandent un abonnement F1 TV : un visiteur
 // qui a le sien (donné à la page par l'extension Paddock Live Companion) a son propre relais (« u:<empreinte> »),
@@ -22,7 +22,7 @@ const IDLE_MS = 60e3;              // plus personne : connexion à la F1 fermée
 const MAX_CLIENTS = 1000;
 const MAX_PER_IP = 10;             // relais commun : un seul appelant ne peut pas prendre toutes les places
 const MAX_PRIVATE = 4;             // relais d'un abonné F1 TV : ses onglets et appareils
-const ORIGINS = ['https://app.paddocklive.app', 'https://paddocklive.app'];
+const ORIGINS = ['https://app.paddocklive.app'];
 const STREAM_EVERY = 2000;         // GPS plus ancien : une demande toutes les 2 s au plus par connexion
 
 // Jeton d'abonnement F1 TV (JWT) encore valable, ou null. Signature non vérifiable ici : la F1 la vérifie ;

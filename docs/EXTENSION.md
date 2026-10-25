@@ -127,8 +127,8 @@ bureau installée sur l'ordinateur, ou version web app.paddocklive.app ouverte p
 - Accès à `https://*.formula1.com/*` : nécessaire pour lire le cookie de connexion de ce site (aucune
   page n'est lue ni modifiée).
 - Accès à `http://127.0.0.1/*` : envoyer la connexion à l'appli Paddock Live qui tourne sur l'ordinateur.
-- Script sur `https://app.paddocklive.app/*` et `https://paddocklive.app/live/*` : donner la connexion à la
-  version web de Paddock Live ouverte par l'utilisateur (aucune autre page).
+- Script sur `https://app.paddocklive.app/*` : donner la connexion à la version web de Paddock Live ouverte par
+  l'utilisateur (aucune autre page).
 - Code distant : aucun.
 
 ## Visuels
