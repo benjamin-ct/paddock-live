@@ -1,6 +1,8 @@
 // Onglet « Suivi » du Studio : le dossier Google Drive du suivi (« Paddock Live · Réseaux ») lu par le
 // serveur, en lecture seule. Connexion Google faite depuis le Studio (retour sur la page /studio/),
 // jetons gardés dans le coffre chiffré avec la clé du créateur.
+// Le compte Google du Drive peut être un autre que celui de YouTube : Google demande toujours lequel
+// utiliser, avec le même client Google (projet de YouTube).
 import { googleOAuth, youtubeTokens } from '../shared/video-publish.js';
 
 const FOLDER = 'Paddock Live · Réseaux';
@@ -49,7 +51,7 @@ export async function driveApi(sub, req, url, vault, save) {
     await save({ ...vault, gdrivePending: { state, verifier, redirect: redirect.href, clientId, clientSecret, at: Date.now() } });
     return json({ url: `https://accounts.google.com/o/oauth2/v2/auth?${new URLSearchParams({
       client_id: clientId, redirect_uri: redirect.href, response_type: 'code', state, scope: SCOPE,
-      code_challenge: challenge, code_challenge_method: 'S256', access_type: 'offline', prompt: 'consent',
+      code_challenge: challenge, code_challenge_method: 'S256', access_type: 'offline', prompt: 'select_account consent',
     })}` });
   }
   if (sub === 'finish' && req.method === 'POST') {

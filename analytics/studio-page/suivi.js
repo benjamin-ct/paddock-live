@@ -324,8 +324,9 @@ function connectHtml(r) {
     <ol>
       <li>API et services → Bibliothèque : activer <b>Google Drive API</b>, <b>Google Docs API</b> et <b>Google Sheets API</b>.</li>
       <li>Identifiants → l'ID client OAuth de YouTube → URI de redirection autorisés : ajouter <code>${esc(redirect)}</code> ${copyBtn(redirect)}</li>
-      <li>Si le projet est encore en mode « Test », l'accès expire tous les 7 jours : Google Auth Platform → Audience → « Publier l'application ».</li>
+      <li>Le Drive est sur un autre compte Google que YouTube : tant que le projet est en mode « Test », ajouter ce compte dans Google Auth Platform → Audience → Utilisateurs test. Ou « Publier l'application » : tout compte peut se connecter, et l'accès n'expire plus au bout de 7 jours.</li>
     </ol>
+    <p class="sv-note">Au moment de se connecter, Google demande quel compte utiliser : choisir celui qui contient le dossier « Paddock Live · Réseaux ».</p>
     <details class="sv-client"${r.youtubeClient ? '' : ' open'}><summary>${r.youtubeClient ? 'Utiliser un autre client Google' : 'Client Google (ID et code secret)'}</summary>
       <label class="field"><span>ID client</span><input type="text" id="svcid" autocomplete="off" spellcheck="false"></label>
       <label class="field"><span>Code secret</span><input type="password" id="svcsecret" autocomplete="off"></label>
