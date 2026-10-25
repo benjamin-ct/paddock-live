@@ -28,6 +28,7 @@ const loadPosts = () => import('./posts.js');
 const posts = lazy(loadPosts);
 const season = lazy(() => import('./season.js'));
 const drafts = lazy(() => import('./drafts.js'));
+const suivi = lazy(() => import('./suivi.js'));
 const scrolls = {};   // position dans chaque onglet, retrouvée au retour d'un post
 
 // ---------- Accès ----------
@@ -65,7 +66,7 @@ function login(error = '') {
 onLogout(() => login());
 
 // ---------- Accueil : en-tête, onglet, barre d'onglets ----------
-const TABS = [['news', 'News', 'news'], ['sessions', 'Séances', 'flag'], ['season', 'Saison', 'calendar'], ['stats', 'Stats', 'chart']];
+const TABS = [['news', 'News', 'news'], ['sessions', 'Séances', 'flag'], ['season', 'Saison', 'calendar'], ['stats', 'Stats', 'chart'], ['suivi', 'Suivi', 'list']];
 const tabIndex = (k) => TABS.findIndex(([x]) => x === k);
 // Retour d'un post : la liste revient en glissant depuis la gauche
 const back = () => home({ from: 'left' });
@@ -119,7 +120,7 @@ async function showTab({ force = false, restore = false } = {}) {
   const body = $('#body');
   const spin = $('#refresh');
   spin?.classList.add('spin');
-  const fn = { news: newsTab, sessions: sessionsTab, season: seasonView, stats: statsTab }[state.tab];
+  const fn = { news: newsTab, sessions: sessionsTab, season: seasonView, stats: statsTab, suivi: async (...a) => (await suivi()).suiviTab(...a) }[state.tab];
   try {
     await fn(body, { force, restore: restore ? scrolls[state.tab] || 0 : 0, current: () => run === tabRun && body.isConnected });
   } catch (err) {
@@ -642,7 +643,15 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
 
 const startAlert = new URLSearchParams(location.search).get('alert');
 if (startAlert) history.replaceState(null, '', '/studio/');
-const afterLogin = () => { home(); openAlert(startAlert); };
+// Retour de la connexion Google Drive (onglet Suivi) : terminée par le serveur, puis onglet Suivi
+const params = new URLSearchParams(location.search);
+let driveBack = params.get('state') && (params.get('code') || params.get('error')) ? { code: params.get('code'), state: params.get('state'), error: params.get('error') } : null;
+if (driveBack) history.replaceState(null, '', '/studio/');
+const afterLogin = async () => {
+  if (driveBack) { const back = driveBack; driveBack = null; state.tab = 'suivi'; await (await suivi()).finishDrive(back); }
+  home();
+  openAlert(startAlert);
+};
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/studio/sw.js', { scope: '/studio/' }).catch(() => {});
   navigator.serviceWorker.addEventListener('message', (e) => { if (session.me && e.data?.alert) openAlert(e.data.alert); });

@@ -975,3 +975,69 @@ test('version web : connexion F1 TV gardée pour le relais (lisible sans le code
   assert.equal(r.status, 200);
   assert.equal(await liveF1tv(env), null);
 });
+
+test('onglet Suivi : connexion Google Drive depuis le Studio (lecture seule), gardée à l\'envoi de l\'appli', async () => {
+  const key = { 'X-Studio-Key': studioKey(CODE) };
+  const call = (p, init = {}) => worker(`https://s.test/studio/api/${p}`, { ...init, headers: key });
+  let r = await worker('https://s.test/studio/api/init', { method: 'POST', body: JSON.stringify({ key: studioKey(CODE), vault: { youtube: { clientId: 'yt.apps', clientSecret: 'secret-google', refreshToken: 'rt-yt', accessToken: 'a', expiresAt: 0 } } }) });
+  assert.equal(r.status, 200);
+  assert.deepEqual(await (await call('drive/files')).json(), { connected: false, youtubeClient: true });
+  // Adresse de retour : seulement la page du Studio en https
+  assert.equal((await call('drive/start', { method: 'POST', body: JSON.stringify({ redirect: 'https://ailleurs.test/autre' }) })).status, 400);
+  const { url } = await (await call('drive/start', { method: 'POST', body: JSON.stringify({ redirect: 'https://s.test/studio/' }) })).json();
+  const q = new URL(url).searchParams;
+  assert.equal(q.get('client_id'), 'yt.apps');
+  assert.equal(q.get('scope'), 'https://www.googleapis.com/auth/drive.readonly');
+  assert.equal(q.get('redirect_uri'), 'https://s.test/studio/');
+
+  const realFetch = globalThis.fetch;
+  let refresh = 'ok';
+  const seen = [];
+  globalThis.fetch = async (u, opts = {}) => {
+    u = String(u);
+    seen.push(u);
+    const ok = (d, status = 200) => new Response(JSON.stringify(d), { status });
+    if (u === 'https://oauth2.googleapis.com/token') {
+      const f = new URLSearchParams(String(opts.body));
+      assert.equal(f.get('client_secret'), 'secret-google');
+      if (f.get('grant_type') === 'authorization_code') { assert.equal(f.get('code'), 'c1'); assert.ok(f.get('code_verifier')); return ok({ access_token: 'at1', expires_in: 3599, refresh_token: 'rt-drive' }); }
+      return refresh === 'ok' ? ok({ access_token: 'at2', expires_in: 3599 }) : ok({ error: 'invalid_grant', error_description: 'Token has been expired or revoked.' }, 400);
+    }
+    assert.match(opts.headers.Authorization, /^Bearer at[12]$/);
+    if (u.startsWith('https://www.googleapis.com/drive/v3/files?')) {
+      const s = new URL(u).searchParams.get('q');
+      return ok(s.includes("name = 'Paddock Live · Réseaux'") ? { files: [{ id: 'dossier123456', name: 'Paddock Live · Réseaux' }] } : { files: [{ id: 'docafaire123456', name: 'À faire · Paddock Live', mimeType: 'application/vnd.google-apps.document' }] });
+    }
+    if (u === 'https://www.googleapis.com/docs/v1/documents/docafaire123456?includeTabsContent=true') return ok({ title: 'À faire', tabs: [] });
+    if (u === 'https://www.googleapis.com/v4/spreadsheets/feuille1234567/values/Journal!A1%3AD400') return ok({ values: [['Date']] });
+    if (u.includes('/docs/v1/documents/inconnu')) return ok({ error: { message: 'Requested entity was not found.' } }, 404);
+    throw new Error(`inattendu : ${u}`);
+  };
+  try {
+    assert.equal((await call('drive/finish', { method: 'POST', body: JSON.stringify({ code: 'c1', state: 'faux' }) })).status, 400);
+    r = await call('drive/finish', { method: 'POST', body: JSON.stringify({ code: 'c1', state: q.get('state') }) });
+    assert.deepEqual(await r.json(), { ok: true });
+    assert.ok(!env.DB.studio.get('vault').includes('rt-drive'));   // dans le coffre chiffré
+    const files = await (await call('drive/files')).json();
+    assert.deepEqual(files.folder, { id: 'dossier123456', name: 'Paddock Live · Réseaux' });
+    assert.equal(files.files[0].name, 'À faire · Paddock Live');
+    assert.equal((await (await call('drive/doc?id=docafaire123456')).json()).title, 'À faire');
+    assert.deepEqual(await (await call(`drive/values?id=feuille1234567&range=${encodeURIComponent('Journal!A1:D400')}`)).json(), { values: [['Date']] });
+    assert.equal((await call('drive/doc?id=../x')).status, 400);
+    assert.equal((await call('drive/doc?id=inconnu1234567')).status, 404);
+    // Envoi de l'appli (qui ne connaît pas Drive) : connexion gardée ; pas rendue comme un compte de l'appli
+    assert.equal((await call('sync', { method: 'POST', body: JSON.stringify({ vault: { youtube: { clientId: 'yt.apps', clientSecret: 'secret-google', refreshToken: 'rt-yt' } } }) })).status, 200);
+    assert.equal((await (await call('drive/files')).json()).connected, true);
+    assert.equal(JSON.stringify(await (await call('accounts')).json()).includes('gdrive'), false);
+    // Accès retiré chez Google (mode « Test » : 7 jours) : jeton d'accès à renouveler refusé, à reconnecter
+    refresh = 'expire';
+    const { url: url2 } = await (await call('drive/start', { method: 'POST', body: JSON.stringify({ redirect: 'https://s.test/studio/' }) })).json();
+    const exchange = globalThis.fetch;
+    globalThis.fetch = async (u, opts = {}) => (new URLSearchParams(String(opts.body)).get('grant_type') === 'authorization_code'
+      ? new Response(JSON.stringify({ access_token: 'at1', expires_in: 1, refresh_token: 'rt-drive' })) : exchange(u, opts));
+    await call('drive/finish', { method: 'POST', body: JSON.stringify({ code: 'c1', state: new URL(url2).searchParams.get('state') }) });
+    assert.deepEqual(await (await call('drive/files')).json(), { connected: false, expired: true, youtubeClient: true });
+    assert.equal((await call('drive/forget', { method: 'POST' })).status, 200);
+  } finally { globalThis.fetch = realFetch; }
+  assert.ok(seen.length > 4);
+});

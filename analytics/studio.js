@@ -13,6 +13,7 @@ import { extractArticle } from '../shared/article.js';
 import { decodeBody } from '../shared/news-collect.js';
 import { publishFacebook, publishInstagram, publishThreads, freshThreads, commentFacebook, replyThreads, withComment, storyInstagram, storyFacebook, storyVideoInstagram, storyVideoFacebook, reelInstagram, hostOnPage, publishFacebookVideo, publishThreadsVideo, publishFacebookLink, publishThreadsLink, cleanTopic } from '../shared/meta-publish.js';
 import { publishBluesky, replyBluesky } from '../shared/bluesky-publish.js';
+import { driveApi } from './drive.js';
 import { freshTiktok, freshYoutube, tiktokDraft, youtubeUpload, tiktokCreator, tiktokDirect, TIKTOK_PRIVACY } from '../shared/video-publish.js';
 import { addEntry, removeEntry, cleanKey, keepStats } from '../shared/post-history.js';
 import { cleanDraft, draftSummary, isDraftId, DRAFTS_MAX, DRAFT_BYTES } from '../shared/post-draft.js';
@@ -206,6 +207,8 @@ function keepNewer(old, incoming) {
   // Jeton expiré dans l'appli (restée fermée) : celui que le serveur a renouvelé est gardé
   if (old.f1tv && !out.f1tv && !out.f1tvOff && jwtExp(old.f1tv) > Date.now()) out.f1tv = old.f1tv;
   delete out.f1tvOff;
+  // Accès Google Drive du Studio : connecté depuis le Studio, l'appli ne l'envoie jamais
+  for (const k of ['gdrive', 'gdrivePending']) if (old[k]) out[k] = old[k];
   return out;
 }
 
@@ -766,6 +769,8 @@ export async function studioApi(req, env, url) {
   if (a.error) return a.error;
   let vault = await open(a.raw, await getRow(env, 'vault')).catch(() => null) || {};
 
+  // Onglet Suivi : dossier Google Drive lu par le serveur
+  if (path.startsWith('drive/')) return driveApi(path.slice(6), req, url, vault, (v) => saveVault(env, a.raw, v));
   if (path === 'sync' && req.method === 'POST') {
     let body;
     try { body = await req.json(); } catch { return json({ error: 'JSON invalide' }, 400); }
@@ -774,7 +779,10 @@ export async function studioApi(req, env, url) {
     return json({ ok: true });
   }
   // Nouvel ordinateur : copie des comptes (chiffrée par l'appli) et jetons du coffre, peut-être renouvelés ici
-  if (path === 'accounts' && req.method === 'GET') return json({ accounts: await getRow(env, 'accounts'), vault: await refresh(env, a.raw, vault) });
+  if (path === 'accounts' && req.method === 'GET') {
+    const { gdrive, gdrivePending, ...v } = await refresh(env, a.raw, vault);   // accès Drive du Studio : pas un compte de l'appli
+    return json({ accounts: await getRow(env, 'accounts'), vault: v });
+  }
   if (path === 'forget' && req.method === 'POST') {
     // Visuels et vidéos des programmations en attente : effacés avec elles (plus rien ne les retrouverait)
     for (const j of await schedJobs(env)) await dropMedia(env, j.id);
