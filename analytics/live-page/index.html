@@ -57,9 +57,10 @@
     .web .topbar .web-delay .unit { color: var(--text-2); font-weight: 700; margin-left: -2px; }
     .web .web-note { font-size: 11px; color: var(--text-2); max-width: 280px; line-height: 1.3; }
     .web .web-note a { color: inherit; text-decoration: underline; }
-    /* iPhone (page installée) : bande pleine fixée sous la barre d'état. Sans élément fixé en haut, iOS floute ce
-       qui passe dessous (titre de la séance flou) ; avec, il reprend sa couleur, comme l'en-tête du Studio */
-    .web body::before { content: ''; position: fixed; top: 0; left: 0; right: 0; height: env(safe-area-inset-top); background: #0B0C11; z-index: 6000; }
+    /* iPhone (page installée) : barre du haut fixée en haut, fond plein jusque sous la barre d'état, comme l'en-tête
+       du Studio. Sans élément fixé en haut, iOS floute le haut de la page (titre de la séance flou) */
+    .web body { padding-top: 0; }
+    .web .topbar { position: sticky; top: 0; z-index: 800; padding-top: calc(8px + env(safe-area-inset-top)); background: #0B0C11; }
     .web .web-wait { padding: 8px 14px; background: var(--panel-2); border-bottom: 1px solid var(--border); color: var(--text); font-size: 13px; font-weight: 600; text-align: center; }
     .web [data-full], .web [data-expert], .web .map-mode + label + #mapFloatBtn { display: none !important; }
     /* Menu ouvert (calques, options) : son panneau passe devant les autres */
@@ -67,7 +68,8 @@
     /* Classement sans boutons duel (pas de panneau Duel en ligne) ni menu des colonnes (réglé par l'appli) */
     .web .tower .c-duel, .web .p-tower .hint, .web #towerCols { display: none !important; }
     @media (max-width: 1300px) {
-      .web body { overflow: auto; }
+      /* La page défile ; sa hauteur suit son contenu, sinon la barre du haut fixée quittait l'écran en bas du body */
+      .web body { overflow: auto; height: auto; min-height: 100dvh; }
       .web .grid { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); grid-template-rows: 560px 460px 460px;
         grid-template-areas: "tower map" "tower tele" "feed radio"; }
     }
