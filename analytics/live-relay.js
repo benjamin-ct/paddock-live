@@ -5,7 +5,7 @@
 // navigateur applique lui-même son délai TV (analytics/live-page/web-hub.js), comme le serveur local de l'appli.
 import { LIVE_TOPICS, topicName } from '../shared/f1.js';
 import { applyEvent, createDerived } from '../shared/derive.js';
-import { liveF1tv } from './studio.js';
+import { liveF1tv, seasonRow } from './studio.js';
 import { cachedRadio, transcribeRadio, audioHash, MAX_AUDIO } from './transcribe.js';
 import { cleanRequest, translateBatch } from './translate.js';
 import { callerIp } from './quota.js';
@@ -322,6 +322,15 @@ function audioResponse(req, bytes, rel) {
 // directement sur le site de la F1 ; son, texte et traduction des radios (transcription et traduction
 // partagées du serveur, mêmes plafonds que l'appli) ; le reste n'existe pas en ligne
 export async function liveApi(req, url, env = {}) {
+  // Calendrier (compte à rebours de la prochaine séance) : la saison gardée par le serveur, même forme que l'appli
+  if (url.pathname === '/live/api/schedule' && req.method === 'GET') {
+    const year = Number(url.searchParams.get('year')), now = new Date().getUTCFullYear();
+    if (!env.DB || ![now, now + 1].includes(year)) return json({ error: 'Année invalide' }, 400);
+    const row = await seasonRow(env, year).catch(() => null);
+    if (!row) return json({ error: 'Calendrier indisponible' }, 503);
+    const races = row.v.races.map((r) => ({ round: r.round, name: r.name, locality: r.locality, country: r.country, circuitId: r.circuitId, lat: r.lat, lon: r.lon, sessions: r.sessions }));
+    return json({ year, races }, 200, { 'Cache-Control': 'public, max-age=600' });
+  }
   if (url.pathname === '/live/api/session' && req.method === 'GET') return env.LIVE ? env.LIVE.get(env.LIVE.idFromName('f1')).fetch(req) : json(null);
   if (url.pathname === '/live/api/archive/file' && req.method === 'GET') {
     const rel = url.searchParams.get('p') || '';

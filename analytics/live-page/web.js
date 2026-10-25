@@ -12,6 +12,7 @@ import { initMap } from './ui/map.js';
 import { renderRcm, initRcmFilters, initStewards, renderStewards } from './ui/feed.js';
 import { renderRadios, initRadios } from './ui/radios.js';
 import { renderTelemetry } from './ui/extra.js';
+import { initNoLive } from './ui/home.js';
 
 translatePage();
 // GPS et télémétrie : texte compressé (deflate brut, base64) du flux F1
@@ -91,6 +92,8 @@ safe(initMap);
 safe(initRcmFilters);
 safe(initStewards);
 safe(initRadios);
+// Pas de séance en direct : prochaine séance et compte à rebours, comme l'appli
+safe(initNoLive);
 // Panneau Analyse : seulement la télémétrie du pilote suivi
 document.querySelector('.p-analysis [data-tab="telemetry"]')?.click();
 on('status', renderSource);

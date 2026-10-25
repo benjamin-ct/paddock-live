@@ -28,7 +28,10 @@ const LONG = /course|race|grand prix/i;
 const lengthOf = (label) => (LONG.test(label) && !/sprint/i.test(label) ? 150 : 75) * 60e3;
 const sessionName = (n) => sessionLabel(n, EN);
 
-async function loadSchedule() {
+// Calendrier chargé une fois (accueil et écran « Pas de séance en direct »)
+let scheduleLoad = null;
+const loadSchedule = () => (scheduleLoad ||= readSchedule());
+async function readSchedule() {
   const year = new Date().getFullYear();
   const races = [];
   for (const y of [year, year + 1]) {
@@ -424,4 +427,6 @@ export function initNoLive() {
   addEventListener('resize', () => { if (!view.hidden) placeView(view); });
   setInterval(() => noLiveCheck(false), 5000);
   noLiveCheck();
+  // Sans accueil (version web) : le calendrier est chargé ici
+  loadSchedule().then(() => noLiveCheck());
 }
