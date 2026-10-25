@@ -279,6 +279,10 @@ async function archive(req, url, vault) {
   const live = vault?.f1tv && jwtExp(vault.f1tv) > Date.now();
   if (res.status !== 200 && live) res = await cached(req, ARCHIVE + p, { headers: { 'User-Agent': UA, Authorization: `Bearer ${vault.f1tv}`, ascendontoken: vault.f1tv } }, ttl);
   if (res.status === 200) return res;
+  // Refus de la F1 alors que l'index de l'année passe avec la même connexion : la connexion est bonne, c'est le
+  // fichier qui n'est pas encore là (la F1 répond « refusé » aussi pour un fichier absent, ex. séance qui vient de finir)
+  const auth = { headers: { 'User-Agent': UA, Authorization: `Bearer ${vault?.f1tv}`, ascendontoken: vault?.f1tv } };
+  if (live && [401, 403].includes(res.status) && !p.endsWith('Index.json') && (await cached(req, `${ARCHIVE}${p.slice(0, 4)}/Index.json`, auth, 300)).status === 200) res = new Response(null, { status: 404 });
   // Raison précise, affichée par le Studio
   const error = res.status === 404 ? 'Archive pas encore publiée'
     : !vault?.f1tv ? 'Archives réservées aux abonnés F1 TV : connectez F1 TV dans l\'appli'

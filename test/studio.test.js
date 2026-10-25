@@ -192,6 +192,19 @@ test('page du créateur : relais limités (sources connues, archives F1, images 
     r = await worker('https://s.test/studio/api/archive?p=2026/Index.json', h);
     assert.equal(r.status, 404);
     assert.equal((await r.json()).error, 'Archive pas encore publiée');
+    // Connexion F1 TV acceptée pour l'index de l'année mais fichier refusé (séance qui vient de finir) :
+    // archive pas encore publiée, et non connexion refusée ; refusée partout : connexion refusée
+    const tok = `x.${Buffer.from(JSON.stringify({ exp: Date.now() / 1000 + 4 * 86400 })).toString('base64url')}.y`;
+    await worker('https://s.test/studio/api/sync', { method: 'POST', headers: { 'X-Studio-Key': key }, body: JSON.stringify({ vault: { f1tv: tok } }) });
+    let indexOk = true;
+    globalThis.fetch = async (url, init = {}) => new Response('{}', { status: init.headers?.Authorization && indexOk && String(url).endsWith('/2024/Index.json') ? 200 : 403 });
+    r = await worker('https://s.test/studio/api/archive?p=2024/2024-10-20_United_States_Grand_Prix/2024-10-20_Race/TimingData.jsonStream', h);
+    assert.equal(r.status, 404);
+    assert.equal((await r.json()).error, 'Archive pas encore publiée');
+    indexOk = false;
+    r = await worker('https://s.test/studio/api/archive?p=2023/2023-10-22_United_States_Grand_Prix/2023-10-22_Race/TimingData.jsonStream', h);
+    assert.equal(r.status, 502);
+    assert.match((await r.json()).error, /refuse la connexion F1 TV/);
   } finally { globalThis.fetch = realFetch; }
   assert.equal((await worker(`https://s.test/studio/api/img?u=${encodeURIComponent('https://evil.test/a.png')}`, h)).status, 400);
 });
