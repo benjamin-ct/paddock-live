@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import zlib from 'node:zlib';
-import { LiveRelay, KEEP_MS, liveApi, pairSend, liveDevices } from '../analytics/live-relay.js';
+import { LiveRelay, KEEP_MS, liveApi, pairSend, liveDevices, liveState } from '../analytics/live-relay.js';
 import { WebHub } from '../analytics/live-page/web-hub.js';
 import { applyEvent, createDerived } from '../shared/derive.js';
 
@@ -335,4 +335,18 @@ test('appareils connectés : liste des connexions du relais privé, type d\'appa
   const env = { LIVE: { idFromName: (n) => n, get: () => inst } };
   assert.equal((await liveDevices(env, okToken())).count, 2);
   assert.deepEqual(await liveDevices(env, 'pasunjeton'), { count: 0, devices: [] });
+});
+
+// Studio : résultats d'une séance qui vient de finir, d'après le direct, avant l'archive de la F1
+test('état final d\'une séance d\'après le relais : état de base et messages reçus depuis, seulement la séance demandée', async () => {
+  const inst = new LiveRelay({}, {});
+  inst.base = { t: 1, state: { SessionInfo: { Path: '2026/2026-10-25_United_States_Grand_Prix/2026-10-25_Race/', Name: 'Race' }, LapCount: { CurrentLap: 55, TotalLaps: 56 } }, derived: createDerived() };
+  inst.recent = [['LapCount', { CurrentLap: 56 }, 2]];
+  const st = await inst.state('2026/2026-10-25_United_States_Grand_Prix/2026-10-25_Race/');
+  assert.equal(st.LapCount.CurrentLap, 56);
+  assert.equal(inst.base.state.LapCount.CurrentLap, 55);   // l'état gardé par le relais n'est pas modifié
+  assert.equal(await inst.state('2026/autre/'), null);
+  const env = { LIVE: { idFromName: (n) => n, get: () => inst } };
+  assert.equal((await liveState(env, '2026/2026-10-25_United_States_Grand_Prix/2026-10-25_Race/')).LapCount.CurrentLap, 56);
+  assert.equal(await liveState({}, 'x'), null);
 });

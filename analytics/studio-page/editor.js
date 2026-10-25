@@ -3,11 +3,12 @@
 import { slidesFor, drawSlide, slideName, slideAlt, chosenSlides, keptData } from '/shared/social-draw.js';
 import { openImageViewer } from '/shared/image-viewer.js';
 import { creditCaptions, followCaptions, questionCaptions } from '/shared/social-follow.js';
-import { xLength } from '/shared/social.js';
+import { xLength, videoTexts } from '/shared/social.js';
+import { makeVideo, unlockAudio } from '/shared/social-video.js';
 import { linksIn } from '/shared/track-links.js';
 import { FLAG_ISO } from '/shared/flags.js';
 import { loadTeamLogos } from '/shared/team-logos.js';
-import { $, $$, esc, api, icon, toast, toggle, sheet, schedList, glide, state, session, store, SIG, NET_NAMES, IOS, installed } from './ui.js';
+import { $, $$, esc, api, icon, toast, toggle, sheet, schedList, glide, state, session, store, SIG, NET_NAMES, IOS, installed, musicField, bindMusic, shareClip, clipFile } from './ui.js';
 import { bestSlot } from '/shared/post-history.js';
 import { tiktokPanel, tiktokProblem, tiktokChoice, TIKTOK_PRIVACY } from './tiktok.js';
 import { packDraftImages } from '/shared/post-draft.js';
@@ -47,7 +48,16 @@ const CAPS = [
   ['x', () => 'Texte X (lien = 23 caractères)', 3, 0, 280],
   ['bsky', () => 'Texte Bluesky', 3, 0, 300],
   ['comment', () => 'Premier commentaire (Facebook, Threads, Bluesky ; X : à coller en réponse)', 2],
+  ['tiktok', () => 'Texte TikTok', 3, 2200],
+  ['youtube', () => 'Texte YouTube Shorts (1re ligne = titre, 100 caractères au plus)', 4],
 ];
+const VIDEO_CAPS = ['tiktok', 'youtube'];   // textes montrés seulement avec une vidéo
+
+// Vidéo des visuels (posts sans vidéo à eux : résultats, avant-course, championnat, saison…) : les images
+// gardées, au format story, enchaînées avec un fondu ; pour TikTok, YouTube Shorts et les Reels
+const SLIDES_VIDEO = () => `<h3 class="section">Vidéo des visuels</h3>${musicField('slides', 'depart')}<div class="row"><button class="btn" id="mkvid">${icon('video')}Créer la vidéo</button><button class="btn" id="sharevid" disabled title="Zone sûre : Reels, TikTok, Shorts">${icon('share')}Partager</button><button class="btn" id="sharefull" disabled title="X, Bluesky, Facebook, Threads…">${icon('share')}Plein écran</button></div>
+  <p class="hint" id="vidst">Les images gardées, au format story, environ 3 s chacune. Garder l'écran allumé pendant l'enregistrement.</p>
+  <video id="vid" controls playsinline hidden></video>`;
 
 // Retour à la liste : bouton, geste « retour » de Safari (historique) et, sur l'appli installée,
 // glissement depuis le bord gauche de l'écran
@@ -100,6 +110,10 @@ const STEPS = [['contenu', 'Contenu'], ['visuels', 'Visuels'], ['video', 'Vidéo
 // repris (drafts.js), mis à jour par « Brouillon » et effacé une fois le post publié ou programmé
 export function editor({ back, title, subtitle = '', head = '', vhead = '', note = '', data, caps, bind = () => {}, record, video = () => null, link = null, twin = null, draft = null }) {
   const formats = link ? [...FORMATS, ['link', 'Lien']] : FORMATS;
+  // Post sans vidéo à lui : vidéo de ses visuels, fabriquée ici
+  const own = !vhead.trim();
+  let slideClip = null;
+  if (own) { vhead = SLIDES_VIDEO(); video = () => slideClip; }
   if (!formats.some(([k]) => k === state.fmt)) state.fmt = 'ig';
   let canvases = [];
   let edited = { ...draft?.edited };   // textes retouchés à la main : gardés en changeant de format
@@ -167,8 +181,9 @@ export function editor({ back, title, subtitle = '', head = '', vhead = '', note
     if (state.question && !skip.has('question')) base = questionCaptions(base, d, SIG);
     if (state.follow && !skip.has('abonnement')) base = followCaptions(base, d, SIG);
     if (!base.bsky) base = { ...base, bsky: base.x };
-    // Mention « Fait par IA avec l'appli », sauf pour les posts écrits à la main
-    return { ...(record?.()?.kind === 'manual' ? base : creditCaptions(base)), ...mine };
+    // Mention « Fait par IA avec l'appli », sauf pour les posts écrits à la main ; textes de la vidéo tirés des autres
+    const out = record?.()?.kind === 'manual' ? base : creditCaptions(base);
+    return { ...videoTexts(out), ...out, ...mine };
   };
   const redraw = async (changed = false) => {
     if (changed) edited = {};
@@ -182,7 +197,7 @@ export function editor({ back, title, subtitle = '', head = '', vhead = '', note
       <div class="row"><button class="btn small" id="xlink">${icon('send')}Ouvrir X avec le lien</button></div>` : `<div class="slides ${state.fmt}">${slides.map((sl) => `<figure class="sl"><canvas data-slide="${sl}" title="${esc(slideName(sl))} : voir en grand"></canvas>
         <label class="pick"><input type="checkbox" data-pick="${sl}" ${state.skip.has(sl) ? '' : 'checked'}><span data-num></span>${esc(slideName(sl))}</label></figure>`).join('')}</div>`;
     const xTab = state.fmt === 'x';
-    const shown = ([k]) => (linkTab ? ['instagram', 'facebook', 'threads', 'bsky', 'x'].includes(k) : xTab ? k === 'x' || (k === 'comment' && c[k]) : k !== 'x' && (k === 'instagram' || k === 'threads' || k === 'bsky' || c[k]));
+    const shown = ([k]) => (VIDEO_CAPS.includes(k) ? !linkTab && !xTab && state.fmt !== 'story' && !!video() : linkTab ? ['instagram', 'facebook', 'threads', 'bsky', 'x'].includes(k) : xTab ? k === 'x' || (k === 'comment' && c[k]) : k !== 'x' && (k === 'instagram' || k === 'threads' || k === 'bsky' || c[k]));
     $('#texts').innerHTML = `<section class="panel"><h3 class="section">Textes</h3>${CAPS.filter(shown).map(([k, label, rows, max = 0, limit = 0], i) => `
       <details class="cap" ${i === 0 ? 'open' : ''}><summary><span>${esc(label(c))}</span><small data-count="${k}"></small></summary>
         <textarea id="cap-${k}" rows="${rows}" ${max ? `maxlength="${max}"` : ''} data-limit="${limit || max}">${esc(c[k])}</textarea>
@@ -314,6 +329,31 @@ export function editor({ back, title, subtitle = '', head = '', vhead = '', note
   // Question et abonnement : un seul appel par post
   $('#follow').onchange = (e) => { state.follow = e.target.checked; $('#question').disabled = state.follow; redraw(true); };
   $('#question').onchange = (e) => { state.question = e.target.checked; $('#follow').disabled = state.question; redraw(true); };
+  // Vidéo des visuels : images gardées au format story, enchaînées (même vidéo que dans l'appli)
+  if (own) {
+    let clip = null;
+    const name = `video-${record?.()?.kind || 'post'}`;
+    const track = bindMusic('slides');
+    $('#mkvid').onclick = async () => {
+      unlockAudio();   // pendant le toucher, avant toute attente (sinon vidéo muette sur iPhone)
+      $('#mkvid').disabled = true;
+      try {
+        const d = data();
+        const o = await assets(d);
+        const list = chosenSlides(slidesFor(d, { fmt: 'story', follow: state.follow, question: state.question }), [...state.skip]);
+        const slides = list.map((sl) => drawSlide(document.createElement('canvas'), sl, 'story', d, { ...o, slides: list }));
+        clip = await makeVideo(slides, { music: 'gen', track: track(), onProgress: (p) => { $('#vidst').textContent = `Enregistrement… ${Math.round(p * 100)} %`; } });
+        $('#vid').src = URL.createObjectURL(clip.blob); $('#vid').hidden = false;
+        $('#sharevid').disabled = false; $('#sharefull').disabled = false;
+        slideClip = clipFile(clip, name);
+        $('#vidst').textContent = `Vidéo prête : ${(clip.blob.size / 1e6).toFixed(1).replace('.', ',')} Mo${clip.silent ? ' · sans son : le navigateur a bloqué la musique, recommencez' : ''}${slideClip ? ' · jointe au post : TikTok et YouTube Shorts proposés à l\'étape Publier' : ' · format WebM : à partager seulement (publication en MP4)'}`;
+        state.noVideo = false;
+        redraw();
+      } catch (err) { $('#vidst').textContent = err.message; } finally { $('#mkvid').disabled = false; }
+    };
+    $('#sharevid').onclick = () => clip && shareClip(clip, name);
+    $('#sharefull').onclick = () => clip && shareClip(clip, name, true);
+  }
   bind(redraw);
   glide();
   redraw();
@@ -332,7 +372,7 @@ function articlePhoto(url) {
 // x.com avec le texte et les images ou la vidéo téléchargées (le menu de partage de Windows ne propose pas X)
 // Texte X (et premier commentaire) avec ses liens suivis (clics comptés), préparé à l'affichage : le
 // partage part dès le toucher
-const CAP_NET = { instagram: 'instagram', facebook: 'facebook', threads: 'threads', x: 'x', bsky: 'bluesky' };
+const CAP_NET = { instagram: 'instagram', facebook: 'facebook', threads: 'threads', x: 'x', bsky: 'bluesky', tiktok: 'tiktok', youtube: 'youtube' };
 const trackedX = new Map();   // réseau|texte -> texte suivi (ou demande en cours)
 const trackedNow = (raw, net = 'x') => { const t = trackedX.get(`${net}|${raw}`); return typeof t === 'string' ? t : raw; };
 function prepareX(raw, title, net = 'x') {
@@ -384,8 +424,8 @@ async function download(canvases) {
 
 // Réseaux cochés, texte et premier commentaire de chacun
 const checkedNets = () => $$('[data-net]:checked').map((i) => i.dataset.net);
-const textOf = (n) => $(`#cap-${n === 'threads' ? 'threads' : n === 'bluesky' ? 'bsky' : n === 'facebook' && $('#cap-facebook') ? 'facebook' : 'instagram'}`)?.value ?? '';
-const capOf = (c, n) => c[n === 'threads' ? 'threads' : n === 'bluesky' ? 'bsky' : n === 'facebook' && c.facebook ? 'facebook' : 'instagram'] || '';
+const textOf = (n) => $(`#cap-${n === 'threads' ? 'threads' : n === 'bluesky' ? 'bsky' : VIDEO_CAPS.includes(n) && $(`#cap-${n}`) ? n : n === 'facebook' && $('#cap-facebook') ? 'facebook' : 'instagram'}`)?.value ?? '';
+const capOf = (c, n) => c[n === 'threads' ? 'threads' : n === 'bluesky' ? 'bsky' : VIDEO_CAPS.includes(n) && c[n] ? n : n === 'facebook' && c.facebook ? 'facebook' : 'instagram'] || '';
 // Avant d'envoyer : texte trop long (refusé, message affiché), visuels au-delà du carrousel (texte d'avertissement)
 function checkPost(d, nets, carousel) {
   const pb = postProblems(nets, textOf, carousel ? chosenSlides(slidesFor(d, { fmt: 'ig', follow: state.follow, question: state.question }), [...(state.skip || [])]).length : 0);

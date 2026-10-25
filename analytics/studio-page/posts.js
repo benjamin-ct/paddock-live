@@ -1,7 +1,7 @@
 // Studio : posts des news (et récap de la semaine) et des séances (résultats, avant-course,
 // championnat, flash). Chargé à l'ouverture d'un post.
 import { decodeBody } from '/shared/news-collect.js';
-import { bigNews, newsPost, newsCaptions, newsKind, similarArticles, mainTeam, mentionsTeam, LOOKS, OTHER_SERIES, NEWS_BADGES } from '/shared/social-news.js';
+import { bigNews, newsPost, newsCaptions, newsKind, similarArticles, mainTeam, mentionsTeam, LOOKS, OTHER_SERIES, NEWS_BADGES, NO_BADGE } from '/shared/social-news.js';
 import { newsTags } from '/shared/news.js';
 import { postData, captions } from '/shared/social.js';
 import { preraceData, champData, flashEvents, flashData, moreCaptions, FLASH_KINDS } from '/shared/social-more.js';
@@ -17,6 +17,7 @@ import { photoPicker, cropImage, bitmapUrl } from './photos.js';
 import { makeAnimation, unlockAudio } from '/shared/social-video.js';
 import { videoCover, newsPhotoBox, FORMATS } from '/shared/social-draw.js';
 import { newsFrame, newsVideoTiming } from '/shared/social-news-video.js';
+import { makeClipVideo, CLIP_MAX } from '/shared/social-clip-video.js';
 
 // Résumé détaillé : page de l'article lue par le serveur, texte extrait ici, points clés rédigés par
 // l'IA du serveur (reformulés, jamais recopiés)
@@ -66,7 +67,8 @@ const NEWS_VIDEO = () => `<h3 class="section">Vidéo de la news</h3>${musicField
   <video id="vid" controls playsinline hidden></video>`;
 // onBreaking(on) : très grosse info cochée ou décochée à la main
 // onClip(file) : vidéo prête (MP4), jointe au post pour la publier sur TikTok, Instagram, Facebook…
-function bindNewsVideo(getD, onBreaking, onClip) {
+// source() : vidéo choisie (post écrit à la main), intégrée au visuel à la place de l'animation de la news
+function bindNewsVideo(getD, onBreaking, onClip, source = () => null) {
   let clip = null;
   const name = () => (getD().breaking ? 'breaking-news' : 'actu-f1');   // nom du fichier
   const track = bindMusic('news');
@@ -77,11 +79,13 @@ function bindNewsVideo(getD, onBreaking, onClip) {
     try {
       const d = getD();
       const o = await assets(d);
-      const { duration } = newsVideoTiming(d);
-      clip = await makeAnimation((ctx, t, w, h) => newsFrame(ctx, w, h, d, o, t), duration, { box: true, cover: (ctx) => videoCover(ctx, 1080, 1920, d, o), music: 'gen', track: track(), onProgress: (p) => { $('#vidst').textContent = `Enregistrement… ${Math.round(p * 100)} %`; } });
+      const src = source();
+      const onProgress = (p) => { $('#vidst').textContent = `${src ? 'Habillage de votre vidéo' : 'Enregistrement'}… ${Math.round(p * 100)} %`; };
+      clip = src ? await makeClipVideo(src, d, o, { music: 'gen', track: track(), onProgress })
+        : await makeAnimation((ctx, t, w, h) => newsFrame(ctx, w, h, d, o, t), newsVideoTiming(d).duration, { box: true, cover: (ctx) => videoCover(ctx, 1080, 1920, d, o), music: 'gen', track: track(), onProgress });
       $('#vid').src = URL.createObjectURL(clip.blob); $('#vid').hidden = false;
       $('#sharevid').disabled = false; $('#sharefull').disabled = false;
-      $('#vidst').textContent = `Vidéo prête : ${Math.round(duration)} s, ${(clip.blob.size / 1e6).toFixed(1).replace('.', ',')} Mo${clip.silent ? ' · sans son : le navigateur a bloqué la musique, recommencez' : ''}${clipFile(clip, name()) ? ' · jointe au post (à décocher à l\'étape Publier pour garder les visuels)' : ' · format WebM : à partager seulement (publication en MP4)'}`;
+      $('#vidst').textContent = `Vidéo prête : ${src ? '' : `${Math.round(newsVideoTiming(d).duration)} s, `}${(clip.blob.size / 1e6).toFixed(1).replace('.', ',')} Mo${clip.silent ? ' · sans son : le navigateur a bloqué la musique, recommencez' : ''}${clipFile(clip, name()) ? ' · jointe au post (à décocher à l\'étape Publier pour garder les visuels)' : ' · format WebM : à partager seulement (publication en MP4)'}`;
       onClip(clipFile(clip, name()));
     } catch (err) { $('#vidst').textContent = err.message; } finally { $('#mkvid').disabled = false; }
   };
@@ -254,7 +258,7 @@ export async function manualEditor(back) {
     const text = `${f.title} ${f.summary} ${f.points}`;
     const title = f.title.trim() || 'Votre titre ici';
     const d = newsPost({ ...it, title, summary: f.summary, tags: newsTags(text) }, { title, summary: f.summary, points: f.points, driverList: drivers, sourceName: f.source.trim() });
-    if (f.kind) d.badge = NEWS_BADGES.find((b) => b.key === f.kind) || d.badge;
+    if (f.kind) d.badge = f.kind === 'none' ? NO_BADGE : NEWS_BADGES.find((b) => b.key === f.kind) || d.badge;
     if (f.image) Object.assign(d, { image: f.image, credit: f.credit });
     d.breaking = f.breaking;
     return d;
@@ -269,19 +273,19 @@ export async function manualEditor(back) {
       <label class="field"><span>Titre</span><input type="text" id="mtitle" maxlength="120" placeholder="Le titre du visuel"></label>
       <label class="field"><span>Résumé</span><textarea id="msum" rows="3" maxlength="320"></textarea></label>
       <label class="field"><span>Points clés, un par ligne <small>(images suivantes du carrousel)</small></span><textarea id="mpoints" rows="4" maxlength="1600" placeholder="Facultatif"></textarea></label>
-      <label class="field"><span>Type d'info</span><select id="mkind"><option value="">Deviné d'après le texte</option>${NEWS_BADGES.map((b) => `<option value="${b.key}">${esc(b.label.charAt(0) + b.label.slice(1).toLowerCase())}</option>`).join('')}</select></label>
+      <label class="field"><span>Type d'info</span><select id="mkind"><option value="">Deviné d'après le texte</option><option value="none">Aucun (pas d'étiquette)</option>${NEWS_BADGES.map((b) => `<option value="${b.key}">${esc(b.label.charAt(0) + b.label.slice(1).toLowerCase())}</option>`).join('')}</select></label>
       <label class="field"><span>Source <small>(facultatif, citée en bas de l'image)</small></span><input type="text" id="msrc" maxlength="60" placeholder="Ex. : communiqué de McLaren"></label>
       <div class="field"><span>Photo <small>(facultatif : remplace les portraits des pilotes)</small></span>
         <div class="row"><label class="btn small">${icon('image')}Choisir une photo<input type="file" id="mimg" accept="image/*" hidden></label><button class="btn small" id="mfree">${icon('image')}Photo libre de droits</button><button class="btn small" id="mimgcrop" hidden>${icon('image')}Recadrer</button><button class="btn small" id="mimgdel" hidden>${icon('close')}Retirer</button><span class="hint" id="mimgst"></span></div></div>
       ${BREAKING(false)}`,
-    vhead: `<div class="field"><span>Votre vidéo <small>(facultatif : publiée avec le post, MP4 ou MOV, 50 Mo au plus)</small></span>
+    vhead: `<div class="field"><span>Votre vidéo <small>(facultatif, ex. un enregistrement d'écran : intégrée au visuel du post, ${CLIP_MAX} s au plus)</small></span>
         <div class="row"><label class="btn small">${icon('video')}Choisir une vidéo<input type="file" id="mvid" accept="video/mp4,video/quicktime" hidden></label><button class="btn small" id="mviddel" hidden>${icon('close')}Retirer</button><span class="hint" id="mvidst"></span></div>
         <video id="mvidprev" controls playsinline hidden></video></div>
       ${NEWS_VIDEO()}`,
     data: () => d,
     caps: (dd) => newsCaptions(dd, SIG),
     record: () => ({ key: `manual:${it.id}`, kind: 'manual', title: d.title }),
-    video: () => f.video || f.made,
+    video: () => f.made,
     bind: (redraw) => {
       let tm = null;
       const upd = (now = false) => {
@@ -328,17 +332,17 @@ export async function manualEditor(back) {
         const file = e.target.files?.[0];
         if (!file) return;
         if (!/^video\/(mp4|quicktime)$/.test(file.type)) { $('#mvidst').textContent = 'Vidéo MP4 ou MOV seulement'; return; }
-        if (file.size > 50e6) { $('#mvidst').textContent = `Trop lourde (${Math.round(file.size / 1e6)} Mo) : 50 Mo au plus`; return; }
-        f.video = file;
+        if (file.size > 300e6) { $('#mvidst').textContent = `Trop lourde (${Math.round(file.size / 1e6)} Mo) : 300 Mo au plus`; return; }
+        // Vidéo choisie : seulement la source, habillée aux couleurs du post (« Créer la vidéo », lancé tout de suite)
+        f.video = file; f.made = null;
         $('#mvidst').textContent = `${file.name} · ${(file.size / 1e6).toFixed(1).replace('.', ',')} Mo`;
         if ($('#mvidprev').src) URL.revokeObjectURL($('#mvidprev').src);
         $('#mvidprev').src = URL.createObjectURL(file); $('#mvidprev').hidden = false;
-        $('#mvidprev').onloadedmetadata = (ev) => { file.vsize = `${ev.target.videoWidth}x${ev.target.videoHeight}`; };   // format de la vidéo pour Bluesky
         $('#mviddel').hidden = false;
-        upd(true);
+        $('#mkvid').click();
       };
-      $('#mviddel').onclick = () => { f.video = null; $('#mvid').value = ''; $('#mvidst').textContent = ''; $('#mviddel').hidden = true; $('#mvidprev').hidden = true; $('#mvidprev').removeAttribute('src'); upd(true); };
-      bindNewsVideo(() => d, (on) => { f.breaking = on; upd(true); }, (file) => { f.made = file; state.noVideo = false; redraw(); });
+      $('#mviddel').onclick = () => { f.video = f.made = null; $('#mvid').value = ''; $('#mvidst').textContent = ''; $('#mviddel').hidden = true; $('#mvidprev').hidden = true; $('#mvidprev').removeAttribute('src'); upd(true); };
+      bindNewsVideo(() => d, (on) => { f.breaking = on; upd(true); }, (file) => { f.made = file; state.noVideo = false; redraw(); }, () => f.video);
     },
   });
 }

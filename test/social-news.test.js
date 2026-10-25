@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { bigNews, newsKind, newsKinds, sortNews, newsPost, newsCaptions, shortSummary, isBreaking } from '../shared/social-news.js';
+import { bigNews, newsKind, newsKinds, sortNews, newsPost, newsCaptions, shortSummary, isBreaking, NO_BADGE } from '../shared/social-news.js';
 import { slidesFor } from '../shared/social-draw.js';
 import { xLength } from '../shared/social.js';
 import { newsVideoTiming } from '../shared/social-news-video.js';
@@ -77,6 +77,8 @@ test('posts news : données du post et légendes', () => {
   assert.deepEqual(slidesFor(d), ['news']);
   const c = newsCaptions(d, '@moi');
   assert.match(c.instagram, /^✍️ TRANSFERT \| Norris prolonge avec McLaren\n\nPremière phrase\./);
+  // Type « Aucun » : pas d'étiquette au début du texte
+  assert.match(newsCaptions({ ...d, badge: NO_BADGE }, '@moi').instagram, /^🏎️ Norris prolonge avec McLaren\n\nPremière phrase\./);
   assert.match(c.instagram, /📰 Source : Autosport\n/);
   assert.doesNotMatch(c.instagram, /repris par/);
   assert.match(c.instagram, /#LandoNorris #McLaren/);

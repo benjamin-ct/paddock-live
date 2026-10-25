@@ -100,7 +100,8 @@ async function pickPlan(withAudio) {
 // Vidéos fabriquées image par image : chaque image dessinée puis encodée, sans limite de temps.
 // paints : une vidéo par fonction de dessin, même musique ; null si le navigateur ne sait pas faire
 // (enregistrement en temps réel à la place).
-async function encodeFrames(paints, duration, { music, file, track, onProgress }) {
+// prepare(t) : attendu avant de dessiner l'image de l'instant t (vidéo source calée sur t)
+async function encodeFrames(paints, duration, { music, file, track, onProgress, prepare = null }) {
   const withAudio = music !== 'none';
   const plan = await pickPlan(withAudio);
   if (!plan) return null;
@@ -142,8 +143,10 @@ async function encodeFrames(paints, duration, { music, file, track, onProgress }
   }
   const frames = Math.round(duration * FPS);
   for (let i = 0; i < frames && !failure; i++) {
+    const time = Math.min(i / FPS, duration - 0.001);
+    if (prepare) await prepare(time);
     for (const o of outs) {
-      o.paint(o.ctx, Math.min(i / FPS, duration - 0.001));
+      o.paint(o.ctx, time);
       const vf = new VideoFrame(o.canvas, { timestamp: Math.round(i * 1e6 / FPS), duration: Math.round(1e6 / FPS) });
       o.enc.encode(vf, { keyFrame: i % (FPS * 2) === 0 });
       vf.close();
@@ -240,6 +243,8 @@ export async function makeAnimation(draw, duration, { cover = null, box = false,
   const withCover = (body) => (front ? (ctx, t) => (t < COVER ? front(ctx, 0) : body(ctx, t - COVER)) : body);
   const paints = [safeFrame(draw, { box }), (ctx, t) => draw(ctx, t, W, H)].map(withCover);
   const total = duration + (front ? COVER : 0);
+  // Vidéo source calée sur le temps de l'animation (après la couverture)
+  if (opts.prepare) { const prep = opts.prepare; opts.prepare = (t) => (front && t < COVER ? null : prep(t - (front ? COVER : 0))); }
   const extra = front ? { cover: await coverJpeg(front).catch(() => null) } : {};
   let vids = null;
   try {
@@ -250,7 +255,7 @@ export async function makeAnimation(draw, duration, { cover = null, box = false,
 }
 
 // Enregistrement en temps réel (navigateur sans WebCodecs) : une vidéo par fonction de dessin, même son
-async function recordLive(paints, duration, { music = 'gen', file = null, track, onProgress } = {}) {
+async function recordLive(paints, duration, { music = 'gen', file = null, track, onProgress, prepare = null } = {}) {
   let silent = false;   // son bloqué par le navigateur : vidéo muette, signalée à l'appelant
   if (!window.MediaRecorder) throw new Error('Enregistrement vidéo indisponible dans ce navigateur');
   let ac = null;
@@ -287,7 +292,12 @@ async function recordLive(paints, duration, { music = 'gen', file = null, track,
     return { paint, ctx: out.getContext('2d'), video, rec, chunks, done };
   });
 
-  const draw = (t) => outs.forEach((o) => o.paint(o.ctx, t));
+  // Vidéo source calée au mieux (en temps réel, sans attendre : une demande à la fois)
+  let busy = false;
+  const draw = (t) => {
+    if (prepare && !busy) { busy = true; Promise.resolve(prepare(t)).finally(() => { busy = false; }); }
+    outs.forEach((o) => o.paint(o.ctx, t));
+  };
   draw(0);
   outs.forEach((o) => o.rec.start(500));
   const start = performance.now();

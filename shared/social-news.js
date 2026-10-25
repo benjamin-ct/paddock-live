@@ -21,6 +21,8 @@ const KINDS = [
 export const LOOKS = new Set(['tenue', 'livree']);
 // Types au choix (post écrit à la main), « Actu F1 » compris
 export const NEWS_BADGES = [...KINDS.map(([key, label, color]) => ({ key, label, color })), { key: 'actu', label: 'ACTU F1', color: '#e10600' }];
+// Type « Aucun » (post écrit à la main) : pas d'étiquette sur les visuels, la vidéo ni le texte
+export const NO_BADGE = { key: 'none', label: '', color: '#e10600' };
 export function newsKind(item) {
   // D'après le titre ; le résumé ne compte que pour les livrées et les tenues (un mot du résumé suffisait
   // à classer en « transfert » une news sur les pneus ou un simple coup de fil)
@@ -217,7 +219,7 @@ export function newsCaptions(nd, signature = '', { linkInComment = false } = {})
     ...(nd.teams.some((t) => t.key === 'fia') ? ['#FIA'] : []),
   ];
   const tags = fiveTags(['#F1', ...people, '#F1News']);
-  const head = `${nd.breaking ? '🚨' : NEWS_EMOJI[nd.badge.key] || '🏎️'} ${nd.badge.label} | ${nd.title}`;
+  const head = `${nd.breaking ? '🚨' : NEWS_EMOJI[nd.badge.key] || '🏎️'} ${nd.badge.label ? `${nd.badge.label} | ` : ''}${nd.title}`;
   // Lien de l'article : Facebook, Threads et X (pas Instagram, où il n'est pas cliquable)
   const url = /^https:\/\//.test(nd.link || '') ? nd.link : '';
   const comment = url && linkInComment ? `🔗 Lire l'article : ${url}` : '';

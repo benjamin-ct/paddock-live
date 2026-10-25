@@ -71,6 +71,7 @@ export class LiveRelay {
     if (url.pathname === '/radio') return this.radio(url.searchParams.get('p') || '');
     if (url.pathname === '/pair') return this.pair(req, url);
     if (url.pathname === '/clients') return json(this.clientList());
+    if (url.pathname === '/state') return json(await this.state(url.searchParams.get('path')));
     if (req.headers.get('Upgrade') !== 'websocket') return new Response('WebSocket attendu', { status: 426 });
     // Page d'un autre site branchée sur le relais : refusée
     if (!ORIGINS.includes(req.headers.get('Origin'))) return new Response('Origine refusée', { status: 403 });
@@ -184,6 +185,17 @@ export class LiveRelay {
     let status = this.base.state.SessionStatus?.Status || info.SessionStatus || null;
     for (const [topic, data] of this.recent) if (topic === 'SessionStatus' && data?.Status) status = data.Status;
     return { path: info.Path, name: info.Name, type: info.Type, gp: info.Meeting?.Name, country: info.Meeting?.Country?.Code, endDate: info.EndDate, gmtOffset: info.GmtOffset, status, live: !!this.active };
+  }
+
+  // État courant de la séance demandée (Studio : résultats d'une séance qui vient de finir, avant l'archive de la
+  // F1). Le direct garde l'état final jusqu'à la séance suivante : relais rallumé s'il est à l'arrêt
+  async state(path) {
+    const s = await this.session(true);
+    if (!path || s?.path !== path) return null;
+    const state = structuredClone(this.base.state);
+    const derived = structuredClone(this.base.derived);
+    for (const [topic, data, t] of this.recent) applyEvent(state, derived, topic, data, t);
+    return state;
   }
 
   send(ws, str) {
@@ -413,6 +425,12 @@ export async function liveSocket(req, env) {
 export async function liveSession(env, wake = false) {
   if (!env.LIVE) return null;
   return (await relay(env, 'f1').fetch(new Request(`https://relay/session${wake ? '?wake=1' : ''}`, { headers: { 'X-Relay': 'f1' } }))).json();
+}
+
+// État final d'une séance qui vient de finir, d'après le direct (Studio, avant l'archive de la F1) ; null sinon
+export async function liveState(env, path) {
+  if (!env.LIVE) return null;
+  return (await relay(env, 'f1').fetch(new Request(`https://relay/state?path=${encodeURIComponent(path || '')}`, { headers: { 'X-Relay': 'f1' } }))).json();
 }
 
 // Côté serveur (Studio, code créateur) : chiffre la connexion F1 TV du créateur (déjà dans son coffre) pour le

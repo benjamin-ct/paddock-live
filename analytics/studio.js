@@ -14,7 +14,7 @@ import { decodeBody } from '../shared/news-collect.js';
 import { publishFacebook, publishInstagram, publishThreads, freshThreads, commentFacebook, replyThreads, withComment, storyInstagram, storyFacebook, storyVideoInstagram, storyVideoFacebook, reelInstagram, hostOnPage, publishFacebookVideo, publishThreadsVideo, publishFacebookLink, publishThreadsLink, cleanTopic } from '../shared/meta-publish.js';
 import { publishBluesky, replyBluesky } from '../shared/bluesky-publish.js';
 import { driveApi } from './drive.js';
-import { liveSession, pairSend, liveDevices } from './live-relay.js';
+import { liveSession, liveState, pairSend, liveDevices } from './live-relay.js';
 import { freshTiktok, freshYoutube, tiktokDraft, youtubeUpload, tiktokCreator, tiktokDirect, TIKTOK_PRIVACY } from '../shared/video-publish.js';
 import { addEntry, removeEntry, cleanKey, keepStats } from '../shared/post-history.js';
 import { cleanDraft, draftSummary, isDraftId, DRAFTS_MAX, DRAFT_BYTES } from '../shared/post-draft.js';
@@ -279,6 +279,10 @@ async function archive(req, url, vault) {
   const live = vault?.f1tv && jwtExp(vault.f1tv) > Date.now();
   if (res.status !== 200 && live) res = await cached(req, ARCHIVE + p, { headers: { 'User-Agent': UA, Authorization: `Bearer ${vault.f1tv}`, ascendontoken: vault.f1tv } }, ttl);
   if (res.status === 200) return res;
+  // Refus de la F1 alors que l'index de l'année passe avec la même connexion : la connexion est bonne, c'est le
+  // fichier qui n'est pas encore là (la F1 répond « refusé » aussi pour un fichier absent, ex. séance qui vient de finir)
+  const auth = { headers: { 'User-Agent': UA, Authorization: `Bearer ${vault?.f1tv}`, ascendontoken: vault?.f1tv } };
+  if (live && [401, 403].includes(res.status) && !p.endsWith('Index.json') && (await cached(req, `${ARCHIVE}${p.slice(0, 4)}/Index.json`, auth, 300)).status === 200) res = new Response(null, { status: 404 });
   // Raison précise, affichée par le Studio
   const error = res.status === 404 ? 'Archive pas encore publiée'
     : !vault?.f1tv ? 'Archives réservées aux abonnés F1 TV : connectez F1 TV dans l\'appli'
@@ -760,6 +764,8 @@ export async function studioApi(req, env, url) {
 
   // Séance du relais de la version web (rallumé s'il est à l'arrêt) : séance qui vient de finir, avant l'index de la F1
   if (path === 'live-session' && req.method === 'GET') return json(await liveSession(env, true).catch(() => null));
+  // État final d'une séance qui vient de finir (son archive F1 n'est pas encore publiée), d'après le direct
+  if (path === 'live-state' && req.method === 'GET') return json(await liveState(env, url.searchParams.get('p')).catch(() => null));
   // Relier un téléphone à ton compte F1 TV (version web) : ta connexion, déjà dans ton coffre, est envoyée chiffrée
   // au téléphone qui affiche le code. Rien de plus gardé que le coffre existant ; le serveur ne garde pas le code.
   if (path === 'pair' && req.method === 'POST') {
