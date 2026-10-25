@@ -406,6 +406,28 @@ export async function liveSession(env, wake = false) {
   return (await relay(env, 'f1').fetch(new Request(`https://relay/session${wake ? '?wake=1' : ''}`, { headers: { 'X-Relay': 'f1' } }))).json();
 }
 
+// Côté serveur (Studio, code créateur) : chiffre la connexion F1 TV du créateur (déjà dans son coffre) pour le
+// téléphone qui a publié le code, et la dépose dans le même rendez-vous que la version web. Le Studio tient le
+// rôle de l'ordinateur « émetteur ». Le rendez-vous ne voit que des clés publiques et un message chiffré.
+export async function pairSend(env, code, token) {
+  if (!env.LIVE || !/^\d{6}$/.test(code || '')) return { error: 'Code invalide' };
+  if (!f1tvToken(token)) return { error: 'Connexion F1 TV absente ou expirée' };
+  const box = relay(env, 'pair');
+  const got = await box.fetch(new Request(`https://relay/pair?code=${code}`, { headers: { 'X-Relay': 'pair' } }));
+  if (got.status !== 200) return { error: 'Code inconnu ou expiré' };
+  const { pub } = await got.json();
+  if (!pairKey(pub)) return { error: 'Code inconnu ou expiré' };
+  const mine = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveKey']);
+  const theirs = await crypto.subtle.importKey('jwk', { kty: 'EC', crv: 'P-256', x: pub.x, y: pub.y }, { name: 'ECDH', namedCurve: 'P-256' }, false, []);
+  const key = await crypto.subtle.deriveKey({ name: 'ECDH', public: theirs }, mine.privateKey, { name: 'AES-GCM', length: 256 }, false, ['encrypt']);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const b64 = (b) => btoa(String.fromCharCode(...new Uint8Array(b)));
+  const data = b64(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(token)));
+  const j = await crypto.subtle.exportKey('jwk', mine.publicKey);
+  const put = await box.fetch(new Request(`https://relay/pair?code=${code}`, { method: 'PUT', headers: { 'X-Relay': 'pair', 'Content-Type': 'application/json' }, body: JSON.stringify({ spub: { kty: j.kty, crv: j.crv, x: j.x, y: j.y }, iv: b64(iv), data }) }));
+  return put.status === 200 ? { ok: true } : { error: 'Échec de l\'envoi' };
+}
+
 // Son d'une radio d'équipe (chemin dans les archives F1), gardé un jour : demandé par le relais du visiteur
 // (seulement une radio de la séance en cours ; avec sa connexion F1 TV s'il en a une). Octets, ou null
 const ARCHIVE = 'https://livetiming.formula1.com/static/';

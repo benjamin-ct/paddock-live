@@ -14,7 +14,7 @@ import { decodeBody } from '../shared/news-collect.js';
 import { publishFacebook, publishInstagram, publishThreads, freshThreads, commentFacebook, replyThreads, withComment, storyInstagram, storyFacebook, storyVideoInstagram, storyVideoFacebook, reelInstagram, hostOnPage, publishFacebookVideo, publishThreadsVideo, publishFacebookLink, publishThreadsLink, cleanTopic } from '../shared/meta-publish.js';
 import { publishBluesky, replyBluesky } from '../shared/bluesky-publish.js';
 import { driveApi } from './drive.js';
-import { liveSession } from './live-relay.js';
+import { liveSession, pairSend } from './live-relay.js';
 import { freshTiktok, freshYoutube, tiktokDraft, youtubeUpload, tiktokCreator, tiktokDirect, TIKTOK_PRIVACY } from '../shared/video-publish.js';
 import { addEntry, removeEntry, cleanKey, keepStats } from '../shared/post-history.js';
 import { cleanDraft, draftSummary, isDraftId, DRAFTS_MAX, DRAFT_BYTES } from '../shared/post-draft.js';
@@ -760,6 +760,16 @@ export async function studioApi(req, env, url) {
 
   // Séance du relais de la version web (rallumé s'il est à l'arrêt) : séance qui vient de finir, avant l'index de la F1
   if (path === 'live-session' && req.method === 'GET') return json(await liveSession(env, true).catch(() => null));
+  // Relier un téléphone à ton compte F1 TV (version web) : ta connexion, déjà dans ton coffre, est envoyée chiffrée
+  // au téléphone qui affiche le code. Rien de plus gardé que le coffre existant ; le serveur ne garde pas le code.
+  if (path === 'pair' && req.method === 'POST') {
+    let body;
+    try { body = await req.json(); } catch { return json({ error: 'JSON invalide' }, 400); }
+    vault = await refresh(env, a.raw, vault);
+    if (!vault.f1tv) return json({ error: 'Connecte F1 TV dans l\'appli (Réglages, Compte F1 TV), puis « Renvoyer les comptes ».' }, 409);
+    const r = await pairSend(env, String(body?.code || ''), vault.f1tv);
+    return json(r, r.error ? 409 : 200);
+  }
   // Onglet Suivi : dossier Google Drive lu par le serveur
   if (path.startsWith('drive/')) {
     // Remplissage de la feuille : journal des publications et chiffres des posts gardés ici

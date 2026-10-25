@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import zlib from 'node:zlib';
-import { LiveRelay, KEEP_MS, liveApi } from '../analytics/live-relay.js';
+import { LiveRelay, KEEP_MS, liveApi, pairSend } from '../analytics/live-relay.js';
 import { WebHub } from '../analytics/live-page/web-hub.js';
 import { applyEvent, createDerived } from '../shared/derive.js';
 
@@ -285,4 +285,34 @@ test('appairage : clé invalide, code inconnu et données trop grosses refusés'
   const pub = { kty: 'EC', crv: 'P-256', x: 'a', y: 'b' };
   const { code } = await (await call('POST', '', { pub })).json();
   assert.equal((await call('PUT', `?code=${code}`, { spub: pub, iv: 'x', data: 'y'.repeat(20000) })).status, 400);
+});
+
+// Appairage depuis le Studio (pairSend) : le serveur chiffre la connexion du créateur pour le téléphone
+test('appairage Studio : la connexion est chiffrée pour le téléphone, lisible seulement par lui', async () => {
+  const { subtle } = globalThis.crypto;
+  const inst = new LiveRelay({}, {});
+  const env = { LIVE: { idFromName: (n) => n, get: () => inst } };
+  const b64 = (buf) => Buffer.from(new Uint8Array(buf)).toString('base64');
+  const unb64 = (s) => Uint8Array.from(Buffer.from(s, 'base64'));
+  const token = okToken();
+
+  // Téléphone : publie sa clé, reçoit un code (directement sur l'instance, comme /live/api/pair)
+  const phone = await subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveKey']);
+  const pj = await subtle.exportKey('jwk', phone.publicKey);
+  const { code } = await (await inst.pair(new Request('https://relay/pair', { method: 'POST', body: JSON.stringify({ pub: { kty: pj.kty, crv: pj.crv, x: pj.x, y: pj.y } }) }), new URL('https://relay/pair'))).json();
+
+  // Studio : envoie la connexion du créateur à ce code
+  assert.deepEqual(await pairSend(env, code, token), { ok: true });
+  assert.ok(!JSON.stringify([...inst.pairs.values()]).includes(token));   // le serveur ne garde que le chiffré
+
+  // Téléphone : récupère et déchiffre
+  const box = await (await inst.pair(new Request(`https://relay/pair?code=${code}&claim=1`), new URL(`https://relay/pair?code=${code}&claim=1`))).json();
+  const their = await subtle.importKey('jwk', { kty: 'EC', crv: 'P-256', x: box.spub.x, y: box.spub.y }, { name: 'ECDH', namedCurve: 'P-256' }, false, []);
+  const key = await subtle.deriveKey({ name: 'ECDH', public: their }, phone.privateKey, { name: 'AES-GCM', length: 256 }, false, ['decrypt']);
+  const back = new TextDecoder().decode(await subtle.decrypt({ name: 'AES-GCM', iv: unb64(box.iv) }, key, unb64(box.data)));
+  assert.equal(back, token);
+
+  // Code inconnu, connexion absente/expirée : refusés proprement
+  assert.match((await pairSend(env, '000000', token)).error, /inconnu|expir/);
+  assert.match((await pairSend(env, code, 'pasunjeton')).error, /absente|expir/);
 });
