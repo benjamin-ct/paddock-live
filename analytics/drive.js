@@ -1,14 +1,16 @@
 // Onglet « Suivi » du Studio : le dossier Google Drive du suivi (« Paddock Live · Réseaux ») lu par le
-// serveur, en lecture seule. Connexion Google faite depuis le Studio (retour sur la page /studio/),
+// serveur ; écrits seulement : la feuille « Suivi réseaux » (chiffres) et les tâches cochées de « À faire ». Connexion Google faite depuis le Studio (retour sur la page /studio/),
 // jetons gardés dans le coffre chiffré avec la clé du créateur.
 // Le compte Google du Drive peut être un autre que celui de YouTube : Google demande toujours lequel
 // utiliser, avec le même client Google (projet de YouTube).
 import { googleOAuth, youtubeTokens } from '../shared/video-publish.js';
 
 const FOLDER = 'Paddock Live · Réseaux';
-// Lecture du Drive ; écriture des feuilles (« Suivi réseaux » remplie avec les chiffres du Studio)
+// Lecture du Drive ; écriture des feuilles (« Suivi réseaux » remplie avec les chiffres du Studio) et des Docs
+// (tâche cochée dans « À faire »)
 const WRITE = 'https://www.googleapis.com/auth/spreadsheets';
-const SCOPE = `https://www.googleapis.com/auth/drive.readonly ${WRITE}`;
+const DOCS_WRITE = 'https://www.googleapis.com/auth/documents';
+const SCOPE = `https://www.googleapis.com/auth/drive.readonly ${WRITE} ${DOCS_WRITE}`;
 // Chaque service Google a son adresse (Docs et Sheets ne répondent pas sur celle de Drive)
 const DRIVE = 'https://www.googleapis.com/drive/v3';
 const DOCS = 'https://docs.googleapis.com/v1';
@@ -28,8 +30,9 @@ async function token(vault, save) {
   return next.accessToken;
 }
 
-async function google(url, at) {
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${at}` }, signal: AbortSignal.timeout(20000) });
+// body : envoyé en POST (JSON) ; sinon lecture
+async function google(url, at, body = null) {
+  const res = await fetch(url, { ...(body ? { method: 'POST', body: JSON.stringify(body) } : {}), headers: { Authorization: `Bearer ${at}`, ...(body ? { 'Content-Type': 'application/json' } : {}) }, signal: AbortSignal.timeout(20000) });
   const d = await res.json().catch(() => ({}));
   if (!res.ok) {
     const why = d.error?.message || `HTTP ${res.status}`;
@@ -139,6 +142,40 @@ async function fill(at, accounts, { history, kept }) {
   return { ok: true, cells: data.length };
 }
 
+// Tâche cochée dans « À faire » : déplacée en tête de « Fait » avec la date du jour (« 25 oct.  ·  titre »), dans la
+// mise en forme de la première tâche faite. start : début de son paragraphe, title : son titre (contrôle que
+// la liste n'a pas changé entre-temps ; le Doc doit aussi être resté à la même version)
+const paraText = (p) => (p?.elements || []).map((x) => x.textRun?.content || '').join('').replace(/\n$/, '');
+const heading = (e) => /^HEADING_/.test(e.paragraph?.paragraphStyle?.namedStyleType || '');
+const STYLE = 'bold,italic,fontSize,foregroundColor,weightedFontFamily';
+const styleOf = (s = {}, bold) => ({ bold, italic: !!s.italic, ...['fontSize', 'foregroundColor', 'weightedFontFamily'].reduce((o, k) => (s[k] ? { ...o, [k]: s[k] } : o), {}) });
+export async function checkTask(at, id, start, title, now = new Date(), call = google) {
+  const d = await call(`${DOCS}/documents/${id}`, at);
+  const content = d.body?.content || [];
+  const item = content.find((e) => e.startIndex === start && e.paragraph?.bullet);
+  const lines = paraText(item?.paragraph).split('\u000b');
+  if (!item || !title.trim() || !lines[0].includes(title)) throw Object.assign(new Error('La liste a changé : actualisez l\'onglet Suivi'), { status: 409 });
+  const h = content.findIndex((e) => heading(e) && /(^|\s)fait\b/.test(paraText(e.paragraph).normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()));
+  const model = h < 0 ? null : content.slice(h + 1).find((e) => heading(e) || e.paragraph?.bullet);
+  if (!model?.paragraph?.bullet) throw Object.assign(new Error('Section « Fait » (avec au moins une tâche) introuvable dans le Doc'), { status: 409 });
+  const runs = model.paragraph.elements.map((x) => x.textRun).filter(Boolean);
+  const date = now.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', timeZone: 'Europe/Paris' });
+  const head = `${date}  ·  ${title.trim()}`;
+  const rest = lines.slice(1).filter((l) => l.trim()).map((l) => `\u000b${l}`).join('');
+  const at0 = model.startIndex;
+  const len = (s) => s.length;   // index Google : unités UTF-16, comme les chaînes JavaScript
+  const add = [
+    { insertText: { location: { index: at0 }, text: `${head}${rest}\n` } },
+    { updateTextStyle: { range: { startIndex: at0, endIndex: at0 + len(head) }, textStyle: styleOf(runs[0]?.textStyle, true), fields: STYLE } },
+    ...(rest ? [{ updateTextStyle: { range: { startIndex: at0 + len(head), endIndex: at0 + len(head) + len(rest) }, textStyle: styleOf((runs[1] || runs[0])?.textStyle, false), fields: STYLE } }] : []),
+  ];
+  const del = { deleteContentRange: { range: { startIndex: item.startIndex, endIndex: item.endIndex } } };
+  // Le plus loin dans le Doc d'abord : l'autre modification ne décale pas ses index
+  const requests = at0 > item.startIndex ? [...add, del] : [del, ...add];
+  await call(`${DOCS}/documents/${id}:batchUpdate`, at, { requests, writeControl: { requiredRevisionId: d.revisionId } });
+  return { ok: true, date };
+}
+
 export async function driveApi(sub, req, url, vault, save, data = async () => ({ history: [], kept: [] })) {
   if (sub === 'start' && req.method === 'POST') {
     let body;
@@ -183,7 +220,7 @@ export async function driveApi(sub, req, url, vault, save, data = async () => ({
     await save(rest);
     return json({ ok: true });
   }
-  if (!(req.method === 'GET' && ['files', 'doc', 'values'].includes(sub)) && !(req.method === 'POST' && sub === 'fill')) return json({ error: 'Introuvable' }, 404);
+  if (!(req.method === 'GET' && ['files', 'doc', 'values'].includes(sub)) && !(req.method === 'POST' && ['fill', 'check'].includes(sub))) return json({ error: 'Introuvable' }, 404);
   if (!vault.gdrive?.refreshToken) return json({ connected: false, youtubeClient: !!vault.youtube?.clientId });
 
   let at;
@@ -197,7 +234,14 @@ export async function driveApi(sub, req, url, vault, save, data = async () => ({
     return json({ error: `Google : ${err.message}` }, 502);
   }
   try {
-    if (sub === 'files') return json({ connected: true, canWrite: (vault.gdrive.scope || '').includes(WRITE), ...(await folder(at)) });
+    if (sub === 'files') return json({ connected: true, canWrite: (vault.gdrive.scope || '').includes(WRITE), canCheck: (vault.gdrive.scope || '').includes(DOCS_WRITE), ...(await folder(at)) });
+    if (sub === 'check') {
+      if (!(vault.gdrive.scope || '').includes(DOCS_WRITE)) return json({ error: 'Reconnectez Google Drive (onglet Suivi) pour cocher depuis le Studio' }, 403);
+      let body;
+      try { body = await req.json(); } catch { return json({ error: 'JSON invalide' }, 400); }
+      if (!ID.test(String(body?.id || '')) || !Number.isInteger(body?.start)) return json({ error: 'Tâche invalide' }, 400);
+      return json(await checkTask(at, body.id, body.start, String(body.title || '').slice(0, 300)));
+    }
     if (sub === 'fill') {
       let body;
       try { body = await req.json(); } catch { return json({ error: 'JSON invalide' }, 400); }

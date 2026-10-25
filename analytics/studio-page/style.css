@@ -744,3 +744,7 @@ dialog.sheet { border-radius: 22px; box-shadow: 0 -10px 40px rgba(0, 0, 0, .6); 
   dialog.sheet { border-radius: 20px; }
   .editing .actionbar { border-radius: var(--r); box-shadow: var(--lift); }
 }
+/* Suivi : case d'une tâche à cocher (zone de toucher agrandie) */
+.sv-box[data-check] { position: relative; cursor: pointer; }
+.sv-box[data-check]::after { content: ''; position: absolute; inset: -10px; }
+.sv-box[data-check]:hover { border-color: var(--ok); }

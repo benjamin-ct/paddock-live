@@ -996,7 +996,7 @@ test('onglet Suivi : connexion Google Drive depuis le Studio (lecture seule), ga
   const { url } = await (await call('drive/start', { method: 'POST', body: JSON.stringify({ redirect: 'https://s.test/studio/' }) })).json();
   const q = new URL(url).searchParams;
   assert.equal(q.get('client_id'), 'yt.apps');
-  assert.equal(q.get('scope'), 'https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/spreadsheets');
+  assert.equal(q.get('scope'), 'https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/documents');
   assert.equal(q.get('redirect_uri'), 'https://s.test/studio/');
 
   const realFetch = globalThis.fetch;
@@ -1009,7 +1009,7 @@ test('onglet Suivi : connexion Google Drive depuis le Studio (lecture seule), ga
     if (u === 'https://oauth2.googleapis.com/token') {
       const f = new URLSearchParams(String(opts.body));
       assert.equal(f.get('client_secret'), 'secret-google');
-      if (f.get('grant_type') === 'authorization_code') { assert.equal(f.get('code'), 'c1'); assert.ok(f.get('code_verifier')); return ok({ access_token: 'at1', expires_in: 3599, refresh_token: 'rt-drive', scope: 'https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/spreadsheets' }); }
+      if (f.get('grant_type') === 'authorization_code') { assert.equal(f.get('code'), 'c1'); assert.ok(f.get('code_verifier')); return ok({ access_token: 'at1', expires_in: 3599, refresh_token: 'rt-drive', scope: 'https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/documents' }); }
       return refresh === 'ok' ? ok({ access_token: 'at2', expires_in: 3599 }) : ok({ error: 'invalid_grant', error_description: 'Token has been expired or revoked.' }, 400);
     }
     assert.match(opts.headers.Authorization, /^Bearer at[12]$/);
@@ -1080,4 +1080,38 @@ test('onglet Suivi : feuille « Suivi réseaux » remplie avec les chiffres du S
   ]);
   // Semaine sans ligne dans la feuille : rien d'inventé
   assert.equal(sheetUpdates(tables, accounts, { now: Date.UTC(2026, 9, 20) }).length, 0);
+});
+
+test('Suivi : tâche cochée déplacée en tête de « Fait » avec la date, Doc inchangé entre-temps exigé', async () => {
+  const { checkTask } = await import('../analytics/drive.js');
+  const run = (startIndex, content, textStyle = {}) => ({ startIndex, endIndex: startIndex + content.length, textRun: { content, textStyle } });
+  const para = (startIndex, runs, extra = {}) => ({ startIndex, endIndex: runs.at(-1).endIndex, paragraph: { elements: runs, ...extra } });
+  const H = { paragraphStyle: { namedStyleType: 'HEADING_2' } };
+  const grey = { foregroundColor: { color: { rgbColor: { red: 0.5 } } }, fontSize: { magnitude: 12.5, unit: 'PT' } };
+  // « Cette semaine » : une tâche (titre + détail) ; « ✅ Fait » : une tâche faite (modèle de mise en forme)
+  const task = 'À faire en premier  ·  📣 Publier l\'application Google\u000bDétail de la tâche\n';
+  const doc = { revisionId: 'r1', body: { content: [
+    para(1, [run(1, 'Cette semaine\n')], H),
+    para(15, [run(15, task)], { bullet: { listId: 'a' } }),
+    para(15 + task.length, [run(15 + task.length, '✅  Fait\n')], H),
+    para(23 + task.length, [run(23 + task.length, '24 oct.  ·  Vidéos du Studio', { bold: true, ...grey }), run(51 + task.length, '\u000bInstagram…\n', { fontSize: { magnitude: 10.5, unit: 'PT' } })], { bullet: { listId: 'b' } }),
+  ] } };
+  let sent = null;
+  const call = async (url, at, body) => { if (body) { sent = { url, body }; return {}; } return doc; };
+  const r = await checkTask('jeton', 'docid0123456', 15, 'Publier l\'application Google', new Date('2026-10-25T21:00:00Z'), call);
+  assert.equal(r.date, '25 oct.');
+  assert.match(sent.url, /documents\/docid0123456:batchUpdate$/);
+  assert.equal(sent.body.writeControl.requiredRevisionId, 'r1');
+  const [ins, st1, st2, del] = sent.body.requests;
+  // Insertion avant la première tâche faite (plus loin dans le Doc), puis suppression de la tâche
+  assert.equal(ins.insertText.location.index, 23 + task.length);
+  assert.equal(ins.insertText.text, '25 oct.  ·  Publier l\'application Google\u000bDétail de la tâche\n');
+  assert.equal(st1.updateTextStyle.textStyle.bold, true);
+  assert.deepEqual(st1.updateTextStyle.textStyle.fontSize, grey.fontSize);
+  assert.equal(st2.updateTextStyle.textStyle.bold, false);
+  assert.deepEqual(del.deleteContentRange.range, { startIndex: 15, endIndex: 15 + task.length });
+  // Liste changée entre-temps (autre titre à cet endroit) : rien n'est écrit
+  sent = null;
+  await assert.rejects(checkTask('jeton', 'docid0123456', 15, 'Autre tâche', new Date(), call), /La liste a changé/);
+  assert.equal(sent, null);
 });

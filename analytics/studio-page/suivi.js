@@ -65,7 +65,7 @@ function parseTodo(d) {
     let tag = null;
     for (const t of TAGS) for (const ic of [t.icon, ...(t.also || [])]) if (first.startsWith(ic)) { tag = t.key; first = first.slice(ic.length).trim(); }
     if (first.startsWith('🔗')) first = first.slice(2).trim();
-    cur.items.push({ when, title: first, detail: lines.slice(1).filter((l) => l.trim()), tag, done,
+    cur.items.push({ start: e.startIndex, when, title: first, detail: lines.slice(1).filter((l) => l.trim()), tag, done,
       box: !level.glyphSymbol, link: runs.map((r) => r.textStyle?.link?.url).find(Boolean) || null });
   }
   return { sections, updated };
@@ -170,12 +170,15 @@ function todoHtml(m) {
     if (s.kind === 'links' && it.link) return `<a class="sv-card" href="${esc(it.link)}" target="_blank" rel="noopener"><span class="sv-box link">↗</span><span><b>${esc(it.title)}</b></span></a>`;
     const t = TAGS.find((x) => x.key === it.tag);
     const dot = (!it.box || s.kind === 'info') && !it.done;
-    return `<button type="button" class="sv-card${it.done ? ' done' : ''}"${it.detail.length ? ' data-open' : ''}><span class="sv-box${dot ? ' dot' : ''}"></span><span>
+    // Tâche à cocher : la case la déplace dans « Fait » du Doc, avec la date du jour
+    const check = s.kind === 'tasks' && it.box && !it.done ? ` data-check="${it.start}" data-title="${esc(it.title)}" role="checkbox" aria-checked="false" title="Cocher (déplacée dans « Fait »)"` : '';
+    return `<button type="button" class="sv-card${it.done ? ' done' : ''}"${it.detail.length ? ' data-open' : ''}><span class="sv-box${dot ? ' dot' : ''}"${check}></span><span>
       ${it.when ? `<small class="sv-when" style="color:${s.color}">${esc(it.when)}</small>` : ''}<b>${esc(it.title)}</b>
       ${t || it.detail.length ? `<span class="sv-meta">${t ? `<i class="sv-tag">${t.icon} ${t.label}</i>` : ''}${it.detail.length ? '<i class="sv-more">Détails ▾</i>' : ''}</span>` : ''}
       ${it.detail.length ? `<span class="sv-detail">${it.detail.map((x) => `<span>${linkify(x)}</span>`).join('')}</span>` : ''}</span></button>`;
   };
-  return `<div class="tiles">
+  const canCheck = store.get('drive.files')?.v?.canCheck;
+  return `${canCheck ? '' : `<div class="notice">${icon('alert')}<span class="grow">Pour cocher les tâches d'ici, reconnecte Google Drive une fois : il demandera aussi le droit de modifier tes Docs.</span><button type="button" class="btn small" id="svwrite">${icon('link')}Reconnecter</button></div>`}<div class="tiles">
       <div class="tile"><b>${open.length}</b><small>tâches à faire</small></div>
       <div class="tile"><b>${tasks.length - open.length + (m.sections.find((s) => s.kind === 'done')?.items.length || 0)}</b><small>faites</small></div>
       <div class="tile"><b${bugs ? ' class="sv-warn"' : ''}>${bugs}</b><small>bugs ouverts</small></div>
@@ -192,7 +195,7 @@ function todoHtml(m) {
         ${s.notes.map((n) => `<p class="sv-note">${esc(n)}</p>`).join('')}
         <div class="sv-items">${items.length ? items.map((it) => card(it, s)).join('') : '<p class="sv-note">Rien ici pour le moment.</p>'}</div></section>`;
     }).join('')}</div>
-    <p class="sv-foot">${m.updated ? `Liste mise à jour le ${esc(m.updated)} · ` : ''}${openBtn(docUrl(m.id), 'Ouvrir le Doc pour cocher')}</p>`;
+    <p class="sv-foot">${m.updated ? `Liste mise à jour le ${esc(m.updated)} · ` : ''}${openBtn(docUrl(m.id), 'Ouvrir le Doc')}</p>`;
 }
 
 function postsHtml(list) {
@@ -442,7 +445,23 @@ function bind(body, m, opts) {
   $$('#svsub [data-sub]', body).forEach((b) => { b.onclick = () => { state.vsub = b.dataset.sub; again(); }; });
   bindCopies(body);
   if (!m) return;
-  $$('.sv-card[data-open]', body).forEach((c) => { c.onclick = (e) => { if (!e.target.closest('a')) c.classList.toggle('open'); }; });
+  $$('.sv-card[data-open]', body).forEach((c) => { c.onclick = (e) => { if (!e.target.closest('a, [data-check]')) c.classList.toggle('open'); }; });
+  // Case cochée : tâche marquée faite tout de suite, déplacée dans « Fait » du Doc, puis liste relue
+  $$('[data-check]', body).forEach((b) => {
+    b.onclick = async (e) => {
+      e.stopPropagation();
+      if (!store.get('drive.files')?.v?.canCheck) { toast('Reconnecte Google Drive pour cocher d\'ici', 'bad'); return; }
+      const card = b.closest('.sv-card');
+      if (card.classList.contains('done')) return;
+      card.classList.add('done');
+      b.setAttribute('aria-checked', 'true');
+      try {
+        await api('drive/check', { method: 'POST', body: JSON.stringify({ id: m.id, start: Number(b.dataset.check), title: b.dataset.title }) });
+        toast('Fait : rangé dans « Fait » du Doc', 'ok');
+      } catch (err) { toast(err.message, 'bad'); }
+      again(true);
+    };
+  });
   $$('#svtags [data-tag]', body).forEach((b) => { b.onclick = () => { state.vtag = b.dataset.tag; again(); }; });
   $$('#svgps [data-gp]', body).forEach((b) => { b.onclick = () => { state.vgp = b.dataset.gp; again(); }; });
   $$('#svacc [data-acc]', body).forEach((b) => { b.onclick = () => { state.vacc = b.dataset.acc; again(); }; });
