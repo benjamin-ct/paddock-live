@@ -7,6 +7,7 @@ import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { PAGES, linksPage } from '../analytics/links/pages.mjs';
 import { GUIDES, guidePage, sitemap, robots } from '../analytics/launch/guides.mjs';
+import { LIVE_HEADERS } from '../analytics/live-page/headers.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = path.join(ROOT, 'analytics', 'site');
@@ -179,11 +180,7 @@ fs.writeFileSync(path.join(OUT, '_headers'), `/studio/*
   X-Robots-Tag: noindex, nofollow
 /live/*
   Cache-Control: no-cache
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' data: blob:; connect-src 'self' wss://app.paddocklive.app wss://paddocklive.app; font-src 'self' data:; manifest-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
-  Strict-Transport-Security: max-age=31536000
-  X-Frame-Options: DENY
-  X-Content-Type-Options: nosniff
-  Referrer-Policy: strict-origin-when-cross-origin
+${Object.entries(LIVE_HEADERS).map(([k, v]) => `  ${k}: ${v}`).join('\n')}
 `);
 const n = (d) => fs.readdirSync(path.join(OUT, d)).length;
 console.log(`Site prêt : version ${VERSION}, ${n(`m/${VERSION}/studio`)} fichiers studio, ${n(`m/${VERSION}/shared`)} modules partagés (${graph.length} chargés d'emblée), ${n('fonts')} polices, version web : ${liveGraph.size} modules`);

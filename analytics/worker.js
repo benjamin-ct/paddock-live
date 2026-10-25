@@ -30,6 +30,7 @@ import { pruneIpQuota, callerIp, ipQuota } from './quota.js';
 import { healthCheck, HEALTH } from './health.js';
 import { publicPushApi, pushRun, queuePush, sessionReminders } from './push-public.js';
 import { liveSocket, liveApi } from './live-relay.js';
+import { LIVE_HEADERS } from './live-page/headers.js';
 
 export { LiveRelay } from './live-relay.js';
 
@@ -191,7 +192,10 @@ export default {
     if (req.method === 'GET' && url.pathname === '/fb-callback') return fbCallback(url);
     // Version web du direct sur son propre nom (app.paddocklive.app) : sa page à la racine
     if (req.method === 'GET' && url.pathname === '/' && url.hostname.startsWith('app.') && env.ASSETS) {
-      return env.ASSETS.fetch(new Request(new URL('/live/', url), req));
+      const page = await env.ASSETS.fetch(new Request(new URL('/live/', url), req));
+      const out = new Response(page.body, page);
+      for (const [k, v] of Object.entries(LIVE_HEADERS)) out.headers.set(k, v);
+      return out;
     }
     if (req.method === 'GET' && url.pathname === '/' && ownDomain && env.ASSETS) {
       return env.ASSETS.fetch(new Request(new URL('/site/', url), req));
