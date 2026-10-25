@@ -69,6 +69,8 @@ l'application (Réglages → À propos → Nouveautés).
   à la fin de chaque partie des qualifs et des essais.
 - Badge du direct : « LIVE · GPS » ou « LIVE · sans GPS » (positions estimées d'après les chronos), écrit sur le
   badge au lieu d'apparaître seulement au survol.
+- Onglets : clic droit sur un onglet pour le fermer ; clic droit sur la barre d'onglets d'un panneau pour voir
+  tous ses onglets et remettre ceux qui sont fermés.
 
 ### Saison
 - Bilan de la saison (Saison → Bilan de la saison) : champion ou leader, victoires, poles, podiums, vainqueurs

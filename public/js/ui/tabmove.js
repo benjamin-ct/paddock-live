@@ -3,8 +3,9 @@
 // mémorisée et suivie par toutes les fenêtres (préférence tabLayout).
 import { prefs, setPref } from '../prefs.js';
 import { store, on, emit } from '../store.js';
-import { $, sessionKind } from '../util.js';
+import { $, esc, sessionKind } from '../util.js';
 import { toast } from './delay.js';
+import { icon } from '../icons.js';
 
 // Onglets proches réunis sous un seul onglet de la barre (le premier de la liste) : les autres sont
 // choisis par un sélecteur en haut de leur contenu, et suivent l'onglet principal s'il est déplacé.
@@ -297,6 +298,56 @@ export function canHideTab(t) {
   return [...h.querySelectorAll(':scope > [data-tab]:not(.tab-member)')].some((b) => !(GROUPS[b.dataset.tab] || [b.dataset.tab]).every((x) => off.has(x)));
 }
 
+// ---------- Clic droit ----------
+// Sur un onglet : le fermer ; ailleurs sur la barre d'onglets d'un panneau : tous ses onglets, pour remettre
+// ceux qui sont fermés (mêmes onglets masqués que Réglages → Onglets visibles)
+const groupOf = (t) => GROUPS[t] || [t];
+const tabName = (t) => esc(tabList().find((x) => x[1] === t)?.[2] || t);
+function setTabHidden(t, hide) {
+  const g = groupOf(t);
+  setPref('hiddenTabs', hide ? [...new Set([...prefs.hiddenTabs, ...g])] : prefs.hiddenTabs.filter((x) => !g.includes(x)));
+}
+
+function tabMenu(e) {
+  const h = e.target.closest('.panel-head[data-tabs]');
+  const id = HOSTS.find((x) => head(x) === h);
+  if (!id || window.innerWidth <= 900 || e.target.closest('details, .panel-ctrl, .tab-seg')) return;
+  e.preventDefault();
+  document.querySelector('.lpop-menu')?.remove();
+  const m = document.createElement('div');
+  m.className = 'lpop-menu';
+  const tab = e.target.closest('[data-tab]');
+  const btn = tab?.parentElement === h ? tab : null;
+  const sessOff = (t) => tabBtn(t)?.classList.contains('sess-off') && !groupOf(t).every((x) => prefs.hiddenTabs.includes(x));
+  if (btn) {
+    const t = btn.dataset.tab;
+    const ok = canHideTab(t);
+    m.innerHTML = `<div class="muted small">Onglet « ${tabName(t)} »</div>
+      <button data-close="${t}" ${ok ? '' : 'disabled title="Dernier onglet du panneau : il ne peut pas être fermé"'}>${icon('close')} Fermer l'onglet</button>
+      <div class="muted small">Pour le remettre : clic droit sur la barre d'onglets.</div>`;
+  } else {
+    m.innerHTML = `<div class="muted small">Onglets du panneau</div>${tabsOf(id).map((t) => {
+      const shown = !groupOf(t).every((x) => prefs.hiddenTabs.includes(x));
+      const off = sessOff(t);
+      return `<button data-${shown ? 'close' : 'open'}="${t}" ${off || (shown && !canHideTab(t)) ? 'disabled' : ''}>${shown ? '' : icon('plus')}${tabName(t)}${off ? ' <span class="muted small">(pas pendant cette séance)</span>' : ''}${shown ? icon('check', 'ic-on') : ''}</button>`;
+    }).join('')}`;
+  }
+  document.body.appendChild(m);
+  m.style.left = `${Math.max(8, Math.min(window.innerWidth - m.offsetWidth - 8, e.clientX))}px`;
+  m.style.top = `${Math.max(8, Math.min(window.innerHeight - m.offsetHeight - 8, e.clientY))}px`;
+  m.onclick = (ev) => {
+    const b = ev.target.closest('[data-close], [data-open]');
+    if (!b || b.disabled) return;
+    m.remove();
+    if (b.dataset.close) { setTabHidden(b.dataset.close, true); return; }
+    setTabHidden(b.dataset.open, false);
+    setTimeout(() => tabBtn(b.dataset.open)?.click(), 50);   // onglet remis : ouvert
+  };
+  setTimeout(() => document.addEventListener('pointerdown', function close(ev) {
+    if (!m.contains(ev.target)) { m.remove(); document.removeEventListener('pointerdown', close); }
+  }), 0);
+}
+
 export function resetTabs() {
   setPref('tabLayout', null);
 }
@@ -317,5 +368,6 @@ export function initTabMove() {
   on('reset', applySession);
   on('events', (events) => { if (events.some(([t]) => t === 'SessionInfo' || t === '__snapshot')) setTimeout(applySession, 0); });
   document.addEventListener('pointerdown', onDown);
+  document.addEventListener('contextmenu', tabMenu);
   $('#tabsReset')?.addEventListener('click', () => { resetTabs(); toast('Onglets remis à leur place d\'origine', 2500, 'check'); });
 }
