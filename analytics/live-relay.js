@@ -332,6 +332,13 @@ export async function liveApi(req, url, env = {}) {
     const races = row.v.races.map((r) => ({ round: r.round, name: r.name, locality: r.locality, country: r.country, circuitId: r.circuitId, lat: r.lat, lon: r.lon, sessions: r.sessions }));
     return json({ year, races }, 200, { 'Cache-Control': 'public, max-age=600' });
   }
+  // Saison complète (résultats, classements) : écran « Pas de séance en direct », même forme que /api/season
+  if (url.pathname === '/live/api/season' && req.method === 'GET') {
+    const year = Number(url.searchParams.get('year')), now = new Date().getUTCFullYear();
+    if (!env.DB || ![now, now - 1].includes(year)) return json({ error: 'Année invalide' }, 400);
+    const row = await seasonRow(env, year).catch(() => null);
+    return row ? json(row.v, 200, { 'Cache-Control': 'public, max-age=600' }) : json({ error: 'Saison indisponible' }, 503);
+  }
   if (url.pathname === '/live/api/session' && req.method === 'GET') return env.LIVE ? env.LIVE.get(env.LIVE.idFromName('f1')).fetch(req) : json(null);
   if (url.pathname === '/live/api/archive/file' && req.method === 'GET') {
     const rel = url.searchParams.get('p') || '';

@@ -1,10 +1,11 @@
 // Point d'entrée de la version web (app.paddocklive.app) : classement, carte, télémétrie, direction de course et
 // radios de l'appli, reliés au relais du Worker au lieu du serveur local. Copié dans /live/js/ par scripts/build-studio.mjs.
-import { translatePage, DEC } from './i18n.js';
+import { translatePage, DEC, EN } from './i18n.js';
 import './icons.js';
 import { store, emit, on, handleReset, handleBatch, setDelay, serverNow } from './store.js';
 import { applyEvent } from '/shared/derive.js';
-import { $$ } from './util.js';
+import { gpShort } from '/shared/gp-names.js';
+import { $$, esc } from './util.js';
 import { WebHub } from './web-hub.js';
 import { renderHeader, renderSource } from './ui/header.js';
 import { initTower, renderTower } from './ui/tower.js';
@@ -73,6 +74,36 @@ for (const head of $$('[data-tabs]')) {
     for (const p of panel.querySelectorAll('[data-pane]')) p.classList.toggle('active', p.dataset.pane === b.dataset.tab);
   });
 }
+
+// Pas de séance en direct : résultats de la dernière séance et classements du championnat, sur demande (pas
+// de spoiler), d'après la saison gardée par le serveur
+const lapTxt = (s) => (s ? `${Math.floor(s / 60)}:${(s % 60).toFixed(3).padStart(6, '0')}` : '');
+function lastSession(races) {
+  const out = [];
+  for (const r of races) {
+    const at = (label) => Date.parse(r.sessions?.find((s) => s.label === label)?.t || '') || 0;
+    const row = (x) => [x.pos, x.name, x.time || x.status || ''];
+    out.push({ race: r.name, label: 'Course', t: at('Course'), rows: (r.results || []).map(row) });
+    out.push({ race: r.name, label: 'Sprint', t: at('Sprint'), rows: (r.sprintResults || []).map(row) });
+    out.push({ race: r.name, label: 'Qualifications', t: at('Qualifications'), rows: (r.quali || []).map((x) => [x.pos, x.name, lapTxt(x.q?.filter(Boolean).at(-1))]) });
+  }
+  return out.filter((s) => s.rows.length && s.t < Date.now()).sort((a, b) => b.t - a.t)[0] || null;
+}
+const resCard = (title, rows) => `<div class="web-res-card"><h3>${esc(title)}</h3><ol>${rows.map(([p, n, v]) => `<li><b>${esc(p ?? '')}</b><span>${esc(n)}</span><small>${esc(v ?? '')}</small></li>`).join('')}</ol></div>`;
+document.querySelector('#webResultsBtn')?.addEventListener('click', async (e) => {
+  const box = document.querySelector('#webResults');
+  e.currentTarget.disabled = true;
+  let d = null;
+  for (const y of [new Date().getFullYear(), new Date().getFullYear() - 1]) {
+    d = await fetch(`/live/api/season?year=${y}`).then((r) => r.json()).catch(() => null);
+    if (d?.races?.some((r) => r.results?.length)) break;
+  }
+  if (!d?.races) { box.innerHTML = '<p class="muted">Résultats indisponibles pour le moment.</p>'; return; }
+  const last = lastSession(d.races);
+  box.innerHTML = `<div class="web-res-grid">${last ? resCard(`${gpShort(last.race, EN)} · ${last.label}`, last.rows.slice(0, 10)) : ''}
+    ${resCard('Championnat pilotes', (d.drivers || []).slice(0, 10).map((x) => [x.pos, x.name, `${x.points} pts`]))}
+    ${resCard('Championnat constructeurs', (d.constructors || []).map((x) => [x.pos, x.name, `${x.points} pts`]))}</div>`;
+});
 
 const safe = (fn) => { try { fn(); } catch (err) { console.error(err); } };
 function loop() {

@@ -75,6 +75,7 @@ function literals(src, f) {
 const files = [];
 const walk = (d) => { for (const e of fs.readdirSync(d, { withFileTypes: true })) { const p = path.join(d, e.name); if (e.isDirectory()) walk(p); else files.push(p); } };
 walk(path.join(ROOT, 'public/js'));
+walk(path.join(ROOT, 'analytics/live-page'));   // version web
 // Hors interface : moteurs (radios, son), dictionnaires, textes rédigés directement en anglais
 const SKIP = /workers\/|icons\.js|i18n|fia-docs-fr|audio-sync|calibrate/;
 for (const f of files.filter((x) => x.endsWith('.js') && !SKIP.test(x))) literals(fs.readFileSync(f, 'utf8'), path.relative(ROOT, f));
