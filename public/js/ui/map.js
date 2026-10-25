@@ -485,9 +485,14 @@ function drawSectors(lay) {
 
 // Pilote suivi en piste (tour lancé…) : ses micro-secteurs aux couleurs du classement (jaune, vert, violet, stand)
 const SEG_VARS = { 'seg-yellow': '--yellow', 'seg-green': '--green', 'seg-purple': '--purple', 'seg-pit': '--blue' };
-function drawFocusMinis(lay, W) {
+const focusSecs = () => {
   const l = store.focus && store.state.TimingData?.Lines?.[store.focus];
-  const secs = l && !l.InPit && !l.Retired && !l.Stopped ? list(l.Sectors) : null;
+  return l && !l.InPit && !l.Retired && !l.Stopped ? list(l.Sectors) : null;
+};
+// Fond de la carte redessiné dès que le pilote suivi ou un de ses micro-secteurs change
+const focusMinisKey = () => `${store.focus}:${(focusSecs() || []).map((s) => list(s?.Segments).map((g) => g?.Status).join(',')).join(';')}`;
+function drawFocusMinis(lay, W) {
+  const secs = focusSecs();
   if (!secs?.length) return;
   const css = getComputedStyle(document.documentElement);
   ctx.save();
@@ -648,7 +653,7 @@ function draw() {
 
   const animated = red || scMode || [...flags.values()].includes('DOUBLE YELLOW');
   const bgKey = [size.w, size.h, size.dpr, view.x.toFixed(1), view.y.toFixed(1), view.z.toFixed(3), ts, [...flags].join(),
-    lay?.key, !!zones, store.positions.lineFrac().toFixed(4), MAP_OPTS.map((k) => $(`#${k}`).checked).join(), trackKey, document.fonts?.status, document.documentElement.dataset.scheme, versionOf(['TimingStats'])].join('|');
+    lay?.key, !!zones, store.positions.lineFrac().toFixed(4), MAP_OPTS.map((k) => $(`#${k}`).checked).join(), trackKey, document.fonts?.status, document.documentElement.dataset.scheme, versionOf(['TimingStats']), focusMinisKey()].join('|');
   let flagZones;
   if (!animated && bg.key === bgKey && bg.canvas) {
     ctx.drawImage(bg.canvas, 0, 0, size.w, size.h);
