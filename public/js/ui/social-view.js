@@ -14,6 +14,7 @@ import { raceWeekData, weekendData, recordsData, ratingsData, teamDuelsData, tit
 import { raceFrame, raceVideoTiming } from '/shared/social-draw-season.js';
 import { makeAnimation } from '/shared/social-video.js';
 import { newsFrame, newsVideoTiming } from '/shared/social-news-video.js';
+import { makeClipVideo, CLIP_MAX } from '/shared/social-clip-video.js';
 import { bigNews, newsPost, newsCaptions, newsKind, newsKinds, sortNews, OTHER_SERIES, isBreaking, NEWS_BADGES } from '/shared/social-news.js';
 import { newsTags } from '/shared/news.js';
 import { builtinNomination } from '/shared/tyres.js';
@@ -235,7 +236,9 @@ async function seasonSource(sig) {
 
 // Vidéo animée (format story) de la course ou d'une news (« Breaking news ») : enregistrée dans le navigateur
 let raceVideo = null;
-const raceVideoMaker = (d, o) => (d.post === 'racelaps' ? (opts) => makeAnimation((ctx, tt, w, h) => raceFrame(ctx, w, h, d, o, tt), raceVideoTiming(d).duration, { box: true, cover: (ctx) => videoCover(ctx, 1080, 1920, d, o), ...opts })
+// Post écrit à la main avec sa vidéo (enregistrement d'écran) : la vidéo habillée aux couleurs du post
+const raceVideoMaker = (d, o) => (d.news && mode === 'manual' && manualClip ? (opts) => makeClipVideo(manualClip, d, o, opts)
+  : d.post === 'racelaps' ? (opts) => makeAnimation((ctx, tt, w, h) => raceFrame(ctx, w, h, d, o, tt), raceVideoTiming(d).duration, { box: true, cover: (ctx) => videoCover(ctx, 1080, 1920, d, o), ...opts })
   : d.news ? (opts) => makeAnimation((ctx, tt, w, h) => newsFrame(ctx, w, h, d, o, tt), newsVideoTiming(d).duration, { box: true, cover: (ctx) => videoCover(ctx, 1080, 1920, d, o), ...opts }) : null);
 async function buildRaceVideo(dlg, btn) {
   const make = curPost && raceVideoMaker(curPost.d, curPost.o);
@@ -353,6 +356,7 @@ async function newsSource(sig) {
 // Texte libre, mise en forme par l'IA du serveur, photo ; pilotes et écuries reconnus dans le texte.
 const blankManual = () => ({ id: `m${Date.now().toString(36)}`, raw: '', title: '', summary: '', points: '', kind: '', source: '', image: null, breaking: false });
 let manual = blankManual();
+let manualClip = null;   // vidéo choisie (fichier), gardée en mémoire seulement
 function manualPost(sig) {
   const m = manual;
   const title = m.title.trim() || t('Votre titre ici');
@@ -379,9 +383,11 @@ function manualSource(sig) {
       <div class="row"><label class="btn small">${icon('plus')} ${t('Choisir une photo')}<input type="file" data-mimg accept="image/*" hidden></label>
         ${m.image ? `<button class="btn small" data-mimgdel>${icon('close')} ${t('Retirer la photo')}</button>` : `<span class="small muted">${t('Facultatif : remplace les portraits des pilotes')}</span>`}
         <span class="spacer"></span><button class="btn small" data-mnew title="${t('Vider le formulaire pour écrire un autre post')}">${icon('plus')} ${t('Nouveau post')}</button></div>
+      <div class="row"><label class="btn small">${icon('video')} ${t('Choisir une vidéo')}<input type="file" data-mclip accept="video/*" hidden></label>
+        ${manualClip ? `<span class="small muted">${esc(manualClip.name)}</span><button class="btn small" data-mclipdel>${icon('close')} ${t('Retirer la vidéo')}</button>` : `<span class="small muted">${t('Facultatif : un enregistrement d’écran par exemple, intégré au visuel ({} s au plus)', CLIP_MAX)}</span>`}</div>
       <label class="toggle small" title="${t('Visuel et vidéo « Breaking news »')}"><input type="checkbox" data-mbreaking ${m.breaking ? 'checked' : ''}> ${t('Très grosse info')}</label>
-      <div class="row"><button class="btn small btn-accent" data-racevideo>${icon('video')} ${m.breaking ? t('Créer la vidéo Breaking news') : t('Créer la vidéo')}</button> ${musicSelect('news')}
-        <button class="btn small" data-racevideosave disabled>${icon('save')} ${t('Enregistrer la vidéo')}</button><span class="small muted" data-rvst>${esc(t('Vidéo verticale avec musique : titre, résumé et points clés.'))}</span></div>
+      <div class="row"><button class="btn small btn-accent" data-racevideo>${icon('video')} ${manualClip ? t('Créer la vidéo avec votre enregistrement') : m.breaking ? t('Créer la vidéo Breaking news') : t('Créer la vidéo')}</button> ${musicSelect('news')}
+        <button class="btn small" data-racevideosave disabled>${icon('save')} ${t('Enregistrer la vidéo')}</button><span class="small muted" data-rvst>${esc(manualClip ? t('Votre vidéo habillée aux couleurs du post, avec musique.') : t('Vidéo verticale avec musique : titre, résumé et points clés.'))}</span></div>
       <video class="posts-vid" data-rv controls playsinline hidden></video>
       <p class="small muted">${icon('info')} ${t('Pilotes et écuries reconnus dans le texte : portraits et couleurs suivent.')}</p>
     </div>`;
@@ -880,7 +886,8 @@ function open() {
       if (e.target.closest('[data-nsummary]')) detailedSummary(dlg, e.target.closest('[data-nsummary]'));
       if (e.target.closest('[data-mai]')) manualRewrite(dlg, e.target.closest('[data-mai]'));
       if (e.target.closest('[data-mimgdel]')) { manual.image = null; render(dlg); }
-      if (e.target.closest('[data-mnew]')) { manual = blankManual(); render(dlg); }
+      if (e.target.closest('[data-mnew]')) { manual = blankManual(); manualClip = null; render(dlg); }
+      if (e.target.closest('[data-mclipdel]')) { manualClip = null; render(dlg); }
       if (e.target.closest('[data-savedraft]')) { try { if (dlg.saveDraft) await dlg.saveDraft(); else toast(t('Visuels en préparation, réessayez dans un instant'), 3000); } catch (err) { toast(err.message, 5000, 'warning'); } }
       const dOpen = e.target.closest('[data-draftopen]');
       if (dOpen) { try { await openDraft(dlg, dOpen.closest('[data-draft-id]').dataset.draftId); } catch (err) { toast(err.message, 5000, 'warning'); } }
@@ -909,6 +916,7 @@ function open() {
       if (e.target.matches('[data-breaking]') && newsSel) { breakingSet.set(newsSel, e.target.checked); render(dlg); }
       if (e.target.matches('[data-mbreaking]')) { manual.breaking = e.target.checked; render(dlg); }
       if (e.target.matches('[data-mkind]')) { manual.kind = e.target.value; renderNewsOnly(dlg); }
+      if (e.target.matches('[data-mclip]') && e.target.files?.[0]) { manualClip = e.target.files[0]; render(dlg); }
       if (e.target.matches('[data-mimg]') && e.target.files?.[0]) {
         createImageBitmap(e.target.files[0]).then((img) => { manual.image = img; render(dlg); }, () => toast(t('Image illisible'), 3000, 'warning'));
       }

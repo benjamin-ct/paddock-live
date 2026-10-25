@@ -8,7 +8,7 @@ const clamp01 = (x) => Math.max(0, Math.min(1, x));
 const out3 = (x) => 1 - (1 - clamp01(x)) ** 3;
 const words = (s) => String(s || '').split(/\s+/).filter(Boolean).length;
 const INTRO = 1.8;
-const OUTRO = 2.8;
+export const OUTRO = 2.8;
 const FADE = 0.4;   // passage d'un temps à l'autre : fondu par le noir
 
 // Durées : le temps de lire (environ 3,5 mots par seconde) ; 4 points clés au plus
@@ -33,7 +33,7 @@ function chip(ctx, b, x, y, u, size = 34) {
 const blink = (t) => 0.35 + 0.65 * (0.5 + 0.5 * Math.cos(t * Math.PI * 2.2));   // point qui clignote
 
 // En-tête (Actu F1, date ; à droite : étiquette « BREAKING », signature dessous)
-function header(ctx, W, d, o, u, t) {
+export function header(ctx, W, d, o, u, t) {
   const pad = 60 * u; const top = 100 * u;
   ctx.fillStyle = C.red; ctx.fillRect(pad, top, 12 * u, 84 * u);
   txt(ctx, 'ACTU F1', pad + 34 * u, top + 40 * u, { size: Math.round(46 * u), weight: 800, family: TITLE, spacing: 4 });
@@ -235,7 +235,7 @@ function pointScene(ctx, W, H, d, o, u, i, n, s, dur) {
 }
 
 // Fin : appel à s'abonner, signature, source
-function outro(ctx, W, H, d, o, u, s) {
+export function outro(ctx, W, H, d, o, u, s) {
   background(ctx, W, H, C.red);
   u *= 1.25;   // écran centré : tout un cran plus grand
   const cy = H * 0.36;
