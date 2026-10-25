@@ -22,6 +22,9 @@
     /* Pas de séance en direct : compte à rebours seulement (replays et résultats dans l'appli) */
     .web .nl-actions { display: none; }
     .web .season-view { left: 0 !important; }
+    /* Écran affiché : les panneaux vides dessous sont retirés, la page ne défile plus */
+    .web body:has(#noLiveView:not([hidden])) { overflow: hidden; }
+    .web body:has(#noLiveView:not([hidden])) .grid { display: none; }
     .web .topbar .web-delay { display: flex; align-items: center; gap: 6px; }
     .web .topbar .web-delay input { width: 54px; height: 34px; padding: 0 4px; text-align: center; border: 1px solid var(--border); border-radius: 8px;
       background: var(--panel-2); color: var(--text); font: 700 17px/1 inherit; font-variant-numeric: tabular-nums; }
