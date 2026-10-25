@@ -302,6 +302,7 @@ export function canHideTab(t) {
 // Sur un onglet : le fermer ; ailleurs sur la barre d'onglets d'un panneau : tous ses onglets, pour remettre
 // ceux qui sont fermés (mêmes onglets masqués que Réglages → Onglets visibles)
 const groupOf = (t) => GROUPS[t] || [t];
+const PANEL_NAMES = { feed: 'Direction de course', radio: 'Radios', analysis: 'Analyse', extra: 'Stratégie' };
 const tabName = (t) => esc(tabList().find((x) => x[1] === t)?.[2] || t);
 function setTabHidden(t, hide) {
   const g = groupOf(t);
@@ -326,12 +327,19 @@ function tabMenu(e) {
       <button data-close="${t}" ${ok ? '' : 'disabled title="Dernier onglet du panneau : il ne peut pas être fermé"'}>${icon('close')} Fermer l'onglet</button>
       <div class="muted small">Pour le remettre : clic droit sur la barre d'onglets.</div>`;
   } else {
-    m.innerHTML = `<div class="muted small">Onglets du panneau</div>${tabsOf(id).map((t) => {
+    // Tous les onglets : ceux de ce panneau (✓ affiché, + fermé), puis ceux des autres panneaux, amenés ici au clic
+    const item = (t, here) => {
       const shown = !groupOf(t).every((x) => prefs.hiddenTabs.includes(x));
       const off = sessOff(t);
-      return `<button data-${shown ? 'close' : 'open'}="${t}" ${off || (shown && !canHideTab(t)) ? 'disabled' : ''}>${shown ? '' : icon('plus')}${tabName(t)}${off ? ' <span class="muted small">(pas pendant cette séance)</span>' : ''}${shown ? icon('check', 'ic-on') : ''}</button>`;
-    }).join('')}`;
+      const mine = here && shown;
+      const note = off ? 'pas pendant cette séance' : !shown ? 'fermé' : here ? '' : PANEL_NAMES[HOSTS.find((x) => tabsOf(x).includes(t))];
+      return `<button data-${mine ? 'close' : 'open'}="${t}" ${off || (mine && !canHideTab(t)) ? 'disabled' : ''}>${mine ? '' : icon('plus')}${tabName(t)}${note ? ` <span class="muted small">(${note})</span>` : ''}${mine ? icon('check', 'ic-on') : ''}</button>`;
+    };
+    const others = HOSTS.filter((x) => x !== id).flatMap(tabsOf);
+    m.innerHTML = `<div class="muted small">Onglets du panneau</div>${tabsOf(id).map((t) => item(t, true)).join('')}
+      ${others.length ? `<div class="rail-sep"></div><div class="muted small">Amener un onglet ici</div>${others.map((t) => item(t, false)).join('')}` : ''}`;
   }
+  Object.assign(m.style, { maxHeight: 'calc(100vh - 16px)', overflowY: 'auto' });
   document.body.appendChild(m);
   m.style.left = `${Math.max(8, Math.min(window.innerWidth - m.offsetWidth - 8, e.clientX))}px`;
   m.style.top = `${Math.max(8, Math.min(window.innerHeight - m.offsetHeight - 8, e.clientY))}px`;
@@ -340,8 +348,18 @@ function tabMenu(e) {
     if (!b || b.disabled) return;
     m.remove();
     if (b.dataset.close) { setTabHidden(b.dataset.close, true); return; }
-    setTabHidden(b.dataset.open, false);
-    setTimeout(() => tabBtn(b.dataset.open)?.click(), 50);   // onglet remis : ouvert
+    const t = b.dataset.open;
+    const from = HOSTS.find((x) => tabsOf(x).includes(t));
+    if (from && from !== id) {
+      // Onglet d'un autre panneau : déplacé ici, comme par glisser-déposer
+      place(t, id);
+      tidy(id, t);
+      tidy(from);
+      save();
+      emit('tabsMoved');
+    }
+    setTabHidden(t, false);
+    setTimeout(() => tabBtn(t)?.click(), 50);   // onglet remis : ouvert
   };
   setTimeout(() => document.addEventListener('pointerdown', function close(ev) {
     if (!m.contains(ev.target)) { m.remove(); document.removeEventListener('pointerdown', close); }

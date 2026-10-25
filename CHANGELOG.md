@@ -70,7 +70,7 @@ l'application (Réglages → À propos → Nouveautés).
 - Badge du direct : « LIVE · GPS » ou « LIVE · sans GPS » (positions estimées d'après les chronos), écrit sur le
   badge au lieu d'apparaître seulement au survol.
 - Onglets : clic droit sur un onglet pour le fermer ; clic droit sur la barre d'onglets d'un panneau pour voir
-  tous ses onglets et remettre ceux qui sont fermés.
+  tous les onglets, remettre ceux qui sont fermés ou en amener un d'un autre panneau.
 - Carte : les pilotes du duel n'y sont plus marqués (ni suivis) quand le panneau Duel n'est pas affiché
   (interface Essentielle, panneau masqué).
 
