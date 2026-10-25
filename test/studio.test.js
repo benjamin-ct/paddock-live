@@ -1008,9 +1008,9 @@ test('onglet Suivi : connexion Google Drive depuis le Studio (lecture seule), ga
       const s = new URL(u).searchParams.get('q');
       return ok(s.includes("name = 'Paddock Live · Réseaux'") ? { files: [{ id: 'dossier123456', name: 'Paddock Live · Réseaux' }] } : { files: [{ id: 'docafaire123456', name: 'À faire · Paddock Live', mimeType: 'application/vnd.google-apps.document' }] });
     }
-    if (u === 'https://www.googleapis.com/docs/v1/documents/docafaire123456?includeTabsContent=true') return ok({ title: 'À faire', tabs: [] });
-    if (u === 'https://www.googleapis.com/v4/spreadsheets/feuille1234567/values/Journal!A1%3AD400') return ok({ values: [['Date']] });
-    if (u.includes('/docs/v1/documents/inconnu')) return ok({ error: { message: 'Requested entity was not found.' } }, 404);
+    if (u === 'https://docs.googleapis.com/v1/documents/docafaire123456?includeTabsContent=true') return ok({ title: 'À faire', tabs: [] });
+    if (u === 'https://sheets.googleapis.com/v4/spreadsheets/feuille1234567/values/Journal!A1%3AD400') return ok({ values: [['Date']] });
+    if (u.startsWith('https://docs.googleapis.com/v1/documents/inconnu')) return ok({ error: { message: 'Requested entity was not found.' } }, 404);
     throw new Error(`inattendu : ${u}`);
   };
   try {

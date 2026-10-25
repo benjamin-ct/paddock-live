@@ -7,7 +7,10 @@ import { googleOAuth, youtubeTokens } from '../shared/video-publish.js';
 
 const FOLDER = 'Paddock Live · Réseaux';
 const SCOPE = 'https://www.googleapis.com/auth/drive.readonly';
-const API = 'https://www.googleapis.com';
+// Chaque service Google a son adresse (Docs et Sheets ne répondent pas sur celle de Drive)
+const DRIVE = 'https://www.googleapis.com/drive/v3';
+const DOCS = 'https://docs.googleapis.com/v1';
+const SHEETS = 'https://sheets.googleapis.com/v4';
 const ID = /^[\w-]{10,100}$/;
 
 const json = (d, status = 200) => new Response(JSON.stringify(d), { status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
@@ -23,8 +26,8 @@ async function token(vault, save) {
   return next.accessToken;
 }
 
-async function google(path, at) {
-  const res = await fetch(`${API}${path}`, { headers: { Authorization: `Bearer ${at}` }, signal: AbortSignal.timeout(20000) });
+async function google(url, at) {
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${at}` }, signal: AbortSignal.timeout(20000) });
   const d = await res.json().catch(() => ({}));
   if (!res.ok) {
     const why = d.error?.message || `HTTP ${res.status}`;
@@ -92,17 +95,17 @@ export async function driveApi(sub, req, url, vault, save) {
   try {
     if (sub === 'files') {
       const q = (s) => new URLSearchParams({ q: s, fields: 'files(id,name,mimeType,createdTime,modifiedTime)', pageSize: '100', orderBy: 'name' });
-      const folder = (await google(`/drive/v3/files?${q(`name = '${FOLDER}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`)}`, at)).files?.[0];
+      const folder = (await google(`${DRIVE}/files?${q(`name = '${FOLDER}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`)}`, at)).files?.[0];
       if (!folder) return json({ connected: true, folder: null, files: [] });
-      const files = (await google(`/drive/v3/files?${q(`'${folder.id}' in parents and trashed = false`)}`, at)).files || [];
+      const files = (await google(`${DRIVE}/files?${q(`'${folder.id}' in parents and trashed = false`)}`, at)).files || [];
       return json({ connected: true, folder: { id: folder.id, name: folder.name }, files });
     }
     const id = url.searchParams.get('id') || '';
     if (!ID.test(id)) return json({ error: 'Document invalide' }, 400);
-    if (sub === 'doc') return json(await google(`/docs/v1/documents/${id}?includeTabsContent=true`, at));
+    if (sub === 'doc') return json(await google(`${DOCS}/documents/${id}?includeTabsContent=true`, at));
     const range = url.searchParams.get('range') || '';
     if (!range || range.length > 100) return json({ error: 'Plage invalide' }, 400);
-    return json(await google(`/v4/spreadsheets/${id}/values/${encodeURIComponent(range)}`, at));
+    return json(await google(`${SHEETS}/spreadsheets/${id}/values/${encodeURIComponent(range)}`, at));
   } catch (err) {
     return json({ error: err.message }, err.status || 502);
   }
