@@ -7,6 +7,7 @@ import { toast } from './delay.js';
 import { makeVideo, unlockAudio } from '/shared/social-video.js';
 import { TRACKS, trackOf, previewTrack } from '/shared/social-music.js';
 import { postProblems } from '/shared/post-check.js';
+import { videoTexts } from '/shared/social.js';
 
 const NETS = [
   { id: 'instagram', name: 'Instagram', what: 'Carrousel des visuels (format Instagram)' },
@@ -18,12 +19,6 @@ const NETS = [
   { id: 'youtube', name: 'YouTube Shorts', what: 'Vidéo envoyée en privé (publique après l\'audit YouTube)' },
 ];
 const VIDEO_NETS = ['tiktok', 'youtube'];
-// Texte YouTube par défaut : titre = accroche du post, description = texte Instagram (sans l'accroche répétée)
-function youtubeText(caps) {
-  const title = (String(caps.story || caps.x || '').split('\n').find((l) => l.trim()) || '').trim();
-  const desc = String(caps.instagram || caps.x || '').trim();
-  return `${title}\n${desc.startsWith(title) ? desc.slice(title.length).trim() : desc}`.trim();
-}
 
 const api = async (path, body) => {
   const res = await fetch(path, body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {});
@@ -263,7 +258,8 @@ export async function openPublish({ d, caps, render, folder, record = null, onPo
         <label class="small muted">${t('Texte X (280 caractères max.)')}<textarea rows="3" data-txt="x">${esc(caps.x)}</textarea></label>
         <label class="small muted">${t('Texte Bluesky (300 caractères max.)')}<textarea rows="3" data-txt="bsky">${esc(caps.bsky || caps.x)}</textarea></label>
         ${caps.comment ? `<label class="small muted">${t('Premier commentaire (Facebook, Threads, X, Bluesky)')}<textarea rows="2" data-txt="comment">${esc(caps.comment)}</textarea></label>` : ''}
-        <label class="small muted">${t('Texte YouTube Shorts (1re ligne = titre, 100 caractères max.)')}<textarea rows="3" data-txt="youtube">${esc(caps.youtube || youtubeText(caps))}</textarea></label>
+        <label class="small muted">${t('Texte TikTok (copié à la publication : le brouillon TikTok arrive sans texte)')}<textarea rows="3" data-txt="tiktok">${esc(caps.tiktok || videoTexts(caps).tiktok)}</textarea></label>
+        <label class="small muted">${t('Texte YouTube Shorts (1re ligne = titre, 100 caractères max.)')}<textarea rows="3" data-txt="youtube">${esc(caps.youtube || videoTexts(caps).youtube)}</textarea></label>
         <fieldset class="posts-video"><legend class="small">${t('Vidéo TikTok / YouTube Shorts')}</legend>
           <div class="row small">
             <label class="toggle"><input type="radio" name="pmusic" value="gen" checked> ${t('Musique générée (libre de droits)')}</label> ${musicSelect(trackKind(d))}
@@ -401,6 +397,8 @@ export async function openPublish({ d, caps, render, folder, record = null, onPo
         const warn = await check(nets);
         if (!warn) return;
         if (!window.confirm(`${t('Publier maintenant sur : {} ?', nets.map((n) => NETS.find((x) => x.id === n).name).join(', '))}${warn.length ? `\n\n${warn.join('\n')}` : ''}\n\n${t(PUBLIC_NOTE)}`)) return;
+        // Brouillon TikTok sans texte : le sien copié, à coller en publiant dans l'appli TikTok
+        if (nets.includes('tiktok')) navigator.clipboard?.writeText(txt('tiktok')).then(() => toast(t('Texte TikTok copié : collez-le en publiant le brouillon dans l\'appli TikTok'), 6000, 'check'), () => {});
         btn.disabled = true;
         for (const n of nets) {
           const st = $(`[data-st="${n}"]`, dlg);

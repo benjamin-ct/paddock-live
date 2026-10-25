@@ -2157,6 +2157,8 @@ export default {
   "Code secret du client": "Client secret",
   "Se connecter à {}": "Connect to {}",
   "Clés enregistrées : cliquez sur « Se connecter à YouTube »": "Keys saved: click \"Connect to YouTube\"",
+  "Texte TikTok (copié à la publication : le brouillon TikTok arrive sans texte)": "TikTok text (copied when publishing: the TikTok draft arrives without text)",
+  "Texte TikTok copié : collez-le en publiant le brouillon dans l'appli TikTok": "TikTok text copied: paste it when publishing the draft in the TikTok app",
   "Texte YouTube Shorts (1re ligne = titre, 100 caractères max.)": "YouTube Shorts text (1st line = title, 100 characters max.)",
   "Vidéo TikTok / YouTube Shorts": "TikTok / YouTube Shorts video",
   "Short envoyé en privé (verrouillé par YouTube tant que votre projet Google n'a pas passé l'audit de l'API YouTube)": "Short uploaded as private (locked by YouTube until your Google project has passed the YouTube API audit)",
