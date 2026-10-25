@@ -1127,11 +1127,13 @@ function drawCars(dt) {
   }
 
   const order = Object.keys(dl).sort((a, b) => (Number(lines[b]?.Position) || 99) - (Number(lines[a]?.Position) || 99));
-  const special = new Set([store.duel.a, store.duel.b, store.focus].filter(Boolean));
+  // Pilotes du duel marqués seulement quand le panneau Duel est affiché (pas en Essentiel, ni panneau masqué)
+  const duel = document.querySelector('.p-duel')?.getClientRects().length ? store.duel : {};
+  const special = new Set([duel.a, duel.b, store.focus].filter(Boolean));
   const drawOrder = [...order.filter((n) => !special.has(n)), ...order.filter((n) => special.has(n))];
 
   let inPit = 0;
-  const followNum = store.focus || store.duel.a;
+  const followNum = store.focus || duel.a;
   if (!followNum) followTarget = null;
   const W = trackWidth();
   const trails = $('#mapTrails').checked;
@@ -1167,7 +1169,7 @@ function drawCars(dt) {
       if (h.length > TRAIL_LEN) h.shift();
     }
     const d = dl[num];
-    const isA = store.duel.a === num, isB = store.duel.b === num, isF = store.focus === num;
+    const isA = duel.a === num, isB = duel.b === num, isF = store.focus === num;
     const sp = isA || isB || isF;
     // Avec les noms : pastille ronde avec le trigramme à l'intérieur ; sinon simple point
     const r = labels ? Math.max(12, Math.min(16, W * 0.85)) + (sp ? 1.5 : 0) : Math.max(5.5, Math.min(10, W * 0.55)) + (sp ? 1.5 : 0);
