@@ -987,7 +987,7 @@ test('onglet Suivi : connexion Google Drive depuis le Studio (lecture seule), ga
   const { url } = await (await call('drive/start', { method: 'POST', body: JSON.stringify({ redirect: 'https://s.test/studio/' }) })).json();
   const q = new URL(url).searchParams;
   assert.equal(q.get('client_id'), 'yt.apps');
-  assert.equal(q.get('scope'), 'https://www.googleapis.com/auth/drive.readonly');
+  assert.equal(q.get('scope'), 'https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/spreadsheets');
   assert.equal(q.get('redirect_uri'), 'https://s.test/studio/');
 
   const realFetch = globalThis.fetch;
@@ -1000,7 +1000,7 @@ test('onglet Suivi : connexion Google Drive depuis le Studio (lecture seule), ga
     if (u === 'https://oauth2.googleapis.com/token') {
       const f = new URLSearchParams(String(opts.body));
       assert.equal(f.get('client_secret'), 'secret-google');
-      if (f.get('grant_type') === 'authorization_code') { assert.equal(f.get('code'), 'c1'); assert.ok(f.get('code_verifier')); return ok({ access_token: 'at1', expires_in: 3599, refresh_token: 'rt-drive' }); }
+      if (f.get('grant_type') === 'authorization_code') { assert.equal(f.get('code'), 'c1'); assert.ok(f.get('code_verifier')); return ok({ access_token: 'at1', expires_in: 3599, refresh_token: 'rt-drive', scope: 'https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/spreadsheets' }); }
       return refresh === 'ok' ? ok({ access_token: 'at2', expires_in: 3599 }) : ok({ error: 'invalid_grant', error_description: 'Token has been expired or revoked.' }, 400);
     }
     assert.match(opts.headers.Authorization, /^Bearer at[12]$/);
@@ -1020,9 +1020,11 @@ test('onglet Suivi : connexion Google Drive depuis le Studio (lecture seule), ga
     assert.ok(!env.DB.studio.get('vault').includes('rt-drive'));   // dans le coffre chiffré
     const files = await (await call('drive/files')).json();
     assert.deepEqual(files.folder, { id: 'dossier123456', name: 'Paddock Live · Réseaux' });
+    assert.equal(files.canWrite, true);
     assert.equal(files.files[0].name, 'À faire · Paddock Live');
     assert.equal((await (await call('drive/doc?id=docafaire123456')).json()).title, 'À faire');
     assert.deepEqual(await (await call(`drive/values?id=feuille1234567&range=${encodeURIComponent('Journal!A1:D400')}`)).json(), { values: [['Date']] });
+    assert.deepEqual(await (await call('drive/fill', { method: 'POST', body: JSON.stringify({ accounts: [] }) })).json(), { error: 'Feuille « Suivi réseaux » introuvable dans le dossier' });
     assert.equal((await call('drive/doc?id=../x')).status, 400);
     assert.equal((await call('drive/doc?id=inconnu1234567')).status, 404);
     // Envoi de l'appli (qui ne connaît pas Drive) : connexion gardée ; pas rendue comme un compte de l'appli
@@ -1040,4 +1042,33 @@ test('onglet Suivi : connexion Google Drive depuis le Studio (lecture seule), ga
     assert.equal((await call('drive/forget', { method: 'POST' })).status, 200);
   } finally { globalThis.fetch = realFetch; }
   assert.ok(seen.length > 4);
+});
+
+
+test('onglet Suivi : feuille « Suivi réseaux » remplie avec les chiffres du Studio', async () => {
+  const { sheetUpdates, mondayParis } = await import('../analytics/drive.js');
+  const now = Date.UTC(2026, 9, 26, 8);   // lundi 26 octobre, 9 h à Paris
+  assert.equal(mondayParis(now), '26/10/2026');
+  assert.equal(mondayParis(Date.UTC(2026, 10, 1, 22, 59)), '26/10/2026');   // dimanche 23 h 59 à Paris
+  const head = ['Lundi', 'Instagram', 'Facebook', 'TikTok', 'X', 'Threads', 'Bluesky', 'YouTube', 'Total', 'Gagnés depuis lundi dernier'];
+  const tables = {
+    'Abonnés Paddock Live': [head, ['19/10/2026', '1', '1', '', '', '', '', '', '5'], ['26/10/2026'], ['02/11/2026']],
+    'Benjy Paddock': [[...head.slice(0, 9), 'Gagnés en une semaine', 'Meilleur post de la semaine', 'Vues du meilleur post'], ['26/10/2026', '7']],   // déjà rempli à la main : rien
+    'Posts Paddock Live': [['Date', 'Heure', 'Réseau', 'Sujet', 'Lien du post', 'Vues', "J'aime", 'Commentaires'], ['24/10/2026', '12:00', 'Instagram', 'Zéro spoiler', 'https://www.instagram.com/p/ABC/?igsh=x', '10', '', ''], ['24/10/2026', '12:00', 'X', 'Zéro spoiler', '']],
+  };
+  const accounts = [{ name: 'Benjy Paddock', nets: { instagram: { stats: { followers: 3 } } } }, { name: 'Paddock Live', nets: { instagram: { stats: { followers: 4 } }, threads: { stats: { followers: 3 } }, x: { note: 'chiffres payants chez X' } } }];
+  const history = [{ key: 'post:1', title: 'Zéro spoiler', at: now - 2 * 86400e3, nets: { instagram: { url: 'https://instagram.com/p/ABC' } } }];
+  const kept = [{ key: 'post:1', at: now, stats: { instagram: { views: 221, likes: 18, comments: 2 } } }];
+  const out = sheetUpdates(tables, accounts, { history, kept, now });
+  assert.deepEqual(out, [
+    { range: "'Abonnés Paddock Live'!B3", values: [[4]] },
+    { range: "'Abonnés Paddock Live'!F3", values: [[3]] },
+    { range: "'Abonnés Paddock Live'!I3", values: [[7]] },
+    { range: "'Abonnés Paddock Live'!J3", values: [[2]] },
+    { range: "'Posts Paddock Live'!F2", values: [[221]] },
+    { range: "'Posts Paddock Live'!G2", values: [[18]] },
+    { range: "'Posts Paddock Live'!H2", values: [[2]] },
+  ]);
+  // Semaine sans ligne dans la feuille : rien d'inventé
+  assert.equal(sheetUpdates(tables, accounts, { now: Date.UTC(2026, 9, 20) }).length, 0);
 });

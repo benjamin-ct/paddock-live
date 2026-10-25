@@ -140,6 +140,8 @@ const LOADERS = {
   async net(files) {
     const f = find(files, /^Suivi réseaux/i);
     if (!f) throw new Error('Feuille « Suivi réseaux » introuvable dans le dossier');
+    // Feuille remplie d'abord avec les chiffres des comptes (ceux de l'onglet Stats, sinon relus)
+    await fillSheet(store.get('stats', 6 * 3600e3)?.v?.accounts || (await api('stats/accounts').catch(() => null))?.accounts);
     const [posts, app, benjy, streamers] = await Promise.all(["'Posts Paddock Live'!A1:L500", "'Abonnés Paddock Live'!A1:J80", "'Benjy Paddock'!A1:L80", 'Streamers!A1:H200'].map((r) => values(f.id, r)));
     return { id: f.id, posts: table(posts), subs: { app, benjy }, streamers: table(streamers) };
   },
@@ -259,7 +261,12 @@ function netHtml(m) {
   const netRows = Object.entries(byNet).sort((a, b) => b[1] - a[1]);
   const sorted = [...posts].sort((a, b) => (parseFr(b['Date'])?.getTime() || 0) - (parseFr(a['Date'])?.getTime() || 0) || String(b['Heure']).localeCompare(String(a['Heure'])));
   const streamers = m.streamers.filter((s) => s['Nom']);
-  return `<div class="tiles">
+  const files = store.get('drive.files')?.v;
+  const lastFill = store.get('drive.filled')?.at;
+  const auto = files?.canWrite
+    ? `<p class="sv-note">Abonnés du lundi, meilleur post de Benjy et chiffres des posts (lien collé dans la feuille) remplis par le Studio${lastFill ? ` · dernier passage ${new Date(lastFill).toLocaleString('fr-FR', { weekday: 'long', hour: '2-digit', minute: '2-digit' })}` : ''}.</p>`
+    : `<div class="notice">${icon('alert')}<span class="grow">Le Studio peut remplir la feuille tout seul (abonnés du lundi, chiffres des posts) : reconnecte Google Drive une fois pour l'autoriser à écrire.</span><button type="button" class="btn small" id="svwrite">${icon('link')}Reconnecter</button></div>`;
+  return `${auto}<div class="tiles">
       <div class="tile"><b>${posts.length}</b><small>posts prévus</small></div>
       <div class="tile"><b>${posts.filter((p) => p['Lien du post']).length}</b><small>avec leur lien</small></div>
       <div class="tile"><b>${views.length ? fmtN(views.reduce((a, p) => a + num(p['Vues']), 0)) : '—'}</b><small>vues relevées</small></div>
@@ -312,6 +319,28 @@ function guidesHtml(m) {
 }
 
 const RENDER = { todo: todoHtml, posts: postsHtml, net: netHtml, log: logHtml, guides: guidesHtml };
+
+// ---------- Feuille « Suivi réseaux » remplie par le serveur (au plus une fois par heure) ----------
+export async function fillSheet(accounts, force = false) {
+  const files = store.get('drive.files')?.v;
+  if (!accounts?.length || !files?.connected || !files.canWrite || (!force && store.get('drive.filled', 3600e3))) return null;
+  try {
+    const r = await api('drive/fill', { method: 'POST', body: JSON.stringify({ accounts }) });
+    store.set('drive.filled', r);
+    if (r.cells) toast(`Feuille « Suivi réseaux » remplie (${r.cells} case${r.cells > 1 ? 's' : ''})`, 'ok');
+    return r;
+  } catch (err) {
+    if (!store.get('drive.fillerr', 86400e3)) { store.set('drive.fillerr', 1); toast(err.message, 'bad'); }
+    return null;
+  }
+}
+
+async function reconnect(btn) {
+  btn.disabled = true;
+  btn.classList.add('busy');
+  try { location.href = (await api('drive/start', { method: 'POST', body: JSON.stringify({ redirect: `${location.origin}/studio/` }) })).url; }
+  catch (err) { toast(err.message, 'bad'); btn.disabled = false; btn.classList.remove('busy'); }
+}
 
 // ---------- Connexion Google Drive ----------
 function connectHtml(r) {
@@ -418,5 +447,7 @@ function bind(body, m, opts) {
   $$('#svgps [data-gp]', body).forEach((b) => { b.onclick = () => { state.vgp = b.dataset.gp; again(); }; });
   $$('#svacc [data-acc]', body).forEach((b) => { b.onclick = () => { state.vacc = b.dataset.acc; again(); }; });
   $$('#svguides [data-guide]', body).forEach((b) => { b.onclick = () => { state.vguide = b.dataset.guide; again(); }; });
+  const write = $('#svwrite', body);
+  if (write) write.onclick = () => reconnect(write);
   $$('[data-toc]', body).forEach((b) => { b.onclick = () => $(`#svh${b.dataset.toc}`, body)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
 }

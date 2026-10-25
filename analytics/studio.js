@@ -770,7 +770,14 @@ export async function studioApi(req, env, url) {
   let vault = await open(a.raw, await getRow(env, 'vault')).catch(() => null) || {};
 
   // Onglet Suivi : dossier Google Drive lu par le serveur
-  if (path.startsWith('drive/')) return driveApi(path.slice(6), req, url, vault, (v) => saveVault(env, a.raw, v));
+  if (path.startsWith('drive/')) {
+    // Remplissage de la feuille : journal des publications et chiffres des posts gardés ici
+    const rows = async () => {
+      const read = async (k) => { try { return JSON.parse(await getRow(env, k) || '[]'); } catch { return []; } };
+      return { history: await read('history'), kept: await read('poststats') };
+    };
+    return driveApi(path.slice(6), req, url, vault, (v) => saveVault(env, a.raw, v), rows);
+  }
   if (path === 'sync' && req.method === 'POST') {
     let body;
     try { body = await req.json(); } catch { return json({ error: 'JSON invalide' }, 400); }

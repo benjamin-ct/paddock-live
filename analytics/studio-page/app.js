@@ -348,6 +348,8 @@ async function statsTab(body, { force, restore, current }) {
   store.set('stats', r);
   keepPostStats(r);
   renderStats(body, r, false);
+  // Feuille « Suivi réseaux » du Drive remplie avec ces chiffres (si Google Drive est relié)
+  suivi().then((m) => m.fillSheet(r.accounts)).catch(() => {});
 }
 function renderStats(body, r, stale) {
   const f = Object.entries(r.followers || {});
