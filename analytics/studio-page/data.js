@@ -14,13 +14,17 @@ const keepFr = () => {
   clearTimeout(frSave);
   frSave = setTimeout(() => store.set('fr', [...frCache].slice(-FR_MAX)), 500);
 };
+// Plafond du jour atteint (serveur ou Workers AI) : plus de demande jusqu'à minuit UTC, quand il repart
+let pausedUntil = 0;
+export const translationsPausedUntil = () => (Date.now() < pausedUntil ? pausedUntil : 0);
 // Textes en français ; null si la traduction a échoué. Les paquets partent en parallèle.
 export async function toFrench(list) {
-  const todo = [...new Map(list.filter((x) => x.text && x.from !== 'fr' && !frCache.has(`${x.from}|${x.text}`)).map((x) => [`${x.from}|${x.text}`, x])).values()];
+  const todo = translationsPausedUntil() ? [] : [...new Map(list.filter((x) => x.text && x.from !== 'fr' && !frCache.has(`${x.from}|${x.text}`)).map((x) => [`${x.from}|${x.text}`, x])).values()];
   const parts = [];
   for (let i = 0; i < todo.length; i += 30) parts.push(todo.slice(i, i + 30));
   await Promise.all(parts.map(async (part) => {
     const res = await api('translate', { method: 'POST', body: JSON.stringify({ to: 'fr', items: part.map((x) => ({ text: x.text.slice(0, 1500), from: x.from })) }) }).catch(() => ({}));
+    if (res.limited) pausedUntil = new Date().setUTCHours(24, 0, 0, 0);
     part.forEach((x, j) => { if (res.out?.[j]) frCache.set(`${x.from}|${x.text}`, res.out[j]); });
   }));
   if (todo.length) keepFr();

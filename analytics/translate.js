@@ -3,14 +3,18 @@
 // traduit sur l'ordinateur comme avant.
 // Modèle de langage (Mistral Small 3.1) avec des consignes F1 : noms propres gardés, jargon des fans,
 // sens traduit plutôt que mot à mot (titres écrits comme dans la presse sportive, exemples à l'appui).
-// Plusieurs textes par appel ; réponse mal formée -> modèle de traduction simple (m2m100) en secours.
+// Plusieurs textes par appel (les consignes, envoyées à chaque appel, coûtent plus que les titres) ;
+// réponse mal formée -> modèle de traduction simple (m2m100) en secours.
+// Allocation Workers AI du jour épuisée (erreur 4006, remise à zéro à minuit UTC) : plus aucun appel,
+// réponse « plafond atteint » comme pour le plafond de Paddock Live.
 // Traduction avec des caractères d'une autre écriture (chinois glissé dans du français…) : refaite.
 import { badTranslation } from '../shared/translation-check.js';
 import { aiQuota } from './quota.js';
 export const MODEL = '@cf/mistralai/mistral-small-3.1-24b-instruct';
 export const FALLBACK = '@cf/meta/m2m100-1.2b';
 const MODEL_TAG = 'ms31b';  // dans la clé du cache : changer de modèle ou de consignes = nouvelles traductions
-const PER_CALL = 8;
+const PER_CALL = 20;
+const CALL_CHARS = 8000;   // et pas plus de texte que la réponse du modèle (4 000 jetons) peut en rendre
 const NAMES = { fr: 'French', en: 'English', es: 'Spanish', de: 'German', it: 'Italian', nl: 'Dutch', pt: 'Portuguese', ja: 'Japanese', zh: 'Chinese' };
 export const LANGS = ['fr', 'en', 'es', 'de', 'it', 'nl', 'pt', 'ja', 'zh'];
 export const MAX_ITEMS = 40;
@@ -58,11 +62,15 @@ async function llm(env, texts, to) {
   return parseList(r?.response ?? r?.choices?.[0]?.message?.content, texts.length);
 }
 
-async function simple(env, text, from, to) {
+// Workers AI : « you have used up your daily free allocation of 10,000 neurons »
+export const aiSpent = (e) => /\b4006\b|daily free allocation/i.test(String(e?.message || e));
+
+async function simple(env, text, from, to, spent) {
+  if (spent.on) return null;
   try {
     const r = await env.AI.run(FALLBACK, { text, source_lang: from, target_lang: to });
     return String(r?.translated_text || '').trim() || null;
-  } catch { return null; }
+  } catch (e) { if (aiSpent(e)) spent.on = true; return null; }
 }
 
 // Corps reçu -> { to, items: [{ text, from }] }, ou null s'il est invalide
@@ -101,16 +109,21 @@ export async function translateBatch(env, req, day = new Date().toISOString().sl
   // Plafond du jour
   const q = quota || { key: day, limit: Number(env.AI_DAILY_LIMIT) || 20000 };
   if (!(await aiQuota(env, { key: q.key, day, n: todo.length, limit: q.limit, ip }))) return { out, limited: true };
-  // Modèle de langage par paquets de 8 ; paquet raté -> traduction simple texte par texte
+  // Modèle de langage par paquets de 20 (ou 8 000 caractères) ; paquet raté -> traduction simple texte par texte
   const groups = [];
-  for (let i = 0; i < todo.length; i += PER_CALL) groups.push(todo.slice(i, i + PER_CALL));
+  let size = 0;
+  for (const x of todo) {
+    const last = groups[groups.length - 1];
+    if (last && last.length < PER_CALL && size + x.it.text.length <= CALL_CHARS) { last.push(x); size += x.it.text.length; } else { groups.push([x]); size = x.it.text.length; }
+  }
+  const spent = { on: false };
   const results = await mapLimit(groups, 3, async (g) => {
     let list = null;
-    try { list = await llm(env, g.map(({ it }) => it.text), req.to); } catch { list = null; }
+    if (!spent.on) try { list = await llm(env, g.map(({ it }) => it.text), req.to); } catch (e) { if (aiSpent(e)) spent.on = true; }
     // Paquet raté : tout en traduction simple ; sinon seulement les traductions suspectes
     return Promise.all(g.map(async ({ it }, j) => {
       if (list && !badTranslation(list[j], req.to, it.text)) return list[j];
-      const s = await simple(env, it.text, it.from, req.to);
+      const s = await simple(env, it.text, it.from, req.to, spent);
       return s && !badTranslation(s, req.to, it.text) ? s : null;
     }));
   });
@@ -123,5 +136,5 @@ export async function translateBatch(env, req, day = new Date().toISOString().sl
     store.push(env.DB.prepare('INSERT OR REPLACE INTO translations (k, out, at) VALUES (?1, ?2, ?3)').bind(k, done[j], now));
   });
   if (store.length) await env.DB.batch(store);
-  return { out };
+  return spent.on ? { out, limited: true } : { out };
 }
