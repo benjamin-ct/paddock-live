@@ -103,7 +103,8 @@ l'application (Réglages → À propos → Nouveautés).
 - Calendrier : sous le prochain Grand Prix, les Grands Prix à venir d'abord, puis ceux déjà courus, du plus récent
   au plus ancien ; week-ends sprint : vainqueur et pole de la course et du sprint dans un petit tableau.
 - Éléments moteur : pénalités sur la grille et éléments neufs rangés par Grand Prix, le plus récent ouvert, un pilote
-  par ligne (logo de l'écurie, éléments en étiquettes, sanction) ; liens « PDF » et « Document FIA » en boutons.
+  par ligne (logo de l'écurie, éléments en étiquettes, sanction) ; liens « PDF » et « Document FIA » en boutons, le
+  document s'ouvre directement dans l'appli au lieu d'être téléchargé.
 - Course au titre : deux onglets, « Championnat pilotes » et « Championnat constructeurs », au lieu de tout
   descendre pour voir les écuries.
 - Listes de choix (pilote, duel pilote contre pilote, point de mesure, tri, Grand Prix) : intitulé au-dessus du choix,
@@ -126,6 +127,7 @@ l'application (Réglages → À propos → Nouveautés).
   Agenda ou fichier du week-end.
 - Relier un appareil à sa connexion F1 TV : le message dit « Navigateur relié » quand le code vient d'un navigateur
   d'ordinateur, « Téléphone relié » quand il vient d'un téléphone.
+- Documents de la FIA (actualités, infos de la séance, Saison) : affichés dans la page au lieu d'être téléchargés.
 
 ### Fiabilité et sécurité
 - Connexion F1 TV par l'extension Paddock Live Companion : les replays (archives de la F1) s'ouvrent comme avec la

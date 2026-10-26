@@ -3,6 +3,7 @@
 import { $, esc, teamColor, teamMark, storageGet, storageSet } from '../util.js';
 import { translated, requestTranslations, onTranslation, translationState } from './fia-translate.js';
 import { icon } from '../icons.js';
+import { pdfHref } from './pdf-view.js';
 import { DEC, EN } from '../i18n.js';
 import { gpShort } from '/shared/gp-names.js';
 
@@ -192,7 +193,7 @@ export function renderTech(ctx, fia) {
     <section class="sz-box"><h3>Détail des évolutions</h3>
       <div class="sz-h2h-pick"><label class="small">Grand Prix <select id="szTechGp">${evs.map((e) => `<option value="${esc(e.page)}" ${e === gp ? 'selected' : ''}>${esc(e.label)} · ${esc(short(e.name))} (${e.tech.length})</option>`).join('')}</select></label>
         <label class="small">Écurie <select id="szTechTeam"><option value="all">Toutes</option>${teamsGp.map((t) => `<option ${t === techTeam ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></label>
-        ${gp.docs?.tech ? `<a class="btn-doc" href="${esc(gp.docs.tech)}" target="_blank" rel="noopener"><span class="doc-badge">PDF</span><span>Document FIA</span>${icon('external', 'ic-s')}</a>` : ''}</div>
+        ${gp.docs?.tech ? `<a class="btn-doc" href="${esc(pdfHref(gp.docs.tech))}" data-pdf="Document FIA" target="_blank" rel="noopener"><span class="doc-badge">PDF</span><span>Document FIA</span>${icon('external', 'ic-s')}</a>` : ''}</div>
       ${gp.noUpdates.length ? `<p class="muted small">Sans nouveauté : ${gp.noUpdates.map(esc).join(', ')}.</p>` : ''}
       <div class="sz-tr-bar small">${EN ? '' : `<label class="toggle small"><input type="checkbox" id="szTechOrig" ${showOriginal() ? 'checked' : ''}> Texte d'origine (anglais)</label>`}<span class="muted" id="szTrStatus">${trStatusHtml()}</span></div>
       <div class="sz-upd">${list.map((u) => `<article class="sz-upd-item" style="--tc:${tcol(u.team, ctx, u.teamId)}">
@@ -272,7 +273,7 @@ export function renderElements(ctx, fia) {
       <section class="sz-box"><h3>Total par écurie</h3>${hbars(byTeam.map((t) => ({ html: `${mark(t.team, ctx, t.teamId)}<b>${esc(t.team)}</b>`, v: t.n, color: tcol(t.team, ctx, t.teamId) })))}</section>
     </div>
     <section class="sz-box"><h3>Pénalités sur la grille</h3>${pens.length ? byGp(pens, (p) => p.ev).map(([ev, list], i) => fold(ev, i, `${list.length} ${list.length > 1 ? 'pénalités' : 'pénalité'}`,
-      list.map((p) => `<div class="sz-pen">${who(p.driver)}<span class="sz-els">${chips(elementsOf(p.fact).split(' · '))}${/without the approval|parc ferm/i.test(p.fact) ? ' <span class="muted small">en parc fermé</span>' : ''}</span><span class="sz-tag ${/stands|fond/i.test(DECISION_FR(p.decision)) ? 'pen' : ''}">${esc(DECISION_FR(p.decision))}</span><a href="${esc(p.url)}" target="_blank" rel="noopener" class="btn-doc" title="Décision des commissaires (PDF)"><span class="doc-badge">PDF</span><span>Décision</span>${icon('external', 'ic-s')}</a></div>`).join(''))).join('') : '<div class="note">Aucune pénalité.</div>'}</section>
+      list.map((p) => `<div class="sz-pen">${who(p.driver)}<span class="sz-els">${chips(elementsOf(p.fact).split(' · '))}${/without the approval|parc ferm/i.test(p.fact) ? ' <span class="muted small">en parc fermé</span>' : ''}</span><span class="sz-tag ${/stands|fond/i.test(DECISION_FR(p.decision)) ? 'pen' : ''}">${esc(DECISION_FR(p.decision))}</span><a href="${esc(pdfHref(p.url))}" data-pdf="Décision des commissaires" target="_blank" rel="noopener" class="btn-doc" title="Décision des commissaires (PDF)"><span class="doc-badge">PDF</span><span>Décision</span>${icon('external', 'ic-s')}</a></div>`).join(''))).join('') : '<div class="note">Aucune pénalité.</div>'}</section>
     <section class="sz-box"><h3>Éléments neufs par Grand Prix</h3>${evs.filter((e) => e.fresh.length).reverse().map((e, i) => {
       const by = new Map();
       for (const f of e.fresh) by.set(f.driver, [...new Set([...(by.get(f.driver) || []), f.element])]);

@@ -554,6 +554,7 @@ export default {
   "Début de session / extinction des feux": "Session start / lights out",
   "Décalage du son": "Sound offset",
   "Décision": "Decision",
+  "Décision des commissaires": "Stewards' decision",
   "Décision des commissaires (PDF)": "Stewards' decision (PDF)",
   "Voitures qui ont abandonné ou sont éliminées": "Cars that retired or were knocked out",
   "Déflecteurs du fond plat": "Floor fences",

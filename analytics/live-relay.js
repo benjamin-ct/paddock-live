@@ -616,6 +616,24 @@ export async function liveApi(req, url, env = {}) {
     const res = await translateBatch(env, r, undefined, callerIp(req));
     return json(res, res.limited ? 503 : 200);
   }
+  // Document FIA (PDF) : fia.com l'envoie en téléchargement forcé ; relayé pour être affiché dans la page (visionneuse
+  // de l'appli, pdf-view.js), gardé un jour. Seuls les fichiers de fia.com, comme /api/fia-pdf de l'appli
+  if (url.pathname === '/live/api/fia-pdf' && req.method === 'GET') {
+    let u = null;
+    try { u = new URL(url.searchParams.get('url')); } catch { /* adresse invalide */ }
+    if (u?.protocol !== 'https:' || u.hostname !== 'www.fia.com' || !u.pathname.startsWith('/system/files/') || !/\.pdf$/i.test(u.pathname)) return json({ error: 'Adresse de document FIA invalide' }, 400);
+    const ck = new Request(`https://live.cache/fia${u.pathname}`);
+    let res = await caches.default.match(ck);
+    if (!res) {
+      const r = await fetch(u.href, { headers: { 'User-Agent': 'Mozilla/5.0 (Paddock-Live web relay)' } }).catch(() => null);
+      const bytes = r?.status === 200 ? new Uint8Array(await r.arrayBuffer()) : null;
+      if (!bytes || String.fromCharCode(...bytes.subarray(0, 5)) !== '%PDF-') return json({ error: 'Document FIA indisponible' }, 502);
+      const name = decodeURIComponent(u.pathname.split('/').pop()).replace(/[^\w .-]/g, '_');
+      res = new Response(bytes, { headers: { 'Content-Type': 'application/pdf', 'Content-Disposition': `inline; filename="${name}"`, 'Cache-Control': 'public, max-age=86400' } });
+      await caches.default.put(ck, res.clone());
+    }
+    return res;
+  }
   if (url.pathname === '/live/api/headshot') {
     let u = null;
     try { u = new URL(url.searchParams.get('u')); } catch { /* adresse invalide */ }
