@@ -53,7 +53,8 @@ async function analyse(race, year, token, fetchFn) {
     if (raw) track = new Track(raw);
   } catch { /* profil sans tracé */ }
   const res = summarizeRace({ events, keyframes, track });
-  if (!res.drivers.some((d) => d.laps.length)) throw new Error('aucun tour dans l\'archive');
+  // Détail dans la raison (séance trouvée, messages lus, pilotes) : dit si l'archive est vide ou mal reliée
+  if (!res.drivers.some((d) => d.laps.length)) throw new Error(`aucun tour dans l'archive (${s.path} · ${events.length} messages · ${res.drivers.length} pilotes)`);
   return { ...res, round: race.round, path: s.path };
 }
 
