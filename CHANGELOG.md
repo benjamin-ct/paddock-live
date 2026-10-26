@@ -101,7 +101,7 @@ l'application (Réglages → À propos → Nouveautés).
   les plus rapides, ou le programme du week-end avant la course. Touchez un Grand Prix dans Résultats & records,
   ou « Résultats du Grand Prix » dans le calendrier ; flèches vers le Grand Prix précédent et le suivant.
 - Calendrier : sous le prochain Grand Prix, les Grands Prix à venir d'abord, puis ceux déjà courus, du plus récent
-  au plus ancien.
+  au plus ancien ; vainqueur du sprint à côté de l'étiquette « Sprint ».
 - Listes de choix (pilote, duel pilote contre pilote, point de mesure, tri, Grand Prix) : intitulé au-dessus du choix,
   toute la largeur sur téléphone ; en duel, pilote A et pilote B côte à côte, « VS » au milieu.
 

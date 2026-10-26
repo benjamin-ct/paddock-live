@@ -320,7 +320,7 @@ function renderCalendar() {
     return `${sep}<details class="cal-row ${state}">
       <summary><span class="cal-num">${r.round}</span>${flagOf(r)}<span class="cal-name"><b>${esc(gpShort(r.name, EN))}</b><small>${esc(r.circuit || '')}</small></span>
         <span class="cal-date">${calSpan(r)}</span>
-        <span class="cal-sprint">${r.sprint ? '<span class="sz-tag sprint">Sprint</span>' : ''}</span>${right}${icon('chevron-down', 'cal-chev')}</summary>
+        <span class="cal-sprint">${r.sprint ? `<span class="sz-tag sprint">Sprint</span>${r.sprintResults[0] ? ` ${chip(r.sprintResults[0])}` : ''}` : ''}</span>${right}${icon('chevron-down', 'cal-chev')}</summary>
       <div class="cal-row-body">${calDays(r)}${done(r) ? gpLink(r, 'Résultats du Grand Prix', 'btn small') : calIcs(r)}</div>
     </details>`;
   };
