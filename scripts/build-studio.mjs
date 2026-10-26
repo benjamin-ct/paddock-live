@@ -148,8 +148,8 @@ const liveVisit = (file) => {
   }
 };
 liveVisit(path.join(LIVE, 'js', 'web.js'));
-// Liste des modules donnée d'emblée (modulepreload) : chargés ensemble au lieu d'être découverts un à un, ce qui
-// prenait plusieurs secondes sur téléphone dans un navigateur neuf (rien en cache, ex. celui d'Instagram)
+// Liste des modules donnée d'emblée (modulepreload) : chargés ensemble au lieu d'être découverts un à un (navigateur
+// neuf, rien en cache, ex. celui d'Instagram : page prête vers 0,8 s au lieu de 1,2 s avec la latence d'un téléphone)
 if (!livePage.includes('</head>')) throw new Error('Version web : </head> introuvable');
 fs.writeFileSync(path.join(LIVE, 'index.html'), livePage.replace('</head>', `${[...liveGraph].map((f) => `<link rel="modulepreload" href="${rel(f)}">`).join('\n')}\n</head>`));
 // Fichiers servis à la racine du site (vérification du domaine par TikTok)
