@@ -56,10 +56,10 @@ function layout(ctx, W, H, d, clip, u) {
 
 export function clipFrame(ctx, W, H, d, o, clip, t) {
   const u = W / 1080;
-  // Post du compte Paddock Live : la vidéo à la place de la capture de la première page, fin aux couleurs de l'appli
+  // Post du compte Paddock Live : la vidéo à la place de la capture de sa page (la première sinon), fin aux couleurs de l'appli
   if (d.post === 'app') {
     if (t >= clip.duration) appOutro(ctx, W, H, t - clip.duration);
-    else appPage(ctx, W, H, d, 1, { media: clip.el });
+    else appPage(ctx, W, H, d, Math.max(1, (d.pages || []).findIndex((p) => p.video) + 1), { media: clip.el });
   } else if (t >= clip.duration) outro(ctx, W, H, d, o, u, t - clip.duration);
   else {
     background(ctx, W, H, d.color);
