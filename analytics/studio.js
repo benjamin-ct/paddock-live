@@ -739,6 +739,44 @@ export async function runSchedule(env, { now = Date.now(), only = null } = {}) {
   return out;
 }
 
+// ---------- « Reste à faire » ----------
+// Ce que le Studio ne peut pas finir seul : post X (texte, images ou vidéo prêts à partager), brouillon TikTok à
+// compléter, Short YouTube à passer en public… Gardé 7 jours, fichiers dans le stockage R2 (effacés avec la tâche).
+const TODO = { max: 30, keep: 7 * 86400e3, files: 4, img: 4e6 };
+const TODO_KINDS = ['x', 'tiktok', 'youtube', 'autre'];
+async function dropTodo(env, t) {
+  for (let i = 0; i < (t.files || []).length; i++) await env.MEDIA?.delete(`todo/${t.id}/${i}`);
+}
+async function todoList(env, now = Date.now()) {
+  let list = [];
+  try { list = JSON.parse(await getRow(env, 'todo') || '[]'); } catch { /* ligne abîmée : refaite */ }
+  const old = list.filter((t) => now - t.at > TODO.keep);
+  if (!old.length) return list;
+  for (const t of old) await dropTodo(env, t);
+  list = list.filter((t) => !old.includes(t));
+  await setRow(env, 'todo', JSON.stringify(list));
+  return list;
+}
+// Formulaire : kind, title, text, after (heure à partir de laquelle la tâche se fait), f (4 images, ou une vidéo)
+async function todoAdd(req, env, now = Date.now()) {
+  let form;
+  try { form = await req.formData(); } catch { return json({ error: 'Formulaire illisible' }, 400); }
+  const kind = String(form.get('kind') || '');
+  if (!TODO_KINDS.includes(kind)) return json({ error: 'Tâche inconnue' }, 400);
+  const files = form.getAll('f').filter((f) => typeof f === 'object' && f);
+  const video = files.length === 1 && /^video\/(mp4|quicktime)$/.test(files[0].type) && files[0].size <= VIDEO_MAX;
+  if (files.length && !video && (files.length > TODO.files || files.some((f) => !/^image\/(png|jpeg)$/.test(f.type) || f.size > TODO.img))) return json({ error: 'Fichiers refusés : 4 images (4 Mo au plus) ou une vidéo MP4 de 50 Mo au plus' }, 400);
+  if (files.length && !env.MEDIA) return json({ error: 'Stockage des fichiers (R2) absent du serveur' }, 503);
+  const list = await todoList(env, now);
+  if (list.length >= TODO.max) return json({ error: `${TODO.max} tâches au plus : cochez celles qui sont faites` }, 409);
+  const after = Number(form.get('after'));
+  const t = { id: hex(crypto.getRandomValues(new Uint8Array(8))), kind, title: String(form.get('title') || '').slice(0, 200), text: String(form.get('text') || '').slice(0, 5000),
+    after: Number.isFinite(after) && after > now ? Math.min(after, now + SCHED.ahead) : now, at: now, files: files.map((f) => ({ type: f.type, name: String(f.name || '').slice(0, 80) })) };
+  for (const [i, f] of files.entries()) await env.MEDIA.put(`todo/${t.id}/${i}`, f, { httpMetadata: { contentType: f.type } });
+  await setRow(env, 'todo', JSON.stringify([t, ...list]));
+  return json({ item: t });
+}
+
 // ---------- Routes /studio/api/… ----------
 export async function studioApi(req, env, url) {
   if (!env.DB) return json({ error: 'Base indisponible' }, 503);
@@ -907,6 +945,25 @@ export async function studioApi(req, env, url) {
     }
     await setRow(env, 'drafts', JSON.stringify(list));
     return json({ items: list });
+  }
+  // « Reste à faire » : ce qui se finit à la main après une publication (X, brouillon TikTok, Short privé…)
+  if (path === 'todo' && req.method === 'GET') return json({ items: await todoList(env) });
+  if (path === 'todo' && req.method === 'POST') return todoAdd(req, env);
+  if (path === 'todo/file' && req.method === 'GET') {
+    const id = String(url.searchParams.get('id') || '');
+    const i = Number(url.searchParams.get('i'));
+    const obj = /^[a-f0-9]{16}$/.test(id) && Number.isInteger(i) && i >= 0 && i < TODO.files ? await env.MEDIA?.get(`todo/${id}/${i}`) : null;
+    return obj ? new Response(obj.body, { headers: { 'Content-Type': obj.httpMetadata?.contentType || 'application/octet-stream', 'Cache-Control': 'no-store' } }) : json({ error: 'Fichier introuvable' }, 404);
+  }
+  if (path === 'todo/done' && req.method === 'POST') {
+    let body;
+    try { body = await req.json(); } catch { return json({ error: 'JSON invalide' }, 400); }
+    const list = await todoList(env);
+    const t = list.find((x) => x.id === body?.id);
+    if (t) await dropTodo(env, t);
+    const next = list.filter((x) => x !== t);
+    await setRow(env, 'todo', JSON.stringify(next));
+    return json({ items: next });
   }
   // Posts publiés hors du Studio (à la main, kit de démarrage) : retrouvés sur les comptes reliés
   if (path === 'history/import' && req.method === 'POST') {

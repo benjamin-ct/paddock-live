@@ -8,7 +8,7 @@
 import { bigNews, newsKind, newsKinds, sortNews, isBreaking } from '/shared/social-news.js';
 import { postedEntry, keepStats } from '/shared/post-history.js';
 import { pullToRefresh } from '/shared/pull-refresh.js';
-import { $, $$, esc, api, ago, fmtN, icon, LOGO, toast, skeleton, empty, failure, sheet, schedList, store, state, session, hasKey, setKey, forgetKey, onLogout, glide, NET_NAMES, IOS, installed } from './ui.js';
+import { $, $$, esc, api, ago, fmtN, icon, LOGO, toast, skeleton, empty, failure, sheet, store, state, session, hasKey, setKey, forgetKey, onLogout, glide, NET_NAMES, IOS, installed } from './ui.js';
 import { cachedNews, freshNews, toFrench, knownFrench, cachedSessions, seasonSessions, SESSION_FR } from './data.js';
 
 const app = $('#app');
@@ -29,6 +29,7 @@ const posts = lazy(loadPosts);
 const season = lazy(() => import('./season.js'));
 const drafts = lazy(() => import('./drafts.js'));
 const suivi = lazy(() => import('./suivi.js'));
+const pubs = lazy(() => import('./pubs.js'));
 const scrolls = {};   // position dans chaque onglet, retrouvée au retour d'un post
 
 // ---------- Accès ----------
@@ -66,7 +67,7 @@ function login(error = '') {
 onLogout(() => login());
 
 // ---------- Accueil : en-tête, onglet, barre d'onglets ----------
-const TABS = [['news', 'News', 'news'], ['sessions', 'Séances', 'flag'], ['season', 'Saison', 'calendar'], ['stats', 'Stats', 'chart'], ['suivi', 'Suivi', 'list']];
+const TABS = [['news', 'News', 'news'], ['sessions', 'Séances', 'flag'], ['season', 'Saison', 'calendar'], ['pubs', 'Publications', 'send'], ['stats', 'Stats', 'chart'], ['suivi', 'Suivi', 'list']];
 const tabIndex = (k) => TABS.findIndex(([x]) => x === k);
 // Retour d'un post : la liste revient en glissant depuis la gauche
 const back = () => home({ from: 'left' });
@@ -120,7 +121,7 @@ async function showTab({ force = false, restore = false } = {}) {
   const body = $('#body');
   const spin = $('#refresh');
   spin?.classList.add('spin');
-  const fn = { news: newsTab, sessions: sessionsTab, season: seasonView, stats: statsTab, suivi: async (...a) => (await suivi()).suiviTab(...a) }[state.tab];
+  const fn = { news: newsTab, sessions: sessionsTab, season: seasonView, stats: statsTab, suivi: async (...a) => (await suivi()).suiviTab(...a), pubs: async (...a) => (await pubs()).pubsTab(...a) }[state.tab];
   try {
     await fn(body, { force, restore: restore ? scrolls[state.tab] || 0 : 0, current: () => run === tabRun && body.isConnected });
   } catch (err) {
@@ -367,7 +368,7 @@ function renderStats(body, r, stale) {
       <div class="row"><input type="text" id="shortname" placeholder="Nom dans les statistiques (facultatif)"><select id="shortnet" title="Réseau où le lien sera partagé (clics comptés par réseau)"><option value="">Autre</option>${SHORT_NETS.map((n) => `<option value="${n}">${NET_NAMES[n]}</option>`).join('')}</select><button class="btn primary small">Raccourcir</button></div>
       <div id="shortout"></div></form>
     ${clicksHtml(r.clicks) || empty('Aucun clic ces 30 derniers jours.', 'chart')}</div>
-    <div data-pane="posts"><div id="schedlist"></div>
+    <div data-pane="posts">
     <div class="row section-row"><h3 class="section grow">Posts publiés</h3><button class="btn small" id="statsimport" title="Ajoute aux statistiques les posts des 30 derniers jours publiés hors du Studio">${icon('refresh')}Retrouver mes posts</button></div>
     ${(r.posts || []).length ? `<div class="list posts">${r.posts.map((p) => `<div class="card post"><div class="card-top"><time>${esc(new Date(p.at).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))}</time><span class="grow"></span><button class="iconbtn small" data-statsremove="${esc(p.key)}" aria-label="Retirer des statistiques" title="Retirer des statistiques">${icon('close')}</button></div><div class="t">${esc(p.title || 'Post')}</div>
       ${Object.entries(p.nets).map(([n, x]) => {
@@ -388,7 +389,6 @@ function renderStats(body, r, stale) {
   sub(state.ssub);
   if (typed[0]) ['#shorturl', '#shortname', '#shortnet'].forEach((id, i) => { $(id, body).value = typed[i].value; });
   if (typed[3]) $('#shortout', body).innerHTML = typed[3].innerHTML;
-  schedList($('#schedlist', body));
   // Lien court suivi (pdkl.app) : clics comptés comme ceux des posts
   $('#shortform', body).onsubmit = async (e) => {
     e.preventDefault();
