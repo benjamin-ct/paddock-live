@@ -212,8 +212,13 @@ export default {
     // /live/* passent par le Worker d'abord (run_worker_first, wrangler.toml), avec les en-têtes de sécurité
     const app = url.hostname.startsWith('app.');
     // Pages publiques de la Saison (classements, calendrier, résultats de chaque Grand Prix) pour les moteurs de recherche
+    // (gardées une heure : un robot qui parcourt tout le site ne refait pas chaque page)
     if (req.method === 'GET' && !app && env.DB && (url.pathname.startsWith('/saison/') || url.pathname.startsWith('/en/season/'))) {
+      const key = new Request(`${url.origin}${url.pathname}`);
+      const hit = await caches.default.match(key).catch(() => null);
+      if (hit) return hit;
       const res = await seasonPages(env, url).catch(() => null);
+      if (res?.status === 200) ctx.waitUntil(caches.default.put(key, res.clone()).catch(() => {}));
       if (res) return res;
     }
     if (url.pathname === '/live' || url.pathname.startsWith('/live/')) {
