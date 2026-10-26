@@ -80,7 +80,7 @@ l'application (Réglages → À propos → Nouveautés).
 
 ### Saison
 - Sur téléphone : les rubriques de la Saison s'ouvrent dans un menu sur le côté (bouton ☰ en haut), au lieu
-  d'une bande d'onglets à faire défiler.
+  d'une bande d'onglets à faire défiler ; les tableaux larges défilent de côté jusqu'au bout, sans rebond.
 - Bilan de la saison (Saison → Bilan de la saison) : champion ou leader, victoires, poles, podiums, vainqueurs
   différents, plus belle remontée, abandons, et la saison de vos pilotes favoris ; image à partager (copiée ou
   enregistrée). Le bilan se complète à chaque course.
