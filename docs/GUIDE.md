@@ -33,7 +33,7 @@ Le [README](../README.md) résume l'essentiel. Vous trouverez ici le détail de 
 
 ## 🏆 Espace Saison
 
-Le bouton **Saison** de la barre de gauche (🏆 en haut dans les autres designs et sur téléphone) ouvre une vue de toute la saison (inspirée de formula1dashboard.com, données Jolpica/Ergast, consultables hors ligne une fois chargées), avec un sélecteur d'année :
+Le bouton **Saison** de la barre de gauche (🏆 en haut dans les autres designs et sur téléphone) ouvre une vue de toute la saison (données Jolpica/Ergast, consultables hors ligne une fois chargées), avec un sélecteur d'année :
 
 - **Accueil** : compte à rebours jusqu'à la prochaine séance, avancement de la saison, leaders des championnats, dernier vainqueur et top 10.
 - **Calendrier** : toutes les manches (sprint, terminé / prochain / à venir), vainqueur et poleman, horaires de chaque séance à l'heure de votre ordinateur.
