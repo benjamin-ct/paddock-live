@@ -471,6 +471,10 @@ Disallow: /m/
 Disallow: /kit/
 Disallow: /stats
 Disallow: /login
+Disallow: /download/
+Disallow: /dl/
+Disallow: /p/api/
+Disallow: /f$
 Sitemap: ${SITE}/sitemap.xml
 Sitemap: ${SITE}/saison/sitemap.xml
 `;

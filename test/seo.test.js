@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { englishHome, sitemap, GUIDES } from '../analytics/launch/guides.mjs';
+import { englishHome, sitemap, robots, GUIDES } from '../analytics/launch/guides.mjs';
 
 const FR = fs.readFileSync(new URL('../analytics/launch/index.html', import.meta.url), 'utf8');
 
@@ -28,4 +28,12 @@ test('référencement : plan du site sans page exclue, accueil anglais compris',
   assert.match(s, /<loc>https:\/\/paddocklive\.app\/en\/<\/loc>/);
   assert.doesNotMatch(s, /\?lang=en|\/p\/</);   // /p/ : page en noindex
   for (const g of GUIDES) assert.match(s, new RegExp(`/${g.slug}/</loc>`));
+});
+
+test('référencement : robots.txt ferme les adresses internes et les fichiers, pas les pages', () => {
+  const rules = robots().split('\n').filter((l) => l.startsWith('Disallow: ')).map((l) => l.slice(10));
+  // Règle robots.txt : préfixe, « $ » = fin d'adresse
+  const blocked = (p) => rules.some((r) => (r.endsWith('$') ? p === r.slice(0, -1) : p.startsWith(r)));
+  for (const p of ['/f', '/p/api/new', '/download/windows', '/download/latest.json', '/dl/Paddock-Live.exe', '/studio/', '/login']) assert.ok(blocked(p), p);
+  for (const p of ['/', '/en/', '/en/f1-live-track-map/', '/carte-gps-f1/', '/p/', '/saison/2026/', '/legal/privacy']) assert.ok(!blocked(p), p);
 });
