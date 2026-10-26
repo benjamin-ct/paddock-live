@@ -216,6 +216,8 @@ export default {
     }
     if (req.method === 'GET' && url.pathname === '/' && app && env.ASSETS) return liveAsset(env, new Request(new URL('/live/', url), req));
     if (req.method === 'GET' && url.pathname === '/' && ownDomain && env.ASSETS) {
+      // Ancienne adresse de l'accueil en anglais : page à part depuis
+      if (url.searchParams.get('lang') === 'en') return Response.redirect(`${url.origin}/en/`, 301);
       return env.ASSETS.fetch(new Request(new URL('/site/', url), req));
     }
     if (req.method === 'POST' && url.pathname === '/e') {

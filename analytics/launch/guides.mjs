@@ -310,11 +310,11 @@ export const GUIDES = [
   },
 ];
 
-// Textes de la page dans chaque langue (les pages anglaises renvoient vers /?lang=en)
+// Textes de la page dans chaque langue (les pages anglaises renvoient vers l'accueil anglais, /en/)
 const UI = {
   fr: { home: '/', dl: 'Télécharger', cta: 'Télécharger Paddock Live gratuitement', os: 'Windows, macOS et Linux', faq: 'Questions fréquentes', more: 'Aussi dans Paddock Live', all: 'Toutes les fonctions', terms: 'Conditions d\'utilisation', privacy: 'Confidentialité', locale: 'fr_FR',
     legal: 'Paddock Live est un projet indépendant, sans lien avec la Formula 1, la FIA ni les écuries. F1, FORMULA 1 et les marques associées appartiennent à Formula One Licensing B.V.' },
-  en: { home: '/?lang=en', dl: 'Download', cta: 'Download Paddock Live for free', os: 'Windows, macOS and Linux', faq: 'Frequently asked questions', more: 'Also in Paddock Live', all: 'All features', terms: 'Terms of Service', privacy: 'Privacy', locale: 'en_US',
+  en: { home: '/en/', dl: 'Download', cta: 'Download Paddock Live for free', os: 'Windows, macOS and Linux', faq: 'Frequently asked questions', more: 'Also in Paddock Live', all: 'All features', terms: 'Terms of Service', privacy: 'Privacy', locale: 'en_US',
     legal: 'Paddock Live is an independent project, not affiliated with Formula 1, the FIA or the teams. F1, FORMULA 1 and related marks are trademarks of Formula One Licensing B.V.' },
 };
 
@@ -420,10 +420,45 @@ footer a { color: var(--text-2); }
 `;
 }
 
+// Accueil en anglais (/en/) : la page d'accueil française (analytics/launch/index.html) avec ses textes data-en, ses liens
+// data-href-en et ses champs data-ph-en déjà en place, son titre, sa description et ses adresses en anglais. Une vraie
+// page pour les moteurs de recherche, qui n'exécutent pas toujours le script de la page.
+export function englishHome(html) {
+  const root = /<html lang="fr" data-title-en="([^"]*)" data-desc-en="([^"]*)">/.exec(html);
+  if (!root) throw new Error('accueil : <html data-title-en data-desc-en> introuvable');
+  const [, title, desc] = root;
+  // Contenu de chaque élément data-en remplacé (jusqu'à sa balise fermante, éléments du même nom imbriqués compris)
+  let out = '', i = 0;
+  for (const m of html.matchAll(/<([a-z][a-z0-9]*)\b[^>]*\sdata-en="([^"]*)"[^>]*>/gi)) {
+    if (m.index < i) continue;
+    const tag = m[1].toLowerCase(), start = m.index + m[0].length;
+    const re = new RegExp(`<(/?)${tag}\\b[^>]*>`, 'gi');
+    re.lastIndex = start;
+    let depth = 1, close;
+    while (depth && (close = re.exec(html))) depth += close[1] ? -1 : 1;
+    if (depth) throw new Error(`accueil : </${tag}> introuvable`);
+    out += html.slice(i, start) + m[2];
+    i = close.index;
+  }
+  out += html.slice(i);
+  const fixed = (s, re, to) => { if (!re.test(s)) throw new Error(`accueil : ${re} introuvable`); return s.replace(re, to); };
+  out = out.replace(/(<[^>]*?)\shref="[^"]*"([^>]*?)\sdata-href-en="([^"]*)"/g, '$1 href="$3"$2 data-href-en="$3"')
+    .replace(/(<[^>]*?)\splaceholder="[^"]*"([^>]*?)\sdata-ph-en="([^"]*)"/g, '$1 placeholder="$3"$2 data-ph-en="$3"');
+  out = fixed(out, /<html lang="fr"/, '<html lang="en"');
+  out = fixed(out, /<title>[^<]*<\/title>/, `<title>${title}</title>`);
+  out = fixed(out, /(<meta name="description" content=")[^"]*"/, `$1${desc}"`);
+  out = fixed(out, /(<meta property="og:description" content=")[^"]*"/, `$1${desc}"`);
+  out = fixed(out, /(<meta property="og:(?:title|image:alt)" content=")[^"]*"/g, `$1${title}"`);
+  out = fixed(out, /(<link rel="canonical" href=")[^"]*"/, `$1${SITE}/en/"`);
+  out = fixed(out, /(<meta property="og:url" content=")[^"]*"/, `$1${SITE}/en/"`);
+  out = fixed(out, /("@type":"SoftwareApplication","name":"Paddock Live","description":")[^"]*"/, `$1${desc}"`);
+  return out;
+}
+
 // Plan du site pour les moteurs de recherche, et règles d'exploration (Studio, outils et pages privées exclus)
 export const sitemap = () => `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${['', '?lang=en', ...GUIDES.map((g) => `${g.slug}/`), 'alertes/', 'extension/', 'p/', 'legal/terms', 'legal/privacy'].map((p) => `  <url><loc>${SITE}/${p}</loc></url>`).join('\n')}
+${['', 'en/', ...GUIDES.map((g) => `${g.slug}/`), 'alertes/', 'extension/', 'legal/terms', 'legal/privacy'].map((p) => `  <url><loc>${SITE}/${p}</loc></url>`).join('\n')}
   <url><loc>https://app.paddocklive.app/</loc></url>
 </urlset>
 `;
