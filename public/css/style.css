@@ -1176,7 +1176,8 @@ body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-selec
 .sz-lbl { font-size: 11px; font-weight: 700; }
 .sz-h2h-pick { margin-bottom: 10px; }
 .sz-h2h { max-width: 760px; }
-.sz-h2h-head { display: flex; justify-content: space-between; align-items: center; font-size: 20px; margin-bottom: 10px; }
+/* Duel : « VS » au milieu, chaque pilote de son côté quelle que soit la longueur des noms */
+.sz-h2h-head { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 10px; align-items: center; font-size: 20px; margin-bottom: 10px; }
 .sz-vs { font-weight: 900; font-style: italic; color: var(--muted); }
 .sz-h2h-row { padding: 6px 0; border-top: 1px solid var(--line); }
 .sz-h2h-label { text-align: center; font-weight: 700; font-size: 13px; margin-bottom: 4px; }
@@ -1374,6 +1375,7 @@ body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-selec
 .sz-h2h-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; align-items: start; }
 .sz-h2h-layout .sz-h2h { max-width: none; }
 .sz-h2h-who { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.sz-h2h-who.b { justify-self: end; text-align: right; }
 .sz-h2h-who .team-logo { width: 28px; height: 28px; }
 @media (max-width: 1100px) { .sz-h2h-layout { grid-template-columns: minmax(0, 1fr); } }
 .sz-wrap td { white-space: normal; }
