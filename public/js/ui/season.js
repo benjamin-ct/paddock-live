@@ -67,8 +67,10 @@ async function loadFia() {
   try {
     const f = await api(`/api/season/fia?year=${y}`);
     if (y !== year) return;
+    const same = fia?.year === f.year && fia.done === f.done && fia.total === f.total && fia.pending === f.pending && !fia.error;
     fia = f;
     if (f.pending) fiaTimer = setTimeout(loadFia, 3000);
+    if (same) return;   // relecture pendant la lecture des documents : rien de nouveau, rien de redessiné
   } catch (err) {
     if (y === year) fia = { year: y, error: err.message, events: [] };
   }
@@ -82,8 +84,10 @@ async function loadStats() {
   try {
     const s = await api(`/api/season/stats?year=${y}`);
     if (y !== year) return;
+    const same = stats?.year === s.year && stats.done === s.done && stats.total === s.total && stats.pending === s.pending && !stats.error;
     stats = s;
     if (s.pending) statsTimer = setTimeout(loadStats, 3000);
+    if (same) return;   // relecture pendant l'analyse : rien de nouveau, rien de redessiné (tableaux laissés où ils sont)
   } catch (err) {
     if (y === year) stats = { error: err.message, races: [] };
   }
@@ -522,7 +526,11 @@ function render() {
     speeds: () => renderSpeeds(ctx, speedPt), circuits: () => renderCircuits(ctx, circSort), ratings: () => renderRatings(ctx, rateSort),
     tech: () => renderTech(ctx, fiaData), elements: () => renderElements(ctx, fiaData), predict: () => renderPredict(data.year), review: () => renderReview(ctx),
   }[section]();
+  // Tableaux larges : défilement de côté gardé quand la rubrique est redessinée (nouvelle course analysée…)
+  const wide = () => $('#szContent').querySelectorAll('.sz-box, .sz-scroll');
+  const scrolls = jump ? [] : [...wide()].map((e) => e.scrollLeft);
   $('#szContent').innerHTML = `${data.stale ? '<div class="note small">Hors ligne : dernières données enregistrées.</div>' : ''}${html}`;
+  wide().forEach((e, i) => { if (scrolls[i]) e.scrollLeft = scrolls[i]; });
   tick();
   if (section === 'tech' && fiaData) translateTechDetail(ctx, fiaData);
   if (jump) {

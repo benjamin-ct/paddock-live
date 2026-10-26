@@ -14,7 +14,7 @@ import { renderRcm, initRcmFilters, initStewards, renderStewards } from './ui/fe
 import { renderRadios, initRadios } from './ui/radios.js';
 import { renderTelemetry } from './ui/extra.js';
 import { initNoLive } from './ui/home.js';
-import { initSeason } from './ui/season.js';
+import { initSeason, closeSeason } from './ui/season.js';
 
 translatePage();
 // GPS et télémétrie : texte compressé (deflate brut, base64) du flux F1
@@ -273,6 +273,8 @@ const webMenu = (open) => {
 };
 document.querySelector('#webMenuBtn').addEventListener('click', () => webMenu(!topbar.classList.contains('menu-open')));
 document.querySelector('#seasonBtn').addEventListener('click', () => webMenu(false));
+// Saison ouverte : toucher la séance en haut revient au direct
+document.querySelector('.topbar .session').addEventListener('click', () => { if (!document.querySelector('#seasonView').hidden) closeSeason(); });
 // Panneau Analyse : seulement la télémétrie du pilote suivi
 document.querySelector('.p-analysis [data-tab="telemetry"]')?.click();
 on('status', renderSource);
