@@ -174,7 +174,7 @@ export function renderDrivers(ctx, code) {
     : `<path d="M${X(x.r.round) - 3.5} ${H - pb - 9}l7 7m0 -7l-7 7" class="sz-dnf-x"/>`)).join('');
   const chart = `<svg viewBox="0 0 ${W} ${H}" class="sz-svg">${grid}${line(gridPts, true)}${line(finPts)}${dots}</svg>`;
 
-  return `<div class="sz-h2h-pick"><label class="small">Pilote <select id="szDriver">${data.drivers.map((d) => `<option value="${d.code}" ${d.code === drv.code ? 'selected' : ''}${ctx.opt(d, '')}>${d.pos}. ${esc(d.name)}</option>`).join('')}</select></label></div>
+  return `<div class="sz-h2h-pick"><label class="small">Pilote <select id="szDriver">${data.drivers.map((d) => `<option value="${d.code}" ${d.code === drv.code ? 'selected' : ''}${ctx.opt(d)}>${esc(d.name)}</option>`).join('')}</select></label></div>
     <div class="sz-drv-head" style="--tc:${col}">${ctx.bar(drv.team, drv.teamId)}<div><div class="sz-drv-name">${esc(drv.name)} <span class="muted">#${esc(drv.number || '')}</span></div>
       <div class="muted">${esc(drv.team)} · P${drv.pos} au championnat · ${drv.points} pts</div></div></div>
     <div class="sz-cards sz-kpis">
