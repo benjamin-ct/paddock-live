@@ -254,8 +254,11 @@ test('appairage : la connexion passe chiffrée, le serveur ne la lit pas, le cod
   const { code } = await (await call('POST', '', { pub: await jwk(phone) })).json();
   assert.match(code, /^\d{6}$/);
 
-  // Ordinateur : lit la clé du téléphone, chiffre la connexion, la dépose
-  const { pub } = await (await call('GET', `?code=${code}`)).json();
+  // Ordinateur : lit la clé du téléphone (et son type : téléphone par défaut, navigateur s'il le dit), chiffre la connexion, la dépose
+  const { pub, kind } = await (await call('GET', `?code=${code}`)).json();
+  assert.equal(kind, 'phone');
+  const other = await (await call('POST', '', { pub: await jwk(await keys()), kind: 'browser' })).json();
+  assert.equal((await (await call('GET', `?code=${other.code}`)).json()).kind, 'browser');
   const comp = await keys();
   const key = await aes(comp.privateKey, pub);
   const iv = crypto.getRandomValues(new Uint8Array(12));

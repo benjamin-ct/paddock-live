@@ -122,6 +122,8 @@ l'application (Réglages → À propos → Nouveautés).
   s'ouvre par la coupe à côté ; toucher la séance en haut ramène au direct.
 - « Ajouter à mon agenda » fonctionne aussi dans la version web : abonnement (Apple Calendrier, Outlook), Google
   Agenda ou fichier du week-end.
+- Relier un appareil à sa connexion F1 TV : le message dit « Navigateur relié » quand le code vient d'un navigateur
+  d'ordinateur, « Téléphone relié » quand il vient d'un téléphone.
 
 ### Fiabilité et sécurité
 - Connexion F1 TV par l'extension Paddock Live Companion : les replays (archives de la F1) s'ouvrent comme avec la
