@@ -1387,6 +1387,7 @@ export default {
   "s'arrête maintenant (actuellement P{}) :": "pits now (currently P{}):",
   "s'éloigne ({} s/tour)": "pulling away ({} s/lap)",
   "Saison": "Season",
+  "connexion perdue, nouvel essai dans 10 s": "connection lost, trying again in 10 s",
   "Calendrier, classements et résultats de la saison": "Season calendar, standings and results",
   "Rubriques de la Saison": "Season sections",
   "Saison : calendrier, classements, résultats, statistiques": "Season: calendar, standings, results, statistics",

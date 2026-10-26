@@ -72,7 +72,9 @@ async function loadFia() {
     if (f.pending) fiaTimer = setTimeout(loadFia, 3000);
     if (same) return;   // relecture pendant la lecture des documents : rien de nouveau, rien de redessiné
   } catch (err) {
-    if (y === year) fia = { year: y, error: err.message, events: [] };
+    const lost = err instanceof TypeError;   // réseau coupé (« Load failed ») : nouvel essai
+    if (y === year) fia = { year: y, error: lost ? 'connexion perdue, nouvel essai dans 10 s' : err.message, events: [] };
+    if (lost) fiaTimer = setTimeout(loadFia, 10000);
   }
   if (FIA_SECTIONS.has(section) && !$('#seasonView').hidden) render();
 }
@@ -89,7 +91,9 @@ async function loadStats() {
     if (s.pending) statsTimer = setTimeout(loadStats, 3000);
     if (same) return;   // relecture pendant l'analyse : rien de nouveau, rien de redessiné (tableaux laissés où ils sont)
   } catch (err) {
-    if (y === year) stats = { error: err.message, races: [] };
+    const lost = err instanceof TypeError;   // réseau coupé : nouvel essai
+    if (y === year) stats = { error: lost ? 'connexion perdue, nouvel essai dans 10 s' : err.message, races: [] };
+    if (lost) statsTimer = setTimeout(loadStats, 10000);
   }
   if (STATS_SECTIONS.has(section) && !$('#seasonView').hidden) render();
 }
