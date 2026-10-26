@@ -132,10 +132,10 @@
       .web .web-delay, .web #sourceBadge, .web .topbar > .btn { order: 5; }
       .web .web-delay { margin-right: auto; }
       .web .topbar .weather-mini { order: 4; flex-basis: 100%; max-height: none; gap: 14px; }
-      /* Réglages du direct (délai, F1 TV, état du serveur, Saison, appli, météo et circuit) derrière l'engrenage :
-         la barre du haut ne garde que la séance et le chrono */
+      /* Réglages du direct (délai, F1 TV, état du serveur, Saison, appli) derrière l'engrenage : la barre du haut
+         garde la séance, le chrono et les infos (longueur, course, météo, piste) */
       .web #webMenuBtn { display: inline-flex; order: 1; margin-left: 2px; color: #fff; }   /* après l’état de la piste */
-      .web .topbar:not(.menu-open) > :is(.weather-mini, #circuitTimeBox, #surfaceBox, .web-delay, #pairBtn, #sourceBadge, #seasonBtn, a.btn) { display: none !important; }
+      .web .topbar:not(.menu-open) > :is(.web-delay, #pairBtn, #sourceBadge, #seasonBtn, a.btn) { display: none !important; }
       .web .topbar.menu-open #webMenuBtn { background: rgba(255, 255, 255, .14); border-radius: 8px; }
       /* Espace Saison ouvert : la barre du haut ne garde que la séance (délai, F1 TV, chronos servent au direct) ;
          « Retour au direct » est dans le menu ☰ */
