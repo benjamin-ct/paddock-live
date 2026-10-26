@@ -53,6 +53,7 @@ function save(item) {
 export async function requestTranslations(texts) {
   if (EN) return;                 // interface en anglais : textes FIA laissés tels quels
   await load();
+  notify(null);                   // traductions gardées, arrivées après l'affichage : mises en place
   const missing = [...new Set(texts.filter((t) => t && !cache[t] && !queued.has(t)))];
   if (!missing.length) return;
   if (store.isHost === false) {

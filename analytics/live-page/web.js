@@ -18,6 +18,8 @@ import { initSeason, closeSeason } from './ui/season.js';
 import './ui/calendar-menu.js';   // « Ajouter à mon agenda » (Saison)
 
 translatePage();
+// Rien n'est traduit dans le navigateur (pas de moteur local) : documents FIA traduits par le serveur, relus plus tard
+store.isHost = false;
 // GPS et télémétrie : texte compressé (deflate brut, base64) du flux F1
 async function inflate(b64) {
   const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
@@ -267,7 +269,10 @@ safe(initSeason);
 // Téléphone : réglages du direct derrière l'engrenage. Hauteur de la barre changée (réglages ouverts, police
 // chargée) : écran « Pas de séance en direct » replacé dessous
 const topbar = document.querySelector('.topbar');
-new ResizeObserver(() => dispatchEvent(new Event('resize'))).observe(topbar);
+new ResizeObserver(() => {
+  document.documentElement.style.setProperty('--web-top', `${topbar.offsetHeight}px`);   // place laissée à la barre fixée
+  dispatchEvent(new Event('resize'));
+}).observe(topbar);
 const webMenu = (open) => {
   topbar.classList.toggle('menu-open', open);
   document.querySelector('#webMenuBtn').setAttribute('aria-expanded', String(open));
