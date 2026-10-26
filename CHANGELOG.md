@@ -60,6 +60,8 @@ l'application (Réglages → À propos → Nouveautés).
   (jaune, vert, violet) pendant son tour. La bulle d'infos n'apparaît plus que pour un pilote choisi.
 - Carte sans GPS (positions estimées d'après le chronométrage) : les voitures avancent de façon fluide. Quand le
   chronométrage les recale, elles accélèrent ou ralentissent un peu au lieu de sauter, de reculer ou de s'arrêter net.
+  En direct, chaque passage est daté à l'heure où la F1 l'a émis et chaque voiture garde son rythme de chaque portion
+  du circuit : elle est bien plus près de sa vraie place.
 - Classement agrandi (bouton ⤢) : ses propres colonnes, choisies dans « Colonnes » pendant qu'il est agrandi ;
   revenu à sa taille, il reprend celles d'habitude.
 - L'onglet « Limites de piste » (ou « Enquêtes ») ouvert reste ouvert au lancement suivant.

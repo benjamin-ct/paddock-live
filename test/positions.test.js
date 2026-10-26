@@ -9,7 +9,8 @@ const { Positions } = await import(`data:text/javascript,${encodeURIComponent(sr
 // Course simulée sans GPS. Le tracé est mesuré en secondes du tour de référence (comme les vrais tracés) : une
 // voiture au rythme de référence avance d'une unité par seconde. Chaque pilote est plus ou moins rapide que la
 // référence selon les portions (± 8 %), chaque tour un peu différent (± 1,5 %), et les messages du chronométrage
-// arrivent avec 0 à 0,8 s de retard. 24 boucles par tour (3 secteurs de 8), calibrées.
+// arrivent plus ou moins vite (± 0,4 s autour du retard habituel, que la calibration des boucles compense déjà).
+// 24 boucles par tour (3 secteurs de 8), calibrées.
 const L = 80;
 const SEGS = 8;
 const N = 3 * SEGS;
@@ -17,8 +18,9 @@ const loops = { line: 0, segs: Object.fromEntries(Array.from({ length: N }, (_, 
 const fmt = (s) => `${Math.floor(s / 60)}:${(s % 60).toFixed(3).padStart(6, '0')}`;
 function rng(seed) { let x = seed; return () => { x = (x * 1103515245 + 12345) % 2147483648; return x / 2147483648; }; }
 
-function simulate(laps = 4) {
-  const pos = new Positions();
+// utc : messages avec l'heure d'émission par la F1 (direct) ; l'horloge F1 est ici l'horloge locale
+function simulate(laps = 4, utc = false) {
+  const pos = new Positions((u) => u);
   pos.setTrack({ L, pointAt: (p) => ({ x: p, y: 0 }) });
   pos.setLoops(loops);
   const rand = rng(7);
@@ -36,9 +38,9 @@ function simulate(laps = 4) {
       for (let k = 0; k < N; k++) {
         t += (L / N) * c.pace * profile[k] * day * 1000;
         truth.push([t, lap * L + ((k + 1) * L) / N]);
-        const late = rand() * 800;
+        const late = (rand() - 0.5) * 800;
         const upd = k === N - 1 ? { NumberOfLaps: lap + 1, LastLapTime: { Value: fmt((t - lapStart) / 1000) } } : { Sectors: { [Math.floor(k / SEGS)]: { Segments: { [k % SEGS]: { Status: 2049 } } } } };
-        events.push({ t: t + late, num, upd });
+        events.push({ t: t + late, num, upd, utc: utc ? new Date(t).toISOString() : undefined });
       }
       lapStart = t;
     }
@@ -57,17 +59,17 @@ const truthAt = (truth, t) => {
 
 // Mesures sur les tours 3 et 4 (temps des portions appris) : reculs, bonds (plus de 3 fois la vitesse sur une image),
 // arrêts (immobile une image alors qu'elle roule), écart moyen et pire écart avec la vraie place (en secondes)
-export function measure() {
-  const { pos, cars, state, events } = simulate(4);
+export function measure(utc = false) {
+  const { pos, cars, state, events } = simulate(4, utc);
   const end = events.at(-1).t;
   let e = 0;
   const shown = { 1: [], 2: [] };
   for (let t = 1000; t < end; t += 50) {
     for (; e < events.length && events[e].t <= t; e++) {
-      const { num, upd } = events[e];
+      const { num, upd, utc: u } = events[e];
       const line = state.TimingData.Lines[num];
       if (upd.NumberOfLaps !== undefined) { line.NumberOfLaps = upd.NumberOfLaps; line.LastLapTime = upd.LastLapTime; }
-      pos.onTiming(state, { Lines: { [num]: upd } }, events[e].t);
+      pos.onTiming(state, { Lines: { [num]: upd } }, events[e].t, u);
     }
     for (const num of ['1', '2']) {
       const g = pos.estimatedXY(num, t, 0.05);
@@ -96,8 +98,8 @@ test('positions estimées : la voiture ne recule pas, ne bondit pas, ne s\'arrê
     assert.equal(r.back, 0, `voiture ${num} : recule ${r.back} fois`);
     assert.equal(r.jumps, 0, `voiture ${num} : ${r.jumps} bonds`);
     assert.equal(r.stops, 0, `voiture ${num} : ${r.stops} arrêts`);
-    assert.ok(r.mean < 0.6, `voiture ${num} : écart moyen ${r.mean.toFixed(2)} s`);
-    assert.ok(r.worst < 1.5, `voiture ${num} : pire écart ${r.worst.toFixed(2)} s`);
+    assert.ok(r.mean < 0.25, `voiture ${num} : écart moyen ${r.mean.toFixed(2)} s`);
+    assert.ok(r.worst < 0.8, `voiture ${num} : pire écart ${r.worst.toFixed(2)} s`);
   }
 });
 
@@ -115,4 +117,13 @@ test('positions estimées : voiture au ralenti (plus de passage) : la voiture af
   assert.ok(prev <= est + 0.02 * L + 0.05, `affichée ${prev.toFixed(2)} trop loin devant l'estimation ${est.toFixed(2)}`);
   // Longue pause de l'affichage (onglet caché) : recalée sur l'estimation, pas projetée au-delà
   assert.equal(pos.estimatedXY('1', t0 + 31000, 2).x, pos.estimatedProgress('1', t0 + 31000));
+});
+
+test('positions estimées : avec l\'heure d\'émission des messages (direct), la voiture colle à sa vraie place', () => {
+  for (const [num, r] of Object.entries(measure(true))) {
+    console.log(`voiture ${num}, heure d'émission : ${r.back} reculs, ${r.jumps} bonds, ${r.stops} arrêts, écart moyen ${r.mean.toFixed(2)} s, pire ${r.worst.toFixed(2)} s`);
+    assert.equal(r.back + r.jumps + r.stops, 0);
+    assert.ok(r.mean < 0.08, `voiture ${num} : écart moyen ${r.mean.toFixed(2)} s`);
+    assert.ok(r.worst < 0.2, `voiture ${num} : pire écart ${r.worst.toFixed(2)} s`);
+  }
 });

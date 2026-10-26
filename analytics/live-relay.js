@@ -279,8 +279,9 @@ export class LiveRelay {
     if (k) this.stream.splice(0, k);
   }
 
-  add(topic, data, t) {
-    const e = [topic, data, t];
+  // utc : heure d'émission par la F1 (chronométrage), transmise aux navigateurs avec l'événement
+  add(topic, data, t, utc) {
+    const e = utc ? [topic, data, t, utc] : [topic, data, t];
     this.recent.push(e);
     this.out.push(e);
   }
@@ -383,7 +384,7 @@ export class LiveRelay {
       }
       for (const z of ['Position.z', 'CarData.z']) if (typeof result[z] === 'string') this.addStream(topicName(z), result[z], now);
     } else if (msg.type === 1 && msg.target === 'feed' && Array.isArray(msg.arguments)) {
-      const [raw, data] = msg.arguments;
+      const [raw, data, utc] = msg.arguments;   // utc : heure d'émission par la F1
       if (typeof raw !== 'string') return;
       const topic = topicName(raw);
       if (raw.endsWith('.z')) {
@@ -393,7 +394,7 @@ export class LiveRelay {
       }
       if (topic === 'TimingData') this.lastTimingAt = now;
       if (topic === 'SessionInfo' && data?.Key && this.key && data.Key !== this.key) { this.reconnectLater(); return; }
-      this.add(topic, data, now);
+      this.add(topic, data, now, topic === 'TimingData' && typeof utc === 'string' ? utc : undefined);
     } else if (msg.type === 7) {
       this.setStatus({ connected: false, error: msg.error ? `Fermé par la F1 : ${msg.error}` : 'Fermé par la F1' });
       this.reconnectLater();

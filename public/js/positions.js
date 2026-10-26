@@ -141,15 +141,21 @@ export class Positions {
   }
 
   // ---- Chronométrage : recalage des tours (GPS) et ancrages (mode estimé) ----
-  onTiming(state, data, t) {
+  // utc : heure d'émission du message par la F1 (direct). Convertie en heure locale (Heartbeat), elle date le passage
+  // mieux que l'heure d'arrivée, qui varie avec le réseau ; l'heure d'arrivée si elle manque ou paraît fausse
+  onTiming(state, data, t, utc) {
     if (!this.track || !data?.Lines) return;
+    const u = parseUtc(utc);
+    const m = Number.isFinite(u) ? this.mapUtc(u) : null;
+    const precise = Number.isFinite(m) && m <= t + 500 && m >= t - 5000;
+    if (precise) t = m;
     const lines = state.TimingData?.Lines || {};
     for (const [num, upd] of Object.entries(data.Lines)) {
       if (!upd || typeof upd !== 'object') continue;
       const line = lines[num];
       if (!line) continue;
       if (upd.NumberOfLaps !== undefined) this.realignGpsLap(num, upd.NumberOfLaps, t);
-      this.estimateFromTiming(state, num, upd, line, t);
+      this.estimateFromTiming(state, num, upd, line, t, precise);
     }
   }
 
@@ -210,10 +216,11 @@ export class Positions {
     return (((f - this.lineFrac()) % 1) + 1) % 1;
   }
 
-  estimateFromTiming(state, num, upd, line, t) {
+  // precise : passage daté par la F1 (heure d'émission) ; seulement alors le temps de chaque portion est appris
+  estimateFromTiming(state, num, upd, line, t, precise = false) {
     const L = this.track.L;
     let est = this.est.get(num);
-    if (!est) this.est.set(num, (est = { p0: null, t0: 0, rate: 0.97, cap: Infinity }));
+    if (!est) this.est.set(num, (est = { p0: null, t0: 0, rate: 0.97, cap: Infinity, legs: new Map(), pace: 1 }));
 
     const last = parseLapTime(line.LastLapTime?.Value) || parseLapTime(line.BestLapTime?.Value);
     if (last) est.rate = Math.max(0.3, Math.min(1.2, L / last));
@@ -250,15 +257,43 @@ export class Positions {
       const k = Math.round((cur - frac * L) / L);
       p = k * L + frac * L;
     }
+    // Profil de la voiture (passages datés par la F1 seulement : sinon le retard variable du réseau le brouille) :
+    // son temps sur chaque portion d'une boucle à la suivante au tour d'avant, et son rythme du moment (ce temps
+    // comparé au tour d'avant : pneus, trafic, voiture de sécurité). Une portion bien plus longue ou plus courte que
+    // d'habitude (arrêt, drapeau, boucle manquée) n'est pas apprise
+    const key = Math.round(q * 2000);
+    if (precise && est.precise && est.key !== key && p > est.p0 && p - est.p0 < 0.15 * L) {
+      const dur = ((t - est.t0) / 1000) * this.speed();
+      const leg = est.legs.get(est.key);
+      const ratio = leg?.next === key ? dur / leg.dur : null;
+      if (ratio === null || (ratio > 0.6 && ratio < 1.6)) {
+        if (ratio !== null) est.pace = est.pace * 0.7 + ratio * 0.3;
+        est.legs.set(est.key, { next: key, q, dur });
+      }
+    }
+    est.precise = precise;
+    est.key = key;
+    est.q = q;
     est.p0 = p;
     est.t0 = t;
     est.cap = p + (this.loops ? 0.08 : 0.12) * L;
   }
 
+  // Progression estimée : jusqu'à la boucle suivante dans le temps que la voiture y a mis au tour d'avant (à son
+  // rythme du moment) ; sans ce profil, au rythme moyen de son dernier tour
   estimatedProgress(num, now) {
     const est = this.est.get(num);
     if (!est || est.p0 === null) return null;
-    return Math.min(est.cap, est.p0 + ((now - est.t0) / 1000) * est.rate * this.speed());
+    const el = ((now - est.t0) / 1000) * this.speed();
+    const leg = est.precise ? est.legs.get(est.key) : null;
+    if (leg) {
+      const L = this.track.L;
+      const dp = ((((leg.q - est.q) % 1) + 1) % 1 || 1) * L;
+      const T = leg.dur * est.pace;
+      if (el <= T) return est.p0 + dp * (el / T);
+      return Math.min(est.p0 + dp + (el - T) * est.rate * 0.4, est.p0 + dp + 0.02 * L);   // en retard : continue doucement
+    }
+    return Math.min(est.cap, est.p0 + el * est.rate);
   }
 
   // ---- Lecture ----

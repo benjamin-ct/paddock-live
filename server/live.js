@@ -166,8 +166,8 @@ export class LiveSource {
     } else if (msg.type === 3 && msg.invocationId === '2') {
       probeAnswer(msg.result, msg.error, this.session);
     } else if (msg.type === 1 && msg.target === 'feed' && Array.isArray(msg.arguments)) {
-      const [rawTopic, data] = msg.arguments;
-      this.onFeed(rawTopic, data, now);
+      const [rawTopic, data, utc] = msg.arguments;   // utc : heure d'émission par la F1
+      this.onFeed(rawTopic, data, now, utc);
     } else if (msg.type === 7) {
       this.setStatus({ error: msg.error ? `Fermé par le serveur : ${msg.error}` : 'Fermé par le serveur' });
       this.scheduleReconnect();
@@ -211,15 +211,15 @@ export class LiveSource {
         apply();
         const queued = this.pending || [];
         this.pending = null;
-        for (const [rawTopic, data, t] of queued) this.onFeed(rawTopic, data, t);
+        for (const [rawTopic, data, t, utc] of queued) this.onFeed(rawTopic, data, t, utc);
       });
       return;
     }
     apply();
   }
 
-  addEvent(topic, data, t) {
-    this.hub.addEvent(topic, data, t);
+  addEvent(topic, data, t, utc) {
+    this.hub.addEvent(topic, data, t, utc);
     this.recorder?.write(t, topic, data);
   }
 
@@ -228,9 +228,10 @@ export class LiveSource {
     this.recorder?.write(t, topic, raw, true);
   }
 
-  onFeed(rawTopic, data, now) {
+  // utc : heure d'émission du message par la F1, gardée pour le chronométrage (positions estimées sans GPS)
+  onFeed(rawTopic, data, now, utc) {
     if (isProbe(rawTopic)) { probeFeed(rawTopic, data); return; }
-    if (this.pending) { this.pending.push([rawTopic, data, now]); return; }
+    if (this.pending) { this.pending.push([rawTopic, data, now, utc]); return; }
     const topic = topicName(rawTopic);
     if (topic === 'TimingData') this.lastTimingAt = Date.now();   // séance en cours (statistiques)
     if (rawTopic.endsWith('.z')) {
@@ -244,7 +245,7 @@ export class LiveSource {
       this.restart();
       return;
     }
-    this.addEvent(topic, data, now);
+    this.addEvent(topic, data, now, topic === 'TimingData' && typeof utc === 'string' ? utc : undefined);
   }
 }
 

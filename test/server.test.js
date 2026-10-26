@@ -177,3 +177,24 @@ test('réseau : relance des refus temporaires (422, 429, 5xx), pas des ressource
   await assert.rejects(withRetry(async () => { n++; throw new HttpError(503, 'u'); }, { tries: 2, delay: 1 }));
   assert.equal(n, 2);
 });
+
+test('hub : heure d\'émission du chronométrage transmise au navigateur avec l\'événement (positions estimées)', () => {
+  const hub = new Hub({ maxDelayMs: 600000 });
+  const now = Date.now();
+  hub.reset({ mode: 'test' });
+  hub.addEvent('__snapshot', { LapCount: { CurrentLap: 1 } }, now - 60000);
+  const ws = new FakeWs();
+  hub.addClient(ws);
+  ws.emit('message', Buffer.from(JSON.stringify({ type: 'delay', ms: 0 })));
+  hub.tick();
+  ws.sent = [];
+  // Délai minimum de 5 s : événements datés de plus de 5 s
+  hub.addEvent('TimingData', { Lines: { 1: { Sectors: { 0: { Segments: { 2: { Status: 2049 } } } } } } }, now - 20000, '2026-10-30T18:00:00.123Z');
+  hub.addEvent('LapCount', { CurrentLap: 2 }, now - 15000);
+  try {
+    hub.tick();
+    const events = ws.sent.filter((m) => m.type === 'batch').flatMap((m) => m.events);
+    assert.deepEqual(events.map((e) => e.length), [4, 3]);
+    assert.equal(events[0][3], '2026-10-30T18:00:00.123Z');
+  } finally { hub.close(); }
+});

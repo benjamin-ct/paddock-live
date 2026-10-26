@@ -93,9 +93,9 @@ export function handleReset(msg) {
 
 export function handleBatch(msg) {
   const topics = new Set();
-  for (const [topic, data, t] of msg.events) {
+  for (const [topic, data, t, utc] of msg.events) {
     applyEvent(store.state, store.derived, topic, data, t);
-    if (topic === 'TimingData') store.positions.onTiming(store.state, data, t);
+    if (topic === 'TimingData') store.positions.onTiming(store.state, data, t, utc);
     if (topic === '__snapshot') Object.keys(data).forEach((k) => topics.add(k));
     else topics.add(topic);
   }
