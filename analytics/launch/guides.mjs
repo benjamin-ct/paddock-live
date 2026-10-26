@@ -312,11 +312,48 @@ export const GUIDES = [
 
 // Textes de la page dans chaque langue (les pages anglaises renvoient vers l'accueil anglais, /en/)
 const UI = {
-  fr: { home: '/', dl: 'Télécharger', cta: 'Télécharger Paddock Live gratuitement', os: 'Windows, macOS et Linux', faq: 'Questions fréquentes', more: 'Aussi dans Paddock Live', all: 'Toutes les fonctions', terms: 'Conditions d\'utilisation', privacy: 'Confidentialité', locale: 'fr_FR',
+  fr: { home: '/', season: '/saison/', seasonName: 'Saison de F1', dl: 'Télécharger', cta: 'Télécharger Paddock Live gratuitement', os: 'Windows, macOS et Linux', faq: 'Questions fréquentes', more: 'Aussi dans Paddock Live', all: 'Toutes les fonctions', terms: 'Conditions d\'utilisation', privacy: 'Confidentialité', locale: 'fr_FR',
     legal: 'Paddock Live est un projet indépendant, sans lien avec la Formula 1, la FIA ni les écuries. F1, FORMULA 1 et les marques associées appartiennent à Formula One Licensing B.V.' },
-  en: { home: '/en/', dl: 'Download', cta: 'Download Paddock Live for free', os: 'Windows, macOS and Linux', faq: 'Frequently asked questions', more: 'Also in Paddock Live', all: 'All features', terms: 'Terms of Service', privacy: 'Privacy', locale: 'en_US',
+  en: { home: '/en/', season: '/en/season/', seasonName: 'F1 season', dl: 'Download', cta: 'Download Paddock Live for free', os: 'Windows, macOS and Linux', faq: 'Frequently asked questions', more: 'Also in Paddock Live', all: 'All features', terms: 'Terms of Service', privacy: 'Privacy', locale: 'en_US',
     legal: 'Paddock Live is an independent project, not affiliated with Formula 1, the FIA or the teams. F1, FORMULA 1 and related marks are trademarks of Formula One Licensing B.V.' },
 };
+
+// Style des pages du site écrites ici et par le serveur (pages de la Saison, analytics/season-pages.js)
+export const PAGE_STYLE = `@font-face { font-family: 'Titillium Web'; font-weight: 400; font-display: swap; src: url('/fonts/titillium-400.woff2') format('woff2'); }
+@font-face { font-family: 'Titillium Web'; font-weight: 700; font-display: swap; src: url('/fonts/titillium-700.woff2') format('woff2'); }
+@font-face { font-family: 'Saira Condensed'; font-weight: 800; font-display: swap; src: url('/fonts/sairacondensed-800.woff2') format('woff2'); }
+:root { color-scheme: dark; --bg: #0b0c0f; --card: #15171c; --line: rgba(255, 255, 255, .08); --line-2: rgba(255, 255, 255, .15); --text: #f2f1ee; --text-2: #c8c7c1; --muted: #8f8d87; --red: #e10600; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 17px/1.6 'Titillium Web', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+a { color: inherit; }
+img { display: block; max-width: 100%; height: auto; }
+.wrap { max-width: 1000px; margin: 0 auto; padding: 0 max(16px, env(safe-area-inset-left)); }
+.nav { border-bottom: 1px solid var(--line); }
+.nav .wrap { display: flex; align-items: center; gap: 16px; height: 64px; }
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; font: 800 24px/1 'Saira Condensed', sans-serif; }
+.brand img { width: 32px; height: 32px; border-radius: 8px; }
+.brand b { color: var(--red); }
+.btn { display: inline-flex; align-items: center; justify-content: center; padding: 13px 24px; border-radius: 999px; background: var(--red); color: #fff; text-decoration: none; font-weight: 700; white-space: nowrap; }
+.nav .btn { margin-left: auto; padding: 9px 16px; font-size: 14px; }
+.eyebrow { display: inline-block; font-weight: 700; font-size: 13px; letter-spacing: .14em; text-transform: uppercase; color: var(--red); margin: 48px 0 12px; }
+h1, h2 { font-family: 'Saira Condensed', 'Arial Narrow', sans-serif; font-weight: 800; line-height: 1.04; margin: 0; }
+h1 { font-size: clamp(36px, 6vw, 58px); }
+h2 { font-size: clamp(26px, 4vw, 36px); margin: 56px 0 16px; }
+.lead { color: var(--text-2); font-size: 19px; max-width: 62ch; }
+.frame { margin: 32px 0; border-radius: 14px; overflow: hidden; border: 1px solid var(--line-2); }
+ul.points { padding-left: 1.2em; color: var(--text-2); }
+ul.points li { margin: 8px 0; }
+details { border: 1px solid var(--line); border-radius: 12px; padding: 14px 18px; margin: 10px 0; background: var(--card); }
+summary { font-weight: 700; cursor: pointer; }
+details p { color: var(--text-2); margin: 10px 0 0; }
+.cta { margin: 40px 0; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+.cta small { color: var(--muted); }
+.more { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.more a { display: block; padding: 14px 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); text-decoration: none; font-weight: 700; }
+.more a:hover { border-color: var(--line-2); }
+footer { margin-top: 72px; padding: 28px 0 40px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; }
+footer a { color: var(--text-2); }
+`;
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
@@ -358,41 +395,7 @@ export function guidePage(slug) {
 <link rel="apple-touch-icon" href="/site/img/apple-touch-icon.png">
 <script type="application/ld+json">${JSON.stringify(ld).replace(/</g, '\\u003c')}</script>
 <style>
-@font-face { font-family: 'Titillium Web'; font-weight: 400; font-display: swap; src: url('/fonts/titillium-400.woff2') format('woff2'); }
-@font-face { font-family: 'Titillium Web'; font-weight: 700; font-display: swap; src: url('/fonts/titillium-700.woff2') format('woff2'); }
-@font-face { font-family: 'Saira Condensed'; font-weight: 800; font-display: swap; src: url('/fonts/sairacondensed-800.woff2') format('woff2'); }
-:root { color-scheme: dark; --bg: #0b0c0f; --card: #15171c; --line: rgba(255, 255, 255, .08); --line-2: rgba(255, 255, 255, .15); --text: #f2f1ee; --text-2: #c8c7c1; --muted: #8f8d87; --red: #e10600; }
-* { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--text); font: 17px/1.6 'Titillium Web', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
-a { color: inherit; }
-img { display: block; max-width: 100%; height: auto; }
-.wrap { max-width: 1000px; margin: 0 auto; padding: 0 max(16px, env(safe-area-inset-left)); }
-.nav { border-bottom: 1px solid var(--line); }
-.nav .wrap { display: flex; align-items: center; gap: 16px; height: 64px; }
-.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; font: 800 24px/1 'Saira Condensed', sans-serif; }
-.brand img { width: 32px; height: 32px; border-radius: 8px; }
-.brand b { color: var(--red); }
-.btn { display: inline-flex; align-items: center; justify-content: center; padding: 13px 24px; border-radius: 999px; background: var(--red); color: #fff; text-decoration: none; font-weight: 700; white-space: nowrap; }
-.nav .btn { margin-left: auto; padding: 9px 16px; font-size: 14px; }
-.eyebrow { display: inline-block; font-weight: 700; font-size: 13px; letter-spacing: .14em; text-transform: uppercase; color: var(--red); margin: 48px 0 12px; }
-h1, h2 { font-family: 'Saira Condensed', 'Arial Narrow', sans-serif; font-weight: 800; line-height: 1.04; margin: 0; }
-h1 { font-size: clamp(36px, 6vw, 58px); }
-h2 { font-size: clamp(26px, 4vw, 36px); margin: 56px 0 16px; }
-.lead { color: var(--text-2); font-size: 19px; max-width: 62ch; }
-.frame { margin: 32px 0; border-radius: 14px; overflow: hidden; border: 1px solid var(--line-2); }
-ul.points { padding-left: 1.2em; color: var(--text-2); }
-ul.points li { margin: 8px 0; }
-details { border: 1px solid var(--line); border-radius: 12px; padding: 14px 18px; margin: 10px 0; background: var(--card); }
-summary { font-weight: 700; cursor: pointer; }
-details p { color: var(--text-2); margin: 10px 0 0; }
-.cta { margin: 40px 0; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
-.cta small { color: var(--muted); }
-.more { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
-.more a { display: block; padding: 14px 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); text-decoration: none; font-weight: 700; }
-.more a:hover { border-color: var(--line-2); }
-footer { margin-top: 72px; padding: 28px 0 40px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; }
-footer a { color: var(--text-2); }
-</style>
+${PAGE_STYLE}</style>
 </head>
 <body>
 <header class="nav"><div class="wrap">
@@ -412,7 +415,7 @@ footer a { color: var(--text-2); }
   <div class="more">${others.map((x) => `<a href="/${x.slug}/">${esc(x.eyebrow)}</a>`).join('')}<a href="${ui.home}">${ui.all}</a></div>
 </main>
 <footer><div class="wrap">
-  <p><a href="${ui.home}">Paddock Live</a> · <a href="/legal/terms">${ui.terms}</a> · <a href="/legal/privacy">${ui.privacy}</a> · <a href="/${g.pair}/">${g.lang === 'fr' ? 'English' : 'Français'}</a></p>
+  <p><a href="${ui.home}">Paddock Live</a> · <a href="${ui.season}">${ui.seasonName}</a> · <a href="/legal/terms">${ui.terms}</a> · <a href="/legal/privacy">${ui.privacy}</a> · <a href="/${g.pair}/">${g.lang === 'fr' ? 'English' : 'Français'}</a></p>
   <p>${ui.legal}</p>
 </div></footer>
 </body>
@@ -469,4 +472,5 @@ Disallow: /kit/
 Disallow: /stats
 Disallow: /login
 Sitemap: ${SITE}/sitemap.xml
+Sitemap: ${SITE}/saison/sitemap.xml
 `;
