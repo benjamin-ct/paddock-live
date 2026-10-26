@@ -125,6 +125,12 @@ export function initReplays() {
   // Badge de la source (LIVE / REPLAY) : ouvre cet espace
   $('#sourceBadge')?.addEventListener('click', () => openReplays());
   window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !view.hidden && !document.querySelector('dialog[open]')) closeReplays(); });
-  // Replay lancé ailleurs (accueil, autre écran) : place au tableau de bord
-  on('status', (s) => { if (s?.source?.mode === 'replay' && !view.hidden && Date.now() - openedAt > 1500) closeReplays(); });
+  // Replay lancé ailleurs (accueil, autre écran) : place au tableau de bord. Seulement quand un autre replay
+  // démarre : l'état arrive aussi pendant toute la lecture, il ne doit pas refermer les Replays rouverts
+  let playing = null;
+  on('status', (s) => {
+    const path = s?.source?.mode === 'replay' ? s.source.path : null;
+    if (path && path !== playing && !view.hidden && Date.now() - openedAt > 1500) closeReplays();
+    playing = path;
+  });
 }
