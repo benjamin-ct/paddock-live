@@ -1181,3 +1181,27 @@ test('Suivi : détail d\'une tâche cochée mis en forme comme celui d\'une tâc
   assert.deepEqual(styles[0].fontSize, big.fontSize);     // titre : comme le titre de la première tâche faite
   assert.deepEqual(styles[1].fontSize, small.fontSize);   // détail : comme un détail, pas comme un titre
 });
+
+test('page du créateur : « Reste à faire » (X avec ses images, fichiers refusés, fait = effacé, 7 jours au plus)', async () => {
+  const env3 = { DB: fakeDB(), MEDIA: fakeR2(), STUDIO_KEY_HASH: HASH, STATS_KEY: 's' };
+  const w = (p, init = {}) => studioApi(new Request(`https://s.test/studio/api/${p}`, { ...init, headers: { 'X-Studio-Key': studioKey(CODE), ...init.headers } }), env3, new URL(`https://s.test/studio/api/${p}`));
+  assert.equal((await studioApi(new Request('https://s.test/studio/api/init', { method: 'POST', body: JSON.stringify({ key: studioKey(CODE), vault: {} }) }), env3, new URL('https://s.test/studio/api/init'))).status, 200);
+  const form = (kind, files = []) => { const f = new FormData(); f.append('kind', kind); f.append('title', 'Publier sur X : Essai'); f.append('text', 'Texte du post'); f.append('after', String(Date.now() + 3600e3)); files.forEach((x) => f.append('f', x, x.name)); return f; };
+  const img = new File([new Uint8Array([0xff, 0xd8, 1, 2])], 'x-1.jpg', { type: 'image/jpeg' });
+  const r = await (await w('todo', { method: 'POST', body: form('x', [img, img]) })).json();
+  assert.equal(r.item.kind, 'x');
+  assert.ok(r.item.after > Date.now());
+  assert.equal(env3.MEDIA.objs.size, 2);
+  assert.equal((await w('todo', { method: 'POST', body: form('inconnu') })).status, 400);
+  assert.equal((await w('todo', { method: 'POST', body: form('x', [new File(['a'], 'a.gif', { type: 'image/gif' })]) })).status, 400);
+  const f0 = await w(`todo/file?id=${r.item.id}&i=1`);
+  assert.deepEqual([...new Uint8Array(await f0.arrayBuffer())], [0xff, 0xd8, 1, 2]);
+  assert.equal((await w('todo/file?id=../x&i=0')).status, 404);
+  assert.equal((await (await w('todo')).json()).items.length, 1);
+  const done = await (await w('todo/done', { method: 'POST', body: JSON.stringify({ id: r.item.id }) })).json();
+  assert.deepEqual(done.items, []);
+  assert.equal(env3.MEDIA.objs.size, 0, 'fichiers effacés avec la tâche');
+  // Tâche de plus de 7 jours : effacée à la lecture
+  env3.DB.studio.set('todo', JSON.stringify([{ id: 'a'.repeat(16), kind: 'tiktok', title: 'Vieux', text: '', after: 0, at: Date.now() - 8 * 86400e3, files: [] }]));
+  assert.deepEqual((await (await w('todo')).json()).items, []);
+});

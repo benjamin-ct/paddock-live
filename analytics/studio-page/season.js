@@ -230,8 +230,7 @@ async function seasonEditor(year, data, race, back) {
           clip = await makeAnimation((ctx, t, w, h) => raceFrame(ctx, w, h, d, o, t), raceVideoTiming(d).duration, { box: true, cover: (ctx) => videoCover(ctx, 1080, 1920, d, o), music: 'gen', track: track(), onProgress: (p) => { $('#vidst').textContent = `Enregistrement… ${Math.round(p * 100)} %`; } });
           $('#vid').src = URL.createObjectURL(clip.blob); $('#vid').hidden = false;
           $('#sharevid').disabled = false; $('#sharefull').disabled = false;
-          $('#vidst').textContent = `Vidéo prête (${(clip.blob.size / 1e6).toFixed(1).replace('.', ',')} Mo)${clip.silent ? ' · sans son : le navigateur a bloqué la musique, recommencez' : ''}${(file = clipFile(clip, `course-${race.round}`)) ? ' · jointe au post (à décocher à l\'étape Publier pour garder les visuels)' : ' · format WebM : à partager seulement (publication en MP4)'}`;
-          state.noVideo = false;
+          $('#vidst').textContent = `Vidéo prête (${(clip.blob.size / 1e6).toFixed(1).replace('.', ',')} Mo)${clip.silent ? ' · sans son : le navigateur a bloqué la musique, recommencez' : ''}${(file = clipFile(clip, `course-${race.round}`)) ? ' · jointe au post : Reel, vidéo, TikTok et Short à choisir à l\'étape Publier' : ' · format WebM : à partager seulement (publication en MP4)'}`;
           redraw();
         } catch (err) { $('#vidst').textContent = err.message; } finally { $('#mkvid').disabled = false; }
       };
