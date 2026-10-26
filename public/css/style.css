@@ -1511,6 +1511,8 @@ html[data-design="classic"] .rc-bar { display: none !important; }
     border-right: 1px solid var(--border); box-shadow: 8px 0 24px rgba(0, 0, 0, .35); transform: translateX(-105%); transition: transform .22s ease-out; }
   #seasonView.sz-open .sz-side { transform: none; }
   #seasonView :is(.sz-side, .sz-scrim) { animation: none !important; }   /* l'entrée de l'espace ne fait pas apparaître le menu */
+  /* Défilement de côté (tableaux larges, onglets) : s'arrête au bout, sans rebond ni passage à la page */
+  * { overscroll-behavior-x: none; }
   #seasonView .sz-side-head { padding: 0 6px 8px; }
   #seasonView .sz-side-head b { display: inline; }
   #seasonView #szNav { flex-direction: column; }

@@ -61,6 +61,8 @@
     .web body:has(#seasonView:not([hidden])) { overflow: hidden; }
     .web body:has(#seasonView:not([hidden])) .grid { display: none; }
     .web #szContent { overscroll-behavior: contain; }
+    /* La page ne glisse jamais de côté (seuls les tableaux larges défilent, dans leur cadre) */
+    html.web, .web body { overflow-x: clip; overscroll-behavior-x: none; }
     .web .topbar .web-delay { display: flex; align-items: center; gap: 6px; }
     .web .topbar .web-delay input { width: 54px; height: 34px; padding: 0 4px; text-align: center; border: 1px solid var(--border); border-radius: 8px;
       background: var(--panel-2); color: var(--text); font: 700 17px/1 inherit; font-variant-numeric: tabular-nums; }
