@@ -17,8 +17,10 @@ import { initNoLive } from './ui/home.js';
 import { initSeason, closeSeason, openSeason, seasonUrls } from './ui/season.js';
 import { parseSeasonPath } from '/shared/season-urls.js';
 import './ui/calendar-menu.js';   // « Ajouter à mon agenda » (Saison)
+import { initSelects } from './ui/select.js';
 
 translatePage();
+initSelects();   // listes déroulantes aux couleurs de l'appli (sur ordinateur ; le téléphone garde la sienne)
 // Rien n'est traduit dans le navigateur (pas de moteur local) : documents FIA traduits par le serveur, relus plus tard
 store.isHost = false;
 // GPS et télémétrie : texte compressé (deflate brut, base64) du flux F1

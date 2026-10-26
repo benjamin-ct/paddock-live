@@ -121,6 +121,8 @@ l'application (Réglages → À propos → Nouveautés).
   s'ouvre par la coupe à côté ; toucher la séance en haut ramène au direct.
 - « Ajouter à mon agenda » fonctionne aussi dans la version web : abonnement (Apple Calendrier, Outlook), Google
   Agenda ou fichier du week-end.
+- Sur ordinateur, les listes de choix s'ouvrent sur un menu aux couleurs de Paddock Live, comme dans l'application,
+  au lieu de la liste bleue et blanche du navigateur.
 
 ### Fiabilité et sécurité
 - Accès depuis le téléphone : un site ouvert sur l'ordinateur ne peut plus se faire passer pour l'ordinateur
