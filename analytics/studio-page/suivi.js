@@ -267,7 +267,7 @@ function netHtml(m) {
   const files = store.get('drive.files')?.v;
   const lastFill = store.get('drive.filled')?.at;
   const auto = files?.canWrite
-    ? `<p class="sv-note">Abonnés du lundi, meilleur post de Benjy et chiffres des posts (lien collé dans la feuille) remplis par le Studio${lastFill ? ` · dernier passage ${new Date(lastFill).toLocaleString('fr-FR', { weekday: 'long', hour: '2-digit', minute: '2-digit' })}` : ''}.</p>`
+    ? `<p class="sv-note">Abonnés du lundi, meilleur post de Benjy, liens et chiffres des posts (Instagram, Facebook, Threads, Bluesky ; YouTube publié depuis le Studio) remplis par le Studio${lastFill ? ` · dernier passage ${new Date(lastFill).toLocaleString('fr-FR', { weekday: 'long', hour: '2-digit', minute: '2-digit' })}` : ''}.</p>`
     : `<div class="notice">${icon('alert')}<span class="grow">Le Studio peut remplir la feuille tout seul (abonnés du lundi, chiffres des posts) : reconnecte Google Drive une fois pour l'autoriser à écrire.</span><button type="button" class="btn small" id="svwrite">${icon('link')}Reconnecter</button></div>`;
   return `${auto}<div class="tiles">
       <div class="tile"><b>${posts.length}</b><small>posts prévus</small></div>
@@ -278,7 +278,7 @@ function netHtml(m) {
     <div class="sv-grid">
       <section class="panel"><div class="sv-h"><b>Abonnés</b><div class="seg" id="svacc"><button data-acc="app" class="${acc === 'app' ? 'on' : ''}">@paddockliveapp</button><button data-acc="benjy" class="${acc === 'benjy' ? 'on' : ''}">@benjypaddock</button></div></div>${subs}</section>
       <section class="panel"><div class="sv-h"><b>Vues par réseau</b><small>@paddockliveapp</small></div>
-        ${netRows.length ? `<div class="sv-bars">${netRows.map(([k, v]) => bar(k, netColor(k), v, netRows[0][1])).join('')}</div>` : `<p class="sv-note">${posts.length} posts prévus, pas encore de vues relevées : colonnes Vues, J'aime… de l'onglet « Posts Paddock Live », à remplir le lundi.</p>`}</section>
+        ${netRows.length ? `<div class="sv-bars">${netRows.map(([k, v]) => bar(k, netColor(k), v, netRows[0][1])).join('')}</div>` : `<p class="sv-note">${posts.length} posts prévus, pas encore de vues relevées : le Studio les remplit tout seul une fois les posts publiés (TikTok et X : à la main, ces réseaux ne donnent pas les chiffres d'un post).</p>`}</section>
     </div>
     <section class="panel"><div class="sv-h"><b>Posts @paddockliveapp</b><small>${posts.length} lignes</small></div>
       <div class="sv-scroll"><table class="sv-table"><thead><tr><th>Date</th><th>Réseau</th><th>Sujet</th>${metrics.map((x) => `<th class="n">${x}</th>`).join('')}<th>Lien</th></tr></thead>
@@ -328,6 +328,9 @@ export async function fillSheet(accounts, force = false) {
   const files = store.get('drive.files')?.v;
   if (!accounts?.length || !files?.connected || !files.canWrite || (!force && store.get('drive.filled', 3600e3))) return null;
   try {
+    // Posts publiés à la main retrouvés sur les comptes reliés, et leurs chiffres relus : la feuille les reçoit aussi
+    const imp = await api('history/import', { method: 'POST' }).catch(() => null);
+    if (imp?.added || !store.get('stats', 3600e3)) await api('stats').catch(() => null);
     const r = await api('drive/fill', { method: 'POST', body: JSON.stringify({ accounts }) });
     store.set('drive.filled', r);
     if (r.cells) toast(`Feuille « Suivi réseaux » remplie (${r.cells} case${r.cells > 1 ? 's' : ''})`, 'ok');

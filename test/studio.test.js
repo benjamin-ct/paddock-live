@@ -1082,6 +1082,23 @@ test('onglet Suivi : feuille « Suivi réseaux » remplie avec les chiffres du S
   assert.equal(sheetUpdates(tables, accounts, { now: Date.UTC(2026, 9, 20) }).length, 0);
 });
 
+test('Suivi : lien d\'un post prévu retrouvé dans le journal (même réseau, même jour, heure la plus proche)', async () => {
+  const { sheetUpdates } = await import('../analytics/drive.js');
+  const paris = (h, m) => Date.UTC(2026, 9, 24, h - 2, m);   // 24 octobre, heure d'été à Paris
+  const tables = { 'Posts Paddock Live': [['Date', 'Heure', 'Réseau', 'Sujet', 'Lien du post', 'Vues'],
+    ['24/10/2026', '', 'Instagram Reels', 'Vidéo'], ['24/10/2026', '12:00', 'Instagram', 'Zéro spoiler'], ['24/10/2026', '12:00', 'X', 'Zéro spoiler'], ['25/10/2026', '19:00', 'Instagram', 'Règle ton délai']] };
+  const history = [
+    { key: 'reel', at: paris(18, 30), nets: { instagram: { url: 'https://www.instagram.com/reel/R/' } } },
+    { key: 'imp', at: paris(12, 4), nets: { instagram: { url: 'https://www.instagram.com/p/P/' }, facebook: { url: 'https://facebook.com/1' } } },
+  ];
+  const kept = [{ key: 'imp', at: paris(13, 0), stats: { instagram: { views: 90 } } }];
+  assert.deepEqual(sheetUpdates(tables, [], { history, kept }), [
+    { range: "'Posts Paddock Live'!E3", values: [['https://www.instagram.com/p/P/']] },
+    { range: "'Posts Paddock Live'!F3", values: [[90]] },
+    { range: "'Posts Paddock Live'!E2", values: [['https://www.instagram.com/reel/R/']] },
+  ]);
+});
+
 test('Suivi : tâche cochée déplacée en tête de « Fait » avec la date, Doc inchangé entre-temps exigé', async () => {
   const { checkTask } = await import('../analytics/drive.js');
   const run = (startIndex, content, textStyle = {}) => ({ startIndex, endIndex: startIndex + content.length, textRun: { content, textStyle } });
