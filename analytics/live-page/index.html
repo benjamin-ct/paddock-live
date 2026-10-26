@@ -51,9 +51,9 @@
     /* Bouton Saison dans la barre du haut (l'appli l'a dans son menu latéral) */
     .web .topbar #seasonBtn { display: inline-flex !important; }
     .web .topbar #seasonBtn:not(.on) { border-color: rgba(255, 255, 255, .18); }
-    /* Espace Saison : toutes les rubriques de l'appli (intertitres du menu sur grand écran seulement) */
+    /* Espace Saison : toutes les rubriques de l'appli, avec les intertitres du menu */
     .web #szNav button[data-full] { display: flex !important; }
-    @media (min-width: 901px) { .web #szNav .sz-nav-sep { display: block !important; } }
+    .web #szNav .sz-nav-sep { display: block !important; }
     /* Écran affiché : les panneaux vides dessous sont retirés, la page ne défile plus */
     .web body:has(#noLiveView:not([hidden])) { overflow: hidden; }
     .web body:has(#noLiveView:not([hidden])) .grid { display: none; }
