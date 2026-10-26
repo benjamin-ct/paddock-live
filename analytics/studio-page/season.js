@@ -9,7 +9,7 @@ import { recordsOf, recordYears, editionFromResults } from '/shared/circuit-reco
 import { parseRaceControl, raceSessionPath } from '/shared/race-story.js';
 import { makeAnimation, unlockAudio } from '/shared/social-video.js';
 import { videoCover } from '/shared/social-draw.js';
-import { $, $$, esc, api, icon, store, skeleton, toast, state, glide, SIG, musicField, bindMusic, clipFile, shareClip } from './ui.js';
+import { $, $$, esc, api, icon, store, skeleton, toast, state, glide, SIG, musicField, bindMusic, clipFile, shareClip, yearOf, yearPicker, bindYear } from './ui.js';
 import { latestDrivers } from './data.js';
 import { weekendPlan } from '/shared/post-history.js';
 import { editor, assets } from './editor.js';
@@ -119,12 +119,22 @@ function planCard(year, races) {
 }
 
 export async function seasonTab(body, back) {
-  const year = new Date().getUTCFullYear();
-  const bar = `<div class="chips wrap" id="stypes">${STYPES.map(([k, v]) => `<button data-st="${k}" class="${state.stype === k ? 'on' : ''}">${v}</button>`).join('')}</div>`;
+  const year = yearOf();
+  const bar = `${yearPicker()}<div class="chips wrap" id="stypes">${STYPES.map(([k, v]) => `<button data-st="${k}" class="${state.stype === k ? 'on' : ''}">${v}</button>`).join('')}</div>`;
   body.innerHTML = `${bar}${skeleton(5)}<p class="hint center">Lecture de la saison…</p>`;
   // Journal des posts relu à chaque affichage : le plan du week-end marque aussi ce qui vient d'être publié
   // (ici, depuis l'appli ou par une programmation)
-  const [data] = await Promise.all([seasonOf(year), api('history').then((r) => store.set('history', r.items || [])).catch(() => {})]);
+  let data;
+  try {
+    [data] = await Promise.all([seasonOf(year), api('history').then((r) => store.set('history', r.items || [])).catch(() => {})]);
+    if (!data?.races) throw new Error(`Saison ${year} indisponible pour le moment`);
+  } catch (err) {
+    // L'année reste à choisir (autre saison, ou réessayer plus tard)
+    if (!body.isConnected) return;
+    body.innerHTML = `${bar}<p class="hint err">${esc(err.message)}</p>`;
+    bindYear(body, () => { state.round = null; seasonTab(body, back); });
+    return;
+  }
   if (!body.isConnected) return;
   const upcoming = ['raceweek', 'weekend', 'records'].includes(state.stype);
   const races = upcoming ? data.races : data.races.filter((r) => r.results.length);
@@ -136,6 +146,7 @@ export async function seasonTab(body, back) {
   const on = $('#stypes .on');
   if (on) $('#stypes').scrollLeft = on.offsetLeft - ($('#stypes').clientWidth - on.offsetWidth) / 2;
   $$('[data-st]', body).forEach((b) => { b.onclick = () => { state.stype = b.dataset.st; state.round = null; seasonTab(body, back); }; });
+  bindYear(body, () => { state.round = null; seasonTab(body, back); });
   $$('[data-r]', body).forEach((b) => {
     b.onclick = async () => {
       state.round = Number(b.dataset.r);
@@ -227,7 +238,7 @@ async function seasonEditor(year, data, race, back) {
         $('#mkvid').disabled = true;
         try {
           const o = await assets(d);
-          clip = await makeAnimation((ctx, t, w, h) => raceFrame(ctx, w, h, d, o, t), raceVideoTiming(d).duration, { box: true, cover: (ctx) => videoCover(ctx, 1080, 1920, d, o), music: 'gen', track: track(), onProgress: (p) => { $('#vidst').textContent = `Enregistrement… ${Math.round(p * 100)} %`; } });
+          clip = await makeAnimation((ctx, t, w, h) => raceFrame(ctx, w, h, d, o, t), raceVideoTiming(d).duration, { box: true, cover: (ctx) => videoCover(ctx, 1080, 1920, d, o), ...track(), onProgress: (p) => { $('#vidst').textContent = `Enregistrement… ${Math.round(p * 100)} %`; } });
           $('#vid').src = URL.createObjectURL(clip.blob); $('#vid').hidden = false;
           $('#sharevid').disabled = false; $('#sharefull').disabled = false;
           $('#vidst').textContent = `Vidéo prête (${(clip.blob.size / 1e6).toFixed(1).replace('.', ',')} Mo)${clip.silent ? ' · sans son : le navigateur a bloqué la musique, recommencez' : ''}${(file = clipFile(clip, `course-${race.round}`)) ? ' · jointe au post : Reel, vidéo, TikTok et Short à choisir à l\'étape Publier' : ' · format WebM : à partager seulement (publication en MP4)'}`;

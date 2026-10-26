@@ -8,7 +8,7 @@
 import { bigNews, newsKind, newsKinds, sortNews, isBreaking } from '/shared/social-news.js';
 import { postedEntry, keepStats } from '/shared/post-history.js';
 import { pullToRefresh } from '/shared/pull-refresh.js';
-import { $, $$, esc, api, ago, fmtN, icon, LOGO, toast, skeleton, empty, failure, sheet, store, state, session, hasKey, setKey, forgetKey, onLogout, glide, NET_NAMES, IOS, installed } from './ui.js';
+import { $, $$, esc, api, ago, fmtN, icon, LOGO, toast, skeleton, empty, failure, sheet, store, state, session, SIG, SIG_DEFAULT, setSig, yearOf, yearPicker, bindYear, hasKey, setKey, forgetKey, onLogout, glide, NET_NAMES, IOS, installed } from './ui.js';
 import { cachedNews, freshNews, toFrench, knownFrench, cachedSessions, seasonSessions, SESSION_FR } from './data.js';
 
 const app = $('#app');
@@ -121,7 +121,7 @@ async function showTab({ force = false, restore = false } = {}) {
   const body = $('#body');
   const spin = $('#refresh');
   spin?.classList.add('spin');
-  const fn = { news: newsTab, sessions: sessionsTab, season: seasonView, stats: statsTab, suivi: async (...a) => (await suivi()).suiviTab(...a), pubs: async (...a) => (await pubs()).pubsTab(...a) }[state.tab];
+  const fn = { news: newsTab, sessions: sessionsTab, season: seasonView, stats: statsTab, suivi: async (...a) => (await suivi()).suiviTab(...a), pubs: async (b, o) => (await pubs()).pubsTab(b, o, newPosts) }[state.tab];
   try {
     await fn(body, { force, restore: restore ? scrolls[state.tab] || 0 : 0, current: () => run === tabRun && body.isConnected });
   } catch (err) {
@@ -137,6 +137,16 @@ async function showTab({ force = false, restore = false } = {}) {
   } finally { if (run === tabRun) spin?.classList.remove('spin'); }
 }
 const restoreScroll = (y) => { if (y) requestAnimationFrame(() => scrollTo(0, y)); };
+
+// Onglet Publications : écrire un post, post Paddock Live (en haut de l'onglet)
+const newPosts = {
+  html: `<div class="features"><button class="card feature" id="manual">${icon('pen')}<span class="grow"><b>Écrire un post</b><small>Votre texte, mis en forme par l'IA si besoin ; visuels faits tout seuls</small></span>${icon('next')}</button>
+    <button class="card feature" id="apppost">${LOGO}<span class="grow"><b>Post Paddock Live</b><small>Le visuel de @paddockliveapp : vos captures, photos et vidéos, textes prêts à publier à la main</small></span>${icon('next')}</button></div>`,
+  bind: (body) => {
+    $('#manual', body).onclick = (e) => open(e.currentTarget, async () => (await posts()).manualEditor(back));
+    $('#apppost', body).onclick = (e) => open(e.currentTarget, async () => (await posts()).appEditor(back));
+  },
+};
 
 // Ouverture d'un post : bouton marqué en cours, erreur affichée sans quitter la liste
 async function open(btn, fn) {
@@ -199,9 +209,7 @@ function renderNews(body, items, { at, stale = false }) {
     </div>
     ${kinds.length > 1 ? `<div class="chips" id="nkinds"><button data-k="" class="${state.nkind ? '' : 'on'}">Tout <small>${big.length}</small></button>${kinds.map((k) => `<button data-k="${k.key}" class="${state.nkind === k.key ? 'on' : ''}"><i style="background:${k.color}"></i>${esc(KIND_NAMES[k.key] || k.label)} <small>${k.n}</small></button>`).join('')}</div>` : ''}
     <p class="status">${stale ? '<span class="dot"></span>Mise à jour…' : `À jour · ${new Date(at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`}</p>
-    <div class="features"><button class="card feature" id="manual">${icon('pen')}<span class="grow"><b>Écrire un post</b><small>Votre texte, mis en forme par l'IA si besoin ; visuels faits tout seuls</small></span>${icon('next')}</button>
-    <button class="card feature" id="apppost">${LOGO}<span class="grow"><b>Post Paddock Live</b><small>Le visuel de @paddockliveapp : vos captures, photos et vidéos, textes prêts à publier à la main</small></span>${icon('next')}</button>
-    <button class="card feature" id="recap">${icon('spark')}<span class="grow"><b>Récap de la semaine</b><small>Carrousel des 5 plus grosses news des 7 derniers jours</small></span>${icon('next')}</button></div>
+    <div class="features">    <button class="card feature" id="recap">${icon('spark')}<span class="grow"><b>Récap de la semaine</b><small>Carrousel des 5 plus grosses news des 7 derniers jours</small></span>${icon('next')}</button></div>
     ${list.length ? `<div class="list">${list.map((it, i) => {
       const k = newsKind(it);
       const posted = done.get(it);
@@ -217,31 +225,32 @@ function renderNews(body, items, { at, stale = false }) {
   $$('[data-r]', body).forEach((b) => { b.onclick = () => { const y = scrollY; setRead(list[Number(b.dataset.r)].id, !b.classList.contains('on')); renderNews(body, items, { at, stale }); scrollTo(0, y); }; });
   $$('#nsort [data-by]', body).forEach((b) => { b.onclick = () => { state.nsort = b.dataset.by; renderNews(body, items, { at, stale }); }; });
   $$('#nkinds [data-k]', body).forEach((b) => { b.onclick = () => { state.nkind = b.dataset.k || null; renderNews(body, items, { at, stale }); }; });
-  $('#manual', body).onclick = (e) => open(e.currentTarget, async () => (await posts()).manualEditor(back));
   $('#recap', body).onclick = (e) => open(e.currentTarget, async () => (await posts()).recapEditor(back));
-  $('#apppost', body).onclick = (e) => open(e.currentTarget, async () => (await posts()).appEditor(back));
   $$('[data-i]', body).forEach((b) => { b.onclick = () => { setRead(list[Number(b.dataset.i)].id); open(b, async () => (await posts()).newsEditor(list[Number(b.dataset.i)], done.get(list[Number(b.dataset.i)]), back)); }; });
 }
 
 // ---------- Séances (archives de la F1), regroupées par Grand Prix ----------
 async function sessionsTab(body, { force, restore, current }) {
-  const known = cachedSessions();
+  const known = cachedSessions(yearOf());
   if (known && !force) renderSessions(body, known);
-  else body.innerHTML = skeleton(5);
+  else body.innerHTML = `${yearPicker()}${skeleton(5)}`;
+  bindYear(body, () => sessionsTab(body, { current }));
   restoreScroll(restore);
-  const list = await seasonSessions({ force });
+  const list = await seasonSessions({ force, year: yearOf() });
   if (!current()) return;
   renderSessions(body, list);
   setTimeout(() => loadPosts().catch(() => {}), 300);
 }
 function renderSessions(body, list) {
   if (!list.length) {
-    body.innerHTML = `<div class="empty">${icon('flag')}<p>${session.me.f1tv ? 'Archives indisponibles pour le moment.' : 'Séances indisponibles : il faut un abonnement F1 TV. Dans l\'appli de bureau, connectez F1 TV (Réglages, Compte F1 TV), puis renvoyez les comptes au Studio (Posts, Publier, Comptes).'}</p></div>`;
+    body.innerHTML = `${yearPicker()}<div class="empty">${icon('flag')}<p>${session.me.f1tv ? 'Archives indisponibles pour le moment.' : 'Séances indisponibles : il faut un abonnement F1 TV. Dans l\'appli de bureau, connectez F1 TV (Réglages, Compte F1 TV), puis renvoyez les comptes au Studio (Posts, Publier, Comptes).'}</p></div>`;
+    bindYear(body, () => sessionsTab(body, { current: () => body.isConnected }));
     return;
   }
   const groups = [];
   for (const s of list) { if (groups.at(-1)?.gp !== s.gp) groups.push({ gp: s.gp, items: [] }); groups.at(-1).items.push(s); }
-  body.innerHTML = `<div class="gps">${groups.map((g) => `<section><h3 class="section">${esc(g.gp.replace(/ Grand Prix$/, ''))}</h3><div class="group">${g.items.map((s) => `<button class="row-item" data-s="${list.indexOf(s)}"><span class="grow"><b>${esc(SESSION_FR(s.name))}</b><small>il y a ${ago(s.end)}</small></span>${icon('next')}</button>`).join('')}</div></section>`).join('')}</div>`;
+  body.innerHTML = `${yearPicker()}<div class="gps">${groups.map((g) => `<section><h3 class="section">${esc(g.gp.replace(/ Grand Prix$/, ''))}</h3><div class="group">${g.items.map((s) => `<button class="row-item" data-s="${list.indexOf(s)}"><span class="grow"><b>${esc(SESSION_FR(s.name))}</b><small>${s.live ? 'En direct · résultats provisoires' : yearOf() === new Date().getUTCFullYear() ? `il y a ${ago(s.end)}` : new Date(s.end).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}</small></span>${s.live ? '<span class="pill warn">Direct</span>' : ''}${icon('next')}</button>`).join('')}</div></section>`).join('')}</div>`;
+  bindYear(body, () => sessionsTab(body, { current: () => body.isConnected }));
   $$('[data-s]', body).forEach((b) => { b.onclick = () => open(b, async () => (await posts()).sessionEditor(list[Number(b.dataset.s)], back)); });
 }
 
@@ -559,6 +568,7 @@ function settings() {
     ${PITCH.map(([n, t]) => `<details class="cap"><summary><span>${esc(n)}</span></summary><textarea rows="9">${esc(t)}</textarea>
       <button class="btn small" data-copy="">${icon('copy')}Copier le message</button></details>`).join('')}
     <p class="hint">Page non listée : envoie le lien avec un des messages.</p>
+    <h3 class="section">Posts</h3><label class="field"><span>Signature des visuels et des textes <small>(gardée sur cet appareil)</small></span><input type="text" id="sigin" maxlength="40" value="${esc(SIG)}" placeholder="${esc(SIG_DEFAULT)}"></label>
     <h3 class="section">Comptes</h3><div class="group">${accounts.map(([n, v]) => `<div class="row-item static"><span class="grow"><b>${esc(n)}</b><small>${esc(v || 'non connecté')}</small></span><span class="state ${v ? 'on' : ''}"></span></div>`).join('')}</div>
     <p class="hint">Comptes envoyés par l'appli de bureau (Posts → Publier… → Comptes…).</p>
     ${me.f1tv ? `<h3 class="section">Relier un téléphone à F1 TV</h3><div class="group">
@@ -572,6 +582,7 @@ function settings() {
     <button class="btn danger wide" id="out">${icon('logout')}Se déconnecter de cet appareil</button>
     <p class="hint center">Version du Studio : ${esc(VERSION)} · © 2026 Paddock Live · <a href="https://github.com/benjamin-ct/paddock-live/blob/main/analytics/LICENSE" target="_blank" rel="noopener">Licence AGPL v3</a></p>`);
   alertsBlock($('#alerts', dlg));
+  $('#sigin', dlg).onchange = (e) => { setSig(e.target.value); e.target.value = SIG; toast(`Signature : ${SIG}`, 'ok'); };
   if (me.f1tv) {
     const go = $('#pairGo', dlg), inp = $('#pairCode', dlg), devs = $('#pairDevices', dlg);
     const since = (s) => (s < 60 ? 'quelques secondes' : s < 3600 ? `${Math.round(s / 60)} min` : `${Math.floor(s / 3600)} h ${Math.round((s % 3600) / 60)}`.replace(/ 0$/, ''));

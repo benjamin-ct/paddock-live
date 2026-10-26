@@ -114,8 +114,8 @@ function bindNewsVideo(getD, onBreaking, onClip, source = () => null) {
       const o = await assets(d);
       const src = source();
       const onProgress = (p) => { $('#vidst').textContent = `${src ? 'Habillage de votre vidéo' : 'Enregistrement'}… ${Math.round(p * 100)} %`; };
-      clip = src ? await makeClipVideo(src, d, o, { music: 'gen', track: track(), onProgress })
-        : await makeAnimation((ctx, t, w, h) => newsFrame(ctx, w, h, d, o, t), newsVideoTiming(d).duration, { box: true, cover: (ctx) => videoCover(ctx, 1080, 1920, d, o), music: 'gen', track: track(), onProgress });
+      clip = src ? await makeClipVideo(src, d, o, { ...track(), onProgress })
+        : await makeAnimation((ctx, t, w, h) => newsFrame(ctx, w, h, d, o, t), newsVideoTiming(d).duration, { box: true, cover: (ctx) => videoCover(ctx, 1080, 1920, d, o), ...track(), onProgress });
       $('#vid').src = URL.createObjectURL(clip.blob); $('#vid').hidden = false;
       $('#sharevid').disabled = false; $('#sharefull').disabled = false;
       $('#vidst').textContent = `Vidéo prête : ${src ? '' : `${Math.round(newsVideoTiming(d).duration)} s, `}${(clip.blob.size / 1e6).toFixed(1).replace('.', ',')} Mo${clip.silent ? ' · sans son : le navigateur a bloqué la musique, recommencez' : ''}${clipFile(clip, name()) ? ' · jointe au post : Reel, vidéo, TikTok et Short à choisir à l\'étape Publier' : ' · format WebM : à partager seulement (publication en MP4)'}`;
@@ -353,7 +353,8 @@ export async function appEditor(back) {
       <label class="field"><span>Petit titre <small>(en rouge, au-dessus du titre)</small></span><input type="text" data-f="kicker" maxlength="60" value="${esc(p.kicker)}" placeholder="Ex. : Radios d'équipe"></label>
       <label class="field"><span>Titre <small>(mots en rouge entre *astérisques*)</small></span><input type="text" data-f="title" maxlength="140" value="${esc(p.title)}" placeholder="Ex. : Ce qu'ils se disent à la radio, *en français.*"></label>
       <label class="field"><span>Texte <small>(facultatif)</small></span><textarea data-f="text" rows="2" maxlength="300">${esc(p.text)}</textarea></label>
-      <div class="row"><label class="btn small">${icon('image')}${p.image ? 'Changer' : 'Capture ou photo'}<input type="file" accept="image/*" data-img hidden></label>${p.image ? `<button class="btn small" data-crop>${icon('image')}Recadrer</button><button class="btn small" data-rm>${icon('close')}Retirer</button><img class="athumb" src="${p.url}" alt="">` : ''}</div></section>`;
+      <div class="row"><label class="btn small">${icon('image')}${p.image ? 'Changer' : 'Capture, photo ou vidéo'}<input type="file" accept="image/*,video/mp4,video/quicktime" data-img hidden></label>${p.image ? `${p.video ? '' : `<button class="btn small" data-crop>${icon('image')}Recadrer</button>`}<button class="btn small" data-rm>${icon('close')}Retirer</button><img class="athumb" src="${p.url}" alt="">` : ''}</div>
+      ${p.video ? `<p class="hint" data-vst>${icon('video')}${esc(v.video?.name || 'Vidéo')} : habillée du visuel de cette page (étape Vidéo), ${CLIP_MAX} s au plus</p>` : ''}</section>`;
   editor({
     back,
     title: 'Post Paddock Live',
@@ -363,8 +364,7 @@ export async function appEditor(back) {
       <div class="row"><button class="btn small" id="aai">${icon('wand')}Mettre en pages avec l'IA</button><span class="hint" id="aaist"></span></div>
       <div id="apages"></div>
       <div class="row"><button class="btn small" id="aadd">${icon('pen')}Ajouter une page</button><label class="btn small">${icon('image')}Une page par photo<input type="file" accept="image/*" multiple id="aphotos" hidden></label><span class="hint" id="aphst"></span></div>`,
-    vhead: `<div class="field"><span>Votre vidéo <small>(ex. un enregistrement d'écran de l'appli : à la place de la capture de la page 1, ${CLIP_MAX} s au plus)</small></span>
-        <div class="row"><label class="btn small">${icon('video')}Choisir une vidéo<input type="file" id="avid" accept="video/mp4,video/quicktime" hidden></label><span class="hint" id="avidst"></span></div></div>
+    vhead: `<p class="hint">Votre vidéo (enregistrement d'écran…) se choisit dans une page, à l'étape Contenu : « Capture, photo ou vidéo ».</p>
       ${musicField('app', 'flash')}<div class="row"><button class="btn" id="mkvid">${icon('video')}Créer la vidéo</button><button class="btn" id="sharevid" disabled title="Zone sûre : Reels, TikTok, Shorts">${icon('share')}Partager</button><button class="btn" id="sharefull" disabled title="X, Bluesky, Facebook, Threads…">${icon('share')}Plein écran</button></div>
       <p class="hint" id="vidst">Sans vidéo à vous : les images gardées, au format story, environ 3 s chacune. Garder l'écran allumé pendant l'enregistrement.</p>
       <video id="vid" controls playsinline hidden></video>`,
@@ -380,6 +380,17 @@ export async function appEditor(back) {
         if (p.url) URL.revokeObjectURL(p.url);
         Object.assign(p, { image, orig: image, credit: '', url: await bitmapUrl(image) });
       };
+      // Vidéo choisie dans une page : la vidéo du post (une seule), habillée du visuel de cette page ; sa première
+      // image sert de capture sur le carrousel. Fabriquée tout de suite (étape Vidéo : musique, partage)
+      const setVideo = async (p, file) => {
+        if (!/^video\/(mp4|quicktime)$/.test(file.type)) throw new Error('Vidéo MP4 ou MOV seulement');
+        if (file.size > 300e6) throw new Error(`Trop lourde (${Math.round(file.size / 1e6)} Mo) : 300 Mo au plus`);
+        const image = await videoPoster(file);
+        for (const x of pages) if (x.video && x !== p) Object.assign(x, { video: false, image: null, orig: null, url: '' });
+        if (p.url) URL.revokeObjectURL(p.url);
+        Object.assign(p, { image, orig: image, credit: '', url: await bitmapUrl(image), video: true });
+        v.video = file; v.made = null;
+      };
       const render = () => {
         $('#apages').innerHTML = pages.map(pageHtml).join('');
         for (const el of $$('#apages [data-p]')) {
@@ -388,12 +399,15 @@ export async function appEditor(back) {
           $('[data-img]', el).onchange = async (e) => {
             const file = e.target.files?.[0];
             if (!file) return;
-            try { await setImage(p, file); render(); upd(true); } catch { toast('Image illisible', 'bad'); }
+            if (file.type.startsWith('video/')) unlockAudio();   // pendant le toucher (sinon vidéo muette sur iPhone)
+            try {
+              if (file.type.startsWith('video/')) { await setVideo(p, file); render(); d = appPost(pages); redraw(true); $('#mkvid').click(); } else { if (p.video) { v.video = v.made = null; p.video = false; } await setImage(p, file); render(); upd(true); }
+            } catch (err) { toast(err.message || 'Fichier illisible', 'bad'); }
           };
           if ($('[data-crop]', el)) $('[data-crop]', el).onclick = async () => { const image = await cropImage(p.orig); if (image) { p.image = image; URL.revokeObjectURL(p.url); p.url = await bitmapUrl(image); render(); upd(true); } };
-          if ($('[data-rm]', el)) $('[data-rm]', el).onclick = () => { URL.revokeObjectURL(p.url); Object.assign(p, { image: null, orig: null, url: '' }); render(); upd(true); };
+          if ($('[data-rm]', el)) $('[data-rm]', el).onclick = () => { if (p.video) v.video = v.made = null; URL.revokeObjectURL(p.url); Object.assign(p, { image: null, orig: null, url: '', video: false }); render(); upd(true); };
           if ($('[data-up]', el)) $('[data-up]', el).onclick = () => { const i = pages.indexOf(p); pages.splice(i - 1, 0, ...pages.splice(i, 1)); render(); upd(true); };
-          if ($('[data-del]', el)) $('[data-del]', el).onclick = () => { pages.splice(pages.indexOf(p), 1); render(); upd(true); };
+          if ($('[data-del]', el)) $('[data-del]', el).onclick = () => { if (p.video) v.video = v.made = null; pages.splice(pages.indexOf(p), 1); render(); upd(true); };
         }
       };
       render();
@@ -426,23 +440,14 @@ export async function appEditor(back) {
           render(); upd(true);
         } catch (err) { $('#aaist').textContent = err.message; } finally { btn.disabled = false; btn.classList.remove('busy'); }
       };
-      // Vidéo à vous : habillée du visuel de la page 1, avec la fin aux couleurs de l'appli
+      // Vidéo à vous : habillée du visuel de sa page, avec la fin aux couleurs de l'appli
       const track = bindMusic('app');
       let clip = null;
-      $('#avid').onchange = (e) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        if (!/^video\/(mp4|quicktime)$/.test(file.type)) { $('#avidst').textContent = 'Vidéo MP4 ou MOV seulement'; return; }
-        if (file.size > 300e6) { $('#avidst').textContent = `Trop lourde (${Math.round(file.size / 1e6)} Mo) : 300 Mo au plus`; return; }
-        v.video = file; v.made = null;
-        $('#avidst').textContent = `${file.name} · ${(file.size / 1e6).toFixed(1).replace('.', ',')} Mo`;
-        $('#mkvid').click();
-      };
       $('#mkvid').onclick = async () => {
         unlockAudio();   // pendant le toucher, avant toute attente (sinon vidéo muette sur iPhone)
         $('#mkvid').disabled = true;
         try {
-          const opts = { music: 'gen', track: track(), onProgress: (x) => { $('#vidst').textContent = `${v.video ? 'Habillage de votre vidéo' : 'Enregistrement'}… ${Math.round(x * 100)} %`; } };
+          const opts = { ...track(), onProgress: (x) => { $('#vidst').textContent = `${v.video ? 'Habillage de votre vidéo' : 'Enregistrement'}… ${Math.round(x * 100)} %`; } };
           // Sans vidéo à vous : les images gardées au format story, enchaînées (comme la vidéo des visuels des autres posts)
           const list = chosenSlides(slidesFor(d, { fmt: 'story' }), [...state.skip]);
           clip = v.video ? await makeClipVideo(v.video, d, await assets(d), opts) : await makeVideo(list.map((sl) => drawSlide(document.createElement('canvas'), sl, 'story', d, { slides: list })), opts);
@@ -457,6 +462,18 @@ export async function appEditor(back) {
       $('#sharefull').onclick = () => clip && shareClip(clip, 'paddock-live', true);
     },
   });
+}
+
+// Image d'une vidéo (vers 1 s) : sa capture sur le carrousel
+async function videoPoster(file) {
+  const el = document.createElement('video');
+  el.muted = true; el.playsInline = true; el.preload = 'auto';
+  el.src = URL.createObjectURL(file);
+  try {
+    await new Promise((ok, ko) => { el.onloadeddata = ok; el.onerror = () => ko(new Error('Vidéo illisible dans ce navigateur (MP4 en H.264 conseillé)')); });
+    await new Promise((ok) => { el.onseeked = ok; el.currentTime = Math.min(1, (el.duration || 0) / 2); setTimeout(ok, 1500); });
+    return await createImageBitmap(el);
+  } finally { const src = el.src; el.removeAttribute('src'); el.load(); URL.revokeObjectURL(src); }
 }
 
 // ---------- Récap de la semaine : les 5 plus grosses news des 7 derniers jours ----------
@@ -506,7 +523,7 @@ async function fiaGrid(year, meeting, sprint) {
 // Types de posts d'une séance : résultats, avant-course (grille, météo, pneus), championnat, flash
 const POST_TYPES = [['results', 'Résultats'], ['prerace', 'Avant-course'], ['champ', 'Championnat'], ['flash', 'Flash']];
 export async function sessionEditor(s, back) {
-  const st = await loadState(s.path);
+  const st = await loadState(s.path, undefined, { live: s.live });
   rememberDrivers(st.DriverList);
   const meet = st.SessionInfo?.Meeting || {};
   const tyres = builtinNomination(Number(String(s.path).slice(0, 4)), { name: meet.Name, location: meet.Location, country: meet.Country?.Name });

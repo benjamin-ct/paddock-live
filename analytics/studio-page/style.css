@@ -306,6 +306,8 @@ button.row-item:active { background: var(--surface-2); }
 .netcard details.cap { border-top: 1px solid var(--line); }
 #plansum { margin: 0 0 4px; }
 .todo-text { margin: 6px 0 10px; color: var(--text-2); font-size: 14px; white-space: pre-line; display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
+.yearpick { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin: 0 0 10px; color: var(--muted); font-size: 13px; font-weight: 600; }
+.yearpick select { width: auto; min-width: 92px; padding: 6px 10px; }
 ul.plan { margin: 0 0 14px; padding-left: 20px; line-height: 1.7; }
 .linkbtn { padding: 0; border: 0; background: none; color: var(--brand); font: inherit; text-decoration: underline; cursor: pointer; }
 details.cap { border-top: 1px solid var(--line); }
@@ -695,6 +697,7 @@ b, strong { font-weight: 700; }
 .card.hero .t { font: 800 26px/1.08 var(--display); letter-spacing: -.025em; }
 .card.feature { background: radial-gradient(90% 160% at 0% 50%, rgba(225, 6, 0, .2), transparent 60%), var(--card); }
 .card.feature > .ic:first-child { padding: 8px; width: 40px; height: 40px; border-radius: 12px; background: var(--brand-wash); }
+.card.feature > .logo { width: 40px; height: 40px; }
 .card.plan .t, .acc-head > b { font-weight: 800; letter-spacing: -.02em; }
 .tile b, .acc-total b { font-weight: 800; letter-spacing: -.03em; font-feature-settings: 'tnum' 1; }
 .tile small { font-size: 12.5px; }
