@@ -513,8 +513,8 @@ export async function liveApi(req, url, env = {}) {
   if (url.pathname === '/live/api/season' && req.method === 'GET') {
     const year = Number(url.searchParams.get('year')), now = new Date().getUTCFullYear();
     if (!env.DB || !Number.isInteger(year) || year < 2018 || year > now) return json({ error: 'Année invalide' }, 400);
-    const row = await seasonRow(env, year, year < now ? { maxAge: 7 * 86400e3 } : {}).catch(() => null);
-    return row ? json(row.v, 200, { 'Cache-Control': 'public, max-age=600' }) : json({ error: 'Saison indisponible' }, 503);
+    const row = await seasonRow(env, year, year < now ? { maxAge: 7 * 86400e3 } : {}).catch((err) => ({ err }));
+    return row.v ? json(row.v, 200, { 'Cache-Control': 'public, max-age=600' }) : json({ error: `Saison indisponible (${row.err?.message || row.err})` }, 503);
   }
   // Pronostics entre amis : la version web joue seulement dans un groupe en ligne (pages /p/), relayé comme par l'appli
   if (url.pathname === '/live/api/predictions') return json({ error: 'sur la version web, jouez dans un groupe en ligne' }, 404);
