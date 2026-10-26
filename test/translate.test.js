@@ -68,6 +68,23 @@ test('traduction partagée : plafond du jour et échec de l\'IA', async () => {
   assert.equal(g.tr.size, 0);
 });
 
+test('traduction partagée : paquets de 20 titres, allocation Workers AI épuisée -> plus d\'appel, plafond atteint', async () => {
+  const f = fakeEnv();
+  const items = Array.from({ length: 40 }, (_, i) => ({ text: `Title ${i}`, from: 'en' }));
+  const r = await translateBatch(f.env, { to: 'fr', items }, 'd');
+  assert.equal(r.out[39], '[fr] Title 39');
+  assert.deepEqual(f.calls.map((c) => JSON.parse(c.input.messages[1].content).length), [20, 20]);
+  // Textes longs : paquets plus petits que la réponse du modèle
+  const g = fakeEnv();
+  await translateBatch(g.env, { to: 'fr', items: Array.from({ length: 10 }, (_, i) => ({ text: `${i}`.padEnd(1500, 'x'), from: 'en' })) }, 'd');
+  assert.ok(g.calls.every((c) => c.input.messages[1].content.length < 9000));
+  const h = fakeEnv();
+  h.env.AI.run = async (model) => { h.calls.push(model); throw new Error('4006: you have used up your daily free allocation of 10,000 neurons'); };
+  const r2 = await translateBatch(h.env, { to: 'fr', items: [{ text: 'a', from: 'en' }, { text: 'b', from: 'en' }] }, 'd');
+  assert.deepEqual(r2, { out: [null, null], limited: true });
+  assert.deepEqual(h.calls, [MODEL]);   // pas de traduction simple texte par texte derrière
+});
+
 test('appli : demandes regroupées, mémoire, pause si le serveur refuse', async () => {
   let t = 0;
   const posts = [];

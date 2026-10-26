@@ -9,7 +9,7 @@ import { bigNews, newsKind, newsKinds, sortNews, isBreaking } from '/shared/soci
 import { postedEntry, keepStats } from '/shared/post-history.js';
 import { pullToRefresh } from '/shared/pull-refresh.js';
 import { $, $$, esc, api, ago, fmtN, icon, LOGO, toast, skeleton, empty, failure, sheet, store, state, session, SIG, SIG_DEFAULT, setSig, yearOf, yearPicker, bindYear, hasKey, setKey, forgetKey, onLogout, glide, NET_NAMES, IOS, installed } from './ui.js';
-import { cachedNews, freshNews, toFrench, knownFrench, cachedSessions, seasonSessions, SESSION_FR } from './data.js';
+import { cachedNews, freshNews, toFrench, knownFrench, translationsPausedUntil, cachedSessions, seasonSessions, SESSION_FR } from './data.js';
 
 const app = $('#app');
 // Ancienne adresse (*.workers.dev) : même page sur le nom de domaine (code à entrer une fois de plus)
@@ -181,9 +181,11 @@ async function newsTab(body, { force, restore, current }) {
 async function translateShown(body, list, redraw) {
   const todo = list.filter((it) => it.lang !== 'fr' && !knownFrench(it.title, it.lang));
   if (!todo.length) return;
+  const wasPaused = translationsPausedUntil();
   await toFrench(todo.map((it) => ({ text: it.title, from: it.lang })));
-  // Rien de traduit (serveur indisponible) : pas de nouvel essai en boucle
-  if (list !== shown || !body.isConnected || !todo.some((it) => knownFrench(it.title, it.lang))) return;
+  // Rien de traduit (serveur indisponible) : pas de nouvel essai en boucle, sauf pour afficher la pause
+  if (list !== shown || !body.isConnected) return;
+  if (!todo.some((it) => knownFrench(it.title, it.lang)) && (wasPaused || !translationsPausedUntil())) return;
   const y = scrollY;
   redraw();
   scrollTo(0, y);
@@ -208,7 +210,7 @@ function renderNews(body, items, { at, stale = false }) {
       <label class="chip-toggle"><input type="checkbox" id="hideread" ${state.hideRead ? 'checked' : ''}><span>Non lues</span></label>
     </div>
     ${kinds.length > 1 ? `<div class="chips" id="nkinds"><button data-k="" class="${state.nkind ? '' : 'on'}">Tout <small>${big.length}</small></button>${kinds.map((k) => `<button data-k="${k.key}" class="${state.nkind === k.key ? 'on' : ''}"><i style="background:${k.color}"></i>${esc(KIND_NAMES[k.key] || k.label)} <small>${k.n}</small></button>`).join('')}</div>` : ''}
-    <p class="status">${stale ? '<span class="dot"></span>Mise à jour…' : `À jour · ${new Date(at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`}</p>
+    <p class="status">${stale ? '<span class="dot"></span>Mise à jour…' : `À jour · ${new Date(at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`}${translationsPausedUntil() ? ` · Traductions en pause jusqu'à ${new Date(translationsPausedUntil()).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })} (plafond du jour)` : ''}</p>
     <div class="features">    <button class="card feature" id="recap">${icon('spark')}<span class="grow"><b>Récap de la semaine</b><small>Carrousel des 5 plus grosses news des 7 derniers jours</small></span>${icon('next')}</button></div>
     ${list.length ? `<div class="list">${list.map((it, i) => {
       const k = newsKind(it);
