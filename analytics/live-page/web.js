@@ -15,6 +15,7 @@ import { renderRadios, initRadios } from './ui/radios.js';
 import { renderTelemetry } from './ui/extra.js';
 import { initNoLive } from './ui/home.js';
 import { initSeason, closeSeason } from './ui/season.js';
+import './ui/calendar-menu.js';   // « Ajouter à mon agenda » (Saison)
 
 translatePage();
 // GPS et télémétrie : texte compressé (deflate brut, base64) du flux F1

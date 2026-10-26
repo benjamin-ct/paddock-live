@@ -100,6 +100,8 @@ l'application (Réglages → À propos → Nouveautés).
 - Sur téléphone, les réglages du direct (délai TV, connexion F1 TV, appli complète) sont rangés derrière l'engrenage
   en haut à droite : la barre du haut garde la séance, le chrono et les infos (longueur, course, météo). La Saison
   s'ouvre par la coupe à côté ; toucher la séance en haut ramène au direct.
+- « Ajouter à mon agenda » fonctionne aussi dans la version web : abonnement (Apple Calendrier, Outlook), Google
+  Agenda ou fichier du week-end.
 
 ### Fiabilité et sécurité
 - Accès depuis le téléphone : un site ouvert sur l'ordinateur ne peut plus se faire passer pour l'ordinateur
