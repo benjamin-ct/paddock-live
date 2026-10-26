@@ -297,13 +297,20 @@ export class Positions {
     return a.p + (b.p - a.p) * u;
   }
 
-  // Position estimée lissée (x, y) pour l'affichage sans GPS.
+  // Position estimée lissée (x, y) pour l'affichage sans GPS. Elle suit l'estimation par sa vitesse, jamais par
+  // bonds : en retard, la voiture accélère (1,8 fois son rythme au plus) ; un peu en avance, elle ralentit (0,3 fois
+  // au moins) ; nettement en avance (voiture au ralenti, voiture de sécurité), elle attend ; elle ne recule pas.
+  // Loin de l'estimation (sortie des stands, nouvelle séance) ou après une longue pause de l'affichage : recalée
   estimatedXY(num, now, dt) {
     const target = this.estimatedProgress(num, now);
     if (target === null || !this.track) return null;
     let d = this.disp.get(num);
-    if (d === undefined || Math.abs(target - d) > 0.15 * this.track.L) d = target;
-    else d += (target - d) * Math.min(1, dt * 3);
+    const err = target - d;
+    if (d === undefined || dt > 0.5 || Math.abs(err) > 0.15 * this.track.L) d = target;
+    else {
+      const v = (this.est.get(num)?.rate || 0) * this.speed();
+      d += Math.min(1.8 * v, Math.max(err > -0.02 * this.track.L ? 0.3 * v : 0, v + err * 1.5)) * dt;
+    }
     this.disp.set(num, d);
     return this.track.pointAt(d);
   }
