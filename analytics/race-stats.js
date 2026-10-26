@@ -93,15 +93,22 @@ export async function analyseNext(env, year, { now = Date.now(), fetchFn = fetch
   }
 }
 
-// Tâche planifiée (chaque minute) : une course analysée par passage, pour l'année en cours ou une année demandée
-// depuis la version web dans l'heure
-export async function statsTick(env, { now = Date.now(), fetchFn = fetch } = {}) {
+// Tâche planifiée (chaque minute) : courses analysées l'une après l'autre tant qu'il reste du temps (20 s), pour
+// l'année en cours ou une année demandée depuis la version web dans l'heure ; arrêt à la première erreur
+export async function statsTick(env, { now = Date.now(), fetchFn = fetch, budget = 20e3 } = {}) {
   if (!env.DB || !env.STATS_KEY) return null;
   const { results } = await env.DB.prepare('SELECT k, v FROM studio WHERE k LIKE ?').bind('racewant:%').all();
   const years = [new Date(now).getUTCFullYear(), ...(results || []).filter((r) => now - Number(r.v) < 3600e3).map((r) => Number(r.k.slice(9)))];
+  const t0 = Date.now();
+  let last = null;
   for (const y of new Set(years)) {
-    const r = await analyseNext(env, y, { now, fetchFn });
-    if (r) return { year: y, ...r };
+    while (Date.now() - t0 < budget) {
+      const r = await analyseNext(env, y, { now, fetchFn });
+      if (!r) break;
+      last = { year: y, ...r, done: (last?.done || 0) + (r.error ? 0 : 1) };
+      if (r.error) break;
+    }
+    if (last) return last;
   }
   return null;
 }
