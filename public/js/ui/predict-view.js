@@ -131,6 +131,8 @@ function fill() {
   const root = $('#pdRoot');
   if (!root) return;
   if (!view) { root.innerHTML = '<div class="note">Chargement des pronostics…</div>'; return; }
+  // Version web : les pronostics se jouent seulement dans un groupe en ligne (rien n'est gardé sur l'appareil)
+  if (view.online) { root.innerHTML = `${groupBox(true)}<p class="muted">Sur la version web, les pronostics se jouent dans un groupe en ligne : créez-en un (même seul, pour vous) ou rejoignez celui de vos amis avec son lien.</p>`; return; }
   if (view.error) { root.innerHTML = `${groupBox(true)}<div class="note">Pronostics indisponibles (${esc(view.error)}).</div>`; return; }
   const now = Date.now();
   const next = view.races.find((r) => !r.result && r.locks.podium && r.locks.podium > now);

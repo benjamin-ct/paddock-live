@@ -547,7 +547,7 @@ export async function liveApi(req, url, env = {}) {
     });
   }
   // Pronostics entre amis : la version web joue seulement dans un groupe en ligne (pages /p/), relayé comme par l'appli
-  if (url.pathname === '/live/api/predictions') return json({ error: 'sur la version web, jouez dans un groupe en ligne' }, 404);
+  if (url.pathname === '/live/api/predictions' && req.method === 'GET') return json({ online: true });   // pas de pronostics gardés sur l'appareil
   if (url.pathname === '/live/api/predictions/online' && env.DB) {
     let g = url.searchParams.get('g') || '', body;
     if (req.method !== 'GET') { const { g: id, ...rest } = (await req.json().catch(() => null)) || {}; g = id || (req.method === 'POST' ? 'new' : ''); body = JSON.stringify(rest); }
