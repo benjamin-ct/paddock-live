@@ -107,10 +107,12 @@ function raceList(races, def, upcoming) {
     ${before.length ? `<h3 class="section">${upcoming ? 'Déjà courus' : 'Courses précédentes'}</h3><div class="group">${before.map(row).join('')}</div>` : ''}`;
 }
 
-// Plan du week-end : le Grand Prix des 8 prochains jours (ou d'il y a moins de 2 jours), ses posts publiés
-// (journal des publications) ou à faire, avec leur moment
+// Plan du week-end : le Grand Prix des 8 prochains jours (ou d'il y a moins de 2 jours, jusqu'au lundi de la
+// semaine du suivant), ses posts publiés (journal des publications) ou à faire, avec leur moment
 function planCard(year, races) {
-  const r = races.find((x) => Date.parse(x.date) > Date.now() - 2 * 86400e3);
+  let r = races.find((x) => Date.parse(x.date) > Date.now() - 2 * 86400e3);
+  const next = races.find((x) => Date.parse(x.date) > Date.now());
+  if (next && r !== next && weekendPlan(next, year, [])[0].at <= Date.now()) r = next;
   if (!r || Date.parse(r.date) - Date.now() > 8 * 86400e3) return '';
   const keys = (store.get('history')?.v || []).map((e) => e.key);
   const when = (p) => (p.at ? `${p.after ? 'après, ' : ''}${new Date(p.at).toLocaleString('fr-FR', { weekday: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}` : '');
