@@ -18,6 +18,8 @@ import { initSeason, closeSeason } from './ui/season.js';
 import './ui/calendar-menu.js';   // « Ajouter à mon agenda » (Saison)
 
 translatePage();
+// Rien n'est traduit dans le navigateur (pas de moteur local) : documents FIA traduits par le serveur, relus plus tard
+store.isHost = false;
 // GPS et télémétrie : texte compressé (deflate brut, base64) du flux F1
 async function inflate(b64) {
   const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));

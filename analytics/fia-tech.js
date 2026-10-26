@@ -5,6 +5,7 @@
 import { getRow, setRow } from './alerts.js';
 import { BASE, CHAMPIONSHIP, parseDocumentList, parseSeasons, seasonEventList } from '../shared/fia-list.js';
 import { FIA_VERSION, pdfPages, eventData } from '../shared/fia-tech.js';
+import { translateBatch } from './translate.js';
 
 const UA = 'Mozilla/5.0 (Paddock-Live web relay)';
 const EMPTY = 6 * 3600e3;     // épreuve sans documents ou illisible : nouvel essai 6 heures plus tard
@@ -48,10 +49,24 @@ async function kept(env, year) {
   }
   return out;
 }
-const due = (e, now) => !e || (e.data ? now - e.data.last < RECENT && now - e.at > REREAD : now - e.at > EMPTY);
+// Épreuve à lire (jamais lue), à relire (documents récents, ou traductions pas toutes faites) ou à revoir (sans documents)
+const due = (e, now) => !e || (e.data ? (now - e.data.last < RECENT || (e.data.tech?.length && !e.data.trDone)) && now - e.at > REREAD : now - e.at > EMPTY);
+
+// Évolutions techniques en français, traduites par le serveur (même traduction que les radios, gardée pour tous) :
+// la version web n'a rien à traduire elle-même. Mêmes textes que la page (pièce, géométrie, description)
+const techTexts = (data) => [...new Set((data?.tech || []).flatMap((u) => [u.component, u.geometry, u.description]).filter(Boolean))];
+async function serverTranslate(env, texts) {
+  const out = {};
+  for (let i = 0; i < texts.length; i += 40) {
+    const part = texts.slice(i, i + 40);
+    const r = await translateBatch(env, { to: 'fr', items: part.map((text) => ({ text: text.slice(0, 2000), from: 'en' })) }).catch(() => null);
+    part.forEach((t, j) => { if (r?.out?.[j]) out[t] = r.out[j]; });
+  }
+  return out;
+}
 
 // Lecture de la première épreuve de l'année à lire ou relire (une par appel, personne d'autre en même temps)
-export async function fiaNext(env, year, { now = Date.now(), fetchFn = fetch } = {}) {
+export async function fiaNext(env, year, { now = Date.now(), fetchFn = fetch, translate = (texts) => (env.AI ? serverTranslate(env, texts) : {}) } = {}) {
   if (!env.DB) return null;
   const events = await seasonEvents(env, year, now, fetchFn);
   const have = await kept(env, year);
@@ -62,6 +77,14 @@ export async function fiaNext(env, year, { now = Date.now(), fetchFn = fetch } =
   try {
     data = await eventData(ev, { documents: async (page) => parseDocumentList(await (await get(page, fetchFn)).text()), parsed: (url, parser) => parsed(env, url, parser, fetchFn) });
   } catch (err) { error = String(err.message || err); }
+  if (data?.tech?.length) {
+    // Traductions déjà faites (relecture) reprises ; seules les nouvelles sont demandées
+    const texts = techTexts(data), old = have.get(ev.page)?.data?.tr || {};
+    const kept = Object.fromEntries(texts.filter((t) => old[t]).map((t) => [t, old[t]]));
+    const todo = texts.filter((t) => !kept[t]);
+    data.tr = { ...kept, ...(todo.length ? await translate(todo).catch(() => ({})) : {}) };
+    data.trDone = texts.every((t) => data.tr[t]);
+  }
   await setRow(env, `fiatech:${year}:${await sha(ev.page)}`, JSON.stringify({ v: FIA_VERSION, page: ev.page, at: now, data: data && { ...data, at: now } }));
   await setRow(env, `fialock:${year}`, '0');
   return { event: ev.name, ...(error ? { error } : {}) };
@@ -88,4 +111,15 @@ export async function seasonFiaWeb(env, year, { now = Date.now() } = {}) {
   if (pending && now - Number(await getRow(env, `fiawant:${year}`) || 0) > 10 * 60e3) await setRow(env, `fiawant:${year}`, String(now));
   const list = [...have.values()].map((e) => e.data).filter(Boolean).sort((a, b) => a.first - b.first);
   return { year, pending, done: have.size, total: events?.length || have.size, events: list };
+}
+
+// /live/api/translations : traductions des textes FIA faites par le serveur, sous la forme lue par la page
+// (fia-translate.js : anglais -> { t, q })
+export async function fiaTranslations(env) {
+  const { results } = await env.DB.prepare('SELECT k, v FROM studio WHERE k LIKE ?').bind('fiatech:%').all();
+  const out = {};
+  for (const { v } of results || []) {
+    try { for (const [en, t] of Object.entries(JSON.parse(v)?.data?.tr || {})) out[en] = { t, q: 'cloud' }; } catch { /* ligne abîmée */ }
+  }
+  return out;
 }

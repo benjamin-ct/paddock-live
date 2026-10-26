@@ -124,3 +124,37 @@ test('version web : documents FIA lus par le serveur, une épreuve à la fois, �
   // Documents de moins de 4 jours : l'épreuve est relue une heure plus tard
   assert.deepEqual(await fiaTick(env, { now: now + 2 * 3600e3, fetchFn }), { year: 2026, event: 'United States Grand Prix' });
 });
+
+test('version web : évolutions techniques traduites par le serveur, une fois, reprises à la relecture', async () => {
+  const { fiaNext, fiaTranslations } = await import('../analytics/fia-tech.js');
+  const { FIA_VERSION } = await import('../shared/fia-tech.js');
+  const { createHash } = await import('node:crypto');
+  const rows = new Map();
+  const DB = { prepare: (sql) => ({ bind: (...a) => ({
+    first: async () => (rows.has(a[0]) ? { v: rows.get(a[0]) } : null),
+    all: async () => ({ results: [...rows].filter(([k]) => k.startsWith(a[0].replace('%', ''))).map(([k, v]) => ({ k, v })) }),
+    run: async () => { if (sql.startsWith('INSERT INTO studio')) rows.set(a[0], a[1]); else throw new Error(sql); },
+  }) }) };
+  const env = { DB };
+  const SEASON = '/documents/championships/fia-formula-one-world-championship-14/season/season-2026-2072';
+  const EVENT = `${SEASON}/event/United%20States%20Grand%20Prix`;
+  const pages = {
+    '/documents/championships/fia-formula-one-world-championship-14': `<option value="${SEASON}">2026</option>`,
+    [SEASON]: `<option value="${EVENT}">United States Grand Prix</option>`,
+    [EVENT]: row(5, 'Doc 5 - Car Presentation Submissions', '2026_usa_-_cps', '20.10.26 12:00'),
+  };
+  const fetchFn = async (u) => { const p = u.replace('https://www.fia.com', ''); return p in pages ? new Response(pages[p]) : new Response('', { status: 404 }); };
+  // PDF déjà lu (gardé) : pas de lecture de PDF dans le test
+  const pdf = 'https://www.fia.com/system/files/decision-document/2026_usa_-_cps.pdf';
+  rows.set(`fiadoc:${createHash('sha1').update(pdf).digest('hex').slice(0, 20)}`, JSON.stringify({ v: FIA_VERSION, data: { updates: [{ team: 'Ferrari', n: 1, component: 'Floor', type: 'Performance', reason: 'Performance', geometry: 'New floor edge', description: 'Improves local load' }], noUpdates: [] } }));
+  const asked = [];
+  let fail = true;
+  const translate = async (texts) => { asked.push(...texts); const out = Object.fromEntries(texts.map((t) => [t, `FR ${t}`])); if (fail) { fail = false; delete out['Improves local load']; } return out; };
+  const now = Date.parse('2026-11-10T12:00:00Z');   // épreuve vieille de plus de 4 jours : relue seulement si une traduction manque
+  await fiaNext(env, 2026, { now, fetchFn, translate });
+  assert.deepEqual(asked, ['Floor', 'New floor edge', 'Improves local load']);
+  await fiaNext(env, 2026, { now: now + 2 * 3600e3, fetchFn, translate });
+  assert.deepEqual(asked.slice(3), ['Improves local load']);   // seule la traduction manquante est redemandée
+  assert.equal(await fiaNext(env, 2026, { now: now + 4 * 3600e3, fetchFn, translate }), null);   // tout est traduit : plus relue
+  assert.deepEqual(await fiaTranslations(env), { Floor: { t: 'FR Floor', q: 'cloud' }, 'New floor edge': { t: 'FR New floor edge', q: 'cloud' }, 'Improves local load': { t: 'FR Improves local load', q: 'cloud' } });
+});

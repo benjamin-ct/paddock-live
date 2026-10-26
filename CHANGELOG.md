@@ -97,7 +97,7 @@ l'application (Réglages → À propos → Nouveautés).
   pilote, de 2018 à aujourd'hui ; pronostics entre amis dans un groupe en ligne. Statistiques détaillées
   (régularité, arrêts aux stands, vitesses de pointe, profil des circuits, notes des pilotes) : calculées par le
   serveur une fois par course, d'après les archives officielles de la F1 ; évolutions techniques et éléments
-  moteur, lus par le serveur dans les documents de la FIA à chaque Grand Prix. Sur téléphone, la barre du haut ne
+  moteur, lus et traduits en français par le serveur dans les documents de la FIA à chaque Grand Prix. Sur téléphone, la barre du haut ne
   garde que la séance tant que la Saison est ouverte (délai et F1 TV reviennent avec le direct).
 - Sur téléphone, les réglages du direct (délai TV, connexion F1 TV, appli complète) sont rangés derrière l'engrenage
   en haut à droite : la barre du haut garde la séance, le chrono et les infos (longueur, course, météo). La Saison
