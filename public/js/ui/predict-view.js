@@ -87,8 +87,9 @@ function lockPodium() {
   for (const s of sels) for (const o of s.options) o.disabled = !!o.value && sels.some((x) => x !== s && x.value === o.value);
 }
 
+let optOf = () => '';   // numéro et écurie d'un pilote dans les listes (donnés par la Saison)
 function driverSelect(name, value, drivers, disabled) {
-  return `<select name="${name}" ${disabled ? 'disabled' : ''}><option value="">—</option>${drivers.map((d) => `<option value="${esc(d.code)}" ${d.code === value ? 'selected' : ''}>${esc(d.code)} · ${esc(d.name)}</option>`).join('')}</select>`;
+  return `<select name="${name}" ${disabled ? 'disabled' : ''}><option value="">—</option>${drivers.map((d) => `<option value="${esc(d.code)}" ${d.code === value ? 'selected' : ''}${optOf(d.code)}>${esc(d.code)} · ${esc(d.name)}</option>`).join('')}</select>`;
 }
 
 function pickCell(code, pts) {
@@ -171,7 +172,8 @@ function fill() {
     ${history}`;
 }
 
-export function renderPredict(year) {
+export function renderPredict(year, opt) {
+  optOf = opt || optOf;
   setTimeout(() => (view && viewYear === year ? (fill(), lockPodium()) : load(year)), 0);
   return '<div id="pdRoot"><div class="note">Chargement des pronostics…</div></div>';
 }

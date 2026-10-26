@@ -2,7 +2,7 @@
 // séance, calendrier, classements avec évolution des points, résultats et records, duels entre
 // coéquipiers, statistiques détaillées. Données : API Jolpica (via le serveur, /api/season) et
 // analyse des archives F1 Live Timing (/api/season/stats).
-import { $, esc, api, teamColor, teamLogo, photoUrl, placeView } from '../util.js';
+import { $, esc, api, teamColor, teamLogo, photoUrl, placeView, driverOpt } from '../util.js';
 import { store } from '../store.js';
 import { renderDrivers, renderConsistency, renderPits, renderSpeeds, renderCircuits, renderRatings, gradeBadge, stopTxt, DHL_NOTE, statusFr, fmtLap } from './season-stats.js';
 import { driverRatings, qualiGaps, titleRace, placeForMaxPoints } from '/shared/season-calc.js';
@@ -21,6 +21,7 @@ const OFFICIAL = {
   alpine: '00A1E8', aston_martin: '229971', haas: '9C9FA2', sauber: '01C00E', audi: 'F50537', cadillac: '909090',
 };
 const color = (team, teamId) => teamColor({ TeamName: team, TeamColour: OFFICIAL[teamId] || '8b95a8' });
+const seasonOpt = (d) => driverOpt({ TeamName: d.team, TeamColour: OFFICIAL[d.teamId] || '8b95a8' }, d.number);
 const chip = (d) => `<span class="sz-chip" style="--tc:${color(d.team, d.teamId)}">${esc(d.last || d.name || d.code)}</span>`;
 const bar = (team, teamId) => `<span class="drv-bar" style="background:${color(team, teamId)}"></span>`;
 
@@ -459,7 +460,7 @@ function renderH2H() {
     [A, B] = [...count.values()].sort((a, b) => b.n - a.n).slice(0, 2).map((x) => x.d);
   }
   const mode = `<div class="tab-seg sz-h2h-mode"><button type="button" data-h2h-mode="team" class="${h2hMode === 'team' ? 'on' : ''}">Coéquipiers</button><button type="button" data-h2h-mode="drivers" class="${h2hMode === 'drivers' ? 'on' : ''}">Pilote contre pilote</button></div>`;
-  const opts = (sel) => data.drivers.map((d) => `<option value="${esc(d.code)}" ${d.code === sel ? 'selected' : ''}>${esc(d.name || d.code)}</option>`).join('');
+  const opts = (sel) => data.drivers.map((d) => `<option value="${esc(d.code)}" ${d.code === sel ? 'selected' : ''}${seasonOpt(d)}>${esc(d.name || d.code)}</option>`).join('');
   const pick = h2hMode === 'drivers'
     ? `<div class="sz-h2h-drivers"><label class="small">Pilote A <select id="szH2hA">${opts(h2hA)}</select></label><span class="sz-vs">VS</span><label class="small">Pilote B <select id="szH2hB">${opts(h2hB)}</select></label></div>`
     : `<div class="sz-team-pick">${teams.map((t) => `<button type="button" class="sz-team-btn${t.id === h2hTeam ? ' on' : ''}" data-h2h-team="${esc(t.id)}" style="--tc:${color(t.name, t.id)}">${logoMark(t.name, t.id)}<span>${esc(t.name)}</span></button>`).join('')}</div>`;
@@ -602,14 +603,14 @@ function render() {
   for (const b of document.querySelectorAll('#szNav [data-sz]')) b.classList.toggle('active', b.dataset.sz === section);
   if ($('#szCur')) $('#szCur').textContent = $('#szNav .active')?.textContent.trim() || (section === 'gp' ? 'Grand Prix' : '');
   const st = stats?.year === data.year || stats?.error ? stats : null;
-  const ctx = { data, stats: st, color, bar, official: (id) => OFFICIAL[id] || '8b95a8', ratings: ratingsFor(data, st), prev: prev?.year === data.year - 1 ? prev : null };
+  const ctx = { data, stats: st, color, bar, opt: seasonOpt, official: (id) => OFFICIAL[id] || '8b95a8', ratings: ratingsFor(data, st), prev: prev?.year === data.year - 1 ? prev : null };
   if (section === 'drivers') loadPrev();
   const fiaData = fia?.year === data.year ? fia : null;
   const html = {
     home: renderHome, calendar: renderCalendar, standings: renderStandings, title: renderTitle, results: renderResults, h2h: renderH2H,
     drivers: () => renderDrivers(ctx, drvCode), consistency: () => renderConsistency(ctx), pits: () => renderPits(ctx),
     speeds: () => renderSpeeds(ctx, speedPt), circuits: () => renderCircuits(ctx, circSort), ratings: () => renderRatings(ctx, rateSort),
-    tech: () => renderTech(ctx, fiaData), elements: () => renderElements(ctx, fiaData), predict: () => renderPredict(data.year), review: () => renderReview(ctx),
+    tech: () => renderTech(ctx, fiaData), elements: () => renderElements(ctx, fiaData), predict: () => renderPredict(data.year, (code) => { const d = data.drivers.find((x) => x.code === code); return d ? seasonOpt(d) : ''; }), review: () => renderReview(ctx),
     gp: renderGp,
   }[section]();
   // Tableaux larges : défilement de côté gardé quand la rubrique est redessinée (nouvelle course analysée…)
