@@ -801,6 +801,9 @@ async function handleApi(req, res, url) {
           return sendJSON(res, 400, { error: expiredMsg });
         }
       } else saveConfig({ f1tvToken: token });
+      // Jeton reçu (extension : cookie du site F1 TV si celui du compte a expiré) échangé aussitôt contre le jeton
+      // du compte, celui que donne la fenêtre de connexion et que la F1 accepte pour ses archives ; sinon gardé
+      if (sessionOf(getConfig().f1tvToken)) await renewF1tv({ force: true, swap: true }).catch(() => {});
       resetRenewState();
       if (hub.source.mode === 'live') live.restart();
       return sendJSON(res, 200, authInfo());
