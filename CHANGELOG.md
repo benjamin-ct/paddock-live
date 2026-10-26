@@ -97,6 +97,8 @@ l'application (Réglages → À propos → Nouveautés).
   serveur une fois par course, d'après les archives officielles de la F1 ; évolutions techniques et éléments
   moteur, lus par le serveur dans les documents de la FIA à chaque Grand Prix. Sur téléphone, la barre du haut ne
   garde que la séance tant que la Saison est ouverte (délai et F1 TV reviennent avec le direct).
+- Sur téléphone, les réglages du direct (délai TV, connexion F1 TV, météo et circuit, Saison, appli complète) sont
+  rangés derrière l'engrenage en haut à droite : la barre du haut ne garde que la séance et le chrono.
 
 ### Fiabilité et sécurité
 - Accès depuis le téléphone : un site ouvert sur l'ordinateur ne peut plus se faire passer pour l'ordinateur

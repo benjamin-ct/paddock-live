@@ -263,6 +263,16 @@ safe(initRadios);
 safe(initNoLive);
 // Espace Saison de l'appli (calendrier, classements, résultats…), d'après la saison gardée par le serveur
 safe(initSeason);
+// Téléphone : réglages du direct derrière l'engrenage. Hauteur de la barre changée (réglages ouverts, police
+// chargée) : écran « Pas de séance en direct » replacé dessous
+const topbar = document.querySelector('.topbar');
+new ResizeObserver(() => dispatchEvent(new Event('resize'))).observe(topbar);
+const webMenu = (open) => {
+  topbar.classList.toggle('menu-open', open);
+  document.querySelector('#webMenuBtn').setAttribute('aria-expanded', String(open));
+};
+document.querySelector('#webMenuBtn').addEventListener('click', () => webMenu(!topbar.classList.contains('menu-open')));
+document.querySelector('#seasonBtn').addEventListener('click', () => webMenu(false));
 // Panneau Analyse : seulement la télémétrie du pilote suivi
 document.querySelector('.p-analysis [data-tab="telemetry"]')?.click();
 on('status', renderSource);
