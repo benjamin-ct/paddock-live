@@ -52,7 +52,8 @@ async function folder(at) {
 // ---------- Feuille « Suivi réseaux » remplie avec les chiffres du Studio ----------
 // Abonnés : la ligne du lundi de la semaine (heure de Paris), seulement si elle est encore vide (relevé
 // du début de semaine, jamais un chiffre tapé à la main remplacé). Benjy : meilleur post des 7 derniers
-// jours. Posts : chiffres des posts publiés par le Studio dont le lien est dans la feuille (mis à jour).
+// jours. Posts : chiffres des posts du journal des publications du Studio (mis à jour), d'après le lien collé dans
+// la feuille, ou retrouvé et écrit quand la case est vide (même réseau, même jour, l'heure la plus proche).
 const NET_COLS = { instagram: 'instagram', facebook: 'facebook', tiktok: 'tiktok', x: 'x', threads: 'threads', bluesky: 'bluesky', youtube: 'youtube' };
 const METRICS = { vues: ['views'], "j'aime": ['likes'], commentaires: ['comments'], partages: ['shares'], enregistrements: ['saves'], clics: ['clicks'] };
 const TABS = [['Abonnés Paddock Live', 'Paddock Live'], ['Benjy Paddock', 'Benjy Paddock']];
@@ -106,10 +107,25 @@ export function sheetUpdates(tables, accounts, { history = [], kept = [], now = 
   const tab = 'Posts Paddock Live';
   const [head = [], ...rows] = tables[tab] || [];
   const li = head.findIndex((h) => /^lien/i.test(String(h).trim()));
+  const [di, hi, ni] = ['date', 'heure', 'réseau'].map((x) => head.findIndex((h) => String(h).trim().toLowerCase() === x));
   const urls = new Map();
   for (const e of history) for (const [n, v] of Object.entries(e.nets || {})) if (v?.url) urls.set(norm(v.url), [e.key, n]);
-  if (li >= 0) rows.forEach((row, r) => {
-    const hit = urls.get(norm(row[li]));
+  const paris = (t, o) => new Date(t).toLocaleString('fr-FR', { timeZone: 'Europe/Paris', ...o });
+  const mins = (v) => { const m = String(v || '').match(/^(\d{1,2})[:h](\d{2})/); return m ? m[1] * 60 + Number(m[2]) : null; };
+  const used = new Set(rows.map((row) => norm(row[li])).filter(Boolean));
+  // Case vide : post du même réseau (« Instagram Reels » : Instagram) publié le même jour, le plus proche de l'heure prévue
+  const guess = (row) => {
+    const net = NET_COLS[String(row[ni] || '').trim().toLowerCase().split(' ')[0]];
+    const want = mins(row[hi]);
+    return history.filter((e) => e.nets?.[net]?.url && !used.has(norm(e.nets[net].url)) && paris(e.at, { day: '2-digit', month: '2-digit', year: 'numeric' }) === String(row[di] || '').trim())
+      .map((e) => ({ url: e.nets[net].url, gap: want == null ? 0 : Math.abs(mins(paris(e.at, { hour: '2-digit', minute: '2-digit' })) - want) }))
+      .sort((a, b) => a.gap - b.gap)[0]?.url;
+  };
+  // Lignes avec une heure d'abord : elles prennent le post le plus proche, les autres ce qui reste
+  if (li >= 0) rows.map((row, r) => [row, r]).sort(([a], [b]) => (mins(a[hi]) == null) - (mins(b[hi]) == null)).forEach(([row, r]) => {
+    let link = row[li];
+    if (empty(link) && di >= 0 && ni >= 0 && (link = guess(row))) { used.add(norm(link)); out.push({ range: cell(tab, li, r + 1), values: [[link]] }); }
+    const hit = urls.get(norm(link));
     const s = hit && stats.get(hit[0])?.[hit[1]];
     if (!s) return;
     head.forEach((h, i) => {
@@ -159,6 +175,9 @@ export async function checkTask(at, id, start, title, now = new Date(), call = g
   const model = h < 0 ? null : content.slice(h + 1).find((e) => heading(e) || e.paragraph?.bullet);
   if (!model?.paragraph?.bullet) throw Object.assign(new Error('Section « Fait » (avec au moins une tâche) introuvable dans le Doc'), { status: 409 });
   const runs = model.paragraph.elements.map((x) => x.textRun).filter(Boolean);
+  // Détail : mis en forme comme celui de la première tâche faite qui en a un (la première peut n'avoir qu'un titre)
+  const end = content.findIndex((e, i) => i > h && heading(e));
+  const withDetail = content.slice(h + 1, end < 0 ? undefined : end).map((e) => (e.paragraph?.elements || []).map((x) => x.textRun).filter(Boolean)).find((r) => r.length > 1);
   const date = now.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', timeZone: 'Europe/Paris' });
   const head = `${date}  ·  ${title.trim()}`;
   const rest = lines.slice(1).filter((l) => l.trim()).map((l) => `\u000b${l}`).join('');
@@ -167,7 +186,7 @@ export async function checkTask(at, id, start, title, now = new Date(), call = g
   const add = [
     { insertText: { location: { index: at0 }, text: `${head}${rest}\n` } },
     { updateTextStyle: { range: { startIndex: at0, endIndex: at0 + len(head) }, textStyle: styleOf(runs[0]?.textStyle, true), fields: STYLE } },
-    ...(rest ? [{ updateTextStyle: { range: { startIndex: at0 + len(head), endIndex: at0 + len(head) + len(rest) }, textStyle: styleOf((runs[1] || runs[0])?.textStyle, false), fields: STYLE } }] : []),
+    ...(rest ? [{ updateTextStyle: { range: { startIndex: at0 + len(head), endIndex: at0 + len(head) + len(rest) }, textStyle: styleOf((runs[1] || withDetail?.[1] || runs[0])?.textStyle, false), fields: STYLE } }] : []),
   ];
   const del = { deleteContentRange: { range: { startIndex: item.startIndex, endIndex: item.endIndex } } };
   // Le plus loin dans le Doc d'abord : l'autre modification ne décale pas ses index
