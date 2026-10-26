@@ -1157,6 +1157,11 @@ body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-selec
 .cal-res .ic { color: #ffd166; flex: none; }
 .cal-out { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
 .cal-pole { display: inline-flex; align-items: center; gap: 6px; }
+.cal-grid { display: grid; grid-template-columns: repeat(3, auto); justify-content: start; align-items: center; gap: 5px 8px; font-size: 12.5px; white-space: nowrap; }
+.cal-grid > .ic { color: #ffd166; }
+.cal-grid > .muted { font-size: 11px; }
+.cal-grid > :is(.ic, .muted) { justify-self: center; }
+.cal-grid .sz-tag { margin: 0; text-align: center; }
 .cal-state { color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
 .cal-row.next .cal-state { color: var(--accent); }
 .cal-row.done > summary :is(.cal-name b, .cal-date) { color: var(--text-2); }
