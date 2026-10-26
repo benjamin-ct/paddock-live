@@ -95,7 +95,8 @@ l'application (Réglages → À propos → Nouveautés).
   pilote, de 2018 à aujourd'hui ; pronostics entre amis dans un groupe en ligne. Statistiques détaillées
   (régularité, arrêts aux stands, vitesses de pointe, profil des circuits, notes des pilotes) : calculées par le
   serveur une fois par course, d'après les archives officielles de la F1. Les documents de la FIA (évolutions
-  techniques, éléments moteur) restent pour l'instant dans l'appli.
+  techniques, éléments moteur) restent pour l'instant dans l'appli. Sur téléphone, la barre du haut ne garde que
+  la séance tant que la Saison est ouverte (délai et F1 TV reviennent avec le direct).
 
 ### Fiabilité et sécurité
 - Accès depuis le téléphone : un site ouvert sur l'ordinateur ne peut plus se faire passer pour l'ordinateur

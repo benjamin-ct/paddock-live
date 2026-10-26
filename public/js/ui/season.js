@@ -560,8 +560,8 @@ export function openSeason(sec, y) {
   if ($('#newsView')) import('./news.js').then((m) => m.closeNews());   // pas d'Actu dans la version web
   import('./home.js').then((m) => { m.homeTouched(); m.closeHome(); });
   import('./replays.js').then((m) => m.closeReplays());
-  placeView($('#seasonView'));
   $('#seasonView').hidden = false;
+  placeView($('#seasonView'));   // après l'affichage : la barre du haut peut s'alléger (version web sur téléphone)
   animate();
   $('#seasonBtn').classList.add('on');
   load();
