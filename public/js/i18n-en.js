@@ -1387,6 +1387,7 @@ export default {
   "s'arrête maintenant (actuellement P{}) :": "pits now (currently P{}):",
   "s'éloigne ({} s/tour)": "pulling away ({} s/lap)",
   "Saison": "Season",
+  "Sur la version web, les pronostics se jouent dans un groupe en ligne : créez-en un (même seul, pour vous) ou rejoignez celui de vos amis avec son lien.": "On the web version, predictions are played in an online group: create one (even just for yourself) or join your friends' group with its link.",
   "connexion perdue, nouvel essai dans 10 s": "connection lost, trying again in 10 s",
   "Calendrier, classements et résultats de la saison": "Season calendar, standings and results",
   "Rubriques de la Saison": "Season sections",

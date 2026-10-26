@@ -136,5 +136,5 @@ test('pronostics depuis la version web : groupe en ligne relayé comme par l\'ap
   assert.equal(v.group.name, 'Bureau');
   assert.equal((await web('GET', '?g=../x')).status, 400);
   const local = new URL('https://app.paddocklive.app/live/api/predictions?year=2026');
-  assert.equal((await liveApi(new Request(local), local, env)).status, 404);
+  assert.deepEqual(await (await liveApi(new Request(local), local, env)).json(), { online: true });
 });
