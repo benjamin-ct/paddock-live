@@ -2570,6 +2570,7 @@ export default {
   "{} pilote(s) à 3 infractions ou plus (drapeau noir et blanc ; pénalité à la 4e en course)": "{} driver(s) with 3 or more offences (black and white flag; penalty on the 4th in a race)",
   "Aucun flux nouveau.": "No new feed.",
   "Paddock Live · données F1 · {}": "Paddock Live · F1 data · {}",
+  "Paddock Live · Live timing F1 dans le navigateur": "Paddock Live · F1 live timing in your browser",
   "{} champs lus dans toute la séance, en {} s.": "{} fields read across the whole session, in {} s.",
   "Canaux de télémétrie": "Telemetry channels",
   "Aucune télémétrie dans cette séance.": "No telemetry in this session.",

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="fr">
+<html lang="fr" data-title-en="Paddock Live · Free F1 live timing, synced to your TV" data-desc-en="Free F1 live timing on your computer: timing, GPS track map, team radio and strategy for every Grand Prix, synced to your TV so the race is never spoiled. Windows, macOS, Linux.">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -19,7 +19,7 @@
 <meta name="twitter:image" content="https://paddocklive.app/site/img/apercu.png">
 <link rel="canonical" href="https://paddocklive.app/">
 <link rel="alternate" hreflang="fr" href="https://paddocklive.app/">
-<link rel="alternate" hreflang="en" href="https://paddocklive.app/?lang=en">
+<link rel="alternate" hreflang="en" href="https://paddocklive.app/en/">
 <link rel="alternate" hreflang="x-default" href="https://paddocklive.app/">
 <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Paddock Live","url":"https://paddocklive.app/"},{"@type":"SoftwareApplication","name":"Paddock Live","description":"Live timing F1 gratuit : chronos, carte GPS, radios traduites et stratégie, calés sur ta diffusion TV.","operatingSystem":"Windows, macOS, Linux","applicationCategory":"SportsApplication","offers":{"@type":"Offer","price":"0","priceCurrency":"EUR"},"url":"https://paddocklive.app/","image":"https://paddocklive.app/site/img/apercu.png","sameAs":["https://www.instagram.com/paddockliveapp/","https://www.facebook.com/paddockliveapp","https://www.tiktok.com/@paddockliveapp","https://x.com/paddockliveapp","https://www.threads.com/@paddockliveapp","https://bsky.app/profile/paddocklive.app","https://www.youtube.com/@paddockliveapp","https://github.com/benjamin-ct/paddock-live"]}]}</script>
 <meta name="twitter:card" content="summary_large_image">
@@ -427,6 +427,7 @@ dialog.hide a { border-radius: 6px; }
       <a href="#telecharger" data-en="Download">Télécharger</a>
       <a href="https://github.com/benjamin-ct/paddock-live/releases" data-en="All versions">Toutes les versions</a>
       <a href="/p/" data-en="Predictions with friends (online)">Pronostics entre amis (en ligne)</a>
+      <a href="/saison/" data-href-en="/en/season/" data-en="F1 season: standings and results">Saison de F1 : classements et résultats</a>
       <a href="/live-timing-f1/" data-href-en="/en/f1-live-timing/" data-en="F1 live timing">Live timing F1</a>
       <a href="/radios-f1-traduites/" data-href-en="/en/f1-team-radio-translated/" data-en="Team radio, transcribed">Radios F1 traduites</a>
       <a href="/timing-f1-sans-spoiler/" data-href-en="/en/spoiler-free-f1-live-timing/" data-en="Spoiler-free live timing">Live timing sans spoiler</a>
@@ -455,12 +456,13 @@ const SOCIAL = [
 document.getElementById('social').innerHTML = SOCIAL.map(([n, u]) => `<a href="${u}" target="_blank" rel="noopener">${n}</a>`).join('');
 
 // Langue : français par défaut, anglais si le navigateur n'est pas en français (ou bouton EN / FR). Les robots des
-// moteurs de recherche (réglés en anglais) gardent le français sur / : la version anglaise a sa propre adresse
-// (/?lang=en, annoncée par hreflang), avec son titre, sa description et son adresse canonique
+// moteurs de recherche (réglés en anglais) gardent le français sur / : la version anglaise a sa propre page (/en/,
+// écrite au déploiement avec les textes data-en, annoncée par hreflang) ; son bouton FR ramène sur /
+const served = document.documentElement.lang;
 const els = [...document.querySelectorAll('[data-en]')];
 for (const el of els) el.dataset.fr = el.innerHTML;
-const META = { fr: document.title, en: 'Paddock Live · Free F1 live timing, synced to your TV' };
-const DESC = { fr: document.querySelector('meta[name="description"]').content, en: 'Free F1 live timing on your computer: timing, GPS track map, team radio and strategy for every Grand Prix, synced to your TV so the race is never spoiled. Windows, macOS, Linux.' };
+const META = { fr: document.title, en: document.documentElement.dataset.titleEn };
+const DESC = { fr: document.querySelector('meta[name="description"]').content, en: document.documentElement.dataset.descEn };
 const bot = /bot|crawl|spider|slurp|lighthouse|preview/i.test(navigator.userAgent);
 let lang;
 function setLang(l) {
@@ -469,7 +471,7 @@ function setLang(l) {
   for (const el of els) el.innerHTML = l === 'en' ? el.dataset.en : el.dataset.fr;
   document.title = META[l];
   document.querySelector('meta[name="description"]').content = DESC[l];
-  document.querySelector('link[rel="canonical"]').href = l === 'en' ? 'https://paddocklive.app/?lang=en' : 'https://paddocklive.app/';
+  document.querySelector('link[rel="canonical"]').href = l === 'en' ? 'https://paddocklive.app/en/' : 'https://paddocklive.app/';
   for (const el of document.querySelectorAll('[data-href-en]')) { el.dataset.hrefFr ??= el.getAttribute('href'); el.setAttribute('href', l === 'en' ? el.dataset.hrefEn : el.dataset.hrefFr); }
   for (const el of document.querySelectorAll('[data-ph-en]')) { el.dataset.phFr ??= el.placeholder; el.placeholder = l === 'en' ? el.dataset.phEn : el.dataset.phFr; }
   const b = document.getElementById('lang');
@@ -478,7 +480,7 @@ function setLang(l) {
   try { localStorage.setItem('pl.lang', l); } catch { /* sans stockage */ }
   showVersion();
 }
-document.getElementById('lang').onclick = () => setLang(lang === 'en' ? 'fr' : 'en');
+document.getElementById('lang').onclick = () => (served === 'en' ? location.assign('/?lang=fr') : setLang(lang === 'en' ? 'fr' : 'en'));
 
 // Système de l'ordinateur : bouton principal direct et carte mise en avant
 const ua = navigator.userAgent;
@@ -567,7 +569,7 @@ ask.addEventListener('drop', (e) => { e.preventDefault(); ask.classList.remove('
 let saved = null;
 try { saved = localStorage.getItem('pl.lang'); } catch { /* sans stockage */ }
 const asked = new URLSearchParams(location.search).get('lang');
-setLang(asked === 'en' || asked === 'fr' ? asked : bot ? 'fr' : saved || (/^fr\b/i.test(navigator.language) ? 'fr' : 'en'));
+setLang(served === 'en' ? 'en' : asked === 'en' || asked === 'fr' ? asked : bot ? 'fr' : saved || (/^fr\b/i.test(navigator.language) ? 'fr' : 'en'));
 
 // Menu caché : 5 touches rapides sur le logo du bas de page (ou l'adresse se terminant par #paddock)
 // -> statistiques d'utilisation et Studio (chacun protégé par son mot de passe ou son code)

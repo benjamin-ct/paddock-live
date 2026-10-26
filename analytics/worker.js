@@ -32,6 +32,7 @@ import { publicPushApi, pushRun, queuePush, sessionReminders } from './push-publ
 import { liveSocket, liveApi } from './live-relay.js';
 import { statsTick } from './race-stats.js';
 import { fiaTick } from './fia-tech.js';
+import { seasonPages } from './season-pages.js';
 import { LIVE_HEADERS } from './live-page/headers.js';
 
 // Fichier de la version web, avec ses en-têtes de sécurité (le fichier _headers ne s'applique pas ici)
@@ -210,12 +211,24 @@ export default {
     // (paddocklive.app/live/, adresse workers.dev) : la page renvoie là-bas, le reste n'existe pas. Les fichiers
     // /live/* passent par le Worker d'abord (run_worker_first, wrangler.toml), avec les en-têtes de sécurité
     const app = url.hostname.startsWith('app.');
+    // Pages publiques de la Saison (classements, calendrier, résultats de chaque Grand Prix) pour les moteurs de recherche
+    // (gardées une heure : un robot qui parcourt tout le site ne refait pas chaque page)
+    if (req.method === 'GET' && !app && env.DB && (url.pathname.startsWith('/saison/') || url.pathname.startsWith('/en/season/'))) {
+      const key = new Request(`${url.origin}${url.pathname}`);
+      const hit = await caches.default.match(key).catch(() => null);
+      if (hit) return hit;
+      const res = await seasonPages(env, url).catch(() => null);
+      if (res?.status === 200) ctx.waitUntil(caches.default.put(key, res.clone()).catch(() => {}));
+      if (res) return res;
+    }
     if (url.pathname === '/live' || url.pathname.startsWith('/live/')) {
       if (!app) return ['/live', '/live/'].includes(url.pathname) && req.method === 'GET' ? Response.redirect('https://app.paddocklive.app/', 301) : new Response('Introuvable', { status: 404 });
       if (url.pathname !== '/live/ws' && !url.pathname.startsWith('/live/api/') && env.ASSETS) return liveAsset(env, req);
     }
     if (req.method === 'GET' && url.pathname === '/' && app && env.ASSETS) return liveAsset(env, new Request(new URL('/live/', url), req));
     if (req.method === 'GET' && url.pathname === '/' && ownDomain && env.ASSETS) {
+      // Ancienne adresse de l'accueil en anglais : page à part depuis
+      if (url.searchParams.get('lang') === 'en') return Response.redirect(`${url.origin}/en/`, 301);
       return env.ASSETS.fetch(new Request(new URL('/site/', url), req));
     }
     if (req.method === 'POST' && url.pathname === '/e') {

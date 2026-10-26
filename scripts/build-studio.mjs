@@ -6,7 +6,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { PAGES, linksPage } from '../analytics/links/pages.mjs';
-import { GUIDES, guidePage, sitemap, robots } from '../analytics/launch/guides.mjs';
+import { GUIDES, guidePage, sitemap, robots, englishHome } from '../analytics/launch/guides.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = path.join(ROOT, 'analytics', 'site');
@@ -85,6 +85,8 @@ for (const g of GUIDES) {
   fs.mkdirSync(path.join(OUT, g.slug), { recursive: true });
   fs.writeFileSync(path.join(OUT, g.slug, 'index.html'), guidePage(g.slug));
 }
+// Accueil en anglais (/en/), page à part pour les moteurs de recherche
+fs.writeFileSync(path.join(OUT, 'en', 'index.html'), englishHome(fs.readFileSync(path.join(ROOT, 'analytics', 'launch', 'index.html'), 'utf8')));
 fs.writeFileSync(path.join(OUT, 'sitemap.xml'), sitemap());
 fs.writeFileSync(path.join(OUT, 'robots.txt'), robots());
 copy(path.join(ROOT, 'analytics', 'launch', 'img'), path.join(OUT, 'site', 'img'));

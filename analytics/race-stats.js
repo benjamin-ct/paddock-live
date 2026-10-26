@@ -119,6 +119,13 @@ export async function dhlNext(env, year, { now = Date.now(), fetchFn = fetch } =
   return { dhl: found.size };
 }
 
+// Analyse d'une course déjà faite, avec les arrêts DHL, ou null (pages publiques de la Saison, season-pages.js)
+export async function raceStatsOf(env, year, round) {
+  const row = JSON.parse(await getRow(env, `racestats:${year}:${round}`) || 'null');
+  if (row?.v !== STATS_VERSION) return null;
+  return withDhl(row, JSON.parse(await getRow(env, `racedhl:${year}:${round}`) || 'null')?.rows);
+}
+
 // Tâche planifiée (chaque minute) : courses analysées l'une après l'autre tant qu'il reste du temps (20 s), pour
 // l'année en cours ou une année demandée depuis la version web dans l'heure ; arrêt à la première erreur
 export async function statsTick(env, { now = Date.now(), fetchFn = fetch, budget = 20e3 } = {}) {
