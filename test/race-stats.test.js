@@ -95,8 +95,8 @@ test('version web : statistiques calculées par le serveur, une course à la foi
   assert.ok(!rows.get('racestats:f1tv').includes(jwt));   // chiffré
   const first = await seasonStatsWeb(env, 2026, { now, fetchFn });
   assert.deepEqual([first.total, first.done, first.pending], [2, 0, true]);
-  assert.deepEqual(await statsTick(env, { now, fetchFn }), { year: 2026, round: 5 });
-  assert.deepEqual(await statsTick(env, { now: now + 60e3, fetchFn }), { year: 2026, round: 6, error: 'course absente de l\'index des archives' });
+  // Un passage : manche 5 analysée, puis manche 6 (absente des archives) essayée dans la foulée
+  assert.deepEqual(await statsTick(env, { now, fetchFn }), { year: 2026, round: 6, error: 'course absente de l\'index des archives', done: 1 });
   assert.equal(await statsTick(env, { now: now + 120e3, fetchFn }), null);   // manche 6 réessayée dans 6 heures seulement
   const out = await seasonStatsWeb(env, 2026, { now: now + 180e3, fetchFn });
   assert.deepEqual([out.done, out.pending], [1, false]);

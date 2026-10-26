@@ -45,7 +45,7 @@ export function renderReview(ctx) {
       </div>
       <div class="row" style="gap:8px;margin-top:12px"><button class="btn small" data-review="copy">${t('Copier l\'image')}</button><button class="btn small" data-review="save">${t('Enregistrer l\'image')}</button></div>
     </section>
-    <section class="sz-box"><h3>${t('Vos pilotes favoris')}</h3>
+    <section class="sz-box sz-favs"><h3>${t('Vos pilotes favoris')}</h3>
       ${favs.length ? `<table class="sz-table"><tr><th>#</th><th>${t('Pilote')}</th><th>Pts</th><th>${t('Victoires')}</th><th>${t('Podiums')}</th><th>${t('Poles')}</th></tr>${favs.map(favRow).join('')}</table>`
     : `<p class="muted">${t('Choisissez vos pilotes favoris (Réglages → Alertes & favoris) pour voir leur saison ici.')}</p>`}
     </section>`;
