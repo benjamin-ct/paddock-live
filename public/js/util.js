@@ -101,6 +101,9 @@ export function teamMark(driver) {
   return `<span class="team-logo${logoColor ? ' color' : ''}" style="--tc:${col};background-image:url('${logo}')" title="${esc(driver?.TeamName || '')}"></span>`;
 }
 
+// Choix d'une liste de pilotes : numéro et repère d'écurie, affichés devant le nom par le menu des listes (ui/select.js)
+export const driverOpt = (driver, num = driver?.RacingNumber) => ` data-num="${esc(num ?? '')}" data-mark="${esc(teamMark(driver))}"`;
+
 export const COMPOUNDS = {
   SOFT: { letter: 'S', color: '#ff3b3b', name: 'Tendre' },
   MEDIUM: { letter: 'M', color: '#ffd12e', name: 'Medium' },

@@ -1687,6 +1687,11 @@ input[type="search"]:not(.x-native)::-webkit-search-cancel-button:hover { opacit
 .csel-opt.sel { font-weight: 700; }
 .csel-opt.sel::before { content: ''; position: absolute; left: 4px; top: 6px; bottom: 6px; width: 3px; border-radius: 2px; background: var(--accent); }
 .csel-opt.disabled { color: var(--muted); cursor: default; }
+.csel-opt.drv { display: flex; align-items: center; gap: 8px; }
+.csel-opt.drv .team-logo { width: 18px; height: 18px; }
+.csel-opt.drv .drv-bar { width: 4px; height: 16px; }
+.csel-opt.drv > span { overflow: hidden; text-overflow: ellipsis; }
+.csel-num { min-width: 18px; text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
 .csel-group { padding: 8px 10px 3px; font-size: 10.5px; font-weight: 800; letter-spacing: .5px; text-transform: uppercase; color: var(--muted); }
 
 /* Classement : graisse plus légère, pneus centrés et alignés d'une ligne à l'autre */

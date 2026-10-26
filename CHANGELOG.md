@@ -142,6 +142,8 @@ l'application (Réglages → À propos → Nouveautés).
 - Listes de choix redessinées dans toute l'application et la version web : une case comme les cartes, intitulé en
   petites capitales et choix en gras ; un clic sur l'intitulé ouvre aussi la liste. Dans la version web, sur
   ordinateur, elles s'ouvrent sur le menu de Paddock Live au lieu de la liste bleue et blanche du navigateur.
+- Listes de pilotes (duels, comparaison, pronostics, Saison…) : numéro et logo de l'écurie devant chaque nom, pour
+  les reconnaître d'un coup d'œil (sur ordinateur).
 - Statistiques d'utilisation (si vous les avez acceptées) : les versions bêta les envoient aussi ; elles
   étaient jusqu'ici écartées sans rien dire.
 - Extension Paddock Live Companion 1.1.0 : elle donne aussi votre connexion F1 TV à la version web du direct

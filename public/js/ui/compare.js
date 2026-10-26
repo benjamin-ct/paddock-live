@@ -2,7 +2,7 @@
 // par mini-secteur (P1 contre P2 par défaut, ou deux pilotes au choix). Les mini-secteurs sont
 // mesurés par le serveur avec le GPS (voir server/compare.js), au rythme du délai TV.
 import { store, serverNow, versionOf } from '../store.js';
-import { $, esc, api, drivers, orderedNumbers, fmtLap, lapSeconds, storageGet, storageSet } from '../util.js';
+import { $, esc, api, drivers, orderedNumbers, fmtLap, lapSeconds, storageGet, storageSet, driverOpt } from '../util.js';
 
 const KEY = 'paddock.compare';
 const sel = { a: null, b: null, ...storageGet(KEY, {}), la: null, lb: null };   // null : P1 / P2 automatiques, meilleurs tours
@@ -32,7 +32,7 @@ function fillSelects(a, b) {
   const r = ranked();
   for (const [id, v] of [['#cmpA', a], ['#cmpB', b]]) {
     const el = $(id);
-    const html = r.map((n, i) => `<option value="${n}">P${i + 1} · ${esc(dl[n]?.Tla || n)}</option>`).join('');
+    const html = r.map((n, i) => `<option value="${n}"${driverOpt(dl[n] || {}, n)}>P${i + 1} · ${esc(dl[n]?.Tla || n)}</option>`).join('');
     if (el._html !== html) { el.innerHTML = html; el._html = html; }
     if (v) el.value = v;
   }

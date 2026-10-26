@@ -1,6 +1,6 @@
 // Outils de course : simulateur d'arrêt au stand et détection des bagarres.
 import { store, setDuel, versionOf, displayNow } from '../store.js';
-import { $, esc, drivers, orderedNumbers, sessionKind, teamColor, fmtSigned } from '../util.js';
+import { $, esc, drivers, orderedNumbers, sessionKind, teamColor, fmtSigned, driverOpt } from '../util.js';
 import { parseGap, parseLapTime } from '/shared/f1.js';
 import { currentTrack } from './map.js';
 import { lapGapSeries } from './duel.js';
@@ -203,7 +203,7 @@ export function renderPitSim(force = false) {
     $('#simLossReset').onclick = () => { lossOverride = null; renderPitSim(true); };
   }
   const sel = $('#simDriver');
-  const opts = gaps.map((g) => `<option value="${g.num}">${esc(dl[g.num]?.Tla || g.num)}</option>`).join('');
+  const opts = gaps.map((g) => `<option value="${g.num}"${driverOpt(dl[g.num] || {}, g.num)}>${esc(dl[g.num]?.Tla || g.num)}</option>`).join('');
   if (sel._opts !== opts) { sel.innerHTML = opts; sel._opts = opts; }
   if (document.activeElement !== sel) sel.value = me;
   $('#simLossVal').textContent = `${lossVal.toFixed(1).replace('.', DEC)} s`;

@@ -2,7 +2,7 @@
 // tour, historique des pneus, secteurs et vitesses de pointe. Calculé à partir de l'historique
 // tour par tour (données dérivées) et des statistiques du chronométrage.
 import { store, versionOf, on, setFocus } from '../store.js';
-import { $, esc, api, drivers, orderedNumbers, sessionKind, teamColor, compoundInfo, fmtLap, lapSeconds, storageGet, storageSet } from '../util.js';
+import { $, esc, api, drivers, orderedNumbers, sessionKind, teamColor, compoundInfo, fmtLap, lapSeconds, storageGet, storageSet, driverOpt } from '../util.js';
 import { prefs, isFav } from '../prefs.js';
 import { renderCompare, initCompare, openCompareLap } from './compare.js';
 import { tx } from '../i18n.js';
@@ -440,7 +440,7 @@ function renderSectors() {
     return `<td class="${d === 0 ? '' : better ? 'sec-better' : 'sec-worse'}" title="${fmt(v, k)}">${txt}</td>`;
   };
   const refSel = $('#secRef');
-  const refHtml = `<option value="">Temps de chacun</option>${rows.filter((r) => dl[r.n]).map((r) => `<option value="${r.n}">Écart à ${esc(dl[r.n].Tla)}</option>`).join('')}`;
+  const refHtml = `<option value="">Temps de chacun</option>${rows.filter((r) => dl[r.n]).map((r) => `<option value="${r.n}"${driverOpt(dl[r.n], r.n)}>Écart à ${esc(dl[r.n].Tla)}</option>`).join('')}`;
   if (refSel._html !== refHtml) { refSel.innerHTML = refHtml; refSel._html = refHtml; }
   refSel.value = ref ? ref.n : '';
   $('#anaSectors').innerHTML = `${recordsStrip(rows, dl)}<table class="sector-board"><tr><th>#</th><th>Pilote</th>${cols.map(([k, label]) => `<th class="${opts.sort === k ? 'sorted' : ''}" data-sort="${k}" title="Trier">${label}</th>`).join('')}</tr>
@@ -474,7 +474,7 @@ function fillRefSelect() {
   const dl = drivers(store.state);
   const sel = $('#anaRef');
   const nums = orderedNumbers(store.state).filter((n) => dl[n]);
-  const html = nums.map((n) => `<option value="${n}" ${n === opts.ref ? 'selected' : ''}>${esc(dl[n].Tla)}</option>`).join('');
+  const html = nums.map((n) => `<option value="${n}" ${n === opts.ref ? 'selected' : ''}${driverOpt(dl[n], n)}>${esc(dl[n].Tla)}</option>`).join('');
   if (sel._html !== html) { sel.innerHTML = html; sel._html = html; }
   if (!opts.ref && nums[0]) opts.ref = nums[0];
 }

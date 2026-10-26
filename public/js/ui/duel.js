@@ -1,7 +1,7 @@
 // Duel entre deux pilotes : écart en direct, tendance, historique, comparaison détaillée.
 import { store, setDuel, displayNow, versionOf, on, emit } from '../store.js';
 import { prefs } from '../prefs.js';
-import { $, esc, drivers, orderedNumbers, sessionKind, teamColor, tyreBadge, currentStint, fmtLap, fmtSigned, photoUrl } from '../util.js';
+import { $, esc, drivers, orderedNumbers, sessionKind, teamColor, tyreBadge, currentStint, fmtLap, fmtSigned, photoUrl, driverOpt } from '../util.js';
 import { parseGap, parseLapTime } from '/shared/f1.js';
 import { lineChart } from './charts.js';
 import { Dial, animate, carNow, energyOf } from './gauge.js';
@@ -93,7 +93,7 @@ function trendText(series, tlaA, tlaB, gapNow) {
 }
 
 function fillSelect(sel, value, dl, nums) {
-  const opts = ['<option value="">— Choisir —</option>', ...nums.map((n) => `<option value="${n}" ${n === value ? 'selected' : ''}>${esc(dl[n]?.Tla || n)} · ${esc(dl[n]?.LastName || dl[n]?.FullName || '')}</option>`)];
+  const opts = ['<option value="">— Choisir —</option>', ...nums.map((n) => `<option value="${n}" ${n === value ? 'selected' : ''}${driverOpt(dl[n] || {}, n)}>${esc(dl[n]?.Tla || n)} · ${esc(dl[n]?.LastName || dl[n]?.FullName || '')}</option>`)];
   const html = opts.join('');
   if (sel._html !== html) { sel.innerHTML = html; sel._html = html; }
   sel.value = value || '';
