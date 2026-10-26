@@ -79,6 +79,8 @@ l'application (Réglages → À propos → Nouveautés).
   n'est pas affiché (interface Essentielle, panneau masqué).
 
 ### Saison
+- Pendant l'analyse des courses, les tableaux de la Saison restent où on les a fait défiler au lieu de revenir
+  au début toutes les 3 secondes.
 - Sur téléphone : les rubriques de la Saison s'ouvrent dans un menu sur le côté (bouton ☰ en haut), au lieu
   d'une bande d'onglets à faire défiler ; les tableaux larges défilent de côté jusqu'au bout, sans rebond.
 - Bilan de la saison (Saison → Bilan de la saison) : champion ou leader, victoires, poles, podiums, vainqueurs
@@ -95,8 +97,9 @@ l'application (Réglages → À propos → Nouveautés).
   pilote, de 2018 à aujourd'hui ; pronostics entre amis dans un groupe en ligne. Sur téléphone, la barre du haut
   ne garde que la séance tant que la Saison est ouverte (délai et F1 TV reviennent avec le direct). Les statistiques tirées des
   archives des courses et les documents de la FIA restent pour l'instant dans l'appli.
-- Sur téléphone, les réglages du direct (délai TV, connexion F1 TV, Saison, appli complète) sont rangés derrière
-  l'engrenage en haut à droite : la barre du haut garde la séance, le chrono et les infos (longueur, course, météo).
+- Sur téléphone, les réglages du direct (délai TV, connexion F1 TV, appli complète) sont rangés derrière l'engrenage
+  en haut à droite : la barre du haut garde la séance, le chrono et les infos (longueur, course, météo). La Saison
+  s'ouvre par la coupe à côté ; toucher la séance en haut ramène au direct.
 
 ### Fiabilité et sécurité
 - Accès depuis le téléphone : un site ouvert sur l'ordinateur ne peut plus se faire passer pour l'ordinateur

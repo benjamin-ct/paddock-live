@@ -61,6 +61,13 @@
     .web body:has(#seasonView:not([hidden])) { overflow: hidden; }
     .web body:has(#seasonView:not([hidden])) .grid { display: none; }
     .web #szContent { overscroll-behavior: contain; }
+    html.web:has(#seasonView:not([hidden])), .web body:has(#seasonView:not([hidden])) { overscroll-behavior: none; }   /* pas de rebond de la page (iPhone) */
+    /* Saison ouverte : la séance en haut ramène au direct ; pas de favoris à choisir dans la version web */
+    .web body:has(#seasonView:not([hidden])) .topbar .session { cursor: pointer; }
+    .web .sz-favs { display: none; }
+    .web .topbar #seasonBtn .ic { width: 18px; height: 18px; }
+    @media (max-width: 900px) { .web .topbar #seasonBtn .ic { width: 22px; height: 22px; } }
+    .web .topbar #seasonBtn { gap: 6px; }
     /* La page ne glisse jamais de côté (seuls les tableaux larges défilent, dans leur cadre) */
     html.web, .web body { overflow-x: clip; overscroll-behavior-x: none; }
     .web .topbar .web-delay { display: flex; align-items: center; gap: 6px; }
@@ -134,8 +141,11 @@
       .web .topbar .weather-mini { order: 4; flex-basis: 100%; max-height: none; gap: 14px; }
       /* Réglages du direct (délai, F1 TV, état du serveur, Saison, appli) derrière l'engrenage : la barre du haut
          garde la séance, le chrono et les infos (longueur, course, météo, piste) */
-      .web #webMenuBtn { display: inline-flex; order: 1; margin-left: 2px; color: #fff; }   /* après l’état de la piste */
-      .web .topbar:not(.menu-open) > :is(.web-delay, #pairBtn, #sourceBadge, #seasonBtn, a.btn) { display: none !important; }
+      .web #webMenuBtn { display: inline-flex; order: 2; margin-left: 2px; color: #fff; }   /* après l’état de la piste et la Saison */
+      .web .topbar:not(.menu-open) > :is(.web-delay, #pairBtn, #sourceBadge, a.btn) { display: none !important; }
+      /* Saison : icône à côté de l'engrenage, toujours là */
+      .web .topbar #seasonBtn, .web .topbar #seasonBtn:not(.on) { order: 1; padding: 6px; gap: 0; border-color: transparent; color: #fff; }
+      .web .topbar #seasonBtn .sz-lbl { display: none; }
       .web .topbar.menu-open #webMenuBtn { background: rgba(255, 255, 255, .14); border-radius: 8px; }
       /* Espace Saison ouvert : la barre du haut ne garde que la séance (délai, F1 TV, chronos servent au direct) ;
          « Retour au direct » est dans le menu ☰ */
@@ -175,7 +185,7 @@
     </div>
     <button class="btn small" id="pairBtn" title="Utiliser son compte F1 TV sur cet appareil" hidden></button>
     <button class="source-badge" id="sourceBadge"><span class="src-dot"></span><span id="sourceLabel">—</span></button>
-    <button class="btn small" id="seasonBtn" title="Calendrier, classements et résultats de la saison">Saison</button>
+    <button class="btn small" id="seasonBtn" title="Calendrier, classements et résultats de la saison" aria-label="Saison"><svg class="ic" aria-hidden="true"><use href="#i-trophy"/></svg><span class="sz-lbl">Saison</span></button>
     <a class="btn small btn-accent" href="https://paddocklive.app/" title="Télécharger l'appli Paddock Live">Appli complète</a>
   </header>
 
