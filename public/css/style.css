@@ -1082,6 +1082,7 @@ body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-selec
 :is(#szNav, #nwNav, #rvNav) button.active { background: var(--panel-3); color: var(--text); }
 .sz-back { margin-top: auto; }
 .sz-src { padding: 6px; }
+.sz-menu, .sz-scrim { display: none; }
 .sz-main { flex: 1; overflow: auto; padding: 18px 22px 30px; }
 .sz-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; margin-bottom: 14px; }
 .sz-card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; min-height: 110px; }
@@ -1504,6 +1505,21 @@ html[data-design="classic"] .rc-bar { display: none !important; }
   :is(#szNav, #nwNav, #rvNav) button { white-space: nowrap; padding: 7px 9px; }
   .sz-nav-sep, .sz-src { display: none; }
   .sz-back { flex: none; }
+  /* Saison : rubriques dans un panneau qui s'ouvre sur la gauche (bouton ☰), pas en bandeau à faire défiler */
+  #seasonView .sz-side { position: absolute; top: 0; bottom: 0; left: 0; z-index: 3; width: min(300px, 86vw) !important; flex-direction: column;
+    align-items: stretch; overflow: hidden auto; padding: 14px 10px calc(14px + env(safe-area-inset-bottom)); border-bottom: 0;
+    border-right: 1px solid var(--border); box-shadow: 8px 0 24px rgba(0, 0, 0, .35); transform: translateX(-105%); transition: transform .22s ease-out; }
+  #seasonView.sz-open .sz-side { transform: none; }
+  #seasonView .sz-side-head { padding: 0 6px 8px; }
+  #seasonView .sz-side-head b { display: inline; }
+  #seasonView #szNav { flex-direction: column; }
+  #seasonView #szNav button { white-space: normal; padding: 10px; }
+  #seasonView .sz-nav-sep, #seasonView .sz-src { display: block; }
+  #seasonView .sz-menu { display: flex; align-items: center; gap: 8px; flex: none; padding: 10px 14px; background: var(--panel); border: 0;
+    border-bottom: 1px solid var(--border); color: var(--text); font: inherit; font-weight: 700; text-align: left; cursor: pointer; }
+  #seasonView .sz-menu .ic { width: 20px; height: 20px; }
+  #seasonView .sz-scrim { display: block; position: absolute; inset: 0; z-index: 2; background: rgba(0, 0, 0, .45); opacity: 0; pointer-events: none; transition: opacity .2s; }
+  #seasonView.sz-open .sz-scrim { opacity: 1; pointer-events: auto; }
   .sz-main { padding: 10px !important; }
   .sz-cards { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)) !important; }
   .sz-count { grid-column: 1 / -1 !important; }
