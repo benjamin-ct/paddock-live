@@ -51,8 +51,9 @@
     /* Bouton Saison dans la barre du haut (l'appli l'a dans son menu latéral) */
     .web .topbar #seasonBtn { display: inline-flex !important; }
     .web .topbar #seasonBtn:not(.on) { border-color: rgba(255, 255, 255, .18); }
-    /* Espace Saison : rubriques tirées des résultats ; les statistiques des archives et les documents FIA restent dans l'appli */
-    .web #szNav :is([data-sz="h2h"], [data-sz="drivers"]) { display: flex !important; }
+    /* Espace Saison : toutes les rubriques sauf les documents FIA (dans l'appli seulement pour l'instant) */
+    .web #szNav button[data-full]:not([data-sz="tech"], [data-sz="elements"]) { display: flex !important; }
+    @media (min-width: 901px) { .web #szNav .sz-nav-sep:first-of-type { display: block !important; } }
     /* Écran affiché : les panneaux vides dessous sont retirés, la page ne défile plus */
     .web body:has(#noLiveView:not([hidden])) { overflow: hidden; }
     .web body:has(#noLiveView:not([hidden])) .grid { display: none; }

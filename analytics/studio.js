@@ -111,6 +111,28 @@ async function open(raw, sealed) {
 async function saveVault(env, raw, v) {
   await setRow(env, 'vault', await seal(raw, v));
   if (await getRow(env, 'live:f1tv')) await setRow(env, 'live:f1tv', '');
+  await keepArchiveToken(env, v.f1tv);
+}
+
+// Connexion F1 TV pour les statistiques des courses de la version web (analytics/race-stats.js) : copie du seul
+// jeton, chiffrée avec la clé du serveur comme les publications programmées, pour lire les archives sans le code du
+// Studio. Effacée quand F1 TV quitte le coffre ; une copie déjà prolongée par le serveur n'est pas remplacée par une
+// plus ancienne de la même session
+const ARCHIVE_TOKEN = 'racestats:f1tv';
+const readArchiveToken = async (env) => (await open(await schedKey(env), await getRow(env, ARCHIVE_TOKEN)).catch(() => null))?.f1tv || null;
+export async function keepArchiveToken(env, f1tv = null) {
+  if (!env.STATS_KEY) return;
+  const cur = await readArchiveToken(env);
+  if (cur === f1tv || (cur && f1tv && jwtSession(cur) === jwtSession(f1tv) && jwtExp(cur) > jwtExp(f1tv))) return;
+  await setRow(env, ARCHIVE_TOKEN, f1tv ? await seal(await schedKey(env), { f1tv }) : '');
+}
+// Jeton F1 TV valable pour lire les archives (renouvelé si besoin), ou null
+export async function archiveToken(env, { now = Date.now(), fetchFn = fetch } = {}) {
+  if (!env.STATS_KEY) return null;
+  const cur = await readArchiveToken(env);
+  const f1tv = cur && await freshF1tv(cur, { now, fetchFn });
+  if (f1tv !== cur) await setRow(env, ARCHIVE_TOKEN, await seal(await schedKey(env), { f1tv }));
+  return f1tv && jwtExp(f1tv) > now ? f1tv : null;
 }
 
 // Contenu accepté du coffre (rien d'autre n'est gardé)
@@ -852,6 +874,7 @@ export async function studioApi(req, env, url) {
   if (path === 'me' && req.method === 'GET') {
     vault = await refresh(env, a.raw, vault);
     await noteExpiries(env, vault, jwtExp).catch(() => {});
+    await keepArchiveToken(env, vault.f1tv).catch(() => {});   // première ouverture du Studio après la mise à jour
     return json({
       facebook: vault.meta?.pageName || null, instagram: vault.meta?.igId ? `@${vault.meta.igUsername || ''}` : null,
       threads: vault.threads?.token ? `@${vault.threads.username || ''}` : null, bluesky: vault.bluesky ? `@${vault.bluesky.handle}` : null, f1tv: !!vault.f1tv, at: vault.at || null,
