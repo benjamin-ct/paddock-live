@@ -13,10 +13,16 @@ const RECENT = 4 * 86400e3;   // documents publiés depuis moins de 4 jours : l'
 const REREAD = 3600e3;
 const LOCK = 5 * 60e3;
 
-async function get(url, fetchFn) {
-  const r = await fetchFn(url, { headers: { 'User-Agent': UA } });
-  if (r.status !== 200) throw new Error(`${url} : HTTP ${r.status}`);
-  return r;
+// fia.com répond parfois trop tard (HTTP 522, 5xx) : deux nouveaux essais, 2 puis 4 s plus tard
+async function get(url, fetchFn, wait = (ms) => new Promise((r) => setTimeout(r, ms))) {
+  let r;
+  for (let i = 0; i < 3; i++) {
+    if (i) await wait(2000 * i);
+    r = await fetchFn(url, { headers: { 'User-Agent': UA } }).catch(() => null);
+    if (r?.status === 200) return r;
+    if (r && r.status < 500) break;
+  }
+  throw new Error(`${url} : ${r ? `HTTP ${r.status}` : 'injoignable'}`);
 }
 const sha = async (s) => [...new Uint8Array(await crypto.subtle.digest('SHA-1', new TextEncoder().encode(s)))].map((b) => b.toString(16).padStart(2, '0')).join('').slice(0, 20);
 
