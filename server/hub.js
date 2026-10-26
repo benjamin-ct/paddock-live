@@ -89,8 +89,9 @@ export class Hub {
   }
 
   // ---- Alimentation (live) ----
-  addEvent(topic, data, t) {
-    this.events.push({ t, topic, data });
+  // utc : heure d'émission par la F1 (chronométrage en direct), transmise aux navigateurs avec l'événement
+  addEvent(topic, data, t, utc) {
+    this.events.push(utc ? { t, topic, data, utc } : { t, topic, data });
     for (const e of extractSyncEvents(this.syncCtx, topic, data, t)) this.sync.push(e);
     if (this.sync.length > 400) this.sync.splice(0, this.sync.length - 400);
   }
@@ -259,7 +260,7 @@ export class Hub {
     const out = [];
     while (c.ei < ev.length && ev[c.ei].t <= cutoff) {
       const e = ev[c.ei++];
-      out.push([e.topic, e.data, e.t]);
+      out.push(e.utc ? [e.topic, e.data, e.t, e.utc] : [e.topic, e.data, e.t]);
     }
     const items = [];
     let li = Math.max(0, c.si - this.streamOffset);
