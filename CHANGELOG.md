@@ -102,9 +102,8 @@ l'application (Réglages → À propos → Nouveautés).
   ou « Résultats du Grand Prix » dans le calendrier ; flèches vers le Grand Prix précédent et le suivant.
 - Calendrier : sous le prochain Grand Prix, les Grands Prix à venir d'abord, puis ceux déjà courus, du plus récent
   au plus ancien.
-- Listes de choix (pilote, duel pilote contre pilote, point de mesure, tri, Grand Prix) redessinées comme les cartes :
-  intitulé en petit au-dessus du choix, toute la largeur sur téléphone ; en duel, pilote A et pilote B côte à côte,
-  « VS » au milieu.
+- Listes de choix (pilote, duel pilote contre pilote, point de mesure, tri, Grand Prix) : intitulé au-dessus du choix,
+  toute la largeur sur téléphone ; en duel, pilote A et pilote B côte à côte, « VS » au milieu.
 
 ### Version web (app.paddocklive.app)
 - Chaque rubrique de la Saison a son adresse (par exemple app.paddocklive.app/saison/2026/pilotes/lando-norris/) :
@@ -121,8 +120,6 @@ l'application (Réglages → À propos → Nouveautés).
   s'ouvre par la coupe à côté ; toucher la séance en haut ramène au direct.
 - « Ajouter à mon agenda » fonctionne aussi dans la version web : abonnement (Apple Calendrier, Outlook), Google
   Agenda ou fichier du week-end.
-- Sur ordinateur, les listes de choix s'ouvrent sur un menu aux couleurs de Paddock Live, comme dans l'application,
-  au lieu de la liste bleue et blanche du navigateur.
 
 ### Fiabilité et sécurité
 - Accès depuis le téléphone : un site ouvert sur l'ordinateur ne peut plus se faire passer pour l'ordinateur
@@ -140,6 +137,9 @@ l'application (Réglages → À propos → Nouveautés).
   plus sans fin.
 
 ### Divers
+- Listes de choix redessinées dans toute l'application et la version web : une case comme les cartes, intitulé en
+  petites capitales et choix en gras ; un clic sur l'intitulé ouvre aussi la liste. Dans la version web, sur
+  ordinateur, elles s'ouvrent sur le menu de Paddock Live au lieu de la liste bleue et blanche du navigateur.
 - Statistiques d'utilisation (si vous les avez acceptées) : les versions bêta les envoient aussi ; elles
   étaient jusqu'ici écartées sans rien dire.
 - Extension Paddock Live Companion 1.1.0 : elle donne aussi votre connexion F1 TV à la version web du direct

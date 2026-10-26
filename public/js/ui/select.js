@@ -136,7 +136,8 @@ function onKey(e) {
 export function initSelects() {
   document.addEventListener('mousedown', (e) => {
     if (pop && pop.contains(e.target)) return;
-    const s = e.target.closest?.('select');
+    // Liste, ou intitulé de la case qui la contient (« Pilotes [Tous] »)
+    const s = e.target.closest?.('select') || (e.target.tagName === 'LABEL' ? e.target.querySelector(':scope > select') : null);
     if (s && e.button === 0 && eligible(s)) {
       e.preventDefault();
       s.focus({ preventScroll: true });

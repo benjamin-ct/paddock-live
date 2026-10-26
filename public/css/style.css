@@ -1374,15 +1374,15 @@ body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-selec
 .sz-team-btn.on { border-color: var(--tc); box-shadow: inset 0 0 0 1px var(--tc); background: color-mix(in srgb, var(--tc) 10%, var(--panel)); color: var(--text); }
 .sz-team-btn .team-logo, .sz-team-btn .drv-bar { flex: none; }
 .sz-team-btn .team-logo { width: 26px; height: 26px; }
-/* Choix (pilote, point de mesure, tri…) : une case comme les cartes, intitulé en petit au-dessus de la valeur ; la
+/* Choix (pilote, point de mesure, tri…) : la case des listes (plus bas), intitulé au-dessus de la valeur ; la
    liste couvre toute la case (marges négatives) pour l'ouvrir d'où qu'on clique. Duel : A et B côte à côte, « VS » au milieu */
-.sz-h2h-pick label, .sz-h2h-drivers label { display: flex; flex-direction: column; min-width: 240px; max-width: 100%; padding: 8px 12px 0; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; color: var(--muted); font-size: 10.5px; line-height: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; transition: border-color .15s; }
+:is(.sz-h2h-pick, .sz-h2h-drivers) label.small { display: flex; flex-direction: column; align-items: stretch; white-space: normal; min-width: 240px; max-width: 100%; padding: 8px 12px 0; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; color: var(--muted); font-size: 10.5px; line-height: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; transition: border-color .15s; }
 :is(.sz-h2h-pick, .sz-h2h-drivers) label:hover { border-color: var(--line-2); }
 :is(.sz-h2h-pick, .sz-h2h-drivers) label:focus-within { border-color: var(--accent); }
-:is(.sz-h2h-pick, .sz-h2h-drivers) label select:not([multiple]):not([size]):not(.x-native) { margin: -20px -12px 0; padding: 22px 12px 8px; background-color: transparent; background-position: right 12px center; border: 0; border-radius: 12px; color: var(--text); font-size: 15px; font-weight: 800; letter-spacing: 0; text-transform: none; }
+:is(.sz-h2h-pick, .sz-h2h-drivers) label.small select:not([multiple]):not([size]):not(.x-native) { margin: -20px -12px 0; padding: 22px 12px 8px; background-color: transparent; background-position: right 12px center; border: 0; border-radius: 12px; color: var(--text); font-size: 15px; font-weight: 800; letter-spacing: 0; text-transform: none; }
 .sz-h2h-drivers { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 10px; max-width: 760px; margin-bottom: 12px; }
-.sz-h2h-drivers label { min-width: 0; }
-@media (max-width: 700px) { .sz-h2h-pick label { flex: 1 1 100%; min-width: 0; } }
+.sz-h2h-drivers label.small { min-width: 0; }
+@media (max-width: 700px) { .sz-h2h-pick label.small { flex: 1 1 100%; min-width: 0; } }
 .sz-h2h-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; align-items: start; }
 .sz-h2h-layout .sz-h2h { max-width: none; }
 .sz-h2h-who { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
@@ -1615,8 +1615,8 @@ html[data-design="classic"] .rc-bar { display: none !important; }
 /* ---------- Listes déroulantes (voir js/ui/select.js) ---------- */
 select:not([multiple]):not([size]):not(.x-native) {
   appearance: none; -webkit-appearance: none;
-  background: var(--panel-3) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%239a9aa6' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 8px center / 10px 6px;
-  border: 1px solid var(--border); border-radius: 6px; color: var(--text);
+  background: var(--panel) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%239a9aa6' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 8px center / 10px 6px;
+  border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-weight: 700;
   padding-right: 26px !important;
   cursor: pointer; line-height: 1.35; transition: border-color .15s, background-color .15s;
 }
@@ -1624,6 +1624,19 @@ select:not([multiple]):not([size]):not(.x-native):hover { border-color: var(--li
 select:not([multiple]):not([size]):not(.x-native):focus-visible { outline: none; border-color: var(--accent); }
 select.csel-open:not(.x-native) { border-color: var(--accent); background-color: var(--panel-2); }
 select option { background: var(--panel-2); color: var(--text); }
+/* Liste avec intitulé (« Pilotes [Tous] ») : une seule case comme les cartes, intitulé en petites capitales, choix en
+   gras ; un clic sur l'intitulé ouvre aussi la liste (js/ui/select.js). Réglages : lignes à part (plus bas) */
+label.small:has(> select):where(:not(#settingsModal *)) {
+  display: inline-flex; align-items: center; max-width: 100%; padding-left: 10px; background: var(--panel);
+  border: 1px solid var(--border); border-radius: 8px; color: var(--muted); font-size: 10.5px; font-weight: 700;
+  letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; cursor: pointer; transition: border-color .15s;
+}
+label.small:has(> select):where(:not(#settingsModal *)):hover { border-color: var(--line-2); }
+label.small:has(> select):where(:not(#settingsModal *)):focus-within { border-color: var(--accent); }
+label.small:has(> select):where(:not(#settingsModal *)) > select:not([multiple]):not([size]):not(.x-native) {
+  display: block; min-width: 0; max-width: none; margin: 0; padding: 4px 8px; background-color: transparent; border: 0;
+  border-radius: 8px; color: var(--text); font-size: 12.5px; font-weight: 800; letter-spacing: 0; text-transform: none;
+}
 
 /* ---------- Champs de saisie : même allure partout (fond sombre, liseré, accent au focus) ----------
    Sélecteur sans poids (:where) : les champs qui ont leur propre style (délai, recherche…) le gardent */
