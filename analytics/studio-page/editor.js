@@ -260,6 +260,18 @@ export function editor({ back, title, subtitle = '', head = '', vhead = '', note
       const acc = session.me?.[k.replace('-story', '')];
       return `<label class="switch net"><span><b>${v}</b><small>${esc(acc || 'non connecté')}</small><em class="st" data-st="${k}"></em></span><input type="checkbox" role="switch" data-net="${k}" ${acc ? (k === 'tiktok' || k === 'youtube' ? '' : 'checked') : 'disabled'}></label>`;
     }).join('')}${vid ? '<div id="tkbox" class="tkbox" hidden></div>' : ''}${vid || story ? `<p class="hint">${story ? `${vid ? 'La vidéo en story' : 'Une story par image'}, visible 24 heures.` : `Vidéo sur tous les réseaux${vid.full ? ' : plein écran sur Facebook, Threads et Bluesky, zone sûre sur Instagram, TikTok et YouTube (privé)' : ''}.`}</p>` : ''}`;
+    if (!app && !xTab) {
+      accountProblems().then((pb) => {
+        for (const [n, why] of Object.entries(pb || {})) {
+          const cb = why && $(`[data-net="${n}"]`);
+          if (!cb) continue;
+          if (cb.checked) cb.click();   // TikTok : son panneau se referme
+          cb.disabled = true;
+          const st = $(`[data-st="${n}"]`);
+          st.className = 'st err'; st.textContent = why;
+        }
+      });
+    }
     if ($('#expshare')) $('#expshare').onclick = () => $('#share').click();
     if ($('#expdl')) $('#expdl').onclick = () => $('#dl').click();
     if ($('#withvid')) $('#withvid').onchange = (e) => { state.noVideo = !e.target.checked; redraw(); };
@@ -430,6 +442,14 @@ async function download(canvases) {
     setTimeout(() => URL.revokeObjectURL(a.href), 5000);
   }
 }
+
+// Connexions expirées (YouTube, TikTok, Threads), demandées au serveur au plus toutes les 10 minutes : réseau
+// grisé avec la marche à suivre, avant tout envoi (au lieu d'une erreur après coup)
+let checked = null;
+const accountProblems = () => {
+  if (!checked || Date.now() - checked.at > 600e3) checked = { at: Date.now(), p: api('accounts/check').catch(() => ({})) };
+  return checked.p;
+};
 
 // Réseaux cochés, texte et premier commentaire de chacun
 const checkedNets = () => $$('[data-net]:checked').map((i) => i.dataset.net);

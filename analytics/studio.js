@@ -397,6 +397,10 @@ function missing(net, vault) {
 }
 const resultOf = (r) => ({ url: r.url || null, id: r.id ?? null, comment: !!r.comment, commentError: r.commentError || null, ...(r.visible != null ? { visible: r.visible } : {}) });
 
+// Connexion TikTok ou YouTube refusée par le réseau (expirée, retirée) : ce qu'il faut faire
+const clipExpired = (net) => `Connexion ${net === 'tiktok' ? 'TikTok' : 'YouTube'} expirée : reconnectez-vous dans l'appli (Comptes…), puis « Renvoyer les comptes »${net === 'youtube' ? ' (Google la coupe tous les 7 jours tant que l\'application Google est « en test »)' : ''}`;
+const refused = (err) => err?.code === 'invalid_grant' || err?.code === 'invalid_client';
+
 // Brouillon TikTok ou Short YouTube. account() : compte aux jetons à jour
 // direct : réglages d'une publication directe sur TikTok (sinon brouillon)
 async function sendClip(net, account, video, mime, text, direct = null) {
@@ -405,9 +409,7 @@ async function sendClip(net, account, video, mime, text, direct = null) {
     if (net === 'youtube') return await youtubeUpload(acc.accessToken, video, mime, text);
     return direct ? await tiktokDirect(acc.accessToken, video, mime, direct) : await tiktokDraft(acc.accessToken, video, mime);
   } catch (err) {
-    throw new Error(err.code === 'invalid_grant' || err.code === 'invalid_client'
-      ? `Connexion ${net === 'tiktok' ? 'TikTok' : 'YouTube'} expirée : reconnectez-vous dans l'appli (Comptes…), puis « Renvoyer les comptes »`
-      : String(err?.message || err).slice(0, 300));
+    throw new Error(refused(err) ? clipExpired(net) : String(err?.message || err).slice(0, 300));
   }
 }
 
@@ -818,6 +820,19 @@ export async function studioApi(req, env, url) {
       tiktok: vault.tiktok ? vault.tiktok.name || 'TikTok' : null, youtube: vault.youtube ? vault.youtube.name || 'YouTube' : null,
       sources: DEFAULT_SOURCES.filter((s) => s.kind === 'rss').map(({ id, name, cat, lang, filter }) => ({ id, name, cat, lang, filter: filter || null })),
     });
+  }
+  // Avant de publier : connexions qui ne marchent plus (YouTube, TikTok, Threads), { réseau: raison } ; un réseau
+  // injoignable n'est pas compté comme expiré. Jetons renouvelés gardés (l'un après l'autre, comme stats/accounts)
+  if (path === 'accounts/check' && req.method === 'GET') {
+    let v = await refresh(env, a.raw, vault);
+    const out = {};
+    for (const net of CLIPS) {
+      if (!v[net]) continue;
+      const acc = await clipAccount(env, a.raw, v, net).catch((err) => { if (refused(err)) out[net] = clipExpired(net); return null; });
+      if (acc) v = { ...v, [net]: acc };
+    }
+    if (v.threads?.expiresAt && v.threads.expiresAt < Date.now()) out.threads = 'Connexion Threads expirée : reconnectez-la dans l\'appli (Comptes…), puis « Renvoyer les comptes »';
+    return json(out);
   }
   // Bilan des fonctions de l'appli (statistiques anonymes des 30 derniers jours)
   if (path === 'usage' && req.method === 'GET') return json({ days: 30, ...(await summary(env, 30)).usage, health: JSON.parse(await getRow(env, 'health') || 'null') });

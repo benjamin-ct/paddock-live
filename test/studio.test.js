@@ -1115,3 +1115,28 @@ test('Suivi : tâche cochée déplacée en tête de « Fait » avec la date, Doc
   await assert.rejects(checkTask('jeton', 'docid0123456', 15, 'Autre tâche', new Date(), call), /La liste a changé/);
   assert.equal(sent, null);
 });
+
+test('page du créateur : connexions expirées signalées avant de publier (YouTube refusé, TikTok injoignable, Threads)', async () => {
+  const env2 = { DB: fakeDB(), MEDIA: fakeR2(), STUDIO_KEY_HASH: HASH, STATS_KEY: 's' };
+  const w = (p, init = {}) => studioApi(new Request(`https://s.test/studio/api/${p}`, init), env2, new URL(`https://s.test/studio/api/${p}`));
+  const vault = {
+    youtube: { clientId: 'yt.apps', clientSecret: 'secret-google', refreshToken: 'rt-yt', accessToken: 'a', expiresAt: 0 },
+    tiktok: { clientKey: 'ck', clientSecret: 'secret-tiktok', refreshToken: 'rt-tk', accessToken: 'b', expiresAt: 0, openId: 'o1' },
+    threads: { token: 'th', userId: 'u1', username: 'benjypaddock', expiresAt: Date.now() - 1000 },
+  };
+  assert.equal((await w('init', { method: 'POST', body: JSON.stringify({ key: studioKey(CODE), vault }) })).status, 200);
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (u) => {
+    u = String(u);
+    if (u === 'https://oauth2.googleapis.com/token') return new Response(JSON.stringify({ error: 'invalid_grant', error_description: 'Token has been expired or revoked.' }), { status: 400 });
+    if (u.includes('tiktokapis.com')) throw new TypeError('fetch failed');
+    if (u.includes('threads.net')) return new Response(JSON.stringify({ error: { message: 'Session has expired', code: 190 } }), { status: 400 });
+    throw new Error(`inattendu : ${u}`);
+  };
+  try {
+    const r = await (await w('accounts/check', { headers: { 'X-Studio-Key': studioKey(CODE) } })).json();
+    assert.match(r.youtube, /Connexion YouTube expirée.*Renvoyer les comptes.*7 jours/);
+    assert.equal(r.tiktok, undefined, 'réseau injoignable : pas annoncé comme expiré');
+    assert.match(r.threads, /Connexion Threads expirée/);
+  } finally { globalThis.fetch = realFetch; }
+});
