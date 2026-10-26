@@ -6,6 +6,7 @@
 import { teammateDuels, FLASH_KINDS, GRID_SOURCE } from './social-more.js';
 import { teamLogoPath } from './team-logos.js';
 import { followReason, questionFor } from './social-follow.js';
+import { appSlides, appPage, plain } from './social-app.js';
 import { horaires, infos, editions, topflop, notes, equipes, positions, recapCover, recapItem, raceweek, titre, titreComment, titleBlocks } from './social-draw-season.js';
 
 export const FORMATS = {
@@ -27,11 +28,12 @@ export const MEDAL = [C.gold, C.silver, C.bronze];
 // passent avant les dernières images du post.
 export function slidesFor(d, { fmt = 'ig', follow = false, question = false } = {}) {
   const list = baseSlides(d, fmt);
-  if (list.length < 2) return list;
+  if (list.length < 2 || d.post === 'app') return list;   // compte Paddock Live : ni question ni « Abonnez-vous »
   const end = [...(question ? ['question'] : []), ...(follow ? ['abonnement'] : [])];
   return [...(fmt === 'x' && end.length ? list.slice(0, 4 - end.length) : list), ...end];
 }
 function baseSlides(d, fmt) {
+  if (d.post === 'app') return appSlides(d);
   if (d.news) return ['news', ...(d.gallery || []).map((_, i) => `photo-${i + 1}`), ...pointPages(d.points, fmt).map((_, i) => `essentiel-${i + 1}`)];
   if (d.post === 'prerace') return ['couverture', 'grille', ...(d.weather || d.tyres ? ['meteo'] : [])];
   if (d.post === 'champ') return ['couverture', 'champpilotes', 'champecuries'];
@@ -62,6 +64,7 @@ export function chosenSlides(list, skip = []) {
 // récap, duels d'une page, faits marquants, pneus et météo
 export function keptData(d, skip, fmt) {
   if (!skip.size) return d;
+  if (d.post === 'app') return { ...d, pages: d.pages.filter((_, i) => !skip.has(`app-${i + 1}`)) };
   if (d.news) return { ...d, points: pointPages(d.points, fmt).filter((_, i) => !skip.has(`essentiel-${i + 1}`)).flat() };
   if (d.post === 'recap') return { ...d, items: d.items.filter((_, i) => !skip.has(`recap-${i + 1}`)) };
   if (d.post === 'teamduels') return { ...d, rows: d.rows.filter((_, i) => !skip.has(`equipes-${Math.floor(i / 5) + 1}`)) };
@@ -85,12 +88,13 @@ export function pointPages(points, fmt = 'ig') {
   for (let k = 0; k < n; k++) { const take = Math.ceil((list.length - i) / (n - k)); pages.push(list.slice(i, i + take)); i += take; }
   return pages;
 }
-export const SLIDE_NAMES = { grille: 'Grille de départ', meteo: 'Météo et pneus', champpilotes: 'Championnat pilotes', champecuries: 'Championnat constructeurs', flash: 'Flash', duels: 'Duels entre coéquipiers', news: 'News', couverture: 'Couverture', vainqueur: 'Vainqueur', pole: 'Pole position', meilleurtemps: 'Meilleur temps', podium: 'Podium', classement: 'Classement', faits: 'Faits marquants', championnat: 'Championnat', abonnement: 'Abonnez-vous', question: 'Question', essentiel: "L'essentiel", photo: 'Photo', raceweek: 'Race Week', horaires: 'Horaires', infos: 'Pneus et météo', records: 'Records', editions: 'Éditions précédentes', topflop: 'Tops et flops', notes: 'Toutes les notes', equipes: 'Duels par écurie', positions: 'Positions tour par tour', recapcover: 'La semaine', recap: 'Info', titrepilotes: 'Titre pilotes', titreecuries: 'Titre constructeurs', titrecomment: 'Comment être sacré' };
+export const SLIDE_NAMES = { grille: 'Grille de départ', meteo: 'Météo et pneus', champpilotes: 'Championnat pilotes', champecuries: 'Championnat constructeurs', flash: 'Flash', duels: 'Duels entre coéquipiers', news: 'News', couverture: 'Couverture', vainqueur: 'Vainqueur', pole: 'Pole position', meilleurtemps: 'Meilleur temps', podium: 'Podium', classement: 'Classement', faits: 'Faits marquants', championnat: 'Championnat', abonnement: 'Abonnez-vous', question: 'Question', essentiel: "L'essentiel", photo: 'Photo', raceweek: 'Race Week', horaires: 'Horaires', infos: 'Pneus et météo', records: 'Records', editions: 'Éditions précédentes', topflop: 'Tops et flops', notes: 'Toutes les notes', equipes: 'Duels par écurie', positions: 'Positions tour par tour', recapcover: 'La semaine', recap: 'Info', titrepilotes: 'Titre pilotes', titreecuries: 'Titre constructeurs', titrecomment: 'Comment être sacré', app: 'Page' };
 export const slideName = (s) => SLIDE_NAMES[s] || SLIDE_NAMES[String(s).replace(/-\d+$/, '')] || s;
 // Texte alternatif d'une image publiée (lecteurs d'écran) : ce qu'elle montre, avec le classement s'il y en a un
 const RANKED = { vainqueur: 3, pole: 3, meilleurtemps: 3, podium: 3, classement: 10, grille: 10 };
 export function slideAlt(d, slide) {
   const name = slideName(slide);
+  if (d.post === 'app') { const p = d.pages?.[Number(String(slide).slice(4)) - 1] || {}; return [plain(p.title), String(p.text || '').trim()].filter(Boolean).join('. ').slice(0, 500) || name; }
   if (d.news) return `${name} : ${d.title}${d.summary ? `. ${d.summary}` : ''}`.slice(0, 500);
   const what = [d.label, d.gp].filter(Boolean).join(' · ');
   const n = RANKED[slide] && d.rows?.[0]?.pos ? RANKED[slide] : 0;
@@ -1085,6 +1089,7 @@ export function paintSlide(ctx, slide, fmt, d, o = {}) {
   const { w, h } = FORMATS[fmt];
   // X : 4 images au plus par post, le sommaire n'annonce que celles publiées
   if (slide === 'news') newsSlide(ctx, w, h, d, o, fmt);
+  else if (/^app-\d+$/.test(slide)) { const list = o.slides || appSlides(d); appPage(ctx, w, h, d, Number(slide.slice(4)), { num: list.indexOf(slide) + 1, total: list.length }); }
   else if (slide === 'abonnement') follow(ctx, w, h, d, o);
   else if (slide === 'question') question(ctx, w, h, d, o);
   else if (slide === 'raceweek') raceweek(ctx, w, h, d, o);

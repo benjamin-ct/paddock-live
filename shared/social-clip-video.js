@@ -5,6 +5,7 @@
 import { C, TITLE, txt, fitLines, rr, background, breakingFrame } from './social-draw.js';
 import { header, outro, OUTRO } from './social-news-video.js';
 import { makeAnimation } from './social-video.js';
+import { appPage, appOutro, APP_OUTRO } from './social-app.js';
 
 export const CLIP_MAX = 60;   // secondes de la vidéo gardées au plus (TikTok, Shorts, Reels)
 const FADE = 0.4;
@@ -55,7 +56,11 @@ function layout(ctx, W, H, d, clip, u) {
 
 export function clipFrame(ctx, W, H, d, o, clip, t) {
   const u = W / 1080;
-  if (t >= clip.duration) outro(ctx, W, H, d, o, u, t - clip.duration);
+  // Post du compte Paddock Live : la vidéo à la place de la capture de la première page, fin aux couleurs de l'appli
+  if (d.post === 'app') {
+    if (t >= clip.duration) appOutro(ctx, W, H, t - clip.duration);
+    else appPage(ctx, W, H, d, 1, { media: clip.el });
+  } else if (t >= clip.duration) outro(ctx, W, H, d, o, u, t - clip.duration);
   else {
     background(ctx, W, H, d.color);
     const L = layout(ctx, W, H, d, clip, u);
@@ -87,7 +92,7 @@ export async function makeClipVideo(file, d, o, opts = {}) {
   const clip = await loadClip(file);
   if (!(clip.duration > 0)) throw new Error('Vidéo vide ou illisible');
   try {
-    return await makeAnimation((ctx, t, w, h) => clipFrame(ctx, w, h, d, o, clip, t), clip.duration + OUTRO, {
+    return await makeAnimation((ctx, t, w, h) => clipFrame(ctx, w, h, d, o, clip, t), clip.duration + (d.post === 'app' ? APP_OUTRO : OUTRO), {
       box: true, prepare: (t) => (t < clip.duration ? seek(clip.el, t) : null), ...opts,
     });
   } finally { URL.revokeObjectURL(clip.el.src); }

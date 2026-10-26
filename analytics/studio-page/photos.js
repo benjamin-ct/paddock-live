@@ -134,3 +134,47 @@ export async function bitmapUrl(image) {
   c.getContext('2d').drawImage(image, 0, 0, c.width, c.height);
   return URL.createObjectURL(await new Promise((r) => c.toBlob(r, 'image/jpeg', 0.85)));
 }
+
+// ---------- Photos d'un post (article, autres médias, réseaux, vos photos) ----------
+// Touchées dans l'ordre : la première en couverture quand le post n'a pas déjà sa photo (cover()), puis une
+// image chacune ; recadrage toujours depuis la photo d'origine. Élément : { image, url, pick, src, credit?, mine? }
+export function photoGrid(el, list, { cover = () => true, frame = () => 0, onChange }) {
+  const show = () => {
+    el.innerHTML = list.map((a, i) => `<div class="ph"><button type="button" data-art="${i}" class="${a.pick ? 'on' : ''}">${a.pick ? `<b class="pick">${a.pick}</b>` : ''}<img src="${a.url}" alt=""><small>${a.pick ? (a.pick === 1 && cover() ? 'Couverture' : `Image ${a.pick + (cover() ? 0 : 1)}`) : 'Touchez pour ajouter'} · ${esc(a.src)}</small></button>${a.pick ? `<button type="button" class="cropbtn" data-crop="${i}">Recadrer</button>` : ''}</div>`).join('');
+    for (const b of $$('[data-crop]', el)) {
+      b.onclick = async () => {
+        const a = list[b.dataset.crop];
+        a.orig ||= a.image;
+        const image = await cropImage(a.orig, a.pick === 1 && cover() ? frame() : 0);   // couverture : cadre du visuel
+        if (!image) return;
+        a.image = image;
+        URL.revokeObjectURL(a.url);
+        a.url = await bitmapUrl(image);
+        show(); onChange();
+      };
+    }
+    for (const b of $$('[data-art]', el)) {
+      b.onclick = () => {
+        const a = list[b.dataset.art];
+        // Retirée : les suivantes avancent d'un rang ; ajoutée : à la fin
+        if (a.pick) { for (const x of list) if (x.pick > a.pick) x.pick--; a.pick = 0; } else a.pick = Math.max(0, ...list.map((x) => x.pick)) + 1;
+        show(); onChange();
+      };
+    }
+  };
+  show();
+  return show;
+}
+// Vos photos (fichiers de l'appareil) ajoutées à la liste, déjà choisies, à la suite ; renvoie le nombre d'illisibles
+export async function addFiles(list, files) {
+  let bad = 0;
+  for (const file of [...files].slice(0, 20)) {
+    try {
+      const image = await createImageBitmap(file);
+      list.push({ image, url: await bitmapUrl(image), pick: Math.max(0, ...list.map((x) => x.pick)) + 1, src: 'Vos photos', credit: '', mine: true });
+    } catch { bad++; }
+  }
+  return bad;
+}
+// Photos choisies, dans l'ordre : { image, credit } (photos des médias : « via » la source)
+export const picked = (list) => list.filter((a) => a.pick).sort((a, b) => a.pick - b.pick).map((a) => ({ image: a.image, credit: a.credit ?? `Photo : via ${a.src}` }));
