@@ -395,6 +395,7 @@ function renderResults() {
 let h2hTeam = null;
 let h2hMode = 'team';     // 'team' (coéquipiers) | 'drivers' (pilote contre pilote)
 let h2hA = null, h2hB = null;
+let trKind = 'd';          // course au titre : 'd' (pilotes) | 'c' (constructeurs)
 
 // Écart en qualification entre les deux coéquipiers, manche par manche
 function qualiGapBox(g, A, B, ca) {
@@ -575,8 +576,10 @@ function renderTitle() {
   const left = tr.races ? `${t('{} courses', tr.races)}${tr.sprints ? ` ${t('et {} sprints', tr.sprints)}` : ''} ${t('à disputer')}` : t('Saison terminée');
   return `<div class="tr-intro sz-box"><div><div class="muted small">${t('Reste')}</div><div class="tr-big">${left}</div></div>
       <div><div class="muted small">${t('Points encore à prendre')}</div><div class="tr-big">${tr.maxD} <span class="muted small">${t('par pilote')}</span> · ${tr.maxC} <span class="muted small">${t('par écurie')}</span></div></div></div>
-    <section class="sz-box"><h3>${t('Championnat pilotes')}</h3>${head(tr.drivers, tr.champion, 'd')}${clinchBox(tr.clinchD, 'd')}<div class="tr-grid">${tr.drivers.map(driverCard).join('')}</div></section>
-    <section class="sz-box"><h3>${t('Championnat constructeurs')}</h3>${head(tr.constructors, tr.champTeam, 'c')}${clinchBox(tr.clinchC, 'c')}<div class="tr-grid">${tr.constructors.map(teamCard).join('')}</div></section>`;
+    <div class="sz-h2h-pick"><div class="tab-seg">${[['d', 'Championnat pilotes'], ['c', 'Championnat constructeurs']].map(([k, l]) => `<button type="button" data-tr-kind="${k}" class="${trKind === k ? 'on' : ''}">${t(l)}</button>`).join('')}</div></div>
+    ${trKind === 'd'
+    ? `<section class="sz-box"><h3>${t('Championnat pilotes')}</h3>${head(tr.drivers, tr.champion, 'd')}${clinchBox(tr.clinchD, 'd')}<div class="tr-grid">${tr.drivers.map(driverCard).join('')}</div></section>`
+    : `<section class="sz-box"><h3>${t('Championnat constructeurs')}</h3>${head(tr.constructors, tr.champTeam, 'c')}${clinchBox(tr.clinchC, 'c')}<div class="tr-grid">${tr.constructors.map(teamCard).join('')}</div></section>`}`;
 }
 
 // Explication en tête des vues qui n'en ont pas déjà une
@@ -691,6 +694,8 @@ export function initSeason() {
     if (rv && data) { reviewAction(rv.dataset.review, data); return; }
     const t = e.target.closest('[data-h2h-team]'), m = e.target.closest('[data-h2h-mode]');
     if (t) { h2hTeam = t.dataset.h2hTeam; render(); } else if (m) { h2hMode = m.dataset.h2hMode; render(); }
+    const k = e.target.closest('[data-tr-kind]');
+    if (k) { trKind = k.dataset.trKind; render(); }
   });
   $('#szContent').addEventListener('change', (e) => {
     const id = e.target.id;

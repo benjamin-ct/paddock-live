@@ -102,6 +102,8 @@ l'application (Réglages → À propos → Nouveautés).
   ou « Résultats du Grand Prix » dans le calendrier ; flèches vers le Grand Prix précédent et le suivant.
 - Calendrier : sous le prochain Grand Prix, les Grands Prix à venir d'abord, puis ceux déjà courus, du plus récent
   au plus ancien ; vainqueur du sprint à côté de l'étiquette « Sprint ».
+- Course au titre : deux onglets, « Championnat pilotes » et « Championnat constructeurs », au lieu de tout
+  descendre pour voir les écuries.
 - Listes de choix (pilote, duel pilote contre pilote, point de mesure, tri, Grand Prix) : intitulé au-dessus du choix,
   toute la largeur sur téléphone ; en duel, pilote A et pilote B côte à côte, « VS » au milieu.
 
