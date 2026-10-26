@@ -63,11 +63,15 @@ function open(s) {
       // Pilote : repère d'écurie (écrit par l'appli, util.js driverOpt), numéro, nom
       el.classList.add('drv');
       el.innerHTML = opt.dataset.mark;
-      const num = document.createElement('b'), name = document.createElement('span');
-      num.className = 'csel-num';
-      num.textContent = opt.dataset.num || '';
+      const name = document.createElement('span');
       name.textContent = label;
-      el.append(num, name);
+      if (opt.dataset.num) {   // sans numéro (liste déjà numérotée par le classement) : logo puis nom
+        const num = document.createElement('b');
+        num.className = 'csel-num';
+        num.textContent = opt.dataset.num;
+        el.append(num);
+      }
+      el.append(name);
     }
     if (opt.title) el.title = opt.title;
     el.dataset.i = items.length;
