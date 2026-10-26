@@ -2,6 +2,7 @@
 // remplacent les emojis partout. Dans le HTML : <svg class="ic"><use href="#i-nom"/></svg> ;
 // en JavaScript : icon('nom').
 const P = {
+  menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
   target: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5"/><path d="M12 1.5v4M12 18.5v4M1.5 12h4M18.5 12h4"/>',
   trophy: '<path d="M8 4h8v5a4 4 0 0 1-8 0zM12 13v4M8 20h8M16 6h3a3 3 0 0 1-3 4M8 6H5a3 3 0 0 0 3 4"/>',
   news: '<path d="M4 5h13v14H6a2 2 0 0 1-2-2zM17 9h3v8a2 2 0 0 1-2 2M7 9h7M7 12h7M7 15h4"/>',

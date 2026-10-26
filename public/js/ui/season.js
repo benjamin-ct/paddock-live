@@ -511,6 +511,7 @@ function renderTitle() {
 function render() {
   if (!data) return;
   for (const b of document.querySelectorAll('#szNav [data-sz]')) b.classList.toggle('active', b.dataset.sz === section);
+  if ($('#szCur')) $('#szCur').textContent = $('#szNav .active')?.textContent.trim() || '';
   const st = stats?.year === data.year || stats?.error ? stats : null;
   const ctx = { data, stats: st, color, bar, official: (id) => OFFICIAL[id] || '8b95a8', ratings: ratingsFor(data, st), prev: prev?.year === data.year - 1 ? prev : null };
   if (section === 'drivers') loadPrev();
@@ -569,7 +570,14 @@ export function openSeason(sec, y) {
   timer = setInterval(tick, 1000);
 }
 
+// Téléphone : panneau des rubriques, ouvert sur la gauche par le bouton ☰
+function szMenu(open) {
+  $('#seasonView').classList.toggle('sz-open', open);
+  $('#szMenu')?.setAttribute('aria-expanded', String(open));
+}
+
 export function closeSeason() {
+  szMenu(false);
   $('#seasonView').hidden = true;
   $('#seasonBtn').classList.remove('on');
   clearInterval(timer);
@@ -583,7 +591,9 @@ export function initSeason() {
   sel.addEventListener('change', () => { year = Number(sel.value); data = null; stats = null; fia = null; clearTimeout(statsTimer); clearTimeout(fiaTimer); setTechFilter(null, 'all'); load(); });
   $('#seasonBtn').addEventListener('click', () => ($('#seasonView').hidden ? openSeason() : closeSeason()));
   $('#szClose').addEventListener('click', closeSeason);
-  $('#szNav').addEventListener('click', (e) => { const b = e.target.closest('[data-sz]'); if (b) { section = b.dataset.sz; jump = true; animate(); render(); } });
+  $('#szNav').addEventListener('click', (e) => { const b = e.target.closest('[data-sz]'); if (b) { section = b.dataset.sz; jump = true; szMenu(false); animate(); render(); } });
+  $('#szMenu')?.addEventListener('click', () => szMenu(true));
+  $('#szScrim')?.addEventListener('click', () => szMenu(false));
   $('#szContent').addEventListener('click', (e) => {
     const b = e.target.closest('[data-szgo]');
     if (b) { section = b.dataset.szgo; jump = true; animate(); render(); return; }
@@ -606,5 +616,5 @@ export function initSeason() {
     else return;
     render();
   });
-  window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('#seasonView').hidden && !document.querySelector('dialog[open]')) closeSeason(); });
+  window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('#seasonView').hidden && !document.querySelector('dialog[open]')) { if ($('#seasonView').classList.contains('sz-open')) szMenu(false); else closeSeason(); } });
 }

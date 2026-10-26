@@ -1387,6 +1387,7 @@ export default {
   "s'éloigne ({} s/tour)": "pulling away ({} s/lap)",
   "Saison": "Season",
   "Calendrier, classements et résultats de la saison": "Season calendar, standings and results",
+  "Rubriques de la Saison": "Season sections",
   "Saison : calendrier, classements, résultats, statistiques": "Season: calendar, standings, results, statistics",
   "Saison : calendrier, classements, résultats": "Season: calendar, standings, results",
   "Saison {} indisponible.": "Season {} unavailable.",
