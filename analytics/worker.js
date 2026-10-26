@@ -164,9 +164,12 @@ export default {
       if (env.DB && t.getUTCHours() === 3 && t.getUTCMinutes() === 0) await prune(env, t.getTime()).catch(() => null);
       // Toutes les 6 heures : bilan de santé (flux F1, erreurs de l'appli, jetons), sur le téléphone si besoin
       if (t.getUTCMinutes() === 7 && t.getUTCHours() % HEALTH.every === 1) await healthCheck(env).catch(() => null);
-      // Espace Saison de la version web : une course analysée (statistiques) ou, sinon, une épreuve lue (documents
-      // FIA) par passage, si besoin
-      if (!sent && !(await statsTick(env, { now: t.getTime() }).catch(() => null))) await fiaTick(env, { now: t.getTime() }).catch(() => null);
+      // Espace Saison de la version web : statistiques des courses et documents FIA, une minute sur deux chacun (l'un
+      // prend la minute de l'autre s'il n'a rien à faire), pour que l'un n'attende pas que l'autre ait tout fini
+      if (!sent) {
+        const [first, then] = t.getUTCMinutes() % 2 ? [fiaTick, statsTick] : [statsTick, fiaTick];
+        if (!(await first(env, { now: t.getTime() }).catch(() => null))) await then(env, { now: t.getTime() }).catch(() => null);
+      }
     })());
   },
   async fetch(req, env, ctx) {
