@@ -6,7 +6,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { getText, request, HttpError } from './net.js';
 import { DATA_DIR } from './config.js';
-import { BASE, CHAMPIONSHIP, parseDocumentList, parseSeasons, options, pickEvent } from '../shared/fia-list.js';
+import { BASE, CHAMPIONSHIP, parseDocumentList, parseSeasons, seasonEventList, pickEvent } from '../shared/fia-list.js';
 
 export { parseDocumentList, parsePublished, pickEvent } from '../shared/fia-list.js';
 
@@ -29,11 +29,7 @@ export async function seasonEvents(year) {
   const s = await seasons();
   const season = s.bySeason[year];
   if (!season) return [];
-  const html = await getText(BASE + season, { timeout: TIMEOUT });
-  const seen = new Set();
-  return options(html, /<option value="([^"]*\/season\/season-\d{4}-\d+\/event\/[^"]+)">([^<]+)</g)
-    .filter((o) => !seen.has(o.path) && seen.add(o.path))
-    .map((o) => ({ name: o.label, page: BASE + o.path }));
+  return seasonEventList(await getText(BASE + season, { timeout: TIMEOUT }));
 }
 
 export async function eventDocuments(page) {

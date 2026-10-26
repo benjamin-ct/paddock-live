@@ -92,8 +92,8 @@ l'application (Réglages → À propos → Nouveautés).
   calendrier, classements, course au titre, bilan de la saison, résultats et records, duels et fiche de chaque
   pilote, de 2018 à aujourd'hui ; pronostics entre amis dans un groupe en ligne. Statistiques détaillées
   (régularité, arrêts aux stands, vitesses de pointe, profil des circuits, notes des pilotes) : calculées par le
-  serveur une fois par course, d'après les archives officielles de la F1. Les documents de la FIA (évolutions
-  techniques, éléments moteur) restent pour l'instant dans l'appli.
+  serveur une fois par course, d'après les archives officielles de la F1 ; évolutions techniques et éléments
+  moteur, lus par le serveur dans les documents de la FIA à chaque Grand Prix.
 
 ### Fiabilité et sécurité
 - Accès depuis le téléphone : un site ouvert sur l'ordinateur ne peut plus se faire passer pour l'ordinateur

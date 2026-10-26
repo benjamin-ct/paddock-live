@@ -13,6 +13,7 @@ import { cleanRequest, translateBatch } from './translate.js';
 import { callerIp, ipQuota } from './quota.js';
 import { pronosApi, GROUP_RE } from './pronos.js';
 import { circuitData, seasonStatsWeb } from './race-stats.js';
+import { seasonFiaWeb } from './fia-tech.js';
 import { WEB_HIST_MS } from '../shared/live-delay.js';
 
 const BASE = 'https://livetiming.formula1.com/signalrcore';
@@ -522,6 +523,12 @@ export async function liveApi(req, url, env = {}) {
     const year = Number(url.searchParams.get('year')), now = new Date().getUTCFullYear();
     if (!env.DB || !Number.isInteger(year) || year < 2018 || year > now) return json({ error: 'Année invalide' }, 400);
     return json(await seasonStatsWeb(env, year).catch((err) => ({ year, total: 0, done: 0, pending: false, races: [], error: err.message })));
+  }
+  // Évolutions techniques et éléments moteur (documents FIA), lus par le serveur : même forme que /api/season/fia
+  if (url.pathname === '/live/api/season/fia' && req.method === 'GET') {
+    const year = Number(url.searchParams.get('year')), now = new Date().getUTCFullYear();
+    if (!env.DB || !Number.isInteger(year) || year < 2018 || year > now) return json({ error: 'Année invalide' }, 400);
+    return json(await seasonFiaWeb(env, year).catch((err) => ({ year, pending: false, done: 0, total: 0, events: [], error: err.message })));
   }
   // Pronostics entre amis : la version web joue seulement dans un groupe en ligne (pages /p/), relayé comme par l'appli
   if (url.pathname === '/live/api/predictions') return json({ error: 'sur la version web, jouez dans un groupe en ligne' }, 404);

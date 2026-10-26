@@ -31,6 +31,7 @@ import { healthCheck, HEALTH } from './health.js';
 import { publicPushApi, pushRun, queuePush, sessionReminders } from './push-public.js';
 import { liveSocket, liveApi } from './live-relay.js';
 import { statsTick } from './race-stats.js';
+import { fiaTick } from './fia-tech.js';
 import { LIVE_HEADERS } from './live-page/headers.js';
 
 // Fichier de la version web, avec ses en-têtes de sécurité (le fichier _headers ne s'applique pas ici)
@@ -163,8 +164,9 @@ export default {
       if (env.DB && t.getUTCHours() === 3 && t.getUTCMinutes() === 0) await prune(env, t.getTime()).catch(() => null);
       // Toutes les 6 heures : bilan de santé (flux F1, erreurs de l'appli, jetons), sur le téléphone si besoin
       if (t.getUTCMinutes() === 7 && t.getUTCHours() % HEALTH.every === 1) await healthCheck(env).catch(() => null);
-      // Statistiques des courses pour l'espace Saison de la version web : une course analysée par passage, si besoin
-      if (!sent) await statsTick(env, { now: t.getTime() }).catch(() => null);
+      // Espace Saison de la version web : une course analysée (statistiques) ou, sinon, une épreuve lue (documents
+      // FIA) par passage, si besoin
+      if (!sent && !(await statsTick(env, { now: t.getTime() }).catch(() => null))) await fiaTick(env, { now: t.getTime() }).catch(() => null);
     })());
   },
   async fetch(req, env, ctx) {

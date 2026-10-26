@@ -89,3 +89,38 @@ test('documents FIA : rattachement aux décisions et enquêtes, sans divulgation
   assert.equal(deletedLapsDoc(docs, 'Race').title, 'Doc 64 - Race Deleted Lap Times');
   assert.equal(deletedLapsDoc(docs, 'Qualifying'), null);
 });
+
+// Serveur de la version web : épreuves lues par la tâche planifiée, une par passage, puis servies
+test('version web : documents FIA lus par le serveur, une épreuve à la fois, épreuve récente relue', async () => {
+  const { fiaTick, seasonFiaWeb } = await import('../analytics/fia-tech.js');
+  const rows = new Map();
+  const DB = { prepare: (sql) => ({ bind: (...a) => ({
+    first: async () => (rows.has(a[0]) ? { v: rows.get(a[0]) } : null),
+    all: async () => ({ results: [...rows].filter(([k]) => k.startsWith(a[0].replace('%', ''))).map(([k, v]) => ({ k, v })) }),
+    run: async () => { if (sql.startsWith('INSERT INTO studio')) rows.set(a[0], a[1]); else throw new Error(sql); },
+  }) }) };
+  const env = { DB };
+  const SEASON = '/documents/championships/fia-formula-one-world-championship-14/season/season-2026-2072';
+  const pages = {
+    '/documents/championships/fia-formula-one-world-championship-14': `<option value="${SEASON}">2026</option>`,
+    [SEASON]: `<option value="${SEASON}/event/United%20States%20Grand%20Prix">United States Grand Prix</option><option value="${SEASON}/event/Mexico%20City%20Grand%20Prix">Mexico City Grand Prix</option>`,
+    [`${SEASON}/event/United%20States%20Grand%20Prix`]: row(1, 'Doc 1 - Driver&#039;s Briefing', '2026_usa_-_briefing', '20.10.26 12:00'),
+    [`${SEASON}/event/Mexico%20City%20Grand%20Prix`]: '',
+  };
+  const asked = [];
+  const fetchFn = async (u) => { asked.push(u); const p = u.replace('https://www.fia.com', ''); return p in pages ? new Response(pages[p]) : new Response('', { status: 404 }); };
+  const now = Date.parse('2026-10-21T12:00:00Z');
+
+  const first = await seasonFiaWeb(env, 2026, { now });
+  assert.deepEqual([first.pending, first.events.length], [true, 0]);
+  assert.equal(asked.length, 0);   // la page ne lit jamais fia.com elle-même
+  assert.deepEqual(await fiaTick(env, { now, fetchFn }), { year: 2026, event: 'United States Grand Prix' });
+  assert.deepEqual(await fiaTick(env, { now: now + 60e3, fetchFn }), { year: 2026, event: 'Mexico City Grand Prix' });
+  assert.equal(await fiaTick(env, { now: now + 120e3, fetchFn }), null);
+  const out = await seasonFiaWeb(env, 2026, { now: now + 180e3 });
+  assert.deepEqual([out.pending, out.done, out.total, out.events.length], [false, 2, 2, 1]);
+  assert.equal(out.events[0].name, 'United States Grand Prix');
+  assert.equal(out.events[0].tech, null);
+  // Documents de moins de 4 jours : l'épreuve est relue une heure plus tard
+  assert.deepEqual(await fiaTick(env, { now: now + 2 * 3600e3, fetchFn }), { year: 2026, event: 'United States Grand Prix' });
+});
