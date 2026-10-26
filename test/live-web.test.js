@@ -382,3 +382,19 @@ test('saison lue chez Jolpica : trop de demandes (429), nouvel essai après l\'a
   const never = async () => new Response('', { status: 429 });
   await assert.rejects(buildSeason(2024, { fetchFn: never, wait: async () => {} }), /injoignable \(erreur 429\)/);
 });
+
+test('version web : séances d\'un week-end dans son agenda (fichier .ics, comme l\'appli)', async () => {
+  const now = new Date().getUTCFullYear();
+  const races = [{ round: 1, name: 'Australian Grand Prix', locality: 'Melbourne', country: 'Australia', sessions: [{ label: 'Course', t: `${now}-03-08T04:00:00Z` }] },
+    { round: 2, name: 'Chinese Grand Prix', locality: 'Shanghai', country: 'China', sessions: [{ label: 'Course', t: `${now}-03-15T07:00:00Z` }] }];
+  const DB = { prepare: () => ({ bind: () => ({ first: async () => ({ v: JSON.stringify({ at: Date.now(), v: { races } }) }) }) }) };
+  const url = new URL(`https://app.test/live/api/calendar.ics?year=${now}&round=2`);
+  const r = await liveApi(new Request(url), url, { DB });
+  assert.equal(r.status, 200);
+  assert.match(r.headers.get('Content-Type'), /text\/calendar/);
+  assert.match(r.headers.get('Content-Disposition'), new RegExp(`f1-${now}-manche-2\\.ics`));
+  const ics = await r.text();
+  assert.match(ics, /BEGIN:VCALENDAR/);
+  assert.match(ics, /Chin/);
+  assert.doesNotMatch(ics, /Austral/);
+});

@@ -13,6 +13,7 @@ import { cleanRequest, translateBatch } from './translate.js';
 import { callerIp, ipQuota } from './quota.js';
 import { pronosApi, GROUP_RE } from './pronos.js';
 import { circuitData, seasonStatsWeb } from './race-stats.js';
+import { buildIcs } from '../shared/ics.js';
 import { WEB_HIST_MS } from '../shared/live-delay.js';
 
 const BASE = 'https://livetiming.formula1.com/signalrcore';
@@ -522,6 +523,17 @@ export async function liveApi(req, url, env = {}) {
     const year = Number(url.searchParams.get('year')), now = new Date().getUTCFullYear();
     if (!env.DB || !Number.isInteger(year) || year < 2018 || year > now) return json({ error: 'Année invalide' }, 400);
     return json(await seasonStatsWeb(env, year).catch((err) => ({ year, total: 0, done: 0, pending: false, races: [], error: err.message })));
+  }
+  // Séances dans son agenda (bouton « Ajouter à mon agenda ») : fichier .ics d'un week-end ou de la saison, comme l'appli
+  if (url.pathname === '/live/api/calendar.ics' && req.method === 'GET') {
+    const year = Number(url.searchParams.get('year')), now = new Date().getUTCFullYear(), round = Number(url.searchParams.get('round')) || null;
+    if (!env.DB || !Number.isInteger(year) || year < 2018 || year > now) return json({ error: 'Année invalide' }, 400);
+    const row = await seasonRow(env, year, year < now ? { maxAge: 7 * 86400e3 } : {}).catch(() => null);
+    if (!row) return json({ error: 'Calendrier indisponible' }, 503);
+    const alarm = Math.max(0, Math.min(120, Number(url.searchParams.get('alarm') ?? 15) || 0));
+    return new Response(buildIcs(row.v.races, { year, round, alarmMin: alarm, lang: url.searchParams.get('lang') === 'en' ? 'en' : 'fr' }), {
+      headers: { 'Content-Type': 'text/calendar; charset=utf-8', 'Content-Disposition': `attachment; filename="f1-${year}${round ? `-manche-${round}` : ''}.ics"`, 'Cache-Control': 'no-store' },
+    });
   }
   // Pronostics entre amis : la version web joue seulement dans un groupe en ligne (pages /p/), relayé comme par l'appli
   if (url.pathname === '/live/api/predictions') return json({ error: 'sur la version web, jouez dans un groupe en ligne' }, 404);
