@@ -1082,6 +1082,23 @@ test('onglet Suivi : feuille « Suivi réseaux » remplie avec les chiffres du S
   assert.equal(sheetUpdates(tables, accounts, { now: Date.UTC(2026, 9, 20) }).length, 0);
 });
 
+test('Suivi : lien d\'un post prévu retrouvé dans le journal (même réseau, même jour, heure la plus proche)', async () => {
+  const { sheetUpdates } = await import('../analytics/drive.js');
+  const paris = (h, m) => Date.UTC(2026, 9, 24, h - 2, m);   // 24 octobre, heure d'été à Paris
+  const tables = { 'Posts Paddock Live': [['Date', 'Heure', 'Réseau', 'Sujet', 'Lien du post', 'Vues'],
+    ['24/10/2026', '', 'Instagram Reels', 'Vidéo'], ['24/10/2026', '12:00', 'Instagram', 'Zéro spoiler'], ['24/10/2026', '12:00', 'X', 'Zéro spoiler'], ['25/10/2026', '19:00', 'Instagram', 'Règle ton délai']] };
+  const history = [
+    { key: 'reel', at: paris(18, 30), nets: { instagram: { url: 'https://www.instagram.com/reel/R/' } } },
+    { key: 'imp', at: paris(12, 4), nets: { instagram: { url: 'https://www.instagram.com/p/P/' }, facebook: { url: 'https://facebook.com/1' } } },
+  ];
+  const kept = [{ key: 'imp', at: paris(13, 0), stats: { instagram: { views: 90 } } }];
+  assert.deepEqual(sheetUpdates(tables, [], { history, kept }), [
+    { range: "'Posts Paddock Live'!E3", values: [['https://www.instagram.com/p/P/']] },
+    { range: "'Posts Paddock Live'!F3", values: [[90]] },
+    { range: "'Posts Paddock Live'!E2", values: [['https://www.instagram.com/reel/R/']] },
+  ]);
+});
+
 test('Suivi : tâche cochée déplacée en tête de « Fait » avec la date, Doc inchangé entre-temps exigé', async () => {
   const { checkTask } = await import('../analytics/drive.js');
   const run = (startIndex, content, textStyle = {}) => ({ startIndex, endIndex: startIndex + content.length, textRun: { content, textStyle } });
@@ -1114,4 +1131,28 @@ test('Suivi : tâche cochée déplacée en tête de « Fait » avec la date, Doc
   sent = null;
   await assert.rejects(checkTask('jeton', 'docid0123456', 15, 'Autre tâche', new Date(), call), /La liste a changé/);
   assert.equal(sent, null);
+});
+
+test('Suivi : détail d\'une tâche cochée mis en forme comme celui d\'une tâche faite qui en a un', async () => {
+  const { checkTask } = await import('../analytics/drive.js');
+  const run = (startIndex, content, textStyle = {}) => ({ startIndex, endIndex: startIndex + content.length, textRun: { content, textStyle } });
+  const para = (startIndex, runs, extra = {}) => ({ startIndex, endIndex: runs.at(-1).endIndex, paragraph: { elements: runs, ...extra } });
+  const H = { paragraphStyle: { namedStyleType: 'HEADING_2' } };
+  const big = { fontSize: { magnitude: 12.5, unit: 'PT' } };
+  const small = { fontSize: { magnitude: 10.5, unit: 'PT' } };
+  const task = 'Tâche\u000bSon détail\n';
+  const one = '25 oct.  ·  Faite sans détail\n';
+  const two = '24 oct.  ·  Faite avec détail';
+  const doc = { revisionId: 'r', body: { content: [
+    para(1, [run(1, 'À faire\n')], H),
+    para(9, [run(9, task)], { bullet: { listId: 'a' } }),
+    para(9 + task.length, [run(9 + task.length, 'Fait\n')], H),
+    para(14 + task.length, [run(14 + task.length, one, { bold: true, ...big })], { bullet: { listId: 'b' } }),
+    para(14 + task.length + one.length, [run(14 + task.length + one.length, two, { bold: true, ...big }), run(14 + task.length + one.length + two.length, '\u000bdétail\n', small)], { bullet: { listId: 'b' } }),
+  ] } };
+  let sent = null;
+  await checkTask('j', 'docid0123456', 9, 'Tâche', new Date('2026-10-25T12:00:00Z'), async (u, a, body) => { if (body) { sent = body; return {}; } return doc; });
+  const styles = sent.requests.filter((q) => q.updateTextStyle).map((q) => q.updateTextStyle.textStyle);
+  assert.deepEqual(styles[0].fontSize, big.fontSize);     // titre : comme le titre de la première tâche faite
+  assert.deepEqual(styles[1].fontSize, small.fontSize);   // détail : comme un détail, pas comme un titre
 });
