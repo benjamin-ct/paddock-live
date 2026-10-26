@@ -856,6 +856,7 @@ export default {
   "Immob. médiane": "Median stat.",
   "Immobilisation": "Stationary",
   "Immobilisation médiane": "Median stationary time",
+  "Immobilisations au centième : DHL Fastest Pit Stop Award. Copyright © DHL International GmbH. All Rights Reserved.": "Stationary times to the hundredth: DHL Fastest Pit Stop Award. Copyright © DHL International GmbH. All Rights Reserved.",
   "Immobilisation médiane par écurie": "Median stationary time per team",
   "Immobilisation moyenne": "Average stationary time",
   "Immobilisations": "Stationary times",

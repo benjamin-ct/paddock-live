@@ -11,6 +11,8 @@ import { season } from './season.js';
 import { seasonNominations } from './tyres.js';
 import { Track } from '../shared/track.js';
 import { summarizeRace, findRaceSession, STATS_VERSION } from '../shared/race-stats.js';
+import { fetchDhl, withDhl, DHL_PAGE } from '../shared/dhl-pits.js';
+import { getText } from './net.js';
 
 export { summarizeRace, trackLength, outline } from '../shared/race-stats.js';
 
@@ -70,6 +72,24 @@ async function runJob(year, todo) {
   job.current = null;
 }
 
+// Arrêts au centième de DHL (saison en cours) : lus une fois par course puis gardés sur disque ; pas encore
+// publiés par DHL : nouvel essai 6 heures plus tard
+const DHL_URL = process.env.PADDOCK_DHL_URL ?? DHL_PAGE;
+const dhlFile = (year, round) => path.join(CACHE_DIR, `dhl-${year}-${round}.json`);
+const readDhl = (year, round) => { try { return JSON.parse(fs.readFileSync(dhlFile(year, round), 'utf8')); } catch { return null; } };
+const dhlTried = new Map();   // « année-manche » -> date du dernier essai
+let dhlRunning = false;
+function refreshDhl(year, races) {
+  const todo = races.filter((r) => !readDhl(year, r.round) && Date.now() - (dhlTried.get(`${year}-${r.round}`) || 0) > 6 * 3600e3);
+  if (dhlRunning || !todo.length || year !== new Date().getFullYear() || !DHL_URL) return;
+  dhlRunning = true;
+  for (const r of todo) dhlTried.set(`${year}-${r.round}`, Date.now());
+  fetchDhl(todo, async (url, json) => { const t = await getText(url, { timeout: 30000 }); return json ? JSON.parse(t) : t; }, DHL_URL)
+    .then((found) => { for (const [round, rows] of found) fs.writeFileSync(dhlFile(year, round), JSON.stringify(rows)); })
+    .catch((err) => console.warn(`[stats] arrêts DHL : ${err.message}`))
+    .finally(() => { dhlRunning = false; });
+}
+
 // Statistiques de toutes les courses terminées de l'année. Les courses pas encore analysées
 // sont traitées en arrière-plan : la réponse indique alors l'avancement (pending).
 export async function seasonStats(year) {
@@ -80,9 +100,10 @@ export async function seasonStats(year) {
   let index = null;
   const job = jobs.get(year) || { running: false, failed: new Map(), current: null };
   jobs.set(year, job);
+  refreshDhl(year, done);
   for (const r of done) {
     const cached = readRace(year, r.round);
-    if (cached) { races.push(cached); continue; }
+    if (cached) { races.push(withDhl(cached, readDhl(year, r.round))); continue; }
     if (job.running || Date.now() - (job.failed.get(r.round) || 0) < 10 * 60000) continue;
     if (!index) {
       try { index = await seasonIndex(year); } catch (err) { index = []; job.indexError = archiveError(year, err); }
