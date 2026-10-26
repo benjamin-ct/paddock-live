@@ -104,6 +104,8 @@ export class LiveRelay {
       }
       // Relais d'un abonné : sa connexion F1 TV (renvoyée par la page à chaque connexion et quand elle change)
       if (m?.type === 'auth' && priv) this.auth(m.token);
+      // GPS laissé à un autre appareil : repris ici à la demande de la page
+      if (m?.type === 'here' && priv) this.here();
     });
     // ?d= : délai TV du navigateur, pour ne lui envoyer que le GPS et la télémétrie utiles
     const d = Number(new URL(req.url).searchParams.get('d'));
@@ -297,6 +299,24 @@ export class LiveRelay {
     this.outStream.push(s);
   }
 
+  // La F1 n'envoie le direct avec GPS qu'à une connexion par compte F1 TV : la dernière ouverte (appli, autre
+  // navigateur) coupe l'autre. Deux coupures en 5 min : le GPS reste à l'autre appareil et ce relais repasse sans
+  // F1 TV (chronos, positions estimées) au lieu de le lui reprendre sans fin. here() le reprend ici
+  lost(token, now = Date.now()) {
+    if (!token) return;
+    this.losses = [...(this.losses || []).filter((t) => now - t < 5 * 60e3), now];
+    if (this.losses.length >= 2) { this.elsewhere = true; this.setStatus({ elsewhere: true }); }
+  }
+
+  here() {
+    if (!this.elsewhere) return;
+    this.elsewhere = false;
+    this.losses = [];
+    this.retry = 0;
+    this.setStatus({ elsewhere: false });
+    this.reconnectLater();
+  }
+
   reconnectLater() {
     this.closeUp();
     if (!this.active) return;
@@ -309,7 +329,7 @@ export class LiveRelay {
     // Relais d'un abonné : rien avant sa connexion F1 TV (message « auth » de sa page)
     if (this.name.startsWith('u:') && !this.userToken) return;
     try {
-      const token = this.userToken;
+      const token = this.elsewhere ? null : this.userToken;
       const auth = token ? { Authorization: `Bearer ${token}` } : {};
       const neg = await fetch(`${BASE}/negotiate?negotiateVersion=1`, { method: 'POST', headers: { 'User-Agent': UA, ...auth } });
       if (!neg.ok) throw new Error(`Négociation SignalR : HTTP ${neg.status}`);
@@ -335,14 +355,20 @@ export class LiveRelay {
           if (frame) this.onFrame(frame);
         }
       });
-      ws.addEventListener('close', (ev) => { if (this.up === ws) { this.setStatus({ connected: false, error: `Connexion fermée (${ev.code})` }); this.reconnectLater(); } });
+      ws.addEventListener('close', (ev) => {
+        if (this.up !== ws) return;
+        console.log(`[relais] direct F1 fermé (${ev.code}${ev.reason ? ` : ${ev.reason}` : ''})${token ? ', connexion F1 TV' : ''}`);
+        this.setStatus({ connected: false, error: `Connexion fermée (${ev.code})` });
+        this.lost(token);
+        this.reconnectLater();
+      });
       ws.addEventListener('error', () => { if (this.up === ws) { this.setStatus({ connected: false, error: 'Erreur de connexion' }); this.reconnectLater(); } });
       ws.send(JSON.stringify({ protocol: 'json', version: 1 }) + RS);
       ws.send(JSON.stringify({ type: 1, invocationId: '1', target: 'Subscribe', arguments: [token ? LIVE_TOPICS : LIVE_TOPICS.filter((t) => !t.endsWith('.z'))] }) + RS);
       // Signe de vie toutes les 10 s ; plus rien depuis 60 s : nouvelle connexion
       clearInterval(this.beat);
       this.beat = setInterval(() => {
-        if (Date.now() - last > 60000) { this.setStatus({ error: 'Plus de données depuis 60 s, reconnexion…' }); this.reconnectLater(); return; }
+        if (Date.now() - last > 60000) { this.setStatus({ error: 'Plus de données depuis 60 s, reconnexion…' }); this.lost(token); this.reconnectLater(); return; }
         if (this.gpsRetry()) { this.retry = 0; this.reconnectLater(); return; }
         try { ws.send(JSON.stringify({ type: 6 }) + RS); } catch { /* fermée : géré par close */ }
       }, 10000);
@@ -380,7 +406,7 @@ export class LiveRelay {
         applyEvent(this.base.state, this.base.derived, '__snapshot', snapshot, now);
         this.out = [];
         this.outStream = [];
-        this.status = { connected: true, error: null, session: label(result.SessionInfo), authenticated, f1tv: !!this.token };
+        this.status = { connected: true, error: null, session: label(result.SessionInfo), authenticated, f1tv: !!this.token, elsewhere: !!this.elsewhere };
         this.hello();
       } else {
         this.add('__snapshot', snapshot, now);
@@ -397,10 +423,13 @@ export class LiveRelay {
         return;
       }
       if (topic === 'TimingData') this.lastTimingAt = now;
-      if (topic === 'SessionInfo' && data?.Key && this.key && data.Key !== this.key) { this.reconnectLater(); return; }
+      // Nouvelle séance : GPS redemandé (l'autre appareil n'est peut-être plus là)
+      if (topic === 'SessionInfo' && data?.Key && this.key && data.Key !== this.key) { this.elsewhere = false; this.losses = []; this.reconnectLater(); return; }
       this.add(topic, data, now, topic === 'TimingData' && typeof utc === 'string' ? utc : undefined);
     } else if (msg.type === 7) {
+      console.log(`[relais] direct F1 fermé par la F1${msg.error ? ` : ${msg.error}` : ''}`);
       this.setStatus({ connected: false, error: msg.error ? `Fermé par la F1 : ${msg.error}` : 'Fermé par la F1' });
+      this.lost(this.token);
       this.reconnectLater();
     }
   }

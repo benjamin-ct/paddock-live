@@ -398,3 +398,17 @@ test('version web : séances d\'un week-end dans son agenda (fichier .ics, comme
   assert.match(ics, /Chin/);
   assert.doesNotMatch(ics, /Austral/);
 });
+
+test('relais web : compte F1 TV suivi par l\'appli, GPS laissé après deux coupures et repris à la demande', () => {
+  const relay = new LiveRelay({}, {});
+  let reconnects = 0;
+  relay.reconnectLater = () => reconnects++;
+  const t0 = 1e12;
+  relay.here();   // rien à reprendre
+  assert.equal(reconnects, 0);
+  relay.lost('jeton', t0);
+  relay.lost('jeton', t0 + 4000);
+  assert.deepEqual([relay.elsewhere, relay.status.elsewhere], [true, true]);
+  relay.here();
+  assert.deepEqual([relay.elsewhere, relay.status.elsewhere, relay.losses.length, reconnects], [false, false, 0, 1]);
+});

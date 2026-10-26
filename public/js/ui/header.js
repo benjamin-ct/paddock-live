@@ -1,6 +1,6 @@
 // En-tête : session, drapeau/état de la piste, tour, temps restant, météo, source.
 import { store, f1Now, versionOf } from '../store.js';
-import { $, esc, fmtDuration, sessionKind, currentStint } from '../util.js';
+import { $, esc, api, fmtDuration, sessionKind, currentStint } from '../util.js';
 import { trackStatusInfo, SESSION_STATUS_FR } from '/shared/f1.js';
 import { FLAG_ISO } from '/shared/flags.js';
 import { gpShort, gpFull, sessionLabel } from '/shared/gp-names.js';
@@ -228,6 +228,19 @@ export function trackSurface(s) {
 }
 
 let shownReplayError = null;
+let shownElsewhere = false;
+const ELSEWHERE = 'Votre compte F1 TV suit déjà le direct sur un autre appareil : la F1 n\'envoie le GPS qu\'à un seul. Il y reste ; ici, positions estimées. Touchez « LIVE · GPS ailleurs » pour le reprendre ici.';
+// Badge « GPS ailleurs » touché : GPS repris ici (version web : par son relais, store.takeGps), avant tout autre
+// clic du badge (ouverture des replays)
+export function initGpsBadge() {
+  $('#sourceBadge')?.addEventListener('click', (e) => {
+    if (!store.status?.source?.elsewhere) return;
+    e.stopImmediatePropagation();
+    if (store.takeGps) store.takeGps();
+    else api('/api/live/here', { method: 'POST' }).catch(() => {});
+    toast('GPS repris sur cet appareil');
+  }, true);
+}
 export function renderSource() {
   const st = store.status;
   const badge = $('#sourceBadge');
@@ -251,8 +264,11 @@ export function renderSource() {
     const stale = src.connected && src.stale;
     badge.className = `source-badge ${stale ? 'stale' : src.connected ? 'live' : 'error'}`;
     // GPS reçu ou non (positions estimées d'après les chronos) : écrit sur le badge, pas seulement au survol
-    lbl.textContent = stale ? 'LIVE · figé' : !src.connected ? 'Connexion F1…' : src.authenticated ? 'LIVE · GPS' : 'LIVE · sans GPS';
-    badge.title = stale ? 'Plus de données reçues depuis 25 s : reconnexion automatique si ça dure' : src.error || (src.authenticated ? 'Flux live (avec GPS F1 TV)' : src.f1tv ? 'Connexion F1 TV prête : le GPS arrive quand les voitures roulent' : 'Flux live (sans GPS : positions estimées)');
+    lbl.textContent = stale ? 'LIVE · figé' : !src.connected ? 'Connexion F1…' : src.authenticated ? 'LIVE · GPS' : src.elsewhere ? 'LIVE · GPS ailleurs' : 'LIVE · sans GPS';
+    badge.title = stale ? 'Plus de données reçues depuis 25 s : reconnexion automatique si ça dure' : src.elsewhere ? ELSEWHERE : src.error || (src.authenticated ? 'Flux live (avec GPS F1 TV)' : src.f1tv ? 'Connexion F1 TV prête : le GPS arrive quand les voitures roulent' : 'Flux live (sans GPS : positions estimées)');
+    // GPS laissé à un autre appareil : dit une fois, le badge le reprend ici
+    if (src.elsewhere && !shownElsewhere) toast(ELSEWHERE, 12000, 'warning');
+    shownElsewhere = !!src.elsewhere;
   } else {
     badge.className = 'source-badge';
     lbl.textContent = 'Inactif';

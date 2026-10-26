@@ -23,6 +23,8 @@ export class LiveSource {
     this.timers = [];
     this.lastMessageAt = 0;
     this.status = { connected: false, error: null, authenticated: false };
+    this.losses = [];        // connexions avec F1 TV coupées (5 dernières minutes)
+    this.elsewhere = false;  // GPS laissé à un autre appareil du même compte F1 TV
   }
 
   start() {
@@ -61,12 +63,29 @@ export class LiveSource {
     if (this.hub.source.mode === 'live') Object.assign(this.hub.source, this.status);
   }
 
+  // La F1 n'envoie le direct avec GPS qu'à une connexion par compte F1 TV : la dernière ouverte (version web, autre
+  // ordinateur) coupe l'autre. Deux coupures en 5 min : le GPS reste à l'autre appareil et celle-ci repasse sans
+  // F1 TV (chronos, positions estimées) au lieu de le lui reprendre sans fin. here() le reprend ici
+  lost(token, now = Date.now()) {
+    if (!token) return;
+    this.losses = [...this.losses.filter((t) => now - t < 5 * 60e3), now];
+    if (this.losses.length >= 2) { this.elsewhere = true; this.setStatus({ elsewhere: true }); }
+  }
+
+  here() {
+    this.elsewhere = false;
+    this.losses = [];
+    this.retry = 0;
+    this.setStatus({ elsewhere: false });
+    this.restart();
+  }
+
   // Séance en cours (chronos reçus), jeton F1 TV présent, mais pas de GPS une minute après la connexion :
   // nouvelle connexion, une fois par séance et par jeton. La F1 n'envoie pas le GPS à une connexion ouverte
   // avant le début de la séance, ni à une connexion faite sans jeton (expiré au lancement, renouvelé ensuite)
   gpsRetry(now = Date.now()) {
     const token = this.getToken();
-    if (!token || this.status.authenticated || !this.connectedAt || now - this.connectedAt < 60000 || now - (this.lastTimingAt || 0) > 30000) return false;
+    if (this.elsewhere || !token || this.status.authenticated || !this.connectedAt || now - this.connectedAt < 60000 || now - (this.lastTimingAt || 0) > 30000) return false;
     const key = `${this.hub.sessionKey}|${token}`;
     if (this.gpsRetried === key) return false;
     this.gpsRetried = key;
@@ -82,7 +101,7 @@ export class LiveSource {
 
   async connect() {
     if (!this.active) return;
-    const token = this.getToken();
+    const token = this.elsewhere ? null : this.getToken();
     const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
     try {
       const res = await request(`${BASE}/negotiate?negotiateVersion=1`, {
@@ -104,6 +123,7 @@ export class LiveSource {
         handshakeTimeout: 15000,   // connexion bloquée (Wi-Fi d'hôtel, sortie de veille) : erreur, donc nouvel essai
       });
       this.ws = ws;
+      this.token = token;   // jeton de cette connexion (aucun : sans F1 TV)
       let buffer = '';
 
       ws.on('open', () => {
@@ -118,6 +138,7 @@ export class LiveSource {
           if (Date.now() - this.lastMessageAt > 25000 && !this.status.stale) this.setStatus({ stale: true });
           if (Date.now() - this.lastMessageAt > 60000) {
             this.setStatus({ error: 'Plus de données depuis 60 s, reconnexion…' });
+            this.lost(token);
             this.scheduleReconnect();
           }
         }, 10000));
@@ -137,6 +158,7 @@ export class LiveSource {
 
       ws.on('close', (code) => {
         this.setStatus({ connected: false, error: `Connexion fermée (${code}), reconnexion…` });
+        this.lost(token);
         this.scheduleReconnect();
       });
       ws.on('error', (err) => {
@@ -170,6 +192,7 @@ export class LiveSource {
       this.onFeed(rawTopic, data, now, utc);
     } else if (msg.type === 7) {
       this.setStatus({ error: msg.error ? `Fermé par le serveur : ${msg.error}` : 'Fermé par le serveur' });
+      this.lost(this.token);
       this.scheduleReconnect();
     }
   }
@@ -240,7 +263,10 @@ export class LiveSource {
       return;
     }
     if (topic === 'SessionInfo' && data?.Key && this.hub.sessionKey && data.Key !== this.hub.sessionKey) {
-      // Nouvelle session : on repart d'un état propre.
+      // Nouvelle session : on repart d'un état propre, GPS redemandé (l'autre appareil n'est peut-être plus là)
+      this.elsewhere = false;
+      this.losses = [];
+      this.status.elsewhere = false;
       this.hub.reset({ mode: 'live', label: 'Live', ...this.status });
       this.restart();
       return;

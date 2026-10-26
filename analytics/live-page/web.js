@@ -7,7 +7,7 @@ import { applyEvent } from '/shared/derive.js';
 import { gpShort } from '/shared/gp-names.js';
 import { $$, esc } from './util.js';
 import { WebHub } from './web-hub.js';
-import { renderHeader, renderSource } from './ui/header.js';
+import { renderHeader, renderSource, initGpsBadge } from './ui/header.js';
 import { initTower, renderTower } from './ui/tower.js';
 import { initMap } from './ui/map.js';
 import { renderRcm, initRcmFilters, initStewards, renderStewards } from './ui/feed.js';
@@ -165,6 +165,9 @@ function status(now) {
   emit('status', store.status);
 }
 
+// GPS laissé à un autre appareil du même compte F1 TV : repris par le relais (badge « GPS ailleurs »)
+store.takeGps = () => { if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'here' })); };
+
 function connect() {
   ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/live/ws?d=${store.delay}${relayId ? `&u=${relayId}` : ''}`);
   ws.onopen = () => {
@@ -285,6 +288,7 @@ document.querySelector('.topbar .session').addEventListener('click', () => { if 
 document.querySelector('.p-analysis [data-tab="telemetry"]')?.click();
 on('status', renderSource);
 on('connection', renderSource);
+initGpsBadge();
 on('focus', () => renderTower(true));
 on('duel', () => renderTower(true));
 // Connexion F1 TV gardée d'une ouverture à l'autre sur cet appareil : reprise avant la connexion, pour rejoindre
