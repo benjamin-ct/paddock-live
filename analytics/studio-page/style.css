@@ -192,6 +192,7 @@ button.card:active { transform: scale(.985); background: var(--surface-2); }
 .card.feature > .ic:first-child { width: 26px; height: 26px; color: var(--brand); }
 .card.feature b { display: block; font-size: 15.5px; }
 .card.feature small { display: block; font-size: 13px; color: var(--muted); }
+.card.feature > .logo { flex: none; width: 26px; height: 26px; }
 .card.feature > .ic:last-child, .row-item > .ic:last-child { width: 18px; height: 18px; color: var(--muted); }
 .card.hero { padding: 18px 44px 18px 16px; border-color: color-mix(in srgb, var(--brand) 40%, transparent); background: linear-gradient(150deg, var(--brand-wash), transparent 65%), var(--surface); }
 .card.hero .t { margin: 6px 0 4px; font: 800 27px/1.05 var(--display); letter-spacing: .2px; }
@@ -509,6 +510,9 @@ details.cap[open] textarea { animation: in-up .3s var(--ease); }
 
 /* Photos libres de droits : grille de choix */
 #pform input { flex: 1; min-width: 0; }
+/* Post Paddock Live : une case par page du carrousel */
+.apage { margin: 12px 0; padding: 12px 14px 4px; border: 1px solid var(--line); border-radius: 14px; }
+.apage .athumb { height: 40px; max-width: 72px; object-fit: cover; border-radius: 6px; }
 .photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
 .photos button { position: relative; display: flex; flex-direction: column; gap: 4px; padding: 0; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--surface-2); color: var(--muted); text-align: left; cursor: pointer; }
 .photos button.busy { opacity: .5; }

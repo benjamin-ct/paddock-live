@@ -10,14 +10,15 @@ import { CHAMPIONSHIP, parseSeasons, parseDocumentList, pickEvent } from '/share
 import { gridDocument, parseStartingGrid } from '/shared/fia-grid.js';
 import { extractArticle } from '/shared/article.js';
 import { recapData, seasonCaptions } from '/shared/social-season.js';
-import { $, $$, esc, api, ago, icon, toggle, glide, state, SIG, NET_NAMES, musicField, bindMusic, clipFile, shareClip } from './ui.js';
+import { $, $$, esc, api, ago, icon, toggle, toast, glide, state, SIG, NET_NAMES, musicField, bindMusic, clipFile, shareClip } from './ui.js';
 import { toFrench, freshNews, cachedNews, latestDrivers, loadState, lapsOf, rememberDrivers, SESSION_FR } from './data.js';
 import { editor, assets } from './editor.js';
-import { photoPicker, cropImage, bitmapUrl } from './photos.js';
-import { makeAnimation, unlockAudio } from '/shared/social-video.js';
-import { videoCover, newsPhotoBox, FORMATS } from '/shared/social-draw.js';
+import { photoPicker, cropImage, bitmapUrl, photoGrid, addFiles, picked } from './photos.js';
+import { makeAnimation, makeVideo, unlockAudio } from '/shared/social-video.js';
+import { videoCover, newsPhotoBox, FORMATS, slidesFor, chosenSlides, drawSlide } from '/shared/social-draw.js';
 import { newsFrame, newsVideoTiming } from '/shared/social-news-video.js';
 import { makeClipVideo, CLIP_MAX } from '/shared/social-clip-video.js';
+import { appPost, appCaptions } from '/shared/social-app.js';
 
 // Résumé détaillé : page de l'article lue par le serveur, texte extrait ici, points clés rédigés par
 // l'IA du serveur (reformulés, jamais recopiés)
@@ -59,6 +60,38 @@ function bindPhoto(p, getD, onPhoto) {
   $(`#${p}photodel`).onclick = () => { cur = null; onPhoto(null); $(`#${p}photost`).textContent = ''; $(`#${p}photodel`).hidden = true; $(`#${p}photocrop`).hidden = true; };
 }
 
+// Vos photos (téléphone, ordinateur), plusieurs à la fois : ajoutées aux photos du post, déjà choisies
+const MINE = (p) => `<label class="btn small">${icon('image')}Vos photos<input type="file" accept="image/*" multiple id="${p}mine" hidden></label>`;
+function bindMine(p, list, show, onChange) {
+  $(`#${p}mine`).onchange = async (e) => {
+    const bad = await addFiles(list, e.target.files || []);
+    e.target.value = '';
+    $(`#${p}artst`).textContent = bad ? `${bad} image${bad > 1 ? 's' : ''} illisible${bad > 1 ? 's' : ''}` : '';
+    show(); onChange();
+  };
+}
+
+// Votre vidéo (ex. un enregistrement d'écran), habillée aux couleurs du post à la place de son animation ;
+// onPick(fichier, ou null une fois retirée)
+const OWN_VIDEO = (p) => `<div class="field"><span>Votre vidéo <small>(facultatif, ex. un enregistrement d'écran : intégrée au visuel du post, ${CLIP_MAX} s au plus)</small></span>
+    <div class="row"><label class="btn small">${icon('video')}Choisir une vidéo<input type="file" id="${p}vid" accept="video/mp4,video/quicktime" hidden></label><button class="btn small" id="${p}viddel" hidden>${icon('close')}Retirer</button><span class="hint" id="${p}vidst"></span></div>
+    <video id="${p}vidprev" controls playsinline hidden></video></div>`;
+function bindOwnVideo(p, onPick) {
+  const prev = $(`#${p}vidprev`);
+  $(`#${p}vid`).onchange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!/^video\/(mp4|quicktime)$/.test(file.type)) { $(`#${p}vidst`).textContent = 'Vidéo MP4 ou MOV seulement'; return; }
+    if (file.size > 300e6) { $(`#${p}vidst`).textContent = `Trop lourde (${Math.round(file.size / 1e6)} Mo) : 300 Mo au plus`; return; }
+    $(`#${p}vidst`).textContent = `${file.name} · ${(file.size / 1e6).toFixed(1).replace('.', ',')} Mo`;
+    if (prev.src) URL.revokeObjectURL(prev.src);
+    prev.src = URL.createObjectURL(file); prev.hidden = false;
+    $(`#${p}viddel`).hidden = false;
+    onPick(file);
+  };
+  $(`#${p}viddel`).onclick = () => { $(`#${p}vid`).value = ''; $(`#${p}vidst`).textContent = ''; $(`#${p}viddel`).hidden = true; prev.hidden = true; prev.removeAttribute('src'); onPick(null); };
+}
+
 // ---------- Vidéo de la news (TikTok, Reels, Shorts, story…), commune aux news et aux posts écrits ----------
 // Style « Breaking news » quand la très grosse info est cochée (BREAKING, étape Contenu)
 const BREAKING = (on) => toggle('brk', 'Très grosse info', on, 'Style « Breaking news » du visuel et de la vidéo');
@@ -98,13 +131,14 @@ export async function newsEditor(it, done, back) {
   const failed = title === null || summary === null;
   let breaking = null;   // très grosse info choisie à la main (sinon : détectée)
   let made = null;       // vidéo Breaking news fabriquée (MP4), jointe au post
+  let own = null;        // votre vidéo (fichier), habillée à la place de l'animation
   let pic = null;        // photo libre de droits choisie : { image, credit }
-  let arts = [];         // photos trouvées : { image, url, pick, src } ; pick : rang choisi (0 : pas dans le post), le 1er en couverture (sans photo libre)
+  const arts = [];       // photos trouvées et les vôtres : { image, url, pick, src } ; pick : rang choisi (0 : pas dans le post), le 1er en couverture (sans photo libre)
   const look = it.link && LOOKS.has(newsKind(it).key) ? newsKind(it).key : '';   // livrée ou tenue spéciale
   const make = async (t, s, p = '') => {
     const nd = newsPost(it, { title: t, summary: s, points: p, driverList: await latestDrivers(), sourceName: it.srcName });
     if (breaking !== null) nd.breaking = breaking;
-    const on = arts.filter((a) => a.pick).sort((a, b) => a.pick - b.pick).map((a) => ({ image: a.image, credit: `Photo : via ${a.src}` }));
+    const on = picked(arts);
     if (pic) Object.assign(nd, pic);
     else if (on[0]) Object.assign(nd, on[0]);
     nd.gallery = pic ? on : on.slice(1);
@@ -122,13 +156,13 @@ export async function newsEditor(it, done, back) {
       <label class="field"><span>Points clés, un par ligne <small>(images suivantes du carrousel)</small></span><textarea id="npoints" rows="5" maxlength="1600" placeholder="Facultatif : « Résumé détaillé » ou à écrire soi-même"></textarea></label>
       ${it.link ? `<div class="row"><button class="btn small" id="nsummary">${icon('wand')}Résumé détaillé</button><span class="hint" id="nsumst"></span></div>` : ''}
       ${PHOTO_ROW('n')}
-      ${/^https:\/\//.test(it.link || '') ? `<div class="row"><button class="btn small" id="nartimg">${icon('image')}${look ? `Photos de la ${look === 'tenue' ? 'tenue' : 'livrée'} (article)` : 'Photos de l\'article'}</button><span class="hint" id="nartst"></span></div>
+      <div class="row">${/^https:\/\//.test(it.link || '') ? `<button class="btn small" id="nartimg">${icon('image')}${look ? `Photos de la ${look === 'tenue' ? 'tenue' : 'livrée'} (article)` : 'Photos de l\'article'}</button>` : ''}${MINE('n')}<span class="hint" id="nartst"></span></div>
         <div class="photos" id="nartlist"></div>
-        <p class="hint">Photos de cet article, des autres médias sur la même info${look ? ', d\'Instagram (posts des écuries sur leur look) et de Bluesky' : ''}. Touchez celles à mettre dans le post, dans l'ordre : la première en couverture, puis une image par photo, « via » la source crédité.</p>` : ''}
+        <p class="hint">${/^https:\/\//.test(it.link || '') ? `Photos de cet article, des autres médias sur la même info${look ? ', d\'Instagram (posts des écuries sur leur look) et de Bluesky' : ''}, et les vôtres. ` : ''}Touchez celles à mettre dans le post, dans l'ordre : la première en couverture, puis une image par photo${/^https:\/\//.test(it.link || '') ? ', « via » la source créditée' : ''}.</p>
       ${toggle('linkcomment', 'Lien en premier commentaire', state.linkComment, 'Facebook, Threads, Bluesky, X')}
       ${BREAKING(d.breaking)}
       <p class="hint">${failed ? 'Traduction indisponible : textes en version originale, à traduire à la main.' : 'Traduction automatique : à relire.'}</p>`,
-    vhead: NEWS_VIDEO(),
+    vhead: `${OWN_VIDEO('n')}${NEWS_VIDEO()}`,
     data: () => d,
     caps: (dd) => newsCaptions(dd, SIG, { linkInComment: state.linkComment && state.fmt !== 'link' }),
     video: () => made,
@@ -151,8 +185,9 @@ export async function newsEditor(it, done, back) {
           upd();
         } catch (err) { $('#nsumst').textContent = err.message; } finally { btn.disabled = false; btn.classList.remove('busy'); }
       };
-      let showArts = () => {};
+      const showArts = photoGrid($('#nartlist'), arts, { cover: () => !pic, frame: coverFrame, onChange: () => upd() });
       bindPhoto('n', () => d, (p) => { pic = p; showArts(); upd(); });
+      bindMine('n', arts, showArts, upd);
       // Livrée ou tenue spéciale : toutes les photos de l'article (rendus, photos de l'écurie), puis celles
       // des autres médias sur la même info ; une photo reprise par plusieurs médias n'est gardée qu'une fois
       if ($('#nartimg')) {
@@ -186,42 +221,20 @@ export async function newsEditor(it, done, back) {
         let socialErrors = [];
         const add = (list) => {
           for (const a of list) {
-            if (arts.some((b) => sameFingerprint(a.key, b.key))) URL.revokeObjectURL(a.url);
+            if (arts.some((b) => b.key && sameFingerprint(a.key, b.key))) URL.revokeObjectURL(a.url);
             else arts.push(a);
-          }
-        };
-        const show = showArts = () => {
-          $('#nartlist').innerHTML = arts.map((a, i) => `<div class="ph"><button type="button" data-art="${i}" class="${a.pick ? 'on' : ''}">${a.pick ? `<b class="pick">${a.pick}</b>` : ''}<img src="${a.url}" alt=""><small>${a.pick ? (a.pick === 1 && !pic ? 'Couverture' : `Image ${a.pick + (pic ? 1 : 0)}`) : 'Touchez pour ajouter'} · ${esc(a.src)}</small></button>${a.pick ? `<button type="button" class="cropbtn" data-crop="${i}">Recadrer</button>` : ''}</div>`).join('');
-          // Recadrage : toujours depuis la photo d'origine
-          for (const b of $$('#nartlist [data-crop]')) {
-            b.onclick = async () => {
-              const a = arts[b.dataset.crop];
-              a.orig ||= a.image;
-              const image = await cropImage(a.orig, a.pick === 1 && !pic ? coverFrame() : 0);   // couverture : cadre du visuel
-              if (!image) return;
-              a.image = image;
-              URL.revokeObjectURL(a.url);
-              a.url = await bitmapUrl(image);
-              show(); upd();
-            };
-          }
-          for (const b of $$('#nartlist [data-art]')) {
-            b.onclick = () => {
-              const a = arts[b.dataset.art];
-              // Retirée : les suivantes avancent d'un rang ; ajoutée : à la fin
-              if (a.pick) { for (const x of arts) if (x.pick > a.pick) x.pick--; a.pick = 0; } else a.pick = Math.max(0, ...arts.map((x) => x.pick)) + 1;
-              show(); upd();
-            };
           }
         };
         $('#nartimg').onclick = async () => {
           const b = $('#nartimg');
           b.disabled = true; b.classList.add('busy');
           $('#nartst').textContent = 'Lecture des photos…';
-          for (const a of arts) URL.revokeObjectURL(a.url);
-          arts = [];
+          // Vos photos gardées (et leur ordre), les autres relues
+          for (const a of arts) if (!a.mine) URL.revokeObjectURL(a.url);
+          arts.splice(0, arts.length, ...arts.filter((a) => a.mine));
+          arts.filter((a) => a.pick).sort((a, b) => a.pick - b.pick).forEach((a, i) => { a.pick = i + 1; });
           let err = null;
-          try { add(await loadArticle(it, 12)); show(); upd(); } catch (e) { err = e; }
+          try { add(await loadArticle(it, 12)); showArts(); upd(); } catch (e) { err = e; }
           // Autres médias : articles du même type dont le titre cite l'écurie du sujet
           const main = mainTeam(d.title, d.teams);
           const others = similarArticles(it, await freshNews().catch(() => cachedNews()?.items || []), 12, look).filter((x) => !main || mentionsTeam(x.title, main.key)).slice(0, 4);
@@ -230,20 +243,21 @@ export async function newsEditor(it, done, back) {
             $('#nartst').textContent = `${arts.length} photo${arts.length > 1 ? 's' : ''} · autres médias (${k + 1}/${others.length})…`;
             const before = arts.length;
             add(await loadArticle(x, 6).catch(() => []));
-            if (arts.length > before) { found++; show(); upd(); }
+            if (arts.length > before) { found++; showArts(); upd(); }
           }
           if (look) {
             $('#nartst').textContent = `${arts.length} photo${arts.length > 1 ? 's' : ''} · Instagram et Bluesky…`;
             const before = arts.length;
             add(await loadSocial().catch(() => []));
-            if (arts.length > before) { found++; show(); upd(); }
+            if (arts.length > before) { found++; showArts(); upd(); }
           }
           $('#nartst').textContent = (arts.length ? `${arts.length} photo${arts.length > 1 ? 's' : ''}${found ? ` (dont ${found} autre${found > 1 ? 's' : ''} source${found > 1 ? 's' : ''})` : ''}` : (err?.message || 'Pas de photo')) + (socialErrors.length ? ` · ${socialErrors.join(' · ')}` : '');
           b.disabled = false; b.classList.remove('busy');
         };
       }
       $('#linkcomment').onchange = (e) => { state.linkComment = e.target.checked; redraw(true); };
-      bindNewsVideo(() => d, (on) => { breaking = on; d.breaking = on; redraw(true); }, (file) => { made = file; state.noVideo = false; redraw(); });
+      bindOwnVideo('n', (file) => { own = file; made = null; if (file) $('#mkvid').click(); else redraw(); });
+      bindNewsVideo(() => d, (on) => { breaking = on; d.breaking = on; redraw(true); }, (file) => { made = file; state.noVideo = false; redraw(); }, () => own);
     },
   });
 }
@@ -252,14 +266,18 @@ export async function newsEditor(it, done, back) {
 // Pilotes et écuries reconnus dans le texte (portraits, couleurs) ; type d'info deviné ou choisi.
 export async function manualEditor(back) {
   const it = { id: `m${Date.now().toString(36)}`, cat: 'official', t: Date.now(), link: '' };
-  const f = { title: '', summary: '', points: '', kind: '', source: '', image: null, breaking: false, video: null };
+  const f = { title: '', summary: '', points: '', kind: '', source: '', pic: null, breaking: false, video: null };
+  const mine = [];   // vos photos : la première choisie en couverture (sans photo libre de droits), puis une image chacune
   const drivers = await latestDrivers();
   const make = () => {
     const text = `${f.title} ${f.summary} ${f.points}`;
     const title = f.title.trim() || 'Votre titre ici';
     const d = newsPost({ ...it, title, summary: f.summary, tags: newsTags(text) }, { title, summary: f.summary, points: f.points, driverList: drivers, sourceName: f.source.trim() });
     if (f.kind) d.badge = f.kind === 'none' ? NO_BADGE : NEWS_BADGES.find((b) => b.key === f.kind) || d.badge;
-    if (f.image) Object.assign(d, { image: f.image, credit: f.credit });
+    const on = picked(mine);
+    if (f.pic) Object.assign(d, f.pic);
+    else if (on[0]) Object.assign(d, on[0]);
+    d.gallery = f.pic ? on : on.slice(1);
     d.breaking = f.breaking;
     return d;
   };
@@ -275,13 +293,11 @@ export async function manualEditor(back) {
       <label class="field"><span>Points clés, un par ligne <small>(images suivantes du carrousel)</small></span><textarea id="mpoints" rows="4" maxlength="1600" placeholder="Facultatif"></textarea></label>
       <label class="field"><span>Type d'info</span><select id="mkind"><option value="">Deviné d'après le texte</option><option value="none">Aucun (pas d'étiquette)</option>${NEWS_BADGES.map((b) => `<option value="${b.key}">${esc(b.label.charAt(0) + b.label.slice(1).toLowerCase())}</option>`).join('')}</select></label>
       <label class="field"><span>Source <small>(facultatif, citée en bas de l'image)</small></span><input type="text" id="msrc" maxlength="60" placeholder="Ex. : communiqué de McLaren"></label>
-      <div class="field"><span>Photo <small>(facultatif : remplace les portraits des pilotes)</small></span>
-        <div class="row"><label class="btn small">${icon('image')}Choisir une photo<input type="file" id="mimg" accept="image/*" hidden></label><button class="btn small" id="mfree">${icon('image')}Photo libre de droits</button><button class="btn small" id="mimgcrop" hidden>${icon('image')}Recadrer</button><button class="btn small" id="mimgdel" hidden>${icon('close')}Retirer</button><span class="hint" id="mimgst"></span></div></div>
+      <div class="field"><span>Photos <small>(facultatif : la couverture remplace les portraits des pilotes, les autres font une image chacune)</small></span>
+        ${PHOTO_ROW('m')}<div class="row">${MINE('m')}<span class="hint" id="martst"></span></div>
+        <div class="photos" id="martlist"></div></div>
       ${BREAKING(false)}`,
-    vhead: `<div class="field"><span>Votre vidéo <small>(facultatif, ex. un enregistrement d'écran : intégrée au visuel du post, ${CLIP_MAX} s au plus)</small></span>
-        <div class="row"><label class="btn small">${icon('video')}Choisir une vidéo<input type="file" id="mvid" accept="video/mp4,video/quicktime" hidden></label><button class="btn small" id="mviddel" hidden>${icon('close')}Retirer</button><span class="hint" id="mvidst"></span></div>
-        <video id="mvidprev" controls playsinline hidden></video></div>
-      ${NEWS_VIDEO()}`,
+    vhead: `${OWN_VIDEO('m')}${NEWS_VIDEO()}`,
     data: () => d,
     caps: (dd) => newsCaptions(dd, SIG),
     record: () => ({ key: `manual:${it.id}`, kind: 'manual', title: d.title }),
@@ -313,36 +329,132 @@ export async function manualEditor(back) {
           upd(true);
         } catch (err) { $('#maist').textContent = err.message; } finally { btn.disabled = false; btn.classList.remove('busy'); }
       };
-      $('#mimg').onchange = async (e) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        try {
-          f.image = f.orig = await createImageBitmap(file);
-          f.credit = '';
-          $('#mimgst').textContent = file.name;
-          $('#mimgdel').hidden = false;
-          $('#mimgcrop').hidden = false;
-          upd(true);
-        } catch { $('#mimgst').textContent = 'Image illisible'; }
+      const showMine = photoGrid($('#martlist'), mine, { cover: () => !f.pic, frame: coverFrame, onChange: () => upd(true) });
+      bindPhoto('m', () => d, (p) => { f.pic = p; showMine(); upd(true); });
+      bindMine('m', mine, showMine, () => upd(true));
+      // Vidéo choisie : seulement la source, habillée aux couleurs du post (« Créer la vidéo », lancé tout de suite)
+      bindOwnVideo('m', (file) => { f.video = file; f.made = null; if (file) $('#mkvid').click(); else upd(true); });
+      bindNewsVideo(() => d, (on) => { f.breaking = on; upd(true); }, (file) => { f.made = file; state.noVideo = false; redraw(); }, () => f.video);
+    },
+  });
+}
+
+// ---------- Post du compte Paddock Live (@paddockliveapp) : préparé ici, publié à la main ----------
+// Une page par image du carrousel (petit titre, titre aux mots en rouge, texte, capture ou photo) ; votre vidéo
+// (enregistrement d'écran) habillée du même visuel ; visuels, vidéo et textes à télécharger ou partager.
+export async function appEditor(back) {
+  const blank = () => ({ kicker: '', title: '', text: '', image: null, orig: null, url: '' });
+  const pages = [blank()];
+  const v = { video: null, made: null };
+  const id = `a${Date.now().toString(36)}`;
+  let d = appPost(pages);
+  const pageHtml = (p, i) => `<section class="apage" data-p="${i}"><div class="row"><b>Page ${i + 1}</b><span class="grow"></span>
+      ${i ? `<button class="iconbtn" data-up aria-label="Monter la page" title="Monter la page">${icon('back')}</button>` : ''}${pages.length > 1 ? `<button class="iconbtn" data-del aria-label="Retirer la page" title="Retirer la page">${icon('close')}</button>` : ''}</div>
+      <label class="field"><span>Petit titre <small>(en rouge, au-dessus du titre)</small></span><input type="text" data-f="kicker" maxlength="60" value="${esc(p.kicker)}" placeholder="Ex. : Radios d'équipe"></label>
+      <label class="field"><span>Titre <small>(mots en rouge entre *astérisques*)</small></span><input type="text" data-f="title" maxlength="140" value="${esc(p.title)}" placeholder="Ex. : Ce qu'ils se disent à la radio, *en français.*"></label>
+      <label class="field"><span>Texte <small>(facultatif)</small></span><textarea data-f="text" rows="2" maxlength="300">${esc(p.text)}</textarea></label>
+      <div class="row"><label class="btn small">${icon('image')}${p.image ? 'Changer' : 'Capture ou photo'}<input type="file" accept="image/*" data-img hidden></label>${p.image ? `<button class="btn small" data-crop>${icon('image')}Recadrer</button><button class="btn small" data-rm>${icon('close')}Retirer</button><img class="athumb" src="${p.url}" alt="">` : ''}</div></section>`;
+  editor({
+    back,
+    title: 'Post Paddock Live',
+    subtitle: '@paddockliveapp · à publier à la main',
+    head: `<p class="hint">Le visuel du compte de l'appli, une image par page du carrousel. Tout se télécharge ou se partage à l'étape Exporter.</p>
+      <label class="field"><span>Votre texte <small>(facultatif : l'idée en vrac, mise en pages par l'IA)</small></span><textarea id="araw" rows="3" maxlength="4000" placeholder="Ex. : les radios des pilotes traduites en français au moment où elles passent à la TV, gratuit…"></textarea></label>
+      <div class="row"><button class="btn small" id="aai">${icon('wand')}Mettre en pages avec l'IA</button><span class="hint" id="aaist"></span></div>
+      <div id="apages"></div>
+      <div class="row"><button class="btn small" id="aadd">${icon('pen')}Ajouter une page</button><label class="btn small">${icon('image')}Une page par photo<input type="file" accept="image/*" multiple id="aphotos" hidden></label><span class="hint" id="aphst"></span></div>`,
+    vhead: `<div class="field"><span>Votre vidéo <small>(ex. un enregistrement d'écran de l'appli : à la place de la capture de la page 1, ${CLIP_MAX} s au plus)</small></span>
+        <div class="row"><label class="btn small">${icon('video')}Choisir une vidéo<input type="file" id="avid" accept="video/mp4,video/quicktime" hidden></label><span class="hint" id="avidst"></span></div></div>
+      ${musicField('app', 'flash')}<div class="row"><button class="btn" id="mkvid">${icon('video')}Créer la vidéo</button><button class="btn" id="sharevid" disabled title="Zone sûre : Reels, TikTok, Shorts">${icon('share')}Partager</button><button class="btn" id="sharefull" disabled title="X, Bluesky, Facebook, Threads…">${icon('share')}Plein écran</button></div>
+      <p class="hint" id="vidst">Sans vidéo à vous : les images gardées, au format story, environ 3 s chacune. Garder l'écran allumé pendant l'enregistrement.</p>
+      <video id="vid" controls playsinline hidden></video>`,
+    data: () => d,
+    caps: appCaptions,
+    record: () => ({ key: `app:${id}`, kind: 'app', title: d.title }),
+    video: () => v.made,
+    bind: (redraw) => {
+      let tm = null;
+      const upd = (now = false) => { clearTimeout(tm); tm = setTimeout(() => { d = appPost(pages); redraw(true); }, now ? 0 : 400); };
+      const setImage = async (p, file) => {
+        const image = await createImageBitmap(file);
+        if (p.url) URL.revokeObjectURL(p.url);
+        Object.assign(p, { image, orig: image, credit: '', url: await bitmapUrl(image) });
       };
-      $('#mfree').onclick = () => photoPicker(freeQuery(d), (p) => { f.image = f.orig = p.image; f.credit = p.credit; $('#mimgst').textContent = p.credit; $('#mimgdel').hidden = false; $('#mimgcrop').hidden = false; upd(true); });
-      $('#mimgcrop').onclick = async () => { const image = f.orig && await cropImage(f.orig, coverFrame()); if (image) { f.image = image; upd(true); } };
-      $('#mimgdel').onclick = () => { f.image = f.orig = null; f.credit = ''; $('#mimg').value = ''; $('#mimgst').textContent = ''; $('#mimgdel').hidden = true; $('#mimgcrop').hidden = true; upd(true); };
-      $('#mvid').onchange = (e) => {
+      const render = () => {
+        $('#apages').innerHTML = pages.map(pageHtml).join('');
+        for (const el of $$('#apages [data-p]')) {
+          const p = pages[Number(el.dataset.p)];
+          for (const f of $$('[data-f]', el)) f.oninput = () => { p[f.dataset.f] = f.value; upd(); };
+          $('[data-img]', el).onchange = async (e) => {
+            const file = e.target.files?.[0];
+            if (!file) return;
+            try { await setImage(p, file); render(); upd(true); } catch { toast('Image illisible', 'bad'); }
+          };
+          if ($('[data-crop]', el)) $('[data-crop]', el).onclick = async () => { const image = await cropImage(p.orig); if (image) { p.image = image; URL.revokeObjectURL(p.url); p.url = await bitmapUrl(image); render(); upd(true); } };
+          if ($('[data-rm]', el)) $('[data-rm]', el).onclick = () => { URL.revokeObjectURL(p.url); Object.assign(p, { image: null, orig: null, url: '' }); render(); upd(true); };
+          if ($('[data-up]', el)) $('[data-up]', el).onclick = () => { const i = pages.indexOf(p); pages.splice(i - 1, 0, ...pages.splice(i, 1)); render(); upd(true); };
+          if ($('[data-del]', el)) $('[data-del]', el).onclick = () => { pages.splice(pages.indexOf(p), 1); render(); upd(true); };
+        }
+      };
+      render();
+      $('#aadd').onclick = () => { pages.push(blank()); render(); $(`#apages [data-p="${pages.length - 1}"] [data-f="title"]`).focus(); };
+      // Une page par photo choisie (captures de l'appli…), dans l'ordre des fichiers ; la première page vide d'image d'abord
+      $('#aphotos').onchange = async (e) => {
+        const files = [...(e.target.files || [])].slice(0, 10);
+        let bad = 0;
+        for (const file of files) {
+          const p = pages.find((x) => !x.image && !x.title && !x.text) || pages[pages.push(blank()) - 1];
+          try { await setImage(p, file); } catch { bad++; pages.splice(pages.indexOf(p), 1); }
+        }
+        if (!pages.length) pages.push(blank());
+        $('#aphst').textContent = bad ? `${bad} image${bad > 1 ? 's' : ''} illisible${bad > 1 ? 's' : ''}` : '';
+        e.target.value = '';
+        render(); upd(true);
+      };
+      // IA : titre et texte de la page 1, puis une page par point clé (images des pages gardées)
+      $('#aai').onclick = async () => {
+        const text = $('#araw').value.trim();
+        if (text.length < 20) { $('#aaist').textContent = 'Écrivez d\'abord quelques phrases dans « Votre texte ».'; return; }
+        const btn = $('#aai');
+        btn.disabled = true; btn.classList.add('busy');
+        $('#aaist').textContent = 'Mise en pages…';
+        try {
+          const r = await api('rewrite', { method: 'POST', body: JSON.stringify({ text }) });
+          const list = [{ title: r.title, text: r.summary }, ...(r.points || []).map((x) => ({ title: x, text: '' }))];
+          list.forEach((x, i) => { pages[i] ||= blank(); Object.assign(pages[i], x); });
+          $('#aaist').textContent = 'Rédigé par l\'IA : relisez, et mettez des *astérisques* autour des mots à mettre en rouge.';
+          render(); upd(true);
+        } catch (err) { $('#aaist').textContent = err.message; } finally { btn.disabled = false; btn.classList.remove('busy'); }
+      };
+      // Vidéo à vous : habillée du visuel de la page 1, avec la fin aux couleurs de l'appli
+      const track = bindMusic('app');
+      let clip = null;
+      $('#avid').onchange = (e) => {
         const file = e.target.files?.[0];
         if (!file) return;
-        if (!/^video\/(mp4|quicktime)$/.test(file.type)) { $('#mvidst').textContent = 'Vidéo MP4 ou MOV seulement'; return; }
-        if (file.size > 300e6) { $('#mvidst').textContent = `Trop lourde (${Math.round(file.size / 1e6)} Mo) : 300 Mo au plus`; return; }
-        // Vidéo choisie : seulement la source, habillée aux couleurs du post (« Créer la vidéo », lancé tout de suite)
-        f.video = file; f.made = null;
-        $('#mvidst').textContent = `${file.name} · ${(file.size / 1e6).toFixed(1).replace('.', ',')} Mo`;
-        if ($('#mvidprev').src) URL.revokeObjectURL($('#mvidprev').src);
-        $('#mvidprev').src = URL.createObjectURL(file); $('#mvidprev').hidden = false;
-        $('#mviddel').hidden = false;
+        if (!/^video\/(mp4|quicktime)$/.test(file.type)) { $('#avidst').textContent = 'Vidéo MP4 ou MOV seulement'; return; }
+        if (file.size > 300e6) { $('#avidst').textContent = `Trop lourde (${Math.round(file.size / 1e6)} Mo) : 300 Mo au plus`; return; }
+        v.video = file; v.made = null;
+        $('#avidst').textContent = `${file.name} · ${(file.size / 1e6).toFixed(1).replace('.', ',')} Mo`;
         $('#mkvid').click();
       };
-      $('#mviddel').onclick = () => { f.video = f.made = null; $('#mvid').value = ''; $('#mvidst').textContent = ''; $('#mviddel').hidden = true; $('#mvidprev').hidden = true; $('#mvidprev').removeAttribute('src'); upd(true); };
-      bindNewsVideo(() => d, (on) => { f.breaking = on; upd(true); }, (file) => { f.made = file; state.noVideo = false; redraw(); }, () => f.video);
+      $('#mkvid').onclick = async () => {
+        unlockAudio();   // pendant le toucher, avant toute attente (sinon vidéo muette sur iPhone)
+        $('#mkvid').disabled = true;
+        try {
+          const opts = { music: 'gen', track: track(), onProgress: (x) => { $('#vidst').textContent = `${v.video ? 'Habillage de votre vidéo' : 'Enregistrement'}… ${Math.round(x * 100)} %`; } };
+          // Sans vidéo à vous : les images gardées au format story, enchaînées (comme la vidéo des visuels des autres posts)
+          const list = chosenSlides(slidesFor(d, { fmt: 'story' }), [...state.skip]);
+          clip = v.video ? await makeClipVideo(v.video, d, await assets(d), opts) : await makeVideo(list.map((sl) => drawSlide(document.createElement('canvas'), sl, 'story', d, { slides: list })), opts);
+          $('#vid').src = URL.createObjectURL(clip.blob); $('#vid').hidden = false;
+          $('#sharevid').disabled = false; $('#sharefull').disabled = false;
+          v.made = clipFile(clip, 'paddock-live');
+          $('#vidst').textContent = `Vidéo prête : ${(clip.blob.size / 1e6).toFixed(1).replace('.', ',')} Mo${clip.silent ? ' · sans son : le navigateur a bloqué la musique, recommencez' : ''} · « Partager » pour l'enregistrer ou l'envoyer (Reels, TikTok, Shorts)`;
+          redraw();
+        } catch (err) { $('#vidst').textContent = err.message; } finally { $('#mkvid').disabled = false; }
+      };
+      $('#sharevid').onclick = () => clip && shareClip(clip, 'paddock-live');
+      $('#sharefull').onclick = () => clip && shareClip(clip, 'paddock-live', true);
     },
   });
 }

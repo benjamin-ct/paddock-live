@@ -110,6 +110,8 @@ const STEPS = [['contenu', 'Contenu'], ['visuels', 'Visuels'], ['video', 'Vidéo
 // repris (drafts.js), mis à jour par « Brouillon » et effacé une fois le post publié ou programmé
 export function editor({ back, title, subtitle = '', head = '', vhead = '', note = '', data, caps, bind = () => {}, record, video = () => null, link = null, twin = null, draft = null }) {
   const formats = link ? [...FORMATS, ['link', 'Lien']] : FORMATS;
+  // Post du compte Paddock Live : préparé ici, publié à la main (étape « Exporter », sans les options de Benjy)
+  const app = data().post === 'app';
   // Post sans vidéo à lui : vidéo de ses visuels, fabriquée ici
   const own = !vhead.trim();
   let slideClip = null;
@@ -129,7 +131,7 @@ export function editor({ back, title, subtitle = '', head = '', vhead = '', note
       <div class="titles"><b>${esc(title)}</b>${subtitle ? `<small>${esc(subtitle)}</small>` : ''}</div>
       <button class="btn small" id="savedraft" title="Garder ce post pour plus tard (aussi dans l'appli)">${icon('pen')}Brouillon</button></header>
     <main class="page">
-      <nav class="steps" id="steps">${steps.map(([k, v]) => `<button data-go="${k}"><i></i><span>${v}</span></button>`).join('')}</nav>
+      <nav class="steps" id="steps">${steps.map(([k, v]) => `<button data-go="${k}"><i></i><span>${app && k === 'publier' ? 'Exporter' : v}</span></button>`).join('')}</nav>
       ${head.trim() ? `<section class="panel" data-in="contenu">${head}</section>` : ''}
       ${note ? `<p class="hint" data-in="visuels">${esc(note)}</p>` : ''}
       <div class="seg wide" id="fmt" data-in="visuels">${formats.map(([k, v]) => `<button data-fmt="${k}" class="${state.fmt === k ? 'on' : ''}">${v}</button>`).join('')}</div>
@@ -163,7 +165,7 @@ export function editor({ back, title, subtitle = '', head = '', vhead = '', note
     });
     $('#prev').hidden = i === 0;
     const nx = list[i + 1];
-    $('#next').innerHTML = nx ? `${esc(nx[1])}${icon('next')}` : '';
+    $('#next').innerHTML = nx ? `${esc(app && nx[0] === 'publier' ? 'Exporter' : nx[1])}${icon('next')}` : '';
     if (nx) $('#next').onclick = () => setStep(nx[0]);
     scrollTo({ top: 0 });
     glide();
@@ -178,11 +180,11 @@ export function editor({ back, title, subtitle = '', head = '', vhead = '', note
   // Textes : question et abonnement seulement si leur image est gardée ; retouches à la main conservées
   const texts = (d, skip = state.skip, mine = edited) => {
     let base = caps(keptData(d, skip, state.fmt));
-    if (state.question && !skip.has('question')) base = questionCaptions(base, d, SIG);
-    if (state.follow && !skip.has('abonnement')) base = followCaptions(base, d, SIG);
+    if (state.question && !app && !skip.has('question')) base = questionCaptions(base, d, SIG);
+    if (state.follow && !app && !skip.has('abonnement')) base = followCaptions(base, d, SIG);
     if (!base.bsky) base = { ...base, bsky: base.x };
     // Mention « Fait par IA avec l'appli », sauf pour les posts écrits à la main ; textes de la vidéo tirés des autres
-    const out = record?.()?.kind === 'manual' ? base : creditCaptions(base);
+    const out = app || record?.()?.kind === 'manual' ? base : creditCaptions(base);
     return { ...videoTexts(out), ...out, ...mine };
   };
   const redraw = async (changed = false) => {
@@ -197,11 +199,12 @@ export function editor({ back, title, subtitle = '', head = '', vhead = '', note
       <div class="row"><button class="btn small" id="xlink">${icon('send')}Ouvrir X avec le lien</button></div>` : `<div class="slides ${state.fmt}">${slides.map((sl) => `<figure class="sl"><canvas data-slide="${sl}" title="${esc(slideName(sl))} : voir en grand"></canvas>
         <label class="pick"><input type="checkbox" data-pick="${sl}" ${state.skip.has(sl) ? '' : 'checked'}><span data-num></span>${esc(slideName(sl))}</label></figure>`).join('')}</div>`;
     const xTab = state.fmt === 'x';
-    const shown = ([k]) => (VIDEO_CAPS.includes(k) ? !linkTab && !xTab && state.fmt !== 'story' && !!video() : linkTab ? ['instagram', 'facebook', 'threads', 'bsky', 'x'].includes(k) : xTab ? k === 'x' || (k === 'comment' && c[k]) : k !== 'x' && (k === 'instagram' || k === 'threads' || k === 'bsky' || c[k]));
+    // Compte Paddock Live (publié à la main) : tous les textes, un par réseau
+    const shown = ([k]) => (app ? k !== 'comment' : VIDEO_CAPS.includes(k) ? !linkTab && !xTab && state.fmt !== 'story' && !!video() : linkTab ? ['instagram', 'facebook', 'threads', 'bsky', 'x'].includes(k) : xTab ? k === 'x' || (k === 'comment' && c[k]) : k !== 'x' && (k === 'instagram' || k === 'threads' || k === 'bsky' || c[k]));
     $('#texts').innerHTML = `<section class="panel"><h3 class="section">Textes</h3>${CAPS.filter(shown).map(([k, label, rows, max = 0, limit = 0], i) => `
       <details class="cap" ${i === 0 ? 'open' : ''}><summary><span>${esc(label(c))}</span><small data-count="${k}"></small></summary>
         <textarea id="cap-${k}" rows="${rows}" ${max ? `maxlength="${max}"` : ''} data-limit="${limit || max}">${esc(c[k])}</textarea>
-        ${k === 'comment' ? `<div class="row end"><button class="btn small" id="copycomment">${icon('copy')}Copier</button></div>` : ''}
+        <div class="row end"><button class="btn small" data-copy="${k}">${icon('copy')}Copier</button></div>
         ${k === 'threads' ? `<label class="field"><span>Sujet Threads (vide : aucun)</span><input type="text" id="threadtopic" maxlength="50" value="${esc(state.topic ?? THREADS_TOPIC)}"></label>` : ''}</details>`).join('')}</section>`;
     if ($('#threadtopic')) $('#threadtopic').oninput = (e) => { state.topic = e.target.value; };
     const count = (k) => {
@@ -232,6 +235,7 @@ export function editor({ back, title, subtitle = '', head = '', vhead = '', note
       $(`#cap-${k}`).oninput = (e) => { edited[k] = e.target.value; count(k); clearTimeout(prep); prep = setTimeout(prepare, 800); };
     }
     prepare();
+    for (const b of $$('#texts [data-copy]')) b.onclick = async () => { try { await navigator.clipboard.writeText($(`#cap-${b.dataset.copy}`).value); toast('Texte copié'); } catch { /* presse-papiers refusé */ } };
     // Avec une vidéo : Reel, vidéo Facebook, Threads et Bluesky, et aussi brouillon TikTok et Short YouTube (à cocher).
     // Format Story : stories Instagram et Facebook (Threads et Bluesky n'en ont pas). Vidéo prête : publiée
     // (une story vidéo) ou laissée de côté pour les visuels, au choix
@@ -245,13 +249,19 @@ export function editor({ back, title, subtitle = '', head = '', vhead = '', note
     $('#plan').hidden = xTab;
     $('#go').disabled = false;
     $('#netsbox').hidden = xTab;
+    // Compte Paddock Live : rien n'est publié d'ici (images, vidéo et textes à reprendre dans les applis des réseaux)
+    $('#go').hidden = app && !xTab;
+    if (app) $('#plan').hidden = true;
     $('[data-go="textes"]').hidden = story;   // stories : pas de texte publié
     if (story && root.dataset.step === 'textes') setStep('publier');
-    for (const el of [$('#opts'), $('#share'), $('#dl')]) if (el) el.hidden = linkTab;   // post « lien » : pas de visuels
-    $('#netsbox').innerHTML = xTab ? '' : `<h3 class="section">Publier sur</h3>${twin && !linkTab ? `<label class="switch net"><span><b>Publier aussi « ${esc(twin.label())} »</b><small>Son propre post, sur les mêmes réseaux, en même temps</small></span><input type="checkbox" role="switch" id="withtwin" ${state.noTwin ? '' : 'checked'}></label>` : ''}${withVid}${list.map(([k, v]) => {
+    for (const el of [$('#opts'), $('#share'), $('#dl')]) if (el) el.hidden = linkTab || (app && el.id === 'opts');   // post « lien » : pas de visuels
+    $('#netsbox').innerHTML = xTab ? '' : app ? `<h3 class="section">Exporter</h3><p class="hint">Compte @paddockliveapp : à publier à la main, depuis les applis des réseaux. Images : ${IOS ? 'bouton Partager, puis « Enregistrer les images »' : 'bouton Télécharger (ou Partager)'} ; vidéo : « Partager » à l'étape Vidéo ; textes : « Copier » à l'étape Textes, un par réseau.</p>
+      <div class="row"><button class="btn primary" id="expshare">${icon('share')}Partager les images</button>${IOS ? '' : `<button class="btn" id="expdl">${icon('download')}Télécharger les images</button>`}</div>` : `<h3 class="section">Publier sur</h3>${twin && !linkTab ? `<label class="switch net"><span><b>Publier aussi « ${esc(twin.label())} »</b><small>Son propre post, sur les mêmes réseaux, en même temps</small></span><input type="checkbox" role="switch" id="withtwin" ${state.noTwin ? '' : 'checked'}></label>` : ''}${withVid}${list.map(([k, v]) => {
       const acc = session.me?.[k.replace('-story', '')];
       return `<label class="switch net"><span><b>${v}</b><small>${esc(acc || 'non connecté')}</small><em class="st" data-st="${k}"></em></span><input type="checkbox" role="switch" data-net="${k}" ${acc ? (k === 'tiktok' || k === 'youtube' ? '' : 'checked') : 'disabled'}></label>`;
     }).join('')}${vid ? '<div id="tkbox" class="tkbox" hidden></div>' : ''}${vid || story ? `<p class="hint">${story ? `${vid ? 'La vidéo en story' : 'Une story par image'}, visible 24 heures.` : `Vidéo sur tous les réseaux${vid.full ? ' : plein écran sur Facebook, Threads et Bluesky, zone sûre sur Instagram, TikTok et YouTube (privé)' : ''}.`}</p>` : ''}`;
+    if ($('#expshare')) $('#expshare').onclick = () => $('#share').click();
+    if ($('#expdl')) $('#expdl').onclick = () => $('#dl').click();
     if ($('#withvid')) $('#withvid').onchange = (e) => { state.noVideo = !e.target.checked; redraw(); };
     if ($('#withtwin')) $('#withtwin').onchange = (e) => { state.noTwin = !e.target.checked; };
     // Post jumeau à publier aussi : ses textes faits d'office (toutes ses images gardées)
@@ -307,7 +317,6 @@ export function editor({ back, title, subtitle = '', head = '', vhead = '', note
     $('#share').onclick = () => share(canvases, state.fmt === 'x' ? $('#cap-x').value : state.fmt === 'ig' ? $('#cap-instagram').value : '');
     // iPhone : « Partager » propose aussi « Enregistrer les images » (Photos)
     if ($('#dl')) $('#dl').onclick = () => download(canvases);
-    if ($('#copycomment')) $('#copycomment').onclick = async () => { try { await navigator.clipboard.writeText(trackedNow($('#cap-comment').value)); toast('Commentaire copié'); } catch { /* presse-papiers refusé */ } };
   };
   $('#back').onclick = goBack;
   // Brouillon : de quoi refaire le post (ici ou dans l'appli) ; un deuxième clic met à jour le même
