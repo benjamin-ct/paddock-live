@@ -114,8 +114,8 @@ function bindNewsVideo(getD, onBreaking, onClip, source = () => null) {
       const o = await assets(d);
       const src = source();
       const onProgress = (p) => { $('#vidst').textContent = `${src ? 'Habillage de votre vidéo' : 'Enregistrement'}… ${Math.round(p * 100)} %`; };
-      clip = src ? await makeClipVideo(src, d, o, { music: 'gen', track: track(), onProgress })
-        : await makeAnimation((ctx, t, w, h) => newsFrame(ctx, w, h, d, o, t), newsVideoTiming(d).duration, { box: true, cover: (ctx) => videoCover(ctx, 1080, 1920, d, o), music: 'gen', track: track(), onProgress });
+      clip = src ? await makeClipVideo(src, d, o, { ...track(), onProgress })
+        : await makeAnimation((ctx, t, w, h) => newsFrame(ctx, w, h, d, o, t), newsVideoTiming(d).duration, { box: true, cover: (ctx) => videoCover(ctx, 1080, 1920, d, o), ...track(), onProgress });
       $('#vid').src = URL.createObjectURL(clip.blob); $('#vid').hidden = false;
       $('#sharevid').disabled = false; $('#sharefull').disabled = false;
       $('#vidst').textContent = `Vidéo prête : ${src ? '' : `${Math.round(newsVideoTiming(d).duration)} s, `}${(clip.blob.size / 1e6).toFixed(1).replace('.', ',')} Mo${clip.silent ? ' · sans son : le navigateur a bloqué la musique, recommencez' : ''}${clipFile(clip, name()) ? ' · jointe au post : Reel, vidéo, TikTok et Short à choisir à l\'étape Publier' : ' · format WebM : à partager seulement (publication en MP4)'}`;
@@ -442,7 +442,7 @@ export async function appEditor(back) {
         unlockAudio();   // pendant le toucher, avant toute attente (sinon vidéo muette sur iPhone)
         $('#mkvid').disabled = true;
         try {
-          const opts = { music: 'gen', track: track(), onProgress: (x) => { $('#vidst').textContent = `${v.video ? 'Habillage de votre vidéo' : 'Enregistrement'}… ${Math.round(x * 100)} %`; } };
+          const opts = { ...track(), onProgress: (x) => { $('#vidst').textContent = `${v.video ? 'Habillage de votre vidéo' : 'Enregistrement'}… ${Math.round(x * 100)} %`; } };
           // Sans vidéo à vous : les images gardées au format story, enchaînées (comme la vidéo des visuels des autres posts)
           const list = chosenSlides(slidesFor(d, { fmt: 'story' }), [...state.skip]);
           clip = v.video ? await makeClipVideo(v.video, d, await assets(d), opts) : await makeVideo(list.map((sl) => drawSlide(document.createElement('canvas'), sl, 'story', d, { slides: list })), opts);
@@ -506,7 +506,7 @@ async function fiaGrid(year, meeting, sprint) {
 // Types de posts d'une séance : résultats, avant-course (grille, météo, pneus), championnat, flash
 const POST_TYPES = [['results', 'Résultats'], ['prerace', 'Avant-course'], ['champ', 'Championnat'], ['flash', 'Flash']];
 export async function sessionEditor(s, back) {
-  const st = await loadState(s.path);
+  const st = await loadState(s.path, undefined, { live: s.live });
   rememberDrivers(st.DriverList);
   const meet = st.SessionInfo?.Meeting || {};
   const tyres = builtinNomination(Number(String(s.path).slice(0, 4)), { name: meet.Name, location: meet.Location, country: meet.Country?.Name });

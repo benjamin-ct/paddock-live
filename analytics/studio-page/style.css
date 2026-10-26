@@ -306,6 +306,8 @@ button.row-item:active { background: var(--surface-2); }
 .netcard details.cap { border-top: 1px solid var(--line); }
 #plansum { margin: 0 0 4px; }
 .todo-text { margin: 6px 0 10px; color: var(--text-2); font-size: 14px; white-space: pre-line; display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
+.yearpick { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin: 0 0 10px; color: var(--muted); font-size: 13px; font-weight: 600; }
+.yearpick select { width: auto; min-width: 92px; padding: 6px 10px; }
 ul.plan { margin: 0 0 14px; padding-left: 20px; line-height: 1.7; }
 .linkbtn { padding: 0; border: 0; background: none; color: var(--brand); font: inherit; text-decoration: underline; cursor: pointer; }
 details.cap { border-top: 1px solid var(--line); }

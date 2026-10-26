@@ -115,7 +115,12 @@ const parseStream = (text, topic) => {
   return out;
 };
 
-export async function loadState(path, topics = TOPICS) {
+// live : séance en cours, lue directement dans le relais du direct (état à la seconde, résultats provisoires)
+export async function loadState(path, topics = TOPICS, { live = false } = {}) {
+  if (live) {
+    const st = await api(`live-state?p=${encodeURIComponent(path)}`).catch(() => null);
+    if (st?.SessionInfo) return st;
+  }
   let why = null;   // raison donnée par le serveur (archive pas encore publiée, connexion F1 TV refusée…)
   const parts = await mapLimit(topics, 5, async (t) => {
     try { return parseStream(await (await api(`archive?p=${encodeURIComponent(`${path}${t}.jsonStream`)}`, { raw: true })).text(), t); } catch (err) { why ||= err.message; return []; }
@@ -144,16 +149,19 @@ function parseOffset(v) {
 }
 export const SESSION_FR = (n) => String(n).replace(/^Practice (\d)$/, 'Essais libres $1').replace('Sprint Qualifying', 'Qualifications sprint').replace('Sprint Shootout', 'Qualifications sprint').replace(/^Qualifying$/, 'Qualifications').replace(/^Race$/, 'Course');
 
-// Séances terminées de la saison (30 dernières), gardées 30 minutes sur le téléphone
-// (relues au plus toutes les 10 minutes, sauf « Actualiser »)
+// Séances terminées d'une saison (année en cours : les 30 dernières, plus la séance en direct), gardées 30 minutes
+// sur le téléphone (relues au plus toutes les 10 minutes, sauf « Actualiser ») ; saisons passées : toutes, gardées
 let sessions = null;
-export const cachedSessions = () => sessions || store.get('sessions', 30 * 60e3)?.v || null;
-export async function seasonSessions({ force = false } = {}) {
-  if (!force && !sessions) sessions = store.get('sessions', 10 * 60e3)?.v || null;
+let sessionsYear = 0;
+const sessionsKey = (y) => (y === new Date().getUTCFullYear() ? 'sessions' : `sessions.${y}`);
+export const cachedSessions = (y = new Date().getUTCFullYear()) => (sessionsYear === y && sessions) || store.get(sessionsKey(y), y === new Date().getUTCFullYear() ? 30 * 60e3 : Infinity)?.v || null;
+export async function seasonSessions({ force = false, year = new Date().getUTCFullYear() } = {}) {
+  const now = new Date().getUTCFullYear();
+  if (sessionsYear !== year) { sessions = null; sessionsYear = year; }
+  if (!force && !sessions) sessions = store.get(sessionsKey(year), year === now ? 10 * 60e3 : Infinity)?.v || null;
   if (sessions && !force) return sessions;
-  const year = new Date().getUTCFullYear();
   const out = [];
-  for (const y of [year, year - 1]) {
+  for (const y of year === now ? [year, year - 1] : [year]) {
     try {
       const idx = JSON.parse((await (await api(`archive?p=${y}/Index.json`, { raw: true })).text()).replace(/^﻿/, ''));
       for (const m of idx.Meetings || []) {
@@ -167,16 +175,19 @@ export async function seasonSessions({ force = false } = {}) {
       if (out.length) break;
     } catch { /* année absente */ }
   }
-  // Séance qui vient de finir : la F1 ne l'ajoute à l'index qu'une heure environ après le drapeau à damier ; le
-  // relais du direct (version web) la connaît déjà
-  try {
-    const s = await api('live-session');
-    const end = s?.endDate ? Date.parse(`${s.endDate}Z`) - (parseOffset(s.gmtOffset) || 0) : NaN;
-    const done = ['Finished', 'Finalised', 'Ends'].includes(s?.status) || end < Date.now();
-    if (s?.path && done && !out.some((x) => x.path === s.path)) out.push({ path: s.path, name: s.name, type: s.type, end: Math.min(end || Date.now(), Date.now()), gp: s.gp, country: s.country });
-  } catch { /* relais injoignable : l'index seul */ }
-  sessions = out.sort((a, b) => b.end - a.end).slice(0, 30);
-  store.set('sessions', sessions);
+  // Séance en cours ou qui vient de finir : la F1 ne l'ajoute à l'index qu'une heure environ après le drapeau à
+  // damier ; le relais du direct (version web) la connaît déjà (en cours : résultats provisoires)
+  if (year === now) {
+    try {
+      const s = await api('live-session');
+      const end = s?.endDate ? Date.parse(`${s.endDate}Z`) - (parseOffset(s.gmtOffset) || 0) : NaN;
+      const done = ['Finished', 'Finalised', 'Ends'].includes(s?.status) || end < Date.now();
+      const live = !done && ['Started', 'Aborted', 'Inactive'].includes(s?.status);
+      if (s?.path && (done || live) && !out.some((x) => x.path === s.path)) out.push({ path: s.path, name: s.name, type: s.type, end: done ? Math.min(end || Date.now(), Date.now()) : Date.now(), gp: s.gp, country: s.country, live });
+    } catch { /* relais injoignable : l'index seul */ }
+  }
+  sessions = out.sort((a, b) => b.end - a.end).slice(0, year === now ? 30 : undefined);
+  store.set(sessionsKey(year), sessions);
   return sessions;
 }
 

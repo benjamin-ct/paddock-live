@@ -267,7 +267,7 @@ export function editor({ back, title, subtitle = '', head = '', vhead = '', note
         const o = await assets(d);
         const list = chosenSlides(slidesFor(d, { fmt: 'story', follow: state.follow, question: state.question }), [...state.skip]);
         const slides = list.map((sl) => drawSlide(document.createElement('canvas'), sl, 'story', d, { ...o, slides: list }));
-        clip = await makeVideo(slides, { music: 'gen', track: track(), onProgress: (p) => { $('#vidst').textContent = `Enregistrement… ${Math.round(p * 100)} %`; } });
+        clip = await makeVideo(slides, { ...track(), onProgress: (p) => { $('#vidst').textContent = `Enregistrement… ${Math.round(p * 100)} %`; } });
         $('#vid').src = URL.createObjectURL(clip.blob); $('#vid').hidden = false;
         $('#sharevid').disabled = false; $('#sharefull').disabled = false;
         slideClip = clipFile(clip, name);
