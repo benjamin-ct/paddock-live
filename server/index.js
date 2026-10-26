@@ -806,6 +806,11 @@ async function handleApi(req, res, url) {
       return sendJSON(res, 200, authInfo());
     }
 
+    // GPS laissé à un autre appareil du même compte F1 TV (version web…) : repris ici
+    case 'POST /api/live/here':
+      if (hub.source.mode === 'live') live.here();
+      return sendJSON(res, 200, { ok: true });
+
     case 'DELETE /api/auth':
       saveConfig({ f1tvToken: null });
       resetRenewState();

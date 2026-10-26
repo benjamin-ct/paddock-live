@@ -26,3 +26,21 @@ test('direct : séance en cours sans GPS malgré le jeton, nouvelle connexion (u
   token = null;   // sans jeton : rien à espérer
   assert.equal(live.gpsRetry(t0 + 600000), false);
 });
+
+test('direct : compte F1 TV suivi sur un autre appareil, deux coupures en 5 min et le GPS lui est laissé', () => {
+  const hub = { source: { mode: 'live' }, sessionKey: 9001 };
+  const live = new LiveSource(hub, () => 'jeton');
+  let restarts = 0;
+  live.restart = () => restarts++;
+  const t0 = 1e12;
+  live.lost(null, t0);   // connexion sans F1 TV : la F1 ne la coupe pas pour un autre appareil
+  live.lost('jeton', t0);
+  live.lost('jeton', t0 + 6 * 60e3);   // coupures espacées (réseau) : on garde le GPS
+  assert.equal(live.elsewhere, false);
+  live.lost('jeton', t0 + 6 * 60e3 + 3000);   // l'autre appareil la reprend aussitôt
+  assert.equal(live.elsewhere, true);
+  assert.equal(hub.source.elsewhere, true);
+  assert.equal(live.gpsRetry(t0 + 7 * 60e3), false);   // pas de nouvel essai qui le lui reprendrait
+  live.here();   // « Reprendre ici »
+  assert.deepEqual([live.elsewhere, hub.source.elsewhere, live.losses.length, restarts], [false, false, 0, 1]);
+});
