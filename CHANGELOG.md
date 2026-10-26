@@ -79,6 +79,7 @@ l'application (Réglages → À propos → Nouveautés).
   n'est pas affiché (interface Essentielle, panneau masqué).
 
 ### Saison
+- Duels : le « VS » est au milieu, quelle que soit la longueur des noms des deux pilotes.
 - Pendant l'analyse des courses, les tableaux de la Saison restent où on les a fait défiler au lieu de revenir
   au début toutes les 3 secondes.
 - Sur téléphone : les rubriques de la Saison s'ouvrent dans un menu sur le côté (bouton ☰ en haut), au lieu
