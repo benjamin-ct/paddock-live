@@ -350,3 +350,19 @@ test('état final d\'une séance d\'après le relais : état de base et messages
   assert.equal((await liveState(env, '2026/2026-10-25_United_States_Grand_Prix/2026-10-25_Race/')).LapCount.CurrentLap, 56);
   assert.equal(await liveState({}, 'x'), null);
 });
+
+test('version web, espace Saison : saisons depuis 2018, une saison finie gardée une semaine', async () => {
+  const now = new Date().getUTCFullYear();
+  const rows = new Map([[`season:${now}`, { at: Date.now(), v: { year: now, races: [] } }], ['season:2019', { at: Date.now() - 3 * 86400e3, v: { year: 2019, races: [] } }]]);
+  const DB = { prepare: () => ({ bind: (k) => ({ first: async () => (rows.has(k) ? { v: JSON.stringify(rows.get(k)) } : null) }) }) };
+  const realFetch = globalThis.fetch;
+  let asked = 0;
+  globalThis.fetch = async () => { asked++; throw new Error('pas de réseau dans les tests'); };
+  try {
+    const get = (y) => { const url = new URL(`https://app.test/live/api/season?year=${y}`); return liveApi(new Request(url), url, { DB }); };
+    assert.equal((await (await get(2019)).json()).year, 2019);
+    assert.equal((await (await get(now)).json()).year, now);
+    assert.equal(asked, 0);   // saison de 2019 lue il y a 3 jours : pas relue chez Jolpica
+    for (const y of [2017, now + 1, 'x']) assert.equal((await get(y)).status, 400);
+  } finally { globalThis.fetch = realFetch; }
+});

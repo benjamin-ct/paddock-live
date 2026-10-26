@@ -87,6 +87,12 @@ l'application (Réglages → À propos → Nouveautés).
 - Météo du week-end : la bonne journée pour les séances du soir (Las Vegas : la course du samedi soir n'est plus
   rangée le dimanche).
 
+### Version web (app.paddocklive.app)
+- Nouveau bouton « Saison » : l'espace Saison de l'appli dans le navigateur, sans rien installer. Accueil,
+  calendrier, classements, course au titre, bilan de la saison, résultats et records, duels et fiche de chaque
+  pilote, de 2018 à aujourd'hui ; pronostics entre amis dans un groupe en ligne. Les statistiques tirées des
+  archives des courses et les documents de la FIA restent pour l'instant dans l'appli.
+
 ### Fiabilité et sécurité
 - Accès depuis le téléphone : un site ouvert sur l'ordinateur ne peut plus se faire passer pour l'ordinateur
   afin d'utiliser l'appli sans la clé du QR code.

@@ -556,7 +556,7 @@ export function openSeason(sec, y) {
   if (sec) section = sec;
   if (y && y !== year) { year = y; data = null; stats = null; fia = null; $('#szYear').value = String(y); }
   jump = true;
-  import('./news.js').then((m) => m.closeNews());
+  if ($('#newsView')) import('./news.js').then((m) => m.closeNews());   // pas d'Actu dans la version web
   import('./home.js').then((m) => { m.homeTouched(); m.closeHome(); });
   import('./replays.js').then((m) => m.closeReplays());
   placeView($('#seasonView'));

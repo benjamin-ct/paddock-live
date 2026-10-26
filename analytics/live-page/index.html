@@ -48,6 +48,11 @@
     /* Météo de la piste dans la barre du haut, comme l'appli (sur sa propre ligne sur téléphone) */
     .web .topbar .weather-mini { display: flex !important; }
     .web .season-view { left: 0 !important; }
+    /* Bouton Saison dans la barre du haut (l'appli l'a dans son menu latéral) */
+    .web .topbar #seasonBtn { display: inline-flex !important; }
+    .web .topbar #seasonBtn:not(.on) { border-color: rgba(255, 255, 255, .18); }
+    /* Espace Saison : rubriques tirées des résultats ; les statistiques des archives et les documents FIA restent dans l'appli */
+    .web #szNav :is([data-sz="h2h"], [data-sz="drivers"]) { display: flex !important; }
     /* Écran affiché : les panneaux vides dessous sont retirés, la page ne défile plus */
     .web body:has(#noLiveView:not([hidden])) { overflow: hidden; }
     .web body:has(#noLiveView:not([hidden])) .grid { display: none; }
@@ -75,7 +80,7 @@
     .pair-ok { margin: 0 0 14px; padding: 10px 12px; border-radius: 10px; background: rgba(46, 204, 113, .12); color: var(--text); font-size: 14px; line-height: 1.45; }
     .pair-ok small { color: var(--text-2); }
     .pair-out { width: 100%; margin-top: 14px; }
-    .web .topbar #pairBtn { color: var(--text); background: transparent; border: 1px solid rgba(255, 255, 255, .18); }   /* barre toujours sombre, même en apparence claire */
+    .web .topbar :is(#pairBtn, #seasonBtn) { color: var(--text); background: transparent; border: 1px solid rgba(255, 255, 255, .18); }   /* barre toujours sombre, même en apparence claire */
     #pairBtn.on::before { content: ''; display: inline-block; width: 8px; height: 8px; margin-right: 7px; border-radius: 50%; background: #2ecc71; box-shadow: 0 0 6px #2ecc71; vertical-align: 1px; }
     #pairForm { display: flex; gap: 8px; }
     #pairInput { flex: 1; min-width: 0; font-weight: 700; font-size: 22px; letter-spacing: .25em; text-align: center; padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel-2); color: var(--text); font-variant-numeric: tabular-nums; }
@@ -152,6 +157,7 @@
     </div>
     <button class="btn small" id="pairBtn" title="Utiliser son compte F1 TV sur cet appareil" hidden></button>
     <button class="source-badge" id="sourceBadge"><span class="src-dot"></span><span id="sourceLabel">—</span></button>
+    <button class="btn small" id="seasonBtn" title="Calendrier, classements et résultats de la saison">Saison</button>
     <a class="btn small btn-accent" href="https://paddocklive.app/" title="Télécharger l'appli Paddock Live">Appli complète</a>
   </header>
 
@@ -162,6 +168,8 @@
     <div class="nl-box" id="noLiveBox"></div>
     <div class="web-res" id="webResults"><button class="btn" id="webResultsBtn" title="Résultat visible : pas de spoiler tant que vous ne cliquez pas">Voir les résultats et les classements</button></div>
   </div>
+
+  <!--season-->
 
   <main class="grid">
     <!--panel:tower-->

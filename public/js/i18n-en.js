@@ -1386,6 +1386,7 @@ export default {
   "s'arrête maintenant (actuellement P{}) :": "pits now (currently P{}):",
   "s'éloigne ({} s/tour)": "pulling away ({} s/lap)",
   "Saison": "Season",
+  "Calendrier, classements et résultats de la saison": "Season calendar, standings and results",
   "Saison : calendrier, classements, résultats, statistiques": "Season: calendar, standings, results, statistics",
   "Saison : calendrier, classements, résultats": "Season: calendar, standings, results",
   "Saison {} indisponible.": "Season {} unavailable.",

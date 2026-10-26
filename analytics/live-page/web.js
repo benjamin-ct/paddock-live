@@ -14,6 +14,7 @@ import { renderRcm, initRcmFilters, initStewards, renderStewards } from './ui/fe
 import { renderRadios, initRadios } from './ui/radios.js';
 import { renderTelemetry } from './ui/extra.js';
 import { initNoLive } from './ui/home.js';
+import { initSeason } from './ui/season.js';
 
 translatePage();
 // GPS et télémétrie : texte compressé (deflate brut, base64) du flux F1
@@ -260,6 +261,8 @@ safe(initStewards);
 safe(initRadios);
 // Pas de séance en direct : prochaine séance et compte à rebours, comme l'appli
 safe(initNoLive);
+// Espace Saison de l'appli (calendrier, classements, résultats…), d'après la saison gardée par le serveur
+safe(initSeason);
 // Panneau Analyse : seulement la télémétrie du pilote suivi
 document.querySelector('.p-analysis [data-tab="telemetry"]')?.click();
 on('status', renderSource);

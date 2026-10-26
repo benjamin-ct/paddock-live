@@ -104,8 +104,8 @@ function picksTable(r) {
       <td><b>${p.points ? p.points.total : '—'}</b>${p.points?.perfect ? ` <small class="pd-hit">podium exact +${p.points.perfect}</small>` : ''}</td></tr>`).join('')}</table>`;
 }
 
-// Groupe en ligne : lien à partager, ou création / arrivée dans un groupe
-function groupBox() {
+// Groupe en ligne : lien à partager, ou création / arrivée dans un groupe (ouvert d'emblée : open, version web)
+function groupBox(open) {
   const g = group();
   const list = groups();
   if (g) {
@@ -120,7 +120,7 @@ function groupBox() {
       <p class="muted small">Votre lien personnel, pour jouer sur un autre appareil. Gardez-le pour vous.</p>` : ''}
       ${list.length > 1 ? `<label class="small pd-name">Mes groupes <select data-pd-switch>${list.map((x) => `<option value="${esc(x.id)}" ${x.id === g.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></label>` : ''}</section>`;
   }
-  return `<details class="sz-box pd-group" ${list.length ? 'open' : ''}><summary><b>${icon('share')} Jouer en ligne avec des amis</b> <span class="muted small">hors du réseau local, avec un lien à partager</span></summary>
+  return `<details class="sz-box pd-group" ${open || list.length ? 'open' : ''}><summary><b>${icon('share')} Jouer en ligne avec des amis</b> <span class="muted small">hors du réseau local, avec un lien à partager</span></summary>
       ${list.length ? `<div class="pd-actions"><span class="small">Mes groupes</span>${list.map((x) => `<button class="btn small" data-pd="open" data-id="${esc(x.id)}">${esc(x.name)}</button>`).join('')}</div>` : ''}
       <div class="pd-actions"><input name="pdGroupName" maxlength="40" placeholder="Nom du groupe (ex. Les copains)"><button class="btn small" data-pd="create">Créer un groupe en ligne</button></div>
       <div class="pd-actions"><input name="pdGroupLink" placeholder="Lien d'un groupe ou lien personnel (paddocklive.app/p/…)"><button class="btn small" data-pd="join">Rejoindre</button></div>
@@ -131,7 +131,7 @@ function fill() {
   const root = $('#pdRoot');
   if (!root) return;
   if (!view) { root.innerHTML = '<div class="note">Chargement des pronostics…</div>'; return; }
-  if (view.error) { root.innerHTML = `${groupBox()}<div class="note">Pronostics indisponibles (${esc(view.error)}).</div>`; return; }
+  if (view.error) { root.innerHTML = `${groupBox(true)}<div class="note">Pronostics indisponibles (${esc(view.error)}).</div>`; return; }
   const now = Date.now();
   const next = view.races.find((r) => !r.result && r.locks.podium && r.locks.podium > now);
   const mine = next?.picks.find((p) => p.mine) || {};
