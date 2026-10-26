@@ -353,7 +353,8 @@ test('état final d\'une séance d\'après le relais : état de base et messages
 
 test('version web, espace Saison : saisons depuis 2018, une saison finie gardée une semaine', async () => {
   const now = new Date().getUTCFullYear();
-  const rows = new Map([[`season:${now}`, { at: Date.now(), v: { year: now, races: [] } }], ['season:2019', { at: Date.now() - 3 * 86400e3, v: { year: 2019, races: [] } }]]);
+  // Saison gardée sans l'année (forme de buildSeason) : la réponse l'ajoute, comme /api/season de l'appli
+  const rows = new Map([[`season:${now}`, { at: Date.now(), v: { races: [] } }], ['season:2019', { at: Date.now() - 3 * 86400e3, v: { races: [] } }]]);
   const DB = { prepare: () => ({ bind: (k) => ({ first: async () => (rows.has(k) ? { v: JSON.stringify(rows.get(k)) } : null) }) }) };
   const realFetch = globalThis.fetch;
   let asked = 0;
@@ -365,4 +366,19 @@ test('version web, espace Saison : saisons depuis 2018, une saison finie gardée
     assert.equal(asked, 0);   // saison de 2019 lue il y a 3 jours : pas relue chez Jolpica
     for (const y of [2017, now + 1, 'x']) assert.equal((await get(y)).status, 400);
   } finally { globalThis.fetch = realFetch; }
+});
+
+test('saison lue chez Jolpica : trop de demandes (429), nouvel essai après l\'attente demandée', async () => {
+  const { buildSeason } = await import('../analytics/season-cache.js');
+  const waits = [];
+  let refused = 2;
+  const fetchFn = async (u) => {
+    if (refused-- > 0) return new Response('', { status: 429, headers: { 'Retry-After': '3' } });
+    return Response.json({ MRData: { total: '0', RaceTable: { Races: [] }, StandingsTable: { StandingsLists: [] } } });
+  };
+  const d = await buildSeason(2024, { fetchFn, wait: async (ms) => { waits.push(ms); } });
+  assert.deepEqual(d.races, []);
+  assert.deepEqual(waits.slice(0, 3), [300, 3000, 3000]);
+  const never = async () => new Response('', { status: 429 });
+  await assert.rejects(buildSeason(2024, { fetchFn: never, wait: async () => {} }), /injoignable \(erreur 429\)/);
 });

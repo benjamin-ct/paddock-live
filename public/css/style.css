@@ -1510,6 +1510,7 @@ html[data-design="classic"] .rc-bar { display: none !important; }
     align-items: stretch; overflow: hidden auto; padding: 14px 10px calc(14px + env(safe-area-inset-bottom)); border-bottom: 0;
     border-right: 1px solid var(--border); box-shadow: 8px 0 24px rgba(0, 0, 0, .35); transform: translateX(-105%); transition: transform .22s ease-out; }
   #seasonView.sz-open .sz-side { transform: none; }
+  #seasonView :is(.sz-side, .sz-scrim) { animation: none !important; }   /* l'entrée de l'espace ne fait pas apparaître le menu */
   #seasonView .sz-side-head { padding: 0 6px 8px; }
   #seasonView .sz-side-head b { display: inline; }
   #seasonView #szNav { flex-direction: column; }
