@@ -1156,6 +1156,7 @@ test('page du créateur : connexions expirées signalées avant de publier (YouT
     assert.equal(r.tiktok, undefined, 'réseau injoignable : pas annoncé comme expiré');
     assert.match(r.threads, /Connexion Threads expirée/);
   } finally { globalThis.fetch = realFetch; }
+});
 
 test('Suivi : détail d\'une tâche cochée mis en forme comme celui d\'une tâche faite qui en a un', async () => {
   const { checkTask } = await import('../analytics/drive.js');
