@@ -531,11 +531,14 @@ export async function liveApi(req, url, env = {}) {
     const body = req.method === 'GET' ? undefined : await req.text();
     return relay(env, 'pair').fetch(new Request(`https://relay/pair${url.search}`, { method: req.method, headers: { 'X-Relay': 'pair', 'Content-Type': 'application/json' }, body }));
   }
+  // Saison gardée par le serveur : servie telle quelle (la tâche planifiée la relit toutes les 30 min), la page n'attend
+  // jamais Jolpica ; une saison finie n'est relue qu'une fois par semaine
+  const kept = (year) => ({ maxAge: year < new Date().getUTCFullYear() ? 7 * 86400e3 : 6 * 3600e3 });
   // Calendrier (compte à rebours de la prochaine séance) : la saison gardée par le serveur, même forme que l'appli
   if (url.pathname === '/live/api/schedule' && req.method === 'GET') {
     const year = Number(url.searchParams.get('year')), now = new Date().getUTCFullYear();
     if (!env.DB || ![now, now + 1].includes(year)) return json({ error: 'Année invalide' }, 400);
-    const row = await seasonRow(env, year).catch(() => null);
+    const row = await seasonRow(env, year, kept(year)).catch(() => null);
     if (!row) return json({ error: 'Calendrier indisponible' }, 503);
     const races = row.v.races.map((r) => ({ round: r.round, name: r.name, locality: r.locality, country: r.country, circuitId: r.circuitId, lat: r.lat, lon: r.lon, sessions: r.sessions }));
     return json({ year, races }, 200, { 'Cache-Control': 'public, max-age=600' });
@@ -545,7 +548,7 @@ export async function liveApi(req, url, env = {}) {
   if (url.pathname === '/live/api/season' && req.method === 'GET') {
     const year = Number(url.searchParams.get('year')), now = new Date().getUTCFullYear();
     if (!env.DB || !Number.isInteger(year) || year < 2018 || year > now) return json({ error: 'Année invalide' }, 400);
-    const row = await seasonRow(env, year, year < now ? { maxAge: 7 * 86400e3 } : {}).catch((err) => ({ err }));
+    const row = await seasonRow(env, year, kept(year)).catch((err) => ({ err }));
     return row.v ? json({ year, ...row.v }, 200, { 'Cache-Control': 'public, max-age=600' }) : json({ error: `Saison indisponible (${row.err?.message || row.err})` }, 503);
   }
   // Statistiques détaillées (archives des courses), calculées par le serveur : même forme que /api/season/stats
@@ -568,7 +571,7 @@ export async function liveApi(req, url, env = {}) {
   if (url.pathname === '/live/api/calendar.ics' && req.method === 'GET') {
     const year = Number(url.searchParams.get('year')), now = new Date().getUTCFullYear(), round = Number(url.searchParams.get('round')) || null;
     if (!env.DB || !Number.isInteger(year) || year < 2018 || year > now) return json({ error: 'Année invalide' }, 400);
-    const row = await seasonRow(env, year, year < now ? { maxAge: 7 * 86400e3 } : {}).catch(() => null);
+    const row = await seasonRow(env, year, kept(year)).catch(() => null);
     if (!row) return json({ error: 'Calendrier indisponible' }, 503);
     const alarm = Math.max(0, Math.min(120, Number(url.searchParams.get('alarm') ?? 15) || 0));
     return new Response(buildIcs(row.v.races, { year, round, alarmMin: alarm, lang: url.searchParams.get('lang') === 'en' ? 'en' : 'fr' }), {
