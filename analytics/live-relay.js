@@ -12,6 +12,7 @@ import { cachedRadio, transcribeRadio, audioHash, MAX_AUDIO } from './transcribe
 import { cleanRequest, translateBatch } from './translate.js';
 import { callerIp, ipQuota } from './quota.js';
 import { pronosApi, GROUP_RE } from './pronos.js';
+import { circuitData, seasonStatsWeb } from './race-stats.js';
 import { buildIcs } from '../shared/ics.js';
 import { WEB_HIST_MS } from '../shared/live-delay.js';
 
@@ -517,6 +518,12 @@ export async function liveApi(req, url, env = {}) {
     const row = await seasonRow(env, year, year < now ? { maxAge: 7 * 86400e3 } : {}).catch((err) => ({ err }));
     return row.v ? json({ year, ...row.v }, 200, { 'Cache-Control': 'public, max-age=600' }) : json({ error: `Saison indisponible (${row.err?.message || row.err})` }, 503);
   }
+  // Statistiques détaillées (archives des courses), calculées par le serveur : même forme que /api/season/stats
+  if (url.pathname === '/live/api/season/stats' && req.method === 'GET') {
+    const year = Number(url.searchParams.get('year')), now = new Date().getUTCFullYear();
+    if (!env.DB || !Number.isInteger(year) || year < 2018 || year > now) return json({ error: 'Année invalide' }, 400);
+    return json(await seasonStatsWeb(env, year).catch((err) => ({ year, total: 0, done: 0, pending: false, races: [], error: err.message })));
+  }
   // Séances dans son agenda (bouton « Ajouter à mon agenda ») : fichier .ics d'un week-end ou de la saison, comme l'appli
   if (url.pathname === '/live/api/calendar.ics' && req.method === 'GET') {
     const year = Number(url.searchParams.get('year')), now = new Date().getUTCFullYear(), round = Number(url.searchParams.get('round')) || null;
@@ -575,20 +582,8 @@ export async function liveApi(req, url, env = {}) {
   if (url.pathname === '/live/api/circuit') {
     const key = Number(url.searchParams.get('key')), year = Number(url.searchParams.get('year'));
     if (!Number.isInteger(key) || !Number.isInteger(year)) return json({ error: 'Paramètres invalides' }, 400);
-    const cache = caches.default;
-    const ck = new Request(`https://live.cache/circuit/${key}/${year}`);
-    const hit = await cache.match(ck);
-    if (hit) return hit;
-    for (let y = year; y >= year - 6; y--) {
-      const r = await fetch(`https://api.multiviewer.app/api/v1/circuits/${key}/${y}`, { headers: { 'User-Agent': UA } }).catch(() => null);
-      const d = r?.ok ? await r.json().catch(() => null) : null;
-      if (Array.isArray(d?.x) && d.x.length) {
-        const out = json(d, 200, { 'Cache-Control': 'public, max-age=86400' });
-        await cache.put(ck, out.clone());
-        return out;
-      }
-    }
-    return json({ error: 'Tracé introuvable' }, 404);
+    const d = await circuitData(key, year);
+    return d ? json(d, 200, { 'Cache-Control': 'public, max-age=86400' }) : json({ error: 'Tracé introuvable' }, 404);
   }
   return json({ error: 'Pas disponible dans la version web' }, 404);
 }

@@ -7,21 +7,7 @@ import { ARCHIVE_TOPICS, topicName } from '../shared/f1.js';
 import { sessionLabel } from './live.js';
 import { readRecording, recordingPath } from './recorder.js';
 import { keyMoments } from '../shared/moments.js';
-
-
-function parseStream(text, topic) {
-  const out = [];
-  const re = /^(\d+):(\d\d):(\d\d)\.(\d+)(.*)$/;
-  for (const line of text.split(/\r?\n/)) {
-    const m = re.exec(line);
-    if (!m) continue;
-    const off = ((+m[1] * 60 + +m[2]) * 60 + +m[3]) * 1000 + Math.round(+`0.${m[4]}` * 1000);
-    let data;
-    try { data = JSON.parse(m[5]); } catch { continue; }
-    out.push({ off, topic, data });
-  }
-  return out;
-}
+import { parseStream, indexMeetings } from '../shared/race-stats.js';
 
 async function mapLimit(items, limit, fn) {
   const results = new Array(items.length);
@@ -273,21 +259,7 @@ export async function seasonIndex(year) {
   const cached = indexCache.get(year);
   if (cached && Date.now() - cached.at < 10 * 60 * 1000) return cached.data;
   const raw = await withRetry(() => archiveJSON(`${year}/Index.json`), { tries: 3 });
-  const data = (raw.Meetings || []).map((m) => ({
-    key: m.Key,
-    name: m.Name,
-    location: m.Location,
-    country: m.Country?.Name,
-    circuitKey: m.Circuit?.Key,
-    sessions: (m.Sessions || []).filter((s) => s.Path).map((s) => ({
-      key: s.Key,
-      name: s.Name,
-      type: s.Type,
-      start: s.StartDate,
-      gmtOffset: s.GmtOffset,
-      path: s.Path,
-    })),
-  }));
+  const data = indexMeetings(raw);
   indexCache.set(year, { at: Date.now(), data });
   return data;
 }
