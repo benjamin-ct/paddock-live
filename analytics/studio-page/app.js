@@ -121,7 +121,7 @@ async function showTab({ force = false, restore = false } = {}) {
   const body = $('#body');
   const spin = $('#refresh');
   spin?.classList.add('spin');
-  const fn = { news: newsTab, sessions: sessionsTab, season: seasonView, stats: statsTab, suivi: async (...a) => (await suivi()).suiviTab(...a), pubs: async (...a) => (await pubs()).pubsTab(...a) }[state.tab];
+  const fn = { news: newsTab, sessions: sessionsTab, season: seasonView, stats: statsTab, suivi: async (...a) => (await suivi()).suiviTab(...a), pubs: async (b, o) => (await pubs()).pubsTab(b, o, newPosts) }[state.tab];
   try {
     await fn(body, { force, restore: restore ? scrolls[state.tab] || 0 : 0, current: () => run === tabRun && body.isConnected });
   } catch (err) {
@@ -137,6 +137,16 @@ async function showTab({ force = false, restore = false } = {}) {
   } finally { if (run === tabRun) spin?.classList.remove('spin'); }
 }
 const restoreScroll = (y) => { if (y) requestAnimationFrame(() => scrollTo(0, y)); };
+
+// Onglet Publications : écrire un post, post Paddock Live (en haut de l'onglet)
+const newPosts = {
+  html: `<div class="features"><button class="card feature" id="manual">${icon('pen')}<span class="grow"><b>Écrire un post</b><small>Votre texte, mis en forme par l'IA si besoin ; visuels faits tout seuls</small></span>${icon('next')}</button>
+    <button class="card feature" id="apppost">${LOGO}<span class="grow"><b>Post Paddock Live</b><small>Le visuel de @paddockliveapp : vos captures, photos et vidéos, textes prêts à publier à la main</small></span>${icon('next')}</button></div>`,
+  bind: (body) => {
+    $('#manual', body).onclick = (e) => open(e.currentTarget, async () => (await posts()).manualEditor(back));
+    $('#apppost', body).onclick = (e) => open(e.currentTarget, async () => (await posts()).appEditor(back));
+  },
+};
 
 // Ouverture d'un post : bouton marqué en cours, erreur affichée sans quitter la liste
 async function open(btn, fn) {
@@ -199,9 +209,7 @@ function renderNews(body, items, { at, stale = false }) {
     </div>
     ${kinds.length > 1 ? `<div class="chips" id="nkinds"><button data-k="" class="${state.nkind ? '' : 'on'}">Tout <small>${big.length}</small></button>${kinds.map((k) => `<button data-k="${k.key}" class="${state.nkind === k.key ? 'on' : ''}"><i style="background:${k.color}"></i>${esc(KIND_NAMES[k.key] || k.label)} <small>${k.n}</small></button>`).join('')}</div>` : ''}
     <p class="status">${stale ? '<span class="dot"></span>Mise à jour…' : `À jour · ${new Date(at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`}</p>
-    <div class="features"><button class="card feature" id="manual">${icon('pen')}<span class="grow"><b>Écrire un post</b><small>Votre texte, mis en forme par l'IA si besoin ; visuels faits tout seuls</small></span>${icon('next')}</button>
-    <button class="card feature" id="apppost">${LOGO}<span class="grow"><b>Post Paddock Live</b><small>Le visuel de @paddockliveapp : vos captures, photos et vidéos, textes prêts à publier à la main</small></span>${icon('next')}</button>
-    <button class="card feature" id="recap">${icon('spark')}<span class="grow"><b>Récap de la semaine</b><small>Carrousel des 5 plus grosses news des 7 derniers jours</small></span>${icon('next')}</button></div>
+    <div class="features">    <button class="card feature" id="recap">${icon('spark')}<span class="grow"><b>Récap de la semaine</b><small>Carrousel des 5 plus grosses news des 7 derniers jours</small></span>${icon('next')}</button></div>
     ${list.length ? `<div class="list">${list.map((it, i) => {
       const k = newsKind(it);
       const posted = done.get(it);
@@ -217,9 +225,7 @@ function renderNews(body, items, { at, stale = false }) {
   $$('[data-r]', body).forEach((b) => { b.onclick = () => { const y = scrollY; setRead(list[Number(b.dataset.r)].id, !b.classList.contains('on')); renderNews(body, items, { at, stale }); scrollTo(0, y); }; });
   $$('#nsort [data-by]', body).forEach((b) => { b.onclick = () => { state.nsort = b.dataset.by; renderNews(body, items, { at, stale }); }; });
   $$('#nkinds [data-k]', body).forEach((b) => { b.onclick = () => { state.nkind = b.dataset.k || null; renderNews(body, items, { at, stale }); }; });
-  $('#manual', body).onclick = (e) => open(e.currentTarget, async () => (await posts()).manualEditor(back));
   $('#recap', body).onclick = (e) => open(e.currentTarget, async () => (await posts()).recapEditor(back));
-  $('#apppost', body).onclick = (e) => open(e.currentTarget, async () => (await posts()).appEditor(back));
   $$('[data-i]', body).forEach((b) => { b.onclick = () => { setRead(list[Number(b.dataset.i)].id); open(b, async () => (await posts()).newsEditor(list[Number(b.dataset.i)], done.get(list[Number(b.dataset.i)]), back)); }; });
 }
 
