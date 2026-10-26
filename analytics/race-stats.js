@@ -60,15 +60,15 @@ async function analyse(race, year, token, fetchFn) {
 // Courses de l'année déjà analysées (manche -> résumé) et essais ratés récents (manche -> date)
 async function kept(env, year) {
   const { results } = await env.DB.prepare('SELECT k, v FROM studio WHERE k LIKE ?').bind(`racestats:${year}:%`).all();
-  const done = new Map(), failed = new Map();
+  const done = new Map(), failed = new Map(), errors = [];
   for (const { k, v } of results || []) {
     const round = Number(k.split(':')[2]);
     let d;
     try { d = JSON.parse(v); } catch { continue; }
     if (d?.v === STATS_VERSION) done.set(round, d);
-    else if (d?.failed) failed.set(round, d.failed);
+    else if (d?.failed) { failed.set(round, d.failed); errors.push({ round, error: d.error, at: d.failed }); }
   }
-  return { done, failed };
+  return { done, failed, errors };
 }
 
 // Analyse de la course terminée la plus ancienne qui manque encore (une par appel, personne d'autre en même temps)
@@ -117,12 +117,13 @@ export async function statsTick(env, { now = Date.now(), fetchFn = fetch, budget
 // la tâche planifiée (pending : la page relit l'avancement)
 export async function seasonStatsWeb(env, year, { now = Date.now(), fetchFn = fetch } = {}) {
   const races = (await season(env, year, now)).v.races.filter((r) => r.results?.length);
-  const { done, failed } = await kept(env, year);
+  const { done, failed, errors } = await kept(env, year);
   const missing = races.some((r) => !done.has(r.round) && now - (failed.get(r.round) || 0) > RETRY);
   const pending = missing && !!await archiveToken(env, { now, fetchFn });
   if (pending && now - Number(await getRow(env, `racewant:${year}`) || 0) > 10 * 60e3) await setRow(env, `racewant:${year}`, String(now));
   const list = races.map((r) => done.get(r.round)).filter(Boolean);
-  const out = { year, total: races.length, done: list.length, pending, races: list, tyres: {} };
+  // failed : courses pas analysées et la raison (nouvel essai 6 heures plus tard)
+  const out = { year, total: races.length, done: list.length, pending, races: list, tyres: {}, failed: errors };
   if (!list.length && !pending && races.length) out.error = 'statistiques pas encore calculées par le serveur';
   return out;
 }
