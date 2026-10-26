@@ -102,8 +102,9 @@ l'application (Réglages → À propos → Nouveautés).
   ou « Résultats du Grand Prix » dans le calendrier ; flèches vers le Grand Prix précédent et le suivant.
 - Calendrier : sous le prochain Grand Prix, les Grands Prix à venir d'abord, puis ceux déjà courus, du plus récent
   au plus ancien.
-- Listes de choix (pilote, duel pilote contre pilote, point de mesure, tri) plus lisibles : intitulé au-dessus et toute
-  la largeur sur téléphone ; en duel, pilote A et pilote B côte à côte, « VS » au milieu.
+- Listes de choix (pilote, duel pilote contre pilote, point de mesure, tri, Grand Prix) redessinées comme les cartes :
+  intitulé en petit au-dessus du choix, toute la largeur sur téléphone ; en duel, pilote A et pilote B côte à côte,
+  « VS » au milieu.
 
 ### Version web (app.paddocklive.app)
 - Chaque rubrique de la Saison a son adresse (par exemple app.paddocklive.app/saison/2026/pilotes/lando-norris/) :

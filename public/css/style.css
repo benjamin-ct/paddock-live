@@ -1374,14 +1374,15 @@ body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-selec
 .sz-team-btn.on { border-color: var(--tc); box-shadow: inset 0 0 0 1px var(--tc); background: color-mix(in srgb, var(--tc) 10%, var(--panel)); color: var(--text); }
 .sz-team-btn .team-logo, .sz-team-btn .drv-bar { flex: none; }
 .sz-team-btn .team-logo { width: 26px; height: 26px; }
-/* Choix (pilote, point de mesure, tri…) : intitulé au-dessus, liste assez large pour les noms ; duel : A et B
-   côte à côte, « VS » au milieu */
-.sz-h2h-pick label, .sz-h2h-drivers label { display: flex; flex-direction: column; gap: 4px; color: var(--muted); }
-.sz-h2h-pick select { min-width: 240px; max-width: 100%; }
-.sz-h2h-drivers { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: end; gap: 10px; max-width: 760px; margin-bottom: 12px; }
-.sz-h2h-drivers select { width: 100%; min-width: 0; }
-.sz-h2h-drivers .sz-vs { padding-bottom: 8px; }
-@media (max-width: 700px) { .sz-h2h-pick label { flex: 1 1 100%; } .sz-h2h-pick select { width: 100%; min-width: 0; } }
+/* Choix (pilote, point de mesure, tri…) : une case comme les cartes, intitulé en petit au-dessus de la valeur ; la
+   liste couvre toute la case (marges négatives) pour l'ouvrir d'où qu'on clique. Duel : A et B côte à côte, « VS » au milieu */
+.sz-h2h-pick label, .sz-h2h-drivers label { display: flex; flex-direction: column; min-width: 240px; max-width: 100%; padding: 8px 12px 0; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; color: var(--muted); font-size: 10.5px; line-height: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; transition: border-color .15s; }
+:is(.sz-h2h-pick, .sz-h2h-drivers) label:hover { border-color: var(--line-2); }
+:is(.sz-h2h-pick, .sz-h2h-drivers) label:focus-within { border-color: var(--accent); }
+:is(.sz-h2h-pick, .sz-h2h-drivers) label select:not([multiple]):not([size]):not(.x-native) { margin: -20px -12px 0; padding: 22px 12px 8px; background-color: transparent; background-position: right 12px center; border: 0; border-radius: 12px; color: var(--text); font-size: 15px; font-weight: 800; letter-spacing: 0; text-transform: none; }
+.sz-h2h-drivers { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 10px; max-width: 760px; margin-bottom: 12px; }
+.sz-h2h-drivers label { min-width: 0; }
+@media (max-width: 700px) { .sz-h2h-pick label { flex: 1 1 100%; min-width: 0; } }
 .sz-h2h-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; align-items: start; }
 .sz-h2h-layout .sz-h2h { max-width: none; }
 .sz-h2h-who { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
