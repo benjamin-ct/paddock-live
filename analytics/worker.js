@@ -32,7 +32,8 @@ import { publicPushApi, pushRun, queuePush, sessionReminders } from './push-publ
 import { liveSocket, liveApi } from './live-relay.js';
 import { statsTick } from './race-stats.js';
 import { fiaTick } from './fia-tech.js';
-import { seasonPages } from './season-pages.js';
+import { seasonSsr, seasonSitemap, legacySeasonUrl } from './season-pages.js';
+import { parseSeasonPath } from '../shared/season-urls.js';
 import { LIVE_HEADERS } from './live-page/headers.js';
 
 // Fichier de la version web, avec ses en-têtes de sécurité (le fichier _headers ne s'applique pas ici)
@@ -41,6 +42,41 @@ async function liveAsset(env, req) {
   const out = new Response(res.body, res);
   for (const [k, v] of Object.entries(LIVE_HEADERS)) out.headers.set(k, v);
   return out;
+}
+
+// Rubrique de la Saison à son adresse (app.paddocklive.app/saison/2026/…) : page de la version web avec le titre, la
+// description, l'adresse canonique et un premier contenu de la rubrique déjà écrits (moteurs de recherche, partage),
+// remplacés par l'appli dès qu'elle démarre. Gardée 15 minutes : un robot qui parcourt tout ne refait pas chaque page
+async function seasonAppPage(env, req, url, ctx) {
+  const p = parseSeasonPath(url.pathname);
+  if (!p) return new Response('Introuvable', { status: 404 });
+  if (!p.year) return Response.redirect(`${url.origin}/saison/${new Date().getUTCFullYear()}/`, 302);
+  const key = new Request(`${url.origin}${url.pathname}`);
+  const hit = await caches.default.match(key).catch(() => null);
+  if (hit) return hit;
+  const ssr = await seasonSsr(env, p).catch(() => ({}));
+  if (!ssr) return new Response('Introuvable', { status: 404 });
+  const page = await liveAsset(env, new Request(new URL('/live/', url), req));
+  if (!ssr.url) return page;
+  const attr = (name, v) => ({ element(e) { e.setAttribute(name, v); } });
+  const out = new HTMLRewriter()
+    .on('title', { element(e) { e.setInnerContent(`${ssr.title} · Paddock Live`); } })
+    .on('meta[name="description"]', attr('content', ssr.desc))
+    .on('meta[property="og:title"]', attr('content', ssr.title))
+    .on('meta[property="og:description"]', attr('content', ssr.desc))
+    .on('meta[property="og:url"]', attr('content', ssr.url))
+    .on('link[rel="canonical"]', attr('href', ssr.url))
+    .on('head', { element(e) { if (ssr.ld) e.append(`<script type="application/ld+json">${JSON.stringify({ '@context': 'https://schema.org', '@graph': ssr.ld }).replace(/</g, '\\u003c')}</script>`, { html: true }); } })
+    .on('#seasonView', { element(e) { if (ssr.html) e.removeAttribute('hidden'); } })
+    .on('#szContent', { element(e) { if (ssr.html) e.setInnerContent(ssr.html, { html: true }); } })
+    .transform(page);
+  const body = await out.text();
+  const res = new Response(body, { status: 200, headers: out.headers });
+  res.headers.set('Content-Type', 'text/html; charset=utf-8');
+  const kept = new Response(body, { headers: res.headers });
+  kept.headers.set('Cache-Control', 'public, max-age=900');
+  ctx.waitUntil(caches.default.put(key, kept).catch(() => {}));
+  return res;
 }
 
 export { LiveRelay } from './live-relay.js';
@@ -211,15 +247,12 @@ export default {
     // (paddocklive.app/live/, adresse workers.dev) : la page renvoie là-bas, le reste n'existe pas. Les fichiers
     // /live/* passent par le Worker d'abord (run_worker_first, wrangler.toml), avec les en-têtes de sécurité
     const app = url.hostname.startsWith('app.');
-    // Pages publiques de la Saison (classements, calendrier, résultats de chaque Grand Prix) pour les moteurs de recherche
-    // (gardées une heure : un robot qui parcourt tout le site ne refait pas chaque page)
-    if (req.method === 'GET' && !app && env.DB && (url.pathname.startsWith('/saison/') || url.pathname.startsWith('/en/season/'))) {
-      const key = new Request(`${url.origin}${url.pathname}`);
-      const hit = await caches.default.match(key).catch(() => null);
-      if (hit) return hit;
-      const res = await seasonPages(env, url).catch(() => null);
-      if (res?.status === 200) ctx.waitUntil(caches.default.put(key, res.clone()).catch(() => {}));
-      if (res) return res;
+    // Espace Saison à son adresse (version web) ; sur paddocklive.app : plan du site, anciennes pages publiques redirigées
+    if (req.method === 'GET' && env.DB && (url.pathname === '/saison' || url.pathname.startsWith('/saison/') || url.pathname.startsWith('/en/season/'))) {
+      if (app && env.ASSETS && !url.pathname.startsWith('/en/')) return seasonAppPage(env, req, url, ctx);
+      if (!app && url.pathname === '/saison/sitemap.xml') return new Response(await seasonSitemap(env), { headers: { 'Content-Type': 'application/xml; charset=utf-8', 'Cache-Control': 'public, max-age=3600' } });
+      const to = !app && await legacySeasonUrl(env, url).catch(() => null);
+      if (to) return Response.redirect(to, 301);
     }
     if (url.pathname === '/live' || url.pathname.startsWith('/live/')) {
       if (!app) return ['/live', '/live/'].includes(url.pathname) && req.method === 'GET' ? Response.redirect('https://app.paddocklive.app/', 301) : new Response('Introuvable', { status: 404 });

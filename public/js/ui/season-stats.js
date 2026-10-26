@@ -20,16 +20,16 @@ const sd = (a) => {
 };
 const fr = (v, d = 1) => (v === null || v === undefined || Number.isNaN(v) ? '—' : v.toFixed(d).replace('.', DEC));
 // Immobilisation : au centième quand elle vient de DHL, au dixième (F1) sinon
-const stopTxt = (s) => `${fr(s.stop, s.dhl ? 2 : 1)} s`;
-const DHL_NOTE = '<p class="muted small">Immobilisations au centième : DHL Fastest Pit Stop Award. Copyright © DHL International GmbH. All Rights Reserved.</p>';
-const fmtLap = (s) => {
+export const stopTxt = (s) => `${fr(s.stop, s.dhl ? 2 : 1)} s`;
+export const DHL_NOTE = '<p class="muted small">Immobilisations au centième : DHL Fastest Pit Stop Award. Copyright © DHL International GmbH. All Rights Reserved.</p>';
+export const fmtLap = (s) => {
   if (!s) return '—';
   const m = Math.floor(s / 60);
   return `${m ? `${m}:` : ''}${(s - m * 60).toFixed(3).padStart(m ? 6 : 5, '0')}`.replace('.', DEC);
 };
 const isNum = (x) => /^\d+$/.test(x?.posText || '');
 const STATUS_FR = { Finished: 'Arrivé', Retired: 'Abandon', Disqualified: 'Disqualifié', 'Did not start': 'Non partant', Withdrew: 'Forfait', Accident: 'Accident', Collision: 'Accrochage', Engine: 'Moteur', Gearbox: 'Boîte de vitesses', Hydraulics: 'Hydraulique', Brakes: 'Freins', Lapped: 'À un tour ou plus' };
-const statusFr = (st) => {
+export const statusFr = (st) => {
   const m = /^\+(\d+) Laps?$/.exec(st || '');
   return m ? `+${m[1]} tour${m[1] > 1 ? 's' : ''}` : STATUS_FR[st] || st || '';
 };

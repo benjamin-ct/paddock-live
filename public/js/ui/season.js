@@ -4,7 +4,7 @@
 // analyse des archives F1 Live Timing (/api/season/stats).
 import { $, esc, api, teamColor, teamLogo, photoUrl, placeView } from '../util.js';
 import { store } from '../store.js';
-import { renderDrivers, renderConsistency, renderPits, renderSpeeds, renderCircuits, renderRatings, gradeBadge } from './season-stats.js';
+import { renderDrivers, renderConsistency, renderPits, renderSpeeds, renderCircuits, renderRatings, gradeBadge, stopTxt, DHL_NOTE, statusFr, fmtLap } from './season-stats.js';
 import { driverRatings, qualiGaps, titleRace, placeForMaxPoints } from '/shared/season-calc.js';
 import { renderTech, renderElements, setTechFilter, translateTechDetail, toggleTechOriginal } from './season-fia.js';
 import { icon } from '../icons.js';
@@ -13,6 +13,7 @@ import { renderReview, reviewAction } from './season-review.js';
 import { DEC, LOCALE, EN, t } from '../i18n.js';
 import { gpShort, gpFull } from '/shared/gp-names.js';
 import { COUNTRY_ISO } from '/shared/social-season.js';
+import { seasonPath, seasonTitle, slug, gpSlug } from '/shared/season-urls.js';
 
 // Couleurs officielles (utilisées si les couleurs contrastées sont désactivées)
 const OFFICIAL = {
@@ -32,10 +33,13 @@ let timer = null;
 let stats = null;          // analyse des courses (archives) de l'année affichée
 let statsTimer = null;
 let drvCode = null;
+let gpRound = null;        // fiche Grand Prix affichée (manche)
+let wanted = null;         // rubrique demandée par l'adresse (version web) : pilote ou Grand Prix retrouvé une fois la saison chargée
+let urls = false;          // version web : l'adresse suit la rubrique affichée (à partager, moteurs de recherche)
 let speedPt = 'ST';
 let circSort = 'round';
 let rateSort = 'season';
-const STATS_SECTIONS = new Set(['drivers', 'consistency', 'pits', 'speeds', 'circuits', 'ratings', 'h2h']);
+const STATS_SECTIONS = new Set(['drivers', 'consistency', 'pits', 'speeds', 'circuits', 'ratings', 'h2h', 'gp']);
 let prev = null;           // saison précédente (comparaison des points d'un pilote)
 let ratingsMemo = null;
 
@@ -231,6 +235,62 @@ function calDays(r) {
   return `<div class="cal-days">${[...days.values()].map((d) => `<div class="cal-day"><div class="cal-day-h">${esc(fmtDate(d.t, { weekday: 'short', day: 'numeric' }))}</div>
     ${d.list.map((s) => `<div class="cal-s ${Date.parse(s.t) < Date.now() ? 'past' : ''}"><span>${esc(s.label)}</span><b>${fmtTime(s.t)}</b></div>`).join('')}</div>`).join('')}</div>`;
 }
+// Lien vers la fiche d'un Grand Prix (vraie adresse dans la version web, pour la partager et pour les moteurs de recherche)
+const gpLink = (r, text, cls = '') => `<a href="${seasonPath(year, 'gp', gpSlug(r.name))}" data-szgp="${r.round}"${cls ? ` class="${cls}"` : ''}>${esc(text)}</a>`;
+
+// Fiche d'un Grand Prix : résultats, sprint, qualifications, arrêts les plus rapides (analyse des archives)
+function renderGp() {
+  const r = data.races.find((x) => x.round === gpRound) || data.races.filter(done).at(-1) || data.races[0];
+  if (!r) return '<div class="note">Pas encore de Grand Prix.</div>';
+  gpRound = r.round;
+  const i = data.races.indexOf(r), prev = data.races[i - 1], next = data.races[i + 1];
+  const who = (x) => `${bar(x.team, x.teamId)}<b>${esc(x.name)}</b> <span class="muted small">${esc(x.team)}</span>`;
+  const pos = (x) => (/^\d+$/.test(x.posText || '') ? x.pos : '—');
+  const gap = (x) => x.time || esc(statusFr(x.status));
+  const win = r.results[0], pole = r.quali.find((q) => q.pos === 1);
+  const parts = [`<section class="sz-box"><h3>${flagOf(r)}${esc(gpFull(r.name, EN))} ${data.year}</h3>
+    <div class="muted">${t('Manche {}', r.round)} · ${calSpan(r)} · ${esc([r.circuit, r.locality].filter(Boolean).join(' · '))}</div>
+    ${win ? `<p>${icon('trophy')} ${chip(win)}${pole ? ` <span class="muted">pole</span> ${chip(pole)}` : ''}</p>` : ''}</section>`];
+  if (r.results.length) {
+    parts.push(`<section class="sz-box"><h3>Course</h3><div class="sz-scroll"><table class="sz-table"><tr><th>Pos.</th><th>Pilote</th><th>Temps / écart</th><th>Tours</th><th>Grille</th><th>Points</th></tr>
+      ${r.results.map((x) => `<tr><td>${pos(x)}</td><td>${who(x)}</td><td>${gap(x)}</td><td>${x.laps ?? ''}</td><td>${x.grid ? `P${x.grid}` : 'Stands'}</td><td>${x.points || ''}</td></tr>`).join('')}</table></div></section>`);
+  } else {
+    parts.push(`<section class="sz-box"><h3>Programme du week-end</h3>${calDays(r)}${calIcs(r)}</section>`);
+  }
+  if (r.sprintResults.length) {
+    parts.push(`<section class="sz-box"><h3>Sprint</h3><div class="sz-scroll"><table class="sz-table"><tr><th>Pos.</th><th>Pilote</th><th>Temps / écart</th><th>Points</th></tr>
+      ${r.sprintResults.map((x) => `<tr><td>${pos(x)}</td><td>${who(x)}</td><td>${gap(x)}</td><td>${x.points || ''}</td></tr>`).join('')}</table></div></section>`);
+  }
+  if (r.quali.length) {
+    parts.push(`<section class="sz-box"><h3>Qualifications</h3><div class="sz-scroll"><table class="sz-table"><tr><th>Pos.</th><th>Pilote</th><th>Q1</th><th>Q2</th><th>Q3</th></tr>
+      ${r.quali.map((x) => `<tr><td>${x.pos ?? ''}</td><td>${who(x)}</td>${x.q.map((v) => `<td>${v ? fmtLap(v) : ''}</td>`).join('')}</tr>`).join('')}</table></div></section>`);
+  }
+  const an = (stats?.year === data.year ? stats.races : [])?.find((x) => x.round === r.round);
+  const stops = (an?.drivers || []).flatMap((d) => d.stops.filter((s) => s.stop > 0 && s.stop < 15).map((s) => ({ ...s, d }))).sort((a, b) => a.stop - b.stop).slice(0, 10);
+  if (stops.length) {
+    parts.push(`<section class="sz-box"><h3>Arrêts aux stands les plus rapides</h3><table class="sz-table"><tr><th>#</th><th>Pilote</th><th>Tour</th><th>Immob.</th></tr>
+      ${stops.map((s, k) => `<tr><td>${k + 1}</td><td>${bar(s.d.team, null)}<b>${esc(s.d.name)}</b> <span class="muted small">${esc(s.d.team)}</span></td><td>${s.lap ?? '—'}</td><td><b>${stopTxt(s)}</b></td></tr>`).join('')}</table>
+      ${stops.some((s) => s.dhl) ? DHL_NOTE : ''}</section>`);
+  }
+  parts.push(`<div class="sz-gp-nav">${prev ? gpLink(prev, `← ${gpShort(prev.name, EN)}`, 'btn small') : '<span></span>'}<button class="btn small" data-szgo="results">Tous les Grands Prix</button>${next ? gpLink(next, `${gpShort(next.name, EN)} →`, 'btn small') : '<span></span>'}</div>`);
+  return parts.join('');
+}
+
+// Version web : l'adresse suit la rubrique affichée (remplacée, pas ajoutée à l'historique)
+// Titre de l'onglet : celui de la rubrique (la barre de la séance ne le change pas tant que data-season-title est posé)
+function syncUrl() {
+  if (!urls || !data || $('#seasonView').hidden) return;
+  const d = section === 'drivers' ? data.drivers.find((x) => x.code === drvCode) : null;
+  const r = section === 'gp' ? data.races.find((x) => x.round === gpRound) : null;
+  const p = seasonPath(data.year, section, d ? slug(d.name) : r ? gpSlug(r.name) : null);
+  if (location.pathname !== p) history.replaceState(null, '', p);
+  document.documentElement.dataset.seasonTitle = '1';
+  document.title = `${seasonTitle(data.year, section, d?.name || r?.name, !!r?.results.length)} · Paddock Live`;
+}
+
+// Version web : adresses de la Saison (appelé par la page, analytics/live-page/web.js)
+export function seasonUrls() { urls = true; }
+
 function renderCalendar() {
   const nx = nextSession();
   const next = nx?.race;
@@ -260,7 +320,7 @@ function renderCalendar() {
       <summary><span class="cal-num">${r.round}</span>${flagOf(r)}<span class="cal-name"><b>${esc(gpShort(r.name, EN))}</b><small>${esc(r.circuit || '')}</small></span>
         <span class="cal-date">${calSpan(r)}</span>
         <span class="cal-sprint">${r.sprint ? '<span class="sz-tag sprint">Sprint</span>' : ''}</span>${right}${icon('chevron-down', 'cal-chev')}</summary>
-      <div class="cal-row-body">${calDays(r)}${done(r) ? '' : calIcs(r)}</div>
+      <div class="cal-row-body">${calDays(r)}${done(r) ? gpLink(r, 'Résultats du Grand Prix', 'btn small') : calIcs(r)}</div>
     </details>`;
   }).join('');
   return `<div class="cal">${hero}
@@ -323,7 +383,7 @@ function renderResults() {
       ${card('Victoire la plus serrée', st.closest ? `+${st.closest.v.toFixed(3).replace('.', DEC)} s` : '—', st.closest ? `${esc(st.closest.d.last)} · R${st.closest.r.round} ${esc(st.closest.r.locality || '')}` : '')}
     </div>
     <section class="sz-box"><h3>Grands Prix</h3><table class="sz-table sz-results"><tr><th>Manche</th><th>Grand Prix</th><th>Date</th><th>Vainqueur sprint</th><th>Pole</th><th>Vainqueur</th><th>2e</th><th>3e</th></tr>
-      ${data.races.map((r) => `<tr class="${done(r) ? '' : 'muted'}"><td>R${r.round}</td><td>${esc(gpShort(r.name, EN))}</td><td>${fmtDate(r.date)}</td>
+      ${data.races.map((r) => `<tr class="${done(r) ? '' : 'muted'}"><td>R${r.round}</td><td>${gpLink(r, gpShort(r.name, EN))}</td><td>${fmtDate(r.date)}</td>
         <td>${r.sprintResults[0] ? chip(r.sprintResults[0]) : '—'}</td><td>${r.quali.find((q) => q.pos === 1) ? chip(r.quali.find((q) => q.pos === 1)) : '—'}</td>
         <td>${r.results[0] ? chip(r.results[0]) : '—'}</td><td>${r.results[1] ? chip(r.results[1]) : ''}</td><td>${r.results[2] ? chip(r.results[2]) : ''}</td></tr>`).join('')}</table></section>`;
 }
@@ -518,8 +578,14 @@ function renderTitle() {
 // Explication en tête des vues qui n'en ont pas déjà une
 function render() {
   if (!data) return;
+  // Pilote ou Grand Prix demandé par l'adresse : retrouvé dans la saison chargée
+  if (wanted?.year === data.year) {
+    if (wanted.section === 'drivers') drvCode = data.drivers.find((d) => slug(d.name) === wanted.item)?.code ?? drvCode;
+    if (wanted.section === 'gp') gpRound = data.races.find((r) => gpSlug(r.name) === wanted.item)?.round ?? null;
+    wanted = null;
+  }
   for (const b of document.querySelectorAll('#szNav [data-sz]')) b.classList.toggle('active', b.dataset.sz === section);
-  if ($('#szCur')) $('#szCur').textContent = $('#szNav .active')?.textContent.trim() || '';
+  if ($('#szCur')) $('#szCur').textContent = $('#szNav .active')?.textContent.trim() || (section === 'gp' ? 'Grand Prix' : '');
   const st = stats?.year === data.year || stats?.error ? stats : null;
   const ctx = { data, stats: st, color, bar, official: (id) => OFFICIAL[id] || '8b95a8', ratings: ratingsFor(data, st), prev: prev?.year === data.year - 1 ? prev : null };
   if (section === 'drivers') loadPrev();
@@ -529,6 +595,7 @@ function render() {
     drivers: () => renderDrivers(ctx, drvCode), consistency: () => renderConsistency(ctx), pits: () => renderPits(ctx),
     speeds: () => renderSpeeds(ctx, speedPt), circuits: () => renderCircuits(ctx, circSort), ratings: () => renderRatings(ctx, rateSort),
     tech: () => renderTech(ctx, fiaData), elements: () => renderElements(ctx, fiaData), predict: () => renderPredict(data.year), review: () => renderReview(ctx),
+    gp: renderGp,
   }[section]();
   // Tableaux larges : défilement de côté gardé quand la rubrique est redessinée (nouvelle course analysée…)
   const wide = () => $('#szContent').querySelectorAll('.sz-box, .sz-scroll');
@@ -536,6 +603,7 @@ function render() {
   $('#szContent').innerHTML = `${data.stale ? '<div class="note small">Hors ligne : dernières données enregistrées.</div>' : ''}${html}`;
   wide().forEach((e, i) => { if (scrolls[i]) e.scrollLeft = scrolls[i]; });
   tick();
+  syncUrl();
   if (section === 'tech' && fiaData) translateTechDetail(ctx, fiaData);
   if (jump) {
     jump = false;
@@ -564,9 +632,11 @@ function animate() {
   animate.t = setTimeout(() => el.classList.remove('sz-anim'), 500);
 }
 
-// y : saison à afficher (bilan de la saison passée depuis l'accueil hors saison)
-export function openSeason(sec, y) {
+// y : saison à afficher (bilan de la saison passée depuis l'accueil hors saison) ; item : pilote ou Grand Prix demandé
+// par l'adresse de la version web (« lando-norris », « mexico »)
+export function openSeason(sec, y, item) {
   if (sec) section = sec;
+  wanted = item ? { year: y || year, section: sec, item } : null;
   if (y && y !== year) { year = y; data = null; stats = null; fia = null; $('#szYear').value = String(y); }
   jump = true;
   if ($('#newsView')) import('./news.js').then((m) => m.closeNews());   // pas d'Actu dans la version web
@@ -592,6 +662,8 @@ export function closeSeason() {
   szMenu(false);
   $('#seasonView').hidden = true;
   $('#seasonBtn').classList.remove('on');
+  if (urls && location.pathname.startsWith('/saison/')) history.replaceState(null, '', '/');
+  if (urls) { delete document.documentElement.dataset.seasonTitle; document.title = 'Paddock Live'; }
   clearInterval(timer);
 }
 
@@ -609,6 +681,8 @@ export function initSeason() {
   $('#szContent').addEventListener('click', (e) => {
     const b = e.target.closest('[data-szgo]');
     if (b) { section = b.dataset.szgo; jump = true; animate(); render(); return; }
+    const g = e.target.closest('[data-szgp]');
+    if (g) { e.preventDefault(); section = 'gp'; gpRound = Number(g.dataset.szgp); jump = true; animate(); render(); return; }
     const rv = e.target.closest('[data-review]');
     if (rv && data) { reviewAction(rv.dataset.review, data); return; }
     const t = e.target.closest('[data-h2h-team]'), m = e.target.closest('[data-h2h-mode]');

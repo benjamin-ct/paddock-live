@@ -14,7 +14,8 @@ import { renderRcm, initRcmFilters, initStewards, renderStewards } from './ui/fe
 import { renderRadios, initRadios } from './ui/radios.js';
 import { renderTelemetry } from './ui/extra.js';
 import { initNoLive } from './ui/home.js';
-import { initSeason, closeSeason } from './ui/season.js';
+import { initSeason, closeSeason, openSeason, seasonUrls } from './ui/season.js';
+import { parseSeasonPath } from '/shared/season-urls.js';
 import './ui/calendar-menu.js';   // « Ajouter à mon agenda » (Saison)
 
 translatePage();
@@ -269,6 +270,11 @@ safe(initRadios);
 safe(initNoLive);
 // Espace Saison de l'appli (calendrier, classements, résultats…), d'après la saison gardée par le serveur
 safe(initSeason);
+// Adresse d'une rubrique de la Saison (app.paddocklive.app/saison/2026/pilotes/lando-norris/) : ouverte directement ;
+// l'adresse suit ensuite la rubrique affichée
+seasonUrls();
+const askedSeason = parseSeasonPath(location.pathname);
+if (askedSeason) safe(() => openSeason(askedSeason.section, askedSeason.year || undefined, askedSeason.item));
 // Téléphone : réglages du direct derrière l'engrenage. Hauteur de la barre changée (réglages ouverts, police
 // chargée) : écran « Pas de séance en direct » replacé dessous
 const topbar = document.querySelector('.topbar');

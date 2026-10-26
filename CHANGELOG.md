@@ -97,8 +97,13 @@ l'application (Réglages → À propos → Nouveautés).
 - Arrêts aux stands au centième (2,17 s au lieu de 2,2 s) pour les Grands Prix de la saison en cours, d'après
   le classement DHL Fastest Pit Stop, publié quelques heures après chaque course : arrêts les plus rapides, écuries,
   Grands Prix et fiches des pilotes. Les arrêts absents chez DHL gardent le temps au dixième de la F1.
+- Fiche de chaque Grand Prix : résultats de la course, sprint, qualifications (Q1, Q2, Q3) et arrêts aux stands
+  les plus rapides, ou le programme du week-end avant la course. Touchez un Grand Prix dans Résultats & records,
+  ou « Résultats du Grand Prix » dans le calendrier ; flèches vers le Grand Prix précédent et le suivant.
 
 ### Version web (app.paddocklive.app)
+- Chaque rubrique de la Saison a son adresse (par exemple app.paddocklive.app/saison/2026/pilotes/lando-norris/) :
+  à partager ou à garder en favori, elle ouvre directement la bonne page, et elle se trouve sur Google.
 - Nouveau bouton « Saison » : l'espace Saison de l'appli dans le navigateur, sans rien installer. Accueil,
   calendrier, classements, course au titre, bilan de la saison, résultats et records, duels et fiche de chaque
   pilote, de 2018 à aujourd'hui ; pronostics entre amis dans un groupe en ligne. Statistiques détaillées

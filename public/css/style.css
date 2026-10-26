@@ -1102,6 +1102,8 @@ body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-selec
 .sz-box { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; margin-bottom: 12px; overflow-x: auto; }
 .sz-box h3 { margin: 0 0 10px; font-size: 17px; }
 .sz-table { width: 100%; border-collapse: collapse; font-size: 13.5px; margin-bottom: 8px; }
+.sz-ssr-title { font-size: 22px; margin: 0 0 12px; }
+.sz-gp-nav { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin: 4px 0 16px; }
 .sz-table th { text-align: left; color: var(--muted); font-size: 11px; text-transform: uppercase; font-weight: 600; padding: 6px 8px; border-bottom: 1px solid var(--border); }
 .sz-table td { padding: 7px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
 .sz-table td .drv-bar { display: inline-block; vertical-align: middle; margin-right: 8px; height: 16px; }

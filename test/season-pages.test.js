@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { seasonPages, slugOf } from '../analytics/season-pages.js';
+import { seasonSsr, seasonSitemap, legacySeasonUrl } from '../analytics/season-pages.js';
+import { seasonPath, parseSeasonPath, seasonTitle, gpSlug, slug } from '../shared/season-urls.js';
 import { STATS_VERSION } from '../shared/race-stats.js';
 
 const now = Date.parse('2026-10-26T12:00:00Z');
@@ -14,9 +15,8 @@ const SEASON = {
       sessions: [{ label: 'EL1', t: '2026-11-06T14:30:00Z' }, { label: 'Course', t: '2026-11-08T17:00:00Z' }], results: [], quali: [], sprintResults: [] },
   ],
   drivers: [{ pos: 1, name: 'Lando Norris', team: 'McLaren', teamId: 'mclaren', points: 357, wins: 7 }, { pos: 2, name: 'Max Verstappen', team: 'Red Bull', teamId: 'red_bull', points: 300, wins: 5 }],
-  constructors: [{ pos: 1, name: 'McLaren', id: 'mclaren', points: 700, wins: 12 }, { pos: 2, name: 'Red Bull', id: 'red_bull', points: 400, wins: 5 }],
+  constructors: [{ pos: 1, name: 'McLaren', id: 'mclaren', points: 700, wins: 12 }],
 };
-
 function fakeEnv() {
   const rows = new Map([
     ['season:2026', JSON.stringify({ at: now, v: SEASON })],
@@ -25,76 +25,65 @@ function fakeEnv() {
   ]);
   return { DB: { prepare: () => ({ bind: (k) => ({ first: async () => (rows.has(k) ? { v: rows.get(k) } : null) }) }) } };
 }
-const get = async (path) => seasonPages(fakeEnv(), new URL(`https://paddocklive.app${path}`), { now });
+const ssr = (path) => seasonSsr(fakeEnv(), parseSeasonPath(path), { now });
 
-test('pages Saison : adresses des Grands Prix lisibles dans chaque langue', () => {
-  assert.equal(slugOf('Mexico City Grand Prix', false), 'mexico');
-  assert.equal(slugOf('Mexico City Grand Prix', true), 'mexico-city');
-  assert.equal(slugOf('São Paulo Grand Prix', false), 'sao-paulo');
-  assert.equal(slugOf('United States Grand Prix', false), 'etats-unis');
+test('Saison : adresses des rubriques, dans un sens et dans l\'autre', () => {
+  assert.equal(seasonPath(2026), '/saison/2026/');
+  assert.equal(seasonPath(2026, 'pits'), '/saison/2026/arrets-aux-stands/');
+  assert.equal(seasonPath(2026, 'drivers', 'lando-norris'), '/saison/2026/pilotes/lando-norris/');
+  assert.equal(seasonPath(2026, 'gp', gpSlug('United States Grand Prix')), '/saison/2026/grand-prix/etats-unis/');
+  assert.deepEqual(parseSeasonPath('/saison/2026/pilotes/lando-norris/'), { year: 2026, section: 'drivers', item: 'lando-norris' });
+  assert.deepEqual(parseSeasonPath('/saison/2026/'), { year: 2026, section: 'home', item: null });
+  assert.deepEqual(parseSeasonPath('/saison/'), { year: null, section: 'home', item: null });
+  for (const bad of ['/saison/2026/inconnu/', '/saison/2026/classements/x/', '/saison/2026/grand-prix/', '/saison/2026', '/live/']) assert.equal(parseSeasonPath(bad), null, bad);
+  assert.equal(slug('Sergio Pérez'), 'sergio-perez');
+  assert.equal(seasonTitle(2026, 'gp', 'Mexico City Grand Prix', false), 'Grand Prix de Mexico 2026 : programme');
 });
 
-test('pages Saison : saison et Grand Prix écrits par le serveur, avec leurs adresses et données structurées', async () => {
-  const season = await (await get('/saison/2026/')).text();
-  assert.match(season, /<title>Saison 2026 de F1 : classements, calendrier et résultats · Paddock Live<\/title>/);
-  assert.match(season, /<link rel="canonical" href="https:\/\/paddocklive\.app\/saison\/2026\/">/);
-  assert.match(season, /hreflang="en" href="https:\/\/paddocklive\.app\/en\/season\/2026\/"/);
-  assert.match(season, /<a href="\/saison\/2026\/mexico\/">Mexico<\/a>/);
-  assert.match(season, /<a href="\/saison\/2026\/pilotes\/lando-norris\/"><b>Lando Norris<\/b><\/a><\/td><td><a href="\/saison\/2026\/ecuries\/mclaren\/">McLaren<\/a><\/td><td>357/);
+test('Saison : premier contenu de chaque rubrique écrit par le serveur (moteurs de recherche)', async () => {
+  const home = await ssr('/saison/2026/');
+  assert.equal(home.url, 'https://app.paddocklive.app/saison/2026/');
+  assert.equal(home.title, 'Saison 2026 de F1 : classements, calendrier et résultats');
+  assert.match(home.html, /<a href="\/saison\/2026\/pilotes\/lando-norris\/"><b>Lando Norris<\/b><\/a>/);
+  assert.match(home.html, /<a href="\/saison\/2026\/grand-prix\/mexico\/">Mexico<\/a>/);
+  assert.match(home.html, /<a href="\/saison\/2026\/arrets-aux-stands\/">Arrêts aux stands F1 2026/);   // toutes les rubriques en liens
 
-  const r = await get('/saison/2026/mexico/');
-  assert.equal(r.headers.get('Content-Type'), 'text/html; charset=utf-8');
-  const html = await r.text();
-  assert.match(html, /<h1>Grand Prix de Mexico 2026 : résultats<\/h1>/);
-  assert.match(html, /hreflang="en" href="https:\/\/paddocklive\.app\/en\/season\/2026\/mexico-city\/"/);
-  assert.match(html, /Oscar &lt;Piastri&gt;/);   // échappé
-  assert.match(html, /<td>—<\/td><td><a href="\/saison\/2026\/pilotes\/oscar-piastri\/"><b>Oscar &lt;Piastri&gt;<\/b><\/a><\/td><td><a href="\/saison\/2026\/ecuries\/mclaren\/">McLaren<\/a><\/td><td>Abandon<\/td>/);
-  assert.match(html, /1:15\.586/);
-  assert.match(html, /<td>2,17 s<\/td>/);   // arrêt DHL au centième
-  assert.match(html, /Copyright © DHL International GmbH/);
-  const ld = JSON.parse(/<script type="application\/ld\+json">(.*?)<\/script>/.exec(html)[1]);
-  const ev = ld['@graph'].find((x) => x['@type'] === 'SportsEvent');
-  assert.equal(ev.startDate, '2026-10-25T20:00:00Z');
-  assert.equal(ev.location.name, 'Autódromo Hermanos Rodríguez');
+  const gp = await ssr('/saison/2026/grand-prix/mexico/');
+  assert.equal(gp.title, 'Grand Prix de Mexico 2026 : résultats');
+  assert.match(gp.desc, /vainqueur Lando Norris, pole Lando Norris/);
+  assert.match(gp.html, /<td>—<\/td><td><a href="\/saison\/2026\/pilotes\/oscar-piastri\/"><b>Oscar &lt;Piastri&gt;<\/b><\/a><\/td><td>McLaren<\/td><td>Abandon<\/td>/);
+  assert.match(gp.html, /1:15\.586/);
+  assert.match(gp.html, /<td>2,17 s<\/td>/);   // arrêt DHL au centième
+  assert.match(gp.html, /Copyright © DHL International GmbH/);
+  const ev = gp.ld.find((x) => x['@type'] === 'SportsEvent');
+  assert.deepEqual([ev.startDate, ev.location.name, ev.url], ['2026-10-25T20:00:00Z', 'Autódromo Hermanos Rodríguez', 'https://app.paddocklive.app/saison/2026/grand-prix/mexico/']);
+  assert.match((await ssr('/saison/2026/grand-prix/sao-paulo/')).html, /Programme du week-end/);
 
-  const en = await (await get('/en/season/2026/sao-paulo/')).text();
-  assert.match(en, /<html lang="en">/);
-  assert.match(en, /São Paulo Grand Prix 2026: schedule/);
-  assert.match(en, /<td>FP1<\/td>/);
+  const d = await ssr('/saison/2026/pilotes/lando-norris/');
+  assert.equal(d.title, 'Lando Norris : saison 2026 de F1, résultats et classement');
+  assert.match(d.html, /1er du championnat avec 357 points, 7 victoires · McLaren/);
+  assert.match(d.html, /<td>19<\/td><td><a href="\/saison\/2026\/grand-prix\/mexico\/">Mexico<\/a><\/td><td>P1<\/td><td>P2<\/td><td>P1<\/td><td>25<\/td>/);
+  assert.equal(d.ld.find((x) => x['@type'] === 'BreadcrumbList').itemListElement.at(-1).item, 'https://app.paddocklive.app/saison/2026/pilotes/lando-norris/');
+
+  assert.equal((await ssr('/saison/2026/classements/')).title, 'Classements F1 2026 : pilotes et constructeurs');
+  assert.match((await ssr('/saison/2026/arrets-aux-stands/')).desc, /immobilisations les plus rapides/);
+  // Inconnu : 404 (pilote, Grand Prix, année hors des 8 saisons de l'appli)
+  assert.equal(await ssr('/saison/2026/pilotes/inconnu/'), null);
+  assert.equal(await ssr('/saison/2026/grand-prix/inconnu/'), null);
+  assert.equal(await ssr('/saison/2018/'), null);
 });
 
-test('pages Saison : une page par pilote et par écurie, en lien avec les Grands Prix', async () => {
-  const d = await (await get('/saison/2026/pilotes/lando-norris/')).text();
-  assert.match(d, /<h1>Lando Norris : saison 2026 de F1, résultats et classement<\/h1>/);
-  assert.match(d, /1er du championnat avec 357 points, 7 victoires/);
-  assert.match(d, /<tr><th>Poles<\/th><td>1<\/td><\/tr>/);
-  assert.match(d, /<td>19<\/td><td><a href="\/saison\/2026\/mexico\/">Mexico<\/a><\/td><td>P1<\/td><td>P2<\/td><td>P1<\/td><td>25<\/td>/);
-  assert.match(d, /hreflang="en" href="https:\/\/paddocklive\.app\/en\/season\/2026\/drivers\/lando-norris\/"/);
-  assert.match(d, /"@type":"Person","name":"Lando Norris"/);
-  // Pilote absent du classement (abandon, aucun point) : page quand même
-  assert.match(await (await get('/saison/2026/pilotes/oscar-piastri/')).text(), /<tr><th>Abandons<\/th><td>1<\/td><\/tr>/);
-  const en = await (await get('/en/season/2026/drivers/max-verstappen/')).text();
-  assert.match(en, /2nd in the championship with 300 points, 5 wins/);
-
-  const t = await (await get('/saison/2026/ecuries/mclaren/')).text();
-  assert.match(t, /<h1>McLaren : saison 2026 de F1, résultats et classement<\/h1>/);
-  assert.match(t, /<th>Lando Norris<\/th><th>Oscar &lt;Piastri&gt;<\/th>/);
-  assert.match(t, /<td>P1<\/td><td>Abandon<\/td><td>25<\/td>/);
-  assert.match(await (await get('/en/season/2026/teams/red-bull/')).text(), /"@type":"SportsTeam","name":"Red Bull"/);
-  // Mauvaise langue ou inconnu : 404
-  assert.equal(await get('/saison/2026/drivers/lando-norris/'), null);
-  assert.equal(await get('/saison/2026/pilotes/inconnu/'), null);
-  assert.equal(await get('/saison/2026/pilotes/'), null);
-});
-
-test('pages Saison : redirection vers l\'année en cours, adresses inconnues, plan du site', async () => {
-  const r = await get('/saison/');
-  assert.equal(r.status, 302);
-  assert.equal(r.headers.get('Location'), 'https://paddocklive.app/saison/2026/');
-  assert.equal(await get('/saison/2026/inconnu/'), null);
-  assert.equal(await get('/saison/2017/'), null);
-  assert.equal(await get('/saison/2027/'), null);
-  const map = await (await get('/saison/sitemap.xml')).text();
-  for (const u of ['/saison/2026/', '/saison/2026/mexico/', '/en/season/2026/mexico-city/', '/en/season/2026/sao-paulo/', '/saison/2026/pilotes/oscar-piastri/',
-    '/en/season/2026/teams/red-bull/', '/saison/2018/', '/en/season/2025/']) assert.ok(map.includes(`<loc>https://paddocklive.app${u}</loc>`), u);
+test('Saison : plan du site et anciennes pages publiques redirigées vers la version web', async () => {
+  const map = await seasonSitemap(fakeEnv(), now);
+  for (const u of ['/saison/2026/', '/saison/2026/classements/', '/saison/2026/pilotes/lando-norris/', '/saison/2026/grand-prix/sao-paulo/', '/saison/2019/bilan/']) assert.ok(map.includes(`<loc>https://app.paddocklive.app${u}</loc>`), u);
+  assert.ok(!map.includes('/saison/2018/') && !map.includes('/pronostics/'));
+  const old = (p) => legacySeasonUrl(fakeEnv(), new URL(`https://paddocklive.app${p}`));
+  assert.equal(await old('/saison/'), 'https://app.paddocklive.app/saison/');
+  assert.equal(await old('/saison/2026/mexico/'), 'https://app.paddocklive.app/saison/2026/grand-prix/mexico/');
+  assert.equal(await old('/en/season/2026/mexico-city/'), 'https://app.paddocklive.app/saison/2026/grand-prix/mexico/');
+  assert.equal(await old('/en/season/2026/drivers/lando-norris/'), 'https://app.paddocklive.app/saison/2026/pilotes/lando-norris/');
+  assert.equal(await old('/saison/2026/ecuries/mclaren/'), 'https://app.paddocklive.app/saison/2026/classements/');
+  assert.equal(await old('/en/season/2026/inconnu/'), 'https://app.paddocklive.app/saison/2026/resultats/');
+  assert.equal(await old('/saison/2026/grand-prix/mexico/'), 'https://app.paddocklive.app/saison/2026/grand-prix/mexico/');
+  assert.equal(await old('/autre/'), null);
 });
