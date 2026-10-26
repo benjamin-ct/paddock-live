@@ -19,6 +19,9 @@ const sd = (a) => {
   return a.length > 1 ? Math.sqrt(a.reduce((s, v) => s + (v - m) ** 2, 0) / (a.length - 1)) : null;
 };
 const fr = (v, d = 1) => (v === null || v === undefined || Number.isNaN(v) ? '—' : v.toFixed(d).replace('.', DEC));
+// Immobilisation : au centième quand elle vient de DHL, au dixième (F1) sinon
+const stopTxt = (s) => `${fr(s.stop, s.dhl ? 2 : 1)} s`;
+const DHL_NOTE = '<p class="muted small">Immobilisations au centième : DHL Fastest Pit Stop Award. Copyright © DHL International GmbH. All Rights Reserved.</p>';
 const fmtLap = (s) => {
   if (!s) return '—';
   const m = Math.floor(s / 60);
@@ -203,8 +206,8 @@ export function renderDrivers(ctx, code) {
       ${rows.map((x, i) => `<tr><td>R${x.r.round}</td><td>${esc(short(x.r.name))}${x.spr ? ` <span class="sz-tag sprint">Sprint P${x.spr.pos ?? '—'}</span>` : ''}</td><td>${x.q?.pos ? `P${x.q.pos}` : '—'}</td>
         <td>${x.res?.grid ? `P${x.res.grid}` : x.res ? 'Stands' : '—'}</td><td><b>${x.res ? (isNum(x.res) ? `P${x.res.pos}` : 'Abandon') : '—'}</b></td><td>${x.res?.points || ''}</td><td>${led[i] ? `${led[i]} t.` : x.a ? '' : '—'}</td>
         <td>${x.a?.best ? fmtLap(x.a.best) : '—'}${x.res?.fastest ? ' <span class="sz-tag sprint">MT</span>' : ''}</td><td>${x.a?.speeds?.ST ? `${x.a.speeds.ST} km/h` : '—'}</td>
-        <td>${x.a ? x.a.stops.map((s) => `${fr(s.stop)} s`).join(' · ') || '0' : '—'}</td><td class="muted small">${esc(statusFr(x.res?.status))}</td></tr>`).join('')}</table></section>
-    ${pendingNote(stats)}`;
+        <td>${x.a ? x.a.stops.map(stopTxt).join(' · ') || '0' : '—'}</td><td class="muted small">${esc(statusFr(x.res?.status))}</td></tr>`).join('')}</table></section>
+    ${rows.some((x) => x.a?.stops.some((s) => s.dhl)) ? DHL_NOTE : ''}${pendingNote(stats)}`;
 }
 
 // ---------------- Notes des pilotes ----------------
@@ -311,12 +314,12 @@ export function renderPits(ctx) {
   const name = (rd) => short(data.races.find((r) => r.round === rd)?.name);
   const teams = new Map();
   for (const s of all) {
-    const t = teams.get(s.d.team) || { team: s.d.team, color: s.d.color, stops: [], n: 0 };
+    const t = teams.get(s.d.team) || { team: s.d.team, color: s.d.color, stops: [], n: 0, best: null };
     t.n++;
-    if (s.stop > 0 && s.stop < 15) t.stops.push(s.stop);
+    if (s.stop > 0 && s.stop < 15) { t.stops.push(s.stop); if (!t.best || s.stop < t.best.stop) t.best = s; }
     teams.set(s.d.team, t);
   }
-  const tl = [...teams.values()].filter((t) => t.stops.length).map((t) => ({ ...t, med: median(t.stops), best: Math.min(...t.stops), under25: t.stops.filter((v) => v < 2.5).length }))
+  const tl = [...teams.values()].filter((t) => t.stops.length).map((t) => ({ ...t, med: median(t.stops), under25: t.stops.filter((v) => v < 2.5).length }))
     .sort((a, b) => a.med - b.med);
   const fastest = [...valid].sort((a, b) => a.stop - b.stop).slice(0, 15);
   const rounds = [...R.keys()].sort((a, b) => a - b);
@@ -324,19 +327,20 @@ export function renderPits(ctx) {
     <div class="sz-cards">
       <div class="sz-card sz-kpi"><div class="muted small">Arrêts</div><div class="sz-big">${all.length}</div><div class="muted small">${R.size} Grands Prix analysés</div></div>
       <div class="sz-card sz-kpi"><div class="muted small">Immobilisation médiane</div><div class="sz-big">${fr(median(valid.map((s) => s.stop)), 2)} s</div></div>
-      <div class="sz-card sz-kpi"><div class="muted small">Arrêt le plus rapide</div><div class="sz-big">${fastest[0] ? `${fr(fastest[0].stop, 1)} s` : '—'}</div><div class="muted small">${fastest[0] ? `${esc(fastest[0].d.team)} · ${esc(fastest[0].d.tla)} · R${fastest[0].round}` : ''}</div></div>
+      <div class="sz-card sz-kpi"><div class="muted small">Arrêt le plus rapide</div><div class="sz-big">${fastest[0] ? stopTxt(fastest[0]) : '—'}</div><div class="muted small">${fastest[0] ? `${esc(fastest[0].d.team)} · ${esc(fastest[0].d.tla)} · R${fastest[0].round}` : ''}</div></div>
       <div class="sz-card sz-kpi"><div class="muted small">Temps médian dans la voie des stands</div><div class="sz-big">${fr(median(all.map((s) => s.lane).filter((v) => v > 5 && v < 60)), 1)} s</div></div>
     </div>
     <div class="sz-grid2">
       <section class="sz-box"><h3>Immobilisation médiane par écurie</h3>${hbars(tl.map((t) => ({ html: `${mark(t.team, t.color)}<b>${esc(t.team)}</b>`, v: t.med, text: `${fr(t.med, 2)} s`, color: tcol(t.team, t.color) })), { invert: true })}</section>
       <section class="sz-box"><h3>Les 15 arrêts les plus rapides</h3><table class="sz-table"><tr><th>#</th><th>Écurie</th><th>Pilote</th><th>Grand Prix</th><th>Tour</th><th>Immob.</th></tr>
-        ${fastest.map((s, i) => `<tr><td>${i + 1}</td><td>${mark(s.d.team, s.d.color)}${esc(s.d.team)}</td><td><b>${esc(s.d.tla)}</b></td><td>R${s.round} ${esc(name(s.round))}</td><td>${s.lap ?? '—'}</td><td><b>${fr(s.stop, 1)} s</b></td></tr>`).join('')}</table></section>
+        ${fastest.map((s, i) => `<tr><td>${i + 1}</td><td>${mark(s.d.team, s.d.color)}${esc(s.d.team)}</td><td><b>${esc(s.d.tla)}</b></td><td>R${s.round} ${esc(name(s.round))}</td><td>${s.lap ?? '—'}</td><td><b>${stopTxt(s)}</b></td></tr>`).join('')}</table></section>
     </div>
     <section class="sz-box"><h3>Écuries</h3><table class="sz-table"><tr><th>Écurie</th><th>Arrêts</th><th>Médiane</th><th>Meilleur</th><th>Sous 2,5 s</th></tr>
-      ${tl.map((t) => `<tr><td>${mark(t.team, t.color)}<b>${esc(t.team)}</b></td><td>${t.n}</td><td>${fr(t.med, 2)} s</td><td>${fr(t.best, 1)} s</td><td>${t.under25}</td></tr>`).join('')}</table></section>
+      ${tl.map((t) => `<tr><td>${mark(t.team, t.color)}<b>${esc(t.team)}</b></td><td>${t.n}</td><td>${fr(t.med, 2)} s</td><td>${stopTxt(t.best)}</td><td>${t.under25}</td></tr>`).join('')}</table></section>
     <section class="sz-box"><h3>Par Grand Prix</h3><table class="sz-table"><tr><th>Manche</th><th>Grand Prix</th><th>Arrêts</th><th>Immob. médiane</th><th>Plus rapide</th><th>Voie des stands</th></tr>
       ${rounds.map((rd) => { const p = R.get(rd).race.profile; const f = valid.filter((s) => s.round === rd).sort((a, b) => a.stop - b.stop)[0];
-        return `<tr><td>R${rd}</td><td>${esc(name(rd))}</td><td>${p.stops}</td><td>${p.stopMedian ? `${fr(p.stopMedian, 2)} s` : '—'}</td><td>${f ? `${fr(f.stop, 1)} s · ${esc(f.d.tla)}` : '—'}</td><td>${p.pitLane ? `${fr(p.pitLane, 1)} s` : '—'}</td></tr>`; }).join('')}</table></section>`;
+        return `<tr><td>R${rd}</td><td>${esc(name(rd))}</td><td>${p.stops}</td><td>${p.stopMedian ? `${fr(p.stopMedian, 2)} s` : '—'}</td><td>${f ? `${stopTxt(f)} · ${esc(f.d.tla)}` : '—'}</td><td>${p.pitLane ? `${fr(p.pitLane, 1)} s` : '—'}</td></tr>`; }).join('')}</table></section>
+    ${[...R.values()].some(({ race }) => race.dhl) ? DHL_NOTE : ''}`;
 }
 
 // ---------------- Vitesses de pointe ----------------

@@ -5,6 +5,7 @@
 import { seasonRow, archiveToken } from './studio.js';
 import { getRow, setRow } from './alerts.js';
 import { summarizeRace, findRaceSession, parseStream, indexMeetings, STATS_VERSION } from '../shared/race-stats.js';
+import { fetchDhl, withDhl } from '../shared/dhl-pits.js';
 import { topicName } from '../shared/f1.js';
 import { Track } from '../shared/track.js';
 
@@ -93,10 +94,36 @@ export async function analyseNext(env, year, { now = Date.now(), fetchFn = fetch
   }
 }
 
+// Arrêts au centième de DHL (saison en cours) des courses analysées, lus une fois par course (racedhl:<année>:<manche>) ;
+// regardés au plus toutes les 6 heures (DHL publie quelques heures après la course)
+async function dhlRows(env, year) {
+  const { results } = await env.DB.prepare('SELECT k, v FROM studio WHERE k LIKE ?').bind(`racedhl:${year}:%`).all();
+  const out = new Map();
+  for (const { k, v } of results || []) { try { out.set(Number(k.split(':')[2]), JSON.parse(v)); } catch { /* ligne illisible */ } }
+  return out;
+}
+export async function dhlNext(env, year, { now = Date.now(), fetchFn = fetch } = {}) {
+  if (year !== new Date(now).getUTCFullYear() || now - Number(await getRow(env, `racedhltry:${year}`) || 0) < RETRY) return null;
+  await setRow(env, `racedhltry:${year}`, String(now));
+  const { done } = await kept(env, year);
+  const have = await dhlRows(env, year);
+  const races = (await season(env, year, now)).v.races.filter((r) => done.has(r.round) && !have.get(r.round)?.rows?.length);
+  if (!races.length) return null;
+  const get = async (url, json) => {
+    const r = await fetchFn(url, { headers: { 'User-Agent': UA } });
+    if (!r.ok) throw new Error(`${url} : HTTP ${r.status}`);
+    return json ? r.json() : r.text();
+  };
+  const found = await fetchDhl(races, get);
+  for (const [round, rows] of found) await setRow(env, `racedhl:${year}:${round}`, JSON.stringify({ rows, at: now }));
+  return { dhl: found.size };
+}
+
 // Tâche planifiée (chaque minute) : courses analysées l'une après l'autre tant qu'il reste du temps (20 s), pour
 // l'année en cours ou une année demandée depuis la version web dans l'heure ; arrêt à la première erreur
 export async function statsTick(env, { now = Date.now(), fetchFn = fetch, budget = 20e3 } = {}) {
   if (!env.DB || !env.STATS_KEY) return null;
+  await dhlNext(env, new Date(now).getUTCFullYear(), { now, fetchFn }).catch(() => null);
   const { results } = await env.DB.prepare('SELECT k, v FROM studio WHERE k LIKE ?').bind('racewant:%').all();
   const years = [new Date(now).getUTCFullYear(), ...(results || []).filter((r) => now - Number(r.v) < 3600e3).map((r) => Number(r.k.slice(9)))];
   const t0 = Date.now();
@@ -121,7 +148,8 @@ export async function seasonStatsWeb(env, year, { now = Date.now(), fetchFn = fe
   const missing = races.some((r) => !done.has(r.round) && now - (failed.get(r.round) || 0) > RETRY);
   const pending = missing && !!await archiveToken(env, { now, fetchFn });
   if (pending && now - Number(await getRow(env, `racewant:${year}`) || 0) > 10 * 60e3) await setRow(env, `racewant:${year}`, String(now));
-  const list = races.map((r) => done.get(r.round)).filter(Boolean);
+  const dhl = await dhlRows(env, year);
+  const list = races.map((r) => withDhl(done.get(r.round), dhl.get(r.round)?.rows)).filter(Boolean);
   // failed : courses pas analysées et la raison (nouvel essai 6 heures plus tard)
   const out = { year, total: races.length, done: list.length, pending, races: list, tyres: {}, failed: errors };
   if (!list.length && !pending && races.length) out.error = 'statistiques pas encore calculées par le serveur';
