@@ -100,7 +100,7 @@ function docsHtml() {
       <a class="tbd-dl" href="${esc(pdfHref(d.url))}" data-pdf="${esc(d.title)}" target="_blank" rel="noopener" title="Afficher le PDF">${icon('doc', 'ic-s')}</a></div>`).join('')
     : `<div class="note">${f.loading && !f.docs?.length ? 'Chargement des documents…' : f.error ? `Documents indisponibles : ${esc(f.error)}` : q ? 'Aucun document ne correspond.' : 'Aucun document publié pour l\'instant.'}</div>`;
   return `<div class="tbp-head"><b>Documents FIA</b>${gpSel}<span class="muted small">${docs.length} document${docs.length > 1 ? 's' : ''}</span>
-      ${f.page ? `<a class="small" href="${esc(f.page)}" target="_blank" rel="noopener">fia.com ${icon('external', 'ic-s')}</a>` : ''}</div>
+      ${f.page ? `<a class="btn small" href="${esc(f.page)}" target="_blank" rel="noopener">${icon('external', 'ic-s')} fia.com</a>` : ''}</div>
     <input class="tbp-filter" id="tbDocFilter" type="search" placeholder="Filtrer (pilote, convocation, classement…)" value="${esc(filter)}">
     <div class="tbp-scroll">${body}</div>`;
 }

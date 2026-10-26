@@ -102,6 +102,8 @@ l'application (Réglages → À propos → Nouveautés).
   ou « Résultats du Grand Prix » dans le calendrier ; flèches vers le Grand Prix précédent et le suivant.
 - Calendrier : sous le prochain Grand Prix, les Grands Prix à venir d'abord, puis ceux déjà courus, du plus récent
   au plus ancien ; week-ends sprint : vainqueur et pole de la course et du sprint dans un petit tableau.
+- Éléments moteur : pénalités sur la grille et éléments neufs rangés par Grand Prix, le plus récent ouvert, un pilote
+  par ligne (logo de l'écurie, éléments en étiquettes, sanction) ; liens « PDF » et « Document FIA » en boutons.
 - Course au titre : deux onglets, « Championnat pilotes » et « Championnat constructeurs », au lieu de tout
   descendre pour voir les écuries.
 - Listes de choix (pilote, duel pilote contre pilote, point de mesure, tri, Grand Prix) : intitulé au-dessus du choix,

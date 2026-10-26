@@ -192,7 +192,7 @@ export function renderTech(ctx, fia) {
     <section class="sz-box"><h3>Détail des évolutions</h3>
       <div class="sz-h2h-pick"><label class="small">Grand Prix <select id="szTechGp">${evs.map((e) => `<option value="${esc(e.page)}" ${e === gp ? 'selected' : ''}>${esc(e.label)} · ${esc(short(e.name))} (${e.tech.length})</option>`).join('')}</select></label>
         <label class="small">Écurie <select id="szTechTeam"><option value="all">Toutes</option>${teamsGp.map((t) => `<option ${t === techTeam ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></label>
-        ${gp.docs?.tech ? `<a class="small" href="${esc(gp.docs.tech)}" target="_blank" rel="noopener">Document FIA (PDF) ${icon('external', 'ic-s')}</a>` : ''}</div>
+        ${gp.docs?.tech ? `<a class="btn small" href="${esc(gp.docs.tech)}" target="_blank" rel="noopener">${icon('doc', 'ic-s')} Document FIA (PDF)</a>` : ''}</div>
       ${gp.noUpdates.length ? `<p class="muted small">Sans nouveauté : ${gp.noUpdates.map(esc).join(', ')}.</p>` : ''}
       <div class="sz-tr-bar small">${EN ? '' : `<label class="toggle small"><input type="checkbox" id="szTechOrig" ${showOriginal() ? 'checked' : ''}> Texte d'origine (anglais)</label>`}<span class="muted" id="szTrStatus">${trStatusHtml()}</span></div>
       <div class="sz-upd">${list.map((u) => `<article class="sz-upd-item" style="--tc:${tcol(u.team, ctx, u.teamId)}">
@@ -252,6 +252,11 @@ export function renderElements(ctx, fia) {
     return `<td class="sz-pu ${cls}"><b>${v}</b>${l ? `<small>/${l}</small>` : ''}</td>`;
   };
   const lastName = (d) => d.driver.split(' ').slice(-1)[0];
+  // Pénalités et éléments neufs : un bloc par Grand Prix, le plus récent ouvert ; un pilote par ligne
+  const who = (name) => { const d = drivers.find((x) => x.driver === name); return `<span class="sz-who">${d ? mark(d.team, ctx, d.teamId) : ''}<b>${esc(name)}</b></span>`; };
+  const chips = (list) => list.filter(Boolean).map((x) => `<span class="sz-el" title="${esc(EL_FR[x.split(' ').pop()] || '')}">${esc(x)}</span>`).join('');
+  const byGp = (list, ev) => { const m = new Map(); for (const x of [...list].reverse()) m.set(ev(x), [...(m.get(ev(x)) || []), x]); return [...m]; };
+  const fold = (ev, i, count, body) => `<details class="sz-fold"${i ? '' : ' open'}><summary><b>${esc(ev.label)} ${esc(short(ev.name))}</b><span class="muted small">${count}</span></summary>${body}</details>`;
   return `${note(fia)}
     <div class="sz-cards">
       <div class="sz-card sz-kpi"><div class="muted small">Éléments utilisés (total)</div><div class="sz-big">${drivers.reduce((n, d) => n + d.total, 0)}</div><div class="muted small">relevé FIA · ${esc(short(base.name))}</div></div>
@@ -266,13 +271,13 @@ export function renderElements(ctx, fia) {
       <section class="sz-box"><h3>Total par pilote</h3>${hbars(drivers.map((d) => ({ html: `${mark(d.team, ctx, d.teamId)}<b>${esc(lastName(d))}</b>`, v: d.total, color: tcol(d.team, ctx, d.teamId) })))}</section>
       <section class="sz-box"><h3>Total par écurie</h3>${hbars(byTeam.map((t) => ({ html: `${mark(t.team, ctx, t.teamId)}<b>${esc(t.team)}</b>`, v: t.n, color: tcol(t.team, ctx, t.teamId) })))}</section>
     </div>
-    <section class="sz-box"><h3>Pénalités sur la grille</h3>${pens.length ? `<table class="sz-table sz-wrap"><tr><th>Grand Prix</th><th>Pilote</th><th>Éléments</th><th>Sanction</th><th></th></tr>
-      ${pens.map((p) => `<tr><td>${esc(p.ev.label)} ${esc(short(p.ev.name))}</td><td><b>${esc(p.driver)}</b></td><td class="small">${esc(elementsOf(p.fact))}${/without the approval|parc ferm/i.test(p.fact) ? ' <span class="muted">(changement en parc fermé)</span>' : ''}</td><td><b>${esc(DECISION_FR(p.decision))}</b></td><td><a href="${esc(p.url)}" target="_blank" rel="noopener" class="small">PDF ${icon('external', 'ic-s')}</a></td></tr>`).join('')}</table>` : '<div class="note">Aucune pénalité.</div>'}</section>
-    <section class="sz-box"><h3>Éléments neufs par Grand Prix</h3><table class="sz-table sz-wrap"><tr><th>Grand Prix</th><th>Nouveaux éléments</th></tr>
-      ${evs.filter((e) => e.fresh.length).reverse().map((e) => {
-        const by = new Map();
-        for (const f of e.fresh) by.set(f.driver, [...(by.get(f.driver) || []), f.element]);
-        return `<tr><td>${esc(e.label)} ${esc(short(e.name))}</td><td class="small">${[...by].map(([drv, list]) => `<b>${esc(drv.split(' ').slice(-1)[0])}</b> ${esc([...new Set(list)].join(', '))}`).join(' · ')}</td></tr>`;
-      }).join('')}</table></section>
+    <section class="sz-box"><h3>Pénalités sur la grille</h3>${pens.length ? byGp(pens, (p) => p.ev).map(([ev, list], i) => fold(ev, i, `${list.length} ${list.length > 1 ? 'pénalités' : 'pénalité'}`,
+      list.map((p) => `<div class="sz-pen">${who(p.driver)}<span class="sz-els">${chips(elementsOf(p.fact).split(' · '))}${/without the approval|parc ferm/i.test(p.fact) ? ' <span class="muted small">en parc fermé</span>' : ''}</span><span class="sz-tag ${/stands|fond/i.test(DECISION_FR(p.decision)) ? 'pen' : ''}">${esc(DECISION_FR(p.decision))}</span><a href="${esc(p.url)}" target="_blank" rel="noopener" class="btn small">${icon('doc', 'ic-s')} PDF</a></div>`).join(''))).join('') : '<div class="note">Aucune pénalité.</div>'}</section>
+    <section class="sz-box"><h3>Éléments neufs par Grand Prix</h3>${evs.filter((e) => e.fresh.length).reverse().map((e, i) => {
+      const by = new Map();
+      for (const f of e.fresh) by.set(f.driver, [...new Set([...(by.get(f.driver) || []), f.element])]);
+      return fold(e, i, `${by.size} ${by.size > 1 ? 'pilotes' : 'pilote'} · ${e.fresh.length} ${e.fresh.length > 1 ? 'éléments' : 'élément'}`,
+        `<div class="sz-fresh">${[...by].map(([drv, list]) => `<div class="sz-fresh-row">${who(drv)}<span class="sz-els">${chips(list)}</span></div>`).join('')}</div>`);
+    }).join('')}</section>
     <p class="muted small">Source : documents FIA et décisions des commissaires.</p>`;
 }

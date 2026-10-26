@@ -1121,6 +1121,8 @@ export default {
   "Passer l'interruption": "Skip the stoppage",
   "Pause (barre d'espace)": "Pause (space bar)",
   "pénalité": "penalty",
+  "élément": "element",
+  "en parc fermé": "in parc fermé",
   "Pénalité": "Penalty",
   "pénalité sur la grille": "grid penalty",
   "Pénalités liées au moteur": "Engine-related penalties",

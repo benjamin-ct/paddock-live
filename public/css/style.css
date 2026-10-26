@@ -1330,6 +1330,22 @@ body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-selec
 .sz-pu-key { display: inline-block; padding: 0 6px; border-radius: 4px; margin-left: 6px; }
 .sz-pu-key.at { background: color-mix(in srgb, var(--orange) 22%, transparent); }
 .sz-pu-key.over { background: color-mix(in srgb, var(--red) 30%, transparent); }
+.sz-fold { border-top: 1px solid var(--line); }
+.sz-fold > summary { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 9px 4px; cursor: pointer; list-style: none; }
+.sz-fold > summary::-webkit-details-marker { display: none; }
+.sz-fold > summary::after { content: '▸'; color: var(--muted); }
+.sz-fold[open] > summary::after { content: '▾'; }
+.sz-fold > summary > .muted { margin-left: auto; }
+.sz-pen { display: grid; grid-template-columns: minmax(150px, 1fr) minmax(0, 2fr) auto auto; align-items: center; gap: 6px 12px; padding: 7px 4px; border-top: 1px dashed var(--line); }
+.sz-who { display: inline-flex; align-items: center; gap: 7px; min-width: 0; }
+.sz-who .team-logo { width: 20px; height: 20px; }
+.sz-els { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.sz-el { padding: 1px 6px; border-radius: 4px; background: var(--panel-3); color: var(--text-2); font-size: 11px; font-weight: 700; white-space: nowrap; }
+.sz-pen > .sz-tag { text-transform: none; letter-spacing: 0; font-size: 12px; padding: 2px 8px; }
+.sz-tag.pen { background: color-mix(in srgb, var(--red) 22%, transparent); color: var(--text); }
+.sz-fresh { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px 16px; padding: 4px 4px 10px; }
+.sz-fresh-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+@media (max-width: 700px) { .sz-pen { grid-template-columns: minmax(0, 1fr) auto; } .sz-pen > .sz-els { grid-column: 1; grid-row: 2; } .sz-pen > a { grid-column: 2; grid-row: 2; justify-self: end; } }
 .sz-h2h-pick { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
 /* Course au titre : portraits, éliminés grisés, barre points actuels + maximum possible */
 .tr-intro { display: flex; gap: 40px; flex-wrap: wrap; }
@@ -2564,6 +2580,8 @@ body.mini-body { display: block; min-height: 0; height: 100vh; overflow: hidden;
 @media (max-width: 900px), (pointer: coarse) { #miniBtn { display: none; } }
 @media (max-width: 600px) { #summaryBtn { display: none; } }
 a.btn { text-decoration: none; display: inline-flex; align-items: center; gap: 5px; }
+/* Lien en forme de bouton : couleur du texte, pas celle d'un lien (sans poids : les boutons colorés gardent la leur) */
+:where(a.btn:not(.btn-accent)) { color: var(--text); }
 
 /* Replay : moments clés (liste et repères sur la barre de lecture) */
 .rp-marks { position: absolute; inset: 0; pointer-events: none; }
