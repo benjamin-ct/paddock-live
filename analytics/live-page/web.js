@@ -96,7 +96,9 @@ pairDlg?.addEventListener('close', stopPair);
 async function pairReceive() {
   pairNote(t('Préparation…'));
   const keys = await genKeys();
-  const r = await fetch('/live/api/pair', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pub: await pubJwk(keys) }) }).then((x) => x.json()).catch(() => null);
+  // Type d'appareil, pour le message de l'ordinateur qui envoie la connexion (« Téléphone relié » / « Navigateur relié »)
+  const kind = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) || matchMedia('(pointer: coarse)').matches ? 'phone' : 'browser';
+  const r = await fetch('/live/api/pair', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pub: await pubJwk(keys), kind }) }).then((x) => x.json()).catch(() => null);
   if (!r?.code) return pairNote(t('Connexion impossible pour le moment. Réessayez.'), true);
   pairBody.innerHTML = `<p class="pair-h">${esc(t('Sur un appareil déjà connecté à F1 TV, ouvrez Paddock Live, touchez « F1 TV connecté » et tapez ce code :'))}</p><div class="pair-code">${r.code}</div><p class="pair-note">${esc(t('En attente de l\'ordinateur…'))}</p>`;
   const until = Date.now() + (r.ttl || 180) * 1000;
@@ -120,7 +122,7 @@ function pairSend() {
   const exp = tokenExp(f1tv);
   const until = new Date(exp).toLocaleString(LOCALE, { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
   pairBody.innerHTML = `<p class="pair-ok">${esc(t('Connecté à F1 TV sur cet appareil : GPS et télémétrie en direct.'))}${exp ? `<br><small>${esc(t('Connexion valable jusqu\'au {}.', until))}</small>` : ''}</p>`
-    + `<p class="pair-h">${esc(t('Sur le téléphone, ouvrez Paddock Live et touchez « Connexion F1 TV » pour afficher un code, puis tapez-le ici :'))}</p>`
+    + `<p class="pair-h">${esc(t('Sur le téléphone ou l\'autre navigateur, ouvrez Paddock Live et touchez « Connexion F1 TV » pour afficher un code, puis tapez-le ici :'))}</p>`
     + `<form id="pairForm"><input id="pairInput" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" placeholder="------" aria-label="${esc(t('Code à 6 chiffres'))}"><button class="btn btn-accent" type="submit">${esc(t('Relier'))}</button></form>`
     + '<p class="pair-note" id="pairSendMsg"></p>'
     + `<button class="btn pair-out" id="pairOut">${esc(t('Se déconnecter de F1 TV sur cet appareil'))}</button>`;
@@ -151,7 +153,8 @@ function pairSend() {
       const iv = crypto.getRandomValues(new Uint8Array(12));
       const data = b64(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(f1tv)));
       const ok = await fetch(`/live/api/pair?code=${code}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ spub: await pubJwk(keys), iv: b64(iv), data }) }).then((x) => x.ok).catch(() => false);
-      pairNote(ok ? t('Téléphone relié. La connexion apparaît sur le téléphone.') : t('Échec de l\'envoi. Réessayez.'), !ok);
+      const done = pr.kind === 'browser' ? t('Navigateur relié. La connexion apparaît dans le navigateur.') : t('Téléphone relié. La connexion apparaît sur le téléphone.');
+      pairNote(ok ? done : t('Échec de l\'envoi. Réessayez.'), !ok);
     } catch { pairNote(t('Échec de l\'envoi. Réessayez.'), true); }
   });
 }

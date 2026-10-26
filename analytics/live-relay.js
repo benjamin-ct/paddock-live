@@ -123,13 +123,13 @@ export class LiveRelay {
     this.pairs ||= new Map();
     for (const [k, v] of this.pairs) if (v.exp < now) this.pairs.delete(k);
     const code = url.searchParams.get('code');
-    if (req.method === 'POST' && !code) {                              // téléphone : publie sa clé, reçoit un code
+    if (req.method === 'POST' && !code) {                              // téléphone : publie sa clé (et son type), reçoit un code
       const body = await req.json().catch(() => null);
       if (!pairKey(body?.pub)) return json({ error: 'Clé invalide' }, 400);
       if (this.pairs.size >= 300) return json({ error: 'Réessayez dans un instant' }, 503);
       let c, n = 0;
       do { c = String(crypto.getRandomValues(new Uint32Array(1))[0] % 1e6).padStart(6, '0'); } while (this.pairs.has(c) && ++n < 30);
-      this.pairs.set(c, { pub: body.pub, box: null, exp: now + 180e3 });
+      this.pairs.set(c, { pub: body.pub, kind: body.kind === 'browser' ? 'browser' : 'phone', box: null, exp: now + 180e3 });
       return json({ code: c, ttl: 180 });
     }
     if (!/^\d{6}$/.test(code || '')) return json({ error: 'Code invalide' }, 400);
@@ -140,7 +140,7 @@ export class LiveRelay {
       this.pairs.delete(code);
       return json(e.box);
     }
-    if (req.method === 'GET') return json({ pub: e.pub });             // ordinateur : lit la clé du téléphone
+    if (req.method === 'GET') return json({ pub: e.pub, kind: e.kind }); // ordinateur : lit la clé (téléphone ou navigateur)
     if (req.method === 'PUT') {                                        // ordinateur : dépose la connexion chiffrée
       const body = await req.json().catch(() => null);
       if (!pairKey(body?.spub) || typeof body?.iv !== 'string' || body.iv.length > 32 || typeof body?.data !== 'string' || body.data.length > 16384) return json({ error: 'Données invalides' }, 400);
