@@ -1048,7 +1048,6 @@ export default {
   "Non partant": "Did not start",
   "Non précisé": "Not specified",
   "Non-respect du drapeau jaune": "Ignoring yellow flags",
-  "Inspirée des scores SPS / TMS de formula1dashboard.com.": "Inspired by formula1dashboard.com's SPS / TMS scores.",
   "Note de la saison": "Season rating",
   "Note de la saison (sur 100)": "Season rating (out of 100)",
   "Note face au coéquipier": "Rating vs teammate",

@@ -1139,9 +1139,10 @@ body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-selec
 .cal-list { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 6px; background: var(--panel); overflow: hidden; }
 .cal-month { padding: 7px 14px 5px; background: var(--panel-2); color: var(--muted); font: 700 11px/1.2 var(--font); letter-spacing: .1em; text-transform: uppercase; border-top: 1px solid var(--line); }
 .cal-month:first-child { border-top: 0; }
+.cal-group { margin-top: 4px; color: var(--muted); font: 700 12px/1.2 var(--font); letter-spacing: .1em; text-transform: uppercase; }
 .cal-row { border-top: 1px solid var(--line); scroll-margin-top: 80px; }
 .cal-month + .cal-row { border-top: 0; }
-.cal-row > summary { display: grid; grid-template-columns: 34px 28px minmax(0, 1fr) 120px 70px minmax(0, 300px) 16px; align-items: center; gap: 12px; padding: 9px 14px; cursor: pointer; list-style: none; }
+.cal-row > summary { display: grid; grid-template-columns: 34px 28px minmax(0, 1fr) 120px minmax(0, 330px) 16px; align-items: center; gap: 12px; padding: 9px 14px; cursor: pointer; list-style: none; }
 .cal-row > summary::-webkit-details-marker { display: none; }
 .cal-row > summary:hover { background: var(--hover); }
 .cal-num { display: grid; place-items: center; height: 26px; border-radius: 3px; background: var(--panel-3); color: var(--text-2); font: 800 15px/1 var(--font-cond, var(--font)); font-variant-numeric: tabular-nums; }
@@ -1154,6 +1155,13 @@ body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-selec
 .cal-date { color: var(--text-2); font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .cal-res { display: flex; align-items: center; gap: 6px; font-size: 12.5px; white-space: nowrap; overflow: hidden; }
 .cal-res .ic { color: #ffd166; flex: none; }
+.cal-out { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.cal-pole { display: inline-flex; align-items: center; gap: 6px; }
+.cal-grid { display: grid; grid-template-columns: repeat(3, auto); justify-content: start; align-items: center; gap: 5px 8px; font-size: 12.5px; white-space: nowrap; }
+.cal-grid > .ic { color: #ffd166; }
+.cal-grid > .muted { font-size: 11px; }
+.cal-grid > :is(.ic, .muted) { justify-self: center; }
+.cal-grid .sz-tag { margin: 0; text-align: center; }
 .cal-state { color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
 .cal-row.next .cal-state { color: var(--accent); }
 .cal-row.done > summary :is(.cal-name b, .cal-date) { color: var(--text-2); }
@@ -1167,8 +1175,8 @@ body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-selec
 }
 @media (max-width: 760px) {
   .cal-row > summary { grid-template-columns: 30px 26px minmax(0, 1fr) 16px; row-gap: 4px; }
-  .cal-row > summary :is(.cal-date, .cal-sprint, .cal-res, .cal-state) { grid-column: 3; }
-  .cal-row > summary .cal-sprint:empty { display: none; }
+  .cal-row > summary :is(.cal-date, .cal-out) { grid-column: 3; }
+  .cal-out .cal-res { flex-wrap: wrap; row-gap: 4px; }
   .cal-row-body { padding-left: 14px; }
   .cal-hero-name { font-size: 26px; }
 }
@@ -1373,7 +1381,15 @@ body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-selec
 .sz-team-btn.on { border-color: var(--tc); box-shadow: inset 0 0 0 1px var(--tc); background: color-mix(in srgb, var(--tc) 10%, var(--panel)); color: var(--text); }
 .sz-team-btn .team-logo, .sz-team-btn .drv-bar { flex: none; }
 .sz-team-btn .team-logo { width: 26px; height: 26px; }
-.sz-h2h-drivers { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 12px; }
+/* Choix (pilote, point de mesure, tri…) : la case des listes (plus bas), intitulé au-dessus de la valeur ; la
+   liste couvre toute la case (marges négatives) pour l'ouvrir d'où qu'on clique. Duel : A et B côte à côte, « VS » au milieu */
+:is(.sz-h2h-pick, .sz-h2h-drivers) label.small { display: flex; flex-direction: column; align-items: stretch; white-space: normal; min-width: 240px; max-width: 100%; padding: 8px 12px 0; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; color: var(--muted); font-size: 10.5px; line-height: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; transition: border-color .15s; }
+:is(.sz-h2h-pick, .sz-h2h-drivers) label:hover { border-color: var(--line-2); }
+:is(.sz-h2h-pick, .sz-h2h-drivers) label:focus-within { border-color: var(--accent); }
+:is(.sz-h2h-pick, .sz-h2h-drivers) label.small select:not([multiple]):not([size]):not(.x-native) { margin: -20px -12px 0; padding: 22px 12px 8px; background-color: transparent; background-position: right 12px center; border: 0; border-radius: 12px; color: var(--text); font-size: 15px; font-weight: 800; letter-spacing: 0; text-transform: none; }
+.sz-h2h-drivers { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 10px; max-width: 760px; margin-bottom: 12px; }
+.sz-h2h-drivers label.small { min-width: 0; }
+@media (max-width: 700px) { .sz-h2h-pick label.small { flex: 1 1 100%; min-width: 0; } }
 .sz-h2h-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; align-items: start; }
 .sz-h2h-layout .sz-h2h { max-width: none; }
 .sz-h2h-who { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
@@ -1606,8 +1622,8 @@ html[data-design="classic"] .rc-bar { display: none !important; }
 /* ---------- Listes déroulantes (voir js/ui/select.js) ---------- */
 select:not([multiple]):not([size]):not(.x-native) {
   appearance: none; -webkit-appearance: none;
-  background: var(--panel-3) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%239a9aa6' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 8px center / 10px 6px;
-  border: 1px solid var(--border); border-radius: 6px; color: var(--text);
+  background: var(--panel) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%239a9aa6' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 8px center / 10px 6px;
+  border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-weight: 700;
   padding-right: 26px !important;
   cursor: pointer; line-height: 1.35; transition: border-color .15s, background-color .15s;
 }
@@ -1615,6 +1631,19 @@ select:not([multiple]):not([size]):not(.x-native):hover { border-color: var(--li
 select:not([multiple]):not([size]):not(.x-native):focus-visible { outline: none; border-color: var(--accent); }
 select.csel-open:not(.x-native) { border-color: var(--accent); background-color: var(--panel-2); }
 select option { background: var(--panel-2); color: var(--text); }
+/* Liste avec intitulé (« Pilotes [Tous] ») : une seule case comme les cartes, intitulé en petites capitales, choix en
+   gras ; un clic sur l'intitulé ouvre aussi la liste (js/ui/select.js). Réglages : lignes à part (plus bas) */
+label.small:has(> select):where(:not(#settingsModal *)) {
+  display: inline-flex; align-items: center; max-width: 100%; padding-left: 10px; background: var(--panel);
+  border: 1px solid var(--border); border-radius: 8px; color: var(--muted); font-size: 10.5px; font-weight: 700;
+  letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; cursor: pointer; transition: border-color .15s;
+}
+label.small:has(> select):where(:not(#settingsModal *)):hover { border-color: var(--line-2); }
+label.small:has(> select):where(:not(#settingsModal *)):focus-within { border-color: var(--accent); }
+label.small:has(> select):where(:not(#settingsModal *)) > select:not([multiple]):not([size]):not(.x-native) {
+  display: block; min-width: 0; max-width: none; margin: 0; padding: 4px 8px; background-color: transparent; border: 0;
+  border-radius: 8px; color: var(--text); font-size: 12.5px; font-weight: 800; letter-spacing: 0; text-transform: none;
+}
 
 /* ---------- Champs de saisie : même allure partout (fond sombre, liseré, accent au focus) ----------
    Sélecteur sans poids (:where) : les champs qui ont leur propre style (délai, recherche…) le gardent */

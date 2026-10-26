@@ -306,26 +306,38 @@ function renderCalendar() {
       </div>
       ${calDays(next)}
     </section>` : '';
+  // Grands Prix à venir d'abord (dans l'ordre), puis ceux déjà courus, du plus récent au plus ancien
   let month = '';
-  const rows = data.races.map((r) => {
+  const row = (r) => {
     const m = fmtDate(r.date, { month: 'long' });
     const sep = m !== month ? `<div class="cal-month">${esc(m)}</div>` : '';
     month = m;
     const w = r.results[0];
     const pole = r.quali.find((q) => q.pos === 1) || r.quali[0];
     const state = done(r) ? 'done' : next?.round === r.round ? 'next' : 'future';
-    const right = w ? `<span class="cal-res">${icon('trophy')} ${chip(w)}${pole ? ` <span class="muted">pole</span> ${chip(pole)}` : ''}</span>`
-      : `<span class="cal-state">${state === 'next' ? 'Prochain' : 'À venir'}</span>`;
+    const poleOf = (d) => (d ? ` <span class="cal-pole"><span class="muted">pole</span> ${chip(d)}</span>` : '');
+    // Sprint : vainqueur et pole (1er sur la grille du sprint)
+    const sw = r.sprintResults[0], sp = r.sprintResults.find((x) => x.grid === 1);
+    const opt = (d) => (d ? chip(d) : '<span class="muted">—</span>');
+    const right = w && sw
+      // Week-end sprint couru : petit tableau, vainqueurs et poles alignés
+      ? `<span class="cal-grid"><span></span>${icon('trophy')}<span class="muted">pole</span>
+        <span class="sz-tag">Course</span>${chip(w)}${opt(pole)}<span class="sz-tag sprint">Sprint</span>${chip(sw)}${opt(sp)}</span>`
+      : `${w ? `<span class="cal-res">${icon('trophy')} ${chip(w)}${poleOf(pole)}</span>` : `<span class="cal-state">${state === 'next' ? 'Prochain' : 'À venir'}</span>`}${
+        r.sprint ? `<span class="cal-res"><span class="sz-tag sprint">Sprint</span>${sw ? ` ${chip(sw)}${poleOf(sp)}` : ''}</span>` : ''}`;
     return `${sep}<details class="cal-row ${state}">
       <summary><span class="cal-num">${r.round}</span>${flagOf(r)}<span class="cal-name"><b>${esc(gpShort(r.name, EN))}</b><small>${esc(r.circuit || '')}</small></span>
         <span class="cal-date">${calSpan(r)}</span>
-        <span class="cal-sprint">${r.sprint ? '<span class="sz-tag sprint">Sprint</span>' : ''}</span>${right}${icon('chevron-down', 'cal-chev')}</summary>
+        <span class="cal-out">${right}</span>${icon('chevron-down', 'cal-chev')}</summary>
       <div class="cal-row-body">${calDays(r)}${done(r) ? gpLink(r, 'Résultats du Grand Prix', 'btn small') : calIcs(r)}</div>
     </details>`;
-  }).join('');
+  };
+  const list = (races) => { month = ''; return races.length ? `<div class="cal-list">${races.map(row).join('')}</div>` : ''; };
+  const past = data.races.filter(done).reverse();
   return `<div class="cal">${hero}
     <div class="cal-progress"><span>Saison ${data.year} · <b>${ran} / ${data.races.length}</b> Grands Prix courus</span><div class="sz-progress"><i style="width:${data.races.length ? (ran / data.races.length) * 100 : 0}%"></i></div></div>
-    <div class="cal-list">${rows}</div>
+    ${list(data.races.filter((r) => !done(r)))}
+    ${past.length ? `<div class="cal-group">Grands Prix courus</div>${list(past)}` : ''}
     <p class="muted small"><a class="btn small" href="#" data-cal="${year}" title="Toutes les séances de la saison dans votre agenda (Google, Apple, Outlook), même Paddock Live fermé : abonnement mis à jour tout seul, ou fichier">${icon('calendar')} Ajouter toute la saison à mon agenda</a></p></div>`;
 }
 
@@ -391,6 +403,7 @@ function renderResults() {
 let h2hTeam = null;
 let h2hMode = 'team';     // 'team' (coéquipiers) | 'drivers' (pilote contre pilote)
 let h2hA = null, h2hB = null;
+let trKind = 'd';          // course au titre : 'd' (pilotes) | 'c' (constructeurs)
 
 // Écart en qualification entre les deux coéquipiers, manche par manche
 function qualiGapBox(g, A, B, ca) {
@@ -448,7 +461,7 @@ function renderH2H() {
   const mode = `<div class="tab-seg sz-h2h-mode"><button type="button" data-h2h-mode="team" class="${h2hMode === 'team' ? 'on' : ''}">Coéquipiers</button><button type="button" data-h2h-mode="drivers" class="${h2hMode === 'drivers' ? 'on' : ''}">Pilote contre pilote</button></div>`;
   const opts = (sel) => data.drivers.map((d) => `<option value="${esc(d.code)}" ${d.code === sel ? 'selected' : ''}>${esc(d.name || d.code)}</option>`).join('');
   const pick = h2hMode === 'drivers'
-    ? `<div class="sz-h2h-drivers"><label class="small">Pilote A <select id="szH2hA">${opts(h2hA)}</select></label><label class="small">Pilote B <select id="szH2hB">${opts(h2hB)}</select></label></div>`
+    ? `<div class="sz-h2h-drivers"><label class="small">Pilote A <select id="szH2hA">${opts(h2hA)}</select></label><span class="sz-vs">VS</span><label class="small">Pilote B <select id="szH2hB">${opts(h2hB)}</select></label></div>`
     : `<div class="sz-team-pick">${teams.map((t) => `<button type="button" class="sz-team-btn${t.id === h2hTeam ? ' on' : ''}" data-h2h-team="${esc(t.id)}" style="--tc:${color(t.name, t.id)}">${logoMark(t.name, t.id)}<span>${esc(t.name)}</span></button>`).join('')}</div>`;
   const top = `<div class="sz-h2h-pick">${mode}</div>${pick}`;
   if (!A || !B) return `${top}<div class="note">${h2hMode === 'drivers' ? 'Pas assez de données pour ces pilotes.' : 'Pas assez de données pour cette écurie.'}</div>`;
@@ -571,8 +584,10 @@ function renderTitle() {
   const left = tr.races ? `${t('{} courses', tr.races)}${tr.sprints ? ` ${t('et {} sprints', tr.sprints)}` : ''} ${t('à disputer')}` : t('Saison terminée');
   return `<div class="tr-intro sz-box"><div><div class="muted small">${t('Reste')}</div><div class="tr-big">${left}</div></div>
       <div><div class="muted small">${t('Points encore à prendre')}</div><div class="tr-big">${tr.maxD} <span class="muted small">${t('par pilote')}</span> · ${tr.maxC} <span class="muted small">${t('par écurie')}</span></div></div></div>
-    <section class="sz-box"><h3>${t('Championnat pilotes')}</h3>${head(tr.drivers, tr.champion, 'd')}${clinchBox(tr.clinchD, 'd')}<div class="tr-grid">${tr.drivers.map(driverCard).join('')}</div></section>
-    <section class="sz-box"><h3>${t('Championnat constructeurs')}</h3>${head(tr.constructors, tr.champTeam, 'c')}${clinchBox(tr.clinchC, 'c')}<div class="tr-grid">${tr.constructors.map(teamCard).join('')}</div></section>`;
+    <div class="sz-h2h-pick"><div class="tab-seg">${[['d', 'Championnat pilotes'], ['c', 'Championnat constructeurs']].map(([k, l]) => `<button type="button" data-tr-kind="${k}" class="${trKind === k ? 'on' : ''}">${t(l)}</button>`).join('')}</div></div>
+    ${trKind === 'd'
+    ? `<section class="sz-box"><h3>${t('Championnat pilotes')}</h3>${head(tr.drivers, tr.champion, 'd')}${clinchBox(tr.clinchD, 'd')}<div class="tr-grid">${tr.drivers.map(driverCard).join('')}</div></section>`
+    : `<section class="sz-box"><h3>${t('Championnat constructeurs')}</h3>${head(tr.constructors, tr.champTeam, 'c')}${clinchBox(tr.clinchC, 'c')}<div class="tr-grid">${tr.constructors.map(teamCard).join('')}</div></section>`}`;
 }
 
 // Explication en tête des vues qui n'en ont pas déjà une
@@ -687,6 +702,8 @@ export function initSeason() {
     if (rv && data) { reviewAction(rv.dataset.review, data); return; }
     const t = e.target.closest('[data-h2h-team]'), m = e.target.closest('[data-h2h-mode]');
     if (t) { h2hTeam = t.dataset.h2hTeam; render(); } else if (m) { h2hMode = m.dataset.h2hMode; render(); }
+    const k = e.target.closest('[data-tr-kind]');
+    if (k) { trKind = k.dataset.trKind; render(); }
   });
   $('#szContent').addEventListener('change', (e) => {
     const id = e.target.id;

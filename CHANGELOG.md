@@ -100,6 +100,12 @@ l'application (Réglages → À propos → Nouveautés).
 - Fiche de chaque Grand Prix : résultats de la course, sprint, qualifications (Q1, Q2, Q3) et arrêts aux stands
   les plus rapides, ou le programme du week-end avant la course. Touchez un Grand Prix dans Résultats & records,
   ou « Résultats du Grand Prix » dans le calendrier ; flèches vers le Grand Prix précédent et le suivant.
+- Calendrier : sous le prochain Grand Prix, les Grands Prix à venir d'abord, puis ceux déjà courus, du plus récent
+  au plus ancien ; week-ends sprint : vainqueur et pole de la course et du sprint dans un petit tableau.
+- Course au titre : deux onglets, « Championnat pilotes » et « Championnat constructeurs », au lieu de tout
+  descendre pour voir les écuries.
+- Listes de choix (pilote, duel pilote contre pilote, point de mesure, tri, Grand Prix) : intitulé au-dessus du choix,
+  toute la largeur sur téléphone ; en duel, pilote A et pilote B côte à côte, « VS » au milieu.
 
 ### Version web (app.paddocklive.app)
 - Chaque rubrique de la Saison a son adresse (par exemple app.paddocklive.app/saison/2026/pilotes/lando-norris/) :
@@ -133,6 +139,9 @@ l'application (Réglages → À propos → Nouveautés).
   plus sans fin.
 
 ### Divers
+- Listes de choix redessinées dans toute l'application et la version web : une case comme les cartes, intitulé en
+  petites capitales et choix en gras ; un clic sur l'intitulé ouvre aussi la liste. Dans la version web, sur
+  ordinateur, elles s'ouvrent sur le menu de Paddock Live au lieu de la liste bleue et blanche du navigateur.
 - Statistiques d'utilisation (si vous les avez acceptées) : les versions bêta les envoient aussi ; elles
   étaient jusqu'ici écartées sans rien dire.
 - Extension Paddock Live Companion 1.1.0 : elle donne aussi votre connexion F1 TV à la version web du direct

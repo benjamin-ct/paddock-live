@@ -245,7 +245,6 @@ export function renderRatings(ctx, sortBy = 'season') {
       <p><b>Note face au coéquipier (sur 100, 50 = à égalité)</b> : comparaison avec le coéquipier de chaque course.</p>
       <ul>${MATE_CRITERIA.map(([, w, l]) => `<li>${esc(l)} : <b>${w} %</b></li>`).join('')}</ul>
       <p class="small muted">Écart en qualification : médiane, dans la dernière partie disputée par les deux ; écarts de plus de 3 % ignorés. La voiture n'est pas prise en compte.</p>
-      <p class="small muted">Inspirée des scores SPS / TMS de formula1dashboard.com.</p>
     </section>`;
 }
 
