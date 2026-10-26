@@ -127,7 +127,8 @@ l'application (Réglages → À propos → Nouveautés).
   Agenda ou fichier du week-end.
 - Relier un appareil à sa connexion F1 TV : le message dit « Navigateur relié » quand le code vient d'un navigateur
   d'ordinateur, « Téléphone relié » quand il vient d'un téléphone.
-- Documents de la FIA (actualités, infos de la séance, Saison) : affichés dans la page au lieu d'être téléchargés.
+- Documents de la FIA (actualités, infos de la séance, limites de piste, Saison) : affichés dans la page au lieu
+  d'être téléchargés.
 
 ### Fiabilité et sécurité
 - Connexion F1 TV par l'extension Paddock Live Companion : les replays (archives de la F1) s'ouvrent comme avec la
@@ -153,6 +154,8 @@ l'application (Réglages → À propos → Nouveautés).
   ordinateur, elles s'ouvrent sur le menu de Paddock Live au lieu de la liste bleue et blanche du navigateur.
 - Listes de pilotes (duels, comparaison, pronostics, Saison…) : numéro et logo de l'écurie devant chaque nom, pour
   les reconnaître d'un coup d'œil (sur ordinateur).
+- Tous les documents de la FIA (PDF) s'ouvrent dans l'appli au lieu d'être téléchargés, y compris celui des temps
+  supprimés pour limites de piste.
 - Statistiques d'utilisation (si vous les avez acceptées) : les versions bêta les envoient aussi ; elles
   étaient jusqu'ici écartées sans rien dire.
 - Extension Paddock Live Companion 1.1.0 : elle donne aussi votre connexion F1 TV à la version web du direct
