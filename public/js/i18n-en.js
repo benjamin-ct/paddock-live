@@ -1281,6 +1281,7 @@ export default {
   "Réglage disponible uniquement sur l\\'ordinateur": "Setting only available on the computer",
   "réglage manuel": "manual setting",
   "Réglages": "Settings",
+  "Réglages du direct": "Live settings",
   "Réglages : compte F1 TV, apparence, disposition, alertes, application": "Settings: F1 TV account, appearance, layout, alerts, app",
   "Réglages : source, compte F1 TV, affichage, alertes, application": "Settings: source, F1 TV account, display, alerts, app",
   "Réglages mécaniques": "Mechanical setup",

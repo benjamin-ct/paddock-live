@@ -95,6 +95,8 @@ l'application (Réglages → À propos → Nouveautés).
   pilote, de 2018 à aujourd'hui ; pronostics entre amis dans un groupe en ligne. Sur téléphone, la barre du haut
   ne garde que la séance tant que la Saison est ouverte (délai et F1 TV reviennent avec le direct). Les statistiques tirées des
   archives des courses et les documents de la FIA restent pour l'instant dans l'appli.
+- Sur téléphone, les réglages du direct (délai TV, connexion F1 TV, météo et circuit, Saison, appli complète) sont
+  rangés derrière l'engrenage en haut à droite : la barre du haut ne garde que la séance et le chrono.
 
 ### Fiabilité et sécurité
 - Accès depuis le téléphone : un site ouvert sur l'ordinateur ne peut plus se faire passer pour l'ordinateur

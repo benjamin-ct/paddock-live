@@ -48,6 +48,7 @@
     /* Météo de la piste dans la barre du haut, comme l'appli (sur sa propre ligne sur téléphone) */
     .web .topbar .weather-mini { display: flex !important; }
     .web .season-view { left: 0 !important; }
+    .web #webMenuBtn { display: none; }
     /* Bouton Saison dans la barre du haut (l'appli l'a dans son menu latéral) */
     .web .topbar #seasonBtn { display: inline-flex !important; }
     .web .topbar #seasonBtn:not(.on) { border-color: rgba(255, 255, 255, .18); }
@@ -125,6 +126,11 @@
       .web .web-delay, .web #sourceBadge, .web .topbar > .btn { order: 5; }
       .web .web-delay { margin-right: auto; }
       .web .topbar .weather-mini { order: 4; flex-basis: 100%; max-height: none; gap: 14px; }
+      /* Réglages du direct (délai, F1 TV, état du serveur, Saison, appli, météo et circuit) derrière l'engrenage :
+         la barre du haut ne garde que la séance et le chrono */
+      .web #webMenuBtn { display: inline-flex; order: 1; margin-left: 2px; color: #fff; }   /* après l’état de la piste */
+      .web .topbar:not(.menu-open) > :is(.weather-mini, #circuitTimeBox, #surfaceBox, .web-delay, #pairBtn, #sourceBadge, #seasonBtn, a.btn) { display: none !important; }
+      .web .topbar.menu-open #webMenuBtn { background: rgba(255, 255, 255, .14); border-radius: 8px; }
       /* Espace Saison ouvert : la barre du haut ne garde que la séance (délai, F1 TV, chronos servent au direct) ;
          « Retour au direct » est dans le menu ☰ */
       .web body:has(#seasonView:not([hidden])) .topbar > :not(.session, .track-status) { display: none !important; }
@@ -142,6 +148,7 @@
       </div>
     </div>
     <div class="track-status" id="trackStatus"><span class="ts-dot"></span><span class="ts-label">—</span></div>
+    <button class="icon-btn" id="webMenuBtn" title="Réglages du direct" aria-label="Réglages du direct" aria-expanded="false"><svg class="ic" aria-hidden="true"><use href="#i-gear"/></svg></button>
     <div class="tb-break b1"></div>
     <div class="hstat lap-box"><div class="hstat-label" id="lapLabel">Tour</div><div class="hstat-value" id="lapValue">—</div><div class="lap-bar" id="lapBar" hidden><i></i></div></div>
     <div class="hstat" id="lapsLeftBox" hidden><div class="hstat-label">Tours restants</div><div class="hstat-value" id="lapsLeft">—</div></div>
