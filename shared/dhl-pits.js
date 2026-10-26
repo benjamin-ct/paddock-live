@@ -4,7 +4,7 @@
 // par les conditions d'utilisation de DHL (dhl.com → Terms of use).
 export const DHL_PAGE = 'https://inmotion.dhl/en/formula-1/fastest-pit-stop-award';
 
-const norm = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z]/g, '');
+const norm = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z]/g, '');
 const ENT = { amp: '&', quot: '"', apos: "'", nbsp: ' ' };
 const text = (s) => s.replace(/<[^>]+>/g, '')
   .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))

@@ -312,14 +312,14 @@ export const GUIDES = [
 
 // Textes de la page dans chaque langue (les pages anglaises renvoient vers l'accueil anglais, /en/)
 const UI = {
-  fr: { home: '/', season: '/saison/', seasonName: 'Saison de F1', dl: 'Télécharger', cta: 'Télécharger Paddock Live gratuitement', os: 'Windows, macOS et Linux', faq: 'Questions fréquentes', more: 'Aussi dans Paddock Live', all: 'Toutes les fonctions', terms: 'Conditions d\'utilisation', privacy: 'Confidentialité', locale: 'fr_FR',
+  fr: { home: '/', season: 'https://app.paddocklive.app/saison/', seasonName: 'Saison de F1', dl: 'Télécharger', cta: 'Télécharger Paddock Live gratuitement', os: 'Windows, macOS et Linux', faq: 'Questions fréquentes', more: 'Aussi dans Paddock Live', all: 'Toutes les fonctions', terms: 'Conditions d\'utilisation', privacy: 'Confidentialité', locale: 'fr_FR',
     legal: 'Paddock Live est un projet indépendant, sans lien avec la Formula 1, la FIA ni les écuries. F1, FORMULA 1 et les marques associées appartiennent à Formula One Licensing B.V.' },
-  en: { home: '/en/', season: '/en/season/', seasonName: 'F1 season', dl: 'Download', cta: 'Download Paddock Live for free', os: 'Windows, macOS and Linux', faq: 'Frequently asked questions', more: 'Also in Paddock Live', all: 'All features', terms: 'Terms of Service', privacy: 'Privacy', locale: 'en_US',
+  en: { home: '/en/', season: 'https://app.paddocklive.app/saison/', seasonName: 'F1 season', dl: 'Download', cta: 'Download Paddock Live for free', os: 'Windows, macOS and Linux', faq: 'Frequently asked questions', more: 'Also in Paddock Live', all: 'All features', terms: 'Terms of Service', privacy: 'Privacy', locale: 'en_US',
     legal: 'Paddock Live is an independent project, not affiliated with Formula 1, the FIA or the teams. F1, FORMULA 1 and related marks are trademarks of Formula One Licensing B.V.' },
 };
 
-// Style des pages du site écrites ici et par le serveur (pages de la Saison, analytics/season-pages.js)
-export const PAGE_STYLE = `@font-face { font-family: 'Titillium Web'; font-weight: 400; font-display: swap; src: url('/fonts/titillium-400.woff2') format('woff2'); }
+// Style des pages du site écrites ici
+const PAGE_STYLE = `@font-face { font-family: 'Titillium Web'; font-weight: 400; font-display: swap; src: url('/fonts/titillium-400.woff2') format('woff2'); }
 @font-face { font-family: 'Titillium Web'; font-weight: 700; font-display: swap; src: url('/fonts/titillium-700.woff2') format('woff2'); }
 @font-face { font-family: 'Saira Condensed'; font-weight: 800; font-display: swap; src: url('/fonts/sairacondensed-800.woff2') format('woff2'); }
 :root { color-scheme: dark; --bg: #0b0c0f; --card: #15171c; --line: rgba(255, 255, 255, .08); --line-2: rgba(255, 255, 255, .15); --text: #f2f1ee; --text-2: #c8c7c1; --muted: #8f8d87; --red: #e10600; }

@@ -38,7 +38,8 @@ export function renderHeader() {
       ? [info.Meeting?.Circuit?.ShortName, info.Meeting?.Country?.Name, status ? SESSION_STATUS_FR[status] || status : null].filter(Boolean).join(' · ')
       : '';
     // Fenêtres secondaires : leur titre est la liste de leurs panneaux (layout.js), pas la séance
-    if (!POPOUT) document.title = info ? `Paddock Live · ${info.Meeting?.Name || ''} ${info.Name || ''}` : 'Paddock Live';
+    // Saison ouverte à son adresse (version web) : l'onglet garde le titre de la rubrique
+    if (!POPOUT && !document.documentElement.dataset.seasonTitle) document.title = info ? `Paddock Live · ${info.Meeting?.Name || ''} ${info.Name || ''}` : 'Paddock Live';
 
     // Drapeau / état de piste
     const ts = $('#trackStatus');
@@ -142,7 +143,7 @@ function renderUpcoming(nx) {
     sn.title = gpFull(nx.race, EN);
     const day = (t, o) => new Date(t).toLocaleDateString(LOCALE, o);
     $('#sessionSub').textContent = [nx.locality, nx.country, `${day(nx.first, { day: 'numeric' })}–${day(nx.raceT, { day: 'numeric', month: 'long' })}`].filter(Boolean).join(' · ');
-    if (!POPOUT) document.title = `Paddock Live · ${nx.race}`;
+    if (!POPOUT && !document.documentElement.dataset.seasonTitle) document.title = `Paddock Live · ${nx.race}`;
     const ts = $('#trackStatus');
     ts.className = 'track-status none';
     ts.querySelector('.ts-label').textContent = 'À venir';
