@@ -176,6 +176,27 @@ test('version web : son des radios relayé par le relais du visiteur (séance en
   }
 });
 
+test('version web : PDF de la FIA relayé pour être affiché (pas téléchargé), seulement ceux de fia.com', async () => {
+  const asked = [];
+  const realFetch = globalThis.fetch;
+  globalThis.caches = { default: { match: async () => null, put: async () => {} } };
+  globalThis.fetch = async (u) => { asked.push(String(u)); return new Response(String(u).includes('pas-pdf') ? '<html>' : '%PDF-1.7 ...', { status: 200 }); };
+  try {
+    const get = (u) => { const url = new URL(`https://app.test/live/api/fia-pdf?${new URLSearchParams({ url: u })}`); return liveApi(new Request(url), url, {}); };
+    const r = await get('https://www.fia.com/system/files/decision-document/2026_mexico_-_car_14.pdf');
+    assert.equal(r.status, 200);
+    assert.equal(r.headers.get('Content-Type'), 'application/pdf');
+    assert.match(r.headers.get('Content-Disposition'), /^inline; filename="2026_mexico_-_car_14\.pdf"$/);
+    assert.equal(await r.text(), '%PDF-1.7 ...');
+    for (const bad of ['https://autre.site/system/files/x.pdf', 'http://www.fia.com/system/files/x.pdf', 'https://www.fia.com/documents/x.pdf', 'https://www.fia.com/system/files/x.html']) assert.equal((await get(bad)).status, 400);
+    assert.equal(asked.length, 1);
+    assert.equal((await get('https://www.fia.com/system/files/pas-pdf.pdf')).status, 502);
+  } finally {
+    globalThis.fetch = realFetch;
+    delete globalThis.caches;
+  }
+});
+
 test('relais web : séance en cours pour la page du créateur, sans rallumer le relais sur un appel public', async () => {
   const relay = new LiveRelay({}, {});
   const t0 = 1e12;
