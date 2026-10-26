@@ -100,6 +100,10 @@ l'application (Réglages → À propos → Nouveautés).
 - Fiche de chaque Grand Prix : résultats de la course, sprint, qualifications (Q1, Q2, Q3) et arrêts aux stands
   les plus rapides, ou le programme du week-end avant la course. Touchez un Grand Prix dans Résultats & records,
   ou « Résultats du Grand Prix » dans le calendrier ; flèches vers le Grand Prix précédent et le suivant.
+- Calendrier : sous le prochain Grand Prix, les Grands Prix à venir d'abord, puis ceux déjà courus, du plus récent
+  au plus ancien.
+- Listes de choix (pilote, duel pilote contre pilote, point de mesure, tri) plus lisibles : intitulé au-dessus et toute
+  la largeur sur téléphone ; en duel, pilote A et pilote B côte à côte, « VS » au milieu.
 
 ### Version web (app.paddocklive.app)
 - Chaque rubrique de la Saison a son adresse (par exemple app.paddocklive.app/saison/2026/pilotes/lando-norris/) :

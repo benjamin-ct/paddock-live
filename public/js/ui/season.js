@@ -306,8 +306,9 @@ function renderCalendar() {
       </div>
       ${calDays(next)}
     </section>` : '';
+  // Grands Prix à venir d'abord (dans l'ordre), puis ceux déjà courus, du plus récent au plus ancien
   let month = '';
-  const rows = data.races.map((r) => {
+  const row = (r) => {
     const m = fmtDate(r.date, { month: 'long' });
     const sep = m !== month ? `<div class="cal-month">${esc(m)}</div>` : '';
     month = m;
@@ -322,10 +323,13 @@ function renderCalendar() {
         <span class="cal-sprint">${r.sprint ? '<span class="sz-tag sprint">Sprint</span>' : ''}</span>${right}${icon('chevron-down', 'cal-chev')}</summary>
       <div class="cal-row-body">${calDays(r)}${done(r) ? gpLink(r, 'Résultats du Grand Prix', 'btn small') : calIcs(r)}</div>
     </details>`;
-  }).join('');
+  };
+  const list = (races) => { month = ''; return races.length ? `<div class="cal-list">${races.map(row).join('')}</div>` : ''; };
+  const past = data.races.filter(done).reverse();
   return `<div class="cal">${hero}
     <div class="cal-progress"><span>Saison ${data.year} · <b>${ran} / ${data.races.length}</b> Grands Prix courus</span><div class="sz-progress"><i style="width:${data.races.length ? (ran / data.races.length) * 100 : 0}%"></i></div></div>
-    <div class="cal-list">${rows}</div>
+    ${list(data.races.filter((r) => !done(r)))}
+    ${past.length ? `<div class="cal-group">Grands Prix courus</div>${list(past)}` : ''}
     <p class="muted small"><a class="btn small" href="#" data-cal="${year}" title="Toutes les séances de la saison dans votre agenda (Google, Apple, Outlook), même Paddock Live fermé : abonnement mis à jour tout seul, ou fichier">${icon('calendar')} Ajouter toute la saison à mon agenda</a></p></div>`;
 }
 
@@ -448,7 +452,7 @@ function renderH2H() {
   const mode = `<div class="tab-seg sz-h2h-mode"><button type="button" data-h2h-mode="team" class="${h2hMode === 'team' ? 'on' : ''}">Coéquipiers</button><button type="button" data-h2h-mode="drivers" class="${h2hMode === 'drivers' ? 'on' : ''}">Pilote contre pilote</button></div>`;
   const opts = (sel) => data.drivers.map((d) => `<option value="${esc(d.code)}" ${d.code === sel ? 'selected' : ''}>${esc(d.name || d.code)}</option>`).join('');
   const pick = h2hMode === 'drivers'
-    ? `<div class="sz-h2h-drivers"><label class="small">Pilote A <select id="szH2hA">${opts(h2hA)}</select></label><label class="small">Pilote B <select id="szH2hB">${opts(h2hB)}</select></label></div>`
+    ? `<div class="sz-h2h-drivers"><label class="small">Pilote A <select id="szH2hA">${opts(h2hA)}</select></label><span class="sz-vs">VS</span><label class="small">Pilote B <select id="szH2hB">${opts(h2hB)}</select></label></div>`
     : `<div class="sz-team-pick">${teams.map((t) => `<button type="button" class="sz-team-btn${t.id === h2hTeam ? ' on' : ''}" data-h2h-team="${esc(t.id)}" style="--tc:${color(t.name, t.id)}">${logoMark(t.name, t.id)}<span>${esc(t.name)}</span></button>`).join('')}</div>`;
   const top = `<div class="sz-h2h-pick">${mode}</div>${pick}`;
   if (!A || !B) return `${top}<div class="note">${h2hMode === 'drivers' ? 'Pas assez de données pour ces pilotes.' : 'Pas assez de données pour cette écurie.'}</div>`;
