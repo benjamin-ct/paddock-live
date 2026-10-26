@@ -69,7 +69,7 @@ jobs:
           [ -n "$CLOUDFLARE_API_TOKEN" ] || { echo "::error::Secret CLOUDFLARE_API_TOKEN manquant"; exit 1; }
           [ -n "$STATS_KEY" ] || { echo "::error::Secret STATS_KEY manquant"; exit 1; }
           [ -n "$CLOUDFLARE_ACCOUNT_ID" ] || unset CLOUDFLARE_ACCOUNT_ID
-      - name: Dépendances du Worker (lecture des PDF de la FIA : unpdf)
+      - name: Dépendances du Worker (unpdf, lecture des PDF de la FIA)
         working-directory: .
         run: npm ci --omit=dev --ignore-scripts
       - name: Fichiers statiques (page web du créateur, code partagé, polices)
