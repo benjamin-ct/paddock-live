@@ -14,6 +14,8 @@ import { renderRcm, initRcmFilters, initStewards, renderStewards } from './ui/fe
 import { renderRadios, initRadios } from './ui/radios.js';
 import { renderTelemetry } from './ui/extra.js';
 import { initNoLive } from './ui/home.js';
+import { initSeason, closeSeason } from './ui/season.js';
+import './ui/calendar-menu.js';   // « Ajouter à mon agenda » (Saison)
 
 translatePage();
 // GPS et télémétrie : texte compressé (deflate brut, base64) du flux F1
@@ -260,6 +262,20 @@ safe(initStewards);
 safe(initRadios);
 // Pas de séance en direct : prochaine séance et compte à rebours, comme l'appli
 safe(initNoLive);
+// Espace Saison de l'appli (calendrier, classements, résultats…), d'après la saison gardée par le serveur
+safe(initSeason);
+// Téléphone : réglages du direct derrière l'engrenage. Hauteur de la barre changée (réglages ouverts, police
+// chargée) : écran « Pas de séance en direct » replacé dessous
+const topbar = document.querySelector('.topbar');
+new ResizeObserver(() => dispatchEvent(new Event('resize'))).observe(topbar);
+const webMenu = (open) => {
+  topbar.classList.toggle('menu-open', open);
+  document.querySelector('#webMenuBtn').setAttribute('aria-expanded', String(open));
+};
+document.querySelector('#webMenuBtn').addEventListener('click', () => webMenu(!topbar.classList.contains('menu-open')));
+document.querySelector('#seasonBtn').addEventListener('click', () => webMenu(false));
+// Saison ouverte : toucher la séance en haut revient au direct
+document.querySelector('.topbar .session').addEventListener('click', () => { if (!document.querySelector('#seasonView').hidden) closeSeason(); });
 // Panneau Analyse : seulement la télémétrie du pilote suivi
 document.querySelector('.p-analysis [data-tab="telemetry"]')?.click();
 on('status', renderSource);

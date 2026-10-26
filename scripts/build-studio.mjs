@@ -130,6 +130,11 @@ const livePage = fs.readFileSync(path.join(LIVE_PAGE, 'index.html'), 'utf8').rep
   const m = appPage.match(new RegExp(`<section class="panel p-${id}">[\\s\\S]*?</section>`));
   if (!m) throw new Error(`public/index.html : panneau ${id} introuvable`);
   return toLive(m[0]);
+}).replace('<!--season-->', () => {
+  // Espace Saison de l'appli : menu des rubriques, contenu rempli par ui/season.js
+  const m = appPage.match(/<div class="season-view" id="seasonView"[\s\S]*?<div class="sz-main" id="szContent"><\/div>\s*<\/div>/);
+  if (!m) throw new Error('public/index.html : espace Saison introuvable');
+  return toLive(m[0]);
 });
 fs.writeFileSync(path.join(LIVE, 'index.html'), livePage);
 // Modules de la page : tous présents (un import manquant bloquerait toute la page)

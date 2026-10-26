@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { pronosApi } from '../analytics/pronos.js';
+import { liveApi } from '../analytics/live-relay.js';
 
 // Base D1 réduite aux requêtes des pronostics en ligne (et à la saison gardée)
 function fakeD1(seasonV) {
@@ -122,4 +123,18 @@ test('pronostics en ligne : suppression du groupe par son créateur (ou son seul
   const s = await call(env, 'POST', '/p/api/seulxxxxxx', { year: 2026, round: 18, name: 'Sam', p1: 'VER' }, now);
   assert.equal((await call(env, 'DELETE', '/p/api/seulxxxxxx', {}, now)).status, 403);
   assert.equal((await call(env, 'DELETE', '/p/api/seulxxxxxx', { tok: s.tok }, now)).status, 200);
+});
+
+test('pronostics depuis la version web : groupe en ligne relayé comme par l\'appli, pas de pronostics gardés sur l\'appareil', async () => {
+  const env = { DB: fakeD1({ drivers: [], races: [] }) };
+  const web = (method, q, body) => { const url = new URL(`https://app.paddocklive.app/live/api/predictions/online${q}`); return liveApi(new Request(url, { method, ...(body ? { body: JSON.stringify(body) } : {}) }), url, env).then(async (r) => ({ status: r.status, ...(await r.json()) })); };
+  const g = await web('POST', '', { name: 'Bureau' });
+  assert.match(g.id, /^[a-z0-9]{10}$/);
+  assert.ok(g.admin);
+  const v = await web('GET', `?g=${g.id}&year=&tok=`);
+  assert.equal(v.status, 200);
+  assert.equal(v.group.name, 'Bureau');
+  assert.equal((await web('GET', '?g=../x')).status, 400);
+  const local = new URL('https://app.paddocklive.app/live/api/predictions?year=2026');
+  assert.deepEqual(await (await liveApi(new Request(local), local, env)).json(), { online: true });
 });

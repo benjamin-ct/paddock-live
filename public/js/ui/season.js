@@ -67,10 +67,14 @@ async function loadFia() {
   try {
     const f = await api(`/api/season/fia?year=${y}`);
     if (y !== year) return;
+    const same = fia?.year === f.year && fia.done === f.done && fia.total === f.total && fia.pending === f.pending && !fia.error;
     fia = f;
     if (f.pending) fiaTimer = setTimeout(loadFia, 3000);
+    if (same) return;   // relecture pendant la lecture des documents : rien de nouveau, rien de redessiné
   } catch (err) {
-    if (y === year) fia = { year: y, error: err.message, events: [] };
+    const lost = err instanceof TypeError;   // réseau coupé (« Load failed ») : nouvel essai
+    if (y === year) fia = { year: y, error: lost ? 'connexion perdue, nouvel essai dans 10 s' : err.message, events: [] };
+    if (lost) fiaTimer = setTimeout(loadFia, 10000);
   }
   if (FIA_SECTIONS.has(section) && !$('#seasonView').hidden) render();
 }
@@ -82,10 +86,14 @@ async function loadStats() {
   try {
     const s = await api(`/api/season/stats?year=${y}`);
     if (y !== year) return;
+    const same = stats?.year === s.year && stats.done === s.done && stats.total === s.total && stats.pending === s.pending && !stats.error;
     stats = s;
     if (s.pending) statsTimer = setTimeout(loadStats, 3000);
+    if (same) return;   // relecture pendant l'analyse : rien de nouveau, rien de redessiné (tableaux laissés où ils sont)
   } catch (err) {
-    if (y === year) stats = { error: err.message, races: [] };
+    const lost = err instanceof TypeError;   // réseau coupé : nouvel essai
+    if (y === year) stats = { error: lost ? 'connexion perdue, nouvel essai dans 10 s' : err.message, races: [] };
+    if (lost) statsTimer = setTimeout(loadStats, 10000);
   }
   if (STATS_SECTIONS.has(section) && !$('#seasonView').hidden) render();
 }
@@ -511,6 +519,7 @@ function renderTitle() {
 function render() {
   if (!data) return;
   for (const b of document.querySelectorAll('#szNav [data-sz]')) b.classList.toggle('active', b.dataset.sz === section);
+  if ($('#szCur')) $('#szCur').textContent = $('#szNav .active')?.textContent.trim() || '';
   const st = stats?.year === data.year || stats?.error ? stats : null;
   const ctx = { data, stats: st, color, bar, official: (id) => OFFICIAL[id] || '8b95a8', ratings: ratingsFor(data, st), prev: prev?.year === data.year - 1 ? prev : null };
   if (section === 'drivers') loadPrev();
@@ -521,7 +530,11 @@ function render() {
     speeds: () => renderSpeeds(ctx, speedPt), circuits: () => renderCircuits(ctx, circSort), ratings: () => renderRatings(ctx, rateSort),
     tech: () => renderTech(ctx, fiaData), elements: () => renderElements(ctx, fiaData), predict: () => renderPredict(data.year), review: () => renderReview(ctx),
   }[section]();
+  // Tableaux larges : défilement de côté gardé quand la rubrique est redessinée (nouvelle course analysée…)
+  const wide = () => $('#szContent').querySelectorAll('.sz-box, .sz-scroll');
+  const scrolls = jump ? [] : [...wide()].map((e) => e.scrollLeft);
   $('#szContent').innerHTML = `${data.stale ? '<div class="note small">Hors ligne : dernières données enregistrées.</div>' : ''}${html}`;
+  wide().forEach((e, i) => { if (scrolls[i]) e.scrollLeft = scrolls[i]; });
   tick();
   if (section === 'tech' && fiaData) translateTechDetail(ctx, fiaData);
   if (jump) {
@@ -556,11 +569,11 @@ export function openSeason(sec, y) {
   if (sec) section = sec;
   if (y && y !== year) { year = y; data = null; stats = null; fia = null; $('#szYear').value = String(y); }
   jump = true;
-  import('./news.js').then((m) => m.closeNews());
+  if ($('#newsView')) import('./news.js').then((m) => m.closeNews());   // pas d'Actu dans la version web
   import('./home.js').then((m) => { m.homeTouched(); m.closeHome(); });
   import('./replays.js').then((m) => m.closeReplays());
-  placeView($('#seasonView'));
   $('#seasonView').hidden = false;
+  placeView($('#seasonView'));   // après l'affichage : la barre du haut peut s'alléger (version web sur téléphone)
   animate();
   $('#seasonBtn').classList.add('on');
   load();
@@ -569,7 +582,14 @@ export function openSeason(sec, y) {
   timer = setInterval(tick, 1000);
 }
 
+// Téléphone : panneau des rubriques, ouvert sur la gauche par le bouton ☰
+function szMenu(open) {
+  $('#seasonView').classList.toggle('sz-open', open);
+  $('#szMenu')?.setAttribute('aria-expanded', String(open));
+}
+
 export function closeSeason() {
+  szMenu(false);
   $('#seasonView').hidden = true;
   $('#seasonBtn').classList.remove('on');
   clearInterval(timer);
@@ -583,7 +603,9 @@ export function initSeason() {
   sel.addEventListener('change', () => { year = Number(sel.value); data = null; stats = null; fia = null; clearTimeout(statsTimer); clearTimeout(fiaTimer); setTechFilter(null, 'all'); load(); });
   $('#seasonBtn').addEventListener('click', () => ($('#seasonView').hidden ? openSeason() : closeSeason()));
   $('#szClose').addEventListener('click', closeSeason);
-  $('#szNav').addEventListener('click', (e) => { const b = e.target.closest('[data-sz]'); if (b) { section = b.dataset.sz; jump = true; animate(); render(); } });
+  $('#szNav').addEventListener('click', (e) => { const b = e.target.closest('[data-sz]'); if (b) { section = b.dataset.sz; jump = true; szMenu(false); animate(); render(); } });
+  $('#szMenu')?.addEventListener('click', () => szMenu(true));
+  $('#szScrim')?.addEventListener('click', () => szMenu(false));
   $('#szContent').addEventListener('click', (e) => {
     const b = e.target.closest('[data-szgo]');
     if (b) { section = b.dataset.szgo; jump = true; animate(); render(); return; }
@@ -606,5 +628,5 @@ export function initSeason() {
     else return;
     render();
   });
-  window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('#seasonView').hidden && !document.querySelector('dialog[open]')) closeSeason(); });
+  window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('#seasonView').hidden && !document.querySelector('dialog[open]')) { if ($('#seasonView').classList.contains('sz-open')) szMenu(false); else closeSeason(); } });
 }

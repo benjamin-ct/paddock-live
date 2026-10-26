@@ -11,6 +11,8 @@ import { seasonRow } from './studio.js';
 import { cachedRadio, transcribeRadio, audioHash, MAX_AUDIO } from './transcribe.js';
 import { cleanRequest, translateBatch } from './translate.js';
 import { callerIp, ipQuota } from './quota.js';
+import { pronosApi, GROUP_RE } from './pronos.js';
+import { buildIcs } from '../shared/ics.js';
 import { WEB_HIST_MS } from '../shared/live-delay.js';
 
 const BASE = 'https://livetiming.formula1.com/signalrcore';
@@ -507,12 +509,33 @@ export async function liveApi(req, url, env = {}) {
     const races = row.v.races.map((r) => ({ round: r.round, name: r.name, locality: r.locality, country: r.country, circuitId: r.circuitId, lat: r.lat, lon: r.lon, sessions: r.sessions }));
     return json({ year, races }, 200, { 'Cache-Control': 'public, max-age=600' });
   }
-  // Saison complète (résultats, classements) : écran « Pas de séance en direct », même forme que /api/season
+  // Saison complète (résultats, classements) : écran « Pas de séance en direct » et espace Saison, même forme que
+  // /api/season (avec l'année), depuis 2018 ; une saison finie n'est relue chez Jolpica qu'une fois par semaine
   if (url.pathname === '/live/api/season' && req.method === 'GET') {
     const year = Number(url.searchParams.get('year')), now = new Date().getUTCFullYear();
-    if (!env.DB || ![now, now - 1].includes(year)) return json({ error: 'Année invalide' }, 400);
-    const row = await seasonRow(env, year).catch(() => null);
-    return row ? json(row.v, 200, { 'Cache-Control': 'public, max-age=600' }) : json({ error: 'Saison indisponible' }, 503);
+    if (!env.DB || !Number.isInteger(year) || year < 2018 || year > now) return json({ error: 'Année invalide' }, 400);
+    const row = await seasonRow(env, year, year < now ? { maxAge: 7 * 86400e3 } : {}).catch((err) => ({ err }));
+    return row.v ? json({ year, ...row.v }, 200, { 'Cache-Control': 'public, max-age=600' }) : json({ error: `Saison indisponible (${row.err?.message || row.err})` }, 503);
+  }
+  // Séances dans son agenda (bouton « Ajouter à mon agenda ») : fichier .ics d'un week-end ou de la saison, comme l'appli
+  if (url.pathname === '/live/api/calendar.ics' && req.method === 'GET') {
+    const year = Number(url.searchParams.get('year')), now = new Date().getUTCFullYear(), round = Number(url.searchParams.get('round')) || null;
+    if (!env.DB || !Number.isInteger(year) || year < 2018 || year > now) return json({ error: 'Année invalide' }, 400);
+    const row = await seasonRow(env, year, year < now ? { maxAge: 7 * 86400e3 } : {}).catch(() => null);
+    if (!row) return json({ error: 'Calendrier indisponible' }, 503);
+    const alarm = Math.max(0, Math.min(120, Number(url.searchParams.get('alarm') ?? 15) || 0));
+    return new Response(buildIcs(row.v.races, { year, round, alarmMin: alarm, lang: url.searchParams.get('lang') === 'en' ? 'en' : 'fr' }), {
+      headers: { 'Content-Type': 'text/calendar; charset=utf-8', 'Content-Disposition': `attachment; filename="f1-${year}${round ? `-manche-${round}` : ''}.ics"`, 'Cache-Control': 'no-store' },
+    });
+  }
+  // Pronostics entre amis : la version web joue seulement dans un groupe en ligne (pages /p/), relayé comme par l'appli
+  if (url.pathname === '/live/api/predictions' && req.method === 'GET') return json({ online: true });   // pas de pronostics gardés sur l'appareil
+  if (url.pathname === '/live/api/predictions/online' && env.DB) {
+    let g = url.searchParams.get('g') || '', body;
+    if (req.method !== 'GET') { const { g: id, ...rest } = (await req.json().catch(() => null)) || {}; g = id || (req.method === 'POST' ? 'new' : ''); body = JSON.stringify(rest); }
+    if (g !== 'new' && !GROUP_RE.test(g)) return json({ error: 'Groupe inconnu' }, 400);
+    const p = new URL(`/p/api/${g}${req.method === 'GET' ? `?${new URLSearchParams({ year: url.searchParams.get('year') || '', tok: url.searchParams.get('tok') || '' })}` : ''}`, url);
+    return pronosApi(new Request(p, { method: req.method, headers: { 'CF-Connecting-IP': req.headers.get('CF-Connecting-IP') || '' }, body }), env, p);
   }
   // Dernier état connu du relais commun, sans le rallumer (un appel public ne doit pas ouvrir de connexion à la F1)
   if (url.pathname === '/live/api/session' && req.method === 'GET') return json(await liveSession(env).catch(() => null));
