@@ -49,8 +49,13 @@ async function kept(env, year) {
   }
   return out;
 }
-// Épreuve à lire (jamais lue), à relire (documents récents, ou traductions pas toutes faites) ou à revoir (sans documents)
-const due = (e, now) => !e || (e.data ? (now - e.data.last < RECENT || (e.data.tech?.length && !e.data.trDone)) && now - e.at > REREAD : now - e.at > EMPTY);
+// Épreuve à lire (jamais lue), à reprendre après une erreur (5 min, puis de plus en plus espacé ; les PDF déjà lus
+// sont gardés, chaque essai avance), à relire (documents récents, ou traductions pas toutes faites) ou à revoir
+// (sans documents)
+const due = (e, now) => !e
+  || (e.error ? now - e.at > Math.min(EMPTY, 5 * 60e3 * 2 ** ((e.fails || 1) - 1))
+    : e.data ? (now - e.data.last < RECENT || (e.data.tech?.length && !e.data.trDone)) && now - e.at > REREAD
+      : !e.empty || now - e.at > EMPTY);   // vide sans « empty » : lecture d'avant, peut-être ratée, refaite
 
 // Évolutions techniques en français, traduites par le serveur (même traduction que les radios, gardée pour tous) :
 // la version web n'a rien à traduire elle-même. Mêmes textes que la page (pièce, géométrie, description)
@@ -85,7 +90,10 @@ export async function fiaNext(env, year, { now = Date.now(), fetchFn = fetch, tr
     data.tr = { ...kept, ...(todo.length ? await translate(todo).catch(() => ({})) : {}) };
     data.trDone = texts.every((t) => data.tr[t]);
   }
-  await setRow(env, `fiatech:${year}:${await sha(ev.page)}`, JSON.stringify({ v: FIA_VERSION, page: ev.page, at: now, data: data && { ...data, at: now } }));
+  // Erreur : la lecture précédente est gardée en attendant le nouvel essai
+  const prev = have.get(ev.page);
+  const row = error ? { v: FIA_VERSION, page: ev.page, at: now, data: prev?.data || null, error, fails: (prev?.fails || 0) + 1 } : { v: FIA_VERSION, page: ev.page, at: now, data: data && { ...data, at: now }, empty: !data };
+  await setRow(env, `fiatech:${year}:${await sha(ev.page)}`, JSON.stringify(row));
   await setRow(env, `fialock:${year}`, '0');
   return { event: ev.name, ...(error ? { error } : {}) };
 }
@@ -110,7 +118,9 @@ export async function seasonFiaWeb(env, year, { now = Date.now() } = {}) {
   const pending = !events || events.some((e) => !have.has(e.page));
   if (pending && now - Number(await getRow(env, `fiawant:${year}`) || 0) > 10 * 60e3) await setRow(env, `fiawant:${year}`, String(now));
   const list = [...have.values()].map((e) => e.data).filter(Boolean).sort((a, b) => a.first - b.first);
-  return { year, pending, done: have.size, total: events?.length || have.size, events: list };
+  // failed : épreuves pas lues pour l'instant et la raison (nouvel essai automatique)
+  const failed = [...have.values()].filter((e) => e.error).map((e) => ({ page: e.page, error: e.error, fails: e.fails }));
+  return { year, pending: pending || failed.length > 0, done: have.size - failed.length, total: events?.length || have.size, events: list, failed };
 }
 
 // /live/api/translations : traductions des textes FIA faites par le serveur, sous la forme lue par la page

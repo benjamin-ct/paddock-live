@@ -123,6 +123,16 @@ test('version web : documents FIA lus par le serveur, une épreuve à la fois, �
   assert.equal(out.events[0].tech, null);
   // Documents de moins de 4 jours : l'épreuve est relue une heure plus tard
   assert.deepEqual(await fiaTick(env, { now: now + 2 * 3600e3, fetchFn }), { year: 2026, event: 'United States Grand Prix' });
+
+  // fia.com en panne pendant une relecture : raison gardée (lecture d'avant aussi), nouvel essai 5 minutes plus tard
+  const down = async () => new Response('', { status: 503 });
+  const t2 = now + 4 * 3600e3;
+  assert.match((await fiaTick(env, { now: t2, fetchFn: down })).error, /HTTP 503/);
+  const mid = await seasonFiaWeb(env, 2026, { now: t2 });
+  assert.deepEqual([mid.events.length, mid.failed.length, mid.pending], [1, 1, true]);
+  assert.equal(await fiaTick(env, { now: t2 + 60e3, fetchFn }), null);
+  assert.deepEqual(await fiaTick(env, { now: t2 + 6 * 60e3, fetchFn }), { year: 2026, event: 'United States Grand Prix' });
+  assert.deepEqual((await seasonFiaWeb(env, 2026, { now: t2 + 7 * 60e3 })).failed, []);
 });
 
 test('version web : évolutions techniques traduites par le serveur, une fois, reprises à la relecture', async () => {
