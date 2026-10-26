@@ -109,6 +109,11 @@
     @media (max-width: 1300px) {
       /* La page défile ; sa hauteur suit son contenu, sinon la barre du haut fixée quittait l'écran en bas du body */
       .web body { overflow: auto; height: auto; min-height: 100dvh; }
+      /* Barre du haut fixée : elle ne bouge jamais, ni au défilement ni quand l'iPhone étire le haut de la page
+         (une barre « sticky » descendait avec la page et passait sous l'écran sans direct) ; la page commence sous elle */
+      html.web body .topbar { position: fixed; top: 0; left: 0; right: 0; z-index: 800; }   /* passe devant la règle des écrans peu hauts */
+      .web body { padding-top: var(--web-top, 0px); }
+      html.web { overscroll-behavior-y: none; }
       .web .grid { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); grid-template-rows: 560px 460px 460px;
         grid-template-areas: "tower map" "tower tele" "feed radio"; }
     }

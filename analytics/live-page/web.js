@@ -269,7 +269,10 @@ safe(initSeason);
 // Téléphone : réglages du direct derrière l'engrenage. Hauteur de la barre changée (réglages ouverts, police
 // chargée) : écran « Pas de séance en direct » replacé dessous
 const topbar = document.querySelector('.topbar');
-new ResizeObserver(() => dispatchEvent(new Event('resize'))).observe(topbar);
+new ResizeObserver(() => {
+  document.documentElement.style.setProperty('--web-top', `${topbar.offsetHeight}px`);   // place laissée à la barre fixée
+  dispatchEvent(new Event('resize'));
+}).observe(topbar);
 const webMenu = (open) => {
   topbar.classList.toggle('menu-open', open);
   document.querySelector('#webMenuBtn').setAttribute('aria-expanded', String(open));
