@@ -125,6 +125,9 @@
       .web .web-delay, .web #sourceBadge, .web .topbar > .btn { order: 5; }
       .web .web-delay { margin-right: auto; }
       .web .topbar .weather-mini { order: 4; flex-basis: 100%; max-height: none; gap: 14px; }
+      /* Espace Saison ouvert : la barre du haut ne garde que la séance (délai, F1 TV, chronos servent au direct) ;
+         « Retour au direct » est dans le menu ☰ */
+      .web body:has(#seasonView:not([hidden])) .topbar > :not(.session, .track-status) { display: none !important; }
     }
   </style>
 </head>

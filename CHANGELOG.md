@@ -92,7 +92,8 @@ l'application (Réglages → À propos → Nouveautés).
 ### Version web (app.paddocklive.app)
 - Nouveau bouton « Saison » : l'espace Saison de l'appli dans le navigateur, sans rien installer. Accueil,
   calendrier, classements, course au titre, bilan de la saison, résultats et records, duels et fiche de chaque
-  pilote, de 2018 à aujourd'hui ; pronostics entre amis dans un groupe en ligne. Les statistiques tirées des
+  pilote, de 2018 à aujourd'hui ; pronostics entre amis dans un groupe en ligne. Sur téléphone, la barre du haut
+  ne garde que la séance tant que la Saison est ouverte (délai et F1 TV reviennent avec le direct). Les statistiques tirées des
   archives des courses et les documents de la FIA restent pour l'instant dans l'appli.
 
 ### Fiabilité et sécurité
