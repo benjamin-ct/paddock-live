@@ -1142,7 +1142,7 @@ body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-selec
 .cal-group { margin-top: 4px; color: var(--muted); font: 700 12px/1.2 var(--font); letter-spacing: .1em; text-transform: uppercase; }
 .cal-row { border-top: 1px solid var(--line); scroll-margin-top: 80px; }
 .cal-month + .cal-row { border-top: 0; }
-.cal-row > summary { display: grid; grid-template-columns: 34px 28px minmax(0, 1fr) 120px 170px minmax(0, 300px) 16px; align-items: center; gap: 12px; padding: 9px 14px; cursor: pointer; list-style: none; }
+.cal-row > summary { display: grid; grid-template-columns: 34px 28px minmax(0, 1fr) 120px minmax(0, 330px) 16px; align-items: center; gap: 12px; padding: 9px 14px; cursor: pointer; list-style: none; }
 .cal-row > summary::-webkit-details-marker { display: none; }
 .cal-row > summary:hover { background: var(--hover); }
 .cal-num { display: grid; place-items: center; height: 26px; border-radius: 3px; background: var(--panel-3); color: var(--text-2); font: 800 15px/1 var(--font-cond, var(--font)); font-variant-numeric: tabular-nums; }
@@ -1155,7 +1155,8 @@ body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-selec
 .cal-date { color: var(--text-2); font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .cal-res { display: flex; align-items: center; gap: 6px; font-size: 12.5px; white-space: nowrap; overflow: hidden; }
 .cal-res .ic { color: #ffd166; flex: none; }
-.cal-sprint { display: flex; align-items: center; gap: 6px; font-size: 12.5px; white-space: nowrap; overflow: hidden; }
+.cal-out { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.cal-pole { display: inline-flex; align-items: center; gap: 6px; }
 .cal-state { color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
 .cal-row.next .cal-state { color: var(--accent); }
 .cal-row.done > summary :is(.cal-name b, .cal-date) { color: var(--text-2); }
@@ -1169,8 +1170,8 @@ body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-selec
 }
 @media (max-width: 760px) {
   .cal-row > summary { grid-template-columns: 30px 26px minmax(0, 1fr) 16px; row-gap: 4px; }
-  .cal-row > summary :is(.cal-date, .cal-sprint, .cal-res, .cal-state) { grid-column: 3; }
-  .cal-row > summary .cal-sprint:empty { display: none; }
+  .cal-row > summary :is(.cal-date, .cal-out) { grid-column: 3; }
+  .cal-out .cal-res { flex-wrap: wrap; row-gap: 4px; }
   .cal-row-body { padding-left: 14px; }
   .cal-hero-name { font-size: 26px; }
 }

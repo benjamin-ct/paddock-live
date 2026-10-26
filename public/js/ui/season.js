@@ -315,12 +315,16 @@ function renderCalendar() {
     const w = r.results[0];
     const pole = r.quali.find((q) => q.pos === 1) || r.quali[0];
     const state = done(r) ? 'done' : next?.round === r.round ? 'next' : 'future';
-    const right = w ? `<span class="cal-res">${icon('trophy')} ${chip(w)}${pole ? ` <span class="muted">pole</span> ${chip(pole)}` : ''}</span>`
+    const poleOf = (d) => (d ? ` <span class="cal-pole"><span class="muted">pole</span> ${chip(d)}</span>` : '');
+    const right = w ? `<span class="cal-res">${icon('trophy')} ${chip(w)}${poleOf(pole)}</span>`
       : `<span class="cal-state">${state === 'next' ? 'Prochain' : 'À venir'}</span>`;
+    // Sprint : vainqueur et pole (1er sur la grille du sprint)
+    const sw = r.sprintResults[0], sp = r.sprintResults.find((x) => x.grid === 1);
+    const sprint = r.sprint ? `<span class="cal-res"><span class="sz-tag sprint">Sprint</span>${sw ? ` ${chip(sw)}${poleOf(sp)}` : ''}</span>` : '';
     return `${sep}<details class="cal-row ${state}">
       <summary><span class="cal-num">${r.round}</span>${flagOf(r)}<span class="cal-name"><b>${esc(gpShort(r.name, EN))}</b><small>${esc(r.circuit || '')}</small></span>
         <span class="cal-date">${calSpan(r)}</span>
-        <span class="cal-sprint">${r.sprint ? `<span class="sz-tag sprint">Sprint</span>${r.sprintResults[0] ? ` ${chip(r.sprintResults[0])}` : ''}` : ''}</span>${right}${icon('chevron-down', 'cal-chev')}</summary>
+        <span class="cal-out">${right}${sprint}</span>${icon('chevron-down', 'cal-chev')}</summary>
       <div class="cal-row-body">${calDays(r)}${done(r) ? gpLink(r, 'Résultats du Grand Prix', 'btn small') : calIcs(r)}</div>
     </details>`;
   };
