@@ -94,6 +94,9 @@ l'application (Réglages → À propos → Nouveautés).
   comme une 20e place ; la répartition des arrivées montre aussi les 21e et 22e places.
 - Météo du week-end : la bonne journée pour les séances du soir (Las Vegas : la course du samedi soir n'est plus
   rangée le dimanche).
+- Arrêts aux stands au centième (2,17 s au lieu de 2,2 s) pour les Grands Prix de la saison en cours, d'après
+  le classement DHL Fastest Pit Stop, publié quelques heures après chaque course : arrêts les plus rapides, écuries,
+  Grands Prix et fiches des pilotes. Les arrêts absents chez DHL gardent le temps au dixième de la F1.
 
 ### Version web (app.paddocklive.app)
 - Nouveau bouton « Saison » : l'espace Saison de l'appli dans le navigateur, sans rien installer. Accueil,
