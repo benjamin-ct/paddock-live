@@ -50,6 +50,10 @@
   « Suivi réseaux · Paddock Live » (onglet Journal : une ligne par action, la plus récente en haut ; onglet Posts :
   les posts préparés) et, pour chaque Grand Prix, un Google Doc des textes et un dossier
   « Paddock Live · Médias · <Grand Prix> » (fichiers envoyés avec les secrets `GDRIVE_*` de l'environnement).
+- **À tester avant la version finale** : à chaque PR fusionnée qui change l'appli ou la version web, ajouter dans la
+  partie « À tester avant la version finale » de « À faire » une case par nouveauté : où cliquer et ce qu'on doit
+  voir (avec le numéro de la bêta), en séparant ce qui demande une vraie séance. Après « publie », vider la partie
+  et changer son numéro de version.
 - Avant de pousser : `npm test`.
 - **Version anglaise** : tout nouveau texte affiché a sa traduction dans `public/js/i18n-en.js` (clé = texte
   français, `{}` pour les valeurs) ; `node scripts/i18n-missing.mjs` liste ceux qui manquent.
