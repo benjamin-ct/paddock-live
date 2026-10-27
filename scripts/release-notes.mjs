@@ -1,5 +1,5 @@
 // Texte de la page d'une version publiée : nouveautés de cette version (CHANGELOG.md), puis
-// les instructions d'installation (.github/release-footer.md).
+// les instructions d'installation (.github/release-footer.md, versions finales seulement).
 // Usage : node scripts/release-notes.mjs v1.15.0 > notes.md, ou pour une bêta
 // node scripts/release-notes.mjs v1.28.0-beta.3 [CHANGELOG.md de la bêta précédente] — échoue si la version n'a pas
 // sa section dans CHANGELOG.md (chaque version publiée doit avoir son journal).
@@ -25,4 +25,5 @@ const notes = !beta ? `## Nouveautés de la version ${entry.version}\n\n${entry.
   : `> Version bêta (de test) : reçue seulement par les applis inscrites aux bêtas (Réglages → Application).\n\n${
     prev ? `## Nouveau dans cette bêta\n\n${fresh || 'Corrections et réglages, sans nouveauté visible.'}\n\n## Tout ce qui arrive dans la version ${entry.version}\n\n${entry.body}`
       : `## Nouveautés de la version ${entry.version} (bêta)\n\n${entry.body}`}`;
-process.stdout.write(`${notes}\n\n---\n\n${footer}\n`);
+// Bêta : sans les instructions d'installation (elle arrive toute seule dans les applis inscrites)
+process.stdout.write(beta ? `${notes}\n` : `${notes}\n\n---\n\n${footer}\n`);
