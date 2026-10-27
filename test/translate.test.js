@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { cleanRequest, translateBatch, keyOf, parseList, MODEL, FALLBACK } from '../analytics/translate.js';
+import { cleanRequest, translateBatch, keyOf, parseList, MODEL, FALLBACK, CLAUDE } from '../analytics/translate.js';
 import { createCloudTranslator } from '../server/cloud-translate.js';
 
 // Base D1 simulée pour les traductions et le plafond du jour
@@ -38,6 +38,7 @@ function fakeEnv({ limit = 100, fail = false, garbled = false } = {}) {
 
 test('traduction partagée : requête nettoyée', () => {
   assert.deepEqual(cleanRequest({ to: 'fr', items: [{ text: ' Hello ', from: 'en' }, { text: 'Hallo', from: 'xx' }] }), { to: 'fr', items: [{ text: 'Hello', from: 'en' }, { text: 'Hallo', from: 'en' }] });
+  assert.deepEqual(cleanRequest({ to: 'fr', items: [{ text: 'a', kind: 'news' }, { text: 'b', kind: 'pub' }] }).items, [{ text: 'a', from: 'en', kind: 'news' }, { text: 'b', from: 'en' }]);
   assert.equal(cleanRequest({ to: 'klingon', items: [{ text: 'a' }] }), null);
   assert.equal(cleanRequest({ to: 'fr', items: [{ text: '' }] }), null);
   assert.equal(cleanRequest({ to: 'fr', items: [] }), null);
@@ -167,5 +168,58 @@ test('traduction : réponse du modèle au lieu d\'une traduction refusée', asyn
   assert.equal(chatty('Could you please clarify what you mean?', 'Abc def'), true);
   assert.equal(chatty('Verstappen remporte le Grand Prix', 'Verstappen wins the Grand Prix'), false);
   assert.equal(chatty("Je ne comprends pas, répète", "I don't understand, say again"), false);
+  assert.equal(chatty('Russell finit 8e : « Je ne comprends pas pourquoi nous manquions de rythme »', 'ラッセル、8位「理由が分からない」'), false);
   assert.equal(badTranslation('Laurent Mekies将继续', 'fr', 'x'), true);
+});
+
+// API de Claude simulée (fetch donné au SDK) : réponse « [modèle] texte », ou erreur de crédits
+function fakeClaude(f, { fail = false } = {}) {
+  const sent = [];
+  f.env.ANTHROPIC_API_KEY = 'test';
+  f.env.CLAUDE_FETCH = async (url, init) => {
+    const body = JSON.parse(init.body);
+    sent.push(body);
+    if (fail) return new Response(JSON.stringify({ type: 'error', error: { type: 'invalid_request_error', message: 'Your credit balance is too low to access the Anthropic API.' } }), { status: 400, headers: { 'content-type': 'application/json' } });
+    const list = JSON.parse(body.messages[0].content).map((t) => `[${body.model}] ${t}`);
+    return new Response(JSON.stringify({ id: 'msg_1', type: 'message', role: 'assistant', model: body.model, content: [{ type: 'text', text: JSON.stringify(list) }], stop_reason: 'end_turn', usage: { input_tokens: 1, output_tokens: 1 } }), { status: 200, headers: { 'content-type': 'application/json' } });
+  };
+  return sent;
+}
+
+test('traduction partagée : Claude, Opus pour l\'Actu et la technique, Sonnet pour le reste', async () => {
+  const f = fakeEnv();
+  const sent = fakeClaude(f);
+  const items = [{ text: 'Box box', from: 'en', kind: 'radio' }, { text: 'Title', from: 'en', kind: 'news' }, { text: 'Floor', from: 'en', kind: 'tech' }, { text: 'Flag', from: 'en' }];
+  const r = await translateBatch(f.env, { to: 'fr', items }, '2026-10-15');
+  assert.deepEqual(r.out, ['[claude-sonnet-5-5] Box box', '[claude-opus-5-5] Title', '[claude-opus-5-5] Floor', '[claude-sonnet-5-5] Flag']);
+  assert.deepEqual(sent.map((b) => [b.model, JSON.parse(b.messages[0].content).length]).sort(), [['claude-opus-5-5', 2], ['claude-sonnet-5-5', 2]]);
+  assert.deepEqual(sent.find((b) => b.model === CLAUDE.sonnet.model).thinking, { type: 'between_tools' });
+  assert.equal(sent.find((b) => b.model === CLAUDE.opus.model).output_config.effort, 'medium');
+  assert.equal(f.calls.length, 0);   // Mistral pas appelé
+  assert.ok(!f.tr.has(await keyOf('en', 'fr', 'Box box')));   // gardé à part des traductions de Mistral
+  const again = await translateBatch(f.env, { to: 'fr', items: [{ text: 'Title', from: 'en' }] }, '2026-10-15');
+  assert.deepEqual(again, { out: ['[claude-opus-5-5] Title'], cached: true });
+});
+
+test('traduction partagée : crédits Claude épuisés -> Mistral (déjà traduit d\'abord), puis pause', async () => {
+  const f = fakeEnv();
+  await translateBatch(f.env, { to: 'fr', items: [{ text: 'Old', from: 'en' }] }, '2026-10-15');   // traduit par Mistral, sans clé
+  assert.equal(f.calls.length, 1);
+  const sent = fakeClaude(f, { fail: true });
+  const r = await translateBatch(f.env, { to: 'fr', items: [{ text: 'Old', from: 'en', kind: 'news' }, { text: 'New', from: 'en', kind: 'news' }] }, '2026-10-15');
+  assert.deepEqual(r.out, ['[fr] Old', '[fr] New']);
+  assert.equal(sent.length, 1);
+  assert.deepEqual(f.calls.map((c) => JSON.parse(c.input.messages[1].content)), [['Old'], ['New']]);   // « Old » repris de la base
+  assert.ok(f.tr.has(await keyOf('en', 'fr', 'New')));
+  // Pause de 10 minutes : plus d'appel à Claude, les traductions de Mistral servent directement
+  const r2 = await translateBatch(f.env, { to: 'fr', items: [{ text: 'New', from: 'en', kind: 'news' }] }, '2026-10-15');
+  assert.deepEqual(r2, { out: ['[fr] New'], cached: true });
+  assert.equal(sent.length, 1);
+});
+
+test('appli : type de texte transmis au serveur', async () => {
+  const posts = [];
+  const c = createCloudTranslator({ url: 'x', post: async (url, body) => { posts.push(body); return { status: 200, json: { out: body.items.map((it) => `fr:${it.text}`) } }; } });
+  assert.deepEqual(await Promise.all([c.translate('Title', 'en', 'fr', 'news'), c.translate('Box', 'en', 'fr')]), ['fr:Title', 'fr:Box']);
+  assert.deepEqual(posts[0].items, [{ text: 'Title', from: 'en', kind: 'news' }, { text: 'Box', from: 'en' }]);
 });

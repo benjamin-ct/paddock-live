@@ -339,12 +339,12 @@ async function handleApi(req, res, url) {
         return sendJSON(res, 400, { error: err.message });
       }
     }
-    // Traduction par le serveur Paddock Live (Workers AI) : { to, items: [{ text, from }] } -> { out }
+    // Traduction par le serveur Paddock Live : { to, items: [{ text, from, kind? }] } -> { out }
     case 'POST /api/translate': {
       const body = await readBody(req, 128e3);
       if (!Array.isArray(body.items) || typeof body.to !== 'string') return sendJSON(res, 400, { error: 'Requête invalide' });
       if (!cloud.available()) return sendJSON(res, 503, { error: 'Traduction en ligne indisponible' });
-      const out = await Promise.all(body.items.slice(0, 80).map((it) => cloud.translate(it?.text, it?.from, body.to)));
+      const out = await Promise.all(body.items.slice(0, 80).map((it) => cloud.translate(it?.text, it?.from, body.to, it?.kind)));
       // Plafond du jour atteint ou serveur injoignable pendant l'envoi : l'interface traduit elle-même
       if (!cloud.available()) return sendJSON(res, 503, { error: 'Traduction en ligne indisponible', out });
       return sendJSON(res, 200, { out });

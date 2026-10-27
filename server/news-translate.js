@@ -33,7 +33,7 @@ export function createNewsTranslator({ cloud, snapshot, known, store, lang = () 
     const list = todo(to);
     for (let i = 0; i < list.length && cloud.available(); i += 40) {
       const part = list.slice(i, i + 40);
-      const res = await Promise.all(part.map(([text, from]) => cloud.translate(text, from, to)));
+      const res = await Promise.all(part.map(([text, from]) => cloud.translate(text, from, to, 'news')));
       const done = [];
       part.forEach(([text], j) => {
         if (res[j]) done.push({ en: text, t: res[j], q: 'light' });
