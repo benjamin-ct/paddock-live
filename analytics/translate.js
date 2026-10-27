@@ -14,7 +14,7 @@
 // Traduction avec des caractères d'une autre écriture (chinois glissé dans du français…) : refaite.
 import Anthropic from '@anthropic-ai/sdk';
 import { badTranslation } from '../shared/translation-check.js';
-import { aiQuota, runAI } from './quota.js';
+import { aiQuota, runAI, countClaude } from './quota.js';
 export const MODEL = '@cf/mistralai/mistral-small-3.1-24b-instruct';
 export const FALLBACK = '@cf/meta/m2m100-1.2b';
 const MODEL_TAG = 'ms31b';  // dans la clé du cache : changer de modèle ou de consignes = nouvelles traductions
@@ -80,14 +80,16 @@ async function llm(env, texts, to) {
 // Claude : liste de traductions, ou null (refus, réponse coupée ou mal formée) ; erreur de l'API levée
 async function claude(env, texts, to, kind) {
   const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY, fetch: env.CLAUDE_FETCH, maxRetries: 1, timeout: 60e3 });   // CLAUDE_FETCH : tests
+  const cfg = claudeFor(kind);
   const r = await client.messages.create({
-    ...claudeFor(kind),
+    ...cfg,
     max_tokens: 16000,   // de la place pour la réflexion d'Opus
     system: [{ type: 'text', text: system(to), cache_control: { type: 'ephemeral' } }],
     messages: [{ role: 'user', content: JSON.stringify(texts) }],
   });
-  if (r.stop_reason !== 'end_turn') return null;
-  return parseList(r.content.filter((b) => b.type === 'text').map((b) => b.text).join(''), texts.length);
+  const list = r.stop_reason === 'end_turn' ? parseList(r.content.filter((b) => b.type === 'text').map((b) => b.text).join(''), texts.length) : null;
+  await countClaude(env, cfg.model, r.usage, list ? texts.length : 0).catch(() => {});   // suivi dans le Studio
+  return list;
 }
 
 // Workers AI : « you have used up your daily free allocation of 10,000 neurons »

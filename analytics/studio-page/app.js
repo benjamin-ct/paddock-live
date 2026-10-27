@@ -315,14 +315,23 @@ function healthHtml(h) {
 // Ce que l'IA du serveur a produit (compteurs de ses plafonds)
 const AI_MADE = [['apps', 'textes traduits ou résumés par les applis (résumé = 5)'], ['radios', 'radios d\'équipe transcrites'],
   ['onboard', 'tranches de 30 s des caméras embarquées'], ['studio', 'textes du Studio (résumé = 5, post = 3)']];
-// Neurones de Workers AI : 10 000 gratuits par jour, puis 0,011 $ les 1 000 (budget payé sur 30 jours)
+// Neurones de Workers AI : 10 000 gratuits par jour, puis 0,011 $ les 1 000 (budget payé sur 30 jours) ; API de Claude :
+// dollars consommés sur les crédits de l'abonnement Max (comptés en millionièmes de dollar)
+function claudeHtml(m) {
+  const usd = (v) => `${((v || 0) / 1e6).toFixed(2).replace('.', ',')} $`;
+  const [t, mo] = [m.today, m.month];
+  return `<h3 class="section">API de Claude <small>traductions · crédits de l'abonnement Max, 100 $ par mois</small></h3>
+    <div class="tiles"><div class="tile"><b>${usd((t.opus || 0) + (t.sonnet || 0))}</b><small>consommés aujourd'hui · ${usd((mo.opus || 0) + (mo.sonnet || 0))} sur 30 jours</small></div>
+      <div class="tile"><b>${usd(mo.opus)}</b><small>Opus (Actu, technique) sur 30 jours · Sonnet (radios) ${usd(mo.sonnet)}</small></div>
+      <div class="tile"><b>${fmtN(t.claudeTexts || 0)}</b><small>textes traduits par Claude aujourd'hui · ${fmtN(mo.claudeTexts || 0)} sur 30 jours</small></div></div>`;
+}
 function aiHtml(a) {
   if (!a) return '';
   const usd = (v) => `${(v * 0.011 / 1000).toFixed(2).replace('.', ',')} $`;
-  return `<h3 class="section">IA du serveur <small>${a.gp ? 'week-end de Grand Prix' : 'jour ordinaire'}</small></h3>
+  return `<h3 class="section">IA du serveur · Workers AI <small>${a.gp ? 'week-end de Grand Prix' : 'jour ordinaire'}</small></h3>
     <div class="tiles"><div class="tile"><b>${fmtN(a.used)}</b><small>neurones aujourd'hui sur ${fmtN(a.top)} (10 000 gratuits)</small></div>
       <div class="tile"><b>${usd(a.spent)}</b><small>payés sur 30 jours, budget ${usd(a.budget)}</small></div></div>
-    ${a.made ? `<div class="tiles">${AI_MADE.map(([k, label]) => `<div class="tile"><b>${fmtN(a.made.today[k] || 0)}</b><small>${label} aujourd'hui · ${fmtN(a.made.month[k] || 0)} sur 30 jours</small></div>`).join('')}</div>` : ''}`;
+    ${a.made ? `<div class="tiles">${AI_MADE.map(([k, label]) => `<div class="tile"><b>${fmtN(a.made.today[k] || 0)}</b><small>${label} aujourd'hui · ${fmtN(a.made.month[k] || 0)} sur 30 jours</small></div>`).join('')}</div>${claudeHtml(a.made)}` : ''}`;
 }
 function usageHtml(u) {
   if (!u.opens) return healthHtml(u.health) + aiHtml(u.ai) + empty('Pas encore de statistiques reçues sur 30 jours.', 'chart');

@@ -42,6 +42,24 @@ export function neuronsOf(model, input, r) {
   return (inT * a + outT * b) / 1e6;
 }
 
+// API de Claude (traductions) : coût de chaque appel d'après les jetons facturés, en millionièmes de dollar, dans
+// « claude-opus:jour » ou « claude-sonnet:jour », et textes traduits dans « claude-texts:jour ». Suivi seulement : les
+// crédits de l'abonnement Max (100 $ par mois) s'arrêtent d'eux-mêmes une fois épuisés.
+const CLAUDE_RATES = {   // $ par million de jetons : entrée, sortie, écriture du cache (5 min), lecture du cache
+  'claude-opus-5-5': [4, 20, 5, 0.2],
+  'claude-sonnet-5-5': [2, 10, 2.5, 0.2],
+};
+export function claudeCost(model, u) {
+  if (!CLAUDE_RATES[model]) throw new Error(`${model} : prix inconnu`);
+  const [a, b, w, r] = CLAUDE_RATES[model];
+  return ((u?.input_tokens || 0) * a + (u?.output_tokens || 0) * b + (u?.cache_creation_input_tokens || 0) * w + (u?.cache_read_input_tokens || 0) * r) / 1e6;
+}
+export async function countClaude(env, model, usage, texts) {
+  const day = new Date().toISOString().slice(0, 10);
+  await spend(env, `claude-${model.includes('opus') ? 'opus' : 'sonnet'}:${day}`, Math.round(claudeCost(model, usage) * 1e6), Number.MAX_SAFE_INTEGER);
+  if (texts) await spend(env, `claude-texts:${day}`, texts, Number.MAX_SAFE_INTEGER);
+}
+
 // Week-end de Grand Prix : du vendredi au lundi (UTC) autour du jour de la course, d'après la saison gardée par la tâche
 // planifiée ; lu une fois par jour
 let gp = { day: null, on: false };
@@ -74,7 +92,8 @@ export async function neuronBudget(env, day) {
 
 // Ce que l'IA a produit (compteurs des plafonds) : { today, month } avec, pour chacun, apps (textes traduits ou
 // résumés par les applis, un résumé compte pour 5), studio (textes du Studio : résumé 5, post 3), radios (radios
-// d'équipe transcrites), onboard (tranches de 30 s des caméras embarquées), neurons
+// d'équipe transcrites), onboard (tranches de 30 s des caméras embarquées), neurons ; API de Claude : opus et sonnet
+// (millionièmes de dollar), claudeTexts (textes traduits)
 export async function aiCounters(env, day) {
   const from = new Date(Date.parse(day) - 29 * DAY_MS).toISOString().slice(0, 10);
   const range = (p) => env.DB.prepare('SELECT day, n FROM ai_usage WHERE day >= ?1 AND day <= ?2').bind(`${p}${from}`, `${p}${day}~`).all().then((r) => r.results || []);
@@ -83,10 +102,10 @@ export async function aiCounters(env, day) {
     out.month[kind] = (out.month[kind] || 0) + (Number(n) || 0);
     if (k.includes(day)) out.today[kind] = (out.today[kind] || 0) + (Number(n) || 0);
   };
-  const [days, radios, onboard, neurons] = await Promise.all(['', 'radio:', 'onboard:', 'neurons:'].map(range));
+  const [days, radios, onboard, neurons, opus, sonnet, claudeTexts] = await Promise.all(['', 'radio:', 'onboard:', 'neurons:', 'claude-opus:', 'claude-sonnet:', 'claude-texts:'].map(range));
   // Jour seul : applis ; « jour|studio » : Studio ; « jour|adresse|… » : part d'un appelant, déjà comptée
   for (const r of days) if (/^\d{4}-\d\d-\d\d$/.test(r.day)) add('apps', r.day, r.n); else if (/^[\d-]+\|studio$/.test(r.day)) add('studio', r.day, r.n);
-  for (const [kind, rows] of [['radios', radios], ['onboard', onboard], ['neurons', neurons]]) for (const r of rows) add(kind, r.day, r.n);
+  for (const [kind, rows] of Object.entries({ radios, onboard, neurons, opus, sonnet, claudeTexts })) for (const r of rows) add(kind, r.day, r.n);
   return out;
 }
 

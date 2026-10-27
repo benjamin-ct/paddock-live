@@ -196,6 +196,8 @@ test('traduction partagée : Claude, Opus pour l\'Actu et la technique, Sonnet p
   assert.deepEqual(sent.find((b) => b.model === CLAUDE.sonnet.model).thinking, { type: 'between_tools' });
   assert.equal(sent.find((b) => b.model === CLAUDE.opus.model).output_config.effort, 'medium');
   assert.equal(f.calls.length, 0);   // Mistral pas appelé
+  const day = new Date().toISOString().slice(0, 10);   // coût suivi pour le Studio (1 jeton en entrée et en sortie par appel)
+  assert.deepEqual([f.usage.get(`claude-opus:${day}`), f.usage.get(`claude-sonnet:${day}`), f.usage.get(`claude-texts:${day}`)], [24, 12, 4]);
   assert.ok(!f.tr.has(await keyOf('en', 'fr', 'Box box')));   // gardé à part des traductions de Mistral
   const again = await translateBatch(f.env, { to: 'fr', items: [{ text: 'Title', from: 'en' }] }, '2026-10-15');
   assert.deepEqual(again, { out: ['[claude-opus-5-5] Title'], cached: true });

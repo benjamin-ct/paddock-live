@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { neuronsOf, neuronBudget, runAI, aiQuota, aiCounters } from '../analytics/quota.js';
+import { neuronsOf, neuronBudget, runAI, aiQuota, aiCounters, claudeCost } from '../analytics/quota.js';
 import { MODEL, FALLBACK } from '../analytics/translate.js';
 import { ASR_MODEL, ASR_FALLBACK } from '../analytics/transcribe.js';
 
@@ -69,4 +69,13 @@ test('IA : ce qui a été produit, aujourd\'hui et sur 30 jours (parts par appel
     today: { apps: 109, studio: 45, radios: 3, neurons: 84 },
     month: { apps: 1109, studio: 45, radios: 49, onboard: 12, neurons: 11084 },
   });
+});
+
+test('API de Claude : coût d\'après les jetons facturés, compté avec ce que l\'IA a produit', async () => {
+  // Test du 27 oct. 2026 : Opus 5.5, 1 722 jetons en entrée, 2 687 en sortie (réflexion comprise) -> 0,060628 $
+  assert.equal(claudeCost('claude-opus-5-5', { input_tokens: 1722, output_tokens: 2687 }), 0.060628);
+  assert.equal(claudeCost('claude-sonnet-5-5', { input_tokens: 0, output_tokens: 0, cache_creation_input_tokens: 1000, cache_read_input_tokens: 1000 }), 0.0027);
+  assert.throws(() => claudeCost('claude-x', {}), /prix inconnu/);
+  const f = fakeEnv({}, new Map([['claude-opus:2026-10-27', 60628], ['claude-opus:2026-10-01', 400000], ['claude-sonnet:2026-10-27', 11102], ['claude-texts:2026-10-27', 40]]));
+  assert.deepEqual(await aiCounters(f.env, '2026-10-27'), { today: { opus: 60628, sonnet: 11102, claudeTexts: 40 }, month: { opus: 460628, sonnet: 11102, claudeTexts: 40 } });
 });
