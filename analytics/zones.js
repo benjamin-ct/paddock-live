@@ -5,7 +5,7 @@
 // officielles du plan FIA du circuit ; gardées dans la base. Même calcul que l'appli auparavant (shared/zones.js,
 // shared/calibrate.js). Les fichiers de la séance (plusieurs dizaines de Mo) sont lus au fil de l'eau et réduits à
 // ce qui sert, pour tenir dans la mémoire du serveur.
-import { setRow, readJSON } from './alerts.js';
+import { setRow, readJSON, rowsWithPrefix } from './alerts.js';
 import { archiveToken, seasonRow } from './studio.js';
 import { archiveText, circuitData } from './race-stats.js';
 import { seasonIndex } from './tyres.js';
@@ -157,7 +157,7 @@ export async function zonesWeb(env, kind, key, year, now = Date.now()) {
 // de résultat ou s'il est à revoir
 export async function zonesTick(env, { now = Date.now(), fetchFn = fetch } = {}) {
   if (!env.DB || !env.STATS_KEY || now - Number(await readJSON(env, 'zoneslock', 0)) < LOCK) return null;
-  const { results } = await env.DB.prepare('SELECT k, v FROM studio WHERE k LIKE ?').bind('zoneswant:%').all();
+  const results = await rowsWithPrefix(env, 'zoneswant:');
   const jobs = (results || []).filter((r) => now - Number(r.v) < 3600e3).map((r) => r.k.split(':').slice(1).map(Number));
   const year = new Date(now).getUTCFullYear();
   const next = (await seasonRow(env, year, { now, maxAge: 7 * 86400e3 }).catch(() => null))?.v.races

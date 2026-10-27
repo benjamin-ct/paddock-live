@@ -3,7 +3,7 @@
 // serveur, d'après les archives officielles de la F1 lues avec la connexion F1 TV du créateur (copie à part, voir
 // archiveToken), puis gardée dans la base. Même calcul que l'appli (shared/race-stats.js).
 import { seasonRow, archiveToken } from './studio.js';
-import { getRow, setRow } from './alerts.js';
+import { getRow, setRow, rowsWithPrefix } from './alerts.js';
 import { seasonNominations } from './tyres.js';
 import { summarizeRace, findRaceSession, parseStream, indexMeetings, STATS_VERSION } from '../shared/race-stats.js';
 import { fetchDhl, withDhl } from '../shared/dhl-pits.js';
@@ -62,7 +62,7 @@ async function analyse(race, year, token, fetchFn) {
 
 // Courses de l'année déjà analysées (manche -> résumé) et essais ratés récents (manche -> date)
 async function kept(env, year) {
-  const { results } = await env.DB.prepare('SELECT k, v FROM studio WHERE k LIKE ?').bind(`racestats:${year}:%`).all();
+  const results = await rowsWithPrefix(env, `racestats:${year}:`);
   const done = new Map(), failed = new Map(), errors = [];
   for (const { k, v } of results || []) {
     const round = Number(k.split(':')[2]);
@@ -99,7 +99,7 @@ export async function analyseNext(env, year, { now = Date.now(), fetchFn = fetch
 // Arrêts au centième de DHL (saison en cours) des courses analysées, lus une fois par course (racedhl:<année>:<manche>) ;
 // regardés au plus toutes les 6 heures (DHL publie quelques heures après la course)
 async function dhlRows(env, year) {
-  const { results } = await env.DB.prepare('SELECT k, v FROM studio WHERE k LIKE ?').bind(`racedhl:${year}:%`).all();
+  const results = await rowsWithPrefix(env, `racedhl:${year}:`);
   const out = new Map();
   for (const { k, v } of results || []) { try { out.set(Number(k.split(':')[2]), JSON.parse(v)); } catch { /* ligne illisible */ } }
   return out;
@@ -133,7 +133,7 @@ export async function raceStatsOf(env, year, round) {
 export async function statsTick(env, { now = Date.now(), fetchFn = fetch, budget = 20e3 } = {}) {
   if (!env.DB || !env.STATS_KEY) return null;
   await dhlNext(env, new Date(now).getUTCFullYear(), { now, fetchFn }).catch(() => null);
-  const { results } = await env.DB.prepare('SELECT k, v FROM studio WHERE k LIKE ?').bind('racewant:%').all();
+  const results = await rowsWithPrefix(env, 'racewant:');
   const years = [new Date(now).getUTCFullYear(), ...(results || []).filter((r) => now - Number(r.v) < 3600e3).map((r) => Number(r.k.slice(9)))];
   const t0 = Date.now();
   let last = null;

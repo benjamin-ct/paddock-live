@@ -88,18 +88,20 @@ async function readSource(s, rt, known, now, fetchFn) {
   return added;
 }
 
-// Titres traduits en français déjà gardés par le serveur (l'appli fait traduire les actualités d'avance)
-async function frTitles(env, list) {
+// Titres traduits en français déjà gardés par le serveur (l'appli fait traduire les actualités d'avance), notés dans la
+// nouvelle (it.fr) une fois trouvés. Chaque ligne lue compte dans le quota de lectures de la base : au plus 60 titres
+// par passage, ceux des dernières 24 heures, chacun revu au plus toutes les 30 minutes
+async function frTitles(env, list, now) {
   const keys = new Map();
-  for (const it of list) if (it.lang !== 'fr') keys.set(await keyOf(it.lang, 'fr', it.title), it.id);
-  const out = new Map();
-  const all = [...keys.keys()];
-  for (let i = 0; i < all.length; i += 90) {
-    const part = all.slice(i, i + 90);
-    const { results } = await env.DB.prepare(`SELECT k, out FROM translations WHERE k IN (${part.map(() => '?').join(',')})`).bind(...part).all().catch(() => ({ results: [] }));
-    for (const r of results || []) out.set(keys.get(r.k), r.out);
+  for (const it of list) {
+    if (it.fr || it.lang === 'fr' || it.t < now - 24 * 3600e3 || now - (it.frAt || 0) < 30 * 60e3 || keys.size >= 60) continue;
+    it.frAt = now;
+    keys.set(await keyOf(it.lang, 'fr', it.title), it);
   }
-  return out;
+  if (!keys.size) return;
+  const all = [...keys.keys()];
+  const { results } = await env.DB.prepare(`SELECT k, out FROM translations WHERE k IN (${all.map(() => '?').join(',')})`).bind(...all).all().catch(() => ({ results: [] }));
+  for (const r of results || []) keys.get(r.k).fr = r.out;
 }
 
 // Tâche planifiée (chaque minute) : les sources dont c'est le tour, lues en même temps
@@ -127,8 +129,8 @@ export async function newsTick(env, { now = Date.now(), fetchFn = fetch } = {}) 
     const list = [...items, ...added].filter((it) => it.t >= now - KEEP_MS).sort((a, b) => b.t - a.t).slice(0, MAX_ITEMS);
     // Sujets des 3 derniers jours, du plus ancien au plus récent
     const recent = list.filter((it) => it.t >= now - 3 * 24 * 3600e3).reverse();
-    const fr = await frTitles(env, recent);
-    clusterNews(recent, { titleOf: (it) => fr.get(it.id) || null });
+    await frTitles(env, recent, now);
+    clusterNews(recent, { titleOf: (it) => it.fr || null });
     for (const s of due) rts[s.id].count = list.filter((it) => it.src === s.id).length;
     await setRow(env, 'news:items', JSON.stringify(list));
   }
@@ -147,29 +149,33 @@ function clusterSizes(list, now) {
 // /news/api/article?u= : page d'un article réduite au texte (mode lecture), seulement les liens des nouvelles
 export async function newsApi(req, env, url, { now = Date.now(), fetchFn = fetch } = {}) {
   if (!env.DB) return json({ error: 'Base indisponible' }, 503);
+  const article = url.pathname === '/news/api/article';
+  const u = url.searchParams.get('u') || '';
+  // Réponses gardées une minute (liste) ou 6 heures (article) : sans cela, chaque appli lirait la base chaque minute
+  const ck = new Request(article ? `https://news.cache/article/${await hash(u)}` : 'https://news.cache/list');
+  const hit = await caches.default.match(ck);
+  if (hit) return hit;
   const items = await readJSON(env, 'news:items', []);
-  if (url.pathname === '/news/api/article') {
-    const u = url.searchParams.get('u') || '';
+  let res;
+  if (article) {
     const item = items.find((it) => it.link === u);
     if (!item) return json({ error: 'Article inconnu' }, 404);
-    const ck = new Request(`https://news.cache/article/${await hash(u)}`);
-    const hit = await caches.default.match(ck);
-    if (hit) return hit;
     const data = await readArticle(item, { fetch: articleFetch(fetchFn), ua: UA });
     // Page illisible (refus, panne) : nouvel essai 10 minutes plus tard
-    const res = json(data, 200, { 'Cache-Control': `public, max-age=${data.readable ? 6 * 3600 : 600}` });
-    await caches.default.put(ck, res.clone());
-    return res;
+    res = json(data, 200, { 'Cache-Control': `public, max-age=${data.readable ? 6 * 3600 : 600}` });
+  } else {
+    const rts = await readJSON(env, 'news:rt', {});
+    const sizes = clusterSizes(items, now);
+    res = json({
+      items: items.slice(0, LIST).map(({ frAt, ...it }) => ({ ...it, sources: sizes.get(it.cluster)?.size || 1 })),
+      sources: (await newsSources(env)).map((s) => {
+        const rt = rts[s.id] || {};
+        return { id: s.id, name: s.name, cat: s.cat, lang: s.lang, kind: s.kind, ok: rt.ok ?? null, error: rt.error || null, last: rt.last || null, count: rt.count ?? 0 };
+      }),
+    }, 200, { 'Cache-Control': 'public, max-age=60' });
   }
-  const rts = await readJSON(env, 'news:rt', {});
-  const sizes = clusterSizes(items, now);
-  return json({
-    items: items.slice(0, LIST).map((it) => ({ ...it, sources: sizes.get(it.cluster)?.size || 1 })),
-    sources: (await newsSources(env)).map((s) => {
-      const rt = rts[s.id] || {};
-      return { id: s.id, name: s.name, cat: s.cat, lang: s.lang, kind: s.kind, ok: rt.ok ?? null, error: rt.error || null, last: rt.last || null, count: rt.count ?? 0 };
-    }),
-  }, 200, { 'Cache-Control': 'public, max-age=30' });
+  await caches.default.put(ck, res.clone());
+  return res;
 }
 
 // Lecture d'une page pour le mode lecture : { status, headers: { 'content-type' }, body (octets) }

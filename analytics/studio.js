@@ -21,7 +21,7 @@ import { cleanDraft, draftSummary, isDraftId, DRAFTS_MAX, DRAFT_BYTES } from '..
 import { postStats } from '../shared/post-stats.js';
 import { recentPosts, importEntries } from './post-import.js';
 import { trackPost, clickStats } from './clicks.js';
-import { pushApi, notifyPhones, getRow, setRow, readJSON } from './alerts.js';
+import { pushApi, notifyPhones, getRow, setRow, readJSON, rowsWithPrefix, afterPrefix } from './alerts.js';
 import { editSources } from './news.js';
 import { queuePush, resultMessages } from './push-public.js';
 import { noteExpiries } from './health.js';
@@ -465,11 +465,8 @@ function tiktokOptions(raw) {
 const SCHED = { max: 20, ahead: 7 * 86400e3, late: 24 * 3600e3, keep: 7 * 86400e3, running: 15 * 60e3, img: 4e6 };
 const SETS = { ig: 20, x: 4, cover: 1 };
 const schedKey = async (env) => new Uint8Array(await crypto.subtle.digest('SHA-256', enc.encode(`paddock-live-schedule-v1:${env.STATS_KEY}`)));
-async function rowsLike(env, prefix) {
-  const r = await env.DB.prepare('SELECT k, v FROM studio WHERE k LIKE ?').bind(`${prefix}%`).all();
-  return r.results || [];
-}
-const delLike = (env, prefix) => env.DB.prepare('DELETE FROM studio WHERE k LIKE ?').bind(`${prefix}%`).run();
+const rowsLike = rowsWithPrefix;
+const delLike = (env, prefix) => env.DB.prepare('DELETE FROM studio WHERE k >= ? AND k < ?').bind(prefix, afterPrefix(prefix)).run();
 
 // Programmations avec l'état de chaque réseau (pending, running, done, error, expired)
 async function schedJobs(env) {

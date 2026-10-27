@@ -41,6 +41,12 @@ export async function setRow(env, k, v) {
   await env.DB.prepare('INSERT INTO studio (k, v, at) VALUES (?, ?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v, at = excluded.at').bind(k, v, Date.now()).run();
 }
 export const readJSON = async (env, k, fallback) => { try { return JSON.parse(await getRow(env, k)) ?? fallback; } catch { return fallback; } };
+// Lignes dont la clé commence par prefix, cherchées par bornes sur la clé : l'index sert. Un « LIKE 'prefix%' » parcourt
+// toute la table, et chaque ligne parcourue compte dans le quota de lectures de la base (5 millions par jour)
+export const afterPrefix = (p) => p.slice(0, -1) + String.fromCharCode(p.charCodeAt(p.length - 1) + 1);
+export async function rowsWithPrefix(env, prefix) {
+  return (await env.DB.prepare('SELECT k, v FROM studio WHERE k >= ? AND k < ?').bind(prefix, afterPrefix(prefix)).all()).results || [];
+}
 
 // ---------- Clés du serveur (VAPID) ----------
 export async function vapidKeys(env) {

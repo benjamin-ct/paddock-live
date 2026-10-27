@@ -2,7 +2,7 @@
 // Chaque épreuve est lue par la tâche planifiée (une par passage) sur fia.com, ses PDF avec la même lecture que
 // l'appli (shared/fia-tech.js), puis gardée dans la base. Épreuve récente (documents de moins de 4 jours) : relue
 // toutes les heures ; épreuve sans documents (pas encore courue) : revue 6 heures plus tard.
-import { getRow, setRow } from './alerts.js';
+import { getRow, setRow, rowsWithPrefix } from './alerts.js';
 import { BASE, CHAMPIONSHIP, parseDocumentList, parseSeasons, seasonEventList, pickEvent } from '../shared/fia-list.js';
 import { FIA_VERSION, pdfPages, eventData } from '../shared/fia-tech.js';
 import { translateBatch } from './translate.js';
@@ -73,7 +73,7 @@ async function parsed(env, url, parser, fetchFn) {
 
 // Épreuves déjà lues de l'année : page -> { at, data } (data null : pas de documents)
 async function kept(env, year) {
-  const { results } = await env.DB.prepare('SELECT k, v FROM studio WHERE k LIKE ?').bind(`fiatech:${year}:%`).all();
+  const results = await rowsWithPrefix(env, `fiatech:${year}:`);
   const out = new Map();
   for (const { v } of results || []) {
     try { const d = JSON.parse(v); if (d?.v === FIA_VERSION) out.set(d.page, d); } catch { /* ligne abîmée : relue */ }
@@ -132,7 +132,7 @@ export async function fiaNext(env, year, { now = Date.now(), fetchFn = fetch, tr
 // Tâche planifiée : une épreuve par passage, pour l'année en cours ou une année demandée dans l'heure
 export async function fiaTick(env, { now = Date.now(), fetchFn = fetch } = {}) {
   if (!env.DB) return null;
-  const { results } = await env.DB.prepare('SELECT k, v FROM studio WHERE k LIKE ?').bind('fiawant:%').all();
+  const results = await rowsWithPrefix(env, 'fiawant:');
   const years = [new Date(now).getUTCFullYear(), ...(results || []).filter((r) => now - Number(r.v) < 3600e3).map((r) => Number(r.k.slice(8)))];
   for (const y of new Set(years)) {
     const r = await fiaNext(env, y, { now, fetchFn });
@@ -157,7 +157,7 @@ export async function seasonFiaWeb(env, year, { now = Date.now() } = {}) {
 // /live/api/translations : traductions des textes FIA faites par le serveur, sous la forme lue par la page
 // (fia-translate.js : anglais -> { t, q })
 export async function fiaTranslations(env) {
-  const { results } = await env.DB.prepare('SELECT k, v FROM studio WHERE k LIKE ?').bind('fiatech:%').all();
+  const results = await rowsWithPrefix(env, 'fiatech:');
   const out = {};
   for (const { v } of results || []) {
     try { for (const [en, t] of Object.entries(JSON.parse(v)?.data?.tr || {})) out[en] = { t, q: 'cloud' }; } catch { /* ligne abîmée */ }
