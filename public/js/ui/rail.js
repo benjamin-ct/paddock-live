@@ -63,7 +63,12 @@ const ACTIONS = {
   },
   season: () => { closeNews(); closeReplays(); if ($('#seasonView').hidden) openSeason(); else closeSeason(); },
   news: () => { closeReplays(); if ($('#newsView').hidden) openNews(); else closeNews(); },
-  replay: () => ($('#replayView').hidden ? openReplays() : closeReplays()),
+  replay: () => {
+    // Pendant un replay, depuis une autre page (Accueil, Actu, Saison, Résultats) : retour au replay en cours
+    const page = !$('#homeView')?.hidden || !$('#newsView').hidden || !$('#seasonView').hidden || isResultsOpen();
+    if (store.status?.source?.mode === 'replay' && page) { homeTouched(); closeHome(); closeSeason(); closeNews(); closeResults(); return; }
+    if ($('#replayView').hidden) openReplays(); else closeReplays();
+  },
   radio: () => $('#commBtn').click(),
   reset: () => openSettings('display'),   // Dispo. : réglages de la disposition (panneaux, onglets, colonnes, fenêtres)
   scheme: (btn) => schemeMenu(btn),
