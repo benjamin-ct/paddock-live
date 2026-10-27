@@ -10,6 +10,7 @@ import { gpShort, gpFull } from '../shared/gp-names.js';
 import { SECTION_PATHS, seasonPath, seasonTitle, slug, gpSlug, parseSeasonPath } from '../shared/season-urls.js';
 
 export const APP = 'https://app.paddocklive.app';
+const IMAGE = 'https://paddocklive.app/site/img/apercu.png';   // aperçu de la version web (balise og:image)
 const YEARS = 8;   // comme le choix de l'année dans l'espace Saison (ui/season.js)
 export const firstYear = (now = Date.now()) => new Date(now).getUTCFullYear() - YEARS + 1;
 
@@ -116,8 +117,12 @@ export async function seasonSsr(env, p, { now = Date.now() } = {}) {
     desc = r.results.length ? `Résultats du ${gpFull(r.name)} ${year} (${r.circuit}) : vainqueur ${win?.name}${pole ? `, pole ${pole.name}` : ''}, classement complet, qualifications${r.sprint ? ', sprint' : ''} et arrêts aux stands les plus rapides.`
       : `${gpFull(r.name)} ${year} au ${r.circuit} : programme du week-end, puis résultats, qualifications et arrêts aux stands après la course.`;
     body = raceBody(s, year, r, r.results.length ? await raceStatsOf(env, year, r.round).catch(() => null) : null);
-    ld = [{ '@type': 'SportsEvent', name: `${gpFull(r.name)} ${year}`, sport: 'Formula 1', startDate: r.date, eventStatus: 'https://schema.org/EventScheduled',
-      location: { '@type': 'Place', name: r.circuit, address: { '@type': 'PostalAddress', addressLocality: r.locality, addressCountry: r.country } } }];
+    // Week-end du Grand Prix (1re séance -> fin de la course, environ 2 h) ; pilotes au départ, ceux de la saison avant la course
+    ld = [{ '@type': 'SportsEvent', name: `${gpFull(r.name)} ${year}`, sport: 'Formula 1', description: desc, image: IMAGE,
+      startDate: r.sessions?.[0]?.t || r.date, endDate: new Date(Date.parse(r.date) + 2 * 3600e3).toISOString(), eventStatus: 'https://schema.org/EventScheduled',
+      location: { '@type': 'Place', name: r.circuit, address: { '@type': 'PostalAddress', addressLocality: r.locality, addressCountry: r.country } },
+      organizer: { '@type': 'Organization', name: 'Formula 1', url: 'https://www.formula1.com/' },
+      performer: (r.results.length ? r.results : s.drivers).map((d) => ({ '@type': 'Person', name: d.name })) }];
     trail.push([gpShort(r.name), seasonPath(year, 'gp', p.item)]);
   } else if (p.section === 'drivers') {
     body = box('Pilotes', table(['Pos.', 'Pilote', 'Écurie', 'Points'], s.drivers.map((d) => [d.pos ?? '', dLink(year, d.name), esc(d.team), d.points])));

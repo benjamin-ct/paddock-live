@@ -57,6 +57,14 @@ test('Saison : premier contenu de chaque rubrique écrit par le serveur (moteurs
   assert.match(gp.html, /Copyright © DHL International GmbH/);
   const ev = gp.ld.find((x) => x['@type'] === 'SportsEvent');
   assert.deepEqual([ev.startDate, ev.location.name, ev.url], ['2026-10-25T20:00:00Z', 'Autódromo Hermanos Rodríguez', 'https://app.paddocklive.app/saison/2026/grand-prix/mexico/']);
+  // Champs conseillés par Google (Search Console : « Améliorer l'apparence des éléments »)
+  assert.equal(ev.endDate, '2026-10-25T22:00:00.000Z');
+  assert.equal(ev.description, gp.desc);
+  assert.match(ev.image, /^https:\/\/paddocklive\.app\/.+\.png$/);
+  assert.equal(ev.organizer.name, 'Formula 1');
+  assert.deepEqual(ev.performer.map((x) => x.name), ['Lando Norris', 'Max Verstappen', 'Oscar <Piastri>']);
+  const next = (await ssr('/saison/2026/grand-prix/sao-paulo/')).ld.find((x) => x['@type'] === 'SportsEvent');
+  assert.deepEqual([next.startDate, next.performer.length], ['2026-11-06T14:30:00Z', 2]);   // 1re séance ; pilotes de la saison avant la course
   assert.match((await ssr('/saison/2026/grand-prix/sao-paulo/')).html, /Programme du week-end/);
 
   const d = await ssr('/saison/2026/pilotes/lando-norris/');
