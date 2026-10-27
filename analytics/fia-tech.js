@@ -12,6 +12,7 @@ const EMPTY = 6 * 3600e3;     // épreuve sans documents ou illisible : nouvel e
 const RECENT = 4 * 86400e3;   // documents publiés depuis moins de 4 jours : l'épreuve est relue
 const REREAD = 3600e3;
 const LOCK = 5 * 60e3;
+const UPGRADE = 5 * 60e3;  // après un changement de FIA_VERSION : une épreuve relue toutes les 5 minutes au plus
 
 // fia.com répond parfois trop tard (HTTP 522, 5xx) : deux nouveaux essais, 2 puis 4 s plus tard
 async function get(url, fetchFn, wait = (ms) => new Promise((r) => setTimeout(r, ms))) {
@@ -84,7 +85,7 @@ async function kept(env, year) {
 // Épreuve à lire (jamais lue), à reprendre après une erreur (5 min, puis de plus en plus espacé ; les PDF déjà lus
 // sont gardés, chaque essai avance), à relire (documents récents, ou traductions pas toutes faites) ou à revoir
 // (sans documents)
-const due = (e, now) => !e || e.v !== FIA_VERSION
+const due = (e, now) => !e
   || (e.error ? now - e.at > Math.min(EMPTY, 5 * 60e3 * 2 ** ((e.fails || 1) - 1))
     : e.data ? (now - e.data.last < RECENT || (e.data.tech?.length && !e.data.trDone)) && now - e.at > REREAD
       : !e.empty || now - e.at > EMPTY);   // vide sans « empty » : lecture d'avant, peut-être ratée, refaite
@@ -107,9 +108,14 @@ export async function fiaNext(env, year, { now = Date.now(), fetchFn = fetch, tr
   if (!env.DB) return null;
   const events = await seasonEvents(env, year, now, fetchFn);
   const have = await kept(env, year);
-  const ev = events.find((e) => due(have.get(e.page), now));
+  // Lecture faite par une version précédente du lecteur de PDF : refaite petit à petit (une épreuve toutes les
+  // UPGRADE, toutes années confondues), après les épreuves à lire pour une autre raison
+  const old = (e) => have.has(e.page) && have.get(e.page).v !== FIA_VERSION;
+  const ev = events.find((e) => due(have.get(e.page), now))
+    || (now - Number(await getRow(env, 'fiaupgrade') || 0) > UPGRADE && events.find(old));
   if (!ev || now - Number(await getRow(env, `fialock:${year}`) || 0) < LOCK) return null;
   await setRow(env, `fialock:${year}`, String(now));
+  if (old(ev)) await setRow(env, 'fiaupgrade', String(now));
   let data = null, error;
   try {
     data = await eventData(ev, { documents: async (page) => parseDocumentList(await (await get(page, fetchFn)).text()), parsed: (url, parser) => parsed(env, url, parser, fetchFn) });

@@ -168,3 +168,46 @@ test('version web : évolutions techniques traduites par le serveur, une fois, r
   assert.equal(await fiaNext(env, 2026, { now: now + 4 * 3600e3, fetchFn, translate }), null);   // tout est traduit : plus relue
   assert.deepEqual(await fiaTranslations(env), { Floor: { t: 'FR Floor', q: 'cloud' }, 'New floor edge': { t: 'FR New floor edge', q: 'cloud' }, 'Improves local load': { t: 'FR Improves local load', q: 'cloud' } });
 });
+
+test('version web : lecteur de PDF changé, épreuves relues petit à petit, ancienne lecture montrée en attendant', async () => {
+  const { fiaNext, seasonFiaWeb } = await import('../analytics/fia-tech.js');
+  const { FIA_VERSION } = await import('../shared/fia-tech.js');
+  const { createHash } = await import('node:crypto');
+  const sha = (s) => createHash('sha1').update(s).digest('hex').slice(0, 20);
+  const rows = new Map();
+  const DB = { prepare: (sql) => ({ bind: (...a) => ({
+    first: async () => (rows.has(a[0]) ? { v: rows.get(a[0]) } : null),
+    all: async () => ({ results: [...rows].filter(([k]) => k.startsWith(a[0])).map(([k, v]) => ({ k, v })) }),
+    run: async () => { rows.set(a[0], a[1]); },
+  }) }) };
+  const env = { DB };
+  const SEASON = '/documents/championships/fia-formula-one-world-championship-14/season/season-2026-2072';
+  const names = ['Monaco Grand Prix', 'Spanish Grand Prix'];
+  const ev = (n) => `${SEASON}/event/${encodeURIComponent(n)}`;
+  const pages = {
+    '/documents/championships/fia-formula-one-world-championship-14': `<option value="${SEASON}">2026</option>`,
+    [SEASON]: names.map((n) => `<option value="${ev(n)}">${n}</option>`).join(''),
+  };
+  names.forEach((n, i) => {
+    const file = `2026_${i}_-_cps`;
+    pages[ev(n)] = row(5, 'Doc 5 - Car Presentation Submissions', file, '01.06.26 12:00');
+    // PDF déjà lu par le nouveau lecteur ; épreuve lue par l'ancien (évolutions toutes à la même écurie)
+    rows.set(`fiadoc:${sha(`https://www.fia.com/system/files/decision-document/${file}.pdf`)}`, JSON.stringify({ v: FIA_VERSION, data: { updates: [{ team: 'Mercedes', n: 1, component: 'Floor', type: 'Performance', reason: 'Local Load', geometry: '', description: '' }], noUpdates: [] } }));
+    const page = `https://www.fia.com${ev(n)}`;
+    rows.set(`fiatech:2026:${sha(page)}`, JSON.stringify({ v: FIA_VERSION - 1, page, at: 0, data: { name: n, page, first: 0, last: 0, tech: [{ team: 'Red Bull Racing', component: 'Floor' }], tr: { Floor: 'Fond plat' }, trDone: true } }));
+  });
+  const fetchFn = async (u) => { const p = u.replace('https://www.fia.com', ''); return p in pages ? new Response(pages[p]) : new Response('', { status: 404 }); };
+  const now = Date.parse('2026-10-27T12:00:00Z');
+  const translate = async () => assert.fail('traductions reprises de l\'ancienne lecture');
+
+  const before = await seasonFiaWeb(env, 2026, { now });
+  assert.equal(before.events.length, 2, 'ancienne lecture montrée');
+  assert.equal(before.pending, true);
+  assert.equal((await fiaNext(env, 2026, { now, fetchFn, translate })).event, 'Monaco Grand Prix');
+  assert.equal(await fiaNext(env, 2026, { now: now + 6 * 60e3 - 2 * 60e3, fetchFn, translate }), null, 'pas plus d\'une toutes les 5 minutes');
+  assert.equal((await fiaNext(env, 2026, { now: now + 6 * 60e3, fetchFn, translate })).event, 'Spanish Grand Prix');
+  assert.equal(await fiaNext(env, 2026, { now: now + 20 * 60e3, fetchFn, translate }), null, 'tout est relu');
+  const after = await seasonFiaWeb(env, 2026, { now: now + 20 * 60e3 });
+  assert.equal(after.pending, false);
+  assert.deepEqual(after.events.map((e) => e.tech[0].team), ['Mercedes', 'Mercedes']);
+});
