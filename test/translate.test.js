@@ -10,7 +10,7 @@ function fakeEnv({ limit = 100, fail = false, garbled = false } = {}) {
   const calls = [];
   const stmt = (sql, args = []) => ({
     bind: (...a) => stmt(sql, a),
-    async all() { return { results: args.filter((k) => tr.has(k)).map((k) => ({ k, out: tr.get(k) })) }; },
+    async all() { return { results: sql.includes('ai_usage') ? args.filter((k) => usage.has(k)).map((k) => ({ day: k, n: usage.get(k) })) : args.filter((k) => tr.has(k)).map((k) => ({ k, out: tr.get(k) })) }; },
     async first() { return usage.has(args[0]) ? { n: usage.get(args[0]) } : null; },
     async run() { const v = (usage.get(args[0]) || 0) + args[1]; if (v > args[2]) return { meta: { changes: 0 } }; usage.set(args[0], v); return { meta: { changes: 1 } }; },
     exec() { tr.set(args[0], args[1]); },
@@ -173,14 +173,14 @@ test('traduction : réponse du modèle au lieu d\'une traduction refusée', asyn
 });
 
 // API de Claude simulée (fetch donné au SDK) : réponse « [modèle] texte », ou erreur de crédits
-function fakeClaude(f, { fail = false } = {}) {
+function fakeClaude(f, { fail = false, reply = null } = {}) {
   const sent = [];
   f.env.ANTHROPIC_API_KEY = 'test';
   f.env.CLAUDE_FETCH = async (url, init) => {
     const body = JSON.parse(init.body);
     sent.push(body);
     if (fail) return new Response(JSON.stringify({ type: 'error', error: { type: 'invalid_request_error', message: 'Your credit balance is too low to access the Anthropic API.' } }), { status: 400, headers: { 'content-type': 'application/json' } });
-    const list = JSON.parse(body.messages[0].content).map((t) => `[${body.model}] ${t}`);
+    const list = JSON.parse(body.messages[0].content).map(reply || ((t) => `[${body.model}] ${t}`));
     return new Response(JSON.stringify({ id: 'msg_1', type: 'message', role: 'assistant', model: body.model, content: [{ type: 'text', text: JSON.stringify(list) }], stop_reason: 'end_turn', usage: { input_tokens: 1, output_tokens: 1 } }), { status: 200, headers: { 'content-type': 'application/json' } });
   };
   return sent;
@@ -201,6 +201,28 @@ test('traduction partagée : Claude, Opus pour l\'Actu et la technique, Sonnet p
   assert.ok(!f.tr.has(await keyOf('en', 'fr', 'Box box')));   // gardé à part des traductions de Mistral
   const again = await translateBatch(f.env, { to: 'fr', items: [{ text: 'Title', from: 'en' }] }, '2026-10-15');
   assert.deepEqual(again, { out: ['[claude-opus-5-5] Title'], cached: true });
+});
+
+test('traduction partagée : plafond en dollars du jour atteint -> Mistral, sans appel à Claude', async () => {
+  const f = fakeEnv();
+  const sent = fakeClaude(f);
+  f.usage.set('claude-opus:2026-10-15', 4.5e6);
+  f.usage.set('claude-sonnet:2026-10-15', 0.6e6);   // 5,10 $ dépensés pour 5 $ permis
+  const r = await translateBatch(f.env, { to: 'fr', items: [{ text: 'Title', from: 'en', kind: 'news' }] }, '2026-10-15');
+  assert.deepEqual([r.out, sent.length, f.calls.length], [['[fr] Title'], 0, 1]);
+  f.env.CLAUDE_DAILY_USD = '6';
+  const r2 = await translateBatch(f.env, { to: 'fr', items: [{ text: 'Other', from: 'en', kind: 'news' }] }, '2026-10-15');
+  assert.deepEqual([r2.out, sent.length], [['[claude-opus-5-5] Other'], 1]);
+});
+
+test('traduction partagée : un titre « il semble que » gardé ; réponse de Claude refusée -> secours gardé, Claude pas rappelé', async () => {
+  const f = fakeEnv();
+  const sent = fakeClaude(f, { reply: (t) => (t === 'Mumble' ? 'Je ne comprends pas cette séquence, pourriez-vous reformuler ?' : `Il semble que ${t}`) });
+  const r = await translateBatch(f.env, { to: 'fr', items: [{ text: 'Max wins', from: 'en', kind: 'news' }, { text: 'Mumble', from: 'en', kind: 'radio' }] }, '2026-10-15');
+  assert.deepEqual(r.out, ['Il semble que Max wins', '[fr] Mumble']);   // vrai titre gardé ; radio : réponse au lieu d'une traduction -> Mistral
+  assert.equal(sent.length, 2);
+  const again = await translateBatch(f.env, { to: 'fr', items: [{ text: 'Max wins', from: 'en', kind: 'news' }, { text: 'Mumble', from: 'en', kind: 'radio' }] }, '2026-10-15');
+  assert.deepEqual([again.cached, sent.length, f.calls.length], [true, 2, 1]);   // tout depuis la base, ni Claude ni Mistral rappelés
 });
 
 test('traduction partagée : crédits Claude épuisés -> Mistral (déjà traduit d\'abord), puis pause', async () => {

@@ -140,16 +140,21 @@ export async function publishInstagram(meta, text, images) {
     creation = (await media({ media_type: 'CAROUSEL', children: kids.join(','), caption: text })).id;
   }
   await ready(status(creation), 'status_code', 'Post');
+  return igPublish(meta, creation, text);
+}
+
+// Conteneur Instagram prêt (post ou Reel) publié. Instagram répond parfois une erreur (« Nous restreignons certaines
+// activités… ») alors que le post est bien en ligne, parfois quelques secondes plus tard : conteneur relu plusieurs
+// fois, et dernier post du compte comparé à la légende ; repris s'il est là (jamais republié en double)
+async function igPublish(meta, creation, text) {
+  const tok = { access_token: meta.pageToken };
   let pub;
   try {
     pub = await call(`${GRAPH}/${meta.igId}/media_publish`, { method: 'POST', form: { creation_id: creation, ...tok } });
   } catch (err) {
-    // Instagram répond parfois une erreur (« Nous restreignons certaines activités… ») alors que le post est
-    // bien en ligne, parfois quelques secondes plus tard : conteneur relu plusieurs fois, et dernier post du
-    // compte comparé à la légende ; repris s'il est là (jamais republié en double)
     for (const ms of [0, ...timing.visible]) {
       if (ms) await wait(ms);
-      const done = (await call(status(creation)).catch(() => ({}))).status_code === 'PUBLISHED';
+      const done = (await call(`${GRAPH}/${creation}?${new URLSearchParams({ fields: 'status_code,status', ...tok })}`).catch(() => ({}))).status_code === 'PUBLISHED';
       const last = (await call(`${GRAPH}/${meta.igId}/media?${new URLSearchParams({ fields: 'id,permalink,caption,timestamp', limit: '1', ...tok })}`).catch(() => ({}))).data?.[0] || {};
       const same = last.caption && last.caption.trim().slice(0, 80) === text.trim().slice(0, 80) && Date.now() - Date.parse(last.timestamp) < 15 * 60e3;
       if (done || same) return { url: last.permalink || `https://www.instagram.com/${meta.igUsername || ''}`, id: last.id || null };
@@ -219,8 +224,8 @@ export async function storyVideoFacebook(meta, video) {
 // coverUrl : couverture (image publique), sinon une image choisie par Instagram
 export async function reelInstagram(meta, video, caption, coverUrl = null) {
   if (!meta?.igId) throw new Error('Aucun compte Instagram professionnel relié à la page Facebook');
-  const tok = { access_token: meta.pageToken };
-  const reel = (cover) => igVideo(meta, video, { media_type: 'REELS', caption: String(caption || '').slice(0, 2200), ...(cover ? { cover_url: cover } : {}) }, 'Reel');
+  const text = String(caption || '').slice(0, 2200);
+  const reel = (cover) => igVideo(meta, video, { media_type: 'REELS', caption: text, ...(cover ? { cover_url: cover } : {}) }, 'Reel');
   // Refus avec la couverture (même vidéo acceptée en story) : un essai sans elle, image choisie par Instagram
   let note = null;
   const id = await reel(coverUrl).catch((err) => {
@@ -228,9 +233,7 @@ export async function reelInstagram(meta, video, caption, coverUrl = null) {
     note = `Couverture refusée par Instagram (${err.message.slice(0, 120)}) : image choisie par Instagram`;
     return reel(null);
   });
-  const pub = await call(`${GRAPH}/${meta.igId}/media_publish`, { method: 'POST', form: { creation_id: id, ...tok } });
-  const link = await call(`${GRAPH}/${pub.id}?${new URLSearchParams({ fields: 'permalink', ...tok })}`).catch(() => ({}));
-  return { url: link.permalink || `https://www.instagram.com/${meta.igUsername || ''}`, id: pub.id, ...(note ? { note } : {}) };
+  return { ...(await igPublish(meta, id, text)), ...(note ? { note } : {}) };
 }
 
 // ---------- Vidéo envoyée par le créateur (MP4 ou MOV) ----------

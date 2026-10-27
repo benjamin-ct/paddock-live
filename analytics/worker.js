@@ -52,14 +52,20 @@ async function liveAsset(env, req) {
 async function seasonAppPage(env, req, url, ctx) {
   const p = parseSeasonPath(url.pathname);
   if (!p) return new Response('Introuvable', { status: 404 });
-  if (!p.year) return Response.redirect(`${url.origin}/saison/${new Date().getUTCFullYear()}/`, 302);
+  // /saison/ : la saison en cours dès son premier Grand Prix couru, la précédente avant (sinon une saison vide en janvier)
+  if (!p.year) {
+    const y = new Date().getUTCFullYear();
+    const cur = JSON.parse(await env.DB?.prepare('SELECT v FROM studio WHERE k = ?1').bind(`season:${y}`).first('v').catch(() => null) || 'null')?.v;
+    return Response.redirect(`${url.origin}/saison/${cur?.races?.some((r) => r.results?.length) || !env.DB ? y : y - 1}/`, 302);
+  }
   const key = new Request(`${url.origin}${url.pathname}`);
   const hit = await caches.default.match(key).catch(() => null);
   if (hit) return hit;
   const ssr = await seasonSsr(env, p).catch(() => ({}));
   if (!ssr) return new Response('Introuvable', { status: 404 });
-  const page = await liveAsset(env, new Request(new URL('/live/', url), req));
-  if (!ssr.url) return page;
+  // Sans les en-têtes du visiteur : un If-None-Match ferait répondre 304 sans contenu, gardé 15 min pour tout le monde
+  const page = await liveAsset(env, new Request(new URL('/live/', url)));
+  if (!ssr.url || page.status !== 200) return page;
   const attr = (name, v) => ({ element(e) { e.setAttribute(name, v); } });
   const out = new HTMLRewriter()
     .on('title', { element(e) { e.setInnerContent(`${ssr.title} · Paddock Live`); } })
@@ -75,6 +81,7 @@ async function seasonAppPage(env, req, url, ctx) {
   const body = await out.text();
   const res = new Response(body, { status: 200, headers: out.headers });
   res.headers.set('Content-Type', 'text/html; charset=utf-8');
+  res.headers.delete('ETag');   // celle de /live/index.html, pas de cette page
   const kept = new Response(body, { headers: res.headers });
   kept.headers.set('Cache-Control', 'public, max-age=900');
   ctx.waitUntil(caches.default.put(key, kept).catch(() => {}));
@@ -330,7 +337,8 @@ export default {
     }
     if (req.method === 'POST' && url.pathname === '/internal/sched') return schedInternal(req, env);
     if (req.method === 'POST' && url.pathname === '/internal/push') {
-      if (!env.STATS_KEY || !sameKey(req.headers.get('X-Sched-Key') || '', env.STATS_KEY)) return json({ error: 'Interdit' }, 403);
+      if (await fails(env, req) >= MAX_FAILS) return json({ error: 'Trop d\'essais aujourd\'hui' }, 429);   // comme /internal/sched
+      if (!env.STATS_KEY || !sameKey(req.headers.get('X-Sched-Key') || '', env.STATS_KEY)) { await failed(env, req); return json({ error: 'Interdit' }, 403); }
       return json(await pushRun(env));
     }
     // Alertes sur le téléphone (page /alertes/) : clé du serveur, abonnement, désabonnement, essai
@@ -419,6 +427,8 @@ export async function prune(env, now) {
   for (const t of ['studio_fail', 'feedback_new', 'pronos_new']) await env.DB.prepare(`DELETE FROM ${t} WHERE day < ?1`).bind(today).run();
   await env.DB.prepare('DELETE FROM radio_texts WHERE at < ?1').bind(now - 365 * 86400e3).run();
   await env.DB.prepare('DELETE FROM push_sent WHERE at < ?1').bind(now - 30 * 86400e3).run();
+  // Témoins des programmations publiées (un nouvel envoi du même post n'est pas republié) : 7 jours
+  await env.DB.prepare('DELETE FROM studio WHERE k >= ?1 AND k < ?2 AND at < ?3').bind('scheddone:', 'scheddone;', now - 7 * 86400e3).run();
 }
 
 // Calendrier des séances auquel on s'abonne depuis l'appli (webcal://paddocklive.app/calendar.ics,

@@ -115,7 +115,7 @@ export async function translateText(text, language, domain, from = 'en') {
 export async function transcribeWindow(audio) {
   const res = await fetch('/api/radio-window', { method: 'POST', headers: { 'Content-Type': 'audio/wav' }, body: wav(audio) });
   const r = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(r.error || `HTTP ${res.status}`);
+  if (!res.ok) throw Object.assign(new Error(r.error || `HTTP ${res.status}`), { status: res.status });
   return r.segments || [];
 }
 

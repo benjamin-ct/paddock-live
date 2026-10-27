@@ -74,6 +74,16 @@ test('transcription partagée : une seule fois pour tous, texte nettoyé, plafon
   assert.deepEqual(await transcribeRadio(env, new Uint8Array(2000), '2026-10-15'), { invalid: true });
 });
 
+test('transcription partagée : un long fichier son compte pour une radio par tranche de 30 s', async () => {
+  const { env, usage } = fakeEnv({ limit: 100 });
+  const run = env.AI.run;
+  env.AI.run = async (model, input) => ({ ...(await run(model, input)), transcription_info: { duration: 35 * 60 } });   // MP3 de 35 min
+  await transcribeRadio(env, mp3(2000, 40), '2026-10-15', '203.0.113.7');
+  assert.equal(usage.get('radio:2026-10-15'), 70);
+  assert.equal(usage.get('2026-10-15|203.0.113.7|radio:2026-10-15'), 70);   // sa part du jour (25) est dépassée
+  assert.deepEqual(await transcribeRadio(env, mp3(2000, 41), '2026-10-15', '203.0.113.7'), { limited: true });
+});
+
 test('transcription partagée : une seule adresse ne prend qu\'un quart du plafond du jour', async () => {
   const { env, usage } = fakeEnv({ limit: 8 });
   for (let i = 0; i < 2; i++) assert.equal((await transcribeRadio(env, mp3(2000, 20 + i), '2026-10-15', '203.0.113.7')).text, 'Box, box.');

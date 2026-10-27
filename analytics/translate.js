@@ -2,8 +2,9 @@
 // puis gardé dans la base. Plafond quotidien contre les abus ; au-delà, l'appli traduit sur l'ordinateur comme avant.
 // Claude (secret ANTHROPIC_API_KEY : crédits API de l'abonnement Max, perdus s'ils ne servent pas) : Opus pour
 // l'Actu et la technique, Sonnet sans réflexion, plus rapide, pour le reste (radios, direction de course, anciennes
-// applis qui n'envoient pas le type de texte). Pas de clé, erreur de l'API (crédits du mois épuisés…) : pause de
-// 10 minutes et Mistral comme avant ; réponse refusée ou mal formée : Mistral pour ce paquet. Traductions gardées
+// applis qui n'envoient pas le type de texte). Plafond en dollars du jour atteint (claudeRoom) : Mistral. Pas de
+// clé, erreur de l'API (crédits du mois épuisés…) : pause de 10 minutes et Mistral comme avant ; réponse refusée
+// ou mal formée : Mistral pour ce paquet, gardé aussi sous la clé de Claude. Traductions gardées
 // séparément (MODEL_TAG, CLAUDE_TAG) : celles de Mistral resservent quand Claude est en pause.
 // Modèle de langage (Mistral Small 3.1) avec des consignes F1 : noms propres gardés, jargon des fans,
 // sens traduit plutôt que mot à mot (titres écrits comme dans la presse sportive, exemples à l'appui).
@@ -13,8 +14,8 @@
 // réponse « plafond atteint » comme pour le plafond de Paddock Live.
 // Traduction avec des caractères d'une autre écriture (chinois glissé dans du français…) : refaite.
 import Anthropic from '@anthropic-ai/sdk';
-import { badTranslation } from '../shared/translation-check.js';
-import { aiQuota, runAI, countClaude } from './quota.js';
+import { badTranslation, badScript } from '../shared/translation-check.js';
+import { aiQuota, runAI, countClaude, claudeRoom } from './quota.js';
 export const MODEL = '@cf/mistralai/mistral-small-3.1-24b-instruct';
 export const FALLBACK = '@cf/meta/m2m100-1.2b';
 const MODEL_TAG = 'ms31b';  // dans la clé du cache : changer de modèle ou de consignes = nouvelles traductions
@@ -24,6 +25,9 @@ export const CLAUDE = {
   opus: { model: 'claude-opus-5-5', output_config: { effort: 'medium' } },
   sonnet: { model: 'claude-sonnet-5-5', thinking: { type: 'between_tools' } },
 };
+// Traduction inutilisable : autre écriture, ou réponse au lieu d'une traduction (texte illisible : radios, direction de
+// course, anciennes applis sans type). Pas pour l'Actu et la technique : un vrai titre peut dire « il semble que »
+const bad = (out, to, it) => (it.kind === 'news' || it.kind === 'tech' ? badScript(out, to) : badTranslation(out, to, it.text));
 export const claudeFor = (kind) => (kind === 'news' || kind === 'tech' ? CLAUDE.opus : CLAUDE.sonnet);
 const CLAUDE_PAUSE = 10 * 60e3;
 let claudeOffUntil = 0;
@@ -137,9 +141,9 @@ async function mistral(env, items, to, spent) {
   let list = null;
   if (!spent.on) try { list = await llm(env, items.map((it) => it.text), to); } catch (e) { if (aiSpent(e)) spent.on = true; }
   return Promise.all(items.map(async (it, j) => {
-    if (list && !badTranslation(list[j], to, it.text)) return list[j];
+    if (list && !bad(list[j], to, it)) return list[j];
     const s = await simple(env, it.text, it.from, to, spent);
-    return s && !badTranslation(s, to, it.text) ? s : null;
+    return s && !bad(s, to, it) ? s : null;
   }));
 }
 
@@ -150,12 +154,12 @@ export async function translateBatch(env, req, day = new Date().toISOString().sl
   const out = req.items.map((it) => (it.from === req.to ? it.text : null));
   // Déjà traduits (par n'importe quel utilisateur)
   const found = await stored(env, keys.filter((k, i) => out[i] === null));
-  keys.forEach((k, i) => { if (out[i] === null && found.has(k) && !badTranslation(found.get(k), req.to, req.items[i].text)) out[i] = found.get(k); });
+  keys.forEach((k, i) => { if (out[i] === null && found.has(k) && !bad(found.get(k), req.to, req.items[i])) out[i] = found.get(k); });
   const todo = [...new Set(keys.filter((k, i) => out[i] === null))].map((k) => ({ k, it: req.items[keys.indexOf(k)] }));
   if (!todo.length) return { out, cached: true };
   // Plafond du jour
   const q = quota || { key: day, limit: Number(env.AI_DAILY_LIMIT) || 1000 };
-  if (!(await aiQuota(env, { key: q.key, day, n: todo.length, limit: q.limit, ip }))) return { out, limited: true };
+  if (!(await aiQuota(env, { key: q.key, day, n: todo.length, limit: q.limit, ip, claude: claudeOn }))) return { out, limited: true };
   // Paquets de 20 (ou 8 000 caractères), un seul modèle Claude par paquet
   const opus = (x) => (claudeOn && claudeFor(x.it.kind) === CLAUDE.opus ? 1 : 0);
   todo.sort((a, b) => opus(a) - opus(b));
@@ -169,21 +173,24 @@ export async function translateBatch(env, req, day = new Date().toISOString().sl
   // Par texte : { t, k } (traduction, clé sous laquelle la garder) ou null
   const results = await mapLimit(groups, 3, async (g) => {
     const res = g.map(() => null);
-    if (claudeOn) {
+    // Claude a répondu, mais traduction refusée ou mal formée : celle de secours est gardée aussi sous sa clé, sinon
+    // Claude serait rappelé pour ce texte à chaque demande (pas après une erreur de l'API : retenté après la pause)
+    let answered = false;
+    if (claudeOn && await claudeRoom(env, day).catch(() => false)) {
       let list = null;
-      try { list = await claude(env, g.map(({ it }) => it.text), req.to, g[0].it.kind); } catch { claudeOffUntil = Date.now() + CLAUDE_PAUSE; }
-      g.forEach(({ k, it }, j) => { if (list && !badTranslation(list[j], req.to, it.text)) res[j] = { t: list[j], k }; });
+      try { list = await claude(env, g.map(({ it }) => it.text), req.to, g[0].it.kind); answered = true; } catch { claudeOffUntil = Date.now() + CLAUDE_PAUSE; }
+      g.forEach(({ k, it }, j) => { if (list && !bad(list[j], req.to, it)) res[j] = { t: list[j], k }; });
     }
     // Sans Claude : traductions de Mistral déjà gardées, sinon Mistral
     const rest = await Promise.all(g.flatMap(({ k, it }, j) => (res[j] ? [] : [(claudeOn ? keyOf(it.from, req.to, it.text) : Promise.resolve(k)).then((mk) => ({ j, mk, it }))])));
     const old = claudeOn ? await stored(env, rest.map((r) => r.mk)) : new Map();
     const need = rest.filter((r) => {
       const o = old.get(r.mk);
-      if (o && !badTranslation(o, req.to, r.it.text)) { res[r.j] = { t: o }; return false; }
+      if (o && !bad(o, req.to, r.it)) { res[r.j] = { t: o, ...(answered && { ck: g[r.j].k }) }; return false; }
       return true;
     });
     const tr = need.length ? await mistral(env, need.map((r) => r.it), req.to, spent) : [];
-    need.forEach((r, n) => { if (tr[n]) res[r.j] = { t: tr[n], k: r.mk }; });
+    need.forEach((r, n) => { if (tr[n]) res[r.j] = { t: tr[n], k: r.mk, ...(answered && { ck: g[r.j].k }) }; });
     return res;
   });
   const done = results.flat();
@@ -192,7 +199,7 @@ export async function translateBatch(env, req, day = new Date().toISOString().sl
   todo.forEach(({ k }, j) => {
     if (!done[j]) return;
     keys.forEach((kk, i) => { if (kk === k && out[i] === null) out[i] = done[j].t; });
-    if (done[j].k) store.push(env.DB.prepare('INSERT OR REPLACE INTO translations (k, out, at) VALUES (?1, ?2, ?3)').bind(done[j].k, done[j].t, now));
+    for (const sk of [done[j].k, done[j].ck]) if (sk) store.push(env.DB.prepare('INSERT OR REPLACE INTO translations (k, out, at) VALUES (?1, ?2, ?3)').bind(sk, done[j].t, now));
   });
   if (store.length) await env.DB.batch(store);
   return spent.on ? { out, limited: true } : { out };

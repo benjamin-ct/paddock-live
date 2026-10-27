@@ -4,7 +4,7 @@
 // passer un faux texte pour une radio qu'il n'a pas envoyée. Plafond quotidien contre les abus ;
 // au-delà, la radio attend le lendemain.
 import { clean } from '../shared/radio-text.js';
-import { aiQuota, runAI } from './quota.js';
+import { aiQuota, aiMore, runAI } from './quota.js';
 
 export const ASR_MODEL = '@cf/openai/whisper-large-v3-turbo';
 export const ASR_FALLBACK = '@cf/openai/whisper';
@@ -61,6 +61,7 @@ export async function transcribeRadio(env, bytes, day = new Date().toISOString()
   const r = await whisper(env, bytes);
   const text = clean(r.text);
   const d = Number.isFinite(r.d) ? Math.round(r.d * 10) / 10 : null;
+  await aiMore(env, { key: `radio:${day}`, day, n: Math.ceil((d || 0) / 30) - 1, ip }).catch(() => {});   // une radio = 30 s
   await env.DB.prepare('INSERT OR REPLACE INTO radio_texts (k, text, d, at) VALUES (?1, ?2, ?3, ?4)').bind(radioKey(hash), text, d, Date.now()).run();
   return { text, d: d ?? undefined, hash };
 }
@@ -70,7 +71,7 @@ export async function transcribeRadio(env, bytes, day = new Date().toISOString()
 const isWav = (b) => b?.length >= 44 && b.length <= MAX_AUDIO && String.fromCharCode(...b.subarray(0, 4)) === 'RIFF' && String.fromCharCode(...b.subarray(8, 12)) === 'WAVE';
 export async function transcribeWindow(env, bytes, day = new Date().toISOString().slice(0, 10), ip = null) {
   if (!isWav(bytes)) return { invalid: true };
-  const limit = Number(env.ONBOARD_DAILY_LIMIT) || 160;
+  const limit = Number(env.ONBOARD_DAILY_LIMIT) || 400;   // week-end de Grand Prix : environ 490 fenêtres par adresse, 1 h de course pour 3 pilotes
   if (!(await aiQuota(env, { key: `onboard:${day}`, day, n: 1, limit, ip }))) return { limited: true };
   const r = await runAI(env, ASR_MODEL, { audio: base64(bytes), task: 'transcribe', language: 'en' });
   const segments = (r?.segments || []).map((x) => ({ timestamp: [x.start, x.end], text: x.text || '' }));

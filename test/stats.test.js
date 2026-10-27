@@ -216,6 +216,12 @@ test('serveur des statistiques : mot de passe bloqué après 30 essais ratés da
   env.DB.fails.set(`local|${new Date().toISOString().slice(0, 10)}`, 30);
   assert.equal((await login(env, 'secret-123')).status, 429);
   assert.equal((await get(env, '/stats.json?key=secret-123')).status, 403);
+  // Même blocage sur /internal/push (tâche planifiée), et chaque essai raté y est compté
+  const push = (key) => worker.fetch(new Request(`${W}/internal/push`, { method: 'POST', headers: { 'X-Sched-Key': key } }), env);
+  assert.equal((await push('secret-123')).status, 429);
+  env.DB.fails.clear();
+  assert.equal((await push('mauvais')).status, 403);
+  assert.equal(env.DB.fails.get(`local|${new Date().toISOString().slice(0, 10)}`), 1);
 });
 
 test('serveur des statistiques : chiffres du tableau de bord', async () => {
@@ -338,6 +344,7 @@ test('serveur : ménage du jour (traductions de plus de 90 jours, erreurs de plu
     ['DELETE FROM translations WHERE at < ?1', [now - 90 * 86400e3]], ['DELETE FROM error_details WHERE day < ?1', ['2025-10-22']],
     ['DELETE FROM studio_fail WHERE day < ?1', ['2026-10-22']], ['DELETE FROM feedback_new WHERE day < ?1', ['2026-10-22']], ['DELETE FROM pronos_new WHERE day < ?1', ['2026-10-22']],
     ['DELETE FROM radio_texts WHERE at < ?1', [now - 365 * 86400e3]], ['DELETE FROM push_sent WHERE at < ?1', [now - 30 * 86400e3]],
+    ['DELETE FROM studio WHERE k >= ?1 AND k < ?2 AND at < ?3', ['scheddone:', 'scheddone;', now - 7 * 86400e3]],
   ]);
   const r = await worker.fetch(new Request('https://p.test/dl/%E0%A4%A'), {}, {});
   assert.equal(r.status, 404);
