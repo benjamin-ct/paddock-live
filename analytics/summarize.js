@@ -5,7 +5,7 @@
 import { MODEL } from './translate.js';
 import { badScript } from '../shared/translation-check.js';
 import { fold } from '../shared/news.js';
-import { aiQuota, studioQuota } from './quota.js';
+import { aiQuota, runAI, studioQuota } from './quota.js';
 
 const TAG = 'sum1';          // dans la clé du cache : changer les consignes = nouveaux résumés
 export const MAX_INPUT = 12000;
@@ -85,14 +85,14 @@ export async function summarizeArticle(env, req, day = new Date().toISOString().
   const k = await keyOf(req.title, req.text);
   const hit = await env.DB.prepare('SELECT out FROM translations WHERE k = ?1').bind(k).first();
   if (hit?.out) { try { return { points: JSON.parse(hit.out), cached: true }; } catch { /* entrée abîmée : refaite */ } }
-  const q = quota || { key: day, limit: Number(env.AI_DAILY_LIMIT) || 20000 };
+  const q = quota || { key: day, limit: Number(env.AI_DAILY_LIMIT) || 1000 };
   if (!(await aiQuota(env, { key: q.key, day, n: COST, limit: q.limit, ip }))) return { limited: true };
   // Deux essais : réponse mal formée ou trop proche du texte de l'article
   const why = {};
   for (let attempt = 0; attempt < 2; attempt++) {
     let reply = null;
     try {
-      const r = await env.AI.run(MODEL, {
+      const r = await runAI(env, MODEL, {
         messages: [{ role: 'system', content: SYSTEM }, { role: 'user', content: `Title: ${req.title}\n\nArticle:\n${req.text}` }],
         temperature: attempt ? 0.4 : 0.2,
         max_tokens: 900,
@@ -145,7 +145,7 @@ export async function rewritePost(env, text, day = new Date().toISOString().slic
   if (!(await aiQuota(env, { key: q.key, day, n: POST_COST, limit: q.limit }))) return { limited: true };
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      const r = await env.AI.run(MODEL, {
+      const r = await runAI(env, MODEL, {
         messages: [{ role: 'system', content: POST_SYSTEM }, { role: 'user', content: text }],
         temperature: attempt ? 0.5 : 0.3,
         max_tokens: 900,

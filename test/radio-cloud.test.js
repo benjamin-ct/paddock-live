@@ -150,7 +150,7 @@ test('caméras embarquées : fenêtre WAV retranscrite par le serveur avec l\'he
   const usage = new Map();
   const env = {
     ONBOARD_DAILY_LIMIT: '1',
-    DB: { prepare: () => ({ bind: (...a) => ({ run: async () => { const v = (usage.get(a[0]) || 0) + a[1]; if (v > a[2]) return { meta: { changes: 0 } }; usage.set(a[0], v); return { meta: { changes: 1 } }; } }) }) },
+    DB: { prepare: () => ({ bind: (...a) => ({ first: async () => null, run: async () => { const v = (usage.get(a[0]) || 0) + a[1]; if (v > a[2]) return { meta: { changes: 0 } }; usage.set(a[0], v); return { meta: { changes: 1 } }; } }) }) },
     AI: { run: async (model, input) => {
       assert.equal(model, ASR_MODEL);
       assert.equal(typeof input.audio, 'string');
