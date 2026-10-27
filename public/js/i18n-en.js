@@ -1723,6 +1723,7 @@ export default {
   "F1 TV refuse le flux embarqué (abonnement sans caméras embarquées ?)": "F1 TV refuses the onboard stream (subscription without onboard cameras?)",
   "son protégé (DRM {}) : impossible de le retranscrire": "protected audio (DRM {}): it cannot be transcribed",
   "reconnaissance impossible ({})": "recognition failed ({})",
+  "plafond du jour du serveur atteint, reprise demain": "server daily limit reached, back tomorrow",
   "erreur du flux ({})": "stream error ({})",
   "{} : {}": "{}: {}",
   "{} : connexion…": "{}: connecting…",

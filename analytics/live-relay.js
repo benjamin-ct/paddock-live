@@ -30,7 +30,9 @@ export const HIST_MS = WEB_HIST_MS; // GPS et télémétrie d'avant le délai (t
 const IDLE_MS = 60e3;              // plus personne : connexion à la F1 fermée au bout d'une minute
 const MAX_CLIENTS = 1000;
 const MAX_PER_IP = 10;             // relais commun : un seul appelant ne peut pas prendre toutes les places
+const MAX_PER_NET = 30;            // et en IPv6, un bloc /48 (donné gratuitement par certains fournisseurs) pas plus
 const MAX_PRIVATE = 4;             // relais d'un abonné F1 TV : ses onglets et appareils
+export const AUTH_MS = 15e3, PRIVATE_MS = 6 * 3600e3;   // relais d'un abonné : connexion F1 TV attendue, durée d'une connexion
 const ORIGINS = ['https://app.paddocklive.app'];
 const STREAM_EVERY = 2000;         // GPS plus ancien : une demande toutes les 2 s au plus par connexion
 
@@ -87,17 +89,25 @@ export class LiveRelay {
     const priv = this.name.startsWith('u:');
     if (this.clients.size >= (priv ? MAX_PRIVATE : MAX_CLIENTS)) return new Response('Trop de connexions', { status: 503 });
     const ip = callerIp(req) || '?';
-    if (!priv && (this.ips.get(ip) || 0) >= MAX_PER_IP) return new Response('Trop de connexions depuis cette adresse', { status: 429 });
+    const net = ip.includes(':') ? `${ip.split(':').slice(0, 3).join(':')}::/48` : null;
+    if (!priv && ((this.ips.get(ip) || 0) >= MAX_PER_IP || (net && (this.ips.get(net) || 0) >= MAX_PER_NET))) return new Response('Trop de connexions depuis cette adresse', { status: 429 });
     const [client, server] = Object.values(new WebSocketPair());
     server.accept();
     this.clients.add(server);
-    this.ips.set(ip, (this.ips.get(ip) || 0) + 1);
-    server.ip = ip;
+    server.nets = net ? [ip, net] : [ip];
+    for (const k of server.nets) this.ips.set(k, (this.ips.get(k) || 0) + 1);
     server.ua = shortUA(req.headers.get('User-Agent'));   // type d'appareil, pour la liste des appareils du Studio
     server.since = Date.now();
     const drop = () => this.drop(server);
     server.addEventListener('close', drop);
     server.addEventListener('error', drop);
+    // Relais d'un abonné (facturé à la durée) : fermé sans connexion F1 TV valable au bout de AUTH_MS (la page repasse
+    // alors au relais commun), et toute connexion au bout de PRIVATE_MS (la page se reconnecte d'elle-même)
+    if (priv) {
+      const end = (code, why) => { try { server.close(code, why); } catch { /* déjà fermée */ } drop(); };
+      this.timers.push(setTimeout(() => { if (!this.userToken) end(4001, 'Connexion F1 TV attendue'); }, AUTH_MS));
+      this.timers.push(setTimeout(() => end(4000, 'Reconnexion'), PRIVATE_MS));
+    }
     server.addEventListener('message', (ev) => {
       let m;
       try { m = JSON.parse(ev.data); } catch { return; }
@@ -129,12 +139,17 @@ export class LiveRelay {
     for (const [k, v] of this.pairs) if (v.exp < now) this.pairs.delete(k);
     const code = url.searchParams.get('code');
     if (req.method === 'POST' && !code) {                              // téléphone : publie sa clé (et son type), reçoit un code
-      const body = await req.json().catch(() => null);
+      const text = Number(req.headers.get('Content-Length') || 0) > 4096 ? '' : await req.text().catch(() => '');
+      let body = null;
+      try { body = text.length <= 4096 ? JSON.parse(text) : null; } catch { /* illisible */ }
       if (!pairKey(body?.pub)) return json({ error: 'Clé invalide' }, 400);
+      // 300 codes en attente pour tout le monde, 5 par adresse : une seule ne bloque pas l'appairage des autres
+      const ip = callerIp(req) || '?';
+      if ([...this.pairs.values()].filter((v) => v.ip === ip).length >= 5) return json({ error: 'Trop de codes en attente, réessayez dans 3 minutes' }, 429);
       if (this.pairs.size >= 300) return json({ error: 'Réessayez dans un instant' }, 503);
       let c, n = 0;
       do { c = String(crypto.getRandomValues(new Uint32Array(1))[0] % 1e6).padStart(6, '0'); } while (this.pairs.has(c) && ++n < 30);
-      this.pairs.set(c, { pub: body.pub, kind: body.kind === 'browser' ? 'browser' : 'phone', box: null, exp: now + 180e3 });
+      this.pairs.set(c, { pub: body.pub, kind: body.kind === 'browser' ? 'browser' : 'phone', box: null, exp: now + 180e3, ip });
       return json({ code: c, ttl: 180 });
     }
     if (!/^\d{6}$/.test(code || '')) return json({ error: 'Code invalide' }, 400);
@@ -228,9 +243,11 @@ export class LiveRelay {
   }
 
   drop(ws) {
-    if (this.clients.delete(ws) && ws.ip) {
-      const n = (this.ips.get(ws.ip) || 1) - 1;
-      if (n > 0) this.ips.set(ws.ip, n); else this.ips.delete(ws.ip);
+    if (this.clients.delete(ws)) {
+      for (const k of ws.nets || []) {
+        const n = (this.ips.get(k) || 1) - 1;
+        if (n > 0) this.ips.set(k, n); else this.ips.delete(k);
+      }
     }
     if (!this.clients.size && !this.idle) this.idle = setTimeout(() => this.stop(), IDLE_MS);
   }
@@ -675,7 +692,7 @@ export async function liveApi(req, url, env = {}) {
   // Pole et meilleur tour en course des éditions précédentes sur ce circuit (bandeau de l'Analyse)
   if (url.pathname === '/live/api/records' && req.method === 'GET') {
     const key = Number(url.searchParams.get('key')), year = Number(url.searchParams.get('year'));
-    if (!env.DB || !Number.isInteger(key) || key <= 0 || !Number.isInteger(year) || year < 2018 || year > new Date().getUTCFullYear() + 1) return json({ error: 'Paramètres invalides' }, 400);
+    if (!env.DB || !circuitKey(key) || !Number.isInteger(year) || year < 2018 || year > new Date().getUTCFullYear() + 1) return json({ error: 'Paramètres invalides' }, 400);
     return json(await circuitRecords(env, key, year), 200, { 'Cache-Control': 'public, max-age=3600' });
   }
   // Météo prévue sur un circuit (accueil, onglet Météo), gardée 30 min par endroit (Open-Meteo limite les demandes)
@@ -700,7 +717,7 @@ export async function liveApi(req, url, env = {}) {
   // Zones du mode dépassement et boucles de chronométrage (mini-secteurs) du circuit, calculées par le serveur
   if ((url.pathname === '/live/api/zones' || url.pathname === '/live/api/loops') && req.method === 'GET') {
     const key = Number(url.searchParams.get('key')), year = Number(url.searchParams.get('year'));
-    if (!env.DB || !Number.isInteger(key) || key <= 0 || !Number.isInteger(year) || year < 2018 || year > new Date().getUTCFullYear() + 1) return json({ error: 'Paramètres invalides' }, 400);
+    if (!env.DB || !circuitKey(key) || !Number.isInteger(year) || year < 2018 || year > new Date().getUTCFullYear() + 1) return json({ error: 'Paramètres invalides' }, 400);
     const d = await zonesWeb(env, url.pathname.slice(10), key, year);
     return d ? json(d, 200, { 'Cache-Control': 'public, max-age=3600' }) : json({ error: 'Pas encore calculé par le serveur', pending: true }, 404);
   }
@@ -712,6 +729,11 @@ export async function liveApi(req, url, env = {}) {
   }
   return json({ error: 'Pas disponible dans la version web' }, 404);
 }
+
+// Numéro de circuit de la F1 (10 Albert Park… 152 Las Vegas) : les numéros inventés au-delà sont refusés (chacun
+// demanderait un calcul des zones ou une lecture des archives). Pas la seule liste du calendrier (shared/circuits-info.js) :
+// les replays des saisons passées et les nouveaux circuits ont d'autres numéros
+const circuitKey = (k) => Number.isInteger(k) && k > 0 && k <= 300;
 
 const json = (d, status = 200, headers = {}) => new Response(JSON.stringify(d), { status, headers: { 'Content-Type': 'application/json', ...headers } });
 

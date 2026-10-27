@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import zlib from 'node:zlib';
-import { LiveRelay, KEEP_MS, liveApi, pairSend, liveDevices, liveState } from '../analytics/live-relay.js';
+import { LiveRelay, KEEP_MS, AUTH_MS, PRIVATE_MS, liveApi, pairSend, liveDevices, liveState } from '../analytics/live-relay.js';
 import { WebHub } from '../analytics/live-page/web-hub.js';
 import { applyEvent, createDerived } from '../shared/derive.js';
 
@@ -241,6 +241,8 @@ test('relais web : page d\'un autre site refusée, places limitées par adresse'
   assert.equal((await ws({})).status, 403);
   relay.ips.set('1.2.3.4', 10);
   assert.equal((await ws({ Origin: 'https://app.paddocklive.app', 'CF-Connecting-IP': '1.2.3.4' })).status, 429);
+  relay.ips.set('2001:db8:1::/48', 30);   // IPv6 : 30 places au plus pour tout un bloc /48, quel que soit le /64
+  assert.equal((await ws({ Origin: 'https://app.paddocklive.app', 'CF-Connecting-IP': '2001:db8:1:5::1' })).status, 429);
 });
 
 test('version web : rien de montré avant que le délai TV ait rattrapé un relais qui vient de démarrer', () => {
@@ -296,6 +298,12 @@ test('appairage : la connexion passe chiffrée, le serveur ne la lit pas, le cod
 
   // Code à usage unique : plus rien après récupération
   assert.equal((await call('GET', `?code=${code}&claim=1`)).status, 404);
+
+  // 5 codes en attente au plus par adresse (ici 1 déjà pris par « other »), corps de plus de 4 Ko refusé
+  const pk = await jwk(await keys());
+  for (let i = 0; i < 4; i++) assert.equal((await call('POST', '', { pub: pk })).status, 200);
+  assert.equal((await call('POST', '', { pub: pk })).status, 429);
+  assert.equal((await call('POST', '', { pub: pk, pad: 'x'.repeat(5000) })).status, 400);
 });
 
 test('appairage : clé invalide, code inconnu et données trop grosses refusés', async () => {
@@ -435,4 +443,45 @@ test('relais web : compte F1 TV suivi par l\'appli, GPS laissé après deux coup
   assert.deepEqual([relay.elsewhere, relay.status.elsewhere], [true, true]);
   relay.here();
   assert.deepEqual([relay.elsewhere, relay.status.elsewhere, relay.losses.length, reconnects], [false, false, 0, 1]);
+});
+
+test('version web : relais d\'un abonné fermé sans connexion F1 TV au bout de 15 s, et au bout de 6 h', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'setInterval'] });
+  const sockets = [];
+  globalThis.WebSocketPair = class {
+    constructor() {
+      const s = { closed: null, accept() {}, addEventListener() {}, send() {}, close(code) { this.closed = code; } };
+      sockets.push(s);
+      return { 0: {}, 1: s };
+    }
+  };
+  const open = async (relay) => {
+    relay.connect = () => {};   // pas de connexion à la F1 dans le test
+    const req = new Request('https://relay/ws', { headers: { Upgrade: 'websocket', Origin: 'https://app.paddocklive.app', 'X-Relay': relay.name } });
+    await relay.fetch(req).catch(() => {});   // Response 101 refusée par Node : la connexion est déjà acceptée
+    return sockets.at(-1);
+  };
+  try {
+    const idle = new LiveRelay({}, {});
+    idle.name = 'u:'.padEnd(34, 'a');
+    const s1 = await open(idle);
+    t.mock.timers.tick(AUTH_MS);
+    assert.equal(s1.closed, 4001);   // aucune connexion F1 TV reçue : fermé, la page repasse au relais commun
+    assert.equal(idle.clients.size, 0);
+
+    const mine = new LiveRelay({}, {});
+    mine.name = 'u:'.padEnd(34, 'b');
+    const s2 = await open(mine);
+    mine.userToken = 'jeton';
+    t.mock.timers.tick(AUTH_MS);
+    assert.equal(s2.closed, null);   // connexion F1 TV reçue : gardé
+    t.mock.timers.tick(PRIVATE_MS);
+    assert.equal(s2.closed, 4000);   // au bout de 6 h : la page se reconnecte
+
+    const shared = new LiveRelay({}, {});
+    const s3 = await open(shared);
+    t.mock.timers.tick(PRIVATE_MS);
+    assert.equal(s3.closed, null);   // relais commun : pas concerné
+    for (const r of [idle, mine, shared]) { r.clients.clear(); r.stop(); }
+  } finally { delete globalThis.WebSocketPair; }
 });

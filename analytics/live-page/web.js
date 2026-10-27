@@ -189,7 +189,12 @@ function connect() {
     else if (msg.type === 'stream') hub.pushStream(msg.items || [], true);
     else if (msg.type === 'up') { relay = msg.status || {}; status(msg.now); }
   };
-  ws.onclose = () => { store.connected = false; emit('connection', false); setTimeout(connect, 3000); };
+  ws.onclose = (ev) => {
+    store.connected = false;
+    emit('connection', false);
+    if (ev.code === 4001) relayId = '';   // connexion F1 TV refusée par son relais (expirée) : relais commun, sans GPS
+    setTimeout(connect, 3000);
+  };
   ws.onerror = () => ws.close();
 }
 

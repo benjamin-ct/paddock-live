@@ -216,6 +216,12 @@ test('serveur des statistiques : mot de passe bloqué après 30 essais ratés da
   env.DB.fails.set(`local|${new Date().toISOString().slice(0, 10)}`, 30);
   assert.equal((await login(env, 'secret-123')).status, 429);
   assert.equal((await get(env, '/stats.json?key=secret-123')).status, 403);
+  // Même blocage sur /internal/push (tâche planifiée), et chaque essai raté y est compté
+  const push = (key) => worker.fetch(new Request(`${W}/internal/push`, { method: 'POST', headers: { 'X-Sched-Key': key } }), env);
+  assert.equal((await push('secret-123')).status, 429);
+  env.DB.fails.clear();
+  assert.equal((await push('mauvais')).status, 403);
+  assert.equal(env.DB.fails.get(`local|${new Date().toISOString().slice(0, 10)}`), 1);
 });
 
 test('serveur des statistiques : chiffres du tableau de bord', async () => {
