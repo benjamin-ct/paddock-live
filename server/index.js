@@ -8,7 +8,7 @@ import { LiveSource } from './live.js';
 import { ReplaySource, seasonIndex } from './replay.js';
 import { HttpError, getJSON } from './net.js';
 import { circuit, loops, zones } from './circuits.js';
-import { season } from './season.js';
+import { season, SEASON_URL } from './season.js';
 import { forecast } from './forecast.js';
 import { archiveError } from './race-stats.js';
 import { fiaDocuments, fiaPdf, fiaPdfUrl } from './fia.js';
@@ -19,8 +19,6 @@ import { createLan, isLoopback, qrSvg } from './lan.js';
 import { getTranslations, addTranslations } from './translations.js';
 import { compareLaps } from './compare.js';
 import { weekendTyres, seasonNominations } from './tyres.js';
-// Serveur de Paddock Live (version web) : statistiques détaillées et documents FIA de la Saison
-const SEASON_URL = process.env.PADDOCK_SEASON_URL ?? 'https://app.paddocklive.app';
 import { circuitRecords } from './records.js';
 import { startNews, refreshNews, newsSnapshot, onNews, addNewsSource, removeNewsSource, setNewsSourceEnabled, setClusterTitle } from './news.js';
 import { parseChangelog } from '../shared/changelog.js';

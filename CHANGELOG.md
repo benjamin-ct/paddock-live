@@ -82,10 +82,11 @@ l'application (Réglages → À propos → Nouveautés).
   n'est pas affiché (interface Essentielle, panneau masqué).
 
 ### Saison
-- Statistiques détaillées (pilotes, régularité, arrêts, vitesses, profil des circuits, notes) et documents FIA
-  (évolutions techniques, éléments moteur) : calculés par le serveur de Paddock Live, comme pour la version web. Ils
-  s'affichent tout de suite (plus d'analyse des archives sur l'ordinateur) et chaque correction arrive sans mise à jour
-  de l'appli. Il faut être connecté à internet pour les voir.
+- Toutes les données de la Saison (calendrier, classements, résultats, statistiques détaillées, documents FIA)
+  viennent du serveur de Paddock Live, comme pour la version web : les statistiques s'affichent tout de suite (plus
+  d'analyse des archives sur l'ordinateur) et chaque correction arrive sans mise à jour de l'appli. L'écran reste
+  celui de l'appli. Il faut être connecté à internet (sans connexion : dernières données gardées pour le calendrier
+  et les résultats).
 - Duels : le « VS » est au milieu, quelle que soit la longueur des noms des deux pilotes.
 - Pendant l'analyse des courses, les tableaux de la Saison restent où on les a fait défiler au lieu de revenir
   au début toutes les 3 secondes.
