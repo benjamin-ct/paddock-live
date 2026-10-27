@@ -611,7 +611,7 @@ function settings() {
     <div class="group" id="pairDevices"><div class="row-item static"><span class="grow"><small>Chargement…</small></span></div></div>
     <p class="hint">Appareils reliés à ton compte F1 TV en ce moment (version web). Un appareil se déconnecte seul quand tu le fermes.</p>` : ''}
     <h3 class="section">Sources d'actu en plus</h3><div class="group" id="nsList"><div class="row-item static"><span class="grow"><small>Chargement…</small></span></div></div>
-    <div class="row-item"><input id="nsAdd" type="text" class="grow" placeholder="https://… ou @compte.bsky.social"><select id="nsCat" aria-label="Catégorie"><option value="media">Média</option><option value="team">Écurie</option><option value="driver">Pilote</option><option value="official">Officiel</option></select><button class="btn small btn-accent" id="nsGo">Ajouter</button></div>
+    <div class="row-item ns-add"><input id="nsAdd" type="text" placeholder="https://… ou @compte.bsky.social"><select id="nsCat" aria-label="Catégorie"><option value="media">Média</option><option value="team">Écurie</option><option value="driver">Pilote</option><option value="official">Officiel</option></select><button class="btn small btn-accent" id="nsGo">Ajouter</button></div>
     <p class="hint">Flux RSS, chaîne YouTube ou compte Bluesky : ajouté à l'onglet Actu de l'appli, pour tout le monde.</p>
     <h3 class="section">Alertes des grosses news</h3><div id="alerts"></div>
     <button class="btn danger wide" id="out">${icon('logout')}Se déconnecter de cet appareil</button>
