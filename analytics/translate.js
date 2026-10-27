@@ -155,7 +155,7 @@ export async function translateBatch(env, req, day = new Date().toISOString().sl
   if (!todo.length) return { out, cached: true };
   // Plafond du jour
   const q = quota || { key: day, limit: Number(env.AI_DAILY_LIMIT) || 1000 };
-  if (!(await aiQuota(env, { key: q.key, day, n: todo.length, limit: q.limit, ip }))) return { out, limited: true };
+  if (!(await aiQuota(env, { key: q.key, day, n: todo.length, limit: q.limit, ip, claude: claudeOn }))) return { out, limited: true };
   // Paquets de 20 (ou 8 000 caractères), un seul modèle Claude par paquet
   const opus = (x) => (claudeOn && claudeFor(x.it.kind) === CLAUDE.opus ? 1 : 0);
   todo.sort((a, b) => opus(a) - opus(b));
