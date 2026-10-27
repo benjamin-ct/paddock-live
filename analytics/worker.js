@@ -32,6 +32,7 @@ import { publicPushApi, pushRun, queuePush, sessionReminders } from './push-publ
 import { liveSocket, liveApi } from './live-relay.js';
 import { statsTick } from './race-stats.js';
 import { fiaTick } from './fia-tech.js';
+import { zonesTick } from './zones.js';
 import { seasonSsr, seasonSitemap, legacySeasonUrl } from './season-pages.js';
 import { parseSeasonPath } from '../shared/season-urls.js';
 import { LIVE_HEADERS } from './live-page/headers.js';
@@ -201,11 +202,13 @@ export default {
       if (env.DB && t.getUTCHours() === 3 && t.getUTCMinutes() === 0) await prune(env, t.getTime()).catch(() => null);
       // Toutes les 6 heures : bilan de santé (flux F1, erreurs de l'appli, jetons), sur le téléphone si besoin
       if (t.getUTCMinutes() === 7 && t.getUTCHours() % HEALTH.every === 1) await healthCheck(env).catch(() => null);
-      // Espace Saison de la version web : statistiques des courses et documents FIA, une minute sur deux chacun (l'un
-      // prend la minute de l'autre s'il n'a rien à faire), pour que l'un n'attende pas que l'autre ait tout fini
+      // Statistiques des courses, documents FIA et zones des circuits : chacun sa minute à tour de rôle (le suivant prend
+      // la minute de celui qui n'a rien à faire), pour qu'aucun n'attende que les autres aient tout fini
       if (!sent) {
-        const [first, then] = t.getUTCMinutes() % 2 ? [fiaTick, statsTick] : [statsTick, fiaTick];
-        if (!(await first(env, { now: t.getTime() }).catch(() => null))) await then(env, { now: t.getTime() }).catch(() => null);
+        const ticks = [statsTick, fiaTick, zonesTick];
+        for (let i = 0; i < ticks.length; i++) {
+          if (await ticks[(t.getUTCMinutes() + i) % ticks.length](env, { now: t.getTime() }).catch(() => null)) break;
+        }
       }
     })());
   },

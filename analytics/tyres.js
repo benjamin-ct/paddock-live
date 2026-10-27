@@ -139,7 +139,7 @@ export async function seasonNominations(env, year, races) {
 
 // ---------- Relais des séances précédentes ----------
 // Index des archives de l'année, gardé 10 min
-async function seasonIndex(year, token, fetchFn) {
+export async function seasonIndex(year, token, fetchFn) {
   const ck = new Request(`https://live.cache/archive-index/${year}`);
   const hit = await caches.default.match(ck);
   if (hit) return hit.json();
