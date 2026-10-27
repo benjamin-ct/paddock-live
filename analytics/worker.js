@@ -330,7 +330,8 @@ export default {
     }
     if (req.method === 'POST' && url.pathname === '/internal/sched') return schedInternal(req, env);
     if (req.method === 'POST' && url.pathname === '/internal/push') {
-      if (!env.STATS_KEY || !sameKey(req.headers.get('X-Sched-Key') || '', env.STATS_KEY)) return json({ error: 'Interdit' }, 403);
+      if (await fails(env, req) >= MAX_FAILS) return json({ error: 'Trop d\'essais aujourd\'hui' }, 429);   // comme /internal/sched
+      if (!env.STATS_KEY || !sameKey(req.headers.get('X-Sched-Key') || '', env.STATS_KEY)) { await failed(env, req); return json({ error: 'Interdit' }, 403); }
       return json(await pushRun(env));
     }
     // Alertes sur le téléphone (page /alertes/) : clé du serveur, abonnement, désabonnement, essai

@@ -129,10 +129,26 @@ export async function aiQuota(env, { key, day, n, limit, ip }) {
   return spend(env, key, n, limit);
 }
 
+// Radio plus longue que prévu (un MP3 très compressé de 35 min passe pour une radio) : tranches de 30 s en plus,
+// comptées après coup sur le total et la part de l'appelant, sans plafond (les demandes suivantes sont refusées)
+export async function aiMore(env, { key, day, n, ip }) {
+  if (!(n > 0)) return;
+  await spend(env, key, n, Number.MAX_SAFE_INTEGER);
+  if (ip) await spend(env, `${day}|${ip}|${key}`, n, Number.MAX_SAFE_INTEGER);
+}
+
+// API de Claude : plafond en dollars du jour (CLAUDE_DAILY_USD, 5 $ par défaut : crédits de 100 $ par mois, plus
+// les week-ends de Grand Prix), vérifié avant chaque appel ; au-delà, Mistral comme pour une erreur de l'API
+export async function claudeRoom(env, day) {
+  const { results } = await env.DB.prepare('SELECT day, n FROM ai_usage WHERE day IN (?1, ?2)').bind(`claude-opus:${day}`, `claude-sonnet:${day}`).all();
+  return (results || []).reduce((a, r) => a + (Number(r.n) || 0), 0) < (Number(env.CLAUDE_DAILY_USD) || 5) * 1e6;
+}
+
 // Studio (code créateur) : plafond à lui, qui ne dépend pas de celui partagé par les applis
 export const studioQuota = (env, day) => ({ key: `${day}|studio`, limit: Number(env.STUDIO_AI_LIMIT) || 500 });
 
-// Compteurs par adresse des jours passés : effacés (appelé une fois par jour)
+// Compteurs par adresse des jours passés : effacés (appelé une fois par jour). Ceux du Studio (« jour|studio ») restent :
+// la colonne « 30 jours » de Stats → Appli les additionne
 export function pruneIpQuota(env, day) {
-  return env.DB.prepare("DELETE FROM ai_usage WHERE day LIKE '____-__-__|%' AND day < ?1").bind(day).run();
+  return env.DB.prepare("DELETE FROM ai_usage WHERE day LIKE '____-__-__|%' AND day NOT LIKE '%|studio' AND day < ?1").bind(day).run();
 }

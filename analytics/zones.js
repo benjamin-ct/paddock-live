@@ -162,7 +162,7 @@ export async function zonesTick(env, { now = Date.now(), fetchFn = fetch } = {})
   const year = new Date(now).getUTCFullYear();
   const next = (await seasonRow(env, year, { now, maxAge: 7 * 86400e3 }).catch(() => null))?.v.races
     .find((r) => Date.parse(r.date) > now && Date.parse(r.date) - now < 7 * 86400e3);
-  if (CIRCUITS[next?.circuitId]) jobs.push([CIRCUITS[next.circuitId].key, year]);
+  if (CIRCUITS[next?.circuitId]) jobs.unshift([CIRCUITS[next.circuitId].key, year]);   // le Grand Prix qui vient d'abord
   let job = null, old = null;
   for (const [key, y] of jobs) {
     old = await readJSON(env, rowKey(key, y), null);
