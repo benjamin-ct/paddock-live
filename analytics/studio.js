@@ -21,7 +21,8 @@ import { cleanDraft, draftSummary, isDraftId, DRAFTS_MAX, DRAFT_BYTES } from '..
 import { postStats } from '../shared/post-stats.js';
 import { recentPosts, importEntries } from './post-import.js';
 import { trackPost, clickStats } from './clicks.js';
-import { pushApi, notifyPhones, getRow, setRow } from './alerts.js';
+import { pushApi, notifyPhones, getRow, setRow, readJSON } from './alerts.js';
+import { editSources } from './news.js';
 import { queuePush, resultMessages } from './push-public.js';
 import { noteExpiries } from './health.js';
 import { feedbackApi } from './feedback.js';
@@ -839,6 +840,13 @@ export async function studioApi(req, env, url) {
     return json(r, r.error ? 409 : 200);
   }
   // Appareils reliés à ton compte F1 TV (version web) : connexions en cours sur ton relais privé
+  // Sources d'actu en plus (onglet Actu de l'appli) : liste, ajout, retrait
+  if (path === 'news-sources') {
+    if (req.method === 'GET') return json({ custom: await readJSON(env, 'news:custom', []) });
+    let body;
+    try { body = await req.json(); } catch { return json({ error: 'JSON invalide' }, 400); }
+    try { return json(await editSources(env, body)); } catch (err) { return json({ error: err.message }, 400); }
+  }
   if (path === 'devices' && req.method === 'GET') {
     vault = await refresh(env, a.raw, vault);
     if (!vault.f1tv) return json({ count: 0, devices: [] });

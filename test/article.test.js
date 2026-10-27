@@ -1,7 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { extractArticle, youtubeId } from '../shared/article.js';
-import { createArticleReader } from '../server/article.js';
+import { extractArticle, youtubeId, readArticle } from '../shared/article.js';
 
 const para = (n) => `Phrase numéro ${n} de l'article, assez longue pour être gardée comme un vrai paragraphe du texte.`;
 
@@ -43,24 +42,17 @@ test('lecture d\'article : vidéo YouTube', () => {
   assert.equal(youtubeId('https://www.formula1.com/en/latest'), null);
 });
 
-test('lecture d\'article : liens de l\'Actu seulement, nouvel essai, page illisible, mémoire', async () => {
+test('lecture d\'article : nouvel essai, page illisible', async () => {
   const article = `<article>${[1, 2, 3, 4, 5, 6].map((n) => `<p>${para(n)}</p>`).join('')}</article>`;
   const calls = [];
   let status = [403, 200];
-  const reader = createArticleReader({
-    items: () => [{ link: 'https://a.test/1', lang: 'en', title: 'T1', summary: 'Résumé', img: 'https://a.test/i.jpg' }, { link: 'https://a.test/video', lang: 'en', title: 'V' }],
-    fetch: async (url) => { calls.push(url); const s = status.shift() ?? 200; return { status: s, headers: { 'content-type': 'text/html; charset=utf-8' }, body: Buffer.from(url.endsWith('video') ? '<p>Vidéo</p>' : article) }; },
-    retryDelay: 0,
-  });
-  await assert.rejects(reader.get('http://127.0.0.1:3000/api/stats'), /Article inconnu/);
-  const a = await reader.get('https://a.test/1');
+  const fetch = async (url) => { calls.push(url); const s = status.shift() ?? 200; return { status: s, headers: { 'content-type': 'text/html; charset=utf-8' }, body: new TextEncoder().encode(url.endsWith('video') ? '<p>Vidéo</p>' : article) }; };
+  const a = await readArticle({ link: 'https://a.test/1', lang: 'en', title: 'T1', summary: 'Résumé', img: 'https://a.test/i.jpg' }, { fetch, ua: 'test', retryDelay: 0 });
   assert.equal(a.readable, true);
   assert.equal(a.blocks.length, 6);
   assert.equal(a.title, 'T1');
   assert.equal(calls.length, 2);   // refusé une fois, puis lu
-  await reader.get('https://a.test/1');
-  assert.equal(calls.length, 2);   // gardé en mémoire
-  const v = await reader.get('https://a.test/video');
+  const v = await readArticle({ link: 'https://a.test/video', lang: 'en', title: 'V' }, { fetch, ua: 'test', retryDelay: 0 });
   assert.equal(v.readable, false);
   assert.match(v.reason, /pas de texte lisible/);
 });

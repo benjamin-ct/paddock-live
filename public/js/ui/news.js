@@ -247,16 +247,10 @@ function sourcesView() {
     const state = !s.enabled ? '<span class="muted">désactivée</span>' : s.ok === false ? `<span class="nw-err" title="${esc(s.error || '')}">${icon('warning')} indisponible</span>` : s.ok ? `<span class="nw-ok">${icon('check')} ${s.count} article${s.count > 1 ? 's' : ''}</span>` : '<span class="muted">en attente…</span>';
     const kind = s.kind === 'youtube' ? 'YouTube' : s.kind === 'bsky' ? 'Bluesky' : 'Flux RSS';
     return `<tr><td><label class="toggle"><input type="checkbox" data-src-toggle="${esc(s.id)}" ${s.enabled ? 'checked' : ''}> ${esc(s.name)}</label></td>
-      <td class="muted">${kind}</td><td>${esc((s.lang || '').toUpperCase())}</td><td>${state}</td>
-      <td>${s.custom ? `<button class="btn small" data-src-del="${esc(s.id)}" title="Retirer cette source">${icon('close')}</button>` : ''}</td></tr>`;
+      <td class="muted">${kind}</td><td>${esc((s.lang || '').toUpperCase())}</td><td>${state}</td></tr>`;
   };
   const block = (cat, title) => (by[cat].length ? `<div class="sz-box"><h3>${title}</h3><table class="sz-table nw-src-table">${by[cat].map(row).join('')}</table></div>` : '');
-  return `<div class="sz-box"><h3>${icon('plus')} Ajouter une source</h3>
-      <p class="muted small">Site, flux RSS, chaîne YouTube ou compte Bluesky</p>
-      <form class="nw-add" id="nwAdd"><input type="text" id="nwAddUrl" placeholder="https://… ou @compte.bsky.social" required>
-        <select id="nwAddCat"><option value="media">Média</option><option value="team">Écurie</option><option value="driver">Pilote</option><option value="official">Officiel</option></select>
-        <button class="btn" type="submit">Ajouter</button></form>
-      </div>
+  return `<p class="muted small">Sources lues par le serveur de Paddock Live ; décochez celles que vous ne voulez pas voir.</p>
     ${block('official', `${icon('landmark')} Officiel : F1 et FIA`)}${block('team', `${icon('car')} Écuries (chaînes officielles)`)}${block('driver', `${icon('user')} Pilotes (chaînes officielles)`)}${block('media', `${icon('globe')} Médias`)}`;
 }
 
@@ -346,7 +340,7 @@ function render() {
   const okSources = sources.filter((s) => s.enabled && s.ok !== false).length;
   const head = `<div class="nw-head"><div><h2>${$(`#nwNav [data-nw="${section}"]`)?.innerHTML.trim() || 'Actualités'}</h2>
       <div class="muted small">${tagFilter ? `<button class="nw-filter" data-tag-clear style="--tc:${tagColor(tagFilter)}">${esc(tagName(tagFilter))} ${icon('close')}</button> ` : ''}${okSources} sources suivies · ${list.length} sujet${list.length > 1 ? 's' : ''}${section === 'favs' && !favTags().size ? ' · aucun favori : ajoutez-en avec l\'étoile du classement' : ''}</div></div>
-      <div class="nw-actions"><button class="btn small" id="nwRefresh" title="Relire toutes les sources maintenant">${icon('refresh')} Actualiser</button>
+      <div class="nw-actions"><button class="btn small" id="nwRefresh" title="Relire les actualités maintenant">${icon('refresh')} Actualiser</button>
       <button class="btn small" id="nwMarkRead" title="Tout marquer comme lu">${icon('check')} Tout marquer comme lu</button></div></div>`;
   const banner = guard ? `<div class="nw-guard">${icon('eye-off')} <b>Anti-spoiler</b> : séance en cours, titres masqués.
       <button class="btn small" id="nwReveal">Afficher quand même</button></div>` : '';
@@ -669,7 +663,7 @@ export function initNews() {
   });
   $('#nwContent').addEventListener('click', async (e) => {
     if (e.target.closest('#nwMore')) { limit += PAGE; render(); return; }
-    if (e.target.closest('#nwRefresh')) { api('/api/news/refresh', { method: 'POST' }).catch(() => {}); toast('Lecture de toutes les sources…'); setTimeout(reload, 15000); return; }
+    if (e.target.closest('#nwRefresh')) { api('/api/news/refresh', { method: 'POST' }).catch(() => {}); toast('Mise à jour des actualités…'); setTimeout(reload, 5000); return; }
     if (e.target.closest('#nwMarkRead')) { markRead(); return; }
     if (e.target.closest('#nwReveal')) { revealSpoilers = true; render(); return; }
     const rt = e.target.closest('[data-readtoggle]');
@@ -684,35 +678,12 @@ export function initNews() {
       box.hidden = !box.hidden;
       return;
     }
-    const del = e.target.closest('[data-src-del]');
-    if (del) {
-      await api('/api/news/sources', { method: 'POST', body: { remove: del.dataset.srcDel } }).catch(() => {});
-      items = items.filter((it) => it.src !== del.dataset.srcDel);
-      reloadSources();
-    }
   });
   $('#nwContent').addEventListener('change', async (e) => {
     const tg = e.target.closest('[data-src-toggle]');
     if (!tg) return;
     await api('/api/news/sources', { method: 'POST', body: { toggle: tg.dataset.srcToggle, on: tg.checked } }).catch(() => {});
     reloadSources();
-  });
-  $('#nwContent').addEventListener('submit', async (e) => {
-    if (e.target.id !== 'nwAdd') return;
-    e.preventDefault();
-    const btn = e.target.querySelector('button');
-    btn.disabled = true;
-    btn.textContent = 'Vérification…';
-    try {
-      const r = await api('/api/news/sources', { method: 'POST', body: { add: $('#nwAddUrl').value, cat: $('#nwAddCat').value } });
-      toast(`Source ajoutée : ${r.source?.name || ''}`, 4000);
-      setTimeout(reload, 8000);
-      await reloadSources();
-    } catch (err) {
-      toast(`Impossible d'ajouter cette source : ${err.message}`, 6000);
-      btn.disabled = false;
-      btn.textContent = 'Ajouter';
-    }
   });
   window.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape' || !open() || document.querySelector('dialog[open]')) return;
