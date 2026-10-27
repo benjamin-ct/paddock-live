@@ -325,12 +325,21 @@ function claudeHtml(m) {
       <div class="tile"><b>${usd(mo.opus)}</b><small>Opus (Actu, technique) sur 30 jours · Sonnet (radios) ${usd(mo.sonnet)}</small></div>
       <div class="tile"><b>${fmtN(t.claudeTexts || 0)}</b><small>textes traduits par Claude aujourd'hui · ${fmtN(mo.claudeTexts || 0)} sur 30 jours</small></div></div>`;
 }
+// Plafond des textes traduits ou résumés par les applis : total du jour, et part d'une même adresse (le quart) ;
+// part pleine : les nouvelles actus de cette appli restent en version originale jusqu'à minuit UTC
+function textsHtml(t, limit) {
+  const share = Math.ceil(limit / 4), top = t.appsTop || 0;
+  return `<h3 class="section">Plafond des traductions <small>remis à zéro à minuit UTC</small></h3>
+    <div class="tiles"><div class="tile"><b>${fmtN(t.apps || 0)} / ${fmtN(limit)}</b><small>textes traduits ou résumés par les applis aujourd'hui (résumé = 5)</small></div>
+      <div class="tile"><b>${fmtN(top)} / ${fmtN(share)}</b><small>adresse qui en a demandé le plus (une appli)${top >= share ? ' · plafond atteint : ses nouvelles actus restent en version originale' : ''}</small></div></div>`;
+}
 function aiHtml(a) {
   if (!a) return '';
   const usd = (v) => `${(v * 0.011 / 1000).toFixed(2).replace('.', ',')} $`;
   return `<h3 class="section">IA du serveur · Workers AI <small>${a.gp ? 'week-end de Grand Prix' : 'jour ordinaire'}</small></h3>
     <div class="tiles"><div class="tile"><b>${fmtN(a.used)}</b><small>neurones aujourd'hui sur ${fmtN(a.top)} (10 000 gratuits)</small></div>
       <div class="tile"><b>${usd(a.spent)}</b><small>payés sur 30 jours, budget ${usd(a.budget)}</small></div></div>
+    ${a.made && a.texts ? textsHtml(a.made.today, a.texts) : ''}
     ${a.made ? `<div class="tiles">${AI_MADE.map(([k, label]) => `<div class="tile"><b>${fmtN(a.made.today[k] || 0)}</b><small>${label} aujourd'hui · ${fmtN(a.made.month[k] || 0)} sur 30 jours</small></div>`).join('')}</div>${claudeHtml(a.made)}` : ''}`;
 }
 function usageHtml(u) {
