@@ -82,6 +82,10 @@ l'application (Réglages → À propos → Nouveautés).
   n'est pas affiché (interface Essentielle, panneau masqué).
 
 ### Saison
+- La Saison de l'appli est désormais celle du site (app.paddocklive.app), affichée directement dans l'appli : chaque
+  amélioration de la Saison y arrive tout de suite, sans attendre une mise à jour. Il faut être connecté à internet pour
+  l'ouvrir (sinon : « Saison indisponible sans internet », avec un bouton Réessayer). Langue, apparence, logos et
+  favoris de l'appli sont repris. Pronostics entre amis : en groupe en ligne seulement (pseudo et groupes repris).
 - Duels : le « VS » est au milieu, quelle que soit la longueur des noms des deux pilotes.
 - Pendant l'analyse des courses, les tableaux de la Saison restent où on les a fait défiler au lieu de revenir
   au début toutes les 3 secondes.

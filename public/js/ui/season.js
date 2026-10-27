@@ -3,6 +3,7 @@
 // coéquipiers, statistiques détaillées. Données : API Jolpica (via le serveur, /api/season) et
 // analyse des archives F1 Live Timing (/api/season/stats).
 import { $, esc, api, teamColor, teamLogo, photoUrl, placeView, driverOpt } from '../util.js';
+import { prefs, resolvedScheme } from '../prefs.js';
 import { store } from '../store.js';
 import { renderDrivers, renderConsistency, renderPits, renderSpeeds, renderCircuits, renderRatings, gradeBadge, stopTxt, DHL_NOTE, statusFr, fmtLap } from './season-stats.js';
 import { driverRatings, qualiGaps, titleRace, placeForMaxPoints } from '/shared/season-calc.js';
@@ -648,9 +649,73 @@ function animate() {
   animate.t = setTimeout(() => el.classList.remove('sz-anim'), 500);
 }
 
+// Appli de bureau : la Saison est celle du site (app.paddocklive.app, mode intégré), dans un cadre isolé (sans accès à
+// l'ordinateur, voir desktop/main.cjs) : toute modification du site y arrive sans mise à jour de l'appli. Le cadre
+// reçoit la langue, l'apparence, les logos et les favoris de l'appli (recréé s'ils changent) ; il échange avec
+// l'appli la rubrique à ouvrir, la fermeture (Échap, « Retour au direct ») et les pronostics (pseudo, groupes)
+const SITE = 'https://app.paddocklive.app';
+const PRONO = /^paddock\.(player|pronoGroup|pronoGroups|pronoTok\..+|pronoAdmin\..+)$/;
+const embedded = () => document.documentElement.classList.contains('embed');
+let frame = null, frameKey = '', frameTimer = 0;
+function siteMsg(html) {
+  const el = $('#szSiteMsg');
+  el.hidden = !html;
+  el.innerHTML = html || '';
+}
+function openSite(sec, y, item) {
+  const view = $('#seasonView');
+  view.classList.add('sz-site');
+  const p = { lang: EN ? 'en' : 'fr', scheme: resolvedScheme(), schemeSet: true, teamLogos: prefs.teamLogos, logoColor: prefs.logoColor, vividTeams: prefs.vividTeams, favs: prefs.favs, favTeams: prefs.favTeams };
+  const key = JSON.stringify(p);
+  if (frame && key === frameKey) {
+    if (sec || y || item) frame.contentWindow.postMessage({ type: 'paddock-season', open: [sec, y, item] }, SITE);
+    return;
+  }
+  frame?.remove();
+  frameKey = key;
+  frame = document.createElement('iframe');
+  frame.className = 'sz-site-frame';
+  frame.title = 'Saison';
+  // Cadre isolé : scripts et fenêtres (liens, PDF, agenda : ouverts dans le navigateur), jamais la page de l'appli
+  frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-downloads allow-modals');
+  frame.allow = 'clipboard-write';
+  frame.referrerPolicy = 'no-referrer';
+  frame.src = `${SITE}${seasonPath(y || new Date().getFullYear(), sec || 'home', item || null)}?embed=1&p=${encodeURIComponent(key)}`;
+  view.append(frame);
+  siteMsg(`<div class="muted">${t('Chargement de la Saison…')}</div>`);
+  clearTimeout(frameTimer);
+  frameTimer = setTimeout(() => siteMsg(`<b>${t('Saison indisponible sans internet')}</b><span class="muted small">${t('La Saison vient du site de Paddock Live.')}</span><button class="btn" data-site-retry>${t('Réessayer')}</button>`), 15000);
+}
+function siteMessage(e) {
+  if (e.origin !== SITE || e.source !== frame?.contentWindow || e.data?.type !== 'paddock-season') return;
+  if (e.data.ready) {
+    clearTimeout(frameTimer);
+    siteMsg('');
+    const pronos = {};
+    for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (PRONO.test(k)) pronos[k] = localStorage.getItem(k); }
+    frame.contentWindow.postMessage({ type: 'paddock-season', pronos }, SITE);
+  }
+  if (e.data.pronos) for (const [k, v] of Object.entries(e.data.pronos)) if (PRONO.test(k)) localStorage.setItem(k, String(v));
+  if (e.data.close) closeSeason();
+}
+
 // y : saison à afficher (bilan de la saison passée depuis l'accueil hors saison) ; item : pilote ou Grand Prix demandé
 // par l'adresse de la version web (« lando-norris », « mexico »)
 export function openSeason(sec, y, item) {
+  if (!urls && !/^(127\.0\.0\.1|localhost)$/.test(location.hostname)) {   // téléphone relié par le wifi : Saison du site dans un onglet
+    window.open(`${SITE}${seasonPath(y || new Date().getFullYear(), sec || 'home', item || null)}`, '_blank', 'noopener');
+    return;
+  }
+  if (!urls) {   // appli de bureau (la version web appelle seasonUrls() avant)
+    if ($('#newsView')) import('./news.js').then((m) => m.closeNews());
+    import('./home.js').then((m) => { m.homeTouched(); m.closeHome(); });
+    import('./replays.js').then((m) => m.closeReplays());
+    $('#seasonView').hidden = false;
+    placeView($('#seasonView'));
+    $('#seasonBtn').classList.add('on');
+    openSite(sec, y, item);
+    return;
+  }
   if (sec) section = sec;
   wanted = item ? { year: y || year, section: sec, item } : null;
   if (y && y !== year) { year = y; data = null; stats = null; fia = null; $('#szYear').value = String(y); }
@@ -675,6 +740,7 @@ function szMenu(open) {
 }
 
 export function closeSeason() {
+  if (embedded()) { parent.postMessage({ type: 'paddock-season', close: true }, '*'); return; }   // l'appli ferme la Saison
   szMenu(false);
   $('#seasonView').hidden = true;
   $('#seasonBtn').classList.remove('on');
@@ -691,6 +757,8 @@ export function initSeason() {
   sel.addEventListener('change', () => { year = Number(sel.value); data = null; stats = null; fia = null; clearTimeout(statsTimer); clearTimeout(fiaTimer); setTechFilter(null, 'all'); load(); });
   $('#seasonBtn').addEventListener('click', () => ($('#seasonView').hidden ? openSeason() : closeSeason()));
   $('#szClose').addEventListener('click', closeSeason);
+  addEventListener('message', siteMessage);
+  $('#szSiteMsg')?.addEventListener('click', (e) => { if (e.target.closest('[data-site-retry]')) { frame?.remove(); frame = null; openSite(section); } });
   $('#szNav').addEventListener('click', (e) => { const b = e.target.closest('[data-sz]'); if (b) { section = b.dataset.sz; jump = true; szMenu(false); animate(); render(); } });
   $('#szMenu')?.addEventListener('click', () => szMenu(true));
   $('#szScrim')?.addEventListener('click', () => szMenu(false));

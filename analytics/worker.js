@@ -44,6 +44,16 @@ async function liveAsset(env, req) {
   return out;
 }
 
+// Saison affichée dans l'appli de bureau (cadre de sa page http://127.0.0.1:<port>, ?embed=1) : seule page de la
+// version web qui accepte d'être dans un cadre, et seulement sur l'ordinateur (pas d'autre site : détournement de clics)
+function embeddable(page) {
+  const out = new Response(page.body, page);
+  out.headers.delete('X-Frame-Options');
+  const csp = out.headers.get('Content-Security-Policy');
+  if (csp) out.headers.set('Content-Security-Policy', csp.replace("frame-ancestors 'none'", 'frame-ancestors http://127.0.0.1:* http://localhost:*'));
+  return out;
+}
+
 // Rubrique de la Saison à son adresse (app.paddocklive.app/saison/2026/…) : page de la version web avec le titre, la
 // description, l'adresse canonique et un premier contenu de la rubrique déjà écrits (moteurs de recherche, partage),
 // remplacés par l'appli dès qu'elle démarre. Gardée 15 minutes : un robot qui parcourt tout ne refait pas chaque page
@@ -249,7 +259,10 @@ export default {
     const app = url.hostname.startsWith('app.');
     // Espace Saison à son adresse (version web) ; sur paddocklive.app : plan du site, anciennes pages publiques redirigées
     if (req.method === 'GET' && env.DB && (url.pathname === '/saison' || url.pathname.startsWith('/saison/') || url.pathname.startsWith('/en/season/'))) {
-      if (app && env.ASSETS && !url.pathname.startsWith('/en/')) return seasonAppPage(env, req, url, ctx);
+      if (app && env.ASSETS && !url.pathname.startsWith('/en/')) {
+        const page = await seasonAppPage(env, req, url, ctx);
+        return url.searchParams.has('embed') ? embeddable(page) : page;
+      }
       if (!app && url.pathname === '/saison/sitemap.xml') return new Response(await seasonSitemap(env), { headers: { 'Content-Type': 'application/xml; charset=utf-8', 'Cache-Control': 'public, max-age=3600' } });
       const to = !app && await legacySeasonUrl(env, url).catch(() => null);
       if (to) return Response.redirect(to, 301);

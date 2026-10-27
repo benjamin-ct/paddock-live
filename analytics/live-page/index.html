@@ -23,6 +23,8 @@
   <link rel="canonical" href="https://app.paddocklive.app/">
   <link rel="stylesheet" href="/live/css/style.css">
   <link rel="stylesheet" href="/live/css/broadcast.css">
+  <script>/* Saison affichée dans l'appli de bureau (?embed=1&p=…) : réglages de l'appli repris (langue, apparence, logos,
+    favoris), seulement ceux-là */ try { const q = new URLSearchParams(location.search); if (q.has('embed')) { document.documentElement.classList.add('embed'); const g = JSON.parse(q.get('p') || '{}'), keep = {}; for (const k of ['lang', 'scheme', 'schemeSet', 'teamLogos', 'logoColor', 'vividTeams', 'favs', 'favTeams']) if (k in g) keep[k] = g[k]; localStorage.setItem('paddock.prefs', JSON.stringify({ ...JSON.parse(localStorage.getItem('paddock.prefs') || '{}'), ...keep })); } } catch { /* réglages par défaut */ }</script>
   <script>/* Apparence (sombre / clair / système) posée avant l'affichage : pas d'éclair */ try { const p = JSON.parse(localStorage.getItem('paddock.prefs') || '{}'); const s = p.schemeSet || p.scheme === 'light' ? p.scheme : 'auto'; const light = s === 'light' || (s === 'auto' && matchMedia('(prefers-color-scheme: light)').matches); document.documentElement.dataset.scheme = light ? 'light' : 'dark'; } catch { document.documentElement.dataset.scheme = 'dark'; } document.documentElement.dataset.theme = 'pitwall'; document.documentElement.classList.add('web');</script>
   <style>
     /* Version web : quatre panneaux, sans menu latéral ni outils de l'appli */
@@ -48,6 +50,9 @@
     /* Météo de la piste dans la barre du haut, comme l'appli (sur sa propre ligne sur téléphone) */
     .web .topbar .weather-mini { display: flex !important; }
     .web .season-view { left: 0 !important; }
+    /* Saison dans l'appli de bureau : seulement la Saison, sur toute la page (ni direct ni barre du haut) */
+    .embed .topbar, .embed .grid, .embed #noLiveView, .embed #webWait { display: none !important; }
+    .embed .season-view { top: 0 !important; bottom: 0 !important; }
     .web #webMenuBtn { display: none; }
     /* Bouton Saison dans la barre du haut (l'appli l'a dans son menu latéral) */
     .web .topbar #seasonBtn { display: inline-flex !important; }

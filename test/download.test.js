@@ -94,6 +94,23 @@ test('nom de domaine : racine = site de l\'appli, www redirigé, workers.dev inc
   assert.equal(r.headers.get('location'), 'https://paddocklive.app/download?x=1');
 });
 
+test('version web : Saison intégrée à l\'appli de bureau (?embed=1) dans un cadre de l\'ordinateur seulement', async () => {
+  const { default: worker } = await import('../analytics/worker.js');
+  const env = { ASSETS: { fetch: async (req) => new Response(`site:${new URL(req.url).pathname}`) }, DB: {} };
+  globalThis.caches = { default: { match: async () => null, put: async () => {} } };
+  globalThis.HTMLRewriter = class { on() { return this; } transform(r) { return r; } };   // page telle quelle
+  try {
+    let r = await worker.fetch(new Request('https://app.paddocklive.app/saison/2026/classements/?embed=1'), env, { waitUntil() {} });
+    assert.equal(await r.text(), 'site:/live/');
+    assert.equal(r.headers.get('x-frame-options'), null);
+    assert.match(r.headers.get('content-security-policy'), /frame-ancestors http:\/\/127\.0\.0\.1:\* http:\/\/localhost:\*$/);
+    // Sans ?embed : aucune page dans un cadre
+    r = await worker.fetch(new Request('https://app.paddocklive.app/saison/2026/classements/'), env, { waitUntil() {} });
+    assert.equal(r.headers.get('x-frame-options'), 'DENY');
+    assert.match(r.headers.get('content-security-policy'), /frame-ancestors 'none'/);
+  } finally { delete globalThis.caches; delete globalThis.HTMLRewriter; }
+});
+
 test('version web : seulement sur app.paddocklive.app, paddocklive.app/live renvoyé là-bas', async () => {
   const { default: worker } = await import('../analytics/worker.js');
   const env = { ASSETS: { fetch: async (req) => new Response(`site:${new URL(req.url).pathname}`) } };

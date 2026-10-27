@@ -271,8 +271,10 @@ safe(initMap);
 safe(initRcmFilters);
 safe(initStewards);
 safe(initRadios);
+// Saison affichée dans l'appli de bureau (?embed=1, voir index.html) : ni direct ni connexion au relais
+const EMBED = document.documentElement.classList.contains('embed');
 // Pas de séance en direct : prochaine séance et compte à rebours, comme l'appli
-safe(initNoLive);
+if (!EMBED) safe(initNoLive);
 // Espace Saison de l'appli (calendrier, classements, résultats…), d'après la saison gardée par le serveur
 safe(initSeason);
 // Adresse d'une rubrique de la Saison (app.paddocklive.app/saison/2026/pilotes/lando-norris/) : ouverte directement ;
@@ -280,6 +282,31 @@ safe(initSeason);
 seasonUrls();
 const askedSeason = parseSeasonPath(location.pathname);
 if (askedSeason) safe(() => openSeason(askedSeason.section, askedSeason.year || undefined, askedSeason.item));
+// Dans l'appli de bureau : rubrique demandée par l'appli ; pronostics (pseudo, groupes en ligne) repris de l'appli
+// (ceux qui manquent ici) et renvoyés à l'appli quand ils changent (rappels des pronostics). Seule la page de
+// l'ordinateur (http://127.0.0.1) est écoutée ; les pronostics ne partent que vers elle
+if (EMBED) {
+  const LOCAL = /^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/;
+  const PRONO = /^paddock\.(player|pronoGroup|pronoGroups|pronoTok\..+|pronoAdmin\..+)$/;
+  const pronos = () => { const o = {}; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (PRONO.test(k)) o[k] = localStorage.getItem(k); } return o; };
+  let host = null, sent = '';
+  addEventListener('message', (e) => {
+    if (e.source !== parent || !LOCAL.test(e.origin) || e.data?.type !== 'paddock-season') return;
+    host = e.origin;
+    if (e.data.open) safe(() => openSeason(...e.data.open));
+    if (e.data.pronos) safe(() => {
+      const added = Object.entries(e.data.pronos).filter(([k]) => PRONO.test(k) && localStorage.getItem(k) === null);
+      for (const [k, v] of added) localStorage.setItem(k, String(v));
+      sent = JSON.stringify(pronos());
+      if (added.length) openSeason();   // rubrique affichée redessinée (Pronostics : groupes repris)
+    });
+  });
+  setInterval(() => safe(() => {
+    const now = JSON.stringify(pronos());
+    if (host && now !== sent) { sent = now; parent.postMessage({ type: 'paddock-season', pronos: JSON.parse(now) }, host); }
+  }), 3000);
+  parent.postMessage({ type: 'paddock-season', ready: true }, '*');
+}
 // Téléphone : réglages du direct derrière l'engrenage. Hauteur de la barre changée (réglages ouverts, police
 // chargée) : écran « Pas de séance en direct » replacé dessous
 const topbar = document.querySelector('.topbar');
@@ -309,5 +336,4 @@ try {
   if (saved && tokenExp(saved) > Date.now()) { f1tv = saved; relayId = await sha(saved); updatePairUI(); }
   else if (saved) localStorage.removeItem(F1TV_KEY);
 } catch { /* stockage indisponible */ }
-connect();
-loop();
+if (!EMBED) { connect(); loop(); }

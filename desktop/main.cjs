@@ -515,6 +515,14 @@ async function start() {
   });
   const url = `http://127.0.0.1:${process.env.PORT}/`;
   setupContents(mainWindow.webContents, url);
+  // Pages d'autres sites dans la fenêtre (Saison du site, vidéos, radar) : ni position, ni micro, ni caméra, ni
+  // notifications (Electron accepte tout par défaut) ; l'appli elle-même garde tout. La fenêtre ne quitte jamais l'appli
+  mainWindow.webContents.session.setPermissionRequestHandler((_wc, permission, cb, d) => cb(String(d?.requestingUrl || '').startsWith(url) || ['clipboard-sanitized-write', 'fullscreen'].includes(permission)));
+  mainWindow.webContents.on('will-navigate', (e, to) => {
+    if (to.startsWith(url)) return;
+    e.preventDefault();
+    if (/^https?:\/\//i.test(to)) shell.openExternal(to);
+  });
   // Fenêtres détachées de la dernière session : rouvertes quand la page principale quitte l'accueil
   // (Direct, replay, séance en cours), pas sur l'accueil (pas de résultat sur le second écran)
   pendingChildren = url;
