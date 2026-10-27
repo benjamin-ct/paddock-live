@@ -46,6 +46,11 @@ new_sqlite_classes = ["LiveRelay"]
 [triggers]
 crons = ["* * * * *"]
 
+# Temps de calcul par appel (forfait Workers payant) : la tâche planifiée calcule les zones d'un circuit d'après une
+# séance archivée (plusieurs secondes) ; 30 s par défaut, 2 min ici pour avoir de la marge
+[limits]
+cpu_ms = 120000
+
 [ai]
 binding = "AI"
 
