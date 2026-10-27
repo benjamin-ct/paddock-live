@@ -4,6 +4,13 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → À propos → Nouveautés).
 
+## v1.30.0 — à venir
+
+### Saison
+- Comparer deux saisons (Saison → Comparer deux saisons) : les classements des pilotes ou des constructeurs après le
+  même nombre de Grands Prix, côte à côte (par exemple 2026 et 2025 après le 18e Grand Prix), avec pour chacun sa
+  place et ses points au même moment de l'autre saison. Aussi dans la version web.
+
 ## v1.29.0 — 2026-10-28
 
 ### Alertes sur le téléphone

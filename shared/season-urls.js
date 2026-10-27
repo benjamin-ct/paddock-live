@@ -3,7 +3,7 @@
 import { gpShort, gpFull } from './gp-names.js';
 
 export const SECTION_PATHS = {
-  home: '', calendar: 'calendrier', standings: 'classements', title: 'course-au-titre', review: 'bilan', results: 'resultats',
+  home: '', calendar: 'calendrier', standings: 'classements', title: 'course-au-titre', compare: 'comparer', review: 'bilan', results: 'resultats',
   h2h: 'duels', ratings: 'notes', predict: 'pronostics', drivers: 'pilotes', consistency: 'regularite', pits: 'arrets-aux-stands',
   speeds: 'vitesses', circuits: 'circuits', tech: 'evolutions-techniques', elements: 'elements-moteur', gp: 'grand-prix',
 };
@@ -19,7 +19,7 @@ export function seasonPath(year, section = 'home', item = null) {
 // Titre de chaque rubrique (onglet du navigateur, moteurs de recherche) ; name : pilote ou nom du Grand Prix (Jolpica)
 const TITLES = {
   home: 'Saison {} de F1 : classements, calendrier et résultats', calendar: 'Calendrier F1 {}', standings: 'Classements F1 {} : pilotes et constructeurs',
-  title: 'Course au titre F1 {}', review: 'Bilan de la saison F1 {}', results: 'Résultats F1 {} : tous les Grands Prix', h2h: 'Duels entre coéquipiers F1 {}',
+  title: 'Course au titre F1 {}', compare: 'Comparer la saison F1 {} à une autre', review: 'Bilan de la saison F1 {}', results: 'Résultats F1 {} : tous les Grands Prix', h2h: 'Duels entre coéquipiers F1 {}',
   ratings: 'Notes des pilotes F1 {}', predict: 'Pronostics F1 {} entre amis', drivers: 'Pilotes F1 {}', consistency: 'Régularité des pilotes F1 {}',
   pits: 'Arrêts aux stands F1 {} : les plus rapides, par écurie', speeds: 'Vitesses de pointe F1 {}', circuits: 'Profil des circuits F1 {}',
   tech: 'Évolutions techniques F1 {}', elements: 'Éléments moteur F1 {}', gp: 'Grands Prix F1 {}',

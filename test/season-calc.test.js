@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { qualiGap, qualiGaps, driverRatings, grade, lapsLed, similarCircuits, titleRace, placeForMaxPoints } from '../shared/season-calc.js';
+import { qualiGap, qualiGaps, driverRatings, grade, lapsLed, similarCircuits, titleRace, placeForMaxPoints, standingsAfter } from '../shared/season-calc.js';
 
 const res = (code, teamId, pos, points, grid = pos, posText = String(pos)) => ({ code, name: code, last: code, team: teamId, teamId, pos, posText, points, grid });
 const q = (code, teamId, pos, times) => ({ code, teamId, pos, q: times });
@@ -160,4 +160,22 @@ test('bilan de la saison : vainqueurs, poles, podiums, plus belle remontée, aba
   assert.deepEqual(r.podiums.map((x) => [x.code, x.n]), [['A', 2], ['B', 2], ['C', 2]]);
   assert.deepEqual([r.comeback.code, r.comeback.from, r.comeback.to, r.comeback.gp], ['B', 12, 2, 'GP 1']);
   assert.equal(r.leader.code, 'A');
+});
+
+test('classements après N manches : courses et sprints, égalité départagée aux victoires', () => {
+  const x = (code, teamId, pos, points) => ({ code, name: code, last: code, team: teamId, teamId, pos, points });
+  const data = { races: [
+    { round: 1, results: [x('VER', 'rb', 1, 25), x('NOR', 'mcl', 2, 18), x('PIA', 'mcl', 3, 15)], sprintResults: [] },
+    { round: 2, results: [x('NOR', 'mcl', 1, 25), x('PIA', 'mcl', 2, 18), x('VER', 'rb', 3, 15)], sprintResults: [x('VER', 'rb', 1, 8)] },
+    { round: 3, results: [], sprintResults: [] },
+  ] };
+  const one = standingsAfter(data, 1);
+  assert.equal(one.races, 1);
+  assert.deepEqual(one.drivers.map((d) => [d.code, d.points, d.pos]), [['VER', 25, 1], ['NOR', 18, 2], ['PIA', 15, 3]]);
+  const two = standingsAfter(data, 3);
+  assert.equal(two.races, 2, 'manche pas encore courue : non comptée');
+  assert.deepEqual(two.drivers.map((d) => [d.code, d.points, d.wins]), [['VER', 48, 1], ['NOR', 43, 1], ['PIA', 33, 0]]);
+  assert.deepEqual(two.constructors.map((c) => [c.id, c.points, c.pos]), [['mcl', 76, 1], ['rb', 48, 2]]);
+  const tie = standingsAfter({ races: [{ round: 1, results: [x('A', 't1', 1, 10), x('B', 't2', 2, 10)], sprintResults: [] }] }, 1);
+  assert.deepEqual(tie.drivers.map((d) => d.code), ['A', 'B'], 'à égalité, le vainqueur devant');
 });
