@@ -274,22 +274,19 @@ export function initRadios() {
   $('#radioAuto').checked = prefs.radioAuto;
   $('#radioText').checked = prefs.radioText;
   $('#radioLang').value = prefs.radioLang;
-  $('#radioQuality').value = prefs.radioQuality === 'high' ? 'high' : 'auto';
-  setTranscribe(prefs.radioText, prefs.radioLang, prefs.radioQuality);
+  setTranscribe(prefs.radioText, prefs.radioLang);
   $('#radioFilter').addEventListener('change', (e) => setPref('radioFilter', e.target.value));
   $('#radioAuto').addEventListener('change', (e) => setPref('radioAuto', e.target.checked));
   $('#radioText').addEventListener('change', (e) => setPref('radioText', e.target.checked));
   $('#radioLang').addEventListener('change', (e) => setPref('radioLang', e.target.value));
-  $('#radioQuality').addEventListener('change', (e) => setPref('radioQuality', e.target.value));
   $('#radioTextOn').addEventListener('click', () => setPref('radioText', true));
   on('prefs', (k) => {
     if (k === 'radioAuto') $('#radioAuto').checked = prefs.radioAuto;
     if (k === 'radioFilter') $('#radioFilter').value = prefs.radioFilter;
-    if (!['radioText', 'radioLang', 'radioQuality'].includes(k)) return;
+    if (!['radioText', 'radioLang'].includes(k)) return;
     $('#radioText').checked = prefs.radioText;
     $('#radioLang').value = prefs.radioLang;
-    $('#radioQuality').value = prefs.radioQuality === 'high' ? 'high' : 'auto';
-    setTranscribe(prefs.radioText, prefs.radioLang, prefs.radioQuality);
+    setTranscribe(prefs.radioText, prefs.radioLang);
     showStatus();
   });
   const showStatus = () => { $('#radioTextStatus').textContent = prefs.radioText ? transcribeStatus().msg : ''; };

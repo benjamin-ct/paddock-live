@@ -2,7 +2,7 @@
 // chaque radio n'y est transcrite qu'une fois pour tout le monde, l'ordinateur n'a plus rien à calculer.
 // Le fichier son est pris dans les archives F1 (même accès que les replays), puis on demande d'abord
 // si son empreinte est déjà connue ; sinon le son est envoyé. Serveur injoignable ou plafond du jour
-// atteint : pause de 10 minutes, l'interface transcrit alors sur l'ordinateur comme avant.
+// atteint : pause de 10 minutes, les radios attendent.
 import crypto from 'node:crypto';
 import { request } from './net.js';
 import { archiveGet } from './archive.js';

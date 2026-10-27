@@ -9,7 +9,6 @@ import { youtubeId } from '/shared/article.js';
 
 // Lien ou image d'une nouvelle : adresse web uniquement (jamais « javascript: »), échappée
 const safeUrl = (u) => esc(webLink(u) || '#');
-import { translateText } from './transcribe.js';
 import { cloudOn, cloudTranslate } from '../cloud.js';
 import { notifyNews } from './alerts.js';
 import { toast } from './delay.js';
@@ -47,10 +46,8 @@ navigator.locks?.request('paddock-news-alerts', () => { alertOwner = true; retur
 // ---- Traductions (gardées par le serveur, partagées avec le téléphone) ----
 let cache = {};
 let cacheLoaded = null;
-const queue = [];
 const queued = new Set();
 const failed = new Set();
-let translating = false;
 let pendingSave = [];
 let saveTimer = null;
 
@@ -58,7 +55,7 @@ let saveTimer = null;
 // l'interface : la page s'ouvre avec des titres et résumés déjà traduits
 let staleTranslations = false;
 function shareNewsLang() {
-  const on = prefs.newsTranslate !== false && prefs.cloudTranslate !== false;
+  const on = prefs.newsTranslate !== false;
   api('/api/news/translate', { method: 'POST', body: { lang: on ? LANG : null } }).catch(() => {});
 }
 
@@ -82,38 +79,10 @@ function saveTranslation(item) {
   }, 1500);
 }
 
-// Une seule traduction d'actualité à la fois : les radios en direct restent prioritaires
-async function pumpTranslations() {
-  if (translating || !queue.length) return;
-  translating = true;
-  const { text, from, resolve, urgent } = queue.shift();
-  // Page Actu fermée : seules les alertes sont encore traduites
-  if (!urgent && !open()) {
-    queued.delete(text);
-    resolve?.();
-    translating = false;
-    setTimeout(pumpTranslations, 0);
-    return;
-  }
-  try {
-    const { text: out, q } = await translateText(text, LANG, 'news', from);
-    if (out) {
-      cache[text] = { t: out, q };
-      saveTranslation({ en: text, t: out, q });
-    }
-    else failed.add(text);
-  } catch { failed.add(text); /* moteur indisponible : texte d'origine */ }
-  queued.delete(text);
-  resolve?.();
-  translating = false;
-  renderSoon();
-  setTimeout(pumpTranslations, 30);
-}
-
-// urgent : en tête de file (alerte à traduire avant de l'afficher)
-function translate(text, from, urgent = false) {
+// Traduction par le serveur Paddock Live : tous les textes visibles partent ensemble. Serveur en pause (injoignable,
+// plafond du jour) : le texte reste dans sa langue et sera retraduit au prochain affichage
+function translate(text, from) {
   if (!prefs.newsTranslate || !needs(text, from) || queued.has(text)) return Promise.resolve();
-  // Serveur Paddock Live : tous les textes visibles partent ensemble, sans attendre leur tour
   if (cloudOn()) {
     queued.add(text);
     return cloudTranslate(text, from, LANG).then((out) => {
@@ -124,21 +93,15 @@ function translate(text, from, urgent = false) {
         renderSoon();
         return;
       }
-      if (cloudOn()) { failed.add(text); return; }   // texte refusé : on n'insiste pas
-      return translate(text, from, urgent);           // serveur indisponible : sur l'ordinateur
+      if (cloudOn()) failed.add(text);   // texte refusé : on n'insiste pas
     });
   }
   if (store.isHost === false) {
     // Téléphone : l'ordinateur traduit ; on relit son cache un peu plus tard
     clearTimeout(translate.reload);
     translate.reload = setTimeout(() => loadTranslations(true).then(scheduleRender), 20000);
-    return Promise.resolve();
   }
-  queued.add(text);
-  return new Promise((resolve) => {
-    queue[urgent ? 'unshift' : 'push']({ text, from, resolve, urgent });
-    pumpTranslations();
-  });
+  return Promise.resolve();
 }
 
 // ---- Données ----
@@ -268,7 +231,7 @@ function card(g, favs, i = -1) {
       <div class="nw-meta"><span class="nw-src nw-c-${esc(it.cat)}">${esc(src.name)}</span><span class="nw-cat">${CAT_LABEL[it.cat] || ''}</span>
         <span class="nw-lang" title="Langue d'origine : ${esc(LANG_LABEL[it.lang] || it.lang)}">${esc(it.lang.toUpperCase())}</span><span class="nw-time" title="${esc(new Date(it.t).toLocaleString(LOCALE))}">${ago(it.t)}</span>${level}${hot}${fav ? `<span class="nw-favmark" title="Concerne un de vos favoris">${icon('star-fill')}</span>` : ''}${readBtn}</div>
       <a class="nw-title" data-no-i18n href="${safeUrl(it.link)}" target="_blank" rel="noopener" data-read="${esc(it.id)}" ${title.translated ? `title="${esc(it.title)}"` : ''}>${esc(title.text)}</a>
-      ${title.pending ? '<div class="nw-trans muted">Traduction en cours…</div>' : title.translated ? '<div class="nw-trans muted" title="Traduit automatiquement sur cet ordinateur">Traduit · <button class="nw-vo" data-vo>VO</button></div>' : ''}
+      ${title.pending ? '<div class="nw-trans muted">Traduction en cours…</div>' : title.translated ? '<div class="nw-trans muted" title="Traduit automatiquement par le serveur Paddock Live">Traduit · <button class="nw-vo" data-vo>VO</button></div>' : ''}
       <div class="nw-vo-text" hidden>${esc(it.title)}</div>
       ${it.summary ? `<p class="nw-sum" data-no-i18n>${esc(sum || it.summary)}</p>` : ''}
       <div class="nw-tags">${tagChips(it.tags)}</div>
@@ -474,7 +437,7 @@ async function onFresh(list) {
     done.add(key);
     rememberAlert(key);
     // Traduit avant l'alerte (15 s au plus), sinon texte d'origine
-    await Promise.race([translate(it.title, it.lang, true), new Promise((r) => setTimeout(r, 15000))]);
+    await Promise.race([translate(it.title, it.lang), new Promise((r) => setTimeout(r, 15000))]);
     const src = srcById[it.src]?.name || it.src;
     const title = titleOf(it).text;
     notifyNews(`${src}${it.sources >= 4 ? ` · ${it.sources} sources` : ''}`, title, (it.imp || 0) >= 2 ? 'info' : 'fav', () => { openNews(); });
@@ -503,7 +466,7 @@ on('news', (list) => {
 
 on('prefs', (k) => {
   if ((k === 'favs' || k === 'favTeams') && open()) scheduleRender();
-  if ((k === 'newsTranslate' || k === 'cloudTranslate') && store.isHost !== false) shareNewsLang();
+  if (k === 'newsTranslate' && store.isHost !== false) shareNewsLang();
 });
 
 async function reloadSources() {
@@ -529,9 +492,7 @@ function closeReader() {
   $('#nwContent').scrollTop = readerScroll;
 }
 
-const readerTranslate = (text, from) => (cloudOn()
-  ? cloudTranslate(text, from, LANG)
-  : translateText(text, LANG, 'news', from).then((r) => r?.text || null).catch(() => null));
+const readerTranslate = (text, from) => cloudTranslate(text, from, LANG);
 
 async function openReader(id) {
   const it = items.find((x) => x.id === id);
@@ -675,7 +636,7 @@ export async function latestNews(n = 4, onTranslated = null) {
   const missing = prefs.newsTranslate ? list.filter((it) => needs(it.title, it.lang)) : [];
   if (missing.length && onTranslated) {
     loadTranslations(true)
-      .then(() => Promise.all(missing.filter((it) => needs(it.title, it.lang)).map((it) => translate(it.title, it.lang, true))))
+      .then(() => Promise.all(missing.filter((it) => needs(it.title, it.lang)).map((it) => translate(it.title, it.lang))))
       .then(onTranslated);
   }
   return list.map((it) => ({ id: it.id, title: titleOf(it).text, link: safeUrl(it.link), src: srcById[it.src]?.name || it.src, when: ago(it.t) }));

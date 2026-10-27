@@ -395,6 +395,20 @@ async function handleApi(req, res, url) {
       }
     }
 
+    // Son des caméras embarquées (fenêtre WAV de 30 s) : retranscrit par le serveur Paddock Live, avec l'heure de chaque
+    // phrase -> { segments }
+    case 'POST /api/radio-window': {
+      const body = await readRaw(req, 2 * 1024 * 1024);
+      let r;
+      try {
+        r = await request(`${SEASON_URL}/live/api/radio-window`, { method: 'POST', headers: { 'Content-Type': 'audio/wav', 'Content-Length': body.length }, body, timeout: 60000 });
+      } catch (err) {
+        return sendJSON(res, 503, { error: `serveur de Paddock Live injoignable (${err.message})` });
+      }
+      res.writeHead(r.status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+      return res.end(r.body);
+    }
+
     // Statistiques d'utilisation anonymes : l'accord se donne sur l'ordinateur ; toutes les
     // fenêtres (téléphone compris) signalent les fonctions utilisées si c'est accepté
     case 'GET /api/stats':

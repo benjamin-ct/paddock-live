@@ -1,10 +1,7 @@
 // Traduction (actualités, radios, documents FIA) et transcription des radios d'équipe par le serveur
 // Paddock Live (Workers AI), via le serveur de l'appli. Rien n'est calculé sur l'ordinateur ; chaque
-// texte est traduit et chaque radio transcrite une fois pour tous.
-// Désactivable dans Réglages → Application. Serveur injoignable : pause de 10 minutes, l'appli
-// traduit alors sur l'ordinateur comme avant.
-import { prefs, setPref } from './prefs.js';
-import { on } from './store.js';
+// texte est traduit et chaque radio transcrite une fois pour tous. Serveur injoignable ou plafond du jour
+// atteint : pause de 10 minutes, les textes attendent.
 
 const LANGS = ['fr', 'en', 'es', 'de', 'it', 'nl', 'pt', 'ja', 'zh'];
 let pending = [];
@@ -12,11 +9,11 @@ let timer = 0;
 let offUntil = 0;
 let asrOffUntil = 0;
 
-export const cloudOn = () => prefs.cloudTranslate !== false && Date.now() >= offUntil;
-export const cloudAsrOn = () => prefs.cloudTranslate !== false && Date.now() >= asrOffUntil;
+export const cloudOn = () => Date.now() >= offUntil;
+export const cloudAsrOn = () => Date.now() >= asrOffUntil;
 
 // Transcription d'une radio d'équipe (adresse d'archive F1) : { text, d } (texte vide : radio sans
-// parole), ou null (désactivé, indisponible : l'ordinateur transcrit lui-même)
+// parole), ou null (indisponible)
 export async function cloudTranscribe(url) {
   if (!cloudAsrOn()) return null;
   try {
@@ -47,7 +44,7 @@ async function flush() {
   }
 }
 
-// Traduction d'un texte, ou null (désactivé, indisponible, langue non prise en charge)
+// Traduction d'un texte, ou null (indisponible, langue non prise en charge)
 export function cloudTranslate(text, from, to) {
   if (!text || !cloudOn() || !LANGS.includes(to)) return Promise.resolve(null);
   return new Promise((resolve) => {
@@ -56,11 +53,3 @@ export function cloudTranslate(text, from, to) {
   });
 }
 
-// Case « Traduire et transcrire avec le serveur Paddock Live » (Réglages → Application)
-export function initCloud() {
-  const box = document.querySelector('#cloudTranslate');
-  if (!box) return;
-  box.checked = prefs.cloudTranslate !== false;
-  box.addEventListener('change', (e) => { offUntil = asrOffUntil = 0; setPref('cloudTranslate', e.target.checked); });
-  on('prefs', (k) => { if (k === 'cloudTranslate') box.checked = prefs.cloudTranslate !== false; });
-}

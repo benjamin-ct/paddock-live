@@ -1,6 +1,6 @@
-// Traductions des textes de la FIA (évolutions techniques), faites dans le navigateur par le
-// moteur local et conservées ici : elles servent ensuite à tous les appareils (téléphone…) et
-// ne sont jamais refaites. Une traduction « high » (modèle de langage) remplace une « light ».
+// Traductions (actualités, textes de la FIA) demandées au serveur Paddock Live par le navigateur et conservées
+// ici : elles servent ensuite à tous les appareils (téléphone…) et ne sont jamais redemandées. Une traduction
+// « high » (modèle de langage des anciennes versions) remplace une « light ».
 import fs from 'node:fs';
 import path from 'node:path';
 import { CACHE_DIR } from './circuits.js';

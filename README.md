@@ -71,7 +71,7 @@ Le détail de chacune est dans le **[guide complet](docs/GUIDE.md)**.
 - **Direction de course** : tous les messages de la FIA, filtres (drapeaux bleus, temps supprimés, type de message), traduction en français.
 - **Enquêtes** (suivi de chaque incident jusqu'à la décision, documents FIA) et **limites de piste** (tours supprimés, drapeau noir et blanc, pénalités).
 - **Analyse** (onglets Écarts, Temps, Secteurs…) : race trace, positions, temps au tour, rythme, historique des pneus, secteurs et vitesses avec les records du circuit, comparaison de deux tours mini-secteur par mini-secteur, télémétrie ; export des graphiques en image.
-- **Radios d'équipe** : une carte par radio (photo, tour, durée, écoutée ou non), lecture automatique au rythme du délai, transcription et traduction (français, espagnol, allemand, italien) par le serveur Paddock Live ou sur l'ordinateur ; en expérimental, radios captées sur le son des caméras embarquées F1 TV.
+- **Radios d'équipe** : une carte par radio (photo, tour, durée, écoutée ou non), lecture automatique au rythme du délai, transcription et traduction (français, espagnol, allemand, italien) par le serveur Paddock Live ; en expérimental, radios captées sur le son des caméras embarquées F1 TV.
 - **Arrêts** : vue chronologique ou par pilote, arrêt le plus rapide, temps dans la voie des stands ; les passages sans changement de pneus sont distingués.
 - **Télémétrie** : deux compteurs (vitesse, régime, rapport, accélérateur, frein) animés en continu et courbe de vitesse.
 - **Pneus** : stratégie de chaque pilote, rythme et usure du relais, jeux neufs et utilisés sur tout le week-end, composés et préconisations de Pirelli.
@@ -142,7 +142,7 @@ Le détail de chacune est dans le **[guide complet](docs/GUIDE.md)**.
 - **Réglages** avec recherche, rubriques et « À propos » (nouveautés, réseaux, informations légales).
 - **Mise à jour automatique** (Windows, macOS, AppImage), **sauvegarde des réglages** dans un fichier.
 - **Connexion F1 TV** (facultative) : positions GPS exactes et télémétrie, jeton renouvelé automatiquement ; sans compte, positions estimées.
-- **Traductions et transcriptions** par le serveur Paddock Live (une fois pour tous), ou sur l'ordinateur.
+- **Traductions et transcriptions** par le serveur Paddock Live (une fois pour tous), rien à calculer sur l'ordinateur.
 - **Statistiques d'utilisation anonymes**, facultatives.
 
 ## 🚀 Installation

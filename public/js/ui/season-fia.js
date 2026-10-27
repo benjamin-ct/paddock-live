@@ -60,7 +60,7 @@ const trSpan = (en) => {
 function trStatusHtml() {
   if (showOriginal()) return '';
   const s = translationState();
-  if (s.left) return `${icon('hourglass')} Traduction en cours (${s.left} texte${s.left > 1 ? 's' : ''})${s.loading ? ` · ${esc(s.loading)}` : ''} — faite sur cet ordinateur, une seule fois.`;
+  if (s.left) return `${icon('hourglass')} Traduction en cours (${s.left} texte${s.left > 1 ? 's' : ''})${s.loading ? ` · ${esc(s.loading)}` : ''} — par le serveur Paddock Live, une seule fois.`;
   if (s.error) return `${icon('warning')} Traduction impossible pour l'instant : ${esc(s.error)}.`;
   return '';
 }
