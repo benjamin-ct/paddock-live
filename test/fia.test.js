@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseDocumentList, parsePublished, pickEvent } from '../server/fia.js';
+import { parseDocumentList, parsePublished, pickEvent } from '../shared/fia-list.js';
 import { analyzeStewards, linkFiaDocs, deletedLapsDoc, parseFiaDoc } from '../shared/stewards.js';
 
 const row = (n, title, file, date) => `<li class="document-row key-${n}">  <a href="/system/files/decision-document/${file}.pdf" download target="_blank">

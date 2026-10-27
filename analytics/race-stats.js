@@ -4,6 +4,7 @@
 // archiveToken), puis gardée dans la base. Même calcul que l'appli (shared/race-stats.js).
 import { seasonRow, archiveToken } from './studio.js';
 import { getRow, setRow } from './alerts.js';
+import { seasonNominations } from './tyres.js';
 import { summarizeRace, findRaceSession, parseStream, indexMeetings, STATS_VERSION } from '../shared/race-stats.js';
 import { fetchDhl, withDhl } from '../shared/dhl-pits.js';
 import { topicName } from '../shared/f1.js';
@@ -34,7 +35,7 @@ export async function circuitData(key, year, fetchFn = fetch) {
   return null;
 }
 
-async function archiveText(rel, token, fetchFn) {
+export async function archiveText(rel, token, fetchFn) {
   const r = await fetchFn(ARCHIVE + rel, { headers: { 'User-Agent': UA, Authorization: `Bearer ${token}`, ascendontoken: token } });
   if (r.status !== 200) throw new Error(`${rel} : HTTP ${r.status}`);
   return (await r.text()).replace(/^﻿/, '');
@@ -148,10 +149,11 @@ export async function statsTick(env, { now = Date.now(), fetchFn = fetch, budget
   return null;
 }
 
-// /live/api/season/stats : même forme que /api/season/stats de l'appli. Les courses qui manquent sont demandées à
-// la tâche planifiée (pending : la page relit l'avancement)
+// /live/api/season/stats : même forme que /api/season/stats de l'appli (tyres : composés Pirelli de chaque manche). Les
+// courses qui manquent sont demandées à la tâche planifiée (pending : la page relit l'avancement)
 export async function seasonStatsWeb(env, year, { now = Date.now(), fetchFn = fetch } = {}) {
-  const races = (await season(env, year, now)).v.races.filter((r) => r.results?.length);
+  const all = (await season(env, year, now)).v.races;
+  const races = all.filter((r) => r.results?.length);
   const { done, failed, errors } = await kept(env, year);
   const missing = races.some((r) => !done.has(r.round) && now - (failed.get(r.round) || 0) > RETRY);
   const pending = missing && !!await archiveToken(env, { now, fetchFn });
@@ -159,7 +161,7 @@ export async function seasonStatsWeb(env, year, { now = Date.now(), fetchFn = fe
   const dhl = await dhlRows(env, year);
   const list = races.map((r) => withDhl(done.get(r.round), dhl.get(r.round)?.rows)).filter(Boolean);
   // failed : courses pas analysées et la raison (nouvel essai 6 heures plus tard)
-  const out = { year, total: races.length, done: list.length, pending, races: list, tyres: {}, failed: errors };
+  const out = { year, total: races.length, done: list.length, pending, races: list, tyres: await seasonNominations(env, year, all), failed: errors };
   if (!list.length && !pending && races.length) out.error = 'statistiques pas encore calculées par le serveur';
   return out;
 }

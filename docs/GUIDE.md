@@ -33,7 +33,7 @@ Le [README](../README.md) résume l'essentiel. Vous trouverez ici le détail de 
 
 ## 🏆 Espace Saison
 
-Le bouton **Saison** de la barre de gauche (🏆 en haut dans les autres designs et sur téléphone) ouvre une vue de toute la saison (données Jolpica/Ergast, consultables hors ligne une fois chargées), avec un sélecteur d'année :
+Le bouton **Saison** de la barre de gauche (🏆 en haut dans les autres designs et sur téléphone) ouvre une vue de toute la saison (données Jolpica/Ergast lues par le serveur de Paddock Live, consultables hors ligne une fois chargées), avec un sélecteur d'année :
 
 - **Accueil** : compte à rebours jusqu'à la prochaine séance, avancement de la saison, leaders des championnats, dernier vainqueur et top 10.
 - **Calendrier** : toutes les manches (sprint, terminé / prochain / à venir), vainqueur et poleman, horaires de chaque séance à l'heure de votre ordinateur.
@@ -57,7 +57,7 @@ Le bouton **Saison** de la barre de gauche (🏆 en haut dans les autres designs
 - **Éléments moteur** : éléments du groupe propulseur utilisés par chaque pilote (ICE, turbo, échappement, MGU-K, batterie, électronique, auxiliaires ; MGU-H avant 2026) face aux limites de la saison, limites atteintes ou dépassées, totaux par pilote et par écurie, pénalités sur la grille (éléments, sanction, document FIA) et éléments neufs montés à chaque Grand Prix.
 
 
-**Pronostics entre amis** (Saison → Pronostics) : avant chaque Grand Prix, chacun choisit la pole et le podium, sur l'ordinateur ou sur son téléphone (accès réseau local). Les choix des autres restent cachés jusqu'à la fermeture (début des qualifications pour la pole, départ pour le podium). Points : pole exacte 3, pilote à la bonne place du podium 3, sur le podium mais à une autre place 1, podium exact dans l'ordre +2 ; classement de la saison et détail de chaque Grand Prix. **En ligne**, un groupe se crée avec un lien à partager (page web paddocklive.app/p/… pour jouer sans l'appli) ; « Retirer de mes groupes » l'enlève de cet appareil seulement (il reste en ligne pour les autres), « Supprimer le groupe » l'efface avec les pronostics de tous les joueurs : réservé à son créateur, ou à son seul joueur pour un groupe créé avant la v1.27.41.
+**Pronostics entre amis** (Saison → Pronostics) : ils se jouent dans un groupe en ligne, gardé sur le serveur de Paddock Live (créez-en un, même seul, ou rejoignez celui de vos amis avec son lien). Avant chaque Grand Prix, chacun choisit la pole et le podium. Les choix des autres restent cachés jusqu'à la fermeture (début des qualifications pour la pole, départ pour le podium). Points : pole exacte 3, pilote à la bonne place du podium 3, sur le podium mais à une autre place 1, podium exact dans l'ordre +2 ; classement de la saison et détail de chaque Grand Prix. Le lien du groupe ouvre une page web (paddocklive.app/p/…) pour jouer sans l'appli ; « Copier mon lien personnel » garde votre pseudo sur un autre appareil ; « Retirer de mes groupes » l'enlève de cet appareil seulement (il reste en ligne pour les autres), « Supprimer le groupe » l'efface avec les pronostics de tous les joueurs : réservé à son créateur, ou à son seul joueur pour un groupe créé avant la v1.27.41.
 
 ## 📰 Espace Actu
 
@@ -283,6 +283,6 @@ livetiming.formula1.com ──SignalR──▶ serveur Node local ──WebSocke
 - `desktop/` : application de bureau Electron (serveur intégré).
 - `shared/` : fusion des mises à jour du flux et données dérivées (historique par tour, arrêts, repères de synchro), communs au serveur et au navigateur.
 - `public/` : l'interface (JavaScript sans étape de build). Le GPS est recalé sur l'horloge officielle du flux, car il arrive environ 2 s après les chronos. Ainsi carte, chronos et TV restent alignés.
-- Tracés des circuits : API publique MultiViewer (mise en cache dans `.cache/`). Pour un circuit absent de cette base (nouveau tracé), le tracé est reconstruit automatiquement à partir du GPS du meilleur tour d'une session archivée.
+- Données publiques (saison, statistiques, pneus et communiqués Pirelli, records des circuits, météo, documents FIA, photos des pilotes, tracés des circuits de l'API MultiViewer) : lues par le serveur de Paddock Live (`analytics/`, adresses `/live/api/…`), que l'appli relaie (mise en cache dans `.cache/` pour les tracés). Pour un circuit absent de cette base (nouveau tracé), le tracé est reconstruit automatiquement à partir du GPS du meilleur tour d'une session archivée.
 
 Tests : `npm test` (lancés aussi automatiquement sur GitHub à chaque modification).

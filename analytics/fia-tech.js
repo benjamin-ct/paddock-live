@@ -3,7 +3,7 @@
 // l'appli (shared/fia-tech.js), puis gardée dans la base. Épreuve récente (documents de moins de 4 jours) : relue
 // toutes les heures ; épreuve sans documents (pas encore courue) : revue 6 heures plus tard.
 import { getRow, setRow } from './alerts.js';
-import { BASE, CHAMPIONSHIP, parseDocumentList, parseSeasons, seasonEventList } from '../shared/fia-list.js';
+import { BASE, CHAMPIONSHIP, parseDocumentList, parseSeasons, seasonEventList, pickEvent } from '../shared/fia-list.js';
 import { FIA_VERSION, pdfPages, eventData } from '../shared/fia-tech.js';
 import { translateBatch } from './translate.js';
 
@@ -34,6 +34,31 @@ async function seasonEvents(env, year, now, fetchFn) {
   const events = season ? seasonEventList(await (await get(BASE + season, fetchFn)).text()) : [];
   await setRow(env, `fiaevents:${year}`, JSON.stringify({ at: now, events }));
   return events;
+}
+
+// Documents d'un Grand Prix { name, country, location } (/live/api/fia-docs : documents des commissaires pendant le
+// direct, même forme que /api/fia-docs des anciennes applis). Épreuves : liste de la page du championnat (même choix
+// que l'appli), relue toutes les heures ; documents relus toutes les 90 s, gardés 12 heures quand rien n'a été
+// publié depuis 4 jours (épreuve finie)
+const cached = async (key, ttl, make) => {
+  const ck = new Request(`https://live.cache/${key}`);
+  const hit = await caches.default.match(ck);
+  if (hit) return hit.json();
+  const d = await make();
+  await caches.default.put(ck, new Response(JSON.stringify(d), { headers: { 'Content-Type': 'application/json', 'Cache-Control': `public, max-age=${typeof ttl === 'function' ? ttl(d) : ttl}` } }));
+  return d;
+};
+export async function fiaDocsWeb(year, meeting, { now = Date.now(), fetchFn = fetch } = {}) {
+  const s = await cached('fia-championship', 3600, async () => parseSeasons(await (await get(BASE + CHAMPIONSHIP, fetchFn)).text()));
+  const season = s.bySeason[year];
+  if (!season) return { event: null, page: null, docs: [] };
+  const event = pickEvent(s.events, meeting);
+  if (!event) return { event: null, page: BASE + season, docs: [] };
+  const page = `${BASE}${season}/event/${encodeURIComponent(event)}`;
+  return cached(`fia-docs/${await sha(page)}`, (d) => {
+    const last = Math.max(0, ...d.docs.map((x) => x.published || 0));
+    return last && now - last > RECENT ? 12 * 3600 : 90;
+  }, async () => ({ event, page, docs: parseDocumentList(await (await get(page, fetchFn)).text()) }));
 }
 
 // PDF lu une seule fois (un document publié ne change plus), résultat gardé

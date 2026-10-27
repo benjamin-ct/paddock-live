@@ -25,6 +25,9 @@ l'application (Réglages → À propos → Nouveautés).
   continue sans lui (« LIVE · GPS ailleurs », positions estimées) ; touchez ce badge pour le reprendre ici.
 - Délai TV de 5 s au minimum (« Temps réel (5 s) ») : le GPS et la télémétrie arrivent quelques secondes après
   les chronos ; à 0 s, la carte et la télémétrie avançaient par à-coups.
+- Pneus (choix et communiqués de Pirelli, jeux de chaque pilote), records du circuit (Analyse), météo, documents
+  de la FIA, photos des pilotes et tracés des circuits viennent aussi du serveur de Paddock Live : chaque
+  correction arrive sans mise à jour de l'appli.
 - Une pénalité purgée n'apparaît plus une deuxième fois (résumé de la séance, moments clés, « Pendant votre
   absence »).
 - « Pendant votre absence » fonctionne aussi quand on s'absente pendant un drapeau rouge.
@@ -87,6 +90,9 @@ l'application (Réglages → À propos → Nouveautés).
   d'analyse des archives sur l'ordinateur) et chaque correction arrive sans mise à jour de l'appli. L'écran reste
   celui de l'appli. Il faut être connecté à internet (sans connexion : dernières données gardées pour le calendrier
   et les résultats).
+- Pronostics entre amis : ils se jouent maintenant dans un groupe en ligne, comme sur la version web (créez-en un,
+  même seul, ou rejoignez celui de vos amis avec son lien ; sur un téléphone, ouvrez le lien du groupe). Les
+  pronostics gardés sur l'ordinateur ne sont plus repris.
 - Duels : le « VS » est au milieu, quelle que soit la longueur des noms des deux pilotes.
 - Pendant l'analyse des courses, les tableaux de la Saison restent où on les a fait défiler au lieu de revenir
   au début toutes les 3 secondes.
@@ -120,6 +126,8 @@ l'application (Réglages → À propos → Nouveautés).
   toute la largeur sur téléphone ; en duel, pilote A et pilote B côte à côte, « VS » au milieu.
 
 ### Version web (app.paddocklive.app)
+- Comme dans l'appli : onglet Pneus (choix et communiqués de Pirelli, jeux de chaque pilote), records du circuit dans
+  l'Analyse, météo du circuit (accueil, onglet Météo) et documents de la FIA du Grand Prix pendant le direct.
 - Retour en arrière (geste sur téléphone, bouton du navigateur) dans la Saison : revient à la rubrique ou à la fiche
   précédente (par exemple d'un Grand Prix aux Résultats), à l'endroit où l'on était dans la page, puis au direct.
 - Chaque rubrique de la Saison a son adresse (par exemple app.paddocklive.app/saison/2026/pilotes/lando-norris/) :

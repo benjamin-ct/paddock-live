@@ -6,7 +6,7 @@ import { questionCaptions, questionFor } from '../shared/social-follow.js';
 import { slidesFor } from '../shared/social-draw.js';
 import { newsPost } from '../shared/social-news.js';
 import { xLength } from '../shared/social.js';
-import { forecast } from '../server/forecast.js';
+import { forecast } from '../shared/forecast.js';
 
 const drv = (code, name, team, teamId) => ({ code, name, last: name.split(' ').at(-1), team, teamId });
 const D = { VER: drv('VER', 'Max Verstappen', 'Red Bull', 'red_bull'), TSU: drv('TSU', 'Yuki Tsunoda', 'Red Bull', 'red_bull'), LEC: drv('LEC', 'Charles Leclerc', 'Ferrari', 'ferrari'), HAM: drv('HAM', 'Lewis Hamilton', 'Ferrari', 'ferrari') };

@@ -1,9 +1,13 @@
-// Météo prévue sur un circuit (Open-Meteo, gratuit et sans clé) pour le post « programme du
-// week-end » : températures et risque de pluie de chaque jour, gardées une heure. days.tz : fuseau
+// Météo prévue sur un circuit (Open-Meteo, gratuit et sans clé), lue par le serveur de Paddock Live
+// (/live/api/forecast : accueil et onglet Météo de l'appli et de la version web) : températures et risque de pluie de chaque jour, gardées une heure. days.tz : fuseau
 // horaire du circuit (heure locale dans la barre du haut avant le Grand Prix) ; days.current : temps
 // qu'il fait sur le circuit (onglet Météo) ; days.hours : les 12 prochaines heures. code : temps
 // qu'il fait (code météo WMO : 0 ciel dégagé, 3 couvert, 61 pluie, 95 orage…).
-import { getJSON } from './net.js';
+const getJSON = async (url) => {
+  const r = await fetch(url, { signal: AbortSignal.timeout(15000) });
+  if (!r.ok) throw new Error(`Météo indisponible (HTTP ${r.status})`);
+  return r.json();
+};
 
 const cache = new Map();
 export async function forecast(lat, lon, { get = getJSON, now = Date.now } = {}) {
