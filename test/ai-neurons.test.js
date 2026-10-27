@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { neuronsOf, neuronBudget, runAI, aiQuota } from '../analytics/quota.js';
+import { neuronsOf, neuronBudget, runAI, aiQuota, aiCounters } from '../analytics/quota.js';
 import { MODEL, FALLBACK } from '../analytics/translate.js';
 import { ASR_MODEL, ASR_FALLBACK } from '../analytics/transcribe.js';
 
@@ -58,4 +58,15 @@ test('IA : chaque appel compté, plus aucun appel passé le plafond', async () =
   f.usage.set(`neurons:${day}`, 69000);
   await assert.rejects(runAI(f.env, MODEL, { messages: [] }), /4006/);
   assert.equal(f.calls.length, 1);
+});
+
+test('IA : ce qui a été produit, aujourd\'hui et sur 30 jours (parts par appelant non recomptées)', async () => {
+  const f = fakeEnv({}, new Map([
+    ['2026-10-27', 109], ['2026-10-27|1.2.3.4|2026-10-27', 40], ['2026-10-27|studio', 45], ['2026-10-20', 1000], ['2026-09-20', 5000],
+    ['radio:2026-10-27', 3], ['radio:2026-10-25', 46], ['onboard:2026-10-26', 12], ['neurons:2026-10-27', 84], ['neurons:2026-10-26', 11000],
+  ]));
+  assert.deepEqual(await aiCounters(f.env, '2026-10-27'), {
+    today: { apps: 109, studio: 45, radios: 3, neurons: 84 },
+    month: { apps: 1109, studio: 45, radios: 49, onboard: 12, neurons: 11084 },
+  });
 });

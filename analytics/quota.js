@@ -72,6 +72,24 @@ export async function neuronBudget(env, day) {
   return { used, top: Math.min(dayTop, FREE + Math.max(0, budget - paid)) - MARGIN, gp, spent: paid + Math.max(0, used - FREE), budget };
 }
 
+// Ce que l'IA a produit (compteurs des plafonds) : { today, month } avec, pour chacun, apps (textes traduits ou
+// résumés par les applis, un résumé compte pour 5), studio (textes du Studio : résumé 5, post 3), radios (radios
+// d'équipe transcrites), onboard (tranches de 30 s des caméras embarquées), neurons
+export async function aiCounters(env, day) {
+  const from = new Date(Date.parse(day) - 29 * DAY_MS).toISOString().slice(0, 10);
+  const range = (p) => env.DB.prepare('SELECT day, n FROM ai_usage WHERE day >= ?1 AND day <= ?2').bind(`${p}${from}`, `${p}${day}~`).all().then((r) => r.results || []);
+  const out = { today: {}, month: {} };
+  const add = (kind, k, n) => {
+    out.month[kind] = (out.month[kind] || 0) + (Number(n) || 0);
+    if (k.includes(day)) out.today[kind] = (out.today[kind] || 0) + (Number(n) || 0);
+  };
+  const [days, radios, onboard, neurons] = await Promise.all(['', 'radio:', 'onboard:', 'neurons:'].map(range));
+  // Jour seul : applis ; « jour|studio » : Studio ; « jour|adresse|… » : part d'un appelant, déjà comptée
+  for (const r of days) if (/^\d{4}-\d\d-\d\d$/.test(r.day)) add('apps', r.day, r.n); else if (/^[\d-]+\|studio$/.test(r.day)) add('studio', r.day, r.n);
+  for (const [kind, rows] of [['radios', radios], ['onboard', onboard], ['neurons', neurons]]) for (const r of rows) add(kind, r.day, r.n);
+  return out;
+}
+
 // À la place de env.AI.run : refusé (erreur 4006, comme l'allocation épuisée de Cloudflare) passé le plafond, compté sinon
 export async function runAI(env, model, input) {
   const day = new Date().toISOString().slice(0, 10);

@@ -33,7 +33,7 @@ import { cleanPostRequest, rewritePost, cleanSummaryRequest, summarizeArticle } 
 import { cleanRequest, translateBatch } from './translate.js';
 import { buildSeason, SEASON_TTL, resultsReady } from './season-cache.js';
 import { accountStats } from './account-stats.js';
-import { callerIp, studioQuota, neuronBudget } from './quota.js';
+import { callerIp, studioQuota, neuronBudget, aiCounters } from './quota.js';
 import { served } from './download.js';
 
 // Empreinte de la clé tirée du code (la même que dans l'appli, server/creator.js) : SHA-256 de la clé PBKDF2 de
@@ -901,10 +901,11 @@ export async function studioApi(req, env, url) {
     return json(out);
   }
   // Bilan des fonctions de l'appli (statistiques anonymes des 30 derniers jours)
-  // et neurones de Workers AI (aujourd'hui, budget payé des 30 derniers jours)
+  // et IA du serveur (neurones d'aujourd'hui, budget payé et ce qui a été produit sur 30 jours)
   if (path === 'usage' && req.method === 'GET') {
-    const ai = await neuronBudget(env, new Date().toISOString().slice(0, 10)).catch(() => null);
-    return json({ days: 30, ...(await summary(env, 30)).usage, health: JSON.parse(await getRow(env, 'health') || 'null'), ai });
+    const today = new Date().toISOString().slice(0, 10);
+    const [ai, made] = await Promise.all([neuronBudget(env, today).catch(() => null), aiCounters(env, today).catch(() => null)]);
+    return json({ days: 30, ...(await summary(env, 30)).usage, health: JSON.parse(await getRow(env, 'health') || 'null'), ai: ai && made && { ...ai, made } });
   }
   // Post écrit à la main : texte mis en forme par l'IA (titre, résumé, points clés)
   if (path === 'rewrite' && req.method === 'POST') {
