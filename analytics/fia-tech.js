@@ -71,19 +71,20 @@ async function parsed(env, url, parser, fetchFn) {
   return data;
 }
 
-// Épreuves déjà lues de l'année : page -> { at, data } (data null : pas de documents)
+// Épreuves déjà lues de l'année : page -> { v, at, data } (data null : pas de documents). Lecture d'une version
+// précédente de FIA_VERSION : montrée en attendant d'être refaite
 async function kept(env, year) {
   const results = await rowsWithPrefix(env, `fiatech:${year}:`);
   const out = new Map();
   for (const { v } of results || []) {
-    try { const d = JSON.parse(v); if (d?.v === FIA_VERSION) out.set(d.page, d); } catch { /* ligne abîmée : relue */ }
+    try { const d = JSON.parse(v); if (d?.page) out.set(d.page, d); } catch { /* ligne abîmée : relue */ }
   }
   return out;
 }
 // Épreuve à lire (jamais lue), à reprendre après une erreur (5 min, puis de plus en plus espacé ; les PDF déjà lus
 // sont gardés, chaque essai avance), à relire (documents récents, ou traductions pas toutes faites) ou à revoir
 // (sans documents)
-const due = (e, now) => !e
+const due = (e, now) => !e || e.v !== FIA_VERSION
   || (e.error ? now - e.at > Math.min(EMPTY, 5 * 60e3 * 2 ** ((e.fails || 1) - 1))
     : e.data ? (now - e.data.last < RECENT || (e.data.tech?.length && !e.data.trDone)) && now - e.at > REREAD
       : !e.empty || now - e.at > EMPTY);   // vide sans « empty » : lecture d'avant, peut-être ratée, refaite
@@ -146,7 +147,7 @@ export async function fiaTick(env, { now = Date.now(), fetchFn = fetch } = {}) {
 export async function seasonFiaWeb(env, year, { now = Date.now() } = {}) {
   const events = JSON.parse(await getRow(env, `fiaevents:${year}`) || 'null')?.events;
   const have = await kept(env, year);
-  const pending = !events || events.some((e) => !have.has(e.page));
+  const pending = !events || events.some((e) => have.get(e.page)?.v !== FIA_VERSION);
   if (pending && now - Number(await getRow(env, `fiawant:${year}`) || 0) > 10 * 60e3) await setRow(env, `fiawant:${year}`, String(now));
   const list = [...have.values()].map((e) => e.data).filter(Boolean).sort((a, b) => a.first - b.first);
   // failed : épreuves pas lues pour l'instant et la raison (nouvel essai automatique)
