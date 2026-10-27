@@ -358,11 +358,11 @@ function usageHtml(u) {
       return `<h3 class="section">${title} <small>${sub}</small></h3>${list}`;
     }).join('')}`;
 }
+// Chiffres déjà connus affichés tout de suite, puis relus à chaque ouverture (plafonds et dépenses du jour)
 async function loadUsage(box) {
   const known = store.get('usage');
   if (known) box.innerHTML = usageHtml(known.v);
   else box.innerHTML = skeleton(3);
-  if (known && Date.now() - known.at < 10 * 60e3) return;
   try {
     const u = await api('usage');
     store.set('usage', u);
