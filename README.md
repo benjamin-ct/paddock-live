@@ -17,7 +17,7 @@ Dashboard **Formule 1 en direct** pour suivre chaque Grand Prix sur votre ordina
 - **Duels, bagarres et simulateur d'arrêt** : écart en temps réel, tendance, « s'il s'arrête maintenant, il ressort P8 », cercle de position animé.
 - **Radios d'équipe** retranscrites et traduites, **commentaires F1 TV Pro** ou radio de votre choix calés sur le dashboard.
 - **Espace Saison** (calendrier, classements, course au titre, duels, notes des pilotes, statistiques, technique FIA) et **Espace Actu** (toute l'actualité F1 traduite).
-- **Pronostics entre amis**, en réseau local ou en ligne avec un lien à partager.
+- **Pronostics entre amis**, en ligne avec un lien à partager.
 - **Streaming** : overlays pour OBS, Streamlabs et Meld Studio, commandes pour le Stream Deck.
 - **Mini-classement** et **carte flottante** à poser par-dessus la vidéo, **second écran**, disposition libre des panneaux.
 - **Sur téléphone ou tablette** par le Wi-Fi de la maison, dans une version simplifiée.
@@ -105,7 +105,7 @@ Le détail de chacune est dans le **[guide complet](docs/GUIDE.md)**.
 
 ### Pronostics entre amis
 - Pole et podium avant chaque Grand Prix, choix des autres cachés jusqu'à la fermeture, points et classement de la saison.
-- En réseau local ou **en ligne** : groupe à créer, lien à partager (copié sur ordinateur, partage du téléphone), liste « Mes groupes » pour retrouver ses groupes toute la saison (et en retirer), suppression du groupe par son créateur, page web pour jouer sans l'application.
+- **En ligne** : groupe à créer, lien à partager (copié sur ordinateur, partage du téléphone), liste « Mes groupes » pour retrouver ses groupes toute la saison (et en retirer), suppression du groupe par son créateur, page web pour jouer sans l'application.
 
 ### Espace Actu
 - Sources officielles (F1, FIA, écuries, pilotes) et une trentaine de médias en 8 langues, sources à ajouter ou couper.

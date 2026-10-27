@@ -8,7 +8,7 @@ export const SEASON_TTL = 30 * 60e3;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // Toutes les pages d'une liste (100 par page), une demande à la fois (4 par seconde au plus chez Jolpica)
-async function pages(path, fetchFn, wait) {
+export async function pages(path, fetchFn, wait = sleep) {
   const out = [];
   for (let offset = 0, total = 1; offset < total; offset += 100) {
     let j = null, last = null;

@@ -20,3 +20,11 @@ export function portraitUrl(tla, big = false) {
 
 // Écurie de la saison d'un pilote de la base (« mclaren », « redbullracing »…), null sinon
 export const portraitTeam = (tla) => PORTRAITS[tla]?.split('/')[0] || null;
+
+// Photos relayées par le serveur de Paddock Live (/live/api/headshot) : seules les images du site de la F1
+export function validHeadshot(u) {
+  try {
+    const url = new URL(u);
+    return url.protocol === 'https:' && ['media.formula1.com', 'www.formula1.com'].includes(url.hostname) && /\.(png|jpe?g|webp)(\/|$|\?)|\/image\.png$/i.test(url.pathname);
+  } catch { return false; }
+}

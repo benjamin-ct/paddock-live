@@ -13,7 +13,11 @@ import { cleanRequest, translateBatch } from './translate.js';
 import { callerIp, ipQuota } from './quota.js';
 import { pronosApi, GROUP_RE } from './pronos.js';
 import { circuitData, seasonStatsWeb } from './race-stats.js';
-import { seasonFiaWeb, fiaTranslations } from './fia-tech.js';
+import { seasonFiaWeb, fiaTranslations, fiaDocsWeb } from './fia-tech.js';
+import { weekendTyres } from './tyres.js';
+import { circuitRecords } from './records.js';
+import { forecast } from '../shared/forecast.js';
+import { validHeadshot } from '../shared/portraits.js';
 import { buildIcs } from '../shared/ics.js';
 import { WEB_HIST_MS } from '../shared/live-delay.js';
 
@@ -520,10 +524,10 @@ function audioResponse(req, bytes, rel) {
   return new Response(bytes.slice(a, b + 1), { status: 206, headers: { ...headers, 'Content-Range': `bytes ${a}-${b}/${n}` } });
 }
 
-// /live/api/… : ce dont la version web a besoin du serveur local de l'appli. Tracé du circuit (API MultiViewer,
-// l'année demandée ou une des précédentes), gardé un jour ; photos des pilotes : le navigateur les prend
-// directement sur le site de la F1 ; son, texte et traduction des radios (transcription et traduction
-// partagées du serveur, mêmes plafonds que l'appli) ; le reste n'existe pas en ligne
+// /live/api/… : données de Paddock Live lues par la version web et par l'appli de bureau (son serveur local relaie
+// /api/… ici) : saison, statistiques, pneus, records, météo, documents FIA, tracé du circuit (API MultiViewer,
+// l'année demandée ou une des précédentes, gardé un jour), photos des pilotes ; son, texte et traduction des radios
+// (transcription et traduction partagées du serveur, mêmes plafonds que l'appli) ; le reste n'existe pas en ligne
 export async function liveApi(req, url, env = {}) {
   // Appairage d'un téléphone : relayé à l'instance « pair » du relais (boîte chiffrée, rien gardé ; voir pair())
   if (url.pathname === '/live/api/pair') {
@@ -635,11 +639,53 @@ export async function liveApi(req, url, env = {}) {
     }
     return res;
   }
+  // Photos des pilotes : la F1 refuse les images appelées depuis l'appli ; relayées et gardées une semaine
   if (url.pathname === '/live/api/headshot') {
-    let u = null;
-    try { u = new URL(url.searchParams.get('u')); } catch { /* adresse invalide */ }
-    if (u?.protocol !== 'https:' || !['media.formula1.com', 'www.formula1.com'].includes(u.hostname)) return json({ error: 'Photo invalide' }, 400);
-    return Response.redirect(u.href, 302);
+    const u = url.searchParams.get('u') || '';
+    if (!validHeadshot(u)) return json({ error: 'Photo invalide' }, 400);
+    const ck = new Request(`https://live.cache/headshot/${encodeURIComponent(u)}`);
+    let res = await caches.default.match(ck);
+    if (!res) {
+      const r = await fetch(u, { headers: { 'User-Agent': UA } }).catch(() => null);
+      const type = r?.headers.get('Content-Type') || '';
+      if (r?.status !== 200 || !type.startsWith('image/')) return json({ error: 'Photo indisponible' }, 404);
+      res = new Response(await r.arrayBuffer(), { headers: { 'Content-Type': type, 'Cache-Control': 'public, max-age=604800' } });
+      await caches.default.put(ck, res.clone());
+    }
+    return res;
+  }
+  // Pneus du week-end (onglet Pneus) : même forme que /api/tyres des anciennes applis
+  if (url.pathname === '/live/api/tyres' && req.method === 'GET') {
+    const p = url.searchParams.get('path') || '';
+    if (!env.DB || !/^\d{4}\/[\w\-./]+\/$/.test(p)) return json({ error: 'Séance invalide' }, 400);
+    const until = Number(url.searchParams.get('until')) || Date.now();
+    const hint = Object.fromEntries(['name', 'location', 'country', 'session'].map((k) => [k, (url.searchParams.get(k) || '').slice(0, 80)]));
+    return weekendTyres(env, p, until, hint).then((d) => json(d), (err) => json({ error: err.message }, /introuvable/i.test(err.message) ? 404 : 502));
+  }
+  // Pole et meilleur tour en course des éditions précédentes sur ce circuit (bandeau de l'Analyse)
+  if (url.pathname === '/live/api/records' && req.method === 'GET') {
+    const key = Number(url.searchParams.get('key')), year = Number(url.searchParams.get('year'));
+    if (!env.DB || !Number.isInteger(key) || key <= 0 || !Number.isInteger(year) || year < 2018 || year > new Date().getUTCFullYear() + 1) return json({ error: 'Paramètres invalides' }, 400);
+    return json(await circuitRecords(env, key, year), 200, { 'Cache-Control': 'public, max-age=3600' });
+  }
+  // Météo prévue sur un circuit (accueil, onglet Météo), gardée 30 min par endroit (Open-Meteo limite les demandes)
+  if (url.pathname === '/live/api/forecast' && req.method === 'GET') {
+    const lat = url.searchParams.get('lat'), lon = url.searchParams.get('lon');
+    const ck = new Request(`https://live.cache/forecast/${Number(lat).toFixed(2)},${Number(lon).toFixed(2)}`);
+    const hit = await caches.default.match(ck);
+    if (hit) return hit;
+    let days;
+    try { days = await forecast(lat, lon); } catch (err) { return json({ error: err.message }, /Coordonnées/.test(err.message) ? 400 : 502); }
+    const res = json({ days, tz: days.tz, current: days.current, hours: days.hours || [] }, 200, { 'Cache-Control': 'public, max-age=1800' });
+    await caches.default.put(ck, res.clone());
+    return res;
+  }
+  // Documents officiels de la FIA d'un Grand Prix (documents des commissaires du direct)
+  if (url.pathname === '/live/api/fia-docs' && req.method === 'GET') {
+    const year = Number(url.searchParams.get('year')), name = url.searchParams.get('name');
+    if (!Number.isInteger(year) || year < 2018 || !name) return json({ error: 'Paramètres year et name requis' }, 400);
+    const meeting = { name, country: url.searchParams.get('country'), location: url.searchParams.get('location') };
+    return fiaDocsWeb(year, meeting).then((d) => json(d), (err) => json({ error: err.message }, 502));
   }
   if (url.pathname === '/live/api/circuit') {
     const key = Number(url.searchParams.get('key')), year = Number(url.searchParams.get('year'));

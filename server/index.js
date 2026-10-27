@@ -6,26 +6,21 @@ import { WebSocketServer } from 'ws';
 import { Hub } from './hub.js';
 import { LiveSource } from './live.js';
 import { ReplaySource, seasonIndex } from './replay.js';
-import { HttpError, getJSON } from './net.js';
+import { HttpError, request } from './net.js';
 import { circuit, loops, zones } from './circuits.js';
 import { season, SEASON_URL } from './season.js';
-import { forecast } from './forecast.js';
 import { archiveError } from './race-stats.js';
-import { fiaDocuments, fiaPdf, fiaPdfUrl } from './fia.js';
 import { findSessionContent, playback, proxy as f1tvProxy, allowHost, resolvePlaylist, localTarget } from './f1tv.js';
 import { Recorder, listRecordings, pruneRecordings, recordingPath } from './recorder.js';
 import { ROOT, settings, getConfig, saveConfig, parseF1tvToken, tokenInfo } from './config.js';
 import { createLan, isLoopback, qrSvg } from './lan.js';
 import { getTranslations, addTranslations } from './translations.js';
 import { compareLaps } from './compare.js';
-import { weekendTyres, seasonNominations } from './tyres.js';
-import { circuitRecords } from './records.js';
 import { startNews, refreshNews, newsSnapshot, onNews, addNewsSource, removeNewsSource, setNewsSourceEnabled, setClusterTitle } from './news.js';
 import { parseChangelog } from '../shared/changelog.js';
 import { buildIcs } from '../shared/ics.js';
-import { headshot } from './headshots.js';
 import { osmTile } from './tiles.js';
-import { predictionsView, savePrediction, pronosOnline } from './predict.js';
+import { pronosOnline } from './predict.js';
 import { lightsInfo, saveLights, hueDiscover, huePair, lightDevices, setLights } from './lights.js';
 import { exportServerSettings, importServerSettings } from './backup.js';
 import { creatorEnabled, setCreator } from './creator.js';
@@ -119,6 +114,20 @@ function sendJSON(res, status, obj) {
   res.end(JSON.stringify(obj));
 }
 
+// Données lues sur le serveur de Paddock Live (mêmes adresses que la version web : /api/x -> /live/api/x), relayées
+// telles quelles : une correction y arrive sans mise à jour de l'appli
+async function fromServer(res, url) {
+  let r;
+  try {
+    r = await request(`${SEASON_URL}/live${url.pathname}${url.search}`, { timeout: 30000 });
+  } catch (err) {
+    return sendJSON(res, 503, { error: `serveur de Paddock Live injoignable (${err.message})` });
+  }
+  const keep = ['content-type', 'content-disposition', 'cache-control'].filter((h) => r.headers[h]);
+  res.writeHead(r.status, Object.fromEntries(keep.map((h) => [h, r.headers[h]])));
+  res.end(r.body);
+}
+
 // Requête mal formée : erreur 400 (et non 500)
 class BadRequest extends Error {}
 
@@ -202,26 +211,17 @@ async function handleApi(req, res, url) {
       return sendJSON(res, 200, await compareLaps(hub, { a, b, until: Math.min(until, hub.clock()), la: lapNo('la'), lb: lapNo('lb') }));
     }
 
-    // Pneus du week-end : relais des séances précédentes, choix et communiqués de Pirelli
-    case 'GET /api/tyres': {
-      const p = url.searchParams.get('path') || '';
-      if (!/^\d{4}\/[\w\-./]+\/$/.test(p)) return sendJSON(res, 400, { error: 'Séance invalide' });
-      const until = Number(url.searchParams.get('until')) || Date.now();
-      const hint = Object.fromEntries(['name', 'location', 'country', 'session'].map((k) => [k, (url.searchParams.get(k) || '').slice(0, 80)]));
-      try {
-        return sendJSON(res, 200, await weekendTyres(p, until, hint));
-      } catch (err) {
-        return sendJSON(res, /introuvable/i.test(err.message) ? 404 : 502, { error: err.message });
-      }
-    }
-
-    // Pole et meilleur tour en course des éditions précédentes sur ce circuit
-    case 'GET /api/records': {
-      const key = Number(url.searchParams.get('key'));
-      const year = yearOf(url.searchParams.get('year'));
-      if (!key) return sendJSON(res, 400, { error: 'Paramètre key manquant' });
-      return sendJSON(res, 200, await circuitRecords(key, year));
-    }
+    // Pneus du week-end, records du circuit, météo, documents FIA (et leurs PDF), photos des pilotes, statistiques
+    // détaillées et documents FIA de la Saison : lus sur le serveur de Paddock Live
+    case 'GET /api/tyres':
+    case 'GET /api/records':
+    case 'GET /api/forecast':
+    case 'GET /api/fia-docs':
+    case 'GET /api/fia-pdf':
+    case 'GET /api/headshot':
+    case 'GET /api/season/stats':
+    case 'GET /api/season/fia':
+      return fromServer(res, url);
 
     case 'GET /api/circuit': {
       const key = Number(url.searchParams.get('key'));
@@ -299,11 +299,6 @@ async function handleApi(req, res, url) {
       const year = yearOf(url.searchParams.get('year'));
       const d = await season(year);
       return sendJSON(res, 200, { year, races: d.races.map((r) => ({ round: r.round, name: r.name, locality: r.locality, country: r.country, circuitId: r.circuitId, lat: r.lat, lon: r.lon, sessions: r.sessions })) });
-    }
-    // Météo prévue sur un circuit (accueil, onglet Météo)
-    case 'GET /api/forecast': {
-      const days = await forecast(url.searchParams.get('lat'), url.searchParams.get('lon'));
-      return sendJSON(res, 200, { days, tz: days.tz, current: days.current, hours: days.hours || [] });
     }
     case 'GET /api/calendar.ics': {
       const year = yearOf(url.searchParams.get('year'));
@@ -393,11 +388,10 @@ async function handleApi(req, res, url) {
       return sendJSON(res, 200, { enabled: true, restored: await restoreAccounts(body.code) });
     }
 
-    // Pronostics entre amis (pole et podium de chaque Grand Prix)
-    case 'GET /api/predictions': {
-      const year = yearOf(url.searchParams.get('year'));
-      return sendJSON(res, 200, await predictionsView(year, url.searchParams.get('me') || ''));
-    }
+    // Pronostics entre amis (pole et podium de chaque Grand Prix) : dans un groupe en ligne seulement, comme la
+    // version web (anciens pronostics gardés sur l'ordinateur : plus lus)
+    case 'GET /api/predictions':
+      return sendJSON(res, 200, { online: true });
     // Groupe en ligne : g = identifiant du groupe (création : POST sans g)
     case 'GET /api/predictions/online': {
       const r = await pronosOnline('GET', url.searchParams.get('g') || '', { query: `?${new URLSearchParams({ year: yearOf(url.searchParams.get('year')), tok: url.searchParams.get('tok') || '' })}` });
@@ -423,15 +417,6 @@ async function handleApi(req, res, url) {
       const r = await sendFeedbackFile(url.searchParams, String(req.headers['content-type'] || ''), await readRaw(req, 40e6));
       return sendJSON(res, r.status, r.data);
     }
-    case 'POST /api/predictions': {
-      const body = await readBody(req);
-      try {
-        return sendJSON(res, 200, await savePrediction({ ...body, year: yearOf(body.year) }));
-      } catch (err) {
-        return sendJSON(res, 400, { error: err.message });
-      }
-    }
-
     // Fond de carte du radar météo (OpenStreetMap, en cache)
     case 'GET /api/tile': {
       const [z, x, y] = ['z', 'x', 'y'].map((k) => Number(url.searchParams.get(k)));
@@ -442,52 +427,6 @@ async function handleApi(req, res, url) {
       } catch (err) {
         return sendJSON(res, 404, { error: err.message });
       }
-    }
-
-    // Photos des pilotes (site de la F1), en cache
-    case 'GET /api/headshot': {
-      try {
-        const img = await headshot(url.searchParams.get('u') || '');
-        res.writeHead(200, { 'Content-Type': img.type, 'Cache-Control': 'max-age=604800' });
-        return res.end(img.body);
-      } catch (err) {
-        return sendJSON(res, err.message === 'Photo invalide' ? 400 : 404, { error: err.message });
-      }
-    }
-
-    // Statistiques détaillées (archives des courses) et documents FIA de la Saison : calculés une seule fois, par le
-    // serveur de Paddock Live (mêmes données que la version web), plus dans l'appli : une correction des calculs y
-    // arrive sans mise à jour. Composés Pirelli de chaque circuit : ceux que l'appli connaît (onglet Pneus)
-    case 'GET /api/season/stats':
-    case 'GET /api/season/fia': {
-      const year = yearOf(url.searchParams.get('year'));
-      let d;
-      try {
-        d = await getJSON(`${SEASON_URL}/live${route.slice(4)}?year=${year}`, { timeout: 30000 });
-      } catch (err) {
-        return sendJSON(res, 503, { error: `serveur de Paddock Live injoignable (${err.message})` });
-      }
-      if (route.endsWith('/stats') && !d.error) d.tyres = seasonNominations(year, (await season(year)).races);
-      return sendJSON(res, 200, d);
-    }
-
-    case 'GET /api/fia-docs': {
-      const year = Number(url.searchParams.get('year'));
-      const name = url.searchParams.get('name');
-      if (!year || !name) return sendJSON(res, 400, { error: 'Paramètres year et name requis' });
-      const meeting = { name, country: url.searchParams.get('country'), location: url.searchParams.get('location') };
-      return sendJSON(res, 200, await fiaDocuments(year, meeting));
-    }
-
-    case 'GET /api/fia-pdf': {
-      const pdf = fiaPdfUrl(url.searchParams.get('url'));
-      if (!pdf) return sendJSON(res, 400, { error: 'Adresse de document FIA invalide' });
-      const body = await fiaPdf(pdf);
-      // inline : affiché (appli, navigateur) au lieu d'être téléchargé
-      const name = decodeURIComponent(pdf.split('/').pop()).replace(/[^\w .-]/g, '_');
-      res.writeHead(200, { 'Content-Type': 'application/pdf', 'Content-Length': body.length, 'Content-Disposition': `inline; filename="${name}"`, 'Cache-Control': 'private, max-age=86400' });
-      res.end(body);
-      return;
     }
 
     case 'GET /api/f1tv/content': {

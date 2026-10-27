@@ -1,4 +1,4 @@
-// Tracés de circuits (API MultiViewer) et calibration des boucles de chronométrage,
+// Tracés de circuits (API MultiViewer, lue par le serveur de Paddock Live) et calibration des boucles de chronométrage,
 // avec cache disque dans .cache/.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -9,6 +9,7 @@ import { Track } from '../shared/track.js';
 import { calibrateLoops, buildTrackFromArchive } from '../shared/calibrate.js';
 import { estimateZones } from '../shared/zones.js';
 import { loadArchive, seasonIndex } from './replay.js';
+import { SEASON_URL } from './season.js';
 
 export const CACHE_DIR = path.join(DATA_DIR, '.cache');
 fs.mkdirSync(CACHE_DIR, { recursive: true });
@@ -34,17 +35,15 @@ export async function circuit(key, year) {
 }
 
 async function fetchCircuit(key, year, name) {
-  // Le tracé de l'année peut ne pas encore exister : on remonte les saisons précédentes.
-  for (let y = year; y >= year - 6; y--) {
-    try {
-      const data = await getJSON(`https://api.multiviewer.app/api/v1/circuits/${key}/${y}`);
-      if (Array.isArray(data?.x) && data.x.length) {
-        writeCache(name, data);
-        return data;
-      }
-    } catch (err) {
-      if (!(err instanceof HttpError)) throw err;
+  // Tracé lu par le serveur de Paddock Live (API MultiViewer : l'année demandée ou une des précédentes)
+  try {
+    const data = await getJSON(`${SEASON_URL}/live/api/circuit?key=${key}&year=${year}`, { timeout: 30000 });
+    if (Array.isArray(data?.x) && data.x.length) {
+      writeCache(name, data);
+      return data;
     }
+  } catch (err) {
+    if (!(err instanceof HttpError)) throw err;
   }
   // Circuit inconnu de MultiViewer (nouveau tracé) : reconstruction à partir du GPS d'une archive.
   for (const p of (await candidateSessions(key, year)).slice(0, 3)) {

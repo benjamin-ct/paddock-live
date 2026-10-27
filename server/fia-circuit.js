@@ -5,10 +5,10 @@
 // STRAIGHT MODE 45m after T19 - ZONE A1 - 45m after T20 (activation adhérence normale / faible).
 import fs from 'node:fs';
 import path from 'node:path';
-import { request } from './net.js';
-import { fiaDocuments } from './fia.js';
+import { getJSON, request } from './net.js';
 import { pdfPages, lines } from './fia-tech.js';
 import { CACHE_DIR } from './circuits.js';
+import { SEASON_URL } from './season.js';
 
 // « 45m after T19 » -> { m: 45, dir: 1, turn: 19 } ; « at T5 » -> { m: 0, … }
 export function parsePoint(text) {
@@ -56,16 +56,18 @@ export function parseCircuitData(pages) {
 
 const cacheFile = (year, event) => path.join(CACHE_DIR, `fia-circuit-${year}-${String(event).replace(/[^\w]+/g, '_')}.json`);
 
-// Définitions officielles du Grand Prix (null si le document n'est pas encore publié)
+// Définitions officielles du Grand Prix (null si le document n'est pas encore publié) : documents et PDF lus par le
+// serveur de Paddock Live
 export async function officialCircuitData(year, meeting) {
-  const { event, docs } = await fiaDocuments(year, meeting);
+  const q = new URLSearchParams({ year, name: meeting.name || '', country: meeting.country || '', location: meeting.location || '' });
+  const { event, docs } = await getJSON(`${SEASON_URL}/live/api/fia-docs?${q}`, { timeout: 60000 });
   if (!event) return null;
   const file = cacheFile(year, event);
   try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { /* pas en cache */ }
   // Dernière version du plan du circuit
   const doc = docs.filter((d) => /circuit map/i.test(d.title)).sort((a, b) => (b.published || 0) - (a.published || 0))[0];
   if (!doc) return null;
-  const r = await request(doc.url, { timeout: 120000 });
+  const r = await request(`${SEASON_URL}/live/api/fia-pdf?url=${encodeURIComponent(doc.url)}`, { timeout: 120000 });
   if (r.status !== 200) throw new Error(`plan du circuit FIA : HTTP ${r.status}`);
   const data = parseCircuitData(await pdfPages(r.body));
   if (!data) return null;

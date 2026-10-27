@@ -1,24 +1,18 @@
-// Pneus du week-end : relais des séances précédentes du Grand Prix (archives F1), choix de
-// composés de Pirelli et communiqués Pirelli (flux RSS de press.pirelli.com).
-import fs from 'node:fs';
-import path from 'node:path';
-import { getText, HttpError, withRetry } from './net.js';
-import { archiveJSON } from './archive.js';
-import { seasonIndex } from './replay.js';
-import { CACHE_DIR } from './circuits.js';
+// Pneus du week-end (onglet Pneus de l'appli et de la version web, /live/api/tyres) : relais des séances précédentes
+// du Grand Prix (archives F1, lues avec la connexion F1 TV du créateur comme les statistiques de la Saison, voir
+// archiveToken), choix de composés de Pirelli et communiqués Pirelli (flux RSS de press.pirelli.com, relu toutes les
+// 30 min). Choix repérés dans le flux et relais des séances finies gardés dans la base.
+import { setRow, readJSON } from './alerts.js';
+import { archiveToken } from './studio.js';
+import { archiveText } from './race-stats.js';
+import { indexMeetings } from '../shared/race-stats.js';
 import { dryAllocation, builtinNomination } from '../shared/tyres.js';
 import { fold } from '../shared/news.js';
 
-export { NOMINATIONS } from '../shared/tyres.js';
-
 const FEED = 'https://press.pirelli.com/feed/';
-
-function readCache(name) {
-  try { return JSON.parse(fs.readFileSync(path.join(CACHE_DIR, name), 'utf8')); } catch { return null; }
-}
-function writeCache(name, data) {
-  try { fs.writeFileSync(path.join(CACHE_DIR, name), JSON.stringify(data)); } catch (err) { console.warn('[pneus]', err.message); }
-}
+const UA = 'Mozilla/5.0 (Paddock-Live web relay)';
+const FOUND = 'pirelli:found';
+const json = (d, ttl) => new Response(JSON.stringify(d), { headers: { 'Content-Type': 'application/json', 'Cache-Control': `public, max-age=${ttl}` } });
 
 // ---------- Flux Pirelli ----------
 const decode = (s) => s.replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(+n)).replace(/&#x([\da-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)))
@@ -81,14 +75,18 @@ export function findNominations(text) {
   return out;
 }
 
-let feedCache = { at: 0, items: [] };
-async function feed() {
-  if (Date.now() - feedCache.at < 30 * 60 * 1000) return feedCache.items;
+// Articles F1 du flux, gardés 30 min (5 min si Pirelli ne répond pas) ; choix de composés repérés gardés dans la base
+// (le flux ne garde que les derniers articles)
+async function feed(env, fetchFn) {
+  const ck = new Request('https://live.cache/pirelli-feed');
+  const hit = await caches.default.match(ck);
+  if (hit) return hit.json();
+  let items = [], ttl = 1800;
   try {
-    const items = parseFeed(await getText(FEED, { timeout: 20000 })).filter(isF1Article);
-    feedCache = { at: Date.now(), items };
-    // Choix de composés repérés : gardés sur disque (le flux ne garde que les derniers articles)
-    const known = readCache('pirelli-nominations.json') || [];
+    const r = await fetchFn(FEED, { headers: { 'User-Agent': UA } });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    items = parseFeed(await r.text()).filter(isF1Article);
+    const known = await readJSON(env, FOUND, []);
     let changed = false;
     for (const a of items) {
       for (const n of findNominations(a.paras.join(' '))) {
@@ -97,12 +95,13 @@ async function feed() {
         changed = true;
       }
     }
-    if (changed) writeCache('pirelli-nominations.json', known.slice(-200));
+    if (changed) await setRow(env, FOUND, JSON.stringify(known.slice(-200)));
   } catch (err) {
     console.warn('[pirelli]', err.message);
-    feedCache.at = Date.now() - 25 * 60 * 1000;   // nouvel essai dans 5 min
+    ttl = 300;
   }
-  return feedCache.items;
+  await caches.default.put(ck, json(items, ttl));
+  return items;
 }
 
 // Mots qui désignent un Grand Prix dans les textes de Pirelli (lieu et nom ; pas le pays, qui
@@ -128,8 +127,8 @@ export function nominationFor(year, m, found = []) {
 
 // Composés choisis pour chaque manche d'une saison (table intégrée et annonces déjà repérées) :
 // { manche: { hard, medium, soft, url } }
-export function seasonNominations(year, races) {
-  const found = readCache('pirelli-nominations.json') || [];
+export async function seasonNominations(env, year, races) {
+  const found = await readJSON(env, FOUND, []);
   const out = {};
   for (const r of races) {
     const n = nominationFor(year, { name: r.name, location: r.locality, circuit: r.circuit, start: Date.parse(r.date) || 0 }, found);
@@ -139,37 +138,42 @@ export function seasonNominations(year, races) {
 }
 
 // ---------- Relais des séances précédentes ----------
-async function sessionStints(ses) {
-  const name = `tyres-${ses.path.replace(/[^\w]+/g, '_')}.json`;
-  const cached = readCache(name);
-  if (cached) return cached;
-  let stints = {};
-  try {
-    const d = await withRetry(() => archiveJSON(`${ses.path}TyreStintSeries.json`, { timeout: 30000 }), { tries: 2 });
-    stints = d?.Stints || {};
-  } catch (err) {
-    if (!(err instanceof HttpError)) throw err;
-  }
+// Index des archives de l'année, gardé 10 min
+async function seasonIndex(year, token, fetchFn) {
+  const ck = new Request(`https://live.cache/archive-index/${year}`);
+  const hit = await caches.default.match(ck);
+  if (hit) return hit.json();
+  const index = indexMeetings(JSON.parse(await archiveText(`${year}/Index.json`, token, fetchFn)));
+  await caches.default.put(ck, json(index, 600));
+  return index;
+}
+
+async function sessionStints(env, ses, token, fetchFn) {
+  const k = `tyres:${ses.path}`;
+  const kept = await readJSON(env, k, null);
+  if (kept) return kept;
+  const read = (f) => archiveText(`${ses.path}${f}`, token, fetchFn).then(JSON.parse);
+  const stints = (await read('TyreStintSeries.json').catch(() => null))?.Stints || {};
   let q3 = [];
   if (ses.type === 'Qualifying' && !/sprint/i.test(ses.name)) {
-    try {
-      const td = await archiveJSON(`${ses.path}TimingData.json`, { timeout: 30000 });
-      q3 = Object.entries(td?.Lines || {}).filter(([, l]) => !l.KnockedOut && Number(l.Position) >= 1 && Number(l.Position) <= 10).map(([n]) => n);
-    } catch { /* pas de Q3 connue */ }
+    const td = await read('TimingData.json').catch(() => null);
+    q3 = Object.entries(td?.Lines || {}).filter(([, l]) => !l.KnockedOut && Number(l.Position) >= 1 && Number(l.Position) <= 10).map(([n]) => n);
   }
   const data = { name: ses.name, type: ses.type, stints, q3 };
-  // Archive définitive quelques heures après la séance : gardée sur disque
-  if (Object.keys(stints).length && Date.parse(ses.start) < Date.now() - 6 * 3600 * 1000) writeCache(name, data);
+  // Archive définitive quelques heures après la séance : gardée dans la base
+  if (Object.keys(stints).length && Date.parse(ses.start) < Date.now() - 6 * 3600 * 1000) await setRow(env, k, JSON.stringify(data));
   return data;
 }
 
-// Tout ce qu'il faut pour le panneau Pneus. until : instant affiché (pas d'article publié après).
-// hint : { name, location, country, session } d'après SessionInfo, si la séance n'est pas
-// encore dans l'index des archives (tout début de séance en direct)
-export async function weekendTyres(sessionPath, until = Date.now(), hint = {}) {
+// Tout ce qu'il faut pour le panneau Pneus (même forme que /api/tyres des anciennes applis). until : instant affiché
+// (pas d'article publié après). hint : { name, location, country, session } d'après SessionInfo, si la séance n'est
+// pas encore dans l'index des archives (tout début de séance en direct). Sans connexion F1 TV du créateur : choix
+// et communiqués de Pirelli seulement
+export async function weekendTyres(env, sessionPath, until = Date.now(), hint = {}, { fetchFn = fetch } = {}) {
   const year = Number(String(sessionPath).slice(0, 4));
   if (!year) throw new Error('Séance inconnue');
-  const index = await seasonIndex(year).catch(() => []);
+  const token = await archiveToken(env, { fetchFn }).catch(() => null);
+  const index = token ? await seasonIndex(year, token, fetchFn).catch(() => []) : [];
   let meeting = index.find((m) => m.sessions.some((s) => s.path === sessionPath));
   if (!meeting && hint.name) {
     const folder = String(sessionPath).split('/')[1];
@@ -181,13 +185,13 @@ export async function weekendTyres(sessionPath, until = Date.now(), hint = {}) {
   const idx = meeting.sessions.findIndex((s) => s.path === sessionPath);
   const before = meeting.sessions.slice(0, idx).filter((s) => !/test/i.test(s.name));
   const sessions = [];
-  for (const s of before) sessions.push(await sessionStints(s));
+  for (const s of before) sessions.push(await sessionStints(env, s, token, fetchFn));
   const sprint = meeting.sessions.some((s) => /sprint/i.test(s.name)) || /sprint/i.test(hint.session || '');
   const start = Date.parse(meeting.sessions[0]?.start) || 0;
   const m = { name: meeting.name, location: meeting.location, country: meeting.country, start };
 
-  const items = await feed();
-  const found = readCache('pirelli-nominations.json') || [];
+  const items = await feed(env, fetchFn);
+  const found = await readJSON(env, FOUND, []);
   const words = meetingWords(m);
   const raceEnd = (Date.parse(meeting.sessions[meeting.sessions.length - 1]?.start) || start) + 86400000;
   const articles = items
