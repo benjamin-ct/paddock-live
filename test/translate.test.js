@@ -58,12 +58,12 @@ test('traduction partagée : une seule fois pour tous, puis depuis la base', asy
 
 test('traduction partagée : plafond du jour et échec de l\'IA', async () => {
   const f = fakeEnv({ limit: 1 });
-  const r = await translateBatch(f.env, { to: 'fr', items: [{ text: 'a', from: 'en' }, { text: 'b', from: 'en' }] }, 'd');
+  const r = await translateBatch(f.env, { to: 'fr', items: [{ text: 'a', from: 'en' }, { text: 'b', from: 'en' }] }, '2026-10-15');
   assert.equal(r.limited, true);
   assert.deepEqual(r.out, [null, null]);
   assert.equal(f.calls.length, 0);
   const g = fakeEnv({ fail: true });
-  const r2 = await translateBatch(g.env, { to: 'fr', items: [{ text: 'a', from: 'en' }] }, 'd');
+  const r2 = await translateBatch(g.env, { to: 'fr', items: [{ text: 'a', from: 'en' }] }, '2026-10-15');
   assert.deepEqual(r2.out, [null]);
   assert.equal(g.tr.size, 0);
 });
@@ -71,16 +71,16 @@ test('traduction partagée : plafond du jour et échec de l\'IA', async () => {
 test('traduction partagée : paquets de 20 titres, allocation Workers AI épuisée -> plus d\'appel, plafond atteint', async () => {
   const f = fakeEnv();
   const items = Array.from({ length: 40 }, (_, i) => ({ text: `Title ${i}`, from: 'en' }));
-  const r = await translateBatch(f.env, { to: 'fr', items }, 'd');
+  const r = await translateBatch(f.env, { to: 'fr', items }, '2026-10-15');
   assert.equal(r.out[39], '[fr] Title 39');
   assert.deepEqual(f.calls.map((c) => JSON.parse(c.input.messages[1].content).length), [20, 20]);
   // Textes longs : paquets plus petits que la réponse du modèle
   const g = fakeEnv();
-  await translateBatch(g.env, { to: 'fr', items: Array.from({ length: 10 }, (_, i) => ({ text: `${i}`.padEnd(1500, 'x'), from: 'en' })) }, 'd');
+  await translateBatch(g.env, { to: 'fr', items: Array.from({ length: 10 }, (_, i) => ({ text: `${i}`.padEnd(1500, 'x'), from: 'en' })) }, '2026-10-15');
   assert.ok(g.calls.every((c) => c.input.messages[1].content.length < 9000));
   const h = fakeEnv();
   h.env.AI.run = async (model) => { h.calls.push(model); throw new Error('4006: you have used up your daily free allocation of 10,000 neurons'); };
-  const r2 = await translateBatch(h.env, { to: 'fr', items: [{ text: 'a', from: 'en' }, { text: 'b', from: 'en' }] }, 'd');
+  const r2 = await translateBatch(h.env, { to: 'fr', items: [{ text: 'a', from: 'en' }, { text: 'b', from: 'en' }] }, '2026-10-15');
   assert.deepEqual(r2, { out: [null, null], limited: true });
   assert.deepEqual(h.calls, [MODEL]);   // pas de traduction simple texte par texte derrière
 });
@@ -108,14 +108,14 @@ test('appli : demandes regroupées, mémoire, pause si le serveur refuse', async
 
 test('traduction partagée : consignes F1 envoyées, réponse mal formée -> traduction simple', async () => {
   const f = fakeEnv();
-  await translateBatch(f.env, { to: 'fr', items: [{ text: 'Câmara joins Haas', from: 'en' }] }, 'd');
+  await translateBatch(f.env, { to: 'fr', items: [{ text: 'Câmara joins Haas', from: 'en' }] }, '2026-10-15');
   const sys = f.calls[0].input.messages[0].content;
   assert.match(sys, /Keep names of drivers/);
   assert.match(sys, /rentre aux stands/);
   assert.match(sys, /not word for word/);
   assert.match(sys, /LES CHIFFRES/);
   const g = fakeEnv({ garbled: true });
-  const r = await translateBatch(g.env, { to: 'fr', items: [{ text: 'a', from: 'en' }, { text: 'b', from: 'de' }] }, 'd');
+  const r = await translateBatch(g.env, { to: 'fr', items: [{ text: 'a', from: 'en' }, { text: 'b', from: 'de' }] }, '2026-10-15');
   assert.deepEqual(r.out, ['[fr] a', '[fr] b']);
   assert.deepEqual(g.calls.map((c) => c.model), [MODEL, FALLBACK, FALLBACK]);
   assert.equal(parseList('["x"]', 2), null);
@@ -152,12 +152,12 @@ test('traduction partagée : caractères d\'une autre écriture refusés, refait
   f.env.AI.run = async (model, input) => (model === MODEL
     ? { response: JSON.stringify(['Mekies将继续 chez Red Bull', 'Bonne traduction']) }
     : run(model, input));
-  const r = await translateBatch(f.env, { to: 'fr', items: [{ text: 'Mekies stays at Red Bull', from: 'en' }, { text: 'Good one', from: 'en' }] }, 'd');
+  const r = await translateBatch(f.env, { to: 'fr', items: [{ text: 'Mekies stays at Red Bull', from: 'en' }, { text: 'Good one', from: 'en' }] }, '2026-10-15');
   assert.deepEqual(r.out, ['[fr] Mekies stays at Red Bull', 'Bonne traduction']);
   // Ancienne traduction suspecte dans le cache : ignorée et refaite
   const k = await keyOf('en', 'fr', 'Cached');
   f.tr.set(k, 'Mise en cache将');
-  const again = await translateBatch(f.env, { to: 'fr', items: [{ text: 'Cached', from: 'en' }] }, 'd');
+  const again = await translateBatch(f.env, { to: 'fr', items: [{ text: 'Cached', from: 'en' }] }, '2026-10-15');
   assert.deepEqual(again.out, ['[fr] Cached']);
 });
 
