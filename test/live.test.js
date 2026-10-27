@@ -34,6 +34,9 @@ test('direct : compte F1 TV suivi sur un autre appareil, deux coupures en 5 min 
   live.restart = () => restarts++;
   const t0 = 1e12;
   live.lost(null, t0);   // connexion sans F1 TV : la F1 ne la coupe pas pour un autre appareil
+  live.lost('jeton', t0, 1006);   // deux coupures du Wi-Fi coup sur coup : pas un autre appareil
+  live.lost('jeton', t0 + 2000, 1006);
+  assert.equal(live.elsewhere, false);
   live.lost('jeton', t0);
   live.lost('jeton', t0 + 6 * 60e3);   // coupures espacées (réseau) : on garde le GPS
   assert.equal(live.elsewhere, false);

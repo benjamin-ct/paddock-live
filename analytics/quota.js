@@ -120,10 +120,11 @@ export async function runAI(env, model, input) {
 }
 
 // key : compteur du jour (« 2026-10-18 », « radio:2026-10-18 ») ; day : date du jour ; ip : appelant ; limit : celle
-// d'un jour ordinaire
-export async function aiQuota(env, { key, day, n, limit, ip }) {
+// d'un jour ordinaire ; claude : traduction par l'API de Claude, qui ne consomme pas de neurones (seul le plafond de
+// textes compte ; si Mistral la remplace, runAI refuse lui-même passé le plafond des neurones)
+export async function aiQuota(env, { key, day, n, limit, ip, claude = false }) {
   const { used, top } = await neuronBudget(env, day);
-  if (used >= top - (/^radio:|\|studio$/.test(key) ? 0 : top / 10)) return false;
+  if (!claude && used >= top - (/^radio:|\|studio$/.test(key) ? 0 : top / 10)) return false;
   limit = Math.max(1, Math.round(limit * top / ((Number(env.AI_NEURON_DAY) || 15000) - MARGIN)));
   if (ip && !(await spend(env, `${day}|${ip}|${key}`, n, Math.ceil(limit / 4)))) return false;
   return spend(env, key, n, limit);

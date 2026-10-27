@@ -34,7 +34,8 @@ l'application (Réglages → À propos → Nouveautés).
   une minute après le départ. Jusqu'ici, elle restait en positions estimées (carte saccadée) jusqu'à ce qu'on la redémarre.
 - Même compte F1 TV sur l'appli et la version web (ou deux appareils) : la F1 n'envoie le GPS qu'à un seul, et
   chacun le reprenait à l'autre en coupant son direct. Maintenant, l'appareil coupé deux fois laisse le GPS à l'autre et
-  continue sans lui (« LIVE · GPS ailleurs », positions estimées) ; touchez ce badge pour le reprendre ici.
+  continue sans lui (« LIVE · GPS ailleurs », positions estimées) ; touchez ce badge pour le reprendre ici. Une coupure
+  du Wi-Fi ou de la connexion ne compte pas : seule la F1 peut faire passer l'appli en « GPS ailleurs ».
 - Délai TV de 5 s au minimum (« Temps réel (5 s) ») : le GPS et la télémétrie arrivent quelques secondes après
   les chronos ; à 0 s, la carte et la télémétrie avançaient par à-coups.
 - Pneus (choix et communiqués de Pirelli, jeux de chaque pilote), records du circuit (Analyse), météo, documents
@@ -45,7 +46,8 @@ l'application (Réglages → À propos → Nouveautés).
   choix de la qualité et la case « Traduire et transcrire avec le serveur » disparaissent. Serveur indisponible ou
   plafond du jour atteint : les textes restent en version originale et l'appli réessaie.
 - Radios des caméras embarquées F1 TV (expérimental, F1 TV Pro) de retour : le son embarqué du pilote suivi et des
-  pilotes du duel est retranscrit par le serveur de Paddock Live, l'ordinateur ne fait plus que l'écouter.
+  pilotes du duel est retranscrit par le serveur de Paddock Live, l'ordinateur ne fait plus que l'écouter. Plafond
+  du jour du serveur atteint : l'appli le dit et n'envoie plus de son jusqu'au lendemain.
 - Carte : zones « ligne droite », points de détection et d'activation, voie des stands et emplacement des boucles
   de chronométrage (positions estimées, mini-secteurs de la comparaison) calculés une fois pour tous par le serveur
   de Paddock Live : ils s'affichent aussi sans connexion F1 TV, et plus rien n'est calculé sur l'ordinateur.
@@ -178,10 +180,9 @@ l'application (Réglages → À propos → Nouveautés).
 - Accès depuis le téléphone : un site ouvert sur l'ordinateur ne peut plus se faire passer pour l'ordinateur
   afin d'utiliser l'appli sans la clé du QR code.
 - Le relais des radios et de F1 TV refuse aussi les adresses locales écrites autrement (forme IPv6).
-- Réglages et pronostics enregistrés sans risque d'être perdus en cas de coupure pendant l'écriture ; un fichier
+- Réglages enregistrés sans risque d'être perdus en cas de coupure pendant l'écriture ; un fichier
   de réglages abîmé est mis de côté (config.json.bad) au lieu d'être écrasé.
-- Fenêtres de connexion F1 et de publication sur X, Threads et Bluesky : position, micro, caméra et
-  notifications refusés d'office.
+- Fenêtre de connexion F1 : position, micro, caméra et notifications refusés d'office.
 - « Installer les mises à jour à la fermeture » décoché : l'appli n'installe plus la nouvelle version au
   lancement, elle la signale seulement.
 - L'appli démarre même quand ses ports habituels (3000, 3001, 3002, 3010) sont tous occupés, au lieu de se

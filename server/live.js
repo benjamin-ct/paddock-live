@@ -65,9 +65,11 @@ export class LiveSource {
 
   // La F1 n'envoie le direct avec GPS qu'à une connexion par compte F1 TV : la dernière ouverte (version web, autre
   // ordinateur) coupe l'autre. Deux coupures en 5 min : le GPS reste à l'autre appareil et celle-ci repasse sans
-  // F1 TV (chronos, positions estimées) au lieu de le lui reprendre sans fin. here() le reprend ici
-  lost(token, now = Date.now()) {
-    if (!token) return;
+  // F1 TV (chronos, positions estimées) au lieu de le lui reprendre sans fin. here() le reprend ici.
+  // Seules comptent les fermetures annoncées par la F1 (message de fermeture, fermeture propre) : une coupure du
+  // réseau (1006, sans fermeture annoncée : Wi-Fi, veille) ou 60 s sans données ne viennent pas d'un autre appareil
+  lost(token, now = Date.now(), code = null) {
+    if (!token || code === 1006) return;
     this.losses = [...this.losses.filter((t) => now - t < 5 * 60e3), now];
     if (this.losses.length >= 2) { this.elsewhere = true; this.setStatus({ elsewhere: true }); }
   }
@@ -138,7 +140,6 @@ export class LiveSource {
           if (Date.now() - this.lastMessageAt > 25000 && !this.status.stale) this.setStatus({ stale: true });
           if (Date.now() - this.lastMessageAt > 60000) {
             this.setStatus({ error: 'Plus de données depuis 60 s, reconnexion…' });
-            this.lost(token);
             this.scheduleReconnect();
           }
         }, 10000));
@@ -158,7 +159,7 @@ export class LiveSource {
 
       ws.on('close', (code) => {
         this.setStatus({ connected: false, error: `Connexion fermée (${code}), reconnexion…` });
-        this.lost(token);
+        this.lost(token, Date.now(), code);
         this.scheduleReconnect();
       });
       ws.on('error', (err) => {
