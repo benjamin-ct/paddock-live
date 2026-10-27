@@ -17,6 +17,13 @@ l'application (Réglages → À propos → Nouveautés).
   compte à rebours du premier Grand Prix dès que le calendrier est connu.
 - Mes favoris au championnat : pilotes et écuries séparés, colonnes alignées d'une ligne à l'autre.
 
+### Traductions
+- Les traductions faites par le serveur Paddock Live passent sur les modèles Claude d'Anthropic : titres de l'Actu
+  écrits comme dans la presse sportive, noms des pilotes respectés (fini « Cheveux » pour Capelli ou « Land » pour
+  Lando), termes techniques justes dans les évolutions des voitures (dérive, écope de frein, fond plat). Les radios
+  d'équipe restent rapides ; un nom de pilote mal entendu par la transcription est corrigé (« Ghastly » → Gasly) et
+  un passage incompréhensible peut apparaître en « […] » au lieu d'une phrase inventée.
+
 ### Actu
 - Les actualités sont lues, triées et regroupées par sujet par le serveur de Paddock Live : plus rien n'est lu ni
   calculé sur l'ordinateur, la liste arrive toute faite (mise à jour chaque minute), le mode lecture aussi. On peut

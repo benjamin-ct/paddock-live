@@ -105,7 +105,7 @@ export function requestTranscripts(items) {
 
 // Traduction d'un texte quelconque (actualités, évolutions techniques de la FIA…) par le serveur : { text, q }
 export async function translateText(text, language, domain, from = 'en') {
-  const out = await cloudTranslate(text, from, language);
+  const out = await cloudTranslate(text, from, language, domain);
   if (!out) throw new Error('traduction indisponible (serveur Paddock Live)');
   return { text: out, q: 'cloud' };
 }
@@ -164,7 +164,7 @@ async function pump() {
       const t = texts[task.url];
       if (t?.en) {
         if (!cloudOn()) { later(task, 'Traduction'); return; }
-        const c = await cloudTranslate(t.en, 'en', task.lang);
+        const c = await cloudTranslate(t.en, 'en', task.lang, 'radio');
         if (!c && !cloudOn()) { later(task, 'Traduction'); return; }
         // Langue non prise en charge : la radio reste en anglais
         t.tr = { ...(t.tr || {}), [task.lang]: c ? collapseLoops(fixRadio(c, task.lang)) : '' };

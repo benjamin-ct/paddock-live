@@ -97,7 +97,7 @@ async function serverTranslate(env, texts) {
   const out = {};
   for (let i = 0; i < texts.length; i += 40) {
     const part = texts.slice(i, i + 40);
-    const r = await translateBatch(env, { to: 'fr', items: part.map((text) => ({ text: text.slice(0, 2000), from: 'en' })) }).catch(() => null);
+    const r = await translateBatch(env, { to: 'fr', items: part.map((text) => ({ text: text.slice(0, 2000), from: 'en', kind: 'tech' })) }).catch(() => null);
     part.forEach((t, j) => { if (r?.out?.[j]) out[t] = r.out[j]; });
   }
   return out;

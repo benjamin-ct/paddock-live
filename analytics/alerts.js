@@ -166,7 +166,7 @@ function known(it, alerts) {
 async function frenchTitle(env, it) {
   if (it.lang === 'fr' || !env.AI) return it.title;
   try {
-    return (await translateBatch(env, { to: 'fr', items: [{ text: it.title, from: it.lang }] })).out?.[0] || it.title;
+    return (await translateBatch(env, { to: 'fr', items: [{ text: it.title, from: it.lang, kind: 'news' }] })).out?.[0] || it.title;
   } catch { return it.title; }
 }
 

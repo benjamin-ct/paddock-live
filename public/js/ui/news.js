@@ -85,7 +85,7 @@ function translate(text, from) {
   if (!prefs.newsTranslate || !needs(text, from) || queued.has(text)) return Promise.resolve();
   if (cloudOn()) {
     queued.add(text);
-    return cloudTranslate(text, from, LANG).then((out) => {
+    return cloudTranslate(text, from, LANG, 'news').then((out) => {
       queued.delete(text);
       if (out) {
         cache[text] = { t: out, q: 'cloud' };
@@ -486,7 +486,7 @@ function closeReader() {
   $('#nwContent').scrollTop = readerScroll;
 }
 
-const readerTranslate = (text, from) => cloudTranslate(text, from, LANG);
+const readerTranslate = (text, from) => cloudTranslate(text, from, LANG, 'news');
 
 async function openReader(id) {
   const it = items.find((x) => x.id === id);
