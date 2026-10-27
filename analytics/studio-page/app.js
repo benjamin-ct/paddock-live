@@ -312,11 +312,23 @@ function healthHtml(h) {
   if (!h.problems?.length) return `<div class="card health ok">${icon('check')}<span class="grow"><b>Tout va bien</b><small>Flux F1, erreurs de l'appli et jetons vérifiés ${esc(when)}${h.f1 && !h.f1ok ? ' · flux F1 jamais joignable depuis le serveur : non surveillé' : ''}</small></span></div>`;
   return `<div class="card health bad">${icon('alert')}<span class="grow"><b>À vérifier</b>${h.problems.map((p) => `<small>${esc(p.m)}</small>`).join('')}<small>Vérifié ${esc(when)}</small></span></div>`;
 }
+// Ce que l'IA du serveur a produit (compteurs de ses plafonds)
+const AI_MADE = [['apps', 'textes traduits ou résumés par les applis (résumé = 5)'], ['radios', 'radios d\'équipe transcrites'],
+  ['onboard', 'tranches de 30 s des caméras embarquées'], ['studio', 'textes du Studio (résumé = 5, post = 3)']];
+// Neurones de Workers AI : 10 000 gratuits par jour, puis 0,011 $ les 1 000 (budget payé sur 30 jours)
+function aiHtml(a) {
+  if (!a) return '';
+  const usd = (v) => `${(v * 0.011 / 1000).toFixed(2).replace('.', ',')} $`;
+  return `<h3 class="section">IA du serveur <small>${a.gp ? 'week-end de Grand Prix' : 'jour ordinaire'}</small></h3>
+    <div class="tiles"><div class="tile"><b>${fmtN(a.used)}</b><small>neurones aujourd'hui sur ${fmtN(a.top)} (10 000 gratuits)</small></div>
+      <div class="tile"><b>${usd(a.spent)}</b><small>payés sur 30 jours, budget ${usd(a.budget)}</small></div></div>
+    ${a.made ? `<div class="tiles">${AI_MADE.map(([k, label]) => `<div class="tile"><b>${fmtN(a.made.today[k] || 0)}</b><small>${label} aujourd'hui · ${fmtN(a.made.month[k] || 0)} sur 30 jours</small></div>`).join('')}</div>` : ''}`;
+}
 function usageHtml(u) {
-  if (!u.opens) return healthHtml(u.health) + empty('Pas encore de statistiques reçues sur 30 jours.', 'chart');
+  if (!u.opens) return healthHtml(u.health) + aiHtml(u.ai) + empty('Pas encore de statistiques reçues sur 30 jours.', 'chart');
   const n = (v) => fmtN(v).replace('.', ',');
   const row = (r) => `<div class="usage-row"><span class="grow">${esc(r.label)}<small>${esc(r.group)}</small></span><b>${r.n ? n(r.per100) : '0'}</b><i style="--pct:${Math.min(100, r.per100)}%"></i></div>`;
-  return `${healthHtml(u.health)}<h3 class="section">Fonctions de l'appli <small>${u.days} derniers jours · ${fmtN(u.opens)} ouvertures</small></h3>
+  return `${healthHtml(u.health)}${aiHtml(u.ai)}<h3 class="section">Fonctions de l'appli <small>${u.days} derniers jours · ${fmtN(u.opens)} ouvertures</small></h3>
     <p class="hint">Utilisations pour 100 ouvertures de l'interface (clics comptés), d'après les statistiques anonymes des utilisateurs qui les ont acceptées.</p>
     <div class="tiles"><div class="tile"><b>${fmtN(u.modes.essential)}</b><small>ouvertures en Essentiel</small></div><div class="tile"><b>${fmtN(u.modes.full)}</b><small>ouvertures en Complète</small></div>
       <div class="tile"><b>${fmtN(u.welcome.done)}</b><small>accueils suivis jusqu'au bout</small></div><div class="tile"><b>${fmtN(u.welcome.skip)}</b><small>accueils passés</small></div></div>
