@@ -181,6 +181,8 @@ l'application (Réglages → À propos → Nouveautés).
 - Replays : rouvrir l'espace Replays pendant un replay ne ramène plus au tableau de bord au bout de 2 secondes.
 - Replays des premières séances de 2026 (des essais d'hiver à Miami) : la F1 n'a pas publié leurs radios d'équipe ; le
   panneau Radios le dit au lieu d'annoncer des radios qui ne viendront pas.
+- Replays : pendant un replay, depuis l'Accueil, l'Actu, la Saison ou les Résultats, le bouton Replays du menu de gauche
+  ramène au replay en cours (il ouvrait la liste des replays, et Direct arrêtait le replay).
 - Accès depuis le téléphone : un site ouvert sur l'ordinateur ne peut plus se faire passer pour l'ordinateur
   afin d'utiliser l'appli sans la clé du QR code.
 - Le relais des radios et de F1 TV refuse aussi les adresses locales écrites autrement (forme IPv6).

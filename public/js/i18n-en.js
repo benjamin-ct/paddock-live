@@ -1307,7 +1307,7 @@ export default {
   "rentre aux stands": "pits",
   "Répartition des arrivées": "Finishing positions",
   "Replay d'une session passée": "Replay of a past session",
-  "Replays : rejouer une séance passée": "Replays: replay a past session",
+  "Replays : rejouer une séance passée (pendant un replay, y revenir)": "Replays: replay a past session (during a replay, go back to it)",
   "Replays {} indisponibles : {}": "{} replays unavailable: {}",
   "Reprendre automatiquement le délai TV réglé sur l'ordinateur": "Automatically use the TV delay set on the computer",
   "reprendre l'emplacement enregistré": "use the saved positions",
