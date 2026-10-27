@@ -1,6 +1,6 @@
 // Traduction en français des évolutions techniques déclarées par les écuries (textes FIA en
-// anglais). Les traductions sont faites sur l'ordinateur par le moteur local des radios, puis
-// gardées par le serveur : elles ne sont faites qu'une fois et servent aussi au téléphone.
+// anglais). Les traductions sont faites par le serveur Paddock Live, puis gardées par le serveur de l'appli :
+// elles ne sont demandées qu'une fois et servent aussi au téléphone.
 import { api } from '../util.js';
 import { store, on } from '../store.js';
 import { translateText, transcribeStatus } from './transcribe.js';

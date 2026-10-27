@@ -40,11 +40,9 @@ const DEFAULTS = {
   layoutMode: 'auto',     // disposition : 'auto' (selon la séance) | 'race' | 'quali'
   tabLayout: null,        // onglets déplacés : { panneau: [onglets dans l'ordre] } (null : à leur place d'origine)
   radioAuto: false,
-  radioText: false,       // transcription des radios en texte (Whisper local)
+  radioText: false,       // transcription des radios en texte (serveur Paddock Live)
   radioLang: LANG === 'en' ? 'none' : 'fr',        // langue de traduction des transcriptions ('none' : anglais)
-  radioQuality: 'auto',   // modèles de transcription : 'auto' | 'high' (carte graphique) | 'light'
   radioFilter: 'all',
-  cloudTranslate: true,   // traductions par le serveur Paddock Live (Workers AI) plutôt que sur l'ordinateur
   obRadio: false,         // radios captées sur les caméras embarquées F1 TV (expérimental)
   obRadioWho: 'auto',     // pilotes écoutés : 'auto' (suivi + duel) | 'favs' (3 premiers favoris)
   pitView: 'chrono',      // onglet Arrêts : 'chrono' ou 'driver'
@@ -65,7 +63,7 @@ const DEFAULTS = {
   rcmTranslate: true,     // direction de course : messages traduits par le serveur Paddock Live
   spoilers: false,
   newsAlerts: 'important', // actualités : 'important' | 'favs' | 'all' | 'off'
-  newsTranslate: true,     // actualités traduites en français (sur l'ordinateur)
+  newsTranslate: true,     // actualités traduites en français (serveur Paddock Live)
   newsSpoilers: true,      // actualités : titres masqués et alertes suspendues pendant une séance / un replay
   mapFollow: false,
   muted: false,

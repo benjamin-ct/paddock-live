@@ -1,6 +1,6 @@
 // Textes des radios d'équipe : nettoyage de la transcription, contrôle de la traduction rendue par
 // le modèle de langage, et corrections du jargon F1 que le petit modèle de traduction rend mot à mot.
-// (Utilisé par le moteur de transcription, public/js/workers/whisper.js.)
+// (Utilisé pour les textes rendus par le serveur Paddock Live et ceux gardés par les anciennes versions.)
 import { chatty } from './translation-check.js';
 
 // Boucle de la reconnaissance vocale (ou de la traduction qui la recopie) : même groupe de 1 à 8

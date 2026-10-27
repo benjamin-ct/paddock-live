@@ -317,12 +317,11 @@
             <div class="rd-bar">
               <select id="radioFilter" aria-label="Filtrer les radios"><option value="all">Tous les pilotes</option><option value="fav">Mes favoris</option><option value="duel">Pilotes du duel</option></select>
               <label class="toggle" title="Joue chaque nouvelle radio"><input type="checkbox" id="radioAuto"> Lecture auto</label>
-              <label data-full class="toggle" title="Chaque radio d'équipe en texte, par le serveur Paddock Live ou sur cet ordinateur."><input type="checkbox" id="radioText"> Texte</label>
-              <label class="toggle" data-expert hidden title="Expérimental, F1 TV Pro : retranscrit toutes les radios des caméras embarquées, en direct"><input type="checkbox" id="obRadio"> Caméras embarquées</label>
+              <label data-full class="toggle" title="Chaque radio d'équipe en texte, par le serveur Paddock Live."><input type="checkbox" id="radioText"> Texte</label>
+              <label class="toggle" data-expert title="Expérimental, F1 TV Pro : retranscrit toutes les radios des caméras embarquées, en direct"><input type="checkbox" id="obRadio"> Caméras embarquées</label>
               <span class="rd-opts" id="obRadioOpts" hidden><select id="obRadioWho" aria-label="Pilotes écoutés"><option value="auto">Pilote suivi + duel</option><option value="favs">Mes favoris (3 max)</option></select></span>
               <span class="rd-opts" id="radioOpts" data-full>
                 <label class="small">Traduction <select id="radioLang" aria-label="Langue de traduction"><option value="fr">Français</option><option value="es">Español</option><option value="de">Deutsch</option><option value="it">Italiano</option><option value="none">Aucune (anglais)</option></select></label>
-                <label class="small" title="Transcription sur cet ordinateur. Légère : processeur, ~1 Go de mémoire. Haute : plus précise, carte graphique, 4,5 Go à télécharger.">Qualité <select id="radioQuality" aria-label="Qualité de transcription"><option value="auto">Légère (≈ 1 Go)</option><option value="high">Haute (carte graphique, 10 à 15 Go)</option></select></label>
               </span>
               <label class="small rd-row">Volume <input type="range" class="rd-vol" id="radioVol" min="0" max="1" step="0.05" title="Volume des radios" aria-label="Volume des radios"></label>
               <span class="small rd-row">Vitesse <button class="rd-speed" id="radioSpeed" title="Vitesse de lecture des radios">1×</button></span>
@@ -489,7 +488,7 @@
           <button class="set-tab" data-sgroup="look"><span class="set-ico"><svg class="ic" aria-hidden="true"><use href="#i-sliders"/></svg></span><span class="set-lbl"><b>Apparence</b><small>Thème, langue, couleurs</small></span></button>
           <button data-full class="set-tab" data-sgroup="display"><span class="set-ico"><svg class="ic" aria-hidden="true"><use href="#i-layout"/></svg></span><span class="set-lbl"><b>Disposition</b><small>Panneaux, onglets, colonnes, fenêtres</small></span></button>
           <button class="set-tab" data-sgroup="alerts"><span class="set-ico"><svg class="ic" aria-hidden="true"><use href="#i-bell"/></svg></span><span class="set-lbl"><b>Alertes & favoris</b><small>Notifications, rappels, favoris</small></span></button>
-          <button class="set-tab" data-sgroup="app"><span class="set-ico"><svg class="ic" aria-hidden="true"><use href="#i-gear"/></svg></span><span class="set-lbl"><b>Application</b><small>Mises à jour, téléphone, traductions</small></span></button>
+          <button class="set-tab" data-sgroup="app"><span class="set-ico"><svg class="ic" aria-hidden="true"><use href="#i-gear"/></svg></span><span class="set-lbl"><b>Application</b><small>Mises à jour, téléphone, sauvegarde</small></span></button>
           <button data-full data-expert class="set-tab" data-sgroup="stream"><span class="set-ico"><svg class="ic" aria-hidden="true"><use href="#i-video"/></svg></span><span class="set-lbl"><b>Streaming</b><small>OBS, Streamlabs, Meld, Stream Deck</small></span></button>
           <button class="set-tab" data-sgroup="about"><span class="set-ico"><svg class="ic" aria-hidden="true"><use href="#i-info"/></svg></span><span class="set-lbl"><b>À propos</b><small>Nouveautés, réseaux, légal</small></span></button>
         </nav>
@@ -650,10 +649,6 @@
         <div class="small" id="lanError" hidden></div>
       </section>
 
-      <section data-full class="set-block" data-sgroup="app">
-        <div class="set-bhead"><h4><svg class="ic" aria-hidden="true"><use href="#i-globe"/></svg> Traductions</h4><p>Seuls les textes à traduire et le son des radios sont envoyés.</p></div>
-        <div class="row"><label class="toggle small"><input type="checkbox" id="cloudTranslate"> Traduire et transcrire avec le serveur Paddock Live (recommandé)</label></div>
-      </section>
 
       <section data-full class="set-block" data-sgroup="app">
         <div class="set-bhead"><h4><svg class="ic" aria-hidden="true"><use href="#i-save"/></svg> Sauvegarde des réglages</h4><p>Sans la connexion F1 TV ni les clés (téléphone, lumières).</p></div>

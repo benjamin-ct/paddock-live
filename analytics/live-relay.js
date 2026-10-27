@@ -8,7 +8,7 @@
 import { LIVE_TOPICS, topicName } from '../shared/f1.js';
 import { applyEvent, createDerived } from '../shared/derive.js';
 import { seasonRow } from './studio.js';
-import { cachedRadio, transcribeRadio, audioHash, MAX_AUDIO } from './transcribe.js';
+import { cachedRadio, transcribeRadio, transcribeWindow, audioHash, MAX_AUDIO } from './transcribe.js';
 import { cleanRequest, translateBatch } from './translate.js';
 import { callerIp, ipQuota } from './quota.js';
 import { pronosApi, GROUP_RE } from './pronos.js';
@@ -609,6 +609,15 @@ export async function liveApi(req, url, env = {}) {
     if (r.invalid) return json({ error: 'Fichier son invalide' }, 400);
     if (r.limited) return json({ error: 'Plafond du jour atteint' }, 503);
     return json({ text: r.text, d: r.d });
+  }
+  // Radios des caméras embarquées F1 TV (appli) : fenêtre de son retranscrite avec l'heure de chaque phrase
+  if (url.pathname === '/live/api/radio-window' && req.method === 'POST') {
+    if (!env.AI || !env.DB) return json({ error: 'Transcription indisponible' }, 503);
+    if (Number(req.headers.get('Content-Length') || 0) > MAX_AUDIO) return json({ error: 'Trop volumineux' }, 413);
+    const r = await transcribeWindow(env, new Uint8Array(await req.arrayBuffer()), undefined, callerIp(req));
+    if (r.invalid) return json({ error: 'Fichier son invalide' }, 400);
+    if (r.limited) return json({ error: 'Plafond du jour atteint' }, 429);
+    return json(r);
   }
   if (url.pathname === '/live/api/translate' && req.method === 'POST') {
     if (!env.AI || !env.DB) return json({ error: 'Traduction indisponible' }, 503);

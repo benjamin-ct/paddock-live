@@ -1,6 +1,6 @@
-// Transcription en texte des radios d'équipe (comme MultiViewer) et traduction, faites
-// localement (Whisper + OPUS-MT) dans un Web Worker. Une seule fenêtre travaille (verrou
-// partagé) ; les textes sont partagés entre fenêtres et conservés d'une session à l'autre.
+// Transcription en texte des radios d'équipe (comme MultiViewer) et traduction, par le serveur Paddock Live : chaque
+// radio n'y est transcrite qu'une fois pour tout le monde, rien n'est calculé sur l'ordinateur. Une seule fenêtre
+// demande (verrou partagé) ; les textes sont partagés entre fenêtres et conservés d'une session à l'autre.
 import { storageGet, storageSet } from '../util.js';
 import { emit } from '../store.js';
 import { track } from './stats.js';
@@ -13,27 +13,17 @@ const MAX_KEEP = 400;
 let texts = cleanTexts(storageGet(KEY, {}));   // url -> { en, tr: { fr, es… }, d: durée (s) }
 const queue = [];                          // tâches { url, kind: 'asr' | 'mt' } (plus récentes d'abord)
 const queued = new Set();
-let worker = null;
 let busy = false;
 let enabled = false;
 let lang = 'fr';
-let qualityPref = 'auto';     // 'auto' | 'high' | 'light'
-// Haute qualité : carte graphique (WebGPU avec calcul FP16). Un échec d'un des deux modèles
-// (reconnaissance vocale ou traduction) ne fait passer que celui-là en qualité légère, et pour
-// un temps seulement : nouvel essai après quelques minutes (téléchargement interrompu, mémoire
-// de la carte graphique pleine…). Avant, le premier échec faisait tout passer en qualité légère
-// jusqu'au redémarrage de l'application.
-let gpuInfo = null;                           // { ok, name, why }
-const highFail = { asr: null, mt: null };     // { msg, at, wait }
-const effective = { asr: null, mt: null };    // niveau utilisé en dernier ('high' | 'light')
-const noCloud = new Set();                      // radios que le serveur Paddock Live n'a pas pu transcrire
 const rechecked = new Set();                    // radios sans texte déjà redemandées au serveur (une fois par lancement)
-const RETRY_MS = { pref: 2 * 60000, auto: 10 * 60000 };
 let isTranscriber = !navigator.locks;
 let status = { state: 'idle', msg: '' };
 let retryAt = 0;
-let current = null;   // tâche en cours {id, resolve, reject}
-let nextId = 1;
+const READY = 'Actif · transcription et traduction par le serveur Paddock Live';
+
+// Modèles de transcription et de traduction des anciennes versions (jusqu'à 15 Go) : effacés
+globalThis.caches?.delete('transformers-cache').catch(() => {});
 
 // Anciennes transcriptions sans aucun mot (« - ») ou en charabia : comptées comme « pas de parole
 // reconnue » ; traduction qui répond au lieu de traduire : refaite ;
@@ -73,8 +63,7 @@ export function transcribeStatus() {
   return status;
 }
 
-// L'état (téléchargement, niveau de qualité…) a son propre évènement : il ne doit pas faire
-// redessiner la liste des radios
+// L'état a son propre évènement : il ne doit pas faire redessiner la liste des radios
 function setStatus(state, msg = '') {
   if (status.state === state && status.msg === msg) return;
   status = { state, msg };
@@ -87,86 +76,11 @@ function save() {
   storageSet(KEY, texts);
 }
 
-export function setTranscribe(on, language, q = 'auto') {
+export function setTranscribe(on, language) {
   if (on && !enabled) track('feature.transcribe');
   enabled = !!on;
   lang = language || 'none';
-  if (q !== qualityPref) {
-    qualityPref = q;
-    // Nouveau choix : on retente la haute qualité tout de suite
-    highFail.asr = highFail.mt = null;
-  }
-  if (!enabled && !queue.some((t) => t.kind === 'text' || t.kind === 'win')) setTimeout(unload, 1000);
-  if (enabled) {
-    // Niveau de chaque modèle connu dès le départ (pour refaire en haute qualité les radios
-    // traduites en qualité légère), puis revu chaque minute (fin d'attente après un échec)
-    refreshEffective();
-    refreshTimer ||= setInterval(() => { if (enabled && (highFail.asr || highFail.mt)) refreshEffective(); }, 60000);
-    pump();
-  }
-}
-let refreshTimer = 0;
-
-// Carte graphique utilisable pour les grands modèles ? (WebGPU + calcul en demi-précision)
-async function gpu() {
-  if (gpuInfo) return gpuInfo;
-  if (!navigator.gpu) return (gpuInfo = { ok: false, why: 'WebGPU indisponible sur cet appareil' });
-  const a = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' }).catch(() => null);
-  if (!a) return (gpuInfo = { ok: false, why: 'aucune carte graphique utilisable (WebGPU)' });
-  const name = [a.info?.vendor, a.info?.description || a.info?.architecture].filter(Boolean).join(' ');
-  const f16 = a.features?.has?.('shader-f16');
-  return (gpuInfo = { ok: !!f16, name, why: f16 ? '' : `carte graphique${name ? ` (${name})` : ''} sans calcul FP16, nécessaire aux grands modèles` });
-}
-
-// Niveau à utiliser pour la reconnaissance vocale ('asr') ou la traduction ('mt')
-// « Auto » = qualité légère (≈ 1 Go) : la haute qualité (10 à 15 Go, carte graphique très sollicitée)
-// seulement si elle est choisie
-async function qualityFor(use) {
-  if (qualityPref !== 'high') return 'light';
-  if (!(await gpu()).ok) return 'light';
-  const f = highFail[use];
-  if (f && Date.now() - f.at < f.wait) return 'light';
-  return 'high';
-}
-
-async function refreshEffective() {
-  effective.asr = await qualityFor('asr');
-  effective.mt = await qualityFor('mt');
-  if (status.state !== 'loading') setStatus(status.state === 'idle' ? 'idle' : 'ready', describe());
-}
-
-// Échec d'un grand modèle : qualité légère pour ce modèle, nouvel essai plus tard, de plus en plus
-// espacé si l'échec se répète (sinon le modèle de 2 Go est rechargé toutes les 2 minutes)
-function markHighFailed(use, err) {
-  const n = (highFail[use]?.n || 0) + 1;
-  const base = qualityPref === 'high' ? RETRY_MS.pref : RETRY_MS.auto;
-  highFail[use] = { msg: err.message, at: Date.now(), n, wait: Math.min(60 * 60000, base * 2 ** (n - 1)) };
-  effective[use] = 'light';
-  console.warn(`[transcription] ${use === 'asr' ? 'reconnaissance vocale' : 'traduction'} en haute qualité impossible :`, err.message);
-}
-
-// Texte d'état : niveau de chaque modèle et, s'il est léger, pourquoi
-function describe() {
-  const why = (use) => {
-    if (qualityPref !== 'high') return 'économe en mémoire';
-    if (gpuInfo && !gpuInfo.ok) return gpuInfo.why;
-    const f = highFail[use];
-    if (f) {
-      const min = Math.max(1, Math.ceil((f.at + f.wait - Date.now()) / 60000));
-      return `haute qualité en échec (${f.msg}) · nouvel essai dans ${min} min`;
-    }
-    return '';
-  };
-  const part = (label, use, hi) => {
-    if (use === 'mt' ? cloudOn() : cloudAsrOn()) return `${label} : serveur Paddock Live (rien à calculer ici)`;
-    const q = effective[use];
-    if (!q) return '';
-    if (q === 'high') return `${label} : haute qualité (${hi})`;
-    const w = why(use);
-    return `${label} : qualité légère${w ? ` — ${w}` : ''}`;
-  };
-  const txt = [part('Transcription', 'asr', 'Whisper large'), lang === 'none' ? '' : part('Traduction', 'mt', 'modèle de langage F1')].filter(Boolean).join(' · ');
-  return txt ? `Actif · ${txt}` : 'Actif';
+  if (enabled) { setStatus('ready', READY); pump(); }
 }
 
 // Radios à transcrire / traduire (les plus récentes d'abord) : [{ url, who }]
@@ -174,16 +88,12 @@ export function requestTranscripts(items) {
   if (!enabled) return;
   for (const { url, who } of items) {
     const t = texts[url];
-    // Haute qualité disponible : les radios faites en qualité légère sont refaites (transcription,
-    // ou seulement la traduction si la transcription est déjà en haute qualité)
-    // Transcription en ligne disponible : les radios faites sur l'ordinateur en qualité légère sont refaites ;
-    // celles restées sans texte (échec, ancienne version, quelle que soit leur origine) sont redemandées au
-    // serveur une fois par lancement
-    const empty = t && !t.en && cloudAsrOn() && !noCloud.has(url) && !rechecked.has(url);
+    // Radios faites sur l'ordinateur par les anciennes versions (qualité légère) : refaites par le serveur ;
+    // celles restées sans texte sont redemandées une fois par lancement
+    const empty = t && !t.en && !rechecked.has(url);
     if (empty) rechecked.add(url);
-    const redoAsr = t && (empty || (t.q !== 'high' && t.q !== 'cloud' && (effective.asr === 'high' || (t.q === 'light' && cloudAsrOn() && !noCloud.has(url)))));
-    const redoMt = t && t.en && lang !== 'none' && effective.mt === 'high' && t.tr?.[lang] !== undefined && t.tq?.[lang] !== 'high' && t.tq?.[lang] !== 'cloud';
-    const kind = !t || redoAsr ? 'asr' : (lang !== 'none' && t.en && (t.tr?.[lang] === undefined || redoMt) ? 'mt' : null);
+    const redoAsr = t && (empty || t.q === 'light');
+    const kind = !t || redoAsr ? 'asr' : (lang !== 'none' && t.en && t.tr?.[lang] === undefined ? 'mt' : null);
     if (!kind) continue;
     const k = `${kind}|${url}|${lang}`;
     if (queued.has(k)) continue;
@@ -193,199 +103,84 @@ export function requestTranscripts(items) {
   pump();
 }
 
-function getWorker() {
-  if (worker) return worker;
-  const w = worker = new Worker(new URL('../workers/whisper.js', import.meta.url), { type: 'module' });
-  // Échec du moteur (pas de connexion pour le télécharger, plantage…) : il est arrêté pour de bon
-  // (sinon l'ancien continue en mémoire, avec ses modèles, à côté du nouveau)
-  w.onerror = (e) => {
-    e.preventDefault?.();
-    w.terminate();
-    if (worker === w) worker = null;
-    current?.reject(new Error(e.message || 'moteur de transcription indisponible (connexion ?)'));
-  };
-  w.onmessage = (e) => {
-    if (worker !== w) return;
-    const m = e.data;
-    if (m.type === 'progress') {
-      const what = m.what === 'mt' ? 'traduction' : 'reconnaissance vocale';
-      const mb = (x) => Math.round(x / 1e6);
-      setStatus('loading', m.cached
-        ? `Chargement du modèle de ${what} : ${mb(m.loaded)} / ${mb(m.total)} Mo`
-        : `Téléchargement du modèle de ${what} (première fois) : ${mb(m.loaded)} / ${mb(m.total)} Mo`);
-      return;
-    }
-    if (m.type === 'ready') { setStatus('ready', describe()); return; }
-    if (!current || m.id !== current.id) return;
-    if (m.type === 'result') current.resolve(m.text); else current.reject(new Error(m.error));
-  };
-  return worker;
+// Traduction d'un texte quelconque (actualités, évolutions techniques de la FIA…) par le serveur : { text, q }
+export async function translateText(text, language, domain, from = 'en') {
+  const out = await cloudTranslate(text, from, language);
+  if (!out) throw new Error('traduction indisponible (serveur Paddock Live)');
+  return { text: out, q: 'cloud' };
 }
 
-// Modèles libérés (plusieurs Go en haute qualité) après 5 minutes sans rien à traiter ou quand la
-// transcription est coupée ; ils sont rechargés depuis le disque à la prochaine radio
-const IDLE_MS = 5 * 60000;
-let unloadTimer = 0;
-function unload() {
-  clearTimeout(unloadTimer);
-  if (!worker || busy || current) return;
-  worker.terminate();
-  worker = null;
+// Fenêtre de son (16 kHz, mono) des caméras embarquées, retranscrite par le serveur : segments horodatés
+// [{ timestamp: [a, b], text }]
+export async function transcribeWindow(audio) {
+  const res = await fetch('/api/radio-window', { method: 'POST', headers: { 'Content-Type': 'audio/wav' }, body: wav(audio) });
+  const r = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(r.error || `HTTP ${res.status}`);
+  return r.segments || [];
 }
 
-function run(msg, transfer = []) {
-  clearTimeout(unloadTimer);
-  const w = getWorker();
-  return new Promise((resolve, reject) => {
-    current = { id: nextId++, resolve, reject };
-    w.postMessage({ ...msg, id: current.id }, transfer);
-  }).finally(() => {
-    current = null;
-    clearTimeout(unloadTimer);
-    unloadTimer = setTimeout(unload, IDLE_MS);
-  });
+// Son 16 kHz -> fichier WAV 16 bits
+function wav(audio) {
+  const view = new DataView(new ArrayBuffer(44 + audio.length * 2));
+  const str = (o, s) => [...s].forEach((c, i) => view.setUint8(o + i, c.charCodeAt(0)));
+  str(0, 'RIFF'); view.setUint32(4, 36 + audio.length * 2, true); str(8, 'WAVE'); str(12, 'fmt ');
+  view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, 1, true);
+  view.setUint32(24, 16000, true); view.setUint32(28, 32000, true); view.setUint16(32, 2, true); view.setUint16(34, 16, true);
+  str(36, 'data'); view.setUint32(40, audio.length * 2, true);
+  for (let i = 0; i < audio.length; i++) view.setInt16(44 + i * 2, Math.max(-1, Math.min(1, audio[i])) * 0x7fff, true);
+  return view.buffer;
 }
 
-async function decode(url) {
-  const res = await fetch(`/api/f1tv/proxy?u=${encodeURIComponent(url)}`);
-  if (!res.ok) throw new Error(`audio ${res.status}`);
-  const buf = await res.arrayBuffer();
-  const audio = await new OfflineAudioContext(1, 1, 16000).decodeAudioData(buf);
-  // Mono 16 kHz pour Whisper
-  const off = new OfflineAudioContext(1, Math.ceil(audio.duration * 16000), 16000);
-  const src = off.createBufferSource();
-  src.buffer = audio;
-  src.connect(off.destination);
-  src.start();
-  return (await off.startRendering()).getChannelData(0);
-}
-
-// Traduction d'un texte quelconque (évolutions techniques de la FIA…) avec le même moteur que
-// les radios : un seul modèle en mémoire, une tâche à la fois. Le modèle de langage (carte
-// graphique) n'est utilisé que s'il est déjà téléchargé, pour ne pas imposer 2,5 Go.
-export function translateText(text, language, domain, from = 'en') {
-  return new Promise((resolve, reject) => {
-    queue.push({ kind: 'text', text, lang: language, domain, from, resolve, reject, k: `text|${text}` });
-    pump();
-  });
-}
-
-// Fenêtre de son (16 kHz) des caméras embarquées : segments horodatés [{ timestamp: [a, b], text }].
-// Passe avant les radios officielles (c'est du direct).
-export function transcribeWindow(audio) {
-  return new Promise((resolve, reject) => {
-    queue.unshift({ kind: 'win', audio, resolve, reject, k: `win|${nextId}` });
-    pump();
-  });
-}
-
-async function runWindow(task) {
-  const q = await qualityFor('asr');
-  try {
-    task.resolve(await run({ kind: 'asr-ts', audio: task.audio, quality: q }, q === 'high' ? [] : [task.audio.buffer]));
-  } catch (err) {
-    if (q !== 'high') throw err;
-    markHighFailed('asr', err);
-    task.resolve(await run({ kind: 'asr-ts', audio: task.audio, quality: 'light' }, [task.audio.buffer]));
-  }
-}
-
-async function textQuality() {
-  if ((await qualityFor('mt')) !== 'high') return 'light';
-  try {
-    const keys = await (await caches.open('transformers-cache')).keys();
-    if (!keys.some((r) => r.url.includes('Qwen3-4B'))) return 'light';
-  } catch { return 'light'; }
-  return 'high';
-}
-
-async function runText(task) {
-  const c = await cloudTranslate(task.text, task.from || 'en', task.lang);
-  if (c) { task.resolve({ text: c, q: 'cloud' }); return; }
-  const q = await textQuality();
-  try {
-    task.resolve({ text: await run({ kind: 'translate', text: task.text, lang: task.lang, quality: q, domain: task.domain, from: task.from }), q });
-  } catch (err) {
-    if (q === 'high') {
-      markHighFailed('mt', err);
-      task.resolve({ text: await run({ kind: 'translate', text: task.text, lang: task.lang, quality: 'light', domain: task.domain, from: task.from }), q: 'light' });
-    } else throw err;
-  }
+// Serveur en pause (injoignable, plafond du jour) : la tâche attend son retour
+function later(task, what) {
+  queue.unshift(task);
+  retryAt = Date.now() + 60000;
+  setTimeout(pump, 60500);
+  setStatus('error', `${what} : serveur Paddock Live indisponible pour l'instant (plafond du jour ou connexion), nouvel essai plus tard`);
 }
 
 async function pump() {
-  if (busy || !queue.length || Date.now() < retryAt) return;
-  // Radios : seulement si la transcription est activée, dans la fenêtre qui en est chargée
-  const radios = enabled && isTranscriber;
-  const i = queue.findIndex((t) => t.kind === 'text' || t.kind === 'win' || radios);
-  if (i < 0) return;
+  if (busy || !queue.length || Date.now() < retryAt || !enabled || !isTranscriber) return;
   busy = true;
-  const task = queue.splice(i, 1)[0];
-  if (task.kind === 'text' || task.kind === 'win') {
-    try { await (task.kind === 'win' ? runWindow(task) : runText(task)); } catch (err) { task.reject(err); }
-    busy = false;
-    setTimeout(pump, 50);
-    return;
-  }
+  const task = queue.shift();
   try {
     if (task.kind === 'asr') {
-      // Serveur Paddock Live d'abord (rien à calculer ici), sinon Whisper sur l'ordinateur
+      if (!cloudAsrOn()) { later(task, 'Transcription'); return; }
       const c = await cloudTranscribe(task.url);
-      let en;
-      if (c) {
-        task.q = 'cloud';
-        en = collapseLoops(c.text);
-        texts[task.url] = { en, tr: {}, tq: {}, q: 'cloud', ...(c.d ? { d: c.d } : {}) };
+      if (!c) {
+        if (!cloudAsrOn()) { later(task, 'Transcription'); return; }
+        // Refusée par le serveur (radio introuvable dans les archives…) : sans texte
+        texts[task.url] = { en: '', tr: {} };
       } else {
-        if (cloudAsrOn()) noCloud.add(task.url);   // refusée par le serveur : pas de nouvel essai
-        const q = task.q = await qualityFor('asr');
-        effective.asr = q;
-        const audio = await decode(task.url);
-        if (status.state !== 'ready') setStatus('loading', 'Préparation de la transcription…');
-        const d = Math.round(audio.length / 1600) / 10;
-        en = collapseLoops(await run({ kind: 'asr', audio, quality: q }, [audio.buffer]));
-        texts[task.url] = { en, tr: {}, tq: {}, q, d };
-      }
-      // Traduction juste après, avant les radios plus anciennes
-      if (en && task.lang !== 'none') {
-        const k = `mt|${task.url}|${task.lang}`;
-        if (!queued.has(k)) { queued.add(k); queue.unshift({ url: task.url, who: task.who, kind: 'mt', lang: task.lang, k }); }
+        const en = collapseLoops(c.text);
+        texts[task.url] = { en, tr: {}, tq: {}, q: 'cloud', ...(c.d ? { d: c.d } : {}) };
+        // Traduction juste après, avant les radios plus anciennes
+        if (en && task.lang !== 'none') {
+          const k = `mt|${task.url}|${task.lang}`;
+          if (!queued.has(k)) { queued.add(k); queue.unshift({ url: task.url, who: task.who, kind: 'mt', lang: task.lang, k }); }
+        }
       }
     } else {
       const t = texts[task.url];
       if (t?.en) {
+        if (!cloudOn()) { later(task, 'Traduction'); return; }
         const c = await cloudTranslate(t.en, 'en', task.lang);
-        const q = task.q = c ? 'cloud' : await qualityFor('mt');
-        effective.mt = q;
-        const tr = collapseLoops(c ? fixRadio(c, task.lang) : await run({ kind: 'translate', text: t.en, lang: task.lang, quality: q, who: task.who }));
-        t.tr = { ...(t.tr || {}), [task.lang]: tr };
-        t.tq = { ...(t.tq || {}), [task.lang]: q };
+        if (!c && !cloudOn()) { later(task, 'Traduction'); return; }
+        // Langue non prise en charge : la radio reste en anglais
+        t.tr = { ...(t.tr || {}), [task.lang]: c ? collapseLoops(fixRadio(c, task.lang)) : '' };
+        t.tq = { ...(t.tq || {}), [task.lang]: 'cloud' };
       }
     }
     save();
-    setStatus('ready', describe());
+    setStatus('ready', READY);
     emit('radioText');
     queued.delete(task.k);
   } catch (err) {
     console.warn('[transcription]', err.message);
-    if (/^audio/.test(err.message)) {
-      texts[task.url] = { en: '', tr: {} };
-      queued.delete(task.k);
-    } else if (task.q === 'high') {
-      // Grand modèle inutilisable pour l'instant (téléchargement, mémoire de la carte graphique…) :
-      // ce modèle seul passe en qualité légère, nouvel essai plus tard
-      markHighFailed(task.kind === 'asr' ? 'asr' : 'mt', err);
-      queue.unshift(task);
-    } else {
-      // Moteur ou modèle indisponible : nouvel essai dans une minute (la tâche reste en file)
-      queue.unshift(task);
-      retryAt = Date.now() + 60000;
-      setTimeout(pump, 60500);
-    }
-    setStatus(task.q === 'high' ? 'ready' : 'error', task.q === 'high' ? describe() : `Impossible : ${err.message}`);
+    later(task, 'Transcription');
   } finally {
     busy = false;
-    // Courte pause entre deux radios : le processeur respire (replay qui en découvre beaucoup d'un coup)
+    // Courte pause entre deux radios (replay qui en découvre beaucoup d'un coup)
     setTimeout(pump, 400);
   }
 }

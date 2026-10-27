@@ -56,7 +56,6 @@ import { initLights } from './ui/lights.js';
 import { initBackup } from './ui/backup.js';
 import { initCreator } from './ui/creator-view.js';
 import { initStats } from './ui/stats.js';
-import { initCloud } from './cloud.js';
 
 function initTabs() {
   for (const head of $$('[data-tabs]')) {
@@ -139,7 +138,6 @@ initChangelog();
 initBackup();
 initCreator();
 initStats();
-initCloud();
 initCommentary();
 initAnalysis();
 initSeason();

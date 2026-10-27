@@ -143,3 +143,21 @@ test('transcription en ligne côté appli : erreur d\'archive remontée', async 
   await assert.rejects(c.transcribe('2026/x/TeamRadio/C.mp3'), /absent/);
   assert.equal(c.available(), true);
 });
+
+test('caméras embarquées : fenêtre WAV retranscrite par le serveur avec l\'heure de chaque phrase, plafond du jour', async () => {
+  const { transcribeWindow } = await import('../analytics/transcribe.js');
+  const wav = (n = 32000) => { const b = new Uint8Array(44 + n); b.set([...'RIFF'].map((c) => c.charCodeAt(0)), 0); b.set([...'WAVE'].map((c) => c.charCodeAt(0)), 8); return b; };
+  const usage = new Map();
+  const env = {
+    ONBOARD_DAILY_LIMIT: '1',
+    DB: { prepare: () => ({ bind: (...a) => ({ run: async () => { const v = (usage.get(a[0]) || 0) + a[1]; if (v > a[2]) return { meta: { changes: 0 } }; usage.set(a[0], v); return { meta: { changes: 1 } }; } }) }) },
+    AI: { run: async (model, input) => {
+      assert.equal(model, ASR_MODEL);
+      assert.equal(typeof input.audio, 'string');
+      return { text: 'Box box. Copy.', segments: [{ start: 1.2, end: 2.5, text: ' Box box.' }, { start: 4, end: 4.8, text: ' Copy.' }] };
+    } },
+  };
+  assert.deepEqual(await transcribeWindow(env, wav(), '2026-10-30'), { segments: [{ timestamp: [1.2, 2.5], text: ' Box box.' }, { timestamp: [4, 4.8], text: ' Copy.' }] });
+  assert.deepEqual(await transcribeWindow(env, wav(), '2026-10-30'), { limited: true });
+  assert.deepEqual(await transcribeWindow(env, mp3(), '2026-10-30'), { invalid: true });
+});

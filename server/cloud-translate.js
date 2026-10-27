@@ -1,7 +1,7 @@
 // Traduction par le serveur Paddock Live (Workers AI) : actualités, radios, documents FIA. Chaque
 // texte n'y est traduit qu'une fois pour tout le monde, l'ordinateur n'a plus rien à calculer.
 // Les demandes de l'interface sont regroupées (jusqu'à 40 par envoi). Serveur injoignable ou plafond
-// du jour atteint : pause de 10 minutes, l'interface traduit alors sur l'ordinateur comme avant.
+// du jour atteint : pause de 10 minutes, les textes restent en version originale.
 import { request } from './net.js';
 import { badScript } from '../shared/translation-check.js';
 

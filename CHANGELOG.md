@@ -28,6 +28,12 @@ l'application (Réglages → À propos → Nouveautés).
 - Pneus (choix et communiqués de Pirelli, jeux de chaque pilote), records du circuit (Analyse), météo, documents
   de la FIA, photos des pilotes et tracés des circuits viennent aussi du serveur de Paddock Live : chaque
   correction arrive sans mise à jour de l'appli.
+- Radios d'équipe, actualités et documents de la FIA : transcrits et traduits uniquement par le serveur de Paddock
+  Live. Plus aucun modèle d'IA sur l'ordinateur : ceux des anciennes versions (jusqu'à 15 Go) sont effacés, et le
+  choix de la qualité et la case « Traduire et transcrire avec le serveur » disparaissent. Serveur indisponible ou
+  plafond du jour atteint : les textes restent en version originale et l'appli réessaie.
+- Radios des caméras embarquées F1 TV (expérimental, F1 TV Pro) de retour : le son embarqué du pilote suivi et des
+  pilotes du duel est retranscrit par le serveur de Paddock Live, l'ordinateur ne fait plus que l'écouter.
 - Une pénalité purgée n'apparaît plus une deuxième fois (résumé de la séance, moments clés, « Pendant votre
   absence »).
 - « Pendant votre absence » fonctionne aussi quand on s'absente pendant un drapeau rouge.
@@ -38,7 +44,7 @@ l'application (Réglages → À propos → Nouveautés).
   exemple Comparaison, Bagarres ou Enquêtes. Le dernier onglet d'un panneau reste : masquer alors le panneau.
 - Bouton « Dispo. » : ouvre la fenêtre de la disposition, pour tout choisir au même endroit (panneaux et onglets
   affichés, colonnes du classement, placement, fenêtres, réinitialisation).
-- Radios d'équipe : réglages (pilotes écoutés, lecture auto, texte, traduction, qualité, volume, vitesse) et
+- Radios d'équipe : réglages (pilotes écoutés, lecture auto, texte, traduction, volume, vitesse) et
   état de la transcription rangés dans le menu « Options » à côté du titre, pour laisser la place aux radios.
 - Direction de course : « Enquêtes » et « Limites de piste » sont des onglets à part, à côté de « Direction de
   course », à masquer ou déplacer comme les autres ; les filtres des messages (drapeaux bleus, temps supprimés,
