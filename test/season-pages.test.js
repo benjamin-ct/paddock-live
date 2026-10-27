@@ -83,8 +83,9 @@ test('Saison : premier contenu de chaque rubrique écrit par le serveur (moteurs
 
 test('Saison : plan du site et anciennes pages publiques redirigées vers la version web', async () => {
   const map = await seasonSitemap(fakeEnv(), now);
-  for (const u of ['/saison/2026/', '/saison/2026/classements/', '/saison/2026/pilotes/lando-norris/', '/saison/2026/grand-prix/sao-paulo/', '/saison/2019/bilan/']) assert.ok(map.includes(`<loc>https://app.paddocklive.app${u}</loc>`), u);
+  for (const u of ['/saison/2026/', '/saison/2026/classements/', '/saison/2026/pilotes/lando-norris/', '/saison/2026/grand-prix/sao-paulo/', '/saison/2019/calendrier/']) assert.ok(map.includes(`<loc>https://app.paddocklive.app${u}</loc>`), u);
   assert.ok(!map.includes('/saison/2018/') && !map.includes('/pronostics/'));
+  assert.ok(!map.includes('/bilan/') && !map.includes('/duels/'), 'rubriques au contenu de l\'accueil : pas dans le plan du site');
   const old = (p) => legacySeasonUrl(fakeEnv(), new URL(`https://paddocklive.app${p}`));
   assert.equal(await old('/saison/'), 'https://app.paddocklive.app/saison/');
   assert.equal(await old('/saison/2026/mexico/'), 'https://app.paddocklive.app/saison/2026/grand-prix/mexico/');

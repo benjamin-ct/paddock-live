@@ -58,8 +58,9 @@ async function seasonAppPage(env, req, url, ctx) {
   if (hit) return hit;
   const ssr = await seasonSsr(env, p).catch(() => ({}));
   if (!ssr) return new Response('Introuvable', { status: 404 });
-  const page = await liveAsset(env, new Request(new URL('/live/', url), req));
-  if (!ssr.url) return page;
+  // Sans les en-têtes du visiteur : un If-None-Match ferait répondre 304 sans contenu, gardé 15 min pour tout le monde
+  const page = await liveAsset(env, new Request(new URL('/live/', url)));
+  if (!ssr.url || page.status !== 200) return page;
   const attr = (name, v) => ({ element(e) { e.setAttribute(name, v); } });
   const out = new HTMLRewriter()
     .on('title', { element(e) { e.setInnerContent(`${ssr.title} · Paddock Live`); } })
@@ -75,6 +76,7 @@ async function seasonAppPage(env, req, url, ctx) {
   const body = await out.text();
   const res = new Response(body, { status: 200, headers: out.headers });
   res.headers.set('Content-Type', 'text/html; charset=utf-8');
+  res.headers.delete('ETag');   // celle de /live/index.html, pas de cette page
   const kept = new Response(body, { headers: res.headers });
   kept.headers.set('Cache-Control', 'public, max-age=900');
   ctx.waitUntil(caches.default.put(key, kept).catch(() => {}));
@@ -419,6 +421,8 @@ export async function prune(env, now) {
   for (const t of ['studio_fail', 'feedback_new', 'pronos_new']) await env.DB.prepare(`DELETE FROM ${t} WHERE day < ?1`).bind(today).run();
   await env.DB.prepare('DELETE FROM radio_texts WHERE at < ?1').bind(now - 365 * 86400e3).run();
   await env.DB.prepare('DELETE FROM push_sent WHERE at < ?1').bind(now - 30 * 86400e3).run();
+  // Témoins des programmations publiées (un nouvel envoi du même post n'est pas republié) : 7 jours
+  await env.DB.prepare('DELETE FROM studio WHERE k >= ?1 AND k < ?2 AND at < ?3').bind('scheddone:', 'scheddone;', now - 7 * 86400e3).run();
 }
 
 // Calendrier des séances auquel on s'abonne depuis l'appli (webcal://paddocklive.app/calendar.ics,

@@ -63,11 +63,17 @@ const sameHex = (a, b) => {
 // Gardée dans la base, relue au plus toutes les 30 minutes (par la tâche planifiée, sinon à la
 // demande) ; l'ancienne version sert si Jolpica ne répond pas.
 // maxAge : âge accepté sans reconstruire (pronostics : la saison relue en arrière-plan suffit, le
-// visiteur n'attend jamais la reconstruction)
+// visiteur n'attend jamais la reconstruction). Jolpica en échec : nouvel essai au bout de 10 minutes (FAIL_WAIT), pas à
+// chaque appel (jusqu'à 600 demandes par heure sinon)
+const FAIL_WAIT = 10 * 60e3;
 export async function seasonRow(env, year, { now = Date.now(), fetchFn, wait, maxAge = SEASON_TTL } = {}) {
   const key = `season:${year}`;
   const row = JSON.parse(await getRow(env, key) || 'null');
   if (row && now - row.at < maxAge) return row;
+  if (now - (Number(await getRow(env, `seasonfail:${year}`)) || 0) < FAIL_WAIT) {
+    if (row) return row;
+    throw new Error('Saison indisponible pour l\'instant (Jolpica), nouvel essai dans quelques minutes');
+  }
   try {
     const fresh = { at: now, v: await buildSeason(year, { fetchFn, wait }) };
     await setRow(env, key, JSON.stringify(fresh));
@@ -76,6 +82,7 @@ export async function seasonRow(env, year, { now = Date.now(), fetchFn, wait, ma
     if (row) for (const m of resultMessages(row.v, fresh.v, now)) await queuePush(env, m.k, 'results', m.msg, now).catch(() => false);
     return fresh;
   } catch (err) {
+    await setRow(env, `seasonfail:${year}`, String(now)).catch(() => {});
     if (row) return row;
     throw err;
   }
@@ -131,8 +138,11 @@ export async function keepArchiveToken(env, f1tv = null) {
 export async function archiveToken(env, { now = Date.now(), fetchFn = fetch } = {}) {
   if (!env.STATS_KEY) return null;
   const cur = await readArchiveToken(env);
-  const f1tv = cur && await freshF1tv(cur, { now, fetchFn });
+  // Renouvellement raté (connexion F1 TV expirée) : nouvel essai au bout de FAIL_WAIT, pas à chaque passage
+  const failAt = Number(await getRow(env, 'archivefail')) || 0;
+  const f1tv = cur && (now - failAt < FAIL_WAIT ? cur : await freshF1tv(cur, { now, fetchFn }));
   if (f1tv !== cur) await setRow(env, ARCHIVE_TOKEN, await seal(await schedKey(env), { f1tv }));
+  else if (cur && jwtExp(cur) - now <= 24 * 3600e3 && now - failAt >= FAIL_WAIT) await setRow(env, 'archivefail', String(now));
   return f1tv && jwtExp(f1tv) > now ? f1tv : null;
 }
 
@@ -491,6 +501,9 @@ async function scheduleAdd(req, env, raw, vault, now = Date.now()) {
   const asked = /^[a-f0-9]{16}$/.test(String(form.get('id') || '')) ? String(form.get('id')) : null;
   const old = asked && (await schedJobs(env)).find((j) => j.id === asked);
   if (old) return json({ item: schedSummary(old) });
+  // Déjà publiée puis effacée (réponse perdue, nouvel appui sur Publier) : pas republiée (témoin gardé 7 jours)
+  const done = asked && await readJSON(env, `scheddone:${asked}`, null);
+  if (done) return json({ item: done });
   const at = Number(form.get('at'));
   if (!Number.isFinite(at) || at < now - 60e3 || at > now + SCHED.ahead) return json({ error: 'Date de publication invalide (dans les 7 prochains jours)' }, 400);
   let posts, record;
@@ -701,7 +714,8 @@ export async function runSchedule(env, { now = Date.now(), only = null } = {}) {
         const list = [];
         for (let i = from; i < Math.min(to, j.sets?.[set] || 0); i++) {
           const o = await env.MEDIA?.get(`sched/${j.id}/${set}/${i}`);
-          if (o) list.push(Object.assign(new Blob([await o.arrayBuffer()], { type: o.httpMetadata?.contentType || 'image/jpeg' }), { alt: j.alts?.[set]?.[i] || '' }));
+          if (!o) throw new Error('Visuels effacés du serveur');   // jamais publié sans eux
+          list.push(Object.assign(new Blob([await o.arrayBuffer()], { type: o.httpMetadata?.contentType || 'image/jpeg' }), { alt: j.alts?.[set]?.[i] || '' }));
         }
         return list;
       };
@@ -747,13 +761,15 @@ export async function runSchedule(env, { now = Date.now(), only = null } = {}) {
     if (out?.id !== j.id && over && j.keys && !j.ended) await notifyPhones(env, schedNotice(j), { now }).catch(() => 0);
     if (out?.id === j.id) continue;
     if (states.every((s) => s.status === 'done' && !s.commentError && s.visible !== false)) {
-      await dropMedia(env, j.id); await delLike(env, `schedpost:${j.id}:`); await delLike(env, `sched:${j.id}`);
+      // sched: d'abord : une écriture ratée en route ne fait pas tout repartir (états effacés, visuels absents)
+      await setRow(env, `scheddone:${j.id}`, JSON.stringify(schedSummary(j)));
+      await delLike(env, `sched:${j.id}`); await delLike(env, `schedpost:${j.id}:`); await dropMedia(env, j.id);
     } else if (over) {
       // Souci sur un réseau : visuels, vidéo et jetons gardés 24 h (« Réessayer »), puis effacés ; trace 7 jours
       const { nets, ...rest } = j;
       if (j.keys && !j.ended) await setRow(env, `sched:${j.id}`, JSON.stringify({ ...rest, ended: now }));
       else if (j.keys && now - j.ended > SCHED.late) { await dropMedia(env, j.id); await setRow(env, `sched:${j.id}`, JSON.stringify({ ...rest, keys: null })); }
-      if (now - j.at > SCHED.keep) { await delLike(env, `schedpost:${j.id}:`); await delLike(env, `sched:${j.id}`); }
+      if (now - j.at > SCHED.keep) { await delLike(env, `sched:${j.id}`); await delLike(env, `schedpost:${j.id}:`); }
     }
   }
   return out;
