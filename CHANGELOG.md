@@ -115,6 +115,8 @@ l'application (Réglages → À propos → Nouveautés).
   toute la largeur sur téléphone ; en duel, pilote A et pilote B côte à côte, « VS » au milieu.
 
 ### Version web (app.paddocklive.app)
+- Retour en arrière (geste sur téléphone, bouton du navigateur) dans la Saison : revient à la rubrique ou à la fiche
+  précédente (par exemple d'un Grand Prix aux Résultats), puis au direct.
 - Chaque rubrique de la Saison a son adresse (par exemple app.paddocklive.app/saison/2026/pilotes/lando-norris/) :
   à partager ou à garder en favori, elle ouvre directement la bonne page, et elle se trouve sur Google.
 - Nouveau bouton « Saison » : l'espace Saison de l'appli dans le navigateur, sans rien installer. Accueil,
