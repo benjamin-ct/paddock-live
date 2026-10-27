@@ -371,6 +371,41 @@ async function handleApi(req, res, url) {
         return sendJSON(res, 400, { error: err.message });
       }
     }
+    // Traduction par le serveur Paddock Live (Workers AI) : { to, items: [{ text, from }] } -> { out }
+    case 'POST /api/translate': {
+      const body = await readBody(req, 128e3);
+      if (!Array.isArray(body.items) || typeof body.to !== 'string') return sendJSON(res, 400, { error: 'Requête invalide' });
+      if (!cloud.available()) return sendJSON(res, 503, { error: 'Traduction en ligne indisponible' });
+      const out = await Promise.all(body.items.slice(0, 80).map((it) => cloud.translate(it?.text, it?.from, body.to)));
+      // Plafond du jour atteint ou serveur injoignable pendant l'envoi : l'interface traduit elle-même
+      if (!cloud.available()) return sendJSON(res, 503, { error: 'Traduction en ligne indisponible', out });
+      return sendJSON(res, 200, { out });
+    }
+
+    // Transcription d'une radio d'équipe par le serveur Paddock Live : ?u=<adresse d'archive> -> { text, d }
+    case 'GET /api/radio-text': {
+      const rel = archivePath(url.searchParams.get('u') || '');
+      if (!rel || !/^\d{4}\/[\w\-./]+\.(mp3|m4a|aac)$/i.test(rel) || rel.includes('..')) return sendJSON(res, 400, { error: 'Radio invalide' });
+      if (!cloudRadio.available()) return sendJSON(res, 503, { error: 'Transcription en ligne indisponible' });
+      try {
+        const r = await cloudRadio.transcribe(rel);
+        return r ? sendJSON(res, 200, r) : sendJSON(res, 503, { error: 'Transcription en ligne indisponible' });
+      } catch (err) {
+        return sendJSON(res, err.status || 502, { error: err.message });
+      }
+    }
+
+    // Statistiques d'utilisation anonymes : l'accord se donne sur l'ordinateur ; toutes les
+    // fenêtres (téléphone compris) signalent les fonctions utilisées si c'est accepté
+    case 'GET /api/stats':
+      return sendJSON(res, 200, { ...stats.state(), canSet: isLoopback(req.socket.remoteAddress) });
+    case 'POST /api/stats': {
+      if (!isLoopback(req.socket.remoteAddress)) return sendJSON(res, 403, { error: 'Réglage disponible uniquement sur l\'ordinateur' });
+      const body = await readBody(req);
+      if (typeof body.on !== 'boolean') return sendJSON(res, 400, { error: 'Réglage invalide' });
+      stats.set(body.on);
+      return sendJSON(res, 200, stats.state());
+    }
     case 'POST /api/stats/events': {
       const body = await readBody(req, 64e3);
       return sendJSON(res, 200, { added: stats.fromClient(body.events, body.device, body.errors) });
