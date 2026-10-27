@@ -60,13 +60,14 @@ SITE_ORIGIN = "https://paddocklive.app"
 # IA : plafond du jour en neurones (10 000 gratuits par jour, puis facturés), plus haut les week-ends de Grand Prix, et
 # budget payé sur 30 jours glissants (850 000 neurones, environ 9,40 $, sous 10 € par mois) ; puis plafonds de chaque
 # usage un jour ordinaire, agrandis avec le plafond du jour (le quart pour un même appelant) : textes traduits, radios
-# d'équipe, fenêtres de 30 s des caméras embarquées, textes du Studio. Textes traduits : 4 000 (1 000 par appelant),
+# d'équipe, fenêtres de 30 s des caméras embarquées, textes du Studio. Textes traduits : 8 000 (2 000 par appelant),
 # une traduction sert à tout le monde et sa dépense est déjà bornée (5 $ par jour pour Claude, neurones pour Mistral) ;
-# avec 250 par appelant, l'Actu d'une seule appli suffisait à bloquer ses traductions pour la journée
+# avec 250 puis 1 000 par appelant, l'Actu d'une seule appli suffisait à bloquer ses traductions pour la journée
+# (27 oct. : 1 000 atteints le soir après la reprise de toutes les traductions par Claude)
 AI_NEURON_DAY = "15000"
 AI_NEURON_GP_DAY = "70000"
 AI_NEURON_MONTH = "850000"
-AI_DAILY_LIMIT = "4000"
+AI_DAILY_LIMIT = "8000"
 ASR_DAILY_LIMIT = "300"
 ONBOARD_DAILY_LIMIT = "400"
 STUDIO_AI_LIMIT = "500"

@@ -68,7 +68,7 @@ test('IA : ce qui a été produit, aujourd\'hui et sur 30 jours (parts par appel
     ['radio:2026-10-27', 3], ['radio:2026-10-25', 46], ['onboard:2026-10-26', 12], ['neurons:2026-10-27', 84], ['neurons:2026-10-26', 11000],
   ]));
   assert.deepEqual(await aiCounters(f.env, '2026-10-27'), {
-    today: { apps: 109, studio: 45, radios: 3, neurons: 84 },
+    today: { apps: 109, appsTop: 40, studio: 45, radios: 3, neurons: 84 },
     month: { apps: 1109, studio: 45, radios: 49, onboard: 12, neurons: 11084 },
   });
 });

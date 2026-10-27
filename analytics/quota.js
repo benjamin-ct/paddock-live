@@ -93,7 +93,8 @@ export async function neuronBudget(env, day) {
 // Ce que l'IA a produit (compteurs des plafonds) : { today, month } avec, pour chacun, apps (textes traduits ou
 // résumés par les applis, un résumé compte pour 5), studio (textes du Studio : résumé 5, post 3), radios (radios
 // d'équipe transcrites), onboard (tranches de 30 s des caméras embarquées), neurons ; API de Claude : opus et sonnet
-// (millionièmes de dollar), claudeTexts (textes traduits)
+// (millionièmes de dollar), claudeTexts (textes traduits) ; aujourd'hui seulement, appsTop : textes de l'appelant
+// qui en a demandé le plus (sa part du plafond)
 export async function aiCounters(env, day) {
   const from = new Date(Date.parse(day) - 29 * DAY_MS).toISOString().slice(0, 10);
   const range = (p) => env.DB.prepare('SELECT day, n FROM ai_usage WHERE day >= ?1 AND day <= ?2').bind(`${p}${from}`, `${p}${day}~`).all().then((r) => r.results || []);
@@ -104,7 +105,11 @@ export async function aiCounters(env, day) {
   };
   const [days, radios, onboard, neurons, opus, sonnet, claudeTexts] = await Promise.all(['', 'radio:', 'onboard:', 'neurons:', 'claude-opus:', 'claude-sonnet:', 'claude-texts:'].map(range));
   // Jour seul : applis ; « jour|studio » : Studio ; « jour|adresse|… » : part d'un appelant, déjà comptée
-  for (const r of days) if (/^\d{4}-\d\d-\d\d$/.test(r.day)) add('apps', r.day, r.n); else if (/^[\d-]+\|studio$/.test(r.day)) add('studio', r.day, r.n);
+  for (const r of days) {
+    if (/^\d{4}-\d\d-\d\d$/.test(r.day)) add('apps', r.day, r.n);
+    else if (/^[\d-]+\|studio$/.test(r.day)) add('studio', r.day, r.n);
+    else if (r.day.startsWith(`${day}|`) && r.day.endsWith(`|${day}`)) out.today.appsTop = Math.max(out.today.appsTop || 0, Number(r.n) || 0);
+  }
   for (const [kind, rows] of Object.entries({ radios, onboard, neurons, opus, sonnet, claudeTexts })) for (const r of rows) add(kind, r.day, r.n);
   return out;
 }
@@ -122,11 +127,15 @@ export async function runAI(env, model, input) {
 // key : compteur du jour (« 2026-10-18 », « radio:2026-10-18 ») ; day : date du jour ; ip : appelant ; limit : celle
 // d'un jour ordinaire ; claude : traduction par l'API de Claude, qui ne consomme pas de neurones (seul le plafond de
 // textes compte ; si Mistral la remplace, runAI refuse lui-même passé le plafond des neurones)
+// Plafond d'un usage agrandi avec le plafond du jour (top : neuronBudget), et part d'un même appelant
+export const dayLimit = (env, limit, top) => Math.max(1, Math.round(limit * top / ((Number(env.AI_NEURON_DAY) || 15000) - MARGIN)));
+export const ipShare = (limit) => Math.ceil(limit / 4);
+
 export async function aiQuota(env, { key, day, n, limit, ip, claude = false }) {
   const { used, top } = await neuronBudget(env, day);
   if (!claude && used >= top - (/^radio:|\|studio$/.test(key) ? 0 : top / 10)) return false;
-  limit = Math.max(1, Math.round(limit * top / ((Number(env.AI_NEURON_DAY) || 15000) - MARGIN)));
-  if (ip && !(await spend(env, `${day}|${ip}|${key}`, n, Math.ceil(limit / 4)))) return false;
+  limit = dayLimit(env, limit, top);
+  if (ip && !(await spend(env, `${day}|${ip}|${key}`, n, ipShare(limit)))) return false;
   return spend(env, key, n, limit);
 }
 

@@ -33,7 +33,7 @@ import { cleanPostRequest, rewritePost, cleanSummaryRequest, summarizeArticle } 
 import { cleanRequest, translateBatch } from './translate.js';
 import { buildSeason, SEASON_TTL, resultsReady } from './season-cache.js';
 import { accountStats } from './account-stats.js';
-import { callerIp, studioQuota, neuronBudget, aiCounters } from './quota.js';
+import { callerIp, studioQuota, neuronBudget, aiCounters, dayLimit } from './quota.js';
 import { served } from './download.js';
 
 // Empreinte de la clé tirée du code (la même que dans l'appli, server/creator.js) : SHA-256 de la clé PBKDF2 de
@@ -921,7 +921,9 @@ export async function studioApi(req, env, url) {
   if (path === 'usage' && req.method === 'GET') {
     const today = new Date().toISOString().slice(0, 10);
     const [ai, made] = await Promise.all([neuronBudget(env, today).catch(() => null), aiCounters(env, today).catch(() => null)]);
-    return json({ days: 30, ...(await summary(env, 30)).usage, health: JSON.parse(await getRow(env, 'health') || 'null'), ai: ai && made && { ...ai, made } });
+    // texts : plafond du jour des textes traduits ou résumés par les applis (agrandi les week-ends de Grand Prix)
+    const texts = ai && dayLimit(env, Number(env.AI_DAILY_LIMIT) || 1000, ai.top);
+    return json({ days: 30, ...(await summary(env, 30)).usage, health: JSON.parse(await getRow(env, 'health') || 'null'), ai: ai && made && { ...ai, made, texts } });
   }
   // Post écrit à la main : texte mis en forme par l'IA (titre, résumé, points clés)
   if (path === 'rewrite' && req.method === 'POST') {
