@@ -164,7 +164,7 @@ async function auth(req, env) {
   try { raw = unb64url(req.headers.get('X-Studio-Key') || ''); } catch { raw = null; }
   if (!raw || raw.length !== 32) { await failed(env, req); return { error: json({ error: 'Code incorrect' }, 401) }; }
   const verifier = await getRow(env, 'verifier');
-  if (!verifier) return { error: json({ error: 'Page pas encore activée : activez-la depuis l\'appli (Posts → Publier… → Comptes…)' }, 409) };
+  if (!verifier) return { error: json({ error: 'Page pas encore activée : activez-la depuis l\'appli (Réglages → Mode créateur → Comptes…)' }, 409) };
   if (!sameHex(await sha(raw), verifier)) { await failed(env, req); return { error: json({ error: 'Code incorrect' }, 401) }; }
   return { raw };
 }

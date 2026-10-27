@@ -1,15 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
 import { weekendData, recordsData, ratingsData, raceRatings, teamDuelsData, titleData, titleSide, raceLapsData, recapData, seasonCaptions, teamColor } from '../shared/social-season.js';
 import { parseRaceLaps, cleanPace, lapsLedBy } from '../shared/race-laps.js';
 import { questionCaptions, questionFor } from '../shared/social-follow.js';
 import { slidesFor } from '../shared/social-draw.js';
 import { newsPost } from '../shared/social-news.js';
 import { xLength } from '../shared/social.js';
-import { createScheduler } from '../server/post-schedule.js';
 import { forecast } from '../server/forecast.js';
 
 const drv = (code, name, team, teamId) => ({ code, name, last: name.split(' ').at(-1), team, teamId });
@@ -161,32 +157,6 @@ test('récap de la semaine et questions en fin de texte', () => {
   assert.match(questionFor({ post: 'flash', event: { kind: 'sc' } }), /Qui va en profiter/);
   const full = { x: `${'a'.repeat(275)}\n\n#F1` };
   assert.equal(questionCaptions(full, d, '').x, full.x);   // X plein : inchangé
-});
-
-test('publications programmées : publiées à l\'heure, résultat gardé, annulation', async () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sched-'));
-  let now = Date.UTC(2026, 9, 16, 12);
-  const sent = [];
-  const recorded = [];
-  const s = createScheduler({ dir, now: () => now, timers: false, publish: async (net, body) => { if (net === 'x') throw new Error('refusé'); sent.push([net, body.text]); return { id: '1', url: `https://${net}.test/1` }; }, record: async (e) => recorded.push(e) });
-  assert.throws(() => s.add({ at: now - 3600e3, posts: [{ body: { network: 'instagram' } }] }), /Date/);
-  assert.throws(() => s.add({ at: now + 60e3, posts: [] }), /réseau/);
-  const a = s.add({ at: now + 3600e3, title: 'Programme', posts: [{ body: { network: 'instagram', text: 'Bonjour', images: ['AAAA'] } }, { body: { network: 'x', text: 'Salut' } }], record: { key: 'weekend:2026-19', kind: 'weekend', title: 'Programme' } });
-  const b = s.add({ at: now + 7200e3, posts: [{ body: { network: 'threads', text: 'b' } }] });
-  await s.tick();
-  assert.equal(sent.length, 0);   // pas encore l'heure
-  s.cancel(b.id);
-  now += 3600e3 + 1000;
-  await s.tick();
-  assert.deepEqual(sent, [['instagram', 'Bonjour']]);
-  const [job] = s.list();
-  assert.equal(job.status, 'error');
-  assert.deepEqual(job.results, { instagram: { ok: true, url: 'https://instagram.test/1' }, x: { ok: false, error: 'refusé' } });
-  assert.equal(recorded[0].nets.instagram.url, 'https://instagram.test/1');
-  assert.ok(!fs.readFileSync(path.join(dir, `${a.id}.json`), 'utf8').includes('AAAA'));   // visuels retirés après publication
-  await s.tick();
-  assert.equal(sent.length, 1);   // jamais publiée deux fois
-  assert.throws(() => s.cancel('../x'), /inconnue/);
 });
 
 test('météo prévue : jours, températures et risque de pluie', async () => {

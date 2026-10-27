@@ -191,9 +191,8 @@ async function sendToken(value) {
   return data;
 }
 
-// Fenêtres de sites extérieurs (connexion F1, publication sur X / Threads / Bluesky) : position, micro,
-// caméra, notifications… refusés sans rien demander (Electron accepte tout par défaut) ; presse-papiers
-// gardé pour coller l'image d'un post
+// Fenêtre de connexion F1 : position, micro, caméra, notifications… refusés sans rien demander (Electron
+// accepte tout par défaut) ; presse-papiers gardé (copier-coller)
 const denyPermissions = (ses) => ses.setPermissionRequestHandler((_wc, permission, cb) => cb(/^clipboard/.test(permission)));
 
 function loginF1TV() {
@@ -266,44 +265,6 @@ async function widevineReady() {
   }
 }
 
-// Publication sans accès payant (mode créateur) : la page officielle de X, Threads ou Bluesky pour
-// écrire un post (« intent »), préremplie avec le texte, dans une fenêtre de l'appli. La connexion au
-// compte y est gardée (une session à part par réseau, sans accès à l'appli) ; l'image se colle avec
-// Ctrl+V (Cmd+V sur Mac).
-const COMPOSE = [
-  ['x', /^https:\/\/(x|twitter)\.com\/intent\/(post|tweet)\?/i, 'Publier sur X'],
-  ['threads', /^https:\/\/(www\.)?threads\.(com|net)\/intent\/post\?/i, 'Publier sur Threads'],
-  ['bsky', /^https:\/\/bsky\.app\/intent\/compose\?/i, 'Publier sur Bluesky'],
-];
-const composeOf = (u) => COMPOSE.find(([, re]) => re.test(String(u || '')));
-const composeWindows = new Map();
-function openCompose(url) {
-  const [net, , title] = composeOf(url);
-  const old = composeWindows.get(net);
-  if (old && !old.isDestroyed()) {
-    old.loadURL(url, { userAgent: old.webContents.getUserAgent() });
-    if (old.isMinimized()) old.restore();
-    old.focus();
-    return;
-  }
-  const win = new BrowserWindow({
-    width: 720, height: 780, title, autoHideMenuBar: true, icon: APP_ICON, backgroundColor: '#000000',
-    webPreferences: { partition: `persist:${net}`, contextIsolation: true, sandbox: true },
-  });
-  denyPermissions(win.webContents.session);
-  composeWindows.set(net, win);
-  // Liens vers d'autres sites : navigateur par défaut
-  win.webContents.setWindowOpenHandler(({ url: target }) => {
-    if (/^https?:\/\//i.test(target)) shell.openExternal(target);
-    return { action: 'deny' };
-  });
-  win.on('closed', () => { if (composeWindows.get(net) === win) composeWindows.delete(net); });
-  // User-agent de Chrome standard (sans la mention Electron ni le nom de l'appli), comme pour F1 TV
-  const ua = win.webContents.getUserAgent().replace(/ Electron\/\S+/, '').replace(/\) (?!Chrome\/)\S+\/\S+ (?=Chrome\/)/, ') ');
-  win.webContents.setUserAgent(ua);
-  win.loadURL(url, { userAgent: ua });
-}
-
 // Ouverture de fenêtres depuis une page de l'appli : panneaux détachés = nouvelle fenêtre de l'appli
 // (directement sur le second écran s'il existe) ; tout le reste (liens, dashboard dans le
 // navigateur pour les flux DRM) s'ouvre dans le navigateur.
@@ -330,8 +291,6 @@ function setupContents(wc, url) {
         },
       };
     }
-    // Mode créateur : page de publication (X, Threads, Bluesky) préremplie, ouverte dans l'appli
-    if (composeOf(target)) { openCompose(target); return { action: 'deny' }; }
     // Navigateur par défaut, pour les adresses web seulement (pas de file:, ni de protocole
     // système qui lancerait un autre programme) ; webcal : abonnement au calendrier, ouvert par l'agenda
     if (/^(https?|webcal):\/\//i.test(target)) shell.openExternal(target);
