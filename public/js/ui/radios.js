@@ -153,7 +153,7 @@ export function renderRadios(force = false) {
     .sort((x, y) => y.utc - x.utc) : [];
   const empty = $('#radioEmpty');
   empty.hidden = !!ordered.length;
-  empty.textContent = b ? 'Aucune radio d\'équipe pour l\'instant.' : 'Pas de séance en cours.';
+  empty.textContent = !b ? 'Pas de séance en cours.' : store.status?.source?.noRadio ? 'Aucune radio d\'équipe publiée par la F1 pour cette séance.' : 'Aucune radio d\'équipe pour l\'instant.';
   sync(strip, cards, ordered, 'button', (c) => cardHtml(c, dl[c.num] || {}), cardClass);
 
   // Fil des transcriptions : radios officielles retranscrites et radios des caméras embarquées

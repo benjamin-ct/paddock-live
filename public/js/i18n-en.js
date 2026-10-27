@@ -299,6 +299,7 @@ export default {
   "Aucune mise à jour prête": "No update ready",
   "Aucune pénalité.": "No penalties.",
   "Aucune radio d'équipe pour l'instant.": "No team radio yet.",
+  "Aucune radio d'équipe publiée par la F1 pour cette séance.": "No team radio published by F1 for this session.",
   "Aucune version publiée sur {}": "No version published on {}",
   "Aucune vidéo récente.": "No recent videos.",
   "Automatique (comme le système)": "Automatic (like the system)",
