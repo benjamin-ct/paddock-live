@@ -37,6 +37,7 @@ let drvCode = null;
 let gpRound = null;        // fiche Grand Prix affichée (manche)
 let wanted = null;         // rubrique demandée par l'adresse (version web) : pilote ou Grand Prix retrouvé une fois la saison chargée
 let push = false;          // version web : prochaine adresse ajoutée à l'historique (rubrique choisie), sinon remplacée
+let leaveTop = 0;          // version web : défilement de la rubrique quittée, gardé dans l'historique (retour au même endroit)
 let urls = false;          // version web : l'adresse suit la rubrique affichée (à partager, moteurs de recherche)
 let speedPt = 'ST';
 let circSort = 'round';
@@ -285,7 +286,10 @@ function syncUrl() {
   const d = section === 'drivers' ? data.drivers.find((x) => x.code === drvCode) : null;
   const r = section === 'gp' ? data.races.find((x) => x.round === gpRound) : null;
   const p = seasonPath(data.year, section, d ? slug(d.name) : r ? gpSlug(r.name) : null);
-  if (location.pathname !== p) history[push ? 'pushState' : 'replaceState'](null, '', p);
+  if (location.pathname !== p && push) {
+    history.replaceState({ szTop: leaveTop }, '');
+    history.pushState(null, '', p);
+  } else if (location.pathname !== p) history.replaceState(history.state, '', p);
   push = false;
   document.documentElement.dataset.seasonTitle = '1';
   document.title = `${seasonTitle(data.year, section, d?.name || r?.name, !!r?.results.length)} · Paddock Live`;
@@ -296,10 +300,13 @@ function syncUrl() {
 // puis au direct
 export function seasonUrls() {
   urls = true;
-  addEventListener('popstate', () => {
+  addEventListener('popstate', (e) => {
     const p = parseSeasonPath(location.pathname);
     if (p) openSeason(p.section, p.year || undefined, p.item, true);
     else if (!$('#seasonView').hidden) closeSeason();
+    // Retour à l'endroit où l'on était (encore une fois une fois les tableaux ou les statistiques affichés)
+    const top = e.state?.szTop;
+    if (p && top) for (const ms of [0, 400, 1200]) setTimeout(() => { $('#szContent').scrollTop = top; }, ms);
   });
 }
 
@@ -627,6 +634,7 @@ function render() {
   // Tableaux larges : défilement de côté gardé quand la rubrique est redessinée (nouvelle course analysée…)
   const wide = () => $('#szContent').querySelectorAll('.sz-box, .sz-scroll');
   const scrolls = jump ? [] : [...wide()].map((e) => e.scrollLeft);
+  if (jump && push) leaveTop = $('#szContent').scrollTop;   // rubrique quittée : défilement gardé pour le retour
   $('#szContent').innerHTML = `${data.stale ? '<div class="note small">Hors ligne : dernières données enregistrées.</div>' : ''}${html}`;
   wide().forEach((e, i) => { if (scrolls[i]) e.scrollLeft = scrolls[i]; });
   tick();

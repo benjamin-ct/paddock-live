@@ -116,7 +116,7 @@ l'application (Réglages → À propos → Nouveautés).
 
 ### Version web (app.paddocklive.app)
 - Retour en arrière (geste sur téléphone, bouton du navigateur) dans la Saison : revient à la rubrique ou à la fiche
-  précédente (par exemple d'un Grand Prix aux Résultats), puis au direct.
+  précédente (par exemple d'un Grand Prix aux Résultats), à l'endroit où l'on était dans la page, puis au direct.
 - Chaque rubrique de la Saison a son adresse (par exemple app.paddocklive.app/saison/2026/pilotes/lando-norris/) :
   à partager ou à garder en favori, elle ouvre directement la bonne page, et elle se trouve sur Google.
 - Nouveau bouton « Saison » : l'espace Saison de l'appli dans le navigateur, sans rien installer. Accueil,
