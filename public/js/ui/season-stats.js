@@ -222,7 +222,10 @@ export function renderRatings(ctx, sortBy = 'season') {
   const { stats } = ctx;
   const all = ctx.ratings || [];
   if (!all.length) return '<div class="note">Pas encore de résultats.</div>';
-  const rows = [...all].sort((a, b) => (b[sortBy] ?? -1) - (a[sortBy] ?? -1) || b.pts - a.pts);
+  // Tri par la colonne touchée : note de la saison, face au coéquipier, ou un critère (rang parmi les pilotes, meilleur en haut)
+  const val = (e) => (sortBy === 'season' || sortBy === 'mate' ? e[sortBy] : e.parts[sortBy]) ?? -1;
+  const rows = [...all].sort((a, b) => val(b) - val(a) || b.pts - a.pts);
+  const th = (k, label, title = 'Trier par cette colonne') => `<th class="sz-sort${k === sortBy ? ' on' : ''}"><button type="button" data-rate-sort="${k}" title="${esc(title)}">${label}</button></th>`;
   const drvCell = (e) => `${ctx.bar(e.team, e.teamId)}<b>${esc(e.name)}</b> <span class="muted small">${esc(e.team)}</span>`;
   const top = (k) => rows.filter((e) => e[k] !== null).sort((a, b) => b[k] - a[k])[0];
   const best = top('season'), bestMate = top('mate');
@@ -232,9 +235,8 @@ export function renderRatings(ctx, sortBy = 'season') {
     <div class="sz-cards">${card('Meilleure note de la saison', best, 'season', 'seasonGrade')}${card('Domine le plus son coéquipier', bestMate, 'mate', 'mateGrade')}
       <div class="sz-card"><div class="muted small">Barème</div><div class="sz-grade-scale">${GRADES.map(([g, min], i) => `<span><span class="sz-grade g-${g}">${g}</span> ${min > -Infinity ? `${min}${i ? `–${GRADES[i - 1][1] - 1}` : '+'}` : `< ${GRADES[i - 1][1]}`}</span>`).join('')}</div></div>
     </div>
-    <div class="sz-h2h-pick"><label class="small">Trier par <select id="szRateSort"><option value="season" ${sortBy === 'season' ? 'selected' : ''}>Note de la saison</option><option value="mate" ${sortBy === 'mate' ? 'selected' : ''}>Note face au coéquipier</option></select></label></div>
-    <section class="sz-box"><h3>Notes des pilotes</h3><div class="sz-scroll"><table class="sz-table sz-rate"><tr><th>#</th><th>Pilote</th><th>Saison</th><th>Coéquipier</th>
-      ${SEASON_CRITERIA.map(([k, , l]) => `<th title="${esc(l)}">${METRIC_SHORT[k]}</th>`).join('')}<th>Duels Q / C</th><th>Écart qualif</th></tr>
+    <section class="sz-box"><h3>Notes des pilotes</h3><div class="sz-scroll"><table class="sz-table sz-rate"><tr><th>#</th><th>Pilote</th>${th('season', 'Saison')}${th('mate', 'Coéquipier')}
+      ${SEASON_CRITERIA.map(([k, , l]) => th(k, METRIC_SHORT[k], l)).join('')}<th>Duels Q / C</th><th>Écart qualif</th></tr>
       ${rows.map((e, i) => `<tr class="${e.season === null ? 'muted' : ''}"><td>${i + 1}</td><td>${drvCell(e)}</td><td class="sz-rate-g">${gradeBadge(e.season, e.seasonGrade)}</td><td class="sz-rate-g">${gradeBadge(e.mate, e.mateGrade)}</td>
         ${SEASON_CRITERIA.map(([k]) => heat(e.parts[k] === null || e.parts[k] === undefined ? null : 1 - e.parts[k], `${METRIC_FMT[k](e.metrics[k])}`)).join('')}
         <td>${e.h2h.qa}–${e.h2h.qb} / ${e.h2h.ra}–${e.h2h.rb}</td><td>${e.gapPct === null ? '—' : `${e.gapPct <= 0 ? '−' : '+'}${fr(Math.abs(e.gapPct), 2)} %`}</td></tr>`).join('')}</table></div></section>
