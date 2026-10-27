@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { summarizeRace, trackLength, outline } from '../server/race-stats.js';
+import { summarizeRace, trackLength, outline } from '../shared/race-stats.js';
 
 // Deux pilotes, 4 tours ; safety car pendant le 3e tour ; arrêt de A au 2e tour.
 const lap = (off, num, n, time, pos, extra = {}) => ({ off, topic: 'TimingData', data: { Lines: { [num]: { NumberOfLaps: n, LastLapTime: { Value: time }, Position: String(pos), ...extra } } } });

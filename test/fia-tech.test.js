@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseTechUpdates, parsePuUsed, parsePuNew, parsePuPenalty, classify, teamOf, lines } from '../server/fia-tech.js';
+import { parseTechUpdates, parsePuUsed, parsePuNew, parsePuPenalty, classify, teamOf, lines } from '../shared/fia-tech.js';
 
 // Morceaux de texte positionnés comme dans les PDF de la FIA ({ x, y, s })
 const it = (x, y, s) => ({ x, y, s });

@@ -9,7 +9,6 @@ import { ReplaySource, seasonIndex } from './replay.js';
 import { HttpError, request } from './net.js';
 import { circuit, loops, zones } from './circuits.js';
 import { season, SEASON_URL } from './season.js';
-import { archiveError } from './race-stats.js';
 import { findSessionContent, playback, proxy as f1tvProxy, allowHost, resolvePlaylist, localTarget } from './f1tv.js';
 import { Recorder, listRecordings, pruneRecordings, recordingPath } from './recorder.js';
 import { ROOT, settings, getConfig, saveConfig, parseF1tvToken, tokenInfo } from './config.js';
@@ -29,7 +28,7 @@ import { accountsInfo, saveAccount, tiktokLoginUrl, tiktokCallback, youtubeLogin
 import { startAutoRenew, renew as renewF1tv, sessionOf, state as renewState, resetRenewState } from './f1tv-auth.js';
 import { localHost, sameSiteRequest, decodePath, extensionRequest, EXTENSION_ROUTES } from './guard.js';
 import { stats, startStats, sendFeedback, sendFeedbackFile } from './stats.js';
-import { archivePath, sendArchiveFile } from './archive.js';
+import { archivePath, sendArchiveFile, archiveError } from './archive.js';
 import { feedDiag } from './feed-diag.js';
 import { probeState } from './feed-probe.js';
 import { cloud, createCloudTranslator } from './cloud-translate.js';

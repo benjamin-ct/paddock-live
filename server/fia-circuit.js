@@ -6,7 +6,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { getJSON, request } from './net.js';
-import { pdfPages, lines } from './fia-tech.js';
+import { pdfPages, lines } from '../shared/fia-tech.js';
 import { CACHE_DIR } from './circuits.js';
 import { SEASON_URL } from './season.js';
 

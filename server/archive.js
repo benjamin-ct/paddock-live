@@ -76,3 +76,11 @@ export async function sendArchiveFile(res, rel) {
 export function archivePath(url) {
   return typeof url === 'string' && url.startsWith(STATIC) ? decodeURIComponent(url.slice(STATIC.length).split(/[?#]/)[0]) : null;
 }
+
+// Message lisible quand l'index des archives officielles d'une année est inaccessible (Replays)
+export function archiveError(year, err) {
+  if (err?.locked) return err.message;   // archives réservées aux abonnés F1 TV
+  return err?.status === 403 || err?.status === 404
+    ? `la F1 ne donne pas accès aux archives officielles de ${year}`
+    : `archives officielles de la F1 injoignables (${err?.message || err}) ; nouvel essai dans quelques minutes`;
+}
