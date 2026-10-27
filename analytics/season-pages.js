@@ -139,13 +139,16 @@ export async function seasonSsr(env, p, { now = Date.now() } = {}) {
   return { url, title, desc, html: `<h1 class="sz-ssr-title">${esc(title)}</h1>${body}${nav(year)}`, ld: [...ld.map((x) => ({ ...x, url })), crumbs(trail)] };
 }
 
-// Plan du site : chaque rubrique des 8 dernières saisons ; pilotes et Grands Prix des saisons déjà gardées dans la base
-// (lu sans interroger Jolpica : une demande de robot reste rapide)
+// Plan du site : les rubriques des 8 dernières saisons qui ont leur propre contenu écrit par le serveur (les autres
+// reprennent celui de l'accueil : du contenu en double pour Google) ; pilotes et Grands Prix des saisons déjà gardées
+// dans la base (lu sans interroger Jolpica : une demande de robot reste rapide)
+const OWN = ['home', 'calendar', 'standings', 'results', 'drivers'];
 export async function seasonSitemap(env, now = Date.now()) {
   const urls = [];
   for (let y = new Date(now).getUTCFullYear(); y >= firstYear(now); y--) {
-    urls.push(...Object.keys(SECTION_PATHS).filter((k) => k !== 'gp' && k !== 'predict').map((k) => seasonPath(y, k)));
     const s = JSON.parse(await getRow(env, `season:${y}`) || 'null')?.v;
+    if (y === new Date(now).getUTCFullYear() && !s?.races?.some((r) => r.results?.length)) continue;   // pas encore de course
+    urls.push(...OWN.map((k) => seasonPath(y, k)));
     if (s?.races?.length) urls.push(...s.drivers.map((d) => seasonPath(y, 'drivers', slug(d.name))), ...s.races.map((r) => seasonPath(y, 'gp', gpSlug(r.name))));
   }
   return `<?xml version="1.0" encoding="UTF-8"?>

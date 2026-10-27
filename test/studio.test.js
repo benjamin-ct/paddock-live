@@ -393,8 +393,14 @@ test('page du créateur : publication programmée, publiée par le serveur à l\
     // Tout publié : retirée aussitôt de la liste (visuels, jetons et trace effacés), journal complété
     const list = await (await worker('https://s.test/studio/api/schedule', { headers: key })).json();
     assert.equal(list.items.length, 0);
-    assert.equal([...env.DB.studio.keys()].filter((k) => k.startsWith('sched')).length, 0);
+    assert.deepEqual([...env.DB.studio.keys()].filter((k) => k.startsWith('sched')), [`scheddone:${item.id}`]);   // seul le témoin reste
     assert.equal([...env.MEDIA.objs.keys()].filter((k) => k.startsWith(`sched/${item.id}`)).length, 0);
+    // Réponse perdue, nouvel appui sur Publier avec le même identifiant : rien n'est republié
+    const sent = calls.length;
+    assert.equal((await (await add({ id: item.id })).json()).item.id, item.id);
+    assert.equal(await runSchedule(env, { now: at + 180e3 }), null);
+    assert.equal(calls.length, sent);
+    assert.deepEqual([...env.DB.studio.keys()].filter((k) => k.startsWith('sched')), [`scheddone:${item.id}`]);
     const hist = await (await worker('https://s.test/studio/api/history', { headers: key })).json();
     assert.equal(hist.items[0].key, 'race-2026-18');
     assert.deepEqual(Object.keys(hist.items[0].nets).sort(), ['bluesky', 'facebook']);
@@ -469,6 +475,13 @@ test('page du créateur : publication programmée, publiée par le serveur à l\
     await runSchedule(env, { now: t0 + 2e3 });
     assert.equal(await listed(bad.id), undefined);
     assert.equal(media(bad.id), 0);
+    // Visuel manquant dans le stockage : erreur, jamais publié sans lui
+    const gone = (await (await add({ posts: [{ network: 'facebook', text: 'x' }] })).json()).item;
+    env.MEDIA.objs.delete(`sched/${gone.id}/ig/1`);
+    const feeds = calls.filter((c) => c.endsWith('/feed')).length;
+    await runSchedule(env, { now: at + 390e3 });
+    assert.deepEqual([(await listed(gone.id)).nets.facebook.status, (await listed(gone.id)).nets.facebook.error], ['error', 'Visuels effacés du serveur']);
+    assert.equal(calls.filter((c) => c.endsWith('/feed')).length, feeds);
     // Sans « Réessayer » : visuels et jetons effacés au bout de 24 h, la trace une semaine après
     const bad2 = (await (await add()).json()).item;
     globalThis.fetch = refuse;
@@ -480,7 +493,7 @@ test('page du créateur : publication programmée, publiée par le serveur à l\
     assert.equal(JSON.parse(env.DB.studio.get(`sched:${bad2.id}`)).keys, null);
     assert.equal((await post('retry', { id: bad2.id, net: 'facebook' })).status, 410);
     await runSchedule(env, { now: at + 8 * 86400e3 });
-    assert.equal([...env.DB.studio.keys()].filter((k) => k.startsWith('sched')).length, 0);
+    assert.equal([...env.DB.studio.keys()].filter((k) => k.startsWith('sched') && !k.startsWith('scheddone:')).length, 0);   // témoins : purge du jour
   } finally { globalThis.fetch = realFetch; }
 
   // Modifier avant l'heure : nouvelle heure et textes ; plus possible une fois parti
@@ -499,7 +512,7 @@ test('page du créateur : publication programmée, publiée par le serveur à l\
   const j2 = (await (await add()).json()).item;
   const after = await (await worker('https://s.test/studio/api/schedule/cancel', { method: 'POST', body: JSON.stringify({ id: j2.id }), headers: key })).json();
   assert.equal(after.items.length, 0);
-  assert.equal([...env.DB.studio.keys()].filter((k) => k.startsWith('sched')).length, 0);
+  assert.equal([...env.DB.studio.keys()].filter((k) => k.startsWith('sched') && !k.startsWith('scheddone:')).length, 0);
   const j3 = (await (await add()).json()).item;
   assert.equal(await runSchedule(env, { now: at + 2 * 86400e3 }), null);
   const l3 = await (await worker('https://s.test/studio/api/schedule', { headers: key })).json();
@@ -907,6 +920,12 @@ test('Studio : saison résumée par le serveur, gardée 30 minutes, ancienne ver
   // Plus tard, Jolpica en panne : l'ancienne version sert
   down = true;
   assert.equal((await seasonRow(env, 2026, { now: t0 + 31 * 60e3, fetchFn, wait })).at, t0);
+  // Échec noté : pas de nouvelle demande à Jolpica avant 10 minutes
+  const tried = urls.length;
+  assert.equal((await seasonRow(env, 2026, { now: t0 + 32 * 60e3, fetchFn, wait })).at, t0);
+  assert.equal(urls.length, tried);
+  down = false;
+  assert.equal((await seasonRow(env, 2026, { now: t0 + 42 * 60e3, fetchFn, wait })).at, t0 + 42 * 60e3);
 });
 
 test('Studio : résultats parus signalés une fois (post prêt), seulement pour un Grand Prix récent', async () => {
@@ -1066,6 +1085,10 @@ test('onglet Suivi : feuille « Suivi réseaux » remplie avec les chiffres du S
   ]);
   // Semaine sans ligne dans la feuille : rien d'inventé
   assert.equal(sheetUpdates(tables, accounts, { now: Date.UTC(2026, 9, 20) }).length, 0);
+  // Réseau en erreur ce lundi : ligne laissée vide (nouvel essai l'heure suivante) ; chiffre tapé à la main plus grand : gardé
+  const down = [{ name: 'Paddock Live', nets: { ...accounts[1].nets, youtube: { error: 'invalid_grant' } } }];
+  tables['Posts Paddock Live'][1][5] = '5000';
+  assert.deepEqual(sheetUpdates(tables, down, { history, kept, now }).map((o) => o.range), ["'Posts Paddock Live'!G2", "'Posts Paddock Live'!H2"]);
 });
 
 test('Suivi : lien d\'un post prévu retrouvé dans le journal (même réseau, même jour, heure la plus proche)', async () => {

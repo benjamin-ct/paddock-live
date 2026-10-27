@@ -82,6 +82,9 @@ export function sheetUpdates(tables, accounts, { history = [], kept = [], now = 
     const row = rows[r];
     const nets = head.map((h, i) => [i, NET_COLS[String(h).trim().toLowerCase()]]).filter(([i, n]) => i > 0 && n);
     if (!nets.every(([i]) => empty(row[i]))) continue;
+    // Un réseau en erreur (YouTube déconnecté…) : rien d'écrit, nouvel essai l'heure suivante (une ligne à moitié
+    // remplie ne serait plus complétée, et son total oublierait ce réseau)
+    if (nets.some(([, n]) => acc.nets?.[n]?.error)) continue;
     let total = 0, any = false;
     for (const [i, n] of nets) {
       const v = acc.nets?.[n]?.stats?.followers;
@@ -131,7 +134,8 @@ export function sheetUpdates(tables, accounts, { history = [], kept = [], now = 
     head.forEach((h, i) => {
       const keys = METRICS[String(h).trim().toLowerCase()];
       const v = keys && keys.map((k) => s[k]).find((x) => typeof x === 'number');
-      if (typeof v === 'number' && number(row[i]) !== v) out.push({ range: cell(tab, i, r + 1), values: [[v]] });
+      // Case vide ou chiffre plus petit seulement : un chiffre tapé à la main (plus récent, d'après le réseau) reste
+      if (typeof v === 'number' && (number(row[i]) == null || v > number(row[i]))) out.push({ range: cell(tab, i, r + 1), values: [[v]] });
     });
   });
   return out;

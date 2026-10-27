@@ -432,6 +432,17 @@ test('vidéo du créateur : Reel et Story Instagram envoyés tels quels, vidéo 
     // Couverture : adresse publique pour le Reel
     await reelInstagram(meta, video, 'Légende', 'https://img.test/cover.jpg');
     assert.equal(log.findLast((l) => l.path.endsWith('/ig1/media')).form.cover_url, 'https://img.test/cover.jpg');
+    // Publication refusée mais Reel en ligne quand même : repris sans erreur (« Réessayer » ne le republie pas)
+    let refused = false;
+    globalThis.fetch = async (url, opts = {}) => {
+      const u = new URL(url);
+      if (u.pathname.endsWith('/media_publish')) { refused = true; return new Response(JSON.stringify({ error: { code: 368, error_user_msg: 'Nous restreignons certaines activités afin de protéger notre communauté.' } }), { status: 400 }); }
+      if (refused && u.pathname.endsWith('/c1')) return new Response(JSON.stringify({ status_code: 'PUBLISHED' }));
+      if (u.pathname.endsWith('/ig1/media') && opts.method !== 'POST') return new Response(JSON.stringify({ data: [{ id: 'r9', permalink: 'https://example.test/reel/9', caption: 'Légende', timestamp: new Date().toISOString() }] }));
+      return ok(url, opts);
+    };
+    assert.deepEqual(await reelInstagram(meta, video, 'Légende'), { url: 'https://example.test/reel/9', id: 'r9' });
+    globalThis.fetch = ok;
     // Threads : lit la vidéo à l'adresse donnée
     const th = await publishThreadsVideo({ token: 'jt', userId: 'th1', username: 'moi' }, 'https://video.test/v.mp4', 'Texte');
     assert.equal(th.url, 'https://example.test/p/1');

@@ -11,7 +11,8 @@ import { readArticle } from '../shared/article.js';
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36';
 const KEEP_MS = 10 * 24 * 3600e3;
-const MAX_ITEMS = 1500;         // gardées dans une seule ligne de la base (moins de 2 Mo)
+const MAX_ITEMS = 1000;         // gardées dans une seule ligne de la base (2 Mo au plus : 956 Ko pour 1 500 le 27 oct.)
+const MAX_BYTES = 1.8e6;        // au-delà, les plus anciennes sont retirées (sinon l'écriture échoue et l'Actu se fige)
 const LIST = 800;               // envoyées à l'appli
 const PER_TICK = 8;             // sources lues à chaque passage (chaque minute)
 const F1_ONLY = /formula 1|formula one|\bf1\b|grand prix|formule 1/i;
@@ -132,7 +133,12 @@ export async function newsTick(env, { now = Date.now(), fetchFn = fetch } = {}) 
     await frTitles(env, recent, now);
     clusterNews(recent, { titleOf: (it) => it.fr || null });
     for (const s of due) rts[s.id].count = list.filter((it) => it.src === s.id).length;
-    await setRow(env, 'news:items', JSON.stringify(list));
+    let str = JSON.stringify(list);
+    while (new TextEncoder().encode(str).length > MAX_BYTES && list.length > LIST) {
+      list.length = Math.max(LIST, Math.floor(list.length * 0.9));   // les plus anciennes (liste du plus récent au plus ancien)
+      str = JSON.stringify(list);
+    }
+    await setRow(env, 'news:items', str);
   }
   await setRow(env, 'news:rt', JSON.stringify(rts));
   return { sources: due.length, added: added.length };
