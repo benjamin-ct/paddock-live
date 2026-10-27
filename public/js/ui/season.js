@@ -705,6 +705,8 @@ export function initSeason() {
     if (t) { h2hTeam = t.dataset.h2hTeam; render(); } else if (m) { h2hMode = m.dataset.h2hMode; render(); }
     const k = e.target.closest('[data-tr-kind]');
     if (k) { trKind = k.dataset.trKind; render(); }
+    const rs = e.target.closest('[data-rate-sort]');
+    if (rs) { rateSort = rs.dataset.rateSort; render(); }
   });
   $('#szContent').addEventListener('change', (e) => {
     const id = e.target.id;
@@ -713,7 +715,6 @@ export function initSeason() {
     else if (id === 'szDriver') drvCode = e.target.value;
     else if (id === 'szSpeedPt') speedPt = e.target.value;
     else if (id === 'szCircSort') circSort = e.target.value;
-    else if (id === 'szRateSort') rateSort = e.target.value;
     else if (id === 'szTechGp') setTechFilter(e.target.value, 'all');
     else if (id === 'szTechTeam') setTechFilter(undefined, e.target.value);
     else if (id === 'szTechOrig') toggleTechOriginal(e.target.checked);

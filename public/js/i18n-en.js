@@ -1573,6 +1573,7 @@ export default {
   "très long": "very long",
   "Trier": "Sort",
   "Trier par": "Sort by",
+  "Trier par cette colonne": "Sort by this column",
   "Tuile indisponible (HTTP {})": "Tile unavailable (HTTP {})",
   "Tuile invalide": "Invalid tile",
   "Turbo ·": "Turbo ·",
