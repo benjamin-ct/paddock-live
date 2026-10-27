@@ -56,7 +56,8 @@ async function gpWeekend(env, day) {
   return gp.on;
 }
 
-// { used : neurones du jour, top : plafond du jour (marge déduite) }
+// { used : neurones du jour, top : plafond du jour (marge déduite), gp : week-end de Grand Prix, spent : neurones payés
+// sur 30 jours, aujourd'hui compris, budget : AI_NEURON_MONTH }
 export async function neuronBudget(env, day) {
   const from = new Date(Date.parse(day) - 29 * DAY_MS).toISOString().slice(0, 10);
   const { results } = await env.DB.prepare('SELECT day, n FROM ai_usage WHERE day >= ?1 AND day <= ?2').bind(`neurons:${from}`, `neurons:${day}`).all();
@@ -65,8 +66,10 @@ export async function neuronBudget(env, day) {
     if (r.day === `neurons:${day}`) used = Number(r.n) || 0;
     else paid += Math.max(0, (Number(r.n) || 0) - FREE);
   }
-  const dayTop = (await gpWeekend(env, day)) ? Number(env.AI_NEURON_GP_DAY) || 70000 : Number(env.AI_NEURON_DAY) || 15000;
-  return { used, top: Math.min(dayTop, FREE + Math.max(0, (Number(env.AI_NEURON_MONTH) || 850000) - paid)) - MARGIN };
+  const gp = await gpWeekend(env, day);
+  const budget = Number(env.AI_NEURON_MONTH) || 850000;
+  const dayTop = gp ? Number(env.AI_NEURON_GP_DAY) || 70000 : Number(env.AI_NEURON_DAY) || 15000;
+  return { used, top: Math.min(dayTop, FREE + Math.max(0, budget - paid)) - MARGIN, gp, spent: paid + Math.max(0, used - FREE), budget };
 }
 
 // À la place de env.AI.run : refusé (erreur 4006, comme l'allocation épuisée de Cloudflare) passé le plafond, compté sinon

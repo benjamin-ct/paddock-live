@@ -29,8 +29,8 @@ test('IA : neurones comptés comme Cloudflare, pour chaque modèle utilisé', ()
 
 test('IA : plafond du jour plus haut les week-ends de Grand Prix, budget payé des 30 derniers jours', async () => {
   const f = fakeEnv();
-  assert.deepEqual(await neuronBudget(f.env, '2026-10-21'), { used: 0, top: 14000 }, 'jour ordinaire');
-  assert.deepEqual(await neuronBudget(f.env, '2026-10-30'), { used: 0, top: 69000 }, 'vendredi du Grand Prix');
+  assert.deepEqual(await neuronBudget(f.env, '2026-10-21'), { used: 0, top: 14000, gp: false, spent: 0, budget: 850000 }, 'jour ordinaire');
+  assert.deepEqual(await neuronBudget(f.env, '2026-10-30'), { used: 0, top: 69000, gp: true, spent: 0, budget: 850000 }, 'vendredi du Grand Prix');
   assert.equal((await neuronBudget(f.env, '2026-11-02')).top, 69000, 'lundi (course du dimanche soir en Amérique)');
   assert.equal((await neuronBudget(f.env, '2026-11-03')).top, 14000);
   // Plafonds de chaque usage agrandis le week-end : 100 un jour ordinaire -> 493, le quart (124) pour un même appelant
@@ -39,7 +39,7 @@ test('IA : plafond du jour plus haut les week-ends de Grand Prix, budget payé d
 
   // Budget payé : 17 000 neurones au-delà des gratuits sur les 30 derniers jours (le 20 septembre n'en fait plus partie)
   const g = fakeEnv({ AI_NEURON_MONTH: '20000' }, new Map([['neurons:2026-09-20', 900000], ['neurons:2026-10-20', 25000], ['neurons:2026-10-22', 12000], ['neurons:2026-10-23', 11000]]));
-  assert.deepEqual(await neuronBudget(g.env, '2026-10-23'), { used: 11000, top: 12000 });
+  assert.deepEqual(await neuronBudget(g.env, '2026-10-23'), { used: 11000, top: 12000, gp: false, spent: 18000, budget: 20000 }, 'payés : 15 000 + 2 000 + 1 000 aujourd\'hui');
   assert.equal(await aiQuota(g.env, { key: '2026-10-23', day: '2026-10-23', n: 1, limit: 100 }), false, 'dernier dixième gardé');
   assert.equal(await aiQuota(g.env, { key: 'radio:2026-10-23', day: '2026-10-23', n: 1, limit: 100 }), true);
   assert.equal(await aiQuota(g.env, { key: '2026-10-23|studio', day: '2026-10-23', n: 1, limit: 100 }), true);
