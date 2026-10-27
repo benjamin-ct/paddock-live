@@ -222,9 +222,10 @@ function render() {
   if (!view || view.hidden) return;
   const live = liveNow();
   const nx = nextSession();
-  // Hors saison (prochaine séance à plus de 3 semaines, ou calendrier pas encore publié) : la saison passée,
-  // les replays et l'actu (transferts, présentations des voitures) plutôt qu'un long compte à rebours
-  const off = !live && schedule && (!nx || nx.t - Date.now() > 21 * 86400e3);
+  // Hors saison (premier Grand Prix de la saison suivante à plus de 3 semaines, ou calendrier pas encore publié) : la
+  // saison passée, les replays et l'actu (transferts, présentations des voitures) plutôt qu'un long compte à rebours.
+  // Pas pendant la trêve d'été (prochaine manche de la même saison)
+  const off = !live && schedule && (!nx || (nx.t - Date.now() > 21 * 86400e3 && Number(nx.round) === 1));
   const past = nx ? nx.year - 1 : new Date().getFullYear();
   const card = off
     ? `<section class="hm-card hm-next hm-off"><div class="hm-next-main"><div class="hm-kicker"><span class="hm-tag">${t('Hors saison')}</span></div>

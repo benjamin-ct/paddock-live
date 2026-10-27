@@ -1391,7 +1391,7 @@ export default {
   "s'éloigne ({} s/tour)": "pulling away ({} s/lap)",
   "Saison": "Season",
   "Les pronostics se jouent dans un groupe en ligne : créez-en un (même seul, pour vous) ou rejoignez celui de vos amis avec son lien.": "Predictions are played in an online group: create one (even just for yourself) or join your friends' group with its link.",
-  "connexion perdue, nouvel essai dans 10 s": "connection lost, trying again in 10 s",
+  "connexion perdue, nouvel essai dans 30 s": "connection lost, trying again in 30 s",
   "Calendrier, classements et résultats de la saison": "Season calendar, standings and results",
   "Rubriques de la Saison": "Season sections",
   "Saison : calendrier, classements, résultats, statistiques": "Season: calendar, standings, results, statistics",

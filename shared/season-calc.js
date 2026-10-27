@@ -10,6 +10,9 @@ export const median = (a) => {
 };
 export const mean = (a) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : null);
 const classified = (x) => /^\d+$/.test(x?.posText || '');
+// Abandon (« R ») ou non classé (« N ») ; un disqualifié (« D »), exclu (« E »), non-partant (« W ») ou non qualifié
+// (« F ») n'a pas abandonné
+export const retired = (x) => /^[RN]$/.test(x?.posText || '');
 
 // Tours représentatifs d'un pilote dans une course : hors 1er tour, tours aux stands et sous
 // neutralisation, et sans les tours anormalement lents (> 107 % de sa médiane : trafic, incident…).
@@ -287,7 +290,7 @@ export function seasonReview(data) {
   let comeback = null, dnf = 0, poleWins = 0;
   for (const r of done) {
     for (const x of r.results) {
-      if (!classified(x)) { dnf++; continue; }
+      if (!classified(x)) { if (retired(x)) dnf++; continue; }
       const gain = x.grid ? x.grid - x.pos : 0;   // départ des stands (grille 0) : pas compté
       if (gain > (comeback?.gain || 0)) comeback = { name: x.name, last: x.last, code: x.code, team: x.team, teamId: x.teamId, gp: r.name, from: x.grid, to: x.pos, gain };
     }

@@ -12,9 +12,9 @@ l'application (Réglages → À propos → Nouveautés).
   (QR code dans Réglages → Alertes & favoris) ; sur iPhone, l'ajouter d'abord à l'écran d'accueil. Sans compte.
 
 ### Accueil
-- Hors saison (prochaine séance dans plus de 3 semaines, ou calendrier pas encore publié) : l'accueil met en avant
-  le bilan de la saison passée, les replays des courses et l'actu (transferts, nouvelles voitures), avec le
-  compte à rebours du premier Grand Prix dès que le calendrier est connu.
+- Hors saison (premier Grand Prix de la saison dans plus de 3 semaines, ou calendrier pas encore publié ; pas pendant
+  la trêve d'été) : l'accueil met en avant le bilan de la saison passée, les replays des courses et l'actu (transferts,
+  nouvelles voitures), avec le compte à rebours du premier Grand Prix dès que le calendrier est connu.
 - Mes favoris au championnat : pilotes et écuries séparés, colonnes alignées d'une ligne à l'autre.
 
 ### Traductions
@@ -23,6 +23,8 @@ l'application (Réglages → À propos → Nouveautés).
   Lando), termes techniques justes dans les évolutions des voitures (dérive, écope de frein, fond plat). Les radios
   d'équipe restent rapides ; un nom de pilote mal entendu par la transcription est corrigé (« Ghastly » → Gasly) et
   un passage incompréhensible peut apparaître en « […] » au lieu d'une phrase inventée.
+- Les traductions faites sur l'ordinateur par les anciennes versions (évolutions techniques des voitures, Actu) sont
+  refaites une fois par le serveur, avec les mêmes termes justes.
 
 ### Actu
 - Les actualités sont lues, triées et regroupées par sujet par le serveur de Paddock Live : plus rien n'est lu ni

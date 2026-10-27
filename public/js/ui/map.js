@@ -77,10 +77,12 @@ function ensureTrack() {
     if (trackKey !== k) return;
     track = t;
     store.positions.setTrack(t);
-    // Emplacement réel des boucles de chrono (calculé une fois par circuit par le serveur).
-    api(`/api/loops?key=${key}&year=${year}`).then((l) => { if (trackKey === k) store.positions.setLoops(l); }).catch(() => {});
-    // Zones ligne droite et ligne de détection (estimées une fois par circuit, peut prendre ~1 min)
-    api(`/api/zones?key=${key}&year=${year}`).then((z) => { if (trackKey === k) zones = z; }).catch(() => {});
+    // Emplacement réel des boucles de chrono, zones ligne droite et ligne de détection : calculés une fois par circuit
+    // par le serveur ; pas encore calculés (404) ou serveur injoignable : redemandés toutes les 2 minutes
+    const ask = (what, use) => api(`/api/${what}?key=${key}&year=${year}`)
+      .then((v) => { if (trackKey === k) use(v); }, () => setTimeout(() => { if (trackKey === k) ask(what, use); }, 120e3));
+    ask('loops', (l) => store.positions.setLoops(l));
+    ask('zones', (z) => { zones = z; });
     xf = null;
     $('#mapEmpty').hidden = true;
   }).catch((err) => {

@@ -7,7 +7,6 @@ import { bskySession } from '../shared/bluesky-publish.js';
 import { call, GRAPH, THREADS } from '../shared/meta-publish.js';
 import { YOUTUBE, tiktokOAuth, googleOAuth, tiktokTokens, youtubeTokens } from '../shared/video-publish.js';
 
-const XAPI = 'https://api.x.com/2';
 const TIKTOK = 'https://open.tiktokapis.com/v2';
 
 const conf = () => getConfig().social || {};
@@ -17,7 +16,6 @@ const save = (net, v) => saveConfig({ social: { ...conf(), [net]: v } });
 export function accountsInfo() {
   const c = conf();
   return {
-    x: { connected: !!c.x?.accessToken, name: c.x?.username || '' },
     facebook: { connected: !!c.meta?.pageToken, name: c.meta?.pageName || '' },
     instagram: { connected: !!c.meta?.igId, name: c.meta?.igUsername ? `@${c.meta.igUsername}` : '' },
     threads: { connected: !!c.threads?.token, name: c.threads?.username ? `@${c.threads.username}` : '', expiresAt: c.threads?.expiresAt || null },
@@ -38,12 +36,7 @@ export async function saveAccount(net, b) {
     saveConfig({ social: c });
     return accountsInfo();
   }
-  if (net === 'x') {
-    const k = { apiKey: str(b.apiKey), apiSecret: str(b.apiSecret), accessToken: str(b.accessToken), accessSecret: str(b.accessSecret) };
-    if (Object.values(k).some((v) => !v)) throw new Error('Les 4 clés sont nécessaires');
-    const me = await call(`${XAPI}/users/me`, { headers: { Authorization: oauth1('GET', `${XAPI}/users/me`, k) } });
-    save('x', { ...k, username: me?.data?.username ? `@${me.data.username}` : '' });
-  } else if (net === 'facebook' || net === 'instagram') {
+  if (net === 'facebook' || net === 'instagram') {
     const appId = str(b.appId); const appSecret = str(b.appSecret); const userToken = str(b.userToken, 1000);
     if (!appId || !appSecret || !userToken) throw new Error('Identifiant de l\'app, clé secrète et jeton nécessaires (ou « Se connecter avec Facebook »)');
     // Jeton longue durée, puis jeton de la page (sans date d'expiration) et compte Instagram relié
@@ -94,17 +87,6 @@ export async function saveAccount(net, b) {
     save('youtube', prev.clientId && prev.clientId !== clientId ? { clientId, clientSecret } : { ...prev, clientId, clientSecret });
   } else throw new Error('Réseau inconnu');
   return accountsInfo();
-}
-
-// ---------- X : signature OAuth 1.0a (corps JSON ou multipart : non signé) ----------
-const enc = (s) => encodeURIComponent(s).replace(/[!'()*]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
-export function oauth1(method, url, k, { nonce = crypto.randomBytes(16).toString('hex'), timestamp = Math.floor(Date.now() / 1000), params: extra = {} } = {}) {
-  const u = new URL(url);
-  const params = { oauth_consumer_key: k.apiKey, oauth_nonce: nonce, oauth_signature_method: 'HMAC-SHA1', oauth_timestamp: String(timestamp), oauth_token: k.accessToken, oauth_version: '1.0' };
-  const all = [...Object.entries(params), ...u.searchParams.entries(), ...Object.entries(extra)].map(([a, b]) => [enc(a), enc(b)]).sort((a, b) => (a[0] === b[0] ? (a[1] < b[1] ? -1 : 1) : a[0] < b[0] ? -1 : 1));
-  const base = [method.toUpperCase(), enc(`${u.origin}${u.pathname}`), enc(all.map(([a, b]) => `${a}=${b}`).join('&'))].join('&');
-  const sig = crypto.createHmac('sha1', `${enc(k.apiSecret)}&${enc(k.accessSecret)}`).update(base).digest('base64');
-  return `OAuth ${Object.entries({ ...params, oauth_signature: sig }).map(([a, b]) => `${enc(a)}="${enc(b)}"`).join(', ')}`;
 }
 
 const pending = new Map();   // state -> { verifier, redirect, at, second | net }

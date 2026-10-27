@@ -149,9 +149,10 @@ test('bilan de la saison : vainqueurs, poles, podiums, plus belle remontée, aba
   const { seasonReview } = await import('../shared/season-calc.js');
   const races = [
     { round: 1, name: 'GP 1', results: [res('A', 'x', 1, 25, 1), res('B', 'x', 2, 18, 12), res('C', 'y', 3, 15, 3), res('D', 'y', 4, 0, 4, 'R')], quali: [q('A', 'x', 1, [])] },
-    { round: 2, name: 'GP 2', results: [res('C', 'y', 1, 25, 5), res('A', 'x', 2, 18, 1), res('B', 'x', 3, 15, 2)], quali: [q('A', 'x', 1, [])] },
+    { round: 2, name: 'GP 2', results: [res('C', 'y', 1, 25, 5), res('A', 'x', 2, 18, 1), res('B', 'x', 3, 15, 2), res('D', 'y', 4, 0, 6, 'D'), res('E', 'y', 5, 0, 0, 'W')], quali: [q('A', 'x', 1, [])] },
     { round: 3, name: 'GP 3', results: [], quali: [] },
   ];
+  // Disqualifié (D) et non-partant (W) : pas des abandons
   const r = seasonReview({ races, drivers: [{ code: 'A', name: 'A', points: 43 }] });
   assert.deepEqual([r.races, r.done, r.winners, r.dnf, r.poleWins], [3, 2, 2, 1, 1]);
   assert.deepEqual(r.wins.map((x) => [x.code, x.n]), [['A', 1], ['C', 1]]);
