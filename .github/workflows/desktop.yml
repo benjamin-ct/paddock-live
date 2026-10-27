@@ -199,7 +199,7 @@ jobs:
           installers-regex: '-x64-win\.exe$'
           token: ${{ secrets.WINGET_TOKEN }}
       # Bêtas : les 3 dernières gardées ; version finale : ses bêtas effacées. Versions finales : les 10 dernières
-      # gardées (pages GitHub seulement, les tags git restent ; téléchargements et mises à jour prennent la dernière)
+      # gardées, page GitHub et tag git (téléchargements et mises à jour prennent la dernière)
       - name: Anciennes versions effacées
         continue-on-error: true
         env:
@@ -215,5 +215,5 @@ jobs:
           done
           gh release list --repo "$GITHUB_REPOSITORY" --exclude-pre-releases --exclude-drafts --limit 1000 --json tagName,createdAt \
             --jq 'sort_by(.createdAt) | reverse | .[10:] | .[].tagName' | while read -r t; do
-            [ -n "$t" ] && gh release delete "$t" --repo "$GITHUB_REPOSITORY" --yes
+            [ -n "$t" ] && gh release delete "$t" --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes
           done
