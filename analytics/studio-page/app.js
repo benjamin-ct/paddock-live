@@ -245,7 +245,7 @@ async function sessionsTab(body, { force, restore, current }) {
 }
 function renderSessions(body, list) {
   if (!list.length) {
-    body.innerHTML = `${yearPicker()}<div class="empty">${icon('flag')}<p>${session.me.f1tv ? 'Archives indisponibles pour le moment.' : 'Séances indisponibles : il faut un abonnement F1 TV. Dans l\'appli de bureau, connectez F1 TV (Réglages, Compte F1 TV), puis renvoyez les comptes au Studio (Posts, Publier, Comptes).'}</p></div>`;
+    body.innerHTML = `${yearPicker()}<div class="empty">${icon('flag')}<p>${session.me.f1tv ? 'Archives indisponibles pour le moment.' : 'Séances indisponibles : il faut un abonnement F1 TV. Dans l\'appli de bureau, connectez F1 TV (Réglages, Compte F1 TV), puis renvoyez les comptes au Studio (Réglages, Mode créateur, Comptes…).'}</p></div>`;
     bindYear(body, () => sessionsTab(body, { current: () => body.isConnected }));
     return;
   }
@@ -572,7 +572,7 @@ function settings() {
     <p class="hint">Page non listée : envoie le lien avec un des messages.</p>
     <h3 class="section">Posts</h3><label class="field"><span>Signature des visuels et des textes <small>(gardée sur cet appareil)</small></span><input type="text" id="sigin" maxlength="40" value="${esc(SIG)}" placeholder="${esc(SIG_DEFAULT)}"></label>
     <h3 class="section">Comptes</h3><div class="group">${accounts.map(([n, v]) => `<div class="row-item static"><span class="grow"><b>${esc(n)}</b><small>${esc(v || 'non connecté')}</small></span><span class="state ${v ? 'on' : ''}"></span></div>`).join('')}</div>
-    <p class="hint">Comptes envoyés par l'appli de bureau (Posts → Publier… → Comptes…).</p>
+    <p class="hint">Comptes envoyés par l'appli de bureau (Réglages → Mode créateur → Comptes…).</p>
     ${me.f1tv ? `<h3 class="section">Relier un téléphone à F1 TV</h3><div class="group">
       <div class="row-item static"><span class="grow"><b>Ton compte F1 TV sur un autre appareil</b><small>Sur le téléphone, ouvre Paddock Live (app.paddocklive.app), touche « Connexion F1 TV » et lis le code à 6 chiffres.</small></span></div>
       <div class="row-item"><input id="pairCode" type="text" class="grow pair-code-in" inputmode="numeric" autocomplete="off" maxlength="6" placeholder="Code à 6 chiffres"><button class="btn small btn-accent" id="pairGo">Relier</button></div></div>

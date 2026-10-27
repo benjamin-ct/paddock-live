@@ -41,7 +41,7 @@
   ne pourrait plus être déployé.
 - **Worker compatible avec les anciennes applis** : il n'y a qu'un Worker, toujours à la dernière version, alors que
   les applis installées (version finale, bêtas) peuvent avoir du retard. Les adresses que l'appli appelle (`/studio/api/…`
-  dans `server/studio-sync.js` et `server/post-history.js`, `/e`, `/f`, `/t`, `/r`, `/p/api`) gardent leurs noms, leurs
+  dans `server/studio-sync.js`, et celles de l'ancien `server/post-history.js` pour les applis jusqu'à la 1.28, `/e`, `/f`, `/t`, `/r`, `/p/api`) gardent leurs noms, leurs
   paramètres et leurs réponses : on ajoute sans retirer ni changer, et on ne supprime une ancienne forme que quand
   plus aucune version publiée ne l'utilise.
 - **Suivi dans Google Drive** (connecteurs Google Drive, Docs et Sheets) : après chaque action (code fusionné,

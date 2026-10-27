@@ -6,25 +6,21 @@ import { WebSocketServer } from 'ws';
 import { Hub } from './hub.js';
 import { LiveSource } from './live.js';
 import { ReplaySource, seasonIndex } from './replay.js';
-import { parseRaceControl } from '../shared/race-story.js';
 import { HttpError } from './net.js';
 import { circuit, loops, zones } from './circuits.js';
-import { season, raceLaps } from './season.js';
-import { createScheduler } from './post-schedule.js';
+import { season } from './season.js';
 import { forecast } from './forecast.js';
 import { seasonStats, archiveError } from './race-stats.js';
 import { seasonTech } from './fia-tech.js';
 import { fiaDocuments, fiaPdf, fiaPdfUrl } from './fia.js';
-import { officialGrid } from './fia-grid.js';
 import { findSessionContent, playback, proxy as f1tvProxy, allowHost, resolvePlaylist, localTarget } from './f1tv.js';
 import { Recorder, listRecordings, pruneRecordings, recordingPath } from './recorder.js';
-import { ROOT, DATA_DIR, settings, getConfig, saveConfig, parseF1tvToken, tokenInfo } from './config.js';
+import { ROOT, settings, getConfig, saveConfig, parseF1tvToken, tokenInfo } from './config.js';
 import { createLan, isLoopback, qrSvg } from './lan.js';
 import { getTranslations, addTranslations } from './translations.js';
 import { compareLaps } from './compare.js';
 import { weekendTyres } from './tyres.js';
 import { circuitRecords } from './records.js';
-import { circuitInfo } from '../shared/circuits-info.js';
 import { startNews, refreshNews, newsSnapshot, onNews, addNewsSource, removeNewsSource, setNewsSourceEnabled, setClusterTitle } from './news.js';
 import { parseChangelog } from '../shared/changelog.js';
 import { buildIcs } from '../shared/ics.js';
@@ -33,21 +29,19 @@ import { osmTile } from './tiles.js';
 import { predictionsView, savePrediction, pronosOnline } from './predict.js';
 import { lightsInfo, saveLights, hueDiscover, huePair, lightDevices, setLights } from './lights.js';
 import { exportServerSettings, importServerSettings } from './backup.js';
-import { creatorEnabled, setCreator, savePostImage, openPostsDir } from './creator.js';
-import { studioInfo, enableStudio, disableStudio, restoreAccounts, syncStudio, startStudioSync, studioRewrite, studioTrack, studioDrafts } from './studio-sync.js';
-import { postHistory, recordPost, removePost, statsOfPosts, importPosts } from './post-history.js';
-import { accountsInfo, saveAccount, tiktokLoginUrl, tiktokCallback, youtubeLoginUrl, youtubeCallback, metaLoginUrl, metaCallback, publish as publishSocial } from './social-publish.js';
+import { creatorEnabled, setCreator } from './creator.js';
+import { studioInfo, enableStudio, disableStudio, restoreAccounts, syncStudio, startStudioSync } from './studio-sync.js';
+import { accountsInfo, saveAccount, tiktokLoginUrl, tiktokCallback, youtubeLoginUrl, youtubeCallback, metaLoginUrl, metaCallback } from './social-publish.js';
 import { startAutoRenew, renew as renewF1tv, sessionOf, state as renewState, resetRenewState } from './f1tv-auth.js';
 import { localHost, sameSiteRequest, decodePath, extensionRequest, EXTENSION_ROUTES } from './guard.js';
 import { stats, startStats, sendFeedback, sendFeedbackFile } from './stats.js';
-import { archivePath, sendArchiveFile, archiveJSON } from './archive.js';
+import { archivePath, sendArchiveFile } from './archive.js';
 import { feedDiag } from './feed-diag.js';
 import { probeState } from './feed-probe.js';
 import { cloud, createCloudTranslator } from './cloud-translate.js';
 import { cloudRadio } from './cloud-transcribe.js';
 import { createNewsTranslator, startNewsTranslation } from './news-translate.js';
 import { createArticleReader } from './article.js';
-import { createNewsSummarizer } from './news-summary.js';
 
 let lan = null;   // accès depuis un téléphone / une tablette du réseau local
 
@@ -83,13 +77,6 @@ const replay = new ReplaySource(hub);
 const feedDiags = new Map();   // diagnostic des données F1, par séance
 // Articles de l'Actu lus dans l'appli (server/article.js)
 const articles = createArticleReader({ items: () => newsSnapshot().items });
-const summarize = createNewsSummarizer({ articles });
-// Publications programmées : publiées à l'heure choisie tant que l'appli est ouverte
-const scheduler = createScheduler({
-  dir: path.join(DATA_DIR, 'scheduled-posts'),
-  publish: (net, body) => { if (!creatorEnabled()) throw new Error('Mode créateur désactivé'); return publishSocial(net, body); },
-  record: recordPost,
-});
 
 // Actualités traduites d'avance (server/news-translate.js)
 const newsTranslator = createNewsTranslator({
@@ -362,98 +349,19 @@ async function handleApi(req, res, url) {
       return sendJSON(res, 200, importServerSettings(await readBody(req)));
     }
 
-    // Mode créateur : publication sur les réseaux sociaux (comptes, connexion TikTok, envoi)
+    // Mode créateur : comptes des réseaux sociaux (connexions) et page web du Studio, qui prépare et publie les posts
     case 'GET /api/social/accounts':
     case 'POST /api/social/accounts':
     case 'POST /api/social/tiktok/login':
     case 'POST /api/social/meta/login':
     case 'POST /api/social/tiktok2/login':
     case 'POST /api/social/youtube/login':
-    case 'POST /api/social/publish':
     case 'GET /api/social/studio':
-    case 'POST /api/social/studio':
-    case 'GET /api/social/stats':
-    case 'GET /api/social/history':
-    case 'GET /api/social/grid':
-    case 'POST /api/social/summary':
-    case 'POST /api/social/rewrite':
-    case 'POST /api/social/links':
-    case 'GET /api/social/laps':
-    case 'GET /api/social/records':
-    case 'GET /api/social/racecontrol':
-    case 'GET /api/social/forecast':
-    case 'GET /api/social/schedule':
-    case 'POST /api/social/schedule':
-    case 'POST /api/social/schedule/cancel':
-    case 'POST /api/social/history':
-    case 'POST /api/social/history/remove':
-    case 'POST /api/social/history/import':
-    case 'GET /api/social/drafts':
-    case 'GET /api/social/draft':
-    case 'POST /api/social/drafts':
-    case 'POST /api/social/drafts/remove': {
+    case 'POST /api/social/studio': {
       if (!isLoopback(req.socket.remoteAddress) || !creatorEnabled()) return sendJSON(res, 403, { error: 'Mode créateur désactivé' });
       try {
         if (route === 'GET /api/social/accounts') return sendJSON(res, 200, accountsInfo());
         if (route === 'GET /api/social/studio') return sendJSON(res, 200, studioInfo());
-        if (route === 'GET /api/social/history') return sendJSON(res, 200, { items: await postHistory() });
-        if (route === 'GET /api/social/stats') return sendJSON(res, 200, await statsOfPosts());
-        // Grille de départ officielle (FIA) pour les posts d'avant-course
-        if (route === 'GET /api/social/grid') {
-          const q = url.searchParams;
-          const meeting = { name: q.get('name') || '', country: q.get('country') || '', location: q.get('location') || '' };
-          if (!Number(q.get('year')) || !meeting.name) return sendJSON(res, 400, { error: 'Paramètres year et name requis' });
-          return sendJSON(res, 200, { grid: await officialGrid(Number(q.get('year')), meeting, { sprint: q.get('sprint') === '1' }) });
-        }
-        // Course tour par tour (graphique des positions, vidéo animée, rythme des notes)
-        if (route === 'GET /api/social/laps') return sendJSON(res, 200, await raceLaps(yearOf(url.searchParams.get('year')), Math.max(1, Math.min(30, Number(url.searchParams.get('round')) || 1))));
-        // Records du circuit d'une manche (le saviez-vous) : circuit retrouvé dans les archives de la F1
-        if (route === 'GET /api/social/records') {
-          const year = yearOf(url.searchParams.get('year'));
-          const race = (await season(year)).races.find((r) => r.round === Number(url.searchParams.get('round')));
-          if (!race) return sendJSON(res, 404, { error: 'Manche inconnue' });
-          let key = circuitInfo(race.circuitId)?.key || null;
-          let failed = null;
-          for (const y of key ? [] : [year, year - 1, year - 2]) {
-            let idx = [];
-            try { idx = await seasonIndex(y); } catch (err) { failed ||= err; }
-            key = idx.find((m) => m.name === race.name && m.circuitKey)?.circuitKey || null;
-            if (key) break;
-          }
-          if (!key) return sendJSON(res, 404, { error: failed ? archiveError(year, failed) : 'Circuit introuvable dans les archives de la F1' });
-          return sendJSON(res, 200, await circuitRecords(key, year));
-        }
-        // Direction de course de la course (SC, VSC, drapeaux, pénalités) : vidéo animée
-        if (route === 'GET /api/social/racecontrol') {
-          const year = yearOf(url.searchParams.get('year'));
-          const race = (await season(year)).races.find((r) => r.round === Number(url.searchParams.get('round')));
-          if (!race) return sendJSON(res, 404, { error: 'Manche inconnue' });
-          const idx = await seasonIndex(year);
-          const ses = idx.find((m) => m.name === race.name)?.sessions.find((s) => s.type === 'Race' && !/sprint/i.test(s.name));
-          if (!ses) return sendJSON(res, 404, { error: 'Course introuvable dans les archives de la F1' });
-          return sendJSON(res, 200, { messages: parseRaceControl(await archiveJSON(`${ses.path}RaceControlMessages.json`, { timeout: 30000 })) });
-        }
-        // Météo prévue sur le circuit (programme du week-end)
-        if (route === 'GET /api/social/forecast') return sendJSON(res, 200, { days: await forecast(url.searchParams.get('lat'), url.searchParams.get('lon')) });
-        // Publications programmées
-        if (route === 'GET /api/social/schedule') return sendJSON(res, 200, { items: scheduler.list() });
-        if (route === 'POST /api/social/schedule') return sendJSON(res, 200, { item: scheduler.add(await readBody(req, 150e6)) });
-        if (route === 'POST /api/social/schedule/cancel') { scheduler.cancel((await readBody(req, 1e4)).id); return sendJSON(res, 200, { items: scheduler.list() }); }
-        // Résumé détaillé d'une news en points clés (images suivantes du post)
-        // Post écrit à la main : titre, résumé et points clés rédigés par l'IA à partir du texte
-        // Texte avec ses liens suivis (pages des réseaux ouvertes avec le texte : X…)
-        if (route === 'POST /api/social/links') { const b = await readBody(req, 2e4); return sendJSON(res, 200, await studioTrack(String(b.net || ''), String(b.text || ''), '', { title: String(b.title || '').slice(0, 80) })); }
-        if (route === 'POST /api/social/rewrite') return sendJSON(res, 200, await studioRewrite((await readBody(req, 2e4)).text));
-        if (route === 'POST /api/social/summary') return sendJSON(res, 200, { points: await summarize(String((await readBody(req, 1e4)).link || '')) });
-        if (route === 'POST /api/social/history') return sendJSON(res, 200, { items: await recordPost((await readBody(req, 1e5)).entry) });
-        if (route === 'POST /api/social/history/remove') return sendJSON(res, 200, { items: await removePost((await readBody(req, 1e4)).key) });
-        // Posts publiés hors de Paddock Live : relus sur les comptes reliés (page web)
-        if (route === 'POST /api/social/history/import') return sendJSON(res, 200, await importPosts());
-        // Brouillons de posts (gardés par la page web, partagés avec le Studio)
-        if (route === 'GET /api/social/drafts') return sendJSON(res, 200, await studioDrafts('drafts'));
-        if (route === 'GET /api/social/draft') return sendJSON(res, 200, await studioDrafts(`draft?id=${encodeURIComponent(url.searchParams.get('id') || '')}`));
-        if (route === 'POST /api/social/drafts') return sendJSON(res, 200, await studioDrafts('drafts', await readBody(req, 4e6)));
-        if (route === 'POST /api/social/drafts/remove') return sendJSON(res, 200, await studioDrafts('drafts/remove', await readBody(req, 1e4)));
         if (route === 'POST /api/social/studio') {
           const b = await readBody(req, 1e4);
           return sendJSON(res, 200, b.off ? await disableStudio() : b.sync ? (await syncStudio({ force: true }), studioInfo()) : await enableStudio(String(b.code || '')));
@@ -462,78 +370,28 @@ async function handleApi(req, res, url) {
         if (route === 'POST /api/social/tiktok/login') return sendJSON(res, 200, { url: tiktokLoginUrl(`http://127.0.0.1:${req.socket.localPort}`) });
         if (route === 'POST /api/social/tiktok2/login') return sendJSON(res, 200, { url: tiktokLoginUrl(`http://127.0.0.1:${req.socket.localPort}`, true) });
         if (route === 'POST /api/social/youtube/login') return sendJSON(res, 200, { url: youtubeLoginUrl(`http://127.0.0.1:${req.socket.localPort}`) });
-        const body = await readBody(req, route === 'POST /api/social/publish' ? 120e6 : 1e6);
-        if (route === 'POST /api/social/accounts') {
-          const info = await saveAccount(String(body.network || ''), body);
-          syncStudio();   // page web du créateur : comptes à jour
-          return sendJSON(res, 200, info);
-        }
-        return sendJSON(res, 200, await publishSocial(String(body.network || ''), body));
+        const body = await readBody(req, 1e6);
+        const info = await saveAccount(String(body.network || ''), body);
+        syncStudio();   // page web du créateur : comptes à jour
+        return sendJSON(res, 200, info);
       } catch (err) {
         return sendJSON(res, 400, { error: err.message });
       }
-    }
-
-    // Traduction par le serveur Paddock Live (Workers AI) : { to, items: [{ text, from }] } -> { out }
-    case 'POST /api/translate': {
-      const body = await readBody(req, 128e3);
-      if (!Array.isArray(body.items) || typeof body.to !== 'string') return sendJSON(res, 400, { error: 'Requête invalide' });
-      if (!cloud.available()) return sendJSON(res, 503, { error: 'Traduction en ligne indisponible' });
-      const out = await Promise.all(body.items.slice(0, 80).map((it) => cloud.translate(it?.text, it?.from, body.to)));
-      // Plafond du jour atteint ou serveur injoignable pendant l'envoi : l'interface traduit elle-même
-      if (!cloud.available()) return sendJSON(res, 503, { error: 'Traduction en ligne indisponible', out });
-      return sendJSON(res, 200, { out });
-    }
-
-    // Transcription d'une radio d'équipe par le serveur Paddock Live : ?u=<adresse d'archive> -> { text, d }
-    case 'GET /api/radio-text': {
-      const rel = archivePath(url.searchParams.get('u') || '');
-      if (!rel || !/^\d{4}\/[\w\-./]+\.(mp3|m4a|aac)$/i.test(rel) || rel.includes('..')) return sendJSON(res, 400, { error: 'Radio invalide' });
-      if (!cloudRadio.available()) return sendJSON(res, 503, { error: 'Transcription en ligne indisponible' });
-      try {
-        const r = await cloudRadio.transcribe(rel);
-        return r ? sendJSON(res, 200, r) : sendJSON(res, 503, { error: 'Transcription en ligne indisponible' });
-      } catch (err) {
-        return sendJSON(res, err.status || 502, { error: err.message });
-      }
-    }
-
-    // Statistiques d'utilisation anonymes : l'accord se donne sur l'ordinateur ; toutes les
-    // fenêtres (téléphone compris) signalent les fonctions utilisées si c'est accepté
-    case 'GET /api/stats':
-      return sendJSON(res, 200, { ...stats.state(), canSet: isLoopback(req.socket.remoteAddress) });
-    case 'POST /api/stats': {
-      if (!isLoopback(req.socket.remoteAddress)) return sendJSON(res, 403, { error: 'Réglage disponible uniquement sur l\'ordinateur' });
-      const body = await readBody(req);
-      if (typeof body.on !== 'boolean') return sendJSON(res, 400, { error: 'Réglage invalide' });
-      stats.set(body.on);
-      return sendJSON(res, 200, stats.state());
     }
     case 'POST /api/stats/events': {
       const body = await readBody(req, 64e3);
       return sendJSON(res, 200, { added: stats.fromClient(body.events, body.device, body.errors) });
     }
 
-    // Mode créateur (générateur de posts) : depuis cet ordinateur uniquement
+    // Mode créateur : depuis cet ordinateur uniquement
     case 'GET /api/creator':
       return sendJSON(res, 200, { enabled: isLoopback(req.socket.remoteAddress) && creatorEnabled() });
-    case 'POST /api/creator':
-    case 'POST /api/posts/save':
-    case 'POST /api/posts/open': {
+    case 'POST /api/creator': {
       if (!isLoopback(req.socket.remoteAddress)) return sendJSON(res, 403, { error: 'Réglage disponible uniquement sur l\'ordinateur' });
-      const body = await readBody(req, route === 'POST /api/posts/save' ? 120e6 : 1e6);
-      if (route === 'POST /api/creator') {
-        if (body.off) return sendJSON(res, 200, { enabled: setCreator(null, false) });
-        if (!setCreator(body.code)) return sendJSON(res, 403, { error: 'Code incorrect' });
-        return sendJSON(res, 200, { enabled: true, restored: await restoreAccounts(body.code) });
-      }
-      if (!creatorEnabled()) return sendJSON(res, 403, { error: 'Mode créateur désactivé' });
-      try {
-        if (route === 'POST /api/posts/open') return sendJSON(res, 200, { dir: openPostsDir(body.folder) });
-        return sendJSON(res, 200, { dir: savePostImage(body.folder, body.name, body.data) });
-      } catch (err) {
-        return sendJSON(res, 400, { error: err.message });
-      }
+      const body = await readBody(req, 1e6);
+      if (body.off) return sendJSON(res, 200, { enabled: setCreator(null, false) });
+      if (!setCreator(body.code)) return sendJSON(res, 403, { error: 'Code incorrect' });
+      return sendJSON(res, 200, { enabled: true, restored: await restoreAccounts(body.code) });
     }
 
     // Pronostics entre amis (pole et podium de chaque Grand Prix)

@@ -61,26 +61,6 @@ async function post(path, body, key, fetchFn = fetch, timeout = 20000) {
   return j;
 }
 
-// Post écrit à la main dans l'appli : mise en forme par l'IA du serveur, comme sur la page web
-export async function studioRewrite(text, { fetchFn } = {}) {
-  const key = getConfig().studio?.key;
-  if (!key) throw new Error('Mise en forme par l\'IA : activez d\'abord la page web (Publier sur mes réseaux → Comptes… → Page web)');
-  return post('rewrite', { text: String(text || '').slice(0, 4000) }, key, fetchFn, 90000);
-}
-
-// Liens suivis par le serveur (clics comptés dans les statistiques du Studio) ; page web désactivée ou
-// serveur injoignable : textes tels quels
-export async function studioTrack(net, text = '', comment = '', { fetchFn, title } = {}) {
-  const key = getConfig().studio?.key;
-  if (!key || !/https?:\/\//.test(`${text} ${comment}`)) return { text, comment };
-  try {
-    const r = await post('links', { net, text, comment, ...(title ? { title } : {}) }, key, fetchFn, 8000);
-    return { text: typeof r.text === 'string' ? r.text : text, comment: typeof r.comment === 'string' ? r.comment : comment };
-  } catch {
-    return { text, comment };
-  }
-}
-
 export function studioInfo() {
   const st = getConfig().studio;
   return { enabled: !!st?.key, url: STUDIO_PAGE, at: st?.at || null, error: st?.error || null, f1tv: !!studioVault().f1tv, backup: !!st?.box };
@@ -149,33 +129,6 @@ export async function syncStudio({ force = false, fetchFn } = {}) {
     saveConfig({ studio: { ...st, error: err.status === 401 || err.status === 409 ? 'Page à réactiver (code changé ou données effacées)' : err.message } });
     return false;
   }
-}
-
-// Requête authentifiée vers la page web (si activée) ; null si désactivée ou injoignable
-export async function studioCall(path, { body, fetchFn = fetch, timeout = 15000 } = {}) {
-  const st = getConfig().studio;
-  if (!st?.key || !creatorEnabled()) return null;
-  try {
-    const res = await fetchFn(`${STUDIO_URL}/studio/api/${path}`, {
-      method: body ? 'POST' : 'GET', headers: { 'X-Studio-Key': st.key, ...(body ? { 'Content-Type': 'application/json' } : {}) },
-      body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(timeout),
-    });
-    return res.ok ? await res.json() : null;
-  } catch { return null; }
-}
-
-// Brouillons de posts, gardés par la page web (partagés avec le Studio) : réponse du serveur, ou son
-// message d'erreur
-export async function studioDrafts(path, body = null, { fetchFn = fetch } = {}) {
-  const st = getConfig().studio;
-  if (!st?.key || !creatorEnabled()) throw new Error('Activez la page web (téléphone) dans « Publier… » pour garder des brouillons');
-  const res = await fetchFn(`${STUDIO_URL}/studio/api/${path}`, {
-    method: body ? 'POST' : 'GET', headers: { 'X-Studio-Key': st.key, ...(body ? { 'Content-Type': 'application/json' } : {}) },
-    body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(30000),
-  });
-  const j = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(j.error || `Page web indisponible (${res.status})`);
-  return j;
 }
 
 export function startStudioSync() {

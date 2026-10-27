@@ -5,8 +5,13 @@ import os from 'node:os';
 import path from 'node:path';
 
 process.env.PADDOCK_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'paddock-social-'));
-const { oauth1, accountsInfo, saveAccount, publish, timing, youtubeLoginUrl, youtubeCallback, youtubeSnippet, tiktokLoginUrl, tiktokCallback, metaLoginUrl, metaCallback, META_REDIRECT } = await import('../server/social-publish.js');
-const { saveConfig } = await import('../server/config.js');
+const { oauth1, accountsInfo, saveAccount, youtubeLoginUrl, youtubeCallback, tiktokLoginUrl, tiktokCallback, metaLoginUrl, metaCallback, META_REDIRECT } = await import('../server/social-publish.js');
+const { saveConfig, getConfig } = await import('../server/config.js');
+const { timing, publishFacebook, publishInstagram, publishThreads, withComment } = await import('../shared/meta-publish.js');
+const { publishBluesky, replyBluesky } = await import('../shared/bluesky-publish.js');
+const { youtubeSnippet, youtubeUpload } = await import('../shared/video-publish.js');
+// Images envoyées par le Studio (PNG en base64), avec leur texte alternatif
+const blobs = (images, alts = []) => images.map((b, i) => Object.assign(new Blob([Buffer.from(b, 'base64')], { type: 'image/png' }), { alt: alts[i] || '' }));
 
 test('X : signature OAuth 1.0a (exemple de la documentation de X)', () => {
   const k = { apiKey: 'xvz1evFS4wEEPTGEFPHBog', apiSecret: 'kAcSOqF21Fu85e7zjz7ZN2U4ZRhfV3WpwPAoE3Z7kBw', accessToken: '370773112-GmHxMAgYyLbNEtIKZeRNFsMKPR9EyMZeS9weJAEb', accessSecret: 'LswwdoUaIvS8ltyTt5jkRh4J50vUPVVHtR2YPi5kE' };
@@ -82,12 +87,13 @@ const PNG = (k) => Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0
 test('Threads et Instagram : chaque image du carrousel est prête avant le carrousel, images déposées une seule fois', async () => {
   const realFetch = globalThis.fetch;
   Object.assign(timing, { poll: 1, maxPoll: 1, readyMs: 2000, visible: [] });
-  saveConfig({ social: { meta: { pageId: 'page1', pageToken: 'jp', igId: 'ig1', igUsername: 'moi' }, threads: { token: 'jt', userId: 'th1', username: 'moi' } } });
+  const meta = { pageId: 'page1', pageToken: 'jp', igId: 'ig1', igUsername: 'moi' };
+  const th1 = { token: 'jt', userId: 'th1', username: 'moi' };
   try {
     const { log } = fakeMeta();
     const images = [PNG(1), PNG(2), PNG(3)];
     const alts = ['Podium : 1. Norris', 'Classement', 'Faits marquants'];
-    const th = await publish('threads', { text: 'Bonjour', images, alts });
+    const th = await publishThreads(th1, meta, 'Bonjour', blobs(images, alts));
     assert.equal(th.url, 'https://example.test/p/1');
     const kids = log.filter((l) => l.form.is_carousel_item === 'true');
     assert.equal(kids.length, 3);
@@ -100,7 +106,7 @@ test('Threads et Instagram : chaque image du carrousel est prête avant le carro
 
     // Instagram juste après : mêmes images, rien de redéposé sur la page
     log.length = 0;
-    const ig = await publish('instagram', { text: 'Légende', images, alts });
+    const ig = await publishInstagram(meta, 'Légende', blobs(images, alts));
     assert.equal(ig.url, 'https://example.test/p/1');
     assert.equal(log.filter((l) => l.path.endsWith('/photos')).length, 0);
     assert.equal(log.find((l) => l.form.media_type === 'CAROUSEL').form.caption, 'Légende');
@@ -109,7 +115,7 @@ test('Threads et Instagram : chaque image du carrousel est prête avant le carro
 
     // Facebook : nouvel envoi (une photo jointe à un post ne peut pas l'être à un autre)
     log.length = 0;
-    await publish('facebook', { text: 'Post', images, alts });
+    await publishFacebook(meta, 'Post', blobs(images, alts));
     assert.equal(log.filter((l) => l.path.endsWith('/photos')).length, 3);
     assert.deepEqual(log.filter((l) => l.path.endsWith('/photos')).map((l) => l.form.alt_text_custom).sort(), [...alts].sort());
     assert.equal(Object.keys(log.find((l) => l.path.endsWith('/feed')).form).filter((k) => k.startsWith('attached_media')).length, 3);
@@ -167,12 +173,12 @@ test('Stories Instagram et Facebook : une story par image, dans l\'ordre', async
 test('Threads et Instagram : image refusée par le réseau, message clair', async () => {
   const realFetch = globalThis.fetch;
   Object.assign(timing, { poll: 1, maxPoll: 1, readyMs: 2000, visible: [] });
-  saveConfig({ social: { meta: { pageId: 'page2', pageToken: 'jp', igId: 'ig1' }, threads: { token: 'jt', userId: 'th1' } } });
+  const meta = { pageId: 'page2', pageToken: 'jp', igId: 'ig1' };
   try {
     fakeMeta({ errorOn: 'c5' });   // 3 dépôts (ph1-3), 1re image c4, 2e image c5
-    await assert.rejects(publish('threads', { text: 'x', images: [PNG(4), PNG(5), PNG(6)] }), /Image 2 refusé : Image illisible/);
+    await assert.rejects(publishThreads({ token: 'jt', userId: 'th1' }, meta, 'x', blobs([PNG(4), PNG(5), PNG(6)])), /Image 2 refusé : Image illisible/);
     fakeMeta({ errorOn: 'c2' });   // images déjà déposées : 1re image c1, 2e image c2
-    await assert.rejects(publish('instagram', { text: 'x', images: [PNG(4), PNG(5), PNG(6)] }), /Image 2 refusé : Error: Media download has failed/);
+    await assert.rejects(publishInstagram(meta, 'x', blobs([PNG(4), PNG(5), PNG(6)])), /Image 2 refusé : Error: Media download has failed/);
   } finally {
     globalThis.fetch = realFetch;
   }
@@ -198,8 +204,9 @@ test('Bluesky : images, liens et hashtags cliquables, lien de l\'article en rép
     await assert.rejects(saveAccount('bluesky', { handle: 'moi.bsky.social', appPassword: 'faux' }), /Invalid identifier/);
     await saveAccount('bluesky', { handle: '@moi.bsky.social', appPassword: 'mdp-app' });
     assert.equal(accountsInfo().bluesky.name, '@moi.bsky.social');
-    const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 4, 5]).toString('base64');
-    const r = await publish('bluesky', { text: 'TRANSFERT | Titre #F1 #BenjyPaddock', images: [jpeg, jpeg], comment: "Lire l'article : https://a.test/x" });
+    const acc = getConfig().social.bluesky;
+    const jpeg = { blob: new Blob([Buffer.from([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 4, 5])], { type: 'image/jpeg' }), width: 1080, height: 1350, alt: '' };
+    const r = await withComment(() => publishBluesky(acc, 'TRANSFERT | Titre #F1 #BenjyPaddock', [jpeg, jpeg]), "Lire l'article : https://a.test/x", (id, t) => replyBluesky(acc, id, t));
     assert.equal(r.url, 'https://bsky.app/profile/moi.bsky.social/post/r1');
     assert.equal(r.comment, true);
     assert.deepEqual(uploads, ['image/jpeg', 'image/jpeg']);
@@ -300,9 +307,8 @@ test('YouTube : titre et description du Short (1re ligne, 100 caractères, sans 
   assert.equal(youtubeSnippet('').title, 'Paddock');
 });
 
-test('YouTube : connexion Google (PKCE), Short envoyé en privé, reconnexion demandée si l\'accès expire', async () => {
+test('YouTube : connexion Google (PKCE), Short envoyé en privé', async () => {
   const realFetch = globalThis.fetch;
-  const { getConfig } = await import('../server/config.js');
   await assert.rejects(saveAccount('youtube', { clientId: 'abc', clientSecret: 's' }), /apps\.googleusercontent\.com/);
   await saveAccount('youtube', { clientId: '123-abc.apps.googleusercontent.com', clientSecret: 'secret-g' });
   assert.deepEqual(accountsInfo().youtube, { connected: false, name: '', configured: true });
@@ -314,7 +320,6 @@ test('YouTube : connexion Google (PKCE), Short envoyé en privé, reconnexion de
   assert.match(login.searchParams.get('scope'), /youtube\.upload/);
   assert.equal(login.searchParams.get('access_type'), 'offline');
   const log = [];
-  let refresh = 'ok';
   globalThis.fetch = async (url, opts = {}) => {
     const u = String(url);
     log.push({ u, opts });
@@ -327,7 +332,7 @@ test('YouTube : connexion Google (PKCE), Short envoyé en privé, reconnexion de
         assert.ok(b.get('code_verifier'));
         return json({ access_token: 'at1', expires_in: 3599, refresh_token: 'rt1' });
       }
-      return refresh === 'ok' ? json({ access_token: 'at2', expires_in: 3599 }) : json({ error: 'invalid_grant', error_description: 'Token has been expired or revoked.' }, 400);
+      throw new Error('jeton déjà valable : pas de renouvellement attendu');
     }
     if (u.startsWith('https://www.googleapis.com/youtube/v3/channels')) return json({ items: [{ snippet: { title: 'Benjy Paddock' } }] });
     if (u.startsWith('https://www.googleapis.com/upload/youtube/v3/videos')) {
@@ -350,14 +355,9 @@ test('YouTube : connexion Google (PKCE), Short envoyé en privé, reconnexion de
     await youtubeCallback(new URLSearchParams({ state: login.searchParams.get('state'), code: 'c' }));
     assert.deepEqual(accountsInfo().youtube, { connected: true, name: 'Benjy Paddock', configured: true });
     assert.ok(!JSON.stringify(accountsInfo()).includes('rt1'));
-    const r = await publish('youtube', { text: 'Verstappen gagne\nLe récap', video: Buffer.from('abcd').toString('base64'), mime: 'video/mp4' });
+    const r = await youtubeUpload(getConfig().social.youtube.accessToken, Buffer.from('abcd'), 'video/mp4', 'Verstappen gagne\nLe récap');
     assert.equal(r.url, 'https://youtube.com/shorts/vid42');
     assert.match(r.note, /privé/);
-    // Jeton périmé, accès retiré chez Google : on efface la connexion et on le dit
-    saveConfig({ social: { ...getConfig().social, youtube: { ...getConfig().social.youtube, expiresAt: 0 } } });
-    refresh = 'revoked';
-    await assert.rejects(publish('youtube', { text: 'x', video: 'YWJjZA==' }), /reconnectez-vous/);
-    assert.deepEqual(accountsInfo().youtube, { connected: false, name: 'Benjy Paddock', configured: true });
   } finally { globalThis.fetch = realFetch; }
 });
 

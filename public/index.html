@@ -32,7 +32,6 @@
     <button class="rail-btn" data-rail="radio" title="Commentaires en direct : F1 TV ou radio, calés sur votre délai TV"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg><small class="rail-long">Commentaires</small></button>
     <button class="rail-btn" data-rail="summary" id="summaryBtn" title="Résumé de la séance, rédigé automatiquement"><svg viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 12h6M10 15h6M10 18h4"/></svg><small>Résumé</small></button>
     <button class="rail-btn" data-rail="mini" id="miniBtn" title="Mini-classement, par-dessus la vidéo"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><rect x="12" y="11" width="7" height="7" rx="1"/></svg><small>Mini</small></button>
-    <button class="rail-btn" data-rail="posts" id="postsBtn" hidden title="Posts pour les réseaux sociaux"><svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="M8.2 10.8l7.6-4.4M8.2 13.2l7.6 4.4"/></svg><small>Posts</small></button>
     <div class="rail-sp"></div>
     <button class="rail-btn" data-rail="scheme" title="Apparence : automatique, sombre ou clair"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></svg><small>Auto</small></button>
     <button class="rail-btn" data-expert data-rail="reset" title="Disposition : panneaux, onglets, colonnes et fenêtres affichés"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M10 4v16M3 10h7"/></svg><small>Dispo.</small></button>
@@ -708,6 +707,8 @@
       <section data-full class="set-block" data-sgroup="app" id="creatorBlock" hidden>
         <div class="set-bhead"><h4><svg class="ic" aria-hidden="true"><use href="#i-megaphone"/></svg> Mode créateur</h4></div>
         <div class="set-row"><div class="set-txt"><b>Mode créateur activé</b></div><div class="set-ctl"><button class="btn" id="creatorOff">Désactiver</button></div></div>
+        <div class="set-row"><div class="set-txt"><b>Comptes des réseaux</b><small>Connexions et page web du Studio ; les posts se préparent dans le Studio</small></div>
+          <div class="set-ctl"><button class="btn" id="creatorAccounts">Comptes…</button></div></div>
         <div class="set-row"><div class="set-txt"><b>Données reçues de la F1</b><small>Flux et canaux de télémétrie de la séance chargée, nouveautés signalées</small></div>
           <div class="set-ctl"><button class="btn" id="feedDiagBtn">Analyser</button></div></div>
         <div id="feedDiagOut"></div>
