@@ -12,6 +12,7 @@ const EMPTY = 6 * 3600e3;     // épreuve sans documents ou illisible : nouvel e
 const RECENT = 4 * 86400e3;   // documents publiés depuis moins de 4 jours : l'épreuve est relue
 const REREAD = 3600e3;
 const LOCK = 5 * 60e3;
+const UPGRADE = 5 * 60e3;  // après un changement de FIA_VERSION : une épreuve relue toutes les 5 minutes au plus
 
 // fia.com répond parfois trop tard (HTTP 522, 5xx) : deux nouveaux essais, 2 puis 4 s plus tard
 async function get(url, fetchFn, wait = (ms) => new Promise((r) => setTimeout(r, ms))) {
@@ -71,12 +72,13 @@ async function parsed(env, url, parser, fetchFn) {
   return data;
 }
 
-// Épreuves déjà lues de l'année : page -> { at, data } (data null : pas de documents)
+// Épreuves déjà lues de l'année : page -> { v, at, data } (data null : pas de documents). Lecture d'une version
+// précédente de FIA_VERSION : montrée en attendant d'être refaite
 async function kept(env, year) {
   const results = await rowsWithPrefix(env, `fiatech:${year}:`);
   const out = new Map();
   for (const { v } of results || []) {
-    try { const d = JSON.parse(v); if (d?.v === FIA_VERSION) out.set(d.page, d); } catch { /* ligne abîmée : relue */ }
+    try { const d = JSON.parse(v); if (d?.page) out.set(d.page, d); } catch { /* ligne abîmée : relue */ }
   }
   return out;
 }
@@ -106,9 +108,14 @@ export async function fiaNext(env, year, { now = Date.now(), fetchFn = fetch, tr
   if (!env.DB) return null;
   const events = await seasonEvents(env, year, now, fetchFn);
   const have = await kept(env, year);
-  const ev = events.find((e) => due(have.get(e.page), now));
+  // Lecture faite par une version précédente du lecteur de PDF : refaite petit à petit (une épreuve toutes les
+  // UPGRADE, toutes années confondues), après les épreuves à lire pour une autre raison
+  const old = (e) => have.has(e.page) && have.get(e.page).v !== FIA_VERSION;
+  const ev = events.find((e) => due(have.get(e.page), now))
+    || (now - Number(await getRow(env, 'fiaupgrade') || 0) > UPGRADE && events.find(old));
   if (!ev || now - Number(await getRow(env, `fialock:${year}`) || 0) < LOCK) return null;
   await setRow(env, `fialock:${year}`, String(now));
+  if (old(ev)) await setRow(env, 'fiaupgrade', String(now));
   let data = null, error;
   try {
     data = await eventData(ev, { documents: async (page) => parseDocumentList(await (await get(page, fetchFn)).text()), parsed: (url, parser) => parsed(env, url, parser, fetchFn) });
@@ -146,7 +153,7 @@ export async function fiaTick(env, { now = Date.now(), fetchFn = fetch } = {}) {
 export async function seasonFiaWeb(env, year, { now = Date.now() } = {}) {
   const events = JSON.parse(await getRow(env, `fiaevents:${year}`) || 'null')?.events;
   const have = await kept(env, year);
-  const pending = !events || events.some((e) => !have.has(e.page));
+  const pending = !events || events.some((e) => have.get(e.page)?.v !== FIA_VERSION);
   if (pending && now - Number(await getRow(env, `fiawant:${year}`) || 0) > 10 * 60e3) await setRow(env, `fiawant:${year}`, String(now));
   const list = [...have.values()].map((e) => e.data).filter(Boolean).sort((a, b) => a.first - b.first);
   // failed : épreuves pas lues pour l'instant et la raison (nouvel essai automatique)

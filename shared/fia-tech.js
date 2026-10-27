@@ -2,7 +2,7 @@
 // Grand Prix (fia.com) : lecture des PDF et des tableaux, communs à l'appli (server/fia-tech.js) et au serveur de la
 // version web (analytics/fia-tech.js).
 
-export const FIA_VERSION = 4;
+export const FIA_VERSION = 5;
 
 // ---------------- Lecture des PDF ----------------
 let pdfLib = null;
@@ -49,14 +49,17 @@ export function parseTechUpdates(pages) {
   for (const items of pages) {
     const rows = lines(items);
     const ti = rows.findIndex((r) => /^Car Presentation/i.test(r.text));
-    let top = Infinity;
-    if (ti >= 0 && rows[ti + 1]) {
-      team = rows[ti + 1].text;
-      top = rows[ti + 1].y - 1;
-      if (rows.some((r) => /No updates?\b.*\b(submitted|for this event)/i.test(r.text))) noUpdates.push(team);
-    }
     // En-tête du tableau : positions des colonnes
     const head = rows.find((r) => /Updated/.test(r.text) && /Primary/.test(r.text));
+    // Écurie : la ligne sous le titre « Car Presentation » ; dans les documents de 2024, seule la première page a ce
+    // titre, les suivantes n'ont que le nom de l'écurie au-dessus du tableau
+    const name = ti >= 0 ? rows[ti + 1] : head && rows.filter((r) => r.y > head.y && teamOf(r.text).teamId).at(-1);
+    let top = Infinity;
+    if (name) {
+      team = name.text;
+      top = name.y - 1;
+      if (rows.some((r) => /No updates?\b.*\b(submitted|for this event)/i.test(r.text))) noUpdates.push(team);
+    }
     if (head) {
       const x = (re) => head.items.find((i) => re.test(i.s))?.x;
       cols = { reason: x(/Primary/) - 12, geom: x(/Geometric/) - 26, desc: x(/Brief/) - 16 };

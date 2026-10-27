@@ -64,6 +64,25 @@ test('évolutions techniques : tableau par écurie, cellules fusionnées et pied
   assert.deepEqual(noUpdates, ['MoneyGram Haas F1 Team']);
 });
 
+// Documents de 2024 : seule la première page a le titre « Car Presentation » ; les suivantes n'ont que le nom de
+// l'écurie au-dessus du tableau (toutes les évolutions du Grand Prix étaient comptées pour la première écurie)
+test('évolutions techniques : documents de 2024, une écurie par page sans titre', () => {
+  const head = (y) => [it(118, y, 'Updated'), it(188, y, 'Primary reason'), it(284, y, 'Geometric differences compared to previous'), it(536, y - 7, 'Brief description on how the update works'), it(110, y - 13, 'component')];
+  const pages = [
+    [it(294, 468, 'Car Presentation'), it(409, 468, '–'), it(420, 468, 'Monaco Grand Prix'), it(333, 447, 'ORACLE RED BULL RACING'), ...head(393),
+      it(84, 350, '1'), it(110, 350, 'Rear Wing'), it(188, 350, 'Circuit specific - Balance Range'), it(531, 350, 'Higher downforce.')],
+    [],
+    [it(254, 470, 'MERCEDES-AMG PETRONAS FORMULA ONE TEAM'), ...head(417),
+      it(84, 370, '1'), it(110, 370, 'Front Wing'), it(188, 370, 'Performance - Local Load'), it(531, 370, 'More load.'),
+      it(84, 320, '2'), it(110, 320, 'Beam Wing'), it(188, 320, 'Circuit specific - Drag Range'), it(531, 320, 'Less drag.')],
+    [it(323, 475, 'MONEYGRAM HAAS F1 TEAM'), ...head(434), it(84, 390, '1'), it(110, 390, 'Floor'), it(188, 390, 'Performance - Flow Conditioning'), it(531, 390, 'New floor.')],
+  ];
+  const { updates } = parseTechUpdates(pages);
+  assert.deepEqual(updates.map((u) => [teamOf(u.team).team, u.component]), [
+    ['Red Bull Racing', 'Rear Wing'], ['Mercedes', 'Front Wing'], ['Mercedes', 'Beam Wing'], ['Haas F1 Team', 'Floor'],
+  ]);
+});
+
 test('classement des raisons et noms d\'écurie', () => {
   assert.deepEqual(classify('Circuit Specific Drag Range'), { type: 'Circuit specific', reason: 'Drag Range' });
   assert.deepEqual(classify('Performance - Local load'), { type: 'Performance', reason: 'Local Load' });
