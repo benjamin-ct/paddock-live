@@ -22,7 +22,7 @@ export async function cloudTranscribe(url) {
       const r = await res.json();
       return typeof r?.text === 'string' ? r : null;
     }
-    if (res.status === 503) asrOffUntil = Date.now() + 10 * 60e3;
+    if (res.status >= 500 || res.status === 429) asrOffUntil = Date.now() + 10 * 60e3;   // 502 (archive F1 lente)… : pas « sans parole »
   } catch { asrOffUntil = Date.now() + 10 * 60e3; }
   return null;
 }

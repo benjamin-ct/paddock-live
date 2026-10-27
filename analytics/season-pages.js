@@ -7,6 +7,7 @@ import { seasonRow } from './studio.js';
 import { getRow } from './alerts.js';
 import { raceStatsOf } from './race-stats.js';
 import { gpShort, gpFull } from '../shared/gp-names.js';
+import { retired } from '../shared/season-calc.js';
 import { SECTION_PATHS, seasonPath, seasonTitle, slug, gpSlug, parseSeasonPath } from '../shared/season-urls.js';
 
 export const APP = 'https://app.paddocklive.app';
@@ -69,7 +70,7 @@ function driverBody(s, year, d) {
   const sprints = s.races.some((r) => r.sprintResults.length);
   return `<p class="muted">${esc(`${nth(d.pos)} du championnat avec ${d.points} point${d.points > 1 ? 's' : ''}${d.wins ? `, ${d.wins} victoire${d.wins > 1 ? 's' : ''}` : ''} · ${d.team}`)}</p>
     ${box('Bilan', table(['Victoires', 'Podiums', 'Poles', 'Meilleurs tours', 'Abandons', 'Meilleure arrivée', 'Arrivée moyenne'], [[d.wins, races.filter((x) => classified(x.res) && x.res.pos <= 3).length,
-      rows.filter((x) => x.q?.pos === 1).length, races.filter((x) => x.res.fastest).length, races.length - cl.length, cl.length ? `P${Math.min(...cl)}` : '—',
+      rows.filter((x) => x.q?.pos === 1).length, races.filter((x) => x.res.fastest).length, races.filter((x) => retired(x.res)).length, cl.length ? `P${Math.min(...cl)}` : '—',
       cl.length ? `P${(cl.reduce((a, b) => a + b, 0) / cl.length).toFixed(1).replace('.', ',')}` : '—']]))}
     ${box('Grand Prix par Grand Prix', table(['Manche', 'Grand Prix', 'Qualif.', 'Grille', ...(sprints ? ['Sprint'] : []), 'Arrivée', 'Points'], rows.map((x) => [x.r.round, gLink(year, x.r),
       x.q?.pos ? `P${x.q.pos}` : '—', x.res ? (x.res.grid ? `P${x.res.grid}` : 'Stands') : '—', ...(sprints ? [x.spr ? finish(x.spr) : ''] : []), esc(finish(x.res)), (x.res?.points || 0) + (x.spr?.points || 0) || ''])))}`;

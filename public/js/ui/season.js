@@ -5,7 +5,7 @@
 import { $, esc, api, teamColor, teamLogo, photoUrl, placeView, driverOpt } from '../util.js';
 import { store } from '../store.js';
 import { renderDrivers, renderConsistency, renderPits, renderSpeeds, renderCircuits, renderRatings, gradeBadge, stopTxt, DHL_NOTE, statusFr, fmtLap } from './season-stats.js';
-import { driverRatings, qualiGaps, titleRace, placeForMaxPoints } from '/shared/season-calc.js';
+import { driverRatings, qualiGaps, titleRace, placeForMaxPoints, retired } from '/shared/season-calc.js';
 import { renderTech, renderElements, setTechFilter, translateTechDetail, toggleTechOriginal } from './season-fia.js';
 import { icon } from '../icons.js';
 import { renderPredict, initPredict } from './predict-view.js';
@@ -26,7 +26,7 @@ const chip = (d) => `<span class="sz-chip" style="--tc:${color(d.team, d.teamId)
 const bar = (team, teamId) => `<span class="drv-bar" style="background:${color(team, teamId)}"></span>`;
 
 let data = null;
-let year = new Date().getFullYear();
+let year = new Date().getUTCFullYear();   // année du serveur (UTC) : la nuit du réveillon, l'année suivante n'existe pas encore pour lui
 let section = 'home';
 let jump = false;          // rubrique choisie : affichée depuis le haut (calendrier : au prochain Grand Prix)
 let loading = false;
@@ -65,6 +65,9 @@ async function loadPrev() {
   if (section === 'drivers' && !$('#seasonView').hidden) render();
 }
 const FIA_SECTIONS = new Set(['tech', 'elements']);
+// Documents FIA et statistiques en cours de lecture par le serveur, ou erreur : relus toutes les 30 s (chaque lecture
+// coûte au serveur), et plus du tout une fois la Saison fermée
+const FOLLOW_MS = 30000;
 let fia = null;            // documents FIA (évolutions techniques, éléments moteur)
 let fiaTimer = null;
 
@@ -76,12 +79,12 @@ async function loadFia() {
     if (y !== year) return;
     const same = fia?.year === f.year && fia.done === f.done && fia.total === f.total && fia.pending === f.pending && !fia.error;
     fia = f;
-    if (f.pending) fiaTimer = setTimeout(loadFia, 3000);
+    if (f.pending) fiaTimer = setTimeout(loadFia, FOLLOW_MS);
     if (same) return;   // relecture pendant la lecture des documents : rien de nouveau, rien de redessiné
   } catch (err) {
-    const lost = err instanceof TypeError;   // réseau coupé (« Load failed ») : nouvel essai
-    if (y === year) fia = { year: y, error: lost ? 'connexion perdue, nouvel essai dans 10 s' : err.message, events: [] };
-    if (lost) fiaTimer = setTimeout(loadFia, 10000);
+    const lost = err instanceof TypeError;   // réseau coupé (« Load failed »)
+    if (y === year) fia = { year: y, error: lost ? 'connexion perdue, nouvel essai dans 30 s' : err.message, events: [] };
+    fiaTimer = setTimeout(loadFia, FOLLOW_MS);   // serveur indisponible (503…) aussi
   }
   if (FIA_SECTIONS.has(section) && !$('#seasonView').hidden) render();
 }
@@ -95,12 +98,12 @@ async function loadStats() {
     if (y !== year) return;
     const same = stats?.year === s.year && stats.done === s.done && stats.total === s.total && stats.pending === s.pending && !stats.error;
     stats = s;
-    if (s.pending) statsTimer = setTimeout(loadStats, 3000);
+    if (s.pending) statsTimer = setTimeout(loadStats, FOLLOW_MS);
     if (same) return;   // relecture pendant l'analyse : rien de nouveau, rien de redessiné (tableaux laissés où ils sont)
   } catch (err) {
-    const lost = err instanceof TypeError;   // réseau coupé : nouvel essai
-    if (y === year) stats = { error: lost ? 'connexion perdue, nouvel essai dans 10 s' : err.message, races: [] };
-    if (lost) statsTimer = setTimeout(loadStats, 10000);
+    const lost = err instanceof TypeError;   // réseau coupé
+    if (y === year) stats = { error: lost ? 'connexion perdue, nouvel essai dans 30 s' : err.message, races: [] };
+    statsTimer = setTimeout(loadStats, FOLLOW_MS);   // serveur indisponible (503…) aussi
   }
   if (STATS_SECTIONS.has(section) && !$('#seasonView').hidden) render();
 }
@@ -130,6 +133,10 @@ async function load(force = false) {
   loading = false;
   data = d;
   render();
+  follow();
+}
+// Lecture des statistiques et des documents FIA (re)lancée si elle n'est pas finie
+function follow() {
   if (!stats || stats.year !== year || stats.pending) loadStats();
   if (!fia || fia.year !== year || fia.pending) loadFia();
 }
@@ -507,7 +514,7 @@ function renderH2H() {
     ['Podiums', stat((c) => sum(c, (r, k) => (res(r, k)?.pos <= 3 && /^\d+$/.test(res(r, k)?.posText || '') ? 1 : 0)))],
     ['Poles', stat((c) => sum(c, (r, k) => (r.quali.find((x) => x.code === k)?.pos === 1 ? 1 : 0)))],
     ['Arrivées dans les points', stat((c) => sum(c, (r, k) => ((res(r, k)?.points || 0) > 0 ? 1 : 0)))],
-    ['Abandons', stat((c) => sum(c, (r, k) => (res(r, k) && !/^\d+$/.test(res(r, k).posText) ? 1 : 0)))],
+    ['Abandons', stat((c) => sum(c, (r, k) => (retired(res(r, k)) ? 1 : 0)))],
   ];
   const ca = color(A.team, A.teamId);
   // Pilote B dans la couleur de son écurie (gris entre coéquipiers : même couleur que A)
@@ -673,6 +680,7 @@ export function openSeason(sec, y, item, back = false) {
   if (sec) section = sec;
   push = !back;
   wanted = item ? { year: y || year, section: sec, item } : null;
+  if (back && sec === 'drivers' && !item) drvCode = null;   // retour sur « Pilotes » : sans le pilote choisi ensuite
   if (y && y !== year) { year = y; data = null; stats = null; fia = null; $('#szYear').value = String(y); }
   jump = true;
   if ($('#newsView')) import('./news.js').then((m) => m.closeNews());   // pas d'Actu dans la version web
@@ -683,6 +691,7 @@ export function openSeason(sec, y, item, back = false) {
   animate();
   $('#seasonBtn').classList.add('on');
   load();
+  if (data?.year === year) follow();   // saison déjà chargée : load() ne relance rien
   render();
   clearInterval(timer);
   timer = setInterval(tick, 1000);
@@ -701,12 +710,14 @@ export function closeSeason() {
   if (urls && location.pathname.startsWith('/saison/')) history.pushState(null, '', '/');
   if (urls) { delete document.documentElement.dataset.seasonTitle; document.title = 'Paddock Live'; }
   clearInterval(timer);
+  clearTimeout(fiaTimer);
+  clearTimeout(statsTimer);
 }
 
 export function initSeason() {
   initPredict();
   const sel = $('#szYear');
-  const now = new Date().getFullYear();
+  const now = new Date().getUTCFullYear();
   sel.innerHTML = Array.from({ length: 8 }, (_, i) => now - i).map((y) => `<option value="${y}">${y}</option>`).join('');
   sel.addEventListener('change', () => { year = Number(sel.value); push = true; data = null; stats = null; fia = null; clearTimeout(statsTimer); clearTimeout(fiaTimer); setTechFilter(null, 'all'); load(); });
   $('#seasonBtn').addEventListener('click', () => ($('#seasonView').hidden ? openSeason() : closeSeason()));

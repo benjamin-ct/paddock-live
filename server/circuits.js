@@ -89,7 +89,7 @@ function offsetMs(gmt) {
 // Boucles de chronométrage (mini-secteurs de la comparaison des tours), calculées par le serveur de Paddock Live
 // d'après une séance archivée ; gardées sur disque une fois reçues (null tant que le serveur ne les a pas)
 export async function loops(key, year) {
-  const name = `loops-${key}-${year}.json`;
+  const name = `loops2-${key}-${year}.json`;   // « loops- » : calculées sur l'ordinateur par la 1.28, plus relues
   const cached = readCache(name);
   if (cached) return cached;
   try {

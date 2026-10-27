@@ -2,7 +2,7 @@
 // (/api/season/stats) et des résultats Jolpica : statistiques par pilote, régularité,
 // arrêts aux stands, vitesses de pointe et profil des circuits.
 import { esc, teamColor, teamMark } from '../util.js';
-import { cleanLaps, lapsLed, similarCircuits, SEASON_CRITERIA, MATE_CRITERIA, GRADES } from '/shared/season-calc.js';
+import { cleanLaps, lapsLed, similarCircuits, SEASON_CRITERIA, MATE_CRITERIA, GRADES, retired } from '/shared/season-calc.js';
 import { icon } from '../icons.js';
 import { DEC, EN } from '../i18n.js';
 import { gpShort } from '/shared/gp-names.js';
@@ -56,7 +56,7 @@ const halfWidth = () => Math.max(300, Math.round(pageWidth() / 2 - 30));
 const PLACES = 22;   // voitures en 2026 ; la dernière colonne : abandons
 function finishHistogram(started, col) {
   const n = new Array(PLACES + 1).fill(0);
-  for (const x of started) n[isNum(x.res) && x.res.pos <= PLACES ? x.res.pos - 1 : PLACES]++;
+  for (const x of started) if (isNum(x.res) || retired(x.res)) n[isNum(x.res) && x.res.pos <= PLACES ? x.res.pos - 1 : PLACES]++;
   const hi = Math.max(1, ...n);
   const W = halfWidth(), H = 170, pl = 6, pb = 22, bw = (W - pl * 2) / (PLACES + 1);
   const bars = n.map((v, i) => {
@@ -187,7 +187,7 @@ export function renderDrivers(ctx, code) {
       ${card('Moyenne au départ', fr(mean(started.map((x) => x.res.grid).filter(Boolean))))}
       ${card('Moyenne à l\'arrivée', fr(mean(fin.map((x) => x.res.pos))), fin.length ? `meilleur : P${Math.min(...fin.map((x) => x.res.pos))}` : '')}
       ${card('Places gagnées', `${gained >= 0 ? '+' : ''}${gained}`, 'de la grille à l\'arrivée, cumul')}
-      ${card('Abandons', started.length - fin.length)}
+      ${card('Abandons', started.filter((x) => retired(x.res)).length)}
       ${card('Duel qualif', `${qd[0]} – ${qd[1]}`, mateName ? `face à ${esc(mateName)}` : '')}
       ${card('Vitesse de pointe', tops.length ? `${Math.max(...tops)} km/h` : '—', tops.length ? `moyenne ${fr(mean(tops), 0)} km/h` : '')}
       ${card('Immobilisation moyenne', stops.length ? `${fr(mean(stops))} s` : '—', stops.length ? `${stops.length} arrêts` : '')}
