@@ -180,10 +180,9 @@ l'application (Réglages → À propos → Nouveautés).
 - Accès depuis le téléphone : un site ouvert sur l'ordinateur ne peut plus se faire passer pour l'ordinateur
   afin d'utiliser l'appli sans la clé du QR code.
 - Le relais des radios et de F1 TV refuse aussi les adresses locales écrites autrement (forme IPv6).
-- Réglages et pronostics enregistrés sans risque d'être perdus en cas de coupure pendant l'écriture ; un fichier
+- Réglages enregistrés sans risque d'être perdus en cas de coupure pendant l'écriture ; un fichier
   de réglages abîmé est mis de côté (config.json.bad) au lieu d'être écrasé.
-- Fenêtres de connexion F1 et de publication sur X, Threads et Bluesky : position, micro, caméra et
-  notifications refusés d'office.
+- Fenêtre de connexion F1 : position, micro, caméra et notifications refusés d'office.
 - « Installer les mises à jour à la fermeture » décoché : l'appli n'installe plus la nouvelle version au
   lancement, elle la signale seulement.
 - L'appli démarre même quand ses ports habituels (3000, 3001, 3002, 3010) sont tous occupés, au lieu de se
