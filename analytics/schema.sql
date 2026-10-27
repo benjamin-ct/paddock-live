@@ -17,7 +17,8 @@ CREATE TABLE IF NOT EXISTS translations (
   at INTEGER NOT NULL
 );
 
--- Nombre de traductions (jour) et de radios transcrites (« radio:jour ») faites par l'IA (plafond contre les abus)
+-- Nombre de traductions (jour) et de radios transcrites (« radio:jour ») faites par l'IA (plafond contre les abus),
+-- neurones de Workers AI dépensés (« neurons:jour »)
 CREATE TABLE IF NOT EXISTS ai_usage (
   day TEXT PRIMARY KEY,
   n INTEGER NOT NULL DEFAULT 0

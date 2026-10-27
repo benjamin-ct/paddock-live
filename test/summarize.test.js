@@ -18,6 +18,7 @@ function fakeEnv({ limit = 100, replies = [] } = {}) {
   const calls = [];
   const stmt = (sql, args = []) => ({
     bind: (...a) => stmt(sql, a),
+    async all() { return { results: [] }; },
     async first() {
       if (/FROM translations/.test(sql)) return tr.has(args[0]) ? { out: tr.get(args[0]) } : null;
       return usage.has(args[0]) ? { n: usage.get(args[0]) } : null;

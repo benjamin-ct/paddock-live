@@ -9,7 +9,7 @@
 // réponse « plafond atteint » comme pour le plafond de Paddock Live.
 // Traduction avec des caractères d'une autre écriture (chinois glissé dans du français…) : refaite.
 import { badTranslation } from '../shared/translation-check.js';
-import { aiQuota } from './quota.js';
+import { aiQuota, runAI } from './quota.js';
 export const MODEL = '@cf/mistralai/mistral-small-3.1-24b-instruct';
 export const FALLBACK = '@cf/meta/m2m100-1.2b';
 const MODEL_TAG = 'ms31b';  // dans la clé du cache : changer de modèle ou de consignes = nouvelles traductions
@@ -54,7 +54,7 @@ export function parseList(reply, n) {
 }
 
 async function llm(env, texts, to) {
-  const r = await env.AI.run(MODEL, {
+  const r = await runAI(env, MODEL, {
     messages: [{ role: 'system', content: system(to) }, { role: 'user', content: JSON.stringify(texts) }],
     temperature: 0.1,
     max_tokens: Math.min(4000, 200 + texts.reduce((a, t) => a + t.length, 0)),
@@ -68,7 +68,7 @@ export const aiSpent = (e) => /\b4006\b|daily free allocation/i.test(String(e?.m
 async function simple(env, text, from, to, spent) {
   if (spent.on) return null;
   try {
-    const r = await env.AI.run(FALLBACK, { text, source_lang: from, target_lang: to });
+    const r = await runAI(env, FALLBACK, { text, source_lang: from, target_lang: to });
     return String(r?.translated_text || '').trim() || null;
   } catch (e) { if (aiSpent(e)) spent.on = true; return null; }
 }
@@ -107,7 +107,7 @@ export async function translateBatch(env, req, day = new Date().toISOString().sl
   const todo = [...new Set(keys.filter((k, i) => out[i] === null))].map((k) => ({ k, it: req.items[keys.indexOf(k)] }));
   if (!todo.length) return { out, cached: true };
   // Plafond du jour
-  const q = quota || { key: day, limit: Number(env.AI_DAILY_LIMIT) || 20000 };
+  const q = quota || { key: day, limit: Number(env.AI_DAILY_LIMIT) || 1000 };
   if (!(await aiQuota(env, { key: q.key, day, n: todo.length, limit: q.limit, ip }))) return { out, limited: true };
   // Modèle de langage par paquets de 20 (ou 8 000 caractères) ; paquet raté -> traduction simple texte par texte
   const groups = [];

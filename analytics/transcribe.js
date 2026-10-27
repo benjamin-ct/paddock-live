@@ -4,7 +4,7 @@
 // passer un faux texte pour une radio qu'il n'a pas envoyée. Plafond quotidien contre les abus ;
 // au-delà, la radio attend le lendemain.
 import { clean } from '../shared/radio-text.js';
-import { aiQuota } from './quota.js';
+import { aiQuota, runAI } from './quota.js';
 
 export const ASR_MODEL = '@cf/openai/whisper-large-v3-turbo';
 export const ASR_FALLBACK = '@cf/openai/whisper';
@@ -35,10 +35,10 @@ function base64(bytes) {
 
 async function whisper(env, bytes) {
   try {
-    const r = await env.AI.run(ASR_MODEL, { audio: base64(bytes), task: 'transcribe', language: 'en' });
+    const r = await runAI(env, ASR_MODEL, { audio: base64(bytes), task: 'transcribe', language: 'en' });
     if (typeof r?.text === 'string') return { text: r.text, d: r.transcription_info?.duration };
   } catch { /* modèle de secours */ }
-  const r = await env.AI.run(ASR_FALLBACK, { audio: [...bytes] });
+  const r = await runAI(env, ASR_FALLBACK, { audio: [...bytes] });
   if (typeof r?.text !== 'string') throw new Error('réponse illisible');
   return { text: r.text };
 }
@@ -56,7 +56,7 @@ export async function transcribeRadio(env, bytes, day = new Date().toISOString()
   const hash = await audioHash(bytes);
   const hit = await cachedRadio(env, hash);
   if (hit) return { ...hit, cached: true };
-  const limit = Number(env.ASR_DAILY_LIMIT) || 3000;
+  const limit = Number(env.ASR_DAILY_LIMIT) || 300;
   if (!(await aiQuota(env, { key: `radio:${day}`, day, n: 1, limit, ip }))) return { limited: true };
   const r = await whisper(env, bytes);
   const text = clean(r.text);
@@ -70,9 +70,9 @@ export async function transcribeRadio(env, bytes, day = new Date().toISOString()
 const isWav = (b) => b?.length >= 44 && b.length <= MAX_AUDIO && String.fromCharCode(...b.subarray(0, 4)) === 'RIFF' && String.fromCharCode(...b.subarray(8, 12)) === 'WAVE';
 export async function transcribeWindow(env, bytes, day = new Date().toISOString().slice(0, 10), ip = null) {
   if (!isWav(bytes)) return { invalid: true };
-  const limit = Number(env.ONBOARD_DAILY_LIMIT) || 6000;
+  const limit = Number(env.ONBOARD_DAILY_LIMIT) || 160;
   if (!(await aiQuota(env, { key: `onboard:${day}`, day, n: 1, limit, ip }))) return { limited: true };
-  const r = await env.AI.run(ASR_MODEL, { audio: base64(bytes), task: 'transcribe', language: 'en' });
+  const r = await runAI(env, ASR_MODEL, { audio: base64(bytes), task: 'transcribe', language: 'en' });
   const segments = (r?.segments || []).map((x) => ({ timestamp: [x.start, x.end], text: x.text || '' }));
   const dur = Number(r?.transcription_info?.duration) || (bytes.length - 44) / 32000;
   return { segments: segments.length || !clean(r?.text || '') ? segments : [{ timestamp: [0, dur], text: r.text }] };
