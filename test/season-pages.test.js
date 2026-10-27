@@ -86,6 +86,9 @@ test('Saison : plan du site et anciennes pages publiques redirigées vers la ver
   for (const u of ['/saison/2026/', '/saison/2026/classements/', '/saison/2026/pilotes/lando-norris/', '/saison/2026/grand-prix/sao-paulo/', '/saison/2019/calendrier/']) assert.ok(map.includes(`<loc>https://app.paddocklive.app${u}</loc>`), u);
   assert.ok(!map.includes('/saison/2018/') && !map.includes('/pronostics/'));
   assert.ok(!map.includes('/bilan/') && !map.includes('/duels/'), 'rubriques au contenu de l\'accueil : pas dans le plan du site');
+  // 1er janvier 2027 : saison pas encore commencée, pas dans le plan du site
+  const jan = await seasonSitemap(fakeEnv(), Date.parse('2027-01-01T00:30:00Z'));
+  assert.ok(!jan.includes('/saison/2027/') && jan.includes('/saison/2026/classements/'));
   const old = (p) => legacySeasonUrl(fakeEnv(), new URL(`https://paddocklive.app${p}`));
   assert.equal(await old('/saison/'), 'https://app.paddocklive.app/saison/');
   assert.equal(await old('/saison/2026/mexico/'), 'https://app.paddocklive.app/saison/2026/grand-prix/mexico/');

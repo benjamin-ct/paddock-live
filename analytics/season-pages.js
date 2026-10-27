@@ -146,8 +146,9 @@ const OWN = ['home', 'calendar', 'standings', 'results', 'drivers'];
 export async function seasonSitemap(env, now = Date.now()) {
   const urls = [];
   for (let y = new Date(now).getUTCFullYear(); y >= firstYear(now); y--) {
-    urls.push(...OWN.map((k) => seasonPath(y, k)));
     const s = JSON.parse(await getRow(env, `season:${y}`) || 'null')?.v;
+    if (y === new Date(now).getUTCFullYear() && !s?.races?.some((r) => r.results?.length)) continue;   // pas encore de course
+    urls.push(...OWN.map((k) => seasonPath(y, k)));
     if (s?.races?.length) urls.push(...s.drivers.map((d) => seasonPath(y, 'drivers', slug(d.name))), ...s.races.map((r) => seasonPath(y, 'gp', gpSlug(r.name))));
   }
   return `<?xml version="1.0" encoding="UTF-8"?>

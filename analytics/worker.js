@@ -52,7 +52,12 @@ async function liveAsset(env, req) {
 async function seasonAppPage(env, req, url, ctx) {
   const p = parseSeasonPath(url.pathname);
   if (!p) return new Response('Introuvable', { status: 404 });
-  if (!p.year) return Response.redirect(`${url.origin}/saison/${new Date().getUTCFullYear()}/`, 302);
+  // /saison/ : la saison en cours dès son premier Grand Prix couru, la précédente avant (sinon une saison vide en janvier)
+  if (!p.year) {
+    const y = new Date().getUTCFullYear();
+    const cur = JSON.parse(await env.DB?.prepare('SELECT v FROM studio WHERE k = ?1').bind(`season:${y}`).first('v').catch(() => null) || 'null')?.v;
+    return Response.redirect(`${url.origin}/saison/${cur?.races?.some((r) => r.results?.length) || !env.DB ? y : y - 1}/`, 302);
+  }
   const key = new Request(`${url.origin}${url.pathname}`);
   const hit = await caches.default.match(key).catch(() => null);
   if (hit) return hit;
