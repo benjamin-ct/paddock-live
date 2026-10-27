@@ -70,7 +70,7 @@ export async function transcribeRadio(env, bytes, day = new Date().toISOString()
 const isWav = (b) => b?.length >= 44 && b.length <= MAX_AUDIO && String.fromCharCode(...b.subarray(0, 4)) === 'RIFF' && String.fromCharCode(...b.subarray(8, 12)) === 'WAVE';
 export async function transcribeWindow(env, bytes, day = new Date().toISOString().slice(0, 10), ip = null) {
   if (!isWav(bytes)) return { invalid: true };
-  const limit = Number(env.ONBOARD_DAILY_LIMIT) || 160;
+  const limit = Number(env.ONBOARD_DAILY_LIMIT) || 400;   // week-end de Grand Prix : environ 490 fenêtres par adresse, 1 h de course pour 3 pilotes
   if (!(await aiQuota(env, { key: `onboard:${day}`, day, n: 1, limit, ip }))) return { limited: true };
   const r = await runAI(env, ASR_MODEL, { audio: base64(bytes), task: 'transcribe', language: 'en' });
   const segments = (r?.segments || []).map((x) => ({ timestamp: [x.start, x.end], text: x.text || '' }));

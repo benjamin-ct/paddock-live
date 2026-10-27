@@ -41,10 +41,12 @@ test('IA : plafond du jour plus haut les week-ends de Grand Prix, budget payé d
   const g = fakeEnv({ AI_NEURON_MONTH: '20000' }, new Map([['neurons:2026-09-20', 900000], ['neurons:2026-10-20', 25000], ['neurons:2026-10-22', 12000], ['neurons:2026-10-23', 11000]]));
   assert.deepEqual(await neuronBudget(g.env, '2026-10-23'), { used: 11000, top: 12000, gp: false, spent: 18000, budget: 20000 }, 'payés : 15 000 + 2 000 + 1 000 aujourd\'hui');
   assert.equal(await aiQuota(g.env, { key: '2026-10-23', day: '2026-10-23', n: 1, limit: 100 }), false, 'dernier dixième gardé');
+  assert.equal(await aiQuota(g.env, { key: '2026-10-23', day: '2026-10-23', n: 1, limit: 100, claude: true }), true, 'Claude : pas de neurones');
   assert.equal(await aiQuota(g.env, { key: 'radio:2026-10-23', day: '2026-10-23', n: 1, limit: 100 }), true);
   assert.equal(await aiQuota(g.env, { key: '2026-10-23|studio', day: '2026-10-23', n: 1, limit: 100 }), true);
   g.usage.set('neurons:2026-10-23', 12000);
   assert.equal(await aiQuota(g.env, { key: 'radio:2026-10-23', day: '2026-10-23', n: 1, limit: 100 }), false);
+  assert.equal(await aiQuota(g.env, { key: '2026-10-23', day: '2026-10-23', n: 1, limit: 100, claude: true }), true, 'Claude : neurones épuisés, traductions toujours faites');
   // Budget dépensé : retour aux neurones gratuits
   g.usage.set('neurons:2026-10-21', 20000);
   assert.equal((await neuronBudget(g.env, '2026-10-24')).top, 9000);

@@ -28,6 +28,7 @@ const MAX_KEEP = 300;
 
 let entries = storageGet(KEY, []);       // [{ id, num, utc, en, tr: { fr… } }]
 let status = '';
+let pausedUntil = 0;   // plafond du jour du serveur atteint : plus aucun envoi jusqu'à minuit UTC
 let content = null, contentKey = '';
 let ctx = null, workletReady = null;
 const feeds = new Map();                 // pilote -> écoute en cours
@@ -172,7 +173,7 @@ function onAudio(feed, { t0, samples }) {
     feed.len -= drop.length;
     feed.winStart += drop.length / SR * 1000;
   }
-  if (!feed.busy && feed.len >= WIN_S * SR) sendWindow(feed);
+  if (!feed.busy && feed.len >= WIN_S * SR && Date.now() >= pausedUntil) sendWindow(feed);
 }
 
 async function sendWindow(feed) {
@@ -197,7 +198,10 @@ async function sendWindow(feed) {
     }
     feed.note = '';
   } catch (err) {
-    feed.note = t('reconnaissance impossible ({})', err.message);
+    if (err.status === 429) {
+      pausedUntil = new Date().setUTCHours(24, 0, 0, 0);
+      for (const f of feeds.values()) f.note = t('plafond du jour du serveur atteint, reprise demain');
+    } else feed.note = t('reconnaissance impossible ({})', err.message);
   } finally {
     feed.busy = false;
     showStatus();
