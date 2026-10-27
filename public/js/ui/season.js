@@ -237,7 +237,7 @@ function calDays(r) {
     ${d.list.map((s) => `<div class="cal-s ${Date.parse(s.t) < Date.now() ? 'past' : ''}"><span>${esc(s.label)}</span><b>${fmtTime(s.t)}</b></div>`).join('')}</div>`).join('')}</div>`;
 }
 // Lien vers la fiche d'un Grand Prix (vraie adresse dans la version web, pour la partager et pour les moteurs de recherche)
-const gpLink = (r, text, cls = '') => `<a href="${seasonPath(year, 'gp', gpSlug(r.name))}" data-szgp="${r.round}"${cls ? ` class="${cls}"` : ''}>${esc(text)}</a>`;
+const gpLink = (r, text, cls = '', pre = '') => `<a href="${seasonPath(year, 'gp', gpSlug(r.name))}" data-szgp="${r.round}"${cls ? ` class="${cls}"` : ''}>${pre}${esc(text)}</a>`;
 
 // Fiche d'un Grand Prix : résultats, sprint, qualifications, arrêts les plus rapides (analyse des archives)
 function renderGp() {
@@ -396,7 +396,7 @@ function renderResults() {
       ${card('Victoire la plus serrée', st.closest ? `+${st.closest.v.toFixed(3).replace('.', DEC)} s` : '—', st.closest ? `${esc(st.closest.d.last)} · R${st.closest.r.round} ${esc(st.closest.r.locality || '')}` : '')}
     </div>
     <section class="sz-box"><h3>Grands Prix</h3><table class="sz-table sz-results"><tr><th>Manche</th><th>Grand Prix</th><th>Date</th><th>Vainqueur sprint</th><th>Pole</th><th>Vainqueur</th><th>2e</th><th>3e</th></tr>
-      ${data.races.map((r) => `<tr class="${done(r) ? '' : 'muted'}"><td>R${r.round}</td><td>${gpLink(r, gpShort(r.name, EN))}</td><td>${fmtDate(r.date)}</td>
+      ${data.races.map((r) => `<tr class="${done(r) ? '' : 'muted'}"><td>R${r.round}</td><td>${gpLink(r, gpShort(r.name, EN), 'sz-gp-chip', flagOf(r))}</td><td>${fmtDate(r.date)}</td>
         <td>${r.sprintResults[0] ? chip(r.sprintResults[0]) : '—'}</td><td>${r.quali.find((q) => q.pos === 1) ? chip(r.quali.find((q) => q.pos === 1)) : '—'}</td>
         <td>${r.results[0] ? chip(r.results[0]) : '—'}</td><td>${r.results[1] ? chip(r.results[1]) : ''}</td><td>${r.results[2] ? chip(r.results[2]) : ''}</td></tr>`).join('')}</table></section>`;
 }
