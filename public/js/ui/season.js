@@ -13,7 +13,7 @@ import { renderReview, reviewAction } from './season-review.js';
 import { DEC, LOCALE, EN, t } from '../i18n.js';
 import { gpShort, gpFull } from '/shared/gp-names.js';
 import { COUNTRY_ISO } from '/shared/social-season.js';
-import { seasonPath, seasonTitle, slug, gpSlug } from '/shared/season-urls.js';
+import { seasonPath, seasonTitle, slug, gpSlug, parseSeasonPath } from '/shared/season-urls.js';
 
 // Couleurs officielles (utilisées si les couleurs contrastées sont désactivées)
 const OFFICIAL = {
@@ -36,6 +36,8 @@ let statsTimer = null;
 let drvCode = null;
 let gpRound = null;        // fiche Grand Prix affichée (manche)
 let wanted = null;         // rubrique demandée par l'adresse (version web) : pilote ou Grand Prix retrouvé une fois la saison chargée
+let push = false;          // version web : prochaine adresse ajoutée à l'historique (rubrique choisie), sinon remplacée
+let leaveTop = 0;          // version web : défilement de la rubrique quittée, gardé dans l'historique (retour au même endroit)
 let urls = false;          // version web : l'adresse suit la rubrique affichée (à partager, moteurs de recherche)
 let speedPt = 'ST';
 let circSort = 'round';
@@ -284,13 +286,29 @@ function syncUrl() {
   const d = section === 'drivers' ? data.drivers.find((x) => x.code === drvCode) : null;
   const r = section === 'gp' ? data.races.find((x) => x.round === gpRound) : null;
   const p = seasonPath(data.year, section, d ? slug(d.name) : r ? gpSlug(r.name) : null);
-  if (location.pathname !== p) history.replaceState(null, '', p);
+  if (location.pathname !== p && push) {
+    history.replaceState({ szTop: leaveTop }, '');
+    history.pushState(null, '', p);
+  } else if (location.pathname !== p) history.replaceState(history.state, '', p);
+  push = false;
   document.documentElement.dataset.seasonTitle = '1';
   document.title = `${seasonTitle(data.year, section, d?.name || r?.name, !!r?.results.length)} · Paddock Live`;
 }
 
-// Version web : adresses de la Saison (appelé par la page, analytics/live-page/web.js)
-export function seasonUrls() { urls = true; }
+// Version web : adresses de la Saison (appelé par la page, analytics/live-page/web.js). Chaque rubrique ou fiche
+// ouverte est ajoutée à l'historique : le retour en arrière (geste, bouton du navigateur) ramène à la précédente,
+// puis au direct
+export function seasonUrls() {
+  urls = true;
+  addEventListener('popstate', (e) => {
+    const p = parseSeasonPath(location.pathname);
+    if (p) openSeason(p.section, p.year || undefined, p.item, true);
+    else if (!$('#seasonView').hidden) closeSeason();
+    // Retour à l'endroit où l'on était (encore une fois une fois les tableaux ou les statistiques affichés)
+    const top = e.state?.szTop;
+    if (p && top) for (const ms of [0, 400, 1200]) setTimeout(() => { $('#szContent').scrollTop = top; }, ms);
+  });
+}
 
 function renderCalendar() {
   const nx = nextSession();
@@ -616,6 +634,7 @@ function render() {
   // Tableaux larges : défilement de côté gardé quand la rubrique est redessinée (nouvelle course analysée…)
   const wide = () => $('#szContent').querySelectorAll('.sz-box, .sz-scroll');
   const scrolls = jump ? [] : [...wide()].map((e) => e.scrollLeft);
+  if (jump && push) leaveTop = $('#szContent').scrollTop;   // rubrique quittée : défilement gardé pour le retour
   $('#szContent').innerHTML = `${data.stale ? '<div class="note small">Hors ligne : dernières données enregistrées.</div>' : ''}${html}`;
   wide().forEach((e, i) => { if (scrolls[i]) e.scrollLeft = scrolls[i]; });
   tick();
@@ -650,8 +669,9 @@ function animate() {
 
 // y : saison à afficher (bilan de la saison passée depuis l'accueil hors saison) ; item : pilote ou Grand Prix demandé
 // par l'adresse de la version web (« lando-norris », « mexico »)
-export function openSeason(sec, y, item) {
+export function openSeason(sec, y, item, back = false) {
   if (sec) section = sec;
+  push = !back;
   wanted = item ? { year: y || year, section: sec, item } : null;
   if (y && y !== year) { year = y; data = null; stats = null; fia = null; $('#szYear').value = String(y); }
   jump = true;
@@ -678,7 +698,7 @@ export function closeSeason() {
   szMenu(false);
   $('#seasonView').hidden = true;
   $('#seasonBtn').classList.remove('on');
-  if (urls && location.pathname.startsWith('/saison/')) history.replaceState(null, '', '/');
+  if (urls && location.pathname.startsWith('/saison/')) history.pushState(null, '', '/');
   if (urls) { delete document.documentElement.dataset.seasonTitle; document.title = 'Paddock Live'; }
   clearInterval(timer);
 }
@@ -688,17 +708,17 @@ export function initSeason() {
   const sel = $('#szYear');
   const now = new Date().getFullYear();
   sel.innerHTML = Array.from({ length: 8 }, (_, i) => now - i).map((y) => `<option value="${y}">${y}</option>`).join('');
-  sel.addEventListener('change', () => { year = Number(sel.value); data = null; stats = null; fia = null; clearTimeout(statsTimer); clearTimeout(fiaTimer); setTechFilter(null, 'all'); load(); });
+  sel.addEventListener('change', () => { year = Number(sel.value); push = true; data = null; stats = null; fia = null; clearTimeout(statsTimer); clearTimeout(fiaTimer); setTechFilter(null, 'all'); load(); });
   $('#seasonBtn').addEventListener('click', () => ($('#seasonView').hidden ? openSeason() : closeSeason()));
   $('#szClose').addEventListener('click', closeSeason);
-  $('#szNav').addEventListener('click', (e) => { const b = e.target.closest('[data-sz]'); if (b) { section = b.dataset.sz; jump = true; szMenu(false); animate(); render(); } });
+  $('#szNav').addEventListener('click', (e) => { const b = e.target.closest('[data-sz]'); if (b) { section = b.dataset.sz; jump = true; push = true; szMenu(false); animate(); render(); } });
   $('#szMenu')?.addEventListener('click', () => szMenu(true));
   $('#szScrim')?.addEventListener('click', () => szMenu(false));
   $('#szContent').addEventListener('click', (e) => {
     const b = e.target.closest('[data-szgo]');
-    if (b) { section = b.dataset.szgo; jump = true; animate(); render(); return; }
+    if (b) { section = b.dataset.szgo; jump = true; push = true; animate(); render(); return; }
     const g = e.target.closest('[data-szgp]');
-    if (g) { e.preventDefault(); section = 'gp'; gpRound = Number(g.dataset.szgp); jump = true; animate(); render(); return; }
+    if (g) { e.preventDefault(); section = 'gp'; push = true; gpRound = Number(g.dataset.szgp); jump = true; animate(); render(); return; }
     const rv = e.target.closest('[data-review]');
     if (rv && data) { reviewAction(rv.dataset.review, data); return; }
     const t = e.target.closest('[data-h2h-team]'), m = e.target.closest('[data-h2h-mode]');
@@ -712,7 +732,7 @@ export function initSeason() {
     const id = e.target.id;
     if (id === 'szH2hA') h2hA = e.target.value;
     else if (id === 'szH2hB') h2hB = e.target.value;
-    else if (id === 'szDriver') drvCode = e.target.value;
+    else if (id === 'szDriver') { drvCode = e.target.value; push = true; }
     else if (id === 'szSpeedPt') speedPt = e.target.value;
     else if (id === 'szCircSort') circSort = e.target.value;
     else if (id === 'szTechGp') setTechFilter(e.target.value, 'all');
