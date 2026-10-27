@@ -3,13 +3,20 @@ import { storageGet, storageSet, setVividTeams, setTeamLogos, setLogoColor } fro
 import { emit, touch } from './store.js';
 import { LANG } from './i18n.js';
 
+// Écran large mais peu haut (1080p), interface complète : direction de course (dernier message dans la barre
+// du bas) et panneau Stratégie (pneus et arrêts dans le classement) masqués par défaut, 2 panneaux au plus
+// par colonne. Le mode Essentiel garde les siens (championnat et limites de piste à droite)
+export const shortScreenHidden = (full = true) => (full && window.innerWidth > 1500 && window.innerHeight < 1150 ? ['feed', 'extra'] : []);
+
 const DEFAULTS = {
   favs: [],               // numéros des pilotes favoris
   favTeams: [],           // écuries favorites (clés de shared/news.js : 'ferrari', 'redbull'…)
   alerts: { sound: true, vibrate: true, notify: false, flags: true, fastest: true, favPit: true, favRcm: true, retire: true, finish: true, favCut: true, rain: true, prono: true },
   hiddenPanels: [],
+  hiddenTabs: [],         // onglets masqués (Réglages → Onglets visibles), comme ceux inutiles pour la séance
   hiddenCols: [],
   extraCols: [],          // colonnes facultatives ajoutées au classement (voir EXTRA_COLUMNS)
+  bigCols: null,          // colonnes du classement agrandi (bouton ⤢) : { hidden, extra }, sinon les mêmes
   towerFit: true,         // classement agrandi pour remplir la hauteur disponible
   theme: 'pitwall',       // thème unique de l'application
   design: 'broadcast',    // habillage : 'broadcast' (façon retransmission TV) | 'classic' (ancien design Pitwall)
@@ -33,11 +40,9 @@ const DEFAULTS = {
   layoutMode: 'auto',     // disposition : 'auto' (selon la séance) | 'race' | 'quali'
   tabLayout: null,        // onglets déplacés : { panneau: [onglets dans l'ordre] } (null : à leur place d'origine)
   radioAuto: false,
-  radioText: false,       // transcription des radios en texte (Whisper local)
+  radioText: false,       // transcription des radios en texte (serveur Paddock Live)
   radioLang: LANG === 'en' ? 'none' : 'fr',        // langue de traduction des transcriptions ('none' : anglais)
-  radioQuality: 'auto',   // modèles de transcription : 'auto' | 'high' (carte graphique) | 'light'
   radioFilter: 'all',
-  cloudTranslate: true,   // traductions par le serveur Paddock Live (Workers AI) plutôt que sur l'ordinateur
   obRadio: false,         // radios captées sur les caméras embarquées F1 TV (expérimental)
   obRadioWho: 'auto',     // pilotes écoutés : 'auto' (suivi + duel) | 'favs' (3 premiers favoris)
   pitView: 'chrono',      // onglet Arrêts : 'chrono' ou 'driver'
@@ -58,7 +63,7 @@ const DEFAULTS = {
   rcmTranslate: true,     // direction de course : messages traduits par le serveur Paddock Live
   spoilers: false,
   newsAlerts: 'important', // actualités : 'important' | 'favs' | 'all' | 'off'
-  newsTranslate: true,     // actualités traduites en français (sur l'ordinateur)
+  newsTranslate: true,     // actualités traduites en français (serveur Paddock Live)
   newsSpoilers: true,      // actualités : titres masqués et alertes suspendues pendant une séance / un replay
   mapFollow: false,
   muted: false,
@@ -166,3 +171,7 @@ window.addEventListener('storage', (e) => {
     emit('prefs', key);
   }
 });
+
+// Colonnes du classement : les siennes quand il est agrandi (bouton ⤢), sinon celles de la disposition
+export const towerBig = () => !!document.querySelector('.p-tower.maximized');
+export const towerCols = () => (towerBig() && prefs.bigCols) || { hidden: prefs.hiddenCols, extra: prefs.extraCols };

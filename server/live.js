@@ -23,6 +23,8 @@ export class LiveSource {
     this.timers = [];
     this.lastMessageAt = 0;
     this.status = { connected: false, error: null, authenticated: false };
+    this.losses = [];        // connexions avec F1 TV coupées (5 dernières minutes)
+    this.elsewhere = false;  // GPS laissé à un autre appareil du même compte F1 TV
   }
 
   start() {
@@ -52,6 +54,7 @@ export class LiveSource {
       try { this.ws.terminate(); } catch { /* ignore */ }
       this.ws = null;
     }
+    this.connectedAt = 0;
     this.setStatus({ connected: false });
   }
 
@@ -60,11 +63,35 @@ export class LiveSource {
     if (this.hub.source.mode === 'live') Object.assign(this.hub.source, this.status);
   }
 
-  // Connecté sans GPS alors qu'un autre jeton valide est arrivé depuis (jeton expiré au lancement puis
-  // renouvelé tout seul, « Renouveler maintenant ») : nouvelle connexion avec ce jeton
-  tokenChanged() {
+  // La F1 n'envoie le direct avec GPS qu'à une connexion par compte F1 TV : la dernière ouverte (version web, autre
+  // ordinateur) coupe l'autre. Deux coupures en 5 min : le GPS reste à l'autre appareil et celle-ci repasse sans
+  // F1 TV (chronos, positions estimées) au lieu de le lui reprendre sans fin. here() le reprend ici.
+  // Seules comptent les fermetures annoncées par la F1 (message de fermeture, fermeture propre) : une coupure du
+  // réseau (1006, sans fermeture annoncée : Wi-Fi, veille) ou 60 s sans données ne viennent pas d'un autre appareil
+  lost(token, now = Date.now(), code = null) {
+    if (!token || code === 1006) return;
+    this.losses = [...this.losses.filter((t) => now - t < 5 * 60e3), now];
+    if (this.losses.length >= 2) { this.elsewhere = true; this.setStatus({ elsewhere: true }); }
+  }
+
+  here() {
+    this.elsewhere = false;
+    this.losses = [];
+    this.retry = 0;
+    this.setStatus({ elsewhere: false });
+    this.restart();
+  }
+
+  // Séance en cours (chronos reçus), jeton F1 TV présent, mais pas de GPS une minute après la connexion :
+  // nouvelle connexion, une fois par séance et par jeton. La F1 n'envoie pas le GPS à une connexion ouverte
+  // avant le début de la séance, ni à une connexion faite sans jeton (expiré au lancement, renouvelé ensuite)
+  gpsRetry(now = Date.now()) {
     const token = this.getToken();
-    return !this.status.authenticated && !!token && token !== this.usedToken;
+    if (this.elsewhere || !token || this.status.authenticated || !this.connectedAt || now - this.connectedAt < 60000 || now - (this.lastTimingAt || 0) > 30000) return false;
+    const key = `${this.hub.sessionKey}|${token}`;
+    if (this.gpsRetried === key) return false;
+    this.gpsRetried = key;
+    return true;
   }
 
   scheduleReconnect() {
@@ -76,8 +103,7 @@ export class LiveSource {
 
   async connect() {
     if (!this.active) return;
-    const token = this.getToken();
-    this.usedToken = token;
+    const token = this.elsewhere ? null : this.getToken();
     const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
     try {
       const res = await request(`${BASE}/negotiate?negotiateVersion=1`, {
@@ -99,6 +125,7 @@ export class LiveSource {
         handshakeTimeout: 15000,   // connexion bloquée (Wi-Fi d'hôtel, sortie de veille) : erreur, donc nouvel essai
       });
       this.ws = ws;
+      this.token = token;   // jeton de cette connexion (aucun : sans F1 TV)
       let buffer = '';
 
       ws.on('open', () => {
@@ -107,7 +134,7 @@ export class LiveSource {
         this.lastMessageAt = Date.now();
         this.setStatus({ stale: false });
         this.timers.push(setInterval(() => {
-          if (this.tokenChanged()) { this.restart(); return; }
+          if (this.gpsRetry()) { this.restart(); return; }
           if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 6 }) + RS);
           // Données figées depuis 25 s : signalé (badge « LIVE » en orange) avant la reconnexion des 60 s
           if (Date.now() - this.lastMessageAt > 25000 && !this.status.stale) this.setStatus({ stale: true });
@@ -132,6 +159,7 @@ export class LiveSource {
 
       ws.on('close', (code) => {
         this.setStatus({ connected: false, error: `Connexion fermée (${code}), reconnexion…` });
+        this.lost(token, Date.now(), code);
         this.scheduleReconnect();
       });
       ws.on('error', (err) => {
@@ -161,10 +189,11 @@ export class LiveSource {
     } else if (msg.type === 3 && msg.invocationId === '2') {
       probeAnswer(msg.result, msg.error, this.session);
     } else if (msg.type === 1 && msg.target === 'feed' && Array.isArray(msg.arguments)) {
-      const [rawTopic, data] = msg.arguments;
-      this.onFeed(rawTopic, data, now);
+      const [rawTopic, data, utc] = msg.arguments;   // utc : heure d'émission par la F1
+      this.onFeed(rawTopic, data, now, utc);
     } else if (msg.type === 7) {
       this.setStatus({ error: msg.error ? `Fermé par le serveur : ${msg.error}` : 'Fermé par le serveur' });
+      this.lost(this.token);
       this.scheduleReconnect();
     }
   }
@@ -187,6 +216,7 @@ export class LiveSource {
       }
       this.addEvent('__snapshot', snapshot, now);
       const authenticated = 'Position.z' in result || 'CarData.z' in result;
+      this.connectedAt = now;
       this.setStatus({ connected: true, error: null, authenticated });
       this.hub.source.session = sessionLabel(result.SessionInfo);
     };
@@ -205,15 +235,15 @@ export class LiveSource {
         apply();
         const queued = this.pending || [];
         this.pending = null;
-        for (const [rawTopic, data, t] of queued) this.onFeed(rawTopic, data, t);
+        for (const [rawTopic, data, t, utc] of queued) this.onFeed(rawTopic, data, t, utc);
       });
       return;
     }
     apply();
   }
 
-  addEvent(topic, data, t) {
-    this.hub.addEvent(topic, data, t);
+  addEvent(topic, data, t, utc) {
+    this.hub.addEvent(topic, data, t, utc);
     this.recorder?.write(t, topic, data);
   }
 
@@ -222,9 +252,10 @@ export class LiveSource {
     this.recorder?.write(t, topic, raw, true);
   }
 
-  onFeed(rawTopic, data, now) {
+  // utc : heure d'émission du message par la F1, gardée pour le chronométrage (positions estimées sans GPS)
+  onFeed(rawTopic, data, now, utc) {
     if (isProbe(rawTopic)) { probeFeed(rawTopic, data); return; }
-    if (this.pending) { this.pending.push([rawTopic, data, now]); return; }
+    if (this.pending) { this.pending.push([rawTopic, data, now, utc]); return; }
     const topic = topicName(rawTopic);
     if (topic === 'TimingData') this.lastTimingAt = Date.now();   // séance en cours (statistiques)
     if (rawTopic.endsWith('.z')) {
@@ -233,12 +264,15 @@ export class LiveSource {
       return;
     }
     if (topic === 'SessionInfo' && data?.Key && this.hub.sessionKey && data.Key !== this.hub.sessionKey) {
-      // Nouvelle session : on repart d'un état propre.
+      // Nouvelle session : on repart d'un état propre, GPS redemandé (l'autre appareil n'est peut-être plus là)
+      this.elsewhere = false;
+      this.losses = [];
+      this.status.elsewhere = false;
       this.hub.reset({ mode: 'live', label: 'Live', ...this.status });
       this.restart();
       return;
     }
-    this.addEvent(topic, data, now);
+    this.addEvent(topic, data, now, topic === 'TimingData' && typeof utc === 'string' ? utc : undefined);
   }
 }
 

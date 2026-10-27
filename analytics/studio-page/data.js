@@ -14,13 +14,17 @@ const keepFr = () => {
   clearTimeout(frSave);
   frSave = setTimeout(() => store.set('fr', [...frCache].slice(-FR_MAX)), 500);
 };
+// Plafond du jour atteint (serveur ou Workers AI) : plus de demande jusqu'à minuit UTC, quand il repart
+let pausedUntil = 0;
+export const translationsPausedUntil = () => (Date.now() < pausedUntil ? pausedUntil : 0);
 // Textes en français ; null si la traduction a échoué. Les paquets partent en parallèle.
 export async function toFrench(list) {
-  const todo = [...new Map(list.filter((x) => x.text && x.from !== 'fr' && !frCache.has(`${x.from}|${x.text}`)).map((x) => [`${x.from}|${x.text}`, x])).values()];
+  const todo = translationsPausedUntil() ? [] : [...new Map(list.filter((x) => x.text && x.from !== 'fr' && !frCache.has(`${x.from}|${x.text}`)).map((x) => [`${x.from}|${x.text}`, x])).values()];
   const parts = [];
   for (let i = 0; i < todo.length; i += 30) parts.push(todo.slice(i, i + 30));
   await Promise.all(parts.map(async (part) => {
     const res = await api('translate', { method: 'POST', body: JSON.stringify({ to: 'fr', items: part.map((x) => ({ text: x.text.slice(0, 1500), from: x.from })) }) }).catch(() => ({}));
+    if (res.limited) pausedUntil = new Date().setUTCHours(24, 0, 0, 0);
     part.forEach((x, j) => { if (res.out?.[j]) frCache.set(`${x.from}|${x.text}`, res.out[j]); });
   }));
   if (todo.length) keepFr();
@@ -115,12 +119,24 @@ const parseStream = (text, topic) => {
   return out;
 };
 
-export async function loadState(path, topics = TOPICS) {
+// live : séance en cours, lue directement dans le relais du direct (état à la seconde, résultats provisoires)
+export async function loadState(path, topics = TOPICS, { live = false } = {}) {
+  if (live) {
+    const st = await api(`live-state?p=${encodeURIComponent(path)}`).catch(() => null);
+    if (st?.SessionInfo) return st;
+  }
+  let why = null;   // raison donnée par le serveur (archive pas encore publiée, connexion F1 TV refusée…)
   const parts = await mapLimit(topics, 5, async (t) => {
-    try { return parseStream(await (await api(`archive?p=${encodeURIComponent(`${path}${t}.jsonStream`)}`, { raw: true })).text(), t); } catch { return []; }
+    try { return parseStream(await (await api(`archive?p=${encodeURIComponent(`${path}${t}.jsonStream`)}`, { raw: true })).text(), t); } catch (err) { why ||= err.message; return []; }
   });
   const events = parts.flat().sort((a, b) => a.off - b.off);
-  if (!events.length) throw new Error('Archive de la séance indisponible (pas encore publiée, ou connexion F1 TV à renouveler dans l\'appli)');
+  // Séance qui vient de finir : archive pas encore publiée, mais le direct de la F1 garde son état final (relais
+  // de la version web) ; résultats sans l'historique des tours (pas de dépassements comptés)
+  if (!events.length && why === 'Archive pas encore publiée') {
+    const live = await api(`live-state?p=${encodeURIComponent(path)}`).catch(() => null);
+    if (live?.SessionInfo) return live;
+  }
+  if (!events.length) throw new Error(why === 'Archive pas encore publiée' ? 'Archive pas encore publiée par la F1 : elle arrive environ une heure après la fin de la séance, réessayez plus tard' : why || 'Archive de la séance indisponible');
   // État de fin de séance et tours de chaque pilote (dépassements des posts de résultats)
   const st = {};
   const derived = createDerived();
@@ -137,16 +153,19 @@ function parseOffset(v) {
 }
 export const SESSION_FR = (n) => String(n).replace(/^Practice (\d)$/, 'Essais libres $1').replace('Sprint Qualifying', 'Qualifications sprint').replace('Sprint Shootout', 'Qualifications sprint').replace(/^Qualifying$/, 'Qualifications').replace(/^Race$/, 'Course');
 
-// Séances terminées de la saison (30 dernières), gardées 30 minutes sur le téléphone
-// (relues au plus toutes les 10 minutes, sauf « Actualiser »)
+// Séances terminées d'une saison (année en cours : les 30 dernières, plus la séance en direct), gardées 30 minutes
+// sur le téléphone (relues au plus toutes les 10 minutes, sauf « Actualiser ») ; saisons passées : toutes, gardées
 let sessions = null;
-export const cachedSessions = () => sessions || store.get('sessions', 30 * 60e3)?.v || null;
-export async function seasonSessions({ force = false } = {}) {
-  if (!force && !sessions) sessions = store.get('sessions', 10 * 60e3)?.v || null;
+let sessionsYear = 0;
+const sessionsKey = (y) => (y === new Date().getUTCFullYear() ? 'sessions' : `sessions.${y}`);
+export const cachedSessions = (y = new Date().getUTCFullYear()) => (sessionsYear === y && sessions) || store.get(sessionsKey(y), y === new Date().getUTCFullYear() ? 30 * 60e3 : Infinity)?.v || null;
+export async function seasonSessions({ force = false, year = new Date().getUTCFullYear() } = {}) {
+  const now = new Date().getUTCFullYear();
+  if (sessionsYear !== year) { sessions = null; sessionsYear = year; }
+  if (!force && !sessions) sessions = store.get(sessionsKey(year), year === now ? 10 * 60e3 : Infinity)?.v || null;
   if (sessions && !force) return sessions;
-  const year = new Date().getUTCFullYear();
   const out = [];
-  for (const y of [year, year - 1]) {
+  for (const y of year === now ? [year, year - 1] : [year]) {
     try {
       const idx = JSON.parse((await (await api(`archive?p=${y}/Index.json`, { raw: true })).text()).replace(/^﻿/, ''));
       for (const m of idx.Meetings || []) {
@@ -160,8 +179,19 @@ export async function seasonSessions({ force = false } = {}) {
       if (out.length) break;
     } catch { /* année absente */ }
   }
-  sessions = out.sort((a, b) => b.end - a.end).slice(0, 30);
-  store.set('sessions', sessions);
+  // Séance en cours ou qui vient de finir : la F1 ne l'ajoute à l'index qu'une heure environ après le drapeau à
+  // damier ; le relais du direct (version web) la connaît déjà (en cours : résultats provisoires)
+  if (year === now) {
+    try {
+      const s = await api('live-session');
+      const end = s?.endDate ? Date.parse(`${s.endDate}Z`) - (parseOffset(s.gmtOffset) || 0) : NaN;
+      const done = ['Finished', 'Finalised', 'Ends'].includes(s?.status) || end < Date.now();
+      const live = !done && ['Started', 'Aborted', 'Inactive'].includes(s?.status);
+      if (s?.path && (done || live) && !out.some((x) => x.path === s.path)) out.push({ path: s.path, name: s.name, type: s.type, end: done ? Math.min(end || Date.now(), Date.now()) : Date.now(), gp: s.gp, country: s.country, live });
+    } catch { /* relais injoignable : l'index seul */ }
+  }
+  sessions = out.sort((a, b) => b.end - a.end).slice(0, year === now ? 30 : undefined);
+  store.set(sessionsKey(year), sessions);
   return sessions;
 }
 

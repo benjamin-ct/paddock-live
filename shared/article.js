@@ -207,3 +207,39 @@ export function youtubeId(link) {
   const m = String(link || '').match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/)|youtu\.be\/)([\w-]{11})/i);
   return m ? m[1] : null;
 }
+
+// Page d'un article des actualités réduite au titre, à la photo et au texte (mode lecture, lu par le serveur de
+// Paddock Live). item : la nouvelle { link, lang, title, img, summary } ; fetch(url, { headers }) ->
+// { status, headers: { 'content-type' }, body: octets }. Certains sites refusent une demande sur deux (protection
+// contre les robots) : un nouvel essai.
+const MAX_BYTES = 5 * 1024 * 1024;
+const MIN_TEXT = 400;   // en dessous : page non lisible ici (vidéo, accès refusé…), lien vers le site
+export async function readArticle(item, { fetch, ua, retryDelay = 1200 }) {
+  const url = item.link;
+  const base = { link: url, lang: item.lang, title: item.title, image: item.img || '', description: item.summary || '', blocks: [] };
+  let r = null;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (attempt) await new Promise((ok) => setTimeout(ok, retryDelay));
+    r = await fetch(url, { headers: { 'User-Agent': ua, Accept: 'text/html,application/xhtml+xml', 'Accept-Language': `${item.lang || 'en'},en;q=0.8` } }).catch(() => null);
+    if (r && (r.status === 200 || r.status === 404)) break;
+  }
+  if (!r) return { ...base, readable: false, reason: 'site injoignable' };
+  if (r.status !== 200 || !r.body?.length || r.body.length > MAX_BYTES) return { ...base, readable: false, reason: `le site refuse la lecture (${r.status})` };
+  // Encodage : en-tête HTTP, sinon <meta charset>, sinon UTF-8
+  const head = new TextDecoder('latin1').decode(r.body.subarray(0, 4096));
+  const label = (String(r.headers?.['content-type'] || '').match(/charset=([\w-]+)/i)?.[1] || head.match(/<meta[^>]+charset=["']?([\w-]+)/i)?.[1] || 'utf-8').toLowerCase();
+  let html;
+  try { html = new TextDecoder(label).decode(r.body); } catch { html = new TextDecoder().decode(r.body); }
+  const a = extractArticle(html, url);
+  const chars = a.blocks.reduce((n, b) => n + (b.p || '').length, 0);
+  return {
+    ...base,
+    title: item.title || a.title,
+    image: a.image || base.image,
+    description: a.description || base.description,
+    author: a.author, site: a.site, published: a.published,
+    blocks: chars >= MIN_TEXT ? a.blocks : [],
+    readable: chars >= MIN_TEXT,
+    ...(chars >= MIN_TEXT ? {} : { reason: 'pas de texte lisible sur cette page (vidéo, accès réservé…)' }),
+  };
+}

@@ -1,26 +1,21 @@
-// Mode créateur : publication des posts sur les réseaux du propriétaire (X, Facebook, Instagram,
-// Threads, brouillon vidéo TikTok, Short YouTube en privé). Les clés et jetons restent dans config.json sur cet ordinateur
+// Mode créateur : comptes des réseaux du propriétaire (Facebook, Instagram, Threads, Bluesky, TikTok, YouTube),
+// envoyés chiffrés au Studio qui publie les posts. Les clés et jetons restent dans config.json sur cet ordinateur
 // (jamais dans une sauvegarde des réglages) ; l'interface n'en voit que le nom du compte.
 import crypto from 'node:crypto';
 import { getConfig, saveConfig } from './config.js';
-import { xLength } from '../shared/social.js';
-import { studioTrack } from './studio-sync.js';
-import { bskySession, publishBluesky, replyBluesky } from '../shared/bluesky-publish.js';
-import { call, GRAPH, THREADS, timing, publishFacebook, publishInstagram, publishThreads, freshThreads, commentFacebook, replyThreads, withComment } from '../shared/meta-publish.js';
-import { YOUTUBE, tiktokOAuth, googleOAuth, tiktokTokens, youtubeTokens, freshTiktok, freshYoutube, tiktokDraft, youtubeUpload, youtubeSnippet } from '../shared/video-publish.js';
+import { bskySession } from '../shared/bluesky-publish.js';
+import { call, GRAPH, THREADS } from '../shared/meta-publish.js';
+import { YOUTUBE, tiktokOAuth, googleOAuth, tiktokTokens, youtubeTokens } from '../shared/video-publish.js';
 
-const XAPI = 'https://api.x.com/2';
 const TIKTOK = 'https://open.tiktokapis.com/v2';
 
 const conf = () => getConfig().social || {};
 const save = (net, v) => saveConfig({ social: { ...conf(), [net]: v } });
-const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // ---------- Comptes ----------
 export function accountsInfo() {
   const c = conf();
   return {
-    x: { connected: !!c.x?.accessToken, name: c.x?.username || '' },
     facebook: { connected: !!c.meta?.pageToken, name: c.meta?.pageName || '' },
     instagram: { connected: !!c.meta?.igId, name: c.meta?.igUsername ? `@${c.meta.igUsername}` : '' },
     threads: { connected: !!c.threads?.token, name: c.threads?.username ? `@${c.threads.username}` : '', expiresAt: c.threads?.expiresAt || null },
@@ -41,12 +36,7 @@ export async function saveAccount(net, b) {
     saveConfig({ social: c });
     return accountsInfo();
   }
-  if (net === 'x') {
-    const k = { apiKey: str(b.apiKey), apiSecret: str(b.apiSecret), accessToken: str(b.accessToken), accessSecret: str(b.accessSecret) };
-    if (Object.values(k).some((v) => !v)) throw new Error('Les 4 clés sont nécessaires');
-    const me = await call(`${XAPI}/users/me`, { headers: { Authorization: oauth1('GET', `${XAPI}/users/me`, k) } });
-    save('x', { ...k, username: me?.data?.username ? `@${me.data.username}` : '' });
-  } else if (net === 'facebook' || net === 'instagram') {
+  if (net === 'facebook' || net === 'instagram') {
     const appId = str(b.appId); const appSecret = str(b.appSecret); const userToken = str(b.userToken, 1000);
     if (!appId || !appSecret || !userToken) throw new Error('Identifiant de l\'app, clé secrète et jeton nécessaires (ou « Se connecter avec Facebook »)');
     // Jeton longue durée, puis jeton de la page (sans date d'expiration) et compte Instagram relié
@@ -97,55 +87,6 @@ export async function saveAccount(net, b) {
     save('youtube', prev.clientId && prev.clientId !== clientId ? { clientId, clientSecret } : { ...prev, clientId, clientSecret });
   } else throw new Error('Réseau inconnu');
   return accountsInfo();
-}
-
-// ---------- X : signature OAuth 1.0a (corps JSON ou multipart : non signé) ----------
-const enc = (s) => encodeURIComponent(s).replace(/[!'()*]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
-export function oauth1(method, url, k, { nonce = crypto.randomBytes(16).toString('hex'), timestamp = Math.floor(Date.now() / 1000), params: extra = {} } = {}) {
-  const u = new URL(url);
-  const params = { oauth_consumer_key: k.apiKey, oauth_nonce: nonce, oauth_signature_method: 'HMAC-SHA1', oauth_timestamp: String(timestamp), oauth_token: k.accessToken, oauth_version: '1.0' };
-  const all = [...Object.entries(params), ...u.searchParams.entries(), ...Object.entries(extra)].map(([a, b]) => [enc(a), enc(b)]).sort((a, b) => (a[0] === b[0] ? (a[1] < b[1] ? -1 : 1) : a[0] < b[0] ? -1 : 1));
-  const base = [method.toUpperCase(), enc(`${u.origin}${u.pathname}`), enc(all.map(([a, b]) => `${a}=${b}`).join('&'))].join('&');
-  const sig = crypto.createHmac('sha1', `${enc(k.apiSecret)}&${enc(k.accessSecret)}`).update(base).digest('base64');
-  return `OAuth ${Object.entries({ ...params, oauth_signature: sig }).map(([a, b]) => `${enc(a)}="${enc(b)}"`).join(', ')}`;
-}
-
-async function publishX(text, images) {
-  const k = conf().x;
-  if (!k?.accessToken) throw new Error('Compte X non connecté');
-  const auth = (method, url) => ({ Authorization: oauth1(method, url, k) });
-  const ids = [];
-  for (const img of images.slice(0, 4)) {
-    const init = await call(`${XAPI}/media/upload/initialize`, { method: 'POST', headers: auth('POST', `${XAPI}/media/upload/initialize`), json: { media_type: 'image/png', total_bytes: img.length, media_category: 'tweet_image' } });
-    const id = init?.data?.id;
-    const form = new FormData();
-    form.append('segment_index', '0');
-    form.append('media', new Blob([img], { type: 'image/png' }), 'image.png');
-    await call(`${XAPI}/media/upload/${id}/append`, { method: 'POST', headers: auth('POST', `${XAPI}/media/upload/${id}/append`), form });
-    await call(`${XAPI}/media/upload/${id}/finalize`, { method: 'POST', headers: auth('POST', `${XAPI}/media/upload/${id}/finalize`) });
-    ids.push(id);
-  }
-  const post = await call(`${XAPI}/tweets`, { method: 'POST', headers: auth('POST', `${XAPI}/tweets`), json: { text, ...(ids.length ? { media: { media_ids: ids } } : {}) } });
-  const user = String(k.username || '').replace('@', '') || 'i';
-  return { url: `https://x.com/${user}/status/${post?.data?.id}`, id: post?.data?.id };
-}
-
-// Réponse à son propre post X (premier commentaire)
-async function replyX(postId, text) {
-  const k = conf().x;
-  return call(`${XAPI}/tweets`, { method: 'POST', headers: { Authorization: oauth1('POST', `${XAPI}/tweets`, k) }, json: { text, reply: { in_reply_to_tweet_id: postId } } });
-}
-
-// ---------- Meta : Facebook, Instagram, Threads (code partagé avec la page web du créateur) ----------
-export { timing };
-// alt : texte alternatif de chaque image (lecteurs d'écran), repris par chaque réseau
-const blobs = (images) => images.map((b) => Object.assign(new Blob([b], { type: 'image/png' }), { alt: b.alt || '' }));
-
-async function threadsAccount() {
-  const t = conf().threads;
-  const fresh = await freshThreads(t);
-  if (fresh !== t) save('threads', fresh);
-  return fresh;
 }
 
 const pending = new Map();   // state -> { verifier, redirect, at, second | net }
@@ -216,18 +157,6 @@ export async function tiktokCallback(params) {
   } catch { /* nom facultatif */ }
 }
 
-async function tiktokToken() {
-  const t = conf().tiktok;
-  const fresh = await freshTiktok(t);
-  if (fresh !== t) save('tiktok', fresh);
-  return fresh.accessToken;
-}
-
-async function publishTiktok(video, mime) {
-  if (!video?.length) throw new Error('Vidéo manquante');
-  return tiktokDraft(await tiktokToken(), video, mime);
-}
-
 // ---------- YouTube : connexion Google (PKCE, retour sur cet ordinateur) et Short envoyé en privé ----------
 export function youtubeLoginUrl(origin) {
   const y = conf().youtube;
@@ -261,53 +190,4 @@ export async function youtubeCallback(params) {
     const ch = await call(`${YOUTUBE}/channels?part=snippet&mine=true`, { headers: { Authorization: `Bearer ${saved.accessToken}` } });
     save('youtube', { ...saved, name: ch?.items?.[0]?.snippet?.title || '' });
   } catch { /* nom facultatif */ }
-}
-
-async function youtubeToken() {
-  const y = conf().youtube;
-  try {
-    const fresh = await freshYoutube(y);
-    if (fresh !== y) save('youtube', fresh);
-    return fresh.accessToken;
-  } catch (err) {
-    // Accès retiré ou expiré (projet Google en mode « Test » : 7 jours) : il faut se reconnecter
-    if (err.code === 'invalid_grant') {
-      const { accessToken, refreshToken, expiresAt, ...keys } = y;
-      save('youtube', keys);
-      throw new Error('Connexion YouTube expirée : reconnectez-vous (Comptes… → YouTube)');
-    }
-    throw err;
-  }
-}
-
-export { youtubeSnippet };
-
-async function publishYoutube(video, mime, text) {
-  if (!video?.length) throw new Error('Vidéo manquante');
-  return youtubeUpload(await youtubeToken(), video, mime, text);
-}
-
-// ---------- Publication ----------
-export async function publish(net, { text = '', images = [], alts = [], video = null, mime = 'video/mp4', comment = '' }) {
-  // Images PNG (ou JPEG pour Bluesky, 1 Mo au plus par image), avec leur texte alternatif
-  const imgs = images.map((b, i) => Object.assign(Buffer.from(String(b), 'base64'), { alt: String((Array.isArray(alts) && alts[i]) || '').slice(0, 1000) })).filter((b) => b.length > 8 && (b.readUInt32BE(0) === 0x89504e47 || (net === 'bluesky' && b[0] === 0xff && b[1] === 0xd8)));
-  // Liens suivis (clics comptés) ; premier commentaire (lien de l'article d'une news) : X, Facebook, Threads
-  const { text: body, comment: note } = await studioTrack(net, String(text || ''), String(comment || '').trim().slice(0, 500));
-  if (net === 'x') return withComment(() => publishX(xLength(body) > 280 ? body.slice(0, 280) : body, imgs), note, replyX);
-  if (net === 'facebook') return withComment(() => publishFacebook(conf().meta, body, blobs(imgs)), note, (id, t) => commentFacebook(conf().meta, id, t));
-  if (net === 'instagram') return publishInstagram(conf().meta, body.slice(0, 2200), blobs(imgs));
-  if (net === 'bluesky') {
-    const acc = conf().bluesky;
-    const pics = imgs.map((b) => ({ blob: new Blob([b], { type: b[0] === 0xff ? 'image/jpeg' : 'image/png' }), width: 1080, height: 1350, alt: b.alt }));   // format X de shared/social-draw.js
-    return withComment(() => publishBluesky(acc, [...body].slice(0, 300).join(''), pics), note, (id, t) => replyBluesky(acc, id, t));
-  }
-  if (net === 'threads') {
-    const th = await threadsAccount();
-    return withComment(() => publishThreads(th, conf().meta, body.slice(0, 500), blobs(imgs)), note, (id, t) => replyThreads(th, id, t));
-  }
-  const vid = video ? Buffer.from(String(video), 'base64') : null;
-  const vmime = /^video\/(mp4|webm|quicktime)$/.test(mime) ? mime : 'video/mp4';
-  if (net === 'tiktok') return publishTiktok(vid, vmime);
-  if (net === 'youtube') return publishYoutube(vid, vmime, body);
-  throw new Error('Réseau inconnu');
 }

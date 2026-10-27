@@ -6,6 +6,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { PAGES, linksPage } from '../analytics/links/pages.mjs';
+import { GUIDES, guidePage, sitemap, robots, englishHome } from '../analytics/launch/guides.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = path.join(ROOT, 'analytics', 'site');
@@ -47,7 +48,7 @@ const visit = (file) => {
 };
 visit(path.join(M, 'studio', 'app.js'));
 const rel = (f) => `/${path.relative(OUT, f).split(path.sep).join('/')}`;
-const FONTS = ['titillium-400', 'titillium-600', 'titillium-700', 'sairacondensed-800'];
+const FONTS = ['manrope-latin', 'sairacondensed-800'];
 const head = [
   ...FONTS.map((f) => `<link rel="preload" href="/fonts/${f}.woff2" as="font" type="font/woff2" crossorigin>`),
   `<link rel="stylesheet" href="/m/${VERSION}/studio/style.css">`,
@@ -78,8 +79,19 @@ copy(path.join(ROOT, 'analytics', 'legal'), path.join(OUT, 'legal'));
 // Pack de présentation pour les streamers (/kit/streamers/, lien non listé donné dans les Réglages du Studio)
 copy(path.join(ROOT, 'analytics', 'launch-kit', 'streamers'), path.join(OUT, 'kit', 'streamers'));
 // Site de l'appli pour le lancement (/site/, racine d'un nom de domaine à soi), avec ses images
-copy(path.join(ROOT, 'analytics', 'launch'), path.join(OUT, 'site'), (f) => f !== 'img');
+copy(path.join(ROOT, 'analytics', 'launch'), path.join(OUT, 'site'), (f) => f !== 'img' && !f.endsWith('.mjs'));
+// Une page par grande fonction (/radios-f1-traduites/…), plan du site et règles pour les moteurs de recherche
+for (const g of GUIDES) {
+  fs.mkdirSync(path.join(OUT, g.slug), { recursive: true });
+  fs.writeFileSync(path.join(OUT, g.slug, 'index.html'), guidePage(g.slug));
+}
+// Accueil en anglais (/en/), page à part pour les moteurs de recherche
+fs.writeFileSync(path.join(OUT, 'en', 'index.html'), englishHome(fs.readFileSync(path.join(ROOT, 'analytics', 'launch', 'index.html'), 'utf8')));
+fs.writeFileSync(path.join(OUT, 'sitemap.xml'), sitemap());
+fs.writeFileSync(path.join(OUT, 'robots.txt'), robots());
 copy(path.join(ROOT, 'analytics', 'launch', 'img'), path.join(OUT, 'site', 'img'));
+// Alertes sur le téléphone pour tout le monde (/alertes/, page à ajouter à l'écran d'accueil)
+copy(path.join(ROOT, 'analytics', 'alertes'), path.join(OUT, 'alertes'));
 // Extension Paddock Live Companion (/extension/, adresse donnée dans l'appli) : un bouton par boutique
 copy(path.join(ROOT, 'analytics', 'extension'), path.join(OUT, 'extension'));
 // Présentation publique de l'appli (/app/), site officiel déclaré à TikTok
@@ -91,9 +103,61 @@ for (const id of Object.keys(PAGES)) {
   fs.mkdirSync(path.join(OUT, id), { recursive: true });
   fs.writeFileSync(path.join(OUT, id, 'index.html'), linksPage(id));
 }
+// Version web du direct (/live/) : interface de l'appli (public/) et code partagé sous /live/, reliés au relais
+// du Worker (analytics/live-relay.js) ; page et point d'entrée dans analytics/live-page
+const LIVE = path.join(OUT, 'live');
+const LIVE_PAGE = path.join(ROOT, 'analytics', 'live-page');
+const toLive = (s) => s.replace(/(['"`(])\/(api|shared|js|css|fonts|data|vendor|logo\.svg)(?=[/'"`)?])/g, '$1/live/$2');
+const copyLive = (from, to) => {
+  fs.mkdirSync(to, { recursive: true });
+  for (const e of fs.readdirSync(from, { withFileTypes: true })) {
+    const src = path.join(from, e.name), dst = path.join(to, e.name);
+    if (e.isDirectory()) copyLive(src, dst);
+    else if (/\.(js|css)$/.test(e.name)) fs.writeFileSync(dst, toLive(fs.readFileSync(src, 'utf8')));
+    else fs.copyFileSync(src, dst);
+  }
+};
+for (const d of ['js', 'css', 'fonts', 'data']) copyLive(path.join(ROOT, 'public', d), path.join(LIVE, d));
+copyLive(path.join(ROOT, 'public', 'vendor', 'nosleep'), path.join(LIVE, 'vendor', 'nosleep'));
+copyLive(SHARED, path.join(LIVE, 'shared'));
+fs.copyFileSync(path.join(ROOT, 'public', 'logo.svg'), path.join(LIVE, 'logo.svg'));
+// Code de la page : chemins absolus et chemin relatif du code partagé (lisible tel quel par les tests) vers /live/shared/
+for (const f of ['web.js', 'web-hub.js']) fs.writeFileSync(path.join(LIVE, 'js', f), toLive(fs.readFileSync(path.join(LIVE_PAGE, f), 'utf8')).replace(/(['"])\.\.\/\.\.\/shared\//g, '$1/live/shared/'));
+// Écran d'accueil du téléphone : manifeste et icônes de l'appli
+fs.copyFileSync(path.join(LIVE_PAGE, 'manifest.webmanifest'), path.join(LIVE, 'manifest.webmanifest'));
+for (const f of ['apple-touch-icon.png', 'icon-512.png']) fs.copyFileSync(path.join(ROOT, 'public', f), path.join(LIVE, f));
+// Panneaux repris tels quels de la page de l'appli
+const appPage = fs.readFileSync(path.join(ROOT, 'public', 'index.html'), 'utf8');
+const livePage = fs.readFileSync(path.join(LIVE_PAGE, 'index.html'), 'utf8').replace(/<!--panel:(\w+)-->/g, (_, id) => {
+  const m = appPage.match(new RegExp(`<section class="panel p-${id}">[\\s\\S]*?</section>`));
+  if (!m) throw new Error(`public/index.html : panneau ${id} introuvable`);
+  return toLive(m[0]);
+}).replace('<!--season-->', () => {
+  // Espace Saison de l'appli : menu des rubriques, contenu rempli par ui/season.js
+  const m = appPage.match(/<div class="season-view" id="seasonView"[\s\S]*?<div class="sz-main" id="szContent"><\/div>\s*<\/div>/);
+  if (!m) throw new Error('public/index.html : espace Saison introuvable');
+  return toLive(m[0]);
+});
+// Modules de la page : tous présents (un import manquant bloquerait toute la page)
+const liveGraph = new Set();
+const liveVisit = (file) => {
+  if (liveGraph.has(file)) return;
+  if (!fs.existsSync(file)) throw new Error(`Version web : module manquant ${path.relative(OUT, file)}`);
+  liveGraph.add(file);
+  for (const m of fs.readFileSync(file, 'utf8').matchAll(IMPORT)) {
+    const to = m[1].startsWith('/live/') ? path.join(OUT, m[1]) : m[1].startsWith('.') ? path.resolve(path.dirname(file), m[1]) : null;
+    if (to) liveVisit(to);
+  }
+};
+liveVisit(path.join(LIVE, 'js', 'web.js'));
+// Liste des modules donnée d'emblée (modulepreload) : chargés ensemble au lieu d'être découverts un à un (navigateur
+// neuf, rien en cache, ex. celui d'Instagram : page prête vers 0,8 s au lieu de 1,2 s avec la latence d'un téléphone)
+if (!livePage.includes('</head>')) throw new Error('Version web : </head> introuvable');
+fs.writeFileSync(path.join(LIVE, 'index.html'), livePage.replace('</head>', `${[...liveGraph].map((f) => `<link rel="modulepreload" href="${rel(f)}">`).join('\n')}\n</head>`));
 // Fichiers servis à la racine du site (vérification du domaine par TikTok)
 copy(path.join(ROOT, 'analytics', 'root'), OUT);
 copy(path.join(ROOT, 'public', 'fonts'), path.join(OUT, 'fonts'), (f) => /^(titillium|sairacondensed|jetbrainsmono).*\.woff2$|^OFL/.test(f));
+copy(path.join(ROOT, 'analytics', 'fonts'), path.join(OUT, 'fonts'));   // Manrope : texte du Studio
 // En-têtes : la page et l'API ne doivent pas être indexées ni mises en cache trop longtemps
 fs.writeFileSync(path.join(OUT, '_headers'), `/studio/*
   X-Robots-Tag: noindex, nofollow
@@ -108,6 +172,8 @@ fs.writeFileSync(path.join(OUT, '_headers'), `/studio/*
   Cache-Control: public, max-age=2592000
 /legal/*
   Cache-Control: public, max-age=3600
+/alertes/*
+  Cache-Control: no-cache
 /app/*
   Cache-Control: public, max-age=3600
 /site/*
@@ -123,4 +189,4 @@ fs.writeFileSync(path.join(OUT, '_headers'), `/studio/*
   X-Robots-Tag: noindex, nofollow
 `);
 const n = (d) => fs.readdirSync(path.join(OUT, d)).length;
-console.log(`Site prêt : version ${VERSION}, ${n(`m/${VERSION}/studio`)} fichiers studio, ${n(`m/${VERSION}/shared`)} modules partagés (${graph.length} chargés d'emblée), ${n('fonts')} polices`);
+console.log(`Site prêt : version ${VERSION}, ${n(`m/${VERSION}/studio`)} fichiers studio, ${n(`m/${VERSION}/shared`)} modules partagés (${graph.length} chargés d'emblée), ${n('fonts')} polices, version web : ${liveGraph.size} modules`);

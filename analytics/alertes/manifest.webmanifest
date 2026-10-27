@@ -1,0 +1,11 @@
+{
+  "name": "Paddock Live · Alertes",
+  "short_name": "Paddock Live",
+  "description": "Rappel avant chaque séance de F1, résultats et grosses news, sur ton téléphone.",
+  "start_url": "/alertes/",
+  "scope": "/alertes/",
+  "display": "standalone",
+  "background_color": "#0b0c0f",
+  "theme_color": "#000000",
+  "icons": [{ "src": "/app/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }]
+}

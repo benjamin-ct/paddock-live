@@ -1,7 +1,6 @@
-// Espace Saison → Pronostics : pole et podium de chaque Grand Prix, entre amis (ordinateur et
-// téléphones de l'accès réseau), avec le classement de la saison. Groupe en ligne : les mêmes
-// pronostics partagés avec un lien (page paddocklive.app/p/<groupe>), hors du réseau local.
-// Pseudo d'un groupe réservé par un jeton gardé ici.
+// Espace Saison → Pronostics : pole et podium de chaque Grand Prix, entre amis, avec le classement de la
+// saison. Joués dans un groupe en ligne (gardé sur le serveur Paddock Live, partagé avec un lien vers la page
+// paddocklive.app/p/<groupe>). Pseudo d'un groupe réservé par un jeton gardé ici.
 import { $, esc, api, storageGet, storageSet } from '../util.js';
 import { icon } from '../icons.js';
 import { toast } from './delay.js';
@@ -37,13 +36,13 @@ const fmt = (t) => (t ? new Date(t).toLocaleString(LOCALE, { weekday: 'short', d
 
 function source(year) {
   const g = group();
-  return g ? `/api/predictions/online?${new URLSearchParams({ g: g.id, year, tok: storageGet(tokKey(g), '') })}` : `/api/predictions?year=${year}&me=${encodeURIComponent(me())}`;
+  return g ? `/api/predictions/online?${new URLSearchParams({ g: g.id, year, tok: storageGet(tokKey(g), '') })}` : '/api/predictions';
 }
 
 // Rappel avant la fermeture (reminders.js) : ce joueur n'a pas encore choisi field ('pole' ou 'p1')
-// pour le prochain Grand Prix ; jamais pour qui n'a jamais joué ici
+// pour le prochain Grand Prix ; jamais sans groupe
 export async function pronoMissing(year, field) {
-  if (!group() && !me()) return false;
+  if (!group()) return false;
   try {
     const v = await api(source(year));
     const next = v.races.find((r) => !r.result && r.locks.podium && r.locks.podium > Date.now());
@@ -87,8 +86,9 @@ function lockPodium() {
   for (const s of sels) for (const o of s.options) o.disabled = !!o.value && sels.some((x) => x !== s && x.value === o.value);
 }
 
+let optOf = () => '';   // numéro et écurie d'un pilote dans les listes (donnés par la Saison)
 function driverSelect(name, value, drivers, disabled) {
-  return `<select name="${name}" ${disabled ? 'disabled' : ''}><option value="">—</option>${drivers.map((d) => `<option value="${esc(d.code)}" ${d.code === value ? 'selected' : ''}>${esc(d.code)} · ${esc(d.name)}</option>`).join('')}</select>`;
+  return `<select name="${name}" ${disabled ? 'disabled' : ''}><option value="">—</option>${drivers.map((d) => `<option value="${esc(d.code)}" ${d.code === value ? 'selected' : ''}${optOf(d.code)}>${esc(d.code)} · ${esc(d.name)}</option>`).join('')}</select>`;
 }
 
 function pickCell(code, pts) {
@@ -104,8 +104,8 @@ function picksTable(r) {
       <td><b>${p.points ? p.points.total : '—'}</b>${p.points?.perfect ? ` <small class="pd-hit">podium exact +${p.points.perfect}</small>` : ''}</td></tr>`).join('')}</table>`;
 }
 
-// Groupe en ligne : lien à partager, ou création / arrivée dans un groupe
-function groupBox() {
+// Groupe en ligne : lien à partager, ou création / arrivée dans un groupe (ouvert d'emblée : open, version web)
+function groupBox(open) {
   const g = group();
   const list = groups();
   if (g) {
@@ -113,14 +113,14 @@ function groupBox() {
     return `<section class="sz-box pd-group"><h3>${icon('share')} Groupe en ligne : ${esc(g.name)}</h3>
       <p class="muted small">Vos amis jouent depuis la page web, sans l'appli.</p>
       <div class="pd-actions"><input readonly value="${esc(SITE + g.id)}" class="pd-link"><button class="btn small" data-pd="copy">${icon('doc')} Copier le lien</button>
-        <button class="btn small" data-pd="leave" title="Revenir aux pronostics de cet ordinateur">Quitter le groupe</button></div>
+        <button class="btn small" data-pd="leave">Quitter le groupe</button></div>
       <div class="pd-actions"><button class="btn small" data-pd="forget" title="Retiré de cet appareil, il reste en ligne pour les autres">Retirer de mes groupes</button>
         ${storageGet(adminKey(g), '') || storageGet(tokKey(g), '') ? '<button class="btn small" data-pd="delete" title="Efface le groupe pour tous (créateur seulement)">Supprimer le groupe</button>' : ''}</div>
       ${mine ? `<div class="pd-actions"><input readonly value="${esc(mine)}" class="pd-link"><button class="btn small" data-pd="mylink">${icon('doc')} Copier mon lien personnel</button></div>
       <p class="muted small">Votre lien personnel, pour jouer sur un autre appareil. Gardez-le pour vous.</p>` : ''}
       ${list.length > 1 ? `<label class="small pd-name">Mes groupes <select data-pd-switch>${list.map((x) => `<option value="${esc(x.id)}" ${x.id === g.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></label>` : ''}</section>`;
   }
-  return `<details class="sz-box pd-group" ${list.length ? 'open' : ''}><summary><b>${icon('share')} Jouer en ligne avec des amis</b> <span class="muted small">hors du réseau local, avec un lien à partager</span></summary>
+  return `<details class="sz-box pd-group" ${open || list.length ? 'open' : ''}><summary><b>${icon('share')} Jouer en ligne avec des amis</b> <span class="muted small">avec un lien à partager</span></summary>
       ${list.length ? `<div class="pd-actions"><span class="small">Mes groupes</span>${list.map((x) => `<button class="btn small" data-pd="open" data-id="${esc(x.id)}">${esc(x.name)}</button>`).join('')}</div>` : ''}
       <div class="pd-actions"><input name="pdGroupName" maxlength="40" placeholder="Nom du groupe (ex. Les copains)"><button class="btn small" data-pd="create">Créer un groupe en ligne</button></div>
       <div class="pd-actions"><input name="pdGroupLink" placeholder="Lien d'un groupe ou lien personnel (paddocklive.app/p/…)"><button class="btn small" data-pd="join">Rejoindre</button></div>
@@ -131,13 +131,15 @@ function fill() {
   const root = $('#pdRoot');
   if (!root) return;
   if (!view) { root.innerHTML = '<div class="note">Chargement des pronostics…</div>'; return; }
-  if (view.error) { root.innerHTML = `${groupBox()}<div class="note">Pronostics indisponibles (${esc(view.error)}).</div>`; return; }
+  // Pas encore de groupe : rien n'est gardé sur l'appareil
+  if (view.online) { root.innerHTML = `${groupBox(true)}<p class="muted">Les pronostics se jouent dans un groupe en ligne : créez-en un (même seul, pour vous) ou rejoignez celui de vos amis avec son lien.</p>`; return; }
+  if (view.error) { root.innerHTML = `${groupBox(true)}<div class="note">Pronostics indisponibles (${esc(view.error)}).</div>`; return; }
   const now = Date.now();
   const next = view.races.find((r) => !r.result && r.locks.podium && r.locks.podium > now);
   const mine = next?.picks.find((p) => p.mine) || {};
   const poleOpen = next && (!next.locks.pole || now < next.locks.pole);
   const others = next ? next.picks.filter((p) => !p.mine).length : 0;
-  // Pseudo de ce joueur dans le groupe (repris d'un lien personnel), sinon celui de cet ordinateur
+  // Pseudo de ce joueur dans le groupe (repris d'un lien personnel), sinon le dernier saisi ici
   const myName = mine.name || view.races.flatMap((r) => r.picks).find((p) => p.mine)?.name || me();
   const form = next ? `<section class="sz-box pd-next">
       <h3>${icon('target')} ${esc(gpFull(next.name, EN))} <span class="muted small">manche ${next.round}</span></h3>
@@ -152,7 +154,7 @@ function fill() {
         <div class="pd-actions"><button class="btn" type="submit">${icon('check')} Enregistrer mon pronostic</button>
           <span class="muted small">Pole : ${poleOpen ? `jusqu'au ${fmt(next.locks.pole)}` : 'fermé (qualifications commencées)'} · Podium : jusqu'au ${fmt(next.locks.podium)}</span></div>
       </form>
-      <p class="muted small">${others ? `${others} autre${others > 1 ? 's' : ''} joueur${others > 1 ? 's ont' : ' a'} déjà pronostiqué (choix révélés à la fermeture).` : group() ? 'Aucun autre joueur pour l\'instant : partagez le lien du groupe.' : 'Aucun autre joueur pour l\'instant : jouez en ligne avec un groupe.'}</p>
+      <p class="muted small">${others ? `${others} autre${others > 1 ? 's' : ''} joueur${others > 1 ? 's ont' : ' a'} déjà pronostiqué (choix révélés à la fermeture).` : 'Aucun autre joueur pour l\'instant : partagez le lien du groupe.'}</p>
     </section>` : '<section class="sz-box"><p class="muted">Plus de Grand Prix à pronostiquer cette saison.</p></section>';
 
   const done = view.races.filter((r) => r.result && r.picks.length).reverse();
@@ -169,7 +171,8 @@ function fill() {
     ${history}`;
 }
 
-export function renderPredict(year) {
+export function renderPredict(year, opt) {
+  optOf = opt || optOf;
   setTimeout(() => (view && viewYear === year ? (fill(), lockPodium()) : load(year)), 0);
   return '<div id="pdRoot"><div class="note">Chargement des pronostics…</div></div>';
 }
@@ -180,7 +183,7 @@ export function initPredict() {
     const sw = e.target.closest('[data-pd-switch]');
     if (sw) { useGroup(groups().find((x) => x.id === sw.value)); view = null; fill(); load(viewYear, true); }
   });
-  // Pronostics des autres (téléphones, groupe en ligne) relus toutes les 5 s quand la vue est affichée
+  // Pronostics des autres (groupe en ligne) relus toutes les 5 s quand la vue est affichée
   setInterval(() => { if ($('#pdRoot')?.offsetParent && !document.hidden && viewYear) load(viewYear, true, true); }, 5000);
   document.addEventListener('click', async (e) => {
     const b = e.target.closest('[data-pd]');
@@ -232,10 +235,8 @@ export function initPredict() {
     try {
       const pick = { year: viewYear, round: Number(f.dataset.round), name: v.name, pole: v.pole || null, p1: v.p1 || null, p2: v.p2 || null, p3: v.p3 || null };
       const g = group();
-      if (g) {
-        const r = await api('/api/predictions/online', { method: 'POST', body: { g: g.id, ...pick, tok: storageGet(tokKey(g), '') || undefined } });
-        storageSet(tokKey(g), r.tok);
-      } else await api('/api/predictions', { method: 'POST', body: pick });
+      const r = await api('/api/predictions/online', { method: 'POST', body: { g: g.id, ...pick, tok: storageGet(tokKey(g), '') || undefined } });
+      storageSet(tokKey(g), r.tok);
       toast('Pronostic enregistré', 3000, 'check');
       load(viewYear, true);
     } catch (err) {

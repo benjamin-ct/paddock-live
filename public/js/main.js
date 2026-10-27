@@ -10,7 +10,7 @@ setTimeout(() => document.body.classList.remove('booting'), 1600);
 import { store, on } from './store.js';
 import { $$ } from './util.js';
 import { connect } from './conn.js';
-import { renderHeader, renderSource } from './ui/header.js';
+import { renderHeader, renderSource, initGpsBadge } from './ui/header.js';
 import { initDelay } from './ui/delay.js';
 import { initAutoSync } from './ui/autosync.js';
 import { initTower, renderTower } from './ui/tower.js';
@@ -54,9 +54,8 @@ import { initRadar } from './ui/radar.js';
 import { initFeedDiag } from './ui/feed-diag.js';
 import { initLights } from './ui/lights.js';
 import { initBackup } from './ui/backup.js';
-import { initSocial } from './ui/social-view.js';
+import { initCreator } from './ui/creator-view.js';
 import { initStats } from './ui/stats.js';
-import { initCloud } from './cloud.js';
 
 function initTabs() {
   for (const head of $$('[data-tabs]')) {
@@ -137,9 +136,8 @@ initLayout();
 initUpdates();
 initChangelog();
 initBackup();
-initSocial();
+initCreator();
 initStats();
-initCloud();
 initCommentary();
 initAnalysis();
 initSeason();
@@ -162,6 +160,7 @@ initFeedDiag();
 initLights();
 on('status', renderSource);
 on('connection', renderSource);
+initGpsBadge();
 on('focus', () => renderTower(true));
 on('duel', () => renderTower(true));
 connect();

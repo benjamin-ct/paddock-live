@@ -5,11 +5,12 @@ import { prefs, setPref } from '../prefs.js';
 import { icon, arrows } from '../icons.js';
 import { DEC, EN } from '../i18n.js';
 import { rcmFr } from '/shared/rcm-fr.js';
+import { MIN_DELAY_MS } from '/shared/f1.js';
 
 // Valeurs de départ indicatives : chaque installation (box, satellite, appli, TNT...) a son
 // propre retard. Utilisez la synchro TV puis enregistrez votre propre préréglage.
 const DEFAULT_PRESETS = [
-  { name: 'Temps réel (0 s)', ms: 0, builtin: true },
+  { name: 'Temps réel (5 s)', ms: MIN_DELAY_MS, builtin: true },
   // Points de départ valables partout (le retard réel dépend de la chaîne et de l'équipement)
   { name: 'TV : antenne, satellite, câble ou box (≈ 10 s, à calibrer)', ms: 10000, builtin: true },
   { name: 'Streaming : appli ou site web (≈ 40 s, à calibrer)', ms: 40000, builtin: true },

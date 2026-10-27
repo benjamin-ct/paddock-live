@@ -9,7 +9,6 @@ import { youtubeId } from '/shared/article.js';
 
 // Lien ou image d'une nouvelle : adresse web uniquement (jamais « javascript: »), échappée
 const safeUrl = (u) => esc(webLink(u) || '#');
-import { translateText } from './transcribe.js';
 import { cloudOn, cloudTranslate } from '../cloud.js';
 import { notifyNews } from './alerts.js';
 import { toast } from './delay.js';
@@ -47,10 +46,8 @@ navigator.locks?.request('paddock-news-alerts', () => { alertOwner = true; retur
 // ---- Traductions (gardées par le serveur, partagées avec le téléphone) ----
 let cache = {};
 let cacheLoaded = null;
-const queue = [];
 const queued = new Set();
 const failed = new Set();
-let translating = false;
 let pendingSave = [];
 let saveTimer = null;
 
@@ -58,7 +55,7 @@ let saveTimer = null;
 // l'interface : la page s'ouvre avec des titres et résumés déjà traduits
 let staleTranslations = false;
 function shareNewsLang() {
-  const on = prefs.newsTranslate !== false && prefs.cloudTranslate !== false;
+  const on = prefs.newsTranslate !== false;
   api('/api/news/translate', { method: 'POST', body: { lang: on ? LANG : null } }).catch(() => {});
 }
 
@@ -82,41 +79,13 @@ function saveTranslation(item) {
   }, 1500);
 }
 
-// Une seule traduction d'actualité à la fois : les radios en direct restent prioritaires
-async function pumpTranslations() {
-  if (translating || !queue.length) return;
-  translating = true;
-  const { text, from, resolve, urgent } = queue.shift();
-  // Page Actu fermée : seules les alertes sont encore traduites
-  if (!urgent && !open()) {
-    queued.delete(text);
-    resolve?.();
-    translating = false;
-    setTimeout(pumpTranslations, 0);
-    return;
-  }
-  try {
-    const { text: out, q } = await translateText(text, LANG, 'news', from);
-    if (out) {
-      cache[text] = { t: out, q };
-      saveTranslation({ en: text, t: out, q });
-    }
-    else failed.add(text);
-  } catch { failed.add(text); /* moteur indisponible : texte d'origine */ }
-  queued.delete(text);
-  resolve?.();
-  translating = false;
-  renderSoon();
-  setTimeout(pumpTranslations, 30);
-}
-
-// urgent : en tête de file (alerte à traduire avant de l'afficher)
-function translate(text, from, urgent = false) {
+// Traduction par le serveur Paddock Live : tous les textes visibles partent ensemble. Serveur en pause (injoignable,
+// plafond du jour) : le texte reste dans sa langue et sera retraduit au prochain affichage
+function translate(text, from) {
   if (!prefs.newsTranslate || !needs(text, from) || queued.has(text)) return Promise.resolve();
-  // Serveur Paddock Live : tous les textes visibles partent ensemble, sans attendre leur tour
   if (cloudOn()) {
     queued.add(text);
-    return cloudTranslate(text, from, LANG).then((out) => {
+    return cloudTranslate(text, from, LANG, 'news').then((out) => {
       queued.delete(text);
       if (out) {
         cache[text] = { t: out, q: 'cloud' };
@@ -124,21 +93,15 @@ function translate(text, from, urgent = false) {
         renderSoon();
         return;
       }
-      if (cloudOn()) { failed.add(text); return; }   // texte refusé : on n'insiste pas
-      return translate(text, from, urgent);           // serveur indisponible : sur l'ordinateur
+      if (cloudOn()) failed.add(text);   // texte refusé : on n'insiste pas
     });
   }
   if (store.isHost === false) {
     // Téléphone : l'ordinateur traduit ; on relit son cache un peu plus tard
     clearTimeout(translate.reload);
     translate.reload = setTimeout(() => loadTranslations(true).then(scheduleRender), 20000);
-    return Promise.resolve();
   }
-  queued.add(text);
-  return new Promise((resolve) => {
-    queue[urgent ? 'unshift' : 'push']({ text, from, resolve, urgent });
-    pumpTranslations();
-  });
+  return Promise.resolve();
 }
 
 // ---- Données ----
@@ -268,7 +231,7 @@ function card(g, favs, i = -1) {
       <div class="nw-meta"><span class="nw-src nw-c-${esc(it.cat)}">${esc(src.name)}</span><span class="nw-cat">${CAT_LABEL[it.cat] || ''}</span>
         <span class="nw-lang" title="Langue d'origine : ${esc(LANG_LABEL[it.lang] || it.lang)}">${esc(it.lang.toUpperCase())}</span><span class="nw-time" title="${esc(new Date(it.t).toLocaleString(LOCALE))}">${ago(it.t)}</span>${level}${hot}${fav ? `<span class="nw-favmark" title="Concerne un de vos favoris">${icon('star-fill')}</span>` : ''}${readBtn}</div>
       <a class="nw-title" data-no-i18n href="${safeUrl(it.link)}" target="_blank" rel="noopener" data-read="${esc(it.id)}" ${title.translated ? `title="${esc(it.title)}"` : ''}>${esc(title.text)}</a>
-      ${title.pending ? '<div class="nw-trans muted">Traduction en cours…</div>' : title.translated ? '<div class="nw-trans muted" title="Traduit automatiquement sur cet ordinateur">Traduit · <button class="nw-vo" data-vo>VO</button></div>' : ''}
+      ${title.pending ? '<div class="nw-trans muted">Traduction en cours…</div>' : title.translated ? '<div class="nw-trans muted" title="Traduit automatiquement par le serveur Paddock Live">Traduit · <button class="nw-vo" data-vo>VO</button></div>' : ''}
       <div class="nw-vo-text" hidden>${esc(it.title)}</div>
       ${it.summary ? `<p class="nw-sum" data-no-i18n>${esc(sum || it.summary)}</p>` : ''}
       <div class="nw-tags">${tagChips(it.tags)}</div>
@@ -284,16 +247,10 @@ function sourcesView() {
     const state = !s.enabled ? '<span class="muted">désactivée</span>' : s.ok === false ? `<span class="nw-err" title="${esc(s.error || '')}">${icon('warning')} indisponible</span>` : s.ok ? `<span class="nw-ok">${icon('check')} ${s.count} article${s.count > 1 ? 's' : ''}</span>` : '<span class="muted">en attente…</span>';
     const kind = s.kind === 'youtube' ? 'YouTube' : s.kind === 'bsky' ? 'Bluesky' : 'Flux RSS';
     return `<tr><td><label class="toggle"><input type="checkbox" data-src-toggle="${esc(s.id)}" ${s.enabled ? 'checked' : ''}> ${esc(s.name)}</label></td>
-      <td class="muted">${kind}</td><td>${esc((s.lang || '').toUpperCase())}</td><td>${state}</td>
-      <td>${s.custom ? `<button class="btn small" data-src-del="${esc(s.id)}" title="Retirer cette source">${icon('close')}</button>` : ''}</td></tr>`;
+      <td class="muted">${kind}</td><td>${esc((s.lang || '').toUpperCase())}</td><td>${state}</td></tr>`;
   };
   const block = (cat, title) => (by[cat].length ? `<div class="sz-box"><h3>${title}</h3><table class="sz-table nw-src-table">${by[cat].map(row).join('')}</table></div>` : '');
-  return `<div class="sz-box"><h3>${icon('plus')} Ajouter une source</h3>
-      <p class="muted small">Site, flux RSS, chaîne YouTube ou compte Bluesky</p>
-      <form class="nw-add" id="nwAdd"><input type="text" id="nwAddUrl" placeholder="https://… ou @compte.bsky.social" required>
-        <select id="nwAddCat"><option value="media">Média</option><option value="team">Écurie</option><option value="driver">Pilote</option><option value="official">Officiel</option></select>
-        <button class="btn" type="submit">Ajouter</button></form>
-      </div>
+  return `<p class="muted small">Sources lues par le serveur de Paddock Live ; décochez celles que vous ne voulez pas voir.</p>
     ${block('official', `${icon('landmark')} Officiel : F1 et FIA`)}${block('team', `${icon('car')} Écuries (chaînes officielles)`)}${block('driver', `${icon('user')} Pilotes (chaînes officielles)`)}${block('media', `${icon('globe')} Médias`)}`;
 }
 
@@ -383,7 +340,7 @@ function render() {
   const okSources = sources.filter((s) => s.enabled && s.ok !== false).length;
   const head = `<div class="nw-head"><div><h2>${$(`#nwNav [data-nw="${section}"]`)?.innerHTML.trim() || 'Actualités'}</h2>
       <div class="muted small">${tagFilter ? `<button class="nw-filter" data-tag-clear style="--tc:${tagColor(tagFilter)}">${esc(tagName(tagFilter))} ${icon('close')}</button> ` : ''}${okSources} sources suivies · ${list.length} sujet${list.length > 1 ? 's' : ''}${section === 'favs' && !favTags().size ? ' · aucun favori : ajoutez-en avec l\'étoile du classement' : ''}</div></div>
-      <div class="nw-actions"><button class="btn small" id="nwRefresh" title="Relire toutes les sources maintenant">${icon('refresh')} Actualiser</button>
+      <div class="nw-actions"><button class="btn small" id="nwRefresh" title="Relire les actualités maintenant">${icon('refresh')} Actualiser</button>
       <button class="btn small" id="nwMarkRead" title="Tout marquer comme lu">${icon('check')} Tout marquer comme lu</button></div></div>`;
   const banner = guard ? `<div class="nw-guard">${icon('eye-off')} <b>Anti-spoiler</b> : séance en cours, titres masqués.
       <button class="btn small" id="nwReveal">Afficher quand même</button></div>` : '';
@@ -474,7 +431,7 @@ async function onFresh(list) {
     done.add(key);
     rememberAlert(key);
     // Traduit avant l'alerte (15 s au plus), sinon texte d'origine
-    await Promise.race([translate(it.title, it.lang, true), new Promise((r) => setTimeout(r, 15000))]);
+    await Promise.race([translate(it.title, it.lang), new Promise((r) => setTimeout(r, 15000))]);
     const src = srcById[it.src]?.name || it.src;
     const title = titleOf(it).text;
     notifyNews(`${src}${it.sources >= 4 ? ` · ${it.sources} sources` : ''}`, title, (it.imp || 0) >= 2 ? 'info' : 'fav', () => { openNews(); });
@@ -488,7 +445,8 @@ on('news', (list) => {
   for (const it of list) sizes[it.cluster] = it.sources;
   for (const it of items) if (sizes[it.cluster]) it.sources = sizes[it.cluster];
   const fresh = list.filter((x) => !known.has(x.id));
-  items = [...fresh.map(({ fresh: f, ...x }) => x), ...items].sort((a, b) => b.t - a.t);
+  // 800 plus récentes, comme au chargement (appli ouverte des jours : la liste ne grossit plus sans fin)
+  items = [...fresh.map(({ fresh: f, ...x }) => x), ...items].sort((a, b) => b.t - a.t).slice(0, 800);
   for (const it of fresh) justArrived.add(it.id);
   // Pas de traduction de toutes les nouvelles en arrière-plan sur l'ordinateur (beaucoup de calcul) :
   // le serveur de l'appli les fait traduire d'avance en ligne ; ici, seulement les alertes et l'écran
@@ -502,7 +460,7 @@ on('news', (list) => {
 
 on('prefs', (k) => {
   if ((k === 'favs' || k === 'favTeams') && open()) scheduleRender();
-  if ((k === 'newsTranslate' || k === 'cloudTranslate') && store.isHost !== false) shareNewsLang();
+  if (k === 'newsTranslate' && store.isHost !== false) shareNewsLang();
 });
 
 async function reloadSources() {
@@ -528,9 +486,7 @@ function closeReader() {
   $('#nwContent').scrollTop = readerScroll;
 }
 
-const readerTranslate = (text, from) => (cloudOn()
-  ? cloudTranslate(text, from, LANG)
-  : translateText(text, LANG, 'news', from).then((r) => r?.text || null).catch(() => null));
+const readerTranslate = (text, from) => cloudTranslate(text, from, LANG, 'news');
 
 async function openReader(id) {
   const it = items.find((x) => x.id === id);
@@ -674,7 +630,7 @@ export async function latestNews(n = 4, onTranslated = null) {
   const missing = prefs.newsTranslate ? list.filter((it) => needs(it.title, it.lang)) : [];
   if (missing.length && onTranslated) {
     loadTranslations(true)
-      .then(() => Promise.all(missing.filter((it) => needs(it.title, it.lang)).map((it) => translate(it.title, it.lang, true))))
+      .then(() => Promise.all(missing.filter((it) => needs(it.title, it.lang)).map((it) => translate(it.title, it.lang))))
       .then(onTranslated);
   }
   return list.map((it) => ({ id: it.id, title: titleOf(it).text, link: safeUrl(it.link), src: srcById[it.src]?.name || it.src, when: ago(it.t) }));
@@ -707,7 +663,7 @@ export function initNews() {
   });
   $('#nwContent').addEventListener('click', async (e) => {
     if (e.target.closest('#nwMore')) { limit += PAGE; render(); return; }
-    if (e.target.closest('#nwRefresh')) { api('/api/news/refresh', { method: 'POST' }).catch(() => {}); toast('Lecture de toutes les sources…'); setTimeout(reload, 15000); return; }
+    if (e.target.closest('#nwRefresh')) { api('/api/news/refresh', { method: 'POST' }).catch(() => {}); toast('Mise à jour des actualités…'); setTimeout(reload, 5000); return; }
     if (e.target.closest('#nwMarkRead')) { markRead(); return; }
     if (e.target.closest('#nwReveal')) { revealSpoilers = true; render(); return; }
     const rt = e.target.closest('[data-readtoggle]');
@@ -722,35 +678,12 @@ export function initNews() {
       box.hidden = !box.hidden;
       return;
     }
-    const del = e.target.closest('[data-src-del]');
-    if (del) {
-      await api('/api/news/sources', { method: 'POST', body: { remove: del.dataset.srcDel } }).catch(() => {});
-      items = items.filter((it) => it.src !== del.dataset.srcDel);
-      reloadSources();
-    }
   });
   $('#nwContent').addEventListener('change', async (e) => {
     const tg = e.target.closest('[data-src-toggle]');
     if (!tg) return;
     await api('/api/news/sources', { method: 'POST', body: { toggle: tg.dataset.srcToggle, on: tg.checked } }).catch(() => {});
     reloadSources();
-  });
-  $('#nwContent').addEventListener('submit', async (e) => {
-    if (e.target.id !== 'nwAdd') return;
-    e.preventDefault();
-    const btn = e.target.querySelector('button');
-    btn.disabled = true;
-    btn.textContent = 'Vérification…';
-    try {
-      const r = await api('/api/news/sources', { method: 'POST', body: { add: $('#nwAddUrl').value, cat: $('#nwAddCat').value } });
-      toast(`Source ajoutée : ${r.source?.name || ''}`, 4000);
-      setTimeout(reload, 8000);
-      await reloadSources();
-    } catch (err) {
-      toast(`Impossible d'ajouter cette source : ${err.message}`, 6000);
-      btn.disabled = false;
-      btn.textContent = 'Ajouter';
-    }
   });
   window.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape' || !open() || document.querySelector('dialog[open]')) return;

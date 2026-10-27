@@ -57,7 +57,18 @@ function open(s) {
     const el = document.createElement('div');
     el.className = `csel-opt${inGroup ? ' in-group' : ''}${opt.disabled ? ' disabled' : ''}${opt.selected ? ' sel' : ''}`;
     el.setAttribute('role', 'option');
-    el.textContent = opt.label || opt.text;
+    const label = opt.label || opt.text;
+    if (opt.dataset.mark === undefined) el.textContent = label;
+    else {
+      // Pilote : repère d'écurie (écrit par l'appli, util.js driverOpt), numéro, nom
+      el.classList.add('drv');
+      el.innerHTML = opt.dataset.mark;
+      const num = document.createElement('b'), name = document.createElement('span');
+      num.className = 'csel-num';
+      num.textContent = opt.dataset.num || '';
+      name.textContent = label;
+      el.append(num, name);
+    }
     if (opt.title) el.title = opt.title;
     el.dataset.i = items.length;
     items.push({ el, opt });
@@ -136,7 +147,8 @@ function onKey(e) {
 export function initSelects() {
   document.addEventListener('mousedown', (e) => {
     if (pop && pop.contains(e.target)) return;
-    const s = e.target.closest?.('select');
+    // Liste, ou intitulé de la case qui la contient (« Pilotes [Tous] »)
+    const s = e.target.closest?.('select') || (e.target.tagName === 'LABEL' ? e.target.querySelector(':scope > select') : null);
     if (s && e.button === 0 && eligible(s)) {
       e.preventDefault();
       s.focus({ preventScroll: true });

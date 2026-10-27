@@ -46,7 +46,7 @@ const messageOf = (r) => (r instanceof Error ? `${r.name}: ${r.message}` : typeo
 
 // Clics suivis sans toucher aux modules : barre latérale, onglets, réglages, sections Saison
 const CLICKS = [
-  ['#rail [data-rail]', (b) => (b.dataset.rail === 'posts' ? null : `rail.${b.dataset.rail}`)],
+  ['#rail [data-rail]', (b) => `rail.${b.dataset.rail}`],
   ['#setNav [data-sgroup]', (b) => `settings.${b.dataset.sgroup}`],
   ['#szNav [data-sz]', (b) => `season.${b.dataset.sz}`],
   ['#tbTools [data-tool]', (b) => `tool.${b.dataset.tool}`],

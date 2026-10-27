@@ -17,7 +17,8 @@ CREATE TABLE IF NOT EXISTS translations (
   at INTEGER NOT NULL
 );
 
--- Nombre de traductions (jour) et de radios transcrites (« radio:jour ») faites par l'IA (plafond contre les abus)
+-- Nombre de traductions (jour) et de radios transcrites (« radio:jour ») faites par l'IA (plafond contre les abus),
+-- neurones de Workers AI dépensés (« neurons:jour »)
 CREATE TABLE IF NOT EXISTS ai_usage (
   day TEXT PRIMARY KEY,
   n INTEGER NOT NULL DEFAULT 0
@@ -75,3 +76,10 @@ CREATE TABLE IF NOT EXISTS feedback_up (msg INTEGER PRIMARY KEY, tok TEXT NOT NU
 CREATE TABLE IF NOT EXISTS links (id TEXT PRIMARY KEY, url TEXT NOT NULL, title TEXT NOT NULL DEFAULT '', at INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS link_clicks (day TEXT NOT NULL, id TEXT NOT NULL, net TEXT NOT NULL, country TEXT NOT NULL, device TEXT NOT NULL,
   n INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (day, id, net, country, device));
+
+-- Alertes sur le téléphone pour tout le monde (page /alertes/) : abonnements (adresse du service de notification,
+-- clés de chiffrement du téléphone, sujets, langue), messages en file envoyés par lots, et clés des messages déjà
+-- mis en file (un rappel ou un résultat ne part qu'une fois)
+CREATE TABLE IF NOT EXISTS push_subs (endpoint TEXT PRIMARY KEY, p256dh TEXT NOT NULL, auth TEXT NOT NULL, topics TEXT NOT NULL, lang TEXT NOT NULL, at INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS push_out (id INTEGER PRIMARY KEY AUTOINCREMENT, topic TEXT NOT NULL, msg TEXT NOT NULL, cursor TEXT NOT NULL, at INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS push_sent (k TEXT PRIMARY KEY, at INTEGER NOT NULL);

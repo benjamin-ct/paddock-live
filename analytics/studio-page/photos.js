@@ -32,14 +32,17 @@ export function photoPicker(query, onPick) {
 }
 
 // ---------- Recadrage d'une photo : cadre à déplacer, coins pour l'agrandir, format libre ou imposé ----------
-const RATIOS = [['Libre', 0], ['Carré', 1], ['4:5', 4 / 5], ['16:9', 16 / 9]];
+const FORMATS = [['Libre', 0], ['Carré', 1], ['4:5', 4 / 5], ['16:9', 16 / 9]];
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
-// image -> Promise de la photo recadrée (ImageBitmap), ou null si la fenêtre est fermée sans valider
-export function cropImage(image) {
+// image -> Promise de la photo recadrée (ImageBitmap), ou null si la fenêtre est fermée sans valider ;
+// frame : proportions du cadre de la photo sur le visuel (format « Visuel », proposé d'abord : la photo
+// recadrée y apparaît telle quelle, sans être recoupée)
+export function cropImage(image, frame = 0) {
+  const RATIOS = frame ? [['Visuel', frame], ...FORMATS] : FORMATS;
   return new Promise((resolve) => {
     const IW = image.width;
     const IH = image.height;
-    let ratio = 0;
+    let ratio = RATIOS[0][1];
     let box = { x: 0, y: 0, w: 1, h: 1 };   // cadre, en fraction de la photo
     const dlg = sheet('Recadrer la photo', `<div class="crop" id="crop"><canvas id="cropcv"></canvas><div class="crop-box" id="cropbox">${['nw', 'ne', 'sw', 'se'].map((h) => `<i data-h="${h}"></i>`).join('')}</div></div>
       <div class="seg wide" id="cropratio">${RATIOS.map(([l], i) => `<button type="button" data-r="${i}"${i ? '' : ' class="on"'}>${l}</button>`).join('')}</div>
@@ -109,13 +112,14 @@ export function cropImage(image) {
       glide(dlg);
     };
     for (const b of $$('#cropratio button', dlg)) b.onclick = () => { pickRatio(Number(b.dataset.r)); fit(); show(); };
-    $('#cropall', dlg).onclick = () => { pickRatio(0); box = { x: 0, y: 0, w: 1, h: 1 }; show(); };
+    $('#cropall', dlg).onclick = () => { pickRatio(RATIOS.findIndex(([, r]) => !r)); box = { x: 0, y: 0, w: 1, h: 1 }; show(); };
     $('#cropok', dlg).onclick = async () => {
       const sx = Math.round(box.x * IW);
       const sy = Math.round(box.y * IH);
       finish(await createImageBitmap(image, sx, sy, Math.max(1, Math.round(box.w * IW)), Math.max(1, Math.round(box.h * IH))));
       dlg.close();
     };
+    fit();
     show();
     glide(dlg);
   });
@@ -130,3 +134,47 @@ export async function bitmapUrl(image) {
   c.getContext('2d').drawImage(image, 0, 0, c.width, c.height);
   return URL.createObjectURL(await new Promise((r) => c.toBlob(r, 'image/jpeg', 0.85)));
 }
+
+// ---------- Photos d'un post (article, autres médias, réseaux, vos photos) ----------
+// Touchées dans l'ordre : la première en couverture quand le post n'a pas déjà sa photo (cover()), puis une
+// image chacune ; recadrage toujours depuis la photo d'origine. Élément : { image, url, pick, src, credit?, mine? }
+export function photoGrid(el, list, { cover = () => true, frame = () => 0, onChange }) {
+  const show = () => {
+    el.innerHTML = list.map((a, i) => `<div class="ph"><button type="button" data-art="${i}" class="${a.pick ? 'on' : ''}">${a.pick ? `<b class="pick">${a.pick}</b>` : ''}<img src="${a.url}" alt=""><small>${a.pick ? (a.pick === 1 && cover() ? 'Couverture' : `Image ${a.pick + (cover() ? 0 : 1)}`) : 'Touchez pour ajouter'} · ${esc(a.src)}</small></button>${a.pick ? `<button type="button" class="cropbtn" data-crop="${i}">Recadrer</button>` : ''}</div>`).join('');
+    for (const b of $$('[data-crop]', el)) {
+      b.onclick = async () => {
+        const a = list[b.dataset.crop];
+        a.orig ||= a.image;
+        const image = await cropImage(a.orig, a.pick === 1 && cover() ? frame() : 0);   // couverture : cadre du visuel
+        if (!image) return;
+        a.image = image;
+        URL.revokeObjectURL(a.url);
+        a.url = await bitmapUrl(image);
+        show(); onChange();
+      };
+    }
+    for (const b of $$('[data-art]', el)) {
+      b.onclick = () => {
+        const a = list[b.dataset.art];
+        // Retirée : les suivantes avancent d'un rang ; ajoutée : à la fin
+        if (a.pick) { for (const x of list) if (x.pick > a.pick) x.pick--; a.pick = 0; } else a.pick = Math.max(0, ...list.map((x) => x.pick)) + 1;
+        show(); onChange();
+      };
+    }
+  };
+  show();
+  return show;
+}
+// Vos photos (fichiers de l'appareil) ajoutées à la liste, déjà choisies, à la suite ; renvoie le nombre d'illisibles
+export async function addFiles(list, files) {
+  let bad = 0;
+  for (const file of [...files].slice(0, 20)) {
+    try {
+      const image = await createImageBitmap(file);
+      list.push({ image, url: await bitmapUrl(image), pick: Math.max(0, ...list.map((x) => x.pick)) + 1, src: 'Vos photos', credit: '', mine: true });
+    } catch { bad++; }
+  }
+  return bad;
+}
+// Photos choisies, dans l'ordre : { image, credit } (photos des médias : « via » la source)
+export const picked = (list) => list.filter((a) => a.pick).sort((a, b) => a.pick - b.pick).map((a) => ({ image: a.image, credit: a.credit ?? `Photo : via ${a.src}` }));

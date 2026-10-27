@@ -17,7 +17,7 @@ Dashboard **Formule 1 en direct** pour suivre chaque Grand Prix sur votre ordina
 - **Duels, bagarres et simulateur d'arrêt** : écart en temps réel, tendance, « s'il s'arrête maintenant, il ressort P8 », cercle de position animé.
 - **Radios d'équipe** retranscrites et traduites, **commentaires F1 TV Pro** ou radio de votre choix calés sur le dashboard.
 - **Espace Saison** (calendrier, classements, course au titre, duels, notes des pilotes, statistiques, technique FIA) et **Espace Actu** (toute l'actualité F1 traduite).
-- **Pronostics entre amis**, en réseau local ou en ligne avec un lien à partager.
+- **Pronostics entre amis**, en ligne avec un lien à partager.
 - **Streaming** : overlays pour OBS, Streamlabs et Meld Studio, commandes pour le Stream Deck.
 - **Mini-classement** et **carte flottante** à poser par-dessus la vidéo, **second écran**, disposition libre des panneaux.
 - **Sur téléphone ou tablette** par le Wi-Fi de la maison, dans une version simplifiée.
@@ -71,7 +71,7 @@ Le détail de chacune est dans le **[guide complet](docs/GUIDE.md)**.
 - **Direction de course** : tous les messages de la FIA, filtres (drapeaux bleus, temps supprimés, type de message), traduction en français.
 - **Enquêtes** (suivi de chaque incident jusqu'à la décision, documents FIA) et **limites de piste** (tours supprimés, drapeau noir et blanc, pénalités).
 - **Analyse** (onglets Écarts, Temps, Secteurs…) : race trace, positions, temps au tour, rythme, historique des pneus, secteurs et vitesses avec les records du circuit, comparaison de deux tours mini-secteur par mini-secteur, télémétrie ; export des graphiques en image.
-- **Radios d'équipe** : une carte par radio (photo, tour, durée, écoutée ou non), lecture automatique au rythme du délai, transcription et traduction (français, espagnol, allemand, italien) par le serveur Paddock Live ou sur l'ordinateur ; en expérimental, radios captées sur le son des caméras embarquées F1 TV.
+- **Radios d'équipe** : une carte par radio (photo, tour, durée, écoutée ou non), lecture automatique au rythme du délai, transcription et traduction (français, espagnol, allemand, italien) par le serveur Paddock Live ; en expérimental, radios captées sur le son des caméras embarquées F1 TV.
 - **Arrêts** : vue chronologique ou par pilote, arrêt le plus rapide, temps dans la voie des stands ; les passages sans changement de pneus sont distingués.
 - **Télémétrie** : deux compteurs (vitesse, régime, rapport, accélérateur, frein) animés en continu et courbe de vitesse.
 - **Pneus** : stratégie de chaque pilote, rythme et usure du relais, jeux neufs et utilisés sur tout le week-end, composés et préconisations de Pirelli.
@@ -105,10 +105,10 @@ Le détail de chacune est dans le **[guide complet](docs/GUIDE.md)**.
 
 ### Pronostics entre amis
 - Pole et podium avant chaque Grand Prix, choix des autres cachés jusqu'à la fermeture, points et classement de la saison.
-- En réseau local ou **en ligne** : groupe à créer, lien à partager (copié sur ordinateur, partage du téléphone), liste « Mes groupes » pour retrouver ses groupes toute la saison (et en retirer), suppression du groupe par son créateur, page web pour jouer sans l'application.
+- **En ligne** : groupe à créer, lien à partager (copié sur ordinateur, partage du téléphone), liste « Mes groupes » pour retrouver ses groupes toute la saison (et en retirer), suppression du groupe par son créateur, page web pour jouer sans l'application.
 
 ### Espace Actu
-- Sources officielles (F1, FIA, écuries, pilotes) et une trentaine de médias en 8 langues, sources à ajouter ou couper.
+- Sources officielles (F1, FIA, écuries, pilotes) et une trentaine de médias en 8 langues, lues par le serveur de Paddock Live, sources à couper.
 - Traduction en français faite d'avance, lecture des articles et des vidéos dans l'appli, un sujet par carte, articles lus grisés.
 - Filtres (important, favoris, officiel, vidéos, langue, recherche), alertes et anti-spoiler pendant une séance en direct.
 
@@ -142,7 +142,7 @@ Le détail de chacune est dans le **[guide complet](docs/GUIDE.md)**.
 - **Réglages** avec recherche, rubriques et « À propos » (nouveautés, réseaux, informations légales).
 - **Mise à jour automatique** (Windows, macOS, AppImage), **sauvegarde des réglages** dans un fichier.
 - **Connexion F1 TV** (facultative) : positions GPS exactes et télémétrie, jeton renouvelé automatiquement ; sans compte, positions estimées.
-- **Traductions et transcriptions** par le serveur Paddock Live (une fois pour tous), ou sur l'ordinateur.
+- **Traductions et transcriptions** par le serveur Paddock Live (une fois pour tous), rien à calculer sur l'ordinateur.
 - **Statistiques d'utilisation anonymes**, facultatives.
 
 ## 🚀 Installation

@@ -1,6 +1,7 @@
 // État côté navigateur : état F1 fusionné (retardé), données dérivées, positions et horloge.
 import { applyEvent, createDerived } from '/shared/derive.js';
 import { Positions } from './positions.js';
+import { MIN_DELAY_MS } from '/shared/f1.js';
 import { storageGet, storageSet } from './util.js';
 
 export const store = {
@@ -9,7 +10,7 @@ export const store = {
   ver: { __any: 0 },
   status: null,
   skew: 0,
-  delay: storageGet('paddock.delayMs', 0),
+  delay: Math.max(MIN_DELAY_MS, storageGet('paddock.delayMs', MIN_DELAY_MS)),
   connected: false,
   positions: new Positions((utc) => utcToLocal(utc), () => replaySpeed()),
   duel: storageGet('paddock.duel', { a: null, b: null }),
@@ -92,9 +93,9 @@ export function handleReset(msg) {
 
 export function handleBatch(msg) {
   const topics = new Set();
-  for (const [topic, data, t] of msg.events) {
+  for (const [topic, data, t, utc] of msg.events) {
     applyEvent(store.state, store.derived, topic, data, t);
-    if (topic === 'TimingData') store.positions.onTiming(store.state, data, t);
+    if (topic === 'TimingData') store.positions.onTiming(store.state, data, t, utc);
     if (topic === '__snapshot') Object.keys(data).forEach((k) => topics.add(k));
     else topics.add(topic);
   }
@@ -105,7 +106,7 @@ export function handleBatch(msg) {
 
 export function setDelay(ms) {
   const max = store.status?.maxDelayMs ?? 600000;
-  store.delay = Math.round(Math.max(0, Math.min(max, ms)) / 100) * 100;
+  store.delay = Math.round(Math.max(MIN_DELAY_MS, Math.min(max, ms)) / 100) * 100;
   storageSet('paddock.delayMs', store.delay);
   emit('delay', store.delay);
 }

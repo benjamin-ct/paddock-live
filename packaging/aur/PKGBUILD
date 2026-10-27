@@ -1,0 +1,24 @@
+# Paquet AUR (Arch Linux) « paddock-live-bin » : le paquet .deb publié sur GitHub, décompressé dans /opt.
+# Mises à jour par le gestionnaire de paquets (l'appli ne se met pas à jour toute seule dans ce cas).
+# Voir docs/CATALOGUES.md pour l'envoi sur aur.archlinux.org.
+pkgname=paddock-live-bin
+pkgver=1.28.1
+pkgrel=1
+pkgdesc="Live Formula 1 timing synced with your TV: timing, track map, translated team radios, replays (unofficial)"
+arch=('x86_64')
+url="https://paddocklive.app/"
+license=('MIT')
+depends=('gtk3' 'nss' 'alsa-lib' 'libxss' 'libxtst' 'libnotify' 'at-spi2-core' 'util-linux-libs' 'xdg-utils' 'libsecret')
+provides=('paddock-live')
+conflicts=('paddock-live')
+options=('!strip')
+source=("Paddock-Live-${pkgver}-linux-amd64.deb::https://github.com/benjamin-ct/paddock-live/releases/download/v${pkgver}/Paddock-Live-${pkgver}-linux-amd64.deb")
+sha256sums=('9e8228dc0111215c90c12f8c676b5622376ba03495eaea3665aedc07ec96792e')
+
+package() {
+  bsdtar -xf data.tar.xz -C "${pkgdir}"
+  # Ce que fait le script d'installation du .deb : commande « paddock-live-desktop », bac à sable de Chromium
+  install -d "${pkgdir}/usr/bin"
+  ln -s "/opt/Paddock Live/paddock-live-desktop" "${pkgdir}/usr/bin/paddock-live-desktop"
+  chmod 4755 "${pkgdir}/opt/Paddock Live/chrome-sandbox"
+}

@@ -101,6 +101,9 @@ export function teamMark(driver) {
   return `<span class="team-logo${logoColor ? ' color' : ''}" style="--tc:${col};background-image:url('${logo}')" title="${esc(driver?.TeamName || '')}"></span>`;
 }
 
+// Choix d'une liste de pilotes : numéro et repère d'écurie, affichés devant le nom par le menu des listes (ui/select.js)
+export const driverOpt = (driver, num = driver?.RacingNumber) => ` data-num="${esc(num ?? '')}" data-mark="${esc(teamMark(driver))}"`;
+
 export const COMPOUNDS = {
   SOFT: { letter: 'S', color: '#ff3b3b', name: 'Tendre' },
   MEDIUM: { letter: 'M', color: '#ffd12e', name: 'Medium' },
@@ -156,6 +159,13 @@ export function orderedNumbers(state) {
   const nums = new Set([...Object.keys(lines), ...Object.keys(dl)]);
   const rank = (n) => Number(lines[n]?.Line ?? lines[n]?.Position ?? dl[n]?.Line ?? 999);
   return [...nums].filter((n) => lines[n] || dl[n]).sort((a, b) => rank(a) - rank(b));
+}
+
+// Date (AAAA-MM-JJ) d'un instant dans un fuseau : les prévisions météo sont datées à l'heure du circuit (la course du
+// soir à Las Vegas est le lendemain en UTC) ; sans fuseau connu, la date UTC
+export function dayIn(t, tz) {
+  try { if (tz) return new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(t)); } catch { /* fuseau inconnu */ }
+  return new Date(t).toISOString().slice(0, 10);
 }
 
 export function throttle(fn, ms) {

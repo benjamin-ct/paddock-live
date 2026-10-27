@@ -1,6 +1,6 @@
 // En-tête : session, drapeau/état de la piste, tour, temps restant, météo, source.
 import { store, f1Now, versionOf } from '../store.js';
-import { $, esc, fmtDuration, sessionKind, currentStint } from '../util.js';
+import { $, esc, api, fmtDuration, sessionKind, currentStint } from '../util.js';
 import { trackStatusInfo, SESSION_STATUS_FR } from '/shared/f1.js';
 import { FLAG_ISO } from '/shared/flags.js';
 import { gpShort, gpFull, sessionLabel } from '/shared/gp-names.js';
@@ -38,7 +38,8 @@ export function renderHeader() {
       ? [info.Meeting?.Circuit?.ShortName, info.Meeting?.Country?.Name, status ? SESSION_STATUS_FR[status] || status : null].filter(Boolean).join(' · ')
       : '';
     // Fenêtres secondaires : leur titre est la liste de leurs panneaux (layout.js), pas la séance
-    if (!POPOUT) document.title = info ? `Paddock Live · ${info.Meeting?.Name || ''} ${info.Name || ''}` : 'Paddock Live';
+    // Saison ouverte à son adresse (version web) : l'onglet garde le titre de la rubrique
+    if (!POPOUT && !document.documentElement.dataset.seasonTitle) document.title = info ? `Paddock Live · ${info.Meeting?.Name || ''} ${info.Name || ''}` : 'Paddock Live';
 
     // Drapeau / état de piste
     const ts = $('#trackStatus');
@@ -90,12 +91,15 @@ export function renderHeader() {
     const w = s.WeatherData;
     const wind = Number(w?.WindSpeed), dir = Number(w?.WindDirection) || 0;
     const wm = (cls, label, val, title = '') => `<div class="wm ${cls}"${title ? ` title="${esc(title)}"` : ''}><span class="muted">${label}</span><b>${val}</b></div>`;
-    $('#weatherMini').innerHTML = w ? wm('wm-wind', 'Vent', Number.isFinite(wind) ? `${(wind * 3.6).toFixed(0)}<small> km/h</small> <i class="wind-arrow" style="transform:rotate(${dir + 180}deg)">${icon('arrow-up')}</i>` : '—', `Vent venant de ${dir}°`)
+    const wmHtml = w ? wm('wm-wind', 'Vent', Number.isFinite(wind) ? `${(wind * 3.6).toFixed(0)}<small> km/h</small> <i class="wind-arrow" style="transform:rotate(${dir + 180}deg)">${icon('arrow-up')}</i>` : '—', `Vent venant de ${dir}°`)
       + wm('wm-track', 'Piste', `${esc(w.TrackTemp)}°`)
       + wm('wm-air', 'Air', `${esc(w.AirTemp)}°`)
       + wm('wm-hum', 'Humidité', `${esc(Math.round(Number(w.Humidity)) || w.Humidity)}<small> %</small>`)
       + wm('wm-pres', 'Pression', `${esc(Math.round(Number(w.Pressure)) || w.Pressure)}<small> hPa</small>`)
       + wm('wm-rain', 'Pluie', w.Rainfall === '1' || w.Rainfall === 1 ? `${icon('rain')} Oui` : 'Non') : '';
+    // Réécrite seulement si elle change (cette partie suit aussi le chronométrage, plusieurs fois par seconde)
+    const wmEl = $('#weatherMini');
+    if (wmEl._html !== wmHtml) { wmEl.innerHTML = wmHtml; wmEl._html = wmHtml; }
     const surf = trackSurface(s);
     const sb = $('#surfaceBox');
     sb.hidden = !surf;
@@ -139,7 +143,7 @@ function renderUpcoming(nx) {
     sn.title = gpFull(nx.race, EN);
     const day = (t, o) => new Date(t).toLocaleDateString(LOCALE, o);
     $('#sessionSub').textContent = [nx.locality, nx.country, `${day(nx.first, { day: 'numeric' })}–${day(nx.raceT, { day: 'numeric', month: 'long' })}`].filter(Boolean).join(' · ');
-    if (!POPOUT) document.title = `Paddock Live · ${nx.race}`;
+    if (!POPOUT && !document.documentElement.dataset.seasonTitle) document.title = `Paddock Live · ${nx.race}`;
     const ts = $('#trackStatus');
     ts.className = 'track-status none';
     ts.querySelector('.ts-label').textContent = 'À venir';
@@ -225,6 +229,19 @@ export function trackSurface(s) {
 }
 
 let shownReplayError = null;
+let shownElsewhere = false;
+const ELSEWHERE = 'Votre compte F1 TV suit déjà le direct sur un autre appareil : la F1 n\'envoie le GPS qu\'à un seul. Il y reste ; ici, positions estimées. Touchez « LIVE · GPS ailleurs » pour le reprendre ici.';
+// Badge « GPS ailleurs » touché : GPS repris ici (version web : par son relais, store.takeGps), avant tout autre
+// clic du badge (ouverture des replays)
+export function initGpsBadge() {
+  $('#sourceBadge')?.addEventListener('click', (e) => {
+    if (!store.status?.source?.elsewhere) return;
+    e.stopImmediatePropagation();
+    if (store.takeGps) store.takeGps();
+    else api('/api/live/here', { method: 'POST' }).catch(() => {});
+    toast('GPS repris sur cet appareil');
+  }, true);
+}
 export function renderSource() {
   const st = store.status;
   const badge = $('#sourceBadge');
@@ -247,8 +264,12 @@ export function renderSource() {
   } else if (src.mode === 'live') {
     const stale = src.connected && src.stale;
     badge.className = `source-badge ${stale ? 'stale' : src.connected ? 'live' : 'error'}`;
-    lbl.textContent = stale ? 'LIVE · figé' : src.connected ? 'LIVE' : 'Connexion F1…';
-    badge.title = stale ? 'Plus de données reçues depuis 25 s : reconnexion automatique si ça dure' : src.error || (src.authenticated ? 'Flux live (avec GPS F1 TV)' : 'Flux live (sans GPS : positions estimées)');
+    // GPS reçu ou non (positions estimées d'après les chronos) : écrit sur le badge, pas seulement au survol
+    lbl.textContent = stale ? 'LIVE · figé' : !src.connected ? 'Connexion F1…' : src.authenticated ? 'LIVE · GPS' : src.elsewhere ? 'LIVE · GPS ailleurs' : 'LIVE · sans GPS';
+    badge.title = stale ? 'Plus de données reçues depuis 25 s : reconnexion automatique si ça dure' : src.elsewhere ? ELSEWHERE : src.error || (src.authenticated ? 'Flux live (avec GPS F1 TV)' : src.f1tv ? 'Connexion F1 TV prête : le GPS arrive quand les voitures roulent' : 'Flux live (sans GPS : positions estimées)');
+    // GPS laissé à un autre appareil : dit une fois, le badge le reprend ici
+    if (src.elsewhere && !shownElsewhere) toast(ELSEWHERE, 12000, 'warning');
+    shownElsewhere = !!src.elsewhere;
   } else {
     badge.className = 'source-badge';
     lbl.textContent = 'Inactif';

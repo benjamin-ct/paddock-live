@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parsePoint, parseCircuitData } from '../server/fia-circuit.js';
+import { parsePoint, parseCircuitData } from '../shared/fia-circuit.js';
 
 test('plan FIA : positions « Xm after Tn »', () => {
   assert.deepEqual(parsePoint('- 90m after T16'), { m: 90, dir: 1, turn: 16, text: '90m after T16' });

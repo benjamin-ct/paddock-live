@@ -16,13 +16,14 @@ function fakeEnv({ limit = 100, failTurbo = false } = {}) {
   const calls = [];
   const stmt = (sql, args = []) => ({
     bind: (...a) => stmt(sql, a),
+    async all() { return { results: [] }; },
     async first() {
       if (sql.includes('radio_texts')) return radios.get(args[0]) || null;
       return usage.has(args[0]) ? { n: usage.get(args[0]) } : null;
     },
     async run() {
       if (sql.includes('radio_texts')) radios.set(args[0], { text: args[1], d: args[2] });
-      else usage.set(args[0], (usage.get(args[0]) || 0) + args[1]);
+      else { const v = (usage.get(args[0]) || 0) + args[1]; if (v > args[2]) return { meta: { changes: 0 } }; usage.set(args[0], v); return { meta: { changes: 1 } }; }
     },
   });
   return {
@@ -71,6 +72,16 @@ test('transcription partagée : une seule fois pour tous, texte nettoyé, plafon
   await transcribeRadio(env, mp3(2000, 8), '2026-10-15');
   assert.deepEqual(await transcribeRadio(env, mp3(2000, 9), '2026-10-15'), { limited: true });
   assert.deepEqual(await transcribeRadio(env, new Uint8Array(2000), '2026-10-15'), { invalid: true });
+});
+
+test('transcription partagée : un long fichier son compte pour une radio par tranche de 30 s', async () => {
+  const { env, usage } = fakeEnv({ limit: 100 });
+  const run = env.AI.run;
+  env.AI.run = async (model, input) => ({ ...(await run(model, input)), transcription_info: { duration: 35 * 60 } });   // MP3 de 35 min
+  await transcribeRadio(env, mp3(2000, 40), '2026-10-15', '203.0.113.7');
+  assert.equal(usage.get('radio:2026-10-15'), 70);
+  assert.equal(usage.get('2026-10-15|203.0.113.7|radio:2026-10-15'), 70);   // sa part du jour (25) est dépassée
+  assert.deepEqual(await transcribeRadio(env, mp3(2000, 41), '2026-10-15', '203.0.113.7'), { limited: true });
 });
 
 test('transcription partagée : une seule adresse ne prend qu\'un quart du plafond du jour', async () => {
@@ -142,4 +153,22 @@ test('transcription en ligne côté appli : erreur d\'archive remontée', async 
   const c = createCloudTranscriber({ url: 'https://w.example/r', audio: async () => { const e = new Error('absent'); e.status = 404; throw e; }, fetch: async () => assert.fail('pas d\'appel') });
   await assert.rejects(c.transcribe('2026/x/TeamRadio/C.mp3'), /absent/);
   assert.equal(c.available(), true);
+});
+
+test('caméras embarquées : fenêtre WAV retranscrite par le serveur avec l\'heure de chaque phrase, plafond du jour', async () => {
+  const { transcribeWindow } = await import('../analytics/transcribe.js');
+  const wav = (n = 32000) => { const b = new Uint8Array(44 + n); b.set([...'RIFF'].map((c) => c.charCodeAt(0)), 0); b.set([...'WAVE'].map((c) => c.charCodeAt(0)), 8); return b; };
+  const usage = new Map();
+  const env = {
+    ONBOARD_DAILY_LIMIT: '1',
+    DB: { prepare: () => ({ bind: (...a) => ({ first: async () => null, all: async () => ({ results: [] }), run: async () => { const v = (usage.get(a[0]) || 0) + a[1]; if (v > a[2]) return { meta: { changes: 0 } }; usage.set(a[0], v); return { meta: { changes: 1 } }; } }) }) },
+    AI: { run: async (model, input) => {
+      assert.equal(model, ASR_MODEL);
+      assert.equal(typeof input.audio, 'string');
+      return { text: 'Box box. Copy.', segments: [{ start: 1.2, end: 2.5, text: ' Box box.' }, { start: 4, end: 4.8, text: ' Copy.' }] };
+    } },
+  };
+  assert.deepEqual(await transcribeWindow(env, wav(), '2026-10-30'), { segments: [{ timestamp: [1.2, 2.5], text: ' Box box.' }, { timestamp: [4, 4.8], text: ' Copy.' }] });
+  assert.deepEqual(await transcribeWindow(env, wav(), '2026-10-30'), { limited: true });
+  assert.deepEqual(await transcribeWindow(env, mp3(), '2026-10-30'), { invalid: true });
 });

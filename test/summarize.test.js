@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import { studioQuota } from '../analytics/quota.js';
 import { cleanSummaryRequest, copiedFrom, parsePoints, summarizeArticle, cleanPostRequest, parsePostReply, rewritePost } from '../analytics/summarize.js';
 import { MODEL } from '../analytics/translate.js';
-import { createNewsSummarizer, articleText } from '../server/news-summary.js';
 import worker from '../analytics/worker.js';
 
 const ARTICLE = `Ferrari has confirmed that Lewis Hamilton will remain with the Scuderia until the end of the 2028 season. The seven-time world champion joined the team at the start of 2025. Team principal Fred Vasseur said the experience of the British driver was a key asset for the development of the car. ${'More details about the contract were not disclosed by the team. '.repeat(4)}`;
@@ -19,13 +18,14 @@ function fakeEnv({ limit = 100, replies = [] } = {}) {
   const calls = [];
   const stmt = (sql, args = []) => ({
     bind: (...a) => stmt(sql, a),
+    async all() { return { results: [] }; },
     async first() {
       if (/FROM translations/.test(sql)) return tr.has(args[0]) ? { out: tr.get(args[0]) } : null;
       return usage.has(args[0]) ? { n: usage.get(args[0]) } : null;
     },
     async run() {
       if (/INTO translations/.test(sql)) tr.set(args[0], args[1]);
-      else usage.set(args[0], (usage.get(args[0]) || 0) + args[1]);
+      else { const v = (usage.get(args[0]) || 0) + args[1]; if (v > args[2]) return { meta: { changes: 0 } }; usage.set(args[0], v); return { meta: { changes: 1 } }; }
     },
   });
   return {
@@ -96,22 +96,6 @@ test('résumé détaillé : réponse JSON déjà décodée par Workers AI (table
   const g = fakeEnv({});
   g.env.AI.run = async () => { throw new Error('down'); };
   assert.match((await summarizeArticle(g.env, req, '2026-10-16')).error, /n'a pas répondu/);
-});
-
-test("résumé détaillé dans l'appli : article lu en mode lecture, points demandés au serveur", async () => {
-  const reads = [];
-  const articles = { async get(u) { reads.push(u); return u.endsWith('/video') ? { readable: false, reason: 'vidéo', blocks: [] } : { readable: true, title: 'Hamilton', blocks: [{ h: 'Contrat' }, { p: ARTICLE }] }; } };
-  const posted = [];
-  const summarize = createNewsSummarizer({ articles, url: 'https://s.test/s', post: async (url, body) => { posted.push({ url, body }); return { status: 200, json: { points: POINTS } }; } });
-  assert.deepEqual(await summarize('https://www.formula1.com/a'), POINTS);
-  assert.deepEqual(await summarize('https://www.formula1.com/a'), POINTS);   // gardé en mémoire
-  assert.equal(posted.length, 1);
-  assert.equal(posted[0].body.title, 'Hamilton');
-  assert.equal(posted[0].body.text, `Contrat\n\n${ARTICLE}`.slice(0, 12000));
-  assert.equal(articleText({ blocks: [{ p: 'a' }, { h: 'b' }] }), 'a\n\nb');
-  await assert.rejects(summarize('https://www.formula1.com/video'), /illisible ici : vidéo/);
-  const limited = createNewsSummarizer({ articles, post: async () => ({ status: 429, json: { limited: true } }) });
-  await assert.rejects(limited('https://www.formula1.com/b'), /Plafond/);
 });
 
 test('résumé détaillé : adresse /s du serveur', async () => {

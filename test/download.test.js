@@ -36,9 +36,11 @@ test('téléchargement : copie de la dernière version sur Cloudflare (morceaux 
       const v = store[key];
       if (v == null) return null;
       if (typeof v === 'string') return { text: async () => v };
-      const m = range && /bytes=(\d+)-(\d+)/.exec(range.get('Range'));
-      const r = m ? { offset: +m[1], length: +m[2] - +m[1] + 1 } : null;
-      return { body: new Blob([r ? v.slice(r.offset, r.offset + r.length) : v]).stream(), size: v.length, range: r, httpEtag: '"e"' };
+      // Partie comme R2 la décrit : { offset, length }, { offset } (jusqu'à la fin) ou { suffix }
+      const m = range && /bytes=(\d*)-(\d*)/.exec(range.get('Range'));
+      const r = !m ? null : !m[1] ? { suffix: +m[2] } : m[2] ? { offset: +m[1], length: +m[2] - +m[1] + 1 } : { offset: +m[1] };
+      const from = r?.suffix != null ? v.length - r.suffix : r?.offset ?? 0;
+      return { body: new Blob([v.slice(from, r?.length != null ? from + r.length : v.length)]).stream(), size: v.length, range: r, httpEtag: '"e"' };
     },
   };
   const env = { MEDIA };
@@ -50,6 +52,11 @@ test('téléchargement : copie de la dernière version sur Cloudflare (morceaux 
   assert.equal(r.status, 206);
   assert.equal(r.headers.get('Content-Range'), 'bytes 2-5/10');
   assert.equal(await r.text(), '2345');
+  // Jusqu'à la fin (« bytes=0- », lecteurs vidéo) et la fin seule
+  r = await mirror(new Request('https://p.test/dl/x', { headers: { Range: 'bytes=3-' } }), env, 'Paddock-Live-1.27.19-x64-win.exe');
+  assert.deepEqual([r.status, r.headers.get('Content-Range'), r.headers.get('Content-Length'), await r.text()], [206, 'bytes 3-9/10', '7', '3456789']);
+  r = await mirror(new Request('https://p.test/dl/x', { headers: { Range: 'bytes=-4' } }), env, 'Paddock-Live-1.27.19-x64-win.exe');
+  assert.deepEqual([r.status, r.headers.get('Content-Range'), r.headers.get('Content-Length'), await r.text()], [206, 'bytes 6-9/10', '4', '6789']);
   // Autre version que la copie, ou fichier absent : GitHub
   r = await mirror(new Request('https://p.test/dl/x'), env, 'Paddock-Live-1.27.18-x64-win.exe');
   assert.equal(r.headers.get('Location'), 'https://github.com/benjamin-ct/paddock-live/releases/download/v1.27.18/Paddock-Live-1.27.18-x64-win.exe');
@@ -85,6 +92,26 @@ test('nom de domaine : racine = site de l\'appli, www redirigé, workers.dev inc
   r = await worker.fetch(new Request('https://pdkl.app/download?x=1'), { ...env, SITE_ORIGIN: 'https://paddocklive.app' });
   assert.equal(r.status, 301);
   assert.equal(r.headers.get('location'), 'https://paddocklive.app/download?x=1');
+});
+
+test('version web : seulement sur app.paddocklive.app, paddocklive.app/live renvoyé là-bas', async () => {
+  const { default: worker } = await import('../analytics/worker.js');
+  const env = { ASSETS: { fetch: async (req) => new Response(`site:${new URL(req.url).pathname}`) } };
+  let r = await worker.fetch(new Request('https://app.paddocklive.app/'), env);
+  assert.equal(await r.text(), 'site:/live/');
+  assert.match(r.headers.get('content-security-policy'), /frame-ancestors 'none'/);
+  r = await worker.fetch(new Request('https://app.paddocklive.app/live/js/web.js'), env);
+  assert.equal(await r.text(), 'site:/live/js/web.js');
+  assert.ok(r.headers.get('strict-transport-security'));
+  for (const u of ['https://paddocklive.app/live/', 'https://paddocklive.app/live', 'https://paddock-live-stats.paddock-live.workers.dev/live/']) {
+    r = await worker.fetch(new Request(u), env);
+    assert.equal(r.status, 301);
+    assert.equal(r.headers.get('location'), 'https://app.paddocklive.app/');
+  }
+  for (const u of ['https://paddocklive.app/live/js/web.js', 'https://paddocklive.app/live/ws', 'https://paddocklive.app/live/api/session']) {
+    r = await worker.fetch(new Request(u), env);
+    assert.equal(r.status, 404);
+  }
 });
 
 test('ancienne adresse workers.dev : connexion et statistiques renvoyées sur le nom de domaine, appels de l\'appli inchangés', async () => {

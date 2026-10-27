@@ -5,12 +5,22 @@ import { TRACKS, trackOf, previewTrack } from '/shared/social-music.js';
 export const $ = (s, el = document) => el.querySelector(s);
 export const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 export const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-export const SIG = '@BenjyPaddock';
+// Signature des visuels et des textes (Réglages → Posts), gardée sur l'appareil
+export const SIG_DEFAULT = '@BenjyPaddock';
+export let SIG = SIG_DEFAULT;
 export const NET_NAMES = { instagram: 'Instagram', facebook: 'Facebook', threads: 'Threads', x: 'X', bluesky: 'Bluesky', tiktok: 'TikTok', youtube: 'YouTube', 'instagram-story': 'Story Instagram', 'facebook-story': 'Story Facebook' };
 
 // Réglages de la page (gardés pendant la visite) et comptes connectés (réponse de /me)
-export const state = { tab: 'news', fmt: 'ig', noSpoiler: true, photos: true, all: false, linkComment: true, follow: false, question: true, stype: 'raceweek', round: null, nsort: 'top', nkind: null, ssub: 'accounts', skip: new Set() };
+export const state = { year: null, tab: 'news', fmt: 'ig', noSpoiler: true, photos: true, all: false, linkComment: true, follow: false, question: true, stype: 'raceweek', round: null, nsort: 'top', nkind: null, ssub: 'accounts', skip: new Set() };
 export const session = { me: null };
+// Saison affichée (Séances et Saison) : l'année en cours, ou une précédente (archives de la F1 depuis 2018)
+export const curYear = () => new Date().getUTCFullYear();
+export const yearOf = () => state.year || curYear();
+export const yearPicker = () => `<label class="yearpick">Saison <select id="yearsel">${Array.from({ length: curYear() - 2017 }, (_, i) => curYear() - i).map((y) => `<option value="${y}" ${y === yearOf() ? 'selected' : ''}>${y}</option>`).join('')}</select></label>`;
+export function bindYear(root, onChange) {
+  const sel = root.querySelector('#yearsel');
+  if (sel) sel.onchange = () => { state.year = Number(sel.value) === curYear() ? null : Number(sel.value); onChange(); };
+}
 
 // iPhone / iPad, et page ouverte depuis l'écran d'accueil (sans la barre de Safari)
 export const IOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -32,6 +42,9 @@ export const store = {
   },
   del(k) { try { localStorage.removeItem(`studio.${k}`); } catch { /* stockage bloqué */ } },
 };
+
+SIG = store.get('sig')?.v || SIG_DEFAULT;
+export function setSig(v) { SIG = String(v || '').trim().slice(0, 40) || SIG_DEFAULT; store.set('sig', SIG); }
 
 // ---------- Accès au serveur ----------
 const KEY = 'studio.key';
@@ -86,6 +99,7 @@ export async function mapLimit(list, n, fn) {
 const PATHS = {
   news: '<path d="M4 5h13v14H6a2 2 0 0 1-2-2z"/><path d="M17 8h3v9a2 2 0 0 1-2 2"/><path d="M7 9h7M7 13h7M7 17h4"/>',
   flag: '<path d="M5 21V4"/><path d="M5 4h13l-2.5 4.5L18 13H5"/>',
+  list: '<path d="M9 6h11M9 12h11M9 18h11"/><path d="M4.5 6h.01M4.5 12h.01M4.5 18h.01" stroke-width="3"/>',
   calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
   chart: '<path d="M5 20V11M11 20V5M17 20v-6M3 20h18"/>',
   settings: '<path d="M4 7h9M17 7h3M4 12h3M11 12h9M4 17h11M19 17h1"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="17" r="2"/>',
@@ -227,6 +241,9 @@ export async function schedList(el) {
     return `<div class="card"><div class="card-top">${icon('clock')}<span>${esc(new Date(j.at).toLocaleString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }))}</span></div><div class="t">${esc(j.title || 'Post')}</div>
       <div class="nets-st">${Object.entries(j.nets).map(([n, x]) => `<div><span>${esc(NET_NAMES[n] || n)}</span>${x.status === 'done' && x.url ? `<a class="pill ok" href="${esc(x.url)}" target="_blank" rel="noopener">${SCHED_ST.done} ${icon('check')}</a>` : `<span class="pill ${x.status === 'error' || x.status === 'expired' ? 'bad' : ''}">${x.sent && x.status !== 'error' ? `en cours (${x.sent}/${x.total})` : esc(SCHED_ST[x.status] || x.status)}</span>`}`
         + (x.error ? `<small class="err">${esc(x.error)}</small>` : '')
+        + (x.note && x.status === 'done' ? `<small class="hint">${esc(x.note)}</small>` : '')
+        // Brouillon TikTok : son texte n'y est pas (TikTok ne le prend pas), à coller dans la description
+        + (n === 'tiktok' && x.status === 'done' && !x.url && j.texts?.tiktok ? `<button class="btn small" data-copytk="${esc(j.id)}">${icon('copy')}Copier le texte</button>` : '')
         + (j.retry && ['error', 'expired'].includes(x.status) ? `<button class="btn small" data-retry="${esc(j.id)}" data-net="${esc(n)}">Réessayer</button>` : '')
         + (x.commentError ? `<small class="err">Commentaire refusé : ${esc(x.commentError)}</small>` : '')
         + (x.visible === false ? '<small class="err">Pas visible publiquement sur Threads : vérifiez le post (compte ou post masqué)</small>' : '') + '</div>').join('')}</div>
@@ -240,6 +257,10 @@ export async function schedList(el) {
       try { await api('schedule/cancel', { method: 'POST', body: JSON.stringify({ id: b.dataset.cancel }) }); toast(over ? 'Retirée de la liste' : 'Publication annulée'); } catch (err) { alert(err.message); }
       schedList(el);
     };
+  });
+  el.querySelectorAll('[data-copytk]').forEach((b) => {
+    b.onclick = () => navigator.clipboard.writeText(items.find((x) => x.id === b.dataset.copytk)?.texts?.tiktok || '')
+      .then(() => toast('Texte copié : collez-le dans la description du brouillon TikTok', 'ok'), () => toast('Copie impossible', 'bad'));
   });
   // Réseau en erreur : renvoyé au relevé suivant (visuels gardés 24 h après la fin)
   el.querySelectorAll('[data-retry]').forEach((b) => {
@@ -274,30 +295,55 @@ export async function schedList(el) {
 
 // ---------- Musique des vidéos : morceaux fabriqués sur place (libres de droits), à écouter avant ----------
 // kind : type de vidéo (choix gardé pour chacun) ; def : morceau proposé la première fois
+// Morceaux fabriqués sur place, ou votre fichier audio, ou rien
+const OWN_MUSIC = { none: 'Pas de son : à ajouter dans l\'appli du réseau (sons tendance de TikTok, Instagram…).', file: 'Votre fichier audio (MP3, M4A…), bouclé si la vidéo est plus longue. À vous d\'en avoir les droits.' };
+const musicDesc = (id) => OWN_MUSIC[id] || trackOf(id).desc;
+let ownAudio = null;   // fichier audio choisi (gardé pendant la visite, pour toutes les vidéos)
 export const musicField = (kind, def) => {
-  const cur = trackOf(store.get(`track.${kind}`)?.v || def).id;
-  return `<div class="field"><span>Musique <small>(fabriquée sur place, libre de droits)</small></span>
-    <div class="row"><select id="vtrack">${TRACKS.map((x) => `<option value="${x.id}" ${x.id === cur ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select><button type="button" class="btn small" id="vlisten">${icon('play')}Écouter</button></div>
-    <small class="hint" id="vtrackdesc">${esc(trackOf(cur).desc)}</small></div>`;
+  const saved = store.get(`track.${kind}`)?.v || def;
+  const cur = OWN_MUSIC[saved] ? saved : trackOf(saved).id;
+  return `<div class="field"><span>Musique <small>(fabriquée sur place et libre de droits, la vôtre, ou aucune)</small></span>
+    <div class="row"><select id="vtrack">${TRACKS.map((x) => `<option value="${x.id}" ${x.id === cur ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}<option value="file" ${cur === 'file' ? 'selected' : ''}>Mon fichier audio…</option><option value="none" ${cur === 'none' ? 'selected' : ''}>Sans musique</option></select><button type="button" class="btn small" id="vlisten">${icon('play')}Écouter</button></div>
+    <input type="file" id="vaudio" accept="audio/*" hidden>
+    <small class="hint" id="vtrackdesc">${esc(musicDesc(cur))}${cur === 'file' && ownAudio ? ` · ${esc(ownAudio.name)}` : ''}</small></div>`;
 };
-// Branche la liste et l'écoute (15 s) ; renvoie le morceau choisi
+// Branche la liste et l'écoute (15 s) ; renvoie de quoi faire la musique : { music, track, file }
 export function bindMusic(kind) {
   let stop = null;
   const label = (st) => { if ($('#vlisten')) $('#vlisten').innerHTML = st === 'loading' ? `${icon('stop')}Préparation…` : st === 'playing' ? `${icon('stop')}Arrêter` : `${icon('play')}Écouter`; };
   const end = () => { stop?.(); stop = null; label('ended'); };
   const listen = () => {
     end();
-    const me = stop = previewTrack($('#vtrack').value, (st) => { if (stop !== me) return; if (st === 'ended') end(); else label(st); });
+    const v = $('#vtrack').value;
+    if (v === 'none' || (v === 'file' && !ownAudio)) return;
+    if (v === 'file') {
+      const a = new Audio(URL.createObjectURL(ownAudio));
+      const me = stop = () => { a.pause(); URL.revokeObjectURL(a.src); };
+      a.onended = () => { if (stop === me) end(); };
+      a.play().then(() => label('playing'), end);
+      setTimeout(() => { if (stop === me) end(); }, 15e3);
+      return;
+    }
+    const me = stop = previewTrack(v, (st) => { if (stop !== me) return; if (st === 'ended') end(); else label(st); });
     label('loading');
   };
+  const desc = () => { const v = $('#vtrack').value; $('#vtrackdesc').textContent = `${musicDesc(v)}${v === 'file' && ownAudio ? ` · ${ownAudio.name}` : ''}`; $('#vlisten').disabled = v === 'none'; };
   $('#vtrack').onchange = (e) => {
     store.set(`track.${kind}`, e.target.value);
-    $('#vtrackdesc').textContent = trackOf(e.target.value).desc;
+    if (e.target.value === 'file' && !ownAudio) $('#vaudio').click();
+    desc();
     if (stop) listen();
   };
+  $('#vaudio').onchange = (e) => { if (e.target.files?.[0]) ownAudio = e.target.files[0]; desc(); };
+  desc();
   $('#vlisten').onclick = () => (stop ? end() : listen());
   addEventListener('popstate', end, { once: true });
-  return () => $('#vtrack').value;
+  return () => {
+    const v = $('#vtrack').value;
+    if (v === 'none') return { music: 'none' };
+    if (v === 'file' && ownAudio) return { music: 'file', file: ownAudio };
+    return { music: 'gen', track: v === 'file' ? trackOf().id : v };
+  };
 }
 
 // Vidéo fabriquée sur place, jointe au post si elle est en MP4 (format accepté par tous les réseaux)

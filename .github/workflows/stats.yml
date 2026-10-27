@@ -8,44 +8,17 @@ name: Statistiques
 # - CLOUDFLARE_API_TOKEN : jeton Cloudflare (modèle « Edit Cloudflare Workers » + permission
 #   Compte → D1 → Modifier ; R2 activé sur le compte pour les vidéos) ;
 # - STATS_KEY : mot de passe de la page des statistiques (/stats?key=…) ;
-# - CLOUDFLARE_ACCOUNT_ID (facultatif) : seulement si le jeton donne accès à plusieurs comptes.
+# - CLOUDFLARE_ACCOUNT_ID (facultatif) : seulement si le jeton donne accès à plusieurs comptes ;
+# - ANTHROPIC_API_KEY (facultatif) : clé de l'API de Claude (organisation Console liée à l'abonnement Max) pour les
+#   traductions ; sans elle, Mistral (Workers AI) comme avant.
 on:
   workflow_dispatch:
   push:
     paths:
       - 'analytics/**'
-      - 'shared/stats.js'
-      - 'shared/radio-text.js'
-      - 'shared/translation-check.js'
-      - 'shared/news.js'
-      - 'shared/news-sources.js'
-      - 'shared/meta-publish.js'
-      - 'shared/social*.js'
-      - 'shared/summary.js'
-      - 'shared/pits.js'
-      - 'shared/merge.js'
-      - 'shared/flags.js'
-      - 'shared/post-*.js'
-      - 'shared/bluesky-publish.js'
-      - 'shared/video-publish.js'
-      - 'shared/tyres.js'
-      - 'shared/news-collect.js'
-      - 'shared/feed-pack.js'
-      - 'shared/image-viewer.js'
-      - 'shared/fia-list.js'
-      - 'shared/fia-grid.js'
-      - 'shared/pull-refresh.js'
-      - 'shared/article.js'
-      - 'shared/season-*.js'
-      - 'shared/race-laps.js'
-      - 'shared/race-story.js'
-      - 'shared/circuits-info.js'
-      - 'shared/circuit-records.js'
-      - 'shared/f1.js'
-      - 'shared/portraits.js'
-      - 'shared/team-logos.js'
-      - 'shared/gp-names.js'
-      - 'shared/*-muxer.js'
+      - 'shared/**'
+      # Version web du direct (/live/) : l'interface de l'appli, copiée par scripts/build-studio.mjs
+      - 'public/**'
       - 'scripts/build-studio.mjs'
       - 'docs/obs/*.json'
       - '.github/workflows/stats.yml'
@@ -68,8 +41,12 @@ jobs:
           fetch-depth: 0
       - id: c
         run: |
-          if git merge-base --is-ancestor origin/develop HEAD; then echo ok=1 >> "$GITHUB_OUTPUT"
-          else echo "::notice::Studio non déployé : cette branche n'a pas toutes les modifications de develop"; fi
+          if ! git merge-base --is-ancestor origin/develop HEAD; then echo "::notice::Studio non déployé : cette branche n'a pas toutes les modifications de develop"
+          # Séance en cours suivie sur la version web : un déploiement couperait tous ses spectateurs. Remis à
+          # plus tard (lancement à la main : onglet Actions → « Statistiques » → Run workflow)
+          elif [ "${{ github.event_name }}" = push ] && curl -s --max-time 10 https://app.paddocklive.app/live/api/session | grep -q '"status":"Started".*"live":true'; then
+            echo "::notice::Séance en cours sur la version web : déploiement remis, à relancer à la main après la séance"
+          else echo ok=1 >> "$GITHUB_OUTPUT"; fi
 
   deploy:
     needs: a-jour
@@ -94,6 +71,9 @@ jobs:
           [ -n "$CLOUDFLARE_API_TOKEN" ] || { echo "::error::Secret CLOUDFLARE_API_TOKEN manquant"; exit 1; }
           [ -n "$STATS_KEY" ] || { echo "::error::Secret STATS_KEY manquant"; exit 1; }
           [ -n "$CLOUDFLARE_ACCOUNT_ID" ] || unset CLOUDFLARE_ACCOUNT_ID
+      - name: Dépendances du Worker (unpdf, lecture des PDF de la FIA)
+        working-directory: .
+        run: npm ci --omit=dev --ignore-scripts
       - name: Fichiers statiques (page web du créateur, code partagé, polices)
         run: node ../scripts/build-studio.mjs
       - name: Base D1 (créée si besoin)
@@ -128,3 +108,10 @@ jobs:
         run: |
           [ -n "$CLOUDFLARE_ACCOUNT_ID" ] || unset CLOUDFLARE_ACCOUNT_ID
           printf '%s' "$STATS_KEY" | $WRANGLER secret put STATS_KEY
+      - name: Clé de l'API de Claude (traductions)
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          [ -n "$CLOUDFLARE_ACCOUNT_ID" ] || unset CLOUDFLARE_ACCOUNT_ID
+          if [ -n "$ANTHROPIC_API_KEY" ]; then printf '%s' "$ANTHROPIC_API_KEY" | $WRANGLER secret put ANTHROPIC_API_KEY
+          else echo "::notice::Secret ANTHROPIC_API_KEY absent : traductions par Mistral (Workers AI)"; fi

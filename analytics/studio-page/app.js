@@ -8,8 +8,8 @@
 import { bigNews, newsKind, newsKinds, sortNews, isBreaking } from '/shared/social-news.js';
 import { postedEntry, keepStats } from '/shared/post-history.js';
 import { pullToRefresh } from '/shared/pull-refresh.js';
-import { $, $$, esc, api, ago, fmtN, icon, LOGO, toast, skeleton, empty, failure, sheet, schedList, store, state, session, hasKey, setKey, forgetKey, onLogout, glide, NET_NAMES, IOS, installed } from './ui.js';
-import { cachedNews, freshNews, toFrench, knownFrench, cachedSessions, seasonSessions, SESSION_FR } from './data.js';
+import { $, $$, esc, api, ago, fmtN, icon, LOGO, toast, skeleton, empty, failure, sheet, store, state, session, SIG, SIG_DEFAULT, setSig, yearOf, yearPicker, bindYear, hasKey, setKey, forgetKey, onLogout, glide, NET_NAMES, IOS, installed } from './ui.js';
+import { cachedNews, freshNews, toFrench, knownFrench, translationsPausedUntil, cachedSessions, seasonSessions, SESSION_FR } from './data.js';
 
 const app = $('#app');
 // Ancienne adresse (*.workers.dev) : même page sur le nom de domaine (code à entrer une fois de plus)
@@ -28,6 +28,8 @@ const loadPosts = () => import('./posts.js');
 const posts = lazy(loadPosts);
 const season = lazy(() => import('./season.js'));
 const drafts = lazy(() => import('./drafts.js'));
+const suivi = lazy(() => import('./suivi.js'));
+const pubs = lazy(() => import('./pubs.js'));
 const scrolls = {};   // position dans chaque onglet, retrouvée au retour d'un post
 
 // ---------- Accès ----------
@@ -65,7 +67,7 @@ function login(error = '') {
 onLogout(() => login());
 
 // ---------- Accueil : en-tête, onglet, barre d'onglets ----------
-const TABS = [['news', 'News', 'news'], ['sessions', 'Séances', 'flag'], ['season', 'Saison', 'calendar'], ['stats', 'Stats', 'chart']];
+const TABS = [['news', 'News', 'news'], ['sessions', 'Séances', 'flag'], ['season', 'Saison', 'calendar'], ['pubs', 'Publications', 'send'], ['stats', 'Stats', 'chart'], ['suivi', 'Suivi', 'list']];
 const tabIndex = (k) => TABS.findIndex(([x]) => x === k);
 // Retour d'un post : la liste revient en glissant depuis la gauche
 const back = () => home({ from: 'left' });
@@ -119,7 +121,7 @@ async function showTab({ force = false, restore = false } = {}) {
   const body = $('#body');
   const spin = $('#refresh');
   spin?.classList.add('spin');
-  const fn = { news: newsTab, sessions: sessionsTab, season: seasonView, stats: statsTab }[state.tab];
+  const fn = { news: newsTab, sessions: sessionsTab, season: seasonView, stats: statsTab, suivi: async (...a) => (await suivi()).suiviTab(...a), pubs: async (b, o) => (await pubs()).pubsTab(b, o, newPosts) }[state.tab];
   try {
     await fn(body, { force, restore: restore ? scrolls[state.tab] || 0 : 0, current: () => run === tabRun && body.isConnected });
   } catch (err) {
@@ -135,6 +137,16 @@ async function showTab({ force = false, restore = false } = {}) {
   } finally { if (run === tabRun) spin?.classList.remove('spin'); }
 }
 const restoreScroll = (y) => { if (y) requestAnimationFrame(() => scrollTo(0, y)); };
+
+// Onglet Publications : écrire un post, post Paddock Live (en haut de l'onglet)
+const newPosts = {
+  html: `<div class="features"><button class="card feature" id="manual">${icon('pen')}<span class="grow"><b>Écrire un post</b><small>Votre texte, mis en forme par l'IA si besoin ; visuels faits tout seuls</small></span>${icon('next')}</button>
+    <button class="card feature" id="apppost">${LOGO}<span class="grow"><b>Post Paddock Live</b><small>Le visuel de @paddockliveapp : vos captures, photos et vidéos, textes prêts à publier à la main</small></span>${icon('next')}</button></div>`,
+  bind: (body) => {
+    $('#manual', body).onclick = (e) => open(e.currentTarget, async () => (await posts()).manualEditor(back));
+    $('#apppost', body).onclick = (e) => open(e.currentTarget, async () => (await posts()).appEditor(back));
+  },
+};
 
 // Ouverture d'un post : bouton marqué en cours, erreur affichée sans quitter la liste
 async function open(btn, fn) {
@@ -169,9 +181,11 @@ async function newsTab(body, { force, restore, current }) {
 async function translateShown(body, list, redraw) {
   const todo = list.filter((it) => it.lang !== 'fr' && !knownFrench(it.title, it.lang));
   if (!todo.length) return;
+  const wasPaused = translationsPausedUntil();
   await toFrench(todo.map((it) => ({ text: it.title, from: it.lang })));
-  // Rien de traduit (serveur indisponible) : pas de nouvel essai en boucle
-  if (list !== shown || !body.isConnected || !todo.some((it) => knownFrench(it.title, it.lang))) return;
+  // Rien de traduit (serveur indisponible) : pas de nouvel essai en boucle, sauf pour afficher la pause
+  if (list !== shown || !body.isConnected) return;
+  if (!todo.some((it) => knownFrench(it.title, it.lang)) && (wasPaused || !translationsPausedUntil())) return;
   const y = scrollY;
   redraw();
   scrollTo(0, y);
@@ -196,9 +210,8 @@ function renderNews(body, items, { at, stale = false }) {
       <label class="chip-toggle"><input type="checkbox" id="hideread" ${state.hideRead ? 'checked' : ''}><span>Non lues</span></label>
     </div>
     ${kinds.length > 1 ? `<div class="chips" id="nkinds"><button data-k="" class="${state.nkind ? '' : 'on'}">Tout <small>${big.length}</small></button>${kinds.map((k) => `<button data-k="${k.key}" class="${state.nkind === k.key ? 'on' : ''}"><i style="background:${k.color}"></i>${esc(KIND_NAMES[k.key] || k.label)} <small>${k.n}</small></button>`).join('')}</div>` : ''}
-    <p class="status">${stale ? '<span class="dot"></span>Mise à jour…' : `À jour · ${new Date(at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`}</p>
-    <div class="features"><button class="card feature" id="manual">${icon('pen')}<span class="grow"><b>Écrire un post</b><small>Votre texte, mis en forme par l'IA si besoin ; visuels faits tout seuls</small></span>${icon('next')}</button>
-    <button class="card feature" id="recap">${icon('spark')}<span class="grow"><b>Récap de la semaine</b><small>Carrousel des 5 plus grosses news des 7 derniers jours</small></span>${icon('next')}</button></div>
+    <p class="status">${stale ? '<span class="dot"></span>Mise à jour…' : `À jour · ${new Date(at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`}${translationsPausedUntil() ? ` · Traductions en pause jusqu'à ${new Date(translationsPausedUntil()).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })} (plafond du jour)` : ''}</p>
+    <div class="features">    <button class="card feature" id="recap">${icon('spark')}<span class="grow"><b>Récap de la semaine</b><small>Carrousel des 5 plus grosses news des 7 derniers jours</small></span>${icon('next')}</button></div>
     ${list.length ? `<div class="list">${list.map((it, i) => {
       const k = newsKind(it);
       const posted = done.get(it);
@@ -214,30 +227,32 @@ function renderNews(body, items, { at, stale = false }) {
   $$('[data-r]', body).forEach((b) => { b.onclick = () => { const y = scrollY; setRead(list[Number(b.dataset.r)].id, !b.classList.contains('on')); renderNews(body, items, { at, stale }); scrollTo(0, y); }; });
   $$('#nsort [data-by]', body).forEach((b) => { b.onclick = () => { state.nsort = b.dataset.by; renderNews(body, items, { at, stale }); }; });
   $$('#nkinds [data-k]', body).forEach((b) => { b.onclick = () => { state.nkind = b.dataset.k || null; renderNews(body, items, { at, stale }); }; });
-  $('#manual', body).onclick = (e) => open(e.currentTarget, async () => (await posts()).manualEditor(back));
   $('#recap', body).onclick = (e) => open(e.currentTarget, async () => (await posts()).recapEditor(back));
   $$('[data-i]', body).forEach((b) => { b.onclick = () => { setRead(list[Number(b.dataset.i)].id); open(b, async () => (await posts()).newsEditor(list[Number(b.dataset.i)], done.get(list[Number(b.dataset.i)]), back)); }; });
 }
 
 // ---------- Séances (archives de la F1), regroupées par Grand Prix ----------
 async function sessionsTab(body, { force, restore, current }) {
-  const known = cachedSessions();
+  const known = cachedSessions(yearOf());
   if (known && !force) renderSessions(body, known);
-  else body.innerHTML = skeleton(5);
+  else body.innerHTML = `${yearPicker()}${skeleton(5)}`;
+  bindYear(body, () => sessionsTab(body, { current }));
   restoreScroll(restore);
-  const list = await seasonSessions({ force });
+  const list = await seasonSessions({ force, year: yearOf() });
   if (!current()) return;
   renderSessions(body, list);
   setTimeout(() => loadPosts().catch(() => {}), 300);
 }
 function renderSessions(body, list) {
   if (!list.length) {
-    body.innerHTML = `<div class="empty">${icon('flag')}<p>${session.me.f1tv ? 'Archives indisponibles pour le moment.' : 'Séances indisponibles : il faut un abonnement F1 TV. Dans l\'appli de bureau, connectez F1 TV (Réglages, Compte F1 TV), puis renvoyez les comptes au Studio (Posts, Publier, Comptes).'}</p></div>`;
+    body.innerHTML = `${yearPicker()}<div class="empty">${icon('flag')}<p>${session.me.f1tv ? 'Archives indisponibles pour le moment.' : 'Séances indisponibles : il faut un abonnement F1 TV. Dans l\'appli de bureau, connectez F1 TV (Réglages, Compte F1 TV), puis renvoyez les comptes au Studio (Réglages, Mode créateur, Comptes…).'}</p></div>`;
+    bindYear(body, () => sessionsTab(body, { current: () => body.isConnected }));
     return;
   }
   const groups = [];
   for (const s of list) { if (groups.at(-1)?.gp !== s.gp) groups.push({ gp: s.gp, items: [] }); groups.at(-1).items.push(s); }
-  body.innerHTML = `<div class="gps">${groups.map((g) => `<section><h3 class="section">${esc(g.gp.replace(/ Grand Prix$/, ''))}</h3><div class="group">${g.items.map((s) => `<button class="row-item" data-s="${list.indexOf(s)}"><span class="grow"><b>${esc(SESSION_FR(s.name))}</b><small>il y a ${ago(s.end)}</small></span>${icon('next')}</button>`).join('')}</div></section>`).join('')}</div>`;
+  body.innerHTML = `${yearPicker()}<div class="gps">${groups.map((g) => `<section><h3 class="section">${esc(g.gp.replace(/ Grand Prix$/, ''))}</h3><div class="group">${g.items.map((s) => `<button class="row-item" data-s="${list.indexOf(s)}"><span class="grow"><b>${esc(SESSION_FR(s.name))}</b><small>${s.live ? 'En direct · résultats provisoires' : yearOf() === new Date().getUTCFullYear() ? `il y a ${ago(s.end)}` : new Date(s.end).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}</small></span>${s.live ? '<span class="pill warn">Direct</span>' : ''}${icon('next')}</button>`).join('')}</div></section>`).join('')}</div>`;
+  bindYear(body, () => sessionsTab(body, { current: () => body.isConnected }));
   $$('[data-s]', body).forEach((b) => { b.onclick = () => open(b, async () => (await posts()).sessionEditor(list[Number(b.dataset.s)], back)); });
 }
 
@@ -297,11 +312,41 @@ function healthHtml(h) {
   if (!h.problems?.length) return `<div class="card health ok">${icon('check')}<span class="grow"><b>Tout va bien</b><small>Flux F1, erreurs de l'appli et jetons vérifiés ${esc(when)}${h.f1 && !h.f1ok ? ' · flux F1 jamais joignable depuis le serveur : non surveillé' : ''}</small></span></div>`;
   return `<div class="card health bad">${icon('alert')}<span class="grow"><b>À vérifier</b>${h.problems.map((p) => `<small>${esc(p.m)}</small>`).join('')}<small>Vérifié ${esc(when)}</small></span></div>`;
 }
+// Ce que l'IA du serveur a produit (compteurs de ses plafonds)
+const AI_MADE = [['apps', 'textes traduits ou résumés par les applis (résumé = 5)'], ['radios', 'radios d\'équipe transcrites'],
+  ['onboard', 'tranches de 30 s des caméras embarquées'], ['studio', 'textes du Studio (résumé = 5, post = 3)']];
+// Neurones de Workers AI : 10 000 gratuits par jour, puis 0,011 $ les 1 000 (budget payé sur 30 jours) ; API de Claude :
+// dollars consommés sur les crédits de l'abonnement Max (comptés en millionièmes de dollar)
+function claudeHtml(m) {
+  const usd = (v) => `${((v || 0) / 1e6).toFixed(2).replace('.', ',')} $`;
+  const [t, mo] = [m.today, m.month];
+  return `<h3 class="section">API de Claude <small>traductions · crédits de l'abonnement Max, 100 $ par mois</small></h3>
+    <div class="tiles"><div class="tile"><b>${usd((t.opus || 0) + (t.sonnet || 0))}</b><small>consommés aujourd'hui · ${usd((mo.opus || 0) + (mo.sonnet || 0))} sur 30 jours</small></div>
+      <div class="tile"><b>${usd(mo.opus)}</b><small>Opus (Actu, technique) sur 30 jours · Sonnet (radios) ${usd(mo.sonnet)}</small></div>
+      <div class="tile"><b>${fmtN(t.claudeTexts || 0)}</b><small>textes traduits par Claude aujourd'hui · ${fmtN(mo.claudeTexts || 0)} sur 30 jours</small></div></div>`;
+}
+// Plafond des textes traduits ou résumés par les applis : total du jour, et part d'une même adresse (le quart) ;
+// part pleine : les nouvelles actus de cette appli restent en version originale jusqu'à minuit UTC
+function textsHtml(t, limit) {
+  const share = Math.ceil(limit / 4), top = t.appsTop || 0;
+  return `<h3 class="section">Plafond des traductions <small>remis à zéro à minuit UTC</small></h3>
+    <div class="tiles"><div class="tile"><b>${fmtN(t.apps || 0)} / ${fmtN(limit)}</b><small>textes traduits ou résumés par les applis aujourd'hui (résumé = 5)</small></div>
+      <div class="tile"><b>${fmtN(top)} / ${fmtN(share)}</b><small>adresse qui en a demandé le plus (une appli)${top >= share ? ' · plafond atteint : ses nouvelles actus restent en version originale' : ''}</small></div></div>`;
+}
+function aiHtml(a) {
+  if (!a) return '';
+  const usd = (v) => `${(v * 0.011 / 1000).toFixed(2).replace('.', ',')} $`;
+  return `<h3 class="section">IA du serveur · Workers AI <small>${a.gp ? 'week-end de Grand Prix' : 'jour ordinaire'}</small></h3>
+    <div class="tiles"><div class="tile"><b>${fmtN(a.used)}</b><small>neurones aujourd'hui sur ${fmtN(a.top)} (10 000 gratuits)</small></div>
+      <div class="tile"><b>${usd(a.spent)}</b><small>payés sur 30 jours, budget ${usd(a.budget)}</small></div></div>
+    ${a.made && a.texts ? textsHtml(a.made.today, a.texts) : ''}
+    ${a.made ? `<div class="tiles">${AI_MADE.map(([k, label]) => `<div class="tile"><b>${fmtN(a.made.today[k] || 0)}</b><small>${label} aujourd'hui · ${fmtN(a.made.month[k] || 0)} sur 30 jours</small></div>`).join('')}</div>${claudeHtml(a.made)}` : ''}`;
+}
 function usageHtml(u) {
-  if (!u.opens) return healthHtml(u.health) + empty('Pas encore de statistiques reçues sur 30 jours.', 'chart');
+  if (!u.opens) return healthHtml(u.health) + aiHtml(u.ai) + empty('Pas encore de statistiques reçues sur 30 jours.', 'chart');
   const n = (v) => fmtN(v).replace('.', ',');
   const row = (r) => `<div class="usage-row"><span class="grow">${esc(r.label)}<small>${esc(r.group)}</small></span><b>${r.n ? n(r.per100) : '0'}</b><i style="--pct:${Math.min(100, r.per100)}%"></i></div>`;
-  return `${healthHtml(u.health)}<h3 class="section">Fonctions de l'appli <small>${u.days} derniers jours · ${fmtN(u.opens)} ouvertures</small></h3>
+  return `${healthHtml(u.health)}${aiHtml(u.ai)}<h3 class="section">Fonctions de l'appli <small>${u.days} derniers jours · ${fmtN(u.opens)} ouvertures</small></h3>
     <p class="hint">Utilisations pour 100 ouvertures de l'interface (clics comptés), d'après les statistiques anonymes des utilisateurs qui les ont acceptées.</p>
     <div class="tiles"><div class="tile"><b>${fmtN(u.modes.essential)}</b><small>ouvertures en Essentiel</small></div><div class="tile"><b>${fmtN(u.modes.full)}</b><small>ouvertures en Complète</small></div>
       <div class="tile"><b>${fmtN(u.welcome.done)}</b><small>accueils suivis jusqu'au bout</small></div><div class="tile"><b>${fmtN(u.welcome.skip)}</b><small>accueils passés</small></div></div>
@@ -313,11 +358,11 @@ function usageHtml(u) {
       return `<h3 class="section">${title} <small>${sub}</small></h3>${list}`;
     }).join('')}`;
 }
+// Chiffres déjà connus affichés tout de suite, puis relus à chaque ouverture (plafonds et dépenses du jour)
 async function loadUsage(box) {
   const known = store.get('usage');
   if (known) box.innerHTML = usageHtml(known.v);
   else box.innerHTML = skeleton(3);
-  if (known && Date.now() - known.at < 10 * 60e3) return;
   try {
     const u = await api('usage');
     store.set('usage', u);
@@ -347,6 +392,8 @@ async function statsTab(body, { force, restore, current }) {
   store.set('stats', r);
   keepPostStats(r);
   renderStats(body, r, false);
+  // Feuille « Suivi réseaux » du Drive remplie avec ces chiffres (si Google Drive est relié)
+  suivi().then((m) => m.fillSheet(r.accounts)).catch(() => {});
 }
 function renderStats(body, r, stale) {
   const f = Object.entries(r.followers || {});
@@ -362,7 +409,7 @@ function renderStats(body, r, stale) {
       <div class="row"><input type="text" id="shortname" placeholder="Nom dans les statistiques (facultatif)"><select id="shortnet" title="Réseau où le lien sera partagé (clics comptés par réseau)"><option value="">Autre</option>${SHORT_NETS.map((n) => `<option value="${n}">${NET_NAMES[n]}</option>`).join('')}</select><button class="btn primary small">Raccourcir</button></div>
       <div id="shortout"></div></form>
     ${clicksHtml(r.clicks) || empty('Aucun clic ces 30 derniers jours.', 'chart')}</div>
-    <div data-pane="posts"><div id="schedlist"></div>
+    <div data-pane="posts">
     <div class="row section-row"><h3 class="section grow">Posts publiés</h3><button class="btn small" id="statsimport" title="Ajoute aux statistiques les posts des 30 derniers jours publiés hors du Studio">${icon('refresh')}Retrouver mes posts</button></div>
     ${(r.posts || []).length ? `<div class="list posts">${r.posts.map((p) => `<div class="card post"><div class="card-top"><time>${esc(new Date(p.at).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))}</time><span class="grow"></span><button class="iconbtn small" data-statsremove="${esc(p.key)}" aria-label="Retirer des statistiques" title="Retirer des statistiques">${icon('close')}</button></div><div class="t">${esc(p.title || 'Post')}</div>
       ${Object.entries(p.nets).map(([n, x]) => {
@@ -383,7 +430,6 @@ function renderStats(body, r, stale) {
   sub(state.ssub);
   if (typed[0]) ['#shorturl', '#shortname', '#shortnet'].forEach((id, i) => { $(id, body).value = typed[i].value; });
   if (typed[3]) $('#shortout', body).innerHTML = typed[3].innerHTML;
-  schedList($('#schedlist', body));
   // Lien court suivi (pdkl.app) : clics comptés comme ceux des posts
   $('#shortform', body).onsubmit = async (e) => {
     e.preventDefault();
@@ -554,14 +600,74 @@ function settings() {
     ${PITCH.map(([n, t]) => `<details class="cap"><summary><span>${esc(n)}</span></summary><textarea rows="9">${esc(t)}</textarea>
       <button class="btn small" data-copy="">${icon('copy')}Copier le message</button></details>`).join('')}
     <p class="hint">Page non listée : envoie le lien avec un des messages.</p>
+    <h3 class="section">Posts</h3><label class="field"><span>Signature des visuels et des textes <small>(gardée sur cet appareil)</small></span><input type="text" id="sigin" maxlength="40" value="${esc(SIG)}" placeholder="${esc(SIG_DEFAULT)}"></label>
     <h3 class="section">Comptes</h3><div class="group">${accounts.map(([n, v]) => `<div class="row-item static"><span class="grow"><b>${esc(n)}</b><small>${esc(v || 'non connecté')}</small></span><span class="state ${v ? 'on' : ''}"></span></div>`).join('')}</div>
-    <p class="hint">Comptes envoyés par l'appli de bureau (Posts → Publier… → Comptes…).</p>
+    <p class="hint">Comptes envoyés par l'appli de bureau (Réglages → Mode créateur → Comptes…).</p>
+    ${me.f1tv ? `<h3 class="section">Relier un téléphone à F1 TV</h3><div class="group">
+      <div class="row-item static"><span class="grow"><b>Ton compte F1 TV sur un autre appareil</b><small>Sur le téléphone, ouvre Paddock Live (app.paddocklive.app), touche « Connexion F1 TV » et lis le code à 6 chiffres.</small></span></div>
+      <div class="row-item"><input id="pairCode" type="text" class="grow pair-code-in" inputmode="numeric" autocomplete="off" maxlength="6" placeholder="Code à 6 chiffres"><button class="btn small btn-accent" id="pairGo">Relier</button></div></div>
+    <p class="hint">Ta connexion F1 TV est envoyée chiffrée à ce téléphone (GPS et télémétrie activés). Elle n'est gardée que dans ton coffre, comme pour les archives.</p>
+    <h3 class="section">Appareils connectés <button class="btn small" id="pairRefresh">${icon('refresh')}Rafraîchir</button></h3>
+    <div class="group" id="pairDevices"><div class="row-item static"><span class="grow"><small>Chargement…</small></span></div></div>
+    <p class="hint">Appareils reliés à ton compte F1 TV en ce moment (version web). Un appareil se déconnecte seul quand tu le fermes.</p>` : ''}
+    <h3 class="section">Sources d'actu en plus</h3><div class="group" id="nsList"><div class="row-item static"><span class="grow"><small>Chargement…</small></span></div></div>
+    <div class="row-item ns-add"><input id="nsAdd" type="text" placeholder="https://… ou @compte.bsky.social"><select id="nsCat" aria-label="Catégorie"><option value="media">Média</option><option value="team">Écurie</option><option value="driver">Pilote</option><option value="official">Officiel</option></select><button class="btn small btn-accent" id="nsGo">Ajouter</button></div>
+    <p class="hint">Flux RSS, chaîne YouTube ou compte Bluesky : ajouté à l'onglet Actu de l'appli, pour tout le monde.</p>
     <h3 class="section">Alertes des grosses news</h3><div id="alerts"></div>
     <button class="btn danger wide" id="out">${icon('logout')}Se déconnecter de cet appareil</button>
     <p class="hint center">Version du Studio : ${esc(VERSION)} · © 2026 Paddock Live · <a href="https://github.com/benjamin-ct/paddock-live/blob/main/analytics/LICENSE" target="_blank" rel="noopener">Licence AGPL v3</a></p>`);
   alertsBlock($('#alerts', dlg));
+  newsSourcesBlock(dlg);
+  $('#sigin', dlg).onchange = (e) => { setSig(e.target.value); e.target.value = SIG; toast(`Signature : ${SIG}`, 'ok'); };
+  if (me.f1tv) {
+    const go = $('#pairGo', dlg), inp = $('#pairCode', dlg), devs = $('#pairDevices', dlg);
+    const since = (s) => (s < 60 ? 'quelques secondes' : s < 3600 ? `${Math.round(s / 60)} min` : `${Math.floor(s / 3600)} h ${Math.round((s % 3600) / 60)}`.replace(/ 0$/, ''));
+    const loadDevices = async () => {
+      try {
+        const d = await api('devices');
+        devs.innerHTML = d.devices?.length
+          ? d.devices.map((x) => `<div class="row-item static"><span class="grow"><b>${esc(x.ua)}</b><small>connecté depuis ${esc(since(x.since))}</small></span><span class="state on"></span></div>`).join('')
+          : '<div class="row-item static"><span class="grow"><small>Aucun appareil connecté pour le moment.</small></span></div>';
+      } catch { devs.innerHTML = '<div class="row-item static"><span class="grow"><small>Liste indisponible.</small></span></div>'; }
+    };
+    go.onclick = async () => {
+      const code = (inp.value.match(/\d/g) || []).join('').slice(0, 6);
+      if (code.length !== 6) { toast('Entre le code à 6 chiffres', 'bad'); return; }
+      go.disabled = true;
+      try { await api('pair', { method: 'POST', body: JSON.stringify({ code }) }); toast('Téléphone relié', 'ok'); inp.value = ''; setTimeout(loadDevices, 1500); }
+      catch (e) { toast(e.message || 'Échec de l\'envoi', 'bad'); }
+      go.disabled = false;
+    };
+    inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') go.click(); });
+    $('#pairRefresh', dlg).onclick = loadDevices;
+    loadDevices();
+  }
   $$('[data-copy]', dlg).forEach((b) => { b.onclick = () => navigator.clipboard.writeText(b.dataset.copy || b.previousElementSibling.value).then(() => toast(b.dataset.copy ? 'Lien copié' : 'Message copié', 'ok'), () => toast('Copie impossible', 'bad')); });
   $('#out', dlg).onclick = () => { dlg.close(); forgetKey(); login(); };
+}
+
+// Sources d'actu ajoutées pour l'onglet Actu de l'appli (lues par le serveur avec les sources par défaut)
+function newsSourcesBlock(dlg) {
+  const list = $('#nsList', dlg), go = $('#nsGo', dlg), inp = $('#nsAdd', dlg);
+  const CAT = { media: 'Média', team: 'Écurie', driver: 'Pilote', official: 'Officiel' };
+  const show = (custom) => {
+    list.innerHTML = custom.length
+      ? custom.map((s) => `<div class="row-item static"><span class="grow"><b>${esc(s.name)}</b><small>${esc(CAT[s.cat] || s.cat)} · ${esc(s.kind === 'youtube' ? 'YouTube' : s.kind === 'bsky' ? 'Bluesky' : s.url)}</small></span><button class="btn small" data-ns-del="${esc(s.id)}">${icon('close')}Retirer</button></div>`).join('')
+      : '<div class="row-item static"><span class="grow"><small>Aucune source en plus : seulement celles de l\'appli.</small></span></div>';
+    $$('[data-ns-del]', list).forEach((b) => { b.onclick = async () => { b.disabled = true; try { show((await api('news-sources', { method: 'POST', body: JSON.stringify({ remove: b.dataset.nsDel }) })).custom); } catch (e) { toast(e.message, 'bad'); b.disabled = false; } }; });
+  };
+  api('news-sources').then((d) => show(d.custom || []), () => { list.innerHTML = '<div class="row-item static"><span class="grow"><small>Liste indisponible.</small></span></div>'; });
+  go.onclick = async () => {
+    if (!inp.value.trim()) return;
+    go.disabled = true;
+    try {
+      const r = await api('news-sources', { method: 'POST', body: JSON.stringify({ add: inp.value, cat: $('#nsCat', dlg).value }) });
+      show(r.custom);
+      inp.value = '';
+      toast(`Source ajoutée : ${r.source.name}`, 'ok');
+    } catch (e) { toast(e.message || 'Ajout impossible', 'bad'); }
+    go.disabled = false;
+  };
 }
 
 const pushReady = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
@@ -642,7 +748,15 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
 
 const startAlert = new URLSearchParams(location.search).get('alert');
 if (startAlert) history.replaceState(null, '', '/studio/');
-const afterLogin = () => { home(); openAlert(startAlert); };
+// Retour de la connexion Google Drive (onglet Suivi) : terminée par le serveur, puis onglet Suivi
+const params = new URLSearchParams(location.search);
+let driveBack = params.get('state') && (params.get('code') || params.get('error')) ? { code: params.get('code'), state: params.get('state'), error: params.get('error') } : null;
+if (driveBack) history.replaceState(null, '', '/studio/');
+const afterLogin = async () => {
+  if (driveBack) { const back = driveBack; driveBack = null; state.tab = 'suivi'; await (await suivi()).finishDrive(back); }
+  home();
+  openAlert(startAlert);
+};
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/studio/sw.js', { scope: '/studio/' }).catch(() => {});
   navigator.serviceWorker.addEventListener('message', (e) => { if (session.me && e.data?.alert) openAlert(e.data.alert); });

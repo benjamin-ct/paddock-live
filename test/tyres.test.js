@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildSets, setSummary, dryAllocation } from '../shared/tyres.js';
-import { parseFeed, isF1Article, findNominations, adviceSentences, nominationFor } from '../server/tyres.js';
+import { parseFeed, isF1Article, findNominations, adviceSentences, nominationFor } from '../analytics/tyres.js';
 
 const st = (Compound, New, StartLaps, TotalLaps, TyresNotChanged = '0') => ({ Compound, New: String(New), StartLaps, TotalLaps, TyresNotChanged });
 

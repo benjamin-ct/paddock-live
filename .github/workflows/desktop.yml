@@ -6,7 +6,8 @@ name: Application de bureau
 #   bureau » → Run workflow, « Version à publier » ex. v1.28.0) ou en poussant un tag v* ;
 # - version bêta, automatique à chaque modification de l'appli fusionnée dans develop : pré-version
 #   GitHub v<version « à venir » du journal>-beta.<n> (1, 2, 3… pour chaque version), reçue seulement par les applis inscrites aux bêtas
-#   (ni sur les liens de téléchargement du site, ni pour les autres) ; les 3 dernières gardées.
+#   (ni sur les liens de téléchargement du site, ni pour les autres) ; les 3 dernières gardées ;
+# - versions finales : les 10 dernières gardées sur GitHub (les plus anciennes effacées, tags git gardés).
 on:
   workflow_dispatch:
     inputs:
@@ -126,6 +127,7 @@ jobs:
     env:
       RELEASE_TAG: ${{ needs.version.outputs.tag }}
       BETA: ${{ contains(needs.version.outputs.tag, '-') }}
+      WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
     steps:
       - uses: actions/checkout@v4
       # Nouveautés de la version (CHANGELOG.md) + instructions d'installation ; échoue si la
@@ -185,8 +187,21 @@ jobs:
           done
           printf '%s' "$v" > version.txt
           $W put paddock-live-media/releases/version --file version.txt --remote
-      # Bêtas : les 3 dernières gardées ; version finale : ses bêtas effacées
-      - name: Anciennes bêtas effacées
+      # Catalogue Windows (winget) : nouvelle version envoyée à microsoft/winget-pkgs, une fois la première version
+      # acceptée et le jeton WINGET_TOKEN ajouté aux secrets du dépôt (docs/CATALOGUES.md) ; sinon rien
+      - name: Catalogue winget
+        if: env.BETA != 'true' && env.WINGET_TOKEN != ''
+        continue-on-error: true
+        uses: vedantmgoyal9/winget-releaser@v2
+        with:
+          identifier: PaddockLive.PaddockLive
+          release-tag: ${{ env.RELEASE_TAG }}
+          installers-regex: '-x64-win\.exe$'
+          token: ${{ secrets.WINGET_TOKEN }}
+      # Bêtas : les 3 dernières gardées ; version finale : ses bêtas effacées. Versions finales : les 10 dernières
+      # gardées, page GitHub et tag git (téléchargements et mises à jour prennent la dernière). Puis tags v… restés
+      # sans page (anciennes versions d'avant cette règle) effacés
+      - name: Anciennes versions effacées
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
@@ -198,4 +213,12 @@ jobs:
           fi
           gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq "$q" | while read -r t; do
             [ -n "$t" ] && gh release delete "$t" --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes
+          done
+          gh release list --repo "$GITHUB_REPOSITORY" --exclude-pre-releases --exclude-drafts --limit 1000 --json tagName,createdAt \
+            --jq 'sort_by(.createdAt) | reverse | .[10:] | .[].tagName' | while read -r t; do
+            [ -n "$t" ] && gh release delete "$t" --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes
+          done
+          pages=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --paginate --jq '.[].tag_name')
+          [ -n "$pages" ] && gh api "repos/$GITHUB_REPOSITORY/tags?per_page=100" --paginate --jq '.[].name' | grep '^v' | grep -vxF "$pages" | while read -r t; do
+            gh api -X DELETE "repos/$GITHUB_REPOSITORY/git/refs/tags/$t" > /dev/null && echo "Tag effacé : $t"
           done

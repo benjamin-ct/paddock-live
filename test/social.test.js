@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { postData, captions, gapFr, countOvertakes } from '../shared/social.js';
+import { postData, captions, gapFr, countOvertakes, videoTexts } from '../shared/social.js';
 import { slidesFor } from '../shared/social-draw.js';
 
 const state = {
@@ -162,4 +162,20 @@ test('dépassements : échanges de places en piste, sans le départ, les arrêts
   assert.equal(countOvertakes(laps), 1);
   assert.equal(countOvertakes({}), 0);
   assert.equal(countOvertakes(null), 0);
+});
+
+test('posts : textes de la vidéo (TikTok, YouTube Shorts) tirés de ceux du post, sans spoiler si demandé', () => {
+  const v = videoTexts(captions(postData(state), '@BenjyPaddock'));
+  // TikTok : texte court et 5 hashtags au plus ; YouTube : titre (1re ligne, 100 caractères au plus) puis description
+  assert.match(v.tiktok, /^🏆 NORRIS remporte le Grand Prix d'Italie 🇮🇹 !/);
+  assert.match(v.tiktok, /\n\n#F1 #BenjyPaddock #ItalianGP #Formula1$/);
+  const [title, ...desc] = v.youtube.split('\n');
+  assert.match(title, /^🏆 Lando Norris remporte le Grand Prix d'Italie 🇮🇹 !$/);
+  assert.ok([...title].length <= 100);
+  assert.match(desc.join('\n'), /🥈 Charles Leclerc/);
+  const d = { kind: 'race', sprint: false, label: 'Course', gp: "Grand Prix d'Azerbaïdjan", gpEn: 'Azerbaijan Grand Prix', year: 2026, countryName: 'Azerbaijan', circuit: 'Baku', facts: [], summary: { paragraphs: ['Résumé.'] },
+    rows: [{ first: 'Max', last: 'Verstappen', team: 'Red Bull Racing', gap: '' }, { first: 'Lando', last: 'Norris', team: 'McLaren', gap: '+2,1 s' }, { first: 'Charles', last: 'Leclerc', team: 'Ferrari', gap: '+4,0 s' }] };
+  const s = videoTexts(captions(d, '@moi', { spoiler: false }));
+  assert.ok(!s.tiktok.includes('Verstappen'));
+  assert.ok(!s.youtube.split('\n')[0].includes('Verstappen'));
 });

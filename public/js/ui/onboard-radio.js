@@ -3,8 +3,8 @@
 // Le flux officiel de la F1 ne publie qu'une sélection des radios d'équipe (une trentaine par
 // course). Le son de la caméra embarquée d'un pilote, lui, contient toutes ses radios. Ici, le son
 // embarqué de 1 à 3 pilotes (pilote suivi et pilotes du duel, ou favoris) est écouté en direct,
-// sans être joué, découpé en fenêtres de 30 s qui se chevauchent, retranscrit sur cet ordinateur
-// (reconnaissance vocale avec horodatage), puis traduit. Chaque radio est datée à l'heure F1 du
+// sans être joué, découpé en fenêtres de 30 s qui se chevauchent, retranscrit par le serveur Paddock
+// Live (reconnaissance vocale avec horodatage), puis traduit. Chaque radio est datée à l'heure F1 du
 // flux et n'apparaît qu'une fois atteinte par l'affichage (délai TV) : rien n'est dévoilé.
 //
 // Nécessite F1 TV Pro (caméras embarquées) et un flux sans DRM : le son d'un flux protégé ne
@@ -28,6 +28,7 @@ const MAX_KEEP = 300;
 
 let entries = storageGet(KEY, []);       // [{ id, num, utc, en, tr: { fr… } }]
 let status = '';
+let pausedUntil = 0;   // plafond du jour du serveur atteint : plus aucun envoi jusqu'à minuit UTC
 let content = null, contentKey = '';
 let ctx = null, workletReady = null;
 const feeds = new Map();                 // pilote -> écoute en cours
@@ -172,7 +173,7 @@ function onAudio(feed, { t0, samples }) {
     feed.len -= drop.length;
     feed.winStart += drop.length / SR * 1000;
   }
-  if (!feed.busy && feed.len >= WIN_S * SR) sendWindow(feed);
+  if (!feed.busy && feed.len >= WIN_S * SR && Date.now() >= pausedUntil) sendWindow(feed);
 }
 
 async function sendWindow(feed) {
@@ -197,7 +198,10 @@ async function sendWindow(feed) {
     }
     feed.note = '';
   } catch (err) {
-    feed.note = t('reconnaissance impossible ({})', err.message);
+    if (err.status === 429) {
+      pausedUntil = new Date().setUTCHours(24, 0, 0, 0);
+      for (const f of feeds.values()) f.note = t('plafond du jour du serveur atteint, reprise demain');
+    } else feed.note = t('reconnaissance impossible ({})', err.message);
   } finally {
     feed.busy = false;
     showStatus();
@@ -268,18 +272,9 @@ async function reconcile() {
   }
 }
 
-// Mise de côté pour l'instant (trop lourde : écoute et transcription en continu sur l'ordinateur)
-const AVAILABLE = false;
-
 export function initOnboardRadio() {
   const box = $('#obRadio');
   if (!box) return;
-  if (!AVAILABLE) {
-    if (prefs.obRadio) setPref('obRadio', false);
-    box.closest('label').hidden = true;
-    $('#obRadioOpts').hidden = true;
-    return;
-  }
   box.checked = prefs.obRadio;
   box.addEventListener('change', (e) => setPref('obRadio', e.target.checked));
   const who = $('#obRadioWho');

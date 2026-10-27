@@ -11,15 +11,19 @@ import { summary } from './usage.js';
 import { DEFAULT_SOURCES, feedUrl } from '../shared/news-sources.js';
 import { extractArticle } from '../shared/article.js';
 import { decodeBody } from '../shared/news-collect.js';
-import { publishFacebook, publishInstagram, publishThreads, freshThreads, commentFacebook, replyThreads, withComment, storyInstagram, storyFacebook, storyVideoInstagram, storyVideoFacebook, reelInstagram, hostVideo, hostOnPage, publishFacebookVideo, publishThreadsVideo, publishFacebookLink, publishThreadsLink } from '../shared/meta-publish.js';
+import { publishFacebook, publishInstagram, publishThreads, freshThreads, commentFacebook, replyThreads, withComment, storyInstagram, storyFacebook, storyVideoInstagram, storyVideoFacebook, reelInstagram, hostOnPage, publishFacebookVideo, publishThreadsVideo, publishFacebookLink, publishThreadsLink, cleanTopic } from '../shared/meta-publish.js';
 import { publishBluesky, replyBluesky } from '../shared/bluesky-publish.js';
+import { driveApi } from './drive.js';
+import { liveSession, liveState, pairSend, liveDevices } from './live-relay.js';
 import { freshTiktok, freshYoutube, tiktokDraft, youtubeUpload, tiktokCreator, tiktokDirect, TIKTOK_PRIVACY } from '../shared/video-publish.js';
 import { addEntry, removeEntry, cleanKey, keepStats } from '../shared/post-history.js';
 import { cleanDraft, draftSummary, isDraftId, DRAFTS_MAX, DRAFT_BYTES } from '../shared/post-draft.js';
 import { postStats } from '../shared/post-stats.js';
 import { recentPosts, importEntries } from './post-import.js';
 import { trackPost, clickStats } from './clicks.js';
-import { pushApi, notifyPhones, getRow, setRow } from './alerts.js';
+import { pushApi, notifyPhones, getRow, setRow, readJSON, rowsWithPrefix, afterPrefix } from './alerts.js';
+import { editSources } from './news.js';
+import { queuePush, resultMessages } from './push-public.js';
 import { noteExpiries } from './health.js';
 import { feedbackApi } from './feedback.js';
 import { freePhotos, PHOTO_UA } from './photos.js';
@@ -29,12 +33,13 @@ import { cleanPostRequest, rewritePost, cleanSummaryRequest, summarizeArticle } 
 import { cleanRequest, translateBatch } from './translate.js';
 import { buildSeason, SEASON_TTL, resultsReady } from './season-cache.js';
 import { accountStats } from './account-stats.js';
-import { callerIp, studioQuota } from './quota.js';
+import { callerIp, studioQuota, neuronBudget, aiCounters, dayLimit } from './quota.js';
+import { served } from './download.js';
 
-// Empreinte du code (la même que dans l'appli) : SHA-256 de « paddock-live:<CODE> » (STUDIO_CODE_HASH :
-// autre empreinte, pour les tests)
-const CODE_HASH = 'b8c23e870aa1ad8a9f8b0c4b4b38fb5911b92b1ff024e14044915ee3a6cee216';
-const MAX_FAILS = 30;
+// Empreinte de la clé tirée du code (la même que dans l'appli, server/creator.js) : SHA-256 de la clé PBKDF2 de
+// 200 000 tours, longue à essayer à la chaîne (STUDIO_KEY_HASH : autre empreinte, pour les tests)
+const KEY_HASH = 'be805284f800e563ff899b7888cbc9a2d06db8223a7c903bb488ed99f105f05b';
+export const MAX_FAILS = 30;
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36';
 const ARCHIVE = 'https://livetiming.formula1.com/static/';
 const IMG_HOSTS = new Set(['media.formula1.com', 'www.formula1.com', 'flagcdn.com', 'upload.wikimedia.org', 'thumb.wikimedia.org', 'live.staticflickr.com']);   // + photos libres (photos.js)
@@ -58,17 +63,26 @@ const sameHex = (a, b) => {
 // Gardée dans la base, relue au plus toutes les 30 minutes (par la tâche planifiée, sinon à la
 // demande) ; l'ancienne version sert si Jolpica ne répond pas.
 // maxAge : âge accepté sans reconstruire (pronostics : la saison relue en arrière-plan suffit, le
-// visiteur n'attend jamais la reconstruction)
+// visiteur n'attend jamais la reconstruction). Jolpica en échec : nouvel essai au bout de 10 minutes (FAIL_WAIT), pas à
+// chaque appel (jusqu'à 600 demandes par heure sinon)
+const FAIL_WAIT = 10 * 60e3;
 export async function seasonRow(env, year, { now = Date.now(), fetchFn, wait, maxAge = SEASON_TTL } = {}) {
   const key = `season:${year}`;
   const row = JSON.parse(await getRow(env, key) || 'null');
   if (row && now - row.at < maxAge) return row;
+  if (now - (Number(await getRow(env, `seasonfail:${year}`)) || 0) < FAIL_WAIT) {
+    if (row) return row;
+    throw new Error('Saison indisponible pour l\'instant (Jolpica), nouvel essai dans quelques minutes');
+  }
   try {
     const fresh = { at: now, v: await buildSeason(year, { fetchFn, wait }) };
     await setRow(env, key, JSON.stringify(fresh));
     if (row) for (const m of resultsReady(row.v, fresh.v, now)) await notifyPhones(env, m, { now }).catch(() => 0);
+    // Alertes du téléphone : résultats pour ceux qui ont choisi de les recevoir
+    if (row) for (const m of resultMessages(row.v, fresh.v, now)) await queuePush(env, m.k, 'results', m.msg, now).catch(() => false);
     return fresh;
   } catch (err) {
+    await setRow(env, `seasonfail:${year}`, String(now)).catch(() => {});
     if (row) return row;
     throw err;
   }
@@ -77,10 +91,11 @@ export async function seasonRow(env, year, { now = Date.now(), fetchFn, wait, ma
 // ---------- Essais ratés ----------
 const ipOf = (req) => callerIp(req) || 'local';
 const today = () => new Date().toISOString().slice(0, 10);
-async function fails(env, req) {
+// Essais ratés par adresse et par jour (code du Studio, mot de passe des statistiques)
+export async function fails(env, req) {
   return (await env.DB.prepare('SELECT n FROM studio_fail WHERE ip = ? AND day = ?').bind(ipOf(req), today()).first())?.n || 0;
 }
-async function failed(env, req) {
+export async function failed(env, req) {
   await env.DB.prepare('INSERT INTO studio_fail (ip, day, n) VALUES (?, ?, 1) ON CONFLICT(ip, day) DO UPDATE SET n = n + 1').bind(ipOf(req), today()).run();
   await new Promise((r) => setTimeout(r, 600));
 }
@@ -99,6 +114,38 @@ async function open(raw, sealed) {
   return JSON.parse(new TextDecoder().decode(pt));
 }
 
+// Coffre enregistré. La connexion F1 TV du créateur ne sert plus à la version web (chaque visiteur utilise la
+// sienne) : l'ancienne copie lisible par le relais (« live:f1tv ») est effacée
+async function saveVault(env, raw, v) {
+  await setRow(env, 'vault', await seal(raw, v));
+  if (await getRow(env, 'live:f1tv')) await setRow(env, 'live:f1tv', '');
+  await keepArchiveToken(env, v.f1tv);
+}
+
+// Connexion F1 TV pour les statistiques des courses de la version web (analytics/race-stats.js) : copie du seul
+// jeton, chiffrée avec la clé du serveur comme les publications programmées, pour lire les archives sans le code du
+// Studio. Effacée quand F1 TV quitte le coffre ; une copie déjà prolongée par le serveur n'est pas remplacée par une
+// plus ancienne de la même session
+const ARCHIVE_TOKEN = 'racestats:f1tv';
+const readArchiveToken = async (env) => (await open(await schedKey(env), await getRow(env, ARCHIVE_TOKEN)).catch(() => null))?.f1tv || null;
+export async function keepArchiveToken(env, f1tv = null) {
+  if (!env.STATS_KEY) return;
+  const cur = await readArchiveToken(env);
+  if (cur === f1tv || (cur && f1tv && jwtSession(cur) === jwtSession(f1tv) && jwtExp(cur) > jwtExp(f1tv))) return;
+  await setRow(env, ARCHIVE_TOKEN, f1tv ? await seal(await schedKey(env), { f1tv }) : '');
+}
+// Jeton F1 TV valable pour lire les archives (renouvelé si besoin), ou null
+export async function archiveToken(env, { now = Date.now(), fetchFn = fetch } = {}) {
+  if (!env.STATS_KEY) return null;
+  const cur = await readArchiveToken(env);
+  // Renouvellement raté (connexion F1 TV expirée) : nouvel essai au bout de FAIL_WAIT, pas à chaque passage
+  const failAt = Number(await getRow(env, 'archivefail')) || 0;
+  const f1tv = cur && (now - failAt < FAIL_WAIT ? cur : await freshF1tv(cur, { now, fetchFn }));
+  if (f1tv !== cur) await setRow(env, ARCHIVE_TOKEN, await seal(await schedKey(env), { f1tv }));
+  else if (cur && jwtExp(cur) - now <= 24 * 3600e3 && now - failAt >= FAIL_WAIT) await setRow(env, 'archivefail', String(now));
+  return f1tv && jwtExp(f1tv) > now ? f1tv : null;
+}
+
 // Contenu accepté du coffre (rien d'autre n'est gardé)
 function cleanVault(v) {
   const s = (x, max = 2000) => (typeof x === 'string' ? x.slice(0, max) : '');
@@ -115,6 +162,12 @@ function cleanVault(v) {
   return out;
 }
 
+// Copie de tous les comptes, chiffrée par l'appli avec une clé que le serveur ne reçoit jamais : gardée
+// telle quelle, rendue sur un nouvel ordinateur (anciennes applis : rien d'envoyé, rien d'effacé)
+async function keepAccounts(env, box) {
+  if (typeof box === 'string' && box.length <= 100000 && /^[\w-]+\.[\w-]+\.[\w-]+$/.test(box)) await setRow(env, 'accounts', box);
+}
+
 // Clé de l'en-tête vérifiée : octets de la clé, ou réponse d'erreur
 async function auth(req, env) {
   if (await fails(env, req) >= MAX_FAILS) return { error: json({ error: 'Trop d\'essais aujourd\'hui, réessayez demain' }, 429) };
@@ -122,7 +175,7 @@ async function auth(req, env) {
   try { raw = unb64url(req.headers.get('X-Studio-Key') || ''); } catch { raw = null; }
   if (!raw || raw.length !== 32) { await failed(env, req); return { error: json({ error: 'Code incorrect' }, 401) }; }
   const verifier = await getRow(env, 'verifier');
-  if (!verifier) return { error: json({ error: 'Page pas encore activée : activez-la depuis l\'appli (Posts → Publier… → Comptes…)' }, 409) };
+  if (!verifier) return { error: json({ error: 'Page pas encore activée : activez-la depuis l\'appli (Réglages → Mode créateur → Comptes…)' }, 409) };
   if (!sameHex(await sha(raw), verifier)) { await failed(env, req); return { error: json({ error: 'Code incorrect' }, 401) }; }
   return { raw };
 }
@@ -160,7 +213,7 @@ async function refresh(env, raw, vault) {
   const f1tv = await freshF1tv(vault.f1tv);
   if (th === vault.threads && th2 === vault.threads2 && f1tv === vault.f1tv) return vault;
   const next = { ...vault, threads: th, threads2: th2, f1tv };
-  await setRow(env, 'vault', await seal(raw, next));
+  await saveVault(env, raw, next);
   return next;
 }
 
@@ -176,6 +229,8 @@ function keepNewer(old, incoming) {
   // Jeton expiré dans l'appli (restée fermée) : celui que le serveur a renouvelé est gardé
   if (old.f1tv && !out.f1tv && !out.f1tvOff && jwtExp(old.f1tv) > Date.now()) out.f1tv = old.f1tv;
   delete out.f1tvOff;
+  // Accès Google Drive du Studio : connecté depuis le Studio, l'appli ne l'envoie jamais
+  for (const k of ['gdrive', 'gdrivePending']) if (old[k]) out[k] = old[k];
   return out;
 }
 
@@ -257,6 +312,10 @@ async function archive(req, url, vault) {
   const live = vault?.f1tv && jwtExp(vault.f1tv) > Date.now();
   if (res.status !== 200 && live) res = await cached(req, ARCHIVE + p, { headers: { 'User-Agent': UA, Authorization: `Bearer ${vault.f1tv}`, ascendontoken: vault.f1tv } }, ttl);
   if (res.status === 200) return res;
+  // Refus de la F1 alors que l'index de l'année passe avec la même connexion : la connexion est bonne, c'est le
+  // fichier qui n'est pas encore là (la F1 répond « refusé » aussi pour un fichier absent, ex. séance qui vient de finir)
+  const auth = { headers: { 'User-Agent': UA, Authorization: `Bearer ${vault?.f1tv}`, ascendontoken: vault?.f1tv } };
+  if (live && [401, 403].includes(res.status) && !p.endsWith('Index.json') && (await cached(req, `${ARCHIVE}${p.slice(0, 4)}/Index.json`, auth, 300)).status === 200) res = new Response(null, { status: 404 });
   // Raison précise, affichée par le Studio
   const error = res.status === 404 ? 'Archive pas encore publiée'
     : !vault?.f1tv ? 'Archives réservées aux abonnés F1 TV : connectez F1 TV dans l\'appli'
@@ -321,17 +380,19 @@ async function image(req, url) {
 
 // Envoi sur un réseau (publication directe ou programmée). threads() : compte Threads à jour.
 // video : vidéo du créateur (Reel sur Instagram, vidéo sur Facebook, Threads et Bluesky) ; vsize : [largeur, hauteur]
-// link : post « lien » { url, title, description } sans visuels, la carte de l'article affichée par le réseau
-async function sendTo(net, vault, { text, comment, images, small = [], video = null, vsize = null, cover = null, link = null }, threads) {
+// videoUrl : adresse publique de la vidéo (Threads la lit là) ; link : post « lien » { url, title, description }
+// sans visuels, la carte de l'article affichée par le réseau
+// topic : sujet Threads choisi (sinon « F1 Threads »)
+async function sendTo(net, vault, { text, comment, images, small = [], video = null, videoUrl = null, vsize = null, cover = null, link = null, topic }, threads) {
   if (link && net === 'facebook') return publishFacebookLink(vault.meta, text, link.url);
-  if (link && net === 'threads') return publishThreadsLink(await threads(), text.slice(0, 500), link.url);
+  if (link && net === 'threads') return publishThreadsLink(await threads(), text.slice(0, 500), link.url, topic);
   if (link && net === 'bluesky') return publishBluesky(vault.bluesky, [...text].slice(0, 300).join(''), [], link);
   // cover : couverture de la vidéo (Reel : par son adresse publique, déposée sur la page ; Facebook : jointe)
-  if (video && net === 'instagram') return reelInstagram(vault.meta, (await hostVideo(vault.meta, video)).url, text.slice(0, 2200), cover ? (await hostOnPage(vault.meta, [cover]))[0].url : null);
+  if (video && net === 'instagram') return reelInstagram(vault.meta, video, text.slice(0, 2200), cover ? (await hostOnPage(vault.meta, [cover]))[0].url : null);
   if (video && net === 'facebook') return withComment(() => publishFacebookVideo(vault.meta, text, video, cover), comment, (id, t) => commentFacebook(vault.meta, id, t));
   if (video && net === 'threads') {
     const th = await threads();
-    return withComment(() => publishThreadsVideo(th, vault.meta, text.slice(0, 500), video), comment, (id, t) => replyThreads(th, id, t));
+    return withComment(() => publishThreadsVideo(th, videoUrl, text.slice(0, 500), topic), comment, (id, t) => replyThreads(th, id, t));
   }
   if (video && net === 'bluesky') {
     const clip = { blob: video, ...(vsize ? { width: vsize[0], height: vsize[1] } : {}) };
@@ -348,7 +409,7 @@ async function sendTo(net, vault, { text, comment, images, small = [], video = n
   if (net === 'instagram-story') return storyInstagram(vault.meta, images);
   if (net === 'facebook-story') return storyFacebook(vault.meta, images);
   const th = await threads();
-  return withComment(() => publishThreads(th, vault.meta, text.slice(0, 500), images), comment, (id, t) => replyThreads(th, id, t));
+  return withComment(() => publishThreads(th, vault.meta, text.slice(0, 500), images, topic), comment, (id, t) => replyThreads(th, id, t));
 }
 const NETS = ['facebook', 'instagram', 'threads', 'bluesky'];
 const CLIPS = ['tiktok', 'youtube'];   // vidéo seulement : brouillon TikTok, Short YouTube
@@ -369,6 +430,10 @@ function missing(net, vault) {
 }
 const resultOf = (r) => ({ url: r.url || null, id: r.id ?? null, comment: !!r.comment, commentError: r.commentError || null, ...(r.visible != null ? { visible: r.visible } : {}) });
 
+// Connexion TikTok ou YouTube refusée par le réseau (expirée, retirée) : ce qu'il faut faire
+const clipExpired = (net) => `Connexion ${net === 'tiktok' ? 'TikTok' : 'YouTube'} expirée : reconnectez-vous dans l'appli (Comptes…), puis « Renvoyer les comptes »${net === 'youtube' ? ' (Google la coupe tous les 7 jours tant que l\'application Google est « en test »)' : ''}`;
+const refused = (err) => err?.code === 'invalid_grant' || err?.code === 'invalid_client';
+
 // Brouillon TikTok ou Short YouTube. account() : compte aux jetons à jour
 // direct : réglages d'une publication directe sur TikTok (sinon brouillon)
 async function sendClip(net, account, video, mime, text, direct = null) {
@@ -377,16 +442,14 @@ async function sendClip(net, account, video, mime, text, direct = null) {
     if (net === 'youtube') return await youtubeUpload(acc.accessToken, video, mime, text);
     return direct ? await tiktokDirect(acc.accessToken, video, mime, direct) : await tiktokDraft(acc.accessToken, video, mime);
   } catch (err) {
-    throw new Error(err.code === 'invalid_grant' || err.code === 'invalid_client'
-      ? `Connexion ${net === 'tiktok' ? 'TikTok' : 'YouTube'} expirée : reconnectez-vous dans l'appli (Comptes…), puis « Renvoyer les comptes »`
-      : String(err?.message || err).slice(0, 300));
+    throw new Error(refused(err) ? clipExpired(net) : String(err?.message || err).slice(0, 300));
   }
 }
 
 // Compte TikTok ou YouTube aux jetons à jour (gardés par le serveur s'ils ont été renouvelés)
 async function clipAccount(env, raw, vault, net) {
   const acc = await (net === 'youtube' ? freshYoutube : freshTiktok)(vault[net]);
-  if (acc !== vault[net]) await setRow(env, 'vault', await seal(raw, { ...vault, [net]: acc }));
+  if (acc !== vault[net]) await saveVault(env, raw, { ...vault, [net]: acc });
   return acc;
 }
 // Réglages de publication directe TikTok envoyés par la page : vérifiés, sinon raison du refus
@@ -412,11 +475,8 @@ function tiktokOptions(raw) {
 const SCHED = { max: 20, ahead: 7 * 86400e3, late: 24 * 3600e3, keep: 7 * 86400e3, running: 15 * 60e3, img: 4e6 };
 const SETS = { ig: 20, x: 4, cover: 1 };
 const schedKey = async (env) => new Uint8Array(await crypto.subtle.digest('SHA-256', enc.encode(`paddock-live-schedule-v1:${env.STATS_KEY}`)));
-async function rowsLike(env, prefix) {
-  const r = await env.DB.prepare('SELECT k, v FROM studio WHERE k LIKE ?').bind(`${prefix}%`).all();
-  return r.results || [];
-}
-const delLike = (env, prefix) => env.DB.prepare('DELETE FROM studio WHERE k LIKE ?').bind(`${prefix}%`).run();
+const rowsLike = rowsWithPrefix;
+const delLike = (env, prefix) => env.DB.prepare('DELETE FROM studio WHERE k >= ? AND k < ?').bind(prefix, afterPrefix(prefix)).run();
 
 // Programmations avec l'état de chaque réseau (pending, running, done, error, expired)
 async function schedJobs(env) {
@@ -429,6 +489,9 @@ async function schedJobs(env) {
 // texts : textes de chaque réseau (Modifier) ; retry : visuels et jetons encore là (Réessayer)
 const schedSummary = (j) => ({ id: j.id, at: j.at, title: j.title, nets: j.nets, texts: Object.fromEntries((j.posts || []).filter((p) => p.text).map((p) => [p.network, p.text])), retry: !!j.keys });
 
+// Jetons du moment (Threads prolongé si besoin), seulement ceux des réseaux choisis
+const schedKeys = (v, nets) => ({ ...(nets.some((n) => n !== 'bluesky' && !CLIPS.includes(n)) ? { meta: v.meta } : {}), ...Object.fromEntries(['threads', 'bluesky', ...CLIPS].filter((n) => nets.includes(n)).map((n) => [n, v[n]])) });
+
 async function scheduleAdd(req, env, raw, vault, now = Date.now()) {
   if (!env.STATS_KEY) return json({ error: 'Secret du serveur absent : programmation impossible' }, 503);
   let form;
@@ -438,6 +501,9 @@ async function scheduleAdd(req, env, raw, vault, now = Date.now()) {
   const asked = /^[a-f0-9]{16}$/.test(String(form.get('id') || '')) ? String(form.get('id')) : null;
   const old = asked && (await schedJobs(env)).find((j) => j.id === asked);
   if (old) return json({ item: schedSummary(old) });
+  // Déjà publiée puis effacée (réponse perdue, nouvel appui sur Publier) : pas republiée (témoin gardé 7 jours)
+  const done = asked && await readJSON(env, `scheddone:${asked}`, null);
+  if (done) return json({ item: done });
   const at = Number(form.get('at'));
   if (!Number.isFinite(at) || at < now - 60e3 || at > now + SCHED.ahead) return json({ error: 'Date de publication invalide (dans les 7 prochains jours)' }, 400);
   let posts, record;
@@ -460,7 +526,7 @@ async function scheduleAdd(req, env, raw, vault, now = Date.now()) {
   const nets = posts.map((p) => String(p?.network || ''));
   // Stories ou posts du fil, jamais les deux : les visuels n'ont pas le même format ; TikTok et YouTube avec une vidéo
   const allowed = link ? [...LINKS, 'instagram'] : video ? [...NETS, ...CLIPS, ...STORIES] : nets.some((n) => STORIES.includes(n)) ? STORIES : NETS;
-  posts = posts.map((p) => ({ network: String(p?.network || ''), text: String(p?.text || '').slice(0, 5000), comment: String(p?.comment || '').trim().slice(0, 500) }));
+  posts = posts.map((p) => ({ network: String(p?.network || ''), text: String(p?.text || '').slice(0, 5000), comment: String(p?.comment || '').trim().slice(0, 500), ...(typeof p?.topic === 'string' ? { topic: cleanTopic(p.topic) } : {}) }));
   if (nets.some((n) => !allowed.includes(n)) || new Set(nets).size !== nets.length) return json({ error: 'Réseau inconnu' }, 400);
   for (const p of posts) if (missing(p.network, vault)) return json({ error: missing(p.network, vault) }, 409);
   const files = (k, n) => form.getAll(k).filter((f) => typeof f === 'object' && f && /^image\/(png|jpeg)$/.test(f.type)).slice(0, n);
@@ -476,9 +542,7 @@ async function scheduleAdd(req, env, raw, vault, now = Date.now()) {
   const tiktok = video && nets.includes('tiktok') && form.get('tiktok') ? tiktokOptions(form.get('tiktok')) : null;
   if (tiktok?.error) return json({ error: tiktok.error }, 400);
   if ((await schedJobs(env)).filter((j) => Object.values(j.nets).some((s) => s.status === 'pending')).length >= SCHED.max) return json({ error: `${SCHED.max} publications programmées au plus` }, 409);
-  // Jetons du moment (Threads prolongé si besoin), seulement ceux des réseaux choisis
-  const v = await refresh(env, raw, vault);
-  const keys = { ...(nets.some((n) => n !== 'bluesky' && !CLIPS.includes(n)) ? { meta: v.meta } : {}), ...Object.fromEntries(['threads', 'bluesky', ...CLIPS].filter((n) => nets.includes(n)).map((n) => [n, v[n]])) };
+  const keys = schedKeys(await refresh(env, raw, vault), nets);
   const id = asked || hex(crypto.getRandomValues(new Uint8Array(8)));
   for (const [set, list] of Object.entries(sets)) {
     for (const [i, f] of list.entries()) await env.MEDIA.put(`sched/${id}/${set}/${i}`, f, { httpMetadata: { contentType: f.type } });
@@ -488,6 +552,17 @@ async function scheduleAdd(req, env, raw, vault, now = Date.now()) {
   const job = { id, at, title: String(form.get('title') || '').slice(0, 200), record: record && typeof record === 'object' ? record : null, posts, sets: { ig: sets.ig.length, x: sets.x.length, cover: sets.cover.length }, alts, video: video ? video.type : null, full: !!full, vsize, tiktok, link, keys: await seal(await schedKey(env), keys), created: now };
   await setRow(env, `sched:${id}`, JSON.stringify(job));
   return json({ item: schedSummary({ ...job, nets: Object.fromEntries(nets.map((n) => [n, { status: 'pending' }])) }) });
+}
+
+// Vidéo d'une programmation à une adresse publique, pour Threads qui la lit là (identifiant de 16 caractères tiré au
+// hasard, effacée avec la programmation) ; morceaux (Range) acceptés. Sur le nom de domaine du site, en .mp4 ou .mov (son type)
+const videoOrigin = (env) => env.SITE_ORIGIN || 'https://paddock-live-stats.paddock-live.workers.dev';
+export async function schedVideo(req, env, name) {
+  const m = /^([a-f0-9]{16}(?:-full)?)(?:\.mp4|\.mov)?$/.exec(name);
+  if (!m) return new Response('Introuvable', { status: 404 });
+  const obj = await env.MEDIA?.get(`sched/${m[1]}`, req.headers.has('Range') ? { range: req.headers } : {});
+  if (!obj?.body) return new Response('Introuvable', { status: 404 });
+  return served(req, obj, { 'Content-Type': obj.httpMetadata?.contentType || 'video/mp4' });
 }
 
 // Vidéos et visuels (toutes les places possibles : effacer un fichier absent ne fait rien)
@@ -504,15 +579,17 @@ async function scheduleCancel(env, id) {
   return json({ items: (await schedJobs(env)).map(schedSummary) });
 }
 
-// Réessayer un réseau en erreur ou expiré : renvoyé au relevé suivant (visuels et jetons gardés 24 h après la fin)
-async function scheduleRetry(env, b, now = Date.now()) {
+// Réessayer un réseau en erreur ou expiré : renvoyé au relevé suivant (visuels gardés 24 h après la fin), avec les
+// jetons du coffre à ce moment (compte reconnecté depuis la programmation)
+async function scheduleRetry(env, b, raw, vault, now = Date.now()) {
   const j = (await schedJobs(env)).find((x) => x.id === b?.id);
   const st = j?.nets[b?.net];
   if (!st) return json({ error: 'Publication inconnue' }, 404);
   if (!['error', 'expired'].includes(st.status)) return json({ error: 'Rien à refaire sur ce réseau' }, 409);
   if (!j.keys) return json({ error: 'Visuels déjà effacés (plus de 24 h) : refaites le post' }, 410);
   const { nets, ...rest } = j;
-  await setRow(env, `sched:${j.id}`, JSON.stringify({ ...rest, at: now, ended: null }));
+  const keys = await seal(await schedKey(env), schedKeys(await refresh(env, raw, vault), j.posts.map((p) => p.network)));
+  await setRow(env, `sched:${j.id}`, JSON.stringify({ ...rest, at: now, ended: null, keys }));
   await setRow(env, `schedpost:${j.id}:${b.net}`, JSON.stringify({ status: 'pending', ...(st.sent ? { sent: st.sent, total: st.total } : {}) }));
   return json({ items: (await schedJobs(env)).map(schedSummary) });
 }
@@ -562,7 +639,8 @@ async function claim(env, k) {
 
 // Envoi d'un réseau demandé par la tâche planifiée (appel du Worker à lui-même, clé du serveur exigée)
 export async function schedInternal(req, env) {
-  if (!env.STATS_KEY || !sameHex(req.headers.get('X-Sched-Key') || '', env.STATS_KEY)) return json({ error: 'Interdit' }, 403);
+  if (await fails(env, req) >= MAX_FAILS) return json({ error: 'Trop d\'essais aujourd\'hui' }, 429);
+  if (!env.STATS_KEY || !sameHex(req.headers.get('X-Sched-Key') || '', env.STATS_KEY)) { await failed(env, req); return json({ error: 'Interdit' }, 403); }
   let only;
   try { only = await req.json(); } catch { return json({ error: 'JSON invalide' }, 400); }
   return json({ out: await runSchedule(env, { now: Number(only?.now) || Date.now(), only: { id: String(only?.id || ''), net: String(only?.net || '') } }) });
@@ -572,18 +650,22 @@ export async function schedInternal(req, env) {
 // à part, tous en même temps ; chaque appel a toutes les sous-requêtes permises à un passage du Worker (50 ;
 // un carrousel Instagram en prend déjà une bonne part). Sinon (ou only : réseau demandé) : un réseau par
 // passage. Réseau réservé (claim) avant l'envoi, commencé dans les 40 premières secondes : jamais renvoyé
-// Journal des publications complété par un réseau : écrit seulement si personne ne l'a changé depuis sa
-// lecture (les réseaux d'un même post finissent souvent en même temps et s'écrasaient), 5 essais
-async function addHistory(env, entry) {
+// Journal des publications modifié (fn : liste -> nouvelle liste) : écrit seulement si personne ne l'a changé
+// depuis sa lecture (réseaux d'un même post, appli et publication programmée en même temps), 5 essais
+async function updateHistory(env, fn) {
+  let next = [];
   for (let i = 0; i < 5; i++) {
     const raw = await getRow(env, 'history');
-    const v = JSON.stringify(addEntry(JSON.parse(raw || '[]'), entry));
+    next = fn(JSON.parse(raw || '[]'));
+    const v = JSON.stringify(next);
     const r = raw === null
       ? await env.DB.prepare('INSERT INTO studio (k, v, at) VALUES (?, ?, ?) ON CONFLICT(k) DO NOTHING').bind('history', v, Date.now()).run()
       : await env.DB.prepare('UPDATE studio SET v = ?, at = ? WHERE k = ? AND v = ?').bind(v, Date.now(), 'history', raw).run();
-    if (r?.meta?.changes === 1) return;
+    if (r?.meta?.changes === 1) break;
   }
+  return next;
 }
+const addHistory = (env, entry) => updateHistory(env, (list) => addEntry(list, entry));
 
 // Publication en retard de plus de 5 minutes (appels qui échouent, réseau en panne…) : une notification sur
 // le téléphone, une seule fois par programmation (ligne schedpost:<id>:late, effacée avec les autres)
@@ -632,7 +714,8 @@ export async function runSchedule(env, { now = Date.now(), only = null } = {}) {
         const list = [];
         for (let i = from; i < Math.min(to, j.sets?.[set] || 0); i++) {
           const o = await env.MEDIA?.get(`sched/${j.id}/${set}/${i}`);
-          if (o) list.push(Object.assign(new Blob([await o.arrayBuffer()], { type: o.httpMetadata?.contentType || 'image/jpeg' }), { alt: j.alts?.[set]?.[i] || '' }));
+          if (!o) throw new Error('Visuels effacés du serveur');   // jamais publié sans eux
+          list.push(Object.assign(new Blob([await o.arrayBuffer()], { type: o.httpMetadata?.contentType || 'image/jpeg' }), { alt: j.alts?.[set]?.[i] || '' }));
         }
         return list;
       };
@@ -656,8 +739,8 @@ export async function runSchedule(env, { now = Date.now(), only = null } = {}) {
           const r = story ? await sendTo(p.network, keys, { images: await imgs('ig', story.from, story.from + STORY_STEP) })
             : CLIPS.includes(p.network)
             ? await sendClip(p.network, () => (p.network === 'youtube' ? freshYoutube : freshTiktok)(keys[p.network]), await media(p.network, true), j.video, tr.text, j.tiktok)
-            : j.link && LINKS.includes(p.network) ? await sendTo(p.network, keys, { text: tr.text, link: { ...j.link, url: (await trackPost(env, p.network, { text: j.link.url }, j.record?.title)).text } }, () => freshThreads(keys.threads))
-            : await sendTo(p.network, keys, { text: tr.text, comment: tr.comment, images: p.network === 'bluesky' || video ? [] : await imgs('ig'), small: p.network === 'bluesky' && !video ? await imgs('x') : [], video, vsize: j.vsize, cover: video ? (await imgs('cover'))[0] : null }, () => freshThreads(keys.threads));
+            : j.link && LINKS.includes(p.network) ? await sendTo(p.network, keys, { text: tr.text, topic: p.topic, link: { ...j.link, url: (await trackPost(env, p.network, { text: j.link.url }, j.record?.title)).text } }, () => freshThreads(keys.threads))
+            : await sendTo(p.network, keys, { text: tr.text, comment: tr.comment, topic: p.topic, images: p.network === 'bluesky' || video ? [] : await imgs('ig'), small: p.network === 'bluesky' && !video ? await imgs('x') : [], video, videoUrl: video && `${videoOrigin(env)}/studio/v/${j.id}${j.full && !SAFE_NETS.includes(p.network) ? '-full.mp4' : j.video === 'video/quicktime' ? '.mov' : '.mp4'}`, vsize: j.vsize, cover: video ? (await imgs('cover'))[0] : null }, () => freshThreads(keys.threads));
           if (story) Object.assign(st, { sent: story.from + r.count, total: story.total });
           Object.assign(st, { status: story && st.sent < story.total ? 'pending' : 'done', at: Date.now(), ...resultOf(r), ...(r.note ? { note: r.note } : {}) });
           // Stories (24 heures) : pas dans l'historique, qui garde le post du fil
@@ -678,16 +761,56 @@ export async function runSchedule(env, { now = Date.now(), only = null } = {}) {
     if (out?.id !== j.id && over && j.keys && !j.ended) await notifyPhones(env, schedNotice(j), { now }).catch(() => 0);
     if (out?.id === j.id) continue;
     if (states.every((s) => s.status === 'done' && !s.commentError && s.visible !== false)) {
-      await dropMedia(env, j.id); await delLike(env, `schedpost:${j.id}:`); await delLike(env, `sched:${j.id}`);
+      // sched: d'abord : une écriture ratée en route ne fait pas tout repartir (états effacés, visuels absents)
+      await setRow(env, `scheddone:${j.id}`, JSON.stringify(schedSummary(j)));
+      await delLike(env, `sched:${j.id}`); await delLike(env, `schedpost:${j.id}:`); await dropMedia(env, j.id);
     } else if (over) {
       // Souci sur un réseau : visuels, vidéo et jetons gardés 24 h (« Réessayer »), puis effacés ; trace 7 jours
       const { nets, ...rest } = j;
       if (j.keys && !j.ended) await setRow(env, `sched:${j.id}`, JSON.stringify({ ...rest, ended: now }));
       else if (j.keys && now - j.ended > SCHED.late) { await dropMedia(env, j.id); await setRow(env, `sched:${j.id}`, JSON.stringify({ ...rest, keys: null })); }
-      if (now - j.at > SCHED.keep) { await delLike(env, `schedpost:${j.id}:`); await delLike(env, `sched:${j.id}`); }
+      if (now - j.at > SCHED.keep) { await delLike(env, `sched:${j.id}`); await delLike(env, `schedpost:${j.id}:`); }
     }
   }
   return out;
+}
+
+// ---------- « Reste à faire » ----------
+// Ce que le Studio ne peut pas finir seul : post X (texte, images ou vidéo prêts à partager), brouillon TikTok à
+// compléter, Short YouTube à passer en public… Gardé 7 jours, fichiers dans le stockage R2 (effacés avec la tâche).
+const TODO = { max: 30, keep: 7 * 86400e3, files: 4, img: 4e6 };
+const TODO_KINDS = ['x', 'tiktok', 'youtube', 'autre'];
+async function dropTodo(env, t) {
+  for (let i = 0; i < (t.files || []).length; i++) await env.MEDIA?.delete(`todo/${t.id}/${i}`);
+}
+async function todoList(env, now = Date.now()) {
+  let list = [];
+  try { list = JSON.parse(await getRow(env, 'todo') || '[]'); } catch { /* ligne abîmée : refaite */ }
+  const old = list.filter((t) => now - t.at > TODO.keep);
+  if (!old.length) return list;
+  for (const t of old) await dropTodo(env, t);
+  list = list.filter((t) => !old.includes(t));
+  await setRow(env, 'todo', JSON.stringify(list));
+  return list;
+}
+// Formulaire : kind, title, text, after (heure à partir de laquelle la tâche se fait), f (4 images, ou une vidéo)
+async function todoAdd(req, env, now = Date.now()) {
+  let form;
+  try { form = await req.formData(); } catch { return json({ error: 'Formulaire illisible' }, 400); }
+  const kind = String(form.get('kind') || '');
+  if (!TODO_KINDS.includes(kind)) return json({ error: 'Tâche inconnue' }, 400);
+  const files = form.getAll('f').filter((f) => typeof f === 'object' && f);
+  const video = files.length === 1 && /^video\/(mp4|quicktime)$/.test(files[0].type) && files[0].size <= VIDEO_MAX;
+  if (files.length && !video && (files.length > TODO.files || files.some((f) => !/^image\/(png|jpeg)$/.test(f.type) || f.size > TODO.img))) return json({ error: 'Fichiers refusés : 4 images (4 Mo au plus) ou une vidéo MP4 de 50 Mo au plus' }, 400);
+  if (files.length && !env.MEDIA) return json({ error: 'Stockage des fichiers (R2) absent du serveur' }, 503);
+  const list = await todoList(env, now);
+  if (list.length >= TODO.max) return json({ error: `${TODO.max} tâches au plus : cochez celles qui sont faites` }, 409);
+  const after = Number(form.get('after'));
+  const t = { id: hex(crypto.getRandomValues(new Uint8Array(8))), kind, title: String(form.get('title') || '').slice(0, 200), text: String(form.get('text') || '').slice(0, 5000),
+    after: Number.isFinite(after) && after > now ? Math.min(after, now + SCHED.ahead) : now, at: now, files: files.map((f) => ({ type: f.type, name: String(f.name || '').slice(0, 80) })) };
+  for (const [i, f] of files.entries()) await env.MEDIA.put(`todo/${t.id}/${i}`, f, { httpMetadata: { contentType: f.type } });
+  await setRow(env, 'todo', JSON.stringify([t, ...list]));
+  return json({ item: t });
 }
 
 // ---------- Routes /studio/api/… ----------
@@ -700,13 +823,14 @@ export async function studioApi(req, env, url) {
     if (await fails(env, req) >= MAX_FAILS) return json({ error: 'Trop d\'essais aujourd\'hui' }, 429);
     let body;
     try { body = await req.json(); } catch { return json({ error: 'JSON invalide' }, 400); }
-    const code = String(body?.code || '').trim().toUpperCase();
-    if (!sameHex(await sha(`paddock-live:${code}`), env.STUDIO_CODE_HASH || CODE_HASH)) { await failed(env, req); return json({ error: 'Code incorrect' }, 401); }
+    // L'appli envoie aussi le code (anciennes versions) : seule la clé qui en est tirée est vérifiée
     let raw;
-    try { raw = unb64url(body.key); } catch { raw = null; }
+    try { raw = unb64url(body?.key); } catch { raw = null; }
     if (!raw || raw.length !== 32) return json({ error: 'Clé invalide' }, 400);
+    if (!sameHex(await sha(raw), env.STUDIO_KEY_HASH || KEY_HASH)) { await failed(env, req); return json({ error: 'Code incorrect' }, 401); }
     await setRow(env, 'verifier', await sha(raw));
-    await setRow(env, 'vault', await seal(raw, cleanVault(body.vault)));
+    await saveVault(env, raw, cleanVault(body.vault));
+    await keepAccounts(env, body.accounts);
     return json({ ok: true });
   }
 
@@ -714,19 +838,64 @@ export async function studioApi(req, env, url) {
   if (a.error) return a.error;
   let vault = await open(a.raw, await getRow(env, 'vault')).catch(() => null) || {};
 
+  // Séance du relais de la version web (rallumé s'il est à l'arrêt) : séance qui vient de finir, avant l'index de la F1
+  if (path === 'live-session' && req.method === 'GET') return json(await liveSession(env, true).catch(() => null));
+  // État final d'une séance qui vient de finir (son archive F1 n'est pas encore publiée), d'après le direct
+  if (path === 'live-state' && req.method === 'GET') return json(await liveState(env, url.searchParams.get('p')).catch(() => null));
+  // Relier un téléphone à ton compte F1 TV (version web) : ta connexion, déjà dans ton coffre, est envoyée chiffrée
+  // au téléphone qui affiche le code. Rien de plus gardé que le coffre existant ; le serveur ne garde pas le code.
+  if (path === 'pair' && req.method === 'POST') {
+    let body;
+    try { body = await req.json(); } catch { return json({ error: 'JSON invalide' }, 400); }
+    vault = await refresh(env, a.raw, vault);
+    if (!vault.f1tv) return json({ error: 'Connecte F1 TV dans l\'appli (Réglages, Compte F1 TV), puis « Renvoyer les comptes ».' }, 409);
+    const r = await pairSend(env, String(body?.code || ''), vault.f1tv);
+    return json(r, r.error ? 409 : 200);
+  }
+  // Appareils reliés à ton compte F1 TV (version web) : connexions en cours sur ton relais privé
+  // Sources d'actu en plus (onglet Actu de l'appli) : liste, ajout, retrait
+  if (path === 'news-sources') {
+    if (req.method === 'GET') return json({ custom: await readJSON(env, 'news:custom', []) });
+    let body;
+    try { body = await req.json(); } catch { return json({ error: 'JSON invalide' }, 400); }
+    try { return json(await editSources(env, body)); } catch (err) { return json({ error: err.message }, 400); }
+  }
+  if (path === 'devices' && req.method === 'GET') {
+    vault = await refresh(env, a.raw, vault);
+    if (!vault.f1tv) return json({ count: 0, devices: [] });
+    return json(await liveDevices(env, vault.f1tv).catch(() => ({ count: 0, devices: [] })));
+  }
+  // Onglet Suivi : dossier Google Drive lu par le serveur
+  if (path.startsWith('drive/')) {
+    // Remplissage de la feuille : journal des publications et chiffres des posts gardés ici
+    const rows = async () => {
+      const read = async (k) => { try { return JSON.parse(await getRow(env, k) || '[]'); } catch { return []; } };
+      return { history: await read('history'), kept: await read('poststats') };
+    };
+    return driveApi(path.slice(6), req, url, vault, (v) => saveVault(env, a.raw, v), rows);
+  }
   if (path === 'sync' && req.method === 'POST') {
     let body;
     try { body = await req.json(); } catch { return json({ error: 'JSON invalide' }, 400); }
-    await setRow(env, 'vault', await seal(a.raw, keepNewer(vault, cleanVault(body?.vault))));
+    await saveVault(env, a.raw, keepNewer(vault, cleanVault(body?.vault)));
+    await keepAccounts(env, body?.accounts);
     return json({ ok: true });
   }
+  // Nouvel ordinateur : copie des comptes (chiffrée par l'appli) et jetons du coffre, peut-être renouvelés ici
+  if (path === 'accounts' && req.method === 'GET') {
+    const { gdrive, gdrivePending, ...v } = await refresh(env, a.raw, vault);   // accès Drive du Studio : pas un compte de l'appli
+    return json({ accounts: await getRow(env, 'accounts'), vault: v });
+  }
   if (path === 'forget' && req.method === 'POST') {
+    // Visuels et vidéos des programmations en attente : effacés avec elles (plus rien ne les retrouverait)
+    for (const j of await schedJobs(env)) await dropMedia(env, j.id);
     await env.DB.prepare('DELETE FROM studio').run();
     return json({ ok: true });
   }
   if (path === 'me' && req.method === 'GET') {
     vault = await refresh(env, a.raw, vault);
     await noteExpiries(env, vault, jwtExp).catch(() => {});
+    await keepArchiveToken(env, vault.f1tv).catch(() => {});   // première ouverture du Studio après la mise à jour
     return json({
       facebook: vault.meta?.pageName || null, instagram: vault.meta?.igId ? `@${vault.meta.igUsername || ''}` : null,
       threads: vault.threads?.token ? `@${vault.threads.username || ''}` : null, bluesky: vault.bluesky ? `@${vault.bluesky.handle}` : null, f1tv: !!vault.f1tv, at: vault.at || null,
@@ -734,8 +903,28 @@ export async function studioApi(req, env, url) {
       sources: DEFAULT_SOURCES.filter((s) => s.kind === 'rss').map(({ id, name, cat, lang, filter }) => ({ id, name, cat, lang, filter: filter || null })),
     });
   }
+  // Avant de publier : connexions qui ne marchent plus (YouTube, TikTok, Threads), { réseau: raison } ; un réseau
+  // injoignable n'est pas compté comme expiré. Jetons renouvelés gardés (l'un après l'autre, comme stats/accounts)
+  if (path === 'accounts/check' && req.method === 'GET') {
+    let v = await refresh(env, a.raw, vault);
+    const out = {};
+    for (const net of CLIPS) {
+      if (!v[net]) continue;
+      const acc = await clipAccount(env, a.raw, v, net).catch((err) => { if (refused(err)) out[net] = clipExpired(net); return null; });
+      if (acc) v = { ...v, [net]: acc };
+    }
+    if (v.threads?.expiresAt && v.threads.expiresAt < Date.now()) out.threads = 'Connexion Threads expirée : reconnectez-la dans l\'appli (Comptes…), puis « Renvoyer les comptes »';
+    return json(out);
+  }
   // Bilan des fonctions de l'appli (statistiques anonymes des 30 derniers jours)
-  if (path === 'usage' && req.method === 'GET') return json({ days: 30, ...(await summary(env, 30)).usage, health: JSON.parse(await getRow(env, 'health') || 'null') });
+  // et IA du serveur (neurones d'aujourd'hui, budget payé et ce qui a été produit sur 30 jours)
+  if (path === 'usage' && req.method === 'GET') {
+    const today = new Date().toISOString().slice(0, 10);
+    const [ai, made] = await Promise.all([neuronBudget(env, today).catch(() => null), aiCounters(env, today).catch(() => null)]);
+    // texts : plafond du jour des textes traduits ou résumés par les applis (agrandi les week-ends de Grand Prix)
+    const texts = ai && dayLimit(env, Number(env.AI_DAILY_LIMIT) || 1000, ai.top);
+    return json({ days: 30, ...(await summary(env, 30)).usage, health: JSON.parse(await getRow(env, 'health') || 'null'), ai: ai && made && { ...ai, made, texts } });
+  }
   // Post écrit à la main : texte mis en forme par l'IA (titre, résumé, points clés)
   if (path === 'rewrite' && req.method === 'POST') {
     if (!env.AI) return json({ error: 'IA indisponible' }, 503);
@@ -770,12 +959,11 @@ export async function studioApi(req, env, url) {
       if (path === 'history/remove') {
         if (!cleanKey(body?.key)) return json({ error: 'Post inconnu' }, 400);
         const r = removeEntry(list, removed, body.key);
-        await setRow(env, 'history', JSON.stringify(r.items));
+        r.items = await updateHistory(env, (l) => removeEntry(l, [], body.key).items);
         await setRow(env, 'history-removed', JSON.stringify(r.removed));
         return json(r);
       }
-      const next = addEntry(list, body?.entry);
-      await setRow(env, 'history', JSON.stringify(next));
+      const next = await addHistory(env, body?.entry);
       // Même post republié : il compte de nouveau
       const k = cleanKey(body?.entry?.key);
       if (k && removed.includes(k)) await setRow(env, 'history-removed', JSON.stringify(removed.filter((x) => x !== k)));
@@ -809,22 +997,41 @@ export async function studioApi(req, env, url) {
     await setRow(env, 'drafts', JSON.stringify(list));
     return json({ items: list });
   }
+  // « Reste à faire » : ce qui se finit à la main après une publication (X, brouillon TikTok, Short privé…)
+  if (path === 'todo' && req.method === 'GET') return json({ items: await todoList(env) });
+  if (path === 'todo' && req.method === 'POST') return todoAdd(req, env);
+  if (path === 'todo/file' && req.method === 'GET') {
+    const id = String(url.searchParams.get('id') || '');
+    const i = Number(url.searchParams.get('i'));
+    const obj = /^[a-f0-9]{16}$/.test(id) && Number.isInteger(i) && i >= 0 && i < TODO.files ? await env.MEDIA?.get(`todo/${id}/${i}`) : null;
+    return obj ? new Response(obj.body, { headers: { 'Content-Type': obj.httpMetadata?.contentType || 'application/octet-stream', 'Cache-Control': 'no-store' } }) : json({ error: 'Fichier introuvable' }, 404);
+  }
+  if (path === 'todo/done' && req.method === 'POST') {
+    let body;
+    try { body = await req.json(); } catch { return json({ error: 'JSON invalide' }, 400); }
+    const list = await todoList(env);
+    const t = list.find((x) => x.id === body?.id);
+    if (t) await dropTodo(env, t);
+    const next = list.filter((x) => x !== t);
+    await setRow(env, 'todo', JSON.stringify(next));
+    return json({ items: next });
+  }
   // Posts publiés hors du Studio (à la main, kit de démarrage) : retrouvés sur les comptes reliés
   if (path === 'history/import' && req.method === 'POST') {
     const v = await refresh(env, a.raw, vault);
     const { posts, errors } = await recentPosts({ meta: v.meta, threads: v.threads, bluesky: v.bluesky });
-    const list = JSON.parse(await getRow(env, 'history') || '[]');
     const removed = JSON.parse(await getRow(env, 'history-removed') || '[]');
-    const add = importEntries(list, removed, posts);
-    if (add.length) await setRow(env, 'history', JSON.stringify(add.reduce(addEntry, list)));
-    return json({ added: add.length, errors });
+    let added = 0;
+    await updateHistory(env, (list) => { const add = importEntries(list, removed, posts); added = add.length; return add.reduce(addEntry, list); });
+    return json({ added, errors });
   }
   // Chiffres des posts et chiffres des comptes : deux appels, chacun sous la limite de 50 requêtes
   // vers l'extérieur par appel du serveur (ensemble, Facebook ou TikTok la dépassaient)
   if (path === 'stats' && req.method === 'GET') {
     const v = await refresh(env, a.raw, vault);
     // 6 posts au plus
-    const posts = await postStats(JSON.parse(await getRow(env, 'history') || '[]'), { meta: v.meta, threads: v.threads, bluesky: v.bluesky }, { limit: 6 });
+    const yt = v.youtube ? await clipAccount(env, a.raw, v, 'youtube').catch(() => null) : null;
+    const posts = await postStats(JSON.parse(await getRow(env, 'history') || '[]'), { meta: v.meta, threads: v.threads, bluesky: v.bluesky, youtubeToken: yt?.accessToken }, { limit: 6 });
     // kept : chiffres des 60 derniers posts gardés ici (heure conseillée, sur tous les appareils)
     let kept = [];
     try { kept = JSON.parse(await getRow(env, 'poststats') || '[]'); } catch { /* ligne abîmée : refaite */ }
@@ -867,7 +1074,7 @@ export async function studioApi(req, env, url) {
   if (['schedule/cancel', 'schedule/retry', 'schedule/update'].includes(path) && req.method === 'POST') {
     let body;
     try { body = await req.json(); } catch { return json({ error: 'JSON invalide' }, 400); }
-    return path === 'schedule/cancel' ? scheduleCancel(env, body?.id) : path === 'schedule/retry' ? scheduleRetry(env, body) : scheduleUpdate(env, body);
+    return path === 'schedule/cancel' ? scheduleCancel(env, body?.id) : path === 'schedule/retry' ? scheduleRetry(env, body, a.raw, vault) : scheduleUpdate(env, body);
   }
   // Texte avec ses liens suivis (X : partagé depuis le téléphone ; appli : publication directe)
   if (path === 'links' && req.method === 'POST') {

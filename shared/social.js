@@ -190,6 +190,19 @@ export const THREADS_TAG = '#F1';
 // Facebook : hashtags sans effet, retirés du texte Instagram
 export const noTags = (text) => text.replace(/\n\n#[^\n]*$/, '');
 
+// Textes de la vidéo (TikTok, YouTube Shorts), tirés de ceux du post (c : instagram, x, story…). TikTok : le texte
+// court et 5 hashtags au plus (ceux de X et Threads, qui ne nomment jamais le vainqueur : pas de spoiler) ;
+// YouTube : 1re ligne = titre (100 caractères au plus), puis la description
+const HASHTAG = /#[\p{L}\p{N}_]+/gu;
+export function videoTexts(c) {
+  const ig = String(c.instagram || c.x || '').trim();
+  const tags = [...new Set(['#F1', ...`${c.x || ''} ${c.threads || ''}`.match(HASHTAG) || [], '#Formula1'])].slice(0, 5);
+  const short = noTags(String(c.x || ig)).replace(/(\s#[\p{L}\p{N}_]+)+\s*$/u, '').trim();
+  const title = [...(String(c.story || c.x || '').split('\n').find((l) => l.trim()) || '').replace(HASHTAG, '').trim()].slice(0, 100).join('');
+  const desc = ig.startsWith(title) ? ig.slice(title.length).trim() : ig;
+  return { tiktok: [...`${short}\n\n${tags.join(' ')}`].slice(0, 2200).join(''), youtube: `${title}\n${desc}`.trim() };
+}
+
 export function hashtags(d) {
   const [p1] = d.rows;
   const all = fiveTags(['#F1', gpTag(d.gpEn), p1 ? hashtag(`${p1.first}${p1.last}`) : '', p1 ? teamTag(p1.team) : '']);

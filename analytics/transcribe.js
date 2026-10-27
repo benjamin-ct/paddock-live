@@ -2,9 +2,9 @@
 // transcrite qu'une fois pour tous les utilisateurs de Paddock Live, puis gardée dans la base.
 // La radio est reconnue par l'empreinte de son fichier son (calculée ici) : personne ne peut faire
 // passer un faux texte pour une radio qu'il n'a pas envoyée. Plafond quotidien contre les abus ;
-// au-delà, l'appli transcrit sur l'ordinateur comme avant.
+// au-delà, la radio attend le lendemain.
 import { clean } from '../shared/radio-text.js';
-import { aiQuota } from './quota.js';
+import { aiQuota, aiMore, runAI } from './quota.js';
 
 export const ASR_MODEL = '@cf/openai/whisper-large-v3-turbo';
 export const ASR_FALLBACK = '@cf/openai/whisper';
@@ -35,10 +35,10 @@ function base64(bytes) {
 
 async function whisper(env, bytes) {
   try {
-    const r = await env.AI.run(ASR_MODEL, { audio: base64(bytes), task: 'transcribe', language: 'en' });
+    const r = await runAI(env, ASR_MODEL, { audio: base64(bytes), task: 'transcribe', language: 'en' });
     if (typeof r?.text === 'string') return { text: r.text, d: r.transcription_info?.duration };
   } catch { /* modèle de secours */ }
-  const r = await env.AI.run(ASR_FALLBACK, { audio: [...bytes] });
+  const r = await runAI(env, ASR_FALLBACK, { audio: [...bytes] });
   if (typeof r?.text !== 'string') throw new Error('réponse illisible');
   return { text: r.text };
 }
@@ -56,11 +56,25 @@ export async function transcribeRadio(env, bytes, day = new Date().toISOString()
   const hash = await audioHash(bytes);
   const hit = await cachedRadio(env, hash);
   if (hit) return { ...hit, cached: true };
-  const limit = Number(env.ASR_DAILY_LIMIT) || 3000;
+  const limit = Number(env.ASR_DAILY_LIMIT) || 300;
   if (!(await aiQuota(env, { key: `radio:${day}`, day, n: 1, limit, ip }))) return { limited: true };
   const r = await whisper(env, bytes);
   const text = clean(r.text);
   const d = Number.isFinite(r.d) ? Math.round(r.d * 10) / 10 : null;
+  await aiMore(env, { key: `radio:${day}`, day, n: Math.ceil((d || 0) / 30) - 1, ip }).catch(() => {});   // une radio = 30 s
   await env.DB.prepare('INSERT OR REPLACE INTO radio_texts (k, text, d, at) VALUES (?1, ?2, ?3, ?4)').bind(radioKey(hash), text, d, Date.now()).run();
   return { text, d: d ?? undefined, hash };
+}
+
+// Son des caméras embarquées F1 TV (appli, expérimental) : fenêtre de 30 s en WAV mono 16 kHz, propre à chaque
+// utilisateur (rien à garder) -> { segments: [{ timestamp: [début, fin] (s), text }] }, { limited } ou { invalid }
+const isWav = (b) => b?.length >= 44 && b.length <= MAX_AUDIO && String.fromCharCode(...b.subarray(0, 4)) === 'RIFF' && String.fromCharCode(...b.subarray(8, 12)) === 'WAVE';
+export async function transcribeWindow(env, bytes, day = new Date().toISOString().slice(0, 10), ip = null) {
+  if (!isWav(bytes)) return { invalid: true };
+  const limit = Number(env.ONBOARD_DAILY_LIMIT) || 400;   // week-end de Grand Prix : environ 490 fenêtres par adresse, 1 h de course pour 3 pilotes
+  if (!(await aiQuota(env, { key: `onboard:${day}`, day, n: 1, limit, ip }))) return { limited: true };
+  const r = await runAI(env, ASR_MODEL, { audio: base64(bytes), task: 'transcribe', language: 'en' });
+  const segments = (r?.segments || []).map((x) => ({ timestamp: [x.start, x.end], text: x.text || '' }));
+  const dur = Number(r?.transcription_info?.duration) || (bytes.length - 44) / 32000;
+  return { segments: segments.length || !clean(r?.text || '') ? segments : [{ timestamp: [0, dur], text: r.text }] };
 }

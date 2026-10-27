@@ -3,13 +3,14 @@
 // mémorisée et suivie par toutes les fenêtres (préférence tabLayout).
 import { prefs, setPref } from '../prefs.js';
 import { store, on, emit } from '../store.js';
-import { $, sessionKind } from '../util.js';
+import { $, esc, sessionKind } from '../util.js';
 import { toast } from './delay.js';
+import { icon } from '../icons.js';
 
 // Onglets proches réunis sous un seul onglet de la barre (le premier de la liste) : les autres sont
 // choisis par un sélecteur en haut de leur contenu, et suivent l'onglet principal s'il est déplacé.
-const GROUPS = { trace: ['trace', 'positions'], laptimes: ['laptimes', 'pace'], rcm: ['rcm', 'stewards', 'tracklimits'] };
-const SEG = { trace: 'Écarts', positions: 'Positions', laptimes: 'Tours', pace: 'Rythme', rcm: 'Messages', stewards: 'Enquêtes', tracklimits: 'Limites de piste' };
+const GROUPS = { trace: ['trace', 'positions'], laptimes: ['laptimes', 'pace'] };
+const SEG = { trace: 'Écarts', positions: 'Positions', laptimes: 'Tours', pace: 'Rythme' };
 const isMember = (t) => Object.values(GROUPS).some((g) => g.indexOf(t) > 0);
 // Onglets inutiles selon la séance chargée (masqués, de retour à la séance suivante)
 const QUALI_OFF = ['trace', 'positions', 'tyrehist', 'strategy', 'pitsim', 'battles', 'champ'];
@@ -67,7 +68,10 @@ function place(t, id, before = null) {
   const btn = tabBtn(t), p = pane(t), h = head(id), b = body(id);
   if (!btn || !p || !h || !b) return;
   const ref = before && before !== t ? tabBtn(before) : null;
-  h.insertBefore(btn, ref && ref.parentElement === h ? ref : h.querySelector(':scope > .panel-ctrl'));
+  h.insertBefore(btn, ref && ref.parentElement === h ? ref : h.querySelector(':scope > [data-menu-for], :scope > .panel-ctrl'));
+  // Menu d'options de l'onglet (engrenage) : suit son onglet, après les onglets du panneau
+  const menu = document.querySelector(`[data-menu-for="${t}"]`);
+  if (menu && menu.parentElement !== h) h.insertBefore(menu, h.querySelector(':scope > .panel-ctrl'));
   // Contenu déjà dans ce panneau : laissé en place (le déplacer remettrait sa liste en haut et
   // rejouerait ses animations, ex. toute la Direction de course)
   if (p.parentElement !== b) b.appendChild(p);
@@ -257,7 +261,7 @@ function buildGroups() {
 
 // ---------- Onglets selon la séance ----------
 function applySession() {
-  const off = new Set(store.state.SessionInfo ? OFF[sessionKind(store.state)] || [] : []);
+  const off = new Set([...(store.state.SessionInfo ? OFF[sessionKind(store.state)] || [] : []), ...prefs.hiddenTabs]);
   for (const b of document.querySelectorAll('[data-tabs] > [data-tab]')) {
     const t = b.dataset.tab;
     const list = GROUPS[t];
@@ -278,6 +282,90 @@ function applySession() {
   for (const id of HOSTS) head(id)?.classList.toggle('many', shownTabs(id).length > 4);
 }
 
+// Onglets de chaque panneau, pour les réglages : [panneau, onglet, nom, réservé au mode Complet]
+export function tabList() {
+  return [...document.querySelectorAll('[data-tabs] > [data-tab]')].map((b) => {
+    const name = SEG[b.dataset.tab] || [...b.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent).join('').trim();
+    return [b.closest('.panel')?.className.match(/\bp-(\w+)/)?.[1], b.dataset.tab, name, b.hasAttribute('data-expert')];
+  });
+}
+
+// Onglet masquable par l'utilisateur : il en reste au moins un autre dans son panneau
+export function canHideTab(t) {
+  const h = tabBtn(t)?.parentElement;
+  if (!h) return true;
+  const off = new Set([...prefs.hiddenTabs, t]);
+  return [...h.querySelectorAll(':scope > [data-tab]:not(.tab-member)')].some((b) => !(GROUPS[b.dataset.tab] || [b.dataset.tab]).every((x) => off.has(x)));
+}
+
+// ---------- Clic droit ----------
+// Sur un onglet : le fermer ; ailleurs sur la barre d'onglets d'un panneau : tous ses onglets, pour remettre
+// ceux qui sont fermés (mêmes onglets masqués que Réglages → Onglets visibles)
+const groupOf = (t) => GROUPS[t] || [t];
+const PANEL_NAMES = { feed: 'Direction de course', radio: 'Radios', analysis: 'Analyse', extra: 'Stratégie' };
+const tabName = (t) => esc(tabList().find((x) => x[1] === t)?.[2] || t);
+function setTabHidden(t, hide) {
+  const g = groupOf(t);
+  setPref('hiddenTabs', hide ? [...new Set([...prefs.hiddenTabs, ...g])] : prefs.hiddenTabs.filter((x) => !g.includes(x)));
+}
+
+function tabMenu(e) {
+  const h = e.target.closest('.panel-head[data-tabs]');
+  const id = HOSTS.find((x) => head(x) === h);
+  if (!id || window.innerWidth <= 900 || e.target.closest('details, .panel-ctrl, .tab-seg')) return;
+  e.preventDefault();
+  document.querySelector('.lpop-menu')?.remove();
+  const m = document.createElement('div');
+  m.className = 'lpop-menu';
+  const tab = e.target.closest('[data-tab]');
+  const btn = tab?.parentElement === h ? tab : null;
+  const sessOff = (t) => tabBtn(t)?.classList.contains('sess-off') && !groupOf(t).every((x) => prefs.hiddenTabs.includes(x));
+  if (btn) {
+    const t = btn.dataset.tab;
+    const ok = canHideTab(t);
+    m.innerHTML = `<div class="muted small">Onglet « ${tabName(t)} »</div>
+      <button data-close="${t}" ${ok ? '' : 'disabled title="Dernier onglet du panneau : il ne peut pas être fermé"'}>${icon('close')} Fermer l'onglet</button>
+      <div class="muted small">Pour le remettre : clic droit sur la barre d'onglets.</div>`;
+  } else {
+    // Tous les onglets : ceux de ce panneau (✓ affiché, + fermé), puis ceux des autres panneaux, amenés ici au clic
+    const item = (t, here) => {
+      const shown = !groupOf(t).every((x) => prefs.hiddenTabs.includes(x));
+      const off = sessOff(t);
+      const mine = here && shown;
+      const note = off ? 'pas pendant cette séance' : !shown ? 'fermé' : here ? '' : PANEL_NAMES[HOSTS.find((x) => tabsOf(x).includes(t))];
+      return `<button data-${mine ? 'close' : 'open'}="${t}" ${off || (mine && !canHideTab(t)) ? 'disabled' : ''}>${mine ? '' : icon('plus')}${tabName(t)}${note ? ` <span class="muted small">(${note})</span>` : ''}${mine ? icon('check', 'ic-on') : ''}</button>`;
+    };
+    const others = HOSTS.filter((x) => x !== id).flatMap(tabsOf);
+    m.innerHTML = `<div class="muted small">Onglets du panneau</div>${tabsOf(id).map((t) => item(t, true)).join('')}
+      ${others.length ? `<div class="rail-sep"></div><div class="muted small">Amener un onglet ici</div>${others.map((t) => item(t, false)).join('')}` : ''}`;
+  }
+  Object.assign(m.style, { maxHeight: 'calc(100vh - 16px)', overflowY: 'auto' });
+  document.body.appendChild(m);
+  m.style.left = `${Math.max(8, Math.min(window.innerWidth - m.offsetWidth - 8, e.clientX))}px`;
+  m.style.top = `${Math.max(8, Math.min(window.innerHeight - m.offsetHeight - 8, e.clientY))}px`;
+  m.onclick = (ev) => {
+    const b = ev.target.closest('[data-close], [data-open]');
+    if (!b || b.disabled) return;
+    m.remove();
+    if (b.dataset.close) { setTabHidden(b.dataset.close, true); return; }
+    const t = b.dataset.open;
+    const from = HOSTS.find((x) => tabsOf(x).includes(t));
+    if (from && from !== id) {
+      // Onglet d'un autre panneau : déplacé ici, comme par glisser-déposer
+      place(t, id);
+      tidy(id, t);
+      tidy(from);
+      save();
+      emit('tabsMoved');
+    }
+    setTabHidden(t, false);
+    setTimeout(() => tabBtn(t)?.click(), 50);   // onglet remis : ouvert
+  };
+  setTimeout(() => document.addEventListener('pointerdown', function close(ev) {
+    if (!m.contains(ev.target)) { m.remove(); document.removeEventListener('pointerdown', close); }
+  }), 0);
+}
+
 export function resetTabs() {
   setPref('tabLayout', null);
 }
@@ -293,10 +381,11 @@ export function initTabMove() {
   for (const t of Object.keys(GROUPS)) follow(t);
   for (const id of HOSTS) tidy(id);
   // Disposition changée dans les réglages : ses onglets rouverts (layout.js) sont filtrés ensuite
-  on('prefs', (k) => { if (k === 'tabLayout') apply(prefs.tabLayout); if (k === 'layoutMode') setTimeout(applySession, 0); });
+  on('prefs', (k) => { if (k === 'tabLayout') apply(prefs.tabLayout); if (k === 'layoutMode' || k === 'hiddenTabs') setTimeout(applySession, 0); });
   applySession();
   on('reset', applySession);
-  on('events', (events) => { if (events.some(([t]) => t === 'SessionInfo')) setTimeout(applySession, 0); });
+  on('events', (events) => { if (events.some(([t]) => t === 'SessionInfo' || t === '__snapshot')) setTimeout(applySession, 0); });
   document.addEventListener('pointerdown', onDown);
+  document.addEventListener('contextmenu', tabMenu);
   $('#tabsReset')?.addEventListener('click', () => { resetTabs(); toast('Onglets remis à leur place d\'origine', 2500, 'check'); });
 }

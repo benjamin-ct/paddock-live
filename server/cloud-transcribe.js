@@ -2,7 +2,7 @@
 // chaque radio n'y est transcrite qu'une fois pour tout le monde, l'ordinateur n'a plus rien à calculer.
 // Le fichier son est pris dans les archives F1 (même accès que les replays), puis on demande d'abord
 // si son empreinte est déjà connue ; sinon le son est envoyé. Serveur injoignable ou plafond du jour
-// atteint : pause de 10 minutes, l'interface transcrit alors sur l'ordinateur comme avant.
+// atteint : pause de 10 minutes, les radios attendent.
 import crypto from 'node:crypto';
 import { request } from './net.js';
 import { archiveGet } from './archive.js';
@@ -14,7 +14,7 @@ const MAX_AUDIO = 2 * 1024 * 1024;
 const parse = (r) => { try { return JSON.parse(r.body.toString('utf8')); } catch { return null; } };
 
 export function createCloudTranscriber({ url = RADIO_URL, fetch = request, audio = (rel) => archiveGet(rel, { raw: true, timeout: 30000 }), now = Date.now } = {}) {
-  const memo = new Map();      // chemin d'archive -> { text, d }
+  const memo = new Map();      // chemin d'archive -> { text, d } (5 000 derniers)
   const running = new Map();   // chemin d'archive -> promesse en cours
   let pausedUntil = 0;
 
@@ -38,6 +38,7 @@ export function createCloudTranscriber({ url = RADIO_URL, fetch = request, audio
       }
       const out = { text: j.text, ...(Number.isFinite(j.d) ? { d: j.d } : {}) };
       memo.set(rel, out);
+      if (memo.size > 5000) memo.delete(memo.keys().next().value);
       return out;
     } catch {
       pause();

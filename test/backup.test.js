@@ -45,12 +45,12 @@ test('sauvegarde serveur : sans jeton ni clé, restauration revérifiée', () =>
   saveConfig({ news: { disabled: [], custom: [] }, lights: { provider: 'off' }, radioHosts: [] });
   importServerSettings({
     ...out,
-    news: { disabled: ['c-abc', 'inconnue'], custom: [...out.news.custom, { id: 'c-bad', kind: 'rss', url: 'http://127.0.0.1/x', name: 'x' }, { id: 'yt-pirate', kind: 'youtube', channel: 'abc' }] },
+    news: { disabled: ['yt-x', 42, '../x'], custom: [{ id: 'c-bad', kind: 'rss', url: 'http://127.0.0.1/x', name: 'x' }] },
     radioHosts: ['radio.exemple.fr', 'pas un hôte', 42],
   });
   const c = getConfig();
-  assert.deepEqual(c.news.custom.map((s) => s.id), ['c-abc'], 'adresse locale et id réservé refusés');
-  assert.deepEqual(c.news.disabled, ['c-abc'], 'source inconnue ignorée');
+  assert.deepEqual(out.news, { disabled: ['yt-x'] }, 'sources ajoutées des anciennes versions plus sauvegardées');
+  assert.deepEqual(c.news, { disabled: ['yt-x'] }, 'identifiants invalides ignorés, plus de sources ajoutées');
   assert.equal(c.lights.provider, 'hue');
   assert.equal(c.lights.after, 'keep');
   assert.deepEqual(c.lights.hue.lights, ['1', '2']);

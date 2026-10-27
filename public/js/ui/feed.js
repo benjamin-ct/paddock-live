@@ -5,7 +5,7 @@ import { $, esc, drivers, teamColor, fmtClock, fmtLap, api, stintsOf, tyreBadge,
 import { parseUtc, parseLapTime } from '/shared/f1.js';
 import { analyzeStewards, isOpen, STATUS_LABEL, linkFiaDocs, parseFiaDoc, deletedLapsDoc } from '/shared/stewards.js';
 import { icon } from '../icons.js';
-import { DEC, EN } from '../i18n.js';
+import { DEC, EN, t } from '../i18n.js';
 import { cloudOn, cloudTranslate } from '../cloud.js';
 import { continuesStint } from '/shared/pits.js';
 import { pdfHref } from './pdf-view.js';
@@ -343,6 +343,7 @@ export function renderStewards() {
   const tlWarn = data.trackLimits.filter((d) => d.deletions.length >= 3 || d.blackWhite).length;
   $('#tlBadge').hidden = !tlWarn;
   $('#tlBadge').textContent = tlWarn;
+  $('#tlBadge').title = t('{} pilote(s) à 3 infractions ou plus (drapeau noir et blanc ; pénalité à la 4e en course)', tlWarn);
 
   const filter = document.querySelector('input[name=stwFilter]:checked')?.value || 'open';
   const key = `${stwVer}|${filter}|${Object.keys(dl).length}|${docs.key}|${docs.docs.length}|${visible}|${sessionEnded()}`;
@@ -399,7 +400,7 @@ export function renderStewards() {
           <td><span class="pips">${pips}</span> ${n}${other}</td><td>${esc(turns) || '—'}</td>
           <td>${last ? `T${last.lap}${last.time ? ` (${esc(last.time)})` : ''}` : '—'}</td><td>${status}</td></tr>`;
       }).join('')}</table>
-      ${tlDoc ? `<p class="note"><a class="fia-doc" href="${esc(tlDoc.url)}" target="_blank" rel="noopener">${icon('doc')} Document FIA : ${esc(tlDoc.title.replace(/^Doc \d+ - /, ''))} ${icon('external', 'ic-s')}</a></p>` : ''}
+      ${tlDoc ? `<p class="note"><a class="fia-doc" href="${esc(pdfHref(tlDoc.url))}" data-pdf="${esc(tlDoc.title)}" target="_blank" rel="noopener">${icon('doc')} Document FIA : ${esc(tlDoc.title.replace(/^Doc \d+ - /, ''))} ${icon('external', 'ic-s')}</a></p>` : ''}
 `
     : '<div class="note">Aucun temps supprimé pour limites de piste.</div>';
 }

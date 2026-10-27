@@ -5,6 +5,7 @@ import { captions } from './social.js';
 import { newsCaptions } from './social-news.js';
 import { seasonCaptions } from './social-season.js';
 import { moreCaptions } from './social-more.js';
+import { appCaptions } from './social-app.js';
 
 export const DRAFTS_MAX = 30;
 // Une ligne de la base : 2 Mo au plus (photo d'un post écrit à la main comprise)
@@ -17,6 +18,7 @@ const str = (v, max) => (typeof v === 'string' ? v.slice(0, max) : '');
 // Textes d'un post d'après ses données (même choix que l'éditeur qui l'a fait)
 export function captionsFor(d, sig, { spoiler = true, linkInComment = false } = {}) {
   if (d.news) return newsCaptions(d, sig, { linkInComment });
+  if (d.post === 'app') return appCaptions(d);
   if (MORE.has(d.post)) return moreCaptions(d, sig);
   if (d.post) return seasonCaptions(d, sig);
   return captions(d, sig, { spoiler });
@@ -56,12 +58,14 @@ export function packDraftImages(d) {
   const out = { ...d };
   if (isBitmap(d.image)) out.image = toJpeg(d.image, 1080);
   if (Array.isArray(d.gallery)) out.gallery = d.gallery.map((g) => (isBitmap(g?.image) ? { ...g, image: toJpeg(g.image, 800) } : g));
+  if (Array.isArray(d.pages)) out.pages = d.pages.map((g) => (isBitmap(g?.image) ? { ...g, image: toJpeg(g.image, 800) } : g));
   return out;
 }
 export async function unpackDraftImages(d) {
   const img = async (x) => (typeof x === 'string' && x.startsWith('data:image/') ? createImageBitmap(await (await fetch(x)).blob()) : x);
   const out = { ...d, image: await img(d.image) };
   if (Array.isArray(d.gallery)) out.gallery = await Promise.all(d.gallery.map(async (g) => ({ ...g, image: await img(g?.image) })));
+  if (Array.isArray(d.pages)) out.pages = await Promise.all(d.pages.map(async (g) => ({ ...g, image: await img(g?.image) })));
   if (out.image === undefined) delete out.image;
   return out;
 }

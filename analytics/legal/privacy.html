@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Confidentialité · Paddock Live</title>
+<meta name="description" content="Politique de confidentialité de Paddock Live : quelles données sont traitées, à quoi elles servent et combien de temps elles sont gardées.">
+<link rel="canonical" href="https://paddocklive.app/legal/privacy">
 <link rel="stylesheet" href="/legal/style.css">
 </head>
 <body>
@@ -12,7 +14,7 @@
 
 <section id="fr" lang="fr">
 <h1><span>Paddock Live</span> : politique de confidentialité</h1>
-<p class="date">Dernière mise à jour : 22 octobre 2026</p>
+<p class="date">Dernière mise à jour : 27 octobre 2026</p>
 
 <p>Paddock Live est une application de bureau gratuite qui affiche le direct des séances de Formule 1 (chronos, radios, actualités) et aide à préparer des publications pour les réseaux sociaux. Elle s'exécute sur l'ordinateur de la personne qui l'utilise.</p>
 
@@ -54,13 +56,16 @@
 <p>L'application envoie des compteurs anonymes (noms des fonctions utilisées et nombres, type d'appareil, système, version, erreurs techniques nettoyées de toute adresse, dossier ou e-mail). Ils ne contiennent ni identifiant, ni contenu, ni adresse e-mail, ni donnée de compte de réseau social, et servent uniquement à améliorer l'application.</p>
 
 <h2>Traduction et transcription</h2>
-<p>Les textes d'actualité et les radios d'équipe (contenus publics de la F1) peuvent être envoyés au serveur de Paddock Live pour être traduits ou retranscrits. Aucune donnée personnelle n'y est jointe.</p>
+<p>Les textes d'actualité et les radios d'équipe (contenus publics de la F1) peuvent être envoyés au serveur de Paddock Live pour être traduits ou retranscrits. Aucune donnée personnelle n'y est jointe : pour limiter les abus, seule l'adresse IP de l'appareil (en IPv6, son bloc /64) est comptée pour la journée, puis effacée la nuit suivante (27 heures au plus). Pour la traduction, le serveur transmet seulement ces textes aux modèles Claude d'Anthropic.</p>
 
 <h2>Pronostics entre amis en ligne</h2>
 <p>Si vous créez ou rejoignez un groupe de pronostics en ligne, le nom du groupe, les pseudos et les pronostics (pole et podium) sont gardés sur le serveur de Paddock Live, avec un jeton qui réserve chaque pseudo au navigateur ou à l'appli qui l'a choisi. Toute personne qui a le lien du groupe voit ses pronostics et son classement. N'utilisez pas votre nom complet si vous ne le souhaitez pas. Les pronostics faits sur votre ordinateur, hors groupe en ligne, restent sur votre ordinateur.</p>
 
+<h2 id="alertes">Alertes sur le téléphone</h2>
+<p>Si vous activez les alertes sur la page <a href="/alertes/">paddocklive.app/alertes</a>, le serveur de Paddock Live garde l'adresse de notification de votre téléphone (fournie par le service de notification de votre navigateur : Google, Apple, Mozilla ou Microsoft), les clés qui servent à chiffrer les messages pour ce téléphone, les sujets choisis et la langue. Rien d'autre : ni compte, ni nom, ni adresse e-mail. Les messages (rappels, résultats, grosses news) passent chiffrés par ce service de notification. Ces données sont effacées quand vous désactivez les alertes, ou dès que le service indique que l'abonnement n'existe plus. Pour limiter les abus, le nombre de changements par adresse IP est compté pour la journée, puis effacé.</p>
+
 <h2 id="extension">Extension Paddock Live Companion</h2>
-<p>L'extension de navigateur Paddock Live Companion lit seulement le cookie de formula1.com qui contient votre connexion F1 TV (<code>entitlement_token</code>, ou <code>login-session</code> sur l'ancien site). Elle l'envoie uniquement à l'appli Paddock Live installée sur votre ordinateur (adresse locale 127.0.0.1), pour activer le GPS et la télémétrie en direct. Rien n'est envoyé au serveur de Paddock Live ni à personne d'autre, et l'extension ne lit aucune autre page, aucun historique ni aucune autre donnée. Elle garde seulement, dans le navigateur, la dernière connexion transmise pour ne pas la renvoyer inutilement.</p>
+<p>L'extension de navigateur Paddock Live Companion lit seulement le cookie de formula1.com qui contient votre connexion F1 TV (<code>entitlement_token</code>, ou <code>login-session</code> sur l'ancien site). Elle l'envoie uniquement à l'appli Paddock Live installée sur votre ordinateur (adresse locale 127.0.0.1), pour activer le GPS et la télémétrie en direct. Quand vous ouvrez la version web (app.paddocklive.app), elle la donne aussi à cette page, qui l'envoie au relais du serveur de Paddock Live pour ouvrir votre propre connexion au direct de la F1 (GPS et télémétrie de votre abonnement) : le relais la garde en mémoire le temps de la séance, ne l'enregistre pas et ne l'utilise pour personne d'autre. Elle n'est envoyée nulle part ailleurs, et l'extension ne lit aucune autre page, aucun historique ni aucune autre donnée. Elle garde seulement, dans le navigateur, la dernière connexion transmise pour ne pas la renvoyer inutilement. La version web garde elle aussi cette connexion dans votre navigateur (stockage du site app.paddocklive.app), pour ne pas la redemander à chaque ouverture : « Se déconnecter de F1 TV sur cet appareil » l'efface.</p>
 
 <h2>Questions et suggestions</h2>
 <p>Le formulaire « Une question, une idée ? » (appli : Réglages → À propos ; site : FAQ) envoie au créateur de Paddock Live votre message, les captures ou vidéos que vous y joignez, le contact que vous laissez (facultatif : e-mail ou pseudo, seulement pour vous répondre), et pour l'appli sa version et le système de l'ordinateur. Ces messages sont gardés sur le serveur de Paddock Live jusqu'à ce que le créateur les supprime (500 au plus ; les pièces jointes les plus anciennes sont effacées quand la place manque). Votre adresse IP sert seulement à limiter le nombre d'envois par jour.</p>
@@ -79,7 +84,7 @@
 
 <section id="en" lang="en">
 <h1><span>Paddock Live</span>: Privacy Policy</h1>
-<p class="date">Last updated: October 22, 2026</p>
+<p class="date">Last updated: October 27, 2026</p>
 
 <p>Paddock Live is a free desktop application that shows live Formula 1 sessions (timing, team radio, news) and helps prepare social media posts. It runs on the user's own computer.</p>
 
@@ -121,13 +126,16 @@
 <p>The app sends anonymous counters (names of features used and numbers, device type, operating system, version, technical errors stripped of any address, folder or e-mail). They contain no identifier, content, e-mail address or social media account data, and are only used to improve the app.</p>
 
 <h2>Translation and transcription</h2>
-<p>News texts and team radio (public Formula 1 content) may be sent to the Paddock Live server to be translated or transcribed. No personal data is attached.</p>
+<p>News texts and team radio (public Formula 1 content) may be sent to the Paddock Live server to be translated or transcribed. No personal data is attached: to limit abuse, only the device's IP address (for IPv6, its /64 block) is counted for the day, then deleted the following night (27 hours at most). For translation, the server only passes these texts on to Anthropic's Claude models.</p>
 
 <h2>Online predictions with friends</h2>
 <p>If you create or join an online predictions group, the group name, nicknames and predictions (pole and podium) are stored on the Paddock Live server, with a token that reserves each nickname for the browser or app that chose it. Anyone with the group link can see its predictions and standings. Don't use your full name if you'd rather not. Predictions made on your computer, outside an online group, stay on your computer.</p>
 
+<h2 id="alerts-en">Phone alerts</h2>
+<p>If you turn on alerts on the <a href="/alertes/">paddocklive.app/alertes</a> page, the Paddock Live server keeps your phone's notification address (provided by your browser's push service: Google, Apple, Mozilla or Microsoft), the keys used to encrypt messages for that phone, the chosen topics and the language. Nothing else: no account, name or email address. Messages (reminders, results, big news) travel encrypted through that push service. This data is deleted when you turn alerts off, or as soon as the service reports that the subscription no longer exists. To limit abuse, the number of changes per IP address is counted for the day, then deleted.</p>
+
 <h2 id="extension-en">Paddock Live Companion extension</h2>
-<p>The Paddock Live Companion browser extension only reads the formula1.com cookie that holds your F1 TV sign-in (<code>entitlement_token</code>, or <code>login-session</code> on the older site). It only sends it to the Paddock Live app installed on your computer (local address 127.0.0.1), to enable live GPS and telemetry. Nothing is sent to the Paddock Live server or to anyone else, and the extension reads no other page, history or data. It only keeps, in the browser, the last sign-in it sent so it does not send it again needlessly.</p>
+<p>The Paddock Live Companion browser extension only reads the formula1.com cookie that holds your F1 TV sign-in (<code>entitlement_token</code>, or <code>login-session</code> on the older site). It only sends it to the Paddock Live app installed on your computer (local address 127.0.0.1), to enable live GPS and telemetry. When you open the web version (app.paddocklive.app), it also hands it to that page, which sends it to the Paddock Live server's relay to open your own connection to the F1 live feed (GPS and telemetry from your subscription): the relay keeps it in memory for the session, does not store it and uses it for no one else. It is sent nowhere else, and the extension reads no other page, history or data. It only keeps, in the browser, the last sign-in it sent so it does not send it again needlessly. The web version also keeps this sign-in in your browser (app.paddocklive.app site storage) so it does not ask for it on every visit: "Sign out of F1 TV on this device" deletes it.</p>
 
 <h2>Questions and suggestions</h2>
 <p>The “A question, an idea?” form (app: Settings → About; website: FAQ) sends the creator of Paddock Live your message, the screenshots or videos you attach, the contact you leave (optional: email or nickname, only to reply to you), and for the app its version and the computer's operating system. These messages are kept on the Paddock Live server until the creator deletes them (500 at most; the oldest attachments are deleted when space runs out). Your IP address is only used to limit the number of messages per day.</p>

@@ -6,48 +6,34 @@ import { WebSocketServer } from 'ws';
 import { Hub } from './hub.js';
 import { LiveSource } from './live.js';
 import { ReplaySource, seasonIndex } from './replay.js';
-import { parseRaceControl } from '../shared/race-story.js';
-import { HttpError } from './net.js';
-import { circuit, loops, zones } from './circuits.js';
-import { season, raceLaps } from './season.js';
-import { createScheduler } from './post-schedule.js';
-import { forecast } from './forecast.js';
-import { seasonStats, archiveError } from './race-stats.js';
-import { seasonTech } from './fia-tech.js';
-import { fiaDocuments, fiaPdf, fiaPdfUrl } from './fia.js';
-import { officialGrid } from './fia-grid.js';
+import { HttpError, request } from './net.js';
+import { circuit } from './circuits.js';
+import { season, SEASON_URL } from './season.js';
 import { findSessionContent, playback, proxy as f1tvProxy, allowHost, resolvePlaylist, localTarget } from './f1tv.js';
 import { Recorder, listRecordings, pruneRecordings, recordingPath } from './recorder.js';
-import { ROOT, DATA_DIR, settings, getConfig, saveConfig, parseF1tvToken, tokenInfo } from './config.js';
-import { createLan, isLoopback } from './lan.js';
+import { ROOT, settings, getConfig, saveConfig, parseF1tvToken, tokenInfo } from './config.js';
+import { createLan, isLoopback, qrSvg } from './lan.js';
 import { getTranslations, addTranslations } from './translations.js';
 import { compareLaps } from './compare.js';
-import { weekendTyres } from './tyres.js';
-import { circuitRecords } from './records.js';
-import { circuitInfo } from '../shared/circuits-info.js';
-import { startNews, refreshNews, newsSnapshot, onNews, addNewsSource, removeNewsSource, setNewsSourceEnabled, setClusterTitle } from './news.js';
+import { startNews, refreshNews, newsSnapshot, onNews, setNewsSourceEnabled } from './news.js';
 import { parseChangelog } from '../shared/changelog.js';
 import { buildIcs } from '../shared/ics.js';
-import { headshot } from './headshots.js';
 import { osmTile } from './tiles.js';
-import { predictionsView, savePrediction, pronosOnline } from './predict.js';
+import { pronosOnline } from './predict.js';
 import { lightsInfo, saveLights, hueDiscover, huePair, lightDevices, setLights } from './lights.js';
 import { exportServerSettings, importServerSettings } from './backup.js';
-import { creatorEnabled, setCreator, savePostImage, openPostsDir } from './creator.js';
-import { studioInfo, enableStudio, disableStudio, syncStudio, startStudioSync, studioRewrite, studioTrack, studioDrafts } from './studio-sync.js';
-import { postHistory, recordPost, removePost, statsOfPosts, importPosts } from './post-history.js';
-import { accountsInfo, saveAccount, tiktokLoginUrl, tiktokCallback, youtubeLoginUrl, youtubeCallback, metaLoginUrl, metaCallback, publish as publishSocial } from './social-publish.js';
+import { creatorEnabled, setCreator } from './creator.js';
+import { studioInfo, enableStudio, disableStudio, restoreAccounts, syncStudio, startStudioSync } from './studio-sync.js';
+import { accountsInfo, saveAccount, tiktokLoginUrl, tiktokCallback, youtubeLoginUrl, youtubeCallback, metaLoginUrl, metaCallback } from './social-publish.js';
 import { startAutoRenew, renew as renewF1tv, sessionOf, state as renewState, resetRenewState } from './f1tv-auth.js';
 import { localHost, sameSiteRequest, decodePath, extensionRequest, EXTENSION_ROUTES } from './guard.js';
 import { stats, startStats, sendFeedback, sendFeedbackFile } from './stats.js';
-import { archivePath, sendArchiveFile, archiveJSON } from './archive.js';
+import { archivePath, sendArchiveFile, archiveError } from './archive.js';
 import { feedDiag } from './feed-diag.js';
 import { probeState } from './feed-probe.js';
 import { cloud, createCloudTranslator } from './cloud-translate.js';
 import { cloudRadio } from './cloud-transcribe.js';
 import { createNewsTranslator, startNewsTranslation } from './news-translate.js';
-import { createArticleReader } from './article.js';
-import { createNewsSummarizer } from './news-summary.js';
 
 let lan = null;   // accès depuis un téléphone / une tablette du réseau local
 
@@ -81,16 +67,6 @@ const live = new LiveSource(hub, () => {
 }, recorder);
 const replay = new ReplaySource(hub);
 const feedDiags = new Map();   // diagnostic des données F1, par séance
-// Articles de l'Actu lus dans l'appli (server/article.js)
-const articles = createArticleReader({ items: () => newsSnapshot().items });
-const summarize = createNewsSummarizer({ articles });
-// Publications programmées : publiées à l'heure choisie tant que l'appli est ouverte
-const scheduler = createScheduler({
-  dir: path.join(DATA_DIR, 'scheduled-posts'),
-  publish: (net, body) => { if (!creatorEnabled()) throw new Error('Mode créateur désactivé'); return publishSocial(net, body); },
-  record: recordPost,
-});
-
 // Actualités traduites d'avance (server/news-translate.js)
 const newsTranslator = createNewsTranslator({
   // File d'attente à part : la traduction de fond ne retarde jamais ce qui est à l'écran
@@ -99,11 +75,6 @@ const newsTranslator = createNewsTranslator({
   known: getTranslations,
   store: addTranslations,
   lang: () => getConfig().newsTranslateLang || null,
-});
-// Actus regroupées sur leurs titres traduits : le même article publié en plusieurs langues réuni
-setClusterTitle((it) => {
-  const lang = getConfig().newsTranslateLang;
-  return lang && it.lang !== lang ? getTranslations(lang)[it.title]?.t : null;
 });
 for (const h of getConfig().radioHosts || []) allowHost(h);
 
@@ -131,6 +102,20 @@ function yearOf(v) {
 function sendJSON(res, status, obj) {
   res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
   res.end(JSON.stringify(obj));
+}
+
+// Données lues sur le serveur de Paddock Live (mêmes adresses que la version web : /api/x -> /live/api/x), relayées
+// telles quelles : une correction y arrive sans mise à jour de l'appli
+async function fromServer(res, url, path = `/live${url.pathname}`) {
+  let r;
+  try {
+    r = await request(`${SEASON_URL}${path}${url.search}`, { timeout: 30000 });
+  } catch (err) {
+    return sendJSON(res, 503, { error: `serveur de Paddock Live injoignable (${err.message})` });
+  }
+  const keep = ['content-type', 'content-disposition', 'cache-control'].filter((h) => r.headers[h]);
+  res.writeHead(r.status, Object.fromEntries(keep.map((h) => [h, r.headers[h]])));
+  res.end(r.body);
 }
 
 // Requête mal formée : erreur 400 (et non 500)
@@ -184,6 +169,9 @@ async function handleApi(req, res, url) {
   if (!sameSiteRequest(req.headers) && !fromExtension) return sendJSON(res, 403, { error: 'Origine refusée' });
 
   switch (route) {
+    // QR code de la page des alertes du téléphone (paddocklive.app/alertes), affiché dans les Réglages
+    case 'GET /api/qr/alertes':
+      return sendJSON(res, 200, { url: 'https://paddocklive.app/alertes/', svg: qrSvg('https://paddocklive.app/alertes/') });
     case 'GET /api/lan':
     case 'POST /api/lan': {
       // Réglage de l'accès réseau : uniquement depuis cet ordinateur
@@ -213,26 +201,20 @@ async function handleApi(req, res, url) {
       return sendJSON(res, 200, await compareLaps(hub, { a, b, until: Math.min(until, hub.clock()), la: lapNo('la'), lb: lapNo('lb') }));
     }
 
-    // Pneus du week-end : relais des séances précédentes, choix et communiqués de Pirelli
-    case 'GET /api/tyres': {
-      const p = url.searchParams.get('path') || '';
-      if (!/^\d{4}\/[\w\-./]+\/$/.test(p)) return sendJSON(res, 400, { error: 'Séance invalide' });
-      const until = Number(url.searchParams.get('until')) || Date.now();
-      const hint = Object.fromEntries(['name', 'location', 'country', 'session'].map((k) => [k, (url.searchParams.get(k) || '').slice(0, 80)]));
-      try {
-        return sendJSON(res, 200, await weekendTyres(p, until, hint));
-      } catch (err) {
-        return sendJSON(res, /introuvable/i.test(err.message) ? 404 : 502, { error: err.message });
-      }
-    }
-
-    // Pole et meilleur tour en course des éditions précédentes sur ce circuit
-    case 'GET /api/records': {
-      const key = Number(url.searchParams.get('key'));
-      const year = yearOf(url.searchParams.get('year'));
-      if (!key) return sendJSON(res, 400, { error: 'Paramètre key manquant' });
-      return sendJSON(res, 200, await circuitRecords(key, year));
-    }
+    // Pneus du week-end, records du circuit, météo, documents FIA (et leurs PDF), photos des pilotes, statistiques
+    // détaillées et documents FIA de la Saison, zones et boucles de chronométrage du circuit : lus sur le serveur de
+    // Paddock Live
+    case 'GET /api/tyres':
+    case 'GET /api/records':
+    case 'GET /api/forecast':
+    case 'GET /api/fia-docs':
+    case 'GET /api/fia-pdf':
+    case 'GET /api/headshot':
+    case 'GET /api/season/stats':
+    case 'GET /api/season/fia':
+    case 'GET /api/zones':
+    case 'GET /api/loops':
+      return fromServer(res, url);
 
     case 'GET /api/circuit': {
       const key = Number(url.searchParams.get('key'));
@@ -240,22 +222,6 @@ async function handleApi(req, res, url) {
       if (!key) return sendJSON(res, 400, { error: 'Paramètre key manquant' });
       const data = await circuit(key, year);
       return data ? sendJSON(res, 200, data) : sendJSON(res, 404, { error: 'Tracé indisponible' });
-    }
-
-    case 'GET /api/zones': {
-      const key = Number(url.searchParams.get('key'));
-      const year = yearOf(url.searchParams.get('year'));
-      if (!key) return sendJSON(res, 400, { error: 'Paramètre key manquant' });
-      const data = await zones(key, year);
-      return data ? sendJSON(res, 200, data) : sendJSON(res, 404, { error: 'Zones indisponibles' });
-    }
-
-    case 'GET /api/loops': {
-      const key = Number(url.searchParams.get('key'));
-      const year = yearOf(url.searchParams.get('year'));
-      if (!key) return sendJSON(res, 400, { error: 'Paramètre key manquant' });
-      const data = await loops(key, year);
-      return data ? sendJSON(res, 200, data) : sendJSON(res, 404, { error: 'Calibration indisponible' });
     }
 
     case 'GET /api/changelog': {
@@ -270,14 +236,10 @@ async function handleApi(req, res, url) {
     case 'POST /api/news/refresh':
       refreshNews();
       return sendJSON(res, 200, { ok: true });
-    // Article d'une actualité en mode lecture : ?u=<lien de l'article> -> titre, photo, texte
-    case 'GET /api/news/article': {
-      try {
-        return sendJSON(res, 200, await articles.get(url.searchParams.get('u') || ''));
-      } catch (err) {
-        return sendJSON(res, err.status || 502, { error: err.message });
-      }
-    }
+    // Article d'une actualité en mode lecture : ?u=<lien de l'article> -> titre, photo, texte (lu par le serveur de
+    // Paddock Live)
+    case 'GET /api/news/article':
+      return fromServer(res, url, '/news/api/article');
 
     // Traduction d'avance des actualités : { lang: 'fr' | 'en' | null } (null = désactivée)
     case 'POST /api/news/translate': {
@@ -290,13 +252,7 @@ async function handleApi(req, res, url) {
     }
     case 'POST /api/news/sources': {
       const body = await readBody(req);
-      try {
-        if (body.add) return sendJSON(res, 200, { ok: true, source: await addNewsSource(body.add, body.cat, body.lang) });
-        if (body.remove) { removeNewsSource(String(body.remove)); return sendJSON(res, 200, { ok: true }); }
-        if (body.toggle) { setNewsSourceEnabled(String(body.toggle), !!body.on); return sendJSON(res, 200, { ok: true }); }
-      } catch (err) {
-        return sendJSON(res, 400, { error: err.message });
-      }
+      if (body.toggle) { setNewsSourceEnabled(String(body.toggle), !!body.on); return sendJSON(res, 200, { ok: true }); }
       return sendJSON(res, 400, { error: 'Requête invalide' });
     }
 
@@ -310,11 +266,6 @@ async function handleApi(req, res, url) {
       const year = yearOf(url.searchParams.get('year'));
       const d = await season(year);
       return sendJSON(res, 200, { year, races: d.races.map((r) => ({ round: r.round, name: r.name, locality: r.locality, country: r.country, circuitId: r.circuitId, lat: r.lat, lon: r.lon, sessions: r.sessions })) });
-    }
-    // Météo prévue sur un circuit (accueil, onglet Météo)
-    case 'GET /api/forecast': {
-      const days = await forecast(url.searchParams.get('lat'), url.searchParams.get('lon'));
-      return sendJSON(res, 200, { days, tz: days.tz, current: days.current, hours: days.hours || [] });
     }
     case 'GET /api/calendar.ics': {
       const year = yearOf(url.searchParams.get('year'));
@@ -359,98 +310,19 @@ async function handleApi(req, res, url) {
       return sendJSON(res, 200, importServerSettings(await readBody(req)));
     }
 
-    // Mode créateur : publication sur les réseaux sociaux (comptes, connexion TikTok, envoi)
+    // Mode créateur : comptes des réseaux sociaux (connexions) et page web du Studio, qui prépare et publie les posts
     case 'GET /api/social/accounts':
     case 'POST /api/social/accounts':
     case 'POST /api/social/tiktok/login':
     case 'POST /api/social/meta/login':
     case 'POST /api/social/tiktok2/login':
     case 'POST /api/social/youtube/login':
-    case 'POST /api/social/publish':
     case 'GET /api/social/studio':
-    case 'POST /api/social/studio':
-    case 'GET /api/social/stats':
-    case 'GET /api/social/history':
-    case 'GET /api/social/grid':
-    case 'POST /api/social/summary':
-    case 'POST /api/social/rewrite':
-    case 'POST /api/social/links':
-    case 'GET /api/social/laps':
-    case 'GET /api/social/records':
-    case 'GET /api/social/racecontrol':
-    case 'GET /api/social/forecast':
-    case 'GET /api/social/schedule':
-    case 'POST /api/social/schedule':
-    case 'POST /api/social/schedule/cancel':
-    case 'POST /api/social/history':
-    case 'POST /api/social/history/remove':
-    case 'POST /api/social/history/import':
-    case 'GET /api/social/drafts':
-    case 'GET /api/social/draft':
-    case 'POST /api/social/drafts':
-    case 'POST /api/social/drafts/remove': {
+    case 'POST /api/social/studio': {
       if (!isLoopback(req.socket.remoteAddress) || !creatorEnabled()) return sendJSON(res, 403, { error: 'Mode créateur désactivé' });
       try {
         if (route === 'GET /api/social/accounts') return sendJSON(res, 200, accountsInfo());
         if (route === 'GET /api/social/studio') return sendJSON(res, 200, studioInfo());
-        if (route === 'GET /api/social/history') return sendJSON(res, 200, { items: await postHistory() });
-        if (route === 'GET /api/social/stats') return sendJSON(res, 200, await statsOfPosts());
-        // Grille de départ officielle (FIA) pour les posts d'avant-course
-        if (route === 'GET /api/social/grid') {
-          const q = url.searchParams;
-          const meeting = { name: q.get('name') || '', country: q.get('country') || '', location: q.get('location') || '' };
-          if (!Number(q.get('year')) || !meeting.name) return sendJSON(res, 400, { error: 'Paramètres year et name requis' });
-          return sendJSON(res, 200, { grid: await officialGrid(Number(q.get('year')), meeting, { sprint: q.get('sprint') === '1' }) });
-        }
-        // Course tour par tour (graphique des positions, vidéo animée, rythme des notes)
-        if (route === 'GET /api/social/laps') return sendJSON(res, 200, await raceLaps(yearOf(url.searchParams.get('year')), Math.max(1, Math.min(30, Number(url.searchParams.get('round')) || 1))));
-        // Records du circuit d'une manche (le saviez-vous) : circuit retrouvé dans les archives de la F1
-        if (route === 'GET /api/social/records') {
-          const year = yearOf(url.searchParams.get('year'));
-          const race = (await season(year)).races.find((r) => r.round === Number(url.searchParams.get('round')));
-          if (!race) return sendJSON(res, 404, { error: 'Manche inconnue' });
-          let key = circuitInfo(race.circuitId)?.key || null;
-          let failed = null;
-          for (const y of key ? [] : [year, year - 1, year - 2]) {
-            let idx = [];
-            try { idx = await seasonIndex(y); } catch (err) { failed ||= err; }
-            key = idx.find((m) => m.name === race.name && m.circuitKey)?.circuitKey || null;
-            if (key) break;
-          }
-          if (!key) return sendJSON(res, 404, { error: failed ? archiveError(year, failed) : 'Circuit introuvable dans les archives de la F1' });
-          return sendJSON(res, 200, await circuitRecords(key, year));
-        }
-        // Direction de course de la course (SC, VSC, drapeaux, pénalités) : vidéo animée
-        if (route === 'GET /api/social/racecontrol') {
-          const year = yearOf(url.searchParams.get('year'));
-          const race = (await season(year)).races.find((r) => r.round === Number(url.searchParams.get('round')));
-          if (!race) return sendJSON(res, 404, { error: 'Manche inconnue' });
-          const idx = await seasonIndex(year);
-          const ses = idx.find((m) => m.name === race.name)?.sessions.find((s) => s.type === 'Race' && !/sprint/i.test(s.name));
-          if (!ses) return sendJSON(res, 404, { error: 'Course introuvable dans les archives de la F1' });
-          return sendJSON(res, 200, { messages: parseRaceControl(await archiveJSON(`${ses.path}RaceControlMessages.json`, { timeout: 30000 })) });
-        }
-        // Météo prévue sur le circuit (programme du week-end)
-        if (route === 'GET /api/social/forecast') return sendJSON(res, 200, { days: await forecast(url.searchParams.get('lat'), url.searchParams.get('lon')) });
-        // Publications programmées
-        if (route === 'GET /api/social/schedule') return sendJSON(res, 200, { items: scheduler.list() });
-        if (route === 'POST /api/social/schedule') return sendJSON(res, 200, { item: scheduler.add(await readBody(req, 150e6)) });
-        if (route === 'POST /api/social/schedule/cancel') { scheduler.cancel((await readBody(req, 1e4)).id); return sendJSON(res, 200, { items: scheduler.list() }); }
-        // Résumé détaillé d'une news en points clés (images suivantes du post)
-        // Post écrit à la main : titre, résumé et points clés rédigés par l'IA à partir du texte
-        // Texte avec ses liens suivis (pages des réseaux ouvertes avec le texte : X…)
-        if (route === 'POST /api/social/links') { const b = await readBody(req, 2e4); return sendJSON(res, 200, await studioTrack(String(b.net || ''), String(b.text || ''), '', { title: String(b.title || '').slice(0, 80) })); }
-        if (route === 'POST /api/social/rewrite') return sendJSON(res, 200, await studioRewrite((await readBody(req, 2e4)).text));
-        if (route === 'POST /api/social/summary') return sendJSON(res, 200, { points: await summarize(String((await readBody(req, 1e4)).link || '')) });
-        if (route === 'POST /api/social/history') return sendJSON(res, 200, { items: await recordPost((await readBody(req, 1e5)).entry) });
-        if (route === 'POST /api/social/history/remove') return sendJSON(res, 200, { items: await removePost((await readBody(req, 1e4)).key) });
-        // Posts publiés hors de Paddock Live : relus sur les comptes reliés (page web)
-        if (route === 'POST /api/social/history/import') return sendJSON(res, 200, await importPosts());
-        // Brouillons de posts (gardés par la page web, partagés avec le Studio)
-        if (route === 'GET /api/social/drafts') return sendJSON(res, 200, await studioDrafts('drafts'));
-        if (route === 'GET /api/social/draft') return sendJSON(res, 200, await studioDrafts(`draft?id=${encodeURIComponent(url.searchParams.get('id') || '')}`));
-        if (route === 'POST /api/social/drafts') return sendJSON(res, 200, await studioDrafts('drafts', await readBody(req, 4e6)));
-        if (route === 'POST /api/social/drafts/remove') return sendJSON(res, 200, await studioDrafts('drafts/remove', await readBody(req, 1e4)));
         if (route === 'POST /api/social/studio') {
           const b = await readBody(req, 1e4);
           return sendJSON(res, 200, b.off ? await disableStudio() : b.sync ? (await syncStudio({ force: true }), studioInfo()) : await enableStudio(String(b.code || '')));
@@ -459,24 +331,20 @@ async function handleApi(req, res, url) {
         if (route === 'POST /api/social/tiktok/login') return sendJSON(res, 200, { url: tiktokLoginUrl(`http://127.0.0.1:${req.socket.localPort}`) });
         if (route === 'POST /api/social/tiktok2/login') return sendJSON(res, 200, { url: tiktokLoginUrl(`http://127.0.0.1:${req.socket.localPort}`, true) });
         if (route === 'POST /api/social/youtube/login') return sendJSON(res, 200, { url: youtubeLoginUrl(`http://127.0.0.1:${req.socket.localPort}`) });
-        const body = await readBody(req, route === 'POST /api/social/publish' ? 120e6 : 1e6);
-        if (route === 'POST /api/social/accounts') {
-          const info = await saveAccount(String(body.network || ''), body);
-          syncStudio();   // page web du créateur : comptes à jour
-          return sendJSON(res, 200, info);
-        }
-        return sendJSON(res, 200, await publishSocial(String(body.network || ''), body));
+        const body = await readBody(req, 1e6);
+        const info = await saveAccount(String(body.network || ''), body);
+        syncStudio();   // page web du créateur : comptes à jour
+        return sendJSON(res, 200, info);
       } catch (err) {
         return sendJSON(res, 400, { error: err.message });
       }
     }
-
-    // Traduction par le serveur Paddock Live (Workers AI) : { to, items: [{ text, from }] } -> { out }
+    // Traduction par le serveur Paddock Live : { to, items: [{ text, from, kind? }] } -> { out }
     case 'POST /api/translate': {
       const body = await readBody(req, 128e3);
       if (!Array.isArray(body.items) || typeof body.to !== 'string') return sendJSON(res, 400, { error: 'Requête invalide' });
       if (!cloud.available()) return sendJSON(res, 503, { error: 'Traduction en ligne indisponible' });
-      const out = await Promise.all(body.items.slice(0, 80).map((it) => cloud.translate(it?.text, it?.from, body.to)));
+      const out = await Promise.all(body.items.slice(0, 80).map((it) => cloud.translate(it?.text, it?.from, body.to, it?.kind)));
       // Plafond du jour atteint ou serveur injoignable pendant l'envoi : l'interface traduit elle-même
       if (!cloud.available()) return sendJSON(res, 503, { error: 'Traduction en ligne indisponible', out });
       return sendJSON(res, 200, { out });
@@ -495,6 +363,20 @@ async function handleApi(req, res, url) {
       }
     }
 
+    // Son des caméras embarquées (fenêtre WAV de 30 s) : retranscrit par le serveur Paddock Live, avec l'heure de chaque
+    // phrase -> { segments }
+    case 'POST /api/radio-window': {
+      const body = await readRaw(req, 2 * 1024 * 1024);
+      let r;
+      try {
+        r = await request(`${SEASON_URL}/live/api/radio-window`, { method: 'POST', headers: { 'Content-Type': 'audio/wav', 'Content-Length': body.length }, body, timeout: 60000 });
+      } catch (err) {
+        return sendJSON(res, 503, { error: `serveur de Paddock Live injoignable (${err.message})` });
+      }
+      res.writeHead(r.status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+      return res.end(r.body);
+    }
+
     // Statistiques d'utilisation anonymes : l'accord se donne sur l'ordinateur ; toutes les
     // fenêtres (téléphone compris) signalent les fonctions utilisées si c'est accepté
     case 'GET /api/stats':
@@ -511,32 +393,21 @@ async function handleApi(req, res, url) {
       return sendJSON(res, 200, { added: stats.fromClient(body.events, body.device, body.errors) });
     }
 
-    // Mode créateur (générateur de posts) : depuis cet ordinateur uniquement
+    // Mode créateur : depuis cet ordinateur uniquement
     case 'GET /api/creator':
       return sendJSON(res, 200, { enabled: isLoopback(req.socket.remoteAddress) && creatorEnabled() });
-    case 'POST /api/creator':
-    case 'POST /api/posts/save':
-    case 'POST /api/posts/open': {
+    case 'POST /api/creator': {
       if (!isLoopback(req.socket.remoteAddress)) return sendJSON(res, 403, { error: 'Réglage disponible uniquement sur l\'ordinateur' });
-      const body = await readBody(req, route === 'POST /api/posts/save' ? 120e6 : 1e6);
-      if (route === 'POST /api/creator') {
-        if (body.off) return sendJSON(res, 200, { enabled: setCreator(null, false) });
-        return setCreator(body.code) ? sendJSON(res, 200, { enabled: true }) : sendJSON(res, 403, { error: 'Code incorrect' });
-      }
-      if (!creatorEnabled()) return sendJSON(res, 403, { error: 'Mode créateur désactivé' });
-      try {
-        if (route === 'POST /api/posts/open') return sendJSON(res, 200, { dir: openPostsDir(body.folder) });
-        return sendJSON(res, 200, { dir: savePostImage(body.folder, body.name, body.data) });
-      } catch (err) {
-        return sendJSON(res, 400, { error: err.message });
-      }
+      const body = await readBody(req, 1e6);
+      if (body.off) return sendJSON(res, 200, { enabled: setCreator(null, false) });
+      if (!setCreator(body.code)) return sendJSON(res, 403, { error: 'Code incorrect' });
+      return sendJSON(res, 200, { enabled: true, restored: await restoreAccounts(body.code) });
     }
 
-    // Pronostics entre amis (pole et podium de chaque Grand Prix)
-    case 'GET /api/predictions': {
-      const year = yearOf(url.searchParams.get('year'));
-      return sendJSON(res, 200, await predictionsView(year, url.searchParams.get('me') || ''));
-    }
+    // Pronostics entre amis (pole et podium de chaque Grand Prix) : dans un groupe en ligne seulement, comme la
+    // version web (anciens pronostics gardés sur l'ordinateur : plus lus)
+    case 'GET /api/predictions':
+      return sendJSON(res, 200, { online: true });
     // Groupe en ligne : g = identifiant du groupe (création : POST sans g)
     case 'GET /api/predictions/online': {
       const r = await pronosOnline('GET', url.searchParams.get('g') || '', { query: `?${new URLSearchParams({ year: yearOf(url.searchParams.get('year')), tok: url.searchParams.get('tok') || '' })}` });
@@ -562,15 +433,6 @@ async function handleApi(req, res, url) {
       const r = await sendFeedbackFile(url.searchParams, String(req.headers['content-type'] || ''), await readRaw(req, 40e6));
       return sendJSON(res, r.status, r.data);
     }
-    case 'POST /api/predictions': {
-      const body = await readBody(req);
-      try {
-        return sendJSON(res, 200, await savePrediction({ ...body, year: yearOf(body.year) }));
-      } catch (err) {
-        return sendJSON(res, 400, { error: err.message });
-      }
-    }
-
     // Fond de carte du radar météo (OpenStreetMap, en cache)
     case 'GET /api/tile': {
       const [z, x, y] = ['z', 'x', 'y'].map((k) => Number(url.searchParams.get(k)));
@@ -581,46 +443,6 @@ async function handleApi(req, res, url) {
       } catch (err) {
         return sendJSON(res, 404, { error: err.message });
       }
-    }
-
-    // Photos des pilotes (site de la F1), en cache
-    case 'GET /api/headshot': {
-      try {
-        const img = await headshot(url.searchParams.get('u') || '');
-        res.writeHead(200, { 'Content-Type': img.type, 'Cache-Control': 'max-age=604800' });
-        return res.end(img.body);
-      } catch (err) {
-        return sendJSON(res, err.message === 'Photo invalide' ? 400 : 404, { error: err.message });
-      }
-    }
-
-    case 'GET /api/season/stats': {
-      const year = yearOf(url.searchParams.get('year'));
-      return sendJSON(res, 200, await seasonStats(year));
-    }
-
-    case 'GET /api/season/fia': {
-      const year = yearOf(url.searchParams.get('year'));
-      return sendJSON(res, 200, await seasonTech(year));
-    }
-
-    case 'GET /api/fia-docs': {
-      const year = Number(url.searchParams.get('year'));
-      const name = url.searchParams.get('name');
-      if (!year || !name) return sendJSON(res, 400, { error: 'Paramètres year et name requis' });
-      const meeting = { name, country: url.searchParams.get('country'), location: url.searchParams.get('location') };
-      return sendJSON(res, 200, await fiaDocuments(year, meeting));
-    }
-
-    case 'GET /api/fia-pdf': {
-      const pdf = fiaPdfUrl(url.searchParams.get('url'));
-      if (!pdf) return sendJSON(res, 400, { error: 'Adresse de document FIA invalide' });
-      const body = await fiaPdf(pdf);
-      // inline : affiché (appli, navigateur) au lieu d'être téléchargé
-      const name = decodeURIComponent(pdf.split('/').pop()).replace(/[^\w .-]/g, '_');
-      res.writeHead(200, { 'Content-Type': 'application/pdf', 'Content-Length': body.length, 'Content-Disposition': `inline; filename="${name}"`, 'Cache-Control': 'private, max-age=86400' });
-      res.end(body);
-      return;
     }
 
     case 'GET /api/f1tv/content': {
@@ -673,10 +495,13 @@ async function handleApi(req, res, url) {
 
     // Diagnostic des données F1 : flux cachés testés en direct (server/feed-probe.js)
     case 'GET /api/feeds/probe':
+      if (!isLoopback(req.socket.remoteAddress) || !creatorEnabled()) return sendJSON(res, 403, { error: 'Mode créateur désactivé' });
       return sendJSON(res, 200, probeState());
 
     // Diagnostic des données F1 : toute la séance lue dans les archives (gardé pour la session)
     case 'GET /api/feeds/diag': {
+      // Mode créateur, sur l'ordinateur seulement : la lecture d'une séance entière peut prendre plusieurs secondes
+      if (!isLoopback(req.socket.remoteAddress) || !creatorEnabled()) return sendJSON(res, 403, { error: 'Mode créateur désactivé' });
       const p = url.searchParams.get('path') || '';
       if (!/^\d{4}\/[\w\-./]+\/$/.test(p) || p.includes('..')) return sendJSON(res, 400, { error: 'Chemin invalide' });
       try {
@@ -794,10 +619,18 @@ async function handleApi(req, res, url) {
           return sendJSON(res, 400, { error: expiredMsg });
         }
       } else saveConfig({ f1tvToken: token });
+      // Jeton reçu (extension : cookie du site F1 TV si celui du compte a expiré) échangé aussitôt contre le jeton
+      // du compte, celui que donne la fenêtre de connexion et que la F1 accepte pour ses archives ; sinon gardé
+      if (sessionOf(getConfig().f1tvToken)) await renewF1tv({ force: true, swap: true }).catch(() => {});
       resetRenewState();
       if (hub.source.mode === 'live') live.restart();
       return sendJSON(res, 200, authInfo());
     }
+
+    // GPS laissé à un autre appareil du même compte F1 TV (version web…) : repris ici
+    case 'POST /api/live/here':
+      if (hub.source.mode === 'live') live.here();
+      return sendJSON(res, 200, { ok: true });
 
     case 'DELETE /api/auth':
       saveConfig({ f1tvToken: null });
@@ -827,7 +660,11 @@ async function handler(req, res) {
   if (oauthNet && isLoopback(req.socket.remoteAddress)) {
     const [name, callback] = oauthNet;
     let msg = `Compte ${name} connecté. Vous pouvez fermer cet onglet et revenir à Paddock Live.`;
-    try { if (!creatorEnabled()) throw new Error('Mode créateur désactivé'); await callback(url.searchParams); } catch (err) { msg = `Connexion ${name} impossible : ${err.message}`; }
+    try {
+      if (!creatorEnabled()) throw new Error('Mode créateur désactivé');
+      await callback(url.searchParams);
+      syncStudio();   // page web du créateur : compte reconnecté envoyé tout de suite
+    } catch (err) { msg = `Connexion ${name} impossible : ${err.message}`; }
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
     res.end(`<!doctype html><meta charset="utf-8"><title>Paddock Live</title><body style="font:16px system-ui;background:#0b0d12;color:#f3f5f9;display:grid;place-items:center;height:90vh"><p>${msg.replace(/[<>&]/g, '')}</p></body>`);
     return;

@@ -1,6 +1,7 @@
-// Traductions des textes de la FIA (évolutions techniques), faites dans le navigateur par le
-// moteur local et conservées ici : elles servent ensuite à tous les appareils (téléphone…) et
-// ne sont jamais refaites. Une traduction « high » (modèle de langage) remplace une « light ».
+// Traductions (actualités, textes de la FIA) demandées au serveur Paddock Live par le navigateur et conservées
+// ici : elles servent ensuite à tous les appareils (téléphone…) et ne sont jamais redemandées (q « cloud »). Celles
+// faites sur l'ordinateur par les anciennes versions (q « high » ou « light ») sont retirées : refaites une fois par
+// le serveur, avec les bons termes.
 import fs from 'node:fs';
 import path from 'node:path';
 import { CACHE_DIR } from './circuits.js';
@@ -17,8 +18,8 @@ function load(lang) {
   if (!stores.has(lang)) {
     let data = {};
     try { data = JSON.parse(fs.readFileSync(file(lang), 'utf8')) || {}; } catch { /* rien encore */ }
-    // Traductions avec des caractères d'une autre écriture (anciennes versions) : retirées, refaites
-    for (const [k, v] of Object.entries(data)) if (badScript(v?.t, lang)) delete data[k];
+    // Traductions des anciennes versions, ou avec des caractères d'une autre écriture : retirées, refaites
+    for (const [k, v] of Object.entries(data)) if (v?.q !== 'cloud' || badScript(v?.t, lang)) delete data[k];
     stores.set(lang, data);
   }
   return stores.get(lang);
@@ -48,13 +49,11 @@ export function addTranslations(lang, items) {
   for (const it of items.slice(0, 200)) {
     const en = typeof it?.en === 'string' ? it.en.trim() : '';
     const t = typeof it?.t === 'string' ? it.t.trim() : '';
-    const q = it?.q === 'high' ? 'high' : 'light';
     // « __proto__ », « constructor »… : noms réservés des objets JavaScript, jamais enregistrés
     if (!en || !t || en.length > MAX_LEN || t.length > MAX_LEN || en in Object.prototype || badScript(t, lang)) continue;
-    const old = Object.hasOwn(data, en) ? data[en] : null;
-    if (old && (old.q === 'high' || q === 'light')) continue;
-    if (!old && Object.keys(data).length >= MAX_ENTRIES) break;
-    data[en] = { t, q };
+    if (Object.hasOwn(data, en)) continue;
+    if (Object.keys(data).length >= MAX_ENTRIES) break;
+    data[en] = { t, q: 'cloud' };
     n++;
   }
   if (n) scheduleSave(lang);

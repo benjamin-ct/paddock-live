@@ -2,7 +2,7 @@
 // tour, historique des pneus, secteurs et vitesses de pointe. Calculé à partir de l'historique
 // tour par tour (données dérivées) et des statistiques du chronométrage.
 import { store, versionOf, on, setFocus } from '../store.js';
-import { $, esc, api, drivers, orderedNumbers, sessionKind, teamColor, compoundInfo, fmtLap, lapSeconds, storageGet, storageSet } from '../util.js';
+import { $, esc, api, drivers, orderedNumbers, sessionKind, teamColor, compoundInfo, fmtLap, lapSeconds, storageGet, storageSet, driverOpt } from '../util.js';
 import { prefs, isFav } from '../prefs.js';
 import { renderCompare, initCompare, openCompareLap } from './compare.js';
 import { tx } from '../i18n.js';
@@ -440,7 +440,7 @@ function renderSectors() {
     return `<td class="${d === 0 ? '' : better ? 'sec-better' : 'sec-worse'}" title="${fmt(v, k)}">${txt}</td>`;
   };
   const refSel = $('#secRef');
-  const refHtml = `<option value="">Temps de chacun</option>${rows.filter((r) => dl[r.n]).map((r) => `<option value="${r.n}">Écart à ${esc(dl[r.n].Tla)}</option>`).join('')}`;
+  const refHtml = `<option value="">Temps de chacun</option>${rows.filter((r) => dl[r.n]).map((r) => `<option value="${r.n}"${driverOpt(dl[r.n], r.n)}>Écart à ${esc(dl[r.n].Tla)}</option>`).join('')}`;
   if (refSel._html !== refHtml) { refSel.innerHTML = refHtml; refSel._html = refHtml; }
   refSel.value = ref ? ref.n : '';
   $('#anaSectors').innerHTML = `${recordsStrip(rows, dl)}<table class="sector-board"><tr><th>#</th><th>Pilote</th>${cols.map(([k, label]) => `<th class="${opts.sort === k ? 'sorted' : ''}" data-sort="${k}" title="Trier">${label}</th>`).join('')}</tr>
@@ -450,14 +450,21 @@ function renderSectors() {
 }
 
 // Onglets d'analyse affichés (actifs dans leur panneau, panneau visible), où qu'ils soient
+// Données du chronométrage seules changées (plusieurs fois par seconde en course) : une fois par seconde au plus ;
+// réglages, survol, pilote suivi, taille : tout de suite
+const lastAt = {};
 export function renderAnalysis(force = false) {
-  const base = `${versionOf(['TimingData', 'TimingAppData', 'TimingStats', 'DriverList', 'RaceControlMessages', '__reset'])}|${JSON.stringify(opts)}|${highlight}|${hoverX}|${store.duel.a}|${store.duel.b}|${prefs.favs.join()}`;
+  const data = versionOf(['TimingData', 'TimingAppData', 'TimingStats', 'DriverList', 'RaceControlMessages', '__reset']);
+  const ui = `${JSON.stringify(opts)}|${highlight}|${hoverX}|${store.duel.a}|${store.duel.b}|${prefs.favs.join()}`;
   for (const [tab, fn] of Object.entries(RENDER)) {
     const pane = document.querySelector(`[data-pane="${tab}"]`);
     if (!pane?.classList.contains('active') || !pane.offsetParent) continue;
-    const key = `${base}|${pane.clientWidth}x${pane.clientHeight}`;
+    const view = `|${ui}|${pane.clientWidth}x${pane.clientHeight}`;
+    const key = `${data}${view}`;
     if (!force && key === lastKeys[tab]) continue;
+    if (!force && lastKeys[tab]?.endsWith(view) && performance.now() - (lastAt[tab] || 0) < 1000) continue;
     lastKeys[tab] = key;
+    lastAt[tab] = performance.now();
     fn();
   }
 }
@@ -467,7 +474,7 @@ function fillRefSelect() {
   const dl = drivers(store.state);
   const sel = $('#anaRef');
   const nums = orderedNumbers(store.state).filter((n) => dl[n]);
-  const html = nums.map((n) => `<option value="${n}" ${n === opts.ref ? 'selected' : ''}>${esc(dl[n].Tla)}</option>`).join('');
+  const html = nums.map((n) => `<option value="${n}" ${n === opts.ref ? 'selected' : ''}${driverOpt(dl[n], n)}>${esc(dl[n].Tla)}</option>`).join('');
   if (sel._html !== html) { sel.innerHTML = html; sel._html = html; }
   if (!opts.ref && nums[0]) opts.ref = nums[0];
 }

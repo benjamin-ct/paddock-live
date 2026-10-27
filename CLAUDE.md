@@ -21,8 +21,13 @@
 - **« Publie » / « publie la version »** = version finale pour tout le monde : remplacer « à venir » par la date
   du jour sur `develop`, PR `develop` → `main` fusionnée, puis workflow « Application de bureau » lancé sur
   `main` avec la version (ex. `v1.28.0`). La page de la version reprend la section du journal
-  (`scripts/release-notes.mjs`) ; le workflow échoue si elle manque. Correction urgente : branche depuis
-  `main`, version `X.Y.Z`, puis `main` refusionné dans `develop`.
+  (`scripts/release-notes.mjs`) ; le workflow échoue si elle manque.
+- **Correction urgente** (bug de la version finale) : branche depuis `main`, section `## vX.Y.Z — à venir` dans
+  le journal (si `develop` prépare déjà ce numéro, sa section passe au suivant), puis **bêta de test d'abord** :
+  workflow « Application de bureau » lancé sur cette branche avec `vX.Y.Z-beta.<n>` (reçue seulement par les
+  applis inscrites aux bêtas, dont celle de l'utilisateur ; elle n'a pas les nouveautés de `develop`, qui
+  reviennent à la bêta suivante). Une autre bêta à chaque retouche. Sur « publie » : date du jour, fusion dans
+  `main`, workflow lancé sur `main` avec `vX.Y.Z`, puis `main` refusionné dans `develop`.
 - Ne fusionner et ne publier que lorsque l'utilisateur le demande.
 - **Modifications du serveur seul, sans nouvelle version de l'appli** : quand une PR ne touche que le serveur des
   statistiques (Worker : `analytics/**`, page du Studio, `scripts/build-studio.mjs`, et les fichiers de `shared/`
@@ -31,11 +36,24 @@
   déploie le Worker tout seul à chaque push, mais seulement
   depuis une branche qui contient tout `develop` (la branche de travail reste donc à jour de `develop`). Dès qu'un fichier de l'appli change (`public/`, `server/`,
   `desktop/`, fichier de `shared/` importé par l'appli), ses nouveautés vont dans la version en préparation.
+- **Classe Durable Object ajoutée au Worker** (`[[migrations]]` de `analytics/wrangler.toml`) : sa PR est fusionnée
+  avant les autres PR qui touchent le Worker. Une fois déployée depuis la branche de travail, `develop` sans la classe
+  ne pourrait plus être déployé.
 - **Worker compatible avec les anciennes applis** : il n'y a qu'un Worker, toujours à la dernière version, alors que
   les applis installées (version finale, bêtas) peuvent avoir du retard. Les adresses que l'appli appelle (`/studio/api/…`
-  dans `server/studio-sync.js` et `server/post-history.js`, `/e`, `/f`, `/t`, `/r`, `/p/api`) gardent leurs noms, leurs
+  dans `server/studio-sync.js`, et celles de l'ancien `server/post-history.js` pour les applis jusqu'à la 1.28, `/e`, `/f`, `/t`, `/r`, `/p/api`) gardent leurs noms, leurs
   paramètres et leurs réponses : on ajoute sans retirer ni changer, et on ne supprime une ancienne forme que quand
   plus aucune version publiée ne l'utilise.
+- **Suivi dans Google Drive** (connecteurs Google Drive, Docs et Sheets) : après chaque action (code fusionné,
+  version publiée, posts préparés, démarche faite), tenir à jour le dossier « Paddock Live · Réseaux » :
+  la liste « À faire · Paddock Live » (cocher ce qui est fait, ajouter ce qui reste), la feuille
+  « Suivi réseaux · Paddock Live » (onglet Journal : une ligne par action, la plus récente en haut ; onglet Posts :
+  les posts préparés) et, pour chaque Grand Prix, un Google Doc des textes et un dossier
+  « Paddock Live · Médias · <Grand Prix> » (fichiers envoyés avec les secrets `GDRIVE_*` de l'environnement).
+- **À tester avant la version finale** : à chaque PR fusionnée qui change l'appli ou la version web, ajouter dans la
+  partie « À tester avant la version finale » de « À faire » une case par nouveauté : où cliquer et ce qu'on doit
+  voir (avec le numéro de la bêta), en séparant ce qui demande une vraie séance. Après « publie », vider la partie
+  et changer son numéro de version.
 - Avant de pousser : `npm test`.
 - **Version anglaise** : tout nouveau texte affiché a sa traduction dans `public/js/i18n-en.js` (clé = texte
   français, `{}` pour les valeurs) ; `node scripts/i18n-missing.mjs` liste ceux qui manquent.

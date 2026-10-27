@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseDocumentList, parsePublished, pickEvent } from '../server/fia.js';
+import { parseDocumentList, parsePublished, pickEvent } from '../shared/fia-list.js';
 import { analyzeStewards, linkFiaDocs, deletedLapsDoc, parseFiaDoc } from '../shared/stewards.js';
 
 const row = (n, title, file, date) => `<li class="document-row key-${n}">  <a href="/system/files/decision-document/${file}.pdf" download target="_blank">
@@ -88,4 +88,126 @@ test('documents FIA : rattachement aux décisions et enquêtes, sans divulgation
   assert.deepEqual(early.incidents.find((i) => i.cars[0].tla === 'BOR').docs.map((d) => d.kind), ['summons']);
   assert.equal(deletedLapsDoc(docs, 'Race').title, 'Doc 64 - Race Deleted Lap Times');
   assert.equal(deletedLapsDoc(docs, 'Qualifying'), null);
+});
+
+// Serveur de la version web : épreuves lues par la tâche planifiée, une par passage, puis servies
+test('version web : documents FIA lus par le serveur, une épreuve à la fois, épreuve récente relue', async () => {
+  const { fiaTick, seasonFiaWeb } = await import('../analytics/fia-tech.js');
+  const rows = new Map();
+  const DB = { prepare: (sql) => ({ bind: (...a) => ({
+    first: async () => (rows.has(a[0]) ? { v: rows.get(a[0]) } : null),
+    all: async () => ({ results: [...rows].filter(([k]) => k.startsWith(a[0].replace('%', ''))).map(([k, v]) => ({ k, v })) }),
+    run: async () => { if (sql.startsWith('INSERT INTO studio')) rows.set(a[0], a[1]); else throw new Error(sql); },
+  }) }) };
+  const env = { DB };
+  const SEASON = '/documents/championships/fia-formula-one-world-championship-14/season/season-2026-2072';
+  const pages = {
+    '/documents/championships/fia-formula-one-world-championship-14': `<option value="${SEASON}">2026</option>`,
+    [SEASON]: `<option value="${SEASON}/event/United%20States%20Grand%20Prix">United States Grand Prix</option><option value="${SEASON}/event/Mexico%20City%20Grand%20Prix">Mexico City Grand Prix</option>`,
+    [`${SEASON}/event/United%20States%20Grand%20Prix`]: row(1, 'Doc 1 - Driver&#039;s Briefing', '2026_usa_-_briefing', '20.10.26 12:00'),
+    [`${SEASON}/event/Mexico%20City%20Grand%20Prix`]: '',
+  };
+  const asked = [];
+  const fetchFn = async (u) => { asked.push(u); const p = u.replace('https://www.fia.com', ''); return p in pages ? new Response(pages[p]) : new Response('', { status: 404 }); };
+  const now = Date.parse('2026-10-21T12:00:00Z');
+
+  const first = await seasonFiaWeb(env, 2026, { now });
+  assert.deepEqual([first.pending, first.events.length], [true, 0]);
+  assert.equal(asked.length, 0);   // la page ne lit jamais fia.com elle-même
+  assert.deepEqual(await fiaTick(env, { now, fetchFn }), { year: 2026, event: 'United States Grand Prix' });
+  assert.deepEqual(await fiaTick(env, { now: now + 60e3, fetchFn }), { year: 2026, event: 'Mexico City Grand Prix' });
+  assert.equal(await fiaTick(env, { now: now + 120e3, fetchFn }), null);
+  const out = await seasonFiaWeb(env, 2026, { now: now + 180e3 });
+  assert.deepEqual([out.pending, out.done, out.total, out.events.length], [false, 2, 2, 1]);
+  assert.equal(out.events[0].name, 'United States Grand Prix');
+  assert.equal(out.events[0].tech, null);
+  // Documents de moins de 4 jours : l'épreuve est relue une heure plus tard
+  assert.deepEqual(await fiaTick(env, { now: now + 2 * 3600e3, fetchFn }), { year: 2026, event: 'United States Grand Prix' });
+
+  // fia.com en panne pendant une relecture : raison gardée (lecture d'avant aussi), nouvel essai 5 minutes plus tard
+  const down = async () => new Response('', { status: 503 });
+  const t2 = now + 4 * 3600e3;
+  assert.match((await fiaTick(env, { now: t2, fetchFn: down })).error, /HTTP 503/);
+  const mid = await seasonFiaWeb(env, 2026, { now: t2 });
+  assert.deepEqual([mid.events.length, mid.failed.length, mid.pending], [1, 1, true]);
+  assert.equal(await fiaTick(env, { now: t2 + 60e3, fetchFn }), null);
+  assert.deepEqual(await fiaTick(env, { now: t2 + 6 * 60e3, fetchFn }), { year: 2026, event: 'United States Grand Prix' });
+  assert.deepEqual((await seasonFiaWeb(env, 2026, { now: t2 + 7 * 60e3 })).failed, []);
+});
+
+test('version web : évolutions techniques traduites par le serveur, une fois, reprises à la relecture', async () => {
+  const { fiaNext, fiaTranslations } = await import('../analytics/fia-tech.js');
+  const { FIA_VERSION } = await import('../shared/fia-tech.js');
+  const { createHash } = await import('node:crypto');
+  const rows = new Map();
+  const DB = { prepare: (sql) => ({ bind: (...a) => ({
+    first: async () => (rows.has(a[0]) ? { v: rows.get(a[0]) } : null),
+    all: async () => ({ results: [...rows].filter(([k]) => k.startsWith(a[0].replace('%', ''))).map(([k, v]) => ({ k, v })) }),
+    run: async () => { if (sql.startsWith('INSERT INTO studio')) rows.set(a[0], a[1]); else throw new Error(sql); },
+  }) }) };
+  const env = { DB };
+  const SEASON = '/documents/championships/fia-formula-one-world-championship-14/season/season-2026-2072';
+  const EVENT = `${SEASON}/event/United%20States%20Grand%20Prix`;
+  const pages = {
+    '/documents/championships/fia-formula-one-world-championship-14': `<option value="${SEASON}">2026</option>`,
+    [SEASON]: `<option value="${EVENT}">United States Grand Prix</option>`,
+    [EVENT]: row(5, 'Doc 5 - Car Presentation Submissions', '2026_usa_-_cps', '20.10.26 12:00'),
+  };
+  const fetchFn = async (u) => { const p = u.replace('https://www.fia.com', ''); return p in pages ? new Response(pages[p]) : new Response('', { status: 404 }); };
+  // PDF déjà lu (gardé) : pas de lecture de PDF dans le test
+  const pdf = 'https://www.fia.com/system/files/decision-document/2026_usa_-_cps.pdf';
+  rows.set(`fiadoc:${createHash('sha1').update(pdf).digest('hex').slice(0, 20)}`, JSON.stringify({ v: FIA_VERSION, data: { updates: [{ team: 'Ferrari', n: 1, component: 'Floor', type: 'Performance', reason: 'Performance', geometry: 'New floor edge', description: 'Improves local load' }], noUpdates: [] } }));
+  const asked = [];
+  let fail = true;
+  const translate = async (texts) => { asked.push(...texts); const out = Object.fromEntries(texts.map((t) => [t, `FR ${t}`])); if (fail) { fail = false; delete out['Improves local load']; } return out; };
+  const now = Date.parse('2026-11-10T12:00:00Z');   // épreuve vieille de plus de 4 jours : relue seulement si une traduction manque
+  await fiaNext(env, 2026, { now, fetchFn, translate });
+  assert.deepEqual(asked, ['Floor', 'New floor edge', 'Improves local load']);
+  await fiaNext(env, 2026, { now: now + 2 * 3600e3, fetchFn, translate });
+  assert.deepEqual(asked.slice(3), ['Improves local load']);   // seule la traduction manquante est redemandée
+  assert.equal(await fiaNext(env, 2026, { now: now + 4 * 3600e3, fetchFn, translate }), null);   // tout est traduit : plus relue
+  assert.deepEqual(await fiaTranslations(env), { Floor: { t: 'FR Floor', q: 'cloud' }, 'New floor edge': { t: 'FR New floor edge', q: 'cloud' }, 'Improves local load': { t: 'FR Improves local load', q: 'cloud' } });
+});
+
+test('version web : lecteur de PDF changé, épreuves relues petit à petit, ancienne lecture montrée en attendant', async () => {
+  const { fiaNext, seasonFiaWeb } = await import('../analytics/fia-tech.js');
+  const { FIA_VERSION } = await import('../shared/fia-tech.js');
+  const { createHash } = await import('node:crypto');
+  const sha = (s) => createHash('sha1').update(s).digest('hex').slice(0, 20);
+  const rows = new Map();
+  const DB = { prepare: (sql) => ({ bind: (...a) => ({
+    first: async () => (rows.has(a[0]) ? { v: rows.get(a[0]) } : null),
+    all: async () => ({ results: [...rows].filter(([k]) => k.startsWith(a[0])).map(([k, v]) => ({ k, v })) }),
+    run: async () => { rows.set(a[0], a[1]); },
+  }) }) };
+  const env = { DB };
+  const SEASON = '/documents/championships/fia-formula-one-world-championship-14/season/season-2026-2072';
+  const names = ['Monaco Grand Prix', 'Spanish Grand Prix'];
+  const ev = (n) => `${SEASON}/event/${encodeURIComponent(n)}`;
+  const pages = {
+    '/documents/championships/fia-formula-one-world-championship-14': `<option value="${SEASON}">2026</option>`,
+    [SEASON]: names.map((n) => `<option value="${ev(n)}">${n}</option>`).join(''),
+  };
+  names.forEach((n, i) => {
+    const file = `2026_${i}_-_cps`;
+    pages[ev(n)] = row(5, 'Doc 5 - Car Presentation Submissions', file, '01.06.26 12:00');
+    // PDF déjà lu par le nouveau lecteur ; épreuve lue par l'ancien (évolutions toutes à la même écurie)
+    rows.set(`fiadoc:${sha(`https://www.fia.com/system/files/decision-document/${file}.pdf`)}`, JSON.stringify({ v: FIA_VERSION, data: { updates: [{ team: 'Mercedes', n: 1, component: 'Floor', type: 'Performance', reason: 'Local Load', geometry: '', description: '' }], noUpdates: [] } }));
+    const page = `https://www.fia.com${ev(n)}`;
+    rows.set(`fiatech:2026:${sha(page)}`, JSON.stringify({ v: FIA_VERSION - 1, page, at: 0, data: { name: n, page, first: 0, last: 0, tech: [{ team: 'Red Bull Racing', component: 'Floor' }], tr: { Floor: 'Fond plat' }, trDone: true } }));
+  });
+  const fetchFn = async (u) => { const p = u.replace('https://www.fia.com', ''); return p in pages ? new Response(pages[p]) : new Response('', { status: 404 }); };
+  const now = Date.parse('2026-10-27T12:00:00Z');
+  const translate = async () => assert.fail('traductions reprises de l\'ancienne lecture');
+
+  const before = await seasonFiaWeb(env, 2026, { now });
+  assert.equal(before.events.length, 2, 'ancienne lecture montrée');
+  assert.equal(before.pending, true);
+  assert.equal((await fiaNext(env, 2026, { now, fetchFn, translate })).event, 'Monaco Grand Prix');
+  assert.equal(await fiaNext(env, 2026, { now: now + 6 * 60e3 - 2 * 60e3, fetchFn, translate }), null, 'pas plus d\'une toutes les 5 minutes');
+  assert.equal((await fiaNext(env, 2026, { now: now + 6 * 60e3, fetchFn, translate })).event, 'Spanish Grand Prix');
+  assert.equal(await fiaNext(env, 2026, { now: now + 20 * 60e3, fetchFn, translate }), null, 'tout est relu');
+  const after = await seasonFiaWeb(env, 2026, { now: now + 20 * 60e3 });
+  assert.equal(after.pending, false);
+  assert.deepEqual(after.events.map((e) => e.tech[0].team), ['Mercedes', 'Mercedes']);
 });

@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Alertes F1 sur ton téléphone · Paddock Live</title>
+<meta name="description" content="Un rappel avant chaque séance de F1, les résultats si tu le veux et les grosses news, sur ton téléphone, même loin de ton ordinateur. Gratuit.">
+<meta name="theme-color" content="#000000">
+<link rel="canonical" href="https://paddocklive.app/alertes/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Alertes F1 sur ton téléphone · Paddock Live">
+<meta property="og:description" content="Un rappel avant chaque séance de F1, les résultats si tu le veux et les grosses news, sur ton téléphone, même loin de ton ordinateur. Gratuit.">
+<meta property="og:url" content="https://paddocklive.app/alertes/">
+<meta property="og:image" content="https://paddocklive.app/site/img/apercu.png">
+<meta property="og:site_name" content="Paddock Live">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="manifest" href="/alertes/manifest.webmanifest">
+<link rel="icon" href="/site/img/logo.png">
+<link rel="apple-touch-icon" href="/site/img/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Paddock Live">
+<style>
+@font-face { font-family: 'Titillium Web'; font-weight: 400; font-display: swap; src: url('/fonts/titillium-400.woff2') format('woff2'); }
+@font-face { font-family: 'Titillium Web'; font-weight: 700; font-display: swap; src: url('/fonts/titillium-700.woff2') format('woff2'); }
+@font-face { font-family: 'Saira Condensed'; font-weight: 800; font-display: swap; src: url('/fonts/sairacondensed-800.woff2') format('woff2'); }
+:root { color-scheme: dark; --bg: #0b0c0f; --card: #15171c; --line: rgba(255, 255, 255, .08); --line-2: rgba(255, 255, 255, .15); --text: #f2f1ee; --text-2: #c8c7c1; --muted: #8f8d87; --red: #e10600; --ok: #2fbf71; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 17px/1.55 'Titillium Web', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+a { color: inherit; }
+.wrap { max-width: 560px; margin: 0 auto; padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) calc(32px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); }
+.top { display: flex; align-items: center; gap: 10px; margin: 8px 0 28px; }
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; font: 800 24px/1 'Saira Condensed', sans-serif; }
+.brand img { width: 32px; height: 32px; border-radius: 8px; }
+.brand b { color: var(--red); }
+#lang { margin-left: auto; background: none; border: 1px solid var(--line-2); color: var(--text-2); border-radius: 999px; padding: 6px 12px; font: inherit; font-size: 14px; cursor: pointer; }
+h1 { font: 800 clamp(34px, 9vw, 46px)/1.02 'Saira Condensed', 'Arial Narrow', sans-serif; margin: 0 0 12px; }
+.lead { color: var(--text-2); margin: 0 0 24px; }
+.topic { display: flex; gap: 14px; align-items: flex-start; padding: 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--card); margin-bottom: 10px; cursor: pointer; }
+.topic input { width: 22px; height: 22px; margin: 2px 0 0; accent-color: var(--red); flex: none; }
+.topic b { display: block; }
+.topic small { color: var(--muted); font-size: 14px; }
+.topic.warn small em { color: #ffb020; font-style: normal; }
+.btn { display: block; width: 100%; margin-top: 16px; padding: 15px; border-radius: 999px; border: 1px solid var(--line-2); background: var(--card); color: var(--text); font: 700 17px 'Titillium Web', sans-serif; cursor: pointer; }
+.btn.primary { background: var(--red); border-color: var(--red); color: #fff; }
+.btn:disabled { opacity: .5; cursor: default; }
+.row { display: flex; gap: 10px; }
+.row .btn { flex: 1; }
+.note { padding: 14px 16px; border-radius: 12px; border: 1px solid var(--line-2); color: var(--text-2); margin: 0 0 20px; font-size: 15px; }
+.note b { color: var(--text); }
+#state { margin: 16px 0 0; min-height: 1.5em; color: var(--text-2); font-size: 15px; }
+#state.ok { color: var(--ok); }
+#state.bad { color: #ff6b6b; }
+footer { margin-top: 36px; color: var(--muted); font-size: 13px; }
+footer a { color: var(--text-2); }
+[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <a class="brand" href="/"><img src="/site/img/logo.png" alt="" width="32" height="32">Paddock <b>Live</b></a>
+    <button id="lang" type="button">English</button>
+  </div>
+  <h1 data-en="F1 alerts on your phone">Les alertes F1 sur ton téléphone</h1>
+  <p class="lead" data-en="Even away from your computer: a reminder before each session, the results if you want them, and the big news.">Même loin de ton ordinateur : un rappel avant chaque séance, les résultats si tu le veux, et les grosses news.</p>
+
+  <p class="note" id="ios" hidden data-en="On iPhone, <b>first add this page to your home screen</b> (Share button → « Add to Home Screen »), then open it from its icon to turn alerts on.">Sur iPhone, <b>ajoute d'abord cette page à l'écran d'accueil</b> (bouton Partager → « Sur l'écran d'accueil »), puis ouvre-la depuis son icône pour activer les alertes.</p>
+  <p class="note" id="nosupport" hidden data-en="This browser can't receive notifications. Try Chrome, Firefox, Edge or Safari (iPhone: from the home screen).">Ce navigateur ne peut pas recevoir de notifications. Essaie Chrome, Firefox, Edge ou Safari (iPhone : depuis l'écran d'accueil).</p>
+
+  <label class="topic"><input type="checkbox" name="t" value="sessions" checked><span><b data-en="Before each session">Avant chaque séance</b><small data-en="30 minutes before practice, qualifying, sprint and race.">30 minutes avant les essais, les qualifs, le sprint et la course.</small></span></label>
+  <label class="topic warn"><input type="checkbox" name="t" value="results"><span><b data-en="Results">Résultats</b><small data-en="Winner and pole as soon as they're published. <em>Spoils the race if you watch it later.</em>">Vainqueur et pole dès leur publication. <em>Dévoile la course si tu la regardes plus tard.</em></small></span></label>
+  <label class="topic"><input type="checkbox" name="t" value="news" checked><span><b data-en="Big news">Grosses news</b><small data-en="Transfers, penalties, official announcements: a few times a week at most.">Transferts, pénalités, annonces officielles : quelques fois par semaine au plus.</small></span></label>
+
+  <button class="btn primary" id="on" type="button" data-en="Turn alerts on">Activer les alertes</button>
+  <div id="active" hidden>
+    <div class="row"><button class="btn" id="save" type="button" data-en="Save">Enregistrer</button><button class="btn" id="test" type="button" data-en="Send a test">Envoyer un essai</button></div>
+    <button class="btn" id="off" type="button" data-en="Turn all alerts off">Tout désactiver</button>
+  </div>
+  <p id="state" role="status"></p>
+
+  <footer>
+    <p data-en="Kept on our server: your phone's notification address and keys, your topics and language. Nothing else, no account. Deleted when you turn alerts off.">Gardés sur notre serveur : l'adresse de notification et les clés de ton téléphone, tes sujets et ta langue. Rien d'autre, sans compte. Effacés quand tu désactives les alertes.</p>
+    <p><a href="/legal/privacy#alertes" data-en="Privacy">Confidentialité</a> · <a href="/" data-en="Paddock Live, the app">Paddock Live, l'appli</a></p>
+  </footer>
+</div>
+<script>
+const $ = (s) => document.querySelector(s);
+const els = [...document.querySelectorAll('[data-en]')];
+for (const el of els) el.dataset.fr = el.innerHTML;
+let en = false;
+const t = (fr, e) => (en ? e : fr);
+function setLang(l) {
+  en = l === 'en';
+  document.documentElement.lang = l;
+  for (const el of els) el.innerHTML = en ? el.dataset.en : el.dataset.fr;
+  $('#lang').textContent = en ? 'Français' : 'English';
+  try { localStorage.setItem('alertes.lang', l); } catch { /* stockage bloqué */ }
+}
+let saved = null;
+try { saved = localStorage.getItem('alertes.lang'); } catch { /* stockage bloqué */ }
+setLang(saved || (/^fr\b/i.test(navigator.language) ? 'fr' : 'en'));
+$('#lang').onclick = () => setLang(en ? 'fr' : 'en');
+
+const say = (msg, cls = '') => { $('#state').textContent = msg; $('#state').className = cls; };
+const topics = () => [...document.querySelectorAll('input[name=t]:checked')].map((x) => x.value);
+const api = async (path, body) => {
+  const r = await fetch(`/a/${path}`, body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {});
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || `Erreur ${r.status}`);
+  return j;
+};
+const b64 = (s) => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(s.length / 4) * 4, '=')), (c) => c.charCodeAt(0));
+
+const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) && !navigator.standalone;
+const supported = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+$('#ios').hidden = !ios;
+$('#nosupport').hidden = ios || supported;
+let reg = null;
+let sub = null;
+
+function show(on) {
+  $('#on').hidden = on;
+  $('#active').hidden = !on;
+}
+
+async function init() {
+  if (!supported) { $('#on').disabled = true; return; }
+  reg = await navigator.serviceWorker.register('/alertes/sw.js', { scope: '/alertes/' });
+  sub = await reg.pushManager.getSubscription();
+  let mine = null;
+  try { mine = JSON.parse(localStorage.getItem('alertes.topics') || 'null'); } catch { /* stockage bloqué */ }
+  if (sub && Array.isArray(mine)) for (const x of document.querySelectorAll('input[name=t]')) x.checked = mine.includes(x.value);
+  show(!!sub);
+  if (sub) say(t('Alertes actives sur ce téléphone.', 'Alerts are on for this phone.'), 'ok');
+}
+
+async function save() {
+  const list = topics();
+  if (!list.length) return off();
+  await api('sub', { subscription: sub.toJSON(), topics: list, lang: en ? 'en' : 'fr' });
+  try { localStorage.setItem('alertes.topics', JSON.stringify(list)); } catch { /* stockage bloqué */ }
+  show(true);
+  say(t('Alertes actives sur ce téléphone.', 'Alerts are on for this phone.'), 'ok');
+}
+
+async function off() {
+  if (sub) {
+    await api('off', { endpoint: sub.endpoint }).catch(() => {});
+    await sub.unsubscribe().catch(() => {});
+  }
+  sub = null;
+  show(false);
+  say(t('Alertes désactivées.', 'Alerts are off.'));
+}
+
+$('#on').onclick = async () => {
+  try {
+    if (!topics().length) throw new Error(t('Choisis au moins un sujet.', 'Pick at least one topic.'));
+    if (await Notification.requestPermission() !== 'granted') throw new Error(t('Notifications refusées : autorise-les dans les réglages du navigateur.', 'Notifications blocked: allow them in your browser settings.'));
+    const { key } = await api('key');
+    sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64(key) });
+    await save();
+  } catch (err) { say(err.message, 'bad'); }
+};
+$('#save').onclick = () => save().catch((err) => say(err.message, 'bad'));
+$('#off').onclick = () => off().catch((err) => say(err.message, 'bad'));
+$('#test').onclick = async () => {
+  try { await api('test', { endpoint: sub.endpoint }); say(t('Essai envoyé : il arrive dans quelques secondes.', 'Test sent: it arrives in a few seconds.'), 'ok'); } catch (err) { say(err.message, 'bad'); }
+};
+init().catch((err) => say(err.message, 'bad'));
+</script>
+</body>
+</html>

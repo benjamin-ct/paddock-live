@@ -39,6 +39,16 @@ test('renouvellement : nouveau jeton enregistré, rien avant les dernières 24 h
   assert.equal(sent, null);
 });
 
+test('échange (swap) : jeton du compte gardé même s\'il n\'expire pas plus tard', async () => {
+  const site = jwt({ exp: now + 4 * 86400, SessionId: session, SubscriptionStatus: 'active' });
+  const account = jwt({ exp: now + 4 * 86400 - 60, SessionId: session, SubscribedProduct: 'F1 TV Pro Annual' });
+  const send = async () => ({ status: 200, body: Buffer.from(JSON.stringify({ data: { subscriptionToken: account } })) });
+  saveConfig({ f1tvToken: site });
+  await assert.rejects(renew({ force: true, send }), /pas de nouveau jeton/);   // renouvellement : expire plus tôt, refusé
+  assert.equal(await renew({ force: true, swap: true, send }), account);
+  assert.equal(getConfig().f1tvToken, account);
+});
+
 test('renouvellement refusé par la F1 : il faudra se reconnecter', async () => {
   saveConfig({ f1tvToken: jwt({ exp: now - 60, SessionId: session }) });
   await assert.rejects(renew({ send: async () => ({ status: 401, body: Buffer.from('') }) }), /reconnectez-vous/);

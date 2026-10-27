@@ -2,7 +2,7 @@
 // résultat (replay depuis le début ou tableau de bord), dernières actualités, raccourcis.
 // Ouverte au lancement quand aucune séance n'est en cours ; pendant une séance, l'appli s'ouvre
 // directement sur le Direct.
-import { $, $$, esc, api, drivers, placeView, hideBoot } from '../util.js';
+import { $, $$, esc, api, drivers, placeView, hideBoot, dayIn } from '../util.js';
 import { store, on } from '../store.js';
 import { icon } from '../icons.js';
 import { LOCALE, EN, t } from '../i18n.js';
@@ -28,7 +28,10 @@ const LONG = /course|race|grand prix/i;
 const lengthOf = (label) => (LONG.test(label) && !/sprint/i.test(label) ? 150 : 75) * 60e3;
 const sessionName = (n) => sessionLabel(n, EN);
 
-async function loadSchedule() {
+// Calendrier chargé une fois (accueil et écran « Pas de séance en direct »)
+let scheduleLoad = null;
+const loadSchedule = () => (scheduleLoad ||= readSchedule());
+async function readSchedule() {
   const year = new Date().getFullYear();
   const races = [];
   for (const y of [year, year + 1]) {
@@ -105,7 +108,7 @@ async function loadWeather(nx) {
   weather = { ...(weather?.key === key ? weather : { days: null, tz: null, current: null, hours: null }), key, at: Date.now() };
   try {
     const d = await api(`/api/forecast?lat=${nx.lat}&lon=${nx.lon}`);
-    const dates = new Set(schedule.filter((s) => s.race === nx.race && s.year === nx.year).map((s) => new Date(s.t).toISOString().slice(0, 10)));
+    const dates = new Set(schedule.filter((s) => s.race === nx.race && s.year === nx.year).map((s) => dayIn(s.t, d.tz)));
     weather.days = (d.days || []).filter((x) => dates.has(x.date));
     weather.tz = d.tz || null;
     weather.current = d.current || null;
@@ -131,7 +134,7 @@ export function upcoming() {
   const week = schedule.filter((s) => s.race === nx.race && s.year === nx.year);
   const race = week.find((s) => s.label === 'Course') || week.at(-1);
   const w = weather?.key === `${nx.race}|${nx.year}` ? weather : null;
-  return { ...nx, first: week[0].t, raceT: race.t, raceDay: w?.days?.find((d) => d.date === new Date(race.t).toISOString().slice(0, 10)) || null, tz: w?.tz || null, days: w?.days || null, current: w?.current || null, hours: w?.hours || null, week };
+  return { ...nx, first: week[0].t, raceT: race.t, raceDay: w?.days?.find((d) => d.date === dayIn(race.t, w.tz)) || null, tz: w?.tz || null, days: w?.days || null, current: w?.current || null, hours: w?.hours || null, week };
 }
 
 // Pilotes et écuries favoris : position et points au championnat. Masqué juste après une séance (il
@@ -187,9 +190,12 @@ function favHtml() {
   }
   const recent = lastSession() && Date.now() - lastSession().t < 72 * 3600e3;
   const hide = recent && !showFav;
+  // Pilotes puis écuries, chacun sous son titre ; mêmes colonnes pour toutes les lignes (grille commune)
   const rows = [
+    ...(favD.length ? ['<div class="hm-fav-group muted">Pilotes</div>'] : []),
     ...favD.map((d) => `<div class="hm-fav-row"><span class="hm-fav-pos">P${d.pos}</span><b>${esc(d.name)}</b><span class="muted">${esc(d.team)}</span><span class="muted">${pts(d)}</span></div>`),
-    ...favT.map((c) => `<div class="hm-fav-row"><span class="hm-fav-pos">P${c.pos}</span><b>${esc(c.name)}</b><span class="muted">Constructeurs</span><span class="muted">${pts(c)}</span></div>`),
+    ...(favT.length ? ['<div class="hm-fav-group muted">Écuries</div>'] : []),
+    ...favT.map((c) => `<div class="hm-fav-row"><span class="hm-fav-pos">P${c.pos}</span><b>${esc(c.name)}</b><span></span><span class="muted">${pts(c)}</span></div>`),
   ];
   return `<section class="hm-card hm-fav" id="hmFav">${head}
     <div class="hm-favs${hide ? ' hm-blur' : ''}">${rows.join('')}</div>
@@ -216,7 +222,21 @@ function render() {
   if (!view || view.hidden) return;
   const live = liveNow();
   const nx = nextSession();
-  const card = live
+  // Hors saison (premier Grand Prix de la saison suivante à plus de 3 semaines, ou calendrier pas encore publié) : la
+  // saison passée, les replays et l'actu (transferts, présentations des voitures) plutôt qu'un long compte à rebours.
+  // Pas pendant la trêve d'été (prochaine manche de la même saison)
+  const off = !live && schedule && (!nx || (nx.t - Date.now() > 21 * 86400e3 && Number(nx.round) === 1));
+  const past = nx ? nx.year - 1 : new Date().getFullYear();
+  const card = off
+    ? `<section class="hm-card hm-next hm-off"><div class="hm-next-main"><div class="hm-kicker"><span class="hm-tag">${t('Hors saison')}</span></div>
+        ${nx ? `<div class="hm-title">${flag(nx.country)}<span>${t('Saison {}', nx.year)} : ${esc(gp(nx.race))} <small>${esc(nx.label)}</small></span></div>
+        <div class="hm-count" id="hmCount">${countdown(nx.t - Date.now())}</div>
+        <div class="muted">${esc(when(nx.t))}</div>`
+    : `<div class="hm-title">${t('Calendrier {} bientôt publié', past + 1)}</div>`}
+        <div class="hm-actions"><button class="btn btn-accent" data-home="review:${past}">${icon('trophy')} ${t('Bilan de la saison {}', past)}</button>
+          <button class="btn" data-home="replays">${icon('history')} ${t('Revoir les courses')}</button>
+          <button class="btn" data-home="news">${icon('news')} ${t('Transferts et nouveautés')}</button></div></div></section>`
+    : live
     ? `<section class="hm-card hm-live"><div class="hm-kicker"><span class="hm-tag"><span class="hm-dot"></span>Séance en cours</span></div>
         <div class="hm-title">${esc(gp(live.race))} : ${esc(live.label)}</div>
         <div class="muted">Commencée à ${esc(new Date(live.t).toLocaleTimeString(LOCALE, { hour: '2-digit', minute: '2-digit' }))}</div>
@@ -309,6 +329,7 @@ async function act(k) {
   // Saison et Actu ferment l'accueil elles-mêmes ; Replays : l'accueil reste derrière les réglages
   // jusqu'au lancement du replay
   if (k === 'season') { (await import('./season.js')).openSeason(); return; }
+  if (k.startsWith('review:')) { (await import('./season.js')).openSeason('review', Number(k.slice(7))); return; }
   if (k === 'news') { (await import('./news.js')).openNews(); return; }
   if (k === 'replays') { (await import('./replays.js')).openReplays(); return; }
   if (k === 'replay') {
@@ -407,4 +428,6 @@ export function initNoLive() {
   addEventListener('resize', () => { if (!view.hidden) placeView(view); });
   setInterval(() => noLiveCheck(false), 5000);
   noLiveCheck();
+  // Sans accueil (version web) : le calendrier est chargé ici
+  loadSchedule().then(() => noLiveCheck());
 }

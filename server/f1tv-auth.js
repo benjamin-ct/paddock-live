@@ -28,8 +28,9 @@ export function sessionOf(token) {
 
 export const state = { lastAttempt: 0, lastRenewal: 0, lastError: null, rejected: false };
 
-// Demande un nouveau jeton à la F1. Renvoie le nouveau jeton, ou lève une erreur.
-export async function renew({ force = false, send = request } = {}) {
+// Demande un nouveau jeton à la F1. Renvoie le nouveau jeton, ou lève une erreur. swap : jeton échangé même
+// s'il n'expire pas plus tard (jeton du site F1 TV contre celui du compte, voir POST /api/auth)
+export async function renew({ force = false, swap = false, send = request } = {}) {
   const token = getConfig().f1tvToken;
   if (!token) throw new Error('Aucun jeton F1 TV');
   const exp = (decode(token)?.exp || 0) * 1000;
@@ -57,7 +58,7 @@ export async function renew({ force = false, send = request } = {}) {
   let next = null;
   try { next = JSON.parse(res.body.toString('utf8'))?.data?.subscriptionToken; } catch { /* réponse illisible */ }
   const nextExp = (decode(next)?.exp || 0) * 1000;
-  if (!next || nextExp <= exp) throw new Error('Renouvellement F1 TV : pas de nouveau jeton');
+  if (!next || (swap ? next === token : nextExp <= exp)) throw new Error('Renouvellement F1 TV : pas de nouveau jeton');
   // Le jeton a pu être remplacé entre-temps (nouvelle connexion) : on ne l'écrase pas
   if (getConfig().f1tvToken !== token) return null;
   saveConfig({ f1tvToken: next });

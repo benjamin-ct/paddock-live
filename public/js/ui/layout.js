@@ -1,11 +1,12 @@
 // Disposition libre : colonnes et panneaux redimensionnables, panneaux déplaçables par glisser-déposer,
 // fenêtres secondaires (second écran) pouvant regrouper plusieurs panneaux, colonnes du classement.
 import { $, $$, esc, storageGet, storageSet, sessionKind } from '../util.js';
-import { prefs, setPref } from '../prefs.js';
-import { store, on } from '../store.js';
+import { prefs, setPref, shortScreenHidden, towerCols, towerBig } from '../prefs.js';
+import { store, on, emit } from '../store.js';
 import { toast } from './delay.js';
 import { icon } from '../icons.js';
 import { track } from './stats.js';
+import { tabList, canHideTab } from './tabmove.js';
 
 export const PANELS = [
   { id: 'tower', cls: 'p-tower', name: 'Classement' },
@@ -31,18 +32,24 @@ export const EXTRA_COLUMNS = [
   ['spd', 'Vitesses I1 / I2 / arrivée'], ['bsec', 'Meilleurs secteurs (S1 / S2 / S3)'], ['team', 'Écurie'],
 ];
 
-// Cases à cocher des colonnes (réglages et menu « Colonnes » du classement)
+// Cases à cocher des colonnes (réglages et menu « Colonnes » du classement). Classement agrandi (⤢) :
+// ses propres colonnes, d'abord les mêmes que d'habitude
 function colOptsHtml() {
-  const box = (k, name, on, extra) => `<label class="toggle small"><input type="checkbox" data-col="${k}"${extra ? ' data-extra="1"' : ''} ${on ? 'checked' : ''}> ${esc(name)}</label>`;
-  return COLUMNS.map(([k, n]) => box(k, n, !prefs.hiddenCols.includes(k), false)).join('')
+  const { hidden, extra } = towerCols();
+  const box = (k, name, on, x) => `<label class="toggle small"><input type="checkbox" data-col="${k}"${x ? ' data-extra="1"' : ''} ${on ? 'checked' : ''}> ${esc(name)}</label>`;
+  return (towerBig() ? '<div class="col-sep">Classement agrandi : ses propres colonnes</div>' : '')
+    + COLUMNS.map(([k, n]) => box(k, n, !hidden.includes(k), false)).join('')
     + '<div class="col-sep">Colonnes en plus</div>'
-    + EXTRA_COLUMNS.map(([k, n]) => box(k, n, prefs.extraCols.includes(k), true)).join('');
+    + EXTRA_COLUMNS.map(([k, n]) => box(k, n, extra.includes(k), true)).join('');
 }
 function onColChange(e) {
   const k = e.target.dataset.col;
   if (!k) return;
-  if (e.target.dataset.extra) setPref('extraCols', e.target.checked ? [...prefs.extraCols, k] : prefs.extraCols.filter((x) => x !== k));
-  else setPref('hiddenCols', e.target.checked ? prefs.hiddenCols.filter((x) => x !== k) : [...prefs.hiddenCols, k]);
+  const cur = towerCols();
+  const flip = (list, on) => (on ? [...list, k] : list.filter((x) => x !== k));
+  const next = e.target.dataset.extra ? { hidden: cur.hidden, extra: flip(cur.extra, e.target.checked) } : { hidden: flip(cur.hidden, !e.target.checked), extra: cur.extra };
+  if (towerBig()) setPref('bigCols', next);
+  else { setPref('hiddenCols', next.hidden); setPref('extraCols', next.extra); }
 }
 
 // Fenêtre courante : « main » ou une fenêtre secondaire (?win=…). « ?panel=x » : ancien lien d'un panneau seul.
@@ -72,7 +79,9 @@ const TAB_DEFAULTS = {
   race: { feed: 'rcm', analysis: 'trace', extra: 'pits' },
   quali: { feed: 'rcm', analysis: 'compare', extra: 'tyres' },
 };
-const PROFILE_DEFAULTS = { race: { hiddenPanels: [], hiddenCols: [] }, quali: { hiddenPanels: [], hiddenCols: [] } };
+// Essentiel : la télémétrie du pilote suivi dans le panneau Analyse
+const ESS_TABS = { analysis: 'telemetry' };
+const profileDefaults = () => ({ hiddenPanels: shortScreenHidden(prefs.fullMode), hiddenCols: [] });
 const profileFor = (mode, kind) => (mode === 'race' || mode === 'quali' ? mode : kind === 'race' ? 'race' : 'quali');
 let profile = prefs.layoutMode === 'race' || prefs.layoutMode === 'quali' ? prefs.layoutMode : storageGet('paddock.lastProfile', 'race');
 if (!PROFILES[profile]) profile = 'race';
@@ -81,18 +90,41 @@ if (!PROFILES[profile]) profile = 'race';
 // Mode Allégé : sa propre disposition, celle du mode Complet reste telle quelle
 const lkey = (win = WIN, prof = profile) => (prof === 'race' || win !== 'main' ? win : `${win}@${prof}`) + (win === 'main' && !prefs.fullMode ? '~ess' : '');
 
+// Écran plus grand que le 1080p (1440p, 4K…)
+const big = () => window.innerWidth >= 2200;
+
 function defaultLayout(prof = profile) {
   if (!isMain) return { cols: [] };
   const quali = prof === 'quali';
-  // Allégé : classement, grande carte avec le duel dessous, radios et direction de course à droite
+  // Essentiel : classement compact, grande carte (radios dessous) ; à droite télémétrie du duel, championnat
+  // et limites de piste. Écran plus étroit : classement, puis carte, duel, radios et arrêts
   if (!prefs.fullMode) {
+    // Essentiel, écran plus grand que le 1080p : grand classement à gauche, carte en haut à droite et dessous,
+    // côte à côte, la télémétrie et la direction de course (radios sous elle). Disposition libre (les colonnes ne
+    // mettent pas deux panneaux côte à côte) : chaque panneau se déplace et se redimensionne ensuite
+    if (big()) {
+      const g = 0.005, L = 0.55, R = 1 - L - g, top = 0.6, half = (R - g) / 2;
+      return { cols: [
+        { w: 2.4, items: [{ id: 'tower', h: 1 }] },
+        { w: 1.6, items: [{ id: 'map', h: 1.5 }, { id: 'analysis', h: 1 }] },
+        { w: 1, items: [{ id: 'feed', h: 1.1 }, { id: 'radio', h: 1 }] },
+      ], free: { z: [], rects: {
+        tower: { x: 0, y: 0, w: L, h: 1 },
+        map: { x: L + g, y: 0, w: R, h: top },
+        analysis: { x: L + g, y: top + 2 * g, w: half, h: 1 - top - 2 * g },
+        feed: { x: L + 2 * g + half, y: top + 2 * g, w: half, h: (1 - top) * 0.55 - 2 * g },
+        radio: { x: L + 2 * g + half, y: top + (1 - top) * 0.55 + g, w: half, h: (1 - top) * 0.45 - g },
+      } } };
+    }
+    // Essentiel : classement (essais et qualifs : avec les temps, donc plus large), grande carte (radios dessous),
+    // direction de course et télémétrie du pilote suivi à droite
     return window.innerWidth <= 1500 ? { cols: [
-      { w: 1, items: [{ id: 'tower', h: 1.5 }, { id: 'feed', h: 0.7 }] },
-      { w: 1.2, items: [{ id: 'map', h: 1.4 }, { id: 'duel', h: 0.9 }, { id: 'radio', h: 0.8 }, { id: 'extra', h: 0.6 }] },
+      { w: 1.2, items: [{ id: 'tower', h: 1.5 }, { id: 'feed', h: 0.7 }] },
+      { w: 1, items: [{ id: 'map', h: 1.2 }, { id: 'radio', h: 0.7 }, { id: 'analysis', h: 0.9 }] },
     ] } : { cols: [
-      { w: 1.05, items: [{ id: 'tower', h: 1 }] },
-      { w: 1.5, items: [{ id: 'map', h: 1.6 }, { id: 'duel', h: 1 }] },
-      { w: 1, items: [{ id: 'radio', h: 1.1 }, { id: 'feed', h: 0.85 }, { id: 'extra', h: 0.75 }] },
+      { w: quali ? 1.7 : 1.2, items: [{ id: 'tower', h: 1 }] },
+      { w: 1.9, items: [{ id: 'map', h: 1.6 }, { id: 'radio', h: 1 }] },
+      { w: 1, items: [{ id: 'feed', h: 1 }, { id: 'analysis', h: 1.1 }] },
     ] };
   }
   if (window.innerWidth <= 1500) {
@@ -247,7 +279,7 @@ function detachedElsewhere(id) {
 
 function isVisible(id) {
   if (!isMain) return !!locate(id);
-  return !prefs.hiddenPanels.includes(id) && !detachedElsewhere(id) && !(essential() && EXPERT_PANELS.includes(id));
+  return !prefs.hiddenPanels.includes(id) && !detachedElsewhere(id) && !(essential() && ESS_OFF.includes(id));
 }
 
 // ---------------- Rendu ----------------
@@ -284,9 +316,10 @@ function mobile() {
 }
 // Téléphone : version simplifiée (l'essentiel seulement), sauf « version complète » dans les réglages
 const simple = () => mobile() && !prefs.phoneFull;
-// Ordinateur, mode Essentiel : le principal seulement (data-expert et EXPERT_PANELS : mode Complet)
+// Ordinateur, mode Essentiel : le principal seulement (data-expert et ESS_OFF : mode Complet)
 const essential = () => isMain && !mobile() && !prefs.fullMode;
-const EXPERT_PANELS = ['analysis'];
+// Panneaux du mode Complet seulement (Essentiel : la télémétrie du panneau Analyse à la place)
+const ESS_OFF = ['duel', 'extra'];
 const SIMPLE_TABS = ['tower', 'map', 'feed', 'radio'];
 
 export function showMobilePanel(id) {
@@ -364,11 +397,13 @@ function mobMore(btn) {
 function render(force = false) {
   if (resizing) { renderLater = true; return; }
   const grid = $('.grid');
-  const key = `${mobile()}|${simple()}|${essential()}|${narrow()}|${JSON.stringify(layout)}|${PANELS.map((p) => isVisible(p.id)).join()}`;
+  const key = `${mobile()}|${simple()}|${essential()}|${narrow()}|${big()}|${JSON.stringify(layout)}|${PANELS.map((p) => isVisible(p.id)).join()}`;
   if (key === renderKey && !force) return;
   document.documentElement.classList.toggle('phone', mobile());
   document.documentElement.classList.toggle('simple', simple());
   document.documentElement.classList.toggle('essential', essential());
+  document.documentElement.classList.toggle('ess-quali', essential() && profile === 'quali');
+  document.documentElement.classList.toggle('ess-big', essential() && big());
   renderKey = key;
   if (mobile()) { renderMobile(grid); return; }
   grid.classList.remove('mobile');
@@ -436,13 +471,44 @@ function render(force = false) {
 // Chaque panneau a sa position et sa taille (en fractions de la zone des panneaux) : on le
 // déplace avec la poignée et on le redimensionne par son coin, n'importe où ; il s'aimante aux bords
 // de la zone et des autres panneaux. Clic sur un panneau = il passe au premier plan.
-const FREE_GAP = 6;     // écart laissé entre deux panneaux aimantés (px)
-const SNAP = 12;        // distance d'aimantation (px)
+const FREE_GAP = 10;    // écart entre deux panneaux, et avec le bord de la zone (px) : le même qu'en colonnes
+const SNAP = 18;        // distance d'aimantation (px)
+const NEAR = FREE_GAP + 12;   // bords considérés comme collés (même séparation)
+
+// Rectangle d'un panneau libre en pixels { l, t, r, b } et retour en fractions de la zone
+const toPx = (f, g) => ({ l: g.left + f.x * g.width, t: g.top + f.y * g.height, r: g.left + (f.x + f.w) * g.width, b: g.top + (f.y + f.h) * g.height });
+const toFrac = (p, g) => ({ x: (p.l - g.left) / g.width, y: (p.t - g.top) / g.height, w: (p.r - p.l) / g.width, h: (p.b - p.t) / g.height });
+const overlap = (a0, a1, b0, b1) => Math.min(a1, b1) - Math.max(a0, b0) > 0;
+
+// Marges régulières : bords proches d'un voisin ou de la zone calés à FREE_GAP (après un déplacement, à l'affichage)
+function tidyFree(ids) {
+  const g = $('.grid').getBoundingClientRect();
+  if (!g.width || !g.height) return;
+  const R = ids.map((id) => [id, toPx(layout.free.rects[id], g)]);
+  for (const [, r] of R) {
+    if (r.l - g.left < NEAR) r.l = g.left + FREE_GAP;
+    if (g.right - r.r < NEAR) r.r = g.right - FREE_GAP;
+    if (r.t - g.top < NEAR) r.t = g.top + FREE_GAP;
+    if (g.bottom - r.b < NEAR) r.b = g.bottom - FREE_GAP;
+  }
+  for (const [, a] of R) {
+    for (const [, b] of R) {
+      if (a === b) continue;
+      if (overlap(a.t, a.b, b.t, b.b) && Math.abs(b.l - a.r) < NEAR) b.l = a.r + FREE_GAP;
+      if (overlap(a.l, a.r, b.l, b.r) && Math.abs(b.t - a.b) < NEAR) b.t = a.b + FREE_GAP;
+    }
+  }
+  for (const [id, r] of R) {
+    if (r.r - r.l < MIN_W || r.b - r.t < MIN_H) continue;
+    layout.free.rects[id] = toFrac(r, g);
+    applyRect(panelEl(id), layout.free.rects[id]);
+  }
+}
 
 function clearFree(el) {
   if (!el._free) return;
   for (const k of ['position', 'left', 'top', 'width', 'height', 'zIndex']) el.style[k] = '';
-  el.querySelector(':scope > .fr-rs')?.remove();
+  for (const h of el.querySelectorAll(':scope > .fr-rs, :scope > .fr-edge')) h.remove();
   el._free = false;
 }
 
@@ -491,11 +557,14 @@ function renderFree(grid, stash) {
     el._free = true;
     el._model = null;
     if (!el.querySelector(':scope > .fr-rs')) {
-      const rs = document.createElement('div');
-      rs.className = 'fr-rs';
-      rs.title = 'Glisser pour redimensionner';
-      rs.addEventListener('pointerdown', (e) => freeDrag(id, e, 'resize'));
-      el.appendChild(rs);
+      // Redimensionnement par chaque bord et chaque coin (poignée visible : coin en bas à droite)
+      for (const dir of ['se', 'n', 's', 'e', 'w', 'ne', 'nw', 'sw']) {
+        const rs = document.createElement('div');
+        rs.className = dir === 'se' ? 'fr-rs' : `fr-edge fr-${dir}`;
+        rs.title = 'Glisser pour redimensionner';
+        rs.addEventListener('pointerdown', (e) => freeDrag(id, e, dir));
+        el.appendChild(rs);
+      }
     }
     grid.insertBefore(el, stash);
   }
@@ -505,6 +574,7 @@ function renderFree(grid, stash) {
     note.textContent = isMain ? 'Tous les panneaux sont masqués ou ouverts dans une autre fenêtre.' : 'Fenêtre vide.';
     grid.insertBefore(note, stash);
   }
+  tidyFree(ids);
 }
 
 function bringToFront(id) {
@@ -523,8 +593,27 @@ function freeDrag(id, e, mode) {
   const r0 = el.getBoundingClientRect();
   const sx = e.clientX, sy = e.clientY;
   bringToFront(id);
-  // Bords auxquels s'aimanter : zone des panneaux et autres panneaux visibles
-  const others = PANELS.map((p) => p.id).filter((x) => x !== id && isVisible(x)).map((x) => panelEl(x).getBoundingClientRect());
+  const otherIds = PANELS.map((p) => p.id).filter((x) => x !== id && isVisible(x));
+  const start = Object.fromEntries(otherIds.map((x) => { const o = panelEl(x).getBoundingClientRect(); return [x, { l: o.left, t: o.top, r: o.right, b: o.bottom }]; }));
+  // Redimensionnement : les panneaux collés au bord tiré le suivent (même séparation) : bord en face (écart gardé)
+  // ou bord aligné du même côté (panneaux empilés). links : { id, edge, off } par axe
+  const links = { x: [], y: [] };
+  if (mode !== 'move') {
+    const edge = (axis, line, out, inn) => {
+      for (const x of otherIds) {
+        const o = start[x];
+        if (Math.abs(o[out] - line) < NEAR + FREE_GAP && Math.abs(o[out] - line) >= FREE_GAP / 2 && Math.sign(o[out] - line) === (out === 'l' || out === 't' ? 1 : -1)) links[axis].push({ id: x, edge: out, off: o[out] - line });
+        else if (Math.abs(o[inn] - line) < NEAR / 2) links[axis].push({ id: x, edge: inn, off: o[inn] - line });
+      }
+    };
+    if (mode.includes('e')) edge('x', r0.right, 'l', 'r');
+    if (mode.includes('w')) edge('x', r0.left, 'r', 'l');
+    if (mode.includes('s')) edge('y', r0.bottom, 't', 'b');
+    if (mode.includes('n')) edge('y', r0.top, 'b', 't');
+  }
+  const linked = new Set([...links.x, ...links.y].map((k) => k.id));
+  // Bords auxquels s'aimanter : zone des panneaux et autres panneaux visibles (sauf ceux qui suivent)
+  const others = otherIds.filter((x) => !linked.has(x)).map((x) => panelEl(x).getBoundingClientRect());
   const xs = [g.left, g.right, ...others.flatMap((o) => [o.left - FREE_GAP, o.right + FREE_GAP, o.left, o.right])];
   const ys = [g.top, g.bottom, ...others.flatMap((o) => [o.top - FREE_GAP, o.bottom + FREE_GAP, o.top, o.bottom])];
   const snap = (v, list) => { let best = v, d = SNAP; for (const c of list) if (Math.abs(c - v) < d) { d = Math.abs(c - v); best = c; } return best; };
@@ -546,9 +635,36 @@ function freeDrag(id, e, mode) {
       top = Math.max(g.top, Math.min(Math.max(g.top, g.bottom - r0.height), Math.abs(st - top) <= Math.abs(sb - top) ? st : sb));
       rect = { left, top, width: r0.width, height: r0.height };
     } else {
-      const right = snap(Math.min(g.right, Math.max(r0.left + MIN_W, r0.right + dx)), xs);
-      const bottom = snap(Math.min(g.bottom, Math.max(r0.top + MIN_H, r0.bottom + dy)), ys);
-      rect = { left: r0.left, top: r0.top, width: right - r0.left, height: bottom - r0.top };
+      // mode : bords tirés (n, s, e, w et coins) ; les autres restent en place
+      let left = mode.includes('w') ? snap(Math.max(g.left, Math.min(r0.right - MIN_W, r0.left + dx)), xs) : r0.left;
+      let right = mode.includes('e') ? snap(Math.min(g.right, Math.max(r0.left + MIN_W, r0.right + dx)), xs) : r0.right;
+      let top = mode.includes('n') ? snap(Math.max(g.top, Math.min(r0.bottom - MIN_H, r0.top + dy)), ys) : r0.top;
+      let bottom = mode.includes('s') ? snap(Math.min(g.bottom, Math.max(r0.top + MIN_H, r0.bottom + dy)), ys) : r0.bottom;
+      // Panneaux qui suivent : chacun garde sa taille minimale (le bord tiré s'arrête avant)
+      const keep = (v, axis) => {
+        for (const k of links[axis]) {
+          const o = start[k.id], min = axis === 'x' ? MIN_W : MIN_H;
+          const e = v + k.off;
+          if (k.edge === 'l' && o.r - e < min) v = o.r - min - k.off;
+          if (k.edge === 'r' && e - o.l < min) v = o.l + min - k.off;
+          if (k.edge === 't' && o.b - e < min) v = o.b - min - k.off;
+          if (k.edge === 'b' && e - o.t < min) v = o.t + min - k.off;
+        }
+        return v;
+      };
+      if (mode.includes('e')) right = keep(right, 'x');
+      if (mode.includes('w')) left = keep(left, 'x');
+      if (mode.includes('s')) bottom = keep(bottom, 'y');
+      if (mode.includes('n')) top = keep(top, 'y');
+      rect = { left, top, width: right - left, height: bottom - top };
+      const lines = { x: mode.includes('e') ? right : left, y: mode.includes('s') ? bottom : top };
+      for (const axis of ['x', 'y']) {
+        for (const k of links[axis]) {
+          const p = { ...start[k.id], [k.edge]: lines[axis] + k.off };
+          layout.free.rects[k.id] = toFrac(p, g);
+          applyRect(panelEl(k.id), layout.free.rects[k.id]);
+        }
+      }
     }
     const r = { x: (rect.left - g.left) / g.width, y: (rect.top - g.top) / g.height, w: rect.width / g.width, h: rect.height / g.height };
     layout.free.rects[id] = r;
@@ -563,6 +679,7 @@ function freeDrag(id, e, mode) {
     window.removeEventListener('pointercancel', up);
     window.removeEventListener('blur', up);
     endResize();
+    tidyFree(PANELS.map((p) => p.id).filter(isVisible));   // marges régulières
     save();
     window.dispatchEvent(new Event('resize'));   // graphiques et carte à la nouvelle taille
   };
@@ -878,8 +995,10 @@ function initChannel() {
 
 // ---------------- Agrandir ----------------
 export function unmaximize() {
+  const tower = $('.p-tower.maximized');
   for (const p of $$('.panel.maximized')) p.classList.remove('maximized');
   $('.grid').classList.remove('has-max');
+  if (tower) { renderLayoutOptions(); emit('towerSize'); }   // colonnes du classement : celles d'habitude
 }
 
 function maximize(id) {
@@ -889,6 +1008,7 @@ function maximize(id) {
   if (!was) {
     el.classList.add('maximized');
     $('.grid').classList.add('has-max');
+    if (id === 'tower') { renderLayoutOptions(); emit('towerSize'); }   // colonnes du classement agrandi
   }
 }
 
@@ -905,7 +1025,7 @@ const tabHeads = () => PANELS.map((p) => [p.id, panelEl(p.id)?.querySelector('[d
 function applyTabs() {
   const saved = storageGet(TABS_KEY, {})[profile] || {};
   for (const [id, head] of tabHeads()) {
-    const want = saved[id] || TAB_DEFAULTS[profile]?.[id];
+    const want = saved[id] || (essential() && ESS_TABS[id]) || TAB_DEFAULTS[profile]?.[id];
     const b = want && head.querySelector(`[data-tab="${want}"]`);
     if (b && !b.classList.contains('active')) b.click();
   }
@@ -916,7 +1036,8 @@ function applyTabs() {
 function visibleTabs() {
   for (const [, head] of tabHeads()) {
     const cur = head.querySelector(':scope > [data-tab].active');
-    if (cur && getComputedStyle(cur).display === 'none') [...head.querySelectorAll(':scope > [data-tab]')].find((b) => getComputedStyle(b).display !== 'none')?.click();
+    // Onglet regroupé (limites de piste, enquêtes…) : bouton caché par principe, choisi dans son sélecteur
+    if (cur && (cur.classList.contains('tab-member') ? prefs.hiddenTabs.includes(cur.dataset.tab) : getComputedStyle(cur).display === 'none')) [...head.querySelectorAll(':scope > [data-tab]')].find((b) => getComputedStyle(b).display !== 'none')?.click();
   }
 }
 
@@ -927,7 +1048,7 @@ function switchProfile(next, quiet = false) {
     const st = storageGet(PROFILE_KEY, {});
     st[profile] = { hiddenPanels: prefs.hiddenPanels, hiddenCols: prefs.hiddenCols, extraCols: prefs.extraCols };
     storageSet(PROFILE_KEY, st);
-    const n = st[next] || PROFILE_DEFAULTS[next];
+    const n = st[next] || profileDefaults();
     profile = next;
     storageSet('paddock.lastProfile', next);
     setPref('hiddenPanels', n.hiddenPanels || []);
@@ -1028,10 +1149,15 @@ export function initLayout() {
   // Disposition modifiée dans une autre instance de la même fenêtre (rechargement) : rien à faire ;
   // la fenêtre principale suit seulement les préférences.
   on('prefs', (k) => {
-    if (k === 'fullMode' && isMain) layout = normalize(allLayouts()[lkey()] || defaultLayout());
+    if (k === 'fullMode' && isMain) {
+      // Premier passage dans ce mode, panneaux masqués encore ceux par défaut de l'autre : ceux de ce mode
+      const same = (a, b) => a.length === b.length && a.every((x) => b.includes(x));
+      if (!allLayouts()[lkey()] && same(prefs.hiddenPanels, shortScreenHidden(!prefs.fullMode))) setPref('hiddenPanels', shortScreenHidden(prefs.fullMode));
+      layout = normalize(allLayouts()[lkey()] || defaultLayout());
+    }
     if (k === 'hiddenPanels' || k === 'phoneFull' || k === 'fullMode') render();
-    if (k === 'fullMode') visibleTabs();
-    if (['hiddenPanels', 'hiddenCols', 'extraCols', 'towerFit'].includes(k)) renderLayoutOptions();
+    if (k === 'fullMode') applyTabs();
+    if (['hiddenPanels', 'hiddenTabs', 'tabLayout', 'hiddenCols', 'extraCols', 'towerFit'].includes(k)) renderLayoutOptions();
   });
   render(true);
   renderLayoutOptions();
@@ -1041,6 +1167,24 @@ export function initLayout() {
     document.addEventListener('pointerdown', (e) => { if (colMenu.open && !colMenu.contains(e.target)) colMenu.open = false; });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') colMenu.open = false; });
   }
+  // Menus « Colonnes » et « Calques » : posés par-dessus l'écran (coupés par le bord d'un petit panneau sinon),
+  // sous le bouton ou au-dessus s'il y a plus de place, avec défilement si la fenêtre est trop basse
+  document.addEventListener('toggle', (e) => {
+    const d = e.target;
+    const menu = d.matches?.('.map-layers') && d.open && !d.closest('.float-bar, .grid.mobile') && d.querySelector('.map-layers-menu');
+    if (!menu) return;
+    const r = d.querySelector('summary').getBoundingClientRect();
+    const below = innerHeight - r.bottom - 14, above = r.top - 14;
+    const up = below < 280 && above > below;
+    Object.assign(menu.style, { position: 'fixed', right: 'auto', overflowY: 'auto', maxHeight: `${Math.max(120, up ? above : below)}px`,
+      top: up ? 'auto' : `${r.bottom + 6}px`, bottom: up ? `${innerHeight - r.top + 6}px` : 'auto' });
+    const w = menu.offsetWidth;
+    menu.style.left = `${Math.max(8, Math.min(innerWidth - w - 8, d.matches('.tower-cols, .rd-menu') ? r.left : r.right - w))}px`;
+  }, true);
+  addEventListener('resize', () => { for (const d of document.querySelectorAll('.map-layers[open]')) d.open = false; });
+  // Menu « Options » des radios (et tout autre menu de ce type) : fermé au clic ailleurs ou avec Échap
+  document.addEventListener('pointerdown', (e) => { for (const d of document.querySelectorAll('.rd-menu[open]')) if (!d.contains(e.target)) d.open = false; });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') for (const d of document.querySelectorAll('.rd-menu[open]')) d.open = false; });
   // Onglets ouverts : mémorisés pour chaque disposition
   for (const [id, head] of tabHeads()) {
     head.addEventListener('click', (e) => {
@@ -1053,7 +1197,8 @@ export function initLayout() {
   }
   applyTabs();
   on('reset', checkProfile);
-  on('events', (events) => { if (events.some(([t]) => t === 'SessionInfo')) checkProfile(); });
+  // Séance connue par son message, ou par l'instantané du début (direct ouvert avant la séance, replay)
+  on('events', (events) => { if (events.some(([t]) => t === 'SessionInfo' || t === '__snapshot')) checkProfile(); });
   on('prefs', (k) => { if (k === 'layoutMode') checkProfile(); });
   checkProfile();
 }
@@ -1115,11 +1260,13 @@ export function resetLayout(ask = true) {
   storageSet(PROFILE_KEY, {});
   storageSet(TABS_KEY, {});
   unmaximize();
-  const def = PROFILE_DEFAULTS[profile];
+  const def = profileDefaults();
   setPref('hiddenPanels', [...def.hiddenPanels]);
   setPref('hiddenCols', [...def.hiddenCols]);
   setPref('extraCols', []);
+  setPref('bigCols', null);
   setPref('tabLayout', null);
+  setPref('hiddenTabs', []);
   if (!prefs.towerFit) setPref('towerFit', true);
   layout = normalize(defaultLayout());
   applyTabs();
@@ -1134,12 +1281,24 @@ export function renderLayoutOptions() {
     sel.onchange = () => setPref('layoutMode', sel.value);
     $('#layoutProfileNow').textContent = `Disposition affichée : « ${PROFILES[profile]} ».`;
   }
-  $('#panelOpts').innerHTML = PANELS.map((p) => `<label class="toggle small"${EXPERT_PANELS.includes(p.id) ? ' data-expert' : ''}><input type="checkbox" data-panel="${p.id}" ${prefs.hiddenPanels.includes(p.id) ? '' : 'checked'}> ${esc(p.name)}</label>`).join('');
+  $('#panelOpts').innerHTML = PANELS.map((p) => `<label class="toggle small"${ESS_OFF.includes(p.id) ? ' data-expert' : ''}><input type="checkbox" data-panel="${p.id}" ${prefs.hiddenPanels.includes(p.id) ? '' : 'checked'}> ${esc(p.name)}</label>`).join('');
   $('#panelOpts').onchange = (e) => {
     const id = e.target.dataset.panel;
     if (!id) return;
     setPref('hiddenPanels', e.target.checked ? prefs.hiddenPanels.filter((x) => x !== id) : [...prefs.hiddenPanels, id]);
   };
+  // Onglets visibles : ceux de chaque panneau, sauf le dernier qu'il reste (masquer alors le panneau)
+  const tabs = $('#tabOpts');
+  if (tabs) {
+    tabs.innerHTML = tabList().filter(([p]) => SHORT[p]).sort((a, b) => PANELS.findIndex((x) => x.id === a[0]) - PANELS.findIndex((x) => x.id === b[0]))
+      .map(([p, t, name, expert]) => `<label class="toggle small"${expert ? ' data-expert' : ''}><input type="checkbox" data-tabopt="${t}" ${prefs.hiddenTabs.includes(t) ? '' : 'checked'}> ${esc(SHORT[p])} · ${esc(name)}</label>`).join('');
+    tabs.onchange = (e) => {
+      const t = e.target.dataset.tabopt;
+      if (!t) return;
+      if (!e.target.checked && !canHideTab(t)) { e.target.checked = true; toast('Dernier onglet de ce panneau : masquez plutôt le panneau (Panneaux visibles)', 4000, 'warning'); return; }
+      setPref('hiddenTabs', e.target.checked ? prefs.hiddenTabs.filter((x) => x !== t) : [...prefs.hiddenTabs, t]);
+    };
+  }
   $('#towerFit').checked = prefs.towerFit;
   $('#towerFit').onchange = (e) => setPref('towerFit', e.target.checked);
   for (const b of [$('#layoutReset'), $('#resetUiBtn')]) if (b) b.onclick = () => resetLayout();

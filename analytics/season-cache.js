@@ -8,17 +8,19 @@ export const SEASON_TTL = 30 * 60e3;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // Toutes les pages d'une liste (100 par page), une demande à la fois (4 par seconde au plus chez Jolpica)
-async function pages(path, fetchFn, wait) {
+export async function pages(path, fetchFn, wait = sleep) {
   const out = [];
   for (let offset = 0, total = 1; offset < total; offset += 100) {
-    let j = null;
-    for (let attempt = 0; attempt < 3 && !j; attempt++) {
-      await wait(300 * (attempt + 1));
-      const r = await fetchFn(`${JOLPICA}/${path}.json?limit=100&offset=${offset}`, { signal: AbortSignal.timeout(20000) }).catch(() => null);
-      if (r?.ok) j = await r.json();
-      else if (r && r.status !== 429 && r.status < 500) throw new Error(`Résultats indisponibles (erreur ${r.status})`);
+    let j = null, last = null;
+    for (let attempt = 0; attempt < 5 && !j; attempt++) {
+      // Trop de demandes (429) : attente demandée par Jolpica (10 s au plus), sinon de plus en plus longue
+      const after = Number(last?.headers?.get('Retry-After'));
+      await wait(attempt ? Math.min(10000, after > 0 ? after * 1000 : 1000 * 2 ** attempt) : 300);
+      last = await fetchFn(`${JOLPICA}/${path}.json?limit=100&offset=${offset}`, { signal: AbortSignal.timeout(20000) }).catch(() => null);
+      if (last?.ok) j = await last.json();
+      else if (last && last.status !== 429 && last.status < 500) throw new Error(`Résultats indisponibles (erreur ${last.status})`);
     }
-    if (!j) throw new Error('Serveur des résultats (Jolpica) injoignable');
+    if (!j) throw new Error(`Serveur des résultats (Jolpica) injoignable${last ? ` (erreur ${last.status})` : ''}`);
     total = Number(j.MRData?.total) || 0;
     out.push(j.MRData);
     if (!total) break;

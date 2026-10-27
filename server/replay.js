@@ -7,21 +7,7 @@ import { ARCHIVE_TOPICS, topicName } from '../shared/f1.js';
 import { sessionLabel } from './live.js';
 import { readRecording, recordingPath } from './recorder.js';
 import { keyMoments } from '../shared/moments.js';
-
-
-function parseStream(text, topic) {
-  const out = [];
-  const re = /^(\d+):(\d\d):(\d\d)\.(\d+)(.*)$/;
-  for (const line of text.split(/\r?\n/)) {
-    const m = re.exec(line);
-    if (!m) continue;
-    const off = ((+m[1] * 60 + +m[2]) * 60 + +m[3]) * 1000 + Math.round(+`0.${m[4]}` * 1000);
-    let data;
-    try { data = JSON.parse(m[5]); } catch { continue; }
-    out.push({ off, topic, data });
-  }
-  return out;
-}
+import { parseStream, indexMeetings } from '../shared/race-stats.js';
 
 async function mapLimit(items, limit, fn) {
   const results = new Array(items.length);
@@ -36,11 +22,11 @@ async function mapLimit(items, limit, fn) {
   return results;
 }
 
-export async function loadArchive(path, onProgress = () => {}, topics = ARCHIVE_TOPICS) {
+export async function loadArchive(path, onProgress = () => {}, topics = ARCHIVE_TOPICS, get = archiveGet) {   // get : tests
   let done = 0;
   const parts = await mapLimit(topics, 4, async (rawTopic) => {
     try {
-      const text = await archiveGet(`${path}${rawTopic}.jsonStream`, { timeout: 120000 });
+      const text = await get(`${path}${rawTopic}.jsonStream`, { timeout: 120000 });
       return parseStream(text, rawTopic);
     } catch (err) {
       if (!(err instanceof HttpError)) console.warn(`[replay] ${rawTopic}: ${err.message}`);
@@ -68,7 +54,9 @@ export async function loadArchive(path, onProgress = () => {}, topics = ARCHIVE_
   // Début réel de la session (extinction des feux / feu vert en qualif).
   const started = events.find((e) => e.topic === 'SessionStatus' && e.data?.Status === 'Started');
   const info = events.find((e) => e.topic === 'SessionInfo')?.data;
-  return { events, stream, duration, startOff: started ? started.off : 0, info };
+  // Radios d'équipe absentes de l'archive (la F1 ne les a pas publiées pour les premières séances de 2026)
+  const noRadio = topics.includes('TeamRadio') && !parts[topics.indexOf('TeamRadio')].length;
+  return { events, stream, duration, startOff: started ? started.off : 0, info, noRadio };
 }
 
 // Périodes de drapeau rouge, en ms depuis le début : du drapeau (TrackStatus 5) à la reprise
@@ -215,6 +203,7 @@ export class ReplaySource {
       yellows: yellowPeriods(archive.events, archive.duration),
       anchor: this.anchor,
       speed: this.speed,
+      noRadio: !!archive.noRadio,
     };
   }
 
@@ -273,21 +262,7 @@ export async function seasonIndex(year) {
   const cached = indexCache.get(year);
   if (cached && Date.now() - cached.at < 10 * 60 * 1000) return cached.data;
   const raw = await withRetry(() => archiveJSON(`${year}/Index.json`), { tries: 3 });
-  const data = (raw.Meetings || []).map((m) => ({
-    key: m.Key,
-    name: m.Name,
-    location: m.Location,
-    country: m.Country?.Name,
-    circuitKey: m.Circuit?.Key,
-    sessions: (m.Sessions || []).filter((s) => s.Path).map((s) => ({
-      key: s.Key,
-      name: s.Name,
-      type: s.Type,
-      start: s.StartDate,
-      gmtOffset: s.GmtOffset,
-      path: s.Path,
-    })),
-  }));
+  const data = indexMeetings(raw);
   indexCache.set(year, { at: Date.now(), data });
   return data;
 }

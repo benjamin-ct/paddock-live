@@ -1,8 +1,8 @@
 // Tableau de classement (course / qualifications / essais).
-import { store, setDuel, setFocus, versionOf, displayNow, f1Now, on } from '../store.js';
+import { store, setDuel, setFocus, versionOf, displayNow, f1Now, on, utcToLocal } from '../store.js';
 import { $, esc, drivers, orderedNumbers, sessionKind, teamMark, tyreBadge, currentStint, lapSeconds, fmtLap } from '../util.js';
-import { prefs, isFav, toggleFav } from '../prefs.js';
-import { segmentClass, parseUtc } from '/shared/f1.js';
+import { prefs, isFav, toggleFav, towerCols, towerBig } from '../prefs.js';
+import { segmentClass, parseUtc, chequeredUtc } from '/shared/f1.js';
 import { icon } from '../icons.js';
 import { realStopCount } from '/shared/pits.js';
 import { stewardsData } from './feed.js';
@@ -25,6 +25,9 @@ function list(obj) {
   return Array.isArray(obj) ? obj : Object.keys(obj).sort((a, b) => a - b).map((k) => obj[k]);
 }
 
+// Pilote qui a passé le damier : un tour terminé après lui (le message arrive juste après le passage du premier)
+const tookFlag = (laps, at) => at !== null && laps?.length > 0 && laps[laps.length - 1].t >= at - 3000;
+
 function sectorCell(sec) {
   const segs = list(sec?.Segments);
   const val = sec?.Value || '';
@@ -40,7 +43,9 @@ function gapText(v) {
 
 export function renderTower(force = false) {
   const now = performance.now();
-  const key = `${versionOf(['TimingData', 'TimingAppData', 'DriverList', 'TimingStats', 'RaceControlMessages', '__reset'])}|${store.duel.a}|${store.duel.b}|${store.focus}|${prefs.hiddenCols.join()}|${prefs.extraCols.join()}|${prefs.favs.join()}|${prefs.hotLapDim}`;
+  // Pilotes A et B marqués seulement quand le panneau Duel est affiché (comme sur la carte)
+  const duelOn = !!document.querySelector('.p-duel')?.getClientRects().length;
+  const key = `${versionOf(['TimingData', 'TimingAppData', 'DriverList', 'TimingStats', 'RaceControlMessages', '__reset'])}|${store.duel.a}|${store.duel.b}|${duelOn}|${store.focus}|${towerBig()}|${towerCols().hidden.join()}|${towerCols().extra.join()}|${prefs.favs.join()}|${prefs.hotLapDim}`;
   const carTick = store.positions.car.size ? Math.floor(now / 500) : 0;
   if (!force && key + carTick === lastKey) return;
   if (!force && now - lastRender < 250) return;
@@ -103,6 +108,8 @@ export function renderTower(force = false) {
       if (sec) for (const c of d.cars) pens[c.num] = (pens[c.num] || 0) + Number(sec);
     }
   }
+  const flagUtc = chequeredUtc(s.RaceControlMessages?.Messages);
+  const flagAt = flagUtc === null ? null : utcToLocal(flagUtc);
   const rows = nums.map((num) => {
     const d = dl[num] || {};
     const l = lines[num] || {};
@@ -110,7 +117,9 @@ export function renderTower(force = false) {
     const pos = l.Position || d.Line || '';
     const stint = currentStint(a);
     const tags = [];
+    const done = tookFlag(store.derived.laps?.[num], flagAt);
     if (l.Retired) tags.push('<span class="tag ret">ABD</span>');
+    else if (done) { /* ligne en damier (classe fin), sans STAND ni SORTIE */ }
     else if (l.Stopped) tags.push('<span class="tag stop">ARRÊT</span>');
     else if (l.InPit) tags.push('<span class="tag pit">STAND</span>');
     else if (l.PitOut) tags.push('<span class="tag out">SORTIE</span>');
@@ -118,7 +127,7 @@ export function renderTower(force = false) {
       const car = store.positions.carAt(num, dispNow);
       if (car && car.drs >= 10) tags.push('<span class="tag drs">DRS</span>');
     }
-    const pred = kind !== 'race' ? predictLap(l, stats[num]) : null;
+    const pred = kind !== 'race' && !done ? predictLap(l, stats[num]) : null;
     if (pred) tags.push('<span class="tag push" title="Tour rapide en cours">TOUR</span>');
     if (pens[num]) tags.push(`<span class="tag pen" title="Pénalité en temps : purgée au prochain arrêt, sinon ajoutée à son temps de course">+${pens[num]} s</span>`);
 
@@ -194,10 +203,11 @@ export function renderTower(force = false) {
     if (l.KnockedOut || l.Retired) cls.push('out');
     if (cutoff && Number(pos) > cutoff && !l.KnockedOut) cls.push('danger');
     if (cutoff && Number(pos) === cutoff) cls.push('cut');
+    if (done) cls.push('fin');
     if (store.focus === num) cls.push('focus');
     if (hot && !pred && store.focus !== num && store.duel.a !== num && store.duel.b !== num) cls.push('cool');
-    if (store.duel.a === num) cls.push('duel-a');
-    if (store.duel.b === num) cls.push('duel-b');
+    if (duelOn && store.duel.a === num) cls.push('duel-a');
+    if (duelOn && store.duel.b === num) cls.push('duel-b');
     return { num, cls: cls.join(' '), cells };
   });
   freshReset = false;
@@ -212,7 +222,8 @@ export function renderTower(force = false) {
   }
 
   const table = $('#tower');
-  table.className = `tower ${prefs.hiddenCols.map((c) => `hide-${c}`).join(' ')} ${prefs.extraCols.map((c) => `show-${c}`).join(' ')}`;
+  const cols = towerCols();
+  table.className = `tower ${cols.hidden.map((c) => `hide-${c}`).join(' ')} ${cols.extra.map((c) => `show-${c}`).join(' ')}`;
   syncTable(table, cutInfo, head, rows);
   fitTower();
 }
@@ -395,8 +406,9 @@ export function initTower() {
   // Ajustement à l'image suivante : le faire pendant la mesure relançait l'observateur en boucle
   let fitFrame = 0;
   if ('ResizeObserver' in window) new ResizeObserver(() => { cancelAnimationFrame(fitFrame); fitFrame = requestAnimationFrame(() => fitTower()); }).observe(wrap);
-  on('prefs', (k) => { if (k === 'towerFit') fitTower(true); });
+  on('prefs', (k) => { if (k === 'towerFit') fitTower(true); if (k === 'bigCols') renderTower(true); });
   on('reset', () => { freshReset = true; prevPos.clear(); flashes.clear(); });
+  on('towerSize', () => renderTower(true));   // agrandi ou réduit : ses colonnes
   $('#tower').addEventListener('click', (e) => {
     const b = e.target.closest('[data-duel]');
     if (b) {

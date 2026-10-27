@@ -3,7 +3,7 @@ import { store, displayNow, f1Now, on, versionOf } from '../store.js';
 import { prefs, setPref } from '../prefs.js';
 import { $, api, drivers, teamColor, storageGet, storageSet } from '../util.js';
 import { loadTrack } from '../track.js';
-import { parseUtc } from '/shared/f1.js';
+import { parseUtc, segmentClass } from '/shared/f1.js';
 import { hotLaps } from './tower.js';
 import { icon } from '../icons.js';
 import { DEC, tx } from '../i18n.js';
@@ -77,10 +77,12 @@ function ensureTrack() {
     if (trackKey !== k) return;
     track = t;
     store.positions.setTrack(t);
-    // Emplacement réel des boucles de chrono (calculé une fois par circuit par le serveur).
-    api(`/api/loops?key=${key}&year=${year}`).then((l) => { if (trackKey === k) store.positions.setLoops(l); }).catch(() => {});
-    // Zones ligne droite et ligne de détection (estimées une fois par circuit, peut prendre ~1 min)
-    api(`/api/zones?key=${key}&year=${year}`).then((z) => { if (trackKey === k) zones = z; }).catch(() => {});
+    // Emplacement réel des boucles de chrono, zones ligne droite et ligne de détection : calculés une fois par circuit
+    // par le serveur ; pas encore calculés (404) ou serveur injoignable : redemandés toutes les 2 minutes
+    const ask = (what, use) => api(`/api/${what}?key=${key}&year=${year}`)
+      .then((v) => { if (trackKey === k) use(v); }, () => setTimeout(() => { if (trackKey === k) ask(what, use); }, 120e3));
+    ask('loops', (l) => store.positions.setLoops(l));
+    ask('zones', (z) => { zones = z; });
     xf = null;
     $('#mapEmpty').hidden = true;
   }).catch((err) => {
@@ -469,6 +471,7 @@ function drawSectors(lay) {
     strokeDist(sec.from, sec.from + sec.len);
   }
   ctx.restore();
+  drawFocusMinis(lay, W);
   // Repères des micro-secteurs (petits traits) et des fins de secteur (grands traits)
   for (const m of lay.minis) {
     const p = screenAt(m.r);
@@ -480,6 +483,31 @@ function drawSectors(lay) {
     ctx.lineTo(p.x + p.nx * len, p.y + p.ny * len);
     ctx.stroke();
   }
+}
+
+// Pilote suivi en piste (tour lancé…) : ses micro-secteurs aux couleurs du classement (jaune, vert, violet, stand)
+const SEG_VARS = { 'seg-yellow': '--yellow', 'seg-green': '--green', 'seg-purple': '--purple', 'seg-pit': '--blue' };
+const focusSecs = () => {
+  const l = store.focus && store.state.TimingData?.Lines?.[store.focus];
+  return l && !l.InPit && !l.Retired && !l.Stopped ? list(l.Sectors) : null;
+};
+// Fond de la carte redessiné dès que le pilote suivi ou un de ses micro-secteurs change
+const focusMinisKey = () => `${store.focus}:${(focusSecs() || []).map((s) => list(s?.Segments).map((g) => g?.Status).join(',')).join(';')}`;
+function drawFocusMinis(lay, W) {
+  const secs = focusSecs();
+  if (!secs?.length) return;
+  const css = getComputedStyle(document.documentElement);
+  ctx.save();
+  ctx.lineWidth = Math.max(3, W * 0.5);
+  for (const sec of lay.sectors) {
+    let from = sec.from;
+    for (const m of lay.minis.filter((x) => x.i === sec.i)) {
+      const v = SEG_VARS[segmentClass(list(secs[sec.i]?.Segments)[m.j]?.Status)];
+      if (v) { ctx.strokeStyle = css.getPropertyValue(v).trim(); strokeDist(from, m.r); }
+      from = m.r;
+    }
+  }
+  ctx.restore();
 }
 
 // Étiquettes S1 / S2 / S3 au milieu de chaque secteur, numéros de micro-secteur en zoom
@@ -627,7 +655,7 @@ function draw() {
 
   const animated = red || scMode || [...flags.values()].includes('DOUBLE YELLOW');
   const bgKey = [size.w, size.h, size.dpr, view.x.toFixed(1), view.y.toFixed(1), view.z.toFixed(3), ts, [...flags].join(),
-    lay?.key, !!zones, store.positions.lineFrac().toFixed(4), MAP_OPTS.map((k) => $(`#${k}`).checked).join(), trackKey, document.fonts?.status, document.documentElement.dataset.scheme, versionOf(['TimingStats'])].join('|');
+    lay?.key, !!zones, store.positions.lineFrac().toFixed(4), MAP_OPTS.map((k) => $(`#${k}`).checked).join(), trackKey, document.fonts?.status, document.documentElement.dataset.scheme, versionOf(['TimingStats']), focusMinisKey()].join('|');
   let flagZones;
   if (!animated && bg.key === bgKey && bg.canvas) {
     ctx.drawImage(bg.canvas, 0, 0, size.w, size.h);
@@ -954,9 +982,9 @@ function drawGaps(cars, lines) {
   ctx.restore();
 }
 
-// Pilote suivi : bulle de télémétrie à côté de sa voiture (vitesse, rapport, accélérateur, frein, écart)
+// Pilote suivi (choisi dans le classement) : bulle de télémétrie à côté de sa voiture (vitesse, rapport, accélérateur, frein, écart)
 function drawFocusCard(cars, lines, disp) {
-  const c = cars.find((x) => x.isF) || cars.find((x) => x.isA);
+  const c = cars.find((x) => x.isF);   // seulement un pilote choisi (pas le pilote A du duel)
   if (!c) return;
   if (size.w < 360 || size.h < 260) return;   // carte trop petite : pas de bulle
   const small = size.w < 560 || size.h < 380;
@@ -1101,11 +1129,13 @@ function drawCars(dt) {
   }
 
   const order = Object.keys(dl).sort((a, b) => (Number(lines[b]?.Position) || 99) - (Number(lines[a]?.Position) || 99));
-  const special = new Set([store.duel.a, store.duel.b, store.focus].filter(Boolean));
+  // Pilotes du duel marqués seulement quand le panneau Duel est affiché (pas en Essentiel, ni panneau masqué)
+  const duel = document.querySelector('.p-duel')?.getClientRects().length ? store.duel : {};
+  const special = new Set([duel.a, duel.b, store.focus].filter(Boolean));
   const drawOrder = [...order.filter((n) => !special.has(n)), ...order.filter((n) => special.has(n))];
 
   let inPit = 0;
-  const followNum = store.focus || store.duel.a;
+  const followNum = store.focus || duel.a;
   if (!followNum) followTarget = null;
   const W = trackWidth();
   const trails = $('#mapTrails').checked;
@@ -1141,7 +1171,7 @@ function drawCars(dt) {
       if (h.length > TRAIL_LEN) h.shift();
     }
     const d = dl[num];
-    const isA = store.duel.a === num, isB = store.duel.b === num, isF = store.focus === num;
+    const isA = duel.a === num, isB = duel.b === num, isF = store.focus === num;
     const sp = isA || isB || isF;
     // Avec les noms : pastille ronde avec le trigramme à l'intérieur ; sinon simple point
     const r = labels ? Math.max(12, Math.min(16, W * 0.85)) + (sp ? 1.5 : 0) : Math.max(5.5, Math.min(10, W * 0.55)) + (sp ? 1.5 : 0);

@@ -3,16 +3,17 @@
 // code du mode créateur, pour préparer et publier les posts depuis le téléphone, PC éteint.
 // Le code n'est envoyé qu'à l'activation (vérifié contre son empreinte) ; ensuite seule la clé sert,
 // gardée dans config.json comme les jetons eux-mêmes. Nouvel envoi automatique quand un jeton change.
+// S'y ajoute une copie de tous les comptes chiffrée ici (clé des comptes, jamais envoyée), reprise sur un nouvel ordinateur.
 import crypto from 'node:crypto';
 import { getConfig, saveConfig, tokenInfo } from './config.js';
-import { checkCode, creatorEnabled } from './creator.js';
+import { accountsKey, checkCode, creatorEnabled, studioKey } from './creator.js';
 
 export const STUDIO_URL = process.env.PADDOCK_STUDIO_URL ?? 'https://paddock-live-stats.paddock-live.workers.dev';
 // Adresse de la page à ouvrir dans le navigateur (l'appli garde STUDIO_URL pour ses appels)
 export const STUDIO_PAGE = process.env.PADDOCK_STUDIO_PAGE ?? 'https://paddocklive.app/studio/';
 const EVERY = 6 * 3600e3;
 
-export const studioKey = (code) => crypto.pbkdf2Sync(String(code).trim().toUpperCase(), 'paddock-live-studio', 200000, 32, 'sha256').toString('base64url');
+export { studioKey };
 
 // Ce qui part sur le serveur : jetons des réseaux et connexion F1 TV valide. Clés secrètes d'app
 // seulement pour TikTok et YouTube : leur jeton (24 h, 1 h) ne se renouvelle qu'avec elles, et le
@@ -33,6 +34,24 @@ export function studioVault(c = getConfig()) {
 }
 const digest = (v) => crypto.createHash('sha256').update(JSON.stringify(v)).digest('hex');
 
+// Copie de tous les comptes (X et clés des apps comprises), chiffrée ici avec la clé des comptes : le serveur
+// la garde sans pouvoir la lire, et la rend sur un nouvel ordinateur
+function box(data, k) {
+  const iv = crypto.randomBytes(12);
+  const c = crypto.createCipheriv('aes-256-gcm', Buffer.from(k, 'base64url'), iv);
+  const ct = Buffer.concat([c.update(JSON.stringify(data)), c.final()]);
+  return [iv, c.getAuthTag(), ct].map((b) => b.toString('base64url')).join('.');
+}
+function unbox(s, k) {
+  const [iv, tag, ct] = String(s).split('.').map((b) => Buffer.from(b, 'base64url'));
+  const d = crypto.createDecipheriv('aes-256-gcm', Buffer.from(k, 'base64url'), iv);
+  d.setAuthTag(tag);
+  return JSON.parse(Buffer.concat([d.update(ct), d.final()]).toString());
+}
+// Envoi : coffre (ce dont le serveur se sert) et copie chiffrée des comptes ; empreinte calculée sur le contenu en clair
+const sent = (c = getConfig()) => ({ vault: studioVault(c), accounts: c.social || {} });
+const payload = (c = getConfig()) => ({ vault: studioVault(c), ...(c.studio?.box ? { accounts: box(c.social || {}, c.studio.box) } : {}) });
+
 async function post(path, body, key, fetchFn = fetch, timeout = 20000) {
   const res = await fetchFn(`${STUDIO_URL}/studio/api/${path}`, {
     method: 'POST', headers: { 'Content-Type': 'application/json', ...(key ? { 'X-Studio-Key': key } : {}) }, body: JSON.stringify(body), signal: AbortSignal.timeout(timeout),
@@ -42,38 +61,51 @@ async function post(path, body, key, fetchFn = fetch, timeout = 20000) {
   return j;
 }
 
-// Post écrit à la main dans l'appli : mise en forme par l'IA du serveur, comme sur la page web
-export async function studioRewrite(text, { fetchFn } = {}) {
-  const key = getConfig().studio?.key;
-  if (!key) throw new Error('Mise en forme par l\'IA : activez d\'abord la page web (Publier sur mes réseaux → Comptes… → Page web)');
-  return post('rewrite', { text: String(text || '').slice(0, 4000) }, key, fetchFn, 90000);
-}
-
-// Liens suivis par le serveur (clics comptés dans les statistiques du Studio) ; page web désactivée ou
-// serveur injoignable : textes tels quels
-export async function studioTrack(net, text = '', comment = '', { fetchFn, title } = {}) {
-  const key = getConfig().studio?.key;
-  if (!key || !/https?:\/\//.test(`${text} ${comment}`)) return { text, comment };
-  try {
-    const r = await post('links', { net, text, comment, ...(title ? { title } : {}) }, key, fetchFn, 8000);
-    return { text: typeof r.text === 'string' ? r.text : text, comment: typeof r.comment === 'string' ? r.comment : comment };
-  } catch {
-    return { text, comment };
-  }
-}
-
 export function studioInfo() {
   const st = getConfig().studio;
-  return { enabled: !!st?.key, url: STUDIO_PAGE, at: st?.at || null, error: st?.error || null, f1tv: !!studioVault().f1tv };
+  return { enabled: !!st?.key, url: STUDIO_PAGE, at: st?.at || null, error: st?.error || null, f1tv: !!studioVault().f1tv, backup: !!st?.box };
 }
 
 export async function enableStudio(code, { fetchFn } = {}) {
   if (!checkCode(code)) throw new Error('Code incorrect');
   const key = studioKey(code);
-  const vault = studioVault();
-  await post('init', { code: String(code).trim(), key, vault }, null, fetchFn);
-  saveConfig({ studio: { key, at: Date.now(), hash: digest(vault), error: null } });
+  const st = getConfig().studio;
+  // Page déjà activée (avant la copie des comptes) : le code sert seulement à la clé de la copie
+  if (st?.key === key) {
+    saveConfig({ studio: { ...st, box: accountsKey(code) } });
+    await syncStudio({ force: true, fetchFn });
+    return studioInfo();
+  }
+  await restoreAccounts(code, { fetchFn });   // page déjà activée sur un autre ordinateur : ses comptes repris, pas écrasés
+  const c = { ...getConfig(), studio: { box: accountsKey(code) } };
+  await post('init', { code: String(code).trim(), key, ...payload(c) }, null, fetchFn);
+  saveConfig({ studio: { key, box: c.studio.box, at: Date.now(), hash: digest(sent(c)), error: null } });
   return studioInfo();
+}
+
+// Nouvel ordinateur : comptes des réseaux et connexion F1 TV repris de la page web (activée ailleurs avec le
+// même code), qui reste activée ici aussi ; un compte déjà connecté ici est gardé. Nombre de comptes repris
+const connected = (v) => !!(v && (v.pageToken || v.token || v.appPassword || v.refreshToken || v.accessToken));
+export async function restoreAccounts(code, { fetchFn = fetch } = {}) {
+  const key = studioKey(code);
+  const k = accountsKey(code);
+  let r;
+  try {
+    const res = await fetchFn(`${STUDIO_URL}/studio/api/accounts`, { headers: { 'X-Studio-Key': key }, signal: AbortSignal.timeout(20000) });
+    if (!res.ok) return 0;   // page jamais activée, désactivée, ou autre code
+    r = await res.json();
+  } catch { return 0; }
+  let theirs = {};
+  try { if (r.accounts) theirs = unbox(r.accounts, k); } catch { /* copie illisible : coffre seul */ }
+  // Jetons du coffre par-dessus : le serveur a pu les renouveler
+  for (const [n, v] of Object.entries(r.vault || {})) if (v && typeof v === 'object' && !Array.isArray(v)) theirs[n] = { ...theirs[n], ...v };
+  const c = getConfig();
+  const social = { ...c.social };
+  let n = 0;
+  for (const [net, v] of Object.entries(theirs)) if (connected(v) && !connected(social[net])) { social[net] = v; n++; }
+  const f1tv = !c.f1tvToken && typeof r.vault?.f1tv === 'string' && !tokenInfo(r.vault.f1tv).expired ? r.vault.f1tv : null;
+  saveConfig({ social, ...(f1tv ? { f1tvToken: f1tv } : {}), studio: { at: Date.now(), hash: null, ...c.studio, key, box: k, error: null } });
+  return n + (f1tv ? 1 : 0);
 }
 
 export async function disableStudio({ fetchFn } = {}) {
@@ -87,44 +119,16 @@ export async function disableStudio({ fetchFn } = {}) {
 export async function syncStudio({ force = false, fetchFn } = {}) {
   const st = getConfig().studio;
   if (!st?.key || !creatorEnabled()) return false;
-  const vault = studioVault();
-  const h = digest(vault);
+  const h = digest(sent());
   if (!force && h === st.hash) return false;
   try {
-    await post('sync', { vault }, st.key, fetchFn);
+    await post('sync', payload(), st.key, fetchFn);
     saveConfig({ studio: { ...st, at: Date.now(), hash: h, error: null } });
     return true;
   } catch (err) {
     saveConfig({ studio: { ...st, error: err.status === 401 || err.status === 409 ? 'Page à réactiver (code changé ou données effacées)' : err.message } });
     return false;
   }
-}
-
-// Requête authentifiée vers la page web (si activée) ; null si désactivée ou injoignable
-export async function studioCall(path, { body, fetchFn = fetch, timeout = 15000 } = {}) {
-  const st = getConfig().studio;
-  if (!st?.key || !creatorEnabled()) return null;
-  try {
-    const res = await fetchFn(`${STUDIO_URL}/studio/api/${path}`, {
-      method: body ? 'POST' : 'GET', headers: { 'X-Studio-Key': st.key, ...(body ? { 'Content-Type': 'application/json' } : {}) },
-      body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(timeout),
-    });
-    return res.ok ? await res.json() : null;
-  } catch { return null; }
-}
-
-// Brouillons de posts, gardés par la page web (partagés avec le Studio) : réponse du serveur, ou son
-// message d'erreur
-export async function studioDrafts(path, body = null, { fetchFn = fetch } = {}) {
-  const st = getConfig().studio;
-  if (!st?.key || !creatorEnabled()) throw new Error('Activez la page web (téléphone) dans « Publier… » pour garder des brouillons');
-  const res = await fetchFn(`${STUDIO_URL}/studio/api/${path}`, {
-    method: body ? 'POST' : 'GET', headers: { 'X-Studio-Key': st.key, ...(body ? { 'Content-Type': 'application/json' } : {}) },
-    body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(30000),
-  });
-  const j = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(j.error || `Page web indisponible (${res.status})`);
-  return j;
 }
 
 export function startStudioSync() {

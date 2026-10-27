@@ -1,7 +1,7 @@
-// Traduction par le serveur Paddock Live (Workers AI) : actualités, radios, documents FIA. Chaque
+// Traduction par le serveur Paddock Live : actualités, radios, documents FIA. Chaque
 // texte n'y est traduit qu'une fois pour tout le monde, l'ordinateur n'a plus rien à calculer.
 // Les demandes de l'interface sont regroupées (jusqu'à 40 par envoi). Serveur injoignable ou plafond
-// du jour atteint : pause de 10 minutes, l'interface traduit alors sur l'ordinateur comme avant.
+// du jour atteint : pause de 10 minutes, les textes restent en version originale.
 import { request } from './net.js';
 import { badScript } from '../shared/translation-check.js';
 
@@ -21,9 +21,9 @@ async function postJSON(url, body) {
 }
 
 export function createCloudTranslator({ url = TRANSLATE_URL, post = postJSON, now = Date.now } = {}) {
-  const pending = new Map();   // to -> [{ text, from, resolve }]
+  const pending = new Map();   // to -> [{ text, from, kind, resolve }]
   const timers = new Map();
-  const memo = new Map();      // `${from}|${to}|${text}` -> traduction (mémoire de la session)
+  const memo = new Map();      // `${from}|${to}|${text}` -> traduction (5 000 dernières : appli ouverte des jours)
   let pausedUntil = 0;
 
   const available = () => !!url && now() >= pausedUntil;
@@ -45,7 +45,7 @@ export function createCloudTranslator({ url = TRANSLATE_URL, post = postJSON, no
     for (const part of parts) {
       let out = [];
       try {
-        const r = await post(url, { to, items: part.map(({ text, from }) => ({ text, from })) });
+        const r = await post(url, { to, items: part.map(({ text, from, kind }) => ({ text, from, ...(kind && { kind }) })) });
         // Plafond du jour ou panne : pause ; envoi refusé (400) : seulement ces textes-là
         if (r.status === 429 || r.status >= 500 || (r.status === 200 && !Array.isArray(r.json?.out))) pausedUntil = now() + PAUSE_MS;
         out = Array.isArray(r.json?.out) ? r.json.out : [];
@@ -55,6 +55,7 @@ export function createCloudTranslator({ url = TRANSLATE_URL, post = postJSON, no
       part.forEach((p, j) => {
         const t = typeof out[j] === 'string' && out[j].trim() && !badScript(out[j], to) ? out[j] : null;
         if (t) memo.set(`${p.from}|${to}|${p.text}`, t);
+        if (memo.size > 5000) memo.delete(memo.keys().next().value);
         p.resolve(t);
       });
     }
@@ -62,9 +63,10 @@ export function createCloudTranslator({ url = TRANSLATE_URL, post = postJSON, no
 
   return {
     available,
-    // Traduction d'un texte, ou null (serveur indisponible, langue non prise en charge…)
-    translate(text, from, to) {
-      text = String(text || '').trim();
+    // Traduction d'un texte, ou null (serveur indisponible, langue non prise en charge…) ; kind : type de texte
+    // ('news', 'radio', 'tech'), le serveur choisit le modèle
+    translate(text, from, to, kind) {
+      text = String(text || '').trim().slice(0, 2000);   // coupé avant la mémoire : même clé à l'envoi et à la lecture
       if (!text || !LANGS.includes(to)) return Promise.resolve(null);
       if (!LANGS.includes(from)) from = 'en';
       if (from === to) return Promise.resolve(text);
@@ -73,7 +75,7 @@ export function createCloudTranslator({ url = TRANSLATE_URL, post = postJSON, no
       if (!available()) return Promise.resolve(null);
       return new Promise((resolve) => {
         const list = pending.get(to) || [];
-        list.push({ text: text.slice(0, 2000), from, resolve });
+        list.push({ text, from, kind, resolve });
         pending.set(to, list);
         if (list.length >= BATCH) flush(to);
         else if (!timers.has(to)) timers.set(to, setTimeout(() => flush(to), WAIT_MS));

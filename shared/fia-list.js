@@ -58,6 +58,14 @@ export function parseSeasons(html) {
   return { bySeason, events };
 }
 
+// Page d'une saison : ses épreuves (pages de documents), [{ name, page }]
+export function seasonEventList(html) {
+  const seen = new Set();
+  return options(html, /<option value="([^"]*\/season\/season-\d{4}-\d+\/event\/[^"]+)">([^<]+)</g)
+    .filter((o) => !seen.has(o.path) && seen.add(o.path))
+    .map((o) => ({ name: o.label, page: BASE + o.path }));
+}
+
 const norm = (s) => fold(s).replace(/[^a-z0-9]+/g, ' ').trim();
 const STOP = new Set(['grand', 'prix', 'of', 'the', 'formula', '1', 'gp']);
 
