@@ -234,7 +234,8 @@ button.row-item:active { background: var(--surface-2); }
 .card.short .row > input { flex: 1 1 180px; width: auto; }
 .card.short select { width: auto; }
 /* Source d'actu à ajouter : adresse sur toute la largeur, catégorie et bouton dessous */
-.ns-add { flex-wrap: wrap; }
+.ns-add { flex-wrap: wrap; gap: 10px; padding: 12px 0 0; border-top: 0; }
+.ns-add .btn { align-self: stretch; }
 .ns-add select { flex: 1; width: auto; }
 .card.short code { overflow-wrap: anywhere; font-size: 15px; color: var(--text); }
 .center { text-align: center; }
