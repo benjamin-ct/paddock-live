@@ -23,6 +23,7 @@ const UA = 'Mozilla/5.0 (Paddock-Live web relay)';
 const RETRY = 6 * 3600e3;      // échec, ou zones sans définitions officielles de la saison en cours : revu 6 h plus tard
 const LOCK = 10 * 60e3;        // un seul calcul à la fois
 const MAX_CARDATA = 400000;    // échantillons de télémétrie lus (estimateZones n'en prend pas plus)
+const MAX_POSITIONS = 400000;  // positions GPS gardées (mémoire du serveur : une course entière ne tiendrait pas)
 
 const rowKey = (key, year) => `zones:${key}:${year}`;
 
@@ -56,13 +57,15 @@ async function sessionData(path, token, fetchFn) {
   for (const t of ['Heartbeat', 'TimingData']) events.push(...parseStream(await archiveText(`${path}${t}.jsonStream`, token, fetchFn), t));
   events.sort((a, b) => a.off - b.off);
   const positions = [];
+  let p = 0;
   await eachLine(`${path}Position.z.jsonStream`, token, fetchFn, async (raw) => {
     const Position = ((await inflate(raw)).Position || []).map((s) => {
       const Entries = {};
-      for (const [num, e] of Object.entries(s.Entries || {})) if (e && (e.X || e.Y)) Entries[num] = { X: e.X, Y: e.Y };
+      for (const [num, e] of Object.entries(s.Entries || {})) if (e && (e.X || e.Y)) { Entries[num] = { X: e.X, Y: e.Y }; p++; }
       return { Timestamp: s.Timestamp, Entries };
     });
     positions.push({ data: { Position } });
+    return p < MAX_POSITIONS;
   });
   const carData = [];
   let n = 0;
@@ -93,8 +96,8 @@ async function officialData(year, raw, fetchFn) {
   return data && { ...data, source: doc.url, title: doc.title };
 }
 
-// Séances archivées sur ce circuit (cette année et la précédente), de la plus récente à la plus ancienne ; les
-// séances de moins de 3 h n'ont pas encore d'archive complète
+// Séances archivées sur ce circuit (cette année et la précédente) : qualifications d'abord (une heure, voitures à fond),
+// puis essais, puis courses, les plus récentes d'abord ; les séances de moins de 3 h n'ont pas encore d'archive complète
 async function candidateSessions(key, year, token, fetchFn, now) {
   const out = [];
   for (const y of [year, year - 1]) {
@@ -103,11 +106,12 @@ async function candidateSessions(key, year, token, fetchFn, now) {
       for (const s of [...m.sessions].reverse()) {
         const [, sign, h, mn] = /^(-)?(\d+):(\d+)/.exec(s.gmtOffset || '') || [];
         const start = Date.parse(`${s.start}Z`) - (sign ? -1 : 1) * ((Number(h) || 0) * 60 + (Number(mn) || 0)) * 60000;
-        if (now - start > 3 * 3600e3) out.push(s.path);
+        if (now - start > 3 * 3600e3) out.push(s);
       }
     }
   }
-  return out;
+  const rank = (s) => (s.type === 'Qualifying' && !/sprint/i.test(s.name) ? 0 : s.type === 'Practice' ? 1 : s.type === 'Race' ? 3 : 2);
+  return out.map((s, i) => ({ s, i })).sort((a, b) => rank(a.s) - rank(b.s) || a.i - b.i).map(({ s }) => s.path);
 }
 
 // Calcul complet d'un circuit : { at, zones, loops } (zones / loops null si introuvables)
