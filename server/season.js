@@ -1,15 +1,17 @@
-// Données de la saison (calendrier, classements, résultats, qualifications, sprints) depuis
-// l'API publique Jolpica (successeur d'Ergast), regroupées en un seul objet compact pour
-// l'espace « Saison ». Saison en cours : rafraîchie toutes les 15 min ; saisons terminées :
-// gardées sur disque une fois pour toutes ; copie disque aussi utilisée hors ligne.
+// Données de la saison (calendrier, classements, résultats, qualifications, sprints) : lues sur le serveur de
+// Paddock Live (mêmes données que la version web, tirées par lui de l'API Jolpica), en un seul objet compact pour
+// l'espace « Saison », l'accueil et les rappels. Saison en cours : relue toutes les 15 min ; saisons terminées :
+// gardées sur disque une fois pour toutes ; copie disque aussi utilisée hors ligne. Records des circuits
+// (server/records.js) : API Jolpica directement.
 import fs from 'node:fs';
 import path from 'node:path';
 import { getJSON, withRetry } from './net.js';
 import { CACHE_DIR } from './circuits.js';
-import { parseRaceLaps } from '../shared/race-laps.js';
 import { summarize } from '../shared/season-data.js';
 export { summarize };
 
+// Serveur de Paddock Live (version web) : saison, statistiques détaillées et documents FIA
+export const SEASON_URL = process.env.PADDOCK_SEASON_URL ?? 'https://app.paddocklive.app';
 const BASE = 'https://api.jolpi.ca/ergast/f1';
 const TTL = 15 * 60 * 1000;
 const mem = new Map();
@@ -54,25 +56,8 @@ export const jolpicaRaces = (pathname) => all(pathname, (m) => m?.RaceTable?.Rac
 const FORMAT = 3;
 
 async function fetchSeason(year) {
-  const [schedule, ds, cs, results, quali, sprint] = await Promise.all([
-    all(`${year}`, (m) => m?.RaceTable?.Races || []),
-    jget(`${BASE}/${year}/driverstandings.json?limit=100`),
-    jget(`${BASE}/${year}/constructorstandings.json?limit=100`),
-    all(`${year}/results`, (m) => m?.RaceTable?.Races || []),
-    all(`${year}/qualifying`, (m) => m?.RaceTable?.Races || []),
-    all(`${year}/sprint`, (m) => m?.RaceTable?.Races || []),
-  ]);
-  return {
-    year,
-    v: FORMAT,
-    updated: Date.now(),
-    ...summarize({
-      schedule,
-      driverStandings: ds?.MRData?.StandingsTable?.StandingsLists?.[0]?.DriverStandings,
-      constructorStandings: cs?.MRData?.StandingsTable?.StandingsLists?.[0]?.ConstructorStandings,
-      results, quali, sprint,
-    }),
-  };
+  const d = await getJSON(`${SEASON_URL}/live/api/season?year=${year}`, { timeout: 30000 });
+  return { ...d, year, v: FORMAT, updated: Date.now() };
 }
 
 // Saison terminée (année passée, toutes les courses ont un résultat) : elle ne change plus,
@@ -106,31 +91,7 @@ export async function season(year) {
   return job;
 }
 
-// Message lisible pour une erreur de l'API des résultats
+// Message lisible quand le serveur de Paddock Live ne répond pas
 function apiError(err) {
-  const st = err?.status;
-  if (st === 429 || st === 422) return `le serveur des résultats (Jolpica) refuse temporairement les demandes (erreur ${st} : trop de demandes en peu de temps) ; réessayez dans quelques minutes`;
-  if (st >= 500) return `le serveur des résultats (Jolpica) rencontre un problème (erreur ${st}) ; réessayez plus tard`;
-  return `serveur des résultats (Jolpica) injoignable : ${err?.message || err}`;
-}
-
-// Course tour par tour d'une manche (positions et temps), gardée sur disque une fois complète
-const lapsMem = new Map();
-export async function raceLaps(year, round) {
-  const key = `${year}-${round}`;
-  if (lapsMem.has(key)) return lapsMem.get(key);
-  const file = path.join(CACHE_DIR, `laps2-${key}.json`);
-  const disk = readDisk(file);
-  if (disk?.total) { lapsMem.set(key, disk); return disk; }
-  const [pages, results, pits] = await Promise.all([
-    all(`${year}/${round}/laps`, (m) => m?.RaceTable?.Races || []),
-    all(`${year}/${round}/results`, (m) => m?.RaceTable?.Races || []),
-    all(`${year}/${round}/pitstops`, (m) => m?.RaceTable?.Races || []).catch(() => []),
-  ]).catch((err) => { throw new Error(apiError(err)); });
-  const data = parseRaceLaps(pages, results.flatMap((r) => r.Results || []), pits);
-  if (data.total) {
-    lapsMem.set(key, data);
-    try { fs.writeFileSync(file, JSON.stringify(data)); } catch { /* cache facultatif */ }
-  }
-  return data;
+  return `serveur de Paddock Live injoignable : ${err?.message || err}`;
 }
