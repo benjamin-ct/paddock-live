@@ -4,7 +4,7 @@
 // passer un faux texte pour une radio qu'il n'a pas envoyée. Plafond quotidien contre les abus ;
 // au-delà, la radio attend le lendemain.
 import { clean } from '../shared/radio-text.js';
-import { aiQuota, runAI } from './quota.js';
+import { aiQuota, aiMore, runAI } from './quota.js';
 
 export const ASR_MODEL = '@cf/openai/whisper-large-v3-turbo';
 export const ASR_FALLBACK = '@cf/openai/whisper';
@@ -61,6 +61,7 @@ export async function transcribeRadio(env, bytes, day = new Date().toISOString()
   const r = await whisper(env, bytes);
   const text = clean(r.text);
   const d = Number.isFinite(r.d) ? Math.round(r.d * 10) / 10 : null;
+  await aiMore(env, { key: `radio:${day}`, day, n: Math.ceil((d || 0) / 30) - 1, ip }).catch(() => {});   // une radio = 30 s
   await env.DB.prepare('INSERT OR REPLACE INTO radio_texts (k, text, d, at) VALUES (?1, ?2, ?3, ?4)').bind(radioKey(hash), text, d, Date.now()).run();
   return { text, d: d ?? undefined, hash };
 }
