@@ -105,6 +105,7 @@ l'application (Réglages → À propos → Nouveautés).
 - Éléments moteur : pénalités sur la grille et éléments neufs rangés par Grand Prix, le plus récent ouvert, un pilote
   par ligne (logo de l'écurie, éléments en étiquettes, sanction) ; liens « PDF » et « Document FIA » en boutons, le
   document s'ouvre directement dans l'appli au lieu d'être téléchargé.
+- Résultats & records : noms des Grands Prix en gras avec une flèche, au lieu de liens bleus soulignés.
 - Notes des pilotes : tri en touchant le titre d'une colonne (note de la saison, face au coéquipier, points par course,
   rythme…), meilleur en haut ; la colonne du tri est soulignée en rouge.
 - Course au titre : deux onglets, « Championnat pilotes » et « Championnat constructeurs », au lieu de tout

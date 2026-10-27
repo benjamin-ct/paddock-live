@@ -1109,6 +1109,11 @@ body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-selec
 .sz-table td .drv-bar { display: inline-block; vertical-align: middle; margin-right: 8px; height: 16px; }
 .sz-big .drv-bar { height: 22px; }
 .sz-table tr.muted td { color: var(--muted); }
+/* Liens d'un tableau de la Saison (Grand Prix, pilote) : texte du tableau en gras, flèche pour dire qu'on peut toucher */
+.sz-table a:not(.btn) { color: inherit; font-weight: 700; text-decoration: none; }
+.sz-table a:not(.btn)::after { content: '›'; margin-left: 6px; color: var(--muted); }
+.sz-table a:not(.btn):hover { color: var(--accent); }
+.sz-table a:not(.btn):hover::after { color: var(--accent); }
 .sz-chip { display: inline-block; border-left: 3px solid var(--tc); background: color-mix(in srgb, var(--tc) 18%, transparent); padding: 1px 7px; border-radius: 4px; font-weight: 700; font-size: 12.5px; }
 .sz-tag { display: inline-block; font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .4px; padding: 1px 6px; border-radius: 4px; background: var(--panel-3); color: var(--text-2); margin-right: 3px; }
 .sz-tag.done { background: rgba(53, 208, 127, .15); color: var(--green); }
