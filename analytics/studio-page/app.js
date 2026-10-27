@@ -580,10 +580,14 @@ function settings() {
     <h3 class="section">Appareils connectés <button class="btn small" id="pairRefresh">${icon('refresh')}Rafraîchir</button></h3>
     <div class="group" id="pairDevices"><div class="row-item static"><span class="grow"><small>Chargement…</small></span></div></div>
     <p class="hint">Appareils reliés à ton compte F1 TV en ce moment (version web). Un appareil se déconnecte seul quand tu le fermes.</p>` : ''}
+    <h3 class="section">Sources d'actu en plus</h3><div class="group" id="nsList"><div class="row-item static"><span class="grow"><small>Chargement…</small></span></div></div>
+    <div class="row-item"><input id="nsAdd" type="text" class="grow" placeholder="https://… ou @compte.bsky.social"><select id="nsCat" aria-label="Catégorie"><option value="media">Média</option><option value="team">Écurie</option><option value="driver">Pilote</option><option value="official">Officiel</option></select><button class="btn small btn-accent" id="nsGo">Ajouter</button></div>
+    <p class="hint">Flux RSS, chaîne YouTube ou compte Bluesky : ajouté à l'onglet Actu de l'appli, pour tout le monde.</p>
     <h3 class="section">Alertes des grosses news</h3><div id="alerts"></div>
     <button class="btn danger wide" id="out">${icon('logout')}Se déconnecter de cet appareil</button>
     <p class="hint center">Version du Studio : ${esc(VERSION)} · © 2026 Paddock Live · <a href="https://github.com/benjamin-ct/paddock-live/blob/main/analytics/LICENSE" target="_blank" rel="noopener">Licence AGPL v3</a></p>`);
   alertsBlock($('#alerts', dlg));
+  newsSourcesBlock(dlg);
   $('#sigin', dlg).onchange = (e) => { setSig(e.target.value); e.target.value = SIG; toast(`Signature : ${SIG}`, 'ok'); };
   if (me.f1tv) {
     const go = $('#pairGo', dlg), inp = $('#pairCode', dlg), devs = $('#pairDevices', dlg);
@@ -610,6 +614,30 @@ function settings() {
   }
   $$('[data-copy]', dlg).forEach((b) => { b.onclick = () => navigator.clipboard.writeText(b.dataset.copy || b.previousElementSibling.value).then(() => toast(b.dataset.copy ? 'Lien copié' : 'Message copié', 'ok'), () => toast('Copie impossible', 'bad')); });
   $('#out', dlg).onclick = () => { dlg.close(); forgetKey(); login(); };
+}
+
+// Sources d'actu ajoutées pour l'onglet Actu de l'appli (lues par le serveur avec les sources par défaut)
+function newsSourcesBlock(dlg) {
+  const list = $('#nsList', dlg), go = $('#nsGo', dlg), inp = $('#nsAdd', dlg);
+  const CAT = { media: 'Média', team: 'Écurie', driver: 'Pilote', official: 'Officiel' };
+  const show = (custom) => {
+    list.innerHTML = custom.length
+      ? custom.map((s) => `<div class="row-item static"><span class="grow"><b>${esc(s.name)}</b><small>${esc(CAT[s.cat] || s.cat)} · ${esc(s.kind === 'youtube' ? 'YouTube' : s.kind === 'bsky' ? 'Bluesky' : s.url)}</small></span><button class="btn small" data-ns-del="${esc(s.id)}">${icon('close')}Retirer</button></div>`).join('')
+      : '<div class="row-item static"><span class="grow"><small>Aucune source en plus : seulement celles de l\'appli.</small></span></div>';
+    $$('[data-ns-del]', list).forEach((b) => { b.onclick = async () => { b.disabled = true; try { show((await api('news-sources', { method: 'POST', body: JSON.stringify({ remove: b.dataset.nsDel }) })).custom); } catch (e) { toast(e.message, 'bad'); b.disabled = false; } }; });
+  };
+  api('news-sources').then((d) => show(d.custom || []), () => { list.innerHTML = '<div class="row-item static"><span class="grow"><small>Liste indisponible.</small></span></div>'; });
+  go.onclick = async () => {
+    if (!inp.value.trim()) return;
+    go.disabled = true;
+    try {
+      const r = await api('news-sources', { method: 'POST', body: JSON.stringify({ add: inp.value, cat: $('#nsCat', dlg).value }) });
+      show(r.custom);
+      inp.value = '';
+      toast(`Source ajoutée : ${r.source.name}`, 'ok');
+    } catch (e) { toast(e.message || 'Ajout impossible', 'bad'); }
+    go.disabled = false;
+  };
 }
 
 const pushReady = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;

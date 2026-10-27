@@ -1,4 +1,4 @@
-// Sauvegarde des réglages : partie gardée par le serveur (sources d'actualités, lumières connectées,
+// Sauvegarde des réglages : partie gardée par le serveur (sources d'actualités décochées, lumières connectées,
 // flux radio ajoutés). Jamais de jeton ni de clé : connexion F1 TV, accès du téléphone, clés des
 // lumières (pont Hue, Home Assistant) restent sur l'ordinateur.
 import { getConfig, saveConfig } from './config.js';
@@ -11,7 +11,7 @@ const HOST = /^[a-z0-9-]+(\.[a-z0-9-]+)+(:\d{1,5})?$/i;
 export function exportServerSettings(cfg = getConfig()) {
   const l = cfg.lights || {};
   return {
-    news: { disabled: cfg.news?.disabled || [], custom: cfg.news?.custom || [] },
+    news: { disabled: cfg.news?.disabled || [] },
     lights: {
       provider: l.provider || 'off',
       after: l.after || 'normal',

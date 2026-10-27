@@ -108,7 +108,7 @@ Le détail de chacune est dans le **[guide complet](docs/GUIDE.md)**.
 - **En ligne** : groupe à créer, lien à partager (copié sur ordinateur, partage du téléphone), liste « Mes groupes » pour retrouver ses groupes toute la saison (et en retirer), suppression du groupe par son créateur, page web pour jouer sans l'application.
 
 ### Espace Actu
-- Sources officielles (F1, FIA, écuries, pilotes) et une trentaine de médias en 8 langues, sources à ajouter ou couper.
+- Sources officielles (F1, FIA, écuries, pilotes) et une trentaine de médias en 8 langues, lues par le serveur de Paddock Live, sources à couper.
 - Traduction en français faite d'avance, lecture des articles et des vidéos dans l'appli, un sujet par carte, articles lus grisés.
 - Filtres (important, favoris, officiel, vidéos, langue, recherche), alertes et anti-spoiler pendant une séance en direct.
 

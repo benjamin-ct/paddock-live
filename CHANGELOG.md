@@ -17,6 +17,11 @@ l'application (Réglages → À propos → Nouveautés).
   compte à rebours du premier Grand Prix dès que le calendrier est connu.
 - Mes favoris au championnat : pilotes et écuries séparés, colonnes alignées d'une ligne à l'autre.
 
+### Actu
+- Les actualités sont lues, triées et regroupées par sujet par le serveur de Paddock Live : plus rien n'est lu ni
+  calculé sur l'ordinateur, la liste arrive toute faite (mise à jour chaque minute), le mode lecture aussi. On peut
+  toujours couper une source (onglet Sources) ; les sources ajoutées soi-même ne sont plus lues.
+
 ### En direct
 - Connexion F1 TV : l'appli ouverte avant le début d'une séance reçoit maintenant le GPS et la télémétrie environ
   une minute après le départ. Jusqu'ici, elle restait en positions estimées (carte saccadée) jusqu'à ce qu'on la redémarre.

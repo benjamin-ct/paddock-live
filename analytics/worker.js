@@ -33,6 +33,7 @@ import { liveSocket, liveApi } from './live-relay.js';
 import { statsTick } from './race-stats.js';
 import { fiaTick } from './fia-tech.js';
 import { zonesTick } from './zones.js';
+import { newsTick, newsApi } from './news.js';
 import { seasonSsr, seasonSitemap, legacySeasonUrl } from './season-pages.js';
 import { parseSeasonPath } from '../shared/season-urls.js';
 import { LIVE_HEADERS } from './live-page/headers.js';
@@ -196,6 +197,8 @@ export default {
       // Alertes du téléphone : rappels des séances proches mis en file, puis un lot de la file envoyé (appel du
       // Worker à lui-même : ses envois ont leurs propres limites)
       if (env.DB) await publicPush(env, event.scheduledTime || Date.now()).catch(() => null);
+      // Actualités de l'appli : les sources dont c'est le tour
+      await newsTick(env, { now: event.scheduledTime || Date.now() }).catch(() => null);
       // Une fois par jour : compteurs d'IA par adresse des jours passés, traductions de plus de 90 jours et
       // détail des erreurs de plus d'un an effacés
       const t = new Date(event.scheduledTime || Date.now());
@@ -308,6 +311,10 @@ export default {
       } catch { return json({ error: 'Erreur' }, 500); }
     }
     // Pronostics entre amis en ligne : API, et page de chaque groupe (fichier statique /p/)
+    // Actualités de l'appli de bureau (pas de la version web)
+    if (url.pathname === '/news/api' || url.pathname === '/news/api/article') {
+      try { return await newsApi(req, env, url); } catch { return json({ error: 'Erreur' }, 500); }
+    }
     if (url.pathname.startsWith('/p/api/')) {
       try { return await pronosApi(req, env, url); } catch { return json({ error: 'Erreur' }, 500); }
     }

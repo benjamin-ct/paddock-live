@@ -15,7 +15,7 @@ import { ROOT, settings, getConfig, saveConfig, parseF1tvToken, tokenInfo } from
 import { createLan, isLoopback, qrSvg } from './lan.js';
 import { getTranslations, addTranslations } from './translations.js';
 import { compareLaps } from './compare.js';
-import { startNews, refreshNews, newsSnapshot, onNews, addNewsSource, removeNewsSource, setNewsSourceEnabled, setClusterTitle } from './news.js';
+import { startNews, refreshNews, newsSnapshot, onNews, setNewsSourceEnabled } from './news.js';
 import { parseChangelog } from '../shared/changelog.js';
 import { buildIcs } from '../shared/ics.js';
 import { osmTile } from './tiles.js';
@@ -34,7 +34,6 @@ import { probeState } from './feed-probe.js';
 import { cloud, createCloudTranslator } from './cloud-translate.js';
 import { cloudRadio } from './cloud-transcribe.js';
 import { createNewsTranslator, startNewsTranslation } from './news-translate.js';
-import { createArticleReader } from './article.js';
 
 let lan = null;   // accès depuis un téléphone / une tablette du réseau local
 
@@ -68,9 +67,6 @@ const live = new LiveSource(hub, () => {
 }, recorder);
 const replay = new ReplaySource(hub);
 const feedDiags = new Map();   // diagnostic des données F1, par séance
-// Articles de l'Actu lus dans l'appli (server/article.js)
-const articles = createArticleReader({ items: () => newsSnapshot().items });
-
 // Actualités traduites d'avance (server/news-translate.js)
 const newsTranslator = createNewsTranslator({
   // File d'attente à part : la traduction de fond ne retarde jamais ce qui est à l'écran
@@ -79,11 +75,6 @@ const newsTranslator = createNewsTranslator({
   known: getTranslations,
   store: addTranslations,
   lang: () => getConfig().newsTranslateLang || null,
-});
-// Actus regroupées sur leurs titres traduits : le même article publié en plusieurs langues réuni
-setClusterTitle((it) => {
-  const lang = getConfig().newsTranslateLang;
-  return lang && it.lang !== lang ? getTranslations(lang)[it.title]?.t : null;
 });
 for (const h of getConfig().radioHosts || []) allowHost(h);
 
@@ -115,10 +106,10 @@ function sendJSON(res, status, obj) {
 
 // Données lues sur le serveur de Paddock Live (mêmes adresses que la version web : /api/x -> /live/api/x), relayées
 // telles quelles : une correction y arrive sans mise à jour de l'appli
-async function fromServer(res, url) {
+async function fromServer(res, url, path = `/live${url.pathname}`) {
   let r;
   try {
-    r = await request(`${SEASON_URL}/live${url.pathname}${url.search}`, { timeout: 30000 });
+    r = await request(`${SEASON_URL}${path}${url.search}`, { timeout: 30000 });
   } catch (err) {
     return sendJSON(res, 503, { error: `serveur de Paddock Live injoignable (${err.message})` });
   }
@@ -245,14 +236,10 @@ async function handleApi(req, res, url) {
     case 'POST /api/news/refresh':
       refreshNews();
       return sendJSON(res, 200, { ok: true });
-    // Article d'une actualité en mode lecture : ?u=<lien de l'article> -> titre, photo, texte
-    case 'GET /api/news/article': {
-      try {
-        return sendJSON(res, 200, await articles.get(url.searchParams.get('u') || ''));
-      } catch (err) {
-        return sendJSON(res, err.status || 502, { error: err.message });
-      }
-    }
+    // Article d'une actualité en mode lecture : ?u=<lien de l'article> -> titre, photo, texte (lu par le serveur de
+    // Paddock Live)
+    case 'GET /api/news/article':
+      return fromServer(res, url, '/news/api/article');
 
     // Traduction d'avance des actualités : { lang: 'fr' | 'en' | null } (null = désactivée)
     case 'POST /api/news/translate': {
@@ -265,13 +252,7 @@ async function handleApi(req, res, url) {
     }
     case 'POST /api/news/sources': {
       const body = await readBody(req);
-      try {
-        if (body.add) return sendJSON(res, 200, { ok: true, source: await addNewsSource(body.add, body.cat, body.lang) });
-        if (body.remove) { removeNewsSource(String(body.remove)); return sendJSON(res, 200, { ok: true }); }
-        if (body.toggle) { setNewsSourceEnabled(String(body.toggle), !!body.on); return sendJSON(res, 200, { ok: true }); }
-      } catch (err) {
-        return sendJSON(res, 400, { error: err.message });
-      }
+      if (body.toggle) { setNewsSourceEnabled(String(body.toggle), !!body.on); return sendJSON(res, 200, { ok: true }); }
       return sendJSON(res, 400, { error: 'Requête invalide' });
     }
 
