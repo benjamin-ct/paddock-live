@@ -6,12 +6,11 @@ import { WebSocketServer } from 'ws';
 import { Hub } from './hub.js';
 import { LiveSource } from './live.js';
 import { ReplaySource, seasonIndex } from './replay.js';
-import { HttpError } from './net.js';
+import { HttpError, getJSON } from './net.js';
 import { circuit, loops, zones } from './circuits.js';
 import { season } from './season.js';
 import { forecast } from './forecast.js';
-import { seasonStats, archiveError } from './race-stats.js';
-import { seasonTech } from './fia-tech.js';
+import { archiveError } from './race-stats.js';
 import { fiaDocuments, fiaPdf, fiaPdfUrl } from './fia.js';
 import { findSessionContent, playback, proxy as f1tvProxy, allowHost, resolvePlaylist, localTarget } from './f1tv.js';
 import { Recorder, listRecordings, pruneRecordings, recordingPath } from './recorder.js';
@@ -19,7 +18,9 @@ import { ROOT, settings, getConfig, saveConfig, parseF1tvToken, tokenInfo } from
 import { createLan, isLoopback, qrSvg } from './lan.js';
 import { getTranslations, addTranslations } from './translations.js';
 import { compareLaps } from './compare.js';
-import { weekendTyres } from './tyres.js';
+import { weekendTyres, seasonNominations } from './tyres.js';
+// Serveur de Paddock Live (version web) : statistiques détaillées et documents FIA de la Saison
+const SEASON_URL = process.env.PADDOCK_SEASON_URL ?? 'https://app.paddocklive.app';
 import { circuitRecords } from './records.js';
 import { startNews, refreshNews, newsSnapshot, onNews, addNewsSource, removeNewsSource, setNewsSourceEnabled, setClusterTitle } from './news.js';
 import { parseChangelog } from '../shared/changelog.js';
@@ -456,14 +457,20 @@ async function handleApi(req, res, url) {
       }
     }
 
-    case 'GET /api/season/stats': {
-      const year = yearOf(url.searchParams.get('year'));
-      return sendJSON(res, 200, await seasonStats(year));
-    }
-
+    // Statistiques détaillées (archives des courses) et documents FIA de la Saison : calculés une seule fois, par le
+    // serveur de Paddock Live (mêmes données que la version web), plus dans l'appli : une correction des calculs y
+    // arrive sans mise à jour. Composés Pirelli de chaque circuit : ceux que l'appli connaît (onglet Pneus)
+    case 'GET /api/season/stats':
     case 'GET /api/season/fia': {
       const year = yearOf(url.searchParams.get('year'));
-      return sendJSON(res, 200, await seasonTech(year));
+      let d;
+      try {
+        d = await getJSON(`${SEASON_URL}/live${route.slice(4)}?year=${year}`, { timeout: 30000 });
+      } catch (err) {
+        return sendJSON(res, 503, { error: `serveur de Paddock Live injoignable (${err.message})` });
+      }
+      if (route.endsWith('/stats') && !d.error) d.tyres = seasonNominations(year, (await season(year)).races);
+      return sendJSON(res, 200, d);
     }
 
     case 'GET /api/fia-docs': {
