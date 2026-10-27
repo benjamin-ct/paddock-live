@@ -7,7 +7,7 @@ import { Hub } from './hub.js';
 import { LiveSource } from './live.js';
 import { ReplaySource, seasonIndex } from './replay.js';
 import { HttpError, request } from './net.js';
-import { circuit, loops, zones } from './circuits.js';
+import { circuit } from './circuits.js';
 import { season, SEASON_URL } from './season.js';
 import { findSessionContent, playback, proxy as f1tvProxy, allowHost, resolvePlaylist, localTarget } from './f1tv.js';
 import { Recorder, listRecordings, pruneRecordings, recordingPath } from './recorder.js';
@@ -211,7 +211,8 @@ async function handleApi(req, res, url) {
     }
 
     // Pneus du week-end, records du circuit, météo, documents FIA (et leurs PDF), photos des pilotes, statistiques
-    // détaillées et documents FIA de la Saison : lus sur le serveur de Paddock Live
+    // détaillées et documents FIA de la Saison, zones et boucles de chronométrage du circuit : lus sur le serveur de
+    // Paddock Live
     case 'GET /api/tyres':
     case 'GET /api/records':
     case 'GET /api/forecast':
@@ -220,6 +221,8 @@ async function handleApi(req, res, url) {
     case 'GET /api/headshot':
     case 'GET /api/season/stats':
     case 'GET /api/season/fia':
+    case 'GET /api/zones':
+    case 'GET /api/loops':
       return fromServer(res, url);
 
     case 'GET /api/circuit': {
@@ -228,22 +231,6 @@ async function handleApi(req, res, url) {
       if (!key) return sendJSON(res, 400, { error: 'Paramètre key manquant' });
       const data = await circuit(key, year);
       return data ? sendJSON(res, 200, data) : sendJSON(res, 404, { error: 'Tracé indisponible' });
-    }
-
-    case 'GET /api/zones': {
-      const key = Number(url.searchParams.get('key'));
-      const year = yearOf(url.searchParams.get('year'));
-      if (!key) return sendJSON(res, 400, { error: 'Paramètre key manquant' });
-      const data = await zones(key, year);
-      return data ? sendJSON(res, 200, data) : sendJSON(res, 404, { error: 'Zones indisponibles' });
-    }
-
-    case 'GET /api/loops': {
-      const key = Number(url.searchParams.get('key'));
-      const year = yearOf(url.searchParams.get('year'));
-      if (!key) return sendJSON(res, 400, { error: 'Paramètre key manquant' });
-      const data = await loops(key, year);
-      return data ? sendJSON(res, 200, data) : sendJSON(res, 404, { error: 'Calibration indisponible' });
     }
 
     case 'GET /api/changelog': {

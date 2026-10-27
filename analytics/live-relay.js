@@ -16,6 +16,7 @@ import { circuitData, seasonStatsWeb } from './race-stats.js';
 import { seasonFiaWeb, fiaTranslations, fiaDocsWeb } from './fia-tech.js';
 import { weekendTyres } from './tyres.js';
 import { circuitRecords } from './records.js';
+import { zonesWeb } from './zones.js';
 import { forecast } from '../shared/forecast.js';
 import { validHeadshot } from '../shared/portraits.js';
 import { buildIcs } from '../shared/ics.js';
@@ -695,6 +696,13 @@ export async function liveApi(req, url, env = {}) {
     if (!Number.isInteger(year) || year < 2018 || !name) return json({ error: 'Paramètres year et name requis' }, 400);
     const meeting = { name, country: url.searchParams.get('country'), location: url.searchParams.get('location') };
     return fiaDocsWeb(year, meeting).then((d) => json(d), (err) => json({ error: err.message }, 502));
+  }
+  // Zones du mode dépassement et boucles de chronométrage (mini-secteurs) du circuit, calculées par le serveur
+  if ((url.pathname === '/live/api/zones' || url.pathname === '/live/api/loops') && req.method === 'GET') {
+    const key = Number(url.searchParams.get('key')), year = Number(url.searchParams.get('year'));
+    if (!env.DB || !Number.isInteger(key) || key <= 0 || !Number.isInteger(year) || year < 2018 || year > new Date().getUTCFullYear() + 1) return json({ error: 'Paramètres invalides' }, 400);
+    const d = await zonesWeb(env, url.pathname.slice(10), key, year);
+    return d ? json(d, 200, { 'Cache-Control': 'public, max-age=3600' }) : json({ error: 'Pas encore calculé par le serveur', pending: true }, 404);
   }
   if (url.pathname === '/live/api/circuit') {
     const key = Number(url.searchParams.get('key')), year = Number(url.searchParams.get('year'));

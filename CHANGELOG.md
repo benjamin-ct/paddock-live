@@ -34,6 +34,9 @@ l'application (Réglages → À propos → Nouveautés).
   plafond du jour atteint : les textes restent en version originale et l'appli réessaie.
 - Radios des caméras embarquées F1 TV (expérimental, F1 TV Pro) de retour : le son embarqué du pilote suivi et des
   pilotes du duel est retranscrit par le serveur de Paddock Live, l'ordinateur ne fait plus que l'écouter.
+- Carte : zones « ligne droite », points de détection et d'activation, voie des stands et emplacement des boucles
+  de chronométrage (positions estimées, mini-secteurs de la comparaison) calculés une fois pour tous par le serveur
+  de Paddock Live : ils s'affichent aussi sans connexion F1 TV, et plus rien n'est calculé sur l'ordinateur.
 - Une pénalité purgée n'apparaît plus une deuxième fois (résumé de la séance, moments clés, « Pendant votre
   absence »).
 - « Pendant votre absence » fonctionne aussi quand on s'absente pendant un drapeau rouge.
@@ -133,7 +136,8 @@ l'application (Réglages → À propos → Nouveautés).
 
 ### Version web (app.paddocklive.app)
 - Comme dans l'appli : onglet Pneus (choix et communiqués de Pirelli, jeux de chaque pilote), records du circuit dans
-  l'Analyse, météo du circuit (accueil, onglet Météo) et documents de la FIA du Grand Prix pendant le direct.
+  l'Analyse, météo du circuit (accueil, onglet Météo), documents de la FIA du Grand Prix pendant le direct, et sur la
+  carte les zones « ligne droite », points de détection et voie des stands.
 - Retour en arrière (geste sur téléphone, bouton du navigateur) dans la Saison : revient à la rubrique ou à la fiche
   précédente (par exemple d'un Grand Prix aux Résultats), à l'endroit où l'on était dans la page, puis au direct.
 - Chaque rubrique de la Saison a son adresse (par exemple app.paddocklive.app/saison/2026/pilotes/lando-norris/) :

@@ -69,7 +69,7 @@ function angleDiff(a, b) {
   return d > Math.PI ? 2 * Math.PI - d : d;
 }
 
-// official : définitions du plan FIA du circuit (voir server/fia-circuit.js) ; les zones et
+// official : définitions du plan FIA du circuit (voir shared/fia-circuit.js) ; les zones et
 // points officiels remplacent alors les estimations (la télémétrie sert à trouver la fin des zones).
 export function estimateZones(track, carData, positions, official = null) {
   const pts = track.pts;
