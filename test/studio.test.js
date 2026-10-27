@@ -30,7 +30,7 @@ function fakeDB() {
           throw new Error(`SQL inattendu : ${sql}`);
         },
         async all() {
-          if (/^SELECT k, v FROM studio WHERE k LIKE \?$/.test(sql)) return { results: [...studio].filter(([k]) => k.startsWith(args[0].replace(/%$/, ''))).map(([k, v]) => ({ k, v })) };
+          if (/^SELECT k, v FROM studio WHERE k >= \? AND k < \?$/.test(sql)) return { results: [...studio].filter(([k]) => k >= args[0] && k < args[1]).map(([k, v]) => ({ k, v })) };
           throw new Error(`SQL inattendu : ${sql}`);
         },
         async run() {
@@ -39,7 +39,7 @@ function fakeDB() {
           if (/^INSERT INTO studio \(/.test(sql)) studio.set(args[0], args[1]);
           else if (/^INSERT INTO studio_fail/.test(sql)) fails.set(`${args[0]}|${args[1]}`, (fails.get(`${args[0]}|${args[1]}`) || 0) + 1);
           else if (/^DELETE FROM studio$/.test(sql)) studio.clear();
-          else if (/^DELETE FROM studio WHERE k LIKE \?$/.test(sql)) { for (const k of [...studio.keys()]) if (k.startsWith(args[0].replace(/%$/, ''))) studio.delete(k); }
+          else if (/^DELETE FROM studio WHERE k >= \? AND k < \?$/.test(sql)) { for (const k of [...studio.keys()]) if (k >= args[0] && k < args[1]) studio.delete(k); }
           else throw new Error(`SQL inattendu : ${sql}`);
           return {};
         },
