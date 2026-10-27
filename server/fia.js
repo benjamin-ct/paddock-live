@@ -6,7 +6,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { getText, request, HttpError } from './net.js';
 import { DATA_DIR } from './config.js';
-import { BASE, CHAMPIONSHIP, parseDocumentList, parseSeasons, seasonEventList, pickEvent } from '../shared/fia-list.js';
+import { BASE, CHAMPIONSHIP, parseDocumentList, parseSeasons, pickEvent } from '../shared/fia-list.js';
 
 export { parseDocumentList, parsePublished, pickEvent } from '../shared/fia-list.js';
 
@@ -22,18 +22,6 @@ async function seasons() {
   if (seasonCache && Date.now() - seasonCache.at < 12 * 3600e3) return seasonCache;
   seasonCache = { at: Date.now(), ...parseSeasons(await getText(BASE + CHAMPIONSHIP, { timeout: TIMEOUT })) };
   return seasonCache;
-}
-
-// Épreuves d'une saison (pages de documents) : [{ name, page }]
-export async function seasonEvents(year) {
-  const s = await seasons();
-  const season = s.bySeason[year];
-  if (!season) return [];
-  return seasonEventList(await getText(BASE + season, { timeout: TIMEOUT }));
-}
-
-export async function eventDocuments(page) {
-  return parseDocumentList(await getText(page, { timeout: TIMEOUT }));
 }
 
 const cache = new Map();

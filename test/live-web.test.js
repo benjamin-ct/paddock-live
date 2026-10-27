@@ -388,7 +388,7 @@ test('version web, espace Saison : saisons depuis 2018, une saison finie gardée
     assert.equal((await (await get(2019)).json()).year, 2019);
     assert.equal((await (await get(now)).json()).year, now);
     assert.equal(asked, 0);   // saison de 2019 lue il y a 3 jours : pas relue chez Jolpica
-    for (const y of [2017, now + 1, 'x']) assert.equal((await get(y)).status, 400);
+    for (const y of [2017, now + 2, 'x']) assert.equal((await get(y)).status, 400);
   } finally { globalThis.fetch = realFetch; }
 });
 

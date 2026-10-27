@@ -545,9 +545,10 @@ export async function liveApi(req, url, env = {}) {
   }
   // Saison complète (résultats, classements) : écran « Pas de séance en direct » et espace Saison, même forme que
   // /api/season (avec l'année), depuis 2018 ; une saison finie n'est relue chez Jolpica qu'une fois par semaine
+  // (année suivante aussi : calendrier publié avant la saison, lu par l'appli de bureau hors saison)
   if (url.pathname === '/live/api/season' && req.method === 'GET') {
     const year = Number(url.searchParams.get('year')), now = new Date().getUTCFullYear();
-    if (!env.DB || !Number.isInteger(year) || year < 2018 || year > now) return json({ error: 'Année invalide' }, 400);
+    if (!env.DB || !Number.isInteger(year) || year < 2018 || year > now + 1) return json({ error: 'Année invalide' }, 400);
     const row = await seasonRow(env, year, kept(year)).catch((err) => ({ err }));
     return row.v ? json({ year, ...row.v }, 200, { 'Cache-Control': 'public, max-age=600' }) : json({ error: `Saison indisponible (${row.err?.message || row.err})` }, 503);
   }
