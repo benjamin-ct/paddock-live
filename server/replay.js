@@ -22,11 +22,11 @@ async function mapLimit(items, limit, fn) {
   return results;
 }
 
-export async function loadArchive(path, onProgress = () => {}, topics = ARCHIVE_TOPICS) {
+export async function loadArchive(path, onProgress = () => {}, topics = ARCHIVE_TOPICS, get = archiveGet) {   // get : tests
   let done = 0;
   const parts = await mapLimit(topics, 4, async (rawTopic) => {
     try {
-      const text = await archiveGet(`${path}${rawTopic}.jsonStream`, { timeout: 120000 });
+      const text = await get(`${path}${rawTopic}.jsonStream`, { timeout: 120000 });
       return parseStream(text, rawTopic);
     } catch (err) {
       if (!(err instanceof HttpError)) console.warn(`[replay] ${rawTopic}: ${err.message}`);
@@ -48,6 +48,9 @@ export async function loadArchive(path, onProgress = () => {}, topics = ARCHIVE_
   if (!events.length) throw new Error('Archive introuvable ou vide pour cette session (pas encore publiée ?)');
   const byOff = (a, b) => a.off - b.off;
   events.sort(byOff);
+  // Adresse de la séance (radios d'équipe : adresse de chaque son) : donnée par le direct, pas toujours par l'archive
+  const si = events.find((e) => e.topic === 'SessionInfo');
+  if (si?.data && typeof si.data === 'object' && !si.data.Path) si.data.Path = path;
   stream.sort(byOff);
   const duration = Math.max(events[events.length - 1].off, stream.length ? stream[stream.length - 1].off : 0);
 
