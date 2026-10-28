@@ -2526,7 +2526,12 @@ kbd .ic { width: 12px; height: 12px; opacity: 1; }
   :root:not([data-motion="off"]) .sz-main.sz-anim .sz-cards > :nth-child(n+6) { animation-delay: .2s; }
   :root:not([data-motion="off"]) .sz-main.sz-anim svg polyline[pathLength] { stroke-dasharray: 1; stroke-dashoffset: 1; animation: line-draw 1.1s cubic-bezier(.45, .05, .25, 1) .15s forwards; }
   :root:not([data-motion="off"]) .sz-main.sz-anim svg polyline[stroke-dasharray] { animation: reveal-x 1.1s cubic-bezier(.45, .05, .25, 1) .15s both; }
-  :root:not([data-motion="off"]) .sz-main.sz-anim :is(.sz-hb-t > i, .sz-progress > i, .sz-meter i, .tr-bar > i) { animation: reveal-x .8s var(--ease-out) .12s both; }
+  :root:not([data-motion="off"]) .sz-main.sz-anim :is(.sz-hb-t > i, .sz-progress > i, .sz-meter i, .tr-bar > i, .sz-h2h-track > i.b) { animation: reveal-x .8s var(--ease-out) .12s both; }
+  :root:not([data-motion="off"]) .sz-main.sz-anim .sz-h2h-track > i.a { animation: reveal-x-rev .8s var(--ease-out) .12s both; }
+  /* Duels, écart en qualification : chaque barre pousse depuis l'axe (vers le haut ou vers le bas) */
+  :root:not([data-motion="off"]) .sz-main.sz-anim .sz-gap-chart rect { transform-box: fill-box; animation: grow-y .6s var(--ease-out) .15s both; }
+  :root:not([data-motion="off"]) .sz-main.sz-anim .sz-gap-chart rect.up { transform-origin: center bottom; }
+  :root:not([data-motion="off"]) .sz-main.sz-anim .sz-gap-chart rect.dn { transform-origin: center top; }
   /* Résultats de la séance, à l'ouverture : podium qui monte (2e, 3e puis vainqueur, avec un reflet), stratégies qui se déroulent */
   :root:not([data-motion="off"]) .rp-anim .rp-pod { animation: pod-in .55s var(--ease-spring) both; }
   :root:not([data-motion="off"]) .rp-anim .rp-pod.p2 { animation-delay: .05s; }
@@ -2563,6 +2568,8 @@ kbd .ic { width: 12px; height: 12px; opacity: 1; }
 @keyframes tri-bump { 0% { transform: translateY(0); } 40% { transform: translateY(-3px); } 100% { transform: none; } }
 @keyframes line-draw { to { stroke-dashoffset: 0; } }
 @keyframes reveal-x { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+@keyframes reveal-x-rev { from { clip-path: inset(0 0 0 100%); } to { clip-path: inset(0 0 0 0); } }
+@keyframes grow-y { from { transform: scaleY(0); } to { transform: none; } }
 @keyframes pod-in { from { opacity: 0; transform: translateY(22px) scale(.95); } to { opacity: 1; transform: none; } }
 @keyframes sheen { to { transform: translateX(100%); } }
 @keyframes digit-in { from { opacity: 0; transform: translateY(-45%); } to { opacity: 1; transform: none; } }
