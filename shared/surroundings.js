@@ -185,23 +185,30 @@ export function fitTrack(track, lines) {
   const few = resample(track, 40);
   const cx = few.reduce((s, p) => s + p[0], 0) / few.length, cy = few.reduce((s, p) => s + p[1], 0) / few.length;
   const CELL = 30;
-  // Candidats : pour chaque angle, le décalage le plus voté
+  // Cases de 30 m où passe une ligne d'OSM ; votes comptés dans un tableau (en ville, des dizaines de milliers de
+  // points de rues : une table de hachage par point du tracé prenait plus d'une minute)
+  const occ = new Map();
+  for (const [ox, oy] of coarse) { const i = Math.round(ox / CELL), j = Math.round(oy / CELL); occ.set(i * 100003 + j, [i, j]); }
+  const cells = [...occ.values()], R = Math.ceil(Math.max(...few.map(([x, y]) => Math.hypot(x - cx, y - cy))) / CELL) + 1;
+  let i0 = Infinity, j0 = Infinity, i1 = -Infinity, j1 = -Infinity;
+  for (const [i, j] of cells) { i0 = Math.min(i0, i - R); j0 = Math.min(j0, j - R); i1 = Math.max(i1, i + R); j1 = Math.max(j1, j + R); }
+  const NI = i1 - i0 + 1, NJ = j1 - j0 + 1;
+  const votes = new Uint16Array(NI * NJ);
+  // Candidats : pour chaque angle, le décalage le plus voté (chaque point du tracé vote pour les décalages qui le
+  // posent sur une case d'OSM)
   const cands = [];
   for (let deg = 0; deg < 360; deg += 3) {
     const a = (deg * Math.PI) / 180, c = Math.cos(a), s = Math.sin(a);
-    const votes = new Map();
+    votes.fill(0);
     for (const [x, y] of few) {
-      const rx = c * (x - cx) - s * (y - cy), ry = s * (x - cx) + c * (y - cy), seen = new Set();
-      for (const [ox, oy] of coarse) {
-        const k = Math.round((ox - rx) / CELL) * 100003 + Math.round((oy - ry) / CELL);
-        if (!seen.has(k)) { seen.add(k); votes.set(k, (votes.get(k) || 0) + 1); }
-      }
+      const di = Math.round((c * (x - cx) - s * (y - cy)) / CELL) + i0, dj = Math.round((s * (x - cx) + c * (y - cy)) / CELL) + j0;
+      for (const [i, j] of cells) votes[(i - di) * NJ + j - dj]++;
     }
     let best = 0, bk = 0;
-    for (const [k, v] of votes) if (v > best) { best = v; bk = k; }
-    const ti = Math.round(bk / 100003);
+    for (let k = 0; k < votes.length; k++) if (votes[k] > best) { best = votes[k]; bk = k; }
     // Décalage tel que le centre du tracé tombe sur le décalage voté
-    cands.push({ votes: best, f: { s: 1, a, e: ti * CELL - (c * cx - s * cy), n: (bk - ti * 100003) * CELL - (s * cx + c * cy) } });
+    const ti = Math.floor(bk / NJ) + i0, tj = (bk % NJ) + j0;
+    cands.push({ votes: best, f: { s: 1, a, e: ti * CELL - (c * cx - s * cy), n: tj * CELL - (s * cx + c * cy) } });
   }
   cands.sort((p, q) => q.votes - p.votes);
   // Affinage des meilleurs candidats ; le plus proche des lignes gagne
