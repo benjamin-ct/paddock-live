@@ -1,14 +1,14 @@
 // Visuels des posts de saison (mode créateur) : horaires du week-end, pneus et météo, records du
 // circuit, notes des pilotes, duels entre coéquipiers, positions tour par tour, récap de la semaine,
 // et images de la vidéo animée de la course. Mêmes outils de dessin que les autres posts.
-import { C, TITLE, BODY, MONO, MEDAL, rr, txt, fitLines, vivid, alpha, background, frame, newsSlide, teamLogo, card, pill, kicker, footer } from './social-draw.js';
+import { C, TITLE, BODY, MONO, MEDAL, rr, txt, fitLines, vivid, alpha, background, frame, newsSlide, teamLogo, card, pill, kicker, footer, topY, footY } from './social-draw.js';
 import { lapStr } from './social-season.js';
 
 const dec = (v, n = 1) => (v == null ? '—' : Number(v).toFixed(n).replace('.', ','));
 const TYRE = { hard: ['DURS', '#f3f5f9'], medium: ['MÉDIUMS', '#f5c518'], soft: ['TENDRES', '#e10600'] };
 
 const panel = (ctx, x, y, w, h, r = 22) => card(ctx, x, y, w, h, r);
-const note = (ctx, W, f, text) => txt(ctx, text, W - f.pad, f.bottom + 6, { size: 22, weight: 600, color: C.muted, align: 'right' });
+const note = (ctx, W, f, text) => txt(ctx, text, W - f.pad, f.bottom + 20, { size: 28, weight: 600, color: C.muted, align: 'right' });
 
 // ---------- Programme : horaires (heure de Paris), groupés par jour ----------
 export function horaires(ctx, W, H, d, o) {
@@ -83,9 +83,9 @@ export function editions(ctx, W, H, d, o) {
   const head = 70;
   const rowH = Math.min(H > W ? 170 : 120, (f.bottom - f.top - head) / Math.max(1, list.length));
   const cols = [f.pad + 20, f.pad + (W - f.pad * 2) * 0.2, f.pad + (W - f.pad * 2) * 0.6];
-  txt(ctx, 'ANNÉE', cols[0], f.top + 30, { size: 24, weight: 700, family: TITLE, color: C.muted, spacing: 3 });
-  txt(ctx, 'POLE POSITION', cols[1], f.top + 30, { size: 24, weight: 700, family: TITLE, color: C.muted, spacing: 3 });
-  txt(ctx, 'MEILLEUR TOUR EN COURSE', cols[2], f.top + 30, { size: 24, weight: 700, family: TITLE, color: C.muted, spacing: 3 });
+  txt(ctx, 'ANNÉE', cols[0], f.top + 30, { size: 27, weight: 700, family: TITLE, color: C.muted, spacing: 3 });
+  txt(ctx, 'POLE POSITION', cols[1], f.top + 30, { size: 27, weight: 700, family: TITLE, color: C.muted, spacing: 3 });
+  txt(ctx, 'MEILLEUR TOUR EN COURSE', cols[2], f.top + 30, { size: 27, weight: 700, family: TITLE, color: C.muted, spacing: 3 });
   const cell = (x, y, p, best) => {
     if (!p) { txt(ctx, '—', x, y, { size: 40, weight: 700, family: TITLE, color: C.muted }); return; }
     ctx.fillStyle = vivid(p.color); ctx.fillRect(x, y - rowH * 0.36, 6, rowH * 0.5);
@@ -145,7 +145,7 @@ export function notes(ctx, W, H, d, o) {
   list.forEach((r, i) => {
     const x = f.pad + Math.floor(i / per) * (colW + 36);
     const y = f.top - 6 + (i % per) * rowH;
-    card(ctx, x, y, colW, rowH - 8, (rowH - 8) * 0.3, { tint: r.color });
+    card(ctx, x, y, colW, rowH - 8, (rowH - 8) * 0.3, { tint: r.color, light: i >= 3 });
     const mid = y + rowH / 2 + fs * 0.34;
     teamLogo(ctx, o, r.team, x + 18 + fs * 0.55, y + (rowH - 4) / 2, fs * 0.85, 'center', fs * 1.1);
     const cx0 = x + 30 + fs * 1.1;
@@ -221,7 +221,7 @@ export function titre(ctx, W, H, d, o, team) {
     txt(ctx, champ.name.toUpperCase(), f.pad + 40 * u, by + 42 * u, { size: Math.round(52 * u), weight: 800, family: TITLE, italic: true, max: W - f.pad * 2 - 80 * u });
   } else {
     txt(ctx, `${team ? d.left.c : d.left.d} PTS`, f.pad + 40 * u, by + 26 * u, { size: Math.round(72 * u), weight: 800, family: TITLE, italic: true });
-    txt(ctx, 'ENCORE EN JEU', f.pad + 40 * u, by - 34 * u, { size: Math.round(24 * u), weight: 700, family: TITLE, color: C.red, spacing: 3 });
+    txt(ctx, 'ENCORE EN JEU', f.pad + 40 * u, by - 34 * u, { size: Math.round(27 * u), weight: 700, family: TITLE, color: C.red, spacing: 3 });
     const rest = d.left.races ? `${d.left.races} GP RESTANT${d.left.races > 1 ? 'S' : ''}${d.left.sprints ? ` · ${d.left.sprints} SPRINT${d.left.sprints > 1 ? 'S' : ''}` : ''}` : 'SAISON TERMINÉE';
     txt(ctx, rest, W - f.pad - 30 * u, by + 12 * u, { size: Math.round(30 * u), weight: 700, family: TITLE, color: C.muted, align: 'right', spacing: 2 });
   }
@@ -296,7 +296,7 @@ export function titreComment(ctx, W, H, d, o) {
     panel(ctx, x, y0, bw, bh);
     const px = x + 30 * u;
     let y = y0 + 52 * u;
-    txt(ctx, title, px, y, { size: Math.round(24 * u), weight: 700, family: TITLE, color: C.red, spacing: 3 });
+    txt(ctx, title, px, y, { size: Math.round(27 * u), weight: 700, family: TITLE, color: C.red, spacing: 3 });
     y += 52 * u;
     const head = c.possibleNext ? `TITRE POSSIBLE DÈS ${c.next.toUpperCase()}` : `TITRE AU PLUS TÔT : ${(c.earliest || 'dernière manche').toUpperCase()}`;
     txt(ctx, head, px, y, { size: Math.round(40 * u), weight: 800, family: TITLE, color: C.gold, max: pw });
@@ -304,22 +304,22 @@ export function titreComment(ctx, W, H, d, o) {
     if (fit) {
       fit.lines.forEach((l, k) => txt(ctx, l, px, y + k * fit.size * 1.35, { size: fit.size, weight: 600, color: C.text }));
     } else {
-      txt(ctx, `${c.needs.length > 1 ? 'Conditions pour' : 'Condition pour'} ${c.leader}${c.needs.length > 1 ? ', toutes à la fois' : ''}${c.sprint ? ' (sprint et course cumulés)' : ''}`, px, y, { size: Math.round(24 * u), weight: 600, color: C.muted, max: pw });
+      txt(ctx, `${c.needs.length > 1 ? 'Conditions pour' : 'Condition pour'} ${c.leader}${c.needs.length > 1 ? ', toutes à la fois' : ''}${c.sprint ? ' (sprint et course cumulés)' : ''}`, px, y, { size: Math.round(27 * u), weight: 600, color: C.muted, max: pw });
       y += 20 * u;
       const places = c.needs.some((n) => n.win);
       const cols = places ? [0, 0.34, 0.62, 0.84] : [0, 0.5];
-      ['RIVAL', 'SUR LE WEEK-END', ...(places ? ['EN GAGNANT', 'EN FINISSANT 2E'] : [])].forEach((t, k) => txt(ctx, t, px + pw * cols[k], y + rowH * 0.75, { size: Math.round(20 * u), weight: 700, family: TITLE, color: C.muted, spacing: 2, max: pw * ((cols[k + 1] || 1) - cols[k] - 0.01) }));
+      ['RIVAL', 'SUR LE WEEK-END', ...(places ? ['EN GAGNANT', 'EN FINISSANT 2E'] : [])].forEach((t, k) => txt(ctx, t, px + pw * cols[k], y + rowH * 0.75, { size: Math.round(24 * u), weight: 700, family: TITLE, color: C.muted, spacing: 2, max: pw * ((cols[k + 1] || 1) - cols[k] - 0.01) }));
       c.needs.forEach((n, k) => {
         const ry = y + rowH * (k + 1.75);
         ctx.fillStyle = vivid(n.color || C.muted); ctx.fillRect(px, ry - rowH * 0.42, 6, rowH * 0.5);
         txt(ctx, n.label.toUpperCase(), px + 18 * u, ry, { size: Math.round(30 * u), weight: 800, family: TITLE, max: pw * (cols[1] - 0.03) - 18 * u });
         txt(ctx, gapTxt(n.margin), px + pw * cols[1], ry, { size: Math.round(28 * u), weight: 800, family: TITLE, max: pw * ((cols[2] || 1) - cols[1] - 0.02) });
         if (places) {
-          txt(ctx, n.win.toUpperCase(), px + pw * cols[2], ry, { size: Math.round(24 * u), weight: 700, family: TITLE, color: C.muted, max: pw * 0.2 });
-          txt(ctx, n.second.toUpperCase(), px + pw * cols[3], ry, { size: Math.round(24 * u), weight: 700, family: TITLE, color: C.muted, max: pw * 0.16 });
+          txt(ctx, n.win.toUpperCase(), px + pw * cols[2], ry, { size: Math.round(27 * u), weight: 700, family: TITLE, color: C.muted, max: pw * 0.2 });
+          txt(ctx, n.second.toUpperCase(), px + pw * cols[3], ry, { size: Math.round(27 * u), weight: 700, family: TITLE, color: C.muted, max: pw * 0.16 });
         }
       });
-      txt(ctx, 'À égalité de points, le titre va au plus grand nombre de victoires.', px, y0 + bh - 26 * u, { size: Math.round(20 * u), weight: 600, color: C.muted, max: pw });
+      txt(ctx, 'À égalité de points, le titre va au plus grand nombre de victoires.', px, y0 + bh - 26 * u, { size: Math.round(24 * u), weight: 600, color: C.muted, max: pw });
     }
     y0 += h + gap;
   });
@@ -340,10 +340,10 @@ export function positions(ctx, W, H, d, o) {
   ctx.strokeStyle = C.line; ctx.lineWidth = 1;
   for (let p = 1; p <= n; p++) { ctx.beginPath(); ctx.moveTo(left, yOf(p)); ctx.lineTo(right, yOf(p)); ctx.stroke(); }
   ctx.restore();
-  for (let p = 1; p <= n; p++) if (p === 1 || p % 5 === 0) txt(ctx, `P${p}`, left - 16, yOf(p) + 8, { size: 22, weight: 700, family: MONO, color: C.muted, align: 'right' });
+  for (let p = 1; p <= n; p++) if (p === 1 || p % 5 === 0) txt(ctx, `P${p}`, left - 16, yOf(p) + 8, { size: 26, weight: 700, family: MONO, color: C.muted, align: 'right' });
   const step = d.total > 40 ? 10 : 5;
-  for (let l = step; l <= d.total - step / 2; l += step) txt(ctx, String(l), xOf(l), bottom + 30, { size: 20, weight: 600, family: MONO, color: C.muted, align: 'center' });
-  txt(ctx, 'TOURS', right, bottom + 30, { size: 20, weight: 700, family: TITLE, color: C.muted, align: 'right', spacing: 2 });
+  for (let l = step; l <= d.total - step / 2; l += step) txt(ctx, String(l), xOf(l), bottom + 30, { size: 24, weight: 600, family: MONO, color: C.muted, align: 'center' });
+  txt(ctx, 'TOURS', right, bottom + 30, { size: 24, weight: 700, family: TITLE, color: C.muted, align: 'right', spacing: 2 });
   // Pilotes classés dans les 10 premiers en couleur, les autres en gris
   const order = [...d.drivers].sort((a, b) => (b.finish || 99) - (a.finish || 99));
   for (const x of order) {
@@ -380,7 +380,7 @@ export function recapCover(ctx, W, H, d, o) {
   background(ctx, W, H, C.red);
   const u = Math.min(W, H) / 1080;
   const pad = Math.round(W * 0.055);
-  const top = Math.round(Math.min(W, H) * 0.06);
+  const top = topY(W, H);
   kicker(ctx, pad, top, u, 'ACTU F1', `DU ${d.date}`.toUpperCase());
   const colW = W - pad * 2;
   let y = H * (H / W > 1.5 ? 0.18 : 0.17);
@@ -397,12 +397,12 @@ export function recapCover(ctx, W, H, d, o) {
   const each = Math.min((end - ly) / Math.max(1, kept.length), 230 * u);
   kept.forEach((it, i) => {
     txt(ctx, String(i + 1).padStart(2, '0'), lx, ly + 46 * u, { size: Math.round(48 * u), weight: 800, family: TITLE, color: C.red });
-    txt(ctx, it.badge.label, lx + 90 * u, ly + 22 * u, { size: Math.round(24 * u), weight: 700, family: TITLE, color: it.badge.color, spacing: 3 });
+    txt(ctx, it.badge.label, lx + 90 * u, ly + 22 * u, { size: Math.round(27 * u), weight: 700, family: TITLE, color: it.badge.color, spacing: 3 });
     const t = fitLines(ctx, it.title.toUpperCase(), lw - 90 * u, [44, 38, 32, 28].map((v) => Math.round(v * u)), each > 170 * u ? 3 : each > 120 * u ? 2 : 1, TITLE, 800);
     t.lines.forEach((l, k) => txt(ctx, l, lx + 90 * u, ly + 64 * u + k * t.size * 1.02, { size: t.size, weight: 800, family: TITLE, italic: true }));
     ly += each;
   });
-  const fy = H - Math.round(Math.min(W, H) * 0.045);
+  const fy = footY(W, H);
   footer(ctx, W, H, o);
   txt(ctx, `${kept.length} INFO${kept.length > 1 ? 'S' : ''} À RETENIR`, W - pad, fy, { size: Math.round(Math.min(W, H) * 0.025), weight: 700, family: TITLE, color: C.muted, align: 'right', spacing: 2 });
 }
@@ -412,7 +412,7 @@ export function recapItem(ctx, W, H, d, o, i, fmt) {
   newsSlide(ctx, W, H, { ...it, breaking: false }, { ...o, slides: [] }, fmt);
   const u = Math.min(W, H) / 1080;
   const kept = o.slides ? o.slides.filter((s) => /^recap-\d+$/.test(s)) : d.items.map((_, k) => `recap-${k + 1}`);
-  txt(ctx, `${Math.max(1, kept.indexOf(`recap-${i}`) + 1)} / ${kept.length}`, W - Math.round(W * 0.055), Math.round(Math.min(W, H) * 0.06) + 46 * u, { size: Math.round(34 * u), weight: 700, family: MONO, color: C.muted, align: 'right' });
+  txt(ctx, `${Math.max(1, kept.indexOf(`recap-${i}`) + 1)} / ${kept.length}`, W - Math.round(W * 0.055), topY(W, H) + 46 * u, { size: Math.round(34 * u), weight: 700, family: MONO, color: C.muted, align: 'right' });
 }
 
 // ---------- Vidéo animée de la course (images successives) ----------
@@ -804,7 +804,7 @@ export function raceweek(ctx, W, H, d, o) {
   });
   ctx.restore();
   const pad = Math.round(W * 0.06);
-  const fy = H - Math.round(Math.min(W, H) * 0.045);
+  const fy = footY(W, H);
   const story = H / W > 1.5;
   // Bloc de texte : hauteur calculée d'abord, le tracé prend la place qui reste
   const right = v === 2;
@@ -862,7 +862,7 @@ export function raceweek(ctx, W, H, d, o) {
       ctx.fillStyle = c1; ctx.fillRect(right ? fx - 6 * u : fx, y, 6 * u, 74 * u);
       const ix = right ? fx - 22 * u : fx + 22 * u;
       txt(ctx, String(val), ix, y + 44 * u, { size: Math.round(50 * u), weight: 800, family: TITLE, align });
-      txt(ctx, lab, ix, y + 72 * u, { size: Math.round(20 * u), weight: 700, family: TITLE, color: C.muted, align, spacing: 3 * u });
+      txt(ctx, lab, ix, y + 72 * u, { size: Math.round(25 * u), weight: 700, family: TITLE, color: C.muted, align, spacing: 3 * u });
     });
     y += 106 * u;
   }
@@ -875,7 +875,7 @@ export function raceweek(ctx, W, H, d, o) {
     txt(ctx, label, bx + w / 2, y + 37 * u, { size: Math.round(30 * u), weight: 800, family: TITLE, color: '#fff', align: 'center', spacing: 2 * u });
     y += 80 * u;
   }
-  if (withPrev && d.prev) txt(ctx, `VAINQUEUR ${d.prev.year} : ${d.prev.name.toUpperCase()}`, tx, y + 20 * u, { size: Math.round(24 * u), weight: 700, family: TITLE, color: C.muted, align, spacing: 2 * u, max: colW });
+  if (withPrev && d.prev) txt(ctx, `VAINQUEUR ${d.prev.year} : ${d.prev.name.toUpperCase()}`, tx, y + 20 * u, { size: Math.round(27 * u), weight: 700, family: TITLE, color: C.muted, align, spacing: 2 * u, max: colW });
   // Pied
   txt(ctx, o.signature || '@BenjyPaddock', pad, fy, { size: Math.round(Math.min(W, H) * 0.032), weight: 700, family: TITLE, spacing: 1 });
   txt(ctx, 'HEURE DE PARIS', W - pad, fy, { size: Math.round(Math.min(W, H) * 0.02), weight: 700, family: TITLE, color: C.muted, align: 'right', spacing: 2 });
