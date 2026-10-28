@@ -2,7 +2,7 @@
 // (newsPost), enregistrée dans le navigateur par makeAnimation. Quatre temps : intro (« BREAKING » ou
 // « ACTU F1 »), l'info (photo, type, titre, résumé), les points clés un par un, puis « Abonnez-vous ».
 // Très grosse info (d.breaking) : même style que l'image, liseré rouge tout autour, étiquette « ● BREAKING ».
-import { C, TITLE, BODY, rr, txt, fitLines, vivid, alpha, lightColor, background, photo, coverPhoto, photoCredit, driverPhoto, breakingFrame, breakingTag } from './social-draw.js';
+import { C, TITLE, BODY, rr, txt, fitLines, vivid, alpha, lightColor, background, photo, coverPhoto, photoCredit, driverPhoto, breakingFrame, breakingTag, pill, kicker, card } from './social-draw.js';
 
 const clamp01 = (x) => Math.max(0, Math.min(1, x));
 const out3 = (x) => 1 - (1 - clamp01(x)) ** 3;
@@ -23,11 +23,7 @@ export function newsVideoTiming(d) {
 
 // Étiquette du type de nouvelle ; renvoie sa largeur
 function chip(ctx, b, x, y, u, size = 34) {
-  ctx.font = `700 ${Math.round(size * u)}px ${TITLE}`;
-  const w = ctx.measureText(b.label).width + 6 * b.label.length * u + 44 * u;
-  rr(ctx, x, y, w, size * 1.7 * u, 8 * u); ctx.fillStyle = b.color; ctx.fill();
-  txt(ctx, b.label, x + 22 * u, y + size * 1.21 * u, { size: Math.round(size * u), weight: 700, family: TITLE, color: lightColor(b.color) ? C.bg : '#fff', spacing: 6 * u });
-  return w;
+  return pill(ctx, b.label, x, y, size * 1.7 * u, { bg: b.color, color: lightColor(b.color) ? C.bg : '#fff', dot: true });
 }
 
 const blink = (t) => 0.35 + 0.65 * (0.5 + 0.5 * Math.cos(t * Math.PI * 2.2));   // point qui clignote
@@ -35,9 +31,7 @@ const blink = (t) => 0.35 + 0.65 * (0.5 + 0.5 * Math.cos(t * Math.PI * 2.2));   
 // En-tête (Actu F1, date ; à droite : étiquette « BREAKING », signature dessous)
 export function header(ctx, W, d, o, u, t) {
   const pad = 60 * u; const top = 100 * u;
-  ctx.fillStyle = C.red; ctx.fillRect(pad, top, 12 * u, 84 * u);
-  txt(ctx, 'ACTU F1', pad + 34 * u, top + 40 * u, { size: Math.round(46 * u), weight: 800, family: TITLE, spacing: 4 });
-  txt(ctx, d.date.toUpperCase(), pad + 34 * u, top + 80 * u, { size: Math.round(32 * u), weight: 600, family: TITLE, color: C.muted, spacing: 2 });
+  kicker(ctx, pad, top, u * 1.3, 'ACTU F1', d.date.toUpperCase());
   if (d.breaking) breakingTag(ctx, W - pad, top, 72 * u, blink(t));
   txt(ctx, o.signature || '@BenjyPaddock', W - pad, top + (d.breaking ? 116 : 52) * u, { size: Math.round(32 * u), weight: 700, family: TITLE, color: C.muted, align: 'right', spacing: 1 });
 }
@@ -53,7 +47,7 @@ function intro(ctx, W, H, d, u, s) {
     ctx.save();
     ctx.globalAlpha = kt;
     ctx.translate(W / 2, cy); ctx.scale(1.25 - 0.25 * kt, 1.25 - 0.25 * kt);
-    txt(ctx, 'ACTU F1', 0, 45 * u, { size: Math.round(130 * u), weight: 800, family: TITLE, align: 'center', spacing: 6 });
+    txt(ctx, 'ACTU F1', 0, 45 * u, { size: Math.round(130 * u), weight: 800, family: TITLE, italic: true, align: 'center', spacing: 6 });
     ctx.fillStyle = C.red; ctx.fillRect(-90 * u, 80 * u, 180 * u * kt, 10 * u);
     ctx.restore();
   } else if (kt > 0) {
@@ -172,7 +166,7 @@ function mainScene(ctx, W, H, d, o, u, s, dur) {
     if (k <= 0) return;
     ctx.save();
     ctx.beginPath(); ctx.rect(x - 10, y + i * L.lh - L.lh * 0.1, (L.colW + 20) * k, L.lh * 1.1); ctx.clip();
-    txt(ctx, l, x + (1 - k) * -60 * u, y + L.size * 0.82 + i * L.lh, { size: L.size, weight: 800, family: TITLE });
+    txt(ctx, l, x + (1 - k) * -60 * u, y + L.size * 0.82 + i * L.lh, { size: L.size, weight: 800, family: TITLE, italic: true });
     ctx.restore();
   });
   y += L.lines.length * L.lh + 38 * u;
@@ -194,7 +188,7 @@ function pointScene(ctx, W, H, d, o, u, i, n, s, dur) {
   background(ctx, W, H, d.color);
   const pad = 60 * u; const colW = W - pad * 2;
   const acc = d.color ? vivid(d.color) : C.red;
-  txt(ctx, "L'ESSENTIEL", pad, 360 * u, { size: Math.round(84 * u), weight: 800, family: TITLE, spacing: 3 });
+  txt(ctx, "L'ESSENTIEL", pad, 360 * u, { size: Math.round(84 * u), weight: 800, family: TITLE, italic: true, spacing: 3 });
   const t = fitLines(ctx, d.title.toUpperCase(), colW, [Math.round(42 * u)], 2, TITLE, 700).lines;
   t.forEach((l, k) => txt(ctx, l, pad, 432 * u + k * 50 * u, { size: Math.round(42 * u), weight: 700, family: TITLE, color: C.muted, spacing: 1 }));
   // Avancement : un trait par point
@@ -221,9 +215,9 @@ function pointScene(ctx, W, H, d, o, u, i, n, s, dur) {
   const cy = top + (bottom - top - ch) / 2;
   ctx.save();
   ctx.translate(dx, 0);
-  rr(ctx, pad, cy, colW, ch, 26 * u); ctx.fillStyle = C.panel; ctx.fill();
+  card(ctx, pad, cy, colW, ch, 26 * u);
   ctx.fillStyle = acc; ctx.fillRect(pad, cy + 30 * u, 8 * u, ch - 60 * u);
-  txt(ctx, String(i + 1).padStart(2, '0'), pad + 40 * u, cy + 170 * u, { size: Math.round(150 * u), weight: 800, family: TITLE, color: acc });
+  txt(ctx, String(i + 1).padStart(2, '0'), pad + 40 * u, cy + 170 * u, { size: Math.round(150 * u), weight: 800, family: TITLE, italic: true, color: acc });
   txt(ctx, `/ ${String(n).padStart(2, '0')}`, pad + 40 * u + 180 * u, cy + 170 * u, { size: Math.round(50 * u), weight: 700, family: TITLE, color: C.muted });
   lines.lines.forEach((l, k) => {
     const kl = out3((s - 0.25 - k * 0.1) / 0.45);
@@ -241,7 +235,7 @@ export function outro(ctx, W, H, d, o, u, s) {
   const cy = H * 0.36;
   const k1 = out3(s / 0.5);
   ctx.save(); ctx.globalAlpha = k1;
-  txt(ctx, "TOUTE L'ACTU F1", W / 2, cy + (1 - k1) * 60 * u, { size: Math.round(110 * u), weight: 800, family: TITLE, align: 'center', max: W * 0.88, spacing: 2 });
+  txt(ctx, "TOUTE L'ACTU F1", W / 2, cy + (1 - k1) * 60 * u, { size: Math.round(110 * u), weight: 800, family: TITLE, italic: true, align: 'center', max: W * 0.88, spacing: 2 });
   txt(ctx, 'EN DIRECT ET EN FRANÇAIS', W / 2, cy + 80 * u + (1 - k1) * 60 * u, { size: Math.round(44 * u), weight: 700, family: TITLE, color: C.muted, align: 'center', spacing: 4 });
   ctx.restore();
   const k2 = out3((s - 0.35) / 0.5);

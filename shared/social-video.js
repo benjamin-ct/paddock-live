@@ -323,30 +323,33 @@ async function recordLive(paints, duration, { music = 'gen', file = null, track,
   }));
 }
 
-// Diaporama des visuels au format story : léger zoom et fondu enchaîné
+// Diaporama des visuels au format story : zoom lent et continu, passage d'une image à l'autre en
+// glissant (comme un carrousel qu'on fait défiler), adouci au départ et à l'arrivée
+const easeInOut = (p) => (p < 0.5 ? 4 * p * p * p : 1 - (-2 * p + 2) ** 3 / 2);
 export async function makeVideo(slides, { perSlide = 3.2, ...opts } = {}) {
   const duration = slides.length * perSlide;
-  const fade = 0.45;
+  const swap = 0.6;
   const draw = (ctx, t) => {
     const i = Math.min(slides.length - 1, Math.floor(t / perSlide));
     const local = t - i * perSlide;
-    const paint = (c, k, alpha, dy = 0) => {
-      const s = 1 + 0.045 * k;
+    // Image déjà dessinée (rapide, sans saccade) ; zoom de 0 à 4 % sur toute sa durée
+    const paint = (c, k, x, fade = 1) => {
+      const s = 1 + 0.04 * k;
       ctx.save();
-      ctx.globalAlpha = alpha;
-      ctx.translate((W - W * s) / 2, (H - H * s) / 2 + dy);
+      ctx.globalAlpha = fade;
+      ctx.translate(x + (W - W * s) / 2, (H - H * s) / 2);
       ctx.scale(s, s);
-      if (c.paint) c.paint(ctx); else ctx.drawImage(c, 0, 0, W, H);
+      if (c.width) ctx.drawImage(c, 0, 0, W, H); else c.paint(ctx);
       ctx.restore();
     };
     ctx.globalAlpha = 1;
-    ctx.fillStyle = '#0b0d12'; ctx.fillRect(0, 0, W, H);
-    paint(slides[i], local / perSlide, 1);
+    ctx.fillStyle = '#06070b'; ctx.fillRect(0, 0, W, H);
     const next = slides[i + 1];
-    if (next && local > perSlide - fade) {
-      const p = (local - (perSlide - fade)) / fade;
-      paint(next, 0, p, (1 - p) * 80);
-    }
+    const p = next && local > perSlide - swap ? easeInOut((local - (perSlide - swap)) / swap) : 0;
+    // Zoom continu d'une image à l'autre : celle qui arrive a déjà commencé le sien
+    const zoom = (l) => (l + swap) / (perSlide + swap);
+    paint(slides[i], zoom(local), -W * 0.35 * p, 1 - p * 0.6);
+    if (p) paint(next, zoom(local - perSlide), W * (1 - p));
     ctx.globalAlpha = 1;
   };
   // Couverture : le premier visuel (sa couverture le plus souvent)

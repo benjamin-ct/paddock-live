@@ -67,7 +67,7 @@ export function clipFrame(ctx, W, H, d, o, clip, t) {
     const k = out3(t / 0.6);
     ctx.save();
     ctx.globalAlpha = k;
-    L.lines.forEach((line, i) => txt(ctx, line, L.pad, L.top + (i + 0.8) * L.lh + (1 - k) * 40 * u, { size: L.size, weight: 800, family: TITLE, max: W - L.pad * 2 }));
+    L.lines.forEach((line, i) => txt(ctx, line, L.pad, L.top + (i + 0.8) * L.lh + (1 - k) * 40 * u, { size: L.size, weight: 800, family: TITLE, italic: true, max: W - L.pad * 2 }));
     // La vidéo, coins arrondis et liseré
     ctx.save();
     rr(ctx, L.vx, L.vy, L.vw, L.vh, 28 * u);
