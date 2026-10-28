@@ -24,6 +24,10 @@ l'application (Réglages → À propos → Nouveautés).
   pilotes tiennent dans la page ; le Bilan est sur deux rangées, avec un bouton pour choisir ses favoris ; le Profil
   des circuits donne la longueur et les virages de Madring et de Sepang. Les écuries ont le même nom partout (Racing
   Bulls, Red Bull, Alpine, Haas, Cadillac) et les pilotes leurs accents dans Éléments moteur (Pérez).
+- Grand Prix (Saison → Résultats & records → un Grand Prix couru) : le rythme de course, avec l'évolution des temps
+  au tour, la répartition des temps de chaque pilote (boîtes à moustaches), les positions tour par tour et les 20
+  meilleurs tours avec leur pneu ; seuil des tours propres réglable (107 % du meilleur tour par défaut), 10 premiers ou
+  tous les pilotes. Aussi dans la version web.
 
 ### Accueil
 - Appli ouverte sans connexion (ou serveur injoignable) : l'accueil et l'écran « Pas de séance en direct » disent

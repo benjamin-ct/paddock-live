@@ -1,6 +1,14 @@
 // Interface en anglais : traduction de chaque texte français affiché (voir i18n.js).
 // {} = valeur dynamique (dans l'ordre), {0}, {1}… pour changer l'ordre en anglais.
 export default {
+  "20 meilleurs tours": "20 fastest laps",
+  "Évolution du rythme (tours propres)": "Pace evolution (clean laps)",
+  "{} : médiane {} · {} tours propres": "{}: median {} · {} clean laps",
+  "Répartition des temps (tours propres)": "Lap time distribution (clean laps)",
+  "Boîte : la moitié des tours (du 1er au 3e quart), trait : la médiane, ligne : du plus rapide au plus lent.": "Box: half of the laps (1st to 3rd quartile), bar: the median, line: fastest to slowest.",
+  "Tours propres : jusqu'à": "Clean laps: up to",
+  "du meilleur tour": "of the fastest lap",
+  "Sans le 1er tour, les tours avec un arrêt et ceux sous voiture de sécurité (réelle ou virtuelle).": "Excluding lap 1, pit laps and laps under the safety car (real or virtual).",
   "Hors séance": "No session",
   "Pas de séance en cours : le direct reprend tout seul avant la prochaine, {}": "No session right now: live timing resumes on its own before the next one, {}",
   "Pas de séance en cours": "No session right now",

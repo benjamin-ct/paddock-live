@@ -11,6 +11,7 @@ import { icon } from '../icons.js';
 import { renderPredict, initPredict } from './predict-view.js';
 import { renderReview, reviewAction } from './season-review.js';
 import { renderDestructors, showDestructorsDriver } from './season-destructors.js';
+import { renderPace, setPaceCut, setPaceScope } from './season-pace.js';
 import { DEC, LOCALE, EN, t } from '../i18n.js';
 import { gpShort, gpFull } from '/shared/gp-names.js';
 import { COUNTRY_ISO } from '/shared/social-season.js';
@@ -313,6 +314,7 @@ function renderGp() {
       ${stops.map((s, k) => `<tr><td>${k + 1}</td><td>${bar(s.d.team, null)}<b>${esc(s.d.name)}</b> <span class="muted small">${esc(s.d.team)}</span></td><td>${s.lap ?? '—'}</td><td><b>${stopTxt(s)}</b></td></tr>`).join('')}</table>
       ${stops.some((s) => s.dhl) ? DHL_NOTE : ''}</section>`);
   }
+  if (r.results.length) parts.push(renderPace(an, r.results));
   parts.push(`<div class="sz-gp-nav">${prev ? gpLink(prev, `← ${gpShort(prev.name, EN)}`, 'btn small') : '<span></span>'}<button class="btn small" data-szgo="results">Tous les Grands Prix</button>${next ? gpLink(next, `${gpShort(next.name, EN)} →`, 'btn small') : '<span></span>'}</div>`);
   return parts.join('');
 }
@@ -883,6 +885,8 @@ export function initSeason() {
     if (dd) { showDestructorsDriver(Number(dd.dataset.destDrv)); animate(true); render(); return; }
     const cs = e.target.closest('[data-cmp-sort]');
     if (cs) { cmpSort = cmpSort === cs.dataset.cmpSort ? 'pos' : cs.dataset.cmpSort; render(); return; }
+    const ps = e.target.closest('[data-pace-scope]');
+    if (ps) { setPaceScope(ps.dataset.paceScope); animate(true); render(); return; }
     const k = e.target.closest('[data-tr-kind]');
     if (k) { trKind = k.dataset.trKind; animate(true); render(); }
     const rs = e.target.closest('[data-rate-sort]');
@@ -895,6 +899,7 @@ export function initSeason() {
     else if (id === 'szDriver') { drvCode = e.target.value; push = true; }
     else if (id === 'szSpeedPt') speedPt = e.target.value;
     else if (id === 'szCircSort') circSort = e.target.value;
+    else if (id === 'szPaceCut') setPaceCut(e.target.value);
     else if (id === 'szCmpYear') cmpYear = Number(e.target.value);
     else if (id === 'szCmpRound') cmpRound = Number(e.target.value);
     else if (id === 'szCmpDrv') cmpDrv = e.target.value;
