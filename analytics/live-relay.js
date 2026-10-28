@@ -127,10 +127,16 @@ export class LiveRelay {
       this.timers.push(setTimeout(() => { if (!this.userToken) end(4001, 'Connexion F1 TV attendue'); }, AUTH_MS));
       this.timers.push(setTimeout(() => end(4000, 'Reconnexion'), PRIVATE_MS));
     }
+    // Relais au repos, même après une veille complète (réveil programmé) : la page reçoit « Hors séance » et la F1
+    // reste débranchée jusqu'au réveil
+    if (!this.active && !this.resting) {
+      const at = await this.ctx.storage?.getAlarm?.();
+      if (at > Date.now()) { this.resting = true; Object.assign(this.status, { connected: false, rest: true, next: at + LEAD_MS }); }
+    }
     // ?d= : délai TV du navigateur, pour ne lui envoyer que le GPS et la télémétrie utiles
     const d = Number(new URL(req.url).searchParams.get('d'));
     this.hello(server, Date.now() - (Number.isFinite(d) ? Math.min(Math.max(d, 0), KEEP_MS) : KEEP_MS) - HIST_MS);
-    this.start();
+    if (this.resting) { clearTimeout(this.idle); this.idle = null; } else this.start();
     return new Response(null, { status: 101, webSocket: client });
   }
 
@@ -155,6 +161,7 @@ export class LiveRelay {
 
   // Réveil programmé avant une séance (relais au repos) : reconnexion à la F1 pour les navigateurs restés ouverts
   async alarm() {
+    this.resting = false;
     if (this.clients.size) this.start();
   }
 
