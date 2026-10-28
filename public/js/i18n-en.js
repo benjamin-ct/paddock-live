@@ -1,6 +1,8 @@
 // Interface en anglais : traduction de chaque texte français affiché (voir i18n.js).
 // {} = valeur dynamique (dans l'ordre), {0}, {1}… pour changer l'ordre en anglais.
 export default {
+  "Calendrier indisponible pour l'instant": "Calendar unavailable for now",
+  "Calendrier indisponible pour l'instant : nouvel essai dans une minute.": "Calendar unavailable for now: trying again in a minute.",
   "Voir le détail": "See details",
   "touchez un pilote pour le détail": "tap a driver for details",
   "Part du plafond": "Share of cost cap",

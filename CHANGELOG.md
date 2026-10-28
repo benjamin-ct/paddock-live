@@ -19,6 +19,11 @@ l'application (Réglages → À propos → Nouveautés).
   cassées (ailerons, suspensions, fonds…). Estimations de u/Dense-Strategy-867 sur Reddit, compilées par Formula 1
   Dashboard, mises à jour toutes seules après chaque Grand Prix. Aussi dans la version web.
 
+### Accueil
+- Appli ouverte sans connexion (ou serveur injoignable) : l'accueil et l'écran « Pas de séance en direct » disent
+  « Calendrier indisponible pour l'instant » au lieu d'annoncer la saison terminée, puis réessaient tout seuls chaque
+  minute jusqu'à afficher la prochaine séance.
+
 ## v1.29.0 — 2026-10-28
 
 ### Alertes sur le téléphone
