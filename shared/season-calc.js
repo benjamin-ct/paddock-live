@@ -267,6 +267,29 @@ export function titleRace(data, year) {
 }
 
 // Points d'une place à l'arrivée d'une course (barème depuis 2010, sans le point du meilleur tour)
+// Classements après les « round » premières manches (Saison → Comparer deux saisons) : points des courses et des sprints,
+// victoires ; pilotes repérés par leur code, écuries par leur identifiant ; à égalité de points, le plus de victoires
+export function standingsAfter(data, round) {
+  const races = (data?.races || []).filter((r) => r.round <= round && r.results?.length);
+  const tally = (keyOf, info) => {
+    const m = new Map();
+    for (const r of races) {
+      for (const x of [...r.results, ...(r.sprintResults || [])]) {
+        const k = keyOf(x);
+        if (!m.has(k)) m.set(k, { key: k, ...info(x), points: 0, wins: 0 });
+        m.get(k).points += x.points || 0;
+      }
+      if (r.results[0]?.pos === 1) m.get(keyOf(r.results[0])).wins++;
+    }
+    return [...m.values()].sort((a, b) => b.points - a.points || b.wins - a.wins).map((e, i) => ({ ...e, pos: i + 1 }));
+  };
+  return {
+    races: races.length,
+    drivers: tally((x) => x.code, (x) => ({ code: x.code, name: x.name, last: x.last, team: x.team, teamId: x.teamId })),
+    constructors: tally((x) => x.teamId, (x) => ({ name: x.team, id: x.teamId })),
+  };
+}
+
 export const RACE_POINTS = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
 // Meilleure place qui rapporte au plus « pts » points (11 = hors des points)
 export function placeForMaxPoints(pts) {

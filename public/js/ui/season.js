@@ -5,7 +5,7 @@
 import { $, esc, api, teamColor, teamLogo, photoUrl, placeView, driverOpt } from '../util.js';
 import { store } from '../store.js';
 import { renderDrivers, renderConsistency, renderPits, renderSpeeds, renderCircuits, renderRatings, gradeBadge, stopTxt, DHL_NOTE, statusFr, fmtLap } from './season-stats.js';
-import { driverRatings, qualiGaps, titleRace, placeForMaxPoints, retired } from '/shared/season-calc.js';
+import { driverRatings, qualiGaps, titleRace, placeForMaxPoints, retired, standingsAfter } from '/shared/season-calc.js';
 import { renderTech, renderElements, setTechFilter, translateTechDetail, toggleTechOriginal } from './season-fia.js';
 import { icon } from '../icons.js';
 import { renderPredict, initPredict } from './predict-view.js';
@@ -42,6 +42,10 @@ let urls = false;          // version web : l'adresse suit la rubrique affichée
 let speedPt = 'ST';
 let circSort = 'round';
 let rateSort = 'season';
+let cmpYear = null;        // Comparer deux saisons : saison comparée (par défaut la précédente), manche, pilotes ou écuries
+let cmpRound = null;
+let cmpKind = 'd';
+const others = new Map();  // autres saisons chargées pour la comparaison : année -> données, { loading } ou { error }
 const STATS_SECTIONS = new Set(['drivers', 'consistency', 'pits', 'speeds', 'circuits', 'ratings', 'h2h', 'gp']);
 let prev = null;           // saison précédente (comparaison des points d'un pilote)
 let ratingsMemo = null;
@@ -63,6 +67,13 @@ async function loadPrev() {
     if (prev?.loading === y) prev = { year: y, error: err.message };
   }
   if (section === 'drivers' && !$('#seasonView').hidden) render();
+}
+// Saison comparée (Comparer deux saisons) : chargée une fois, gardée pour la session
+async function loadOther(y) {
+  if (others.has(y)) return;
+  others.set(y, { loading: true });
+  try { others.set(y, await api(`/api/season?year=${y}`)); } catch (err) { others.set(y, { error: err.message }); }
+  if (section === 'compare' && !$('#seasonView').hidden) render();
 }
 const FIA_SECTIONS = new Set(['tech', 'elements']);
 // Documents FIA et statistiques en cours de lecture par le serveur, ou erreur : relus toutes les 30 s (chaque lecture
@@ -616,6 +627,46 @@ function renderTitle() {
     : `<section class="sz-box"><h3>${t('Championnat constructeurs')}</h3>${head(tr.constructors, tr.champTeam, 'c')}${clinchBox(tr.clinchC, 'c')}<div class="tr-grid">${tr.constructors.map(teamCard).join('')}</div></section>`}`;
 }
 
+// Comparer deux saisons : classements pilotes ou constructeurs après le même nombre de Grands Prix, côte à côte ;
+// pour chaque pilote (ou écurie) de la saison affichée, sa place et ses points au même moment de l'autre saison
+function renderCompare() {
+  const other = cmpYear && cmpYear !== data.year ? cmpYear : data.year - 1;
+  const ran = data.races.filter(done).length || data.races.length;
+  const o = others.get(other);
+  if (!o) loadOther(other);
+  const years = Array.from({ length: 8 }, (_, i) => new Date().getUTCFullYear() - i).filter((y) => y !== data.year);
+  const max = Math.min(ran, o?.races?.length || ran);
+  const round = Math.max(1, Math.min(cmpRound || ran, max));
+  const nth = (r) => (EN ? `${r}${['th', 'st', 'nd', 'rd'][(r % 100 - 20) % 10] || ['th', 'st', 'nd', 'rd'][r % 100] || 'th'}` : r === 1 ? '1er' : `${r}e`);
+  const raceOf = (d) => [...d.races].sort((a, b) => a.round - b.round)[round - 1];
+  const picks = `<div class="sz-h2h-pick"><label class="small">${t('Comparer avec')} <select id="szCmpYear">${years.map((y) => `<option value="${y}" ${y === other ? 'selected' : ''}>${y}</option>`).join('')}</select></label>
+      <label class="small">${t('Après le')} <select id="szCmpRound">${Array.from({ length: Math.max(1, max) }, (_, i) => i + 1).map((r) => `<option value="${r}" ${r === round ? 'selected' : ''}>${t('{} Grand Prix', nth(r))}</option>`).join('')}</select></label></div>
+    <div class="sz-h2h-pick"><div class="tab-seg">${[['d', 'Pilotes'], ['c', 'Constructeurs']].map(([k, l]) => `<button type="button" data-cmp-kind="${k}" class="${cmpKind === k ? 'on' : ''}">${t(l)}</button>`).join('')}</div></div>`;
+  if (!data.races.some(done)) return `${picks}<div class="note small">${t('Aucun Grand Prix couru en {} pour l\'instant.', data.year)}</div>`;
+  if (!o || o.loading) return `${picks}<div class="note small">${t('Chargement de la saison {}…', other)}</div>`;
+  if (o.error || !o.races?.length) return `${picks}<div class="note small">${t('Saison {} indisponible.', other)}</div>`;
+  const a = standingsAfter(data, round), b = standingsAfter(o, round);
+  const key = cmpKind === 'd' ? 'drivers' : 'constructors';
+  const atB = new Map(b[key].map((e) => [e.key, e]));
+  const who = (e) => (cmpKind === 'd' ? `${bar(e.team, e.teamId)}<b>${esc(e.last || e.name)}</b> <span class="muted small">${esc(e.team)}</span>` : `${bar(e.name, e.id)}<b>${esc(e.name)}</b>`);
+  const head = (y, d, s) => {
+    const r = raceOf(d), [l1, l2] = s[key];
+    return `<h3>${y} · ${t('après {}', esc(gpShort(r?.name || '', EN)))}</h3>
+      <div class="muted small">${l1 ? `${t('Leader')} : <b>${esc(l1.last || l1.name)}</b>, ${l1.points} pts${l2 ? ` · ${t('{} pts d\'avance', l1.points - l2.points)}` : ''}` : ''}</div>`;
+  };
+  const table = (s, cross) => {
+    const lead = s[key][0]?.points || 0;
+    return `<div class="sz-scroll"><table class="sz-table"><tr><th>${t('Pos.')}</th><th>${cmpKind === 'd' ? t('Pilote') : t('Écurie')}</th><th>${t('Points')}</th><th>${t('Écart')}</th>${cross ? `<th>${t('En {}', other)}</th>` : ''}</tr>
+      ${s[key].map((e) => {
+        const x = cross && atB.get(e.key);
+        const was = !cross ? '' : x ? `<td class="small">P${x.pos} · ${x.points} pts <span class="muted">(${e.points - x.points >= 0 ? '+' : '−'}${Math.abs(e.points - x.points)})</span></td>` : '<td class="muted small">—</td>';
+        return `<tr><td>${e.pos}</td><td>${who(e)}</td><td><b>${e.points}</b></td><td class="muted">${e.points === lead ? '—' : `−${lead - e.points}`}</td>${was}</tr>`;
+      }).join('')}</table></div>`;
+  };
+  return `${picks}<div class="sz-grid2"><section class="sz-box">${head(data.year, data, a)}${table(a, true)}</section>
+    <section class="sz-box">${head(other, o, b)}${table(b, false)}</section></div>`;
+}
+
 // Explication en tête des vues qui n'en ont pas déjà une
 function render() {
   if (!data) return;
@@ -632,7 +683,7 @@ function render() {
   if (section === 'drivers') loadPrev();
   const fiaData = fia?.year === data.year ? fia : null;
   const html = {
-    home: renderHome, calendar: renderCalendar, standings: renderStandings, title: renderTitle, results: renderResults, h2h: renderH2H,
+    home: renderHome, calendar: renderCalendar, standings: renderStandings, title: renderTitle, compare: renderCompare, results: renderResults, h2h: renderH2H,
     drivers: () => renderDrivers(ctx, drvCode), consistency: () => renderConsistency(ctx), pits: () => renderPits(ctx),
     speeds: () => renderSpeeds(ctx, speedPt), circuits: () => renderCircuits(ctx, circSort), ratings: () => renderRatings(ctx, rateSort),
     tech: () => renderTech(ctx, fiaData), elements: () => renderElements(ctx, fiaData), predict: () => renderPredict(data.year, (code) => { const d = data.drivers.find((x) => x.code === code); return d ? seasonOpt(d) : ''; }), review: () => renderReview(ctx),
@@ -734,6 +785,8 @@ export function initSeason() {
     if (rv && data) { reviewAction(rv.dataset.review, data); return; }
     const t = e.target.closest('[data-h2h-team]'), m = e.target.closest('[data-h2h-mode]');
     if (t) { h2hTeam = t.dataset.h2hTeam; render(); } else if (m) { h2hMode = m.dataset.h2hMode; render(); }
+    const ck = e.target.closest('[data-cmp-kind]');
+    if (ck) { cmpKind = ck.dataset.cmpKind; render(); return; }
     const k = e.target.closest('[data-tr-kind]');
     if (k) { trKind = k.dataset.trKind; render(); }
     const rs = e.target.closest('[data-rate-sort]');
@@ -746,6 +799,8 @@ export function initSeason() {
     else if (id === 'szDriver') { drvCode = e.target.value; push = true; }
     else if (id === 'szSpeedPt') speedPt = e.target.value;
     else if (id === 'szCircSort') circSort = e.target.value;
+    else if (id === 'szCmpYear') cmpYear = Number(e.target.value);
+    else if (id === 'szCmpRound') cmpRound = Number(e.target.value);
     else if (id === 'szTechGp') setTechFilter(e.target.value, 'all');
     else if (id === 'szTechTeam') setTechFilter(undefined, e.target.value);
     else if (id === 'szTechOrig') toggleTechOriginal(e.target.checked);
