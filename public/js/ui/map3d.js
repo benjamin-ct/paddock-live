@@ -443,18 +443,19 @@ function buildLayers(world, L) {
   const put = (sprite, pos) => { sprite.center.set(0.5, 0); sprite.position.copy(pos); group.add(sprite); return sprite; };   // posée au-dessus du point
   const label = (text, bg, fg, edge) => canvasSprite(Math.ceil(text.length * 7 + 18), 18, (g) => drawBadge(g, (text.length * 7 + 18) / 2, 9, text, bg, fg, edge));
 
-  // Secteurs : bande colorée au milieu de la piste, micro-secteurs du pilote suivi, repères, pastilles S1 / S2 / S3
+  // Secteurs : fin liseré coloré le long du bord gauche de la piste, micro-secteurs du pilote suivi juste à côté
+  // (le milieu de la piste reste de l'asphalte), repères des micro-secteurs, pastilles S1 / S2 / S3
   if (sectors) {
     for (const sec of L.lay.sectors) {
       const a = atR(sec.from), b = atR(sec.from + sec.len);
-      band(range(a, b), { width: 2.2, lift: 0.03, color: L.sectorColors[sec.i] });
+      band(range(a, b), { off: -(W / 2 - 1.2), width: 0.8, lift: 0.03, color: L.sectorColors[sec.i] });
       const mid = atR(sec.from + sec.len / 2), best = L.best[sec.i];
       put(canvasSprite(best ? 150 : 30, 22, (g) => drawSectorBadge(g, best ? 75 : 15, 11, sec.i, L.sectorColors[sec.i], best)), beside(mid, -(W / 2 + 12)));
     }
-    for (const m of L.minis) band(range(atR(m.from), atR(m.to)), { width: 4, lift: 0.035, color: m.color });
+    for (const m of L.minis) band(range(atR(m.from), atR(m.to)), { off: -(W / 2 - 2.1), width: 0.8, lift: 0.035, color: m.color });
     for (const m of L.lay.minis) {
       const i = atR(m.r);
-      band((k) => k === i, { width: m.last ? W + 2 : W - 2, lift: 0.04, color: m.last ? 0xffffff : 0xe9edf4, opacity: m.last ? 1 : 0.45 });
+      band((k) => k === i, { off: -(W / 2 - 1.65), width: m.last ? 2.6 : 2, lift: 0.04, color: m.last ? 0xffffff : 0xe9edf4, opacity: m.last ? 1 : 0.6 });
     }
     // Numéros des micro-secteurs : à taille fixe dans la scène (lisibles de près)
     if (o.mapMiniNums) {
