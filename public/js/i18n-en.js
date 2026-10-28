@@ -2721,4 +2721,11 @@ export default {
   "Nuit": "Night",
   "Heure": "Time of day",
   "Heure au circuit : {} · soleil à {}°": "Time at the circuit: {} · sun at {}°",
+  "Qualité : Auto": "Quality: Auto",
+  "Qualité : Économe": "Quality: Saver",
+  "Qualité : Haute": "Quality: High",
+  "Qualité automatique, en ce moment : {}": "Automatic quality, currently: {}",
+  "économe": "saver",
+  "moyenne": "medium",
+  "haute": "high",
 };

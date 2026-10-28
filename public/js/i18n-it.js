@@ -2720,4 +2720,11 @@ export default {
   "Nuit": "Notte",
   "Heure": "Ora del giorno",
   "Heure au circuit : {} · soleil à {}°": "Ora al circuito: {} · sole a {}°",
+  "Qualité : Auto": "Qualità: Auto",
+  "Qualité : Économe": "Qualità: Risparmio",
+  "Qualité : Haute": "Qualità: Alta",
+  "Qualité automatique, en ce moment : {}": "Qualità automatica, al momento: {}",
+  "économe": "risparmio",
+  "moyenne": "media",
+  "haute": "alta",
 };

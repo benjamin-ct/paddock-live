@@ -94,6 +94,10 @@ l'application (Réglages → À propos → Nouveautés).
   nuit étoilée avec projecteurs le long de la piste, fenêtres allumées et feux arrière des voitures. Mêmes pastilles
   des pilotes et mêmes calques que la carte 2D (numéros de virage, secteurs et micro-secteurs, zones de dépassement,
   voie des stands, drapeaux jaunes, voiture de sécurité, bandeau des drapeaux), réglables dans le même menu Calques.
+  Qualité au choix (Auto, Économe ou Haute, choix gardé) : en Économe, moins d'arbres et de bâtiments (les plus petits
+  et les plus loin de la piste d'abord), ombres des voitures seules et sol un peu moins fin ; en Auto, la vue mesure sa
+  fluidité, baisse d'un cran si elle saccade et remonte prudemment quand il y a de la marge. Pour la batterie, elle
+  dessine moins d'images quand rien ne bouge (replay en pause, drapeau rouge) et sur téléphone sur batterie.
   Décochée, la carte habituelle revient. Aussi dans la version web.
 
 ### Téléphone

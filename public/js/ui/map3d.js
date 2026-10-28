@@ -11,12 +11,15 @@ import { smoothAlong } from '/shared/elevation.js';
 import { drivers, orderedNumbers, storageGet, storageSet, esc } from '../util.js';
 import { t } from '../i18n.js';
 import { FONT, drawPuck, drawBadge, drawSectorBadge, drawCornerChip, drawFlagBadge, drawScBadge } from './map-draw.js';
+import { QUALITY, nearFirst, autoQuality, frameCap } from './map3d-calc.js';
 
 const W = 14;           // largeur de la piste (m)
 const MAX_CARS = 30;
 const CAMS = [['helico', 'Hélico'], ['poursuite', 'Poursuite'], ['embarquee', 'Embarquée'], ['libre', 'Libre']];
 const FOV = { helico: 38, poursuite: 62, embarquee: 74, libre: 50 };
 const TIMES = [['auto', 'Heure du circuit'], ['lever', 'Lever'], ['jour', 'Jour'], ['coucher', 'Coucher'], ['nuit', 'Nuit']];
+const QUALITIES = [['auto', 'Qualité : Auto'], ['econome', 'Qualité : Économe'], ['haute', 'Qualité : Haute']];
+const Q_NAMES = ['économe', 'moyenne', 'haute'];   // niveaux de map3d-calc.js (QUALITY)
 // Soleil des ambiances choisies : hauteur et azimut (degrés, depuis le nord vers l'est)
 const PRESET = { lever: [3, 100], jour: [50, 205], coucher: [3, 260], nuit: [-30, 0] };
 const RAD = Math.PI / 180;
@@ -94,10 +97,10 @@ function buildWorld(track, elevation, surroundings, gpu) {
 
   const fromW = (x, zz) => { const X = x + cx, Z = zz + cz; return [X * cos - Z * sin, -X * sin - Z * cos]; };   // -> repère du tracé (m)
   const box = new THREE.Box3().setFromPoints(P);
-  const { groundAt, detailAt = () => {} } = land ? landGround(group, land, { track, P, SIDE, toW, fromW, base: zMin + off, ...gpu }) : { groundAt: flatGround(group, P, box, z) };
+  const { groundAt, detailAt = () => {}, setQuality = () => {} } = land ? landGround(group, land, { track, P, SIDE, toW, fromW, base: zMin + off, ...gpu }) : { groundAt: flatGround(group, P, box, z) };
 
   const world = { track, elevation, surroundings, land: !!land, source: gps ? 'gps' : land ? 'terrain' : null,
-    relief: z ? (Math.max(...z) - zMin) / 10 : null, P, T, SIDE, N, DS, box, group, groundAt, detailAt, toW, ribbon, road };
+    relief: z ? (Math.max(...z) - zMin) / 10 : null, P, T, SIDE, N, DS, box, group, groundAt, detailAt, setQuality, toW, ribbon, road };
   // Ligne de chronométrage (damier), au même endroit que sur la carte 2D
   world.addStartLine = (frac) => {
     const sp = track.pointAt(frac * track.L), [x, zz] = toW(sp.x, sp.y), i = nearestIndex(world, x, zz, -1);
@@ -316,7 +319,8 @@ function landGround(group, land, { track, P, SIDE, toW, fromW, base, maxTex, ani
   cv.width = Math.round(gw * k);
   cv.height = Math.round(gh * k);
   paint(cv, x0, y0, k);
-  const touch = matchMedia('(pointer: coarse)').matches, DPX = touch ? 1024 : 2048, SPAN = touch ? 384 : 512;
+  const touch = matchMedia('(pointer: coarse)').matches, DPX0 = touch ? 1024 : 2048, SPAN0 = touch ? 384 : 512, maxAniso = aniso;
+  let DPX = DPX0, SPAN = SPAN0;
   const dcv = document.createElement('canvas');
   dcv.width = dcv.height = DPX;
   const detail = { map: { value: texture(dcv) }, rect: { value: new THREE.Vector4(0, 0, 1, 1) }, on: { value: 0 } };
@@ -345,6 +349,19 @@ function landGround(group, land, { track, P, SIDE, toW, fromW, base, maxTex, ani
     // Coordonnées de texture du sol (v inversé : 1 en y0)
     detail.rect.value.set((mx - SPAN / 2 - x0) / gw, 1 - (my + SPAN / 2 - y0) / gh, SPAN / gw, SPAN / gh);
     detail.on.value = 1;
+  };
+  // Qualité (map3d-calc.js) : sol de détail plus petit (nouvelle texture, redessinée), anisotropie des textures du sol
+  const qualityGround = (q) => {
+    aniso = Math.min(maxAniso, q.aniso);
+    for (const tex of [mat.map, detail.map.value]) if (tex.anisotropy !== aniso) { tex.anisotropy = aniso; tex.needsUpdate = true; }
+    if (DPX === DPX0 * q.detail) return;
+    DPX = DPX0 * q.detail;
+    SPAN = SPAN0 * (0.5 + q.detail / 2);
+    dcv.width = dcv.height = DPX;
+    detail.map.value.dispose();
+    detail.map.value = mat.userData.extra = texture(dcv);
+    detail.on.value = 0;
+    dx = Infinity;
   };
 
   // Bord : prolongé de 12 km (au-delà du brouillard) à l'altitude moyenne du bord, pas de marche visible ; plaine plus
@@ -386,10 +403,10 @@ function landGround(group, land, { track, P, SIDE, toW, fromW, base, maxTex, ani
       for (const j of tri) { list.pos.push(pts[j][0], y, pts[j][1]); if (col) list.col.push(col.r, col.g, col.b); }
     }
   };
-  const solids = { pos: [], col: [] };
+  const solids = { pos: [], col: [] }, spans = [];
   for (const [kind, wall, roof] of [['buildings', '#e3e0d7', '#c9c6bd'], ['stands', '#bac2cd', '#8e9aab']].map(([kd, a, b]) => [kd, new THREE.Color(a), new THREE.Color(b)])) {
     for (const [height, ...flat] of land[kind] || []) {
-      const pts = corners(flat);
+      const pts = corners(flat), start = solids.pos.length;
       let lo = Infinity, hi = -Infinity;
       for (const [x, zz] of pts) { const y = groundAt(x, zz); lo = Math.min(lo, y); hi = Math.max(hi, y); }
       const top = hi + height;
@@ -399,8 +416,18 @@ function landGround(group, land, { track, P, SIDE, toW, fromW, base, maxTex, ani
         for (let j = 0; j < 6; j++) solids.col.push(wall.r, wall.g, wall.b);
       });
       flatTop(pts, top, solids, roof);
+      spans.push([start, solids.pos.length, pts, height]);
     }
   }
+  // Les plus grands et les plus près de la piste d'abord : en Économe, seuls les premiers sont dessinés (qualityGround)
+  const ends = [], sorted = { pos: [], col: [] };
+  for (const k of nearFirst(spans.map(([, , pts, height]) => [Math.sqrt(trackNear(P, ...centroid(pts))[0]), height + Math.sqrt(areaOf(pts))]))) {
+    const [a, b] = spans[k];
+    for (const key of ['pos', 'col']) for (let i = a; i < b; i++) sorted[key].push(solids[key][i]);
+    ends.push(sorted.pos.length / 3);
+  }
+  Object.assign(solids, sorted);
+  let buildings = null;
   if (solids.pos.length) {
     const bg = new THREE.BufferGeometry();
     bg.setAttribute('position', new THREE.Float32BufferAttribute(solids.pos, 3));
@@ -408,7 +435,7 @@ function landGround(group, land, { track, P, SIDE, toW, fromW, base, maxTex, ani
     bg.computeVertexNormals();
     const bm = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, side: THREE.DoubleSide });
     bm.onBeforeCompile = windows;
-    const b = new THREE.Mesh(bg, bm);
+    const b = buildings = new THREE.Mesh(bg, bm);
     b.castShadow = b.receiveShadow = true;
     group.add(b);
   }
@@ -425,24 +452,42 @@ function landGround(group, land, { track, P, SIDE, toW, fromW, base, maxTex, ani
   }
 
   // Arbres : cône et tronc, en instances (taille, teinte et orientation un peu variées)
-  const nT = (land.trees?.length || 0) >> 1;
+  const nT = (land.trees?.length || 0) >> 1, treeAt = (i) => W2(land.trees[2 * i], land.trees[2 * i + 1]), slot = [];
+  nearFirst(Array.from({ length: nT }, (_, i) => [Math.sqrt(trackNear(P, ...treeAt(i))[0]), 1])).forEach((i, k) => { slot[i] = k; });   // les plus près d'abord
+  let crowns = null, trunks = null;
   if (nT) {
     const crown = new THREE.ConeGeometry(2.6, 7, 7).translate(0, 6.3, 0), trunk = new THREE.CylinderGeometry(0.3, 0.4, 3.2, 5).translate(0, 1.6, 0);
-    const crowns = new THREE.InstancedMesh(crown, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9 }), nT);
-    const trunks = new THREE.InstancedMesh(trunk, new THREE.MeshStandardMaterial({ color: 0x5b4330, roughness: 1 }), nT);
+    crowns = new THREE.InstancedMesh(crown, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9 }), nT);
+    trunks = new THREE.InstancedMesh(trunk, new THREE.MeshStandardMaterial({ color: 0x5b4330, roughness: 1 }), nT);
     const m = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), p = new THREE.Vector3(), col = new THREE.Color(), up = new THREE.Vector3(0, 1, 0);
     for (let i = 0; i < nT; i++) {
-      const [x, zz] = W2(land.trees[2 * i], land.trees[2 * i + 1]), r = hash(i + 1);
+      const [x, zz] = treeAt(i), r = hash(i + 1);
       m.compose(p.set(x, groundAt(x, zz) - 0.2, zz), q.setFromAxisAngle(up, r * 6.28), sc.setScalar(0.75 + r * 0.6));
-      crowns.setMatrixAt(i, m);
-      trunks.setMatrixAt(i, m);
-      crowns.setColorAt(i, col.setHSL(0.25 + hash(i + 7) * 0.07, 0.45, 0.2 + hash(i + 13) * 0.08));
+      crowns.setMatrixAt(slot[i], m);
+      trunks.setMatrixAt(slot[i], m);
+      crowns.setColorAt(slot[i], col.setHSL(0.25 + hash(i + 7) * 0.07, 0.45, 0.2 + hash(i + 13) * 0.08));
     }
     crowns.castShadow = true;
     group.add(crowns, trunks);
   }
-  return { groundAt, detailAt };
+  // Qualité : arbres et bâtiments dessinés (les premiers), ombres des alentours, sol de détail
+  const setQuality = (q) => {
+    if (buildings) {
+      buildings.geometry.setDrawRange(0, ends[Math.ceil(ends.length * q.buildings) - 1] || 0);
+      buildings.castShadow = q.shadowAll;
+    }
+    if (crowns) {
+      crowns.count = trunks.count = Math.round(nT * q.trees);
+      crowns.castShadow = q.shadowAll;
+    }
+    qualityGround(q);
+  };
+  return { groundAt, detailAt, setQuality };
 }
+
+// Centre (moyenne des coins) et surface d'un polygone [[x, z]…]
+const centroid = (pts) => [pts.reduce((s, p) => s + p[0], 0) / pts.length, pts.reduce((s, p) => s + p[1], 0) / pts.length];
+const areaOf = (pts) => Math.abs(pts.reduce((s, [x, z], i) => { const [x2, z2] = pts[(i + 1) % pts.length]; return s + x * z2 - x2 * z; }, 0)) / 2;
 
 // Fenêtres allumées la nuit sur les murs (environ une sur deux, effacées au loin : pas de moiré) ; NIGHT : de 0 (jour) à 1
 const NIGHT = { value: 0 };
@@ -864,6 +909,7 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
       <div class="map3d-cams" role="group" aria-label="Caméra">${CAMS.map(([k, txt]) => `<button class="btn small" data-cam="${k}">${txt}</button>`).join('')}</div>
       <select class="map3d-driver" aria-label="Pilote suivi" title="Pilote suivi (le même que sur la carte 2D et le classement)"></select>
       <select class="map3d-time" aria-label="Heure">${TIMES.map(([k, txt]) => `<option value="${k}">${txt}</option>`).join('')}</select>
+      <select class="map3d-quality" aria-label="Qualité">${QUALITIES.map(([k, txt]) => `<option value="${k}">${txt}</option>`).join('')}</select>
     </div>
     <div class="map3d-note"></div>
     <div class="map3d-credit" hidden><a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a> <a href="https://www.openmaptiles.org/" target="_blank" rel="noopener">© OpenMapTiles</a> <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">${esc(t('© contributeurs OpenStreetMap'))}</a> · ${esc(t('Altitude : Terrain Tiles (Mapzen, AWS Open Data)'))}</div>`;
@@ -1025,10 +1071,13 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
   }, { passive: false });
   cvs.addEventListener('dblclick', () => { if (mode === 'libre') overview(); });
 
+  const quality = qualityControl(host, renderer, sun, () => world);
+
   // ---------- Construction (tracé, ou altitude et alentours arrivés plus tard) ----------
   function rebuild(track, elevation, surroundings) {
     if (world) { scene.remove(world.group); dispose(world.group); }
     world = buildWorld(track, elevation, surroundings, { maxTex: renderer.capabilities.maxTextureSize, aniso: renderer.capabilities.getMaxAnisotropy() });
+    world.setQuality(QUALITY[quality.level]);
     world.addStartLine(store.positions.lineFrac());
     scene.add(world.group);
     if (layers) { scene.remove(layers.group); dispose(layers.group); }
@@ -1099,9 +1148,9 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
   }
   function frame(now) {
     raf = requestAnimationFrame(frame);
+    if (document.hidden || !host.getClientRects().length || now - last < 1000 / quality.cap - 4) return;   // économie (quality)
     const dt = Math.min(0.1, (now - last) / 1000), dtCam = Math.min(1, (now - last) / 1000);   // caméra : temps réel
     last = now;
-    if (document.hidden || !host.getClientRects().length) return;
     const tr = getTrack(), el = getElevation(), su = tr ? getSurroundings() : null;
     if (!tr) return;
     if (!world || world.track !== tr || world.elevation !== el || world.surroundings !== su) rebuild(tr, el, su);
@@ -1230,6 +1279,7 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
     fitSprites(scene, camera, h);
     renderer.render(scene, camera);
     host.dataset.ready = '1';
+    quality.frame(now, !focus || store.status?.paused, redFlag);
   }
   raf = requestAnimationFrame(frame);
 
@@ -1237,6 +1287,7 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
     close() {
       cancelAnimationFrame(raf);
       cvs.removeEventListener('webglcontextlost', lost);
+      quality.close();
       if (world) dispose(world.group);
       for (const c of cars.values()) { c.tag.material.map.dispose(); c.tag.material.dispose(); }
       dispose(scene);
@@ -1244,6 +1295,58 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
       host.innerHTML = '';
     },
   };
+}
+
+// ---------- Qualité (Auto / Économe / Haute, choix gardé) et économie de batterie ----------
+// Auto : niveau ajusté d'après les images/s (map3d-calc.js), gardé pour la fois suivante. Moins d'images quand rien ne
+// bouge, sous drapeau rouge et sur téléphone sur batterie ; toutes pendant qu'on touche à la vue. -> { level, cap :
+// images/s visées, frame(now, still, red) : après chaque image, close() }
+function qualityControl(host, renderer, sun, getWorld) {
+  const sel = host.querySelector('.map3d-quality'), touch = matchMedia('(pointer: coarse)').matches, saved = storageGet('paddock.map3d', {});
+  sel.value = QUALITIES.some(([k]) => k === saved.quality) ? saved.quality : 'auto';
+  const auto = autoQuality(QUALITY[saved.autoQ] ? saved.autoQ : touch ? 1 : 2);
+  const ctl = { level: -1, cap: Infinity };
+  let battery = false, busyUntil = 0, unBattery = () => {};
+  const apply = () => {
+    const level = sel.value === 'econome' ? 0 : sel.value === 'haute' ? 2 : auto.level, q = QUALITY[level];
+    sel.title = sel.value === 'auto' ? t('Qualité automatique, en ce moment : {}', t(Q_NAMES[level])) : '';
+    if (level === ctl.level) return;
+    ctl.level = level;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, q.pr));
+    if (sun.shadow.mapSize.x !== q.shadow) {
+      sun.shadow.mapSize.set(q.shadow, q.shadow);
+      sun.shadow.map?.dispose();
+      sun.shadow.map = null;
+    }
+    getWorld()?.setQuality(q);
+  };
+  const choose = () => { storageSet('paddock.map3d', { ...storageGet('paddock.map3d', {}), quality: sel.value }); apply(); };
+  sel.addEventListener('change', choose);
+  apply();
+  // On touche à la vue (caméra, pilote, glisser, molette…) : toutes les images pendant 2 s
+  const wake = () => { busyUntil = performance.now() + 2000; ctl.cap = frameCap({ battery, busy: true }); };
+  const EVENTS = ['pointerdown', 'pointermove', 'wheel', 'click', 'change'];
+  for (const e of EVENTS) host.addEventListener(e, wake, { passive: true });
+  // Téléphone sur batterie (si le navigateur le dit) : 30 images/s au plus
+  navigator.getBattery?.().then((b) => {
+    const upd = () => { battery = touch && !b.charging; };
+    upd();
+    b.addEventListener('chargingchange', upd);
+    unBattery = () => b.removeEventListener('chargingchange', upd);
+  }, () => {});
+  ctl.frame = (now, still, red) => {
+    if (sel.value === 'auto' && auto.frame(now, ctl.cap) !== null) {
+      storageSet('paddock.map3d', { ...storageGet('paddock.map3d', {}), autoQ: auto.level });
+      apply();
+    }
+    ctl.cap = frameCap({ still, red, battery, busy: now < busyUntil });
+  };
+  ctl.close = () => {
+    for (const e of EVENTS) host.removeEventListener(e, wake);
+    sel.removeEventListener('change', choose);
+    unBattery();
+  };
+  return ctl;
 }
 
 function dispose(root) {
