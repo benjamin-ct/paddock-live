@@ -18,6 +18,33 @@ l'application (Réglages → À propos → Nouveautés).
   la courbe du coût cumulé des écuries qui cassent le plus, les plus gros dégâts d'un week-end et les pièces les plus
   cassées (ailerons, suspensions, fonds…). Estimations de u/Dense-Strategy-867 sur Reddit, compilées par Formula 1
   Dashboard, mises à jour toutes seules après chaque Grand Prix. Aussi dans la version web.
+- Retouches de la Saison : sur l'accueil de la Saison, la course au titre (pilotes encore en lice, titre possible
+  dès tel Grand Prix) ; dans Résultats & records, le vainqueur et le podium avant la pole et le sprint (la date laisse
+  sa place sur téléphone) ; dans Duels, la courbe d'écart en qualification montre toutes les manches ; les Notes des
+  pilotes tiennent dans la page ; le Bilan est sur deux rangées, avec un bouton pour choisir ses favoris ; le Profil
+  des circuits donne la longueur et les virages de Madring et de Sepang. Les écuries ont le même nom partout (Racing
+  Bulls, Red Bull, Alpine, Haas, Cadillac) et les pilotes leurs accents dans Éléments moteur (Pérez).
+
+### Accueil
+- Appli ouverte sans connexion (ou serveur injoignable) : l'accueil et l'écran « Pas de séance en direct » disent
+  « Calendrier indisponible pour l'instant » au lieu d'annoncer la saison terminée, puis réessaient tout seuls chaque
+  minute jusqu'à afficher la prochaine séance.
+
+### En direct
+- Classement en course : l'intervalle avec la voiture devant s'affiche aussi en mode Essentiel ; un pilote qui abandonne
+  n'a plus d'écart affiché à côté de « ABD ».
+- Replay : la Télémétrie dit « Pas de télémétrie dans ce replay » au lieu de proposer la connexion F1 TV du direct.
+- Écran « Pas de séance en direct » (appli et version web) : le programme du week-end du prochain Grand Prix, jour par
+  jour, sous le compte à rebours.
+
+### Téléphone
+- En course, le haut de l'écran tient sur deux lignes (le délai TV à côté du tour) : une ligne de classement en plus, et
+  la colonne des arrêts tient dans l'écran.
+- La demande « Aider à améliorer Paddock Live ? » ne cache plus la barre du replay ; l'accueil dit « Mes favoris » ;
+  dans les Réglages, les rubriques montrent qu'il y en a d'autres à droite.
+
+### Réglages
+- Compte F1 TV : « Se déconnecter » n'apparaît que lorsqu'une connexion est enregistrée.
 
 ### Animations
 - Plus de mouvement dans l'appli et la version web : les courbes de la Saison se tracent et les barres se remplissent à

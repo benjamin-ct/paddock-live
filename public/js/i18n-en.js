@@ -1,6 +1,15 @@
 // Interface en anglais : traduction de chaque texte français affiché (voir i18n.js).
 // {} = valeur dynamique (dans l'ordre), {0}, {1}… pour changer l'ordre en anglais.
 export default {
+  "Automatique (système)": "Automatic (system)",
+  "Pas de télémétrie dans ce replay.": "No telemetry in this replay.",
+  "Choisissez vos pilotes favoris pour voir leur saison ici.": "Pick your favourite drivers to see their season here.",
+  "en faveur d'{}": "in favour of {}",
+  "{} en lice": "{} still in contention",
+  "Titre possible dès : {}": "Title possible from: {}",
+  "Rien de joué avant la dernière manche": "Nothing decided before the final round",
+  "Calendrier indisponible pour l'instant": "Calendar unavailable for now",
+  "Calendrier indisponible pour l'instant : nouvel essai dans une minute.": "Calendar unavailable for now: trying again in a minute.",
   "Voir le détail": "See details",
   "touchez un pilote pour le détail": "tap a driver for details",
   "Part du plafond": "Share of cost cap",
@@ -914,7 +923,7 @@ export default {
   "Immob. médiane": "Median stat.",
   "Immobilisation": "Stationary",
   "Immobilisation médiane": "Median stationary time",
-  "Immobilisations au centième : DHL Fastest Pit Stop Award. Copyright © DHL International GmbH. All Rights Reserved.": "Stationary times to the hundredth: DHL Fastest Pit Stop Award. Copyright © DHL International GmbH. All Rights Reserved.",
+  "Immobilisations au centième : DHL Fastest Pit Stop Award ; sans relevé DHL, au dixième (chronos de la F1). Copyright © DHL International GmbH. All Rights Reserved.": "Stationary times to the hundredth: DHL Fastest Pit Stop Award; without DHL data, to the tenth (F1 timing). Copyright © DHL International GmbH. All Rights Reserved.",
   "Immobilisation médiane par écurie": "Median stationary time per team",
   "Immobilisation moyenne": "Average stationary time",
   "Immobilisations": "Stationary times",
@@ -2108,8 +2117,6 @@ export default {
   "{} Légende": "{} Legend",
   "Légende": "Legend",
   "Météo prévue sur le circuit": "Forecast at the circuit",
-  "Mes favoris au championnat": "My favourites in the championship",
-  "Mon favori au championnat": "My favourite in the championship",
   "Mon favori": "My favourite",
   "Plus": "More",
   "Résumé de la séance": "Session summary",

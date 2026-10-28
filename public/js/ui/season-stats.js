@@ -21,7 +21,7 @@ const sd = (a) => {
 const fr = (v, d = 1) => (v === null || v === undefined || Number.isNaN(v) ? '—' : v.toFixed(d).replace('.', DEC));
 // Immobilisation : au centième quand elle vient de DHL, au dixième (F1) sinon
 export const stopTxt = (s) => `${fr(s.stop, s.dhl ? 2 : 1)} s`;
-export const DHL_NOTE = '<p class="muted small">Immobilisations au centième : DHL Fastest Pit Stop Award. Copyright © DHL International GmbH. All Rights Reserved.</p>';
+export const DHL_NOTE = '<p class="muted small">Immobilisations au centième : DHL Fastest Pit Stop Award ; sans relevé DHL, au dixième (chronos de la F1). Copyright © DHL International GmbH. All Rights Reserved.</p>';
 export const fmtLap = (s) => {
   if (!s) return '—';
   const m = Math.floor(s / 60);
@@ -226,7 +226,8 @@ export function renderRatings(ctx, sortBy = 'season') {
   const val = (e) => (sortBy === 'season' || sortBy === 'mate' ? e[sortBy] : e.parts[sortBy]) ?? -1;
   const rows = [...all].sort((a, b) => val(b) - val(a) || b.pts - a.pts);
   const th = (k, label, title = 'Trier par cette colonne') => `<th class="sz-sort${k === sortBy ? ' on' : ''}"><button type="button" data-rate-sort="${k}" title="${esc(title)}">${label}</button></th>`;
-  const drvCell = (e) => `${ctx.bar(e.team, e.teamId)}<b>${esc(e.name)}</b> <span class="muted small">${esc(e.team)}</span>`;
+  // Nom de famille seul (nom complet et écurie au survol) : les 12 colonnes tiennent dans la case
+  const drvCell = (e) => `${ctx.bar(e.team, e.teamId)}<b title="${esc(`${e.name} · ${e.team}`)}">${esc(e.last || e.name)}</b>`;
   const top = (k) => rows.filter((e) => e[k] !== null).sort((a, b) => b[k] - a[k])[0];
   const best = top('season'), bestMate = top('mate');
   const card = (title, e, k, g) => `<div class="sz-card"><div class="muted small">${title}</div><div class="sz-big">${e ? `${ctx.bar(e.team, e.teamId)}${esc(e.last || e.name)}` : '—'}</div><div class="small">${e ? gradeBadge(e[k], e[g]) : ''}</div></div>`;
@@ -390,13 +391,18 @@ const SORTS = { round: 'Calendrier', avgSpeed: 'Vitesse moyenne', topSpeed: 'Vit
 // Sollicitation des pneus d'après le composé le plus dur choisi par Pirelli (C1 = le plus dur)
 const STRESS = { 1: ['Très élevée', 5], 2: ['Élevée', 4], 3: ['Moyenne', 3], 4: ['Faible', 2], 5: ['Très faible', 1] };
 
+// Circuits sans tracé dans l'API des cartes (Madring, nouveau ; Sepang, absent depuis 2017) : longueur et virages
+// officiels (formula1.com : 5,414 km et 22 virages ; Sepang : 5,543 km et 15 virages)
+const KNOWN = { madring: { length: 5.414, corners: 22 }, sepang: { length: 5.543, corners: 15 } };
 export function renderCircuits(ctx, sort = 'round') {
   const { data, stats } = ctx;
   const R = byRound(stats);
   if (!R.size) return pendingNote(stats);
   const items = [...R.values()].map(({ race }) => {
     const r = data.races.find((x) => x.round === race.round) || {};
-    const p = race.profile;
+    const k = !race.profile.length && KNOWN[r.circuitId];
+    const p = k ? { ...race.profile, ...k, distance: Math.round(k.length * race.profile.laps * 10) / 10,
+      fastest: race.profile.fastest && { ...race.profile.fastest, avgSpeed: Math.round((k.length / race.profile.fastest.time) * 36000) / 10 } } : race.profile;
     const ty = stats.tyres?.[race.round] || null;
     const cars = race.drivers.filter((d) => d.laps.length > p.laps * 0.9).length || race.drivers.length || 1;
     const finStops = race.drivers.filter((d) => d.laps.length > p.laps * 0.9).reduce((n, d) => n + (d.stopCount ?? d.stops.length), 0);
