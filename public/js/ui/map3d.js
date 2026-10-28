@@ -1388,7 +1388,7 @@ function weatherFx(host, scene, { skyMat, sun, hemi, stars }) {
       for (const key of ['rain', 'wet', 'cloud']) cur[key] += (target[key] - cur[key]) * k;
       // Lumière plus terne et grise, brouillard plus proche sous la pluie, nuages, étoiles cachées
       const c = cur.cloud;
-      sun.intensity = amb.keyI * (1 - 0.72 * c);
+      sun.intensity = amb.keyI * (1 - 0.82 * c);
       hemi.color.copy(amb.sky).lerp(grey.setScalar(lum(amb.sky)), 0.6 * c);
       hemi.intensity = amb.hemiI * (1 + 0.1 * c);
       stars.material.opacity = amb.stars * (1 - c);
@@ -1401,11 +1401,12 @@ function weatherFx(host, scene, { skyMat, sun, hemi, stars }) {
       U.wet.value = cur.wet;
       U.wTop.value.copy(amb.top).lerp(grey.setScalar(lum(amb.top)), c);
       U.wHor.value.copy(amb.hor).lerp(grey.setScalar(lum(amb.hor)), 0.7 * c);
-      world.road.material.roughness = 0.92 - 0.6 * cur.wet;
+      world.road.material.roughness = 0.92 - 0.47 * cur.wet;
       // Pluie qui tombe (un tiers des traits en Économe), un peu penchée
       rain.visible = cur.rain > 0.02;
       if (rain.visible) {
         rain.material.opacity = 0.6 * cur.rain;
+        rain.material.color.setScalar(0.2 + 0.75 * Math.min(1, lum(amb.sky)));   // gouttes éclairées comme le reste (sombres la nuit)
         const n = level ? NR : NR / 3, pos = rainGeo.attributes.position.array, cp = camera.position;
         const wrap = (v, o, low = BOX / 2) => ((((v - o) % BOX) + BOX * 2) % BOX) - low + o;
         for (let i = 0; i < n; i++) {
