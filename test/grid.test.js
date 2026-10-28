@@ -20,10 +20,11 @@ test('grille de départ : voitures posées avant le départ de la course seuleme
   assert.equal(gridIndex(st({ LapCount: { CurrentLap: 2 } }), '16'), -1, 'course partie');
   assert.equal(gridIndex(st({ TimingData: { Lines: { 16: { NumberOfLaps: 1 } } } }), '16'), -1, 'tour fini');
   assert.equal(gridIndex(st({ TimingData: { Lines: { 16: { Retired: true } } } }), '16'), -1, 'abandon');
-  // De la case à la position réelle en une seconde, sans saut
+  // De la case à la position réelle en une seconde et demie, sans saut
   let k = 1;
-  for (let i = 0; i < 4; i++) k = gridWeight(k, false, 0.25);
-  assert.equal(k, 0);
-  assert.ok(Math.abs(gridWeight(0.5, true, 0.1) - 0.6) < 1e-9);
+  for (let i = 0; i < 5; i++) k = gridWeight(k, false, 0.25);
+  assert.ok(k > 0.1 && k < 0.2, 'encore en route après 1,25 s');
+  assert.ok(gridWeight(k, false, 0.3) === 0, 'puis à sa position réelle');
+  assert.ok(Math.abs(gridWeight(0.5, true, 0.15) - 0.6) < 1e-9);
   assert.equal(gridWeight(undefined, true, 2), 1);
 });

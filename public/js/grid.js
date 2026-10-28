@@ -16,5 +16,5 @@ export function gridIndex(state, num) {
 }
 
 // Part de la case dans la position affichée (0 : position réelle, 1 : la case) : vers 1 quand la voiture doit y être
-// (avant le départ, arrêtée ou sans position), vers 0 sinon, en une seconde (dt : secondes écoulées)
-export const gridWeight = (prev, there, dt) => Math.min(1, Math.max(0, (prev || 0) + (there ? dt : -dt)));
+// (avant le départ, arrêtée ou sans position), vers 0 sinon, en une seconde et demie (dt : secondes écoulées)
+export const gridWeight = (prev, there, dt) => Math.min(1, Math.max(0, (prev || 0) + ((there ? 1 : -1) * dt) / 1.5));

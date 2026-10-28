@@ -78,8 +78,9 @@ l'application (Réglages → À propos → Nouveautés).
   tout seul une demi-heure avant la séance suivante. Sur téléphone, où seul le point est affiché, le toucher dit l'état
   du direct.
 - Carte en 3D (case « 3D » du panneau Circuit, à cocher ou décocher, choix gardé) : la piste avec son vrai relief, qui
-  monte et descend en pente continue, sans marches (le Raidillon de Spa monte comme en vrai), ses vibreurs et la ligne
-  d'arrivée, et des voitures en forme de vraie F1 2026 aux couleurs des écuries (nez fin, ailerons à plusieurs
+  monte et descend en pente continue, sans marches (le Raidillon de Spa monte comme en vrai), ses vibreurs, la ligne
+  d'arrivée et la grille de départ (avant le départ d'une course ou d'un sprint, les voitures attendent dans leur case,
+  dans l'ordre de la grille, puis s'élancent), le bâtiment des stands le long de la voie des stands, et des voitures en forme de vraie F1 2026 aux couleurs des écuries (nez fin, ailerons à plusieurs
   éléments, pontons, halo, roues larges, casque du pilote), en direct comme en replay. Quatre caméras autour du pilote
   suivi (choisi dans la liste de la vue 3D ou dans le classement) : Hélico, Poursuite, Embarquée et Libre (glisser
   pour tourner, molette ou pincement pour zoomer, clic droit pour se déplacer, double-clic pour revoir tout le

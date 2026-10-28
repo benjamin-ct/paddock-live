@@ -10,6 +10,7 @@ import { CIRCUITS } from '/shared/circuits-info.js';
 import { smoothAlong } from '/shared/elevation.js';
 import { drivers, orderedNumbers, storageGet, storageSet, esc } from '../util.js';
 import { t } from '../i18n.js';
+import { gridSlot, gridIndex, gridWeight } from '../grid.js';
 import { FONT, drawPuck, drawBadge, drawSectorBadge, drawCornerChip, drawFlagBadge, drawScBadge } from './map-draw.js';
 
 const W = 14;           // largeur de la piste (m)
@@ -97,9 +98,10 @@ function buildWorld(track, elevation, surroundings, gpu) {
   const { groundAt, detailAt = () => {} } = land ? landGround(group, land, { track, P, SIDE, toW, fromW, base: zMin + off, ...gpu }) : { groundAt: flatGround(group, P, box, z) };
 
   const world = { track, elevation, surroundings, land: !!land, source: gps ? 'gps' : land ? 'terrain' : null,
-    relief: z ? (Math.max(...z) - zMin) / 10 : null, P, T, SIDE, N, DS, box, group, groundAt, detailAt, toW, ribbon, road };
-  // Ligne de chronométrage (damier), au même endroit que sur la carte 2D
-  world.addStartLine = (frac) => {
+    relief: z ? (Math.max(...z) - zMin) / 10 : null, P, T, SIDE, N, DS, box, group, groundAt, detailAt, toW, fromW, ribbon, road, lineMat };
+  // Ligne de chronométrage (damier), au même endroit que sur la carte 2D, et grille de départ derrière elle (cars :
+  // nombre de cases)
+  world.addStartLine = (frac, cars) => {
     const sp = track.pointAt(frac * track.L), [x, zz] = toW(sp.x, sp.y), i = nearestIndex(world, x, zz, -1);
     const c = document.createElement('canvas');
     c.width = 128; c.height = 16;
@@ -111,6 +113,7 @@ function buildWorld(track, elevation, surroundings, gpu) {
     m.matrixAutoUpdate = false;
     m.matrix.makeBasis(SIDE[i], T[i], new THREE.Vector3(0, 1, 0)).setPosition(P[i].x, P[i].y + 0.03, P[i].z);
     group.add(m);
+    startGrid(world, i, cars);
   };
 
   // Nuit : mâts des projecteurs le long de la piste (lampes allumées), lueur sur les bas-côtés, piste et lignes éclairées
@@ -146,6 +149,47 @@ function buildWorld(track, elevation, surroundings, gpu) {
     return new THREE.Vector3(x * cos - yy * sin, y, -(x * sin + yy * cos));
   };
   return world;
+}
+
+// Grille de départ : une case par voiture derrière la ligne (indice i de P), placée par gridSlot (en quinconce, pole
+// devant, du côté de l'intérieur du premier virage) ; cases blanches (barre devant le nez, deux traits vers l'arrière)
+// peintes sur la piste. world.grid : place de chaque voiture (milieu de la voiture, [x, z] de la scène), dans l'ordre
+// de la grille
+function startGrid(world, i, cars) {
+  const { P, T, SIDE, N, DS, group } = world;
+  // Point du tracé à d mètres de P[i] (en arrière si d < 0), interpolé
+  const along = (d) => {
+    const f = i + d / DS, a = ((Math.floor(f) % N) + N) % N, b = (a + 1) % N, u = f - Math.floor(f);
+    return [P[a].clone().lerp(P[b], u), SIDE[a].clone().lerp(SIDE[b], u).normalize(), T[a].clone().lerp(T[b], u).normalize()];
+  };
+  // Premier virage : de quel côté la piste tourne (vers SIDE : 1), sur les 600 m après la ligne
+  let turn = 1;
+  for (let k = 0, sum = 0; k * DS < 600; k++) {
+    const j = (i + k) % N;
+    sum += T[(j + 1) % N].dot(SIDE[j]);
+    if (Math.abs(sum) > 0.35) { turn = Math.sign(sum); break; }
+  }
+  const pos = [], idx = [], v = new THREE.Vector3();
+  const quad = (p, sd, t, lat, lon, w, l) => {   // rectangle de w × l m centré à lat (de côté) et lon (en long) de p
+    const b = pos.length / 3;
+    for (const [a, c] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+      v.copy(p).addScaledVector(sd, lat + (a * w) / 2).addScaledVector(t, lon + (c * l) / 2);
+      pos.push(v.x, p.y + 0.025, v.z);
+    }
+    idx.push(b, b + 2, b + 1, b + 1, b + 2, b + 3);
+  };
+  world.grid = [];
+  for (let k = 0; k < cars; k++) {
+    const [back, lat] = gridSlot(k, turn), [p, sd, t] = along(-back);
+    quad(p, sd, t, lat, 0, 3.6, 0.3);                                 // barre devant le nez
+    for (const s of [-1, 1]) quad(p, sd, t, lat + s * 1.65, -0.9, 0.3, 1.8);
+    const c = p.clone().addScaledVector(sd, lat).addScaledVector(t, -2.9);
+    world.grid.push([c.x, c.z]);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setIndex(idx);
+  group.add(new THREE.Mesh(g, world.lineMat));   // comme les lignes de la piste (éclairées la nuit)
 }
 
 // Sol sans alentours : altitude des points du tracé les plus proches, adoucie au loin (pondération inverse), plaine
@@ -796,6 +840,7 @@ function buildLayers(world, L) {
 
   // Voie des stands : route plus étroite et plus sombre, pointillés au milieu, étiquette « STANDS »
   const pit = z?.pitLane?.path;
+  if (pit?.length > 1) group.add(pitBuilding(world, pit));
   if (o.mapPit && pit?.length > 1) {
     const pts = [];
     for (let k = 0; k + 1 < pit.length; k++) {
@@ -870,6 +915,79 @@ function gpsSmooth(num, t) {
   const u = Math.min(1, Math.max(0, (t - b.t) / (c.t - b.t || 1)));
   const cr = (p0, p1, p2, p3) => 0.5 * (2 * p1 + (p2 - p0) * u + (2 * p0 - 5 * p1 + 4 * p2 - p3) * u * u + (3 * p1 - p0 - 3 * p2 + p3) * u * u * u);
   return { x: cr(a.x, b.x, c.x, d.x), y: cr(a.y, b.y, c.y, d.y) };
+}
+
+// Bâtiment des stands le long de la voie des stands (pit : points du tracé MultiViewer), du côté opposé à la piste : 15 m
+// de profondeur, 9 m de haut, garages ouverts (bande sombre) face à la voie ; seulement là où la voie est à plus de
+// 14 m de la piste (pas à l'entrée ni à la sortie) et où les alentours n'ont pas déjà un bâtiment. -> groupe
+function pitBuilding(world, pit) {
+  const out = new THREE.Group(), { toW, fromW, P } = world;
+  // Bâtiments des alentours (repère du tracé, m) et leur boîte
+  const rings = [...(world.surroundings?.buildings || []), ...(world.surroundings?.stands || [])].map(([, ...f]) => {
+    const r = [];
+    for (let k = 0; k < f.length; k += 2) r.push([f[k], f[k + 1]]);
+    return { r, x0: Math.min(...r.map((q) => q[0])), x1: Math.max(...r.map((q) => q[0])), y0: Math.min(...r.map((q) => q[1])), y1: Math.max(...r.map((q) => q[1])) };
+  });
+  const built = (x, y) => rings.some((b) => x >= b.x0 && x <= b.x1 && y >= b.y0 && y <= b.y1 && inRing(b.r, x, y));
+  // Voie tous les 4 m (scène), côté opposé à la piste
+  const pts = [];
+  for (let k = 0; k + 1 < pit.length; k++) {
+    const [ax, az] = toW(...pit[k]), [bx, bz] = toW(...pit[k + 1]), n = Math.max(1, Math.round(Math.hypot(bx - ax, bz - az) / 4));
+    for (let j = 0; j < n; j++) pts.push([ax + ((bx - ax) * j) / n, az + ((bz - az) * j) / n]);
+  }
+  const boxes = [];
+  let hint = -1;
+  for (let k = 1; k < pts.length; k++) {
+    const [ax, az] = pts[k - 1], [bx, bz] = pts[k], mx = (ax + bx) / 2, mz = (az + bz) / 2, l = Math.hypot(bx - ax, bz - az) || 1;
+    hint = nearestIndex(world, mx, mz, hint);
+    const tp = P[hint], d = Math.hypot(tp.x - mx, tp.z - mz);
+    let nx = -(bz - az) / l, nz = (bx - ax) / l;
+    if (nx * (tp.x - mx) + nz * (tp.z - mz) > 0) { nx = -nx; nz = -nz; }   // vers l'extérieur, loin de la piste
+    const c = [mx + nx * 15.5, mz + nz * 15.5];
+    if (d < 14 || built(...fromW(...c))) continue;
+    boxes.push({ a: [ax, az], b: [bx, bz], n: [nx, nz], l });
+  }
+  const mesh = (color, list, place) => {
+    const m = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0), new THREE.MeshStandardMaterial({ color, roughness: 0.85 }), list.length);
+    const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), p = new THREE.Vector3(), sc = new THREE.Vector3();
+    list.forEach((bx, k) => {
+      const [off, depth, h] = place, x = (bx.a[0] + bx.b[0]) / 2 + bx.n[0] * off, z = (bx.a[1] + bx.b[1]) / 2 + bx.n[1] * off;
+      m.setMatrixAt(k, m4.compose(p.set(x, world.groundAt(x, z) - 0.3, z), q.setFromAxisAngle(up, Math.atan2(bx.b[0] - bx.a[0], bx.b[1] - bx.a[1])), sc.set(depth, h, bx.l + 0.05)));
+    });
+    m.castShadow = m.receiveShadow = true;
+    out.add(m);
+  };
+  if (boxes.length) {
+    mesh(0xe3e0d7, boxes, [16, 15, 9]);       // bâtiment
+    mesh(0x2a2e35, boxes, [8.4, 0.3, 5.5]);   // garages ouverts
+  }
+  return out;
+}
+
+// Point (x, y) dans le polygone r ([[x, y]…])
+function inRing(r, x, y) {
+  let ins = false;
+  for (let i = 0, j = r.length - 1; i < r.length; j = i++) {
+    if ((r[i][1] > y) !== (r[j][1] > y) && x < ((r[j][0] - r[i][0]) * (y - r[i][1])) / (r[j][1] - r[i][1]) + r[i][0]) ins = !ins;
+  }
+  return ins;
+}
+
+// Grille de départ (course ou sprint) : avant le départ, voiture dans sa case (gridIndex) tant qu'elle est arrêtée
+// (GPS) ou que sa position n'est pas encore estimée ; dès qu'elle roule (tour de formation, départ), rendue au GPS ou à
+// l'estimation en glissant de sa case (gridWeight). real : position ([x, z] de la scène) ou null -> position à
+// afficher, ou null (cachée)
+function gridPlace(world, c, num, real, gps, now, dt) {
+  const slot = world.grid?.[gridIndex(store.state, num)];
+  let still = !real;
+  if (slot && real && gps) {
+    const b = gpsSmooth(num, now - 1000), [bx, bz] = b ? world.toW(b.x, b.y) : real;
+    still = Math.hypot(real[0] - bx, real[1] - bz) < 2;   // moins de 2 m en une seconde
+  }
+  c.gk = gridWeight(c.gk, slot && still, dt);
+  if (!c.gk || !slot) return real;
+  if (!real) return slot;
+  return [real[0] + (slot[0] - real[0]) * c.gk, real[1] + (slot[1] - real[1]) * c.gk];
 }
 
 // Ouvre la vue dans host ; null si WebGL est indisponible. getTrack / getElevation / getSurroundings : tracé, altitude
@@ -1057,7 +1175,7 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
   function rebuild(track, elevation, surroundings) {
     if (world) { scene.remove(world.group); dispose(world.group); }
     world = buildWorld(track, elevation, surroundings, { maxTex: renderer.capabilities.maxTextureSize, aniso: renderer.capabilities.getMaxAnisotropy() });
-    world.addStartLine(store.positions.lineFrac());
+    world.addStartLine(store.positions.lineFrac(), Math.min(26, Math.max(20, Object.keys(store.state.DriverList || {}).length)));
     scene.add(world.group);
     if (layers) { scene.remove(layers.group); dispose(layers.group); }
     layers = null;   // calques redessinés sur ce tracé
@@ -1168,8 +1286,9 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
       if (!(l.Retired || (!showOut && (l.KnockedOut || (l.Stopped && !redFlag))) || (!gps && (l.InPit || l.Stopped)))) {
         g = gps ? gpsSmooth(num, disp) : store.positions.estimatedXY(num, disp, dt);
       }
-      if (!g) { c.seen = false; for (const m of carMeshes) m.setMatrixAt(c.k, HIDDEN); c.tag.visible = false; continue; }
-      const [x, z] = world.toW(g.x, g.y);
+      const at = gridPlace(world, c, num, g && world.toW(g.x, g.y), gps, disp, dt);
+      if (!at) { c.seen = false; for (const m of carMeshes) m.setMatrixAt(c.k, HIDDEN); c.tag.visible = false; continue; }
+      const [x, z] = at;
       const jump = !c.seen || Math.hypot(x - c.p.x, z - c.p.z) > 200;
       c.hint = nearestIndex(world, x, z, jump ? -1 : c.hint);
       const i = c.hint, [y, slope] = trackAt(world.P, i, x, z);
