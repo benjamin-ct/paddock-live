@@ -2,7 +2,7 @@
 // visuel (logo, petit titre rouge, grand titre aux mots en rouge, texte, capture ou photo dans un cadre, pied
 // « Gratuit · Windows, Mac, Linux » et le site), une image par page du carrousel, et ses textes. Une vidéo à soi
 // (enregistrement d'écran) prend la place de la capture de la première page.
-import { C, TITLE, BODY, MONO, txt, rr, alpha, photoCredit } from './social-draw.js';
+import { C, TITLE, BODY, MONO, txt, rr, photoCredit, background, pill } from './social-draw.js';
 import { xLength } from './social.js';
 
 export const APP_SITE = 'paddocklive.app';
@@ -43,12 +43,8 @@ function logo(ctx, x, y, s) {
   txt(ctx, 'Live', x + s * 1.3 + ctx.measureText('Paddock ').width, y + s * 0.78, { size, weight: 800, family: TITLE, color: C.red });
 }
 
-function backdrop(ctx, W, H) {
-  ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H);
-  const g = ctx.createRadialGradient(W, 0, 0, W, 0, Math.max(W, H) * 0.75);
-  g.addColorStop(0, alpha(C.red, 0.22)); g.addColorStop(1, alpha(C.red, 0));
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-}
+// Même fond que les autres visuels (halo rouge, grain)
+const backdrop = (ctx, W, H) => background(ctx, W, H, C.red);
 
 // Titre au plus grand qui tient (largeur, lignes au plus, hauteur) : { size, lines: [[{ w, red }]] }
 function fitRich(ctx, words, maxW, maxH, sizes, maxLines) {
@@ -111,8 +107,8 @@ export function appPage(ctx, W, H, d, n, { media = null, num = n, total = 1 } = 
   const block = (p.kicker ? 62 * u : 0) + t.lines.length * lh + 34 * u + (body.length ? body.length * 52 * u + 24 * u : 0);
   if (!iw) y += Math.max(0, (foot - 80 * u - y - block) / 2);
   if (p.kicker) {
-    txt(ctx, String(p.kicker).toUpperCase(), pad, y + 26 * u, { size: Math.round(30 * u), weight: 700, family: TITLE, color: C.red, spacing: 6 * u, max: W - pad * 2 });
-    y += 62 * u;
+    pill(ctx, String(p.kicker).toUpperCase(), pad, y - 4 * u, 50 * u, { bg: C.red, dot: '#fff' });
+    y += 66 * u;
   }
   ctx.font = `800 ${t.size}px ${TITLE}`;
   const space = ctx.measureText(' ').width;
