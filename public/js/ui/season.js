@@ -788,11 +788,13 @@ function tick() {
   el.innerHTML = [[d, 'jours'], [h, 'h'], [m, 'min'], [s, 's']].map(([, l], i) => `<span><b>${digits(now[i], before.length === 4 ? before[i] : undefined)}</b><small>${l}</small></span>`).join('');
 }
 
-// Changement de rubrique : le contenu apparaît en cascade (une seule fois, pas à chaque mise à jour)
-function animate() {
+// Changement de rubrique : le contenu apparaît en cascade (une seule fois, pas à chaque mise à jour) ; again : autre
+// choix dans la même rubrique, seules les courbes, barres et chiffres se rejouent (sans faire disparaître la page)
+function animate(again = false) {
   const el = $('#szContent');
   el.classList.remove('sz-anim');
   void el.offsetWidth;
+  el.classList.toggle('sz-again', again);
   el.classList.add('sz-anim');
   clearTimeout(animate.t);
   animate.t = setTimeout(() => el.classList.remove('sz-anim'), 1300);   // le temps que les courbes se tracent
@@ -874,15 +876,15 @@ export function initSeason() {
     const rv = e.target.closest('[data-review]');
     if (rv && data) { reviewAction(rv.dataset.review, data); return; }
     const t = e.target.closest('[data-h2h-team]'), m = e.target.closest('[data-h2h-mode]');
-    if (t) { h2hTeam = t.dataset.h2hTeam; animate(); render(); } else if (m) { h2hMode = m.dataset.h2hMode; animate(); render(); }
+    if (t) { h2hTeam = t.dataset.h2hTeam; animate(true); render(); } else if (m) { h2hMode = m.dataset.h2hMode; animate(true); render(); }
     const ck = e.target.closest('[data-cmp-kind]');
-    if (ck) { cmpKind = ck.dataset.cmpKind; animate(); render(); return; }
+    if (ck) { cmpKind = ck.dataset.cmpKind; animate(true); render(); return; }
     const dd = e.target.closest('[data-dest-drv]');
-    if (dd) { showDestructorsDriver(Number(dd.dataset.destDrv)); animate(); render(); return; }
+    if (dd) { showDestructorsDriver(Number(dd.dataset.destDrv)); animate(true); render(); return; }
     const cs = e.target.closest('[data-cmp-sort]');
     if (cs) { cmpSort = cmpSort === cs.dataset.cmpSort ? 'pos' : cs.dataset.cmpSort; render(); return; }
     const k = e.target.closest('[data-tr-kind]');
-    if (k) { trKind = k.dataset.trKind; animate(); render(); }
+    if (k) { trKind = k.dataset.trKind; animate(true); render(); }
     const rs = e.target.closest('[data-rate-sort]');
     if (rs) { rateSort = rs.dataset.rateSort; render(); }
   });
@@ -901,7 +903,7 @@ export function initSeason() {
     else if (id === 'szTechOrig') toggleTechOriginal(e.target.checked);
     else return;
     // Autre pilote, écurie, Grand Prix, saison ou point de mesure : animations rejouées (pas pour un tri ni la traduction)
-    if (id !== 'szTechOrig' && id !== 'szCircSort') animate();
+    if (id !== 'szTechOrig' && id !== 'szCircSort') animate(true);
     render();
   });
   window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('#seasonView').hidden && !document.querySelector('dialog[open]')) { if ($('#seasonView').classList.contains('sz-open')) szMenu(false); else closeSeason(); } });

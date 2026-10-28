@@ -2502,9 +2502,9 @@ kbd .ic { width: 12px; height: 12px; opacity: 1; }
   :root:not([data-motion="off"]) .toast:not([hidden]) { animation: toast-in .32s var(--ease-spring); }
   /* Espaces Saison et Actu */
   :root:not([data-motion="off"]) .season-view:not([hidden]) > * { animation: view-in .3s var(--ease-out); }
-  :root:not([data-motion="off"]) .sz-main.sz-anim > * { animation: rise-in .3s var(--ease-out) both; }
-  :root:not([data-motion="off"]) .sz-main.sz-anim > :nth-child(2) { animation-delay: .04s; }
-  :root:not([data-motion="off"]) .sz-main.sz-anim > :nth-child(n+3) { animation-delay: .08s; }
+  :root:not([data-motion="off"]) .sz-main.sz-anim:not(.sz-again) > * { animation: rise-in .3s var(--ease-out) both; }
+  :root:not([data-motion="off"]) .sz-main.sz-anim:not(.sz-again) > :nth-child(2) { animation-delay: .04s; }
+  :root:not([data-motion="off"]) .sz-main.sz-anim:not(.sz-again) > :nth-child(n+3) { animation-delay: .08s; }
   /* Actu : cartes en cascade à l'ouverture et au changement de rubrique, nouvelles arrivées surlignées */
   :root:not([data-motion="off"]) .nw-list.cascade > .nw-card { animation: rise-in .4s var(--ease-out) both; }
   :root:not([data-motion="off"]) .nw-list.cascade > .nw-card:nth-child(2) { animation-delay: .03s; }
@@ -2531,12 +2531,12 @@ kbd .ic { width: 12px; height: 12px; opacity: 1; }
   :root:not([data-motion="off"]) .tower tr:is(.flash-up, .flash-down) .ic:is(.i-tri-up, .i-tri-down) { animation: tri-bump .6s var(--ease-spring); }
 
   /* Saison, à l'ouverture d'une rubrique : cartes en cascade, courbes qui se tracent, barres qui se remplissent */
-  :root:not([data-motion="off"]) .sz-main.sz-anim .sz-cards > * { animation: rise-in .4s var(--ease-out) both; }
-  :root:not([data-motion="off"]) .sz-main.sz-anim .sz-cards > :nth-child(2) { animation-delay: .04s; }
-  :root:not([data-motion="off"]) .sz-main.sz-anim .sz-cards > :nth-child(3) { animation-delay: .08s; }
-  :root:not([data-motion="off"]) .sz-main.sz-anim .sz-cards > :nth-child(4) { animation-delay: .12s; }
-  :root:not([data-motion="off"]) .sz-main.sz-anim .sz-cards > :nth-child(5) { animation-delay: .16s; }
-  :root:not([data-motion="off"]) .sz-main.sz-anim .sz-cards > :nth-child(n+6) { animation-delay: .2s; }
+  :root:not([data-motion="off"]) .sz-main.sz-anim:not(.sz-again) .sz-cards > * { animation: rise-in .4s var(--ease-out) both; }
+  :root:not([data-motion="off"]) .sz-main.sz-anim:not(.sz-again) .sz-cards > :nth-child(2) { animation-delay: .04s; }
+  :root:not([data-motion="off"]) .sz-main.sz-anim:not(.sz-again) .sz-cards > :nth-child(3) { animation-delay: .08s; }
+  :root:not([data-motion="off"]) .sz-main.sz-anim:not(.sz-again) .sz-cards > :nth-child(4) { animation-delay: .12s; }
+  :root:not([data-motion="off"]) .sz-main.sz-anim:not(.sz-again) .sz-cards > :nth-child(5) { animation-delay: .16s; }
+  :root:not([data-motion="off"]) .sz-main.sz-anim:not(.sz-again) .sz-cards > :nth-child(n+6) { animation-delay: .2s; }
   :root:not([data-motion="off"]) .sz-main.sz-anim svg polyline[pathLength] { stroke-dasharray: 1; stroke-dashoffset: 1; animation: line-draw 1.1s cubic-bezier(.45, .05, .25, 1) .15s forwards; }
   :root:not([data-motion="off"]) .sz-main.sz-anim svg polyline[stroke-dasharray] { animation: reveal-x 1.1s cubic-bezier(.45, .05, .25, 1) .15s both; }
   :root:not([data-motion="off"]) .sz-main.sz-anim :is(.sz-hb-t > i, .sz-progress > i, .sz-meter i, .tr-bar > i, .sz-h2h-track > i.b) { animation: reveal-x .8s var(--ease-out) .12s both; }

@@ -48,8 +48,8 @@ l'application (Réglages → À propos → Nouveautés).
 
 ### Animations
 - Plus de mouvement dans l'appli et la version web : les courbes de la Saison se tracent et les barres se remplissent à
-  l'ouverture d'une rubrique, les cartes arrivent en cascade et leurs grands nombres défilent jusqu'à leur valeur ; le
-  podium des résultats monte (2e, 3e puis le vainqueur, avec un reflet) et les stratégies se déroulent ; l'accueil
+  l'ouverture d'une rubrique, et de nouveau, sans que la page clignote, à chaque autre onglet, pilote ou écurie choisi ;
+  les cartes arrivent en cascade et leurs grands nombres défilent jusqu'à leur valeur ; le podium des résultats monte (2e, 3e puis le vainqueur, avec un reflet) et les stratégies se déroulent ; l'accueil
   s'affiche en cascade ; les chiffres des comptes à rebours descendent en place ; sur téléphone, le panneau choisi glisse
   en place ; reflet sur les boutons principaux au survol. Tout se coupe dans Réglages → Apparence (Animations de
   l'interface), ou avec l'option « réduire les animations » du système.
