@@ -192,6 +192,13 @@ export async function surroundingsWeb(env, key, year, now = Date.now()) {
   return row?.ok ? env.MEDIA.get(fileKey(key, year)) : null;
 }
 
+// Dernier essai de calcul (réponse « pas encore calculé ») : quand, pourquoi il a échoué, prochain essai ; null si jamais essayé
+export async function surroundingsStatus(env, key, year) {
+  const row = await readJSON(env, rowKey(key, year), null);
+  const iso = (t) => (Number.isFinite(t) ? new Date(t).toISOString() : null);
+  return row && !row.ok ? { tried: iso(row.at), error: row.error || null, next: iso(row.next) } : null;
+}
+
 // Tâche planifiée : un couple circuit × saison par passage, sans résultat ou dont l'échec est à revoir. Ordre :
 // demandé dans l'heure, prochain Grand Prix, puis le catalogue des replays (parcouru au plus une fois par heure quand
 // tout est fait)

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { computeSurroundings, surroundingsWeb, surroundingsTick, catalogue, CREDITS } from '../analytics/surroundings.js';
+import { computeSurroundings, surroundingsWeb, surroundingsStatus, surroundingsTick, catalogue, CREDITS } from '../analytics/surroundings.js';
 import { geoFrame, toEN, lonToPx } from '../shared/surroundings.js';
 import { terrariumTile } from './fixtures/png.js';
 import { mvt, toTile } from './fixtures/mvt.js';
@@ -135,6 +135,11 @@ test('serveur : file des alentours (demandé, prochain Grand Prix, catalogue des
     assert.deepEqual(order, ['999:2026', '7:2026', '22:2026', '9:2024', null], 'demandé > prochain GP > catalogue, 9:2025 déjà fait');
     assert.equal(rows.get('surrwant:999:2026'), '0');
     assert.equal(JSON.parse(rows.get('surr:22:2026')).error, 'tracé introuvable');
+    // Réponse « pas encore calculé » : dernier essai, sa raison et le prochain essai
+    assert.deepEqual(await surroundingsStatus(env, 22, 2026), { tried: new Date(now + 3 * 60e3).toISOString(), error: 'tracé introuvable',
+      next: new Date(now + 3 * 60e3 + 6 * 3600e3).toISOString() });
+    assert.equal(await surroundingsStatus(env, 9, 2025), null, 'calculé : rien à dire');
+    assert.equal(await surroundingsStatus(env, 123, 2026), null, 'jamais essayé');
     assert.equal(rows.get('surrlock'), '0');
     // 7 heures plus tard : les échecs sont revus, le prochain Grand Prix d'abord
     assert.equal((await surroundingsTick(env, { now: now + 7 * 3600e3, fetchFn, pause: 0 }))?.key, 7);
