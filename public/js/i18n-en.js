@@ -2,7 +2,6 @@
 // {} = valeur dynamique (dans l'ordre), {0}, {1}… pour changer l'ordre en anglais.
 export default {
   "Vue 3D du circuit, avec le relief": "3D view of the circuit, with its real elevation",
-  "Revenir à la carte 2D": "Back to the 2D map",
   "Vue 3D indisponible : cet appareil ne prend pas en charge WebGL": "3D view unavailable: this device does not support WebGL",
   "Vue 3D indisponible ({})": "3D view unavailable ({})",
   "Vue 3D interrompue par la carte graphique : retour à la carte 2D": "3D view stopped by the graphics card: back to the 2D map",
@@ -2647,6 +2646,4 @@ export default {
   "Navigateur relié. La connexion apparaît dans le navigateur.": "Browser linked. The connection appears in the browser.",
   "Échec de l'envoi. Réessayez.": "Sending failed. Try again.",
   "Relier": "Link",
-  "Carte 3D du circuit": "3D circuit map",
-  "Bouton 3D du panneau Circuit : la piste en relief. Désactivé : carte 2D seule, plus léger pour les petits ordinateurs.": "3D button in the Circuit panel: the track with its elevation. Off: 2D map only, lighter for small computers.",
 };

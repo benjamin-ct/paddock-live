@@ -1,4 +1,4 @@
-// Vue 3D de la carte (bouton 3D du panneau Circuit) : piste en relief (altitude calculée par le serveur d'après le GPS,
+// Vue 3D de la carte (case « 3D » du panneau Circuit) : piste en relief (altitude calculée par le serveur d'après le GPS,
 // à plat tant qu'elle manque), bords et vibreurs, voitures simples aux couleurs des écuries (jamais de livrée ni de
 // logo), caméras Hélico / Poursuite / Embarquée / Libre autour du pilote suivi (le même que sur la carte 2D).
 // Chargée seulement à l'ouverture de la vue (three.js). Mêmes positions que la carte 2D : GPS lissé, sinon estimées.

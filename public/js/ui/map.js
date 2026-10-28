@@ -1452,30 +1452,24 @@ export function initMap() {
 // si WebGL manque ou si la carte graphique perd la vue. Pas dans la carte flottante ni l'overlay de streaming
 const v3d = { on: false, view: null, turn: 0, timer: 0 };
 function init3d() {
-  const btn = $('#map3dBtn');
+  // Case « 3D » du panneau Circuit : vue 3D activée ou non, choix gardé
+  const tog = $('#map3dTog');
   const html = document.documentElement;
-  if (!btn || html.classList.contains('float-map') || html.classList.contains('overlay')) return;
-  // Réglages → Général → Carte 3D : désactivée, pas de bouton et la vue 3D se ferme (le choix 3D/2D est gardé)
-  const show = () => {
-    btn.hidden = !prefs.map3d;
-    if (!prefs.map3d && v3d.on) set3d(false, '', true);
-    else if (prefs.map3d && !v3d.on && storageGet('paddock.map3d', {}).on) set3d(true);
-  };
-  btn.addEventListener('click', () => set3d(!v3d.on));
-  on('prefs', (k) => { if (k === 'map3d') show(); });
-  show();
+  if (!tog || html.classList.contains('float-map') || html.classList.contains('overlay')) return;
+  tog.hidden = false;
+  $('#map3dOpt').addEventListener('change', (e) => set3d(e.target.checked));
+  if (storageGet('paddock.map3d', {}).on) set3d(true);
 }
 
-async function set3d(on, msg = '', keep = false) {
+async function set3d(on, msg = '') {
   const turn = ++v3d.turn;
   v3d.view?.close();
   v3d.view = null;
   v3d.on = on;
-  const btn = $('#map3dBtn'), box = $('#map3dMsg');
+  const box = $('#map3dMsg');
   $('.p-map').classList.toggle('is-3d', on);
-  btn.textContent = on ? '2D' : '3D';
-  btn.title = on ? t('Revenir à la carte 2D') : t('Vue 3D du circuit, avec le relief');
-  if (!keep) storageSet('paddock.map3d', { ...storageGet('paddock.map3d', {}), on });
+  $('#map3dOpt').checked = on;
+  storageSet('paddock.map3d', { ...storageGet('paddock.map3d', {}), on });
   box.textContent = msg;
   box.hidden = !msg;
   clearTimeout(v3d.timer);
