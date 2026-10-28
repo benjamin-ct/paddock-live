@@ -48,25 +48,31 @@ function byRound(stats) {
 export const gradeBadge = (score, g, big = false) => (score === null || score === undefined ? '<span class="muted">—</span>'
   : `<span class="sz-grade g-${g}${big ? ' big' : ''}">${g}</span><span class="sz-grade-n">${score}</span>`);
 
-// Répartition des arrivées : nombre de courses terminées à chaque place, et abandons
 // Graphiques dessinés à la largeur réelle de la page (textes et traits gardent leur taille, pas étirés)
 const pageWidth = () => Math.max(600, (document.querySelector('#szContent')?.clientWidth || 934) - 34);
 const halfWidth = () => Math.max(300, Math.round(pageWidth() / 2 - 30));
 
-const PLACES = 22;   // voitures en 2026 ; la dernière colonne : abandons
-function finishHistogram(started, col) {
-  const n = new Array(PLACES + 1).fill(0);
-  for (const x of started) if (isNum(x.res) || retired(x.res)) n[isNum(x.res) && x.res.pos <= PLACES ? x.res.pos - 1 : PLACES]++;
+const PLACES = 22;   // voitures en 2026 ; en course et en sprint, la dernière colonne : abandons
+// Répartition des places (course, sprint ou qualifs) ; en qualifs, traits des éliminations après la 16e (Q1) et la
+// 10e place (Q2)
+let histKind = 'race';
+export const setHistKind = (k) => { histKind = k; };
+function placeHistogram(list, col, quali = false) {
+  const n = new Array(PLACES + (quali ? 0 : 1)).fill(0);
+  for (const x of list) {
+    if (quali) { if (x.pos >= 1 && x.pos <= PLACES) n[x.pos - 1]++; } else if (isNum(x) || retired(x)) n[isNum(x) && x.pos <= PLACES ? x.pos - 1 : PLACES]++;
+  }
   const hi = Math.max(1, ...n);
-  const W = halfWidth(), H = 170, pl = 6, pb = 22, bw = (W - pl * 2) / (PLACES + 1);
+  const W = halfWidth(), H = 170, pl = 6, pt = quali ? 16 : 0, pb = 22, bw = (W - pl * 2) / n.length;
   const bars = n.map((v, i) => {
-    const h = ((H - pb - 16) * v) / hi;
+    const h = ((H - pb - pt - 16) * v) / hi;
     const x = pl + i * bw;
     const c = i === PLACES ? 'var(--red)' : i < 3 ? '#ffd166' : col;
     return `${v ? `<rect x="${x + 2}" y="${H - pb - h}" width="${bw - 4}" height="${h}" rx="2" fill="${c}"><title>${i === PLACES ? 'Abandons' : `P${i + 1}`} : ${v}</title></rect><text x="${x + bw / 2}" y="${H - pb - h - 4}" class="sz-ax" text-anchor="middle">${v}</text>` : ''}
-      <text x="${x + bw / 2}" y="${H - 6}" class="sz-ax" text-anchor="middle">${i === PLACES ? 'Ab' : i + 1}</text>`;
+      ${bw >= 14 || i % 2 === 0 || i === PLACES ? `<text x="${x + bw / 2}" y="${H - 6}" class="sz-ax" text-anchor="middle">${i === PLACES ? 'Ab' : i + 1}</text>` : ''}`;
   }).join('');
-  return `<svg viewBox="0 0 ${W} ${H}" class="sz-svg">${bars}</svg>`;
+  const cuts = quali ? [[0, 10, 'Q3'], [10, 16, 'Q2'], [16, PLACES, 'Q1']].map(([a, b, l]) => `${a ? `<line x1="${pl + a * bw}" x2="${pl + a * bw}" y1="2" y2="${H - pb}" class="sz-gl" stroke-dasharray="3 3"/>` : ''}<text x="${pl + ((a + b) / 2) * bw}" y="11" class="sz-ax" text-anchor="middle">${l}</text>`).join('') : '';
+  return `<svg viewBox="0 0 ${W} ${H}" class="sz-svg">${cuts}${bars}</svg>`;
 }
 
 // Points cumulés manche par manche : saison affichée et saison précédente
@@ -199,7 +205,11 @@ export function renderDrivers(ctx, code) {
     </div>
     <section class="sz-box"><h3>Départ (pointillés) et arrivée, course par course</h3>${chart}</section>
     <div class="sz-grid2">
-      <section class="sz-box"><h3>Répartition des arrivées</h3>${finishHistogram(started, col)}</section>
+      <section class="sz-box"><h3>Répartition des places</h3>
+        <div class="tab-seg">${[['race', 'Course'], ['quali', 'Qualifs'], ['sprint', 'Sprint']].map(([k, l]) => `<button type="button" data-hist="${k}" class="${histKind === k ? 'on' : ''}">${l}</button>`).join('')}</div>
+        ${histKind === 'quali' ? placeHistogram(rows.map((x) => x.q).filter(Boolean), col, true)
+    : histKind === 'sprint' ? (rows.some((x) => x.spr) ? placeHistogram(rows.map((x) => x.spr).filter(Boolean), col) : '<div class="note small">Aucun sprint couru cette saison.</div>')
+      : placeHistogram(started.map((x) => x.res), col)}</section>
       <section class="sz-box"><h3>Points cumulés : ${data.year} et ${data.year - 1}</h3>${pointsVsPrev(drv, data, ctx.prev, col)}</section>
     </div>
     <section class="sz-box"><h3>Courses</h3><table class="sz-table"><tr><th>Manche</th><th>Grand Prix</th><th>Qualif.</th><th>Grille</th><th>Arrivée</th><th>Points</th><th>En tête</th><th>Meilleur tour</th><th>V. max</th><th>Arrêts</th><th>Statut</th></tr>
@@ -394,6 +404,8 @@ const STRESS = { 1: ['Très élevée', 5], 2: ['Élevée', 4], 3: ['Moyenne', 3]
 // Circuits sans tracé dans l'API des cartes (Madring, nouveau ; Sepang, absent depuis 2017) : longueur et virages
 // officiels (formula1.com : 5,414 km et 22 virages ; Sepang : 5,543 km et 15 virages)
 const KNOWN = { madring: { length: 5.414, corners: 22 }, sepang: { length: 5.543, corners: 15 } };
+// Longueur du circuit d'une manche (km) : analyse des archives, sinon valeur connue
+export const circuitLength = (ctx, round) => byRound(ctx.stats).get(round)?.race.profile.length || KNOWN[ctx.data.races.find((r) => r.round === round)?.circuitId]?.length || null;
 export function renderCircuits(ctx, sort = 'round') {
   const { data, stats } = ctx;
   const R = byRound(stats);

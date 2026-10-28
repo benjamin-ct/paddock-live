@@ -325,6 +325,43 @@ export function pointsPath(data, kind, key, round) {
   });
 }
 
+// Écart de chaque écurie à la pole, Grand Prix par Grand Prix : son meilleur tour des qualifs (Q1, Q2 ou Q3) face au
+// meilleur tour de tous, en % et en secondes. Manche sans temps de qualif : ignorée
+export function teamPoleGaps(races) {
+  const best = (x) => Math.min(...(x.q || []).filter(Number.isFinite));
+  const teams = new Map();
+  for (const r of races) {
+    const times = r.quali.map((x) => ({ x, t: best(x) })).filter((e) => Number.isFinite(e.t));
+    if (!times.length) continue;
+    const pole = Math.min(...times.map((e) => e.t));
+    const byTeam = new Map();
+    for (const { x, t } of times) if (!byTeam.has(x.teamId) || t < byTeam.get(x.teamId).t) byTeam.set(x.teamId, { x, t });
+    for (const [id, { x, t }] of byTeam) {
+      if (!teams.has(id)) teams.set(id, { teamId: id, team: x.team, points: [] });
+      teams.get(id).points.push({ round: r.round, s: t - pole, pct: ((t - pole) / pole) * 100 });
+    }
+  }
+  return [...teams.values()];
+}
+
+// Kilomètres parcourus par écurie en course et en sprint : tours bouclés × longueur du circuit (length(round) : km ou
+// null, manche alors ignorée)
+export function teamMileage(races, length) {
+  const m = new Map();
+  for (const r of races) {
+    const km = length(r.round);
+    if (!km) continue;
+    for (const x of [...r.results, ...(r.sprintResults || [])]) {
+      if (!x.laps) continue;
+      const t = m.get(x.teamId) || { teamId: x.teamId, team: x.team, laps: 0, km: 0 };
+      t.laps += x.laps;
+      t.km += x.laps * km;
+      m.set(x.teamId, t);
+    }
+  }
+  return [...m.values()].sort((a, b) => b.km - a.km);
+}
+
 export const RACE_POINTS = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
 // Meilleure place qui rapporte au plus « pts » points (11 = hors des points)
 export function placeForMaxPoints(pts) {
