@@ -212,6 +212,7 @@ async function handleApi(req, res, url) {
     case 'GET /api/headshot':
     case 'GET /api/season/stats':
     case 'GET /api/season/fia':
+    case 'GET /api/season/destructors':
     case 'GET /api/zones':
     case 'GET /api/loops':
       return fromServer(res, url);
