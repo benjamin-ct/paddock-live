@@ -298,6 +298,11 @@ export function openHome() {
   import('./replays.js').then((m) => m.closeReplays());
   placeView($('#homeView'));
   view.hidden = false;
+  // Ouverture : cartes en cascade (une fois, pas à chaque mise à jour)
+  const main = view.querySelector('.hm-main');
+  main?.classList.add('hm-anim');
+  clearTimeout(openHome.t);
+  openHome.t = setTimeout(() => main?.classList.remove('hm-anim'), 900);
   render();
   clearInterval(timer);
   timer = setInterval(() => {

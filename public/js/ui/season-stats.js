@@ -92,7 +92,7 @@ function pointsVsPrev(drv, data, prev, col) {
   let grid = '';
   for (let v = 0; v <= yMax; v += step) grid += `<line x1="${pl}" x2="${W - pr}" y1="${Y(v)}" y2="${Y(v)}" class="sz-gl"/><text x="${pl - 5}" y="${Y(v) + 4}" class="sz-ax" text-anchor="end">${v}</text>`;
   for (let i = 0; i < nMax; i += Math.ceil(nMax / 8)) grid += `<text x="${X(i)}" y="${H - 6}" class="sz-ax" text-anchor="middle">${i + 1}</text>`;
-  const line = (a, c, dash) => `<polyline fill="none" stroke="${c}" stroke-width="2.2" ${dash ? 'stroke-dasharray="5 4"' : ''} points="${a.map((v, i) => `${X(i)},${Y(v)}`).join(' ')}"/>`;
+  const line = (a, c, dash) => `<polyline fill="none" stroke="${c}" stroke-width="2.2" ${dash ? 'stroke-dasharray="5 4"' : 'pathLength="1"'} points="${a.map((v, i) => `${X(i)},${Y(v)}`).join(' ')}"/>`;
   const lbl = (a, c, txt) => `<text x="${X(a.length - 1) + 5}" y="${Y(a.at(-1)) + 4}" fill="${c}" class="sz-lbl">${txt}</text>`;
   const same = before[now.length - 1];
   const diff = same !== undefined ? now.at(-1) - same : null;
@@ -163,7 +163,7 @@ export function renderDrivers(ctx, code) {
   const rounds = races.map((r) => r.round);
   const X = (rd) => pl + ((rounds.indexOf(rd)) / Math.max(1, rounds.length - 1)) * (W - pl - pr);
   const Y = (p) => pt + ((p - 1) / 21) * (H - pt - pb);
-  const line = (pts2, dash) => `<polyline fill="none" stroke="${col}" stroke-width="2.2" ${dash ? 'stroke-dasharray="4 4" opacity=".6"' : ''} points="${pts2.map(([x, y]) => `${x},${y}`).join(' ')}"/>`;
+  const line = (pts2, dash) => `<polyline fill="none" stroke="${col}" stroke-width="2.2" ${dash ? 'stroke-dasharray="4 4" opacity=".6"' : 'pathLength="1"'} points="${pts2.map(([x, y]) => `${x},${y}`).join(' ')}"/>`;
   const finPts = started.filter((x) => isNum(x.res)).map((x) => [X(x.r.round), Y(x.res.pos)]);
   const gridPts = started.filter((x) => x.res.grid).map((x) => [X(x.r.round), Y(x.res.grid)]);
   let grid = '';

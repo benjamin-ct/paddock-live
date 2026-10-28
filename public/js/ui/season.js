@@ -70,21 +70,21 @@ async function loadPrev() {
   } catch (err) {
     if (prev?.loading === y) prev = { year: y, error: err.message };
   }
-  if (section === 'drivers' && !$('#seasonView').hidden) render();
+  if (section === 'drivers' && !$('#seasonView').hidden) { animate(); render(); }
 }
 // Championnat des casseurs : dégâts estimés de l'année affichée, lus une fois sur le serveur
 async function loadDest(y) {
   if (dest?.year === y) return;
   dest = { year: y, loading: true };
   try { dest = shortTeams(await api(`/api/season/destructors?year=${y}`)); } catch (err) { dest = { year: y, error: err.message }; }
-  if (section === 'destructors' && !$('#seasonView').hidden) render();
+  if (section === 'destructors' && !$('#seasonView').hidden) { animate(); render(); }
 }
 // Saison comparée (Comparer deux saisons) : chargée une fois, gardée pour la session
 async function loadOther(y) {
   if (others.has(y)) return;
   others.set(y, { loading: true });
   try { others.set(y, shortTeams(await api(`/api/season?year=${y}`))); } catch (err) { others.set(y, { error: err.message }); }
-  if (section === 'compare' && !$('#seasonView').hidden) render();
+  if (section === 'compare' && !$('#seasonView').hidden) { animate(); render(); }
 }
 const FIA_SECTIONS = new Set(['tech', 'elements']);
 // Documents FIA et statistiques en cours de lecture par le serveur, ou erreur : relus toutes les 30 s (chaque lecture
@@ -96,10 +96,12 @@ let fiaTimer = null;
 async function loadFia() {
   clearTimeout(fiaTimer);
   const y = year;
+  let first = false;
   try {
     const f = shortTeams(await api(`/api/season/fia?year=${y}`));
     if (y !== year) return;
     const same = fia?.year === f.year && fia.done === f.done && fia.total === f.total && fia.pending === f.pending && !fia.error;
+    first = !fia?.events?.length && !!f.events?.length;   // premiers documents : la rubrique s'anime à leur arrivée
     fia = f;
     if (f.pending) fiaTimer = setTimeout(loadFia, FOLLOW_MS);
     if (same) return;   // relecture pendant la lecture des documents : rien de nouveau, rien de redessiné
@@ -108,17 +110,19 @@ async function loadFia() {
     if (y === year) fia = { year: y, error: lost ? 'connexion perdue, nouvel essai dans 30 s' : err.message, events: [] };
     fiaTimer = setTimeout(loadFia, FOLLOW_MS);   // serveur indisponible (503…) aussi
   }
-  if (FIA_SECTIONS.has(section) && !$('#seasonView').hidden) render();
+  if (FIA_SECTIONS.has(section) && !$('#seasonView').hidden) { if (first) animate(); render(); }
 }
 
 // Statistiques détaillées : analysées par le serveur en arrière-plan, on suit l'avancement.
 async function loadStats() {
   clearTimeout(statsTimer);
   const y = year;
+  let first = false;
   try {
     const s = shortTeams(await api(`/api/season/stats?year=${y}`));
     if (y !== year) return;
     const same = stats?.year === s.year && stats.done === s.done && stats.total === s.total && stats.pending === s.pending && !stats.error;
+    first = !stats?.races?.length && !!s.races?.length;   // premières courses analysées : la rubrique s'anime à leur arrivée
     stats = s;
     if (s.pending) statsTimer = setTimeout(loadStats, FOLLOW_MS);
     if (same) return;   // relecture pendant l'analyse : rien de nouveau, rien de redessiné (tableaux laissés où ils sont)
@@ -127,7 +131,7 @@ async function loadStats() {
     if (y === year) stats = { error: lost ? 'connexion perdue, nouvel essai dans 30 s' : err.message, races: [] };
     statsTimer = setTimeout(loadStats, FOLLOW_MS);   // serveur indisponible (503…) aussi
   }
-  if (STATS_SECTIONS.has(section) && !$('#seasonView').hidden) render();
+  if (STATS_SECTIONS.has(section) && !$('#seasonView').hidden) { if (first) animate(); render(); }
 }
 
 const fmtDate = (t, o) => new Date(t).toLocaleDateString(LOCALE, o || { day: '2-digit', month: 'short' });
@@ -154,6 +158,7 @@ async function load(force = false) {
   if (y !== year) return;
   loading = false;
   data = d;
+  animate();
   render();
   follow();
 }
@@ -410,7 +415,7 @@ function lineChartSvg(series, { w = 900, h = 300 } = {}) {
   for (let i = 1; i < labels.length; i++) labels[i].y = Math.max(labels[i].y, labels[i - 1].y + 13);
   const over = (labels.at(-1)?.y ?? 0) - (h - pb);
   if (over > 0) for (let i = labels.length - 1; i >= 0; i--) labels[i].y = Math.min(labels[i].y, (labels[i + 1]?.y ?? h - pb + 13) - 13);
-  const lines = series.map((s) => `<polyline fill="none" stroke="${s.color}" stroke-width="2" ${s.dashed ? 'stroke-dasharray="5 4"' : ''} points="${s.points.map((p) => `${X(p.x)},${Y(p.y)}`).join(' ')}"/>`).join('')
+  const lines = series.map((s) => `<polyline fill="none" stroke="${s.color}" stroke-width="2" ${s.dashed ? 'stroke-dasharray="5 4"' : 'pathLength="1"'} points="${s.points.map((p) => `${X(p.x)},${Y(p.y)}`).join(' ')}"/>`).join('')
     + labels.map(({ s, last, y }) => `<text x="${X(last.x) + 5}" y="${y}" fill="${s.color}" class="sz-lbl">${esc(s.label)} ${last.y}</text>`).join('');
   return `<svg viewBox="0 0 ${w} ${h}" class="sz-svg">${grid}${lines}</svg>`;
 }
@@ -474,7 +479,7 @@ function qualiGapBox(g, A, B, ca) {
   const bars = g.rounds.map((x, i) => {
     const y = Y(-x.s), x0 = pl + i * bw + bw * 0.18;
     const c = x.s <= 0 ? ca : 'var(--muted)';
-    return `<rect x="${x0}" y="${Math.min(y, mid)}" width="${bw * 0.64}" height="${Math.max(1, Math.abs(y - mid))}" rx="2" fill="${c}" ${x.outlier ? 'opacity=".35"' : ''}><title>R${x.round} ${esc(gpShort(x.name, EN))} (Q${x.part}) : ${esc(x.s <= 0 ? A.last : B.last)} devant de ${f3(x.s)}</title></rect>
+    return `<rect class="${x.s <= 0 ? 'up' : 'dn'}" x="${x0}" y="${Math.min(y, mid)}" width="${bw * 0.64}" height="${Math.max(1, Math.abs(y - mid))}" rx="2" fill="${c}" ${x.outlier ? 'opacity=".35"' : ''}><title>R${x.round} ${esc(gpShort(x.name, EN))} (Q${x.part}) : ${esc(x.s <= 0 ? A.last : B.last)} devant de ${f3(x.s)}</title></rect>
       ${Math.abs(x.s) > cap ? `<text x="${pl + i * bw + bw / 2}" y="${x.s < 0 ? y + 12 : y - 4}" class="sz-ax sz-clip" text-anchor="middle">${Math.abs(x.s).toFixed(2).replace('.', DEC)} s</text>` : ''}
       <text x="${pl + i * bw + bw / 2}" y="${H - 18}" class="sz-ax" text-anchor="middle">R${x.round}</text><text x="${pl + i * bw + bw / 2}" y="${H - 5}" class="sz-ax" text-anchor="middle">Q${x.part}</text>`;
   }).join('');
@@ -775,7 +780,12 @@ function tick() {
   const ms = Math.max(0, Date.parse(el.dataset.t) - Date.now());
   const d = Math.floor(ms / 86400000), h = Math.floor(ms / 3600000) % 24, m = Math.floor(ms / 60000) % 60, s = Math.floor(ms / 1000) % 60;
   const p = (v) => String(v).padStart(2, '0');
-  el.innerHTML = [[d, 'jours'], [h, 'h'], [m, 'min'], [s, 's']].map(([v, l]) => `<span><b>${p(v)}</b><small>${l}</small></span>`).join('');
+  // Chiffre qui vient de changer : marqué pour descendre en place (chiffre par chiffre, 45 → 44 : seul le 5 bouge)
+  const before = (el.dataset.v || '').split(',');
+  const now = [d, h, m, s].map(p);
+  el.dataset.v = now.join(',');
+  const digits = (v, old) => [...v].map((c, k) => `<i${old !== undefined && old.length === v.length && old[k] !== c ? ' class="chg"' : ''}>${c}</i>`).join('');
+  el.innerHTML = [[d, 'jours'], [h, 'h'], [m, 'min'], [s, 's']].map(([, l], i) => `<span><b>${digits(now[i], before.length === 4 ? before[i] : undefined)}</b><small>${l}</small></span>`).join('');
 }
 
 // Changement de rubrique : le contenu apparaît en cascade (une seule fois, pas à chaque mise à jour)
@@ -785,7 +795,24 @@ function animate() {
   void el.offsetWidth;
   el.classList.add('sz-anim');
   clearTimeout(animate.t);
-  animate.t = setTimeout(() => el.classList.remove('sz-anim'), 500);
+  animate.t = setTimeout(() => el.classList.remove('sz-anim'), 1300);   // le temps que les courbes se tracent
+  requestAnimationFrame(() => countUp(el));   // après l'affichage de la rubrique
+}
+
+// Grands nombres des cartes (622 éléments, 67 abandons…) : comptés de 0 à leur valeur à l'ouverture de la rubrique
+function countUp(root) {
+  if (document.documentElement.dataset.motion === 'off' || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  for (const el of root.querySelectorAll('.sz-card .sz-big')) {
+    const v = /^\d{2,5}$/.test(el.textContent.trim()) && el.children.length === 0 ? Number(el.textContent) : null;
+    if (!v) continue;
+    const t0 = performance.now();
+    const step = (t) => {
+      const k = Math.min(1, (t - t0) / 700);
+      el.textContent = String(Math.round(v * (1 - (1 - k) ** 3)));
+      if (k < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
 }
 
 // y : saison à afficher (bilan de la saison passée depuis l'accueil hors saison) ; item : pilote ou Grand Prix demandé
@@ -847,15 +874,15 @@ export function initSeason() {
     const rv = e.target.closest('[data-review]');
     if (rv && data) { reviewAction(rv.dataset.review, data); return; }
     const t = e.target.closest('[data-h2h-team]'), m = e.target.closest('[data-h2h-mode]');
-    if (t) { h2hTeam = t.dataset.h2hTeam; render(); } else if (m) { h2hMode = m.dataset.h2hMode; render(); }
+    if (t) { h2hTeam = t.dataset.h2hTeam; animate(); render(); } else if (m) { h2hMode = m.dataset.h2hMode; animate(); render(); }
     const ck = e.target.closest('[data-cmp-kind]');
-    if (ck) { cmpKind = ck.dataset.cmpKind; render(); return; }
+    if (ck) { cmpKind = ck.dataset.cmpKind; animate(); render(); return; }
     const dd = e.target.closest('[data-dest-drv]');
-    if (dd) { showDestructorsDriver(Number(dd.dataset.destDrv)); render(); return; }
+    if (dd) { showDestructorsDriver(Number(dd.dataset.destDrv)); animate(); render(); return; }
     const cs = e.target.closest('[data-cmp-sort]');
     if (cs) { cmpSort = cmpSort === cs.dataset.cmpSort ? 'pos' : cs.dataset.cmpSort; render(); return; }
     const k = e.target.closest('[data-tr-kind]');
-    if (k) { trKind = k.dataset.trKind; render(); }
+    if (k) { trKind = k.dataset.trKind; animate(); render(); }
     const rs = e.target.closest('[data-rate-sort]');
     if (rs) { rateSort = rs.dataset.rateSort; render(); }
   });
@@ -873,6 +900,8 @@ export function initSeason() {
     else if (id === 'szTechTeam') setTechFilter(undefined, e.target.value);
     else if (id === 'szTechOrig') toggleTechOriginal(e.target.checked);
     else return;
+    // Autre pilote, écurie, Grand Prix, saison ou point de mesure : animations rejouées (pas pour un tri ni la traduction)
+    if (id !== 'szTechOrig' && id !== 'szCircSort') animate();
     render();
   });
   window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('#seasonView').hidden && !document.querySelector('dialog[open]')) { if ($('#seasonView').classList.contains('sz-open')) szMenu(false); else closeSeason(); } });
