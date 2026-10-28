@@ -28,16 +28,22 @@ const LONG = /course|race|grand prix/i;
 const lengthOf = (label) => (LONG.test(label) && !/sprint/i.test(label) ? 150 : 75) * 60e3;
 const sessionName = (n) => sessionLabel(n, EN);
 
-// Calendrier chargé une fois (accueil et écran « Pas de séance en direct »)
-let scheduleLoad = null;
+// Calendrier chargé une fois (accueil et écran « Pas de séance en direct »). Serveur injoignable (appli ouverte
+// hors connexion) : pas de « Hors saison » ni de « Saison terminée » faute de données, nouvel essai chaque minute
+let scheduleLoad = null, scheduleFailed = false;
 const loadSchedule = () => (scheduleLoad ||= readSchedule());
 async function readSchedule() {
   const year = new Date().getFullYear();
   const races = [];
   for (const y of [year, year + 1]) {
-    try { races.push(...(await api(`/api/schedule?year=${y}`)).races.map((r) => ({ ...r, year: y }))); } catch { /* hors ligne */ }
+    try { races.push(...(await api(`/api/schedule?year=${y}`)).races.map((r) => ({ ...r, year: y }))); } catch {
+      scheduleFailed = true;
+      setTimeout(() => { scheduleLoad = null; loadSchedule().then(() => { noLiveCheck(); render(); }); }, 60e3);
+      return;
+    }
     if (races.some((r) => r.sessions.some((s) => Date.parse(s.t) > Date.now()))) break;
   }
+  scheduleFailed = false;
   schedule = races.flatMap((r) => r.sessions.filter((s) => s.t).map((s) => ({ race: r.name, round: r.round, year: r.year, label: s.label, t: Date.parse(s.t), lat: r.lat, lon: r.lon, locality: r.locality, country: r.country, circuitId: r.circuitId })))
     .sort((a, b) => a.t - b.t);
 }
@@ -183,7 +189,7 @@ function favHtml() {
   const favT = teams.filter((c) => prefs.favTeams.includes(c.key));
   const count = favD.length + favT.length;
   const edit = `<button class="btn small" data-home="editfav">${icon(editFav ? 'check' : 'star')} ${editFav ? 'Terminé' : count ? 'Modifier' : 'Choisir mes favoris'}</button>`;
-  const head = `<div class="hm-kicker"><span class="hm-tag">${count === 1 ? 'Mon favori au championnat' : 'Mes favoris au championnat'}</span> ${edit}</div>`;
+  const head = `<div class="hm-kicker"><span class="hm-tag">${count === 1 ? 'Mon favori' : 'Mes favoris'}</span> ${edit}</div>`;
   if (!count) {
     return `<section class="hm-card hm-fav" id="hmFav">${head}${editFav ? favEditor(ds, teams)
       : '<div class="muted">Ajoutez vos pilotes et écuries favoris.</div>'}</section>`;
@@ -248,7 +254,7 @@ function render() {
         ${weatherHtml(nx)}
         <div class="hm-actions"><a class="btn small" href="#" data-cal="${nx.year}" data-round="${nx.round}" title="Séances dans votre agenda (Google, Apple, Outlook)">${icon('calendar')} Ajouter ce week-end à mon agenda</a></div></div>
         ${daysHtml(nx)}`
-          : `<div class="hm-title">${schedule ? 'Saison terminée' : 'Calendrier en chargement…'}</div></div>`}</section>`;
+          : `<div class="hm-title">${schedule ? 'Saison terminée' : scheduleFailed ? 'Calendrier indisponible pour l\'instant' : 'Calendrier en chargement…'}</div></div>`}</section>`;
   const ls = live ? null : lastSession();
   const last = ls
     ? `<section class="hm-card hm-last"><div class="hm-kicker"><span class="hm-tag">Dernière séance</span></div>
@@ -391,7 +397,7 @@ function noLiveCheck(show = true) {
   const running = st === 'Started' || st === 'Aborted' || !!liveNow();
   if (running) resultsOpen = false;
   const covered = COVERS.some((s) => $(s) && !$(s).hidden);
-  if (!schedule || running || covered || resultsOpen || store.status?.source?.mode === 'replay') { view.hidden = true; return; }
+  if ((!schedule && !scheduleFailed) || running || covered || resultsOpen || store.status?.source?.mode === 'replay') { view.hidden = true; return; }
   if (view.hidden && !show) return;
   if (view.hidden) { placeView(view); view.hidden = false; noLiveKey = ''; }
   const nx = nextSession(), ls = lastSession();
@@ -401,7 +407,7 @@ function noLiveCheck(show = true) {
   $('#noLiveBox').innerHTML = `<div class="nl-icon">${icon('signal')}</div>
     <h2>Pas de séance en direct</h2>
     ${nx ? `<p class="nl-next">Prochaine séance : <b>${esc(gp(nx.race))} : ${esc(nx.label)}</b><br><span class="muted">${esc(when(nx.t))}</span></p>
-      <div class="nl-count">${countdown(nx.t - Date.now())}</div>${daysHtml(nx)}` : '<p class="muted">Saison terminée.</p>'}
+      <div class="nl-count">${countdown(nx.t - Date.now())}</div>${daysHtml(nx)}` : `<p class="muted">${schedule ? 'Saison terminée.' : 'Calendrier indisponible pour l\'instant : nouvel essai dans une minute.'}</p>`}
     <p class="muted small">Le tableau de bord s'ouvre tout seul au début de la séance.</p>
     <div class="nl-actions">
       ${ls ? `<button class="btn btn-accent" data-nl="replay">${icon('play')} ${esc(t('Revoir {} : {}', gp(ls.meeting), sessionName(ls.name)))}</button>` : ''}

@@ -243,7 +243,10 @@ export function renderElements(ctx, fia) {
     for (const f of base.fresh.filter((x) => x.num === d.num)) used[f.element] = Math.max(used[f.element] || 0, (f.previous || 0) + 1);
     const total = els.reduce((n, e) => n + (used[e] || 0), 0);
     const over = els.filter((e) => lim[e] && used[e] > lim[e]);
-    return { ...d, used, total, over };
+    // Nom comme ailleurs dans la Saison (les documents FIA écrivent « Sergio Perez », « Kimi Antonelli »)
+    const plain = (n) => String(n || '').normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
+    const sd = ctx.data.drivers.find((x) => plain(x.last) === plain(d.driver.split(' ').slice(-1)[0])) || ctx.data.drivers.find((x) => String(x.number) === String(d.num));
+    return { ...d, used, total, over, label: sd?.name || d.driver, last: sd?.last || d.driver.split(' ').slice(-1)[0] };
   }).sort((a, b) => b.total - a.total);
   const pens = evs.flatMap((e) => e.penalties.map((p) => ({ ...p, ev: e }))).sort((a, b) => a.published - b.published);
   const byTeam = count(drivers.flatMap((d) => Array(d.total).fill(d)), (d) => d.team).map(([team, n]) => ({ team, n, teamId: drivers.find((d) => d.team === team)?.teamId }));
@@ -252,9 +255,8 @@ export function renderElements(ctx, fia) {
     const cls = !l ? '' : v > l ? 'over' : v === l ? 'at' : '';
     return `<td class="sz-pu ${cls}"><b>${v}</b>${l ? `<small>/${l}</small>` : ''}</td>`;
   };
-  const lastName = (d) => d.driver.split(' ').slice(-1)[0];
   // Pénalités et éléments neufs : un bloc par Grand Prix, le plus récent ouvert ; un pilote par ligne
-  const who = (name) => { const d = drivers.find((x) => x.driver === name); return `<span class="sz-who">${d ? mark(d.team, ctx, d.teamId) : ''}<b>${esc(name)}</b></span>`; };
+  const who = (name) => { const d = drivers.find((x) => x.driver === name); return `<span class="sz-who">${d ? mark(d.team, ctx, d.teamId) : ''}<b>${esc(d?.label || name)}</b></span>`; };
   const chips = (list) => list.filter(Boolean).map((x) => `<span class="sz-el" title="${esc(EL_FR[x.split(' ').pop()] || '')}">${esc(x)}</span>`).join('');
   const byGp = (list, ev) => { const m = new Map(); for (const x of [...list].reverse()) m.set(ev(x), [...(m.get(ev(x)) || []), x]); return [...m]; };
   const fold = (ev, i, count, body) => `<details class="sz-fold"${i ? '' : ' open'}><summary><b>${esc(ev.label)} ${esc(short(ev.name))}</b><span class="muted small">${count}</span></summary>${body}</details>`;
@@ -263,13 +265,13 @@ export function renderElements(ctx, fia) {
       <div class="sz-card sz-kpi"><div class="muted small">Éléments utilisés (total)</div><div class="sz-big">${drivers.reduce((n, d) => n + d.total, 0)}</div><div class="muted small">relevé FIA · ${esc(short(base.name))}</div></div>
       <div class="sz-card sz-kpi"><div class="muted small">Pilotes au-delà d'une limite</div><div class="sz-big">${drivers.filter((d) => d.over.length).length} / ${drivers.length}</div></div>
       <div class="sz-card sz-kpi"><div class="muted small">Pénalités liées au moteur</div><div class="sz-big">${pens.length}</div></div>
-      <div class="sz-card sz-kpi"><div class="muted small">Le plus d'éléments</div><div class="sz-big">${mark(drivers[0].team, ctx, drivers[0].teamId)} ${esc(lastName(drivers[0]))}</div><div class="muted small">${drivers[0].total} éléments</div></div>
+      <div class="sz-card sz-kpi"><div class="muted small">Le plus d'éléments</div><div class="sz-big">${mark(drivers[0].team, ctx, drivers[0].teamId)} ${esc(drivers[0].last)}</div><div class="muted small">${drivers[0].total} éléments</div></div>
     </div>
     <section class="sz-box"><h3>Éléments utilisés par pilote</h3><div class="sz-scroll"><table class="sz-table sz-heat"><tr><th>Pilote</th><th>Moteur</th>${els.map((e) => `<th title="${esc(EL_FR[e] || e)}">${esc(e)}</th>`).join('')}<th>Total</th></tr>
-      ${drivers.map((d) => `<tr><td>${mark(d.team, ctx, d.teamId)}<b>${esc(d.driver)}</b></td><td class="muted small">${esc(d.engine || '')}</td>${els.map((e) => cell(d, e)).join('')}<td><b>${d.total}</b></td></tr>`).join('')}</table></div>
+      ${drivers.map((d) => `<tr><td>${mark(d.team, ctx, d.teamId)}<b>${esc(d.label)}</b></td><td class="muted small">${esc(d.engine || '')}</td>${els.map((e) => cell(d, e)).join('')}<td><b>${d.total}</b></td></tr>`).join('')}</table></div>
       <p class="muted small">${els.map((e) => `<b>${esc(e)}</b> ${esc(EL_FR[e] || e)}`).join(' · ')} <span class="sz-pu-key at">limite atteinte</span> <span class="sz-pu-key over">limite dépassée</span></p></section>
     <div class="sz-grid2">
-      <section class="sz-box"><h3>Total par pilote</h3>${hbars(drivers.map((d) => ({ html: `${mark(d.team, ctx, d.teamId)}<b>${esc(lastName(d))}</b>`, v: d.total, color: tcol(d.team, ctx, d.teamId) })))}</section>
+      <section class="sz-box"><h3>Total par pilote</h3>${hbars(drivers.map((d) => ({ html: `${mark(d.team, ctx, d.teamId)}<b>${esc(d.last)}</b>`, v: d.total, color: tcol(d.team, ctx, d.teamId) })))}</section>
       <section class="sz-box"><h3>Total par écurie</h3>${hbars(byTeam.map((t) => ({ html: `${mark(t.team, ctx, t.teamId)}<b>${esc(t.team)}</b>`, v: t.n, color: tcol(t.team, ctx, t.teamId) })))}</section>
     </div>
     <section class="sz-box"><h3>Pénalités sur la grille</h3>${pens.length ? byGp(pens, (p) => p.ev).map(([ev, list], i) => fold(ev, i, `${list.length} ${list.length > 1 ? 'pénalités' : 'pénalité'}`,

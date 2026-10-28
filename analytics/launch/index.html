@@ -98,11 +98,13 @@ section { padding: 96px 0; }
 .frame.narrow { max-width: 460px; margin: 0 auto; }
 
 /* Grille des autres fonctions */
-.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; margin-top: 40px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); gap: 14px; margin-top: 40px; }
 .tile { padding: 22px; border: 1px solid var(--line); border-radius: 16px; background: linear-gradient(160deg, var(--card), var(--bg-2)); }
 .tile svg { width: 26px; height: 26px; color: var(--red); margin-bottom: 12px; }
 .tile b { display: block; font-size: 18px; margin-bottom: 4px; }
 .tile span { color: var(--muted); font-size: 15px; }
+a.tile { text-decoration: none; }
+a.tile:hover { border-color: var(--red); }
 
 /* Téléchargement */
 .download { background: linear-gradient(180deg, var(--bg), var(--bg-2)); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
@@ -214,6 +216,7 @@ dialog.hide a { border-radius: 6px; }
   <symbol id="i-trophy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v5a4 4 0 0 1-8 0zM8 6H4v1a4 4 0 0 0 4 4M16 6h4v1a4 4 0 0 1-4 4M12 13v4M8 21h8M9 17h6"/></symbol>
   <symbol id="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></symbol>
   <symbol id="i-lang" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18"/></symbol>
+  <symbol id="i-phone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H8.5A2.5 2.5 0 0 0 6 4.5v15A2.5 2.5 0 0 0 8.5 22h7a2.5 2.5 0 0 0 2.5-2.5V10"/><path d="M11 18h2"/><circle cx="18.5" cy="4.5" r="3.2" fill="currentColor" stroke="none"/></symbol>
   <symbol id="i-sync" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 0 1-14 5.3M4 12a8 8 0 0 1 14-5.3M18 3v4h-4M6 21v-4h4"/></symbol>
 </svg>
 
@@ -268,7 +271,7 @@ dialog.hide a { border-radius: 6px; }
             <li data-en="Save presets for each of your TVs and streaming services">Des préréglages pour chacune de tes TV et plateformes</li>
           </ul>
         </div>
-        <div class="frame"><img src="/site/img/classement.webp" width="1600" height="888" alt="" loading="lazy"></div>
+        <div class="frame"><img src="/site/img/classement-zoom.webp" width="770" height="678" alt="" loading="lazy"></div>
       </article>
 
       <article class="feature reveal">
@@ -281,7 +284,7 @@ dialog.hide a { border-radius: 6px; }
             <li data-en="Race control messages, investigations and official FIA documents">Direction de course, enquêtes et documents officiels de la FIA</li>
           </ul>
         </div>
-        <div class="frame"><img src="/site/img/carte.webp" width="1600" height="888" alt="" loading="lazy"></div>
+        <div class="frame"><img src="/site/img/carte-zoom.webp" width="1140" height="580" alt="" loading="lazy"></div>
       </article>
 
       <article class="feature reveal">
@@ -293,7 +296,7 @@ dialog.hide a { border-radius: 6px; }
             <li data-en="F1 TV Pro commentary or the radio station of your choice, synced to the dashboard">Commentaires F1 TV Pro ou la radio de ton choix, synchronisés</li>
           </ul>
         </div>
-        <div class="frame"><img src="/site/img/radios.webp" width="1600" height="888" alt="" loading="lazy"></div>
+        <div class="frame"><img src="/site/img/radios-zoom.webp" width="885" height="448" alt="" loading="lazy"></div>
       </article>
 
       <article class="feature reveal">
@@ -302,16 +305,30 @@ dialog.hide a { border-radius: 6px; }
           <h3 data-en="All the F1 news, in one place">Toute l'actu F1 au même endroit</h3>
           <p data-en="Official channels and around thirty outlets in 8 languages, translated, with alerts.">Sources officielles et une trentaine de médias en 8 langues, traduits, avec alertes.</p>
         </div>
-        <div class="frame"><img src="/site/img/actu.webp" width="1600" height="888" alt="" loading="lazy"></div>
+        <div class="frame"><img src="/site/img/actu.webp" width="984" height="448" alt="" loading="lazy"></div>
       </article>
 
       <article class="feature reveal">
         <div class="copy">
-          <span class="eyebrow" data-en="Season and replays">Saison et replays</span>
-          <h3 data-en="Replay any session, relive every key moment">Revois chaque séance, chaque moment clé</h3>
-          <p data-en="Every archived session with clickable key moments, plus standings, ratings and stats for the season.">Toutes les séances archivées avec leurs moments clés, plus classements, notes et stats de la saison.</p>
+          <span class="eyebrow" data-en="Season">Saison</span>
+          <h3 data-en="The whole season, from every angle">Toute la saison, sous tous les angles</h3>
+          <p data-en="Standings and how the points add up, calendar, results and records.">Classements et évolution des points, calendrier, résultats et records.</p>
+          <ul>
+            <li data-en="Title fight: who can still win it, and when">Course au titre : qui peut encore gagner, et quand</li>
+            <li data-en="Compare two seasons, driver ratings, head-to-head duels">Comparer deux saisons, notes des pilotes, duels entre pilotes</li>
+            <li data-en="Wreckers' championship: the cost of every crash">Championnat des casseurs : le coût de chaque accident</li>
+          </ul>
         </div>
-        <div class="frame"><img src="/site/img/moments.webp" width="1600" height="888" alt="" loading="lazy"></div>
+        <div class="frame"><img src="/site/img/saison.webp" width="1688" height="858" alt="" loading="lazy"></div>
+      </article>
+
+      <article class="feature reveal">
+        <div class="copy">
+          <span class="eyebrow" data-en="Replays">Replays</span>
+          <h3 data-en="Replay any session, relive every key moment">Revois chaque séance, chaque moment clé</h3>
+          <p data-en="Every archived session, with its key moments one click away: start, incidents, pit stops, lead changes.">Toutes les séances archivées, avec leurs moments clés à un clic : départ, incidents, arrêts, changements de leader.</p>
+        </div>
+        <div class="frame narrow" style="max-width:360px"><img src="/site/img/moments-zoom.webp" width="360" height="522" alt="" loading="lazy"></div>
       </article>
 
       <article class="feature reveal" id="streaming">
@@ -347,6 +364,7 @@ dialog.hide a { border-radius: 6px; }
           <div class="tile"><svg><use href="#i-sync"/></svg><b data-en="Automatic summary">Résumé automatique</b><span data-en="A written recap of each session as soon as it ends">Le récit de chaque séance dès la fin</span></div>
           <div class="tile"><svg><use href="#i-rain"/></svg><b data-en="Rain radar">Radar de la pluie</b><span data-en="Showers around the circuit, live">Les averses autour du circuit, en direct</span></div>
           <div class="tile"><svg><use href="#i-bell"/></svg><b data-en="Reminders and calendar">Rappels et calendrier</b><span data-en="A reminder before each session, the season in your calendar">Un rappel avant chaque séance, la saison dans ton agenda</span></div>
+          <a class="tile" href="/alertes/"><svg><use href="#i-phone"/></svg><b data-en="Alerts on your phone">Alertes sur le téléphone</b><span data-en="A reminder 30 min before each session, the results if you want them, the big news">Un rappel 30 min avant chaque séance, les résultats si tu veux, les grosses news</span></a>
           <div class="tile"><svg><use href="#i-trophy"/></svg><b data-en="Predictions with friends">Pronostics entre amis</b><span data-en="Pole and podium, with a season-long leaderboard">Pole et podium, avec un classement de la saison</span></div>
           <div class="tile"><svg><use href="#i-moon"/></svg><b data-en="Dark or light">Sombre ou clair</b><span data-en="Follows your computer or phone by default">Suit ton ordinateur ou ton téléphone par défaut</span></div>
           <div class="tile"><svg><use href="#i-lang"/></svg><b data-en="French or English">Français ou anglais</b><span data-en="The whole app, in the language of your choice">Toute l'appli, dans la langue de ton choix</span></div>

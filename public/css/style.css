@@ -531,7 +531,9 @@ code { background: var(--panel-3); padding: 1px 5px; border-radius: 4px; font-si
 .stats-bar .stats-details { margin-right: auto; }
 .stats-later { position: absolute; top: 8px; right: 8px; }
 @keyframes stats-in { from { opacity: 0; transform: translateY(10px); } }
-@media (max-width: 900px) { .stats-bar { right: 8px; left: 8px; width: auto; bottom: calc(76px + env(safe-area-inset-bottom)); } }
+@media (max-width: 900px) { .stats-bar { right: 8px; left: 8px; width: auto; bottom: calc(76px + env(safe-area-inset-bottom)); }
+  /* Pendant un replay : au-dessus de sa barre de lecture */
+  body:has(#replayBar:not([hidden])) .stats-bar { bottom: calc(76px + var(--replaybar-h, 84px) + env(safe-area-inset-bottom)); } }
 @media (prefers-reduced-motion: reduce) { .stats-bar { animation: none; } }
 :root[data-motion="off"] .stats-bar { animation: none; }
 .modal-body { padding: 12px 16px 16px; }
@@ -1089,6 +1091,9 @@ body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-selec
 .sz-big { font-size: 24px; font-weight: 900; display: flex; align-items: center; gap: 8px; }
 .sz-big small { font-size: 13px; font-weight: 600; color: var(--muted); }
 .sz-count { background: linear-gradient(135deg, #d4110a, #7d0703); border-color: #e21a12; grid-column: span 2; }
+/* Accueil de la Saison : deux rangées pleines (compte à rebours et Course au titre sur deux colonnes) */
+.sz-home-cards { grid-template-columns: repeat(4, 1fr); }
+.sz-home-cards .sz-wide { grid-column: span 2; }
 .sz-kicker { font-weight: 700; }
 .sz-badge { background: rgba(0,0,0,.3); border-radius: 5px; padding: 1px 6px; font-size: 12px; margin-right: 4px; }
 .sz-countdown { display: flex; gap: 18px; margin-top: 6px; }
@@ -1260,6 +1265,8 @@ body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-selec
 /* ---------- Saison : statistiques détaillées ---------- */
 .sz-nav-sep { margin: 12px 10px 4px; font-size: 10.5px; font-weight: 800; letter-spacing: .6px; text-transform: uppercase; color: var(--muted); }
 .sz-kpis { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
+/* Bilan : 6 cartes, au plus 3 par rangée (deux rangées pleines) */
+.sz-review-kpis { grid-template-columns: repeat(auto-fit, minmax(max(150px, calc((100% - 24px) / 3)), 1fr)); }
 .sz-kpi { min-height: 0; }
 .sz-kpi .sz-big { font-size: 24px; }
 .sz-drv-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; padding: 14px 16px; border-radius: 12px; border: 1px solid var(--border);
@@ -1329,7 +1336,7 @@ body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-selec
 .sz-up { color: var(--green); }
 .sz-down { color: var(--red); }
 .sz-h2h-grades > div { flex: 1; }
-.sz-gap-chart { min-width: 620px; }
+.sz-gap-chart { min-width: 420px; }
 .sz-svg .sz-clip { fill: #fff; font-weight: 800; paint-order: stroke; stroke: rgba(0,0,0,.45); stroke-width: 2px; }
 .sz-h2h-grades > span { width: auto; min-width: 34px; }
 .linkish { background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; font: inherit; }
@@ -1442,9 +1449,9 @@ html:not(.phone) [data-phone] { display: none !important; }
 html.phone [data-desk] { display: none !important; }
 /* Ordinateur, mode Essentiel : le principal seulement (data-expert : mode Complet) */
 html.essential [data-expert] { display: none !important; }
-/* Mode Essentiel : classement compact (code pilote, écart, secteurs en couleur, pneus), sans nom complet ni mini-secteurs ;
-   agrandi (⤢) : les colonnes choisies dans son menu */
-html.essential:not(.ess-quali):not(.ess-big) .p-tower:not(.maximized) .tower :is(.c-int, .c-last, .c-best, .c-pits, .c-speed, .c-duel, .drv-last) { display: none !important; }
+/* Mode Essentiel : classement compact (code pilote, écart et intervalle avec la voiture devant, secteurs en couleur,
+   pneus), sans nom complet ni mini-secteurs ; agrandi (⤢) : les colonnes choisies dans son menu */
+html.essential:not(.ess-quali):not(.ess-big) .p-tower:not(.maximized) .tower :is(.c-last, .c-best, .c-pits, .c-speed, .c-duel, .drv-last) { display: none !important; }
 /* Essentiel, essais et qualifs : meilleur tour, écart et intervalle, secteurs en couleur (sans mini-secteurs) ;
    en qualifs (colonnes Q1-Q3), le tour en cours (temps prévu et position visée) */
 html.essential.ess-quali:not(.ess-big) .p-tower:not(.maximized) .tower :is(.c-last, .c-speed, .c-duel, .drv-last),
@@ -1481,6 +1488,8 @@ html[data-design="classic"] .rc-bar { display: none !important; }
   .topbar .session { order: 1; flex: 1 1 0; min-width: 0; max-width: none !important; }
   .topbar .tb-break.b1 { order: 2; }
   .topbar .tb-break.b2 { order: 4; }
+  /* En course : les tours remplacent le temps restant, le délai TV remonte sur la 2e ligne (une ligne de moins) */
+  html.sess-race .topbar .clock-box, html.sess-race .topbar .tb-break.b2 { display: none !important; }
   .topbar .session-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 15px; }
   .topbar .track-status { order: 1; min-width: 0; padding: 5px 9px; font-size: 12px; }
   .topbar .hstat { order: 3; }
@@ -1581,6 +1590,8 @@ html[data-design="classic"] .rc-bar { display: none !important; }
   .sz-main { padding: 10px !important; }
   .sz-cards { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)) !important; }
   .sz-count { grid-column: 1 / -1 !important; }
+  .sz-home-cards { grid-template-columns: repeat(2, 1fr) !important; }
+  .sz-results :is(th, td):nth-child(3) { display: none; }   /* Résultats : la date laisse la place au vainqueur */
   .sz-upd { grid-template-columns: 1fr; }
   .sz-circs { grid-template-columns: 1fr; }
   .sz-hbar { grid-template-columns: 96px 1fr 64px; font-size: 12px; }
@@ -1640,8 +1651,10 @@ html[data-design="classic"] .rc-bar { display: none !important; }
 @media (hover: none) and (pointer: coarse) {
   #shortcutsBlock { display: none !important; }
 }
+/* Téléphones courants (jusqu'à 420 px) : colonnes serrées, la colonne Arrêts tient dans l'écran */
+@media (max-width: 420px) { .grid.mobile .tower td, .grid.mobile .tower th { padding-left: 3px; padding-right: 3px; } }
 @media (max-width: 380px) {
-  .grid.mobile .tower td, .grid.mobile .tower th { padding-left: 3px; padding-right: 3px; }
+  .grid.mobile .tower .c-tags .tag { font-size: 9px; letter-spacing: 0; padding: 0 3px; }
   .replaybar .rp-side .btn.small, .rp-speed { padding: 0 5px; }
   .replaybar .rp-side { gap: 5px; }
 }
@@ -3176,6 +3189,7 @@ html.float-mini .float-bar { top: auto; bottom: 4px; right: 24px; }   /* en bas 
   .set-brand { display: none; }
   #settingsModal .set-nav { flex-direction: row; overflow-x: auto; scrollbar-width: none; gap: 6px; }
   #settingsModal .set-nav::-webkit-scrollbar { display: none; }
+  #settingsModal .set-nav { mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent); }   /* d'autres rubriques à droite */
   #settingsModal .set-tab { width: auto; flex: none; padding: 6px 12px 6px 6px; border-radius: 999px; }
   #settingsModal .set-tab.active { box-shadow: 0 0 0 1px var(--border); }
   .set-ico { width: 26px; height: 26px; border-radius: 50%; }

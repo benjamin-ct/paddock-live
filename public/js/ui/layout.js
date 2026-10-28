@@ -403,6 +403,7 @@ function render(force = false) {
   document.documentElement.classList.toggle('simple', simple());
   document.documentElement.classList.toggle('essential', essential());
   document.documentElement.classList.toggle('ess-quali', essential() && profile === 'quali');
+  document.documentElement.classList.toggle('sess-race', profile === 'race');
   document.documentElement.classList.toggle('ess-big', essential() && big());
   renderKey = key;
   if (mobile()) { renderMobile(grid); return; }
