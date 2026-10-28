@@ -21,9 +21,11 @@ const FEATURES = [
   ['building', 3, { render_height: 11, render_min_height: 0 }, square(0, 0, 40)],
   ['landcover', 3, { class: 'wood', subclass: 'wood' }, square(1200, -400, 500)],
 ];
-function vtile(t) {
+// Tuiles Shortbread simulées : un parking (en dehors de la piste)
+const SB_FEATURES = [['sites', 3, { kind: 'parking' }, square(-300, -150, 80)]];
+function vtile(t, features = FEATURES) {
   const layers = {};
-  for (const [name, type, props, pts] of FEATURES) {
+  for (const [name, type, props, pts] of features) {
     let ring = pts.map((p) => toTile(p, t));
     // Anneau extérieur : sens des aiguilles d'une montre dans la tuile (y vers le bas)
     if (type === 3 && ring.reduce((s, p, i) => s + p[0] * ring[(i + 1) % ring.length][1] - ring[(i + 1) % ring.length][0] * p[1], 0) < 0) ring = ring.reverse();
@@ -33,10 +35,22 @@ function vtile(t) {
 }
 const TILE = terrariumTile((x) => 200 + x * 0.1);
 
-function setup({ mv = true, ofm = 200 } = {}) {
-  const asked = [];
-  const fetchFn = async (url) => {
+// Overpass simulé : une tribune près de la piste, un arbre isolé
+const stand = [...square(-100, -60, 50), geo(-100, -60)].map(([lat, lon]) => ({ lat, lon })), [tLat, tLon] = geo(1000, 200);
+const OV = { stands: { elements: [{ type: 'way', tags: { building: 'grandstand' }, geometry: stand }] },
+  trees: { elements: [{ type: 'node', lat: tLat, lon: tLon, tags: { natural: 'tree' } }] } };
+
+function setup({ mv = true, ofm = 200, sb = 200, ov = 200 } = {}) {
+  const asked = [], ctl = { ov };
+  const fetchFn = async (url, init) => {
     asked.push(url);
+    const s = /shortbread_v1\/(\d+)\/(\d+)\/(\d+)\.mvt$/.exec(url);
+    if (s) return sb === 200 ? new Response(vtile({ z: +s[1], x: +s[2], y: +s[3] }, SB_FEATURES)) : new Response('', { status: sb });
+    if (/overpass|mail\.ru/.test(url)) {
+      if (ctl.ov !== 200) return new Response('', { status: ctl.ov });
+      const q = init.body.get('data');
+      return new Response(JSON.stringify(q.includes('grandstand') ? OV.stands : q.includes('natural=tree') ? OV.trees : { elements: [] }));
+    }
     if (url.includes('multiviewer')) return mv ? new Response(JSON.stringify(raw)) : new Response('', { status: 404 });
     if (url === 'https://tiles.openfreemap.org/planet') return new Response(JSON.stringify({ tiles: ['https://ofm.test/planet/v1/{z}/{x}/{y}.pbf'] }));
     const t = /ofm\.test\/planet\/v1\/(\d+)\/(\d+)\/(\d+)\.pbf$/.exec(url);
@@ -51,7 +65,7 @@ function setup({ mv = true, ofm = 200 } = {}) {
   };
   const cache = new Map();
   globalThis.caches = { default: { match: async (r) => cache.get(r.url)?.clone() || null, put: async (r, res) => { cache.set(r.url, res); } } };
-  return { fetchFn, asked, media, MEDIA };
+  return { fetchFn, asked, media, MEDIA, ctl };
 }
 
 test('serveur : alentours d\'un circuit (calage, OSM, relief), lieu gardé pour les autres saisons', async () => {
@@ -129,10 +143,11 @@ test('serveur : file des alentours (demandé, prochain Grand Prix, catalogue des
     const order = [];
     for (let i = 1; i <= 5; i++) {
       const r = await surroundingsTick(env, { now: now + i * 60e3, fetchFn, pause: 0 });
-      order.push(r && `${r.key}:${r.year}`);
-      if (r) assert.equal(r.ok, false);
+      order.push(r && (r.extra ? `enrichissement ${r.key}` : `${r.key}:${r.year}`));
+      if (r && !r.extra) assert.equal(r.ok, false);
     }
-    assert.deepEqual(order, ['999:2026', '7:2026', '22:2026', '9:2024', null], 'demandé > prochain GP > catalogue, 9:2025 déjà fait');
+    assert.deepEqual(order, ['999:2026', '7:2026', '22:2026', '9:2024', 'enrichissement 9'], 'demandé > prochain GP > catalogue, 9:2025 déjà fait, puis l\'enrichissement');
+    assert.equal(JSON.parse(rows.get('surrx:9')).error, 'lieu à refaire', 'lieu calculé avant l\'enrichissement');
     assert.equal(rows.get('surrwant:999:2026'), '0');
     assert.equal(JSON.parse(rows.get('surr:22:2026')).error, 'tracé introuvable');
     // Réponse « pas encore calculé » : dernier essai, sa raison et le prochain essai
@@ -225,6 +240,81 @@ test('serveur : catalogue des replays (Jolpica × archives de la F1), un couple 
     assert.deepEqual(await catalogue(env, { now: at, fetchFn, pause: 0, token: 'jeton' }), mixed);
     assert.deepEqual(saved().errors, ['Jolpica 2019 : HTTP 503 (2 essais)', 'archives 2018 : 2018/Index.json : HTTP 403', 'Jolpica 2018 : HTTP 503 (2 essais)']);
     assert.equal(saved().at, at - 7 * 86400e3 + 6 * 3600e3);
+  } finally {
+    delete globalThis.caches;
+  }
+});
+
+test('serveur : enrichissement après le calcul de base (parkings Shortbread, tribunes et arbres d\'Overpass), fichiers refaits', async () => {
+  const { fetchFn, asked, media, MEDIA, ctl } = setup({ ov: 504 });
+  const now = Date.parse('2026-10-27T12:00:00Z');
+  const rows = new Map([['season:2026', JSON.stringify({ at: now, v: { races: [] } })], ['surrcat', JSON.stringify({ at: now, list: [[999, 2026, AT.lat, AT.lon], [999, 2025, AT.lat, AT.lon]] })]]);
+  const env = { DB: db(rows), MEDIA };
+  const tick = (t) => surroundingsTick(env, { now: t, fetchFn, pause: 0 });
+  const file = () => JSON.parse(media.get('surroundings/999-2026.json'));
+  try {
+    // Calcul de base des deux saisons, servi tout de suite, sans enrichissement
+    assert.equal((await tick(now))?.ok, true);
+    assert.equal((await tick(now + 60e3))?.ok, true);
+    const first = file();
+    assert.deepEqual([first.stands.length, first.areas.parking, JSON.parse(rows.get('surr:999:2026')).v], [0, undefined, 2]);
+    const place = JSON.parse(media.get('surroundings/place-999.json'));
+    assert.ok(place.path.length >= 40 && place.near.s > place.zone.s, 'tracé et zone proche gardés pour l\'enrichissement');
+    // Overpass injoignable : parkings gardés quand même, fichiers à refaire (l'ancien reste servi) ; Overpass revu 1 h plus tard
+    asked.length = 0;
+    let r = await tick(now + 120e3);
+    assert.deepEqual(r.extra, ['parking']);
+    assert.equal(asked.filter((u) => /overpass|mail\.ru/.test(u)).length, 6, 'trois serveurs, deux requêtes');
+    assert.equal(r.errors[0], 'Overpass : overpass-api.de HTTP 504, overpass.private.coffee HTTP 504, maps.mail.ru HTTP 504');
+    let x = JSON.parse(rows.get('surrx:999'));
+    assert.deepEqual([x.have, x.tries, x.next], [['parking'], 1, now + 120e3 + 3600e3]);
+    assert.equal(JSON.parse(rows.get('surr:999:2026')).stale, true);
+    assert.equal(await (await surroundingsWeb(env, 999, 2026, now)).text(), JSON.stringify(first), 'ancien fichier servi en attendant');
+    rows.set('surridle', '0');
+    assert.equal((await tick(now + 180e3))?.ok, true);
+    assert.equal((await tick(now + 240e3))?.ok, true);
+    assert.ok(file().areas.parking.length >= 1, 'parking (en morceaux s\'il est sur deux tuiles)');
+    assert.equal(JSON.parse(rows.get('surr:999:2026')).stale, undefined);
+    assert.equal(await tick(now + 300e3), null, 'Overpass pas encore à revoir');
+    // Toujours injoignable : revu 2 h plus tard ; puis il répond : tribune et arbre, fichiers refaits, plus rien à lire
+    rows.set('surrxidle', '0');
+    r = await tick(now + 2 * 3600e3);
+    x = JSON.parse(rows.get('surrx:999'));
+    assert.deepEqual([r.extra, x.tries, x.next], [[], 2, now + 4 * 3600e3]);
+    ctl.ov = 200;
+    rows.set('surrxidle', '0');
+    r = await tick(now + 4 * 3600e3 + 60e3);
+    assert.deepEqual(r.extra, ['stands', 'trees']);
+    x = JSON.parse(rows.get('surrx:999'));
+    assert.deepEqual([x.have, x.next, x.tries], [['parking', 'stands', 'trees'], 0, undefined]);
+    rows.set('surridle', '0');
+    await tick(now + 4 * 3600e3 + 120e3);
+    assert.equal(file().stands.length, 1);
+    assert.deepEqual(file().trees.slice(0, 2), [1000, 200], 'arbre isolé d\'abord');
+    await tick(now + 4 * 3600e3 + 180e3);
+    rows.set('surrxidle', '0');
+    assert.equal(await tick(now + 30 * 3600e3), null, 'tout est lu');
+  } finally {
+    delete globalThis.caches;
+  }
+});
+
+test('serveur : fichier d\'une ancienne version refait ; s\'il échoue, l\'ancien reste servi', async () => {
+  const { fetchFn, MEDIA, media } = setup({ mv: false });
+  const now = Date.parse('2026-10-27T12:00:00Z');
+  const rows = new Map([['season:2026', JSON.stringify({ at: now, v: { races: [] } })], ['surrcat', JSON.stringify({ at: now, list: [[999, 2026, AT.lat, AT.lon]] })],
+    ['surr:999:2026', JSON.stringify({ at: now - 86400e3, ok: true, next: now - 3600e3 })], ['surrxidle', String(now)]]);
+  media.set('surroundings/999-2026.json', '{"ancien":1}');
+  const env = { DB: db(rows), MEDIA };
+  try {
+    assert.equal((await surroundingsTick(env, { now, fetchFn, pause: 0 }))?.error, 'tracé introuvable');
+    const row = JSON.parse(rows.get('surr:999:2026'));
+    assert.deepEqual([row.ok, row.v, row.error], [true, 2, 'tracé introuvable'], 'pas retenté');
+    assert.equal(await (await surroundingsWeb(env, 999, 2026, now)).text(), '{"ancien":1}');
+    assert.equal(await surroundingsStatus(env, 999, 2026), null);
+    rows.set('surridle', '0');
+    rows.set('surrxidle', String(now + 7 * 3600e3));
+    assert.equal(await surroundingsTick(env, { now: now + 7 * 3600e3, fetchFn, pause: 0 }), null);
   } finally {
     delete globalThis.caches;
   }

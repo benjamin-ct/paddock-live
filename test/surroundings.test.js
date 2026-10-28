@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { decodePng, terrarium, demSampler, tilesFor, lonToPx, latToPx, geoFrame, fitTrack, toEN, fromEN, simplify, clipRing, clipLine,
-  buildSurroundings, buildingHeight, areaKind, omtElements, MAX } from '../shared/surroundings.js';
+  buildSurroundings, buildingHeight, areaKind, omtElements, SHORTBREAD, extraQueries, overpassElements, MAX } from '../shared/surroundings.js';
 import { decodeMvt } from '../shared/mvt.js';
 import { png, terrariumTile } from './fixtures/png.js';
 import { mvt } from './fixtures/mvt.js';
@@ -191,4 +191,43 @@ test('alentours : données compactes, plafonnées, rien sur la piste', () => {
   }
   // Relief manquant sur une partie de la zone : rien
   assert.equal(buildSurroundings({ track: sq, fit, frame, dem: (lat) => (lat > 45.01 ? NaN : 1) }), null);
+});
+
+test('alentours : enrichissement (parkings Shortbread, réponse Overpass, requêtes ciblées le long du tracé)', () => {
+  const sq = (lat, lon, d = 0.001) => [[[[lat, lon], [lat, lon + d], [lat + d, lon + d], [lat + d, lon]]]];
+  const sb = omtElements([{ sites: [{ type: 'polygon', props: { kind: 'parking' }, geom: sq(45, 5) }, { type: 'polygon', props: { kind: 'school' }, geom: sq(45, 5) }],
+    buildings: [{ type: 'polygon', props: {}, geom: sq(45, 5) }] }], { s: 44, w: 4, n: 46, e: 6 }, SHORTBREAD);
+  assert.deepEqual(sb.map((e) => [e.tags, e.geometry.length]), [[{ amenity: 'parking' }, 5]], 'parkings seulement');
+  const ov = overpassElements({ elements: [
+    { type: 'way', id: 1, tags: { building: 'grandstand', name: 'Tribune', 'building:levels': '3' }, geometry: [{ lat: 45.1234567, lon: 5 }, { lat: 45.2, lon: 5 }, { lat: 45.2, lon: 5.1 }] },
+    { type: 'node', id: 2, lat: 45.3, lon: 5.3, tags: { natural: 'tree', species: 'Quercus' } },
+    { type: 'way', id: 3, tags: { building: 'stadium' } },   // sans géométrie : écarté
+  ] });
+  assert.deepEqual(ov, [{ type: 'way', tags: { building: 'grandstand', 'building:levels': '3' }, geometry: [{ lat: 45.123457, lon: 5 }, { lat: 45.2, lon: 5 }, { lat: 45.2, lon: 5.1 }] },
+    { type: 'node', lat: 45.3, lon: 5.3, tags: { natural: 'tree' } }]);
+  const q = extraQueries({ s: 45, w: 5, n: 45.01, e: 5.02 }, [45.001, 5.001, 45.002, 5.003]);
+  assert.match(q.stands, /way\[building~"\^\(grandstand\|stadium\)\$"\]\(45\.00000,5\.00000,45\.01000,5\.02000\);out geom/);
+  assert.match(q.trees, /node\[natural=tree\]\(around:250,45\.00100,5\.00100,45\.00200,5\.00300\);out qt/);
+});
+
+test('alentours : tribunes d\'Overpass à la place du bâtiment des tuiles, arbres isolés près de la piste d\'abord', () => {
+  const sq = [];
+  for (let i = 0; i < 400; i++) { const s = i % 100, k = Math.floor(i / 100); sq.push([[s * 10, 0], [1000, s * 10], [1000 - s * 10, 1000], [0, 1000 - s * 10]][k]); }
+  const frame = geoFrame(45, 5), fit = { s: 1, a: 0, e: 0, n: 0 };
+  const g = (x, y) => { const [lat, lon] = frame.toGeo(x, y); return { lat, lon }; };
+  const ring = (x0, y0, w, h) => [g(x0, y0), g(x0 + w, y0), g(x0 + w, y0 + h), g(x0, y0 + h), g(x0, y0)];
+  const elements = [
+    { type: 'way', tags: { building: 'yes', height: 12 }, geometry: ring(100, -60, 300, 30) },   // tuiles
+    { type: 'way', tags: { building: 'grandstand' }, geometry: ring(98, -62, 304, 34) },         // Overpass, même tribune
+    { type: 'way', tags: { building: 'yes' }, geometry: ring(500, 300, 40, 40) },
+    { type: 'way', tags: { landuse: 'forest' }, geometry: ring(-1100, -1100, 900, 3000) },
+    { type: 'node', lat: g(1100, 500).lat, lon: g(1100, 500).lon, tags: { natural: 'tree' } },
+    { type: 'node', lat: g(500, 3).lat, lon: g(500, 3).lon, tags: { natural: 'tree' } },          // sur la piste : écarté
+  ];
+  const d = buildSurroundings({ track: sq, fit, frame, elements, dem: () => 100, max: { ...MAX, trees: 20 } });
+  assert.equal(d.stands.length, 1);
+  assert.deepEqual(d.buildings.map((b) => b[0]), [7], 'bâtiment des tuiles sous la tribune retiré');
+  assert.deepEqual(d.trees.slice(0, 2), [1100, 500], 'arbre isolé d\'abord');
+  assert.equal(d.trees.length, 40);
+  assert.ok(!d.trees.some((v, i) => i % 2 === 0 && v === 500 && d.trees[i + 1] === 3));
 });
