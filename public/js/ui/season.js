@@ -636,8 +636,8 @@ function renderTitle() {
     : `<section class="sz-box"><h3>${t('Championnat constructeurs')}</h3>${head(tr.constructors, tr.champTeam, 'c')}${clinchBox(tr.clinchC, 'c')}<div class="tr-grid">${tr.constructors.map(teamCard).join('')}</div></section>`}`;
 }
 
-// Comparer deux saisons : classements pilotes ou constructeurs après le même nombre de Grands Prix, côte à côte ;
-// pour chaque pilote (ou écurie) de la saison affichée, sa place et ses points au même moment de l'autre saison
+// Comparer deux saisons : un seul tableau, une ligne par pilote (ou écurie) de la saison affichée, avec ses points et
+// sa place après le même nombre de Grands Prix dans l'autre saison, l'écart de points et la place gagnée ou perdue
 function renderCompare() {
   const other = cmpYear && cmpYear !== data.year ? cmpYear : data.year - 1;
   const ran = data.races.filter(done).length || data.races.length;
@@ -654,26 +654,27 @@ function renderCompare() {
   if (!data.races.some(done)) return `${picks}<div class="note small">${t('Aucun Grand Prix couru en {} pour l\'instant.', data.year)}</div>`;
   if (!o || o.loading) return `${picks}<div class="note small">${t('Chargement de la saison {}…', other)}</div>`;
   if (o.error || !o.races?.length) return `${picks}<div class="note small">${t('Saison {} indisponible.', other)}</div>`;
-  const a = standingsAfter(data, round), b = standingsAfter(o, round);
   const key = cmpKind === 'd' ? 'drivers' : 'constructors';
-  const atB = new Map(b[key].map((e) => [e.key, e]));
-  const who = (e) => (cmpKind === 'd' ? `${bar(e.team, e.teamId)}<b>${esc(e.last || e.name)}</b> <span class="muted small">${esc(e.team)}</span>` : `${bar(e.name, e.id)}<b>${esc(e.name)}</b>`);
-  const head = (y, d, s) => {
-    const r = raceOf(d), [l1, l2] = s[key];
-    return `<h3>${y} · ${t('après {}', esc(gpShort(r?.name || '', EN)))}</h3>
-      <div class="muted small">${l1 ? `${t('Leader')} : <b>${esc(l1.last || l1.name)}</b>, ${l1.points} pts${l2 ? ` · ${t('{} pts d\'avance', l1.points - l2.points)}` : ''}` : ''}</div>`;
+  const a = standingsAfter(data, round)[key], b = standingsAfter(o, round)[key];
+  const atB = new Map(b.map((e) => [e.key, e]));
+  const name = (e) => esc(e.last || e.name);
+  const who = (e) => (cmpKind === 'd' ? `${bar(e.team, e.teamId)}<b>${name(e)}</b> <span class="muted small">${esc(e.team)}</span>` : `${bar(e.name, e.id)}<b>${name(e)}</b>`);
+  // En tête : où en était chaque saison à ce moment (leader et son avance)
+  const lead = (y, d, l) => `<div class="sz-card"><div class="muted small">${t('{} · après {}', y, esc(gpShort(raceOf(d)?.name || '', EN)))}</div>
+      <div class="sz-big">${l[0] ? `${cmpKind === 'd' ? bar(l[0].team, l[0].teamId) : bar(l[0].name, l[0].id)}${name(l[0])}` : '—'}</div>
+      <div class="muted small">${l[0] ? `${t('en tête avec {} pts', l[0].points)}${l[1] ? ` · ${t('{} pts d\'avance sur {}', l[0].points - l[1].points, name(l[1]))}` : ''}` : ''}</div></div>`;
+  const sign = (v, unit = '') => (v > 0 ? `<b class="up">+${v}${unit}</b>` : v < 0 ? `<b class="down">−${-v}${unit}</b>` : `<span class="muted">=</span>`);
+  const row = (e) => {
+    const x = atB.get(e.key);
+    return `<tr><td>${e.pos}</td><td>${who(e)}</td><td><b>${e.points}</b></td>
+      ${x ? `<td>${x.points} <span class="muted small">P${x.pos}</span></td><td>${sign(e.points - x.points)}</td><td>${x.pos === e.pos ? '<span class="muted">=</span>' : sign(x.pos - e.pos, x.pos > e.pos ? ' ▲' : ' ▼')}</td>`
+    : `<td class="muted" colspan="3">${t('pas en {}', other)}</td>`}</tr>`;
   };
-  const table = (s, cross) => {
-    const lead = s[key][0]?.points || 0;
-    return `<div class="sz-scroll"><table class="sz-table"><tr><th>${t('Pos.')}</th><th>${cmpKind === 'd' ? t('Pilote') : t('Écurie')}</th><th>${t('Points')}</th><th>${t('Écart')}</th>${cross ? `<th>${t('En {}', other)}</th>` : ''}</tr>
-      ${s[key].map((e) => {
-        const x = cross && atB.get(e.key);
-        const was = !cross ? '' : x ? `<td class="small">P${x.pos} · ${x.points} pts <span class="muted">(${e.points - x.points >= 0 ? '+' : '−'}${Math.abs(e.points - x.points)})</span></td>` : '<td class="muted small">—</td>';
-        return `<tr><td>${e.pos}</td><td>${who(e)}</td><td><b>${e.points}</b></td><td class="muted">${e.points === lead ? '—' : `−${lead - e.points}`}</td>${was}</tr>`;
-      }).join('')}</table></div>`;
-  };
-  return `${picks}<div class="sz-grid2"><section class="sz-box">${head(data.year, data, a)}${table(a, true)}</section>
-    <section class="sz-box">${head(other, o, b)}${table(b, false)}</section></div>`;
+  return `${picks}<div class="sz-cards">${lead(data.year, data, a)}${lead(other, o, b)}</div>
+    <section class="sz-box"><h3>${t('{} face à {}, après {} Grands Prix', data.year, other, round)}</h3>
+      <p class="hint">${t('Chaque ligne : les points en {} et, à côté, ceux du même {} au même moment de {}.', data.year, cmpKind === 'd' ? t('pilote') : t('écurie'), other)}</p>
+      <div class="sz-scroll"><table class="sz-table"><tr><th>${t('Pos.')}</th><th>${cmpKind === 'd' ? t('Pilote') : t('Écurie')}</th><th>${t('Points {}', data.year)}</th><th>${t('Points {}', other)}</th><th>${t('Écart')}</th><th>${t('Place')}</th></tr>
+      ${a.map(row).join('')}</table></div></section>`;
 }
 
 // Explication en tête des vues qui n'en ont pas déjà une

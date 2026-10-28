@@ -1,6 +1,16 @@
 // Interface en anglais : traduction de chaque texte français affiché (voir i18n.js).
 // {} = valeur dynamique (dans l'ordre), {0}, {1}… pour changer l'ordre en anglais.
 export default {
+  "{} · après {}": "{} · after {}",
+  "en tête avec {} pts": "leading with {} pts",
+  "{} pts d'avance sur {}": "{} pts ahead of {}",
+  "pas en {}": "not in {}",
+  "{} face à {}, après {} Grands Prix": "{} vs {}, after {} Grands Prix",
+  "Chaque ligne : les points en {} et, à côté, ceux du même {} au même moment de {}.": "Each row: points in {} and, next to them, the same {}'s points at the same point of {}.",
+  "écurie": "team",
+  "pilote": "driver",
+  "Points {}": "Points {}",
+  "Place": "Position",
   "Championnat des casseurs": "Destructors' Championship",
   "Déflecteurs": "Bargeboard",
   "Châssis de rechange": "Additional chassis",
@@ -26,10 +36,7 @@ export default {
   "Après le": "After the",
   "{} Grand Prix": "{} Grand Prix",
   "Aucun Grand Prix couru en {} pour l'instant.": "No Grand Prix run in {} yet.",
-  "après {}": "after {}",
   "Leader": "Leader",
-  "{} pts d'avance": "{} pts ahead",
-  "En {}": "In {}",
   "Points": "Points",
   "— aucune station —": "— no station —",
   "— Choisir —": "— Choose —",
