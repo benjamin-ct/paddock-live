@@ -516,6 +516,32 @@ test('relais web : au repos hors séance (F1 débranchée, veille), réveillé a
   for (const t of relay.timers) clearInterval(t), clearTimeout(t);
 });
 
+test('relais web : une page qui arrive pendant le repos reçoit « Hors séance » sans rebrancher la F1', async () => {
+  const sockets = [];
+  globalThis.WebSocketPair = class {
+    constructor() {
+      const s = { sent: [], accept() {}, addEventListener() {}, send(m) { this.sent.push(JSON.parse(m)); }, close() {} };
+      sockets.push(s);
+      return { 0: {}, 1: s };
+    }
+  };
+  try {
+    // Relais sorti de la veille complète (état oublié) : le réveil programmé dit qu'il est au repos
+    const wake = Date.now() + 86400e3;
+    const relay = new LiveRelay({ storage: { getAlarm: async () => wake } }, {});
+    let connects = 0;
+    relay.connect = () => { connects++; };
+    const req = new Request('https://relay/ws', { headers: { Upgrade: 'websocket', Origin: 'https://app.paddocklive.app', 'X-Relay': 'live' } });
+    await relay.fetch(req).catch(() => {});
+    const hello = sockets.at(-1).sent.find((m) => m.type === 'hello');
+    assert.deepEqual([hello.status.rest, hello.status.next, !!relay.active, connects], [true, wake + LEAD_MS, false, 0]);
+    // Réveil avant la séance : rebranché pour les pages ouvertes
+    await relay.alarm();
+    assert.deepEqual([relay.active, relay.resting, connects], [true, false, 1]);
+    relay.clients.clear(); relay.stop();
+  } finally { delete globalThis.WebSocketPair; }
+});
+
 test('relais web : connexions des navigateurs retrouvées après la veille (adresse, appareil, relais)', () => {
   const ws = { deserializeAttachment: () => ({ nets: ['1.2.3.4'], ua: 'iPhone', since: 5, name: 'u:abc' }) };
   const relay = new LiveRelay({ getWebSockets: () => [ws] }, {});

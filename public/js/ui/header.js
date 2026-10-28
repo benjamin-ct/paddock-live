@@ -242,6 +242,13 @@ export function initGpsBadge() {
     toast('GPS repris sur cet appareil');
   }, true);
 }
+// Version web sur téléphone (étiquette masquée faute de place, seul le point reste) : le toucher dit l'état du direct
+export function initSourceTap() {
+  $('#sourceBadge')?.addEventListener('click', () => {
+    const lbl = $('#sourceLabel'), title = $('#sourceBadge').title;
+    if (getComputedStyle(lbl).display === 'none') toast(title ? `${lbl.textContent} — ${title}` : lbl.textContent, 6000);
+  });
+}
 export function renderSource() {
   const st = store.status;
   const badge = $('#sourceBadge');

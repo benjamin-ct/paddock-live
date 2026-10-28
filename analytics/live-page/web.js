@@ -7,7 +7,7 @@ import { applyEvent } from '/shared/derive.js';
 import { gpShort } from '/shared/gp-names.js';
 import { $$, esc } from './util.js';
 import { WebHub } from './web-hub.js';
-import { renderHeader, renderSource, initGpsBadge } from './ui/header.js';
+import { renderHeader, renderSource, initGpsBadge, initSourceTap } from './ui/header.js';
 import { initTower, renderTower } from './ui/tower.js';
 import { initMap } from './ui/map.js';
 import { renderRcm, initRcmFilters, initStewards, renderStewards } from './ui/feed.js';
@@ -305,6 +305,7 @@ document.querySelector('.p-analysis [data-tab="telemetry"]')?.click();
 on('status', renderSource);
 on('connection', renderSource);
 initGpsBadge();
+initSourceTap();
 on('focus', () => renderTower(true));
 on('duel', () => renderTower(true));
 // Connexion F1 TV gardée d'une ouverture à l'autre sur cet appareil : reprise avant la connexion, pour rejoindre
