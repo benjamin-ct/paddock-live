@@ -450,7 +450,7 @@ export async function appEditor(back) {
           const opts = { ...track(), onProgress: (x) => { $('#vidst').textContent = `${v.video ? 'Habillage de votre vidéo' : 'Enregistrement'}… ${Math.round(x * 100)} %`; } };
           // Sans vidéo à vous : les images gardées au format story, enchaînées (comme la vidéo des visuels des autres posts)
           const list = chosenSlides(slidesFor(d, { fmt: 'story' }), [...state.skip]);
-          clip = v.video ? await makeClipVideo(v.video, d, await assets(d), opts) : await makeVideo(list.map((sl) => drawSlide(document.createElement('canvas'), sl, 'story', d, { slides: list })), opts);
+          clip = v.video ? await makeClipVideo(v.video, d, await assets(d), opts) : await makeVideo(list.map((sl) => drawSlide(document.createElement('canvas'), sl, 'story', d, { slides: list, video: true })), opts);
           $('#vid').src = URL.createObjectURL(clip.blob); $('#vid').hidden = false;
           $('#sharevid').disabled = false; $('#sharefull').disabled = false;
           v.made = clipFile(clip, 'paddock-live');

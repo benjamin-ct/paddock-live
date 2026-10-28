@@ -2,7 +2,7 @@
 // fond transparent, même délai TV que l'appli. ?w= : banner (bandeaux de drapeau), laps (compteur de
 // tours), countdown (compte à rebours), podium (trois premiers), telemetry (compteur du pilote suivi
 // dans l'appli, sinon du leader). Le contenu est mis à l'échelle de la source.
-import { translatePage, EN, t } from './i18n.js';
+import { translatePage, EN, LANG, LOCALE, DAY, t } from './i18n.js';
 import { store, versionOf, on } from './store.js';
 import { $, esc, api, drivers, orderedNumbers, sessionKind, teamColor, fmtDuration } from './util.js';
 import { gpShort, gpFull, sessionLabel } from '/shared/gp-names.js';
@@ -36,7 +36,7 @@ function show(html) {
 
 const WAIT = '<div class="ov-card ov-wait">En attente des données de la séance…</div>';
 const finished = () => ['Finished', 'Finalised', 'Ends'].includes(store.state.SessionStatus?.Status);
-const session = () => { const i = store.state.SessionInfo; return i ? `${EN ? gpFull(i.Meeting?.Name, true, 'GP') : gpShort(i.Meeting?.Name)} · ${sessionLabel(i.Name, EN)}` : ''; };
+const session = () => { const i = store.state.SessionInfo; return i ? `${EN ? gpFull(i.Meeting?.Name, true, 'GP') : gpShort(i.Meeting?.Name, LANG)} · ${sessionLabel(i.Name, LANG)}` : ''; };
 const clock = (ms) => (ms === null ? '—' : fmtDuration(ms, ms >= 3600e3));
 
 // Bandeaux : drapeau rouge, SC, VSC, jaune, vert à la reprise ; damier 30 s à l'arrivée
@@ -61,7 +61,7 @@ function laps() {
     value = cur ? `${cur}<small> / ${tot || '—'}</small>` : '—';
     if (tot) { frac = Math.min(1, cur / tot); sub = finished() ? 'Arrivée' : tot - cur + 1 > 1 ? `${tot - cur + 1} tours restants` : 'Dernier tour'; }
   } else {
-    label = kind === 'quali' ? 'Qualifications' : sessionLabel(s.SessionInfo.Name, EN);
+    label = kind === 'quali' ? 'Qualifications' : sessionLabel(s.SessionInfo.Name, LANG);
     const part = s.TimingData?.SessionPart;
     value = kind === 'quali' && part ? `${/sprint/i.test(s.SessionInfo.Name) ? 'SQ' : 'Q'}${part}` : clock(timeLeft());
     sub = kind === 'quali' ? `Temps restant ${clock(timeLeft())}` : 'Temps restant';
@@ -92,9 +92,9 @@ function countdown() {
   const left = Math.floor((nx.t - Date.now()) / 1000);
   const d = Math.floor(left / 86400);
   const two = (n) => String(n).padStart(2, '0');
-  show(`<div class="ov-card"><div class="ov-label">${esc(gpFull(nx.race, EN))}</div>
-    <div class="ov-big">${d ? `${d}<small> ${EN ? 'd' : 'j'}</small> ` : ''}${two(Math.floor(left / 3600) % 24)}:${two(Math.floor(left / 60) % 60)}:${two(left % 60)}</div>
-    <div class="ov-sub">${esc(t(nx.label))} · ${esc(new Date(nx.t).toLocaleString(EN ? 'en-GB' : 'fr-FR', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }))}</div></div>`);
+  show(`<div class="ov-card"><div class="ov-label">${esc(gpFull(nx.race, LANG))}</div>
+    <div class="ov-big">${d ? `${d}<small> ${DAY}</small> ` : ''}${two(Math.floor(left / 3600) % 24)}:${two(Math.floor(left / 60) % 60)}:${two(left % 60)}</div>
+    <div class="ov-sub">${esc(t(nx.label))} · ${esc(new Date(nx.t).toLocaleString(LOCALE, { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }))}</div></div>`);
 }
 
 // Podium : les trois premiers (podium à l'arrivée d'une course), écart au premier ou meilleur temps

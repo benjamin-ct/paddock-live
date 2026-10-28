@@ -3,7 +3,7 @@ import { store, setDelay, serverNow, on } from '../store.js';
 import { $, esc, fmtDelay, storageGet, storageSet, drivers } from '../util.js';
 import { prefs, setPref } from '../prefs.js';
 import { icon, arrows } from '../icons.js';
-import { DEC, EN } from '../i18n.js';
+import { DEC, FR } from '../i18n.js';
 import { rcmFr } from '/shared/rcm-fr.js';
 import { MIN_DELAY_MS } from '/shared/f1.js';
 
@@ -101,7 +101,7 @@ function renderSyncList() {
       // sauf les changements de tour qui ne révèlent rien.
       const hidden = !prefs.spoilers && e.t > shownUntil && e.kind !== 'lap' && e.kind !== 'session';
       const who = e.num && !hidden ? `${dl[e.num]?.Tla || '#' + e.num} ` : '';
-      const text = hidden ? MASKED[e.kind] || 'Événement (masqué)' : (e.kind === 'rcm' && !EN && rcmFr(e.text)) || e.text;
+      const text = hidden ? MASKED[e.kind] || 'Événement (masqué)' : (e.kind === 'rcm' && FR && rcmFr(e.text)) || e.text;
       return `<li class="${e.kind}">
         <div><div class="se-text"><span class="se-kind">${KIND_LABEL[e.kind] || e.kind}</span>${esc(who + text)}</div>
         <div class="se-meta">Il y a ${ago.toFixed(1).replace('.', DEC)} s en live${e.hint ? ' · ' + esc(e.hint) : ''}</div></div>

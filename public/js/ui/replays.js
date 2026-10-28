@@ -4,7 +4,7 @@ import { $, $$, esc, api, placeView } from '../util.js';
 import { store, on } from '../store.js';
 import { toast } from './delay.js';
 import { icon } from '../icons.js';
-import { LOCALE, EN } from '../i18n.js';
+import { LOCALE, LANG, DEC } from '../i18n.js';
 import { gpFull, sessionLabel } from '/shared/gp-names.js';
 
 let section = 'gp';
@@ -40,8 +40,8 @@ async function renderGps(body) {
   if (!d.meetings.length) { body.innerHTML = `<div class="muted">Aucune séance disponible pour ${year}.</div>`; return; }
   const playing = store.status?.source?.mode === 'replay' ? store.status.source.path : null;
   body.innerHTML = `<div class="rv-grid">${d.meetings.map((m) => `<section class="sz-box rv-gp">
-      <div class="rv-gp-head"><b>${esc(gpFull(m.name, EN))}</b><span class="muted small">${esc([m.location, fmtDay(m.sessions.at(-1)?.start)].filter(Boolean).join(' · '))}</span></div>
-      <div class="rv-sessions">${m.sessions.map((s) => `<button class="btn small${s.path === playing ? ' on' : ''}" data-rv-path="${esc(s.path)}" data-rv-name="${esc(`${gpFull(m.name, EN)} — ${sessionLabel(s.name, EN)}`)}">${icon('play')} ${esc(sessionLabel(s.name, EN))}</button>`).join('')}</div>
+      <div class="rv-gp-head"><b>${esc(gpFull(m.name, LANG))}</b><span class="muted small">${esc([m.location, fmtDay(m.sessions.at(-1)?.start)].filter(Boolean).join(' · '))}</span></div>
+      <div class="rv-sessions">${m.sessions.map((s) => `<button class="btn small${s.path === playing ? ' on' : ''}" data-rv-path="${esc(s.path)}" data-rv-name="${esc(`${gpFull(m.name, LANG)} — ${sessionLabel(s.name, LANG)}`)}">${icon('play')} ${esc(sessionLabel(s.name, LANG))}</button>`).join('')}</div>
     </section>`).join('')}</div>`;
 }
 
@@ -49,7 +49,7 @@ async function renderGps(body) {
 function recLabel(name) {
   const m = /^(\d{4}-\d{2}-\d{2}) (.+? Grand Prix) (.+?) \d+$/.exec(name || '');
   if (!m) return { title: name, date: '' };
-  return { title: `${gpFull(m[2], EN, 'GP')} · ${sessionLabel(m[3], EN)}`, date: new Date(`${m[1]}T12:00:00`).toLocaleDateString(LOCALE, { day: 'numeric', month: 'short', year: 'numeric' }) };
+  return { title: `${gpFull(m[2], LANG, 'GP')} · ${sessionLabel(m[3], LANG)}`, date: new Date(`${m[1]}T12:00:00`).toLocaleDateString(LOCALE, { day: 'numeric', month: 'short', year: 'numeric' }) };
 }
 
 async function renderRecordings(body) {
@@ -59,7 +59,7 @@ async function renderRecordings(body) {
   if (section !== 'rec') return;
   const total = recs.reduce((n, r) => n + r.size, 0);
   body.innerHTML = `${recs.length ? `<div class="row small muted rec-total">${recs.length} enregistrement${recs.length > 1 ? 's' : ''} · ${(total / 1e6).toFixed(0)} Mo · les 15 plus récents sont gardés<span class="spacer"></span><button class="btn small" data-rv-delall>${icon('close')} Tout supprimer</button></div>` : ''}${recs.length ? `<div class="sz-box rec-list">${recs.map((r) => { const l = recLabel(r.name); return `<div class="rec"><span class="rec-name" title="${esc(r.name)}">${esc(l.title)}${l.date ? ` <span class="muted small">${esc(l.date)}</span>` : ''}</span>
-      <span class="muted">${(r.size / 1e6).toFixed(1).replace('.', EN ? '.' : ',')} Mo</span>
+      <span class="muted">${(r.size / 1e6).toFixed(1).replace('.', DEC)} Mo</span>
       <button class="btn small" data-rv-local="${esc(r.id)}" data-rv-name="${esc(l.title)}">${icon('play')} Revoir</button><button class="btn small" data-rv-del="${esc(r.id)}" title="Supprimer">${icon('trash')}</button></div>`; }).join('')}</div>`
       : '<div class="muted">Aucun enregistrement : ils se créent pendant les séances en direct.</div>'}`;
 }

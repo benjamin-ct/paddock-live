@@ -322,18 +322,22 @@ function createSplash() {
   });
   win.once('ready-to-show', () => win.show());
   win.on('closed', () => { if (!mainWindow && !splashDone) app.quit(); });
-  win.loadFile(path.join(__dirname, 'splash.html'), { query: { lang: uiEn() ? 'en' : 'fr' } });
+  win.loadFile(path.join(__dirname, 'splash.html'), { query: { lang: uiLang() } });
   return win;
 }
 
 let splashDone = false;
 
-// Langue de l'interface (choisie dans l'appli, sinon celle du système) pour l'écran de démarrage
-function uiEn() {
+// Langue de l'interface (choisie dans l'appli, sinon celle du système : français, italien, espagnol, sinon
+// anglais) pour l'écran de démarrage
+const UI_LANGS = ['fr', 'en', 'it', 'es'];
+function uiLang() {
   const l = readState().uiLang;
-  return l ? l === 'en' : !String(app.getLocale() || 'fr').toLowerCase().startsWith('fr');
+  if (UI_LANGS.includes(l)) return l;
+  const sys = String(app.getLocale() || 'fr').toLowerCase().slice(0, 2);
+  return UI_LANGS.includes(sys) ? sys : 'en';
 }
-const T = (fr, en) => (uiEn() ? en : fr);
+const T = (fr, en, it, es) => ({ fr, en, it, es })[uiLang()] ?? en;
 
 // Met à jour le texte de l'écran de démarrage (progress : null = activité, 0…1, false = sans barre)
 function splashSay(win, title, detail = '', progress = null) {
@@ -342,20 +346,23 @@ function splashSay(win, title, detail = '', progress = null) {
   if (win.webContents.isLoading()) win.webContents.once('did-finish-load', run); else run();
 }
 
-const mo = (b) => `${Math.round(b / 1048576)} ${T('Mo', 'MB')}`;
+const mo = (b) => `${Math.round(b / 1048576)} ${T('Mo', 'MB', 'MB', 'MB')}`;
 
 // Avancement de la mise à jour affiché sur l'écran de démarrage
 function splashUpdate(win, st) {
-  if (st.status === 'checking') splashSay(win, T('Recherche de mise à jour…', 'Checking for updates…'));
+  if (st.status === 'checking') splashSay(win, T('Recherche de mise à jour…', 'Checking for updates…', 'Ricerca di aggiornamenti…', 'Buscando actualizaciones…'));
   else if (st.status === 'downloading') {
     win.webContents.executeJavaScript('later(true)').catch(() => {});
     const size = st.asset?.size;
-    const next = T('l\'appli s\'ouvrira sur la nouvelle version', 'the app will open on the new version');
-    splashSay(win, T(`Téléchargement de la version ${st.latest?.version}…`, `Downloading version ${st.latest?.version}…`),
+    const next = T('l\'appli s\'ouvrira sur la nouvelle version', 'the app will open on the new version', 'l\'app si aprirà sulla nuova versione', 'la aplicación se abrirá con la nueva versión');
+    const v = st.latest?.version;
+    splashSay(win, T(`Téléchargement de la version ${v}…`, `Downloading version ${v}…`, `Download della versione ${v}…`, `Descargando la versión ${v}…`),
       size ? `${mo(size * (st.progress || 0))} / ${mo(size)} · ${next}` : next, st.progress || 0);
   } else if (st.status === 'ready') {
     win.webContents.executeJavaScript('later(false)').catch(() => {});
-    splashSay(win, T(`Installation de la version ${st.latest?.version}…`, `Installing version ${st.latest?.version}…`), T('L\'appli va redémarrer toute seule dans quelques secondes.', 'The app will restart by itself in a few seconds.'));
+    const v = st.latest?.version;
+    splashSay(win, T(`Installation de la version ${v}…`, `Installing version ${v}…`, `Installazione della versione ${v}…`, `Instalando la versión ${v}…`),
+      T('L\'appli va redémarrer toute seule dans quelques secondes.', 'The app will restart by itself in a few seconds.', 'L\'app si riavvierà da sola tra qualche secondo.', 'La aplicación se reiniciará sola en unos segundos.'));
   }
 }
 
@@ -364,7 +371,8 @@ function splashUpdate(win, st) {
 function splashAsk(win, version) {
   return new Promise((resolve) => {
     if (!win || win.isDestroyed()) { resolve('continue'); return; }
-    splashSay(win, T(`Nouvelle version ${version} disponible`, `New version ${version} available`), T('Elle s\'installe à la main pour cette installation.', 'It installs by hand for this installation.'), false);
+    splashSay(win, T(`Nouvelle version ${version} disponible`, `New version ${version} available`, `Nuova versione ${version} disponibile`, `Nueva versión ${version} disponible`),
+      T('Elle s\'installe à la main pour cette installation.', 'It installs by hand for this installation.', 'Per questa installazione va installata a mano.', 'En esta instalación se instala a mano.'), false);
     win.webContents.executeJavaScript('ask(true)').catch(() => {});
     const onNav = (e, target) => {
       e.preventDefault();
@@ -391,7 +399,7 @@ app.on('web-contents-created', (_e, wc) => {
 });
 
 // Langue choisie dans l'interface (écran de démarrage suivant)
-ipcMain.on('ui-lang', (_e, l) => { if ((l === 'en' || l === 'fr') && readState().uiLang !== l) writeState({ uiLang: l }); });
+ipcMain.on('ui-lang', (_e, l) => { if (UI_LANGS.includes(l) && readState().uiLang !== l) writeState({ uiLang: l }); });
 ipcMain.handle('restore-windows-get', () => readState().restoreWindows !== false);
 ipcMain.handle('restore-windows-set', (_e, v) => { writeState({ restoreWindows: !!v, windowsStart: v ? 'last' : 'none' }); return !!v; });
 ipcMain.handle('windows-start-get', () => { const st = readState(); return st.windowsStart || (st.restoreWindows === false ? 'none' : 'last'); });
@@ -485,7 +493,7 @@ async function start() {
   console.log('[mise à jour]', JSON.stringify(res));
   if (res.action === 'installing') { splashDone = true; return; }   // l'appli se ferme puis redémarre
   if (res.action === 'notify' && await splashAsk(splash, res.version) === 'download') shell.openExternal(res.url);
-  splashSay(splash, T('Démarrage…', 'Starting…'), res.reason ? T(`Mise à jour impossible : ${res.reason}`, `Update not possible: ${res.reason}`) : '');
+  splashSay(splash, T('Démarrage…', 'Starting…', 'Avvio…', 'Iniciando…'), res.reason ? T(`Mise à jour impossible : ${res.reason}`, `Update not possible: ${res.reason}`, `Aggiornamento impossibile: ${res.reason}`, `Actualización imposible: ${res.reason}`) : '');
   await widevineReady();
   const port = await pickPort();
   process.env.PORT = String(port || 3000);
