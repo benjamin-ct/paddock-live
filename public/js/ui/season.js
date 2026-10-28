@@ -10,6 +10,7 @@ import { renderTech, renderElements, setTechFilter, translateTechDetail, toggleT
 import { icon } from '../icons.js';
 import { renderPredict, initPredict } from './predict-view.js';
 import { renderReview, reviewAction } from './season-review.js';
+import { renderDestructors } from './season-destructors.js';
 import { DEC, LOCALE, EN, t } from '../i18n.js';
 import { gpShort, gpFull } from '/shared/gp-names.js';
 import { COUNTRY_ISO } from '/shared/social-season.js';
@@ -45,6 +46,7 @@ let rateSort = 'season';
 let cmpYear = null;        // Comparer deux saisons : saison comparée (par défaut la précédente), manche, pilotes ou écuries
 let cmpRound = null;
 let cmpKind = 'd';
+let dest = null;           // Championnat des casseurs de l'année affichée (dégâts estimés)
 const others = new Map();  // autres saisons chargées pour la comparaison : année -> données, { loading } ou { error }
 const STATS_SECTIONS = new Set(['drivers', 'consistency', 'pits', 'speeds', 'circuits', 'ratings', 'h2h', 'gp']);
 let prev = null;           // saison précédente (comparaison des points d'un pilote)
@@ -67,6 +69,13 @@ async function loadPrev() {
     if (prev?.loading === y) prev = { year: y, error: err.message };
   }
   if (section === 'drivers' && !$('#seasonView').hidden) render();
+}
+// Championnat des casseurs : dégâts estimés de l'année affichée, lus une fois sur le serveur
+async function loadDest(y) {
+  if (dest?.year === y) return;
+  dest = { year: y, loading: true };
+  try { dest = await api(`/api/season/destructors?year=${y}`); } catch (err) { dest = { year: y, error: err.message }; }
+  if (section === 'destructors' && !$('#seasonView').hidden) render();
 }
 // Saison comparée (Comparer deux saisons) : chargée une fois, gardée pour la session
 async function loadOther(y) {
@@ -683,7 +692,7 @@ function render() {
   if (section === 'drivers') loadPrev();
   const fiaData = fia?.year === data.year ? fia : null;
   const html = {
-    home: renderHome, calendar: renderCalendar, standings: renderStandings, title: renderTitle, compare: renderCompare, results: renderResults, h2h: renderH2H,
+    home: renderHome, calendar: renderCalendar, standings: renderStandings, title: renderTitle, compare: renderCompare, destructors: () => { loadDest(data.year); return renderDestructors(ctx, dest?.year === data.year && !dest.loading ? dest : null); }, results: renderResults, h2h: renderH2H,
     drivers: () => renderDrivers(ctx, drvCode), consistency: () => renderConsistency(ctx), pits: () => renderPits(ctx),
     speeds: () => renderSpeeds(ctx, speedPt), circuits: () => renderCircuits(ctx, circSort), ratings: () => renderRatings(ctx, rateSort),
     tech: () => renderTech(ctx, fiaData), elements: () => renderElements(ctx, fiaData), predict: () => renderPredict(data.year, (code) => { const d = data.drivers.find((x) => x.code === code); return d ? seasonOpt(d) : ''; }), review: () => renderReview(ctx),
