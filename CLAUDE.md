@@ -62,4 +62,4 @@
   modification qui règle tout le problème, réutiliser l'existant, rien « pour plus tard ». `/ponytail-review`
   (une modification), `/ponytail-audit` (tout le dépôt), `/ponytail-debt` (raccourcis `shortcut:` en attente).
   Ces consignes priment sur ses règles : réponses, rapports et commentaires en français, journal et
-  traductions anglaises toujours tenus.
+  traductions (anglais, italien, espagnol) toujours tenus.
