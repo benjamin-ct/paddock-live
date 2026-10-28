@@ -1,6 +1,8 @@
 // Interface en anglais : traduction de chaque texte français affiché (voir i18n.js).
 // {} = valeur dynamique (dans l'ordre), {0}, {1}… pour changer l'ordre en anglais.
 export default {
+  "Enregistrer le graphique en image (PNG)": "Save the chart as an image (PNG)",
+  "saison {}": "{} season",
   "20 meilleurs tours": "20 fastest laps",
   "Évolution du rythme (tours propres)": "Pace evolution (clean laps)",
   "{} : médiane {} · {} tours propres": "{}: median {} · {} clean laps",
