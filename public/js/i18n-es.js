@@ -2713,4 +2713,11 @@ export default {
   "Pneus moyennement sollicités": "Neumáticos medianamente exigidos",
   "Pneus peu sollicités": "Neumáticos poco exigidos",
   "Familles d'après les notes des previews Pirelli : virages lents (traction) ou rapides (appui latéral), et contrainte sur les pneus.": "Familias según las notas de las previas de Pirelli: curvas lentas (tracción) o rápidas (carga lateral), y exigencia para los neumáticos.",
+  "Heure du circuit": "Hora del circuito",
+  "Lever": "Amanecer",
+  "Jour": "Día",
+  "Coucher": "Atardecer",
+  "Nuit": "Noche",
+  "Heure": "Hora del día",
+  "Heure au circuit : {} · soleil à {}°": "Hora en el circuito: {} · sol a {}°",
 };

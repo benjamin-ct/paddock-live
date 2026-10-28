@@ -181,7 +181,7 @@ test('race week : tracé du circuit, couleurs du pays, vainqueur précédent, mi
   assert.ok(sh.pts.every(([x, y]) => x >= 0 && x <= 1 && y >= 0 && y <= 1));
   assert.ok(Math.abs(sh.h - 1) < 1e-9 && Math.abs(sh.w - 0.5) < 1e-9);   // tourné d'un quart de tour
   assert.equal(trackShape(null), null);
-  assert.deepEqual(circuitInfo('americas'), { key: 9, km: 5.513, laps: 56 });
+  assert.deepEqual(circuitInfo('americas'), { key: 9, km: 5.513, laps: 56, lat: 30.1328, lon: -97.6411 });
   assert.deepEqual(flagColors('zz'), ['#e10600', '#f3f5f9']);
   const race = { ...R1, round: 18, circuitId: 'americas' };
   const d = raceWeekData(race, { year: 2026, rounds: 23, track, prev: { name: 'Max Verstappen', team: 'Red Bull', teamId: 'red_bull' }, tyres: { hard: 2, medium: 3, soft: 4 } });

@@ -2714,4 +2714,11 @@ export default {
   "Pneus moyennement sollicités": "Medium tyre stress",
   "Pneus peu sollicités": "Low tyre stress",
   "Familles d'après les notes des previews Pirelli : virages lents (traction) ou rapides (appui latéral), et contrainte sur les pneus.": "Families based on the scores from Pirelli's previews: slow corners (traction) or fast ones (lateral load), and tyre stress.",
+  "Heure du circuit": "Circuit time",
+  "Lever": "Sunrise",
+  "Jour": "Day",
+  "Coucher": "Sunset",
+  "Nuit": "Night",
+  "Heure": "Time of day",
+  "Heure au circuit : {} · soleil à {}°": "Time at the circuit: {} · sun at {}°",
 };
