@@ -512,17 +512,14 @@ export function raceFrame(ctx, W, H, d, o, time) {
   }
   // En-tête : Grand Prix, tour, état de la piste
   const top = Math.round(H * 0.035);
-  ctx.fillStyle = C.red; ctx.fillRect(pad, top, 10 * u, 70 * u);
-  txt(ctx, d.gp.toUpperCase(), pad + 28 * u, top + 32 * u, { size: Math.round(38 * u), weight: 800, family: TITLE, max: W * 0.56, spacing: 1 });
-  txt(ctx, `SAISON ${d.year} · ${d.total} TOURS`, pad + 28 * u, top + 66 * u, { size: Math.round(24 * u), weight: 600, family: TITLE, color: C.muted, spacing: 3 });
+  // Vidéo dessinée dans le cadre réduit des applis (u < 1) : textes d'un cran plus grands
+  const tu = Math.max(u, 0.9);
+  ctx.fillStyle = C.red; rr(ctx, pad, top, 10 * u, 76 * u, 4 * u); ctx.fill();
+  txt(ctx, d.gp.toUpperCase(), pad + 26 * u, top + 36 * u, { size: Math.round(46 * tu), weight: 800, family: TITLE, max: W * 0.54, italic: true });
+  txt(ctx, `SAISON ${d.year} · ${d.total} TOURS`, pad + 26 * u, top + 74 * u, { size: Math.round(27 * tu), weight: 700, family: TITLE, color: C.muted, spacing: 2 });
   const label = intro ? 'DÉPART' : done ? 'ARRIVÉE' : `TOUR ${Math.min(d.total, lap + 1)}/${d.total}`;
-  txt(ctx, label, W - pad, top + 44 * u, { size: Math.round(50 * u), weight: 800, family: TITLE, color: done ? C.gold : C.text, align: 'right', spacing: 1 });
-  if (!intro && !done) {
-    ctx.font = `800 ${Math.round(22 * u)}px ${TITLE}`;
-    const pw = ctx.measureText(flag.label).width + 40 * u;
-    rr(ctx, W - pad - pw, top + 58 * u, pw, 34 * u, 17 * u); ctx.fillStyle = st === 'green' ? 'rgba(61,220,132,0.16)' : flag.color; ctx.fill();
-    txt(ctx, flag.label, W - pad - pw / 2, top + 82 * u, { size: Math.round(22 * u), weight: 800, family: TITLE, color: st === 'green' ? C.green : '#111', align: 'center', spacing: 1.5 });
-  }
+  txt(ctx, label, W - pad, top + 46 * u, { size: Math.round(56 * tu), weight: 800, family: TITLE, color: done ? C.gold : C.text, align: 'right', italic: true });
+  if (!intro && !done) pill(ctx, flag.label, W - pad, top + 62 * u, 42 * tu, { bg: st === 'green' ? 'rgba(61,220,132,0.18)' : flag.color, color: st === 'green' ? C.green : '#111', align: 'right', dot: true });
 
   // ---- Graphique des positions : une ligne par pilote, qui se dessine tour après tour ----
   const n = d.drivers.length;
@@ -530,20 +527,20 @@ export function raceFrame(ctx, W, H, d, o, time) {
   const x0 = pad + 52 * u;
   const x1 = W - pad - 220 * u;
   const y0 = top + 150 * u;
-  const y1 = H - 400 * u;
+  const y1 = H - 440 * u;
   const rowH = (y1 - y0) / Math.max(1, n - 1);
   const X = (l) => x0 + ((x1 - x0) * l) / d.total;
   const Y = (p) => y0 + (p - 1) * rowH;
   // Repères : positions, tours, périodes neutralisées (bandes de couleur, nom au-dessus)
   for (let p = 1; p <= n; p++) {
     ctx.fillStyle = 'rgba(255,255,255,0.04)'; ctx.fillRect(x0, Y(p) - 0.5, x1 - x0, 1);
-    txt(ctx, String(p), x0 - 16 * u, Y(p) + 7 * u, { size: Math.round(20 * u), weight: 700, family: TITLE, color: p <= 3 ? MEDAL[p - 1] : C.muted, align: 'right' });
+    txt(ctx, String(p), x0 - 16 * u, Y(p) + 8 * u, { size: Math.round(Math.min(25 * tu, rowH * 0.8)), weight: 800, family: TITLE, color: p <= 3 ? MEDAL[p - 1] : C.muted, align: 'right', italic: true });
   }
   for (let l = 10; l <= d.total - 6; l += 10) {
     ctx.fillStyle = 'rgba(255,255,255,0.06)'; ctx.fillRect(X(l), y0 - 14 * u, 1, y1 - y0 + 28 * u);
-    txt(ctx, String(l), X(l), y1 + 44 * u, { size: Math.round(18 * u), weight: 700, family: TITLE, color: C.muted, align: 'center' });
+    if (X(l) < x1 - 110 * tu) txt(ctx, String(l), X(l), y1 + 46 * u, { size: Math.round(25 * tu), weight: 700, family: TITLE, color: C.muted, align: 'center' });   // pas sous « TOURS »
   }
-  txt(ctx, 'TOURS', x1, y1 + 44 * u, { size: Math.round(18 * u), weight: 700, family: TITLE, color: C.muted, align: 'right', spacing: 2 });
+  txt(ctx, 'TOURS', x1, y1 + 46 * u, { size: Math.round(25 * tu), weight: 700, family: TITLE, color: C.muted, align: 'right', spacing: 2 });
   for (let i = 0; i < d.total; i++) {
     const s = story.status[i];
     if (!s || s === 'green' || i >= prog) continue;
@@ -551,7 +548,7 @@ export function raceFrame(ctx, W, H, d, o, time) {
     const b = X(Math.min(i + 1, prog));
     ctx.fillStyle = `${FLAG[s].color}${s === 'yellow' ? '1c' : '33'}`;
     ctx.fillRect(a, y0 - 24 * u, b - a + 0.5, y1 - y0 + 48 * u);
-    if (story.status[i - 1] !== s && s !== 'yellow') txt(ctx, { sc: 'SC', vsc: 'VSC', red: 'ROUGE', neutral: 'NEUTRAL.' }[s], a + 4 * u, y0 - 32 * u, { size: Math.round(20 * u), weight: 800, family: TITLE, color: FLAG[s].color, spacing: 1 });
+    if (story.status[i - 1] !== s && s !== 'yellow') txt(ctx, { sc: 'SC', vsc: 'VSC', red: 'ROUGE', neutral: 'NEUTRAL.' }[s], a + 4 * u, y0 - 32 * u, { size: Math.round(26 * tu), weight: 800, family: TITLE, color: FLAG[s].color, spacing: 1 });
   }
   // Lignes des pilotes (la tête de chaque ligne avance avec la course)
   const posAt = (x, l) => (l === 0 ? (x.grid || n) : x.pos[l - 1] || (x.classified && l > x.laps ? x.finish : null));
@@ -615,7 +612,7 @@ export function raceFrame(ctx, W, H, d, o, time) {
   }
   // Têtes des lignes et étiquettes (code, écart ou PIT) : tout le classement en direct
   heads.sort((a, b) => b.hy - a.hy);
-  const fs = Math.round(Math.min(26 * u, rowH * 0.62));
+  const fs = Math.round(Math.min(32 * tu, rowH * 0.74));
   for (const h of heads) {
     const pos = Math.round((h.hy - y0) / rowH) + 1;
     if (h.gain > 0 && fe > 0 && fe < 1) {
@@ -625,7 +622,7 @@ export function raceFrame(ctx, W, H, d, o, time) {
     ctx.lineWidth = 3 * u; ctx.strokeStyle = pos === 1 ? C.gold : '#0b0d12'; ctx.stroke();
     const lx = h.hx + 18 * u;
     rr(ctx, lx, h.hy - rowH * 0.42, 4 * u, rowH * 0.84, 2 * u); ctx.fillStyle = h.col; ctx.fill();
-    txt(ctx, h.x.code, lx + 12 * u, h.hy + fs * 0.36, { size: fs, weight: 800, family: TITLE, color: pos <= 3 ? MEDAL[pos - 1] : C.text });
+    txt(ctx, h.x.code, lx + 12 * u, h.hy + fs * 0.36, { size: fs, weight: 800, family: TITLE, color: pos <= 3 ? MEDAL[pos - 1] : C.text, italic: true });
     let right = '';
     if (h.pit) right = 'PIT';
     else if (pos === 1) right = done ? 'VAINQUEUR' : intro ? '' : 'LEADER';
@@ -634,7 +631,7 @@ export function raceFrame(ctx, W, H, d, o, time) {
       if (h.x.classified && lp > h.x.laps) right = `+${lp - h.x.laps}T`;
       else { const gl = gapAt(h.i, lp); right = gl != null && gl >= 0 && gl < 600 ? `+${dec(gl, 1)}` : ''; }
     }
-    if (right) txt(ctx, right, lx + 12 * u + fs * 2.2, h.hy + fs * 0.34, { size: Math.round(fs * 0.78), weight: 700, family: /^[+\d,]+$/.test(right) ? MONO : TITLE, color: right === 'PIT' ? '#ff8a3d' : right === 'VAINQUEUR' ? C.gold : C.muted });
+    if (right) txt(ctx, right, lx + 12 * u + fs * 2.2, h.hy + fs * 0.34, { size: Math.round(fs * 0.84), weight: 700, family: /^[+\d,]+$/.test(right) ? MONO : TITLE, color: right === 'PIT' ? '#ff8a3d' : right === 'VAINQUEUR' ? C.gold : C.muted });
   }
 
   // Feux de départ (présentation)
@@ -652,7 +649,7 @@ export function raceFrame(ctx, W, H, d, o, time) {
       if (lit) { ctx.shadowColor = '#ff1a1a'; ctx.shadowBlur = 30 * u; }
       ctx.fill(); ctx.shadowBlur = 0;
     }
-    txt(ctx, out ? "C'EST PARTI !" : 'GRILLE DE DÉPART', W / 2, ly + 150 * u, { size: Math.round(40 * u), weight: 800, family: TITLE, align: 'center', color: out ? C.green : C.text, spacing: 3 });
+    txt(ctx, out ? "C'EST PARTI !" : 'GRILLE DE DÉPART', W / 2, ly + 150 * u, { size: Math.round(46 * tu), weight: 800, family: TITLE, align: 'center', color: out ? C.green : C.text, italic: true });
   }
 
   // ---- Bandeau du bas : moment fort en cours, sinon le leader ----
@@ -677,19 +674,18 @@ export function raceFrame(ctx, W, H, d, o, time) {
     ctx.save();
     ctx.globalAlpha = fade * k;
     const dark = ['sc', 'vsc', 'neutral', 'restart', 'lead'].includes(bn.kind) ? '#0b0d12' : '#fff';
-    txt(ctx, title, W / 2, bandY + bandH / 2 + 4 * u, { size: Math.round(62 * u), weight: 800, family: TITLE, color: dark, align: 'center', spacing: 3, max: W - 3 * pad });
-    txt(ctx, sub(bn, name).toUpperCase(), W / 2, bandY + bandH / 2 + 52 * u, { size: Math.round(30 * u), weight: 700, family: TITLE, color: dark, align: 'center', spacing: 1.5, max: W - 3 * pad });
+    txt(ctx, title, W / 2, bandY + bandH / 2 + 2 * u, { size: Math.round(66 * tu), weight: 800, family: TITLE, color: dark, align: 'center', max: W - 3 * pad, italic: true });
+    txt(ctx, sub(bn, name).toUpperCase(), W / 2, bandY + bandH / 2 + 56 * u, { size: Math.round(34 * tu), weight: 700, family: TITLE, color: dark, align: 'center', spacing: 1.5, max: W - 3 * pad });
     ctx.restore();
   } else if (!intro && !done) {
     const lead = d.drivers.find((x) => posAt(x, Math.max(1, L)) === 1);
     if (lead) {
-      card(ctx, pad, bandY + 20 * u, W - 2 * pad, bandH - 40 * u, 14 * u);
-      rr(ctx, pad + 14 * u, bandY + 38 * u, 6 * u, bandH - 76 * u, 3 * u); ctx.fillStyle = vivid(lead.color); ctx.fill();   // trait de l'écurie, dans le cadre
-      txt(ctx, 'EN TÊTE', pad + 36 * u, bandY + bandH / 2 - 14 * u, { size: Math.round(22 * u), weight: 700, family: TITLE, color: C.muted, spacing: 3 });
-      txt(ctx, `${lead.first} ${lead.last}`.toUpperCase(), pad + 36 * u, bandY + bandH / 2 + 28 * u, { size: Math.round(40 * u), weight: 800, family: TITLE, max: W * 0.5 });
+      card(ctx, pad, bandY + 20 * u, W - 2 * pad, bandH - 40 * u, 24 * u, { tint: lead.color });
+      txt(ctx, 'EN TÊTE', pad + 30 * u, bandY + bandH / 2 - 16 * u, { size: Math.round(27 * tu), weight: 700, family: TITLE, color: C.muted, spacing: 3 });
+      txt(ctx, `${lead.first} ${lead.last}`.toUpperCase(), pad + 30 * u, bandY + bandH / 2 + 32 * u, { size: Math.round(48 * tu), weight: 800, family: TITLE, max: W * 0.5, italic: true });
       const c = story.events.filter((e) => e.lap <= L + 1);
       const facts = [['sc', 'SC', 'SC'], ['vsc', 'VSC', 'VSC'], ['out', 'ABANDON', 'ABANDONS'], ['lead', 'CHANGEMENT DE LEADER', 'CHANGEMENTS DE LEADER']].map(([kk, one, many]) => { const v = c.filter((e) => e.kind === kk).length; return v ? `${v} ${v > 1 ? many : one}` : ''; }).filter(Boolean);
-      txt(ctx, facts.join('  ·  ') || 'COURSE SANS INCIDENT', W - pad - 30 * u, bandY + bandH / 2 + 8 * u, { size: Math.round(22 * u), weight: 700, family: TITLE, color: C.text, align: 'right', spacing: 1, max: W * 0.4 });
+      txt(ctx, facts.join('  ·  ') || 'COURSE SANS INCIDENT', W - pad - 30 * u, bandY + bandH / 2 + 10 * u, { size: Math.round(27 * tu), weight: 700, family: TITLE, color: C.text, align: 'right', spacing: 1, max: W * 0.36 });
     }
   }
 
@@ -704,14 +700,14 @@ export function raceFrame(ctx, W, H, d, o, time) {
     ctx.strokeStyle = C.gold; ctx.lineWidth = 3 * u; ctx.stroke();
     if (w0) {
       rr(ctx, pad + 18 * u, bandY + 26 * u, 6 * u, bandH - 52 * u, 3 * u); ctx.fillStyle = vivid(w0.color); ctx.fill();   // trait de l'écurie, dans le cadre doré
-      txt(ctx, 'VAINQUEUR', pad + 40 * u, bandY + 50 * u, { size: Math.round(24 * u), weight: 800, family: TITLE, color: C.gold, spacing: 5 });
-      txt(ctx, `${w0.first} ${w0.last}`.toUpperCase(), pad + 40 * u, bandY + 112 * u, { size: Math.round(64 * u), weight: 800, family: TITLE, italic: true, max: W * 0.55 });
-      txt(ctx, w0.team.toUpperCase(), pad + 40 * u, bandY + 150 * u, { size: Math.round(24 * u), weight: 700, family: TITLE, color: C.muted, spacing: 2 });
+      txt(ctx, 'VAINQUEUR', pad + 40 * u, bandY + 54 * u, { size: Math.round(29 * tu), weight: 800, family: TITLE, color: C.gold, spacing: 4 });
+      txt(ctx, `${w0.first} ${w0.last}`.toUpperCase(), pad + 40 * u, bandY + 122 * u, { size: Math.round(66 * tu), weight: 800, family: TITLE, italic: true, max: W * 0.55 });
+      txt(ctx, w0.team.toUpperCase(), pad + 40 * u, bandY + 164 * u, { size: Math.round(28 * tu), weight: 700, family: TITLE, color: C.muted, spacing: 2 });
     }
     pod.slice(1).forEach((x, j) => {
-      const yy = bandY + 62 * u + j * 56 * u;
-      txt(ctx, `P${j + 2}`, W * 0.67, yy, { size: Math.round(30 * u), weight: 800, family: TITLE, color: MEDAL[j + 1] });
-      txt(ctx, x.last.toUpperCase(), W * 0.67 + 56 * u, yy, { size: Math.round(36 * u), weight: 800, family: TITLE, max: W * 0.24 });
+      const yy = bandY + 70 * u + j * 64 * u;
+      txt(ctx, `P${j + 2}`, W * 0.66, yy, { size: Math.round(36 * tu), weight: 800, family: TITLE, color: MEDAL[j + 1], italic: true });
+      txt(ctx, x.last.toUpperCase(), W * 0.66 + 62 * tu, yy, { size: Math.round(40 * tu), weight: 800, family: TITLE, max: W * 0.25, italic: true });
     });
     const c = story.counts || {};
     const facts = [
@@ -721,14 +717,15 @@ export function raceFrame(ctx, W, H, d, o, time) {
     if (!facts.length) facts.push('AUCUNE NEUTRALISATION');
     const b = story.best ? d.drivers.find((x) => x.code === story.best.code) : null;
     const best = story.best ? `MEILLEUR TOUR ${(b?.last || story.best.code).toUpperCase()} ${lapStr(story.best.time)}` : '';
-    txt(ctx, facts.join(' · '), pad + 40 * u, bandY + bandH - 26 * u, { size: Math.round(22 * u), weight: 700, family: TITLE, color: C.text, spacing: 1, max: W * 0.5 });
-    if (best) txt(ctx, best, W - pad - 30 * u, bandY + bandH - 26 * u, { size: Math.round(22 * u), weight: 700, family: TITLE, color: '#b36bff', align: 'right', spacing: 1, max: W * 0.38 });
+    txt(ctx, facts.join(' · '), pad + 40 * u, bandY + bandH - 24 * u, { size: Math.round(27 * tu), weight: 700, family: TITLE, color: C.text, spacing: 1, max: W * 0.5 });
+    if (best) txt(ctx, best, W - pad - 30 * u, bandY + bandH - 24 * u, { size: Math.round(27 * tu), weight: 700, family: TITLE, color: '#b36bff', align: 'right', spacing: 1, max: W * 0.38 });
     ctx.restore();
   }
   const fy = H - Math.round(H * 0.025);
-  txt(ctx, o.signature || '@BenjyPaddock', pad, fy, { size: Math.round(30 * u), weight: 700, family: TITLE, spacing: 1 });
-  if (done) txt(ctx, 'ABONNEZ-VOUS POUR LA SUITE', W - pad, fy, { size: Math.round(26 * u), weight: 700, family: TITLE, color: C.red, align: 'right', spacing: 2 });
-  else if (story.estimated && story.events.some((e) => e.kind === 'neutral')) txt(ctx, "Neutralisations estimées d'après les temps au tour", W - pad, fy, { size: Math.round(20 * u), weight: 600, color: C.muted, align: 'right' });
+  ctx.fillStyle = C.red; rr(ctx, pad, fy - 27 * tu, 8 * u, 30 * tu, 3 * u); ctx.fill();
+  txt(ctx, o.signature || '@BenjyPaddock', pad + 20 * u, fy, { size: Math.round(34 * tu), weight: 700, family: TITLE, spacing: 1 });
+  if (done) txt(ctx, 'ABONNEZ-VOUS POUR LA SUITE', W - pad, fy, { size: Math.round(29 * tu), weight: 800, family: TITLE, color: C.red, align: 'right', spacing: 2, max: W * 0.5 });
+  else if (story.estimated && story.events.some((e) => e.kind === 'neutral')) txt(ctx, "Neutralisations estimées d'après les temps au tour", W - pad, fy, { size: Math.round(24 * tu), weight: 600, color: C.muted, align: 'right', max: W * 0.5 });
 }
 
 // ---------- Race Week : visuel propre à chaque Grand Prix ----------
