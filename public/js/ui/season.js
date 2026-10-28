@@ -768,11 +768,12 @@ function tick() {
   const ms = Math.max(0, Date.parse(el.dataset.t) - Date.now());
   const d = Math.floor(ms / 86400000), h = Math.floor(ms / 3600000) % 24, m = Math.floor(ms / 60000) % 60, s = Math.floor(ms / 1000) % 60;
   const p = (v) => String(v).padStart(2, '0');
-  // Unité qui vient de changer (secondes, minutes…) : marquée pour descendre en place
+  // Chiffre qui vient de changer : marqué pour descendre en place (chiffre par chiffre, 45 → 44 : seul le 5 bouge)
   const before = (el.dataset.v || '').split(',');
   const now = [d, h, m, s].map(p);
   el.dataset.v = now.join(',');
-  el.innerHTML = [[d, 'jours'], [h, 'h'], [m, 'min'], [s, 's']].map(([, l], i) => `<span${before.length === 4 && before[i] !== now[i] ? ' class="chg"' : ''}><b>${now[i]}</b><small>${l}</small></span>`).join('');
+  const digits = (v, old) => [...v].map((c, k) => `<i${old !== undefined && old.length === v.length && old[k] !== c ? ' class="chg"' : ''}>${c}</i>`).join('');
+  el.innerHTML = [[d, 'jours'], [h, 'h'], [m, 'min'], [s, 's']].map(([, l], i) => `<span><b>${digits(now[i], before.length === 4 ? before[i] : undefined)}</b><small>${l}</small></span>`).join('');
 }
 
 // Changement de rubrique : le contenu apparaît en cascade (une seule fois, pas à chaque mise à jour)

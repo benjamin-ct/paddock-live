@@ -1094,6 +1094,7 @@ body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-selec
 .sz-countdown { display: flex; gap: 18px; margin-top: 6px; }
 .sz-countdown span { display: flex; flex-direction: column; }
 .sz-countdown b { font-size: 34px; font-weight: 900; line-height: 1; font-variant-numeric: tabular-nums; }
+.sz-countdown b i { display: inline-block; font-style: normal; }   /* un chiffre par case (animé seul quand il change) */
 .sz-countdown small { font-size: 11px; text-transform: uppercase; opacity: .8; letter-spacing: .5px; }
 .sz-when { opacity: .85; }
 .sz-progress { height: 6px; background: var(--panel-3); border-radius: 3px; overflow: hidden; margin: 4px 0; }
@@ -2541,7 +2542,7 @@ kbd .ic { width: 12px; height: 12px; opacity: 1; }
   :root:not([data-motion="off"]) .hm-main.hm-anim > :nth-child(4) { animation-delay: .15s; }
   :root:not([data-motion="off"]) .hm-main.hm-anim > :nth-child(n+5) { animation-delay: .2s; }
   /* Comptes à rebours : le chiffre qui change descend en place */
-  :root:not([data-motion="off"]) .sz-countdown .chg b { display: inline-block; animation: digit-in .35s var(--ease-out); }
+  :root:not([data-motion="off"]) .sz-countdown b i.chg { animation: digit-in .35s var(--ease-out); }
   /* Téléphone : le panneau choisi dans la bande du haut glisse en place */
   :root:not([data-motion="off"]) .grid.mobile .panel.mob-in { animation: view-in .26s var(--ease-out); }
   /* Boutons principaux : reflet qui balaie le bouton au survol */
