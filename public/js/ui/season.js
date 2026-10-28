@@ -351,6 +351,28 @@ export function seasonUrls() {
   });
 }
 
+// Calendrier sur une carte du monde : un point par Grand Prix (couru, prochain, à venir), lien vers sa fiche.
+// Contour des terres : Natural Earth (domaine public), via world-atlas (ISC, © 2013-2019 Michael Bostock)
+let world = null;
+function calendarMap(next) {
+  if (!world) {
+    world = 'loading';
+    fetch('/data/world-land.json').then((r) => r.json()).then((w) => { world = w; if (section === 'calendar' && !$('#seasonView').hidden) render(); }).catch(() => { world = null; });
+  }
+  if (!world?.d) return '';
+  const races = data.races.filter((r) => Number.isFinite(r.lat) && Number.isFinite(r.lon));
+  const X = (lon) => ((lon + 180) / 360) * world.w, Y = (lat) => ((world.lat0 - lat) / (world.lat0 - world.lat1)) * world.h;
+  const dots = races.map((r) => {
+    const state = done(r) ? 'done' : next?.round === r.round ? 'next' : 'future';
+    return `<a href="${seasonPath(year, 'gp', gpSlug(r.name))}" data-szgp="${r.round}" class="cal-pin ${state}"><title>R${r.round} · ${esc(gpShort(r.name, EN))} · ${calSpan(r).replace(/<[^>]+>/g, '')}</title>
+      <circle cx="${X(r.lon).toFixed(1)}" cy="${Y(r.lat).toFixed(1)}" r="${state === 'next' ? 9 : 7}"/><text x="${X(r.lon).toFixed(1)}" y="${(Y(r.lat) + 3.5).toFixed(1)}" text-anchor="middle">${r.round}</text></a>`;
+  }).join('');
+  // Cadrage : du nord de l'Europe (65° N) au sud de l'Australie (48° S)
+  const top = Y(65), bot = Y(-48);
+  return `<section class="sz-box cal-map"><svg viewBox="0 ${top.toFixed(1)} ${world.w} ${(bot - top).toFixed(1)}" class="sz-svg"><path d="${world.d}" class="cal-land"/>${dots}</svg>
+    <div class="cal-map-key small"><span class="cal-pin-key next"></span>Prochain <span class="cal-pin-key future"></span>À venir <span class="cal-pin-key done"></span>Couru</div></section>`;
+}
+
 function renderCalendar() {
   const nx = nextSession();
   const next = nx?.race;
@@ -396,6 +418,7 @@ function renderCalendar() {
   const past = data.races.filter(done).reverse();
   return `<div class="cal">${hero}
     <div class="cal-progress"><span>Saison ${data.year} · <b>${ran} / ${data.races.length}</b> Grands Prix courus</span><div class="sz-progress"><i style="width:${data.races.length ? (ran / data.races.length) * 100 : 0}%"></i></div></div>
+    ${calendarMap(next)}
     ${list(data.races.filter((r) => !done(r)))}
     ${past.length ? `<div class="cal-group">Grands Prix courus</div>${list(past)}` : ''}
     <p class="muted small"><a class="btn small" href="#" data-cal="${year}" title="Toutes les séances de la saison dans votre agenda (Google, Apple, Outlook), même Paddock Live fermé : abonnement mis à jour tout seul, ou fichier">${icon('calendar')} Ajouter toute la saison à mon agenda</a></p></div>`;

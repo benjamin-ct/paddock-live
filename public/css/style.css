@@ -1107,6 +1107,18 @@ body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-selec
 .sz-grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 12px; margin-bottom: 14px; }
 .sz-box { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; margin-bottom: 12px; overflow-x: auto; }
 .sz-box h3 { margin: 0 0 10px; font-size: 17px; }
+.cal-map { padding: 10px; }
+.cal-land { fill: var(--panel-3); stroke: var(--line-2); stroke-width: .6; }
+.cal-pin circle { stroke: var(--panel); stroke-width: 1.5; }
+.cal-pin text { font-size: 8.5px; font-weight: 800; fill: #fff; pointer-events: none; }
+.cal-pin.done circle { fill: var(--muted); opacity: .6; }
+.cal-pin.future circle { fill: var(--text); }
+.cal-pin.future text { fill: var(--panel); }
+.cal-pin.next circle { fill: var(--accent); }
+.cal-pin:hover circle { stroke: var(--text); stroke-width: 2; }
+.cal-map-key { display: flex; align-items: center; gap: 6px 14px; flex-wrap: wrap; margin-top: 6px; color: var(--muted); }
+.cal-pin-key { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: -8px; }
+.cal-pin-key.next { background: var(--accent); } .cal-pin-key.future { background: var(--text); } .cal-pin-key.done { background: var(--muted); opacity: .6; }
 .sz-png { margin-left: auto; padding: 2px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel-2); color: var(--muted); font: inherit; font-size: 11px; font-weight: 700; cursor: pointer; }
 .sz-png:hover { color: var(--text); border-color: var(--line-2); }
 .sz-table { width: 100%; border-collapse: collapse; font-size: 13.5px; margin-bottom: 8px; }
