@@ -401,7 +401,7 @@ function noLiveCheck(show = true) {
   $('#noLiveBox').innerHTML = `<div class="nl-icon">${icon('signal')}</div>
     <h2>Pas de séance en direct</h2>
     ${nx ? `<p class="nl-next">Prochaine séance : <b>${esc(gp(nx.race))} : ${esc(nx.label)}</b><br><span class="muted">${esc(when(nx.t))}</span></p>
-      <div class="nl-count">${countdown(nx.t - Date.now())}</div>` : '<p class="muted">Saison terminée.</p>'}
+      <div class="nl-count">${countdown(nx.t - Date.now())}</div>${daysHtml(nx)}` : '<p class="muted">Saison terminée.</p>'}
     <p class="muted small">Le tableau de bord s'ouvre tout seul au début de la séance.</p>
     <div class="nl-actions">
       ${ls ? `<button class="btn btn-accent" data-nl="replay">${icon('play')} ${esc(t('Revoir {} : {}', gp(ls.meeting), sessionName(ls.name)))}</button>` : ''}

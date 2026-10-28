@@ -19,6 +19,10 @@ l'application (Réglages → À propos → Nouveautés).
   cassées (ailerons, suspensions, fonds…). Estimations de u/Dense-Strategy-867 sur Reddit, compilées par Formula 1
   Dashboard, mises à jour toutes seules après chaque Grand Prix. Aussi dans la version web.
 
+### En direct
+- Écran « Pas de séance en direct » (appli et version web) : le programme du week-end du prochain Grand Prix, jour par
+  jour, sous le compte à rebours.
+
 ## v1.29.0 — 2026-10-28
 
 ### Alertes sur le téléphone
