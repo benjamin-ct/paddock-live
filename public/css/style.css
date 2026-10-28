@@ -1288,7 +1288,13 @@ body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-selec
 .sz-heat th, .sz-heat td { text-align: center; white-space: nowrap; }
 .sz-heat td:first-child, .sz-heat th:first-child { text-align: left; }
 .sz-heat td:first-child .team-logo, .sz-table td .team-logo { width: 20px; height: 20px; margin-right: 7px; }
-.sz-grid-opts { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.sz-grid-opts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-bottom: 10px; }
+.sz-pace-cut { display: inline-flex; align-items: center; gap: 8px; }
+.sz-pace-cut input { width: 140px; accent-color: var(--accent); }
+.sz-tyre { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--tc); font-size: 10px; font-weight: 800; }
+.sz-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 6px; }
+.sz-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.sz-legend i { width: 14px; height: 3px; border-radius: 2px; }
 .sz-grid td { min-width: 30px; padding: 5px 6px; font-variant-numeric: tabular-nums; }
 .sz-grid td.g1 { background: rgba(255, 196, 0, .28); font-weight: 700; }
 .sz-grid td.g2 { background: rgba(200, 205, 215, .24); font-weight: 700; }
