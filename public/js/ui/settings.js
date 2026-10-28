@@ -19,6 +19,8 @@ async function refreshAuth() {
     const a = await api('/api/auth');
     renderAuthPill(a);
     const el = $('#tokenStatus');
+    // « Se déconnecter » seulement quand une connexion est enregistrée
+    $('#tokenClearRow').hidden = !!window.f1desktop?.isDesktop || !a.hasToken;
     if (!a.hasToken) { el.innerHTML = '<span class="muted">Aucun jeton enregistré : positions estimées en live.</span>'; return; }
     const live = store.status?.source?.authenticated;
     const offer = a.product ? ` · offre « ${esc(a.product)} »${a.country ? ` (${esc(a.country)})` : ''}${/pro/i.test(a.product) ? '' : ' — commentaires en direct réservés à F1 TV Pro'}` : '';
@@ -290,9 +292,6 @@ export function initSettings() {
       toast('Session F1 TV oubliée');
       refreshAuth();
     });
-  } else {
-    // Navigateur : connexion par l'extension, bouton pour l'oublier
-    $('#tokenClearRow').hidden = false;
   }
 
   $('#tokenClear').addEventListener('click', async () => {

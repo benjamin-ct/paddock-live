@@ -183,7 +183,7 @@ function favHtml() {
   const favT = teams.filter((c) => prefs.favTeams.includes(c.key));
   const count = favD.length + favT.length;
   const edit = `<button class="btn small" data-home="editfav">${icon(editFav ? 'check' : 'star')} ${editFav ? 'Terminé' : count ? 'Modifier' : 'Choisir mes favoris'}</button>`;
-  const head = `<div class="hm-kicker"><span class="hm-tag">${count === 1 ? 'Mon favori au championnat' : 'Mes favoris au championnat'}</span> ${edit}</div>`;
+  const head = `<div class="hm-kicker"><span class="hm-tag">${count === 1 ? 'Mon favori' : 'Mes favoris'}</span> ${edit}</div>`;
   if (!count) {
     return `<section class="hm-card hm-fav" id="hmFav">${head}${editFav ? favEditor(ds, teams)
       : '<div class="muted">Ajoutez vos pilotes et écuries favoris.</div>'}</section>`;

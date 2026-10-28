@@ -531,7 +531,9 @@ code { background: var(--panel-3); padding: 1px 5px; border-radius: 4px; font-si
 .stats-bar .stats-details { margin-right: auto; }
 .stats-later { position: absolute; top: 8px; right: 8px; }
 @keyframes stats-in { from { opacity: 0; transform: translateY(10px); } }
-@media (max-width: 900px) { .stats-bar { right: 8px; left: 8px; width: auto; bottom: calc(76px + env(safe-area-inset-bottom)); } }
+@media (max-width: 900px) { .stats-bar { right: 8px; left: 8px; width: auto; bottom: calc(76px + env(safe-area-inset-bottom)); }
+  /* Pendant un replay : au-dessus de sa barre de lecture */
+  body:has(#replayBar:not([hidden])) .stats-bar { bottom: calc(76px + var(--replaybar-h, 84px) + env(safe-area-inset-bottom)); } }
 @media (prefers-reduced-motion: reduce) { .stats-bar { animation: none; } }
 :root[data-motion="off"] .stats-bar { animation: none; }
 .modal-body { padding: 12px 16px 16px; }
@@ -1442,9 +1444,9 @@ html:not(.phone) [data-phone] { display: none !important; }
 html.phone [data-desk] { display: none !important; }
 /* Ordinateur, mode Essentiel : le principal seulement (data-expert : mode Complet) */
 html.essential [data-expert] { display: none !important; }
-/* Mode Essentiel : classement compact (code pilote, écart, secteurs en couleur, pneus), sans nom complet ni mini-secteurs ;
-   agrandi (⤢) : les colonnes choisies dans son menu */
-html.essential:not(.ess-quali):not(.ess-big) .p-tower:not(.maximized) .tower :is(.c-int, .c-last, .c-best, .c-pits, .c-speed, .c-duel, .drv-last) { display: none !important; }
+/* Mode Essentiel : classement compact (code pilote, écart et intervalle avec la voiture devant, secteurs en couleur,
+   pneus), sans nom complet ni mini-secteurs ; agrandi (⤢) : les colonnes choisies dans son menu */
+html.essential:not(.ess-quali):not(.ess-big) .p-tower:not(.maximized) .tower :is(.c-last, .c-best, .c-pits, .c-speed, .c-duel, .drv-last) { display: none !important; }
 /* Essentiel, essais et qualifs : meilleur tour, écart et intervalle, secteurs en couleur (sans mini-secteurs) ;
    en qualifs (colonnes Q1-Q3), le tour en cours (temps prévu et position visée) */
 html.essential.ess-quali:not(.ess-big) .p-tower:not(.maximized) .tower :is(.c-last, .c-speed, .c-duel, .drv-last),
@@ -1481,6 +1483,8 @@ html[data-design="classic"] .rc-bar { display: none !important; }
   .topbar .session { order: 1; flex: 1 1 0; min-width: 0; max-width: none !important; }
   .topbar .tb-break.b1 { order: 2; }
   .topbar .tb-break.b2 { order: 4; }
+  /* En course : les tours remplacent le temps restant, le délai TV remonte sur la 2e ligne (une ligne de moins) */
+  html.sess-race .topbar .clock-box, html.sess-race .topbar .tb-break.b2 { display: none !important; }
   .topbar .session-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 15px; }
   .topbar .track-status { order: 1; min-width: 0; padding: 5px 9px; font-size: 12px; }
   .topbar .hstat { order: 3; }
@@ -1640,8 +1644,10 @@ html[data-design="classic"] .rc-bar { display: none !important; }
 @media (hover: none) and (pointer: coarse) {
   #shortcutsBlock { display: none !important; }
 }
+/* Téléphones courants (jusqu'à 420 px) : colonnes serrées, la colonne Arrêts tient dans l'écran */
+@media (max-width: 420px) { .grid.mobile .tower td, .grid.mobile .tower th { padding-left: 3px; padding-right: 3px; } }
 @media (max-width: 380px) {
-  .grid.mobile .tower td, .grid.mobile .tower th { padding-left: 3px; padding-right: 3px; }
+  .grid.mobile .tower .c-tags .tag { font-size: 9px; letter-spacing: 0; padding: 0 3px; }
   .replaybar .rp-side .btn.small, .rp-speed { padding: 0 5px; }
   .replaybar .rp-side { gap: 5px; }
 }
@@ -3175,6 +3181,7 @@ html.float-mini .float-bar { top: auto; bottom: 4px; right: 24px; }   /* en bas 
   .set-brand { display: none; }
   #settingsModal .set-nav { flex-direction: row; overflow-x: auto; scrollbar-width: none; gap: 6px; }
   #settingsModal .set-nav::-webkit-scrollbar { display: none; }
+  #settingsModal .set-nav { mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent); }   /* d'autres rubriques à droite */
   #settingsModal .set-tab { width: auto; flex: none; padding: 6px 12px 6px 6px; border-radius: 999px; }
   #settingsModal .set-tab.active { box-shadow: 0 0 0 1px var(--border); }
   .set-ico { width: 26px; height: 26px; border-radius: 50%; }
