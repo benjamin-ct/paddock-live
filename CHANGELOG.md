@@ -95,7 +95,9 @@ l'application (Réglages → À propos → Nouveautés).
   (bords des pelouses, des bois et des routes sans flou ni escalier) et les ombres sont précises. La lumière suit
   l'heure au circuit (en replay, celle de la séance), ou celle choisie dans la vue 3D (Lever, Jour, Coucher ou Nuit) :
   soleil à sa vraie place et ombres orientées comme en vrai, ciel orangé au lever et au coucher, crépuscule bleu, puis
-  nuit étoilée avec projecteurs le long de la piste, fenêtres allumées et feux arrière des voitures. Mêmes pastilles
+  nuit étoilée, fenêtres allumées et feux arrière des voitures, avec des projecteurs le long de la piste sur les
+  circuits éclairés (Las Vegas, Singapour, Lusail, Bahreïn, Djeddah, Abou Dabi) ; ailleurs, la nuit est plus sombre
+  mais la piste reste lisible. Mêmes pastilles
   des pilotes et mêmes calques que la carte 2D (numéros de virage, secteurs et micro-secteurs, zones de dépassement,
   voie des stands, drapeaux jaunes, voiture de sécurité, bandeau des drapeaux), réglables dans le même menu Calques.
   Décochée, la carte habituelle revient. Aussi dans la version web.

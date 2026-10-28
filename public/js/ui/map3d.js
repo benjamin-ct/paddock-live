@@ -2,7 +2,7 @@
 // sinon d'après le modèle de terrain des alentours, à plat tant qu'aucune n'est là), bords et vibreurs, alentours
 // (sol, bâtiments, tribunes, arbres, eau d'OpenStreetMap), F1 2026 faites maison aux couleurs des écuries (jamais de
 // livrée ni de logo), caméras Hélico / Poursuite / Embarquée / Libre autour du pilote suivi (le même que sur la carte
-// 2D), lumière selon l'heure au circuit (lever, jour, coucher, nuit étoilée avec projecteurs).
+// 2D), lumière selon l'heure au circuit (lever, jour, coucher, nuit étoilée, projecteurs sur les circuits éclairés).
 // Chargée seulement à l'ouverture de la vue (three.js). Mêmes positions que la carte 2D : GPS lissé, sinon estimées.
 import * as THREE from '/vendor/three/three.module.min.js';
 import { store, displayNow, f1Now, setFocus } from '../store.js';
@@ -21,6 +21,8 @@ const TIMES = [['auto', 'Heure du circuit'], ['lever', 'Lever'], ['jour', 'Jour'
 // Soleil des ambiances choisies : hauteur et azimut (degrés, depuis le nord vers l'est)
 const PRESET = { lever: [3, 100], jour: [50, 205], coucher: [3, 260], nuit: [-30, 0] };
 const RAD = Math.PI / 180;
+// Circuits éclairés la nuit (projecteurs) : Las Vegas, Marina Bay, Lusail, Sakhir, Djeddah, Yas Marina
+const LIT = new Set([152, 61, 150, 63, 149, 70]);
 
 // ---------- Circuit : tracé (x, y du tracé MultiViewer, 1/10 m) + altitude (z de chaque point, 1/10 m) ----------
 // Altitude : profil GPS (plus précis sur la piste), sinon celle du modèle de terrain des alentours ; alentours (sol,
@@ -134,12 +136,15 @@ function buildWorld(track, elevation, surroundings, gpu) {
   night.add(poles, lamps);
   night.visible = false;
   group.add(night);
+  // k : de 0 (jour) à 1 (nuit) ; projecteurs seulement sur les circuits éclairés (world.lit), ailleurs piste et
+  // lignes juste lisibles
   world.setLights = (k) => {
-    night.visible = k > 0.01;
-    glow.opacity = 0.35 * k;
-    road.material.emissive.setScalar(0.05 * k);
-    lineMat.emissive.setScalar(0.35 * k);
-    kerbMat.emissive.setScalar(0.1 * k);
+    const on = world.lit ? k : 0;
+    night.visible = on > 0.01;
+    glow.opacity = 0.35 * on;
+    road.material.emissive.setScalar((world.lit ? 0.05 : 0.03) * k);
+    lineMat.emissive.setScalar((world.lit ? 0.35 : 0.25) * k);
+    kerbMat.emissive.setScalar(0.1 * on);
     NIGHT.value = k;
   };
   // Direction (est, nord) -> scène : calage des alentours sur le terrain (presque nord en haut), puis rotation de la carte
@@ -1175,6 +1180,7 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
   function rebuild(track, elevation, surroundings) {
     if (world) { scene.remove(world.group); dispose(world.group); }
     world = buildWorld(track, elevation, surroundings, { maxTex: renderer.capabilities.maxTextureSize, aniso: renderer.capabilities.getMaxAnisotropy() });
+    world.lit = LIT.has(Number(store.state.SessionInfo?.Meeting?.Circuit?.Key));
     world.addStartLine(store.positions.lineFrac(), Math.min(26, Math.max(20, Object.keys(store.state.DriverList || {}).length)));
     scene.add(world.group);
     if (layers) { scene.remove(layers.group); dispose(layers.group); }
@@ -1235,6 +1241,8 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
     u.gk.value = amb.gk; u.moon.value = amb.stars;
     sun.color.copy(amb.key); sun.intensity = amb.keyI;
     hemi.color.copy(amb.sky); hemi.groundColor.copy(amb.gnd); hemi.intensity = amb.hemiI;
+    // Circuit sans projecteurs : nuit plus sombre (lune et ciel seulement), lumière d'ambiance douce
+    if (!world.lit) { sun.intensity *= 1 - 0.5 * amb.lights; hemi.intensity *= 1 - 0.2 * amb.lights; }
     stars.material.opacity = amb.stars;
     stars.visible = amb.stars > 0.01;
     scene.fog.color.copy(amb.hor);
