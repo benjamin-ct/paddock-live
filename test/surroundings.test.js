@@ -316,3 +316,24 @@ test('alentours : graviers et dégagements déduits à l\'extérieur des virages
   assert.equal(kindOf({ highway: 'raceway', area: 'yes', surface: 'asphalt' }), 'runoff');
   assert.equal(kindOf({ 'area:highway': 'emergency' }), 'runoff');
 });
+
+test('alentours : graviers d\'OSM qui touchent la piste gardés, déduction ailleurs ; rue voisine (area:highway) écartée', () => {
+  const st = [];
+  for (let x = 0; x < 600; x += 4) st.push([x, -40]);
+  for (let a = -90; a < 90; a += 4) st.push([600 + 40 * Math.cos((a * Math.PI) / 180), 40 * Math.sin((a * Math.PI) / 180)]);
+  for (let x = 600; x > 0; x -= 4) st.push([x, 40]);
+  for (let a = 90; a < 270; a += 4) st.push([40 * Math.cos((a * Math.PI) / 180), 40 * Math.sin((a * Math.PI) / 180)]);
+  const frame = geoFrame(45, 5), fit = { s: 1, a: 0, e: 0, n: 0 };
+  const g = (x, y) => { const [lat, lon] = frame.toGeo(x, y); return { lat, lon }; };
+  const ring = (x0, y0, w, h) => [g(x0, y0), g(x0 + w, y0), g(x0 + w, y0 + h), g(x0, y0 + h), g(x0, y0)];
+  const elements = [
+    { type: 'way', tags: { surface: 'gravel', area: 'yes' }, geometry: ring(645, -40, 30, 80) },        // épingle de droite, contre la piste
+    { type: 'way', tags: { 'area:highway': 'secondary' }, geometry: ring(200, -200, 300, 20) },          // rue à 150 m : écartée
+  ];
+  const d = buildSurroundings({ track: st, fit, frame, elements, dem: () => 100 });
+  const xs = (list) => (list || []).map((r) => r.filter((_, i) => i % 2 === 0));
+  assert.ok(xs(d.areas.gravel).some((r) => Math.min(...r) >= 640), 'graviers d\'OSM gardés');
+  assert.ok(xs(d.areas.gravel).some((r) => Math.min(...r) < -40), 'graviers déduits dans l\'épingle de gauche');
+  assert.ok(!xs(d.areas.gravel).some((r) => Math.min(...r) > 600 && Math.max(...r) > 675), 'pas de graviers déduits par-dessus ceux d\'OSM');
+  assert.ok(!(d.areas.runoff || []).some((r) => r.some((v, i) => i % 2 && v < -150)), 'rue voisine écartée');
+});

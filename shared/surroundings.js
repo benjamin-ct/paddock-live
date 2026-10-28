@@ -591,7 +591,10 @@ export function buildSurroundings({ track, fit, frame, elements = [], dem, margi
     if (ring.length > 1 && ring[0][0] === ring.at(-1)[0] && ring[0][1] === ring.at(-1)[1]) ring.pop();
     ring = simplify(clipRing(ring, box), kind === 'building' ? 1 : 4, true);
     const area = ring.length < 3 ? 0 : ringArea(ring);
-    if (area >= (kind === 'building' ? 12 : 200)) shapes.push({ kind, ring, area, tags });
+    // Graviers et dégagements d'OSM : seulement ceux qui touchent la piste (à moins de 15 m de son bord ; pas les rues
+    // ni les trottoirs d'à côté, area:highway)
+    const edge = kind !== 'gravel' && kind !== 'runoff' || densify([...ring, ring[0]], 5).some(([x, y]) => nearTrack(x, y, 22).p);
+    if (area >= (kind === 'building' ? 12 : 200) && edge) shapes.push({ kind, ring, area, tags });
   };
   for (const el of elements) {
     const t = el.tags || {};
@@ -680,11 +683,10 @@ export function buildSurroundings({ track, fit, frame, elements = [], dem, margi
   const deduced = deduceWalls(track, { built, onRoad: (x, y) => !!roads(x, y, 7).p, taken: (x, y) => !!osmWalls(x, y, 10).p });
   out.walls = [...barriers.map(([kind, pts]) => [kind, ...r1(pts)]), ...deduced.map((pts) => [0, ...r1(pts)])];
 
-  // Graviers et dégagements : ceux d'OSM (déjà dans areas), sinon déduits des virages
-  if (!out.areas.gravel && !out.areas.runoff) {
-    const walls = nearIndex([...barriers.map(([, pts]) => pts), ...deduced].flatMap((pts) => densify(pts, 2))), wet = inside(['water']);
-    const ground = deduceRunoff(track, { blocked: (x, y) => built(x, y) || wet(x, y) || !!walls(x, y, 2.5).p });
-    for (const kind of ['gravel', 'runoff']) if (ground[kind].length) out.areas[kind] = ground[kind].map(flat);
-  }
+  // Graviers et dégagements : ceux d'OSM (déjà dans areas), puis déduits des virages, virage par virage (pas là où OSM
+  // en a déjà)
+  const walls = nearIndex([...barriers.map(([, pts]) => pts), ...deduced].flatMap((pts) => densify(pts, 2))), other = inside(['water', 'gravel', 'runoff']);
+  const ground = deduceRunoff(track, { blocked: (x, y) => built(x, y) || other(x, y) || !!walls(x, y, 2.5).p });
+  for (const kind of ['gravel', 'runoff']) for (const r of ground[kind]) (out.areas[kind] ||= []).push(flat(r));
   return out;
 }
