@@ -69,7 +69,9 @@ export async function savePng(box, year, sub = '') {
   const root = getComputedStyle(document.documentElement);
   const bg = root.getPropertyValue('--panel').trim() || '#0b0b0d', fg = root.getPropertyValue('--text').trim() || '#fff', mu = root.getPropertyValue('--muted').trim() || '#888';
   const h3 = box.querySelector(':scope > h3');
-  const title = h3 ? [...h3.childNodes].filter((n) => !n.classList?.contains('sz-png')).map((n) => n.textContent).join('').trim() : '';
+  // Titre sans le bouton ni la précision en petit (« trait plein : 2026… »), qui passe sur la ligne du dessous
+  const title = h3 ? [...h3.childNodes].filter((n) => !n.matches?.('.sz-png, small')).map((n) => n.textContent).join('').trim() : '';
+  sub = [sub, h3?.querySelector(':scope > small')?.textContent.trim()].filter(Boolean).join(' · ');
   const pad = 24, head = sub ? 62 : 44, foot = 26, k = 2;
   // Taille donnée en clair : Safari dessine sinon un SVG sans largeur ni hauteur à 150 × 150
   const copy = inlined(svg);
@@ -84,8 +86,10 @@ export async function savePng(box, year, sub = '') {
     c.scale(k, k);
     c.fillStyle = bg; c.fillRect(0, 0, vw + pad * 2, vh + head + foot);
     const font = getComputedStyle(document.body).fontFamily;
-    c.fillStyle = fg; c.font = `700 18px ${font}`; c.fillText(title, pad, 30);
-    if (sub) { c.fillStyle = mu; c.font = `13px ${font}`; c.fillText(sub, pad, 50); }
+    // Texte trop long pour la largeur du graphique : écrit plus petit
+    const fit = (txt, px, w = '') => { do c.font = `${w} ${px}px ${font}`; while (c.measureText(txt).width > vw && --px > 9); };
+    c.fillStyle = fg; fit(title, 18, 700); c.fillText(title, pad, 30);
+    if (sub) { c.fillStyle = mu; fit(sub, 13); c.fillText(sub, pad, 50); }
     c.drawImage(img, pad, head, vw, vh);
     c.fillStyle = mu; c.font = `12px ${font}`; c.textAlign = 'right';
     c.fillText(`Paddock Live · ${t('saison {}', year)} · paddocklive.app`, vw + pad, vh + head + 18);
