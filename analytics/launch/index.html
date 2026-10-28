@@ -27,6 +27,11 @@
 <link rel="apple-touch-icon" href="/site/img/apple-touch-icon.png">
 <link rel="preload" href="/fonts/sairacondensed-800.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/titillium-400.woff2" as="font" type="font/woff2" crossorigin>
+<script>
+// Animations : seulement avec IntersectionObserver et sans « réduire les animations ». Classe posée avant le premier
+// affichage (pas de clignotement) ; sans script, elle manque et tout le contenu reste visible
+if ('IntersectionObserver' in window && !matchMedia('(prefers-reduced-motion: reduce)').matches) document.documentElement.classList.add('anim');
+</script>
 <style>
 @font-face { font-family: 'Titillium Web'; font-weight: 400; font-display: swap; src: url('/fonts/titillium-400.woff2') format('woff2'); }
 @font-face { font-family: 'Titillium Web'; font-weight: 600; font-display: swap; src: url('/fonts/titillium-600.woff2') format('woff2'); }
@@ -160,10 +165,7 @@ dialog.hide a small { display: block; font-weight: 400; color: var(--muted); fon
 dialog.hide button { margin-top: 8px; width: 100%; }
 footer .brand { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 
-/* Apparition au défilement */
-.reveal { opacity: 0; transform: translateY(24px); transition: opacity .7s, transform .7s cubic-bezier(.2, .8, .2, 1); }
-.reveal.on { opacity: 1; transform: none; }
-@media (prefers-reduced-motion: reduce) { .reveal { opacity: 1; transform: none; transition: none; } html { scroll-behavior: auto; } }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
 
 @media (max-width: 900px) {
   .links { display: none; }
@@ -200,6 +202,62 @@ footer .brand { -webkit-user-select: none; user-select: none; -webkit-touch-call
 dialog.hide { border-radius: 8px; box-shadow: none; }
 dialog.hide::backdrop { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(0, 0, 0, .75); }
 dialog.hide a { border-radius: 6px; }
+
+/* ---------- Animations (seulement transform et opacity) ----------
+   L'état caché avant apparition n'existe que sous html.anim (classe posée par le script du <head>).
+   Animations « from » seules : à la fin, l'élément retrouve son style normal (survol et clic gardés). */
+:root { --e: cubic-bezier(.16, 1, .3, 1); }
+@keyframes plUp { from { opacity: 0; transform: translateY(24px); } }
+@keyframes plWord { from { opacity: 0; transform: translateY(.42em); } }
+@keyframes plShot { from { opacity: 0; transform: translateY(44px) scale(1.03); } }
+@keyframes plFrame { from { opacity: 0; transform: translateY(36px) scale(.985); } }
+@keyframes plDash { from { transform: scaleX(0); } }
+@keyframes plShine { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+/* Haut de page à l'ouverture : étiquette, titre mot par mot, texte, boutons, capture puis points forts */
+.hero h1 .w { display: inline-block; }
+.anim .hero .eyebrow, .anim .hero h1:not(.split), .anim .hero .lead, .anim .hero .cta .btn, .anim .hero .ver, .anim .facts span { animation: plUp .9s var(--e) backwards; }
+.anim .hero h1:not(.split) { animation-delay: .1s; }
+.anim .hero h1 .w { animation: plWord 1s calc(.12s + var(--i) * 60ms) var(--e) backwards; }
+.anim .hero .lead { animation-delay: .45s; }
+.anim .hero .cta .btn { animation-delay: .58s; }
+.anim .hero .cta .btn:nth-child(2) { animation-delay: .65s; }
+.anim .hero .cta .btn:nth-child(3) { animation-delay: .72s; }
+.anim .hero .cta .btn:nth-child(4) { animation-delay: .79s; }
+.anim .hero .ver { animation-delay: .85s; }
+.anim .hero .shot { animation: plShot 1.4s .7s var(--e) backwards; }
+.anim .facts span { animation-delay: 1.05s; }
+.anim .facts span:nth-child(2) { animation-delay: 1.13s; }
+.anim .facts span:nth-child(3) { animation-delay: 1.21s; }
+.anim .facts span:nth-child(4) { animation-delay: 1.29s; }
+.anim .hero #cta::after { animation: plShine 1.1s 1.9s cubic-bezier(.45, 0, .25, 1); }
+/* Apparition au défilement : chaque élément des blocs .reveal, une fois, en cascade quand plusieurs arrivent ensemble */
+.anim .reveal > :not(.copy):not(.grid):not(.oses):not(.in), .anim .reveal > .copy > :not(.in), .anim .reveal > .grid > :not(.in), .anim .reveal > .oses > :not(.in) { opacity: 0; }
+.anim .in { animation: plUp .9s var(--d, 0s) var(--e) backwards; }
+.anim .frame.in { animation: plFrame 1.2s var(--d, 0s) var(--e) backwards; }
+.anim .in li::before { transform-origin: left; animation: plDash .6s calc(var(--d, 0s) + .35s) var(--e) backwards; }
+.anim .in li:nth-child(2)::before { animation-delay: calc(var(--d, 0s) + .45s); }
+.anim .in li:nth-child(3)::before { animation-delay: calc(var(--d, 0s) + .55s); }
+/* Captures : légère élévation, zoom de l'image et filet rouge au survol (souris seulement) */
+.frame { position: relative; }
+.frame::after { content: ''; position: absolute; inset: 0 0 auto; height: 3px; background: var(--red); transform: scaleX(0); transform-origin: left; pointer-events: none; }
+@media (hover: hover) and (pointer: fine) {
+  .frame { transition: translate .6s var(--e); }
+  .frame img { transition: scale .8s var(--e); }
+  .frame::after { transition: transform .6s var(--e); }
+  .frame:hover { translate: 0 -6px; }
+  .frame:hover img { scale: 1.025; }
+  .frame:hover::after { transform: none; }
+}
+/* Boutons d'appel : reflet qui balaie au survol (retour instantané, invisible), enfoncement au clic */
+.btn.primary { position: relative; overflow: hidden; isolation: isolate; }
+.btn.primary::after { content: ''; position: absolute; inset: 0; z-index: -1; background: linear-gradient(105deg, transparent 25%, rgba(255, 255, 255, .32) 50%, transparent 75%); transform: translateX(-100%); pointer-events: none; }
+@media (hover: hover) { .btn.primary:hover::after { transform: translateX(100%); transition: transform .9s cubic-bezier(.45, 0, .25, 1); } }
+.btn:active { transform: scale(.97); transition-duration: .08s; }
+@media (prefers-reduced-motion: reduce) {
+  .btn:active, .frame:hover, .frame:hover img { transform: none; translate: none; scale: none; }
+  .btn.primary::after, .frame::after { display: none; }
+}
+@media print { .anim * { opacity: 1 !important; animation: none !important; } }
 </style>
 </head>
 <body>
@@ -249,7 +307,7 @@ dialog.hide a { border-radius: 6px; }
         <a class="btn" href="https://app.paddocklive.app/"><svg><use href="#i-tv"/></svg><span data-en="Live in your browser">Le direct dans le navigateur</span></a>
       </div>
       <p class="ver" id="ver"></p>
-      <div class="shot reveal"><img src="/site/img/tableau-de-bord.webp" width="1600" height="888" alt="Paddock Live pendant une course : classement, carte du circuit, radios et direction de course" fetchpriority="high"></div>
+      <div class="shot"><img src="/site/img/tableau-de-bord.webp" width="1600" height="888" alt="Paddock Live pendant une course : classement, carte du circuit, radios et direction de course" fetchpriority="high"></div>
       <div class="facts">
         <span data-en="Free">Gratuit</span>
         <span data-en="No account needed">Sans compte</span>
@@ -374,7 +432,7 @@ dialog.hide a { border-radius: 6px; }
   </section>
 
   <section class="download" id="telecharger">
-    <div class="wrap">
+    <div class="wrap reveal">
       <span class="eyebrow" data-en="Download">Télécharger</span>
       <h2 data-en="Free, for your computer">Gratuit, pour ton ordinateur</h2>
       <p class="lead" data-en="Install it once: the app then updates itself.">Installe-la une fois : l'appli se met ensuite à jour toute seule.</p>
@@ -403,7 +461,7 @@ dialog.hide a { border-radius: 6px; }
   </section>
 
   <section id="faq">
-    <div class="wrap faq">
+    <div class="wrap faq reveal">
       <span class="eyebrow" data-en="Questions">Questions</span>
       <h2 data-en="Good to know">Bon à savoir</h2>
       <details><summary data-en="Is it really free?">C'est vraiment gratuit ?</summary><p data-en="Yes. No subscription, no ads, no account to create.">Oui. Pas d'abonnement, pas de publicité, pas de compte à créer.</p></details>
@@ -461,6 +519,57 @@ dialog.hide a { border-radius: 6px; }
 </footer>
 
 <script>
+// Animations, à part du reste : une erreur plus bas ne laisse rien caché. Sans la classe anim (pas
+// d'IntersectionObserver, mouvement réduit), rien n'est caché et rien ne bouge
+const anim = document.documentElement.classList.contains('anim');
+// Grand titre mot par mot (refait à chaque changement de langue, qui réécrit le titre)
+function splitTitle() {
+  const h1 = document.querySelector('.hero h1');
+  if (!anim || !h1) return;
+  let i = 0;
+  const walk = (node) => {
+    for (const n of [...node.childNodes]) {
+      if (n.nodeType !== 3) { walk(n); continue; }
+      const f = document.createDocumentFragment();
+      for (const part of n.textContent.split(/(\s+)/)) {
+        if (!part) continue;
+        if (/^\s+$/.test(part)) { f.append(part); continue; }
+        const w = document.createElement('span');
+        w.className = 'w';
+        w.style.setProperty('--i', i++);
+        w.textContent = part;
+        f.append(w);
+      }
+      n.replaceWith(f);
+    }
+  };
+  walk(h1);
+  h1.classList.add('split');
+}
+// Apparition au défilement, une seule fois : les éléments arrivés ensemble entrent en cascade
+if (anim) {
+  const io = new IntersectionObserver((list) => {
+    let n = 0;
+    for (const e of list) {
+      if (!e.isIntersecting) continue;
+      e.target.style.setProperty('--d', `${Math.min(n++, 6) * 70}ms`);
+      e.target.classList.add('in');
+      io.unobserve(e.target);
+    }
+  }, { rootMargin: '0px 0px -8% 0px' });
+  document.querySelectorAll('.reveal > :not(.copy):not(.grid):not(.oses), .reveal > .copy > *, .reveal > .grid > *, .reveal > .oses > *').forEach((el) => io.observe(el));
+  // Très légère parallaxe de la capture du haut (grand écran) : elle descend un peu moins vite que la page
+  const shot = document.querySelector('.hero .shot');
+  if (shot && matchMedia('(min-width: 901px)').matches) {
+    let raf = 0;
+    shot.style.willChange = 'transform';
+    addEventListener('scroll', () => {
+      raf ||= requestAnimationFrame(() => { raf = 0; shot.style.translate = `0 ${(Math.min(scrollY, 800) * 0.03).toFixed(1)}px`; });
+    }, { passive: true });
+  }
+}
+</script>
+<script>
 // Comptes à afficher en bas de page
 const SOCIAL = [
   ['Instagram', 'https://www.instagram.com/paddockliveapp/'],
@@ -497,6 +606,7 @@ function setLang(l) {
   b.setAttribute('aria-label', l === 'en' ? 'Français' : 'English');
   try { localStorage.setItem('pl.lang', l); } catch { /* sans stockage */ }
   showVersion();
+  splitTitle();
 }
 document.getElementById('lang').onclick = () => (served === 'en' ? location.assign('/?lang=fr') : setLang(lang === 'en' ? 'fr' : 'en'));
 
@@ -616,9 +726,6 @@ document.getElementById('footBrand').addEventListener('click', (e) => {
 if (location.hash === '#paddock') hiddenMenu();
 addEventListener('hashchange', () => { if (location.hash === '#paddock') hiddenMenu(); });
 
-// Apparition des sections au défilement
-const io = 'IntersectionObserver' in window ? new IntersectionObserver((list) => list.forEach((e) => { if (e.isIntersecting) { e.target.classList.add('on'); io.unobserve(e.target); } }), { rootMargin: '0px 0px -8% 0px' }) : null;
-document.querySelectorAll('.reveal').forEach((el) => (io ? io.observe(el) : el.classList.add('on')));
 </script>
 </body>
 </html>
