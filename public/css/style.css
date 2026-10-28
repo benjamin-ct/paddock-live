@@ -1283,7 +1283,10 @@ body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-selec
 /* Vue 3D de la carte (ui/map3d.js), à la place de la carte 2D */
 .map3d { display: none; position: absolute; inset: 0; }
 .p-map.is-3d .map3d { display: block; }
-.p-map.is-3d .map-wrap > :not(.map3d, .map-empty, .map3d-msg), .p-map.is-3d :is(#mapLayers, label:has(#mapFollow), #mapMode) { display: none !important; }
+/* En 3D : mêmes calques que la carte 2D (menu Calques, bandeau des drapeaux) ; cachées seulement les cases sans effet */
+.p-map.is-3d .map-wrap > :not(.map3d, .map-empty, .map3d-msg, .map-flags),
+.p-map.is-3d :is(label:has(#mapFollow), #mapMode, label:has(#mapTrails, #mapGaps, #mapFocusCard, #mapRibbon2, #mapGrid)) { display: none !important; }
+.p-map.is-3d .map-flags { top: 56px; }
 .map3d-canvas { display: block; width: 100%; height: 100%; touch-action: none; }
 .map3d-bar { position: absolute; left: 8px; top: 8px; right: 8px; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 6px; pointer-events: none; }
 .map3d-bar > * { pointer-events: auto; }

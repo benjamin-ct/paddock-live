@@ -7,6 +7,7 @@ import * as THREE from '/vendor/three/three.module.min.js';
 import { store, displayNow, setFocus } from '../store.js';
 import { drivers, orderedNumbers, storageGet, storageSet, esc } from '../util.js';
 import { t } from '../i18n.js';
+import { FONT, drawPuck, drawBadge, drawSectorBadge, drawCornerChip, drawFlagBadge, drawScBadge } from './map-draw.js';
 
 const W = 14;           // largeur de la piste (m)
 const MAX_CARS = 30;
@@ -88,7 +89,7 @@ function buildWorld(track, elevation, surroundings) {
   const groundAt = land ? landGround(group, land, { track, P, toW, fromW, base: zMin + off }) : flatGround(group, P, box, z);
 
   const world = { track, elevation, surroundings, land: !!land, source: gps ? 'gps' : land ? 'terrain' : null,
-    relief: z ? (Math.max(...z) - zMin) / 10 : null, P, T, SIDE, N, box, group, groundAt, toW };
+    relief: z ? (Math.max(...z) - zMin) / 10 : null, P, T, SIDE, N, DS, box, group, groundAt, toW, ribbon, road };
   // Ligne de chronométrage (damier), au même endroit que sur la carte 2D
   world.addStartLine = (frac) => {
     const sp = track.pointAt(frac * track.L), [x, zz] = toW(sp.x, sp.y), i = nearestIndex(world, x, zz, -1);
@@ -401,25 +402,160 @@ function merge(list) {
   return out;
 }
 
-// Étiquette du pilote (trigramme sur la couleur de l'écurie), de taille fixe à l'écran
-function label(text, hex) {
+// Étiquette dessinée sur un canevas de w × h px (deux fois plus fin) : draw(g) ; à taille fixe à l'écran (en px,
+// ajustée à chaque image par fitSprites), ou dans la scène si m (largeur en mètres) ; depth : cachée derrière le relief
+function canvasSprite(w, h, draw, { m = 0, depth = true } = {}) {
   const c = document.createElement('canvas');
-  c.width = 192; c.height = 72;
+  c.width = w * 2;
+  c.height = h * 2;
   const g = c.getContext('2d');
-  g.fillStyle = hex;
-  g.beginPath(); g.roundRect(6, 6, 180, 60, 16); g.fill();
-  const v = parseInt(hex.slice(1), 16), lum = (0.299 * (v >> 16) + 0.587 * ((v >> 8) & 255) + 0.114 * (v & 255)) / 255;
-  g.fillStyle = lum > 0.5 ? '#0b0b0d' : '#fff';
-  g.font = '800 44px "Saira Condensed", "Titillium Web", system-ui, sans-serif';
-  g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.fillText(text, 96, 38);
+  g.scale(2, 2);
+  draw(g);
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
-  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, fog: false, sizeAttenuation: false }));
-  s.scale.set(0.1, 0.0375, 1);
-  s.center.set(0.5, 0);
-  s.renderOrder = 10;
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: depth, fog: false, sizeAttenuation: !!m, transparent: true }));
+  s.userData = { w, h, g, tex, px: !m };
+  if (m) s.scale.set(m, (m * h) / w, 1);
   return s;
+}
+
+// Étiquettes à taille fixe à l'écran : taille selon la hauteur de la vue et l'angle de la caméra
+function fitSprites(root, camera, h) {
+  const k = 2 / ((camera.projectionMatrix.elements[5] || 1) * (h || 1));
+  root.traverse((o) => { if (o.isSprite && o.userData.px) o.scale.set(o.userData.w * k, o.userData.h * k, 1); });
+}
+
+// ---------- Calques de la carte 2D (mêmes cases du menu Calques) : secteurs, zones, stands, virages, drapeaux ----------
+// L : calques donnés par la carte 2D (ui/map.js, layers3d). Redessinés seulement quand L.key change
+function buildLayers(world, L) {
+  const { P, SIDE, N, DS, track, toW, ribbon } = world;
+  const group = new THREE.Group(), blink = [];
+  const o = L.opt, sectors = o.mapSectors && !L.red && !L.sc && !L.vsc;
+  const at = (x, y) => { const [wx, wz] = toW(x, y); return nearestIndex(world, wx, wz, -1); };   // point du tracé -> indice de P
+  const atR = (r) => { const p = track.pointAt(r); return at(p.x, p.y); };
+  const range = (a, b, more = () => true) => (i) => (b >= a ? i >= a && i <= b : i >= a || i <= b) && more(i);
+  const band = (test, { off = 0, width, lift, color, opacity = 1 }) => {
+    const mat = new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide, transparent: opacity < 1, opacity, depthWrite: opacity === 1 });
+    group.add(new THREE.Mesh(ribbon({ off, width, lift, test }), mat));
+    return mat;
+  };
+  const beside = (i, d, up = 2.5) => P[i].clone().addScaledVector(SIDE[i], d).setY(P[i].y + up);   // à d m du milieu de la piste
+  const put = (sprite, pos) => { sprite.center.set(0.5, 0); sprite.position.copy(pos); group.add(sprite); return sprite; };   // posée au-dessus du point
+  const label = (text, bg, fg, edge) => canvasSprite(Math.ceil(text.length * 7 + 18), 18, (g) => drawBadge(g, (text.length * 7 + 18) / 2, 9, text, bg, fg, edge));
+
+  // Secteurs : bande colorée au milieu de la piste, micro-secteurs du pilote suivi, repères, pastilles S1 / S2 / S3
+  if (sectors) {
+    for (const sec of L.lay.sectors) {
+      const a = atR(sec.from), b = atR(sec.from + sec.len);
+      band(range(a, b), { width: 2.2, lift: 0.03, color: L.sectorColors[sec.i] });
+      const mid = atR(sec.from + sec.len / 2), best = L.best[sec.i];
+      put(canvasSprite(best ? 150 : 30, 22, (g) => drawSectorBadge(g, best ? 75 : 15, 11, sec.i, L.sectorColors[sec.i], best)), beside(mid, -(W / 2 + 12)));
+    }
+    for (const m of L.minis) band(range(atR(m.from), atR(m.to)), { width: 4, lift: 0.035, color: m.color });
+    for (const m of L.lay.minis) {
+      const i = atR(m.r);
+      band((k) => k === i, { width: m.last ? W + 2 : W - 2, lift: 0.04, color: m.last ? 0xffffff : 0xe9edf4, opacity: m.last ? 1 : 0.45 });
+    }
+    // Numéros des micro-secteurs : à taille fixe dans la scène (lisibles de près)
+    if (o.mapMiniNums) {
+      for (const sec of L.lay.sectors) {
+        let prev = sec.from;
+        L.lay.minis.filter((m) => m.i === sec.i).forEach((m, k) => {
+          const txt = `${sec.i + 1}.${k + 1}`, mid = atR(prev + (((m.r - prev) % track.L) + track.L) % track.L / 2);
+          put(canvasSprite(32, 16, (g) => {
+            g.font = `700 13px ${FONT()}`;
+            g.textAlign = 'center';
+            g.textBaseline = 'middle';
+            g.fillStyle = 'rgba(14,17,22,.75)';
+            g.beginPath(); g.roundRect(1, 1, 30, 14, 4); g.fill();
+            g.fillStyle = 'rgba(233,237,244,.95)';
+            g.fillText(txt, 16, 8.5);
+          }, { m: 5 }), beside(mid, W / 2 + 4, 1.5));
+          prev = m.r;
+        });
+      }
+    }
+  }
+
+  // Zones « ligne droite » (pointillés verts des deux côtés), détection et activation du mode dépassement
+  const n = track.pts.length, z = L.zones;
+  if (o.mapZones && !L.red && z && !z.zones.some((x) => x.from >= n || x.to >= n)) {
+    const idx = (k) => at(track.pts[k].x, track.pts[k].y);
+    z.zones.forEach((zz, k) => {
+      const a = idx(zz.from), b = idx(zz.to), dash = (i) => Math.floor((i * DS) / 1.5) % 2 === 0;
+      for (const s of [-1, 1]) band(range(a, b, dash), { off: s * (W / 2 + 1.2), width: 0.9, lift: 0.03, color: 0x3cc86e });
+      const mid = idx((zz.from + Math.floor((((zz.to - zz.from) % n) + n) % n / 2)) % n);
+      put(label(`LD ${zz.name || k + 1}`, '#0E1116', '#34D399', '#34D399'), beside(mid, W / 2 + 14));
+    });
+    for (const [m, color, ink, text, side] of [[z.detection, '#ff4fd8', '#2a0623', 'DÉTECTION', 1], [z.activation, '#3ce08a', '#062414', 'ACTIVATION', -1]]) {
+      if (!m || m.idx >= n) continue;
+      const i = idx(m.idx);
+      band((k) => k === i, { width: W + 8, lift: 0.045, color });
+      put(label(text, color, ink), beside(i, side * (W / 2 + 16)));
+    }
+  }
+
+  // Voie des stands : route plus étroite et plus sombre, pointillés au milieu, étiquette « STANDS »
+  const pit = z?.pitLane?.path;
+  if (o.mapPit && pit?.length > 1) {
+    const pts = [];
+    for (let k = 0; k + 1 < pit.length; k++) {
+      const [ax, az] = toW(...pit[k]), [bx, bz] = toW(...pit[k + 1]), steps = Math.max(1, Math.ceil(Math.hypot(bx - ax, bz - az) / 2));
+      for (let j = 0; j < steps; j++) pts.push([ax + ((bx - ax) * j) / steps, az + ((bz - az) * j) / steps]);
+    }
+    pts.push(toW(...pit.at(-1)));
+    const strip = (width, lift, color, test = () => true) => {
+      const pos = [], ix = [];
+      pts.forEach(([x, zz], k) => {
+        const [px, pz] = pts[Math.max(0, k - 1)], [qx, qz] = pts[Math.min(pts.length - 1, k + 1)], l = Math.hypot(qx - px, qz - pz) || 1;
+        const sx = -(qz - pz) / l, sz = (qx - px) / l, y = world.groundAt(x, zz) + lift;
+        pos.push(x + (sx * width) / 2, y, zz + (sz * width) / 2, x - (sx * width) / 2, y, zz - (sz * width) / 2);
+        if (k && test(k)) ix.push(2 * k - 2, 2 * k, 2 * k - 1, 2 * k - 1, 2 * k, 2 * k + 1);
+      });
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      geo.setIndex(ix);
+      group.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -4 })));
+    };
+    strip(7, 0.3, 0x4a4a55);
+    strip(0.35, 0.33, 0xdddde6, (k) => Math.floor(k / 2) % 2 === 0);
+    const [mx, mz] = pts[pts.length >> 1];
+    put(label('STANDS', '#3a3a44', '#e6e6ee'), new THREE.Vector3(mx, world.groundAt(mx, mz) + 4, mz));
+  }
+
+  // Numéros de virage : pastilles à l'extérieur de la piste
+  if (o.mapCorners) {
+    for (const c of track.corners) {
+      const i = at(c.x, c.y), a = (c.angle * Math.PI) / 180, [x0, z0] = toW(c.x, c.y), [x1, z1] = toW(c.x + Math.cos(a) * 560, c.y + Math.sin(a) * 560);
+      const l = Math.hypot(x1 - x0, z1 - z0) || 1, rad = 9 + (c.number >= 10 ? 2 : 0);
+      put(canvasSprite(26, 26, (g) => {
+        g.font = `700 11px ${FONT()}`;
+        g.textAlign = 'center';
+        g.textBaseline = 'middle';
+        drawCornerChip(g, 13, 13, rad, c.number, L.pal);
+      }), new THREE.Vector3(x0 + ((x1 - x0) / l) * (W / 2 + 10), P[i].y + 2, z0 + ((z1 - z0) / l) * (W / 2 + 10)));
+    }
+  }
+
+  // Secteurs de commissaires sous drapeau jaune (double jaune : clignote) et leur fanion
+  for (const f of L.flagZones) {
+    const a = at(track.pts[f.from].x, track.pts[f.from].y), b = at(track.pts[f.to].x, track.pts[f.to].y);
+    const mat = band(range(a, b), { width: W + 3, lift: 0.05, color: f.dbl ? 0xff9f1a : 0xf5c518, opacity: 0.7 });
+    if (f.dbl) blink.push(mat);
+    put(canvasSprite(44, 20, (g) => drawFlagBadge(g, 22, 10, f.number, f.dbl)), beside(a, W / 2 + 12));
+  }
+  // Voiture de sécurité estimée devant le leader (placée par placeSc)
+  const sc = put(canvasSprite(30, 20, (g) => drawScBadge(g, 15, 10), { depth: false }), new THREE.Vector3());
+  sc.visible = false;
+  sc.renderOrder = 9;
+  const placeSc = (r) => {
+    sc.visible = r !== null && r !== undefined;
+    if (sc.visible) sc.position.copy(beside(atR(r + track.L / 45), 0, 3));
+  };
+  placeSc(L.scR);
+  // Piste rouge (drapeau rouge) ou orangée (voiture de sécurité), comme la carte 2D
+  world.road.material.color.set(L.red ? 0x8f2622 : L.sc || L.vsc ? 0x8c6418 : 0x3a3d42);
+  return { group, blink, placeSc };
 }
 
 // Position GPS lissée (Catmull-Rom entre les échantillons, 3 à 4 par seconde) ; extrapolation de positions.js au bout
@@ -438,8 +574,9 @@ function gpsSmooth(num, t) {
 }
 
 // Ouvre la vue dans host ; null si WebGL est indisponible. getTrack / getElevation / getSurroundings : tracé, altitude
-// et alentours de la carte 2D ; onFail(message) : contexte WebGL perdu (retour à la carte 2D)
-export function open(host, { getTrack, getElevation, getSurroundings = () => null, onFail }) {
+// et alentours de la carte 2D ; getLayers : ses calques (cases du menu Calques, drapeaux…) ; onFail(message) :
+// contexte WebGL perdu (retour à la carte 2D)
+export function open(host, { getTrack, getElevation, getSurroundings = () => null, getLayers = () => null, onFail }) {
   let renderer;
   try {
     renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -490,7 +627,7 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
   const darks = new THREE.InstancedMesh(darkGeo, new THREE.MeshStandardMaterial({ color: 0x141619, roughness: 0.7 }), MAX_CARS);
   for (const m of [bodies, darks]) { m.castShadow = true; m.frustumCulled = false; m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); scene.add(m); }
   const HIDDEN = new THREE.Matrix4().makeScale(0, 0, 0);
-  const cars = new Map();   // num -> { k, q, p, hint, tag, seen }
+  const cars = new Map();   // num -> { k, q, p, hint, tag (pastille, comme sur la carte 2D), look (son dessin), seen }
   let rosterKey = '';
   const roster = () => {
     const dl = drivers(store.state);
@@ -501,10 +638,12 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
     cars.clear();
     Object.keys(dl).slice(0, MAX_CARS).forEach((num, k) => {
       const d = dl[num], hex = `#${String(d.TeamColour || '8b95a8').replace('#', '')}`;
-      const tag = label(d.Tla || num, hex);
+      const tag = canvasSprite(64, 64, () => {}, { depth: false });
+      tag.center.set(0.5, 0.2);
+      tag.renderOrder = 10;
       scene.add(tag);
       bodies.setColorAt(k, new THREE.Color(hex));
-      cars.set(num, { k, q: new THREE.Quaternion(), p: new THREE.Vector3(), hint: -1, tag, seen: false });
+      cars.set(num, { k, q: new THREE.Quaternion(), p: new THREE.Vector3(), hint: -1, tag, look: '', seen: false });
     });
     if (bodies.instanceColor) bodies.instanceColor.needsUpdate = true;
     fillDrivers(dl);
@@ -589,6 +728,8 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
     world = buildWorld(track, elevation, surroundings);
     world.addStartLine(store.positions.lineFrac());
     scene.add(world.group);
+    if (layers) { scene.remove(layers.group); dispose(layers.group); }
+    layers = null;   // calques redessinés sur ce tracé
     const s = world.box.getSize(new THREE.Vector3());
     scene.fog = new THREE.Fog(0xc6dcea, 700, Math.max(4800, Math.max(s.x, s.z) * 2.5));
     for (const c of cars.values()) c.hint = -1;
@@ -603,6 +744,19 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
   const tmp = new THREE.Object3D(), m4 = new THREE.Matrix4(), camPos = new THREE.Vector3(), look = new THREE.Vector3();
   const dir = new THREE.Vector3(), one = new THREE.Vector3(1, 1, 1);
   let last = performance.now(), raf = 0, focusSeen = null;
+  // Calques de la carte 2D : relus 5 fois par seconde, redessinés seulement quand ils changent
+  let L = null, lastL = -1e9, layers = null;
+  const pollLayers = (now) => {
+    if (now - lastL < 200 && layers) return;
+    lastL = now;
+    L = getLayers() || null;
+    if (!L) return;
+    if (layers?.key !== L.key) {
+      if (layers) { scene.remove(layers.group); dispose(layers.group); }
+      layers = { ...buildLayers(world, L), key: L.key };
+      scene.add(layers.group);
+    } else layers.placeSc(L.scR);
+  };
   function frame(now) {
     raf = requestAnimationFrame(frame);
     const dt = Math.min(0.1, (now - last) / 1000), dtCam = Math.min(1, (now - last) / 1000);   // caméra : temps réel
@@ -616,6 +770,7 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
       renderer.setSize(w, h, false);
       camera.aspect = w / (h || 1);
     }
+    pollLayers(now);
     const dl = roster();
     if (sel.value !== (store.focus && dl[store.focus] ? store.focus : '') && document.activeElement !== sel) fillDrivers(dl);
     const disp = displayNow(), gps = store.positions.hasGps(disp);
@@ -623,6 +778,22 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
     const showOut = document.getElementById('mapShowOut')?.checked;
     const redFlag = String(store.state.TrackStatus?.Status || '') === '5';
     const a = 1 - Math.exp(-dtCam * 12);
+    // Pastilles : même dessin que la carte 2D (trigramme ou simple point, position, anneaux du leader et des pilotes
+    // suivis), redessinées seulement quand elles changent
+    const o = L?.opt || { mapLabels: true, mapPosBadges: true }, duel = L?.duel || {};
+    const puck = { labels: o.mapLabels, posOpt: o.mapPosBadges, posBadges: o.mapPosBadges, gps, ring: L?.pal.ring || '#07080A' };
+    for (const [num, c] of cars) {
+      const d = dl[num], pos = Number(lines[num]?.Position) || null, isA = duel.a === num, isB = duel.b === num, sp = isA || isB || store.focus === num;
+      const key = [puck.labels, puck.posOpt, puck.gps, puck.ring, pos, isA, isB, sp, d?.Tla, d?.TeamColour].join();
+      if (key !== c.look) {
+        c.look = key;
+        const { g, tex } = c.tag.userData, r = (puck.labels ? 14 : 7) + (sp ? 1.5 : 0);
+        g.clearRect(0, 0, 64, 64);
+        drawPuck(g, 32, 32, { r, col: `#${String(d?.TeamColour || '8b95a8').replace('#', '')}`, d, num, pos, sp, isA, isB }, puck);
+        tex.needsUpdate = true;
+      }
+      c.tag.material.opacity = L?.hot && !L.hot.has(num) && !sp ? 0.3 : 1;
+    }
     for (const [num, c] of cars) {
       const l = lines[num] || {};
       let g = null;
@@ -652,7 +823,7 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
       m4.compose(c.p, c.q, one);
       bodies.setMatrixAt(c.k, m4);
       darks.setMatrixAt(c.k, m4);
-      c.tag.position.set(c.p.x, c.p.y + 2.2, c.p.z);
+      c.tag.position.set(c.p.x, c.p.y + 1.6, c.p.z);
       c.tag.visible = true;
     }
     bodies.instanceMatrix.needsUpdate = true;
@@ -702,6 +873,8 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
     snap = false;
     sun.position.copy(sun.target.position).addScaledVector(sunDir, 250);
     sky.position.copy(camera.position);
+    for (const m of layers?.blink || []) m.opacity = 0.45 + 0.35 * Math.sin(now / 180);   // double jaune
+    fitSprites(scene, camera, h);
     renderer.render(scene, camera);
     host.dataset.ready = '1';
   }
@@ -722,7 +895,7 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
 
 function dispose(root) {
   root.traverse((o) => {
-    o.geometry?.dispose();
+    if (!o.isSprite) o.geometry?.dispose();   // géométrie des étiquettes : commune à toutes (three.js)
     for (const m of [].concat(o.material || [])) { m.map?.dispose(); m.dispose(); }
   });
 }
