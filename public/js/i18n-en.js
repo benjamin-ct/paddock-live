@@ -1,6 +1,9 @@
 // Interface en anglais : traduction de chaque texte français affiché (voir i18n.js).
 // {} = valeur dynamique (dans l'ordre), {0}, {1}… pour changer l'ordre en anglais.
 export default {
+  "Hors séance": "No session",
+  "Pas de séance en cours : le direct reprend tout seul avant la prochaine, {}": "No session right now: live timing resumes on its own before the next one, {}",
+  "Pas de séance en cours": "No session right now",
   "Automatique (système)": "Automatic (system)",
   "Pas de télémétrie dans ce replay.": "No telemetry in this replay.",
   "Choisissez vos pilotes favoris pour voir leur saison ici.": "Pick your favourite drivers to see their season here.",

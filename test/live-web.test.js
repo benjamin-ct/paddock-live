@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import zlib from 'node:zlib';
-import { LiveRelay, KEEP_MS, AUTH_MS, PRIVATE_MS, liveApi, pairSend, liveDevices, liveState } from '../analytics/live-relay.js';
+import { LiveRelay, KEEP_MS, AUTH_MS, PRIVATE_MS, LEAD_MS, liveApi, pairSend, liveDevices, liveState } from '../analytics/live-relay.js';
 import { WebHub } from '../analytics/live-page/web-hub.js';
 import { applyEvent, createDerived } from '../shared/derive.js';
 
@@ -484,4 +484,43 @@ test('version web : relais d\'un abonné fermé sans connexion F1 TV au bout de 
     assert.equal(s3.closed, null);   // relais commun : pas concerné
     for (const r of [idle, mine, shared]) { r.clients.clear(); r.stop(); }
   } finally { delete globalThis.WebSocketPair; }
+});
+
+test('relais web : au repos hors séance (F1 débranchée, veille), réveillé avant la séance suivante', async () => {
+  const now = Date.UTC(2026, 9, 28, 12);
+  const alarms = [];
+  const relay = new LiveRelay({ storage: { setAlarm: async (t) => alarms.push(t) } }, { DB: {} });
+  relay.connect = () => {};
+  const sent = [];
+  relay.clients.add({ send: (s) => sent.push(JSON.parse(s)) });
+  relay.start();
+  relay.base.t = now;
+  // Séance dans 10 min, ou chronos reçus il y a 30 s : le relais reste branché
+  relay.sched = { at: now, starts: [now + 10 * 60e3] };
+  await relay.sleepUntilNext(now);
+  assert.equal(relay.active, true);
+  relay.sched = { at: now, starts: [now - 5 * 3600e3, now + 2 * 86400e3] };
+  relay.lastTimingAt = now - 30e3;
+  await relay.sleepUntilNext(now);
+  assert.equal(relay.active, true, 'séance encore en cours d\'après les chronos');
+  // Plus rien : repos jusqu'à 30 min avant la séance suivante, minuteries arrêtées
+  relay.lastTimingAt = now - 10 * 60e3;
+  await relay.sleepUntilNext(now);
+  assert.equal(relay.active, false);
+  assert.equal(relay.timers.length, 0);
+  assert.deepEqual(alarms, [now + 2 * 86400e3 - LEAD_MS]);
+  assert.deepEqual([sent.at(-1).type, sent.at(-1).status.rest, sent.at(-1).status.next], ['up', true, now + 2 * 86400e3]);
+  await relay.alarm();
+  assert.equal(relay.active, true, 'réveillé pour la séance');
+  assert.equal(relay.status.rest, false);
+  for (const t of relay.timers) clearInterval(t), clearTimeout(t);
+});
+
+test('relais web : connexions des navigateurs retrouvées après la veille (adresse, appareil, relais)', () => {
+  const ws = { deserializeAttachment: () => ({ nets: ['1.2.3.4'], ua: 'iPhone', since: 5, name: 'u:abc' }) };
+  const relay = new LiveRelay({ getWebSockets: () => [ws] }, {});
+  assert.equal(relay.clients.size, 1);
+  assert.equal(relay.ips.get('1.2.3.4'), 1);
+  assert.equal(relay.name, 'u:abc');
+  assert.deepEqual(relay.clientList().devices.map((d) => d.ua), ['iPhone']);
 });

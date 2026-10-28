@@ -36,6 +36,8 @@ l'application (Réglages → À propos → Nouveautés).
 - Replay : la Télémétrie dit « Pas de télémétrie dans ce replay » au lieu de proposer la connexion F1 TV du direct.
 - Écran « Pas de séance en direct » (appli et version web) : le programme du week-end du prochain Grand Prix, jour par
   jour, sous le compte à rebours.
+- Version web : entre deux séances, l'étiquette du direct en haut dit « Hors séance » ; le direct reprend tout seul une
+  demi-heure avant la séance suivante.
 
 ### Téléphone
 - En course, le haut de l'écran tient sur deux lignes (le délai TV à côté du tour) : une ligne de classement en plus, et

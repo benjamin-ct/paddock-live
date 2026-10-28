@@ -261,6 +261,11 @@ export function renderSource() {
       shownReplayError = src.error;
       toast(`Replay impossible : ${src.error} — « Direct » dans le menu de gauche pour revenir au direct`, 10000, 'warning');
     }
+  } else if (src.mode === 'live' && src.rest) {
+    // Version web, relais au repos entre deux séances : il se rebranche tout seul avant la prochaine
+    badge.className = 'source-badge';
+    lbl.textContent = t('Hors séance');
+    badge.title = src.next ? t('Pas de séance en cours : le direct reprend tout seul avant la prochaine, {}', new Date(src.next - 30 * 60e3).toLocaleString(LOCALE, { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })) : t('Pas de séance en cours');
   } else if (src.mode === 'live') {
     const stale = src.connected && src.stale;
     badge.className = `source-badge ${stale ? 'stale' : src.connected ? 'live' : 'error'}`;
