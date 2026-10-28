@@ -1122,12 +1122,15 @@ body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-selec
 .sz-dna { display: grid; gap: 4px; }
 .sz-dna-h { margin-top: 6px; }
 .sz-dna a { color: inherit; }
-.sz-chip { fill: var(--panel-2); stroke: var(--border); stroke-width: 1; }
-.sz-chip-t { fill: var(--text); font-size: 11.5px; font-weight: 600; }
-.sz-chip-tick { stroke: var(--accent); stroke-width: 2; }
-.sz-dna-band { fill: var(--text); fill-opacity: .03; }
-.sz-dna-band.alt { fill-opacity: .06; }
-.sz-dna-n { fill: var(--text); font-size: 16px; font-weight: 800; }
+.sz-fams { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; margin-bottom: 8px; }
+.sz-fam { --fam: #3fb37f; padding: 10px 12px 12px; border: 1px solid var(--border); border-left: 4px solid var(--fam); border-radius: 10px; background: var(--panel-2); }
+.sz-fam.hi { --fam: var(--accent); }
+.sz-fam.mid { --fam: #f2a33a; }
+.sz-fam-h { display: flex; flex-direction: column; gap: 1px; margin-bottom: 10px; }
+.sz-fam-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(74px, 1fr)); gap: 10px 6px; }
+.sz-fam-c { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; text-align: center; line-height: 1.2; }
+.sz-fam-trk { width: 44px; height: 44px; }
+.sz-fam-trk polygon { fill: none; stroke: var(--text); stroke-width: 4.5; stroke-linejoin: round; }
 .cal-map { padding: 10px; }
 .cal-land { fill: var(--panel-3); stroke: var(--line-2); stroke-width: .6; }
 .cal-pin circle { stroke: var(--panel); stroke-width: 1.5; }
