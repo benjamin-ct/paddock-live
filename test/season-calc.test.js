@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { qualiGap, qualiGaps, driverRatings, grade, lapsLed, similarCircuits, titleRace, placeForMaxPoints, standingsAfter } from '../shared/season-calc.js';
+import { qualiGap, qualiGaps, driverRatings, grade, lapsLed, similarCircuits, titleRace, placeForMaxPoints, standingsAfter, teamShort, shortTeams } from '../shared/season-calc.js';
 
 const res = (code, teamId, pos, points, grid = pos, posText = String(pos)) => ({ code, name: code, last: code, team: teamId, teamId, pos, posText, points, grid });
 const q = (code, teamId, pos, times) => ({ code, teamId, pos, q: times });
@@ -193,4 +193,14 @@ test('comparer deux saisons : même écurie sous un autre nom, points cumulés m
   ] };
   assert.deepEqual(pointsPath(data, 'd', 'HUL', 3), [{ x: 1, y: 15, pos: '3', gp: 'A' }, { x: 2, y: 47, pos: '1', gp: 'B' }]);
   assert.deepEqual(pointsPath(data, 'c', 'sauber', 1).map((p) => p.y), [15], 'Audi = Sauber');
+});
+
+test('noms d\'écuries courts, les mêmes dans toute la Saison', () => {
+  assert.equal(teamShort('RB F1 Team'), 'Racing Bulls');
+  assert.equal(teamShort('Red Bull Racing'), 'Red Bull');
+  assert.equal(teamShort('Alpine F1 Team'), 'Alpine');
+  assert.equal(teamShort('Haas F1 Team'), 'Haas');
+  assert.equal(teamShort('AlphaTauri'), 'AlphaTauri');   // anciens noms gardés
+  const d = shortTeams({ drivers: [{ team: 'Cadillac F1 Team' }], constructors: [{ name: 'RB F1 Team', id: 'rb' }], races: [{ results: [{ team: 'Red Bull' }] }] });
+  assert.deepEqual([d.drivers[0].team, d.constructors[0].name, d.constructors[0].id, d.races[0].results[0].team], ['Cadillac', 'Racing Bulls', 'rb', 'Red Bull']);
 });
