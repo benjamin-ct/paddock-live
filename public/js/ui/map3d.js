@@ -11,7 +11,7 @@ import { smoothAlong } from '/shared/elevation.js';
 import { drivers, orderedNumbers, storageGet, storageSet, esc, api, COMPOUNDS } from '../util.js';
 import { t } from '../i18n.js';
 import { FONT, drawPuck, drawBadge, drawSectorBadge, drawCornerChip, drawFlagBadge, drawScBadge } from './map-draw.js';
-import { QUALITY, nearFirst, autoQuality, frameCap, weatherState, compoundOf } from './map3d-calc.js';
+import { QUALITY, nearFirst, autoQuality, frameCap, weatherState, compoundOf, accentColor, drsOpen } from './map3d-calc.js';
 
 const W = 14;           // largeur de la piste (m)
 const MAX_CARS = 30;
@@ -577,9 +577,11 @@ function nearestIndex(world, x, z, hint) {
 
 // ---------- Voiture : F1 2026 faite maison (5,4 × 1,9 m, empattement 3,4 m), jamais de livrée ni de logo ----------
 // Avant vers +z, sol en y = 0. -> [carrosserie (couleur de l'écurie), pièces sombres (carbone, pneus, jantes, casque :
-// couleur de chaque sommet), feux arrière, liserés des pneus (couleur du composé)]
+// couleur de chaque sommet), feux arrière, liserés des pneus (couleur du composé), pièces de la deuxième couleur de
+// l'écurie (dérives, flancs des ailerons, rétroviseurs), numéro du pilote (nez et dérive, coordonnées de texture d'une
+// case de l'atlas des numéros), volet mobile de l'aileron arrière (DRS : centré sur son axe, posé par carFlap)]
 function carGeometries() {
-  const parts = [[], [], [], []];
+  const parts = [[], [], [], [], [], [], []];
   const CARBON = new THREE.Color(0x1c1e22), TYRE = new THREE.Color(0x0d0d0e), RIM = new THREE.Color(0x6c737c), HELMET = new THREE.Color(0xe9e9e6);
   const add = (k, geo, m, color) => {
     const g = geo.index ? geo.toNonIndexed() : geo;
@@ -647,13 +649,16 @@ function carGeometries() {
   // Prise d'air au-dessus du pilote, qui descend en pente vers l'aileron arrière, et sa dérive
   for (const g of loft([[-0.1, 0, 0.79, 0.12, 0.2], [-0.35, 0, 0.77, 0.15, 0.22], [-0.8, 0, 0.67, 0.14, 0.2], [-1.3, 0, 0.55, 0.1, 0.15], [-1.8, 0, 0.46, 0.06, 0.1]], 12, 2.5)) add(0, g);
   disc(1, 0.08, 0.09, at(0, 0.88, -0.095), CARBON);
-  add(0, fin([[-0.85, 0.88], [-1.95, 0.9], [-1.95, 0.64], [-1.4, 0.62]], 0, 0.016));
+  add(4, fin([[-0.85, 0.88], [-1.95, 0.9], [-1.95, 0.64], [-1.4, 0.62]], 0, 0.016));
+  // Numéro : sur les deux flancs de la dérive, et sur le nez (lisible de face)
+  for (const s of [-1, 1]) add(5, new THREE.PlaneGeometry(0.56, 0.28), at(s * 0.011, 0.765, -1.42, 0, s * Math.PI / 2, 0));
+  add(5, new THREE.PlaneGeometry(0.28, 0.14), at(0, 0.445, 1.88, -Math.PI / 2 + 0.25, 0, 0));
   // Pontons sculptés : entrée d'air haute et étroite, flancs creusés vers l'arrière
   for (const s of [-1, 1]) {
     for (const g of loft([[0.62, s * 0.34, 0.42, 0.14, 0.12], [0.5, s * 0.4, 0.41, 0.2, 0.15], [0.2, s * 0.44, 0.39, 0.24, 0.17], [-0.3, s * 0.43, 0.36, 0.24, 0.17],
       [-0.8, s * 0.37, 0.32, 0.19, 0.14], [-1.25, s * 0.29, 0.29, 0.12, 0.1], [-1.6, s * 0.2, 0.29, 0.06, 0.07]], 14, 4)) add(0, g);
     disc(1, 0.12, 0.09, at(s * 0.34, 0.43, 0.625), CARBON);
-    add(0, new THREE.BoxGeometry(0.12, 0.06, 0.03), at(s * 0.42, 0.67, 0.58));   // rétroviseurs
+    add(4, new THREE.BoxGeometry(0.12, 0.06, 0.03), at(s * 0.42, 0.67, 0.58));   // rétroviseurs
     rod([s * 0.27, 0.6, 0.55], [s * 0.38, 0.67, 0.58], 0.012);
   }
   // Cockpit, casque, halo
@@ -672,12 +677,12 @@ function carGeometries() {
   add(1, plate(1.76, 0.025, 0.26, (x) => 0.02 * (x / 0.88) ** 2), at(0, 0.09, 2.62, 0.08), CARBON);
   add(0, plate(1.7, 0.02, 0.17, (x) => 0.07 * (x / 0.85) ** 2), at(0, 0.15, 2.47, 0.35));
   add(1, plate(1.6, 0.02, 0.14, (x) => 0.1 * (x / 0.8) ** 2), at(0, 0.23, 2.36, 0.6), CARBON);
-  for (const s of [-1, 1]) add(0, fin([[2.78, 0.04], [2.78, 0.2], [2.55, 0.34], [2.25, 0.34], [2.25, 0.04]], s * 0.89, 0.02));
+  for (const s of [-1, 1]) add(4, fin([[2.78, 0.04], [2.78, 0.2], [2.55, 0.34], [2.25, 0.34], [2.25, 0.04]], s * 0.89, 0.02));
   // Aileron arrière : plan principal, volet mobile (DRS) et son vérin, dérives, petit aileron du bas, support
   add(1, plate(1.02, 0.03, 0.3, (x) => -0.015 * (1 - (x / 0.51) ** 2)), at(0, 0.82, -2.4, 0.12), CARBON);
-  add(0, plate(1.02, 0.02, 0.2), at(0, 0.96, -2.58, 0.55));
+  add(6, plate(1.02, 0.02, 0.2));   // volet (DRS), posé par carFlap
   add(1, new THREE.BoxGeometry(0.04, 0.1, 0.06), at(0, 0.9, -2.5), CARBON);
-  for (const s of [-1, 1]) add(0, fin([[-2.15, 0.55], [-2.2, 1.0], [-2.72, 1.0], [-2.72, 0.62]], s * 0.52, 0.02));
+  for (const s of [-1, 1]) add(4, fin([[-2.15, 0.55], [-2.2, 1.0], [-2.72, 1.0], [-2.72, 0.62]], s * 0.52, 0.02));
   add(1, plate(0.8, 0.02, 0.14), at(0, 0.42, -2.45, 0.25), CARBON);
   rod([0, 0.4, -2.25], [0, 0.82, -2.42], 0.02);
   // Roues : pneus larges (plus à l'arrière), jantes ; suspensions fines (triangles, poussoirs), arbres de transmission
@@ -702,12 +707,13 @@ function carGeometries() {
   return parts.map(merge);
 }
 
-// Géométries réunies en une seule ; couleur des sommets si les pièces en ont une
+// Géométries réunies en une seule ; couleur des sommets si les pièces en ont une, coordonnées de texture si toutes en ont
 function merge(list) {
-  const pos = [], nor = [], col = [];
+  const pos = [], nor = [], col = [], uv = list.every((g) => g.attributes.uv) ? [] : null;
   for (const g of list) {
     pos.push(...g.attributes.position.array);
     nor.push(...g.attributes.normal.array);
+    uv?.push(...g.attributes.uv.array);
     const c = g.userData.color;
     if (c) for (let i = 0; i < g.attributes.position.count; i++) col.push(c.r, c.g, c.b);
     g.dispose();
@@ -716,7 +722,51 @@ function merge(list) {
   out.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   out.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
   if (col.length) out.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  if (uv) out.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
   return out;
+}
+
+// Volet de l'aileron arrière (DRS) : open de 0 (fermé, incliné) à 1 (ouvert, presque à plat), autour de son axe ;
+// -> matrice dans le repère de la voiture
+const FLAP_AXIS = new THREE.Vector3(0, 0.96, -2.58);
+function carFlap(open, out = new THREE.Matrix4()) {
+  return out.makeRotationX(0.55 - 0.5 * open).setPosition(FLAP_AXIS);
+}
+
+// Numéros des pilotes : atlas de 4 × 8 cases (une par voiture), chiffres clairs ou sombres selon la couleur de l'écurie ;
+// la case de chaque voiture est donnée par l'attribut aCell (coin de la case) du maillage instancié
+function numberAtlas() {
+  const cv = document.createElement('canvas');
+  cv.width = 512;
+  cv.height = 512;
+  const tex = new THREE.CanvasTexture(cv);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const mat = new THREE.MeshStandardMaterial({ map: tex, alphaTest: 0.4, roughness: 0.4, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+  mat.onBeforeCompile = (sh) => {
+    sh.vertexShader = sh.vertexShader.replace('void main() {', 'attribute vec2 aCell;\nvoid main() {')
+      .replace('#include <uv_vertex>', '#include <uv_vertex>\nvMapUv = vMapUv * vec2(0.25, 0.125) + aCell;');
+  };
+  const cell = new THREE.InstancedBufferAttribute(new Float32Array(MAX_CARS * 2), 2);
+  return {
+    mat, cell,
+    // Numéro num de la voiture k, en couleur lisible sur hex (couleur de l'écurie)
+    draw(k, num, hex) {
+      const g = cv.getContext('2d'), x = (k % 4) * 128, y = Math.floor(k / 4) * 64, light = parseInt(hex.slice(1), 16);
+      const lum = (0.2126 * (light >> 16) + 0.7152 * ((light >> 8) & 255) + 0.0722 * (light & 255)) / 255;
+      g.clearRect(x, y, 128, 64);
+      g.font = `800 56px ${FONT()}`;
+      g.textAlign = 'center';
+      g.textBaseline = 'middle';
+      g.lineWidth = 6;
+      g.strokeStyle = lum > 0.55 ? 'rgba(255,255,255,.9)' : 'rgba(10,12,16,.9)';
+      g.fillStyle = lum > 0.55 ? '#111418' : '#ffffff';
+      g.strokeText(num, x + 64, y + 34);
+      g.fillText(num, x + 64, y + 34);
+      cell.setXY(k, (k % 4) * 0.25, 1 - (Math.floor(k / 4) + 1) * 0.125);   // v vers le haut (texture retournée)
+      cell.needsUpdate = true;
+      tex.needsUpdate = true;
+    },
+  };
 }
 
 // Étiquette dessinée sur un canevas de w × h px (deux fois plus fin) : draw(g) ; à taille fixe à l'écran (en px,
@@ -982,13 +1032,19 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
 
   // ---------- Voitures : trois maillages instanciés (carrosserie à la couleur de l'écurie ; carbone, pneus, jantes et
   // casque ; feux arrière, allumés la nuit) ----------
-  const [bodyGeo, darkGeo, lightGeo, stripeGeo] = carGeometries();
+  const [bodyGeo, darkGeo, lightGeo, stripeGeo, accentGeo, numberGeo, flapGeo] = carGeometries();
   const bodies = new THREE.InstancedMesh(bodyGeo, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.35, metalness: 0.3 }), MAX_CARS);
   const darks = new THREE.InstancedMesh(darkGeo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.2 }), MAX_CARS);
   const tails = new THREE.InstancedMesh(lightGeo, new THREE.MeshBasicMaterial({ color: 0x4a0b0b }), MAX_CARS);
   const stripes = new THREE.InstancedMesh(stripeGeo, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6 }), MAX_CARS);
-  const carMeshes = [bodies, darks, tails, stripes];
-  for (const m of carMeshes) { m.castShadow = m !== tails; m.frustumCulled = false; m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); scene.add(m); }
+  // Deuxième couleur, numéros, volet du DRS (posé à part : voir plus bas)
+  const accents = new THREE.InstancedMesh(accentGeo, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.35, metalness: 0.3 }), MAX_CARS);
+  const atlas = numberAtlas();
+  numberGeo.setAttribute('aCell', atlas.cell);
+  const numbers = new THREE.InstancedMesh(numberGeo, atlas.mat, MAX_CARS);
+  const flaps = new THREE.InstancedMesh(flapGeo, bodies.material, MAX_CARS);
+  const carMeshes = [bodies, darks, tails, stripes, accents, numbers];
+  for (const m of [...carMeshes, flaps]) { m.castShadow = m !== tails && m !== numbers; m.frustumCulled = false; m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); scene.add(m); }
   const HIDDEN = new THREE.Matrix4().makeScale(0, 0, 0);
   const cars = new Map();   // num -> { k, q, p, hint, tag (pastille, comme sur la carte 2D), look (son dessin), seen }
   let rosterKey = '';
@@ -1006,10 +1062,13 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
       tag.renderOrder = 10;
       scene.add(tag);
       bodies.setColorAt(k, new THREE.Color(hex));
+      flaps.setColorAt(k, new THREE.Color(hex));
+      accents.setColorAt(k, new THREE.Color(accentColor(hex) || hex));
+      atlas.draw(k, String(d.RacingNumber || num), hex);
       stripes.setColorAt(k, new THREE.Color(0x0d0d0e));   // composé pas encore connu : couleur du pneu
       cars.set(num, { k, q: new THREE.Quaternion(), p: new THREE.Vector3(), hint: -1, tag, look: '', seen: false });
     });
-    if (bodies.instanceColor) bodies.instanceColor.needsUpdate = true;
+    for (const m of [bodies, flaps, accents]) if (m.instanceColor) m.instanceColor.needsUpdate = true;
     fillDrivers(dl);
     return dl;
   };
@@ -1113,7 +1172,7 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
   }
 
   // ---------- Image ----------
-  const tmp = new THREE.Object3D(), m4 = new THREE.Matrix4(), camPos = new THREE.Vector3(), look = new THREE.Vector3();
+  const tmp = new THREE.Object3D(), m4 = new THREE.Matrix4(), flapM = new THREE.Matrix4(), camPos = new THREE.Vector3(), look = new THREE.Vector3();
   const dir = new THREE.Vector3(), one = new THREE.Vector3(1, 1, 1);
   let last = performance.now(), raf = 0, focusSeen = null, fogFar = 4800, lastSun = -1e9;
   // Calques de la carte 2D : relus 5 fois par seconde, redessinés seulement quand ils changent
@@ -1218,7 +1277,9 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
       const [x, z] = world.toW(g.x, g.y);
       const jump = !c.seen || Math.hypot(x - c.p.x, z - c.p.z) > 200;
       c.hint = nearestIndex(world, x, z, jump ? -1 : c.hint);
-      const i = c.hint, [y, slope] = trackAt(world.P, i, x, z);
+      const i = c.hint, [ty, slope] = trackAt(world.P, i, x, z);
+      // Hors de la piste (voie des stands, dégagements) : posée sur le sol, comme la voie des stands du calque
+      const y = (world.P[i].x - x) ** 2 + (world.P[i].z - z) ** 2 > (W / 2 + 3) ** 2 ? world.groundAt(x, z) + 0.3 : ty;
       c.p.set(x, y, z);
       // Cap : d'après la position 0,12 s avant et après (GPS), sinon le sens de la piste ; pente : celle du tracé
       dir.copy(world.T[i]);
@@ -1226,7 +1287,9 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
         const b = gpsSmooth(num, disp - 120), f = gpsSmooth(num, disp + 120);
         if (b && f) {
           const [bx, bz] = world.toW(b.x, b.y), [fx, fz] = world.toW(f.x, f.y);
-          if ((fx - bx) ** 2 + (fz - bz) ** 2 > 0.04) dir.set(fx - bx, 0, fz - bz).normalize();
+          // Presque à l'arrêt (emplacement aux stands, bruit du GPS) : cap gardé, la voiture ne tourne pas sur place
+          if ((fx - bx) ** 2 + (fz - bz) ** 2 > 0.25) dir.set(fx - bx, 0, fz - bz).normalize();
+          else if (c.seen) dir.set(0, 0, 1).applyQuaternion(c.q);
         }
       }
       dir.y = 0;
@@ -1242,6 +1305,12 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
       c.tag.visible = true;
     }
     for (const m of carMeshes) m.instanceMatrix.needsUpdate = true;
+    // Volets de l'aileron arrière : ouverts quand le DRS du pilote l'est (télémétrie), en douceur
+    for (const [num, c] of cars) {
+      c.flap = (c.flap || 0) + ((drsOpen(store.positions.carAt(num, disp)?.drs) ? 1 : 0) - (c.flap || 0)) * Math.min(1, dtCam * 8);
+      flaps.setMatrixAt(c.k, c.seen ? m4.compose(c.p, c.q, one).multiply(carFlap(c.flap, flapM)) : HIDDEN);
+    }
+    flaps.instanceMatrix.needsUpdate = true;
 
     // Pilote suivi : celui de la carte 2D, sinon le premier du classement qui est en piste
     const order = orderedNumbers(store.state);

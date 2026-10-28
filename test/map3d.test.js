@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { QUALITY, nearFirst, autoQuality, frameCap, weatherState, compoundOf } from '../public/js/ui/map3d-calc.js';
+import { QUALITY, nearFirst, autoQuality, frameCap, weatherState, compoundOf, accentColor, drsOpen } from '../public/js/ui/map3d-calc.js';
 
 // Images à cadence fixe (fps) pendant ms, à partir de t ; -> [instant de fin, niveaux choisis en route]
 function run(auto, t, ms, fps, cap = Infinity) {
@@ -124,4 +124,19 @@ test('pneus : composé du relais en cours', () => {
   assert.equal(compoundOf([{ Compound: 'SOFT' }, { Compound: 'INTERMEDIATE' }]), 'INTERMEDIATE');
   assert.equal(compoundOf([{ Compound: 'wet' }]), 'WET');
   assert.equal(compoundOf([{ Compound: 'UNKNOWN' }]), null);
+});
+
+test('couleurs d\'écurie : deuxième couleur dérivée', () => {
+  assert.equal(accentColor('FFFFFF'), '#737373', 'blanc : gris foncé');
+  assert.equal(accentColor('#000000'), '#8c8c8c', 'noir : gris clair');
+  assert.equal(accentColor('00D7B6'), '#006152', 'turquoise de Mercedes : plus sombre');
+  const navy = accentColor('1B2A5C');   // bleu marine : plus clair
+  assert.ok(parseInt(navy.slice(5), 16) > 0x5c);
+  assert.equal(accentColor(''), null);
+  assert.equal(accentColor(undefined), null);
+});
+
+test('DRS : volet ouvert d\'après le canal de la télémétrie', () => {
+  for (const v of [10, 12, 14, '12']) assert.equal(drsOpen(v), true);
+  for (const v of [0, 1, 8, 9, null, undefined]) assert.equal(drsOpen(v), false);
 });

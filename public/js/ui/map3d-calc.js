@@ -80,6 +80,21 @@ export function weatherState(choice, { rainfall = null, compounds = [], cloud = 
   return { rain, wet, cloud: Math.max(rain, wet * 0.85, sky) };
 }
 
+// Deuxième couleur d'une écurie (dérives, flancs des ailerons, rétroviseurs) : la F1 ne donne que TeamColour, donc
+// une teinte dérivée, plus sombre pour une couleur vive ou claire, plus claire pour une couleur sombre ; null si
+// la couleur est illisible. hex : 'RRGGBB' ou '#RRGGBB'
+export function accentColor(hex) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(String(hex ?? '').trim());
+  if (!m) return null;
+  const rgb = [0, 2, 4].map((i) => parseInt(m[1].slice(i, i + 2), 16));
+  const lum = (0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]) / 255;
+  const out = lum > 0.25 ? rgb.map((v) => v * 0.45) : rgb.map((v) => v + (255 - v) * 0.55);
+  return `#${out.map((v) => Math.round(v).toString(16).padStart(2, '0')).join('')}`;
+}
+
+// Volet de l'aileron arrière ouvert : canal DRS de la télémétrie (CarData, canal 45) ; 10, 12 et 14 : ouvert
+export const drsOpen = (drs) => Number(drs) >= 10;
+
 // Pneus montés : composé du dernier relais qui en donne un (Stints de TimingAppData, tableau ou objet indexé ; le
 // relais d'après un arrêt arrive parfois avant son composé) ; null si inconnu
 export function compoundOf(stints) {
