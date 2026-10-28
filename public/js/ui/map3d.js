@@ -1,10 +1,13 @@
 // Vue 3D de la carte (case « 3D » du panneau Circuit) : piste en relief (altitude calculée par le serveur d'après le GPS,
 // sinon d'après le modèle de terrain des alentours, à plat tant qu'aucune n'est là), bords et vibreurs, alentours
-// (sol, bâtiments, tribunes, arbres, eau d'OpenStreetMap), voitures simples aux couleurs des écuries (jamais de livrée
-// ni de logo), caméras Hélico / Poursuite / Embarquée / Libre autour du pilote suivi (le même que sur la carte 2D).
+// (sol, bâtiments, tribunes, arbres, eau d'OpenStreetMap), F1 2026 faites maison aux couleurs des écuries (jamais de
+// livrée ni de logo), caméras Hélico / Poursuite / Embarquée / Libre autour du pilote suivi (le même que sur la carte
+// 2D), lumière selon l'heure au circuit (lever, jour, coucher, nuit étoilée avec projecteurs).
 // Chargée seulement à l'ouverture de la vue (three.js). Mêmes positions que la carte 2D : GPS lissé, sinon estimées.
 import * as THREE from '/vendor/three/three.module.min.js';
-import { store, displayNow, setFocus } from '../store.js';
+import { store, displayNow, f1Now, setFocus } from '../store.js';
+import { CIRCUITS } from '/shared/circuits-info.js';
+import { smoothAlong } from '/shared/elevation.js';
 import { drivers, orderedNumbers, storageGet, storageSet, esc } from '../util.js';
 import { t } from '../i18n.js';
 import { FONT, drawPuck, drawBadge, drawSectorBadge, drawCornerChip, drawFlagBadge, drawScBadge } from './map-draw.js';
@@ -13,15 +16,20 @@ const W = 14;           // largeur de la piste (m)
 const MAX_CARS = 30;
 const CAMS = [['helico', 'Hélico'], ['poursuite', 'Poursuite'], ['embarquee', 'Embarquée'], ['libre', 'Libre']];
 const FOV = { helico: 38, poursuite: 62, embarquee: 74, libre: 50 };
+const TIMES = [['auto', 'Heure du circuit'], ['lever', 'Lever'], ['jour', 'Jour'], ['coucher', 'Coucher'], ['nuit', 'Nuit']];
+// Soleil des ambiances choisies : hauteur et azimut (degrés, depuis le nord vers l'est)
+const PRESET = { lever: [3, 100], jour: [50, 205], coucher: [3, 260], nuit: [-30, 0] };
+const RAD = Math.PI / 180;
 
 // ---------- Circuit : tracé (x, y du tracé MultiViewer, 1/10 m) + altitude (z de chaque point, 1/10 m) ----------
 // Altitude : profil GPS (plus précis sur la piste), sinon celle du modèle de terrain des alentours ; alentours (sol,
 // bâtiments, arbres, eau) seulement s'ils sont calculés pour ce tracé
-function buildWorld(track, elevation, surroundings) {
+function buildWorld(track, elevation, surroundings, gpu) {
   const n = track.pts.length;
   const gps = Array.isArray(elevation?.z) && elevation.z.length === n ? elevation.z : null;
   const land = surroundings?.terrain?.h?.length && surroundings.track?.z?.length === n ? surroundings : null;
-  const z = gps || land?.track.z || null;
+  // Altitude lissée selon la distance le long du tracé (points très inégalement espacés : sinon, des marches)
+  const z = gps || land ? smoothAlong(track.pts.map((p) => [p.x / 10, p.y / 10]), gps || land.track.z) : null;
   const zMin = z ? Math.min(...z) : 0;
   // Terrain (1/10 m au-dessus de la mer) ramené au repère du GPS : écart médian le long du tracé
   const off = gps && land ? gps.map((v, i) => land.track.z[i] - v).sort((p, q) => p - q)[n >> 1] : 0;
@@ -36,7 +44,7 @@ function buildWorld(track, elevation, surroundings) {
   track.pts.forEach((p, i) => {
     const [x, zz] = toW(p.x, p.y);
     const v = new THREE.Vector3(x, z ? (z[i] - zMin) / 10 : 0, zz);
-    if (!ctrl.length || v.distanceTo(ctrl.at(-1)) > 0.5) ctrl.push(v);
+    if (!ctrl.length || v.distanceTo(ctrl.at(-1)) > 1.5) ctrl.push(v);
   });
   const curve = new THREE.CatmullRomCurve3(ctrl, true, 'centripetal');
   curve.arcLengthDivisions = 10000;
@@ -49,7 +57,7 @@ function buildWorld(track, elevation, surroundings) {
   const K = T.map((_, i) => T[(i - 2 + N) % N].angleTo(T[(i + 2) % N]) / (4 * DS));   // courbure (1/m)
 
   const group = new THREE.Group();
-  // Bandes le long du tracé : piste, lignes blanches, vibreurs
+  // Bandes le long du tracé : piste, lignes blanches, vibreurs ; color(i, décalage) : couleur des sommets
   const ribbon = ({ off = 0, width, lift = 0, test = () => true, color = null }) => {
     const pos = [], col = [], idx = [];
     const p = new THREE.Vector3();
@@ -60,7 +68,7 @@ function buildWorld(track, elevation, surroundings) {
         for (const s of [off - width / 2, off + width / 2]) {
           p.copy(P[k]).addScaledVector(SIDE[k], s);
           pos.push(p.x, p.y + lift, p.z);
-          if (color) col.push(...color(i).toArray());
+          if (color) col.push(...color(i, s).toArray());
         }
       }
       idx.push(b, b + 2, b + 1, b + 1, b + 2, b + 3);
@@ -86,10 +94,10 @@ function buildWorld(track, elevation, surroundings) {
 
   const fromW = (x, zz) => { const X = x + cx, Z = zz + cz; return [X * cos - Z * sin, -X * sin - Z * cos]; };   // -> repère du tracé (m)
   const box = new THREE.Box3().setFromPoints(P);
-  const groundAt = land ? landGround(group, land, { track, P, toW, fromW, base: zMin + off }) : flatGround(group, P, box, z);
+  const { groundAt, detailAt = () => {} } = land ? landGround(group, land, { track, P, SIDE, toW, fromW, base: zMin + off, ...gpu }) : { groundAt: flatGround(group, P, box, z) };
 
   const world = { track, elevation, surroundings, land: !!land, source: gps ? 'gps' : land ? 'terrain' : null,
-    relief: z ? (Math.max(...z) - zMin) / 10 : null, P, T, SIDE, N, DS, box, group, groundAt, toW, ribbon, road };
+    relief: z ? (Math.max(...z) - zMin) / 10 : null, P, T, SIDE, N, DS, box, group, groundAt, detailAt, toW, ribbon, road };
   // Ligne de chronométrage (damier), au même endroit que sur la carte 2D
   world.addStartLine = (frac) => {
     const sp = track.pointAt(frac * track.L), [x, zz] = toW(sp.x, sp.y), i = nearestIndex(world, x, zz, -1);
@@ -104,6 +112,39 @@ function buildWorld(track, elevation, surroundings) {
     m.matrix.makeBasis(SIDE[i], T[i], new THREE.Vector3(0, 1, 0)).setPosition(P[i].x, P[i].y + 0.03, P[i].z);
     group.add(m);
   };
+
+  // Nuit : mâts des projecteurs le long de la piste (lampes allumées), lueur sur les bas-côtés, piste et lignes éclairées
+  const night = new THREE.Group(), warm = new THREE.Color(0xf4f1ea), dark = new THREE.Color(0);
+  const glow = new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, side: THREE.DoubleSide });
+  for (const o of [-1, 1]) night.add(new THREE.Mesh(ribbon({ off: o * (W / 2 + 7), width: 14, lift: -0.3, color: (i, s) => (Math.abs(s) < W / 2 + 1 ? warm : dark) }), glow));
+  const every = Math.max(1, Math.round(70 / DS)), nM = Math.floor(N / every);
+  const poles = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.2, 0.3, 18, 6).translate(0, 9, 0), new THREE.MeshStandardMaterial({ color: 0x8a8f96, roughness: 0.6 }), nM);
+  const lamps = new THREE.InstancedMesh(new THREE.BoxGeometry(3, 1, 0.4).translate(0, 18, 0), new THREE.MeshBasicMaterial({ color: 0xfff1d6 }), nM);
+  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), one = new THREE.Vector3(1, 1, 1);
+  for (let k = 0; k < nM; k++) {
+    const i = k * every, side = k % 2 ? 1 : -1, p = P[i].clone().addScaledVector(SIDE[i], side * (W / 2 + 12));
+    p.y = Math.min(P[i].y, groundAt(p.x, p.z)) - 0.3;
+    m4.compose(p, q.setFromAxisAngle(up, Math.atan2(SIDE[i].x, SIDE[i].z)), one);
+    poles.setMatrixAt(k, m4);
+    lamps.setMatrixAt(k, m4);
+  }
+  night.add(poles, lamps);
+  night.visible = false;
+  group.add(night);
+  world.setLights = (k) => {
+    night.visible = k > 0.01;
+    glow.opacity = 0.35 * k;
+    road.material.emissive.setScalar(0.05 * k);
+    lineMat.emissive.setScalar(0.35 * k);
+    kerbMat.emissive.setScalar(0.1 * k);
+    NIGHT.value = k;
+  };
+  // Direction (est, nord) -> scène : calage des alentours sur le terrain (presque nord en haut), puis rotation de la carte
+  const fa = ((land?.fit?.deg || 0) * Math.PI) / 180;
+  world.fromEN = (e, nn, y) => {
+    const x = e * Math.cos(fa) + nn * Math.sin(fa), yy = -e * Math.sin(fa) + nn * Math.cos(fa);
+    return new THREE.Vector3(x * cos - yy * sin, y, -(x * sin + yy * cos));
+  };
   return world;
 }
 
@@ -113,14 +154,13 @@ function flatGround(group, P, box, z) {
   const MARGIN = 450, G = 160;
   const gx0 = box.min.x - MARGIN, gz0 = box.min.z - MARGIN;
   const gw = box.max.x - box.min.x + 2 * MARGIN, gd = box.max.z - box.min.z + 2 * MARGIN;
-  const sub = P.filter((_, i) => i % 14 === 0), near = P.filter((_, i) => i % 3 === 0);
+  const sub = P.filter((_, i) => i % 14 === 0);
   const H = new Float32Array((G + 1) * (G + 1)), DMIN = new Float32Array(H.length);
   const smooth = (lo, hi, x) => { const u = Math.min(1, Math.max(0, (x - lo) / (hi - lo))); return u * u * (3 - 2 * u); };
   for (let r = 0; r <= G; r++) {
     for (let c = 0; c <= G; c++) {
       const x = gx0 + (c / G) * gw, zz = gz0 + (r / G) * gd;
-      let dmin = Infinity, hn = 0;
-      for (const p of near) { const d2 = (p.x - x) ** 2 + (p.z - zz) ** 2; if (d2 < dmin) { dmin = d2; hn = p.y; } }
+      let [dmin, hn] = trackNear(P, x, zz);
       dmin = Math.sqrt(dmin);
       let far = hn;
       if (z) {
@@ -172,8 +212,9 @@ const hash = (i) => ((i * 2654435761) >>> 0) / 4294967296;
 
 // Sol des alentours : grille du relief (raccordée à la piste près du tracé), couleurs selon l'usage du sol (texture
 // dessinée ici), bâtiments et tribunes extrudés, arbres, plans d'eau, bord prolongé jusqu'à l'horizon. base : altitude
-// (1/10 m) du bas de la scène ; -> altitude du sol en (x, z)
-function landGround(group, land, { track, P, toW, fromW, base }) {
+// (1/10 m) du bas de la scène ; maxTex, aniso : taille de texture et anisotropie de la carte graphique ;
+// -> { groundAt : altitude du sol en (x, z), detailAt(x, z) : sol plus détaillé autour de ce point }
+function landGround(group, land, { track, P, SIDE, toW, fromW, base, maxTex, aniso }) {
   const { x0, y0, step, cols, rows, h } = land.terrain;
   const W2 = (x, y) => toW(x * 10, y * 10);   // repère du tracé (m) -> scène
   const sea = -base / 10;                     // niveau de la mer dans la scène
@@ -187,17 +228,31 @@ function landGround(group, land, { track, P, toW, fromW, base }) {
   const smooth = (lo, hi, x) => { const u = Math.min(1, Math.max(0, (x - lo) / (hi - lo))); return u * u * (3 - 2 * u); };
   // Altitude de chaque nœud : celle du terrain ; jusqu'à une maille et plus du tracé, celle de la piste (les mailles que
   // la piste traverse n'ont que des nœuds à sa hauteur : ni piste qui flotte, ni piste enterrée), puis raccord en 100 m
-  const sub = P.filter((_, i) => i % 14 === 0), near = P.filter((_, i) => i % 3 === 0), flat = W / 2 + 1.2 * step;
+  const sub = P.filter((_, i) => i % 14 === 0), flat = W / 2 + 1.2 * step;
   const H = new Float32Array(count), pos = new Float32Array(count * 3), uv = new Float32Array(count * 2);
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
       const k = r * cols + c, [x, zz] = W2(x0 + c * step, y0 + r * step), far = wetAt[k] ? sea : (h[k] - base) / 10;
       let d2 = Infinity, hn = far;
       for (const p of sub) { const d = (p.x - x) ** 2 + (p.z - zz) ** 2; if (d < d2) { d2 = d; hn = p.y; } }
-      if (d2 < (flat + 150) ** 2) for (const p of near) { const d = (p.x - x) ** 2 + (p.z - zz) ** 2; if (d < d2) { d2 = d; hn = p.y; } }
+      if (d2 < (flat + 150) ** 2) [d2, hn] = trackNear(P, x, zz);
       H[k] = THREE.MathUtils.lerp(hn, far, smooth(flat, flat + 100, Math.sqrt(d2))) - 0.35;
       pos.set([x, H[k], zz], k * 3);
       uv.set([c / (cols - 1), 1 - r / (rows - 1)], k * 2);
+    }
+  }
+  // Triangle du sol sous (x, z) (scène) : ses trois nœuds et leur poids (les mêmes triangles que le maillage)
+  const cellAt = (x, zz) => {
+    const [mx, my] = fromW(x, zz), fc = (mx - x0) / step, fr = (my - y0) / step;
+    if (!(fc >= 0 && fr >= 0 && fc <= cols - 1 && fr <= rows - 1)) return null;
+    const c = Math.min(cols - 2, Math.floor(fc)), r = Math.min(rows - 2, Math.floor(fr)), u = fc - c, w = fr - r, i = r * cols + c;
+    return u + w <= 1 ? [i, i + 1, i + cols, 1 - u - w, u, w] : [i + cols + 1, i + cols, i + 1, u + w - 1, 1 - u, 1 - w];
+  };
+  // Sol jamais au-dessus de la piste ni des vibreurs (creux, fortes pentes : la grille fait 30 m) : nœuds abaissés
+  for (let i = 0; i < P.length; i++) {
+    for (const o of [-(W / 2 + 1.5), -W / 4, 0, W / 4, W / 2 + 1.5]) {
+      const t = cellAt(P[i].x + SIDE[i].x * o, P[i].z + SIDE[i].z * o), over = t && H[t[0]] * t[3] + H[t[1]] * t[4] + H[t[2]] * t[5] - (P[i].y - 0.3);
+      if (over > 0) for (let j = 0; j < 3; j++) { H[t[j]] -= over; pos[t[j] * 3 + 1] = H[t[j]]; }
     }
   }
   const idx = [];
@@ -214,43 +269,83 @@ function landGround(group, land, { track, P, toW, fromW, base }) {
     geo.computeVertexNormals();
   }
 
-  // Couleurs du sol : herbe (plus claire près de la piste), mer, surfaces, routes et cours d'eau, pied des bâtiments
-  const k = Math.min(2048 / ((cols - 1) * step), 2048 / ((rows - 1) * step));
-  const cv = document.createElement('canvas');
-  cv.width = Math.round((cols - 1) * step * k);
-  cv.height = Math.round((rows - 1) * step * k);
-  const g = cv.getContext('2d'), X = (x) => (x - x0) * k, Y = (y) => (y - y0) * k;
-  const path = (flat, close) => {
-    g.beginPath();
-    for (let i = 0; i < flat.length; i += 2) g[i ? 'lineTo' : 'moveTo'](X(flat[i]), Y(flat[i + 1]));
-    if (close) g.closePath();
-  };
+  // Couleurs du sol : herbe (plus claire près de la piste), mer, surfaces, routes et cours d'eau, pied des bâtiments,
+  // dessinées sur cv pour la zone qui commence en (ox, oy) (repère du tracé, m), à k px par mètre
   const trackFlat = track.pts.flatMap((p) => [p.x / 10, p.y / 10]);
-  g.lineJoin = g.lineCap = 'round';
-  g.fillStyle = FIELD;
-  g.fillRect(0, 0, cv.width, cv.height);
-  for (const [w, col] of [[520, 'rgba(95,143,58,.45)'], [300, 'rgba(95,143,58,.6)'], [W + 50, 'rgba(122,160,74,.75)']]) { g.strokeStyle = col; g.lineWidth = w * k; path(trackFlat, true); g.stroke(); }
-  g.fillStyle = LAND.water;
-  for (let i = 0; i < count; i++) {
-    if (!wetAt[i]) continue;
-    g.beginPath();
-    g.arc(X(x0 + (i % cols) * step), Y(y0 + Math.floor(i / cols) * step), step * k * 0.75, 0, 2 * Math.PI);   // bords arrondis
-    g.fill();
-  }
-  for (const [kind, col] of Object.entries(LAND)) { g.fillStyle = col; for (const ring of land.areas?.[kind] || []) { path(ring, true); g.fill(); } }
-  for (const [kind, col] of Object.entries(LINES)) {
-    g.strokeStyle = col;
-    for (const [w, ...pts] of land.lines?.[kind] || []) { g.lineWidth = Math.max(1, w * k); path(pts); g.stroke(); }
-  }
-  g.fillStyle = '#8c8b85';
-  for (const [, ...ring] of [...(land.buildings || []), ...(land.stands || [])]) { path(ring, true); g.fill(); }
-  const tex = new THREE.CanvasTexture(cv);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 8;
+  const paint = (cv, ox, oy, k) => {
+    const g = cv.getContext('2d'), X = (x) => (x - ox) * k, Y = (y) => (y - oy) * k;
+    const path = (flat, close) => {
+      g.beginPath();
+      for (let i = 0; i < flat.length; i += 2) g[i ? 'lineTo' : 'moveTo'](X(flat[i]), Y(flat[i + 1]));
+      if (close) g.closePath();
+    };
+    g.lineJoin = g.lineCap = 'round';
+    g.fillStyle = FIELD;
+    g.fillRect(0, 0, cv.width, cv.height);
+    for (const [w, col] of [[520, 'rgba(95,143,58,.45)'], [300, 'rgba(95,143,58,.6)'], [W + 50, 'rgba(122,160,74,.75)']]) { g.strokeStyle = col; g.lineWidth = w * k; path(trackFlat, true); g.stroke(); }
+    g.fillStyle = LAND.water;
+    for (let i = 0; i < count; i++) {
+      if (!wetAt[i]) continue;
+      g.beginPath();
+      g.arc(X(x0 + (i % cols) * step), Y(y0 + Math.floor(i / cols) * step), step * k * 0.75, 0, 2 * Math.PI);   // bords arrondis
+      g.fill();
+    }
+    for (const [kind, col] of Object.entries(LAND)) { g.fillStyle = col; for (const ring of land.areas?.[kind] || []) { path(ring, true); g.fill(); } }
+    for (const [kind, col] of Object.entries(LINES)) {
+      g.strokeStyle = col;
+      for (const [w, ...pts] of land.lines?.[kind] || []) { g.lineWidth = Math.max(1, w * k); path(pts); g.stroke(); }
+    }
+    g.fillStyle = '#8c8b85';
+    for (const [, ...ring] of [...(land.buildings || []), ...(land.stands || [])]) { path(ring, true); g.fill(); }
+    // Bas-côtés en herbe : la piste d'OSM, décalée de quelques mètres, faisait des taches sombres le long du tracé
+    g.strokeStyle = '#6f9845';
+    g.lineWidth = (W + 12) * k;
+    path(trackFlat, true);
+    g.stroke();
+  };
+  const texture = (cv) => {
+    const tex = new THREE.CanvasTexture(cv);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = aniso;
+    return tex;
+  };
+  // Vue d'ensemble : 2 m par pixel environ (2048 px de côté) ; près de la caméra, détail à 25 cm par pixel (37 cm sur
+  // écran tactile) redessiné quand elle s'éloigne (net vu d'hélicoptère ou de la voiture, sans texture géante)
+  const gw = (cols - 1) * step, gh = (rows - 1) * step, k = Math.min(2048, maxTex) / Math.max(gw, gh);
+  const cv = document.createElement('canvas');
+  cv.width = Math.round(gw * k);
+  cv.height = Math.round(gh * k);
+  paint(cv, x0, y0, k);
+  const touch = matchMedia('(pointer: coarse)').matches, DPX = touch ? 1024 : 2048, SPAN = touch ? 384 : 512;
+  const dcv = document.createElement('canvas');
+  dcv.width = dcv.height = DPX;
+  const detail = { map: { value: texture(dcv) }, rect: { value: new THREE.Vector4(0, 0, 1, 1) }, on: { value: 0 } };
+  const mat = new THREE.MeshStandardMaterial({ map: texture(cv), roughness: 1, polygonOffset: true, polygonOffsetFactor: 2, polygonOffsetUnits: 8 });
+  mat.userData.extra = detail.map.value;   // libérée avec le reste (dispose)
+  mat.onBeforeCompile = (sh) => {
+    Object.assign(sh.uniforms, { dMap: detail.map, dRect: detail.rect, dOn: detail.on });
+    sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', `
+      vec4 sampledDiffuseColor = texture2D(map, vMapUv);
+      vec2 dUv = (vMapUv - dRect.xy) / dRect.zw, dE = min(dUv, 1.0 - dUv);
+      sampledDiffuseColor = mix(sampledDiffuseColor, texture2D(dMap, clamp(dUv, 0.0, 1.0)), dOn * smoothstep(0.0, 0.08, min(dE.x, dE.y)));
+      diffuseColor *= sampledDiffuseColor;`).replace('void main() {', 'uniform sampler2D dMap; uniform vec4 dRect; uniform float dOn;\nvoid main() {');
+  };
   // Sol repoussé en profondeur : vue de loin, la piste (35 cm au-dessus) reste devant
-  const terrain = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: tex, roughness: 1, polygonOffset: true, polygonOffsetFactor: 2, polygonOffsetUnits: 8 }));
+  const terrain = new THREE.Mesh(geo, mat);
   terrain.receiveShadow = true;
   group.add(terrain);
+  // Détail centré en (x, z) (scène), redessiné quand ce point s'est éloigné d'un quart de sa largeur
+  let dx = Infinity, dy = Infinity;
+  const detailAt = (x, zz) => {
+    const [mx, my] = fromW(x, zz);
+    if (Math.hypot(mx - dx, my - dy) < SPAN / 4) return;
+    dx = mx; dy = my;
+    paint(dcv, mx - SPAN / 2, my - SPAN / 2, DPX / SPAN);
+    detail.map.value.needsUpdate = true;
+    // Coordonnées de texture du sol (v inversé : 1 en y0)
+    detail.rect.value.set((mx - SPAN / 2 - x0) / gw, 1 - (my + SPAN / 2 - y0) / gh, SPAN / gw, SPAN / gh);
+    detail.on.value = 1;
+  };
 
   // Bord : prolongé de 12 km (au-delà du brouillard) à l'altitude moyenne du bord, pas de marche visible ; plaine plus
   // bas que tout le sol (jamais par-dessus une vallée)
@@ -282,12 +377,7 @@ function landGround(group, land, { track, P, toW, fromW, base }) {
   plain.position.y = H.reduce((lo, y) => Math.min(lo, y), edge) - 1;
   group.add(plain);
 
-  const groundAt = (x, zz) => {
-    const [mx, my] = fromW(x, zz), fc = (mx - x0) / step, fr = (my - y0) / step;
-    if (!(fc >= 0 && fr >= 0 && fc <= cols - 1 && fr <= rows - 1)) return edge;
-    const c = Math.min(cols - 2, Math.floor(fc)), r = Math.min(rows - 2, Math.floor(fr)), u = fc - c, w = fr - r, i = r * cols + c;
-    return (H[i] * (1 - u) + H[i + 1] * u) * (1 - w) + (H[i + cols] * (1 - u) + H[i + cols + 1] * u) * w;
-  };
+  const groundAt = (x, zz) => { const t = cellAt(x, zz); return t ? H[t[0]] * t[3] + H[t[1]] * t[4] + H[t[2]] * t[5] : edge; };
 
   // Bâtiments et tribunes : prismes posés sous le point le plus bas du sol, toit plat ; plans d'eau plats
   const corners = (flat) => { const out = []; for (let i = 0; i < flat.length; i += 2) out.push(W2(flat[i], flat[i + 1])); return out; };
@@ -316,7 +406,9 @@ function landGround(group, land, { track, P, toW, fromW, base }) {
     bg.setAttribute('position', new THREE.Float32BufferAttribute(solids.pos, 3));
     bg.setAttribute('color', new THREE.Float32BufferAttribute(solids.col, 3));
     bg.computeVertexNormals();
-    const b = new THREE.Mesh(bg, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, side: THREE.DoubleSide }));
+    const bm = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, side: THREE.DoubleSide });
+    bm.onBeforeCompile = windows;
+    const b = new THREE.Mesh(bg, bm);
     b.castShadow = b.receiveShadow = true;
     group.add(b);
   }
@@ -349,7 +441,82 @@ function landGround(group, land, { track, P, toW, fromW, base }) {
     crowns.castShadow = true;
     group.add(crowns, trunks);
   }
-  return groundAt;
+  return { groundAt, detailAt };
+}
+
+// Fenêtres allumées la nuit sur les murs (environ une sur deux, effacées au loin : pas de moiré) ; NIGHT : de 0 (jour) à 1
+const NIGHT = { value: 0 };
+function windows(sh) {
+  sh.uniforms.night = NIGHT;
+  sh.vertexShader = sh.vertexShader.replace('void main() {', 'varying vec3 vW, vN;\nvoid main() {')
+    .replace('#include <begin_vertex>', '#include <begin_vertex>\nvW = (modelMatrix * vec4(position, 1.0)).xyz; vN = normal;');
+  sh.fragmentShader = sh.fragmentShader.replace('void main() {', 'uniform float night; varying vec3 vW, vN;\nvoid main() {')
+    .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+      vec2 cell = vec2(abs(vN.x) > abs(vN.z) ? vW.z : vW.x, vW.y) / vec2(3.5, 3.2), f = fract(cell);
+      float win = step(0.3, f.x) * step(f.x, 0.75) * step(0.3, f.y) * step(f.y, 0.7) * step(0.5, fract(sin(dot(floor(cell), vec2(12.9898, 78.233))) * 43758.5453));
+      totalEmissiveRadiance += night * win * (1.0 - abs(vN.y)) * smoothstep(900.0, 250.0, length(vViewPosition)) * vec3(1.0, 0.75, 0.42);`);
+}
+
+// Soleil vu de (lat, lon) à l'instant ms (UTC) : hauteur et azimut (degrés, depuis le nord vers l'est) ; formules
+// simplifiées de l'almanach (à 1° près)
+function sunAt(ms, lat, lon) {
+  const d = ms / 864e5 - 10957.5, g = (357.529 + 0.98560028 * d) * RAD;   // jours depuis le 1er janvier 2000 à midi
+  const L = (280.459 + 0.98564736 * d + 1.915 * Math.sin(g) + 0.02 * Math.sin(2 * g)) * RAD, e = (23.439 - 3.6e-7 * d) * RAD;
+  const ra = Math.atan2(Math.cos(e) * Math.sin(L), Math.cos(L)), dec = Math.asin(Math.sin(e) * Math.sin(L));
+  const H = (280.46061837 + 360.98564736629 * d + lon) * RAD - ra, la = lat * RAD;
+  return [Math.asin(Math.sin(la) * Math.sin(dec) + Math.cos(la) * Math.cos(dec) * Math.cos(H)) / RAD,
+    Math.atan2(-Math.sin(H), Math.tan(dec) * Math.cos(la) - Math.sin(la) * Math.cos(H)) / RAD];
+}
+
+// Ambiances selon la hauteur du soleil (degrés) : ciel (haut, horizon, sous l'horizon), lueur du côté du soleil (et sa
+// force), lumière du soleil (de la lune et des projecteurs la nuit), du ciel et du sol, étoiles et éclairage (0 à 1)
+const AMB = [
+  { h: -14, top: 0x03060f, hor: 0x0c1526, low: 0x05080c, glow: 0x000000, gk: 0, key: 0xcbd6ff, keyI: 0.7, sky: 0x2a3a5c, gnd: 0x0a0c10, hemiI: 0.4, stars: 1, lights: 1 },
+  { h: -5, top: 0x16224a, hor: 0x4d5886, low: 0x1c2330, glow: 0xc0604a, gk: 0.5, key: 0xcbd6ff, keyI: 0, sky: 0x4a5a85, gnd: 0x1a1f24, hemiI: 0.6, stars: 0.35, lights: 1 },
+  { h: 1, top: 0x34528f, hor: 0xf09060, low: 0x5a5548, glow: 0xff7a3a, gk: 1, key: 0xffa060, keyI: 1.6, sky: 0xbcc4dc, gnd: 0x4a4836, hemiI: 1.05, stars: 0, lights: 0.3 },
+  { h: 10, top: 0x3c6fc4, hor: 0xf1cfa0, low: 0x80906a, glow: 0xffb070, gk: 0.5, key: 0xffd2a0, keyI: 2.3, sky: 0xcfdcf0, gnd: 0x4d6b35, hemiI: 1.2, stars: 0, lights: 0 },
+  { h: 25, top: 0x3f7fd6, hor: 0xcfe3f2, low: 0x8aa37a, glow: 0xcfe3f2, gk: 0, key: 0xfff3df, keyI: 2.6, sky: 0xdfefff, gnd: 0x4d6b35, hemiI: 1.3, stars: 0, lights: 0 },
+];
+function ambience(h, out) {
+  let j = AMB.findIndex((a) => a.h > h);
+  j = j < 0 ? AMB.length - 1 : Math.max(1, j);
+  const a = AMB[j - 1], b = AMB[j], u = Math.min(1, Math.max(0, (h - a.h) / (b.h - a.h)));
+  for (const k of Object.keys(a)) {
+    if (k === 'h') continue;
+    if (['top', 'hor', 'low', 'glow', 'key', 'sky', 'gnd'].includes(k)) (out[k] ||= new THREE.Color()).lerpColors(new THREE.Color(a[k]), new THREE.Color(b[k]), u);
+    else out[k] = a[k] + (b[k] - a[k]) * u;
+  }
+  return out;
+}
+
+// Position du circuit (calendrier), sinon longitude d'après le fuseau horaire de la séance
+function circuitPlace() {
+  const info = store.state.SessionInfo, key = Number(info?.Meeting?.Circuit?.Key);
+  const c = Object.values(CIRCUITS).find((x) => x.key === key);
+  if (c) return c;
+  const m = /^(-)?(\d+):(\d+)/.exec(info?.GmtOffset || '');
+  return { lat: 35, lon: m ? (m[1] ? -1 : 1) * (+m[2] + m[3] / 60) * 15 : 0 };
+}
+
+// Hauteur du ruban de piste en (x, z), près du point i du tracé : interpolée sur le segment où tombe le point (voitures,
+// caméras et sol lisent la même hauteur que la piste, sans marches) ; pente du segment (montée positive)
+function trackAt(P, i, x, z) {
+  const N = P.length;
+  for (const [a, b] of [[i, (i + 1) % N], [(i - 1 + N) % N, i]]) {
+    const A = P[a], B = P[b], dx = B.x - A.x, dz = B.z - A.z, l2 = dx * dx + dz * dz || 1, u = ((x - A.x) * dx + (z - A.z) * dz) / l2;
+    if (u >= 0 && u <= 1) return [A.y + (B.y - A.y) * u, (B.y - A.y) / Math.sqrt(l2)];
+  }
+  const B = P[(i + 1) % N];
+  return [P[i].y, (B.y - P[i].y) / (Math.hypot(B.x - P[i].x, B.z - P[i].z) || 1)];
+}
+
+// Distance au carré du point (x, z) au tracé et hauteur de la piste à cet endroit (recherche tous les 3 points, affinée)
+function trackNear(P, x, z) {
+  const N = P.length, d = (i) => (P[i].x - x) ** 2 + (P[i].z - z) ** 2;
+  let bi = 0;
+  for (let i = 3; i < N; i += 3) if (d(i) < d(bi)) bi = i;
+  for (let k = -2; k <= 2; k++) if (d((bi + k + N) % N) < d(bi)) bi = (bi + k + N) % N;
+  return [d(bi), trackAt(P, bi, x, z)[0]];
 }
 
 // Point du tracé le plus proche de (x, z) : recherche locale autour du dernier (hint), sinon sur tout le tour
@@ -362,43 +529,146 @@ function nearestIndex(world, x, z, hint) {
   return best;
 }
 
-// ---------- Voiture : modèle simple fait maison (dimensions 2026 : 5,4 × 1,9 m), carrosserie à la couleur de l'écurie ----------
+// ---------- Voiture : F1 2026 faite maison (5,4 × 1,9 m, empattement 3,4 m), jamais de livrée ni de logo ----------
+// Avant vers +z, sol en y = 0. -> [carrosserie (couleur de l'écurie), pièces sombres (carbone, pneus, jantes, casque :
+// couleur de chaque sommet), feux arrière]
 function carGeometries() {
-  const body = [], dark = [];
-  const add = (list, geo, x, y, z, rx = 0, rz = 0) => {
+  const parts = [[], [], []];
+  const CARBON = new THREE.Color(0x1c1e22), TYRE = new THREE.Color(0x0d0d0e), RIM = new THREE.Color(0x6c737c), HELMET = new THREE.Color(0xe9e9e6);
+  const add = (k, geo, m, color) => {
     const g = geo.index ? geo.toNonIndexed() : geo;
-    g.applyMatrix4(new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(rx, 0, rz)).setPosition(x, y, z));
-    list.push(g);
+    if (m) g.applyMatrix4(m);
+    g.userData.color = color;
+    parts[k].push(g);
   };
-  add(dark, new THREE.BoxGeometry(1.45, 0.06, 3.7), 0, 0.07, -0.25);                 // fond plat
-  add(body, new THREE.BoxGeometry(0.78, 0.5, 2.1), 0, 0.42, 0.25);                    // coque
-  add(body, new THREE.CylinderGeometry(0.1, 0.3, 1.4, 8), 0, 0.36, 1.95, Math.PI / 2); // nez
-  add(dark, new THREE.BoxGeometry(1.85, 0.05, 0.5), 0, 0.14, 2.6);                    // aileron avant
-  for (const s of [-1, 1]) add(body, new THREE.BoxGeometry(0.04, 0.28, 0.6), s * 0.92, 0.22, 2.55);
-  add(body, new THREE.BoxGeometry(1.42, 0.42, 1.55), 0, 0.36, -0.35);                 // pontons
-  add(body, new THREE.BoxGeometry(0.5, 0.45, 1.6), 0, 0.74, -0.85);                   // capot moteur
-  add(dark, new THREE.BoxGeometry(0.3, 0.32, 0.45), 0, 1.0, -0.2);                    // prise d'air
-  add(body, new THREE.BoxGeometry(1.0, 0.06, 0.38), 0, 0.98, -2.45);                  // aileron arrière
-  add(dark, new THREE.BoxGeometry(1.0, 0.05, 0.25), 0, 0.82, -2.38);
-  for (const s of [-1, 1]) add(dark, new THREE.BoxGeometry(0.04, 0.62, 0.55), s * 0.52, 0.74, -2.42);
-  add(dark, new THREE.TorusGeometry(0.3, 0.035, 6, 14, Math.PI), 0, 0.92, 0.12, Math.PI / 2);   // halo
-  add(body, new THREE.SphereGeometry(0.15, 12, 8), 0, 0.82, 0.2);                     // casque
-  for (const [z, w] of [[1.62, 0.32], [-1.8, 0.4]]) {
-    for (const s of [-1, 1]) add(dark, new THREE.CylinderGeometry(0.36, 0.36, w, 18), s * (0.95 - w / 2), 0.36, z, 0, Math.PI / 2);
+  const at = (x, y, z, rx = 0, ry = 0, rz = 0) => new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(rx, ry, rz)).setPosition(x, y, z);
+  // Corps fuselé : sections [z, x, y du centre, demi-largeur, demi-hauteur] de l'avant vers l'arrière (superellipses
+  // de n points, e : plus elles sont carrées), extrémités fermées
+  const loft = (sec, n, e) => {
+    const pos = [], idx = [], ring = ([z, cx, cy, hw, hh]) => {
+      for (let j = 0; j < n; j++) {
+        const a = (j / n) * 2 * Math.PI, c = Math.cos(a), s = Math.sin(a);
+        pos.push(cx + hw * Math.sign(c) * Math.abs(c) ** (2 / e), cy + hh * Math.sign(s) * Math.abs(s) ** (2 / e), z);
+      }
+    };
+    sec.forEach(ring);
+    for (let i = 0; i + 1 < sec.length; i++) {
+      for (let j = 0; j < n; j++) { const a = i * n + j, b = i * n + ((j + 1) % n); idx.push(a, a + n, b, b, a + n, b + n); }
+    }
+    const body = new THREE.BufferGeometry();
+    body.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    body.setIndex(idx);
+    body.computeVertexNormals();
+    const out = [body.toNonIndexed()];
+    for (const [s, dir] of [[sec[0], 1], [sec.at(-1), -1]]) {   // bouchons (normales vers l'avant, vers l'arrière)
+      const cap = [];
+      pos.length = 0;
+      ring(s);
+      for (let j = 0; j < n; j++) {
+        const b = j * 3, c = ((j + 1) % n) * 3;
+        cap.push(s[1], s[2], s[0], ...(dir > 0 ? [pos[b], pos[b + 1], pos[b + 2], pos[c], pos[c + 1], pos[c + 2]] : [pos[c], pos[c + 1], pos[c + 2], pos[b], pos[b + 1], pos[b + 2]]));
+      }
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(cap, 3));
+      g.computeVertexNormals();
+      out.push(g);
+    }
+    return out;
+  };
+  // Élément d'aileron : plaque de largeur w, épaisseur t, corde c, relevée de lift(x) vers les bouts
+  const plate = (w, t, c, lift = () => 0) => {
+    const g = new THREE.BoxGeometry(w, t, c, 8, 1, 1), p = g.attributes.position;
+    for (let i = 0; i < p.count; i++) p.setY(i, p.getY(i) + lift(p.getX(i)));
+    g.computeVertexNormals();
+    return g;
+  };
+  // Dérive : profil [[z, y]…] d'épaisseur t, en x
+  const fin = (pts, x, t) => new THREE.ExtrudeGeometry(new THREE.Shape(pts.map(([z, y]) => new THREE.Vector2(-z, y))), { depth: t, bevelEnabled: false })
+    .applyMatrix4(new THREE.Matrix4().makeRotationY(Math.PI / 2).setPosition(x - t / 2, 0, 0));
+  // Bras de suspension (ou tige) de a à b
+  const up = new THREE.Vector3(0, 1, 0);
+  const rod = (a, b, r = 0.016) => {
+    const A = new THREE.Vector3(...a), d = new THREE.Vector3(...b).sub(A);
+    add(1, new THREE.BoxGeometry(2 * r, d.length(), 1.3 * r), new THREE.Matrix4().makeRotationFromQuaternion(new THREE.Quaternion().setFromUnitVectors(up, d.clone().normalize()))
+      .setPosition(A.addScaledVector(d, 0.5)), CARBON);
+  };
+  const disc = (k, rx, ry, m, color) => add(k, new THREE.CircleGeometry(1, 12).scale(rx, ry, 1), m, color);
+
+  // Coque : nez fin et long jusqu'à l'aileron avant, cockpit, capot moteur, boîte de vitesses
+  for (const g of loft([[2.66, 0, 0.2, 0.045, 0.04], [2.45, 0, 0.22, 0.08, 0.06], [2.1, 0, 0.27, 0.12, 0.1], [1.7, 0, 0.33, 0.17, 0.14],
+    [1.25, 0, 0.4, 0.23, 0.19], [0.75, 0, 0.44, 0.27, 0.22], [0.1, 0, 0.44, 0.29, 0.21], [-0.5, 0, 0.42, 0.27, 0.22], [-1.1, 0, 0.4, 0.2, 0.2],
+    [-1.7, 0, 0.36, 0.13, 0.15], [-2.3, 0, 0.33, 0.08, 0.1]], 16, 2.8)) add(0, g);
+  // Prise d'air au-dessus du pilote, qui descend en pente vers l'aileron arrière, et sa dérive
+  for (const g of loft([[-0.1, 0, 0.79, 0.12, 0.2], [-0.35, 0, 0.77, 0.15, 0.22], [-0.8, 0, 0.67, 0.14, 0.2], [-1.3, 0, 0.55, 0.1, 0.15], [-1.8, 0, 0.46, 0.06, 0.1]], 12, 2.5)) add(0, g);
+  disc(1, 0.08, 0.09, at(0, 0.88, -0.095), CARBON);
+  add(0, fin([[-0.85, 0.88], [-1.95, 0.9], [-1.95, 0.64], [-1.4, 0.62]], 0, 0.016));
+  // Pontons sculptés : entrée d'air haute et étroite, flancs creusés vers l'arrière
+  for (const s of [-1, 1]) {
+    for (const g of loft([[0.62, s * 0.34, 0.42, 0.14, 0.12], [0.5, s * 0.4, 0.41, 0.2, 0.15], [0.2, s * 0.44, 0.39, 0.24, 0.17], [-0.3, s * 0.43, 0.36, 0.24, 0.17],
+      [-0.8, s * 0.37, 0.32, 0.19, 0.14], [-1.25, s * 0.29, 0.29, 0.12, 0.1], [-1.6, s * 0.2, 0.29, 0.06, 0.07]], 14, 4)) add(0, g);
+    disc(1, 0.12, 0.09, at(s * 0.34, 0.43, 0.625), CARBON);
+    add(0, new THREE.BoxGeometry(0.12, 0.06, 0.03), at(s * 0.42, 0.67, 0.58));   // rétroviseurs
+    rod([s * 0.27, 0.6, 0.55], [s * 0.38, 0.67, 0.58], 0.012);
   }
-  return [merge(body), merge(dark)];
+  // Cockpit, casque, halo
+  disc(1, 0.2, 0.36, at(0, 0.656, 0.3, -Math.PI / 2), CARBON);
+  add(1, new THREE.SphereGeometry(0.14, 10, 7), at(0, 0.72, 0.15), HELMET);
+  const halo = new THREE.CatmullRomCurve3([[-0.24, 0.64, -0.08], [-0.27, 0.86, 0.12], [-0.18, 0.92, 0.36], [0, 0.93, 0.42], [0.18, 0.92, 0.36], [0.27, 0.86, 0.12], [0.24, 0.64, -0.08]]
+    .map((p) => new THREE.Vector3(...p)));
+  add(1, new THREE.TubeGeometry(halo, 14, 0.028, 5), null, CARBON);
+  rod([0, 0.92, 0.42], [0, 0.65, 0.68], 0.025);
+  // Fond plat, diffuseur
+  const half = [[0.3, 1.15], [0.62, 0.62], [0.72, 0.45], [0.72, -1.3], [0.52, -1.46], [0.5, -2.25]];
+  add(1, new THREE.ExtrudeGeometry(new THREE.Shape([...half, ...half.map(([x, z]) => [-x, z]).reverse()].map(([x, z]) => new THREE.Vector2(x, z))), { depth: 0.04, bevelEnabled: false }),
+    new THREE.Matrix4().makeRotationX(Math.PI / 2).setPosition(0, 0.07, 0), CARBON);
+  add(1, new THREE.BoxGeometry(0.9, 0.03, 0.8), at(0, 0.16, -1.95, -0.3), CARBON);
+  // Aileron avant à trois éléments relevés vers les bouts, dérives
+  add(1, plate(1.76, 0.025, 0.26, (x) => 0.02 * (x / 0.88) ** 2), at(0, 0.09, 2.62, 0.08), CARBON);
+  add(0, plate(1.7, 0.02, 0.17, (x) => 0.07 * (x / 0.85) ** 2), at(0, 0.15, 2.47, 0.35));
+  add(1, plate(1.6, 0.02, 0.14, (x) => 0.1 * (x / 0.8) ** 2), at(0, 0.23, 2.36, 0.6), CARBON);
+  for (const s of [-1, 1]) add(0, fin([[2.78, 0.04], [2.78, 0.2], [2.55, 0.34], [2.25, 0.34], [2.25, 0.04]], s * 0.89, 0.02));
+  // Aileron arrière : plan principal, volet mobile (DRS) et son vérin, dérives, petit aileron du bas, support
+  add(1, plate(1.02, 0.03, 0.3, (x) => -0.015 * (1 - (x / 0.51) ** 2)), at(0, 0.82, -2.4, 0.12), CARBON);
+  add(0, plate(1.02, 0.02, 0.2), at(0, 0.96, -2.58, 0.55));
+  add(1, new THREE.BoxGeometry(0.04, 0.1, 0.06), at(0, 0.9, -2.5), CARBON);
+  for (const s of [-1, 1]) add(0, fin([[-2.15, 0.55], [-2.2, 1.0], [-2.72, 1.0], [-2.72, 0.62]], s * 0.52, 0.02));
+  add(1, plate(0.8, 0.02, 0.14), at(0, 0.42, -2.45, 0.25), CARBON);
+  rod([0, 0.4, -2.25], [0, 0.82, -2.42], 0.02);
+  // Roues : pneus larges (plus à l'arrière), jantes ; suspensions fines (triangles, poussoirs), arbres de transmission
+  for (const [z, w] of [[1.62, 0.3], [-1.8, 0.38]]) {
+    for (const s of [-1, 1]) {
+      const x = s * (0.95 - w / 2);
+      add(1, new THREE.CylinderGeometry(0.36, 0.36, w, 20), at(x, 0.36, z, 0, 0, Math.PI / 2), TYRE);
+      add(1, new THREE.CylinderGeometry(0.23, 0.23, w + 0.012, 14), at(x, 0.36, z, 0, 0, Math.PI / 2), RIM);
+      const hub = s * (0.95 - w - 0.02), lo = z > 0 ? 1 : -1;
+      for (const [y0, y1] of [[0.5, 0.5], [0.28, 0.22]]) {
+        rod([s * 0.18, y0, z + 0.25 * lo], [hub, y1, z]);
+        rod([s * 0.18, y0, z - 0.2 * lo], [hub, y1, z]);
+      }
+      rod([hub, 0.24, z], [s * 0.2, 0.55, z - 0.08 * lo]);
+      if (z < 0) rod([s * 0.1, 0.34, z], [hub, 0.36, z], 0.025);
+    }
+  }
+  // Feux arrière (pluie, nuit) : sous la boîte de vitesses et au bord des dérives
+  add(2, new THREE.BoxGeometry(0.12, 0.05, 0.02), at(0, 0.33, -2.31));
+  for (const s of [-1, 1]) add(2, new THREE.BoxGeometry(0.025, 0.3, 0.02), at(s * 0.52, 0.82, -2.73));
+  return parts.map(merge);
 }
 
+// Géométries réunies en une seule ; couleur des sommets si les pièces en ont une
 function merge(list) {
-  const pos = [], nor = [];
+  const pos = [], nor = [], col = [];
   for (const g of list) {
     pos.push(...g.attributes.position.array);
     nor.push(...g.attributes.normal.array);
+    const c = g.userData.color;
+    if (c) for (let i = 0; i < g.attributes.position.count; i++) col.push(c.r, c.g, c.b);
     g.dispose();
   }
   const out = new THREE.BufferGeometry();
   out.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   out.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+  if (col.length) out.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
   return out;
 }
 
@@ -593,6 +863,7 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
   host.innerHTML = `<div class="map3d-bar">
       <div class="map3d-cams" role="group" aria-label="Caméra">${CAMS.map(([k, txt]) => `<button class="btn small" data-cam="${k}">${txt}</button>`).join('')}</div>
       <select class="map3d-driver" aria-label="Pilote suivi" title="Pilote suivi (le même que sur la carte 2D et le classement)"></select>
+      <select class="map3d-time" aria-label="Heure">${TIMES.map(([k, txt]) => `<option value="${k}">${txt}</option>`).join('')}</select>
     </div>
     <div class="map3d-note"></div>
     <div class="map3d-credit" hidden><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">${esc(t('© contributeurs OpenStreetMap'))}</a> · ${esc(t('Altitude : Terrain Tiles (Mapzen, AWS Open Data)'))}</div>`;
@@ -605,28 +876,57 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
   const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 12000);
   const skyMat = new THREE.ShaderMaterial({
     side: THREE.BackSide, depthWrite: false, fog: false,
-    uniforms: { top: { value: new THREE.Color(0x3f7fd6) }, horizon: { value: new THREE.Color(0xcfe3f2) }, bottom: { value: new THREE.Color(0x8aa37a) } },
+    uniforms: { top: { value: new THREE.Color() }, horizon: { value: new THREE.Color() }, bottom: { value: new THREE.Color() }, glow: { value: new THREE.Color() },
+      gk: { value: 0 }, moon: { value: 0 }, sunDir: { value: new THREE.Vector3(0, 1, 0) }, moonDir: { value: new THREE.Vector3(0, 1, 0) } },
     vertexShader: 'varying vec3 vDir; void main(){ vDir = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-    fragmentShader: `uniform vec3 top, horizon, bottom; varying vec3 vDir;
-      void main(){ float h = vDir.y; vec3 c = h > 0.0 ? mix(horizon, top, pow(h, 0.55)) : mix(horizon, bottom, pow(-h, 0.35)); gl_FragColor = vec4(c, 1.0); }`,
+    // Dégradé du ciel, lueur près de l'horizon du côté du soleil, disque du soleil et halo, lune la nuit
+    fragmentShader: `uniform vec3 top, horizon, bottom, glow, sunDir, moonDir; uniform float gk, moon; varying vec3 vDir;
+      void main(){
+        vec3 d = normalize(vDir); float h = d.y, s = dot(d, sunDir);
+        vec3 c = h > 0.0 ? mix(horizon, top, pow(h, 0.55)) : mix(horizon, bottom, pow(-h, 0.35));
+        float side = pow(max(dot(normalize(d.xz + 1e-5), normalize(sunDir.xz + 1e-5)), 0.0), 2.0);
+        c = mix(c, glow, gk * side * exp(-abs(h) * 6.0));
+        c += vec3(1.0, 0.85, 0.65) * (pow(max(s, 0.0), 250.0) * 0.35 + smoothstep(0.9994, 0.9997, s)) * step(0.0, h) * (1.0 - moon);
+        c = mix(c, vec3(0.9, 0.92, 0.98), smoothstep(0.99965, 0.99985, dot(d, moonDir)) * moon);
+        gl_FragColor = vec4(c, 1.0); }`,
   });
   const sky = new THREE.Mesh(new THREE.SphereGeometry(8000, 32, 16), skyMat);
   sky.renderOrder = -1;
+  // Étoiles (la nuit) : points fixes sur la moitié haute du ciel, plus ou moins brillants
+  const starPos = [], starCol = [];
+  const rnd = (k) => { const x = Math.sin(k) * 43758.5453; return x - Math.floor(x); };
+  for (let i = 0; i < 1500; i++) {
+    const y = rnd(i * 12.9898 + 1) ** 0.7, a = rnd(i * 78.233 + 2) * 2 * Math.PI, r = Math.sqrt(1 - y * y), b = 0.35 + 0.65 * rnd(i * 37.719 + 3) ** 3;
+    starPos.push(7000 * r * Math.cos(a), 7000 * y, 7000 * r * Math.sin(a));
+    starCol.push(b, b, b * 1.05);
+  }
+  const starGeo = new THREE.BufferGeometry();
+  starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPos, 3));
+  starGeo.setAttribute('color', new THREE.Float32BufferAttribute(starCol, 3));
+  const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({ size: 1.6, sizeAttenuation: false, vertexColors: true, transparent: true, depthWrite: false, fog: false }));
+  stars.renderOrder = -1;
+  sky.add(stars);
   scene.add(sky);
+  // Lumière : soleil (la nuit, lune et projecteurs) et ciel, selon l'heure ; ombres nettes autour de ce qu'on regarde
   const hemi = new THREE.HemisphereLight(0xdfefff, 0x4d6b35, 1.3);
   const sun = new THREE.DirectionalLight(0xfff3df, 2.6);
   const sunDir = new THREE.Vector3(-0.5, 0.75, 0.35).normalize();
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
-  Object.assign(sun.shadow.camera, { left: -45, right: 45, top: 45, bottom: -45, near: 1, far: 600 });
-  sun.shadow.bias = -0.0005;
+  Object.assign(sun.shadow.camera, { near: 1, far: 900 });
+  sun.shadow.bias = -0.0004;
+  sun.shadow.normalBias = 0.04;
   scene.add(hemi, sun, sun.target);
+  const amb = {};
 
-  // ---------- Voitures : deux maillages instanciés (carrosserie à la couleur de l'écurie, carbone et pneus) ----------
-  const [bodyGeo, darkGeo] = carGeometries();
-  const bodies = new THREE.InstancedMesh(bodyGeo, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.4, metalness: 0.25 }), MAX_CARS);
-  const darks = new THREE.InstancedMesh(darkGeo, new THREE.MeshStandardMaterial({ color: 0x141619, roughness: 0.7 }), MAX_CARS);
-  for (const m of [bodies, darks]) { m.castShadow = true; m.frustumCulled = false; m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); scene.add(m); }
+  // ---------- Voitures : trois maillages instanciés (carrosserie à la couleur de l'écurie ; carbone, pneus, jantes et
+  // casque ; feux arrière, allumés la nuit) ----------
+  const [bodyGeo, darkGeo, lightGeo] = carGeometries();
+  const bodies = new THREE.InstancedMesh(bodyGeo, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.35, metalness: 0.3 }), MAX_CARS);
+  const darks = new THREE.InstancedMesh(darkGeo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.2 }), MAX_CARS);
+  const tails = new THREE.InstancedMesh(lightGeo, new THREE.MeshBasicMaterial({ color: 0x4a0b0b }), MAX_CARS);
+  const carMeshes = [bodies, darks, tails];
+  for (const m of carMeshes) { m.castShadow = m !== tails; m.frustumCulled = false; m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); scene.add(m); }
   const HIDDEN = new THREE.Matrix4().makeScale(0, 0, 0);
   const cars = new Map();   // num -> { k, q, p, hint, tag (pastille, comme sur la carte 2D), look (son dessin), seen }
   let rosterKey = '';
@@ -656,7 +956,9 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
   let mode = CAMS.some(([k]) => k === saved.cam) ? saved.cam : 'poursuite';
   let snap = true;
   const bar = host.querySelector('.map3d-bar'), sel = host.querySelector('.map3d-driver'), note = host.querySelector('.map3d-note');
-  const credit = host.querySelector('.map3d-credit');
+  const credit = host.querySelector('.map3d-credit'), timeSel = host.querySelector('.map3d-time');
+  timeSel.value = TIMES.some(([k]) => k === saved.time) ? saved.time : 'auto';
+  timeSel.addEventListener('change', () => storageSet('paddock.map3d', { ...storageGet('paddock.map3d', {}), time: timeSel.value }));
   const showCam = () => { for (const b of bar.querySelectorAll('[data-cam]')) b.classList.toggle('on', b.dataset.cam === mode); };
   showCam();
   bar.addEventListener('click', (e) => {
@@ -726,14 +1028,16 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
   // ---------- Construction (tracé, ou altitude et alentours arrivés plus tard) ----------
   function rebuild(track, elevation, surroundings) {
     if (world) { scene.remove(world.group); dispose(world.group); }
-    world = buildWorld(track, elevation, surroundings);
+    world = buildWorld(track, elevation, surroundings, { maxTex: renderer.capabilities.maxTextureSize, aniso: renderer.capabilities.getMaxAnisotropy() });
     world.addStartLine(store.positions.lineFrac());
     scene.add(world.group);
     if (layers) { scene.remove(layers.group); dispose(layers.group); }
     layers = null;   // calques redessinés sur ce tracé
     const s = world.box.getSize(new THREE.Vector3());
     scene.fog = new THREE.Fog(0xc6dcea, 700, Math.max(4800, Math.max(s.x, s.z) * 2.5));
+    fogFar = scene.fog.far;
     for (const c of cars.values()) c.hint = -1;
+    lastSun = -1e9;   // ambiance appliquée au nouveau décor
     note.textContent = world.source === 'gps' ? t('Relief réel · dénivelé {} m', Math.round(world.relief))
       : world.source === 'terrain' ? t('Relief du terrain · dénivelé {} m', Math.round(world.relief)) : t('Piste à plat : relief pas encore calculé');
     credit.hidden = !world.land;   // mention des sources des alentours, quand ils sont affichés
@@ -744,7 +1048,7 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
   // ---------- Image ----------
   const tmp = new THREE.Object3D(), m4 = new THREE.Matrix4(), camPos = new THREE.Vector3(), look = new THREE.Vector3();
   const dir = new THREE.Vector3(), one = new THREE.Vector3(1, 1, 1);
-  let last = performance.now(), raf = 0, focusSeen = null;
+  let last = performance.now(), raf = 0, focusSeen = null, fogFar = 4800, lastSun = -1e9;
   // Calques de la carte 2D : relus 5 fois par seconde, redessinés seulement quand ils changent
   let L = null, lastL = -1e9, layers = null;
   const pollLayers = (now) => {
@@ -758,6 +1062,41 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
       scene.add(layers.group);
     } else layers.placeSc(L.scR);
   };
+  // Heure : soleil (direction, couleur, force), ciel, brouillard, étoiles, projecteurs et feux des voitures. Auto : heure
+  // affichée (en replay, celle de la séance) au circuit
+  let shadowSpan = 45, lastTime = '';
+  function setSun(now) {
+    lastSun = now;
+    lastTime = timeSel.value;
+    let h, az;
+    if (lastTime === 'auto') {
+      const pl = circuitPlace(), ms = f1Now();
+      [h, az] = sunAt(ms, pl.lat, pl.lon);
+      const off = /^(-)?(\d+):(\d+)/.exec(store.state.SessionInfo?.GmtOffset || ''), local = new Date(ms + (off ? (off[1] ? -1 : 1) * (+off[2] * 60 + +off[3]) * 6e4 : (pl.lon / 15) * 36e5));
+      timeSel.title = t('Heure au circuit : {} · soleil à {}°', `${String(local.getUTCHours()).padStart(2, '0')}:${String(local.getUTCMinutes()).padStart(2, '0')}`, Math.round(h));
+    } else {
+      [h, az] = PRESET[lastTime];
+      timeSel.title = '';
+    }
+    ambience(h, amb);
+    const lit = h > -5;   // au-dessus : le soleil éclaire (rasant près de l'horizon) ; en dessous : lune et projecteurs
+    const alt = (lit ? Math.max(h, 6) : 55) * RAD, a = (lit ? az : az + 160) * RAD;
+    sunDir.copy(world.fromEN(Math.sin(a) * Math.cos(alt), Math.cos(a) * Math.cos(alt), Math.sin(alt))).normalize();
+    skyMat.uniforms.sunDir.value.copy(world.fromEN(Math.sin(az * RAD) * Math.cos(h * RAD), Math.cos(az * RAD) * Math.cos(h * RAD), Math.sin(h * RAD))).normalize();
+    skyMat.uniforms.moonDir.value.copy(world.fromEN(Math.sin(a) * Math.cos(0.6), Math.cos(a) * Math.cos(0.6), Math.sin(0.6))).normalize();
+    const u = skyMat.uniforms;
+    u.top.value.copy(amb.top); u.horizon.value.copy(amb.hor); u.bottom.value.copy(amb.low); u.glow.value.copy(amb.glow);
+    u.gk.value = amb.gk; u.moon.value = amb.stars;
+    sun.color.copy(amb.key); sun.intensity = amb.keyI;
+    hemi.color.copy(amb.sky); hemi.groundColor.copy(amb.gnd); hemi.intensity = amb.hemiI;
+    stars.material.opacity = amb.stars;
+    stars.visible = amb.stars > 0.01;
+    scene.fog.color.copy(amb.hor);
+    scene.fog.near = 700 - 450 * amb.stars;
+    scene.fog.far = fogFar - (fogFar - 2600) * amb.stars;
+    world.setLights(amb.lights);
+    tails.material.color.setHex(0x4a0b0b).lerp(new THREE.Color(0xff2a2a), amb.lights);
+  }
   function frame(now) {
     raf = requestAnimationFrame(frame);
     const dt = Math.min(0.1, (now - last) / 1000), dtCam = Math.min(1, (now - last) / 1000);   // caméra : temps réel
@@ -801,14 +1140,14 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
       if (!(l.Retired || (!showOut && (l.KnockedOut || (l.Stopped && !redFlag))) || (!gps && (l.InPit || l.Stopped)))) {
         g = gps ? gpsSmooth(num, disp) : store.positions.estimatedXY(num, disp, dt);
       }
-      if (!g) { c.seen = false; bodies.setMatrixAt(c.k, HIDDEN); darks.setMatrixAt(c.k, HIDDEN); c.tag.visible = false; continue; }
+      if (!g) { c.seen = false; for (const m of carMeshes) m.setMatrixAt(c.k, HIDDEN); c.tag.visible = false; continue; }
       const [x, z] = world.toW(g.x, g.y);
       const jump = !c.seen || Math.hypot(x - c.p.x, z - c.p.z) > 200;
       c.hint = nearestIndex(world, x, z, jump ? -1 : c.hint);
-      const i = c.hint, Ti = world.T[i];
-      c.p.set(x, world.P[i].y, z);
+      const i = c.hint, [y, slope] = trackAt(world.P, i, x, z);
+      c.p.set(x, y, z);
       // Cap : d'après la position 0,12 s avant et après (GPS), sinon le sens de la piste ; pente : celle du tracé
-      dir.copy(Ti);
+      dir.copy(world.T[i]);
       if (gps) {
         const b = gpsSmooth(num, disp - 120), f = gpsSmooth(num, disp + 120);
         if (b && f) {
@@ -816,19 +1155,19 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
           if ((fx - bx) ** 2 + (fz - bz) ** 2 > 0.04) dir.set(fx - bx, 0, fz - bz).normalize();
         }
       }
-      dir.y = Ti.y / (Math.hypot(Ti.x, Ti.z) || 1);
+      dir.y = 0;
+      dir.normalize();
+      dir.y = slope * Math.sign(dir.x * world.T[i].x + dir.z * world.T[i].z || 1);   // pente dans le sens de la marche
       tmp.position.copy(c.p);
       tmp.lookAt(c.p.x + dir.x, c.p.y + dir.y, c.p.z + dir.z);
       if (jump) c.q.copy(tmp.quaternion); else c.q.slerp(tmp.quaternion, a);
       c.seen = true;
       m4.compose(c.p, c.q, one);
-      bodies.setMatrixAt(c.k, m4);
-      darks.setMatrixAt(c.k, m4);
+      for (const m of carMeshes) m.setMatrixAt(c.k, m4);
       c.tag.position.set(c.p.x, c.p.y + 1.6, c.p.z);
       c.tag.visible = true;
     }
-    bodies.instanceMatrix.needsUpdate = true;
-    darks.instanceMatrix.needsUpdate = true;
+    for (const m of carMeshes) m.instanceMatrix.needsUpdate = true;
 
     // Pilote suivi : celui de la carte 2D, sinon le premier du classement qui est en piste
     const order = orderedNumbers(store.state);
@@ -848,6 +1187,7 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
       camera.position.y = Math.max(camera.position.y, world.groundAt(camera.position.x, camera.position.z) + 2);
       camera.lookAt(orbit.target);
       sun.target.position.copy(orbit.target);
+      shadowSpan = Math.min(400, Math.max(45, orbit.dist * 0.35));
     } else {
       const p = focus.p, f = new THREE.Vector3(0, 0, 1).applyQuaternion(focus.q), fh = f.clone().setY(0).normalize();
       const upL = new THREE.Vector3(0, 1, 0).applyQuaternion(focus.q), right = new THREE.Vector3(-fh.z, 0, fh.x);
@@ -865,14 +1205,26 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
       const ease = (k) => (snap || k === Infinity ? 1 : 1 - Math.exp(-dtCam * k));
       camPos.lerp(want, ease(kPos));
       look.lerp(target, ease(kLook));
-      if (mode !== 'embarquee') camPos.y = Math.max(camPos.y, world.groundAt(camPos.x, camPos.z) + 1.2);
+      // Jamais sous le sol ni sous la piste (sommet d'une bosse entre la caméra et la voiture)
+      const ci = nearestIndex(world, camPos.x, camPos.z, focus.hint), [cy] = trackAt(world.P, ci, camPos.x, camPos.z);
+      const floor = Math.max(world.groundAt(camPos.x, camPos.z), (world.P[ci].x - camPos.x) ** 2 + (world.P[ci].z - camPos.z) ** 2 < (W / 2 + 3) ** 2 ? cy : -Infinity);
+      camPos.y = Math.max(camPos.y, floor + (mode === 'embarquee' ? 0.9 : 1.2));
       camera.position.copy(camPos);
       if (mode === 'embarquee') camera.up.copy(upL);
       camera.lookAt(look);
-      sun.target.position.copy(p);
+      if (mode === 'helico') { sun.target.position.copy(p); shadowSpan = 110; } else { sun.target.position.copy(p).addScaledVector(fh, 30); shadowSpan = 45; }
     }
     snap = false;
-    sun.position.copy(sun.target.position).addScaledVector(sunDir, 250);
+    // Sol détaillé devant la caméra (inutile de très haut : pas redessiné en tournant autour du circuit)
+    camera.getWorldDirection(dir);
+    const hd = Math.hypot(dir.x, dir.z) || 1;
+    if (mode !== 'libre' || orbit.dist < 900) world.detailAt(camera.position.x + (dir.x / hd) * 180, camera.position.z + (dir.z / hd) * 180);
+    if (now - lastSun > 1000 || timeSel.value !== lastTime) setSun(now);
+    const cam = sun.shadow.camera, tx = (2 * shadowSpan) / sun.shadow.mapSize.x;
+    if (cam.right !== shadowSpan) { Object.assign(cam, { left: -shadowSpan, right: shadowSpan, top: shadowSpan, bottom: -shadowSpan }); cam.updateProjectionMatrix(); }
+    const lx = new THREE.Vector3(0, 1, 0).cross(sunDir).normalize(), ly = sunDir.clone().cross(lx), tp = sun.target.position;
+    for (const v of [lx, ly]) { const d = tp.dot(v); tp.addScaledVector(v, Math.round(d / tx) * tx - d); }
+    sun.position.copy(tp).addScaledVector(sunDir, 300);
     sky.position.copy(camera.position);
     for (const m of layers?.blink || []) m.opacity = 0.45 + 0.35 * Math.sin(now / 180);   // double jaune
     fitSprites(scene, camera, h);
@@ -897,6 +1249,6 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
 function dispose(root) {
   root.traverse((o) => {
     if (!o.isSprite) o.geometry?.dispose();   // géométrie des étiquettes : commune à toutes (three.js)
-    for (const m of [].concat(o.material || [])) { m.map?.dispose(); m.dispose(); }
+    for (const m of [].concat(o.material || [])) { m.map?.dispose(); m.userData.extra?.dispose(); m.dispose(); }
   });
 }

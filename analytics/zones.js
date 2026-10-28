@@ -16,7 +16,7 @@ import { parseCircuitData } from '../shared/fia-circuit.js';
 import { Track } from '../shared/track.js';
 import { estimateZones } from '../shared/zones.js';
 import { calibrateLoops } from '../shared/calibrate.js';
-import { elevationProfile } from '../shared/elevation.js';
+import { elevationProfile, VERSION as ELEVATION_VERSION } from '../shared/elevation.js';
 import { CIRCUITS } from '../shared/circuits-info.js';
 
 const ARCHIVE = 'https://livetiming.formula1.com/static/';
@@ -156,8 +156,12 @@ export async function computeZones(env, key, year, { now = Date.now(), fetchFn =
 
 // Zones à revoir : estimées sans définitions officielles pour la saison en cours
 const zonesStale = (row, year, now) => !row.zones || (!row.zones.official && year >= new Date(now).getUTCFullYear());
-// Résultat gardé à revoir : échec (une partie manque), ou zones à revoir
-const stale = (row, year, now) => now - row.at > RETRY && (!row.loops || !row.elevation || zonesStale(row, year, now));
+// Profil d'altitude à refaire : absent, ou calculé par une version plus ancienne (creux faux de Spa)
+const elevationStale = (row) => row.elevation?.v !== ELEVATION_VERSION;
+// Résultat gardé à revoir : échec (une partie manque), zones à revoir ou altitude d'une ancienne version ; revu tout
+// de suite s'il n'a pas encore été essayé avec cette version (tried), sinon 6 heures plus tard
+const stale = (row, year, now) => (now - row.at > RETRY || row.tried !== ELEVATION_VERSION) &&
+  (!row.loops || elevationStale(row) || zonesStale(row, year, now));
 
 // /live/api/zones, /live/api/loops et /live/api/elevation : résultat gardé (l'ancien en attendant un nouveau calcul), sinon calcul demandé
 // à la tâche planifiée
@@ -194,13 +198,13 @@ export async function zonesTick(env, { now = Date.now(), fetchFn = fetch } = {})
   const [key, y] = job;
   await setRow(env, 'zoneslock', String(now));
   // Noté avant le calcul : s'il est interrompu (limite de temps du serveur), il n'est retenté que 6 heures plus tard
-  await setRow(env, rowKey(key, y), JSON.stringify({ zones: null, loops: null, ...old, at: now, error: 'calcul interrompu' }));
+  await setRow(env, rowKey(key, y), JSON.stringify({ zones: null, loops: null, ...old, at: now, tried: ELEVATION_VERSION, error: 'calcul interrompu' }));
   try {
     // Ce qui est déjà bon est gardé tel quel (une altitude qui manque ne refait pas les zones)
-    const keep = old ? { zones: zonesStale(old, y, now) ? null : old.zones, loops: old.loops, elevation: old.elevation } : {};
+    const keep = old ? { zones: zonesStale(old, y, now) ? null : old.zones, loops: old.loops, elevation: elevationStale(old) ? null : old.elevation } : {};
     const res = await computeZones(env, key, y, { now, fetchFn, keep });
     // Rien de mieux trouvé : l'ancien résultat reste, revu plus tard
-    await setRow(env, rowKey(key, y), JSON.stringify({ ...res, zones: res.zones || old?.zones || null, loops: res.loops || old?.loops || null,
+    await setRow(env, rowKey(key, y), JSON.stringify({ ...res, tried: ELEVATION_VERSION, zones: res.zones || old?.zones || null, loops: res.loops || old?.loops || null,
       elevation: res.elevation || old?.elevation || null }));
     return { key, year: y, zones: !!res.zones, loops: !!res.loops, elevation: !!res.elevation, error: res.error };
   } finally {

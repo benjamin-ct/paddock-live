@@ -1,16 +1,20 @@
 // Circuits du calendrier (identifiant de l'API des résultats) : clé du tracé (API MultiViewer, la
-// même que la F1), longueur officielle et nombre de tours de la course. Couleurs des drapeaux des
-// pays, pour donner à chaque Grand Prix son propre visuel (post « Race Week »).
+// même que la F1), longueur officielle, nombre de tours de la course et position (soleil de la vue 3D).
+// Couleurs des drapeaux des pays, pour donner à chaque Grand Prix son propre visuel (post « Race Week »).
 
 export const CIRCUITS = {
-  bahrain: { key: 63, km: 5.412, laps: 57 }, jeddah: { key: 149, km: 6.174, laps: 50 }, albert_park: { key: 10, km: 5.278, laps: 58 },
-  suzuka: { key: 46, km: 5.807, laps: 53 }, shanghai: { key: 49, km: 5.451, laps: 56 }, miami: { key: 151, km: 5.412, laps: 57 },
-  imola: { key: 6, km: 4.909, laps: 63 }, monaco: { key: 22, km: 3.337, laps: 78 }, catalunya: { key: 15, km: 4.657, laps: 66 },
-  villeneuve: { key: 23, km: 4.361, laps: 70 }, red_bull_ring: { key: 19, km: 4.318, laps: 71 }, silverstone: { key: 2, km: 5.891, laps: 52 },
-  hungaroring: { key: 4, km: 4.381, laps: 70 }, spa: { key: 7, km: 7.004, laps: 44 }, zandvoort: { key: 55, km: 4.259, laps: 72 },
-  monza: { key: 39, km: 5.793, laps: 53 }, baku: { key: 144, km: 6.003, laps: 51 }, marina_bay: { key: 61, km: 4.94, laps: 62 },
-  americas: { key: 9, km: 5.513, laps: 56 }, rodriguez: { key: 65, km: 4.304, laps: 71 }, interlagos: { key: 14, km: 4.309, laps: 71 },
-  vegas: { key: 152, km: 6.201, laps: 50 }, losail: { key: 150, km: 5.419, laps: 57 }, yas_marina: { key: 70, km: 5.281, laps: 58 },
+  bahrain: { key: 63, km: 5.412, laps: 57, lat: 26.0325, lon: 50.5106 }, jeddah: { key: 149, km: 6.174, laps: 50, lat: 21.6319, lon: 39.1044 },
+  albert_park: { key: 10, km: 5.278, laps: 58, lat: -37.8497, lon: 144.968 }, suzuka: { key: 46, km: 5.807, laps: 53, lat: 34.8431, lon: 136.541 },
+  shanghai: { key: 49, km: 5.451, laps: 56, lat: 31.3389, lon: 121.22 }, miami: { key: 151, km: 5.412, laps: 57, lat: 25.9581, lon: -80.2389 },
+  imola: { key: 6, km: 4.909, laps: 63, lat: 44.3439, lon: 11.7167 }, monaco: { key: 22, km: 3.337, laps: 78, lat: 43.7347, lon: 7.4206 },
+  catalunya: { key: 15, km: 4.657, laps: 66, lat: 41.57, lon: 2.2611 }, villeneuve: { key: 23, km: 4.361, laps: 70, lat: 45.5, lon: -73.5228 },
+  red_bull_ring: { key: 19, km: 4.318, laps: 71, lat: 47.2197, lon: 14.7647 }, silverstone: { key: 2, km: 5.891, laps: 52, lat: 52.0786, lon: -1.0169 },
+  hungaroring: { key: 4, km: 4.381, laps: 70, lat: 47.5789, lon: 19.2486 }, spa: { key: 7, km: 7.004, laps: 44, lat: 50.4372, lon: 5.9714 },
+  zandvoort: { key: 55, km: 4.259, laps: 72, lat: 52.3888, lon: 4.5409 }, monza: { key: 39, km: 5.793, laps: 53, lat: 45.6156, lon: 9.2811 },
+  baku: { key: 144, km: 6.003, laps: 51, lat: 40.3725, lon: 49.8533 }, marina_bay: { key: 61, km: 4.94, laps: 62, lat: 1.2914, lon: 103.864 },
+  americas: { key: 9, km: 5.513, laps: 56, lat: 30.1328, lon: -97.6411 }, rodriguez: { key: 65, km: 4.304, laps: 71, lat: 19.4042, lon: -99.0907 },
+  interlagos: { key: 14, km: 4.309, laps: 71, lat: -23.7036, lon: -46.6997 }, vegas: { key: 152, km: 6.201, laps: 50, lat: 36.1147, lon: -115.173 },
+  losail: { key: 150, km: 5.419, laps: 57, lat: 25.49, lon: 51.4542 }, yas_marina: { key: 70, km: 5.281, laps: 58, lat: 24.4672, lon: 54.6031 },
 };
 export const circuitInfo = (id) => CIRCUITS[id] || null;
 

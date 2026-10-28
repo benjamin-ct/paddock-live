@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Track } from '../shared/track.js';
-import { accumulate, fillGaps, smooth, elevationProfile } from '../shared/elevation.js';
+import { accumulate, fillGaps, smooth, elevationProfile, despike, VERSION } from '../shared/elevation.js';
 
 // Cercle de 200 points (rayon 500 m) ; altitude réelle : une colline de 20 m (sinus du tour)
 const N = 200, R = 5000;
@@ -59,4 +59,39 @@ test('altitude : profil d\'un circuit d\'après des tours bruités (moitié vue 
   const part = elevationProfile(track, lap('1', { to: 0.67 }));
   assert.equal(part.z.length, N);
   assert.ok(part.cover > 0.6 && part.cover < 0.7);
+});
+
+test('altitude : Z aberrants (creux de Spa) écartés, vraies pentes gardées', () => {
+  // Quelques voitures avec un Z faux (0) sur une partie du tour : la médiane n'en tient pas compte
+  const samples = [];
+  for (let k = 0; k < 5; k++) samples.push(...lap(String(k), { lat: (k - 2) * 15, noise: 20 }));
+  samples.push(...lap('9', { from: 0.1, to: 0.15 }).map((s) => ({ ...s, z: 0 })), ...lap('8', { from: 0.1, to: 0.15 }).map((s) => ({ ...s, z: 0 })));
+  const p = elevationProfile(track, samples);
+  const err = p.z.map((v, i) => Math.abs(v - hill((2 * Math.PI * (i + 0.5)) / N)));
+  assert.ok(Math.max(...err) < 15, `écart max ${Math.max(...err)} (1/10 m) : pas de creux`);
+  assert.equal(p.v, VERSION);
+
+  // Tous les Z faux sur 4 points de suite : écartés comme des trous, comblés par les voisins
+  const z = Array.from({ length: 80 }, (_, i) => 1000 + 200 * Math.sin((2 * Math.PI * i) / 80));   // ±20 m sur la boucle
+  assert.ok(despike(z).every((v) => !Number.isNaN(v)), 'pentes raides mais régulières gardées');
+  const d = despike(z.map((v, i) => (i >= 10 && i < 20 ? v - 850 : v)));   // 10 points faux de suite
+  const out = d.map((v, i) => (Number.isNaN(v) ? i : -1)).filter((i) => i >= 0);
+  assert.ok(out.length >= 10 && out[0] >= 6 && out.at(-1) <= 23, `points écartés : ${out}`);
+  assert.ok(fillGaps(d).every((v, i) => Math.abs(v - z[i]) < 50), 'pente retrouvée (à 5 m près, au lieu d\'un creux de 85 m)');
+});
+
+test('altitude le long du tracé : lissée selon la distance (points inégalement espacés : pas de marches), vraies pentes gardées', async () => {
+  const { smoothAlong } = await import('../shared/elevation.js');
+  // Cercle de 1 km de tour, points alternativement à 0,2 m et 19,8 m (comme le tracé MultiViewer d'Austin)
+  const pts = [], ang = [], L = 1000, R1 = L / (2 * Math.PI);
+  for (let s = 0; s < L - 1; s += 20) for (const ds of [0, 0.2]) { const a = (2 * Math.PI * (s + ds)) / L; ang.push(a); pts.push([R1 * Math.cos(a), R1 * Math.sin(a)]); }
+  // Vraie colline : 30 m d'amplitude (pentes jusqu'à 19 %) ; gardée à 2 % près
+  const real = ang.map((a) => 30 * Math.sin(a));
+  smoothAlong(pts, real).forEach((v, i) => assert.ok(Math.abs(v - real[i]) < 0.6, `point ${i} : ${v} au lieu de ${real[i]}`));
+  // Profil en marches (3 m d'écart entre deux points à 0,2 m l'un de l'autre) : continu une fois lissé
+  const steps = real.map((v, i) => v + (i % 2 ? 1.5 : -1.5));
+  const out = smoothAlong(pts, steps);
+  for (let i = 0; i < out.length; i += 2) assert.ok(Math.abs(out[i + 1] - out[i]) < 0.2, `marche de ${out[i + 1] - out[i]} m au point ${i}`);
+  // Altitude constante : inchangée
+  assert.ok(smoothAlong(pts, pts.map(() => 7)).every((v) => Math.abs(v - 7) < 1e-9));
 });
