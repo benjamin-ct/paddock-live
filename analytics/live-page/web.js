@@ -2,6 +2,7 @@
 // radios de l'appli, reliés au relais du Worker au lieu du serveur local. Copié dans /live/js/ par scripts/build-studio.mjs.
 import { translatePage, DEC, EN, LOCALE, t } from './i18n.js';
 import './icons.js';
+import './ranges.js';
 import { store, emit, on, handleReset, handleBatch, setDelay, serverNow } from './store.js';
 import { applyEvent } from '/shared/derive.js';
 import { gpShort } from '/shared/gp-names.js';

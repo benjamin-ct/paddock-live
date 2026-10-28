@@ -74,6 +74,10 @@ l'application (Réglages → À propos → Nouveautés).
   en place ; reflet sur les boutons principaux au survol. Tout se coupe dans Réglages → Apparence (Animations de
   l'interface), ou avec l'option « réduire les animations » du système.
 
+### Interface
+- Les curseurs (volume, seuil des tours propres, temps perdu au stand, fond des overlays…) ont un nouveau style, assorti
+  au reste de l'appli : piste fine remplie jusqu'à la valeur et bouton rond. Aussi dans la version web.
+
 ## v1.29.0 — 2026-10-28
 
 ### Alertes sur le téléphone
