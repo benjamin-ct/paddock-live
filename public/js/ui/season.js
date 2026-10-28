@@ -354,10 +354,15 @@ export function seasonUrls() {
   });
 }
 
-// Calendrier sur une carte du monde : un point par Grand Prix (couru, prochain, à venir), lien vers sa fiche.
-// Contour des terres : Natural Earth (domaine public), via world-atlas (ISC, © 2013-2019 Michael Bostock)
+// Calendrier sur un globe (ui/cal-globe.js, chargé à l'ouverture du Calendrier) : emplacement vide rempli après
+// l'affichage (globeSlot). Sans WebGL ou fonds de carte injoignables : carte du monde plate, un point par Grand Prix
+// (couru, prochain, à venir), lien vers sa fiche. Contour des terres : Natural Earth (domaine public), via world-atlas
+// (ISC, © 2013-2019 Michael Bostock)
 let world = null;
+let flat = false;
+let globe = null;          // module du globe, une fois chargé
 function calendarMap(next) {
+  if (!flat) return '<div class="cal-globe-slot"></div>';
   if (!world) {
     world = 'loading';
     fetch('/data/world-land.json').then((r) => r.json()).then((w) => { world = w; if (section === 'calendar' && !$('#seasonView').hidden) render(); }).catch(() => { world = null; });
@@ -374,6 +379,21 @@ function calendarMap(next) {
   const top = Y(65), bot = Y(-48);
   return `<section class="sz-box cal-map"><svg viewBox="0 ${top.toFixed(1)} ${world.w} ${(bot - top).toFixed(1)}" class="sz-svg"><path d="${world.d}" class="cal-land"/>${dots}</svg>
     <div class="cal-map-key small"><span class="cal-pin-key next"></span>Prochain <span class="cal-pin-key future"></span>À venir <span class="cal-pin-key done"></span>Couru</div></section>`;
+}
+
+function globeSlot() {
+  const slot = $('#szContent .cal-globe-slot');
+  if (!slot) return;
+  const next = nextSession()?.race;
+  const list = data.races.filter((r) => Number.isFinite(r.lat) && Number.isFinite(r.lon)).map((r) => ({
+    round: r.round, lat: r.lat, lon: r.lon, state: done(r) ? 'done' : next?.round === r.round ? 'next' : 'future', sprint: !!r.sprint,
+    name: gpShort(r.name, LANG), place: [r.circuit, r.locality].filter(Boolean).join(' · '), dates: calSpan(r), flag: flagOf(r), href: seasonPath(year, 'gp', gpSlug(r.name)),
+  }));
+  const off = () => { flat = true; if (section === 'calendar' && !$('#seasonView').hidden) render(); };
+  const mount = (m) => { globe = m; m.mountGlobe(slot, list, off); };
+  // Module déjà chargé : globe remis tout de suite à sa place (sans clignement quand la rubrique est redessinée)
+  if (globe) mount(globe);
+  else import('./cal-globe.js').then(mount).catch(off);
 }
 
 function renderCalendar() {
@@ -866,6 +886,7 @@ function render() {
   $('#szContent').innerHTML = `${data.stale ? '<div class="note small">Hors ligne : dernières données enregistrées.</div>' : ''}${html}`;
   wide().forEach((e, i) => { if (scrolls[i]) e.scrollLeft = scrolls[i]; });
   addPngButtons($('#szContent'));
+  if (section === 'calendar') globeSlot();
   tick();
   syncUrl();
   if (section === 'tech' && fiaData) translateTechDetail(ctx, fiaData);

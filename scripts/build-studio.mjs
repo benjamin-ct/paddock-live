@@ -120,6 +120,7 @@ const copyLive = (from, to) => {
 for (const d of ['js', 'css', 'fonts', 'data']) copyLive(path.join(ROOT, 'public', d), path.join(LIVE, d));
 copyLive(path.join(ROOT, 'public', 'vendor', 'nosleep'), path.join(LIVE, 'vendor', 'nosleep'));
 copy(path.join(ROOT, 'public', 'vendor', 'three'), path.join(LIVE, 'vendor', 'three'));   // vue 3D : copié tel quel
+copy(path.join(ROOT, 'public', 'vendor', 'maplibre'), path.join(LIVE, 'vendor', 'maplibre'));   // globe du Calendrier : copié tel quel
 copyLive(SHARED, path.join(LIVE, 'shared'));
 fs.copyFileSync(path.join(ROOT, 'public', 'logo.svg'), path.join(LIVE, 'logo.svg'));
 // Code de la page : chemins absolus et chemin relatif du code partagé (lisible tel quel par les tests) vers /live/shared/
