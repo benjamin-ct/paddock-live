@@ -1,6 +1,8 @@
 // Interface en anglais : traduction de chaque texte français affiché (voir i18n.js).
 // {} = valeur dynamique (dans l'ordre), {0}, {1}… pour changer l'ordre en anglais.
 export default {
+  "Enregistrer le graphique en image (PNG)": "Save the chart as an image (PNG)",
+  "saison {}": "{} season",
   "Hors séance": "No session",
   "Pas de séance en cours : le direct reprend tout seul avant la prochaine, {}": "No session right now: live timing resumes on its own before the next one, {}",
   "Pas de séance en cours": "No session right now",

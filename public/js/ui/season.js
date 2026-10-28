@@ -11,6 +11,7 @@ import { icon } from '../icons.js';
 import { renderPredict, initPredict } from './predict-view.js';
 import { renderReview, reviewAction } from './season-review.js';
 import { renderDestructors, showDestructorsDriver } from './season-destructors.js';
+import { addPngButtons, savePng } from './season-png.js';
 import { DEC, LOCALE, EN, t } from '../i18n.js';
 import { gpShort, gpFull } from '/shared/gp-names.js';
 import { COUNTRY_ISO } from '/shared/social-season.js';
@@ -763,6 +764,7 @@ function render() {
   if (jump && push) leaveTop = $('#szContent').scrollTop;   // rubrique quittée : défilement gardé pour le retour
   $('#szContent').innerHTML = `${data.stale ? '<div class="note small">Hors ligne : dernières données enregistrées.</div>' : ''}${html}`;
   wide().forEach((e, i) => { if (scrolls[i]) e.scrollLeft = scrolls[i]; });
+  addPngButtons($('#szContent'));
   tick();
   syncUrl();
   if (section === 'tech' && fiaData) translateTechDetail(ctx, fiaData);
@@ -869,6 +871,14 @@ export function initSeason() {
   $('#szMenu')?.addEventListener('click', () => szMenu(true));
   $('#szScrim')?.addEventListener('click', () => szMenu(false));
   $('#szContent').addEventListener('click', (e) => {
+    const png = e.target.closest('.sz-png');
+    if (png) {
+      // Sous-titre de l'image : le pilote, le Grand Prix ou la rubrique affichés
+      const sub = section === 'drivers' ? $('#szContent .sz-drv-name')?.firstChild?.textContent.trim()
+        : section === 'gp' ? gpFull(data.races.find((r) => r.round === gpRound)?.name || '', EN) : $('#szNav .active')?.textContent.trim();
+      savePng(png.closest('.sz-box'), data.year, sub).catch(() => {});
+      return;
+    }
     const b = e.target.closest('[data-szgo]');
     if (b) { section = b.dataset.szgo; jump = true; push = true; animate(); render(); return; }
     const g = e.target.closest('[data-szgp]');

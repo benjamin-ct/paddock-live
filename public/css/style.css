@@ -1107,6 +1107,8 @@ body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-selec
 .sz-grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 12px; margin-bottom: 14px; }
 .sz-box { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; margin-bottom: 12px; overflow-x: auto; }
 .sz-box h3 { margin: 0 0 10px; font-size: 17px; }
+.sz-png { margin-left: auto; padding: 2px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel-2); color: var(--muted); font: inherit; font-size: 11px; font-weight: 700; cursor: pointer; }
+.sz-png:hover { color: var(--text); border-color: var(--line-2); }
 .sz-table { width: 100%; border-collapse: collapse; font-size: 13.5px; margin-bottom: 8px; }
 .sz-ssr-title { font-size: 22px; margin: 0 0 12px; }
 .sz-gp-nav { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin: 4px 0 16px; }

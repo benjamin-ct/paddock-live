@@ -24,6 +24,8 @@ l'application (Réglages → À propos → Nouveautés).
   pilotes tiennent dans la page ; le Bilan est sur deux rangées, avec un bouton pour choisir ses favoris ; le Profil
   des circuits donne la longueur et les virages de Madring et de Sepang. Les écuries ont le même nom partout (Racing
   Bulls, Red Bull, Alpine, Haas, Cadillac) et les pilotes leurs accents dans Éléments moteur (Pérez).
+- Chaque graphique de la Saison s'enregistre en image (bouton PNG dans son titre), avec son titre, le pilote ou le
+  Grand Prix concerné et la mention Paddock Live, pour le partager. Aussi dans la version web.
 
 ### Accueil
 - Appli ouverte sans connexion (ou serveur injoignable) : l'accueil et l'écran « Pas de séance en direct » disent
