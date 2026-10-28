@@ -1051,6 +1051,7 @@ export default {
   "Meilleur tour de chaque pilote": "Each driver's best lap",
   "Meilleur tour de la course : {} en {}": "Fastest race lap: {} in {}",
   "Meilleur tour en course": "Fastest lap in the race",
+  "Meilleur du week-end": "Best of the weekend",
   "Meilleure moyenne à l'arrivée": "Best average finish",
   "Meilleure note de la saison": "Best season rating",
   "Meilleure vitesse de chaque écurie par Grand Prix (km/h)": "Each team's best speed per Grand Prix (km/h)",
