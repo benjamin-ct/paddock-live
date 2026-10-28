@@ -1455,12 +1455,18 @@ function init3d() {
   const btn = $('#map3dBtn');
   const html = document.documentElement;
   if (!btn || html.classList.contains('float-map') || html.classList.contains('overlay')) return;
-  btn.hidden = false;
+  // Réglages → Général → Carte 3D : désactivée, pas de bouton et la vue 3D se ferme (le choix 3D/2D est gardé)
+  const show = () => {
+    btn.hidden = !prefs.map3d;
+    if (!prefs.map3d && v3d.on) set3d(false, '', true);
+    else if (prefs.map3d && !v3d.on && storageGet('paddock.map3d', {}).on) set3d(true);
+  };
   btn.addEventListener('click', () => set3d(!v3d.on));
-  if (storageGet('paddock.map3d', {}).on) set3d(true);
+  on('prefs', (k) => { if (k === 'map3d') show(); });
+  show();
 }
 
-async function set3d(on, msg = '') {
+async function set3d(on, msg = '', keep = false) {
   const turn = ++v3d.turn;
   v3d.view?.close();
   v3d.view = null;
@@ -1469,7 +1475,7 @@ async function set3d(on, msg = '') {
   $('.p-map').classList.toggle('is-3d', on);
   btn.textContent = on ? '2D' : '3D';
   btn.title = on ? t('Revenir à la carte 2D') : t('Vue 3D du circuit, avec le relief');
-  storageSet('paddock.map3d', { ...storageGet('paddock.map3d', {}), on });
+  if (!keep) storageSet('paddock.map3d', { ...storageGet('paddock.map3d', {}), on });
   box.textContent = msg;
   box.hidden = !msg;
   clearTimeout(v3d.timer);
