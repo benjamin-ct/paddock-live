@@ -434,10 +434,13 @@ function runs(arr) {
 
 // Murs déduits, quand OSM n'en a pas : de chaque côté de la piste, là où elle emprunte une rue (circuit en ville) ou
 // longe un bâtiment, une zone bâtie à moins de 25 m de son bord ; trous de moins de 30 m bouchés, morceaux de moins
-// de 40 m écartés ; à EDGE m du milieu de la piste, jamais sur une autre partie de la piste ni là où OSM a déjà un mur.
+// de 40 m écartés ; à EDGE m du milieu de la piste, jamais sur une autre partie de la piste (à moins de 8 m de son
+// milieu : demi-largeur de 7 m et 1 m de marge) ni là où OSM a déjà un mur.
 // built(x, y), onRoad(x, y), taken(x, y) : tests sur un point (repère du tracé, m) -> [[x0, y0, x1, y1…]…]
 export function deduceWalls(track, { built, onRoad, taken }) {
-  const pts = resample(track, Math.max(60, Math.round(perimeter(track) / 5))), n = pts.length, near = nearIndex(pts, 10), out = [];
+  const pts = resample(track, Math.max(60, Math.round(perimeter(track) / 5))), n = pts.length, out = [];
+  // Point (x, y) sur une autre partie de la piste que celle du point i (voisins à moins de 30 m le long du tracé exclus)
+  const onOther = (x, y, i) => pts.some(([px, py], j) => Math.min(Math.abs(j - i), n - Math.abs(j - i)) > 6 && (px - x) ** 2 + (py - y) ** 2 < 64);
   const road = pts.map((p) => onRoad(...p));
   for (const side of [-1, 1]) {
     const at = pts.map(([x, y], i) => {
@@ -447,7 +450,7 @@ export function deduceWalls(track, { built, onRoad, taken }) {
     });
     const wall = at.map(([x, y, nx, ny], i) => road[i] || [3, 8, 13, 18].some((d) => built(x + nx * d, y + ny * d)));
     for (const [i, len] of runs(wall.map((v) => !v))) if (len < 6) for (let k = 0; k < len; k++) wall[(i + k) % n] = true;
-    const keep = wall.map((v, i) => v && near(at[i][0], at[i][1], 5).d >= 5 && !taken(at[i][0], at[i][1]));
+    const keep = wall.map((v, i) => v && !onOther(at[i][0], at[i][1], i) && !taken(at[i][0], at[i][1]));
     for (const [i, len] of runs(keep)) {
       if (len < 8) continue;
       const line = Array.from({ length: len === n ? n + 1 : len }, (_, k) => at[(i + k) % n].slice(0, 2));
