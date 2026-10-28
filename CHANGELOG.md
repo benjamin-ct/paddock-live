@@ -34,6 +34,9 @@ l'application (Réglages → À propos → Nouveautés).
   minute jusqu'à afficher la prochaine séance.
 
 ### En direct
+- Onglet Secteurs : sous les poles et meilleurs tours des éditions précédentes, le meilleur du week-end, c'est-à-dire
+  le meilleur tour des séances déjà courues du Grand Prix (temps, pilote et séance : EL2, Qualif…). En direct et en
+  replay, dans l'appli et la version web.
 - Classement en course : l'intervalle avec la voiture devant s'affiche aussi en mode Essentiel ; un pilote qui abandonne
   n'a plus d'écart affiché à côté de « ABD ».
 - Replay : la Télémétrie dit « Pas de télémétrie dans ce replay » au lieu de proposer la connexion F1 TV du direct.
