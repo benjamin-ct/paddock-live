@@ -1,6 +1,19 @@
 // Interface en anglais : traduction de chaque texte français affiché (voir i18n.js).
 // {} = valeur dynamique (dans l'ordre), {0}, {1}… pour changer l'ordre en anglais.
 export default {
+  "Qualifs": "Qualifying",
+  "Sprint": "Sprint",
+  "Moy.": "Avg.",
+  "NP": "DNS",
+  "NQ": "DNQ",
+  "Plus de kilomètres": "Most kilometres",
+  "Kilomètres parcourus par écurie": "Kilometres covered by team",
+  "Courses et sprints : tours bouclés par les deux voitures × longueur du circuit.": "Races and sprints: laps completed by both cars × circuit length.",
+  "En couleur : podium et Q3.": "Highlighted: podium and Q3.",
+  "En couleur : podium et places qui marquent des points.": "Highlighted: podium and points-scoring places.",
+  "ABD : abandon · NP : non-partant · NC : non classé · DSQ : disqualifié.": "RET: retired · DNS: did not start · NC: not classified · DSQ: disqualified.",
+  "Grille de la saison": "Season grid",
+  "Aucun sprint couru cette saison.": "No sprint run this season.",
   "Hors séance": "No session",
   "Pas de séance en cours : le direct reprend tout seul avant la prochaine, {}": "No session right now: live timing resumes on its own before the next one, {}",
   "Pas de séance en cours": "No session right now",

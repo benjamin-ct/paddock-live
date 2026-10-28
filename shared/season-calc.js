@@ -325,6 +325,24 @@ export function pointsPath(data, kind, key, round) {
   });
 }
 
+// Kilomètres parcourus par écurie en course et en sprint : tours bouclés × longueur du circuit (length(round) : km ou
+// null, manche alors ignorée)
+export function teamMileage(races, length) {
+  const m = new Map();
+  for (const r of races) {
+    const km = length(r.round);
+    if (!km) continue;
+    for (const x of [...r.results, ...(r.sprintResults || [])]) {
+      if (!x.laps) continue;
+      const t = m.get(x.teamId) || { teamId: x.teamId, team: x.team, laps: 0, km: 0 };
+      t.laps += x.laps;
+      t.km += x.laps * km;
+      m.set(x.teamId, t);
+    }
+  }
+  return [...m.values()].sort((a, b) => b.km - a.km);
+}
+
 export const RACE_POINTS = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
 // Meilleure place qui rapporte au plus « pts » points (11 = hors des points)
 export function placeForMaxPoints(pts) {

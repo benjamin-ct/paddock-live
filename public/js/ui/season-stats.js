@@ -394,6 +394,8 @@ const STRESS = { 1: ['Très élevée', 5], 2: ['Élevée', 4], 3: ['Moyenne', 3]
 // Circuits sans tracé dans l'API des cartes (Madring, nouveau ; Sepang, absent depuis 2017) : longueur et virages
 // officiels (formula1.com : 5,414 km et 22 virages ; Sepang : 5,543 km et 15 virages)
 const KNOWN = { madring: { length: 5.414, corners: 22 }, sepang: { length: 5.543, corners: 15 } };
+// Longueur du circuit d'une manche (km) : analyse des archives, sinon valeur connue
+export const circuitLength = (ctx, round) => byRound(ctx.stats).get(round)?.race.profile.length || KNOWN[ctx.data.races.find((r) => r.round === round)?.circuitId]?.length || null;
 export function renderCircuits(ctx, sort = 'round') {
   const { data, stats } = ctx;
   const R = byRound(stats);
