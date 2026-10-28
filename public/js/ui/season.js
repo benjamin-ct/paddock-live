@@ -13,7 +13,7 @@ import { renderReview, reviewAction } from './season-review.js';
 import { renderDestructors, showDestructorsDriver } from './season-destructors.js';
 import { addPngButtons, savePng } from './season-png.js';
 import { renderPace, setPaceCut, setPaceScope } from './season-pace.js';
-import { DEC, LOCALE, EN, t } from '../i18n.js';
+import { DEC, LOCALE, LANG, ord, t } from '../i18n.js';
 import { gpShort, gpFull } from '/shared/gp-names.js';
 import { COUNTRY_ISO } from '/shared/social-season.js';
 import { seasonPath, seasonTitle, slug, gpSlug, parseSeasonPath } from '/shared/season-urls.js';
@@ -238,7 +238,7 @@ function renderHome() {
   const [c1, c2] = data.constructors;
   const tr = titleRace(data, data.year), champ = tr.champion, inRace = tr.drivers.filter((e) => e.alive).length;
   return `<div class="sz-cards sz-home-cards">
-      <div class="sz-card sz-count">${nx ? `<div class="sz-kicker"><span class="sz-badge">R${nx.race.round}</span> ${esc(gpFull(nx.race.name, EN))} : ${esc(nx.s.label)}</div>
+      <div class="sz-card sz-count">${nx ? `<div class="sz-kicker"><span class="sz-badge">R${nx.race.round}</span> ${esc(gpFull(nx.race.name, LANG))} : ${esc(nx.s.label)}</div>
         <div class="sz-countdown" id="szCountdown" data-t="${esc(nx.s.t)}"></div>
         <div class="small sz-when">${fmtDate(nx.s.t, { weekday: 'long', day: 'numeric', month: 'long' })} à ${fmtTime(nx.s.t)}</div>` : '<div class="sz-kicker">Saison terminée</div>'}</div>
       <div class="sz-card"><div class="muted small">Calendrier ${data.year}</div><div class="sz-big">${esc(nx?.race.locality || nx?.race.country || '—')}</div>
@@ -247,9 +247,9 @@ function renderHome() {
         <div class="muted small">${p1 ? `${p1.points} pts${p2 ? ` · +${p1.points - p2.points} sur ${esc(p2.last)}` : ''}` : ''}</div></div>
       <div class="sz-card"><div class="muted small">Leader constructeurs</div><div class="sz-big">${c1 ? `${bar(c1.name, c1.id)}${esc(c1.name)}` : '—'}</div>
         <div class="muted small">${c1 ? `${c1.points} pts${c2 ? ` · +${c1.points - c2.points} sur ${esc(c2.name)}` : ''}` : ''}</div></div>
-      ${last ? `<div class="sz-card"><div class="muted small">Dernier vainqueur · R${last.round}</div><div class="sz-big">${bar(last.results[0].team, last.results[0].teamId)}${esc(last.results[0].last)}</div><div class="muted small">${esc(gpFull(last.name, EN))}</div></div>` : ''}
+      ${last ? `<div class="sz-card"><div class="muted small">Dernier vainqueur · R${last.round}</div><div class="sz-big">${bar(last.results[0].team, last.results[0].teamId)}${esc(last.results[0].last)}</div><div class="muted small">${esc(gpFull(last.name, LANG))}</div></div>` : ''}
       ${last ? `<div class="sz-card sz-wide"><div class="muted small">Course au titre</div><div class="sz-big">${champ ? `${bar(champ.team, champ.teamId)}${esc(champ.last || champ.name)}` : t('{} en lice', inRace)}</div>
-        <div class="muted small">${champ ? t('Champion du monde') : tr.clinchD?.earliest ? t('Titre possible dès : {}', esc(gpShort(tr.clinchD.earliest.name, EN))) : t('Rien de joué avant la dernière manche')}</div>
+        <div class="muted small">${champ ? t('Champion du monde') : tr.clinchD?.earliest ? t('Titre possible dès : {}', esc(gpShort(tr.clinchD.earliest.name, LANG))) : t('Rien de joué avant la dernière manche')}</div>
         <button class="btn small" data-szgo="title">${t('Course au titre')} ${icon('arrow-right', 'ic-s')}</button></div>` : ''}
     </div>
     <div class="sz-grid2">
@@ -291,7 +291,7 @@ function renderGp() {
   const pos = (x) => (/^\d+$/.test(x.posText || '') ? x.pos : '—');
   const gap = (x) => x.time || esc(statusFr(x.status));
   const win = r.results[0], pole = r.quali.find((q) => q.pos === 1);
-  const parts = [`<section class="sz-box"><h3>${flagOf(r)}${esc(gpFull(r.name, EN))} ${data.year}</h3>
+  const parts = [`<section class="sz-box"><h3>${flagOf(r)}${esc(gpFull(r.name, LANG))} ${data.year}</h3>
     <div class="muted">${t('Manche {}', r.round)} · ${calSpan(r)} · ${esc([r.circuit, r.locality].filter(Boolean).join(' · '))}</div>
     ${win ? `<p>${icon('trophy')} ${chip(win)}${pole ? ` <span class="muted">pole</span> ${chip(pole)}` : ''}</p>` : ''}</section>`];
   const dna = dnaBlock(r.circuitId, false);
@@ -319,7 +319,7 @@ function renderGp() {
   }
   if (dna && r.results.length) parts.push(`<section class="sz-box"><h3>ADN du circuit</h3>${dna}</section>`);
   if (r.results.length) parts.push(renderPace(an, r.results));
-  parts.push(`<div class="sz-gp-nav">${prev ? gpLink(prev, `← ${gpShort(prev.name, EN)}`, 'btn small') : '<span></span>'}<button class="btn small" data-szgo="results">Tous les Grands Prix</button>${next ? gpLink(next, `${gpShort(next.name, EN)} →`, 'btn small') : '<span></span>'}</div>`);
+  parts.push(`<div class="sz-gp-nav">${prev ? gpLink(prev, `← ${gpShort(prev.name, LANG)}`, 'btn small') : '<span></span>'}<button class="btn small" data-szgo="results">Tous les Grands Prix</button>${next ? gpLink(next, `${gpShort(next.name, LANG)} →`, 'btn small') : '<span></span>'}</div>`);
   return parts.join('');
 }
 
@@ -367,7 +367,7 @@ function calendarMap(next) {
   const X = (lon) => ((lon + 180) / 360) * world.w, Y = (lat) => ((world.lat0 - lat) / (world.lat0 - world.lat1)) * world.h;
   const dots = races.map((r) => {
     const state = done(r) ? 'done' : next?.round === r.round ? 'next' : 'future';
-    return `<a href="${seasonPath(year, 'gp', gpSlug(r.name))}" data-szgp="${r.round}" class="cal-pin ${state}"><title>R${r.round} · ${esc(gpShort(r.name, EN))} · ${calSpan(r).replace(/<[^>]+>/g, '')}</title>
+    return `<a href="${seasonPath(year, 'gp', gpSlug(r.name))}" data-szgp="${r.round}" class="cal-pin ${state}"><title>R${r.round} · ${esc(gpShort(r.name, LANG))} · ${calSpan(r).replace(/<[^>]+>/g, '')}</title>
       <circle cx="${X(r.lon).toFixed(1)}" cy="${Y(r.lat).toFixed(1)}" r="${state === 'next' ? 9 : 7}"/><text x="${X(r.lon).toFixed(1)}" y="${(Y(r.lat) + 3.5).toFixed(1)}" text-anchor="middle">${r.round}</text></a>`;
   }).join('');
   // Cadrage : du nord de l'Europe (65° N) au sud de l'Australie (48° S)
@@ -383,7 +383,7 @@ function renderCalendar() {
   const hero = next ? `<section class="cal-hero">
       <div class="cal-hero-main">
         <div class="cal-hero-top"><span class="cal-tag">Prochain Grand Prix</span><span class="cal-round">Manche ${next.round} / ${data.races.length}</span>${next.sprint ? '<span class="sz-tag sprint">Sprint</span>' : ''}</div>
-        <h2 class="cal-hero-name">${flagOf(next)}${esc(gpShort(next.name, EN))}</h2>
+        <h2 class="cal-hero-name">${flagOf(next)}${esc(gpShort(next.name, LANG))}</h2>
         <div class="cal-hero-sub">${esc([next.circuit, next.locality].filter(Boolean).join(' · '))} · ${calSpan(next)}</div>
         <div class="cal-next">${esc(nx.s.label)} dans</div>
         <div class="sz-countdown" id="szCountdown" data-t="${esc(nx.s.t)}"></div>
@@ -411,7 +411,7 @@ function renderCalendar() {
       : `${w ? `<span class="cal-res">${icon('trophy')} ${chip(w)}${poleOf(pole)}</span>` : `<span class="cal-state">${state === 'next' ? 'Prochain' : 'À venir'}</span>`}${
         r.sprint ? `<span class="cal-res"><span class="sz-tag sprint">Sprint</span>${sw ? ` ${chip(sw)}${poleOf(sp)}` : ''}</span>` : ''}`;
     return `${sep}<details class="cal-row ${state}">
-      <summary><span class="cal-num">${r.round}</span>${flagOf(r)}<span class="cal-name"><b>${esc(gpShort(r.name, EN))}</b><small>${esc(r.circuit || '')}</small></span>
+      <summary><span class="cal-num">${r.round}</span>${flagOf(r)}<span class="cal-name"><b>${esc(gpShort(r.name, LANG))}</b><small>${esc(r.circuit || '')}</small></span>
         <span class="cal-date">${calSpan(r)}</span>
         <span class="cal-out">${right}</span>${icon('chevron-down', 'cal-chev')}</summary>
       <div class="cal-row-body">${calDays(r)}${done(r) ? gpLink(r, 'Résultats du Grand Prix', 'btn small') : calIcs(r)}</div>
@@ -488,7 +488,7 @@ function renderResults(ctx) {
       <div class="sz-hbars">${miles.map((m) => `<div class="sz-hbar"><div class="sz-hb-l">${bar(m.team, m.teamId)}${esc(m.team)}</div><div class="sz-hb-t"><i style="width:${Math.max(2, (100 * m.km) / miles[0].km)}%;background:${color(m.team, m.teamId)}"></i></div><div class="sz-hb-v">${km(m.km)} km</div></div>`).join('')}</div>
       <div class="muted small">Courses et sprints : tours bouclés par les deux voitures × longueur du circuit.</div></section>` : ''}
     <section class="sz-box"><h3>Grands Prix</h3><table class="sz-table sz-results"><tr><th>Manche</th><th>Grand Prix</th><th>Date</th><th>Vainqueur</th><th>2e</th><th>3e</th><th>Pole</th><th>Vainqueur sprint</th></tr>
-      ${data.races.map((r) => `<tr class="${done(r) ? '' : 'muted'}"><td>R${r.round}</td><td>${gpLink(r, gpShort(r.name, EN), 'sz-gp-chip', flagOf(r))}</td><td>${fmtDate(r.date)}</td>
+      ${data.races.map((r) => `<tr class="${done(r) ? '' : 'muted'}"><td>R${r.round}</td><td>${gpLink(r, gpShort(r.name, LANG), 'sz-gp-chip', flagOf(r))}</td><td>${fmtDate(r.date)}</td>
         <td>${r.results[0] ? chip(r.results[0]) : '—'}</td><td>${r.results[1] ? chip(r.results[1]) : ''}</td><td>${r.results[2] ? chip(r.results[2]) : ''}</td>
         <td>${r.quali.find((q) => q.pos === 1) ? chip(r.quali.find((q) => q.pos === 1)) : '—'}</td><td>${r.sprintResults[0] ? chip(r.sprintResults[0]) : '—'}</td></tr>`).join('')}</table></section>`;
 }
@@ -556,7 +556,7 @@ function seasonGrid() {
   }).join('');
   return `<section class="sz-box"><h3>Grille de la saison</h3>
     <div class="sz-grid-opts">${seg('grid-kind', gridKind, [['race', 'Course'], ['quali', 'Qualifs'], ['sprint', 'Sprint']])}${gridKind === 'quali' ? '' : seg('grid-val', gridVal, [['pos', 'Place'], ['pts', 'Points']])}</div>
-    ${races.length ? `<div class="sz-scroll"><table class="sz-table sz-heat sz-grid"><tr><th>Pilote</th>${races.map((r) => `<th title="${esc(gpShort(r.name, EN))}">R${r.round}</th>`).join('')}<th>${pts ? 'Total' : 'Moy.'}</th></tr>${rows}</table></div>
+    ${races.length ? `<div class="sz-scroll"><table class="sz-table sz-heat sz-grid"><tr><th>Pilote</th>${races.map((r) => `<th title="${esc(gpShort(r.name, LANG))}">R${r.round}</th>`).join('')}<th>${pts ? 'Total' : 'Moy.'}</th></tr>${rows}</table></div>
     <div class="muted small"><span>${gridKind === 'quali' ? 'En couleur : podium et Q3.' : 'En couleur : podium et places qui marquent des points.'}</span> <span>ABD : abandon · NP : non-partant · NC : non classé · DSQ : disqualifié.</span></div>` : '<div class="note small">Aucun sprint couru cette saison.</div>'}</section>`;
 }
 
@@ -582,7 +582,7 @@ function qualiGapBox(g, A, B, ca) {
   const bars = g.rounds.map((x, i) => {
     const y = Y(-x.s), x0 = pl + i * bw + bw * 0.18;
     const c = x.s <= 0 ? ca : 'var(--muted)';
-    return `<rect class="${x.s <= 0 ? 'up' : 'dn'}" x="${x0}" y="${Math.min(y, mid)}" width="${bw * 0.64}" height="${Math.max(1, Math.abs(y - mid))}" rx="2" fill="${c}" ${x.outlier ? 'opacity=".35"' : ''}><title>R${x.round} ${esc(gpShort(x.name, EN))} (Q${x.part}) : ${esc(x.s <= 0 ? A.last : B.last)} devant de ${f3(x.s)}</title></rect>
+    return `<rect class="${x.s <= 0 ? 'up' : 'dn'}" x="${x0}" y="${Math.min(y, mid)}" width="${bw * 0.64}" height="${Math.max(1, Math.abs(y - mid))}" rx="2" fill="${c}" ${x.outlier ? 'opacity=".35"' : ''}><title>R${x.round} ${esc(gpShort(x.name, LANG))} (Q${x.part}) : ${esc(x.s <= 0 ? A.last : B.last)} devant de ${f3(x.s)}</title></rect>
       ${Math.abs(x.s) > cap ? `<text x="${pl + i * bw + bw / 2}" y="${x.s < 0 ? y + 12 : y - 4}" class="sz-ax sz-clip" text-anchor="middle">${Math.abs(x.s).toFixed(2).replace('.', DEC)} s</text>` : ''}
       <text x="${pl + i * bw + bw / 2}" y="${H - 18}" class="sz-ax" text-anchor="middle">R${x.round}</text><text x="${pl + i * bw + bw / 2}" y="${H - 5}" class="sz-ax" text-anchor="middle">Q${x.part}</text>`;
   }).join('');
@@ -682,7 +682,7 @@ function renderTitle() {
   const tr = titleRace(data, data.year);
   const dl = Object.values(store.state.DriverList || {});
   const photo = (code) => photoUrl(dl.find((x) => x?.Tla === code) || { Tla: code });
-  const out = (e, team) => (e.alive ? '' : `<div class="tr-out">${team ? t('Éliminée') : t('Éliminé')} · R${e.outRound} ${esc(gpShort(e.outName, EN))}</div>`);
+  const out = (e, team) => (e.alive ? '' : `<div class="tr-out">${team ? t('Éliminée') : t('Éliminé')} · R${e.outRound} ${esc(gpShort(e.outName, LANG))}</div>`);
   // Barre : points actuels (couleur d'écurie) + maximum encore possible (hachures) ; trait = leader
   const bars = (e, list, col) => {
     const lead = Math.max(...list.map((x) => x.points));
@@ -715,7 +715,7 @@ function renderTitle() {
   // Quand le titre peut-il se jouer : au plus tôt, et toutes les conditions au prochain Grand Prix (tableau compact)
   const clinchBox = (c, kind) => {
     if (!c) return '';
-    const gp = (r) => `<b>${esc(gpShort(r.name, EN))}</b> <span class="muted">R${r.round}</span>`;
+    const gp = (r) => `<b>${esc(gpShort(r.name, LANG))}</b> <span class="muted">R${r.round}</span>`;
     const L = esc(c.leader.name);
     const top = c.needs[0];
     const atNext = c.earliest?.round === c.next.round;
@@ -737,7 +737,7 @@ function renderTitle() {
     const head = `<div class="tr-cl-head"><span>${icon('trophy')} ${t(atNext ? 'Titre possible dès le prochain Grand Prix : {}' : 'Titre possible au plus tôt : {}', c.earliest ? gp(c.earliest) : t('Dernière manche'))}</span>
       ${!atNext && top ? `<span class="muted">${t('si {} marque le maximum à chaque manche jusque-là et {} aucun point', L, esc(top.name))}</span>` : ''}</div>`;
     const body = !c.possibleNext
-      ? `<div class="tr-cl-note">${t('Pas encore à {} : il faudrait {} points de plus que {} ({} au maximum sur le week-end).', esc(gpShort(c.next.name, EN)), top.margin, esc(top.name), c.next.max)}</div>`
+      ? `<div class="tr-cl-note">${t('Pas encore à {} : il faudrait {} points de plus que {} ({} au maximum sur le week-end).', esc(gpShort(c.next.name, LANG)), top.margin, esc(top.name), c.next.max)}</div>`
       : `<div class="tr-cl-sub">${c.needs.length > 1 ? t('Conditions pour {}, toutes à la fois', L) : t('Condition pour {}', L)}${c.next.sprint ? ` <span class="muted">· ${t('sprint et course cumulés')}</span>` : ''}</div>
         <div class="tr-cl-scroll"><table class="tr-cl-tbl"><thead><tr><th>${t('Rival')}</th><th>${t('Sur le week-end')}</th>${places ? `<th>${t('En gagnant')}</th><th>${t('En finissant 2e')}</th>` : ''}</tr></thead>
         <tbody>${c.needs.map((n) => `<tr><td>${who(n)}</td><td><b>${gap(n.margin)}</b></td>${places ? `<td>${place(n, 25, 1)}</td><td>${place(n, 18, 2)}</td>` : ''}</tr>`).join('')}</tbody></table></div>
@@ -764,11 +764,10 @@ function renderCompare() {
   const years = Array.from({ length: 8 }, (_, i) => new Date().getUTCFullYear() - i).filter((y) => y !== data.year);
   const max = Math.min(ran, o?.races?.length || ran);
   const round = Math.max(1, Math.min(cmpRound || ran, max));
-  const nth = (r) => (EN ? `${r}${['th', 'st', 'nd', 'rd'][(r % 100 - 20) % 10] || ['th', 'st', 'nd', 'rd'][r % 100] || 'th'}` : r === 1 ? '1er' : `${r}e`);
   const raceOf = (d) => [...d.races].sort((a, b) => a.round - b.round)[round - 1];
   const drvOpts = data.drivers.map((d) => `<option value="${d.code}" ${d.code === (cmpDrv || data.drivers[0]?.code) ? 'selected' : ''}${seasonOpt(d)}>${esc(d.name)}</option>`).join('');
   const picks = `<div class="sz-h2h-pick"><label class="small">${t('Comparer avec')} <select id="szCmpYear">${years.map((y) => `<option value="${y}" ${y === other ? 'selected' : ''}>${y}</option>`).join('')}</select></label>
-      <label class="small">${t('Après le')} <select id="szCmpRound">${Array.from({ length: Math.max(1, max) }, (_, i) => i + 1).map((r) => `<option value="${r}" ${r === round ? 'selected' : ''}>${t('{} Grand Prix', nth(r))}</option>`).join('')}</select></label>
+      <label class="small">${t('Après le')} <select id="szCmpRound">${Array.from({ length: Math.max(1, max) }, (_, i) => i + 1).map((r) => `<option value="${r}" ${r === round ? 'selected' : ''}>${t('{} Grand Prix', ord(r))}</option>`).join('')}</select></label>
       ${cmpKind === 'p' ? `<label class="small">${t('Pilote')} <select id="szCmpDrv">${drvOpts}</select></label>` : ''}</div>
     <div class="sz-h2h-pick"><div class="tab-seg">${[['d', 'Pilotes'], ['c', 'Constructeurs'], ['p', 'Un pilote']].map(([k, l]) => `<button type="button" data-cmp-kind="${k}" class="${cmpKind === k ? 'on' : ''}">${t(l)}</button>`).join('')}</div></div>`;
   if (!data.races.some(done)) return `${picks}<div class="note small">${t('Aucun Grand Prix couru en {} pour l\'instant.', data.year)}</div>`;
@@ -785,7 +784,7 @@ function renderCompare() {
   const barOf = (e) => (kind === 'd' ? bar(e.team, e.teamId) : bar(e.name, e.id));
   const who = (e) => (kind === 'd' ? `${barOf(e)}<b>${name(e)}</b> <span class="muted small">${esc(e.team)}</span>` : `${barOf(e)}<b>${name(e)}</b>`);
   // En tête : où en était chaque saison à ce moment (leader et son avance), et une phrase qui résume
-  const lead = (y, d, l) => `<div class="sz-card"><div class="muted small">${t('{} · après {}', y, esc(gpShort(raceOf(d)?.name || '', EN)))}</div>
+  const lead = (y, d, l) => `<div class="sz-card"><div class="muted small">${t('{} · après {}', y, esc(gpShort(raceOf(d)?.name || '', LANG)))}</div>
       <div class="sz-big">${l[0] ? `${barOf(l[0])}${name(l[0])}` : '—'}</div>
       <div class="muted small">${l[0] ? `${t('en tête avec {} pts', l[0].points)}${l[1] ? ` · ${t('{} pts d\'avance sur {}', l[0].points - l[1].points, name(l[1]))}` : ''}` : ''}</div></div>`;
   const [a1, a2] = a, [b1, b2] = b;
@@ -830,8 +829,8 @@ function compareDriver(o, other, round, w, sign) {
   const rows = Array.from({ length: round }, (_, i) => i + 1).map((r) => {
     const pa = a.find((p) => p.x === r), pb = b.find((p) => p.x === r);
     const fin = (p) => (!p ? '—' : /^\d+$/.test(String(p.pos)) ? `P${p.pos}` : p.pos ? t('Abandon') : '—');
-    return pa || pb ? `<tr><td>R${r}</td><td>${pa ? esc(gpShort(pa.gp, EN)) : '—'} <span class="muted small">${fin(pa)}</span></td><td><b>${pa ? pa.y : '—'}</b></td>
-      <td>${pb ? esc(gpShort(pb.gp, EN)) : '—'} <span class="muted small">${fin(pb)}</span></td><td>${pb ? pb.y : '—'}</td><td>${pa && pb ? sign(pa.y - pb.y) : ''}</td></tr>` : '';
+    return pa || pb ? `<tr><td>R${r}</td><td>${pa ? esc(gpShort(pa.gp, LANG)) : '—'} <span class="muted small">${fin(pa)}</span></td><td><b>${pa ? pa.y : '—'}</b></td>
+      <td>${pb ? esc(gpShort(pb.gp, LANG)) : '—'} <span class="muted small">${fin(pb)}</span></td><td>${pb ? pb.y : '—'}</td><td>${pa && pb ? sign(pa.y - pb.y) : ''}</td></tr>` : '';
   }).join('');
   return `<div class="sz-cards">${card(t('Points'), sa.pts, sb.pts)}${card(t('Victoires'), sa.wins, sb.wins)}${card(t('Podiums'), sa.pods, sb.pods)}</div>
     <section class="sz-box"><h3>${t('{} : {} face à {}', esc(d.name), data.year, other)}</h3>${chart}</section>
@@ -977,7 +976,7 @@ export function initSeason() {
     if (png) {
       // Sous-titre de l'image : le pilote, le Grand Prix ou la rubrique affichés
       const sub = section === 'drivers' ? $('#szContent .sz-drv-name')?.firstChild?.textContent.trim()
-        : section === 'gp' ? gpFull(data.races.find((r) => r.round === gpRound)?.name || '', EN) : $('#szNav .active')?.textContent.trim();
+        : section === 'gp' ? gpFull(data.races.find((r) => r.round === gpRound)?.name || '', LANG) : $('#szNav .active')?.textContent.trim();
       savePng(png.closest('.sz-box'), data.year, sub).catch(() => {});
       return;
     }

@@ -2680,4 +2680,9 @@ export default {
   "Navigateur relié. La connexion apparaît dans le navigateur.": "Browser linked. The connection appears in the browser.",
   "Échec de l'envoi. Réessayez.": "Sending failed. Try again.",
   "Relier": "Link",
+  "victoires": "wins",
+  "{} pilote": "{} driver",
+  "{} élément": "{} element",
+  "Vict.": "Wins",
+  "Session": "Session",
 };

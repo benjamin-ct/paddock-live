@@ -6,6 +6,16 @@ l'application (Réglages → À propos → Nouveautés).
 
 ## v1.30.0 — à venir
 
+### Langues
+- Paddock Live parle aussi italien et espagnol : Italiano et Español dans Réglages → Apparence, et à la première
+  ouverture l'appli suit la langue du système. Toute l'interface est traduite, avec les noms des Grands Prix et des
+  séances (« Gran Premio d'Italia », « Clasificación »), les dates et les nombres à l'italienne ou à l'espagnole, et
+  l'écran de démarrage de l'appli de bureau ; les actualités et les radios d'équipe sont traduites dans la langue
+  choisie. La version web s'affiche aussi en italien ou en espagnol, selon la langue du navigateur. Le résumé de la
+  séance, les messages de la FIA et les fichiers d'agenda restent en anglais dans ces deux langues.
+- Version anglaise : les derniers textes restés en français sont traduits (« victoires » de la Saison, nom du panneau
+  dans Réglages → Onglets visibles, nombre de pilotes dans Éléments moteur).
+
 ### Saison
 - Comparer deux saisons (Saison → Comparer deux saisons) : après le même nombre de Grands Prix (par exemple 2026 et
   2025 après le 18e), le leader de chaque saison, une phrase qui résume, la courbe des points des deux leaders, puis un
