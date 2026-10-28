@@ -359,13 +359,14 @@ export function areaKind(t) {
   return null;
 }
 
-// Requête Overpass de la zone { s, w, n, e } (degrés) : surfaces, bâtiments, routes, cours d'eau, arbres isolés
-export function overpassQuery({ s, w, n, e }) {
-  const b = `(${[s, w, n, e].map((v) => v.toFixed(5)).join(',')})`;
-  return `[out:json][timeout:150];(way[building]${b};way[landuse]${b};way[natural~"^(wood|water|grassland|heath|scrub|sand|beach)$"]${b};`
+// Requête Overpass : surfaces, routes et cours d'eau de la zone { s, w, n, e } (degrés) ; bâtiments et arbres isolés
+// seulement dans near, plus près du tracé (en ville, ceux de toute la zone pèseraient des dizaines de Mo)
+export function overpassQuery(zone, near = zone) {
+  const box = ({ s, w, n, e }) => `(${[s, w, n, e].map((v) => v.toFixed(5)).join(',')})`, b = box(zone), c = box(near);
+  return `[out:json][timeout:150];(way[building]${c};node[natural=tree]${c};way[landuse]${b};way[natural~"^(wood|water|grassland|heath|scrub|sand|beach)$"]${b};`
     + `way[leisure~"^(park|golf_course|pitch|garden|stadium)$"]${b};way[amenity=parking]${b};way[waterway~"^(river|canal|stream|riverbank)$"]${b};`
     + `way[highway~"^(motorway|trunk|primary|secondary|tertiary|raceway)(_link)?$"]${b};`
-    + `relation[type=multipolygon][~"^(natural|landuse|leisure|building|waterway)$"~"."]${b};node[natural=tree]${b};);out geom qt;`;
+    + `relation[type=multipolygon][~"^(natural|landuse|leisure|building|waterway)$"~"."]${b};);out geom qt;`;
 }
 
 // Réponse d'Overpass réduite à ce qui sert (étiquettes lues ici, coordonnées à 10 cm près) : gardée par circuit
@@ -415,7 +416,7 @@ export function zone(track, fit, frame, margin = MARGIN) {
 }
 
 // Données de /live/api/surroundings, en mètres dans le repère du tracé (x, y MultiViewer / 10), nombres entiers :
-//   terrain : { x0, y0, step, cols, rows, h } — altitude (1/10 m au-dessus de la mer ; négative : la mer) de chaque
+//   terrain : { x0, y0, step, cols, rows, h } — altitude (1/10 m au-dessus de la mer ; 0 ou moins : la mer) de chaque
 //             nœud de la grille, ligne par ligne (y croissant)
 //   track   : { z, n } — altitude (1/10 m) de chaque point du tracé, comme le profil GPS de /live/api/elevation
 //   buildings, stands : [[hauteur (m), x0, y0, x1, y1…]] — contour des bâtiments et des tribunes

@@ -21,6 +21,7 @@ const FIRST_YEAR = 2018;       // premiers replays proposés (ui/replays.js)
 const RETRY = 6 * 3600e3;      // échec (réseau, serveur occupé, calage raté) : revu 6 h plus tard, comme les zones
 const LOCK = 10 * 60e3;        // un seul calcul à la fois
 const CATALOGUE = 7 * 86400e3; // catalogue des replays relu une fois par semaine
+const NEAR = 700;              // bâtiments et arbres isolés lus jusqu'à 700 m du tracé
 const MAX_ERR = 8;             // calage gardé si le tracé est en moyenne à moins de 8 m des pistes (ou rues) d'OSM
 // Pauses (ms) : serveurs publics ménagés, une requête à la fois
 const PAUSE = { overpass: 5000, tile: 300, jolpica: 1000 };
@@ -144,7 +145,7 @@ export async function computeSurroundings(env, key, year, { now = Date.now(), fe
     const z = zone(track, f, frame);
     if (!loc.zone || !contains(loc.zone, z)) {
       loc.zone = zone(track, f, frame, MARGIN + 500);
-      loc.osm = trimOsm(await overpass(overpassQuery(loc.zone), fetchFn, pause));
+      loc.osm = trimOsm(await overpass(overpassQuery(loc.zone, zone(track, f, frame, NEAR)), fetchFn, pause));
       loc.z = tilesFor(loc.zone, 30)[0].z;
       dirty = true;
     }
