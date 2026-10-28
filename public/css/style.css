@@ -190,6 +190,18 @@ code { background: var(--panel-3); padding: 1px 5px; border-radius: 4px; font-si
   pointer-events: auto; cursor: pointer; z-index: 2; }
 .rp-dot.end { background: #c9ccd6; }
 .rp-lbl { position: absolute; top: -13px; transform: translateX(-50%); font-size: 9.5px; font-weight: 800; color: var(--text-2); letter-spacing: .4px; white-space: nowrap; }
+/* Curseurs (volume, seuil, temps perdu…) : piste fine remplie jusqu'à la valeur (--fill, js/ranges.js), bouton rond ;
+   la barre du replay (#rpRange) garde son propre style */
+input[type=range]:not(#rpRange) { -webkit-appearance: none; appearance: none; height: 18px; margin: 0; background: transparent; cursor: pointer; vertical-align: middle; }
+input[type=range]:not(#rpRange)::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: linear-gradient(to right, var(--accent) var(--fill, 0%), var(--line-2) var(--fill, 0%)); }
+input[type=range]:not(#rpRange)::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; margin-top: -5px; border: 0; border-radius: 50%; background: #fff; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent), 0 1px 3px rgba(0, 0, 0, .45); transition: transform .12s, box-shadow .12s; }
+input[type=range]:not(#rpRange):hover::-webkit-slider-thumb { transform: scale(1.15); }
+input[type=range]:not(#rpRange):focus-visible { outline: none; }
+input[type=range]:not(#rpRange):focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 55%, transparent); }
+input[type=range]:not(#rpRange)::-moz-range-track { height: 4px; border-radius: 2px; background: var(--line-2); }
+input[type=range]:not(#rpRange)::-moz-range-progress { height: 4px; border-radius: 2px; background: var(--accent); }
+input[type=range]:not(#rpRange)::-moz-range-thumb { width: 14px; height: 14px; border: 0; border-radius: 50%; background: #fff; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent), 0 1px 3px rgba(0, 0, 0, .45); }
+input[type=range]:not(#rpRange):disabled { opacity: .45; cursor: default; }
 .rp-track input[type=range] { position: absolute; inset: 0; width: 100%; height: 18px; margin: 0; background: transparent; -webkit-appearance: none; appearance: none; cursor: pointer; z-index: 1; }
 .rp-track input[type=range]::-webkit-slider-runnable-track { height: 18px; background: transparent; }
 .rp-track input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; margin-top: 1px; border-radius: 50%; background: #fff; border: 3px solid #3d7bff; box-shadow: 0 1px 6px rgba(0, 0, 0, .6); }
@@ -796,7 +808,7 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
 .stepper .btn { min-width: 46px; padding: 6px 8px; font-size: 13px; font-weight: 700; }
 .stepper .btn.small { min-width: 0; }
 .stepper output { min-width: 74px; text-align: center; font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums; }
-.loss-box input[type=range] { width: 100%; accent-color: var(--red); }
+.loss-box input[type=range] { width: 100%; }
 .pit-result { background: var(--panel-2); border-radius: 10px; padding: 12px 14px; margin: 8px 0; }
 .pit-result .big { font-size: 30px; font-weight: 900; line-height: 1; }
 .pit-order { width: 100%; border-collapse: collapse; margin-top: 6px; }
@@ -916,7 +928,7 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
 .comm-head .icon-btn { margin-left: auto; }
 .comm-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .comm-row select { display: block; margin-top: 2px; background: var(--panel-3); border: 1px solid var(--border); border-radius: 6px; padding: 4px 6px; max-width: 170px; }
-.comm-row input[type=range] { flex: 1; accent-color: var(--red); min-width: 90px; }
+.comm-row input[type=range] { flex: 1; min-width: 90px; }
 .comm-offset output { min-width: 56px; text-align: center; font-weight: 800; font-variant-numeric: tabular-nums; }
 .comm-status { color: var(--text-2); line-height: 1.35; white-space: pre-line; }
 .comm-status.err { color: var(--orange); }
@@ -3342,5 +3354,5 @@ html.overlay body.ov-body { background: transparent; margin: 0; padding: 0; over
 html:is(.float-map, .overlay) .boot-cover { display: none; }
 .stream-bg { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 2px; }
 .stream-bg label { flex: 1; display: flex; align-items: center; gap: 8px; }
-.stream-bg input { flex: 1; max-width: 320px; accent-color: var(--accent); }
+.stream-bg input { flex: 1; max-width: 320px; }
 .stream-bg span { min-width: 64px; color: var(--muted); }
