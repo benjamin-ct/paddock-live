@@ -290,6 +290,23 @@ export function standingsAfter(data, round) {
   };
 }
 
+// Nom court d'une écurie, le même dans toute la Saison : Jolpica dit « RB F1 Team », « Alpine F1 Team », la F1 et la FIA
+// « Racing Bulls », « Red Bull Racing », « Haas F1 Team »
+export const teamShort = (name) => (typeof name !== 'string' ? name
+  : /^(rb f1 team|visa cash app rb)/i.test(name) ? 'Racing Bulls' : name === 'Red Bull Racing' ? 'Red Bull' : name.replace(/ F1 Team$/, ''));
+// Tous les noms d'écuries d'une réponse du serveur (champs « team », et « name » des constructeurs), raccourcis sur place
+export function shortTeams(v) {
+  if (Array.isArray(v)) v.forEach(shortTeams);
+  else if (v && typeof v === 'object') {
+    for (const [k, x] of Object.entries(v)) {
+      if (k === 'team') v[k] = teamShort(x);
+      else if (k === 'constructors' && Array.isArray(x)) x.forEach((c) => { c.name = teamShort(c.name); });
+      else if (x && typeof x === 'object') shortTeams(x);
+    }
+  }
+  return v;
+}
+
 // Même écurie sous un autre nom d'une saison à l'autre (identifiants Jolpica) : Sauber (Alfa Romeo, Audi), Racing Bulls
 // (Toro Rosso, AlphaTauri), Aston Martin (Force India, Racing Point), Alpine (Renault)
 const LINEAGE = { alfa: 'sauber', audi: 'sauber', toro_rosso: 'rb', alphatauri: 'rb', force_india: 'aston_martin', racing_point: 'aston_martin', renault: 'alpine' };
