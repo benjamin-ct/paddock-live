@@ -153,7 +153,12 @@ liveVisit(path.join(LIVE, 'js', 'web.js'));
 // Liste des modules donnée d'emblée (modulepreload) : chargés ensemble au lieu d'être découverts un à un (navigateur
 // neuf, rien en cache, ex. celui d'Instagram : page prête vers 0,8 s au lieu de 1,2 s avec la latence d'un téléphone)
 if (!livePage.includes('</head>')) throw new Error('Version web : </head> introuvable');
-fs.writeFileSync(path.join(LIVE, 'index.html'), livePage.replace('</head>', `${[...liveGraph].map((f) => `<link rel="modulepreload" href="${rel(f)}">`).join('\n')}\n</head>`));
+// Empreinte de la version web : l'appli installée sur l'écran d'accueil se recharge au retour quand elle change (web.js)
+const walk = (d) => fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(d, e.name)) : [path.join(d, e.name)]));
+const liveHash = crypto.createHash('sha256').update(livePage);
+for (const f of walk(LIVE).sort()) liveHash.update(`${path.relative(LIVE, f)}\0`).update(fs.readFileSync(f));
+const LIVE_VERSION = liveHash.digest('hex').slice(0, 12);
+fs.writeFileSync(path.join(LIVE, 'index.html'), livePage.replace('</head>', `<meta name="pl-version" content="${LIVE_VERSION}">\n${[...liveGraph].map((f) => `<link rel="modulepreload" href="${rel(f)}">`).join('\n')}\n</head>`));
 // Fichiers servis à la racine du site (vérification du domaine par TikTok)
 copy(path.join(ROOT, 'analytics', 'root'), OUT);
 copy(path.join(ROOT, 'public', 'fonts'), path.join(OUT, 'fonts'), (f) => /^(titillium|sairacondensed|jetbrainsmono).*\.woff2$|^OFL/.test(f));
