@@ -65,3 +65,17 @@ export function frameCap({ still = false, red = false, battery = false, busy = f
   const cap = battery ? 30 : Infinity;
   return busy ? cap : Math.min(cap, still ? 5 : red ? 20 : Infinity);
 }
+
+// Météo de la vue 3D. choice : 'reelle' (d'après la F1), 'sec' ou 'pluie' (pour essayer) ; rainfall : Rainfall de la
+// station météo de la F1 (WeatherData) ; compounds : pneus montés en piste ; cloud : nébulosité prévue (%, en direct)
+// -> { rain : il pleut (0 ou 1), wet : piste mouillée (0 à 1 : la pluie, ou la part des voitures en intermédiaires ou
+// pneus pluie, la moitié suffit), cloud : ciel couvert (0 à 1) }
+export function weatherState(choice, { rainfall = null, compounds = [], cloud = null } = {}) {
+  if (choice === 'sec') return { rain: 0, wet: 0, cloud: 0 };
+  if (choice === 'pluie') return { rain: 1, wet: 1, cloud: 1 };
+  const rain = rainfall === '1' || rainfall === 1 || rainfall === true ? 1 : 0;
+  const share = compounds.length ? compounds.filter((c) => c === 'INTERMEDIATE' || c === 'WET').length / compounds.length : 0;
+  const wet = Math.max(rain, Math.min(1, share * 2));
+  const sky = cloud !== null && Number.isFinite(Number(cloud)) ? Math.min(1, Math.max(0, Number(cloud) / 100)) : 0;
+  return { rain, wet, cloud: Math.max(rain, wet * 0.85, sky) };
+}

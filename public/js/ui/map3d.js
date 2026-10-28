@@ -8,10 +8,10 @@ import * as THREE from '/vendor/three/three.module.min.js';
 import { store, displayNow, f1Now, setFocus } from '../store.js';
 import { CIRCUITS } from '/shared/circuits-info.js';
 import { smoothAlong } from '/shared/elevation.js';
-import { drivers, orderedNumbers, storageGet, storageSet, esc } from '../util.js';
+import { drivers, orderedNumbers, storageGet, storageSet, esc, api, stintsOf } from '../util.js';
 import { t } from '../i18n.js';
 import { FONT, drawPuck, drawBadge, drawSectorBadge, drawCornerChip, drawFlagBadge, drawScBadge } from './map-draw.js';
-import { QUALITY, nearFirst, autoQuality, frameCap } from './map3d-calc.js';
+import { QUALITY, nearFirst, autoQuality, frameCap, weatherState } from './map3d-calc.js';
 
 const W = 14;           // largeur de la piste (m)
 const MAX_CARS = 30;
@@ -20,6 +20,7 @@ const FOV = { helico: 38, poursuite: 62, embarquee: 74, libre: 50 };
 const TIMES = [['auto', 'Heure du circuit'], ['lever', 'Lever'], ['jour', 'Jour'], ['coucher', 'Coucher'], ['nuit', 'Nuit']];
 const QUALITIES = [['auto', 'Qualité : Auto'], ['econome', 'Qualité : Économe'], ['haute', 'Qualité : Haute']];
 const Q_NAMES = ['économe', 'moyenne', 'haute'];   // niveaux de map3d-calc.js (QUALITY)
+const WEATHERS = [['reelle', 'Météo : Réelle'], ['sec', 'Météo : Sec'], ['pluie', 'Météo : Pluie']];
 // Soleil des ambiances choisies : hauteur et azimut (degrés, depuis le nord vers l'est)
 const PRESET = { lever: [3, 100], jour: [50, 205], coucher: [3, 260], nuit: [-30, 0] };
 const RAD = Math.PI / 180;
@@ -910,6 +911,7 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
       <select class="map3d-driver" aria-label="Pilote suivi" title="Pilote suivi (le même que sur la carte 2D et le classement)"></select>
       <select class="map3d-time" aria-label="Heure">${TIMES.map(([k, txt]) => `<option value="${k}">${txt}</option>`).join('')}</select>
       <select class="map3d-quality" aria-label="Qualité">${QUALITIES.map(([k, txt]) => `<option value="${k}">${txt}</option>`).join('')}</select>
+      <select class="map3d-weather" aria-label="Météo">${WEATHERS.map(([k, txt]) => `<option value="${k}">${txt}</option>`).join('')}</select>
     </div>
     <div class="map3d-note"></div>
     <div class="map3d-credit" hidden><a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a> <a href="https://www.openmaptiles.org/" target="_blank" rel="noopener">© OpenMapTiles</a> <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">${esc(t('© contributeurs OpenStreetMap'))}</a> · ${esc(t('Altitude : Terrain Tiles (Mapzen, AWS Open Data)'))}</div>`;
@@ -923,10 +925,14 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
   const skyMat = new THREE.ShaderMaterial({
     side: THREE.BackSide, depthWrite: false, fog: false,
     uniforms: { top: { value: new THREE.Color() }, horizon: { value: new THREE.Color() }, bottom: { value: new THREE.Color() }, glow: { value: new THREE.Color() },
-      gk: { value: 0 }, moon: { value: 0 }, sunDir: { value: new THREE.Vector3(0, 1, 0) }, moonDir: { value: new THREE.Vector3(0, 1, 0) } },
+      gk: { value: 0 }, moon: { value: 0 }, sunDir: { value: new THREE.Vector3(0, 1, 0) }, moonDir: { value: new THREE.Vector3(0, 1, 0) }, cloud: { value: 0 }, drift: { value: 0 } },
     vertexShader: 'varying vec3 vDir; void main(){ vDir = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-    // Dégradé du ciel, lueur près de l'horizon du côté du soleil, disque du soleil et halo, lune la nuit
-    fragmentShader: `uniform vec3 top, horizon, bottom, glow, sunDir, moonDir; uniform float gk, moon; varying vec3 vDir;
+    // Dégradé du ciel, lueur près de l'horizon du côté du soleil, disque du soleil et halo, lune la nuit ; nuages (météo) :
+    // plus nombreux avec cloud, ciel gris et ni soleil ni lune quand il est couvert
+    fragmentShader: `uniform vec3 top, horizon, bottom, glow, sunDir, moonDir; uniform float gk, moon, cloud, drift; varying vec3 vDir;
+      float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+      float noise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+        return mix(mix(hash(i), hash(i + vec2(1, 0)), f.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), f.x), f.y); }
       void main(){
         vec3 d = normalize(vDir); float h = d.y, s = dot(d, sunDir);
         vec3 c = h > 0.0 ? mix(horizon, top, pow(h, 0.55)) : mix(horizon, bottom, pow(-h, 0.35));
@@ -934,6 +940,13 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
         c = mix(c, glow, gk * side * exp(-abs(h) * 6.0));
         c += vec3(1.0, 0.85, 0.65) * (pow(max(s, 0.0), 250.0) * 0.35 + smoothstep(0.9994, 0.9997, s)) * step(0.0, h) * (1.0 - moon);
         c = mix(c, vec3(0.9, 0.92, 0.98), smoothstep(0.99965, 0.99985, dot(d, moonDir)) * moon);
+        if (cloud > 0.0) {
+          vec2 p = d.xz / max(h, 0.04) * 1.2 + vec2(drift, 0.0);
+          float n = noise(p) * 0.5 + noise(p * 2.1) * 0.25 + noise(p * 4.3) * 0.125 + noise(p * 8.7) * 0.0625;
+          float lum = dot(horizon, vec3(0.3, 0.55, 0.15)), cov = smoothstep(1.05 - cloud, 1.25 - cloud * 0.6, n) * smoothstep(0.0, 0.08, h);
+          c = mix(c, vec3(lum), cloud * 0.55);
+          c = mix(c, vec3(0.93, 0.94, 0.97) * lum * (1.05 - 0.4 * cloud) * (0.8 + 0.3 * n), cov);
+        }
         gl_FragColor = vec4(c, 1.0); }`,
   });
   const sky = new THREE.Mesh(new THREE.SphereGeometry(8000, 32, 16), skyMat);
@@ -964,6 +977,7 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
   sun.shadow.normalBias = 0.04;
   scene.add(hemi, sun, sun.target);
   const amb = {};
+  const weather = weatherFx(host, scene, { skyMat, sun, hemi, stars });
 
   // ---------- Voitures : trois maillages instanciés (carrosserie à la couleur de l'écurie ; carbone, pneus, jantes et
   // casque ; feux arrière, allumés la nuit) ----------
@@ -1078,6 +1092,7 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
     if (world) { scene.remove(world.group); dispose(world.group); }
     world = buildWorld(track, elevation, surroundings, { maxTex: renderer.capabilities.maxTextureSize, aniso: renderer.capabilities.getMaxAnisotropy() });
     world.setQuality(QUALITY[quality.level]);
+    weather.attach(world);
     world.addStartLine(store.positions.lineFrac());
     scene.add(world.group);
     if (layers) { scene.remove(layers.group); dispose(layers.group); }
@@ -1269,6 +1284,7 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
     const hd = Math.hypot(dir.x, dir.z) || 1;
     if (mode !== 'libre' || orbit.dist < 900) world.detailAt(camera.position.x + (dir.x / hd) * 180, camera.position.z + (dir.z / hd) * 180);
     if (now - lastSun > 1000 || timeSel.value !== lastTime) setSun(now);
+    weather.update(now, dtCam, { world, cars, camera, amb, fogFar, level: quality.level, px: cvs.height });
     const cam = sun.shadow.camera, tx = (2 * shadowSpan) / sun.shadow.mapSize.x;
     if (cam.right !== shadowSpan) { Object.assign(cam, { left: -shadowSpan, right: shadowSpan, top: shadowSpan, bottom: -shadowSpan }); cam.updateProjectionMatrix(); }
     const lx = new THREE.Vector3(0, 1, 0).cross(sunDir).normalize(), ly = sunDir.clone().cross(lx), tp = sun.target.position;
@@ -1293,6 +1309,145 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
       dispose(scene);
       renderer.dispose();
       host.innerHTML = '';
+    },
+  };
+}
+
+// ---------- Météo (Réelle / Sec / Pluie, choix gardé) ----------
+// Réelle : pluie d'après la station météo de la F1, piste mouillée d'après les pneus montés, nuages prévus en direct
+// (Open-Meteo, par le serveur de Paddock Live). Ciel couvert et lumière plus terne, piste mouillée qui brille (reflet du
+// ciel, flaques), pluie qui tombe autour de la caméra, gerbes d'eau derrière les voitures (pas en Économe) ; les
+// changements de temps se font en douceur. -> { attach(world) : piste du décor, update(…) : à chaque image }
+function weatherFx(host, scene, { skyMat, sun, hemi, stars }) {
+  const sel = host.querySelector('.map3d-weather'), saved = storageGet('paddock.map3d', {}).weather;
+  sel.value = WEATHERS.some(([k]) => k === saved) ? saved : 'reelle';
+  const cur = { rain: 0, wet: 0, cloud: 0 }, fc = { at: -1e9, cloud: null };
+  let target = cur, lastT = -1e9, snap = true;
+  sel.addEventListener('change', () => { storageSet('paddock.map3d', { ...storageGet('paddock.map3d', {}), weather: sel.value }); lastT = -1e9; snap = true; });
+  const U = { wet: { value: 0 }, wTop: { value: new THREE.Color() }, wHor: { value: new THREE.Color() } }, grey = new THREE.Color();
+  const lum = (c) => c.r * 0.3 + c.g * 0.55 + c.b * 0.15;
+  // Pluie qui tombe : traits dans une boîte de BOX m autour de la caméra (surtout au-dessus), fixes dans la scène
+  const NR = 2000, BOX = 40, rp = Float32Array.from({ length: NR * 3 }, () => Math.random() * BOX);
+  const rainGeo = new THREE.BufferGeometry();
+  rainGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(NR * 6), 3).setUsage(THREE.DynamicDrawUsage));
+  const rain = new THREE.LineSegments(rainGeo, new THREE.LineBasicMaterial({ color: 0xf2f5f8, transparent: true, depthWrite: false }));
+  // Gerbes d'eau : gouttelettes lancées derrière les roues arrière, qui grossissent et s'effacent (life de 0 à 1)
+  const NS = 900, sp = new Float32Array(NS * 3), sv = new Float32Array(NS * 3), life = new Float32Array(NS).fill(1);
+  const sprayGeo = new THREE.BufferGeometry();
+  sprayGeo.setAttribute('position', new THREE.BufferAttribute(sp, 3).setUsage(THREE.DynamicDrawUsage));
+  sprayGeo.setAttribute('life', new THREE.BufferAttribute(life, 1).setUsage(THREE.DynamicDrawUsage));
+  const spray = new THREE.Points(sprayGeo, new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false, uniforms: { scale: { value: 1 }, tint: { value: new THREE.Color() } },
+    vertexShader: `attribute float life; uniform float scale; varying float vL;
+      void main(){ vL = life; vec4 mv = modelViewMatrix * vec4(position, 1.0); gl_Position = projectionMatrix * mv;
+        gl_PointSize = life < 1.0 ? (0.7 + 2.8 * life) * scale / max(-mv.z, 0.5) : 0.0; }`,
+    fragmentShader: `uniform vec3 tint; varying float vL;
+      void main(){ float r = length(gl_PointCoord - 0.5) * 2.0; if (r > 1.0) discard; gl_FragColor = vec4(tint, (1.0 - r * r) * (1.0 - vL) * 0.3); }`,
+  }));
+  for (const o of [rain, spray]) { o.frustumCulled = false; o.visible = false; scene.add(o); }
+  const prev = new Map(), fwd = new THREE.Vector3(), side = new THREE.Vector3();
+  let next = 0;
+  return {
+    // Piste mouillée : plus sombre, moins rugueuse, reflet du ciel (plus fort en regardant loin devant), flaques
+    attach(world) {
+      world.road.material.onBeforeCompile = (sh) => {
+        Object.assign(sh.uniforms, U);
+        sh.vertexShader = sh.vertexShader.replace('void main() {', 'varying vec3 vWp;\nvoid main() {')
+          .replace('#include <begin_vertex>', '#include <begin_vertex>\nvWp = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+        sh.fragmentShader = sh.fragmentShader.replace('void main() {', `uniform float wet; uniform vec3 wTop, wHor; varying vec3 vWp;
+          float wHash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+          float wNoise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+            return mix(mix(wHash(i), wHash(i + vec2(1, 0)), f.x), mix(wHash(i + vec2(0, 1)), wHash(i + vec2(1, 1)), f.x), f.y); }
+          void main() {`)
+          .replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.rgb *= 1.0 - 0.4 * wet;')
+          .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+            if (wet > 0.0) {
+              vec3 vd = normalize(vViewPosition), rw = inverseTransformDirection(reflect(-vd, normal), viewMatrix);
+              float fr = 0.03 + 0.97 * pow(1.0 - abs(dot(normal, vd)), 5.0);
+              float pud = smoothstep(0.45, 0.75, wNoise(vWp.xz * 0.08) * 0.65 + wNoise(vWp.xz * 0.5) * 0.35);
+              totalEmissiveRadiance += wet * (0.3 + 0.7 * pud) * fr * mix(wHor, wTop, pow(max(rw.y, 0.0), 0.5));
+            }`);
+      };
+    },
+    update(now, dt, { world, cars, camera, amb, fogFar, level, px }) {
+      // Temps voulu, relu chaque seconde ; nuages prévus relus toutes les 10 minutes (direct, circuit connu)
+      if (now - lastT > 1000) {
+        lastT = now;
+        const replay = store.status?.source?.mode === 'replay', pl = circuitPlace();
+        if (sel.value === 'reelle' && !replay && pl.key && now - fc.at > 600e3) {
+          fc.at = now;
+          api(`/api/forecast?lat=${pl.lat}&lon=${pl.lon}`).then((d) => { fc.cloud = d?.current?.cloud ?? null; }, () => {});
+        }
+        const app = store.state.TimingAppData?.Lines || {}, tl = store.state.TimingData?.Lines || {};
+        const compounds = Object.keys(app).filter((n) => !tl[n]?.Retired && !tl[n]?.KnockedOut).map((n) => stintsOf(app[n]).at(-1)?.Compound).filter(Boolean);
+        target = weatherState(sel.value, { rainfall: store.state.WeatherData?.Rainfall, compounds, cloud: replay ? null : fc.cloud });
+        sel.title = sel.value === 'reelle' ? t('Météo de la séance : {}', t(target.rain ? 'pluie' : target.wet > 0.3 ? 'piste mouillée' : target.cloud > 0.5 ? 'nuageux' : 'sec')) : '';
+      }
+      const k = snap ? 1 : 1 - Math.exp(-dt / 6);
+      snap = false;
+      for (const key of ['rain', 'wet', 'cloud']) cur[key] += (target[key] - cur[key]) * k;
+      // Lumière plus terne et grise, brouillard plus proche sous la pluie, nuages, étoiles cachées
+      const c = cur.cloud;
+      sun.intensity = amb.keyI * (1 - 0.72 * c);
+      hemi.color.copy(amb.sky).lerp(grey.setScalar(lum(amb.sky)), 0.6 * c);
+      hemi.intensity = amb.hemiI * (1 + 0.1 * c);
+      stars.material.opacity = amb.stars * (1 - c);
+      skyMat.uniforms.cloud.value = c;
+      skyMat.uniforms.drift.value = (now / 1000) * 0.004;
+      scene.fog.color.copy(amb.hor).lerp(grey.setScalar(lum(amb.hor) * 0.9), 0.7 * c);
+      scene.fog.near = (700 - 450 * amb.stars) * (1 - 0.6 * cur.rain);
+      scene.fog.far = (fogFar - (fogFar - 2600) * amb.stars) * (1 - 0.55 * cur.rain);
+      // Piste mouillée
+      U.wet.value = cur.wet;
+      U.wTop.value.copy(amb.top).lerp(grey.setScalar(lum(amb.top)), c);
+      U.wHor.value.copy(amb.hor).lerp(grey.setScalar(lum(amb.hor)), 0.7 * c);
+      world.road.material.roughness = 0.92 - 0.6 * cur.wet;
+      // Pluie qui tombe (un tiers des traits en Économe), un peu penchée
+      rain.visible = cur.rain > 0.02;
+      if (rain.visible) {
+        rain.material.opacity = 0.6 * cur.rain;
+        const n = level ? NR : NR / 3, pos = rainGeo.attributes.position.array, cp = camera.position;
+        const wrap = (v, o, low = BOX / 2) => ((((v - o) % BOX) + BOX * 2) % BOX) - low + o;
+        for (let i = 0; i < n; i++) {
+          rp[i * 3 + 1] -= 11 * dt;
+          const x = wrap(rp[i * 3], cp.x), y = wrap(rp[i * 3 + 1], cp.y, 8), z = wrap(rp[i * 3 + 2], cp.z);
+          const l = Math.hypot(x - cp.x, z - cp.z) < 3 ? 0 : 1.1;   // pas de trait contre l'objectif (il barrerait l'écran)
+          pos.set([x, y, z, x + 0.1 * l, y + l, z + 0.06 * l], i * 6);
+        }
+        rainGeo.setDrawRange(0, n * 2);
+        rainGeo.attributes.position.needsUpdate = true;
+      }
+      // Gerbes d'eau des voitures rapides sur piste mouillée (pas en Économe)
+      const wetRun = level > 0 && cur.wet > 0.15;
+      spray.visible = wetRun || life.some((l) => l < 1);
+      if (!spray.visible) { prev.clear(); return; }
+      const step = Math.min(dt, 0.1);
+      spray.material.uniforms.scale.value = px / (2 * Math.tan((camera.fov * RAD) / 2));
+      spray.material.uniforms.tint.value.copy(hemi.color).multiplyScalar(0.55 + 0.45 * Math.min(1, hemi.intensity));
+      for (const [num, car] of cars) {
+        const pv = prev.get(num);
+        if (!car.seen || !wetRun) { prev.delete(num); continue; }
+        const speed = pv && dt > 0 ? car.p.distanceTo(pv.p) / dt : 0;   // gouttelettes ensuite au plus 0,1 s par image
+        if (!pv) prev.set(num, { p: car.p.clone(), acc: 0 }); else pv.p.copy(car.p);
+        if (!pv || speed < 15 || speed > 120) continue;
+        pv.acc += step * 70 * cur.wet * Math.min(1, speed / 70);
+        fwd.set(0, 0, 1).applyQuaternion(car.q);
+        side.set(fwd.z, 0, -fwd.x).normalize();
+        for (; pv.acc >= 1; pv.acc--) {
+          const i = next, r1 = Math.random(), r2 = Math.random();
+          next = (next + 1) % NS;
+          sp.set([car.p.x - fwd.x * 2.2 + side.x * (r1 - 0.5) * 1.6, car.p.y + 0.25, car.p.z - fwd.z * 2.2 + side.z * (r1 - 0.5) * 1.6], i * 3);
+          sv.set([fwd.x * speed * 0.55 + side.x * (r2 - 0.5) * 4, 1 + r2 * 2.5, fwd.z * speed * 0.55 + side.z * (r2 - 0.5) * 4], i * 3);
+          life[i] = 0;
+        }
+      }
+      for (let i = 0; i < NS; i++) {
+        if (life[i] >= 1) continue;
+        life[i] = Math.min(1, life[i] + step / 0.75);
+        sv[i * 3 + 1] -= 6 * step;
+        for (let j = 0; j < 3; j++) sp[i * 3 + j] += sv[i * 3 + j] * step;
+      }
+      sprayGeo.attributes.position.needsUpdate = sprayGeo.attributes.life.needsUpdate = true;
     },
   };
 }

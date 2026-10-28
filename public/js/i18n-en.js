@@ -2728,4 +2728,11 @@ export default {
   "économe": "saver",
   "moyenne": "medium",
   "haute": "high",
+  "Météo : Réelle": "Weather: Real",
+  "Météo : Sec": "Weather: Dry",
+  "Météo : Pluie": "Weather: Rain",
+  "Météo de la séance : {}": "Session weather: {}",
+  "piste mouillée": "wet track",
+  "nuageux": "cloudy",
+  "sec": "dry",
 };

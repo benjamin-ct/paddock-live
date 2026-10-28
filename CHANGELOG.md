@@ -98,6 +98,10 @@ l'application (Réglages → À propos → Nouveautés).
   et les plus loin de la piste d'abord), ombres des voitures seules et sol un peu moins fin ; en Auto, la vue mesure sa
   fluidité, baisse d'un cran si elle saccade et remonte prudemment quand il y a de la marge. Pour la batterie, elle
   dessine moins d'images quand rien ne bouge (replay en pause, drapeau rouge) et sur téléphone sur batterie.
+  La météo suit celle de la séance, en direct comme en replay (ou Sec ou Pluie, au choix dans la vue) : nuages, ciel
+  couvert et lumière plus terne quand il pleut, pluie qui tombe, piste mouillée qui brille avec ses flaques et gerbes
+  d'eau derrière les voitures (sauf en Économe) ; la piste reste mouillée tant que des voitures roulent en
+  intermédiaires ou en pneus pluie.
   Décochée, la carte habituelle revient. Aussi dans la version web.
 
 ### Téléphone

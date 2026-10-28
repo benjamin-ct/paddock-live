@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { QUALITY, nearFirst, autoQuality, frameCap } from '../public/js/ui/map3d-calc.js';
+import { QUALITY, nearFirst, autoQuality, frameCap, weatherState } from '../public/js/ui/map3d-calc.js';
 
 // Images à cadence fixe (fps) pendant ms, à partir de t ; -> [instant de fin, niveaux choisis en route]
 function run(auto, t, ms, fps, cap = Infinity) {
@@ -96,4 +96,19 @@ test('économie de batterie : images/s visées', () => {
   assert.equal(frameCap({ still: true, battery: true }), 5);
   assert.equal(frameCap({ still: true, busy: true }), Infinity, 'on touche à la vue : toutes les images');
   assert.equal(frameCap({ still: true, busy: true, battery: true }), 30);
+});
+
+test('météo : réelle d\'après la F1 (pluie, pneus montés, nuages prévus), ou choisie', () => {
+  assert.deepEqual(weatherState('reelle', { rainfall: '0', compounds: ['SOFT', 'MEDIUM'] }), { rain: 0, wet: 0, cloud: 0 });
+  assert.deepEqual(weatherState('reelle', { rainfall: '1' }), { rain: 1, wet: 1, cloud: 1 });
+  // La pluie s'est arrêtée mais un quart des voitures roule en intermédiaires : piste encore à moitié mouillée
+  const w = weatherState('reelle', { rainfall: '0', compounds: ['INTERMEDIATE', 'MEDIUM', 'MEDIUM', 'SOFT'] });
+  assert.equal(w.rain, 0);
+  assert.equal(w.wet, 0.5);
+  assert.ok(Math.abs(w.cloud - 0.425) < 1e-9);
+  assert.equal(weatherState('reelle', { compounds: ['WET', 'INTERMEDIATE', 'SOFT', 'SOFT'] }).wet, 1, 'la moitié en pneus de pluie : piste mouillée');
+  assert.equal(weatherState('reelle', { rainfall: '0', cloud: 60 }).cloud, 0.6, 'nuages prévus (direct)');
+  assert.equal(weatherState('reelle', { rainfall: '0', cloud: null }).cloud, 0);
+  assert.deepEqual(weatherState('sec', { rainfall: '1' }), { rain: 0, wet: 0, cloud: 0 });
+  assert.deepEqual(weatherState('pluie', { rainfall: '0' }), { rain: 1, wet: 1, cloud: 1 });
 });

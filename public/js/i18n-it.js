@@ -2727,4 +2727,11 @@ export default {
   "économe": "risparmio",
   "moyenne": "media",
   "haute": "alta",
+  "Météo : Réelle": "Meteo: Reale",
+  "Météo : Sec": "Meteo: Asciutto",
+  "Météo : Pluie": "Meteo: Pioggia",
+  "Météo de la séance : {}": "Meteo della sessione: {}",
+  "piste mouillée": "pista bagnata",
+  "nuageux": "nuvoloso",
+  "sec": "asciutto",
 };
