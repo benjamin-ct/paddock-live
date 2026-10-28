@@ -12,6 +12,7 @@ import { renderPredict, initPredict } from './predict-view.js';
 import { renderReview, reviewAction } from './season-review.js';
 import { renderDestructors, showDestructorsDriver } from './season-destructors.js';
 import { addPngButtons, savePng } from './season-png.js';
+import { toast } from './delay.js';
 import { renderPace, setPaceCut, setPaceScope } from './season-pace.js';
 import { DEC, LOCALE, LANG, ord, t } from '../i18n.js';
 import { gpShort, gpFull } from '/shared/gp-names.js';
@@ -977,7 +978,7 @@ export function initSeason() {
       // Sous-titre de l'image : le pilote, le Grand Prix ou la rubrique affichés
       const sub = section === 'drivers' ? $('#szContent .sz-drv-name')?.firstChild?.textContent.trim()
         : section === 'gp' ? gpFull(data.races.find((r) => r.round === gpRound)?.name || '', LANG) : $('#szNav .active')?.textContent.trim();
-      savePng(png.closest('.sz-box'), data.year, sub).catch(() => {});
+      savePng(png.closest('.sz-box'), data.year, sub).catch((err) => toast(t('Image impossible : {}', err.message)));
       return;
     }
     const b = e.target.closest('[data-szgo]');

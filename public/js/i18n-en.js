@@ -2698,4 +2698,5 @@ export default {
   "{} élément": "{} element",
   "Vict.": "Wins",
   "Session": "Session",
+  "Image prête : touchez de nouveau pour l'enregistrer": "Image ready: tap again to save it",
 };

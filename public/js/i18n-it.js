@@ -2697,4 +2697,5 @@ export default {
   "Vue 3D indisponible ({})": "Vista 3D non disponibile ({})",
   "Poursuite": "Inseguimento",
   "Libre": "Libera",
+  "Image prête : touchez de nouveau pour l'enregistrer": "Immagine pronta: tocca di nuovo per salvarla",
 };
