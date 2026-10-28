@@ -1478,11 +1478,23 @@ async function set3d(on, msg = '') {
   try {
     const m = await import('./map3d.js');
     if (turn !== v3d.turn) return;
-    v3d.view = m.open($('#map3d'), { getTrack: () => track, getElevation: () => elevation, onFail: (why) => set3d(false, why) });
+    v3d.view = m.open($('#map3d'), { getTrack: () => track, getElevation: () => elevation, getSurroundings: surroundingsNow, onFail: (why) => set3d(false, why) });
     if (!v3d.view) set3d(false, t('Vue 3D indisponible : cet appareil ne prend pas en charge WebGL'));
   } catch (err) {
     if (turn === v3d.turn) set3d(false, t('Vue 3D indisponible ({})', err.message));
   }
+}
+
+// Alentours du circuit (relief du terrain, bâtiments, arbres… : serveur), lus seulement pour la vue 3D, à sa première
+// image ; pas encore calculés (404) ou serveur injoignable : redemandés 2 minutes plus tard
+let surr = { key: null, data: null };
+function surroundingsNow() {
+  if (!track || surr.key === trackKey) return surr.data;
+  const k = trackKey, [key, year] = k.split('-');
+  surr = { key: k, data: null };
+  api(`/api/surroundings?key=${key}&year=${year}`)
+    .then((d) => { if (surr.key === k) surr.data = d; }, () => setTimeout(() => { if (surr.key === k) surr.key = null; }, 120e3));
+  return null;
 }
 
 export function currentTrack() {

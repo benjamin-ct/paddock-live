@@ -202,8 +202,8 @@ async function handleApi(req, res, url) {
     }
 
     // Pneus du week-end, records du circuit, météo, documents FIA (et leurs PDF), photos des pilotes, statistiques
-    // détaillées et documents FIA de la Saison, zones, boucles de chronométrage et altitude du circuit : lus sur le serveur de
-    // Paddock Live
+    // détaillées et documents FIA de la Saison, zones, boucles de chronométrage, altitude et alentours du circuit : lus
+    // sur le serveur de Paddock Live
     case 'GET /api/tyres':
     case 'GET /api/records':
     case 'GET /api/forecast':
@@ -216,6 +216,7 @@ async function handleApi(req, res, url) {
     case 'GET /api/zones':
     case 'GET /api/loops':
     case 'GET /api/elevation':
+    case 'GET /api/surroundings':
       return fromServer(res, url);
 
     case 'GET /api/circuit': {

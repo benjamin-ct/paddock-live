@@ -1,6 +1,7 @@
 // Vue 3D de la carte (case « 3D » du panneau Circuit) : piste en relief (altitude calculée par le serveur d'après le GPS,
-// à plat tant qu'elle manque), bords et vibreurs, voitures simples aux couleurs des écuries (jamais de livrée ni de
-// logo), caméras Hélico / Poursuite / Embarquée / Libre autour du pilote suivi (le même que sur la carte 2D).
+// sinon d'après le modèle de terrain des alentours, à plat tant qu'aucune n'est là), bords et vibreurs, alentours
+// (sol, bâtiments, tribunes, arbres, eau d'OpenStreetMap), voitures simples aux couleurs des écuries (jamais de livrée
+// ni de logo), caméras Hélico / Poursuite / Embarquée / Libre autour du pilote suivi (le même que sur la carte 2D).
 // Chargée seulement à l'ouverture de la vue (three.js). Mêmes positions que la carte 2D : GPS lissé, sinon estimées.
 import * as THREE from '/vendor/three/three.module.min.js';
 import { store, displayNow, setFocus } from '../store.js';
@@ -13,10 +14,16 @@ const CAMS = [['helico', 'Hélico'], ['poursuite', 'Poursuite'], ['embarquee', '
 const FOV = { helico: 38, poursuite: 62, embarquee: 74, libre: 50 };
 
 // ---------- Circuit : tracé (x, y du tracé MultiViewer, 1/10 m) + altitude (z de chaque point, 1/10 m) ----------
-function buildWorld(track, elevation) {
+// Altitude : profil GPS (plus précis sur la piste), sinon celle du modèle de terrain des alentours ; alentours (sol,
+// bâtiments, arbres, eau) seulement s'ils sont calculés pour ce tracé
+function buildWorld(track, elevation, surroundings) {
   const n = track.pts.length;
-  const z = Array.isArray(elevation?.z) && elevation.z.length === n ? elevation.z : null;
+  const gps = Array.isArray(elevation?.z) && elevation.z.length === n ? elevation.z : null;
+  const land = surroundings?.terrain?.h?.length && surroundings.track?.z?.length === n ? surroundings : null;
+  const z = gps || land?.track.z || null;
   const zMin = z ? Math.min(...z) : 0;
+  // Terrain (1/10 m au-dessus de la mer) ramené au repère du GPS : écart médian le long du tracé
+  const off = gps && land ? gps.map((v, i) => land.track.z[i] - v).sort((p, q) => p - q)[n >> 1] : 0;
   // Même orientation que la carte 2D (rotation du tracé), nord de la carte vers le fond de la scène
   const a = (track.rotation * Math.PI) / 180, cos = Math.cos(a), sin = Math.sin(a);
   let cx = 0, cz = 0;
@@ -76,8 +83,32 @@ function buildWorld(track, elevation) {
       color: (i) => (Math.floor((i * DS) / 2.5) % 2 ? red : white) }), kerbMat));
   }
 
-  // Sol autour de la piste : altitude des points du tracé les plus proches, adoucie au loin (pondération inverse)
+  const fromW = (x, zz) => { const X = x + cx, Z = zz + cz; return [X * cos - Z * sin, -X * sin - Z * cos]; };   // -> repère du tracé (m)
   const box = new THREE.Box3().setFromPoints(P);
+  const groundAt = land ? landGround(group, land, { track, P, toW, fromW, base: zMin + off }) : flatGround(group, P, box, z);
+
+  const world = { track, elevation, surroundings, land: !!land, source: gps ? 'gps' : land ? 'terrain' : null,
+    relief: z ? (Math.max(...z) - zMin) / 10 : null, P, T, SIDE, N, box, group, groundAt, toW };
+  // Ligne de chronométrage (damier), au même endroit que sur la carte 2D
+  world.addStartLine = (frac) => {
+    const sp = track.pointAt(frac * track.L), [x, zz] = toW(sp.x, sp.y), i = nearestIndex(world, x, zz, -1);
+    const c = document.createElement('canvas');
+    c.width = 128; c.height = 16;
+    const g = c.getContext('2d');
+    for (let a = 0; a < 16; a++) for (let b = 0; b < 2; b++) { g.fillStyle = (a + b) % 2 ? '#111' : '#fff'; g.fillRect(a * 8, b * 8, 8, 8); }
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(W, 1.6), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.6 }));
+    m.matrixAutoUpdate = false;
+    m.matrix.makeBasis(SIDE[i], T[i], new THREE.Vector3(0, 1, 0)).setPosition(P[i].x, P[i].y + 0.03, P[i].z);
+    group.add(m);
+  };
+  return world;
+}
+
+// Sol sans alentours : altitude des points du tracé les plus proches, adoucie au loin (pondération inverse), plaine
+// jusqu'à l'horizon ; -> altitude du sol en (x, z)
+function flatGround(group, P, box, z) {
   const MARGIN = 450, G = 160;
   const gx0 = box.min.x - MARGIN, gz0 = box.min.z - MARGIN;
   const gw = box.max.x - box.min.x + 2 * MARGIN, gd = box.max.z - box.min.z + 2 * MARGIN;
@@ -125,28 +156,199 @@ function buildWorld(track, elevation) {
   plain.rotation.x = -Math.PI / 2;
   plain.position.y = Math.min(...H) - 0.6;
   group.add(plain);
-  const groundAt = (x, zz) => {
+  return (x, zz) => {
     const fc = ((x - gx0) / gw) * G, fr = ((zz - gz0) / gd) * G, c = Math.floor(fc), r = Math.floor(fr), u = fc - c, v = fr - r;
     const h = (rr, cc) => H[Math.min(G, Math.max(0, rr)) * (G + 1) + Math.min(G, Math.max(0, cc))];
     return (h(r, c) * (1 - u) + h(r, c + 1) * u) * (1 - v) + (h(r + 1, c) * (1 - u) + h(r + 1, c + 1) * u) * v;
   };
+}
 
-  const world = { track, elevation, relief: z ? (Math.max(...z) - zMin) / 10 : null, P, T, SIDE, N, box, group, groundAt, toW };
-  // Ligne de chronométrage (damier), au même endroit que sur la carte 2D
-  world.addStartLine = (frac) => {
-    const sp = track.pointAt(frac * track.L), [x, zz] = toW(sp.x, sp.y), i = nearestIndex(world, x, zz, -1);
-    const c = document.createElement('canvas');
-    c.width = 128; c.height = 16;
-    const g = c.getContext('2d');
-    for (let a = 0; a < 16; a++) for (let b = 0; b < 2; b++) { g.fillStyle = (a + b) % 2 ? '#111' : '#fff'; g.fillRect(a * 8, b * 8, 8, 8); }
-    const tex = new THREE.CanvasTexture(c);
-    tex.colorSpace = THREE.SRGBColorSpace;
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(W, 1.6), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.6 }));
-    m.matrixAutoUpdate = false;
-    m.matrix.makeBasis(SIDE[i], T[i], new THREE.Vector3(0, 1, 0)).setPosition(P[i].x, P[i].y + 0.03, P[i].z);
-    group.add(m);
+// ---------- Alentours (serveur : relief du terrain et OpenStreetMap, en mètres dans le repère du tracé) ----------
+const LAND = { farm: '#a4ad5e', urban: '#a6a398', grass: '#6c9c42', wood: '#3e6a2b', sand: '#dacb9c', parking: '#8f9295', water: '#3f78b5' };
+const LINES = { water: '#3f78b5', road: '#6e7175', raceway: '#3a3d42' };
+const FIELD = '#4f7f36';   // herbe loin de la piste (et plaine jusqu'à l'horizon)
+const hash = (i) => ((i * 2654435761) >>> 0) / 4294967296;
+
+// Sol des alentours : grille du relief (raccordée à la piste près du tracé), couleurs selon l'usage du sol (texture
+// dessinée ici), bâtiments et tribunes extrudés, arbres, plans d'eau, bord prolongé jusqu'à l'horizon. base : altitude
+// (1/10 m) du bas de la scène ; -> altitude du sol en (x, z)
+function landGround(group, land, { track, P, toW, fromW, base }) {
+  const { x0, y0, step, cols, rows, h } = land.terrain;
+  const W2 = (x, y) => toW(x * 10, y * 10);   // repère du tracé (m) -> scène
+  const sea = -base / 10;                     // niveau de la mer dans la scène
+  // Mer : nœuds à 0 m ou moins reliés au bord de la zone (pas un creux à l'intérieur des terres)
+  const count = cols * rows, wetAt = new Uint8Array(count), todo = [];
+  for (let i = 0; i < count; i++) if ((i < cols || i >= count - cols || i % cols === 0 || i % cols === cols - 1) && h[i] <= 0) { wetAt[i] = 1; todo.push(i); }
+  while (todo.length) {
+    const i = todo.pop();
+    for (const j of [i - cols, i + cols, i % cols ? i - 1 : -1, i % cols < cols - 1 ? i + 1 : -1]) if (j >= 0 && j < count && !wetAt[j] && h[j] <= 0) { wetAt[j] = 1; todo.push(j); }
+  }
+  const smooth = (lo, hi, x) => { const u = Math.min(1, Math.max(0, (x - lo) / (hi - lo))); return u * u * (3 - 2 * u); };
+  // Altitude de chaque nœud : celle du terrain ; jusqu'à une maille et plus du tracé, celle de la piste (les mailles que
+  // la piste traverse n'ont que des nœuds à sa hauteur : ni piste qui flotte, ni piste enterrée), puis raccord en 100 m
+  const sub = P.filter((_, i) => i % 14 === 0), near = P.filter((_, i) => i % 3 === 0), flat = W / 2 + 1.2 * step;
+  const H = new Float32Array(count), pos = new Float32Array(count * 3), uv = new Float32Array(count * 2);
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const k = r * cols + c, [x, zz] = W2(x0 + c * step, y0 + r * step), far = wetAt[k] ? sea : (h[k] - base) / 10;
+      let d2 = Infinity, hn = far;
+      for (const p of sub) { const d = (p.x - x) ** 2 + (p.z - zz) ** 2; if (d < d2) { d2 = d; hn = p.y; } }
+      if (d2 < (flat + 150) ** 2) for (const p of near) { const d = (p.x - x) ** 2 + (p.z - zz) ** 2; if (d < d2) { d2 = d; hn = p.y; } }
+      H[k] = THREE.MathUtils.lerp(hn, far, smooth(flat, flat + 100, Math.sqrt(d2))) - 0.35;
+      pos.set([x, H[k], zz], k * 3);
+      uv.set([c / (cols - 1), 1 - r / (rows - 1)], k * 2);
+    }
+  }
+  const idx = [];
+  for (let r = 0; r + 1 < rows; r++) for (let c = 0; c + 1 < cols; c++) { const k = r * cols + c; idx.push(k, k + cols, k + 1, k + 1, k + cols, k + cols + 1); }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+  geo.setIndex(idx);
+  geo.computeVertexNormals();
+  // Repère du tracé retourné dans la scène : triangles dans l'autre sens (normales vers le haut)
+  if (geo.attributes.normal.getY((rows >> 1) * cols + (cols >> 1)) < 0) {
+    for (let i = 0; i < idx.length; i += 3) [idx[i + 1], idx[i + 2]] = [idx[i + 2], idx[i + 1]];
+    geo.setIndex(idx);
+    geo.computeVertexNormals();
+  }
+
+  // Couleurs du sol : herbe (plus claire près de la piste), mer, surfaces, routes et cours d'eau, pied des bâtiments
+  const k = Math.min(2048 / ((cols - 1) * step), 2048 / ((rows - 1) * step));
+  const cv = document.createElement('canvas');
+  cv.width = Math.round((cols - 1) * step * k);
+  cv.height = Math.round((rows - 1) * step * k);
+  const g = cv.getContext('2d'), X = (x) => (x - x0) * k, Y = (y) => (y - y0) * k;
+  const path = (flat, close) => {
+    g.beginPath();
+    for (let i = 0; i < flat.length; i += 2) g[i ? 'lineTo' : 'moveTo'](X(flat[i]), Y(flat[i + 1]));
+    if (close) g.closePath();
   };
-  return world;
+  const trackFlat = track.pts.flatMap((p) => [p.x / 10, p.y / 10]);
+  g.lineJoin = g.lineCap = 'round';
+  g.fillStyle = FIELD;
+  g.fillRect(0, 0, cv.width, cv.height);
+  for (const [w, col] of [[520, 'rgba(95,143,58,.45)'], [300, 'rgba(95,143,58,.6)'], [W + 50, 'rgba(122,160,74,.75)']]) { g.strokeStyle = col; g.lineWidth = w * k; path(trackFlat, true); g.stroke(); }
+  g.fillStyle = LAND.water;
+  for (let i = 0; i < count; i++) {
+    if (!wetAt[i]) continue;
+    g.beginPath();
+    g.arc(X(x0 + (i % cols) * step), Y(y0 + Math.floor(i / cols) * step), step * k * 0.75, 0, 2 * Math.PI);   // bords arrondis
+    g.fill();
+  }
+  for (const [kind, col] of Object.entries(LAND)) { g.fillStyle = col; for (const ring of land.areas?.[kind] || []) { path(ring, true); g.fill(); } }
+  for (const [kind, col] of Object.entries(LINES)) {
+    g.strokeStyle = col;
+    for (const [w, ...pts] of land.lines?.[kind] || []) { g.lineWidth = Math.max(1, w * k); path(pts); g.stroke(); }
+  }
+  g.fillStyle = '#8c8b85';
+  for (const [, ...ring] of [...(land.buildings || []), ...(land.stands || [])]) { path(ring, true); g.fill(); }
+  const tex = new THREE.CanvasTexture(cv);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 8;
+  // Sol repoussé en profondeur : vue de loin, la piste (35 cm au-dessus) reste devant
+  const terrain = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: tex, roughness: 1, polygonOffset: true, polygonOffsetFactor: 2, polygonOffsetUnits: 8 }));
+  terrain.receiveShadow = true;
+  group.add(terrain);
+
+  // Bord : prolongé de 12 km (au-delà du brouillard) à l'altitude moyenne du bord, pas de marche visible ; plaine plus
+  // bas que tout le sol (jamais par-dessus une vallée)
+  const ring = [];
+  for (let c = 0; c < cols; c++) ring.push(c);
+  for (let r = 1; r < rows; r++) ring.push(r * cols + cols - 1);
+  for (let c = cols - 2; c >= 0; c--) ring.push((rows - 1) * cols + c);
+  for (let r = rows - 2; r > 0; r--) ring.push(r * cols);
+  const edge = ring.reduce((sum, i) => sum + H[i], 0) / ring.length;
+  const wet = ring.filter((i) => wetAt[i]).length > ring.length / 2;
+  const m0 = ((rows >> 1) * cols + (cols >> 1)) * 3, mid = new THREE.Vector3(pos[m0], 0, pos[m0 + 2]);
+  const sPos = [], sCol = [], sIdx = [], green = new THREE.Color(FIELD), blue = new THREE.Color(LAND.water), v = new THREE.Vector3();
+  ring.forEach((i, j) => {
+    v.set(pos[i * 3], 0, pos[i * 3 + 2]);
+    const out = v.clone().sub(mid).normalize().multiplyScalar(12000).add(v);
+    sPos.push(v.x, H[i], v.z, out.x, edge, out.z);
+    for (const col of [wetAt[i] ? blue : green, wet ? blue : green]) sCol.push(col.r, col.g, col.b);
+    const a = 2 * j, b = 2 * ((j + 1) % ring.length);
+    sIdx.push(a, a + 1, b, b, a + 1, b + 1);
+  });
+  const skirtGeo = new THREE.BufferGeometry();
+  skirtGeo.setAttribute('position', new THREE.Float32BufferAttribute(sPos, 3));
+  skirtGeo.setAttribute('color', new THREE.Float32BufferAttribute(sCol, 3));
+  skirtGeo.setIndex(sIdx);
+  skirtGeo.computeVertexNormals();
+  group.add(new THREE.Mesh(skirtGeo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, side: THREE.DoubleSide })));
+  const plain = new THREE.Mesh(new THREE.PlaneGeometry(60000, 60000), new THREE.MeshStandardMaterial({ color: wet ? LAND.water : FIELD, roughness: 1 }));
+  plain.rotation.x = -Math.PI / 2;
+  plain.position.y = H.reduce((lo, y) => Math.min(lo, y), edge) - 1;
+  group.add(plain);
+
+  const groundAt = (x, zz) => {
+    const [mx, my] = fromW(x, zz), fc = (mx - x0) / step, fr = (my - y0) / step;
+    if (!(fc >= 0 && fr >= 0 && fc <= cols - 1 && fr <= rows - 1)) return edge;
+    const c = Math.min(cols - 2, Math.floor(fc)), r = Math.min(rows - 2, Math.floor(fr)), u = fc - c, w = fr - r, i = r * cols + c;
+    return (H[i] * (1 - u) + H[i + 1] * u) * (1 - w) + (H[i + cols] * (1 - u) + H[i + cols + 1] * u) * w;
+  };
+
+  // Bâtiments et tribunes : prismes posés sous le point le plus bas du sol, toit plat ; plans d'eau plats
+  const corners = (flat) => { const out = []; for (let i = 0; i < flat.length; i += 2) out.push(W2(flat[i], flat[i + 1])); return out; };
+  const flatTop = (pts, y, list, col) => {
+    for (const tri of THREE.ShapeUtils.triangulateShape(pts.map(([x, zz]) => new THREE.Vector2(x, zz)), [])) {
+      for (const j of tri) { list.pos.push(pts[j][0], y, pts[j][1]); if (col) list.col.push(col.r, col.g, col.b); }
+    }
+  };
+  const solids = { pos: [], col: [] };
+  for (const [kind, wall, roof] of [['buildings', '#e3e0d7', '#c9c6bd'], ['stands', '#bac2cd', '#8e9aab']].map(([kd, a, b]) => [kd, new THREE.Color(a), new THREE.Color(b)])) {
+    for (const [height, ...flat] of land[kind] || []) {
+      const pts = corners(flat);
+      let lo = Infinity, hi = -Infinity;
+      for (const [x, zz] of pts) { const y = groundAt(x, zz); lo = Math.min(lo, y); hi = Math.max(hi, y); }
+      const top = hi + height;
+      pts.forEach(([ax, az], i) => {
+        const [bx, bz] = pts[(i + 1) % pts.length];
+        solids.pos.push(ax, lo - 0.5, az, bx, lo - 0.5, bz, bx, top, bz, ax, lo - 0.5, az, bx, top, bz, ax, top, az);
+        for (let j = 0; j < 6; j++) solids.col.push(wall.r, wall.g, wall.b);
+      });
+      flatTop(pts, top, solids, roof);
+    }
+  }
+  if (solids.pos.length) {
+    const bg = new THREE.BufferGeometry();
+    bg.setAttribute('position', new THREE.Float32BufferAttribute(solids.pos, 3));
+    bg.setAttribute('color', new THREE.Float32BufferAttribute(solids.col, 3));
+    bg.computeVertexNormals();
+    const b = new THREE.Mesh(bg, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, side: THREE.DoubleSide }));
+    b.castShadow = b.receiveShadow = true;
+    group.add(b);
+  }
+  const water = { pos: [] };
+  for (const flat of land.areas?.water || []) {
+    const pts = corners(flat);
+    flatTop(pts, Math.min(...pts.map(([x, zz]) => groundAt(x, zz))) + 0.25, water);
+  }
+  if (water.pos.length) {
+    const wg = new THREE.BufferGeometry();
+    wg.setAttribute('position', new THREE.Float32BufferAttribute(water.pos, 3));
+    wg.computeVertexNormals();
+    group.add(new THREE.Mesh(wg, new THREE.MeshStandardMaterial({ color: LAND.water, roughness: 0.2, metalness: 0.1, side: THREE.DoubleSide })));
+  }
+
+  // Arbres : cône et tronc, en instances (taille, teinte et orientation un peu variées)
+  const nT = (land.trees?.length || 0) >> 1;
+  if (nT) {
+    const crown = new THREE.ConeGeometry(2.6, 7, 7).translate(0, 6.3, 0), trunk = new THREE.CylinderGeometry(0.3, 0.4, 3.2, 5).translate(0, 1.6, 0);
+    const crowns = new THREE.InstancedMesh(crown, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9 }), nT);
+    const trunks = new THREE.InstancedMesh(trunk, new THREE.MeshStandardMaterial({ color: 0x5b4330, roughness: 1 }), nT);
+    const m = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), p = new THREE.Vector3(), col = new THREE.Color(), up = new THREE.Vector3(0, 1, 0);
+    for (let i = 0; i < nT; i++) {
+      const [x, zz] = W2(land.trees[2 * i], land.trees[2 * i + 1]), r = hash(i + 1);
+      m.compose(p.set(x, groundAt(x, zz) - 0.2, zz), q.setFromAxisAngle(up, r * 6.28), sc.setScalar(0.75 + r * 0.6));
+      crowns.setMatrixAt(i, m);
+      trunks.setMatrixAt(i, m);
+      crowns.setColorAt(i, col.setHSL(0.25 + hash(i + 7) * 0.07, 0.45, 0.2 + hash(i + 13) * 0.08));
+    }
+    crowns.castShadow = true;
+    group.add(crowns, trunks);
+  }
+  return groundAt;
 }
 
 // Point du tracé le plus proche de (x, z) : recherche locale autour du dernier (hint), sinon sur tout le tour
@@ -235,9 +437,9 @@ function gpsSmooth(num, t) {
   return { x: cr(a.x, b.x, c.x, d.x), y: cr(a.y, b.y, c.y, d.y) };
 }
 
-// Ouvre la vue dans host ; null si WebGL est indisponible. getTrack / getElevation : tracé et altitude de la carte 2D ;
-// onFail(message) : contexte WebGL perdu (retour à la carte 2D)
-export function open(host, { getTrack, getElevation, onFail }) {
+// Ouvre la vue dans host ; null si WebGL est indisponible. getTrack / getElevation / getSurroundings : tracé, altitude
+// et alentours de la carte 2D ; onFail(message) : contexte WebGL perdu (retour à la carte 2D)
+export function open(host, { getTrack, getElevation, getSurroundings = () => null, onFail }) {
   let renderer;
   try {
     renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -254,7 +456,8 @@ export function open(host, { getTrack, getElevation, onFail }) {
       <div class="map3d-cams" role="group" aria-label="Caméra">${CAMS.map(([k, txt]) => `<button class="btn small" data-cam="${k}">${txt}</button>`).join('')}</div>
       <select class="map3d-driver" aria-label="Pilote suivi" title="Pilote suivi (le même que sur la carte 2D et le classement)"></select>
     </div>
-    <div class="map3d-note"></div>`;
+    <div class="map3d-note"></div>
+    <div class="map3d-credit" hidden><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">${esc(t('© contributeurs OpenStreetMap'))}</a> · ${esc(t('Altitude : Terrain Tiles (Mapzen, AWS Open Data)'))}</div>`;
   host.prepend(cvs);
   const lost = (e) => { e.preventDefault(); onFail(t('Vue 3D interrompue par la carte graphique : retour à la carte 2D')); };
   cvs.addEventListener('webglcontextlost', lost);
@@ -313,6 +516,7 @@ export function open(host, { getTrack, getElevation, onFail }) {
   let mode = CAMS.some(([k]) => k === saved.cam) ? saved.cam : 'poursuite';
   let snap = true;
   const bar = host.querySelector('.map3d-bar'), sel = host.querySelector('.map3d-driver'), note = host.querySelector('.map3d-note');
+  const credit = host.querySelector('.map3d-credit');
   const showCam = () => { for (const b of bar.querySelectorAll('[data-cam]')) b.classList.toggle('on', b.dataset.cam === mode); };
   showCam();
   bar.addEventListener('click', (e) => {
@@ -338,6 +542,7 @@ export function open(host, { getTrack, getElevation, onFail }) {
     if (!world) return;
     const s = world.box.getSize(new THREE.Vector3());
     world.box.getCenter(orbit.target);
+    if (world.land) orbit.target.y = world.groundAt(orbit.target.x, orbit.target.z);   // visée au sol (le centre peut être dans une colline)
     orbit.dist = Math.max(s.x, s.z) * 0.8 + 150;
     orbit.az = 0; orbit.el = 0.95;
   }
@@ -378,16 +583,18 @@ export function open(host, { getTrack, getElevation, onFail }) {
   }, { passive: false });
   cvs.addEventListener('dblclick', () => { if (mode === 'libre') overview(); });
 
-  // ---------- Construction (tracé, ou altitude arrivée plus tard) ----------
-  function rebuild(track, elevation) {
+  // ---------- Construction (tracé, ou altitude et alentours arrivés plus tard) ----------
+  function rebuild(track, elevation, surroundings) {
     if (world) { scene.remove(world.group); dispose(world.group); }
-    world = buildWorld(track, elevation);
+    world = buildWorld(track, elevation, surroundings);
     world.addStartLine(store.positions.lineFrac());
     scene.add(world.group);
     const s = world.box.getSize(new THREE.Vector3());
     scene.fog = new THREE.Fog(0xc6dcea, 700, Math.max(4800, Math.max(s.x, s.z) * 2.5));
     for (const c of cars.values()) c.hint = -1;
-    note.textContent = world.relief !== null ? t('Relief réel · dénivelé {} m', Math.round(world.relief)) : t('Piste à plat : relief pas encore calculé');
+    note.textContent = world.source === 'gps' ? t('Relief réel · dénivelé {} m', Math.round(world.relief))
+      : world.source === 'terrain' ? t('Relief du terrain · dénivelé {} m', Math.round(world.relief)) : t('Piste à plat : relief pas encore calculé');
+    credit.hidden = !world.land;   // mention des sources des alentours, quand ils sont affichés
     overview();
     snap = true;
   }
@@ -401,9 +608,9 @@ export function open(host, { getTrack, getElevation, onFail }) {
     const dt = Math.min(0.1, (now - last) / 1000), dtCam = Math.min(1, (now - last) / 1000);   // caméra : temps réel
     last = now;
     if (document.hidden || !host.getClientRects().length) return;
-    const tr = getTrack(), el = getElevation();
+    const tr = getTrack(), el = getElevation(), su = tr ? getSurroundings() : null;
     if (!tr) return;
-    if (!world || world.track !== tr || world.elevation !== el) rebuild(tr, el);
+    if (!world || world.track !== tr || world.elevation !== el || world.surroundings !== su) rebuild(tr, el, su);
     const w = host.clientWidth, h = host.clientHeight;
     if (cvs.width !== Math.round(w * renderer.getPixelRatio()) || cvs.height !== Math.round(h * renderer.getPixelRatio())) {
       renderer.setSize(w, h, false);
@@ -459,6 +666,8 @@ export function open(host, { getTrack, getElevation, onFail }) {
     // Étiquette du pilote suivi cachée derrière lui et à bord (elle tomberait sur l'horizon)
     if (focus && (mode === 'poursuite' || mode === 'embarquee')) focus.tag.visible = false;
     camera.fov = FOV[mode];
+    // Plan proche reculé quand la caméra est loin (précision de la profondeur : piste juste au-dessus du sol)
+    camera.near = !world.land ? 0.1 : mode === 'libre' || !focus ? Math.min(20, Math.max(0.1, orbit.dist / 150)) : mode === 'helico' ? 2 : 0.1;
     camera.updateProjectionMatrix();
     camera.up.set(0, 1, 0);
     if (mode === 'libre' || !focus) {
