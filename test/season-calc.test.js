@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { qualiGap, qualiGaps, driverRatings, grade, lapsLed, similarCircuits, titleRace, placeForMaxPoints } from '../shared/season-calc.js';
+import { qualiGap, qualiGaps, driverRatings, grade, lapsLed, similarCircuits, titleRace, placeForMaxPoints, standingsAfter, teamShort, shortTeams } from '../shared/season-calc.js';
 
 const res = (code, teamId, pos, points, grid = pos, posText = String(pos)) => ({ code, name: code, last: code, team: teamId, teamId, pos, posText, points, grid });
 const q = (code, teamId, pos, times) => ({ code, teamId, pos, q: times });
@@ -160,4 +160,47 @@ test('bilan de la saison : vainqueurs, poles, podiums, plus belle remontée, aba
   assert.deepEqual(r.podiums.map((x) => [x.code, x.n]), [['A', 2], ['B', 2], ['C', 2]]);
   assert.deepEqual([r.comeback.code, r.comeback.from, r.comeback.to, r.comeback.gp], ['B', 12, 2, 'GP 1']);
   assert.equal(r.leader.code, 'A');
+});
+
+test('classements après N manches : courses et sprints, égalité départagée aux victoires', () => {
+  const x = (code, teamId, pos, points) => ({ code, name: code, last: code, team: teamId, teamId, pos, points });
+  const data = { races: [
+    { round: 1, results: [x('VER', 'rb', 1, 25), x('NOR', 'mcl', 2, 18), x('PIA', 'mcl', 3, 15)], sprintResults: [] },
+    { round: 2, results: [x('NOR', 'mcl', 1, 25), x('PIA', 'mcl', 2, 18), x('VER', 'rb', 3, 15)], sprintResults: [x('VER', 'rb', 1, 8)] },
+    { round: 3, results: [], sprintResults: [] },
+  ] };
+  const one = standingsAfter(data, 1);
+  assert.equal(one.races, 1);
+  assert.deepEqual(one.drivers.map((d) => [d.code, d.points, d.pos]), [['VER', 25, 1], ['NOR', 18, 2], ['PIA', 15, 3]]);
+  const two = standingsAfter(data, 3);
+  assert.equal(two.races, 2, 'manche pas encore courue : non comptée');
+  assert.deepEqual(two.drivers.map((d) => [d.code, d.points, d.wins]), [['VER', 48, 1], ['NOR', 43, 1], ['PIA', 33, 0]]);
+  assert.deepEqual(two.constructors.map((c) => [c.id, c.points, c.pos]), [['mcl', 76, 1], ['rb', 48, 2]]);
+  const tie = standingsAfter({ races: [{ round: 1, results: [x('A', 't1', 1, 10), x('B', 't2', 2, 10)], sprintResults: [] }] }, 1);
+  assert.deepEqual(tie.drivers.map((d) => d.code), ['A', 'B'], 'à égalité, le vainqueur devant');
+});
+
+test('comparer deux saisons : même écurie sous un autre nom, points cumulés manche par manche', async () => {
+  const { lineage, pointsPath } = await import('../shared/season-calc.js');
+  assert.equal(lineage('audi'), lineage('sauber'));
+  assert.equal(lineage('alphatauri'), 'rb');
+  assert.equal(lineage('mclaren'), 'mclaren');
+  const x = (code, teamId, pos, points) => ({ code, teamId, pos, posText: String(pos), points });
+  const data = { races: [
+    { round: 2, name: 'B', results: [x('HUL', 'audi', 1, 25)], sprintResults: [x('HUL', 'audi', 2, 7)] },
+    { round: 1, name: 'A', results: [x('HUL', 'audi', 3, 15)], sprintResults: [] },
+    { round: 3, name: 'C', results: [], sprintResults: [] },
+  ] };
+  assert.deepEqual(pointsPath(data, 'd', 'HUL', 3), [{ x: 1, y: 15, pos: '3', gp: 'A' }, { x: 2, y: 47, pos: '1', gp: 'B' }]);
+  assert.deepEqual(pointsPath(data, 'c', 'sauber', 1).map((p) => p.y), [15], 'Audi = Sauber');
+});
+
+test('noms d\'écuries courts, les mêmes dans toute la Saison', () => {
+  assert.equal(teamShort('RB F1 Team'), 'Racing Bulls');
+  assert.equal(teamShort('Red Bull Racing'), 'Red Bull');
+  assert.equal(teamShort('Alpine F1 Team'), 'Alpine');
+  assert.equal(teamShort('Haas F1 Team'), 'Haas');
+  assert.equal(teamShort('AlphaTauri'), 'AlphaTauri');   // anciens noms gardés
+  const d = shortTeams({ drivers: [{ team: 'Cadillac F1 Team' }], constructors: [{ name: 'RB F1 Team', id: 'rb' }], races: [{ results: [{ team: 'Red Bull' }] }] });
+  assert.deepEqual([d.drivers[0].team, d.constructors[0].name, d.constructors[0].id, d.races[0].results[0].team], ['Cadillac', 'Racing Bulls', 'rb', 'Red Bull']);
 });

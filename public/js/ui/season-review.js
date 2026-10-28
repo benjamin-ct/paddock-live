@@ -1,6 +1,7 @@
 // Saison → Bilan : la saison en chiffres (champion ou leader, victoires, poles, podiums, plus belle remontée,
 // abandons) et celle de vos pilotes favoris, avec une image à partager (copiée ou enregistrée).
 import { esc } from '../util.js';
+import { icon } from '../icons.js';
 import { prefs } from '../prefs.js';
 import { seasonReview, titleRace } from '/shared/season-calc.js';
 import { gpFull } from '/shared/gp-names.js';
@@ -35,7 +36,7 @@ export function renderReview(ctx) {
   };
   return `<section class="sz-box"><h3>${t('Bilan de la saison {}', data.year)}</h3>
       <p class="muted">${t('{} Grands Prix courus sur {}', r.done, r.races)}${r.done < r.races ? ` · ${t('le bilan se complète à chaque course')}` : ''}</p>
-      <div class="sz-cards sz-kpis">
+      <div class="sz-cards sz-kpis sz-review-kpis">
         ${lead}
         ${card(t('Victoires'), first(r.wins), [next(r.wins), t('{} vainqueurs différents', r.winners)].filter(Boolean).join(' · '))}
         ${card(t('Pole positions'), first(r.poles), [next(r.poles), t('{} victoires depuis la pole', r.poleWins)].filter(Boolean).join(' · '))}
@@ -47,7 +48,7 @@ export function renderReview(ctx) {
     </section>
     <section class="sz-box sz-favs"><h3>${t('Vos pilotes favoris')}</h3>
       ${favs.length ? `<table class="sz-table"><tr><th>#</th><th>${t('Pilote')}</th><th>Pts</th><th>${t('Victoires')}</th><th>${t('Podiums')}</th><th>${t('Poles')}</th></tr>${favs.map(favRow).join('')}</table>`
-    : `<p class="muted">${t('Choisissez vos pilotes favoris (Réglages → Alertes & favoris) pour voir leur saison ici.')}</p>`}
+    : `<p class="muted">${t('Choisissez vos pilotes favoris pour voir leur saison ici.')}</p><button class="btn small" data-review="favs">${icon('star')} ${t('Choisir mes favoris')}</button>`}
     </section>`;
 }
 
@@ -88,6 +89,8 @@ async function reviewImage(data) {
 }
 
 export async function reviewAction(kind, data) {
+  // Réglages → Alertes & favoris
+  if (kind === 'favs') { document.querySelector('#settingsBtn')?.click(); document.querySelector('#setNav [data-sgroup="alerts"]')?.click(); return; }
   try {
     const blob = await reviewImage(data);
     if (kind === 'copy') {

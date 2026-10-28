@@ -27,6 +27,11 @@
 <link rel="apple-touch-icon" href="/site/img/apple-touch-icon.png">
 <link rel="preload" href="/fonts/sairacondensed-800.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/titillium-400.woff2" as="font" type="font/woff2" crossorigin>
+<script>
+// Animations : seulement avec IntersectionObserver et sans « réduire les animations ». Classe posée avant le premier
+// affichage (pas de clignotement) ; sans script, elle manque et tout le contenu reste visible
+if ('IntersectionObserver' in window && !matchMedia('(prefers-reduced-motion: reduce)').matches) document.documentElement.classList.add('anim');
+</script>
 <style>
 @font-face { font-family: 'Titillium Web'; font-weight: 400; font-display: swap; src: url('/fonts/titillium-400.woff2') format('woff2'); }
 @font-face { font-family: 'Titillium Web'; font-weight: 600; font-display: swap; src: url('/fonts/titillium-600.woff2') format('woff2'); }
@@ -98,11 +103,13 @@ section { padding: 96px 0; }
 .frame.narrow { max-width: 460px; margin: 0 auto; }
 
 /* Grille des autres fonctions */
-.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; margin-top: 40px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); gap: 14px; margin-top: 40px; }
 .tile { padding: 22px; border: 1px solid var(--line); border-radius: 16px; background: linear-gradient(160deg, var(--card), var(--bg-2)); }
 .tile svg { width: 26px; height: 26px; color: var(--red); margin-bottom: 12px; }
 .tile b { display: block; font-size: 18px; margin-bottom: 4px; }
 .tile span { color: var(--muted); font-size: 15px; }
+a.tile { text-decoration: none; }
+a.tile:hover { border-color: var(--red); }
 
 /* Téléchargement */
 .download { background: linear-gradient(180deg, var(--bg), var(--bg-2)); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
@@ -158,10 +165,7 @@ dialog.hide a small { display: block; font-weight: 400; color: var(--muted); fon
 dialog.hide button { margin-top: 8px; width: 100%; }
 footer .brand { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 
-/* Apparition au défilement */
-.reveal { opacity: 0; transform: translateY(24px); transition: opacity .7s, transform .7s cubic-bezier(.2, .8, .2, 1); }
-.reveal.on { opacity: 1; transform: none; }
-@media (prefers-reduced-motion: reduce) { .reveal { opacity: 1; transform: none; transition: none; } html { scroll-behavior: auto; } }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
 
 @media (max-width: 900px) {
   .links { display: none; }
@@ -198,6 +202,62 @@ footer .brand { -webkit-user-select: none; user-select: none; -webkit-touch-call
 dialog.hide { border-radius: 8px; box-shadow: none; }
 dialog.hide::backdrop { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(0, 0, 0, .75); }
 dialog.hide a { border-radius: 6px; }
+
+/* ---------- Animations (seulement transform et opacity) ----------
+   L'état caché avant apparition n'existe que sous html.anim (classe posée par le script du <head>).
+   Animations « from » seules : à la fin, l'élément retrouve son style normal (survol et clic gardés). */
+:root { --e: cubic-bezier(.16, 1, .3, 1); }
+@keyframes plUp { from { opacity: 0; transform: translateY(24px); } }
+@keyframes plWord { from { opacity: 0; transform: translateY(.42em); } }
+@keyframes plShot { from { opacity: 0; transform: translateY(44px) scale(1.03); } }
+@keyframes plFrame { from { opacity: 0; transform: translateY(36px) scale(.985); } }
+@keyframes plDash { from { transform: scaleX(0); } }
+@keyframes plShine { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+/* Haut de page à l'ouverture : étiquette, titre mot par mot, texte, boutons, capture puis points forts */
+.hero h1 .w { display: inline-block; }
+.anim .hero .eyebrow, .anim .hero h1:not(.split), .anim .hero .lead, .anim .hero .cta .btn, .anim .hero .ver, .anim .facts span { animation: plUp .9s var(--e) backwards; }
+.anim .hero h1:not(.split) { animation-delay: .1s; }
+.anim .hero h1 .w { animation: plWord 1s calc(.12s + var(--i) * 60ms) var(--e) backwards; }
+.anim .hero .lead { animation-delay: .45s; }
+.anim .hero .cta .btn { animation-delay: .58s; }
+.anim .hero .cta .btn:nth-child(2) { animation-delay: .65s; }
+.anim .hero .cta .btn:nth-child(3) { animation-delay: .72s; }
+.anim .hero .cta .btn:nth-child(4) { animation-delay: .79s; }
+.anim .hero .ver { animation-delay: .85s; }
+.anim .hero .shot { animation: plShot 1.4s .7s var(--e) backwards; }
+.anim .facts span { animation-delay: 1.05s; }
+.anim .facts span:nth-child(2) { animation-delay: 1.13s; }
+.anim .facts span:nth-child(3) { animation-delay: 1.21s; }
+.anim .facts span:nth-child(4) { animation-delay: 1.29s; }
+.anim .hero #cta::after { animation: plShine 1.1s 1.9s cubic-bezier(.45, 0, .25, 1); }
+/* Apparition au défilement : chaque élément des blocs .reveal, une fois, en cascade quand plusieurs arrivent ensemble */
+.anim .reveal > :not(.copy):not(.grid):not(.oses):not(.in), .anim .reveal > .copy > :not(.in), .anim .reveal > .grid > :not(.in), .anim .reveal > .oses > :not(.in) { opacity: 0; }
+.anim .in { animation: plUp .9s var(--d, 0s) var(--e) backwards; }
+.anim .frame.in { animation: plFrame 1.2s var(--d, 0s) var(--e) backwards; }
+.anim .in li::before { transform-origin: left; animation: plDash .6s calc(var(--d, 0s) + .35s) var(--e) backwards; }
+.anim .in li:nth-child(2)::before { animation-delay: calc(var(--d, 0s) + .45s); }
+.anim .in li:nth-child(3)::before { animation-delay: calc(var(--d, 0s) + .55s); }
+/* Captures : légère élévation, zoom de l'image et filet rouge au survol (souris seulement) */
+.frame { position: relative; }
+.frame::after { content: ''; position: absolute; inset: 0 0 auto; height: 3px; background: var(--red); transform: scaleX(0); transform-origin: left; pointer-events: none; }
+@media (hover: hover) and (pointer: fine) {
+  .frame { transition: translate .6s var(--e); }
+  .frame img { transition: scale .8s var(--e); }
+  .frame::after { transition: transform .6s var(--e); }
+  .frame:hover { translate: 0 -6px; }
+  .frame:hover img { scale: 1.025; }
+  .frame:hover::after { transform: none; }
+}
+/* Boutons d'appel : reflet qui balaie au survol (retour instantané, invisible), enfoncement au clic */
+.btn.primary { position: relative; overflow: hidden; isolation: isolate; }
+.btn.primary::after { content: ''; position: absolute; inset: 0; z-index: -1; background: linear-gradient(105deg, transparent 25%, rgba(255, 255, 255, .32) 50%, transparent 75%); transform: translateX(-100%); pointer-events: none; }
+@media (hover: hover) { .btn.primary:hover::after { transform: translateX(100%); transition: transform .9s cubic-bezier(.45, 0, .25, 1); } }
+.btn:active { transform: scale(.97); transition-duration: .08s; }
+@media (prefers-reduced-motion: reduce) {
+  .btn:active, .frame:hover, .frame:hover img { transform: none; translate: none; scale: none; }
+  .btn.primary::after, .frame::after { display: none; }
+}
+@media print { .anim * { opacity: 1 !important; animation: none !important; } }
 </style>
 </head>
 <body>
@@ -214,6 +274,7 @@ dialog.hide a { border-radius: 6px; }
   <symbol id="i-trophy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v5a4 4 0 0 1-8 0zM8 6H4v1a4 4 0 0 0 4 4M16 6h4v1a4 4 0 0 1-4 4M12 13v4M8 21h8M9 17h6"/></symbol>
   <symbol id="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></symbol>
   <symbol id="i-lang" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18"/></symbol>
+  <symbol id="i-phone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H8.5A2.5 2.5 0 0 0 6 4.5v15A2.5 2.5 0 0 0 8.5 22h7a2.5 2.5 0 0 0 2.5-2.5V10"/><path d="M11 18h2"/><circle cx="18.5" cy="4.5" r="3.2" fill="currentColor" stroke="none"/></symbol>
   <symbol id="i-sync" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 0 1-14 5.3M4 12a8 8 0 0 1 14-5.3M18 3v4h-4M6 21v-4h4"/></symbol>
 </svg>
 
@@ -246,7 +307,7 @@ dialog.hide a { border-radius: 6px; }
         <a class="btn" href="https://app.paddocklive.app/"><svg><use href="#i-tv"/></svg><span data-en="Live in your browser">Le direct dans le navigateur</span></a>
       </div>
       <p class="ver" id="ver"></p>
-      <div class="shot reveal"><img src="/site/img/tableau-de-bord.webp" width="1600" height="888" alt="Paddock Live pendant une course : classement, carte du circuit, radios et direction de course" fetchpriority="high"></div>
+      <div class="shot"><img src="/site/img/tableau-de-bord.webp" width="1600" height="888" alt="Paddock Live pendant une course : classement, carte du circuit, radios et direction de course" fetchpriority="high"></div>
       <div class="facts">
         <span data-en="Free">Gratuit</span>
         <span data-en="No account needed">Sans compte</span>
@@ -268,7 +329,7 @@ dialog.hide a { border-radius: 6px; }
             <li data-en="Save presets for each of your TVs and streaming services">Des préréglages pour chacune de tes TV et plateformes</li>
           </ul>
         </div>
-        <div class="frame"><img src="/site/img/classement.webp" width="1600" height="888" alt="" loading="lazy"></div>
+        <div class="frame"><img src="/site/img/classement-zoom.webp" width="770" height="678" alt="" loading="lazy"></div>
       </article>
 
       <article class="feature reveal">
@@ -281,7 +342,7 @@ dialog.hide a { border-radius: 6px; }
             <li data-en="Race control messages, investigations and official FIA documents">Direction de course, enquêtes et documents officiels de la FIA</li>
           </ul>
         </div>
-        <div class="frame"><img src="/site/img/carte.webp" width="1600" height="888" alt="" loading="lazy"></div>
+        <div class="frame"><img src="/site/img/carte-zoom.webp" width="1140" height="580" alt="" loading="lazy"></div>
       </article>
 
       <article class="feature reveal">
@@ -293,7 +354,7 @@ dialog.hide a { border-radius: 6px; }
             <li data-en="F1 TV Pro commentary or the radio station of your choice, synced to the dashboard">Commentaires F1 TV Pro ou la radio de ton choix, synchronisés</li>
           </ul>
         </div>
-        <div class="frame"><img src="/site/img/radios.webp" width="1600" height="888" alt="" loading="lazy"></div>
+        <div class="frame"><img src="/site/img/radios-zoom.webp" width="885" height="448" alt="" loading="lazy"></div>
       </article>
 
       <article class="feature reveal">
@@ -302,16 +363,30 @@ dialog.hide a { border-radius: 6px; }
           <h3 data-en="All the F1 news, in one place">Toute l'actu F1 au même endroit</h3>
           <p data-en="Official channels and around thirty outlets in 8 languages, translated, with alerts.">Sources officielles et une trentaine de médias en 8 langues, traduits, avec alertes.</p>
         </div>
-        <div class="frame"><img src="/site/img/actu.webp" width="1600" height="888" alt="" loading="lazy"></div>
+        <div class="frame"><img src="/site/img/actu.webp" width="984" height="448" alt="" loading="lazy"></div>
       </article>
 
       <article class="feature reveal">
         <div class="copy">
-          <span class="eyebrow" data-en="Season and replays">Saison et replays</span>
-          <h3 data-en="Replay any session, relive every key moment">Revois chaque séance, chaque moment clé</h3>
-          <p data-en="Every archived session with clickable key moments, plus standings, ratings and stats for the season.">Toutes les séances archivées avec leurs moments clés, plus classements, notes et stats de la saison.</p>
+          <span class="eyebrow" data-en="Season">Saison</span>
+          <h3 data-en="The whole season, from every angle">Toute la saison, sous tous les angles</h3>
+          <p data-en="Standings and how the points add up, calendar, results and records.">Classements et évolution des points, calendrier, résultats et records.</p>
+          <ul>
+            <li data-en="Title fight: who can still win it, and when">Course au titre : qui peut encore gagner, et quand</li>
+            <li data-en="Compare two seasons, driver ratings, head-to-head duels">Comparer deux saisons, notes des pilotes, duels entre pilotes</li>
+            <li data-en="Wreckers' championship: the cost of every crash">Championnat des casseurs : le coût de chaque accident</li>
+          </ul>
         </div>
-        <div class="frame"><img src="/site/img/moments.webp" width="1600" height="888" alt="" loading="lazy"></div>
+        <div class="frame"><img src="/site/img/saison.webp" width="1688" height="858" alt="" loading="lazy"></div>
+      </article>
+
+      <article class="feature reveal">
+        <div class="copy">
+          <span class="eyebrow" data-en="Replays">Replays</span>
+          <h3 data-en="Replay any session, relive every key moment">Revois chaque séance, chaque moment clé</h3>
+          <p data-en="Every archived session, with its key moments one click away: start, incidents, pit stops, lead changes.">Toutes les séances archivées, avec leurs moments clés à un clic : départ, incidents, arrêts, changements de leader.</p>
+        </div>
+        <div class="frame narrow" style="max-width:360px"><img src="/site/img/moments-zoom.webp" width="360" height="522" alt="" loading="lazy"></div>
       </article>
 
       <article class="feature reveal" id="streaming">
@@ -347,6 +422,7 @@ dialog.hide a { border-radius: 6px; }
           <div class="tile"><svg><use href="#i-sync"/></svg><b data-en="Automatic summary">Résumé automatique</b><span data-en="A written recap of each session as soon as it ends">Le récit de chaque séance dès la fin</span></div>
           <div class="tile"><svg><use href="#i-rain"/></svg><b data-en="Rain radar">Radar de la pluie</b><span data-en="Showers around the circuit, live">Les averses autour du circuit, en direct</span></div>
           <div class="tile"><svg><use href="#i-bell"/></svg><b data-en="Reminders and calendar">Rappels et calendrier</b><span data-en="A reminder before each session, the season in your calendar">Un rappel avant chaque séance, la saison dans ton agenda</span></div>
+          <a class="tile" href="/alertes/"><svg><use href="#i-phone"/></svg><b data-en="Alerts on your phone">Alertes sur le téléphone</b><span data-en="A reminder 30 min before each session, the results if you want them, the big news">Un rappel 30 min avant chaque séance, les résultats si tu veux, les grosses news</span></a>
           <div class="tile"><svg><use href="#i-trophy"/></svg><b data-en="Predictions with friends">Pronostics entre amis</b><span data-en="Pole and podium, with a season-long leaderboard">Pole et podium, avec un classement de la saison</span></div>
           <div class="tile"><svg><use href="#i-moon"/></svg><b data-en="Dark or light">Sombre ou clair</b><span data-en="Follows your computer or phone by default">Suit ton ordinateur ou ton téléphone par défaut</span></div>
           <div class="tile"><svg><use href="#i-lang"/></svg><b data-en="French or English">Français ou anglais</b><span data-en="The whole app, in the language of your choice">Toute l'appli, dans la langue de ton choix</span></div>
@@ -356,7 +432,7 @@ dialog.hide a { border-radius: 6px; }
   </section>
 
   <section class="download" id="telecharger">
-    <div class="wrap">
+    <div class="wrap reveal">
       <span class="eyebrow" data-en="Download">Télécharger</span>
       <h2 data-en="Free, for your computer">Gratuit, pour ton ordinateur</h2>
       <p class="lead" data-en="Install it once: the app then updates itself.">Installe-la une fois : l'appli se met ensuite à jour toute seule.</p>
@@ -385,7 +461,7 @@ dialog.hide a { border-radius: 6px; }
   </section>
 
   <section id="faq">
-    <div class="wrap faq">
+    <div class="wrap faq reveal">
       <span class="eyebrow" data-en="Questions">Questions</span>
       <h2 data-en="Good to know">Bon à savoir</h2>
       <details><summary data-en="Is it really free?">C'est vraiment gratuit ?</summary><p data-en="Yes. No subscription, no ads, no account to create.">Oui. Pas d'abonnement, pas de publicité, pas de compte à créer.</p></details>
@@ -443,6 +519,57 @@ dialog.hide a { border-radius: 6px; }
 </footer>
 
 <script>
+// Animations, à part du reste : une erreur plus bas ne laisse rien caché. Sans la classe anim (pas
+// d'IntersectionObserver, mouvement réduit), rien n'est caché et rien ne bouge
+const anim = document.documentElement.classList.contains('anim');
+// Grand titre mot par mot (refait à chaque changement de langue, qui réécrit le titre)
+function splitTitle() {
+  const h1 = document.querySelector('.hero h1');
+  if (!anim || !h1) return;
+  let i = 0;
+  const walk = (node) => {
+    for (const n of [...node.childNodes]) {
+      if (n.nodeType !== 3) { walk(n); continue; }
+      const f = document.createDocumentFragment();
+      for (const part of n.textContent.split(/(\s+)/)) {
+        if (!part) continue;
+        if (/^\s+$/.test(part)) { f.append(part); continue; }
+        const w = document.createElement('span');
+        w.className = 'w';
+        w.style.setProperty('--i', i++);
+        w.textContent = part;
+        f.append(w);
+      }
+      n.replaceWith(f);
+    }
+  };
+  walk(h1);
+  h1.classList.add('split');
+}
+// Apparition au défilement, une seule fois : les éléments arrivés ensemble entrent en cascade
+if (anim) {
+  const io = new IntersectionObserver((list) => {
+    let n = 0;
+    for (const e of list) {
+      if (!e.isIntersecting) continue;
+      e.target.style.setProperty('--d', `${Math.min(n++, 6) * 70}ms`);
+      e.target.classList.add('in');
+      io.unobserve(e.target);
+    }
+  }, { rootMargin: '0px 0px -8% 0px' });
+  document.querySelectorAll('.reveal > :not(.copy):not(.grid):not(.oses), .reveal > .copy > *, .reveal > .grid > *, .reveal > .oses > *').forEach((el) => io.observe(el));
+  // Très légère parallaxe de la capture du haut (grand écran) : elle descend un peu moins vite que la page
+  const shot = document.querySelector('.hero .shot');
+  if (shot && matchMedia('(min-width: 901px)').matches) {
+    let raf = 0;
+    shot.style.willChange = 'transform';
+    addEventListener('scroll', () => {
+      raf ||= requestAnimationFrame(() => { raf = 0; shot.style.translate = `0 ${(Math.min(scrollY, 800) * 0.03).toFixed(1)}px`; });
+    }, { passive: true });
+  }
+}
+</script>
+<script>
 // Comptes à afficher en bas de page
 const SOCIAL = [
   ['Instagram', 'https://www.instagram.com/paddockliveapp/'],
@@ -479,6 +606,7 @@ function setLang(l) {
   b.setAttribute('aria-label', l === 'en' ? 'Français' : 'English');
   try { localStorage.setItem('pl.lang', l); } catch { /* sans stockage */ }
   showVersion();
+  splitTitle();
 }
 document.getElementById('lang').onclick = () => (served === 'en' ? location.assign('/?lang=fr') : setLang(lang === 'en' ? 'fr' : 'en'));
 
@@ -598,9 +726,6 @@ document.getElementById('footBrand').addEventListener('click', (e) => {
 if (location.hash === '#paddock') hiddenMenu();
 addEventListener('hashchange', () => { if (location.hash === '#paddock') hiddenMenu(); });
 
-// Apparition des sections au défilement
-const io = 'IntersectionObserver' in window ? new IntersectionObserver((list) => list.forEach((e) => { if (e.isIntersecting) { e.target.classList.add('on'); io.unobserve(e.target); } }), { rootMargin: '0px 0px -8% 0px' }) : null;
-document.querySelectorAll('.reveal').forEach((el) => (io ? io.observe(el) : el.classList.add('on')));
 </script>
 </body>
 </html>

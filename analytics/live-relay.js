@@ -15,6 +15,7 @@ import { pronosApi, GROUP_RE } from './pronos.js';
 import { circuitData, seasonStatsWeb } from './race-stats.js';
 import { seasonFiaWeb, fiaTranslations, fiaDocsWeb } from './fia-tech.js';
 import { weekendTyres } from './tyres.js';
+import { destructorsWeb } from './destructors.js';
 import { circuitRecords } from './records.js';
 import { zonesWeb } from './zones.js';
 import { forecast } from '../shared/forecast.js';
@@ -645,6 +646,10 @@ export async function liveApi(req, url, env = {}) {
     const year = Number(url.searchParams.get('year')), now = new Date().getUTCFullYear();
     if (!env.DB || !Number.isInteger(year) || year < 2018 || year > now) return json({ error: 'Année invalide' }, 400);
     return json(await seasonFiaWeb(env, year).catch((err) => ({ year, pending: false, done: 0, total: 0, events: [], error: err.message })));
+  }
+  // Championnat des casseurs : dégâts estimés de la saison (analytics/destructors.js) ; autre saison : liste vide
+  if (url.pathname === '/live/api/season/destructors' && req.method === 'GET') {
+    return json(await destructorsWeb(env, Number(url.searchParams.get('year'))), 200, { 'Cache-Control': 'public, max-age=600' });
   }
   // Évolutions techniques en français : traductions faites par le serveur en lisant les documents FIA
   if (url.pathname === '/live/api/translations' && req.method === 'GET') {

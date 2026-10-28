@@ -40,6 +40,8 @@ const DESC = {
   calendar: 'Calendrier de la saison {} de Formule 1 : dates et horaires de chaque Grand Prix, vainqueurs des courses déjà disputées.',
   standings: 'Classements {} de Formule 1 : pilotes et constructeurs, points, écarts, victoires et évolution des points course après course.',
   title: 'Course au titre {} de Formule 1 : qui peut encore être champion, points encore à prendre et conditions pour le titre.',
+  compare: 'Saison {} de Formule 1 comparée à une autre : classements des pilotes et des constructeurs après le même nombre de Grands Prix.',
+  destructors: 'Championnat des casseurs {} de Formule 1 : coût estimé des dégâts de chaque pilote et de chaque écurie, Grand Prix par Grand Prix.',
   review: 'Bilan de la saison {} de Formule 1 : champion, victoires, poles, podiums, plus belles remontées et abandons.',
   results: 'Résultats de tous les Grands Prix de la saison {} de Formule 1 : vainqueurs, poles, podiums et records.',
   h2h: 'Duels entre coéquipiers en {} : qualifications, courses, points, écart en qualification de chaque paire de pilotes de F1.',

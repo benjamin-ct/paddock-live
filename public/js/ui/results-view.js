@@ -42,6 +42,11 @@ export function openResults() {
   placeView(view);
   view.hidden = false;
   lastKey = '';
+  // Ouverture : podium et stratégies animés une fois (pas à chaque mise à jour de la séance)
+  const main = $('#resContent');
+  main?.classList.add('rp-anim');
+  clearTimeout(openResults.t);
+  openResults.t = setTimeout(() => main?.classList.remove('rp-anim'), 1700);
   render();
   clearInterval(timer);
   timer = setInterval(render, 1000);

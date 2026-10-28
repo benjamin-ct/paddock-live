@@ -316,3 +316,14 @@ try {
 } catch { /* stockage indisponible */ }
 connect();
 loop();
+
+// Version web installée sur l'écran d'accueil : le téléphone la garde en mémoire et la reprend telle quelle au retour
+// dans l'appli ; rechargée quand une nouvelle version est en ligne (empreinte mise dans la page par build-studio.mjs)
+const VERSION = document.querySelector('meta[name="pl-version"]')?.content;
+document.addEventListener('visibilitychange', async () => {
+  if (!VERSION || document.visibilityState !== 'visible') return;
+  try {
+    const v = /<meta name="pl-version" content="(\w+)"/.exec(await (await fetch('/live/', { cache: 'no-store' })).text())?.[1];
+    if (v && v !== VERSION && !document.querySelector('dialog[open]')) location.reload();
+  } catch { /* hors ligne */ }
+});
