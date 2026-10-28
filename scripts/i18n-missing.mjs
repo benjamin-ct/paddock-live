@@ -1,14 +1,16 @@
-// Version anglaise : liste les textes de l'interface (code et HTML) qui n'ont pas encore de
-// traduction dans public/js/i18n-en.js. À lancer après avoir ajouté des textes :
+// Versions anglaise, italienne et espagnole : liste les textes de l'interface (code et HTML) qui n'ont pas
+// encore de traduction dans public/js/i18n-en.js, i18n-it.js ou i18n-es.js. À lancer après avoir ajouté des textes :
 //   node scripts/i18n-missing.mjs
 // Les valeurs dynamiques des gabarits (`${…}`) apparaissent comme {} : c'est la forme attendue
 // dans le dictionnaire. Les fragments de code ou noms propres listés peuvent être ignorés.
+// Les clés de l'anglais absentes de l'italien ou de l'espagnol sont listées aussi.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const dict = (await import(path.join(ROOT, 'public/js/i18n-en.js'))).default;
+const DICTS = {};
+for (const [lang, name] of [['en', 'anglaise'], ['it', 'italienne'], ['es', 'espagnole']]) DICTS[lang] = { name, dict: (await import(path.join(ROOT, `public/js/i18n-${lang}.js`))).default };
 const FR = /[éèàêçùôîâûœÉÈÀ]|\b(le|la|les|des|du|de|un|une|et|ou|pour|avec|sans|dans|sur|par|au|aux|est|pas|plus|tour|tours|pilote|pilotes|séance|course|délai)\b/i;
 const keys = new Map();
 
@@ -83,6 +85,10 @@ for (const f of ['public/index.html', 'public/mini.html', 'analytics/live-page/i
 
 // Fragments de gabarits imbriqués (code), polices et textes déjà en anglais ou noms propres : ignorés
 const CODE = /\$\{|card\(|const |\? '|: ''|\)\.join|=>|sans-serif|^&\w+=/;
-const missing = [...keys].filter(([k]) => dict[k] === undefined && dict[k.replace(/^\{\} /, '')] === undefined && !CODE.test(k) && FR.test(k));
-for (const [k, f] of missing) console.log(`${f}\t${k}`);
-console.log(`\n${missing.length} texte(s) sans traduction anglaise sur ${keys.size}.`);
+for (const [lang, { name, dict }] of Object.entries(DICTS)) {
+  const missing = [...keys].filter(([k]) => dict[k] === undefined && dict[k.replace(/^\{\} /, '')] === undefined && !CODE.test(k) && FR.test(k));
+  // Italien et espagnol : mêmes clés que l'anglais
+  if (lang !== 'en') for (const k of Object.keys(DICTS.en.dict)) if (dict[k] === undefined && !missing.some(([m]) => m === k)) missing.push([k, `public/js/i18n-en.js`]);
+  for (const [k, f] of missing) console.log(`${lang}\t${f}\t${k}`);
+  console.log(`${missing.length} texte(s) sans traduction ${name} sur ${keys.size}.${lang === 'es' ? '' : '\n'}`);
+}

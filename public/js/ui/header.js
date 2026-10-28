@@ -4,7 +4,7 @@ import { $, esc, api, fmtDuration, sessionKind, currentStint } from '../util.js'
 import { trackStatusInfo, SESSION_STATUS_FR } from '/shared/f1.js';
 import { FLAG_ISO } from '/shared/flags.js';
 import { gpShort, gpFull, sessionLabel } from '/shared/gp-names.js';
-import { EN, LOCALE, t } from '../i18n.js';
+import { EN, LANG, LOCALE, DEC, DAY, t } from '../i18n.js';
 import { upcoming } from './home.js';
 import { COUNTRY_ISO } from '/shared/social-season.js';
 import { circuitInfo } from '/shared/circuits-info.js';
@@ -31,8 +31,8 @@ export function renderHeader() {
     const kind = sessionKind(s);
     // « Azerbaijan GP — Race » (nom complet au survol), comme MultiViewer : plus de place pour le reste
     const sn = $('#sessionName');
-    sn.textContent = info ? `${EN ? gpFull(info.Meeting?.Name, true, 'GP') : gpShort(info.Meeting?.Name)} — ${sessionLabel(info.Name, EN)}` : (store.connected ? 'En attente de données…' : 'Connexion au serveur…');
-    sn.title = info ? `${gpFull(info.Meeting?.Name, EN)} — ${sessionLabel(info.Name, EN)}` : '';
+    sn.textContent = info ? `${EN ? gpFull(info.Meeting?.Name, true, 'GP') : gpShort(info.Meeting?.Name, LANG)} — ${sessionLabel(info.Name, LANG)}` : (store.connected ? 'En attente de données…' : 'Connexion au serveur…');
+    sn.title = info ? `${gpFull(info.Meeting?.Name, LANG)} — ${sessionLabel(info.Name, LANG)}` : '';
     const status = s.SessionStatus?.Status || info?.SessionStatus;
     $('#sessionSub').textContent = info
       ? [info.Meeting?.Circuit?.ShortName, info.Meeting?.Country?.Name, status ? SESSION_STATUS_FR[status] || status : null].filter(Boolean).join(' · ')
@@ -139,8 +139,8 @@ function renderUpcoming(nx) {
   if (key !== upKey) {
     upKey = key;
     const sn = $('#sessionName');
-    sn.textContent = `${EN ? gpFull(nx.race, true, 'GP') : gpShort(nx.race)} — ${t(nx.label)}`;
-    sn.title = gpFull(nx.race, EN);
+    sn.textContent = `${EN ? gpFull(nx.race, true, 'GP') : gpShort(nx.race, LANG)} — ${t(nx.label)}`;
+    sn.title = gpFull(nx.race, LANG);
     const day = (t, o) => new Date(t).toLocaleDateString(LOCALE, o);
     $('#sessionSub').textContent = [nx.locality, nx.country, `${day(nx.first, { day: 'numeric' })}–${day(nx.raceT, { day: 'numeric', month: 'long' })}`].filter(Boolean).join(' · ');
     if (!POPOUT && !document.documentElement.dataset.seasonTitle) document.title = `Paddock Live · ${nx.race}`;
@@ -162,7 +162,7 @@ function renderUpcoming(nx) {
     flag.title = nx.country || '';
     const wm = (label, val, title = '') => `<div class="wm"${title ? ` title="${esc(title)}"` : ''}><span class="muted">${label}</span><b>${val}</b></div>`;
     const w = nx.raceDay;
-    $('#weatherMini').innerHTML = (ci?.km ? wm('Longueur', `${String(ci.km).replace('.', EN ? '.' : ',')}<small> km</small>`) : '')
+    $('#weatherMini').innerHTML = (ci?.km ? wm('Longueur', `${String(ci.km).replace('.', DEC)}<small> km</small>`) : '')
       + wm('Course', esc(new Date(nx.raceT).toLocaleString(LOCALE, { weekday: 'short', hour: '2-digit', minute: '2-digit' })), 'Départ de la course (heure de votre appareil)')
       + (w ? wm('Prévu', `${Math.round(w.tmax)}°`, 'Température maximale prévue le jour de la course') + (w.rain != null ? wm('Pluie', `${w.rain}<small> %</small>`, 'Risque de pluie le jour de la course') : '') : '');
   }
@@ -170,7 +170,7 @@ function renderUpcoming(nx) {
   // Compte à rebours et heure du circuit, à la seconde
   const left = Math.max(0, Math.floor((nx.t - Date.now()) / 1000));
   const d = Math.floor(left / 86400);
-  const txt = `${d ? `${d} ${EN ? 'd' : 'j'} ` : ''}${two(Math.floor(left / 3600) % 24)}:${two(Math.floor(left / 60) % 60)}:${two(left % 60)}`;
+  const txt = `${d ? `${d} ${DAY} ` : ''}${two(Math.floor(left / 3600) % 24)}:${two(Math.floor(left / 60) % 60)}:${two(left % 60)}`;
   const cv = $('#clockValue');
   if (cv.textContent !== txt) cv.textContent = txt;
   if (nx.tz) {

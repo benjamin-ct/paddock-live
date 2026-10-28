@@ -7,7 +7,7 @@ import { prefs, setPref, toggleFav, toggleTeamFav } from '../prefs.js';
 import { NEWS_TEAMS, fold } from '/shared/news.js';
 import { saveWindowsSnapshot, restoreWindowsSnapshot, hasWindowsSnapshot } from './layout.js';
 import { icon } from '../icons.js';
-import { LANG, LOCALE, EN, t } from '../i18n.js';
+import { LANG, LOCALE, t } from '../i18n.js';
 
 let dragging = false;
 

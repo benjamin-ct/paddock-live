@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildSets, setSummary, dryAllocation } from '../shared/tyres.js';
-import { parseFeed, isF1Article, findNominations, adviceSentences, nominationFor } from '../analytics/tyres.js';
+import { parseFeed, isF1Article, findNominations, adviceSentences, nominationFor, previousSessions, weekendBest } from '../analytics/tyres.js';
 
 const st = (Compound, New, StartLaps, TotalLaps, TyresNotChanged = '0') => ({ Compound, New: String(New), StartLaps, TotalLaps, TyresNotChanged });
 
@@ -72,4 +72,22 @@ test('choix Pirelli : l\'annonce d\'Austin ne vaut pas pour Las Vegas', () => {
   const found = [{ text: 'For the United States Grand Prix in Austin (23-25 October), the compounds will be C2 as Hard, C3 as Medium and C4 as Soft.', c: [2, 3, 4], url: 'u', date: Date.parse('2026-10-09') }];
   assert.equal(nominationFor(2027, { name: 'Las Vegas Grand Prix', location: 'Las Vegas', country: 'United States', start: Date.parse('2026-11-19') }, found), null);
   assert.equal(nominationFor(2027, { name: 'United States Grand Prix', location: 'Austin', country: 'United States', start: Date.parse('2026-10-23') }, found).hard, 2);
+});
+
+test('meilleur du week-end : le plus rapide des séances déjà courues, séance affichée exclue', () => {
+  const lap = (time, tla) => ({ time, tla, team: '', color: '3671C6', lap: 5 });
+  const meeting = [
+    { name: 'Pre-Season Testing', path: '2026/t/', best: lap(80.1, 'ALB') },
+    { name: 'Practice 1', path: '2026/a/', best: lap(91.2, 'VER') },
+    { name: 'Practice 2', path: '2026/b/', best: lap(90.4, 'NOR') },
+    { name: 'Practice 3', path: '2026/c/', best: null },
+    { name: 'Qualifying', path: '2026/d/', best: lap(89.7, 'LEC') },
+    { name: 'Race', path: '2026/e/', best: lap(92.0, 'HAM') },
+  ];
+  const done = previousSessions(meeting, '2026/d/');
+  assert.deepEqual(done.map((s) => s.name), ['Practice 1', 'Practice 2', 'Practice 3'], 'tests et séance affichée exclus');
+  assert.deepEqual(weekendBest(done), { ...lap(90.4, 'NOR'), session: 'Practice 2' });
+  assert.equal(weekendBest(previousSessions(meeting, '2026/e/')).tla, 'LEC');
+  assert.equal(weekendBest(previousSessions(meeting, '2026/a/')), null, 'première séance : rien');
+  assert.equal(weekendBest(previousSessions(meeting, '2026/x/')), null, 'séance inconnue : rien');
 });

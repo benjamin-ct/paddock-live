@@ -4,7 +4,7 @@ import { $, esc, teamColor, teamMark, storageGet, storageSet } from '../util.js'
 import { translated, requestTranslations, onTranslation, translationState } from './fia-translate.js';
 import { icon } from '../icons.js';
 import { pdfHref } from './pdf-view.js';
-import { DEC, EN } from '../i18n.js';
+import { DEC, FR, LANG, t } from '../i18n.js';
 import { gpShort } from '/shared/gp-names.js';
 
 const TYPES_FR = { Performance: 'Performance', 'Circuit specific': 'Spécifique au circuit', Reliability: 'Fiabilité', 'Structural Improvement': 'Structure' };
@@ -50,7 +50,7 @@ const compFr = (c) => COMP_FR[compKey(c)] || null;
 
 // Texte traduit (ou original en attendant), mis à jour sur place quand la traduction arrive
 // Interface en anglais : les textes de la FIA sont déjà dans la langue de l'interface
-const showOriginal = () => EN || storageGet('paddock.techOriginal', false);
+const showOriginal = () => !FR || storageGet('paddock.techOriginal', false);
 const trSpan = (en) => {
   if (!en) return '';
   const fr = showOriginal() ? null : translated(en);
@@ -95,7 +95,7 @@ const EL_FR = { ICE: 'Moteur thermique', TC: 'Turbo', EX: 'Échappement', 'MGU-K
 
 const mark = (team, ctx, teamId) => teamMark({ TeamName: team, TeamColour: ctx.official(teamId) });
 const tcol = (team, ctx, teamId) => teamColor({ TeamName: team, TeamColour: ctx.official(teamId) });
-const short = (n) => gpShort(n, EN);
+const short = (n) => gpShort(n, LANG);
 
 function note(fia) {
   if (!fia) return '<div class="note">Chargement des documents de la FIA…</div>';
@@ -195,7 +195,7 @@ export function renderTech(ctx, fia) {
         <label class="small">Écurie <select id="szTechTeam"><option value="all">Toutes</option>${teamsGp.map((t) => `<option ${t === techTeam ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></label>
         ${gp.docs?.tech ? `<a class="btn-doc" href="${esc(pdfHref(gp.docs.tech))}" data-pdf="Document FIA" target="_blank" rel="noopener"><span class="doc-badge">PDF</span><span>Document FIA</span>${icon('external', 'ic-s')}</a>` : ''}</div>
       ${gp.noUpdates.length ? `<p class="muted small">Sans nouveauté : ${gp.noUpdates.map(esc).join(', ')}.</p>` : ''}
-      <div class="sz-tr-bar small">${EN ? '' : `<label class="toggle small"><input type="checkbox" id="szTechOrig" ${showOriginal() ? 'checked' : ''}> Texte d'origine (anglais)</label>`}<span class="muted" id="szTrStatus">${trStatusHtml()}</span></div>
+      <div class="sz-tr-bar small">${!FR ? '' : `<label class="toggle small"><input type="checkbox" id="szTechOrig" ${showOriginal() ? 'checked' : ''}> Texte d'origine (anglais)</label>`}<span class="muted" id="szTrStatus">${trStatusHtml()}</span></div>
       <div class="sz-upd">${list.map((u) => `<article class="sz-upd-item" style="--tc:${tcol(u.team, ctx, u.teamId)}">
         <div class="sz-upd-head">${mark(u.team, ctx, u.teamId)}<b>${showOriginal() ? esc(u.component || '—') : compFr(u.component) ? `<span title="${esc(u.component)}">${esc(compFr(u.component))}</span>` : trSpan(u.component) || '—'}</b><span class="sz-tag" title="Type d'évolution déclaré par l'écurie">${esc(TYPES_FR[u.type] || u.type)}</span>${(REASONS_FR[u.reason] || u.reason) !== (TYPES_FR[u.type] || u.type) ? `<span class="sz-tag sprint" title="Raison principale déclarée">${esc(REASONS_FR[u.reason] || u.reason)}</span>` : ''}<span class="muted small">${esc(u.team)} · n° ${u.n}</span></div>
         ${u.geometry ? `<div class="small"><span class="muted">Ce qui change :</span> ${trSpan(u.geometry)}</div>` : ''}
@@ -279,7 +279,7 @@ export function renderElements(ctx, fia) {
     <section class="sz-box"><h3>Éléments neufs par Grand Prix</h3>${evs.filter((e) => e.fresh.length).reverse().map((e, i) => {
       const by = new Map();
       for (const f of e.fresh) by.set(f.driver, [...new Set([...(by.get(f.driver) || []), f.element])]);
-      return fold(e, i, `${by.size} ${by.size > 1 ? 'pilotes' : 'pilote'} · ${e.fresh.length} ${e.fresh.length > 1 ? 'éléments' : 'élément'}`,
+      return fold(e, i, `${t(by.size > 1 ? '{} pilotes' : '{} pilote', by.size)} · ${t(e.fresh.length > 1 ? '{} éléments' : '{} élément', e.fresh.length)}`,
         `<div class="sz-fresh">${[...by].map(([drv, list]) => `<div class="sz-fresh-row">${who(drv)}<span class="sz-els">${chips(list)}</span></div>`).join('')}</div>`);
     }).join('')}</section>
     <p class="muted small">Source : documents FIA et décisions des commissaires.</p>`;

@@ -242,11 +242,11 @@ async function handleApi(req, res, url) {
     case 'GET /api/news/article':
       return fromServer(res, url, '/news/api/article');
 
-    // Traduction d'avance des actualités : { lang: 'fr' | 'en' | null } (null = désactivée)
+    // Traduction d'avance des actualités : { lang: 'fr' | 'en' | 'it' | 'es' | null } (null = désactivée)
     case 'POST /api/news/translate': {
       if (!isLoopback(req.socket.remoteAddress)) return sendJSON(res, 403, { error: 'Réglage disponible uniquement sur l\'ordinateur' });
       const body = await readBody(req);
-      const lang = ['fr', 'en'].includes(body.lang) ? body.lang : null;
+      const lang = ['fr', 'en', 'it', 'es'].includes(body.lang) ? body.lang : null;
       if (getConfig().newsTranslateLang !== lang) saveConfig({ newsTranslateLang: lang });
       newsTranslator.sweep();
       return sendJSON(res, 200, { lang });

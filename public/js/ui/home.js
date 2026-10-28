@@ -5,7 +5,7 @@
 import { $, $$, esc, api, drivers, placeView, hideBoot, dayIn } from '../util.js';
 import { store, on } from '../store.js';
 import { icon } from '../icons.js';
-import { LOCALE, EN, t } from '../i18n.js';
+import { LOCALE, LANG, t } from '../i18n.js';
 import { gpShort, sessionLabel } from '/shared/gp-names.js';
 import { toast } from './delay.js';
 import { prefs, setPref, toggleFav, toggleTeamFav } from '../prefs.js';
@@ -26,7 +26,7 @@ let resultsOpen = false;   // résultats de la dernière séance demandés : tab
 // Durée approximative d'une séance (fenêtre « en cours »)
 const LONG = /course|race|grand prix/i;
 const lengthOf = (label) => (LONG.test(label) && !/sprint/i.test(label) ? 150 : 75) * 60e3;
-const sessionName = (n) => sessionLabel(n, EN);
+const sessionName = (n) => t(sessionLabel(n, LANG));   // nom anglais de la F1 ou libellé déjà en français
 
 // Calendrier chargé une fois (accueil et écran « Pas de séance en direct »). Serveur injoignable (appli ouverte
 // hors connexion) : pas de « Hors saison » ni de « Saison terminée » faute de données, nouvel essai chaque minute
@@ -103,7 +103,7 @@ function daysHtml(nx) {
   return `<div class="cal-days">${[...days.values()].map((d) => `<div class="cal-day"><div class="cal-day-h">${esc(new Date(d.t).toLocaleDateString(LOCALE, { weekday: 'short', day: 'numeric' }))}</div>
     ${d.list.map((s) => `<div class="cal-s ${s.t < Date.now() ? 'past' : ''} ${s === nx ? 'now' : ''}"><span>${esc(s.label)}</span><b>${hm(s.t)}</b></div>`).join('')}</div>`).join('')}</div>`;
 }
-const gp = (name) => gpShort(name, EN);
+const gp = (name) => gpShort(name, LANG);
 
 // Météo prévue des jours du prochain week-end (Open-Meteo, 16 jours au plus)
 async function loadWeather(nx) {
