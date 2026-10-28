@@ -5,7 +5,7 @@
 // planifiée, un couple circuit × saison à la fois : demandé, prochain Grand Prix, puis tout le catalogue des replays.
 // Ce qui ne dépend que du lieu (OSM, tuiles) est lu une fois par circuit et gardé dans R2 pour toutes les saisons ;
 // seul le calage sur le tracé change. Résultat (quelques centaines de ko) dans R2, état dans la base. Ensuite, un
-// enrichissement facultatif (parkings, tribunes, arbres isolés : extraTick) refait le fichier quand il arrive.
+// enrichissement facultatif (parkings, tribunes, arbres isolés, murs : extraTick) refait le fichier quand il arrive.
 import { setRow, readJSON, rowsWithPrefix } from './alerts.js';
 import { archiveToken } from './studio.js';
 import { circuitData } from './race-stats.js';
@@ -30,7 +30,7 @@ const SOON = 20 * 60e3;        // source occupée ou injoignable : revu 20 min p
 const LOCK = 10 * 60e3;        // un seul calcul à la fois
 const CATALOGUE = 7 * 86400e3; // catalogue des replays relu une fois par semaine
 const NEAR = 700;              // bâtiments lus jusqu'à 700 m du tracé
-const VERSION = 2;             // version des fichiers : un fichier plus ancien est refait (il reste servi en attendant)
+const VERSION = 3;             // version des fichiers : un fichier plus ancien est refait (il reste servi en attendant)
 const EXTRA = 3600e3;          // enrichissement raté : revu 1 h plus tard, puis 2 h, 4 h… jusqu'à 24 h
 const MAX_ERR = 8;             // calage gardé si le tracé est en moyenne à moins de 8 m des pistes (ou rues) d'OSM
 // Pauses (ms) : serveurs publics ménagés, une requête à la fois
@@ -279,15 +279,16 @@ async function overpass(query, { fetchFn, pause }) {
 // Enrichissement facultatif, après le calcul de base (servi tout de suite, et jamais retiré) : ce que les tuiles
 // OpenFreeMap n'ont pas, lu une fois par circuit et gardé dans R2 avec le lieu, pour toutes les saisons
 // (surroundings/extra-<clé>.json : { lat, lon, parts : { partie : éléments } }). Parkings : tuiles Shortbread de la
-// fondation OpenStreetMap ; tribunes et arbres isolés : Overpass (souvent injoignable : petites requêtes, plusieurs
-// serveurs). État dans la base (surrx:<clé> : { have, tries, next }) : une partie qui manque est réessayée 1 h, 2 h,
-// 4 h… plus tard (24 h au plus) ; une partie lue fait refaire les fichiers du circuit. Un circuit par passage, demandé
-// ou du prochain Grand Prix d'abord ; rien à faire : revu une heure plus tard
+// fondation OpenStreetMap ; tribunes, arbres isolés et murs le long de la piste : Overpass (souvent injoignable :
+// petites requêtes, plusieurs serveurs). État dans la base (surrx:<clé> : { have, tries, next }) : une partie qui
+// manque est réessayée 1 h, 2 h, 4 h… plus tard (24 h au plus) ; une partie lue fait refaire les fichiers du circuit.
+// Un circuit par passage, demandé ou du prochain Grand Prix d'abord ; rien à faire : revu une heure plus tard
 const viaOverpass = (name) => (loc, o) => overpass(extraQueries(loc.near, loc.path)[name], o);
 const PARTS = {
   parking: (loc, { fetchFn, pause }) => vectorTiles(loc.zone, ['sites'], { name: 'Shortbread', url: SB }, fetchFn, pause).then((t) => omtElements(t, loc.zone, SHORTBREAD)),
   stands: viaOverpass('stands'),
   trees: viaOverpass('trees'),
+  walls: viaOverpass('walls'),
 };
 async function extraTick(env, { now, fetchFn, pause, first }) {
   if (now - Number(await readJSON(env, 'surrxidle', 0)) < 3600e3) return null;

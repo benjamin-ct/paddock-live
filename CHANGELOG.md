@@ -84,8 +84,10 @@ l'application (Réglages → À propos → Nouveautés).
   suivi (choisi dans la liste de la vue 3D ou dans le classement) : Hélico, Poursuite, Embarquée et Libre (glisser
   pour tourner, molette ou pincement pour zoomer, clic droit pour se déplacer, double-clic pour revoir tout le
   circuit). Autour de la piste, ce qu'il y a vraiment, d'après OpenStreetMap (cartes OpenFreeMap) : le relief du
-  terrain, les bâtiments, les bois et leurs arbres, les lacs, les rivières et la mer, les routes, l'herbe et les champs
-  (sources en bas à droite de la vue). Le relief vient du GPS des voitures, sinon d'un modèle numérique de
+  terrain, les bâtiments et les tribunes, les bois et leurs arbres, les arbres isolés, les parkings, les lacs, les
+  rivières et la mer, les routes, l'herbe et les champs (sources en bas à droite de la vue), et le long de la piste les
+  murs, rails et grillages (sur les circuits en ville, des murs là où la piste emprunte les rues ou longe les
+  immeubles). Le relief vient du GPS des voitures, sinon d'un modèle numérique de
   terrain ; le serveur Paddock Live le calcule à l'avance pour les circuits du calendrier et des replays : tant qu'il
   manque pour un circuit, la piste est à plat. Graphismes nets : le sol est dessiné finement autour de la caméra
   (bords des pelouses, des bois et des routes sans flou ni escalier) et les ombres sont précises. La lumière suit

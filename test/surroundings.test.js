@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { decodePng, terrarium, demSampler, tilesFor, lonToPx, latToPx, geoFrame, fitTrack, toEN, fromEN, simplify, clipRing, clipLine,
-  buildSurroundings, buildingHeight, areaKind, omtElements, SHORTBREAD, extraQueries, overpassElements, MAX } from '../shared/surroundings.js';
+  buildSurroundings, buildingHeight, areaKind, omtElements, SHORTBREAD, extraQueries, overpassElements, deduceWalls, EDGE, MAX } from '../shared/surroundings.js';
 import { decodeMvt } from '../shared/mvt.js';
 import { png, terrariumTile } from './fixtures/png.js';
 import { mvt } from './fixtures/mvt.js';
@@ -230,4 +230,46 @@ test('alentours : tribunes d\'Overpass à la place du bâtiment des tuiles, arbr
   assert.deepEqual(d.trees.slice(0, 2), [1100, 500], 'arbre isolé d\'abord');
   assert.equal(d.trees.length, 40);
   assert.ok(!d.trees.some((v, i) => i % 2 === 0 && v === 500 && d.trees[i + 1] === 3));
+});
+
+test('alentours : murs déduits côté ville (rue empruntée, bâtiments au bord), trous bouchés, morceaux trop courts écartés', () => {
+  // Ligne droite de 1 km (aller sur y = 0, retour sur y = 400) : un tracé fermé en rectangle
+  const loop = [];
+  for (let x = 0; x < 1000; x += 5) loop.push([x, 0]);
+  for (let y = 0; y < 400; y += 5) loop.push([1000, y]);
+  for (let x = 1000; x > 0; x -= 5) loop.push([x, 400]);
+  for (let y = 400; y > 0; y -= 5) loop.push([0, y]);
+  const none = () => false;
+  assert.deepEqual(deduceWalls(loop, { built: none, onRoad: none, taken: none }), [], 'rien autour : pas de mur');
+  // Bâtiments au sud du bas du rectangle, de x = 100 à 600, sauf un trou de 20 m (x = 300 à 320) et un bâtiment isolé
+  // de 25 m plus loin (x = 800 à 825)
+  const built = (x, y) => y < -EDGE && y > -40 && ((x > 100 && x < 600 && !(x > 300 && x < 320)) || (x > 800 && x < 825));
+  const w = deduceWalls(loop, { built, onRoad: none, taken: none });
+  assert.equal(w.length, 1, 'trou de 20 m bouché, bâtiment de 25 m sans mur');
+  const xs = w[0].map((p) => p[0]), ys = w[0].map((p) => p[1]);
+  assert.ok(Math.abs(Math.min(...xs) - 100) < 30 && Math.abs(Math.max(...xs) - 600) < 30, `de ${Math.min(...xs)} à ${Math.max(...xs)}`);
+  assert.ok(ys.every((y) => Math.abs(y + EDGE) < 0.5), 'à 1,5 m du bord, côté bâtiments');
+  // Déjà un mur d'OSM : rien de déduit là
+  assert.deepEqual(deduceWalls(loop, { built, onRoad: none, taken: (x) => x < 700 }), []);
+  // Rue empruntée sur tout le tour (circuit en ville) : murs des deux côtés, en boucle fermée
+  const street = deduceWalls(loop, { built: none, onRoad: () => true, taken: none });
+  assert.equal(street.length, 2);
+  for (const l of street) assert.deepEqual(l[0], l.at(-1), 'boucle fermée');
+});
+
+test('alentours : murs, rails et grillages d\'OSM gardés près de la piste seulement, avec leur genre', () => {
+  const sq = [];
+  for (let i = 0; i < 400; i++) { const s = i % 100, k = Math.floor(i / 100); sq.push([[s * 10, 0], [1000, s * 10], [1000 - s * 10, 1000], [0, 1000 - s * 10]][k]); }
+  const frame = geoFrame(45, 5), fit = { s: 1, a: 0, e: 0, n: 0 };
+  const g = (x, y) => { const [lat, lon] = frame.toGeo(x, y); return { lat, lon }; };
+  const elements = [
+    { type: 'way', tags: { barrier: 'guard_rail' }, geometry: [g(100, -9), g(400, -9)] },
+    { type: 'way', tags: { barrier: 'fence' }, geometry: [g(500, -12), g(500, -300)] },   // s'éloigne : coupé à 40 m
+    { type: 'way', tags: { barrier: 'wall' }, geometry: [g(300, 300), g(600, 300)] },     // loin de la piste
+    { type: 'way', tags: { barrier: 'kerb' }, geometry: [g(100, 5), g(400, 5)] },
+  ];
+  const d = buildSurroundings({ track: sq, fit, frame, elements, dem: () => 100 });
+  assert.deepEqual(d.walls.map((w) => w[0]), [1, 2]);
+  assert.deepEqual(d.walls[0].slice(1), [100, -9, 400, -9]);
+  assert.ok(Math.min(...d.walls[1].filter((_, i) => i % 2 === 0 && i > 0)) >= -41, 'grillage coupé à 40 m de la piste');
 });
