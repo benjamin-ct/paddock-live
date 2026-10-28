@@ -2703,8 +2703,6 @@ export default {
   "Ctrl + molette pour zoomer sur la carte": "Ctrl + rueda para hacer zoom en el mapa",
   "⌘ + molette pour zoomer sur la carte": "⌘ + rueda para hacer zoom en el mapa",
   "Deux doigts pour déplacer la carte": "Usa dos dedos para mover el mapa",
-  "Zoomer": "Acercar",
-  "Remettre le nord en haut": "Volver a poner el norte arriba",
   "Sources de la carte": "Fuentes del mapa",
   "contributeurs OpenStreetMap": "colaboradores de OpenStreetMap",
 };

@@ -1146,9 +1146,11 @@ body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-selec
     radial-gradient(1px 1px at 38% 76%, #ffffff70 50%, transparent 51%), radial-gradient(1.5px 1.5px at 86% 84%, #ffffffa0 50%, transparent 51%),
     radial-gradient(1px 1px at 91% 9%, #ffffff60 50%, transparent 51%), radial-gradient(ellipse at 50% 42%, #121624, #030306 72%);
   background-size: 190px 190px, 190px 190px, 190px 190px, 190px 190px, 190px 190px, 100% 100%; }
-.cg-key { position: absolute; top: 10px; left: 12px; z-index: 2; max-width: calc(100% - 170px); margin: 0; padding: 5px 9px; border-radius: 6px; background: color-mix(in srgb, var(--panel) 85%, transparent); color: var(--text-2); }
+.cg-key { position: absolute; top: 10px; left: 12px; z-index: 2; max-width: calc(100% - 130px); margin: 0; padding: 5px 9px; border-radius: 6px; background: color-mix(in srgb, var(--panel) 85%, transparent); color: var(--text-2); }
 .cg-key .cal-pin-key { margin-right: 5px; }
-.cg-world { position: absolute; top: 10px; right: 54px; z-index: 2; }
+/* « Monde » seulement sur le plan d'un circuit (rien en haut à droite sur le globe) */
+.cg-world { position: absolute; top: 10px; right: 10px; z-index: 2; }
+.cal-globe:not(.cg-near) .cg-world { display: none; }
 .cg-cards { --cg-w: min(300px, calc(100vw - 96px)); position: absolute; left: 0; right: 0; bottom: 30px; z-index: 2; display: flex; gap: 10px;
   overflow-x: auto; scroll-snap-type: x mandatory; overscroll-behavior-x: contain; padding: 6px calc(50% - var(--cg-w) / 2); scrollbar-width: none; }
 .cg-cards::-webkit-scrollbar { display: none; }

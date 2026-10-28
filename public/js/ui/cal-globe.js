@@ -155,11 +155,9 @@ async function start() {
       'CooperativeGesturesHandler.WindowsHelpText': t('Ctrl + molette pour zoomer sur la carte'),
       'CooperativeGesturesHandler.MacHelpText': t('⌘ + molette pour zoomer sur la carte'),
       'CooperativeGesturesHandler.MobileHelpText': t('Deux doigts pour déplacer la carte'),
-      'NavigationControl.ZoomIn': t('Zoomer'), 'NavigationControl.ZoomOut': t('Dézoomer'), 'NavigationControl.ResetBearing': t('Remettre le nord en haut'),
       'AttributionControl.ToggleAttribution': t('Sources de la carte'),
     },
   });
-  map.addControl(new globalThis.maplibregl.NavigationControl({ visualizePitch: true }), 'top-right');
   map.on('style.load', layers);
   map.on('zoom', () => box?.classList.toggle('cg-near', map.getZoom() >= NEAR));
   // Saut sans animation du plan des rues au globe : points replacés une fois le globe redessiné (sinon à leur place
