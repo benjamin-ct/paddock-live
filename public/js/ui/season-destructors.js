@@ -26,8 +26,7 @@ export function renderDestructors(ctx, d) {
   const gp = (round) => (round === 0 ? t('Roulage de Barcelone') : esc(gpShort(data.races.find((r) => r.round === round)?.name || `R${round}`, EN)));
   const card = (title, main, sub) => `<div class="sz-card"><div class="muted small">${title}</div><div class="sz-big">${main}</div><div class="muted small">${sub}</div></div>`;
   const [d1] = c.drivers, [t1] = c.teams, [x1] = c.top;
-  return `<p class="hint">${t('Coût estimé des pièces cassées, Grand Prix par Grand Prix : des estimations, pas un décompte officiel. Source : u/Dense-Strategy-867 (Reddit), compilé par Formula 1 Dashboard.')}</p>
-    <div class="sz-cards">
+  return `<div class="sz-cards">
       ${card(t('Dégâts de la saison'), usd(c.total), t('{} incidents', d.rows.length))}
       ${card(t('Pilote le plus coûteux'), `${bar(drv(d1).team, drv(d1).teamId)}${esc(drv(d1).last || d1.driver)}`, usd(d1.cost))}
       ${card(t('Écurie la plus coûteuse'), `${bar(team(t1.team).name, team(t1.team).id)}${esc(team(t1.team).name)}`, usd(t1.cost))}
@@ -44,5 +43,6 @@ export function renderDestructors(ctx, d) {
         ${c.top.slice(0, 15).map((x) => `<tr><td>${who(x)}</td><td>${gp(x.round)}</td><td><b>${usd(x.cost)}</b></td></tr>`).join('')}</table></div></section>
       <section class="sz-box"><h3>${t('Pièces cassées')}</h3><div class="sz-scroll"><table class="sz-table"><tr><th>${t('Pièce')}</th><th>${t('Prix estimé')}</th><th>${t('Nombre')}</th><th>${t('Total')}</th></tr>
         ${c.parts.map((p) => `<tr><td>${esc(EN ? p.name : PARTS[p.name] || p.name)}</td><td>${usd(p.price)}</td><td>${p.qty}</td><td><b>${usd(p.cost)}</b></td></tr>`).join('')}</table></div></section>
-    </div>`;
+    </div>
+    <p class="hint">${t('Coût estimé des pièces cassées, Grand Prix par Grand Prix : des estimations, pas un décompte officiel. Source : u/Dense-Strategy-867 (Reddit), compilé par Formula 1 Dashboard.')}</p>`;
 }
