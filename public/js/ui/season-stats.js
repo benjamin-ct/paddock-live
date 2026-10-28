@@ -7,6 +7,7 @@ import { icon } from '../icons.js';
 import { DEC, LANG, t } from '../i18n.js';
 import { gpShort } from '/shared/gp-names.js';
 import { CIRCUIT_DNA, DNA_KEYS } from '/shared/circuit-dna.js';
+import { nearestShape, shapeOutline } from '/shared/circuit-shapes.js';
 
 const median = (a) => {
   if (!a.length) return null;
@@ -412,28 +413,30 @@ export function dnaBlock(circuitId, head = true) {
     <div class="muted small"><span>D'après Pirelli :</span> <a href="${esc(n.source)}" target="_blank" rel="noopener">${t('preview du Grand Prix {}', n.season)}</a></div></div>`;
 }
 
-// Carte des circuits qui se ressemblent : virages lents (traction) ou rapides (appui latéral) en largeur, contrainte
-// sur les pneus en hauteur ; circuits aux mêmes notes regroupés
+// Circuits qui se ressemblent : familles d'après les notes Pirelli (virages lents, mixtes ou rapides selon traction et
+// appui latéral ; contrainte sur les pneus forte, moyenne ou faible), en cartes avec le mini-tracé de chaque circuit
+const PROFILES = [[1, 'Virages rapides, appui latéral'], [0, 'Profil mixte'], [-1, 'Virages lents, traction']];
+const STRESSES = [['hi', 'Pneus très sollicités', (s) => s >= 4], ['mid', 'Pneus moyennement sollicités', (s) => s === 3], ['lo', 'Pneus peu sollicités', (s) => s <= 2]];
+let shapes = null;
 export function dnaMap(races) {
-  const cells = new Map();
-  for (const r of races) {
-    const n = CIRCUIT_DNA[r.circuitId];
-    if (!n) continue;
-    const key = `${n.lateral - n.traction}|${n.tyreStress}`;
-    cells.set(key, [...(cells.get(key) || []), r]);
-  }
-  if (!cells.size) return '';
-  const W = pageWidth(), H = 320, pl = 30, pr = 120, pt = 40, pb = 34;
-  const X = (v) => pl + ((v + 4) / 8) * (W - pl - pr), Y = (v) => pt + ((5 - v) / 4) * (H - pt - pb);
-  let g = `<line x1="${X(0)}" x2="${X(0)}" y1="${pt}" y2="${H - pb}" class="sz-gl" stroke-dasharray="3 3"/>`;
-  for (let v = 1; v <= 5; v++) g += `<line x1="${pl}" x2="${W - pr}" y1="${Y(v)}" y2="${Y(v)}" class="sz-gl"/><text x="${pl - 8}" y="${Y(v) + 4}" class="sz-ax" text-anchor="end">${v}</text>`;
-  g += `<text x="${pl}" y="${H - 8}" class="sz-ax">${t('← virages lents (traction)')}</text><text x="${W - pr}" y="${H - 8}" class="sz-ax" text-anchor="end">${t('virages rapides (appui latéral) →')}</text>`;
-  const pts = [...cells].map(([key, list]) => {
-    const [x, y] = key.split('|').map(Number);
-    return `<circle cx="${X(x)}" cy="${Y(y)}" r="${3 + list.length}" class="sz-dna-pt"/>${list.map((r, i) => `<text x="${X(x) + 7 + list.length}" y="${Y(y) + 4 + (i - (list.length - 1) / 2) * 11}" class="sz-lbl">${esc(r.locality || short(r.name))}</text>`).join('')}`;
-  }).join('');
-  return `<section class="sz-box"><h3>Circuits qui se ressemblent</h3><div class="sz-scroll"><svg viewBox="0 0 ${W} ${H}" class="sz-svg sz-dna-map">${g}${pts}</svg></div>
-    <div class="muted small"><span>En hauteur : contrainte sur les pneus (1 à 5). Circuits regroupés : mêmes notes.</span> <span>Notes d'après les previews Pirelli.</span></div></section>`;
+  const list = races.map((r) => ({ r, n: CIRCUIT_DNA[r.circuitId] })).filter((x) => x.n);
+  if (!list.length) return '';
+  const fams = STRESSES.flatMap(([k, sl, inS]) => PROFILES.map(([p, pl]) => ({ k, sl, pl,
+    items: list.filter(({ n }) => inS(n.tyreStress) && Math.sign(n.lateral - n.traction) === p).sort((a, b) => b.n.tyreStress - a.n.tyreStress || a.r.round - b.r.round) })))
+    .filter((f) => f.items.length);
+  // Tracés (fichier déjà utilisé par le Calendrier) : posés une fois la rubrique affichée
+  (shapes ??= fetch('/data/f1-circuits.json').then((x) => x.json()).then((d) => d.circuits || []).catch(() => [])).then((all) => {
+    for (const el of document.querySelectorAll('.sz-fam-trk:not(.ok)')) {
+      const s = nearestShape(all, Number(el.dataset.lat), Number(el.dataset.lon));
+      if (s) el.innerHTML = `<polygon points="${shapeOutline(s.line)}"/>`;
+      el.classList.add('ok');
+    }
+  });
+  return `<section class="sz-box"><h3>Circuits qui se ressemblent</h3><div class="sz-fams">${fams.map((f) => `<article class="sz-fam ${f.k}">
+      <div class="sz-fam-h"><b>${t(f.pl)}</b><span class="muted small">${t(f.sl)}</span></div>
+      <div class="sz-fam-list">${f.items.map(({ r }) => `<div class="sz-fam-c"><svg class="sz-fam-trk" viewBox="0 0 100 100" aria-hidden="true" data-lat="${r.lat}" data-lon="${r.lon}"></svg><span>${esc(r.locality || short(r.name))}</span></div>`).join('')}</div>
+    </article>`).join('')}</div>
+    <p class="muted small">${t('Familles d\'après les notes des previews Pirelli : virages lents (traction) ou rapides (appui latéral), et contrainte sur les pneus.')}</p></section>`;
 }
 
 const KNOWN = { madring: { length: 5.414, corners: 22 }, sepang: { length: 5.543, corners: 15 } };
