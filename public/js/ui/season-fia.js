@@ -160,7 +160,7 @@ export function renderTech(ctx, fia) {
     let c = 0;
     const pts = evs.map((e, i) => { c += e.tech.filter((u) => u.team === t.team).length; return [X(i), Y(c)]; });
     labels.push({ y: pts.at(-1)[1] + 4, t, c });
-    return `<polyline fill="none" stroke="${tcol(t.team, ctx, t.teamId)}" stroke-width="2" points="${pts.map((p) => p.join(',')).join(' ')}"/>`;
+    return `<polyline fill="none" stroke="${tcol(t.team, ctx, t.teamId)}" stroke-width="2" pathLength="1" points="${pts.map((p) => p.join(',')).join(' ')}"/>`;
   }).join('');
   labels.sort((a, b) => a.y - b.y);
   for (let i = 1; i < labels.length; i++) labels[i].y = Math.max(labels[i].y, labels[i - 1].y + 12);

@@ -406,7 +406,7 @@ function lineChartSvg(series, { w = 900, h = 300 } = {}) {
   for (let i = 1; i < labels.length; i++) labels[i].y = Math.max(labels[i].y, labels[i - 1].y + 13);
   const over = (labels.at(-1)?.y ?? 0) - (h - pb);
   if (over > 0) for (let i = labels.length - 1; i >= 0; i--) labels[i].y = Math.min(labels[i].y, (labels[i + 1]?.y ?? h - pb + 13) - 13);
-  const lines = series.map((s) => `<polyline fill="none" stroke="${s.color}" stroke-width="2" ${s.dashed ? 'stroke-dasharray="5 4"' : ''} points="${s.points.map((p) => `${X(p.x)},${Y(p.y)}`).join(' ')}"/>`).join('')
+  const lines = series.map((s) => `<polyline fill="none" stroke="${s.color}" stroke-width="2" ${s.dashed ? 'stroke-dasharray="5 4"' : 'pathLength="1"'} points="${s.points.map((p) => `${X(p.x)},${Y(p.y)}`).join(' ')}"/>`).join('')
     + labels.map(({ s, last, y }) => `<text x="${X(last.x) + 5}" y="${y}" fill="${s.color}" class="sz-lbl">${esc(s.label)} ${last.y}</text>`).join('');
   return `<svg viewBox="0 0 ${w} ${h}" class="sz-svg">${grid}${lines}</svg>`;
 }
@@ -768,7 +768,11 @@ function tick() {
   const ms = Math.max(0, Date.parse(el.dataset.t) - Date.now());
   const d = Math.floor(ms / 86400000), h = Math.floor(ms / 3600000) % 24, m = Math.floor(ms / 60000) % 60, s = Math.floor(ms / 1000) % 60;
   const p = (v) => String(v).padStart(2, '0');
-  el.innerHTML = [[d, 'jours'], [h, 'h'], [m, 'min'], [s, 's']].map(([v, l]) => `<span><b>${p(v)}</b><small>${l}</small></span>`).join('');
+  // Unité qui vient de changer (secondes, minutes…) : marquée pour descendre en place
+  const before = (el.dataset.v || '').split(',');
+  const now = [d, h, m, s].map(p);
+  el.dataset.v = now.join(',');
+  el.innerHTML = [[d, 'jours'], [h, 'h'], [m, 'min'], [s, 's']].map(([, l], i) => `<span${before.length === 4 && before[i] !== now[i] ? ' class="chg"' : ''}><b>${now[i]}</b><small>${l}</small></span>`).join('');
 }
 
 // Changement de rubrique : le contenu apparaît en cascade (une seule fois, pas à chaque mise à jour)
@@ -778,7 +782,24 @@ function animate() {
   void el.offsetWidth;
   el.classList.add('sz-anim');
   clearTimeout(animate.t);
-  animate.t = setTimeout(() => el.classList.remove('sz-anim'), 500);
+  animate.t = setTimeout(() => el.classList.remove('sz-anim'), 1300);   // le temps que les courbes se tracent
+  requestAnimationFrame(() => countUp(el));   // après l'affichage de la rubrique
+}
+
+// Grands nombres des cartes (622 éléments, 67 abandons…) : comptés de 0 à leur valeur à l'ouverture de la rubrique
+function countUp(root) {
+  if (document.documentElement.dataset.motion === 'off' || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  for (const el of root.querySelectorAll('.sz-card .sz-big')) {
+    const v = /^\d{2,5}$/.test(el.textContent.trim()) && el.children.length === 0 ? Number(el.textContent) : null;
+    if (!v) continue;
+    const t0 = performance.now();
+    const step = (t) => {
+      const k = Math.min(1, (t - t0) / 700);
+      el.textContent = String(Math.round(v * (1 - (1 - k) ** 3)));
+      if (k < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
 }
 
 // y : saison à afficher (bilan de la saison passée depuis l'accueil hors saison) ; item : pilote ou Grand Prix demandé

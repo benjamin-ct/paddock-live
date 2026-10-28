@@ -326,6 +326,11 @@ export function showMobilePanel(id) {
   mobTab = id;
   storageSet(MOB_KEY, id);
   render(true);
+  // Panneau choisi : glisse en place
+  if (!mobile()) return;
+  const el = panelEl(id);
+  el?.classList.add('mob-in');
+  setTimeout(() => el?.classList.remove('mob-in'), 300);
 }
 
 function renderMobile(grid) {

@@ -19,6 +19,14 @@ l'application (Réglages → À propos → Nouveautés).
   cassées (ailerons, suspensions, fonds…). Estimations de u/Dense-Strategy-867 sur Reddit, compilées par Formula 1
   Dashboard, mises à jour toutes seules après chaque Grand Prix. Aussi dans la version web.
 
+### Animations
+- Plus de mouvement dans l'appli et la version web : les courbes de la Saison se tracent et les barres se remplissent à
+  l'ouverture d'une rubrique, les cartes arrivent en cascade et leurs grands nombres défilent jusqu'à leur valeur ; le
+  podium des résultats monte (2e, 3e puis le vainqueur, avec un reflet) et les stratégies se déroulent ; l'accueil
+  s'affiche en cascade ; les chiffres des comptes à rebours descendent en place ; sur téléphone, le panneau choisi glisse
+  en place ; reflet sur les boutons principaux au survol. Tout se coupe dans Réglages → Apparence (Animations de
+  l'interface), ou avec l'option « réduire les animations » du système.
+
 ## v1.29.0 — 2026-10-28
 
 ### Alertes sur le téléphone
