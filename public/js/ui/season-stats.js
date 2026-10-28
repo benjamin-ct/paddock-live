@@ -4,8 +4,9 @@
 import { esc, teamColor, teamMark } from '../util.js';
 import { cleanLaps, lapsLed, similarCircuits, SEASON_CRITERIA, MATE_CRITERIA, GRADES, retired } from '/shared/season-calc.js';
 import { icon } from '../icons.js';
-import { DEC, EN } from '../i18n.js';
+import { DEC, EN, t } from '../i18n.js';
 import { gpShort } from '/shared/gp-names.js';
+import { CIRCUIT_DNA, DNA_KEYS } from '/shared/circuit-dna.js';
 
 const median = (a) => {
   if (!a.length) return null;
@@ -393,6 +394,38 @@ const STRESS = { 1: ['Très élevée', 5], 2: ['Élevée', 4], 3: ['Moyenne', 3]
 
 // Circuits sans tracé dans l'API des cartes (Madring, nouveau ; Sepang, absent depuis 2017) : longueur et virages
 // officiels (formula1.com : 5,414 km et 22 virages ; Sepang : 5,543 km et 15 virages)
+// ADN du circuit : notes Pirelli de 1 à 5 (traction, adhérence, abrasion…), avec la source
+export function dnaBlock(circuitId, head = true) {
+  const n = CIRCUIT_DNA[circuitId];
+  if (!n) return '';
+  return `<div class="sz-dna">${head ? '<div class="muted small sz-dna-h">ADN du circuit</div>' : ''}${DNA_KEYS.map(([k, l]) => `<div class="sz-meter sz-stress"><span>${l}</span><div class="sz-dots">${Array.from({ length: 5 }, (_, i) => `<i class="${i < n[k] ? 'on' : ''}"></i>`).join('')}</div><b>${n[k]}/5</b></div>`).join('')}
+    <div class="muted small"><span>D'après Pirelli :</span> <a href="${esc(n.source)}" target="_blank" rel="noopener">${t('preview du Grand Prix {}', n.season)}</a></div></div>`;
+}
+
+// Carte des circuits qui se ressemblent : virages lents (traction) ou rapides (appui latéral) en largeur, contrainte
+// sur les pneus en hauteur ; circuits aux mêmes notes regroupés
+export function dnaMap(races) {
+  const cells = new Map();
+  for (const r of races) {
+    const n = CIRCUIT_DNA[r.circuitId];
+    if (!n) continue;
+    const key = `${n.lateral - n.traction}|${n.tyreStress}`;
+    cells.set(key, [...(cells.get(key) || []), r]);
+  }
+  if (!cells.size) return '';
+  const W = pageWidth(), H = 320, pl = 30, pr = 120, pt = 40, pb = 34;
+  const X = (v) => pl + ((v + 4) / 8) * (W - pl - pr), Y = (v) => pt + ((5 - v) / 4) * (H - pt - pb);
+  let g = `<line x1="${X(0)}" x2="${X(0)}" y1="${pt}" y2="${H - pb}" class="sz-gl" stroke-dasharray="3 3"/>`;
+  for (let v = 1; v <= 5; v++) g += `<line x1="${pl}" x2="${W - pr}" y1="${Y(v)}" y2="${Y(v)}" class="sz-gl"/><text x="${pl - 8}" y="${Y(v) + 4}" class="sz-ax" text-anchor="end">${v}</text>`;
+  g += `<text x="${pl}" y="${H - 8}" class="sz-ax">${t('← virages lents (traction)')}</text><text x="${W - pr}" y="${H - 8}" class="sz-ax" text-anchor="end">${t('virages rapides (appui latéral) →')}</text>`;
+  const pts = [...cells].map(([key, list]) => {
+    const [x, y] = key.split('|').map(Number);
+    return `<circle cx="${X(x)}" cy="${Y(y)}" r="${3 + list.length}" class="sz-dna-pt"/>${list.map((r, i) => `<text x="${X(x) + 7 + list.length}" y="${Y(y) + 4 + (i - (list.length - 1) / 2) * 11}" class="sz-lbl">${esc(r.locality || short(r.name))}</text>`).join('')}`;
+  }).join('');
+  return `<section class="sz-box"><h3>Circuits qui se ressemblent</h3><div class="sz-scroll"><svg viewBox="0 0 ${W} ${H}" class="sz-svg sz-dna-map">${g}${pts}</svg></div>
+    <div class="muted small"><span>En hauteur : contrainte sur les pneus (1 à 5). Circuits regroupés : mêmes notes.</span> <span>Notes d'après les previews Pirelli.</span></div></section>`;
+}
+
 const KNOWN = { madring: { length: 5.414, corners: 22 }, sepang: { length: 5.543, corners: 15 } };
 export function renderCircuits(ctx, sort = 'round') {
   const { data, stats } = ctx;
@@ -410,7 +443,7 @@ export function renderCircuits(ctx, sort = 'round') {
       round: race.round, r, p, ty, avgSpeed: p.fastest?.avgSpeed || 0, topSpeed: p.topSpeed?.kmh || 0, gains: p.gains || 0, neutral: p.neutralPct || 0, length: p.length || 0,
       tyre: ty ? 6 - ty.hard : 0, stopsPerCar: finStops / cars,
       // Caractéristiques comparées pour trouver les circuits proches
-      key: r.circuit, corners: p.corners, passes: p.laps ? p.gains / p.laps : null, hard: ty?.hard ?? null,
+      key: r.circuit, corners: p.corners, passes: p.laps ? p.gains / p.laps : null, hard: ty?.hard ?? null, ...CIRCUIT_DNA[r.circuitId],
     };
   });
   for (const x of items) { x.avgSpeed ||= null; x.topSpeed ||= null; x.length ||= null; }
@@ -424,6 +457,7 @@ export function renderCircuits(ctx, sort = 'round') {
     return `<div class="sz-meter"><span>${label}</span><div><i style="width:${v ? w : 0}%"></i></div><b>${txt}</b></div>`;
   };
   return `${pendingNote(stats)}
+    ${dnaMap(data.races)}
     <div class="sz-h2h-pick"><label class="small">Trier par <select id="szCircSort">${Object.entries(SORTS).map(([k, l]) => `<option value="${k}" ${k === sort ? 'selected' : ''}>${l}</option>`).join('')}</select></label></div>
     <div class="sz-circs">${items.map(({ round, r, p, ty, stopsPerCar, key }) => `<article class="sz-circ">
       <div class="sz-circ-head"><span class="muted">R${round}</span> <b>${esc(short(r.name))}</b><div class="muted small">${esc(r.circuit || '')} · ${esc(r.locality || '')}</div></div>
@@ -439,7 +473,7 @@ export function renderCircuits(ctx, sort = 'round') {
           <dt>Pneus Pirelli</dt><dd>${ty ? `<span class="sz-cpd">C${ty.hard} · C${ty.medium} · C${ty.soft}</span>` : '—'}</dd>
         </dl>
       </div>
-      <div class="sz-meter sz-stress"><span>Contrainte pneus</span><div class="sz-dots">${ty ? Array.from({ length: 5 }, (_, i) => `<i class="${i < STRESS[ty.hard][1] ? 'on' : ''}"></i>`).join('') : ''}</div><b>${ty ? STRESS[ty.hard][0] : '—'}</b></div>
+      ${dnaBlock(r.circuitId) || `<div class="sz-meter sz-stress"><span>Contrainte pneus</span><div class="sz-dots">${ty ? Array.from({ length: 5 }, (_, i) => `<i class="${i < STRESS[ty.hard][1] ? 'on' : ''}"></i>`).join('') : ''}</div><b>${ty ? STRESS[ty.hard][0] : '—'}</b></div>`}
       ${meter('Arrêts par pilote', 'stopsPerCar', stopsPerCar, fr(stopsPerCar))}
       ${meter('Vitesse moyenne', 'avgSpeed', p.fastest?.avgSpeed, p.fastest?.avgSpeed ? `${fr(p.fastest.avgSpeed, 0)} km/h` : '—')}
       ${meter('Vitesse de pointe', 'topSpeed', p.topSpeed?.kmh, p.topSpeed ? `${p.topSpeed.kmh} km/h` : '—')}

@@ -1107,6 +1107,11 @@ body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-selec
 .sz-grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 12px; margin-bottom: 14px; }
 .sz-box { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; margin-bottom: 12px; overflow-x: auto; }
 .sz-box h3 { margin: 0 0 10px; font-size: 17px; }
+.sz-dna { display: grid; gap: 4px; }
+.sz-dna-h { margin-top: 6px; }
+.sz-dna a { color: inherit; }
+.sz-dna-map .sz-lbl { fill: var(--text); paint-order: stroke; stroke: var(--panel); stroke-width: 4px; stroke-linejoin: round; }
+.sz-dna-pt { fill: var(--accent); fill-opacity: .75; stroke: var(--panel); stroke-width: 1.5; }
 .sz-table { width: 100%; border-collapse: collapse; font-size: 13.5px; margin-bottom: 8px; }
 .sz-ssr-title { font-size: 22px; margin: 0 0 12px; }
 .sz-gp-nav { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin: 4px 0 16px; }

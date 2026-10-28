@@ -24,6 +24,10 @@ l'application (Réglages → À propos → Nouveautés).
   pilotes tiennent dans la page ; le Bilan est sur deux rangées, avec un bouton pour choisir ses favoris ; le Profil
   des circuits donne la longueur et les virages de Madring et de Sepang. Les écuries ont le même nom partout (Racing
   Bulls, Red Bull, Alpine, Haas, Cadillac) et les pilotes leurs accents dans Éléments moteur (Pérez).
+- ADN des circuits, d'après les previews de Pirelli : traction, adhérence et abrasion de l'asphalte, évolution de la
+  piste, contrainte sur les pneus, freinage et appui latéral (notes de 1 à 5) sur la fiche de chaque Grand Prix, à venir
+  compris, et dans Profil des circuits, avec une carte des circuits qui se ressemblent (virages lents ou rapides). Aussi
+  dans la version web.
 
 ### Accueil
 - Appli ouverte sans connexion (ou serveur injoignable) : l'accueil et l'écran « Pas de séance en direct » disent
