@@ -112,7 +112,7 @@ function build() {
   box = document.createElement('section');
   box.className = 'sz-box cal-globe';
   box.innerHTML = `<div class="cg-map"></div>
-    <div class="cal-map-key small cg-key"><span class="cal-pin-key next"></span>Prochain <span class="cal-pin-key future"></span>À venir <span class="cal-pin-key done"></span>Couru</div>
+    <div class="cal-map-key small cg-key"><span><i class="cal-pin-key next"></i>Prochain</span><span><i class="cal-pin-key future"></i>À venir</span><span><i class="cal-pin-key done"></i>Couru</span></div>
     <button class="btn small cg-world" type="button" title="Revenir au globe">${icon('globe')} Monde</button>
     <div class="cg-cards"></div>`;
   shapes = fetch('/data/f1-circuits.json').then((r) => r.json()).then((d) => d.circuits || []).catch(() => []);
