@@ -15,7 +15,7 @@ export const FORMATS = {
   x: { w: 1080, h: 1350, name: 'x' },
 };
 
-export const C = { bg: '#0b0d12', bg2: '#151a24', panel: 'rgba(255,255,255,0.045)', line: 'rgba(255,255,255,0.10)', text: '#f3f5f9', muted: '#9aa3b2', red: '#e10600', gold: '#e8c35a', silver: '#c7ccd6', bronze: '#d08a4f', green: '#3ddc84' };
+export const C = { bg: '#06070b', bg2: '#11141c', panel: 'rgba(255,255,255,0.055)', line: 'rgba(255,255,255,0.12)', text: '#f5f7fb', muted: '#98a1b3', red: '#ff1e0f', gold: '#f2c94c', silver: '#d3d8e2', bronze: '#e0955a', green: '#3ddc84' };
 export const TITLE = '"Saira Condensed", "Titillium Web", sans-serif';
 export const BODY = '"Titillium Web", sans-serif';
 export const MONO = '"JetBrains Mono", monospace';
@@ -112,16 +112,59 @@ export function fit(ctx, text, max, size, weight, family) {
   do { ctx.font = `${weight} ${s}px ${family}`; s -= 2; } while (ctx.measureText(text).width > max && s > 10);
   return s + 2;
 }
-export function txt(ctx, text, x, y, { size = 32, weight = 400, family = BODY, color = C.text, align = 'left', max = 0, base = 'alphabetic', spacing = 0 } = {}) {
+// italic : penché vers l'avant (titres « vitesse ») ; stroke : contour seul, de cette épaisseur
+export function txt(ctx, text, x, y, { size = 32, weight = 400, family = BODY, color = C.text, align = 'left', max = 0, base = 'alphabetic', spacing = 0, italic = false, stroke = 0 } = {}) {
   const s = max ? fit(ctx, text, max, size, weight, family) : size;
   ctx.font = `${weight} ${s}px ${family}`;
   ctx.fillStyle = color;
   ctx.textAlign = align;
   ctx.textBaseline = base;
   if ('letterSpacing' in ctx) ctx.letterSpacing = `${spacing}px`;
-  ctx.fillText(text, x, y);
+  ctx.save();
+  ctx.translate(x, y);
+  if (italic) ctx.transform(1, 0, -SKEW, 1, 0, 0);
+  if (stroke) { ctx.strokeStyle = color; ctx.lineWidth = stroke; ctx.lineJoin = 'round'; ctx.strokeText(text, 0, 0); } else ctx.fillText(text, 0, 0);
+  ctx.restore();
   if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
   return s;
+}
+export const SKEW = 0.16;
+
+// Carte « verre » : fond légèrement clair, reflet en haut, liseré fin ; tint : couleur (écurie) qui
+// teinte la carte depuis la gauche
+export function card(ctx, x, y, w, h, r, { tint = null, strong = false } = {}) {
+  ctx.save();
+  rr(ctx, x, y, w, h, r);
+  const g = ctx.createLinearGradient(x, y, x, y + h);
+  g.addColorStop(0, `rgba(255,255,255,${strong ? 0.11 : 0.075})`); g.addColorStop(1, `rgba(255,255,255,${strong ? 0.05 : 0.03})`);
+  ctx.fillStyle = g; ctx.fill();
+  if (tint) {
+    const t = ctx.createLinearGradient(x, y, x + Math.min(w, 520), y);
+    t.addColorStop(0, alpha(hexOf(tint), 0.42)); t.addColorStop(1, alpha(hexOf(tint), 0));
+    ctx.fillStyle = t; ctx.fill();
+  }
+  const b = ctx.createLinearGradient(x, y, x, y + h);
+  b.addColorStop(0, 'rgba(255,255,255,0.22)'); b.addColorStop(0.5, 'rgba(255,255,255,0.06)'); b.addColorStop(1, 'rgba(255,255,255,0.03)');
+  ctx.strokeStyle = b; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.restore();
+}
+// Couleur rgb(...) de vivid() remise en #rrggbb (pour alpha)
+const hexOf = (c) => {
+  const m = /^rgb\((\d+),(\d+),(\d+)\)$/.exec(c || '');
+  return m ? `#${m.slice(1).map((v) => Number(v).toString(16).padStart(2, '0')).join('')}` : c;
+};
+// Pastille arrondie (étiquette) : renvoie sa largeur
+export function pill(ctx, label, x, y, h, { bg = C.red, color = '#fff', align = 'left', outline = false, dot = false } = {}) {
+  const size = Math.round(h * 0.52);
+  ctx.font = `800 ${size}px ${TITLE}`;
+  const sp = size * 0.12;
+  const w = ctx.measureText(label).width + sp * label.length + h * (dot ? 1.25 : 0.9);
+  const x0 = align === 'right' ? x - w : x;
+  rr(ctx, x0, y, w, h, h / 2);
+  if (outline) { ctx.strokeStyle = bg; ctx.lineWidth = 2; ctx.stroke(); } else { ctx.fillStyle = bg; ctx.fill(); }
+  if (dot) { ctx.fillStyle = typeof dot === 'string' ? dot : outline ? bg : color; ctx.beginPath(); ctx.arc(x0 + h * 0.5, y + h / 2, h * 0.13, 0, Math.PI * 2); ctx.fill(); }
+  txt(ctx, label, x0 + (dot ? h * 0.82 : h * 0.45), y + h * 0.7, { size, weight: 800, family: TITLE, color, spacing: sp });
+  return w;
 }
 export function wrap(ctx, text, x, y, maxW, lineH, maxLines, style) {
   ctx.font = `${style.weight || 400} ${style.size}px ${style.family || BODY}`;
@@ -157,55 +200,116 @@ export function vivid(hex) {
   return `rgb(${Math.round(r)},${Math.round(g)},${Math.round(b)})`;
 }
 
+// Fond : noir profond, deux halos de la couleur (écurie, type de news) en haut à droite et en bas à
+// gauche, un trait de lumière oblique et un grain fin (rendu « photo », sans aplats)
 export function background(ctx, W, H, accent) {
-  const g = ctx.createLinearGradient(0, 0, W * 0.4, H);
+  const g = ctx.createLinearGradient(0, 0, W * 0.3, H);
   g.addColorStop(0, C.bg2);
   g.addColorStop(1, C.bg);
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, W, H);
-  if (accent) {
-    const rg = ctx.createRadialGradient(W * 0.85, H * 0.2, 0, W * 0.85, H * 0.2, Math.max(W, H) * 0.7);
-    rg.addColorStop(0, alpha(accent, 0.28));
-    rg.addColorStop(1, alpha(accent, 0));
-    ctx.fillStyle = rg;
-    ctx.fillRect(0, 0, W, H);
-  }
-  // Fines lignes obliques (effet vitesse)
+  const glow = (x, y, r, a) => {
+    const rg = ctx.createRadialGradient(x, y, 0, x, y, r);
+    rg.addColorStop(0, alpha(accent, a)); rg.addColorStop(0.55, alpha(accent, a * 0.32)); rg.addColorStop(1, alpha(accent, 0));
+    ctx.fillStyle = rg; ctx.fillRect(0, 0, W, H);
+  };
+  if (accent) { glow(W * 0.92, H * 0.08, Math.max(W, H) * 0.75, 0.42); glow(W * 0.02, H * 0.98, Math.max(W, H) * 0.5, 0.16); }
+  // Trait de lumière oblique
   ctx.save();
-  ctx.strokeStyle = 'rgba(255,255,255,0.025)';
-  ctx.lineWidth = 2;
-  for (let x = -H; x < W; x += 46) { ctx.beginPath(); ctx.moveTo(x, H); ctx.lineTo(x + H * 0.45, 0); ctx.stroke(); }
+  ctx.translate(W * 0.62, 0); ctx.rotate(0.38);
+  const band = ctx.createLinearGradient(-W * 0.12, 0, W * 0.12, 0);
+  band.addColorStop(0, 'rgba(255,255,255,0)'); band.addColorStop(0.5, 'rgba(255,255,255,0.045)'); band.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = band; ctx.fillRect(-W * 0.12, -H, W * 0.24, H * 3);
   ctx.restore();
+  // Assombri en bas (lisibilité du pied)
+  const v = ctx.createLinearGradient(0, H * 0.7, 0, H);
+  v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,0.35)');
+  ctx.fillStyle = v; ctx.fillRect(0, 0, W, H);
+  grain(ctx, W, H);
+}
+// Grain : motif de bruit tiré une fois (le même à chaque image d'une vidéo, sans scintillement)
+let noise = null;
+function grain(ctx, W, H) {
+  if (noise === null) {
+    noise = false;
+    const c = typeof OffscreenCanvas !== 'undefined' ? new OffscreenCanvas(160, 160) : typeof document !== 'undefined' ? Object.assign(document.createElement('canvas'), { width: 160, height: 160 }) : null;
+    if (c) {
+      const x = c.getContext('2d');
+      const img = x.createImageData(160, 160);
+      let seed = 7;
+      for (let i = 0; i < img.data.length; i += 4) { seed = (seed * 16807) % 2147483647; const v = seed % 255; img.data[i] = v; img.data[i + 1] = v; img.data[i + 2] = v; img.data[i + 3] = 10; }
+      x.putImageData(img, 0, 0);
+      noise = c;
+    }
+  }
+  if (!noise) return;
+  const pat = ctx.createPattern(noise, 'repeat');
+  if (!pat) return;
+  ctx.save(); ctx.fillStyle = pat; ctx.fillRect(0, 0, W, H); ctx.restore();
 }
 
-// En-tête : drapeau, Grand Prix, séance et date ; pied : signature
-export function frame(ctx, W, H, d, o, title) {
-  const pad = Math.round(W * 0.055);
-  const top = Math.round(Math.min(W, H) * 0.06);
-  ctx.fillStyle = C.red;
-  ctx.fillRect(pad, top, 10, Math.round(Math.min(W, H) * 0.085));
-  let x = pad + 28;
-  if (o.flag) {
-    const fh = Math.round(Math.min(W, H) * 0.04);
-    const fw = Math.round(fh * o.flag.width / o.flag.height);
-    rr(ctx, x, top + 4, fw, fh, 5); ctx.save(); ctx.clip(); ctx.drawImage(o.flag, x, top + 4, fw, fh); ctx.restore();
-    x += fw + 16;
+// Page du carrousel en cours de dessin (paintSlide) : points de progression dans le pied
+let page = null;
+// Points de progression du carrousel, centrés sur x
+export function pageDots(ctx, x, y, u) {
+  if (!page || page.total < 2) return;
+  const r = 6 * u; const gap = 10 * u; const long = 34 * u;
+  let cx = x - ((page.total - 1) * (r * 2 + gap) + long) / 2;
+  for (let i = 1; i <= page.total; i++) {
+    const w = i === page.n ? long : r * 2;
+    rr(ctx, cx, y - r, w, r * 2, r);
+    ctx.fillStyle = i === page.n ? C.red : 'rgba(255,255,255,0.28)'; ctx.fill();
+    cx += w + gap;
   }
-  const s1 = Math.round(Math.min(W, H) * 0.046);
-  // Place prise à droite par le titre de l'image : le nom du Grand Prix s'arrête avant
+}
+// Pied commun : signature (marque rouge) à gauche, progression du carrousel au milieu ; renvoie la
+// ligne de base
+export function footer(ctx, W, H, o, { dots = true } = {}) {
+  const m = Math.min(W, H);
+  const u = m / 1080;
+  const pad = Math.round(W * 0.055);
+  const fy = H - Math.round(m * 0.045);
+  ctx.fillStyle = C.red;
+  rr(ctx, pad, fy - 27 * u, 8 * u, 30 * u, 3 * u); ctx.fill();
+  txt(ctx, o.signature || '@BenjyPaddock', pad + 22 * u, fy, { size: Math.round(m * 0.032), weight: 700, family: TITLE, color: C.text, spacing: 1 });
+  if (dots) pageDots(ctx, W / 2, fy - 11 * u, u);
+  return fy;
+}
+// En-tête des images sans Grand Prix (couverture, news, abonnement…) : pastille rouge et sous-titre
+export function kicker(ctx, x, y, u, label, sub) {
+  const w = pill(ctx, label, x, y, 54 * u, { bg: C.red, dot: '#fff' });
+  if (sub) txt(ctx, sub, x + w + 20 * u, y + 37 * u, { size: Math.round(26 * u), weight: 700, family: TITLE, color: C.muted, spacing: 2.5, max: 1080 * u - w - x * 2 - 20 * u });
+  return w;
+}
+
+// En-tête : drapeau, Grand Prix (penché), séance et date, titre de l'image dans une pastille ; pied :
+// signature et progression du carrousel
+export function frame(ctx, W, H, d, o, title) {
+  const m = Math.min(W, H);
+  const u = m / 1080;
+  const pad = Math.round(W * 0.055);
+  const top = Math.round(m * 0.06);
+  let x = pad;
+  if (o.flag) {
+    const fh = Math.round(m * 0.042);
+    const fw = Math.round(fh * o.flag.width / o.flag.height);
+    rr(ctx, x, top + 6 * u, fw, fh, 8 * u); ctx.save(); ctx.clip(); ctx.drawImage(o.flag, x, top + 6 * u, fw, fh); ctx.restore();
+    rr(ctx, x, top + 6 * u, fw, fh, 8 * u); ctx.strokeStyle = 'rgba(255,255,255,0.25)'; ctx.lineWidth = 1.5; ctx.stroke();
+    x += fw + 18 * u;
+  } else { ctx.fillStyle = C.red; rr(ctx, x, top + 6 * u, 10 * u, m * 0.042, 3 * u); ctx.fill(); x += 28 * u; }
+  const s1 = Math.round(m * 0.05);
+  // Place prise à droite par la pastille du titre : le nom du Grand Prix s'arrête avant
+  const ph = Math.round(46 * u);
   let tw = 0;
-  if (title) { ctx.font = `700 ${Math.round(s1 * 0.6)}px ${TITLE}`; tw = ctx.measureText(title.toUpperCase()).width + title.length * 3 + 30; }
-  txt(ctx, d.gp.toUpperCase(), x, top + s1 * 0.95, { size: s1, weight: 800, family: TITLE, max: W - x - pad - tw, spacing: 0.5 });
+  if (title) { ctx.font = `800 ${Math.round(ph * 0.52)}px ${TITLE}`; tw = ctx.measureText(title.toUpperCase()).width + title.length * ph * 0.06 + ph * 1.25 + 24 * u; }
+  txt(ctx, d.gp.toUpperCase(), x, top + s1 * 0.92, { size: s1, weight: 800, family: TITLE, max: W - x - pad - tw, italic: true });
   const sub = [d.label, d.date, d.circuit].filter(Boolean).join('  ·  ').toUpperCase();
-  txt(ctx, sub, pad + 28, top + s1 * 0.95 + Math.round(s1 * 0.85), { size: Math.round(s1 * 0.52), weight: 600, family: TITLE, color: C.muted, max: W - pad * 2 - 28, spacing: 1.5 });
-  if (title) txt(ctx, title.toUpperCase(), W - pad, top + s1 * 0.95, { size: Math.round(s1 * 0.6), weight: 700, family: TITLE, color: C.red, align: 'right', spacing: 3 });
+  txt(ctx, sub, pad, top + s1 * 0.92 + Math.round(s1 * 0.95), { size: Math.round(s1 * 0.5), weight: 600, family: TITLE, color: C.muted, max: W - pad * 2, spacing: 2 });
+  if (title) pill(ctx, title.toUpperCase(), W - pad, top + 2 * u, ph, { bg: 'rgba(255,255,255,0.09)', color: C.text, align: 'right', dot: C.red });
   // Pied
-  const fy = H - Math.round(Math.min(W, H) * 0.045);
-  ctx.fillStyle = C.line;
-  ctx.fillRect(pad, fy - Math.round(Math.min(W, H) * 0.04), W - pad * 2, 2);
-  txt(ctx, o.signature || '@BenjyPaddock', pad, fy, { size: Math.round(Math.min(W, H) * 0.032), weight: 700, family: TITLE, color: C.text, spacing: 1 });
-  if (!d.final) txt(ctx, 'RÉSULTATS PROVISOIRES', W - pad, fy, { size: Math.round(Math.min(W, H) * 0.025), weight: 700, family: TITLE, color: C.gold, align: 'right', spacing: 2 });
-  return { pad, top: top + Math.round(Math.min(W, H) * 0.14), bottom: fy - Math.round(Math.min(W, H) * 0.06) };
+  const fy = footer(ctx, W, H, o);
+  if (!d.final) txt(ctx, 'RÉSULTATS PROVISOIRES', W - pad, fy, { size: Math.round(m * 0.025), weight: 700, family: TITLE, color: C.gold, align: 'right', spacing: 2 });
+  return { pad, top: top + Math.round(m * 0.15), bottom: fy - Math.round(m * 0.06) };
 }
 
 // Photo détourée posée en bas de la zone ; fade : bas fondu dans le décor
@@ -279,26 +383,37 @@ export function driverPhoto(ctx, img, cx, cy, r, color, label) {
 }
 
 // ---------- Diapositives ----------
+// Grand nom en contour, très pâle, derrière la photo (effet affiche)
+function ghost(ctx, text, x, y, size, maxW, align = 'center') {
+  ctx.save();
+  ctx.globalAlpha = 0.11;
+  txt(ctx, text, x, y, { size, weight: 800, family: TITLE, align, italic: true, stroke: Math.max(2, size / 90), max: maxW });
+  ctx.restore();
+}
+
 function hero(ctx, W, H, d, o, word) {
   const w = d.rows[0];
   const col = vivid(w.color);
+  const u = Math.min(W, H) / 1080;
+  const tall = H > 1600;
   background(ctx, W, H, w.color);
   const f = frame(ctx, W, H, d, o, '');
-  const img = o.photos?.[w.num];
-  const ph = (f.bottom - f.top) * 0.58;
-  photo(ctx, img, W * 0.12, f.top + 40, W * 0.76, ph, w.color, 0.3);
-  let y = f.top + ph + 40;
-  txt(ctx, word, f.pad, f.top + 50, { size: 50, weight: 700, family: TITLE, color: C.red, spacing: 6 });
-  txt(ctx, w.first, f.pad, y + 20, { size: 54, weight: 600 });
-  txt(ctx, w.last.toUpperCase(), f.pad, y + 165, { size: 160, weight: 800, family: TITLE, max: W - f.pad * 2 });
-  y += 200;
-  const lw = teamLogo(ctx, o, w.team, f.pad, y + 22, 52);
-  if (!lw) { ctx.fillStyle = col; ctx.fillRect(f.pad, y, 12, 44); }
-  txt(ctx, w.team, f.pad + (lw ? lw + 20 : 30), y + 37, { size: 40, weight: 600, max: W - f.pad * 2 - 30 });
-  stats(ctx, d, f.pad, y + (H > 1600 ? 130 : 100), W - f.pad * 2, 3);
+  const ph = (f.bottom - f.top) * (tall ? 0.6 : 0.55);
+  ghost(ctx, w.last.toUpperCase(), W / 2, f.top + ph * 0.86, Math.round((tall ? 340 : 300) * u), W * 1.15);
+  photo(ctx, o.photos?.[w.num], W * 0.05, f.top, W * 0.9, ph, w.color, 0.32);
+  let y = f.top + ph;
+  pill(ctx, word, f.pad, y - 30 * u, 60 * u, { bg: C.red, dot: '#fff' });
+  y += 30 * u;
+  txt(ctx, w.first, f.pad, y + 58 * u, { size: Math.round(52 * u), weight: 600 });
+  txt(ctx, w.last.toUpperCase(), f.pad - 6 * u, y + 200 * u, { size: Math.round(168 * u), weight: 800, family: TITLE, max: W - f.pad * 2, italic: true });
+  y += 232 * u;
+  const lw = teamLogo(ctx, o, w.team, f.pad, y + 22 * u, 50 * u);
+  if (!lw) { ctx.fillStyle = col; rr(ctx, f.pad, y, 10 * u, 44 * u, 4 * u); ctx.fill(); }
+  txt(ctx, w.team, f.pad + (lw ? lw + 20 * u : 28 * u), y + 37 * u, { size: Math.round(38 * u), weight: 600, color: C.muted, max: W - f.pad * 2 - 30 * u });
+  stats(ctx, d, f.pad, y + (tall ? 120 : 84) * u, W - f.pad * 2, 3, u);
 }
 
-function stats(ctx, d, x, y, w, perRow) {
+function stats(ctx, d, x, y, w, perRow, u = 1) {
   const r = d.rows;
   const items = [];
   if (d.kind === 'race') {
@@ -312,24 +427,27 @@ function stats(ctx, d, x, y, w, perRow) {
   }
   const n = Math.min(items.length, perRow > 2 ? 3 : perRow === 1 ? 3 : 2);
   if (!n) return;
-  const gap = 16;
+  const gap = 16 * u;
+  const h = 96 * u;
   const cw = perRow === 1 ? w : (w - gap * (n - 1)) / n;
   items.slice(0, perRow === 1 ? 3 : n).forEach(([k, v], i) => {
     const cx = perRow === 1 ? x : x + i * (cw + gap);
-    const cy = perRow === 1 ? y + i * 96 : y;
-    rr(ctx, cx, cy, perRow === 1 ? Math.min(cw, 420) : cw, 84, 14); ctx.fillStyle = C.panel; ctx.fill();
-    txt(ctx, k.toUpperCase(), cx + 22, cy + 32, { size: 22, weight: 700, family: TITLE, color: C.muted, spacing: 2 });
-    txt(ctx, v, cx + 22, cy + 70, { size: 36, weight: 700, family: MONO, max: (perRow === 1 ? Math.min(cw, 420) : cw) - 44 });
+    const cy = perRow === 1 ? y + i * (h + 12 * u) : y;
+    const ww = perRow === 1 ? Math.min(cw, 420 * u) : cw;
+    card(ctx, cx, cy, ww, h, 22 * u);
+    txt(ctx, k.toUpperCase(), cx + 24 * u, cy + 34 * u, { size: Math.round(21 * u), weight: 700, family: TITLE, color: C.muted, spacing: 3 });
+    txt(ctx, v, cx + 24 * u, cy + 80 * u, { size: Math.round(42 * u), weight: 800, family: TITLE, max: ww - 48 * u, italic: true });
   });
 }
 
 function podium(ctx, W, H, d, o) {
   background(ctx, W, H, d.rows[0].color);
   const f = frame(ctx, W, H, d, o, d.kind === 'race' ? 'Podium' : 'Top 3');
+  const u = Math.min(W, H) / 1080;
   const top3 = d.rows.slice(0, 3);
   const order = [1, 0, 2].filter((i) => top3[i]);
   const colW = (W - f.pad * 2) / 3;
-  const baseY = f.bottom - 40;
+  const baseY = f.bottom - 30 * u;
   const heights = H > 1600 ? [800, 670, 560] : [380, 300, 240];
   const r = Math.min(H > 1600 ? 175 : 125, colW * (H > 1600 ? 0.52 : 0.42));
   order.forEach((i, k) => {
@@ -337,57 +455,63 @@ function podium(ctx, W, H, d, o) {
     const cx = f.pad + colW * k + colW / 2;
     const h = heights[i];
     const y0 = baseY - h;
+    const bw = colW * 0.9;
+    // Marche : carte teintée de l'écurie, liseré de la médaille en haut
+    ctx.save();
+    rr(ctx, cx - bw / 2, y0, bw, h, 26 * u); ctx.clip();
     const g = ctx.createLinearGradient(0, y0, 0, baseY);
-    g.addColorStop(0, alpha(p.color, 0.55)); g.addColorStop(1, alpha(p.color, 0.08));
-    rr(ctx, cx - colW * 0.44, y0, colW * 0.88, h, 18); ctx.fillStyle = g; ctx.fill();
-    txt(ctx, String(i + 1), cx, y0 + h * 0.5 + 40, { size: Math.round(h * 0.42), weight: 800, family: TITLE, color: MEDAL[i], align: 'center' });
-    teamLogo(ctx, o, p.team, cx, y0 + 50, 56, 'center', colW * 0.5);
+    g.addColorStop(0, alpha(p.color, 0.62)); g.addColorStop(0.6, alpha(p.color, 0.16)); g.addColorStop(1, alpha(p.color, 0.04));
+    ctx.fillStyle = g; ctx.fillRect(cx - bw / 2, y0, bw, h);
+    ctx.fillStyle = MEDAL[i]; ctx.fillRect(cx - bw / 2, y0, bw, 6 * u);
+    ctx.restore();
+    card(ctx, cx - bw / 2, y0, bw, h, 26 * u);
+    txt(ctx, String(i + 1), cx, y0 + h * 0.52 + h * 0.17, { size: Math.round(h * 0.5), weight: 800, family: TITLE, color: MEDAL[i], align: 'center', italic: true });
+    teamLogo(ctx, o, p.team, cx, y0 + 52 * u, 54 * u, 'center', colW * 0.5);
     const tt = y0 - 172;
     const cy = tt - 18 - r;
     driverPhoto(ctx, o.photos?.[p.num], cx, cy, r, p.color, p.tla);
-    txt(ctx, p.first, cx, tt + 40, { size: 34, weight: 600, align: 'center', max: colW - 20 });
-    txt(ctx, p.last.toUpperCase(), cx, tt + 100, { size: 60, weight: 800, family: TITLE, align: 'center', max: colW - 16 });
-    txt(ctx, i === 0 ? (d.kind !== 'race' ? p.gap || p.team : p.team) : p.gap || p.team, cx, tt + 150, { size: 32, weight: 600, family: i === 0 && d.kind === 'race' ? BODY : MONO, color: C.muted, align: 'center', max: colW - 16 });
+    txt(ctx, p.first, cx, tt + 40, { size: 32, weight: 600, align: 'center', max: colW - 20, color: C.muted });
+    txt(ctx, p.last.toUpperCase(), cx, tt + 100, { size: 62, weight: 800, family: TITLE, align: 'center', max: colW - 16, italic: true });
+    txt(ctx, i === 0 ? (d.kind !== 'race' ? p.gap || p.team : p.team) : p.gap || p.team, cx, tt + 150, { size: 32, weight: 700, family: TITLE, color: i === 0 ? C.text : C.muted, align: 'center', max: colW - 16 });
   });
 }
 
 function classement(ctx, W, H, d, o) {
-  background(ctx, W, H, null);
+  background(ctx, W, H, d.rows[0]?.color);
   const f = frame(ctx, W, H, d, o, d.kind === 'quali' ? 'Grille' : 'Classement');
   const rows = d.rows.slice(0, 22);
   // Deux colonnes sauf en story (assez haute pour une seule) : textes lisibles sur un téléphone
   const cols = H > 1600 || rows.length <= 12 ? 1 : 2;
-  const gapC = 24;
+  const gapC = 20;
   const per = Math.ceil(rows.length / cols);
   const colW = (W - f.pad * 2 - (cols - 1) * gapC) / cols;
   const rowH = Math.min(cols === 1 ? 76 : 92, (f.bottom - f.top + 20) / per);
   const fs = Math.round(Math.min(rowH * 0.5, cols === 1 ? 38 : 34));
   const names = colW > 620;
+  const laps = d.kind === 'practice' && d.rows.some((x) => x.laps);
   rows.forEach((r, i) => {
     const c = Math.floor(i / per);
     const x = f.pad + c * (colW + gapC);
     const y = f.top - 10 + (i % per) * rowH;
-    if (i % 2 === 0) { rr(ctx, x, y, colW, rowH - 4, 10); ctx.fillStyle = C.panel; ctx.fill(); }
-    const mid = y + rowH / 2 + fs * 0.34;
-    const px = x + fs * 1.6;
-    txt(ctx, String(r.pos), px, mid, { size: fs, weight: 800, family: TITLE, color: i < 3 ? MEDAL[i] : C.text, align: 'right' });
-    // Logo de l'écurie (sinon barre de couleur), puis trigramme
+    const h = rowH - 8;
+    card(ctx, x, y, colW, h, h * 0.32, { tint: r.out ? null : r.color, strong: i < 3 });
+    const mid = y + h / 2 + fs * 0.34;
+    // Place : pastille de la médaille sur le podium
+    const px = x + fs * 1.05;
+    if (i < 3) { ctx.fillStyle = MEDAL[i]; ctx.beginPath(); ctx.arc(px, y + h / 2, fs * 0.62, 0, Math.PI * 2); ctx.fill(); }
+    txt(ctx, String(r.pos), px, mid, { size: Math.round(fs * (i < 3 ? 0.85 : 1)), weight: 800, family: TITLE, color: i < 3 ? C.bg : C.text, align: 'center', italic: i >= 3 });
     const slot = fs * 1.2;
-    const lx = px + fs * 0.4;
-    ctx.fillStyle = vivid(r.color); ctx.fillRect(x, y + 6, 5, rowH - 16);
-    teamLogo(ctx, o, r.team, lx + slot / 2, y + (rowH - 4) / 2, fs * 0.9, 'center', slot);
-    const tx = lx + slot + fs * 0.3;
-    txt(ctx, r.tla, tx, mid, { size: fs, weight: 800, family: TITLE, color: r.out ? C.muted : C.text });
-    if (names) txt(ctx, r.last, tx + fs * 2.5, mid, { size: Math.round(fs * 0.8), weight: 600, color: C.muted, max: colW * 0.3 });
+    const lx = x + fs * 2.05;
+    teamLogo(ctx, o, r.team, lx + slot / 2, y + h / 2, fs * 0.9, 'center', slot);
+    const tx = lx + slot + fs * 0.35;
+    txt(ctx, r.tla, tx, mid, { size: fs, weight: 800, family: TITLE, color: r.out ? C.muted : C.text, italic: true });
+    if (names) txt(ctx, r.last, tx + fs * 2.6, mid, { size: Math.round(fs * 0.78), weight: 600, color: C.muted, max: colW * 0.3 });
     const right = x + colW - fs * 0.6;
-    if (d.kind === 'race' && r.points) {
-      txt(ctx, `+${r.points}`, right, mid, { size: Math.round(fs * 0.8), weight: 700, family: TITLE, color: C.green, align: 'right' });
-    }
+    if (d.kind === 'race' && r.points) txt(ctx, `+${r.points}`, right, mid, { size: Math.round(fs * 0.8), weight: 800, family: TITLE, color: C.green, align: 'right' });
     // Essais : nombre de tours de chaque pilote à droite, écart juste avant
-    const laps = d.kind === 'practice' && d.rows.some((x) => x.laps);
     if (laps) txt(ctx, r.laps ? `${r.laps} tours` : '', right, mid, { size: Math.round(fs * 0.72), weight: 600, color: C.muted, align: 'right' });
     const gx = d.kind === 'race' ? right - fs * 2.4 : laps ? right - fs * 3.9 : right;
-    txt(ctx, r.out ? 'ABANDON' : r.gap || (i === 0 && d.kind === 'race' ? 'VAINQUEUR' : ''), gx, mid, { size: Math.round(fs * 0.8), weight: 600, family: r.out || (i === 0 && d.kind === 'race') ? TITLE : MONO, color: r.out ? C.red : i === 0 ? C.gold : C.text, align: 'right' });
+    txt(ctx, r.out ? 'ABANDON' : r.gap || (i === 0 && d.kind === 'race' ? 'VAINQUEUR' : ''), gx, mid, { size: Math.round(fs * 0.8), weight: 700, family: r.out || (i === 0 && d.kind === 'race') ? TITLE : MONO, color: r.out ? C.red : i === 0 ? C.gold : C.text, align: 'right', spacing: r.out || (i === 0 && d.kind === 'race') ? 1.5 : 0 });
     if (d.kind === 'quali' && r.knockedOut) txt(ctx, `${names ? 'ÉLIMINÉ ' : ''}${d.sprint ? 'SQ' : 'Q'}${r.koPart}`, names ? x + colW * 0.6 : tx + fs * 2.3, mid, { size: Math.round(fs * 0.62), weight: 700, family: TITLE, color: C.red, spacing: 1 });
   });
 }
@@ -401,17 +525,16 @@ export function faits(ctx, W, H, d, o, title = 'Faits marquants') {
   const cw = (W - f.pad * 2 - gap * (cols - 1)) / cols;
   const rowsN = Math.ceil(items.length / cols);
   // Cases seules sur la slide : le résumé de la course reste dans le texte du post
-  const ch = Math.min(H > 1600 ? 520 : 380, (f.bottom - f.top - gap * (rowsN - 1)) / Math.max(rowsN, 1));
+  const ch = Math.min(H > 1600 ? 560 : 470, (f.bottom - f.top - gap * (rowsN - 1)) / Math.max(rowsN, 1));
   items.forEach((it, i) => {
     const x = f.pad + (i % cols) * (cw + gap);
     const y = f.top + Math.floor(i / cols) * (ch + gap);
     // Dernière case seule sur sa ligne : toute la largeur
     const w = i === items.length - 1 && i % cols === 0 && cols === 2 ? cw * 2 + gap : cw;
-    rr(ctx, x, y, w, ch, 18); ctx.fillStyle = C.panel; ctx.fill();
-    ctx.fillStyle = it.color ? vivid(it.color) : C.red; ctx.fillRect(x, y + 24, 8, 44);
-    txt(ctx, it.label.toUpperCase(), x + 30, y + 58, { size: 26, weight: 700, family: TITLE, color: C.muted, spacing: 2, max: w - 50 });
-    txt(ctx, it.value, x + 30, y + ch * 0.55 + 20, { size: 58, weight: 800, family: TITLE, max: w - 50 });
-    if (it.sub) wrap(ctx, it.sub, x + 30, y + ch * 0.55 + 70, w - 56, 34, 2, { size: 27, weight: 600, color: C.muted });
+    card(ctx, x, y, w, ch, 28, { tint: it.color || C.red });
+    pill(ctx, it.label.toUpperCase(), x + 26, y + 26, 44, { bg: 'rgba(0,0,0,0.28)', color: C.text, dot: it.color ? vivid(it.color) : C.red });
+    txt(ctx, it.value, x + 30, y + ch * 0.6 + 10, { size: 72, weight: 800, family: TITLE, max: w - 56, italic: true });
+    if (it.sub) wrap(ctx, it.sub, x + 30, y + ch * 0.6 + 62, w - 56, 36, 2, { size: 28, weight: 600, color: C.muted });
   });
 }
 
@@ -425,10 +548,9 @@ function championnat(ctx, W, H, d, o) {
     const fs = Math.round(rowH * 0.48);
     items.forEach((r, i) => {
       const ry = y + 20 + i * rowH;
-      if (i % 2 === 0) { rr(ctx, x, ry, w, rowH - 4, 8); ctx.fillStyle = C.panel; ctx.fill(); }
+      card(ctx, x, ry, w, rowH - 6, (rowH - 6) * 0.3, { tint: r.color });
       const mid = ry + rowH / 2 + fs * 0.34;
       txt(ctx, String(r.pos ?? ''), x + 40, mid, { size: fs, weight: 800, family: TITLE, color: i < 3 ? MEDAL[i] : C.text, align: 'right' });
-      ctx.fillStyle = vivid(r.color); ctx.fillRect(x + 56, ry + rowH * 0.22, 6, rowH * 0.52);
       txt(ctx, nameOf(r), x + 78, mid, { size: fs, weight: 700, family: TITLE, max: w * 0.5 });
       if (r.move) txt(ctx, `${r.move > 0 ? '▲' : '▼'}${Math.abs(r.move)}`, x + w * 0.66, mid, { size: Math.round(fs * 0.7), weight: 700, family: BODY, color: r.move > 0 ? C.green : C.red, align: 'right' });
       if (r.gained) txt(ctx, `+${r.gained}`, x + w * 0.8, mid, { size: Math.round(fs * 0.75), weight: 700, family: TITLE, color: C.green, align: 'right' });
@@ -462,10 +584,7 @@ function cover(ctx, W, H, d, o, next, fmt) {
   ctx.restore();
   // En-tête : barre rouge, Formule 1 et saison
   const top = Math.round(Math.min(W, H) * 0.06);
-  ctx.fillStyle = C.red;
-  ctx.fillRect(pad, top, 10, Math.round(64 * u));
-  txt(ctx, 'FORMULE 1', pad + 28, top + 30 * u, { size: Math.round(34 * u), weight: 800, family: TITLE, spacing: 4 });
-  txt(ctx, `SAISON ${d.year || ''}`.trim(), pad + 28, top + 62 * u, { size: Math.round(24 * u), weight: 600, family: TITLE, color: C.muted, spacing: 3 });
+  kicker(ctx, pad, top, u, 'FORMULE 1', `SAISON ${d.year || ''}`.trim());
 
   // Bloc central : drapeau, « Résultats », séance, nom du Grand Prix
   const colW = W - pad * 2;
@@ -478,19 +597,16 @@ function cover(ctx, W, H, d, o, next, fmt) {
     y += fh + 30 * u;
   }
   const word = { prerace: 'AVANT-COURSE', champ: 'CHAMPIONNAT', weekend: 'PROGRAMME', records: 'LE SAVIEZ-VOUS', ratings: 'LES NOTES', teamduels: 'LES DUELS', racelaps: 'LA COURSE', title: 'LE TITRE' }[d.post] || 'RÉSULTATS';
-  txt(ctx, word, pad, y + 150 * u, { size: Math.round(190 * u), weight: 800, family: TITLE, max: colW, spacing: 2 });
+  txt(ctx, word, pad - 8 * u, y + 150 * u, { size: Math.round(196 * u), weight: 800, family: TITLE, max: colW, italic: true });
   y += 190 * u;
   // Séance dans une étiquette rouge
   const tag = (d.post === 'prerace' ? (d.sprint ? 'Sprint' : 'Course') : d.post === 'champ' ? (d.final ? 'Après la course' : 'En direct')
     : d.post === 'weekend' ? (d.sprint ? 'Week-end sprint' : `Manche ${d.round || ''}`) : d.post === 'records' ? 'Records du circuit'
       : d.post === 'ratings' ? 'Après la course' : d.post === 'teamduels' || d.post === 'title' ? `Après ${d.after} course${d.after > 1 ? 's' : ''}` : d.post === 'racelaps' ? 'Tour par tour'
         : d.kind === 'race' && !d.sprint ? 'Course' : d.label).toUpperCase();
-  ctx.font = `700 ${Math.round(36 * u)}px ${TITLE}`;
-  const tw = ctx.measureText(tag).width + 6 * tag.length * u;
-  rr(ctx, pad, y, tw + 48 * u, 62 * u, 8 * u); ctx.fillStyle = C.red; ctx.fill();
-  txt(ctx, tag, pad + 24 * u, y + 44 * u, { size: Math.round(36 * u), weight: 700, family: TITLE, spacing: 6 * u });
+  pill(ctx, tag, pad, y, 62 * u, { bg: C.red, dot: '#fff' });
   y += 62 * u + 70 * u;
-  const lines = wrap(ctx, d.gp.toUpperCase(), pad, y + 20 * u, colW, 92 * u, 2, { size: Math.round(92 * u), weight: 800, family: TITLE });
+  const lines = wrap(ctx, d.gp.toUpperCase(), pad, y + 20 * u, colW, 92 * u, 2, { size: Math.round(92 * u), weight: 800, family: TITLE, italic: true });
   y += (lines - 1) * 92 * u + 80 * u;
   const info = [d.date, d.circuit, d.kind === 'race' && d.laps ? `${d.laps} tours` : ''].filter(Boolean).join('  ·  ').toUpperCase();
   if (info) txt(ctx, info, pad, y, { size: Math.round(30 * u), weight: 600, family: TITLE, color: C.muted, max: colW, spacing: 2 });
@@ -503,18 +619,15 @@ function cover(ctx, W, H, d, o, next, fmt) {
   const lh = Math.min(52 * u, (end - sy - 22 * u) / Math.max(items.length, 1));
   txt(ctx, 'AU PROGRAMME', sx, sy, { size: Math.round(26 * u), weight: 700, family: TITLE, color: C.red, spacing: 4 });
   sy += 22 * u;
-  ctx.fillStyle = C.line; ctx.fillRect(sx, sy, W * 0.5, 2);
   for (const [n, name] of items) {
     sy += lh;
-    txt(ctx, n, sx, sy, { size: Math.round(30 * u), weight: 700, family: MONO, color: C.muted });
-    txt(ctx, name.toUpperCase(), sx + 70 * u, sy, { size: Math.round(36 * u), weight: 700, family: TITLE, spacing: 1 });
+    txt(ctx, n, sx, sy, { size: Math.round(32 * u), weight: 800, family: TITLE, color: C.red, italic: true });
+    txt(ctx, name.toUpperCase(), sx + 64 * u, sy, { size: Math.round(36 * u), weight: 700, family: TITLE, spacing: 1 });
   }
 
   // Pied : signature, « faites défiler », résultats provisoires
   const fy = H - Math.round(Math.min(W, H) * 0.045);
-  ctx.fillStyle = C.line;
-  ctx.fillRect(pad, fy - Math.round(Math.min(W, H) * 0.04), W - pad * 2, 2);
-  txt(ctx, o.signature || '@BenjyPaddock', pad, fy, { size: Math.round(Math.min(W, H) * 0.032), weight: 700, family: TITLE, spacing: 1 });
+  footer(ctx, W, H, o);
   // Carrousel : on fait défiler ; story, vidéo et X : la suite vient après
   const hint = fmt === 'ig' ? 'FAITES DÉFILER' : 'À SUIVRE';
   const swipe = d.final ? hint : `RÉSULTATS PROVISOIRES · ${hint}`;
@@ -592,10 +705,7 @@ export function newsSlide(ctx, W, H, d, o, fmt = 'ig') {
   const pics = keptPages(o, 'photo', (d.gallery || []).map((_, i) => i + 1)).length;
   const scroll = (more || pics) && fmt !== 'x';
   // En-tête : Actu F1 et date ; très grosse info : liseré rouge et étiquette « BREAKING » à droite
-  ctx.fillStyle = C.red;
-  ctx.fillRect(pad, top, 10, Math.round(64 * u));
-  txt(ctx, 'ACTU F1', pad + 28, top + 30 * u, { size: Math.round(34 * u), weight: 800, family: TITLE, spacing: 4 });
-  txt(ctx, d.date.toUpperCase(), pad + 28, top + 62 * u, { size: Math.round(24 * u), weight: 600, family: TITLE, color: C.muted, spacing: 2 });
+  kicker(ctx, pad, top, u, 'ACTU F1', d.date.toUpperCase());
   if (d.breaking) { breakingFrame(ctx, W, H, u); breakingTag(ctx, W - pad, top + 2 * u, 58 * u); }
   if (scroll) {
     const ax = W - pad;
@@ -624,7 +734,9 @@ export function newsSlide(ctx, W, H, d, o, fmt = 'ig') {
     areaTop += ph + 30 * u;
   } else if (withPhoto.length === 1) {
     const ph = (bottom - areaTop) * (H > 1600 ? 0.42 : 0.38);
-    photo(ctx, o.photos[withPhoto[0].num], W * 0.18, areaTop, W * 0.64, ph, withPhoto[0].color, 0.3);
+    const p = withPhoto[0];
+    ghost(ctx, p.last.toUpperCase(), W / 2, areaTop + ph * 0.92, Math.round(250 * u), W * 1.1);
+    photo(ctx, o.photos[p.num], W * 0.08, areaTop, W * 0.84, ph, p.color, 0.3);
     areaTop += ph + 30 * u;
   } else if (d.drivers.length) {
     const r = Math.round(100 * u);
@@ -660,13 +772,10 @@ export function newsSlide(ctx, W, H, d, o, fmt = 'ig') {
   // Étiquette du type de nouvelle (aucune si le type est « Aucun »)
   const tag = d.badge.label;
   if (tag) {
-    ctx.font = `700 ${Math.round(34 * u)}px ${TITLE}`;
-    const tw = ctx.measureText(tag).width + 6 * tag.length * u;
-    rr(ctx, x, y, tw + 44 * u, 58 * u, 8 * u); ctx.fillStyle = d.badge.color; ctx.fill();
-    txt(ctx, tag, x + 22 * u, y + 41 * u, { size: Math.round(34 * u), weight: 700, family: TITLE, color: lightColor(d.badge.color) ? C.bg : '#fff', spacing: 6 * u });
+    pill(ctx, tag, x, y, 58 * u, { bg: d.badge.color, color: lightColor(d.badge.color) ? C.bg : '#fff', dot: true });
     y += (58 + 40) * u;
   }
-  pick.lines.forEach((l, i) => txt(ctx, l, x, y + pick.size * 0.82 + i * lh, { size: pick.size, weight: 800, family: TITLE }));
+  pick.lines.forEach((l, i) => txt(ctx, l, x, y + pick.size * 0.82 + i * lh, { size: pick.size, weight: 800, family: TITLE, italic: true }));
   y += pick.lines.length * lh + 34 * u;
   ctx.fillStyle = d.color ? vivid(d.color) : C.red;
   ctx.fillRect(x, y - 10 * u, 90 * u, 6 * u);
@@ -676,9 +785,7 @@ export function newsSlide(ctx, W, H, d, o, fmt = 'ig') {
   sum.forEach((l, i) => txt(ctx, l, x, y + sumSize * 0.8 + i * sumLh, { size: sumSize, weight: 400, color: C.text }));
 
   // Pied : signature et source
-  ctx.fillStyle = C.line;
-  ctx.fillRect(pad, fy - Math.round(Math.min(W, H) * 0.04), W - pad * 2, 2);
-  txt(ctx, o.signature || '@BenjyPaddock', pad, fy, { size: Math.round(Math.min(W, H) * 0.032), weight: 700, family: TITLE, spacing: 1 });
+  footer(ctx, W, H, o);
   if (d.source) txt(ctx, `SOURCE : ${d.source.toUpperCase()}`, W - pad, fy, { size: Math.round(Math.min(W, H) * 0.025), weight: 700, family: TITLE, color: C.muted, align: 'right', spacing: 2, max: W * 0.55 });
 }
 
@@ -702,7 +809,7 @@ function grille(ctx, W, H, d, o) {
     const x = f.pad + col * (cw + 24);
     const y = f.top - 6 + Math.floor(i / 2) * rowH + (col ? rowH * 0.5 : 0);
     const h = rowH * 0.86;
-    rr(ctx, x, y, cw, h, 10); ctx.fillStyle = C.panel; ctx.fill();
+    card(ctx, x, y, cw, h, 10);
     ctx.fillStyle = vivid(r.color); ctx.fillRect(x, y, 8, h);
     const mid = y + h / 2 + fs * 0.35;
     txt(ctx, r.pitlane ? 'PL' : String(r.pos), x + 24, mid, { size: Math.round(fs * (r.pitlane ? 0.9 : 1.2)), weight: 800, family: TITLE, color: r.pitlane ? C.red : r.pos <= 3 ? MEDAL[r.pos - 1] : C.text });
@@ -729,7 +836,7 @@ function meteo(ctx, W, H, d, o) {
   tiles.forEach(([k, v], i) => {
     const x = f.pad + (i % cols) * (tw + gap);
     const y = f.top + Math.floor(i / cols) * (th + gap);
-    rr(ctx, x, y, tw, th, 18); ctx.fillStyle = C.panel; ctx.fill();
+    card(ctx, x, y, tw, th, 18);
     txt(ctx, k.toUpperCase(), x + 30, y + 56, { size: 28, weight: 700, family: TITLE, color: C.muted, spacing: 2 });
     txt(ctx, v, x + 30, y + th - 40, { size: Math.round(Math.min(92, th * 0.42)), weight: 800, family: TITLE, max: tw - 50, color: k === 'Pluie' && w.rain ? '#4fc3f7' : C.text });
   });
@@ -763,13 +870,12 @@ function standings(ctx, W, H, d, o, title, rows) {
   list.forEach((r, i) => {
     const x = f.pad + Math.floor(i / per) * (colW + gapC);
     const y = f.top - 10 + (i % per) * rowH;
-    if (i % 2 === 0) { rr(ctx, x, y, colW, rowH - 4, 8); ctx.fillStyle = C.panel; ctx.fill(); }
+    card(ctx, x, y, colW, rowH - 8, (rowH - 8) * 0.3, { tint: r.color });
     const mid = y + rowH / 2 + fs * 0.34;
     const px = x + fs * 1.6;
     txt(ctx, String(r.pos), px, mid, { size: fs, weight: 800, family: TITLE, color: i < 3 ? MEDAL[i] : C.text, align: 'right' });
     const slot = fs * 1.2;
     const lx = px + fs * 0.4;
-    ctx.fillStyle = vivid(r.color); ctx.fillRect(x, y + 6, 5, rowH - 16);
     teamLogo(ctx, o, r.team || r.name, lx + slot / 2, y + (rowH - 4) / 2, fs * 0.9, 'center', slot);
     const right = x + colW - fs * 0.6;
     const tx = lx + slot + fs * 0.3;
@@ -794,15 +900,14 @@ function duels(ctx, W, H, d, o) {
   list.forEach((t, i) => {
     const x = f.pad + (i % cols) * (cw + gap);
     const y = f.top + Math.floor(i / cols) * (ch + gap);
-    rr(ctx, x, y, cw, ch, 14); ctx.fillStyle = C.panel; ctx.fill();
-    ctx.fillStyle = vivid(t.color); ctx.fillRect(x, y + 14, 8, ch - 28);
+    card(ctx, x, y, cw, ch, 22, { tint: t.color });
     const lw = teamLogo(ctx, o, t.team, x + 26, y + ch * 0.22, ch * 0.18);
     txt(ctx, t.team.toUpperCase(), x + 26 + (lw ? lw + 12 : 0), y + ch * 0.27, { size: Math.round(ch * 0.15), weight: 700, family: TITLE, color: C.muted, spacing: 1.5, max: cw - 46 - lw });
     const s = Math.round(ch * 0.3);
-    txt(ctx, t.ahead.tla, x + 26, y + ch * 0.68, { size: s, weight: 800, family: TITLE });
+    txt(ctx, t.ahead.tla, x + 26, y + ch * 0.68, { size: s, weight: 800, family: TITLE, italic: true });
     txt(ctx, `P${t.ahead.pos}`, x + 26, y + ch * 0.9, { size: Math.round(s * 0.5), weight: 700, family: MONO, color: C.gold });
     txt(ctx, 'devant', x + cw / 2, y + ch * 0.64, { size: Math.round(s * 0.45), weight: 600, color: C.muted, align: 'center' });
-    txt(ctx, t.behind.tla, x + cw - 22, y + ch * 0.68, { size: s, weight: 800, family: TITLE, color: C.muted, align: 'right' });
+    txt(ctx, t.behind.tla, x + cw - 22, y + ch * 0.68, { size: s, weight: 800, family: TITLE, color: C.muted, align: 'right', italic: true });
     txt(ctx, t.behind.out ? 'ABANDON' : `P${t.behind.pos}`, x + cw - 22, y + ch * 0.9, { size: Math.round(s * 0.5), weight: 700, family: t.behind.out ? TITLE : MONO, color: t.behind.out ? C.red : C.muted, align: 'right' });
   });
 }
@@ -815,9 +920,7 @@ function flash(ctx, W, H, d, o) {
   const u = Math.min(W, H) / 1080;
   const pad = Math.round(W * 0.055);
   const top = Math.round(Math.min(W, H) * 0.06);
-  ctx.fillStyle = C.red; ctx.fillRect(pad, top, 10, Math.round(64 * u));
-  txt(ctx, 'EN DIRECT', pad + 28, top + 30 * u, { size: Math.round(34 * u), weight: 800, family: TITLE, spacing: 4 });
-  txt(ctx, `${d.gp} · ${d.label}`.toUpperCase(), pad + 28, top + 62 * u, { size: Math.round(24 * u), weight: 600, family: TITLE, color: C.muted, spacing: 2, max: W - pad * 2 - 40 });
+  kicker(ctx, pad, top, u, 'EN DIRECT', `${d.gp} · ${d.label}`.toUpperCase());
   const fy = H - Math.round(Math.min(W, H) * 0.045);
   const bottom = fy - Math.round(Math.min(W, H) * 0.07);
   const img = ev.driver ? o.photos?.[ev.driver.num] : null;
@@ -833,16 +936,14 @@ function flash(ctx, W, H, d, o) {
     ctx.font = `800 ${label.size}px ${TITLE}`;
     const lw = ctx.measureText(l).width;
     rr(ctx, pad - 10 * u, ly, lw + 40 * u, label.size * 0.98, 10 * u); ctx.fillStyle = k.color; ctx.fill();
-    txt(ctx, l, pad + 10 * u, ly + label.size * 0.83, { size: label.size, weight: 800, family: TITLE, color: ev.kind === 'sc' || ev.kind === 'vsc' || ev.kind === 'penalty' ? C.bg : '#fff' });
+    txt(ctx, l, pad + 10 * u, ly + label.size * 0.83, { size: label.size, weight: 800, family: TITLE, color: ev.kind === 'sc' || ev.kind === 'vsc' || ev.kind === 'penalty' ? C.bg : '#fff', italic: true });
   });
   y += label.lines.length * label.size * 1.02 + 50 * u;
   const t = fitLines(ctx, ev.title, colW, [72, 64, 56, 50, 44].map((v) => Math.round(v * u)), 3, TITLE, 800);
-  t.lines.forEach((l, i) => txt(ctx, l, pad, y + t.size * 0.85 + i * t.size, { size: t.size, weight: 800, family: TITLE }));
+  t.lines.forEach((l, i) => txt(ctx, l, pad, y + t.size * 0.85 + i * t.size, { size: t.size, weight: 800, family: TITLE, italic: true }));
   y += t.lines.length * t.size + 30 * u;
   if (ev.sub) wrap(ctx, ev.sub.charAt(0).toUpperCase() + ev.sub.slice(1), pad, y + 34 * u, colW, 46 * u, 3, { size: Math.round(36 * u), weight: 400, color: C.text });
-  ctx.fillStyle = C.line;
-  ctx.fillRect(pad, fy - Math.round(Math.min(W, H) * 0.04), W - pad * 2, 2);
-  txt(ctx, o.signature || '@BenjyPaddock', pad, fy, { size: Math.round(Math.min(W, H) * 0.032), weight: 700, family: TITLE, spacing: 1 });
+  footer(ctx, W, H, o);
   if (ev.lap) txt(ctx, `TOUR ${ev.lap}${d.laps ? ` / ${d.laps}` : ''}`, W - pad, fy, { size: Math.round(Math.min(W, H) * 0.024), weight: 700, family: TITLE, color: C.muted, align: 'right', spacing: 2 });
 }
 
@@ -859,10 +960,7 @@ function question(ctx, W, H, d, o) {
   const u = Math.min(W, H) / 1080;
   const pad = Math.round(W * 0.055);
   const top = Math.round(Math.min(W, H) * 0.06);
-  ctx.fillStyle = C.red;
-  ctx.fillRect(pad, top, 10, Math.round(64 * u));
-  txt(ctx, 'FORMULE 1', pad + 28, top + 30 * u, { size: Math.round(34 * u), weight: 800, family: TITLE, spacing: 4 });
-  txt(ctx, `SAISON ${d.year || ''}`.trim(), pad + 28, top + 62 * u, { size: Math.round(24 * u), weight: 600, family: TITLE, color: C.muted, spacing: 3 });
+  kicker(ctx, pad, top, u, 'FORMULE 1', `SAISON ${d.year || ''}`.trim());
   const colW = W - pad * 2;
   const fy = H - Math.round(Math.min(W, H) * 0.045);
   // Titre, question (sans l'invitation finale, reprise dans la pastille), pastille rouge
@@ -884,7 +982,7 @@ function question(ctx, W, H, d, o) {
   rr(ctx, bx, byy, bs, bs * 0.66, bs * 0.12); ctx.fillStyle = '#fff'; ctx.fill();
   ctx.beginPath(); ctx.moveTo(bx + bs * 0.2, byy + bs * 0.64); ctx.lineTo(bx + bs * 0.14, byy + bs * 0.86); ctx.lineTo(bx + bs * 0.42, byy + bs * 0.64); ctx.closePath(); ctx.fill();
   ctx.restore();
-  txt(ctx, 'À TOI !', pad, y + bigS * 0.88, { size: bigS, weight: 800, family: TITLE, max: colW, spacing: 2 });
+  txt(ctx, 'À TOI !', pad - 8 * u, y + bigS * 0.88, { size: bigS, weight: 800, family: TITLE, max: colW, italic: true });
   y += bigS * 0.88 + 70 * u;
   r.lines.forEach((l, i) => txt(ctx, l.toUpperCase(), pad, y + r.size * 0.85 + i * r.size * 1.15, { size: r.size, weight: 800, family: TITLE, spacing: 1 }));
   y += r.lines.length * r.size * 1.15 + 60 * u;
@@ -893,9 +991,7 @@ function question(ctx, W, H, d, o) {
   const hw = Math.min(colW, ctx.measureText(label).width + label.length * 2 * u + 90 * u);
   rr(ctx, pad, y, hw, hs * 1.8, hs * 0.9); ctx.fillStyle = C.red; ctx.fill();
   txt(ctx, label, pad + 40 * u, y + hs * 1.22, { size: hs, weight: 800, family: TITLE, color: '#fff', max: hw - 80 * u, spacing: 2 });
-  ctx.fillStyle = C.line;
-  ctx.fillRect(pad, fy - Math.round(Math.min(W, H) * 0.04), W - pad * 2, 2);
-  txt(ctx, o.signature || '@BenjyPaddock', pad, fy, { size: Math.round(30 * u), weight: 700, family: TITLE, spacing: 1 });
+  footer(ctx, W, H, o);
   txt(ctx, 'ON LIT TOUT', W - pad, fy, { size: Math.round(24 * u), weight: 700, family: TITLE, color: C.muted, align: 'right', spacing: 2 });
 }
 
@@ -904,17 +1000,14 @@ function follow(ctx, W, H, d, o) {
   const u = Math.min(W, H) / 1080;
   const pad = Math.round(W * 0.055);
   const top = Math.round(Math.min(W, H) * 0.06);
-  ctx.fillStyle = C.red;
-  ctx.fillRect(pad, top, 10, Math.round(64 * u));
-  txt(ctx, 'FORMULE 1', pad + 28, top + 30 * u, { size: Math.round(34 * u), weight: 800, family: TITLE, spacing: 4 });
-  txt(ctx, `SAISON ${d.year || ''}`.trim(), pad + 28, top + 62 * u, { size: Math.round(24 * u), weight: 600, family: TITLE, color: C.muted, spacing: 3 });
+  kicker(ctx, pad, top, u, 'FORMULE 1', `SAISON ${d.year || ''}`.trim());
   const handle = o.signature || '@BenjyPaddock';
   const colW = W - pad * 2;
   const fy = H - Math.round(Math.min(W, H) * 0.045);
   // Bloc d'appel : grand titre, raison adaptée au post, compte dans une pastille rouge
   const tall = H / W > 1.5;
   let y = tall ? H * 0.22 : H * 0.19;
-  const big = txt(ctx, 'ABONNE-TOI', pad, y + 150 * u, { size: Math.round(170 * u), weight: 800, family: TITLE, max: colW, spacing: 2 });
+  const big = txt(ctx, 'ABONNE-TOI', pad - 8 * u, y + 150 * u, { size: Math.round(180 * u), weight: 800, family: TITLE, max: colW, italic: true });
   y += big * 0.88 + 60 * u;
   const reason = followReason(d);
   const r = fitLines(ctx, reason.charAt(0).toUpperCase() + reason.slice(1), colW, [46, 42, 38].map((v) => Math.round(v * u)), 3, BODY, 600);
@@ -934,17 +1027,14 @@ function follow(ctx, W, H, d, o) {
   const rowH = Math.min((tall ? 150 : 118) * u, (end - ty - 50 * u) / FOLLOW_TOPICS.length);
   txt(ctx, 'AU PROGRAMME DU COMPTE', tx, ty, { size: Math.round(26 * u), weight: 700, family: TITLE, color: C.red, spacing: 4 });
   ty += 26 * u;
-  ctx.fillStyle = C.line; ctx.fillRect(tx, ty, tw, 2);
   for (const [k, v] of FOLLOW_TOPICS) {
     ty += 14 * u;
-    ctx.fillStyle = C.red; ctx.fillRect(tx, ty + rowH * 0.22, 8 * u, rowH * 0.56);
+    card(ctx, tx, ty + 4 * u, tw, rowH - 20 * u, 22 * u, { tint: C.red });
     txt(ctx, k, tx + 32 * u, ty + rowH * 0.45, { size: Math.round(Math.min(38 * u, rowH * 0.34)), weight: 800, family: TITLE, spacing: 2, max: tw - 40 * u });
     txt(ctx, v, tx + 32 * u, ty + rowH * 0.82, { size: Math.round(Math.min(28 * u, rowH * 0.25)), weight: 400, color: C.muted, max: tw - 40 * u });
     ty += rowH - 14 * u;
   }
-  ctx.fillStyle = C.line;
-  ctx.fillRect(pad, fy - Math.round(Math.min(W, H) * 0.04), W - pad * 2, 2);
-  txt(ctx, handle, pad, fy, { size: Math.round(Math.min(W, H) * 0.032), weight: 700, family: TITLE, spacing: 1 });
+  footer(ctx, W, H, o);
   txt(ctx, 'ACTIVEZ LES NOTIFICATIONS', W - pad, fy, { size: Math.round(Math.min(W, H) * 0.025), weight: 700, family: TITLE, color: C.muted, align: 'right', spacing: 2 });
 }
 
@@ -958,45 +1048,43 @@ function essentiel(ctx, W, H, d, o, page, fmt) {
   const u = Math.min(W, H) / 1080;
   const pad = Math.round(W * 0.055);
   const top = Math.round(Math.min(W, H) * 0.06);
-  ctx.fillStyle = C.red;
-  ctx.fillRect(pad, top, 10, Math.round(64 * u));
-  txt(ctx, "L'ESSENTIEL", pad + 28, top + 30 * u, { size: Math.round(34 * u), weight: 800, family: TITLE, spacing: 4 });
-  txt(ctx, (d.badge.label || 'ACTU F1').toUpperCase(), pad + 28, top + 62 * u, { size: Math.round(24 * u), weight: 600, family: TITLE, color: C.muted, spacing: 2 });
-  if (pages.length > 1) txt(ctx, `${page} / ${pages.length}`, W - pad, top + 46 * u, { size: Math.round(34 * u), weight: 700, family: MONO, color: C.muted, align: 'right' });
+  kicker(ctx, pad, top, u, "L'ESSENTIEL", (d.badge.label || 'ACTU F1').toUpperCase());
   const fy = H - Math.round(Math.min(W, H) * 0.045);
   const bottom = fy - Math.round(Math.min(W, H) * 0.08);
   const colW = W - pad * 2;
   // Rappel du titre
   let y = top + 120 * u;
   const t = fitLines(ctx, d.title.toUpperCase(), colW, [56, 50, 44].map((v) => Math.round(v * u)), 2, TITLE, 800);
-  t.lines.forEach((l, i) => txt(ctx, l, pad, y + t.size * 0.82 + i * t.size, { size: t.size, weight: 800, family: TITLE, color: C.muted }));
+  t.lines.forEach((l, i) => txt(ctx, l, pad, y + t.size * 0.82 + i * t.size, { size: t.size, weight: 800, family: TITLE, color: C.muted, italic: true }));
   y += t.lines.length * t.size + 26 * u;
   ctx.fillStyle = d.color ? vivid(d.color) : C.red;
   ctx.fillRect(pad, y, 90 * u, 6 * u);
   y += 50 * u;
-  // Points numérotés : le plus grand corps qui tient dans la hauteur
-  const numW = 92 * u;
-  const gap = (44) * u;
+  // Points numérotés, chacun dans sa carte : le plus grand corps qui tient dans la hauteur
+  const numW = 100 * u;
+  const px = 30 * u;   // marge intérieure des cartes
+  const gap = 24 * u;
   let pick = null;
-  for (const size of [68, 62, 56, 52, 48, 44, 40, 36, 33, 30, 27].map((v) => Math.round(v * u))) {
-    const lh = Math.round(size * 1.32);
-    const blocks = pts.map((p) => fitLines(ctx, p, colW - numW, [size], 99, BODY, 600).lines);
-    const h = blocks.reduce((n, b) => n + Math.max(b.length * lh, numW * 0.75), 0) + gap * (pts.length - 1);
+  for (const size of [64, 58, 54, 50, 46, 42, 38, 35, 32, 29, 26].map((v) => Math.round(v * u))) {
+    const lh = Math.round(size * 1.3);
+    const blocks = pts.map((p) => fitLines(ctx, p, colW - numW - px * 2, [size], 99, BODY, 600).lines);
+    const h = blocks.reduce((n, b) => n + Math.max(b.length * lh, numW * 0.7) + px * 2, 0) + gap * (pts.length - 1);
     pick = { size, lh, blocks, h };
     if (h <= bottom - y) break;
   }
   if (pick) {
     y += Math.max(0, (bottom - y - pick.h) / 2.5);
     pick.blocks.forEach((lines, i) => {
-      const bh = Math.max(lines.length * pick.lh, numW * 0.75);
-      txt(ctx, String(first + i + 1).padStart(2, '0'), pad, y + pick.size * 0.95, { size: Math.round(pick.size * 1.35), weight: 800, family: TITLE, color: C.red });
-      lines.forEach((l, k) => { if (y + (k + 1) * pick.lh <= bottom + pick.lh * 0.3) txt(ctx, l, pad + numW, y + pick.size * 0.9 + k * pick.lh, { size: pick.size, weight: 600, color: C.text }); });
-      y += bh + gap;
+      const bh = Math.max(lines.length * pick.lh, numW * 0.7);
+      card(ctx, pad, y, colW, bh + px * 2, 28 * u, { tint: d.color || C.red });
+      const n = Math.round(numW * 0.62);
+      rr(ctx, pad + px, y + px, n, n, n * 0.28); ctx.fillStyle = C.red; ctx.fill();
+      txt(ctx, String(first + i + 1).padStart(2, '0'), pad + px + n / 2, y + px + n * 0.74, { size: Math.round(n * 0.5), weight: 800, family: TITLE, color: '#fff', align: 'center', italic: true });
+      lines.forEach((l, k) => { if (y + px + (k + 1) * pick.lh <= bottom + pick.lh * 0.3) txt(ctx, l, pad + px + numW, y + px + pick.size * 0.92 + k * pick.lh, { size: pick.size, weight: 600, color: C.text }); });
+      y += bh + px * 2 + gap;
     });
   }
-  ctx.fillStyle = C.line;
-  ctx.fillRect(pad, fy - Math.round(Math.min(W, H) * 0.04), W - pad * 2, 2);
-  txt(ctx, o.signature || '@BenjyPaddock', pad, fy, { size: Math.round(Math.min(W, H) * 0.032), weight: 700, family: TITLE, spacing: 1 });
+  footer(ctx, W, H, o);
   if (d.source) txt(ctx, `D'APRÈS ${d.source.toUpperCase()}`, W - pad, fy, { size: Math.round(Math.min(W, H) * 0.025), weight: 700, family: TITLE, color: C.muted, align: 'right', spacing: 2, max: W * 0.55 });
 }
 
@@ -1009,11 +1097,9 @@ function newsPhoto(ctx, W, H, d, o, n) {
   const u = Math.min(W, H) / 1080;
   const pad = Math.round(W * 0.055);
   const top = Math.round(Math.min(W, H) * 0.06);
-  ctx.fillStyle = C.red;
-  ctx.fillRect(pad, top, 10, Math.round(64 * u));
-  txt(ctx, (d.badge.label || 'ACTU F1').toUpperCase(), pad + 28, top + 30 * u, { size: Math.round(34 * u), weight: 800, family: TITLE, spacing: 4 });
-  const t = fitLines(ctx, d.title.toUpperCase(), W - pad * 2 - 200 * u, [24].map((v) => Math.round(v * u)), 1, TITLE, 600);
-  if (t.lines[0]) txt(ctx, t.lines[0], pad + 28, top + 62 * u, { size: t.size, weight: 600, family: TITLE, color: C.muted, spacing: 1 });
+  const kw = kicker(ctx, pad, top, u, (d.badge.label || 'ACTU F1').toUpperCase(), '');
+  const t = fitLines(ctx, d.title.toUpperCase(), W - pad * 2 - kw - 220 * u, [24].map((v) => Math.round(v * u)), 1, TITLE, 600);
+  if (t.lines[0]) txt(ctx, t.lines[0], pad + kw + 20 * u, top + 37 * u, { size: t.size, weight: 600, family: TITLE, color: C.muted, spacing: 1 });
   if (kept.length > 1) txt(ctx, `${kept.indexOf(n) + 1} / ${kept.length}`, W - pad, top + 46 * u, { size: Math.round(34 * u), weight: 700, family: MONO, color: C.muted, align: 'right' });
   const fy = H - Math.round(Math.min(W, H) * 0.045);
   const y0 = top + 110 * u;
@@ -1028,9 +1114,7 @@ function newsPhoto(ctx, W, H, d, o, n) {
     ctx.save(); rr(ctx, x, y, dw, dh, 24); ctx.clip(); ctx.drawImage(img, x, y, dw, dh); ctx.restore();
     photoCredit(ctx, credit, x, y, dw, dh, u);
   }
-  ctx.fillStyle = C.line;
-  ctx.fillRect(pad, fy - Math.round(Math.min(W, H) * 0.04), W - pad * 2, 2);
-  txt(ctx, o.signature || '@BenjyPaddock', pad, fy, { size: Math.round(Math.min(W, H) * 0.032), weight: 700, family: TITLE, spacing: 1 });
+  footer(ctx, W, H, o);
   if (d.source) txt(ctx, `D'APRÈS ${d.source.toUpperCase()}`, W - pad, fy, { size: Math.round(Math.min(W, H) * 0.025), weight: 700, family: TITLE, color: C.muted, align: 'right', spacing: 2, max: W * 0.55 });
 }
 
@@ -1080,12 +1164,16 @@ export function videoCover(ctx, W, H, d, o = {}) {
   }
   const lh = Math.round(pick.size * 0.96);
   if (!custom && !lead) y += Math.max(0, (bottom - y - pick.lines.length * lh) / 2);
-  pick.lines.forEach((line, i) => txt(ctx, line, pad, y + pick.size * 0.82 + i * lh, { size: pick.size, weight: 800, family: TITLE, max: W - pad * 2 }));
+  pick.lines.forEach((line, i) => txt(ctx, line, pad, y + pick.size * 0.82 + i * lh, { size: pick.size, weight: 800, family: TITLE, max: W - pad * 2, italic: true }));
   txt(ctx, o.signature || '@BenjyPaddock', pad, H - 270 * u, { size: Math.round(40 * u), weight: 700, family: TITLE, spacing: 1 });
 }
 
 // Visuel dessiné sur un contexte (taille du format, transformation du contexte respectée)
 export function paintSlide(ctx, slide, fmt, d, o = {}) {
+  page = o.slides?.includes(slide) ? { n: o.slides.indexOf(slide) + 1, total: o.slides.length } : null;
+  try { paintOne(ctx, slide, fmt, d, o); } finally { page = null; }
+}
+function paintOne(ctx, slide, fmt, d, o) {
   const { w, h } = FORMATS[fmt];
   // X : 4 images au plus par post, le sommaire n'annonce que celles publiées
   if (slide === 'news') newsSlide(ctx, w, h, d, o, fmt);

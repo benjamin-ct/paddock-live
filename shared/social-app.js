@@ -118,7 +118,7 @@ export function appPage(ctx, W, H, d, n, { media = null, num = n, total = 1 } = 
   const space = ctx.measureText(' ').width;
   t.lines.forEach((line, i) => {
     let x = pad;
-    for (const w of line) { txt(ctx, w.w, x, y + t.size * 0.82 + i * lh, { size: t.size, weight: 800, family: TITLE, color: w.red ? C.red : C.text }); ctx.font = `800 ${t.size}px ${TITLE}`; x += ctx.measureText(w.w).width + space; }
+    for (const w of line) { txt(ctx, w.w, x, y + t.size * 0.82 + i * lh, { size: t.size, weight: 800, family: TITLE, italic: true, color: w.red ? C.red : C.text }); ctx.font = `800 ${t.size}px ${TITLE}`; x += ctx.measureText(w.w).width + space; }
   });
   y += t.lines.length * lh + 34 * u;
   body.forEach((l, i) => txt(ctx, l, pad, y + 36 * u + i * 52 * u, { size: Math.round(38 * u), weight: 400, family: BODY, color: '#c9ced8' }));
@@ -156,7 +156,7 @@ export function appOutro(ctx, W, H, s) {
   const s1 = 110 * u;
   ctx.font = `800 ${Math.round(s1 * 0.78)}px ${TITLE}`;
   logo(ctx, (W - s1 * 1.3 - ctx.measureText('Paddock Live').width) / 2, cy - 160 * u + (1 - k1) * 40 * u, s1);
-  txt(ctx, 'LA F1 EN DIRECT, CALÉE SUR TA TV', W / 2, cy + 60 * u, { size: Math.round(64 * u), weight: 800, family: TITLE, align: 'center', max: W * 0.88, spacing: 1 });
+  txt(ctx, 'LA F1 EN DIRECT, CALÉE SUR TA TV', W / 2, cy + 60 * u, { size: Math.round(64 * u), weight: 800, family: TITLE, italic: true, align: 'center', max: W * 0.88, spacing: 1 });
   ctx.restore();
   const k2 = out3((s - 0.35) / 0.5);
   ctx.save(); ctx.globalAlpha = k2;

@@ -1,13 +1,13 @@
 // Visuels des posts de saison (mode créateur) : horaires du week-end, pneus et météo, records du
 // circuit, notes des pilotes, duels entre coéquipiers, positions tour par tour, récap de la semaine,
 // et images de la vidéo animée de la course. Mêmes outils de dessin que les autres posts.
-import { C, TITLE, BODY, MONO, MEDAL, rr, txt, fitLines, vivid, alpha, background, frame, newsSlide, teamLogo } from './social-draw.js';
+import { C, TITLE, BODY, MONO, MEDAL, rr, txt, fitLines, vivid, alpha, background, frame, newsSlide, teamLogo, card, pill, kicker, footer } from './social-draw.js';
 import { lapStr } from './social-season.js';
 
 const dec = (v, n = 1) => (v == null ? '—' : Number(v).toFixed(n).replace('.', ','));
 const TYRE = { hard: ['DURS', '#f3f5f9'], medium: ['MÉDIUMS', '#f5c518'], soft: ['TENDRES', '#e10600'] };
 
-function panel(ctx, x, y, w, h, r = 18) { rr(ctx, x, y, w, h, r); ctx.fillStyle = C.panel; ctx.fill(); }
+const panel = (ctx, x, y, w, h, r = 22) => card(ctx, x, y, w, h, r);
 const note = (ctx, W, f, text) => txt(ctx, text, W - f.pad, f.bottom + 6, { size: 22, weight: 600, color: C.muted, align: 'right' });
 
 // ---------- Programme : horaires (heure de Paris), groupés par jour ----------
@@ -115,7 +115,7 @@ export function topflop(ctx, W, H, d, o) {
     ctx.fillStyle = vivid(r.color); ctx.fillRect(x, y + h * 0.18, 8, h * 0.64);
     const ns = Math.round(h * (big ? 0.5 : 0.46));
     txt(ctx, dec(r.note), x + w - 30, y + h * 0.5 + ns * 0.36, { size: ns, weight: 800, family: TITLE, color: noteColor(r.note), align: 'right' });
-    txt(ctx, r.last.toUpperCase(), x + 32, y + h * 0.46, { size: Math.round(h * (big ? 0.26 : 0.3)), weight: 800, family: TITLE, max: w - ns * 2.4 });
+    txt(ctx, r.last.toUpperCase(), x + 32, y + h * 0.46, { size: Math.round(h * (big ? 0.26 : 0.3)), weight: 800, family: TITLE, italic: true, max: w - ns * 2.4 });
     const sub = `${r.team} · ${r.classified ? `P${r.pos}` : 'Abandon'}${r.grid ? ` (parti P${r.grid})` : ''}`;
     txt(ctx, sub, x + 32, y + h * 0.76, { size: Math.round(h * (big ? 0.15 : 0.17)), weight: 600, color: C.muted, max: w - ns * 2.4 });
   };
@@ -145,12 +145,11 @@ export function notes(ctx, W, H, d, o) {
   list.forEach((r, i) => {
     const x = f.pad + Math.floor(i / per) * (colW + 36);
     const y = f.top - 6 + (i % per) * rowH;
-    if (i % 2 === 0) { rr(ctx, x, y, colW, rowH - 4, 8); ctx.fillStyle = C.panel; ctx.fill(); }
+    card(ctx, x, y, colW, rowH - 8, (rowH - 8) * 0.3, { tint: r.color });
     const mid = y + rowH / 2 + fs * 0.34;
-    ctx.fillStyle = vivid(r.color); ctx.fillRect(x, y + 6, 5, rowH - 16);
     teamLogo(ctx, o, r.team, x + 18 + fs * 0.55, y + (rowH - 4) / 2, fs * 0.85, 'center', fs * 1.1);
     const cx0 = x + 30 + fs * 1.1;
-    txt(ctx, r.code, cx0, mid, { size: fs, weight: 800, family: TITLE });
+    txt(ctx, r.code, cx0, mid, { size: fs, weight: 800, family: TITLE, italic: true });
     txt(ctx, r.classified ? `P${r.pos}` : 'AB.', cx0 + fs * 2.5, mid, { size: Math.round(fs * 0.7), weight: 700, family: MONO, color: C.muted });
     // Barre de la note (de 3 à 10)
     const bx = cx0 + fs * 4.5;
@@ -180,8 +179,8 @@ export function equipes(ctx, W, H, d, o, page) {
     txt(ctx, r.team.toUpperCase(), cx, y + fs * 1.1, { size: Math.round(fs * 0.62), weight: 700, family: TITLE, color: col, align: 'center', spacing: 3, max: W * 0.5 });
     // Noms : jusqu'aux chiffres des barres, sans les chevaucher
     const nameMax = (W - W * 0.34) / 2 - f.pad - 34 - fs * 1.1;
-    txt(ctx, r.a.last.toUpperCase(), f.pad + 34, y + h * 0.5, { size: fs, weight: 800, family: TITLE, max: nameMax });
-    txt(ctx, r.b.last.toUpperCase(), W - f.pad - 30, y + h * 0.5, { size: fs, weight: 800, family: TITLE, align: 'right', max: nameMax });
+    txt(ctx, r.a.last.toUpperCase(), f.pad + 34, y + h * 0.5, { size: fs, weight: 800, family: TITLE, italic: true, max: nameMax });
+    txt(ctx, r.b.last.toUpperCase(), W - f.pad - 30, y + h * 0.5, { size: fs, weight: 800, family: TITLE, italic: true, align: 'right', max: nameMax });
     // Barres qualifs et course : part de chacun
     const bar = (label, a, b, by) => {
       const bw = W * 0.34;
@@ -219,9 +218,9 @@ export function titre(ctx, W, H, d, o, team) {
   const by = f.top - 10 + bh / 2;
   if (champ) {
     txt(ctx, team ? 'CHAMPION DU MONDE DES CONSTRUCTEURS' : 'CHAMPION DU MONDE', f.pad + 40 * u, by - 12 * u, { size: Math.round(30 * u), weight: 700, family: TITLE, color: C.gold, spacing: 3, max: W - f.pad * 2 - 80 * u });
-    txt(ctx, champ.name.toUpperCase(), f.pad + 40 * u, by + 42 * u, { size: Math.round(52 * u), weight: 800, family: TITLE, max: W - f.pad * 2 - 80 * u });
+    txt(ctx, champ.name.toUpperCase(), f.pad + 40 * u, by + 42 * u, { size: Math.round(52 * u), weight: 800, family: TITLE, italic: true, max: W - f.pad * 2 - 80 * u });
   } else {
-    txt(ctx, `${team ? d.left.c : d.left.d} PTS`, f.pad + 40 * u, by + 26 * u, { size: Math.round(72 * u), weight: 800, family: TITLE });
+    txt(ctx, `${team ? d.left.c : d.left.d} PTS`, f.pad + 40 * u, by + 26 * u, { size: Math.round(72 * u), weight: 800, family: TITLE, italic: true });
     txt(ctx, 'ENCORE EN JEU', f.pad + 40 * u, by - 34 * u, { size: Math.round(24 * u), weight: 700, family: TITLE, color: C.red, spacing: 3 });
     const rest = d.left.races ? `${d.left.races} GP RESTANT${d.left.races > 1 ? 'S' : ''}${d.left.sprints ? ` · ${d.left.sprints} SPRINT${d.left.sprints > 1 ? 'S' : ''}` : ''}` : 'SAISON TERMINÉE';
     txt(ctx, rest, W - f.pad - 30 * u, by + 12 * u, { size: Math.round(30 * u), weight: 700, family: TITLE, color: C.muted, align: 'right', spacing: 2 });
@@ -251,7 +250,7 @@ export function titre(ctx, W, H, d, o, team) {
     const right = W - f.pad - fs * 0.6;
     const ny = y + h * 0.42;
     txt(ctx, `${e.points} PTS`, right, ny, { size: Math.round(fs * 0.86), weight: 700, family: MONO, align: 'right' });
-    txt(ctx, e.label.toUpperCase(), tx, ny, { size: fs, weight: 800, family: TITLE, max: right - tx - fs * 4.4 });
+    txt(ctx, e.label.toUpperCase(), tx, ny, { size: fs, weight: 800, family: TITLE, italic: true, max: right - tx - fs * 4.4 });
     const status = !e.alive ? `${team ? 'Éliminée' : 'Éliminé'} · manche ${e.outRound}` : e.behind ? `À ${e.behind} pts · ${e.maxPts} pts au plus` : 'En tête';
     txt(ctx, status.toUpperCase(), tx, ny + fs * 0.78, { size: Math.round(Math.max(fs * 0.5, 20 * u)), weight: 700, family: TITLE, color: !e.alive ? C.red : e.behind ? C.muted : C.gold, spacing: 1.5 });
     // Barre : points (couleur d'écurie) + possible (clair) ; trait = points du leader
@@ -382,13 +381,11 @@ export function recapCover(ctx, W, H, d, o) {
   const u = Math.min(W, H) / 1080;
   const pad = Math.round(W * 0.055);
   const top = Math.round(Math.min(W, H) * 0.06);
-  ctx.fillStyle = C.red; ctx.fillRect(pad, top, 10, Math.round(64 * u));
-  txt(ctx, 'ACTU F1', pad + 28, top + 30 * u, { size: Math.round(34 * u), weight: 800, family: TITLE, spacing: 4 });
-  txt(ctx, `DU ${d.date}`.toUpperCase(), pad + 28, top + 62 * u, { size: Math.round(24 * u), weight: 600, family: TITLE, color: C.muted, spacing: 2 });
+  kicker(ctx, pad, top, u, 'ACTU F1', `DU ${d.date}`.toUpperCase());
   const colW = W - pad * 2;
   let y = H * (H / W > 1.5 ? 0.18 : 0.17);
-  const big = txt(ctx, 'LA SEMAINE', pad, y + 140 * u, { size: Math.round(170 * u), weight: 800, family: TITLE, max: colW });
-  txt(ctx, 'EN F1', pad, y + 140 * u + big * 0.95, { size: big, weight: 800, family: TITLE, color: C.red });
+  const big = txt(ctx, 'LA SEMAINE', pad, y + 140 * u, { size: Math.round(170 * u), weight: 800, family: TITLE, italic: true, max: colW });
+  txt(ctx, 'EN F1', pad, y + 140 * u + big * 0.95, { size: big, weight: 800, family: TITLE, italic: true, color: C.red });
   y += 140 * u + big * 0.95 + 70 * u;
   // Sommaire : les infos de la semaine
   const lx = pad;
@@ -402,12 +399,11 @@ export function recapCover(ctx, W, H, d, o) {
     txt(ctx, String(i + 1).padStart(2, '0'), lx, ly + 46 * u, { size: Math.round(48 * u), weight: 800, family: TITLE, color: C.red });
     txt(ctx, it.badge.label, lx + 90 * u, ly + 22 * u, { size: Math.round(24 * u), weight: 700, family: TITLE, color: it.badge.color, spacing: 3 });
     const t = fitLines(ctx, it.title.toUpperCase(), lw - 90 * u, [44, 38, 32, 28].map((v) => Math.round(v * u)), each > 170 * u ? 3 : each > 120 * u ? 2 : 1, TITLE, 800);
-    t.lines.forEach((l, k) => txt(ctx, l, lx + 90 * u, ly + 64 * u + k * t.size * 1.02, { size: t.size, weight: 800, family: TITLE }));
+    t.lines.forEach((l, k) => txt(ctx, l, lx + 90 * u, ly + 64 * u + k * t.size * 1.02, { size: t.size, weight: 800, family: TITLE, italic: true }));
     ly += each;
   });
   const fy = H - Math.round(Math.min(W, H) * 0.045);
-  ctx.fillStyle = C.line; ctx.fillRect(pad, fy - Math.round(Math.min(W, H) * 0.04), W - pad * 2, 2);
-  txt(ctx, o.signature || '@BenjyPaddock', pad, fy, { size: Math.round(Math.min(W, H) * 0.032), weight: 700, family: TITLE, spacing: 1 });
+  footer(ctx, W, H, o);
   txt(ctx, `${kept.length} INFO${kept.length > 1 ? 'S' : ''} À RETENIR`, W - pad, fy, { size: Math.round(Math.min(W, H) * 0.025), weight: 700, family: TITLE, color: C.muted, align: 'right', spacing: 2 });
 }
 export function recapItem(ctx, W, H, d, o, i, fmt) {
@@ -687,7 +683,7 @@ export function raceFrame(ctx, W, H, d, o, time) {
   } else if (!intro && !done) {
     const lead = d.drivers.find((x) => posAt(x, Math.max(1, L)) === 1);
     if (lead) {
-      rr(ctx, pad, bandY + 20 * u, W - 2 * pad, bandH - 40 * u, 14 * u); ctx.fillStyle = C.panel; ctx.fill();
+      card(ctx, pad, bandY + 20 * u, W - 2 * pad, bandH - 40 * u, 14 * u);
       rr(ctx, pad + 14 * u, bandY + 38 * u, 6 * u, bandH - 76 * u, 3 * u); ctx.fillStyle = vivid(lead.color); ctx.fill();   // trait de l'écurie, dans le cadre
       txt(ctx, 'EN TÊTE', pad + 36 * u, bandY + bandH / 2 - 14 * u, { size: Math.round(22 * u), weight: 700, family: TITLE, color: C.muted, spacing: 3 });
       txt(ctx, `${lead.first} ${lead.last}`.toUpperCase(), pad + 36 * u, bandY + bandH / 2 + 28 * u, { size: Math.round(40 * u), weight: 800, family: TITLE, max: W * 0.5 });
@@ -709,7 +705,7 @@ export function raceFrame(ctx, W, H, d, o, time) {
     if (w0) {
       rr(ctx, pad + 18 * u, bandY + 26 * u, 6 * u, bandH - 52 * u, 3 * u); ctx.fillStyle = vivid(w0.color); ctx.fill();   // trait de l'écurie, dans le cadre doré
       txt(ctx, 'VAINQUEUR', pad + 40 * u, bandY + 50 * u, { size: Math.round(24 * u), weight: 800, family: TITLE, color: C.gold, spacing: 5 });
-      txt(ctx, `${w0.first} ${w0.last}`.toUpperCase(), pad + 40 * u, bandY + 112 * u, { size: Math.round(64 * u), weight: 800, family: TITLE, max: W * 0.55 });
+      txt(ctx, `${w0.first} ${w0.last}`.toUpperCase(), pad + 40 * u, bandY + 112 * u, { size: Math.round(64 * u), weight: 800, family: TITLE, italic: true, max: W * 0.55 });
       txt(ctx, w0.team.toUpperCase(), pad + 40 * u, bandY + 150 * u, { size: Math.round(24 * u), weight: 700, family: TITLE, color: C.muted, spacing: 2 });
     }
     pod.slice(1).forEach((x, j) => {
@@ -842,7 +838,7 @@ export function raceweek(ctx, W, H, d, o) {
   let y = textTop;
   txt(ctx, `MANCHE ${d.round}${d.rounds ? ` / ${d.rounds}` : ''}`, tx, y + 26 * u, { size: Math.round(30 * u), weight: 800, family: TITLE, color: /^#F5F5F5$/i.test(c1) ? c2 : c1, align, spacing: 6 * u });
   y += 30 * u;
-  txt(ctx, 'RACE', tx, y + big * 0.86, { size: big, weight: 800, family: TITLE, align, max: colW });
+  txt(ctx, 'RACE', tx, y + big * 0.86, { size: big, weight: 800, family: TITLE, italic: true, align, max: colW });
   y += big * 0.86;
   // WEEK : contour aux couleurs du pays
   ctx.save();
@@ -854,7 +850,7 @@ export function raceweek(ctx, W, H, d, o) {
   ctx.restore();
   y += big * 0.9 + 46 * u;
   const t = m.t;
-  t.lines.forEach((l, i) => txt(ctx, l, tx, y + t.size * 0.82 + i * t.size * 1.02, { size: t.size, weight: 800, family: TITLE, align }));
+  t.lines.forEach((l, i) => txt(ctx, l, tx, y + t.size * 0.82 + i * t.size * 1.02, { size: t.size, weight: 800, family: TITLE, italic: true, align }));
   y += t.lines.length * t.size * 1.02 + 20 * u;
   txt(ctx, `${d.date}${d.city ? `  ·  ${d.city}` : ''}`.toUpperCase(), tx, y + 28 * u, { size: Math.round(28 * u), weight: 600, family: TITLE, color: C.muted, align, spacing: 2 * u, max: colW });
   y += 60 * u;
