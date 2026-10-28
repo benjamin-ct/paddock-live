@@ -18,7 +18,7 @@ import { weekendTyres } from './tyres.js';
 import { destructorsWeb } from './destructors.js';
 import { circuitRecords } from './records.js';
 import { zonesWeb } from './zones.js';
-import { surroundingsWeb } from './surroundings.js';
+import { surroundingsWeb, surroundingsStatus } from './surroundings.js';
 import { forecast } from '../shared/forecast.js';
 import { validHeadshot } from '../shared/portraits.js';
 import { buildIcs } from '../shared/ics.js';
@@ -801,7 +801,7 @@ export async function liveApi(req, url, env = {}) {
     if (!env.DB || !env.MEDIA || !circuitKey(key) || !Number.isInteger(year) || year < 2018 || year > new Date().getUTCFullYear() + 1) return json({ error: 'Paramètres invalides' }, 400);
     const obj = await surroundingsWeb(env, key, year);
     return obj ? new Response(obj.body, { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=86400' } })
-      : json({ error: 'Pas encore calculé par le serveur', pending: true }, 404);
+      : json({ error: 'Pas encore calculé par le serveur', pending: true, last: await surroundingsStatus(env, key, year) }, 404);
   }
   if (url.pathname === '/live/api/circuit') {
     const key = Number(url.searchParams.get('key')), year = Number(url.searchParams.get('year'));
