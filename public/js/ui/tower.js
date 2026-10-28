@@ -176,8 +176,8 @@ export function renderTower(force = false) {
       const bestPurple = stats[num]?.PersonalBestLapTime?.Position === 1;
       const st = l.Speeds?.ST;
       cells = `<td class="pos">${esc(pos)}${posDelta}</td>${drv}
-        <td class="t-gap">${gapText(l.GapToLeader)}</td>
-        <td class="t-int c-int ${int.Catching ? 'catching' : ''}">${gapText(int.Value)}</td>
+        <td class="t-gap">${l.Retired ? '<span class="dim">—</span>' : gapText(l.GapToLeader)}</td>
+        <td class="t-int c-int ${int.Catching ? 'catching' : ''}">${l.Retired ? '<span class="dim">—</span>' : gapText(int.Value)}</td>
         ${last}<td class="t-lap c-best ${bestPurple ? 'purple' : ''}">${esc(best) || '<span class="dim">—</span>'}</td>
         ${secCells}${tyre}<td class="c-pits">${realStopCount(store.state.TimingAppData?.Lines?.[num], l)}</td>
         <td class="c-speed ${timingClass(st)}">${esc(st?.Value || '') || '<span class="dim">—</span>'}</td>${extra}${duel}`;

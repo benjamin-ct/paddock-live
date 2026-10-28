@@ -44,7 +44,7 @@ export function renderTelemetry() {
   const dl = drivers(store.state);
   const num = focusDriver();
   if (!store.positions.car.size) {
-    el.innerHTML = `<div class="note">Pas de télémétrie : en direct, connectez F1 TV dans Réglages.</div>`;
+    el.innerHTML = `<div class="note">${store.status?.source?.mode === 'replay' ? 'Pas de télémétrie dans ce replay.' : 'Pas de télémétrie : en direct, connectez F1 TV dans Réglages.'}</div>`;
     el._k = null;
     tele = null;
     return;

@@ -1,6 +1,8 @@
 // Interface en anglais : traduction de chaque texte français affiché (voir i18n.js).
 // {} = valeur dynamique (dans l'ordre), {0}, {1}… pour changer l'ordre en anglais.
 export default {
+  "Automatique (système)": "Automatic (system)",
+  "Pas de télémétrie dans ce replay.": "No telemetry in this replay.",
   "Choisissez vos pilotes favoris pour voir leur saison ici.": "Pick your favourite drivers to see their season here.",
   "en faveur d'{}": "in favour of {}",
   "{} en lice": "{} still in contention",
@@ -2115,8 +2117,6 @@ export default {
   "{} Légende": "{} Legend",
   "Légende": "Legend",
   "Météo prévue sur le circuit": "Forecast at the circuit",
-  "Mes favoris au championnat": "My favourites in the championship",
-  "Mon favori au championnat": "My favourite in the championship",
   "Mon favori": "My favourite",
   "Plus": "More",
   "Résumé de la séance": "Session summary",

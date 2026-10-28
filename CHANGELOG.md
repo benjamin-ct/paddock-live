@@ -30,6 +30,20 @@ l'application (Réglages → À propos → Nouveautés).
   « Calendrier indisponible pour l'instant » au lieu d'annoncer la saison terminée, puis réessaient tout seuls chaque
   minute jusqu'à afficher la prochaine séance.
 
+### En direct
+- Classement en course : l'intervalle avec la voiture devant s'affiche aussi en mode Essentiel ; un pilote qui abandonne
+  n'a plus d'écart affiché à côté de « ABD ».
+- Replay : la Télémétrie dit « Pas de télémétrie dans ce replay » au lieu de proposer la connexion F1 TV du direct.
+
+### Téléphone
+- En course, le haut de l'écran tient sur deux lignes (le délai TV à côté du tour) : une ligne de classement en plus, et
+  la colonne des arrêts tient dans l'écran.
+- La demande « Aider à améliorer Paddock Live ? » ne cache plus la barre du replay ; l'accueil dit « Mes favoris » ;
+  dans les Réglages, les rubriques montrent qu'il y en a d'autres à droite.
+
+### Réglages
+- Compte F1 TV : « Se déconnecter » n'apparaît que lorsqu'une connexion est enregistrée.
+
 ## v1.29.0 — 2026-10-28
 
 ### Alertes sur le téléphone
