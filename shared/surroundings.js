@@ -1,7 +1,8 @@
 // Alentours d'un circuit pour la vue 3D : relief (modèle numérique de terrain ouvert, tuiles Terrain Tiles au format
-// terrarium) et ce qu'il y a autour d'après OpenStreetMap (bâtiments, tribunes, bois et arbres, eau, herbe, routes,
-// parkings). Le tracé MultiViewer est dans un repère local (x, y en 1/10 m, sans latitude ni longitude) : il est calé
-// sur les lignes highway=raceway d'OSM (angle cherché sur tout le tour par votes, puis affiné point par point), et
+// terrarium) et ce qu'il y a autour d'après OpenStreetMap, lu dans les tuiles vectorielles OpenFreeMap (schéma
+// OpenMapTiles : bâtiments, bois, eau, herbe, champs, routes). Le tracé MultiViewer est dans un repère local (x, y en
+// 1/10 m, sans latitude ni longitude) : il est calé sur les pistes (highway=raceway d'OSM, class=raceway des tuiles ;
+// angle cherché sur tout le tour par votes, puis affiné point par point), et
 // tout est rendu dans son repère, en mètres. Calculé par le serveur (analytics/surroundings.js) ; ici, seulement
 // les calculs, sans réseau.
 import { smooth } from './elevation.js';
@@ -305,29 +306,6 @@ export function inRing(r, x, y) {
   return ins;
 }
 
-// Anneaux extérieurs d'une relation multipolygone : chemins « outer » mis bout à bout
-export function stitch(ways) {
-  const open = ways.filter((w) => w.length > 1).map((w) => w.slice()), rings = [];
-  const same = (p, q) => p.lat === q.lat && p.lon === q.lon;
-  while (open.length) {
-    const cur = open.pop();
-    for (let grown = true; grown && !same(cur[0], cur.at(-1));) {
-      grown = false;
-      for (let i = 0; i < open.length; i++) {
-        const w = open[i];
-        if (same(cur.at(-1), w[0])) cur.push(...w.slice(1));
-        else if (same(cur.at(-1), w.at(-1))) cur.push(...w.slice(0, -1).reverse());
-        else continue;
-        open.splice(i, 1);
-        grown = true;
-        break;
-      }
-    }
-    if (cur.length > 3 && same(cur[0], cur.at(-1))) rings.push(cur);
-  }
-  return rings;
-}
-
 // ---------- Ce qu'il y a autour (OSM) ----------
 
 export const MARGIN = 1200;   // zone : tracé + 1,2 km
@@ -359,27 +337,40 @@ export function areaKind(t) {
   return null;
 }
 
-// Requête Overpass : surfaces, routes et cours d'eau de la zone { s, w, n, e } (degrés) ; bâtiments et arbres isolés
-// seulement dans near, plus près du tracé (en ville, ceux de toute la zone pèseraient des dizaines de Mo)
-export function overpassQuery(zone, near = zone) {
-  const box = ({ s, w, n, e }) => `(${[s, w, n, e].map((v) => v.toFixed(5)).join(',')})`, b = box(zone), c = box(near);
-  return `[out:json][timeout:150];(way[building]${c};node[natural=tree]${c};way[landuse]${b};way[natural~"^(wood|water|grassland|heath|scrub|sand|beach)$"]${b};`
-    + `way[leisure~"^(park|golf_course|pitch|garden|stadium)$"]${b};way[amenity=parking]${b};way[waterway~"^(river|canal|stream|riverbank)$"]${b};`
-    + `way[highway~"^(motorway|trunk|primary|secondary|tertiary|raceway)(_link)?$"]${b};`
-    + `relation[type=multipolygon][~"^(natural|landuse|leisure|building|waterway)$"~"."]${b};);out geom qt;`;
-}
+// Couches des tuiles OpenMapTiles (OpenFreeMap) -> étiquettes à la manière d'OSM, lues ici (areaKind, buildingHeight,
+// routes) ; null : pas montré. La mer n'y est pas prise (le relief la montre déjà), ni les piscines
+const OMT = {
+  building: (p) => (p.hide_3d ? null : { building: 'yes', height: p.render_height }),   // hide_3d : contour d'un bâtiment en parties
+  landcover: (p) => ({ wood: { natural: 'wood' }, grass: { landuse: 'grass' }, farmland: { landuse: 'farmland' }, sand: { natural: 'sand' } })[p.class] || null,
+  landuse: (p) => (p.class === 'pitch' ? { leisure: 'pitch' } : { landuse: p.class }),
+  water: (p) => (['ocean', 'swimming_pool'].includes(p.class) ? null : { natural: 'water' }),
+  waterway: (p) => (p.brunnel === 'tunnel' ? null : { waterway: p.class }),
+  transportation: (p) => (p.class === 'raceway' || ROADS[p.class] ? { highway: p.class + (p.ramp ? '_link' : '') } : null),
+};
+export const OMT_LAYERS = Object.keys(OMT);
 
-// Réponse d'Overpass réduite à ce qui sert (étiquettes lues ici, coordonnées à 10 cm près) : gardée par circuit
-const TAGS = ['building', 'height', 'building:levels', 'grandstand', 'leisure', 'landuse', 'natural', 'amenity', 'waterway', 'highway'];
-export function trimOsm(elements) {
-  const pt = (p) => ({ lat: Math.round(p.lat * 1e6) / 1e6, lon: Math.round(p.lon * 1e6) / 1e6 });
-  return elements.map((e) => {
-    const tags = Object.fromEntries(TAGS.filter((k) => e.tags?.[k] != null).map((k) => [k, e.tags[k]]));
-    if (e.type === 'node') return { type: 'node', ...pt(e), tags };
-    if (e.type === 'way') return { type: 'way', tags, geometry: (e.geometry || []).map(pt) };
-    return { type: 'relation', tags, members: (e.members || []).filter((m) => m.type === 'way' && m.role === 'outer' && m.geometry)
-      .map((m) => ({ type: 'way', role: 'outer', geometry: m.geometry.map(pt) })) };
-  });
+// Tuiles décodées (decodeMvt de shared/mvt.js) -> chemins { type: 'way', tags, geometry: [{ lat, lon }…] } (anneau
+// fermé : premier point répété ; coordonnées à 10 cm près), gardés par circuit ; bâtiments seulement dans near
+// { s, w, n, e }, plus près du tracé (en ville, ceux de toute la zone pèseraient des dizaines de Mo)
+export function omtElements(tiles, near) {
+  const pt = ([lat, lon]) => ({ lat: Math.round(lat * 1e6) / 1e6, lon: Math.round(lon * 1e6) / 1e6 });
+  const inNear = ([lat, lon]) => lat >= near.s && lat <= near.n && lon >= near.w && lon <= near.e;
+  const out = [];
+  for (const t of tiles) {
+    for (const [layer, tagsOf] of Object.entries(OMT)) {
+      for (const f of t[layer] || []) {
+        const tags = tagsOf(f.props);
+        if (!tags) continue;
+        const lines = layer === 'transportation' || layer === 'waterway';
+        if (f.type === 'line' && lines) for (const l of f.geom) out.push({ type: 'way', tags, geometry: l.map(pt) });
+        // Surfaces : l'anneau extérieur seulement (trous ignorés)
+        if (f.type === 'polygon' && !lines) {
+          for (const [outer] of f.geom) if (layer !== 'building' || inNear(outer[0])) out.push({ type: 'way', tags, geometry: [...outer, outer[0]].map(pt) });
+        }
+      }
+    }
+  }
+  return out;
 }
 
 // Hachage déterministe -> [0, 1)
@@ -422,8 +413,8 @@ export function zone(track, fit, frame, margin = MARGIN) {
 //   buildings, stands : [[hauteur (m), x0, y0, x1, y1…]] — contour des bâtiments et des tribunes
 //   areas   : { water, wood, grass, farm, urban, sand, parking : [[x0, y0, x1, y1…]] } — surfaces
 //   lines   : { road, water, raceway : [[largeur (m), x0, y0…]] } — routes principales, cours d'eau, autres pistes
-//   trees   : [x0, y0, x1, y1…] — arbres isolés, puis arbres des bois (les plus proches de la piste d'abord)
-// track : points du tracé [x, y] (m) ; fit : calage (fitTrack) ; frame : geoFrame ; elements : réponse d'Overpass ;
+//   trees   : [x0, y0, x1, y1…] — arbres des bois (les plus proches de la piste d'abord)
+// track : points du tracé [x, y] (m) ; fit : calage (fitTrack) ; frame : geoFrame ; elements : omtElements ;
 // dem(lat, lon) : altitude (m). null si le relief manque sur une partie de la zone
 export function buildSurroundings({ track, fit, frame, elements = [], dem, margin = MARGIN, max = MAX }) {
   const toT = (lat, lon) => fromEN(fit, ...frame.toEN(lat, lon));
@@ -471,8 +462,6 @@ export function buildSurroundings({ track, fit, frame, elements = [], dem, margi
         const rank = kind === 'raceway' ? 0 : kind === 'water' ? 1 : 2 + Object.keys(ROADS).indexOf(road);
         for (const part of clipLine(g.map((p) => toT(p.lat, p.lon)), box)) lines.push({ kind, w, rank, pts: simplify(part, 3) });
       } else if (g.length > 3 && g[0].lat === g.at(-1).lat && g[0].lon === g.at(-1).lon) addRing(g, t);
-    } else if (el.type === 'relation') {
-      for (const r of stitch((el.members || []).filter((m) => m.type === 'way' && m.role === 'outer' && m.geometry).map((m) => m.geometry))) addRing(r, t);
     }
   }
 
@@ -508,13 +497,13 @@ export function buildSurroundings({ track, fit, frame, elements = [], dem, margi
     if ((budget -= l.pts.length) < 0) break;
     (out.lines[l.kind] ||= []).push([l.w, ...flat(l.pts)]);
   }
-  // Arbres : isolés d'abord, puis semés dans les bois (tous les 12 m), jamais sur la piste ; plafonnés : surtout les
-  // plus proches de la piste, et quelques-uns répartis plus loin
+  // Arbres semés dans les bois (tous les 12 m ; les arbres isolés ne sont pas dans les tuiles OpenMapTiles), jamais sur
+  // la piste ; plafonnés : surtout les plus proches de la piste, et quelques-uns répartis plus loin
   const ok = ([x, y]) => x >= box[0] && x <= box[2] && y >= box[1] && y <= box[3] && !nearTrack(x, y, 18).p;
-  const chosen = elements.filter((e) => e.type === 'node' && e.tags?.natural === 'tree').map((e) => toT(e.lat, e.lon)).filter(ok).slice(0, max.trees);
+  const chosen = [];
   const sown = (out.areas.wood || []).flatMap((r) => sowTrees(Array.from({ length: r.length / 2 }, (_, i) => [r[2 * i], r[2 * i + 1]]), 12))
     .map((p) => ({ p, d: distAt(...p) })).sort((a, b) => a.d - b.d);
-  const nearMax = chosen.length + Math.round((max.trees - chosen.length) * 0.75), rest = [];
+  const nearMax = Math.round(max.trees * 0.75), rest = [];
   for (const { p } of sown) {
     if (!ok(p)) continue;
     if (chosen.length < nearMax) chosen.push(p); else rest.push(p);
