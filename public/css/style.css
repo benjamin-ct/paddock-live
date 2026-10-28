@@ -1282,6 +1282,8 @@ body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-selec
 .sz-hb-t { height: 12px; background: var(--panel-3); border-radius: 6px; overflow: hidden; }
 .sz-hb-t i { display: block; height: 100%; border-radius: 6px; opacity: .9; }
 .sz-hb-v { text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; }
+.sz-hbar.sz-pick { cursor: pointer; border-radius: 6px; }
+.sz-hbar.sz-pick:hover, .sz-hbar.sz-pick.on { background: var(--panel-2); }
 .sz-scroll { overflow-x: auto; }
 .sz-heat th, .sz-heat td { text-align: center; white-space: nowrap; }
 .sz-heat td:first-child, .sz-heat th:first-child { text-align: left; }

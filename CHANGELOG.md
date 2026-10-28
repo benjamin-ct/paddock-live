@@ -24,6 +24,9 @@ l'application (Réglages → À propos → Nouveautés).
   pilotes tiennent dans la page ; le Bilan est sur deux rangées, avec un bouton pour choisir ses favoris ; le Profil
   des circuits donne la longueur et les virages de Madring et de Sepang. Les écuries ont le même nom partout (Racing
   Bulls, Red Bull, Alpine, Haas, Cadillac) et les pilotes leurs accents dans Éléments moteur (Pérez).
+- Qualifications (nouvelle rubrique de la Saison) : l'écart de chaque écurie à la pole, Grand Prix par Grand Prix, en %
+  ou en secondes (toucher une écurie la met en avant), et son écart médian. Pilotes : la répartition des places en
+  course, en qualifs (avec les éliminations en Q1 et Q2) ou en sprint. Aussi dans la version web.
 - Résultats & records : la grille de la saison (la place ou les points de chaque pilote à chaque Grand Prix, en course,
   en qualifs ou en sprint, podiums et places qui marquent en couleur) et les kilomètres parcourus par chaque écurie en
   course et en sprint. Aussi dans la version web.
