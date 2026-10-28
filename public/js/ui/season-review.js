@@ -5,10 +5,9 @@ import { icon } from '../icons.js';
 import { prefs } from '../prefs.js';
 import { seasonReview, titleRace } from '/shared/season-calc.js';
 import { gpFull } from '/shared/gp-names.js';
-import { EN, t } from '../i18n.js';
+import { LANG, ord, t } from '../i18n.js';
 import { toast } from './delay.js';
 
-const ord = (n) => (EN ? `${n}${[, 'st', 'nd', 'rd'][n % 100 > 10 && n % 100 < 14 ? 0 : n % 10] || 'th'}` : n === 1 ? '1er' : `${n}e`);
 // Premier en grand, les deux suivants dessous
 const first = (list) => (list[0] ? `${esc(list[0].last || list[0].name)} <small>${list[0].n}</small>` : '—');
 const next = (list) => list.slice(1, 3).map((x) => `${esc(x.last || x.name)} ${x.n}`).join(' · ');
@@ -41,7 +40,7 @@ export function renderReview(ctx) {
         ${card(t('Victoires'), first(r.wins), [next(r.wins), t('{} vainqueurs différents', r.winners)].filter(Boolean).join(' · '))}
         ${card(t('Pole positions'), first(r.poles), [next(r.poles), t('{} victoires depuis la pole', r.poleWins)].filter(Boolean).join(' · '))}
         ${card(t('Podiums'), first(r.podiums), next(r.podiums))}
-        ${card(t('Plus belle remontée'), cb ? `${esc(cb.last || cb.name)} <small>+${cb.gain}</small>` : '—', cb ? `${ord(cb.from)} → ${ord(cb.to)} · ${esc(gpFull(cb.gp, EN))}` : '')}
+        ${card(t('Plus belle remontée'), cb ? `${esc(cb.last || cb.name)} <small>+${cb.gain}</small>` : '—', cb ? `${ord(cb.from)} → ${ord(cb.to)} · ${esc(gpFull(cb.gp, LANG))}` : '')}
         ${card(t('Abandons'), String(r.dnf), t('sur {} départs', data.races.filter((x) => x.results?.length).reduce((s, x) => s + x.results.length, 0)))}
       </div>
       <div class="row" style="gap:8px;margin-top:12px"><button class="btn small" data-review="copy">${t('Copier l\'image')}</button><button class="btn small" data-review="save">${t('Enregistrer l\'image')}</button></div>

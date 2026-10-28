@@ -2,7 +2,7 @@
 // comptées puis confiées au serveur de l'appli, qui envoie les totaux. Question posée dans un bandeau
 // discret jusqu'à la réponse ; réglage dans Réglages → Application.
 import { $ } from '../util.js';
-import { t, EN } from '../i18n.js';
+import { t, LANG } from '../i18n.js';
 import { icon } from '../icons.js';
 import { toast } from './delay.js';
 import { cleanErrorText, stackFrames } from '/shared/stats.js';
@@ -156,7 +156,7 @@ function ask() {
 export async function initStats() {
   listen();
   const main = !new URLSearchParams(location.search).has('win');   // pas les fenêtres détachées
-  if (main) { track('app.open'); track(EN ? 'lang.en' : 'lang.fr'); }
+  if (main) { track('app.open'); track(`lang.${LANG}`); }
   // Interface de l'ordinateur : Essentiel ou Complète
   if (main && innerWidth > 900) track(prefs.fullMode ? 'mode.full' : 'mode.essential');
   let state;

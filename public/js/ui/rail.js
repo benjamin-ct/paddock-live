@@ -97,6 +97,8 @@ function sync() {
 export function initRail() {
   const rail = $('#rail');
   if (!rail) return;
+  // Libellé long une fois traduit (« Impostazioni », « Repeticiones ») : plus petit, comme « Commentaires »
+  for (const s of rail.querySelectorAll('.rail-btn small')) if (s.textContent.trim().length > 10) s.classList.add('rail-long');
   rail.addEventListener('click', (e) => {
     const b = e.target.closest('[data-rail]');
     if (!b) return;

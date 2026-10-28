@@ -5,7 +5,7 @@ import { $, esc, drivers, teamColor, fmtClock, fmtLap, api, stintsOf, tyreBadge,
 import { parseUtc, parseLapTime } from '/shared/f1.js';
 import { analyzeStewards, isOpen, STATUS_LABEL, linkFiaDocs, parseFiaDoc, deletedLapsDoc } from '/shared/stewards.js';
 import { icon } from '../icons.js';
-import { DEC, EN, t } from '../i18n.js';
+import { DEC, FR, t } from '../i18n.js';
 import { cloudOn, cloudTranslate } from '../cloud.js';
 import { continuesStint } from '/shared/pits.js';
 import { pdfHref } from './pdf-view.js';
@@ -55,7 +55,7 @@ const carsOf = (m) => [m.RacingNumber, ...[...String(m.Message || '').matchAll(/
 // par le serveur Paddock Live (une fois pour tous, gardées en mémoire ici)
 const rcmTr = new Map();   // message -> traduction (null : en cours ou refusée)
 let rcmTrVer = 0;
-const rcmTranslating = () => !EN && prefs.rcmTranslate !== false;
+const rcmTranslating = () => FR && prefs.rcmTranslate !== false;
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 // Majuscules partout : la traduction automatique les prend pour des sigles. En minuscules, sauf les
 // codes pilotes et les sigles connus.
@@ -262,7 +262,7 @@ export function initRcmFilters() {
   }
   on('prefs', (k) => { if (k === 'rcmBlue' || k === 'rcmDeleted') $(`#${k}`).checked = prefs[k]; });
   // Traduction : interface en français seulement
-  $('#rcmTranslateBox').hidden = EN;
+  $('#rcmTranslateBox').hidden = !FR;
   $('#rcmTranslate').checked = prefs.rcmTranslate !== false;
   $('#rcmTranslate').addEventListener('change', (e) => setPref('rcmTranslate', e.target.checked));
   on('prefs', (k) => { if (k === 'rcmTranslate') $('#rcmTranslate').checked = prefs.rcmTranslate !== false; });

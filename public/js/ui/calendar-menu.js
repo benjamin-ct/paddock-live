@@ -3,9 +3,9 @@
 // changent ; le fichier .ics reste proposé. Boutons : <a data-cal="année" data-round="manche">.
 import { esc } from '../util.js';
 import { icon } from '../icons.js';
-import { EN } from '../i18n.js';
+import { FR } from '../i18n.js';
 
-const FEED = `paddocklive.app/calendar${EN ? '-en' : ''}.ics`;
+const FEED = `paddocklive.app/calendar${FR ? '' : '-en'}.ics`;
 const google = `https://calendar.google.com/calendar/render?${new URLSearchParams({ cid: `webcal://${FEED}` })}`;
 
 document.addEventListener('click', (e) => {
@@ -21,7 +21,7 @@ document.addEventListener('click', (e) => {
     document.body.appendChild(dlg);
   }
   const round = a.dataset.round;
-  const file = `/api/calendar.ics?${new URLSearchParams({ year: a.dataset.cal, ...(round ? { round } : {}), ...(EN ? { lang: 'en' } : {}) })}`;
+  const file = `/api/calendar.ics?${new URLSearchParams({ year: a.dataset.cal, ...(round ? { round } : {}), ...(FR ? {} : { lang: 'en' }) })}`;
   const opt = (href, ic, title, sub, extra = 'target="_blank" rel="noopener"') => `<a class="cal-opt" href="${esc(href)}" ${extra}>${icon(ic)}<span><b>${title}</b><small>${sub}</small></span></a>`;
   dlg.innerHTML = `<div class="sum-head"><b>${icon('calendar')} Ajouter à mon agenda</b><button class="icon-btn" data-close title="Fermer">${icon('close')}</button></div>
     <div class="cal-opts">

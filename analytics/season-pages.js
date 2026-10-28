@@ -44,6 +44,7 @@ const DESC = {
   destructors: 'Championnat des casseurs {} de Formule 1 : coût estimé des dégâts de chaque pilote et de chaque écurie, Grand Prix par Grand Prix.',
   review: 'Bilan de la saison {} de Formule 1 : champion, victoires, poles, podiums, plus belles remontées et abandons.',
   results: 'Résultats de tous les Grands Prix de la saison {} de Formule 1 : vainqueurs, poles, podiums et records.',
+  quali: 'Qualifications {} de Formule 1 : écart de chaque écurie à la pole, Grand Prix par Grand Prix.',
   h2h: 'Duels entre coéquipiers en {} : qualifications, courses, points, écart en qualification de chaque paire de pilotes de F1.',
   ratings: 'Notes des pilotes de F1 en {}, course après course, face au coéquipier et sur la saison.',
   predict: 'Pronostics F1 {} entre amis : pronostiquez chaque Grand Prix et comparez vos points.',
