@@ -169,18 +169,24 @@ export async function zonesWeb(env, kind, key, year, now = Date.now()) {
   return row?.[kind] || null;
 }
 
+// Circuits à calculer ([clé, année]) : asked, ceux demandés dans l'heure (lignes <prefix>clé:année) ; next, celui du
+// prochain Grand Prix de la semaine (ou null). Aussi pour les alentours (analytics/surroundings.js)
+export async function wantedCircuits(env, prefix, now) {
+  const results = await rowsWithPrefix(env, prefix);
+  const asked = (results || []).filter((r) => now - Number(r.v) < 3600e3).map((r) => r.k.split(':').slice(1).map(Number));
+  const year = new Date(now).getUTCFullYear();
+  const gp = (await seasonRow(env, year, { now, maxAge: 7 * 86400e3 }).catch(() => null))?.v.races
+    .find((r) => Date.parse(r.date) > now && Date.parse(r.date) - now < 7 * 86400e3);
+  return { asked, next: CIRCUITS[gp?.circuitId] ? [CIRCUITS[gp.circuitId].key, year] : null };
+}
+
 // Tâche planifiée : un circuit demandé (dans l'heure), sinon celui du prochain Grand Prix de la semaine, s'il n'a pas
 // de résultat ou s'il est à revoir
 export async function zonesTick(env, { now = Date.now(), fetchFn = fetch } = {}) {
   if (!env.DB || !env.STATS_KEY || now - Number(await readJSON(env, 'zoneslock', 0)) < LOCK) return null;
-  const results = await rowsWithPrefix(env, 'zoneswant:');
-  const jobs = (results || []).filter((r) => now - Number(r.v) < 3600e3).map((r) => r.k.split(':').slice(1).map(Number));
-  const year = new Date(now).getUTCFullYear();
-  const next = (await seasonRow(env, year, { now, maxAge: 7 * 86400e3 }).catch(() => null))?.v.races
-    .find((r) => Date.parse(r.date) > now && Date.parse(r.date) - now < 7 * 86400e3);
-  if (CIRCUITS[next?.circuitId]) jobs.unshift([CIRCUITS[next.circuitId].key, year]);   // le Grand Prix qui vient d'abord
+  const { asked, next } = await wantedCircuits(env, 'zoneswant:', now);
   let job = null, old = null;
-  for (const [key, y] of jobs) {
+  for (const [key, y] of next ? [next, ...asked] : asked) {   // le Grand Prix qui vient d'abord
     old = await readJSON(env, rowKey(key, y), null);
     if (!old || stale(old, y, now)) { job = [key, y]; break; }
   }

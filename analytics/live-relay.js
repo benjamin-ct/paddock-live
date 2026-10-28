@@ -18,6 +18,7 @@ import { weekendTyres } from './tyres.js';
 import { destructorsWeb } from './destructors.js';
 import { circuitRecords } from './records.js';
 import { zonesWeb } from './zones.js';
+import { surroundingsWeb } from './surroundings.js';
 import { forecast } from '../shared/forecast.js';
 import { validHeadshot } from '../shared/portraits.js';
 import { buildIcs } from '../shared/ics.js';
@@ -793,6 +794,14 @@ export async function liveApi(req, url, env = {}) {
     if (!env.DB || !circuitKey(key) || !Number.isInteger(year) || year < 2018 || year > new Date().getUTCFullYear() + 1) return json({ error: 'Paramètres invalides' }, 400);
     const d = await zonesWeb(env, url.pathname.slice(10), key, year);
     return d ? json(d, 200, { 'Cache-Control': 'public, max-age=3600' }) : json({ error: 'Pas encore calculé par le serveur', pending: true }, 404);
+  }
+  // Alentours du circuit (vue 3D : relief du terrain, bâtiments, bois, eau, routes d'OSM), calculés par le serveur
+  if (url.pathname === '/live/api/surroundings' && req.method === 'GET') {
+    const key = Number(url.searchParams.get('key')), year = Number(url.searchParams.get('year'));
+    if (!env.DB || !env.MEDIA || !circuitKey(key) || !Number.isInteger(year) || year < 2018 || year > new Date().getUTCFullYear() + 1) return json({ error: 'Paramètres invalides' }, 400);
+    const obj = await surroundingsWeb(env, key, year);
+    return obj ? new Response(obj.body, { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=86400' } })
+      : json({ error: 'Pas encore calculé par le serveur', pending: true }, 404);
   }
   if (url.pathname === '/live/api/circuit') {
     const key = Number(url.searchParams.get('key')), year = Number(url.searchParams.get('year'));
