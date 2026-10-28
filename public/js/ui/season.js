@@ -4,7 +4,7 @@
 // analyse des archives F1 Live Timing (/api/season/stats).
 import { $, esc, api, teamColor, teamLogo, photoUrl, placeView, driverOpt } from '../util.js';
 import { store } from '../store.js';
-import { renderDrivers, renderConsistency, renderPits, renderSpeeds, renderCircuits, renderRatings, gradeBadge, stopTxt, DHL_NOTE, statusFr, fmtLap, setHistKind, circuitLength } from './season-stats.js';
+import { renderDrivers, renderConsistency, renderPits, renderSpeeds, renderCircuits, renderRatings, gradeBadge, stopTxt, DHL_NOTE, statusFr, fmtLap, dnaBlock, setHistKind, circuitLength } from './season-stats.js';
 import { driverRatings, qualiGaps, titleRace, placeForMaxPoints, retired, standingsAfter, lineage, pointsPath, shortTeams, teamPoleGaps, median, teamMileage } from '/shared/season-calc.js';
 import { renderTech, renderElements, setTechFilter, translateTechDetail, toggleTechOriginal } from './season-fia.js';
 import { icon } from '../icons.js';
@@ -294,6 +294,8 @@ function renderGp() {
   const parts = [`<section class="sz-box"><h3>${flagOf(r)}${esc(gpFull(r.name, EN))} ${data.year}</h3>
     <div class="muted">${t('Manche {}', r.round)} · ${calSpan(r)} · ${esc([r.circuit, r.locality].filter(Boolean).join(' · '))}</div>
     ${win ? `<p>${icon('trophy')} ${chip(win)}${pole ? ` <span class="muted">pole</span> ${chip(pole)}` : ''}</p>` : ''}</section>`];
+  const dna = dnaBlock(r.circuitId, false);
+  if (dna && !r.results.length) parts.push(`<section class="sz-box"><h3>ADN du circuit</h3>${dna}</section>`);
   if (r.results.length) {
     parts.push(`<section class="sz-box"><h3>Course</h3><div class="sz-scroll"><table class="sz-table"><tr><th>Pos.</th><th>Pilote</th><th>Temps / écart</th><th>Tours</th><th>Grille</th><th>Points</th></tr>
       ${r.results.map((x) => `<tr><td>${pos(x)}</td><td>${who(x)}</td><td>${gap(x)}</td><td>${x.laps ?? ''}</td><td>${x.grid ? `P${x.grid}` : 'Stands'}</td><td>${x.points || ''}</td></tr>`).join('')}</table></div></section>`);
@@ -315,6 +317,7 @@ function renderGp() {
       ${stops.map((s, k) => `<tr><td>${k + 1}</td><td>${bar(s.d.team, null)}<b>${esc(s.d.name)}</b> <span class="muted small">${esc(s.d.team)}</span></td><td>${s.lap ?? '—'}</td><td><b>${stopTxt(s)}</b></td></tr>`).join('')}</table>
       ${stops.some((s) => s.dhl) ? DHL_NOTE : ''}</section>`);
   }
+  if (dna && r.results.length) parts.push(`<section class="sz-box"><h3>ADN du circuit</h3>${dna}</section>`);
   if (r.results.length) parts.push(renderPace(an, r.results));
   parts.push(`<div class="sz-gp-nav">${prev ? gpLink(prev, `← ${gpShort(prev.name, EN)}`, 'btn small') : '<span></span>'}<button class="btn small" data-szgo="results">Tous les Grands Prix</button>${next ? gpLink(next, `${gpShort(next.name, EN)} →`, 'btn small') : '<span></span>'}</div>`);
   return parts.join('');

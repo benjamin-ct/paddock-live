@@ -183,6 +183,9 @@ export function driverRatings(data, stats) {
 export const CIRCUIT_FEATURES = [
   ['length', 'longueur'], ['corners', 'virages'], ['avgSpeed', 'vitesse moyenne'], ['topSpeed', 'vitesse de pointe'],
   ['passes', 'dépassements'], ['stopsPerCar', 'arrêts'], ['hard', 'pneus'],
+  // ADN Pirelli (shared/circuit-dna.js), quand le circuit en a un
+  ['traction', 'traction'], ['asphaltGrip', 'adhérence'], ['asphaltAbrasion', 'abrasion'], ['trackEvolution', 'évolution de la piste'],
+  ['tyreStress', 'contrainte sur les pneus'], ['braking', 'freinage'], ['lateral', 'appui latéral'],
 ];
 export function similarCircuits(items, n = 3) {
   const stat = {};

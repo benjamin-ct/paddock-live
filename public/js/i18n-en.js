@@ -1,6 +1,20 @@
 // Interface en anglais : traduction de chaque texte français affiché (voir i18n.js).
 // {} = valeur dynamique (dans l'ordre), {0}, {1}… pour changer l'ordre en anglais.
 export default {
+  "ADN du circuit": "Circuit DNA",
+  "preview du Grand Prix {}": "{} Grand Prix preview",
+  "D'après Pirelli :": "According to Pirelli:",
+  "← virages lents (traction)": "← slow corners (traction)",
+  "virages rapides (appui latéral) →": "fast corners (lateral load) →",
+  "En hauteur : contrainte sur les pneus (1 à 5). Circuits regroupés : mêmes notes.": "Vertical: tyre stress (1 to 5). Grouped circuits: same ratings.",
+  "Notes d'après les previews Pirelli.": "Ratings from the Pirelli previews.",
+  "Circuits qui se ressemblent": "Similar circuits",
+  "Traction": "Traction",
+  "Adhérence de l'asphalte": "Asphalt grip",
+  "Abrasion de l'asphalte": "Asphalt abrasion",
+  "Évolution de la piste": "Track evolution",
+  "Freinage": "Braking",
+  "Appui latéral": "Lateral load",
   "Couru": "Raced",
   "Enregistrer le graphique en image (PNG)": "Save the chart as an image (PNG)",
   "saison {}": "{} season",

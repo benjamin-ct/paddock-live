@@ -205,6 +205,16 @@ test('noms d\'écuries courts, les mêmes dans toute la Saison', () => {
   assert.deepEqual([d.drivers[0].team, d.constructors[0].name, d.constructors[0].id, d.races[0].results[0].team], ['Cadillac', 'Racing Bulls', 'rb', 'Red Bull']);
 });
 
+test('ADN des circuits : sept notes de 1 à 5 par circuit, saison et source Pirelli', async () => {
+  const { CIRCUIT_DNA, DNA_KEYS } = await import('../shared/circuit-dna.js');
+  assert.ok(Object.keys(CIRCUIT_DNA).length >= 20);
+  for (const [id, n] of Object.entries(CIRCUIT_DNA)) {
+    for (const [k] of DNA_KEYS) assert.ok(Number.isInteger(n[k]) && n[k] >= 1 && n[k] <= 5, `${id} ${k}`);
+    assert.ok([2025, 2026].includes(n.season), id);
+    assert.match(n.source, /^https:\/\/press\.pirelli\.com\//, id);
+  }
+});
+
 test('écart à la pole par écurie : meilleur tour de ses deux voitures face à la pole, en % et en s', async () => {
   const { teamPoleGaps } = await import('../shared/season-calc.js');
   const races = [
