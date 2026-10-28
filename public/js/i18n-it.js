@@ -2697,6 +2697,7 @@ export default {
   "Vue 3D indisponible ({})": "Vista 3D non disponibile ({})",
   "Poursuite": "Inseguimento",
   "Libre": "Libera",
+  "Image prête : touchez de nouveau pour l'enregistrer": "Immagine pronta: tocca di nuovo per salvarla",
   "Fiche du Grand Prix": "Scheda del Gran Premio",
   "Revenir au globe": "Torna al globo",
   "Monde": "Mondo",

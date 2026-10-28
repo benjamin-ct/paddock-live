@@ -2,6 +2,7 @@
 // le SVG est recopié avec ses couleurs calculées (variables du thème), dessiné sur un canvas au double de sa taille,
 // avec le titre du bloc et la mention Paddock Live.
 import { t } from '../i18n.js';
+import { toast } from './delay.js';
 
 const STYLE = ['fill', 'fill-opacity', 'stroke', 'stroke-width', 'stroke-opacity', 'stroke-dasharray', 'opacity', 'font-size', 'font-weight', 'font-family', 'paint-order'];
 
@@ -30,16 +31,50 @@ function inlined(svg) {
   return copy;
 }
 
+// Image prête mais partage refusé par le navigateur (toucher trop ancien) : partagée au toucher suivant du même bouton
+let ready = null;
+
+// Image enregistrée : sur téléphone ou tablette, feuille de partage (« Enregistrer l'image » → Photos ; sur iPhone, un
+// lien de téléchargement ne fait rien) ; ailleurs, téléchargement. key : le bouton qui l'a demandée
+export async function saveImage(blob, name, key) {
+  const file = new File([blob], name, { type: 'image/png' });
+  if (matchMedia('(pointer: coarse)').matches && navigator.canShare?.({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file] });
+    } catch (err) {
+      if (err.name === 'NotAllowedError') { ready = { key, file }; toast(t('Image prête : touchez de nouveau pour l\'enregistrer'), 6000); } else if (err.name !== 'AbortError') throw err;
+    }
+    return;
+  }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+}
+
+// Image déjà prête pour ce bouton : partagée tout de suite, pendant le toucher (à appeler avant tout await)
+export function shareReady(key) {
+  if (!ready || ready.key !== key) return false;
+  const { file } = ready;
+  ready = null;
+  navigator.share({ files: [file] }).catch(() => {});
+  return true;
+}
+
 export async function savePng(box, year, sub = '') {
   const svg = box.querySelector('svg.sz-svg');
-  if (!svg) return;
+  if (!svg || shareReady(box)) return;
   const [, , vw, vh] = (svg.getAttribute('viewBox') || `0 0 ${svg.clientWidth} ${svg.clientHeight}`).split(/\s+/).map(Number);
   const root = getComputedStyle(document.documentElement);
   const bg = root.getPropertyValue('--panel').trim() || '#0b0b0d', fg = root.getPropertyValue('--text').trim() || '#fff', mu = root.getPropertyValue('--muted').trim() || '#888';
   const h3 = box.querySelector(':scope > h3');
   const title = h3 ? [...h3.childNodes].filter((n) => !n.classList?.contains('sz-png')).map((n) => n.textContent).join('').trim() : '';
   const pad = 24, head = sub ? 62 : 44, foot = 26, k = 2;
-  const url = URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(inlined(svg))], { type: 'image/svg+xml' }));
+  // Taille donnée en clair : Safari dessine sinon un SVG sans largeur ni hauteur à 150 × 150
+  const copy = inlined(svg);
+  copy.setAttribute('width', vw); copy.setAttribute('height', vh);
+  const url = URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(copy)], { type: 'image/svg+xml' }));
   try {
     const img = new Image();
     await new Promise((ok, ko) => { img.onload = ok; img.onerror = ko; img.src = url; });
@@ -54,9 +89,7 @@ export async function savePng(box, year, sub = '') {
     c.drawImage(img, pad, head, vw, vh);
     c.fillStyle = mu; c.font = `12px ${font}`; c.textAlign = 'right';
     c.fillText(`Paddock Live · ${t('saison {}', year)} · paddocklive.app`, vw + pad, vh + head + 18);
-    const a = document.createElement('a');
-    a.download = `paddock-live-${year}-${title.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'graphique'}.png`;
-    a.href = out.toDataURL('image/png');
-    a.click();
+    const blob = await new Promise((ok, ko) => out.toBlob((b) => (b ? ok(b) : ko(new Error('PNG'))), 'image/png'));
+    await saveImage(blob, `paddock-live-${year}-${title.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'graphique'}.png`, box);
   } finally { URL.revokeObjectURL(url); }
 }
