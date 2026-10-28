@@ -232,6 +232,8 @@ export function initSettings() {
   on('prefs', (k) => { if (k === 'vividTeams') $('#vividTeams').checked = prefs.vividTeams; });
   $('#replayMarks').checked = prefs.replayMarks;
   $('#replayMarks').addEventListener('change', (e) => setPref('replayMarks', e.target.checked));
+  $('#map3dOpt').checked = prefs.map3d;
+  $('#map3dOpt').addEventListener('change', (e) => setPref('map3d', e.target.checked));
   $('#teamLogos').checked = prefs.teamLogos;
   $('#teamLogos').addEventListener('change', (e) => setPref('teamLogos', e.target.checked));
   on('prefs', (k) => { if (k === 'teamLogos') $('#teamLogos').checked = prefs.teamLogos; });

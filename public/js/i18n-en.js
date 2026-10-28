@@ -2647,4 +2647,6 @@ export default {
   "Navigateur relié. La connexion apparaît dans le navigateur.": "Browser linked. The connection appears in the browser.",
   "Échec de l'envoi. Réessayez.": "Sending failed. Try again.",
   "Relier": "Link",
+  "Carte 3D du circuit": "3D circuit map",
+  "Bouton 3D du panneau Circuit : la piste en relief. Désactivé : carte 2D seule, plus léger pour les petits ordinateurs.": "3D button in the Circuit panel: the track with its elevation. Off: 2D map only, lighter for small computers.",
 };

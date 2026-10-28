@@ -36,6 +36,7 @@ const DEFAULTS = {
   remindMin: 15,          // rappel avant chaque séance (minutes, 0 : désactivé)
   legends: false,         // légendes sous les panneaux (couleurs et badges), à afficher dans Apparence
   replayMarks: true,      // replay : périodes de safety car / VSC sur la barre de lecture
+  map3d: true,            // carte : bouton de la vue 3D (sinon carte 2D seule, moteur 3D jamais chargé)
   hotLapDim: false,       // essais / qualifs : voitures hors tour lancé estompées (carte, classement)
   layoutMode: 'auto',     // disposition : 'auto' (selon la séance) | 'race' | 'quali'
   tabLayout: null,        // onglets déplacés : { panneau: [onglets dans l'ordre] } (null : à leur place d'origine)
