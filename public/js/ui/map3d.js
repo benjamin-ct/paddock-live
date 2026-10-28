@@ -866,7 +866,7 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
       <select class="map3d-time" aria-label="Heure">${TIMES.map(([k, txt]) => `<option value="${k}">${txt}</option>`).join('')}</select>
     </div>
     <div class="map3d-note"></div>
-    <div class="map3d-credit" hidden><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">${esc(t('© contributeurs OpenStreetMap'))}</a> · ${esc(t('Altitude : Terrain Tiles (Mapzen, AWS Open Data)'))}</div>`;
+    <div class="map3d-credit" hidden><a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a> <a href="https://www.openmaptiles.org/" target="_blank" rel="noopener">© OpenMapTiles</a> <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">${esc(t('© contributeurs OpenStreetMap'))}</a> · ${esc(t('Altitude : Terrain Tiles (Mapzen, AWS Open Data)'))}</div>`;
   host.prepend(cvs);
   const lost = (e) => { e.preventDefault(); onFail(t('Vue 3D interrompue par la carte graphique : retour à la carte 2D')); };
   cvs.addEventListener('webglcontextlost', lost);

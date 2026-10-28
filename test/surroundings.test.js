@@ -1,8 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { decodePng, terrarium, demSampler, tilesFor, lonToPx, latToPx, geoFrame, fitTrack, toEN, fromEN, simplify, clipRing, clipLine, stitch,
-  buildSurroundings, buildingHeight, areaKind, trimOsm, MAX } from '../shared/surroundings.js';
+import { decodePng, terrarium, demSampler, tilesFor, lonToPx, latToPx, geoFrame, fitTrack, toEN, fromEN, simplify, clipRing, clipLine,
+  buildSurroundings, buildingHeight, areaKind, omtElements, MAX } from '../shared/surroundings.js';
+import { decodeMvt } from '../shared/mvt.js';
 import { png, terrariumTile } from './fixtures/png.js';
+import { mvt } from './fixtures/mvt.js';
 
 
 test('alentours : image PNG décodée (5 filtres, plusieurs blocs), altitudes terrarium', async () => {
@@ -65,7 +67,70 @@ test('alentours : calage du tracé sur les pistes d\'OSM (angle et décalage ret
   assert.equal(fitTrack(bean, []), null);
 });
 
-test('alentours : simplification, découpe à la zone, anneaux assemblés, genres et hauteurs', () => {
+test('alentours : tuile vectorielle décodée (couches, valeurs, points, lignes, polygones à trous), découpée au carré de la tuile', () => {
+  const T = { z: 14, x: 8529, y: 5974 };
+  const bytes = mvt([
+    { name: 'building', features: [
+      // Extérieur dans le sens des aiguilles d'une montre (y vers le bas), trou dans l'autre sens
+      { type: 3, props: { render_height: 12, render_min_height: 0, hide_3d: false }, geom: [[[100, 100], [900, 100], [900, 900], [100, 900]], [[300, 300], [300, 600], [600, 600], [600, 300]]] },
+      { type: 3, props: { render_height: 4.5 }, geom: [[[4000, 2000], [4300, 2000], [4300, 2300], [4000, 2300]]] },   // déborde de la tuile
+    ] },
+    { name: 'transportation', extent: 4096, features: [
+      { type: 2, props: { class: 'raceway', ramp: 1 }, geom: [[[-200, 2048], [2048, 2048], [2048, 3000]]] },
+      { type: 2, props: { class: 'minor', layer: -1 }, geom: [[[10, 10], [20, 20]], [[30, 30], [40, 40]]] },
+    ] },
+    { name: 'poi', features: [{ type: 1, props: { name: 'Café' }, geom: [[[2048, 2048], [5000, 10]]] }] },
+  ]);
+  const t = decodeMvt(bytes, T);
+  assert.deepEqual(Object.keys(t), ['building', 'transportation', 'poi']);
+  assert.deepEqual(Object.keys(decodeMvt(bytes, T, ['poi'])), ['poi'], 'couches demandées seulement');
+  const [b, big] = t.building;
+  assert.deepEqual(b.props, { render_height: 12, render_min_height: 0, hide_3d: false });
+  assert.equal(big.props.render_height, 4.5);
+  assert.equal(b.type, 'polygon');
+  assert.equal(b.geom.length, 1, 'un polygone');
+  assert.equal(b.geom[0].length, 2, 'avec son trou');
+  // Coin nord-ouest de la tuile = (0, 0) ; 100 unités sur 4096 vers l'est et le sud
+  const n = 2 ** 14, lon0 = (T.x / n) * 360 - 180, lat = (py) => (Math.atan(Math.sinh(Math.PI * (1 - (2 * py) / n))) * 180) / Math.PI;
+  assert.ok(Math.abs(b.geom[0][0][0][1] - (lon0 + (100 / 4096 / n) * 360)) < 1e-9);
+  assert.ok(Math.abs(b.geom[0][0][0][0] - lat(T.y + 100 / 4096)) < 1e-9);
+  assert.ok(b.geom[0][0][0][0] > b.geom[0][0][2][0], 'y vers le bas : latitude qui baisse');
+  assert.ok(Math.max(...big.geom[0][0].map((p) => p[1])) <= ((T.x + 1) / n) * 360 - 180 + 1e-12, 'coupé au bord est de la tuile');
+  const [race, minor] = t.transportation;
+  assert.deepEqual(race.props, { class: 'raceway', ramp: 1 });
+  assert.equal(race.geom.length, 1);
+  assert.ok(Math.abs(race.geom[0][0][1] - lon0) < 1e-12, 'ligne coupée au bord ouest');
+  assert.equal(race.geom[0].length, 3);
+  assert.equal(minor.props.layer, -1);
+  assert.equal(minor.geom.length, 2, 'ligne en deux morceaux');
+  assert.deepEqual(t.poi[0].props, { name: 'Café' });
+  assert.equal(t.poi[0].geom.length, 1, 'point hors de la tuile écarté');
+  assert.throws(() => decodeMvt(new Uint8Array([0x1f, 1, 2]), T), /illisible/);
+});
+
+test('alentours : couches OpenMapTiles -> étiquettes à la manière d\'OSM, bâtiments seulement près du tracé', () => {
+  const sq = (lat, lon, d = 0.001) => [[[[lat, lon], [lat, lon + d], [lat + d, lon + d], [lat + d, lon]]]];
+  const tiles = [{
+    building: [{ type: 'polygon', props: { render_height: 22 }, geom: sq(45, 5) }, { type: 'polygon', props: { render_height: 9 }, geom: sq(46, 5) },
+      { type: 'polygon', props: { render_height: 30, hide_3d: true }, geom: sq(45, 5) }],
+    landcover: [{ type: 'polygon', props: { class: 'wood', subclass: 'forest' }, geom: sq(45.1, 5) }, { type: 'polygon', props: { class: 'rock' }, geom: sq(45, 5) }],
+    landuse: [{ type: 'polygon', props: { class: 'industrial' }, geom: sq(45, 5) }, { type: 'polygon', props: { class: 'pitch' }, geom: sq(45, 5) }],
+    water: [{ type: 'polygon', props: { class: 'lake' }, geom: sq(45, 5) }, { type: 'polygon', props: { class: 'ocean' }, geom: sq(45, 5) }],
+    waterway: [{ type: 'line', props: { class: 'river' }, geom: [[[45, 5], [45.01, 5]]] }, { type: 'line', props: { class: 'stream', brunnel: 'tunnel' }, geom: [[[45, 5], [45.01, 5]]] }],
+    transportation: [{ type: 'line', props: { class: 'primary', ramp: 1 }, geom: [[[45, 5], [45, 5.01]]] }, { type: 'line', props: { class: 'raceway' }, geom: [[[45, 5], [45, 5.01]]] },
+      { type: 'line', props: { class: 'path' }, geom: [[[45, 5], [45, 5.01]]] }, { type: 'polygon', props: { class: 'pier' }, geom: sq(45, 5) }],
+  }];
+  const els = omtElements(tiles, { s: 44.9, w: 4.9, n: 45.5, e: 5.5 });
+  assert.deepEqual(els.map((e) => e.tags), [{ building: 'yes', height: 22 }, { natural: 'wood' }, { landuse: 'industrial' }, { leisure: 'pitch' }, { natural: 'water' },
+    { waterway: 'river' }, { highway: 'primary_link' }, { highway: 'raceway' }]);
+  assert.deepEqual(els.map((e) => areaKind(e.tags)), ['building', 'wood', 'urban', 'grass', 'water', null, null, null]);
+  assert.equal(buildingHeight(els[0].tags), 22);
+  assert.equal(els[0].geometry.length, 5, 'anneau fermé');
+  assert.deepEqual(els[0].geometry[0], els[0].geometry[4]);
+  assert.equal(els[5].geometry.length, 2, 'ligne ouverte');
+});
+
+test('alentours : simplification, découpe à la zone, genres et hauteurs', () => {
   const line = Array.from({ length: 11 }, (_, i) => [i * 10, i === 5 ? 0.5 : 0]);
   assert.deepEqual(simplify(line, 1), [[0, 0], [100, 0]]);
   assert.equal(simplify(line, 0.45).length, 3);
@@ -75,10 +140,6 @@ test('alentours : simplification, découpe à la zone, anneaux assemblés, genre
   assert.equal(simplify(square, 1, true).length, 4);
   assert.deepEqual(clipRing([[-50, -50], [50, -50], [50, 50], [-50, 50]], [0, 0, 100, 100]).map(String).sort(), ['0,0', '0,50', '50,0', '50,50']);
   assert.deepEqual(clipRing([[200, 200], [300, 200], [300, 300]], [0, 0, 100, 100]), []);
-  const p = (lat, lon) => ({ lat, lon });
-  const rings = stitch([[p(0, 0), p(0, 1)], [p(1, 1), p(0, 1)], [p(1, 1), p(1, 0), p(0, 0)]]);
-  assert.equal(rings.length, 1);
-  assert.equal(rings[0].length, 5);
   assert.equal(areaKind({ landuse: 'forest' }), 'wood');
   assert.equal(areaKind({ natural: 'water' }), 'water');
   assert.equal(areaKind({ landuse: 'meadow' }), 'grass');
@@ -88,8 +149,6 @@ test('alentours : simplification, découpe à la zone, anneaux assemblés, genre
   assert.equal(buildingHeight({ building: 'yes', 'building:levels': '4' }), 14);
   assert.equal(buildingHeight({ building: 'grandstand' }), 10);
   assert.equal(buildingHeight({ building: 'yes' }), 7);
-  const t = trimOsm([{ type: 'way', id: 1, tags: { building: 'yes', name: 'Hangar', height: '9' }, geometry: [p(1.123456789, 2)] }]);
-  assert.deepEqual(t, [{ type: 'way', tags: { building: 'yes', height: '9' }, geometry: [p(1.123457, 2)] }]);
 });
 
 test('alentours : données compactes, plafonnées, rien sur la piste', () => {
@@ -106,7 +165,6 @@ test('alentours : données compactes, plafonnées, rien sur la piste', () => {
     { type: 'way', tags: { landuse: 'forest' }, geometry: ring(-1100, -1100, 900, 3000) },
     { type: 'way', tags: { natural: 'water' }, geometry: ring(1300, 300, 200, 100) },
     { type: 'way', tags: { highway: 'primary' }, geometry: [g(-5000, 500), g(-100, 500), g(5000, 500)] },
-    { type: 'node', tags: { natural: 'tree' }, ...g(1500, 1500) },
   ];
   const max = { ...MAX, buildings: 10, trees: 50 };
   const d = buildSurroundings({ track: sq, fit, frame, elements, dem: (lat) => 100 + (lat - 45) * 1000, max, margin: 1200 });
@@ -127,7 +185,6 @@ test('alentours : données compactes, plafonnées, rien sur la piste', () => {
   assert.equal(d.lines.road[0][0], 10);
   assert.ok(Math.min(...d.lines.road[0].slice(1).filter((_, i) => i % 2 === 0)) >= -1200, 'route découpée à la zone');
   assert.equal(d.trees.length, 2 * 50, 'plafond des arbres');
-  assert.deepEqual(d.trees.slice(0, 2), [1500, 1500], 'arbre isolé d\'abord');
   for (let i = 0; i < d.trees.length; i += 2) {
     const [x, y] = [d.trees[i], d.trees[i + 1]];
     assert.ok(Math.min(...sq.map((p) => Math.hypot(p[0] - x, p[1] - y))) > 15, 'pas d\'arbre sur la piste');

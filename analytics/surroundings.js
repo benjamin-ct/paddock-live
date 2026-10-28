@@ -1,130 +1,154 @@
 // Alentours des circuits pour la vue 3D (/live/api/surroundings) : relief du modèle numérique de terrain (tuiles
-// Terrain Tiles, données ouvertes d'AWS) et ce qu'il y a autour d'après OpenStreetMap (licence ODbL), posés sur le
-// tracé MultiViewer de la saison (calculs : shared/surroundings.js). Calculés à l'avance par la tâche planifiée, un
-// couple circuit × saison à la fois : demandé, prochain Grand Prix, puis tout le catalogue des replays. Ce qui ne
-// dépend que du lieu (OSM, tuiles) est lu une fois par circuit et gardé dans R2 pour toutes les saisons ; seul le
-// calage sur le tracé change. Résultat (quelques centaines de ko) dans R2, état dans la base.
+// Terrain Tiles, données ouvertes d'AWS) et ce qu'il y a autour d'après OpenStreetMap (licence ODbL), lu dans les
+// tuiles vectorielles OpenFreeMap (schéma OpenMapTiles, gratuites, sans clé ; Overpass ne répondait presque jamais),
+// posés sur le tracé MultiViewer de la saison (calculs : shared/surroundings.js). Calculés à l'avance par la tâche
+// planifiée, un couple circuit × saison à la fois : demandé, prochain Grand Prix, puis tout le catalogue des replays.
+// Ce qui ne dépend que du lieu (OSM, tuiles) est lu une fois par circuit et gardé dans R2 pour toutes les saisons ;
+// seul le calage sur le tracé change. Résultat (quelques centaines de ko) dans R2, état dans la base.
 import { setRow, readJSON, rowsWithPrefix } from './alerts.js';
-import { seasonRow, archiveToken } from './studio.js';
+import { archiveToken } from './studio.js';
 import { circuitData } from './race-stats.js';
 import { seasonIndex } from './tyres.js';
 import { wantedCircuits } from './zones.js';
 import { CIRCUITS } from '../shared/circuits-info.js';
-import { fitTrack, zone, buildSurroundings, overpassQuery, trimOsm, geoFrame, tilesFor, decodePng, terrarium, demSampler, MARGIN } from '../shared/surroundings.js';
+import { decodeMvt } from '../shared/mvt.js';
+import { fitTrack, zone, buildSurroundings, omtElements, OMT_LAYERS, geoFrame, tilesFor, decodePng, terrarium, demSampler, MARGIN } from '../shared/surroundings.js';
 
-// Serveur Overpass principal, puis un miroir
-const OVERPASS = ['https://overpass-api.de/api/interpreter', 'https://maps.mail.ru/osm/tools/overpass/api/interpreter'];
+// TileJSON d'OpenFreeMap : adresse des tuiles du moment (nouvelle version de la carte chaque semaine)
+const OFM = 'https://tiles.openfreemap.org/planet';
 const TILES = 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/';
 const JOLPICA = 'https://api.jolpi.ca/ergast/f1/';
 const UA = 'Paddock-Live (https://paddocklive.app)';
 const FIRST_YEAR = 2018;       // premiers replays proposés (ui/replays.js)
-const RETRY = 6 * 3600e3;      // échec (réseau, serveur occupé, calage raté) : revu 6 h plus tard, comme les zones
+const RETRY = 6 * 3600e3;      // échec (calage raté, piste absente…) : revu 6 h plus tard, comme les zones
+const SOON = 20 * 60e3;        // source occupée ou injoignable : revu 20 min plus tard, puis 40 min… jusqu'à 6 h
 const LOCK = 10 * 60e3;        // un seul calcul à la fois
 const CATALOGUE = 7 * 86400e3; // catalogue des replays relu une fois par semaine
-const NEAR = 700;              // bâtiments et arbres isolés lus jusqu'à 700 m du tracé
+const NEAR = 700;              // bâtiments lus jusqu'à 700 m du tracé
 const MAX_ERR = 8;             // calage gardé si le tracé est en moyenne à moins de 8 m des pistes (ou rues) d'OSM
 // Pauses (ms) : serveurs publics ménagés, une requête à la fois
-const PAUSE = { overpass: 5000, tile: 300, jolpica: 1000 };
-export const CREDITS = ['© contributeurs OpenStreetMap', 'Altitude : Terrain Tiles (Mapzen, AWS Open Data)'];
+const PAUSE = { vtile: 100, tile: 300, jolpica: 1000, again: 2000 };
+// Rues du calage des circuits en ville (classes OpenMapTiles ; minor : rues ordinaires)
+const STREETS = ['raceway', 'motorway', 'trunk', 'primary', 'secondary', 'tertiary', 'minor', 'service'];
+export const CREDITS = ['OpenFreeMap © OpenMapTiles © contributeurs OpenStreetMap', 'Altitude : Terrain Tiles (Mapzen, AWS Open Data)'];
 
 const rowKey = (key, year) => `surr:${key}:${year}`;
 const fileKey = (key, year) => `surroundings/${key}-${year}.json`;
 const wait = (ms) => (ms > 0 ? new Promise((r) => setTimeout(r, ms)) : null);
 const r6 = (v) => Math.round(v * 1e6) / 1e6;
 
-// Requête Overpass : serveur principal, sinon le miroir ; une pause après chaque essai
-async function overpass(query, fetchFn, pause) {
-  let error = null;
-  for (const url of OVERPASS) {
+// Fichier d'une source (octets) : deux essais si elle est occupée (429, 5xx), trop lente ou injoignable. Erreur
+// qui nomme la source ; passing : erreur passagère (nouvel essai bientôt)
+async function get(url, what, fetchFn, pause) {
+  let why = '';
+  for (let k = 0; k < 2; k++) {
+    if (k) await wait(PAUSE.again * pause);
     try {
-      const r = await fetchFn(url, { method: 'POST', headers: { 'User-Agent': UA }, body: new URLSearchParams({ data: query }), signal: AbortSignal.timeout(180e3) });
-      if (r.status !== 200) throw new Error(`HTTP ${r.status}`);
-      const d = await r.json();
-      if (/runtime error/.test(d.remark || '')) throw new Error(d.remark.slice(0, 120));
-      return d.elements || [];
+      const r = await fetchFn(url, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(30e3) });
+      if (r.status === 200) return new Uint8Array(await r.arrayBuffer());
+      if (r.status !== 429 && r.status < 500) throw Object.assign(new Error(`${what} : HTTP ${r.status}`), { final: true });
+      why = `HTTP ${r.status}`;
     } catch (err) {
-      error = `Overpass ${new URL(url).host} : ${err.message}`;
-    } finally {
-      await wait(PAUSE.overpass * pause);
+      if (err.final) throw err;
+      why = err.name === 'TimeoutError' ? 'délai dépassé' : err.message;
     }
   }
-  throw new Error(error);
+  throw Object.assign(new Error(`${what} : ${why} (2 essais)`), { passing: true });
 }
+const getJSON = async (...a) => JSON.parse(new TextDecoder().decode(await get(...a)));
 
 // Tuile d'altitude (PNG), gardée dans R2 : lue une seule fois
 async function tile(env, { z, x, y }, fetchFn, pause) {
   const k = `surroundings/tiles/${z}/${x}/${y}.png`, kept = await env.MEDIA.get(k);
   if (kept) return new Uint8Array(await kept.arrayBuffer());
-  const r = await fetchFn(`${TILES}${z}/${x}/${y}.png`, { headers: { 'User-Agent': UA } });
-  if (r.status !== 200) throw new Error(`tuile d'altitude ${z}/${x}/${y} : HTTP ${r.status}`);
-  const b = new Uint8Array(await r.arrayBuffer());
+  const b = await get(`${TILES}${z}/${x}/${y}.png`, `Terrain Tiles ${z}/${x}/${y}`, fetchFn, pause);
   await env.MEDIA.put(k, b, { httpMetadata: { contentType: 'image/png' } });
   await wait(PAUSE.tile * pause);
   return b;
 }
 
-// Catalogue des replays : couples [clé, année, lat, lon], un par circuit et par saison des archives de la F1 (2018 à
-// aujourd'hui, comme la liste des replays de l'appli), les plus récents d'abord ; position d'après Jolpica (course du
-// même jour). Relu une fois par semaine ; sans connexion F1 TV ou en cas d'échec, l'ancien reste (revu 6 h plus tard)
+// Tuiles vectorielles OpenFreeMap (zoom 14, le plus fin) qui couvrent la zone { s, w, n, e }, décodées (couches
+// demandées) ; ofm : { url } (modèle d'adresse des tuiles, lu une fois par calcul)
+async function vectorTiles(box, layers, ofm, fetchFn, pause) {
+  ofm.url ??= (await getJSON(OFM, 'OpenFreeMap', fetchFn, pause)).tiles?.[0];
+  if (!ofm.url) throw new Error('OpenFreeMap : adresse des tuiles absente');
+  const out = [];
+  for (const t of tilesFor(box, Infinity, 14)) {
+    const url = ofm.url.replace('{z}', t.z).replace('{x}', t.x).replace('{y}', t.y);
+    out.push(decodeMvt(await get(url, `OpenFreeMap ${t.z}/${t.x}/${t.y}`, fetchFn, pause), t, layers));
+    await wait(PAUSE.vtile * pause);
+  }
+  return out;
+}
+
+// Catalogue des replays : couples [clé, année, lat, lon], un par circuit et par saison (2018 à aujourd'hui, comme la
+// liste des replays de l'appli), les plus récents d'abord ; courses et positions d'après Jolpica, clé du circuit
+// d'après l'index des archives de la F1 (course du même jour), sinon d'après les autres saisons ou les circuits
+// connus si l'index est illisible (2022 répond HTTP 403 ; sans connexion F1 TV) : une année illisible ne vide pas le
+// catalogue. Relu une fois par semaine ; en cas d'échec (raisons gardées dans errors), revu 6 h plus tard
 export async function catalogue(env, { now = Date.now(), fetchFn = fetch, pause = 1, token } = {}) {
   const kept = await readJSON(env, 'surrcat', null);
   if (kept && now - kept.at < CATALOGUE) return kept.list;
-  const list = [], seen = new Set();
-  try {
-    token ??= await archiveToken(env, { now, fetchFn });
-    if (!token) throw new Error('connexion F1 TV absente');
-    for (let y = new Date(now).getUTCFullYear(); y >= FIRST_YEAR; y--) {
-      const idx = await seasonIndex(y, token, fetchFn);
-      const r = await fetchFn(`${JOLPICA}${y}/races.json?limit=100`, { headers: { 'User-Agent': UA } });
-      if (r.status !== 200) throw new Error(`Jolpica ${y} : HTTP ${r.status}`);
-      const races = (await r.json()).MRData?.RaceTable?.Races || [];
-      for (const m of idx) {
-        const s = m.sessions.find((x) => x.type === 'Race'), day = s && Date.parse(s.start.slice(0, 10));
-        const gp = s && races.find((g) => Math.abs(Date.parse(g.date) - day) <= 86400e3);
-        const lat = Number(gp?.Circuit?.Location?.lat), lon = Number(gp?.Circuit?.Location?.long);
-        if (Number.isFinite(lat) && Number.isFinite(lon) && !seen.has(`${m.circuitKey}:${y}`)) {
-          seen.add(`${m.circuitKey}:${y}`);
-          list.push([m.circuitKey, y, lat, lon]);
-        }
-      }
-      await wait(PAUSE.jolpica * pause);
+  const errors = [], races = [], keys = {};
+  token ??= await archiveToken(env, { now, fetchFn }).catch(() => null);
+  if (!token) errors.push('connexion F1 TV absente');
+  for (let y = new Date(now).getUTCFullYear(); y >= FIRST_YEAR; y--) {
+    const idx = token ? await seasonIndex(y, token, fetchFn).catch((err) => { errors.push(`archives ${y} : ${err.message}`); return []; }) : [];
+    const list = await getJSON(`${JOLPICA}${y}/races.json?limit=100`, `Jolpica ${y}`, fetchFn, pause)
+      .then((d) => d.MRData?.RaceTable?.Races || []).catch((err) => { errors.push(err.message); return []; });
+    for (const gp of list) {
+      const day = Date.parse(gp.date), id = gp.Circuit?.circuitId;
+      const m = idx.find((x) => x.sessions.some((s) => s.type === 'Race' && Math.abs(Date.parse(s.start?.slice(0, 10)) - day) <= 86400e3));
+      if (m?.circuitKey) keys[id] = m.circuitKey;
+      races.push({ y, id, key: m?.circuitKey, lat: Number(gp.Circuit?.Location?.lat), lon: Number(gp.Circuit?.Location?.long) });
     }
-  } catch {
-    await setRow(env, 'surrcat', JSON.stringify({ at: now - CATALOGUE + RETRY, list: kept?.list || [] }));
-    return kept?.list || [];
+    await wait(PAUSE.jolpica * pause);
   }
-  await setRow(env, 'surrcat', JSON.stringify({ at: now, list }));
-  return list;
+  const list = [], seen = new Set();
+  for (const r of races) {
+    const key = r.key ?? keys[r.id] ?? CIRCUITS[r.id]?.key;
+    if (key && Number.isFinite(r.lat) && Number.isFinite(r.lon) && !seen.has(`${key}:${r.y}`)) {
+      seen.add(`${key}:${r.y}`);
+      list.push([key, r.y, r.lat, r.lon]);
+    }
+  }
+  // En cas d'échec, ce que l'ancien catalogue avait de plus reste
+  const out = errors.length && kept ? [...list, ...kept.list.filter(([k, y]) => !seen.has(`${k}:${y}`))].sort((a, b) => b[1] - a[1]) : list;
+  await setRow(env, 'surrcat', JSON.stringify({ at: errors.length ? now - CATALOGUE + RETRY : now, list: out, ...(errors.length ? { errors } : {}) }));
+  return out;
 }
 
-// Position d'un circuit : celle du catalogue (toute saison), sinon celle du calendrier de l'année
-async function place(env, key, now, fetchFn) {
+// Position d'un circuit : celle du catalogue (toute saison), sinon celle des circuits du calendrier
+async function place(env, key) {
   const known = (await readJSON(env, 'surrcat', null))?.list.find((c) => c[0] === key);
   if (known) return { lat: known[2], lon: known[3] };
-  const id = Object.keys(CIRCUITS).find((k) => CIRCUITS[k].key === key);
-  const race = (await seasonRow(env, new Date(now).getUTCFullYear(), { now, fetchFn, maxAge: 365 * 86400e3 }).catch(() => null))?.v.races.find((r) => r.circuitId === id);
-  return Number.isFinite(race?.lat) && Number.isFinite(race?.lon) ? { lat: race.lat, lon: race.lon } : null;
+  const c = Object.values(CIRCUITS).find((x) => x.key === key);
+  return Number.isFinite(c?.lat) && Number.isFinite(c?.lon) ? { lat: c.lat, lon: c.lon } : null;
 }
 
 const contains = (a, b) => a.s <= b.s && a.w <= b.w && a.n >= b.n && a.e >= b.e;
 
 // Calcul d'un circuit pour une saison : { data } (données de /live/api/surroundings), sinon { error } ; fit : calage.
-// at : position du circuit si déjà connue ; pause : 0 dans les tests
+// at : position du circuit si déjà connue ; pause : 0 dans les tests. Source injoignable : exception (passing)
 export async function computeSurroundings(env, key, year, { now = Date.now(), fetchFn = fetch, at, pause = 1 } = {}) {
   const raw = await circuitData(key, year, fetchFn);
   if (!raw) return { error: 'tracé introuvable' };
-  const c = at || await place(env, key, now, fetchFn);
+  const c = at || await place(env, key);
   if (!c) return { error: 'position du circuit inconnue' };
   const frame = geoFrame(c.lat, c.lon), track = raw.x.map((x, i) => [x / 10, raw.y[i] / 10]);
   // Ce qui ne dépend que du lieu : pistes et rues d'OSM, ce qu'il y a autour, tuiles du relief ; gardé par circuit
+  // (src : tuiles OpenFreeMap ; un ancien fichier d'après Overpass est refait)
   const placeFile = `surroundings/place-${key}.json`;
   let loc = await (await env.MEDIA.get(placeFile))?.json().catch(() => null) ?? null;
-  if (!loc || Math.hypot(...frame.toEN(loc.lat, loc.lon)) > 3000) loc = { lat: c.lat, lon: c.lon };
+  if (loc?.src !== 'ofm' || Math.hypot(...frame.toEN(loc.lat, loc.lon)) > 3000) loc = { src: 'ofm', lat: c.lat, lon: c.lon };
   let dirty = false;
-  const lines = async (name, types, r) => {
+  const ofm = {};
+  // Lignes des classes demandées à r mètres à la ronde (tuiles entières) : [lat, lon, lat, lon…]
+  const lines = async (name, classes, r) => {
     if (!loc[name]) {
-      const q = `[out:json][timeout:90];way[highway~"^(${types})$"](around:${r},${loc.lat},${loc.lon});out geom qt;`;
-      loc[name] = (await overpass(q, fetchFn, pause)).filter((e) => e.geometry).map((e) => e.geometry.flatMap((p) => [r6(p.lat), r6(p.lon)]));
+      const f = geoFrame(loc.lat, loc.lon), [s, w] = f.toGeo(-r, -r), [n, e] = f.toGeo(r, r);
+      loc[name] = (await vectorTiles({ s, w, n, e }, ['transportation'], ofm, fetchFn, pause)).flatMap((t) => t.transportation || [])
+        .filter((x) => x.type === 'line' && classes.includes(x.props.class)).flatMap((x) => x.geom).map((l) => l.flatMap(([la, lo]) => [r6(la), r6(lo)]));
       dirty = true;
     }
     return loc[name].map((l) => Array.from({ length: l.length / 2 }, (_, i) => frame.toEN(l[2 * i], l[2 * i + 1])));
@@ -133,9 +157,9 @@ export async function computeSurroundings(env, key, year, { now = Date.now(), fe
     // Calage sur les pistes d'OSM à 5 km à la ronde ; circuit en ville (Monaco, Bakou…), en partie sur des rues
     // ordinaires : calé aussi sur les rues à 3 km à la ronde
     const good = (x) => x && x.err <= MAX_ERR && x.near >= 0.85;
-    let f = fitTrack(track, await lines('race', 'raceway', 5000));
+    let f = fitTrack(track, await lines('race', ['raceway'], 5000));
     if (!good(f)) {
-      const g = fitTrack(track, await lines('streets', 'raceway|motorway|trunk|primary|secondary|tertiary|unclassified|residential|living_street|service', 3000));
+      const g = fitTrack(track, await lines('streets', STREETS, 3000));
       if (g && (!f || g.err < f.err)) f = g;
     }
     const fit = f && { err: Math.round(f.err * 10) / 10, p90: Math.round(f.p90 * 10) / 10, near: Math.round(f.near * 100) / 100,
@@ -145,7 +169,7 @@ export async function computeSurroundings(env, key, year, { now = Date.now(), fe
     const z = zone(track, f, frame);
     if (!loc.zone || !contains(loc.zone, z)) {
       loc.zone = zone(track, f, frame, MARGIN + 500);
-      loc.osm = trimOsm(await overpass(overpassQuery(loc.zone, zone(track, f, frame, NEAR)), fetchFn, pause));
+      loc.osm = omtElements(await vectorTiles(loc.zone, OMT_LAYERS, ofm, fetchFn, pause), zone(track, f, frame, NEAR));
       loc.z = tilesFor(loc.zone, 30)[0].z;
       dirty = true;
     }
@@ -168,7 +192,7 @@ export async function surroundingsWeb(env, key, year, now = Date.now()) {
   return row?.ok ? env.MEDIA.get(fileKey(key, year)) : null;
 }
 
-// Tâche planifiée : un couple circuit × saison par passage, sans résultat ou dont l'échec date de plus de 6 h. Ordre :
+// Tâche planifiée : un couple circuit × saison par passage, sans résultat ou dont l'échec est à revoir. Ordre :
 // demandé dans l'heure, prochain Grand Prix, puis le catalogue des replays (parcouru au plus une fois par heure quand
 // tout est fait)
 export async function surroundingsTick(env, { now = Date.now(), fetchFn = fetch, pause = 1 } = {}) {
@@ -186,13 +210,17 @@ export async function surroundingsTick(env, { now = Date.now(), fetchFn = fetch,
   if (!job) return null;
   const [key, y, lat, lon] = job;
   await setRow(env, 'surrlock', String(now));
+  const old = await readJSON(env, rowKey(key, y), null);
   // Noté avant le calcul : s'il est interrompu (limite de temps du serveur), il n'est retenté que 6 heures plus tard
   await setRow(env, rowKey(key, y), JSON.stringify({ at: now, ok: false, next: now + RETRY, error: 'calcul interrompu' }));
   try {
     const at = lat != null ? { lat, lon } : undefined;
-    const res = await computeSurroundings(env, key, y, { now, fetchFn, at, pause }).catch((err) => ({ error: err.message }));
+    const res = await computeSurroundings(env, key, y, { now, fetchFn, at, pause }).catch((err) => ({ error: err.message, passing: !!err.passing }));
     if (res.data) await env.MEDIA.put(fileKey(key, y), JSON.stringify(res.data), { httpMetadata: { contentType: 'application/json' } });
-    await setRow(env, rowKey(key, y), JSON.stringify({ at: now, ok: !!res.data, next: now + RETRY, fit: res.fit || null, ...(res.data ? {} : { error: res.error }) }));
+    // Source occupée ou injoignable : revu 20 min plus tard, puis 40 min, 80 min… (6 h au plus) ; autre échec : 6 h
+    const tries = res.passing ? (old?.tries || 0) + 1 : 0;
+    const next = now + (tries ? Math.min(RETRY, SOON * 2 ** (tries - 1)) : RETRY);
+    await setRow(env, rowKey(key, y), JSON.stringify({ at: now, ok: !!res.data, next, fit: res.fit || null, ...(res.data ? {} : { error: res.error }), ...(tries ? { tries } : {}) }));
     return { key, year: y, ok: !!res.data, fit: res.fit || null, error: res.error };
   } finally {
     if (asked.some(([k, yy]) => k === key && yy === y)) await setRow(env, `surrwant:${key}:${y}`, '0');
