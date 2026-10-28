@@ -36,8 +36,8 @@ l'application (Réglages → À propos → Nouveautés).
   Bulls, Red Bull, Alpine, Haas, Cadillac) et les pilotes leurs accents dans Éléments moteur (Pérez).
 - ADN des circuits, d'après les previews de Pirelli : traction, adhérence et abrasion de l'asphalte, évolution de la
   piste, contrainte sur les pneus, freinage et appui latéral (notes de 1 à 5) sur la fiche de chaque Grand Prix, à venir
-  compris, et dans Profil des circuits, avec une carte des circuits qui se ressemblent (virages lents ou rapides). Aussi
-  dans la version web.
+  compris, et dans Profil des circuits, avec un tableau des circuits qui se ressemblent (virages lents, mixtes ou rapides,
+  selon la contrainte sur les pneus). Aussi dans la version web.
 - Calendrier : la saison sur un globe, un point numéroté par Grand Prix (prochain en rouge, à venir, déjà couru), et en
   bas une carte par Grand Prix à faire glisser (manche, couru ou à venir, sprint, drapeau, dates et dessin du tracé). La
   carte choisie, ou un point touché, fait voler le globe jusqu'au circuit, avec son tracé dessiné sur le plan des rues ;

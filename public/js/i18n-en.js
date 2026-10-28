@@ -17,9 +17,6 @@ export default {
   "ADN du circuit": "Circuit DNA",
   "preview du Grand Prix {}": "{} Grand Prix preview",
   "D'après Pirelli :": "According to Pirelli:",
-  "← virages lents (traction)": "← slow corners (traction)",
-  "virages rapides (appui latéral) →": "fast corners (lateral load) →",
-  "En hauteur : contrainte sur les pneus (1 à 5). Circuits regroupés : mêmes notes.": "Vertical: tyre stress (1 to 5). Grouped circuits: same ratings.",
   "Notes d'après les previews Pirelli.": "Ratings from the Pirelli previews.",
   "Circuits qui se ressemblent": "Similar circuits",
   "Traction": "Traction",
@@ -2707,4 +2704,8 @@ export default {
   "Deux doigts pour déplacer la carte": "Use two fingers to move the map",
   "Sources de la carte": "Map sources",
   "contributeurs OpenStreetMap": "OpenStreetMap contributors",
+  "Virages lents": "Slow corners",
+  "Mixtes": "Mixed",
+  "Virages rapides": "Fast corners",
+  "Virages lents : la traction compte le plus ; rapides : l'appui latéral. Pneus : contrainte de 5 (la plus forte) à 1.": "Slow corners: traction matters most; fast ones: lateral load. Tyres: stress from 5 (highest) to 1.",
 };

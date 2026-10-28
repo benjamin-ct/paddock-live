@@ -1122,8 +1122,9 @@ body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-selec
 .sz-dna { display: grid; gap: 4px; }
 .sz-dna-h { margin-top: 6px; }
 .sz-dna a { color: inherit; }
-.sz-dna-map .sz-lbl { fill: var(--text); paint-order: stroke; stroke: var(--panel); stroke-width: 4px; stroke-linejoin: round; }
-.sz-dna-pt { fill: var(--accent); fill-opacity: .75; stroke: var(--panel); stroke-width: 1.5; }
+.sz-chip { fill: var(--panel-2); stroke: var(--border); stroke-width: 1; }
+.sz-chip-t { fill: var(--text); font-size: 12px; font-weight: 600; }
+.sz-dna-n { fill: var(--text); font-size: 16px; font-weight: 800; }
 .cal-map { padding: 10px; }
 .cal-land { fill: var(--panel-3); stroke: var(--line-2); stroke-width: .6; }
 .cal-pin circle { stroke: var(--panel); stroke-width: 1.5; }
