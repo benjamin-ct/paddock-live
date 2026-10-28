@@ -105,3 +105,59 @@ export function compoundOf(stints) {
   }
   return null;
 }
+
+// Écart en secondes d'un texte du chronométrage (« +0.512 », « 1:02.345 ») ; null pour un tour ou plus (« 1 L ») ou vide
+export function seconds(v) {
+  const m = /^\+?(?:(\d+):)?(\d+(?:\.\d+)?)$/.exec(String(v ?? '').trim());
+  return m ? (Number(m[1]) || 0) * 60 + Number(m[2]) : null;
+}
+
+// Caméra Réalisation : quelle voiture suivre. lines : [{ num, pos (classement), gap (s à la voiture devant, null si
+// inconnu), drs (volet ouvert), gained (places gagnées depuis peu) }] des voitures en piste ; cur : { num, since } du
+// plan en cours (ou null). Une bataille compte d'autant plus que l'écart est petit (moins de 2,5 s), que la voiture
+// attaque (DRS), vient de dépasser, ou se bat devant ; sans bataille, le leader. Plan gardé au moins min ms, changé
+// ensuite pour une bataille nettement meilleure, et au bout de max ms pour une autre s'il y en a une. -> { num, since }
+export function pickBattle(lines, cur, now, { min = 8000, max = 30000 } = {}) {
+  const score = (l) => (l.gap === null || l.gap > 2.5 ? (l.pos === 1 ? 0.05 : 0) : ((2.5 - l.gap) / (l.gap + 0.3)) * (l.drs ? 1.6 : 1) * (l.gained > 0 ? 2.5 : 1) * (1 + 1.5 / l.pos));
+  const ranked = lines.map((l) => [l.num, score(l)]).filter(([, s]) => s > 0).sort((a, b) => b[1] - a[1]);
+  const mine = cur && lines.find((l) => l.num === cur.num);
+  if (!ranked.length) return mine ? cur : { num: lines.find((l) => l.pos === 1)?.num ?? null, since: now };
+  if (!mine) return { num: ranked[0][0], since: now };
+  if (now - cur.since < min) return cur;
+  const s = score(mine), [best, bs] = ranked[0];
+  if (best !== cur.num && bs > 1.3 * s + 0.1) return { num: best, since: now };
+  if (now - cur.since > max) {
+    const other = ranked.find(([n]) => n !== cur.num);
+    if (other) return { num: other[0], since: now };
+  }
+  return cur;
+}
+
+// Fantôme du meilleur tour. Tour le plus rapide d'après les tours de chaque pilote (store.derived.laps : { num : [{ lap,
+// t (heure locale de fin du tour), time (« 1:36.250 ») }] }), seulement ceux dont on connaît le début (fin du tour
+// d'avant) et qui passent ok (ex. positions GPS encore gardées), essayés du plus rapide au plus lent ; only : ce pilote
+// seulement -> { num, lap, time (s), t0, t1 } ou null
+export function bestLap(laps, only = null, ok = () => true) {
+  const all = [];
+  for (const [num, list] of Object.entries(laps || {})) {
+    if (only && num !== only) continue;
+    for (let i = 1; i < list.length; i++) {
+      const time = seconds(list[i].time);
+      if (time && list[i].lap === list[i - 1].lap + 1) all.push({ num, lap: list[i].lap, time, t0: list[i - 1].t, t1: list[i].t });
+    }
+  }
+  return all.sort((a, b) => a.time - b.time).find(ok) || null;
+}
+
+// Trajet d'un tour : positions GPS [{ t, x, y }] entre t0 et t1 -> [{ dt (ms depuis t0), x, y }] ; position au temps dt
+// du tour (interpolée), null hors du tour
+export function lapTrace(samples, t0, t1) {
+  return samples.filter((s) => s.t >= t0 && s.t <= t1).map((s) => ({ dt: s.t - t0, x: s.x, y: s.y }));
+}
+export function traceAt(trace, dt) {
+  if (!trace?.length || dt < trace[0].dt || dt > trace.at(-1).dt) return null;
+  let lo = 0, hi = trace.length - 1;
+  while (hi - lo > 1) { const m = (lo + hi) >> 1; if (trace[m].dt <= dt) lo = m; else hi = m; }
+  const a = trace[lo], b = trace[hi], u = b.dt > a.dt ? (dt - a.dt) / (b.dt - a.dt) : 0;
+  return { x: a.x + (b.x - a.x) * u, y: a.y + (b.y - a.y) * u };
+}

@@ -2734,4 +2734,13 @@ export default {
   "piste mouillée": "pista bagnata",
   "nuageux": "nuvoloso",
   "sec": "asciutto",
+  "Réalisation": "Regia",
+  "Survol": "Sorvolo",
+  "La caméra fait le tour du circuit, avec les numéros des virages": "La telecamera fa il giro del circuito, con i numeri delle curve",
+  "Écart avec la voiture devant": "Distacco dall'auto davanti",
+  "Fantôme du meilleur tour": "Fantasma del giro più veloce",
+  "Bataille pour la P{}": "Lotta per la P{}",
+  "Fantôme : meilleur tour de {} ({})": "Fantasma: giro più veloce di {} ({})",
+  "Fantôme : pas encore de meilleur tour avec les positions GPS": "Fantasma: ancora nessun giro più veloce con le posizioni GPS",
+  "Fantôme : il faut les positions GPS des voitures": "Fantasma: servono le posizioni GPS delle auto",
 };

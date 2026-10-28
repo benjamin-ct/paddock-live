@@ -2735,4 +2735,13 @@ export default {
   "piste mouillée": "wet track",
   "nuageux": "cloudy",
   "sec": "dry",
+  "Réalisation": "Director",
+  "Survol": "Flyover",
+  "La caméra fait le tour du circuit, avec les numéros des virages": "The camera flies around the circuit, with the turn numbers",
+  "Écart avec la voiture devant": "Gap to the car ahead",
+  "Fantôme du meilleur tour": "Best lap ghost",
+  "Bataille pour la P{}": "Battle for P{}",
+  "Fantôme : meilleur tour de {} ({})": "Ghost: best lap by {} ({})",
+  "Fantôme : pas encore de meilleur tour avec les positions GPS": "Ghost: no best lap with GPS positions yet",
+  "Fantôme : il faut les positions GPS des voitures": "Ghost: needs the cars' GPS positions",
 };

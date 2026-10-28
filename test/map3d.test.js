@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { QUALITY, nearFirst, autoQuality, frameCap, weatherState, compoundOf, accentColor, drsOpen } from '../public/js/ui/map3d-calc.js';
+import { QUALITY, nearFirst, autoQuality, frameCap, weatherState, compoundOf, accentColor, drsOpen, seconds, pickBattle, bestLap, lapTrace, traceAt } from '../public/js/ui/map3d-calc.js';
 
 // Images à cadence fixe (fps) pendant ms, à partir de t ; -> [instant de fin, niveaux choisis en route]
 function run(auto, t, ms, fps, cap = Infinity) {
@@ -139,4 +139,55 @@ test('couleurs d\'écurie : deuxième couleur dérivée', () => {
 test('DRS : volet ouvert d\'après le canal de la télémétrie', () => {
   for (const v of [10, 12, 14, '12']) assert.equal(drsOpen(v), true);
   for (const v of [0, 1, 8, 9, null, undefined]) assert.equal(drsOpen(v), false);
+});
+
+test('écarts du chronométrage en secondes', () => {
+  assert.equal(seconds('+0.512'), 0.512);
+  assert.equal(seconds('1:36.250'), 96.25);
+  assert.equal(seconds('12.3'), 12.3);
+  for (const v of ['1 L', '+2 LAPS', '', null, undefined]) assert.equal(seconds(v), null);
+});
+
+test('caméra Réalisation : la bataille la plus serrée, sans changer de plan trop souvent', () => {
+  const L = (num, pos, gap, more = {}) => ({ num, pos, gap, drs: false, gained: 0, ...more });
+  // Pas de bataille : le leader
+  assert.deepEqual(pickBattle([L('1', 1, null), L('2', 2, 5.1), L('3', 3, 4)], null, 0), { num: '1', since: 0 });
+  // Bataille à 0,3 s pour la 5e place plutôt qu'un écart de 1,8 s devant
+  let cur = pickBattle([L('1', 1, null), L('2', 2, 1.8), L('5', 5, 0.3), L('6', 6, 3)], null, 0);
+  assert.equal(cur.num, '5');
+  // Une bataille encore plus serrée arrive : plan gardé au moins 8 s
+  const tight = [L('1', 1, null), L('2', 2, 0.1), L('5', 5, 0.3)];
+  assert.equal(pickBattle(tight, cur, 5000), cur);
+  cur = pickBattle(tight, cur, 9000);
+  assert.deepEqual(cur, { num: '2', since: 9000 });
+  // Écarts proches : pas de changement pour si peu
+  assert.equal(pickBattle([L('2', 2, 0.35), L('5', 5, 0.3)], { num: '2', since: 0 }, 20000).num, '2');
+  // Dépassement ou DRS : la voiture qui attaque passe devant
+  assert.equal(pickBattle([L('2', 2, 0.5), L('9', 9, 0.6, { gained: 1, drs: true })], { num: '2', since: 0 }, 10000).num, '9');
+  // Au bout de 30 s : une autre bataille s'il y en a une
+  assert.equal(pickBattle([L('2', 2, 0.2), L('7', 7, 1.2)], { num: '2', since: 0 }, 31000).num, '7');
+  assert.equal(pickBattle([L('2', 2, 0.2)], { num: '2', since: 0 }, 31000).num, '2');
+  // La voiture suivie n'est plus en piste : la meilleure bataille tout de suite
+  assert.equal(pickBattle([L('2', 2, 0.2)], { num: '44', since: 0 }, 1000).num, '2');
+});
+
+test('fantôme du meilleur tour : tour le plus rapide connu, trajet et position', () => {
+  const laps = {
+    1: [{ lap: 1, t: 1000, time: '1:40.000' }, { lap: 2, t: 97000, time: '1:36.000' }, { lap: 3, t: 194000, time: '1:37.000' }],
+    16: [{ lap: 2, t: 99000, time: '1:35.900' }, { lap: 4, t: 300000, time: '1:35.000' }, { lap: 5, t: 394800, time: '1:34.800' }],
+  };
+  // Le 4e tour de 16 ne compte pas (début inconnu : tour 3 absent)
+  assert.deepEqual(bestLap(laps), { num: '16', lap: 5, time: 94.8, t0: 300000, t1: 394800 });
+  assert.deepEqual(bestLap(laps, '1'), { num: '1', lap: 2, time: 96, t0: 1000, t1: 97000 });
+  assert.equal(bestLap({}), null);
+  // Le plus rapide dont on a encore le trajet
+  assert.deepEqual(bestLap(laps, null, (b) => b.t0 > 150000), { num: '16', lap: 5, time: 94.8, t0: 300000, t1: 394800 });
+  assert.equal(bestLap(laps, null, (b) => b.num === '1').lap, 2);
+  assert.equal(bestLap(laps, null, () => false), null);
+  const tr = lapTrace([{ t: 900, x: 0, y: 0 }, { t: 1000, x: 10, y: 0 }, { t: 2000, x: 20, y: 10 }, { t: 97000, x: 10, y: 0 }, { t: 97100, x: 11, y: 0 }], 1000, 97000);
+  assert.deepEqual(tr.map((p) => p.dt), [0, 1000, 96000]);
+  assert.deepEqual(traceAt(tr, 500), { x: 15, y: 5 });
+  assert.equal(traceAt(tr, -1), null);
+  assert.equal(traceAt(tr, 96001), null);
+  assert.equal(traceAt([], 0), null);
 });

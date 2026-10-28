@@ -2734,4 +2734,13 @@ export default {
   "piste mouillée": "pista mojada",
   "nuageux": "nublado",
   "sec": "seco",
+  "Réalisation": "Realización",
+  "Survol": "Sobrevuelo",
+  "La caméra fait le tour du circuit, avec les numéros des virages": "La cámara da la vuelta al circuito, con los números de las curvas",
+  "Écart avec la voiture devant": "Diferencia con el coche de delante",
+  "Fantôme du meilleur tour": "Fantasma de la vuelta rápida",
+  "Bataille pour la P{}": "Lucha por la P{}",
+  "Fantôme : meilleur tour de {} ({})": "Fantasma: vuelta rápida de {} ({})",
+  "Fantôme : pas encore de meilleur tour avec les positions GPS": "Fantasma: todavía no hay vuelta rápida con las posiciones GPS",
+  "Fantôme : il faut les positions GPS des voitures": "Fantasma: hacen falta las posiciones GPS de los coches",
 };

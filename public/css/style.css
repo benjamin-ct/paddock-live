@@ -1346,6 +1346,11 @@ body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-selec
 .map3d-cams .btn:not(.on) { border-color: transparent; background: transparent; }
 .map3d-driver { max-width: 190px; }
 .map3d-time, .map3d-quality, .map3d-weather { max-width: 170px; }
+.map3d-opts select { max-width: none; width: 100%; }
+.map3d-bar .map3d-fly:not(.on), .map3d-bar .map3d-opts > summary { background: var(--panel); color: var(--text); font-weight: 700; padding: 4px 9px; }   /* boutons sur la vue : fond plein comme les choix */
+.map3d-cap { position: absolute; left: 50%; bottom: 40px; transform: translateX(-50%); max-width: calc(100% - 32px); padding: 4px 12px; border-radius: 8px;
+  font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  background: color-mix(in srgb, var(--panel-2) 90%, transparent); border: 1px solid var(--border); color: var(--text); pointer-events: none; }
 .map3d-note { position: absolute; left: 10px; bottom: 8px; max-width: calc(45% - 10px); padding: 2px 8px; border-radius: 6px; font-size: 11.5px; color: #1d2a36; background: rgba(255, 255, 255, .72); pointer-events: none; }
 .map3d-credit { position: absolute; right: 8px; bottom: 8px; max-width: calc(55% - 16px);   /* jamais sur la note (45 % à gauche) */
   padding: 1px 6px; border-radius: 5px; font-size: 10.5px; line-height: 1.35; text-align: right;

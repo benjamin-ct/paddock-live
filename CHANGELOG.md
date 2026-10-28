@@ -88,7 +88,12 @@ l'application (Réglages → À propos → Nouveautés).
   la voie des stands, s'arrête à son emplacement sans tourner sur place et repart. Quatre caméras autour du pilote
   suivi (choisi dans la liste de la vue 3D ou dans le classement) : Hélico, Poursuite, Embarquée et Libre (glisser
   pour tourner, molette ou pincement pour zoomer, clic droit pour se déplacer, double-clic pour revoir tout le
-  circuit). Autour de la piste, ce qu'il y a vraiment, d'après OpenStreetMap (cartes OpenFreeMap) : le relief du
+  circuit) ; et Réalisation, qui passe toute seule d'une bataille à l'autre (petits écarts, dépassements, DRS), sans
+  changer de plan trop souvent, avec une légende (« Bataille pour la P5 · LEC – HAM · 0,3 s »). Le bouton Survol fait
+  faire le tour du circuit à la caméra, avec le numéro des virages (aussi tout seul à l'ouverture quand aucune voiture
+  n'est en piste). Dans Réglages : l'écart avec la voiture devant, affiché entre les deux voitures (coché d'office),
+  et le fantôme du meilleur tour de la séance, une voiture transparente qui le refait en partant avec le pilote suivi
+  (positions GPS nécessaires). Autour de la piste, ce qu'il y a vraiment, d'après OpenStreetMap (cartes OpenFreeMap) : le relief du
   terrain, les bâtiments, les bois et leurs arbres, les lacs, les rivières et la mer, les routes, l'herbe et les champs
   (sources en bas à droite de la vue). Le relief vient du GPS des voitures, sinon d'un modèle numérique de
   terrain ; le serveur Paddock Live le calcule à l'avance pour les circuits du calendrier et des replays : tant qu'il

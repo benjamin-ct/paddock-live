@@ -9,14 +9,14 @@ import { store, displayNow, f1Now, setFocus } from '../store.js';
 import { CIRCUITS } from '/shared/circuits-info.js';
 import { smoothAlong } from '/shared/elevation.js';
 import { drivers, orderedNumbers, storageGet, storageSet, esc, api, COMPOUNDS } from '../util.js';
-import { t } from '../i18n.js';
+import { t, DEC } from '../i18n.js';
 import { FONT, drawPuck, drawBadge, drawSectorBadge, drawCornerChip, drawFlagBadge, drawScBadge } from './map-draw.js';
-import { QUALITY, nearFirst, autoQuality, frameCap, weatherState, compoundOf, accentColor, drsOpen } from './map3d-calc.js';
+import { QUALITY, nearFirst, autoQuality, frameCap, weatherState, compoundOf, accentColor, drsOpen, seconds, pickBattle, bestLap, lapTrace, traceAt } from './map3d-calc.js';
 
 const W = 14;           // largeur de la piste (m)
 const MAX_CARS = 30;
-const CAMS = [['helico', 'Hélico'], ['poursuite', 'Poursuite'], ['embarquee', 'Embarquée'], ['libre', 'Libre']];
-const FOV = { helico: 38, poursuite: 62, embarquee: 74, libre: 50 };
+const CAMS = [['helico', 'Hélico'], ['poursuite', 'Poursuite'], ['embarquee', 'Embarquée'], ['libre', 'Libre'], ['realisation', 'Réalisation']];
+const FOV = { helico: 38, poursuite: 62, embarquee: 74, libre: 50, survol: 55 };
 const TIMES = [['auto', 'Heure du circuit'], ['lever', 'Lever'], ['jour', 'Jour'], ['coucher', 'Coucher'], ['nuit', 'Nuit']];
 const QUALITIES = [['auto', 'Qualité : Auto'], ['econome', 'Qualité : Économe'], ['haute', 'Qualité : Haute']];
 const Q_NAMES = ['économe', 'moyenne', 'haute'];   // niveaux de map3d-calc.js (QUALITY)
@@ -960,10 +960,19 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
   host.innerHTML = `<div class="map3d-bar">
       <div class="map3d-cams" role="group" aria-label="Caméra">${CAMS.map(([k, txt]) => `<button class="btn small" data-cam="${k}">${txt}</button>`).join('')}</div>
       <select class="map3d-driver" aria-label="Pilote suivi" title="Pilote suivi (le même que sur la carte 2D et le classement)"></select>
-      <select class="map3d-time" aria-label="Heure">${TIMES.map(([k, txt]) => `<option value="${k}">${txt}</option>`).join('')}</select>
-      <select class="map3d-quality" aria-label="Qualité">${QUALITIES.map(([k, txt]) => `<option value="${k}">${txt}</option>`).join('')}</select>
-      <select class="map3d-weather" aria-label="Météo">${WEATHERS.map(([k, txt]) => `<option value="${k}">${txt}</option>`).join('')}</select>
+      <button class="btn small map3d-fly" title="La caméra fait le tour du circuit, avec les numéros des virages">Survol</button>
+      <details class="map-layers map3d-opts">
+        <summary class="btn small">Réglages <svg class="ic ic-s" aria-hidden="true"><use href="#i-chevron-down"/></svg></summary>
+        <div class="map-layers-menu">
+          <select class="map3d-time" aria-label="Heure">${TIMES.map(([k, txt]) => `<option value="${k}">${txt}</option>`).join('')}</select>
+          <select class="map3d-quality" aria-label="Qualité">${QUALITIES.map(([k, txt]) => `<option value="${k}">${txt}</option>`).join('')}</select>
+          <select class="map3d-weather" aria-label="Météo">${WEATHERS.map(([k, txt]) => `<option value="${k}">${txt}</option>`).join('')}</select>
+          <label class="toggle"><input type="checkbox" class="map3d-gap"> Écart avec la voiture devant</label>
+          <label class="toggle"><input type="checkbox" class="map3d-ghost"> Fantôme du meilleur tour</label>
+        </div>
+      </details>
     </div>
+    <div class="map3d-cap" hidden></div>
     <div class="map3d-note"></div>
     <div class="map3d-credit" hidden><a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a> <a href="https://www.openmaptiles.org/" target="_blank" rel="noopener">© OpenMapTiles</a> <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">${esc(t('© contributeurs OpenStreetMap'))}</a> · ${esc(t('Altitude : Terrain Tiles (Mapzen, AWS Open Data)'))}</div>`;
   host.prepend(cvs);
@@ -1044,6 +1053,7 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
   const numbers = new THREE.InstancedMesh(numberGeo, atlas.mat, MAX_CARS);
   const flaps = new THREE.InstancedMesh(flapGeo, bodies.material, MAX_CARS);
   const carMeshes = [bodies, darks, tails, stripes, accents, numbers];
+  const ghost = ghostCar(scene, [bodyGeo, darkGeo]), gapTag = gapLabel(scene);
   for (const m of [...carMeshes, flaps]) { m.castShadow = m !== tails && m !== numbers; m.frustumCulled = false; m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); scene.add(m); }
   const HIDDEN = new THREE.Matrix4().makeScale(0, 0, 0);
   const cars = new Map();   // num -> { k, q, p, hint, tag (pastille, comme sur la carte 2D), look (son dessin), seen }
@@ -1081,11 +1091,26 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
   const credit = host.querySelector('.map3d-credit'), timeSel = host.querySelector('.map3d-time');
   timeSel.value = TIMES.some(([k]) => k === saved.time) ? saved.time : 'auto';
   timeSel.addEventListener('change', () => storageSet('paddock.map3d', { ...storageGet('paddock.map3d', {}), time: timeSel.value }));
-  const showCam = () => { for (const b of bar.querySelectorAll('[data-cam]')) b.classList.toggle('on', b.dataset.cam === mode); };
+  const showCam = () => {
+    for (const b of bar.querySelectorAll('[data-cam]')) b.classList.toggle('on', b.dataset.cam === mode && !fly.on);
+    bar.querySelector('.map3d-fly').classList.toggle('on', fly.on);
+  };
+  const cap = host.querySelector('.map3d-cap'), race = raceDirector(cap), fly = flyover(cap);
+  const optGap = host.querySelector('.map3d-gap'), optGhost = host.querySelector('.map3d-ghost');
+  optGap.checked = saved.gap !== false;
+  optGhost.checked = !!saved.ghost;
+  for (const [el, key] of [[optGap, 'gap'], [optGhost, 'ghost']]) el.addEventListener('change', () => storageSet('paddock.map3d', { ...storageGet('paddock.map3d', {}), [key]: el.checked }));
+  let flown = false;   // survol lancé tout seul une fois, à l'ouverture sans voiture en piste
+  // Menu Réglages : fermé au clic ailleurs
+  const opts = host.querySelector('.map3d-opts'), closeOpts = (e) => { if (opts.open && !opts.contains(e.target)) opts.open = false; };
+  document.addEventListener('pointerdown', closeOpts);
   showCam();
   bar.addEventListener('click', (e) => {
+    if (e.target.closest('.map3d-fly')) { if (fly.on) fly.stop(); else { fly.start(performance.now()); race.stop(); snap = true; } showCam(); return; }
     const b = e.target.closest('[data-cam]');
     if (!b) return;
+    fly.stop();
+    if (b.dataset.cam !== 'realisation') race.stop();
     mode = b.dataset.cam;
     storageSet('paddock.map3d', { ...storageGet('paddock.map3d', {}), cam: mode });
     if (mode === 'libre') overview();
@@ -1314,17 +1339,29 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
 
     // Pilote suivi : celui de la carte 2D, sinon le premier du classement qui est en piste
     const order = orderedNumbers(store.state);
-    const fnum = [store.focus, ...order].find((n) => cars.get(n)?.seen);
+    // Réalisation : la voiture de la bataille choisie et le plan en cours (Poursuite, Hélico ou Embarquée)
+    const shot = fly.on ? 'survol' : mode === 'realisation' ? race.update(now, order, cars) : mode;
+    const fnum = [mode === 'realisation' ? race.num : store.focus, ...order].find((n) => cars.get(n)?.seen);
     const focus = cars.get(fnum);
     if (fnum !== focusSeen) { focusSeen = fnum; snap = true; }
+    if (!focus && !flown && world.track) { flown = true; fly.start(now); snap = true; showCam(); }
+    gapTag(optGap.checked && shot !== 'survol', fnum, order, cars);
+    ghost.update(optGhost.checked && gps, fnum, world, now);
+    optGhost.parentElement.title = gps ? ghost.title : t('Fantôme : il faut les positions GPS des voitures');
     // Étiquette du pilote suivi cachée derrière lui et à bord (elle tomberait sur l'horizon)
-    if (focus && (mode === 'poursuite' || mode === 'embarquee')) focus.tag.visible = false;
-    camera.fov = FOV[mode];
+    if (focus && (shot === 'poursuite' || shot === 'embarquee')) focus.tag.visible = false;
+    camera.fov = FOV[shot];
     // Plan proche reculé quand la caméra est loin (précision de la profondeur : piste juste au-dessus du sol)
-    camera.near = !world.land ? 0.1 : mode === 'libre' || !focus ? Math.min(20, Math.max(0.1, orbit.dist / 150)) : mode === 'helico' ? 2 : 0.1;
+    camera.near = !world.land ? 0.1 : shot === 'libre' || !focus ? Math.min(20, Math.max(0.1, orbit.dist / 150)) : shot === 'helico' || shot === 'survol' ? 2 : 0.1;
     camera.updateProjectionMatrix();
     camera.up.set(0, 1, 0);
-    if (mode === 'libre' || !focus) {
+    if (fly.on && fly.step(now, dtCam, world, camPos, look, snap)) {
+      camera.position.copy(camPos);
+      camera.lookAt(look);
+      sun.target.position.copy(look);
+      shadowSpan = 110;
+    } else if (shot === 'libre' || shot === 'survol' || !focus) {
+      if (shot === 'survol') showCam();   // survol fini : retour à la caméra choisie
       const ce = Math.cos(orbit.el);
       camera.position.set(orbit.target.x + orbit.dist * ce * Math.sin(orbit.az), orbit.target.y + orbit.dist * Math.sin(orbit.el), orbit.target.z + orbit.dist * ce * Math.cos(orbit.az));
       camera.position.y = Math.max(camera.position.y, world.groundAt(camera.position.x, camera.position.z) + 2);
@@ -1335,10 +1372,10 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
       const p = focus.p, f = new THREE.Vector3(0, 0, 1).applyQuaternion(focus.q), fh = f.clone().setY(0).normalize();
       const upL = new THREE.Vector3(0, 1, 0).applyQuaternion(focus.q), right = new THREE.Vector3(-fh.z, 0, fh.x);
       let want, target, kPos, kLook;
-      if (mode === 'helico') {          // haut, en retrait et de côté, suit doucement
+      if (shot === 'helico') {          // haut, en retrait et de côté, suit doucement
         want = p.clone().addScaledVector(fh, -80).addScaledVector(right, 50).add(new THREE.Vector3(0, 60, 0));
         target = p.clone(); kPos = 2; kLook = 5;
-      } else if (mode === 'poursuite') { // derrière la voiture, un peu au-dessus
+      } else if (shot === 'poursuite') { // derrière la voiture, un peu au-dessus
         want = p.clone().addScaledVector(fh, -7).add(new THREE.Vector3(0, 2.1, 0));
         target = p.clone().addScaledVector(f, 7).add(new THREE.Vector3(0, 0.9, 0)); kPos = 7; kLook = 12;
       } else {                           // embarquée (au-dessus de la prise d'air), solidaire de la voiture
@@ -1351,17 +1388,17 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
       // Jamais sous le sol ni sous la piste (sommet d'une bosse entre la caméra et la voiture)
       const ci = nearestIndex(world, camPos.x, camPos.z, focus.hint), [cy] = trackAt(world.P, ci, camPos.x, camPos.z);
       const floor = Math.max(world.groundAt(camPos.x, camPos.z), (world.P[ci].x - camPos.x) ** 2 + (world.P[ci].z - camPos.z) ** 2 < (W / 2 + 3) ** 2 ? cy : -Infinity);
-      camPos.y = Math.max(camPos.y, floor + (mode === 'embarquee' ? 0.9 : 1.2));
+      camPos.y = Math.max(camPos.y, floor + (shot === 'embarquee' ? 0.9 : 1.2));
       camera.position.copy(camPos);
-      if (mode === 'embarquee') camera.up.copy(upL);
+      if (shot === 'embarquee') camera.up.copy(upL);
       camera.lookAt(look);
-      if (mode === 'helico') { sun.target.position.copy(p); shadowSpan = 110; } else { sun.target.position.copy(p).addScaledVector(fh, 30); shadowSpan = 45; }
+      if (shot === 'helico') { sun.target.position.copy(p); shadowSpan = 110; } else { sun.target.position.copy(p).addScaledVector(fh, 30); shadowSpan = 45; }
     }
     snap = false;
     // Sol détaillé devant la caméra (inutile de très haut : pas redessiné en tournant autour du circuit)
     camera.getWorldDirection(dir);
     const hd = Math.hypot(dir.x, dir.z) || 1;
-    if (mode !== 'libre' || orbit.dist < 900) world.detailAt(camera.position.x + (dir.x / hd) * 180, camera.position.z + (dir.z / hd) * 180);
+    if (shot !== 'libre' || orbit.dist < 900) world.detailAt(camera.position.x + (dir.x / hd) * 180, camera.position.z + (dir.z / hd) * 180);
     if (now - lastSun > 1000 || timeSel.value !== lastTime) setSun(now);
     weather.update(now, dtCam, { world, cars, camera, amb, fogFar, level: quality.level, px: cvs.height });
     const cam = sun.shadow.camera, tx = (2 * shadowSpan) / sun.shadow.mapSize.x;
@@ -1374,7 +1411,7 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
     fitSprites(scene, camera, h);
     renderer.render(scene, camera);
     host.dataset.ready = '1';
-    quality.frame(now, !focus || store.status?.paused, redFlag);
+    quality.frame(now, (!focus || store.status?.paused) && !fly.on, redFlag);
   }
   raf = requestAnimationFrame(frame);
 
@@ -1383,11 +1420,142 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
       cancelAnimationFrame(raf);
       cvs.removeEventListener('webglcontextlost', lost);
       quality.close();
+      document.removeEventListener('pointerdown', closeOpts);
       if (world) dispose(world.group);
       for (const c of cars.values()) { c.tag.material.map.dispose(); c.tag.material.dispose(); }
       dispose(scene);
       renderer.dispose();
       host.innerHTML = '';
+    },
+  };
+}
+
+// ---------- Pour suivre la course : Réalisation, écart avec la voiture devant, fantôme du meilleur tour, survol ----------
+// Réalisation : passe d'une bataille à l'autre (pickBattle : petits écarts, dépassements, DRS), plans d'au moins 8 s,
+// caméra Poursuite, Hélico ou Embarquée à tour de rôle ; légende « Bataille pour la P5 · LEC – HAM · 0,3 s ».
+// -> { num : voiture suivie, update(now, order) : plan en cours (mode de caméra) }
+function raceDirector(cap) {
+  const SHOTS = ['poursuite', 'helico', 'embarquee'];
+  const seen = new Map();   // num -> { pos, gainAt } : places gagnées depuis peu
+  let cur = null, shot = 0, lastPick = -1e9;
+  return {
+    get num() { return cur?.num ?? null; },
+    update(now, order, cars) {
+      const tl = store.state.TimingData?.Lines || {}, dl = drivers(store.state);
+      if (now - lastPick > 500) {
+        lastPick = now;
+        const lines = [];
+        for (const num of order) {
+          const l = tl[num], pos = Number(l?.Position) || 99;
+          if (!cars.get(num)?.seen || l?.InPit) continue;
+          const s = seen.get(num) || { pos, gainAt: -1e9 };
+          if (pos < s.pos) s.gainAt = now;
+          s.pos = pos;
+          seen.set(num, s);
+          lines.push({ num, pos, gap: pos > 1 ? seconds(l?.IntervalToPositionAhead?.Value) : null, drs: drsOpen(store.positions.carAt(num, displayNow())?.drs), gained: now - s.gainAt < 10000 ? 1 : 0 });
+        }
+        const next = pickBattle(lines, cur, now);
+        if (next.num !== cur?.num) shot = (shot + 1) % SHOTS.length;
+        cur = next;
+        const l = tl[cur.num], pos = Number(l?.Position), ahead = order[order.indexOf(cur.num) - 1], gap = seconds(l?.IntervalToPositionAhead?.Value);
+        cap.textContent = !cur.num ? '' : pos > 1 && gap !== null && gap < 2.5
+          ? `${t('Bataille pour la P{}', pos)} · ${dl[ahead]?.Tla || ahead} – ${dl[cur.num]?.Tla || cur.num} · ${gap.toFixed(1).replace('.', DEC)} s`
+          : `P${pos || '–'} · ${dl[cur.num]?.Tla || cur.num}`;
+        cap.hidden = !cap.textContent;
+      }
+      return SHOTS[shot];
+    },
+    stop() { cur = null; cap.hidden = true; },
+  };
+}
+
+// Écart avec la voiture devant : étiquette entre la voiture suivie et celle qui la précède au classement (quand elles
+// sont à moins de 400 m l'une de l'autre). -> update(on, focusNum, order, cars)
+function gapLabel(scene) {
+  let text = '';
+  const tag = canvasSprite(84, 22, () => {}, { depth: false });
+  tag.center.set(0.5, 0);
+  tag.renderOrder = 11;
+  tag.visible = false;
+  scene.add(tag);
+  return (on, fnum, order, cars) => {
+    const ahead = cars.get(order[order.indexOf(fnum) - 1]), me = cars.get(fnum);
+    const gap = seconds(store.state.TimingData?.Lines?.[fnum]?.IntervalToPositionAhead?.Value);
+    tag.visible = !!(on && me?.seen && ahead?.seen && gap !== null && me.p.distanceTo(ahead.p) < 400);
+    if (!tag.visible) return;
+    tag.position.copy(me.p).add(ahead.p).multiplyScalar(0.5).setY(Math.max(me.p.y, ahead.p.y) + 2.6);
+    const txt = `+${gap.toFixed(1).replace('.', DEC)} s`;
+    if (txt === text) return;
+    text = txt;
+    const { g, tex } = tag.userData;
+    g.clearRect(0, 0, 84, 22);
+    g.font = `700 12px ${FONT()}`;
+    drawBadge(g, 42, 11, txt, 'rgba(14,17,22,.86)', '#F5C518', '#F5C518');
+    tex.needsUpdate = true;
+  };
+}
+
+// Fantôme du meilleur tour : voiture transparente qui refait le tour le plus rapide de la séance dont on a les positions
+// GPS (l'appli les garde environ 3 minutes : le trajet est copié dès que le tour est connu, et gardé tant qu'il n'y a
+// pas plus rapide), partie en même temps que le pilote suivi au début de son tour. -> update(on, fnum, world, now)
+function ghostCar(scene, geos) {
+  const mat = new THREE.MeshBasicMaterial({ color: 0xbfe6ff, transparent: true, opacity: 0.45, depthWrite: false });
+  const car = new THREE.Group();
+  for (const g of geos) car.add(new THREE.Mesh(g, mat));
+  car.visible = false;
+  scene.add(car);
+  let ref = null, trace = null, lastLook = -1e9, hint = -1;
+  const p = new THREE.Vector3(), info = { title: '' };
+  return Object.assign(info, {
+    update(on, fnum, world, now) {
+      car.visible = false;
+      if (!on || !fnum) return;
+      // Meilleur tour relu toutes les 2 s ; trajet copié s'il est encore dans les positions gardées
+      if (now - lastLook > 2000) {
+        lastLook = now;
+        let tr = null;
+        const best = bestLap(store.derived.laps, null, (b) => (!ref || b.time < ref.time) && (tr = lapTrace(store.positions.gps.get(b.num) || [], b.t0, b.t1)).length > 20
+          && tr[0].dt < 3000 && tr.at(-1).dt > b.t1 - b.t0 - 3000);
+        if (best) { ref = best; trace = tr; }
+        const dl = drivers(store.state);
+        info.title = ref ? t('Fantôme : meilleur tour de {} ({})', dl[ref.num]?.Tla || ref.num, `${Math.floor(ref.time / 60)}:${(ref.time % 60).toFixed(3).padStart(6, '0')}`) : t('Fantôme : pas encore de meilleur tour avec les positions GPS');
+      }
+      const start = store.derived.laps?.[fnum]?.at(-1)?.t, disp = displayNow();
+      const a = trace && start ? traceAt(trace, disp - start) : null;
+      if (!a) return;
+      const b = traceAt(trace, disp - start + 150) || a, [x, z] = world.toW(a.x, a.y), [bx, bz] = world.toW(b.x, b.y);
+      hint = nearestIndex(world, x, z, hint);
+      car.position.set(x, trackAt(world.P, hint, x, z)[0], z);
+      car.lookAt(p.set(bx, car.position.y, bz).distanceTo(car.position) > 0.05 ? p : p.copy(car.position).add(world.T[hint]));
+      car.visible = true;
+    },
+  });
+}
+
+// Survol du circuit : la caméra fait le tour de la piste en 45 s, de l'extérieur et en hauteur, en regardant devant ;
+// légende : numéro du virage qui arrive. -> { on, start(now), stop(), step(now, dt, world, camPos, look) : faux à la fin }
+function flyover(cap) {
+  const DUR = 45000;
+  let t0 = -1, corners = null, cw = null;
+  return {
+    get on() { return t0 >= 0; },
+    start(now) { t0 = now; },
+    stop() { t0 = -1; cap.hidden = true; },
+    step(now, dt, world, camPos, look, first) {
+      const u = (now - t0) / DUR;
+      if (u >= 1) { this.stop(); return false; }
+      const { P, SIDE, N, DS, box } = world, i = Math.floor(u * N) % N, c = box.getCenter(new THREE.Vector3());
+      const out = SIDE[i].x * (P[i].x - c.x) + SIDE[i].z * (P[i].z - c.z) > 0 ? 1 : -1;
+      const want = P[i].clone().addScaledVector(SIDE[i], out * 70).add(new THREE.Vector3(0, 50, 0)), target = P[(i + Math.round(140 / DS)) % N];
+      const k = first ? 1 : 1 - Math.exp(-dt * 2.5);
+      camPos.lerp(want, k);
+      look.lerp(target, k);
+      // Virages : indice sur le tracé (une fois par décor) ; légende du prochain dans les 250 m
+      if (cw !== world) { cw = world; corners = world.track.corners.map((v) => { const [x, z] = world.toW(v.x, v.y); return [nearestIndex(world, x, z, -1), v.number]; }); }
+      const next = corners.filter(([j]) => (j - i + N) % N < 250 / DS).sort((a, b) => ((a[0] - i + N) % N) - ((b[0] - i + N) % N))[0];
+      cap.textContent = next ? t('Virage {}', next[1]) : '';
+      cap.hidden = !next;
+      return true;
     },
   };
 }
