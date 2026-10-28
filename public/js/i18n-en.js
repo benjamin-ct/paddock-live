@@ -2699,4 +2699,12 @@ export default {
   "Vict.": "Wins",
   "Session": "Session",
   "Image prête : touchez de nouveau pour l'enregistrer": "Image ready: tap again to save it",
+  "Fiche du Grand Prix": "Grand Prix page",
+  "Revenir au globe": "Back to the globe",
+  "Monde": "World",
+  "Ctrl + molette pour zoomer sur la carte": "Ctrl + scroll to zoom the map",
+  "⌘ + molette pour zoomer sur la carte": "⌘ + scroll to zoom the map",
+  "Deux doigts pour déplacer la carte": "Use two fingers to move the map",
+  "Sources de la carte": "Map sources",
+  "contributeurs OpenStreetMap": "OpenStreetMap contributors",
 };

@@ -1136,6 +1136,51 @@ body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-selec
 .cal-map-key { display: flex; align-items: center; gap: 6px 14px; flex-wrap: wrap; margin-top: 6px; color: var(--muted); }
 .cal-pin-key { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: -8px; }
 .cal-pin-key.next { background: var(--accent); } .cal-pin-key.future { background: var(--text); } .cal-pin-key.done { background: var(--muted); opacity: .6; }
+/* Calendrier sur un globe (ui/cal-globe.js) : carte plein cadre, carrousel des Grands Prix par-dessus, en bas */
+.cal-globe-slot, .cal-globe { height: clamp(460px, 72vh, 700px); }
+.cal-globe { position: relative; padding: 0; overflow: hidden; }
+.cal-globe > .cg-map { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 40%, #ffffff, #dde3ea 75%); }
+/* Sombre : globe sur un ciel étoilé */
+:root:not([data-scheme="light"]) .cg-map { background-color: #030306;
+  background-image: radial-gradient(1.3px 1.3px at 12% 18%, #ffffffb0 50%, transparent 51%), radial-gradient(1px 1px at 64% 42%, #ffffff80 50%, transparent 51%),
+    radial-gradient(1px 1px at 38% 76%, #ffffff70 50%, transparent 51%), radial-gradient(1.5px 1.5px at 86% 84%, #ffffffa0 50%, transparent 51%),
+    radial-gradient(1px 1px at 91% 9%, #ffffff60 50%, transparent 51%), radial-gradient(ellipse at 50% 42%, #121624, #030306 72%);
+  background-size: 190px 190px, 190px 190px, 190px 190px, 190px 190px, 190px 190px, 100% 100%; }
+.cg-key { position: absolute; top: 10px; left: 12px; z-index: 2; max-width: calc(100% - 130px); margin: 0; padding: 5px 9px; border-radius: 6px; background: color-mix(in srgb, var(--panel) 85%, transparent); color: var(--text-2); }
+.cg-key .cal-pin-key { margin-right: 5px; }
+/* « Monde » seulement sur le plan d'un circuit (rien en haut à droite sur le globe) */
+.cg-world { position: absolute; top: 10px; right: 10px; z-index: 2; }
+.cal-globe:not(.cg-near) .cg-world { display: none; }
+.cg-cards { --cg-w: min(300px, calc(100vw - 96px)); position: absolute; left: 0; right: 0; bottom: 30px; z-index: 2; display: flex; gap: 10px;
+  overflow-x: auto; scroll-snap-type: x mandatory; overscroll-behavior-x: contain; padding: 6px calc(50% - var(--cg-w) / 2); scrollbar-width: none; }
+.cg-cards::-webkit-scrollbar { display: none; }
+.cg-card { flex: 0 0 var(--cg-w); scroll-snap-align: center; display: grid; grid-template-columns: minmax(0, 1fr) 78px; align-items: center; gap: 8px;
+  padding: 11px 12px 10px 14px; border: 1px solid var(--border); border-radius: 10px; background: color-mix(in srgb, var(--panel) 94%, transparent);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .28); cursor: pointer; backdrop-filter: blur(6px); }
+.cg-card.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), 0 8px 24px rgba(0, 0, 0, .28); }
+.cg-c-txt { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.cg-c-top { display: flex; align-items: center; gap: 6px; }
+.cg-c-top b { font: 800 15px/1 var(--font-cond, var(--font)); }
+.cg-c-top .sz-tag { margin: 0; }
+.cg-c-name { display: flex; align-items: center; gap: 8px; margin-top: 3px; font: 800 19px/1.1 var(--font-cond, var(--font)); text-transform: uppercase; }
+.cg-c-name .cal-flag { flex: none; width: 26px; height: 17px; }
+.cg-c-sub { color: var(--text-2); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cg-c-go { display: inline-flex; align-items: center; gap: 4px; margin-top: 5px; color: var(--accent); font-size: 12.5px; font-weight: 700; text-decoration: none; }
+.cg-c-track { width: 78px; height: 78px; }
+.cg-c-track polygon { fill: none; stroke: var(--text); stroke-width: 3.2; stroke-linejoin: round; }
+.cg-card.on .cg-c-track polygon { stroke: var(--accent); }
+.cg-pin { display: grid; place-items: center; width: 24px; height: 24px; padding: 0; border: 2px solid var(--panel); border-radius: 50%; cursor: pointer;
+  font: 800 11px/1 var(--font-cond, var(--font)); font-variant-numeric: tabular-nums; color: #fff; background: var(--muted); box-shadow: 0 1px 4px rgba(0, 0, 0, .4); }
+.cg-pin.future { background: var(--text); color: var(--panel); }
+.cg-pin.next { width: 30px; height: 30px; font-size: 13px; background: var(--accent); }
+.cg-pin.on { box-shadow: 0 0 0 3px var(--accent), 0 1px 6px rgba(0, 0, 0, .5); }
+.cg-near .cg-pin { opacity: 0 !important; pointer-events: none; }
+.cal-globe .maplibregl-ctrl.maplibregl-ctrl-attrib { font-size: 10.5px; background: color-mix(in srgb, var(--panel) 80%, transparent); color: var(--text-2); }
+.cal-globe .maplibregl-ctrl-attrib a { color: inherit; }
+@media (max-width: 640px) {
+  .cal-globe-slot, .cal-globe { height: max(480px, 74svh); margin-inline: -4px; }
+  .cg-key { top: 8px; left: 8px; font-size: 11px; }
+}
 .sz-png { margin-left: auto; padding: 2px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel-2); color: var(--muted); font: inherit; font-size: 11px; font-weight: 700; cursor: pointer; }
 .sz-png:hover { color: var(--text); border-color: var(--line-2); }
 .sz-table { width: 100%; border-collapse: collapse; font-size: 13.5px; margin-bottom: 8px; }
