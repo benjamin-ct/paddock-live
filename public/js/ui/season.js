@@ -4,8 +4,8 @@
 // analyse des archives F1 Live Timing (/api/season/stats).
 import { $, esc, api, teamColor, teamLogo, photoUrl, placeView, driverOpt } from '../util.js';
 import { store } from '../store.js';
-import { renderDrivers, renderConsistency, renderPits, renderSpeeds, renderCircuits, renderRatings, gradeBadge, stopTxt, DHL_NOTE, statusFr, fmtLap } from './season-stats.js';
-import { driverRatings, qualiGaps, titleRace, placeForMaxPoints, retired, standingsAfter, lineage, pointsPath, shortTeams } from '/shared/season-calc.js';
+import { renderDrivers, renderConsistency, renderPits, renderSpeeds, renderCircuits, renderRatings, gradeBadge, stopTxt, DHL_NOTE, statusFr, fmtLap, setHistKind } from './season-stats.js';
+import { driverRatings, qualiGaps, titleRace, placeForMaxPoints, retired, standingsAfter, lineage, pointsPath, shortTeams, teamPoleGaps, median } from '/shared/season-calc.js';
 import { renderTech, renderElements, setTechFilter, translateTechDetail, toggleTechOriginal } from './season-fia.js';
 import { icon } from '../icons.js';
 import { renderPredict, initPredict } from './predict-view.js';
@@ -457,6 +457,42 @@ function renderResults() {
         <td>${r.quali.find((q) => q.pos === 1) ? chip(r.quali.find((q) => q.pos === 1)) : '—'}</td><td>${r.sprintResults[0] ? chip(r.sprintResults[0]) : '—'}</td></tr>`).join('')}</table></section>`;
 }
 
+// Qualifications : écart de chaque écurie à la pole, Grand Prix par Grand Prix (en % ou en secondes)
+let poleUnit = 'pct';
+let poleFocus = null;     // écurie mise en avant (les autres en retrait)
+function renderQuali() {
+  const teams = teamPoleGaps(data.races);
+  if (!teams.length) return '<div class="note">Pas encore de qualifications.</div>';
+  const pct = poleUnit === 'pct';
+  const v = (p) => (pct ? p.pct : p.s);
+  const fmt = (x) => (pct ? `${x.toFixed(2).replace('.', DEC)} %` : `${x.toFixed(3).replace('.', DEC)} s`);
+  const rounds = [...new Set(teams.flatMap((t) => t.points.map((p) => p.round)))].sort((a, b) => a - b);
+  const meds = teams.map((t) => ({ ...t, med: median(t.points.map(v)) })).sort((a, b) => a.med - b.med);
+  // Échelle calée sur le 95e centile : une qualif ratée (pluie, accident) n'écrase pas les autres ; au-delà, coupé
+  const all = teams.flatMap((t) => t.points.map(v)).sort((a, b) => a - b);
+  const top = Math.max(pct ? 0.5 : 0.4, all[Math.floor(all.length * 0.95)] || 0);
+  const w = Math.max(600, ($('#szContent')?.clientWidth || 934) - 34), h = 340, pl = 52, pr = 96, pt = 12, pb = 24;
+  const X = (rd) => pl + (rounds.indexOf(rd) / Math.max(1, rounds.length - 1)) * (w - pl - pr);
+  const Y = (y) => pt + (Math.min(y, top) / top) * (h - pt - pb);
+  const step = [0.1, 0.2, 0.25, 0.5, 1, 2].find((s) => top / s <= 6) || 5;
+  let grid = '';
+  for (let y = 0; y <= top + 1e-9; y += step) grid += `<line x1="${pl}" x2="${w - pr}" y1="${Y(y)}" y2="${Y(y)}" class="sz-gl"/><text x="${pl - 6}" y="${Y(y) + 4}" class="sz-ax" text-anchor="end">${y ? `${String(+y.toFixed(2)).replace('.', DEC)} ${pct ? '%' : 's'}` : 'Pole'}</text>`;
+  for (const rd of rounds) grid += `<text x="${X(rd)}" y="${h - 6}" class="sz-ax" text-anchor="middle">R${rd}</text>`;
+  // Étiquettes de fin de courbe (écart médian) écartées pour ne pas se chevaucher
+  const labels = meds.map((t) => ({ t, y: Y(v(t.points.at(-1))) + 4 })).sort((a, b) => a.y - b.y);
+  for (let i = 1; i < labels.length; i++) labels[i].y = Math.max(labels[i].y, labels[i - 1].y + 13);
+  const dim = (t) => (poleFocus && t.teamId !== poleFocus ? ' opacity=".15"' : '');
+  const lines = meds.map((t) => `<g${dim(t)}><polyline fill="none" stroke="${color(t.team, t.teamId)}" stroke-width="${t.teamId === poleFocus ? 3 : 2}" pathLength="1" points="${t.points.map((p) => `${X(p.round)},${Y(v(p))}`).join(' ')}"><title>${esc(t.team)}</title></polyline>${t.points.map((p) => `<circle cx="${X(p.round)}" cy="${Y(v(p))}" r="2.5" fill="${color(t.team, t.teamId)}"><title>${esc(t.team)} · R${p.round} : ${fmt(v(p))}</title></circle>`).join('')}</g>`).join('')
+    + labels.map(({ t, y }) => `<text x="${w - pr + 6}" y="${y}" fill="${color(t.team, t.teamId)}" class="sz-lbl"${dim(t)}>${esc(t.team)}</text>`).join('');
+  const hi = Math.max(...meds.map((t) => t.med)) || 1;
+  return `<section class="sz-box"><h3>Écart à la pole, Grand Prix par Grand Prix</h3>
+      <div class="tab-seg">${[['pct', '%'], ['s', 'Secondes']].map(([k, l]) => `<button type="button" data-pole-unit="${k}" class="${poleUnit === k ? 'on' : ''}">${l}</button>`).join('')}</div>
+      <div class="sz-scroll"><svg viewBox="0 0 ${w} ${h}" class="sz-svg">${grid}${lines}</svg></div>
+      <div class="muted small"><span>Meilleur tour de chaque écurie en qualifs (Q1, Q2 ou Q3) face au temps de la pole. En haut : la pole.</span> <span>Touchez une écurie ci-dessous pour la mettre en avant.</span></div></section>
+    <section class="sz-box"><h3>Écart médian à la pole</h3>
+      <div class="sz-hbars">${meds.map((t) => `<div class="sz-hbar sz-pick${t.teamId === poleFocus ? ' on' : ''}" data-pole-team="${esc(t.teamId)}"><div class="sz-hb-l">${bar(t.team, t.teamId)}${esc(t.team)}</div><div class="sz-hb-t"><i style="width:${Math.max(2, (100 * t.med) / hi)}%;background:${color(t.team, t.teamId)}"></i></div><div class="sz-hb-v">${fmt(t.med)}</div></div>`).join('')}</div></section>`;
+}
+
 let h2hTeam = null;
 let h2hMode = 'team';     // 'team' (coéquipiers) | 'drivers' (pilote contre pilote)
 let h2hA = null, h2hB = null;
@@ -751,7 +787,7 @@ function render() {
   if (section === 'drivers') loadPrev();
   const fiaData = fia?.year === data.year ? fia : null;
   const html = {
-    home: renderHome, calendar: renderCalendar, standings: renderStandings, title: renderTitle, compare: renderCompare, destructors: () => { loadDest(data.year); return renderDestructors({ ...ctx, chart: lineChartSvg, w: Math.max(600, ($('#szContent')?.clientWidth || 934) - 34) }, dest?.year === data.year && !dest.loading ? dest : null); }, results: renderResults, h2h: renderH2H,
+    home: renderHome, calendar: renderCalendar, standings: renderStandings, title: renderTitle, compare: renderCompare, destructors: () => { loadDest(data.year); return renderDestructors({ ...ctx, chart: lineChartSvg, w: Math.max(600, ($('#szContent')?.clientWidth || 934) - 34) }, dest?.year === data.year && !dest.loading ? dest : null); }, results: renderResults, quali: renderQuali, h2h: renderH2H,
     drivers: () => renderDrivers(ctx, drvCode), consistency: () => renderConsistency(ctx), pits: () => renderPits(ctx),
     speeds: () => renderSpeeds(ctx, speedPt), circuits: () => renderCircuits(ctx, circSort), ratings: () => renderRatings(ctx, rateSort),
     tech: () => renderTech(ctx, fiaData), elements: () => renderElements(ctx, fiaData), predict: () => renderPredict(data.year, (code) => { const d = data.drivers.find((x) => x.code === code); return d ? seasonOpt(d) : ''; }), review: () => renderReview(ctx),
@@ -883,6 +919,9 @@ export function initSeason() {
     if (dd) { showDestructorsDriver(Number(dd.dataset.destDrv)); animate(true); render(); return; }
     const cs = e.target.closest('[data-cmp-sort]');
     if (cs) { cmpSort = cmpSort === cs.dataset.cmpSort ? 'pos' : cs.dataset.cmpSort; render(); return; }
+    const hk = e.target.closest('[data-hist]'), pu = e.target.closest('[data-pole-unit]'), pt = e.target.closest('[data-pole-team]');
+    if (pt) { poleFocus = poleFocus === pt.dataset.poleTeam ? null : pt.dataset.poleTeam; render(); return; }
+    if (hk || pu) { if (hk) setHistKind(hk.dataset.hist); else poleUnit = pu.dataset.poleUnit; animate(true); render(); return; }
     const k = e.target.closest('[data-tr-kind]');
     if (k) { trKind = k.dataset.trKind; animate(true); render(); }
     const rs = e.target.closest('[data-rate-sort]');

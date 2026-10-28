@@ -204,3 +204,16 @@ test('noms d\'écuries courts, les mêmes dans toute la Saison', () => {
   const d = shortTeams({ drivers: [{ team: 'Cadillac F1 Team' }], constructors: [{ name: 'RB F1 Team', id: 'rb' }], races: [{ results: [{ team: 'Red Bull' }] }] });
   assert.deepEqual([d.drivers[0].team, d.constructors[0].name, d.constructors[0].id, d.races[0].results[0].team], ['Cadillac', 'Racing Bulls', 'rb', 'Red Bull']);
 });
+
+test('écart à la pole par écurie : meilleur tour de ses deux voitures face à la pole, en % et en s', async () => {
+  const { teamPoleGaps } = await import('../shared/season-calc.js');
+  const races = [
+    { round: 1, quali: [{ teamId: 'a', team: 'A', q: [80, 79.5, 79] }, { teamId: 'a', team: 'A', q: [80.5] }, { teamId: 'b', team: 'B', q: [80, 79.79] }] },
+    { round: 2, quali: [] },   // pas de temps : ignorée
+  ];
+  const g = teamPoleGaps(races);
+  assert.deepEqual(g.map((t) => [t.teamId, t.points.length]), [['a', 1], ['b', 1]]);
+  assert.equal(g[0].points[0].s, 0);
+  assert.ok(Math.abs(g[1].points[0].s - 0.79) < 1e-9);
+  assert.ok(Math.abs(g[1].points[0].pct - 1) < 1e-9);
+});

@@ -1,6 +1,17 @@
 // Interface en anglais : traduction de chaque texte français affiché (voir i18n.js).
 // {} = valeur dynamique (dans l'ordre), {0}, {1}… pour changer l'ordre en anglais.
 export default {
+  "Touchez une écurie ci-dessous pour la mettre en avant.": "Tap a team below to highlight it.",
+  "Secondes": "Seconds",
+  "Pole": "Pole",
+  "Qualifs": "Qualifying",
+  "Sprint": "Sprint",
+  "Aucun sprint couru cette saison.": "No sprint run this season.",
+  "Répartition des places": "Distribution of positions",
+  "Pas encore de qualifications.": "No qualifying sessions yet.",
+  "Écart à la pole, Grand Prix par Grand Prix": "Gap to pole, Grand Prix by Grand Prix",
+  "Meilleur tour de chaque écurie en qualifs (Q1, Q2 ou Q3) face au temps de la pole. En haut : la pole.": "Each team's best qualifying lap (Q1, Q2 or Q3) against the pole time. Top: pole.",
+  "Écart médian à la pole": "Median gap to pole",
   "Hors séance": "No session",
   "Pas de séance en cours : le direct reprend tout seul avant la prochaine, {}": "No session right now: live timing resumes on its own before the next one, {}",
   "Pas de séance en cours": "No session right now",
