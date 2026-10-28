@@ -786,8 +786,9 @@ export async function liveApi(req, url, env = {}) {
     const meeting = { name, country: url.searchParams.get('country'), location: url.searchParams.get('location') };
     return fiaDocsWeb(year, meeting).then((d) => json(d), (err) => json({ error: err.message }, 502));
   }
-  // Zones du mode dépassement et boucles de chronométrage (mini-secteurs) du circuit, calculées par le serveur
-  if ((url.pathname === '/live/api/zones' || url.pathname === '/live/api/loops') && req.method === 'GET') {
+  // Zones du mode dépassement, boucles de chronométrage (mini-secteurs) et profil d'altitude (carte 3D : z de chaque
+  // point du tracé de /live/api/circuit, 1/10 m) du circuit, calculés par le serveur
+  if (['/live/api/zones', '/live/api/loops', '/live/api/elevation'].includes(url.pathname) && req.method === 'GET') {
     const key = Number(url.searchParams.get('key')), year = Number(url.searchParams.get('year'));
     if (!env.DB || !circuitKey(key) || !Number.isInteger(year) || year < 2018 || year > new Date().getUTCFullYear() + 1) return json({ error: 'Paramètres invalides' }, 400);
     const d = await zonesWeb(env, url.pathname.slice(10), key, year);
