@@ -18,6 +18,17 @@ l'application (Réglages → À propos → Nouveautés).
   la courbe du coût cumulé des écuries qui cassent le plus, les plus gros dégâts d'un week-end et les pièces les plus
   cassées (ailerons, suspensions, fonds…). Estimations de u/Dense-Strategy-867 sur Reddit, compilées par Formula 1
   Dashboard, mises à jour toutes seules après chaque Grand Prix. Aussi dans la version web.
+- Retouches de la Saison : sur l'accueil de la Saison, la course au titre (pilotes encore en lice, titre possible
+  dès tel Grand Prix) ; dans Résultats & records, le vainqueur et le podium avant la pole et le sprint (la date laisse
+  sa place sur téléphone) ; dans Duels, la courbe d'écart en qualification montre toutes les manches ; les Notes des
+  pilotes tiennent dans la page ; le Bilan est sur deux rangées, avec un bouton pour choisir ses favoris ; le Profil
+  des circuits donne la longueur et les virages de Madring et de Sepang. Les écuries ont le même nom partout (Racing
+  Bulls, Red Bull, Alpine, Haas, Cadillac) et les pilotes leurs accents dans Éléments moteur (Pérez).
+
+### Accueil
+- Appli ouverte sans connexion (ou serveur injoignable) : l'accueil et l'écran « Pas de séance en direct » disent
+  « Calendrier indisponible pour l'instant » au lieu d'annoncer la saison terminée, puis réessaient tout seuls chaque
+  minute jusqu'à afficher la prochaine séance.
 
 ### En direct
 - Classement en course : l'intervalle avec la voiture devant s'affiche aussi en mode Essentiel ; un pilote qui abandonne

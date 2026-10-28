@@ -1091,6 +1091,9 @@ body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-selec
 .sz-big { font-size: 24px; font-weight: 900; display: flex; align-items: center; gap: 8px; }
 .sz-big small { font-size: 13px; font-weight: 600; color: var(--muted); }
 .sz-count { background: linear-gradient(135deg, #d4110a, #7d0703); border-color: #e21a12; grid-column: span 2; }
+/* Accueil de la Saison : deux rangées pleines (compte à rebours et Course au titre sur deux colonnes) */
+.sz-home-cards { grid-template-columns: repeat(4, 1fr); }
+.sz-home-cards .sz-wide { grid-column: span 2; }
 .sz-kicker { font-weight: 700; }
 .sz-badge { background: rgba(0,0,0,.3); border-radius: 5px; padding: 1px 6px; font-size: 12px; margin-right: 4px; }
 .sz-countdown { display: flex; gap: 18px; margin-top: 6px; }
@@ -1262,6 +1265,8 @@ body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-selec
 /* ---------- Saison : statistiques détaillées ---------- */
 .sz-nav-sep { margin: 12px 10px 4px; font-size: 10.5px; font-weight: 800; letter-spacing: .6px; text-transform: uppercase; color: var(--muted); }
 .sz-kpis { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
+/* Bilan : 6 cartes, au plus 3 par rangée (deux rangées pleines) */
+.sz-review-kpis { grid-template-columns: repeat(auto-fit, minmax(max(150px, calc((100% - 24px) / 3)), 1fr)); }
 .sz-kpi { min-height: 0; }
 .sz-kpi .sz-big { font-size: 24px; }
 .sz-drv-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; padding: 14px 16px; border-radius: 12px; border: 1px solid var(--border);
@@ -1331,7 +1336,7 @@ body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-selec
 .sz-up { color: var(--green); }
 .sz-down { color: var(--red); }
 .sz-h2h-grades > div { flex: 1; }
-.sz-gap-chart { min-width: 620px; }
+.sz-gap-chart { min-width: 420px; }
 .sz-svg .sz-clip { fill: #fff; font-weight: 800; paint-order: stroke; stroke: rgba(0,0,0,.45); stroke-width: 2px; }
 .sz-h2h-grades > span { width: auto; min-width: 34px; }
 .linkish { background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; font: inherit; }
@@ -1585,6 +1590,8 @@ html[data-design="classic"] .rc-bar { display: none !important; }
   .sz-main { padding: 10px !important; }
   .sz-cards { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)) !important; }
   .sz-count { grid-column: 1 / -1 !important; }
+  .sz-home-cards { grid-template-columns: repeat(2, 1fr) !important; }
+  .sz-results :is(th, td):nth-child(3) { display: none; }   /* Résultats : la date laisse la place au vainqueur */
   .sz-upd { grid-template-columns: 1fr; }
   .sz-circs { grid-template-columns: 1fr; }
   .sz-hbar { grid-template-columns: 96px 1fr 64px; font-size: 12px; }
