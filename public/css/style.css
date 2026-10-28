@@ -1123,7 +1123,10 @@ body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-selec
 .sz-dna-h { margin-top: 6px; }
 .sz-dna a { color: inherit; }
 .sz-chip { fill: var(--panel-2); stroke: var(--border); stroke-width: 1; }
-.sz-chip-t { fill: var(--text); font-size: 12px; font-weight: 600; }
+.sz-chip-t { fill: var(--text); font-size: 11.5px; font-weight: 600; }
+.sz-chip-tick { stroke: var(--accent); stroke-width: 2; }
+.sz-dna-band { fill: var(--text); fill-opacity: .03; }
+.sz-dna-band.alt { fill-opacity: .06; }
 .sz-dna-n { fill: var(--text); font-size: 16px; font-weight: 800; }
 .cal-map { padding: 10px; }
 .cal-land { fill: var(--panel-3); stroke: var(--line-2); stroke-width: .6; }

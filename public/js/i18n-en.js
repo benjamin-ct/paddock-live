@@ -2704,8 +2704,7 @@ export default {
   "Deux doigts pour déplacer la carte": "Use two fingers to move the map",
   "Sources de la carte": "Map sources",
   "contributeurs OpenStreetMap": "OpenStreetMap contributors",
-  "Virages lents": "Slow corners",
-  "Mixtes": "Mixed",
-  "Virages rapides": "Fast corners",
-  "Virages lents : la traction compte le plus ; rapides : l'appui latéral. Pneus : contrainte de 5 (la plus forte) à 1.": "Slow corners: traction matters most; fast ones: lateral load. Tyres: stress from 5 (highest) to 1.",
+  "← virages lents (traction)": "← slow corners (traction)",
+  "virages rapides (appui latéral) →": "fast corners (lateral load) →",
+  "Bandes : contrainte sur les pneus, de 5 (la plus forte) à 1. Circuits proches sur le graphique : profils proches.": "Bands: tyre stress, from 5 (highest) to 1. Circuits close together on the chart: similar profiles.",
 };

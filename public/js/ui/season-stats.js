@@ -412,42 +412,43 @@ export function dnaBlock(circuitId, head = true) {
     <div class="muted small"><span>D'après Pirelli :</span> <a href="${esc(n.source)}" target="_blank" rel="noopener">${t('preview du Grand Prix {}', n.season)}</a></div></div>`;
 }
 
-// Circuits qui se ressemblent : virages lents (traction), mixtes ou rapides (appui latéral) en colonnes, contrainte
-// sur les pneus (5 à 1) en lignes, chaque circuit en étiquette dans sa case. Dessiné à la largeur réelle de la page
-// (texte à sa vraie taille sur téléphone) ; étiquettes qui passent à la ligne dans leur case.
+// Circuits qui se ressemblent : graphique dessiné à la largeur réelle de la page (texte à sa vraie taille sur
+// téléphone). En largeur, virages lents (traction) à rapides (appui latéral) ; une bande par contrainte sur les pneus
+// (5 en haut) ; chaque circuit est une étiquette centrée sur sa position, empilée dans sa bande si elle en touche une autre.
 export function dnaMap(races) {
   const list = races.map((r) => ({ r, n: CIRCUIT_DNA[r.circuitId] })).filter((x) => x.n)
     .map(({ r, n }) => ({ name: r.locality || short(r.name), d: n.lateral - n.traction, s: n.tyreStress }));
   if (!list.length) return '';
-  const W = Math.max(300, (document.querySelector('#szContent')?.clientWidth || 934) - 34), pl = 44, ht = 28, ch = 22, gap = 5, pad = 7;
-  const cw = (W - pl) / 3;
+  const W = Math.max(300, (document.querySelector('#szContent')?.clientWidth || 934) - 34), pl = 30, pr = 6, ch = 20, gap = 4, pad = 6;
+  const lo = Math.min(-2, ...list.map((v) => v.d)), hi = Math.max(2, ...list.map((v) => v.d));
+  const X = (d) => pl + 6 + ((d - lo) / (hi - lo)) * (W - pl - pr - 12);
   const m = document.createElement('canvas').getContext('2d');
-  m.font = `600 12px ${getComputedStyle(document.body).fontFamily}`;
-  let y = ht, g = '';
+  m.font = `600 11.5px ${getComputedStyle(document.body).fontFamily}`;
+  let y = 6, g = '', marks = '';
   for (let s = 5; s >= 1; s--) {
-    // Étiquettes de chaque case, rangées de gauche à droite puis à la ligne
-    const cols = [0, 1, 2].map((c) => {
-      let x = 0, line = 0;
-      return list.filter((v) => v.s === s && Math.sign(v.d) + 1 === c).sort((a, b) => a.d - b.d || a.name.localeCompare(b.name)).map((v) => {
-        const w = Math.min(cw - pad * 2, m.measureText(v.name).width + 16);
-        if (x && x + w > cw - pad * 2) { x = 0; line++; }
-        const at = { ...v, x: pl + c * cw + pad + x, line, w };
-        x += w + gap;
-        return at;
-      });
+    // Étiquettes rangées de gauche à droite, chacune sur la première rangée de la bande où elle ne touche personne
+    const ends = [];
+    const row = list.filter((v) => v.s === s).sort((a, b) => a.d - b.d || a.name.localeCompare(b.name)).map((v) => {
+      const w = m.measureText(v.name).width + 14;
+      const x = Math.max(pl, Math.min(W - pr - w, X(v.d) - w / 2));
+      let k = ends.findIndex((e) => e + gap <= x);
+      if (k < 0) k = ends.push(0) - 1;
+      ends[k] = x + w;
+      return { ...v, x, w, k };
     });
-    const lines = Math.max(1, ...cols.flat().map((v) => v.line + 1)), h = lines * (ch + gap) - gap + pad * 2;
-    g += `<line x1="0" x2="${W}" y1="${y}" y2="${y}" class="sz-gl"/><text x="${pl / 2}" y="${y + h / 2 + 5}" class="sz-dna-n" text-anchor="middle">${s}</text>`;
-    for (const v of cols.flat()) {
-      const cy = y + pad + v.line * (ch + gap);
-      g += `<rect x="${v.x}" y="${cy}" width="${v.w}" height="${ch}" rx="${ch / 2}" class="sz-chip"/><text x="${v.x + v.w / 2}" y="${cy + 15}" class="sz-chip-t" text-anchor="middle">${esc(v.name)}</text>`;
+    const h = Math.max(1, ends.length) * (ch + gap) - gap + pad * 2;
+    g += `<rect x="${pl}" y="${y}" width="${W - pl - pr}" height="${h}" rx="6" class="sz-dna-band${s % 2 ? '' : ' alt'}"/><text x="${pl - 8}" y="${y + h / 2 + 5}" class="sz-dna-n" text-anchor="end">${s}</text>`;
+    for (const v of row) {
+      const cy = y + pad + v.k * (ch + gap);
+      marks += `<line x1="${X(v.d)}" x2="${X(v.d)}" y1="${cy + ch}" y2="${cy + ch + 3}" class="sz-chip-tick"/><rect x="${v.x}" y="${cy}" width="${v.w}" height="${ch}" rx="${ch / 2}" class="sz-chip"/><text x="${v.x + v.w / 2}" y="${cy + 14}" class="sz-chip-t" text-anchor="middle">${esc(v.name)}</text>`;
     }
-    y += h;
+    y += h + 4;
   }
-  const head = [t('Virages lents'), t('Mixtes'), t('Virages rapides')].map((l, c) => `<text x="${pl + c * cw + cw / 2}" y="18" class="sz-ax" text-anchor="middle">${l}</text>`).join('');
-  const sep = [1, 2].map((c) => `<line x1="${pl + c * cw}" x2="${pl + c * cw}" y1="${ht}" y2="${y}" class="sz-gl" stroke-dasharray="3 3"/>`).join('');
-  return `<section class="sz-box"><h3>Circuits qui se ressemblent</h3><svg viewBox="0 0 ${W} ${y + 1}" class="sz-svg sz-dna-map"><text x="${pl / 2}" y="18" class="sz-ax" text-anchor="middle">${t('Pneus')}</text>${head}${sep}${g}<line x1="0" x2="${W}" y1="${y}" y2="${y}" class="sz-gl"/></svg>
-    <div class="muted small"><span>Virages lents : la traction compte le plus ; rapides : l'appui latéral. Pneus : contrainte de 5 (la plus forte) à 1.</span> <span>Notes d'après les previews Pirelli.</span></div></section>`;
+  let ax = '';
+  for (let d = lo; d <= hi; d++) ax += `<line x1="${X(d)}" x2="${X(d)}" y1="6" y2="${y - 4}" class="sz-gl"${d ? ' stroke-dasharray="2 4"' : ''}/>`;
+  ax += `<text x="${pl}" y="${y + 14}" class="sz-ax">${t('← virages lents (traction)')}</text><text x="${W - pr}" y="${y + 14}" class="sz-ax" text-anchor="end">${t('virages rapides (appui latéral) →')}</text>`;
+  return `<section class="sz-box"><h3>Circuits qui se ressemblent</h3><svg viewBox="0 0 ${W} ${y + 22}" class="sz-svg sz-dna-map">${g}${ax}${marks}</svg>
+    <div class="muted small"><span>Bandes : contrainte sur les pneus, de 5 (la plus forte) à 1. Circuits proches sur le graphique : profils proches.</span> <span>Notes d'après les previews Pirelli.</span></div></section>`;
 }
 
 const KNOWN = { madring: { length: 5.414, corners: 22 }, sepang: { length: 5.543, corners: 15 } };

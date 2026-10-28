@@ -2703,8 +2703,7 @@ export default {
   "Deux doigts pour déplacer la carte": "Usa due dita per spostare la mappa",
   "Sources de la carte": "Fonti della mappa",
   "contributeurs OpenStreetMap": "collaboratori di OpenStreetMap",
-  "Virages lents": "Curve lente",
-  "Mixtes": "Misti",
-  "Virages rapides": "Curve veloci",
-  "Virages lents : la traction compte le plus ; rapides : l'appui latéral. Pneus : contrainte de 5 (la plus forte) à 1.": "Curve lente: conta soprattutto la trazione; veloci: il carico laterale. Pneumatici: sollecitazione da 5 (la più alta) a 1.",
+  "← virages lents (traction)": "← curve lente (trazione)",
+  "virages rapides (appui latéral) →": "curve veloci (carico laterale) →",
+  "Bandes : contrainte sur les pneus, de 5 (la plus forte) à 1. Circuits proches sur le graphique : profils proches.": "Fasce: sollecitazione degli pneumatici, da 5 (la più alta) a 1. Circuiti vicini nel grafico: profili simili.",
 };
