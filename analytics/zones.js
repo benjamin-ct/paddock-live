@@ -1,6 +1,6 @@
-// Zones du mode dépassement (lignes droites, détection, voie des stands) et boucles de chronométrage (mini-secteurs)
-// d'un circuit, pour la carte de l'appli et de la version web (/live/api/zones, /live/api/loops : même forme que
-// /api/zones et /api/loops des anciennes applis). Calculées par la tâche planifiée, un circuit à la fois, à partir du
+// Zones du mode dépassement (lignes droites, détection, voie des stands), boucles de chronométrage (mini-secteurs) et
+// profil d'altitude (carte 3D) d'un circuit, pour la carte de l'appli et de la version web (/live/api/zones,
+// /live/api/loops : même forme que /api/zones et /api/loops des anciennes applis ; /live/api/elevation). Calculées par la tâche planifiée, un circuit à la fois, à partir du
 // GPS et de la télémétrie d'une séance archivée (connexion F1 TV du créateur, voir archiveToken) et des définitions
 // officielles du plan FIA du circuit ; gardées dans la base. Même calcul que l'appli auparavant (shared/zones.js,
 // shared/calibrate.js). Les fichiers de la séance (plusieurs dizaines de Mo) sont lus au fil de l'eau et réduits à
@@ -16,6 +16,7 @@ import { parseCircuitData } from '../shared/fia-circuit.js';
 import { Track } from '../shared/track.js';
 import { estimateZones } from '../shared/zones.js';
 import { calibrateLoops } from '../shared/calibrate.js';
+import { elevationProfile } from '../shared/elevation.js';
 import { CIRCUITS } from '../shared/circuits-info.js';
 
 const ARCHIVE = 'https://livetiming.formula1.com/static/';
@@ -51,17 +52,18 @@ async function inflate(b64) {
   return JSON.parse(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).text());
 }
 
-// Séance : horloge et chronométrage (boucles), GPS réduit aux X/Y, télémétrie réduite à la vitesse et à l'accélérateur
-async function sessionData(path, token, fetchFn) {
+// Séance : horloge et chronométrage (boucles), GPS réduit aux X/Y/Z, télémétrie réduite à la vitesse et à
+// l'accélérateur ; seulement ce qui sert au calcul demandé (need : timing, carData)
+async function sessionData(path, token, fetchFn, need = { timing: true, carData: true }) {
   const events = [];
-  for (const t of ['Heartbeat', 'TimingData']) events.push(...parseStream(await archiveText(`${path}${t}.jsonStream`, token, fetchFn), t));
+  for (const t of need.timing ? ['Heartbeat', 'TimingData'] : []) events.push(...parseStream(await archiveText(`${path}${t}.jsonStream`, token, fetchFn), t));
   events.sort((a, b) => a.off - b.off);
   const positions = [];
   let p = 0;
   await eachLine(`${path}Position.z.jsonStream`, token, fetchFn, async (raw) => {
     const Position = ((await inflate(raw)).Position || []).map((s) => {
       const Entries = {};
-      for (const [num, e] of Object.entries(s.Entries || {})) if (e && (e.X || e.Y)) { Entries[num] = { X: e.X, Y: e.Y }; p++; }
+      for (const [num, e] of Object.entries(s.Entries || {})) if (e && (e.X || e.Y)) { Entries[num] = { X: e.X, Y: e.Y, Z: e.Z }; p++; }
       return { Timestamp: s.Timestamp, Entries };
     });
     positions.push({ data: { Position } });
@@ -69,7 +71,7 @@ async function sessionData(path, token, fetchFn) {
   });
   const carData = [];
   let n = 0;
-  await eachLine(`${path}CarData.z.jsonStream`, token, fetchFn, async (raw) => {
+  if (need.carData) await eachLine(`${path}CarData.z.jsonStream`, token, fetchFn, async (raw) => {
     const Entries = ((await inflate(raw)).Entries || []).map((en) => {
       const Cars = {};
       for (const [num, c] of Object.entries(en.Cars || {})) {
@@ -114,17 +116,27 @@ async function candidateSessions(key, year, token, fetchFn, now) {
   return out.map((s, i) => ({ s, i })).sort((a, b) => rank(a.s) - rank(b.s) || a.i - b.i).map(({ s }) => s.path);
 }
 
-// Calcul complet d'un circuit : { at, zones, loops } (zones / loops null si introuvables)
-export async function computeZones(env, key, year, { now = Date.now(), fetchFn = fetch, token } = {}) {
+// Positions GPS de la séance -> [{ car, x, y, z }] (profil d'altitude)
+function* gpsSamples(positions) {
+  for (const m of positions) {
+    for (const s of m.data.Position) for (const [car, e] of Object.entries(s.Entries)) yield { car, x: e.X, y: e.Y, z: e.Z };
+  }
+}
+
+// Calcul complet d'un circuit : { at, zones, loops, elevation } (null si introuvables) ; keep : résultats déjà bons,
+// gardés tels quels (seul ce qui manque est calculé)
+export async function computeZones(env, key, year, { now = Date.now(), fetchFn = fetch, token, keep = {} } = {}) {
+  let zones = keep.zones || null, loops = keep.loops || null, elevation = keep.elevation || null;
   const raw = await circuitData(key, year, fetchFn);
-  if (!raw) return { at: now, zones: null, loops: null, error: 'tracé introuvable' };
+  if (!raw) return { at: now, zones, loops, elevation, error: 'tracé introuvable' };
   const track = new Track(raw);
-  const official = await officialData(year, raw, fetchFn).catch(() => null);
+  const official = zones ? null : await officialData(year, raw, fetchFn).catch(() => null);
   token ??= await archiveToken(env, { now, fetchFn });
-  let zones = null, loops = null, error = token ? 'aucune séance archivée utilisable' : 'connexion F1 TV absente ou expirée';
+  let error = token ? 'aucune séance archivée utilisable' : 'connexion F1 TV absente ou expirée';
   for (const p of token ? (await candidateSessions(key, year, token, fetchFn, now)).slice(0, 3) : []) {
+    if (zones && loops && elevation) break;
     try {
-      const { events, positions, carData } = await sessionData(p, token, fetchFn);
+      const { events, positions, carData } = await sessionData(p, token, fetchFn, { timing: !loops, carData: !zones });
       if (!loops) {
         const l = calibrateLoops(track, events, positions);
         if (l && Object.keys(l.segs).length > 5) loops = { ...l, source: p };
@@ -133,17 +145,21 @@ export async function computeZones(env, key, year, { now = Date.now(), fetchFn =
         const z = estimateZones(track, carData, positions, official);
         if (z && (z.zones.length || z.pitLane || z.detection)) zones = { ...z, session: p, checkedAt: now };
       }
-      if (zones && loops) break;
+      if (!elevation) {
+        const e = elevationProfile(track, gpsSamples(positions));
+        if (e) elevation = { ...e, session: p };
+      }
     } catch (err) { error = `${p} : ${err.message}`; }
   }
-  return { at: now, zones, loops, ...(zones && loops ? {} : { error }) };
+  return { at: now, zones, loops, elevation, ...(zones && loops && elevation ? {} : { error }) };
 }
 
-// Résultat gardé à revoir : échec, ou zones estimées sans définitions officielles pour la saison en cours
-const stale = (row, year, now) => now - row.at > RETRY
-  && (!row.zones || !row.loops || (!row.zones.official && year >= new Date(now).getUTCFullYear()));
+// Zones à revoir : estimées sans définitions officielles pour la saison en cours
+const zonesStale = (row, year, now) => !row.zones || (!row.zones.official && year >= new Date(now).getUTCFullYear());
+// Résultat gardé à revoir : échec (une partie manque), ou zones à revoir
+const stale = (row, year, now) => now - row.at > RETRY && (!row.loops || !row.elevation || zonesStale(row, year, now));
 
-// /live/api/zones et /live/api/loops : résultat gardé (l'ancien en attendant un nouveau calcul), sinon calcul demandé
+// /live/api/zones, /live/api/loops et /live/api/elevation : résultat gardé (l'ancien en attendant un nouveau calcul), sinon calcul demandé
 // à la tâche planifiée
 export async function zonesWeb(env, kind, key, year, now = Date.now()) {
   const row = await readJSON(env, rowKey(key, year), null);
@@ -174,10 +190,13 @@ export async function zonesTick(env, { now = Date.now(), fetchFn = fetch } = {})
   // Noté avant le calcul : s'il est interrompu (limite de temps du serveur), il n'est retenté que 6 heures plus tard
   await setRow(env, rowKey(key, y), JSON.stringify({ zones: null, loops: null, ...old, at: now, error: 'calcul interrompu' }));
   try {
-    const res = await computeZones(env, key, y, { now, fetchFn });
+    // Ce qui est déjà bon est gardé tel quel (une altitude qui manque ne refait pas les zones)
+    const keep = old ? { zones: zonesStale(old, y, now) ? null : old.zones, loops: old.loops, elevation: old.elevation } : {};
+    const res = await computeZones(env, key, y, { now, fetchFn, keep });
     // Rien de mieux trouvé : l'ancien résultat reste, revu plus tard
-    await setRow(env, rowKey(key, y), JSON.stringify({ ...res, zones: res.zones || old?.zones || null, loops: res.loops || old?.loops || null }));
-    return { key, year: y, zones: !!res.zones, loops: !!res.loops, error: res.error };
+    await setRow(env, rowKey(key, y), JSON.stringify({ ...res, zones: res.zones || old?.zones || null, loops: res.loops || old?.loops || null,
+      elevation: res.elevation || old?.elevation || null }));
+    return { key, year: y, zones: !!res.zones, loops: !!res.loops, elevation: !!res.elevation, error: res.error };
   } finally {
     await setRow(env, `zoneswant:${key}:${y}`, '0');
     await setRow(env, 'zoneslock', '0');

@@ -6,7 +6,7 @@ import { icon } from '../icons.js';
 import { toast } from './delay.js';
 import { buildSummary, summaryFacts } from '/shared/summary.js';
 import { reportHtml, statusLabel } from './report.js';
-import { LANG, t } from '../i18n.js';
+import { FR, t } from '../i18n.js';
 
 function text(s) { return `${s.title}\n\n${s.paragraphs.join('\n')}`; }
 
@@ -24,7 +24,7 @@ function open() {
       }
     });
   }
-  const s = buildSummary(store.state, { lang: LANG });
+  const s = buildSummary(store.state, { lang: FR ? 'fr' : 'en' });
   dlg.dataset.text = text(s);
   // En cartes (podium, remontées, stratégies…) ; le texte rédigé reste copiable
   const f = summaryFacts(store.state);

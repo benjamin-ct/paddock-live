@@ -55,13 +55,20 @@
   function setVersion(v) { document.getElementById('ver').textContent = `Version ${v}`; }
   function ask(show) { document.getElementById('btns').hidden = !show; }
   function later(show) { document.getElementById('later').hidden = !show; }
-  // Interface en anglais
-  if (new URLSearchParams(location.search).get('lang') === 'en') {
-    document.documentElement.lang = 'en';
-    document.getElementById('title').textContent = 'Checking for updates…';
-    document.querySelector('.btn.main').textContent = 'Download the new version';
-    document.querySelector('#btns .btn:not(.main)').textContent = 'Continue';
-    document.querySelector('#later .btn').textContent = 'Later (install when closing)';
+  // Interface en anglais, italien ou espagnol
+  const lang = new URLSearchParams(location.search).get('lang');
+  const TEXTS = {
+    en: ['Checking for updates…', 'Download the new version', 'Continue', 'Later (install when closing)'],
+    it: ['Ricerca di aggiornamenti…', 'Scarica la nuova versione', 'Continua', 'Più tardi (installa alla chiusura)'],
+    es: ['Buscando actualizaciones…', 'Descargar la nueva versión', 'Continuar', 'Más tarde (instalar al cerrar)'],
+  };
+  if (TEXTS[lang]) {
+    document.documentElement.lang = lang;
+    const [title, download, go, later] = TEXTS[lang];
+    document.getElementById('title').textContent = title;
+    document.querySelector('.btn.main').textContent = download;
+    document.querySelector('#btns .btn:not(.main)').textContent = go;
+    document.querySelector('#later .btn').textContent = later;
   }
 </script>
 </body>

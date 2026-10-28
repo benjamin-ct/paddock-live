@@ -4,7 +4,7 @@
 // batterie, mode Boost…). Les nouveautés sont signalées ; le rapport complet se copie ou s'enregistre.
 import { store } from '../store.js';
 import { $, esc } from '../util.js';
-import { t, dec, EN } from '../i18n.js';
+import { t, dec, LOCALE } from '../i18n.js';
 import { seek } from './moments.js';
 
 // Flux et canaux déjà connus (saisons précédentes)
@@ -34,7 +34,7 @@ function probeHtml(p) {
   const head = `<p class="small"><b>${t('Flux cachés testés en direct')}</b> <span class="muted">${t('(énergie, batterie, Boost, mode dépassement…)')}</span></p>`;
   if (!p?.at) return `${head}<p class="small muted">${t('Pas encore testé : ça se fait tout seul à la prochaine séance en direct.')}</p>`;
   const rows = probeRows(p);
-  return `${head}<p class="small ${rows.some((r) => r.guess) ? 'diag-new' : 'muted'}">${t('Testé le {} ({}) : {} nom(s) sur {} ont répondu.', esc(new Date(p.at).toLocaleString(EN ? 'en-GB' : 'fr-FR')), esc(p.session || '—'), rows.length, p.asked.length)}${p.error ? ` ${esc(p.error)}` : ''}</p>
+  return `${head}<p class="small ${rows.some((r) => r.guess) ? 'diag-new' : 'muted'}">${t('Testé le {} ({}) : {} nom(s) sur {} ont répondu.', esc(new Date(p.at).toLocaleString(LOCALE)), esc(p.session || '—'), rows.length, p.asked.length)}${p.error ? ` ${esc(p.error)}` : ''}</p>
     ${rows.length ? `<ul class="small diag-list" data-no-i18n>${rows.map(({ k, f, guess }) => `<li${guess ? ' class="diag-new"' : ''}>${esc(k)} · ${f.n} messages · ${esc(f.sample || '')}</li>`).join('')}</ul>` : ''}`;
 }
 

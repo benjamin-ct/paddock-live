@@ -202,7 +202,7 @@ async function handleApi(req, res, url) {
     }
 
     // Pneus du week-end, records du circuit, météo, documents FIA (et leurs PDF), photos des pilotes, statistiques
-    // détaillées et documents FIA de la Saison, zones et boucles de chronométrage du circuit : lus sur le serveur de
+    // détaillées et documents FIA de la Saison, zones, boucles de chronométrage et altitude du circuit : lus sur le serveur de
     // Paddock Live
     case 'GET /api/tyres':
     case 'GET /api/records':
@@ -215,6 +215,7 @@ async function handleApi(req, res, url) {
     case 'GET /api/season/destructors':
     case 'GET /api/zones':
     case 'GET /api/loops':
+    case 'GET /api/elevation':
       return fromServer(res, url);
 
     case 'GET /api/circuit': {
@@ -242,11 +243,11 @@ async function handleApi(req, res, url) {
     case 'GET /api/news/article':
       return fromServer(res, url, '/news/api/article');
 
-    // Traduction d'avance des actualités : { lang: 'fr' | 'en' | null } (null = désactivée)
+    // Traduction d'avance des actualités : { lang: 'fr' | 'en' | 'it' | 'es' | null } (null = désactivée)
     case 'POST /api/news/translate': {
       if (!isLoopback(req.socket.remoteAddress)) return sendJSON(res, 403, { error: 'Réglage disponible uniquement sur l\'ordinateur' });
       const body = await readBody(req);
-      const lang = ['fr', 'en'].includes(body.lang) ? body.lang : null;
+      const lang = ['fr', 'en', 'it', 'es'].includes(body.lang) ? body.lang : null;
       if (getConfig().newsTranslateLang !== lang) saveConfig({ newsTranslateLang: lang });
       newsTranslator.sweep();
       return sendJSON(res, 200, { lang });

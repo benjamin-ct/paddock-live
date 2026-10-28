@@ -38,7 +38,7 @@ function session() {
   for (let k = 0; k < steps.length; k += 4) {
     const group = steps.slice(k, k + 4).flat();
     const off = stamp(group[0].t - t0);
-    pos.push(`${off}${z({ Position: group.map((s) => ({ Timestamp: new Date(s.t).toISOString(), Entries: { [s.c]: { Status: 'OnTrack', X: s.x, Y: s.y, Z: 0 } } })) })}`);
+    pos.push(`${off}${z({ Position: group.map((s) => ({ Timestamp: new Date(s.t).toISOString(), Entries: { [s.c]: { Status: 'OnTrack', X: s.x, Y: s.y, Z: Math.round(s.y / 100) } } })) })}`);
     car.push(`${off}${z({ Entries: group.map((s) => ({ Utc: new Date(s.t).toISOString(), Cars: { [s.c]: { Channels: { 0: 11000, 2: s.v, 3: 7, 4: s.throttle, 5: 0 } } } })) })}`);
   }
   const file = (list) => `\uFEFF${list.join('\r\n')}\r\n`;
@@ -69,6 +69,26 @@ test('serveur : zones du circuit calculées d\'après une séance archivée lue 
     assert.equal(res.zones.session, path);
     assert.equal(res.loops, null);   // pas de chronométrage dans cette séance simulée
     assert.ok(asked.some((u) => u.endsWith('CarData.z.jsonStream')));
+    // Altitude : z de chaque point du tracé (ici Z = y / 100 : 0 sur la ligne droite du bas, 40 sur celle du haut)
+    assert.equal(res.elevation.n, raw.x.length);
+    assert.equal(res.elevation.z.length, raw.x.length);
+    assert.equal(res.elevation.session, path);
+    assert.ok(Math.abs(res.elevation.z[30] - 0) <= 1 && Math.abs(res.elevation.z[raw.x.length - 140] - 40) <= 1, `${res.elevation.z[30]} ${res.elevation.z.at(-140)}`);
+
+    // Zones et altitude déjà gardées : seules les boucles sont recherchées (ni télémétrie ni plan FIA relus)
+    asked.length = 0;
+    const again = await computeZones({}, 999, 2026, { now: Date.parse('2026-05-10T00:00:00Z'), fetchFn, token: 'jeton', keep: { zones: res.zones, elevation: res.elevation } });
+    assert.equal(again.zones, res.zones);
+    assert.equal(again.elevation, res.elevation);
+    assert.ok(!asked.some((u) => u.endsWith('CarData.z.jsonStream')), 'télémétrie pas relue');
+    assert.ok(asked.some((u) => u.endsWith('TimingData.jsonStream')), 'chronométrage relu (boucles)');
+    // Altitude seule à calculer : le GPS seulement
+    asked.length = 0;
+    const elev = await computeZones({}, 999, 2026, { now: Date.parse('2026-05-10T00:00:00Z'), fetchFn, token: 'jeton', keep: { zones: res.zones, loops: { segs: {} } } });
+    assert.deepEqual(elev.elevation, res.elevation);
+    assert.equal(elev.error, undefined);
+    const files = asked.filter((u) => u.startsWith('https://livetiming') && !u.endsWith('Index.json')).map((u) => u.split('/').pop());
+    assert.deepEqual(files, ['Position.z.jsonStream']);
 
     // Route : résultat gardé servi ; calcul demandé à la tâche planifiée quand il manque
     const rows = new Map([['zones:999:2026', JSON.stringify(res)]]);
@@ -76,6 +96,7 @@ test('serveur : zones du circuit calculées d\'après une séance archivée lue 
     const now = Date.parse('2026-05-10T07:00:00Z');   // 7 h plus tard : boucles absentes, nouvel essai
     assert.equal((await zonesWeb(env, 'zones', 999, 2026, now)).zones.length, 2);
     assert.equal(rows.has('zoneswant:999:2026'), true, 'boucles absentes : nouveau calcul plus tard');
+    assert.equal((await zonesWeb(env, 'elevation', 999, 2026, now)).n, raw.x.length);
     assert.equal(await zonesWeb(env, 'loops', 22, 2026, now), null);
     assert.equal(rows.get('zoneswant:22:2026'), String(now));
   } finally {
@@ -100,7 +121,7 @@ test('serveur : tâche planifiée des zones, un circuit demandé à la fois, éc
   try {
     const fetchFn = async (u) => (u.includes('multiviewer') ? new Response(JSON.stringify(stadium())) : new Response('', { status: 404 }));
     const r = await zonesTick(env, { now, fetchFn });
-    assert.deepEqual(r, { key: 999, year: 2026, zones: false, loops: false, error: 'connexion F1 TV absente ou expirée' });
+    assert.deepEqual(r, { key: 999, year: 2026, zones: false, loops: false, elevation: false, error: 'connexion F1 TV absente ou expirée' });
     assert.equal(JSON.parse(rows.get('zones:999:2026')).at, now);
     assert.equal(rows.get('zoneswant:999:2026'), '0');
     assert.equal(await zonesTick(env, { now: now + 60e3, fetchFn }), null, 'rien d\'autre à calculer');

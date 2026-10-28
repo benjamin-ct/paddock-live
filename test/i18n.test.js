@@ -77,3 +77,54 @@ test('anglais : moments clés et calendrier', () => {
   assert.match(ics, /SUMMARY:F1 Japanese GP — Race/);
   assert.match(ics, /in 15 min/);
 });
+
+// Italien et espagnol : un module par langue (la langue est lue au chargement)
+const OTHER = {};
+for (const lang of ['it', 'es']) {
+  globalThis.localStorage = { getItem: () => JSON.stringify({ lang }) };
+  OTHER[lang] = { dict: (await import(`../public/js/i18n-${lang}.js`)).default, i18n: await import(`../public/js/i18n.js?${lang}`) };
+}
+
+test('italien et espagnol : mêmes textes que l\'anglais, valeurs dynamiques gardées', () => {
+  for (const [lang, { dict }] of Object.entries(OTHER)) {
+    assert.deepEqual(Object.keys(dict).sort(), Object.keys(EN_DICT).sort(), `${lang} : clés différentes de l'anglais`);
+    for (const [fr, tr] of Object.entries(dict)) {
+      assert.ok(tr.trim(), `${lang} : traduction vide : ${fr}`);
+      const n = (fr.match(/\{\}/g) || []).length;
+      const numbered = tr.match(/\{\d+\}/g);
+      if (numbered) assert.ok(!/\{\}/.test(tr) && numbered.every((x) => Number(x.slice(1, -1)) < n), `${lang} : ${fr} -> ${tr}`);
+      else assert.equal((tr.match(/\{\}/g) || []).length, n, `${lang} : ${fr} -> ${tr}`);
+    }
+  }
+});
+
+test('italien et espagnol : un texte déjà traduit ne change pas une seconde fois', () => {
+  // La page retraduit ce qu'elle affiche : « Fin de la sesión » ne doit pas repasser par le gabarit « Fin {} »
+  for (const [lang, { dict, i18n: l }] of Object.entries(OTHER)) {
+    for (const tr of Object.values(dict)) {
+      const shown = tr.replace(/\{\d*\}/g, 'NOR').replace(/\s+/g, ' ').trim();
+      const again = l.translate(shown);
+      assert.ok(again === null || again === shown, `${lang} : ${shown} -> ${again}`);
+    }
+  }
+});
+
+test('italien et espagnol : textes, gabarits, nombres et rangs', () => {
+  const { i18n: it } = OTHER.it, { i18n: es } = OTHER.es;
+  assert.equal(it.LANG, 'it');
+  assert.equal(it.LOCALE, 'it-IT');
+  assert.equal(it.DEC, ',');
+  assert.equal(it.t('Tour {}', 12), 'Giro 12');
+  assert.equal(it.translate('Réglages'), 'Impostazioni');
+  assert.equal(it.translate('Drapeau rouge — séance arrêtée'), 'Bandiera rossa — sessione interrotta');
+  assert.equal(it.translate('Il y a 3,2 s en live'), '3,2 s fa in diretta');
+  assert.equal(it.ord(2), '2º');
+  assert.equal(es.LANG, 'es');
+  assert.equal(es.LOCALE, 'es-ES');
+  assert.equal(es.DEC, ',');
+  assert.equal(es.t('Tour {}', 12), 'Vuelta 12');
+  assert.equal(es.translate('Réglages'), 'Ajustes');
+  assert.equal(es.translate('Repris par 2 autres sources'), 'Recogido por 2 otras fuentes');
+  assert.equal(es.ord(2), '2.º');
+  assert.equal(es.translate('Verstappen'), null, 'nom propre laissé tel quel');
+});

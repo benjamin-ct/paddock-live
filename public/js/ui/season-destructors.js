@@ -2,7 +2,7 @@
 // budgétaire), coût cumulé des écuries, pièces cassées, plus gros dégâts d'un week-end et détail d'un pilote.
 // Estimations de u/Dense-Strategy-867 (Reddit), compilées par Formula 1 Dashboard.
 import { esc } from '../util.js';
-import { DEC, EN, t } from '../i18n.js';
+import { DEC, EN, LANG, t } from '../i18n.js';
 import { gpShort } from '/shared/gp-names.js';
 import { destructors } from '/shared/destructors.js';
 
@@ -36,7 +36,7 @@ export function renderDestructors(ctx, d) {
   const drv = (x) => data.drivers.find((p) => String(p.number) === String(x.num)) || data.drivers.find((p) => p.last === x.driver) || { last: x.driver, team: x.team };
   const who = (x) => { const p = drv(x); return `${bar(p.team, p.teamId)}<b>${esc(p.last || x.driver)}</b> <span class="muted small">${esc(p.team || x.team)}</span>`; };
   const team = (name) => data.constructors.find((k) => name.toLowerCase().includes(k.name.toLowerCase()) || k.name.toLowerCase().includes(name.toLowerCase())) || { name };
-  const gp = (round) => (round === 0 ? t('Roulage de Barcelone') : esc(gpShort(data.races.find((r) => r.round === round)?.name || `R${round}`, EN)));
+  const gp = (round) => (round === 0 ? t('Roulage de Barcelone') : esc(gpShort(data.races.find((r) => r.round === round)?.name || `R${round}`, LANG)));
   const cap = CAP[data.year];
   const share = (v) => `${((v / cap) * 100).toFixed(1).replace('.', DEC)} %`;
   const card = (title, main, sub) => `<div class="sz-card"><div class="muted small">${title}</div><div class="sz-big">${main}</div><div class="muted small">${sub}</div></div>`;

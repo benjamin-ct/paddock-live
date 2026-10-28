@@ -319,6 +319,11 @@ test('statistiques : tirer vers le bas dans un script à part (jamais recopié d
   assert.ok(js.startsWith('//') && !/\bexport\b|__name/.test(js));
   assert.match(js, /\npullToRefresh\(\(\) => \{ location\.reload\(\)/);
   new Function(js);   // syntaxe valide
+  // Version web : vue 3D chargée à la demande, avec three.js copié tel quel
+  const fs = await import('node:fs');
+  const live = (f) => new URL(`../analytics/site/live/${f}`, import.meta.url);
+  assert.match(fs.readFileSync(live('js/ui/map3d.js'), 'utf8'), /from '\/live\/vendor\/three\/three\.module\.min\.js'/);
+  assert.equal(fs.readFileSync(live('vendor/three/three.module.min.js'), 'utf8'), fs.readFileSync(new URL('../public/vendor/three/three.module.min.js', import.meta.url), 'utf8'));
 });
 
 test('serveur des statistiques : lignes écrites plafonnées par adresse (IPv6 : par bloc /64)', async () => {

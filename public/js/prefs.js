@@ -31,7 +31,7 @@ const DEFAULTS = {
   welcomed: true,         // écrans d'accueil du premier lancement déjà vus
   motion: true,           // animations de l'interface (désactivées aussi si le système le demande)
   momentsSpoil: false,    // replay : détail des moments clés à venir affiché
-  lang: LANG,             // langue de l'interface : 'fr' | 'en' (voir i18n.js)
+  lang: LANG,             // langue de l'interface : 'fr' | 'en' | 'it' | 'es' (voir i18n.js)
   autoSyncAdj: 0,         // synchro TV par le son : correction ajoutée au délai trouvé (s)
   remindMin: 15,          // rappel avant chaque séance (minutes, 0 : désactivé)
   legends: false,         // légendes sous les panneaux (couleurs et badges), à afficher dans Apparence
@@ -41,7 +41,7 @@ const DEFAULTS = {
   tabLayout: null,        // onglets déplacés : { panneau: [onglets dans l'ordre] } (null : à leur place d'origine)
   radioAuto: false,
   radioText: false,       // transcription des radios en texte (serveur Paddock Live)
-  radioLang: LANG === 'en' ? 'none' : 'fr',        // langue de traduction des transcriptions ('none' : anglais)
+  radioLang: LANG === 'en' ? 'none' : LANG,        // langue de traduction des transcriptions ('none' : anglais)
   radioFilter: 'all',
   obRadio: false,         // radios captées sur les caméras embarquées F1 TV (expérimental)
   obRadioWho: 'auto',     // pilotes écoutés : 'auto' (suivi + duel) | 'favs' (3 premiers favoris)

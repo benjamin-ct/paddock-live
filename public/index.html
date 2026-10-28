@@ -137,6 +137,7 @@
         <button data-sz="compare"><svg class="ic" aria-hidden="true"><use href="#i-duel"/></svg> Comparer deux saisons</button>
         <button data-sz="review"><svg class="ic" aria-hidden="true"><use href="#i-medal"/></svg> Bilan de la saison</button>
         <button data-sz="results"><svg class="ic" aria-hidden="true"><use href="#i-checkered"/></svg> Résultats & records</button>
+        <button data-sz="quali"><svg class="ic" aria-hidden="true"><use href="#i-stopwatch"/></svg> Qualifications</button>
         <button data-sz="destructors"><svg class="ic" aria-hidden="true"><use href="#i-wrench"/></svg> Championnat des casseurs</button>
         <button data-full data-sz="h2h"><svg class="ic" aria-hidden="true"><use href="#i-duel"/></svg> Duels</button>
         <button data-full data-sz="ratings"><svg class="ic" aria-hidden="true"><use href="#i-medal"/></svg> Notes des pilotes</button>
@@ -239,6 +240,7 @@
           <span class="map-mode" id="mapMode"></span>
           <label class="toggle" title="Centrer la carte sur le pilote suivi"><input type="checkbox" id="mapFollow"> Suivre</label>
           <button class="btn small" id="mapFloatBtn" hidden title="Carte flottante, par-dessus la vidéo"><svg class="ic" aria-hidden="true"><use href="#i-window"/></svg> Flottante</button>
+          <label class="toggle" id="map3dTog" hidden title="Vue 3D du circuit, avec le relief"><input type="checkbox" id="map3dOpt"> 3D</label>
           <details class="map-layers" id="mapLayers">
             <summary class="btn small" title="Éléments affichés sur la carte">Calques <svg class="ic ic-s" aria-hidden="true"><use href="#i-chevron-down"/></svg></summary>
             <div class="map-layers-menu">
@@ -263,6 +265,8 @@
       </div>
       <div class="panel-body map-wrap">
         <canvas id="mapCanvas"></canvas>
+        <div class="map3d" id="map3d"></div>
+        <div class="map3d-msg" id="map3dMsg" hidden></div>
         <canvas id="mapRibbon" class="map-ribbon" hidden aria-label="Ordre des voitures sur la piste"></canvas>
         <div class="map-legend" id="mapLegend"></div>
         <div class="map-flags" id="mapFlags"></div>
@@ -527,7 +531,7 @@
         <div class="row"><label class="small" title="Automatique : comme l'ordinateur ou le téléphone">Apparence <select id="schemeSel"><option value="auto">Automatique (système)</option><option value="dark">Sombre</option><option value="light">Clair</option></select></label></div>
         <div class="row"><label class="small" title="Broadcast : habillage façon retransmission TV. Classique : l'ancien design.">Design <select id="designSel"><option value="broadcast">Broadcast (façon TV)</option><option value="classic">Classique</option></select></label></div>
         <div class="row" data-desk><label class="small" title="Essentiel : classement, carte, radios, duel, arrêts et alertes. Complet : aussi l'analyse détaillée, les outils techniques, le streaming et les lumières.">Interface <select id="fullModeSel"><option value="0">Essentiel (le principal, plus simple)</option><option value="1">Complète (toutes les fonctions)</option></select></label></div>
-        <div class="row"><label class="small">Langue / Language <select id="langSel" data-no-i18n><option value="fr">Français</option><option value="en">English</option></select></label></div>
+        <div class="row"><label class="small">Langue / Language <select id="langSel" data-no-i18n><option value="fr">Français</option><option value="en">English</option><option value="it">Italiano</option><option value="es">Español</option></select></label></div>
         <div class="row"><label class="toggle small" title="Panneaux et menus qui apparaissent en douceur"><input type="checkbox" id="motionOpt"> Animations de l'interface</label></div>
         <div class="row"><label class="toggle small"><input type="checkbox" id="keepAwake"> Garder l'écran allumé pendant une séance</label></div>
       </section>
