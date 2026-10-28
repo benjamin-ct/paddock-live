@@ -6,6 +6,7 @@ import { $, esc, api, drivers, orderedNumbers, sessionKind, teamColor, compoundI
 import { prefs, isFav } from '../prefs.js';
 import { renderCompare, initCompare, openCompareLap } from './compare.js';
 import { tx } from '../i18n.js';
+import { weekendQuery, SESSION_FR } from './tyres.js';
 
 const OPTS_KEY = 'paddock.analysis';
 const opts = { trace: 'leader', ref: null, scope: 'top10', clamp: 60, lapsSlow: true, cutoff: 107, sort: 'ideal', ...storageGet(OPTS_KEY, {}) };
@@ -374,8 +375,10 @@ function renderTyres() {
   if (atEnd) el.scrollLeft = el.scrollWidth;
 }
 
-// Références du circuit (éditions précédentes) : chargées une fois par circuit
+// Références du circuit (éditions précédentes) : chargées une fois par circuit ; meilleur tour des séances du week-end
+// déjà courues (pneus du week-end), relu toutes les 10 min (archive de la séance d'avant pas encore prête)
 let records = null, recordsKey = '', recordsLoading = false;
+let weekend = null, weekendKey = '', weekendAt = 0, weekendLoading = false;
 function recordsStrip(rows, dl) {
   const info = store.state.SessionInfo;
   const key = info?.Meeting?.Circuit?.Key;
@@ -387,7 +390,16 @@ function recordsStrip(rows, dl) {
     api(`/api/records?key=${key}&year=${year}`).then((r) => { records = r; recordsKey = k; }).catch(() => { records = null; recordsKey = k; })
       .finally(() => { recordsLoading = false; lastKeys = {}; });
   }
-  if (recordsKey !== k || !records?.editions?.length) return '';
+  const path = info?.Path;
+  if (path && (path !== weekendKey || Date.now() - weekendAt > 10 * 60 * 1000) && !weekendLoading) {
+    weekendLoading = true;
+    if (path !== weekendKey) weekend = null;
+    api(weekendQuery(path)).then((d) => { weekend = d.best || null; }).catch(() => {})
+      .finally(() => { weekendKey = path; weekendAt = Date.now(); weekendLoading = false; lastKeys = {}; });
+  }
+  const wb = weekendKey === path && weekend;
+  const wbRow = wb ? `<div class="rec-row rec-now"><span class="rec-k">Meilleur du week-end</span><span class="rec-i"><i style="background:#${esc(wb.color || '888')}"></i><span class="rec-t">${esc(wb.tla)}</span>${fmtLap(wb.time)}</span><span class="muted">${esc(SESSION_FR(wb.session))}</span></div>` : '';
+  if (recordsKey !== k || !records?.editions?.length) return wbRow && `<div class="rec-strip">${wbRow}</div>`;
   const race = sessionKind(store.state) === 'race';
   const ref = race ? records.bestRaceLap : records.bestPole;
   const last = records.editions[0];
@@ -398,6 +410,7 @@ function recordsStrip(rows, dl) {
   return `<div class="rec-strip" style="--n:${records.editions.length}">
     <div class="rec-row"><span class="rec-k">Pole</span>${records.editions.map((e) => item(e, 'pole')).join('')}</div>
     <div class="rec-row"><span class="rec-k">Meilleur tour en course</span>${records.editions.map((e) => item(e, 'fastest')).join('')}</div>
+    ${wbRow}
     ${best ? `<div class="rec-row rec-now"><span class="rec-k">Cette séance</span><span class="rec-i"><i style="background:${teamColor(dl[best.n])}"></i><span class="rec-t">${esc(dl[best.n]?.Tla || best.n)}</span>${fmtLap(best.best)}</span>
       ${lastRef ? `<span class="muted">vs ${race ? 'meilleur tour' : 'pole'} ${last.year} :</span>${cmp(lastRef)}` : ''}
       ${ref && ref.year !== last.year ? `<span class="muted">· vs meilleur ${race ? 'tour' : 'pole'} (${ref.year}) :</span>${cmp(ref)}` : ''}</div>` : ''}

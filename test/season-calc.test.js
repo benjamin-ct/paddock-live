@@ -217,3 +217,13 @@ test('écart à la pole par écurie : meilleur tour de ses deux voitures face à
   assert.ok(Math.abs(g[1].points[0].s - 0.79) < 1e-9);
   assert.ok(Math.abs(g[1].points[0].pct - 1) < 1e-9);
 });
+
+test('kilomètres par écurie : tours bouclés en course et en sprint × longueur du circuit', async () => {
+  const { teamMileage } = await import('../shared/season-calc.js');
+  const races = [
+    { round: 1, results: [{ teamId: 'a', team: 'A', laps: 50 }, { teamId: 'a', team: 'A', laps: 10 }, { teamId: 'b', team: 'B', laps: null }], sprintResults: [{ teamId: 'b', team: 'B', laps: 20 }] },
+    { round: 2, results: [{ teamId: 'b', team: 'B', laps: 70 }], sprintResults: [] },   // longueur inconnue : ignorée
+  ];
+  const m = teamMileage(races, (r) => (r === 1 ? 5 : null));
+  assert.deepEqual(m.map((t) => [t.teamId, t.laps, t.km]), [['a', 60, 300], ['b', 20, 100]]);
+});
