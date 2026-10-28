@@ -35,6 +35,10 @@ const MAX_PRIVATE = 4;             // relais d'un abonné F1 TV : ses onglets et
 export const AUTH_MS = 15e3, PRIVATE_MS = 6 * 3600e3;   // relais d'un abonné : connexion F1 TV attendue, durée d'une connexion
 const ORIGINS = ['https://app.paddocklive.app'];
 const STREAM_EVERY = 2000;         // GPS plus ancien : une demande toutes les 2 s au plus par connexion
+// Hors séance (calendrier de la saison, pas de chronos depuis 2 min) : relais au repos, F1 débranchée et connexions
+// des navigateurs en veille (Durable Object en hibernation, plus facturé à la durée) ; réveillé LEAD_MS avant la
+// séance suivante. Une séance dure au plus SPAN_MS après son heure de départ
+export const LEAD_MS = 30 * 60e3, SPAN_MS = 4 * 3600e3, LIVE_MS = 2 * 60e3;
 
 // Jeton d'abonnement F1 TV (JWT) encore valable, ou null. Signature non vérifiable ici : la F1 la vérifie ;
 // ce contrôle écarte seulement ce qui ne peut pas en être un
@@ -65,6 +69,17 @@ export class LiveRelay {
     this.outStream = [];
     this.status = { connected: false, error: null, session: null, authenticated: false };
     this.resetData(null);
+    // Réveil après la veille : connexions des navigateurs retrouvées (adresse, appareil, nom du relais)
+    for (const ws of ctx.getWebSockets?.() || []) this.track(ws, ws.deserializeAttachment?.() || {});
+  }
+
+  track(ws, { nets = [], ua, since = Date.now(), name }) {
+    if (name) this.name = name;
+    this.clients.add(ws);
+    ws.nets = nets;
+    ws.ua = ua;
+    ws.since = since;
+    for (const k of nets) this.ips.set(k, (this.ips.get(k) || 0) + 1);
   }
 
   resetData(key) {
@@ -92,15 +107,18 @@ export class LiveRelay {
     const net = ip.includes(':') ? `${ip.split(':').slice(0, 3).join(':')}::/48` : null;
     if (!priv && ((this.ips.get(ip) || 0) >= MAX_PER_IP || (net && (this.ips.get(net) || 0) >= MAX_PER_NET))) return new Response('Trop de connexions depuis cette adresse', { status: 429 });
     const [client, server] = Object.values(new WebSocketPair());
-    server.accept();
-    this.clients.add(server);
-    server.nets = net ? [ip, net] : [ip];
-    for (const k of server.nets) this.ips.set(k, (this.ips.get(k) || 0) + 1);
-    server.ua = shortUA(req.headers.get('User-Agent'));   // type d'appareil, pour la liste des appareils du Studio
-    server.since = Date.now();
+    // Connexion qui peut rester ouverte pendant la veille du relais (messages reçus par webSocketMessage)
+    const info = { nets: net ? [ip, net] : [ip], ua: shortUA(req.headers.get('User-Agent')), since: Date.now(), name: this.name };   // ua : liste des appareils du Studio
+    if (this.ctx.acceptWebSocket) this.ctx.acceptWebSocket(server);
+    else {
+      server.accept();
+      server.addEventListener('message', (ev) => this.webSocketMessage(server, ev.data));
+      server.addEventListener('close', () => this.drop(server));
+      server.addEventListener('error', () => this.drop(server));
+    }
+    server.serializeAttachment?.(info);
+    this.track(server, info);
     const drop = () => this.drop(server);
-    server.addEventListener('close', drop);
-    server.addEventListener('error', drop);
     // Relais d'un abonné (facturé à la durée) : fermé sans connexion F1 TV valable au bout de AUTH_MS (la page repasse
     // alors au relais commun), et toute connexion au bout de PRIVATE_MS (la page se reconnecte d'elle-même)
     if (priv) {
@@ -108,25 +126,65 @@ export class LiveRelay {
       this.timers.push(setTimeout(() => { if (!this.userToken) end(4001, 'Connexion F1 TV attendue'); }, AUTH_MS));
       this.timers.push(setTimeout(() => end(4000, 'Reconnexion'), PRIVATE_MS));
     }
-    server.addEventListener('message', (ev) => {
-      let m;
-      try { m = JSON.parse(ev.data); } catch { return; }
-      // GPS et télémétrie plus anciens, demandés quand le délai TV s'allonge (une demande toutes les 2 s au plus)
-      if (m?.type === 'stream' && Number.isFinite(m.from) && Number.isFinite(m.to)) {
-        if (Date.now() - (server.asked || 0) < STREAM_EVERY) return;
-        server.asked = Date.now();
-        this.send(server, JSON.stringify({ type: 'stream', items: this.streamBetween(m.from, m.to) }));
-      }
-      // Relais d'un abonné : sa connexion F1 TV (renvoyée par la page à chaque connexion et quand elle change)
-      if (m?.type === 'auth' && priv) this.auth(m.token);
-      // GPS laissé à un autre appareil : repris ici à la demande de la page
-      if (m?.type === 'here' && priv) this.here();
-    });
     // ?d= : délai TV du navigateur, pour ne lui envoyer que le GPS et la télémétrie utiles
     const d = Number(new URL(req.url).searchParams.get('d'));
     this.hello(server, Date.now() - (Number.isFinite(d) ? Math.min(Math.max(d, 0), KEEP_MS) : KEEP_MS) - HIST_MS);
     this.start();
     return new Response(null, { status: 101, webSocket: client });
+  }
+
+  webSocketMessage(ws, data) {
+    let m;
+    try { m = JSON.parse(data); } catch { return; }
+    const priv = this.name.startsWith('u:');
+    // GPS et télémétrie plus anciens, demandés quand le délai TV s'allonge (une demande toutes les 2 s au plus)
+    if (m?.type === 'stream' && Number.isFinite(m.from) && Number.isFinite(m.to)) {
+      if (Date.now() - (ws.asked || 0) < STREAM_EVERY) return;
+      ws.asked = Date.now();
+      this.send(ws, JSON.stringify({ type: 'stream', items: this.streamBetween(m.from, m.to) }));
+    }
+    // Relais d'un abonné : sa connexion F1 TV (renvoyée par la page à chaque connexion et quand elle change)
+    if (m?.type === 'auth' && priv) this.auth(m.token);
+    // GPS laissé à un autre appareil : repris ici à la demande de la page
+    if (m?.type === 'here' && priv) this.here();
+  }
+
+  webSocketClose(ws) { this.drop(ws); }
+  webSocketError(ws) { this.drop(ws); }
+
+  // Réveil programmé avant une séance (relais au repos) : reconnexion à la F1 pour les navigateurs restés ouverts
+  async alarm() {
+    if (this.clients.size) this.start();
+  }
+
+  // Séance en cours ou proche d'après le calendrier de la saison (gardé une heure), ou chronos reçus il y a peu ;
+  // sinon heure de la prochaine séance (null : calendrier inconnu, le relais reste branché)
+  async rest(now = Date.now()) {
+    if (now - (this.lastTimingAt || 0) < LIVE_MS || !this.env.DB) return null;
+    if (!this.sched || now - this.sched.at > 3600e3) {
+      const y = new Date(now).getUTCFullYear();
+      const rows = await Promise.all([y, y + 1].map((yr) => seasonRow(this.env, yr, { maxAge: Infinity }).catch(() => null)));
+      const starts = rows.flatMap((r) => r?.v?.races || []).flatMap((r) => r.sessions || []).map((x) => Date.parse(x.t)).filter(Number.isFinite).sort((a, b) => a - b);
+      this.sched = { at: now, starts };
+    }
+    const { starts } = this.sched;
+    if (!starts.length || starts.some((t) => now >= t - LEAD_MS && now <= t + SPAN_MS)) return null;
+    return starts.find((t) => t > now) ?? null;
+  }
+
+  // Hors séance : F1 débranchée, minuteries arrêtées (le Durable Object peut se mettre en veille avec les
+  // navigateurs connectés) et réveil programmé avant la séance suivante
+  async sleepUntilNext(now = Date.now()) {
+    if (!this.active || this.resting) return;
+    const next = await this.rest(now);
+    if (!next || !this.active) return;
+    this.resting = true;
+    this.setStatus({ connected: false, rest: true, next, error: null });
+    this.active = false;
+    for (const t of this.timers) clearInterval(t), clearTimeout(t);
+    this.timers = [];
+    this.closeUp();
+    await this.ctx.storage?.setAlarm?.(next - LEAD_MS);
   }
 
   // Appairage d'un téléphone (version web sans extension, ex. iPhone) : boîte de rendez-vous éphémère, en mémoire
@@ -262,8 +320,10 @@ export class LiveRelay {
     this.idle = null;
     if (this.active) return;
     this.active = true;
+    this.resting = false;
+    this.status.rest = false;
     this.timers.push(setInterval(() => this.flush(), 250));
-    this.timers.push(setInterval(() => this.roll(), 10000));
+    this.timers.push(setInterval(() => { this.roll(); if (this.clients.size) this.sleepUntilNext().catch(() => {}); }, 10000));
     this.timers.push(setInterval(() => this.broadcast(JSON.stringify({ type: 'up', now: Date.now(), status: this.status })), 5000));
     this.connect();
   }
