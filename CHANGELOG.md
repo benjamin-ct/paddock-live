@@ -28,6 +28,20 @@ l'application (Réglages → À propos → Nouveautés).
   piste, contrainte sur les pneus, freinage et appui latéral (notes de 1 à 5) sur la fiche de chaque Grand Prix, à venir
   compris, et dans Profil des circuits, avec une carte des circuits qui se ressemblent (virages lents ou rapides). Aussi
   dans la version web.
+- Calendrier : la saison sur une carte du monde, un point numéroté par Grand Prix (prochain en rouge, à venir, déjà
+  couru) ; un point touché ouvre la fiche du Grand Prix. Aussi dans la version web.
+- Chaque graphique de la Saison s'enregistre en image (bouton PNG dans son titre), avec son titre, le pilote ou le
+  Grand Prix concerné et la mention Paddock Live, pour le partager. Aussi dans la version web.
+- Grand Prix (Saison → Résultats & records → un Grand Prix couru) : le rythme de course, avec l'évolution des temps
+  au tour, la répartition des temps de chaque pilote (boîtes à moustaches), les positions tour par tour et les 20
+  meilleurs tours avec leur pneu ; seuil des tours propres réglable (107 % du meilleur tour par défaut), 10 premiers ou
+  tous les pilotes. Aussi dans la version web.
+- Qualifications (nouvelle rubrique de la Saison) : l'écart de chaque écurie à la pole, Grand Prix par Grand Prix, en %
+  ou en secondes (toucher une écurie la met en avant), et son écart médian. Pilotes : la répartition des places en
+  course, en qualifs (avec les éliminations en Q1 et Q2) ou en sprint. Aussi dans la version web.
+- Résultats & records : la grille de la saison (la place ou les points de chaque pilote à chaque Grand Prix, en course,
+  en qualifs ou en sprint, podiums et places qui marquent en couleur) et les kilomètres parcourus par chaque écurie en
+  course et en sprint. Aussi dans la version web.
 
 ### Accueil
 - Appli ouverte sans connexion (ou serveur injoignable) : l'accueil et l'écran « Pas de séance en direct » disent
@@ -35,6 +49,9 @@ l'application (Réglages → À propos → Nouveautés).
   minute jusqu'à afficher la prochaine séance.
 
 ### En direct
+- Onglet Secteurs : sous les poles et meilleurs tours des éditions précédentes, le meilleur du week-end, c'est-à-dire
+  le meilleur tour des séances déjà courues du Grand Prix (temps, pilote et séance : EL2, Qualif…). En direct et en
+  replay, dans l'appli et la version web.
 - Classement en course : l'intervalle avec la voiture devant s'affiche aussi en mode Essentiel ; un pilote qui abandonne
   n'a plus d'écart affiché à côté de « ABD ».
 - Replay : la Télémétrie dit « Pas de télémétrie dans ce replay » au lieu de proposer la connexion F1 TV du direct.
@@ -60,6 +77,10 @@ l'application (Réglages → À propos → Nouveautés).
   s'affiche en cascade ; les chiffres des comptes à rebours descendent en place ; sur téléphone, le panneau choisi glisse
   en place ; reflet sur les boutons principaux au survol. Tout se coupe dans Réglages → Apparence (Animations de
   l'interface), ou avec l'option « réduire les animations » du système.
+
+### Interface
+- Les curseurs (volume, seuil des tours propres, temps perdu au stand, fond des overlays…) ont un nouveau style, assorti
+  au reste de l'appli : piste fine remplie jusqu'à la valeur et bouton rond. Aussi dans la version web.
 
 ## v1.29.0 — 2026-10-28
 

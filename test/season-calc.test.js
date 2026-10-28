@@ -214,3 +214,26 @@ test('ADN des circuits : sept notes de 1 à 5 par circuit, saison et source Pire
     assert.match(n.source, /^https:\/\/press\.pirelli\.com\//, id);
   }
 });
+
+test('écart à la pole par écurie : meilleur tour de ses deux voitures face à la pole, en % et en s', async () => {
+  const { teamPoleGaps } = await import('../shared/season-calc.js');
+  const races = [
+    { round: 1, quali: [{ teamId: 'a', team: 'A', q: [80, 79.5, 79] }, { teamId: 'a', team: 'A', q: [80.5] }, { teamId: 'b', team: 'B', q: [80, 79.79] }] },
+    { round: 2, quali: [] },   // pas de temps : ignorée
+  ];
+  const g = teamPoleGaps(races);
+  assert.deepEqual(g.map((t) => [t.teamId, t.points.length]), [['a', 1], ['b', 1]]);
+  assert.equal(g[0].points[0].s, 0);
+  assert.ok(Math.abs(g[1].points[0].s - 0.79) < 1e-9);
+  assert.ok(Math.abs(g[1].points[0].pct - 1) < 1e-9);
+});
+
+test('kilomètres par écurie : tours bouclés en course et en sprint × longueur du circuit', async () => {
+  const { teamMileage } = await import('../shared/season-calc.js');
+  const races = [
+    { round: 1, results: [{ teamId: 'a', team: 'A', laps: 50 }, { teamId: 'a', team: 'A', laps: 10 }, { teamId: 'b', team: 'B', laps: null }], sprintResults: [{ teamId: 'b', team: 'B', laps: 20 }] },
+    { round: 2, results: [{ teamId: 'b', team: 'B', laps: 70 }], sprintResults: [] },   // longueur inconnue : ignorée
+  ];
+  const m = teamMileage(races, (r) => (r === 1 ? 5 : null));
+  assert.deepEqual(m.map((t) => [t.teamId, t.laps, t.km]), [['a', 60, 300], ['b', 20, 100]]);
+});
