@@ -14,9 +14,10 @@ l'application (Réglages → À propos → Nouveautés).
   Audi…) est reconnue. « Un pilote » : sa saison face à l'autre, Grand Prix par Grand Prix (arrivée, points cumulés,
   victoires, podiums). Aussi dans la version web.
 - Championnat des casseurs (Saison → Championnat des casseurs) : le coût estimé des pièces cassées par chaque pilote et
-  chaque écurie, les plus gros dégâts d'un week-end et les pièces les plus cassées (ailerons, suspensions, fonds…).
-  Estimations de u/Dense-Strategy-867 sur Reddit, compilées par Formula 1 Dashboard, mises à jour après chaque Grand
-  Prix. Aussi dans la version web.
+  chaque écurie (avec sa part du plafond budgétaire de la FIA), le détail des incidents d'un pilote en touchant son nom,
+  la courbe du coût cumulé des écuries qui cassent le plus, les plus gros dégâts d'un week-end et les pièces les plus
+  cassées (ailerons, suspensions, fonds…). Estimations de u/Dense-Strategy-867 sur Reddit, compilées par Formula 1
+  Dashboard, mises à jour toutes seules après chaque Grand Prix. Aussi dans la version web.
 
 ## v1.29.0 — 2026-10-28
 
