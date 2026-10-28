@@ -9,6 +9,7 @@ import { $, esc, api, storageGet, storageSet } from '../util.js';
 import { icon } from '../icons.js';
 import { LOCALE, t } from '../i18n.js';
 import { upcoming } from './home.js';
+import { nearestShape } from '/shared/circuit-shapes.js';
 
 const RAIN_Z = 7;      // zoom maximal des images radar gratuites (agrandies au-delà)
 const H = 300;
@@ -48,17 +49,6 @@ async function loadShapes() {
   if (shapes) return;
   shapes = [];
   try { shapes = (await (await fetch('/data/f1-circuits.json')).json()).circuits || []; built = ''; } catch { /* sans tracé */ }
-}
-
-// Tracé du circuit le plus proche (moins de 15 km)
-function shapeOf(p) {
-  let best = null, bd = 15;
-  for (const c of shapes || []) {
-    const [lon, lat] = c.line[0];
-    const d = Math.hypot((lon - p.lon) * 111 * Math.cos((p.lat * Math.PI) / 180), (lat - p.lat) * 111);
-    if (d < bd) { bd = d; best = c; }
-  }
-  return best;
 }
 
 // Circuit de la séance affichée : d'après le nom du Grand Prix, sinon la date ; entre deux
@@ -122,7 +112,7 @@ function scaleBar(W, z) {
 function build(el) {
   const W = el.clientWidth || 400;
   const dark = document.documentElement.dataset.scheme !== 'light';
-  const shape = shapeOf(place);
+  const shape = nearestShape(shapes, place.lat, place.lon);
   const key = `${W}|${dark}|${view}|${place.lat},${place.lon}|${shape?.id}|${frames.map((f) => f.time).join()}`;
   if (key === built) return;
   built = key;

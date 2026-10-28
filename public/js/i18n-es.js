@@ -2697,4 +2697,12 @@ export default {
   "Vue 3D indisponible ({})": "Vista 3D no disponible ({})",
   "Poursuite": "Persecución",
   "Libre": "Libre",
+  "Fiche du Grand Prix": "Ficha del Gran Premio",
+  "Revenir au globe": "Volver al globo",
+  "Monde": "Mundo",
+  "Ctrl + molette pour zoomer sur la carte": "Ctrl + rueda para hacer zoom en el mapa",
+  "⌘ + molette pour zoomer sur la carte": "⌘ + rueda para hacer zoom en el mapa",
+  "Deux doigts pour déplacer la carte": "Usa dos dedos para mover el mapa",
+  "Sources de la carte": "Fuentes del mapa",
+  "contributeurs OpenStreetMap": "colaboradores de OpenStreetMap",
 };
