@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Track } from '../shared/track.js';
-import { accumulate, fillGaps, smooth, elevationProfile } from '../shared/elevation.js';
+import { accumulate, fillGaps, smooth, elevationProfile, despike, VERSION } from '../shared/elevation.js';
 
 // Cercle de 200 points (rayon 500 m) ; altitude réelle : une colline de 20 m (sinus du tour)
 const N = 200, R = 5000;
@@ -59,6 +59,25 @@ test('altitude : profil d\'un circuit d\'après des tours bruités (moitié vue 
   const part = elevationProfile(track, lap('1', { to: 0.67 }));
   assert.equal(part.z.length, N);
   assert.ok(part.cover > 0.6 && part.cover < 0.7);
+});
+
+test('altitude : Z aberrants (creux de Spa) écartés, vraies pentes gardées', () => {
+  // Quelques voitures avec un Z faux (0) sur une partie du tour : la médiane n'en tient pas compte
+  const samples = [];
+  for (let k = 0; k < 5; k++) samples.push(...lap(String(k), { lat: (k - 2) * 15, noise: 20 }));
+  samples.push(...lap('9', { from: 0.1, to: 0.15 }).map((s) => ({ ...s, z: 0 })), ...lap('8', { from: 0.1, to: 0.15 }).map((s) => ({ ...s, z: 0 })));
+  const p = elevationProfile(track, samples);
+  const err = p.z.map((v, i) => Math.abs(v - hill((2 * Math.PI * (i + 0.5)) / N)));
+  assert.ok(Math.max(...err) < 15, `écart max ${Math.max(...err)} (1/10 m) : pas de creux`);
+  assert.equal(p.v, VERSION);
+
+  // Tous les Z faux sur 4 points de suite : écartés comme des trous, comblés par les voisins
+  const z = Array.from({ length: 80 }, (_, i) => 1000 + 200 * Math.sin((2 * Math.PI * i) / 80));   // ±20 m sur la boucle
+  assert.ok(despike(z).every((v) => !Number.isNaN(v)), 'pentes raides mais régulières gardées');
+  const d = despike(z.map((v, i) => (i >= 10 && i < 20 ? v - 850 : v)));   // 10 points faux de suite
+  const out = d.map((v, i) => (Number.isNaN(v) ? i : -1)).filter((i) => i >= 0);
+  assert.ok(out.length >= 10 && out[0] >= 6 && out.at(-1) <= 23, `points écartés : ${out}`);
+  assert.ok(fillGaps(d).every((v, i) => Math.abs(v - z[i]) < 50), 'pente retrouvée (à 5 m près, au lieu d\'un creux de 85 m)');
 });
 
 test('altitude le long du tracé : lissée selon la distance (points inégalement espacés : pas de marches), vraies pentes gardées', async () => {

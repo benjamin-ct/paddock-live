@@ -123,8 +123,13 @@ test('serveur : tâche planifiée des zones, un circuit demandé à la fois, éc
     const r = await zonesTick(env, { now, fetchFn });
     assert.deepEqual(r, { key: 999, year: 2026, zones: false, loops: false, elevation: false, error: 'connexion F1 TV absente ou expirée' });
     assert.equal(JSON.parse(rows.get('zones:999:2026')).at, now);
+    assert.equal(JSON.parse(rows.get('zones:999:2026')).tried, 2, 'essayé avec la version actuelle du profil d\'altitude');
     assert.equal(rows.get('zoneswant:999:2026'), '0');
     assert.equal(await zonesTick(env, { now: now + 60e3, fetchFn }), null, 'rien d\'autre à calculer');
+    // Profil d'altitude d'une ancienne version (creux de Spa) : recalculé dès qu'il est demandé, sans attendre 6 heures
+    rows.set('zones:999:2026', JSON.stringify({ at: now, zones: { official: true }, loops: {}, elevation: { z: [1] } }));
+    rows.set('zoneswant:999:2026', String(now + 90e3));
+    assert.equal((await zonesTick(env, { now: now + 120e3, fetchFn }))?.key, 999);
   } finally {
     delete globalThis.caches;
   }

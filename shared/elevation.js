@@ -1,27 +1,44 @@
 // Profil d'altitude d'un circuit (carte 3D) : le tracé MultiViewer n'a que x, y ; le GPS des voitures (Position.z)
 // donne aussi Z, dans le même repère et la même unité (1/10 m). Chaque position est projetée sur le tracé
-// (à moins de 15 m : pas les stands ni les sorties de piste), l'altitude d'un point du tracé est la moyenne des Z
-// qui y tombent ; les points sans voiture sont interpolés entre leurs voisins, puis le profil est lissé (le Z brut
-// est bruité de quelques mètres). Calculé par le serveur (analytics/zones.js), d'après une séance archivée.
+// (à moins de 15 m : pas les stands ni les sorties de piste), l'altitude d'un point du tracé est la médiane des Z
+// qui y tombent (quelques Z aberrants ne la tirent pas) ; un point très loin de ses voisins est écarté, les points sans
+// voiture sont interpolés entre leurs voisins, puis le profil est lissé (le Z brut est bruité de quelques mètres).
+// Calculé par le serveur (analytics/zones.js), d'après une séance archivée.
 
 const NEAR = 150;      // 15 m du tracé au plus
 const SMOOTH = 4;      // moyenne glissante sur 2 × 4 + 1 points
 const MIN_COVER = 0.5; // au moins la moitié des points du tracé vus par une voiture, sinon pas de profil
+const SPIKE = 150;     // 15 m d'écart à la médiane des 2 × 12 voisins : point aberrant (une piste ne fait pas ça)
+export const VERSION = 2;   // profils gardés par le serveur d'une version plus ancienne : recalculés
 
-// Z brut moyen par point du tracé : samples = [{ car, x, y, z }] dans l'ordre du temps (recherche locale par voiture)
+const median = (a) => { const v = a.slice().sort((x, y) => x - y), m = v.length >> 1; return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2; };
+
+// Z brut médian par point du tracé : samples = [{ car, x, y, z }] dans l'ordre du temps (recherche locale par voiture)
 export function accumulate(track, samples) {
-  const n = track.pts.length, sum = new Float64Array(n), cnt = new Uint32Array(n), hint = new Map();
+  const n = track.pts.length, zs = Array.from({ length: n }, () => []), hint = new Map();
   let used = 0;
   for (const s of samples) {
     if ((!s.x && !s.y) || !Number.isFinite(s.z)) continue;
     const pr = track.project(s.x, s.y, hint.get(s.car) ?? -1);
     if (pr.d2 > NEAR ** 2) continue;
     hint.set(s.car, pr.i);
-    sum[pr.i] += s.z;
-    cnt[pr.i]++;
+    zs[pr.i].push(s.z);
     used++;
   }
-  return { z: Array.from(sum, (v, i) => (cnt[i] ? v / cnt[i] : NaN)), used };
+  return { z: zs.map((v) => (v.length ? median(v) : NaN)), used };
+}
+
+// Points aberrants (Z faux sur quelques points de suite : lissés, ils faisaient un creux de 85 m à Spa) : écart de plus
+// de 15 m à la médiane de leurs voisins connus (12 de chaque côté, sur la boucle : une dizaine de points faux de suite
+// restent minoritaires) -> NaN, comblés ensuite comme les trous
+export function despike(z, k = 12, t = SPIKE) {
+  const n = z.length;
+  return z.map((v, i) => {
+    if (Number.isNaN(v)) return v;
+    const near = [];
+    for (let d = 1; d <= k; d++) for (const j of [(i + d) % n, (i - d + n) % n]) if (!Number.isNaN(z[j])) near.push(z[j]);
+    return near.length >= k && Math.abs(v - median(near)) > t ? NaN : v;
+  });
 }
 
 // Points sans valeur : interpolation linéaire entre les voisins connus (le tracé est une boucle)
@@ -52,7 +69,7 @@ export function elevationProfile(track, samples) {
   const { z, used } = accumulate(track, samples);
   const n = z.length, seen = z.filter((v) => !Number.isNaN(v)).length;
   if (!n || seen < n * MIN_COVER) return null;
-  return { z: smooth(fillGaps(z)).map(Math.round), n, samples: used, cover: Math.round((seen / n) * 100) / 100 };
+  return { z: smooth(fillGaps(despike(z))).map(Math.round), n, samples: used, cover: Math.round((seen / n) * 100) / 100, v: VERSION };
 }
 
 // Altitude lissée selon la distance le long du tracé (vue 3D), et non selon le numéro du point : les points du tracé
