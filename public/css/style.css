@@ -1286,6 +1286,13 @@ body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-selec
 .sz-heat th, .sz-heat td { text-align: center; white-space: nowrap; }
 .sz-heat td:first-child, .sz-heat th:first-child { text-align: left; }
 .sz-heat td:first-child .team-logo, .sz-table td .team-logo { width: 20px; height: 20px; margin-right: 7px; }
+.sz-grid-opts { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.sz-grid td { min-width: 30px; padding: 5px 6px; font-variant-numeric: tabular-nums; }
+.sz-grid td.g1 { background: rgba(255, 196, 0, .28); font-weight: 700; }
+.sz-grid td.g2 { background: rgba(200, 205, 215, .24); font-weight: 700; }
+.sz-grid td.g3 { background: rgba(205, 127, 50, .26); font-weight: 700; }
+.sz-grid td.gp { background: rgba(34, 197, 94, .12); }
+.sz-grid td.gx { color: var(--muted); font-size: 11px; }
 .sz-hm { font-variant-numeric: tabular-nums; font-size: 12.5px; }
 .sz-circs { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 12px; align-items: start; }
 .sz-circ { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 7px; }

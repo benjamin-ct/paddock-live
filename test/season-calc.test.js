@@ -204,3 +204,13 @@ test('noms d\'écuries courts, les mêmes dans toute la Saison', () => {
   const d = shortTeams({ drivers: [{ team: 'Cadillac F1 Team' }], constructors: [{ name: 'RB F1 Team', id: 'rb' }], races: [{ results: [{ team: 'Red Bull' }] }] });
   assert.deepEqual([d.drivers[0].team, d.constructors[0].name, d.constructors[0].id, d.races[0].results[0].team], ['Cadillac', 'Racing Bulls', 'rb', 'Red Bull']);
 });
+
+test('kilomètres par écurie : tours bouclés en course et en sprint × longueur du circuit', async () => {
+  const { teamMileage } = await import('../shared/season-calc.js');
+  const races = [
+    { round: 1, results: [{ teamId: 'a', team: 'A', laps: 50 }, { teamId: 'a', team: 'A', laps: 10 }, { teamId: 'b', team: 'B', laps: null }], sprintResults: [{ teamId: 'b', team: 'B', laps: 20 }] },
+    { round: 2, results: [{ teamId: 'b', team: 'B', laps: 70 }], sprintResults: [] },   // longueur inconnue : ignorée
+  ];
+  const m = teamMileage(races, (r) => (r === 1 ? 5 : null));
+  assert.deepEqual(m.map((t) => [t.teamId, t.laps, t.km]), [['a', 60, 300], ['b', 20, 100]]);
+});
