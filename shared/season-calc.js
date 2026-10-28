@@ -290,6 +290,24 @@ export function standingsAfter(data, round) {
   };
 }
 
+// Même écurie sous un autre nom d'une saison à l'autre (identifiants Jolpica) : Sauber (Alfa Romeo, Audi), Racing Bulls
+// (Toro Rosso, AlphaTauri), Aston Martin (Force India, Racing Point), Alpine (Renault)
+const LINEAGE = { alfa: 'sauber', audi: 'sauber', toro_rosso: 'rb', alphatauri: 'rb', force_india: 'aston_martin', racing_point: 'aston_martin', renault: 'alpine' };
+export const lineage = (id) => LINEAGE[id] || id;
+
+// Points cumulés d'un pilote (code) ou d'une écurie (identifiant, même lignée) après chaque manche jusqu'à « round » :
+// [{ x: manche, y: points, pos, gp }] (pos : arrivée en course, gp : nom du Grand Prix)
+export function pointsPath(data, kind, key, round) {
+  const races = [...(data?.races || [])].filter((r) => r.round <= round && r.results?.length).sort((a, b) => a.round - b.round);
+  const mine = (x) => (kind === 'd' ? x.code === key : lineage(x.teamId) === lineage(key));
+  let y = 0;
+  return races.map((r) => {
+    for (const x of [...r.results, ...(r.sprintResults || [])]) if (mine(x)) y += x.points || 0;
+    const res = r.results.find(mine);
+    return { x: r.round, y, pos: res ? res.posText || res.pos : null, gp: r.name };
+  });
+}
+
 export const RACE_POINTS = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
 // Meilleure place qui rapporte au plus « pts » points (11 = hors des points)
 export function placeForMaxPoints(pts) {
