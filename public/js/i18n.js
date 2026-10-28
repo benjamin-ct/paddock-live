@@ -17,8 +17,8 @@ function storedLang() {
 }
 
 // Première ouverture : la langue du système (français, italien, espagnol, sinon anglais)
-const sys = (navigator.language || 'fr').toLowerCase().slice(0, 2);
-export const LANG = storedLang() ?? (LANGS.includes(sys) ? sys : 'en');
+const sysLang = () => { const l = (navigator.language || 'fr').toLowerCase().slice(0, 2); return LANGS.includes(l) ? l : 'en'; };
+export const LANG = storedLang() ?? sysLang();
 export const FR = LANG === 'fr';
 export const EN = LANG === 'en';
 export const LOCALE = { fr: 'fr-FR', en: 'en-GB', it: 'it-IT', es: 'es-ES' }[LANG];
