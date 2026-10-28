@@ -7,9 +7,12 @@ l'application (Réglages → À propos → Nouveautés).
 ## v1.30.0 — à venir
 
 ### Saison
-- Comparer deux saisons (Saison → Comparer deux saisons) : les classements des pilotes ou des constructeurs après le
-  même nombre de Grands Prix, côte à côte (par exemple 2026 et 2025 après le 18e Grand Prix), avec pour chacun sa
-  place et ses points au même moment de l'autre saison. Aussi dans la version web.
+- Comparer deux saisons (Saison → Comparer deux saisons) : après le même nombre de Grands Prix (par exemple 2026 et
+  2025 après le 18e), le leader de chaque saison, une phrase qui résume, la courbe des points des deux leaders, puis un
+  seul tableau avec, pour chaque pilote ou écurie, ses points des deux saisons, l'écart (en vert ou en rouge) et les
+  places gagnées ou perdues ; tri en touchant le titre d'une colonne. Une écurie qui a changé de nom (Sauber devenue
+  Audi…) est reconnue. « Un pilote » : sa saison face à l'autre, Grand Prix par Grand Prix (arrivée, points cumulés,
+  victoires, podiums). Aussi dans la version web.
 - Championnat des casseurs (Saison → Championnat des casseurs) : le coût estimé des pièces cassées par chaque pilote et
   chaque écurie, les plus gros dégâts d'un week-end et les pièces les plus cassées (ailerons, suspensions, fonds…).
   Estimations de u/Dense-Strategy-867 sur Reddit, compilées par Formula 1 Dashboard, mises à jour après chaque Grand

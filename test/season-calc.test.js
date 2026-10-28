@@ -179,3 +179,18 @@ test('classements après N manches : courses et sprints, égalité départagée 
   const tie = standingsAfter({ races: [{ round: 1, results: [x('A', 't1', 1, 10), x('B', 't2', 2, 10)], sprintResults: [] }] }, 1);
   assert.deepEqual(tie.drivers.map((d) => d.code), ['A', 'B'], 'à égalité, le vainqueur devant');
 });
+
+test('comparer deux saisons : même écurie sous un autre nom, points cumulés manche par manche', async () => {
+  const { lineage, pointsPath } = await import('../shared/season-calc.js');
+  assert.equal(lineage('audi'), lineage('sauber'));
+  assert.equal(lineage('alphatauri'), 'rb');
+  assert.equal(lineage('mclaren'), 'mclaren');
+  const x = (code, teamId, pos, points) => ({ code, teamId, pos, posText: String(pos), points });
+  const data = { races: [
+    { round: 2, name: 'B', results: [x('HUL', 'audi', 1, 25)], sprintResults: [x('HUL', 'audi', 2, 7)] },
+    { round: 1, name: 'A', results: [x('HUL', 'audi', 3, 15)], sprintResults: [] },
+    { round: 3, name: 'C', results: [], sprintResults: [] },
+  ] };
+  assert.deepEqual(pointsPath(data, 'd', 'HUL', 3), [{ x: 1, y: 15, pos: '3', gp: 'A' }, { x: 2, y: 47, pos: '1', gp: 'B' }]);
+  assert.deepEqual(pointsPath(data, 'c', 'sauber', 1).map((p) => p.y), [15], 'Audi = Sauber');
+});
