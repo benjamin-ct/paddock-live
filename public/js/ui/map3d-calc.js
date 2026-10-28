@@ -116,16 +116,21 @@ export function seconds(v) {
 // inconnu), drs (volet ouvert), gained (places gagnées depuis peu) }] des voitures en piste ; cur : { num, since } du
 // plan en cours (ou null). Une bataille compte d'autant plus que l'écart est petit (moins de 2,5 s), que la voiture
 // attaque (DRS), vient de dépasser, ou se bat devant ; sans bataille, le leader. Plan gardé au moins min ms, changé
-// ensuite pour une bataille nettement meilleure, et au bout de max ms pour une autre s'il y en a une. -> { num, since }
+// ensuite pour une bataille nettement meilleure (ou pour le leader quand la bataille en cours est finie), et au bout de
+// max ms pour une autre s'il y en a une. -> { num, since }
 export function pickBattle(lines, cur, now, { min = 8000, max = 30000 } = {}) {
   const score = (l) => (l.gap === null || l.gap > 2.5 ? (l.pos === 1 ? 0.05 : 0) : ((2.5 - l.gap) / (l.gap + 0.3)) * (l.drs ? 1.6 : 1) * (l.gained > 0 ? 2.5 : 1) * (1 + 1.5 / l.pos));
   const ranked = lines.map((l) => [l.num, score(l)]).filter(([, s]) => s > 0).sort((a, b) => b[1] - a[1]);
   const mine = cur && lines.find((l) => l.num === cur.num);
-  if (!ranked.length) return mine ? cur : { num: lines.find((l) => l.pos === 1)?.num ?? null, since: now };
+  if (!ranked.length) {
+    // Plus de bataille : le plan en cours au moins min ms, puis le leader
+    const leader = lines.find((l) => l.pos === 1)?.num ?? null;
+    return mine && (now - cur.since < min || !leader || leader === cur.num) ? cur : { num: leader, since: now };
+  }
   if (!mine) return { num: ranked[0][0], since: now };
   if (now - cur.since < min) return cur;
   const s = score(mine), [best, bs] = ranked[0];
-  if (best !== cur.num && bs > 1.3 * s + 0.1) return { num: best, since: now };
+  if (best !== cur.num && (s === 0 || bs > 1.3 * s + 0.1)) return { num: best, since: now };   // plus de bataille : la meilleure (ou le leader)
   if (now - cur.since > max) {
     const other = ranked.find(([n]) => n !== cur.num);
     if (other) return { num: other[0], since: now };

@@ -167,6 +167,13 @@ test('caméra Réalisation : la bataille la plus serrée, sans changer de plan t
   // Au bout de 30 s : une autre bataille s'il y en a une
   assert.equal(pickBattle([L('2', 2, 0.2), L('7', 7, 1.2)], { num: '2', since: 0 }, 31000).num, '7');
   assert.equal(pickBattle([L('2', 2, 0.2)], { num: '2', since: 0 }, 31000).num, '2');
+  // Plus de bataille : plan en cours gardé 8 s, puis le leader (pas une autre voiture pour toujours)
+  const calm = [L('1', 1, null), L('2', 2, 4), L('9', 9, 6)];
+  assert.deepEqual(pickBattle([L('2', 2, 4), L('9', 9, 6)], { num: '9', since: 0 }, 9000), { num: '9', since: 0 }, 'leader absent : plan gardé');
+  assert.deepEqual(pickBattle(calm, { num: '9', since: 0 }, 5000), { num: '9', since: 0 });
+  assert.deepEqual(pickBattle(calm, { num: '9', since: 0 }, 9000), { num: '1', since: 9000 });
+  const lead = { num: '1', since: 9000 };
+  assert.equal(pickBattle(calm, lead, 60000), lead, 'déjà sur le leader : plan gardé');
   // La voiture suivie n'est plus en piste : la meilleure bataille tout de suite
   assert.equal(pickBattle([L('2', 2, 0.2)], { num: '44', since: 0 }, 1000).num, '2');
 });
