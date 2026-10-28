@@ -1,6 +1,13 @@
 // Interface en anglais : traduction de chaque texte français affiché (voir i18n.js).
 // {} = valeur dynamique (dans l'ordre), {0}, {1}… pour changer l'ordre en anglais.
 export default {
+  "Voir le détail": "See details",
+  "touchez un pilote pour le détail": "tap a driver for details",
+  "Part du plafond": "Share of cost cap",
+  "Coût cumulé des 5 écuries les plus coûteuses": "Cumulative cost of the 5 costliest teams",
+  "en milliers de $": "in thousands of $",
+  "Plafond budgétaire {} de la FIA : {}.": "FIA {} cost cap: {}.",
+  "{}, soit {} du plafond budgétaire ({})": "{}, i.e. {} of the cost cap ({})",
   "Championnat des casseurs": "Destructors' Championship",
   "Déflecteurs": "Bargeboard",
   "Châssis de rechange": "Additional chassis",
