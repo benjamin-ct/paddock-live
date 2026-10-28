@@ -652,7 +652,7 @@ function carGeometries() {
   add(4, fin([[-0.85, 0.88], [-1.95, 0.9], [-1.95, 0.64], [-1.4, 0.62]], 0, 0.016));
   // Numéro : sur les deux flancs de la dérive, et sur le nez (lisible de face)
   for (const s of [-1, 1]) add(5, new THREE.PlaneGeometry(0.56, 0.28), at(s * 0.011, 0.765, -1.42, 0, s * Math.PI / 2, 0));
-  add(5, new THREE.PlaneGeometry(0.28, 0.14), at(0, 0.445, 1.88, -Math.PI / 2 + 0.25, 0, 0));
+  add(5, new THREE.PlaneGeometry(0.34, 0.17), at(0, 0.552, 1.45, -Math.PI / 2 + 0.26, 0, 0));
   // Pontons sculptés : entrée d'air haute et étroite, flancs creusés vers l'arrière
   for (const s of [-1, 1]) {
     for (const g of loft([[0.62, s * 0.34, 0.42, 0.14, 0.12], [0.5, s * 0.4, 0.41, 0.2, 0.15], [0.2, s * 0.44, 0.39, 0.24, 0.17], [-0.3, s * 0.43, 0.36, 0.24, 0.17],
