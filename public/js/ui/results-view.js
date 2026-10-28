@@ -3,7 +3,7 @@
 // Séance chargée (direct, replay ou dernière séance), au rythme du délai TV.
 import { $, placeView } from '../util.js';
 import { store, versionOf } from '../store.js';
-import { t, EN } from '../i18n.js';
+import { t, LANG } from '../i18n.js';
 import { gpShort, sessionLabel } from '/shared/gp-names.js';
 import { summaryFacts } from '/shared/summary.js';
 import { reportHtml, classificationHtml, chartHtml, numbersHtml, statusLabel } from './report.js';
@@ -26,7 +26,7 @@ function render() {
   }
   const f = summaryFacts(store.state);
   main.innerHTML = `<div class="rp-head"><div><div class="muted small">${t('Résultats')}</div>
-      <h2>${gpShort(info.Meeting?.Name || '', EN)} : ${sessionLabel(info.Name || '', EN)}</h2></div>
+      <h2>${gpShort(info.Meeting?.Name || '', LANG)} : ${sessionLabel(info.Name || '', LANG)}</h2></div>
       <span class="rp-status${f.final ? ' done' : ''}">${statusLabel(f)}</span></div>
     <div class="rp-layout"><div class="rp-left">${reportHtml(store.state)}${chartHtml(store.state)}</div>
       <div class="rp-right"><section class="sz-box rp-class"><h3>${t('Classement')}</h3>${classificationHtml(store.state)}</section>${numbersHtml(store.state)}</div></div>

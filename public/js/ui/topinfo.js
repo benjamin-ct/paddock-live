@@ -6,7 +6,7 @@ import { docSummaryFr } from '/shared/fia-docs-fr.js';
 import { parseFiaDoc } from '/shared/stewards.js';
 import { fiaState } from './feed.js';
 import { icon } from '../icons.js';
-import { LOCALE, EN } from '../i18n.js';
+import { LOCALE, LANG } from '../i18n.js';
 import { gpFull } from '/shared/gp-names.js';
 import { pdfHref } from './pdf-view.js';
 import { upcoming } from './home.js';
@@ -89,8 +89,8 @@ function docsHtml() {
   const current = store.state.SessionInfo?.Meeting?.Name || '';
   // Prochain Grand Prix en tête, puis celui de la séance affichée, puis les précédents
   const others = (races || []).filter((r) => r.name !== current);
-  const choices = [...others.filter((r) => r.next).map((r) => [r.name, `${gpFull(r.name, EN)} (à venir)`]),
-    ['', current ? `${gpFull(current, EN)} (séance affichée)` : 'Grand Prix de la séance'], ...others.filter((r) => !r.next).map((r) => [r.name, gpFull(r.name, EN)])];
+  const choices = [...others.filter((r) => r.next).map((r) => [r.name, `${gpFull(r.name, LANG)} (à venir)`]),
+    ['', current ? `${gpFull(current, LANG)} (séance affichée)` : 'Grand Prix de la séance'], ...others.filter((r) => !r.next).map((r) => [r.name, gpFull(r.name, LANG)])];
   const sel = shownGp();
   const gpSel = `<select id="tbDocGp" aria-label="Grand Prix">${choices.map(([v, l]) => `<option value="${esc(v)}"${v === (sel === current ? '' : sel) ? ' selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
   const body = rows.length ? rows.map(({ d, sum, cars }) => `<div class="tbd-doc">

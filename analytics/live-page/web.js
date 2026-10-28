@@ -1,6 +1,6 @@
 // Point d'entrée de la version web (app.paddocklive.app) : classement, carte, télémétrie, direction de course et
 // radios de l'appli, reliés au relais du Worker au lieu du serveur local. Copié dans /live/js/ par scripts/build-studio.mjs.
-import { translatePage, DEC, EN, LOCALE, t } from './i18n.js';
+import { translatePage, DEC, LANG, LOCALE, t } from './i18n.js';
 import './icons.js';
 import { store, emit, on, handleReset, handleBatch, setDelay, serverNow } from './store.js';
 import { applyEvent } from '/shared/derive.js';
@@ -245,7 +245,7 @@ document.querySelector('#webResultsBtn')?.addEventListener('click', async (e) =>
   }
   if (!d?.races) { box.innerHTML = '<p class="muted">Résultats indisponibles pour le moment.</p>'; return; }
   const last = lastSession(d.races);
-  box.innerHTML = `<div class="web-res-grid">${last ? resCard(`${gpShort(last.race, EN)} · ${last.label}`, last.rows.slice(0, 10)) : ''}
+  box.innerHTML = `<div class="web-res-grid">${last ? resCard(`${gpShort(last.race, LANG)} · ${last.label}`, last.rows.slice(0, 10)) : ''}
     ${resCard('Championnat pilotes', (d.drivers || []).slice(0, 10).map((x) => [x.pos, x.name, `${x.points} pts`]))}
     ${resCard('Championnat constructeurs', (d.constructors || []).map((x) => [x.pos, x.name, `${x.points} pts`]))}</div>`;
 });

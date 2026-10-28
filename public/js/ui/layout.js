@@ -1297,7 +1297,7 @@ export function renderLayoutOptions() {
   const tabs = $('#tabOpts');
   if (tabs) {
     tabs.innerHTML = tabList().filter(([p]) => SHORT[p]).sort((a, b) => PANELS.findIndex((x) => x.id === a[0]) - PANELS.findIndex((x) => x.id === b[0]))
-      .map(([p, t, name, expert]) => `<label class="toggle small"${expert ? ' data-expert' : ''}><input type="checkbox" data-tabopt="${t}" ${prefs.hiddenTabs.includes(t) ? '' : 'checked'}> ${esc(SHORT[p])} · ${esc(name)}</label>`).join('');
+      .map(([p, t, name, expert]) => `<label class="toggle small"${expert ? ' data-expert' : ''}><input type="checkbox" data-tabopt="${t}" ${prefs.hiddenTabs.includes(t) ? '' : 'checked'}> <span>${esc(SHORT[p])}</span> · ${esc(name)}</label>`).join('');
     tabs.onchange = (e) => {
       const t = e.target.dataset.tabopt;
       if (!t) return;
