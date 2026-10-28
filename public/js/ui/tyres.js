@@ -17,15 +17,19 @@ let lastVer = -1;
 let showFr = true;
 
 const NAME_FR = { SOFT: 'Tendre', MEDIUM: 'Medium', HARD: 'Dur', INTERMEDIATE: 'Intermédiaire', WET: 'Pluie' };
-const SESSION_FR = (n) => String(n || '').replace('Practice ', 'EL').replace('Sprint Qualifying', 'Qualif sprint').replace('Sprint Shootout', 'Qualif sprint').replace('Qualifying', 'Qualif').replace('Race', 'Course');
+export const SESSION_FR = (n) => String(n || '').replace('Practice ', 'EL').replace('Sprint Qualifying', 'Qualif sprint').replace('Sprint Shootout', 'Qualif sprint').replace('Qualifying', 'Qualif').replace('Race', 'Course');
+
+// Séances du week-end avant la séance affichée (pneus, et meilleur du week-end de l'Analyse)
+export function weekendQuery(path) {
+  const info = store.state.SessionInfo || {};
+  return `/api/tyres?${new URLSearchParams({ path, until: Math.round(f1Now()), name: info.Meeting?.Name || '', location: info.Meeting?.Location || '', country: info.Meeting?.Country?.Name || '', session: info.Name || '' })}`;
+}
 
 async function load(path) {
   if (loading) return;
   loading = true;
   try {
-    const info = store.state.SessionInfo || {};
-    const q = new URLSearchParams({ path, until: Math.round(f1Now()), name: info.Meeting?.Name || '', location: info.Meeting?.Location || '', country: info.Meeting?.Country?.Name || '', session: info.Name || '' });
-    data = await api(`/api/tyres?${q}`);
+    data = await api(weekendQuery(path));
     dataKey = path;
     error = '';
   } catch (err) {

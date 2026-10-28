@@ -1,6 +1,7 @@
 // Point d'entrée de l'interface.
 import { translatePage } from './i18n.js';
 import './icons.js';
+import './ranges.js';
 
 translatePage();
 
