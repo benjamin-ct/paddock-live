@@ -6,6 +6,8 @@ export default {
   "{} en lice": "{} still in contention",
   "Titre possible dès : {}": "Title possible from: {}",
   "Rien de joué avant la dernière manche": "Nothing decided before the final round",
+  "Calendrier indisponible pour l'instant": "Calendar unavailable for now",
+  "Calendrier indisponible pour l'instant : nouvel essai dans une minute.": "Calendar unavailable for now: trying again in a minute.",
   "Voir le détail": "See details",
   "touchez un pilote pour le détail": "tap a driver for details",
   "Part du plafond": "Share of cost cap",
