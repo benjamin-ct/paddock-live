@@ -434,10 +434,13 @@ function runs(arr) {
 
 // Murs déduits, quand OSM n'en a pas : de chaque côté de la piste, là où elle emprunte une rue (circuit en ville) ou
 // longe un bâtiment, une zone bâtie à moins de 25 m de son bord ; trous de moins de 30 m bouchés, morceaux de moins
-// de 40 m écartés ; à EDGE m du milieu de la piste, jamais sur une autre partie de la piste ni là où OSM a déjà un mur.
+// de 40 m écartés ; à EDGE m du milieu de la piste, jamais sur une autre partie de la piste (à moins de 8 m de son
+// milieu : demi-largeur de 7 m et 1 m de marge) ni là où OSM a déjà un mur.
 // built(x, y), onRoad(x, y), taken(x, y) : tests sur un point (repère du tracé, m) -> [[x0, y0, x1, y1…]…]
 export function deduceWalls(track, { built, onRoad, taken }) {
-  const pts = resample(track, Math.max(60, Math.round(perimeter(track) / 5))), n = pts.length, near = nearIndex(pts, 10), out = [];
+  const pts = resample(track, Math.max(60, Math.round(perimeter(track) / 5))), n = pts.length, out = [];
+  // Point (x, y) sur une autre partie de la piste que celle du point i (voisins à moins de 30 m le long du tracé exclus)
+  const onOther = (x, y, i) => pts.some(([px, py], j) => Math.min(Math.abs(j - i), n - Math.abs(j - i)) > 6 && (px - x) ** 2 + (py - y) ** 2 < 64);
   const road = pts.map((p) => onRoad(...p));
   for (const side of [-1, 1]) {
     const at = pts.map(([x, y], i) => {
@@ -447,7 +450,7 @@ export function deduceWalls(track, { built, onRoad, taken }) {
     });
     const wall = at.map(([x, y, nx, ny], i) => road[i] || [3, 8, 13, 18].some((d) => built(x + nx * d, y + ny * d)));
     for (const [i, len] of runs(wall.map((v) => !v))) if (len < 6) for (let k = 0; k < len; k++) wall[(i + k) % n] = true;
-    const keep = wall.map((v, i) => v && near(at[i][0], at[i][1], 5).d >= 5 && !taken(at[i][0], at[i][1]));
+    const keep = wall.map((v, i) => v && !onOther(at[i][0], at[i][1], i) && !taken(at[i][0], at[i][1]));
     for (const [i, len] of runs(keep)) {
       if (len < 8) continue;
       const line = Array.from({ length: len === n ? n + 1 : len }, (_, k) => at[(i + k) % n].slice(0, 2));
@@ -588,7 +591,10 @@ export function buildSurroundings({ track, fit, frame, elements = [], dem, margi
     if (ring.length > 1 && ring[0][0] === ring.at(-1)[0] && ring[0][1] === ring.at(-1)[1]) ring.pop();
     ring = simplify(clipRing(ring, box), kind === 'building' ? 1 : 4, true);
     const area = ring.length < 3 ? 0 : ringArea(ring);
-    if (area >= (kind === 'building' ? 12 : 200)) shapes.push({ kind, ring, area, tags });
+    // Graviers et dégagements d'OSM : seulement ceux qui touchent la piste (à moins de 15 m de son bord ; pas les rues
+    // ni les trottoirs d'à côté, area:highway)
+    const edge = kind !== 'gravel' && kind !== 'runoff' || densify([...ring, ring[0]], 5).some(([x, y]) => nearTrack(x, y, 22).p);
+    if (area >= (kind === 'building' ? 12 : 200) && edge) shapes.push({ kind, ring, area, tags });
   };
   for (const el of elements) {
     const t = el.tags || {};
@@ -677,11 +683,10 @@ export function buildSurroundings({ track, fit, frame, elements = [], dem, margi
   const deduced = deduceWalls(track, { built, onRoad: (x, y) => !!roads(x, y, 7).p, taken: (x, y) => !!osmWalls(x, y, 10).p });
   out.walls = [...barriers.map(([kind, pts]) => [kind, ...r1(pts)]), ...deduced.map((pts) => [0, ...r1(pts)])];
 
-  // Graviers et dégagements : ceux d'OSM (déjà dans areas), sinon déduits des virages
-  if (!out.areas.gravel && !out.areas.runoff) {
-    const walls = nearIndex([...barriers.map(([, pts]) => pts), ...deduced].flatMap((pts) => densify(pts, 2))), wet = inside(['water']);
-    const ground = deduceRunoff(track, { blocked: (x, y) => built(x, y) || wet(x, y) || !!walls(x, y, 2.5).p });
-    for (const kind of ['gravel', 'runoff']) if (ground[kind].length) out.areas[kind] = ground[kind].map(flat);
-  }
+  // Graviers et dégagements : ceux d'OSM (déjà dans areas), puis déduits des virages, virage par virage (pas là où OSM
+  // en a déjà)
+  const walls = nearIndex([...barriers.map(([, pts]) => pts), ...deduced].flatMap((pts) => densify(pts, 2))), other = inside(['water', 'gravel', 'runoff']);
+  const ground = deduceRunoff(track, { blocked: (x, y) => built(x, y) || other(x, y) || !!walls(x, y, 2.5).p });
+  for (const kind of ['gravel', 'runoff']) for (const r of ground[kind]) (out.areas[kind] ||= []).push(flat(r));
   return out;
 }
