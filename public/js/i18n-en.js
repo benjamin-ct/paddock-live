@@ -1,6 +1,19 @@
 // Interface en anglais : traduction de chaque texte français affiché (voir i18n.js).
 // {} = valeur dynamique (dans l'ordre), {0}, {1}… pour changer l'ordre en anglais.
 export default {
+  "Vue 3D du circuit, avec le relief": "3D view of the circuit, with its real elevation",
+  "Vue 3D indisponible : cet appareil ne prend pas en charge WebGL": "3D view unavailable: this device does not support WebGL",
+  "Vue 3D indisponible ({})": "3D view unavailable ({})",
+  "Vue 3D interrompue par la carte graphique : retour à la carte 2D": "3D view stopped by the graphics card: back to the 2D map",
+  "Hélico": "Helicopter",
+  "Poursuite": "Chase",
+  "Embarquée": "Onboard",
+  "Libre": "Free",
+  "Caméra": "Camera",
+  "Pilote suivi": "Followed driver",
+  "Pilote suivi (le même que sur la carte 2D et le classement)": "Followed driver (the same as on the 2D map and in the standings)",
+  "Relief réel · dénivelé {} m": "Real elevation · {} m difference",
+  "Piste à plat : relief pas encore calculé": "Flat track: elevation not computed yet",
   "ADN du circuit": "Circuit DNA",
   "preview du Grand Prix {}": "{} Grand Prix preview",
   "D'après Pirelli :": "According to Pirelli:",

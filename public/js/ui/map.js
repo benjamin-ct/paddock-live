@@ -6,13 +6,14 @@ import { loadTrack } from '../track.js';
 import { parseUtc, segmentClass } from '/shared/f1.js';
 import { hotLaps } from './tower.js';
 import { icon } from '../icons.js';
-import { DEC, tx } from '../i18n.js';
+import { DEC, tx, t } from '../i18n.js';
 
 const canvas = () => $('#mapCanvas');
 let ctx = null;
 let track = null;
 let trackKey = null;
 let zones = null;          // zones ligne droite / détection estimées (serveur)
+let elevation = null;      // altitude de chaque point du tracé (serveur ; vue 3D)
 let xf = null;
 let size = { w: 0, h: 0, dpr: 1 };
 let lastFrame = performance.now();
@@ -71,6 +72,7 @@ function ensureTrack() {
   trackKey = k;
   track = null;
   zones = null;
+  elevation = null;
   $('#mapEmpty').textContent = 'Chargement du tracé…';
   $('#mapEmpty').hidden = false;
   loadTrack(key, year).then((t) => {
@@ -83,6 +85,7 @@ function ensureTrack() {
       .then((v) => { if (trackKey === k) use(v); }, () => setTimeout(() => { if (trackKey === k) ask(what, use); }, 120e3));
     ask('loops', (l) => store.positions.setLoops(l));
     ask('zones', (z) => { zones = z; });
+    ask('elevation', (e) => { elevation = e; });
     xf = null;
     $('#mapEmpty').hidden = true;
   }).catch((err) => {
@@ -1428,6 +1431,7 @@ export function initMap() {
   let idleKey = '';
   const loop = (now) => {
     requestAnimationFrame(loop);
+    if (v3d.on) return;   // vue 3D affichée à la place
     if (xf && detail() < 2 && now - lastDraw < 1000 / 30 - 2) return;
     const ts = String(store.state.TrackStatus?.Status || '1');
     if (store.status?.paused && (ts === '1' || ts === '2')) {
@@ -1441,6 +1445,44 @@ export function initMap() {
     try { draw(); } catch (err) { console.error(err); }
   };
   requestAnimationFrame(loop);
+  init3d();
+}
+
+// Vue 3D (ui/map3d.js, chargée à la demande) à la place de la carte 2D, choix gardé ; retour en 2D, avec un message,
+// si WebGL manque ou si la carte graphique perd la vue. Pas dans la carte flottante ni l'overlay de streaming
+const v3d = { on: false, view: null, turn: 0, timer: 0 };
+function init3d() {
+  // Case « 3D » du panneau Circuit : vue 3D activée ou non, choix gardé
+  const tog = $('#map3dTog');
+  const html = document.documentElement;
+  if (!tog || html.classList.contains('float-map') || html.classList.contains('overlay')) return;
+  tog.hidden = false;
+  $('#map3dOpt').addEventListener('change', (e) => set3d(e.target.checked));
+  if (storageGet('paddock.map3d', {}).on) set3d(true);
+}
+
+async function set3d(on, msg = '') {
+  const turn = ++v3d.turn;
+  v3d.view?.close();
+  v3d.view = null;
+  v3d.on = on;
+  const box = $('#map3dMsg');
+  $('.p-map').classList.toggle('is-3d', on);
+  $('#map3dOpt').checked = on;
+  storageSet('paddock.map3d', { ...storageGet('paddock.map3d', {}), on });
+  box.textContent = msg;
+  box.hidden = !msg;
+  clearTimeout(v3d.timer);
+  if (msg) v3d.timer = setTimeout(() => { box.hidden = true; }, 8000);
+  if (!on) { xf = null; return; }
+  try {
+    const m = await import('./map3d.js');
+    if (turn !== v3d.turn) return;
+    v3d.view = m.open($('#map3d'), { getTrack: () => track, getElevation: () => elevation, onFail: (why) => set3d(false, why) });
+    if (!v3d.view) set3d(false, t('Vue 3D indisponible : cet appareil ne prend pas en charge WebGL'));
+  } catch (err) {
+    if (turn === v3d.turn) set3d(false, t('Vue 3D indisponible ({})', err.message));
+  }
 }
 
 export function currentTrack() {

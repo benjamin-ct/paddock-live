@@ -240,6 +240,7 @@
           <span class="map-mode" id="mapMode"></span>
           <label class="toggle" title="Centrer la carte sur le pilote suivi"><input type="checkbox" id="mapFollow"> Suivre</label>
           <button class="btn small" id="mapFloatBtn" hidden title="Carte flottante, par-dessus la vidéo"><svg class="ic" aria-hidden="true"><use href="#i-window"/></svg> Flottante</button>
+          <label class="toggle" id="map3dTog" hidden title="Vue 3D du circuit, avec le relief"><input type="checkbox" id="map3dOpt"> 3D</label>
           <details class="map-layers" id="mapLayers">
             <summary class="btn small" title="Éléments affichés sur la carte">Calques <svg class="ic ic-s" aria-hidden="true"><use href="#i-chevron-down"/></svg></summary>
             <div class="map-layers-menu">
@@ -264,6 +265,8 @@
       </div>
       <div class="panel-body map-wrap">
         <canvas id="mapCanvas"></canvas>
+        <div class="map3d" id="map3d"></div>
+        <div class="map3d-msg" id="map3dMsg" hidden></div>
         <canvas id="mapRibbon" class="map-ribbon" hidden aria-label="Ordre des voitures sur la piste"></canvas>
         <div class="map-legend" id="mapLegend"></div>
         <div class="map-flags" id="mapFlags"></div>
