@@ -492,9 +492,9 @@ export function deduceRunoff(track, { blocked }) {
       return [at(i)[0] - ((by - ay) / l) * side * off, at(i)[1] + ((bx - ax) / l) * side * off];
     };
     for (let i = 0; i < n; i++) {
-      for (let d = 3; d <= dep[i]; d += 3) {
+      for (let d = 1; d <= dep[i]; d += 3) {
         const [x, y] = line(i, RUNOFF + d);
-        if (blocked(x, y) || near(x, y, RUNOFF + d - 4).p) { dep[i] = d - 3; break; }
+        if (blocked(x, y) || near(x, y, RUNOFF + d - 4).p) { dep[i] = d - 1; break; }
       }
       if (dep[i] < 4) dep[i] = 0;
     }
@@ -680,7 +680,7 @@ export function buildSurroundings({ track, fit, frame, elements = [], dem, margi
   // Graviers et dégagements : ceux d'OSM (déjà dans areas), sinon déduits des virages
   if (!out.areas.gravel && !out.areas.runoff) {
     const walls = nearIndex([...barriers.map(([, pts]) => pts), ...deduced].flatMap((pts) => densify(pts, 2))), wet = inside(['water']);
-    const ground = deduceRunoff(track, { blocked: (x, y) => built(x, y) || wet(x, y) || !!walls(x, y, 2).p });
+    const ground = deduceRunoff(track, { blocked: (x, y) => built(x, y) || wet(x, y) || !!walls(x, y, 2.5).p });
     for (const kind of ['gravel', 'runoff']) if (ground[kind].length) out.areas[kind] = ground[kind].map(flat);
   }
   return out;
