@@ -5,6 +5,7 @@
 // Chargée seulement à l'ouverture de la vue (three.js). Mêmes positions que la carte 2D : GPS lissé, sinon estimées.
 import * as THREE from '/vendor/three/three.module.min.js';
 import { store, displayNow, setFocus } from '../store.js';
+import { smoothAlong } from '/shared/elevation.js';
 import { drivers, orderedNumbers, storageGet, storageSet, esc } from '../util.js';
 import { t } from '../i18n.js';
 import { FONT, drawPuck, drawBadge, drawSectorBadge, drawCornerChip, drawFlagBadge, drawScBadge } from './map-draw.js';
@@ -21,7 +22,8 @@ function buildWorld(track, elevation, surroundings) {
   const n = track.pts.length;
   const gps = Array.isArray(elevation?.z) && elevation.z.length === n ? elevation.z : null;
   const land = surroundings?.terrain?.h?.length && surroundings.track?.z?.length === n ? surroundings : null;
-  const z = gps || land?.track.z || null;
+  // Altitude lissée selon la distance le long du tracé (points très inégalement espacés : sinon, des marches)
+  const z = gps || land ? smoothAlong(track.pts.map((p) => [p.x / 10, p.y / 10]), gps || land.track.z) : null;
   const zMin = z ? Math.min(...z) : 0;
   // Terrain (1/10 m au-dessus de la mer) ramené au repère du GPS : écart médian le long du tracé
   const off = gps && land ? gps.map((v, i) => land.track.z[i] - v).sort((p, q) => p - q)[n >> 1] : 0;
@@ -36,7 +38,7 @@ function buildWorld(track, elevation, surroundings) {
   track.pts.forEach((p, i) => {
     const [x, zz] = toW(p.x, p.y);
     const v = new THREE.Vector3(x, z ? (z[i] - zMin) / 10 : 0, zz);
-    if (!ctrl.length || v.distanceTo(ctrl.at(-1)) > 0.5) ctrl.push(v);
+    if (!ctrl.length || v.distanceTo(ctrl.at(-1)) > 1.5) ctrl.push(v);
   });
   const curve = new THREE.CatmullRomCurve3(ctrl, true, 'centripetal');
   curve.arcLengthDivisions = 10000;
@@ -86,7 +88,7 @@ function buildWorld(track, elevation, surroundings) {
 
   const fromW = (x, zz) => { const X = x + cx, Z = zz + cz; return [X * cos - Z * sin, -X * sin - Z * cos]; };   // -> repère du tracé (m)
   const box = new THREE.Box3().setFromPoints(P);
-  const groundAt = land ? landGround(group, land, { track, P, toW, fromW, base: zMin + off }) : flatGround(group, P, box, z);
+  const groundAt = land ? landGround(group, land, { track, P, SIDE, toW, fromW, base: zMin + off }) : flatGround(group, P, box, z);
 
   const world = { track, elevation, surroundings, land: !!land, source: gps ? 'gps' : land ? 'terrain' : null,
     relief: z ? (Math.max(...z) - zMin) / 10 : null, P, T, SIDE, N, DS, box, group, groundAt, toW, ribbon, road };
@@ -113,14 +115,13 @@ function flatGround(group, P, box, z) {
   const MARGIN = 450, G = 160;
   const gx0 = box.min.x - MARGIN, gz0 = box.min.z - MARGIN;
   const gw = box.max.x - box.min.x + 2 * MARGIN, gd = box.max.z - box.min.z + 2 * MARGIN;
-  const sub = P.filter((_, i) => i % 14 === 0), near = P.filter((_, i) => i % 3 === 0);
+  const sub = P.filter((_, i) => i % 14 === 0);
   const H = new Float32Array((G + 1) * (G + 1)), DMIN = new Float32Array(H.length);
   const smooth = (lo, hi, x) => { const u = Math.min(1, Math.max(0, (x - lo) / (hi - lo))); return u * u * (3 - 2 * u); };
   for (let r = 0; r <= G; r++) {
     for (let c = 0; c <= G; c++) {
       const x = gx0 + (c / G) * gw, zz = gz0 + (r / G) * gd;
-      let dmin = Infinity, hn = 0;
-      for (const p of near) { const d2 = (p.x - x) ** 2 + (p.z - zz) ** 2; if (d2 < dmin) { dmin = d2; hn = p.y; } }
+      let [dmin, hn] = trackNear(P, x, zz);
       dmin = Math.sqrt(dmin);
       let far = hn;
       if (z) {
@@ -173,7 +174,7 @@ const hash = (i) => ((i * 2654435761) >>> 0) / 4294967296;
 // Sol des alentours : grille du relief (raccordée à la piste près du tracé), couleurs selon l'usage du sol (texture
 // dessinée ici), bâtiments et tribunes extrudés, arbres, plans d'eau, bord prolongé jusqu'à l'horizon. base : altitude
 // (1/10 m) du bas de la scène ; -> altitude du sol en (x, z)
-function landGround(group, land, { track, P, toW, fromW, base }) {
+function landGround(group, land, { track, P, SIDE, toW, fromW, base }) {
   const { x0, y0, step, cols, rows, h } = land.terrain;
   const W2 = (x, y) => toW(x * 10, y * 10);   // repère du tracé (m) -> scène
   const sea = -base / 10;                     // niveau de la mer dans la scène
@@ -187,17 +188,31 @@ function landGround(group, land, { track, P, toW, fromW, base }) {
   const smooth = (lo, hi, x) => { const u = Math.min(1, Math.max(0, (x - lo) / (hi - lo))); return u * u * (3 - 2 * u); };
   // Altitude de chaque nœud : celle du terrain ; jusqu'à une maille et plus du tracé, celle de la piste (les mailles que
   // la piste traverse n'ont que des nœuds à sa hauteur : ni piste qui flotte, ni piste enterrée), puis raccord en 100 m
-  const sub = P.filter((_, i) => i % 14 === 0), near = P.filter((_, i) => i % 3 === 0), flat = W / 2 + 1.2 * step;
+  const sub = P.filter((_, i) => i % 14 === 0), flat = W / 2 + 1.2 * step;
   const H = new Float32Array(count), pos = new Float32Array(count * 3), uv = new Float32Array(count * 2);
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
       const k = r * cols + c, [x, zz] = W2(x0 + c * step, y0 + r * step), far = wetAt[k] ? sea : (h[k] - base) / 10;
       let d2 = Infinity, hn = far;
       for (const p of sub) { const d = (p.x - x) ** 2 + (p.z - zz) ** 2; if (d < d2) { d2 = d; hn = p.y; } }
-      if (d2 < (flat + 150) ** 2) for (const p of near) { const d = (p.x - x) ** 2 + (p.z - zz) ** 2; if (d < d2) { d2 = d; hn = p.y; } }
+      if (d2 < (flat + 150) ** 2) [d2, hn] = trackNear(P, x, zz);
       H[k] = THREE.MathUtils.lerp(hn, far, smooth(flat, flat + 100, Math.sqrt(d2))) - 0.35;
       pos.set([x, H[k], zz], k * 3);
       uv.set([c / (cols - 1), 1 - r / (rows - 1)], k * 2);
+    }
+  }
+  // Triangle du sol sous (x, z) (scène) : ses trois nœuds et leur poids (les mêmes triangles que le maillage)
+  const cellAt = (x, zz) => {
+    const [mx, my] = fromW(x, zz), fc = (mx - x0) / step, fr = (my - y0) / step;
+    if (!(fc >= 0 && fr >= 0 && fc <= cols - 1 && fr <= rows - 1)) return null;
+    const c = Math.min(cols - 2, Math.floor(fc)), r = Math.min(rows - 2, Math.floor(fr)), u = fc - c, w = fr - r, i = r * cols + c;
+    return u + w <= 1 ? [i, i + 1, i + cols, 1 - u - w, u, w] : [i + cols + 1, i + cols, i + 1, u + w - 1, 1 - u, 1 - w];
+  };
+  // Sol jamais au-dessus de la piste ni des vibreurs (creux, fortes pentes : la grille fait 30 m) : nœuds abaissés
+  for (let i = 0; i < P.length; i++) {
+    for (const o of [-(W / 2 + 1.5), -W / 4, 0, W / 4, W / 2 + 1.5]) {
+      const t = cellAt(P[i].x + SIDE[i].x * o, P[i].z + SIDE[i].z * o), over = t && H[t[0]] * t[3] + H[t[1]] * t[4] + H[t[2]] * t[5] - (P[i].y - 0.3);
+      if (over > 0) for (let j = 0; j < 3; j++) { H[t[j]] -= over; pos[t[j] * 3 + 1] = H[t[j]]; }
     }
   }
   const idx = [];
@@ -282,12 +297,7 @@ function landGround(group, land, { track, P, toW, fromW, base }) {
   plain.position.y = H.reduce((lo, y) => Math.min(lo, y), edge) - 1;
   group.add(plain);
 
-  const groundAt = (x, zz) => {
-    const [mx, my] = fromW(x, zz), fc = (mx - x0) / step, fr = (my - y0) / step;
-    if (!(fc >= 0 && fr >= 0 && fc <= cols - 1 && fr <= rows - 1)) return edge;
-    const c = Math.min(cols - 2, Math.floor(fc)), r = Math.min(rows - 2, Math.floor(fr)), u = fc - c, w = fr - r, i = r * cols + c;
-    return (H[i] * (1 - u) + H[i + 1] * u) * (1 - w) + (H[i + cols] * (1 - u) + H[i + cols + 1] * u) * w;
-  };
+  const groundAt = (x, zz) => { const t = cellAt(x, zz); return t ? H[t[0]] * t[3] + H[t[1]] * t[4] + H[t[2]] * t[5] : edge; };
 
   // Bâtiments et tribunes : prismes posés sous le point le plus bas du sol, toit plat ; plans d'eau plats
   const corners = (flat) => { const out = []; for (let i = 0; i < flat.length; i += 2) out.push(W2(flat[i], flat[i + 1])); return out; };
@@ -350,6 +360,27 @@ function landGround(group, land, { track, P, toW, fromW, base }) {
     group.add(crowns, trunks);
   }
   return groundAt;
+}
+
+// Hauteur du ruban de piste en (x, z), près du point i du tracé : interpolée sur le segment où tombe le point (voitures,
+// caméras et sol lisent la même hauteur que la piste, sans marches) ; pente du segment (montée positive)
+function trackAt(P, i, x, z) {
+  const N = P.length;
+  for (const [a, b] of [[i, (i + 1) % N], [(i - 1 + N) % N, i]]) {
+    const A = P[a], B = P[b], dx = B.x - A.x, dz = B.z - A.z, l2 = dx * dx + dz * dz || 1, u = ((x - A.x) * dx + (z - A.z) * dz) / l2;
+    if (u >= 0 && u <= 1) return [A.y + (B.y - A.y) * u, (B.y - A.y) / Math.sqrt(l2)];
+  }
+  const B = P[(i + 1) % N];
+  return [P[i].y, (B.y - P[i].y) / (Math.hypot(B.x - P[i].x, B.z - P[i].z) || 1)];
+}
+
+// Distance au carré du point (x, z) au tracé et hauteur de la piste à cet endroit (recherche tous les 3 points, affinée)
+function trackNear(P, x, z) {
+  const N = P.length, d = (i) => (P[i].x - x) ** 2 + (P[i].z - z) ** 2;
+  let bi = 0;
+  for (let i = 3; i < N; i += 3) if (d(i) < d(bi)) bi = i;
+  for (let k = -2; k <= 2; k++) if (d((bi + k + N) % N) < d(bi)) bi = (bi + k + N) % N;
+  return [d(bi), trackAt(P, bi, x, z)[0]];
 }
 
 // Point du tracé le plus proche de (x, z) : recherche locale autour du dernier (hint), sinon sur tout le tour
@@ -805,10 +836,10 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
       const [x, z] = world.toW(g.x, g.y);
       const jump = !c.seen || Math.hypot(x - c.p.x, z - c.p.z) > 200;
       c.hint = nearestIndex(world, x, z, jump ? -1 : c.hint);
-      const i = c.hint, Ti = world.T[i];
-      c.p.set(x, world.P[i].y, z);
+      const i = c.hint, [y, slope] = trackAt(world.P, i, x, z);
+      c.p.set(x, y, z);
       // Cap : d'après la position 0,12 s avant et après (GPS), sinon le sens de la piste ; pente : celle du tracé
-      dir.copy(Ti);
+      dir.copy(world.T[i]);
       if (gps) {
         const b = gpsSmooth(num, disp - 120), f = gpsSmooth(num, disp + 120);
         if (b && f) {
@@ -816,7 +847,9 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
           if ((fx - bx) ** 2 + (fz - bz) ** 2 > 0.04) dir.set(fx - bx, 0, fz - bz).normalize();
         }
       }
-      dir.y = Ti.y / (Math.hypot(Ti.x, Ti.z) || 1);
+      dir.y = 0;
+      dir.normalize();
+      dir.y = slope * Math.sign(dir.x * world.T[i].x + dir.z * world.T[i].z || 1);   // pente dans le sens de la marche
       tmp.position.copy(c.p);
       tmp.lookAt(c.p.x + dir.x, c.p.y + dir.y, c.p.z + dir.z);
       if (jump) c.q.copy(tmp.quaternion); else c.q.slerp(tmp.quaternion, a);
@@ -865,7 +898,10 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
       const ease = (k) => (snap || k === Infinity ? 1 : 1 - Math.exp(-dtCam * k));
       camPos.lerp(want, ease(kPos));
       look.lerp(target, ease(kLook));
-      if (mode !== 'embarquee') camPos.y = Math.max(camPos.y, world.groundAt(camPos.x, camPos.z) + 1.2);
+      // Jamais sous le sol ni sous la piste (sommet d'une bosse entre la caméra et la voiture)
+      const ci = nearestIndex(world, camPos.x, camPos.z, focus.hint), [cy] = trackAt(world.P, ci, camPos.x, camPos.z);
+      const floor = Math.max(world.groundAt(camPos.x, camPos.z), (world.P[ci].x - camPos.x) ** 2 + (world.P[ci].z - camPos.z) ** 2 < (W / 2 + 3) ** 2 ? cy : -Infinity);
+      camPos.y = Math.max(camPos.y, floor + (mode === 'embarquee' ? 0.9 : 1.2));
       camera.position.copy(camPos);
       if (mode === 'embarquee') camera.up.copy(upL);
       camera.lookAt(look);

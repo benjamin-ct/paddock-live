@@ -54,3 +54,29 @@ export function elevationProfile(track, samples) {
   if (!n || seen < n * MIN_COVER) return null;
   return { z: smooth(fillGaps(z)).map(Math.round), n, samples: used, cover: Math.round((seen / n) * 100) / 100 };
 }
+
+// Altitude lissée selon la distance le long du tracé (vue 3D), et non selon le numéro du point : les points du tracé
+// MultiViewer sont très inégalement espacés (de 0,2 à 20 m), un profil lissé point par point y fait des marches de
+// plusieurs mètres entre deux points presque confondus. Moyenne pondérée (gaussienne de sigma m, chaque point compté
+// pour la longueur qu'il représente) sur la boucle : une pente régulière reste la même (Raidillon).
+// pts : [[x, y]] (m), z : altitude de chaque point -> altitudes lissées (même unité que z)
+export function smoothAlong(pts, z, sigma = 12) {
+  const n = pts.length, s = new Float64Array(n + 1);
+  for (let i = 1; i <= n; i++) s[i] = s[i - 1] + Math.hypot(pts[i % n][0] - pts[i - 1][0], pts[i % n][1] - pts[i - 1][1]);
+  const L = s[n], len = (j) => (s[j + 1] - s[(j - 1 + n) % n] + (j ? 0 : L)) / 2;   // longueur représentée par le point j
+  return z.map((_, i) => {
+    let sw = 0, sz = 0;
+    for (let k = 0; k < n; k++) {   // de part et d'autre de i, jusqu'à 3 sigma
+      let stop = 0;
+      for (const j of k ? [(i + k) % n, (i - k + n) % n] : [i]) {
+        const d = Math.min(Math.abs(s[j] - s[i]), L - Math.abs(s[j] - s[i]));
+        if (d > 3 * sigma) { stop++; continue; }
+        const w = Math.exp(-0.5 * (d / sigma) ** 2) * (len(j) || 1e-3);
+        sw += w;
+        sz += w * z[j];
+      }
+      if (stop === 2 || 2 * k + 1 >= n) break;
+    }
+    return sz / sw;
+  });
+}
