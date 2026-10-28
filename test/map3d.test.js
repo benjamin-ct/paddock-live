@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { QUALITY, nearFirst, autoQuality, frameCap, weatherState } from '../public/js/ui/map3d-calc.js';
+import { QUALITY, nearFirst, autoQuality, frameCap, weatherState, compoundOf } from '../public/js/ui/map3d-calc.js';
 
 // Images à cadence fixe (fps) pendant ms, à partir de t ; -> [instant de fin, niveaux choisis en route]
 function run(auto, t, ms, fps, cap = Infinity) {
@@ -111,4 +111,17 @@ test('météo : réelle d\'après la F1 (pluie, pneus montés, nuages prévus), 
   assert.equal(weatherState('reelle', { rainfall: '0', cloud: null }).cloud, 0);
   assert.deepEqual(weatherState('sec', { rainfall: '1' }), { rain: 0, wet: 0, cloud: 0 });
   assert.deepEqual(weatherState('pluie', { rainfall: '0' }), { rain: 1, wet: 1, cloud: 1 });
+});
+
+test('pneus : composé du relais en cours', () => {
+  assert.equal(compoundOf(null), null);
+  assert.equal(compoundOf({ 0: { Compound: 'MEDIUM', TotalLaps: 12 } }), 'MEDIUM');
+  // Objet indexé (direct) : le relais 10 après le 9, pas dans l'ordre des clés en texte
+  const st = Object.fromEntries(Array.from({ length: 11 }, (_, i) => [String(i), { Compound: i === 10 ? 'HARD' : 'SOFT' }]));
+  assert.equal(compoundOf(st), 'HARD');
+  // Arrêt : nouveau relais encore sans composé -> celui d'avant, puis le nouveau
+  assert.equal(compoundOf([{ Compound: 'SOFT' }, { TotalLaps: 0 }]), 'SOFT');
+  assert.equal(compoundOf([{ Compound: 'SOFT' }, { Compound: 'INTERMEDIATE' }]), 'INTERMEDIATE');
+  assert.equal(compoundOf([{ Compound: 'wet' }]), 'WET');
+  assert.equal(compoundOf([{ Compound: 'UNKNOWN' }]), null);
 });

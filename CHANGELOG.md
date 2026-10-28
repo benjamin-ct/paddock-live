@@ -80,7 +80,9 @@ l'application (Réglages → À propos → Nouveautés).
 - Carte en 3D (case « 3D » du panneau Circuit, à cocher ou décocher, choix gardé) : la piste avec son vrai relief, qui
   monte et descend en pente continue, sans marches (le Raidillon de Spa monte comme en vrai), ses vibreurs et la ligne
   d'arrivée, et des voitures en forme de vraie F1 2026 aux couleurs des écuries (nez fin, ailerons à plusieurs
-  éléments, pontons, halo, roues larges, casque du pilote), en direct comme en replay. Quatre caméras autour du pilote
+  éléments, pontons, halo, roues larges, casque du pilote), en direct comme en replay. Sur le flanc des pneus, un
+  liseré de la couleur du composé monté (tendre rouge, medium jaune, dur blanc, intermédiaire vert, pluie bleu),
+  qui change à chaque arrêt. Quatre caméras autour du pilote
   suivi (choisi dans la liste de la vue 3D ou dans le classement) : Hélico, Poursuite, Embarquée et Libre (glisser
   pour tourner, molette ou pincement pour zoomer, clic droit pour se déplacer, double-clic pour revoir tout le
   circuit). Autour de la piste, ce qu'il y a vraiment, d'après OpenStreetMap (cartes OpenFreeMap) : le relief du

@@ -8,10 +8,10 @@ import * as THREE from '/vendor/three/three.module.min.js';
 import { store, displayNow, f1Now, setFocus } from '../store.js';
 import { CIRCUITS } from '/shared/circuits-info.js';
 import { smoothAlong } from '/shared/elevation.js';
-import { drivers, orderedNumbers, storageGet, storageSet, esc, api, stintsOf } from '../util.js';
+import { drivers, orderedNumbers, storageGet, storageSet, esc, api, COMPOUNDS } from '../util.js';
 import { t } from '../i18n.js';
 import { FONT, drawPuck, drawBadge, drawSectorBadge, drawCornerChip, drawFlagBadge, drawScBadge } from './map-draw.js';
-import { QUALITY, nearFirst, autoQuality, frameCap, weatherState } from './map3d-calc.js';
+import { QUALITY, nearFirst, autoQuality, frameCap, weatherState, compoundOf } from './map3d-calc.js';
 
 const W = 14;           // largeur de la piste (m)
 const MAX_CARS = 30;
@@ -577,9 +577,9 @@ function nearestIndex(world, x, z, hint) {
 
 // ---------- Voiture : F1 2026 faite maison (5,4 × 1,9 m, empattement 3,4 m), jamais de livrée ni de logo ----------
 // Avant vers +z, sol en y = 0. -> [carrosserie (couleur de l'écurie), pièces sombres (carbone, pneus, jantes, casque :
-// couleur de chaque sommet), feux arrière]
+// couleur de chaque sommet), feux arrière, liserés des pneus (couleur du composé)]
 function carGeometries() {
-  const parts = [[], [], []];
+  const parts = [[], [], [], []];
   const CARBON = new THREE.Color(0x1c1e22), TYRE = new THREE.Color(0x0d0d0e), RIM = new THREE.Color(0x6c737c), HELMET = new THREE.Color(0xe9e9e6);
   const add = (k, geo, m, color) => {
     const g = geo.index ? geo.toNonIndexed() : geo;
@@ -686,6 +686,7 @@ function carGeometries() {
       const x = s * (0.95 - w / 2);
       add(1, new THREE.CylinderGeometry(0.36, 0.36, w, 20), at(x, 0.36, z, 0, 0, Math.PI / 2), TYRE);
       add(1, new THREE.CylinderGeometry(0.23, 0.23, w + 0.012, 14), at(x, 0.36, z, 0, 0, Math.PI / 2), RIM);
+      for (const f of [s, -s]) add(3, new THREE.RingGeometry(0.27, 0.31, 24), at(x + f * (w / 2 + 0.003), 0.36, z, 0, f * Math.PI / 2, 0));   // liserés du composé, sur les deux flancs
       const hub = s * (0.95 - w - 0.02), lo = z > 0 ? 1 : -1;
       for (const [y0, y1] of [[0.5, 0.5], [0.28, 0.22]]) {
         rod([s * 0.18, y0, z + 0.25 * lo], [hub, y1, z]);
@@ -981,11 +982,12 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
 
   // ---------- Voitures : trois maillages instanciés (carrosserie à la couleur de l'écurie ; carbone, pneus, jantes et
   // casque ; feux arrière, allumés la nuit) ----------
-  const [bodyGeo, darkGeo, lightGeo] = carGeometries();
+  const [bodyGeo, darkGeo, lightGeo, stripeGeo] = carGeometries();
   const bodies = new THREE.InstancedMesh(bodyGeo, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.35, metalness: 0.3 }), MAX_CARS);
   const darks = new THREE.InstancedMesh(darkGeo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.2 }), MAX_CARS);
   const tails = new THREE.InstancedMesh(lightGeo, new THREE.MeshBasicMaterial({ color: 0x4a0b0b }), MAX_CARS);
-  const carMeshes = [bodies, darks, tails];
+  const stripes = new THREE.InstancedMesh(stripeGeo, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6 }), MAX_CARS);
+  const carMeshes = [bodies, darks, tails, stripes];
   for (const m of carMeshes) { m.castShadow = m !== tails; m.frustumCulled = false; m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); scene.add(m); }
   const HIDDEN = new THREE.Matrix4().makeScale(0, 0, 0);
   const cars = new Map();   // num -> { k, q, p, hint, tag (pastille, comme sur la carte 2D), look (son dessin), seen }
@@ -1004,6 +1006,7 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
       tag.renderOrder = 10;
       scene.add(tag);
       bodies.setColorAt(k, new THREE.Color(hex));
+      stripes.setColorAt(k, new THREE.Color(0x0d0d0e));   // composé pas encore connu : couleur du pneu
       cars.set(num, { k, q: new THREE.Quaternion(), p: new THREE.Vector3(), hint: -1, tag, look: '', seen: false });
     });
     if (bodies.instanceColor) bodies.instanceColor.needsUpdate = true;
@@ -1197,6 +1200,13 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
         tex.needsUpdate = true;
       }
       c.tag.material.opacity = L?.hot && !L.hot.has(num) && !sp ? 0.3 : 1;
+      // Liserés des pneus : couleur du composé monté (tendre rouge, medium jaune, dur blanc, intermédiaire vert, pluie bleu)
+      const tyre = compoundOf(store.state.TimingAppData?.Lines?.[num]?.Stints);
+      if (tyre !== c.tyre) {
+        c.tyre = tyre;
+        stripes.setColorAt(c.k, new THREE.Color(COMPOUNDS[tyre]?.color || 0x0d0d0e));
+        stripes.instanceColor.needsUpdate = true;
+      }
     }
     for (const [num, c] of cars) {
       const l = lines[num] || {};
@@ -1379,7 +1389,7 @@ function weatherFx(host, scene, { skyMat, sun, hemi, stars }) {
           api(`/api/forecast?lat=${pl.lat}&lon=${pl.lon}`).then((d) => { fc.cloud = d?.current?.cloud ?? null; }, () => {});
         }
         const app = store.state.TimingAppData?.Lines || {}, tl = store.state.TimingData?.Lines || {};
-        const compounds = Object.keys(app).filter((n) => !tl[n]?.Retired && !tl[n]?.KnockedOut).map((n) => stintsOf(app[n]).at(-1)?.Compound).filter(Boolean);
+        const compounds = Object.keys(app).filter((n) => !tl[n]?.Retired && !tl[n]?.KnockedOut).map((n) => compoundOf(app[n].Stints)).filter(Boolean);
         target = weatherState(sel.value, { rainfall: store.state.WeatherData?.Rainfall, compounds, cloud: replay ? null : fc.cloud });
         sel.title = sel.value === 'reelle' ? t('Météo de la séance : {}', t(target.rain ? 'pluie' : target.wet > 0.3 ? 'piste mouillée' : target.cloud > 0.5 ? 'nuageux' : 'sec')) : '';
       }
@@ -1388,7 +1398,7 @@ function weatherFx(host, scene, { skyMat, sun, hemi, stars }) {
       for (const key of ['rain', 'wet', 'cloud']) cur[key] += (target[key] - cur[key]) * k;
       // Lumière plus terne et grise, brouillard plus proche sous la pluie, nuages, étoiles cachées
       const c = cur.cloud;
-      sun.intensity = amb.keyI * (1 - 0.72 * c);
+      sun.intensity = amb.keyI * (1 - 0.82 * c);
       hemi.color.copy(amb.sky).lerp(grey.setScalar(lum(amb.sky)), 0.6 * c);
       hemi.intensity = amb.hemiI * (1 + 0.1 * c);
       stars.material.opacity = amb.stars * (1 - c);
@@ -1401,11 +1411,12 @@ function weatherFx(host, scene, { skyMat, sun, hemi, stars }) {
       U.wet.value = cur.wet;
       U.wTop.value.copy(amb.top).lerp(grey.setScalar(lum(amb.top)), c);
       U.wHor.value.copy(amb.hor).lerp(grey.setScalar(lum(amb.hor)), 0.7 * c);
-      world.road.material.roughness = 0.92 - 0.6 * cur.wet;
+      world.road.material.roughness = 0.92 - 0.47 * cur.wet;
       // Pluie qui tombe (un tiers des traits en Économe), un peu penchée
       rain.visible = cur.rain > 0.02;
       if (rain.visible) {
         rain.material.opacity = 0.6 * cur.rain;
+        rain.material.color.setScalar(0.2 + 0.75 * Math.min(1, lum(amb.sky)));   // gouttes éclairées comme le reste (sombres la nuit)
         const n = level ? NR : NR / 3, pos = rainGeo.attributes.position.array, cp = camera.position;
         const wrap = (v, o, low = BOX / 2) => ((((v - o) % BOX) + BOX * 2) % BOX) - low + o;
         for (let i = 0; i < n; i++) {

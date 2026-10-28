@@ -79,3 +79,14 @@ export function weatherState(choice, { rainfall = null, compounds = [], cloud = 
   const sky = cloud !== null && Number.isFinite(Number(cloud)) ? Math.min(1, Math.max(0, Number(cloud) / 100)) : 0;
   return { rain, wet, cloud: Math.max(rain, wet * 0.85, sky) };
 }
+
+// Pneus montés : composé du dernier relais qui en donne un (Stints de TimingAppData, tableau ou objet indexé ; le
+// relais d'après un arrêt arrive parfois avant son composé) ; null si inconnu
+export function compoundOf(stints) {
+  const arr = Array.isArray(stints) ? stints : Object.keys(stints || {}).sort((a, b) => a - b).map((k) => stints[k]);
+  for (let i = arr.length - 1; i >= 0; i--) {
+    const c = arr[i]?.Compound;
+    if (c) return /UNKNOWN/i.test(c) ? null : String(c).toUpperCase();
+  }
+  return null;
+}
