@@ -531,7 +531,9 @@ code { background: var(--panel-3); padding: 1px 5px; border-radius: 4px; font-si
 .stats-bar .stats-details { margin-right: auto; }
 .stats-later { position: absolute; top: 8px; right: 8px; }
 @keyframes stats-in { from { opacity: 0; transform: translateY(10px); } }
-@media (max-width: 900px) { .stats-bar { right: 8px; left: 8px; width: auto; bottom: calc(76px + env(safe-area-inset-bottom)); } }
+@media (max-width: 900px) { .stats-bar { right: 8px; left: 8px; width: auto; bottom: calc(76px + env(safe-area-inset-bottom)); }
+  /* Pendant un replay : au-dessus de sa barre de lecture */
+  body:has(#replayBar:not([hidden])) .stats-bar { bottom: calc(76px + var(--replaybar-h, 84px) + env(safe-area-inset-bottom)); } }
 @media (prefers-reduced-motion: reduce) { .stats-bar { animation: none; } }
 :root[data-motion="off"] .stats-bar { animation: none; }
 .modal-body { padding: 12px 16px 16px; }
@@ -1089,11 +1091,15 @@ body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-selec
 .sz-big { font-size: 24px; font-weight: 900; display: flex; align-items: center; gap: 8px; }
 .sz-big small { font-size: 13px; font-weight: 600; color: var(--muted); }
 .sz-count { background: linear-gradient(135deg, #d4110a, #7d0703); border-color: #e21a12; grid-column: span 2; }
+/* Accueil de la Saison : deux rangées pleines (compte à rebours et Course au titre sur deux colonnes) */
+.sz-home-cards { grid-template-columns: repeat(4, 1fr); }
+.sz-home-cards .sz-wide { grid-column: span 2; }
 .sz-kicker { font-weight: 700; }
 .sz-badge { background: rgba(0,0,0,.3); border-radius: 5px; padding: 1px 6px; font-size: 12px; margin-right: 4px; }
 .sz-countdown { display: flex; gap: 18px; margin-top: 6px; }
 .sz-countdown span { display: flex; flex-direction: column; }
 .sz-countdown b { font-size: 34px; font-weight: 900; line-height: 1; font-variant-numeric: tabular-nums; }
+.sz-countdown b i { display: inline-block; font-style: normal; }   /* un chiffre par case (animé seul quand il change) */
 .sz-countdown small { font-size: 11px; text-transform: uppercase; opacity: .8; letter-spacing: .5px; }
 .sz-when { opacity: .85; }
 .sz-progress { height: 6px; background: var(--panel-3); border-radius: 3px; overflow: hidden; margin: 4px 0; }
@@ -1260,6 +1266,8 @@ body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-selec
 /* ---------- Saison : statistiques détaillées ---------- */
 .sz-nav-sep { margin: 12px 10px 4px; font-size: 10.5px; font-weight: 800; letter-spacing: .6px; text-transform: uppercase; color: var(--muted); }
 .sz-kpis { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
+/* Bilan : 6 cartes, au plus 3 par rangée (deux rangées pleines) */
+.sz-review-kpis { grid-template-columns: repeat(auto-fit, minmax(max(150px, calc((100% - 24px) / 3)), 1fr)); }
 .sz-kpi { min-height: 0; }
 .sz-kpi .sz-big { font-size: 24px; }
 .sz-drv-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; padding: 14px 16px; border-radius: 12px; border: 1px solid var(--border);
@@ -1329,7 +1337,7 @@ body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-selec
 .sz-up { color: var(--green); }
 .sz-down { color: var(--red); }
 .sz-h2h-grades > div { flex: 1; }
-.sz-gap-chart { min-width: 620px; }
+.sz-gap-chart { min-width: 420px; }
 .sz-svg .sz-clip { fill: #fff; font-weight: 800; paint-order: stroke; stroke: rgba(0,0,0,.45); stroke-width: 2px; }
 .sz-h2h-grades > span { width: auto; min-width: 34px; }
 .linkish { background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; font: inherit; }
@@ -1442,9 +1450,9 @@ html:not(.phone) [data-phone] { display: none !important; }
 html.phone [data-desk] { display: none !important; }
 /* Ordinateur, mode Essentiel : le principal seulement (data-expert : mode Complet) */
 html.essential [data-expert] { display: none !important; }
-/* Mode Essentiel : classement compact (code pilote, écart, secteurs en couleur, pneus), sans nom complet ni mini-secteurs ;
-   agrandi (⤢) : les colonnes choisies dans son menu */
-html.essential:not(.ess-quali):not(.ess-big) .p-tower:not(.maximized) .tower :is(.c-int, .c-last, .c-best, .c-pits, .c-speed, .c-duel, .drv-last) { display: none !important; }
+/* Mode Essentiel : classement compact (code pilote, écart et intervalle avec la voiture devant, secteurs en couleur,
+   pneus), sans nom complet ni mini-secteurs ; agrandi (⤢) : les colonnes choisies dans son menu */
+html.essential:not(.ess-quali):not(.ess-big) .p-tower:not(.maximized) .tower :is(.c-last, .c-best, .c-pits, .c-speed, .c-duel, .drv-last) { display: none !important; }
 /* Essentiel, essais et qualifs : meilleur tour, écart et intervalle, secteurs en couleur (sans mini-secteurs) ;
    en qualifs (colonnes Q1-Q3), le tour en cours (temps prévu et position visée) */
 html.essential.ess-quali:not(.ess-big) .p-tower:not(.maximized) .tower :is(.c-last, .c-speed, .c-duel, .drv-last),
@@ -1481,6 +1489,8 @@ html[data-design="classic"] .rc-bar { display: none !important; }
   .topbar .session { order: 1; flex: 1 1 0; min-width: 0; max-width: none !important; }
   .topbar .tb-break.b1 { order: 2; }
   .topbar .tb-break.b2 { order: 4; }
+  /* En course : les tours remplacent le temps restant, le délai TV remonte sur la 2e ligne (une ligne de moins) */
+  html.sess-race .topbar .clock-box, html.sess-race .topbar .tb-break.b2 { display: none !important; }
   .topbar .session-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 15px; }
   .topbar .track-status { order: 1; min-width: 0; padding: 5px 9px; font-size: 12px; }
   .topbar .hstat { order: 3; }
@@ -1581,6 +1591,8 @@ html[data-design="classic"] .rc-bar { display: none !important; }
   .sz-main { padding: 10px !important; }
   .sz-cards { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)) !important; }
   .sz-count { grid-column: 1 / -1 !important; }
+  .sz-home-cards { grid-template-columns: repeat(2, 1fr) !important; }
+  .sz-results :is(th, td):nth-child(3) { display: none; }   /* Résultats : la date laisse la place au vainqueur */
   .sz-upd { grid-template-columns: 1fr; }
   .sz-circs { grid-template-columns: 1fr; }
   .sz-hbar { grid-template-columns: 96px 1fr 64px; font-size: 12px; }
@@ -1640,8 +1652,10 @@ html[data-design="classic"] .rc-bar { display: none !important; }
 @media (hover: none) and (pointer: coarse) {
   #shortcutsBlock { display: none !important; }
 }
+/* Téléphones courants (jusqu'à 420 px) : colonnes serrées, la colonne Arrêts tient dans l'écran */
+@media (max-width: 420px) { .grid.mobile .tower td, .grid.mobile .tower th { padding-left: 3px; padding-right: 3px; } }
 @media (max-width: 380px) {
-  .grid.mobile .tower td, .grid.mobile .tower th { padding-left: 3px; padding-right: 3px; }
+  .grid.mobile .tower .c-tags .tag { font-size: 9px; letter-spacing: 0; padding: 0 3px; }
   .replaybar .rp-side .btn.small, .rp-speed { padding: 0 5px; }
   .replaybar .rp-side { gap: 5px; }
 }
@@ -2515,6 +2529,43 @@ kbd .ic { width: 12px; height: 12px; opacity: 1; }
   :root:not([data-motion="off"]) .toggle input[type="checkbox"]::after { transition: transform .22s var(--ease-spring), background .16s; }
   /* Triangles des places gagnées / perdues */
   :root:not([data-motion="off"]) .tower tr:is(.flash-up, .flash-down) .ic:is(.i-tri-up, .i-tri-down) { animation: tri-bump .6s var(--ease-spring); }
+
+  /* Saison, à l'ouverture d'une rubrique : cartes en cascade, courbes qui se tracent, barres qui se remplissent */
+  :root:not([data-motion="off"]) .sz-main.sz-anim .sz-cards > * { animation: rise-in .4s var(--ease-out) both; }
+  :root:not([data-motion="off"]) .sz-main.sz-anim .sz-cards > :nth-child(2) { animation-delay: .04s; }
+  :root:not([data-motion="off"]) .sz-main.sz-anim .sz-cards > :nth-child(3) { animation-delay: .08s; }
+  :root:not([data-motion="off"]) .sz-main.sz-anim .sz-cards > :nth-child(4) { animation-delay: .12s; }
+  :root:not([data-motion="off"]) .sz-main.sz-anim .sz-cards > :nth-child(5) { animation-delay: .16s; }
+  :root:not([data-motion="off"]) .sz-main.sz-anim .sz-cards > :nth-child(n+6) { animation-delay: .2s; }
+  :root:not([data-motion="off"]) .sz-main.sz-anim svg polyline[pathLength] { stroke-dasharray: 1; stroke-dashoffset: 1; animation: line-draw 1.1s cubic-bezier(.45, .05, .25, 1) .15s forwards; }
+  :root:not([data-motion="off"]) .sz-main.sz-anim svg polyline[stroke-dasharray] { animation: reveal-x 1.1s cubic-bezier(.45, .05, .25, 1) .15s both; }
+  :root:not([data-motion="off"]) .sz-main.sz-anim :is(.sz-hb-t > i, .sz-progress > i, .sz-meter i, .tr-bar > i, .sz-h2h-track > i.b) { animation: reveal-x .8s var(--ease-out) .12s both; }
+  :root:not([data-motion="off"]) .sz-main.sz-anim .sz-h2h-track > i.a { animation: reveal-x-rev .8s var(--ease-out) .12s both; }
+  /* Duels, écart en qualification : chaque barre pousse depuis l'axe (vers le haut ou vers le bas) */
+  :root:not([data-motion="off"]) .sz-main.sz-anim .sz-gap-chart rect { transform-box: fill-box; animation: grow-y .6s var(--ease-out) .15s both; }
+  :root:not([data-motion="off"]) .sz-main.sz-anim .sz-gap-chart rect.up { transform-origin: center bottom; }
+  :root:not([data-motion="off"]) .sz-main.sz-anim .sz-gap-chart rect.dn { transform-origin: center top; }
+  /* Résultats de la séance, à l'ouverture : podium qui monte (2e, 3e puis vainqueur, avec un reflet), stratégies qui se déroulent */
+  :root:not([data-motion="off"]) .rp-anim .rp-pod { animation: pod-in .55s var(--ease-spring) both; }
+  :root:not([data-motion="off"]) .rp-anim .rp-pod.p2 { animation-delay: .05s; }
+  :root:not([data-motion="off"]) .rp-anim .rp-pod.p3 { animation-delay: .13s; }
+  :root:not([data-motion="off"]) .rp-anim .rp-pod.p1 { animation-delay: .22s; overflow: hidden; }
+  :root:not([data-motion="off"]) .rp-anim .rp-pod.p1::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, .22) 50%, transparent 65%); transform: translateX(-100%); animation: sheen .9s ease-out .7s both; }
+  :root:not([data-motion="off"]) .rp-anim :is(.rp-left, .rp-right) > * { animation: rise-in .45s var(--ease-out) .1s both; }
+  :root:not([data-motion="off"]) .rp-anim .rp-stints { animation: reveal-x .9s var(--ease-out) .35s both; }
+  /* Accueil, à l'ouverture : les cartes arrivent l'une après l'autre */
+  :root:not([data-motion="off"]) .hm-main.hm-anim > * { animation: rise-in .45s var(--ease-out) both; }
+  :root:not([data-motion="off"]) .hm-main.hm-anim > :nth-child(2) { animation-delay: .05s; }
+  :root:not([data-motion="off"]) .hm-main.hm-anim > :nth-child(3) { animation-delay: .1s; }
+  :root:not([data-motion="off"]) .hm-main.hm-anim > :nth-child(4) { animation-delay: .15s; }
+  :root:not([data-motion="off"]) .hm-main.hm-anim > :nth-child(n+5) { animation-delay: .2s; }
+  /* Comptes à rebours : le chiffre qui change descend en place */
+  :root:not([data-motion="off"]) .sz-countdown b i.chg { animation: digit-in .35s var(--ease-out); }
+  /* Téléphone : le panneau choisi dans la bande du haut glisse en place */
+  :root:not([data-motion="off"]) .grid.mobile .panel.mob-in { animation: view-in .26s var(--ease-out); }
+  /* Boutons principaux : reflet qui balaie le bouton au survol */
+  :root:not([data-motion="off"]) .btn-accent { background-image: linear-gradient(105deg, transparent 38%, rgba(255, 255, 255, .28) 50%, transparent 62%); background-size: 250% 100%; background-position: 130% 0; background-repeat: no-repeat; transition: background-color .15s, border-color .15s, background-position .7s var(--ease-out), transform .12s var(--ease-out); }
+  :root:not([data-motion="off"]) .btn-accent:hover { background-position: -30% 0; }
 }
 :root[data-motion="off"] *, :root[data-motion="off"] *::before, :root[data-motion="off"] *::after { animation-duration: 0s !important; animation-delay: 0s !important; transition-duration: 0s !important; }
 @keyframes rise-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
@@ -2528,6 +2579,13 @@ kbd .ic { width: 12px; height: 12px; opacity: 1; }
 @keyframes badge-pop { 0% { transform: scale(.6); } 60% { transform: scale(1.25); } 100% { transform: scale(1); } }
 @keyframes ripple { from { transform: scale(1); opacity: .8; } to { transform: scale(2.8); opacity: 0; } }
 @keyframes tri-bump { 0% { transform: translateY(0); } 40% { transform: translateY(-3px); } 100% { transform: none; } }
+@keyframes line-draw { to { stroke-dashoffset: 0; } }
+@keyframes reveal-x { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+@keyframes reveal-x-rev { from { clip-path: inset(0 0 0 100%); } to { clip-path: inset(0 0 0 0); } }
+@keyframes grow-y { from { transform: scaleY(0); } to { transform: none; } }
+@keyframes pod-in { from { opacity: 0; transform: translateY(22px) scale(.95); } to { opacity: 1; transform: none; } }
+@keyframes sheen { to { transform: translateX(100%); } }
+@keyframes digit-in { from { opacity: 0; transform: translateY(-45%); } to { opacity: 1; transform: none; } }
 
 /* =====================================================================================
    Pitwall clair : mêmes formes, fond gris très clair, panneaux blancs, couleurs de
@@ -2835,6 +2893,7 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; gap: 5
 .nl-icon .ic { width: 26px; height: 26px; }
 .nl-next { font-size: 15px; line-height: 1.5; }
 .nl-count { font-size: 30px; font-weight: 900; color: var(--accent); font-variant-numeric: tabular-nums; margin: 2px 0 6px; }
+#noLiveBox .cal-days { flex-wrap: wrap; justify-content: center; margin: 4px 0 10px; }   /* programme du week-end */
 .nl-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 12px; }
 .nl-actions .btn { display: inline-flex; align-items: center; gap: 7px; }
 .hm-main { width: 100%; max-width: 1100px; margin: 0 auto; padding: 22px 24px 40px; display: flex; flex-direction: column; gap: 14px; }
@@ -3175,6 +3234,7 @@ html.float-mini .float-bar { top: auto; bottom: 4px; right: 24px; }   /* en bas 
   .set-brand { display: none; }
   #settingsModal .set-nav { flex-direction: row; overflow-x: auto; scrollbar-width: none; gap: 6px; }
   #settingsModal .set-nav::-webkit-scrollbar { display: none; }
+  #settingsModal .set-nav { mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent); }   /* d'autres rubriques à droite */
   #settingsModal .set-tab { width: auto; flex: none; padding: 6px 12px 6px 6px; border-radius: 999px; }
   #settingsModal .set-tab.active { box-shadow: 0 0 0 1px var(--border); }
   .set-ico { width: 26px; height: 26px; border-radius: 50%; }

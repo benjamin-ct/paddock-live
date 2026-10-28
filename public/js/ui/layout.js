@@ -326,6 +326,11 @@ export function showMobilePanel(id) {
   mobTab = id;
   storageSet(MOB_KEY, id);
   render(true);
+  // Panneau choisi : glisse en place
+  if (!mobile()) return;
+  const el = panelEl(id);
+  el?.classList.add('mob-in');
+  setTimeout(() => el?.classList.remove('mob-in'), 300);
 }
 
 function renderMobile(grid) {
@@ -403,6 +408,7 @@ function render(force = false) {
   document.documentElement.classList.toggle('simple', simple());
   document.documentElement.classList.toggle('essential', essential());
   document.documentElement.classList.toggle('ess-quali', essential() && profile === 'quali');
+  document.documentElement.classList.toggle('sess-race', profile === 'race');
   document.documentElement.classList.toggle('ess-big', essential() && big());
   renderKey = key;
   if (mobile()) { renderMobile(grid); return; }

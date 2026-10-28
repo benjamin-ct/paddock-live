@@ -5,7 +5,7 @@
 import { $, esc, api, teamColor, teamLogo, photoUrl, placeView, driverOpt } from '../util.js';
 import { store } from '../store.js';
 import { renderDrivers, renderConsistency, renderPits, renderSpeeds, renderCircuits, renderRatings, gradeBadge, stopTxt, DHL_NOTE, statusFr, fmtLap } from './season-stats.js';
-import { driverRatings, qualiGaps, titleRace, placeForMaxPoints, retired, standingsAfter, lineage, pointsPath } from '/shared/season-calc.js';
+import { driverRatings, qualiGaps, titleRace, placeForMaxPoints, retired, standingsAfter, lineage, pointsPath, shortTeams } from '/shared/season-calc.js';
 import { renderTech, renderElements, setTechFilter, translateTechDetail, toggleTechOriginal } from './season-fia.js';
 import { icon } from '../icons.js';
 import { renderPredict, initPredict } from './predict-view.js';
@@ -65,26 +65,26 @@ async function loadPrev() {
   if (prev?.year === y || prev?.loading === y) return;
   prev = { loading: y };
   try {
-    const d = await api(`/api/season?year=${y}`);
+    const d = shortTeams(await api(`/api/season?year=${y}`));
     if (prev?.loading === y) prev = d;
   } catch (err) {
     if (prev?.loading === y) prev = { year: y, error: err.message };
   }
-  if (section === 'drivers' && !$('#seasonView').hidden) render();
+  if (section === 'drivers' && !$('#seasonView').hidden) { animate(); render(); }
 }
 // Championnat des casseurs : dégâts estimés de l'année affichée, lus une fois sur le serveur
 async function loadDest(y) {
   if (dest?.year === y) return;
   dest = { year: y, loading: true };
-  try { dest = await api(`/api/season/destructors?year=${y}`); } catch (err) { dest = { year: y, error: err.message }; }
-  if (section === 'destructors' && !$('#seasonView').hidden) render();
+  try { dest = shortTeams(await api(`/api/season/destructors?year=${y}`)); } catch (err) { dest = { year: y, error: err.message }; }
+  if (section === 'destructors' && !$('#seasonView').hidden) { animate(); render(); }
 }
 // Saison comparée (Comparer deux saisons) : chargée une fois, gardée pour la session
 async function loadOther(y) {
   if (others.has(y)) return;
   others.set(y, { loading: true });
-  try { others.set(y, await api(`/api/season?year=${y}`)); } catch (err) { others.set(y, { error: err.message }); }
-  if (section === 'compare' && !$('#seasonView').hidden) render();
+  try { others.set(y, shortTeams(await api(`/api/season?year=${y}`))); } catch (err) { others.set(y, { error: err.message }); }
+  if (section === 'compare' && !$('#seasonView').hidden) { animate(); render(); }
 }
 const FIA_SECTIONS = new Set(['tech', 'elements']);
 // Documents FIA et statistiques en cours de lecture par le serveur, ou erreur : relus toutes les 30 s (chaque lecture
@@ -96,10 +96,12 @@ let fiaTimer = null;
 async function loadFia() {
   clearTimeout(fiaTimer);
   const y = year;
+  let first = false;
   try {
-    const f = await api(`/api/season/fia?year=${y}`);
+    const f = shortTeams(await api(`/api/season/fia?year=${y}`));
     if (y !== year) return;
     const same = fia?.year === f.year && fia.done === f.done && fia.total === f.total && fia.pending === f.pending && !fia.error;
+    first = !fia?.events?.length && !!f.events?.length;   // premiers documents : la rubrique s'anime à leur arrivée
     fia = f;
     if (f.pending) fiaTimer = setTimeout(loadFia, FOLLOW_MS);
     if (same) return;   // relecture pendant la lecture des documents : rien de nouveau, rien de redessiné
@@ -108,17 +110,19 @@ async function loadFia() {
     if (y === year) fia = { year: y, error: lost ? 'connexion perdue, nouvel essai dans 30 s' : err.message, events: [] };
     fiaTimer = setTimeout(loadFia, FOLLOW_MS);   // serveur indisponible (503…) aussi
   }
-  if (FIA_SECTIONS.has(section) && !$('#seasonView').hidden) render();
+  if (FIA_SECTIONS.has(section) && !$('#seasonView').hidden) { if (first) animate(); render(); }
 }
 
 // Statistiques détaillées : analysées par le serveur en arrière-plan, on suit l'avancement.
 async function loadStats() {
   clearTimeout(statsTimer);
   const y = year;
+  let first = false;
   try {
-    const s = await api(`/api/season/stats?year=${y}`);
+    const s = shortTeams(await api(`/api/season/stats?year=${y}`));
     if (y !== year) return;
     const same = stats?.year === s.year && stats.done === s.done && stats.total === s.total && stats.pending === s.pending && !stats.error;
+    first = !stats?.races?.length && !!s.races?.length;   // premières courses analysées : la rubrique s'anime à leur arrivée
     stats = s;
     if (s.pending) statsTimer = setTimeout(loadStats, FOLLOW_MS);
     if (same) return;   // relecture pendant l'analyse : rien de nouveau, rien de redessiné (tableaux laissés où ils sont)
@@ -127,7 +131,7 @@ async function loadStats() {
     if (y === year) stats = { error: lost ? 'connexion perdue, nouvel essai dans 30 s' : err.message, races: [] };
     statsTimer = setTimeout(loadStats, FOLLOW_MS);   // serveur indisponible (503…) aussi
   }
-  if (STATS_SECTIONS.has(section) && !$('#seasonView').hidden) render();
+  if (STATS_SECTIONS.has(section) && !$('#seasonView').hidden) { if (first) animate(); render(); }
 }
 
 const fmtDate = (t, o) => new Date(t).toLocaleDateString(LOCALE, o || { day: '2-digit', month: 'short' });
@@ -143,7 +147,7 @@ async function load(force = false) {
   $('#szContent').innerHTML = `<div class="note">Chargement de la saison ${y}…</div>`;
   let d;
   try {
-    d = await api(`/api/season?year=${y}`);
+    d = shortTeams(await api(`/api/season?year=${y}`));
   } catch (err) {
     if (y !== year) return;
     loading = false;
@@ -154,6 +158,7 @@ async function load(force = false) {
   if (y !== year) return;
   loading = false;
   data = d;
+  animate();
   render();
   follow();
 }
@@ -229,7 +234,8 @@ function renderHome() {
   const pct = data.races.length ? Math.round((doneRaces.length / data.races.length) * 1000) / 10 : 0;
   const [p1, p2] = data.drivers;
   const [c1, c2] = data.constructors;
-  return `<div class="sz-cards">
+  const tr = titleRace(data, data.year), champ = tr.champion, inRace = tr.drivers.filter((e) => e.alive).length;
+  return `<div class="sz-cards sz-home-cards">
       <div class="sz-card sz-count">${nx ? `<div class="sz-kicker"><span class="sz-badge">R${nx.race.round}</span> ${esc(gpFull(nx.race.name, EN))} : ${esc(nx.s.label)}</div>
         <div class="sz-countdown" id="szCountdown" data-t="${esc(nx.s.t)}"></div>
         <div class="small sz-when">${fmtDate(nx.s.t, { weekday: 'long', day: 'numeric', month: 'long' })} à ${fmtTime(nx.s.t)}</div>` : '<div class="sz-kicker">Saison terminée</div>'}</div>
@@ -240,6 +246,9 @@ function renderHome() {
       <div class="sz-card"><div class="muted small">Leader constructeurs</div><div class="sz-big">${c1 ? `${bar(c1.name, c1.id)}${esc(c1.name)}` : '—'}</div>
         <div class="muted small">${c1 ? `${c1.points} pts${c2 ? ` · +${c1.points - c2.points} sur ${esc(c2.name)}` : ''}` : ''}</div></div>
       ${last ? `<div class="sz-card"><div class="muted small">Dernier vainqueur · R${last.round}</div><div class="sz-big">${bar(last.results[0].team, last.results[0].teamId)}${esc(last.results[0].last)}</div><div class="muted small">${esc(gpFull(last.name, EN))}</div></div>` : ''}
+      ${last ? `<div class="sz-card sz-wide"><div class="muted small">Course au titre</div><div class="sz-big">${champ ? `${bar(champ.team, champ.teamId)}${esc(champ.last || champ.name)}` : t('{} en lice', inRace)}</div>
+        <div class="muted small">${champ ? t('Champion du monde') : tr.clinchD?.earliest ? t('Titre possible dès : {}', esc(gpShort(tr.clinchD.earliest.name, EN))) : t('Rien de joué avant la dernière manche')}</div>
+        <button class="btn small" data-szgo="title">${t('Course au titre')} ${icon('arrow-right', 'ic-s')}</button></div>` : ''}
     </div>
     <div class="sz-grid2">
       <section class="sz-box"><h3>Classement pilotes</h3>${standingsTable(data.drivers, 'd', 10)}<button class="btn small" data-szgo="standings">Classement complet ${icon('arrow-right', 'ic-s')}</button></section>
@@ -406,7 +415,7 @@ function lineChartSvg(series, { w = 900, h = 300 } = {}) {
   for (let i = 1; i < labels.length; i++) labels[i].y = Math.max(labels[i].y, labels[i - 1].y + 13);
   const over = (labels.at(-1)?.y ?? 0) - (h - pb);
   if (over > 0) for (let i = labels.length - 1; i >= 0; i--) labels[i].y = Math.min(labels[i].y, (labels[i + 1]?.y ?? h - pb + 13) - 13);
-  const lines = series.map((s) => `<polyline fill="none" stroke="${s.color}" stroke-width="2" ${s.dashed ? 'stroke-dasharray="5 4"' : ''} points="${s.points.map((p) => `${X(p.x)},${Y(p.y)}`).join(' ')}"/>`).join('')
+  const lines = series.map((s) => `<polyline fill="none" stroke="${s.color}" stroke-width="2" ${s.dashed ? 'stroke-dasharray="5 4"' : 'pathLength="1"'} points="${s.points.map((p) => `${X(p.x)},${Y(p.y)}`).join(' ')}"/>`).join('')
     + labels.map(({ s, last, y }) => `<text x="${X(last.x) + 5}" y="${y}" fill="${s.color}" class="sz-lbl">${esc(s.label)} ${last.y}</text>`).join('');
   return `<svg viewBox="0 0 ${w} ${h}" class="sz-svg">${grid}${lines}</svg>`;
 }
@@ -442,10 +451,10 @@ function renderResults() {
       ${card('Plus large victoire', st.largest ? `+${st.largest.v.toFixed(3).replace('.', DEC)} s` : '—', st.largest ? `${esc(st.largest.d.last)} · R${st.largest.r.round} ${esc(st.largest.r.locality || '')}` : '')}
       ${card('Victoire la plus serrée', st.closest ? `+${st.closest.v.toFixed(3).replace('.', DEC)} s` : '—', st.closest ? `${esc(st.closest.d.last)} · R${st.closest.r.round} ${esc(st.closest.r.locality || '')}` : '')}
     </div>
-    <section class="sz-box"><h3>Grands Prix</h3><table class="sz-table sz-results"><tr><th>Manche</th><th>Grand Prix</th><th>Date</th><th>Vainqueur sprint</th><th>Pole</th><th>Vainqueur</th><th>2e</th><th>3e</th></tr>
+    <section class="sz-box"><h3>Grands Prix</h3><table class="sz-table sz-results"><tr><th>Manche</th><th>Grand Prix</th><th>Date</th><th>Vainqueur</th><th>2e</th><th>3e</th><th>Pole</th><th>Vainqueur sprint</th></tr>
       ${data.races.map((r) => `<tr class="${done(r) ? '' : 'muted'}"><td>R${r.round}</td><td>${gpLink(r, gpShort(r.name, EN), 'sz-gp-chip', flagOf(r))}</td><td>${fmtDate(r.date)}</td>
-        <td>${r.sprintResults[0] ? chip(r.sprintResults[0]) : '—'}</td><td>${r.quali.find((q) => q.pos === 1) ? chip(r.quali.find((q) => q.pos === 1)) : '—'}</td>
-        <td>${r.results[0] ? chip(r.results[0]) : '—'}</td><td>${r.results[1] ? chip(r.results[1]) : ''}</td><td>${r.results[2] ? chip(r.results[2]) : ''}</td></tr>`).join('')}</table></section>`;
+        <td>${r.results[0] ? chip(r.results[0]) : '—'}</td><td>${r.results[1] ? chip(r.results[1]) : ''}</td><td>${r.results[2] ? chip(r.results[2]) : ''}</td>
+        <td>${r.quali.find((q) => q.pos === 1) ? chip(r.quali.find((q) => q.pos === 1)) : '—'}</td><td>${r.sprintResults[0] ? chip(r.sprintResults[0]) : '—'}</td></tr>`).join('')}</table></section>`;
 }
 
 let h2hTeam = null;
@@ -454,11 +463,14 @@ let h2hA = null, h2hB = null;
 let trKind = 'd';          // course au titre : 'd' (pilotes) | 'c' (constructeurs)
 
 // Écart en qualification entre les deux coéquipiers, manche par manche
+// « en faveur de Russell », « en faveur d'Antonelli »
+const favour = (name) => (/^[aeiouyàâéèêîïôû]/i.test(name || '') ? t("en faveur d'{}", esc(name)) : t('en faveur de {}', esc(name)));
 function qualiGapBox(g, A, B, ca) {
   if (!g.rounds.length) return '<section class="sz-box"><h3>Écart en qualification</h3><div class="note small">Temps de qualification indisponibles pour cette saison.</div></section>';
   const f3 = (v) => `${Math.abs(v).toFixed(3).replace('.', DEC)} s`;
   const lead = g.median <= 0 ? A : B;
-  const W = Math.max(600, ($('#szContent')?.clientWidth || 934) - 34), H = 200, pl = 44, pr = 10, pt = 14, pb = 34, mid = (H - pb + pt) / 2;
+  // Largeur d'après le nombre de manches : la courbe tient dans sa case (moitié de l'écran, téléphone)
+  const H = 200, pl = 44, pr = 10, pt = 14, pb = 34, mid = (H - pb + pt) / 2, W = pl + pr + Math.max(10, g.rounds.length) * 26;
   // Échelle calée sur le 2e plus grand écart : un écart isolé est coupé (sa valeur est écrite)
   const abs = g.rounds.filter((x) => !x.outlier).map((x) => Math.abs(x.s)).sort((a, b) => b - a);
   const cap = Math.max(0.2, Math.min(abs[0] || 0, (abs[1] ?? abs[0] ?? 0) * 1.4));
@@ -467,7 +479,7 @@ function qualiGapBox(g, A, B, ca) {
   const bars = g.rounds.map((x, i) => {
     const y = Y(-x.s), x0 = pl + i * bw + bw * 0.18;
     const c = x.s <= 0 ? ca : 'var(--muted)';
-    return `<rect x="${x0}" y="${Math.min(y, mid)}" width="${bw * 0.64}" height="${Math.max(1, Math.abs(y - mid))}" rx="2" fill="${c}" ${x.outlier ? 'opacity=".35"' : ''}><title>R${x.round} ${esc(gpShort(x.name, EN))} (Q${x.part}) : ${esc(x.s <= 0 ? A.last : B.last)} devant de ${f3(x.s)}</title></rect>
+    return `<rect class="${x.s <= 0 ? 'up' : 'dn'}" x="${x0}" y="${Math.min(y, mid)}" width="${bw * 0.64}" height="${Math.max(1, Math.abs(y - mid))}" rx="2" fill="${c}" ${x.outlier ? 'opacity=".35"' : ''}><title>R${x.round} ${esc(gpShort(x.name, EN))} (Q${x.part}) : ${esc(x.s <= 0 ? A.last : B.last)} devant de ${f3(x.s)}</title></rect>
       ${Math.abs(x.s) > cap ? `<text x="${pl + i * bw + bw / 2}" y="${x.s < 0 ? y + 12 : y - 4}" class="sz-ax sz-clip" text-anchor="middle">${Math.abs(x.s).toFixed(2).replace('.', DEC)} s</text>` : ''}
       <text x="${pl + i * bw + bw / 2}" y="${H - 18}" class="sz-ax" text-anchor="middle">R${x.round}</text><text x="${pl + i * bw + bw / 2}" y="${H - 5}" class="sz-ax" text-anchor="middle">Q${x.part}</text>`;
   }).join('');
@@ -475,8 +487,8 @@ function qualiGapBox(g, A, B, ca) {
     <text x="${pl - 6}" y="${pt + 8}" class="sz-ax" text-anchor="end">${esc(A.code)}</text><text x="${pl - 6}" y="${H - pb}" class="sz-ax" text-anchor="end">${esc(B.code)}</text>`;
   return `<section class="sz-box"><h3>Écart en qualification</h3>
     <div class="sz-cards sz-kpis">
-      <div class="sz-card sz-kpi"><div class="muted small">Écart médian</div><div class="sz-big">${g.median === null ? '—' : f3(g.median)}</div><div class="muted small">${g.median ? `${t('en faveur de {}', esc(lead.last))} · ${Math.abs(g.medianPct).toFixed(2).replace('.', DEC)} %` : ''}</div></div>
-      <div class="sz-card sz-kpi"><div class="muted small">Écart moyen</div><div class="sz-big">${g.mean === null ? '—' : f3(g.mean)}</div><div class="muted small">${g.mean ? t('en faveur de {}', esc((g.mean <= 0 ? A : B).last)) : ''}</div></div>
+      <div class="sz-card sz-kpi"><div class="muted small">Écart médian</div><div class="sz-big">${g.median === null ? '—' : f3(g.median)}</div><div class="muted small">${g.median ? `${favour(lead.last)} · ${Math.abs(g.medianPct).toFixed(2).replace('.', DEC)} %` : ''}</div></div>
+      <div class="sz-card sz-kpi"><div class="muted small">Écart moyen</div><div class="sz-big">${g.mean === null ? '—' : f3(g.mean)}</div><div class="muted small">${g.mean ? favour((g.mean <= 0 ? A : B).last) : ''}</div></div>
       <div class="sz-card sz-kpi"><div class="muted small">Plus devant</div><div class="sz-big">${esc(A.code)} ${g.rounds.filter((x) => x.s < 0).length} – ${g.rounds.filter((x) => x.s > 0).length} ${esc(B.code)}</div><div class="muted small">séances où l'un a battu l'autre au temps</div></div>
     </div>
     <div class="sz-scroll"><svg viewBox="0 0 ${W} ${H}" class="sz-svg sz-gap-chart">${axis}${bars}</svg></div>
@@ -768,7 +780,12 @@ function tick() {
   const ms = Math.max(0, Date.parse(el.dataset.t) - Date.now());
   const d = Math.floor(ms / 86400000), h = Math.floor(ms / 3600000) % 24, m = Math.floor(ms / 60000) % 60, s = Math.floor(ms / 1000) % 60;
   const p = (v) => String(v).padStart(2, '0');
-  el.innerHTML = [[d, 'jours'], [h, 'h'], [m, 'min'], [s, 's']].map(([v, l]) => `<span><b>${p(v)}</b><small>${l}</small></span>`).join('');
+  // Chiffre qui vient de changer : marqué pour descendre en place (chiffre par chiffre, 45 → 44 : seul le 5 bouge)
+  const before = (el.dataset.v || '').split(',');
+  const now = [d, h, m, s].map(p);
+  el.dataset.v = now.join(',');
+  const digits = (v, old) => [...v].map((c, k) => `<i${old !== undefined && old.length === v.length && old[k] !== c ? ' class="chg"' : ''}>${c}</i>`).join('');
+  el.innerHTML = [[d, 'jours'], [h, 'h'], [m, 'min'], [s, 's']].map(([, l], i) => `<span><b>${digits(now[i], before.length === 4 ? before[i] : undefined)}</b><small>${l}</small></span>`).join('');
 }
 
 // Changement de rubrique : le contenu apparaît en cascade (une seule fois, pas à chaque mise à jour)
@@ -778,7 +795,24 @@ function animate() {
   void el.offsetWidth;
   el.classList.add('sz-anim');
   clearTimeout(animate.t);
-  animate.t = setTimeout(() => el.classList.remove('sz-anim'), 500);
+  animate.t = setTimeout(() => el.classList.remove('sz-anim'), 1300);   // le temps que les courbes se tracent
+  requestAnimationFrame(() => countUp(el));   // après l'affichage de la rubrique
+}
+
+// Grands nombres des cartes (622 éléments, 67 abandons…) : comptés de 0 à leur valeur à l'ouverture de la rubrique
+function countUp(root) {
+  if (document.documentElement.dataset.motion === 'off' || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  for (const el of root.querySelectorAll('.sz-card .sz-big')) {
+    const v = /^\d{2,5}$/.test(el.textContent.trim()) && el.children.length === 0 ? Number(el.textContent) : null;
+    if (!v) continue;
+    const t0 = performance.now();
+    const step = (t) => {
+      const k = Math.min(1, (t - t0) / 700);
+      el.textContent = String(Math.round(v * (1 - (1 - k) ** 3)));
+      if (k < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
 }
 
 // y : saison à afficher (bilan de la saison passée depuis l'accueil hors saison) ; item : pilote ou Grand Prix demandé
@@ -840,15 +874,15 @@ export function initSeason() {
     const rv = e.target.closest('[data-review]');
     if (rv && data) { reviewAction(rv.dataset.review, data); return; }
     const t = e.target.closest('[data-h2h-team]'), m = e.target.closest('[data-h2h-mode]');
-    if (t) { h2hTeam = t.dataset.h2hTeam; render(); } else if (m) { h2hMode = m.dataset.h2hMode; render(); }
+    if (t) { h2hTeam = t.dataset.h2hTeam; animate(); render(); } else if (m) { h2hMode = m.dataset.h2hMode; animate(); render(); }
     const ck = e.target.closest('[data-cmp-kind]');
-    if (ck) { cmpKind = ck.dataset.cmpKind; render(); return; }
+    if (ck) { cmpKind = ck.dataset.cmpKind; animate(); render(); return; }
     const dd = e.target.closest('[data-dest-drv]');
-    if (dd) { showDestructorsDriver(Number(dd.dataset.destDrv)); render(); return; }
+    if (dd) { showDestructorsDriver(Number(dd.dataset.destDrv)); animate(); render(); return; }
     const cs = e.target.closest('[data-cmp-sort]');
     if (cs) { cmpSort = cmpSort === cs.dataset.cmpSort ? 'pos' : cs.dataset.cmpSort; render(); return; }
     const k = e.target.closest('[data-tr-kind]');
-    if (k) { trKind = k.dataset.trKind; render(); }
+    if (k) { trKind = k.dataset.trKind; animate(); render(); }
     const rs = e.target.closest('[data-rate-sort]');
     if (rs) { rateSort = rs.dataset.rateSort; render(); }
   });
@@ -866,6 +900,8 @@ export function initSeason() {
     else if (id === 'szTechTeam') setTechFilter(undefined, e.target.value);
     else if (id === 'szTechOrig') toggleTechOriginal(e.target.checked);
     else return;
+    // Autre pilote, écurie, Grand Prix, saison ou point de mesure : animations rejouées (pas pour un tri ni la traduction)
+    if (id !== 'szTechOrig' && id !== 'szCircSort') animate();
     render();
   });
   window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('#seasonView').hidden && !document.querySelector('dialog[open]')) { if ($('#seasonView').classList.contains('sz-open')) szMenu(false); else closeSeason(); } });
