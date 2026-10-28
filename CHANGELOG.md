@@ -39,14 +39,12 @@ l'application (Réglages → À propos → Nouveautés).
 - Version web : entre deux séances, l'étiquette du direct en haut dit « Hors séance » (point gris) ; le direct reprend
   tout seul une demi-heure avant la séance suivante. Sur téléphone, où seul le point est affiché, le toucher dit l'état
   du direct.
-- Carte en 3D (bouton 3D du panneau Circuit) : la piste avec son vrai relief (le Raidillon de Spa monte comme en vrai),
-  ses vibreurs et la ligne d'arrivée, et les voitures aux couleurs des écuries, en direct comme en replay. Quatre
+- Carte en 3D (case « 3D » du panneau Circuit, à cocher ou décocher, choix gardé) : la piste avec son vrai relief
+  (le Raidillon de Spa monte comme en vrai), ses vibreurs et la ligne d'arrivée, et les voitures aux couleurs des écuries, en direct comme en replay. Quatre
   caméras autour du pilote suivi (choisi dans la liste de la vue 3D ou dans le classement) : Hélico, Poursuite,
   Embarquée et Libre (glisser pour tourner, molette ou pincement pour zoomer, clic droit pour se déplacer, double-clic
   pour revoir tout le circuit). Le relief est calculé par le serveur Paddock Live d'après le GPS des voitures : tant
-  qu'il manque pour un circuit, la piste est à plat. Le bouton 2D ramène la carte habituelle. Aussi dans la version web.
-  La carte 3D se désactive dans Réglages → Apparence → Général (« Carte 3D du circuit ») : plus de bouton 3D, carte 2D
-  seule, plus légère pour les petits ordinateurs.
+  qu'il manque pour un circuit, la piste est à plat. Décochée, la carte habituelle revient. Aussi dans la version web.
 
 ### Téléphone
 - En course, le haut de l'écran tient sur deux lignes (le délai TV à côté du tour) : une ligne de classement en plus, et

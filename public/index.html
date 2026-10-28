@@ -239,7 +239,7 @@
           <span class="map-mode" id="mapMode"></span>
           <label class="toggle" title="Centrer la carte sur le pilote suivi"><input type="checkbox" id="mapFollow"> Suivre</label>
           <button class="btn small" id="mapFloatBtn" hidden title="Carte flottante, par-dessus la vidéo"><svg class="ic" aria-hidden="true"><use href="#i-window"/></svg> Flottante</button>
-          <button class="btn small" id="map3dBtn" hidden title="Vue 3D du circuit, avec le relief">3D</button>
+          <label class="toggle" id="map3dTog" hidden title="Vue 3D du circuit, avec le relief"><input type="checkbox" id="map3dOpt"> 3D</label>
           <details class="map-layers" id="mapLayers">
             <summary class="btn small" title="Éléments affichés sur la carte">Calques <svg class="ic ic-s" aria-hidden="true"><use href="#i-chevron-down"/></svg></summary>
             <div class="map-layers-menu">
@@ -533,7 +533,6 @@
         <div class="row"><label class="small">Langue / Language <select id="langSel" data-no-i18n><option value="fr">Français</option><option value="en">English</option></select></label></div>
         <div class="row"><label class="toggle small" title="Panneaux et menus qui apparaissent en douceur"><input type="checkbox" id="motionOpt"> Animations de l'interface</label></div>
         <div class="row"><label class="toggle small"><input type="checkbox" id="keepAwake"> Garder l'écran allumé pendant une séance</label></div>
-        <div class="row"><label class="toggle small" title="Bouton 3D du panneau Circuit : la piste en relief. Désactivé : carte 2D seule, plus léger pour les petits ordinateurs."><input type="checkbox" id="map3dOpt"> Carte 3D du circuit</label></div>
       </section>
       <section data-full class="set-block" data-sgroup="look">
         <div class="set-bhead"><h4><svg class="ic" aria-hidden="true"><use href="#i-star"/></svg> Écuries et couleurs</h4></div>
