@@ -38,10 +38,17 @@ l'application (Réglages → À propos → Nouveautés).
   piste, contrainte sur les pneus, freinage et appui latéral (notes de 1 à 5) sur la fiche de chaque Grand Prix, à venir
   compris, et dans Profil des circuits, avec une carte des circuits qui se ressemblent (virages lents ou rapides). Aussi
   dans la version web.
-- Calendrier : la saison sur une carte du monde, un point numéroté par Grand Prix (prochain en rouge, à venir, déjà
-  couru) ; un point touché ouvre la fiche du Grand Prix. Aussi dans la version web.
+- Calendrier : la saison sur un globe, un point numéroté par Grand Prix (prochain en rouge, à venir, déjà couru), et en
+  bas une carte par Grand Prix à faire glisser (manche, couru ou à venir, sprint, drapeau, dates et dessin du tracé). La
+  carte choisie, ou un point touché, fait voler le globe jusqu'au circuit, avec son tracé dessiné sur le plan des rues ;
+  « Monde » ramène au globe et chaque carte ouvre la fiche du Grand Prix. Plan clair ou sombre selon l'apparence, sans
+  animation quand elles sont coupées ; sur téléphone, la page défile d'un doigt et la carte se déplace à deux doigts.
+  Fonds de carte OpenFreeMap (© OpenMapTiles © contributeurs OpenStreetMap) ; sans connexion ou sans accélération
+  graphique, la carte du monde à plat. Aussi dans la version web.
 - Chaque graphique de la Saison s'enregistre en image (bouton PNG dans son titre), avec son titre, le pilote ou le
-  Grand Prix concerné et la mention Paddock Live, pour le partager. Aussi dans la version web.
+  Grand Prix concerné et la mention Paddock Live, pour le partager. Aussi dans la version web. Sur iPhone, iPad et
+  téléphone Android, le bouton PNG (comme « Enregistrer » du Bilan) ouvre la feuille de partage : « Enregistrer
+  l'image » la range dans Photos.
 - Grand Prix (Saison → Résultats & records → un Grand Prix couru) : le rythme de course, avec l'évolution des temps
   au tour, la répartition des temps de chaque pilote (boîtes à moustaches), les positions tour par tour et les 20
   meilleurs tours avec leur pneu ; seuil des tours propres réglable (107 % du meilleur tour par défaut), 10 premiers ou

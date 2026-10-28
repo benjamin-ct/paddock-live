@@ -7,6 +7,7 @@ import { seasonReview, titleRace } from '/shared/season-calc.js';
 import { gpFull } from '/shared/gp-names.js';
 import { LANG, ord, t } from '../i18n.js';
 import { toast } from './delay.js';
+import { saveImage, shareReady } from './season-png.js';
 
 // Premier en grand, les deux suivants dessous
 const first = (list) => (list[0] ? `${esc(list[0].last || list[0].name)} <small>${list[0].n}</small>` : '—');
@@ -90,6 +91,7 @@ async function reviewImage(data) {
 export async function reviewAction(kind, data) {
   // Réglages → Alertes & favoris
   if (kind === 'favs') { document.querySelector('#settingsBtn')?.click(); document.querySelector('#setNav [data-sgroup="alerts"]')?.click(); return; }
+  if (kind !== 'copy' && shareReady('review')) return;
   try {
     const blob = await reviewImage(data);
     if (kind === 'copy') {
@@ -97,11 +99,7 @@ export async function reviewAction(kind, data) {
       toast(t('Image copiée'));
       return;
     }
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `bilan-f1-${data.year}.png`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+    await saveImage(blob, `bilan-f1-${data.year}.png`, 'review');
   } catch (err) {
     toast(t('Image impossible : {}', err.message));
   }
