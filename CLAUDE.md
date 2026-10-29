@@ -67,3 +67,7 @@
   (une modification), `/ponytail-audit` (tout le dépôt), `/ponytail-debt` (raccourcis `shortcut:` en attente).
   Ces consignes priment sur ses règles : réponses, rapports et commentaires en français, journal et
   traductions (anglais, italien, espagnol) toujours tenus.
+- **Compétences 3D et Electron** (`.claude/skills/`, licence MIT) : `threejs-animation`, `shader-glsl`,
+  `particle-system` (github.com/iart-ai/webgl-animation-skills) pour la carte 3D, et `electron-best-practices`
+  (github.com/jwynia/agent-skills, parties sécurité et empaquetage) pour `desktop/`. Mêmes priorités que pour Ponytail :
+  ces consignes priment, réponses en français.
