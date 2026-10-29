@@ -337,6 +337,9 @@ export function areaKind(t) {
   if (t.natural === 'wood' || t.landuse === 'forest') return 'wood';
   if (['sand', 'beach'].includes(t.natural)) return 'sand';
   if (t.amenity === 'parking') return 'parking';
+  // Bas-côtés de la piste : graviers, dégagements asphaltés
+  if (['gravel', 'fine_gravel', 'pebblestone'].includes(t.surface)) return 'gravel';
+  if (t['area:highway'] || (t.highway === 'raceway' && t.area === 'yes')) return 'runoff';
   if (['farmland', 'farmyard', 'orchard', 'vineyard', 'allotments', 'plant_nursery'].includes(t.landuse)) return 'farm';
   if (['residential', 'commercial', 'industrial', 'retail', 'construction', 'railway', 'garages', 'brownfield'].includes(t.landuse)) return 'urban';
   if (['grass', 'meadow', 'recreation_ground', 'village_green', 'greenfield', 'cemetery'].includes(t.landuse)
@@ -395,10 +398,13 @@ export function extraQueries(near, path) {
     trees: `[out:json][timeout:50];node[natural=tree]${around(250)};out qt;`,
     // Murs, rails, grillages et pneus le long de la piste
     walls: `[out:json][timeout:50];way[barrier~"^(${Object.keys(WALLS).join('|')})$"]${around(40)};out geom qt;`,
+    // Graviers et dégagements asphaltés autour de la piste (surfaces)
+    ground: `[out:json][timeout:50];(way[surface~"^(gravel|fine_gravel|pebblestone)$"](if:is_closed())${around(60)};way["area:highway"]${around(60)};`
+      + `way[highway=raceway][area=yes]${around(60)};);out geom qt;`,
   };
 }
 // Étiquettes gardées des réponses d'Overpass
-const TAGS = ['building', 'height', 'building:levels', 'natural', 'barrier'];
+const TAGS = ['building', 'height', 'building:levels', 'natural', 'barrier', 'surface', 'highway', 'area', 'area:highway'];
 // Réponse d'Overpass -> chemins et points { type: 'node', lat, lon, tags } à la manière d'omtElements (10 cm près)
 export function overpassElements(json) {
   const pt = (p) => ({ lat: Math.round(p.lat * 1e6) / 1e6, lon: Math.round(p.lon * 1e6) / 1e6 });
@@ -415,7 +421,7 @@ export const EDGE = 8.5;   // murs déduits : à 1,5 m du bord de la piste (14 m
 
 // Morceaux d'un tableau circulaire de booléens : [début, longueur] des suites de true
 function runs(arr) {
-  const n = arr.length, s = arr.indexOf(false);
+  const n = arr.length, s = arr.findIndex((v) => !v);
   if (s < 0) return [[0, n]];
   const out = [];
   for (let k = 1, start = -1; k <= n; k++) {
@@ -450,6 +456,58 @@ export function deduceWalls(track, { built, onRoad, taken }) {
       const line = Array.from({ length: len === n ? n + 1 : len }, (_, k) => at[(i + k) % n].slice(0, 2));
       out.push(simplify(line, 0.3));
     }
+  }
+  return out;
+}
+
+// Bas-côtés déduits des virages, quand OSM n'en a pas : à l'extérieur de chaque virage (rayon de moins de 150 m), de
+// 20 m avant à 50 m après, un dégagement asphalté de 16 m ; virage lent (moins de 70 m de rayon) : 4 m d'asphalte puis
+// des graviers jusqu'à 28 m du bord. Coupés avant un obstacle (blocked(x, y) : bâtiment, eau, mur) ou une autre
+// partie de la piste ; à partir de RUNOFF m du milieu de la piste (après le vibreur). -> { gravel, runoff : anneaux }
+export const RUNOFF = 7.5;
+export function deduceRunoff(track, { blocked }) {
+  const pts = resample(track, Math.max(60, Math.round(perimeter(track) / 5))), n = pts.length, near = nearIndex(pts, 10);
+  const at = (i) => pts[((i % n) + n) % n];
+  const out = { gravel: [], runoff: [] };
+  // Courbure (1/m, positive à gauche)
+  const k = pts.map((_, i) => {
+    const [ax, ay] = at(i - 3), [bx, by] = at(i), [cx, cy] = at(i + 3);
+    const t = Math.atan2(cy - by, cx - bx) - Math.atan2(by - ay, bx - ax);
+    return Math.atan2(Math.sin(t), Math.cos(t)) / 15;   // angle entre deux cordes de 15 m : arc de 15 m entre leurs milieux
+  });
+  for (const side of [-1, 1]) {
+    // Profondeur voulue (m) et virage lent, point par point ; extérieur : à droite d'un virage à gauche
+    const dep = new Float32Array(n), slow = new Uint8Array(n);
+    for (const [s, len] of runs(k.map((v) => v * side < -1 / 150))) {
+      if (len < 4) continue;
+      let rmin = Infinity;
+      for (let j = 0; j < len; j++) rmin = Math.min(rmin, 1 / Math.abs(k[(s + j) % n]));
+      const want = rmin < 70 ? 28 : 16;
+      for (let j = -4; j < len + 10; j++) {
+        const i = (((s + j) % n) + n) % n, edge = Math.min(j + 5, len + 10 - j) / 5;   // en pente aux deux bouts
+        dep[i] = Math.max(dep[i], want * Math.min(1, edge));
+        if (rmin < 70) slow[i] = 1;
+      }
+    }
+    // Coupée avant un obstacle ou une autre partie de la piste
+    const line = (i, off) => {
+      const [ax, ay] = at(i - 1), [bx, by] = at(i + 1), l = Math.hypot(bx - ax, by - ay) || 1;
+      return [at(i)[0] - ((by - ay) / l) * side * off, at(i)[1] + ((bx - ax) / l) * side * off];
+    };
+    for (let i = 0; i < n; i++) {
+      for (let d = 1; d <= dep[i]; d += 3) {
+        const [x, y] = line(i, RUNOFF + d);
+        if (blocked(x, y) || near(x, y, RUNOFF + d - 4).p) { dep[i] = d - 1; break; }
+      }
+      if (dep[i] < 4) dep[i] = 0;
+    }
+    // Anneaux : bord intérieur à l'aller, bord extérieur au retour
+    const ring = (s, len, from, to) => {
+      const idx = Array.from({ length: len }, (_, j) => (s + j) % n);
+      return simplify([...idx.map((i) => line(i, RUNOFF + from(i))), ...idx.reverse().map((i) => line(i, RUNOFF + to(i)))], 0.5, true);
+    };
+    for (const [s, len] of runs([...dep].map((v) => v > 0))) if (len > 2) out.runoff.push(ring(s, len, () => 0, (i) => (slow[i] ? Math.min(4, dep[i]) : dep[i])));
+    for (const [s, len] of runs([...dep].map((v, i) => slow[i] && v > 6))) if (len > 2) out.gravel.push(ring(s, len, () => 4, (i) => dep[i]));
   }
   return out;
 }
@@ -496,6 +554,7 @@ export function zone(track, fit, frame, margin = MARGIN) {
 //   lines   : { road, water, raceway : [[largeur (m), x0, y0…]] } — routes principales, cours d'eau, autres pistes
 //   trees   : [x0, y0, x1, y1…] — arbres isolés, puis ceux des bois (les plus proches de la piste d'abord)
 //   walls   : [[genre, x0, y0, x1, y1…]] — murs (0), rails (1), grillages (2) le long de la piste, à 10 cm près
+//   areas.gravel, areas.runoff : graviers et dégagements asphaltés autour de la piste (d'OSM, sinon déduits)
 // track : points du tracé [x, y] (m) ; fit : calage (fitTrack) ; frame : geoFrame ; elements : omtElements et
 // overpassElements ; dem(lat, lon) : altitude (m). null si le relief manque sur une partie de la zone
 export function buildSurroundings({ track, fit, frame, elements = [], dem, margin = MARGIN, max = MAX }) {
@@ -532,13 +591,16 @@ export function buildSurroundings({ track, fit, frame, elements = [], dem, margi
     if (ring.length > 1 && ring[0][0] === ring.at(-1)[0] && ring[0][1] === ring.at(-1)[1]) ring.pop();
     ring = simplify(clipRing(ring, box), kind === 'building' ? 1 : 4, true);
     const area = ring.length < 3 ? 0 : ringArea(ring);
-    if (area >= (kind === 'building' ? 12 : 200)) shapes.push({ kind, ring, area, tags });
+    // Graviers et dégagements d'OSM : seulement ceux qui touchent la piste (à moins de 15 m de son bord ; pas les rues
+    // ni les trottoirs d'à côté, area:highway)
+    const edge = kind !== 'gravel' && kind !== 'runoff' || densify([...ring, ring[0]], 5).some(([x, y]) => nearTrack(x, y, 22).p);
+    if (area >= (kind === 'building' ? 12 : 200) && edge) shapes.push({ kind, ring, area, tags });
   };
   for (const el of elements) {
     const t = el.tags || {};
     if (el.type === 'way' && el.geometry?.length > 1) {
       const g = el.geometry, road = String(t.highway || '').replace(/_link$/, '');
-      const kind = t.highway === 'raceway' ? 'raceway' : ROADS[road] ? 'road' : ['river', 'canal', 'stream'].includes(t.waterway) ? 'water' : null;
+      const kind = t.area === 'yes' ? null : t.highway === 'raceway' ? 'raceway' : ROADS[road] ? 'road' : ['river', 'canal', 'stream'].includes(t.waterway) ? 'water' : null;
       if (WALLS[t.barrier] !== undefined) {
         // Barrière : seulement à moins de 40 m de la piste
         let run = [];
@@ -605,19 +667,26 @@ export function buildSurroundings({ track, fit, frame, elements = [], dem, margi
 
   // Murs le long de la piste (genre, puis [x0, y0, x1, y1…] à 10 cm près) : ceux d'OSM, puis ceux déduits
   const r1 = (pts) => pts.flatMap((p) => [Math.round(p[0] * 10) / 10, Math.round(p[1] * 10) / 10]);
-  const cell = new Map(), C = 100;
-  for (const s of shapes.filter((x) => x.kind === 'building' || x.kind === 'urban')) {
-    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-    for (const [x, y] of s.ring) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
-    for (let i = Math.floor(x0 / C); i <= Math.floor(x1 / C); i++) for (let j = Math.floor(y0 / C); j <= Math.floor(y1 / C); j++) (cell.get(i * 100003 + j) || cell.set(i * 100003 + j, []).get(i * 100003 + j)).push(s.ring);
-  }
+  // Point dans une des surfaces de ces genres (cases de 100 m)
+  const inside = (kinds) => {
+    const cell = new Map(), C = 100;
+    for (const s of shapes.filter((x) => kinds.includes(x.kind))) {
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      for (const [x, y] of s.ring) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
+      for (let i = Math.floor(x0 / C); i <= Math.floor(x1 / C); i++) for (let j = Math.floor(y0 / C); j <= Math.floor(y1 / C); j++) (cell.get(i * 100003 + j) || cell.set(i * 100003 + j, []).get(i * 100003 + j)).push(s.ring);
+    }
+    return (x, y) => (cell.get(Math.floor(x / C) * 100003 + Math.floor(y / C)) || []).some((r) => inRing(r, x, y));
+  };
+  const built = inside(['building', 'urban']);
   const roads = nearIndex(lines.filter((l) => l.kind === 'road').flatMap((l) => densify(l.pts, 3)));
   const osmWalls = nearIndex(barriers.flatMap(([, pts]) => densify(pts, 2)));
-  const deduced = deduceWalls(track, {
-    built: (x, y) => (cell.get(Math.floor(x / C) * 100003 + Math.floor(y / C)) || []).some((r) => inRing(r, x, y)),
-    onRoad: (x, y) => !!roads(x, y, 7).p,
-    taken: (x, y) => !!osmWalls(x, y, 10).p,
-  });
+  const deduced = deduceWalls(track, { built, onRoad: (x, y) => !!roads(x, y, 7).p, taken: (x, y) => !!osmWalls(x, y, 10).p });
   out.walls = [...barriers.map(([kind, pts]) => [kind, ...r1(pts)]), ...deduced.map((pts) => [0, ...r1(pts)])];
+
+  // Graviers et dégagements : ceux d'OSM (déjà dans areas), puis déduits des virages, virage par virage (pas là où OSM
+  // en a déjà)
+  const walls = nearIndex([...barriers.map(([, pts]) => pts), ...deduced].flatMap((pts) => densify(pts, 2))), other = inside(['water', 'gravel', 'runoff']);
+  const ground = deduceRunoff(track, { blocked: (x, y) => built(x, y) || other(x, y) || !!walls(x, y, 2.5).p });
+  for (const kind of ['gravel', 'runoff']) for (const r of ground[kind]) (out.areas[kind] ||= []).push(flat(r));
   return out;
 }

@@ -257,14 +257,14 @@ test('serveur : enrichissement après le calcul de base (parkings Shortbread, tr
     assert.equal((await tick(now))?.ok, true);
     assert.equal((await tick(now + 60e3))?.ok, true);
     const first = file();
-    assert.deepEqual([first.stands.length, first.areas.parking, JSON.parse(rows.get('surr:999:2026')).v], [0, undefined, 3]);
+    assert.deepEqual([first.stands.length, first.areas.parking, JSON.parse(rows.get('surr:999:2026')).v], [0, undefined, 4]);
     const place = JSON.parse(media.get('surroundings/place-999.json'));
     assert.ok(place.path.length >= 40 && place.near.s > place.zone.s, 'tracé et zone proche gardés pour l\'enrichissement');
     // Overpass injoignable : parkings gardés quand même, fichiers à refaire (l'ancien reste servi) ; Overpass revu 1 h plus tard
     asked.length = 0;
     let r = await tick(now + 120e3);
     assert.deepEqual(r.extra, ['parking']);
-    assert.equal(asked.filter((u) => /overpass|mail\.ru/.test(u)).length, 9, 'trois serveurs, trois requêtes');
+    assert.equal(asked.filter((u) => /overpass|mail\.ru/.test(u)).length, 12, 'trois serveurs, quatre requêtes');
     assert.equal(r.errors[0], 'Overpass : overpass-api.de HTTP 504, overpass.private.coffee HTTP 504, maps.mail.ru HTTP 504');
     let x = JSON.parse(rows.get('surrx:999'));
     assert.deepEqual([x.have, x.tries, x.next], [['parking'], 1, now + 120e3 + 3600e3]);
@@ -284,9 +284,9 @@ test('serveur : enrichissement après le calcul de base (parkings Shortbread, tr
     ctl.ov = 200;
     rows.set('surrxidle', '0');
     r = await tick(now + 4 * 3600e3 + 60e3);
-    assert.deepEqual(r.extra, ['stands', 'trees', 'walls']);
+    assert.deepEqual(r.extra, ['stands', 'trees', 'walls', 'ground']);
     x = JSON.parse(rows.get('surrx:999'));
-    assert.deepEqual([x.have, x.next, x.tries], [['parking', 'stands', 'trees', 'walls'], 0, undefined]);
+    assert.deepEqual([x.have, x.next, x.tries], [['parking', 'stands', 'trees', 'walls', 'ground'], 0, undefined]);
     rows.set('surridle', '0');
     await tick(now + 4 * 3600e3 + 120e3);
     assert.equal(file().stands.length, 1);
@@ -309,7 +309,7 @@ test('serveur : fichier d\'une ancienne version refait ; s\'il échoue, l\'ancie
   try {
     assert.equal((await surroundingsTick(env, { now, fetchFn, pause: 0 }))?.error, 'tracé introuvable');
     const row = JSON.parse(rows.get('surr:999:2026'));
-    assert.deepEqual([row.ok, row.v, row.error], [true, 3, 'tracé introuvable'], 'pas retenté');
+    assert.deepEqual([row.ok, row.v, row.error], [true, 4, 'tracé introuvable'], 'pas retenté');
     assert.equal(await (await surroundingsWeb(env, 999, 2026, now)).text(), '{"ancien":1}');
     assert.equal(await surroundingsStatus(env, 999, 2026), null);
     rows.set('surridle', '0');

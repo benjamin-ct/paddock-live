@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { decodePng, terrarium, demSampler, tilesFor, lonToPx, latToPx, geoFrame, fitTrack, toEN, fromEN, simplify, clipRing, clipLine,
-  buildSurroundings, buildingHeight, areaKind, omtElements, SHORTBREAD, extraQueries, overpassElements, deduceWalls, EDGE, MAX } from '../shared/surroundings.js';
+  buildSurroundings, buildingHeight, areaKind, omtElements, SHORTBREAD, extraQueries, overpassElements, deduceWalls, EDGE, deduceRunoff, RUNOFF, areaKind as kindOf, MAX } from '../shared/surroundings.js';
 import { decodeMvt } from '../shared/mvt.js';
 import { png, terrariumTile } from './fixtures/png.js';
 import { mvt } from './fixtures/mvt.js';
@@ -282,4 +282,58 @@ test('alentours : murs, rails et grillages d\'OSM gardés près de la piste seul
   assert.deepEqual(d.walls.map((w) => w[0]), [1, 2]);
   assert.deepEqual(d.walls[0].slice(1), [100, -9, 400, -9]);
   assert.ok(Math.min(...d.walls[1].filter((_, i) => i % 2 === 0 && i > 0)) >= -41, 'grillage coupé à 40 m de la piste');
+});
+
+test('alentours : graviers et dégagements déduits à l\'extérieur des virages, coupés avant un obstacle', () => {
+  // Stade parcouru dans le sens inverse des aiguilles d'une montre : lignes droites de 600 m, épingles de 40 m de rayon
+  const st = [];
+  for (let x = 0; x < 600; x += 4) st.push([x, -40]);
+  for (let a = -90; a < 90; a += 4) st.push([600 + 40 * Math.cos((a * Math.PI) / 180), 40 * Math.sin((a * Math.PI) / 180)]);
+  for (let x = 600; x > 0; x -= 4) st.push([x, 40]);
+  for (let a = 90; a < 270; a += 4) st.push([40 * Math.cos((a * Math.PI) / 180), 40 * Math.sin((a * Math.PI) / 180)]);
+  const g = deduceRunoff(st, { blocked: () => false });
+  assert.equal(g.gravel.length, 2, 'graviers dans les deux épingles');
+  assert.equal(g.runoff.length, 2);
+  const gap = ([x, y]) => Math.min(...st.map((p) => Math.hypot(p[0] - x, p[1] - y)));
+  for (const ring of g.gravel) {
+    const d = ring.map(gap);
+    assert.ok(Math.min(...d) > RUNOFF + 3 && Math.max(...d) < RUNOFF + 29, `graviers après 4 m d'asphalte (${Math.min(...d)} à ${Math.max(...d)} m de la piste)`);
+    assert.ok(ring.every(([x, y]) => Math.abs(y) > 40 || x < 0 || x > 600), 'à l\'extérieur');
+  }
+  // Rien au milieu des lignes droites
+  assert.ok([...g.gravel, ...g.runoff].flat().every(([x]) => x < 120 || x > 480));
+  // Obstacle (bâtiment, eau, mur) à l'extérieur de l'épingle de droite : rien là
+  const cut = deduceRunoff(st, { blocked: (x) => x > 620 });
+  assert.ok(cut.gravel.flat().every(([x]) => x < 621), 'rien au-delà de l\'obstacle');
+  assert.ok(cut.gravel.some((r) => Math.min(...r.map(([x]) => x)) < -40 - RUNOFF - 20), 'épingle de gauche intacte');
+  // Grand cercle de 100 m de rayon : dégagement asphalté tout autour, sans graviers
+  const circle = Array.from({ length: 160 }, (_, i) => [100 * Math.cos((i * Math.PI) / 80), 100 * Math.sin((i * Math.PI) / 80)]);
+  const c = deduceRunoff(circle, { blocked: () => false });
+  assert.deepEqual([c.gravel.length, c.runoff.length], [0, 1]);
+  assert.ok(c.runoff[0].every(([x, y]) => Math.hypot(x, y) > 100 + RUNOFF - 1), 'à l\'extérieur');
+  // Étiquettes d'OSM
+  assert.equal(kindOf({ surface: 'gravel', area: 'yes' }), 'gravel');
+  assert.equal(kindOf({ highway: 'raceway', area: 'yes', surface: 'asphalt' }), 'runoff');
+  assert.equal(kindOf({ 'area:highway': 'emergency' }), 'runoff');
+});
+
+test('alentours : graviers d\'OSM qui touchent la piste gardés, déduction ailleurs ; rue voisine (area:highway) écartée', () => {
+  const st = [];
+  for (let x = 0; x < 600; x += 4) st.push([x, -40]);
+  for (let a = -90; a < 90; a += 4) st.push([600 + 40 * Math.cos((a * Math.PI) / 180), 40 * Math.sin((a * Math.PI) / 180)]);
+  for (let x = 600; x > 0; x -= 4) st.push([x, 40]);
+  for (let a = 90; a < 270; a += 4) st.push([40 * Math.cos((a * Math.PI) / 180), 40 * Math.sin((a * Math.PI) / 180)]);
+  const frame = geoFrame(45, 5), fit = { s: 1, a: 0, e: 0, n: 0 };
+  const g = (x, y) => { const [lat, lon] = frame.toGeo(x, y); return { lat, lon }; };
+  const ring = (x0, y0, w, h) => [g(x0, y0), g(x0 + w, y0), g(x0 + w, y0 + h), g(x0, y0 + h), g(x0, y0)];
+  const elements = [
+    { type: 'way', tags: { surface: 'gravel', area: 'yes' }, geometry: ring(645, -40, 30, 80) },        // épingle de droite, contre la piste
+    { type: 'way', tags: { 'area:highway': 'secondary' }, geometry: ring(200, -200, 300, 20) },          // rue à 150 m : écartée
+  ];
+  const d = buildSurroundings({ track: st, fit, frame, elements, dem: () => 100 });
+  const xs = (list) => (list || []).map((r) => r.filter((_, i) => i % 2 === 0));
+  assert.ok(xs(d.areas.gravel).some((r) => Math.min(...r) >= 640), 'graviers d\'OSM gardés');
+  assert.ok(xs(d.areas.gravel).some((r) => Math.min(...r) < -40), 'graviers déduits dans l\'épingle de gauche');
+  assert.ok(!xs(d.areas.gravel).some((r) => Math.min(...r) > 600 && Math.max(...r) > 675), 'pas de graviers déduits par-dessus ceux d\'OSM');
+  assert.ok(!(d.areas.runoff || []).some((r) => r.some((v, i) => i % 2 && v < -150)), 'rue voisine écartée');
 });

@@ -302,6 +302,8 @@ function landGround(group, land, { track, P, SIDE, toW, fromW, base, maxTex, ani
     g.lineWidth = (W + 12) * k;
     path(trackFlat, true);
     g.stroke();
+    // Dégagements asphaltés et graviers autour des virages (serveur : OSM, sinon déduits), par-dessus
+    for (const [kind, col] of [['runoff', '#7c7f84'], ['gravel', '#d6c59b']]) { g.fillStyle = col; for (const ring of land.areas?.[kind] || []) { path(ring, true); g.fill(); } }
   };
   const texture = (cv) => {
     const tex = new THREE.CanvasTexture(cv);
