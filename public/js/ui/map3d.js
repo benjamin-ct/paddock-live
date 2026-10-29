@@ -1021,7 +1021,8 @@ function gpsSmooth(num, t) {
 
 // Bâtiment des stands le long de la voie des stands (pit : points du tracé MultiViewer), du côté opposé à la piste : 15 m
 // de profondeur, 9 m de haut, garages ouverts (bande sombre) face à la voie ; seulement là où la voie est à plus de
-// 14 m de la piste (pas à l'entrée ni à la sortie) et où les alentours n'ont pas déjà un bâtiment. -> groupe
+// 14 m de la piste (pas à l'entrée ni à la sortie) et où les alentours n'ont pas déjà un bâtiment. Un seul bloc continu
+// qui suit la voie lissée (sans décrochements d'un morceau à l'autre). -> groupe
 function pitBuilding(world, pit) {
   const out = new THREE.Group(), { toW, fromW, P } = world;
   // Bâtiments des alentours (repère du tracé, m) et leur boîte
@@ -1031,37 +1032,53 @@ function pitBuilding(world, pit) {
     return { r, x0: Math.min(...r.map((q) => q[0])), x1: Math.max(...r.map((q) => q[0])), y0: Math.min(...r.map((q) => q[1])), y1: Math.max(...r.map((q) => q[1])) };
   });
   const built = (x, y) => rings.some((b) => x >= b.x0 && x <= b.x1 && y >= b.y0 && y <= b.y1 && inRing(b.r, x, y));
-  // Voie tous les 4 m (scène), côté opposé à la piste
-  const pts = [];
+  // Voie tous les 4 m (scène), lissée sur ± 20 m, et hauteur du sol lissée de même
+  const raw = [];
   for (let k = 0; k + 1 < pit.length; k++) {
     const [ax, az] = toW(...pit[k]), [bx, bz] = toW(...pit[k + 1]), n = Math.max(1, Math.round(Math.hypot(bx - ax, bz - az) / 4));
-    for (let j = 0; j < n; j++) pts.push([ax + ((bx - ax) * j) / n, az + ((bz - az) * j) / n]);
+    for (let j = 0; j < n; j++) raw.push([ax + ((bx - ax) * j) / n, az + ((bz - az) * j) / n]);
   }
-  const boxes = [];
-  let hint = -1;
-  for (let k = 1; k < pts.length; k++) {
-    const [ax, az] = pts[k - 1], [bx, bz] = pts[k], mx = (ax + bx) / 2, mz = (az + bz) / 2, l = Math.hypot(bx - ax, bz - az) || 1;
-    hint = nearestIndex(world, mx, mz, hint);
-    const tp = P[hint], d = Math.hypot(tp.x - mx, tp.z - mz);
-    let nx = -(bz - az) / l, nz = (bx - ax) / l;
-    if (nx * (tp.x - mx) + nz * (tp.z - mz) > 0) { nx = -nx; nz = -nz; }   // vers l'extérieur, loin de la piste
-    const c = [mx + nx * 15.5, mz + nz * 15.5];
-    if (d < 14 || built(...fromW(...c))) continue;
-    boxes.push({ a: [ax, az], b: [bx, bz], n: [nx, nz], l });
+  const smooth = (v, f) => v.map((_, i) => { let s = 0, n = 0; for (let j = Math.max(0, i - 5); j <= Math.min(v.length - 1, i + 5); j++) { s += f(v[j]); n++; } return s / n; });
+  const zs = smooth(raw, (q) => q[1]), pts = smooth(raw, (q) => q[0]).map((x, i) => [x, zs[i]]);
+  if (pts.length < 3) return out;
+  const ys = smooth(pts, (q) => world.groundAt(q[0], q[1]));
+  // Côté de la piste, le même tout le long : le bâtiment de l'autre côté
+  let hint = -1, side = 0;
+  const dir = pts.map(([x, z], i) => {
+    const [ax, az] = pts[Math.max(0, i - 1)], [bx, bz] = pts[Math.min(pts.length - 1, i + 1)], l = Math.hypot(bx - ax, bz - az) || 1;
+    hint = nearestIndex(world, x, z, hint);
+    const tp = P[hint], nx = -(bz - az) / l, nz = (bx - ax) / l;
+    side += Math.sign(nx * (tp.x - x) + nz * (tp.z - z));
+    return [nx, nz, Math.hypot(tp.x - x, tp.z - z)];
+  });
+  const s = side > 0 ? -1 : 1;
+  const keep = pts.map(([x, z], i) => dir[i][2] >= 14 && !built(...fromW(x + dir[i][0] * s * 15.5, z + dir[i][1] * s * 15.5)));
+  // Parois (quadrilatères) de chaque morceau continu : façade, garages, arrière, toit, bouts
+  const wall = [], dark = [];
+  const at = (i, off, y) => [pts[i][0] + dir[i][0] * s * off, y, pts[i][1] + dir[i][1] * s * off];
+  const quad = (list, a, b, c, d) => list.push(...a, ...b, ...c, ...a, ...c, ...d);
+  for (let i = 0; i < pts.length;) {
+    if (!keep[i]) { i++; continue; }
+    let e = i;
+    while (e + 1 < pts.length && keep[e + 1]) e++;
+    for (let k = i; k < e; k++) {
+      const lo = (j) => ys[j] - 0.5, hi = (j) => ys[j] + 9;
+      quad(wall, at(k, 8.5, lo(k)), at(k + 1, 8.5, lo(k + 1)), at(k + 1, 8.5, hi(k + 1)), at(k, 8.5, hi(k)));
+      quad(wall, at(k, 23.5, lo(k)), at(k + 1, 23.5, lo(k + 1)), at(k + 1, 23.5, hi(k + 1)), at(k, 23.5, hi(k)));
+      quad(wall, at(k, 8.5, hi(k)), at(k + 1, 8.5, hi(k + 1)), at(k + 1, 23.5, hi(k + 1)), at(k, 23.5, hi(k)));
+      quad(dark, at(k, 8.4, lo(k)), at(k + 1, 8.4, lo(k + 1)), at(k + 1, 8.4, ys[k + 1] + 5.5), at(k, 8.4, ys[k] + 5.5));
+    }
+    if (e > i) for (const j of [i, e]) quad(wall, at(j, 8.5, ys[j] - 0.5), at(j, 23.5, ys[j] - 0.5), at(j, 23.5, ys[j] + 9), at(j, 8.5, ys[j] + 9));
+    i = e + 1;
   }
-  const mesh = (color, list, place) => {
-    const m = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0), new THREE.MeshStandardMaterial({ color, roughness: 0.85 }), list.length);
-    const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), p = new THREE.Vector3(), sc = new THREE.Vector3();
-    list.forEach((bx, k) => {
-      const [off, depth, h] = place, x = (bx.a[0] + bx.b[0]) / 2 + bx.n[0] * off, z = (bx.a[1] + bx.b[1]) / 2 + bx.n[1] * off;
-      m.setMatrixAt(k, m4.compose(p.set(x, world.groundAt(x, z) - 0.3, z), q.setFromAxisAngle(up, Math.atan2(bx.b[0] - bx.a[0], bx.b[1] - bx.a[1])), sc.set(depth, h, bx.l + 0.05)));
-    });
+  for (const [list, color] of [[wall, 0xe3e0d7], [dark, 0x2a2e35]]) {
+    if (!list.length) continue;
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(list, 3));
+    g.computeVertexNormals();
+    const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color, roughness: 0.85, side: THREE.DoubleSide }));
     m.castShadow = m.receiveShadow = true;
     out.add(m);
-  };
-  if (boxes.length) {
-    mesh(0xe3e0d7, boxes, [16, 15, 9]);       // bâtiment
-    mesh(0x2a2e35, boxes, [8.4, 0.3, 5.5]);   // garages ouverts
   }
   return out;
 }
