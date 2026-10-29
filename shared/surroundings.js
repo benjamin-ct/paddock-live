@@ -111,7 +111,7 @@ export function densify(line, step) {
 }
 
 // Points du tracé (boucle) régulièrement espacés : n points
-function resample(pts, n) {
+export function resample(pts, n) {
   const loop = [...pts, pts[0]], cum = [0];
   for (let i = 1; i < loop.length; i++) cum.push(cum[i - 1] + Math.hypot(loop[i][0] - loop[i - 1][0], loop[i][1] - loop[i - 1][1]));
   const out = [];
@@ -185,23 +185,30 @@ export function fitTrack(track, lines) {
   const few = resample(track, 40);
   const cx = few.reduce((s, p) => s + p[0], 0) / few.length, cy = few.reduce((s, p) => s + p[1], 0) / few.length;
   const CELL = 30;
-  // Candidats : pour chaque angle, le décalage le plus voté
+  // Cases de 30 m où passe une ligne d'OSM ; votes comptés dans un tableau (en ville, des dizaines de milliers de
+  // points de rues : une table de hachage par point du tracé prenait plus d'une minute)
+  const occ = new Map();
+  for (const [ox, oy] of coarse) { const i = Math.round(ox / CELL), j = Math.round(oy / CELL); occ.set(i * 100003 + j, [i, j]); }
+  const cells = [...occ.values()], R = Math.ceil(Math.max(...few.map(([x, y]) => Math.hypot(x - cx, y - cy))) / CELL) + 1;
+  let i0 = Infinity, j0 = Infinity, i1 = -Infinity, j1 = -Infinity;
+  for (const [i, j] of cells) { i0 = Math.min(i0, i - R); j0 = Math.min(j0, j - R); i1 = Math.max(i1, i + R); j1 = Math.max(j1, j + R); }
+  const NI = i1 - i0 + 1, NJ = j1 - j0 + 1;
+  const votes = new Uint16Array(NI * NJ);
+  // Candidats : pour chaque angle, le décalage le plus voté (chaque point du tracé vote pour les décalages qui le
+  // posent sur une case d'OSM)
   const cands = [];
   for (let deg = 0; deg < 360; deg += 3) {
     const a = (deg * Math.PI) / 180, c = Math.cos(a), s = Math.sin(a);
-    const votes = new Map();
+    votes.fill(0);
     for (const [x, y] of few) {
-      const rx = c * (x - cx) - s * (y - cy), ry = s * (x - cx) + c * (y - cy), seen = new Set();
-      for (const [ox, oy] of coarse) {
-        const k = Math.round((ox - rx) / CELL) * 100003 + Math.round((oy - ry) / CELL);
-        if (!seen.has(k)) { seen.add(k); votes.set(k, (votes.get(k) || 0) + 1); }
-      }
+      const di = Math.round((c * (x - cx) - s * (y - cy)) / CELL) + i0, dj = Math.round((s * (x - cx) + c * (y - cy)) / CELL) + j0;
+      for (const [i, j] of cells) votes[(i - di) * NJ + j - dj]++;
     }
     let best = 0, bk = 0;
-    for (const [k, v] of votes) if (v > best) { best = v; bk = k; }
-    const ti = Math.round(bk / 100003);
+    for (let k = 0; k < votes.length; k++) if (votes[k] > best) { best = votes[k]; bk = k; }
     // Décalage tel que le centre du tracé tombe sur le décalage voté
-    cands.push({ votes: best, f: { s: 1, a, e: ti * CELL - (c * cx - s * cy), n: (bk - ti * 100003) * CELL - (s * cx + c * cy) } });
+    const ti = Math.floor(bk / NJ) + i0, tj = (bk % NJ) + j0;
+    cands.push({ votes: best, f: { s: 1, a, e: ti * CELL - (c * cx - s * cy), n: tj * CELL - (s * cx + c * cy) } });
   }
   cands.sort((p, q) => q.votes - p.votes);
   // Affinage des meilleurs candidats ; le plus proche des lignes gagne
@@ -224,7 +231,7 @@ export function fitTrack(track, lines) {
   return out;
 }
 
-const perimeter = (pts) => pts.reduce((s, p, i) => s + Math.hypot(p[0] - pts[(i + 1) % pts.length][0], p[1] - pts[(i + 1) % pts.length][1]), 0);
+export const perimeter = (pts) => pts.reduce((s, p, i) => s + Math.hypot(p[0] - pts[(i + 1) % pts.length][0], p[1] - pts[(i + 1) % pts.length][1]), 0);
 
 // ---------- Formes : simplification, découpe, assemblage ----------
 
@@ -348,16 +355,19 @@ const OMT = {
   transportation: (p) => (p.class === 'raceway' || ROADS[p.class] ? { highway: p.class + (p.ramp ? '_link' : '') } : null),
 };
 export const OMT_LAYERS = Object.keys(OMT);
+// Tuiles Shortbread de la fondation OpenStreetMap : les parkings (des surfaces ; seulement des points dans OpenMapTiles)
+export const SHORTBREAD = { sites: (p) => (p.kind === 'parking' ? { amenity: 'parking' } : null) };
 
 // Tuiles décodées (decodeMvt de shared/mvt.js) -> chemins { type: 'way', tags, geometry: [{ lat, lon }…] } (anneau
 // fermé : premier point répété ; coordonnées à 10 cm près), gardés par circuit ; bâtiments seulement dans near
-// { s, w, n, e }, plus près du tracé (en ville, ceux de toute la zone pèseraient des dizaines de Mo)
-export function omtElements(tiles, near) {
+// { s, w, n, e }, plus près du tracé (en ville, ceux de toute la zone pèseraient des dizaines de Mo) ; table : couches
+// lues et leurs étiquettes (OpenMapTiles, sinon SHORTBREAD)
+export function omtElements(tiles, near, table = OMT) {
   const pt = ([lat, lon]) => ({ lat: Math.round(lat * 1e6) / 1e6, lon: Math.round(lon * 1e6) / 1e6 });
   const inNear = ([lat, lon]) => lat >= near.s && lat <= near.n && lon >= near.w && lon <= near.e;
   const out = [];
   for (const t of tiles) {
-    for (const [layer, tagsOf] of Object.entries(OMT)) {
+    for (const [layer, tagsOf] of Object.entries(table)) {
       for (const f of t[layer] || []) {
         const tags = tagsOf(f.props);
         if (!tags) continue;
@@ -371,6 +381,30 @@ export function omtElements(tiles, near) {
     }
   }
   return out;
+}
+
+// Enrichissement par Overpass (facultatif : souvent injoignable), petites requêtes ciblées, chacune lue une fois par
+// circuit ; near { s, w, n, e } : 700 m autour du tracé ; path : tracé [lat, lon, lat, lon…] (un point tous les 40 m)
+export function extraQueries(near, path) {
+  const b = `(${[near.s, near.w, near.n, near.e].map((v) => v.toFixed(5)).join(',')})`;
+  const around = (r) => `(around:${r},${path.map((v) => v.toFixed(5)).join(',')})`;
+  return {
+    // Tribunes (le type des bâtiments n'est pas dans les tuiles)
+    stands: `[out:json][timeout:50];way[building~"^(grandstand|stadium)$"]${b};out geom qt;`,
+    // Arbres isolés près de la piste
+    trees: `[out:json][timeout:50];node[natural=tree]${around(250)};out qt;`,
+  };
+}
+// Étiquettes gardées des réponses d'Overpass
+const TAGS = ['building', 'height', 'building:levels', 'natural'];
+// Réponse d'Overpass -> chemins et points { type: 'node', lat, lon, tags } à la manière d'omtElements (10 cm près)
+export function overpassElements(json) {
+  const pt = (p) => ({ lat: Math.round(p.lat * 1e6) / 1e6, lon: Math.round(p.lon * 1e6) / 1e6 });
+  return (json.elements || []).flatMap((e) => {
+    const tags = Object.fromEntries(TAGS.filter((k) => e.tags?.[k] != null).map((k) => [k, e.tags[k]]));
+    if (e.type === 'node' && Number.isFinite(e.lat)) return [{ type: 'node', ...pt(e), tags }];
+    return e.type === 'way' && e.geometry?.length > 1 ? [{ type: 'way', tags, geometry: e.geometry.map(pt) }] : [];
+  });
 }
 
 // Hachage déterministe -> [0, 1)
@@ -413,9 +447,9 @@ export function zone(track, fit, frame, margin = MARGIN) {
 //   buildings, stands : [[hauteur (m), x0, y0, x1, y1…]] — contour des bâtiments et des tribunes
 //   areas   : { water, wood, grass, farm, urban, sand, parking : [[x0, y0, x1, y1…]] } — surfaces
 //   lines   : { road, water, raceway : [[largeur (m), x0, y0…]] } — routes principales, cours d'eau, autres pistes
-//   trees   : [x0, y0, x1, y1…] — arbres des bois (les plus proches de la piste d'abord)
-// track : points du tracé [x, y] (m) ; fit : calage (fitTrack) ; frame : geoFrame ; elements : omtElements ;
-// dem(lat, lon) : altitude (m). null si le relief manque sur une partie de la zone
+//   trees   : [x0, y0, x1, y1…] — arbres isolés, puis ceux des bois (les plus proches de la piste d'abord)
+// track : points du tracé [x, y] (m) ; fit : calage (fitTrack) ; frame : geoFrame ; elements : omtElements et
+// overpassElements ; dem(lat, lon) : altitude (m). null si le relief manque sur une partie de la zone
 export function buildSurroundings({ track, fit, frame, elements = [], dem, margin = MARGIN, max = MAX }) {
   const toT = (lat, lon) => fromEN(fit, ...frame.toEN(lat, lon));
   const toGeo = (x, y) => frame.toGeo(...toEN(fit, x, y));
@@ -442,7 +476,7 @@ export function buildSurroundings({ track, fit, frame, elements = [], dem, margi
   const nearTrack = nearIndex(resample(track, Math.round(perimeter(track) / 4)));
 
   // Surfaces et lignes dans le repère du tracé, découpées à la zone
-  const shapes = [], lines = [];
+  const shapes = [], lines = [], single = [];
   const addRing = (geom, tags) => {
     const kind = areaKind(tags);
     if (!kind) return;
@@ -462,7 +496,7 @@ export function buildSurroundings({ track, fit, frame, elements = [], dem, margi
         const rank = kind === 'raceway' ? 0 : kind === 'water' ? 1 : 2 + Object.keys(ROADS).indexOf(road);
         for (const part of clipLine(g.map((p) => toT(p.lat, p.lon)), box)) lines.push({ kind, w, rank, pts: simplify(part, 3) });
       } else if (g.length > 3 && g[0].lat === g.at(-1).lat && g[0].lon === g.at(-1).lon) addRing(g, t);
-    }
+    } else if (el.type === 'node' && t.natural === 'tree') single.push(toT(el.lat, el.lon));
   }
 
   // Bâtiments : aucun sur la piste (tunnel, pont) ; tribunes d'abord, puis les plus grands près du tracé ; plafonnés
@@ -473,9 +507,12 @@ export function buildSurroundings({ track, fit, frame, elements = [], dem, margi
     return !!c.p && (inRing(ring, ...c.p) || ring.some(([x, y]) => nearTrack(x, y, 3).p));
   };
   const flat = (pts) => pts.flatMap((p) => [Math.round(p[0]), Math.round(p[1])]);
-  const blds = shapes.filter((s) => s.kind === 'building' && !onTrack(s.ring)).map((s) => {
-    const [cx, cy] = s.ring.reduce((a, p) => [a[0] + p[0] / s.ring.length, a[1] + p[1] / s.ring.length], [0, 0]);
-    return { ...s, stand: isStand(s.tags), score: s.area / (1 + distAt(cx, cy) / 300) };
+  // Tribune d'Overpass et bâtiment des tuiles au même endroit : la tribune seule
+  const mid = (r) => r.reduce((a, p) => [a[0] + p[0] / r.length, a[1] + p[1] / r.length], [0, 0]);
+  const stands = shapes.filter((s) => s.kind === 'building' && isStand(s.tags));
+  const dup = (s) => !isStand(s.tags) && stands.some((t) => inRing(t.ring, ...mid(s.ring)) || inRing(s.ring, ...mid(t.ring)));
+  const blds = shapes.filter((s) => s.kind === 'building' && !onTrack(s.ring) && !dup(s)).map((s) => {
+    return { ...s, stand: isStand(s.tags), score: s.area / (1 + distAt(...mid(s.ring)) / 300) };
   }).sort((p, q) => q.stand - p.stand || q.score - p.score).slice(0, max.buildings);
   const out = {
     terrain: { x0: box[0], y0: box[1], step, cols, rows, h: h.map((v) => Math.round(Math.max(-100, v) * 10)) },
@@ -497,12 +534,12 @@ export function buildSurroundings({ track, fit, frame, elements = [], dem, margi
     if ((budget -= l.pts.length) < 0) break;
     (out.lines[l.kind] ||= []).push([l.w, ...flat(l.pts)]);
   }
-  // Arbres semés dans les bois (tous les 12 m ; les arbres isolés ne sont pas dans les tuiles OpenMapTiles), jamais sur
+  // Arbres isolés (Overpass : pas dans les tuiles OpenMapTiles), puis semés dans les bois (tous les 12 m), jamais sur
   // la piste ; plafonnés : surtout les plus proches de la piste, et quelques-uns répartis plus loin
   const ok = ([x, y]) => x >= box[0] && x <= box[2] && y >= box[1] && y <= box[3] && !nearTrack(x, y, 18).p;
   const chosen = [];
-  const sown = (out.areas.wood || []).flatMap((r) => sowTrees(Array.from({ length: r.length / 2 }, (_, i) => [r[2 * i], r[2 * i + 1]]), 12))
-    .map((p) => ({ p, d: distAt(...p) })).sort((a, b) => a.d - b.d);
+  const byDist = (list) => list.map((p) => ({ p, d: distAt(...p) })).sort((a, b) => a.d - b.d);
+  const sown = [...byDist(single), ...byDist((out.areas.wood || []).flatMap((r) => sowTrees(Array.from({ length: r.length / 2 }, (_, i) => [r[2 * i], r[2 * i + 1]]), 12)))];
   const nearMax = Math.round(max.trees * 0.75), rest = [];
   for (const { p } of sown) {
     if (!ok(p)) continue;

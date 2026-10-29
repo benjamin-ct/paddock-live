@@ -4,7 +4,8 @@
 // posés sur le tracé MultiViewer de la saison (calculs : shared/surroundings.js). Calculés à l'avance par la tâche
 // planifiée, un couple circuit × saison à la fois : demandé, prochain Grand Prix, puis tout le catalogue des replays.
 // Ce qui ne dépend que du lieu (OSM, tuiles) est lu une fois par circuit et gardé dans R2 pour toutes les saisons ;
-// seul le calage sur le tracé change. Résultat (quelques centaines de ko) dans R2, état dans la base.
+// seul le calage sur le tracé change. Résultat (quelques centaines de ko) dans R2, état dans la base. Ensuite, un
+// enrichissement facultatif (parkings, tribunes, arbres isolés : extraTick) refait le fichier quand il arrive.
 import { setRow, readJSON, rowsWithPrefix } from './alerts.js';
 import { archiveToken } from './studio.js';
 import { circuitData } from './race-stats.js';
@@ -12,11 +13,15 @@ import { seasonIndex } from './tyres.js';
 import { wantedCircuits } from './zones.js';
 import { CIRCUITS } from '../shared/circuits-info.js';
 import { decodeMvt } from '../shared/mvt.js';
-import { fitTrack, zone, buildSurroundings, omtElements, OMT_LAYERS, geoFrame, tilesFor, decodePng, terrarium, demSampler, MARGIN } from '../shared/surroundings.js';
+import { fitTrack, zone, buildSurroundings, omtElements, OMT_LAYERS, SHORTBREAD, extraQueries, overpassElements, resample, perimeter, toEN, geoFrame, tilesFor, decodePng, terrarium,
+  demSampler, MARGIN } from '../shared/surroundings.js';
 
 // TileJSON d'OpenFreeMap : adresse des tuiles du moment (nouvelle version de la carte chaque semaine)
 const OFM = 'https://tiles.openfreemap.org/planet';
 const TILES = 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/';
+// Tuiles vectorielles de la fondation OpenStreetMap (schéma Shortbread, ODbL) ; serveurs Overpass, l'un après l'autre
+const SB = 'https://vector.openstreetmap.org/shortbread_v1/{z}/{x}/{y}.mvt';
+const OVERPASS = ['https://overpass-api.de/api/interpreter', 'https://overpass.private.coffee/api/interpreter', 'https://maps.mail.ru/osm/tools/overpass/api/interpreter'];
 const JOLPICA = 'https://api.jolpi.ca/ergast/f1/';
 const UA = 'Paddock-Live (https://paddocklive.app)';
 const FIRST_YEAR = 2018;       // premiers replays proposés (ui/replays.js)
@@ -25,15 +30,20 @@ const SOON = 20 * 60e3;        // source occupée ou injoignable : revu 20 min p
 const LOCK = 10 * 60e3;        // un seul calcul à la fois
 const CATALOGUE = 7 * 86400e3; // catalogue des replays relu une fois par semaine
 const NEAR = 700;              // bâtiments lus jusqu'à 700 m du tracé
+const VERSION = 2;             // version des fichiers : un fichier plus ancien est refait (il reste servi en attendant)
+const EXTRA = 3600e3;          // enrichissement raté : revu 1 h plus tard, puis 2 h, 4 h… jusqu'à 24 h
 const MAX_ERR = 8;             // calage gardé si le tracé est en moyenne à moins de 8 m des pistes (ou rues) d'OSM
 // Pauses (ms) : serveurs publics ménagés, une requête à la fois
-const PAUSE = { vtile: 100, tile: 300, jolpica: 1000, again: 2000 };
+const PAUSE = { vtile: 100, tile: 300, jolpica: 1000, again: 2000, overpass: 5000 };
 // Rues du calage des circuits en ville (classes OpenMapTiles ; minor : rues ordinaires)
 const STREETS = ['raceway', 'motorway', 'trunk', 'primary', 'secondary', 'tertiary', 'minor', 'service'];
 export const CREDITS = ['OpenFreeMap © OpenMapTiles © contributeurs OpenStreetMap', 'Altitude : Terrain Tiles (Mapzen, AWS Open Data)'];
 
 const rowKey = (key, year) => `surr:${key}:${year}`;
 const fileKey = (key, year) => `surroundings/${key}-${year}.json`;
+const placeKey = (key) => `surroundings/place-${key}.json`;
+const extraKey = (key) => `surroundings/extra-${key}.json`;
+const parse = (v) => { try { return JSON.parse(v); } catch { return null; } };
 const wait = (ms) => (ms > 0 ? new Promise((r) => setTimeout(r, ms)) : null);
 const r6 = (v) => Math.round(v * 1e6) / 1e6;
 
@@ -67,15 +77,15 @@ async function tile(env, { z, x, y }, fetchFn, pause) {
   return b;
 }
 
-// Tuiles vectorielles OpenFreeMap (zoom 14, le plus fin) qui couvrent la zone { s, w, n, e }, décodées (couches
-// demandées) ; ofm : { url } (modèle d'adresse des tuiles, lu une fois par calcul)
-async function vectorTiles(box, layers, ofm, fetchFn, pause) {
-  ofm.url ??= (await getJSON(OFM, 'OpenFreeMap', fetchFn, pause)).tiles?.[0];
-  if (!ofm.url) throw new Error('OpenFreeMap : adresse des tuiles absente');
+// Tuiles vectorielles (zoom 14, le plus fin) qui couvrent la zone { s, w, n, e }, décodées (couches demandées) ;
+// src : { name, url } (modèle d'adresse des tuiles ; OpenFreeMap : lu une fois par calcul dans son TileJSON)
+async function vectorTiles(box, layers, src, fetchFn, pause) {
+  src.url ??= (await getJSON(OFM, src.name, fetchFn, pause)).tiles?.[0];
+  if (!src.url) throw new Error(`${src.name} : adresse des tuiles absente`);
   const out = [];
   for (const t of tilesFor(box, Infinity, 14)) {
-    const url = ofm.url.replace('{z}', t.z).replace('{x}', t.x).replace('{y}', t.y);
-    out.push(decodeMvt(await get(url, `OpenFreeMap ${t.z}/${t.x}/${t.y}`, fetchFn, pause), t, layers));
+    const url = src.url.replace('{z}', t.z).replace('{x}', t.x).replace('{y}', t.y);
+    out.push(decodeMvt(await get(url, `${src.name} ${t.z}/${t.x}/${t.y}`, fetchFn, pause), t, layers));
     await wait(PAUSE.vtile * pause);
   }
   return out;
@@ -138,11 +148,11 @@ export async function computeSurroundings(env, key, year, { now = Date.now(), fe
   const frame = geoFrame(c.lat, c.lon), track = raw.x.map((x, i) => [x / 10, raw.y[i] / 10]);
   // Ce qui ne dépend que du lieu : pistes et rues d'OSM, ce qu'il y a autour, tuiles du relief ; gardé par circuit
   // (src : tuiles OpenFreeMap ; un ancien fichier d'après Overpass est refait)
-  const placeFile = `surroundings/place-${key}.json`;
+  const placeFile = placeKey(key);
   let loc = await (await env.MEDIA.get(placeFile))?.json().catch(() => null) ?? null;
   if (loc?.src !== 'ofm' || Math.hypot(...frame.toEN(loc.lat, loc.lon)) > 3000) loc = { src: 'ofm', lat: c.lat, lon: c.lon };
   let dirty = false;
-  const ofm = {};
+  const ofm = { name: 'OpenFreeMap' };
   // Lignes des classes demandées à r mètres à la ronde (tuiles entières) : [lat, lon, lat, lon…]
   const lines = async (name, classes, r) => {
     if (!loc[name]) {
@@ -173,9 +183,18 @@ export async function computeSurroundings(env, key, year, { now = Date.now(), fe
       loc.z = tilesFor(loc.zone, 30)[0].z;
       dirty = true;
     }
+    // Pour l'enrichissement : 700 m autour du tracé, et le tracé (un point tous les 40 m environ)
+    if (!loc.path) {
+      loc.near = zone(track, f, frame, NEAR);
+      loc.path = resample(track, Math.max(20, Math.round(perimeter(track) / 40))).flatMap(([x, y]) => frame.toGeo(...toEN(f, x, y)).map((v) => Math.round(v * 1e5) / 1e5));
+      dirty = true;
+    }
+    // Enrichissement déjà lu pour ce lieu
+    const extra = await (await env.MEDIA.get(extraKey(key)))?.json().catch(() => null);
+    const more = extra?.lat === loc.lat && extra?.lon === loc.lon ? Object.values(extra.parts).flat() : [];
     const heights = new Map();
     for (const t of tilesFor(z, Infinity, loc.z)) heights.set(`${t.x}/${t.y}`, terrarium(await decodePng(await tile(env, t, fetchFn, pause))));
-    const data = buildSurroundings({ track, fit: f, frame, elements: loc.osm, dem: demSampler(loc.z, heights) });
+    const data = buildSurroundings({ track, fit: f, frame, elements: [...loc.osm, ...more], dem: demSampler(loc.z, heights) });
     if (!data) return { error: 'relief incomplet', fit };
     return { data: { ...data, credits: CREDITS, fit, at: now }, fit };
   } finally {
@@ -199,27 +218,27 @@ export async function surroundingsStatus(env, key, year) {
   return row && !row.ok ? { tried: iso(row.at), error: row.error || null, next: iso(row.next) } : null;
 }
 
-// Tâche planifiée : un couple circuit × saison par passage, sans résultat ou dont l'échec est à revoir. Ordre :
-// demandé dans l'heure, prochain Grand Prix, puis le catalogue des replays (parcouru au plus une fois par heure quand
-// tout est fait)
+// Tâche planifiée : un couple circuit × saison par passage, sans résultat, dont l'échec est à revoir ou dont le fichier
+// est à refaire (plus ancien que VERSION, ou enrichissement arrivé depuis : il reste servi en attendant, et s'il
+// n'est pas refait). Ordre : demandé dans l'heure, prochain Grand Prix, puis le catalogue des replays (parcouru au
+// plus une fois par heure quand tout est fait) ; rien à calculer : un pas d'enrichissement (extraTick)
 export async function surroundingsTick(env, { now = Date.now(), fetchFn = fetch, pause = 1 } = {}) {
   if (!env.DB || !env.MEDIA || now - Number(await readJSON(env, 'surrlock', 0)) < LOCK) return null;
-  const due = (row) => !row || (!row.ok && now > row.next);
+  const due = (row) => !row || (now > row.next && (!row.ok || row.stale || (row.v || 1) < VERSION));
   const { asked, next } = await wantedCircuits(env, 'surrwant:', now);
   let job = null;
   for (const j of next ? [...asked, next] : asked) if (due(await readJSON(env, rowKey(j[0], j[1]), null))) { job = j; break; }
   if (!job && now - Number(await readJSON(env, 'surridle', 0)) > 3600e3) {
     const rows = new Map((await rowsWithPrefix(env, 'surr:')).map((r) => [r.k, r.v]));
-    const parse = (v) => { try { return JSON.parse(v); } catch { return null; } };
     job = (await catalogue(env, { now, fetchFn, pause })).find(([k, y]) => due(parse(rows.get(rowKey(k, y)))));
     if (!job) await setRow(env, 'surridle', String(now));
   }
-  if (!job) return null;
+  if (!job) return extraTick(env, { now, fetchFn, pause, first: [...asked, next].filter(Boolean).map((j) => j[0]) });
   const [key, y, lat, lon] = job;
   await setRow(env, 'surrlock', String(now));
   const old = await readJSON(env, rowKey(key, y), null);
   // Noté avant le calcul : s'il est interrompu (limite de temps du serveur), il n'est retenté que 6 heures plus tard
-  await setRow(env, rowKey(key, y), JSON.stringify({ at: now, ok: false, next: now + RETRY, error: 'calcul interrompu' }));
+  await setRow(env, rowKey(key, y), JSON.stringify({ ...old, at: now, ok: !!old?.ok, next: now + RETRY, error: 'calcul interrompu' }));
   try {
     const at = lat != null ? { lat, lon } : undefined;
     const res = await computeSurroundings(env, key, y, { now, fetchFn, at, pause }).catch((err) => ({ error: err.message, passing: !!err.passing }));
@@ -227,10 +246,90 @@ export async function surroundingsTick(env, { now = Date.now(), fetchFn = fetch,
     // Source occupée ou injoignable : revu 20 min plus tard, puis 40 min, 80 min… (6 h au plus) ; autre échec : 6 h
     const tries = res.passing ? (old?.tries || 0) + 1 : 0;
     const next = now + (tries ? Math.min(RETRY, SOON * 2 ** (tries - 1)) : RETRY);
-    await setRow(env, rowKey(key, y), JSON.stringify({ at: now, ok: !!res.data, next, fit: res.fit || null, ...(res.data ? {} : { error: res.error }), ...(tries ? { tries } : {}) }));
+    const row = { at: now, ok: !!(res.data || old?.ok), next, fit: res.fit || null };
+    if (res.data) row.v = VERSION;
+    // Fichier à refaire qui échoue : l'ancien reste servi ; revu plus tard seulement si la source était injoignable
+    else Object.assign(row, { error: res.error }, tries ? { tries } : {}, old?.ok ? (tries ? { v: old.v, stale: old.stale } : { v: VERSION }) : {});
+    await setRow(env, rowKey(key, y), JSON.stringify(row));
     return { key, year: y, ok: !!res.data, fit: res.fit || null, error: res.error };
   } finally {
     if (asked.some(([k, yy]) => k === key && yy === y)) await setRow(env, `surrwant:${key}:${y}`, '0');
+    await setRow(env, 'surrlock', '0');
+  }
+}
+
+// Requête Overpass : chaque serveur à son tour (une pause entre deux) ; tous en échec : erreur qui dit pourquoi
+async function overpass(query, { fetchFn, pause }) {
+  const why = [];
+  for (const url of OVERPASS) {
+    if (why.length) await wait(PAUSE.overpass * pause);
+    try {
+      const r = await fetchFn(url, { method: 'POST', headers: { 'User-Agent': UA }, body: new URLSearchParams({ data: query }), signal: AbortSignal.timeout(60e3) });
+      if (r.status !== 200) throw new Error(`HTTP ${r.status}`);
+      const d = await r.json();
+      if (/error|timed out/i.test(d.remark || '')) throw new Error(d.remark.slice(0, 80));
+      return overpassElements(d);
+    } catch (err) {
+      why.push(`${new URL(url).host} ${err.name === 'TimeoutError' ? 'délai dépassé' : err.message}`);
+    }
+  }
+  throw new Error(`Overpass : ${why.join(', ')}`);
+}
+
+// Enrichissement facultatif, après le calcul de base (servi tout de suite, et jamais retiré) : ce que les tuiles
+// OpenFreeMap n'ont pas, lu une fois par circuit et gardé dans R2 avec le lieu, pour toutes les saisons
+// (surroundings/extra-<clé>.json : { lat, lon, parts : { partie : éléments } }). Parkings : tuiles Shortbread de la
+// fondation OpenStreetMap ; tribunes et arbres isolés : Overpass (souvent injoignable : petites requêtes, plusieurs
+// serveurs). État dans la base (surrx:<clé> : { have, tries, next }) : une partie qui manque est réessayée 1 h, 2 h,
+// 4 h… plus tard (24 h au plus) ; une partie lue fait refaire les fichiers du circuit. Un circuit par passage, demandé
+// ou du prochain Grand Prix d'abord ; rien à faire : revu une heure plus tard
+const viaOverpass = (name) => (loc, o) => overpass(extraQueries(loc.near, loc.path)[name], o);
+const PARTS = {
+  parking: (loc, { fetchFn, pause }) => vectorTiles(loc.zone, ['sites'], { name: 'Shortbread', url: SB }, fetchFn, pause).then((t) => omtElements(t, loc.zone, SHORTBREAD)),
+  stands: viaOverpass('stands'),
+  trees: viaOverpass('trees'),
+};
+async function extraTick(env, { now, fetchFn, pause, first }) {
+  if (now - Number(await readJSON(env, 'surrxidle', 0)) < 3600e3) return null;
+  const base = await rowsWithPrefix(env, 'surr:'), state = new Map((await rowsWithPrefix(env, 'surrx:')).map((r) => [Number(r.k.slice(6)), parse(r.v)]));
+  const done = new Set(base.filter((r) => parse(r.v)?.ok).map((r) => Number(r.k.split(':')[1])));
+  const names = Object.keys(PARTS);
+  const key = [...first, ...done].find((k) => {
+    const x = state.get(k);
+    return done.has(k) && (!x || (now > x.next && names.some((p) => !x.have.includes(p))));
+  });
+  if (key === undefined) { await setRow(env, 'surrxidle', String(now)); return null; }
+  await setRow(env, 'surrlock', String(now));
+  try {
+    const loc = await (await env.MEDIA.get(placeKey(key)))?.json().catch(() => null);
+    // Lieu d'avant l'enrichissement (sans le tracé) : refait au prochain calcul de base (VERSION)
+    if (!loc?.path) {
+      await setRow(env, `surrx:${key}`, JSON.stringify({ at: now, have: [], next: now + EXTRA, error: 'lieu à refaire' }));
+      return { key, extra: [] };
+    }
+    let file = await (await env.MEDIA.get(extraKey(key)))?.json().catch(() => null);
+    if (file?.lat !== loc.lat || file?.lon !== loc.lon) file = { lat: loc.lat, lon: loc.lon, parts: {} };
+    const fresh = [], errors = [];
+    for (const p of names.filter((n) => !file.parts[n])) {
+      try {
+        file.parts[p] = await PARTS[p](loc, { fetchFn, pause });
+        fresh.push(p);
+      } catch (err) {
+        errors.push(err.message);
+      }
+    }
+    if (fresh.length) {
+      await env.MEDIA.put(extraKey(key), JSON.stringify(file), { httpMetadata: { contentType: 'application/json' } });
+      for (const r of base.filter((x) => x.k.startsWith(`surr:${key}:`))) {
+        const v = parse(r.v);
+        if (v?.ok) await setRow(env, r.k, JSON.stringify({ ...v, stale: true, next: 0 }));
+      }
+    }
+    const tries = errors.length ? (state.get(key)?.tries || 0) + 1 : 0;
+    await setRow(env, `surrx:${key}`, JSON.stringify({ at: now, have: Object.keys(file.parts), next: tries ? now + Math.min(24 * EXTRA, EXTRA * 2 ** (tries - 1)) : 0,
+      ...(tries ? { tries, errors } : {}) }));
+    return { key, extra: fresh, errors };
+  } finally {
     await setRow(env, 'surrlock', '0');
   }
 }
