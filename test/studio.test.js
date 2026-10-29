@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 process.env.PADDOCK_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'paddock-studio-'));
+delete process.env.F1TV_TOKEN;   // jeton de l'environnement : remplacerait celui des tests (server/config.js)
 // Code d'essai (le vrai code n'est jamais dans le dépôt) : son empreinte remplace celle du créateur
 const CODE = 'ESSAI-42';
 const nodeCrypto = await import('node:crypto');
