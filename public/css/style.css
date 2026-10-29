@@ -1340,14 +1340,14 @@ body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-selec
 .p-map.is-3d :is(label:has(#mapFollow), #mapMode, label:has(#mapTrails, #mapGaps, #mapFocusCard, #mapRibbon2, #mapGrid)) { display: none !important; }
 .p-map.is-3d .map-flags { top: 56px; }
 .map3d-canvas { display: block; width: 100%; height: 100%; touch-action: none; }
-.map3d-bar { position: absolute; left: 8px; top: 8px; right: 8px; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 6px; pointer-events: none; }
+.map3d-bar { position: absolute; left: 8px; top: 8px; right: 8px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; pointer-events: none; }
 .map3d-bar > * { pointer-events: auto; }
 .map3d-cams { display: flex; gap: 2px; padding: 3px; background: color-mix(in srgb, var(--panel-2) 88%, transparent); border: 1px solid var(--border); border-radius: 9px; backdrop-filter: blur(6px); }
 .map3d-cams .btn:not(.on) { border-color: transparent; background: transparent; }
 .map3d-driver { max-width: 190px; }
 .map3d-time, .map3d-quality, .map3d-weather { max-width: 170px; }
 .map3d-opts select { max-width: none; width: 100%; }
-.map3d-bar .map3d-fly:not(.on), .map3d-bar .map3d-opts > summary { background: var(--panel); color: var(--text); font-weight: 700; padding: 4px 9px; }   /* boutons sur la vue : fond plein comme les choix */
+.map3d-bar .map3d-fly:not(.on), .map3d-bar .map3d-opts > summary { background: var(--panel); color: var(--text); font-weight: 700; padding: 4px 9px; margin: 0; }   /* boutons sur la vue : fond plein comme les choix */
 .map3d-cap { position: absolute; left: 50%; bottom: 40px; transform: translateX(-50%); max-width: calc(100% - 32px); padding: 4px 12px; border-radius: 8px;
   font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   background: color-mix(in srgb, var(--panel-2) 90%, transparent); border: 1px solid var(--border); color: var(--text); pointer-events: none; }
