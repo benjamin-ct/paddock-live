@@ -87,15 +87,15 @@ function layers() {
     paint: { 'line-color': accent(), 'line-width': w(1.5, 11) } });
 }
 
-// Grand Prix choisi : sa carte au centre, la carte vole jusqu'au circuit (tracé entier visible ; instant : sans voler)
-function select(round, instant = false) {
+// Grand Prix choisi : sa carte au centre, la carte vole jusqu'au circuit (tracé entier visible)
+function select(round) {
   sel = round;
   for (const m of markers) m.getElement().classList.toggle('on', Number(m.getElement().dataset.cg) === round);
   center(round);
   const g = items.find((x) => x.round === round);
   if (!g || !map) return;
   map.resize();   // bloc remis dans la page : taille reprise avant de déplacer la carte
-  const opts = { padding: { top: 50, bottom: 30, left: 30, right: 30 }, maxZoom: 15.5, speed: 1.1, curve: 1.6, animate: !instant && !still() };
+  const opts = { padding: { top: 50, bottom: 30, left: 30, right: 30 }, maxZoom: 15.5, speed: 1.1, curve: 1.6, animate: !still() };
   if (g.shape) {
     const b = new globalThis.maplibregl.LngLatBounds();
     for (const p of g.shape.line) b.extend(p);
@@ -171,7 +171,8 @@ async function start() {
   });
   map.jumpTo({ zoom: worldZoom(), padding: { top: 0, bottom: cardsH(), left: 0, right: 0 } });
   pins();
-  select(sel, true);   // ouvert sur le circuit du prochain Grand Prix (« Monde » ramène au globe)
+  // Globe d'abord, puis vol jusqu'au circuit du prochain Grand Prix, comme au choix d'une carte (« Monde » ramène au globe)
+  map.once('idle', () => { if (box?.isConnected) select(sel); });
   // Apparence changée : fond clair ou sombre (points et tracés remis par style.load)
   on('scheme', (v) => styleOf(v).then((s) => map?.setStyle(s, { diff: false })).catch(() => {}));
 }
