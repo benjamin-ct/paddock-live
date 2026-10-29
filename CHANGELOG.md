@@ -81,10 +81,20 @@ l'application (Réglages → À propos → Nouveautés).
   monte et descend en pente continue, sans marches (le Raidillon de Spa monte comme en vrai), ses vibreurs, la ligne
   d'arrivée et la grille de départ (avant le départ d'une course ou d'un sprint, les voitures attendent dans leur case,
   dans l'ordre de la grille, puis s'élancent), le bâtiment des stands le long de la voie des stands, et des voitures en forme de vraie F1 2026 aux couleurs des écuries (nez fin, ailerons à plusieurs
-  éléments, pontons, halo, roues larges, casque du pilote), en direct comme en replay. Quatre caméras autour du pilote
+  éléments, pontons, halo, roues larges, casque du pilote), en direct comme en replay. Sur le flanc des pneus, un
+  liseré de la couleur du composé monté (tendre rouge, medium jaune, dur blanc, intermédiaire vert, pluie bleu),
+  qui change à chaque arrêt. Chaque voiture porte le numéro de son pilote sur le nez et la dérive, et une deuxième
+  couleur tirée de celle de l'écurie sur les flancs des ailerons, la dérive et les rétroviseurs ; le volet de l'aileron
+  arrière s'ouvre quand le DRS du pilote est ouvert (télémétrie, quand la F1 la donne) ; aux stands, la voiture suit
+  la voie des stands, s'arrête à son emplacement sans tourner sur place et repart. Quatre caméras autour du pilote
   suivi (choisi dans la liste de la vue 3D ou dans le classement) : Hélico, Poursuite, Embarquée et Libre (glisser
   pour tourner, molette ou pincement pour zoomer, clic droit pour se déplacer, double-clic pour revoir tout le
-  circuit). Autour de la piste, ce qu'il y a vraiment, d'après OpenStreetMap (cartes OpenFreeMap) : le relief du
+  circuit) ; et Réalisation, qui passe toute seule d'une bataille à l'autre (petits écarts, dépassements, DRS), sans
+  changer de plan trop souvent, avec une légende (« Bataille pour la P5 · LEC – HAM · 0,3 s »). Le bouton Survol fait
+  faire le tour du circuit à la caméra, avec le numéro des virages (aussi tout seul à l'ouverture quand aucune voiture
+  n'est en piste). Dans Réglages : l'écart avec la voiture devant, affiché entre les deux voitures (coché d'office),
+  et le fantôme du meilleur tour de la séance, une voiture transparente qui le refait en partant avec le pilote suivi
+  (positions GPS nécessaires). Autour de la piste, ce qu'il y a vraiment, d'après OpenStreetMap (cartes OpenFreeMap) : le relief du
   terrain, les bâtiments et les tribunes, les bois et leurs arbres, les arbres isolés, les parkings, les lacs, les
   rivières et la mer, les routes, l'herbe et les champs (sources en bas à droite de la vue), et le long de la piste les
   murs, rails et grillages (sur les circuits en ville, des murs là où la piste emprunte les rues ou longe les
@@ -100,6 +110,14 @@ l'application (Réglages → À propos → Nouveautés).
   mais la piste reste lisible. Mêmes pastilles
   des pilotes et mêmes calques que la carte 2D (numéros de virage, secteurs et micro-secteurs, zones de dépassement,
   voie des stands, drapeaux jaunes, voiture de sécurité, bandeau des drapeaux), réglables dans le même menu Calques.
+  Qualité au choix (Auto, Économe ou Haute, choix gardé) : en Économe, moins d'arbres et de bâtiments (les plus petits
+  et les plus loin de la piste d'abord), ombres des voitures seules et sol un peu moins fin ; en Auto, la vue mesure sa
+  fluidité, baisse d'un cran si elle saccade et remonte prudemment quand il y a de la marge. Pour la batterie, elle
+  dessine moins d'images quand rien ne bouge (replay en pause, drapeau rouge) et sur téléphone sur batterie.
+  La météo suit celle de la séance, en direct comme en replay (ou Sec ou Pluie, au choix dans la vue) : nuages, ciel
+  couvert et lumière plus terne quand il pleut, pluie qui tombe, piste mouillée qui brille avec ses flaques et gerbes
+  d'eau derrière les voitures (sauf en Économe) ; la piste reste mouillée tant que des voitures roulent en
+  intermédiaires ou en pneus pluie.
   Décochée, la carte habituelle revient. Aussi dans la version web.
 
 ### Téléphone
