@@ -166,3 +166,22 @@ export function traceAt(trace, dt) {
   const a = trace[lo], b = trace[hi], u = b.dt > a.dt ? (dt - a.dt) / (b.dt - a.dt) : 0;
   return { x: a.x + (b.x - a.x) * u, y: a.y + (b.y - a.y) * u };
 }
+
+// Ouvertures dans les murs à l'entrée et à la sortie des stands. parts : morceaux de mur [{ a: [x, z], b: [x, z], wall
+// (même valeur pour les morceaux qui se suivent d'un même mur) }], pit : points du milieu de la voie [[x, z]…] (m).
+// Là où la voie traverse un mur, le morceau et ses voisins du même mur (12 m pour des morceaux de 4 m, voie de 7 m) ;
+// pas quand elle le longe (moins de 10° : son tracé, approximatif, zigzague sur le mur des stands) -> indices
+export function wallCuts(parts, pit) {
+  const side = (p, q, r) => Math.sign((q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0]));
+  const crosses = ({ a, b }, c, d) => {
+    if (side(a, b, c) === side(a, b, d) || side(c, d, a) === side(c, d, b)) return false;
+    const ux = b[0] - a[0], uz = b[1] - a[1], vx = d[0] - c[0], vz = d[1] - c[1];
+    return Math.abs(ux * vz - uz * vx) > Math.sin(Math.PI / 18) * Math.hypot(ux, uz) * Math.hypot(vx, vz);
+  };
+  const out = new Set();
+  parts.forEach((w, k) => {
+    if (!pit.some((q, j) => j && crosses(w, pit[j - 1], q))) return;
+    for (const n of [k - 1, k, k + 1]) if (parts[n]?.wall === w.wall) out.add(n);
+  });
+  return [...out].sort((x, y) => x - y);
+}
