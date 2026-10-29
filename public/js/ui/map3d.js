@@ -441,8 +441,34 @@ function landGround(group, land, { track, P, SIDE, toW, fromW, base, maxTex, ani
     crowns.castShadow = true;
     group.add(crowns, trunks);
   }
+
+  // Murs (béton clair), rails (gris) et grillages (sombres, à claire-voie) le long de la piste : une boîte en instance
+  // par segment, posée sur le sol ; hauteur et épaisseur selon le genre
+  WALL_KINDS.forEach(([hgt, thick, color, opacity], kind) => {
+    const segs = [];
+    for (const [k, ...flat] of land.walls || []) {
+      if (k !== kind) continue;
+      const pts = corners(flat);
+      for (let i = 0; i + 1 < pts.length; i++) segs.push([pts[i], pts[i + 1]]);
+    }
+    if (!segs.length) return;
+    const mesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0),
+      new THREE.MeshStandardMaterial({ color, roughness: 0.8, transparent: opacity < 1, opacity, depthWrite: opacity === 1 }), segs.length);
+    const m = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), p = new THREE.Vector3(), sc = new THREE.Vector3();
+    segs.forEach(([[ax, az], [bx, bz]], i) => {
+      const ya = groundAt(ax, az), yb = groundAt(bx, bz), lo = Math.min(ya, yb);
+      m.compose(p.set((ax + bx) / 2, lo - 0.1, (az + bz) / 2), q.setFromAxisAngle(up, Math.atan2(bx - ax, bz - az)),
+        sc.set(thick, hgt + Math.abs(ya - yb) + 0.1, Math.hypot(bx - ax, bz - az) + 0.05));
+      mesh.setMatrixAt(i, m);
+    });
+    mesh.castShadow = opacity === 1;
+    mesh.receiveShadow = true;
+    group.add(mesh);
+  });
   return { groundAt, detailAt };
 }
+// Genres des murs (serveur) : hauteur (m), épaisseur (m), couleur, opacité
+const WALL_KINDS = [[1.1, 0.45, 0xdcdde0, 1], [0.8, 0.3, 0xa3a9b0, 1], [2.6, 0.06, 0x4f565e, 0.5]];
 
 // Fenêtres allumées la nuit sur les murs (environ une sur deux, effacées au loin : pas de moiré) ; NIGHT : de 0 (jour) à 1
 const NIGHT = { value: 0 };

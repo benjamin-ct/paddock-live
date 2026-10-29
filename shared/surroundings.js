@@ -393,10 +393,12 @@ export function extraQueries(near, path) {
     stands: `[out:json][timeout:50];way[building~"^(grandstand|stadium)$"]${b};out geom qt;`,
     // Arbres isolés près de la piste
     trees: `[out:json][timeout:50];node[natural=tree]${around(250)};out qt;`,
+    // Murs, rails, grillages et pneus le long de la piste
+    walls: `[out:json][timeout:50];way[barrier~"^(${Object.keys(WALLS).join('|')})$"]${around(40)};out geom qt;`,
   };
 }
 // Étiquettes gardées des réponses d'Overpass
-const TAGS = ['building', 'height', 'building:levels', 'natural'];
+const TAGS = ['building', 'height', 'building:levels', 'natural', 'barrier'];
 // Réponse d'Overpass -> chemins et points { type: 'node', lat, lon, tags } à la manière d'omtElements (10 cm près)
 export function overpassElements(json) {
   const pt = (p) => ({ lat: Math.round(p.lat * 1e6) / 1e6, lon: Math.round(p.lon * 1e6) / 1e6 });
@@ -405,6 +407,51 @@ export function overpassElements(json) {
     if (e.type === 'node' && Number.isFinite(e.lat)) return [{ type: 'node', ...pt(e), tags }];
     return e.type === 'way' && e.geometry?.length > 1 ? [{ type: 'way', tags, geometry: e.geometry.map(pt) }] : [];
   });
+}
+
+// Barrières d'OSM (barrier=*) -> genre des murs : 0 mur (béton, pneus), 1 rail, 2 grillage
+const WALLS = { wall: 0, concrete_barrier: 0, jersey_barrier: 0, retaining_wall: 0, block: 0, tyres: 0, guard_rail: 1, fence: 2 };
+export const EDGE = 8.5;   // murs déduits : à 1,5 m du bord de la piste (14 m de large)
+
+// Morceaux d'un tableau circulaire de booléens : [début, longueur] des suites de true
+function runs(arr) {
+  const n = arr.length, s = arr.indexOf(false);
+  if (s < 0) return [[0, n]];
+  const out = [];
+  for (let k = 1, start = -1; k <= n; k++) {
+    const i = (s + k) % n;
+    if (arr[i] && start < 0) start = k;
+    if ((!arr[i] || k === n) && start >= 0) { out.push([(s + start) % n, k - start + (arr[i] ? 1 : 0)]); start = -1; }
+  }
+  return out;
+}
+
+// Murs déduits, quand OSM n'en a pas : de chaque côté de la piste, là où elle emprunte une rue (circuit en ville) ou
+// longe un bâtiment, une zone bâtie à moins de 25 m de son bord ; trous de moins de 30 m bouchés, morceaux de moins
+// de 40 m écartés ; à EDGE m du milieu de la piste, jamais sur une autre partie de la piste (à moins de 8 m de son
+// milieu : demi-largeur de 7 m et 1 m de marge) ni là où OSM a déjà un mur.
+// built(x, y), onRoad(x, y), taken(x, y) : tests sur un point (repère du tracé, m) -> [[x0, y0, x1, y1…]…]
+export function deduceWalls(track, { built, onRoad, taken }) {
+  const pts = resample(track, Math.max(60, Math.round(perimeter(track) / 5))), n = pts.length, out = [];
+  // Point (x, y) sur une autre partie de la piste que celle du point i (voisins à moins de 30 m le long du tracé exclus)
+  const onOther = (x, y, i) => pts.some(([px, py], j) => Math.min(Math.abs(j - i), n - Math.abs(j - i)) > 6 && (px - x) ** 2 + (py - y) ** 2 < 64);
+  const road = pts.map((p) => onRoad(...p));
+  for (const side of [-1, 1]) {
+    const at = pts.map(([x, y], i) => {
+      const [ax, ay] = pts[(i - 1 + n) % n], [bx, by] = pts[(i + 1) % n], l = Math.hypot(bx - ax, by - ay) || 1;
+      const nx = (-(by - ay) / l) * side, ny = ((bx - ax) / l) * side;
+      return [x + nx * EDGE, y + ny * EDGE, nx, ny];
+    });
+    const wall = at.map(([x, y, nx, ny], i) => road[i] || [3, 8, 13, 18].some((d) => built(x + nx * d, y + ny * d)));
+    for (const [i, len] of runs(wall.map((v) => !v))) if (len < 6) for (let k = 0; k < len; k++) wall[(i + k) % n] = true;
+    const keep = wall.map((v, i) => v && !onOther(at[i][0], at[i][1], i) && !taken(at[i][0], at[i][1]));
+    for (const [i, len] of runs(keep)) {
+      if (len < 8) continue;
+      const line = Array.from({ length: len === n ? n + 1 : len }, (_, k) => at[(i + k) % n].slice(0, 2));
+      out.push(simplify(line, 0.3));
+    }
+  }
+  return out;
 }
 
 // Hachage déterministe -> [0, 1)
@@ -448,6 +495,7 @@ export function zone(track, fit, frame, margin = MARGIN) {
 //   areas   : { water, wood, grass, farm, urban, sand, parking : [[x0, y0, x1, y1…]] } — surfaces
 //   lines   : { road, water, raceway : [[largeur (m), x0, y0…]] } — routes principales, cours d'eau, autres pistes
 //   trees   : [x0, y0, x1, y1…] — arbres isolés, puis ceux des bois (les plus proches de la piste d'abord)
+//   walls   : [[genre, x0, y0, x1, y1…]] — murs (0), rails (1), grillages (2) le long de la piste, à 10 cm près
 // track : points du tracé [x, y] (m) ; fit : calage (fitTrack) ; frame : geoFrame ; elements : omtElements et
 // overpassElements ; dem(lat, lon) : altitude (m). null si le relief manque sur une partie de la zone
 export function buildSurroundings({ track, fit, frame, elements = [], dem, margin = MARGIN, max = MAX }) {
@@ -476,7 +524,7 @@ export function buildSurroundings({ track, fit, frame, elements = [], dem, margi
   const nearTrack = nearIndex(resample(track, Math.round(perimeter(track) / 4)));
 
   // Surfaces et lignes dans le repère du tracé, découpées à la zone
-  const shapes = [], lines = [], single = [];
+  const shapes = [], lines = [], single = [], barriers = [];
   const addRing = (geom, tags) => {
     const kind = areaKind(tags);
     if (!kind) return;
@@ -491,7 +539,14 @@ export function buildSurroundings({ track, fit, frame, elements = [], dem, margi
     if (el.type === 'way' && el.geometry?.length > 1) {
       const g = el.geometry, road = String(t.highway || '').replace(/_link$/, '');
       const kind = t.highway === 'raceway' ? 'raceway' : ROADS[road] ? 'road' : ['river', 'canal', 'stream'].includes(t.waterway) ? 'water' : null;
-      if (kind) {
+      if (WALLS[t.barrier] !== undefined) {
+        // Barrière : seulement à moins de 40 m de la piste
+        let run = [];
+        for (const p of [...densify(g.map((q) => toT(q.lat, q.lon)), 4), null]) {
+          if (p && nearTrack(...p, 40).p) run.push(p);
+          else { if (run.length > 1) barriers.push([WALLS[t.barrier], simplify(run, 0.3)]); run = []; }
+        }
+      } else if (kind) {
         const w = kind === 'raceway' ? 12 : kind === 'water' ? { river: 12, canal: 10, stream: 3 }[t.waterway] : t.highway.endsWith('_link') ? 6 : ROADS[road];
         const rank = kind === 'raceway' ? 0 : kind === 'water' ? 1 : 2 + Object.keys(ROADS).indexOf(road);
         for (const part of clipLine(g.map((p) => toT(p.lat, p.lon)), box)) lines.push({ kind, w, rank, pts: simplify(part, 3) });
@@ -547,5 +602,22 @@ export function buildSurroundings({ track, fit, frame, elements = [], dem, margi
   }
   for (let i = 0, room = max.trees - chosen.length; i < room && i < rest.length; i++) chosen.push(rest[Math.floor((i * rest.length) / Math.min(room, rest.length))]);
   out.trees = flat(chosen);
+
+  // Murs le long de la piste (genre, puis [x0, y0, x1, y1…] à 10 cm près) : ceux d'OSM, puis ceux déduits
+  const r1 = (pts) => pts.flatMap((p) => [Math.round(p[0] * 10) / 10, Math.round(p[1] * 10) / 10]);
+  const cell = new Map(), C = 100;
+  for (const s of shapes.filter((x) => x.kind === 'building' || x.kind === 'urban')) {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const [x, y] of s.ring) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
+    for (let i = Math.floor(x0 / C); i <= Math.floor(x1 / C); i++) for (let j = Math.floor(y0 / C); j <= Math.floor(y1 / C); j++) (cell.get(i * 100003 + j) || cell.set(i * 100003 + j, []).get(i * 100003 + j)).push(s.ring);
+  }
+  const roads = nearIndex(lines.filter((l) => l.kind === 'road').flatMap((l) => densify(l.pts, 3)));
+  const osmWalls = nearIndex(barriers.flatMap(([, pts]) => densify(pts, 2)));
+  const deduced = deduceWalls(track, {
+    built: (x, y) => (cell.get(Math.floor(x / C) * 100003 + Math.floor(y / C)) || []).some((r) => inRing(r, x, y)),
+    onRoad: (x, y) => !!roads(x, y, 7).p,
+    taken: (x, y) => !!osmWalls(x, y, 10).p,
+  });
+  out.walls = [...barriers.map(([kind, pts]) => [kind, ...r1(pts)]), ...deduced.map((pts) => [0, ...r1(pts)])];
   return out;
 }
