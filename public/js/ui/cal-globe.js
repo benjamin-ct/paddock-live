@@ -87,15 +87,15 @@ function layers() {
     paint: { 'line-color': accent(), 'line-width': w(1.5, 11) } });
 }
 
-// Grand Prix choisi : sa carte au centre, la carte vole jusqu'au circuit (tracé entier visible)
-function select(round) {
+// Grand Prix choisi : sa carte au centre, la carte vole jusqu'au circuit (tracé entier visible ; instant : sans voler)
+function select(round, instant = false) {
   sel = round;
   for (const m of markers) m.getElement().classList.toggle('on', Number(m.getElement().dataset.cg) === round);
   center(round);
   const g = items.find((x) => x.round === round);
   if (!g || !map) return;
   map.resize();   // bloc remis dans la page : taille reprise avant de déplacer la carte
-  const opts = { padding: { top: 50, bottom: 30, left: 30, right: 30 }, maxZoom: 15.5, speed: 1.1, curve: 1.6, animate: !still() };
+  const opts = { padding: { top: 50, bottom: 30, left: 30, right: 30 }, maxZoom: 15.5, speed: 1.1, curve: 1.6, animate: !instant && !still() };
   if (g.shape) {
     const b = new globalThis.maplibregl.LngLatBounds();
     for (const p of g.shape.line) b.extend(p);
@@ -171,6 +171,7 @@ async function start() {
   });
   map.jumpTo({ zoom: worldZoom(), padding: { top: 0, bottom: cardsH(), left: 0, right: 0 } });
   pins();
+  select(sel, true);   // ouvert sur le circuit du prochain Grand Prix (« Monde » ramène au globe)
   // Apparence changée : fond clair ou sombre (points et tracés remis par style.load)
   on('scheme', (v) => styleOf(v).then((s) => map?.setStyle(s, { diff: false })).catch(() => {}));
 }
@@ -187,10 +188,10 @@ export async function mountGlobe(slot, list, onFail) {
   const all = await shapes;
   const was = items.find((g) => g.round === sel)?.href;
   items = list.map((g) => ({ ...g, shape: nearestShape(all, g.lat, g.lon) }));
-  // Autre saison : son prochain Grand Prix (sinon le dernier couru), vu sur le globe
+  // Autre saison : son prochain Grand Prix (sinon le dernier couru), vu de près
   const other = !items.some((g) => g.round === sel && g.href === was);
   if (other) sel = (items.find((g) => g.state === 'next') || items.filter((g) => g.state === 'done').at(-1) || items[0])?.round ?? null;
   if (!box) return;
   cards();
-  if (map?.loaded() || map?.isStyleLoaded()) { pins(); map.getSource('cg-tracks')?.setData(tracks()); if (other) world(); }
+  if (map?.loaded() || map?.isStyleLoaded()) { pins(); map.getSource('cg-tracks')?.setData(tracks()); if (other) select(sel); }
 }

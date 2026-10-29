@@ -39,8 +39,9 @@ l'application (Réglages → À propos → Nouveautés).
   compris, et dans Profil des circuits, avec les familles de circuits qui se ressemblent (virages lents ou rapides,
   contrainte sur les pneus), chaque circuit avec son tracé. Aussi dans la version web.
 - Calendrier : la saison sur un globe, un point numéroté par Grand Prix (prochain en rouge, à venir, déjà couru), et en
-  bas une carte par Grand Prix à faire glisser (manche, couru ou à venir, sprint, drapeau, dates et dessin du tracé). La
-  carte choisie, ou un point touché, fait voler le globe jusqu'au circuit, avec son tracé dessiné sur le plan des rues ;
+  bas une carte par Grand Prix à faire glisser (manche, couru ou à venir, sprint, drapeau, dates et dessin du tracé).
+  Il s'ouvre sur le circuit du prochain Grand Prix ; la carte choisie, ou un point touché, fait voler le globe jusqu'au
+  circuit, avec son tracé dessiné sur le plan des rues ;
   « Monde » ramène au globe et chaque carte ouvre la fiche du Grand Prix. Plan clair ou sombre selon l'apparence, sans
   animation quand elles sont coupées ; sur téléphone, la page défile d'un doigt et la carte se déplace à deux doigts.
   Fonds de carte OpenFreeMap (© OpenMapTiles © contributeurs OpenStreetMap) ; sans connexion ou sans accélération
