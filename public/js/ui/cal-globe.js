@@ -171,6 +171,8 @@ async function start() {
   });
   map.jumpTo({ zoom: worldZoom(), padding: { top: 0, bottom: cardsH(), left: 0, right: 0 } });
   pins();
+  // Globe d'abord, puis vol jusqu'au circuit du prochain Grand Prix, comme au choix d'une carte (« Monde » ramène au globe)
+  map.once('idle', () => { if (box?.isConnected) select(sel); });
   // Apparence changée : fond clair ou sombre (points et tracés remis par style.load)
   on('scheme', (v) => styleOf(v).then((s) => map?.setStyle(s, { diff: false })).catch(() => {}));
 }
@@ -187,10 +189,10 @@ export async function mountGlobe(slot, list, onFail) {
   const all = await shapes;
   const was = items.find((g) => g.round === sel)?.href;
   items = list.map((g) => ({ ...g, shape: nearestShape(all, g.lat, g.lon) }));
-  // Autre saison : son prochain Grand Prix (sinon le dernier couru), vu sur le globe
+  // Autre saison : son prochain Grand Prix (sinon le dernier couru), vu de près
   const other = !items.some((g) => g.round === sel && g.href === was);
   if (other) sel = (items.find((g) => g.state === 'next') || items.filter((g) => g.state === 'done').at(-1) || items[0])?.round ?? null;
   if (!box) return;
   cards();
-  if (map?.loaded() || map?.isStyleLoaded()) { pins(); map.getSource('cg-tracks')?.setData(tracks()); if (other) world(); }
+  if (map?.loaded() || map?.isStyleLoaded()) { pins(); map.getSource('cg-tracks')?.setData(tracks()); if (other) select(sel); }
 }
