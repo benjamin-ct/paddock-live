@@ -119,7 +119,8 @@ export function fit(ctx, text, max, size, weight, family) {
 }
 // italic : penché vers l'avant (titres « vitesse ») ; stroke : contour seul, de cette épaisseur
 export function txt(ctx, text, x, y, { size = 32, weight = 400, family = BODY, color = C.text, align = 'left', max = 0, base = 'alphabetic', spacing = 0, italic = false, stroke = 0 } = {}) {
-  const s = max ? fit(ctx, text, max, size, weight, family) : size;
+  // Espacement des lettres (fixe, en px) compté dans la largeur permise : sinon le texte espacé déborde
+  const s = max ? fit(ctx, text, Math.max(1, max - spacing * text.length), size, weight, family) : size;
   ctx.font = `${weight} ${s}px ${family}`;
   ctx.fillStyle = color;
   ctx.textAlign = align;
