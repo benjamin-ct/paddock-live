@@ -2747,4 +2747,5 @@ export default {
   "Fantôme : meilleur tour de {} ({})": "Fantasma: vuelta rápida de {} ({})",
   "Fantôme : pas encore de meilleur tour avec les positions GPS": "Fantasma: todavía no hay vuelta rápida con las posiciones GPS",
   "Fantôme : il faut les positions GPS des voitures": "Fantasma: hacen falta las posiciones GPS de los coches",
+  "Relief et sources de la carte": "Relieve y fuentes del mapa",
 };
