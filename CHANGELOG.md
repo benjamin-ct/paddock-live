@@ -175,6 +175,9 @@ l'application (Réglages → À propos → Nouveautés).
 - Saison → Écuries (nouvelle rubrique) : une carte par écurie à sa couleur, logo en filigrane, place et points au
   championnat, ses pilotes en portrait avec leurs points, victoires, podiums et poles ; toucher une écurie ouvre le duel
   de ses pilotes. Aussi dans la version web.
+- Thème clair : les cartes des pilotes (Saison → Pilotes, et le pilote en grand en tête de page) et des écuries
+  (Saison → Écuries) sont claires comme le reste de la page, avec un bandeau, un léger dégradé et le logo en filigrane
+  à la couleur de l'écurie ; elles restaient sombres. Aussi dans la version web.
 - Saison : pendant le chargement, la page apparaît en gris (cartes et blocs qui scintillent) au lieu d'un simple message.
   Aussi dans la version web.
 - Saison → Résultats & records : la pole de chaque Grand Prix face à la meilleure pole des quatre éditions précédentes du
