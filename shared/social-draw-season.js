@@ -504,13 +504,14 @@ export function raceFrame(ctx, W, H, d, o, time) {
   // et la légende du post le bas
   // Vertical : tout dans la zone que TikTok et Instagram ne couvrent pas, sur un iPhone (19,5:9) : côtés rognés
   // d'une vidéo 9:16, barre d'état et boutons en haut (11 %), colonne de boutons à droite, pseudo et légende en
-  // bas (18 % : place gardée pour une ligne de légende). Instagram (o.insta) : vidéo montée entière dans son cadre,
-  // ses boutons en haut (12,5 %) et son pseudo en bas (14 %). Paysage : marges simples
-  const crop = land || o.insta ? 0 : Math.max(0, (W - H * 9 / 19.5) / 2);
+  // bas (18 % : place gardée pour une ligne de légende). Instagram (o.insta, essais sur iPhone) : vidéo un peu
+  // agrandie (~55 px rognés de chaque côté), onglets « Reels » en haut (17 %), pseudo en bas (16 %). Paysage :
+  // marges simples
+  const crop = land ? 0 : o.insta ? 55 * u : Math.max(0, (W - H * 9 / 19.5) / 2);
   const pad = Math.round(Math.min(W, H) * 0.1);
   const padL = land ? pad : Math.round(crop + 50 * u);
   const padR = land ? pad : Math.round(crop + 150 * u);
-  const foot = land ? 90 * u : H * (o.insta ? 0.14 : 0.18);
+  const foot = land ? 90 * u : H * (o.insta ? 0.16 : 0.18);
   const sigY = land ? H - Math.round(H * 0.025) : H - foot;   // signature
   const bandEnd = land ? H - foot : sigY - 70 * u;
   const bw = W - padL - padR;
@@ -527,7 +528,7 @@ export function raceFrame(ctx, W, H, d, o, time) {
     ctx.fillStyle = rg; ctx.fillRect(0, 0, W, H);
   }
   // En-tête : Grand Prix, tour, état de la piste
-  const top = Math.round(land ? 40 * u : H * (o.insta ? 0.125 : 0.11));
+  const top = Math.round(land ? 40 * u : H * (o.insta ? 0.17 : 0.11));
   // Vidéo dessinée dans le cadre réduit des applis (u < 1) : textes d'un cran plus grands
   const tu = Math.max(u, 0.9);
   ctx.fillStyle = C.red; rr(ctx, padL, top, 10 * u, 76 * u, 4 * u); ctx.fill();
@@ -757,7 +758,8 @@ export function raceFrame(ctx, W, H, d, o, time) {
   const fy = sigY;
   ctx.fillStyle = C.red; rr(ctx, padL, fy - 27 * tu, 8 * u, 30 * tu, 3 * u); ctx.fill();
   txt(ctx, o.signature || '@BenjyPaddock', padL + 20 * u, fy, { size: Math.round(34 * tu), weight: 700, family: TITLE, spacing: 1 });
-  const rest = bw - 60 * u - ctx.measureText(o.signature || '@BenjyPaddock').width;   // à droite de la signature
+  // à droite de la signature (l'espacement des lettres, non compté par fit, en plus)
+  const rest = bw - 120 * u - ctx.measureText(o.signature || '@BenjyPaddock').width;
   if (done) txt(ctx, 'ABONNEZ-VOUS POUR LA SUITE', W - padR, fy, { size: Math.round(29 * tu), weight: 800, family: TITLE, color: C.red, align: 'right', spacing: 2, max: rest });
   else if (story.estimated && story.events.some((e) => e.kind === 'neutral')) txt(ctx, "Neutralisations estimées d'après les temps au tour", W - padR, fy, { size: Math.round(24 * tu), weight: 600, color: C.muted, align: 'right', max: rest });
 }
