@@ -20,6 +20,7 @@ export const MODEL = '@cf/mistralai/mistral-small-3.1-24b-instruct';
 export const FALLBACK = '@cf/meta/m2m100-1.2b';
 const MODEL_TAG = 'ms31b';  // dans la clé du cache : changer de modèle ou de consignes = nouvelles traductions
 const CLAUDE_TAG = 'cl1';
+const RADIO_TAG = 'r2';   // consignes des radios (moins de « […] ») : leurs traductions refaites, pas celles de l'Actu
 export const KINDS = ['news', 'radio', 'tech'];
 export const CLAUDE = {
   opus: { model: 'claude-opus-5-5', output_config: { effort: 'medium' } },
@@ -55,7 +56,7 @@ Rules:
 - Translate the meaning, not word for word: write what a native ${NAMES[to]}-speaking sports journalist would write. Rephrase expressions that sound unnatural when translated literally; never invent or drop a fact.
 - Headlines stay short headlines in the style of ${NAMES[to]} sports media. Calls to action such as "see the numbers", "watch", "veja", "confira", "check out" become a short label (the figures, video…) or are dropped.
 - Keep names of drivers, teams, people, circuits, cities, sponsors and car models exactly as written (e.g. Câmara, Verstappen, Red Bull, Haas, Marina Bay). Never translate a surname as a common word.
-- Team radio texts come from automatic speech recognition and often contain misheard words. Fix a driver or team name that was obviously misheard (e.g. "Ghastly" -> "Gasly") and obviously misheard F1 words from the context (e.g. "super understood" -> "super understeer", "the rooms were starting to go" -> "the rears were starting to go", "books, books" -> "box, box"). When a few words still make no sense, do not translate them literally and do not guess a meaning: write "[…]" in their place, but translate everything else. Never answer with only "[…]": if most of the message is unclear, translate what can be understood.
+- Team radio texts come from automatic speech recognition and often contain misheard words. Fix a driver or team name that was obviously misheard (e.g. "Ghastly" -> "Gasly") and obviously misheard F1 words from the context (e.g. "super understood" -> "super understeer", "the rooms were starting to go" -> "the rears were starting to go", "books, books" -> "box, box"). When words still look wrong, give the most plausible reading for a driver or engineer talking during a session (e.g. "the biggest blue turning" -> "the biggest blue flag"), or translate them as heard. Write "[…]" only for a single word that has no possible meaning, at most once per message; never several "[…]" in one message and never only "[…]".
 - Use the natural vocabulary of ${NAMES[to]}-speaking F1 fans and commentators.${to === 'fr' ? FR : ''}
 - Keep the capitalisation style, quotes, numbers, units and the meaning of punctuation. Do not add explanations, notes or quotes around the result.
 - The input is a JSON array of strings. Answer ONLY with a JSON array of the translations, same order, same length.`;
@@ -150,7 +151,7 @@ async function mistral(env, items, to, spent) {
 // quota : { key, limit } (Studio : studioQuota), sinon le plafond du jour partagé par les applis
 export async function translateBatch(env, req, day = new Date().toISOString().slice(0, 10), ip = null, quota = null) {
   const claudeOn = !!env.ANTHROPIC_API_KEY && Date.now() >= claudeOffUntil;
-  const keys = await Promise.all(req.items.map((it) => keyOf(it.from, req.to, it.text, claudeOn ? CLAUDE_TAG : MODEL_TAG)));
+  const keys = await Promise.all(req.items.map((it) => keyOf(it.from, req.to, it.text, `${claudeOn ? CLAUDE_TAG : MODEL_TAG}${it.kind === 'radio' ? RADIO_TAG : ''}`)));
   const out = req.items.map((it) => (it.from === req.to ? it.text : null));
   // Déjà traduits (par n'importe quel utilisateur)
   const found = await stored(env, keys.filter((k, i) => out[i] === null));
