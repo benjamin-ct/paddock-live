@@ -280,15 +280,26 @@ async function recordLive(paints, duration, [W, H], { music = 'gen', file = null
   draw(0);
   outs.forEach((o) => o.rec.start(500));
   const start = performance.now();
+  // Page cachée (autre appli, écran verrouillé : l'iPhone la met en pause) : enregistrement et horloge
+  // arrêtés, repris au retour, sinon la vidéo s'arrêtait au retour sans sa fin
+  let away = 0;
+  let since = 0;
+  const vis = () => {
+    if (document.hidden) { since = performance.now(); outs.forEach((o) => o.rec.state === 'recording' && o.rec.pause()); }
+    else if (since) { away += performance.now() - since; since = 0; ac?.resume().catch(() => {}); outs.forEach((o) => o.rec.state === 'paused' && o.rec.resume()); }
+  };
+  document.addEventListener('visibilitychange', vis);
   await new Promise((resolve) => {
     const tick = () => {
-      const t = (performance.now() - start) / 1000;
+      if (since) { requestAnimationFrame(tick); return; }
+      const t = (performance.now() - start - away) / 1000;
       draw(Math.min(t, duration - 0.001));
       onProgress?.(Math.min(1, t / duration));
       if (t >= duration) resolve(); else requestAnimationFrame(tick);
     };
     requestAnimationFrame(tick);
   });
+  document.removeEventListener('visibilitychange', vis);
   outs.forEach((o) => o.rec.stop());
   await Promise.all(outs.map((o) => o.done));
   outs.forEach((o) => o.video.getTracks().forEach((tr) => tr.stop()));
