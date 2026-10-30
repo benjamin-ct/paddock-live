@@ -479,6 +479,116 @@ function lineChartSvg(series, { w = 900, h = 300 } = {}) {
   return `<svg viewBox="0 0 ${w} ${h}" class="sz-svg">${grid}${lines}</svg>`;
 }
 
+// Classements : graphiques des pilotes ou des constructeurs (choix gardé pendant la visite)
+let stKind = 'd';
+function standingsCharts(w) {
+  const races = data.races.filter((r) => r.results.length).sort((a, b) => a.round - b.round);
+  if (!races.length) return '';
+  const d = stKind === 'd';
+  const keyOf = (x) => (d ? x.code : x.teamId);
+  const ents = d ? data.drivers.map((x) => ({ key: x.code, label: x.code, team: x.team, teamId: x.teamId }))
+    : data.constructors.map((x) => ({ key: x.id, label: x.name, team: x.name, teamId: x.id }));
+  const col = (e) => color(e.team, e.teamId);
+  const rounds = races.map((r) => r.round);
+  const seg = `<div class="tab-seg">${[['d', 'Pilotes'], ['c', 'Constructeurs']].map(([k, l]) => `<button type="button" data-st-kind="${k}" class="${stKind === k ? 'on' : ''}">${t(l)}</button>`).join('')}</div>`;
+
+  // 1. Évolution du classement : place de chacun après chaque manche, courbes qui se croisent
+  const row = d ? 17 : 27, pl = 34, pr = d ? 54 : 120, pt = 10, pb = 36, N = ents.length;
+  const H = pt + (N - 1) * row + pb + 6;
+  const X = (i) => pl + (i / Math.max(1, rounds.length - 1)) * (w - pl - pr);
+  const Y = (p) => pt + (p - 1) * row;
+  const after = rounds.map((rd) => standingsAfter(data, rd)[d ? 'drivers' : 'constructors']);
+  let grid = '';
+  for (let p = 1; p <= N; p++) grid += `<text x="${pl - 10}" y="${Y(p) + 4}" class="sz-ax" text-anchor="end">${p}</text>`;
+  rounds.forEach((rd, i) => { grid += `${roundFlag(rd, X(i), H - pb + 8)}<text x="${X(i)}" y="${H - 6}" class="sz-ax" text-anchor="middle">R${rd}</text>`; });
+  const bump = ents.map((e) => {
+    const pts = after.map((list, i) => { const p = list.find((x) => x.key === e.key)?.pos; return p ? [X(i), Y(p)] : null; }).filter(Boolean);
+    if (!pts.length) return '';
+    const dpath = pts.map(([x, y], i) => (i ? `C${(pts[i - 1][0] + x) / 2},${pts[i - 1][1]} ${(pts[i - 1][0] + x) / 2},${y} ${x},${y}` : `M${x},${y}`)).join(' ');
+    const [lx, ly] = pts.at(-1);
+    return `<g><title>${esc(e.label)}</title><path d="${dpath}" fill="none" stroke="${col(e)}" stroke-width="${d ? 2 : 2.6}" pathLength="1"/>${pts.map(([x, y]) => `<circle cx="${x}" cy="${y}" r="${d ? 2.2 : 3}" fill="${col(e)}"/>`).join('')}
+      <text x="${lx + 8}" y="${ly + 4}" fill="${col(e)}" class="sz-lbl">${esc(e.label)}</text></g>`;
+  }).join('');
+  const bumpSvg = `<div class="sz-scroll"><svg viewBox="0 0 ${w} ${H}" class="sz-svg">${grid}${bump}</svg></div>`;
+
+  // 2. Points marqués à chaque Grand Prix (sprint compris), empilés du plus gros au plus petit
+  const ptsOf = (r) => { const m = new Map(); for (const x of [...r.results, ...(r.sprintResults || [])]) if (x.points) m.set(keyOf(x), (m.get(keyOf(x)) || 0) + x.points); return m; };
+  const per = races.map((r) => ({ r, m: ptsOf(r) }));
+  const maxT = Math.max(1, ...per.map(({ m }) => [...m.values()].reduce((a, b) => a + b, 0)));
+  const rh = 20, ql = 58, qr = 44, H2 = per.length * (rh + 6) + 4, bw = w - ql - qr;
+  const byKey = new Map(ents.map((e) => [e.key, e]));
+  const stacks = per.map(({ r, m }, i) => {
+    const y = 2 + i * (rh + 6);
+    let x = ql, tot = 0;
+    const parts = [...m].sort((a, b) => b[1] - a[1]).map(([k, v]) => {
+      const e = byKey.get(k) || { label: k, team: '', teamId: '' };
+      const wv = (v / maxT) * bw; const out = `<rect x="${x}" y="${y}" width="${Math.max(0.5, wv - 1)}" height="${rh}" fill="${col(e)}"><title>R${r.round} ${esc(gpShort(r.name, LANG))} · ${esc(e.label)} : ${v} pts</title></rect>`;
+      x += wv; tot += v; return out;
+    }).join('');
+    return `${roundFlag(r.round, 10, y + 4.5)}<text x="22" y="${y + 14}" class="sz-ax">R${r.round}</text><g class="sz-grow-x">${parts}</g><text x="${x + 6}" y="${y + 14}" class="sz-ax sz-tot">${tot}</text>`;
+  }).join('');
+  const stackSvg = `<div class="sz-scroll"><svg viewBox="0 0 ${w} ${H2}" class="sz-svg">${stacks}</svg></div>`;
+
+  // 3. Bilan : victoires, podiums, arrivées dans les points, poles (vers le haut), abandons (vers le bas)
+  const KINDS = [['wins', 'Victoires', '#facc15'], ['pods', 'Podiums', '#3b82f6'], ['pts', 'Arrivées dans les points', '#cbd5e1'], ['poles', 'Poles', '#c084fc'], ['dnf', 'Abandons', '#ef4444']];
+  const tally = new Map(ents.map((e) => [e.key, { wins: 0, pods: 0, pts: 0, poles: 0, dnf: 0 }]));
+  for (const r of races) {
+    for (const x of r.results) {
+      const c = tally.get(keyOf(x)); if (!c) continue;
+      if (x.pos === 1) c.wins++;
+      if (x.pos && x.pos <= 3) c.pods++;
+      if (x.points > 0) c.pts++;
+      if (retired(x)) c.dnf++;
+    }
+    const pole = r.quali.find((q) => q.pos === 1); if (pole && tally.get(keyOf(pole))) tally.get(keyOf(pole)).poles++;
+  }
+  const up = Math.max(1, ...[...tally.values()].flatMap((c) => [c.wins, c.pods, c.pts, c.poles]));
+  const dn = Math.max(1, ...[...tally.values()].map((c) => c.dnf));
+  const sl = 30, sr = 10, st = 34, sb = d ? 40 : 70, H3 = 300, gw = (w - sl - sr) / N;
+  const mid = st + (H3 - st - sb) * (up / (up + dn));
+  const sy = (H3 - st - sb) / (up + dn);
+  let bars = `<line x1="${sl}" x2="${w - sr}" y1="${mid}" y2="${mid}" class="sz-gl"/>`;
+  // Légende en ligne (largeur selon le texte) et graduations
+  let lx0 = sl;
+  KINDS.forEach(([, l, c]) => { const txt = t(l); bars += `<rect x="${lx0}" y="6" width="10" height="10" rx="2" fill="${c}"/><text x="${lx0 + 15}" y="15" class="sz-ax">${esc(txt)}</text>`; lx0 += 28 + txt.length * 6.3; });
+  const step = [1, 2, 5, 10, 20].find((v) => up / v <= 5) || 50;
+  for (let v = step; v <= up; v += step) bars += `<line x1="${sl}" x2="${w - sr}" y1="${mid - v * sy}" y2="${mid - v * sy}" class="sz-gl"/><text x="${sl - 6}" y="${mid - v * sy + 4}" class="sz-ax" text-anchor="end">${v}</text>`;
+  for (let v = step; v <= dn; v += step) bars += `<text x="${sl - 6}" y="${mid + v * sy + 4}" class="sz-ax" text-anchor="end">−${v}</text>`;
+  ents.forEach((e, i) => {
+    const c = tally.get(e.key), x0 = sl + i * gw + gw * 0.12, b = (gw * 0.76) / 4;
+    KINDS.slice(0, 4).forEach(([k, l, cl], j) => { const h = c[k] * sy; if (h) bars += `<rect class="up" x="${x0 + j * b}" y="${mid - h}" width="${b - 1}" height="${h}" fill="${cl}"><title>${esc(e.label)} · ${t(l)} : ${c[k]}</title></rect>`; });
+    if (c.dnf) bars += `<rect class="dn" x="${x0 + b * 1.5}" y="${mid}" width="${b - 1}" height="${c.dnf * sy}" fill="#ef4444"><title>${esc(e.label)} · ${t('Abandons')} : ${c.dnf}</title></rect>`;
+    const lx = sl + i * gw + gw / 2, ly = H3 - sb + 14;
+    bars += d ? `<text x="${lx}" y="${ly}" class="sz-ax" text-anchor="middle">${esc(e.label)}</text>`
+      : `<text x="${lx}" y="${ly}" class="sz-ax" text-anchor="end" transform="rotate(-35 ${lx} ${ly})">${esc(e.label)}</text>`;
+  });
+  const statSvg = `<div class="sz-scroll"><svg viewBox="0 0 ${w} ${H3}" class="sz-svg sz-gap-chart">${bars}</svg></div>`;
+
+  return `<div class="sz-st-head">${seg}</div>
+    <section class="sz-box"><h3>${t('Évolution du classement')}</h3>${bumpSvg}</section>
+    <section class="sz-box"><h3>${t('Points par Grand Prix')}</h3>${stackSvg}</section>
+    <section class="sz-box"><h3>${t('Bilan de la saison')}</h3>${statSvg}</section>`;
+}
+
+// Écuries : une carte par écurie (logo en filigrane sur sa couleur, place, points, pilotes, victoires, podiums,
+// poles) ; toucher une carte ouvre le duel de ses pilotes
+function renderTeams() {
+  if (!data.constructors.length) return '<div class="note">Pas encore de résultats.</div>';
+  const races = data.races.filter((r) => r.results.length);
+  const count = (id, test) => races.reduce((n, r) => n + r.results.filter((x) => x.teamId === id && test(x)).length, 0);
+  const poles = (id) => races.filter((r) => r.quali.find((q) => q.pos === 1)?.teamId === id).length;
+  const cards = data.constructors.map((c) => {
+    const col = color(c.name, c.id), logo = teamLogo(c.name, false);
+    const drivers = data.drivers.filter((d) => d.teamId === c.id).sort((a, b) => b.points - a.points);
+    const face = (d) => { const u = photoUrl({ Tla: d.code }); return `<span class="tm-drv">${u ? `<img src="${u}" alt="" loading="lazy" onerror="this.remove()">` : ''}<b>${esc(d.last || d.name)}</b><small>${d.points} pts</small></span>`; };
+    return `<button type="button" class="sz-team-card" data-team-duel="${esc(c.id)}" style="--tc:${col}${logo ? `;--logo:url('${logo}')` : ''}">
+      <span class="tm-pos">P${c.pos}</span><span class="tm-name">${esc(c.name)}</span><span class="tm-pts">${c.points} <small>pts</small></span>
+      <span class="tm-drvs">${drivers.slice(0, 2).map(face).join('')}${drivers.length > 2 ? `<span class="tm-more" title="${esc(drivers.slice(2).map((d) => d.last || d.name).join(', '))}">+${drivers.length - 2}</span>` : ''}</span>
+      <span class="tm-stats"><span><b>${count(c.id, (x) => x.pos === 1)}</b> ${t('victoires')}</span><span><b>${count(c.id, (x) => x.pos && x.pos <= 3)}</b> ${t('podiums')}</span><span><b>${poles(c.id)}</b> ${t('poles')}</span></span></button>`;
+  }).join('');
+  return `<div class="sz-team-grid">${cards}</div><p class="muted small">${t('Toucher une écurie ouvre le duel de ses pilotes.')}</p>`;
+}
+
 function renderStandings() {
   const pr = pointsByRound();
   const seen = new Set();
@@ -493,7 +603,8 @@ function renderStandings() {
     <div class="sz-grid2">
       <section class="sz-box"><h3>Pilotes</h3>${standingsTable(data.drivers, 'd')}</section>
       <section class="sz-box"><h3>Constructeurs</h3>${standingsTable(data.constructors, 'c')}</section>
-    </div>`;
+    </div>
+    ${standingsCharts(w)}`;
 }
 
 function renderResults(ctx) {
@@ -883,7 +994,7 @@ function render() {
   if (section === 'drivers') loadPrev();
   const fiaData = fia?.year === data.year ? fia : null;
   const html = {
-    home: renderHome, calendar: renderCalendar, standings: renderStandings, title: renderTitle, compare: renderCompare, destructors: () => { loadDest(data.year); return renderDestructors({ ...ctx, chart: lineChartSvg, w: Math.max(600, ($('#szContent')?.clientWidth || 934) - 34) }, dest?.year === data.year && !dest.loading ? dest : null); }, results: () => renderResults(ctx), quali: renderQuali, h2h: renderH2H,
+    home: renderHome, calendar: renderCalendar, standings: renderStandings, teams: renderTeams, title: renderTitle, compare: renderCompare, destructors: () => { loadDest(data.year); return renderDestructors({ ...ctx, chart: lineChartSvg, w: Math.max(600, ($('#szContent')?.clientWidth || 934) - 34) }, dest?.year === data.year && !dest.loading ? dest : null); }, results: () => renderResults(ctx), quali: renderQuali, h2h: renderH2H,
     drivers: () => renderDrivers(ctx, drvCode), consistency: () => renderConsistency(ctx), pits: () => renderPits(ctx),
     speeds: () => renderSpeeds(ctx, speedPt), circuits: () => renderCircuits(ctx, circSort), ratings: () => renderRatings(ctx, rateSort),
     tech: () => renderTech(ctx, fiaData), elements: () => renderElements(ctx, fiaData), predict: () => renderPredict(data.year, (code) => { const d = data.drivers.find((x) => x.code === code); return d ? seasonOpt(d) : ''; }), review: () => renderReview(ctx),
@@ -1019,6 +1130,10 @@ export function initSeason() {
     if (rv && data) { reviewAction(rv.dataset.review, data); return; }
     const t = e.target.closest('[data-h2h-team]'), m = e.target.closest('[data-h2h-mode]');
     if (t) { h2hTeam = t.dataset.h2hTeam; animate(true); render(); } else if (m) { h2hMode = m.dataset.h2hMode; animate(true); render(); }
+    const td = e.target.closest('[data-team-duel]');
+    if (td) { h2hTeam = td.dataset.teamDuel; section = 'h2h'; jump = true; push = true; animate(); render(); return; }
+    const sk = e.target.closest('[data-st-kind]');
+    if (sk) { stKind = sk.dataset.stKind; animate(true); render(); return; }
     const ck = e.target.closest('[data-cmp-kind]');
     if (ck) { cmpKind = ck.dataset.cmpKind; animate(true); render(); return; }
     const dc = e.target.closest('[data-szdrv]');

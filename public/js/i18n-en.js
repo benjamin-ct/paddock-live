@@ -2748,4 +2748,7 @@ export default {
   "Fantôme : meilleur tour de {} ({})": "Ghost: best lap by {} ({})",
   "Fantôme : pas encore de meilleur tour avec les positions GPS": "Ghost: no best lap with GPS positions yet",
   "Fantôme : il faut les positions GPS des voitures": "Ghost: needs the cars' GPS positions",
+  "Évolution du classement": "Standings evolution",
+  "Points par Grand Prix": "Points per Grand Prix",
+  "Toucher une écurie ouvre le duel de ses pilotes.": "Tap a team to open its drivers' head-to-head.",
 };

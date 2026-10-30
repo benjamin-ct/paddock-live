@@ -160,6 +160,13 @@ l'application (Réglages → À propos → Nouveautés).
   défiler ; toucher une carte affiche ce pilote, présenté en grand en tête de page. Aussi dans la version web.
 - Graphiques de la Saison (évolution des points, écart à la pole, départ et arrivée d'un pilote) : le drapeau de chaque
   Grand Prix sous l'axe des manches. Aussi dans la version web.
+- Saison → Classements : trois nouveaux graphiques, pour les pilotes ou les constructeurs. Évolution du classement (la
+  place de chacun après chaque Grand Prix, en courbes qui se croisent), points marqués à chaque Grand Prix (barres
+  empilées aux couleurs des écuries, sprint compris) et bilan de la saison (victoires, podiums, arrivées dans les points
+  et poles vers le haut, abandons vers le bas). Aussi dans la version web.
+- Saison → Écuries (nouvelle rubrique) : une carte par écurie à sa couleur, logo en filigrane, place et points au
+  championnat, ses pilotes en portrait avec leurs points, victoires, podiums et poles ; toucher une écurie ouvre le duel
+  de ses pilotes. Aussi dans la version web.
 - Les curseurs (volume, seuil des tours propres, temps perdu au stand, fond des overlays…) ont un nouveau style, assorti
   au reste de l'appli : piste fine remplie jusqu'à la valeur et bouton rond. Aussi dans la version web.
 - Panneau Duel : la flèche du duel automatique choisie (contre la voiture devant ou derrière) ressort de nouveau en
