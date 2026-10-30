@@ -206,18 +206,26 @@ export async function makeAnimation(draw, duration, { cover = null, ...opts } = 
   try {
     vids = await encodeFrames(paints, total, { ...opts, music });
   } catch { /* encodeur du navigateur en échec : enregistrement en temps réel */ }
+  if (!vids) return { ...(await recordLive(paints, total, { ...opts, music }))[0], ...extra };
   // Musique perdue à l'encodage (piste muette ou illisible, selon les navigateurs) : enregistrement en temps réel
-  if (vids && music !== 'none' && !(await audible(vids[0].blob))) vids = null;
-  const [vid] = vids || await recordLive(paints, total, { ...opts, music });
-  return { ...vid, ...extra };
+  // essayé ; gardé seulement s'il a du son, sinon la vidéo encodée (signalée muette si sa piste l'est vraiment)
+  const heard = music === 'none' ? true : await audible(vids[0].blob);
+  if (vids[0].silent || heard === false || heard === null) {
+    const live = await recordLive(paints, total, { ...opts, music }).catch(() => null);
+    if (live && !live[0].silent) return { ...live[0], ...extra };
+    if (heard === false) vids[0].silent = true;
+  }
+  return { ...vids[0], ...extra };
 }
 
-// Son de la vidéo fabriquée vraiment audible : piste lue par le navigateur, pas que du silence
+// Son de la vidéo fabriquée : true (audible), false (piste muette), null (illisible par le navigateur), undefined
+// (vidéo de plus de 50 Mo pas vérifiée : trop de mémoire sur téléphone)
 async function audible(blob) {
+  if (blob.size > 50e6) return undefined;
   try {
     const buf = await new OfflineAudioContext(1, 1, 48000).decodeAudioData(await blob.arrayBuffer());
     return buf.getChannelData(0).some((x) => Math.abs(x) > 1e-3);
-  } catch { return false; }
+  } catch { return null; }
 }
 
 // Enregistrement en temps réel (navigateur sans WebCodecs) : une vidéo par fonction de dessin, même son
@@ -287,8 +295,8 @@ async function recordLive(paints, duration, { music = 'gen', file = null, track,
     if (type === 'video/webm') blob = new Blob([webmWithDuration(await blob.arrayBuffer(), duration * 1000)], { type });
     return { blob, mime: type };
   }));
-  // Son vérifié sur la vidéo enregistrée : muette, elle est signalée à l'appelant
-  if (music !== 'none' && (silent || !(await audible(vids[0].blob)))) vids.forEach((v) => { v.silent = true; });
+  // Son vérifié sur la vidéo enregistrée : bloqué ou muet, elle est signalée à l'appelant (illisible : rien de sûr)
+  if (music !== 'none' && (silent || await audible(vids[0].blob) === false)) vids.forEach((v) => { v.silent = true; });
   return vids;
 }
 
