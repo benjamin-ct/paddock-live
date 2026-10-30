@@ -15,7 +15,7 @@ export const FORMATS = {
   x: { w: 1080, h: 1350, name: 'x' },
 };
 
-export const C = { bg: '#06070b', bg2: '#11141c', panel: 'rgba(255,255,255,0.055)', line: 'rgba(255,255,255,0.12)', text: '#f5f7fb', muted: '#98a1b3', red: '#ff1e0f', gold: '#f2c94c', silver: '#d3d8e2', bronze: '#e0955a', green: '#3ddc84' };
+export const C = { bg: '#06070b', bg2: '#11141c', panel: 'rgba(255,255,255,0.055)', line: 'rgba(255,255,255,0.12)', text: '#f5f7fb', muted: '#aeb6c6', red: '#ff1e0f', gold: '#f2c94c', silver: '#d3d8e2', bronze: '#e0955a', green: '#3ddc84' };
 export const TITLE = '"Saira Condensed", "Titillium Web", sans-serif';
 export const BODY = '"Titillium Web", sans-serif';
 export const MONO = '"JetBrains Mono", monospace';
@@ -452,7 +452,7 @@ function stats(ctx, d, x, y, w, perRow, u = 1) {
     const cy = perRow === 1 ? y + i * (h + 12 * u) : y;
     const ww = perRow === 1 ? Math.min(cw, 420 * u) : cw;
     card(ctx, cx, cy, ww, h, 22 * u);
-    txt(ctx, k.toUpperCase(), cx + 24 * u, cy + 36 * u, { size: Math.round(27 * u), weight: 700, family: TITLE, color: C.muted, spacing: 2.5 });
+    txt(ctx, k.toUpperCase(), cx + 24 * u, cy + 36 * u, { size: Math.round(30 * u), weight: 700, family: TITLE, color: C.muted, spacing: 2.5 });
     txt(ctx, v, cx + 24 * u, cy + 82 * u, { size: Math.round(42 * u), weight: 800, family: TITLE, max: ww - 48 * u, italic: true });
   });
 }
@@ -489,9 +489,9 @@ function podium(ctx, W, H, d, o) {
     const tt = y0 - 172;
     const cy = tt - 18 - r;
     driverPhoto(ctx, o.photos?.[p.num], cx, cy, r, p.color, p.tla);
-    txt(ctx, p.first, cx, tt + 40, { size: 32, weight: 600, align: 'center', max: colW - 20, color: C.muted });
+    txt(ctx, p.first, cx, tt + 40, { size: 38, weight: 600, align: 'center', max: colW - 20, color: C.muted });
     txt(ctx, p.last.toUpperCase(), cx, tt + 100, { size: 62, weight: 800, family: TITLE, align: 'center', max: colW - 16, italic: true });
-    txt(ctx, i === 0 ? (d.kind !== 'race' ? p.gap || p.team : p.team) : p.gap || p.team, cx, tt + 150, { size: 32, weight: 700, family: TITLE, color: i === 0 ? C.text : C.muted, align: 'center', max: colW - 16 });
+    txt(ctx, i === 0 ? (d.kind !== 'race' ? p.gap || p.team : p.team) : p.gap || p.team, cx, tt + 150, { size: 36, weight: 700, family: TITLE, color: i === 0 ? C.text : C.muted, align: 'center', max: colW - 16 });
   });
 }
 
@@ -524,7 +524,7 @@ function classement(ctx, W, H, d, o) {
     teamLogo(ctx, o, r.team, lx + slot / 2, y + h / 2, fs * 0.9, 'center', slot);
     const tx = lx + slot + fs * 0.35;
     txt(ctx, r.tla, tx, mid, { size: fs, weight: 800, family: TITLE, color: r.out ? C.muted : C.text, italic: true });
-    if (names) txt(ctx, r.last, tx + fs * 2.6, mid, { size: Math.round(fs * 0.78), weight: 600, color: C.muted, max: colW * 0.3 });
+    if (names) txt(ctx, r.last, tx + fs * 2.6, mid, { size: Math.round(fs * 0.86), weight: 600, color: C.muted, max: colW * 0.3 });
     const right = x + colW - fs * 0.6;
     if (d.kind === 'race' && r.points) txt(ctx, `+${r.points}`, right, mid, { size: Math.round(fs * 0.8), weight: 800, family: TITLE, color: C.green, align: 'right' });
     // Essais : nombre de tours de chaque pilote à droite, écart juste avant
@@ -632,7 +632,7 @@ export function faits(ctx, W, H, d, o, title = 'Faits marquants') {
     card(ctx, x, y, w, ch, 28, { tint: it.color || C.red });
     pill(ctx, it.label.toUpperCase(), x + 26, y + 26, 44, { bg: 'rgba(0,0,0,0.28)', color: C.text, dot: it.color ? vivid(it.color) : C.red });
     txt(ctx, it.value, x + 30, y + ch * 0.6 + 10, { size: 72, weight: 800, family: TITLE, max: w - 56, italic: true });
-    if (it.sub) wrap(ctx, it.sub, x + 30, y + ch * 0.6 + 62, w - 56, 36, 2, { size: 28, weight: 600, color: C.muted });
+    if (it.sub) wrap(ctx, it.sub, x + 30, y + ch * 0.6 + 66, w - 56, 42, 2, { size: 34, weight: 600, color: C.muted });
   });
 }
 
@@ -724,7 +724,7 @@ function cover(ctx, W, H, d, o, next, fmt) {
   const lines = wrap(ctx, d.gp.toUpperCase(), pad, y + 20 * u, colW, 92 * u, 2, { size: Math.round(92 * u), weight: 800, family: TITLE, italic: true });
   y += (lines - 1) * 92 * u + 80 * u;
   const info = [d.date, d.circuit, d.kind === 'race' && d.laps ? `${d.laps} tours` : ''].filter(Boolean).join('  ·  ').toUpperCase();
-  if (info) txt(ctx, info, pad, y, { size: Math.round(30 * u), weight: 600, family: TITLE, color: C.muted, max: colW, spacing: 2 });
+  if (info) txt(ctx, info, pad, y, { size: Math.round(33 * u), weight: 600, family: TITLE, color: C.muted, max: colW, spacing: 2 });
 
   // Sommaire des images suivantes (numéro = place dans le carrousel publié)
   const items = next.map((s, i) => [String((o.slides ? o.slides.indexOf(s) : i + 1) + 1).padStart(2, '0'), slideName(s)]);
@@ -1021,10 +1021,10 @@ function duels(ctx, W, H, d, o) {
     txt(ctx, t.team.toUpperCase(), x + 26 + (lw ? lw + 12 : 0), y + ch * 0.27, { size: Math.round(ch * 0.15), weight: 700, family: TITLE, color: C.muted, spacing: 1.5, max: cw - 46 - lw });
     const s = Math.round(ch * 0.3);
     txt(ctx, t.ahead.tla, x + 26, y + ch * 0.68, { size: s, weight: 800, family: TITLE, italic: true });
-    txt(ctx, `P${t.ahead.pos}`, x + 26, y + ch * 0.9, { size: Math.round(s * 0.5), weight: 700, family: MONO, color: C.gold });
-    txt(ctx, 'devant', x + cw / 2, y + ch * 0.64, { size: Math.round(s * 0.45), weight: 600, color: C.muted, align: 'center' });
+    txt(ctx, `P${t.ahead.pos}`, x + 26, y + ch * 0.9, { size: Math.round(s * 0.6), weight: 700, family: MONO, color: C.gold });
+    txt(ctx, 'devant', x + cw / 2, y + ch * 0.64, { size: Math.round(s * 0.58), weight: 600, color: C.muted, align: 'center' });
     txt(ctx, t.behind.tla, x + cw - 22, y + ch * 0.68, { size: s, weight: 800, family: TITLE, color: C.muted, align: 'right', italic: true });
-    txt(ctx, t.behind.out ? 'ABANDON' : `P${t.behind.pos}`, x + cw - 22, y + ch * 0.9, { size: Math.round(s * 0.5), weight: 700, family: t.behind.out ? TITLE : MONO, color: t.behind.out ? C.red : C.muted, align: 'right' });
+    txt(ctx, t.behind.out ? 'ABANDON' : `P${t.behind.pos}`, x + cw - 22, y + ch * 0.9, { size: Math.round(s * 0.6), weight: 700, family: t.behind.out ? TITLE : MONO, color: t.behind.out ? C.red : C.muted, align: 'right' });
   });
 }
 
