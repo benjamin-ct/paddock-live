@@ -161,6 +161,8 @@ l'application (Réglages → À propos → Nouveautés).
   coin de la carte, « Suivre » et « Calques » deviennent des icônes. Aussi dans la version web.
 - Thème sombre plus clair et plus lisible : fond bleu nuit au lieu du noir (barre latérale et barre du haut comprises),
   cartes et panneaux qui ressortent mieux, textes secondaires plus contrastés. Aussi dans la version web.
+- Barre du haut : le compteur des tours n'est plus une case blanche qui tranche sur le bleu nuit, mais une case un ton
+  plus clair que la barre, chiffres en blanc et avancement en rouge. Aussi dans la version web.
 - Saison plus visuelle : logo de l'écurie devant chaque pilote et chaque écurie (classements, records, cartes), titres,
   grands chiffres et tableaux plus grands ; dans Résultats & records, vainqueurs, podiums et poles en cases pleines aux
   couleurs de leur écurie. Aussi dans la version web.
