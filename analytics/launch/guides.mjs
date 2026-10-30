@@ -368,36 +368,51 @@ const UI = {
 const PAGE_STYLE = `@font-face { font-family: 'Titillium Web'; font-weight: 400; font-display: swap; src: url('/fonts/titillium-400.woff2') format('woff2'); }
 @font-face { font-family: 'Titillium Web'; font-weight: 700; font-display: swap; src: url('/fonts/titillium-700.woff2') format('woff2'); }
 @font-face { font-family: 'Saira Condensed'; font-weight: 800; font-display: swap; src: url('/fonts/sairacondensed-800.woff2') format('woff2'); }
-:root { color-scheme: dark; --bg: #0b0c0f; --card: #15171c; --line: rgba(255, 255, 255, .08); --line-2: rgba(255, 255, 255, .15); --text: #f2f1ee; --text-2: #c8c7c1; --muted: #8f8d87; --red: #e10600; }
+/* Bleu nuit de l'appli (thème pitwall) ; touches aux couleurs officielles des écuries (OFFICIAL, public/js/util.js) */
+:root { color-scheme: dark; --bg: #020817; --card: #0B1324; --card-2: #111C31; --line: #1E293B; --line-2: #334155; --text: #F8FAFC; --text-2: #CBD5E1; --muted: #94A3B8; --red: #e10600;
+  --mercedes: #00D7B6; --mclaren: #F47600; --redbull: #4781D7; --aston: #229971; --alpine: #00A1E8; --rb: #6C98FF; --sauber: #01C00E; --ferrari: #ED1131; --williams: #1868DB; --haas: #9C9FA2; --audi: #F50537; }
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--text); font: 17px/1.6 'Titillium Web', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+body { margin: 0; background: radial-gradient(60% 520px at 50% 0, rgba(37, 99, 235, .16), transparent 70%) no-repeat, radial-gradient(35% 420px at 92% 0, rgba(225, 6, 0, .12), transparent 70%) no-repeat, var(--bg); color: var(--text); font: 17px/1.6 'Titillium Web', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
 a { color: inherit; }
 img { display: block; max-width: 100%; height: auto; }
 .wrap { max-width: 1000px; margin: 0 auto; padding: 0 max(16px, env(safe-area-inset-left)); }
-.nav { border-bottom: 1px solid var(--line); }
+.nav { position: relative; background: linear-gradient(180deg, #0F172A, #0A1120); border-bottom: 1px solid var(--line); }
+.nav::after { content: ''; position: absolute; inset: auto 0 -1px; height: 2px; opacity: .9; background: linear-gradient(90deg, var(--ferrari) 0 9%, var(--mercedes) 0 18%, var(--mclaren) 0 27%, var(--redbull) 0 36%, var(--aston) 0 45%, var(--alpine) 0 54%, var(--williams) 0 63%, var(--rb) 0 72%, var(--haas) 0 81%, var(--sauber) 0 90%, var(--audi) 0); }
 .nav .wrap { display: flex; align-items: center; gap: 16px; height: 64px; }
 .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; font: 800 24px/1 'Saira Condensed', sans-serif; }
 .brand img { width: 32px; height: 32px; border-radius: 8px; }
 .brand b { color: var(--red); }
-.btn { display: inline-flex; align-items: center; justify-content: center; padding: 13px 24px; border-radius: 999px; background: var(--red); color: #fff; text-decoration: none; font-weight: 700; white-space: nowrap; }
+.btn { display: inline-flex; align-items: center; justify-content: center; padding: 13px 24px; border-radius: 6px; background: var(--red); color: #fff; text-decoration: none; font-weight: 700; white-space: nowrap; box-shadow: 0 8px 24px rgba(225, 6, 0, .28); }
 .nav .btn { margin-left: auto; padding: 9px 16px; font-size: 14px; }
-.eyebrow { display: inline-block; font-weight: 700; font-size: 13px; letter-spacing: .14em; text-transform: uppercase; color: var(--red); margin: 48px 0 12px; }
+.eyebrow { display: inline-flex; align-items: center; height: 26px; padding: 0 10px; border-radius: 4px; background: var(--red); color: #fff; font-weight: 700; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; margin: 48px 0 14px; }
 h1, h2 { font-family: 'Saira Condensed', 'Arial Narrow', sans-serif; font-weight: 800; line-height: 1.04; margin: 0; }
 h1 { font-size: clamp(36px, 6vw, 58px); }
 h2 { font-size: clamp(26px, 4vw, 36px); margin: 56px 0 16px; }
 .lead { color: var(--text-2); font-size: 19px; max-width: 62ch; }
-.frame { margin: 32px 0; border-radius: 14px; overflow: hidden; border: 1px solid var(--line-2); }
+.frame { margin: 32px 0; border-radius: 6px; overflow: hidden; border: 1px solid var(--line-2); border-top: 4px solid var(--red); box-shadow: 0 30px 90px rgba(0, 0, 0, .55), 0 0 140px -30px rgba(59, 130, 246, .35); }
 ul.points { padding-left: 1.2em; color: var(--text-2); }
 ul.points li { margin: 8px 0; }
-details { border: 1px solid var(--line); border-radius: 12px; padding: 14px 18px; margin: 10px 0; background: var(--card); }
+ul.points li::marker { color: var(--mercedes); }
+ul.points li:nth-child(4n+2)::marker { color: var(--mclaren); }
+ul.points li:nth-child(4n+3)::marker { color: var(--redbull); }
+ul.points li:nth-child(4n)::marker { color: var(--aston); }
+details { border: 1px solid var(--line); border-radius: 6px; padding: 14px 18px; margin: 10px 0; background: linear-gradient(160deg, var(--card-2), var(--card)); }
 summary { font-weight: 700; cursor: pointer; }
+summary::marker { color: var(--red); }
 details p { color: var(--text-2); margin: 10px 0 0; }
 .cta { margin: 40px 0; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
 .cta small { color: var(--muted); }
 .more { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
-.more a { display: block; padding: 14px 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); text-decoration: none; font-weight: 700; }
-.more a:hover { border-color: var(--line-2); }
-footer { margin-top: 72px; padding: 28px 0 40px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; }
+.more a { --acc: var(--red); display: block; padding: 14px 16px; border: 1px solid var(--line); border-radius: 6px; background: linear-gradient(160deg, var(--card-2), var(--card)); box-shadow: inset 3px 0 0 var(--acc); text-decoration: none; font-weight: 700; }
+.more a:nth-child(8n+1) { --acc: var(--mercedes); }
+.more a:nth-child(8n+2) { --acc: var(--mclaren); }
+.more a:nth-child(8n+3) { --acc: var(--redbull); }
+.more a:nth-child(8n+4) { --acc: var(--aston); }
+.more a:nth-child(8n+5) { --acc: var(--alpine); }
+.more a:nth-child(8n+6) { --acc: var(--ferrari); }
+.more a:nth-child(8n+7) { --acc: var(--rb); }
+.more a:hover { border-color: var(--acc); }
+footer { margin-top: 72px; padding: 28px 0 40px; border-top: 1px solid var(--line); background: linear-gradient(180deg, var(--bg), var(--card)); color: var(--muted); font-size: 14px; }
 footer a { color: var(--text-2); }
 `;
 
@@ -425,7 +440,7 @@ export function guidePage(slug) {
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>${esc(g.title)} · Paddock Live</title>
 <meta name="description" content="${esc(g.description)}">
-<meta name="theme-color" content="#000000">
+<meta name="theme-color" content="#020817">
 <link rel="canonical" href="${url}">
 <link rel="alternate" hreflang="fr" href="${href(fr)}">
 <link rel="alternate" hreflang="en" href="${href(en)}">

@@ -2,9 +2,10 @@
 @font-face { font-family: 'Titillium Web'; font-weight: 400; font-display: swap; src: url('/fonts/titillium-400.woff2') format('woff2'); }
 @font-face { font-family: 'Titillium Web'; font-weight: 600; font-display: swap; src: url('/fonts/titillium-600.woff2') format('woff2'); }
 @font-face { font-family: 'Titillium Web'; font-weight: 700; font-display: swap; src: url('/fonts/titillium-700.woff2') format('woff2'); }
-:root { color-scheme: dark; --bg: #030406; --card: #101218; --line: rgba(255, 255, 255, .08); --fg: #fff; --dim: #9aa0ab; --red: #e10600; }
+/* Bleu nuit de l'appli (thème pitwall de public/css/broadcast.css) */
+:root { color-scheme: dark; --bg: #020817; --card: #0B1324; --line: #1E293B; --fg: #F8FAFC; --dim: #94A3B8; --red: #e10600; }
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.6 'Titillium Web', system-ui, -apple-system, "Segoe UI", sans-serif; }
+body { margin: 0; background: radial-gradient(70% 460px at 50% 0, rgba(37, 99, 235, .14), transparent 70%) no-repeat, var(--bg); color: var(--fg); font: 16px/1.6 'Titillium Web', system-ui, -apple-system, "Segoe UI", sans-serif; }
 main { max-width: 760px; margin: 0 auto; padding: 40px 16px 64px; }
 h1 { font-size: 30px; font-weight: 700; line-height: 1.2; margin: 0 0 4px; }
 h1 span { color: var(--red); }
