@@ -150,6 +150,18 @@ test('GPS : voiture à vitesse constante, échantillons à l\'heure irrégulièr
   assert.ok(worst < 60, `jusqu'à ${worst.toFixed(0)} unités de sa vraie place`);
 });
 
+test('GPS : point aberrant de la F1 (à des kilomètres, un seul) : oublié, la voiture ne saute pas', () => {
+  // Ligne droite à 0,8 unité/ms, un point toutes les 250 ms ; à 2 500 ms, un point à 14 km (vu aux EL1 de Mexico 2026)
+  const pos = new Positions((u) => u);
+  const Position = [];
+  for (let t = 0; t < 6000; t += 250) Position.push({ Timestamp: new Date(t).toISOString(), Entries: { 1: t === 2500 ? { X: -4626, Y: -12975 } : { X: 0.8 * t + 10, Y: 50 } } });
+  pos.ingestPosition({ Position }, 6000);
+  let worst = 0;
+  for (let t = 1000; t < 5000; t += 50) { const g = pos.gpsAt('1', t); worst = Math.max(worst, Math.hypot(g.x - (0.8 * t + 10), g.y - 50)); }
+  assert.ok(worst < 60, `jusqu'à ${worst.toFixed(0)} unités de sa vraie place`);
+  assert.equal(pos.gps.get('1').length, 23);
+});
+
 test('GPS : voiture arrêtée (stands) : reste immobile ; saut de plus de 250 m : pas de lissage à travers', () => {
   const pos = new Positions((u) => u);
   const Position = [];
