@@ -159,12 +159,16 @@ const LOADERS = {
 };
 
 // ---------- Affichage ----------
+// Listes repliées (titres des sections), gardées sur cet appareil
+const folded = () => new Set(store.get('suivi.shut')?.v || []);
+
 function todoHtml(m) {
   const tasks = m.sections.filter((s) => s.kind === 'tasks').flatMap((s) => s.items.map((it) => ({ ...it, sec: s })));
   const open = tasks.filter((t) => !t.done);
   const next = open.find((t) => t.when) || open[0];
   const bugs = open.filter((t) => t.tag === 'bug').length;
   const filter = state.vtag || 'all';
+  const shut = folded();
   const counts = Object.fromEntries(TAGS.map((t) => [t.key, open.filter((x) => x.tag === t.key).length]));
   const card = (it, s) => {
     if (s.kind === 'links' && it.link) return `<a class="sv-card" href="${esc(it.link)}" target="_blank" rel="noopener"><span class="sv-box link">↗</span><span><b>${esc(it.title)}</b></span></a>`;
@@ -184,13 +188,14 @@ function todoHtml(m) {
       <div class="tile"><b${bugs ? ' class="sv-warn"' : ''}>${bugs}</b><small>bugs ouverts</small></div>
     </div>
     ${next ? `<div class="panel sv-next"><small>Prochaine tâche</small><b>${esc(next.title)}</b>${next.when ? `<span class="sv-when">${esc(next.when)} · ${esc(next.sec.title.replace(/^\W+/u, ''))}</span>` : ''}</div>` : ''}
+    <div class="sv-tools"><button type="button" class="btn" id="svfold">${m.sections.every((s) => shut.has(s.title)) ? 'Tout déplier' : 'Tout replier'}</button></div>
     <div class="chips" id="svtags"><button data-tag="all" class="${filter === 'all' ? 'on' : ''}">Tout <small>${open.length}</small></button>${TAGS.filter((t) => counts[t.key]).map((t) => `<button data-tag="${t.key}" class="${filter === t.key ? 'on' : ''}">${t.icon} ${t.label} <small>${counts[t.key]}</small></button>`).join('')}</div>
     <div class="sv-board">${m.sections.map((s) => {
       const items = filter === 'all' || s.kind === 'links' ? s.items : s.items.filter((it) => it.tag === filter);
       if (filter !== 'all' && !items.length) return '';
       const left = s.items.filter((it) => !it.done).length;
       const pct = s.items.length ? Math.round(((s.items.length - left) / s.items.length) * 100) : 0;
-      return `<section class="sv-col"><h3 style="background:${s.color}">${esc(s.title)}<i>${s.kind === 'tasks' ? (left ? `${left} à faire` : 'tout fait ✓') : s.items.length}</i></h3>
+      return `<section class="sv-col${shut.has(s.title) ? ' shut' : ''}" data-col="${esc(s.title)}"><h3 style="background:${s.color}" role="button" tabindex="0" title="Replier ou déplier">${esc(s.title)}<i>${s.kind === 'tasks' ? (left ? `${left} à faire` : 'tout fait ✓') : s.items.length}</i></h3>
         ${s.kind === 'tasks' && s.items.length ? `<div class="sv-prog"><i style="width:${pct}%"></i></div>` : ''}
         ${s.notes.map((n) => `<p class="sv-note">${esc(n)}</p>`).join('')}
         <div class="sv-items">${items.length ? items.map((it) => card(it, s)).join('') : '<p class="sv-note">Rien ici pour le moment.</p>'}</div></section>`;
@@ -448,6 +453,15 @@ function bind(body, m, opts) {
   $$('#svsub [data-sub]', body).forEach((b) => { b.onclick = () => { state.vsub = b.dataset.sub; again(); }; });
   bindCopies(body);
   if (!m) return;
+  // Repli : titre d'une liste (une seule) ou bouton « Tout replier / Tout déplier »
+  const fold = (titles) => { store.set('suivi.shut', [...titles]); again(); };
+  $$('.sv-col h3', body).forEach((h) => {
+    const toggle = () => { const s = folded(), k = h.parentElement.dataset.col; if (!s.delete(k)) s.add(k); fold(s); };
+    h.onclick = toggle;
+    h.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } };
+  });
+  const all = $('#svfold', body);
+  if (all) all.onclick = () => { const cols = $$('.sv-col', body).map((c) => c.dataset.col); fold(cols.every((k) => folded().has(k)) ? [] : cols); };
   $$('.sv-card[data-open]', body).forEach((c) => { c.onclick = (e) => { if (!e.target.closest('a, [data-check]')) c.classList.toggle('open'); }; });
   // Case cochée : tâche marquée faite tout de suite, déplacée dans « Fait » du Doc, puis liste relue
   $$('[data-check]', body).forEach((b) => {
