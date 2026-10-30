@@ -113,7 +113,7 @@ l'application (Réglages → À propos → Nouveautés).
   et le fantôme du meilleur tour de la séance, une voiture transparente qui le refait en partant avec le pilote suivi
   (positions GPS nécessaires). Autour de la piste, ce qu'il y a vraiment, d'après OpenStreetMap (cartes OpenFreeMap) : le relief du
   terrain, les bâtiments et les tribunes, les bois et leurs arbres, les arbres isolés, les parkings, les lacs, les
-  rivières et la mer, les routes, l'herbe et les champs (sources et relief derrière le bouton « i » en bas à droite de la vue, montrés quelques secondes à l'ouverture), et le long de la piste les
+  rivières et la mer, les routes, l'herbe et les champs (sources et relief derrière le bouton « i » en bas à droite de la vue, affichés en le touchant), et le long de la piste les
   murs, rails et grillages (sur les circuits en ville, des murs là où la piste emprunte les rues ou longe les
   immeubles), les graviers et les dégagements asphaltés autour des virages (à l'extérieur des virages quand la carte
   n'en a pas). Le relief vient du GPS des voitures, sinon d'un modèle numérique de
