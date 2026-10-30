@@ -28,9 +28,13 @@ function chip(ctx, b, x, y, u, size = 34) {
 
 const blink = (t) => 0.35 + 0.65 * (0.5 + 0.5 * Math.cos(t * Math.PI * 2.2));   // point qui clignote
 
+// Zone que TikTok et Instagram ne couvrent pas (onglets en haut, légende et champ de message en bas, comme la vidéo
+// de course) : dy, décalage de l'en-tête et du contenu vers le bas ; foot, marge du bas. 9:16 : 130 px et 346 px
+export const safeZone = (W, H) => { const u = W / 1080; return { dy: Math.max(0, H * 0.12 - 100 * u), foot: Math.max(200 * u, H * 0.18) }; };
+
 // En-tête (Actu F1, date ; à droite : étiquette « BREAKING », signature dessous)
-export function header(ctx, W, d, o, u, t) {
-  const pad = 100 * u; const top = 100 * u;
+export function header(ctx, W, d, o, u, t, H = W * 16 / 9) {
+  const pad = 100 * u; const top = 100 * u + safeZone(W, H).dy;
   kicker(ctx, pad, top, u * 1.3, 'ACTU F1', d.date.toUpperCase());
   if (d.breaking) breakingTag(ctx, W - pad, top, 72 * u, blink(t));
   txt(ctx, o.signature || '@BenjyPaddock', W - pad, top + (d.breaking ? 116 : 52) * u, { size: Math.round(32 * u), weight: 700, family: TITLE, color: C.muted, align: 'right', spacing: 1 });
@@ -74,13 +78,15 @@ function intro(ctx, W, H, d, u, s) {
 // Mise en page de l'info : titre et résumé au plus grand qui tient en entier, visuel agrandi dans la place
 // restante, le tout centré en hauteur. Une mise en page par taille d'image
 const layouts = new WeakMap();
-const TOP = 290; const BOTTOM = 200;   // sous l'en-tête ; au-dessus de la source
+const TOP = 290;   // sous l'en-tête (zone sûre en plus)
 function mainLayout(ctx, W, H, d, o, u) {
   const key = `${W}x${H}`;
   if (!layouts.has(d)) layouts.set(d, new Map());
   if (layouts.get(d).has(key)) return layouts.get(d).get(key);
-  const pad = 100 * u; const colW = W - pad * 2;
-  const top = TOP * u; const bottom = H - BOTTOM * u;
+  // À droite, de la place pour les boutons de TikTok et Instagram (j'aime, commentaires, partage)
+  const pad = 100 * u; const colW = W - pad * 2 - 60 * u;
+  const sz = safeZone(W, H);
+  const top = TOP * u + sz.dy; const bottom = H - sz.foot;
   const withPhoto = d.drivers.filter((p) => o.photos?.[p.num]);
   const custom = d.image?.width ? d.image : null;
   const vis = custom ? 'image' : withPhoto.length === 1 ? 'photo' : d.drivers.length ? 'row' : '';
@@ -188,20 +194,22 @@ function pointScene(ctx, W, H, d, o, u, i, n, s, dur) {
   background(ctx, W, H, d.color);
   const pad = 100 * u; const colW = W - pad * 2;
   const acc = d.color ? vivid(d.color) : C.red;
-  txt(ctx, "L'ESSENTIEL", pad, 360 * u, { size: Math.round(84 * u), weight: 800, family: TITLE, italic: true, spacing: 3 });
+  const dy = safeZone(W, H).dy;
+  txt(ctx, "L'ESSENTIEL", pad, 360 * u + dy, { size: Math.round(84 * u), weight: 800, family: TITLE, italic: true, spacing: 3 });
   const t = fitLines(ctx, d.title.toUpperCase(), colW, [Math.round(42 * u)], 2, TITLE, 700).lines;
-  t.forEach((l, k) => txt(ctx, l, pad, 432 * u + k * 50 * u, { size: Math.round(42 * u), weight: 700, family: TITLE, color: C.muted, spacing: 1 }));
+  t.forEach((l, k) => txt(ctx, l, pad, 432 * u + dy + k * 50 * u, { size: Math.round(42 * u), weight: 700, family: TITLE, color: C.muted, spacing: 1 }));
   // Avancement : un trait par point
   const sw = (colW - (n - 1) * 14 * u) / n;
   for (let k = 0; k < n; k++) {
-    rr(ctx, pad + k * (sw + 14 * u), 550 * u, sw, 10 * u, 5 * u); ctx.fillStyle = 'rgba(255,255,255,0.14)'; ctx.fill();
+    rr(ctx, pad + k * (sw + 14 * u), 550 * u + dy, sw, 10 * u, 5 * u); ctx.fillStyle = 'rgba(255,255,255,0.14)'; ctx.fill();
     const f = k < i ? 1 : k > i ? 0 : clamp01(s / dur);
-    if (f > 0) { rr(ctx, pad + k * (sw + 14 * u), 550 * u, sw * f, 10 * u, 5 * u); ctx.fillStyle = acc; ctx.fill(); }
+    if (f > 0) { rr(ctx, pad + k * (sw + 14 * u), 550 * u + dy, sw * f, 10 * u, 5 * u); ctx.fillStyle = acc; ctx.fill(); }
   }
   const kin = out3(s / 0.45);
   const kout = i < n - 1 ? clamp01((s - (dur - 0.35)) / 0.35) ** 2 : 0;
   const dx = (1 - kin) * W - kout * W;
-  const top = 630 * u; const bottom = H - BOTTOM * u - 30 * u;
+  const sz = safeZone(W, H);
+  const top = 630 * u + sz.dy; const bottom = H - sz.foot - 30 * u;
   // Texte du point au plus grand qui tient dans la carte
   const room = (sz) => Math.floor((bottom - top - 250 * u) / Math.round(sz * 1.32));
   const sizes = [96, 88, 80, 72, 64, 58, 52, 46, 40].map((v) => Math.round(v * u));
@@ -273,8 +281,8 @@ export function newsFrame(ctx, W, H, d, o, t) {
     pointScene(ctx, W, H, pd, o, u, i, n, t - tm.starts[i + 1], tm.starts[i + 2] - tm.starts[i + 1]);
   } else outro(ctx, W, H, d, o, u, t - tm.starts.at(-1));
   if (t >= INTRO && t < tm.starts.at(-1)) {
-    header(ctx, W, d, o, u, t);
-    if (d.source) txt(ctx, `SOURCE : ${d.source.toUpperCase()}`, W / 2, H - (BOTTOM - 80) * u, { size: Math.round(32 * u), weight: 700, family: TITLE, color: C.muted, align: 'center', spacing: 2, max: W - 120 * u });
+    header(ctx, W, d, o, u, t, H);
+    if (d.source) txt(ctx, `SOURCE : ${d.source.toUpperCase()}`, W / 2, H - safeZone(W, H).foot + 80 * u, { size: Math.round(32 * u), weight: 700, family: TITLE, color: C.muted, align: 'center', spacing: 2, max: W - 120 * u });
   }
   // Passages : intro → info, info → points, points → fin (fondu par le noir)
   for (const b of [INTRO, tm.starts[1], tm.starts.at(-1)].filter((v, k, a) => a.indexOf(v) === k)) {

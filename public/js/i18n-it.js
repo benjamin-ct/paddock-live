@@ -2747,4 +2747,12 @@ export default {
   "Fantôme : meilleur tour de {} ({})": "Fantasma: giro più veloce di {} ({})",
   "Fantôme : pas encore de meilleur tour avec les positions GPS": "Fantasma: ancora nessun giro più veloce con le posizioni GPS",
   "Fantôme : il faut les positions GPS des voitures": "Fantasma: servono le posizioni GPS delle auto",
+  "Relief et sources de la carte": "Rilievo e fonti della mappa",
+  "Évolution du classement": "Evoluzione della classifica",
+  "Points par Grand Prix": "Punti per Gran Premio",
+  "Toucher une écurie ouvre le duel de ses pilotes.": "Tocca una scuderia per aprire il duello tra i suoi piloti.",
+  "Chargement des records des circuits…": "Caricamento dei record dei circuiti…",
+  "Poles face aux records récents des circuits": "Pole a confronto con i record recenti dei circuiti",
+  "À gauche en vert : pole plus rapide que la meilleure pole des quatre éditions précédentes ; à droite : écart avec elle.": "A sinistra in verde: pole più veloce della migliore pole delle quattro edizioni precedenti; a destra: distacco da essa.",
+  "record": "record",
 };

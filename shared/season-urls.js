@@ -4,7 +4,7 @@ import { gpShort, gpFull } from './gp-names.js';
 
 export const SECTION_PATHS = {
   home: '', calendar: 'calendrier', standings: 'classements', title: 'course-au-titre', compare: 'comparer', destructors: 'casseurs', review: 'bilan', results: 'resultats', quali: 'qualifications',
-  h2h: 'duels', ratings: 'notes', predict: 'pronostics', drivers: 'pilotes', consistency: 'regularite', pits: 'arrets-aux-stands',
+  h2h: 'duels', ratings: 'notes', predict: 'pronostics', drivers: 'pilotes', teams: 'ecuries', consistency: 'regularite', pits: 'arrets-aux-stands',
   speeds: 'vitesses', circuits: 'circuits', tech: 'evolutions-techniques', elements: 'elements-moteur', gp: 'grand-prix',
 };
 export const slug = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -20,7 +20,7 @@ export function seasonPath(year, section = 'home', item = null) {
 const TITLES = {
   home: 'Saison {} de F1 : classements, calendrier et résultats', calendar: 'Calendrier F1 {}', standings: 'Classements F1 {} : pilotes et constructeurs',
   title: 'Course au titre F1 {}', compare: 'Comparer la saison F1 {} à une autre', destructors: 'Championnat des casseurs F1 {} : coût des dégâts', review: 'Bilan de la saison F1 {}', results: 'Résultats F1 {} : tous les Grands Prix', quali: 'Qualifications F1 {} : écart à la pole par écurie', h2h: 'Duels entre coéquipiers F1 {}',
-  ratings: 'Notes des pilotes F1 {}', predict: 'Pronostics F1 {} entre amis', drivers: 'Pilotes F1 {}', consistency: 'Régularité des pilotes F1 {}',
+  ratings: 'Notes des pilotes F1 {}', predict: 'Pronostics F1 {} entre amis', drivers: 'Pilotes F1 {}', teams: 'Écuries F1 {} : pilotes, points et résultats', consistency: 'Régularité des pilotes F1 {}',
   pits: 'Arrêts aux stands F1 {} : les plus rapides, par écurie', speeds: 'Vitesses de pointe F1 {}', circuits: 'Profil des circuits F1 {}',
   tech: 'Évolutions techniques F1 {}', elements: 'Éléments moteur F1 {}', gp: 'Grands Prix F1 {}',
 };
