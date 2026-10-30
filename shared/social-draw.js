@@ -622,15 +622,26 @@ export function faits(ctx, W, H, d, o, title = 'Faits marquants') {
   const gap = 24;
   const cw = (W - f.pad * 2 - gap * (cols - 1)) / cols;
   const rowsN = Math.ceil(items.length / cols);
+  // Dernière case seule sur sa ligne : bande sur toute la largeur, moins haute (valeur et détail côte à côte)
+  const lone = items.length % cols === 1;
+  const BAND = 0.6;
   // Cases seules sur la slide : le résumé de la course reste dans le texte du post
-  const ch = Math.min(H > 1600 ? 560 : 470, (f.bottom - f.top - gap * (rowsN - 1)) / Math.max(rowsN, 1));
+  const ch = Math.min(H > 1600 ? 560 : 470, (f.bottom - f.top - gap * (rowsN - 1)) / Math.max(rowsN - (lone ? 1 - BAND : 0), 1));
   items.forEach((it, i) => {
     const x = f.pad + (i % cols) * (cw + gap);
     const y = f.top + Math.floor(i / cols) * (ch + gap);
-    // Dernière case seule sur sa ligne : toute la largeur
-    const w = i === items.length - 1 && i % cols === 0 && cols === 2 ? cw * 2 + gap : cw;
-    card(ctx, x, y, w, ch, 28, { tint: it.color || C.red });
+    const band = lone && i === items.length - 1;
+    const w = band ? cw * 2 + gap : cw;
+    const h = band ? ch * BAND : ch;
+    card(ctx, x, y, w, h, 28, { tint: it.color || C.red });
     pill(ctx, it.label.toUpperCase(), x + 26, y + 26, 44, { bg: 'rgba(0,0,0,0.28)', color: C.text, dot: it.color ? vivid(it.color) : C.red });
+    if (band) {
+      ctx.font = `800 72px ${TITLE}`;
+      const vw = Math.min(ctx.measureText(it.value).width, w * 0.45);
+      txt(ctx, it.value, x + 30, y + h - 40, { size: 72, weight: 800, family: TITLE, max: w * 0.45, italic: true });
+      if (it.sub) txt(ctx, it.sub, x + 30 + vw + 36, y + h - 44, { size: 34, weight: 600, color: C.muted, max: w - vw - 96 });
+      return;
+    }
     txt(ctx, it.value, x + 30, y + ch * 0.6 + 10, { size: 72, weight: 800, family: TITLE, max: w - 56, italic: true });
     if (it.sub) wrap(ctx, it.sub, x + 30, y + ch * 0.6 + 66, w - 56, 42, 2, { size: 34, weight: 600, color: C.muted });
   });
