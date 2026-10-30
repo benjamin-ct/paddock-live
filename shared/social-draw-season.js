@@ -521,7 +521,7 @@ export function raceFrame(ctx, W, H, d, o, time) {
   const tu = Math.max(u, 0.9);
   ctx.fillStyle = C.red; rr(ctx, pad, top, 10 * u, 76 * u, 4 * u); ctx.fill();
   txt(ctx, d.gp.toUpperCase(), pad + 26 * u, top + 36 * u, { size: Math.round(46 * tu), weight: 800, family: TITLE, max: W - 2 * pad - 380 * u, italic: true });   // pas sous le tour
-  txt(ctx, `SAISON ${d.year} · ${d.total} TOURS`, pad + 26 * u, top + 74 * u, { size: Math.round(27 * tu), weight: 700, family: TITLE, color: C.muted, spacing: 2 });
+  txt(ctx, `SAISON ${d.year} · ${d.total} TOURS`, pad + 26 * u, top + 78 * u, { size: Math.round(31 * tu), weight: 700, family: TITLE, color: '#c3cad8', spacing: 2, max: W - 2 * pad - 380 * u });
   const label = intro ? 'DÉPART' : done ? 'ARRIVÉE' : `TOUR ${Math.min(d.total, lap + 1)}/${d.total}`;
   txt(ctx, label, W - pad, top + 46 * u, { size: Math.round(56 * tu), weight: 800, family: TITLE, color: done ? C.gold : C.text, align: 'right', italic: true });
   if (!intro && !done) pill(ctx, flag.label, W - pad, top + 62 * u, 42 * tu, { bg: st === 'green' ? 'rgba(61,220,132,0.18)' : flag.color, color: st === 'green' ? C.green : '#111', align: 'right', dot: true });
@@ -617,7 +617,7 @@ export function raceFrame(ctx, W, H, d, o, time) {
   }
   // Têtes des lignes et étiquettes (code, écart ou PIT) : tout le classement en direct
   heads.sort((a, b) => b.hy - a.hy);
-  const fs = Math.round(Math.min(32 * tu, rowH * 0.74));
+  const fs = Math.round(Math.min(37 * tu, rowH * 0.74));
   // Étiquettes jamais l'une sur l'autre (pilotes qui se croisent, même place un instant) : écartées d'une
   // ligne de texte au moins, en restant au plus près de leur pilote
   const gap = fs * 1.12;
@@ -639,6 +639,7 @@ export function raceFrame(ctx, W, H, d, o, time) {
     if (Math.abs(ly - h.hy) > 2) { ctx.beginPath(); ctx.moveTo(h.hx + 10 * u, h.hy); ctx.lineTo(lx, ly); ctx.strokeStyle = h.col; ctx.lineWidth = 2 * u; ctx.stroke(); }
     rr(ctx, lx, ly - fs * 0.5, 4 * u, fs, 2 * u); ctx.fillStyle = h.col; ctx.fill();
     txt(ctx, h.x.code, lx + 12 * u, ly + fs * 0.36, { size: fs, weight: 800, family: TITLE, color: pos <= 3 ? MEDAL[pos - 1] : C.text, italic: true });
+    const cw = ctx.measureText(h.x.code).width;   // écart toujours après le code, sans le toucher
     let right = '';
     if (h.pit) right = 'PIT';
     else if (pos === 1) right = done ? 'VAINQUEUR' : intro ? '' : 'LEADER';
@@ -647,7 +648,7 @@ export function raceFrame(ctx, W, H, d, o, time) {
       if (h.x.classified && lp > h.x.laps) right = `+${lp - h.x.laps}T`;
       else { const gl = gapAt(h.i, lp); right = gl != null && gl >= 0 && gl < 600 ? `+${dec(gl, 1)}` : ''; }
     }
-    if (right) txt(ctx, right, lx + 12 * u + fs * 2.2, ly + fs * 0.34, { size: Math.round(fs * 0.84), weight: 700, family: /^[+\d,]+$/.test(right) ? MONO : TITLE, color: right === 'PIT' ? '#ff8a3d' : right === 'VAINQUEUR' ? C.gold : C.muted });
+    if (right) txt(ctx, right, lx + 12 * u + Math.max(fs * 2.2, cw + fs * 0.45), ly + fs * 0.34, { size: Math.round(fs * 0.86), weight: 700, family: /^[+\d,]+$/.test(right) ? MONO : TITLE, color: right === 'PIT' ? '#ff8a3d' : right === 'VAINQUEUR' ? C.gold : '#c3cad8' });
   }
 
   // Feux de départ (présentation)
