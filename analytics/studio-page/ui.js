@@ -307,8 +307,8 @@ export const musicField = (kind, def) => {
     <div class="row"><select id="vtrack">${TRACKS.map((x) => `<option value="${x.id}" ${x.id === cur ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}<option value="file" ${cur === 'file' ? 'selected' : ''}>Mon fichier audio…</option><option value="none" ${cur === 'none' ? 'selected' : ''}>Sans musique</option></select><button type="button" class="btn small" id="vlisten">${icon('play')}Écouter</button></div>
     <input type="file" id="vaudio" accept="audio/*" hidden>
     <small class="hint" id="vtrackdesc">${esc(musicDesc(cur))}${cur === 'file' && ownAudio ? ` · ${esc(ownAudio.name)}` : ''}</small></div>
-    <div class="field"><span>Format <small>(plus haute : plein écran sur les iPhone et téléphones récents ; 9:16 : format conseillé par Instagram et YouTube${kind === 'race' ? ' ; paysage : vidéo YouTube classique, X, Facebook' : ''})</small></span>
-    <select id="vformat">${[['std', '9:16 (standard)'], ['tall', "Plus haute (forme de l'iPhone)"], ...(kind === 'race' ? [['wide', 'Paysage 16:9']] : [])].map(([v, l]) => `<option value="${v}" ${store.get('vformat')?.v === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>`;
+    <div class="field"><span>Format <small>(plus haute : plein écran sur les iPhone et téléphones récents ; 9:16 : format conseillé par Instagram et YouTube${kind === 'race' ? ' ; Instagram : remplit le cadre des Reels ; paysage : vidéo YouTube classique, X, Facebook' : ''})</small></span>
+    <select id="vformat">${[['std', '9:16 (standard)'], ['tall', "Plus haute (forme de l'iPhone)"], ...(kind === 'race' ? [['insta', 'Instagram (Reels)'], ['wide', 'Paysage 16:9']] : [])].map(([v, l]) => `<option value="${v}" ${store.get('vformat')?.v === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>`;
 };
 // Branche la liste et l'écoute (15 s) ; renvoie de quoi faire la musique : { music, track, file }
 export function bindMusic(kind) {

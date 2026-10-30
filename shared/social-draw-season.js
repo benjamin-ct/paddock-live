@@ -504,12 +504,13 @@ export function raceFrame(ctx, W, H, d, o, time) {
   // et la légende du post le bas
   // Vertical : tout dans la zone que TikTok et Instagram ne couvrent pas, sur un iPhone (19,5:9) : côtés rognés
   // d'une vidéo 9:16, barre d'état et boutons en haut (11 %), colonne de boutons à droite, pseudo et légende en
-  // bas (18 % : place gardée pour une ligne de légende). Paysage : marges simples
-  const crop = land ? 0 : Math.max(0, (W - H * 9 / 19.5) / 2);
+  // bas (18 % : place gardée pour une ligne de légende). Instagram (o.insta) : vidéo montée entière dans son cadre,
+  // ses boutons en haut (12,5 %) et son pseudo en bas (14 %). Paysage : marges simples
+  const crop = land || o.insta ? 0 : Math.max(0, (W - H * 9 / 19.5) / 2);
   const pad = Math.round(Math.min(W, H) * 0.1);
   const padL = land ? pad : Math.round(crop + 50 * u);
   const padR = land ? pad : Math.round(crop + 150 * u);
-  const foot = land ? 90 * u : H * 0.18;
+  const foot = land ? 90 * u : H * (o.insta ? 0.14 : 0.18);
   const sigY = land ? H - Math.round(H * 0.025) : H - foot;   // signature
   const bandEnd = land ? H - foot : sigY - 70 * u;
   const bw = W - padL - padR;
@@ -526,7 +527,7 @@ export function raceFrame(ctx, W, H, d, o, time) {
     ctx.fillStyle = rg; ctx.fillRect(0, 0, W, H);
   }
   // En-tête : Grand Prix, tour, état de la piste
-  const top = Math.round(land ? 40 * u : H * 0.11);
+  const top = Math.round(land ? 40 * u : H * (o.insta ? 0.125 : 0.11));
   // Vidéo dessinée dans le cadre réduit des applis (u < 1) : textes d'un cran plus grands
   const tu = Math.max(u, 0.9);
   ctx.fillStyle = C.red; rr(ctx, padL, top, 10 * u, 76 * u, 4 * u); ctx.fill();
