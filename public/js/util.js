@@ -98,8 +98,9 @@ let logoColor = true;
 export function setLogoColor(v) { logoColor = !!v; }
 
 // Logo en couleurs officielles (sur pastille claire : certains sont noirs) ou version blanche
-export function teamLogo(teamName, color = logoColor) {
-  return teamLogoUrl(teamName, { white: !color });
+// h : hauteur demandée au serveur des images (64 px pour les petits repères, plus pour les logos en filigrane, sinon flous)
+export function teamLogo(teamName, color = logoColor, h = 64) {
+  return teamLogoUrl(teamName, { white: !color, h });
 }
 
 // Repère d'écurie d'un pilote : logo officiel (réglage « logos »), sinon barre de couleur.
