@@ -176,22 +176,30 @@ l'application (Réglages → À propos → Nouveautés).
   chiffre en grand. Aussi dans la version web.
 - Calendrier : le drapeau du pays en fond du prochain Grand Prix, compte à rebours en plus grand, et chaque Grand Prix
   couru teinté de la couleur de l'écurie du vainqueur. Aussi dans la version web.
-- Saison → Pilotes : tous les pilotes en cartes (portrait sur la couleur de l'écurie, logo en filigrane, numéro) à faire
-  défiler ; toucher une carte affiche ce pilote, présenté en grand en tête de page. Aussi dans la version web.
-- Saison : les logos d'écurie en filigrane (pilote en grand, cartes des pilotes et des écuries) sont nets, même sur les
-  écrans de téléphone, au lieu d'être flous. Aussi dans la version web.
+- Saison → Pilotes : tous les pilotes en cartes, comme les cartes officielles de la F1 (prénom, nom, écurie, numéro et
+  logo de l'écurie bien visible, portrait sur la couleur de l'écurie), à faire défiler ; toucher une carte affiche ce
+  pilote, présenté en grand en tête de page avec son numéro et le logo de son écurie. Aussi dans la version web.
+- Saison : les logos d'écurie et les portraits des pilotes (cartes des pilotes et des écuries, pilote en grand, Bilan de
+  la saison) sont nets, même sur les écrans de téléphone, au lieu d'être flous. Aussi dans la version web.
+- Saison, mises en page et graphiques plus lisibles : les chiffres clés en haut d'une rubrique (Championnat des casseurs,
+  Arrêts aux stands…) prennent toute la largeur, sans trou à droite ; dans Arrêts aux stands et Vitesses de pointe, les
+  barres des écuries se répartissent sur toute la hauteur du bloc d'à côté au lieu de laisser un grand vide ; les barres
+  des vitesses de pointe partent d'un peu sous la plus basse, pas de zéro, pour qu'on voie les écarts de quelques km/h.
+  Duels → Coéquipiers : le graphique « Écart en qualification » est dessiné à la largeur de sa case, avec des textes de
+  taille normale au lieu d'énormes, la valeur d'un très grand écart écrite au bout de sa barre et non dessus, et les deux
+  pilotes, en haut et en bas, à la couleur de leurs barres. Aussi dans la version web.
 - Graphiques de la Saison (évolution des points, écart à la pole, départ et arrivée d'un pilote) : le drapeau de chaque
   Grand Prix sous l'axe des manches. Aussi dans la version web.
 - Saison → Classements : trois nouveaux graphiques, pour les pilotes ou les constructeurs. Évolution du classement (la
   place de chacun après chaque Grand Prix, en courbes qui se croisent), points marqués à chaque Grand Prix (barres
   empilées aux couleurs des écuries, sprint compris) et bilan de la saison (victoires, podiums, arrivées dans les points
   et poles vers le haut, abandons vers le bas). Aussi dans la version web.
-- Saison → Écuries (nouvelle rubrique) : une carte par écurie à sa couleur, logo en filigrane, place et points au
-  championnat, ses pilotes en portrait avec leurs points, victoires, podiums et poles ; toucher une écurie ouvre le duel
-  de ses pilotes. Aussi dans la version web.
+- Saison → Écuries (nouvelle rubrique) : une carte par écurie à sa couleur, avec son logo bien visible en haut, sa place
+  et ses points au championnat, ses pilotes en grand portrait avec leurs points, et en bas ses victoires, podiums et
+  poles ; toucher une écurie ouvre le duel de ses pilotes. Aussi dans la version web.
 - Thème clair : les cartes des pilotes (Saison → Pilotes, et le pilote en grand en tête de page) et des écuries
-  (Saison → Écuries) sont claires comme le reste de la page, avec un bandeau, un léger dégradé et le logo en filigrane
-  à la couleur de l'écurie ; elles restaient sombres. Aussi dans la version web.
+  (Saison → Écuries) sont claires comme le reste de la page, avec un bandeau et un léger dégradé à la couleur de
+  l'écurie, et son logo en couleur ; elles restaient sombres. Aussi dans la version web.
 - Saison : pendant le chargement, la page apparaît en gris (cartes et blocs qui scintillent) au lieu d'un simple message.
   Aussi dans la version web.
 - Saison → Résultats & records : la pole de chaque Grand Prix face à la meilleure pole des quatre éditions précédentes du
