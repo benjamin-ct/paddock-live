@@ -155,6 +155,8 @@ l'application (Réglages → À propos → Nouveautés).
   l'interface), ou avec l'option « réduire les animations » du système.
 
 ### Interface
+- Classement : un pilote qui a passé le drapeau à damier a un petit drapeau à damier au coin de sa position, au lieu
+  d'un fond en damier sur toute sa ligne (plus lisible, surtout sur téléphone). Aussi dans la version web.
 - Panneau Circuit étroit (téléphone, petit panneau) : son en-tête tient sur une ligne. « GPS / Estimées » passe dans le
   coin de la carte, « Suivre » et « Calques » deviennent des icônes. Aussi dans la version web.
 - Thème sombre plus clair et plus lisible : fond bleu nuit au lieu du noir (barre latérale et barre du haut comprises),
