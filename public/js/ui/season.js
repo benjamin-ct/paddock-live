@@ -265,6 +265,11 @@ function renderHome() {
 
 // Calendrier façon habillage TV : le prochain Grand Prix en grand (programme jour par jour, compte à
 // rebours), puis toute la saison en liste groupée par mois ; une ligne s'ouvre sur ses séances
+// Drapeau du Grand Prix sous l'axe des manches d'un graphique (x : centre ; absent de l'image PNG, qui garde « R1 »…)
+const roundFlag = (rd, x, y) => {
+  const r = data?.races.find((q) => q.round === rd), iso = r && COUNTRY_ISO[r.country];
+  return iso ? `<image href="https://flagcdn.com/w40/${iso}.png" x="${x - 8}" y="${y}" width="16" height="11" preserveAspectRatio="xMidYMid slice" class="sz-flag"><title>${esc(gpShort(r.name, LANG))}</title></image>` : '';
+};
 const flagOf = (r) => (COUNTRY_ISO[r.country] ? `<img class="cal-flag" src="https://flagcdn.com/w80/${COUNTRY_ISO[r.country]}.png" alt="" loading="lazy" onerror="this.remove()">` : '');
 const calIcs = (r) => `<a class="btn small" href="#" data-cal="${year}" data-round="${r.round}" title="Séances dans votre agenda (Google, Apple, Outlook)">${icon('calendar')} Ajouter ce week-end à mon agenda</a>`;
 // Dates du week-end : « 23 – 25 oct. » (« 30 oct. – 1 nov. » d'un mois à l'autre)
@@ -456,13 +461,13 @@ function lineChartSvg(series, { w = 900, h = 300 } = {}) {
   const pts = series.flatMap((s) => s.points);
   if (!pts.length) return '<div class="note">Pas encore de résultats.</div>';
   const xMax = Math.max(...pts.map((p) => p.x)), xMin = Math.min(...pts.map((p) => p.x)), yMax = Math.max(...pts.map((p) => p.y)) || 1;
-  const pl = 36, pr = 70, pt = 10, pb = 22;
+  const pl = 36, pr = 70, pt = 10, pb = 36;
   const X = (x) => pl + ((x - xMin) / Math.max(1, xMax - xMin)) * (w - pl - pr);
   const Y = (y) => pt + (1 - y / yMax) * (h - pt - pb);
   const step = Math.max(50, Math.ceil(yMax / 5 / 50) * 50);
   let grid = '';
   for (let v = 0; v <= yMax; v += step) grid += `<line x1="${pl}" x2="${w - pr}" y1="${Y(v)}" y2="${Y(v)}" class="sz-gl"/><text x="${pl - 6}" y="${Y(v) + 4}" class="sz-ax" text-anchor="end">${v}</text>`;
-  for (let x = xMin; x <= xMax; x++) grid += `<text x="${X(x)}" y="${h - 6}" class="sz-ax" text-anchor="middle">R${x}</text>`;
+  for (let x = xMin; x <= xMax; x++) grid += `${roundFlag(x, X(x), h - pb + 6)}<text x="${X(x)}" y="${h - 6}" class="sz-ax" text-anchor="middle">R${x}</text>`;
   // Étiquettes de fin de courbe écartées pour ne pas se chevaucher
   const labels = series.filter((s) => s.points.length).map((s) => ({ s, last: s.points.at(-1), y: Y(s.points.at(-1).y) + 4 }))
     .sort((a, b) => a.y - b.y);
@@ -532,13 +537,13 @@ function renderQuali() {
   // Échelle calée sur le 95e centile : une qualif ratée (pluie, accident) n'écrase pas les autres ; au-delà, coupé
   const all = teams.flatMap((t) => t.points.map(v)).sort((a, b) => a - b);
   const top = Math.max(pct ? 0.5 : 0.4, all[Math.floor(all.length * 0.95)] || 0);
-  const w = Math.max(600, ($('#szContent')?.clientWidth || 934) - 34), h = 340, pl = 52, pr = 96, pt = 12, pb = 24;
+  const w = Math.max(600, ($('#szContent')?.clientWidth || 934) - 34), h = 350, pl = 52, pr = 96, pt = 12, pb = 38;
   const X = (rd) => pl + (rounds.indexOf(rd) / Math.max(1, rounds.length - 1)) * (w - pl - pr);
   const Y = (y) => pt + (Math.min(y, top) / top) * (h - pt - pb);
   const step = [0.1, 0.2, 0.25, 0.5, 1, 2].find((s) => top / s <= 6) || 5;
   let grid = '';
   for (let y = 0; y <= top + 1e-9; y += step) grid += `<line x1="${pl}" x2="${w - pr}" y1="${Y(y)}" y2="${Y(y)}" class="sz-gl"/><text x="${pl - 6}" y="${Y(y) + 4}" class="sz-ax" text-anchor="end">${y ? `${String(+y.toFixed(2)).replace('.', DEC)} ${pct ? '%' : 's'}` : 'Pole'}</text>`;
-  for (const rd of rounds) grid += `<text x="${X(rd)}" y="${h - 6}" class="sz-ax" text-anchor="middle">R${rd}</text>`;
+  for (const rd of rounds) grid += `${roundFlag(rd, X(rd), h - pb + 7)}<text x="${X(rd)}" y="${h - 6}" class="sz-ax" text-anchor="middle">R${rd}</text>`;
   // Étiquettes de fin de courbe (écart médian) écartées pour ne pas se chevaucher
   const labels = meds.map((t) => ({ t, y: Y(v(t.points.at(-1))) + 4 })).sort((a, b) => a.y - b.y);
   for (let i = 1; i < labels.length; i++) labels[i].y = Math.max(labels[i].y, labels[i - 1].y + 13);
@@ -874,7 +879,7 @@ function render() {
   for (const b of document.querySelectorAll('#szNav [data-sz]')) b.classList.toggle('active', b.dataset.sz === section);
   if ($('#szCur')) $('#szCur').textContent = $('#szNav .active')?.textContent.trim() || (section === 'gp' ? 'Grand Prix' : '');
   const st = stats?.year === data.year || stats?.error ? stats : null;
-  const ctx = { data, stats: st, color, bar, opt: seasonOpt, photo: (d) => photoUrl({ Tla: d.code }), logo: (team) => teamLogo(team, false), official: (id) => OFFICIAL[id] || '8b95a8', ratings: ratingsFor(data, st), prev: prev?.year === data.year - 1 ? prev : null };
+  const ctx = { data, stats: st, color, bar, opt: seasonOpt, photo: (d) => photoUrl({ Tla: d.code }), flag: roundFlag, logo: (team) => teamLogo(team, false), official: (id) => OFFICIAL[id] || '8b95a8', ratings: ratingsFor(data, st), prev: prev?.year === data.year - 1 ? prev : null };
   if (section === 'drivers') loadPrev();
   const fiaData = fia?.year === data.year ? fia : null;
   const html = {

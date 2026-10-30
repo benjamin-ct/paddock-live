@@ -167,7 +167,7 @@ export function renderDrivers(ctx, code) {
   const climb = started.filter((x) => x.res.grid && isNum(x.res)).sort((a, b) => (b.res.grid - b.res.pos) - (a.res.grid - a.res.pos))[0];
 
   // Graphique : position au départ (pointillés) et à l'arrivée, manche par manche
-  const W = pageWidth(), H = 230, pl = 30, pr = 12, pt = 10, pb = 24;
+  const W = pageWidth(), H = 244, pl = 30, pr = 12, pt = 10, pb = 38;
   const rounds = races.map((r) => r.round);
   const X = (rd) => pl + ((rounds.indexOf(rd)) / Math.max(1, rounds.length - 1)) * (W - pl - pr);
   const Y = (p) => pt + ((p - 1) / 21) * (H - pt - pb);
@@ -176,7 +176,7 @@ export function renderDrivers(ctx, code) {
   const gridPts = started.filter((x) => x.res.grid).map((x) => [X(x.r.round), Y(x.res.grid)]);
   let grid = '';
   for (const p of [1, 5, 10, 15, 20]) grid += `<line x1="${pl}" x2="${W - pr}" y1="${Y(p)}" y2="${Y(p)}" class="sz-gl"/><text x="${pl - 6}" y="${Y(p) + 4}" class="sz-ax" text-anchor="end">${p}</text>`;
-  for (const rd of rounds) grid += `<text x="${X(rd)}" y="${H - 6}" class="sz-ax" text-anchor="middle">R${rd}</text>`;
+  for (const rd of rounds) grid += `${ctx.flag?.(rd, X(rd), H - pb + 7) || ''}<text x="${X(rd)}" y="${H - 6}" class="sz-ax" text-anchor="middle">R${rd}</text>`;
   const dots = started.map((x) => (isNum(x.res)
     ? `<circle cx="${X(x.r.round)}" cy="${Y(x.res.pos)}" r="${x.res.pos <= 3 ? 5 : 3.5}" fill="${x.res.pos === 1 ? '#ffd166' : col}" stroke="var(--panel)" stroke-width="1.5"><title>R${x.r.round} ${esc(short(x.r.name))} : P${x.res.pos}</title></circle>`
     : `<path d="M${X(x.r.round) - 3.5} ${H - pb - 9}l7 7m0 -7l-7 7" class="sz-dnf-x"/>`)).join('');
