@@ -874,7 +874,7 @@ function render() {
   for (const b of document.querySelectorAll('#szNav [data-sz]')) b.classList.toggle('active', b.dataset.sz === section);
   if ($('#szCur')) $('#szCur').textContent = $('#szNav .active')?.textContent.trim() || (section === 'gp' ? 'Grand Prix' : '');
   const st = stats?.year === data.year || stats?.error ? stats : null;
-  const ctx = { data, stats: st, color, bar, opt: seasonOpt, official: (id) => OFFICIAL[id] || '8b95a8', ratings: ratingsFor(data, st), prev: prev?.year === data.year - 1 ? prev : null };
+  const ctx = { data, stats: st, color, bar, opt: seasonOpt, photo: (d) => photoUrl({ Tla: d.code }), logo: (team) => teamLogo(team, false), official: (id) => OFFICIAL[id] || '8b95a8', ratings: ratingsFor(data, st), prev: prev?.year === data.year - 1 ? prev : null };
   if (section === 'drivers') loadPrev();
   const fiaData = fia?.year === data.year ? fia : null;
   const html = {
@@ -1016,6 +1016,8 @@ export function initSeason() {
     if (t) { h2hTeam = t.dataset.h2hTeam; animate(true); render(); } else if (m) { h2hMode = m.dataset.h2hMode; animate(true); render(); }
     const ck = e.target.closest('[data-cmp-kind]');
     if (ck) { cmpKind = ck.dataset.cmpKind; animate(true); render(); return; }
+    const dc = e.target.closest('[data-szdrv]');
+    if (dc) { drvCode = dc.dataset.szdrv; push = true; animate(true); render(); return; }
     const dd = e.target.closest('[data-dest-drv]');
     if (dd) { showDestructorsDriver(Number(dd.dataset.destDrv)); animate(true); render(); return; }
     const cs = e.target.closest('[data-cmp-sort]');

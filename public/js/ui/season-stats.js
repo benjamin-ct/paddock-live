@@ -182,9 +182,13 @@ export function renderDrivers(ctx, code) {
     : `<path d="M${X(x.r.round) - 3.5} ${H - pb - 9}l7 7m0 -7l-7 7" class="sz-dnf-x"/>`)).join('');
   const chart = `<svg viewBox="0 0 ${W} ${H}" class="sz-svg">${grid}${line(gridPts, true)}${line(finPts)}${dots}</svg>`;
 
-  return `<div class="sz-h2h-pick"><label class="small">Pilote <select id="szDriver">${data.drivers.map((d) => `<option value="${d.code}" ${d.code === drv.code ? 'selected' : ''}${ctx.opt(d)}>${esc(d.name)}</option>`).join('')}</select></label></div>
-    <div class="sz-drv-head" style="--tc:${col}">${ctx.bar(drv.team, drv.teamId)}<div><div class="sz-drv-name">${esc(drv.name)} <span class="muted">#${esc(drv.number || '')}</span></div>
-      <div class="muted">${esc(drv.team)} · P${drv.pos} au championnat · ${drv.points} pts</div></div></div>
+  // Cartes des pilotes (portrait sur la couleur de l'écurie, logo en filigrane) : la carte touchée choisit le pilote
+  const look = (d) => { const logo = ctx.logo(d.team); return `--tc:${ctx.color(d.team, d.teamId)}${logo ? `;--logo:url('${logo}')` : ''}`; };
+  const pic = (d) => { const u = ctx.photo(d); return u ? `<img src="${u}" alt="" loading="lazy" onerror="this.remove()">` : ''; };
+  return `<div class="sz-drv-strip">${data.drivers.map((d) => `<button type="button" class="sz-drv-card${d.code === drv.code ? ' on' : ''}" data-szdrv="${esc(d.code)}" style="${look(d)}" aria-pressed="${d.code === drv.code}">
+      <span class="nm">${esc(d.last || d.name)}</span><span class="tm">${esc(d.team)}</span><b class="no">${esc(d.number || '')}</b>${pic(d)}</button>`).join('')}</div>
+    <div class="sz-drv-hero" style="${look(drv)}"><div class="txt"><div class="sz-drv-name">${esc(drv.name)}</div><b class="no">${esc(drv.number || '')}</b>
+      <div class="sub">${esc(drv.team)} · P${drv.pos} au championnat · ${drv.points} pts</div></div>${pic(drv)}</div>
     <div class="sz-cards sz-kpis">
       ${card('Victoires', drv.wins || 0)}
       ${card('Podiums', fin.filter((x) => x.res.pos <= 3).length)}
