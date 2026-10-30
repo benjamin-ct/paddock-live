@@ -11,10 +11,11 @@ const PORTRAITS = {
   PER: 'cadillac/serper01', BOT: 'cadillac/valbot01', TSU: 'racingbulls/yuktsu01',
 };
 
-// Petit portrait serré sur le visage (appli) ; big : grand, tête et épaules (posts)
-export function portraitUrl(tla, big = false) {
+// Portrait serré sur le visage (appli : w pixels de côté, 480 pour les grandes cartes de la Saison) ;
+// big : grand, tête et épaules (posts)
+export function portraitUrl(tla, big = false, w = 240) {
   const [team, id] = PORTRAITS[tla]?.split('/') || [];
-  const crop = big ? 'c_thumb,g_face,w_800,h_800,z_0.6' : 'c_thumb,g_face,w_240,h_240,z_0.8';
+  const crop = big ? 'c_thumb,g_face,w_800,h_800,z_0.6' : `c_thumb,g_face,w_${w},h_${w},z_0.8`;
   return id ? `https://media.formula1.com/image/upload/${crop}/q_auto/v1740000001/common/f1/${YEAR}/${team}/${id}/${YEAR}${team}${id}right.webp` : null;
 }
 

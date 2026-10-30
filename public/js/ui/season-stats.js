@@ -189,12 +189,13 @@ export function renderDrivers(ctx, code) {
     : `<path d="M${X(x.r.round) - 3.5} ${H - pb - 9}l7 7m0 -7l-7 7" class="sz-dnf-x"/>`)).join('');
   const chart = `<svg viewBox="0 0 ${W} ${H}" class="sz-svg">${grid}${line(gridPts, true)}${line(finPts)}${dots}</svg>`;
 
-  // Cartes des pilotes (portrait sur la couleur de l'écurie, logo en filigrane) : la carte touchée choisit le pilote
-  const look = (d) => { const logo = ctx.logo(d.team); return `--tc:${ctx.color(d.team, d.teamId)}${logo ? `;--logo:url('${logo}')` : ''}`; };
+  // Cartes des pilotes (portrait sur la couleur de l'écurie, prénom, nom, numéro et logo) : la carte touchée choisit le pilote
+  const look = (d) => ctx.look(d.team, d.teamId);
   const pic = (d) => { const u = ctx.photo(d); return u ? `<img src="${u}" alt="" loading="lazy" onerror="this.remove()">` : ''; };
+  const first = (d) => (d.last && d.name?.endsWith(d.last) ? d.name.slice(0, -d.last.length).trim() : '');
   return `<div class="sz-drv-strip">${data.drivers.map((d) => `<button type="button" class="sz-drv-card${d.code === drv.code ? ' on' : ''}" data-szdrv="${esc(d.code)}" style="${look(d)}" aria-pressed="${d.code === drv.code}">
-      <span class="nm">${esc(d.last || d.name)}</span><span class="tm">${esc(d.team)}</span><b class="no">${esc(d.number || '')}</b>${pic(d)}</button>`).join('')}</div>
-    <div class="sz-drv-hero" style="${look(drv)}"><div class="txt"><div class="sz-drv-name">${esc(drv.name)}</div><b class="no">${esc(drv.number || '')}</b>
+      <span class="nm"><small>${esc(first(d))}</small>${esc(d.last || d.name)}</span><span class="tm">${esc(d.team)}</span><span class="ft"><b class="no">${esc(d.number || '')}</b><i class="lg" aria-hidden="true"></i></span>${pic(d)}</button>`).join('')}</div>
+    <div class="sz-drv-hero" style="${look(drv)}"><div class="txt"><div class="sz-drv-name">${esc(drv.name)}</div><span class="ft"><b class="no">${esc(drv.number || '')}</b><i class="lg" aria-hidden="true"></i></span>
       <div class="sub">${esc(drv.team)} · P${drv.pos} au championnat · ${drv.points} pts</div></div>${pic(drv)}</div>
     <div class="sz-cards sz-kpis">
       ${card('Victoires', drv.wins || 0)}
@@ -392,21 +393,23 @@ export function renderSpeeds(ctx, point = 'ST') {
   }
   const dl = [...drv.values()].map((e) => ({ ...e, max: Math.max(...e.vals), avg: mean(e.vals) })).sort((a, b) => b.max - a.max);
   const tl = [...team.values()].map((t) => ({ ...t, avg: mean([...t.by.values()]) })).sort((a, b) => b.avg - a.avg);
-  const lo = Math.min(...dl.map((e) => e.avg)) - 3;
+  // Barres à partir d'un peu sous la plus basse (pas de zéro) : les écarts de quelques km/h se voient
+  const base = (vals) => Math.floor(Math.min(...vals) - Math.max(1, (Math.max(...vals) - Math.min(...vals)) / 4));
+  const tlo = base(tl.map((t) => t.avg)), dlo = base(dl.slice(0, 22).map((e) => e.max));
   const top = (rd) => Math.max(...[...team.values()].map((t) => t.by.get(rd) || 0));
   const low = (rd) => Math.min(...[...team.values()].map((t) => t.by.get(rd)).filter(Boolean));
   return `${pendingNote(stats)}
     <div class="sz-h2h-pick"><label class="small">Point de mesure <select id="szSpeedPt">${Object.entries(SPEED_POINTS).map(([k, l]) => `<option value="${k}" ${k === point ? 'selected' : ''}>${l}</option>`).join('')}</select></label></div>
     <div class="sz-grid2">
-      <section class="sz-box"><h3>Écuries : moyenne des meilleures vitesses par course</h3>${hbars(tl.map((t) => ({ html: `${mark(t.team, t.color)}<b>${esc(t.team)}</b>`, v: t.avg - lo, text: `${fr(t.avg, 1)} km/h`, color: tcol(t.team, t.color) })))}</section>
-      <section class="sz-box"><h3>Pilotes : vitesse maximale de la saison</h3>${hbars(dl.slice(0, 22).map((e) => ({ html: `${mark(e.d.team, e.d.color)}<b>${esc(e.d.tla)}</b>`, v: e.max - lo, text: `${e.max} km/h`, color: tcol(e.d.team, e.d.color) })))}</section>
+      <section class="sz-box"><h3>Écuries : moyenne des meilleures vitesses par course</h3>${hbars(tl.map((t) => ({ html: `${mark(t.team, t.color)}<b>${esc(t.team)}</b>`, v: t.avg - tlo, text: `${fr(t.avg, 1)} km/h`, color: tcol(t.team, t.color) })))}</section>
+      <section class="sz-box"><h3>Pilotes : vitesse maximale de la saison</h3>${hbars(dl.slice(0, 22).map((e) => ({ html: `${mark(e.d.team, e.d.color)}<b>${esc(e.d.tla)}</b>`, v: e.max - dlo, text: `${e.max} km/h`, color: tcol(e.d.team, e.d.color) })))}</section>
     </div>
     <section class="sz-box"><h3>Meilleure vitesse de chaque écurie par Grand Prix (km/h)</h3><div class="sz-scroll"><table class="sz-table sz-heat"><tr><th>Écurie</th>${rounds.map((rd) => `<th title="${esc(short(data.races.find((r) => r.round === rd)?.name))}">R${rd}</th>`).join('')}<th>Moy.</th></tr>
       ${tl.map((t) => `<tr><td>${mark(t.team, t.color)}<b>${esc(t.team)}</b></td>${rounds.map((rd) => { const v = t.by.get(rd); if (!v) return '<td class="muted">—</td>'; const span = top(rd) - low(rd) || 1; return heat((top(rd) - v) / span, v); }).join('')}<td><b>${fr(t.avg, 1)}</b></td></tr>`).join('')}</table></div></section>
     <section class="sz-box"><h3>Vitesse maximale par Grand Prix</h3><table class="sz-table"><tr><th>Manche</th><th>Grand Prix</th><th>Vitesse</th><th>Pilote</th></tr>
       ${rounds.map((rd) => { const b = R.get(rd).race.drivers.filter((d) => d.speeds?.[point]).sort((a, c) => c.speeds[point] - a.speeds[point])[0];
         return `<tr><td>R${rd}</td><td>${esc(short(data.races.find((r) => r.round === rd)?.name))}</td><td><b>${b ? `${b.speeds[point]} km/h` : '—'}</b></td><td>${b ? `${mark(b.team, b.color)}${esc(b.tla)}` : ''}</td></tr>`; }).join('')}</table></section>
-    <p class="muted small">Meilleure vitesse de chaque pilote au point de mesure choisi.</p>`;
+    <p class="muted small">Meilleure vitesse de chaque pilote au point de mesure choisi. Les barres ne partent pas de zéro, pour mieux voir les écarts.</p>`;
 }
 
 // ---------------- Profil des circuits ----------------
