@@ -5,10 +5,11 @@
    blanche, chiffres condensés. Rien de la carte n'est redessiné ici (js/ui/map.js inchangé).
    ===================================================================================== */
 :root[data-theme="pitwall"] {
-  --bg: #030406; --panel: #101218; --panel-2: #171A21; --panel-3: #1F232C;
-  --border: rgba(255, 255, 255, .08); --line: rgba(255, 255, 255, .06); --line-2: rgba(255, 255, 255, .14);
-  --hover: #171A21; --deep: #000; --top-1: #0B0C11; --top-2: #050608;
-  --text: #FFFFFF; --text-2: #B9BCC6; --muted: #858A96;
+  /* Bleu nuit (plutôt que noir) : cartes qui ressortent du fond, textes secondaires plus clairs */
+  --bg: #020817; --panel: #0B1324; --panel-2: #111C31; --panel-3: #1A2741;
+  --border: #1E293B; --line: rgba(148, 163, 184, .10); --line-2: #334155;
+  --hover: #111C31; --deep: #050B18; --top-1: #0F172A; --top-2: #0A1120;
+  --text: #F8FAFC; --text-2: #CBD5E1; --muted: #94A3B8;
   --accent: #E10600; --accent-2: #FF3B30;
   --radius: 6px;
   --font: 'Titillium Web', system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -37,10 +38,10 @@
 
 /* Barre latérale : noire, onglet choisi marqué d'un trait rouge */
 @media (min-width: 901px) {
-  [data-theme="pitwall"] body:not(.solo) .rail { background: #000; border-right-color: rgba(255, 255, 255, .08); }
+  [data-theme="pitwall"] body:not(.solo) .rail { background: #0F172A; border-right-color: #1E293B; }
 }
-[data-theme="pitwall"] .rail { color: #858A96; }
-[data-theme="pitwall"] .rail-btn { color: #858A96; border-radius: 6px; }
+[data-theme="pitwall"] .rail { color: #94A3B8; }
+[data-theme="pitwall"] .rail-btn { color: #94A3B8; border-radius: 6px; }
 [data-theme="pitwall"] .rail-btn:hover { background: rgba(255, 255, 255, .06); color: #fff; }
 [data-theme="pitwall"] .rail-btn.on { background: transparent; color: #fff; }
 [data-theme="pitwall"] .rail-btn.on::before { background: var(--accent); width: 3px; }
@@ -50,9 +51,9 @@
 [data-theme="pitwall"] .rail-logo { border-radius: 9px; }
 
 /* Barre du haut : habillage TV, toujours sombre (y compris en clair) */
-[data-theme="pitwall"] :is(.topbar, .replaybar) { color: #fff; --text: #fff; --text-2: #B9BCC6; --muted: #858A96;
-  --panel: #101218; --panel-2: #171A21; --panel-3: #1F232C; --hover: #171A21; --border: rgba(255, 255, 255, .08); --line: rgba(255, 255, 255, .06); --line-2: rgba(255, 255, 255, .14); }
-[data-theme="pitwall"] .topbar { background: linear-gradient(180deg, #0B0C11, #050608); border-bottom-color: rgba(255, 255, 255, .08); }
+[data-theme="pitwall"] :is(.topbar, .replaybar) { color: #fff; --text: #fff; --text-2: #CBD5E1; --muted: #94A3B8;
+  --panel: #0B1324; --panel-2: #111C31; --panel-3: #1A2741; --hover: #111C31; --border: #1E293B; --line: rgba(148, 163, 184, .10); --line-2: #334155; }
+[data-theme="pitwall"] .topbar { background: linear-gradient(180deg, #0F172A, #0A1120); border-bottom-color: #1E293B; }
 [data-theme="pitwall"] .topbar .session-name { font-family: var(--font); font-weight: 700; text-transform: uppercase; letter-spacing: .02em; }
 [data-theme="pitwall"] .topbar .session-sub { letter-spacing: .08em; }
 [data-theme="pitwall"] .topbar .hstat-label { font-family: var(--font); font-weight: 700; letter-spacing: .1em; }
@@ -76,7 +77,7 @@
 [data-theme="pitwall"] .tower th { font-family: var(--font); font-weight: 700; letter-spacing: .1em; }
 
 /* Barre de lecture : noire comme la barre du haut */
-[data-theme="pitwall"] .replaybar { background: #000; border-top-color: rgba(255, 255, 255, .08); }
+[data-theme="pitwall"] .replaybar { background: #0A1120; border-top-color: #1E293B; }
 [data-theme="pitwall"] .rp-play { border-radius: 6px; }
 
 /* Radios : avatar carré souligné de la couleur de l'écurie, onde sous chaque message */
@@ -147,3 +148,16 @@ html.float-map .rc-bar { display: none !important; }
 [data-theme="pitwall"] .hm-go button:hover { border-top-color: var(--accent); }
 [data-theme="pitwall"] .hm-go b { font: 700 13.5px var(--font); text-transform: uppercase; letter-spacing: .06em; }
 [data-theme="pitwall"] .hm-follow { border-radius: 4px; }
+
+/* ---------- Saison plus visuelle : titres, grands chiffres et tableaux plus grands, logos d'écurie ---------- */
+[data-theme="pitwall"] .sz-box h3 { font-size: 20px; font-weight: 700; letter-spacing: 0; margin-bottom: 14px; }
+[data-theme="pitwall"] .sz-card { padding: 16px 18px; gap: 6px; }
+[data-theme="pitwall"] .sz-card > .muted.small:first-child { font-size: 13px; color: var(--text-2); }
+[data-theme="pitwall"] .sz-big { font-size: 30px; }
+[data-theme="pitwall"] .sz-big .team-logo { width: 28px; height: 28px; }
+[data-theme="pitwall"] .sz-table { font-size: 14.5px; }
+[data-theme="pitwall"] .sz-table th { font-size: 11.5px; padding: 8px 10px; }
+[data-theme="pitwall"] .sz-table td { padding: 9px 10px; }
+[data-theme="pitwall"] .sz-table td .team-logo { width: 22px; height: 22px; margin-right: 9px; }
+/* Pilote dans un tableau (vainqueur, pole…) : case pleine à la couleur de son écurie */
+[data-theme="pitwall"] .sz-chip { background: var(--tc); color: var(--ink, #fff); border-left: 0; padding: 3px 10px; border-radius: 5px; font-size: 13px; }

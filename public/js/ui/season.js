@@ -26,8 +26,12 @@ const OFFICIAL = {
 };
 const color = (team, teamId) => teamColor({ TeamName: team, TeamColour: OFFICIAL[teamId] || '8b95a8' });
 const seasonOpt = (d) => driverOpt({ TeamName: d.team, TeamColour: OFFICIAL[d.teamId] || '8b95a8' }, d.number);
-const chip = (d) => `<span class="sz-chip" style="--tc:${color(d.team, d.teamId)}">${esc(d.last || d.name || d.code)}</span>`;
-const bar = (team, teamId) => `<span class="drv-bar" style="background:${color(team, teamId)}"></span>`;
+// Texte lisible sur la couleur de l'écurie (sombre sur les couleurs claires : Mercedes, McLaren, Haas…)
+const ink = (c) => { const m = /^#([0-9a-f]{6})$/i.exec(c); const v = m ? parseInt(m[1], 16) : 0; return 0.2126 * (v >> 16) + 0.7152 * ((v >> 8) & 255) + 0.0722 * (v & 255) > 150 ? '#0b1220' : '#fff'; };
+const chip = (d) => { const c = color(d.team, d.teamId); return `<span class="sz-chip" style="--tc:${c};--ink:${ink(c)}">${esc(d.last || d.name || d.code)}</span>`; };
+const colorBar = (team, teamId) => `<span class="drv-bar" style="background:${color(team, teamId)}"></span>`;
+// Repère d'écurie devant un nom : son logo (pastille de sa couleur), sinon une barre de couleur
+const bar = (team, teamId) => logoMark(team, teamId);
 
 let data = null;
 let year = new Date().getUTCFullYear();   // année du serveur (UTC) : la nuit du réveillon, l'année suivante n'existe pas encore pour lui
@@ -622,7 +626,7 @@ function qualiGapBox(g, A, B, ca) {
 // Logo de l'écurie (pastille de sa couleur), sinon barre de couleur
 function logoMark(team, teamId) {
   const url = teamLogo(team);
-  return url ? `<span class="team-logo color" style="--tc:${color(team, teamId)};background-image:url('${url}')"></span>` : bar(team, teamId);
+  return url ? `<span class="team-logo color" style="--tc:${color(team, teamId)};background-image:url('${url}')"></span>` : colorBar(team, teamId);
 }
 
 // Duel : deux coéquipiers (choix de l'écurie par son logo) ou deux pilotes quelconques

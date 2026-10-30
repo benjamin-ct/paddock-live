@@ -2350,10 +2350,10 @@ body.solo .tb-tools { display: none; }
 @font-face { font-family: 'JetBrains Mono'; font-style: normal; font-weight: 400 700; font-display: swap; src: url('/fonts/jetbrainsmono-var.woff2') format('woff2'); }
 
 :root[data-theme="pitwall"] {
-  --bg: #050A16; --panel: #0C1424; --panel-2: #121C30; --panel-3: #19253B;
-  --border: #1C2A42; --line: #16213A; --line-2: #2C3C58; --hover: #131E34; --deep: #08101F;
-  --top-1: #070D1B; --top-2: #070D1B; --focus: rgba(225, 6, 0, .10);
-  --text: #F3F6FA; --text-2: #BCC7D8; --muted: #8C9BB3;
+  --bg: #07080A; --panel: #0E1116; --panel-2: #15191F; --panel-3: #1C2028;
+  --border: #1C2028; --line: #151920; --line-2: #2E3440; --hover: #15191F; --deep: #0B0D11;
+  --top-1: #0B0D11; --top-2: #0B0D11; --focus: rgba(225, 6, 0, .10);
+  --text: #F1F3F6; --text-2: #B4BAC4; --muted: #8A919C;
   --purple: #C084FC; --green: #34D399; --yellow: #FACC15; --orange: #FB923C; --red: #FF453A; --blue: #60A5FA;
   --radius: 14px; --rail-w: 76px;
   --font: 'Saira', system-ui, -apple-system, 'Segoe UI', sans-serif;
