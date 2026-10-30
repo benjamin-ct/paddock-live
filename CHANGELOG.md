@@ -151,6 +151,8 @@ l'application (Réglages → À propos → Nouveautés).
   l'interface), ou avec l'option « réduire les animations » du système.
 
 ### Interface
+- Panneau Circuit étroit (téléphone, petit panneau) : son en-tête tient sur une ligne. « GPS / Estimées » passe dans le
+  coin de la carte, « Suivre » et « Calques » deviennent des icônes. Aussi dans la version web.
 - Les curseurs (volume, seuil des tours propres, temps perdu au stand, fond des overlays…) ont un nouveau style, assorti
   au reste de l'appli : piste fine remplie jusqu'à la valeur et bouton rond. Aussi dans la version web.
 - Panneau Duel : la flèche du duel automatique choisie (contre la voiture devant ou derrière) ressort de nouveau en

@@ -238,11 +238,11 @@
         <h2>Circuit</h2>
         <div class="panel-tools">
           <span class="map-mode" id="mapMode"><span>GPS</span><span>Estimées</span></span>
-          <label class="toggle" title="Centrer la carte sur le pilote suivi"><input type="checkbox" id="mapFollow"> Suivre</label>
+          <label class="toggle" title="Centrer la carte sur le pilote suivi"><input type="checkbox" id="mapFollow"> <span class="map-tool-txt">Suivre</span><svg class="ic map-tool-ic" aria-hidden="true"><use href="#i-target"/></svg></label>
           <button class="btn small" id="mapFloatBtn" hidden title="Carte flottante, par-dessus la vidéo"><svg class="ic" aria-hidden="true"><use href="#i-window"/></svg> Flottante</button>
           <label class="toggle" id="map3dTog" hidden title="Vue 3D du circuit, avec le relief"><input type="checkbox" id="map3dOpt"> 3D</label>
           <details class="map-layers" id="mapLayers">
-            <summary class="btn small" title="Éléments affichés sur la carte">Calques <svg class="ic ic-s" aria-hidden="true"><use href="#i-chevron-down"/></svg></summary>
+            <summary class="btn small" title="Éléments affichés sur la carte"><span class="map-tool-txt">Calques</span><svg class="ic map-tool-ic" aria-hidden="true"><use href="#i-sliders"/></svg> <svg class="ic ic-s" aria-hidden="true"><use href="#i-chevron-down"/></svg></summary>
             <div class="map-layers-menu">
               <label class="toggle"><input type="checkbox" id="mapLabels" checked> Noms des pilotes (pastilles)</label>
               <label class="toggle" title="Traînée derrière chaque voiture"><input type="checkbox" id="mapTrails" checked> Traînées</label>
