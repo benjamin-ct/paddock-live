@@ -1176,6 +1176,14 @@ test('Suivi : tâche cochée dans l\'onglet « Tâches » : Statut « Fait » et
   assert.equal(sent, null);
 });
 
+test('Suivi : la route « drive/done » (coche du Studio) est bien servie', async () => {
+  const { driveApi } = await import('../analytics/drive.js');
+  const req = new Request('https://x/studio/api/drive/done', { method: 'POST', body: '{}' });
+  const res = await driveApi('done', req, new URL(req.url), {}, async () => {});
+  assert.notEqual(res.status, 404);   // refusée par la liste des routes : « Introuvable » au lieu de cocher
+  assert.deepEqual(await res.json(), { connected: false, youtubeClient: false });
+});
+
 test('page du créateur : connexions expirées signalées avant de publier (YouTube refusé, TikTok injoignable, Threads)', async () => {
   const env2 = { DB: fakeDB(), MEDIA: fakeR2(), STUDIO_KEY_HASH: HASH, STATS_KEY: 's' };
   const w = (p, init = {}) => studioApi(new Request(`https://s.test/studio/api/${p}`, init), env2, new URL(`https://s.test/studio/api/${p}`));
