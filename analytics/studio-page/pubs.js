@@ -1,7 +1,7 @@
 // Studio : onglet Publications. Nouveaux posts (écrit à la main, Paddock Live), « Reste à faire » (ce qui se finit à la main : X, brouillon TikTok, Short
 // privé…), puis les publications programmées ou en cours (état de chaque réseau, Réessayer, Modifier), puis les
 // posts publiés ces 7 derniers jours avec leurs liens.
-import { $, $$, esc, api, ago, icon, toast, empty, schedList, NET_NAMES } from './ui.js';
+import { $, $$, esc, api, ago, icon, toast, empty, skeleton, schedList, NET_NAMES } from './ui.js';
 import { shareToX } from './publish.js';
 
 const OPEN = { tiktok: ['Ouvrir TikTok', 'https://www.tiktok.com/'], youtube: ['Ouvrir YouTube Studio', 'https://studio.youtube.com/'] };
@@ -9,7 +9,7 @@ const when = (t) => new Date(t).toLocaleString('fr-FR', { weekday: 'long', day: 
 
 // start : cartes « Écrire un post » et « Post Paddock Live » ({ html, bind(body) }, branchées par app.js)
 export async function pubsTab(body, { current }, start) {
-  body.innerHTML = `${start.html}<div id="todos"></div><div id="schedlist"></div><div id="published"></div>`;
+  body.innerHTML = `${start.html}<div id="todos">${skeleton(2)}</div><div id="schedlist"></div><div id="published"></div>`;
   start.bind(body);
   const [todo, hist] = await Promise.all([api('todo').catch(() => null), api('history').catch(() => null)]);
   if (!current()) return;

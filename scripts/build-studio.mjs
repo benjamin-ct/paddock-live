@@ -48,7 +48,7 @@ const visit = (file) => {
 };
 visit(path.join(M, 'studio', 'app.js'));
 const rel = (f) => `/${path.relative(OUT, f).split(path.sep).join('/')}`;
-const FONTS = ['manrope-latin', 'sairacondensed-800'];
+const FONTS = ['titillium-400', 'titillium-700', 'sairacondensed-800'];
 const head = [
   ...FONTS.map((f) => `<link rel="preload" href="/fonts/${f}.woff2" as="font" type="font/woff2" crossorigin>`),
   `<link rel="stylesheet" href="/m/${VERSION}/studio/style.css">`,
@@ -164,7 +164,7 @@ fs.writeFileSync(path.join(LIVE, 'index.html'), livePage.replace('</head>', `<me
 // Fichiers servis à la racine du site (vérification du domaine par TikTok)
 copy(path.join(ROOT, 'analytics', 'root'), OUT);
 copy(path.join(ROOT, 'public', 'fonts'), path.join(OUT, 'fonts'), (f) => /^(titillium|sairacondensed|jetbrainsmono).*\.woff2$|^OFL/.test(f));
-copy(path.join(ROOT, 'analytics', 'fonts'), path.join(OUT, 'fonts'));   // Manrope : texte du Studio
+copy(path.join(ROOT, 'analytics', 'fonts'), path.join(OUT, 'fonts'));   // Barlow Condensed et Chakra Petch : visuels « Télé premium »
 // En-têtes : la page et l'API ne doivent pas être indexées ni mises en cache trop longtemps
 fs.writeFileSync(path.join(OUT, '_headers'), `/studio/*
   X-Robots-Tag: noindex, nofollow
