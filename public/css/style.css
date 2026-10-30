@@ -364,7 +364,11 @@ input[type=range]:not(#rpRange):disabled { opacity: .45; cursor: default; }
 #mapCanvas { width: 100%; height: 100%; display: block; }
 .map-empty { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); pointer-events: none; }
 .map-legend { position: absolute; left: 10px; bottom: 8px; font-size: 11.5px; color: var(--muted); pointer-events: none; display: flex; gap: 10px; }
-.map-mode { font-weight: 700; }
+.map-mode { font-weight: 700; display: inline-grid; }
+/* Les deux textes l'un sur l'autre, un seul visible : même largeur dans les deux modes (l'en-tête ne passe pas sur deux
+   lignes au changement, ce qui changeait la taille de la carte) */
+.map-mode > span { grid-area: 1 / 1; }
+.map-mode:not(.gps) > :first-child, .map-mode:not(.est) > :last-child { visibility: hidden; }
 .map-mode.gps { color: var(--green); }
 .map-mode.est { color: var(--orange); }
 

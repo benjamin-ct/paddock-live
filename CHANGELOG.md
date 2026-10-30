@@ -67,6 +67,11 @@ l'application (Réglages → À propos → Nouveautés).
   minute jusqu'à afficher la prochaine séance.
 
 ### En direct
+- Carte du circuit plus fluide avec le GPS (F1 TV) : les voitures avancent régulièrement, sans les petites saccades
+  que donnait l'heure irrégulière des positions envoyées par la F1. Si le GPS se coupe pendant une séance, les voitures
+  ne disparaissent plus : elles passent aussitôt en positions estimées, puis reprennent le GPS à son retour, en glissant
+  jusqu'à leur place au lieu de sauter. L'indication « GPS » ou « Estimées » en haut de la carte ne change plus sa
+  taille. En direct et en replay, dans l'appli et la version web.
 - Onglet Secteurs : sous les poles et meilleurs tours des éditions précédentes, le meilleur du week-end, c'est-à-dire
   le meilleur tour des séances déjà courues du Grand Prix (temps, pilote et séance : EL2, Qualif…). En direct et en
   replay, dans l'appli et la version web.
