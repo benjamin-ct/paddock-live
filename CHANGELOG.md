@@ -82,6 +82,9 @@ l'application (Réglages → À propos → Nouveautés).
 - Classement en course : l'intervalle avec la voiture devant s'affiche aussi en mode Essentiel ; un pilote qui abandonne
   n'a plus d'écart affiché à côté de « ABD ».
 - Replay : la Télémétrie dit « Pas de télémétrie dans ce replay » au lieu de proposer la connexion F1 TV du direct.
+- Voiture de sécurité virtuelle : depuis cette saison, la direction de course l'annonce « VSC DEPLOYED », que l'appli
+  ne reconnaissait plus. Les VSC sont de nouveau comptées dans le résumé de la séance, et le panneau Analyse les
+  marque bien VSC. En direct et en replay, dans l'appli et la version web.
 - Écran « Pas de séance en direct » (appli et version web) : le programme du week-end du prochain Grand Prix, jour par
   jour, sous le compte à rebours.
 - Version web : entre deux séances, l'étiquette du direct en haut dit « Hors séance » (point gris) ; le direct reprend

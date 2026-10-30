@@ -267,6 +267,16 @@ test('vidéo de course : safety car, VSC, drapeaux et moments forts (direction d
   assert.deepEqual(s.counts, { sc: 1, vsc: 1, red: 0, neutral: 0, lead: 2 });
   assert.equal(s.events.find((e) => e.kind === 'penalty').text, '5 S');
   assert.deepEqual(s.best, { time: 88.5, lap: 10, code: 'RUS' });
+  // Messages de 2026 : « VSC DEPLOYED » / « VSC ENDING », sans « VIRTUAL »
+  const vsc26 = parseRaceControl({ Messages: [
+    { Utc: '2026-10-25T20:05:00', Lap: 2, Category: 'SafetyCar', Status: 'DEPLOYED', Message: 'VSC DEPLOYED' },
+    { Utc: '2026-10-25T20:06:00', Lap: 2, Category: 'SafetyCar', Status: 'ENDING', Message: 'VSC ENDING' },
+    { Utc: '2026-10-25T21:30:00', Lap: 8, Category: 'SafetyCar', Status: 'DEPLOYED', Message: 'VSC DEPLOYED' },
+    { Utc: '2026-10-25T21:33:00', Lap: 9, Category: 'SafetyCar', Status: 'ENDING', Message: 'VSC ENDING' },
+  ] });
+  const s26 = raceStory(laps, vsc26);
+  assert.deepEqual(s26.status, ['green', 'vsc', 'green', 'green', 'green', 'green', 'green', 'vsc', 'vsc', 'green']);
+  assert.deepEqual([s26.counts.sc, s26.counts.vsc], [0, 2]);
   // Sans direction de course : tours lents de tout le peloton = neutralisation estimée
   const e = raceStory(laps, null);
   assert.equal(e.estimated, true);

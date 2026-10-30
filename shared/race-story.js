@@ -45,8 +45,8 @@ function statusFromControl(msgs, total) {
     // Après le drapeau à damier : seulement les pénalités (drapeaux d'après-course ignorés)
     if (m.flag === 'CHEQUERED' || /\bCHEQUERED FLAG\b/.test(t)) ended = true;
     if (ended && !/PENALTY/.test(t)) continue;
-    if (m.cat === 'SafetyCar' || /SAFETY CAR/.test(t)) {
-      const vsc = /VIRTUAL/.test(`${m.mode} ${t}`);
+    if (m.cat === 'SafetyCar' || /SAFETY CAR|\bVSC\b/.test(t)) {
+      const vsc = /VIRTUAL|\bVSC\b/.test(`${m.mode} ${t}`);   // « VSC DEPLOYED » depuis 2026
       if (/DEPLOYED/.test(`${m.status} ${t}`)) { next = vsc ? 'vsc' : 'sc'; events.push({ lap, kind: next }); }
       else if (/ENDING|IN THIS LAP/.test(`${m.status} ${t}`) && cur !== 'green' && cur !== 'red') { fill(lap, cur); from = lap + 1; cur = 'green'; events.push({ lap: Math.min(total, lap + (vsc ? 0 : 1)), kind: 'restart' }); continue; }
     } else if (m.flag === 'RED' || /(^|[^A-Z])RED FLAG/.test(t)) { next = 'red'; events.push({ lap, kind: 'red' }); }

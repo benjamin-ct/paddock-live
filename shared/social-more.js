@@ -82,7 +82,7 @@ export function flashEvents(state) {
     const what = d.kind === 'race' ? 'Course' : 'Séance';
     if (m?.Flag === 'RED' || /^RED FLAG/.test(msg)) out.push({ ...base, kind: 'red', title: `${what} arrêtée${at}`, sub: 'Drapeau rouge : retour des voitures dans la voie des stands' });
     else if (/^SAFETY CAR DEPLOYED/.test(msg)) out.push({ ...base, kind: 'sc', title: `${what} neutralisée${at}`, sub: 'Le peloton se regroupe derrière la voiture de sécurité' });
-    else if (/^VIRTUAL SAFETY CAR DEPLOYED/.test(msg)) out.push({ ...base, kind: 'vsc', title: `${what} neutralisée${at}`, sub: 'Vitesse limitée sur tout le circuit' });
+    else if (/^(VIRTUAL SAFETY CAR|VSC) DEPLOYED/.test(msg)) out.push({ ...base, kind: 'vsc', title: `${what} neutralisée${at}`, sub: 'Vitesse limitée sur tout le circuit' });
     else if (/PENALTY|DRIVE THROUGH|STOP\/GO/.test(msg) && !/NO FURTHER|INVESTIGATION|NOTED|REVIEWED/.test(msg)) {
       const tla = msg.match(/CAR \d+ \((\w{3})\)/)?.[1];
       const r = byTla[tla];
