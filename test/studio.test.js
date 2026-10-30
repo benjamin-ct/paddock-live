@@ -1162,6 +1162,20 @@ test('Suivi : tâche cochée déplacée en tête de « Fait » avec la date, Doc
   assert.equal(sent, null);
 });
 
+test('Suivi : tâche cochée dans l\'onglet « Tâches » : Statut « Fait » et date, ligne vérifiée avant', async () => {
+  const { doneRow } = await import('../analytics/drive.js');
+  let sent = null;
+  const call = async (url, at, body) => { if (body) { sent = { url, body }; return {}; } return { values: [['Logos nets']] }; };
+  const r = await doneRow('jeton', 'sheetid012345', 17, 'Logos nets', new Date('2026-10-30T22:00:00Z'), call);
+  assert.equal(r.date, '30 oct.');
+  assert.match(sent.url, /spreadsheets\/sheetid012345\/values:batchUpdate$/);
+  assert.deepEqual(sent.body.data, [{ range: "'Tâches'!A17", values: [['Fait']] }, { range: "'Tâches'!H17", values: [['30 oct.']] }]);
+  // Feuille triée entre-temps (autre tâche sur cette ligne) : rien n'est écrit
+  sent = null;
+  await assert.rejects(doneRow('jeton', 'sheetid012345', 17, 'Autre tâche', new Date(), call), /La liste a changé/);
+  assert.equal(sent, null);
+});
+
 test('page du créateur : connexions expirées signalées avant de publier (YouTube refusé, TikTok injoignable, Threads)', async () => {
   const env2 = { DB: fakeDB(), MEDIA: fakeR2(), STUDIO_KEY_HASH: HASH, STATS_KEY: 's' };
   const w = (p, init = {}) => studioApi(new Request(`https://s.test/studio/api/${p}`, init), env2, new URL(`https://s.test/studio/api/${p}`));

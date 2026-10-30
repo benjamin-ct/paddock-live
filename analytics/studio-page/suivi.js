@@ -1,6 +1,6 @@
 // Onglet « Suivi » : le dossier Google Drive « Paddock Live · Réseaux » lu en direct par le serveur
-// (lecture seule) : tâches, textes des posts du week-end à copier, chiffres des réseaux, journal et
-// guides. On coche et on modifie toujours dans Google Docs et Sheets (bouton « Ouvrir »).
+// (lecture seule) : tâches (onglet « Tâches » de « Suivi réseaux », cochables d'ici), textes des posts du
+// week-end à copier, chiffres des réseaux, journal et guides. Le reste se modifie dans Google Docs et Sheets.
 import { $, $$, esc, api, fmtN, icon, toast, skeleton, empty, failure, store, state, glide } from './ui.js';
 
 const SUBS = [['todo', 'À faire'], ['posts', 'Posts'], ['net', 'Réseaux'], ['log', 'Journal'], ['guides', 'Guides']];
@@ -29,46 +29,29 @@ const copyBtn = (text) => `<button type="button" class="btn small" data-copy="${
 const docTab = (d) => (d.tabs ? d.tabs[0].documentTab : d);
 const paraText = (p) => p.elements.filter((x) => x.textRun).map((x) => x.textRun.content).join('').replace(/\n$/, '');
 const cellText = (c) => c.content.filter((x) => x.paragraph).map((x) => paraText(x.paragraph)).join('\n');
-const rgb = (c) => (c?.rgbColor ? `rgb(${['red', 'green', 'blue'].map((k) => Math.round((c.rgbColor[k] || 0) * 255)).join(',')})` : null);
 
-// À faire : une colonne par titre (couleur du bandeau du Doc), une carte par puce
-function parseTodo(d) {
-  const tab = docTab(d);
-  const lists = tab.lists || {};
-  const sections = [];
-  let updated = '', cur = null;
-  for (const e of tab.body.content) {
-    const p = e.paragraph;
-    if (!p) continue;
-    const text = paraText(p);
-    if (!text.trim()) continue;
-    const st = p.paragraphStyle || {};
-    if (/^HEADING_[1-3]$/.test(st.namedStyleType || '')) {
-      const title = text.trim();
-      const t = plain(title);
-      const kind = t.includes('lien') ? 'links' : /(^|\s)fait\b/.test(t) ? 'done' : t.includes('attente') || t.includes('chaque semaine') ? 'info' : 'tasks';
-      cur = { title, color: rgb(st.shading?.backgroundColor?.color) || 'var(--surface-2)', kind, items: [], notes: [] };
-      sections.push(cur);
-      continue;
+// À faire depuis l'onglet « Tâches » de « Suivi réseaux » : une ligne par tâche (Statut, Liste, Quand, Domaine,
+// Tâche, Détails, Lien, Fait le), une colonne par liste dans l'ordre de la feuille, les tâches faites à la fin
+const LIST_COLORS = [[/tester/, '#6d28d9'], [/semaine de|cette semaine|week-end/, '#e10600'], [/chaque semaine/, '#0284c7'], [/attente/, '#64748b'], [/lien/, '#334155'], [/urgence/, '#475569']];
+const DONE_SHOWN = 25;
+function parseTasks(vals) {
+  const lists = new Map(), done = [];
+  table(vals).forEach((r, i) => {
+    if (!r['Tâche']) return;
+    const tag = TAGS.find((t) => t.label === r['Domaine'])?.key || null;
+    const it = { start: i + 2, when: r['Quand'], title: r['Tâche'], detail: String(r['Détails'] || '').split(' / ').filter((l) => l.trim()), tag, box: true, link: r['Lien'] || null };
+    if (r['Statut'] === 'Fait') { done.push({ ...it, done: true, when: r['Fait le'] || it.when, recent: r['Liste'] !== 'Archive' }); return; }
+    const name = r['Liste'] || 'Sans liste';
+    if (!lists.has(name)) {
+      const t = plain(name);
+      lists.set(name, { title: name, color: LIST_COLORS.find(([re]) => re.test(t))?.[1] || 'var(--surface-2)', kind: r['Statut'] === 'Lien' ? 'links' : r['Statut'] === 'En attente' ? 'info' : 'tasks', items: [], notes: [] });
     }
-    if (!cur) { const m = text.match(/Mis à jour le ([^.·]+)/); if (m) updated = m[1].trim(); continue; }
-    if (!p.bullet) { cur.notes.push(text); continue; }
-    const runs = p.elements.filter((x) => x.textRun).map((x) => x.textRun);
-    const level = lists[p.bullet.listId]?.listProperties?.nestingLevels?.[0] || {};
-    const lines = text.split('\u000b');
-    let first = lines[0];
-    const done = cur.kind === 'done' || runs.some((r) => r.textStyle?.strikethrough && r.content.trim()) || /^\s*[☑✅]/.test(first);
-    first = first.replace(/^\s*[☐☑✅•]\s*/, '');
-    let when = '';
-    const sep = first.indexOf('  ·  ');
-    if (sep > 0) { when = first.slice(0, sep).trim(); first = first.slice(sep + 5).trim(); }
-    let tag = null;
-    for (const t of TAGS) for (const ic of [t.icon, ...(t.also || [])]) if (first.startsWith(ic)) { tag = t.key; first = first.slice(ic.length).trim(); }
-    if (first.startsWith('🔗')) first = first.slice(2).trim();
-    cur.items.push({ start: e.startIndex, when, title: first, detail: lines.slice(1).filter((l) => l.trim()), tag, done,
-      box: !level.glyphSymbol, link: runs.map((r) => r.textStyle?.link?.url).find(Boolean) || null });
-  }
-  return { sections, updated };
+    lists.get(name).items.push({ ...it, done: false });
+  });
+  done.sort((a, b) => b.recent - a.recent);
+  const sections = [...lists.values()];
+  if (done.length) sections.push({ title: 'Fait', color: '#0f766e', kind: 'done', items: done.slice(0, DONE_SHOWN), notes: done.length > DONE_SHOWN ? [`Les ${DONE_SHOWN} dernières sur ${done.length} : les autres sont dans la feuille.`] : [] });
+  return { sections, updated: '' };
 }
 
 // Textes des posts d'un Grand Prix : « 1. JOUR · HEURE · TITRE », puis images et textes à copier
@@ -132,7 +115,11 @@ const find = (files, re) => files.find((f) => re.test(f.name));
 const isDoc = (f) => f.mimeType === 'application/vnd.google-apps.document';
 
 const LOADERS = {
-  async todo(files) { const f = find(files, /^À faire/i); if (!f) throw new Error('Document « À faire » introuvable dans le dossier'); return { id: f.id, ...parseTodo(await doc(f.id)) }; },
+  async todo(files) {
+    const f = find(files, /^Suivi réseaux/i);
+    if (!f) throw new Error('Feuille « Suivi réseaux » introuvable dans le dossier');
+    return { id: f.id, sheet: true, ...parseTasks(await values(f.id, "'Tâches'!A1:H1000")) };
+  },
   async posts(files) {
     const gps = files.filter((f) => isDoc(f) && /textes des posts/i.test(f.name));
     return (await Promise.all(gps.map(async (f) => parsePosts(await doc(f.id), f)))).sort((a, b) => a.first - b.first);
@@ -174,15 +161,15 @@ function todoHtml(m) {
     if (s.kind === 'links' && it.link) return `<a class="sv-card" href="${esc(it.link)}" target="_blank" rel="noopener"><span class="sv-box link">↗</span><span><b>${esc(it.title)}</b></span></a>`;
     const t = TAGS.find((x) => x.key === it.tag);
     const dot = (!it.box || s.kind === 'info') && !it.done;
-    // Tâche à cocher : la case la déplace dans « Fait » du Doc, avec la date du jour
-    const check = s.kind === 'tasks' && it.box && !it.done ? ` data-check="${it.start}" data-title="${esc(it.title)}" role="checkbox" aria-checked="false" title="Cocher (déplacée dans « Fait »)"` : '';
+    // Tâche à cocher : Statut « Fait » dans la feuille, avec la date du jour
+    const check = s.kind === 'tasks' && it.box && !it.done ? ` data-check="${it.start}" data-title="${esc(it.title)}" role="checkbox" aria-checked="false" title="Cocher (rangée dans « Fait »)"` : '';
     return `<button type="button" class="sv-card${it.done ? ' done' : ''}"${it.detail.length ? ' data-open' : ''}><span class="sv-box${dot ? ' dot' : ''}"${check}></span><span>
       ${it.when ? `<small class="sv-when" style="color:${s.color}">${esc(it.when)}</small>` : ''}<b>${esc(it.title)}</b>
       ${t || it.detail.length ? `<span class="sv-meta">${t ? `<i class="sv-tag">${t.icon} ${t.label}</i>` : ''}${it.detail.length ? '<i class="sv-more">Détails ▾</i>' : ''}</span>` : ''}
       ${it.detail.length ? `<span class="sv-detail">${it.detail.map((x) => `<span>${linkify(x)}</span>`).join('')}</span>` : ''}</span></button>`;
   };
-  const canCheck = store.get('drive.files')?.v?.canCheck;
-  return `${canCheck ? '' : `<div class="notice">${icon('alert')}<span class="grow">Pour cocher les tâches d'ici, reconnecte Google Drive une fois : il demandera aussi le droit de modifier tes Docs.</span><button type="button" class="btn small" id="svwrite">${icon('link')}Reconnecter</button></div>`}<div class="tiles">
+  const canCheck = store.get('drive.files')?.v?.canWrite;
+  return `${canCheck ? '' : `<div class="notice">${icon('alert')}<span class="grow">Pour cocher les tâches d'ici, reconnecte Google Drive une fois : il demandera aussi le droit de modifier tes feuilles.</span><button type="button" class="btn small" id="svwrite">${icon('link')}Reconnecter</button></div>`}<div class="tiles">
       <div class="tile"><b>${open.length}</b><small>tâches à faire</small></div>
       <div class="tile"><b>${tasks.length - open.length + (m.sections.find((s) => s.kind === 'done')?.items.length || 0)}</b><small>faites</small></div>
       <div class="tile"><b${bugs ? ' class="sv-warn"' : ''}>${bugs}</b><small>bugs ouverts</small></div>
@@ -200,7 +187,7 @@ function todoHtml(m) {
         ${s.notes.map((n) => `<p class="sv-note">${esc(n)}</p>`).join('')}
         <div class="sv-items">${items.length ? items.map((it) => card(it, s)).join('') : '<p class="sv-note">Rien ici pour le moment.</p>'}</div></section>`;
     }).join('')}</div>
-    <p class="sv-foot">${m.updated ? `Liste mise à jour le ${esc(m.updated)} · ` : ''}${openBtn(docUrl(m.id), 'Ouvrir le Doc')}</p>`;
+    <p class="sv-foot">${openBtn(sheetUrl(m.id), 'Ouvrir la feuille')}</p>`;
 }
 
 function postsHtml(list) {
@@ -467,14 +454,14 @@ function bind(body, m, opts) {
   $$('[data-check]', body).forEach((b) => {
     b.onclick = async (e) => {
       e.stopPropagation();
-      if (!store.get('drive.files')?.v?.canCheck) { toast('Reconnecte Google Drive pour cocher d\'ici', 'bad'); return; }
+      if (!store.get('drive.files')?.v?.canWrite) { toast('Reconnecte Google Drive pour cocher d\'ici', 'bad'); return; }
       const card = b.closest('.sv-card');
       if (card.classList.contains('done')) return;
       card.classList.add('done');
       b.setAttribute('aria-checked', 'true');
       try {
-        await api('drive/check', { method: 'POST', body: JSON.stringify({ id: m.id, start: Number(b.dataset.check), title: b.dataset.title }) });
-        toast('Fait : rangé dans « Fait » du Doc', 'ok');
+        await api('drive/done', { method: 'POST', body: JSON.stringify({ id: m.id, row: Number(b.dataset.check), title: b.dataset.title }) });
+        toast('Fait : rangé dans « Fait »', 'ok');
       } catch (err) { toast(err.message, 'bad'); }
       again(true);
     };
