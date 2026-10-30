@@ -605,10 +605,15 @@ function cover(ctx, W, H, d, o, next, fmt) {
   const top = topY(W, H);
   kicker(ctx, pad, top, u, 'FORMULE 1', `SAISON ${d.year || ''}`.trim());
 
-  // Bloc central : drapeau, « Résultats », séance, nom du Grand Prix
+  // Résultats d'une séance : photo du vainqueur à droite et phrase du résultat (« NORRIS GAGNE ») à la place
+  // de « RÉSULTATS » : un visage et une info, pour la grille du profil et le fil
+  const win = !d.post && d.rows?.[0];
+  const pic = win && o.photos?.[win.num];
   const colW = W - pad * 2;
   const tall = H / W > 1.5;   // story : bloc et sommaire groupés au milieu
-  let y = tall ? H * 0.27 : H * 0.24;
+  if (pic) { const S = Math.min(W * 0.8, H * (tall ? 0.5 : 0.64)); photo(ctx, pic, W - S + 40 * u, tall ? H * 0.17 : H * 0.07, S, S, win.color, 0.5); }
+  // Bloc central : drapeau, « Résultats » (ou le résultat), séance, nom du Grand Prix
+  let y = tall ? H * 0.27 : H * (pic ? 0.2 : 0.24);
   if (o.flag) {
     const fh = Math.round(66 * u);
     const fw = Math.round(fh * o.flag.width / o.flag.height);
@@ -616,8 +621,18 @@ function cover(ctx, W, H, d, o, next, fmt) {
     y += fh + 30 * u;
   }
   const word = { prerace: 'AVANT-COURSE', champ: 'CHAMPIONNAT', weekend: 'PROGRAMME', records: 'LE SAVIEZ-VOUS', ratings: 'LES NOTES', teamduels: 'LES DUELS', racelaps: 'LA COURSE', title: 'LE TITRE' }[d.post] || 'RÉSULTATS';
-  txt(ctx, word, pad - 8 * u, y + 150 * u, { size: Math.round(196 * u), weight: 800, family: TITLE, max: colW, italic: true });
-  y += 190 * u;
+  if (pic) {
+    // Course en cours (résultats provisoires) : en tête, pas encore vainqueur
+    const verb = d.kind === 'race' && d.final ? (d.sprint ? 'GAGNE LE SPRINT' : 'GAGNE') : d.kind === 'quali' ? (d.sprint ? 'EN POLE DU SPRINT' : 'EN POLE') : 'EN TÊTE';
+    ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.65)'; ctx.shadowBlur = 40 * u;
+    txt(ctx, win.last.toUpperCase(), pad - 8 * u, y + 130 * u, { size: Math.round(158 * u), weight: 800, family: TITLE, max: colW, italic: true });
+    txt(ctx, verb, pad - 4 * u, y + 222 * u, { size: Math.round(84 * u), weight: 800, family: TITLE, color: C.red, max: colW, italic: true });
+    ctx.restore();
+    y += 262 * u;
+  } else {
+    txt(ctx, word, pad - 8 * u, y + 150 * u, { size: Math.round(196 * u), weight: 800, family: TITLE, max: colW, italic: true });
+    y += 190 * u;
+  }
   // Séance dans une étiquette rouge
   const tag = (d.post === 'prerace' ? (d.sprint ? 'Sprint' : 'Course') : d.post === 'champ' ? (d.final ? 'Après la course' : 'En direct')
     : d.post === 'weekend' ? (d.sprint ? 'Week-end sprint' : `Manche ${d.round || ''}`) : d.post === 'records' ? 'Records du circuit'
