@@ -483,13 +483,15 @@ export class LiveRelay {
     let msg;
     try { msg = JSON.parse(frame); } catch { return; }
     if (msg.type === 3 && msg.invocationId === '1') {
-      if (msg.error) { this.setStatus({ error: `Abonnement refusé : ${msg.error}` }); return; }
+      if (msg.error) { console.log(`[relais] abonnement refusé : ${msg.error}`); this.setStatus({ error: `Abonnement refusé par la F1 : ${msg.error}` }); return; }
       this.retry = 0;
       const result = msg.result || {};
       const key = result.SessionInfo?.Key ?? null;
       const snapshot = {};
       for (const [raw, value] of Object.entries(result)) if (!raw.endsWith('.z')) snapshot[topicName(raw)] = value;
       const authenticated = 'Position.z' in result || 'CarData.z' in result;
+      // Diagnostic (infobulle du badge) : connexion F1 TV envoyée mais pas de GPS dans la réponse de la F1
+      this.gpsWhy = this.token && !authenticated ? `La F1 n'envoie pas le GPS à ce relais : réponse à l'abonnement sans Position ni CarData (${Object.keys(result).length} sujets reçus, connexion F1 TV envoyée${this.gpsRetried === `${this.key}|${this.token}` ? ', déjà redemandé une fois' : ', nouvel essai une minute après la connexion'})` : null;
       // Nouvelle séance (ou première connexion) : on repart de cet état
       if (key !== this.key || !this.base.t) {
         this.resetData(key);
@@ -497,11 +499,11 @@ export class LiveRelay {
         applyEvent(this.base.state, this.base.derived, '__snapshot', snapshot, now);
         this.out = [];
         this.outStream = [];
-        this.status = { connected: true, error: null, session: label(result.SessionInfo), authenticated, f1tv: !!this.token, elsewhere: !!this.elsewhere };
+        this.status = { connected: true, error: this.gpsWhy, session: label(result.SessionInfo), authenticated, f1tv: !!this.token, elsewhere: !!this.elsewhere };
         this.hello();
       } else {
         this.add('__snapshot', snapshot, now);
-        this.setStatus({ connected: true, error: null, authenticated });
+        this.setStatus({ connected: true, error: this.gpsWhy, authenticated });
       }
       for (const z of ['Position.z', 'CarData.z']) if (typeof result[z] === 'string') this.addStream(topicName(z), result[z], now);
     } else if (msg.type === 1 && msg.target === 'feed' && Array.isArray(msg.arguments)) {
@@ -510,7 +512,7 @@ export class LiveRelay {
       const topic = topicName(raw);
       if (raw.endsWith('.z')) {
         this.addStream(topic, data, now);
-        if (!this.status.authenticated) this.setStatus({ authenticated: true });
+        if (!this.status.authenticated) { this.gpsWhy = null; this.setStatus({ authenticated: true, error: null }); }
         return;
       }
       if (topic === 'TimingData') this.lastTimingAt = now;
