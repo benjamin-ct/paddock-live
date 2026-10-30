@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { QUALITY, nearFirst, autoQuality, frameCap, weatherState, compoundOf, accentColor, drsOpen, seconds, pickBattle, bestLap, lapTrace, traceAt } from '../public/js/ui/map3d-calc.js';
+import { QUALITY, nearFirst, autoQuality, frameCap, weatherState, compoundOf, accentColor, drsOpen, seconds, pickBattle, bestLap, lapTrace, traceAt, wallCuts } from '../public/js/ui/map3d-calc.js';
 
 // Images à cadence fixe (fps) pendant ms, à partir de t ; -> [instant de fin, niveaux choisis en route]
 function run(auto, t, ms, fps, cap = Infinity) {
@@ -197,4 +197,18 @@ test('fantôme du meilleur tour : tour le plus rapide connu, trajet et position'
   assert.equal(traceAt(tr, -1), null);
   assert.equal(traceAt(tr, 96001), null);
   assert.equal(traceAt([], 0), null);
+});
+
+test('murs : ouverts là où la voie des stands les traverse, pas là où elle les longe', () => {
+  // Mur droit le long de x, en morceaux de 4 m (de x = 0 à 40), puis un autre mur plus loin
+  const parts = Array.from({ length: 10 }, (_, i) => ({ a: [i * 4, 0], b: [i * 4 + 4, 0], wall: 'a' }));
+  parts.push({ a: [40, 0], b: [44, 0], wall: 'b' });
+  // Voie qui traverse le mur à x = 21 (morceau 5) en biais (45°) : le morceau et ses deux voisins
+  assert.deepEqual(wallCuts(parts, [[11, -10], [31, 10]]), [4, 5, 6]);
+  // Traversée au bout du mur : le voisin d'un autre mur reste
+  assert.deepEqual(wallCuts(parts, [[39, -5], [39, 5]]), [8, 9]);
+  // Voie qui longe le mur en zigzaguant dessus (2°) : rien
+  assert.deepEqual(wallCuts(parts, [[0, -0.5], [20, 0.2], [40, -0.5]]), []);
+  // Voie à côté du mur sans le toucher : rien
+  assert.deepEqual(wallCuts(parts, [[0, 6], [40, 6]]), []);
 });

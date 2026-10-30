@@ -12,7 +12,7 @@ import { drivers, orderedNumbers, storageGet, storageSet, esc, api, COMPOUNDS } 
 import { t, DEC } from '../i18n.js';
 import { gridSlot, gridIndex, gridWeight } from '../grid.js';
 import { FONT, drawPuck, drawBadge, drawSectorBadge, drawCornerChip, drawFlagBadge, drawScBadge } from './map-draw.js';
-import { QUALITY, nearFirst, autoQuality, frameCap, weatherState, compoundOf, accentColor, drsOpen, seconds, pickBattle, bestLap, lapTrace, traceAt } from './map3d-calc.js';
+import { QUALITY, nearFirst, autoQuality, frameCap, weatherState, compoundOf, accentColor, drsOpen, seconds, pickBattle, bestLap, lapTrace, traceAt, wallCuts } from './map3d-calc.js';
 
 const W = 14;           // largeur de la piste (m)
 const MAX_CARS = 30;
@@ -101,10 +101,10 @@ function buildWorld(track, elevation, surroundings, gpu) {
 
   const fromW = (x, zz) => { const X = x + cx, Z = zz + cz; return [X * cos - Z * sin, -X * sin - Z * cos]; };   // -> repère du tracé (m)
   const box = new THREE.Box3().setFromPoints(P);
-  const { groundAt, detailAt = () => {}, setQuality = () => {} } = land ? landGround(group, land, { track, P, SIDE, toW, fromW, base: zMin + off, ...gpu }) : { groundAt: flatGround(group, P, box, z) };
+  const { groundAt, detailAt = () => {}, setQuality = () => {}, cutWalls = () => {} } = land ? landGround(group, land, { track, P, SIDE, toW, fromW, base: zMin + off, ...gpu }) : { groundAt: flatGround(group, P, box, z) };
 
   const world = { track, elevation, surroundings, land: !!land, source: gps ? 'gps' : land ? 'terrain' : null,
-    relief: z ? (Math.max(...z) - zMin) / 10 : null, P, T, SIDE, N, DS, box, group, groundAt, detailAt, setQuality, toW, fromW, ribbon, road, lineMat };
+    relief: z ? (Math.max(...z) - zMin) / 10 : null, P, T, SIDE, N, DS, box, group, groundAt, detailAt, setQuality, cutWalls, toW, fromW, ribbon, road, lineMat };
   // Ligne de chronométrage (damier), au même endroit que sur la carte 2D, et grille de départ derrière elle (cars :
   // nombre de cases)
   world.addStartLine = (frac, cars) => {
@@ -524,23 +524,29 @@ function landGround(group, land, { track, P, SIDE, toW, fromW, base, maxTex, ani
   }
 
   // Murs (béton clair), rails (gris) et grillages (sombres, à claire-voie) le long de la piste : une boîte en instance
-  // par segment, posée sur le sol ; hauteur et épaisseur selon le genre
+  // par morceau de 4 m au plus (coupés là où passe la voie des stands, cutWalls), posée sur le sol ; hauteur et
+  // épaisseur selon le genre
+  const wallParts = [];
   WALL_KINDS.forEach(([hgt, thick, color, opacity], kind) => {
     const segs = [];
     for (const [k, ...flat] of land.walls || []) {
       if (k !== kind) continue;
-      const pts = corners(flat);
-      for (let i = 0; i + 1 < pts.length; i++) segs.push([pts[i], pts[i + 1]]);
+      const pts = corners(flat), first = segs.length;
+      for (let i = 0; i + 1 < pts.length; i++) {
+        const [[ax, az], [bx, bz]] = [pts[i], pts[i + 1]], n = Math.max(1, Math.ceil(Math.hypot(bx - ax, bz - az) / 4));
+        for (let j = 0; j < n; j++) segs.push([[ax + ((bx - ax) * j) / n, az + ((bz - az) * j) / n], [ax + ((bx - ax) * (j + 1)) / n, az + ((bz - az) * (j + 1)) / n], first]);
+      }
     }
     if (!segs.length) return;
     const mesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0),
       new THREE.MeshStandardMaterial({ color, roughness: 0.8, transparent: opacity < 1, opacity, depthWrite: opacity === 1 }), segs.length);
     const m = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), p = new THREE.Vector3(), sc = new THREE.Vector3();
-    segs.forEach(([[ax, az], [bx, bz]], i) => {
+    segs.forEach(([[ax, az], [bx, bz], first], i) => {
       const ya = groundAt(ax, az), yb = groundAt(bx, bz), lo = Math.min(ya, yb);
       m.compose(p.set((ax + bx) / 2, lo - 0.1, (az + bz) / 2), q.setFromAxisAngle(up, Math.atan2(bx - ax, bz - az)),
         sc.set(thick, hgt + Math.abs(ya - yb) + 0.1, Math.hypot(bx - ax, bz - az) + 0.05));
       mesh.setMatrixAt(i, m);
+      wallParts.push({ mesh, i, a: [ax, az], b: [bx, bz], wall: `${kind}-${first}` });
     });
     mesh.castShadow = opacity === 1;
     mesh.receiveShadow = true;
@@ -558,7 +564,19 @@ function landGround(group, land, { track, P, SIDE, toW, fromW, base, maxTex, ani
     }
     qualityGround(q);
   };
-  return { groundAt, detailAt, setQuality };
+  // Ouvertures dans les murs à l'entrée et à la sortie des stands (pit : points de la voie dans la scène) ; une seule
+  // fois par voie (les calques sont redessinés souvent)
+  let cutFor = '';
+  const hidden = new THREE.Matrix4().makeScale(0, 0, 0);
+  const cutWalls = (pit) => {
+    if (cutFor === `${pit.length}${pit[0]}`) return;
+    cutFor = `${pit.length}${pit[0]}`;
+    for (const k of wallCuts(wallParts, pit)) {
+      wallParts[k].mesh.setMatrixAt(wallParts[k].i, hidden);
+      wallParts[k].mesh.instanceMatrix.needsUpdate = true;
+    }
+  };
+  return { groundAt, detailAt, setQuality, cutWalls };
 }
 // Genres des murs (serveur) : hauteur (m), épaisseur (m), couleur, opacité
 const WALL_KINDS = [[1.1, 0.45, 0xdcdde0, 1], [0.8, 0.3, 0xa3a9b0, 1], [2.6, 0.06, 0x4f565e, 0.5]];
@@ -940,16 +958,19 @@ function buildLayers(world, L) {
     }
   }
 
-  // Voie des stands : route plus étroite et plus sombre, pointillés au milieu, étiquette « STANDS »
-  const pit = z?.pitLane?.path;
-  if (pit?.length > 1) group.add(pitBuilding(world, pit));
-  if (o.mapPit && pit?.length > 1) {
-    const pts = [];
+  // Voie des stands (points tous les 2 m dans la scène) : bâtiment des stands et ouvertures dans les murs, puis, avec la
+  // case du calque, route plus étroite et plus sombre, pointillés au milieu, étiquette « STANDS »
+  const pit = z?.pitLane?.path, pts = [];
+  if (pit?.length > 1) {
     for (let k = 0; k + 1 < pit.length; k++) {
       const [ax, az] = toW(...pit[k]), [bx, bz] = toW(...pit[k + 1]), steps = Math.max(1, Math.ceil(Math.hypot(bx - ax, bz - az) / 2));
       for (let j = 0; j < steps; j++) pts.push([ax + ((bx - ax) * j) / steps, az + ((bz - az) * j) / steps]);
     }
     pts.push(toW(...pit.at(-1)));
+    group.add(pitBuilding(world, pit));
+    world.cutWalls(pts);
+  }
+  if (o.mapPit && pts.length) {
     const strip = (width, lift, color, test = () => true) => {
       const pos = [], ix = [];
       pts.forEach(([x, zz], k) => {
