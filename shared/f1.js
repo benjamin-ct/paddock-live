@@ -42,6 +42,25 @@ export function chequeredUtc(messages) {
   return Number.isFinite(at) ? at : null;
 }
 
+// Mode dépassement 2026 (successeur du DRS) activé par la direction de course : son dernier message OVERTAKE ENABLED /
+// DISABLED (coupé avant le départ, rétabli en fin de premier tour) ; activé quand il n'y a pas de message
+export function overtakeEnabled(messages) {
+  let on = true;
+  for (const m of Array.isArray(messages) ? messages : Object.values(messages || {})) {
+    const t = String(m?.Message || '').trim().toUpperCase();
+    if (t === 'OVERTAKE ENABLED') on = true;
+    else if (t === 'OVERTAKE DISABLED') on = false;
+  }
+  return on;
+}
+
+// Point at (place dans le tour, 0 à L) franchi en passant de prev à cur (places dans le tour) : la voiture a avancé
+// (moins d'un quart de tour, sinon saut ou recalage) et at est entre les deux
+export function passed(prev, cur, at, L) {
+  const run = (((cur - prev) % L) + L) % L;
+  return run > 0 && run < L / 4 && (((at - prev) % L) + L) % L < run;
+}
+
 // "1:45.123" -> 105.123 ; "45.123" -> 45.123 ; "" -> null
 export function parseLapTime(s) {
   if (s === null || s === undefined || s === '') return null;

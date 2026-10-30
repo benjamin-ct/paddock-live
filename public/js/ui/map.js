@@ -1371,3 +1371,8 @@ export function currentTrack() {
   return track;
 }
 
+// Zones ligne droite, points de détection et d'activation du circuit (serveur), null tant qu'elles manquent
+export function currentZones() {
+  return zones;
+}
+

@@ -67,6 +67,10 @@ l'application (Réglages → À propos → Nouveautés).
   minute jusqu'à afficher la prochaine séance.
 
 ### En direct
+- Classement en course : étiquette « DÉP » (mode dépassement, qui remplace le DRS en 2026) à côté d'un pilote passé au
+  point de détection à moins d'une seconde de la voiture devant, pour le tour qui suit, comme le DRS, une fois le mode
+  activé par la direction de course (pas au départ, ni sous voiture de sécurité ou drapeau rouge). La F1 ne dit pas
+  quand le pilote s'en sert : l'étiquette indique qu'il y a droit.
 - Carte du circuit plus fluide avec le GPS (F1 TV) : les voitures avancent régulièrement, sans les petites saccades
   que donnait l'heure irrégulière des positions envoyées par la F1. Si le GPS se coupe pendant une séance, les voitures
   ne disparaissent plus : elles passent aussitôt en positions estimées, puis reprennent le GPS à son retour, en glissant

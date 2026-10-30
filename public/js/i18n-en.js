@@ -1340,6 +1340,8 @@ export default {
   "Position de départ": "Starting position",
   "Position moyenne": "Average position",
   "Estimées": "Estimated",
+  "DÉP": "OVT",
+  "Mode dépassement : à moins d'une seconde de la voiture devant au point de détection, pour un tour": "Overtake mode: within one second of the car ahead at the detection point, for one lap",
   "Positions estimées": "Estimated positions",
   "Positions GPS & télémétrie en live (F1 TV)": "Live GPS positions & telemetry (F1 TV)",
   "Positions GPS officielles": "Official GPS positions",
