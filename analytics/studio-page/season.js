@@ -243,7 +243,8 @@ async function seasonEditor(year, data, race, back) {
           const opts = track();
           // Paysage : sans couverture au début, la vidéo commence sur la course
           const cover = opts.format === 'wide' ? null : (ctx, w, h) => videoCover(ctx, w, h, d, o);
-          clip = await makeAnimation((ctx, t, w, h) => raceFrame(ctx, w, h, d, o, t), raceVideoTiming(d).duration, { cover, ...opts, onProgress: (p) => { $('#vidst').textContent = `Enregistrement… ${Math.round(p * 100)} %`; } });
+          const ro = { ...o, insta: opts.format === 'insta' };   // marges d'Instagram
+          clip = await makeAnimation((ctx, t, w, h) => raceFrame(ctx, w, h, d, ro, t), raceVideoTiming(d).duration, { cover, ...opts, onProgress: (p) => { $('#vidst').textContent = `Enregistrement… ${Math.round(p * 100)} %`; } });
           $('#vid').src = URL.createObjectURL(clip.blob); $('#vid').hidden = false;
           $('#sharevid').disabled = false;
           $('#vidst').textContent = `Vidéo prête (${(clip.blob.size / 1e6).toFixed(1).replace('.', ',')} Mo)${clip.silent ? ' · sans son : le navigateur a bloqué la musique, recommencez' : ''}${(file = clipFile(clip, `course-${race.round}`)) ? ' · jointe au post : Reel, vidéo, TikTok et Short à choisir à l\'étape Publier' : ' · format WebM : à partager seulement (publication en MP4)'}`;

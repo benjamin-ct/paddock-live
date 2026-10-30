@@ -6,8 +6,9 @@
 
 import { playTrack } from './social-music.js';
 
-// Tailles des vidéos (opts.format) : 9:16 (format des réseaux), plus haute (forme des téléphones récents) ou paysage
-const SIZES = { std: [1080, 1920], tall: [1080, 2340], wide: [1920, 1080] };
+// Tailles des vidéos (opts.format) : 9:16 (format des réseaux), plus haute (forme des téléphones récents, TikTok),
+// Instagram (1:2, forme de son cadre de lecture : ni réduite ni rognée) ou paysage
+const SIZES = { std: [1080, 1920], tall: [1080, 2340], insta: [1080, 2160], wide: [1920, 1080] };
 const STD = 1920;
 
 function pickMime(withAudio) {
@@ -197,7 +198,8 @@ async function coverJpeg(paint, [W, H]) {
 
 // Animation : draw(ctx, t, w, h) dessine l'image à l'instant t (secondes), en plein écran, la même vidéo pour tous
 // les réseaux. Résultat : { blob, mime, cover, silent, w, h } ; opts.cover(ctx, w, h) : couverture dessinée au format
-// de la vidéo ; opts.format : 'std' (9:16), 'tall' (1080 × 2340) ou 'wide' (1920 × 1080, dessin prévu pour)
+// de la vidéo ; opts.format : 'std' (9:16), 'tall' (1080 × 2340), 'insta' (1080 × 2160) ou 'wide' (1920 × 1080),
+// les deux derniers pour un dessin prévu pour
 export async function makeAnimation(draw, duration, { cover = null, format = 'std', ...opts } = {}) {
   const size = SIZES[format] || SIZES.std;
   const [W, H] = size;
