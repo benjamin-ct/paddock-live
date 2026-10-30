@@ -162,6 +162,17 @@ async function fill(at, accounts, { history, kept }) {
   return { ok: true, cells: data.length };
 }
 
+// Tâche cochée dans l'onglet « Tâches » de « Suivi réseaux » : Statut « Fait » et date du jour (« Fait le »).
+// row : sa ligne, title : son titre (contrôle que la feuille n'a pas été triée ou modifiée entre-temps)
+export async function doneRow(at, id, row, title, now = new Date(), call = google) {
+  const got = await call(`${SHEETS}/spreadsheets/${id}/values/${encodeURIComponent(`'Tâches'!E${row}`)}`, at);
+  if (!title.trim() || String(got.values?.[0]?.[0] || '').trim() !== title.trim()) throw Object.assign(new Error('La liste a changé : actualisez l\'onglet Suivi'), { status: 409 });
+  const date = now.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', timeZone: 'Europe/Paris' });
+  await call(`${SHEETS}/spreadsheets/${id}/values:batchUpdate`, at, { valueInputOption: 'RAW', data: [
+    { range: `'Tâches'!A${row}`, values: [['Fait']] }, { range: `'Tâches'!H${row}`, values: [[date]] }] });
+  return { ok: true, date };
+}
+
 // Tâche cochée dans « À faire » : déplacée en tête de « Fait » avec la date du jour (« 25 oct.  ·  titre »), dans la
 // mise en forme de la première tâche faite. start : début de son paragraphe, title : son titre (contrôle que
 // la liste n'a pas changé entre-temps ; le Doc doit aussi être resté à la même version)
@@ -264,6 +275,13 @@ export async function driveApi(sub, req, url, vault, save, data = async () => ({
       try { body = await req.json(); } catch { return json({ error: 'JSON invalide' }, 400); }
       if (!ID.test(String(body?.id || '')) || !Number.isInteger(body?.start)) return json({ error: 'Tâche invalide' }, 400);
       return json(await checkTask(at, body.id, body.start, String(body.title || '').slice(0, 300)));
+    }
+    if (sub === 'done') {
+      if (!(vault.gdrive.scope || '').includes(WRITE)) return json({ error: 'Reconnectez Google Drive (onglet Suivi) pour cocher depuis le Studio' }, 403);
+      let body;
+      try { body = await req.json(); } catch { return json({ error: 'JSON invalide' }, 400); }
+      if (!ID.test(String(body?.id || '')) || !Number.isInteger(body?.row) || body.row < 2) return json({ error: 'Tâche invalide' }, 400);
+      return json(await doneRow(at, body.id, body.row, String(body.title || '').slice(0, 300)));
     }
     if (sub === 'fill') {
       let body;
