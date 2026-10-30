@@ -125,8 +125,11 @@ async function encodeFrames(paints, duration, [W, H], { music, file, track, onPr
   if (withAudio) {
     const buf = await renderMusic(music, file, track, duration);
     silent = !buf.getChannelData(0).some((x) => Math.abs(x) > 1e-4);
-    // Son encodé une fois, copié dans chaque vidéo
-    const enc = new AudioEncoder({ output: (c, m) => outs.forEach((o) => o.muxer.addAudioChunk(c, m)), error: fail });
+    // Son encodé une fois, copié dans chaque vidéo. AAC : réglages écrits ici (AAC-LC, 48 kHz, stéréo), Safari
+    // donnant sa boîte esds entière à la place (bug WebKit 302253) : son illisible, vidéo refaite en temps réel
+    const asc = plan.audio[1] === 'aac' ? new Uint8Array([0x11, 0x90]) : null;
+    const fix = (m) => (asc && m?.decoderConfig ? { ...m, decoderConfig: { ...m.decoderConfig, description: asc } } : m);
+    const enc = new AudioEncoder({ output: (c, m) => outs.forEach((o) => o.muxer.addAudioChunk(c, fix(m))), error: fail });
     enc.configure({ codec: plan.audio[0], sampleRate: 48000, numberOfChannels: 2, bitrate: 192e3 });
     const step = 4800;
     for (let i = 0; i < buf.length; i += step) {
