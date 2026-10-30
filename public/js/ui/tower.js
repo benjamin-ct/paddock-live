@@ -2,7 +2,7 @@
 import { store, setDuel, setFocus, versionOf, displayNow, f1Now, on, utcToLocal } from '../store.js';
 import { $, esc, drivers, orderedNumbers, sessionKind, teamMark, tyreBadge, currentStint, lapSeconds, fmtLap } from '../util.js';
 import { prefs, isFav, toggleFav, towerCols, towerBig } from '../prefs.js';
-import { segmentClass, parseUtc, chequeredUtc } from '/shared/f1.js';
+import { segmentClass, parseUtc, chequeredUtc, parseGap, overtakeEnabled } from '/shared/f1.js';
 import { icon } from '../icons.js';
 import { realStopCount } from '/shared/pits.js';
 import { stewardsData } from './feed.js';
@@ -61,6 +61,10 @@ export function renderTower(force = false) {
   const nums = orderedNumbers(s);
   const dispNow = displayNow();
   const showDrs = (Number(s.SessionInfo?.StartDate?.slice(0, 4)) || 2026) < 2026;
+  // Depuis 2026, mode dépassement à la place du DRS : en course, à moins d'une seconde de la voiture devant, quand la
+  // direction de course l'a activé (pas sous voiture de sécurité ni drapeau rouge). La F1 ne dit pas quand le pilote
+  // l'utilise : l'étiquette dit qu'il y a droit
+  const showDep = !showDrs && kind === 'race' && overtakeEnabled(s.RaceControlMessages?.Messages) && !['4', '5', '6', '7'].includes(String(s.TrackStatus?.Status || ''));
 
   const part = Number(s.TimingData?.SessionPart) || 1;
   const noEntries = list(s.TimingData?.NoEntries);
@@ -126,6 +130,10 @@ export function renderTower(force = false) {
     if (showDrs) {
       const car = store.positions.carAt(num, dispNow);
       if (car && car.drs >= 10) tags.push('<span class="tag drs">DRS</span>');
+    }
+    const ahead = parseGap(l.IntervalToPositionAhead?.Value)?.s;
+    if (showDep && !tags.length && !done && ahead > 0 && ahead < 1) {
+      tags.push('<span class="tag drs" title="Mode dépassement : à moins d\'une seconde de la voiture devant">DÉP</span>');
     }
     const pred = kind !== 'race' && !done ? predictLap(l, stats[num]) : null;
     if (pred) tags.push('<span class="tag push" title="Tour rapide en cours">TOUR</span>');

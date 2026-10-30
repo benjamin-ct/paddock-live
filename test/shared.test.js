@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { merge } from '../shared/merge.js';
-import { parseGap, parseLapTime, parseUtc, chequeredUtc } from '../shared/f1.js';
+import { parseGap, parseLapTime, parseUtc, chequeredUtc, overtakeEnabled } from '../shared/f1.js';
 import { applyEvent, createDerived, createSyncContext, extractSyncEvents } from '../shared/derive.js';
 
 test('merge : mises à jour indexées dans un tableau', () => {
@@ -98,4 +98,12 @@ test('drapeau à damier : dernier de la séance, oublié au feu vert de la parti
   assert.equal(chequeredUtc({ 0: q1[0], 1: q1[1] }), Date.parse('2026-10-24T21:18:00Z'));   // messages indexés
   assert.equal(chequeredUtc([...q1, m('GREEN', '2026-10-24T21:25:00')]), null);   // Q2 commencée
   assert.equal(chequeredUtc([...q1, m('GREEN', '2026-10-24T21:25:00'), m('CHEQUERED', '2026-10-24T21:40:00')]), Date.parse('2026-10-24T21:40:00Z'));
+});
+
+test('mode dépassement : activé ou coupé par le dernier message de la direction de course', () => {
+  const m = (Message) => ({ Utc: '2026-10-25T20:00:00', Category: 'Other', Message });
+  assert.equal(overtakeEnabled(undefined), true, 'pas de message : activé');
+  assert.equal(overtakeEnabled([m('OVERTAKE DISABLED')]), false, 'coupé avant le départ');
+  assert.equal(overtakeEnabled([m('OVERTAKE DISABLED'), m('GREEN LIGHT - PIT EXIT OPEN'), m('OVERTAKE ENABLED')]), true, 'rétabli en fin de premier tour');
+  assert.equal(overtakeEnabled({ 0: m('OVERTAKE ENABLED'), 1: m('OVERTAKE DISABLED') }), false, 'messages en objet (état fusionné)');
 });
