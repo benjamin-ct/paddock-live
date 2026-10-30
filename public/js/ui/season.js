@@ -648,21 +648,24 @@ function polesVsRecords(races, w) {
   });
   const known = rows.filter((x) => x.t && x.rec);
   if (!known.length) return rows.some((x) => x.wait) ? skeleton(t('Chargement des records des circuits…')) : '';
-  const span = Math.max(0.5, ...known.map((x) => Math.abs(x.t - x.rec.time)));
-  const rh = 26, ql = 150, qr = 190, H = rows.length * rh + 8, mid = ql + (w - ql - qr) / 2, half = (w - ql - qr) / 2;
+  // Zéro placé selon les écarts : tout à droite si aucune pole ne bat son record (pas de moitié gauche vide)
+  const ds = known.map((x) => x.t - x.rec.time), lo = Math.min(0, ...ds), hi = Math.max(0, ...ds), span = Math.max(0.5, hi - lo);
+  const rh = 26, ql = 150, lab = 250, H = rows.length * rh + 8, plot = w - ql - lab, mid = ql + (-lo / span) * plot;
   const f3 = (v) => `${v < 0 ? '−' : '+'}${Math.abs(v).toFixed(3).replace('.', DEC)} s`;
   let g = `<line x1="${mid}" x2="${mid}" y1="0" y2="${H}" class="sz-gl"/>`;
   rows.forEach((x, i) => {
     const y = 4 + i * rh;
     g += `${roundFlag(x.r.round, 10, y + 6)}<text x="26" y="${y + 16}" class="sz-ax">${esc(gpShort(x.r.name, LANG))}</text>`;
-    if (!x.t || !x.rec) { g += `<text x="${mid}" y="${y + 16}" class="sz-ax" text-anchor="middle">${x.wait ? '…' : '—'}</text>`; return; }
-    const d = x.t - x.rec.time, len = (Math.abs(d) / span) * half;
+    if (!x.t || !x.rec) { g += `<text x="${mid + 8}" y="${y + 16}" class="sz-ax">${x.wait ? '…' : t('pas de record : circuit nouveau ou pas couru ces quatre dernières années')}</text>`; return; }
+    const d = x.t - x.rec.time, len = (Math.abs(d) / span) * plot;
     const c = d < 0 ? '#22c55e' : color(x.p.team, x.p.teamId);
     g += `<rect class="${d < 0 ? 'dn' : 'up'}" x="${d < 0 ? mid - len : mid}" y="${y + 3}" width="${Math.max(1, len)}" height="${rh - 8}" rx="3" fill="${c}"${tip(gpHead(x.r), [`${x.p.name || x.p.last || x.p.code} · ${x.p.team}`, [t('Pole'), fmtLap(x.t)], [`${t('record')} ${x.rec.tla} ${x.rec.year}`, fmtLap(x.rec.time)], [t('Écart'), f3(d)]], c)}/>`;
-    g += `<text x="${w - qr + 10}" y="${y + 16}" class="sz-ax"><tspan class="sz-tot" fill="${d < 0 ? '#22c55e' : 'var(--text)'}">${f3(d)}</tspan>  ${esc(x.p.code || x.p.last)} · ${t('record')} ${esc(x.rec.tla)} ${x.rec.year}</text>`;
+    // Écart et noms juste au bout de la barre (à droite du zéro pour une pole plus rapide)
+    g += `<text x="${(d < 0 ? mid : mid + len) + 8}" y="${y + 16}" class="sz-ax"><tspan class="sz-tot" fill="${d < 0 ? '#22c55e' : 'var(--text)'}">${f3(d)}</tspan>  ${esc(x.p.code || x.p.last)} · ${t('record')} ${esc(x.rec.tla)} ${x.rec.year}</text>`;
   });
+  const avg = ds.reduce((a, b) => a + b, 0) / ds.length, faster = ds.filter((v) => v < 0).length;
   return `<section class="sz-box"><h3>${t('Poles face aux records récents des circuits')}</h3><div class="sz-scroll"><svg viewBox="0 0 ${w} ${H}" class="sz-svg sz-rec-chart">${g}</svg></div>
-    <div class="muted small">${t('À gauche en vert : pole plus rapide que la meilleure pole des quatre éditions précédentes ; à droite : écart avec elle.')}</div></section>`;
+    <div class="muted small">${t('Écart entre la pole de chaque Grand Prix et la meilleure pole des quatre éditions précédentes du circuit (en vert : plus rapide).')} ${t('En moyenne {} ; {} pole(s) sur {} plus rapide(s) que le record.', f3(avg), faster, ds.length)}</div></section>`;
 }
 
 function renderResults(ctx) {

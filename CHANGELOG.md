@@ -193,7 +193,8 @@ l'application (Réglages → À propos → Nouveautés).
 - Saison : pendant le chargement, la page apparaît en gris (cartes et blocs qui scintillent) au lieu d'un simple message.
   Aussi dans la version web.
 - Saison → Résultats & records : la pole de chaque Grand Prix face à la meilleure pole des quatre éditions précédentes du
-  circuit (plus rapide en vert, sinon l'écart), avec le détenteur du record. Aussi dans la version web.
+  circuit (plus rapide en vert, sinon l'écart), avec le détenteur du record, l'écart au bout de chaque barre, l'écart
+  moyen de la saison, et « pas de record » pour un circuit nouveau. Aussi dans la version web.
 - Accueil, carte « Mes favoris » : le portrait de chaque pilote, cerclé de la couleur de son écurie, et le logo de chaque
   écurie. Aussi dans la version web.
 - Saison → Bilan de la saison plus visuel : le leader (ou le champion) en grand, en portrait sur la couleur de son écurie ;
