@@ -598,6 +598,12 @@ details.cap[open] textarea { animation: in-up .3s var(--ease); }
 .sv-prog { height: 3px; background: var(--surface-2); }
 .sv-prog i { display: block; height: 100%; background: var(--ok); }
 .sv-items { display: grid; gap: 6px; padding: 8px; }
+.sv-tools { display: flex; justify-content: flex-end; margin-bottom: 8px; }
+.sv-tools .btn { min-height: 34px; padding: 6px 12px; font-size: 13.5px; }
+.sv-col h3 { cursor: pointer; }
+.sv-col h3::after { content: '▾'; font-size: 12px; opacity: .8; transition: transform .2s; }
+.sv-col.shut h3::after { transform: rotate(-90deg); }
+.sv-col.shut > :not(h3) { display: none; }
 .sv-note { margin: 8px 12px; color: var(--muted); font-size: 13.5px; }
 .panel .sv-note { margin: 6px 0; }
 .sv-card { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 10px; width: 100%; padding: 10px; border: 1px solid transparent; border-radius: 12px; background: var(--surface-2); color: var(--text); font: inherit; text-align: left; text-decoration: none; cursor: pointer; }

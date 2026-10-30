@@ -1,6 +1,6 @@
 // Onglet « Suivi » : le dossier Google Drive « Paddock Live · Réseaux » lu en direct par le serveur
-// (lecture seule) : tâches, textes des posts du week-end à copier, chiffres des réseaux, journal et
-// guides. On coche et on modifie toujours dans Google Docs et Sheets (bouton « Ouvrir »).
+// (lecture seule) : tâches (onglet « Tâches » de « Suivi réseaux », cochables d'ici), textes des posts du
+// week-end à copier, chiffres des réseaux, journal et guides. Le reste se modifie dans Google Docs et Sheets.
 import { $, $$, esc, api, fmtN, icon, toast, skeleton, empty, failure, store, state, glide } from './ui.js';
 
 const SUBS = [['todo', 'À faire'], ['posts', 'Posts'], ['net', 'Réseaux'], ['log', 'Journal'], ['guides', 'Guides']];
@@ -29,46 +29,29 @@ const copyBtn = (text) => `<button type="button" class="btn small" data-copy="${
 const docTab = (d) => (d.tabs ? d.tabs[0].documentTab : d);
 const paraText = (p) => p.elements.filter((x) => x.textRun).map((x) => x.textRun.content).join('').replace(/\n$/, '');
 const cellText = (c) => c.content.filter((x) => x.paragraph).map((x) => paraText(x.paragraph)).join('\n');
-const rgb = (c) => (c?.rgbColor ? `rgb(${['red', 'green', 'blue'].map((k) => Math.round((c.rgbColor[k] || 0) * 255)).join(',')})` : null);
 
-// À faire : une colonne par titre (couleur du bandeau du Doc), une carte par puce
-function parseTodo(d) {
-  const tab = docTab(d);
-  const lists = tab.lists || {};
-  const sections = [];
-  let updated = '', cur = null;
-  for (const e of tab.body.content) {
-    const p = e.paragraph;
-    if (!p) continue;
-    const text = paraText(p);
-    if (!text.trim()) continue;
-    const st = p.paragraphStyle || {};
-    if (/^HEADING_[1-3]$/.test(st.namedStyleType || '')) {
-      const title = text.trim();
-      const t = plain(title);
-      const kind = t.includes('lien') ? 'links' : /(^|\s)fait\b/.test(t) ? 'done' : t.includes('attente') || t.includes('chaque semaine') ? 'info' : 'tasks';
-      cur = { title, color: rgb(st.shading?.backgroundColor?.color) || 'var(--surface-2)', kind, items: [], notes: [] };
-      sections.push(cur);
-      continue;
+// À faire depuis l'onglet « Tâches » de « Suivi réseaux » : une ligne par tâche (Statut, Liste, Quand, Domaine,
+// Tâche, Détails, Lien, Fait le), une colonne par liste dans l'ordre de la feuille, les tâches faites à la fin
+const LIST_COLORS = [[/tester/, '#6d28d9'], [/semaine de|cette semaine|week-end/, '#e10600'], [/chaque semaine/, '#0284c7'], [/attente/, '#64748b'], [/lien/, '#334155'], [/urgence/, '#475569']];
+const DONE_SHOWN = 25;
+function parseTasks(vals) {
+  const lists = new Map(), done = [];
+  table(vals).forEach((r, i) => {
+    if (!r['Tâche']) return;
+    const tag = TAGS.find((t) => t.label === r['Domaine'])?.key || null;
+    const it = { start: i + 2, when: r['Quand'], title: r['Tâche'], detail: String(r['Détails'] || '').split(' / ').filter((l) => l.trim()), tag, box: true, link: r['Lien'] || null };
+    if (r['Statut'] === 'Fait') { done.push({ ...it, done: true, when: r['Fait le'] || it.when, recent: r['Liste'] !== 'Archive' }); return; }
+    const name = r['Liste'] || 'Sans liste';
+    if (!lists.has(name)) {
+      const t = plain(name);
+      lists.set(name, { title: name, color: LIST_COLORS.find(([re]) => re.test(t))?.[1] || 'var(--surface-2)', kind: r['Statut'] === 'Lien' ? 'links' : r['Statut'] === 'En attente' ? 'info' : 'tasks', items: [], notes: [] });
     }
-    if (!cur) { const m = text.match(/Mis à jour le ([^.·]+)/); if (m) updated = m[1].trim(); continue; }
-    if (!p.bullet) { cur.notes.push(text); continue; }
-    const runs = p.elements.filter((x) => x.textRun).map((x) => x.textRun);
-    const level = lists[p.bullet.listId]?.listProperties?.nestingLevels?.[0] || {};
-    const lines = text.split('\u000b');
-    let first = lines[0];
-    const done = cur.kind === 'done' || runs.some((r) => r.textStyle?.strikethrough && r.content.trim()) || /^\s*[☑✅]/.test(first);
-    first = first.replace(/^\s*[☐☑✅•]\s*/, '');
-    let when = '';
-    const sep = first.indexOf('  ·  ');
-    if (sep > 0) { when = first.slice(0, sep).trim(); first = first.slice(sep + 5).trim(); }
-    let tag = null;
-    for (const t of TAGS) for (const ic of [t.icon, ...(t.also || [])]) if (first.startsWith(ic)) { tag = t.key; first = first.slice(ic.length).trim(); }
-    if (first.startsWith('🔗')) first = first.slice(2).trim();
-    cur.items.push({ start: e.startIndex, when, title: first, detail: lines.slice(1).filter((l) => l.trim()), tag, done,
-      box: !level.glyphSymbol, link: runs.map((r) => r.textStyle?.link?.url).find(Boolean) || null });
-  }
-  return { sections, updated };
+    lists.get(name).items.push({ ...it, done: false });
+  });
+  done.sort((a, b) => b.recent - a.recent);
+  const sections = [...lists.values()];
+  if (done.length) sections.push({ title: 'Fait', color: '#0f766e', kind: 'done', items: done.slice(0, DONE_SHOWN), notes: done.length > DONE_SHOWN ? [`Les ${DONE_SHOWN} dernières sur ${done.length} : les autres sont dans la feuille.`] : [] });
+  return { sections, updated: '' };
 }
 
 // Textes des posts d'un Grand Prix : « 1. JOUR · HEURE · TITRE », puis images et textes à copier
@@ -132,7 +115,11 @@ const find = (files, re) => files.find((f) => re.test(f.name));
 const isDoc = (f) => f.mimeType === 'application/vnd.google-apps.document';
 
 const LOADERS = {
-  async todo(files) { const f = find(files, /^À faire/i); if (!f) throw new Error('Document « À faire » introuvable dans le dossier'); return { id: f.id, ...parseTodo(await doc(f.id)) }; },
+  async todo(files) {
+    const f = find(files, /^Suivi réseaux/i);
+    if (!f) throw new Error('Feuille « Suivi réseaux » introuvable dans le dossier');
+    return { id: f.id, sheet: true, ...parseTasks(await values(f.id, "'Tâches'!A1:H1000")) };
+  },
   async posts(files) {
     const gps = files.filter((f) => isDoc(f) && /textes des posts/i.test(f.name));
     return (await Promise.all(gps.map(async (f) => parsePosts(await doc(f.id), f)))).sort((a, b) => a.first - b.first);
@@ -159,43 +146,48 @@ const LOADERS = {
 };
 
 // ---------- Affichage ----------
+// Listes repliées (titres des sections), gardées sur cet appareil
+const folded = () => new Set(store.get('suivi.shut')?.v || []);
+
 function todoHtml(m) {
   const tasks = m.sections.filter((s) => s.kind === 'tasks').flatMap((s) => s.items.map((it) => ({ ...it, sec: s })));
   const open = tasks.filter((t) => !t.done);
   const next = open.find((t) => t.when) || open[0];
   const bugs = open.filter((t) => t.tag === 'bug').length;
   const filter = state.vtag || 'all';
+  const shut = folded();
   const counts = Object.fromEntries(TAGS.map((t) => [t.key, open.filter((x) => x.tag === t.key).length]));
   const card = (it, s) => {
     if (s.kind === 'links' && it.link) return `<a class="sv-card" href="${esc(it.link)}" target="_blank" rel="noopener"><span class="sv-box link">↗</span><span><b>${esc(it.title)}</b></span></a>`;
     const t = TAGS.find((x) => x.key === it.tag);
     const dot = (!it.box || s.kind === 'info') && !it.done;
-    // Tâche à cocher : la case la déplace dans « Fait » du Doc, avec la date du jour
-    const check = s.kind === 'tasks' && it.box && !it.done ? ` data-check="${it.start}" data-title="${esc(it.title)}" role="checkbox" aria-checked="false" title="Cocher (déplacée dans « Fait »)"` : '';
+    // Tâche à cocher : Statut « Fait » dans la feuille, avec la date du jour
+    const check = s.kind === 'tasks' && it.box && !it.done ? ` data-check="${it.start}" data-title="${esc(it.title)}" role="checkbox" aria-checked="false" title="Cocher (rangée dans « Fait »)"` : '';
     return `<button type="button" class="sv-card${it.done ? ' done' : ''}"${it.detail.length ? ' data-open' : ''}><span class="sv-box${dot ? ' dot' : ''}"${check}></span><span>
       ${it.when ? `<small class="sv-when" style="color:${s.color}">${esc(it.when)}</small>` : ''}<b>${esc(it.title)}</b>
       ${t || it.detail.length ? `<span class="sv-meta">${t ? `<i class="sv-tag">${t.icon} ${t.label}</i>` : ''}${it.detail.length ? '<i class="sv-more">Détails ▾</i>' : ''}</span>` : ''}
       ${it.detail.length ? `<span class="sv-detail">${it.detail.map((x) => `<span>${linkify(x)}</span>`).join('')}</span>` : ''}</span></button>`;
   };
-  const canCheck = store.get('drive.files')?.v?.canCheck;
-  return `${canCheck ? '' : `<div class="notice">${icon('alert')}<span class="grow">Pour cocher les tâches d'ici, reconnecte Google Drive une fois : il demandera aussi le droit de modifier tes Docs.</span><button type="button" class="btn small" id="svwrite">${icon('link')}Reconnecter</button></div>`}<div class="tiles">
+  const canCheck = store.get('drive.files')?.v?.canWrite;
+  return `${canCheck ? '' : `<div class="notice">${icon('alert')}<span class="grow">Pour cocher les tâches d'ici, reconnecte Google Drive une fois : il demandera aussi le droit de modifier tes feuilles.</span><button type="button" class="btn small" id="svwrite">${icon('link')}Reconnecter</button></div>`}<div class="tiles">
       <div class="tile"><b>${open.length}</b><small>tâches à faire</small></div>
       <div class="tile"><b>${tasks.length - open.length + (m.sections.find((s) => s.kind === 'done')?.items.length || 0)}</b><small>faites</small></div>
       <div class="tile"><b${bugs ? ' class="sv-warn"' : ''}>${bugs}</b><small>bugs ouverts</small></div>
     </div>
     ${next ? `<div class="panel sv-next"><small>Prochaine tâche</small><b>${esc(next.title)}</b>${next.when ? `<span class="sv-when">${esc(next.when)} · ${esc(next.sec.title.replace(/^\W+/u, ''))}</span>` : ''}</div>` : ''}
+    <div class="sv-tools"><button type="button" class="btn" id="svfold">${m.sections.every((s) => shut.has(s.title)) ? 'Tout déplier' : 'Tout replier'}</button></div>
     <div class="chips" id="svtags"><button data-tag="all" class="${filter === 'all' ? 'on' : ''}">Tout <small>${open.length}</small></button>${TAGS.filter((t) => counts[t.key]).map((t) => `<button data-tag="${t.key}" class="${filter === t.key ? 'on' : ''}">${t.icon} ${t.label} <small>${counts[t.key]}</small></button>`).join('')}</div>
     <div class="sv-board">${m.sections.map((s) => {
       const items = filter === 'all' || s.kind === 'links' ? s.items : s.items.filter((it) => it.tag === filter);
       if (filter !== 'all' && !items.length) return '';
       const left = s.items.filter((it) => !it.done).length;
       const pct = s.items.length ? Math.round(((s.items.length - left) / s.items.length) * 100) : 0;
-      return `<section class="sv-col"><h3 style="background:${s.color}">${esc(s.title)}<i>${s.kind === 'tasks' ? (left ? `${left} à faire` : 'tout fait ✓') : s.items.length}</i></h3>
+      return `<section class="sv-col${shut.has(s.title) ? ' shut' : ''}" data-col="${esc(s.title)}"><h3 style="background:${s.color}" role="button" tabindex="0" title="Replier ou déplier">${esc(s.title)}<i>${s.kind === 'tasks' ? (left ? `${left} à faire` : 'tout fait ✓') : s.items.length}</i></h3>
         ${s.kind === 'tasks' && s.items.length ? `<div class="sv-prog"><i style="width:${pct}%"></i></div>` : ''}
         ${s.notes.map((n) => `<p class="sv-note">${esc(n)}</p>`).join('')}
         <div class="sv-items">${items.length ? items.map((it) => card(it, s)).join('') : '<p class="sv-note">Rien ici pour le moment.</p>'}</div></section>`;
     }).join('')}</div>
-    <p class="sv-foot">${m.updated ? `Liste mise à jour le ${esc(m.updated)} · ` : ''}${openBtn(docUrl(m.id), 'Ouvrir le Doc')}</p>`;
+    <p class="sv-foot">${openBtn(sheetUrl(m.id), 'Ouvrir la feuille')}</p>`;
 }
 
 function postsHtml(list) {
@@ -448,19 +440,28 @@ function bind(body, m, opts) {
   $$('#svsub [data-sub]', body).forEach((b) => { b.onclick = () => { state.vsub = b.dataset.sub; again(); }; });
   bindCopies(body);
   if (!m) return;
+  // Repli : titre d'une liste (une seule) ou bouton « Tout replier / Tout déplier »
+  const fold = (titles) => { store.set('suivi.shut', [...titles]); again(); };
+  $$('.sv-col h3', body).forEach((h) => {
+    const toggle = () => { const s = folded(), k = h.parentElement.dataset.col; if (!s.delete(k)) s.add(k); fold(s); };
+    h.onclick = toggle;
+    h.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } };
+  });
+  const all = $('#svfold', body);
+  if (all) all.onclick = () => { const cols = $$('.sv-col', body).map((c) => c.dataset.col); fold(cols.every((k) => folded().has(k)) ? [] : cols); };
   $$('.sv-card[data-open]', body).forEach((c) => { c.onclick = (e) => { if (!e.target.closest('a, [data-check]')) c.classList.toggle('open'); }; });
   // Case cochée : tâche marquée faite tout de suite, déplacée dans « Fait » du Doc, puis liste relue
   $$('[data-check]', body).forEach((b) => {
     b.onclick = async (e) => {
       e.stopPropagation();
-      if (!store.get('drive.files')?.v?.canCheck) { toast('Reconnecte Google Drive pour cocher d\'ici', 'bad'); return; }
+      if (!store.get('drive.files')?.v?.canWrite) { toast('Reconnecte Google Drive pour cocher d\'ici', 'bad'); return; }
       const card = b.closest('.sv-card');
       if (card.classList.contains('done')) return;
       card.classList.add('done');
       b.setAttribute('aria-checked', 'true');
       try {
-        await api('drive/check', { method: 'POST', body: JSON.stringify({ id: m.id, start: Number(b.dataset.check), title: b.dataset.title }) });
-        toast('Fait : rangé dans « Fait » du Doc', 'ok');
+        await api('drive/done', { method: 'POST', body: JSON.stringify({ id: m.id, row: Number(b.dataset.check), title: b.dataset.title }) });
+        toast('Fait : rangé dans « Fait »', 'ok');
       } catch (err) { toast(err.message, 'bad'); }
       again(true);
     };
