@@ -39,7 +39,7 @@ export async function assets(d) {
 const FORMATS = [['ig', 'Post'], ['story', 'Story'], ['x', 'X']];
 // Vidéo des visuels (posts sans vidéo à eux : résultats, avant-course, championnat, saison…) : les images
 // gardées, au format story, enchaînées avec un fondu ; pour TikTok, YouTube Shorts et les Reels
-const SLIDES_VIDEO = () => `<h3 class="section">Vidéo des visuels</h3>${musicField('slides', 'depart')}<div class="row"><button class="btn" id="mkvid">${icon('video')}Créer la vidéo</button><button class="btn" id="sharevid" disabled title="Zone sûre : Reels, TikTok, Shorts">${icon('share')}Partager</button><button class="btn" id="sharefull" disabled title="X, Bluesky, Facebook, Threads…">${icon('share')}Plein écran</button></div>
+const SLIDES_VIDEO = () => `<h3 class="section">Vidéo des visuels</h3>${musicField('slides', 'depart')}<div class="row"><button class="btn" id="mkvid">${icon('video')}Créer la vidéo</button><button class="btn" id="sharevid" disabled>${icon('share')}Partager</button></div>
   <p class="hint" id="vidst">Les images gardées, au format story, environ 3 s chacune. Garder l'écran allumé pendant l'enregistrement.</p>
   <video id="vid" controls playsinline hidden></video>`;
 
@@ -266,17 +266,16 @@ export function editor({ back, title, subtitle = '', head = '', vhead = '', note
         const d = data();
         const o = await assets(d);
         const list = chosenSlides(slidesFor(d, { fmt: 'story', follow: state.follow, question: state.question }), [...state.skip]);
-        const slides = list.map((sl) => drawSlide(document.createElement('canvas'), sl, 'story', d, { ...o, slides: list, video: true }));
+        const slides = list.map((sl) => drawSlide(document.createElement('canvas'), sl, 'story', d, { ...o, slides: list }));
         clip = await makeVideo(slides, { ...track(), onProgress: (p) => { $('#vidst').textContent = `Enregistrement… ${Math.round(p * 100)} %`; } });
         $('#vid').src = URL.createObjectURL(clip.blob); $('#vid').hidden = false;
-        $('#sharevid').disabled = false; $('#sharefull').disabled = false;
+        $('#sharevid').disabled = false;
         slideClip = clipFile(clip, name);
         $('#vidst').textContent = `Vidéo prête : ${(clip.blob.size / 1e6).toFixed(1).replace('.', ',')} Mo${clip.silent ? ' · sans son : le navigateur a bloqué la musique, recommencez' : ''}${slideClip ? ' · jointe au post : Reel, vidéo, TikTok et Short à choisir à l\'étape Publier' : ' · format WebM : à partager seulement (publication en MP4)'}`;
         redraw();
       } catch (err) { $('#vidst').textContent = err.message; } finally { $('#mkvid').disabled = false; }
     };
     $('#sharevid').onclick = () => clip && shareClip(clip, name);
-    $('#sharefull').onclick = () => clip && shareClip(clip, name, true);
   }
   bind(redraw);
   glide();

@@ -95,7 +95,7 @@ function bindOwnVideo(p, onPick) {
 // ---------- Vidéo de la news (TikTok, Reels, Shorts, story…), commune aux news et aux posts écrits ----------
 // Style « Breaking news » quand la très grosse info est cochée (BREAKING, étape Contenu)
 const BREAKING = (on) => toggle('brk', 'Très grosse info', on, 'Style « Breaking news » du visuel et de la vidéo');
-const NEWS_VIDEO = () => `<h3 class="section">Vidéo de la news</h3>${musicField('news', 'flash')}<div class="row"><button class="btn" id="mkvid">${icon('video')}Créer la vidéo</button><button class="btn" id="sharevid" disabled title="Zone sûre : Reels, TikTok, Shorts">${icon('share')}Partager</button><button class="btn" id="sharefull" disabled title="X, Bluesky, Facebook, Threads…">${icon('share')}Plein écran</button></div>
+const NEWS_VIDEO = () => `<h3 class="section">Vidéo de la news</h3>${musicField('news', 'flash')}<div class="row"><button class="btn" id="mkvid">${icon('video')}Créer la vidéo</button><button class="btn" id="sharevid" disabled>${icon('share')}Partager</button></div>
   <p class="hint" id="vidst">Garder l'écran allumé pendant l'enregistrement.</p>
   <video id="vid" controls playsinline hidden></video>`;
 // onBreaking(on) : très grosse info cochée ou décochée à la main
@@ -115,15 +115,14 @@ function bindNewsVideo(getD, onBreaking, onClip, source = () => null) {
       const src = source();
       const onProgress = (p) => { $('#vidst').textContent = `${src ? 'Habillage de votre vidéo' : 'Enregistrement'}… ${Math.round(p * 100)} %`; };
       clip = src ? await makeClipVideo(src, d, o, { ...track(), onProgress })
-        : await makeAnimation((ctx, t, w, h) => newsFrame(ctx, w, h, d, o, t), newsVideoTiming(d).duration, { box: true, cover: (ctx) => videoCover(ctx, 1080, 1920, d, o), ...track(), onProgress });
+        : await makeAnimation((ctx, t, w, h) => newsFrame(ctx, w, h, d, o, t), newsVideoTiming(d).duration, { cover: (ctx) => videoCover(ctx, 1080, 1920, d, o), ...track(), onProgress });
       $('#vid').src = URL.createObjectURL(clip.blob); $('#vid').hidden = false;
-      $('#sharevid').disabled = false; $('#sharefull').disabled = false;
+      $('#sharevid').disabled = false;
       $('#vidst').textContent = `Vidéo prête : ${src ? '' : `${Math.round(newsVideoTiming(d).duration)} s, `}${(clip.blob.size / 1e6).toFixed(1).replace('.', ',')} Mo${clip.silent ? ' · sans son : le navigateur a bloqué la musique, recommencez' : ''}${clipFile(clip, name()) ? ' · jointe au post : Reel, vidéo, TikTok et Short à choisir à l\'étape Publier' : ' · format WebM : à partager seulement (publication en MP4)'}`;
       onClip(clipFile(clip, name()));
     } catch (err) { $('#vidst').textContent = err.message; } finally { $('#mkvid').disabled = false; }
   };
   $('#sharevid').onclick = () => clip && shareClip(clip, name());
-  $('#sharefull').onclick = () => clip && shareClip(clip, name(), true);
 }
 
 export async function newsEditor(it, done, back) {
@@ -365,7 +364,7 @@ export async function appEditor(back) {
       <div id="apages"></div>
       <div class="row"><button class="btn small" id="aadd">${icon('pen')}Ajouter une page</button><label class="btn small">${icon('image')}Une page par photo<input type="file" accept="image/*" multiple id="aphotos" hidden></label><span class="hint" id="aphst"></span></div>`,
     vhead: `<p class="hint">Votre vidéo (enregistrement d'écran…) se choisit dans une page, à l'étape Contenu : « Capture, photo ou vidéo ».</p>
-      ${musicField('app', 'flash')}<div class="row"><button class="btn" id="mkvid">${icon('video')}Créer la vidéo</button><button class="btn" id="sharevid" disabled title="Zone sûre : Reels, TikTok, Shorts">${icon('share')}Partager</button><button class="btn" id="sharefull" disabled title="X, Bluesky, Facebook, Threads…">${icon('share')}Plein écran</button></div>
+      ${musicField('app', 'flash')}<div class="row"><button class="btn" id="mkvid">${icon('video')}Créer la vidéo</button><button class="btn" id="sharevid" disabled>${icon('share')}Partager</button></div>
       <p class="hint" id="vidst">Sans vidéo à vous : les images gardées, au format story, environ 3 s chacune. Garder l'écran allumé pendant l'enregistrement.</p>
       <video id="vid" controls playsinline hidden></video>`,
     data: () => d,
@@ -450,16 +449,15 @@ export async function appEditor(back) {
           const opts = { ...track(), onProgress: (x) => { $('#vidst').textContent = `${v.video ? 'Habillage de votre vidéo' : 'Enregistrement'}… ${Math.round(x * 100)} %`; } };
           // Sans vidéo à vous : les images gardées au format story, enchaînées (comme la vidéo des visuels des autres posts)
           const list = chosenSlides(slidesFor(d, { fmt: 'story' }), [...state.skip]);
-          clip = v.video ? await makeClipVideo(v.video, d, await assets(d), opts) : await makeVideo(list.map((sl) => drawSlide(document.createElement('canvas'), sl, 'story', d, { slides: list, video: true })), opts);
+          clip = v.video ? await makeClipVideo(v.video, d, await assets(d), opts) : await makeVideo(list.map((sl) => drawSlide(document.createElement('canvas'), sl, 'story', d, { slides: list })), opts);
           $('#vid').src = URL.createObjectURL(clip.blob); $('#vid').hidden = false;
-          $('#sharevid').disabled = false; $('#sharefull').disabled = false;
+          $('#sharevid').disabled = false;
           v.made = clipFile(clip, 'paddock-live');
           $('#vidst').textContent = `Vidéo prête : ${(clip.blob.size / 1e6).toFixed(1).replace('.', ',')} Mo${clip.silent ? ' · sans son : le navigateur a bloqué la musique, recommencez' : ''} · « Partager » pour l'enregistrer ou l'envoyer (Reels, TikTok, Shorts)`;
           redraw();
         } catch (err) { $('#vidst').textContent = err.message; } finally { $('#mkvid').disabled = false; }
       };
       $('#sharevid').onclick = () => clip && shareClip(clip, 'paddock-live');
-      $('#sharefull').onclick = () => clip && shareClip(clip, 'paddock-live', true);
     },
   });
 }

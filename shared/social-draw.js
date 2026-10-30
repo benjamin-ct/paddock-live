@@ -250,9 +250,9 @@ function grain(ctx, W, H) {
 
 // Page du carrousel en cours de dessin (paintSlide) : points de progression dans le pied
 let page = null;
-// Story publiée en image : Instagram pose sa barre de progression et le nom du compte en haut (~230 px),
-// le champ « Envoyer un message » en bas (~300 px) ; rien d'important dessous. Les vidéos, elles, placent
-// déjà l'image réduite dans la zone sûre (o.video : pas de marge en plus).
+// Story (image ou vidéo des visuels) : Instagram pose sa barre de progression et le nom du compte en haut (~230 px),
+// le champ « Envoyer un message » en bas (~300 px), comme Reels, TikTok et Shorts leur interface ; rien d'important
+// dessous.
 let safe = false;
 export const topY = (W, H) => (safe ? 230 : Math.round(Math.min(W, H) * 0.06));
 export const footY = (W, H) => H - (safe ? 300 : Math.round(Math.min(W, H) * 0.045));
@@ -1142,7 +1142,7 @@ export function drawSlide(canvas, slide, fmt, d, o = {}) {
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, w, h);
   paintSlide(ctx, slide, fmt, d, o);
-  // Vidéo : visuel redessiné directement (plus petit, dans la zone sûre des applis) plutôt que réduit
+  // Vidéo : visuel redessiné directement à chaque image (net, sans saccade)
   canvas.paint = (c) => paintSlide(c, slide, fmt, d, o);
   return canvas;
 }
@@ -1185,7 +1185,7 @@ export function videoCover(ctx, W, H, d, o = {}) {
 // Visuel dessiné sur un contexte (taille du format, transformation du contexte respectée)
 export function paintSlide(ctx, slide, fmt, d, o = {}) {
   page = o.slides?.includes(slide) ? { n: o.slides.indexOf(slide) + 1, total: o.slides.length } : null;
-  safe = fmt === 'story' && !o.video;
+  safe = fmt === 'story';
   try { paintOne(ctx, slide, fmt, d, o); } finally { page = null; safe = false; }
 }
 function paintOne(ctx, slide, fmt, d, o) {

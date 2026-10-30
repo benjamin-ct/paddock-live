@@ -72,7 +72,7 @@ function intro(ctx, W, H, d, u, s) {
 }
 
 // Mise en page de l'info : titre et résumé au plus grand qui tient en entier, visuel agrandi dans la place
-// restante, le tout centré en hauteur. Une mise en page par taille d'image (zone sûre et plein écran)
+// restante, le tout centré en hauteur. Une mise en page par taille d'image
 const layouts = new WeakMap();
 const TOP = 290; const BOTTOM = 200;   // sous l'en-tête ; au-dessus de la source
 function mainLayout(ctx, W, H, d, o, u) {

@@ -34,7 +34,7 @@ function seek(el, t) {
   });
 }
 
-// Mise en page (par taille d'image : zone sûre et plein écran) : titre sur 3 lignes au plus, la vidéo dans la
+// Mise en page (par taille d'image) : titre sur 3 lignes au plus, la vidéo dans la
 // place restante, en entier
 const layouts = new WeakMap();
 function layout(ctx, W, H, d, clip, u) {
@@ -93,7 +93,7 @@ export async function makeClipVideo(file, d, o, opts = {}) {
   if (!(clip.duration > 0)) throw new Error('Vidéo vide ou illisible');
   try {
     return await makeAnimation((ctx, t, w, h) => clipFrame(ctx, w, h, d, o, clip, t), clip.duration + (d.post === 'app' ? APP_OUTRO : OUTRO), {
-      box: true, prepare: (t) => (t < clip.duration ? seek(clip.el, t) : null), ...opts,
+      prepare: (t) => (t < clip.duration ? seek(clip.el, t) : null), ...opts,
     });
   } finally { URL.revokeObjectURL(clip.el.src); }
 }
