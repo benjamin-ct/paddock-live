@@ -151,6 +151,8 @@ l'application (Réglages → À propos → Nouveautés).
   l'interface), ou avec l'option « réduire les animations » du système.
 
 ### Interface
+- Thème sombre plus clair et plus lisible : fond bleu nuit au lieu du noir, cartes et panneaux qui ressortent mieux,
+  textes secondaires plus contrastés. Aussi dans la version web.
 - Les curseurs (volume, seuil des tours propres, temps perdu au stand, fond des overlays…) ont un nouveau style, assorti
   au reste de l'appli : piste fine remplie jusqu'à la valeur et bouton rond. Aussi dans la version web.
 - Panneau Duel : la flèche du duel automatique choisie (contre la voiture devant ou derrière) ressort de nouveau en
