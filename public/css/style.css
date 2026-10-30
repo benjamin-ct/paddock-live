@@ -2050,6 +2050,7 @@ body.solo #muteBtn { display: none; }
 [data-theme="pitwall"] .delay .preset { border: 0 !important; border-left: 1px solid var(--line-2) !important; border-radius: 0; background-color: transparent; max-width: 170px; color: var(--text-2); }
 [data-theme="pitwall"] .delay #syncBtn { border-radius: 0 7px 7px 0; margin: -1px -1px -1px 0; padding: 0 13px; }
 [data-theme="pitwall"] .btn { background: transparent; border-color: var(--line-2); border-radius: 7px; }
+[data-theme="pitwall"] :is(.map3d-cams .btn, .map3d-fly, #duelAhead, #duelBehind).on { background: var(--blue); border-color: var(--blue); color: var(--bg); }   /* choix en cours : fond plein (sinon texte foncé sur fond transparent) */
 [data-theme="pitwall"] .btn-accent { background: var(--accent); border-color: var(--accent); }
 [data-theme="pitwall"] .source-badge { background: transparent; border-color: transparent; letter-spacing: 1px; font-size: 12px; color: var(--text-2); }
 [data-theme="pitwall"] .icon-btn { border-radius: 8px; }

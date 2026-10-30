@@ -141,6 +141,8 @@ l'application (Réglages → À propos → Nouveautés).
 ### Interface
 - Les curseurs (volume, seuil des tours propres, temps perdu au stand, fond des overlays…) ont un nouveau style, assorti
   au reste de l'appli : piste fine remplie jusqu'à la valeur et bouton rond. Aussi dans la version web.
+- Panneau Duel : la flèche du duel automatique choisie (contre la voiture devant ou derrière) ressort de nouveau en
+  bleu ; en thème sombre, on ne la distinguait presque plus.
 
 ## v1.29.0 — 2026-10-28
 
