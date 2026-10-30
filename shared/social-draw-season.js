@@ -762,7 +762,7 @@ export function raceFrame(ctx, W, H, d, o, time) {
   // à droite de la signature (l'espacement des lettres, non compté par fit, en plus)
   const rest = bw - 120 * u - ctx.measureText(o.signature || '@BenjyPaddock').width;
   if (done) txt(ctx, 'ABONNEZ-VOUS POUR LA SUITE', W - padR, fy, { size: Math.round(29 * tu), weight: 800, family: TITLE, color: C.red, align: 'right', spacing: 2, max: rest });
-  else if (story.estimated && story.events.some((e) => e.kind === 'neutral')) txt(ctx, "Neutralisations estimées d'après les temps au tour", W - padR, fy, { size: Math.round(24 * tu), weight: 600, color: C.muted, align: 'right', max: rest });
+  else if (story.estimated && story.events.some((e) => NEUTRAL.has(e.kind) && e.kind !== 'red')) txt(ctx, "Neutralisations estimées d'après les temps au tour", W - padR, fy, { size: Math.round(24 * tu), weight: 600, color: C.muted, align: 'right', max: rest });
 }
 
 // ---------- Race Week : visuel propre à chaque Grand Prix ----------

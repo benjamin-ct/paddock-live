@@ -153,6 +153,9 @@ l'application (Réglages → À propos → Nouveautés).
 - Panneau Duel : la flèche du duel automatique choisie (contre la voiture devant ou derrière) ressort de nouveau en
   bleu ; en thème sombre, on ne la distinguait presque plus.
 
+### Divers
+- Petites améliorations internes.
+
 ## v1.29.0 — 2026-10-28
 
 ### Alertes sur le téléphone

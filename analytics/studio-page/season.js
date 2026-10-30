@@ -85,7 +85,12 @@ const trackOf = (year, key) => memoOf(`c${key}-${year}`, async () => {
 const raceControlOf = (year, race) => memoOf(`rc${year}-${race.round}`, async () => {
   const p = raceSessionPath(await readArchive(`${year}/Index.json`), { name: race.name, circuitKey: circuitInfo(race.circuitId)?.key });
   if (!p) throw new Error('Course introuvable dans les archives');
-  return parseRaceControl(await readArchive(`${p}RaceControlMessages.json`));
+  try { return parseRaceControl(await readArchive(`${p}RaceControlMessages.json`)); } catch (err) {
+    // Course qui vient de finir : archive pas encore publiée, le direct de la F1 garde ses messages
+    const live = await api(`live-state?p=${encodeURIComponent(p)}`).catch(() => null);
+    if (live?.RaceControlMessages) return parseRaceControl(live.RaceControlMessages);
+    throw err;
+  }
 });
 async function forecastOf(lat, lon) {
   const q = new URLSearchParams({ latitude: Number(lat).toFixed(4), longitude: Number(lon).toFixed(4), daily: 'temperature_2m_max,temperature_2m_min,precipitation_probability_max', timezone: 'auto', forecast_days: '16' });

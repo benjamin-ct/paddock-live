@@ -272,6 +272,14 @@ test('vidéo de course : safety car, VSC, drapeaux et moments forts (direction d
   assert.equal(e.estimated, true);
   assert.deepEqual(e.status.slice(2, 6), ['green', 'neutral', 'neutral', 'green']);
   assert.ok(e.events.some((x) => x.kind === 'neutral' && x.lap === 4) && e.events.some((x) => x.kind === 'restart' && x.lap === 6));
+  // Estimation : peloton regroupé (écart du leader au 5e fondu) = safety car, écarts gardés = VSC
+  const field = (slow) => ({ total: 10, drivers: [0, 1, 2, 3, 4].map((k) => mk(`D${k}`, Array(10).fill(k + 1), [90 + k * 3, ...Array(9).fill(90)].map((t, i) => (slow(i, k) ?? t)))) });
+  const sc = raceStory(field((i, k) => (i === 3 ? 120 : i === 4 ? 130 - k * 2.6 : null)), null);
+  assert.deepEqual(sc.status.slice(2, 6), ['green', 'sc', 'sc', 'green']);
+  assert.equal(sc.counts.sc, 1);
+  const vsc = raceStory(field((i) => (i === 3 || i === 4 ? 125 : null)), null);
+  assert.deepEqual(vsc.status.slice(2, 6), ['green', 'vsc', 'vsc', 'green']);
+  assert.equal(vsc.counts.vsc, 1);
   // Course retrouvée dans l'Index des archives (nom, sinon circuit)
   const idx = { Meetings: [{ Name: 'Italian Grand Prix', Circuit: { Key: 39 }, Sessions: [{ Name: 'Sprint', Type: 'Race', Path: 'x/sprint/' }, { Name: 'Race', Type: 'Race', Path: 'x/race/' }] }] };
   assert.equal(raceSessionPath(idx, { name: 'Italian Grand Prix' }), 'x/race/');
