@@ -1288,6 +1288,23 @@ body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-selec
   .cal-hero-name { font-size: 26px; }
 }
 .sz-svg { width: 100%; height: auto; }
+.sz-svg rect[data-sz-tip]:hover { filter: brightness(1.25); }
+.sz-hit { fill-opacity: 0; }
+.sz-hit:hover { fill-opacity: .35; }
+/* Infobulle des graphiques de la Saison (season-tip.js) : bleu nuit, liseré et pastille de la couleur de l'écurie */
+.sz-tip { position: fixed; z-index: 900; pointer-events: none; display: grid; grid-template-columns: auto auto; gap: 3px 16px; max-width: min(320px, calc(100vw - 16px));
+  padding: 8px 12px 9px; border-radius: 8px; background: #111C31; border: 1px solid #1E293B; border-left: 3px solid var(--tc); color: #F8FAFC;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, .5); font-size: 12px; line-height: 1.35; }
+.sz-tip[hidden] { display: none; }
+.sz-tip > b:first-child { grid-column: 1 / -1; display: flex; align-items: center; gap: 7px; font-size: 13px; }
+.sz-tip > b:first-child img { width: 18px; height: 12px; border-radius: 2px; object-fit: cover; }
+.sz-tip > i { grid-column: 1 / -1; display: flex; align-items: center; gap: 6px; font-style: normal; color: #CBD5E1; }
+.sz-tip > i:first-of-type::before { content: ''; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--tc); }
+.sz-tip > span { color: #94A3B8; }
+.sz-tip > span + b { text-align: right; font-variant-numeric: tabular-nums; }
+:root[data-scheme="light"] .sz-tip { background: #FFFFFF; border-color: rgba(10, 12, 20, .12); border-left-color: var(--tc); color: #0B0D12; box-shadow: 0 12px 32px rgba(10, 12, 20, .18); }
+:root[data-scheme="light"] .sz-tip > i { color: #4B5060; }
+:root[data-scheme="light"] .sz-tip > span { color: #6B7080; }
 .sz-gl { stroke: var(--line-2); stroke-width: 1; }
 .sz-ax { fill: var(--muted); font-size: 11px; }
 .sz-lbl { font-size: 11px; font-weight: 700; }

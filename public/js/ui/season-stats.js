@@ -8,6 +8,7 @@ import { DEC, LANG, t } from '../i18n.js';
 import { gpShort } from '/shared/gp-names.js';
 import { CIRCUIT_DNA, DNA_KEYS } from '/shared/circuit-dna.js';
 import { nearestShape, shapeOutline } from '/shared/circuit-shapes.js';
+import { tip, hit } from './season-tip.js';
 
 const median = (a) => {
   if (!a.length) return null;
@@ -70,7 +71,7 @@ function placeHistogram(list, col, quali = false) {
     const h = ((H - pb - pt - 16) * v) / hi;
     const x = pl + i * bw;
     const c = i === PLACES ? 'var(--red)' : i < 3 ? '#ffd166' : col;
-    return `${v ? `<rect x="${x + 2}" y="${H - pb - h}" width="${bw - 4}" height="${h}" rx="2" fill="${c}"><title>${i === PLACES ? 'Abandons' : `P${i + 1}`} : ${v}</title></rect><text x="${x + bw / 2}" y="${H - pb - h - 4}" class="sz-ax" text-anchor="middle">${v}</text>` : ''}
+    return `${v ? `<rect x="${x + 2}" y="${H - pb - h}" width="${bw - 4}" height="${h}" rx="2" fill="${c}"${tip(i === PLACES ? t('Abandons') : `P${i + 1}`, [[t(quali ? 'Qualifs' : histKind === 'sprint' ? 'Sprint' : 'Courses'), v]], c)}/><text x="${x + bw / 2}" y="${H - pb - h - 4}" class="sz-ax" text-anchor="middle">${v}</text>` : ''}
       ${bw >= 14 || i % 2 === 0 || i === PLACES ? `<text x="${x + bw / 2}" y="${H - 6}" class="sz-ax" text-anchor="middle">${i === PLACES ? 'Ab' : i + 1}</text>` : ''}`;
   }).join('');
   const cuts = quali ? [[0, 10, 'Q3'], [10, 16, 'Q2'], [16, PLACES, 'Q1']].map(([a, b, l]) => `${a ? `<line x1="${pl + a * bw}" x2="${pl + a * bw}" y1="2" y2="${H - pb}" class="sz-gl" stroke-dasharray="3 3"/>` : ''}<text x="${pl + ((a + b) / 2) * bw}" y="11" class="sz-ax" text-anchor="middle">${l}</text>`).join('') : '';
@@ -104,7 +105,8 @@ function pointsVsPrev(drv, data, prev, col) {
   const lbl = (a, c, txt) => `<text x="${X(a.length - 1) + 5}" y="${Y(a.at(-1)) + 4}" fill="${c}" class="sz-lbl">${txt}</text>`;
   const same = before[now.length - 1];
   const diff = same !== undefined ? now.at(-1) - same : null;
-  return `<svg viewBox="0 0 ${W} ${H}" class="sz-svg">${grid}${line(before, 'var(--muted)', true)}${line(now, col)}${lbl(before, 'var(--muted)', data.year - 1)}${now.length ? lbl(now, col, data.year) : ''}</svg>
+  const hits = (a, c, y) => a.map((v, i) => hit(X(i), Y(v), c, tip(`R${i + 1} · ${y}`, [[t('Total'), t('{} pts', v)]], c))).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" class="sz-svg">${grid}${line(before, 'var(--muted)', true)}${line(now, col)}${lbl(before, 'var(--muted)', data.year - 1)}${now.length ? lbl(now, col, data.year) : ''}${hits(before, 'var(--muted)', data.year - 1)}${hits(now, col, data.year)}</svg>
     ${diff !== null ? `<div class="small muted">Après ${now.length} courses : <b class="${diff >= 0 ? 'sz-up' : 'sz-down'}">${diff >= 0 ? '+' : ''}${diff} pts</b> par rapport à ${data.year - 1} (${now.at(-1)} contre ${same}).</div>` : ''}`;
 }
 
@@ -185,7 +187,7 @@ export function renderDrivers(ctx, code) {
   for (const p of [1, 5, 10, 15, 20]) grid += `<line x1="${pl}" x2="${W - pr}" y1="${Y(p)}" y2="${Y(p)}" class="sz-gl"/><text x="${pl - 6}" y="${Y(p) + 4}" class="sz-ax" text-anchor="end">${p}</text>`;
   for (const rd of rounds) grid += `${ctx.flag?.(rd, X(rd), H - pb + 7) || ''}<text x="${X(rd)}" y="${H - 6}" class="sz-ax" text-anchor="middle">R${rd}</text>`;
   const dots = started.map((x) => (isNum(x.res)
-    ? `<circle cx="${X(x.r.round)}" cy="${Y(x.res.pos)}" r="${x.res.pos <= 3 ? 5 : 3.5}" fill="${x.res.pos === 1 ? '#ffd166' : col}" stroke="var(--panel)" stroke-width="1.5"><title>R${x.r.round} ${esc(short(x.r.name))} : P${x.res.pos}</title></circle>`
+    ? `<circle cx="${X(x.r.round)}" cy="${Y(x.res.pos)}" r="${x.res.pos <= 3 ? 5 : 3.5}" fill="${x.res.pos === 1 ? '#ffd166' : col}" stroke="var(--panel)" stroke-width="1.5"${tip(`R${x.r.round} · ${esc(short(x.r.name))}`, [x.res.grid && [t('Départ'), `P${x.res.grid}`], [t('Arrivée'), `P${x.res.pos}`], [t('Points'), t('{} pts', x.res.points + (x.spr?.points || 0))]], col)}/>`
     : `<path d="M${X(x.r.round) - 3.5} ${H - pb - 9}l7 7m0 -7l-7 7" class="sz-dnf-x"/>`)).join('');
   const chart = `<svg viewBox="0 0 ${W} ${H}" class="sz-svg">${grid}${line(gridPts, true)}${line(finPts)}${dots}</svg>`;
 

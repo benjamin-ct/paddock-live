@@ -14,6 +14,7 @@ import { renderDestructors, showDestructorsDriver } from './season-destructors.j
 import { addPngButtons, savePng } from './season-png.js';
 import { toast } from './delay.js';
 import { renderPace, setPaceCut, setPaceScope } from './season-pace.js';
+import { tip, hit, initTips } from './season-tip.js';
 import { DEC, LOCALE, LANG, ord, t } from '../i18n.js';
 import { gpShort, gpFull } from '/shared/gp-names.js';
 import { COUNTRY_ISO } from '/shared/social-season.js';
@@ -182,9 +183,11 @@ function pointsByRound() {
   const series = new Map();
   for (const r of data.races.filter(done)) {
     for (const x of [...r.results, ...r.sprintResults]) cum.set(x.code, (cum.get(x.code) || 0) + x.points);
+    const rank = new Map(standingsAfter(data, r.round).drivers.map((x) => [x.key, x.pos]));
     for (const [code, pts] of cum) {
       if (!series.has(code)) series.set(code, []);
-      series.get(code).push({ x: r.round, y: pts });
+      const res = r.results.find((x) => x.code === code);
+      series.get(code).push({ x: r.round, y: pts, pos: res ? res.posText ?? res.pos : null, rank: rank.get(code) });
     }
   }
   return series;
@@ -262,8 +265,11 @@ function renderHome() {
 // Drapeau du Grand Prix sous l'axe des manches d'un graphique (x : centre ; absent de l'image PNG, qui garde « R1 »…)
 const roundFlag = (rd, x, y) => {
   const r = data?.races.find((q) => q.round === rd), iso = r && COUNTRY_ISO[r.country];
-  return iso ? `<image href="https://flagcdn.com/w40/${iso}.png" x="${x - 8}" y="${y}" width="16" height="11" preserveAspectRatio="xMidYMid slice" class="sz-flag"><title>${esc(gpShort(r.name, LANG))}</title></image>` : '';
+  return iso ? `<image href="https://flagcdn.com/w40/${iso}.png" x="${x - 8}" y="${y}" width="16" height="11" preserveAspectRatio="xMidYMid slice" class="sz-flag"${tip(gpHead(r))}/>` : '';
 };
+// Infobulles des graphiques : titre d'une manche (drapeau, « R5 · Canada »), place à l'arrivée
+const gpHead = (r) => `${COUNTRY_ISO[r.country] ? `<img src="https://flagcdn.com/w40/${COUNTRY_ISO[r.country]}.png" alt="" onerror="this.remove()">` : ''}R${r.round} · ${esc(gpShort(r.name, LANG))}`;
+const placeTxt = (x) => { const p = x?.posText ?? x?.pos ?? x; return /^\d+$/.test(String(p)) ? `P${p}` : x?.status ? t(statusFr(x.status)) : p ? t('Abandon') : '—'; };
 const flagOf = (r) => (COUNTRY_ISO[r.country] ? `<img class="cal-flag" src="https://flagcdn.com/w80/${COUNTRY_ISO[r.country]}.png" alt="" loading="lazy" onerror="this.remove()">` : '');
 const calIcs = (r) => `<a class="btn small" href="#" data-cal="${year}" data-round="${r.round}" title="Séances dans votre agenda (Google, Apple, Outlook)">${icon('calendar')} Ajouter ce week-end à mon agenda</a>`;
 // Dates du week-end : « 23 – 25 oct. » (« 30 oct. – 1 nov. » d'un mois à l'autre)
@@ -376,7 +382,7 @@ function calendarMap(next) {
   const X = (lon) => ((lon + 180) / 360) * world.w, Y = (lat) => ((world.lat0 - lat) / (world.lat0 - world.lat1)) * world.h;
   const dots = races.map((r) => {
     const state = done(r) ? 'done' : next?.round === r.round ? 'next' : 'future';
-    return `<a href="${seasonPath(year, 'gp', gpSlug(r.name))}" data-szgp="${r.round}" class="cal-pin ${state}"><title>R${r.round} · ${esc(gpShort(r.name, LANG))} · ${calSpan(r).replace(/<[^>]+>/g, '')}</title>
+    return `<a href="${seasonPath(year, 'gp', gpSlug(r.name))}" data-szgp="${r.round}" class="cal-pin ${state}"${tip(gpHead(r), [calSpan(r).replace(/<[^>]+>/g, '')])}>
       <circle cx="${X(r.lon).toFixed(1)}" cy="${Y(r.lat).toFixed(1)}" r="${state === 'next' ? 9 : 7}"/><text x="${X(r.lon).toFixed(1)}" y="${(Y(r.lat) + 3.5).toFixed(1)}" text-anchor="middle">${r.round}</text></a>`;
   }).join('');
   // Cadrage : du nord de l'Europe (65° N) au sud de l'Australie (48° S)
@@ -471,7 +477,12 @@ function lineChartSvg(series, { w = 900, h = 300 } = {}) {
   if (over > 0) for (let i = labels.length - 1; i >= 0; i--) labels[i].y = Math.min(labels[i].y, (labels[i + 1]?.y ?? h - pb + 13) - 13);
   const lines = series.map((s) => `<polyline fill="none" stroke="${s.color}" stroke-width="2" ${s.dashed ? 'stroke-dasharray="5 4"' : 'pathLength="1"'} points="${s.points.map((p) => `${X(p.x)},${Y(p.y)}`).join(' ')}"/>`).join('')
     + labels.map(({ s, last, y }) => `<text x="${X(last.x) + 5}" y="${y}" fill="${s.color}" class="sz-lbl">${esc(s.label)} ${last.y}</text>`).join('');
-  return `<svg viewBox="0 0 ${w} ${h}" class="sz-svg">${grid}${lines}</svg>`;
+  const hits = series.map((s) => s.points.map((p, i) => {
+    const r = data.races.find((q) => q.round === p.x && (!p.gp || q.name === p.gp)), gain = p.y - (s.points[i - 1]?.y ?? 0);
+    return hit(X(p.x), Y(p.y), s.color, tip(r ? gpHead(r) : `R${p.x}${p.gp ? ` · ${esc(gpShort(p.gp, LANG))}` : ''}`, [s.name || s.label,
+      p.pos !== undefined && [t('Arrivée'), placeTxt(p.pos)], [t('Points'), `+${t('{} pts', gain)}`], [t('Total'), t('{} pts', p.y)], p.rank && [t('Classement'), `P${p.rank}`]], s.color));
+  }).join('')).join('');
+  return `<svg viewBox="0 0 ${w} ${h}" class="sz-svg">${grid}${lines}${hits}</svg>`;
 }
 
 // Classements : graphiques des pilotes ou des constructeurs (choix gardé pendant la visite)
@@ -481,8 +492,9 @@ function standingsCharts(w) {
   if (!races.length) return '';
   const d = stKind === 'd';
   const keyOf = (x) => (d ? x.code : x.teamId);
-  const ents = d ? data.drivers.map((x) => ({ key: x.code, label: x.code, team: x.team, teamId: x.teamId }))
-    : data.constructors.map((x) => ({ key: x.id, label: x.name, team: x.name, teamId: x.id }));
+  const ents = d ? data.drivers.map((x) => ({ key: x.code, label: x.code, name: `${x.name} · ${x.team}`, team: x.team, teamId: x.teamId }))
+    : data.constructors.map((x) => ({ key: x.id, label: x.name, name: x.name, team: x.name, teamId: x.id }));
+  const standing = (s) => s && [[t('Classement'), `P${s.pos}`], [t('Total'), t('{} pts', s.points)]];
   const col = (e) => color(e.team, e.teamId);
   const rounds = races.map((r) => r.round);
   const seg = `<div class="tab-seg">${[['d', 'Pilotes'], ['c', 'Constructeurs']].map(([k, l]) => `<button type="button" data-st-kind="${k}" class="${stKind === k ? 'on' : ''}">${t(l)}</button>`).join('')}</div>`;
@@ -497,11 +509,11 @@ function standingsCharts(w) {
   for (let p = 1; p <= N; p++) grid += `<text x="${pl - 10}" y="${Y(p) + 4}" class="sz-ax" text-anchor="end">${p}</text>`;
   rounds.forEach((rd, i) => { grid += `${roundFlag(rd, X(i), H - pb + 8)}<text x="${X(i)}" y="${H - 6}" class="sz-ax" text-anchor="middle">R${rd}</text>`; });
   const bump = ents.map((e) => {
-    const pts = after.map((list, i) => { const p = list.find((x) => x.key === e.key)?.pos; return p ? [X(i), Y(p)] : null; }).filter(Boolean);
+    const pts = after.map((list, i) => { const s = list.find((x) => x.key === e.key); return s ? [X(i), Y(s.pos), races[i], s] : null; }).filter(Boolean);
     if (!pts.length) return '';
     const dpath = pts.map(([x, y], i) => (i ? `C${(pts[i - 1][0] + x) / 2},${pts[i - 1][1]} ${(pts[i - 1][0] + x) / 2},${y} ${x},${y}` : `M${x},${y}`)).join(' ');
     const [lx, ly] = pts.at(-1);
-    return `<g><title>${esc(e.label)}</title><path d="${dpath}" fill="none" stroke="${col(e)}" stroke-width="${d ? 2 : 2.6}" pathLength="1"/>${pts.map(([x, y]) => `<circle cx="${x}" cy="${y}" r="${d ? 2.2 : 3}" fill="${col(e)}"/>`).join('')}
+    return `<g${tip(esc(e.name), standing(pts.at(-1)[3]), col(e))}><path d="${dpath}" fill="none" stroke="${col(e)}" stroke-width="${d ? 2 : 2.6}" pathLength="1"/>${pts.map(([x, y, r, s]) => `<circle cx="${x}" cy="${y}" r="${d ? 2.2 : 3}" fill="${col(e)}" stroke="transparent" stroke-width="8"${tip(gpHead(r), [e.name, ...standing(s)], col(e))}/>`).join('')}
       <text x="${lx + 8}" y="${ly + 4}" fill="${col(e)}" class="sz-lbl">${esc(e.label)}</text></g>`;
   }).join('');
   const bumpSvg = `<div class="sz-scroll"><svg viewBox="0 0 ${w} ${H}" class="sz-svg">${grid}${bump}</svg></div>`;
@@ -517,7 +529,10 @@ function standingsCharts(w) {
     let x = ql, tot = 0;
     const parts = [...m].sort((a, b) => b[1] - a[1]).map(([k, v]) => {
       const e = byKey.get(k) || { label: k, team: '', teamId: '' };
-      const wv = (v / maxT) * bw; const out = `<rect x="${x}" y="${y}" width="${Math.max(0.5, wv - 1)}" height="${rh}" fill="${col(e)}"><title>R${r.round} ${esc(gpShort(r.name, LANG))} · ${esc(e.label)} : ${v} pts</title></rect>`;
+      const res = r.results.filter((q) => keyOf(q) === k), spr = (r.sprintResults || []).reduce((n, q) => n + (keyOf(q) === k ? q.points || 0 : 0), 0);
+      const rows = [e.name, [t('Course'), t('{} pts', v - spr)], spr && [t('Sprint'), t('{} pts', spr)],
+        [t('Arrivée'), res.map((q) => `${d ? '' : `${q.code} `}${placeTxt(q)}`).join(' · ') || '—'], ...(standing(after[i].find((q) => q.key === k)) || [])];
+      const wv = (v / maxT) * bw; const out = `<rect x="${x}" y="${y}" width="${Math.max(0.5, wv - 1)}" height="${rh}" fill="${col(e)}"${tip(gpHead(r), rows, col(e))}/>`;
       x += wv; tot += v; return out;
     }).join('');
     return `${roundFlag(r.round, 10, y + 4.5)}<text x="22" y="${y + 14}" class="sz-ax">R${r.round}</text><g class="sz-grow-x">${parts}</g><text x="${x + 6}" y="${y + 14}" class="sz-ax sz-tot">${tot}</text>`;
@@ -551,8 +566,9 @@ function standingsCharts(w) {
   for (let v = step; v <= dn; v += step) bars += `<text x="${sl - 6}" y="${mid + v * sy + 4}" class="sz-ax" text-anchor="end">−${v}</text>`;
   ents.forEach((e, i) => {
     const c = tally.get(e.key), x0 = sl + i * gw + gw * 0.12, b = (gw * 0.76) / 4;
-    KINDS.slice(0, 4).forEach(([k, l, cl], j) => { const h = c[k] * sy; if (h) bars += `<rect class="up" x="${x0 + j * b}" y="${mid - h}" width="${b - 1}" height="${h}" fill="${cl}"><title>${esc(e.label)} · ${t(l)} : ${c[k]}</title></rect>`; });
-    if (c.dnf) bars += `<rect class="dn" x="${x0 + b * 1.5}" y="${mid}" width="${b - 1}" height="${c.dnf * sy}" fill="#ef4444"><title>${esc(e.label)} · ${t('Abandons')} : ${c.dnf}</title></rect>`;
+    const tp = tip(esc(e.name), KINDS.map(([k, l]) => [t(l), c[k]]), col(e));
+    KINDS.slice(0, 4).forEach(([k, , cl], j) => { const h = c[k] * sy; if (h) bars += `<rect class="up" x="${x0 + j * b}" y="${mid - h}" width="${b - 1}" height="${h}" fill="${cl}"${tp}/>`; });
+    if (c.dnf) bars += `<rect class="dn" x="${x0 + b * 1.5}" y="${mid}" width="${b - 1}" height="${c.dnf * sy}" fill="#ef4444"${tp}/>`;
     const lx = sl + i * gw + gw / 2, ly = H3 - sb + 14;
     bars += d ? `<text x="${lx}" y="${ly}" class="sz-ax" text-anchor="middle">${esc(e.label)}</text>`
       : `<text x="${lx}" y="${ly}" class="sz-ax" text-anchor="end" transform="rotate(-35 ${lx} ${ly})">${esc(e.label)}</text>`;
@@ -590,7 +606,7 @@ function renderStandings() {
   const top = data.drivers.slice(0, 10).map((d) => {
     const dashed = seen.has(d.teamId);
     seen.add(d.teamId);
-    return { label: d.code, color: color(d.team, d.teamId), dashed, points: pr.get(d.code) || [] };
+    return { label: d.code, name: `${d.name} · ${d.team}`, color: color(d.team, d.teamId), dashed, points: pr.get(d.code) || [] };
   });
   // Dessiné à la largeur réelle de la page : textes et traits gardent leur taille (pas étirés)
   const w = Math.max(600, ($('#szContent')?.clientWidth || 934) - 34);
@@ -642,7 +658,7 @@ function polesVsRecords(races, w) {
     if (!x.t || !x.rec) { g += `<text x="${mid}" y="${y + 16}" class="sz-ax" text-anchor="middle">${x.wait ? '…' : '—'}</text>`; return; }
     const d = x.t - x.rec.time, len = (Math.abs(d) / span) * half;
     const c = d < 0 ? '#22c55e' : color(x.p.team, x.p.teamId);
-    g += `<rect class="${d < 0 ? 'dn' : 'up'}" x="${d < 0 ? mid - len : mid}" y="${y + 3}" width="${Math.max(1, len)}" height="${rh - 8}" rx="3" fill="${c}"><title>${esc(x.p.last || x.p.code)} : ${fmtLap(x.t)} · record ${esc(x.rec.tla)} ${x.rec.year} : ${fmtLap(x.rec.time)}</title></rect>`;
+    g += `<rect class="${d < 0 ? 'dn' : 'up'}" x="${d < 0 ? mid - len : mid}" y="${y + 3}" width="${Math.max(1, len)}" height="${rh - 8}" rx="3" fill="${c}"${tip(gpHead(x.r), [`${x.p.name || x.p.last || x.p.code} · ${x.p.team}`, [t('Pole'), fmtLap(x.t)], [`${t('record')} ${x.rec.tla} ${x.rec.year}`, fmtLap(x.rec.time)], [t('Écart'), f3(d)]], c)}/>`;
     g += `<text x="${w - qr + 10}" y="${y + 16}" class="sz-ax"><tspan class="sz-tot" fill="${d < 0 ? '#22c55e' : 'var(--text)'}">${f3(d)}</tspan>  ${esc(x.p.code || x.p.last)} · ${t('record')} ${esc(x.rec.tla)} ${x.rec.year}</text>`;
   });
   return `<section class="sz-box"><h3>${t('Poles face aux records récents des circuits')}</h3><div class="sz-scroll"><svg viewBox="0 0 ${w} ${H}" class="sz-svg sz-rec-chart">${g}</svg></div>
@@ -685,6 +701,7 @@ function renderQuali() {
   if (!teams.length) return '<div class="note">Pas encore de qualifications.</div>';
   const pct = poleUnit === 'pct';
   const v = (p) => (pct ? p.pct : p.s);
+  const gapTip = (team, p) => tip(gpHead(data.races.find((r) => r.round === p.round)), [team.team, [t('Écart'), `${p.pct.toFixed(2).replace('.', DEC)} % · ${p.s.toFixed(3).replace('.', DEC)} s`]], color(team.team, team.teamId));
   const fmt = (x) => (pct ? `${x.toFixed(2).replace('.', DEC)} %` : `${x.toFixed(3).replace('.', DEC)} s`);
   const rounds = [...new Set(teams.flatMap((t) => t.points.map((p) => p.round)))].sort((a, b) => a - b);
   const meds = teams.map((t) => ({ ...t, med: median(t.points.map(v)) })).sort((a, b) => a.med - b.med);
@@ -702,7 +719,7 @@ function renderQuali() {
   const labels = meds.map((t) => ({ t, y: Y(v(t.points.at(-1))) + 4 })).sort((a, b) => a.y - b.y);
   for (let i = 1; i < labels.length; i++) labels[i].y = Math.max(labels[i].y, labels[i - 1].y + 13);
   const dim = (t) => (poleFocus && t.teamId !== poleFocus ? ' opacity=".15"' : '');
-  const lines = meds.map((t) => `<g${dim(t)}><polyline fill="none" stroke="${color(t.team, t.teamId)}" stroke-width="${t.teamId === poleFocus ? 3 : 2}" pathLength="1" points="${t.points.map((p) => `${X(p.round)},${Y(v(p))}`).join(' ')}"><title>${esc(t.team)}</title></polyline>${t.points.map((p) => `<circle cx="${X(p.round)}" cy="${Y(v(p))}" r="2.5" fill="${color(t.team, t.teamId)}"><title>${esc(t.team)} · R${p.round} : ${fmt(v(p))}</title></circle>`).join('')}</g>`).join('')
+  const lines = meds.map((t) => `<g${dim(t)}><polyline fill="none" stroke="${color(t.team, t.teamId)}" stroke-width="${t.teamId === poleFocus ? 3 : 2}" pathLength="1" points="${t.points.map((p) => `${X(p.round)},${Y(v(p))}`).join(' ')}"><title>${esc(t.team)}</title></polyline>${t.points.map((p) => `<circle cx="${X(p.round)}" cy="${Y(v(p))}" r="2.5" fill="${color(t.team, t.teamId)}" stroke="transparent" stroke-width="8"${gapTip(t, p)}/>`).join('')}</g>`).join('')
     + labels.map(({ t, y }) => `<text x="${w - pr + 6}" y="${y}" fill="${color(t.team, t.teamId)}" class="sz-lbl"${dim(t)}>${esc(t.team)}</text>`).join('');
   const hi = Math.max(...meds.map((t) => t.med)) || 1;
   return `<section class="sz-box"><h3>Écart à la pole, Grand Prix par Grand Prix</h3>
@@ -977,10 +994,10 @@ function renderCompare() {
     a1.points === b1.points ? t('autant de points') : t(a1.points > b1.points ? '{} pts de plus' : '{} pts de moins', Math.abs(a1.points - b1.points)), other,
     gapA === gapB ? t('la même') : t(gapA > gapB ? 'plus large' : 'plus courte'), gapA, gapB)}</p>` : '';
   // Courbe des points des deux leaders, manche par manche (l'autre saison en pointillés)
-  const path = (d, e) => pointsPath(d, kind, kind === 'd' ? e.code : e.key, round).map(({ x, y }) => ({ x, y }));
+  const path = (d, e) => pointsPath(d, kind, kind === 'd' ? e.code : e.key, round);
   const chart = a1 && b1 ? lineChartSvg([
-    { label: kind === 'd' ? a1.code : a1.name, color: kind === 'd' ? color(a1.team, a1.teamId) : color(a1.name, a1.id), points: path(data, a1) },
-    { label: kind === 'd' ? b1.code : b1.name, color: kind === 'd' ? color(b1.team, b1.teamId) : color(b1.name, b1.id), dashed: true, points: path(o, b1) },
+    { label: kind === 'd' ? a1.code : a1.name, name: `${a1.name} · ${data.year}`, color: kind === 'd' ? color(a1.team, a1.teamId) : color(a1.name, a1.id), points: path(data, a1) },
+    { label: kind === 'd' ? b1.code : b1.name, name: `${b1.name} · ${other}`, color: kind === 'd' ? color(b1.team, b1.teamId) : color(b1.name, b1.id), dashed: true, points: path(o, b1) },
   ], { w, h: 260 }) : '';
   // Tableau : tri par colonne (touchée une deuxième fois : retour à la position)
   const rows = a.map((e) => { const x = atB.get(id(e)); return { e, x, diff: x ? e.points - x.points : null, moved: x ? x.pos - e.pos : null }; });
@@ -1009,7 +1026,7 @@ function compareDriver(o, other, round, w, sign) {
   const sa = stat(data), sb = stat(o);
   const card = (title, va, vb) => `<div class="sz-card"><div class="muted small">${title}</div><div class="sz-big">${va} <span class="muted small">${t('contre {} en {}', vb, other)}</span></div><div class="small">${sign(va - vb)}</div></div>`;
   const col = color(d.team, d.teamId);
-  const chart = lineChartSvg([{ label: String(data.year), color: col, points: a.map(({ x, y }) => ({ x, y })) }, { label: String(other), color: col, dashed: true, points: b.map(({ x, y }) => ({ x, y })) }], { w, h: 240 });
+  const chart = lineChartSvg([{ label: String(data.year), name: `${d.name} · ${data.year}`, color: col, points: a }, { label: String(other), name: `${d.name} · ${other}`, color: col, dashed: true, points: b }], { w, h: 240 });
   const rows = Array.from({ length: round }, (_, i) => i + 1).map((r) => {
     const pa = a.find((p) => p.x === r), pb = b.find((p) => p.x === r);
     const fin = (p) => (!p ? '—' : /^\d+$/.test(String(p.pos)) ? `P${p.pos}` : p.pos ? t('Abandon') : '—');
@@ -1147,6 +1164,7 @@ export function closeSeason() {
 
 export function initSeason() {
   initPredict();
+  initTips($('#seasonView'));
   const sel = $('#szYear');
   const now = new Date().getUTCFullYear();
   sel.innerHTML = Array.from({ length: 8 }, (_, i) => now - i).map((y) => `<option value="${y}">${y}</option>`).join('');
