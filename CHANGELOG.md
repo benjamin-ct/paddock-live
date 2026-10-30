@@ -164,6 +164,14 @@ l'application (Réglages → À propos → Nouveautés).
 - Saison plus visuelle : logo de l'écurie devant chaque pilote et chaque écurie (classements, records, cartes), titres,
   grands chiffres et tableaux plus grands ; dans Résultats & records, vainqueurs, podiums et poles en cases pleines aux
   couleurs de leur écurie. Aussi dans la version web.
+- Direct plus visuel, dans le style de la Saison. Duel : les deux pilotes sur un fond aux couleurs de leurs écuries,
+  avec le logo de l'écurie et le portrait cerclé de sa couleur, l'écart en plus grand ; dans le comparatif et les
+  derniers tours, chaque pilote dans une case à la couleur de son écurie. Écarts (et Positions, Temps) : le nom en bout
+  de courbe dans une case à la couleur de l'écurie, plus facile à suivre. Pneus : le logo de l'écurie devant chaque
+  pilote (tours de chaque pilote, jeux du week-end), et les composés choisis par Pirelli dans des cartes à leur couleur,
+  chiffre en grand. Aussi dans la version web.
+- Calendrier : le drapeau du pays en fond du prochain Grand Prix, compte à rebours en plus grand, et chaque Grand Prix
+  couru teinté de la couleur de l'écurie du vainqueur. Aussi dans la version web.
 - Saison → Pilotes : tous les pilotes en cartes (portrait sur la couleur de l'écurie, logo en filigrane, numéro) à faire
   défiler ; toucher une carte affiche ce pilote, présenté en grand en tête de page. Aussi dans la version web.
 - Graphiques de la Saison (évolution des points, écart à la pole, départ et arrivée d'un pilote) : le drapeau de chaque
