@@ -243,3 +243,37 @@ html.float-map .rc-bar { display: none !important; }
 .hm-fav-who { display: inline-flex; align-items: center; gap: 9px; }
 .hm-fav-pic { width: 30px; height: 30px; flex: none; border-radius: 50%; object-fit: cover; object-position: top; background: color-mix(in srgb, var(--tc) 40%, var(--panel-2)); box-shadow: 0 0 0 2px var(--tc); }
 .hm-fav-who .team-logo { width: 26px; height: 26px; }
+
+/* ---------- Direct plus visuel (Duel, Écarts, Pneus) et Calendrier, dans le style de la Saison ---------- */
+/* Duel : fond aux couleurs des deux écuries, logo devant le nom, portrait cerclé de sa couleur, écart en grand */
+.duel-hero { margin: 8px 10px 2px; padding: 12px 14px; border-radius: 10px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--ta, transparent) 28%, transparent), transparent 40% 60%, color-mix(in srgb, var(--tb, transparent) 28%, transparent)); }
+.duel-name .team-logo { width: 26px; height: 26px; }
+.duel-photo[style] { border-color: var(--tc); background: color-mix(in srgb, var(--tc) 40%, var(--panel-2)); }
+[data-theme="pitwall"] .duel-gap-val { font-size: 46px; white-space: nowrap; }
+/* Duel étroit (téléphone, petit panneau) : portrait au-dessus du nom, écart un peu moins grand */
+.grid.mobile .duel-hero { margin: 6px 4px 2px; padding: 10px 8px; }
+.grid.mobile .duel-side .duel-id { flex-direction: column; align-items: flex-start; gap: 4px; }
+.grid.mobile .duel-side.b .duel-id { align-items: flex-end; }
+[data-theme="pitwall"] .grid.mobile .duel-gap-val { font-size: 38px; }
+@container (max-width: 560px) {
+  .duel-hero { margin: 6px 4px 2px; padding: 10px 8px; }
+  .duel-side .duel-id { flex-direction: column; align-items: flex-start; gap: 4px; }
+  .duel-side.b .duel-id { align-items: flex-end; }
+  [data-theme="pitwall"] .duel-gap-val { font-size: 38px; }
+}
+:is(.cmp, .laps-cmp) .sz-chip { font-size: 12px; padding: 1px 8px; }
+/* Écarts et Pneus : logo de l'écurie devant chaque pilote */
+.tyre-hist .drv { gap: 6px; }
+.tyre-hist .drv .team-logo { width: 18px; height: 18px; }
+.ty-drv .team-logo { width: 20px; height: 20px; margin-right: 7px; }
+/* Choix de Pirelli : cartes teintées de la couleur du composé, chiffre en grand */
+.ty-comp { background: linear-gradient(135deg, color-mix(in srgb, var(--tc) 20%, var(--panel)), var(--panel) 75%); }
+.ty-comp b { font-size: 24px; }
+/* Calendrier : drapeau du prochain Grand Prix en fond ; Grands Prix courus teintés de la couleur du vainqueur */
+.cal-hero { position: relative; overflow: hidden; }
+.cal-hero::before { content: ''; position: absolute; inset: 0 0 0 30%; background: var(--flag) center / cover no-repeat; opacity: .15; pointer-events: none;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 70%); mask-image: linear-gradient(90deg, transparent, #000 70%); }
+.cal-hero > * { position: relative; }
+.cal-hero .sz-countdown b { font-size: 44px; }
+.cal-row.done[style] { background-image: linear-gradient(90deg, color-mix(in srgb, var(--tc) 16%, transparent), transparent 60%); box-shadow: inset 3px 0 var(--tc); }

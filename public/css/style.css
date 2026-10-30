@@ -437,7 +437,6 @@ input[type=range]:not(#rpRange):disabled { opacity: .45; cursor: default; }
 .duel-side.b { align-items: flex-end; text-align: right; }
 .duel-name { font-size: 22px; font-weight: 900; display: flex; align-items: center; gap: 8px; }
 .duel-side.b .duel-name { flex-direction: row-reverse; }
-.duel-swatch { width: 6px; height: 26px; border-radius: 3px; }
 .duel-sub { color: var(--muted); font-size: 12px; }
 .duel-gap { text-align: center; }
 .duel-gap-val { font-size: 38px; font-weight: 900; line-height: 1; letter-spacing: -.5px; }

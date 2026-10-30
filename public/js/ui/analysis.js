@@ -2,7 +2,7 @@
 // tour, historique des pneus, secteurs et vitesses de pointe. Calculé à partir de l'historique
 // tour par tour (données dérivées) et des statistiques du chronométrage.
 import { store, versionOf, on, setFocus } from '../store.js';
-import { $, esc, api, drivers, orderedNumbers, sessionKind, teamColor, compoundInfo, fmtLap, lapSeconds, storageGet, storageSet, driverOpt } from '../util.js';
+import { $, esc, api, drivers, orderedNumbers, sessionKind, teamColor, teamMark, ink, compoundInfo, fmtLap, lapSeconds, storageGet, storageSet, driverOpt } from '../util.js';
 import { prefs, isFav } from '../prefs.js';
 import { renderCompare, initCompare, openCompareLap } from './compare.js';
 import { tx } from '../i18n.js';
@@ -117,7 +117,7 @@ function multiChart(canvas, series, o) {
     labels.push({ s, x: X(last.x) + 4, y: Math.max(padT + 5, Math.min(H - padB - 5, Y(last.y))), alpha: dim ? 0.25 : 1 });
   }
   // Étiquettes : écartées verticalement quand elles se touchent (même fin de courbe)
-  const GAP = 11;
+  const GAP = 15;
   labels.sort((a, b) => a.y - b.y);
   for (let i = 1; i < labels.length; i++) {
     const prev = labels[i - 1], cur = labels[i];
@@ -128,8 +128,14 @@ function multiChart(canvas, series, o) {
     if (next.y > H - padB - 5) next.y = H - padB - 5;
     if (Math.abs(cur.x - next.x) < 34 && next.y - cur.y < GAP) cur.y = next.y - GAP;
   }
+  // Étiquettes en cases pleines à la couleur de l'écurie (comme les pilotes de la Saison)
   ctx.font = '700 10.5px "Titillium Web", sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-  for (const l of labels) { ctx.globalAlpha = l.alpha; ctx.fillStyle = l.s.color; ctx.fillText(tx(l.s.label), l.x, l.y); }
+  for (const l of labels) {
+    const txt = tx(l.s.label), w = ctx.measureText(txt).width + 8;
+    ctx.globalAlpha = l.alpha; ctx.fillStyle = l.s.color;
+    ctx.beginPath(); ctx.roundRect(l.x, l.y - 7, w, 14, 3); ctx.fill();
+    ctx.fillStyle = ink(l.s.color); ctx.fillText(txt, l.x + 4, l.y + 0.5);
+  }
   ctx.globalAlpha = 1;
 
   // Réticule
@@ -367,7 +373,7 @@ function renderTyres() {
       const cls = l.pit ? 'pit' : v && v <= best + 0.001 ? 'best' : '';
       return `<td class="${cls}${v ? ' cmp-link' : ''}" style="--tc:${ci.color}" ${v ? `data-cmp="${n}|${i + 1}"` : ''} title="Tour ${i + 1} · ${esc(ci.name)}${l.pit ? ' · stand' : ''}${v ? ' · clic : comparer ce tour' : ''}">${v ? fmtLap(v) : '—'}</td>`;
     }).join('');
-    return `<tr><th class="sticky"><span class="drv"><span class="drv-bar" style="background:${teamColor(dl[n])}"></span>${esc(dl[n]?.Tla || n)}</span></th>${cells}</tr>`;
+    return `<tr><th class="sticky"><span class="drv">${teamMark(dl[n])}${esc(dl[n]?.Tla || n)}</span></th>${cells}</tr>`;
   }).join('');
   const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 30;
   el.innerHTML = `<table class="tyre-hist"><tr><th class="sticky">Tour</th>${head}</tr>${rows}</table>
