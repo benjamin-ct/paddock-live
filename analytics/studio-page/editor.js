@@ -6,6 +6,7 @@ import { creditCaptions, followCaptions, questionCaptions } from '/shared/social
 import { videoTexts } from '/shared/social.js';
 import { makeVideo, unlockAudio } from '/shared/social-video.js';
 import { FLAG_ISO } from '/shared/flags.js';
+import { trackShape } from '/shared/circuits-info.js';
 import { loadTeamLogos } from '/shared/team-logos.js';
 import { $, $$, esc, api, icon, toast, toggle, schedList, glide, state, SIG, IOS, installed, musicField, bindMusic, shareClip, clipFile } from './ui.js';
 import { packDraftImages } from '/shared/post-draft.js';
@@ -25,13 +26,27 @@ async function headshot(url) {
   const big = url.replace(/\.transform\/\dcol\//, '.transform/4col/');
   return (big !== url && await loadImage(big)) || loadImage(url);
 }
+// Tracé du circuit d'une séance (API MultiViewer, l'année d'avant si besoin) : en filigrane des visuels
+const tracks = new Map();
+const trackOf = (year, key) => {
+  if (!tracks.has(`${key}-${year}`)) {
+    tracks.set(`${key}-${year}`, (async () => {
+      for (const y of [year, year - 1]) {
+        const r = await fetch(`https://api.multiviewer.app/api/v1/circuits/${key}/${y}`).catch(() => null);
+        if (r?.ok) return r.json().catch(() => null);
+      }
+      return null;
+    })());
+  }
+  return tracks.get(`${key}-${year}`);
+};
 export async function assets(d) {
   await Promise.all(['800 40px "Saira Condensed"', '700 40px "Saira Condensed"', '600 30px "Titillium Web"', '400 30px "Titillium Web"', '700 30px "JetBrains Mono"'].map((f) => document.fonts.load(f).catch(() => {})));
   const photos = {};
   if (state.photos) await Promise.all((d.rows || []).slice(0, 3).map(async (r) => { photos[r.num] = await headshot(r.headshot); }));
   const iso = d.iso || FLAG_ISO[String(d.country || '').toUpperCase()];
-  const [flag, logos] = await Promise.all([iso ? loadImage(`https://flagcdn.com/${d.post === 'raceweek' ? 'w1280' : 'w160'}/${iso}.png`) : null, loadTeamLogos(loadImage)]);
-  return { photos, flag, logos, signature: SIG };
+  const [flag, logos, track] = await Promise.all([iso ? loadImage(`https://flagcdn.com/${d.post === 'raceweek' ? 'w1280' : 'w160'}/${iso}.png`) : null, loadTeamLogos(loadImage), d.circuitKey ? trackOf(d.year, d.circuitKey) : null]);
+  return { photos, flag, logos, signature: SIG, shape: trackShape(track) };
 }
 
 // Post : Instagram, Facebook, Threads et Bluesky ; X : ses 4 images et son texte, publiés dans l'appli X ;
