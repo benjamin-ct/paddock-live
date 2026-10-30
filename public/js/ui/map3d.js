@@ -12,7 +12,7 @@ import { drivers, orderedNumbers, storageGet, storageSet, esc, api, COMPOUNDS } 
 import { t, DEC } from '../i18n.js';
 import { gridSlot, gridIndex, gridWeight } from '../grid.js';
 import { FONT, drawPuck, drawBadge, drawSectorBadge, drawCornerChip, drawFlagBadge, drawScBadge } from './map-draw.js';
-import { QUALITY, nearFirst, autoQuality, frameCap, weatherState, compoundOf, accentColor, drsOpen, seconds, pickBattle, bestLap, lapTrace, traceAt, wallCuts } from './map3d-calc.js';
+import { QUALITY, nearFirst, autoQuality, frameCap, weatherState, compoundOf, accentColor, drsOpen, seconds, pickBattle, bestLap, sessionBest, lapTrace, traceAt, wallCuts } from './map3d-calc.js';
 
 const W = 14;           // largeur de la piste (m)
 const MAX_CARS = 30;
@@ -1678,7 +1678,8 @@ function gapLabel(scene) {
 
 // Fantôme du meilleur tour : voiture transparente qui refait le tour le plus rapide de la séance dont on a les positions
 // GPS (l'appli les garde environ 3 minutes : le trajet est copié dès que le tour est connu, et gardé tant qu'il n'y a
-// pas plus rapide), partie en même temps que le pilote suivi au début de son tour. -> update(on, fnum, world, now)
+// pas plus rapide), partie en même temps que le pilote suivi au début de son tour. Plus rapide que lui mais sans ses
+// positions (replay commencé ou repris plus loin) : nommé dans l'infobulle. -> update(on, fnum, world, now)
 function ghostCar(scene, geos) {
   const mat = new THREE.MeshBasicMaterial({ color: 0xbfe6ff, transparent: true, opacity: 0.45, depthWrite: false });
   const car = new THREE.Group();
@@ -1698,8 +1699,11 @@ function ghostCar(scene, geos) {
         const best = bestLap(store.derived.laps, null, (b) => (!ref || b.time < ref.time) && (tr = lapTrace(store.positions.gps.get(b.num) || [], b.t0, b.t1)).length > 20
           && tr[0].dt < 3000 && tr.at(-1).dt > b.t1 - b.t0 - 3000);
         if (best) { ref = best; trace = tr; }
-        const dl = drivers(store.state);
-        info.title = ref ? t('Fantôme : meilleur tour de {} ({})', dl[ref.num]?.Tla || ref.num, `${Math.floor(ref.time / 60)}:${(ref.time % 60).toFixed(3).padStart(6, '0')}`) : t('Fantôme : pas encore de meilleur tour avec les positions GPS');
+        const dl = drivers(store.state), top = sessionBest(store.state.TimingStats?.Lines);
+        const who = (l) => [dl[l.num]?.Tla || l.num, `${Math.floor(l.time / 60)}:${(l.time % 60).toFixed(3).padStart(6, '0')}`];
+        info.title = !ref ? t('Fantôme : pas encore de meilleur tour avec les positions GPS')
+          : top && top.time < ref.time - 0.0005 ? t('Fantôme : tour de {} ({}), le plus rapide dont on a les positions GPS ; meilleur tour de la séance : {} ({})', ...who(ref), ...who(top))
+            : t('Fantôme : meilleur tour de {} ({})', ...who(ref));
       }
       const start = store.derived.laps?.[fnum]?.at(-1)?.t, disp = displayNow();
       const a = trace && start ? traceAt(trace, disp - start) : null;

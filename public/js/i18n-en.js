@@ -2744,6 +2744,7 @@ export default {
   "Écart avec la voiture devant": "Gap to the car ahead",
   "Fantôme du meilleur tour": "Best lap ghost",
   "Bataille pour la P{}": "Battle for P{}",
+  "Fantôme : tour de {} ({}), le plus rapide dont on a les positions GPS ; meilleur tour de la séance : {} ({})": "Ghost: lap by {} ({}), the fastest with GPS positions; best lap of the session: {} ({})",
   "Fantôme : meilleur tour de {} ({})": "Ghost: best lap by {} ({})",
   "Fantôme : pas encore de meilleur tour avec les positions GPS": "Ghost: no best lap with GPS positions yet",
   "Fantôme : il faut les positions GPS des voitures": "Ghost: needs the cars' GPS positions",

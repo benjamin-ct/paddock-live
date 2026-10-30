@@ -154,6 +154,14 @@ export function bestLap(laps, only = null, ok = () => true) {
   return all.sort((a, b) => a.time - b.time).find(ok) || null;
 }
 
+// Meilleur tour officiel de la séance (chronométrage : connu même pour un tour d'avant le début du replay) ;
+// lines : TimingStats.Lines -> { num, time (s) } ou null
+export function sessionBest(lines) {
+  const [num, l] = Object.entries(lines || {}).find(([, x]) => Number(x?.PersonalBestLapTime?.Position) === 1) || [];
+  const time = num ? seconds(l.PersonalBestLapTime.Value) : null;
+  return time ? { num, time } : null;
+}
+
 // Trajet d'un tour : positions GPS [{ t, x, y }] entre t0 et t1 -> [{ dt (ms depuis t0), x, y }] ; position au temps dt
 // du tour (interpolée), null hors du tour
 export function lapTrace(samples, t0, t1) {
