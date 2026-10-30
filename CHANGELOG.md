@@ -77,6 +77,8 @@ l'application (Réglages → À propos → Nouveautés).
   jusqu'à leur place au lieu de sauter. Un point GPS faux envoyé par la F1 (à des kilomètres) est ignoré : la voiture
   ne saute plus. L'indication « GPS » ou « Estimées » en haut de la carte ne change plus sa
   taille. En direct et en replay, dans l'appli et la version web.
+- Carte sans GPS (positions estimées) : après un passage au garage, la voiture ne fait plus des bonds de 600 m sur
+  la piste pendant le tour suivant ; elle avance à son vrai rythme.
 - Onglet Secteurs : sous les poles et meilleurs tours des éditions précédentes, le meilleur du week-end, c'est-à-dire
   le meilleur tour des séances déjà courues du Grand Prix (temps, pilote et séance : EL2, Qualif…). En direct et en
   replay, dans l'appli et la version web.
