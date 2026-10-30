@@ -115,7 +115,7 @@ function bindNewsVideo(getD, onBreaking, onClip, source = () => null) {
       const src = source();
       const onProgress = (p) => { $('#vidst').textContent = `${src ? 'Habillage de votre vidéo' : 'Enregistrement'}… ${Math.round(p * 100)} %`; };
       clip = src ? await makeClipVideo(src, d, o, { ...track(), onProgress })
-        : await makeAnimation((ctx, t, w, h) => newsFrame(ctx, w, h, d, o, t), newsVideoTiming(d).duration, { cover: (ctx) => videoCover(ctx, 1080, 1920, d, o), ...track(), onProgress });
+        : await makeAnimation((ctx, t, w, h) => newsFrame(ctx, w, h, d, o, t), newsVideoTiming(d).duration, { cover: (ctx, w, h) => videoCover(ctx, w, h, d, o), ...track(), onProgress });
       $('#vid').src = URL.createObjectURL(clip.blob); $('#vid').hidden = false;
       $('#sharevid').disabled = false;
       $('#vidst').textContent = `Vidéo prête : ${src ? '' : `${Math.round(newsVideoTiming(d).duration)} s, `}${(clip.blob.size / 1e6).toFixed(1).replace('.', ',')} Mo${clip.silent ? ' · sans son : le navigateur a bloqué la musique, recommencez' : ''}${clipFile(clip, name()) ? ' · jointe au post : Reel, vidéo, TikTok et Short à choisir à l\'étape Publier' : ' · format WebM : à partager seulement (publication en MP4)'}`;

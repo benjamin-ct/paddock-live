@@ -305,7 +305,9 @@ export const musicField = (kind, def) => {
   return `<div class="field"><span>Musique <small>(fabriquée sur place et libre de droits, la vôtre, ou aucune)</small></span>
     <div class="row"><select id="vtrack">${TRACKS.map((x) => `<option value="${x.id}" ${x.id === cur ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}<option value="file" ${cur === 'file' ? 'selected' : ''}>Mon fichier audio…</option><option value="none" ${cur === 'none' ? 'selected' : ''}>Sans musique</option></select><button type="button" class="btn small" id="vlisten">${icon('play')}Écouter</button></div>
     <input type="file" id="vaudio" accept="audio/*" hidden>
-    <small class="hint" id="vtrackdesc">${esc(musicDesc(cur))}${cur === 'file' && ownAudio ? ` · ${esc(ownAudio.name)}` : ''}</small></div>`;
+    <small class="hint" id="vtrackdesc">${esc(musicDesc(cur))}${cur === 'file' && ownAudio ? ` · ${esc(ownAudio.name)}` : ''}</small></div>
+    <div class="field"><span>Format <small>(plus haute : plein écran sur les iPhone et téléphones récents ; 9:16 : format conseillé par Instagram et YouTube${kind === 'race' ? ' ; paysage : vidéo YouTube classique, X, Facebook' : ''})</small></span>
+    <select id="vformat">${[['std', '9:16 (standard)'], ['tall', "Plus haute (forme de l'iPhone)"], ...(kind === 'race' ? [['wide', 'Paysage 16:9']] : [])].map(([v, l]) => `<option value="${v}" ${store.get('vformat')?.v === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>`;
 };
 // Branche la liste et l'écoute (15 s) ; renvoie de quoi faire la musique : { music, track, file }
 export function bindMusic(kind) {
@@ -335,14 +337,16 @@ export function bindMusic(kind) {
     if (stop) listen();
   };
   $('#vaudio').onchange = (e) => { if (e.target.files?.[0]) ownAudio = e.target.files[0]; desc(); };
+  $('#vformat').onchange = (e) => store.set('vformat', e.target.value);
   desc();
   $('#vlisten').onclick = () => (stop ? end() : listen());
   addEventListener('popstate', end, { once: true });
+  // Musique et format de la vidéo
   return () => {
-    const v = $('#vtrack').value;
-    if (v === 'none') return { music: 'none' };
-    if (v === 'file' && ownAudio) return { music: 'file', file: ownAudio };
-    return { music: 'gen', track: v === 'file' ? trackOf().id : v };
+    const v = $('#vtrack').value, format = $('#vformat').value;
+    if (v === 'none') return { music: 'none', format };
+    if (v === 'file' && ownAudio) return { music: 'file', file: ownAudio, format };
+    return { music: 'gen', track: v === 'file' ? trackOf().id : v, format };
   };
 }
 
@@ -356,5 +360,5 @@ export async function shareClip(clip, name) {
 
 // Vidéo fabriquée (MP4) avec sa couverture (JPEG, envoyée à Instagram et Facebook)
 export const clipFile = (clip, name) => (clip?.mime.includes('mp4') ? Object.assign(new File([clip.blob], `${name}.mp4`, { type: 'video/mp4' }), {
-  cover: clip.cover || null, vsize: '1080x1920',
+  cover: clip.cover || null, vsize: `${clip.w || 1080}x${clip.h || 1920}`,
 }) : null);
