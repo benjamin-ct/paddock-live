@@ -161,11 +161,23 @@ l'application (Réglages → À propos → Nouveautés).
   coin de la carte, « Suivre » et « Calques » deviennent des icônes. Aussi dans la version web.
 - Thème sombre plus clair et plus lisible : fond bleu nuit au lieu du noir (barre latérale et barre du haut comprises),
   cartes et panneaux qui ressortent mieux, textes secondaires plus contrastés. Aussi dans la version web.
+- Barre du haut : le compteur des tours n'est plus une case blanche qui tranche sur le bleu nuit, mais une case un ton
+  plus clair que la barre, chiffres en blanc et avancement en rouge. Aussi dans la version web.
 - Saison plus visuelle : logo de l'écurie devant chaque pilote et chaque écurie (classements, records, cartes), titres,
   grands chiffres et tableaux plus grands ; dans Résultats & records, vainqueurs, podiums et poles en cases pleines aux
   couleurs de leur écurie. Aussi dans la version web.
+- Direct plus visuel, dans le style de la Saison. Duel : les deux pilotes sur un fond aux couleurs de leurs écuries,
+  avec le logo de l'écurie et le portrait cerclé de sa couleur, l'écart en plus grand ; dans le comparatif et les
+  derniers tours, chaque pilote dans une case à la couleur de son écurie. Écarts (et Positions, Temps) : le nom en bout
+  de courbe dans une case à la couleur de l'écurie, plus facile à suivre. Pneus : le logo de l'écurie devant chaque
+  pilote (tours de chaque pilote, jeux du week-end), et les composés choisis par Pirelli dans des cartes à leur couleur,
+  chiffre en grand. Aussi dans la version web.
+- Calendrier : le drapeau du pays en fond du prochain Grand Prix, compte à rebours en plus grand, et chaque Grand Prix
+  couru teinté de la couleur de l'écurie du vainqueur. Aussi dans la version web.
 - Saison → Pilotes : tous les pilotes en cartes (portrait sur la couleur de l'écurie, logo en filigrane, numéro) à faire
   défiler ; toucher une carte affiche ce pilote, présenté en grand en tête de page. Aussi dans la version web.
+- Saison : les logos d'écurie en filigrane (pilote en grand, cartes des pilotes et des écuries) sont nets, même sur les
+  écrans de téléphone, au lieu d'être flous. Aussi dans la version web.
 - Graphiques de la Saison (évolution des points, écart à la pole, départ et arrivée d'un pilote) : le drapeau de chaque
   Grand Prix sous l'axe des manches. Aussi dans la version web.
 - Saison → Classements : trois nouveaux graphiques, pour les pilotes ou les constructeurs. Évolution du classement (la
@@ -175,12 +187,19 @@ l'application (Réglages → À propos → Nouveautés).
 - Saison → Écuries (nouvelle rubrique) : une carte par écurie à sa couleur, logo en filigrane, place et points au
   championnat, ses pilotes en portrait avec leurs points, victoires, podiums et poles ; toucher une écurie ouvre le duel
   de ses pilotes. Aussi dans la version web.
+- Thème clair : les cartes des pilotes (Saison → Pilotes, et le pilote en grand en tête de page) et des écuries
+  (Saison → Écuries) sont claires comme le reste de la page, avec un bandeau, un léger dégradé et le logo en filigrane
+  à la couleur de l'écurie ; elles restaient sombres. Aussi dans la version web.
 - Saison : pendant le chargement, la page apparaît en gris (cartes et blocs qui scintillent) au lieu d'un simple message.
   Aussi dans la version web.
 - Saison → Résultats & records : la pole de chaque Grand Prix face à la meilleure pole des quatre éditions précédentes du
   circuit (plus rapide en vert, sinon l'écart), avec le détenteur du record. Aussi dans la version web.
 - Accueil, carte « Mes favoris » : le portrait de chaque pilote, cerclé de la couleur de son écurie, et le logo de chaque
   écurie. Aussi dans la version web.
+- Saison → Bilan de la saison plus visuel : le leader (ou le champion) en grand, en portrait sur la couleur de son écurie ;
+  victoires, poles et podiums en cartes aux couleurs de l'écurie du premier, avec son portrait et les trois premiers en
+  barres ; plus belle remontée en flèche de la place de départ à l'arrivée, abandons en jauge, avancement de la saison
+  en barre. L'image à partager passe au bleu nuit. Aussi dans la version web.
 - Les curseurs (volume, seuil des tours propres, temps perdu au stand, fond des overlays…) ont un nouveau style, assorti
   au reste de l'appli : piste fine remplie jusqu'à la valeur et bouton rond. Aussi dans la version web.
 - Panneau Duel : la flèche du duel automatique choisie (contre la voiture devant ou derrière) ressort de nouveau en

@@ -9,10 +9,6 @@ import { LANG, ord, t } from '../i18n.js';
 import { toast } from './delay.js';
 import { saveImage, shareReady } from './season-png.js';
 
-// Premier en grand, les deux suivants dessous
-const first = (list) => (list[0] ? `${esc(list[0].last || list[0].name)} <small>${list[0].n}</small>` : '—');
-const next = (list) => list.slice(1, 3).map((x) => `${esc(x.last || x.name)} ${x.n}`).join(' · ');
-
 function facts(data) {
   const r = seasonReview(data);
   const tr = titleRace(data, data.year);
@@ -25,10 +21,15 @@ export function renderReview(ctx) {
   const { data } = ctx;
   const { r, champ, champTeam, favs } = facts(data);
   if (!r.done) return `<section class="sz-box"><h3>${t('Bilan de la saison')}</h3><p class="muted">${t('Pas encore de Grand Prix couru cette saison.')}</p></section>`;
-  const card = (label, big, sub = '') => `<div class="sz-card sz-kpi"><div class="muted small">${label}</div><div class="sz-big">${big}</div>${sub ? `<div class="muted small">${sub}</div>` : ''}</div>`;
-  const lead = champ
-    ? card(t('Champion du monde'), esc(champ.last || champ.name), `${esc(champ.name)}${champTeam ? ` · ${t('Constructeurs')} : ${esc(champTeam.name)}` : ''}`)
-    : card(t('En tête du championnat'), esc(r.leader?.last || r.leader?.name || '—'), r.leader ? `${esc(r.leader.name)} · ${r.leader.points} pts${r.leaderTeam ? ` · ${esc(r.leaderTeam.name)}` : ''}` : '');
+  // Fond, logo en filigrane et portrait aux couleurs de l'écurie du pilote
+  const look = (x) => { const logo = x && ctx.logo(x.team); return x ? `--tc:${ctx.color(x.team, x.teamId)}${logo ? `;--logo:url('${logo}')` : ''}` : '--tc:#475569'; };
+  const face = (x) => { const u = x && ctx.photo(x); return u ? `<img src="${u}" alt="" loading="lazy" onerror="this.remove()">` : ''; };
+  // Les trois premiers en barres à la couleur de leur écurie
+  const bars = (list) => { const max = list[0]?.n || 1; return `<div class="rv-bars">${list.slice(0, 3).map((x) => `<span class="rv-bar"><b>${esc(x.last || x.name)}</b><i style="--w:${(x.n / max) * 100}%;--c:${ctx.color(x.team, x.teamId)}"></i><em>${x.n}</em></span>`).join('')}</div>`; };
+  const card = (label, x, big, body) => `<div class="sz-rv-card" style="${look(x)}">${face(x)}<div class="rv-label">${label}</div><div class="rv-big">${big}</div>${body}</div>`;
+  const top = (label, list, foot = '') => card(label, list[0], list[0] ? `${esc(list[0].last || list[0].name)} <small>${list[0].n}</small>` : '—', `${bars(list)}${foot ? `<div class="rv-foot">${foot}</div>` : ''}`);
+  const lead = champ || r.leader, leadTeam = champ ? champTeam : r.leaderTeam;
+  const starts = data.races.filter((x) => x.results?.length).reduce((s, x) => s + x.results.length, 0);
   const cb = r.comeback;
   const favRow = (d) => {
     const w = r.wins.find((x) => x.code === d.code)?.n || 0, p = r.podiums.find((x) => x.code === d.code)?.n || 0, pole = r.poles.find((x) => x.code === d.code)?.n || 0;
@@ -36,13 +37,18 @@ export function renderReview(ctx) {
   };
   return `<section class="sz-box"><h3>${t('Bilan de la saison {}', data.year)}</h3>
       <p class="muted">${t('{} Grands Prix courus sur {}', r.done, r.races)}${r.done < r.races ? ` · ${t('le bilan se complète à chaque course')}` : ''}</p>
-      <div class="sz-cards sz-kpis sz-review-kpis">
-        ${lead}
-        ${card(t('Victoires'), first(r.wins), [next(r.wins), t('{} vainqueurs différents', r.winners)].filter(Boolean).join(' · '))}
-        ${card(t('Pole positions'), first(r.poles), [next(r.poles), t('{} victoires depuis la pole', r.poleWins)].filter(Boolean).join(' · '))}
-        ${card(t('Podiums'), first(r.podiums), next(r.podiums))}
-        ${card(t('Plus belle remontée'), cb ? `${esc(cb.last || cb.name)} <small>+${cb.gain}</small>` : '—', cb ? `${ord(cb.from)} → ${ord(cb.to)} · ${esc(gpFull(cb.gp, LANG))}` : '')}
-        ${card(t('Abandons'), String(r.dnf), t('sur {} départs', data.races.filter((x) => x.results?.length).reduce((s, x) => s + x.results.length, 0)))}
+      <div class="rv-progress" title="${r.done} / ${r.races}"><i style="--w:${(r.done / r.races) * 100}%"></i></div>
+      ${lead ? `<div class="sz-drv-hero sz-rv-hero" style="${look(lead)}">${face(lead)}<div class="txt">
+        <div class="rv-label">${champ ? t('Champion du monde') : t('En tête du championnat')}</div>
+        <div class="sz-drv-name">${esc(lead.name)}</div>
+        <span class="no">${lead.points ?? ''} <small>pts</small></span>
+        <div class="sub">${esc(lead.team || '')}${leadTeam && leadTeam.name !== lead.team ? ` · ${t('Constructeurs')} : ${esc(leadTeam.name)}` : ''}</div></div></div>` : ''}
+      <div class="sz-rv-grid">
+        ${top(t('Victoires'), r.wins, t('{} vainqueurs différents', r.winners))}
+        ${top(t('Pole positions'), r.poles, t('{} victoires depuis la pole', r.poleWins))}
+        ${top(t('Podiums'), r.podiums)}
+        ${card(t('Plus belle remontée'), cb, cb ? `${esc(cb.last || cb.name)} <small>+${cb.gain}</small>` : '—', cb ? `<div class="rv-climb"><span>${ord(cb.from)}</span><i></i><span>${ord(cb.to)}</span></div><div class="rv-foot">${esc(gpFull(cb.gp, LANG))}</div>` : '')}
+        ${card(t('Abandons'), null, String(r.dnf), `<div class="rv-progress rv-dnf"><i style="--w:${starts ? (r.dnf / starts) * 100 : 0}%"></i></div><div class="rv-foot">${t('sur {} départs', starts)}</div>`)}
       </div>
       <div class="row" style="gap:8px;margin-top:12px"><button class="btn small" data-review="copy">${t('Copier l\'image')}</button><button class="btn small" data-review="save">${t('Enregistrer l\'image')}</button></div>
     </section>
@@ -59,13 +65,15 @@ async function reviewImage(data) {
   const c = document.createElement('canvas');
   c.width = 1080; c.height = 1350;
   const g = c.getContext('2d');
-  g.fillStyle = '#0b0c0f'; g.fillRect(0, 0, c.width, c.height);
+  const bg = g.createLinearGradient(0, 0, 0, c.height);
+  bg.addColorStop(0, '#0F172A'); bg.addColorStop(1, '#020817');
+  g.fillStyle = bg; g.fillRect(0, 0, c.width, c.height);
   g.fillStyle = '#e10600'; g.fillRect(80, 110, 120, 10);
   g.fillStyle = '#fff';
   g.font = '800 96px "Saira Condensed", sans-serif';
   g.fillText(t('BILAN {}', data.year), 80, 230);
   g.font = '400 34px "Titillium Web", sans-serif';
-  g.fillStyle = '#c8c7c1';
+  g.fillStyle = '#CBD5E1';
   g.fillText(t('{} Grands Prix courus sur {}', r.done, r.races), 80, 290);
   const name = (x) => (x ? x.last || x.name : '—');
   const rows = [
@@ -78,12 +86,12 @@ async function reviewImage(data) {
   ];
   rows.forEach(([label, value], i) => {
     const y = 420 + i * 140;
-    g.fillStyle = '#8f8d87'; g.font = '700 30px "Titillium Web", sans-serif';
+    g.fillStyle = '#94A3B8'; g.font = '700 30px "Titillium Web", sans-serif';
     g.fillText(label.toUpperCase(), 80, y);
     g.fillStyle = '#fff'; g.font = '800 64px "Saira Condensed", sans-serif';
     g.fillText(value, 80, y + 70, 920);
   });
-  g.fillStyle = '#8f8d87'; g.font = '400 28px "Titillium Web", sans-serif';
+  g.fillStyle = '#94A3B8'; g.font = '400 28px "Titillium Web", sans-serif';
   g.fillText('paddocklive.app', 80, 1290);
   return new Promise((ok) => c.toBlob(ok, 'image/png'));
 }

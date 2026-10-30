@@ -2,7 +2,7 @@
 // séance, calendrier, classements avec évolution des points, résultats et records, duels entre
 // coéquipiers, statistiques détaillées. Données : API Jolpica (via le serveur, /api/season) et
 // analyse des archives F1 Live Timing (/api/season/stats).
-import { $, esc, api, teamColor, teamLogo, photoUrl, placeView, driverOpt, OFFICIAL } from '../util.js';
+import { $, esc, api, teamColor, teamLogo, photoUrl, placeView, driverOpt, OFFICIAL, ink } from '../util.js';
 import { store } from '../store.js';
 import { skeleton, renderDrivers, renderConsistency, renderPits, renderSpeeds, renderCircuits, renderRatings, gradeBadge, stopTxt, DHL_NOTE, statusFr, fmtLap, dnaBlock, setHistKind, circuitLength } from './season-stats.js';
 import { driverRatings, qualiGaps, titleRace, placeForMaxPoints, retired, standingsAfter, lineage, pointsPath, shortTeams, teamPoleGaps, median, teamMileage } from '/shared/season-calc.js';
@@ -22,8 +22,6 @@ import { circuitInfo } from '/shared/circuits-info.js';
 
 const color = (team, teamId) => teamColor({ TeamName: team, TeamColour: OFFICIAL[teamId] || '8b95a8' });
 const seasonOpt = (d) => driverOpt({ TeamName: d.team, TeamColour: OFFICIAL[d.teamId] || '8b95a8' }, d.number);
-// Texte lisible sur la couleur de l'écurie (sombre sur les couleurs claires : Mercedes, McLaren, Haas…)
-const ink = (c) => { const m = /^#([0-9a-f]{6})$/i.exec(c); const v = m ? parseInt(m[1], 16) : 0; return 0.2126 * (v >> 16) + 0.7152 * ((v >> 8) & 255) + 0.0722 * (v & 255) > 150 ? '#0b1220' : '#fff'; };
 const chip = (d) => { const c = color(d.team, d.teamId); return `<span class="sz-chip" style="--tc:${c};--ink:${ink(c)}">${esc(d.last || d.name || d.code)}</span>`; };
 const colorBar = (team, teamId) => `<span class="drv-bar" style="background:${color(team, teamId)}"></span>`;
 // Repère d'écurie devant un nom : son logo (pastille de sa couleur), sinon une barre de couleur
@@ -406,7 +404,8 @@ function renderCalendar() {
   const nx = nextSession();
   const next = nx?.race;
   const ran = data.races.filter(done).length;
-  const hero = next ? `<section class="cal-hero">
+  const iso = next && COUNTRY_ISO[next.country];
+  const hero = next ? `<section class="cal-hero"${iso ? ` style="--flag:url('https://flagcdn.com/w640/${iso}.png')"` : ''}>
       <div class="cal-hero-main">
         <div class="cal-hero-top"><span class="cal-tag">Prochain Grand Prix</span><span class="cal-round">Manche ${next.round} / ${data.races.length}</span>${next.sprint ? '<span class="sz-tag sprint">Sprint</span>' : ''}</div>
         <h2 class="cal-hero-name">${flagOf(next)}${esc(gpShort(next.name, LANG))}</h2>
@@ -436,7 +435,7 @@ function renderCalendar() {
         <span class="sz-tag">Course</span>${chip(w)}${opt(pole)}<span class="sz-tag sprint">Sprint</span>${chip(sw)}${opt(sp)}</span>`
       : `${w ? `<span class="cal-res">${icon('trophy')} ${chip(w)}${poleOf(pole)}</span>` : `<span class="cal-state">${state === 'next' ? 'Prochain' : 'À venir'}</span>`}${
         r.sprint ? `<span class="cal-res"><span class="sz-tag sprint">Sprint</span>${sw ? ` ${chip(sw)}${poleOf(sp)}` : ''}</span>` : ''}`;
-    return `${sep}<details class="cal-row ${state}">
+    return `${sep}<details class="cal-row ${state}"${w ? ` style="--tc:${color(w.team, w.teamId)}"` : ''}>
       <summary><span class="cal-num">${r.round}</span>${flagOf(r)}<span class="cal-name"><b>${esc(gpShort(r.name, LANG))}</b><small>${esc(r.circuit || '')}</small></span>
         <span class="cal-date">${calSpan(r)}</span>
         <span class="cal-out">${right}</span>${icon('chevron-down', 'cal-chev')}</summary>
@@ -574,7 +573,7 @@ function renderTeams() {
   const count = (id, test) => races.reduce((n, r) => n + r.results.filter((x) => x.teamId === id && test(x)).length, 0);
   const poles = (id) => races.filter((r) => r.quali.find((q) => q.pos === 1)?.teamId === id).length;
   const cards = data.constructors.map((c) => {
-    const col = color(c.name, c.id), logo = teamLogo(c.name, false);
+    const col = color(c.name, c.id), logo = teamLogo(c.name, false, 512);
     const drivers = data.drivers.filter((d) => d.teamId === c.id).sort((a, b) => b.points - a.points);
     const face = (d) => { const u = photoUrl({ Tla: d.code }); return `<span class="tm-drv">${u ? `<img src="${u}" alt="" loading="lazy" onerror="this.remove()">` : ''}<b>${esc(d.last || d.name)}</b><small>${d.points} pts</small></span>`; };
     return `<button type="button" class="sz-team-card" data-team-duel="${esc(c.id)}" style="--tc:${col}${logo ? `;--logo:url('${logo}')` : ''}">
@@ -1034,7 +1033,7 @@ function render() {
   for (const b of document.querySelectorAll('#szNav [data-sz]')) b.classList.toggle('active', b.dataset.sz === section);
   if ($('#szCur')) $('#szCur').textContent = $('#szNav .active')?.textContent.trim() || (section === 'gp' ? 'Grand Prix' : '');
   const st = stats?.year === data.year || stats?.error ? stats : null;
-  const ctx = { data, stats: st, color, bar, opt: seasonOpt, photo: (d) => photoUrl({ Tla: d.code }), flag: roundFlag, logo: (team) => teamLogo(team, false), official: (id) => OFFICIAL[id] || '8b95a8', ratings: ratingsFor(data, st), prev: prev?.year === data.year - 1 ? prev : null };
+  const ctx = { data, stats: st, color, bar, opt: seasonOpt, photo: (d) => photoUrl({ Tla: d.code }), flag: roundFlag, logo: (team) => teamLogo(team, false, 512), official: (id) => OFFICIAL[id] || '8b95a8', ratings: ratingsFor(data, st), prev: prev?.year === data.year - 1 ? prev : null };
   if (section === 'drivers') loadPrev();
   const fiaData = fia?.year === data.year ? fia : null;
   const html = {
