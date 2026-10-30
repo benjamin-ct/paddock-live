@@ -234,3 +234,37 @@ html.float-map .rc-bar { display: none !important; }
 .hm-fav-who { display: inline-flex; align-items: center; gap: 9px; }
 .hm-fav-pic { width: 30px; height: 30px; flex: none; border-radius: 50%; object-fit: cover; object-position: top; background: color-mix(in srgb, var(--tc) 40%, var(--panel-2)); box-shadow: 0 0 0 2px var(--tc); }
 .hm-fav-who .team-logo { width: 26px; height: 26px; }
+/* Bilan de la saison : leader en grand, cartes aux couleurs de l'écurie du premier (portrait, logo en filigrane), trois premiers en barres */
+.rv-progress { height: 6px; margin: -4px 0 14px; border-radius: 3px; background: var(--panel-3); overflow: hidden; }
+.rv-progress i { display: block; height: 100%; width: var(--w); background: var(--accent); border-radius: inherit; }
+.sz-rv-hero .rv-label { color: rgba(255, 255, 255, .78); }
+.sz-rv-hero .no small { font-size: 16px; font-weight: 700; }
+.sz-rv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.sz-rv-card { position: relative; display: flex; flex-direction: column; gap: 4px; min-height: 190px; padding: 16px 18px; border-radius: 14px; overflow: hidden; color: #fff;
+  border: 1px solid color-mix(in srgb, var(--tc) 40%, #1E293B);
+  background: radial-gradient(circle at 85% 20%, color-mix(in srgb, var(--tc) 42%, transparent), transparent 60%), linear-gradient(150deg, color-mix(in srgb, var(--tc) 38%, #0B1324), #0B1324 80%); }
+.sz-rv-card[style*="--logo"]::before { content: ''; position: absolute; right: 10px; bottom: 10px; width: 110px; height: 80px; background: var(--logo, none) right bottom / contain no-repeat; opacity: .14; }
+.sz-rv-card > img { position: absolute; right: -4px; top: 6px; height: 104px; width: auto; pointer-events: none; -webkit-mask-image: linear-gradient(#000 55%, transparent 92%); mask-image: linear-gradient(#000 55%, transparent 92%); }
+.sz-rv-card > :not(img) { position: relative; z-index: 1; }
+.sz-rv-card .rv-label, .sz-rv-hero .rv-label { font: 700 11.5px/1 var(--font); letter-spacing: .1em; text-transform: uppercase; color: rgba(255, 255, 255, .72); }
+.sz-rv-card .rv-big { max-width: 62%; font: 900 30px/1.05 var(--font-cond, var(--font)); }
+.sz-rv-card .rv-big small { font-size: 20px; color: color-mix(in srgb, var(--tc) 55%, #fff); }
+.rv-bars { display: grid; gap: 5px; margin-top: auto; padding-top: 12px; }
+.rv-bar { display: grid; grid-template-columns: 82px 1fr 24px; align-items: center; gap: 8px; font-size: 12.5px; }
+.rv-bar b { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rv-bar i { height: 8px; border-radius: 4px; background: linear-gradient(90deg, var(--c) var(--w), rgba(255, 255, 255, .1) var(--w)); }
+.rv-bar em { font-style: normal; font-weight: 700; text-align: right; }
+.rv-foot { font-size: 12.5px; color: rgba(255, 255, 255, .72); }
+.rv-climb { display: flex; align-items: center; gap: 8px; margin-top: auto; padding-top: 12px; font: 800 18px/1 var(--font-cond, var(--font)); }
+.rv-climb i { flex: 1; height: 3px; border-radius: 2px; background: linear-gradient(90deg, rgba(255, 255, 255, .25), var(--tc)); position: relative; }
+.rv-climb i::after { content: ''; position: absolute; right: -2px; top: -4px; border: 5px solid transparent; border-left: 8px solid var(--tc); }
+.sz-rv-card .rv-dnf { margin: auto 0 4px; background: rgba(255, 255, 255, .1); }
+.sz-rv-card .rv-dnf i { background: #94A3B8; }
+[data-theme="pitwall"][data-scheme="light"] .sz-rv-card { color: var(--text); border-color: var(--border);
+  background: linear-gradient(var(--tc), var(--tc)) top / 100% 3px no-repeat, linear-gradient(140deg, var(--panel) 40%, color-mix(in srgb, var(--tc) 16%, var(--panel))); }
+[data-theme="pitwall"][data-scheme="light"] .sz-rv-card[style*="--logo"]::before { background: var(--tc); mask: var(--logo, none) right bottom / contain no-repeat luminance; opacity: .12; }
+[data-theme="pitwall"][data-scheme="light"] .sz-rv-card :is(.rv-label, .rv-foot) { color: var(--muted); }
+[data-theme="pitwall"][data-scheme="light"] .sz-rv-card .rv-big small { color: var(--tc); }
+[data-theme="pitwall"][data-scheme="light"] .rv-bar i { background: linear-gradient(90deg, var(--c) var(--w), var(--panel-3) var(--w)); }
+[data-theme="pitwall"][data-scheme="light"] .sz-rv-card .rv-dnf { background: var(--panel-3); }
+@media (max-width: 700px) { .sz-rv-card > img { height: 90px; } .sz-rv-card .rv-big { font-size: 26px; } }
