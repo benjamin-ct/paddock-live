@@ -1264,12 +1264,10 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
   let snap = true;
   const bar = host.querySelector('.map3d-bar'), sel = host.querySelector('.map3d-driver'), note = host.querySelector('.map3d-note');
   const credit = host.querySelector('.map3d-credit'), timeSel = host.querySelector('.map3d-time');
-  // Relief et sources repliés derrière le bouton « i » : montrés quelques secondes à l'arrivée d'un nouveau décor
-  // (règles d'attribution d'OpenStreetMap), puis au toucher du bouton
+  // Relief et sources repliés derrière le bouton « i » (toujours visible), affichés au toucher du bouton
   const info = host.querySelector('.map3d-info'), pop = host.querySelector('.map3d-pop');
-  let popT = 0;
   const showPop = (on) => { pop.hidden = !on; info.setAttribute('aria-expanded', String(on)); };
-  info.addEventListener('click', () => { clearTimeout(popT); showPop(pop.hidden); });
+  info.addEventListener('click', () => showPop(pop.hidden));
   timeSel.value = TIMES.some(([k]) => k === saved.time) ? saved.time : 'auto';
   timeSel.addEventListener('change', () => storageSet('paddock.map3d', { ...storageGet('paddock.map3d', {}), time: timeSel.value }));
   const showCam = () => {
@@ -1374,7 +1372,6 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
     note.textContent = world.source === 'gps' ? t('Relief réel · dénivelé {} m', Math.round(world.relief))
       : world.source === 'terrain' ? t('Relief du terrain · dénivelé {} m', Math.round(world.relief)) : t('Piste à plat : relief pas encore calculé');
     credit.hidden = !world.land;   // mention des sources des alentours, quand ils sont affichés
-    if (world.land) { clearTimeout(popT); showPop(true); popT = setTimeout(() => showPop(false), 6000); }
     overview();
     snap = true;
   }

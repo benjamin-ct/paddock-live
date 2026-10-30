@@ -2754,6 +2754,8 @@ export default {
   "Toucher une écurie ouvre le duel de ses pilotes.": "Tocca una scuderia per aprire il duello tra i suoi piloti.",
   "Chargement des records des circuits…": "Caricamento dei record dei circuiti…",
   "Poles face aux records récents des circuits": "Pole a confronto con i record recenti dei circuiti",
-  "À gauche en vert : pole plus rapide que la meilleure pole des quatre éditions précédentes ; à droite : écart avec elle.": "A sinistra in verde: pole più veloce della migliore pole delle quattro edizioni precedenti; a destra: distacco da essa.",
   "record": "record",
+  "pas de record : circuit nouveau ou pas couru ces quatre dernières années": "nessun record: circuito nuovo o non corso negli ultimi quattro anni",
+  "Écart entre la pole de chaque Grand Prix et la meilleure pole des quatre éditions précédentes du circuit (en vert : plus rapide).": "Distacco tra la pole di ogni Gran Premio e la migliore pole delle quattro edizioni precedenti del circuito (in verde: più veloce).",
+  "En moyenne {} ; {} pole(s) sur {} plus rapide(s) que le record.": "In media {}; {} pole su {} più veloci del record.",
 };

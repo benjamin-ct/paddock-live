@@ -2755,6 +2755,8 @@ export default {
   "Toucher une écurie ouvre le duel de ses pilotes.": "Tap a team to open its drivers' head-to-head.",
   "Chargement des records des circuits…": "Loading circuit records…",
   "Poles face aux records récents des circuits": "Poles vs recent circuit records",
-  "À gauche en vert : pole plus rapide que la meilleure pole des quatre éditions précédentes ; à droite : écart avec elle.": "Left, in green: pole faster than the best pole of the four previous editions; right: gap to it.",
   "record": "record",
+  "pas de record : circuit nouveau ou pas couru ces quatre dernières années": "no record: new circuit or not raced in the last four years",
+  "Écart entre la pole de chaque Grand Prix et la meilleure pole des quatre éditions précédentes du circuit (en vert : plus rapide).": "Gap between each Grand Prix pole and the best pole of the circuit's four previous editions (green: faster).",
+  "En moyenne {} ; {} pole(s) sur {} plus rapide(s) que le record.": "On average {}; {} of {} poles faster than the record.",
 };

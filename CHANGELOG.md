@@ -113,7 +113,7 @@ l'application (Réglages → À propos → Nouveautés).
   et le fantôme du meilleur tour de la séance, une voiture transparente qui le refait en partant avec le pilote suivi
   (positions GPS nécessaires). Autour de la piste, ce qu'il y a vraiment, d'après OpenStreetMap (cartes OpenFreeMap) : le relief du
   terrain, les bâtiments et les tribunes, les bois et leurs arbres, les arbres isolés, les parkings, les lacs, les
-  rivières et la mer, les routes, l'herbe et les champs (sources et relief derrière le bouton « i » en bas à droite de la vue, montrés quelques secondes à l'ouverture), et le long de la piste les
+  rivières et la mer, les routes, l'herbe et les champs (sources et relief derrière le bouton « i » en bas à droite de la vue, affichés en le touchant), et le long de la piste les
   murs, rails et grillages (sur les circuits en ville, des murs là où la piste emprunte les rues ou longe les
   immeubles), les graviers et les dégagements asphaltés autour des virages (à l'extérieur des virages quand la carte
   n'en a pas). Le relief vient du GPS des voitures, sinon d'un modèle numérique de
@@ -193,7 +193,8 @@ l'application (Réglages → À propos → Nouveautés).
 - Saison : pendant le chargement, la page apparaît en gris (cartes et blocs qui scintillent) au lieu d'un simple message.
   Aussi dans la version web.
 - Saison → Résultats & records : la pole de chaque Grand Prix face à la meilleure pole des quatre éditions précédentes du
-  circuit (plus rapide en vert, sinon l'écart), avec le détenteur du record. Aussi dans la version web.
+  circuit (plus rapide en vert, sinon l'écart), avec le détenteur du record, l'écart au bout de chaque barre, l'écart
+  moyen de la saison, et « pas de record » pour un circuit nouveau. Aussi dans la version web.
 - Accueil, carte « Mes favoris » : le portrait de chaque pilote, cerclé de la couleur de son écurie, et le logo de chaque
   écurie. Aussi dans la version web.
 - Saison → Bilan de la saison plus visuel : le leader (ou le champion) en grand, en portrait sur la couleur de son écurie ;
@@ -204,6 +205,13 @@ l'application (Réglages → À propos → Nouveautés).
   au reste de l'appli : piste fine remplie jusqu'à la valeur et bouton rond. Aussi dans la version web.
 - Panneau Duel : la flèche du duel automatique choisie (contre la voiture devant ou derrière) ressort de nouveau en
   bleu ; en thème sombre, on ne la distinguait presque plus.
+- Graphiques de la Saison : en passant la souris sur une barre, un point ou une courbe (ou en la touchant sur
+  téléphone), une infobulle aux couleurs de l'appli s'affiche tout de suite, avec la couleur de l'écurie et des infos
+  plus complètes. Points par Grand Prix : drapeau et Grand Prix, pilote et écurie, points de la course et du sprint,
+  place à l'arrivée, place au championnat et total ; évolution du classement et des points : place et points après
+  chaque manche ; bilan de la saison : victoires, podiums, arrivées dans les points, poles et abandons d'un coup d'œil ;
+  aussi l'écart à la pole, les poles face aux records et la page d'un pilote (départ, arrivée, points). Aussi dans la
+  version web.
 
 ### Divers
 - Petites améliorations internes.
