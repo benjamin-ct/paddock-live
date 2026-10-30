@@ -2,7 +2,7 @@
 // exemple, habillé aux couleurs du post. En-tête « Actu F1 », titre du post, la vidéo au centre (coins arrondis),
 // la source ; puis la fin « Abonnez-vous » de la vidéo des news. Fabriquée image par image par makeAnimation :
 // la vidéo est calée sur chaque instant avant d'être dessinée (prepare).
-import { C, TITLE, txt, fitLines, rr, background, breakingFrame } from './social-draw.js';
+import { C, TITLE, txt, fitLines, rr, background, breakingFrame, styled } from './social-draw.js';
 import { header, outro, OUTRO } from './social-news-video.js';
 import { makeAnimation } from './social-video.js';
 import { appPage, appOutro, APP_OUTRO } from './social-app.js';
@@ -92,7 +92,7 @@ export async function makeClipVideo(file, d, o, opts = {}) {
   const clip = await loadClip(file);
   if (!(clip.duration > 0)) throw new Error('Vidéo vide ou illisible');
   try {
-    return await makeAnimation((ctx, t, w, h) => clipFrame(ctx, w, h, d, o, clip, t), clip.duration + (d.post === 'app' ? APP_OUTRO : OUTRO), {
+    return await makeAnimation((ctx, t, w, h) => styled(o, () => clipFrame(ctx, w, h, d, o, clip, t)), clip.duration + (d.post === 'app' ? APP_OUTRO : OUTRO), {
       prepare: (t) => (t < clip.duration ? seek(clip.el, t) : null), ...opts,
     });
   } finally { URL.revokeObjectURL(clip.el.src); }

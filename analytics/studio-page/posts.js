@@ -15,7 +15,7 @@ import { toFrench, freshNews, cachedNews, latestDrivers, loadState, lapsOf, reme
 import { editor, assets } from './editor.js';
 import { photoPicker, cropImage, bitmapUrl, photoGrid, addFiles, picked } from './photos.js';
 import { makeAnimation, makeVideo, unlockAudio } from '/shared/social-video.js';
-import { videoCover, newsPhotoBox, FORMATS, slidesFor, chosenSlides, drawSlide } from '/shared/social-draw.js';
+import { videoCover, styled, newsPhotoBox, FORMATS, slidesFor, chosenSlides, drawSlide } from '/shared/social-draw.js';
 import { newsFrame, newsVideoTiming } from '/shared/social-news-video.js';
 import { makeClipVideo, CLIP_MAX } from '/shared/social-clip-video.js';
 import { appPost, appCaptions } from '/shared/social-app.js';
@@ -115,7 +115,7 @@ function bindNewsVideo(getD, onBreaking, onClip, source = () => null) {
       const src = source();
       const onProgress = (p) => { $('#vidst').textContent = `${src ? 'Habillage de votre vidéo' : 'Enregistrement'}… ${Math.round(p * 100)} %`; };
       clip = src ? await makeClipVideo(src, d, o, { ...track(), onProgress })
-        : await makeAnimation((ctx, t, w, h) => newsFrame(ctx, w, h, d, o, t), newsVideoTiming(d).duration, { cover: (ctx, w, h) => videoCover(ctx, w, h, d, o), ...track(), onProgress });
+        : await makeAnimation((ctx, t, w, h) => styled(o, () => newsFrame(ctx, w, h, d, o, t)), newsVideoTiming(d).duration, { cover: (ctx, w, h) => styled(o, () => videoCover(ctx, w, h, d, o)), ...track(), onProgress });
       $('#vid').src = URL.createObjectURL(clip.blob); $('#vid').hidden = false;
       $('#sharevid').disabled = false;
       $('#vidst').textContent = `Vidéo prête : ${src ? '' : `${Math.round(newsVideoTiming(d).duration)} s, `}${(clip.blob.size / 1e6).toFixed(1).replace('.', ',')} Mo${clip.silent ? ' · sans son : le navigateur a bloqué la musique, recommencez' : ''}${clipFile(clip, name()) ? ' · jointe au post : Reel, vidéo, TikTok et Short à choisir à l\'étape Publier' : ' · format WebM : à partager seulement (publication en MP4)'}`;
@@ -449,7 +449,8 @@ export async function appEditor(back) {
           const opts = { ...track(), onProgress: (x) => { $('#vidst').textContent = `${v.video ? 'Habillage de votre vidéo' : 'Enregistrement'}… ${Math.round(x * 100)} %`; } };
           // Sans vidéo à vous : les images gardées au format story, enchaînées (comme la vidéo des visuels des autres posts)
           const list = chosenSlides(slidesFor(d, { fmt: 'story' }), [...state.skip]);
-          clip = v.video ? await makeClipVideo(v.video, d, await assets(d), opts) : await makeVideo(list.map((sl) => drawSlide(document.createElement('canvas'), sl, 'story', d, { slides: list })), opts);
+          const o = await assets(d);
+          clip = v.video ? await makeClipVideo(v.video, d, o, opts) : await makeVideo(list.map((sl) => drawSlide(document.createElement('canvas'), sl, 'story', d, { slides: list, style: o.style })), opts);
           $('#vid').src = URL.createObjectURL(clip.blob); $('#vid').hidden = false;
           $('#sharevid').disabled = false;
           v.made = clipFile(clip, 'paddock-live');

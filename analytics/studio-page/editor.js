@@ -8,7 +8,7 @@ import { makeVideo, unlockAudio } from '/shared/social-video.js';
 import { FLAG_ISO } from '/shared/flags.js';
 import { trackShape } from '/shared/circuits-info.js';
 import { loadTeamLogos } from '/shared/team-logos.js';
-import { $, $$, esc, api, icon, toast, toggle, schedList, glide, state, SIG, IOS, installed, musicField, bindMusic, shareClip, clipFile } from './ui.js';
+import { $, $$, esc, api, icon, toast, toggle, schedList, glide, state, store, SIG, IOS, installed, musicField, bindMusic, shareClip, clipFile } from './ui.js';
 import { packDraftImages } from '/shared/post-draft.js';
 import { renderPublish, refreshTexts, resetPublish, confirmPublish, followSent, planNets, openX, xCanvases } from './publish.js';
 
@@ -40,13 +40,16 @@ const trackOf = (year, key) => {
   }
   return tracks.get(`${key}-${year}`);
 };
+// Style des visuels : choix gardé sur l'appareil
+if (state.tv === undefined) state.tv = !!store.get('tvstyle')?.v;
 export async function assets(d) {
-  await Promise.all(['800 40px "Saira Condensed"', '700 40px "Saira Condensed"', '600 30px "Titillium Web"', '400 30px "Titillium Web"', '700 30px "JetBrains Mono"'].map((f) => document.fonts.load(f).catch(() => {})));
+  await Promise.all(['800 40px "Saira Condensed"', '700 40px "Saira Condensed"', '600 30px "Titillium Web"', '400 30px "Titillium Web"', '700 30px "JetBrains Mono"',
+    ...(state.tv ? ['italic 900 40px "Barlow Condensed"', 'italic 800 40px "Barlow Condensed"', '700 20px "Chakra Petch"', '600 20px "Chakra Petch"'] : [])].map((f) => document.fonts.load(f).catch(() => {})));
   const photos = {};
   if (state.photos) await Promise.all((d.rows || []).slice(0, 3).map(async (r) => { photos[r.num] = await headshot(r.headshot); }));
   const iso = d.iso || FLAG_ISO[String(d.country || '').toUpperCase()];
   const [flag, logos, track] = await Promise.all([iso ? loadImage(`https://flagcdn.com/${d.post === 'raceweek' ? 'w1280' : 'w160'}/${iso}.png`) : null, loadTeamLogos(loadImage), d.circuitKey ? trackOf(d.year, d.circuitKey) : null]);
-  return { photos, flag, logos, signature: SIG, shape: trackShape(track) };
+  return { photos, flag, logos, signature: SIG, shape: trackShape(track), style: state.tv ? 'tv' : null };
 }
 
 // Post : Instagram, Facebook, Threads et Bluesky ; X : ses 4 images et son texte, publiés dans l'appli X ;
@@ -132,6 +135,7 @@ export function editor({ back, title, subtitle = '', head = '', vhead = '', note
       <section class="panel" id="opts" data-in="visuels">
         <h3 class="section">Options</h3>
         ${toggle('photos', 'Photos des pilotes', state.photos)}
+        ${toggle('tvstyle', 'Style « Télé premium » (fibre de carbone, chiffres or)', state.tv)}
         ${toggle('follow', 'Image « Abonnez-vous »', state.follow, '', state.question ? 'disabled' : '')}
         ${toggle('question', 'Question pour faire réagir', state.question, '', state.follow ? 'disabled' : '')}
       </section>
@@ -266,6 +270,7 @@ export function editor({ back, title, subtitle = '', head = '', vhead = '', note
   };
   $$('[data-fmt]').forEach((b) => { b.onclick = () => { state.fmt = b.dataset.fmt; $$('[data-fmt]').forEach((x) => x.classList.toggle('on', x === b)); glide(); redraw(); }; });
   $('#photos').onchange = (e) => { state.photos = e.target.checked; redraw(); };
+  $('#tvstyle').onchange = (e) => { state.tv = e.target.checked; store.set('tvstyle', state.tv); redraw(); };
   // Question et abonnement : un seul appel par post
   $('#follow').onchange = (e) => { state.follow = e.target.checked; $('#question').disabled = state.follow; redraw(true); };
   $('#question').onchange = (e) => { state.question = e.target.checked; $('#follow').disabled = state.question; redraw(true); };

@@ -1,7 +1,8 @@
 // Visuels des posts de saison (mode créateur) : horaires du week-end, pneus et météo, records du
 // circuit, notes des pilotes, duels entre coéquipiers, positions tour par tour, récap de la semaine,
 // et images de la vidéo animée de la course. Mêmes outils de dessin que les autres posts.
-import { C, TITLE, BODY, MONO, MEDAL, rr, txt, fitLines, vivid, alpha, background, frame, newsSlide, teamLogo, card, pill, kicker, footer, topY, footY } from './social-draw.js';
+import { C, TITLE, BODY, MONO, MEDAL, rr, txt, fitLines, vivid, alpha, background, frame, newsSlide, teamLogo, card, pill, kicker, footer, topY, footY, tv } from './social-draw.js';
+import { tvBackground, tvFooter, tt, slant } from './social-draw-tv.js';
 import { lapStr } from './social-season.js';
 
 const dec = (v, n = 1) => (v == null ? '—' : Number(v).toFixed(n).replace('.', ','));
@@ -796,13 +797,16 @@ export function raceweek(ctx, W, H, d, o) {
   const u = Math.min(W, H) / 1080;
   const [c1, c2] = d.palette;
   const v = d.variant || 0;
-  // Fond : dégradé sombre teinté aux couleurs du pays
-  const g = ctx.createLinearGradient(0, 0, W, H);
-  g.addColorStop(0, '#07080c'); g.addColorStop(1, '#10131b');
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-  const glow = (x, y, r, col, a) => { const rg = ctx.createRadialGradient(x, y, 0, x, y, r); rg.addColorStop(0, rgba(col, a)); rg.addColorStop(1, rgba(col, 0)); ctx.fillStyle = rg; ctx.fillRect(0, 0, W, H); };
-  glow(v === 2 ? W * 0.15 : W * 0.85, H * 0.18, Math.max(W, H) * 0.75, c1, 0.42);
-  glow(v === 2 ? W * 0.9 : W * 0.1, H * 0.95, Math.max(W, H) * 0.6, c2, 0.16);
+  // Fond : dégradé sombre teinté aux couleurs du pays (style télé : fibre de carbone et bandes obliques)
+  if (tv) tvBackground(ctx, W, H, /^#F5F5F5$/i.test(c1) ? c2 : c1);
+  else {
+    const g = ctx.createLinearGradient(0, 0, W, H);
+    g.addColorStop(0, '#07080c'); g.addColorStop(1, '#10131b');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    const glow = (x, y, r, col, a) => { const rg = ctx.createRadialGradient(x, y, 0, x, y, r); rg.addColorStop(0, rgba(col, a)); rg.addColorStop(1, rgba(col, 0)); ctx.fillStyle = rg; ctx.fillRect(0, 0, W, H); };
+    glow(v === 2 ? W * 0.15 : W * 0.85, H * 0.18, Math.max(W, H) * 0.75, c1, 0.42);
+    glow(v === 2 ? W * 0.9 : W * 0.1, H * 0.95, Math.max(W, H) * 0.6, c2, 0.16);
+  }
   // Drapeau en grand, incliné et fondu
   if (o.flag) {
     ctx.save();
@@ -871,7 +875,8 @@ export function raceweek(ctx, W, H, d, o) {
   let y = textTop;
   txt(ctx, `MANCHE ${d.round}${d.rounds ? ` / ${d.rounds}` : ''}`, tx, y + 26 * u, { size: Math.round(30 * u), weight: 800, family: TITLE, color: /^#F5F5F5$/i.test(c1) ? c2 : c1, align, spacing: 6 * u });
   y += 30 * u;
-  txt(ctx, 'RACE', tx, y + big * 0.86, { size: big, weight: 800, family: TITLE, italic: true, align, max: colW });
+  if (tv) tt(ctx, 'RACE', tx, y + big * 0.86, big, { fill: 'chrome', align, max: colW, shadow: 20 * u });
+  else txt(ctx, 'RACE', tx, y + big * 0.86, { size: big, weight: 800, family: TITLE, italic: true, align, max: colW });
   y += big * 0.86;
   // WEEK : contour aux couleurs du pays
   ctx.save();
@@ -904,12 +909,14 @@ export function raceweek(ctx, W, H, d, o) {
     ctx.font = `800 ${Math.round(30 * u)}px ${TITLE}`;
     const w = ctx.measureText(label).width + 40 * u + label.length * 2 * u;
     const bx = right ? tx - w : tx;
-    rr(ctx, bx, y, w, 54 * u, 27 * u); ctx.fillStyle = C.red; ctx.fill();
+    if (tv) slant(ctx, bx, y, w, 54 * u, 12 * u); else rr(ctx, bx, y, w, 54 * u, 27 * u);
+    ctx.fillStyle = C.red; ctx.fill();
     txt(ctx, label, bx + w / 2, y + 37 * u, { size: Math.round(30 * u), weight: 800, family: TITLE, color: '#fff', align: 'center', spacing: 2 * u });
     y += 80 * u;
   }
   if (withPrev && d.prev) txt(ctx, `VAINQUEUR ${d.prev.year} : ${d.prev.name.toUpperCase()}`, tx, y + 20 * u, { size: Math.round(27 * u), weight: 700, family: TITLE, color: C.muted, align, spacing: 2 * u, max: colW });
   // Pied
+  if (tv) { tvFooter(ctx, W, H, o, 'HEURE DE PARIS'); return; }
   txt(ctx, o.signature || '@BenjyPaddock', pad, fy, { size: Math.round(Math.min(W, H) * 0.032), weight: 700, family: TITLE, spacing: 1 });
   txt(ctx, 'HEURE DE PARIS', W - pad, fy, { size: Math.round(Math.min(W, H) * 0.02), weight: 700, family: TITLE, color: C.muted, align: 'right', spacing: 2 });
 }
