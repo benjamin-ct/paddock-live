@@ -491,7 +491,8 @@ export class LiveRelay {
       for (const [raw, value] of Object.entries(result)) if (!raw.endsWith('.z')) snapshot[topicName(raw)] = value;
       const authenticated = 'Position.z' in result || 'CarData.z' in result;
       // Diagnostic (infobulle du badge) : connexion F1 TV envoyée mais pas de GPS dans la réponse de la F1
-      this.gpsWhy = this.token && !authenticated ? `La F1 n'envoie pas le GPS à ce relais : réponse à l'abonnement sans Position ni CarData (${Object.keys(result).length} sujets reçus, connexion F1 TV envoyée${this.gpsRetried === `${this.key}|${this.token}` ? ', déjà redemandé une fois' : ', nouvel essai une minute après la connexion'})` : null;
+      // (la F1 ne l'envoie qu'à une connexion par compte : le plus souvent un autre appareil avec une autre connexion)
+      this.gpsWhy = this.token && !authenticated ? `La F1 n'envoie pas le GPS ici : votre compte F1 TV le reçoit sans doute sur un autre appareil (téléphone, autre navigateur, appli). Fermez-le, ou reliez-le à celui-ci avec « Connexion F1 TV » : avec la même connexion, les deux ont le GPS (${Object.keys(result).length} sujets reçus${this.gpsRetried === `${this.key}|${this.token}` ? ', déjà redemandé une fois' : ', nouvel essai une minute après la connexion'})` : null;
       // Nouvelle séance (ou première connexion) : on repart de cet état
       if (key !== this.key || !this.base.t) {
         this.resetData(key);
