@@ -166,6 +166,8 @@ l'application (Réglages → À propos → Nouveautés).
   couleurs de leur écurie. Aussi dans la version web.
 - Saison → Pilotes : tous les pilotes en cartes (portrait sur la couleur de l'écurie, logo en filigrane, numéro) à faire
   défiler ; toucher une carte affiche ce pilote, présenté en grand en tête de page. Aussi dans la version web.
+- Saison : les logos d'écurie en filigrane (pilote en grand, cartes des pilotes et des écuries) sont nets, même sur les
+  écrans de téléphone, au lieu d'être flous. Aussi dans la version web.
 - Graphiques de la Saison (évolution des points, écart à la pole, départ et arrivée d'un pilote) : le drapeau de chaque
   Grand Prix sous l'axe des manches. Aussi dans la version web.
 - Saison → Classements : trois nouveaux graphiques, pour les pilotes ou les constructeurs. Évolution du classement (la

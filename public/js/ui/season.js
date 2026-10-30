@@ -574,7 +574,7 @@ function renderTeams() {
   const count = (id, test) => races.reduce((n, r) => n + r.results.filter((x) => x.teamId === id && test(x)).length, 0);
   const poles = (id) => races.filter((r) => r.quali.find((q) => q.pos === 1)?.teamId === id).length;
   const cards = data.constructors.map((c) => {
-    const col = color(c.name, c.id), logo = teamLogo(c.name, false);
+    const col = color(c.name, c.id), logo = teamLogo(c.name, false, 512);
     const drivers = data.drivers.filter((d) => d.teamId === c.id).sort((a, b) => b.points - a.points);
     const face = (d) => { const u = photoUrl({ Tla: d.code }); return `<span class="tm-drv">${u ? `<img src="${u}" alt="" loading="lazy" onerror="this.remove()">` : ''}<b>${esc(d.last || d.name)}</b><small>${d.points} pts</small></span>`; };
     return `<button type="button" class="sz-team-card" data-team-duel="${esc(c.id)}" style="--tc:${col}${logo ? `;--logo:url('${logo}')` : ''}">
@@ -1034,7 +1034,7 @@ function render() {
   for (const b of document.querySelectorAll('#szNav [data-sz]')) b.classList.toggle('active', b.dataset.sz === section);
   if ($('#szCur')) $('#szCur').textContent = $('#szNav .active')?.textContent.trim() || (section === 'gp' ? 'Grand Prix' : '');
   const st = stats?.year === data.year || stats?.error ? stats : null;
-  const ctx = { data, stats: st, color, bar, opt: seasonOpt, photo: (d) => photoUrl({ Tla: d.code }), flag: roundFlag, logo: (team) => teamLogo(team, false), official: (id) => OFFICIAL[id] || '8b95a8', ratings: ratingsFor(data, st), prev: prev?.year === data.year - 1 ? prev : null };
+  const ctx = { data, stats: st, color, bar, opt: seasonOpt, photo: (d) => photoUrl({ Tla: d.code }), flag: roundFlag, logo: (team) => teamLogo(team, false, 512), official: (id) => OFFICIAL[id] || '8b95a8', ratings: ratingsFor(data, st), prev: prev?.year === data.year - 1 ? prev : null };
   if (section === 'drivers') loadPrev();
   const fiaData = fia?.year === data.year ? fia : null;
   const html = {
