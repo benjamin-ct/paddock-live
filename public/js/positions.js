@@ -243,7 +243,9 @@ export class Positions {
     if (!est) this.est.set(num, (est = { p0: null, t0: 0, rate: 0.97, cap: Infinity, legs: new Map(), pace: 1 }));
 
     const last = parseLapTime(line.LastLapTime?.Value) || parseLapTime(line.BestLapTime?.Value);
-    if (last) est.rate = Math.max(0.3, Math.min(1.2, L / last));
+    // Tour passé en partie au garage (« 6:25.889 », plus de deux fois le tour de référence) : pas le rythme de la
+    // voiture, le précédent est gardé (sinon, au tour suivant, la voiture affichée ne pouvait pas la suivre et sautait)
+    if (last && last < 2 * L) est.rate = Math.min(1.2, L / last);
 
     const fb = this.sectorFractions(state);
     let bestQ = null;

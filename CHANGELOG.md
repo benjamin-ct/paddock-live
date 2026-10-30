@@ -67,6 +67,10 @@ l'application (Réglages → À propos → Nouveautés).
   minute jusqu'à afficher la prochaine séance.
 
 ### En direct
+- Connexion F1 TV : l'appli passe maintenant par le serveur de Paddock Live, sur le même relais que la version web
+  de ce compte. La F1 n'envoie le GPS qu'à une seule connexion par compte : l'appli, la version web et le téléphone
+  l'ont maintenant tous en même temps, sans se le reprendre. Si le serveur ne répond pas, l'appli se relie directement
+  à la F1, comme avant.
 - Carte du circuit : en revenant sur la page (autre onglet, autre appli, téléphone en veille), plus de traînées
   qui partent dans tous les sens : elles repartent de la position actuelle des voitures. Aussi dans la version web.
 - Classement en course : étiquette « DÉP » (mode dépassement, qui remplace le DRS en 2026) à côté d'un pilote passé au
@@ -79,6 +83,8 @@ l'application (Réglages → À propos → Nouveautés).
   jusqu'à leur place au lieu de sauter. Un point GPS faux envoyé par la F1 (à des kilomètres) est ignoré : la voiture
   ne saute plus. L'indication « GPS » ou « Estimées » en haut de la carte ne change plus sa
   taille. En direct et en replay, dans l'appli et la version web.
+- Carte sans GPS (positions estimées) : après un passage au garage, la voiture ne fait plus des bonds de 600 m sur
+  la piste pendant le tour suivant ; elle avance à son vrai rythme.
 - Onglet Secteurs : sous les poles et meilleurs tours des éditions précédentes, le meilleur du week-end, c'est-à-dire
   le meilleur tour des séances déjà courues du Grand Prix (temps, pilote et séance : EL2, Qualif…). En direct et en
   replay, dans l'appli et la version web.

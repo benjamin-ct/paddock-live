@@ -119,6 +119,26 @@ test('positions estimées : voiture au ralenti (plus de passage) : la voiture af
   assert.equal(pos.estimatedXY('1', t0 + 31000, 2).x, pos.estimatedProgress('1', t0 + 31000));
 });
 
+test('positions estimées : tour annoncé avec le temps passé au garage (« 6:25.889 ») : au tour suivant, la voiture ne saute pas', () => {
+  const { pos, state, events } = simulate(2);
+  const ev = events.filter((x) => x.num === '1');
+  const garage = ev.find((x) => x.upd.NumberOfLaps === 1);
+  garage.upd = { ...garage.upd, LastLapTime: { Value: '6:25.889' } };
+  const line = state.TimingData.Lines[1];
+  let e = 0, prev = null, jumps = 0;
+  for (let t = ev[0].t; t < ev.at(-1).t; t += 50) {
+    for (; e < ev.length && ev[e].t <= t; e++) {
+      const { upd } = ev[e];
+      if (upd.NumberOfLaps !== undefined) { line.NumberOfLaps = upd.NumberOfLaps; line.LastLapTime = upd.LastLapTime; }
+      pos.onTiming(state, { Lines: { 1: upd } }, ev[e].t);
+    }
+    const x = pos.estimatedXY('1', t, 0.05)?.x;
+    if (prev !== null && x - prev > 0.15) jumps++;   // plus de 3 fois sa vitesse sur une image
+    prev = x;
+  }
+  assert.equal(jumps, 0, `${jumps} bonds`);
+});
+
 test('positions estimées : avec l\'heure d\'émission des messages (direct), la voiture colle à sa vraie place', () => {
   for (const [num, r] of Object.entries(measure(true))) {
     console.log(`voiture ${num}, heure d'émission : ${r.back} reculs, ${r.jumps} bonds, ${r.stops} arrêts, écart moyen ${r.mean.toFixed(2)} s, pire ${r.worst.toFixed(2)} s`);
