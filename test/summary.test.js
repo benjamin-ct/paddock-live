@@ -25,6 +25,10 @@ test('résumé : course terminée (vainqueur, écart, remontée, stratégie, neu
   assert.match(t, /Belles remontées : Hamilton \(10e → 3e, \+7\)/);
   assert.match(t, /Stratégie de Norris : 1 arrêt \(médiums → durs\)/);
   assert.match(t, /une voiture de sécurité \(tour 12\)/);
+  // VSC écrite « VSC DEPLOYED » depuis 2026
+  const v = buildSummary({ ...state, RaceControlMessages: { Messages: [{ Message: 'VSC DEPLOYED', Lap: 51 }] } }).paragraphs.join(' ');
+  assert.match(v, /une VSC \(tour 51\)/);
+  assert.doesNotMatch(v, /voiture de sécurité/);
   assert.match(t, /Abandon : Alonso\./, 'Stroll, garé après l\'arrivée avec 52 tours, est classé');
   assert.match(t, /Pénalités : Stroll \(5 s\)/);
   assert.match(t, /Meilleur tour : Hamilton en 1:21.000 \(tour 50\)/);

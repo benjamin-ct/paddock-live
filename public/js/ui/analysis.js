@@ -253,7 +253,7 @@ export function neutralBands(state = store.state) {
     if (!lap) continue;
     const text = String(m.Message || '').toUpperCase();
     if (m.Category === 'SafetyCar') {
-      const vsc = /VIRTUAL/.test(String(m.Mode || text));
+      const vsc = /VIRTUAL|\bVSC\b/.test(`${m.Mode || ''} ${text}`);
       if (m.Status === 'DEPLOYED') { if (!cur || cur.kind !== (vsc ? 'vsc' : 'sc')) { close(lap); cur = { kind: vsc ? 'vsc' : 'sc', from: lap }; } } else if (m.Status === 'ENDING' || m.Status === 'IN THIS LAP') close(lap);
     } else if (m.Flag === 'RED' && (m.Scope === 'Track' || /RED FLAG/.test(text))) {
       close(lap);

@@ -114,7 +114,7 @@ export function postData(state, { laps = null } = {}) {
     const stints = realStints(list(app[w.num]?.Stints)).map((s) => s?.Compound).filter((c) => COMP[c]);
     if (stints.length) facts.push({ label: 'Stratégie du vainqueur', value: stints.length === 1 ? 'Sans arrêt' : `${stints.length - 1} arrêt${stints.length > 2 ? 's' : ''}`, sub: stints.map((c) => COMP[c]).join(' → '), color: w.color });
     const sc = msgs.filter((m) => /^SAFETY CAR DEPLOYED/.test(m?.Message || '')).length;
-    const vsc = msgs.filter((m) => /^VIRTUAL SAFETY CAR DEPLOYED/.test(m?.Message || '')).length;
+    const vsc = msgs.filter((m) => /^(VIRTUAL SAFETY CAR|VSC) DEPLOYED/.test(m?.Message || '')).length;
     const red = msgs.filter((m) => m?.Flag === 'RED').length;
     const neut = [sc && `${sc} safety car${sc > 1 ? 's' : ''}`, vsc && `${vsc} VSC`, red && `${red} drapeau${red > 1 ? 'x' : ''} rouge${red > 1 ? 's' : ''}`].filter(Boolean);
     facts.push({ label: 'Neutralisations', value: neut.length ? neut.join(' · ') : 'Aucune', sub: neut.length ? '' : 'Drapeau vert de bout en bout' });
