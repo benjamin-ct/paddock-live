@@ -7,6 +7,7 @@ import { teammateDuels, FLASH_KINDS, GRID_SOURCE } from './social-more.js';
 import { teamLogoPath } from './team-logos.js';
 import { followReason, questionFor } from './social-follow.js';
 import { appSlides, appPage, plain } from './social-app.js';
+import { tvBackground, tvFrame, tvCover, tvPodium, tvClassement } from './social-draw-tv.js';
 import { horaires, infos, editions, topflop, notes, equipes, positions, recapCover, recapItem, raceweek, titre, titreComment, titleBlocks } from './social-draw-season.js';
 
 export const FORMATS = {
@@ -205,6 +206,7 @@ export function vivid(hex) {
 // Fond : noir profond, deux halos de la couleur (écurie, type de news) en haut à droite et en bas à
 // gauche, un trait de lumière oblique et un grain fin (rendu « photo », sans aplats)
 export function background(ctx, W, H, accent) {
+  if (tv) { tvBackground(ctx, W, H, accent); return; }
   const g = ctx.createLinearGradient(0, 0, W * 0.3, H);
   g.addColorStop(0, C.bg2);
   g.addColorStop(1, C.bg);
@@ -231,7 +233,7 @@ export function background(ctx, W, H, accent) {
 }
 // Grain : motif de bruit tiré une fois (le même à chaque image d'une vidéo, sans scintillement)
 let noise = null;
-function grain(ctx, W, H) {
+export function grain(ctx, W, H) {
   if (noise === null) {
     noise = false;
     const c = typeof OffscreenCanvas !== 'undefined' ? new OffscreenCanvas(160, 160) : typeof document !== 'undefined' ? Object.assign(document.createElement('canvas'), { width: 160, height: 160 }) : null;
@@ -256,6 +258,8 @@ let page = null;
 // le champ « Envoyer un message » en bas (~300 px), comme Reels, TikTok et Shorts leur interface ; rien d'important
 // dessous.
 let safe = false;
+// Style « Télé premium » choisi dans le Studio (o.style = 'tv') : fond, en-tête et visuels de social-draw-tv.js
+let tv = false;
 export const topY = (W, H) => (safe ? 230 : Math.round(Math.min(W, H) * 0.06));
 export const footY = (W, H) => H - (safe ? 300 : Math.round(Math.min(W, H) * 0.045));
 // Points de progression du carrousel, centrés sur x
@@ -296,6 +300,7 @@ export function frame(ctx, W, H, d, o, title) {
   const m = Math.min(W, H);
   const u = m / 1080;
   trackMark(ctx, W, H, o.shape);
+  if (tv) return tvFrame(ctx, W, H, d, o, title);
   const pad = Math.round(W * 0.055);
   const top = topY(W, H);
   let x = pad;
@@ -1321,7 +1326,8 @@ export function videoCover(ctx, W, H, d, o = {}) {
 export function paintSlide(ctx, slide, fmt, d, o = {}, size = null) {
   page = o.slides?.includes(slide) ? { n: o.slides.indexOf(slide) + 1, total: o.slides.length } : null;
   safe = fmt === 'story';
-  try { paintOne(ctx, slide, fmt, d, o, size); } finally { page = null; safe = false; }
+  tv = o.style === 'tv';
+  try { paintOne(ctx, slide, fmt, d, o, size); } finally { page = null; safe = false; tv = false; }
 }
 function paintOne(ctx, slide, fmt, d, o, size) {
   const [w, h] = size || [FORMATS[fmt].w, FORMATS[fmt].h];
@@ -1351,12 +1357,13 @@ function paintOne(ctx, slide, fmt, d, o, size) {
   else if (slide === 'champecuries') standings(ctx, w, h, d, o, 'Constructeurs', d.champ.teams.map((r) => ({ ...r, label: r.name.toUpperCase() })));
   else if (slide === 'duels') duels(ctx, w, h, d, o);
   else if (slide === 'flash') flash(ctx, w, h, d, o);
+  else if (slide === 'couverture' && tv && !d.post && d.rows?.length) tvCover(ctx, w, h, d, o, fmt);
   else if (slide === 'couverture') cover(ctx, w, h, d, o, (o.slides ? o.slides.filter((s) => s !== 'couverture' && s !== 'abonnement' && s !== 'question') : slidesFor(d).slice(1)).slice(0, fmt === 'x' ? 3 : undefined), fmt);
   else if (slide === 'vainqueur') hero(ctx, w, h, d, o, 'VAINQUEUR');
   else if (slide === 'pole') hero(ctx, w, h, d, o, 'POLE POSITION');
   else if (slide === 'meilleurtemps') hero(ctx, w, h, d, o, 'MEILLEUR TEMPS');
-  else if (slide === 'podium') podium(ctx, w, h, d, o);
-  else if (slide === 'classement') classement(ctx, w, h, d, o);
+  else if (slide === 'podium') (tv ? tvPodium : podium)(ctx, w, h, d, o);
+  else if (slide === 'classement') (tv ? tvClassement : classement)(ctx, w, h, d, o);
   else if (slide === 'remontees') remontees(ctx, w, h, d, o);
   else if (slide === 'strategie') strategie(ctx, w, h, d, o);
   else if (slide === 'faits') faits(ctx, w, h, d, o);
