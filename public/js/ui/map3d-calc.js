@@ -193,3 +193,39 @@ export function wallCuts(parts, pit) {
   });
   return [...out].sort((x, y) => x - y);
 }
+
+// Voie des stands raccordée à la piste. pit : points du milieu de la voie [[x, z]…] (m, tous les 2 m environ, moyenne du
+// GPS des voitures : elle part du milieu de la piste et y revient, en biais sur des dizaines de mètres, et zigzague un
+// peu) ; near(x, z) -> [x, z, sx, sz] : point le plus proche du milieu de la piste et direction de sa droite (unitaire) ;
+// half : demi-largeur de la piste, lane : largeur de la voie, gap : herbe entre la piste et la voie (vibreurs), ramp :
+// longueur du raccord, tip : longueur de la pointe (m). Voie lissée sur ± 10 m, écartée de la piste pour la longer à
+// côté, et qui ne glisse dessous qu'à ses ramp premiers et derniers mètres, en pente douce, jusqu'à y être tout entière à
+// ses bouts (cachée par la piste) ; pointe effilée, pas de bout carré. Côté : celui où la voie quitte (ou rejoint) la
+// piste ; ailleurs, celui du point (une voie qui passe sous la piste, en tunnel, reste cachée par elle).
+// -> [{ x, z, w : largeur, edge : [x, z] du bord côté piste quand la voie longe la piste (ligne blanche), sinon null }]
+export function pitRoute(pit, near, { half = 7, lane = 7, gap = 1.8, ramp = 60, tip = 15 } = {}) {
+  const n = pit.length;
+  if (n < 2) return [];
+  const pts = pit.map((_, i) => {
+    const k = Math.min(5, i, n - 1 - i);
+    let x = 0, z = 0;
+    for (let j = i - k; j <= i + k; j++) { x += pit[j][0]; z += pit[j][1]; }
+    return [x / (2 * k + 1), z / (2 * k + 1)];
+  });
+  const s = [0];
+  for (let i = 1; i < n; i++) s.push(s[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+  const L = s[n - 1], at = pts.map(([x, z]) => near(x, z));
+  const d = pts.map(([x, z], i) => (x - at[i][0]) * at[i][2] + (z - at[i][1]) * at[i][3]);   // écart au milieu de la piste (signé)
+  const endSide = (first) => Math.sign(d.reduce((t, v, i) => t + ((first ? s[i] : L - s[i]) <= ramp ? v : 0), 0)) || 1;
+  const sides = [endSide(true), endSide(false)];
+  const smooth = (u) => { const t = Math.min(1, Math.max(0, u)); return t * t * (3 - 2 * t); };
+  const inner = half - lane / 2, outer = half + gap + lane / 2;
+  return pts.map(([x, z], i) => {
+    const u = Math.min(s[i], L - s[i]), [, , sx, sz] = at[i];
+    const side = u <= ramp || Math.abs(d[i]) < half ? sides[s[i] <= L / 2 ? 0 : 1] : Math.sign(d[i]);
+    const want = inner + (outer - inner) * smooth(u / ramp), push = Math.max(0, want - side * d[i]);
+    const px = x + sx * side * push, pz = z + sz * side * push, w = lane * smooth(u / tip);
+    const edge = side * d[i] + push <= outer + 0.5 ? [px - sx * side * (w / 2 - 0.2), pz - sz * side * (w / 2 - 0.2)] : null;
+    return { x: px, z: pz, w, edge };
+  });
+}

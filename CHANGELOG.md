@@ -97,7 +97,7 @@ l'application (Réglages → À propos → Nouveautés).
 - Carte en 3D (case « 3D » du panneau Circuit, à cocher quand on la veut ; la carte s'ouvre toujours en 2D) : la piste avec son vrai relief, qui
   monte et descend en pente continue, sans marches (le Raidillon de Spa monte comme en vrai), ses vibreurs, la ligne
   d'arrivée et la grille de départ (avant le départ d'une course ou d'un sprint, les voitures attendent dans leur case,
-  dans l'ordre de la grille, puis s'élancent), le bâtiment des stands le long de la voie des stands, et des voitures en forme de vraie F1 2026 aux couleurs des écuries (nez fin, ailerons à plusieurs
+  dans l'ordre de la grille, puis s'élancent), la voie des stands, qui se détache de la piste en pente douce, sur le côté et avec sa ligne blanche, longe le bâtiment des stands et rejoint la piste en douceur, sans la couper en biais ni finir en bout carré (sur chaque circuit), et des voitures en forme de vraie F1 2026 aux couleurs des écuries (nez fin, ailerons à plusieurs
   éléments, pontons, halo, roues larges, casque du pilote), en direct comme en replay. Sur le flanc des pneus, un
   liseré de la couleur du composé monté (tendre rouge, medium jaune, dur blanc, intermédiaire vert, pluie bleu),
   qui change à chaque arrêt. Chaque voiture porte le numéro de son pilote sur le nez et la dérive, et une deuxième
