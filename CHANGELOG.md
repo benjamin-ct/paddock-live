@@ -167,6 +167,8 @@ l'application (Réglages → À propos → Nouveautés).
 - Saison → Écuries (nouvelle rubrique) : une carte par écurie à sa couleur, logo en filigrane, place et points au
   championnat, ses pilotes en portrait avec leurs points, victoires, podiums et poles ; toucher une écurie ouvre le duel
   de ses pilotes. Aussi dans la version web.
+- Saison : pendant le chargement, la page apparaît en gris (cartes et blocs qui scintillent) au lieu d'un simple message.
+  Aussi dans la version web.
 - Les curseurs (volume, seuil des tours propres, temps perdu au stand, fond des overlays…) ont un nouveau style, assorti
   au reste de l'appli : piste fine remplie jusqu'à la valeur et bouton rond. Aussi dans la version web.
 - Panneau Duel : la flèche du duel automatique choisie (contre la voiture devant ou derrière) ressort de nouveau en

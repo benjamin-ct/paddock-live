@@ -4,7 +4,7 @@
 // analyse des archives F1 Live Timing (/api/season/stats).
 import { $, esc, api, teamColor, teamLogo, photoUrl, placeView, driverOpt } from '../util.js';
 import { store } from '../store.js';
-import { renderDrivers, renderConsistency, renderPits, renderSpeeds, renderCircuits, renderRatings, gradeBadge, stopTxt, DHL_NOTE, statusFr, fmtLap, dnaBlock, setHistKind, circuitLength } from './season-stats.js';
+import { skeleton, renderDrivers, renderConsistency, renderPits, renderSpeeds, renderCircuits, renderRatings, gradeBadge, stopTxt, DHL_NOTE, statusFr, fmtLap, dnaBlock, setHistKind, circuitLength } from './season-stats.js';
 import { driverRatings, qualiGaps, titleRace, placeForMaxPoints, retired, standingsAfter, lineage, pointsPath, shortTeams, teamPoleGaps, median, teamMileage } from '/shared/season-calc.js';
 import { renderTech, renderElements, setTechFilter, translateTechDetail, toggleTechOriginal } from './season-fia.js';
 import { icon } from '../icons.js';
@@ -151,7 +151,7 @@ async function load(force = false) {
   if ((loading === year) || (data?.year === year && !force)) return;
   const y = year;
   loading = y;
-  $('#szContent').innerHTML = `<div class="note">Chargement de la saison ${y}…</div>`;
+  $('#szContent').innerHTML = skeleton(t('Chargement de la saison {}…', y));
   let d;
   try {
     d = shortTeams(await api(`/api/season?year=${y}`));

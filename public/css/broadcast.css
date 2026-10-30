@@ -214,3 +214,19 @@ html.float-map .rc-bar { display: none !important; }
 .tm-drv small { font-size: 12px; color: rgba(255, 255, 255, .7); align-self: start; }
 .sz-team-card .tm-stats { grid-column: 1 / -1; display: flex; gap: 14px; margin-top: 18px; font-size: 12.5px; color: rgba(255, 255, 255, .78); }
 .sz-team-card .tm-stats b { font-size: 16px; color: #fff; }
+/* Chargement : squelette de la page (cartes et blocs gris qui scintillent) */
+.sz-skel { display: grid; gap: 12px; }
+.sz-skel-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
+.sz-skel-cards i, .sz-skel-box i { display: block; border-radius: 8px; background: var(--panel-2); }
+.sz-skel-cards i { height: 110px; border: 1px solid var(--border); background: var(--panel); position: relative; overflow: hidden; }
+.sz-skel-box { display: grid; gap: 10px; padding: 18px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel); }
+.sz-skel-box i { height: 14px; }
+.sz-skel-box i.t { width: 38%; height: 20px; margin-bottom: 6px; }
+.sz-skel-box i.g { height: 220px; }
+.sz-skel-box i:nth-child(odd):not(.t):not(.g) { width: 86%; }
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-motion="off"]) :is(.sz-skel-cards i, .sz-skel-box i) {
+    background-image: linear-gradient(90deg, transparent, color-mix(in srgb, var(--text) 7%, transparent), transparent);
+    background-size: 200% 100%; background-repeat: no-repeat; animation: sz-shimmer 1.4s ease-in-out infinite; }
+}
+@keyframes sz-shimmer { from { background-position: 150% 0; } to { background-position: -50% 0; } }

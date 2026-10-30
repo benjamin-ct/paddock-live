@@ -108,8 +108,15 @@ function pointsVsPrev(drv, data, prev, col) {
     ${diff !== null ? `<div class="small muted">Après ${now.length} courses : <b class="${diff >= 0 ? 'sz-up' : 'sz-down'}">${diff >= 0 ? '+' : ''}${diff} pts</b> par rapport à ${data.year - 1} (${now.at(-1)} contre ${same}).</div>` : ''}`;
 }
 
+// Squelette affiché pendant un chargement : cartes et blocs gris qui scintillent, à la place de la page qui arrive
+export function skeleton(label) {
+  return `<div class="sz-skel" aria-busy="true"><div class="muted small">${esc(label)}</div>
+    <div class="sz-skel-cards">${'<i></i>'.repeat(4)}</div>
+    <div class="sz-skel-box"><i class="t"></i>${'<i></i>'.repeat(6)}</div><div class="sz-skel-box"><i class="t"></i><i class="g"></i></div></div>`;
+}
+
 function pendingNote(stats) {
-  if (!stats) return '<div class="note">Chargement des statistiques détaillées…</div>';
+  if (!stats) return skeleton('Chargement des statistiques détaillées…');
   if (stats.error) return `<div class="note">Statistiques détaillées indisponibles (${esc(stats.error)}).</div>`;
   if (stats.pending || stats.done < stats.total) {
     return `<div class="note">${stats.pending ? `${icon('hourglass')} Analyse des courses de la saison` : 'Courses analysées'} : <b>${stats.done} / ${stats.total}</b></div>`;
