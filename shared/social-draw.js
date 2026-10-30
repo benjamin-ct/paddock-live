@@ -463,8 +463,10 @@ function podium(ctx, W, H, d, o) {
   const order = [1, 0, 2].filter((i) => top3[i]);
   const colW = (W - f.pad * 2) / 3;
   const baseY = f.bottom - 30 * u;
-  const heights = H > 1600 ? [800, 670, 560] : [380, 300, 240];
   const r = Math.min(H > 1600 ? 175 : 125, colW * (H > 1600 ? 0.52 : 0.42));
+  // Marches réduites si besoin : la photo du vainqueur (au-dessus de la plus haute) reste sous l'en-tête
+  const k0 = Math.min(1, (baseY - f.top - 190 - 2 * r) / (H > 1600 ? 800 : 380));
+  const heights = (H > 1600 ? [800, 670, 560] : [380, 300, 240]).map((h) => h * k0);
   order.forEach((i, k) => {
     const p = top3[i];
     const cx = f.pad + colW * k + colW / 2;
@@ -573,10 +575,11 @@ function championnat(ctx, W, H, d, o) {
       txt(ctx, String(r.points ?? ''), x + w - 16, mid, { size: Math.round(fs * 1.05), weight: 800, family: TITLE, align: 'right', italic: true });
     });
   };
-  const avail = f.bottom - f.top - 120;
-  const rowH = Math.min(H > 1600 ? 74 : 58, avail / (drv.length + teams.length));
+  // Constructeurs pas encore connus : pas de titre seul, les pilotes prennent la place
+  const avail = f.bottom - f.top - (teams.length ? 120 : 50);
+  const rowH = Math.min(H > 1600 ? (teams.length ? 74 : 96) : (teams.length ? 58 : 76), avail / (drv.length + teams.length));
   list(drv, f.pad, f.top + 10, W - f.pad * 2, rowH, 'PILOTES', (r) => r.last.toUpperCase());
-  list(teams, f.pad, f.top + 10 + 20 + drv.length * rowH + 70, W - f.pad * 2, rowH, 'CONSTRUCTEURS', (r) => r.name.toUpperCase());
+  if (teams.length) list(teams, f.pad, f.top + 10 + 20 + drv.length * rowH + 70, W - f.pad * 2, rowH, 'CONSTRUCTEURS', (r) => r.name.toUpperCase());
   txt(ctx, d.final ? 'Après la course' : 'Projection en cours de course', W - f.pad, f.bottom + 24, { size: 28, weight: 600, color: C.muted, align: 'right' });
 }
 
