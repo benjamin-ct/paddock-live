@@ -6,16 +6,25 @@ import { agent, request, USER_AGENT } from './net.js';
 import { LIVE_TOPICS, topicName } from '../shared/f1.js';
 import { readRecording } from './recorder.js';
 import { PROBE_TOPICS, isProbe, probeAnswer, probeFeed } from './feed-probe.js';
+import { relayId } from '../shared/f1tv-account.js';
 
 const BASE = 'https://livetiming.formula1.com/signalrcore';
 const WS_URL = 'wss://livetiming.formula1.com/signalrcore';
 const RS = '\x1e';
+// Avec un jeton F1 TV, l'appli se relie au relais du direct de son compte sur le serveur de Paddock Live
+// (analytics/live-relay.js) plutôt qu'à la F1 : la F1 n'envoie le GPS qu'à une connexion par compte, et ce relais la
+// partage entre l'appli, la version web et le téléphone. Adresse vide : connexion directe à la F1, comme avant
+export const RELAY_URL = process.env.PADDOCK_RELAY_URL ?? 'wss://app.paddocklive.app/live/ws';
+const RELAY_KEEP_MS = 5 * 60e3;   // historique gardé par le relais (KEEP_MS) : tout est demandé
 
 export class LiveSource {
-  constructor(hub, getToken, recorder = null) {
+  constructor(hub, getToken, recorder = null, relayUrl = RELAY_URL) {
     this.hub = hub;
     this.getToken = getToken;
     this.recorder = recorder;
+    this.relayUrl = relayUrl;
+    this.relayFails = 0;     // essais du relais sans réponse : au troisième, connexion directe à la F1
+    this.relayOff = null;    // jeton pour lequel le relais a refusé ou ne répond pas (connexion directe)
     this.pending = null; // messages reçus pendant la relecture de l'enregistrement
     this.ws = null;
     this.active = false;
@@ -75,6 +84,8 @@ export class LiveSource {
   }
 
   here() {
+    // Par le relais : c'est lui qui reprend le GPS à l'autre appareil
+    if (this.ws?.relay) { try { this.ws.send(JSON.stringify({ type: 'here' })); } catch { /* fermée : reconnexion en cours */ } return; }
     this.elsewhere = false;
     this.losses = [];
     this.retry = 0;
@@ -104,6 +115,7 @@ export class LiveSource {
   async connect() {
     if (!this.active) return;
     const token = this.elsewhere ? null : this.getToken();
+    if (token && this.relayUrl && this.relayOff !== token) return this.connectRelay(token);
     const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
     try {
       const res = await request(`${BASE}/negotiate?negotiateVersion=1`, {
@@ -170,6 +182,105 @@ export class LiveSource {
       this.setStatus({ connected: false, error: err.message });
       this.scheduleReconnect();
     }
+  }
+
+  // Relais du compte F1 TV (?u= : empreinte du compte) : il envoie l'état d'il y a 5 min (base), les messages depuis,
+  // le GPS (hello), puis au fil de l'eau (evs) et son état (up). Horodatages du relais remis à l'heure de l'ordinateur
+  async connectRelay(token) {
+    const url = `${this.relayUrl}?d=${RELAY_KEEP_MS}&u=${await relayId(token)}`;
+    if (!this.active) return;
+    const ws = new WebSocket(url, {
+      ...(url.startsWith('wss:') ? { agent } : {}),
+      headers: { 'User-Agent': `${USER_AGENT} (relais)`, Origin: 'https://app.paddocklive.app' },
+      handshakeTimeout: 15000,
+    });
+    ws.relay = true;
+    this.ws = ws;
+    this.token = token;
+    let hello = false;
+    let queue = Promise.resolve();   // messages traités dans l'ordre (relecture de l'enregistrement local)
+    ws.on('open', () => {
+      ws.send(JSON.stringify({ type: 'auth', token }));
+      this.lastMessageAt = Date.now();
+      this.timers.push(setInterval(() => {
+        // Relais au repos hors séance : plus de messages, la connexion reste ouverte
+        if (this.status.rest) return;
+        if (Date.now() - this.lastMessageAt > 25000 && !this.status.stale) this.setStatus({ stale: true });
+        if (Date.now() - this.lastMessageAt > 60000) {
+          this.setStatus({ error: 'Plus de données depuis 60 s, reconnexion…' });
+          this.scheduleReconnect();
+        }
+      }, 10000));
+    });
+    ws.on('message', (data) => {
+      this.lastMessageAt = Date.now();
+      if (this.status.stale) this.setStatus({ stale: false });
+      let m;
+      try { m = JSON.parse(data.toString()); } catch { return; }
+      if (m.type === 'hello') { hello = true; this.relayFails = 0; this.retry = 0; this.relayOffset = Date.now() - m.now; }
+      const off = this.relayOffset || 0;
+      queue = queue.then(() => this.onRelay(m, off)).catch((err) => console.warn('[live] relais :', err.message));
+    });
+    ws.on('close', (code) => {
+      if (this.ws !== ws) return;
+      // 4001 : connexion F1 TV refusée par le relais. Trois essais sans réponse (serveur injoignable, refus) :
+      // connexion directe à la F1 jusqu'au prochain jeton
+      if (code === 4001 || (!hello && ++this.relayFails >= 3)) {
+        console.warn(`[live] relais du compte indisponible (${code}) : connexion directe à la F1`);
+        this.relayOff = token;
+        this.relayFails = 0;
+      }
+      this.setStatus({ connected: false, error: `Connexion fermée (${code}), reconnexion…` });
+      this.scheduleReconnect();
+    });
+    ws.on('error', (err) => {
+      if (this.ws !== ws) return;
+      this.setStatus({ connected: false, error: err.message });
+      ws.emit('close', 1006);
+    });
+  }
+
+  async onRelay(m, off) {
+    if (m.type === 'hello') {
+      const info = m.base?.t ? m.base.state?.SessionInfo : null;
+      if (info?.Key != null && info.Key !== this.hub.sessionKey) {
+        // Séance nouvelle pour l'appli : historique de l'enregistrement local s'il y en a un (redémarrage pendant la
+        // séance, délai TV de plus de 5 min), sinon l'état de base du relais
+        this.hub.reset({ mode: 'live', label: 'Live', ...this.status });
+        this.hub.sessionKey = info.Key;
+        this.relayT = this.relayS = -Infinity;
+        const file = this.recorder?.open(info);
+        const { events, stream } = file ? await readRecording(file).catch(() => ({ events: [], stream: [] })) : { events: [], stream: [] };
+        if (events.length || stream.length) {
+          this.hub.preload(events, stream);
+          this.relayT = (events.at(-1)?.t ?? -Infinity) - off;
+          this.relayS = (stream.at(-1)?.t ?? -Infinity) - off;
+        } else this.relayEvent('__snapshot', m.base.state, m.base.t, off);
+        this.hub.source.session = sessionLabel(info);
+      }
+    }
+    if (m.type === 'hello' || m.type === 'evs') {
+      // Reconnexion pendant la séance : seuls les messages pas encore reçus sont ajoutés (heure du relais)
+      for (const [topic, data, t, utc] of m.events || []) this.relayEvent(topic, data, t, off, utc);
+      for (const [topic, raw, t] of m.stream || []) {
+        if (this.hub.sessionKey === null || t <= this.relayS) continue;
+        this.relayS = t;
+        this.addStream(topic, raw, t + off);
+      }
+    }
+    if (m.status) {
+      const st = m.status;
+      this.setStatus({ connected: !!st.connected, authenticated: !!st.authenticated, error: st.error || null, elsewhere: !!st.elsewhere, rest: !!st.rest });
+      if (st.session) this.hub.source.session = st.session;
+    }
+  }
+
+  // t : heure du relais ; off : écart avec l'heure de l'ordinateur
+  relayEvent(topic, data, t, off, utc) {
+    if (this.hub.sessionKey === null || t <= this.relayT) return;
+    this.relayT = t;
+    if (topic === 'TimingData') this.lastTimingAt = Date.now();
+    this.addEvent(topic, data, t + off, utc);
   }
 
   onFrame(frame) {

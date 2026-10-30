@@ -59,7 +59,7 @@
 - Avant de pousser : `npm test`.
 - **Serveur local de test** (essais, captures, agents) : le lancer sans rien envoyer au Worker en production, sinon les
   replays de test sont traduits et transcrits en production (crédits Claude) :
-  `PADDOCK_TRANSLATE_URL= PADDOCK_RADIO_URL= PADDOCK_STATS_URL= PADDOCK_FEEDBACK_URL= PADDOCK_PRONOS_URL= PADDOCK_STUDIO_URL= node server/index.js`
+  `PADDOCK_TRANSLATE_URL= PADDOCK_RADIO_URL= PADDOCK_STATS_URL= PADDOCK_FEEDBACK_URL= PADDOCK_PRONOS_URL= PADDOCK_STUDIO_URL= PADDOCK_RELAY_URL= node server/index.js`
   (adresse vide = fonction coupée).
 - **Versions anglaise, italienne et espagnole** : tout nouveau texte affiché a sa traduction dans `public/js/i18n-en.js`,
   `public/js/i18n-it.js` et `public/js/i18n-es.js` (clé = texte français, `{}` pour les valeurs ; tutoiement en italien

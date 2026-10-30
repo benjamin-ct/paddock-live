@@ -23,6 +23,7 @@ import { forecast } from '../shared/forecast.js';
 import { validHeadshot } from '../shared/portraits.js';
 import { buildIcs } from '../shared/ics.js';
 import { WEB_HIST_MS } from '../shared/live-delay.js';
+import { accountOf, relayId } from '../shared/f1tv-account.js';
 
 const BASE = 'https://livetiming.formula1.com/signalrcore';
 const UA = 'Mozilla/5.0 (Paddock-Live web relay)';
@@ -53,11 +54,8 @@ export function f1tvToken(t) {
     return pl.SubscriptionStatus || pl.subscriptionStatus || pl.SubscribedProduct ? t : null;
   } catch { return null; }
 }
-// Relais d'un abonné : un par compte F1 TV (identifiant d'abonné du jeton), pour que tous ses appareils le partagent,
-// quelle que soit la connexion reçue (extension, appairage, renouvelée) : la F1 n'envoie le GPS qu'à une connexion par compte
 const payload = (t) => { try { return JSON.parse(atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))); } catch { return {}; } };
-export const accountOf = (t) => { const p = payload(t); return String(p.SubscriberId || p.hashedSubscriberId || t); };
-export const relayId = async (token) => [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(accountOf(token))))].map((b) => b.toString(16).padStart(2, '0')).join('').slice(0, 32);
+export { accountOf, relayId };
 
 export class LiveRelay {
   constructor(ctx, env) {
