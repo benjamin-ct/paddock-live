@@ -82,6 +82,9 @@ l'application (Réglages → À propos → Nouveautés).
 - Classement en course : l'intervalle avec la voiture devant s'affiche aussi en mode Essentiel ; un pilote qui abandonne
   n'a plus d'écart affiché à côté de « ABD ».
 - Replay : la Télémétrie dit « Pas de télémétrie dans ce replay » au lieu de proposer la connexion F1 TV du direct.
+- Radios d'équipe : une radio mal reconnue par la transcription automatique n'est plus remplacée en entier par « […] ».
+  Les mots du métier mal entendus (sous-virage, arrière, « box »…) sont corrigés et le reste est traduit ; si rien n'est
+  compréhensible, la transcription anglaise s'affiche avec « radio peu audible ».
 - Voiture de sécurité virtuelle : depuis cette saison, la direction de course l'annonce « VSC DEPLOYED », que l'appli
   ne reconnaissait plus. Les VSC sont de nouveau comptées dans le résumé de la séance, et le panneau Analyse les
   marque bien VSC. En direct et en replay, dans l'appli et la version web.

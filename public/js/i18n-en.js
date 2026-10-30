@@ -2748,4 +2748,5 @@ export default {
   "Fantôme : meilleur tour de {} ({})": "Ghost: best lap by {} ({})",
   "Fantôme : pas encore de meilleur tour avec les positions GPS": "Ghost: no best lap with GPS positions yet",
   "Fantôme : il faut les positions GPS des voitures": "Ghost: needs the cars' GPS positions",
+  "radio peu audible : pas de traduction": "faint radio: no translation",
 };

@@ -2747,4 +2747,5 @@ export default {
   "Fantôme : meilleur tour de {} ({})": "Fantasma: giro più veloce di {} ({})",
   "Fantôme : pas encore de meilleur tour avec les positions GPS": "Fantasma: ancora nessun giro più veloce con le posizioni GPS",
   "Fantôme : il faut les positions GPS des voitures": "Fantasma: servono le posizioni GPS delle auto",
+  "radio peu audible : pas de traduction": "radio poco udibile: nessuna traduzione",
 };
