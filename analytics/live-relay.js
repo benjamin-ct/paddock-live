@@ -53,7 +53,11 @@ export function f1tvToken(t) {
     return pl.SubscriptionStatus || pl.subscriptionStatus || pl.SubscribedProduct ? t : null;
   } catch { return null; }
 }
-export const relayId = async (token) => [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token)))].map((b) => b.toString(16).padStart(2, '0')).join('').slice(0, 32);
+// Relais d'un abonné : un par compte F1 TV (identifiant d'abonné du jeton), pour que tous ses appareils le partagent,
+// quelle que soit la connexion reçue (extension, appairage, renouvelée) : la F1 n'envoie le GPS qu'à une connexion par compte
+const payload = (t) => { try { return JSON.parse(atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))); } catch { return {}; } };
+export const accountOf = (t) => { const p = payload(t); return String(p.SubscriberId || p.hashedSubscriberId || t); };
+export const relayId = async (token) => [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(accountOf(token))))].map((b) => b.toString(16).padStart(2, '0')).join('').slice(0, 32);
 
 export class LiveRelay {
   constructor(ctx, env) {
@@ -75,9 +79,10 @@ export class LiveRelay {
     for (const ws of ctx.getWebSockets?.() || []) this.track(ws, ws.deserializeAttachment?.() || {});
   }
 
-  track(ws, { nets = [], ua, since = Date.now(), name }) {
+  track(ws, { nets = [], ua, since = Date.now(), name, ok = false }) {
     if (name) this.name = name;
     this.clients.add(ws);
+    ws.ok = ok;   // relais d'un abonné : cet appareil a présenté une connexion F1 TV de ce compte
     ws.nets = nets;
     ws.ua = ua;
     ws.since = since;
@@ -125,7 +130,7 @@ export class LiveRelay {
     // alors au relais commun), et toute connexion au bout de PRIVATE_MS (la page se reconnecte d'elle-même)
     if (priv) {
       const end = (code, why) => { try { server.close(code, why); } catch { /* déjà fermée */ } drop(); };
-      this.timers.push(setTimeout(() => { if (!this.userToken) end(4001, 'Connexion F1 TV attendue'); }, AUTH_MS));
+      this.timers.push(setTimeout(() => { if (!server.ok) end(4001, 'Connexion F1 TV attendue'); }, AUTH_MS));
       this.timers.push(setTimeout(() => end(4000, 'Reconnexion'), PRIVATE_MS));
     }
     // Relais au repos, même après une veille complète (réveil programmé) : la page reçoit « Hors séance » et la F1
@@ -136,7 +141,9 @@ export class LiveRelay {
     }
     // ?d= : délai TV du navigateur, pour ne lui envoyer que le GPS et la télémétrie utiles
     const d = Number(new URL(req.url).searchParams.get('d'));
-    this.hello(server, Date.now() - (Number.isFinite(d) ? Math.min(Math.max(d, 0), KEEP_MS) : KEEP_MS) - HIST_MS);
+    server.from = Date.now() - (Number.isFinite(d) ? Math.min(Math.max(d, 0), KEEP_MS) : KEEP_MS) - HIST_MS;
+    // Relais d'un abonné : rien n'est envoyé avant que cet appareil présente sa propre connexion F1 TV du compte
+    if (!priv) this.hello(server, server.from);
     if (this.resting) { clearTimeout(this.idle); this.idle = null; } else this.start();
     return new Response(null, { status: 101, webSocket: client });
   }
@@ -152,9 +159,9 @@ export class LiveRelay {
       this.send(ws, JSON.stringify({ type: 'stream', items: this.streamBetween(m.from, m.to) }));
     }
     // Relais d'un abonné : sa connexion F1 TV (renvoyée par la page à chaque connexion et quand elle change)
-    if (m?.type === 'auth' && priv) this.auth(m.token);
+    if (m?.type === 'auth' && priv) this.auth(m.token, ws);
     // GPS laissé à un autre appareil : repris ici à la demande de la page
-    if (m?.type === 'here' && priv) this.here();
+    if (m?.type === 'here' && priv && ws.ok) this.here();
   }
 
   webSocketClose(ws) { this.drop(ws); }
@@ -243,10 +250,17 @@ export class LiveRelay {
     return { count: this.clients.size, authenticated: !!this.userToken, devices: [...this.clients].map((c) => ({ ua: c.ua || 'Appareil', since: Math.max(0, Math.round((now - (c.since || now)) / 1000)) })).sort((a, b) => b.since - a.since) };
   }
 
-  // Connexion F1 TV d'un abonné : acceptée seulement si elle correspond à ce relais (son empreinte en est le nom)
-  async auth(t) {
+  // Connexion F1 TV d'un appareil : acceptée seulement si elle est de ce compte (son empreinte est le nom du relais).
+  // L'appareil reçoit alors le direct ; le relais garde la connexion qui expire le plus tard pour parler à la F1
+  async auth(t, ws = null) {
     const token = f1tvToken(t);
-    if (!token || token === this.userToken || `u:${await relayId(token)}` !== this.name) return;
+    if (!token || `u:${await relayId(token)}` !== this.name) return;
+    if (ws && !ws.ok) {
+      ws.ok = true;
+      try { ws.serializeAttachment?.({ ...(ws.deserializeAttachment?.() || {}), ok: true }); } catch { /* sans hibernation */ }
+      this.hello(ws, ws.from || 0);
+    }
+    if (token === this.userToken || (this.userToken && payload(token).exp <= payload(this.userToken).exp)) return;
     const first = !this.userToken;
     this.userToken = token;
     if (first) this.connect();                                   // en attente de la connexion : on y va
@@ -292,6 +306,7 @@ export class LiveRelay {
   }
 
   send(ws, str) {
+    if (!ws.ok && this.name.startsWith('u:')) return;   // appareil pas encore reconnu sur le relais d'un abonné
     try { ws.send(str); } catch { this.drop(ws); }
   }
 

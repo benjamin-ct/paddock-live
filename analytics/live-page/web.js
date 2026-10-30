@@ -41,7 +41,9 @@ let relay = {};
 // (empreinte, pas le jeton) désigne ce relais pour les radios réservées aux abonnés
 let f1tv = null, relayId = '';
 const F1TV_KEY = 'paddock.f1tv';
-const sha = async (t) => [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t)))].map((b) => b.toString(16).padStart(2, '0')).join('').slice(0, 32);
+// Empreinte du relais : celle du compte F1 TV (identifiant d'abonné du jeton), la même sur tous ses appareils
+const account = (t) => { try { const p = JSON.parse(atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))); return String(p.SubscriberId || p.hashedSubscriberId || t); } catch { return t; } };
+const sha = async (t) => [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(account(t))))].map((b) => b.toString(16).padStart(2, '0')).join('').slice(0, 32);
 // JWT F1 TV encore valable (contrôle d'expiration côté navigateur ; la F1 fait la vraie vérification)
 const tokenExp = (tok) => { try { return (JSON.parse(atob(tok.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).exp || 0) * 1000; } catch { return 0; } };
 // Connexion F1 TV reçue (extension, ou appairage d'un téléphone) : gardée en mémoire et sur cet appareil (son
