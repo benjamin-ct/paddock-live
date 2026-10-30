@@ -7,7 +7,7 @@ import { teammateDuels, FLASH_KINDS, GRID_SOURCE } from './social-more.js';
 import { teamLogoPath } from './team-logos.js';
 import { followReason, questionFor } from './social-follow.js';
 import { appSlides, appPage, plain } from './social-app.js';
-import { tvBackground, tvFrame, tvCover, tvPodium, tvClassement } from './social-draw-tv.js';
+import { TV_TITLE, tvBackground, tvFrame, tvFooter, tvCover, tvPodium, tvClassement, slant } from './social-draw-tv.js';
 import { horaires, infos, editions, topflop, notes, equipes, positions, recapCover, recapItem, raceweek, titre, titreComment, titleBlocks } from './social-draw-season.js';
 
 export const FORMATS = {
@@ -17,7 +17,9 @@ export const FORMATS = {
 };
 
 export const C = { bg: '#06070b', bg2: '#11141c', panel: 'rgba(255,255,255,0.055)', line: 'rgba(255,255,255,0.12)', text: '#f5f7fb', muted: '#aeb6c6', red: '#ff1e0f', gold: '#f2c94c', silver: '#d3d8e2', bronze: '#e0955a', green: '#3ddc84' };
-export const TITLE = '"Saira Condensed", "Titillium Web", sans-serif';
+const SAIRA = '"Saira Condensed", "Titillium Web", sans-serif';
+// Police des titres : Barlow Condensed le temps d'un dessin en style « Télé premium » (styled)
+export let TITLE = SAIRA;
 export const BODY = '"Titillium Web", sans-serif';
 export const MONO = '"JetBrains Mono", monospace';
 export const MEDAL = [C.gold, C.silver, C.bronze];
@@ -163,7 +165,7 @@ export function pill(ctx, label, x, y, h, { bg = C.red, color = '#fff', align = 
   const sp = size * 0.12;
   const w = ctx.measureText(label).width + sp * label.length + h * (dot ? 1.25 : 0.9);
   const x0 = align === 'right' ? x - w : x;
-  rr(ctx, x0, y, w, h, h / 2);
+  if (tv) slant(ctx, x0, y, w, h, h * 0.22); else rr(ctx, x0, y, w, h, h / 2);
   if (outline) { ctx.strokeStyle = bg; ctx.lineWidth = 2; ctx.stroke(); } else { ctx.fillStyle = bg; ctx.fill(); }
   if (dot) { ctx.fillStyle = typeof dot === 'string' ? dot : outline ? bg : color; ctx.beginPath(); ctx.arc(x0 + h * 0.5, y + h / 2, h * 0.13, 0, Math.PI * 2); ctx.fill(); }
   txt(ctx, label, x0 + (dot ? h * 0.82 : h * 0.45), y + h * 0.7, { size, weight: 800, family: TITLE, color, spacing: sp });
@@ -258,8 +260,15 @@ let page = null;
 // le champ « Envoyer un message » en bas (~300 px), comme Reels, TikTok et Shorts leur interface ; rien d'important
 // dessous.
 let safe = false;
-// Style « Télé premium » choisi dans le Studio (o.style = 'tv') : fond, en-tête et visuels de social-draw-tv.js
-let tv = false;
+// Style « Télé premium » choisi dans le Studio (o.style = 'tv') : fond, en-tête, pied, pastilles et visuels de
+// social-draw-tv.js, titres en Barlow Condensed
+export let tv = false;
+// Dessin (image, vidéo) dans le style choisi
+export function styled(o, draw) {
+  tv = o?.style === 'tv';
+  TITLE = tv ? TV_TITLE : SAIRA;
+  try { return draw(); } finally { tv = false; TITLE = SAIRA; }
+}
 export const topY = (W, H) => (safe ? 230 : Math.round(Math.min(W, H) * 0.06));
 export const footY = (W, H) => H - (safe ? 300 : Math.round(Math.min(W, H) * 0.045));
 // Points de progression du carrousel, centrés sur x
@@ -280,6 +289,7 @@ export function footer(ctx, W, H, o, { dots = true } = {}) {
   const m = Math.min(W, H);
   const u = m / 1080;
   const pad = Math.round(W * 0.055);
+  if (tv) return tvFooter(ctx, W, H, o, '', dots);
   const fy = footY(W, H);
   ctx.fillStyle = C.red;
   rr(ctx, pad, fy - 27 * u, 8 * u, 30 * u, 3 * u); ctx.fill();
@@ -1326,8 +1336,7 @@ export function videoCover(ctx, W, H, d, o = {}) {
 export function paintSlide(ctx, slide, fmt, d, o = {}, size = null) {
   page = o.slides?.includes(slide) ? { n: o.slides.indexOf(slide) + 1, total: o.slides.length } : null;
   safe = fmt === 'story';
-  tv = o.style === 'tv';
-  try { paintOne(ctx, slide, fmt, d, o, size); } finally { page = null; safe = false; tv = false; }
+  try { styled(o, () => paintOne(ctx, slide, fmt, d, o, size)); } finally { page = null; safe = false; }
 }
 function paintOne(ctx, slide, fmt, d, o, size) {
   const [w, h] = size || [FORMATS[fmt].w, FORMATS[fmt].h];

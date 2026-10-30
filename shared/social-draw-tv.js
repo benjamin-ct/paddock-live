@@ -1,7 +1,7 @@
 // Style « Télé premium » des visuels (choix du créateur dans le Studio) : fond fibre de carbone et bandes
 // obliques à la couleur de l'écurie, bandeau d'en-tête en métal brossé, chiffres de position en or, argent
 // et bronze en relief, titres chromés. Couverture, podium et classement dessinés à part ; les autres visuels
-// reprennent le fond et l'en-tête (background et frame de social-draw.js).
+// reprennent le fond, l'en-tête, le pied et les pastilles (background, frame, footer et pill de social-draw.js).
 
 import { C, rr, txt, alpha, vivid, photo, grain, topY, footY, pageDots } from './social-draw.js';
 
@@ -24,7 +24,7 @@ function metal(ctx, kind, y0, y1) {
 }
 const f = (size, w = 900) => `italic ${w} ${Math.round(size)}px ${TV_TITLE}`;
 // Texte en italique gras (Barlow) ; fill : couleur ou dégradé métal ; max : largeur maximale
-function tt(ctx, text, x, y, size, { fill = '#fff', align = 'left', max = 0, w = 900, shadow = 0 } = {}) {
+export function tt(ctx, text, x, y, size, { fill = '#fff', align = 'left', max = 0, w = 900, shadow = 0 } = {}) {
   let s = size;
   ctx.font = f(s, w);
   while (max && ctx.measureText(text).width > max && s > 10) { s -= 2; ctx.font = f(s, w); }
@@ -55,7 +55,7 @@ export function bigNum(ctx, n, x, y, size, kind, align = 'left') {
   ctx.restore();
 }
 // Parallélogramme (côtés penchés de `sk`)
-function slant(ctx, x, y, w, h, sk) {
+export function slant(ctx, x, y, w, h, sk) {
   ctx.beginPath(); ctx.moveTo(x + sk, y); ctx.lineTo(x + w, y); ctx.lineTo(x + w - sk, y + h); ctx.lineTo(x, y + h); ctx.closePath();
 }
 // Métal brossé sombre (plaques, bandeau)
@@ -91,7 +91,7 @@ function carbon(ctx, W, H) {
 // Fond : carbone, larges bandes obliques de la couleur, vignettage et grain
 export function tvBackground(ctx, W, H, accent) {
   carbon(ctx, W, H);
-  const col = accent ? vivid(accent) : RED;
+  const col = /^#?[0-9a-f]{6}$/i.test(accent || '') ? accent : RED;   // alpha() ne lit que l'hexadécimal
   const band = (x0, x1, a, w) => {
     const g = ctx.createLinearGradient(0, H, W, 0);
     g.addColorStop(0, alpha(col, 0)); g.addColorStop(0.35, alpha(col, a)); g.addColorStop(0.75, alpha(col, a * 0.8)); g.addColorStop(1, alpha(col, 0));
@@ -123,13 +123,13 @@ function officialTag(ctx, d, x, y, u, align = 'left') {
 const subline = (d) => [d.label, d.date, d.kind === 'race' && d.laps ? `${d.laps} tours` : d.circuit].filter(Boolean).join('  •  ');
 
 // Pied : signature à gauche (trait rouge), progression du carrousel au milieu
-function tvFooter(ctx, W, H, o, right = '') {
+export function tvFooter(ctx, W, H, o, right = '', dots = true) {
   const u = Math.min(W, H) / 1080;
   const pad = Math.round(W * 0.055);
   const fy = footY(W, H);
   ctx.fillStyle = RED; slant(ctx, pad, fy - 24 * u, 14 * u, 28 * u, 6 * u); ctx.fill();
   label(ctx, o.signature || '@BenjyPaddock', pad + 26 * u, fy, 24 * u, { w: 600, spacing: 1.5, color: 'rgba(255,255,255,0.85)' });
-  pageDots(ctx, W / 2, fy - 10 * u, u);
+  if (dots) pageDots(ctx, W / 2, fy - 10 * u, u);
   if (right) label(ctx, right, W - pad, fy, 22 * u, { align: 'right', spacing: 4, color: 'rgba(255,255,255,0.85)' });
   return fy;
 }

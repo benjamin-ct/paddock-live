@@ -8,7 +8,7 @@ import { circuitInfo } from '/shared/circuits-info.js';
 import { recordsOf, recordYears, editionFromResults } from '/shared/circuit-records.js';
 import { parseRaceControl, raceSessionPath } from '/shared/race-story.js';
 import { makeAnimation, unlockAudio } from '/shared/social-video.js';
-import { videoCover } from '/shared/social-draw.js';
+import { videoCover, styled } from '/shared/social-draw.js';
 import { $, $$, esc, api, icon, store, skeleton, toast, state, glide, SIG, musicField, bindMusic, clipFile, shareClip, yearOf, yearPicker, bindYear } from './ui.js';
 import { latestDrivers } from './data.js';
 import { weekendPlan } from '/shared/post-history.js';
@@ -242,9 +242,9 @@ async function seasonEditor(year, data, race, back) {
           const o = await assets(d);
           const opts = track();
           // Paysage : sans couverture au début, la vidéo commence sur la course
-          const cover = opts.format === 'wide' ? null : (ctx, w, h) => videoCover(ctx, w, h, d, o);
+          const cover = opts.format === 'wide' ? null : (ctx, w, h) => styled(o, () => videoCover(ctx, w, h, d, o));
           const ro = { ...o, insta: opts.format === 'insta' };   // marges d'Instagram
-          clip = await makeAnimation((ctx, t, w, h) => raceFrame(ctx, w, h, d, ro, t), raceVideoTiming(d).duration, { cover, ...opts, onProgress: (p) => { $('#vidst').textContent = `Enregistrement… ${Math.round(p * 100)} %`; } });
+          clip = await makeAnimation((ctx, t, w, h) => styled(ro, () => raceFrame(ctx, w, h, d, ro, t)), raceVideoTiming(d).duration, { cover, ...opts, onProgress: (p) => { $('#vidst').textContent = `Enregistrement… ${Math.round(p * 100)} %`; } });
           $('#vid').src = URL.createObjectURL(clip.blob); $('#vid').hidden = false;
           $('#sharevid').disabled = false;
           $('#vidst').textContent = `Vidéo prête (${(clip.blob.size / 1e6).toFixed(1).replace('.', ',')} Mo)${clip.silent ? ' · sans son : le navigateur a bloqué la musique, recommencez' : ''}${(file = clipFile(clip, `course-${race.round}`)) ? ' · jointe au post : Reel, vidéo, TikTok et Short à choisir à l\'étape Publier' : ' · format WebM : à partager seulement (publication en MP4)'}`;
