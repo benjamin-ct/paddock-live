@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { QUALITY, nearFirst, autoQuality, frameCap, weatherState, compoundOf, accentColor, drsOpen, seconds, pickBattle, bestLap, lapTrace, traceAt, wallCuts } from '../public/js/ui/map3d-calc.js';
+import { QUALITY, nearFirst, autoQuality, frameCap, weatherState, compoundOf, accentColor, drsOpen, seconds, pickBattle, bestLap, sessionBest, lapTrace, traceAt, wallCuts } from '../public/js/ui/map3d-calc.js';
 
 // Images à cadence fixe (fps) pendant ms, à partir de t ; -> [instant de fin, niveaux choisis en route]
 function run(auto, t, ms, fps, cap = Infinity) {
@@ -211,4 +211,11 @@ test('murs : ouverts là où la voie des stands les traverse, pas là où elle l
   assert.deepEqual(wallCuts(parts, [[0, -0.5], [20, 0.2], [40, -0.5]]), []);
   // Voie à côté du mur sans le toucher : rien
   assert.deepEqual(wallCuts(parts, [[0, 6], [40, 6]]), []);
+});
+
+test('fantôme : meilleur tour officiel de la séance, d\'après le chronométrage', () => {
+  assert.deepEqual(sessionBest({ 3: { PersonalBestLapTime: { Value: '1:39.307', Position: 1 } }, 16: { PersonalBestLapTime: { Value: '1:39.687', Position: 2 } } }), { num: '3', time: 99.307 });
+  assert.deepEqual(sessionBest({ 16: { PersonalBestLapTime: { Value: '1:38.5', Position: '1' } } }), { num: '16', time: 98.5 });
+  assert.equal(sessionBest({ 1: { PersonalBestLapTime: { Value: '', Position: 1 } } }), null);
+  assert.equal(sessionBest(undefined), null);
 });

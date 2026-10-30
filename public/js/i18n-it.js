@@ -2741,6 +2741,7 @@ export default {
   "Écart avec la voiture devant": "Distacco dall'auto davanti",
   "Fantôme du meilleur tour": "Fantasma del giro più veloce",
   "Bataille pour la P{}": "Lotta per la P{}",
+  "Fantôme : tour de {} ({}), le plus rapide dont on a les positions GPS ; meilleur tour de la séance : {} ({})": "Fantasma: giro di {} ({}), il più veloce di cui abbiamo le posizioni GPS; giro più veloce della sessione: {} ({})",
   "Fantôme : meilleur tour de {} ({})": "Fantasma: giro più veloce di {} ({})",
   "Fantôme : pas encore de meilleur tour avec les positions GPS": "Fantasma: ancora nessun giro più veloce con le posizioni GPS",
   "Fantôme : il faut les positions GPS des voitures": "Fantasma: servono le posizioni GPS delle auto",
