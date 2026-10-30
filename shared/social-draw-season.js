@@ -504,12 +504,12 @@ export function raceFrame(ctx, W, H, d, o, time) {
   // et la légende du post le bas
   // Vertical : tout dans la zone que TikTok et Instagram ne couvrent pas, sur un iPhone (19,5:9) : côtés rognés
   // d'une vidéo 9:16, barre d'état et boutons en haut (11 %), colonne de boutons à droite, pseudo et légende en
-  // bas (24 %). Paysage : marges simples
+  // bas (18 % : place gardée pour une ligne de légende). Paysage : marges simples
   const crop = land ? 0 : Math.max(0, (W - H * 9 / 19.5) / 2);
   const pad = Math.round(Math.min(W, H) * 0.1);
   const padL = land ? pad : Math.round(crop + 50 * u);
   const padR = land ? pad : Math.round(crop + 150 * u);
-  const foot = land ? 90 * u : H * 0.24;
+  const foot = land ? 90 * u : H * 0.18;
   const sigY = land ? H - Math.round(H * 0.025) : H - foot;   // signature
   const bandEnd = land ? H - foot : sigY - 70 * u;
   const bw = W - padL - padR;
