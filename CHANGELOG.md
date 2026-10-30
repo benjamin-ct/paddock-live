@@ -67,6 +67,10 @@ l'application (Réglages → À propos → Nouveautés).
   minute jusqu'à afficher la prochaine séance.
 
 ### En direct
+- Connexion F1 TV : l'appli passe maintenant par le serveur de Paddock Live, sur le même relais que la version web
+  de ce compte. La F1 n'envoie le GPS qu'à une seule connexion par compte : l'appli, la version web et le téléphone
+  l'ont maintenant tous en même temps, sans se le reprendre. Si le serveur ne répond pas, l'appli se relie directement
+  à la F1, comme avant.
 - Carte du circuit : en revenant sur la page (autre onglet, autre appli, téléphone en veille), plus de traînées
   qui partent dans tous les sens : elles repartent de la position actuelle des voitures. Aussi dans la version web.
 - Classement en course : étiquette « DÉP » (mode dépassement, qui remplace le DRS en 2026) à côté d'un pilote passé au
