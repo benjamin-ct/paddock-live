@@ -205,6 +205,13 @@ l'application (Réglages → À propos → Nouveautés).
   au reste de l'appli : piste fine remplie jusqu'à la valeur et bouton rond. Aussi dans la version web.
 - Panneau Duel : la flèche du duel automatique choisie (contre la voiture devant ou derrière) ressort de nouveau en
   bleu ; en thème sombre, on ne la distinguait presque plus.
+- Graphiques de la Saison : en passant la souris sur une barre, un point ou une courbe (ou en la touchant sur
+  téléphone), une infobulle aux couleurs de l'appli s'affiche tout de suite, avec la couleur de l'écurie et des infos
+  plus complètes. Points par Grand Prix : drapeau et Grand Prix, pilote et écurie, points de la course et du sprint,
+  place à l'arrivée, place au championnat et total ; évolution du classement et des points : place et points après
+  chaque manche ; bilan de la saison : victoires, podiums, arrivées dans les points, poles et abandons d'un coup d'œil ;
+  aussi l'écart à la pole, les poles face aux records et la page d'un pilote (départ, arrivée, points). Aussi dans la
+  version web.
 
 ### Divers
 - Petites améliorations internes.
