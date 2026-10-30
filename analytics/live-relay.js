@@ -532,16 +532,21 @@ const label = (info) => (info ? [info.Meeting?.Name, info.Name].filter(Boolean).
 const relay = (env, name) => env.LIVE.get(env.LIVE.idFromName(name));
 const privateName = (id) => (/^[0-9a-f]{32}$/.test(id || '') ? `u:${id}` : null);
 const cookieId = (req) => /(?:^|;\s*)plu=([0-9a-f]{32})(?:;|$)/.exec(req.headers.get('Cookie') || '')?.[1] || null;
+const relaySeen = async (env, day, ip, name) => !!(await env.DB.prepare('SELECT n FROM ai_usage WHERE day = ?1').bind(`${day}|${ip}|live-${name}`).first());
 const toRelay = (req, name, url = req.url) => { const r = new Request(url, req); r.headers.set('X-Relay', name); return r; };
 
 // /live/ws : navigateur relié au relais commun, ou à son propre relais s'il a une connexion F1 TV. Relais
-// d'abonné ouverts par une même adresse : 50 par jour au plus (chacun ouvre une connexion à la F1)
+// d'abonné ouverts par une même adresse : 50 différents par jour au plus (chacun ouvre une connexion à la F1).
+// Revenir sur un relais déjà ouvert dans la journée (coupure, mise à jour du serveur) n'est pas recompté
 export async function liveSocket(req, env) {
   if (!env.LIVE) return new Response('Relais indisponible', { status: 503 });
   const name = privateName(new URL(req.url).searchParams.get('u'));
   if (name && env.DB) {
-    const ip = callerIp(req);
-    if (ip && !(await ipQuota(env, { key: 'live-u', day: new Date().toISOString().slice(0, 10), ip, limit: 50 }).catch(() => true))) return new Response('Trop de connexions aujourd\'hui', { status: 429 });
+    const ip = callerIp(req), day = new Date().toISOString().slice(0, 10);
+    if (ip && !(await relaySeen(env, day, ip, name).catch(() => true))) {
+      if (!(await ipQuota(env, { key: 'live-u', day, ip, limit: 50 }).catch(() => true))) return new Response('Trop de connexions aujourd\'hui', { status: 429 });
+      await ipQuota(env, { key: `live-${name}`, day, ip, limit: 1 }).catch(() => null);
+    }
   }
   return relay(env, name || 'f1').fetch(toRelay(req, name || 'f1'));
 }
