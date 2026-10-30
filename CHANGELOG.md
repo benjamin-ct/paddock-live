@@ -196,6 +196,10 @@ l'application (Réglages → À propos → Nouveautés).
   circuit (plus rapide en vert, sinon l'écart), avec le détenteur du record. Aussi dans la version web.
 - Accueil, carte « Mes favoris » : le portrait de chaque pilote, cerclé de la couleur de son écurie, et le logo de chaque
   écurie. Aussi dans la version web.
+- Saison → Bilan de la saison plus visuel : le leader (ou le champion) en grand, en portrait sur la couleur de son écurie ;
+  victoires, poles et podiums en cartes aux couleurs de l'écurie du premier, avec son portrait et les trois premiers en
+  barres ; plus belle remontée en flèche de la place de départ à l'arrivée, abandons en jauge, avancement de la saison
+  en barre. L'image à partager passe au bleu nuit. Aussi dans la version web.
 - Les curseurs (volume, seuil des tours propres, temps perdu au stand, fond des overlays…) ont un nouveau style, assorti
   au reste de l'appli : piste fine remplie jusqu'à la valeur et bouton rond. Aussi dans la version web.
 - Panneau Duel : la flèche du duel automatique choisie (contre la voiture devant ou derrière) ressort de nouveau en
