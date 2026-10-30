@@ -1132,7 +1132,7 @@ body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-selec
 /* Deux tableaux côte à côte : le plus court s'étire à la hauteur de l'autre, lignes réparties (pas de vide dessous) */
 .sz-grid2 > .sz-box:has(> .sz-table, > .sz-scroll > .sz-table) { display: flex; flex-direction: column; }
 .sz-grid2 > .sz-box > :is(.sz-table, .sz-scroll) { flex: 1; }
-.sz-grid2 > .sz-box > .sz-scroll > .sz-table { height: 100%; }
+.sz-grid2 > .sz-box > .sz-scroll > .sz-table { height: 100%; margin-bottom: 0; }   /* sans marge : sinon 8 px de trop et une barre de défilement inutile */
 .sz-grid2 > .sz-box .sz-table tr:has(> th) { height: 1px; }
 /* Chiffre d'un tableau avec sa petite barre (cellBar) : points, dégâts… */
 .sz-cb { display: inline-flex; align-items: center; gap: 10px; white-space: nowrap; }
