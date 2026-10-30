@@ -162,7 +162,7 @@ export function postData(state, { laps = null } = {}) {
   const start = /^\d{4}-\d\d-\d\d/.test(info.StartDate || '') ? new Date(`${info.StartDate.slice(0, 10)}T12:00:00Z`) : null;
   return {
     kind, sprint, final: finished, label, gp, gpEn,
-    country: info.Meeting?.Country?.Code || '', countryName: info.Meeting?.Country?.Name || '', circuit: info.Meeting?.Circuit?.ShortName || info.Meeting?.Location || '',
+    country: info.Meeting?.Country?.Code || '', countryName: info.Meeting?.Country?.Name || '', circuit: info.Meeting?.Circuit?.ShortName || info.Meeting?.Location || '', circuitKey: info.Meeting?.Circuit?.Key || null,
     date: start && !Number.isNaN(start.getTime()) ? start.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }) : '',
     year: start && !Number.isNaN(start.getTime()) ? start.getFullYear() : '',
     laps: state?.LapCount?.TotalLaps || null,

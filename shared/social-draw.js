@@ -295,6 +295,7 @@ export function kicker(ctx, x, y, u, label, sub) {
 export function frame(ctx, W, H, d, o, title) {
   const m = Math.min(W, H);
   const u = m / 1080;
+  trackMark(ctx, W, H, o.shape);
   const pad = Math.round(W * 0.055);
   const top = topY(W, H);
   let x = pad;
@@ -318,6 +319,23 @@ export function frame(ctx, W, H, d, o, title) {
   const fy = footer(ctx, W, H, o);
   if (!d.final) txt(ctx, 'RÉSULTATS PROVISOIRES', W - pad, fy, { size: Math.round(m * 0.025), weight: 700, family: TITLE, color: C.gold, align: 'right', spacing: 2 });
   return { pad, top: top + Math.round(m * 0.15), bottom: fy - Math.round(m * 0.06) };
+}
+
+// Tracé du circuit en filigrane, grand et décalé à droite : chaque Grand Prix a son fond
+export function trackMark(ctx, W, H, shape) {
+  if (!shape?.pts?.length) return;
+  const u = Math.min(W, H) / 1080;
+  const bw = W * 0.95; const bh = H * 0.62;
+  const s = Math.min(bw / shape.w, bh / shape.h);
+  const ox = W * 0.3 + (bw - shape.w * s) / 2; const oy = H * 0.2 + (bh - shape.h * s) / 2;
+  ctx.save();
+  ctx.beginPath();
+  shape.pts.forEach(([x, y], i) => { if (i) ctx.lineTo(ox + x * s, oy + y * s); else ctx.moveTo(ox + x * s, oy + y * s); });
+  ctx.closePath();
+  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  ctx.strokeStyle = 'rgba(255,255,255,0.055)'; ctx.lineWidth = 34 * u; ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,255,255,0.07)'; ctx.lineWidth = 4 * u; ctx.stroke();
+  ctx.restore();
 }
 
 // Photo détourée posée en bas de la zone ; fade : bas fondu dans le décor
@@ -693,6 +711,7 @@ function cover(ctx, W, H, d, o, next, fmt) {
     }
   }
   ctx.restore();
+  trackMark(ctx, W, H, o.shape);
   // En-tête : barre rouge, Formule 1 et saison
   const top = topY(W, H);
   kicker(ctx, pad, top, u, 'FORMULE 1', `SAISON ${d.year || ''}`.trim());
@@ -740,16 +759,20 @@ function cover(ctx, W, H, d, o, next, fmt) {
   // Sommaire des images suivantes (numéro = place dans le carrousel publié)
   const items = next.map((s, i) => [String((o.slides ? o.slides.indexOf(s) : i + 1) + 1).padStart(2, '0'), slideName(s)]);
   const sx = pad;
-  const end = H - Math.round(Math.min(W, H) * 0.13);   // au-dessus du pied
+  const end = footY(W, H) - Math.round(Math.min(W, H) * 0.08);   // au-dessus du pied (zone sûre des stories comprise)
   let sy = tall ? y + 120 * u : Math.max(y + 80 * u, end - items.length * 52 * u - 40 * u);
-  const lh = Math.min(52 * u, (end - sy - 22 * u) / Math.max(items.length, 1));
+  // Sommaire trop long pour la place : sur deux colonnes
+  const two = (end - sy - 22 * u) / Math.max(items.length, 1) < 44 * u;
+  const per = two ? Math.ceil(items.length / 2) : items.length;
+  const lh = Math.min(52 * u, (end - sy - 22 * u) / Math.max(per, 1));
   txt(ctx, 'AU PROGRAMME', sx, sy, { size: Math.round(26 * u), weight: 700, family: TITLE, color: C.red, spacing: 4 });
   sy += 22 * u;
-  for (const [n, name] of items) {
-    sy += lh;
-    txt(ctx, n, sx, sy, { size: Math.round(32 * u), weight: 800, family: TITLE, color: C.red, italic: true });
-    txt(ctx, name.toUpperCase(), sx + 64 * u, sy, { size: Math.round(36 * u), weight: 700, family: TITLE, spacing: 1 });
-  }
+  items.forEach(([n, name], i) => {
+    const x = sx + (two && i >= per ? colW / 2 : 0);
+    const y = sy + ((i % per) + 1) * lh;
+    txt(ctx, n, x, y, { size: Math.round(32 * u), weight: 800, family: TITLE, color: C.red, italic: true });
+    txt(ctx, name.toUpperCase(), x + 64 * u, y, { size: Math.round(36 * u), weight: 700, family: TITLE, spacing: 1, max: (two ? colW / 2 : colW) - 80 * u });
+  });
 
   // Pied : signature, « faites défiler », résultats provisoires
   const fy = footY(W, H);
