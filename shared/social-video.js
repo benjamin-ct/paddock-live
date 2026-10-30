@@ -356,6 +356,7 @@ export async function makeVideo(slides, { perSlide = 3.2, ...opts } = {}) {
     ctx.globalAlpha = 1;
   };
   // Couverture : le premier visuel (sa couverture le plus souvent)
-  const cover = (ctx) => { if (oy) place(ctx, slides[0]); else slides[0].paint(ctx); };
+  // Couverture dessinée à la taille de la vidéo (plus haute comprise)
+  const cover = (ctx, w, h) => slides[0].paint(ctx, [w, h]);
   return makeAnimation(draw, duration, { ...opts, cover: slides[0]?.paint ? cover : null, format: oy ? 'tall' : 'std' });
 }
