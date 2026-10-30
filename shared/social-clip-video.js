@@ -41,7 +41,7 @@ function layout(ctx, W, H, d, clip, u) {
   const key = `${W}x${H}`;
   if (!layouts.has(d)) layouts.set(d, new Map());
   if (layouts.get(d).has(key)) return layouts.get(d).get(key);
-  const pad = 60 * u;
+  const pad = 100 * u;
   const t = fitLines(ctx, String(d.title || '').toUpperCase(), W - pad * 2, [104, 92, 80, 70, 60].map((v) => Math.round(v * u)), 3, TITLE, 800);
   const lh = Math.round(t.size * 0.98);
   const top = 300 * u; const bottom = H - (d.source ? 170 : 110) * u;

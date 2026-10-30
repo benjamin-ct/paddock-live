@@ -30,7 +30,7 @@ const blink = (t) => 0.35 + 0.65 * (0.5 + 0.5 * Math.cos(t * Math.PI * 2.2));   
 
 // En-tête (Actu F1, date ; à droite : étiquette « BREAKING », signature dessous)
 export function header(ctx, W, d, o, u, t) {
-  const pad = 60 * u; const top = 100 * u;
+  const pad = 100 * u; const top = 100 * u;
   kicker(ctx, pad, top, u * 1.3, 'ACTU F1', d.date.toUpperCase());
   if (d.breaking) breakingTag(ctx, W - pad, top, 72 * u, blink(t));
   txt(ctx, o.signature || '@BenjyPaddock', W - pad, top + (d.breaking ? 116 : 52) * u, { size: Math.round(32 * u), weight: 700, family: TITLE, color: C.muted, align: 'right', spacing: 1 });
@@ -79,7 +79,7 @@ function mainLayout(ctx, W, H, d, o, u) {
   const key = `${W}x${H}`;
   if (!layouts.has(d)) layouts.set(d, new Map());
   if (layouts.get(d).has(key)) return layouts.get(d).get(key);
-  const pad = 60 * u; const colW = W - pad * 2;
+  const pad = 100 * u; const colW = W - pad * 2;
   const top = TOP * u; const bottom = H - BOTTOM * u;
   const withPhoto = d.drivers.filter((p) => o.photos?.[p.num]);
   const custom = d.image?.width ? d.image : null;
@@ -186,7 +186,7 @@ function mainScene(ctx, W, H, d, o, u, s, dur) {
 // Un point clé par écran : carte qui entre par la droite et sort par la gauche, gros numéro
 function pointScene(ctx, W, H, d, o, u, i, n, s, dur) {
   background(ctx, W, H, d.color);
-  const pad = 60 * u; const colW = W - pad * 2;
+  const pad = 100 * u; const colW = W - pad * 2;
   const acc = d.color ? vivid(d.color) : C.red;
   txt(ctx, "L'ESSENTIEL", pad, 360 * u, { size: Math.round(84 * u), weight: 800, family: TITLE, italic: true, spacing: 3 });
   const t = fitLines(ctx, d.title.toUpperCase(), colW, [Math.round(42 * u)], 2, TITLE, 700).lines;
