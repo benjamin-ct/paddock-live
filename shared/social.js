@@ -103,10 +103,13 @@ export function postData(state, { laps = null } = {}) {
   const facts = [];
   const byNum = Object.fromEntries(rows.map((r) => [r.num, r]));
   if (kind === 'race' && rows.length) {
+    // Écart à l'arrivée entre les deux premiers
+    if (finished && rows[1]?.gap && !rows[1].out && /^\+\d/.test(rows[1].gap)) facts.push({ label: 'Écart à l\'arrivée', value: rows[1].gap.replace(/^\+/, ''), sub: `${rows[0].last} devant ${rows[1].last}`, color: rows[0].color });
     const fl = Object.keys(stats).find((n) => stats[n]?.PersonalBestLapTime?.Position === 1);
     if (fl && byNum[fl] && stats[fl].PersonalBestLapTime.Value) facts.push({ label: 'Meilleur tour', value: byNum[fl].last, sub: `${stats[fl].PersonalBestLapTime.Value}${stats[fl].PersonalBestLapTime.Lap ? ` · tour ${stats[fl].PersonalBestLapTime.Lap}` : ''}`, color: byNum[fl].color });
+    // Plus belle remontée (aussi sur « Grille → arrivée ») : pas deux cases pour le même pilote
     const up = rows.filter((r) => r.delta > 0).sort((a, b) => b.delta - a.delta)[0];
-    if (up && up.delta >= 3) facts.push({ label: 'Plus belle remontée', value: up.last, sub: `P${up.grid} → P${up.pos} (+${up.delta})`, color: up.color });
+    if (up && up.delta >= 3 && up.num !== fl) facts.push({ label: 'Plus belle remontée', value: up.last, sub: `P${up.grid} → P${up.pos} (+${up.delta})`, color: up.color });
     const w = rows[0];
     const stints = realStints(list(app[w.num]?.Stints)).map((s) => s?.Compound).filter((c) => COMP[c]);
     if (stints.length) facts.push({ label: 'Stratégie du vainqueur', value: stints.length === 1 ? 'Sans arrêt' : `${stints.length - 1} arrêt${stints.length > 2 ? 's' : ''}`, sub: stints.map((c) => COMP[c]).join(' → '), color: w.color });

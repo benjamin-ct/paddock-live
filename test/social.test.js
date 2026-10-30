@@ -35,7 +35,13 @@ test('posts : données de la course (classement, points, faits marquants, champi
   assert.equal(d.rows[2].delta, 7);
   const f = Object.fromEntries(d.facts.map((x) => [x.label, x]));
   assert.equal(f['Meilleur tour'].value, 'Hamilton');
-  assert.equal(f['Plus belle remontée'].sub, 'P10 → P3 (+7)');
+  // Hamilton fait aussi la plus belle remontée : une seule case par pilote (la remontée est sur « Grille → arrivée »)
+  assert.equal(f['Plus belle remontée'], undefined);
+  assert.equal(f["Écart à l'arrivée"].value, '2,5 s');
+  assert.equal(f["Écart à l'arrivée"].sub, 'Norris devant Leclerc');
+  // Meilleur tour d'un autre pilote : la remontée de Hamilton revient
+  const other = postData({ ...state, TimingStats: { Lines: { 16: { PersonalBestLapTime: { Value: '1:21.000', Position: 1, Lap: 50 } } } } });
+  assert.equal(other.facts.find((x) => x.label === 'Plus belle remontée').sub, 'P10 → P3 (+7)');
   assert.equal(f['Stratégie du vainqueur'].sub, 'Médiums → Durs');
   assert.equal(f.Neutralisations.value, '1 safety car');
   assert.equal(f.Abandons.sub, 'Alonso');
