@@ -29,7 +29,7 @@
   display: inline-flex; align-items: center; height: 24px; padding: 0 9px; border-radius: 4px;
   background: var(--accent); color: #fff; font: 700 11.5px/1 var(--font); letter-spacing: .08em; text-transform: uppercase; white-space: nowrap;
 }
-[data-theme="pitwall"] :is(.sz-card, .sz-box) { border-radius: 6px; }
+[data-theme="pitwall"] :is(.sz-card, .sz-box) { border-radius: 12px; }
 [data-theme="pitwall"] .btn, [data-theme="pitwall"] .tabs [data-tab] { border-radius: 4px; }
 [data-theme="pitwall"] :is(.tabs [data-tab], .panel-head.tabs > .tab).active { background: var(--accent); color: #fff; }
 /* Onglets qui servent de titre au panneau : même étiquette que les titres */
@@ -186,7 +186,7 @@ html.float-map .rc-bar { display: none !important; }
 /* Numéro et logo de l'écurie côte à côte (cartes des pilotes, pilote en grand) ; logo blanc net, en couleur sur le clair */
 :is(.sz-drv-card, .sz-drv-hero) .ft { display: flex; align-items: center; gap: 10px; }
 :is(.sz-drv-card, .sz-drv-hero, .sz-team-card) .lg { display: block; flex: none; background: var(--logo, none) left center / contain no-repeat; }
-.sz-drv-hero { position: relative; min-height: 180px; margin-bottom: 12px; padding: 22px 26px; border-radius: 14px; overflow: hidden; color: #fff;
+.sz-drv-hero { position: relative; min-height: 180px; margin-bottom: 12px; padding: 22px 26px; border-radius: 12px; overflow: hidden; color: #fff;
   border: 1px solid color-mix(in srgb, var(--tc) 55%, #1E293B);
   background: radial-gradient(circle at 80% 45%, color-mix(in srgb, var(--tc) 60%, transparent), transparent 58%), linear-gradient(120deg, color-mix(in srgb, var(--tc) 62%, #0B1324), color-mix(in srgb, var(--tc) 18%, #0B1324) 75%); }
 .sz-drv-hero img { position: absolute; right: 26px; bottom: 0; height: 196px; width: auto; }
@@ -205,8 +205,8 @@ html.float-map .rc-bar { display: none !important; }
   :root:not([data-motion="off"]) .sz-main.sz-anim .sz-grow-x { animation: reveal-x .9s var(--ease-out) .12s both; }
 }
 /* Écuries : cartes à la couleur de chaque écurie, logo net en haut à droite, pilotes en portrait, bilan en bas */
-.sz-team-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; margin-bottom: 14px; }
-.sz-team-card { all: unset; box-sizing: border-box; position: relative; display: grid; grid-template-columns: 1fr auto; grid-template-rows: auto auto auto 1fr auto; gap: 0 12px; padding: 16px 18px 0; border-radius: 14px; overflow: hidden; cursor: pointer; color: #fff;
+.sz-team-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; margin-bottom: 12px; }
+.sz-team-card { all: unset; box-sizing: border-box; position: relative; display: grid; grid-template-columns: 1fr auto; grid-template-rows: auto auto auto 1fr auto; gap: 0 12px; padding: 16px 18px 0; border-radius: 12px; overflow: hidden; cursor: pointer; color: #fff;
   border: 1px solid color-mix(in srgb, var(--tc) 55%, #1E293B);
   background: radial-gradient(circle at 85% 20%, color-mix(in srgb, var(--tc) 55%, transparent), transparent 60%), linear-gradient(150deg, color-mix(in srgb, var(--tc) 60%, #0B1324), color-mix(in srgb, var(--tc) 18%, #0B1324) 85%);
   transition: transform .15s, box-shadow .15s; }
@@ -236,7 +236,7 @@ html.float-map .rc-bar { display: none !important; }
 [data-theme="pitwall"][data-scheme="light"] .tm-drv img { background: color-mix(in srgb, var(--tc) 30%, var(--panel-2)); box-shadow: 0 0 0 2px var(--tc); }
 /* Chargement : squelette de la page (cartes et blocs gris qui scintillent) */
 .sz-skel { display: grid; gap: 12px; }
-.sz-skel-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
+.sz-skel-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
 .sz-skel-cards i, .sz-skel-box i { display: block; border-radius: 8px; background: var(--panel-2); }
 .sz-skel-cards i { height: 110px; border: 1px solid var(--border); background: var(--panel); position: relative; overflow: hidden; }
 .sz-skel-box { display: grid; gap: 10px; padding: 18px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel); }
@@ -293,8 +293,8 @@ html.float-map .rc-bar { display: none !important; }
 .rv-progress i { display: block; height: 100%; width: var(--w); background: var(--accent); border-radius: inherit; }
 .sz-rv-hero .rv-label { color: rgba(255, 255, 255, .78); }
 .sz-rv-hero .no small { font-size: 16px; font-weight: 700; }
-.sz-rv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
-.sz-rv-card { position: relative; display: flex; flex-direction: column; gap: 4px; min-height: 190px; padding: 16px 18px; border-radius: 14px; overflow: hidden; color: #fff;
+.sz-rv-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.sz-rv-card { position: relative; display: flex; flex-direction: column; gap: 4px; min-height: 190px; padding: 16px 18px; border-radius: 12px; overflow: hidden; color: #fff;
   border: 1px solid color-mix(in srgb, var(--tc) 40%, #1E293B);
   background: radial-gradient(circle at 85% 20%, color-mix(in srgb, var(--tc) 42%, transparent), transparent 60%), linear-gradient(150deg, color-mix(in srgb, var(--tc) 38%, #0B1324), #0B1324 80%); }
 .sz-rv-card[style*="--logo"]::before { content: ''; position: absolute; right: 10px; bottom: 10px; width: 110px; height: 80px; background: var(--logo, none) right bottom / contain no-repeat; opacity: .14; }

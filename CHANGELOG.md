@@ -188,6 +188,13 @@ l'application (Réglages → À propos → Nouveautés).
   Duels → Coéquipiers : le graphique « Écart en qualification » est dessiné à la largeur de sa case, avec des textes de
   taille normale au lieu d'énormes, la valeur d'un très grand écart écrite au bout de sa barre et non dessus, et les deux
   pilotes, en haut et en bas, à la couleur de leurs barres. Aussi dans la version web.
+- Saison plus harmonieuse sur ordinateur : le même espace entre tous les blocs et les mêmes coins arrondis partout ; les
+  cartes se rangent avec autant de cartes sur chaque ligne (3 × 3 dans Résultats & records, 6 × 3 pour un pilote, 4 + 4
+  + 3 écuries sur un grand écran) au lieu d'une carte seule sur la dernière ligne, et une dernière carte de chiffres
+  s'élargit plutôt que de laisser un trou (Bilan de la saison) ; deux tableaux côte à côte (Classements, Championnat des
+  casseurs) ont la même hauteur, sans vide sous le plus court. Plus visuel : une petite barre à la couleur de l'écurie à
+  côté des points et des dégâts (Classements et accueil de la Saison, Championnat des casseurs, courses d'un pilote) et,
+  dans les courses d'un pilote, son podium en or, argent ou bronze. Aussi dans la version web.
 - Graphiques de la Saison (évolution des points, écart à la pole, départ et arrivée d'un pilote) : le drapeau de chaque
   Grand Prix sous l'axe des manches. Aussi dans la version web.
 - Saison → Classements : trois nouveaux graphiques, pour les pilotes ou les constructeurs. Évolution du classement (la

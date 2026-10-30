@@ -4,7 +4,7 @@
 // analyse des archives F1 Live Timing (/api/season/stats).
 import { $, esc, api, teamColor, teamLogo, photoUrl, placeView, driverOpt, OFFICIAL, ink } from '../util.js';
 import { store } from '../store.js';
-import { skeleton, renderDrivers, renderConsistency, renderPits, renderSpeeds, renderCircuits, renderRatings, gradeBadge, stopTxt, DHL_NOTE, statusFr, fmtLap, dnaBlock, setHistKind, circuitLength } from './season-stats.js';
+import { cellBar, skeleton, renderDrivers, renderConsistency, renderPits, renderSpeeds, renderCircuits, renderRatings, gradeBadge, stopTxt, DHL_NOTE, statusFr, fmtLap, dnaBlock, setHistKind, circuitLength } from './season-stats.js';
 import { driverRatings, qualiGaps, titleRace, placeForMaxPoints, retired, standingsAfter, lineage, pointsPath, shortTeams, teamPoleGaps, median, teamMileage } from '/shared/season-calc.js';
 import { renderTech, renderElements, setTechFilter, translateTechDetail, toggleTechOriginal } from './season-fia.js';
 import { icon } from '../icons.js';
@@ -228,7 +228,7 @@ function standingsTable(rows, kind, limit = Infinity) {
   const lead = rows[0]?.points || 0;
   return `<table class="sz-table"><tr><th>Pos.</th><th>${kind === 'd' ? 'Pilote' : 'Écurie'}</th><th>Points</th><th>Écart</th><th>Vict.</th></tr>
     ${rows.slice(0, limit).map((x) => `<tr><td>${x.pos ?? '—'}</td><td>${kind === 'd' ? `${bar(x.team, x.teamId)}<b>${esc(x.name)}</b> <span class="muted small">${esc(x.team)}</span>` : `${bar(x.name, x.id)}<b>${esc(x.name)}</b>`}</td>
-      <td><b>${x.points}</b></td><td class="muted">${x.points === lead ? '—' : `−${lead - x.points}`}</td><td>${x.wins || ''}</td></tr>`).join('')}</table>`;
+      <td>${cellBar(x.points, lead, kind === 'd' ? color(x.team, x.teamId) : color(x.name, x.id), `<b>${x.points}</b>`)}</td><td class="muted">${x.points === lead ? '—' : `−${lead - x.points}`}</td><td>${x.wins || ''}</td></tr>`).join('')}</table>`;
 }
 
 function renderHome() {
@@ -1077,6 +1077,7 @@ function render() {
   if (jump && push) leaveTop = $('#szContent').scrollTop;   // rubrique quittée : défilement gardé pour le retour
   $('#szContent').innerHTML = `${data.stale ? '<div class="note small">Hors ligne : dernières données enregistrées.</div>' : ''}${html}`;
   wide().forEach((e, i) => { if (scrolls[i]) e.scrollLeft = scrolls[i]; });
+  balanceCards();
   addPngButtons($('#szContent'));
   if (section === 'calendar') globeSlot();
   tick();
@@ -1087,6 +1088,21 @@ function render() {
     $('#szContent').scrollTop = 0;
     // Téléphone : la rubrique choisie visible dans le bandeau du haut
     $('#szNav .active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }
+}
+
+// Grilles de cartes : le même nombre de cartes sur chaque ligne quand elles passent sur plusieurs lignes
+// (9 cartes : 3 × 3 au lieu de 4 + 4 + 1 ; 18 : 6 × 3 au lieu de 8 + 8 + 2) ; s'il reste un trou, la dernière carte
+// de chiffres (pas une carte d'écurie ou de circuit) s'élargit jusqu'au bout de la ligne. Accueil exclu : ses cartes
+// ont des largeurs différentes voulues
+function balanceCards() {
+  for (const g of document.querySelectorAll('#szContent :is(.sz-cards, .sz-team-grid, .sz-rv-grid, .sz-circs):not(.sz-home-cards)')) {
+    g.style.removeProperty('--cols');
+    g.lastElementChild?.style.removeProperty('grid-column');
+    const max = getComputedStyle(g).gridTemplateColumns.split(' ').length, n = g.children.length;
+    const cols = n > max ? Math.ceil(n / Math.ceil(n / max)) : n;
+    if (cols < max && n > max) g.style.setProperty('--cols', cols);
+    if (n % cols && g.matches('.sz-cards, .sz-rv-grid')) g.lastElementChild.style.gridColumn = `span ${cols - (n % cols) + 1}`;
   }
 }
 
@@ -1184,6 +1200,7 @@ export function initSeason() {
   $('#szClose').addEventListener('click', closeSeason);
   $('#szNav').addEventListener('click', (e) => { const b = e.target.closest('[data-sz]'); if (b) { section = b.dataset.sz; jump = true; push = true; szMenu(false); animate(); render(); } });
   $('#szMenu')?.addEventListener('click', () => szMenu(true));
+  addEventListener('resize', () => { if (!$('#seasonView').hidden) balanceCards(); });
   $('#szScrim')?.addEventListener('click', () => szMenu(false));
   $('#szContent').addEventListener('click', (e) => {
     const png = e.target.closest('.sz-png');
