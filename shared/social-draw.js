@@ -1142,8 +1142,9 @@ export function drawSlide(canvas, slide, fmt, d, o = {}) {
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, w, h);
   paintSlide(ctx, slide, fmt, d, o);
-  // Vidéo : visuel redessiné directement à chaque image (net, sans saccade)
-  canvas.paint = (c) => paintSlide(c, slide, fmt, d, o);
+  // Vidéo : visuel redessiné directement à chaque image (net, sans saccade) ; size : [largeur, hauteur]
+  // à la place de celles du format (couverture d'une vidéo plus haute)
+  canvas.paint = (c, size) => paintSlide(c, slide, fmt, d, o, size);
   return canvas;
 }
 
@@ -1151,13 +1152,8 @@ export function drawSlide(canvas, slide, fmt, d, o = {}) {
 // gros ; autres posts → leur visuel de couverture. L'essentiel tient dans la partie centrale 3:4 que montrent
 // les grilles de profil (240 px rognés en haut et en bas).
 export function videoCover(ctx, W, H, d, o = {}) {
-  // Visuel au format story, centré dans une vidéo plus haute
-  if (!d.news) {
-    background(ctx, W, H, d.color);
-    ctx.translate(0, (H - W * 16 / 9) / 2);
-    paintSlide(ctx, slidesFor(d, { fmt: 'story' }).includes('couverture') ? 'couverture' : slidesFor(d, { fmt: 'story' })[0], 'story', d, o);
-    return;
-  }
+  // Visuel au format story, dessiné à la taille de la vidéo (plus haute comprise)
+  if (!d.news) { paintSlide(ctx, slidesFor(d, { fmt: 'story' }).includes('couverture') ? 'couverture' : slidesFor(d, { fmt: 'story' })[0], 'story', d, o, [W, H]); return; }
   const u = W / 1080;
   const pad = Math.round(W * 0.055);
   const lead = d.drivers.find((p) => o.photos?.[p.num]);
@@ -1188,14 +1184,14 @@ export function videoCover(ctx, W, H, d, o = {}) {
   txt(ctx, o.signature || '@BenjyPaddock', pad, H - 270 * u, { size: Math.round(40 * u), weight: 700, family: TITLE, spacing: 1 });
 }
 
-// Visuel dessiné sur un contexte (taille du format, transformation du contexte respectée)
-export function paintSlide(ctx, slide, fmt, d, o = {}) {
+// Visuel dessiné sur un contexte (taille du format, ou size = [largeur, hauteur] ; transformation du contexte respectée)
+export function paintSlide(ctx, slide, fmt, d, o = {}, size = null) {
   page = o.slides?.includes(slide) ? { n: o.slides.indexOf(slide) + 1, total: o.slides.length } : null;
   safe = fmt === 'story';
-  try { paintOne(ctx, slide, fmt, d, o); } finally { page = null; safe = false; }
+  try { paintOne(ctx, slide, fmt, d, o, size); } finally { page = null; safe = false; }
 }
-function paintOne(ctx, slide, fmt, d, o) {
-  const { w, h } = FORMATS[fmt];
+function paintOne(ctx, slide, fmt, d, o, size) {
+  const [w, h] = size || [FORMATS[fmt].w, FORMATS[fmt].h];
   // X : 4 images au plus par post, le sommaire n'annonce que celles publiées
   if (slide === 'news') newsSlide(ctx, w, h, d, o, fmt);
   else if (/^app-\d+$/.test(slide)) { const list = o.slides || appSlides(d); appPage(ctx, w, h, d, Number(slide.slice(4)), { num: list.indexOf(slide) + 1, total: list.length }); }
