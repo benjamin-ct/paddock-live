@@ -90,7 +90,7 @@ l'application (Réglages → À propos → Nouveautés).
 - Version web : entre deux séances, l'étiquette du direct en haut dit « Hors séance » (point gris) ; le direct reprend
   tout seul une demi-heure avant la séance suivante. Sur téléphone, où seul le point est affiché, le toucher dit l'état
   du direct.
-- Carte en 3D (case « 3D » du panneau Circuit, à cocher ou décocher, choix gardé) : la piste avec son vrai relief, qui
+- Carte en 3D (case « 3D » du panneau Circuit, à cocher quand on la veut ; la carte s'ouvre toujours en 2D) : la piste avec son vrai relief, qui
   monte et descend en pente continue, sans marches (le Raidillon de Spa monte comme en vrai), ses vibreurs, la ligne
   d'arrivée et la grille de départ (avant le départ d'une course ou d'un sprint, les voitures attendent dans leur case,
   dans l'ordre de la grille, puis s'élancent), le bâtiment des stands le long de la voie des stands, et des voitures en forme de vraie F1 2026 aux couleurs des écuries (nez fin, ailerons à plusieurs
@@ -151,6 +151,8 @@ l'application (Réglages → À propos → Nouveautés).
   l'interface), ou avec l'option « réduire les animations » du système.
 
 ### Interface
+- Panneau Circuit étroit (téléphone, petit panneau) : son en-tête tient sur une ligne. « GPS / Estimées » passe dans le
+  coin de la carte, « Suivre » et « Calques » deviennent des icônes. Aussi dans la version web.
 - Thème sombre plus clair et plus lisible : fond bleu nuit au lieu du noir (barre latérale et barre du haut comprises),
   cartes et panneaux qui ressortent mieux, textes secondaires plus contrastés. Aussi dans la version web.
 - Saison plus visuelle : logo de l'écurie devant chaque pilote et chaque écurie (classements, records, cartes), titres,

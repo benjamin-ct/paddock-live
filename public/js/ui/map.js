@@ -1298,17 +1298,17 @@ export function initMap() {
   init3d();
 }
 
-// Vue 3D (ui/map3d.js, chargée à la demande) à la place de la carte 2D, choix gardé ; retour en 2D, avec un message,
+// Vue 3D (ui/map3d.js, chargée à la demande) à la place de la carte 2D ; la carte s'ouvre toujours en 2D (choix du
+// créateur), la 3D se coche quand on la veut ; retour en 2D, avec un message,
 // si WebGL manque ou si la carte graphique perd la vue. Pas dans la carte flottante ni l'overlay de streaming
 const v3d = { on: false, view: null, turn: 0, timer: 0 };
 function init3d() {
-  // Case « 3D » du panneau Circuit : vue 3D activée ou non, choix gardé
+  // Case « 3D » du panneau Circuit : vue 3D activée ou non, pas reprise au lancement
   const tog = $('#map3dTog');
   const html = document.documentElement;
   if (!tog || html.classList.contains('float-map') || html.classList.contains('overlay')) return;
   tog.hidden = false;
   $('#map3dOpt').addEventListener('change', (e) => set3d(e.target.checked));
-  if (storageGet('paddock.map3d', {}).on) set3d(true);
 }
 
 async function set3d(on, msg = '') {
@@ -1319,7 +1319,6 @@ async function set3d(on, msg = '') {
   const box = $('#map3dMsg');
   $('.p-map').classList.toggle('is-3d', on);
   $('#map3dOpt').checked = on;
-  storageSet('paddock.map3d', { ...storageGet('paddock.map3d', {}), on });
   box.textContent = msg;
   box.hidden = !msg;
   clearTimeout(v3d.timer);
