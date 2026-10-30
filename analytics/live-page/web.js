@@ -175,9 +175,11 @@ function status(now) {
 // GPS laissé à un autre appareil du même compte F1 TV : repris par le relais (badge « GPS ailleurs »)
 store.takeGps = () => { if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'here' })); };
 
+let fails = 0;   // tentatives d'affilée sans connexion
 function connect() {
   ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/live/ws?d=${store.delay}${relayId ? `&u=${relayId}` : ''}`);
   ws.onopen = () => {
+    fails = 0;
     store.connected = true;
     emit('connection', true);
     if (f1tv) ws.send(JSON.stringify({ type: 'auth', token: f1tv }));
@@ -191,9 +193,13 @@ function connect() {
     else if (msg.type === 'up') { relay = msg.status || {}; status(msg.now); }
   };
   ws.onclose = (ev) => {
+    const opened = store.connected;
     store.connected = false;
     emit('connection', false);
     if (ev.code === 4001) relayId = '';   // connexion F1 TV refusée par son relais (expirée) : relais commun, sans GPS
+    // Son relais injoignable trois fois de suite (refusé, plafond du jour) : relais commun, sans GPS, plutôt que
+    // « Serveur déconnecté » jusqu'au lendemain
+    else if (!opened && relayId && ++fails >= 3) relayId = '';
     setTimeout(connect, 3000);
   };
   ws.onerror = () => ws.close();
