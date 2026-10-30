@@ -1151,10 +1151,12 @@ export function drawSlide(canvas, slide, fmt, d, o = {}) {
 // gros ; autres posts → leur visuel de couverture. L'essentiel tient dans la partie centrale 3:4 que montrent
 // les grilles de profil (240 px rognés en haut et en bas).
 export function videoCover(ctx, W, H, d, o = {}) {
-  // Visuel au format story, centré dans une vidéo plus haute
+  // Visuel au format story, centré dans une vidéo plus haute ou en paysage
   if (!d.news) {
+    const s = Math.min(W / 1080, H / 1920);
     background(ctx, W, H, d.color);
-    ctx.translate(0, (H - W * 16 / 9) / 2);
+    ctx.translate((W - 1080 * s) / 2, (H - 1920 * s) / 2);
+    ctx.scale(s, s);
     paintSlide(ctx, slidesFor(d, { fmt: 'story' }).includes('couverture') ? 'couverture' : slidesFor(d, { fmt: 'story' })[0], 'story', d, o);
     return;
   }

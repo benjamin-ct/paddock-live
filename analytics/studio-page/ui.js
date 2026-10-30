@@ -306,8 +306,8 @@ export const musicField = (kind, def) => {
     <div class="row"><select id="vtrack">${TRACKS.map((x) => `<option value="${x.id}" ${x.id === cur ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}<option value="file" ${cur === 'file' ? 'selected' : ''}>Mon fichier audio…</option><option value="none" ${cur === 'none' ? 'selected' : ''}>Sans musique</option></select><button type="button" class="btn small" id="vlisten">${icon('play')}Écouter</button></div>
     <input type="file" id="vaudio" accept="audio/*" hidden>
     <small class="hint" id="vtrackdesc">${esc(musicDesc(cur))}${cur === 'file' && ownAudio ? ` · ${esc(ownAudio.name)}` : ''}</small></div>
-    <div class="field"><span>Format <small>(plus haute : plein écran sur les iPhone et téléphones récents ; 9:16 : format conseillé par Instagram et YouTube)</small></span>
-    <select id="vformat"><option value="std">9:16 (standard)</option><option value="tall" ${store.get('vformat')?.v === 'tall' ? 'selected' : ''}>Plus haute (forme de l'iPhone)</option></select></div>`;
+    <div class="field"><span>Format <small>(plus haute : plein écran sur les iPhone et téléphones récents ; 9:16 : format conseillé par Instagram et YouTube${kind === 'race' ? ' ; paysage : vidéo YouTube classique, X, Facebook' : ''})</small></span>
+    <select id="vformat">${[['std', '9:16 (standard)'], ['tall', "Plus haute (forme de l'iPhone)"], ...(kind === 'race' ? [['wide', 'Paysage 16:9']] : [])].map(([v, l]) => `<option value="${v}" ${store.get('vformat')?.v === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>`;
 };
 // Branche la liste et l'écoute (15 s) ; renvoie de quoi faire la musique : { music, track, file }
 export function bindMusic(kind) {
@@ -343,10 +343,10 @@ export function bindMusic(kind) {
   addEventListener('popstate', end, { once: true });
   // Musique et format de la vidéo
   return () => {
-    const v = $('#vtrack').value, tall = $('#vformat').value === 'tall';
-    if (v === 'none') return { music: 'none', tall };
-    if (v === 'file' && ownAudio) return { music: 'file', file: ownAudio, tall };
-    return { music: 'gen', track: v === 'file' ? trackOf().id : v, tall };
+    const v = $('#vtrack').value, format = $('#vformat').value;
+    if (v === 'none') return { music: 'none', format };
+    if (v === 'file' && ownAudio) return { music: 'file', file: ownAudio, format };
+    return { music: 'gen', track: v === 'file' ? trackOf().id : v, format };
   };
 }
 
