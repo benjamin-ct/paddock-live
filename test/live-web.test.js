@@ -445,7 +445,7 @@ test('relais web : compte F1 TV suivi par l\'appli, GPS laissé après deux coup
   assert.deepEqual([relay.elsewhere, relay.status.elsewhere, relay.losses.length, reconnects], [false, false, 0, 1]);
 });
 
-test('version web : relais d\'un abonné fermé sans connexion F1 TV au bout de 15 s, et au bout de 6 h', async (t) => {
+test('version web : appareil fermé sans connexion F1 TV au bout de 15 s sur le relais d\'un abonné, et au bout de 6 h', async (t) => {
   t.mock.timers.enable({ apis: ['setTimeout', 'setInterval'] });
   const sockets = [];
   globalThis.WebSocketPair = class {
@@ -472,7 +472,7 @@ test('version web : relais d\'un abonné fermé sans connexion F1 TV au bout de 
     const mine = new LiveRelay({}, {});
     mine.name = 'u:'.padEnd(34, 'b');
     const s2 = await open(mine);
-    mine.userToken = 'jeton';
+    s2.ok = true;   // cet appareil a présenté une connexion F1 TV du compte (auth)
     t.mock.timers.tick(AUTH_MS);
     assert.equal(s2.closed, null);   // connexion F1 TV reçue : gardé
     t.mock.timers.tick(PRIVATE_MS);
