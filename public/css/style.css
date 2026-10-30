@@ -308,8 +308,10 @@ input[type=range]:not(#rpRange):disabled { opacity: .45; cursor: default; }
 .tower tr.out td { opacity: .45; }
 .tower tr.danger td { background: rgba(255, 59, 48, .07); }
 .tower tr.cut td { border-bottom: 2px dashed var(--red); }
-/* Pilote qui a passé le drapeau à damier : toute sa ligne en damier, léger (le texte reste lisible) */
-.tower tr.fin { background: var(--chequer) 0 0 / 16px 16px; }
+/* Pilote qui a passé le drapeau à damier : petit drapeau à damier au coin de sa position (la ligne reste lisible) */
+.tower tr.fin td.pos { position: relative; }
+.tower tr.fin td.pos::after { content: ''; position: absolute; right: -3px; top: 1px; width: 11px; height: 11px; border-radius: 2px; z-index: 1;
+  background: repeating-conic-gradient(#0b0c0f 0 25%, #fff 0 50%) 0 0 / 5.5px 5.5px; box-shadow: 0 0 0 1.5px var(--panel); }
 :root { --chequer: repeating-conic-gradient(rgba(128, 128, 128, .24) 0 25%, transparent 0 50%); }
 .pos { font-weight: 900; font-size: 15px; width: 26px; text-align: center; }
 .pos-delta { font-size: 10.5px; font-weight: 700; margin-left: 1px; }
