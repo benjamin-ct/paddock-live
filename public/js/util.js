@@ -89,14 +89,18 @@ export function teamColor(driver) {
 }
 
 
+// Texte lisible sur la couleur de l'écurie (sombre sur les couleurs claires : Mercedes, McLaren, Haas…)
+export const ink = (c) => { const m = /^#([0-9a-f]{6})$/i.exec(c); const v = m ? parseInt(m[1], 16) : 0; return 0.2126 * (v >> 16) + 0.7152 * ((v >> 8) & 255) + 0.0722 * (v & 255) > 150 ? '#0b1220' : '#fff'; };
+
 let teamLogos = true;
 export function setTeamLogos(v) { teamLogos = !!v; }
 let logoColor = true;
 export function setLogoColor(v) { logoColor = !!v; }
 
 // Logo en couleurs officielles (sur pastille claire : certains sont noirs) ou version blanche
-export function teamLogo(teamName, color = logoColor) {
-  return teamLogoUrl(teamName, { white: !color });
+// h : hauteur demandée au serveur des images (64 px pour les petits repères, plus pour les logos en filigrane, sinon flous)
+export function teamLogo(teamName, color = logoColor, h = 64) {
+  return teamLogoUrl(teamName, { white: !color, h });
 }
 
 // Repère d'écurie d'un pilote : logo officiel (réglage « logos »), sinon barre de couleur.

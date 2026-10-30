@@ -1,7 +1,7 @@
 // Onglet « Pneus » : choix de composés et préconisations de Pirelli pour le Grand Prix, et jeux
 // de pneus de chaque pilote sur tout le week-end (neufs encore disponibles, jeux déjà utilisés).
 import { store, f1Now, versionOf } from '../store.js';
-import { $, esc, api, drivers, orderedNumbers, teamColor, compoundInfo } from '../util.js';
+import { $, esc, api, drivers, orderedNumbers, teamColor, teamMark, compoundInfo } from '../util.js';
 import { buildSets, setSummary, DRY, WET } from '/shared/tyres.js';
 import { translated, requestTranslations, onTranslation } from './fia-translate.js';
 import { icon } from '../icons.js';
@@ -100,7 +100,7 @@ function setsTable(d) {
     const sum = setSummary(mine, d.allocation, q3.has(n));
     const lastStint = [...(Array.isArray(cur[n]?.Stints) ? cur[n].Stints : Object.values(cur[n]?.Stints || {}))].pop();
     const curSet = lastStint ? mine.filter((x) => x.compound === lastStint.Compound).find((x) => x.laps === Number(lastStint.TotalLaps)) : null;
-    return `<tr><td class="ty-drv" style="--c:${teamColor(dl[n])}"><b>${esc(dl[n].Tla)}</b>${q3.has(n) ? '<span class="ty-q3" title="Qualifié en Q3 : un jeu de tendres en plus">Q3</span>' : ''}</td>${cols.map((c) => cell(sum[c], c, curSet)).join('')}</tr>`;
+    return `<tr><td class="ty-drv" style="--c:${teamColor(dl[n])}">${teamMark(dl[n])}<b>${esc(dl[n].Tla)}</b>${q3.has(n) ? '<span class="ty-q3" title="Qualifié en Q3 : un jeu de tendres en plus">Q3</span>' : ''}</td>${cols.map((c) => cell(sum[c], c, curSet)).join('')}</tr>`;
   }).join('');
   const done = d.sessions.map((x) => SESSION_FR(x.name)).join(', ');
   return `<div class="ty-card">

@@ -1,7 +1,7 @@
 // Duel entre deux pilotes : écart en direct, tendance, historique, comparaison détaillée.
 import { store, setDuel, displayNow, versionOf, on, emit } from '../store.js';
 import { prefs } from '../prefs.js';
-import { $, esc, drivers, orderedNumbers, sessionKind, teamColor, tyreBadge, currentStint, fmtLap, fmtSigned, photoUrl, driverOpt } from '../util.js';
+import { $, esc, drivers, orderedNumbers, sessionKind, teamColor, teamMark, ink, tyreBadge, currentStint, fmtLap, fmtSigned, photoUrl, driverOpt } from '../util.js';
 import { parseGap, parseLapTime } from '/shared/f1.js';
 import { lineChart } from './charts.js';
 import { Dial, animate, carNow, energyOf } from './gauge.js';
@@ -140,12 +140,13 @@ function renderHero(a, b) {
   const side = (num, d, cls) => {
     const l = lines[num] || {};
     const pos = l.Position ? `P${l.Position}` : '';
-    const photo = photoUrl(d) ? `<img class="duel-photo" src="${esc(photoUrl(d))}" alt="" onerror="this.remove()">` : '';
-    return `<div class="duel-side ${cls}"><div class="duel-id">${photo}<div><div class="duel-name"><span class="duel-swatch" style="background:${teamColor(d)}"></span>${esc(d.Tla || num)}</div>
+    const photo = photoUrl(d) ? `<img class="duel-photo" src="${esc(photoUrl(d))}" alt="" style="--tc:${teamColor(d)}" onerror="this.remove()">` : '';
+    return `<div class="duel-side ${cls}"><div class="duel-id">${photo}<div><div class="duel-name">${teamMark(d)}${esc(d.Tla || num)}</div>
       <div class="duel-sub">${esc(pos)} · ${esc(d.TeamName || '')}</div></div></div></div>`;
   };
   // Mise à jour ciblée (évite de recharger les photos à chaque rafraîchissement).
   const put = (id, html) => { const el = $(id); if (el._h !== html) { el._h = html; el.innerHTML = html; } };
+  $('#dHero').style.cssText = `--ta:${teamColor(da)};--tb:${teamColor(db)}`;
   put('#dSideA', side(a, da, 'a'));
   put('#dSideB', side(b, db, 'b'));
   put('#dGap', `<div class="duel-gap"><div class="duel-gap-val">${main}${main !== '—' && !main.includes('T') ? '<small style="font-size:16px"> s</small>' : ''}</div>
@@ -186,6 +187,7 @@ function renderSlow(a, b) {
   const app = s.TimingAppData?.Lines || {};
   const la = lines[a] || {}, lb = lines[b] || {};
   const tlaA = dl[a]?.Tla || a, tlaB = dl[b]?.Tla || b;
+  const chip = (n) => { const c = teamColor(dl[n]); return `<span class="sz-chip" style="--tc:${c};--ink:${ink(c)}">${esc(dl[n]?.Tla || n)}</span>`; };
 
   // Graphique tour par tour + tendance (course)
   const series = kind === 'race' ? lapGapSeries(a, b) : [];
@@ -249,7 +251,7 @@ function renderSlow(a, b) {
     rows += cmpRow('Tours', num(la.NumberOfLaps), num(lb.NumberOfLaps));
   }
   rows += cmpRow('Speed trap', spd(la), spd(lb), 'high');
-  $('#dCmp').innerHTML = `<tr><td><b style="color:var(--blue)">A</b> ${esc(tlaA)}</td><td></td><td>${esc(tlaB)} <b style="color:var(--orange)">B</b></td></tr>${rows}`;
+  $('#dCmp').innerHTML = `<tr><td><b style="color:var(--blue)">A</b> ${chip(a)}</td><td></td><td>${chip(b)} <b style="color:var(--orange)">B</b></td></tr>${rows}`;
 
   // Derniers tours
   const lapsA = store.derived.laps[a] || [], lapsB = store.derived.laps[b] || [];
@@ -260,9 +262,9 @@ function renderSlow(a, b) {
       const eb = mapB.get(ea.lap);
       const ta = parseLapTime(ea.time), tb = parseLapTime(eb.time);
       const dlt = ta !== null && tb !== null ? ta - tb : null;
-      const faster = dlt === null || dlt === 0 ? '' : dlt < 0 ? tlaA : tlaB;
+      const faster = dlt === null || dlt === 0 ? '' : chip(dlt < 0 ? a : b);
       return `<tr><td>T${ea.lap}${ea.pit || eb.pit ? ' <span class="tag pit">P</span>' : ''}</td><td>${esc(ea.time || '—')}</td><td>${esc(eb.time || '—')}</td>
-        <td>${dlt === null ? '—' : fmtSigned(dlt)}</td><td>${esc(faster)}</td></tr>`;
+        <td>${dlt === null ? '—' : fmtSigned(dlt)}</td><td>${faster}</td></tr>`;
     }).join('')
     : '<tr><td class="note">Aucun tour commun pour l\'instant.</td></tr>';
 }

@@ -2,7 +2,7 @@
 // précédentes (depuis 2018), pour situer les temps de la séance. D'après les résultats officiels publics (Jolpica) ;
 // archives de la F1 (connexion F1 TV du créateur) pour un circuit inconnu de la liste. Une édition passée ne change
 // plus : gardée dans la base.
-import { readJSON, setRow } from './alerts.js';
+import { getRow, readJSON, setRow } from './alerts.js';
 import { archiveToken } from './studio.js';
 import { archiveText } from './race-stats.js';
 import { pages } from './season-cache.js';
@@ -36,4 +36,21 @@ export async function circuitRecords(env, circuitKey, year, { fetchFn = fetch, w
   const editions = [];
   for (const y of recordYears(year)) editions.push(await edition(env, y, circuitKey, fetchFn, wait));
   return recordsOf(circuitKey, editions);
+}
+
+// Tâche planifiée : une édition par appel, celles des circuits connus que la base n'a pas encore pour cette saison, pour
+// que personne n'attende les demandes à Jolpica (30 à 40 s pour la première ouverture des records d'une saison).
+// Une fois tout lu, une seule ligne lue par appel jusqu'à la saison suivante
+export async function recordsTick(env, { now = Date.now(), fetchFn = fetch, wait } = {}) {
+  const year = new Date(now).getUTCFullYear(), done = `recordsdone:${year}`;
+  if (!env.DB || await getRow(env, done)) return null;
+  for (const { key } of Object.values(CIRCUITS)) {
+    for (const y of recordYears(year)) {
+      if (await getRow(env, `records:${key}:${y}`)) continue;
+      await edition(env, y, key, fetchFn, wait);
+      return { key, year: y };
+    }
+  }
+  await setRow(env, done, '1');
+  return null;
 }
