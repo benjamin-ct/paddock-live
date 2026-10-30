@@ -502,8 +502,18 @@ export function raceFrame(ctx, W, H, d, o, time) {
   const u = land ? H / 1350 : W / 1080;
   // Marges des réseaux : TikTok rogne ~100 px de chaque côté (9:16 sur un iPhone), ses onglets couvrent le haut
   // et la légende du post le bas
+  // Vertical : tout dans la zone que TikTok et Instagram ne couvrent pas, sur un iPhone (19,5:9) : côtés rognés
+  // d'une vidéo 9:16, barre d'état et boutons en haut (11 %), colonne de boutons à droite, pseudo et légende en
+  // bas (24 %). Paysage : marges simples
+  const crop = land ? 0 : Math.max(0, (W - H * 9 / 19.5) / 2);
   const pad = Math.round(Math.min(W, H) * 0.1);
-  const foot = (land ? 90 : 310) * u;
+  const padL = land ? pad : Math.round(crop + 50 * u);
+  const padR = land ? pad : Math.round(crop + 150 * u);
+  const foot = land ? 90 * u : H * 0.24;
+  const sigY = land ? H - Math.round(H * 0.025) : H - foot;   // signature
+  const bandEnd = land ? H - foot : sigY - 70 * u;
+  const bw = W - padL - padR;
+  const cx = padL + bw / 2;
   const { lap, f } = lapAt(tm, d.total, time);
   const done = time >= tm.starts.at(-1);
   const intro = time < tm.intro;
@@ -516,23 +526,27 @@ export function raceFrame(ctx, W, H, d, o, time) {
     ctx.fillStyle = rg; ctx.fillRect(0, 0, W, H);
   }
   // En-tête : Grand Prix, tour, état de la piste
-  const top = Math.round(land ? 40 * u : H * 0.035 + 90 * u);
+  const top = Math.round(land ? 40 * u : H * 0.11);
   // Vidéo dessinée dans le cadre réduit des applis (u < 1) : textes d'un cran plus grands
   const tu = Math.max(u, 0.9);
-  ctx.fillStyle = C.red; rr(ctx, pad, top, 10 * u, 76 * u, 4 * u); ctx.fill();
-  txt(ctx, d.gp.toUpperCase(), pad + 26 * u, top + 36 * u, { size: Math.round(46 * tu), weight: 800, family: TITLE, max: W - 2 * pad - 380 * u, italic: true });   // pas sous le tour
-  txt(ctx, `SAISON ${d.year} · ${d.total} TOURS`, pad + 26 * u, top + 78 * u, { size: Math.round(31 * tu), weight: 700, family: TITLE, color: '#c3cad8', spacing: 2, max: W - 2 * pad - 380 * u });
+  ctx.fillStyle = C.red; rr(ctx, padL, top, 10 * u, 76 * u, 4 * u); ctx.fill();
+  // Vertical (zone étroite) : Grand Prix sur toute la largeur, tour à droite de la ligne de dessous
   const label = intro ? 'DÉPART' : done ? 'ARRIVÉE' : `TOUR ${Math.min(d.total, lap + 1)}/${d.total}`;
-  txt(ctx, label, W - pad, top + 46 * u, { size: Math.round(56 * tu), weight: 800, family: TITLE, color: done ? C.gold : C.text, align: 'right', italic: true });
-  if (!intro && !done) pill(ctx, flag.label, W - pad, top + 62 * u, 42 * tu, { bg: st === 'green' ? 'rgba(61,220,132,0.18)' : flag.color, color: st === 'green' ? C.green : '#111', align: 'right', dot: true });
+  ctx.font = `800 ${Math.round(56 * tu)}px ${TITLE}`;
+  const tw = ctx.measureText(label).width;
+  txt(ctx, d.gp.toUpperCase(), padL + 26 * u, top + 36 * u, { size: Math.round(46 * tu), weight: 800, family: TITLE, max: land ? bw - 380 * u : bw - 26 * u, italic: true });   // pas sous le tour
+  txt(ctx, `SAISON ${d.year} · ${d.total} TOURS`, padL + 26 * u, top + 78 * u, { size: Math.round(31 * tu), weight: 700, family: TITLE, color: '#c3cad8', spacing: 2, max: land ? bw - 380 * u : bw - 26 * u - tw - 40 * u });
+  const ty = land ? 0 : 40 * u;
+  txt(ctx, label, W - padR, top + 46 * u + ty, { size: Math.round(56 * tu), weight: 800, family: TITLE, color: done ? C.gold : C.text, align: 'right', italic: true });
+  if (!intro && !done) pill(ctx, flag.label, W - padR, top + 62 * u + ty, 42 * tu, { bg: st === 'green' ? 'rgba(61,220,132,0.18)' : flag.color, color: st === 'green' ? C.green : '#111', align: 'right', dot: true });
 
   // ---- Graphique des positions : une ligne par pilote, qui se dessine tour après tour ----
   const n = d.drivers.length;
   const prog = done ? d.total : intro ? 0 : Math.min(d.total, lap + f);
-  const x0 = pad + 52 * u;
-  const x1 = W - pad - 220 * u;
+  const x0 = padL + 52 * u;
+  const x1 = W - padR - 220 * u;
   const y0 = top + 150 * u;
-  const y1 = H - foot - 330 * u;
+  const y1 = bandEnd - 330 * u;
   const rowH = (y1 - y0) / Math.max(1, n - 1);
   const X = (l) => x0 + ((x1 - x0) * l) / d.total;
   const Y = (p) => y0 + (p - 1) * rowH;
@@ -656,7 +670,7 @@ export function raceFrame(ctx, W, H, d, o, time) {
     const on = Math.min(5, Math.floor((time / (tm.intro - 0.6)) * 6));
     const out = time > tm.intro - 0.45;
     const lw = 5 * 92 * u;
-    const lx = (W - lw) / 2;
+    const lx = cx - lw / 2;
     const ly = (y0 + y1) / 2 - 90 * u;
     rr(ctx, lx - 20 * u, ly - 20 * u, lw + 40 * u, 200 * u, 24 * u); ctx.fillStyle = 'rgba(8,9,12,0.94)'; ctx.fill();
     for (let k = 0; k < 5; k++) {
@@ -666,12 +680,12 @@ export function raceFrame(ctx, W, H, d, o, time) {
       if (lit) { ctx.shadowColor = '#ff1a1a'; ctx.shadowBlur = 30 * u; }
       ctx.fill(); ctx.shadowBlur = 0;
     }
-    txt(ctx, out ? "C'EST PARTI !" : 'GRILLE DE DÉPART', W / 2, ly + 150 * u, { size: Math.round(46 * tu), weight: 800, family: TITLE, align: 'center', color: out ? C.green : C.text, italic: true });
+    txt(ctx, out ? "C'EST PARTI !" : 'GRILLE DE DÉPART', cx, ly + 150 * u, { size: Math.round(46 * tu), weight: 800, family: TITLE, align: 'center', color: out ? C.green : C.text, italic: true });
   }
 
   // ---- Bandeau du bas : moment fort en cours, sinon le leader ----
   const bandY = y1 + 90 * u;
-  const bandH = H - foot - bandY;
+  const bandH = bandEnd - bandY;
   const bn = tm.banners.find((b) => time >= b.t0 && time < b.t1);
   if (bn && !done) {
     const k = clamp01((time - bn.t0) / 0.25);
@@ -682,27 +696,27 @@ export function raceFrame(ctx, W, H, d, o, time) {
     const col = BANNER_COLOR[bn.kind] || FLAG[bn.kind]?.color || C.red;
     ctx.save();
     ctx.globalAlpha = fade;
-    ctx.translate(W / 2, bandY + bandH / 2);
+    ctx.translate(cx, bandY + bandH / 2);
     ctx.scale(0.6 + 0.4 * ease(k), 1);
     ctx.transform(1, 0, -0.12, 1, 0, 0);
-    rr(ctx, -W / 2 + pad, -bandH / 2, W - 2 * pad, bandH, 14 * u); ctx.fillStyle = col; ctx.fill();
-    ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.fillRect(-W / 2 + pad, bandH / 2 - 12 * u, W - 2 * pad, 12 * u);
+    rr(ctx, -bw / 2, -bandH / 2, bw, bandH, 14 * u); ctx.fillStyle = col; ctx.fill();
+    ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.fillRect(-bw / 2, bandH / 2 - 12 * u, bw, 12 * u);
     ctx.restore();
     ctx.save();
     ctx.globalAlpha = fade * k;
     const dark = ['sc', 'vsc', 'neutral', 'restart', 'lead'].includes(bn.kind) ? '#0b0d12' : '#fff';
-    txt(ctx, title, W / 2, bandY + bandH / 2 + 2 * u, { size: Math.round(66 * tu), weight: 800, family: TITLE, color: dark, align: 'center', max: W - 3 * pad, italic: true });
-    txt(ctx, sub(bn, name).toUpperCase(), W / 2, bandY + bandH / 2 + 56 * u, { size: Math.round(34 * tu), weight: 700, family: TITLE, color: dark, align: 'center', spacing: 1.5, max: W - 3 * pad });
+    txt(ctx, title, cx, bandY + bandH / 2 + 2 * u, { size: Math.round(66 * tu), weight: 800, family: TITLE, color: dark, align: 'center', max: bw - 100 * u, italic: true });
+    txt(ctx, sub(bn, name).toUpperCase(), cx, bandY + bandH / 2 + 56 * u, { size: Math.round(34 * tu), weight: 700, family: TITLE, color: dark, align: 'center', spacing: 1.5, max: bw - 100 * u });
     ctx.restore();
   } else if (!intro && !done) {
     const lead = d.drivers.find((x) => posAt(x, Math.max(1, L)) === 1);
     if (lead) {
-      card(ctx, pad, bandY + 20 * u, W - 2 * pad, bandH - 40 * u, 24 * u, { tint: lead.color });
-      txt(ctx, 'EN TÊTE', pad + 30 * u, bandY + bandH / 2 - 22 * u, { size: Math.round(27 * tu), weight: 700, family: TITLE, color: C.muted, spacing: 3 });
-      txt(ctx, `${lead.first} ${lead.last}`.toUpperCase(), pad + 30 * u, bandY + bandH / 2 + 40 * u, { size: Math.round(48 * tu), weight: 800, family: TITLE, max: W * 0.5, italic: true });
+      card(ctx, padL, bandY + 20 * u, bw, bandH - 40 * u, 24 * u, { tint: lead.color });
+      txt(ctx, 'EN TÊTE', padL + 30 * u, bandY + bandH / 2 - 22 * u, { size: Math.round(27 * tu), weight: 700, family: TITLE, color: C.muted, spacing: 3 });
+      txt(ctx, `${lead.first} ${lead.last}`.toUpperCase(), padL + 30 * u, bandY + bandH / 2 + 40 * u, { size: Math.round(48 * tu), weight: 800, family: TITLE, max: bw - 60 * u, italic: true });
       const c = story.events.filter((e) => e.lap <= L + 1);
       const facts = [['sc', 'SC', 'SC'], ['vsc', 'VSC', 'VSC'], ['out', 'ABANDON', 'ABANDONS'], ['lead', 'CHANGEMENT DE LEADER', 'CHANGEMENTS DE LEADER']].map(([kk, one, many]) => { const v = c.filter((e) => e.kind === kk).length; return v ? `${v} ${v > 1 ? many : one}` : ''; }).filter(Boolean);
-      txt(ctx, facts.join('  ·  ') || 'COURSE SANS INCIDENT', W - pad - 30 * u, bandY + bandH / 2 - 22 * u, { size: Math.round(27 * tu), weight: 700, family: TITLE, color: C.text, align: 'right', spacing: 1, max: W * 0.55 });
+      txt(ctx, facts.join('  ·  ') || 'COURSE SANS INCIDENT', W - padR - 30 * u, bandY + bandH / 2 - 22 * u, { size: Math.round(27 * tu), weight: 700, family: TITLE, color: C.text, align: 'right', spacing: 1, max: bw - 260 * u });
     }
   }
 
@@ -713,18 +727,18 @@ export function raceFrame(ctx, W, H, d, o, time) {
     const w0 = pod[0];
     ctx.save();
     ctx.globalAlpha = k;
-    rr(ctx, pad, bandY, W - 2 * pad, bandH, 18 * u); ctx.fillStyle = 'rgba(8,9,12,0.92)'; ctx.fill();
+    rr(ctx, padL, bandY, bw, bandH, 18 * u); ctx.fillStyle = 'rgba(8,9,12,0.92)'; ctx.fill();
     ctx.strokeStyle = C.gold; ctx.lineWidth = 3 * u; ctx.stroke();
     if (w0) {
-      rr(ctx, pad + 18 * u, bandY + 26 * u, 6 * u, bandH - 52 * u, 3 * u); ctx.fillStyle = vivid(w0.color); ctx.fill();   // trait de l'écurie, dans le cadre doré
-      txt(ctx, 'VAINQUEUR', pad + 40 * u, bandY + 54 * u, { size: Math.round(29 * tu), weight: 800, family: TITLE, color: C.gold, spacing: 4 });
-      txt(ctx, `${w0.first} ${w0.last}`.toUpperCase(), pad + 40 * u, bandY + 122 * u, { size: Math.round(66 * tu), weight: 800, family: TITLE, italic: true, max: W * 0.55 });
-      txt(ctx, w0.team.toUpperCase(), pad + 40 * u, bandY + 164 * u, { size: Math.round(28 * tu), weight: 700, family: TITLE, color: C.muted, spacing: 2, max: W * 0.4 });
+      rr(ctx, padL + 18 * u, bandY + 26 * u, 6 * u, bandH - 52 * u, 3 * u); ctx.fillStyle = vivid(w0.color); ctx.fill();   // trait de l'écurie, dans le cadre doré
+      txt(ctx, 'VAINQUEUR', padL + 40 * u, bandY + 54 * u, { size: Math.round(29 * tu), weight: 800, family: TITLE, color: C.gold, spacing: 4 });
+      txt(ctx, `${w0.first} ${w0.last}`.toUpperCase(), padL + 40 * u, bandY + 122 * u, { size: Math.round(66 * tu), weight: 800, family: TITLE, italic: true, max: bw * 0.6 });
+      txt(ctx, w0.team.toUpperCase(), padL + 40 * u, bandY + 164 * u, { size: Math.round(28 * tu), weight: 700, family: TITLE, color: C.muted, spacing: 2, max: bw * 0.45 });
     }
     pod.slice(1).forEach((x, j) => {
       const yy = bandY + 70 * u + j * 64 * u;
-      txt(ctx, `P${j + 2}`, W * 0.66, yy, { size: Math.round(36 * tu), weight: 800, family: TITLE, color: MEDAL[j + 1], italic: true });
-      txt(ctx, x.last.toUpperCase(), W * 0.66 + 62 * tu, yy, { size: Math.round(40 * tu), weight: 800, family: TITLE, max: W * 0.25, italic: true });
+      txt(ctx, `P${j + 2}`, padL + bw * 0.66, yy, { size: Math.round(36 * tu), weight: 800, family: TITLE, color: MEDAL[j + 1], italic: true });
+      txt(ctx, x.last.toUpperCase(), padL + bw * 0.66 + 62 * tu, yy, { size: Math.round(40 * tu), weight: 800, family: TITLE, max: bw * 0.34 - 62 * tu - 20 * u, italic: true });
     });
     const c = story.counts || {};
     const facts = [
@@ -735,15 +749,16 @@ export function raceFrame(ctx, W, H, d, o, time) {
     const b = story.best ? d.drivers.find((x) => x.code === story.best.code) : null;
     const best = story.best ? `MEILLEUR TOUR ${(b?.last || story.best.code).toUpperCase()} ${lapStr(story.best.time)}` : '';
     // Meilleur tour sous le podium, chiffres de la course sur toute la largeur en bas : jamais l'un sur l'autre
-    if (best) txt(ctx, best, W - pad - 30 * u, bandY + 172 * u, { size: Math.round(25 * tu), weight: 700, family: TITLE, color: '#b36bff', align: 'right', spacing: 1, max: W * 0.4 });
-    txt(ctx, facts.join(' · '), pad + 40 * u, bandY + bandH - 22 * u, { size: Math.round(27 * tu), weight: 700, family: TITLE, color: C.text, spacing: 1, max: W - 2 * pad - 70 * u });
+    if (best) txt(ctx, best, W - padR - 30 * u, bandY + 172 * u, { size: Math.round(25 * tu), weight: 700, family: TITLE, color: '#b36bff', align: 'right', spacing: 1, max: bw * 0.45 });
+    txt(ctx, facts.join(' · '), padL + 40 * u, bandY + bandH - 22 * u, { size: Math.round(27 * tu), weight: 700, family: TITLE, color: C.text, spacing: 1, max: bw - 70 * u });
     ctx.restore();
   }
-  const fy = H - Math.round(H * 0.025);
-  ctx.fillStyle = C.red; rr(ctx, pad, fy - 27 * tu, 8 * u, 30 * tu, 3 * u); ctx.fill();
-  txt(ctx, o.signature || '@BenjyPaddock', pad + 20 * u, fy, { size: Math.round(34 * tu), weight: 700, family: TITLE, spacing: 1 });
-  if (done) txt(ctx, 'ABONNEZ-VOUS POUR LA SUITE', W - pad, fy, { size: Math.round(29 * tu), weight: 800, family: TITLE, color: C.red, align: 'right', spacing: 2, max: W * 0.5 });
-  else if (story.estimated && story.events.some((e) => e.kind === 'neutral')) txt(ctx, "Neutralisations estimées d'après les temps au tour", W - pad, fy, { size: Math.round(24 * tu), weight: 600, color: C.muted, align: 'right', max: W * 0.5 });
+  const fy = sigY;
+  ctx.fillStyle = C.red; rr(ctx, padL, fy - 27 * tu, 8 * u, 30 * tu, 3 * u); ctx.fill();
+  txt(ctx, o.signature || '@BenjyPaddock', padL + 20 * u, fy, { size: Math.round(34 * tu), weight: 700, family: TITLE, spacing: 1 });
+  const rest = bw - 60 * u - ctx.measureText(o.signature || '@BenjyPaddock').width;   // à droite de la signature
+  if (done) txt(ctx, 'ABONNEZ-VOUS POUR LA SUITE', W - padR, fy, { size: Math.round(29 * tu), weight: 800, family: TITLE, color: C.red, align: 'right', spacing: 2, max: rest });
+  else if (story.estimated && story.events.some((e) => e.kind === 'neutral')) txt(ctx, "Neutralisations estimées d'après les temps au tour", W - padR, fy, { size: Math.round(24 * tu), weight: 600, color: C.muted, align: 'right', max: rest });
 }
 
 // ---------- Race Week : visuel propre à chaque Grand Prix ----------
