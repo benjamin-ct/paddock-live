@@ -2747,6 +2747,7 @@ export default {
   "Fantôme : meilleur tour de {} ({})": "Fantasma: vuelta rápida de {} ({})",
   "Fantôme : pas encore de meilleur tour avec les positions GPS": "Fantasma: todavía no hay vuelta rápida con las posiciones GPS",
   "Fantôme : il faut les positions GPS des voitures": "Fantasma: hacen falta las posiciones GPS de los coches",
+  "Relief et sources de la carte": "Relieve y fuentes del mapa",
   "Évolution du classement": "Evolución de la clasificación",
   "Points par Grand Prix": "Puntos por Gran Premio",
   "Toucher une écurie ouvre le duel de ses pilotes.": "Toca una escudería para abrir el duelo entre sus pilotos.",
