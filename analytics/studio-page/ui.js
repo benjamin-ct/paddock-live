@@ -74,7 +74,8 @@ export async function api(path, { method = 'GET', body, raw = false } = {}) {
   try {
     res = await fetch(`/studio/api/${path}`, { method, body, signal, headers: { 'X-Studio-Key': key || '' } });
   } catch (err) {
-    throw err?.name === 'TimeoutError' ? new Error('Le serveur ne répond pas (réseau lent ou coupé) : réessayez') : err;
+    // Délai dépassé : TimeoutError, AbortError sur Safari (« Fetch is aborted »)
+    throw ['TimeoutError', 'AbortError'].includes(err?.name) ? new Error('Le serveur ne répond pas (réseau lent ou coupé) : réessayez') : err;
   }
   if (res.status === 401) { forgetKey(); logoutHook(); throw new Error('Code incorrect'); }
   if (raw) {
