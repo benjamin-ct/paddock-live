@@ -36,6 +36,8 @@ export const statusFr = (st) => {
   return m ? `+${m[1]} tour${m[1] > 1 ? 's' : ''}` : STATUS_FR[st] || st || '';
 };
 const short = (name) => gpShort(name, LANG);
+// Chiffre d'un tableau précédé d'une petite barre (part de max, couleur de l'écurie) : points, dégâts…
+export const cellBar = (v, max, c, html) => `<span class="sz-cb" style="--p:${Math.max(3, Math.round((100 * v) / (max || 1)))}%${c ? `;--c:${c}` : ''}">${html}</span>`;
 const mark = (team, col) => teamMark({ TeamName: team, TeamColour: col?.replace('#', '') });
 const tcol = (team, col) => teamColor({ TeamName: team, TeamColour: col?.replace('#', '') });
 
@@ -228,7 +230,7 @@ export function renderDrivers(ctx, code) {
     </div>
     <section class="sz-box"><h3>Courses</h3><table class="sz-table"><tr><th>Manche</th><th>Grand Prix</th><th>Qualif.</th><th>Grille</th><th>Arrivée</th><th>Points</th><th>En tête</th><th>Meilleur tour</th><th>V. max</th><th>Arrêts</th><th>Statut</th></tr>
       ${rows.map((x, i) => `<tr><td>R${x.r.round}</td><td>${esc(short(x.r.name))}${x.spr ? ` <span class="sz-tag sprint">Sprint P${x.spr.pos ?? '—'}</span>` : ''}</td><td>${x.q?.pos ? `P${x.q.pos}` : '—'}</td>
-        <td>${x.res?.grid ? `P${x.res.grid}` : x.res ? 'Stands' : '—'}</td><td><b>${x.res ? (isNum(x.res) ? `P${x.res.pos}` : 'Abandon') : '—'}</b></td><td>${x.res?.points || ''}</td><td>${led[i] ? `${led[i]} t.` : x.a ? '' : '—'}</td>
+        <td>${x.res?.grid ? `P${x.res.grid}` : x.res ? 'Stands' : '—'}</td><td><b>${x.res ? (isNum(x.res) ? (x.res.pos <= 3 ? `<span class="sz-pp p${x.res.pos}">P${x.res.pos}</span>` : `P${x.res.pos}`) : 'Abandon') : '—'}</b></td><td>${x.res?.points ? cellBar(x.res.points, 25, col, x.res.points) : ''}</td><td>${led[i] ? `${led[i]} t.` : x.a ? '' : '—'}</td>
         <td>${x.a?.best ? fmtLap(x.a.best) : '—'}${x.res?.fastest ? ' <span class="sz-tag sprint">MT</span>' : ''}</td><td>${x.a?.speeds?.ST ? `${x.a.speeds.ST} km/h` : '—'}</td>
         <td>${x.a ? x.a.stops.map(stopTxt).join(' · ') || '0' : '—'}</td><td class="muted small">${esc(statusFr(x.res?.status))}</td></tr>`).join('')}</table></section>
     ${rows.some((x) => x.a?.stops.some((s) => s.dhl)) ? DHL_NOTE : ''}${pendingNote(stats)}`;
