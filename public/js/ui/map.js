@@ -1016,6 +1016,7 @@ function drawRibbon(lay, flagZones) {
 // Traînées : dernières positions de chaque voiture (~1 s)
 const TRAIL_LEN = 24;
 const trail = new Map();
+const switched = new Map();   // num -> { src (gps / est), x, y, t, from } : dernière position dessinée (changement de source)
 
 function drawCars(dt) {
   const s = store.state;
@@ -1027,10 +1028,9 @@ function drawCars(dt) {
   const lod = detail();
   const labels = $('#mapLabels').checked && lod > 0;
   const mode = $('#mapMode');
-  const modeTxt = gps ? 'GPS' : 'Positions estimées';
-  if (mode.textContent !== modeTxt) {
-    mode.textContent = modeTxt;
-    mode.className = `map-mode ${gps ? 'gps' : 'est'}`;
+  const modeCls = `map-mode ${gps ? 'gps' : 'est'}`;
+  if (mode.className !== modeCls) {
+    mode.className = modeCls;
     mode.title = gps ? 'Positions GPS officielles' : 'Sans GPS (F1 TV non connecté) : positions estimées';
   }
 
@@ -1055,13 +1055,23 @@ function drawCars(dt) {
     // (case « Pilotes hors course » du menu Calques). Sous drapeau rouge, une voiture arrêtée
     // dans les stands n'est pas hors course.
     if (l.Retired || (hideOut && (l.KnockedOut || (l.Stopped && !red)))) { trail.delete(num); continue; }
-    let g = null;
-    if (gps) g = store.positions.gpsAt(num, disp);
-    else {
+    // GPS, sinon (pas de GPS, ou plus de nouvelle position de cette voiture depuis 1,5 s) position estimée
+    let g = gps ? store.positions.gpsAt(num, disp) : null;
+    const src = g ? 'gps' : 'est';
+    if (!g) {
       if (l.InPit || l.Stopped) { if (l.InPit) inPit++; trail.delete(num); continue; }
       g = store.positions.estimatedXY(num, disp, dt);
     }
     if (!g) continue;
+    // Changement de source (GPS coupé ou revenu) : la voiture glisse en 1 s de sa place affichée à la nouvelle
+    const sw = switched.get(num);
+    let from = sw && sw.src !== src && nowMs - sw.t < 500 ? { dx: sw.x - g.x, dy: sw.y - g.y, t: nowMs } : sw?.from;
+    if (from) {
+      const u = (nowMs - from.t) / 1000, k = 1 - u * u * (3 - 2 * u);
+      if (u >= 1) from = null;
+      else g = { ...g, x: g.x + from.dx * k, y: g.y + from.dy * k };
+    }
+    switched.set(num, { src, x: g.x, y: g.y, t: nowMs, from });
     const p = xf(g.x, g.y);
     if (num === followNum) {
       // Coordonnées "de base" (sans vue) pour centrer la vue à l'image suivante.

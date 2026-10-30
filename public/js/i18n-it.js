@@ -1279,6 +1279,7 @@ export default {
   "Position dans la séance": "Posizione nella sessione",
   "Position de départ": "Posizione di partenza",
   "Position moyenne": "Posizione media",
+  "Estimées": "Stimate",
   "Positions estimées": "Posizioni stimate",
   "Positions GPS & télémétrie en live (F1 TV)": "Posizioni GPS e telemetria in diretta (F1 TV)",
   "Positions GPS officielles": "Posizioni GPS ufficiali",

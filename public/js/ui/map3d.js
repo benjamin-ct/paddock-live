@@ -1025,21 +1025,6 @@ function buildLayers(world, L) {
   return { group, blink, placeSc };
 }
 
-// Position GPS lissée (Catmull-Rom entre les échantillons, 3 à 4 par seconde) ; extrapolation de positions.js au bout
-function gpsSmooth(num, t) {
-  const arr = store.positions.gps.get(num);
-  if (!arr?.length) return null;
-  let lo = 0, hi = arr.length - 1, i = -1;
-  while (lo <= hi) { const mid = (lo + hi) >> 1; if (arr[mid].t <= t) { i = mid; lo = mid + 1; } else hi = mid - 1; }
-  if (i < 0 || t - arr[i].t > 8000) return null;
-  const b = arr[i], c = arr[i + 1];
-  if (!c || Math.hypot(c.x - b.x, c.y - b.y) > 2500) return store.positions.gpsAt(num, t);
-  const a = arr[i - 1] || b, d = arr[i + 2] || c;
-  const u = Math.min(1, Math.max(0, (t - b.t) / (c.t - b.t || 1)));
-  const cr = (p0, p1, p2, p3) => 0.5 * (2 * p1 + (p2 - p0) * u + (2 * p0 - 5 * p1 + 4 * p2 - p3) * u * u + (3 * p1 - p0 - 3 * p2 + p3) * u * u * u);
-  return { x: cr(a.x, b.x, c.x, d.x), y: cr(a.y, b.y, c.y, d.y) };
-}
-
 // Bâtiment des stands le long de la voie des stands (pit : points du tracé MultiViewer), du côté opposé à la piste : 15 m
 // de profondeur, 9 m de haut, garages ouverts (bande sombre) face à la voie ; seulement là où la voie est à plus de
 // 14 m de la piste (pas à l'entrée ni à la sortie) et où les alentours n'ont pas déjà un bâtiment. Un seul bloc continu
@@ -1121,7 +1106,7 @@ function gridPlace(world, c, num, real, gps, now, dt) {
   const slot = world.grid?.[gridIndex(store.state, num)];
   let still = !real;
   if (slot && real && gps) {
-    const b = gpsSmooth(num, now - 1000), [bx, bz] = b ? world.toW(b.x, b.y) : real;
+    const b = store.positions.gpsAt(num, now - 1000), [bx, bz] = b ? world.toW(b.x, b.y) : real;
     still = Math.hypot(real[0] - bx, real[1] - bz) < 2;   // moins de 2 m en une seconde
   }
   c.gk = gridWeight(c.gk, slot && still, dt);
@@ -1488,8 +1473,10 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
     for (const [num, c] of cars) {
       const l = lines[num] || {};
       let g = null;
-      if (!(l.Retired || (!showOut && (l.KnockedOut || (l.Stopped && !redFlag))) || (!gps && (l.InPit || l.Stopped)))) {
-        g = gps ? gpsSmooth(num, disp) : store.positions.estimatedXY(num, disp, dt);
+      // GPS, sinon (pas de GPS, ou plus de nouvelle position de cette voiture) position estimée, hors stands
+      if (!(l.Retired || (!showOut && (l.KnockedOut || (l.Stopped && !redFlag))))) {
+        g = gps ? store.positions.gpsAt(num, disp) : null;
+        if (!g && !l.InPit && !l.Stopped) g = store.positions.estimatedXY(num, disp, dt);
       }
       const at = gridPlace(world, c, num, g && world.toW(g.x, g.y), gps, disp, dt);
       if (!at) { c.seen = false; for (const m of carMeshes) m.setMatrixAt(c.k, HIDDEN); c.tag.visible = false; continue; }
@@ -1503,7 +1490,7 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
       // Cap : d'après la position 0,12 s avant et après (GPS), sinon le sens de la piste ; pente : celle du tracé
       dir.copy(world.T[i]);
       if (gps) {
-        const b = gpsSmooth(num, disp - 120), f = gpsSmooth(num, disp + 120);
+        const b = store.positions.gpsAt(num, disp - 120), f = store.positions.gpsAt(num, disp + 120);
         if (b && f) {
           const [bx, bz] = world.toW(b.x, b.y), [fx, fz] = world.toW(f.x, f.y);
           // Presque à l'arrêt (emplacement aux stands, bruit du GPS) : cap gardé, la voiture ne tourne pas sur place

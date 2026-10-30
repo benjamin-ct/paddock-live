@@ -127,3 +127,34 @@ test('positions estimées : avec l\'heure d\'émission des messages (direct), la
     assert.ok(r.worst < 0.2, `voiture ${num} : pire écart ${r.worst.toFixed(2)} s`);
   }
 });
+
+test('GPS : voiture à vitesse constante, échantillons à l\'heure irrégulière : avance régulièrement, à sa vraie place', () => {
+  // Cercle de 4 000 unités de rayon parcouru à 0,8 unité/ms ; un échantillon toutes les 250 ms environ, daté avec
+  // ± 60 ms d'erreur (comme ceux de la F1 : à vitesse constante, deux échantillons de suite donnent 1,0 puis 0,4)
+  const pos = new Positions((u) => u);
+  const rand = rng(3), R = 4000, v = 0.8, at = (t) => ({ x: R * Math.cos((v * t) / R), y: R * Math.sin((v * t) / R) });
+  const Position = [];
+  for (let t = 0; t < 20000; t += 200 + rand() * 100) {
+    const p = at(t);
+    Position.push({ Timestamp: new Date(t + (rand() - 0.5) * 120).toISOString(), Entries: { 1: { X: p.x, Y: p.y } } });
+  }
+  pos.ingestPosition({ Position }, 20000);
+  let prev = null, worst = 0, slow = Infinity, fast = 0;
+  for (let t = 3000; t < 17000; t += 50) {
+    const g = pos.gpsAt('1', t);
+    worst = Math.max(worst, Math.hypot(g.x - at(t).x, g.y - at(t).y));
+    if (prev) { const sp = Math.hypot(g.x - prev.x, g.y - prev.y) / 50; slow = Math.min(slow, sp); fast = Math.max(fast, sp); }
+    prev = g;
+  }
+  assert.ok(fast / slow < 1.25, `vitesse affichée entre ${slow.toFixed(2)} et ${fast.toFixed(2)} unité/ms`);
+  assert.ok(worst < 60, `jusqu'à ${worst.toFixed(0)} unités de sa vraie place`);
+});
+
+test('GPS : voiture arrêtée (stands) : reste immobile ; saut de plus de 250 m : pas de lissage à travers', () => {
+  const pos = new Positions((u) => u);
+  const Position = [];
+  for (let t = 0; t < 5000; t += 250) Position.push({ Timestamp: new Date(t).toISOString(), Entries: { 1: { X: t < 2500 ? 100 : 9000, Y: 50 } } });
+  pos.ingestPosition({ Position }, 5000);
+  for (const t of [600, 1100, 1700]) assert.deepEqual([Math.round(pos.gpsAt('1', t).x), Math.round(pos.gpsAt('1', t).y)], [100, 50]);
+  for (const t of [3200, 4100]) assert.equal(Math.round(pos.gpsAt('1', t).x), 9000);
+});
