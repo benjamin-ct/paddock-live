@@ -254,7 +254,7 @@ export async function driveApi(sub, req, url, vault, save, data = async () => ({
     await save(rest);
     return json({ ok: true });
   }
-  if (!(req.method === 'GET' && ['files', 'doc', 'values'].includes(sub)) && !(req.method === 'POST' && ['fill', 'check'].includes(sub))) return json({ error: 'Introuvable' }, 404);
+  if (!(req.method === 'GET' && ['files', 'doc', 'values'].includes(sub)) && !(req.method === 'POST' && ['fill', 'check', 'done'].includes(sub))) return json({ error: 'Introuvable' }, 404);
   if (!vault.gdrive?.refreshToken) return json({ connected: false, youtubeClient: !!vault.youtube?.clientId });
 
   let at;
