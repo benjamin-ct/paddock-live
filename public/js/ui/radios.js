@@ -82,6 +82,9 @@ function cardHtml(c, d) {
     <span class="rd-c-dur">${fmtDur(dur)}</span><span class="rd-fill"></span><span class="rd-prog"><i></i></span>`;
 }
 
+// Traduction vide : rien que « […] » (transcription jugée incompréhensible par le traducteur) ; l'original est montré
+const blankTr = (s) => !String(s).replace(/\[…\]|\[\.\.\.\]|[\s.,;:!?…«»"'-]/g, '');
+
 function lineHtml(c, d) {
   const e = c.ob || radioEntry(c.url);
   const lang = prefs.radioLang;
@@ -89,6 +92,7 @@ function lineHtml(c, d) {
   if (!e) text = '<div class="rd-text pending">transcription…</div>';
   else if (!e.en) text = '<div class="rd-text muted">(pas de parole reconnue)</div>';
   else if (lang === 'none') text = `<div class="rd-text">${esc(e.en)}</div>`;
+  else if (e.tr?.[lang] && blankTr(e.tr[lang])) text = `<div class="rd-text">${esc(e.en)}</div><div class="rd-orig">radio peu audible : pas de traduction</div>`;
   else if (e.tr?.[lang]) text = `<div class="rd-text">${esc(e.tr[lang])}</div><div class="rd-orig">${esc(e.en)}</div>`;
   else text = `<div class="rd-text">${esc(e.en)}</div><div class="rd-orig pending">traduction…</div>`;
   const tag = c.ob ? ' <span class="rd-ob" title="Radio captée sur le son de la caméra embarquée F1 TV">caméra embarquée</span>' : '';

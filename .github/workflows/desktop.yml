@@ -18,7 +18,12 @@ on:
   push:
     tags: ['v*']
     branches: [develop]
-    paths: ['public/**', 'server/**', 'shared/**', 'desktop/**', 'package.json', 'package-lock.json', 'CHANGELOG.md', '.github/workflows/desktop.yml']
+    # Sans les fichiers de shared/ que l'appli n'importe pas (visuels, vidéos et publications du Studio) : une
+    # modification du Studio seul ne fait pas partir de bêta
+    paths: ['public/**', 'server/**', 'shared/**', 'desktop/**', 'package.json', 'package-lock.json', 'CHANGELOG.md', '.github/workflows/desktop.yml',
+      '!shared/social-app.js', '!shared/social-clip-video.js', '!shared/social-draw*.js', '!shared/social-follow.js', '!shared/social-more.js',
+      '!shared/social-music.js', '!shared/social-news-video.js', '!shared/social-news.js', '!shared/social-video.js', '!shared/post-*.js',
+      '!shared/mp4-muxer.js', '!shared/webm-muxer.js']
 
 permissions:
   contents: write

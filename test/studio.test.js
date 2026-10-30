@@ -152,7 +152,8 @@ test('page du créateur : comptes repris sur un nouvel ordinateur, copie illisib
   await enableStudio(CODE, { fetchFn });
   assert.equal(studioInfo().backup, true);
   const box = env.DB.studio.get('accounts');
-  for (const s of ['cle-x', 'secret-x', 'secret-app', 'secret-th', 'jeton-page', 'moi']) assert.ok(!box.includes(s));
+  // « @moi » et pas « moi » : trois lettres se trouvent parfois par hasard dans une copie chiffrée (base64)
+  for (const s of ['cle-x', 'secret-x', 'secret-app', 'secret-th', 'jeton-page', '@moi']) assert.ok(!box.includes(s));
   // Une ancienne appli qui renvoie ses comptes sans copie : la copie reste
   await worker('https://s.test/studio/api/sync', { method: 'POST', headers: { 'X-Studio-Key': studioKey(CODE) }, body: JSON.stringify({ vault: { meta: social.meta } }) });
   assert.equal(env.DB.studio.get('accounts'), box);

@@ -74,7 +74,8 @@ l'application (Réglages → À propos → Nouveautés).
 - Carte du circuit plus fluide avec le GPS (F1 TV) : les voitures avancent régulièrement, sans les petites saccades
   que donnait l'heure irrégulière des positions envoyées par la F1. Si le GPS se coupe pendant une séance, les voitures
   ne disparaissent plus : elles passent aussitôt en positions estimées, puis reprennent le GPS à son retour, en glissant
-  jusqu'à leur place au lieu de sauter. L'indication « GPS » ou « Estimées » en haut de la carte ne change plus sa
+  jusqu'à leur place au lieu de sauter. Un point GPS faux envoyé par la F1 (à des kilomètres) est ignoré : la voiture
+  ne saute plus. L'indication « GPS » ou « Estimées » en haut de la carte ne change plus sa
   taille. En direct et en replay, dans l'appli et la version web.
 - Onglet Secteurs : sous les poles et meilleurs tours des éditions précédentes, le meilleur du week-end, c'est-à-dire
   le meilleur tour des séances déjà courues du Grand Prix (temps, pilote et séance : EL2, Qualif…). En direct et en
@@ -82,6 +83,9 @@ l'application (Réglages → À propos → Nouveautés).
 - Classement en course : l'intervalle avec la voiture devant s'affiche aussi en mode Essentiel ; un pilote qui abandonne
   n'a plus d'écart affiché à côté de « ABD ».
 - Replay : la Télémétrie dit « Pas de télémétrie dans ce replay » au lieu de proposer la connexion F1 TV du direct.
+- Radios d'équipe : une radio mal reconnue par la transcription automatique n'est plus remplacée en entier par « […] ».
+  Les mots du métier mal entendus (sous-virage, arrière, « box »…) sont corrigés et le reste est traduit ; si rien n'est
+  compréhensible, la transcription anglaise s'affiche avec « radio peu audible ».
 - Voiture de sécurité virtuelle : depuis cette saison, la direction de course l'annonce « VSC DEPLOYED », que l'appli
   ne reconnaissait plus. Les VSC sont de nouveau comptées dans le résumé de la séance, et le panneau Analyse les
   marque bien VSC. En direct et en replay, dans l'appli et la version web.
@@ -90,7 +94,7 @@ l'application (Réglages → À propos → Nouveautés).
 - Version web : entre deux séances, l'étiquette du direct en haut dit « Hors séance » (point gris) ; le direct reprend
   tout seul une demi-heure avant la séance suivante. Sur téléphone, où seul le point est affiché, le toucher dit l'état
   du direct.
-- Carte en 3D (case « 3D » du panneau Circuit, à cocher ou décocher, choix gardé) : la piste avec son vrai relief, qui
+- Carte en 3D (case « 3D » du panneau Circuit, à cocher quand on la veut ; la carte s'ouvre toujours en 2D) : la piste avec son vrai relief, qui
   monte et descend en pente continue, sans marches (le Raidillon de Spa monte comme en vrai), ses vibreurs, la ligne
   d'arrivée et la grille de départ (avant le départ d'une course ou d'un sprint, les voitures attendent dans leur case,
   dans l'ordre de la grille, puis s'élancent), le bâtiment des stands le long de la voie des stands, et des voitures en forme de vraie F1 2026 aux couleurs des écuries (nez fin, ailerons à plusieurs
@@ -109,7 +113,7 @@ l'application (Réglages → À propos → Nouveautés).
   et le fantôme du meilleur tour de la séance, une voiture transparente qui le refait en partant avec le pilote suivi
   (positions GPS nécessaires). Autour de la piste, ce qu'il y a vraiment, d'après OpenStreetMap (cartes OpenFreeMap) : le relief du
   terrain, les bâtiments et les tribunes, les bois et leurs arbres, les arbres isolés, les parkings, les lacs, les
-  rivières et la mer, les routes, l'herbe et les champs (sources en bas à droite de la vue), et le long de la piste les
+  rivières et la mer, les routes, l'herbe et les champs (sources et relief derrière le bouton « i » en bas à droite de la vue, montrés quelques secondes à l'ouverture), et le long de la piste les
   murs, rails et grillages (sur les circuits en ville, des murs là où la piste emprunte les rues ou longe les
   immeubles), les graviers et les dégagements asphaltés autour des virages (à l'extérieur des virages quand la carte
   n'en a pas). Le relief vient du GPS des voitures, sinon d'un modèle numérique de
@@ -153,6 +157,30 @@ l'application (Réglages → À propos → Nouveautés).
 ### Interface
 - Classement : un pilote qui a passé le drapeau à damier a un petit drapeau à damier au coin de sa position, au lieu
   d'un fond en damier sur toute sa ligne (plus lisible, surtout sur téléphone). Aussi dans la version web.
+- Panneau Circuit étroit (téléphone, petit panneau) : son en-tête tient sur une ligne. « GPS / Estimées » passe dans le
+  coin de la carte, « Suivre » et « Calques » deviennent des icônes. Aussi dans la version web.
+- Thème sombre plus clair et plus lisible : fond bleu nuit au lieu du noir (barre latérale et barre du haut comprises),
+  cartes et panneaux qui ressortent mieux, textes secondaires plus contrastés. Aussi dans la version web.
+- Saison plus visuelle : logo de l'écurie devant chaque pilote et chaque écurie (classements, records, cartes), titres,
+  grands chiffres et tableaux plus grands ; dans Résultats & records, vainqueurs, podiums et poles en cases pleines aux
+  couleurs de leur écurie. Aussi dans la version web.
+- Saison → Pilotes : tous les pilotes en cartes (portrait sur la couleur de l'écurie, logo en filigrane, numéro) à faire
+  défiler ; toucher une carte affiche ce pilote, présenté en grand en tête de page. Aussi dans la version web.
+- Graphiques de la Saison (évolution des points, écart à la pole, départ et arrivée d'un pilote) : le drapeau de chaque
+  Grand Prix sous l'axe des manches. Aussi dans la version web.
+- Saison → Classements : trois nouveaux graphiques, pour les pilotes ou les constructeurs. Évolution du classement (la
+  place de chacun après chaque Grand Prix, en courbes qui se croisent), points marqués à chaque Grand Prix (barres
+  empilées aux couleurs des écuries, sprint compris) et bilan de la saison (victoires, podiums, arrivées dans les points
+  et poles vers le haut, abandons vers le bas). Aussi dans la version web.
+- Saison → Écuries (nouvelle rubrique) : une carte par écurie à sa couleur, logo en filigrane, place et points au
+  championnat, ses pilotes en portrait avec leurs points, victoires, podiums et poles ; toucher une écurie ouvre le duel
+  de ses pilotes. Aussi dans la version web.
+- Saison : pendant le chargement, la page apparaît en gris (cartes et blocs qui scintillent) au lieu d'un simple message.
+  Aussi dans la version web.
+- Saison → Résultats & records : la pole de chaque Grand Prix face à la meilleure pole des quatre éditions précédentes du
+  circuit (plus rapide en vert, sinon l'écart), avec le détenteur du record. Aussi dans la version web.
+- Accueil, carte « Mes favoris » : le portrait de chaque pilote, cerclé de la couleur de son écurie, et le logo de chaque
+  écurie. Aussi dans la version web.
 - Les curseurs (volume, seuil des tours propres, temps perdu au stand, fond des overlays…) ont un nouveau style, assorti
   au reste de l'appli : piste fine remplie jusqu'à la valeur et bouton rond. Aussi dans la version web.
 - Panneau Duel : la flèche du duel automatique choisie (contre la voiture devant ou derrière) ressort de nouveau en
