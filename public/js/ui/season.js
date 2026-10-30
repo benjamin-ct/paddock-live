@@ -2,7 +2,7 @@
 // séance, calendrier, classements avec évolution des points, résultats et records, duels entre
 // coéquipiers, statistiques détaillées. Données : API Jolpica (via le serveur, /api/season) et
 // analyse des archives F1 Live Timing (/api/season/stats).
-import { $, esc, api, teamColor, teamLogo, photoUrl, placeView, driverOpt } from '../util.js';
+import { $, esc, api, teamColor, teamLogo, photoUrl, placeView, driverOpt, OFFICIAL } from '../util.js';
 import { store } from '../store.js';
 import { skeleton, renderDrivers, renderConsistency, renderPits, renderSpeeds, renderCircuits, renderRatings, gradeBadge, stopTxt, DHL_NOTE, statusFr, fmtLap, dnaBlock, setHistKind, circuitLength } from './season-stats.js';
 import { driverRatings, qualiGaps, titleRace, placeForMaxPoints, retired, standingsAfter, lineage, pointsPath, shortTeams, teamPoleGaps, median, teamMileage } from '/shared/season-calc.js';
@@ -20,11 +20,6 @@ import { COUNTRY_ISO } from '/shared/social-season.js';
 import { seasonPath, seasonTitle, slug, gpSlug, parseSeasonPath } from '/shared/season-urls.js';
 import { circuitInfo } from '/shared/circuits-info.js';
 
-// Couleurs officielles (utilisées si les couleurs contrastées sont désactivées)
-const OFFICIAL = {
-  mercedes: '00D7B6', ferrari: 'ED1131', mclaren: 'F47600', red_bull: '4781D7', rb: '6C98FF', williams: '1868DB',
-  alpine: '00A1E8', aston_martin: '229971', haas: '9C9FA2', sauber: '01C00E', audi: 'F50537', cadillac: '909090',
-};
 const color = (team, teamId) => teamColor({ TeamName: team, TeamColour: OFFICIAL[teamId] || '8b95a8' });
 const seasonOpt = (d) => driverOpt({ TeamName: d.team, TeamColour: OFFICIAL[d.teamId] || '8b95a8' }, d.number);
 // Texte lisible sur la couleur de l'écurie (sombre sur les couleurs claires : Mercedes, McLaren, Haas…)

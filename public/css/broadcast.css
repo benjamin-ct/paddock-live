@@ -230,3 +230,7 @@ html.float-map .rc-bar { display: none !important; }
     background-size: 200% 100%; background-repeat: no-repeat; animation: sz-shimmer 1.4s ease-in-out infinite; }
 }
 @keyframes sz-shimmer { from { background-position: 150% 0; } to { background-position: -50% 0; } }
+/* Accueil : favoris avec le portrait du pilote (cerclé de la couleur de son écurie) ou le logo de l'écurie */
+.hm-fav-who { display: inline-flex; align-items: center; gap: 9px; }
+.hm-fav-pic { width: 30px; height: 30px; flex: none; border-radius: 50%; object-fit: cover; object-position: top; background: color-mix(in srgb, var(--tc) 40%, var(--panel-2)); box-shadow: 0 0 0 2px var(--tc); }
+.hm-fav-who .team-logo { width: 26px; height: 26px; }

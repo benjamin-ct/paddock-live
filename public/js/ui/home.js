@@ -2,7 +2,7 @@
 // résultat (replay depuis le début ou tableau de bord), dernières actualités, raccourcis.
 // Ouverte au lancement quand aucune séance n'est en cours ; pendant une séance, l'appli s'ouvre
 // directement sur le Direct.
-import { $, $$, esc, api, drivers, placeView, hideBoot, dayIn } from '../util.js';
+import { $, $$, esc, api, drivers, placeView, hideBoot, dayIn, teamColor, teamLogo, photoUrl, OFFICIAL } from '../util.js';
 import { store, on } from '../store.js';
 import { icon } from '../icons.js';
 import { LOCALE, LANG, t } from '../i18n.js';
@@ -197,11 +197,15 @@ function favHtml() {
   const recent = lastSession() && Date.now() - lastSession().t < 72 * 3600e3;
   const hide = recent && !showFav;
   // Pilotes puis écuries, chacun sous son titre ; mêmes colonnes pour toutes les lignes (grille commune)
+  // Portrait du pilote (cerclé de la couleur de son écurie), logo de l'écurie
+  const tc = (team, id) => teamColor({ TeamName: team, TeamColour: OFFICIAL[id] || '8b95a8' });
+  const face = (d) => { const u = photoUrl({ Tla: d.code }); return u ? `<img class="hm-fav-pic" src="${u}" alt="" loading="lazy" style="--tc:${tc(d.team, d.teamId)}" onerror="this.remove()">` : ''; };
+  const logo = (c) => { const u = teamLogo(c.name); return u ? `<span class="team-logo color" style="--tc:${tc(c.name, c.id || c.key)};background-image:url('${u}')"></span>` : ''; };
   const rows = [
     ...(favD.length ? ['<div class="hm-fav-group muted">Pilotes</div>'] : []),
-    ...favD.map((d) => `<div class="hm-fav-row"><span class="hm-fav-pos">P${d.pos}</span><b>${esc(d.name)}</b><span class="muted">${esc(d.team)}</span><span class="muted">${pts(d)}</span></div>`),
+    ...favD.map((d) => `<div class="hm-fav-row"><span class="hm-fav-pos">P${d.pos}</span><b class="hm-fav-who">${face(d)}${esc(d.name)}</b><span class="muted">${esc(d.team)}</span><span class="muted">${pts(d)}</span></div>`),
     ...(favT.length ? ['<div class="hm-fav-group muted">Écuries</div>'] : []),
-    ...favT.map((c) => `<div class="hm-fav-row"><span class="hm-fav-pos">P${c.pos}</span><b>${esc(c.name)}</b><span></span><span class="muted">${pts(c)}</span></div>`),
+    ...favT.map((c) => `<div class="hm-fav-row"><span class="hm-fav-pos">P${c.pos}</span><b class="hm-fav-who">${logo(c)}${esc(c.name)}</b><span></span><span class="muted">${pts(c)}</span></div>`),
   ];
   return `<section class="hm-card hm-fav" id="hmFav">${head}
     <div class="hm-favs${hide ? ' hm-blur' : ''}">${rows.join('')}</div>
