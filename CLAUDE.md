@@ -46,14 +46,16 @@
   plus aucune version publiée ne l'utilise.
 - **Suivi dans Google Drive** (connecteurs Google Drive, Docs et Sheets) : après chaque action (code fusionné,
   version publiée, posts préparés, démarche faite), tenir à jour le dossier « Paddock Live · Réseaux » :
-  la liste « À faire · Paddock Live » (cocher ce qui est fait, ajouter ce qui reste), la feuille
-  « Suivi réseaux · Paddock Live » (onglet Journal : une ligne par action, la plus récente en haut ; onglet Posts :
-  les posts préparés) et, pour chaque Grand Prix, un Google Doc des textes et un dossier
+  la feuille « Suivi réseaux · Paddock Live » (onglet Tâches : une ligne par tâche, colonnes Statut [À faire, En
+  attente, Fait, Lien], Liste, Quand, Domaine, Tâche, Détails, Lien, Fait le ; passer le Statut à « Fait » avec la
+  date, ajouter ce qui reste ; affiché et cochable dans le Studio → Suivi. Onglet Journal : une ligne par action, la
+  plus récente en haut ; onglet Posts : les posts préparés). L'ancien Doc « À faire · Paddock Live » n'est plus tenu
+  (archive). Pour chaque Grand Prix, un Google Doc des textes et un dossier
   « Paddock Live · Médias · <Grand Prix> » (fichiers envoyés avec les secrets `GDRIVE_*` de l'environnement).
 - **À tester avant la version finale** : à chaque PR fusionnée qui change l'appli ou la version web, ajouter dans la
-  partie « À tester avant la version finale » de « À faire » une case par nouveauté : où cliquer et ce qu'on doit
-  voir (avec le numéro de la bêta), en séparant ce qui demande une vraie séance. Après « publie », vider la partie
-  et changer son numéro de version.
+  liste « À tester avant la version finale (X.Y) » de l'onglet Tâches une ligne par nouveauté (Quand : « bêta N »,
+  ou « Vraie séance · bêta N » pour ce qui demande une vraie séance ; Tâche : la nouveauté ; Détails : où cliquer et
+  ce qu'on doit voir). Après « publie », passer en « Fait » ce qui a été vérifié et changer le numéro de la liste.
 - Avant de pousser : `npm test`.
 - **Serveur local de test** (essais, captures, agents) : le lancer sans rien envoyer au Worker en production, sinon les
   replays de test sont traduits et transcrits en production (crédits Claude) :
