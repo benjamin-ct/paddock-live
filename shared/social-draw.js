@@ -796,7 +796,6 @@ function cover(ctx, W, H, d, o, next, fmt) {
   footer(ctx, W, H, o);
   // Carrousel : on fait défiler ; story, vidéo et X : la suite vient après
   const hint = fmt === 'ig' ? 'FAITES DÉFILER' : 'À SUIVRE';
-  const swipe = d.final ? hint : `RÉSULTATS PROVISOIRES · ${hint}`;
   const ax = W - pad;
   const ay = fy - Math.round(Math.min(W, H) * 0.009);
   ctx.save();
@@ -806,7 +805,9 @@ function cover(ctx, W, H, d, o, next, fmt) {
     ctx.beginPath(); ctx.moveTo(cx - 14 * u, ay - 13 * u); ctx.lineTo(cx, ay); ctx.lineTo(cx - 14 * u, ay + 13 * u); ctx.stroke();
   }
   ctx.restore();
-  txt(ctx, swipe, ax - 52 * u, fy, { size: Math.round(Math.min(W, H) * 0.024), weight: 700, family: TITLE, color: d.final ? C.text : C.gold, align: 'right', spacing: 2 });
+  txt(ctx, hint, ax - 52 * u, fy, { size: Math.round(Math.min(W, H) * 0.024), weight: 700, family: TITLE, color: C.text, align: 'right', spacing: 2 });
+  // Résultats provisoires : sur leur ligne, au-dessus (à côté de « faites défiler », ils passaient sur les points du carrousel)
+  if (!d.final) txt(ctx, 'RÉSULTATS PROVISOIRES', ax, fy - Math.round(Math.min(W, H) * 0.05), { size: Math.round(Math.min(W, H) * 0.024), weight: 700, family: TITLE, color: C.gold, align: 'right', spacing: 2 });
 }
 
 // ---------- News (transfert, pénalité, annonce…) ----------

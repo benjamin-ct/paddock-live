@@ -5,10 +5,11 @@
    blanche, chiffres condensés. Rien de la carte n'est redessiné ici (js/ui/map.js inchangé).
    ===================================================================================== */
 :root[data-theme="pitwall"] {
-  --bg: #030406; --panel: #101218; --panel-2: #171A21; --panel-3: #1F232C;
-  --border: rgba(255, 255, 255, .08); --line: rgba(255, 255, 255, .06); --line-2: rgba(255, 255, 255, .14);
-  --hover: #171A21; --deep: #000; --top-1: #0B0C11; --top-2: #050608;
-  --text: #FFFFFF; --text-2: #B9BCC6; --muted: #858A96;
+  /* Bleu nuit (plutôt que noir) : cartes qui ressortent du fond, textes secondaires plus clairs */
+  --bg: #020817; --panel: #0B1324; --panel-2: #111C31; --panel-3: #1A2741;
+  --border: #1E293B; --line: rgba(148, 163, 184, .10); --line-2: #334155;
+  --hover: #111C31; --deep: #050B18; --top-1: #0F172A; --top-2: #0A1120;
+  --text: #F8FAFC; --text-2: #CBD5E1; --muted: #94A3B8;
   --accent: #E10600; --accent-2: #FF3B30;
   --radius: 6px;
   --font: 'Titillium Web', system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -37,10 +38,10 @@
 
 /* Barre latérale : noire, onglet choisi marqué d'un trait rouge */
 @media (min-width: 901px) {
-  [data-theme="pitwall"] body:not(.solo) .rail { background: #000; border-right-color: rgba(255, 255, 255, .08); }
+  [data-theme="pitwall"] body:not(.solo) .rail { background: #0F172A; border-right-color: #1E293B; }
 }
-[data-theme="pitwall"] .rail { color: #858A96; }
-[data-theme="pitwall"] .rail-btn { color: #858A96; border-radius: 6px; }
+[data-theme="pitwall"] .rail { color: #94A3B8; }
+[data-theme="pitwall"] .rail-btn { color: #94A3B8; border-radius: 6px; }
 [data-theme="pitwall"] .rail-btn:hover { background: rgba(255, 255, 255, .06); color: #fff; }
 [data-theme="pitwall"] .rail-btn.on { background: transparent; color: #fff; }
 [data-theme="pitwall"] .rail-btn.on::before { background: var(--accent); width: 3px; }
@@ -50,9 +51,9 @@
 [data-theme="pitwall"] .rail-logo { border-radius: 9px; }
 
 /* Barre du haut : habillage TV, toujours sombre (y compris en clair) */
-[data-theme="pitwall"] :is(.topbar, .replaybar) { color: #fff; --text: #fff; --text-2: #B9BCC6; --muted: #858A96;
-  --panel: #101218; --panel-2: #171A21; --panel-3: #1F232C; --hover: #171A21; --border: rgba(255, 255, 255, .08); --line: rgba(255, 255, 255, .06); --line-2: rgba(255, 255, 255, .14); }
-[data-theme="pitwall"] .topbar { background: linear-gradient(180deg, #0B0C11, #050608); border-bottom-color: rgba(255, 255, 255, .08); }
+[data-theme="pitwall"] :is(.topbar, .replaybar) { color: #fff; --text: #fff; --text-2: #CBD5E1; --muted: #94A3B8;
+  --panel: #0B1324; --panel-2: #111C31; --panel-3: #1A2741; --hover: #111C31; --border: #1E293B; --line: rgba(148, 163, 184, .10); --line-2: #334155; }
+[data-theme="pitwall"] .topbar { background: linear-gradient(180deg, #0F172A, #0A1120); border-bottom-color: #1E293B; }
 [data-theme="pitwall"] .topbar .session-name { font-family: var(--font); font-weight: 700; text-transform: uppercase; letter-spacing: .02em; }
 [data-theme="pitwall"] .topbar .session-sub { letter-spacing: .08em; }
 [data-theme="pitwall"] .topbar .hstat-label { font-family: var(--font); font-weight: 700; letter-spacing: .1em; }
@@ -76,7 +77,7 @@
 [data-theme="pitwall"] .tower th { font-family: var(--font); font-weight: 700; letter-spacing: .1em; }
 
 /* Barre de lecture : noire comme la barre du haut */
-[data-theme="pitwall"] .replaybar { background: #000; border-top-color: rgba(255, 255, 255, .08); }
+[data-theme="pitwall"] .replaybar { background: #0A1120; border-top-color: #1E293B; }
 [data-theme="pitwall"] .rp-play { border-radius: 6px; }
 
 /* Radios : avatar carré souligné de la couleur de l'écurie, onde sous chaque message */
@@ -147,3 +148,89 @@ html.float-map .rc-bar { display: none !important; }
 [data-theme="pitwall"] .hm-go button:hover { border-top-color: var(--accent); }
 [data-theme="pitwall"] .hm-go b { font: 700 13.5px var(--font); text-transform: uppercase; letter-spacing: .06em; }
 [data-theme="pitwall"] .hm-follow { border-radius: 4px; }
+
+/* ---------- Saison plus visuelle : titres, grands chiffres et tableaux plus grands, logos d'écurie ---------- */
+[data-theme="pitwall"] .sz-box h3 { font-size: 20px; font-weight: 700; letter-spacing: 0; margin-bottom: 14px; }
+[data-theme="pitwall"] .sz-card { padding: 16px 18px; gap: 6px; }
+[data-theme="pitwall"] .sz-card > .muted.small:first-child { font-size: 13px; color: var(--text-2); }
+[data-theme="pitwall"] .sz-big { font-size: 30px; }
+[data-theme="pitwall"] .sz-big .team-logo { width: 28px; height: 28px; }
+[data-theme="pitwall"] .sz-table { font-size: 14.5px; }
+[data-theme="pitwall"] .sz-table th { font-size: 11.5px; padding: 8px 10px; }
+[data-theme="pitwall"] .sz-table td { padding: 9px 10px; }
+[data-theme="pitwall"] .sz-table td .team-logo { width: 22px; height: 22px; margin-right: 9px; }
+/* Pilote dans un tableau (vainqueur, pole…) : case pleine à la couleur de son écurie */
+[data-theme="pitwall"] .sz-chip { background: var(--tc); color: var(--ink, #fff); border-left: 0; padding: 3px 10px; border-radius: 5px; font-size: 13px; }
+/* Pilotes : cartes de tous les pilotes (portrait sur la couleur de l'écurie, logo en filigrane), puis le pilote choisi en grand */
+.sz-drv-strip { display: flex; gap: 8px; overflow-x: auto; padding: 2px 2px 8px; margin-bottom: 12px; scroll-snap-type: x proximity; }
+.sz-drv-card { all: unset; box-sizing: border-box; position: relative; flex: none; width: 156px; height: 108px; padding: 10px 11px; border-radius: 10px; overflow: hidden; cursor: pointer; color: #fff; scroll-snap-align: start;
+  border: 1px solid color-mix(in srgb, var(--tc) 40%, #1E293B); background: linear-gradient(140deg, color-mix(in srgb, var(--tc) 42%, #0B1324), #0B1324 78%);
+  display: flex; flex-direction: column; transition: transform .15s, box-shadow .15s; }
+.sz-drv-card::before { content: ''; position: absolute; right: -8px; top: 6px; width: 86px; height: 86px; background: var(--logo) center / contain no-repeat; opacity: .16; }
+.sz-drv-card img { position: absolute; right: -6px; bottom: 0; height: 100px; width: auto; pointer-events: none; }
+.sz-drv-card :is(.nm, .tm, .no) { position: relative; z-index: 1; }
+.sz-drv-card .nm { font: 800 15px/1.1 var(--font); max-width: 92px; }
+.sz-drv-card .tm { font-size: 11px; color: rgba(255, 255, 255, .7); max-width: 92px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sz-drv-card .no { margin-top: auto; font: 900 22px/1 var(--font-cond, var(--font)); color: color-mix(in srgb, var(--tc) 70%, #fff); }
+.sz-drv-card:hover { transform: translateY(-2px); }
+.sz-drv-card.on { box-shadow: 0 0 0 2px var(--tc), 0 8px 22px color-mix(in srgb, var(--tc) 30%, transparent); }
+.sz-drv-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.sz-drv-hero { position: relative; min-height: 180px; margin-bottom: 12px; padding: 22px 26px; border-radius: 14px; overflow: hidden; color: #fff;
+  border: 1px solid color-mix(in srgb, var(--tc) 40%, #1E293B);
+  background: radial-gradient(circle at 78% 45%, color-mix(in srgb, var(--tc) 50%, transparent), transparent 58%), linear-gradient(120deg, color-mix(in srgb, var(--tc) 48%, #0B1324), #0B1324 72%); }
+.sz-drv-hero::before { content: ''; position: absolute; right: 16%; top: 50%; width: 230px; height: 230px; transform: translateY(-50%); background: var(--logo) center / contain no-repeat; opacity: .14; }
+.sz-drv-hero img { position: absolute; right: 26px; bottom: 0; height: 196px; width: auto; }
+.sz-drv-hero .txt { position: relative; z-index: 1; max-width: 60%; }
+.sz-drv-hero .sz-drv-name { font-size: 34px; line-height: 1.05; }
+.sz-drv-hero .no { display: block; margin: 6px 0 8px; font: 900 46px/1 var(--font-cond, var(--font)); color: color-mix(in srgb, var(--tc) 65%, #fff); }
+.sz-drv-hero .sub { color: rgba(255, 255, 255, .78); font-size: 14px; }
+@media (max-width: 700px) { .sz-drv-hero img { height: 150px; right: 0; } .sz-drv-hero .sz-drv-name { font-size: 26px; } .sz-drv-hero .txt { max-width: 62%; } }
+/* Classements : choix Pilotes / Constructeurs des graphiques, totaux au bout des barres */
+.sz-st-head { display: flex; justify-content: flex-end; margin: 4px 0 10px; }
+.sz-svg .sz-tot { font-weight: 700; fill: var(--text); }
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-motion="off"]) .sz-main.sz-anim svg path[pathLength] { stroke-dasharray: 1; stroke-dashoffset: 1; animation: line-draw 1.2s cubic-bezier(.45, .05, .25, 1) .15s forwards; }
+  :root:not([data-motion="off"]) .sz-main.sz-anim .sz-grow-x { animation: reveal-x .9s var(--ease-out) .12s both; }
+}
+/* Écuries : cartes à la couleur de chaque écurie, logo en filigrane, pilotes en portrait */
+.sz-team-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 12px; margin-bottom: 10px; }
+.sz-team-card { all: unset; box-sizing: border-box; position: relative; display: grid; grid-template-columns: 1fr auto; align-content: start; gap: 2px 8px; min-height: 210px; padding: 16px 18px; border-radius: 14px; overflow: hidden; cursor: pointer; color: #fff;
+  border: 1px solid color-mix(in srgb, var(--tc) 40%, #1E293B);
+  background: radial-gradient(circle at 80% 30%, color-mix(in srgb, var(--tc) 45%, transparent), transparent 60%), linear-gradient(150deg, color-mix(in srgb, var(--tc) 42%, #0B1324), #0B1324 80%);
+  transition: transform .15s, box-shadow .15s; }
+.sz-team-card::before { content: ''; position: absolute; right: 12px; bottom: 10px; width: 130px; height: 96px; background: var(--logo) right bottom / contain no-repeat; opacity: .2; }
+.sz-team-card > * { position: relative; z-index: 1; }
+.sz-team-card:hover { transform: translateY(-2px); box-shadow: 0 10px 26px color-mix(in srgb, var(--tc) 28%, transparent); }
+.sz-team-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.sz-team-card .tm-pos { grid-column: 1 / -1; font: 800 12px/1 var(--font); letter-spacing: .1em; color: color-mix(in srgb, var(--tc) 60%, #fff); }
+.sz-team-card .tm-name { font: 800 22px/1.15 var(--font); }
+.sz-team-card .tm-pts { font: 900 24px/1.1 var(--font-cond, var(--font)); text-align: right; }
+.sz-team-card .tm-pts small { font-size: 12px; font-weight: 600; color: rgba(255, 255, 255, .7); }
+.sz-team-card .tm-drvs { grid-column: 1 / -1; display: flex; gap: 14px; margin-top: 14px; }
+.tm-drv { display: grid; grid-template-columns: 46px auto; grid-template-rows: auto auto; column-gap: 8px; align-items: center; }
+.tm-drv img { grid-row: 1 / 3; width: 46px; height: 46px; border-radius: 50%; object-fit: cover; object-position: top; background: color-mix(in srgb, var(--tc) 50%, #0B1324); box-shadow: 0 0 0 2px var(--tc); }
+.tm-drv b { font-size: 14px; align-self: end; }
+.tm-more { align-self: center; font-weight: 700; font-size: 13px; color: rgba(255, 255, 255, .75); }
+.tm-drv small { font-size: 12px; color: rgba(255, 255, 255, .7); align-self: start; }
+.sz-team-card .tm-stats { grid-column: 1 / -1; display: flex; gap: 14px; margin-top: 18px; font-size: 12.5px; color: rgba(255, 255, 255, .78); }
+.sz-team-card .tm-stats b { font-size: 16px; color: #fff; }
+/* Chargement : squelette de la page (cartes et blocs gris qui scintillent) */
+.sz-skel { display: grid; gap: 12px; }
+.sz-skel-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
+.sz-skel-cards i, .sz-skel-box i { display: block; border-radius: 8px; background: var(--panel-2); }
+.sz-skel-cards i { height: 110px; border: 1px solid var(--border); background: var(--panel); position: relative; overflow: hidden; }
+.sz-skel-box { display: grid; gap: 10px; padding: 18px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel); }
+.sz-skel-box i { height: 14px; }
+.sz-skel-box i.t { width: 38%; height: 20px; margin-bottom: 6px; }
+.sz-skel-box i.g { height: 220px; }
+.sz-skel-box i:nth-child(odd):not(.t):not(.g) { width: 86%; }
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-motion="off"]) :is(.sz-skel-cards i, .sz-skel-box i) {
+    background-image: linear-gradient(90deg, transparent, color-mix(in srgb, var(--text) 7%, transparent), transparent);
+    background-size: 200% 100%; background-repeat: no-repeat; animation: sz-shimmer 1.4s ease-in-out infinite; }
+}
+@keyframes sz-shimmer { from { background-position: 150% 0; } to { background-position: -50% 0; } }
+/* Accueil : favoris avec le portrait du pilote (cerclé de la couleur de son écurie) ou le logo de l'écurie */
+.hm-fav-who { display: inline-flex; align-items: center; gap: 9px; }
+.hm-fav-pic { width: 30px; height: 30px; flex: none; border-radius: 50%; object-fit: cover; object-position: top; background: color-mix(in srgb, var(--tc) 40%, var(--panel-2)); box-shadow: 0 0 0 2px var(--tc); }
+.hm-fav-who .team-logo { width: 26px; height: 26px; }

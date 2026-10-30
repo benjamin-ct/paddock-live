@@ -49,6 +49,7 @@ const DESC = {
   ratings: 'Notes des pilotes de F1 en {}, course après course, face au coéquipier et sur la saison.',
   predict: 'Pronostics F1 {} entre amis : pronostiquez chaque Grand Prix et comparez vos points.',
   drivers: 'Pilotes de F1 en {} : la saison de chacun, résultats, qualifications, points et statistiques.',
+  teams: 'Écuries de F1 en {} : place au championnat, points, pilotes, victoires, podiums et poles.',
   consistency: 'Régularité des pilotes de F1 en {} : écart-type des temps au tour, Grand Prix par Grand Prix.',
   pits: 'Arrêts aux stands F1 {} : immobilisations les plus rapides, médiane par écurie, Grand Prix par Grand Prix.',
   speeds: 'Vitesses de pointe des pilotes de F1 en {} : speed trap, ligne d\'arrivée et intermédiaires.',
