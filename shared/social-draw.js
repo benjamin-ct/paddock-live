@@ -189,6 +189,8 @@ export function wrap(ctx, text, x, y, maxW, lineH, maxLines, style) {
   return n;
 }
 export const alpha = (hex, a) => {
+  const c = /^rgb\((\d+),(\d+),(\d+)\)$/.exec(hex || '');   // couleur éclaircie par vivid()
+  if (c) return `rgba(${c[1]},${c[2]},${c[3]},${a})`;
   const m = /^#?([0-9a-f]{6})$/i.exec(hex || '');
   if (!m) return `rgba(139,149,168,${a})`;
   const v = parseInt(m[1], 16);

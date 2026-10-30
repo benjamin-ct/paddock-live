@@ -65,6 +65,38 @@ function brushed(ctx, x, y, w, h) {
   return g;
 }
 
+// Couleur assombrie (k : part gardée)
+function dark(hex, k) {
+  const v = parseInt(String(hex).replace('#', ''), 16) || 0;
+  return `rgb(${Math.round((v >> 16) * k)},${Math.round(((v >> 8) & 255) * k)},${Math.round((v & 255) * k)})`;
+}
+// Fines rayures obliques claires (cartes, grande bande)
+function stripes(ctx, x, y, w, h, u, a = 0.08) {
+  ctx.save(); ctx.strokeStyle = `rgba(255,255,255,${a})`; ctx.lineWidth = 3 * u;
+  ctx.beginPath(); for (let i = -h; i < w + h; i += 18 * u) { ctx.moveTo(x + i, y + h); ctx.lineTo(x + i + h * 0.58, y); } ctx.stroke();
+  ctx.restore();
+}
+// Couverture : grande bande pleine de la couleur montant vers la droite derrière le chiffre et la photo (y0 : bord
+// haut à gauche, e : épaisseur, en fraction de la hauteur), liseré clair, tout le bas sombre sous la bande (nom, panneau)
+function slab(ctx, W, H, color, y0, e) {
+  const u = Math.min(W, H) / 1080;
+  const y1 = y0 - 0.6 * W / H;
+  const c = vivid(color);
+  const poly = (a, b, c2, d2) => { ctx.beginPath(); ctx.moveTo(0, H * a); ctx.lineTo(W, H * b); ctx.lineTo(W, H * c2); ctx.lineTo(0, H * d2); ctx.closePath(); };
+  const thin = ctx.createLinearGradient(0, 0, W, 0); thin.addColorStop(0, alpha(c, 0)); thin.addColorStop(1, alpha(c, 0.9));
+  poly(y0 - 0.08, y1 - 0.08, y1 - 0.054, y0 - 0.054); ctx.fillStyle = thin; ctx.fill();
+  const g = ctx.createLinearGradient(0, 0, W, 0);
+  g.addColorStop(0, dark(color, 0.72)); g.addColorStop(0.45, c); g.addColorStop(0.7, alpha(c, 0.85)); g.addColorStop(1, c);
+  poly(y0, y1, y1 + e, y0 + e); ctx.fillStyle = g; ctx.fill();
+  ctx.save(); ctx.clip(); stripes(ctx, 0, 0, W, H, u, 0.07);
+  const hi = ctx.createLinearGradient(0, H * y1, 0, H * (y0 + e)); hi.addColorStop(0, 'rgba(255,255,255,0.12)'); hi.addColorStop(1, 'rgba(0,0,0,0.18)'); ctx.fillStyle = hi; ctx.fillRect(0, 0, W, H);
+  ctx.restore();
+  ctx.fillStyle = 'rgba(255,243,224,0.75)'; poly(y0, y1, y1 + 0.012, y0 + 0.012); ctx.fill();
+  const b0 = y0 + e + 0.02; const b1 = y1 + e + 0.02;
+  poly(b0, b1, 1.01, 1.01); ctx.fillStyle = 'rgba(8,9,11,0.86)'; ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.5)'; poly(b0 - 0.003, b1 - 0.003, b1, b0); ctx.fill();
+}
+
 // Fibre de carbone : motif tissé tiré une fois
 let weave = null;
 function carbon(ctx, W, H) {
@@ -91,15 +123,19 @@ function carbon(ctx, W, H) {
 // Fond : carbone, larges bandes obliques de la couleur, vignettage et grain
 export function tvBackground(ctx, W, H, accent) {
   carbon(ctx, W, H);
-  const col = /^#?[0-9a-f]{6}$/i.test(accent || '') ? accent : RED;   // alpha() ne lit que l'hexadécimal
+  const col = /^#?[0-9a-f]{6}$/i.test(accent || '') ? accent : RED;
+  // Halos de la couleur (en haut à droite, en bas à gauche)
+  const glow = (x, y, r, a) => { const rg = ctx.createRadialGradient(x, y, 0, x, y, r); rg.addColorStop(0, alpha(vivid(col), a)); rg.addColorStop(1, alpha(vivid(col), 0)); ctx.fillStyle = rg; ctx.fillRect(0, 0, W, H); };
+  glow(W * 0.72, H * 0.36, Math.max(W, H) * 0.62, 0.4);
+  glow(W * 0.08, H * 1.02, Math.max(W, H) * 0.55, 0.22);
   const band = (x0, x1, a, w) => {
     const g = ctx.createLinearGradient(0, H, W, 0);
-    g.addColorStop(0, alpha(col, 0)); g.addColorStop(0.35, alpha(col, a)); g.addColorStop(0.75, alpha(col, a * 0.8)); g.addColorStop(1, alpha(col, 0));
+    g.addColorStop(0, alpha(vivid(col), a * 0.25)); g.addColorStop(0.4, alpha(vivid(col), a)); g.addColorStop(0.8, alpha(vivid(col), a * 0.9)); g.addColorStop(1, alpha(vivid(col), a * 0.4));
     ctx.fillStyle = g;
     ctx.beginPath(); ctx.moveTo(W * x0, H); ctx.lineTo(W * (x0 + w), H); ctx.lineTo(W * (x1 + w), 0); ctx.lineTo(W * x1, 0); ctx.closePath(); ctx.fill();
   };
-  band(0.05, 1.05, 0.55, 0.2);
-  band(0.32, 1.32, 0.22, 0.06);
+  band(0.05, 1.05, 0.62, 0.2);
+  band(0.32, 1.32, 0.3, 0.06);
   ctx.save();
   ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.lineWidth = Math.max(1, W / 900);
   ctx.beginPath(); ctx.moveTo(W * 0.02, H); ctx.lineTo(W * 1.02, 0); ctx.stroke();
@@ -168,6 +204,7 @@ export function tvCover(ctx, W, H, d, o, fmt) {
   const tall = H / W > 1.5;
   const win = d.rows[0];
   tvBackground(ctx, W, H, win.color);
+  slab(ctx, W, H, win.color, tall ? 0.36 : 0.38, tall ? 0.15 : 0.18);
   const pad = Math.round(W * 0.055);
   const top = topY(W, H);
   const pic = o.photos?.[win.num];
@@ -228,9 +265,14 @@ export function tvPodium(ctx, W, H, d, o) {
     const w = cw[k]; const h = heights[k];
     const py = base - plateH; const y0 = py - h;
     // Carte couleur de l'écurie (fond de la photo)
-    const g = ctx.createLinearGradient(0, y0, 0, py);
-    g.addColorStop(0, alpha(vivid(p.color), 0.95)); g.addColorStop(1, alpha(p.color, 0.55));
+    const g = ctx.createLinearGradient(x, y0, x + h * 0.18, py);
+    g.addColorStop(0, vivid(p.color)); g.addColorStop(0.55, dark(p.color, 0.45)); g.addColorStop(1, '#0b0c0e');
     slant(ctx, x, y0, w, h, 16 * u); ctx.fillStyle = g; ctx.fill();
+    ctx.save(); ctx.clip(); stripes(ctx, x, y0, w, h, u);
+    const sh = ctx.createLinearGradient(x, y0, x + w, y0 + w * 0.5);
+    sh.addColorStop(0, 'rgba(255,255,255,0.22)'); sh.addColorStop(0.3, 'rgba(255,255,255,0)'); ctx.fillStyle = sh; ctx.fillRect(x, y0, w, h);
+    ctx.fillStyle = 'rgba(255,255,255,0.45)'; ctx.fillRect(x, y0, w, 2 * u);
+    ctx.restore();
     // Photo : dépasse un peu du haut de la carte, coupée au bas
     const img = o.photos?.[p.num];
     if (img) {
@@ -279,7 +321,7 @@ export function tvClassement(ctx, W, H, d, o) {
   rows.slice(0, 3).forEach((r, i) => {
     const h = big - gapRow;
     const g = ctx.createLinearGradient(fr.pad, 0, fr.pad + fullW, 0);
-    g.addColorStop(0, alpha(vivid(r.color), 0.55)); g.addColorStop(0.45, 'rgba(30,33,38,0.92)'); g.addColorStop(1, 'rgba(20,22,26,0.92)');
+    g.addColorStop(0, alpha(vivid(r.color), 0.85)); g.addColorStop(0.4, alpha(vivid(r.color), 0.3)); g.addColorStop(0.72, 'rgba(30,33,38,0.92)'); g.addColorStop(1, 'rgba(20,22,26,0.92)');
     slant(ctx, fr.pad, y, fullW, h, 14 * u); ctx.fillStyle = g; ctx.fill();
     // Plaque métal de la place
     const pw = h * 1.05;
@@ -315,6 +357,8 @@ export function tvClassement(ctx, W, H, d, o) {
     const ry = y + (k % per) * small;
     const h = small - gapRow;
     slant(ctx, x, ry, colW, h, 10 * u); ctx.fillStyle = r.out ? 'rgba(40,20,22,0.85)' : 'rgba(22,24,28,0.88)'; ctx.fill();
+    const tint = ctx.createLinearGradient(x, 0, x + colW, 0);
+    tint.addColorStop(0, alpha(vivid(r.color), 0.34)); tint.addColorStop(0.34, alpha(vivid(r.color), 0)); ctx.fillStyle = tint; ctx.fill();
     ctx.fillStyle = 'rgba(255,255,255,0.1)'; ctx.fillRect(x + 10 * u, ry, colW - 10 * u, 1.2 * u);
     const fs = h * 0.62;
     tt(ctx, String(r.pos), x + h * 0.75, ry + h * 0.74, fs * 0.92, { align: 'center', fill: 'rgba(255,255,255,0.9)' });
