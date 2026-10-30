@@ -69,8 +69,8 @@ export function setVividTeams(v) { vividTeams = !!v; }
 
 // Photo d'un pilote (portrait de la saison, sinon celle de la séance), relayée par le serveur et gardée
 // en cache ; null si la F1 n'en fournit pas
-export function photoUrl(driver) {
-  const u = portraitUrl(driver?.Tla) || driver?.HeadshotUrl;
+export function photoUrl(driver, w) {
+  const u = portraitUrl(driver?.Tla, false, w) || driver?.HeadshotUrl;
   return u ? `/api/headshot?u=${encodeURIComponent(u)}` : null;
 }
 

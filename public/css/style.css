@@ -1103,7 +1103,7 @@ body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-selec
 .sz-src { padding: 6px; }
 .sz-menu, .sz-scrim { display: none; }
 .sz-main { flex: 1; overflow: auto; padding: 18px 22px 30px; }
-.sz-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; margin-bottom: 14px; }
+.sz-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; margin-bottom: 12px; }
 .sz-card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; min-height: 110px; }
 .sz-big { font-size: 24px; font-weight: 900; display: flex; align-items: center; gap: 8px; }
 .sz-big small { font-size: 13px; font-weight: 600; color: var(--muted); }
@@ -1121,9 +1121,26 @@ body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-selec
 .sz-when { opacity: .85; }
 .sz-progress { height: 6px; background: var(--panel-3); border-radius: 3px; overflow: hidden; margin: 4px 0; }
 .sz-progress i { display: block; height: 100%; background: var(--accent); }
-.sz-grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 12px; margin-bottom: 14px; }
+.sz-grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 12px; margin-bottom: 12px; }
 .sz-box { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; margin-bottom: 12px; overflow-x: auto; }
 .sz-box h3 { margin: 0 0 10px; font-size: 17px; }
+/* Disposition commune : 12 px entre tous les blocs (dans les grilles comme entre elles) */
+:is(.sz-grid2, .sz-h2h-layout) > .sz-box { margin-bottom: 0; }
+.sz-h2h-layout { margin-bottom: 12px; }
+/* Grilles de cartes équilibrées par balanceCards() (season.js) : même nombre de cartes sur chaque ligne */
+:is(.sz-cards, .sz-team-grid, .sz-rv-grid, .sz-circs)[style*="--cols"] { grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); }
+/* Deux tableaux côte à côte : le plus court s'étire à la hauteur de l'autre, lignes réparties (pas de vide dessous) */
+.sz-grid2 > .sz-box:has(> .sz-table, > .sz-scroll > .sz-table) { display: flex; flex-direction: column; }
+.sz-grid2 > .sz-box > :is(.sz-table, .sz-scroll) { flex: 1; }
+.sz-grid2 > .sz-box > .sz-scroll > .sz-table { height: 100%; }
+.sz-grid2 > .sz-box .sz-table tr:has(> th) { height: 1px; }
+/* Chiffre d'un tableau avec sa petite barre (cellBar) : points, dégâts… */
+.sz-cb { display: inline-flex; align-items: center; gap: 10px; white-space: nowrap; }
+.sz-cb::before { content: ''; flex: none; width: 64px; height: 6px; border-radius: 3px; background: linear-gradient(90deg, var(--c, var(--accent)) var(--p), var(--panel-3) var(--p)); }
+@media (max-width: 480px) { .sz-cb { gap: 6px; } .sz-cb::before { width: 32px; } }
+/* Podium dans un tableau : P1 or, P2 argent, P3 bronze */
+.sz-pp { display: inline-block; min-width: 28px; padding: 1px 6px; border-radius: 5px; text-align: center; color: #0b1220; }
+.sz-pp.p1 { background: #ffd166; } .sz-pp.p2 { background: #cbd5e1; } .sz-pp.p3 { background: #e3a26f; }
 .sz-dna { display: grid; gap: 4px; }
 .sz-dna-h { margin-top: 6px; }
 .sz-dna a { color: inherit; }
@@ -1404,7 +1421,7 @@ html:is(.float-map, .overlay) #map3dTog { display: none !important; }
 
 /* ---------- Saison : statistiques détaillées ---------- */
 .sz-nav-sep { margin: 12px 10px 4px; font-size: 10.5px; font-weight: 800; letter-spacing: .6px; text-transform: uppercase; color: var(--muted); }
-.sz-kpis { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
+.sz-kpis { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
 /* Bilan : 6 cartes, au plus 3 par rangée (deux rangées pleines) */
 .sz-review-kpis { grid-template-columns: repeat(auto-fit, minmax(max(150px, calc((100% - 24px) / 3)), 1fr)); }
 .sz-kpi { min-height: 0; }
@@ -1421,6 +1438,9 @@ html:is(.float-map, .overlay) #map3dTog { display: none !important; }
 .sz-hb-t { height: 12px; background: var(--panel-3); border-radius: 6px; overflow: hidden; }
 .sz-hb-t i { display: block; height: 100%; border-radius: 6px; opacity: .9; }
 .sz-hb-v { text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; }
+/* Deux colonnes : des barres à côté d'un bloc plus haut (tableau, autres barres) se répartissent sur toute sa hauteur */
+.sz-grid2 > .sz-box:has(> .sz-hbars) { display: flex; flex-direction: column; }
+.sz-grid2 > .sz-box > .sz-hbars { flex: 1; justify-content: space-around; }
 .sz-hbar.sz-pick { cursor: pointer; border-radius: 6px; }
 .sz-hbar.sz-pick:hover, .sz-hbar.sz-pick.on { background: var(--panel-2); }
 .sz-scroll { overflow-x: auto; }
@@ -1441,7 +1461,7 @@ html:is(.float-map, .overlay) #map3dTog { display: none !important; }
 .sz-grid td.gp { background: rgba(34, 197, 94, .12); }
 .sz-grid td.gx { color: var(--muted); font-size: 11px; }
 .sz-hm { font-variant-numeric: tabular-nums; font-size: 12.5px; }
-.sz-circs { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 12px; align-items: start; }
+.sz-circs { display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 12px; align-items: start; }
 .sz-circ { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 7px; }
 .sz-circ-head b { font-size: 17px; font-weight: 900; }
 .sz-circ-body { display: grid; grid-template-columns: 120px 1fr; gap: 12px; align-items: center; }
@@ -1492,7 +1512,6 @@ html:is(.float-map, .overlay) #map3dTog { display: none !important; }
 .sz-down { color: var(--red); }
 .sz-h2h-grades > div { flex: 1; }
 .sz-gap-chart { min-width: 420px; }
-.sz-svg .sz-clip { fill: #fff; font-weight: 800; paint-order: stroke; stroke: rgba(0,0,0,.45); stroke-width: 2px; }
 .sz-h2h-grades > span { width: auto; min-width: 34px; }
 .linkish { background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; font: inherit; }
 @media (max-width: 900px) { .sz-how ul { columns: 1; } }
@@ -1743,8 +1762,7 @@ html[data-design="classic"] .rc-bar { display: none !important; }
   #seasonView .sz-scrim { display: block; position: absolute; inset: 0; z-index: 2; background: rgba(0, 0, 0, .45); opacity: 0; pointer-events: none; transition: opacity .2s; }
   #seasonView.sz-open .sz-scrim { opacity: 1; pointer-events: auto; }
   .sz-main { padding: 10px !important; }
-  .sz-cards { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)) !important; }
-  .sz-count { grid-column: 1 / -1 !important; }
+  .sz-cards { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)) !important; }  .sz-count { grid-column: 1 / -1 !important; }
   .sz-home-cards { grid-template-columns: repeat(2, 1fr) !important; }
   .sz-results :is(th, td):nth-child(3) { display: none; }   /* Résultats : la date laisse la place au vainqueur */
   .sz-upd { grid-template-columns: 1fr; }

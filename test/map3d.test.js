@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { QUALITY, nearFirst, autoQuality, frameCap, weatherState, compoundOf, accentColor, drsOpen, seconds, pickBattle, bestLap, sessionBest, lapTrace, traceAt, wallCuts } from '../public/js/ui/map3d-calc.js';
+import { QUALITY, nearFirst, autoQuality, frameCap, weatherState, compoundOf, accentColor, drsOpen, seconds, pickBattle, bestLap, sessionBest, lapTrace, traceAt, wallCuts, pitRoute } from '../public/js/ui/map3d-calc.js';
 
 // Images à cadence fixe (fps) pendant ms, à partir de t ; -> [instant de fin, niveaux choisis en route]
 function run(auto, t, ms, fps, cap = Infinity) {
@@ -218,4 +218,48 @@ test('fantôme : meilleur tour officiel de la séance, d\'après le chronométra
   assert.deepEqual(sessionBest({ 16: { PersonalBestLapTime: { Value: '1:38.5', Position: '1' } } }), { num: '16', time: 98.5 });
   assert.equal(sessionBest({ 1: { PersonalBestLapTime: { Value: '', Position: 1 } } }), null);
   assert.equal(sessionBest(undefined), null);
+});
+
+test('voie des stands : longe la piste et glisse dessous en pente douce à l\'entrée et à la sortie', () => {
+  // Piste droite le long de x (milieu en z = 0, droite vers +z). Voie tous les 2 m comme le GPS des voitures : part du
+  // milieu de la piste, s'écarte à 16 m en 60 m, revient en biais sur 120 m (elle chevaucherait la piste)
+  const near = (x) => [x, 0, 0, 1];
+  const raw = [];
+  for (let x = 0; x <= 520; x += 2) raw.push([x, x < 60 ? (16 * x) / 60 : x <= 400 ? 16 : 16 - (13 * (x - 400)) / 120]);
+  const lane = pitRoute(raw, near);
+  assert.equal(lane.length, raw.length);
+  const inner = 7 - 3.5, outer = 7 + 1.8 + 3.5;
+  // Bouts : pointe nulle, sous la piste (bord extérieur de la voie au bord de la piste)
+  for (const q of [lane[0], lane.at(-1)]) {
+    assert.equal(q.w, 0);
+    assert.ok(Math.abs(q.z - inner) < 1e-9);
+  }
+  // À côté de la piste partout sauf à 60 m des bouts, jamais de l'autre côté
+  lane.forEach((q, i) => {
+    const u = Math.min(i, lane.length - 1 - i) * 2;
+    assert.ok(q.z >= inner - 1e-9, `point ${i}`);
+    if (u >= 60) assert.ok(q.z >= outer - 1e-9, `point ${i} à ${q.z} m`);
+    if (u >= 15) assert.equal(q.w, 7);
+  });
+  // Pente douce : pas de marche d'un point à l'autre ; le long des stands, voie laissée où elle est
+  for (let i = 1; i < lane.length; i++) assert.ok(Math.abs(lane[i].z - lane[i - 1].z) < 0.6, `marche au point ${i}`);
+  assert.equal(lane[100].z, 16);
+  // Ligne blanche du côté de la piste là où la voie la longe, pas le long des stands
+  assert.equal(lane[100].edge, null);
+  const q = lane[lane.length - 40];
+  assert.ok(q.edge && Math.abs(q.edge[1] - (q.z - 3.3)) < 1e-9);
+  // Voie de l'autre côté de la piste : la même en miroir
+  const left = pitRoute(raw.map(([x, z]) => [x, -z]), near);
+  left.forEach((p, i) => assert.ok(Math.abs(p.z + lane[i].z) < 1e-9));
+});
+
+test('voie des stands : une voie qui passe sous la piste garde son côté de part et d\'autre', () => {
+  // Sortie en tunnel : la voie longe la piste à droite, la traverse et la rejoint par la gauche
+  const near = (x) => [x, 0, 0, 1];
+  const raw = [];
+  for (let x = 0; x <= 400; x += 2) raw.push([x, x < 200 ? 15 : x < 260 ? 15 - (30 * (x - 200)) / 60 : -15 + (15 * (x - 260)) / 140]);
+  const lane = pitRoute(raw, near);
+  assert.ok(lane.slice(30, 95).every((p) => p.z >= 12.3 - 1e-9), 'avant : à droite');
+  assert.ok(lane.slice(140, 170).every((p) => p.z <= -12.3 + 1e-9), 'après : à gauche');
+  assert.equal(pitRoute([[0, 0]], near).length, 0);
 });

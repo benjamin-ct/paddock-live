@@ -5,6 +5,7 @@ import { esc } from '../util.js';
 import { DEC, EN, LANG, t } from '../i18n.js';
 import { gpShort } from '/shared/gp-names.js';
 import { destructors } from '/shared/destructors.js';
+import { cellBar } from './season-stats.js';
 
 const PARTS = {
   'Front Wing': 'Aileron avant', 'Front Suspension': 'Suspension avant', 'Rear Suspension': 'Suspension arrière', Floor: 'Fond plat',
@@ -56,6 +57,7 @@ export function renderDestructors(ctx, d) {
     let y = 0;
     return { label: k.name.replace(/ F1 Team$/, ''), color: ctx.color(k.name, k.id), points: rounds.map((round) => ({ x: round, y: Math.round((y += d.rows.filter((r) => r.round === round && r.team === x.team).reduce((s, r) => s + cost(r), 0)) / 1e3) })) };
   }), { w: ctx.w, h: 260 });
+  const dcol = (x) => { const p = drv(x); return p.teamId ? ctx.color(p.team, p.teamId) : null; };
   const tdName = (x) => `<button type="button" class="dest-drv" data-dest-drv="${x.num}" title="${esc(t('Voir le détail'))}">${who(x)}</button>`;
   return `<div class="sz-cards">
       ${card(t('Dégâts de la saison'), usd(c.total), t('{} incidents', d.rows.length))}
@@ -66,16 +68,16 @@ export function renderDestructors(ctx, d) {
     ${detail}
     <div class="sz-grid2">
       <section class="sz-box"><h3>${t('Pilotes')} <small class="muted">${t('touchez un pilote pour le détail')}</small></h3><div class="sz-scroll"><table class="sz-table"><tr><th>${t('Pos.')}</th><th>${t('Pilote')}</th><th>${t('Dégâts')}</th><th>${t('Incidents')}</th></tr>
-        ${c.drivers.map((x) => `<tr class="${x.num === shown ? 'on' : ''}"><td>${x.pos}</td><td>${tdName(x)}</td><td><b>${usd(x.cost)}</b></td><td>${x.incidents}</td></tr>`).join('')}</table></div></section>
+        ${c.drivers.map((x) => `<tr class="${x.num === shown ? 'on' : ''}"><td>${x.pos}</td><td>${tdName(x)}</td><td>${cellBar(x.cost, d1.cost, dcol(x), `<b>${usd(x.cost)}</b>`)}</td><td>${x.incidents}</td></tr>`).join('')}</table></div></section>
       <section class="sz-box"><h3>${t('Écuries')}</h3><div class="sz-scroll"><table class="sz-table"><tr><th>${t('Pos.')}</th><th>${t('Écurie')}</th><th>${t('Dégâts')}</th>${cap ? `<th>${t('Part du plafond')}</th>` : ''}<th>${t('Incidents')}</th></tr>
-        ${c.teams.map((x) => { const k = team(x.team); return `<tr><td>${x.pos}</td><td>${bar(k.name, k.id)}<b>${esc(k.name)}</b></td><td><b>${usd(x.cost)}</b></td>${cap ? `<td>${share(x.cost)}</td>` : ''}<td>${x.incidents}</td></tr>`; }).join('')}</table></div></section>
+        ${c.teams.map((x) => { const k = team(x.team); return `<tr><td>${x.pos}</td><td>${bar(k.name, k.id)}<b>${esc(k.name)}</b></td><td>${cellBar(x.cost, t1.cost, k.id ? ctx.color(k.name, k.id) : null, `<b>${usd(x.cost)}</b>`)}</td>${cap ? `<td>${share(x.cost)}</td>` : ''}<td>${x.incidents}</td></tr>`; }).join('')}</table></div></section>
     </div>
     <section class="sz-box"><h3>${t('Coût cumulé des 5 écuries les plus coûteuses')} <small class="muted">${t('en milliers de $')}</small></h3>${chart}</section>
     <div class="sz-grid2">
       <section class="sz-box"><h3>${t('Plus gros dégâts d\'un week-end')}</h3><div class="sz-scroll"><table class="sz-table"><tr><th>${t('Pilote')}</th><th>${t('Grand Prix')}</th><th>${t('Dégâts')}</th></tr>
-        ${c.top.slice(0, 15).map((x) => `<tr><td>${tdName(x)}</td><td>${gp(x.round)}</td><td><b>${usd(x.cost)}</b></td></tr>`).join('')}</table></div></section>
+        ${c.top.slice(0, 15).map((x) => `<tr><td>${tdName(x)}</td><td>${gp(x.round)}</td><td>${cellBar(x.cost, x1.cost, dcol(x), `<b>${usd(x.cost)}</b>`)}</td></tr>`).join('')}</table></div></section>
       <section class="sz-box"><h3>${t('Pièces cassées')}</h3><div class="sz-scroll"><table class="sz-table"><tr><th>${t('Pièce')}</th><th>${t('Prix estimé')}</th><th>${t('Nombre')}</th><th>${t('Total')}</th></tr>
-        ${c.parts.map((p) => `<tr><td>${partName(p.name)}</td><td>${usd(p.price)}</td><td>${p.qty}</td><td><b>${usd(p.cost)}</b></td></tr>`).join('')}</table></div></section>
+        ${c.parts.map((p) => `<tr><td>${partName(p.name)}</td><td>${usd(p.price)}</td><td>${p.qty}</td><td>${cellBar(p.cost, c.parts[0].cost, null, `<b>${usd(p.cost)}</b>`)}</td></tr>`).join('')}</table></div></section>
     </div>
     <p class="hint">${t('Coût estimé des pièces cassées, Grand Prix par Grand Prix : des estimations, pas un décompte officiel. Source : u/Dense-Strategy-867 (Reddit), compilé par Formula 1 Dashboard.')}${cap ? ` ${t('Plafond budgétaire {} de la FIA : {}.', data.year, usd(cap))}` : ''}</p>`;
 }

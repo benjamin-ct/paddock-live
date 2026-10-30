@@ -12,7 +12,7 @@ import { drivers, orderedNumbers, storageGet, storageSet, esc, api, COMPOUNDS } 
 import { t, DEC } from '../i18n.js';
 import { gridSlot, gridIndex, gridWeight } from '../grid.js';
 import { FONT, drawPuck, drawBadge, drawSectorBadge, drawCornerChip, drawFlagBadge, drawScBadge } from './map-draw.js';
-import { QUALITY, nearFirst, autoQuality, frameCap, weatherState, compoundOf, accentColor, drsOpen, seconds, pickBattle, bestLap, sessionBest, lapTrace, traceAt, wallCuts } from './map3d-calc.js';
+import { QUALITY, nearFirst, autoQuality, frameCap, weatherState, compoundOf, accentColor, drsOpen, seconds, pickBattle, bestLap, sessionBest, lapTrace, traceAt, wallCuts, pitRoute } from './map3d-calc.js';
 
 const W = 14;           // largeur de la piste (m)
 const MAX_CARS = 30;
@@ -958,34 +958,44 @@ function buildLayers(world, L) {
     }
   }
 
-  // Voie des stands (points tous les 2 m dans la scène) : bâtiment des stands et ouvertures dans les murs, puis, avec la
-  // case du calque, route plus étroite et plus sombre, pointillés au milieu, étiquette « STANDS »
-  const pit = z?.pitLane?.path, pts = [];
+  // Voie des stands (points tous les 2 m dans la scène, raccordés à la piste : pitRoute) : bâtiment des stands et
+  // ouvertures dans les murs, puis, avec la case du calque, route plus étroite et plus sombre, pointillés au milieu,
+  // ligne blanche du côté de la piste là où elle la longe, étiquette « STANDS » ; sous la piste là où elles se touchent
+  const pit = z?.pitLane?.path, raw = [];
+  let pts = [];
   if (pit?.length > 1) {
     for (let k = 0; k + 1 < pit.length; k++) {
       const [ax, az] = toW(...pit[k]), [bx, bz] = toW(...pit[k + 1]), steps = Math.max(1, Math.ceil(Math.hypot(bx - ax, bz - az) / 2));
-      for (let j = 0; j < steps; j++) pts.push([ax + ((bx - ax) * j) / steps, az + ((bz - az) * j) / steps]);
+      for (let j = 0; j < steps; j++) raw.push([ax + ((bx - ax) * j) / steps, az + ((bz - az) * j) / steps]);
     }
-    pts.push(toW(...pit.at(-1)));
+    raw.push(toW(...pit.at(-1)));
+    let hint = -1;
+    const lane = pitRoute(raw, (x, zz) => { hint = nearestIndex(world, x, zz, hint); return [P[hint].x, P[hint].z, SIDE[hint].x, SIDE[hint].z]; }, { half: W / 2 });
+    pts = lane.map((q) => [q.x, q.z]);
     group.add(pitBuilding(world, pit));
     world.cutWalls(pts);
+    if (o.mapPit) {
+      // Bande le long de line ([x, z] ou null : coupée), largeur width(k) ; dessinée derrière la piste et ses lignes
+      const strip = (line, width, lift, color, test = () => true) => {
+        const pos = [], ix = [];
+        line.forEach((p, k) => {
+          const a = line[k - 1] || p, b = line[k + 1] || p;
+          if (!p) { pos.push(0, 0, 0, 0, 0, 0); return; }
+          const l = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1, sx = -(b[1] - a[1]) / l, sz = (b[0] - a[0]) / l, y = world.groundAt(p[0], p[1]) + lift, h = width(k) / 2;
+          pos.push(p[0] + sx * h, y, p[1] + sz * h, p[0] - sx * h, y, p[1] - sz * h);
+          if (k && line[k - 1] && test(k)) ix.push(2 * k - 2, 2 * k, 2 * k - 1, 2 * k - 1, 2 * k, 2 * k + 1);
+        });
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+        geo.setIndex(ix);
+        group.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 4 })));
+      };
+      strip(pts, (k) => lane[k].w, 0.3, 0x4a4a55);
+      strip(pts, () => 0.35, 0.32, 0xdddde6, (k) => lane[k].w > 5 && Math.floor(k / 2) % 2 === 0);
+      strip(lane.map((q) => q.edge), () => 0.3, 0.32, 0xf2f2f2);
+    }
   }
   if (o.mapPit && pts.length) {
-    const strip = (width, lift, color, test = () => true) => {
-      const pos = [], ix = [];
-      pts.forEach(([x, zz], k) => {
-        const [px, pz] = pts[Math.max(0, k - 1)], [qx, qz] = pts[Math.min(pts.length - 1, k + 1)], l = Math.hypot(qx - px, qz - pz) || 1;
-        const sx = -(qz - pz) / l, sz = (qx - px) / l, y = world.groundAt(x, zz) + lift;
-        pos.push(x + (sx * width) / 2, y, zz + (sz * width) / 2, x - (sx * width) / 2, y, zz - (sz * width) / 2);
-        if (k && test(k)) ix.push(2 * k - 2, 2 * k, 2 * k - 1, 2 * k - 1, 2 * k, 2 * k + 1);
-      });
-      const geo = new THREE.BufferGeometry();
-      geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-      geo.setIndex(ix);
-      group.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -4 })));
-    };
-    strip(7, 0.3, 0x4a4a55);
-    strip(0.35, 0.33, 0xdddde6, (k) => Math.floor(k / 2) % 2 === 0);
     const [mx, mz] = pts[pts.length >> 1];
     put(label('STANDS', '#3a3a44', '#e6e6ee'), new THREE.Vector3(mx, world.groundAt(mx, mz) + 4, mz));
   }
