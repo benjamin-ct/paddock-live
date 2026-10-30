@@ -74,6 +74,13 @@ export function photoUrl(driver) {
   return u ? `/api/headshot?u=${encodeURIComponent(u)}` : null;
 }
 
+// Couleurs officielles des écuries par identifiant Jolpica (Saison, accueil ; utilisées si les couleurs contrastées
+// sont désactivées)
+export const OFFICIAL = {
+  mercedes: '00D7B6', ferrari: 'ED1131', mclaren: 'F47600', red_bull: '4781D7', rb: '6C98FF', williams: '1868DB',
+  alpine: '00A1E8', aston_martin: '229971', haas: '9C9FA2', sauber: '01C00E', audi: 'F50537', cadillac: '909090',
+};
+
 export function teamColor(driver) {
   let c = null;
   if (vividTeams && driver?.TeamName) c = VIVID_TEAMS.find(([re]) => re.test(driver.TeamName))?.[1] || null;

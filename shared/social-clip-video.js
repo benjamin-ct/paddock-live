@@ -3,7 +3,7 @@
 // la source ; puis la fin « Abonnez-vous » de la vidéo des news. Fabriquée image par image par makeAnimation :
 // la vidéo est calée sur chaque instant avant d'être dessinée (prepare).
 import { C, TITLE, txt, fitLines, rr, background, breakingFrame, styled } from './social-draw.js';
-import { header, outro, OUTRO } from './social-news-video.js';
+import { header, outro, OUTRO, safeZone } from './social-news-video.js';
 import { makeAnimation } from './social-video.js';
 import { appPage, appOutro, APP_OUTRO } from './social-app.js';
 
@@ -44,7 +44,8 @@ function layout(ctx, W, H, d, clip, u) {
   const pad = 100 * u;
   const t = fitLines(ctx, String(d.title || '').toUpperCase(), W - pad * 2, [104, 92, 80, 70, 60].map((v) => Math.round(v * u)), 3, TITLE, 800);
   const lh = Math.round(t.size * 0.98);
-  const top = 300 * u; const bottom = H - (d.source ? 170 : 110) * u;
+  const sz = safeZone(W, H);
+  const top = 300 * u + sz.dy; const bottom = H - sz.foot - (d.source ? 60 : 0) * u;
   const boxTop = top + t.lines.length * lh + 50 * u;
   const maxW = W - pad * 2; const maxH = Math.max(100 * u, bottom - boxTop);
   const k = Math.min(maxW / (clip.w || 16), maxH / (clip.h || 9));
@@ -78,8 +79,8 @@ export function clipFrame(ctx, W, H, d, o, clip, t) {
     rr(ctx, L.vx, L.vy, L.vw, L.vh, 28 * u);
     ctx.lineWidth = 3 * u; ctx.strokeStyle = C.line; ctx.stroke();
     ctx.restore();
-    header(ctx, W, d, o, u, t);
-    if (d.source) txt(ctx, `SOURCE : ${d.source.toUpperCase()}`, W / 2, H - 90 * u, { size: Math.round(32 * u), weight: 700, family: TITLE, color: C.muted, align: 'center', spacing: 2, max: W - 120 * u });
+    header(ctx, W, d, o, u, t, H);
+    if (d.source) txt(ctx, `SOURCE : ${d.source.toUpperCase()}`, W / 2, H - safeZone(W, H).foot + 30 * u, { size: Math.round(32 * u), weight: 700, family: TITLE, color: C.muted, align: 'center', spacing: 2, max: W - 120 * u });
   }
   // Vidéo → fin : fondu par le noir
   const f = 1 - Math.abs(t - clip.duration) / (FADE / 2);

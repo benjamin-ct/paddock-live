@@ -1355,12 +1355,17 @@ body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-selec
 .map3d-cap { position: absolute; left: 50%; bottom: 40px; transform: translateX(-50%); max-width: calc(100% - 32px); padding: 4px 12px; border-radius: 8px;
   font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   background: color-mix(in srgb, var(--panel-2) 90%, transparent); border: 1px solid var(--border); color: var(--text); pointer-events: none; }
-@media (max-width: 600px) { .map3d-cap { bottom: 128px; } }   /* téléphone : au-dessus des sources (sur trois lignes) */
-.map3d-note { position: absolute; left: 10px; bottom: 8px; max-width: calc(45% - 10px); padding: 2px 8px; border-radius: 6px; font-size: 11.5px; color: #1d2a36; background: rgba(255, 255, 255, .72); pointer-events: none; }
-.map3d-credit { position: absolute; right: 8px; bottom: 8px; max-width: calc(55% - 16px);   /* jamais sur la note (45 % à gauche) */
-  padding: 1px 6px; border-radius: 5px; font-size: 10.5px; line-height: 1.35; text-align: right;
-  color: #1d2a36; background: rgba(255, 255, 255, .62); }
+@media (max-width: 600px) { .map3d-cap { bottom: 44px; } }   /* téléphone : au-dessus du bouton des sources */
+/* Bouton « i » en bas à droite : relief et sources de la carte, repliés */
+.map3d-info { position: absolute; right: 8px; bottom: 8px; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 50%; cursor: pointer;
+  font: italic 700 14px/24px Georgia, serif; text-align: center; color: #1d2a36; background: rgba(255, 255, 255, .72); }
+.map3d-info[aria-expanded="true"] { background: #fff; }
+.map3d-pop { position: absolute; right: 8px; bottom: 38px; max-width: min(420px, calc(100% - 16px)); padding: 6px 10px; border-radius: 8px;
+  font-size: 11px; line-height: 1.4; text-align: right; color: #1d2a36; background: rgba(255, 255, 255, .86); display: grid; gap: 3px; }
+.map3d-pop[hidden] { display: none; }
+.map3d-note { font-size: 11.5px; font-weight: 600; }
 .map3d-credit a { color: inherit; }
+.map3d-credit[hidden] { display: none; }
 .map3d-msg { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); max-width: calc(100% - 32px); padding: 6px 12px; border-radius: 8px; font-size: 12.5px;
   background: var(--panel-2); border: 1px solid var(--border); color: var(--text); z-index: 3; }
 html:is(.float-map, .overlay) #map3dTog { display: none !important; }
@@ -3476,3 +3481,14 @@ html:is(.float-map, .overlay) .boot-cover { display: none; }
 .stream-bg label { flex: 1; display: flex; align-items: center; gap: 8px; }
 .stream-bg input { flex: 1; max-width: 320px; }
 .stream-bg span { min-width: 64px; color: var(--muted); }
+
+/* Panneau Circuit étroit : en-tête sur une seule ligne. « GPS / Estimées » passe en étiquette dans le coin de la carte,
+   « Suivre » et « Calques » deviennent des icônes (texte en infobulle) */
+.p-map { container-type: inline-size; container-name: pmap; }
+.map-tool-ic { display: none; }
+@container pmap (max-width: 620px) {
+  .p-map .panel-head > .panel-tools { flex-wrap: nowrap; gap: 8px; }
+  .p-map .map-tool-txt { display: none; }
+  .p-map .map-tool-ic { display: inline-block; }
+  .p-map .map-mode { position: absolute; left: 10px; top: calc(100% + 8px); padding: 2px 8px; border-radius: 6px; font-size: 11.5px; background: color-mix(in srgb, var(--panel) 82%, transparent); pointer-events: none; }
+}

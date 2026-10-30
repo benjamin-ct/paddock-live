@@ -48,6 +48,7 @@ export class Positions {
 
   reset() {
     this.gps = new Map();     // num -> [{t, x, y, p}]
+    this.held = new Map();    // num -> point GPS impossible mis de côté, en attente du suivant (voir ingestPosition)
     this.gpsLap = new Map();  // num -> {lapIdx, lastR, hint}
     this.car = new Map();     // num -> [{t, rpm, speed, gear, thr, brk, drs}]
     this.posOffset = new OffsetEstimator();
@@ -86,11 +87,28 @@ export class Positions {
         let arr = this.gps.get(num);
         if (!arr) this.gps.set(num, (arr = []));
         if (arr.length && ts <= arr[arr.length - 1].t) continue;
-        arr.push({ t: ts, x: e.X, y: e.Y, off: e.Status === 'OffTrack', p: this.progressOf(num, e.X, e.Y) });
+        const s = { t: ts, x: e.X, y: e.Y, off: e.Status === 'OffTrack' };
         this.lastGpsAt = Math.max(this.lastGpsAt, t);
+        // Point impossible depuis le précédent (plus de 540 km/h : la F1 envoie parfois un point à des kilomètres, la
+        // voiture y volait puis revenait) : mis de côté ; gardé si le suivant le confirme (vrai changement de place :
+        // garage, avance dans un replay), sinon oublié
+        const held = this.held.get(num);
+        if (held) {
+          this.held.delete(num);
+          if (!this.gpsFar(held, s)) arr.push({ ...held, p: this.progressOf(num, held.x, held.y) });
+        }
+        const last = arr[arr.length - 1];
+        if (last && this.gpsFar(last, s)) { this.held.set(num, s); continue; }
+        arr.push({ ...s, p: this.progressOf(num, e.X, e.Y) });
       }
     }
     this.trim(this.gps, t);
+  }
+
+  // Deux points GPS trop loin l'un de l'autre pour le temps qui les sépare (unités de la F1 : 1/10 m ; 1,5 unité/ms =
+  // 540 km/h, plus 30 m de marge ; replay accéléré : temps de la séance)
+  gpsFar(a, b) {
+    return Math.hypot(b.x - a.x, b.y - a.y) > 300 + 1.5 * Math.max(0, b.t - a.t) * (this.speed() || 1);
   }
 
   ingestCarData(data, t) {

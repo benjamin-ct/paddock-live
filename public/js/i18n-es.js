@@ -2748,4 +2748,12 @@ export default {
   "Fantôme : pas encore de meilleur tour avec les positions GPS": "Fantasma: todavía no hay vuelta rápida con las posiciones GPS",
   "Fantôme : il faut les positions GPS des voitures": "Fantasma: hacen falta las posiciones GPS de los coches",
   "radio peu audible : pas de traduction": "radio poco audible: sin traducción",
+  "Relief et sources de la carte": "Relieve y fuentes del mapa",
+  "Évolution du classement": "Evolución de la clasificación",
+  "Points par Grand Prix": "Puntos por Gran Premio",
+  "Toucher une écurie ouvre le duel de ses pilotes.": "Toca una escudería para abrir el duelo entre sus pilotos.",
+  "Chargement des records des circuits…": "Cargando los récords de los circuitos…",
+  "Poles face aux records récents des circuits": "Poles frente a los récords recientes de los circuitos",
+  "À gauche en vert : pole plus rapide que la meilleure pole des quatre éditions précédentes ; à droite : écart avec elle.": "A la izquierda en verde: pole más rápida que la mejor pole de las cuatro ediciones anteriores; a la derecha: diferencia con ella.",
+  "record": "récord",
 };
