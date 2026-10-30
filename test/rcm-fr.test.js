@@ -25,6 +25,9 @@ test('direction de course en français : formules connues', () => {
   for (const [en, fr] of cases) assert.equal(rcmFr(en), fr);
   // Espaces en trop, tiret long
   assert.equal(rcmFr('  BLACK AND WHITE FLAG FOR CAR 1 (VER)  –  TRACK LIMITS '), 'Drapeau noir et blanc pour la voiture 1 (VER) — limites de piste');
+  // Heure de l'incident collée au motif (EL2 de Mexico 2026)
+  assert.equal(rcmFr('BLACK AND WHITE FLAG FOR CAR 16 (LEC) - DRIVING ERRATICALLY (16:22:32)'), 'Drapeau noir et blanc pour la voiture 16 (LEC) — conduite erratique (16:22:32)');
+  assert.equal(rcmFr('INCIDENT INVOLVING CAR 11 (PER) NOTED - PIT LANE INFRINGEMENT (16:00:04)'), 'Incident impliquant la voiture 11 (PER) : noté — infraction dans la voie des stands (16:00:04)');
 });
 
 test('direction de course : message hors formule laissé à l\'appelant', () => {

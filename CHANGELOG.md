@@ -67,6 +67,8 @@ l'application (Réglages → À propos → Nouveautés).
   minute jusqu'à afficher la prochaine séance.
 
 ### En direct
+- Direction de course : les motifs suivis de l'heure de l'incident (« conduite erratique (16:22:32) ») et les infractions
+  dans la voie des stands sont traduits en français ; ils restaient en anglais. Aussi dans la version web.
 - Connexion F1 TV : l'appli passe maintenant par le serveur de Paddock Live, sur le même relais que la version web
   de ce compte. La F1 n'envoie le GPS qu'à une seule connexion par compte : l'appli, la version web et le téléphone
   l'ont maintenant tous en même temps, sans se le reprendre. Si le serveur ne répond pas, l'appli se relie directement

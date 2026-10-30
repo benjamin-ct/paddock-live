@@ -27,6 +27,7 @@ export const REASONS_FR = {
   'DOUBLE YELLOW': 'double drapeau jaune',
   'PIT ENTRY INFRINGEMENT': 'infraction à l\'entrée des stands',
   'PIT EXIT INFRINGEMENT': 'infraction à la sortie des stands',
+  'PIT LANE INFRINGEMENT': 'infraction dans la voie des stands',
   'CROSSING THE PIT EXIT LINE': 'ligne de sortie des stands franchie',
   'OVERTAKING UNDER SAFETY CAR': 'dépassement sous voiture de sécurité',
   'OVERTAKING UNDER VSC': 'dépassement sous VSC',
@@ -37,7 +38,11 @@ export const REASONS_FR = {
 
 export function reasonFr(reason) {
   if (!reason) return '';
-  return reason.split(/\s[–-]\s/).map((p) => REASONS_FR[p.trim()] || p.trim().toLowerCase()).join(' — ');
+  // Heure de l'incident collée au motif (« DRIVING ERRATICALLY (16:22:32) ») : gardée telle quelle
+  return reason.split(/\s[–-]\s/).map((p) => {
+    const [, r, time = ''] = /^(.*?)(\s*\(\d{1,2}:\d{2}(?::\d{2})?\))?$/.exec(p.trim());
+    return (REASONS_FR[r] || r.toLowerCase()) + time;
+  }).join(' — ');
 }
 
 // « CAR 55 (SAI) » / « CARS 1 (NOR) AND 81 (PIA) » -> « la voiture 55 (SAI) » / « les voitures 1 (NOR) et 81 (PIA) »
