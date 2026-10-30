@@ -54,6 +54,13 @@ export function overtakeEnabled(messages) {
   return on;
 }
 
+// Point at (place dans le tour, 0 à L) franchi en passant de prev à cur (places dans le tour) : la voiture a avancé
+// (moins d'un quart de tour, sinon saut ou recalage) et at est entre les deux
+export function passed(prev, cur, at, L) {
+  const run = (((cur - prev) % L) + L) % L;
+  return run > 0 && run < L / 4 && (((at - prev) % L) + L) % L < run;
+}
+
 // "1:45.123" -> 105.123 ; "45.123" -> 45.123 ; "" -> null
 export function parseLapTime(s) {
   if (s === null || s === undefined || s === '') return null;

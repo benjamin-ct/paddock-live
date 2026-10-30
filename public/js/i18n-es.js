@@ -1281,7 +1281,7 @@ export default {
   "Position moyenne": "Posición media",
   "Estimées": "Estimadas",
   "DÉP": "ADEL",
-  "Mode dépassement : à moins d'une seconde de la voiture devant": "Modo adelantamiento: a menos de un segundo del coche de delante",
+  "Mode dépassement : à moins d'une seconde de la voiture devant au point de détection, pour un tour": "Modo adelantamiento: a menos de un segundo del coche de delante en el punto de detección, durante una vuelta",
   "Positions estimées": "Posiciones estimadas",
   "Positions GPS & télémétrie en live (F1 TV)": "Posiciones GPS y telemetría en directo (F1 TV)",
   "Positions GPS officielles": "Posiciones GPS oficiales",

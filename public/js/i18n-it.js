@@ -1281,7 +1281,7 @@ export default {
   "Position moyenne": "Posizione media",
   "Estimées": "Stimate",
   "DÉP": "SORP",
-  "Mode dépassement : à moins d'une seconde de la voiture devant": "Modalità sorpasso: a meno di un secondo dalla vettura davanti",
+  "Mode dépassement : à moins d'une seconde de la voiture devant au point de détection, pour un tour": "Modalità sorpasso: a meno di un secondo dalla vettura davanti al punto di rilevamento, per un giro",
   "Positions estimées": "Posizioni stimate",
   "Positions GPS & télémétrie en live (F1 TV)": "Posizioni GPS e telemetria in diretta (F1 TV)",
   "Positions GPS officielles": "Posizioni GPS ufficiali",
