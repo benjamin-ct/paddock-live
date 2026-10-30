@@ -169,6 +169,8 @@ l'application (Réglages → À propos → Nouveautés).
   de ses pilotes. Aussi dans la version web.
 - Saison : pendant le chargement, la page apparaît en gris (cartes et blocs qui scintillent) au lieu d'un simple message.
   Aussi dans la version web.
+- Saison → Résultats & records : la pole de chaque Grand Prix face à la meilleure pole des quatre éditions précédentes du
+  circuit (plus rapide en vert, sinon l'écart), avec le détenteur du record. Aussi dans la version web.
 - Les curseurs (volume, seuil des tours propres, temps perdu au stand, fond des overlays…) ont un nouveau style, assorti
   au reste de l'appli : piste fine remplie jusqu'à la valeur et bouton rond. Aussi dans la version web.
 - Panneau Duel : la flèche du duel automatique choisie (contre la voiture devant ou derrière) ressort de nouveau en

@@ -18,6 +18,7 @@ import { DEC, LOCALE, LANG, ord, t } from '../i18n.js';
 import { gpShort, gpFull } from '/shared/gp-names.js';
 import { COUNTRY_ISO } from '/shared/social-season.js';
 import { seasonPath, seasonTitle, slug, gpSlug, parseSeasonPath } from '/shared/season-urls.js';
+import { circuitInfo } from '/shared/circuits-info.js';
 
 // Couleurs officielles (utilisées si les couleurs contrastées sont désactivées)
 const OFFICIAL = {
@@ -607,6 +608,53 @@ function renderStandings() {
     ${standingsCharts(w)}`;
 }
 
+// Records récents des circuits (pole et meilleur tour en course des dernières éditions, serveur de Paddock Live),
+// chargés à l'ouverture de Résultats & records, 3 à la fois ; null : indisponible
+const recs = new Map();
+const recsFail = new Map();   // échecs par circuit (serveur lent au premier calcul) : deux nouveaux essais au plus
+let recsBusy = false;
+const recKey = (r) => { const k = circuitInfo(r.circuitId)?.key; return k ? `${k}|${data.year}` : null; };
+function loadRecords(races) {
+  const todo = races.filter((r) => recKey(r) && !recs.has(recKey(r)) && (recsFail.get(recKey(r)) || 0) < 3);
+  if (recsBusy || !todo.length) return;
+  recsBusy = true;
+  const next = async () => {
+    const r = todo.shift(); if (!r) return;
+    const [k] = recKey(r).split('|');
+    const key = recKey(r);
+    const got = await api(`/api/records?key=${k}&year=${data.year}`).catch(() => null);
+    if (got?.editions) recs.set(key, got); else if ((recsFail.get(key) || 0) >= 2) recs.set(key, null); else recsFail.set(key, (recsFail.get(key) || 0) + 1);
+    return next();
+  };
+  Promise.all([next(), next(), next()]).finally(() => { recsBusy = false; if (section === 'results') render(); });
+}
+// Pole de chaque Grand Prix couru face à la meilleure pole des dernières éditions : plus rapide (vert) ou plus lent
+function polesVsRecords(races, w) {
+  loadRecords(races);
+  const rows = races.map((r) => {
+    const p = r.quali.find((q) => q.pos === 1), t = p && Math.min(...(p.q || []).filter(Number.isFinite));
+    const rec = recs.get(recKey(r))?.bestPole;
+    return { r, p, t: Number.isFinite(t) ? t : null, rec, wait: !!recKey(r) && !recs.has(recKey(r)) && (recsFail.get(recKey(r)) || 0) < 3 };
+  });
+  const known = rows.filter((x) => x.t && x.rec);
+  if (!known.length) return rows.some((x) => x.wait) ? skeleton(t('Chargement des records des circuits…')) : '';
+  const span = Math.max(0.5, ...known.map((x) => Math.abs(x.t - x.rec.time)));
+  const rh = 26, ql = 150, qr = 190, H = rows.length * rh + 8, mid = ql + (w - ql - qr) / 2, half = (w - ql - qr) / 2;
+  const f3 = (v) => `${v < 0 ? '−' : '+'}${Math.abs(v).toFixed(3).replace('.', DEC)} s`;
+  let g = `<line x1="${mid}" x2="${mid}" y1="0" y2="${H}" class="sz-gl"/>`;
+  rows.forEach((x, i) => {
+    const y = 4 + i * rh;
+    g += `${roundFlag(x.r.round, 10, y + 6)}<text x="26" y="${y + 16}" class="sz-ax">${esc(gpShort(x.r.name, LANG))}</text>`;
+    if (!x.t || !x.rec) { g += `<text x="${mid}" y="${y + 16}" class="sz-ax" text-anchor="middle">${x.wait ? '…' : '—'}</text>`; return; }
+    const d = x.t - x.rec.time, len = (Math.abs(d) / span) * half;
+    const c = d < 0 ? '#22c55e' : color(x.p.team, x.p.teamId);
+    g += `<rect class="${d < 0 ? 'dn' : 'up'}" x="${d < 0 ? mid - len : mid}" y="${y + 3}" width="${Math.max(1, len)}" height="${rh - 8}" rx="3" fill="${c}"><title>${esc(x.p.last || x.p.code)} : ${fmtLap(x.t)} · record ${esc(x.rec.tla)} ${x.rec.year} : ${fmtLap(x.rec.time)}</title></rect>`;
+    g += `<text x="${w - qr + 10}" y="${y + 16}" class="sz-ax"><tspan class="sz-tot" fill="${d < 0 ? '#22c55e' : 'var(--text)'}">${f3(d)}</tspan>  ${esc(x.p.code || x.p.last)} · ${t('record')} ${esc(x.rec.tla)} ${x.rec.year}</text>`;
+  });
+  return `<section class="sz-box"><h3>${t('Poles face aux records récents des circuits')}</h3><div class="sz-scroll"><svg viewBox="0 0 ${w} ${H}" class="sz-svg sz-rec-chart">${g}</svg></div>
+    <div class="muted small">${t('À gauche en vert : pole plus rapide que la meilleure pole des quatre éditions précédentes ; à droite : écart avec elle.')}</div></section>`;
+}
+
 function renderResults(ctx) {
   const st = seasonStats();
   const miles = teamMileage(data.races.filter(done), (round) => circuitLength(ctx, round));
@@ -628,6 +676,7 @@ function renderResults(ctx) {
     ${miles.length ? `<section class="sz-box"><h3>Kilomètres parcourus par écurie</h3>
       <div class="sz-hbars">${miles.map((m) => `<div class="sz-hbar"><div class="sz-hb-l">${bar(m.team, m.teamId)}${esc(m.team)}</div><div class="sz-hb-t"><i style="width:${Math.max(2, (100 * m.km) / miles[0].km)}%;background:${color(m.team, m.teamId)}"></i></div><div class="sz-hb-v">${km(m.km)} km</div></div>`).join('')}</div>
       <div class="muted small">Courses et sprints : tours bouclés par les deux voitures × longueur du circuit.</div></section>` : ''}
+    ${polesVsRecords(data.races.filter(done), Math.max(600, ($('#szContent')?.clientWidth || 934) - 34))}
     <section class="sz-box"><h3>Grands Prix</h3><table class="sz-table sz-results"><tr><th>Manche</th><th>Grand Prix</th><th>Date</th><th>Vainqueur</th><th>2e</th><th>3e</th><th>Pole</th><th>Vainqueur sprint</th></tr>
       ${data.races.map((r) => `<tr class="${done(r) ? '' : 'muted'}"><td>R${r.round}</td><td>${gpLink(r, gpShort(r.name, LANG), 'sz-gp-chip', flagOf(r))}</td><td>${fmtDate(r.date)}</td>
         <td>${r.results[0] ? chip(r.results[0]) : '—'}</td><td>${r.results[1] ? chip(r.results[1]) : ''}</td><td>${r.results[2] ? chip(r.results[2]) : ''}</td>

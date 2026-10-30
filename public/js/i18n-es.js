@@ -2750,4 +2750,8 @@ export default {
   "Évolution du classement": "Evolución de la clasificación",
   "Points par Grand Prix": "Puntos por Gran Premio",
   "Toucher une écurie ouvre le duel de ses pilotes.": "Toca una escudería para abrir el duelo entre sus pilotos.",
+  "Chargement des records des circuits…": "Cargando los récords de los circuitos…",
+  "Poles face aux records récents des circuits": "Poles frente a los récords recientes de los circuitos",
+  "À gauche en vert : pole plus rapide que la meilleure pole des quatre éditions précédentes ; à droite : écart avec elle.": "A la izquierda en verde: pole más rápida que la mejor pole de las cuatro ediciones anteriores; a la derecha: diferencia con ella.",
+  "record": "récord",
 };

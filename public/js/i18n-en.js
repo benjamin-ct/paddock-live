@@ -2751,4 +2751,8 @@ export default {
   "Évolution du classement": "Standings evolution",
   "Points par Grand Prix": "Points per Grand Prix",
   "Toucher une écurie ouvre le duel de ses pilotes.": "Tap a team to open its drivers' head-to-head.",
+  "Chargement des records des circuits…": "Loading circuit records…",
+  "Poles face aux records récents des circuits": "Poles vs recent circuit records",
+  "À gauche en vert : pole plus rapide que la meilleure pole des quatre éditions précédentes ; à droite : écart avec elle.": "Left, in green: pole faster than the best pole of the four previous editions; right: gap to it.",
+  "record": "record",
 };
