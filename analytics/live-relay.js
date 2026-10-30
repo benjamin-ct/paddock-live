@@ -544,7 +544,7 @@ export async function liveSocket(req, env) {
   if (name && env.DB) {
     const ip = callerIp(req), day = new Date().toISOString().slice(0, 10);
     if (ip && !(await relaySeen(env, day, ip, name).catch(() => true))) {
-      if (!(await ipQuota(env, { key: 'live-u', day, ip, limit: 50 }).catch(() => true))) return new Response('Trop de connexions aujourd\'hui', { status: 429 });
+      if (!(await ipQuota(env, { key: 'live-relais', day, ip, limit: 50 }).catch(() => true))) return new Response('Trop de connexions aujourd\'hui', { status: 429 });
       await ipQuota(env, { key: `live-${name}`, day, ip, limit: 1 }).catch(() => null);
     }
   }
