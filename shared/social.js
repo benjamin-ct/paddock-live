@@ -91,6 +91,8 @@ export function postData(state, { laps = null } = {}) {
       pos: i + 1, num: n, tla: d.Tla || n, first: d.FirstName || '', last: d.LastName || d.Tla || n,
       team: d.TeamName || '', color: d.TeamColour ? `#${String(d.TeamColour).replace('#', '')}` : '#8b95a8', headshot: portraitUrl(d.Tla, true) || d.HeadshotUrl || null,
       gap, grid, delta: kind === 'race' && grid && !out ? grid - (i + 1) : null, out, laps: Number(lines[n].NumberOfLaps) || 0,
+      // Relais réels (composé, tours) : visuel « Stratégie des pneus »
+      stints: realStints(list(app[n]?.Stints)).filter((s) => COMP[s?.Compound]).map((s) => ({ c: s.Compound, laps: Math.max(0, (Number(s.TotalLaps) || 0) - (Number(s.StartLaps) || 0)) })),
       points: kind === 'race' && !out ? (pts[i] || 0) : 0, knockedOut: !!lines[n].KnockedOut,
       // Partie de la qualif où le pilote a été éliminé (dernier temps réalisé : Q1 ou Q2)
       koPart: lines[n].KnockedOut ? Math.max(1, list(lines[n].BestLapTimes).filter((x) => x?.Value).length) : null,

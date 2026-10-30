@@ -49,7 +49,9 @@ function baseSlides(d, fmt) {
   if (!d.rows.length) return [];
   let list = ['meilleurtemps', 'podium', 'classement', ...(d.facts.length ? ['faits'] : [])];
   const duels = teammateDuels(d).length >= 3 ? ['duels'] : [];
-  if (d.kind === 'race') list = ['vainqueur', 'podium', 'classement', ...duels, 'faits', ...(d.champ ? ['championnat'] : [])];
+  // Course complète (10 pilotes au moins avec leur place de départ, leurs relais) : grille → arrivée, stratégie
+  const data = [...(d.rows.filter((r) => r.grid).length >= 10 ? ['remontees'] : []), ...(d.rows.filter((r) => r.stints?.length).length >= 10 ? ['strategie'] : [])];
+  if (d.kind === 'race') list = ['vainqueur', 'podium', 'classement', ...data, ...duels, 'faits', ...(d.champ ? ['championnat'] : [])];
   else if (d.kind === 'quali') list = ['pole', 'podium', 'classement', ...duels, ...(d.facts.length ? ['faits'] : [])];
   return ['couverture', ...list];
 }
@@ -88,7 +90,7 @@ export function pointPages(points, fmt = 'ig') {
   for (let k = 0; k < n; k++) { const take = Math.ceil((list.length - i) / (n - k)); pages.push(list.slice(i, i + take)); i += take; }
   return pages;
 }
-export const SLIDE_NAMES = { grille: 'Grille de départ', meteo: 'Météo et pneus', champpilotes: 'Championnat pilotes', champecuries: 'Championnat constructeurs', flash: 'Flash', duels: 'Duels entre coéquipiers', news: 'News', couverture: 'Couverture', vainqueur: 'Vainqueur', pole: 'Pole position', meilleurtemps: 'Meilleur temps', podium: 'Podium', classement: 'Classement', faits: 'Faits marquants', championnat: 'Championnat', abonnement: 'Abonnez-vous', question: 'Question', essentiel: "L'essentiel", photo: 'Photo', raceweek: 'Race Week', horaires: 'Horaires', infos: 'Pneus et météo', records: 'Records', editions: 'Éditions précédentes', topflop: 'Tops et flops', notes: 'Toutes les notes', equipes: 'Duels par écurie', positions: 'Positions tour par tour', recapcover: 'La semaine', recap: 'Info', titrepilotes: 'Titre pilotes', titreecuries: 'Titre constructeurs', titrecomment: 'Comment être sacré', app: 'Page' };
+export const SLIDE_NAMES = { grille: 'Grille de départ', meteo: 'Météo et pneus', champpilotes: 'Championnat pilotes', champecuries: 'Championnat constructeurs', flash: 'Flash', duels: 'Duels entre coéquipiers', news: 'News', couverture: 'Couverture', vainqueur: 'Vainqueur', pole: 'Pole position', meilleurtemps: 'Meilleur temps', podium: 'Podium', classement: 'Classement', remontees: 'Grille → arrivée', strategie: 'Stratégie des pneus', faits: 'Faits marquants', championnat: 'Championnat', abonnement: 'Abonnez-vous', question: 'Question', essentiel: "L'essentiel", photo: 'Photo', raceweek: 'Race Week', horaires: 'Horaires', infos: 'Pneus et météo', records: 'Records', editions: 'Éditions précédentes', topflop: 'Tops et flops', notes: 'Toutes les notes', equipes: 'Duels par écurie', positions: 'Positions tour par tour', recapcover: 'La semaine', recap: 'Info', titrepilotes: 'Titre pilotes', titreecuries: 'Titre constructeurs', titrecomment: 'Comment être sacré', app: 'Page' };
 export const slideName = (s) => SLIDE_NAMES[s] || SLIDE_NAMES[String(s).replace(/-\d+$/, '')] || s;
 // Texte alternatif d'une image publiée (lecteurs d'écran) : ce qu'elle montre, avec le classement s'il y en a un
 const RANKED = { vainqueur: 3, pole: 3, meilleurtemps: 3, podium: 3, classement: 10, grille: 10 };
@@ -530,6 +532,85 @@ function classement(ctx, W, H, d, o) {
     const gx = d.kind === 'race' ? right - fs * 2.4 : laps ? right - fs * 3.9 : right;
     txt(ctx, r.out ? 'ABANDON' : r.gap || (i === 0 && d.kind === 'race' ? 'VAINQUEUR' : ''), gx, mid, { size: Math.round(fs * 0.8), weight: 700, family: r.out || (i === 0 && d.kind === 'race') ? TITLE : MONO, color: r.out ? C.red : i === 0 ? C.gold : C.text, align: 'right', spacing: r.out || (i === 0 && d.kind === 'race') ? 1.5 : 0 });
     if (d.kind === 'quali' && r.knockedOut) txt(ctx, `${names ? 'ÉLIMINÉ ' : ''}${d.sprint ? 'SQ' : 'Q'}${r.koPart}`, names ? x + colW * 0.6 : tx + fs * 2.3, mid, { size: Math.round(fs * 0.62), weight: 700, family: TITLE, color: C.red, spacing: 1 });
+  });
+}
+
+// Grille → arrivée : place de départ à gauche, d'arrivée à droite, une ligne par pilote (couleur de l'écurie) ;
+// remontées et chutes de 3 places ou plus en couleur pleine, les autres en retrait
+function remontees(ctx, W, H, d, o) {
+  background(ctx, W, H, d.rows[0]?.color);
+  const f = frame(ctx, W, H, d, o, 'Grille → arrivée');
+  const rows = d.rows.filter((r) => r.grid).slice(0, 22);
+  const n = Math.max(rows.length, ...rows.map((r) => r.grid));
+  const top = f.top + 40;
+  const rowH = (f.bottom - top) / n;
+  const fs = Math.round(Math.min(rowH * 0.62, 34));
+  const lw = fs * 4.2;
+  const xL = f.pad + lw;
+  const xR = W - f.pad - lw - fs * 1.6;
+  const Y = (p) => top + (p - 0.5) * rowH;
+  txt(ctx, 'DÉPART', xL - 12, f.top + 6, { size: 26, weight: 700, family: TITLE, color: C.muted, align: 'right', spacing: 3 });
+  txt(ctx, 'ARRIVÉE', xR + 12, f.top + 6, { size: 26, weight: 700, family: TITLE, color: C.muted, spacing: 3 });
+  // Lignes en retrait d'abord, les grands écarts par-dessus
+  const big = (r) => r.out || Math.abs(r.delta || 0) >= 3;
+  [...rows].sort((a, b) => big(a) - big(b)).forEach((r) => {
+    const y0 = Y(r.grid); const y1 = Y(r.pos);
+    const c = vivid(r.color);
+    ctx.save();
+    ctx.globalAlpha = big(r) ? 0.95 : 0.35;
+    ctx.strokeStyle = c; ctx.lineWidth = big(r) ? 5 : 3; ctx.lineCap = 'round';
+    if (r.out) ctx.setLineDash([10, 10]);
+    ctx.beginPath(); ctx.moveTo(xL, y0); ctx.bezierCurveTo((xL + xR) / 2, y0, (xL + xR) / 2, y1, xR, y1); ctx.stroke();
+    ctx.restore();
+    for (const [x, y] of [[xL, y0], [xR, y1]]) { ctx.beginPath(); ctx.arc(x, y, 7, 0, Math.PI * 2); ctx.fillStyle = c; ctx.fill(); }
+  });
+  rows.forEach((r) => {
+    const mid = (p) => Y(p) + fs * 0.34;
+    txt(ctx, String(r.grid), f.pad + fs * 1.1, mid(r.grid), { size: Math.round(fs * 0.8), weight: 700, family: TITLE, color: C.muted, align: 'right' });
+    txt(ctx, r.tla, xL - 20, mid(r.grid), { size: fs, weight: 800, family: TITLE, align: 'right', italic: true, color: big(r) ? C.text : C.muted });
+    txt(ctx, r.tla, xR + 20, mid(r.pos), { size: fs, weight: 800, family: TITLE, italic: true, color: r.pos <= 3 ? MEDAL[r.pos - 1] : big(r) ? C.text : C.muted });
+    const tag = r.out ? 'AB' : r.delta > 0 ? `+${r.delta}` : r.delta < 0 ? String(r.delta) : '=';
+    txt(ctx, tag, W - f.pad, mid(r.pos), { size: Math.round(fs * 0.8), weight: 800, family: TITLE, align: 'right', color: r.out ? C.red : r.delta > 0 ? C.green : r.delta < 0 ? '#ff6b6b' : C.muted });
+  });
+}
+
+// Stratégie des pneus : une bande par pilote (ordre d'arrivée), un segment par relais à la couleur du composé
+const TYRE = { SOFT: ['#ff3b3b', 'T'], MEDIUM: ['#ffd12e', 'M'], HARD: ['#eef0f4', 'D'], INTERMEDIATE: ['#3ddc84', 'I'], WET: ['#3d8bff', 'P'] };
+const TYRE_NAME = { SOFT: 'Tendres', MEDIUM: 'Médiums', HARD: 'Durs', INTERMEDIATE: 'Intermédiaires', WET: 'Pluie' };
+function strategie(ctx, W, H, d, o) {
+  background(ctx, W, H, d.rows[0]?.color);
+  const f = frame(ctx, W, H, d, o, 'Stratégie');
+  const rows = d.rows.filter((r) => r.stints?.length).slice(0, 22);
+  const total = Math.max(d.laps || 0, ...rows.map((r) => r.stints.reduce((n, s) => n + s.laps, 0)), 1);
+  // Légende : composés vus dans la course
+  const used = Object.keys(TYRE).filter((c) => rows.some((r) => r.stints.some((s) => s.c === c)));
+  let lx = f.pad;
+  used.forEach((c) => {
+    ctx.beginPath(); ctx.arc(lx + 14, f.top + 2, 14, 0, Math.PI * 2); ctx.fillStyle = TYRE[c][0]; ctx.fill();
+    txt(ctx, TYRE[c][1], lx + 14, f.top + 11, { size: 22, weight: 800, family: TITLE, color: C.bg, align: 'center' });
+    ctx.font = `700 26px ${TITLE}`;
+    txt(ctx, TYRE_NAME[c].toUpperCase(), lx + 38, f.top + 11, { size: 26, weight: 700, family: TITLE, color: C.muted, spacing: 1.5 });
+    lx += 38 + ctx.measureText(TYRE_NAME[c].toUpperCase()).width + 34;
+  });
+  const top = f.top + 44;
+  const rowH = (f.bottom - top) / rows.length;
+  const fs = Math.round(Math.min(rowH * 0.56, 32));
+  const bx = f.pad + fs * 3.6;
+  const bw = W - f.pad - bx;
+  const bh = Math.min(rowH * 0.66, 44);
+  rows.forEach((r, i) => {
+    const cy = top + (i + 0.5) * rowH;
+    txt(ctx, String(r.pos), f.pad + fs * 0.9, cy + fs * 0.34, { size: Math.round(fs * 0.8), weight: 700, family: TITLE, color: C.muted, align: 'right' });
+    txt(ctx, r.tla, f.pad + fs * 1.3, cy + fs * 0.34, { size: fs, weight: 800, family: TITLE, italic: true, color: r.out ? C.muted : C.text });
+    let x = bx;
+    r.stints.forEach((s) => {
+      const w = (s.laps / total) * bw;
+      if (w <= 0) return;
+      rr(ctx, x + 1.5, cy - bh / 2, Math.max(w - 3, 2), bh, Math.min(bh / 2, 10)); ctx.fillStyle = TYRE[s.c][0]; ctx.fill();
+      if (w > fs * 1.9) txt(ctx, String(s.laps), x + w / 2, cy + fs * 0.3, { size: Math.round(fs * 0.72), weight: 800, family: TITLE, color: C.bg, align: 'center' });
+      x += w;
+    });
+    if (r.out) txt(ctx, 'ABANDON', x + 14, cy + fs * 0.3, { size: Math.round(fs * 0.66), weight: 800, family: TITLE, color: C.red, spacing: 1.5 });
   });
 }
 
@@ -1242,6 +1323,8 @@ function paintOne(ctx, slide, fmt, d, o, size) {
   else if (slide === 'meilleurtemps') hero(ctx, w, h, d, o, 'MEILLEUR TEMPS');
   else if (slide === 'podium') podium(ctx, w, h, d, o);
   else if (slide === 'classement') classement(ctx, w, h, d, o);
+  else if (slide === 'remontees') remontees(ctx, w, h, d, o);
+  else if (slide === 'strategie') strategie(ctx, w, h, d, o);
   else if (slide === 'faits') faits(ctx, w, h, d, o);
   else if (slide === 'championnat' && d.champ) championnat(ctx, w, h, d, o);
 }
