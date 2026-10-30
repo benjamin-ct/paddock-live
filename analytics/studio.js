@@ -1053,7 +1053,9 @@ export async function studioApi(req, env, url) {
   if (path === 'season' && req.method === 'GET') {
     const year = Number(url.searchParams.get('year'));
     if (!Number.isInteger(year) || year < 1950 || year > new Date().getUTCFullYear() + 1) return json({ error: 'Année invalide' }, 400);
-    try { return json(await seasonRow(env, year)); } catch (err) { return json({ error: String(err?.message || err) }, 502); }
+    // Saison gardée (relue toutes les 30 minutes par la tâche planifiée) servie tout de suite jusqu'à 6 h, comme
+    // l'appli : relire Jolpica pendant la demande dépassait parfois les 30 s d'attente du téléphone
+    try { return json(await seasonRow(env, year, { maxAge: 6 * 3600e3 })); } catch (err) { return json({ error: String(err?.message || err) }, 502); }
   }
   if (path === 'feed' && req.method === 'GET') return feed(req, url);
   if (path === 'feeds' && req.method === 'GET') return feeds();

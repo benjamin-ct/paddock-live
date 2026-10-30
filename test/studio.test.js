@@ -929,6 +929,24 @@ test('Studio : saison résumée par le serveur, gardée 30 minutes, ancienne ver
   assert.equal((await seasonRow(env, 2026, { now: t0 + 42 * 60e3, fetchFn, wait })).at, t0 + 42 * 60e3);
 });
 
+test('Studio : saison gardée servie tout de suite jusqu\'à 6 h, sans attendre Jolpica', async () => {
+  const env4 = { DB: fakeDB(), STUDIO_KEY_HASH: HASH };
+  const w = (p) => studioApi(new Request(`https://s.test/studio/api/${p}`, { headers: { 'X-Studio-Key': studioKey(CODE) } }), env4, new URL(`https://s.test/studio/api/${p}`));
+  assert.equal((await studioApi(new Request('https://s.test/studio/api/init', { method: 'POST', body: JSON.stringify({ key: studioKey(CODE), vault: {} }) }), env4, new URL('https://s.test/studio/api/init'))).status, 200);
+  const empty = async () => new Response(JSON.stringify({ MRData: { total: '0', RaceTable: { Races: [] } } }));
+  const at = Date.now() - 2 * 3600e3;
+  await seasonRow(env4, 2026, { now: at, fetchFn: empty, wait: async () => {} });
+  const real = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async () => { calls++; throw new Error('Jolpica lent'); };
+  try {
+    const r = await w('season?year=2026');
+    assert.equal(r.status, 200);
+    assert.equal((await r.json()).at, at);
+    assert.equal(calls, 0);
+  } finally { globalThis.fetch = real; }
+});
+
 test('Studio : résultats parus signalés une fois (post prêt), seulement pour un Grand Prix récent', async () => {
   const { resultsReady } = await import('../analytics/season-cache.js');
   const now = Date.parse('2026-10-19T22:00:00Z');
