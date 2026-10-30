@@ -347,15 +347,14 @@ export function bindMusic(kind) {
 }
 
 // Vidéo fabriquée sur place, jointe au post si elle est en MP4 (format accepté par tous les réseaux)
-// Partage d'une vidéo fabriquée (sinon téléchargement) ; full : version plein écran (X, Bluesky…)
-export async function shareClip(clip, name, full = false) {
-  const v = full ? clip.full : clip;
-  const file = new File([v.blob], `${name}${full ? '-plein-ecran' : ''}.${v.mime.includes('mp4') ? 'mp4' : 'webm'}`, { type: v.mime });
+// Partage d'une vidéo fabriquée (sinon téléchargement)
+export async function shareClip(clip, name) {
+  const file = new File([clip.blob], `${name}.${clip.mime.includes('mp4') ? 'mp4' : 'webm'}`, { type: clip.mime });
   if (navigator.canShare?.({ files: [file] })) { try { await navigator.share({ files: [file] }); } catch { /* annulé */ } return; }
   const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = file.name; a.click();
 }
 
-// Vidéo fabriquée (MP4) avec sa couverture (JPEG, envoyée à Instagram et Facebook) et sa version plein écran
+// Vidéo fabriquée (MP4) avec sa couverture (JPEG, envoyée à Instagram et Facebook)
 export const clipFile = (clip, name) => (clip?.mime.includes('mp4') ? Object.assign(new File([clip.blob], `${name}.mp4`, { type: 'video/mp4' }), {
-  cover: clip.cover || null, vsize: '1080x1920', full: clip.full?.mime.includes('mp4') ? new File([clip.full.blob], `${name}-plein-ecran.mp4`, { type: 'video/mp4' }) : null,
+  cover: clip.cover || null, vsize: '1080x1920',
 }) : null);
