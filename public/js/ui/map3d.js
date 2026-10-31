@@ -1749,7 +1749,7 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
       m4.compose(c.p, c.q, one);
       for (const m of carMeshes) m.setMatrixAt(c.k, m4);
       // Roues : tournent à la vitesse déduite des positions (lissée), les avant braquent d'après le cap (map3d-calc.js)
-      c.v = jump ? 0 : c.v + (moved / (dt || 1) - c.v) * (1 - Math.exp(-dt * 5));
+      c.v = jump ? 0 : c.v + (moved / (dtCam || 1) - c.v) * (1 - Math.exp(-dt * 5));   // temps réel (dt est borné à 0,1 s)
       c.spin = wheelSpin(c.spin, c.v, dt);
       c.steer = steering(jump ? null : c.steer, Math.atan2(dir.x, dir.z), moved, dt);
       for (let j = 0; j < 4; j++) {
@@ -1810,7 +1810,7 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
         want = p.clone().addScaledVector(fh, -7).add(new THREE.Vector3(0, 2.1, 0));
         target = p.clone().addScaledVector(f, 7).add(new THREE.Vector3(0, 0.9, 0)); kPos = 7; kLook = 12;
       } else {                           // embarquée : yeux du pilote, dans le casque, solidaire de la voiture
-        want = p.clone().addScaledVector(f, 0.1).addScaledVector(upL, 0.8);
+        want = p.clone().addScaledVector(f, 0.08).addScaledVector(upL, 0.77);
         target = p.clone().addScaledVector(f, 30).addScaledVector(upL, 0.45); kPos = Infinity; kLook = Infinity;
       }
       const ease = (k) => (snap || k === Infinity ? 1 : 1 - Math.exp(-dtCam * k));
@@ -1964,7 +1964,7 @@ function steeringWheel() {
       const lap = Number(l.NumberOfLaps) || 0, total = Number(store.state.LapCount?.TotalLaps) || 0, pct = (v) => (Number.isFinite(v) ? Math.round(v / 10) / 10 : 0);
       draw({
         gear: !Number.isFinite(tm?.gear) ? '–' : tm.gear ? String(tm.gear) : 'N',
-        speed: String(Math.round(Number.isFinite(tm?.speed) ? tm.speed : car.v * 3.6)),
+        speed: String(Math.round(Number.isFinite(tm?.speed) ? tm.speed : (car.v * 3.6) / (store.positions.speed?.() || 1))),   // replay accéléré : vitesse réelle
         leds: Number.isFinite(tm?.rpm) ? Math.max(0, Math.min(15, Math.round(((tm.rpm - 9500) / 2500) * 15))) : 0,
         pos: Number(l.Position) ? `P${l.Position}` : '',
         lap: lap ? (total ? `${lap}/${total}` : String(lap)) : '',
