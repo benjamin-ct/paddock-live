@@ -447,6 +447,8 @@
   :root[data-design="v2"]:not([data-motion="off"]) :is(.sz-drv-card, .sz-team-card) { transition: transform .45s var(--v2-smooth), box-shadow .45s var(--v2-smooth); }
   /* Survol seulement avec une souris : sur le téléphone, la carte touchée restait soulevée et dépassait en haut */
   @media (hover: hover) { :root[data-design="v2"]:not([data-motion="off"]) :is(.sz-drv-card, .sz-team-card):hover { transform: translateY(-6px) scale(1.02); box-shadow: 0 26px 50px -18px color-mix(in srgb, var(--tc) 85%, transparent), 0 0 0 1px color-mix(in srgb, var(--tc) 55%, transparent); } }
+  /* Chaque carte isole son filet : sinon il passait par-dessus le menu de la Saison ouvert sur le téléphone */
+  :root[data-design="v2"]:not([data-motion="off"]) .sz-team-card { isolation: isolate; }
   :root[data-design="v2"]:not([data-motion="off"]) :is(.sz-drv-card, .sz-team-card, .sz-drv-hero)::before { content: ''; position: absolute; inset: 0; z-index: 3; border-radius: inherit; padding: 3px; pointer-events: none;
     background: conic-gradient(from var(--v2-a), transparent 0 46%, color-mix(in srgb, var(--tc) 55%, #fff) 64%, #fff 76%, color-mix(in srgb, var(--tc) 55%, #fff) 86%, transparent 96%);
     -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
