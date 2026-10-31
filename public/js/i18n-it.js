@@ -969,6 +969,8 @@ export default {
   "Jeux neufs jamais montés (allocation {})": "Treni nuovi mai montati (assegnazione {})",
   "Joueur": "Giocatore",
   "Journal indisponible.": "Registro delle novità non disponibile.",
+  "en préparation": "in preparazione",
+  "Ce qui a changé dans Paddock Live": "Le novità di Paddock Live",
   "KM/H · {}e · {} tr/min": "KM/H · {}ª · {} giri/min",
   "km/h · clic sur une colonne pour trier": "km/h · clic su una colonna per ordinare",
   "La F1 a mis fin à la session : reconnectez-vous pour continuer.": "La F1 ha chiuso la sessione: accedi di nuovo per continuare.",

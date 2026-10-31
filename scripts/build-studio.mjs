@@ -7,6 +7,7 @@ import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { PAGES, linksPage } from '../analytics/links/pages.mjs';
 import { GUIDES, guidePage, sitemap, robots, englishHome } from '../analytics/launch/guides.mjs';
+import { parseChangelog } from '../shared/changelog.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = path.join(ROOT, 'analytics', 'site');
@@ -123,6 +124,8 @@ copy(path.join(ROOT, 'public', 'vendor', 'three'), path.join(LIVE, 'vendor', 'th
 copy(path.join(ROOT, 'public', 'vendor', 'maplibre'), path.join(LIVE, 'vendor', 'maplibre'));   // globe du Calendrier : copié tel quel
 copyLive(SHARED, path.join(LIVE, 'shared'));
 fs.copyFileSync(path.join(ROOT, 'public', 'logo.svg'), path.join(LIVE, 'logo.svg'));
+// Nouveautés de la version web (bouton « Nouveautés ») : les 3 dernières sections du journal, rien de plus
+fs.writeFileSync(path.join(LIVE, 'changelog.json'), JSON.stringify(parseChangelog(fs.readFileSync(path.join(ROOT, 'CHANGELOG.md'), 'utf8')).slice(0, 3)));
 // Code de la page : chemins absolus et chemin relatif du code partagé (lisible tel quel par les tests) vers /live/shared/
 for (const f of ['web.js', 'web-hub.js']) fs.writeFileSync(path.join(LIVE, 'js', f), toLive(fs.readFileSync(path.join(LIVE_PAGE, f), 'utf8')).replace(/(['"])\.\.\/\.\.\/shared\//g, '$1/live/shared/'));
 // Écran d'accueil du téléphone : manifeste et icônes de l'appli

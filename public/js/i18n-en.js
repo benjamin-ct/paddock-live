@@ -1028,6 +1028,8 @@ export default {
   "Jeux neufs jamais montés (allocation {})": "New sets never fitted (allocation {})",
   "Joueur": "Player",
   "Journal indisponible.": "Changelog unavailable.",
+  "en préparation": "in progress",
+  "Ce qui a changé dans Paddock Live": "What's changed in Paddock Live",
   "KM/H · {}e · {} tr/min": "KM/H · gear {} · {} rpm",
   "km/h · clic sur une colonne pour trier": "km/h · click a column to sort",
   "La F1 a mis fin à la session : reconnectez-vous pour continuer.": "F1 ended the session: sign in again to continue.",
