@@ -374,7 +374,7 @@ export default {
   "Aucune vidéo récente.": "Nessun video recente.",
   "Automatique (comme le système)": "Automatico (come il sistema)",
   "Broadcast (façon TV)": "Broadcast (stile TV)",
-  "Broadcast : habillage façon retransmission TV. Classique : l'ancien design.": "Broadcast: grafica in stile trasmissione TV. Classico: il vecchio design.",
+  "Paddock 2 : le nouveau design. Broadcast : habillage façon retransmission TV. Classique : l'ancien design.": "Paddock 2: il nuovo design. Broadcast: grafica in stile trasmissione TV. Classico: il vecchio design.",
   "Automatique : comme l'ordinateur ou le téléphone": "Automatico: come il computer o il telefono",
   "Automatique selon la séance": "Automatico in base alla sessione",
   "Autoriser l'accès depuis le réseau local": "Consenti l'accesso dalla rete locale",

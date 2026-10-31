@@ -31,7 +31,12 @@
 // Animations : seulement avec IntersectionObserver et sans « réduire les animations ». Classe posée avant le premier
 // affichage (pas de clignotement) ; sans script, elle manque et tout le contenu reste visible
 if ('IntersectionObserver' in window && !matchMedia('(prefers-reduced-motion: reduce)').matches) document.documentElement.classList.add('anim');
+// Design Paddock 2 (design-v2.css) par défaut ; adresse ?design=off pour l'ancien, gardé pour les pages suivantes (?design=v2 pour revenir)
+{ let design = 'v2';
+  try { const d = new URLSearchParams(location.search).get('design'); if (d) localStorage.setItem('pl.design', d); design = localStorage.getItem('pl.design') || 'v2'; } catch { /* sans stockage */ }
+  if (design !== 'off') document.documentElement.dataset.design = 'v2'; }
 </script>
+<link rel="stylesheet" href="/site/design-v2.css">
 <style>
 @font-face { font-family: 'Titillium Web'; font-weight: 400; font-display: swap; src: url('/fonts/titillium-400.woff2') format('woff2'); }
 @font-face { font-family: 'Titillium Web'; font-weight: 600; font-display: swap; src: url('/fonts/titillium-600.woff2') format('woff2'); }
@@ -339,6 +344,8 @@ dialog.hide a { border-radius: 6px; }
 
 <main id="top">
   <section class="hero">
+    <div class="v2-deco" aria-hidden="true" hidden><div class="grid-floor"></div><div class="horizon"></div>
+      <svg class="v2-track" viewBox="0 0 100 100"><polygon points="22.4,66.7 33.1,74.9 35.5,76.3 36.0,76.3 36.4,75.9 36.5,75.4 33.9,67.7 33.7,66.4 33.9,64.9 34.6,63.4 35.6,62.0 37.1,61.0 43.9,56.7 44.8,55.8 45.4,54.8 46.1,52.9 46.9,51.8 47.9,51.2 49.9,50.3 50.7,49.6 51.1,48.4 51.4,46.6 51.8,45.3 52.5,44.2 53.4,43.2 54.9,42.3 56.4,41.8 57.4,41.8 62.9,44.2 63.8,44.4 65.2,43.6 67.1,41.9 68.5,40.1 69.7,39.5 70.8,39.4 72.1,39.9 72.8,40.7 73.3,41.5 74.0,42.0 83.0,40.1 83.9,39.8 89.2,33.4 95.3,25.9 96.0,24.3 95.7,23.9 95.2,23.6 94.5,23.7 78.9,28.4 63.4,31.9 53.2,33.4 37.3,35.3 37.0,35.7 37.2,36.2 41.4,41.8 43.0,44.5 42.7,45.3 42.0,45.6 38.7,45.5 38.2,45.1 37.8,44.5 37.0,42.4 34.9,40.1 34.3,39.8 32.3,39.6 31.7,39.8 31.5,40.3 34.9,46.4 36.3,49.6 36.2,50.8 35.7,52.4 34.8,54.0 33.6,54.8 30.3,56.1 28.8,56.0 27.0,55.7 25.1,54.7 24.0,53.6 18.5,46.1 17.8,45.7 16.9,45.6 15.6,46.0 4.9,50.6 4.1,51.4 4.1,52.1 4.6,52.6 22.4,66.7"/><polygon class="run" points="22.4,66.7 33.1,74.9 35.5,76.3 36.0,76.3 36.4,75.9 36.5,75.4 33.9,67.7 33.7,66.4 33.9,64.9 34.6,63.4 35.6,62.0 37.1,61.0 43.9,56.7 44.8,55.8 45.4,54.8 46.1,52.9 46.9,51.8 47.9,51.2 49.9,50.3 50.7,49.6 51.1,48.4 51.4,46.6 51.8,45.3 52.5,44.2 53.4,43.2 54.9,42.3 56.4,41.8 57.4,41.8 62.9,44.2 63.8,44.4 65.2,43.6 67.1,41.9 68.5,40.1 69.7,39.5 70.8,39.4 72.1,39.9 72.8,40.7 73.3,41.5 74.0,42.0 83.0,40.1 83.9,39.8 89.2,33.4 95.3,25.9 96.0,24.3 95.7,23.9 95.2,23.6 94.5,23.7 78.9,28.4 63.4,31.9 53.2,33.4 37.3,35.3 37.0,35.7 37.2,36.2 41.4,41.8 43.0,44.5 42.7,45.3 42.0,45.6 38.7,45.5 38.2,45.1 37.8,44.5 37.0,42.4 34.9,40.1 34.3,39.8 32.3,39.6 31.7,39.8 31.5,40.3 34.9,46.4 36.3,49.6 36.2,50.8 35.7,52.4 34.8,54.0 33.6,54.8 30.3,56.1 28.8,56.0 27.0,55.7 25.1,54.7 24.0,53.6 18.5,46.1 17.8,45.7 16.9,45.6 15.6,46.0 4.9,50.6 4.1,51.4 4.1,52.1 4.6,52.6 22.4,66.7" pathLength="100"/></svg></div>
     <div class="wrap">
       <span class="eyebrow" data-en="Free app · Windows, macOS, Linux">Appli gratuite · Windows, macOS, Linux</span>
       <h1 data-en="The F1 pit wall, <span class='red'>in your living room</span>">Le mur des stands <span class="red">à la maison</span></h1>
@@ -350,7 +357,10 @@ dialog.hide a { border-radius: 6px; }
         <a class="btn" href="https://app.paddocklive.app/"><svg><use href="#i-tv"/></svg><span data-en="Live in your browser">Le direct dans le navigateur</span></a>
       </div>
       <p class="ver" id="ver"></p>
-      <div class="shot"><img src="/site/img/tableau-de-bord.webp" width="1600" height="888" alt="Paddock Live pendant une course : classement, carte du circuit, radios et direction de course" fetchpriority="high"></div>
+      <div class="v2-stage">
+        <div class="shot"><img src="/site/img/tableau-de-bord.webp" width="1600" height="888" alt="Paddock Live pendant une course : classement, carte du circuit, radios et direction de course" fetchpriority="high"></div>
+        <div class="v2-float" aria-hidden="true" hidden><img class="f-duel" src="/site/img/v2-duel.webp" alt="" loading="lazy"><img class="f-radio" src="/site/img/v2-radios.webp" alt="" loading="lazy"></div>
+      </div>
       <div class="facts">
         <span data-en="Free">Gratuit</span>
         <span data-en="No account needed">Sans compte</span>

@@ -6,6 +6,13 @@ l'application (Réglages → À propos → Nouveautés).
 
 ## v1.30.0 — à venir
 
+### Nouveau design
+- Paddock Live change de look avec le design « Paddock 2 », dans l'appli, la version web et sur le site : fond bleu
+  nuit éclairé de lueurs, panneaux en verre dépoli aux coins arrondis, grands titres et chiffres en italique, lueurs
+  aux couleurs des écuries derrière les portraits et les logos, et sur l'accueil le tracé lumineux du circuit derrière
+  la prochaine séance. Sur téléphone, la barre du bas flotte en verre. Il marche en mode sombre comme en clair.
+  Broadcast (façon TV) et Classique restent au choix dans Réglages → Apparence → Design.
+
 ### Langues
 - Paddock Live parle aussi italien et espagnol : Italiano et Español dans Réglages → Apparence, et à la première
   ouverture l'appli suit la langue du système. Toute l'interface est traduite, avec les noms des Grands Prix et des

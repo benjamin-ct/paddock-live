@@ -433,7 +433,7 @@ export default {
   "Aucune vidéo récente.": "No recent videos.",
   "Automatique (comme le système)": "Automatic (like the system)",
   "Broadcast (façon TV)": "Broadcast (TV style)",
-  "Broadcast : habillage façon retransmission TV. Classique : l'ancien design.": "Broadcast: TV broadcast look. Classic: the previous design.",
+  "Paddock 2 : le nouveau design. Broadcast : habillage façon retransmission TV. Classique : l'ancien design.": "Paddock 2: the new design. Broadcast: TV broadcast look. Classic: the previous design.",
   "Automatique : comme l'ordinateur ou le téléphone": "Automatic: same as the computer or phone",
   "Automatique selon la séance": "Automatic by session",
   "Autoriser l'accès depuis le réseau local": "Allow access from the local network",

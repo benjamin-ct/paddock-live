@@ -12,6 +12,7 @@ import { prefs, setPref, toggleFav, toggleTeamFav } from '../prefs.js';
 import { teamKey } from '/shared/news.js';
 import { openResults } from './results-view.js';
 import { COUNTRY_ISO } from '/shared/social-season.js';
+import { nearestShape, shapeOutline } from '/shared/circuit-shapes.js';
 
 let schedule = null;   // [{ race, round, label, t }]
 let archive = null;    // dernière séance rejouable { meeting, name, path, t }
@@ -106,6 +107,17 @@ function daysHtml(nx) {
 const gp = (name) => gpShort(name, LANG);
 
 // Météo prévue des jours du prochain week-end (Open-Meteo, 16 jours au plus)
+// Design Paddock 2 : tracé lumineux du circuit derrière la prochaine séance (tracés déjà utilisés par le Calendrier)
+let shapes = null;
+function drawTrack(nx) {
+  (shapes ??= fetch('/data/f1-circuits.json').then((r) => r.json()).then((d) => d.circuits || []).catch(() => [])).then((all) => {
+    const s = nearestShape(all, Number(nx.lat), Number(nx.lon));
+    const card = $('#homeView .hm-next');
+    if (!s || !card || card.querySelector('.hm-trk')) return;
+    card.insertAdjacentHTML('beforeend', `<svg class="hm-trk" viewBox="-4 -4 108 108" aria-hidden="true"><polygon points="${shapeOutline(s.line)}"/><polygon class="run" points="${shapeOutline(s.line)}" pathLength="100"/></svg>`);
+  });
+}
+
 async function loadWeather(nx) {
   if (!nx?.lat) return;
   const key = `${nx.race}|${nx.year}`;
@@ -279,6 +291,7 @@ function render() {
     </nav>
     <a class="hm-follow" href="https://paddocklive.app/liens/" target="_blank" rel="noopener">${icon('share')} Suivre Paddock Live sur les réseaux ${icon('arrow-right', 'ic-s')}</a>`;
   if (nx && !live) loadWeather(nx);
+  if (nx && !live && prefs.design === 'v2') drawTrack(nx);
   // Actualités et favoris : l'accueil est complet quand les deux sont là
   return Promise.allSettled([news(), loadStandings()]);
 }
