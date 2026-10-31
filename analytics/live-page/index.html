@@ -88,6 +88,12 @@
     /* Appairage d'un téléphone (version web avec compte F1 TV, sans extension) */
     .pair-dlg { width: calc(100% - 24px); max-width: 420px; border: 1px solid var(--border); border-radius: 14px; background: var(--panel); color: var(--text); padding: 20px; }
     .pair-dlg::backdrop { background: rgba(0, 0, 0, .6); }
+    /* Nouveautés : journal léger (3 dernières versions), la plus récente ouverte ; point rouge s'il y a du nouveau */
+    .cl-dlg { max-width: 560px; max-height: min(80dvh, 720px); overflow-y: auto; }
+    .cl-web h5 { margin: 14px 0 4px; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+    .cl-web ul { margin: 0; padding-left: 18px; } .cl-web li { margin: 4px 0; line-height: 1.45; font-size: 14px; }
+    .cl-web details { border-top: 1px solid var(--line); padding: 8px 0; } .cl-web summary { cursor: pointer; font-weight: 700; }
+    #clBtn.fresh::after { content: ''; width: 7px; height: 7px; margin-left: 6px; border-radius: 50%; background: var(--red, #e10600); display: inline-block; }
     .pair-close { display: flex; justify-content: flex-end; margin: -8px -8px 0 0; }
     .pair-close button { background: none; border: none; color: var(--text-2); font-size: 18px; line-height: 1; cursor: pointer; padding: 4px 8px; }
     .pair-title { margin: 0 0 12px; font-size: 18px; }
@@ -152,7 +158,7 @@
       /* Réglages du direct (délai, F1 TV, état du serveur, Saison, appli) derrière l'engrenage : la barre du haut
          garde la séance, le chrono et les infos (longueur, course, météo, piste) */
       .web #webMenuBtn { display: inline-flex; order: 2; margin-left: 2px; color: #fff; }   /* après l’état de la piste et la Saison */
-      .web .topbar:not(.menu-open) > :is(.web-delay, #pairBtn, #sourceBadge, a.btn) { display: none !important; }
+      .web .topbar:not(.menu-open) > :is(.web-delay, #pairBtn, #sourceBadge, #clBtn, a.btn) { display: none !important; }
       /* Saison : icône à côté de l'engrenage, toujours là */
       .web .topbar #seasonBtn, .web .topbar #seasonBtn:not(.on) { order: 1; padding: 6px; gap: 0; border-color: transparent; color: #fff; }
       .web .topbar #seasonBtn .sz-lbl { display: none; }
@@ -212,6 +218,7 @@
     <button class="btn small" id="pairBtn" title="Utiliser son compte F1 TV sur cet appareil" hidden></button>
     <button class="source-badge" id="sourceBadge"><span class="src-dot"></span><span id="sourceLabel">—</span></button>
     <button class="btn small" id="seasonBtn" title="Calendrier, classements et résultats de la saison" aria-label="Saison"><svg class="ic" aria-hidden="true"><use href="#i-trophy"/></svg><span class="sz-lbl">Saison</span></button>
+    <button class="btn small" id="clBtn" title="Ce qui a changé dans Paddock Live">Nouveautés</button>
     <a class="btn small btn-accent" href="https://paddocklive.app/" title="Télécharger l'appli Paddock Live">Appli complète</a>
   </header>
 
@@ -237,6 +244,12 @@
     <form method="dialog" class="pair-close"><button value="x" aria-label="Fermer" title="Fermer">✕</button></form>
     <h2 class="pair-title">Connexion F1 TV</h2>
     <div id="pairBody"></div>
+  </dialog>
+
+  <dialog id="clDlg" class="pair-dlg cl-dlg">
+    <form method="dialog" class="pair-close"><button value="x" aria-label="Fermer" title="Fermer">✕</button></form>
+    <h2 class="pair-title">Nouveautés</h2>
+    <div id="clBody" class="cl-web" data-no-i18n></div>
   </dialog>
 
   <div class="toast" id="toast" popover="manual" hidden></div>

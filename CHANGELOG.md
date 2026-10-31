@@ -258,6 +258,10 @@ l'application (Réglages → À propos → Nouveautés).
   aussi l'écart à la pole, les poles face aux records et la page d'un pilote (départ, arrivée, points). Aussi dans la
   version web.
 
+### Version web (app.paddocklive.app)
+- Bouton « Nouveautés » (dans le menu ☰ sur téléphone) : les dernières nouveautés de Paddock Live, en bref ; un
+  point rouge signale ce qui n'a pas encore été lu.
+
 ### Divers
 - Petites améliorations internes.
 

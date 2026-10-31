@@ -19,6 +19,7 @@ import { initSeason, closeSeason, openSeason, seasonUrls } from './ui/season.js'
 import { parseSeasonPath } from '/shared/season-urls.js';
 import './ui/calendar-menu.js';   // « Ajouter à mon agenda » (Saison)
 import { initSelects } from './ui/select.js';
+import { changelogHtml } from './ui/changelog.js';
 
 translatePage();
 initSelects();   // listes déroulantes aux couleurs de l'appli (sur ordinateur ; le téléphone garde la sienne)
@@ -257,6 +258,26 @@ document.querySelector('#webResultsBtn')?.addEventListener('click', async (e) =>
   box.innerHTML = `<div class="web-res-grid">${last ? resCard(`${gpShort(last.race, LANG)} · ${last.label}`, last.rows.slice(0, 10)) : ''}
     ${resCard('Championnat pilotes', (d.drivers || []).slice(0, 10).map((x) => [x.pos, x.name, `${x.points} pts`]))}
     ${resCard('Championnat constructeurs', (d.constructors || []).map((x) => [x.pos, x.name, `${x.points} pts`]))}</div>`;
+});
+
+// Nouveautés : les 3 dernières sections du journal (fichier écrit à la construction), la plus récente ouverte.
+// Point rouge sur le bouton tant que la plus récente n'a pas été lue (mémorisée dans ce navigateur)
+const clBtn = document.querySelector('#clBtn');
+const clSeen = () => { try { return localStorage.getItem('pl.changelog') || ''; } catch { return ''; } };
+let clList = null;
+const clKey = (v) => `${v.version}:${v.body.length}`;
+fetch('/live/changelog.json').then((r) => r.json()).then((list) => {
+  clList = Array.isArray(list) ? list : [];
+  if (clList[0] && clSeen() !== clKey(clList[0])) clBtn?.classList.add('fresh');
+}).catch(() => {});
+clBtn?.addEventListener('click', () => {
+  const dlg = document.querySelector('#clDlg');
+  const when = (v) => (v.date ? new Date(`${v.date}T12:00:00Z`).toLocaleDateString(LOCALE, { day: 'numeric', month: 'long', year: 'numeric' }) : t('en préparation'));
+  document.querySelector('#clBody').innerHTML = clList?.length
+    ? clList.map((v, i) => `<details${i ? '' : ' open'}><summary>v${esc(v.version)} · ${esc(when(v))}</summary>${changelogHtml(v.body)}</details>`).join('')
+    : `<p class="muted">${t('Journal indisponible.')}</p>`;
+  dlg.showModal();
+  if (clList?.[0]) { try { localStorage.setItem('pl.changelog', clKey(clList[0])); } catch { /* sans stockage */ } clBtn.classList.remove('fresh'); }
 });
 
 const safe = (fn) => { try { fn(); } catch (err) { console.error(err); } };

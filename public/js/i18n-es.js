@@ -969,6 +969,8 @@ export default {
   "Jeux neufs jamais montés (allocation {})": "Juegos nuevos nunca montados (asignación {})",
   "Joueur": "Jugador",
   "Journal indisponible.": "Registro de cambios no disponible.",
+  "en préparation": "en preparación",
+  "Ce qui a changé dans Paddock Live": "Las novedades de Paddock Live",
   "KM/H · {}e · {} tr/min": "KM/H · {}.ª · {} rpm",
   "km/h · clic sur une colonne pour trier": "km/h · clic en una columna para ordenar",
   "La F1 a mis fin à la session : reconnectez-vous pour continuer.": "La F1 ha cerrado la sesión: vuelve a conectarte para continuar.",
