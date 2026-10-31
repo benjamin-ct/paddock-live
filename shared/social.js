@@ -226,6 +226,8 @@ export function flagEmoji(d) {
 // Nom du Grand Prix suivi de son drapeau
 export const gpFlag = (d, name = d.gp) => [name, flagEmoji(d)].filter(Boolean).join(' ');
 export const MEDALS = ['🥇', '🥈', '🥉'];
+// Place gardée dans le texte court pour la ligne « 🤖 Fait par IA avec l'appli @paddockliveapp » (creditCaptions)
+const CREDIT_ROOM = 46;
 // Faits marquants : un emoji par type
 const FACT_ICON = { 'Meilleur tour': '⏱️', 'Plus belle remontée': '🚀', 'Stratégie du vainqueur': '🛞', Neutralisations: '🚨', Abandons: '💥', 'Éliminés': '❌', 'Pneus du meilleur temps': '🛞', 'Le plus de tours': '🔁', 'Tours bouclés': '🔁', 'Dans la seconde': '🔥', Dépassements: '⚔️' };
 
@@ -245,21 +247,26 @@ export function captions(d, signature = '', { spoiler = true } = {}) {
   const tags = hashtags(d);
   // Essais et qualifs : temps du premier aussi ; course : écarts seulement
   const podium = [p1, p2, p3].filter(Boolean).map((r, i) => `${MEDALS[i]} ${r.first} ${r.last} (${r.team})${(i || d.kind !== 'race') && r.gap ? ` ${r.gap}` : ''}`).join('\n');
-  // Texte court : le premier, puis ses deux poursuivants avec leur médaille
-  const chase = [p2, p3].map((r, i) => r && `${MEDALS[i + 1]} ${r.last}`).filter(Boolean).join(' · ');
   const gp = gpFlag(d);
+  const time = p1.gap && d.kind !== 'race' ? ` en ${p1.gap}` : '';
   let head; let short;
   if (d.kind === 'race') {
     head = `🏆 ${p1.first} ${p1.last} remporte ${d.sprint ? 'le sprint du ' : 'le '}${gp} !`;
-    short = `🏆 ${p1.last.toUpperCase()} remporte ${d.sprint ? 'le sprint du ' : 'le '}${gp} !`;
+    short = `🏆 ${p1.first} ${p1.last.toUpperCase()} (${p1.team}) remporte ${d.sprint ? 'le sprint du ' : 'le '}${gp} !`;
   } else if (d.kind === 'quali') {
     head = `⚡ Pole position pour ${p1.first} ${p1.last} au ${gp}${d.sprint ? ' (sprint)' : ''} !`;
-    short = `⚡ POLE pour ${p1.last}${p1.gap ? ` en ${p1.gap}` : ''} au ${gp}${d.sprint ? ' (sprint)' : ''} !`;
+    short = `⚡ POLE pour ${p1.first} ${p1.last.toUpperCase()} (${p1.team})${time} au ${gp}${d.sprint ? ' (sprint)' : ''} !`;
   } else {
-    head = `⏱️ ${d.label} du ${gp} : ${p1.first} ${p1.last} en tête !`;
-    short = `⏱️ ${d.label} du ${gp} : ${p1.last} en tête !`;
+    head = `⏱️ ${d.label} du ${gp} : meilleur temps pour ${p1.first} ${p1.last}${time} !`;
+    short = `⏱️ ${String(d.label).replace(/^Essais libres (\d)$/, 'EL$1')} · ${gp}\nMeilleur temps pour ${p1.first} ${p1.last.toUpperCase()} (${p1.team})${time} !`;
   }
-  if (chase) short += `\n${chase}`;
+  // Texte court (X, Bluesky) : le premier, ses deux poursuivants avec leur écart, un fait marquant ; ce qui ne tient
+  // pas est retiré (fait, puis écuries), en gardant la place des lignes ajoutées ensuite (abonnement, « fait par IA »)
+  const fact = d.facts.find((f) => f.value && !['Aucun', 'Aucune'].includes(f.value) && !/^Écart/.test(f.label));
+  const chase = (teams) => [p2, p3].map((r, i) => r && `${MEDALS[i + 1]} ${r.last}${teams ? ` (${r.team})` : ''}${r.gap ? ` ${r.gap}` : ''}`).filter(Boolean).join('\n');
+  const factLine = fact ? `${FACT_ICON[fact.label] || '📌'} ${fact.label} : ${fact.value}${fact.sub ? ` (${fact.sub})` : ''}` : '';
+  const shorts = [[true, true], [false, true], [false, false]].map(([teams, f]) => [short, chase(teams), f && factLine].filter(Boolean).join('\n\n'));
+  short = shorts.find((t) => xLength(`${t}\n\n${tags.x.join(' ')}`) <= 280 - CREDIT_ROOM) || shorts.at(-1);
   const facts = d.facts.filter((f) => f.value && f.value !== 'Aucun').map((f) => `${FACT_ICON[f.label] || '📌'} ${f.label} : ${f.value}${f.sub ? ` (${f.sub})` : ''}`).join('\n');
   const story = d.summary.paragraphs.slice(0, 2).join(' ');
   if (!spoiler) {
