@@ -62,6 +62,9 @@
   -webkit-backdrop-filter: var(--v2-blur); backdrop-filter: var(--v2-blur); box-shadow: var(--v2-shadow), inset 0 1px 0 var(--v2-glass-hi);
 }
 :root[data-design="v2"] .panel { border-radius: var(--v2-r) !important; }
+/* Menu ouvert dans un panneau (calques de la carte, colonnes…) : sans flou pendant qu'il est ouvert. Un panneau flouté
+   devient le repère des menus « fixés » du téléphone, qui se calaient sur lui et dépassaient en haut de l'écran */
+:root[data-design="v2"] .panel:has(details[open]) { -webkit-backdrop-filter: none; backdrop-filter: none; }
 :root[data-design="v2"] :is(.sz-card, .sz-box, .hm-card) { border-radius: var(--v2-r) !important; }
 :root[data-design="v2"] :is(.ty-card, .pit-card, .gauge, .cmp-sector) { border-radius: 14px !important; box-shadow: inset 0 1px 0 var(--v2-glass-hi); }
 
@@ -122,13 +125,24 @@
 :root[data-design="v2"] .topbar .hstat-label { font: 700 10px/1 var(--font); letter-spacing: .14em; color: #8EA0BC; }
 :root[data-design="v2"] .topbar .hstat-value { font: italic 800 26px/1 var(--font-cond); letter-spacing: .01em; }
 :root[data-design="v2"] .topbar #clockValue { font-size: 32px; background: linear-gradient(180deg, #fff 30%, #A8B8D8); -webkit-background-clip: text; background-clip: text; color: transparent; }
+/* Chiffres à largeur fixe : les raccourcis « font: » remettaient les chiffres proportionnels, le compte à rebours changeait
+   de largeur à chaque seconde et poussait l'heure du circuit */
+:root[data-design="v2"] :is(.topbar .hstat-value, .sz-countdown b, .sz-big, .hm-count, .pit-big, .gauge-val, .battle-gap) { font-variant-numeric: tabular-nums !important; }
+/* Saira Condensed n'a pas de chiffres à largeur fixe : largeur réservée pour « 00:00:00 », l'heure du circuit ne bouge plus */
+:root[data-design="v2"] .topbar #clockValue { display: inline-block; min-width: 3.9em; box-sizing: border-box; }
+/* Chiffres en italique : ils débordent de leur boîte à droite et en haut, et le dégradé (posé dans la boîte) les coupait */
+:root[data-design="v2"] .topbar #clockValue { padding: .08em .16em .04em 0; margin: -.08em 0 -.04em 0; }
 :root[data-design="v2"] .topbar .lap-box { border-radius: 14px; background: linear-gradient(180deg, rgba(255, 255, 255, .09), rgba(255, 255, 255, .03)); border: 1px solid var(--v2-rim-2); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08); }
 :root[data-design="v2"] .topbar .lap-box .hstat-value { font-size: 26px; }
 :root[data-design="v2"] .topbar .lap-box .lap-bar:not([hidden]) { height: 4px; border-radius: 2px; }
 :root[data-design="v2"] .topbar .lap-box .lap-bar i { background: var(--v2-red); box-shadow: 0 0 10px rgba(255, 42, 31, .9); border-radius: 2px; }
-:root[data-design="v2"] .track-status { border-radius: 999px !important; background: rgba(255, 255, 255, .05) !important; border-color: var(--v2-rim-2) !important; }
+:root[data-design="v2"] .track-status { border-radius: 999px !important; }
+/* Verre seulement pour le drapeau vert et « À venir » : jaune, voiture de sécurité, rouge et arrivée gardent leur couleur
+   (l'arrivée, texte sombre sur verre sombre, ne se voyait plus) */
+:root[data-design="v2"] .track-status:not(.yellow):not(.sc):not(.vsc):not(.red):not(.chequered) { background: rgba(255, 255, 255, .05) !important; border-color: var(--v2-rim-2) !important; }
 :root[data-design="v2"] .track-status .ts-dot { box-shadow: 0 0 10px currentColor; }
-:root[data-design="v2"] .topbar .surface .hstat-value { border-radius: 8px; }
+:root[data-design="v2"] .topbar .surface .hstat-value { border-radius: 8px; margin-top: 5px; padding: 3px 10px 2px; font-size: 20px !important; line-height: 1.1 !important; }   /* un peu d'air sous « État piste » */
+:root[data-design="v2"] .topbar .hstat.surface { margin-left: 8px; }   /* « État piste » détaché de « Heure circuit » */
 :root[data-design="v2"] .delay-controls { border-radius: 999px; overflow: hidden; }
 :root[data-design="v2"] .delay #syncBtn { border-radius: 999px; }
 :root[data-design="v2"] .source-badge { border-radius: 999px; }
@@ -140,7 +154,11 @@
 :root[data-design="v2"] .tower td { border-bottom-color: var(--line); }
 :root[data-design="v2"] .tower td.c-duel { background: transparent; }
 :root[data-design="v2"] .tower td.pos { font: italic 800 17px/1 var(--font-cond); color: #0B1220; }
-:root[data-design="v2"] .tower td.pos::before { inset: 4px 3px; border-radius: 8px; background: linear-gradient(180deg, #fff, #DCE3EE); box-shadow: 0 2px 8px rgba(0, 0, 0, .35); }
+/* Pastille de la position : taille fixe (un ou deux chiffres), centrée dans sa colonne, chiffre centré (léger décalage
+   pour l'italique) ; elle remplissait toute la colonne, trop grande et décentrée avec un seul chiffre */
+:root[data-design="v2"] .tower td.pos { text-align: center !important; padding-left: 0 !important; padding-right: 2px !important; }
+:root[data-design="v2"] .tower td.pos::before { inset: auto; left: 50%; top: 50%; width: 30px; height: 26px; transform: translate(-50%, -50%); border-radius: 8px; background: linear-gradient(180deg, #fff, #DCE3EE); box-shadow: 0 2px 8px rgba(0, 0, 0, .35); }
+:root[data-design="v2"] .tower td.pos.p1::before { width: 24px; }   /* un seul chiffre : pastille plus étroite */
 :root[data-design="v2"] .tower tr:nth-child(1) td.pos::before { background: linear-gradient(180deg, #FFE27A, #E2A90F); box-shadow: 0 0 14px rgba(255, 196, 0, .45); }
 :root[data-design="v2"] .tower tr:nth-child(2) td.pos::before { background: linear-gradient(180deg, #F4F7FB, #AEB9C8); }
 :root[data-design="v2"] .tower tr:nth-child(3) td.pos::before { background: linear-gradient(180deg, #F2C29A, #B9743F); }
@@ -152,7 +170,7 @@
 :root[data-design="v2"] .tower .team-logo.color, :root[data-design="v2"] .sz-table .team-logo.color, :root[data-design="v2"] .hm-fav-who .team-logo.color { background-color: #F4F6FA !important; background-size: 62% !important; }
 :root[data-design="v2"] .tower .team-logo { width: 26px; height: 26px; }
 :root[data-design="v2"] .tower tr.focus { background: linear-gradient(90deg, rgba(225, 6, 0, .34), rgba(225, 6, 0, .06) 60%, transparent) !important; box-shadow: inset 3px 0 0 #ff2a1f; }
-:root[data-design="v2"] .tower tr.trow:hover td { background: rgba(255, 255, 255, .04); }
+@media (hover: hover) { :root[data-design="v2"] .tower tr.trow:hover td { background: rgba(255, 255, 255, .04); } }
 :root[data-design="v2"] .tyre { box-shadow: 0 0 8px color-mix(in srgb, currentColor 45%, transparent); }
 :root[data-design="v2"] .tower .c-duel .duel-btns button, :root[data-design="v2"] .tower .duel-btn { border-radius: 8px; }
 
@@ -191,7 +209,11 @@
 /* ---------- Radios : avatars arrondis éclairés ---------- */
 :root[data-design="v2"] :is(.rd-card, .rd-line) { border-radius: 16px !important; background: rgba(255, 255, 255, .035); border-color: var(--v2-rim) !important; }
 :root[data-design="v2"] .rd-av { border-radius: 14px !important; overflow: hidden; background: radial-gradient(circle at 50% 30%, color-mix(in srgb, var(--tc) 70%, #0B1427), #070D1C) !important; box-shadow: inset 0 -3px var(--tc), 0 0 16px color-mix(in srgb, var(--tc) 45%, transparent) !important; }
-:root[data-design="v2"] .rd-av img { border-radius: 0 !important; }
+:root[data-design="v2"] .rd-av img { border-radius: 14px 14px 0 0 !important; }
+/* Pastille du micro bien visible : elle dépasse du portrait (plus coupée par ses coins arrondis) */
+:root[data-design="v2"] .rd-av { overflow: visible !important; }
+:root[data-design="v2"] .rd-mic { z-index: 2; right: -7px; bottom: -6px; width: 22px; height: 22px; border-radius: 8px; border: 2px solid #0B1427; box-shadow: 0 4px 10px rgba(0, 0, 0, .45); }
+:root[data-design="v2"] .rd-mic .ic { width: 11px; height: 11px; }
 :root[data-design="v2"] .rd-l-main::after { background: #ff3b30; }
 
 /* ---------- Arrêts, écarts : grands chiffres condensés ---------- */
@@ -283,7 +305,8 @@
 :root[data-design="v2"] .sz-chip { border-radius: 999px; }
 
 /* Cartes des pilotes et pilote en grand : façon appli F1 (dégradé de l'écurie, portrait détouré éclairé, grand numéro en filigrane) */
-:root[data-design="v2"] .sz-drv-strip { gap: 14px; padding: 16px 10px 30px; margin-bottom: -6px; }   /* place pour la carte soulevée et le halo de la carte choisie */
+:root[data-design="v2"] .sz-drv-strip { gap: 14px; padding: 16px 20px 38px; margin: 0 -20px -14px; scroll-padding-inline: 20px; }   /* place pour le halo de la carte choisie (aussi quand la bande défile jusqu'à elle), cartes alignées sur la page */
+@media (max-width: 900px) { :root[data-design="v2"] .sz-drv-strip { padding: 16px 10px 38px; margin: 0 -10px -14px; scroll-padding-inline: 10px; } }
 :root[data-design="v2"] .sz-drv-card { width: 232px; height: 168px; padding: 14px 16px; border-radius: 22px; isolation: isolate;
   border: 1px solid color-mix(in srgb, var(--tc) 50%, rgba(255, 255, 255, .12));
   background: radial-gradient(circle at 78% 38%, color-mix(in srgb, var(--tc) 85%, #fff 0%), transparent 58%), linear-gradient(155deg, color-mix(in srgb, var(--tc) 78%, #0B1427), color-mix(in srgb, var(--tc) 22%, #050A18) 88%);
@@ -336,12 +359,17 @@
   :root[data-design="v2"] .sz-box > :is(h3, .btn) { position: sticky; left: 0; }
   :root[data-design="v2"] .sz-table :is(th, td) { padding-left: 4px; padding-right: 4px; }
   :root[data-design="v2"] .sz-table td { font-size: 13px; }
-  :root[data-design="v2"] .sz-table th { letter-spacing: .04em; }
+  :root[data-design="v2"] .sz-table th { letter-spacing: .02em; font-size: 10px; }
   :root[data-design="v2"] .sz-cb::before { width: 24px; }
+  /* Nom du pilote sur deux lignes si besoin (« Andrea Kimi / Antonelli ») : les tableaux larges tiennent dans l'écran */
+  :root[data-design="v2"] .sz-table:not(.sz-heat) td:has(> .team-logo) { white-space: normal; line-height: 1.15; overflow-wrap: normal; }
+  :root[data-design="v2"] .sz-table:not(.sz-heat) td:has(> .team-logo) > .team-logo { float: left; }
+  :root[data-design="v2"] .sz-table:not(.sz-heat) td:has(> .team-logo) > b { display: flex; align-items: center; min-height: 26px; overflow: hidden; }
 }
 @media (max-width: 900px) {
   :root[data-design="v2"] .topbar { padding-top: max(8px, env(safe-area-inset-top)); }
   :root[data-design="v2"] .topbar .session-name { font-size: 22px; }
+  :root[data-design="v2"] .topbar #clockValue { font-size: 28px; }   /* place pour la fin des chiffres en italique avant l'heure du circuit */
   :root[data-design="v2"] .topbar .lap-box .hstat-value { font-size: 24px; }
   :root[data-design="v2"] .mob-panels:not([hidden]) { margin: 10px 12px 4px; padding: 4px; gap: 2px; border-radius: 999px; background: rgba(16, 26, 48, .6) !important; border: 1px solid var(--v2-rim) !important;
     -webkit-backdrop-filter: var(--v2-blur); backdrop-filter: var(--v2-blur); }
@@ -361,7 +389,7 @@
   :root[data-design="v2"] .mob-nav button.active .mn-svg { stroke: #ff4a40; filter: drop-shadow(0 0 6px rgba(255, 59, 48, .9)); }
   :root[data-design="v2"] .replaybar { margin: 0 12px 4px; border-radius: 22px; border: 1px solid var(--v2-rim) !important; background: rgba(14, 22, 42, .72) !important; -webkit-backdrop-filter: var(--v2-blur); backdrop-filter: var(--v2-blur); }
   :root[data-design="v2"] .replaybar .rp-play { width: 40px; height: 40px; }
-  :root[data-design="v2"] .tower td.pos { font-size: 18px; }
+  :root[data-design="v2"] .tower td.pos { font-size: 17px; }
   :root[data-design="v2"] .tower .drv-tla { font-size: 18px; }
   :root[data-design="v2"] .sz-drv-card { width: 196px; height: 148px; }
   :root[data-design="v2"] .sz-drv-card img { height: 138px; }
@@ -440,13 +468,15 @@
   /* Classement : la ligne survolée s'éclaire en douceur, le logo de l'écurie grossit un peu */
   :root[data-design="v2"]:not([data-motion="off"]) :is(.tower, .sz-table) tbody tr { transition: background-color .25s; }
   :root[data-design="v2"]:not([data-motion="off"]) :is(.tower, .sz-table) .team-logo { transition: transform .35s var(--v2-spring); }
-  :root[data-design="v2"]:not([data-motion="off"]) :is(.tower, .sz-table) tbody tr:hover .team-logo { transform: scale(1.12); }
+  @media (hover: hover) { :root[data-design="v2"]:not([data-motion="off"]) :is(.tower, .sz-table) tbody tr:hover .team-logo { transform: scale(1.12); } }
   /* Pilotes de la Saison : le portrait avance un peu au survol */
   /* Cartes des pilotes et des écuries (Saison) : arrivée en cascade, la carte se soulève au survol avec une lueur
      aux couleurs de l'écurie, un filet de lumière tourne en continu autour du bord (plus vif au survol et sur la carte choisie, qui « respire ») */
   :root[data-design="v2"]:not([data-motion="off"]) :is(.sz-drv-card, .sz-team-card) { transition: transform .45s var(--v2-smooth), box-shadow .45s var(--v2-smooth); }
   /* Survol seulement avec une souris : sur le téléphone, la carte touchée restait soulevée et dépassait en haut */
   @media (hover: hover) { :root[data-design="v2"]:not([data-motion="off"]) :is(.sz-drv-card, .sz-team-card):hover { transform: translateY(-6px) scale(1.02); box-shadow: 0 26px 50px -18px color-mix(in srgb, var(--tc) 85%, transparent), 0 0 0 1px color-mix(in srgb, var(--tc) 55%, transparent); } }
+  /* Chaque carte isole son filet : sinon il passait par-dessus le menu de la Saison ouvert sur le téléphone */
+  :root[data-design="v2"]:not([data-motion="off"]) .sz-team-card { isolation: isolate; }
   :root[data-design="v2"]:not([data-motion="off"]) :is(.sz-drv-card, .sz-team-card, .sz-drv-hero)::before { content: ''; position: absolute; inset: 0; z-index: 3; border-radius: inherit; padding: 3px; pointer-events: none;
     background: conic-gradient(from var(--v2-a), transparent 0 46%, color-mix(in srgb, var(--tc) 55%, #fff) 64%, #fff 76%, color-mix(in srgb, var(--tc) 55%, #fff) 86%, transparent 96%);
     -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
@@ -478,8 +508,8 @@
 }
 @property --v2-a { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
 @keyframes v2-spin { to { --v2-a: 360deg; } }
-@keyframes v2-breathe { 0%, 100% { box-shadow: 0 0 0 2px #fff, 0 0 0 5px color-mix(in srgb, var(--tc) 60%, transparent), 0 20px 44px -14px color-mix(in srgb, var(--tc) 90%, transparent); }
-  50% { box-shadow: 0 0 0 2px #fff, 0 0 0 8px color-mix(in srgb, var(--tc) 35%, transparent), 0 24px 56px -12px color-mix(in srgb, var(--tc) 100%, transparent); } }
+@keyframes v2-breathe { 0%, 100% { box-shadow: 0 0 0 2px #fff, 0 0 0 5px color-mix(in srgb, var(--tc) 60%, transparent), 0 14px 30px -12px color-mix(in srgb, var(--tc) 90%, transparent); }
+  50% { box-shadow: 0 0 0 2px #fff, 0 0 0 7px color-mix(in srgb, var(--tc) 35%, transparent), 0 16px 34px -12px color-mix(in srgb, var(--tc) 100%, transparent); } }
 @keyframes v2-card-in { from { opacity: 0; transform: translateY(18px) scale(.96); } to { opacity: 1; transform: none; } }
 @keyframes v2-hero-img { from { opacity: 0; transform: translateX(40px) scale(.96); } to { opacity: 1; transform: none; } }
 @keyframes v2-hero-no { from { opacity: 0; transform: translate(60px, -50%); } to { opacity: 1; transform: translateY(-50%); } }
@@ -488,3 +518,22 @@
 @keyframes v2-wiggle { 0%, 100% { transform: rotate(0) scale(1); } 30% { transform: rotate(-10deg) scale(1.12); } 60% { transform: rotate(7deg) scale(1.08); } }
 @keyframes v2-seg { from { transform: scale(.88); opacity: .6; } to { transform: none; opacity: 1; } }
 @keyframes v2-menu { from { opacity: 0; transform: translateY(-6px) scale(.97); } to { opacity: 1; transform: none; } }
+
+/* ---------- Carte 2D et 3D : boutons sur la vue harmonisés (même hauteur, même verre, même police, pastilles) ---------- */
+:root[data-design="v2"] .map-zoom { border-radius: 14px !important; border: 1px solid var(--v2-rim-2) !important; background: rgba(10, 18, 36, .74) !important; -webkit-backdrop-filter: var(--v2-blur); backdrop-filter: var(--v2-blur); box-shadow: 0 8px 20px -10px rgba(0, 0, 0, .7); }
+:root[data-design="v2"] .map-zoom .icon-btn { width: 32px; height: 30px; border-radius: 10px; color: #fff; }
+:root[data-design="v2"] .map3d-bar { gap: 8px; }
+:root[data-design="v2"] :is(.map3d-cams, .map3d-driver, .map3d-bar .map3d-fly, .map3d-bar .map3d-opts > summary) {
+  height: 36px; box-sizing: border-box; margin: 0; border-radius: 999px !important; border: 1px solid var(--v2-rim-2) !important;
+  background-color: rgba(10, 18, 36, .74) !important; color: #fff !important; font: 700 13px/1 var(--font) !important; letter-spacing: 0;
+  -webkit-backdrop-filter: var(--v2-blur); backdrop-filter: var(--v2-blur); box-shadow: 0 8px 20px -10px rgba(0, 0, 0, .7); }
+:root[data-design="v2"] .map3d-cams { display: flex; align-items: center; gap: 2px; padding: 3px; }
+:root[data-design="v2"] .map3d-cams .btn { height: 28px; padding: 0 12px; border-radius: 999px; border: 0; background: transparent; color: #CBD5E1; font: 700 13px/1 var(--font); }
+:root[data-design="v2"] .map3d-cams .btn:hover { color: #fff; background: rgba(255, 255, 255, .06); }
+:root[data-design="v2"] :is(.map3d-cams .btn, .map3d-bar .map3d-fly).on { background: rgba(255, 255, 255, .16) !important; color: #fff !important; border-color: transparent; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12); }
+:root[data-design="v2"] .map3d-driver { max-width: 200px; padding: 0 30px 0 14px; }
+:root[data-design="v2"] :is(.map3d-bar .map3d-fly, .map3d-bar .map3d-opts > summary) { display: inline-flex; align-items: center; gap: 6px; padding: 0 14px; }
+@media (max-width: 600px) {
+  :root[data-design="v2"] .map3d-cams { gap: 0; max-width: 100%; }
+  :root[data-design="v2"] .map3d-cams .btn { padding: 0 9px; font-size: 12.5px; }
+}

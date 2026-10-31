@@ -205,7 +205,7 @@ export function renderTower(force = false) {
       const best = l.BestLapTime?.Value || '';
       const bestPurple = stats[num]?.PersonalBestLapTime?.Position === 1;
       const st = l.Speeds?.ST;
-      cells = `<td class="pos">${esc(pos)}${posDelta}</td>${drv}
+      cells = `<td class="pos${String(pos).length < 2 ? ' p1' : ''}">${esc(pos)}${posDelta}</td>${drv}
         <td class="t-gap">${l.Retired ? '<span class="dim">—</span>' : gapText(l.GapToLeader)}</td>
         <td class="t-int c-int ${int.Catching ? 'catching' : ''}">${l.Retired ? '<span class="dim">—</span>' : gapText(int.Value)}</td>
         ${last}<td class="t-lap c-best ${bestPurple ? 'purple' : ''}">${esc(best) || '<span class="dim">—</span>'}</td>
@@ -216,13 +216,13 @@ export function renderTower(force = false) {
       const stp = list(l.Stats)[part - 1] || {};
       const best = bl[part - 1]?.Value || '';
       const q = [0, 1, 2].map((i) => `<td class="t-lap c-q ${i === part - 1 ? '' : 'dim'}">${esc(bl[i]?.Value || '') || '<span class="dim">—</span>'}</td>`).join('');
-      cells = `<td class="pos">${esc(pos)}</td>${drv}
+      cells = `<td class="pos${String(pos).length < 2 ? ' p1' : ''}">${esc(pos)}</td>${drv}
         <td class="t-lap">${esc(best) || '<span class="dim">—</span>'}</td>
         <td class="t-gap">${esc(stp.TimeDiffToFastest || '') || '<span class="dim">—</span>'}</td>
         <td class="t-int c-int">${esc(stp.TimeDifftoPositionAhead || '') || '<span class="dim">—</span>'}</td>
         ${predCell}${last}${secCells}${q}${tyre}${extra}${duel}`;
     } else {
-      cells = `<td class="pos">${esc(pos)}</td>${drv}
+      cells = `<td class="pos${String(pos).length < 2 ? ' p1' : ''}">${esc(pos)}</td>${drv}
         <td class="t-lap">${esc(l.BestLapTime?.Value || '') || '<span class="dim">—</span>'}</td>
         <td class="t-gap">${esc(l.TimeDiffToFastest || '') || '<span class="dim">—</span>'}</td>
         <td class="t-int c-int">${esc(l.TimeDiffToPositionAhead || '') || '<span class="dim">—</span>'}</td>
@@ -417,6 +417,8 @@ function predictLap(l, st) {
   for (let i = 0; i < 3; i++) {
     const segs = list(secs[i]?.Segments);
     const statuses = segs.map((g) => g?.Status || 0);
+    // Rien de passé sur ce secteur ni le précédent pendant ce tour : restes du tour d'avant, pas comptés
+    if (i > done) break;
     seen += statuses.filter(Boolean).length;
     good += statuses.filter((x) => x === 2049 || x === 2051).length;
     const complete = segs.length && statuses.every(Boolean) && !statuses.includes(2064);
@@ -427,7 +429,9 @@ function predictLap(l, st) {
       done++;
     }
   }
-  if (!done || done === 3 || seen < 2 || good / seen < 0.5) return null;
+  // Tour lancé dès les premiers mini-secteurs du tour en vert ou violet (et plus seulement à la fin du premier
+  // secteur, au milieu du circuit) : temps prévu = secteurs faits + meilleurs secteurs personnels restants
+  if (done === 3 || seen < 2 || good / seen < 0.5) return null;
   for (let i = done; i < 3; i++) time += best[i];
   return { time, done };
 }

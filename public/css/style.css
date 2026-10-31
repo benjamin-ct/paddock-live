@@ -301,7 +301,7 @@ input[type=range]:not(#rpRange):disabled { opacity: .45; cursor: default; }
 .tower th.c-duel { right: 0; z-index: 3; }
 .tower tr.out td.c-duel { opacity: 1; }
 .tower tr.out td.c-duel .duel-btns { opacity: .45; }
-.tower tr.trow:hover td { background: var(--hover); }
+@media (hover: hover) { .tower tr.trow:hover td { background: var(--hover); } }   /* souris seulement : au doigt, la ligne touchée pour faire défiler restait surlignée */
 .tower tr.focus td { background: var(--focus); }
 .tower tr.duel-a td:first-child { box-shadow: inset 3px 0 0 var(--blue); }
 .tower tr.duel-b td:first-child { box-shadow: inset 3px 0 0 var(--orange); }
@@ -751,6 +751,8 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
 .pred small { color: var(--muted); font-weight: 600; }
 .cutline { padding: 4px 10px; font-size: 12px; color: var(--text-2); background: rgba(255,59,48,.08); border-bottom: 1px solid var(--border); }
 .cutline b { color: var(--text); }
+/* Classement plus large que l'écran (téléphone) : la limite de qualification reste en vue, à gauche, sur la largeur visible */
+.cutline { text-align: left; position: sticky; left: 0; max-width: calc(100vw - 32px); box-sizing: border-box; }
 .fav-btn { background: none; border: none; padding: 0 2px; cursor: pointer; color: var(--muted); font-size: 13px; line-height: 1; opacity: 0; }
 .fav-btn.on { color: var(--yellow); opacity: 1; }
 .tower tr.trow:hover .fav-btn { opacity: 1; }
@@ -1219,6 +1221,7 @@ body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-selec
 .sz-gp-nav { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin: 4px 0 16px; }
 .sz-table th { text-align: left; color: var(--muted); font-size: 11px; text-transform: uppercase; font-weight: 600; padding: 6px 8px; border-bottom: 1px solid var(--border); }
 .sz-table td { padding: 7px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+@media (max-width: 600px) { .sz-table td.sz-wrap { white-space: normal; min-width: 4.5em; } .sz-table .sz-nw { white-space: nowrap; } }   /* téléphone : Grand Prix sur deux lignes si besoin, le tableau tient dans l'écran */
 .sz-table td .drv-bar { display: inline-block; vertical-align: middle; margin-right: 8px; height: 16px; }
 .sz-big .drv-bar { height: 22px; }
 .sz-table tr.muted td { color: var(--muted); }

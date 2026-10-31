@@ -1083,7 +1083,9 @@ function drawCars(dt) {
     const last = h.at(-1);
     // Saut (replay, stands) ou retour sur la page (onglet caché, plus d'images dessinées) : traînée repartie de zéro,
     // au lieu d'un trait de l'ancienne position à la nouvelle
-    if (last && (Math.hypot(g.x - last.x, g.y - last.y) > 2500 || nowMs - last.t > 1000)) h.length = 0;
+    // (onglet caché : le navigateur ne dessine plus qu'une image par seconde environ, des points espacés d'1 s
+    // faisaient des traits à travers les virages ; une traînée normale a un point toutes les 45 ms)
+    if (last && (Math.hypot(g.x - last.x, g.y - last.y) > 2500 || nowMs - last.t > 250 || document.hidden)) h.length = 0;
     if (!last || nowMs - last.t > 45) {
       h.push({ x: g.x, y: g.y, t: nowMs });
       if (h.length > TRAIL_LEN) h.shift();

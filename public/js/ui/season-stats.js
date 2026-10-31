@@ -363,13 +363,13 @@ export function renderPits(ctx) {
     <div class="sz-grid2">
       <section class="sz-box"><h3>Immobilisation médiane par écurie</h3>${hbars(tl.map((t) => ({ html: `${mark(t.team, t.color)}<b>${esc(t.team)}</b>`, v: t.med, text: `${fr(t.med, 2)} s`, color: tcol(t.team, t.color) })), { invert: true })}</section>
       <section class="sz-box"><h3>Les 15 arrêts les plus rapides</h3><table class="sz-table"><tr><th>#</th><th>Écurie</th><th>Pilote</th><th>Grand Prix</th><th>Tour</th><th>Immob.</th></tr>
-        ${fastest.map((s, i) => `<tr><td>${i + 1}</td><td>${mark(s.d.team, s.d.color)}${esc(s.d.team)}</td><td><b>${esc(s.d.tla)}</b></td><td>R${s.round} ${esc(name(s.round))}</td><td>${s.lap ?? '—'}</td><td><b>${stopTxt(s)}</b></td></tr>`).join('')}</table></section>
+        ${fastest.map((s, i) => `<tr><td>${i + 1}</td><td>${mark(s.d.team, s.d.color)}${esc(s.d.team)}</td><td><b>${esc(s.d.tla)}</b></td><td class="sz-wrap">R${s.round} ${esc(name(s.round))}</td><td>${s.lap ?? '—'}</td><td><b>${stopTxt(s)}</b></td></tr>`).join('')}</table></section>
     </div>
     <section class="sz-box"><h3>Écuries</h3><table class="sz-table"><tr><th>Écurie</th><th>Arrêts</th><th>Médiane</th><th>Meilleur</th><th>Sous 2,5 s</th></tr>
       ${tl.map((t) => `<tr><td>${mark(t.team, t.color)}<b>${esc(t.team)}</b></td><td>${t.n}</td><td>${fr(t.med, 2)} s</td><td>${stopTxt(t.best)}</td><td>${t.under25}</td></tr>`).join('')}</table></section>
     <section class="sz-box"><h3>Par Grand Prix</h3><table class="sz-table"><tr><th>Manche</th><th>Grand Prix</th><th>Arrêts</th><th>Immob. médiane</th><th>Plus rapide</th><th>Voie des stands</th></tr>
       ${rounds.map((rd) => { const p = R.get(rd).race.profile; const f = valid.filter((s) => s.round === rd).sort((a, b) => a.stop - b.stop)[0];
-        return `<tr><td>R${rd}</td><td>${esc(name(rd))}</td><td>${p.stops}</td><td>${p.stopMedian ? `${fr(p.stopMedian, 2)} s` : '—'}</td><td>${f ? `${stopTxt(f)} · ${esc(f.d.tla)}` : '—'}</td><td>${p.pitLane ? `${fr(p.pitLane, 1)} s` : '—'}</td></tr>`; }).join('')}</table></section>
+        return `<tr><td>R${rd}</td><td class="sz-wrap">${esc(name(rd))}</td><td>${p.stops}</td><td>${p.stopMedian ? `${fr(p.stopMedian, 2)} s` : '—'}</td><td class="sz-wrap">${f ? `<span class="sz-nw">${stopTxt(f)}</span> · ${esc(f.d.tla)}` : '—'}</td><td>${p.pitLane ? `${fr(p.pitLane, 1)} s` : '—'}</td></tr>`; }).join('')}</table></section>
     ${[...R.values()].some(({ race }) => race.dhl) ? DHL_NOTE : ''}`;
 }
 
