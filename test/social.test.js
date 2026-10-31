@@ -88,9 +88,9 @@ test('posts : qualifications', () => {
 
 test('posts : couverture « Résultats » (anti-spoiler) en première image de chaque format', () => {
   const d = { kind: 'race', rows: [{}], facts: [], champ: {} };
-  assert.deepEqual(slidesFor(d), ['couverture', 'vainqueur', 'podium', 'classement', 'faits', 'championnat']);
-  assert.deepEqual(slidesFor({ ...d, kind: 'quali', champ: null }).slice(0, 2), ['couverture', 'pole']);
-  assert.deepEqual(slidesFor({ ...d, kind: 'practice' }), ['couverture', 'meilleurtemps', 'podium', 'classement']);
+  assert.deepEqual(slidesFor(d), ['couverture', 'podium', 'classement', 'faits', 'championnat']);
+  assert.deepEqual(slidesFor({ ...d, kind: 'quali', champ: null }).slice(0, 2), ['couverture', 'podium']);
+  assert.deepEqual(slidesFor({ ...d, kind: 'practice' }), ['couverture', 'podium', 'classement']);
   assert.deepEqual(slidesFor({ ...d, kind: 'practice', facts: [{}] }).at(-1), 'faits');
   assert.deepEqual(slidesFor({ ...d, rows: [] }), []);
 });
@@ -130,7 +130,7 @@ test('posts : essais libres (meilleur temps, top 3, faits marquants)', () => {
   assert.equal(f['Le plus de tours'], 'Leclerc | 31 tours');
   assert.equal(f['Tours bouclés'], '82 | par les 3 pilotes');
   assert.equal(f['Dans la seconde'], "2 pilotes | à moins d'1 s du meilleur temps");
-  assert.deepEqual(slidesFor(d), ['couverture', 'meilleurtemps', 'podium', 'classement', 'faits']);
+  assert.deepEqual(slidesFor(d), ['couverture', 'podium', 'classement', 'faits']);
   const c = captions(d);
   assert.match(c.instagram, /^⏱️ Essais libres 2 du Grand Prix d'Italie 🇮🇹 : meilleur temps pour Lando Norris en 1:20\.100 !\n\n📊 Top 3 :\n🥇 Lando Norris \(McLaren\) 1:20\.100\n/);
   assert.match(c.x, /^⏱️ EL2 · Grand Prix d'Italie 🇮🇹\nMeilleur temps pour Lando NORRIS \(McLaren\) en 1:20\.100 !\n\n🥈 Leclerc/);
@@ -162,14 +162,14 @@ test('posts : vitesses de pointe et meilleurs secteurs des essais (ordre, écart
     ['LEC 21.900 0', 'NOR 21.900 0', 'HAM 22.000 0.1'],
   ]);
   assert.deepEqual(d.ideal, { time: '1:20.100', gain: 0.2, best: '1:20.300' });
-  assert.deepEqual(slidesFor(d), ['couverture', 'meilleurtemps', 'podium', 'classement', 'vitesses', 'secteurs', 'faits']);
+  assert.deepEqual(slidesFor(d), ['couverture', 'podium', 'classement', 'vitesses', 'secteurs', 'faits']);
   assert.equal(slideAlt(d, 'vitesses'), "Vitesses de pointe — Essais libres 1 · Grand Prix d'Italie (piège à vitesse) : 1. Charles Leclerc 340 km/h, 2. Lando Norris 340 km/h, 3. Lewis Hamilton 336 km/h");
   assert.equal(slideAlt(d, 'secteurs'), "Meilleurs secteurs — Essais libres 1 · Grand Prix d'Italie : secteur 1, Charles Leclerc en 27.200 ; secteur 2, Lando Norris en 31.000 ; secteur 3, Charles Leclerc en 21.900 ; tour idéal 1:20.100");
   // Sans piège à vitesse : la mesure la plus rapide ; qualifs : mêmes images après le classement
   const noSt = postData({ ...fp, TimingStats: { Lines: Object.fromEntries(Object.entries(fp.TimingStats.Lines).map(([k, v]) => [k, { ...v, BestSpeeds: { I1: v.BestSpeeds.I1 } }])) } });
   assert.deepEqual([noSt.speeds.label, noSt.speeds.rows[0].tla, noSt.speeds.rows[0].kmh], ['Intermédiaire 1', 'HAM', 322]);
   const q = postData({ ...fp, SessionInfo: { ...fp.SessionInfo, Type: 'Qualifying', Name: 'Qualifying' } });
-  assert.deepEqual(slidesFor(q).slice(3, 6), ['classement', 'vitesses', 'secteurs']);
+  assert.deepEqual(slidesFor(q).slice(2, 5), ['classement', 'vitesses', 'secteurs']);
   // Moins de trois pilotes mesurés, ou course : pas d'image
   const few = postData({ ...fp, TimingStats: { Lines: { 1: fp.TimingStats.Lines[1], 16: fp.TimingStats.Lines[16] } } });
   assert.deepEqual([few.speeds, few.sectors, few.ideal], [null, null, null]);
