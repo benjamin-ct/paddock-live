@@ -21,7 +21,8 @@ l'application (Réglages → À propos → Nouveautés).
 - Cartes des pilotes et des écuries (Saison) : elles arrivent en cascade, se soulèvent au survol avec une lueur aux
   couleurs de l'écurie, et un filet de lumière tourne en continu autour de chaque carte (plus vif au survol) ; la
   carte du pilote choisi « respire ».
-  Pilote en grand : le portrait glisse en place et le grand numéro arrive derrière.
+  Pilote en grand : le filet tourne aussi autour de la carte, le portrait glisse en place et le grand numéro arrive
+  derrière.
 
 ### Langues
 - Paddock Live parle aussi italien et espagnol : Italiano et Español dans Réglages → Apparence, et à la première

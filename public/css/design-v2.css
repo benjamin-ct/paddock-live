@@ -283,7 +283,7 @@
 :root[data-design="v2"] .sz-chip { border-radius: 999px; }
 
 /* Cartes des pilotes et pilote en grand : façon appli F1 (dégradé de l'écurie, portrait détouré éclairé, grand numéro en filigrane) */
-:root[data-design="v2"] .sz-drv-strip { gap: 14px; padding: 10px 6px 30px; margin-bottom: -6px; }
+:root[data-design="v2"] .sz-drv-strip { gap: 14px; padding: 16px 10px 30px; margin-bottom: -6px; }   /* place pour la carte soulevée et le halo de la carte choisie */
 :root[data-design="v2"] .sz-drv-card { width: 232px; height: 168px; padding: 14px 16px; border-radius: 22px; isolation: isolate;
   border: 1px solid color-mix(in srgb, var(--tc) 50%, rgba(255, 255, 255, .12));
   background: radial-gradient(circle at 78% 38%, color-mix(in srgb, var(--tc) 85%, #fff 0%), transparent 58%), linear-gradient(155deg, color-mix(in srgb, var(--tc) 78%, #0B1427), color-mix(in srgb, var(--tc) 22%, #050A18) 88%);
@@ -445,12 +445,13 @@
   /* Cartes des pilotes et des écuries (Saison) : arrivée en cascade, la carte se soulève au survol avec une lueur
      aux couleurs de l'écurie, un filet de lumière tourne en continu autour du bord (plus vif au survol et sur la carte choisie, qui « respire ») */
   :root[data-design="v2"]:not([data-motion="off"]) :is(.sz-drv-card, .sz-team-card) { transition: transform .45s var(--v2-smooth), box-shadow .45s var(--v2-smooth); }
-  :root[data-design="v2"]:not([data-motion="off"]) :is(.sz-drv-card, .sz-team-card):hover { transform: translateY(-6px) scale(1.02); box-shadow: 0 26px 50px -18px color-mix(in srgb, var(--tc) 85%, transparent), 0 0 0 1px color-mix(in srgb, var(--tc) 55%, transparent); }
-  :root[data-design="v2"]:not([data-motion="off"]) :is(.sz-drv-card, .sz-team-card)::before { content: ''; position: absolute; inset: 0; z-index: 3; border-radius: inherit; padding: 3px; pointer-events: none;
+  /* Survol seulement avec une souris : sur le téléphone, la carte touchée restait soulevée et dépassait en haut */
+  @media (hover: hover) { :root[data-design="v2"]:not([data-motion="off"]) :is(.sz-drv-card, .sz-team-card):hover { transform: translateY(-6px) scale(1.02); box-shadow: 0 26px 50px -18px color-mix(in srgb, var(--tc) 85%, transparent), 0 0 0 1px color-mix(in srgb, var(--tc) 55%, transparent); } }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(.sz-drv-card, .sz-team-card, .sz-drv-hero)::before { content: ''; position: absolute; inset: 0; z-index: 3; border-radius: inherit; padding: 3px; pointer-events: none;
     background: conic-gradient(from var(--v2-a), transparent 0 46%, color-mix(in srgb, var(--tc) 55%, #fff) 64%, #fff 76%, color-mix(in srgb, var(--tc) 55%, #fff) 86%, transparent 96%);
     -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
     opacity: .75; transition: opacity .4s; animation: v2-spin 4s linear infinite; }
-  :root[data-design="v2"]:not([data-motion="off"]) :is(.sz-drv-card, .sz-team-card):is(:hover, :focus-visible, .on)::before { opacity: 1; }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(.sz-drv-card, .sz-team-card):is(:hover, :focus-visible, .on)::before, :root[data-design="v2"]:not([data-motion="off"]) .sz-drv-hero::before { opacity: 1; }
   /* Départs décalés : les filets ne tournent pas tous ensemble */
   :root[data-design="v2"]:not([data-motion="off"]) :is(.sz-drv-card, .sz-team-card):nth-child(3n+2)::before { animation-delay: -1.3s; }
   :root[data-design="v2"]:not([data-motion="off"]) :is(.sz-drv-card, .sz-team-card):nth-child(3n)::before { animation-delay: -2.6s; }
