@@ -125,6 +125,11 @@
 :root[data-design="v2"] .topbar .hstat-label { font: 700 10px/1 var(--font); letter-spacing: .14em; color: #8EA0BC; }
 :root[data-design="v2"] .topbar .hstat-value { font: italic 800 26px/1 var(--font-cond); letter-spacing: .01em; }
 :root[data-design="v2"] .topbar #clockValue { font-size: 32px; background: linear-gradient(180deg, #fff 30%, #A8B8D8); -webkit-background-clip: text; background-clip: text; color: transparent; }
+/* Chiffres à largeur fixe : les raccourcis « font: » remettaient les chiffres proportionnels, le compte à rebours changeait
+   de largeur à chaque seconde et poussait l'heure du circuit */
+:root[data-design="v2"] :is(.topbar .hstat-value, .sz-countdown b, .sz-big, .hm-count, .pit-big, .gauge-val, .battle-gap) { font-variant-numeric: tabular-nums !important; }
+/* Saira Condensed n'a pas de chiffres à largeur fixe : largeur réservée pour « 00:00:00 », l'heure du circuit ne bouge plus */
+:root[data-design="v2"] .topbar #clockValue { display: inline-block; min-width: 3.9em; box-sizing: border-box; }
 /* Chiffres en italique : ils débordent de leur boîte à droite et en haut, et le dégradé (posé dans la boîte) les coupait */
 :root[data-design="v2"] .topbar #clockValue { padding: .08em .16em .04em 0; margin: -.08em 0 -.04em 0; }
 :root[data-design="v2"] .topbar .lap-box { border-radius: 14px; background: linear-gradient(180deg, rgba(255, 255, 255, .09), rgba(255, 255, 255, .03)); border: 1px solid var(--v2-rim-2); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08); }
