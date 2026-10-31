@@ -9,6 +9,7 @@ import { followReason, questionFor } from './social-follow.js';
 import { appSlides, appPage, plain } from './social-app.js';
 import { TV_TITLE, tvBackground, tvFrame, tvFooter, tvCover, tvPodium, tvClassement, slant } from './social-draw-tv.js';
 import { horaires, infos, editions, topflop, notes, equipes, positions, recapCover, recapItem, raceweek, titre, titreComment, titleBlocks } from './social-draw-season.js';
+import { decision, decisionAlt } from './social-draw-decision.js';
 
 export const FORMATS = {
   ig: { w: 1080, h: 1350, name: 'instagram' },
@@ -41,6 +42,7 @@ function baseSlides(d, fmt) {
   if (d.post === 'prerace') return ['couverture', 'grille', ...(d.weather || d.tyres ? ['meteo'] : [])];
   if (d.post === 'champ') return ['couverture', 'champpilotes', 'champecuries'];
   if (d.post === 'flash') return ['flash'];
+  if (d.post === 'decision') return d.decision ? ['decision'] : [];
   if (d.post === 'weekend') return ['couverture', 'horaires', ...(d.tyres || d.forecast?.length ? ['infos'] : [])];
   if (d.post === 'raceweek') return ['raceweek', 'horaires', ...(d.tyres || d.forecast?.length ? ['infos'] : [])];
   if (d.post === 'records') return d.facts.length ? ['couverture', 'records', ...(d.editions.length >= 2 ? ['editions'] : [])] : [];
@@ -120,7 +122,7 @@ export function pointPages(points, fmt = 'ig') {
   for (let k = 0; k < n; k++) { const take = Math.ceil((list.length - i) / (n - k)); pages.push(list.slice(i, i + take)); i += take; }
   return pages;
 }
-export const SLIDE_NAMES = { grille: 'Grille de départ', meteo: 'Météo et pneus', champpilotes: 'Championnat pilotes', champecuries: 'Championnat constructeurs', flash: 'Flash', duels: 'Duels entre coéquipiers', news: 'News', couverture: 'Couverture', vainqueur: 'Vainqueur', pole: 'Pole position', meilleurtemps: 'Meilleur temps', podium: 'Podium', classement: 'Classement', remontees: 'Grille → arrivée', strategie: 'Stratégie des pneus', vitesses: 'Vitesses de pointe', secteurs: 'Meilleurs secteurs', faits: 'Faits marquants', championnat: 'Championnat', abonnement: 'Abonnez-vous', question: 'Question', essentiel: "L'essentiel", photo: 'Photo', raceweek: 'Race Week', horaires: 'Horaires', infos: 'Pneus et météo', records: 'Records', editions: 'Éditions précédentes', topflop: 'Tops et flops', notes: 'Toutes les notes', equipes: 'Duels par écurie', positions: 'Positions tour par tour', recapcover: 'La semaine', recap: 'Info', titrepilotes: 'Titre pilotes', titreecuries: 'Titre constructeurs', titrecomment: 'Comment être sacré', app: 'Page' };
+export const SLIDE_NAMES = { grille: 'Grille de départ', meteo: 'Météo et pneus', champpilotes: 'Championnat pilotes', champecuries: 'Championnat constructeurs', flash: 'Flash', decision: 'Décision des commissaires', duels: 'Duels entre coéquipiers', news: 'News', couverture: 'Couverture', vainqueur: 'Vainqueur', pole: 'Pole position', meilleurtemps: 'Meilleur temps', podium: 'Podium', classement: 'Classement', remontees: 'Grille → arrivée', strategie: 'Stratégie des pneus', vitesses: 'Vitesses de pointe', secteurs: 'Meilleurs secteurs', faits: 'Faits marquants', championnat: 'Championnat', abonnement: 'Abonnez-vous', question: 'Question', essentiel: "L'essentiel", photo: 'Photo', raceweek: 'Race Week', horaires: 'Horaires', infos: 'Pneus et météo', records: 'Records', editions: 'Éditions précédentes', topflop: 'Tops et flops', notes: 'Toutes les notes', equipes: 'Duels par écurie', positions: 'Positions tour par tour', recapcover: 'La semaine', recap: 'Info', titrepilotes: 'Titre pilotes', titreecuries: 'Titre constructeurs', titrecomment: 'Comment être sacré', app: 'Page' };
 export const slideName = (s) => SLIDE_NAMES[s] || SLIDE_NAMES[String(s).replace(/-\d+$/, '')] || s;
 // Texte alternatif d'une image publiée (lecteurs d'écran) : ce qu'elle montre, avec le classement s'il y en a un
 const RANKED = { vainqueur: 3, pole: 3, meilleurtemps: 3, podium: 3, classement: 10, grille: 10 };
@@ -128,6 +130,7 @@ export function slideAlt(d, slide) {
   const name = slideName(slide);
   if (d.post === 'app') { const p = d.pages?.[Number(String(slide).slice(4)) - 1] || {}; return [plain(p.title), String(p.text || '').trim()].filter(Boolean).join('. ').slice(0, 500) || name; }
   if (d.news) return `${name} : ${d.title}${d.summary ? `. ${d.summary}` : ''}`.slice(0, 500);
+  if (slide === 'decision' && d.decision) return decisionAlt(d);
   const what = [d.label, d.gp].filter(Boolean).join(' · ');
   const full = (r) => [r.first, r.last].filter(Boolean).join(' ');
   if (slide === 'vitesses' && d.speeds) return `${name} — ${what} (${d.speeds.label.toLowerCase()}) : ${d.speeds.rows.slice(0, 10).map((r, i) => `${i + 1}. ${full(r)} ${r.kmh} km/h`).join(', ')}`.slice(0, 500);
@@ -1538,6 +1541,7 @@ function paintOne(ctx, slide, fmt, d, o, size) {
   else if (slide === 'champecuries') standings(ctx, w, h, d, o, 'Constructeurs', d.champ.teams.map((r) => ({ ...r, label: r.name.toUpperCase() })));
   else if (slide === 'duels') duels(ctx, w, h, d, o);
   else if (slide === 'flash') flash(ctx, w, h, d, o);
+  else if (slide === 'decision' && d.decision) decision(ctx, w, h, d, o);
   else if (slide === 'couverture' && tv && !d.post && d.rows?.length) tvCover(ctx, w, h, d, o, fmt);
   else if (slide === 'couverture') cover(ctx, w, h, d, o, (o.slides ? o.slides.filter((s) => s !== 'couverture' && s !== 'abonnement' && s !== 'question') : slidesFor(d).slice(1)).slice(0, fmt === 'x' ? 3 : undefined), fmt);
   else if (slide === 'vainqueur') hero(ctx, w, h, d, o, 'VAINQUEUR');

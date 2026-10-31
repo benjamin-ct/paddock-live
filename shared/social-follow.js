@@ -9,6 +9,7 @@ export function followReason(d) {
   if (d.post === 'prerace') return `pour suivre ${d.sprint ? 'le sprint' : 'la course'} et avoir les résultats dès l'arrivée`;
   if (d.post === 'champ' || d.post === 'title') return 'pour suivre la lutte pour le titre';
   if (d.post === 'flash') return 'pour suivre la course en direct';
+  if (d.post === 'decision') return 'pour suivre tout le week-end en direct';
   if (d.kind === 'quali') return `pour ne rien rater ${d.sprint ? 'du sprint' : 'de la course'}`;
   if (d.kind === 'practice') return 'pour suivre tout le week-end de Formule 1';
   return "pour suivre toute l'actualité de la Formule 1";
@@ -23,6 +24,7 @@ export function questionFor(d) {
     case 'prerace': return `Ton pronostic pour le podium ${d.sprint ? 'du sprint' : 'de la course'} ? Dis-le en commentaire.`;
     case 'champ': case 'title': return 'Qui sera champion ? Ton pronostic en commentaire.';
     case 'flash': return FLASH_Q[d.event?.kind] || "Qu'en penses-tu ? Dis-le en commentaire.";
+    case 'decision': return 'Sanction méritée selon toi ? Dis-le en commentaire.';
     case 'weekend': return 'Qui gagne ce week-end ? Ton pronostic en commentaire.';
     case 'raceweek': return 'Qui gagne ce week-end ? Ton pronostic en commentaire.';
     case 'records': return 'Un record va-t-il tomber ce week-end ? Ton avis en commentaire.';

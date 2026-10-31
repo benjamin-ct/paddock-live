@@ -10,7 +10,7 @@ import { appCaptions } from './social-app.js';
 export const DRAFTS_MAX = 30;
 // Une ligne de la base : 2 Mo au plus (photo d'un post écrit à la main comprise)
 export const DRAFT_BYTES = 1500000;
-const MORE = new Set(['prerace', 'champ', 'flash']);
+const MORE = new Set(['prerace', 'champ', 'flash', 'decision']);
 const FMTS = new Set(['ig', 'story', 'x', 'link']);
 const ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;   // crypto.randomUUID()
 const str = (v, max) => (typeof v === 'string' ? v.slice(0, max) : '');
