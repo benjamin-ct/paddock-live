@@ -8,6 +8,8 @@ import { preraceData, champData, flashEvents, flashData, moreCaptions, FLASH_KIN
 import { builtinNomination } from '/shared/tyres.js';
 import { CHAMPIONSHIP, parseSeasons, parseDocumentList, pickEvent } from '/shared/fia-list.js';
 import { gridDocument, parseStartingGrid } from '/shared/fia-grid.js';
+import { parseFiaDoc } from '/shared/stewards.js';
+import { parseDecisionDoc, docDecisions, rcmDecisions, mergeDecisions, decisionData } from '/shared/social-decision.js';
 import { extractArticle } from '/shared/article.js';
 import { recapData, seasonCaptions } from '/shared/social-season.js';
 import { $, $$, esc, api, ago, icon, toggle, toast, glide, state, SIG, NET_NAMES, musicField, bindMusic, clipFile, shareClip } from './ui.js';
@@ -518,9 +520,26 @@ async function fiaGrid(year, meeting, sprint) {
   const grid = parseStartingGrid(await pdfItems(await (await fiaGet(new URL(doc.url).pathname)).arrayBuffer()));
   return grid && { ...grid, title: doc.title };
 }
+// Documents de décision des commissaires d'un Grand Prix (« Decision », « Infringement », « Offence » avec une voiture ;
+// « Infringment » mal écrit compris), lus 6 à la fois : [{ doc, num, p }] (p : null pour un PDF illisible)
+async function fiaDecisions(year, meeting) {
+  const { bySeason, events } = parseSeasons(await (await fiaGet(CHAMPIONSHIP)).text());
+  const event = bySeason[year] && pickEvent(events, meeting);
+  if (!event) return [];
+  const docs = parseDocumentList(await (await fiaGet(`${bySeason[year]}/event/${encodeURIComponent(event)}`)).text())
+    .filter((doc) => /^Doc\s+\d+\s*[-–]\s*(?:Decision|Infring?ement|Offence)\b/i.test(doc.title)).map((doc) => ({ doc, info: parseFiaDoc(doc) }))
+    .filter((x) => x.info.cars.length).slice(0, 40);
+  const out = [];
+  for (let i = 0; i < docs.length; i += 6) {
+    out.push(...await Promise.all(docs.slice(i, i + 6).map(async ({ doc, info }) => ({
+      doc, num: info.num, p: await fiaGet(new URL(doc.url).pathname).then((r) => r.arrayBuffer()).then(pdfItems).then(parseDecisionDoc).catch(() => null),
+    }))));
+  }
+  return out;
+}
 
 // Types de posts d'une séance : résultats, avant-course (grille, météo, pneus), championnat, flash
-const POST_TYPES = [['results', 'Résultats'], ['prerace', 'Avant-course'], ['champ', 'Championnat'], ['flash', 'Flash']];
+const POST_TYPES = [['results', 'Résultats'], ['prerace', 'Avant-course'], ['champ', 'Championnat'], ['flash', 'Flash'], ['decision', 'Décisions']];
 export async function sessionEditor(s, back) {
   const st = await loadState(s.path, undefined, { live: s.live });
   rememberDrivers(st.DriverList);
@@ -533,8 +552,21 @@ export async function sessionEditor(s, back) {
   let ev = events[0] || null;
   let grid;   // grille officielle de la FIA : undefined = pas encore lue
   let gridNote = '';
-  const avail = (k) => k === 'results' || k === 'prerace' || (k === 'champ' && champ) || (k === 'flash' && ev);
-  const data = () => (type === 'prerace' ? preraceData(st, { tyres, grid }) : type === 'champ' ? champ : type === 'flash' ? flashData(st, ev) : results);
+  // Décisions des commissaires : messages de la direction de course, puis documents de la FIA (lus à l'ouverture de
+  // l'onglet) ; motif retouché à la main (par décision) ; votre photo en fond
+  let decs = rcmDecisions(st.RaceControlMessages?.Messages);
+  let dec = decs[0] || null;
+  let decLoaded = false;
+  const motifs = {};
+  const decPhotos = [];
+  const decName = (x) => `${x.penalty.short} · ${x.drivers.map((p) => st.DriverList?.[p.num]?.LastName || p.name || `voiture ${p.num}`).join(', ')}${x.source === 'fia' ? ` · doc. ${x.docs.join(', ')}` : x.lap ? ` · tour ${x.lap}` : ''}`;
+  const decisionPost = () => {
+    const dd = decisionData(st, dec, { motif: dec ? motifs[dec.id] ?? null : null });
+    const [photo] = picked(decPhotos);
+    return photo ? { ...dd, ...photo } : dd;
+  };
+  const avail = (k) => k === 'results' || k === 'prerace' || k === 'decision' || (k === 'champ' && champ) || (k === 'flash' && ev);
+  const data = () => (type === 'prerace' ? preraceData(st, { tyres, grid }) : type === 'champ' ? champ : type === 'flash' ? flashData(st, ev) : type === 'decision' ? decisionPost() : results);
   const typeName = () => POST_TYPES.find(([k]) => k === type)[1];
   const loadGrid = async (redraw) => {
     if (grid !== undefined) return;
@@ -548,6 +580,27 @@ export async function sessionEditor(s, back) {
     if ($('#gridnote')) $('#gridnote').textContent = type === 'prerace' ? gridNote : '';
     if (type === 'prerace') redraw(true);
   };
+  const loadDecisions = async (redraw) => {
+    if (decLoaded) return;
+    decLoaded = true;
+    $('#decnote').textContent = 'Lecture des décisions de la FIA…';
+    let note;
+    try {
+      const fromDocs = docDecisions(await fiaDecisions(Number(String(s.path).slice(0, 4)), { name: meet.Name, country: meet.Country?.Name, location: meet.Location }), st.SessionInfo?.Name);
+      decs = mergeDecisions(fromDocs, decs);
+      note = fromDocs.length ? `${fromDocs.length} décision${fromDocs.length > 1 ? 's' : ''} d'après les documents de la FIA${decs.length > fromDocs.length ? ', les autres d\'après la direction de course' : ''}.` : decs.length ? 'Pas encore de document de la FIA pour cette séance : décisions de la direction de course.' : '';
+    } catch (err) { note = `Documents de la FIA indisponibles (${err.message}) : décisions de la direction de course.`; }
+    // Motifs en texte libre traduits par le serveur (sinon laissés en anglais)
+    const todo = decs.filter((x) => !x.factFr && x.fact);
+    const fr = await toFrench(todo.map((x) => ({ text: x.fact, from: 'en' })));
+    todo.forEach((x, i) => { if (fr[i]) x.factFr = fr[i]; });
+    dec = decs[0] || null;   // la plus récente des documents de la FIA (sinon de la direction de course)
+    $('#decpick').innerHTML = decs.map((x, i) => `<option value="${i}" ${x === dec ? 'selected' : ''}>${esc(decName(x))}</option>`).join('');
+    $('#decpick').disabled = !decs.length;
+    $('#decmotif').value = dec ? motifs[dec.id] ?? (dec.factFr || dec.fact) : '';
+    $('#decnote').textContent = decs.length ? `${note} Motif traduit automatiquement : à relire.` : 'Aucune décision des commissaires pour cette séance.';
+    if (type === 'decision') redraw(true);
+  };
   editor({
     back,
     title: SESSION_FR(s.name),
@@ -555,14 +608,24 @@ export async function sessionEditor(s, back) {
     head: `<div class="seg wide" id="ptype">${POST_TYPES.map(([k, v]) => `<button data-ptype="${k}" class="${k === type ? 'on' : ''}" ${avail(k) ? '' : 'disabled'}>${v}</button>`).join('')}</div>
       <p class="hint" id="gridnote" hidden></p>
       <label class="field" id="flashrow" hidden><span>Moment de la séance</span><select id="flashpick">${events.map((x, i) => `<option value="${i}">${esc(FLASH_KINDS[x.kind].label)} · ${esc(x.title)}${x.lap ? ` · tour ${x.lap}` : ''}</option>`).join('')}</select></label>
+      <div id="decrow" hidden><p class="hint" id="decnote"></p>
+        <label class="field"><span>Décision</span><select id="decpick">${decs.map((x, i) => `<option value="${i}">${esc(decName(x))}</option>`).join('')}</select></label>
+        <label class="field"><span>Motif</span><textarea id="decmotif" rows="3" maxlength="400">${esc(dec ? dec.factFr || dec.fact : '')}</textarea></label>
+        <div class="field"><span>Votre photo en fond <small>(facultatif : la première touchée)</small></span><div class="row">${MINE('d')}<span class="hint" id="dartst"></span></div><div class="photos" id="dartlist"></div></div></div>
       <div id="nospoilrow">${toggle('nospoil', 'Texte sans spoiler', state.noSpoiler, 'Vainqueur absent du début du texte')}</div>`,
     data,
     caps: (dd) => (type === 'results' ? captions(dd, SIG, { spoiler: !state.noSpoiler }) : moreCaptions(dd, SIG)),
     record: () => (type === 'results' ? { key: `session:${s.path}`, kind: 'session', title: `${SESSION_FR(s.name)} · ${results.gp}` }
+      : type === 'decision' ? { key: `decision:${s.path}:${dec?.id || ''}`, kind: 'decision', title: `Décision · ${dec ? decName(dec) : 'aucune'} · ${results.gp}` }
       : { key: `${type}:${s.path}${type === 'flash' ? `:${ev.id}` : ''}`, kind: type, title: `${type === 'flash' ? ev.title : typeName()} · ${results.gp}` }),
     bind: (redraw) => {
       $('#nospoil').onchange = (e) => { state.noSpoiler = e.target.checked; redraw(true); };
       $('#flashpick').onchange = (e) => { ev = events[Number(e.target.value)]; redraw(true); };
+      $('#decpick').onchange = (e) => { dec = decs[Number(e.target.value)] || null; $('#decmotif').value = dec ? motifs[dec.id] ?? (dec.factFr || dec.fact) : ''; redraw(true); };
+      let tm = null;
+      $('#decmotif').oninput = (e) => { if (dec) motifs[dec.id] = e.target.value; clearTimeout(tm); tm = setTimeout(() => redraw(true), 400); };
+      const showDec = photoGrid($('#dartlist'), decPhotos, { frame: () => { const f = FORMATS[state.fmt] || FORMATS.ig; return f.w / f.h; }, onChange: () => redraw(true) });
+      bindMine('d', decPhotos, showDec, () => redraw(true));
       $$('[data-ptype]').forEach((b) => {
         b.onclick = () => {
           type = b.dataset.ptype;
@@ -570,6 +633,8 @@ export async function sessionEditor(s, back) {
           glide();
           $('#flashrow').hidden = type !== 'flash';
           $('#gridnote').hidden = type !== 'prerace';
+          $('#decrow').hidden = type !== 'decision';
+          if (type === 'decision') loadDecisions(redraw);
           if (type === 'prerace') { $('#gridnote').textContent = gridNote; loadGrid(redraw); }
           $('#nospoilrow').hidden = type !== 'results';
           redraw(true);

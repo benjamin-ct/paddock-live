@@ -68,6 +68,9 @@ export const FLASH_KINDS = {
   retire: { label: 'ABANDON', color: '#9aa3b2', emoji: '💥' }, penalty: { label: 'PÉNALITÉ', color: '#f5a524', emoji: '⚠️' },
 };
 
+// Décision des commissaires : emoji de la sanction (textes)
+const DECISION_EMOJI = { warning: '🟡', reprimand: '🟡', fine: '💶', nfa: '✅', deleted: '⏱️', other: '⚠️' };
+
 // Évènements de la séance, du plus récent au plus ancien
 export function flashEvents(state) {
   const d = postData(state);
@@ -133,6 +136,23 @@ export function moreCaptions(d, signature = '') {
     head = `${k.emoji} ${k.label} | ${gpFlag(d)}`;
     body = [d.event.title, d.event.sub].filter(Boolean).join(' — ');
     extra = d.event.driver ? [hashtag(`${d.event.driver.first}${d.event.driver.last}`), teamTag(d.event.driver.team)] : [];
+  } else if (d.post === 'decision' && d.decision) {
+    // Décision des commissaires : sanction et pilotes, motif, points sur la licence, documents de la FIA
+    const k = d.decision;
+    const p = k.penalty;
+    const and = (l) => new Intl.ListFormat('fr', { type: 'conjunction' }).format(l);
+    const what = `${p.short.charAt(0).toUpperCase()}${p.short.slice(1)}${p.kind === 'grid' && p.next ? ' pour la prochaine course' : ''}`;
+    const emoji = DECISION_EMOJI[p.kind] || '🔴';
+    head = `⚖️ DÉCISION DES COMMISSAIRES | ${gpFlag(d)}`;
+    const lines = [`${emoji} ${what} : ${and(d.rows.map((r) => `${r.first} ${r.last}${r.team ? ` (${r.team})` : ''}`))}.`];
+    if (k.motif) lines.push(`📍 ${k.motif.replace(/\.?$/, '')} (${d.label.toLowerCase()}).`);
+    const pts = (k.drivers || []).filter((x) => x.points);
+    if (pts.length) lines.push(`🪪 +${pts[0].points} point${pts[0].points > 1 ? 's' : ''} de pénalité sur la licence${pts.length > 1 ? ' chacun' : ''}${pts.some((x) => x.total) ? ` (${pts.map((x) => `${d.rows.find((r) => r.num === x.num)?.last || `voiture ${x.num}`} : ${x.total} sur 12 mois`).join(', ')})` : ''}.`);
+    if (p.fine && p.kind !== 'fine') lines.push(`💶 Amende de ${p.fine.toLocaleString('fr-FR').replace(/\s/g, '\u00a0')} € pour l'écurie.`);
+    lines.push(k.docs?.length ? `📄 ${k.docs.length > 1 ? 'Documents' : 'Document'} ${and(k.docs.map(String))} de la FIA.` : '📄 D\'après la direction de course.');
+    body = lines.join('\n');
+    bodyX = [`${emoji} ${what} : ${and(d.rows.map((r) => r.last))}.`, ...lines.slice(1, 2)].join('\n');
+    extra = [...d.rows.slice(0, 2).map((r) => hashtag(`${r.first}${r.last}`)), d.rows[0] ? teamTag(d.rows[0].team) : ''];
   }
   const all = fiveTags(['#F1', gpTag(d.gpEn), ...extra]);
   const instagram = `${head}\n\n${body}${sig}\n\n${all.join(' ')}`;
