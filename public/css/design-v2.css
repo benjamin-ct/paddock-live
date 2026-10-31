@@ -513,3 +513,22 @@
 @keyframes v2-wiggle { 0%, 100% { transform: rotate(0) scale(1); } 30% { transform: rotate(-10deg) scale(1.12); } 60% { transform: rotate(7deg) scale(1.08); } }
 @keyframes v2-seg { from { transform: scale(.88); opacity: .6; } to { transform: none; opacity: 1; } }
 @keyframes v2-menu { from { opacity: 0; transform: translateY(-6px) scale(.97); } to { opacity: 1; transform: none; } }
+
+/* ---------- Carte 2D et 3D : boutons sur la vue harmonisés (même hauteur, même verre, même police, pastilles) ---------- */
+:root[data-design="v2"] .map-zoom { border-radius: 14px !important; border: 1px solid var(--v2-rim-2) !important; background: rgba(10, 18, 36, .74) !important; -webkit-backdrop-filter: var(--v2-blur); backdrop-filter: var(--v2-blur); box-shadow: 0 8px 20px -10px rgba(0, 0, 0, .7); }
+:root[data-design="v2"] .map-zoom .icon-btn { width: 32px; height: 30px; border-radius: 10px; color: #fff; }
+:root[data-design="v2"] .map3d-bar { gap: 8px; }
+:root[data-design="v2"] :is(.map3d-cams, .map3d-driver, .map3d-bar .map3d-fly, .map3d-bar .map3d-opts > summary) {
+  height: 36px; box-sizing: border-box; margin: 0; border-radius: 999px !important; border: 1px solid var(--v2-rim-2) !important;
+  background-color: rgba(10, 18, 36, .74) !important; color: #fff !important; font: 700 13px/1 var(--font) !important; letter-spacing: 0;
+  -webkit-backdrop-filter: var(--v2-blur); backdrop-filter: var(--v2-blur); box-shadow: 0 8px 20px -10px rgba(0, 0, 0, .7); }
+:root[data-design="v2"] .map3d-cams { display: flex; align-items: center; gap: 2px; padding: 3px; }
+:root[data-design="v2"] .map3d-cams .btn { height: 28px; padding: 0 12px; border-radius: 999px; border: 0; background: transparent; color: #CBD5E1; font: 700 13px/1 var(--font); }
+:root[data-design="v2"] .map3d-cams .btn:hover { color: #fff; background: rgba(255, 255, 255, .06); }
+:root[data-design="v2"] :is(.map3d-cams .btn, .map3d-bar .map3d-fly).on { background: rgba(255, 255, 255, .16) !important; color: #fff !important; border-color: transparent; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12); }
+:root[data-design="v2"] .map3d-driver { max-width: 200px; padding: 0 30px 0 14px; }
+:root[data-design="v2"] :is(.map3d-bar .map3d-fly, .map3d-bar .map3d-opts > summary) { display: inline-flex; align-items: center; gap: 6px; padding: 0 14px; }
+@media (max-width: 600px) {
+  :root[data-design="v2"] .map3d-cams { gap: 0; max-width: 100%; }
+  :root[data-design="v2"] .map3d-cams .btn { padding: 0 9px; font-size: 12.5px; }
+}
