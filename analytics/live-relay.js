@@ -31,6 +31,7 @@ const RS = '\x1e';
 export const KEEP_MS = 5 * 60e3;   // délai TV possible en ligne
 export const HIST_MS = WEB_HIST_MS; // GPS et télémétrie d'avant le délai (traînées, vitesse des 30 dernières secondes)
 const IDLE_MS = 60e3;              // plus personne : connexion à la F1 fermée au bout d'une minute
+export const LIVE_IDLE_MS = 15 * 60e3;   // pendant une séance : au bout de 15 min (appli quittée, téléphone en veille)
 const MAX_CLIENTS = 1000;
 const MAX_PER_IP = 10;             // relais commun : un seul appelant ne peut pas prendre toutes les places
 const MAX_PER_NET = 30;            // et en IPv6, un bloc /48 (donné gratuitement par certains fournisseurs) pas plus
@@ -329,7 +330,15 @@ export class LiveRelay {
         if (n > 0) this.ips.set(k, n); else this.ips.delete(k);
       }
     }
-    if (!this.clients.size && !this.idle) this.idle = setTimeout(() => this.stop(), IDLE_MS);
+    if (!this.clients.size && !this.idle) this.idle = setTimeout(() => this.stop(), this.idleMs());
+  }
+
+  // Plus personne : délai avant de fermer la connexion à la F1. Pendant une séance, un appareil qui revient
+  // (appli quittée, téléphone en veille) retrouve l'historique au lieu d'attendre tout son délai TV ; sinon une minute
+  idleMs() {
+    let status = this.base?.state?.SessionStatus?.Status;
+    for (const [topic, data] of this.recent) if (topic === 'SessionStatus' && data?.Status) status = data.Status;
+    return this.base?.t && status && !['Ends', 'Finalised'].includes(status) ? LIVE_IDLE_MS : IDLE_MS;
   }
 
   setStatus(patch) {

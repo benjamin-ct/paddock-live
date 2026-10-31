@@ -37,3 +37,14 @@ test('relais web par compte F1 TV : mêmes relais pour toutes les connexions du 
   assert.deepEqual(stranger.got, []);
   assert.deepEqual(phone.got, ['hello', 'up']);
 });
+
+test('relais web : pendant une séance, connexion à la F1 gardée 15 min après le départ du dernier appareil', async () => {
+  const { LIVE_IDLE_MS } = await import('../analytics/live-relay.js');
+  const r = Object.create(LiveRelay.prototype);
+  Object.assign(r, { base: { t: 0, state: {} }, recent: [] });
+  assert.equal(r.idleMs(), 60e3);                                   // relais vide : une minute
+  r.base = { t: 1, state: { SessionStatus: { Status: 'Started' } } };
+  assert.equal(r.idleMs(), LIVE_IDLE_MS);                           // séance en cours (appli quittée, veille)
+  r.recent = [['SessionStatus', { Status: 'Finalised' }, 2]];
+  assert.equal(r.idleMs(), 60e3);                                   // séance terminée : une minute
+});
