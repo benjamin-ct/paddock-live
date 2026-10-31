@@ -134,6 +134,45 @@ test('posts : essais libres (meilleur temps, top 3, faits marquants)', () => {
   assert.match(captions(d, '', { spoiler: false }).x, /^⏱️ Essais libres 2 du Grand Prix d'Italie 🇮🇹 : qui signe le meilleur temps \?/);
 });
 
+test('posts : vitesses de pointe et meilleurs secteurs des essais (ordre, écarts, tour idéal, images, texte alternatif)', async () => {
+  const { slideAlt } = await import('../shared/social-draw.js');
+  const sp = (st, i1) => ({ ST: { Value: st, Position: 0 }, I1: { Value: i1, Position: 0 } });
+  const fp = {
+    ...state,
+    SessionInfo: { ...state.SessionInfo, Type: 'Practice', Name: 'Practice 1' },
+    TimingData: { Lines: { 1: { Position: '1', BestLapTime: { Value: '1:20.100' } }, 16: { Position: '2', TimeDiffToFastest: '+0.250' }, 44: { Position: '3', TimeDiffToFastest: '+1.200' }, 14: { Position: '4' } } },
+    TimingStats: { Lines: {
+      1: { PersonalBestLapTime: { Value: '1:20.300' }, BestSectors: [{ Value: '27.300', Position: 2 }, { Value: '31.000', Position: 1 }, { Value: '21.900', Position: 2 }], BestSpeeds: { ...sp('340', '320'), ST: { Value: '340', Position: 2 } } },
+      16: { PersonalBestLapTime: { Value: '1:20.350' }, BestSectors: [{ Value: '27.200', Position: 1 }, { Value: '31.150', Position: 2 }, { Value: '21.900', Position: 1 }], BestSpeeds: { ...sp('340', '318'), ST: { Value: '340', Position: 1 } } },
+      44: { BestSectors: [{ Value: '27.512', Position: 3 }, { Value: '31.400', Position: 3 }, { Value: '22.000', Position: 3 }], BestSpeeds: sp('336', '322') },
+      14: { BestSectors: [{ Value: '' }, {}, {}], BestSpeeds: { ST: { Value: '' } } },
+    } },
+  };
+  const d = postData(fp);
+  // Piège à vitesse : du plus rapide au plus lent, égalité départagée par la F1, écart au plus rapide ; sans mesure, absent
+  assert.equal(d.speeds.label, 'Piège à vitesse');
+  assert.deepEqual(d.speeds.rows.map((r) => [r.tla, r.kmh, r.diff]), [['LEC', 340, 0], ['NOR', 340, 0], ['HAM', 336, -4]]);
+  // Chaque secteur classé à part ; écarts au meilleur du secteur ; tour idéal = meilleurs secteurs réunis
+  assert.deepEqual(d.sectors.map((l) => l.map((r) => `${r.tla} ${r.time} ${r.gap}`)), [
+    ['LEC 27.200 0', 'NOR 27.300 0.1', 'HAM 27.512 0.312'],
+    ['NOR 31.000 0', 'LEC 31.150 0.15', 'HAM 31.400 0.4'],
+    ['LEC 21.900 0', 'NOR 21.900 0', 'HAM 22.000 0.1'],
+  ]);
+  assert.deepEqual(d.ideal, { time: '1:20.100', gain: 0.2, best: '1:20.300' });
+  assert.deepEqual(slidesFor(d), ['couverture', 'meilleurtemps', 'podium', 'classement', 'vitesses', 'secteurs', 'faits']);
+  assert.equal(slideAlt(d, 'vitesses'), "Vitesses de pointe — Essais libres 1 · Grand Prix d'Italie (piège à vitesse) : 1. Charles Leclerc 340 km/h, 2. Lando Norris 340 km/h, 3. Lewis Hamilton 336 km/h");
+  assert.equal(slideAlt(d, 'secteurs'), "Meilleurs secteurs — Essais libres 1 · Grand Prix d'Italie : secteur 1, Charles Leclerc en 27.200 ; secteur 2, Lando Norris en 31.000 ; secteur 3, Charles Leclerc en 21.900 ; tour idéal 1:20.100");
+  // Sans piège à vitesse : la mesure la plus rapide ; qualifs : mêmes images après le classement
+  const noSt = postData({ ...fp, TimingStats: { Lines: Object.fromEntries(Object.entries(fp.TimingStats.Lines).map(([k, v]) => [k, { ...v, BestSpeeds: { I1: v.BestSpeeds.I1 } }])) } });
+  assert.deepEqual([noSt.speeds.label, noSt.speeds.rows[0].tla, noSt.speeds.rows[0].kmh], ['Intermédiaire 1', 'HAM', 322]);
+  const q = postData({ ...fp, SessionInfo: { ...fp.SessionInfo, Type: 'Qualifying', Name: 'Qualifying' } });
+  assert.deepEqual(slidesFor(q).slice(3, 6), ['classement', 'vitesses', 'secteurs']);
+  // Moins de trois pilotes mesurés, ou course : pas d'image
+  const few = postData({ ...fp, TimingStats: { Lines: { 1: fp.TimingStats.Lines[1], 16: fp.TimingStats.Lines[16] } } });
+  assert.deepEqual([few.speeds, few.sectors, few.ideal], [null, null, null]);
+  assert.equal(postData({ ...fp, SessionInfo: state.SessionInfo }).speeds, null);
+});
+
 test('brouillons : textes refaits d\'après les données, comme dans l\'éditeur qui a fait le post', async () => {
   const { captionsFor, cleanDraft } = await import('../shared/post-draft.js');
   const d = postData(state);

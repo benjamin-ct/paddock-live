@@ -50,12 +50,14 @@ function baseSlides(d, fmt) {
   if (d.post === 'title') return d.drivers.length || d.constructors.length ? ['couverture', ...(d.drivers.length ? ['titrepilotes'] : []), ...(d.constructors.length ? ['titreecuries'] : []), ...(titleBlocks(d).length ? ['titrecomment'] : [])] : [];
   if (d.post === 'recap') return d.items.length ? ['recapcover', ...d.items.map((_, i) => `recap-${i + 1}`)].slice(0, fmt === 'x' ? 4 : undefined) : [];
   if (!d.rows.length) return [];
-  let list = ['meilleurtemps', 'podium', 'classement', ...(d.facts.length ? ['faits'] : [])];
+  // Essais et qualifs : vitesses de pointe et meilleurs secteurs, quand la F1 les a publiés
+  const timing = [...(d.speeds ? ['vitesses'] : []), ...(d.sectors ? ['secteurs'] : [])];
+  let list = ['meilleurtemps', 'podium', 'classement', ...timing, ...(d.facts.length ? ['faits'] : [])];
   const duels = teammateDuels(d).length >= 3 ? ['duels'] : [];
   // Course complète (10 pilotes au moins avec leur place de départ, leurs relais) : grille → arrivée, stratégie
   const data = [...(d.rows.filter((r) => r.grid).length >= 10 ? ['remontees'] : []), ...(d.rows.filter((r) => r.stints?.length).length >= 10 ? ['strategie'] : [])];
   if (d.kind === 'race') list = ['vainqueur', 'podium', 'classement', ...data, ...duels, 'faits', ...(d.champ ? ['championnat'] : [])];
-  else if (d.kind === 'quali') list = ['pole', 'podium', 'classement', ...duels, ...(d.facts.length ? ['faits'] : [])];
+  else if (d.kind === 'quali') list = ['pole', 'podium', 'classement', ...timing, ...duels, ...(d.facts.length ? ['faits'] : [])];
   return ['couverture', ...list];
 }
 // Images choisies par le créateur : toutes, sauf celles écartées (une au moins reste). Passées aux
@@ -93,7 +95,7 @@ export function pointPages(points, fmt = 'ig') {
   for (let k = 0; k < n; k++) { const take = Math.ceil((list.length - i) / (n - k)); pages.push(list.slice(i, i + take)); i += take; }
   return pages;
 }
-export const SLIDE_NAMES = { grille: 'Grille de départ', meteo: 'Météo et pneus', champpilotes: 'Championnat pilotes', champecuries: 'Championnat constructeurs', flash: 'Flash', duels: 'Duels entre coéquipiers', news: 'News', couverture: 'Couverture', vainqueur: 'Vainqueur', pole: 'Pole position', meilleurtemps: 'Meilleur temps', podium: 'Podium', classement: 'Classement', remontees: 'Grille → arrivée', strategie: 'Stratégie des pneus', faits: 'Faits marquants', championnat: 'Championnat', abonnement: 'Abonnez-vous', question: 'Question', essentiel: "L'essentiel", photo: 'Photo', raceweek: 'Race Week', horaires: 'Horaires', infos: 'Pneus et météo', records: 'Records', editions: 'Éditions précédentes', topflop: 'Tops et flops', notes: 'Toutes les notes', equipes: 'Duels par écurie', positions: 'Positions tour par tour', recapcover: 'La semaine', recap: 'Info', titrepilotes: 'Titre pilotes', titreecuries: 'Titre constructeurs', titrecomment: 'Comment être sacré', app: 'Page' };
+export const SLIDE_NAMES = { grille: 'Grille de départ', meteo: 'Météo et pneus', champpilotes: 'Championnat pilotes', champecuries: 'Championnat constructeurs', flash: 'Flash', duels: 'Duels entre coéquipiers', news: 'News', couverture: 'Couverture', vainqueur: 'Vainqueur', pole: 'Pole position', meilleurtemps: 'Meilleur temps', podium: 'Podium', classement: 'Classement', remontees: 'Grille → arrivée', strategie: 'Stratégie des pneus', vitesses: 'Vitesses de pointe', secteurs: 'Meilleurs secteurs', faits: 'Faits marquants', championnat: 'Championnat', abonnement: 'Abonnez-vous', question: 'Question', essentiel: "L'essentiel", photo: 'Photo', raceweek: 'Race Week', horaires: 'Horaires', infos: 'Pneus et météo', records: 'Records', editions: 'Éditions précédentes', topflop: 'Tops et flops', notes: 'Toutes les notes', equipes: 'Duels par écurie', positions: 'Positions tour par tour', recapcover: 'La semaine', recap: 'Info', titrepilotes: 'Titre pilotes', titreecuries: 'Titre constructeurs', titrecomment: 'Comment être sacré', app: 'Page' };
 export const slideName = (s) => SLIDE_NAMES[s] || SLIDE_NAMES[String(s).replace(/-\d+$/, '')] || s;
 // Texte alternatif d'une image publiée (lecteurs d'écran) : ce qu'elle montre, avec le classement s'il y en a un
 const RANKED = { vainqueur: 3, pole: 3, meilleurtemps: 3, podium: 3, classement: 10, grille: 10 };
@@ -102,8 +104,11 @@ export function slideAlt(d, slide) {
   if (d.post === 'app') { const p = d.pages?.[Number(String(slide).slice(4)) - 1] || {}; return [plain(p.title), String(p.text || '').trim()].filter(Boolean).join('. ').slice(0, 500) || name; }
   if (d.news) return `${name} : ${d.title}${d.summary ? `. ${d.summary}` : ''}`.slice(0, 500);
   const what = [d.label, d.gp].filter(Boolean).join(' · ');
+  const full = (r) => [r.first, r.last].filter(Boolean).join(' ');
+  if (slide === 'vitesses' && d.speeds) return `${name} — ${what} (${d.speeds.label.toLowerCase()}) : ${d.speeds.rows.slice(0, 10).map((r, i) => `${i + 1}. ${full(r)} ${r.kmh} km/h`).join(', ')}`.slice(0, 500);
+  if (slide === 'secteurs' && d.sectors) return `${name} — ${what} : ${d.sectors.map((l, i) => `secteur ${i + 1}, ${full(l[0])} en ${l[0].time}`).join(' ; ')}${d.ideal ? ` ; tour idéal ${d.ideal.time}` : ''}`.slice(0, 500);
   const n = RANKED[slide] && d.rows?.[0]?.pos ? RANKED[slide] : 0;
-  const top = n ? ` : ${d.rows.slice(0, n).map((r) => `${r.pos}. ${[r.first, r.last].filter(Boolean).join(' ')}${r.team ? ` (${r.team})` : ''}`).join(', ')}` : '';
+  const top = n ? ` : ${d.rows.slice(0, n).map((r) => `${r.pos}. ${full(r)}${r.team ? ` (${r.team})` : ''}`).join(', ')}` : '';
   return `${name}${what ? ` — ${what}` : ''}${top}`.slice(0, 500);
 }
 
@@ -648,6 +653,129 @@ function strategie(ctx, W, H, d, o) {
     });
     if (r.out) txt(ctx, 'ABANDON', x + 14, cy + fs * 0.3, { size: Math.round(fs * 0.66), weight: 800, family: TITLE, color: C.red, spacing: 1.5 });
   });
+}
+
+// Barre d'un pilote (vitesses, secteurs) : couleur de l'écurie, plus vive vers le bout ; oblique en style « Télé »
+function bar(ctx, x, y, w, h, color, strong) {
+  if (w <= 0) return;
+  const c = vivid(color);
+  const g = ctx.createLinearGradient(x, 0, x + w, 0);
+  g.addColorStop(0, alpha(c, strong ? 0.45 : 0.2)); g.addColorStop(1, alpha(c, strong ? 1 : 0.85));
+  if (tv) slant(ctx, x, y, w, h, Math.min(h * 0.35, w)); else rr(ctx, x, y, w, h, Math.min(h * 0.3, w / 2));
+  ctx.fillStyle = g; ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.22)'; ctx.fillRect(x + (tv ? h * 0.35 : h * 0.3), y, Math.max(0, w - h * 0.6), Math.max(1, h * 0.06));
+}
+// Ligne d'un classement en barres : place, trait de l'écurie, trigramme ; renvoie la ligne de base du texte
+function barRow(ctx, x, cy, fs, i, r, u) {
+  const mid = cy + fs * 0.34;
+  txt(ctx, String(i + 1), x + fs * 0.95, mid, { size: Math.round(fs * 0.8), weight: 800, family: TITLE, color: i < 3 ? MEDAL[i] : C.muted, align: 'right', italic: true });
+  ctx.fillStyle = vivid(r.color);
+  if (tv) slant(ctx, x + fs * 1.25, cy - fs * 0.4, 6 * u, fs * 0.8, 3 * u); else rr(ctx, x + fs * 1.25, cy - fs * 0.4, 5 * u, fs * 0.8, 2 * u);
+  ctx.fill();
+  txt(ctx, r.tla, x + fs * 1.25 + 14 * u, mid, { size: fs, weight: 800, family: TITLE, italic: true });
+  return mid;
+}
+// Largeur du plus long de ces textes (police donnée)
+function widest(ctx, list, font) {
+  ctx.font = font;
+  return Math.max(0, ...list.map((t) => ctx.measureText(t).width));
+}
+// Début des barres : après le plus long trigramme de la liste (penché : un peu de marge)
+const barStart = (ctx, list, x, fs, u) => x + fs * 1.25 + 14 * u + widest(ctx, list.map((r) => r.tla), `800 ${fs}px ${TITLE}`) + fs * 0.4;
+
+// Vitesses de pointe : une barre par pilote, du plus rapide au plus lent ; échelle graduée en km/h qui ne part pas
+// de zéro (sinon 342 et 355 km/h feraient deux barres presque égales)
+function vitesses(ctx, W, H, d, o) {
+  const rows = d.speeds.rows.slice(0, 22);
+  background(ctx, W, H, rows[0].color);
+  const f = frame(ctx, W, H, d, o, 'Vitesses de pointe');
+  const u = Math.min(W, H) / 1080;
+  const right = W - f.pad;
+  txt(ctx, `${d.speeds.label} · meilleure vitesse de chaque pilote, en km/h`.toUpperCase(), f.pad, f.top + 26 * u, { size: Math.round(26 * u), weight: 700, family: TITLE, color: C.muted, spacing: 2, max: W - f.pad * 2 });
+  const top = f.top + 86 * u;
+  const rowH = Math.min((f.bottom - top) / rows.length, 64 * u);
+  const fs = Math.round(Math.min(rowH * 0.72, 38 * u));
+  // Graduations : pas de 1, 2, 5, 10… km/h, 3 à 6 intervalles, la plus basse sous le moins rapide
+  const max = rows[0].kmh; const min = rows.at(-1).kmh;
+  let lo; let hi; let step;
+  for (step of [1, 2, 5, 10, 20, 50]) {
+    lo = Math.floor((min - Math.max(step / 2, (max - min) * 0.25)) / step) * step;
+    hi = Math.ceil(max / step) * step;
+    if ((hi - lo) / step <= 6) break;
+  }
+  // Valeur (km/h) puis écart au plus rapide, à droite des barres
+  const diffs = rows.map((r, i) => (i === 0 ? '' : r.diff ? `−${-r.diff}` : '='));
+  const vx = right - widest(ctx, diffs, `700 ${Math.round(fs * 0.8)}px ${tv ? TITLE : MONO}`) - fs * 0.7;
+  const bx = barStart(ctx, rows, f.pad, fs, u);
+  const bw = vx - widest(ctx, [String(max)], `800 ${fs}px ${TITLE}`) - fs * 1.1 - bx;
+  const X = (v) => bx + ((v - lo) / (hi - lo)) * bw;
+  for (let v = lo; v <= hi; v += step) {
+    ctx.fillStyle = 'rgba(255,255,255,0.1)'; ctx.fillRect(X(v), top - 6 * u, 1.5 * u, f.bottom - top);
+    txt(ctx, String(v), X(v), top - 16 * u, { size: Math.round(22 * u), weight: 700, family: TITLE, color: C.muted, align: 'center' });
+  }
+  txt(ctx, 'ÉCART', right, top - 16 * u, { size: Math.round(22 * u), weight: 700, family: TITLE, color: C.muted, align: 'right', spacing: 1.5 });
+  rows.forEach((r, i) => {
+    const cy = top + (i + 0.5) * rowH;
+    const mid = barRow(ctx, f.pad, cy, fs, i, r, u);
+    const h = Math.min(rowH * 0.62, 40 * u);
+    bar(ctx, bx, cy - h / 2, X(r.kmh) - bx, h, r.color, i === 0);
+    txt(ctx, String(r.kmh), vx, mid, { size: fs, weight: 800, family: TITLE, color: i === 0 ? C.gold : C.text, align: 'right', italic: true });
+    txt(ctx, diffs[i], right, mid, { size: Math.round(fs * 0.8), weight: 700, family: tv ? TITLE : MONO, color: C.muted, align: 'right', italic: tv });
+  });
+}
+
+// Meilleurs secteurs : les trois secteurs côte à côte, pilotes classés dans chacun (barre d'autant plus longue que le
+// secteur est rapide, le plus lent garde un bout), temps du meilleur en or et écarts ; tour idéal en bas
+function secteurs(ctx, W, H, d, o) {
+  background(ctx, W, H, d.sectors[0][0].color);
+  const f = frame(ctx, W, H, d, o, 'Meilleurs secteurs');
+  const u = Math.min(W, H) / 1080;
+  const gap = 24 * u;
+  const cw = (W - f.pad * 2 - gap * 2) / 3;
+  const note = d.ideal ? 96 * u : 0;
+  const top = f.top + 70 * u;
+  const n = Math.min(22, Math.max(...d.sectors.map((l) => l.length)));
+  const rowH = Math.min((f.bottom - note - top) / n, 56 * u);
+  // Corps borné aussi par la largeur de la colonne : les barres gardent un bon tiers de la place
+  const fs = Math.round(Math.min(rowH * 0.72, 32 * u, cw / (tv ? 10.5 : 12)));
+  const num = (v) => `+${v.toFixed(3).replace('.', ',')}`;
+  const fam = tv ? TITLE : MONO;
+  d.sectors.forEach((list, k) => {
+    const x = f.pad + k * (cw + gap);
+    ctx.fillStyle = C.red;
+    if (tv) slant(ctx, x, f.top + 6 * u, 10 * u, 38 * u, 5 * u); else rr(ctx, x, f.top + 6 * u, 8 * u, 38 * u, 3 * u);
+    ctx.fill();
+    txt(ctx, `SECTEUR ${k + 1}`, x + 22 * u, f.top + 38 * u, { size: Math.round(36 * u), weight: 800, family: TITLE, italic: true, max: cw - 30 * u });
+    const span = Math.max(list.at(-1).gap, 0.001);
+    const tx = x + cw - 4 * u;   // temps ou écart, à droite
+    const bx = barStart(ctx, list, x, fs, u);
+    const tw = Math.max(widest(ctx, [list[0].time], `800 ${Math.round(fs * 0.9)}px ${fam}`), widest(ctx, list.slice(1).map((r) => num(r.gap)), `800 ${Math.round(fs * 0.82)}px ${fam}`));
+    const bw = tx - tw - fs * 0.5 - bx;
+    list.slice(0, 22).forEach((r, i) => {
+      const cy = top + (i + 0.5) * rowH;
+      if (i === 0) {   // meilleur temps du secteur : bande dorée derrière la ligne
+        ctx.fillStyle = alpha(C.gold, 0.14);
+        if (tv) slant(ctx, x - 6 * u, cy - rowH * 0.48, cw + 12 * u, rowH * 0.96, 10 * u); else rr(ctx, x - 6 * u, cy - rowH * 0.48, cw + 12 * u, rowH * 0.96, rowH * 0.3);
+        ctx.fill();
+      }
+      const mid = barRow(ctx, x, cy, fs, i, r, u);
+      const h = Math.min(rowH * 0.56, 34 * u);
+      bar(ctx, bx, cy - h / 2, bw * (1 - 0.8 * (r.gap / span)), h, r.color, i === 0);
+      txt(ctx, i === 0 ? r.time : num(r.gap), tx, mid, { size: Math.round(fs * (i === 0 ? 0.9 : 0.82)), weight: 800, family: fam, color: i === 0 ? C.gold : C.text, align: 'right', italic: tv });
+    });
+  });
+  if (!d.ideal) return;
+  // Tour idéal : bande en bas, sur toute la largeur
+  const y = top + n * rowH + 22 * u;
+  const h = note - 22 * u;
+  card(ctx, f.pad, y, W - f.pad * 2, h, tv ? 6 * u : 22 * u, { tint: C.gold, light: true });
+  const pw = pill(ctx, 'TOUR IDÉAL', f.pad + 20 * u, y + (h - 40 * u) / 2, 40 * u, { bg: 'rgba(0,0,0,0.3)', color: C.text, dot: C.gold });
+  const ix = f.pad + 20 * u + pw + 22 * u;
+  const s = txt(ctx, d.ideal.time, ix, y + h / 2 + 17 * u, { size: Math.round(48 * u), weight: 800, family: TITLE, color: C.gold, italic: true });
+  ctx.font = `800 ${s}px ${TITLE}`;
+  const sx = ix + ctx.measureText(d.ideal.time).width + 24 * u;
+  const sub = d.ideal.gain > 0 ? `${d.ideal.gain.toFixed(3).replace('.', ',')} s de mieux que le meilleur tour (${d.ideal.best})` : 'les trois meilleurs secteurs réunis';
+  txt(ctx, sub, sx, y + h / 2 + 11 * u, { size: Math.round(28 * u), weight: 600, color: C.muted, max: W - f.pad - 24 * u - sx });
 }
 
 export function faits(ctx, W, H, d, o, title = 'Faits marquants') {
@@ -1379,6 +1507,8 @@ function paintOne(ctx, slide, fmt, d, o, size) {
   else if (slide === 'classement') (tv ? tvClassement : classement)(ctx, w, h, d, o);
   else if (slide === 'remontees') remontees(ctx, w, h, d, o);
   else if (slide === 'strategie') strategie(ctx, w, h, d, o);
+  else if (slide === 'vitesses' && d.speeds) vitesses(ctx, w, h, d, o);
+  else if (slide === 'secteurs' && d.sectors) secteurs(ctx, w, h, d, o);
   else if (slide === 'faits') faits(ctx, w, h, d, o);
   else if (slide === 'championnat' && d.champ) championnat(ctx, w, h, d, o);
 }
