@@ -283,7 +283,7 @@
 :root[data-design="v2"] .sz-chip { border-radius: 999px; }
 
 /* Cartes des pilotes et pilote en grand : façon appli F1 (dégradé de l'écurie, portrait détouré éclairé, grand numéro en filigrane) */
-:root[data-design="v2"] .sz-drv-strip { gap: 14px; padding: 10px 6px 30px; margin-bottom: -6px; }
+:root[data-design="v2"] .sz-drv-strip { gap: 14px; padding: 16px 10px 30px; margin-bottom: -6px; }   /* place pour la carte soulevée et le halo de la carte choisie */
 :root[data-design="v2"] .sz-drv-card { width: 232px; height: 168px; padding: 14px 16px; border-radius: 22px; isolation: isolate;
   border: 1px solid color-mix(in srgb, var(--tc) 50%, rgba(255, 255, 255, .12));
   background: radial-gradient(circle at 78% 38%, color-mix(in srgb, var(--tc) 85%, #fff 0%), transparent 58%), linear-gradient(155deg, color-mix(in srgb, var(--tc) 78%, #0B1427), color-mix(in srgb, var(--tc) 22%, #050A18) 88%);
@@ -385,3 +385,106 @@
 :root[data-design="v2"][data-scheme="light"] .sz-drv-card :is(.tm, .nm small) { color: rgba(255, 255, 255, .85); }
 :root[data-design="v2"][data-scheme="light"] .sz-drv-card .no { color: transparent; }
 :root[data-design="v2"][data-scheme="light"] .sz-drv-hero .sub { color: #fff; }
+
+/* ---------- Animations Paddock 2 : icônes qui réagissent, boutons et cartes qui suivent la souris, menus qui s'ouvrent en douceur ----------
+   Seulement avec les animations de l'interface (Réglages) et sans « réduire les animations » du système. */
+@media (prefers-reduced-motion: no-preference) {
+  :root[data-design="v2"]:not([data-motion="off"]) { --v2-smooth: cubic-bezier(.22, 1, .36, 1); --v2-spring: cubic-bezier(.34, 1.56, .64, 1); }
+  /* Icônes : chacune a son geste au survol de son bouton (engrenage qui tourne, cloche qui sonne, flèche qui avance…) */
+  :root[data-design="v2"]:not([data-motion="off"]) :is(svg.ic, .rail-btn svg, .mob-nav svg) { transition: transform .45s var(--v2-smooth), color .2s, filter .3s; transform-origin: 50% 50%; }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(button, a, label, .rail-btn):hover :is(svg.ic, .rail-btn svg) { transform: scale(1.08); }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(button, a, label, .rail-btn):hover :is(.i-gear, svg:has(> use[href="#i-gear"])) { transform: rotate(90deg); }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(button, a, label, .rail-btn):hover :is(.i-refresh, svg:has(> use[href="#i-refresh"]), .i-undo, svg:has(> use[href="#i-undo"])) { transform: rotate(-180deg); }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(button, a, label, .rail-btn):hover :is(.i-close, svg:has(> use[href="#i-close"]), .i-plus, svg:has(> use[href="#i-plus"])) { transform: rotate(90deg); }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(button, a, label, .rail-btn):hover :is(.i-arrow-right, svg:has(> use[href="#i-arrow-right"]), .i-chevron-right, svg:has(> use[href="#i-chevron-right"]), .i-skip-next, svg:has(> use[href="#i-skip-next"])) { transform: translateX(3px); }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(button, a, label, .rail-btn):hover :is(.i-arrow-left, svg:has(> use[href="#i-arrow-left"]), .i-skip-start, svg:has(> use[href="#i-skip-start"])) { transform: translateX(-3px); }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(button, a, label, .rail-btn):hover :is(.i-external, svg:has(> use[href="#i-external"])) { transform: translate(2px, -2px); }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(button, a, label, .rail-btn):hover :is(.i-chevron-down, svg:has(> use[href="#i-chevron-down"]), .i-save, svg:has(> use[href="#i-save"])) { transform: translateY(2px); }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(button, a, label, .rail-btn):hover :is(.i-target, svg:has(> use[href="#i-target"]), .i-sliders, svg:has(> use[href="#i-sliders"])) { transform: rotate(45deg); }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(button, a, label, .rail-btn):hover :is(.i-mic, svg:has(> use[href="#i-mic"]), .i-eye, svg:has(> use[href="#i-eye"]), .i-eye-off, svg:has(> use[href="#i-eye-off"]), .i-user, svg:has(> use[href="#i-user"]), .i-phone, svg:has(> use[href="#i-phone"]), .i-video, svg:has(> use[href="#i-video"]), .i-car, svg:has(> use[href="#i-car"]), .i-layout, svg:has(> use[href="#i-layout"]), .i-window, svg:has(> use[href="#i-window"])) { transform: scale(1.14); }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(button, a, label, .rail-btn):hover :is(.i-home, svg:has(> use[href="#i-home"]), .i-news, svg:has(> use[href="#i-news"]), .i-calendar, svg:has(> use[href="#i-calendar"]), .i-stopwatch, svg:has(> use[href="#i-stopwatch"]), .i-checkered, svg:has(> use[href="#i-checkered"]), .i-medal, svg:has(> use[href="#i-medal"])) { transform: translateY(-2px) rotate(-6deg); }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(button, a, label, .rail-btn):hover :is(.i-bell, svg:has(> use[href="#i-bell"])) { animation: v2-ring .7s var(--v2-smooth); }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(button, a, label, .rail-btn):hover :is(.i-trophy, svg:has(> use[href="#i-trophy"]), .i-star, svg:has(> use[href="#i-star"]), .i-megaphone, svg:has(> use[href="#i-megaphone"]), .i-trash, svg:has(> use[href="#i-trash"]), .i-wrench, svg:has(> use[href="#i-wrench"])) { animation: v2-wiggle .6s var(--v2-smooth); }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(button, a, label, .rail-btn):hover :is(.i-bolt, svg:has(> use[href="#i-bolt"]), .i-volume, svg:has(> use[href="#i-volume"]), .i-duel, svg:has(> use[href="#i-duel"]), .i-swap, svg:has(> use[href="#i-swap"])) { animation: v2-pop .5s var(--v2-spring); }
+  /* Barre latérale (icônes dessinées dans la page) : même idée, un geste par rubrique */
+  :root[data-design="v2"]:not([data-motion="off"]) .rail-btn[data-rail="settings"]:hover svg { transform: rotate(90deg); }
+  :root[data-design="v2"]:not([data-motion="off"]) .rail-btn:is([data-rail="reset"], [data-rail="replay"]):hover svg { transform: rotate(-120deg); }
+  :root[data-design="v2"]:not([data-motion="off"]) .rail-btn[data-rail="scheme"]:hover svg { transform: rotate(180deg); }
+  :root[data-design="v2"]:not([data-motion="off"]) .rail-btn:is([data-rail="home"], [data-rail="news"], [data-rail="summary"]):hover svg { transform: translateY(-2px) rotate(-6deg); }
+  :root[data-design="v2"]:not([data-motion="off"]) .rail-btn:is([data-rail="season"], [data-rail="results"]):hover svg { animation: v2-wiggle .6s var(--v2-smooth); }
+  :root[data-design="v2"]:not([data-motion="off"]) .rail-btn:is([data-rail="live"], [data-rail="radio"], [data-rail="mini"]):hover svg { transform: scale(1.15); }
+  :root[data-design="v2"]:not([data-motion="off"]) .rail-btn:hover svg { filter: drop-shadow(0 0 6px rgba(147, 197, 253, .45)); }
+  /* Rubrique choisie (barre latérale, barre du bas du téléphone) : l'icône rebondit et s'allume */
+  :root[data-design="v2"]:not([data-motion="off"]) :is(.rail-btn.on, .mob-nav .active) svg { animation: v2-pop .5s var(--v2-spring); filter: drop-shadow(0 0 8px rgba(255, 42, 31, .55)); }
+  :root[data-design="v2"]:not([data-motion="off"]) .mob-nav button { transition: transform .3s var(--v2-spring), background-color .25s, color .2s; }
+  :root[data-design="v2"]:not([data-motion="off"]) .mob-nav button:active { transform: scale(.9); }
+  /* Boutons : se soulèvent un peu au survol, ombre douce ; onglets segmentés : la pastille choisie glisse en place */
+  :root[data-design="v2"]:not([data-motion="off"]) .btn { transition: transform .3s var(--v2-smooth), box-shadow .3s, background-color .2s, border-color .2s, color .2s; }
+  :root[data-design="v2"]:not([data-motion="off"]) .btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 8px 20px -10px rgba(0, 0, 0, .6); }
+  :root[data-design="v2"]:not([data-motion="off"]) .btn:active:not(:disabled) { transform: scale(.96); transition-duration: .1s; }
+  :root[data-design="v2"]:not([data-motion="off"]) .tab-seg button { transition: background-color .3s var(--v2-smooth), color .2s, box-shadow .3s; }
+  :root[data-design="v2"]:not([data-motion="off"]) .tab-seg button.on { animation: v2-seg .35s var(--v2-smooth); }
+  /* Menus et listes déroulantes : s'ouvrent en glissant, avec un léger zoom */
+  :root[data-design="v2"]:not([data-motion="off"]) :is(.lpop-menu, .csel-pop, .map-layers-menu, .tb-pop) { animation: v2-menu .24s var(--v2-smooth); transform-origin: top center; }
+  /* Panneaux et cartes : le filet s'éclaire au survol */
+  :root[data-design="v2"]:not([data-motion="off"]) :is(.panel, .hm-card, .sz-box, .cal-day) { transition: border-color .35s, box-shadow .35s, transform .35s var(--v2-smooth); }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(.panel, .sz-box):hover { border-color: var(--v2-rim-2) !important; }
+  :root[data-design="v2"]:not([data-motion="off"]) .hm-card:not(.hm-next, .hm-live):hover { transform: translateY(-2px); box-shadow: var(--v2-shadow), 0 16px 40px -20px rgba(37, 99, 235, .45); }
+  /* Raccourcis de l'accueil : l'icône saute, la lueur de couleur glisse dans la carte */
+  :root[data-design="v2"]:not([data-motion="off"]) .hm-go button { transition: transform .35s var(--v2-smooth), border-color .3s, box-shadow .35s; }
+  :root[data-design="v2"]:not([data-motion="off"]) .hm-go button .ic { transition: transform .45s var(--v2-spring), box-shadow .3s; }
+  :root[data-design="v2"]:not([data-motion="off"]) .hm-go button:hover .ic { transform: translateY(-3px) rotate(-8deg) scale(1.1); box-shadow: 0 8px 22px -6px var(--acc); }
+  :root[data-design="v2"]:not([data-motion="off"]) .hm-go button::before { transition: transform .7s var(--v2-smooth), opacity .4s; }
+  :root[data-design="v2"]:not([data-motion="off"]) .hm-go button:hover::before { transform: translate(-18px, 18px) scale(1.25); }
+  :root[data-design="v2"]:not([data-motion="off"]) .hm-go button:hover { box-shadow: var(--v2-shadow), 0 18px 40px -22px var(--acc); }
+  /* Classement : la ligne survolée s'éclaire en douceur, le logo de l'écurie grossit un peu */
+  :root[data-design="v2"]:not([data-motion="off"]) :is(.tower, .sz-table) tbody tr { transition: background-color .25s; }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(.tower, .sz-table) .team-logo { transition: transform .35s var(--v2-spring); }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(.tower, .sz-table) tbody tr:hover .team-logo { transform: scale(1.12); }
+  /* Pilotes de la Saison : le portrait avance un peu au survol */
+  /* Cartes des pilotes et des écuries (Saison) : arrivée en cascade, la carte se soulève au survol avec une lueur
+     aux couleurs de l'écurie, un filet de lumière tourne en continu autour du bord (plus vif au survol et sur la carte choisie, qui « respire ») */
+  :root[data-design="v2"]:not([data-motion="off"]) :is(.sz-drv-card, .sz-team-card) { transition: transform .45s var(--v2-smooth), box-shadow .45s var(--v2-smooth); }
+  /* Survol seulement avec une souris : sur le téléphone, la carte touchée restait soulevée et dépassait en haut */
+  @media (hover: hover) { :root[data-design="v2"]:not([data-motion="off"]) :is(.sz-drv-card, .sz-team-card):hover { transform: translateY(-6px) scale(1.02); box-shadow: 0 26px 50px -18px color-mix(in srgb, var(--tc) 85%, transparent), 0 0 0 1px color-mix(in srgb, var(--tc) 55%, transparent); } }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(.sz-drv-card, .sz-team-card, .sz-drv-hero)::before { content: ''; position: absolute; inset: 0; z-index: 3; border-radius: inherit; padding: 3px; pointer-events: none;
+    background: conic-gradient(from var(--v2-a), transparent 0 46%, color-mix(in srgb, var(--tc) 55%, #fff) 64%, #fff 76%, color-mix(in srgb, var(--tc) 55%, #fff) 86%, transparent 96%);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+    opacity: .75; transition: opacity .4s; animation: v2-spin 4s linear infinite; }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(.sz-drv-card, .sz-team-card):is(:hover, :focus-visible, .on)::before, :root[data-design="v2"]:not([data-motion="off"]) .sz-drv-hero::before { opacity: 1; }
+  /* Départs décalés : les filets ne tournent pas tous ensemble */
+  :root[data-design="v2"]:not([data-motion="off"]) :is(.sz-drv-card, .sz-team-card):nth-child(3n+2)::before { animation-delay: -1.3s; }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(.sz-drv-card, .sz-team-card):nth-child(3n)::before { animation-delay: -2.6s; }
+  :root[data-design="v2"]:not([data-motion="off"]) .sz-drv-card.on { animation: v2-breathe 2.6s ease-in-out infinite; }
+  :root[data-design="v2"]:not([data-motion="off"]) .sz-drv-card img { transition: transform .5s var(--v2-smooth), filter .5s; }
+  :root[data-design="v2"]:not([data-motion="off"]) .sz-drv-card:hover img { transform: translateX(-6px) scale(1.06); filter: drop-shadow(0 14px 22px rgba(0, 0, 0, .5)) brightness(1.06); }
+  :root[data-design="v2"]:not([data-motion="off"]) .sz-drv-card .no { transition: text-shadow .4s, -webkit-text-stroke-color .4s; }
+  :root[data-design="v2"]:not([data-motion="off"]) .sz-drv-card:hover .no { text-shadow: 0 0 24px color-mix(in srgb, var(--tc) 90%, #fff); }
+  :root[data-design="v2"]:not([data-motion="off"]) .sz-main.sz-anim:not(.sz-again) :is(.sz-drv-strip, .sz-team-grid) > * { animation: v2-card-in .55s var(--v2-smooth) both; }
+  :root[data-design="v2"]:not([data-motion="off"]) .sz-main.sz-anim:not(.sz-again) :is(.sz-drv-strip, .sz-team-grid) > :nth-child(2) { animation-delay: 0.04s; }
+  :root[data-design="v2"]:not([data-motion="off"]) .sz-main.sz-anim:not(.sz-again) :is(.sz-drv-strip, .sz-team-grid) > :nth-child(3) { animation-delay: 0.08s; }
+  :root[data-design="v2"]:not([data-motion="off"]) .sz-main.sz-anim:not(.sz-again) :is(.sz-drv-strip, .sz-team-grid) > :nth-child(4) { animation-delay: 0.12s; }
+  :root[data-design="v2"]:not([data-motion="off"]) .sz-main.sz-anim:not(.sz-again) :is(.sz-drv-strip, .sz-team-grid) > :nth-child(5) { animation-delay: 0.16s; }
+  :root[data-design="v2"]:not([data-motion="off"]) .sz-main.sz-anim:not(.sz-again) :is(.sz-drv-strip, .sz-team-grid) > :nth-child(6) { animation-delay: 0.20s; }
+  :root[data-design="v2"]:not([data-motion="off"]) .sz-main.sz-anim:not(.sz-again) :is(.sz-drv-strip, .sz-team-grid) > :nth-child(7) { animation-delay: 0.24s; }
+  :root[data-design="v2"]:not([data-motion="off"]) .sz-main.sz-anim:not(.sz-again) :is(.sz-drv-strip, .sz-team-grid) > :nth-child(8) { animation-delay: 0.28s; }
+  :root[data-design="v2"]:not([data-motion="off"]) .sz-main.sz-anim:not(.sz-again) :is(.sz-drv-strip, .sz-team-grid) > :nth-child(n+9) { animation-delay: .32s; }
+  /* Pilote en grand : le portrait glisse en place, le grand numéro arrive derrière */
+  :root[data-design="v2"]:not([data-motion="off"]) .sz-drv-hero img { animation: v2-hero-img .75s var(--v2-smooth) both; }
+  :root[data-design="v2"]:not([data-motion="off"]) .sz-drv-hero .no { animation: v2-hero-no .9s var(--v2-smooth) both; }
+  :root[data-design="v2"]:not([data-motion="off"]) .sz-drv-hero .txt > * { animation: rise-in .5s var(--v2-smooth) both; }
+  :root[data-design="v2"]:not([data-motion="off"]) .sz-drv-hero .txt > :nth-child(2) { animation-delay: .06s; }
+  :root[data-design="v2"]:not([data-motion="off"]) .sz-drv-hero .txt > :nth-child(n+3) { animation-delay: .12s; }
+}
+@property --v2-a { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
+@keyframes v2-spin { to { --v2-a: 360deg; } }
+@keyframes v2-breathe { 0%, 100% { box-shadow: 0 0 0 2px #fff, 0 0 0 5px color-mix(in srgb, var(--tc) 60%, transparent), 0 20px 44px -14px color-mix(in srgb, var(--tc) 90%, transparent); }
+  50% { box-shadow: 0 0 0 2px #fff, 0 0 0 8px color-mix(in srgb, var(--tc) 35%, transparent), 0 24px 56px -12px color-mix(in srgb, var(--tc) 100%, transparent); } }
+@keyframes v2-card-in { from { opacity: 0; transform: translateY(18px) scale(.96); } to { opacity: 1; transform: none; } }
+@keyframes v2-hero-img { from { opacity: 0; transform: translateX(40px) scale(.96); } to { opacity: 1; transform: none; } }
+@keyframes v2-hero-no { from { opacity: 0; transform: translate(60px, -50%); } to { opacity: 1; transform: translateY(-50%); } }
+@keyframes v2-pop { 0% { transform: scale(.7); } 55% { transform: scale(1.15); } 100% { transform: scale(1); } }
+@keyframes v2-ring { 0%, 100% { transform: rotate(0); } 20% { transform: rotate(16deg); } 40% { transform: rotate(-13deg); } 60% { transform: rotate(8deg); } 80% { transform: rotate(-4deg); } }
+@keyframes v2-wiggle { 0%, 100% { transform: rotate(0) scale(1); } 30% { transform: rotate(-10deg) scale(1.12); } 60% { transform: rotate(7deg) scale(1.08); } }
+@keyframes v2-seg { from { transform: scale(.88); opacity: .6; } to { transform: none; opacity: 1; } }
+@keyframes v2-menu { from { opacity: 0; transform: translateY(-6px) scale(.97); } to { opacity: 1; transform: none; } }

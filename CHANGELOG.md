@@ -12,6 +12,17 @@ l'application (Réglages → À propos → Nouveautés).
   aux couleurs des écuries derrière les portraits et les logos, et sur l'accueil le tracé lumineux du circuit derrière
   la prochaine séance. Sur téléphone, la barre du bas flotte en verre. Il marche en mode sombre comme en clair.
   Broadcast (façon TV) et Classique restent au choix dans Réglages → Apparence → Design.
+- Compte à rebours de la Saison plus fluide : chaque chiffre roule en douceur, l'ancien descend pendant que le
+  nouveau arrive d'en haut.
+- Animations partout dans Paddock 2 : chaque icône a son geste au survol (l'engrenage des Réglages tourne, la cloche
+  sonne, le trophée de la Saison bouge, les flèches avancent), la rubrique choisie rebondit et s'allume, les boutons se
+  soulèvent, les menus s'ouvrent en glissant, les cartes et les raccourcis de l'accueil réagissent à la souris. Elles
+  se coupent avec « Animations de l'interface » (Réglages) ou le réglage « réduire les animations » du système.
+- Cartes des pilotes et des écuries (Saison) : elles arrivent en cascade, se soulèvent au survol avec une lueur aux
+  couleurs de l'écurie, et un filet de lumière tourne en continu autour de chaque carte (plus vif au survol) ; la
+  carte du pilote choisi « respire ».
+  Pilote en grand : le filet tourne aussi autour de la carte, le portrait glisse en place et le grand numéro arrive
+  derrière.
 
 ### Langues
 - Paddock Live parle aussi italien et espagnol : Italiano et Español dans Réglages → Apparence, et à la première
