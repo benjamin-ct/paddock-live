@@ -1112,11 +1112,12 @@ function tick() {
   const ms = Math.max(0, Date.parse(el.dataset.t) - Date.now());
   const d = Math.floor(ms / 86400000), h = Math.floor(ms / 3600000) % 24, m = Math.floor(ms / 60000) % 60, s = Math.floor(ms / 1000) % 60;
   const p = (v) => String(v).padStart(2, '0');
-  // Chiffre qui vient de changer : marqué pour descendre en place (chiffre par chiffre, 45 → 44 : seul le 5 bouge)
+  // Chiffre qui vient de changer : l'ancien descend et s'efface pendant que le nouveau arrive d'en haut, comme un
+  // compteur qui roule (chiffre par chiffre, 45 → 44 : seul le 5 bouge)
   const before = (el.dataset.v || '').split(',');
   const now = [d, h, m, s].map(p);
   el.dataset.v = now.join(',');
-  const digits = (v, old) => [...v].map((c, k) => `<i${old !== undefined && old.length === v.length && old[k] !== c ? ' class="chg"' : ''}>${c}</i>`).join('');
+  const digits = (v, old) => [...v].map((c, k) => (old !== undefined && old.length === v.length && old[k] !== c ? `<i class="chg"><em class="o">${old[k]}</em><em>${c}</em></i>` : `<i>${c}</i>`)).join('');
   el.innerHTML = [[d, 'jours'], [h, 'h'], [m, 'min'], [s, 's']].map(([, l], i) => `<span><b>${digits(now[i], before.length === 4 ? before[i] : undefined)}</b><small>${l}</small></span>`).join('');
 }
 

@@ -1117,6 +1117,8 @@ body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-selec
 .sz-countdown span { display: flex; flex-direction: column; }
 .sz-countdown b { font-size: 34px; font-weight: 900; line-height: 1; font-variant-numeric: tabular-nums; }
 .sz-countdown b i { display: inline-block; font-style: normal; }   /* un chiffre par case (animé seul quand il change) */
+.sz-countdown b em { font-style: inherit; }
+.sz-countdown b em.o { display: none; }   /* ancien chiffre : seulement pendant l'animation */
 .sz-countdown small { font-size: 11px; text-transform: uppercase; opacity: .8; letter-spacing: .5px; }
 .sz-when { opacity: .85; }
 .sz-progress { height: 6px; background: var(--panel-3); border-radius: 3px; overflow: hidden; margin: 4px 0; }
@@ -2733,7 +2735,11 @@ kbd .ic { width: 12px; height: 12px; opacity: 1; }
   :root:not([data-motion="off"]) .hm-main.hm-anim > :nth-child(4) { animation-delay: .15s; }
   :root:not([data-motion="off"]) .hm-main.hm-anim > :nth-child(n+5) { animation-delay: .2s; }
   /* Comptes à rebours : le chiffre qui change descend en place */
-  :root:not([data-motion="off"]) .sz-countdown b i.chg { animation: digit-in .35s var(--ease-out); }
+  /* Compte à rebours : chiffre qui roule (l'ancien sort par le bas, le nouveau entre par le haut), fondu sur les bords */
+  :root:not([data-motion="off"]) .sz-countdown b { padding: .15em 0; margin: -.15em 0; -webkit-mask-image: linear-gradient(transparent, #000 11%, #000 89%, transparent); mask-image: linear-gradient(transparent, #000 11%, #000 89%, transparent); }
+  :root:not([data-motion="off"]) .sz-countdown b i.chg { position: relative; }
+  :root:not([data-motion="off"]) .sz-countdown b i.chg em { display: inline-block; animation: digit-in .6s cubic-bezier(.22, 1, .36, 1) both; }
+  :root:not([data-motion="off"]) .sz-countdown b i.chg em.o { position: absolute; left: 0; top: 0; animation-name: digit-out; }
   /* Téléphone : le panneau choisi dans la bande du haut glisse en place */
   :root:not([data-motion="off"]) .grid.mobile .panel.mob-in { animation: view-in .26s var(--ease-out); }
   /* Boutons principaux : reflet qui balaie le bouton au survol */
@@ -2758,7 +2764,8 @@ kbd .ic { width: 12px; height: 12px; opacity: 1; }
 @keyframes grow-y { from { transform: scaleY(0); } to { transform: none; } }
 @keyframes pod-in { from { opacity: 0; transform: translateY(22px) scale(.95); } to { opacity: 1; transform: none; } }
 @keyframes sheen { to { transform: translateX(100%); } }
-@keyframes digit-in { from { opacity: 0; transform: translateY(-45%); } to { opacity: 1; transform: none; } }
+@keyframes digit-in { from { opacity: 0; transform: translateY(-75%); } to { opacity: 1; transform: none; } }
+@keyframes digit-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(75%); } }
 
 /* =====================================================================================
    Pitwall clair : mêmes formes, fond gris très clair, panneaux blancs, couleurs de

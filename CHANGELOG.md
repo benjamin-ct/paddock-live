@@ -12,6 +12,8 @@ l'application (Réglages → À propos → Nouveautés).
   aux couleurs des écuries derrière les portraits et les logos, et sur l'accueil le tracé lumineux du circuit derrière
   la prochaine séance. Sur téléphone, la barre du bas flotte en verre. Il marche en mode sombre comme en clair.
   Broadcast (façon TV) et Classique restent au choix dans Réglages → Apparence → Design.
+- Compte à rebours de la Saison plus fluide : chaque chiffre roule en douceur, l'ancien descend pendant que le
+  nouveau arrive d'en haut.
 
 ### Langues
 - Paddock Live parle aussi italien et espagnol : Italiano et Español dans Réglages → Apparence, et à la première
