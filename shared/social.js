@@ -12,6 +12,11 @@ const RACE_PTS = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
 const SPRINT_PTS = [8, 7, 6, 5, 4, 3, 2, 1];
 const COMP = { SOFT: 'Tendres', MEDIUM: 'Médiums', HARD: 'Durs', INTERMEDIATE: 'Intermédiaires', WET: 'Pluie' };
 const dec = (v) => String(v).replace('.', ',');
+// Points de mesure de la vitesse (TimingStats.BestSpeeds)
+const SPEED_TRAP = { ST: 'Piège à vitesse', I1: 'Intermédiaire 1', I2: 'Intermédiaire 2', FL: "Ligne d'arrivée" };
+// « 1:17.827 » ou « 27.112 » -> secondes (NaN sinon), et l'inverse
+const lapSeconds = (v) => { const m = /^(?:(\d+):)?(\d+(?:\.\d+)?)$/.exec(String(v ?? '').trim()); return m ? (Number(m[1]) || 0) * 60 + Number(m[2]) : NaN; };
+const lapText = (s) => `${Math.floor(s / 60)}:${(s % 60).toFixed(3).padStart(6, '0')}`;
 
 // « +7.335 » -> « +7,335 s », « 1L » -> « +1 tour »
 export function gapFr(v) {
@@ -145,6 +150,29 @@ export function postData(state, { laps = null } = {}) {
     if (best && rows.slice(1).some((r) => diff(r) > 0)) facts.push({ label: 'Dans la seconde', value: `${close} pilote${close > 1 ? 's' : ''}`, sub: 'à moins d\'1 s du meilleur temps' });
   }
 
+  // Essais et qualifs : vitesses de pointe (piège à vitesse, sinon la mesure la plus rapide) et meilleurs secteurs de
+  // chaque pilote, du plus rapide au plus lent (à égalité, l'ordre de la F1) ; visuels « Vitesses de pointe » et
+  // « Meilleurs secteurs », seulement si trois pilotes au moins ont une mesure
+  let speeds = null; let sectors = null; let ideal = null;
+  if (kind !== 'race') {
+    const who = (r) => ({ num: r.num, tla: r.tla, first: r.first, last: r.last, team: r.team, color: r.color });
+    const trap = (k) => rows.map((r) => ({ r, v: Number(stats[r.num]?.BestSpeeds?.[k]?.Value), p: Number(stats[r.num]?.BestSpeeds?.[k]?.Position) || 99 }))
+      .filter((x) => x.v > 0).sort((a, b) => b.v - a.v || a.p - b.p);
+    const traps = ['ST', 'I1', 'I2', 'FL'].map((k) => [k, trap(k)]).filter(([, l]) => l.length >= 3);
+    const [key, top] = traps.find(([k]) => k === 'ST') || traps.sort((a, b) => b[1][0].v - a[1][0].v)[0] || [];
+    if (top) speeds = { key, label: SPEED_TRAP[key], rows: top.map(({ r, v }) => ({ ...who(r), kmh: v, diff: v - top[0].v })) };
+    const sec = [0, 1, 2].map((i) => rows.map((r) => ({ r, s: lapSeconds(stats[r.num]?.BestSectors?.[i]?.Value), p: Number(stats[r.num]?.BestSectors?.[i]?.Position) || 99 }))
+      .filter((x) => x.s > 0).sort((a, b) => a.s - b.s || a.p - b.p)
+      .map(({ r, s }, _, l) => ({ ...who(r), time: String(stats[r.num].BestSectors[i].Value), gap: Math.round((s - l[0].s) * 1000) / 1000 })));
+    if (sec.every((l) => l.length >= 3)) {
+      sectors = sec;
+      // Tour idéal : les trois meilleurs secteurs réunis, comparé au meilleur tour de la séance
+      const sum = sec.reduce((n, l) => n + lapSeconds(l[0].time), 0);
+      const best = Math.min(...Object.values(stats).map((x) => lapSeconds(x?.PersonalBestLapTime?.Value)).filter((v) => v > 0));
+      ideal = { time: lapText(sum), gain: Number.isFinite(best) ? Math.round((best - sum) * 1000) / 1000 : null, best: Number.isFinite(best) ? lapText(best) : '' };
+    }
+  }
+
   // Championnat projeté (publié par la F1 pendant les courses et les sprints)
   let champ = null;
   const cp = state?.ChampionshipPrediction;
@@ -166,7 +194,7 @@ export function postData(state, { laps = null } = {}) {
     date: start && !Number.isNaN(start.getTime()) ? start.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }) : '',
     year: start && !Number.isNaN(start.getTime()) ? start.getFullYear() : '',
     laps: state?.LapCount?.TotalLaps || null,
-    rows, facts, champ, summary: buildSummary(state, { lang: 'fr' }),
+    rows, facts, champ, speeds, sectors, ideal, summary: buildSummary(state, { lang: 'fr' }),
   };
 }
 
