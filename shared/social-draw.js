@@ -660,9 +660,11 @@ function bar(ctx, x, y, w, h, color, strong) {
   if (w <= 0) return;
   const c = vivid(color);
   const g = ctx.createLinearGradient(x, 0, x + w, 0);
-  g.addColorStop(0, alpha(c, strong ? 0.45 : 0.2)); g.addColorStop(1, alpha(c, strong ? 1 : 0.85));
+  g.addColorStop(0, alpha(c, strong ? 0.75 : 0.6)); g.addColorStop(1, alpha(c, 1));
   if (tv) slant(ctx, x, y, w, h, Math.min(h * 0.35, w)); else rr(ctx, x, y, w, h, Math.min(h * 0.3, w / 2));
   ctx.fillStyle = g; ctx.fill();
+  // Liseré clair : la barre se détache même d'un fond de la même couleur (écurie du premier) ou d'une écurie sombre
+  ctx.strokeStyle = 'rgba(255,255,255,0.32)'; ctx.lineWidth = Math.max(1, h * 0.06); ctx.stroke();
   ctx.fillStyle = 'rgba(255,255,255,0.22)'; ctx.fillRect(x + (tv ? h * 0.35 : h * 0.3), y, Math.max(0, w - h * 0.6), Math.max(1, h * 0.06));
 }
 // Ligne d'un classement en barres : place, trait de l'écurie, trigramme ; renvoie la ligne de base du texte
@@ -674,6 +676,11 @@ function barRow(ctx, x, cy, fs, i, r, u) {
   ctx.fill();
   txt(ctx, r.tla, x + fs * 1.25 + 14 * u, mid, { size: fs, weight: 800, family: TITLE, italic: true });
   return mid;
+}
+// Fond sombre sous un graphique en barres : le fond du visuel (teinté de la couleur du premier) ne se mélange pas aux barres
+function chartPanel(ctx, x, y, w, h, u) {
+  if (tv) slant(ctx, x, y, w, h, 14 * u); else rr(ctx, x, y, w, h, 18 * u);
+  ctx.fillStyle = 'rgba(4,8,16,0.62)'; ctx.fill();
 }
 // Largeur du plus long de ces textes (police donnée)
 function widest(ctx, list, font) {
@@ -709,6 +716,7 @@ function vitesses(ctx, W, H, d, o) {
   const bx = barStart(ctx, rows, f.pad, fs, u);
   const bw = vx - widest(ctx, [String(max)], `800 ${fs}px ${TITLE}`) - fs * 1.1 - bx;
   const X = (v) => bx + ((v - lo) / (hi - lo)) * bw;
+  chartPanel(ctx, f.pad - 16 * u, top - 50 * u, W - f.pad * 2 + 32 * u, f.bottom - top + 58 * u, u);
   for (let v = lo; v <= hi; v += step) {
     ctx.fillStyle = 'rgba(255,255,255,0.1)'; ctx.fillRect(X(v), top - 6 * u, 1.5 * u, f.bottom - top);
     txt(ctx, String(v), X(v), top - 16 * u, { size: Math.round(22 * u), weight: 700, family: TITLE, color: C.muted, align: 'center' });
@@ -740,6 +748,7 @@ function secteurs(ctx, W, H, d, o) {
   const fs = Math.round(Math.min(rowH * 0.72, 32 * u, cw / (tv ? 10.5 : 12)));
   const num = (v) => `+${v.toFixed(3).replace('.', ',')}`;
   const fam = tv ? TITLE : MONO;
+  chartPanel(ctx, f.pad - 16 * u, top - rowH * 0.7, W - f.pad * 2 + 32 * u, n * rowH + rowH * 0.9, u);
   d.sectors.forEach((list, k) => {
     const x = f.pad + k * (cw + gap);
     ctx.fillStyle = C.red;
