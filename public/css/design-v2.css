@@ -201,7 +201,11 @@
 /* ---------- Radios : avatars arrondis éclairés ---------- */
 :root[data-design="v2"] :is(.rd-card, .rd-line) { border-radius: 16px !important; background: rgba(255, 255, 255, .035); border-color: var(--v2-rim) !important; }
 :root[data-design="v2"] .rd-av { border-radius: 14px !important; overflow: hidden; background: radial-gradient(circle at 50% 30%, color-mix(in srgb, var(--tc) 70%, #0B1427), #070D1C) !important; box-shadow: inset 0 -3px var(--tc), 0 0 16px color-mix(in srgb, var(--tc) 45%, transparent) !important; }
-:root[data-design="v2"] .rd-av img { border-radius: 0 !important; }
+:root[data-design="v2"] .rd-av img { border-radius: 14px 14px 0 0 !important; }
+/* Pastille du micro bien visible : elle dépasse du portrait (plus coupée par ses coins arrondis) */
+:root[data-design="v2"] .rd-av { overflow: visible !important; }
+:root[data-design="v2"] .rd-mic { z-index: 2; right: -7px; bottom: -6px; width: 22px; height: 22px; border-radius: 8px; border: 2px solid #0B1427; box-shadow: 0 4px 10px rgba(0, 0, 0, .45); }
+:root[data-design="v2"] .rd-mic .ic { width: 11px; height: 11px; }
 :root[data-design="v2"] .rd-l-main::after { background: #ff3b30; }
 
 /* ---------- Arrêts, écarts : grands chiffres condensés ---------- */
