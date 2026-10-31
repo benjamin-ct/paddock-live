@@ -64,7 +64,9 @@ test('posts : légendes Instagram et X', () => {
   assert.ok(c.x.length <= 280);
   assert.ok(c.threads.length <= 500);
   assert.match(c.threads, /^🏆 Lando Norris remporte/);
-  assert.match(c.x, /^🏆 NORRIS remporte le Grand Prix d'Italie 🇮🇹 !\n🥈 Leclerc · 🥉 Hamilton\n/);
+  // X : vainqueur et écurie, poursuivants avec leur écart, un fait marquant, en laissant la place de « fait par IA »
+  assert.match(c.x, /^🏆 Lando NORRIS \(McLaren\) remporte le Grand Prix d'Italie 🇮🇹 !\n\n🥈 Leclerc \(Ferrari\) \+2,5 s\n🥉 Hamilton \(Ferrari\) \+8,123 s\n\n⏱️ Meilleur tour : /);
+  assert.ok(c.x.length <= 280 - 46);
 });
 
 test('posts : qualifications', () => {
@@ -104,7 +106,7 @@ test('posts : texte sans spoiler (début de légende et texte court sans le vain
   for (const k of ['x', 'threads', 'story']) assert.ok(!c[k].includes('Verstappen'), k);
   assert.ok(c.x.length <= 280 && c.threads.length <= 500);
   // Par défaut : comme avant
-  assert.match(captions(d, '').x, /^🏆 VERSTAPPEN remporte/);
+  assert.match(captions(d, '').x, /^🏆 Max VERSTAPPEN \(Red Bull Racing\) remporte/);
 });
 
 test('posts : essais libres (meilleur temps, top 3, faits marquants)', () => {
@@ -130,7 +132,8 @@ test('posts : essais libres (meilleur temps, top 3, faits marquants)', () => {
   assert.equal(f['Dans la seconde'], "2 pilotes | à moins d'1 s du meilleur temps");
   assert.deepEqual(slidesFor(d), ['couverture', 'meilleurtemps', 'podium', 'classement', 'faits']);
   const c = captions(d);
-  assert.match(c.instagram, /^⏱️ Essais libres 2 du Grand Prix d'Italie 🇮🇹 : Lando Norris en tête !\n\n📊 Top 3 :\n🥇 Lando Norris \(McLaren\) 1:20\.100\n/);
+  assert.match(c.instagram, /^⏱️ Essais libres 2 du Grand Prix d'Italie 🇮🇹 : meilleur temps pour Lando Norris en 1:20\.100 !\n\n📊 Top 3 :\n🥇 Lando Norris \(McLaren\) 1:20\.100\n/);
+  assert.match(c.x, /^⏱️ EL2 · Grand Prix d'Italie 🇮🇹\nMeilleur temps pour Lando NORRIS \(McLaren\) en 1:20\.100 !\n\n🥈 Leclerc/);
   assert.match(captions(d, '', { spoiler: false }).x, /^⏱️ Essais libres 2 du Grand Prix d'Italie 🇮🇹 : qui signe le meilleur temps \?/);
 });
 
@@ -173,7 +176,7 @@ test('dépassements : échanges de places en piste, sans le départ, les arrêts
 test('posts : textes de la vidéo (TikTok, YouTube Shorts) tirés de ceux du post, sans spoiler si demandé', () => {
   const v = videoTexts(captions(postData(state), '@BenjyPaddock'));
   // TikTok : texte court et 5 hashtags au plus ; YouTube : titre (1re ligne, 100 caractères au plus) puis description
-  assert.match(v.tiktok, /^🏆 NORRIS remporte le Grand Prix d'Italie 🇮🇹 !/);
+  assert.match(v.tiktok, /^🏆 Lando NORRIS \(McLaren\) remporte le Grand Prix d'Italie 🇮🇹 !/);
   assert.match(v.tiktok, /\n\n#F1 #BenjyPaddock #ItalianGP #Formula1$/);
   const [title, ...desc] = v.youtube.split('\n');
   assert.match(title, /^🏆 Lando Norris remporte le Grand Prix d'Italie 🇮🇹 !$/);
