@@ -141,7 +141,8 @@
    (l'arrivée, texte sombre sur verre sombre, ne se voyait plus) */
 :root[data-design="v2"] .track-status:not(.yellow):not(.sc):not(.vsc):not(.red):not(.chequered) { background: rgba(255, 255, 255, .05) !important; border-color: var(--v2-rim-2) !important; }
 :root[data-design="v2"] .track-status .ts-dot { box-shadow: 0 0 10px currentColor; }
-:root[data-design="v2"] .topbar .surface .hstat-value { border-radius: 8px; }
+:root[data-design="v2"] .topbar .surface .hstat-value { border-radius: 8px; margin-top: 5px; padding: 3px 10px 2px; font-size: 20px !important; line-height: 1.1 !important; }   /* un peu d'air sous « État piste » */
+:root[data-design="v2"] .topbar .hstat.surface { margin-left: 8px; }   /* « État piste » détaché de « Heure circuit » */
 :root[data-design="v2"] .delay-controls { border-radius: 999px; overflow: hidden; }
 :root[data-design="v2"] .delay #syncBtn { border-radius: 999px; }
 :root[data-design="v2"] .source-badge { border-radius: 999px; }
