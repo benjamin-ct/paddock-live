@@ -14,6 +14,10 @@ l'application (Réglages → À propos → Nouveautés).
   Broadcast (façon TV) et Classique restent au choix dans Réglages → Apparence → Design.
 - Compte à rebours de la Saison plus fluide : chaque chiffre roule en douceur, l'ancien descend pendant que le
   nouveau arrive d'en haut.
+- Animations partout dans Paddock 2 : chaque icône a son geste au survol (l'engrenage des Réglages tourne, la cloche
+  sonne, le trophée de la Saison bouge, les flèches avancent), la rubrique choisie rebondit et s'allume, les boutons se
+  soulèvent, les menus s'ouvrent en glissant, les cartes et les raccourcis de l'accueil réagissent à la souris. Elles
+  se coupent avec « Animations de l'interface » (Réglages) ou le réglage « réduire les animations » du système.
 
 ### Langues
 - Paddock Live parle aussi italien et espagnol : Italiano et Español dans Réglages → Apparence, et à la première

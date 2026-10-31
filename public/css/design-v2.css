@@ -385,3 +385,68 @@
 :root[data-design="v2"][data-scheme="light"] .sz-drv-card :is(.tm, .nm small) { color: rgba(255, 255, 255, .85); }
 :root[data-design="v2"][data-scheme="light"] .sz-drv-card .no { color: transparent; }
 :root[data-design="v2"][data-scheme="light"] .sz-drv-hero .sub { color: #fff; }
+
+/* ---------- Animations Paddock 2 : icônes qui réagissent, boutons et cartes qui suivent la souris, menus qui s'ouvrent en douceur ----------
+   Seulement avec les animations de l'interface (Réglages) et sans « réduire les animations » du système. */
+@media (prefers-reduced-motion: no-preference) {
+  :root[data-design="v2"]:not([data-motion="off"]) { --v2-smooth: cubic-bezier(.22, 1, .36, 1); --v2-spring: cubic-bezier(.34, 1.56, .64, 1); }
+  /* Icônes : chacune a son geste au survol de son bouton (engrenage qui tourne, cloche qui sonne, flèche qui avance…) */
+  :root[data-design="v2"]:not([data-motion="off"]) :is(svg.ic, .rail-btn svg, .mob-nav svg) { transition: transform .45s var(--v2-smooth), color .2s, filter .3s; transform-origin: 50% 50%; }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(button, a, label, .rail-btn):hover :is(svg.ic, .rail-btn svg) { transform: scale(1.08); }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(button, a, label, .rail-btn):hover :is(.i-gear, svg:has(> use[href="#i-gear"])) { transform: rotate(90deg); }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(button, a, label, .rail-btn):hover :is(.i-refresh, svg:has(> use[href="#i-refresh"]), .i-undo, svg:has(> use[href="#i-undo"])) { transform: rotate(-180deg); }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(button, a, label, .rail-btn):hover :is(.i-close, svg:has(> use[href="#i-close"]), .i-plus, svg:has(> use[href="#i-plus"])) { transform: rotate(90deg); }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(button, a, label, .rail-btn):hover :is(.i-arrow-right, svg:has(> use[href="#i-arrow-right"]), .i-chevron-right, svg:has(> use[href="#i-chevron-right"]), .i-skip-next, svg:has(> use[href="#i-skip-next"])) { transform: translateX(3px); }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(button, a, label, .rail-btn):hover :is(.i-arrow-left, svg:has(> use[href="#i-arrow-left"]), .i-skip-start, svg:has(> use[href="#i-skip-start"])) { transform: translateX(-3px); }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(button, a, label, .rail-btn):hover :is(.i-external, svg:has(> use[href="#i-external"])) { transform: translate(2px, -2px); }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(button, a, label, .rail-btn):hover :is(.i-chevron-down, svg:has(> use[href="#i-chevron-down"]), .i-save, svg:has(> use[href="#i-save"])) { transform: translateY(2px); }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(button, a, label, .rail-btn):hover :is(.i-target, svg:has(> use[href="#i-target"]), .i-sliders, svg:has(> use[href="#i-sliders"])) { transform: rotate(45deg); }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(button, a, label, .rail-btn):hover :is(.i-mic, svg:has(> use[href="#i-mic"]), .i-eye, svg:has(> use[href="#i-eye"]), .i-eye-off, svg:has(> use[href="#i-eye-off"]), .i-user, svg:has(> use[href="#i-user"]), .i-phone, svg:has(> use[href="#i-phone"]), .i-video, svg:has(> use[href="#i-video"]), .i-car, svg:has(> use[href="#i-car"]), .i-layout, svg:has(> use[href="#i-layout"]), .i-window, svg:has(> use[href="#i-window"])) { transform: scale(1.14); }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(button, a, label, .rail-btn):hover :is(.i-home, svg:has(> use[href="#i-home"]), .i-news, svg:has(> use[href="#i-news"]), .i-calendar, svg:has(> use[href="#i-calendar"]), .i-stopwatch, svg:has(> use[href="#i-stopwatch"]), .i-checkered, svg:has(> use[href="#i-checkered"]), .i-medal, svg:has(> use[href="#i-medal"])) { transform: translateY(-2px) rotate(-6deg); }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(button, a, label, .rail-btn):hover :is(.i-bell, svg:has(> use[href="#i-bell"])) { animation: v2-ring .7s var(--v2-smooth); }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(button, a, label, .rail-btn):hover :is(.i-trophy, svg:has(> use[href="#i-trophy"]), .i-star, svg:has(> use[href="#i-star"]), .i-megaphone, svg:has(> use[href="#i-megaphone"]), .i-trash, svg:has(> use[href="#i-trash"]), .i-wrench, svg:has(> use[href="#i-wrench"])) { animation: v2-wiggle .6s var(--v2-smooth); }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(button, a, label, .rail-btn):hover :is(.i-bolt, svg:has(> use[href="#i-bolt"]), .i-volume, svg:has(> use[href="#i-volume"]), .i-duel, svg:has(> use[href="#i-duel"]), .i-swap, svg:has(> use[href="#i-swap"])) { animation: v2-pop .5s var(--v2-spring); }
+  /* Barre latérale (icônes dessinées dans la page) : même idée, un geste par rubrique */
+  :root[data-design="v2"]:not([data-motion="off"]) .rail-btn[data-rail="settings"]:hover svg { transform: rotate(90deg); }
+  :root[data-design="v2"]:not([data-motion="off"]) .rail-btn:is([data-rail="reset"], [data-rail="replay"]):hover svg { transform: rotate(-120deg); }
+  :root[data-design="v2"]:not([data-motion="off"]) .rail-btn[data-rail="scheme"]:hover svg { transform: rotate(180deg); }
+  :root[data-design="v2"]:not([data-motion="off"]) .rail-btn:is([data-rail="home"], [data-rail="news"], [data-rail="summary"]):hover svg { transform: translateY(-2px) rotate(-6deg); }
+  :root[data-design="v2"]:not([data-motion="off"]) .rail-btn:is([data-rail="season"], [data-rail="results"]):hover svg { animation: v2-wiggle .6s var(--v2-smooth); }
+  :root[data-design="v2"]:not([data-motion="off"]) .rail-btn:is([data-rail="live"], [data-rail="radio"], [data-rail="mini"]):hover svg { transform: scale(1.15); }
+  :root[data-design="v2"]:not([data-motion="off"]) .rail-btn:hover svg { filter: drop-shadow(0 0 6px rgba(147, 197, 253, .45)); }
+  /* Rubrique choisie (barre latérale, barre du bas du téléphone) : l'icône rebondit et s'allume */
+  :root[data-design="v2"]:not([data-motion="off"]) :is(.rail-btn.on, .mob-nav .active) svg { animation: v2-pop .5s var(--v2-spring); filter: drop-shadow(0 0 8px rgba(255, 42, 31, .55)); }
+  :root[data-design="v2"]:not([data-motion="off"]) .mob-nav button { transition: transform .3s var(--v2-spring), background-color .25s, color .2s; }
+  :root[data-design="v2"]:not([data-motion="off"]) .mob-nav button:active { transform: scale(.9); }
+  /* Boutons : se soulèvent un peu au survol, ombre douce ; onglets segmentés : la pastille choisie glisse en place */
+  :root[data-design="v2"]:not([data-motion="off"]) .btn { transition: transform .3s var(--v2-smooth), box-shadow .3s, background-color .2s, border-color .2s, color .2s; }
+  :root[data-design="v2"]:not([data-motion="off"]) .btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 8px 20px -10px rgba(0, 0, 0, .6); }
+  :root[data-design="v2"]:not([data-motion="off"]) .btn:active:not(:disabled) { transform: scale(.96); transition-duration: .1s; }
+  :root[data-design="v2"]:not([data-motion="off"]) .tab-seg button { transition: background-color .3s var(--v2-smooth), color .2s, box-shadow .3s; }
+  :root[data-design="v2"]:not([data-motion="off"]) .tab-seg button.on { animation: v2-seg .35s var(--v2-smooth); }
+  /* Menus et listes déroulantes : s'ouvrent en glissant, avec un léger zoom */
+  :root[data-design="v2"]:not([data-motion="off"]) :is(.lpop-menu, .csel-pop, .map-layers-menu, .tb-pop) { animation: v2-menu .24s var(--v2-smooth); transform-origin: top center; }
+  /* Panneaux et cartes : le filet s'éclaire au survol */
+  :root[data-design="v2"]:not([data-motion="off"]) :is(.panel, .hm-card, .sz-box, .cal-day) { transition: border-color .35s, box-shadow .35s, transform .35s var(--v2-smooth); }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(.panel, .sz-box):hover { border-color: var(--v2-rim-2) !important; }
+  :root[data-design="v2"]:not([data-motion="off"]) .hm-card:not(.hm-next, .hm-live):hover { transform: translateY(-2px); box-shadow: var(--v2-shadow), 0 16px 40px -20px rgba(37, 99, 235, .45); }
+  /* Raccourcis de l'accueil : l'icône saute, la lueur de couleur glisse dans la carte */
+  :root[data-design="v2"]:not([data-motion="off"]) .hm-go button { transition: transform .35s var(--v2-smooth), border-color .3s, box-shadow .35s; }
+  :root[data-design="v2"]:not([data-motion="off"]) .hm-go button .ic { transition: transform .45s var(--v2-spring), box-shadow .3s; }
+  :root[data-design="v2"]:not([data-motion="off"]) .hm-go button:hover .ic { transform: translateY(-3px) rotate(-8deg) scale(1.1); box-shadow: 0 8px 22px -6px var(--acc); }
+  :root[data-design="v2"]:not([data-motion="off"]) .hm-go button::before { transition: transform .7s var(--v2-smooth), opacity .4s; }
+  :root[data-design="v2"]:not([data-motion="off"]) .hm-go button:hover::before { transform: translate(-18px, 18px) scale(1.25); }
+  :root[data-design="v2"]:not([data-motion="off"]) .hm-go button:hover { box-shadow: var(--v2-shadow), 0 18px 40px -22px var(--acc); }
+  /* Classement : la ligne survolée s'éclaire en douceur, le logo de l'écurie grossit un peu */
+  :root[data-design="v2"]:not([data-motion="off"]) :is(.tower, .sz-table) tbody tr { transition: background-color .25s; }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(.tower, .sz-table) .team-logo { transition: transform .35s var(--v2-spring); }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(.tower, .sz-table) tbody tr:hover .team-logo { transform: scale(1.12); }
+  /* Pilotes de la Saison : le portrait avance un peu au survol */
+  :root[data-design="v2"]:not([data-motion="off"]) .sz-drv-card img { transition: transform .5s var(--v2-smooth); }
+  :root[data-design="v2"]:not([data-motion="off"]) .sz-drv-card:hover img { transform: translateX(-4px) scale(1.04); }
+}
+@keyframes v2-pop { 0% { transform: scale(.7); } 55% { transform: scale(1.15); } 100% { transform: scale(1); } }
+@keyframes v2-ring { 0%, 100% { transform: rotate(0); } 20% { transform: rotate(16deg); } 40% { transform: rotate(-13deg); } 60% { transform: rotate(8deg); } 80% { transform: rotate(-4deg); } }
+@keyframes v2-wiggle { 0%, 100% { transform: rotate(0) scale(1); } 30% { transform: rotate(-10deg) scale(1.12); } 60% { transform: rotate(7deg) scale(1.08); } }
+@keyframes v2-seg { from { transform: scale(.88); opacity: .6; } to { transform: none; opacity: 1; } }
+@keyframes v2-menu { from { opacity: 0; transform: translateY(-6px) scale(.97); } to { opacity: 1; transform: none; } }
