@@ -167,6 +167,16 @@ l'application (Réglages → À propos → Nouveautés).
   intermédiaires ou en pneus pluie.
   Décochée, la carte habituelle revient. Aussi dans la version web.
 
+### Carte 3D
+- Caméra Embarquée à la place du pilote : on voit le halo, le nez et les roues avant, et au premier plan un volant de F1
+  2026 avec ses poignées, ses palettes, ses boutons et molettes de couleur, son petit écran (rapport, vitesse, position,
+  tour, accélérateur et frein) et ses voyants de régime ; il tourne dans les virages. Les roues de toutes les voitures
+  tournent à leur vitesse et les roues avant braquent.
+- Autour de la piste, là où la carte n'en a pas : vibreurs en relief, rouges et blancs, à l'intérieur et à l'extérieur
+  des virages, murs en béton avec quelques panneaux de couleur le long des lignes droites, glissières à l'extérieur des
+  virages, grillages et poteaux au-dessus, tribunes avec toit le long de la ligne droite des stands et dans les grands
+  virages, portique des feux au-dessus de la ligne de départ. En Économe, sans les poteaux ni les tribunes des virages.
+
 ### Téléphone
 - En course, le haut de l'écran tient sur deux lignes (le délai TV à côté du tour) : une ligne de classement en plus, et
   la colonne des arrêts tient dans l'écran.

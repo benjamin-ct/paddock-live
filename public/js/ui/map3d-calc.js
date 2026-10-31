@@ -3,11 +3,12 @@
 // Qualité : 0 économe, 1 moyenne (seulement en Auto), 2 haute (rendu complet). pr : densité de pixels au plus ;
 // shadow : taille de la carte des ombres, shadowAll : bâtiments et arbres font de l'ombre (sinon les voitures seules) ;
 // trees, buildings : part des arbres et des bâtiments dessinés (les plus grands et les plus près de la piste) ;
-// detail : taille du sol de détail (part de la taille complète) ; aniso : anisotropie des textures du sol
+// detail : taille du sol de détail (part de la taille complète) ; aniso : anisotropie des textures du sol ; props :
+// détails des abords faits ici (poteaux des grillages, tribunes des virages)
 export const QUALITY = [
-  { pr: 1, shadow: 1024, shadowAll: false, trees: 0.3, buildings: 0.4, detail: 0.5, aniso: 2 },
-  { pr: 1.5, shadow: 1024, shadowAll: true, trees: 0.65, buildings: 0.75, detail: 0.5, aniso: 4 },
-  { pr: 2, shadow: 2048, shadowAll: true, trees: 1, buildings: 1, detail: 1, aniso: 16 },
+  { pr: 1, shadow: 1024, shadowAll: false, trees: 0.3, buildings: 0.4, detail: 0.5, aniso: 2, props: false },
+  { pr: 1.5, shadow: 1024, shadowAll: true, trees: 0.65, buildings: 0.75, detail: 0.5, aniso: 4, props: true },
+  { pr: 2, shadow: 2048, shadowAll: true, trees: 1, buildings: 1, detail: 1, aniso: 16, props: true },
 ];
 
 // Ordre de dessin des arbres ou des bâtiments : les plus grands et les plus près de la piste d'abord (les plus petits
@@ -228,4 +229,95 @@ export function pitRoute(pit, near, { half = 7, lane = 7, gap = 1.8, ramp = 60, 
     const edge = side * d[i] + push <= outer + 0.5 ? [px - sx * side * (w / 2 - 0.2), pz - sz * side * (w / 2 - 0.2)] : null;
     return { x: px, z: pz, w, edge };
   });
+}
+
+// ---------- Volant et roues ----------
+// Volant de la vue Embarquée et braquage des roues avant, d'après le cap de la voiture. s : état de l'image d'avant (null
+// au début ou après un saut), yaw : cap (rad, croissant vers la gauche), dist : distance parcourue depuis l'image d'avant
+// (m), dt (s). Virage mesuré tous les every m (variation du cap / distance : pas de bruit d'une image à l'autre), roues
+// avant braquées d'après l'empattement (atan(empattement × courbure)), volant ratio fois plus, borné à ± max, lissé
+// (lambda par seconde) ; à l'arrêt, gardé. -> { yaw, run, target, angle : volant (rad, positif vers la gauche), front :
+// roues avant (rad) }
+export function steering(s, yaw, dist, dt, { wheelbase = 3.6, ratio = 7, max = Math.PI / 2, every = 3, lambda = 6 } = {}) {
+  if (!s) return { yaw, run: 0, target: 0, angle: 0, front: 0 };
+  let { target, yaw: ref } = s, run = s.run + Math.max(0, dist);
+  if (run >= every) {
+    const turn = Math.atan2(Math.sin(yaw - ref), Math.cos(yaw - ref));
+    target = Math.max(-max, Math.min(max, ratio * Math.atan((wheelbase * turn) / run)));
+    ref = yaw;
+    run = 0;
+  }
+  const angle = s.angle + (target - s.angle) * (1 - Math.exp(-lambda * Math.max(0, dt)));
+  return { yaw: ref, run, target, angle, front: angle / ratio };
+}
+
+// Rotation des roues : angle (rad, de 0 à 2π) après dt s à speed m/s, roue de rayon r (m) ; au plus maxStep par image
+// (plus vite, l'œil verrait les rayons des jantes tourner à l'envers : effet stroboscopique)
+export function wheelSpin(angle, speed, dt, { r = 0.36, maxStep = 0.5 } = {}) {
+  return (angle + Math.min(maxStep, (Math.max(0, speed) * Math.max(0, dt)) / r)) % (2 * Math.PI);
+}
+
+// ---------- Abords de la piste faits ici (quand OpenStreetMap n'en a pas) ----------
+// turn : courbure signée de chaque point du tracé, tous les ds m, tour fermé (1/m ; positive : la piste tourne vers sa
+// droite, côté SIDE de la vue)
+const wrap = (n, i) => ((i % n) + n) % n;
+// Morceaux où mask est vrai, sur le tour fermé -> [[début, longueur]…]
+function runs(mask) {
+  const n = mask.length, out = [];
+  if (mask.every(Boolean)) return n ? [[0, n]] : [];
+  const s = mask.findIndex((v) => !v);
+  for (let k = 1; k <= n; k++) {
+    const i = (s + k) % n;
+    if (!mask[i]) continue;
+    if (!mask[wrap(n, i - 1)]) out.push([i, 0]);
+    out.at(-1)[1]++;
+  }
+  return out;
+}
+
+// Vibreurs : virages (courbure de plus de min) sans les bouts de moins de minLen m (bruit du tracé), prolongés de pad m
+// avant et après ; pas sur les lignes droites -> [vrai / faux pour chaque point]
+export function kerbMask(turn, ds, { min = 1 / 150, pad = 8, minLen = 12 } = {}) {
+  const n = turn.length, p = Math.round(pad / ds), out = new Array(n).fill(false);
+  for (const [s, l] of runs(turn.map((k) => Math.abs(k) > min))) {
+    if (l * ds < minLen) continue;
+    for (let k = -p; k < l + p; k++) out[wrap(n, s + k)] = true;
+  }
+  return out;
+}
+
+// Murs (avec grillage) : des deux côtés le long des lignes droites, à near m du milieu de la piste ; dans les virages
+// (courbure moyenne sur ± 10 m de plus de corner), seulement à l'extérieur et plus loin (far m : dégagement) ; écart
+// adouci sur ± ease m (pas de marche). -> [[gauche, droite]…] : écart de chaque côté (m, droite : côté SIDE), null : pas de mur
+export function barrierOffsets(turn, ds, { near = 15, far = 26, corner = 1 / 250, ease = 30 } = {}) {
+  const n = turn.length, r = Math.max(1, Math.round(ease / ds)), m = Math.max(1, Math.round(10 / ds));
+  const avg = (get, i, k) => { let s = 0, c = 0; for (let j = -k; j <= k; j++) { const v = get(wrap(n, i + j)); if (v !== null) { s += v; c++; } } return c ? s / c : null; };
+  const smooth = turn.map((_, i) => avg((j) => turn[j], i, m));
+  const raw = [-1, 1].map((side) => smooth.map((k) => (Math.abs(k) < corner ? near : Math.sign(k) === side ? null : far)));
+  return turn.map((_, i) => raw.map((v) => (v[i] === null ? null : avg((j) => v[j], i, r))));
+}
+
+// Tribunes : le long de la ligne droite de la ligne d'arrivée (des deux côtés : celle du côté des stands est enlevée
+// ensuite, la voie des stands n'est connue qu'après), et à l'extérieur des plus grands virages (ceux qui tournent le plus,
+// au moins minTurn rad, à plus de gap m les uns des autres et de la ligne). start : point de la ligne. -> [{ from, to
+// (indices, dans le sens du tracé), side (1 : côté SIDE, -1 : l'autre, 0 : les deux) }], la ligne droite d'abord
+export function standSpots(turn, ds, start, { straight = 1 / 300, main = 220, len = 70, corners = 3, minTurn = 1.2, gap = 350, min = 1 / 150 } = {}) {
+  const n = turn.length, half = Math.round(main / 2 / ds), out = [];
+  let a = 0, b = 0;
+  while (a < half && Math.abs(turn[wrap(n, start - a - 1)]) < straight) a++;
+  while (b < half && Math.abs(turn[wrap(n, start + b + 1)]) < straight) b++;
+  if ((a + b) * ds >= 60) out.push({ from: wrap(n, start - a), to: wrap(n, start + b), side: 0 });
+  const list = runs(turn.map((k) => Math.abs(k) > min)).map(([s, l]) => {
+    let sum = 0, apex = s;
+    for (let k = 0; k < l; k++) { const i = (s + k) % n; sum += turn[i] * ds; if (Math.abs(turn[i]) > Math.abs(turn[apex])) apex = i; }
+    return { apex, sum };
+  }).filter((c) => Math.abs(c.sum) >= minTurn).sort((p, q) => Math.abs(q.sum) - Math.abs(p.sum));
+  const dist = (i, j) => Math.min(wrap(n, i - j), wrap(n, j - i)) * ds, taken = [start], h = Math.round(len / 2 / ds);
+  for (const c of list) {
+    if (taken.length > corners) break;
+    if (taken.some((j) => dist(c.apex, j) < gap)) continue;
+    taken.push(c.apex);
+    out.push({ from: wrap(n, c.apex - h), to: wrap(n, c.apex + h), side: -Math.sign(c.sum) });
+  }
+  return out;
 }
