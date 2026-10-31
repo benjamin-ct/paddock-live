@@ -443,14 +443,17 @@
   :root[data-design="v2"]:not([data-motion="off"]) :is(.tower, .sz-table) tbody tr:hover .team-logo { transform: scale(1.12); }
   /* Pilotes de la Saison : le portrait avance un peu au survol */
   /* Cartes des pilotes et des écuries (Saison) : arrivée en cascade, la carte se soulève au survol avec une lueur
-     aux couleurs de l'écurie, un filet de lumière fait le tour du bord (au survol et sur la carte choisie, qui « respire ») */
+     aux couleurs de l'écurie, un filet de lumière tourne en continu autour du bord (plus vif au survol et sur la carte choisie, qui « respire ») */
   :root[data-design="v2"]:not([data-motion="off"]) :is(.sz-drv-card, .sz-team-card) { transition: transform .45s var(--v2-smooth), box-shadow .45s var(--v2-smooth); }
   :root[data-design="v2"]:not([data-motion="off"]) :is(.sz-drv-card, .sz-team-card):hover { transform: translateY(-6px) scale(1.02); box-shadow: 0 26px 50px -18px color-mix(in srgb, var(--tc) 85%, transparent), 0 0 0 1px color-mix(in srgb, var(--tc) 55%, transparent); }
   :root[data-design="v2"]:not([data-motion="off"]) :is(.sz-drv-card, .sz-team-card)::before { content: ''; position: absolute; inset: 0; z-index: 3; border-radius: inherit; padding: 3px; pointer-events: none;
     background: conic-gradient(from var(--v2-a), transparent 0 46%, color-mix(in srgb, var(--tc) 55%, #fff) 64%, #fff 76%, color-mix(in srgb, var(--tc) 55%, #fff) 86%, transparent 96%);
     -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
-    opacity: 0; transition: opacity .4s; animation: v2-spin 3.2s linear infinite paused; }
-  :root[data-design="v2"]:not([data-motion="off"]) :is(.sz-drv-card, .sz-team-card):is(:hover, :focus-visible, .on)::before { opacity: 1; animation-play-state: running; }
+    opacity: .75; transition: opacity .4s; animation: v2-spin 4s linear infinite; }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(.sz-drv-card, .sz-team-card):is(:hover, :focus-visible, .on)::before { opacity: 1; }
+  /* Départs décalés : les filets ne tournent pas tous ensemble */
+  :root[data-design="v2"]:not([data-motion="off"]) :is(.sz-drv-card, .sz-team-card):nth-child(3n+2)::before { animation-delay: -1.3s; }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(.sz-drv-card, .sz-team-card):nth-child(3n)::before { animation-delay: -2.6s; }
   :root[data-design="v2"]:not([data-motion="off"]) .sz-drv-card.on { animation: v2-breathe 2.6s ease-in-out infinite; }
   :root[data-design="v2"]:not([data-motion="off"]) .sz-drv-card img { transition: transform .5s var(--v2-smooth), filter .5s; }
   :root[data-design="v2"]:not([data-motion="off"]) .sz-drv-card:hover img { transform: translateX(-6px) scale(1.06); filter: drop-shadow(0 14px 22px rgba(0, 0, 0, .5)) brightness(1.06); }
