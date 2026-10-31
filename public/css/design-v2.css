@@ -110,8 +110,10 @@
 
 /* ---------- Barre du haut : verre sombre, chiffres condensés italiques, avancement lumineux ---------- */
 :root[data-design="v2"] :is(.topbar, .replaybar) { --panel: #0E1830; --panel-2: #132140; --panel-3: #1C2D52; --border: rgba(148, 163, 184, .16); --line-2: rgba(148, 163, 184, .26); }
-:root[data-design="v2"] .topbar { position: relative; background: linear-gradient(180deg, rgba(10, 18, 38, .88), rgba(6, 12, 28, .72)) !important; border-bottom: 1px solid var(--v2-rim) !important;
-  -webkit-backdrop-filter: var(--v2-blur); backdrop-filter: var(--v2-blur); z-index: 5; }
+/* position faible (:where) : la barre fixée ou collée de la version web et des écrans peu hauts garde la sienne */
+:where(:root[data-design="v2"]) .topbar { position: relative; z-index: 5; }
+:root[data-design="v2"] .topbar { background: linear-gradient(180deg, rgba(10, 18, 38, .88), rgba(6, 12, 28, .72)) !important; border-bottom: 1px solid var(--v2-rim) !important;
+  -webkit-backdrop-filter: var(--v2-blur); backdrop-filter: var(--v2-blur); }
 :root[data-design="v2"] .topbar::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 1px; pointer-events: none;
   background: linear-gradient(90deg, transparent, rgba(255, 42, 31, .9) 18%, rgba(96, 165, 250, .7) 55%, rgba(0, 215, 182, .6) 80%, transparent); opacity: .7; }
 @media (min-width: 901px) { :root[data-design="v2"] .topbar { min-height: 64px; padding: 6px 20px; } }
