@@ -27,13 +27,13 @@ export const MEDAL = [C.gold, C.silver, C.bronze];
 // Diapositives selon la séance, après une couverture « Résultats » (anti-spoiler : le vainqueur
 // n'est pas dévoilé dès la première image, ni dans l'aperçu du réseau). follow : dernière image
 // « Abonnez-vous » sur les carrousels ; question : avant-dernière image avec la question du post,
-// pour faire réagir en commentaire. Format X (X et Bluesky : 4 images au plus) : ces images de fin
-// passent avant les dernières images du post.
+// pour faire réagir en commentaire. Format X (X et Bluesky : 4 images par post) : toutes les images,
+// réparties entre le premier post et sa suite par xSplit.
 export function slidesFor(d, { fmt = 'ig', follow = false, question = false } = {}) {
   const list = baseSlides(d, fmt);
   if (list.length < 2 || d.post === 'app') return list;   // compte Paddock Live : ni question ni « Abonnez-vous »
   const end = [...(question ? ['question'] : []), ...(follow ? ['abonnement'] : [])];
-  return [...(fmt === 'x' && end.length ? list.slice(0, 4 - end.length) : list), ...end];
+  return [...list, ...end];
 }
 function baseSlides(d, fmt) {
   if (d.post === 'app') return appSlides(d);
@@ -48,7 +48,7 @@ function baseSlides(d, fmt) {
   if (d.post === 'teamduels') return d.rows.length ? ['couverture', ...Array.from({ length: Math.ceil(d.rows.length / 5) }, (_, i) => `equipes-${i + 1}`)] : [];
   if (d.post === 'racelaps') return d.total ? ['couverture', 'positions'] : [];
   if (d.post === 'title') return d.drivers.length || d.constructors.length ? ['couverture', ...(d.drivers.length ? ['titrepilotes'] : []), ...(d.constructors.length ? ['titreecuries'] : []), ...(titleBlocks(d).length ? ['titrecomment'] : [])] : [];
-  if (d.post === 'recap') return d.items.length ? ['recapcover', ...d.items.map((_, i) => `recap-${i + 1}`)].slice(0, fmt === 'x' ? 4 : undefined) : [];
+  if (d.post === 'recap') return d.items.length ? ['recapcover', ...d.items.map((_, i) => `recap-${i + 1}`)] : [];
   if (!d.rows.length) return [];
   // Essais et qualifs : vitesses de pointe et meilleurs secteurs, quand la F1 les a publiés
   const timing = [...(d.speeds ? ['vitesses'] : []), ...(d.sectors ? ['secteurs'] : [])];
@@ -67,6 +67,30 @@ export function chosenSlides(list, skip = []) {
   const s = new Set(skip);
   const out = list.filter((x) => !s.has(x));
   return out.length ? out : list.slice(0, 1);
+}
+// X et Bluesky : 4 images par post. Premier post choisi par le créateur (xs : { post, more }, noms des images),
+// sinon couverture, podium, classement et la meilleure image de données ; la suite (4 de plus) part en réponse
+// au premier post, images de fin (question, abonnement) en dernier. Pas de suite quand tout tient dans le post
+const X_LEAD = ['couverture', 'podium', 'classement'];
+const X_DATA = ['remontees', 'strategie', 'vitesses', 'secteurs', 'duels', 'championnat', 'faits'];
+const X_END = ['question', 'abonnement'];
+export function xSplit(list, xs = null) {
+  if (xs) {
+    const post = list.filter((s) => xs.post?.includes(s)).slice(0, 4);
+    if (post.length) return { post, more: list.filter((s) => xs.more?.includes(s) && !post.includes(s)).slice(0, 4) };
+  }
+  if (list.length <= 4) return { post: list, more: [] };
+  const want = [...X_LEAD.filter((s) => list.includes(s)), ...X_DATA.filter((s) => list.includes(s)).slice(0, 1)];
+  const first = [...new Set([...want, ...list.filter((s) => !X_END.includes(s)), ...list])].slice(0, 4);
+  const post = list.filter((s) => first.includes(s));
+  const rest = list.filter((s) => !post.includes(s));
+  const end = rest.filter((s) => X_END.includes(s));
+  return { post, more: [...rest.filter((s) => !X_END.includes(s)).slice(0, 4 - end.length), ...end] };
+}
+// Texte de la réponse qui porte la suite, d'après les noms des images (« 📊 La suite : meilleurs secteurs et faits marquants »)
+export function xMoreText(more) {
+  const names = [...new Set(more.filter((s) => !X_END.includes(s)).map((s) => { const n = slideName(s); return n[0].toLowerCase() + n.slice(1); }))];
+  return `📊 La suite${names.length ? ` : ${new Intl.ListFormat('fr', { type: 'conjunction' }).format(names)}` : ''}`;
 }
 // Données des textes sans ce que montraient les images écartées (skip : Set) : points clés, infos du
 // récap, duels d'une page, faits marquants, pneus et météo

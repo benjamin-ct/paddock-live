@@ -4,7 +4,7 @@
 // choisis sont repris au post suivant du même type (gardés sur l'appareil).
 // Un envoi au serveur par sorte de contenu (images du fil, vidéo, images en story, lien) : le serveur publie
 // chacun à l'heure, même page fermée.
-import { slidesFor, drawSlide, slideAlt, chosenSlides } from '/shared/social-draw.js';
+import { slidesFor, drawSlide, slideAlt, chosenSlides, xSplit, xMoreText } from '/shared/social-draw.js';
 import { xLength } from '/shared/social.js';
 import { linksIn } from '/shared/track-links.js';
 import { bestSlot } from '/shared/post-history.js';
@@ -72,7 +72,8 @@ function jobsOf(plan, vid) {
 // ---------- Cartes des réseaux ----------
 // el : emplacement ; c : textes ; edited : textes retouchés à la main ; vid : vidéo du post ; lk() : article (post
 // « lien ») ; title : titre du post (liens suivis) ; app : compte Paddock Live (textes seulement, publiés à la main)
-export function renderPublish(el, { c, edited, vid, lk, title, app = false, x }) {
+// xmore : nombre d'images de la suite du fil X (bouton « Ouvrir X avec la suite », remis à jour par showXMore)
+export function renderPublish(el, { c, edited, vid, lk, title, app = false, x, xmore = 0 }) {
   if (!cur.plan) { const s = startPlan(cur.kind, vid, lk); cur.plan = s.plan; cur.saved = s.saved; }
   const plan = cur.plan;
   const card = ([n, name, fs]) => {
@@ -83,7 +84,8 @@ export function renderPublish(el, { c, edited, vid, lk, title, app = false, x })
     const k = n === 'facebook' && !c.facebook ? null : CAP[n];
     const lim = LIMIT[k] || 0;
     return `<div class="netcard${on ? '' : ' off'}" data-card="${n}"><div class="nc-head"><b>${name}</b><small>${esc(app ? '@paddockliveapp' : acc || 'non connecté')}</small><em class="st" data-st="${n}"></em></div>
-      ${n === 'x' && !app ? `<div class="row"><button class="btn small" id="openx">${icon('send')}Ouvrir X${vid ? ' avec la vidéo' : ' avec les images'}</button><span class="hint">Texte copié, à coller si X ne le reprend pas.</span></div>` : ''}
+      ${n === 'x' && !app ? `<div class="row"><button class="btn small" id="openx">${icon('send')}Ouvrir X${vid ? ' avec la vidéo' : ' avec les images'}</button><span class="hint">Texte copié, à coller si X ne le reprend pas.</span></div>
+        ${vid ? '' : `<div class="row" id="xmorebox" ${xmore ? '' : 'hidden'}><button class="btn small" id="openxmore">${icon('send')}Ouvrir X avec la suite</button><span class="hint">Une fois le post publié : la suite (images et texte) à poster en réponse au post, l'appli X ne prépare pas une réponse.</span></div>`}` : ''}
       ${opts.length ? `<div class="chips wrap nc-f">${opts.map((f) => `<button type="button" data-f="${f}" class="${plan[n]?.includes(f) ? 'on' : ''}" ${acc ? '' : 'disabled'}>${fmtName(n, f, vid)}</button>`).join('')}</div>` : ''}
       ${k ? `<details class="cap"${on && n !== 'instagram' && !app ? '' : on ? ' open' : ''}><summary><span>Texte</span><small data-count="${k}"></small></summary>
         <textarea id="cap-${k}" rows="${ROWS[k]}" ${lim && k !== 'x' && k !== 'bsky' ? `maxlength="${lim}"` : ''} data-limit="${lim}">${esc(edited[k] ?? c[k] ?? '')}</textarea>
@@ -127,6 +129,7 @@ export function renderPublish(el, { c, edited, vid, lk, title, app = false, x })
   for (const b of $$('[data-copy]', el)) b.onclick = async () => { try { await navigator.clipboard.writeText($(`#cap-${b.dataset.copy}`).value); toast('Texte copié'); } catch { /* presse-papiers refusé */ } };
   if ($('#threadtopic', el)) $('#threadtopic', el).oninput = (e) => { state.topic = e.target.value; };
   if ($('#openx', el)) $('#openx', el).onclick = () => x();
+  if ($('#openxmore', el)) $('#openxmore', el).onclick = () => x('more');
   if (app) return;
   // Formats touchés : la carte s'allume ou s'éteint, résumé à jour ; TikTok : ses réglages
   const sum = () => {
@@ -215,10 +218,15 @@ export async function shareToX(files, text) {
   open(`https://x.com/intent/post?text=${encodeURIComponent(text)}`, '_blank', 'noopener');
   for (const f of files) { const a = document.createElement('a'); a.href = URL.createObjectURL(f); a.download = f.name; a.click(); }
 }
-// Images au format X (4 au plus), dessinées pour X
+// Images au format X (X et Bluesky) : premier post (4 au plus) et suite du fil (4 de plus), choisies dans l'éditeur
+// (state.xs), indépendamment des images écartées des autres réseaux
+export const xParts = (d, xs = state.xs) => xSplit(slidesFor(d, { fmt: 'x', follow: state.follow, question: state.question }), xs);
+export const showXMore = (n) => { const b = $('#xmorebox'); if (b) { b.hidden = !n; glide(); } };
+// Dessinées pour X, numérotées sur tout le fil ; text : texte de la réponse qui porte la suite
 export function xCanvases(d, o) {
-  const list = chosenSlides(slidesFor(d, { fmt: 'x', follow: state.follow, question: state.question }), [...state.skip]).slice(0, 4);
-  return list.map((sl) => drawSlide(document.createElement('canvas'), sl, 'x', d, { ...o, slides: list }));
+  const { post, more } = xParts(d);
+  const draw = (sl) => drawSlide(document.createElement('canvas'), sl, 'x', d, { ...o, slides: [...post, ...more] });
+  return { post: post.map(draw), more: more.map(draw), text: more.length ? xMoreText(more) : '' };
 }
 
 // ---------- Envoi ----------
@@ -236,25 +244,28 @@ async function fitJpeg(cv, max) {
   }
   return b;
 }
-// Visuels : format Instagram (Instagram, Facebook, Threads) ou Story (stories) ; Bluesky : 4 au format X, moins de 1 Mo
+// Visuels : format Instagram (Instagram, Facebook, Threads) ou Story (stories) ; Bluesky : format X, moins de 1 Mo,
+// 4 pour le post puis la suite du fil (more : texte de la réponse qui la porte)
 const isStory = (n) => n.endsWith('-story');
-async function postImages(d, o, nets, skip = state.skip) {
-  const draw = (fmt, max, n = 99) => {
-    const list = chosenSlides(slidesFor(d, { fmt, follow: state.follow, question: state.question }), [...(skip || [])]).slice(0, n);
-    return Promise.all(list.map(async (sl) => Object.assign(await fitJpeg(drawSlide(document.createElement('canvas'), sl, fmt, d, { ...o, slides: list }), max), { alt: slideAlt(d, sl) })));
+async function postImages(d, o, nets, skip = state.skip, xs = state.xs) {
+  const draw = (list, fmt, max) => Promise.all(list.map(async (sl) => Object.assign(await fitJpeg(drawSlide(document.createElement('canvas'), sl, fmt, d, { ...o, slides: list }), max), { alt: slideAlt(d, sl) })));
+  const fmt = nets.some(isStory) ? 'story' : 'ig';
+  const x = nets.includes('bluesky') ? xParts(d, xs) : { post: [], more: [] };
+  return {
+    ig: nets.some((n) => n !== 'bluesky') ? await draw(chosenSlides(slidesFor(d, { fmt, follow: state.follow, question: state.question }), [...(skip || [])]), fmt, 3.5e6) : [],
+    x: await draw([...x.post, ...x.more], 'x', 950 * 1024), more: x.more.length ? xMoreText(x.more) : '',
   };
-  return { ig: nets.some((n) => n !== 'bluesky') ? await draw(nets.some(isStory) ? 'story' : 'ig', 3.5e6) : [], x: nets.includes('bluesky') ? await draw('x', 950 * 1024, 4) : [] };
 }
 // Un envoi confié au serveur (visuels ou vidéo, textes), publié à l'heure `at` même page fermée.
 // alt : post jumeau (textes donnés, toutes ses images) ; tk : réglages d'une publication directe TikTok
 async function queuePost(d, o, nets, at, record, { video = null, tk = null, link = null, alt = null, id = null } = {}) {
-  const imgs = video || link ? { ig: [], x: [] } : await postImages(d, o, nets, alt ? new Set() : state.skip);
+  const imgs = video || link ? { ig: [], x: [] } : await postImages(d, o, nets, alt ? new Set() : state.skip, alt ? null : state.xs);
   const form = new FormData();
   if (id) form.append('id', id);
   form.append('at', String(at));
   form.append('title', record?.title || d.title || d.gp || 'Post');
   form.append('record', JSON.stringify(record));
-  form.append('posts', JSON.stringify(nets.map((n) => (isStory(n) ? { network: n } : { network: n, text: alt ? capOf(alt.texts, n) : textOf(n), comment: link ? '' : alt ? (n !== 'instagram' && alt.texts.comment?.trim()) || '' : commentOf(n), ...(n === 'threads' ? { topic: state.topic ?? THREADS_TOPIC } : {}) }))));
+  form.append('posts', JSON.stringify(nets.map((n) => (isStory(n) ? { network: n } : { network: n, text: alt ? capOf(alt.texts, n) : textOf(n), comment: link ? '' : alt ? (n !== 'instagram' && alt.texts.comment?.trim()) || '' : commentOf(n), ...(n === 'threads' ? { topic: state.topic ?? THREADS_TOPIC } : {}), ...(n === 'bluesky' && imgs.more ? { more: imgs.more } : {}) }))));
   if (link) form.append('link', JSON.stringify(link));
   imgs.ig.forEach((b, i) => form.append('ig', b, `image-${i + 1}.jpg`));
   form.append('alts', JSON.stringify({ ig: imgs.ig.map((b) => b.alt || ''), x: imgs.x.map((b) => b.alt || '') }));
@@ -271,10 +282,12 @@ async function queuePost(d, o, nets, at, record, { video = null, tk = null, link
 function planLines(plan, d, vid, lk, tk) {
   const n = chosenSlides(slidesFor(d, { fmt: 'ig', follow: state.follow, question: state.question }), [...state.skip]).length;
   const imgs = (k) => `${k} image${k > 1 ? 's' : ''}`;
-  const what = (net, f) => (f === 'feed' ? (net === 'instagram' && n > 1 ? `carrousel de ${imgs(n)}` : imgs(net === 'bluesky' ? Math.min(n, 4) : n))
+  const x = xParts(d);
+  const thread = x.more.length ? ` + suite de ${imgs(x.more.length)} en réponse` : '';
+  const what = (net, f) => (f === 'feed' ? (net === 'instagram' && n > 1 ? `carrousel de ${imgs(n)}` : net === 'bluesky' ? `${imgs(x.post.length)}${thread}` : imgs(n))
     : f === 'video' ? (net === 'tiktok' ? (tk ? `vidéo publiée, visible par : ${TIKTOK_PRIVACY[tk.privacy]}` : 'vidéo en brouillon (texte copié, à coller dans TikTok)') : net === 'youtube' ? 'Short en privé' : net === 'instagram' ? 'Reel' : 'vidéo')
     : f === 'story' ? (vid ? 'story vidéo (24 h)' : `${Math.min(n, 10)} stor${n > 1 ? 'ies' : 'y'} (24 h)`)
-    : f === 'manual' ? 'rappel dans « Reste à faire » (texte et visuels prêts, à publier dans l\'appli X)'
+    : f === 'manual' ? `rappel dans « Reste à faire » (texte et visuels prêts, à publier dans l'appli X${vid ? '' : thread})`
     : `lien vers l'article (${new URL(lk.url).hostname.replace(/^www\./, '')})`);
   return NETS.filter(([k]) => plan[k]?.length).map(([k, name]) => `<li><b>${name}</b> · ${plan[k].map((f) => what(k, f)).join(' + ')}</li>`).join('');
 }
@@ -364,6 +377,7 @@ export function confirmPublish(ctx, mode = 'now') {
 }
 
 // « Reste à faire » (onglet Publications) : X (texte, images ou vidéo prêts), brouillon TikTok à finir, Short privé
+export const X_SUITE = '— Suite, à poster en réponse au post';
 async function addTodos(ctx, plan, at, tk) {
   const title = ctx.record?.title || ctx.d.title || 'Post';
   const add = async (kind, name, text, files = []) => {
@@ -374,8 +388,12 @@ async function addTodos(ctx, plan, at, tk) {
   };
   if (plan.x?.includes('manual')) {
     const c = $('#cap-comment')?.value.trim();
-    const files = ctx.vid ? [ctx.vid.full || ctx.vid] : await Promise.all(xCanvases(ctx.d, await ctx.o()).map(async (cv, i) => new File([await fitJpeg(cv, 3.5e6)], `x-${i + 1}.jpg`, { type: 'image/jpeg' })));
-    await add('x', `Publier sur X : ${title}`, `${trackedNow($('#cap-x').value)}${c ? `\n\n— En réponse au post —\n${trackedNow(c)}` : ''}`, files);
+    const x = ctx.vid ? { post: [], more: [] } : xCanvases(ctx.d, await ctx.o());
+    const jpg = async (cv, name) => new File([await fitJpeg(cv, 3.5e6)], name, { type: 'image/jpeg' });
+    // Suite du fil : fichiers x-suite-…, texte marqué « à poster en réponse » (repris par « Ouvrir X avec la suite »)
+    const files = ctx.vid ? [ctx.vid.full || ctx.vid] : await Promise.all([...x.post.map((cv, i) => jpg(cv, `x-${i + 1}.jpg`)), ...x.more.map((cv, i) => jpg(cv, `x-suite-${i + 1}.jpg`))]);
+    const more = x.more.length ? `\n\n${X_SUITE} (${x.more.length} image${x.more.length > 1 ? 's' : ''} x-suite) —\n${x.text}` : '';
+    await add('x', `Publier sur X : ${title}`, `${trackedNow($('#cap-x').value)}${more}${c ? `\n\n— En réponse au post —\n${trackedNow(c)}` : ''}`, files);
   }
   if (plan.tiktok?.length && !tk) await add('tiktok', `Finir le brouillon TikTok : ${title}`, textOf('tiktok'));
   if (plan.youtube?.length) await add('youtube', `Passer le Short en public : ${title}`, textOf('youtube').split('\n')[0]);

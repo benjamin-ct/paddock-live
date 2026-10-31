@@ -382,8 +382,8 @@ async function image(req, url) {
 // video : vidéo du créateur (Reel sur Instagram, vidéo sur Facebook, Threads et Bluesky) ; vsize : [largeur, hauteur]
 // videoUrl : adresse publique de la vidéo (Threads la lit là) ; link : post « lien » { url, title, description }
 // sans visuels, la carte de l'article affichée par le réseau
-// topic : sujet Threads choisi (sinon « F1 Threads »)
-async function sendTo(net, vault, { text, comment, images, small = [], video = null, videoUrl = null, vsize = null, cover = null, link = null, topic }, threads) {
+// topic : sujet Threads choisi (sinon « F1 Threads ») ; more : texte de la suite du fil Bluesky (images 5 à 8, en réponse)
+async function sendTo(net, vault, { text, comment, images, small = [], video = null, videoUrl = null, vsize = null, cover = null, link = null, topic, more = '' }, threads) {
   if (link && net === 'facebook') return publishFacebookLink(vault.meta, text, link.url);
   if (link && net === 'threads') return publishThreadsLink(await threads(), text.slice(0, 500), link.url, topic);
   if (link && net === 'bluesky') return publishBluesky(vault.bluesky, [...text].slice(0, 300).join(''), [], link);
@@ -399,8 +399,13 @@ async function sendTo(net, vault, { text, comment, images, small = [], video = n
     return withComment(() => publishBluesky(vault.bluesky, [...text].slice(0, 300).join(''), [], null, clip), comment, (id, t) => replyBluesky(vault.bluesky, id, t));
   }
   if (net === 'bluesky') {
-    const pics = small.slice(0, 4).map((blob) => ({ blob, width: 1080, height: 1350, alt: blob.alt || '' }));   // format X de shared/social-draw.js
-    return withComment(() => publishBluesky(vault.bluesky, [...text].slice(0, 300).join(''), pics), comment, (id, t) => replyBluesky(vault.bluesky, id, t));
+    const pics = (list) => list.map((blob) => ({ blob, width: 1080, height: 1350, alt: blob.alt || '' }));   // format X de shared/social-draw.js
+    return withComment(async () => {
+      const r = await publishBluesky(vault.bluesky, [...text].slice(0, 300).join(''), pics(small.slice(0, 4)));
+      if (!more || small.length <= 4) return r;
+      // Suite ratée : le post reste publié (jamais republié), le souci signalé comme pour un commentaire
+      try { await replyBluesky(vault.bluesky, r.id, [...more].slice(0, 300).join(''), pics(small.slice(4, 8))); return r; } catch (err) { return { ...r, commentError: `Suite du fil : ${err.message}`.slice(0, 300) }; }
+    }, comment, (id, t) => replyBluesky(vault.bluesky, id, t));
   }
   if (net === 'facebook') return withComment(() => publishFacebook(vault.meta, text, images), comment, (id, t) => commentFacebook(vault.meta, id, t));
   if (net === 'instagram') return publishInstagram(vault.meta, text.slice(0, 2200), images);
@@ -473,7 +478,8 @@ function tiktokOptions(raw) {
 // une fois la publication faite. Visuels (4 Mo au plus : limite des photos d'une Page Facebook, qui les
 // héberge aussi pour Instagram) et vidéo (50 Mo au plus) gardés dans le stockage R2 (MEDIA), pas dans la base.
 const SCHED = { max: 20, ahead: 7 * 86400e3, late: 24 * 3600e3, keep: 7 * 86400e3, running: 15 * 60e3, img: 4e6 };
-const SETS = { ig: 20, x: 4, cover: 1 };
+// x : visuels de Bluesky, 4 pour le post puis 4 pour la suite du fil (anciennes versions : 4 au plus)
+const SETS = { ig: 20, x: 8, cover: 1 };
 const schedKey = async (env) => new Uint8Array(await crypto.subtle.digest('SHA-256', enc.encode(`paddock-live-schedule-v1:${env.STATS_KEY}`)));
 const rowsLike = rowsWithPrefix;
 const delLike = (env, prefix) => env.DB.prepare('DELETE FROM studio WHERE k >= ? AND k < ?').bind(prefix, afterPrefix(prefix)).run();
@@ -526,7 +532,8 @@ async function scheduleAdd(req, env, raw, vault, now = Date.now()) {
   const nets = posts.map((p) => String(p?.network || ''));
   // Stories ou posts du fil, jamais les deux : les visuels n'ont pas le même format ; TikTok et YouTube avec une vidéo
   const allowed = link ? [...LINKS, 'instagram'] : video ? [...NETS, ...CLIPS, ...STORIES] : nets.some((n) => STORIES.includes(n)) ? STORIES : NETS;
-  posts = posts.map((p) => ({ network: String(p?.network || ''), text: String(p?.text || '').slice(0, 5000), comment: String(p?.comment || '').trim().slice(0, 500), ...(typeof p?.topic === 'string' ? { topic: cleanTopic(p.topic) } : {}) }));
+  // more : texte de la suite du fil Bluesky (facultatif, anciennes versions sans)
+  posts = posts.map((p) => ({ network: String(p?.network || ''), text: String(p?.text || '').slice(0, 5000), comment: String(p?.comment || '').trim().slice(0, 500), ...(typeof p?.topic === 'string' ? { topic: cleanTopic(p.topic) } : {}), ...(p?.network === 'bluesky' && typeof p?.more === 'string' && p.more.trim() ? { more: p.more.trim().slice(0, 1000) } : {}) }));
   if (nets.some((n) => !allowed.includes(n)) || new Set(nets).size !== nets.length) return json({ error: 'Réseau inconnu' }, 400);
   for (const p of posts) if (missing(p.network, vault)) return json({ error: missing(p.network, vault) }, 409);
   const files = (k, n) => form.getAll(k).filter((f) => typeof f === 'object' && f && /^image\/(png|jpeg)$/.test(f.type)).slice(0, n);
@@ -740,7 +747,7 @@ export async function runSchedule(env, { now = Date.now(), only = null } = {}) {
             : CLIPS.includes(p.network)
             ? await sendClip(p.network, () => (p.network === 'youtube' ? freshYoutube : freshTiktok)(keys[p.network]), await media(p.network, true), j.video, tr.text, j.tiktok)
             : j.link && LINKS.includes(p.network) ? await sendTo(p.network, keys, { text: tr.text, topic: p.topic, link: { ...j.link, url: (await trackPost(env, p.network, { text: j.link.url }, j.record?.title)).text } }, () => freshThreads(keys.threads))
-            : await sendTo(p.network, keys, { text: tr.text, comment: tr.comment, topic: p.topic, images: p.network === 'bluesky' || video ? [] : await imgs('ig'), small: p.network === 'bluesky' && !video ? await imgs('x') : [], video, videoUrl: video && `${videoOrigin(env)}/studio/v/${j.id}${j.full && !SAFE_NETS.includes(p.network) ? '-full.mp4' : j.video === 'video/quicktime' ? '.mov' : '.mp4'}`, vsize: j.vsize, cover: video ? (await imgs('cover'))[0] : null }, () => freshThreads(keys.threads));
+            : await sendTo(p.network, keys, { text: tr.text, comment: tr.comment, topic: p.topic, more: p.more, images: p.network === 'bluesky' || video ? [] : await imgs('ig'), small: p.network === 'bluesky' && !video ? await imgs('x') : [], video, videoUrl: video && `${videoOrigin(env)}/studio/v/${j.id}${j.full && !SAFE_NETS.includes(p.network) ? '-full.mp4' : j.video === 'video/quicktime' ? '.mov' : '.mp4'}`, vsize: j.vsize, cover: video ? (await imgs('cover'))[0] : null }, () => freshThreads(keys.threads));
           if (story) Object.assign(st, { sent: story.from + r.count, total: story.total });
           Object.assign(st, { status: story && st.sent < story.total ? 'pending' : 'done', at: Date.now(), ...resultOf(r), ...(r.note ? { note: r.note } : {}) });
           // Stories (24 heures) : pas dans l'historique, qui garde le post du fil
@@ -778,7 +785,7 @@ export async function runSchedule(env, { now = Date.now(), only = null } = {}) {
 // ---------- « Reste à faire » ----------
 // Ce que le Studio ne peut pas finir seul : post X (texte, images ou vidéo prêts à partager), brouillon TikTok à
 // compléter, Short YouTube à passer en public… Gardé 7 jours, fichiers dans le stockage R2 (effacés avec la tâche).
-const TODO = { max: 30, keep: 7 * 86400e3, files: 4, img: 4e6 };
+const TODO = { max: 30, keep: 7 * 86400e3, files: 8, img: 4e6 };   // X : 4 images du post et 4 de la suite
 const TODO_KINDS = ['x', 'tiktok', 'youtube', 'autre'];
 async function dropTodo(env, t) {
   for (let i = 0; i < (t.files || []).length; i++) await env.MEDIA?.delete(`todo/${t.id}/${i}`);
@@ -793,7 +800,7 @@ async function todoList(env, now = Date.now()) {
   await setRow(env, 'todo', JSON.stringify(list));
   return list;
 }
-// Formulaire : kind, title, text, after (heure à partir de laquelle la tâche se fait), f (4 images, ou une vidéo)
+// Formulaire : kind, title, text, after (heure à partir de laquelle la tâche se fait), f (8 images, ou une vidéo)
 async function todoAdd(req, env, now = Date.now()) {
   let form;
   try { form = await req.formData(); } catch { return json({ error: 'Formulaire illisible' }, 400); }
@@ -801,7 +808,7 @@ async function todoAdd(req, env, now = Date.now()) {
   if (!TODO_KINDS.includes(kind)) return json({ error: 'Tâche inconnue' }, 400);
   const files = form.getAll('f').filter((f) => typeof f === 'object' && f);
   const video = files.length === 1 && /^video\/(mp4|quicktime)$/.test(files[0].type) && files[0].size <= VIDEO_MAX;
-  if (files.length && !video && (files.length > TODO.files || files.some((f) => !/^image\/(png|jpeg)$/.test(f.type) || f.size > TODO.img))) return json({ error: 'Fichiers refusés : 4 images (4 Mo au plus) ou une vidéo MP4 de 50 Mo au plus' }, 400);
+  if (files.length && !video && (files.length > TODO.files || files.some((f) => !/^image\/(png|jpeg)$/.test(f.type) || f.size > TODO.img))) return json({ error: 'Fichiers refusés : 8 images (4 Mo au plus) ou une vidéo MP4 de 50 Mo au plus' }, 400);
   if (files.length && !env.MEDIA) return json({ error: 'Stockage des fichiers (R2) absent du serveur' }, 503);
   const list = await todoList(env, now);
   if (list.length >= TODO.max) return json({ error: `${TODO.max} tâches au plus : cochez celles qui sont faites` }, 409);

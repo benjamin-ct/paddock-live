@@ -1,5 +1,5 @@
 // Brouillons de posts, gardés sur le serveur Paddock Live (code créateur) et repris dans l'appli comme
-// dans le Studio : données des visuels, images écartées, format, options et textes retouchés à la main.
+// dans le Studio : données des visuels, images écartées, images de X, format, options et textes retouchés à la main.
 // Pas de vidéo (trop lourde) : elle se refait à la reprise.
 import { captions } from './social.js';
 import { newsCaptions } from './social-news.js';
@@ -38,6 +38,9 @@ export function cleanDraft(b) {
     fmt: FMTS.has(b.fmt) ? b.fmt : 'ig', skip: (Array.isArray(b.skip) ? b.skip : []).filter((s) => typeof s === 'string').slice(0, 40).map((s) => s.slice(0, 40)),
     opts, edited, d: b.d,
   };
+  // Images de X et Bluesky : premier post et suite en réponse (absent : choix par défaut, anciens brouillons)
+  const names = (v) => (Array.isArray(v) ? v : []).filter((s) => typeof s === 'string').slice(0, 4).map((s) => s.slice(0, 40));
+  if (b.xs && typeof b.xs === 'object') out.xs = { post: names(b.xs.post), more: names(b.xs.more) };
   return new TextEncoder().encode(JSON.stringify(out)).length <= DRAFT_BYTES ? out : null;
 }
 
