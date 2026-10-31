@@ -122,6 +122,9 @@
       .web .grid { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto; grid-template-areas: "map" "tower" "tele" "feed" "radio"; }
       .web .p-map { height: 380px; } .web .p-feed, .web .p-radio, .web .p-analysis { height: 440px; }
       .web .grid { flex: none; }
+    }
+    /* Téléphone, en portrait comme en paysage (écran peu haut) : menus, classement et réglages du direct */
+    @media (max-width: 900px), (max-height: 500px) and (orientation: landscape) {
       /* Menus en bas de l'écran, sur toute la largeur, défilement au doigt (comme l'appli sur téléphone) */
       .web .map-layers-menu { position: fixed; left: 8px; right: 8px; top: auto; bottom: calc(12px + env(safe-area-inset-bottom));
         width: auto; max-height: 60dvh; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; z-index: 900; }
@@ -157,6 +160,22 @@
       /* Espace Saison ouvert : la barre du haut ne garde que la séance (délai, F1 TV, chronos servent au direct) ;
          « Retour au direct » est dans le menu ☰ */
       .web body:has(#seasonView:not([hidden])) .topbar > :not(.session, .track-status) { display: none !important; }
+    }
+    /* Téléphone en paysage : rien sous l'encoche ni la Dynamic Island, barre du haut sur une ligne (météo dans le
+       direct), classement et carte côte à côte sur toute la hauteur de l'écran, le reste dessous */
+    @media (max-height: 500px) and (orientation: landscape) {
+      .web body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+      html.web body .topbar { padding-left: max(10px, env(safe-area-inset-left)); padding-right: max(10px, env(safe-area-inset-right)); }
+      .web .topbar .weather-mini { display: none !important; }
+      .web .topbar { flex-wrap: nowrap; row-gap: 0; }
+      .web .topbar :is(.tb-break, .brand, .session-sub) { display: none !important; }
+      .web .topbar .session-name { font-size: 18px; max-width: 30vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .web .topbar .hstat-value { font-size: 22px !important; }
+      .web .topbar #clockValue { font-size: 24px !important; }
+      .web .grid { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); grid-template-rows: calc(100dvh - var(--web-top, 0px) - 16px) 360px 360px;
+        grid-template-areas: "tower map" "tele feed" "radio radio"; }
+      .web .p-tower { height: auto; min-height: 0; overflow: auto; }
+      .web .p-tower .tower-wrap { overflow: auto; }
     }
   </style>
 </head>
