@@ -205,7 +205,7 @@ export function renderTower(force = false) {
       const best = l.BestLapTime?.Value || '';
       const bestPurple = stats[num]?.PersonalBestLapTime?.Position === 1;
       const st = l.Speeds?.ST;
-      cells = `<td class="pos">${esc(pos)}${posDelta}</td>${drv}
+      cells = `<td class="pos${String(pos).length < 2 ? ' p1' : ''}">${esc(pos)}${posDelta}</td>${drv}
         <td class="t-gap">${l.Retired ? '<span class="dim">—</span>' : gapText(l.GapToLeader)}</td>
         <td class="t-int c-int ${int.Catching ? 'catching' : ''}">${l.Retired ? '<span class="dim">—</span>' : gapText(int.Value)}</td>
         ${last}<td class="t-lap c-best ${bestPurple ? 'purple' : ''}">${esc(best) || '<span class="dim">—</span>'}</td>
@@ -216,13 +216,13 @@ export function renderTower(force = false) {
       const stp = list(l.Stats)[part - 1] || {};
       const best = bl[part - 1]?.Value || '';
       const q = [0, 1, 2].map((i) => `<td class="t-lap c-q ${i === part - 1 ? '' : 'dim'}">${esc(bl[i]?.Value || '') || '<span class="dim">—</span>'}</td>`).join('');
-      cells = `<td class="pos">${esc(pos)}</td>${drv}
+      cells = `<td class="pos${String(pos).length < 2 ? ' p1' : ''}">${esc(pos)}</td>${drv}
         <td class="t-lap">${esc(best) || '<span class="dim">—</span>'}</td>
         <td class="t-gap">${esc(stp.TimeDiffToFastest || '') || '<span class="dim">—</span>'}</td>
         <td class="t-int c-int">${esc(stp.TimeDifftoPositionAhead || '') || '<span class="dim">—</span>'}</td>
         ${predCell}${last}${secCells}${q}${tyre}${extra}${duel}`;
     } else {
-      cells = `<td class="pos">${esc(pos)}</td>${drv}
+      cells = `<td class="pos${String(pos).length < 2 ? ' p1' : ''}">${esc(pos)}</td>${drv}
         <td class="t-lap">${esc(l.BestLapTime?.Value || '') || '<span class="dim">—</span>'}</td>
         <td class="t-gap">${esc(l.TimeDiffToFastest || '') || '<span class="dim">—</span>'}</td>
         <td class="t-int c-int">${esc(l.TimeDiffToPositionAhead || '') || '<span class="dim">—</span>'}</td>

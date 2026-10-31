@@ -153,7 +153,11 @@
 :root[data-design="v2"] .tower td { border-bottom-color: var(--line); }
 :root[data-design="v2"] .tower td.c-duel { background: transparent; }
 :root[data-design="v2"] .tower td.pos { font: italic 800 17px/1 var(--font-cond); color: #0B1220; }
-:root[data-design="v2"] .tower td.pos::before { inset: 4px 3px; border-radius: 8px; background: linear-gradient(180deg, #fff, #DCE3EE); box-shadow: 0 2px 8px rgba(0, 0, 0, .35); }
+/* Pastille de la position : taille fixe (un ou deux chiffres), centrée dans sa colonne, chiffre centré (léger décalage
+   pour l'italique) ; elle remplissait toute la colonne, trop grande et décentrée avec un seul chiffre */
+:root[data-design="v2"] .tower td.pos { text-align: center !important; padding-left: 0 !important; padding-right: 2px !important; }
+:root[data-design="v2"] .tower td.pos::before { inset: auto; left: 50%; top: 50%; width: 30px; height: 26px; transform: translate(-50%, -50%); border-radius: 8px; background: linear-gradient(180deg, #fff, #DCE3EE); box-shadow: 0 2px 8px rgba(0, 0, 0, .35); }
+:root[data-design="v2"] .tower td.pos.p1::before { width: 24px; }   /* un seul chiffre : pastille plus étroite */
 :root[data-design="v2"] .tower tr:nth-child(1) td.pos::before { background: linear-gradient(180deg, #FFE27A, #E2A90F); box-shadow: 0 0 14px rgba(255, 196, 0, .45); }
 :root[data-design="v2"] .tower tr:nth-child(2) td.pos::before { background: linear-gradient(180deg, #F4F7FB, #AEB9C8); }
 :root[data-design="v2"] .tower tr:nth-child(3) td.pos::before { background: linear-gradient(180deg, #F2C29A, #B9743F); }
@@ -384,7 +388,7 @@
   :root[data-design="v2"] .mob-nav button.active .mn-svg { stroke: #ff4a40; filter: drop-shadow(0 0 6px rgba(255, 59, 48, .9)); }
   :root[data-design="v2"] .replaybar { margin: 0 12px 4px; border-radius: 22px; border: 1px solid var(--v2-rim) !important; background: rgba(14, 22, 42, .72) !important; -webkit-backdrop-filter: var(--v2-blur); backdrop-filter: var(--v2-blur); }
   :root[data-design="v2"] .replaybar .rp-play { width: 40px; height: 40px; }
-  :root[data-design="v2"] .tower td.pos { font-size: 18px; }
+  :root[data-design="v2"] .tower td.pos { font-size: 17px; }
   :root[data-design="v2"] .tower .drv-tla { font-size: 18px; }
   :root[data-design="v2"] .sz-drv-card { width: 196px; height: 148px; }
   :root[data-design="v2"] .sz-drv-card img { height: 138px; }
