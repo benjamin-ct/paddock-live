@@ -85,6 +85,8 @@ l'application (Réglages → À propos → Nouveautés).
   minute jusqu'à afficher la prochaine séance.
 
 ### En direct
+- Tour lancé (étiquette « TOUR » du classement, temps prévu, voitures estompées hors tour lancé) repéré dès les
+  premiers mètres du tour, et plus seulement à la fin du premier secteur.
 - Direction de course : les motifs suivis de l'heure de l'incident (« conduite erratique (16:22:32) ») et les infractions
   dans la voie des stands sont traduits en français ; ils restaient en anglais. Aussi dans la version web.
 - Connexion F1 TV : l'appli passe maintenant par le serveur de Paddock Live, sur le même relais que la version web

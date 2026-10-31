@@ -417,6 +417,8 @@ function predictLap(l, st) {
   for (let i = 0; i < 3; i++) {
     const segs = list(secs[i]?.Segments);
     const statuses = segs.map((g) => g?.Status || 0);
+    // Rien de passé sur ce secteur ni le précédent pendant ce tour : restes du tour d'avant, pas comptés
+    if (i > done) break;
     seen += statuses.filter(Boolean).length;
     good += statuses.filter((x) => x === 2049 || x === 2051).length;
     const complete = segs.length && statuses.every(Boolean) && !statuses.includes(2064);
@@ -427,7 +429,9 @@ function predictLap(l, st) {
       done++;
     }
   }
-  if (!done || done === 3 || seen < 2 || good / seen < 0.5) return null;
+  // Tour lancé dès les premiers mini-secteurs du tour en vert ou violet (et plus seulement à la fin du premier
+  // secteur, au milieu du circuit) : temps prévu = secteurs faits + meilleurs secteurs personnels restants
+  if (done === 3 || seen < 2 || good / seen < 0.5) return null;
   for (let i = done; i < 3; i++) time += best[i];
   return { time, done };
 }
