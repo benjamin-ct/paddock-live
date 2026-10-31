@@ -293,7 +293,8 @@
 :root[data-design="v2"] .sz-chip { border-radius: 999px; }
 
 /* Cartes des pilotes et pilote en grand : façon appli F1 (dégradé de l'écurie, portrait détouré éclairé, grand numéro en filigrane) */
-:root[data-design="v2"] .sz-drv-strip { gap: 14px; padding: 16px 10px 30px; margin-bottom: -6px; }   /* place pour la carte soulevée et le halo de la carte choisie */
+:root[data-design="v2"] .sz-drv-strip { gap: 14px; padding: 16px 20px 38px; margin: 0 -20px -14px; scroll-padding-inline: 20px; }   /* place pour le halo de la carte choisie (aussi quand la bande défile jusqu'à elle), cartes alignées sur la page */
+@media (max-width: 900px) { :root[data-design="v2"] .sz-drv-strip { padding: 16px 10px 38px; margin: 0 -10px -14px; scroll-padding-inline: 10px; } }
 :root[data-design="v2"] .sz-drv-card { width: 232px; height: 168px; padding: 14px 16px; border-radius: 22px; isolation: isolate;
   border: 1px solid color-mix(in srgb, var(--tc) 50%, rgba(255, 255, 255, .12));
   background: radial-gradient(circle at 78% 38%, color-mix(in srgb, var(--tc) 85%, #fff 0%), transparent 58%), linear-gradient(155deg, color-mix(in srgb, var(--tc) 78%, #0B1427), color-mix(in srgb, var(--tc) 22%, #050A18) 88%);
@@ -491,8 +492,8 @@
 }
 @property --v2-a { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
 @keyframes v2-spin { to { --v2-a: 360deg; } }
-@keyframes v2-breathe { 0%, 100% { box-shadow: 0 0 0 2px #fff, 0 0 0 5px color-mix(in srgb, var(--tc) 60%, transparent), 0 20px 44px -14px color-mix(in srgb, var(--tc) 90%, transparent); }
-  50% { box-shadow: 0 0 0 2px #fff, 0 0 0 8px color-mix(in srgb, var(--tc) 35%, transparent), 0 24px 56px -12px color-mix(in srgb, var(--tc) 100%, transparent); } }
+@keyframes v2-breathe { 0%, 100% { box-shadow: 0 0 0 2px #fff, 0 0 0 5px color-mix(in srgb, var(--tc) 60%, transparent), 0 14px 30px -12px color-mix(in srgb, var(--tc) 90%, transparent); }
+  50% { box-shadow: 0 0 0 2px #fff, 0 0 0 7px color-mix(in srgb, var(--tc) 35%, transparent), 0 16px 34px -12px color-mix(in srgb, var(--tc) 100%, transparent); } }
 @keyframes v2-card-in { from { opacity: 0; transform: translateY(18px) scale(.96); } to { opacity: 1; transform: none; } }
 @keyframes v2-hero-img { from { opacity: 0; transform: translateX(40px) scale(.96); } to { opacity: 1; transform: none; } }
 @keyframes v2-hero-no { from { opacity: 0; transform: translate(60px, -50%); } to { opacity: 1; transform: translateY(-50%); } }
