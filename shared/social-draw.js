@@ -52,12 +52,13 @@ function baseSlides(d, fmt) {
   if (!d.rows.length) return [];
   // Essais et qualifs : vitesses de pointe et meilleurs secteurs, quand la F1 les a publiés
   const timing = [...(d.speeds ? ['vitesses'] : []), ...(d.sectors ? ['secteurs'] : [])];
-  let list = ['meilleurtemps', 'podium', 'classement', ...timing, ...(d.facts.length ? ['faits'] : [])];
+  // Le premier (photo, nom, temps) est déjà sur la couverture : pas d'image « Meilleur temps / Vainqueur / Pole » en plus
+  let list = ['podium', 'classement', ...timing, ...(d.facts.length ? ['faits'] : [])];
   const duels = teammateDuels(d).length >= 3 ? ['duels'] : [];
   // Course complète (10 pilotes au moins avec leur place de départ, leurs relais) : grille → arrivée, stratégie
   const data = [...(d.rows.filter((r) => r.grid).length >= 10 ? ['remontees'] : []), ...(d.rows.filter((r) => r.stints?.length).length >= 10 ? ['strategie'] : [])];
-  if (d.kind === 'race') list = ['vainqueur', 'podium', 'classement', ...data, ...duels, 'faits', ...(d.champ ? ['championnat'] : [])];
-  else if (d.kind === 'quali') list = ['pole', 'podium', 'classement', ...timing, ...duels, ...(d.facts.length ? ['faits'] : [])];
+  if (d.kind === 'race') list = ['podium', 'classement', ...data, ...duels, 'faits', ...(d.champ ? ['championnat'] : [])];
+  else if (d.kind === 'quali') list = ['podium', 'classement', ...timing, ...duels, ...(d.facts.length ? ['faits'] : [])];
   return ['couverture', ...list];
 }
 // Images choisies par le créateur : toutes, sauf celles écartées (une au moins reste). Passées aux
@@ -471,7 +472,8 @@ function hero(ctx, W, H, d, o, word) {
   stats(ctx, d, f.pad, stTop, W - f.pad * 2, 3, u);
 }
 
-function stats(ctx, d, x, y, w, perRow, u = 1) {
+// Chiffres du premier (avance, départ, temps, écart, tours) : image du vainqueur et couvertures
+export function heroItems(d) {
   const r = d.rows;
   const items = [];
   if (d.kind === 'race') {
@@ -483,6 +485,10 @@ function stats(ctx, d, x, y, w, perRow, u = 1) {
     if (r[1]?.gap) items.push(['Sur P2', r[1].gap]);
     if (d.kind === 'practice' && r[0].laps) items.push(['Tours', String(r[0].laps)]);
   }
+  return items;
+}
+function stats(ctx, d, x, y, w, perRow, u = 1) {
+  const items = heroItems(d);
   const n = Math.min(items.length, perRow > 2 ? 3 : perRow === 1 ? 3 : 2);
   if (!n) return;
   const gap = 16 * u;
@@ -908,7 +914,8 @@ function cover(ctx, W, H, d, o, next, fmt) {
   y += 62 * u + 70 * u;
   const lines = wrap(ctx, d.gp.toUpperCase(), pad, y + 20 * u, colW, 92 * u, 2, { size: Math.round(92 * u), weight: 800, family: TITLE, italic: true });
   y += (lines - 1) * 92 * u + 80 * u;
-  const info = [d.date, d.circuit, d.kind === 'race' && d.laps ? `${d.laps} tours` : ''].filter(Boolean).join('  ·  ').toUpperCase();
+  // Résultats : chiffres du premier (temps, écart…) à la place du circuit, déjà dans l'en-tête des autres images
+  const info = (pic ? [d.date, ...heroItems(d).map(([k, v]) => `${k} ${v}`)] : [d.date, d.circuit, d.kind === 'race' && d.laps ? `${d.laps} tours` : '']).filter(Boolean).join('  ·  ').toUpperCase();
   if (info) txt(ctx, info, pad, y, { size: Math.round(33 * u), weight: 600, family: TITLE, color: C.muted, max: colW, spacing: 2 });
 
   // Sommaire des images suivantes (numéro = place dans le carrousel publié)

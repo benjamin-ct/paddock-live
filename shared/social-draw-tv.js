@@ -3,7 +3,7 @@
 // et bronze en relief, titres chromés. Couverture, podium et classement dessinés à part ; les autres visuels
 // reprennent le fond, l'en-tête, le pied et les pastilles (background, frame, footer et pill de social-draw.js).
 
-import { C, rr, txt, alpha, vivid, photo, grain, topY, footY, pageDots } from './social-draw.js';
+import { C, rr, txt, alpha, vivid, photo, grain, topY, footY, pageDots, heroItems } from './social-draw.js';
 
 export const TV_TITLE = '"Barlow Condensed", "Saira Condensed", sans-serif';
 export const TV_LABEL = '"Chakra Petch", "Titillium Web", sans-serif';
@@ -233,13 +233,15 @@ export function tvCover(ctx, W, H, d, o, fmt) {
   if (py + ph < footY(W, H) - 40 * u) {
     ctx.fillStyle = 'rgba(255,255,255,0.07)'; slant(ctx, pad, py, pw, ph, 14 * u); ctx.fill();
     ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.fillRect(pad + 14 * u, py, pw - 14 * u, 1.5 * u);
-    const cells = [['Date', d.date || ''], [d.kind === 'race' ? 'Distance' : 'Séance', d.kind === 'race' && d.laps ? `${d.laps} tours` : d.label || ''], ['Écurie', win.team || '']];
+    // Chiffres du premier (temps, écart, tours ; en course avance, départ, tours), complétés par l'écurie
+    const cells = [...heroItems(d), ['Écurie', win.team || '']].slice(0, 3);
     cells.forEach(([k, v], i) => {
       const cx = pad + 30 * u + i * (pw / 3);
       if (i) { ctx.fillStyle = 'rgba(255,255,255,0.14)'; ctx.fillRect(cx - 24 * u, py + 18 * u, 1.5 * u, ph - 36 * u); }
       label(ctx, k, cx, py + 34 * u, 17 * u, { spacing: 3, color: 'rgba(255,255,255,0.6)' });
-      if (i === 2) { ctx.fillStyle = vivid(win.color); slant(ctx, cx, py + 52 * u, 10 * u, 30 * u, 5 * u); ctx.fill(); }
-      tt(ctx, String(v).toUpperCase(), cx + (i === 2 ? 20 * u : 0), py + 80 * u, 40 * u, { max: pw / 3 - 50 * u, w: 800 });
+      const team = k === 'Écurie';
+      if (team) { ctx.fillStyle = vivid(win.color); slant(ctx, cx, py + 52 * u, 10 * u, 30 * u, 5 * u); ctx.fill(); }
+      tt(ctx, String(v).toUpperCase(), cx + (team ? 20 * u : 0), py + 80 * u, 40 * u, { max: pw / 3 - 50 * u, w: 800 });
     });
   }
   tvFooter(ctx, W, H, o, fmt === 'ig' ? 'FAITES DÉFILER »' : 'À SUIVRE »');
