@@ -169,7 +169,7 @@
 :root[data-design="v2"] .tower .team-logo.color, :root[data-design="v2"] .sz-table .team-logo.color, :root[data-design="v2"] .hm-fav-who .team-logo.color { background-color: #F4F6FA !important; background-size: 62% !important; }
 :root[data-design="v2"] .tower .team-logo { width: 26px; height: 26px; }
 :root[data-design="v2"] .tower tr.focus { background: linear-gradient(90deg, rgba(225, 6, 0, .34), rgba(225, 6, 0, .06) 60%, transparent) !important; box-shadow: inset 3px 0 0 #ff2a1f; }
-:root[data-design="v2"] .tower tr.trow:hover td { background: rgba(255, 255, 255, .04); }
+@media (hover: hover) { :root[data-design="v2"] .tower tr.trow:hover td { background: rgba(255, 255, 255, .04); } }
 :root[data-design="v2"] .tyre { box-shadow: 0 0 8px color-mix(in srgb, currentColor 45%, transparent); }
 :root[data-design="v2"] .tower .c-duel .duel-btns button, :root[data-design="v2"] .tower .duel-btn { border-radius: 8px; }
 
@@ -467,7 +467,7 @@
   /* Classement : la ligne survolée s'éclaire en douceur, le logo de l'écurie grossit un peu */
   :root[data-design="v2"]:not([data-motion="off"]) :is(.tower, .sz-table) tbody tr { transition: background-color .25s; }
   :root[data-design="v2"]:not([data-motion="off"]) :is(.tower, .sz-table) .team-logo { transition: transform .35s var(--v2-spring); }
-  :root[data-design="v2"]:not([data-motion="off"]) :is(.tower, .sz-table) tbody tr:hover .team-logo { transform: scale(1.12); }
+  @media (hover: hover) { :root[data-design="v2"]:not([data-motion="off"]) :is(.tower, .sz-table) tbody tr:hover .team-logo { transform: scale(1.12); } }
   /* Pilotes de la Saison : le portrait avance un peu au survol */
   /* Cartes des pilotes et des écuries (Saison) : arrivée en cascade, la carte se soulève au survol avec une lueur
      aux couleurs de l'écurie, un filet de lumière tourne en continu autour du bord (plus vif au survol et sur la carte choisie, qui « respire ») */

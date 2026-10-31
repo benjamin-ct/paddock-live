@@ -301,7 +301,7 @@ input[type=range]:not(#rpRange):disabled { opacity: .45; cursor: default; }
 .tower th.c-duel { right: 0; z-index: 3; }
 .tower tr.out td.c-duel { opacity: 1; }
 .tower tr.out td.c-duel .duel-btns { opacity: .45; }
-.tower tr.trow:hover td { background: var(--hover); }
+@media (hover: hover) { .tower tr.trow:hover td { background: var(--hover); } }   /* souris seulement : au doigt, la ligne touchée pour faire défiler restait surlignée */
 .tower tr.focus td { background: var(--focus); }
 .tower tr.duel-a td:first-child { box-shadow: inset 3px 0 0 var(--blue); }
 .tower tr.duel-b td:first-child { box-shadow: inset 3px 0 0 var(--orange); }
