@@ -86,11 +86,14 @@ function enter(el, dir) {
 
 function home({ from = 'up' } = {}) {
   app.className = 'shell';
-  app.innerHTML = `<header class="appbar"><div class="brand">${LOGO}<span>Paddock <b>Studio</b></span></div><span class="grow"></span>
-      <a class="iconbtn" href="https://paddocklive.app/" aria-label="Retour au site" title="Retour au site">${icon('home')}</a>
-      <button class="iconbtn" id="refresh" aria-label="Actualiser" title="Actualiser">${icon('refresh')}</button><button class="iconbtn" id="drafts" aria-label="Brouillons" title="Brouillons">${icon('pen')}<i class="count" hidden></i></button><button class="iconbtn" id="inbox" aria-label="Messages" title="Messages">${icon('mail')}<i class="count" hidden></i></button><button class="iconbtn" id="settings" aria-label="Réglages" title="Réglages">${icon('settings')}</button></header>
+  // En-tête : titre de l'onglet ouvert, puis brouillons, messages et réglages (nommés sur ordinateur) ;
+  // barre d'onglets en bas sur téléphone, barre latérale sur ordinateur
+  const btn = (id, ic, label, count = '') => `<button class="iconbtn" id="${id}" aria-label="${label}" title="${label}">${icon(ic)}<span class="lbl">${label}</span>${count}</button>`;
+  app.innerHTML = `<header class="appbar"><div class="brand grow">${LOGO}<h1 class="tab-title" id="tabtitle">${TABS[tabIndex(state.tab)][1]}</h1></div>
+      ${btn('refresh', 'refresh', 'Actualiser')}${btn('drafts', 'pen', 'Brouillons', '<i class="count" hidden></i>')}${btn('inbox', 'mail', 'Messages', '<i class="count" hidden></i>')}${btn('settings', 'settings', 'Réglages')}</header>
     <main class="page" id="body"></main>
-    <nav class="tabbar" style="--i:${tabIndex(state.tab)}"><div class="side-brand">${LOGO}<span>Paddock <b>Studio</b></span></div><span class="lens"></span>${TABS.map(([k, v, ic]) => `<button data-tab="${k}" class="${state.tab === k ? 'on' : ''}">${icon(ic)}<span>${v}</span></button>`).join('')}</nav>`;
+    <nav class="tabbar" style="--i:${tabIndex(state.tab)}"><div class="side-brand">${LOGO}<span>Paddock <b>Studio</b></span></div><span class="lens"></span>${TABS.map(([k, v, ic]) => `<button data-tab="${k}" class="${state.tab === k ? 'on' : ''}">${icon(ic)}<span>${v}</span></button>`).join('')}
+      <a class="side-foot" href="https://paddocklive.app/">← Retour au site</a></nav>`;
   $('#settings').onclick = settings;
   $('#inbox').onclick = messages;
   $('#drafts').onclick = (e) => open(e.currentTarget, async () => (await drafts()).draftsSheet(back, draftCount));
@@ -106,6 +109,11 @@ function home({ from = 'up' } = {}) {
       state.tab = b.dataset.tab;
       $('.tabbar').style.setProperty('--i', tabIndex(state.tab));
       $$('[data-tab]').forEach((x) => x.classList.toggle('on', x === b));
+      const title = $('#tabtitle');
+      title.textContent = TABS[tabIndex(state.tab)][1];
+      title.classList.remove('swap');
+      void title.offsetWidth;
+      title.classList.add('swap');
       scrollTo(0, 0);
       enter($('#body'), dir);
       showTab();
@@ -224,7 +232,18 @@ function renderNews(body, items, { at, stale = false }) {
   translateShown(body, list, () => renderNews(body, items, { at, stale }));
   $('#all', body).onchange = (e) => { state.all = e.target.checked; renderNews(body, items, { at, stale }); };
   $('#hideread', body).onchange = (e) => { state.hideRead = e.target.checked; renderNews(body, items, { at, stale }); };
-  $$('[data-r]', body).forEach((b) => { b.onclick = () => { const y = scrollY; setRead(list[Number(b.dataset.r)].id, !b.classList.contains('on')); renderNews(body, items, { at, stale }); scrollTo(0, y); }; });
+  // Lue / non lue : carte mise à jour sur place (liste redessinée seulement si les lues sont cachées)
+  $$('[data-r]', body).forEach((b) => {
+    b.onclick = () => {
+      const on = !b.classList.contains('on');
+      setRead(list[Number(b.dataset.r)].id, on);
+      if (state.hideRead) { const y = scrollY; renderNews(body, items, { at, stale }); scrollTo(0, y); return; }
+      b.classList.toggle('on', on);
+      b.previousElementSibling.classList.toggle('read', on);
+      b.title = on ? 'Lue : marquer comme non lue' : 'Marquer comme lue';
+      b.setAttribute('aria-label', b.title);
+    };
+  });
   $$('#nsort [data-by]', body).forEach((b) => { b.onclick = () => { state.nsort = b.dataset.by; renderNews(body, items, { at, stale }); }; });
   $$('#nkinds [data-k]', body).forEach((b) => { b.onclick = () => { state.nkind = b.dataset.k || null; renderNews(body, items, { at, stale }); }; });
   $('#recap', body).onclick = (e) => open(e.currentTarget, async () => (await posts()).recapEditor(back));
@@ -514,7 +533,7 @@ function msgHtml(m) {
     <div class="msg-foot">${contact}<button class="btn small" data-remove="${Number(m.id)}">Supprimer</button></div></article>`;
 }
 async function messages() {
-  const dlg = sheet('Messages', '<p class="hint center">Chargement…</p>');
+  const dlg = sheet('Messages', skeleton(2));
   const body = $('.sheet-body', dlg);
   let items;
   try { items = (await api('feedback')).items || []; } catch (err) { body.innerHTML = `<p class="hint center">${esc(err.message)}</p>`; return; }
@@ -592,7 +611,12 @@ function settings() {
   const pages = [['Paddock Live', 'https://paddocklive.app/liens/'], ['Benjy Paddock', 'https://paddocklive.app/benjy/']];
   const link = ([n, u]) => `<div class="row-item static"><span class="grow"><b>${esc(n)}</b><small>${esc(u.replace('https://', ''))}</small></span>
       <a class="btn small" href="${esc(u)}" target="_blank" rel="noopener">${icon('link')}Ouvrir</a><button class="btn small" data-copy="${esc(u)}">${icon('copy')}Copier</button></div>`;
-  const dlg = sheet('Réglages', `<h3 class="section">Mes pages de liens</h3><div class="group">${pages.map(link).join('')}</div>
+  // Le plus utile en premier : comptes, alertes, signature ; puis liens, pack streamers et outils
+  const dlg = sheet('Réglages', `<h3 class="section">Comptes</h3><div class="group">${accounts.map(([n, v]) => `<div class="row-item static"><span class="grow"><b>${esc(n)}</b><small>${esc(v || 'non connecté')}</small></span><span class="state ${v ? 'on' : ''}"></span></div>`).join('')}</div>
+    <p class="hint">Comptes envoyés par l'appli de bureau (Réglages → Mode créateur → Comptes…).</p>
+    <h3 class="section">Alertes des grosses news</h3><div id="alerts"></div>
+    <h3 class="section">Posts</h3><label class="field"><span>Signature des visuels et des textes <small>(gardée sur cet appareil)</small></span><input type="text" id="sigin" maxlength="40" value="${esc(SIG)}" placeholder="${esc(SIG_DEFAULT)}"></label>
+    <h3 class="section">Mes pages de liens</h3><div class="group">${pages.map(link).join('')}</div>
     <p class="hint">Tous les réseaux sur une seule page : le lien à mettre en bio.</p>
     <h3 class="section">Pack streamers</h3><div class="group">${link(['Présentation pour les streamers', KIT])}
       <div class="row-item static"><span class="grow"><b>Pack en PDF</b><small>Les 6 pages en un fichier, à joindre à un e-mail</small></span>
@@ -600,9 +624,6 @@ function settings() {
     ${PITCH.map(([n, t]) => `<details class="cap"><summary><span>${esc(n)}</span></summary><textarea rows="9">${esc(t)}</textarea>
       <button class="btn small" data-copy="">${icon('copy')}Copier le message</button></details>`).join('')}
     <p class="hint">Page non listée : envoie le lien avec un des messages.</p>
-    <h3 class="section">Posts</h3><label class="field"><span>Signature des visuels et des textes <small>(gardée sur cet appareil)</small></span><input type="text" id="sigin" maxlength="40" value="${esc(SIG)}" placeholder="${esc(SIG_DEFAULT)}"></label>
-    <h3 class="section">Comptes</h3><div class="group">${accounts.map(([n, v]) => `<div class="row-item static"><span class="grow"><b>${esc(n)}</b><small>${esc(v || 'non connecté')}</small></span><span class="state ${v ? 'on' : ''}"></span></div>`).join('')}</div>
-    <p class="hint">Comptes envoyés par l'appli de bureau (Réglages → Mode créateur → Comptes…).</p>
     ${me.f1tv ? `<h3 class="section">Relier un téléphone à F1 TV</h3><div class="group">
       <div class="row-item static"><span class="grow"><b>Ton compte F1 TV sur un autre appareil</b><small>Sur le téléphone, ouvre Paddock Live (app.paddocklive.app), touche « Connexion F1 TV » et lis le code à 6 chiffres.</small></span></div>
       <div class="row-item"><input id="pairCode" type="text" class="grow pair-code-in" inputmode="numeric" autocomplete="off" maxlength="6" placeholder="Code à 6 chiffres"><button class="btn small btn-accent" id="pairGo">Relier</button></div></div>
@@ -613,8 +634,8 @@ function settings() {
     <h3 class="section">Sources d'actu en plus</h3><div class="group" id="nsList"><div class="row-item static"><span class="grow"><small>Chargement…</small></span></div></div>
     <div class="row-item ns-add"><input id="nsAdd" type="text" placeholder="https://… ou @compte.bsky.social"><select id="nsCat" aria-label="Catégorie"><option value="media">Média</option><option value="team">Écurie</option><option value="driver">Pilote</option><option value="official">Officiel</option></select><button class="btn small btn-accent" id="nsGo">Ajouter</button></div>
     <p class="hint">Flux RSS, chaîne YouTube ou compte Bluesky : ajouté à l'onglet Actu de l'appli, pour tout le monde.</p>
-    <h3 class="section">Alertes des grosses news</h3><div id="alerts"></div>
     <button class="btn danger wide" id="out">${icon('logout')}Se déconnecter de cet appareil</button>
+    <p class="hint center"><a class="to-site" href="https://paddocklive.app/">${icon('back')}Retour au site</a></p>
     <p class="hint center">Version du Studio : ${esc(VERSION)} · © 2026 Paddock Live · <a href="https://github.com/benjamin-ct/paddock-live/blob/main/analytics/LICENSE" target="_blank" rel="noopener">Licence AGPL v3</a></p>`);
   alertsBlock($('#alerts', dlg));
   newsSourcesBlock(dlg);
