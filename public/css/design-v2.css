@@ -326,6 +326,19 @@
 }
 
 /* ---------- Téléphone : barre du haut en verre, onglets segmentés, barre du bas flottante façon iOS ---------- */
+/* Saison sur téléphone : chiffres et titres moins gros ; tableaux larges : le titre et le bouton restent en place
+   quand le tableau défile de côté (le tableau des pilotes tient en largeur : barre des points courte, marges serrées) */
+@media (max-width: 600px) {
+  :root[data-design="v2"] .sz-card { padding: 14px 16px; }
+  :root[data-design="v2"] .sz-big { font-size: 26px !important; }
+  :root[data-design="v2"] .sz-countdown b { font-size: 36px; }
+  :root[data-design="v2"] .sz-box h3 { font-size: 19px !important; }
+  :root[data-design="v2"] .sz-box > :is(h3, .btn) { position: sticky; left: 0; }
+  :root[data-design="v2"] .sz-table :is(th, td) { padding-left: 4px; padding-right: 4px; }
+  :root[data-design="v2"] .sz-table td { font-size: 13px; }
+  :root[data-design="v2"] .sz-table th { letter-spacing: .04em; }
+  :root[data-design="v2"] .sz-cb::before { width: 24px; }
+}
 @media (max-width: 900px) {
   :root[data-design="v2"] .topbar { padding-top: max(8px, env(safe-area-inset-top)); }
   :root[data-design="v2"] .topbar .session-name { font-size: 22px; }
