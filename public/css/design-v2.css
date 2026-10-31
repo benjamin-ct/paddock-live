@@ -1,5 +1,5 @@
 /* =====================================================================================
-   Design « Paddock 2 » (aperçu) : posé par-dessus le thème Pitwall et l'habillage Broadcast,
+   Design « Paddock 2 » (par défaut depuis la v1.30) : posé par-dessus le thème Pitwall et l'habillage Broadcast,
    seulement quand <html data-design="v2"> (Réglages → Apparence → Design). Rien ne change sinon.
    Même ADN (bleu nuit, rouge F1, Titillium Web et Saira Condensed), en plus riche :
    fond bleu nuit éclairé de lueurs, panneaux en verre dépoli à grands coins arrondis et filet fin,
@@ -203,7 +203,11 @@
 :root[data-design="v2"] .hm-card { padding: 22px 24px; gap: 8px; }
 :root[data-design="v2"] .hm-card:is(.hm-next, .hm-live) { position: relative; overflow: hidden; flex: none; padding: 30px 32px; min-height: 280px; border-left: 1px solid var(--v2-rim) !important;
   background: radial-gradient(60% 120% at 0% 0%, rgba(225, 6, 0, .42), transparent 60%), radial-gradient(50% 100% at 100% 100%, rgba(37, 99, 235, .32), transparent 60%), linear-gradient(135deg, rgba(26, 14, 30, .9), rgba(8, 14, 32, .85)) !important; }
-:root[data-design="v2"][data-scheme="light"] :is(.hm-next, .hm-live) { color: #fff; }
+/* Mode clair : la carte reste sombre, donc les couleurs du mode sombre à l'intérieur (programme, météo, manche) */
+:root[data-design="v2"][data-scheme="light"] :is(.hm-next, .hm-live) { color: #fff;
+  --bg: #030814; --panel: #0B1427; --panel-2: #111D35; --panel-3: #1A2A4A; --border: rgba(148, 163, 184, .14); --line: rgba(148, 163, 184, .08);
+  --line-2: rgba(148, 163, 184, .22); --hover: rgba(148, 163, 184, .07); --text: #F8FAFC; --text-2: #CBD5E1; --muted: #94A3B8;
+  --v2-glass: rgba(16, 26, 48, .62); --v2-glass-2: rgba(22, 34, 60, .7); --v2-glass-hi: rgba(255, 255, 255, .06); --v2-rim: rgba(148, 163, 184, .14); --v2-rim-2: rgba(148, 163, 184, .24); }
 :root[data-design="v2"] :is(.hm-next, .hm-live)::before { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: .5;
   background: repeating-linear-gradient(115deg, transparent 0 22px, rgba(255, 255, 255, .025) 22px 23px); -webkit-mask-image: linear-gradient(90deg, #000, transparent 70%); mask-image: linear-gradient(90deg, #000, transparent 70%); }
 :root[data-design="v2"] :is(.hm-next, .hm-live) > * { position: relative; }

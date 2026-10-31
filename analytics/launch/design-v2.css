@@ -1,6 +1,6 @@
 /* =====================================================================================
-   Site · design « Paddock 2 » (aperçu), le même que l'appli (public/css/design-v2.css) :
-   seulement avec <html data-design="v2"> (adresse ?design=v2). Sans l'attribut, rien ne change.
+   Site · design « Paddock 2 », le même que l'appli (public/css/design-v2.css) : avec <html data-design="v2">,
+   posé par défaut (adresse ?design=off pour l'ancien design). Sans l'attribut, rien ne change.
    Bleu nuit éclairé (lueurs, sol quadrillé en perspective), verre dépoli, grands titres condensés
    en italique, tracé du circuit lumineux, captures de l'appli en Paddock 2 (img/v2-*.webp).
    ===================================================================================== */

@@ -24,7 +24,7 @@
   <link rel="stylesheet" href="/live/css/style.css">
   <link rel="stylesheet" href="/live/css/broadcast.css">
   <link rel="stylesheet" href="/live/css/design-v2.css">
-  <script>/* Apparence (sombre / clair / système) posée avant l'affichage : pas d'éclair */ try { const p = JSON.parse(localStorage.getItem('paddock.prefs') || '{}'); const s = p.schemeSet || p.scheme === 'light' ? p.scheme : 'auto'; const light = s === 'light' || (s === 'auto' && matchMedia('(prefers-color-scheme: light)').matches); document.documentElement.dataset.scheme = light ? 'light' : 'dark'; } catch { document.documentElement.dataset.scheme = 'dark'; } document.documentElement.dataset.theme = 'pitwall'; document.documentElement.classList.add('web');</script>
+  <script>/* Apparence (sombre / clair / système) et design posés avant l'affichage : pas d'éclair */ try { const p = JSON.parse(localStorage.getItem('paddock.prefs') || '{}'); const s = p.schemeSet || p.scheme === 'light' ? p.scheme : 'auto'; const light = s === 'light' || (s === 'auto' && matchMedia('(prefers-color-scheme: light)').matches); document.documentElement.dataset.scheme = light ? 'light' : 'dark'; document.documentElement.dataset.design = p.designV || p.design === 'classic' ? p.design || 'v2' : 'v2'; } catch { document.documentElement.dataset.scheme = 'dark'; document.documentElement.dataset.design = 'v2'; } document.documentElement.dataset.theme = 'pitwall'; document.documentElement.classList.add('web');</script>
   <style>
     /* Version web : quatre panneaux, sans menu latéral ni outils de l'appli */
     .web body { padding-left: 0 !important; }

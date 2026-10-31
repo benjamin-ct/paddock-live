@@ -19,7 +19,7 @@ const DEFAULTS = {
   bigCols: null,          // colonnes du classement agrandi (bouton ⤢) : { hidden, extra }, sinon les mêmes
   towerFit: true,         // classement agrandi pour remplir la hauteur disponible
   theme: 'pitwall',       // thème unique de l'application
-  design: 'broadcast',    // habillage : 'broadcast' (façon retransmission TV) | 'classic' (ancien design Pitwall)
+  design: 'v2',           // habillage : 'v2' (Paddock 2) | 'broadcast' (façon retransmission TV) | 'classic' (ancien design Pitwall)
   scheme: 'auto',         // apparence : 'auto' (comme le système) | 'dark' (sombre) | 'light' (clair)
   schemeSet: false,       // apparence choisie par l'utilisateur (sinon : automatique)
   vividTeams: false,      // couleurs d'équipe contrastées plutôt qu'officielles
@@ -86,6 +86,10 @@ prefs.themeV = 5;   // gardé dans chaque enregistrement des préférences
 // réaffichées ensuite si on les recoche dans Réglages → Apparence)
 if (!saved.legendsV) { prefs.legends = false; storageSet('paddock.prefs', { ...storageGet('paddock.prefs', {}), legends: false, legendsV: 1 }); }
 prefs.legendsV = 1;
+// v1.30 : design Paddock 2 par défaut, aussi pour les installations existantes restées sur Broadcast (l'ancien
+// défaut) ; un choix de Classique est gardé. Une seule fois : Broadcast se rechoisit dans Réglages → Apparence
+if (!saved.designV) { if (prefs.design === 'broadcast') prefs.design = 'v2'; storageSet('paddock.prefs', { ...storageGet('paddock.prefs', {}), design: prefs.design, designV: 1 }); }
+prefs.designV = 1;
 // Langue retenue dès la première ouverture (sinon une autre fenêtre la redéduirait autrement)
 if (saved.lang !== LANG) storageSet('paddock.prefs', { ...storageGet('paddock.prefs', {}), lang: LANG });
 // Apparence automatique par défaut depuis la v1.20.1. En v1.20.0, « sombre » était enregistré par

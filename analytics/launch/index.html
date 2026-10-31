@@ -31,8 +31,10 @@
 // Animations : seulement avec IntersectionObserver et sans « réduire les animations ». Classe posée avant le premier
 // affichage (pas de clignotement) ; sans script, elle manque et tout le contenu reste visible
 if ('IntersectionObserver' in window && !matchMedia('(prefers-reduced-motion: reduce)').matches) document.documentElement.classList.add('anim');
-// Aperçu du design Paddock 2 (design-v2.css) : adresse ?design=v2, gardé pour les pages suivantes (?design=off pour l'enlever)
-try { const d = new URLSearchParams(location.search).get('design'); if (d) localStorage.setItem('pl.design', d); if (localStorage.getItem('pl.design') === 'v2') document.documentElement.dataset.design = 'v2'; } catch { /* sans stockage */ }
+// Design Paddock 2 (design-v2.css) par défaut ; adresse ?design=off pour l'ancien, gardé pour les pages suivantes (?design=v2 pour revenir)
+{ let design = 'v2';
+  try { const d = new URLSearchParams(location.search).get('design'); if (d) localStorage.setItem('pl.design', d); design = localStorage.getItem('pl.design') || 'v2'; } catch { /* sans stockage */ }
+  if (design !== 'off') document.documentElement.dataset.design = 'v2'; }
 </script>
 <link rel="stylesheet" href="/site/design-v2.css">
 <style>
