@@ -1219,6 +1219,7 @@ body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-selec
 .sz-gp-nav { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin: 4px 0 16px; }
 .sz-table th { text-align: left; color: var(--muted); font-size: 11px; text-transform: uppercase; font-weight: 600; padding: 6px 8px; border-bottom: 1px solid var(--border); }
 .sz-table td { padding: 7px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+@media (max-width: 600px) { .sz-table td.sz-wrap { white-space: normal; min-width: 4.5em; } .sz-table .sz-nw { white-space: nowrap; } }   /* téléphone : Grand Prix sur deux lignes si besoin, le tableau tient dans l'écran */
 .sz-table td .drv-bar { display: inline-block; vertical-align: middle; margin-right: 8px; height: 16px; }
 .sz-big .drv-bar { height: 22px; }
 .sz-table tr.muted td { color: var(--muted); }

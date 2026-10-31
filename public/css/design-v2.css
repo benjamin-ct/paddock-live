@@ -347,10 +347,10 @@
   :root[data-design="v2"] .sz-box > :is(h3, .btn) { position: sticky; left: 0; }
   :root[data-design="v2"] .sz-table :is(th, td) { padding-left: 4px; padding-right: 4px; }
   :root[data-design="v2"] .sz-table td { font-size: 13px; }
-  :root[data-design="v2"] .sz-table th { letter-spacing: .04em; }
+  :root[data-design="v2"] .sz-table th { letter-spacing: .02em; font-size: 10px; }
   :root[data-design="v2"] .sz-cb::before { width: 24px; }
   /* Nom du pilote sur deux lignes si besoin (« Andrea Kimi / Antonelli ») : les tableaux larges tiennent dans l'écran */
-  :root[data-design="v2"] .sz-table:not(.sz-heat) td:has(> .team-logo) { white-space: normal; line-height: 1.15; }
+  :root[data-design="v2"] .sz-table:not(.sz-heat) td:has(> .team-logo) { white-space: normal; line-height: 1.15; overflow-wrap: normal; }
   :root[data-design="v2"] .sz-table:not(.sz-heat) td:has(> .team-logo) > .team-logo { float: left; }
   :root[data-design="v2"] .sz-table:not(.sz-heat) td:has(> .team-logo) > b { display: flex; align-items: center; min-height: 26px; overflow: hidden; }
 }
