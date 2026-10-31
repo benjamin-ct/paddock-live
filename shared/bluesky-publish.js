@@ -1,6 +1,6 @@
 // Publication sur Bluesky (AT Protocol, gratuit) : session avec un mot de passe d'application,
 // images envoyées (4 au plus, 1 Mo chacune), post avec liens et hashtags cliquables, réponse au
-// post (premier commentaire). Partagé par l'appli et la page web du créateur.
+// post (premier commentaire, ou suite du fil avec ses images). Partagé par l'appli et la page web du créateur.
 const XRPC = 'https://bsky.social/xrpc';
 export const BSKY_MAX_IMAGE = 976 * 1024;
 
@@ -41,31 +41,37 @@ export function facets(text) {
 
 const postUrl = (handle, uri) => `https://bsky.app/profile/${handle}/post/${String(uri).split('/').pop()}`;
 
-// images : [{ blob, width, height, alt }]
-// external : carte de lien { url, title, description } (sans image) à la place des images
-// video : { blob, width, height } à la place des images (traitée par Bluesky après la publication)
-export async function publishBluesky(acc, text, images = [], external = null, video = null) {
-  const s = await bskySession(acc);
-  const vid = video && (await xrpc('com.atproto.repo.uploadBlob', { token: s.token, body: video.blob, type: video.blob.type || 'video/mp4' })).blob;
+// images : [{ blob, width, height, alt }] envoyées (4 au plus) -> bloc d'images du post, ou null
+async function embedImages(s, images) {
   const imgs = [];
   for (const im of images.slice(0, 4)) {
     if (im.blob.size > BSKY_MAX_IMAGE) throw new Error('Image trop lourde pour Bluesky (1 Mo au plus)');
     const up = await xrpc('com.atproto.repo.uploadBlob', { token: s.token, body: im.blob, type: im.blob.type || 'image/jpeg' });
     imgs.push({ alt: im.alt || '', image: up.blob, ...(im.width && im.height ? { aspectRatio: { width: im.width, height: im.height } } : {}) });
   }
+  return imgs.length ? { $type: 'app.bsky.embed.images', images: imgs } : null;
+}
+
+// external : carte de lien { url, title, description } (sans image) à la place des images
+// video : { blob, width, height } à la place des images (traitée par Bluesky après la publication)
+export async function publishBluesky(acc, text, images = [], external = null, video = null) {
+  const s = await bskySession(acc);
+  const vid = video && (await xrpc('com.atproto.repo.uploadBlob', { token: s.token, body: video.blob, type: video.blob.type || 'video/mp4' })).blob;
+  const pics = await embedImages(s, images);
   const record = {
     $type: 'app.bsky.feed.post', text, createdAt: new Date().toISOString(), langs: ['fr'], facets: facets(text),
     ...(vid ? { embed: { $type: 'app.bsky.embed.video', video: vid, ...(video.width && video.height ? { aspectRatio: { width: video.width, height: video.height } } : {}) } } : {}),
-    ...(!vid && imgs.length ? { embed: { $type: 'app.bsky.embed.images', images: imgs } } : {}),
-    ...(!vid && !imgs.length && external ? { embed: { $type: 'app.bsky.embed.external', external: { uri: external.url, title: external.title || '', description: external.description || '' } } } : {}),
+    ...(!vid && pics ? { embed: pics } : {}),
+    ...(!vid && !pics && external ? { embed: { $type: 'app.bsky.embed.external', external: { uri: external.url, title: external.title || '', description: external.description || '' } } } : {}),
   };
   const r = await xrpc('com.atproto.repo.createRecord', { token: s.token, json: { repo: s.did, collection: 'app.bsky.feed.post', record } });
   return { url: postUrl(s.handle, r.uri), id: { uri: r.uri, cid: r.cid } };
 }
 
-// Réponse au post (premier commentaire)
-export async function replyBluesky(acc, parent, text) {
+// Réponse au post : premier commentaire, ou suite du fil avec ses images (mêmes champs que publishBluesky)
+export async function replyBluesky(acc, parent, text, images = []) {
   const s = await bskySession(acc);
-  const record = { $type: 'app.bsky.feed.post', text, createdAt: new Date().toISOString(), langs: ['fr'], facets: facets(text), reply: { root: parent, parent } };
+  const pics = await embedImages(s, images);
+  const record = { $type: 'app.bsky.feed.post', text, createdAt: new Date().toISOString(), langs: ['fr'], facets: facets(text), reply: { root: parent, parent }, ...(pics ? { embed: pics } : {}) };
   return xrpc('com.atproto.repo.createRecord', { token: s.token, json: { repo: s.did, collection: 'app.bsky.feed.post', record } });
 }

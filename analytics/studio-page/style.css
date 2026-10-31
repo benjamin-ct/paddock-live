@@ -338,6 +338,9 @@ ul.plan { margin: 0 0 14px; padding-left: 20px; line-height: 1.7; }
 .sl.off canvas { opacity: .3; filter: grayscale(1); transform: scale(.96); }
 .sl.off .pick { color: var(--muted); text-decoration: line-through; }
 .sl.off .pick [data-num] { background: var(--surface-3); color: var(--muted); }
+/* Onglet X : Post / Suite / Non sous chaque image, zones de 44 px (iPhone) */
+.xpick { margin-top: 2px; }
+.xpick button { min-height: 44px; font-size: 14px; }
 /* Étape Publier : une carte par réseau (formats à cocher, texte, état) */
 .netcard { margin: 10px 0; padding: 12px 14px 4px; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); transition: opacity .2s; }
 .netcard.off { opacity: .6; }

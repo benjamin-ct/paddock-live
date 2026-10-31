@@ -2,7 +2,7 @@
 // privé…), puis les publications programmées ou en cours (état de chaque réseau, Réessayer, Modifier), puis les
 // posts publiés ces 7 derniers jours avec leurs liens.
 import { $, $$, esc, api, ago, icon, toast, empty, skeleton, schedList, NET_NAMES } from './ui.js';
-import { shareToX } from './publish.js';
+import { shareToX, X_SUITE } from './publish.js';
 
 const OPEN = { tiktok: ['Ouvrir TikTok', 'https://www.tiktok.com/'], youtube: ['Ouvrir YouTube Studio', 'https://studio.youtube.com/'] };
 const when = (t) => new Date(t).toLocaleString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
@@ -27,6 +27,7 @@ function renderTodos(el, items) {
       <div class="t">${esc(t.title)}</div>
       ${t.text ? `<p class="todo-text">${esc(t.text)}</p>` : ''}
       <div class="row">${t.kind === 'x' ? `<button class="btn primary small" data-x>${icon('send')}Ouvrir X${t.files?.length ? (t.files[0].type.startsWith('video/') ? ' avec la vidéo' : ' avec les images') : ''}</button>` : ''}
+        ${t.kind === 'x' && t.text.includes(X_SUITE) ? `<button class="btn small" data-x="suite">${icon('send')}Ouvrir X avec la suite</button>` : ''}
         ${OPEN[t.kind] ? `<a class="btn small" href="${OPEN[t.kind][1]}" target="_blank" rel="noopener">${icon('link')}${OPEN[t.kind][0]}</a>` : ''}
         ${t.text ? `<button class="btn small" data-copy>${icon('copy')}Copier le texte</button>` : ''}
         <button class="btn small" data-done>${icon('check')}Fait</button></div></div>`).join('')}</div>`
@@ -34,14 +35,17 @@ function renderTodos(el, items) {
   for (const card of $$('[data-todo]', el)) {
     const t = items.find((x) => x.id === card.dataset.todo);
     if ($('[data-copy]', card)) $('[data-copy]', card).onclick = () => navigator.clipboard.writeText(t.text).then(() => toast('Texte copié', 'ok'), () => toast('Copie impossible', 'bad'));
-    if ($('[data-x]', card)) {
-      $('[data-x]', card).onclick = async (e) => {
-        const b = e.currentTarget;
+    for (const b of $$('[data-x]', card)) {
+      b.onclick = async () => {
         b.classList.add('busy'); b.disabled = true;
         try {
-          // Fichiers gardés par le serveur, puis partage vers X (texte copié)
-          const files = await Promise.all((t.files || []).map(async (f, i) => new File([await (await api(`todo/file?id=${t.id}&i=${i}`, { raw: true })).blob()], f.name || `x-${i + 1}`, { type: f.type })));
-          await shareToX(files, t.text.split('\n\n— En réponse au post —\n')[0]);
+          // Fichiers gardés par le serveur, puis partage vers X (texte copié) : le post, ou sa suite (fichiers
+          // x-suite-…, texte sous « Suite, à poster en réponse au post »)
+          const suite = b.dataset.x === 'suite';
+          const list = (t.files || []).map((f, i) => ({ ...f, i })).filter((f) => /^x-suite-/.test(f.name || '') === suite);
+          const files = await Promise.all(list.map(async (f) => new File([await (await api(`todo/file?id=${t.id}&i=${f.i}`, { raw: true })).blob()], f.name || `x-${f.i + 1}`, { type: f.type })));
+          const parts = t.text.split('\n\n— ');
+          await shareToX(files, suite ? parts.find((p) => p.startsWith(X_SUITE.slice(2))).split('\n').slice(1).join('\n') : parts[0]);
         } catch (err) { toast(err.message, 'bad'); } finally { b.classList.remove('busy'); b.disabled = false; }
       };
     }

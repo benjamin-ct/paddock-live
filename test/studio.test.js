@@ -692,6 +692,55 @@ test('page du créateur : post « lien » sans visuels (carte de l\'article affi
   await disableStudio({ fetchFn });
 });
 
+test('page du créateur : Bluesky, suite du fil (images 5 à 8) publiée en réponse ; anciens envois sans suite inchangés', async () => {
+  saveConfig({ creator: true, social: { bluesky: { handle: 'moi.bsky.social', appPassword: 'mdp-app', did: 'did:plc:moi' } } });
+  const fetchFn = (url, init) => worker(url, init);
+  await enableStudio(CODE, { fetchFn });
+  const key = { 'X-Studio-Key': studioKey(CODE) };
+  const add = (n, post) => {
+    const f = new FormData();
+    f.append('at', String(Date.now()));
+    f.append('title', 'Qualifs');
+    f.append('posts', JSON.stringify([post]));
+    for (let i = 0; i < n; i++) f.append('x', new Blob([new Uint8Array([0xff, 0xd8, 0xff, i])], { type: 'image/jpeg' }), `x-${i + 1}.jpg`);
+    f.append('alts', JSON.stringify({ ig: [], x: Array.from({ length: n }, (_, i) => `Image ${i + 1}`) }));
+    return worker('https://s.test/studio/api/schedule', { method: 'POST', body: f, headers: key });
+  };
+  const realFetch = globalThis.fetch;
+  let records = [];
+  globalThis.fetch = async (url, opts = {}) => {
+    const u = new URL(url);
+    const ok = (d) => new Response(JSON.stringify(d));
+    if (u.pathname.endsWith('createSession')) return ok({ accessJwt: 'jwt', did: 'did:plc:moi', handle: 'moi.bsky.social' });
+    if (u.pathname.endsWith('uploadBlob')) return ok({ blob: { ref: 'b' } });
+    if (u.pathname.endsWith('createRecord')) { records.push(JSON.parse(opts.body).record); return ok({ uri: `at://did:plc:moi/app.bsky.feed.post/r${records.length}`, cid: `c${records.length}` }); }
+    throw new Error(`inattendu : ${url}`);
+  };
+  try {
+    // Post de 4 images, suite de 3 en réponse, puis le premier commentaire
+    const { item } = await (await add(7, { network: 'bluesky', text: 'Qualifs', comment: 'Lien', more: '📊 La suite : meilleurs secteurs' })).json();
+    assert.equal(JSON.parse(env.DB.studio.get(`sched:${item.id}`)).posts[0].more, '📊 La suite : meilleurs secteurs');
+    assert.deepEqual(await runSchedule(env), { published: 'bluesky', id: item.id });
+    assert.deepEqual(records.map((r) => [r.text, r.embed?.images.length ?? 0, r.reply?.parent.uri.slice(-2) ?? null]), [['Qualifs', 4, null], ['📊 La suite : meilleurs secteurs', 3, 'r1'], ['Lien', 0, 'r1']]);
+    assert.deepEqual(records[1].embed.images.map((i) => i.alt), ['Image 5', 'Image 6', 'Image 7']);
+    await runSchedule(env);
+    // Ancienne version de la page : 4 images, pas de suite ; texte « more » ignoré hors Bluesky ou sans images en plus
+    records = [];
+    const old = (await (await add(4, { network: 'bluesky', text: 'Avant' })).json()).item;
+    assert.equal('more' in JSON.parse(env.DB.studio.get(`sched:${old.id}`)).posts[0], false);
+    assert.deepEqual(await runSchedule(env), { published: 'bluesky', id: old.id });
+    assert.deepEqual(records.map((r) => [r.text, r.embed.images.length]), [['Avant', 4]]);
+    await runSchedule(env);
+    records = [];
+    const four = (await (await add(4, { network: 'bluesky', text: 'Quatre', more: '📊 La suite' })).json()).item;
+    await runSchedule(env);
+    assert.equal(records.length, 1);
+    await runSchedule(env);
+    assert.equal((await (await worker('https://s.test/studio/api/schedule', { headers: key })).json()).items.some((x) => [item.id, old.id, four.id].includes(x.id)), false);
+  } finally { globalThis.fetch = realFetch; }
+  await disableStudio({ fetchFn });
+});
+
 test('page du créateur : photos libres de droits (Commons, Flickr par Openverse), licences « NC » et « ND » écartées', async () => {
   const { freePhotos, shortLicense } = await import('../analytics/photos.js');
   assert.equal(shortLicense('Attribution-ShareAlike License'), 'CC BY-SA');
