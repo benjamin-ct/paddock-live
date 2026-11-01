@@ -27,18 +27,22 @@ l'application (Réglages → À propos → Nouveautés).
   derrière.
 
 ### Tableau de bord plus clair
-- Nouvelle disposition des panneaux, la même pour tout le monde : le Classement à gauche, le Circuit et l'Analyse au
-  milieu, et un seul panneau « Messages » à droite qui réunit la direction de course, les radios d'équipe, les enquêtes
-  et les limites de piste.
-- Analyse : seulement les 3 onglets utiles selon la séance. En course : Écarts, Arrêts (avec la stratégie) et
-  Télémétrie ; en qualifs et en essais : Secteurs, Comparaison et Télémétrie. Les autres (Temps, Pneus, Jeux de pneus,
-  simulateur d'arrêt, Bagarres, championnat) s'ajoutent en un clic.
+- Nouvel écran principal, le même pour tout le monde : le Classement à gauche (le duel de deux pilotes cliqués passe
+  par-dessus), la Télémétrie du pilote suivi et la Direction de course (avec les enquêtes et les limites de piste) au
+  milieu, et les Radios d'équipe à droite, transcrites et traduites d'office.
+- Le Circuit, l'Analyse et le Duel s'ouvrent chacun dans leur propre fenêtre, à placer où l'on veut (second écran) :
+  menu « Fenêtres » de la barre de gauche, ou bouton « + » au bout des onglets d'un panneau. Ils ne prennent plus de
+  place dans l'écran principal. Sur téléphone, où il n'y a qu'un écran, ils restent des onglets : Classement,
+  Télémétrie, Messages, Radios et Carte (Duel et Analyse avec la version complète).
+- Analyse : seulement les onglets utiles selon la séance. En course : Écarts et Arrêts (avec la stratégie) ; en qualifs
+  et en essais : Secteurs et Comparaison. Les autres (Temps, Pneus, Jeux de pneus, simulateur d'arrêt, Bagarres,
+  championnat) s'ajoutent en un clic.
 - Bouton « + » au bout des onglets de chaque panneau : il rouvre un onglet fermé, amène un onglet d'un autre panneau,
-  ou affiche un panneau masqué (Duel, Radios ou Stratégie à part).
+  ou ouvre le Circuit, l'Analyse ou le Duel dans une fenêtre.
 - Plus de choix entre les interfaces Essentiel et Complète : une seule, que chacun complète avec le bouton « + ».
-- À la mise à jour, tout le monde passe une fois à cette disposition (les fenêtres sur un second écran gardent leurs
-  panneaux). L'ancienne reste dans Réglages → Disposition → Fenêtres, sous le nom « Ma disposition d'avant » : un clic
-  la remet.
+- À la mise à jour, tout le monde passe une fois à ce nouvel écran (les fenêtres sur un second écran gardent leurs
+  panneaux). L'ancienne disposition reste dans Réglages → Disposition → Fenêtres, sous le nom « Ma disposition
+  d'avant » : un clic la remet.
 - Direction de course vide : le message « Aucun message » ne se coupe plus mot par mot.
 
 ### Langues
@@ -265,7 +269,7 @@ l'application (Réglages → À propos → Nouveautés).
 - Plusieurs dispositions enregistrées, chacune sous un nom (Réglages → Disposition → Fenêtres, par exemple « Course
   sur 2 écrans » ou « Qualifs portable ») : un clic sur son nom remet les panneaux de chaque fenêtre et leur place sur
   les écrans comme au moment de l'enregistrement, avec les panneaux et les onglets affichés et les colonnes du
-  classement, et ✕ la supprime. Elles sont aussi dans le menu « Dispo. » de la
+  classement, et ✕ la supprime. Elles sont aussi dans le menu « Fenêtres » de la
   barre de gauche. L'emplacement enregistré avant cette version est gardé sous le nom « Mon emplacement ».
 - Application de bureau : le temps avant la prochaine séance s'affiche dans la barre des menus sur Mac (« EL1 2 h 14 »,
   « Course 12 min », « LIVE » pendant la séance) et dans l'info-bulle de l'icône de la zone de notification sur Windows

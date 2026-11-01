@@ -3,9 +3,10 @@ import { storageGet, storageSet, setVividTeams, setTeamLogos, setLogoColor } fro
 import { emit, touch } from './store.js';
 import { LANG } from './i18n.js';
 
-// Disposition par défaut (1.30) : Classement, Circuit, Messages et Analyse ; panneaux à part masqués (les radios sont
-// dans Messages, la stratégie dans Analyse, ui/tabmove.js) et 3 onglets d'analyse selon la séance (les autres : bouton +)
-export const PANELS_HIDDEN = ['radio', 'duel', 'extra'];
+// Écran principal (1.30) : Classement (avec le duel par-dessus), Télémétrie, Direction de course et Radios ; Circuit,
+// Analyse et Duel s'ouvrent dans leur propre fenêtre (bouton + d'un panneau, menu Dispo.) : masqués dans la fenêtre
+// principale (ui/layout.js, ui/tabmove.js). Analyse : 3 onglets selon la séance (les autres : bouton +)
+export const PANELS_HIDDEN = ['map', 'analysis', 'duel'];
 export const TAB_HIDDEN = {
   race: ['laptimes', 'pace', 'tyrehist', 'sectors', 'tyres', 'pitsim', 'battles', 'champ'],
   quali: ['trace', 'positions', 'pits', 'strategy', 'laptimes', 'pace', 'tyrehist', 'tyres', 'pitsim', 'battles', 'champ'],
@@ -42,7 +43,7 @@ const DEFAULTS = {
   layoutMode: 'auto',     // disposition : 'auto' (selon la séance) | 'race' | 'quali'
   tabLayout: null,        // onglets déplacés : { panneau: [onglets dans l'ordre] } (null : à leur place d'origine)
   radioAuto: false,
-  radioText: false,       // transcription des radios en texte (serveur Paddock Live)
+  radioText: true,        // transcription des radios en texte et traduction (serveur Paddock Live), active d'office
   radioLang: LANG === 'en' ? 'none' : LANG,        // langue de traduction des transcriptions ('none' : anglais)
   radioFilter: 'all',
   obRadio: false,         // radios captées sur les caméras embarquées F1 TV (expérimental)
@@ -73,11 +74,11 @@ const DEFAULTS = {
 
 const saved = storageGet('paddock.prefs', {});
 export const prefs = { ...DEFAULTS, ...saved, alerts: { ...DEFAULTS.alerts, ...(saved.alerts || {}) } };
-// v1.28 : nouvelle installation (aucun réglage enregistré) : écrans d'accueil ; v1.30 : déjà à la nouvelle
-// disposition des panneaux (layoutV, ui/layout.js)
+// v1.28 : nouvelle installation (aucun réglage enregistré) : écrans d'accueil ; v1.30 : déjà au nouvel écran principal
+// (layoutV, ui/layout.js)
 if (!Object.keys(saved).length) {
-  Object.assign(prefs, { welcomed: false, layoutV: 2 });
-  storageSet('paddock.prefs', { ...storageGet('paddock.prefs', {}), welcomed: false, layoutV: 2 });
+  Object.assign(prefs, { welcomed: false, layoutV: 3 });
+  storageSet('paddock.prefs', { ...storageGet('paddock.prefs', {}), welcomed: false, layoutV: 3 });
 }
 // Un seul thème depuis la v1.20 : Pitwall, en mode sombre ou clair. Les anciens thèmes (F1 Pro,
 // F1 sobre, Classique, Bleu nuit) passent sur Pitwall, en mode sombre.
