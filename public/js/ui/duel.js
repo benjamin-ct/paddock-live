@@ -3,7 +3,7 @@ import { store, setDuel, displayNow, versionOf, on, emit } from '../store.js';
 import { prefs } from '../prefs.js';
 import { $, esc, drivers, orderedNumbers, sessionKind, teamColor, teamMark, tyreBadge, currentStint, fmtSigned, photoUrl, driverOpt } from '../util.js';
 import { parseGap, parseLapTime, catchLaps } from '/shared/f1.js';
-import { carNow } from './gauge.js';
+import { carNow, animate } from './gauge.js';
 import { DEC, t } from '../i18n.js';
 import { realStopCount } from '/shared/pits.js';
 
@@ -109,7 +109,9 @@ function spark(series) {
   lo -= pad; hi += pad;
   const x = (i) => (i / (pts.length - 1)) * 100, y = (v) => 28 - ((v - lo) / (hi - lo)) * 26;
   const line = pts.map((p, i) => `${x(i).toFixed(1)},${y(p.y).toFixed(1)}`).join(' ');
-  const pits = pts.map((p, i) => (p.pit ? `<circle cx="${x(i).toFixed(1)}" cy="${y(p.y).toFixed(1)}" r="1.6" class="bt-pit"/>` : '')).join('');
+  // Arrêts : point de taille fixe (trait de longueur nulle, épaisseur non étirée) ; un cercle se déformait en tache
+  // quand la courbe est étirée sur toute la largeur du panneau
+  const pits = pts.map((p, i) => (p.pit ? `<line x1="${x(i).toFixed(1)}" y1="${y(p.y).toFixed(1)}" x2="${x(i).toFixed(1)}" y2="${y(p.y).toFixed(1)}" class="bt-pit"/>` : '')).join('');
   const zero = lo < 0 && hi > 0 ? `<line x1="0" y1="${y(0).toFixed(1)}" x2="100" y2="${y(0).toFixed(1)}" class="bt-zero"/>` : '';
   const fmt = (v) => Math.abs(v).toFixed(1).replace('.', DEC);
   return `<svg class="bt-spark ${pts.at(-1).y >= 0 ? 'a' : 'b'}" viewBox="0 0 100 30" preserveAspectRatio="none" aria-hidden="true">${zero}
@@ -163,15 +165,11 @@ function renderHero(a, b) {
   const dl = drivers(s);
   const da = dl[a] || {}, db = dl[b] || {};
   const lines = s.TimingData?.Lines || {};
-  const disp = displayNow();
-  const ca = carNow(a, disp), cb = carNow(b, disp);   // télémétrie en direct (bandeau, barres du panneau)
   const race = sessionKind(s) === 'race';
   const off = officialGap(s, a, b);
   const la = lines[a] || {}, lb = lines[b] || {};
-  const running = !la.Retired && !lb.Retired && !la.Stopped && !lb.Stopped;
-  let live = race && running ? store.positions.liveGap(a, b, disp) : null;
-  // Garde-fou : si le GPS contredit nettement le chronométrage (voiture au garage, tour de retard…), on s'en tient à l'officiel.
-  if (live && off && (off.laps || (off.gap !== null && Math.abs(live.gap - off.gap) > 5))) live = null;
+  heroOff = off;
+  const live = liveGapNow(a, b, displayNow());
 
   let main = '—', unit = '', tag = race ? 'Écart' : 'Écart au meilleur tour', ahead = null, close = false;
   if (live && !live.laps) {
@@ -204,19 +202,15 @@ function renderHero(a, b) {
     box.style.setProperty('--tb', teamColor(db));
     box.classList.toggle('close', close);
     for (const k of ['a', 'b', 'gap']) { const el = box.querySelector(`.bt-band [data-s="${k}"]`); if (el._h !== html[k]) { el._h = html[k]; el.innerHTML = html[k]; } }
-    for (const [k, c] of [['a', ca], ['b', cb]]) {
-      const el = box.querySelector(`.bt-band [data-s="${k}"] .bt-kmh`);
-      el.hidden = !c?.speed;
-      if (c?.speed) el.firstChild.textContent = Math.round(c.speed);
-      // Télémétrie en barres horizontales : accélérateur (vert) et frein (rouge), rapport engagé
-      const tl = box.querySelector(`.bt-band [data-s="${k}"] .bt-tele`);
-      tl.hidden = !c;
-      if (!c) continue;
-      tl.querySelector('.bt-tg').textContent = c.gear ? c.gear : 'N';
-      tl.querySelector('.thr b').style.width = `${Math.max(0, Math.min(100, c.thr || 0))}%`;
-      tl.querySelector('.brk b').style.width = `${c.brk ? (c.brk > 1 ? Math.min(100, c.brk) : 100) : 0}%`;
-    }
   }
+  // Valeurs en direct (écart GPS, vitesse, rapport, accélérateur et frein) mises à jour à chaque image
+  const pair = `${a}-${b}`;
+  heroPair = pair;
+  animate('duel', () => {
+    if (heroPair !== pair || (!bands().length && !$('#bt'))) return false;
+    heroLive(a, b);
+    return true;
+  });
   // Panneau Duel (absent de la version web, qui n'a que le bandeau)
   const ff = $('#bt');
   if (!ff) return;
@@ -231,16 +225,59 @@ function renderHero(a, b) {
       <small>${l.Position ? `P${esc(l.Position)} · ` : ''}${esc(d.TeamName || '')}</small>
       <span class="ff-stats">${st ? `<span class="bt-tyre">${tyreBadge(st.Compound, st.TotalLaps, st.New)}</span>` : ''}${last}</span>`;
   };
-  for (const [k, num, d, c, mine, other] of [['A', a, da, ca, lastA, lastB], ['B', b, db, cb, lastB, lastA]]) {
+  for (const [k, num, d, mine, other] of [['A', a, da, lastA, lastB], ['B', b, db, lastB, lastA]]) {
     put(`#ff${k} .ff-photo`, photoUrl(d) ? `<img src="${esc(photoUrl(d))}" alt="" onerror="this.remove()">` : '');
     put(`#ff${k} .ff-info`, info(num, d, mine, other));
+  }
+}
+
+// Écart GPS en direct (course), sauf s'il contredit nettement le chronométrage (voiture au garage, tour de retard…)
+let heroOff = null, heroPair = '';
+function liveGapNow(a, b, disp) {
+  const s = store.state, lines = s.TimingData?.Lines || {};
+  const la = lines[a] || {}, lb = lines[b] || {};
+  if (sessionKind(s) !== 'race' || la.Retired || lb.Retired || la.Stopped || lb.Stopped) return null;
+  const live = store.positions.liveGap(a, b, disp), off = heroOff;
+  if (live && off && (off.laps || (off.gap !== null && Math.abs(live.gap - off.gap) > 5))) return null;
+  return live;
+}
+
+// À chaque image : écart en direct, vitesse, rapport, accélérateur et frein, dans le bandeau et le panneau Duel
+// (le reste du duel suit le rythme du rafraîchissement, renderHero)
+const pct = (v) => `${Math.max(0, Math.min(100, v || 0))}%`;
+const brake = (c) => `${c?.brk ? (c.brk > 1 ? Math.min(100, c.brk) : 100) : 0}%`;
+function heroLive(a, b) {
+  const disp = displayNow();
+  const ca = carNow(a, disp), cb = carNow(b, disp);
+  const live = liveGapNow(a, b, disp);
+  if (live && !live.laps) {
+    const txt = live.gap.toFixed(live.gap < 10 ? 2 : 1).replace('.', DEC);
+    for (const v of document.querySelectorAll('#duelBand .bt-val, #ffGap .bt-val')) if (v.firstChild?.nodeType === 3 && v.firstChild.nodeValue !== txt) v.firstChild.nodeValue = txt;
+  }
+  for (const box of bands()) {
+    for (const [k, c] of [['a', ca], ['b', cb]]) {
+      const el = box.querySelector(`.bt-band [data-s="${k}"] .bt-kmh`);
+      if (!el) continue;
+      el.hidden = !c?.speed;
+      if (c?.speed) el.firstChild.textContent = Math.round(c.speed);
+      // Télémétrie en barres horizontales : accélérateur (vert) et frein (rouge), rapport engagé
+      const tl = box.querySelector(`.bt-band [data-s="${k}"] .bt-tele`);
+      tl.hidden = !c;
+      if (!c) continue;
+      tl.querySelector('.bt-tg').textContent = c.gear ? c.gear : 'N';
+      tl.querySelector('.thr b').style.width = pct(c.thr);
+      tl.querySelector('.brk b').style.width = brake(c);
+    }
+  }
+  for (const [k, c] of [['A', ca], ['B', cb]]) {
     const tl = $(`#ff${k} .ff-tele`);
+    if (!tl) continue;
     tl.hidden = !c;
     if (!c) continue;
     tl.querySelector('.ff-num b').textContent = c.speed ? Math.round(c.speed) : '—';
     tl.querySelector('.ff-gear').textContent = c.gear ? c.gear : 'N';
-    tl.querySelector('.thr i').style.height = `${Math.max(0, Math.min(100, c.thr || 0))}%`;
-    tl.querySelector('.brk i').style.height = `${c.brk ? (c.brk > 1 ? Math.min(100, c.brk) : 100) : 0}%`;
+    tl.querySelector('.thr i').style.height = pct(c.thr);
+    tl.querySelector('.brk i').style.height = brake(c);
   }
 }
 

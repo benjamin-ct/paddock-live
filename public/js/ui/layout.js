@@ -82,7 +82,7 @@ const TAB_DEFAULTS = {
   race: { feed: 'rcm', analysis: 'trace' },
   quali: { feed: 'rcm', analysis: 'compare' },
 };
-const profileDefaults = (prof = profile) => ({ hiddenPanels: [...PANELS_HIDDEN], hiddenCols: [], hiddenTabs: [...TAB_HIDDEN[prof]] });
+const profileDefaults = (prof = profile) => ({ hiddenPanels: [...PANELS_HIDDEN], hiddenCols: ['name'], hiddenTabs: [...TAB_HIDDEN[prof]] });
 const profileFor = (mode, kind) => (mode === 'race' || mode === 'quali' ? mode : kind === 'race' ? 'race' : 'quali');
 let profile = prefs.layoutMode === 'race' || prefs.layoutMode === 'quali' ? prefs.layoutMode : storageGet('paddock.lastProfile', 'race');
 if (!PROFILES[profile]) profile = 'race';
@@ -93,14 +93,13 @@ const lkey = (win = WIN, prof = profile) => (prof === 'race' || win !== 'main' ?
 function defaultLayout(prof = profile) {
   if (!isMain) return { cols: [] };
   const quali = prof === 'quali';
-  // Écran principal : Classement à gauche, sur plus de la moitié (encore plus large en qualifs et essais : Q1/Q2/Q3,
-  // tour en cours ; le duel passe par-dessus) ; à droite la Télémétrie et les Radios côte à côte en haut, et la
-  // Direction de course en dessous. Circuit, Analyse et Duel (masqués ici, s'ils sont affichés) : entre les deux
-  // (écran moins large : télémétrie et radios l'une sous l'autre, style.css .lrow)
-  const top = [{ id: 'extra', h: 1.15, row: 'tr', w: 1 }, { id: 'radio', h: 1.15, row: 'tr', w: 1.15 }];
+  // Écran principal : Classement à gauche (plus large en qualifs et essais : Q1/Q2/Q3, tour en cours ; le duel passe
+  // par-dessus), le Circuit au centre sur toute la hauteur, et à droite la Télémétrie, les Radios et la Direction de
+  // course l'une sous l'autre. Analyse et Duel (masqués ici, s'ils sont affichés) : sous le Circuit
   return { cols: [
-    { w: quali ? 1.3 : 1.2, items: [{ id: 'tower', h: 1 }] },
-    { w: 1, items: [...top, { id: 'map', h: 1.1 }, { id: 'duel', h: 0.8 }, { id: 'analysis', h: 1 }, { id: 'feed', h: 1 }] },
+    { w: quali ? 1.2 : 1.05, items: [{ id: 'tower', h: 1 }] },
+    { w: 1.15, items: [{ id: 'map', h: 1.6 }, { id: 'duel', h: 0.8 }, { id: 'analysis', h: 1 }] },
+    { w: 0.95, items: [{ id: 'extra', h: 1 }, { id: 'radio', h: 1.1 }, { id: 'feed', h: 1.1 }] },
   ] };
 }
 
@@ -1047,7 +1046,7 @@ function switchProfile(next, quiet = false) {
     profile = next;
     storageSet('paddock.lastProfile', next);
     setPref('hiddenPanels', n.hiddenPanels || []);
-    setPref('hiddenCols', n.hiddenCols || []);
+    setPref('hiddenCols', n.hiddenCols || ['name']);
     setPref('extraCols', n.extraCols || []);
     setPref('hiddenTabs', n.hiddenTabs || TAB_HIDDEN[next]);
   } else profile = next;
@@ -1099,12 +1098,23 @@ function alignCtrl(head) {
 const headObserver = 'ResizeObserver' in window ? new ResizeObserver((entries) => { const heads = entries.map((e) => e.target); requestAnimationFrame(() => heads.forEach(alignCtrl)); }) : null;
 
 // ---------------- Initialisation ----------------
-// 1.30 : nouvel écran principal pour tout le monde, une seule fois (layoutV 3 ; nouvelle installation : déjà fait,
+// 1.30 : nouvel écran principal pour tout le monde, une seule fois (layoutV 4 ; nouvelle installation : déjà fait,
 // prefs.js). L'ancienne disposition est gardée dans les dispositions enregistrées (« Ma disposition d'avant », ou
 // « Ma disposition 4 panneaux » pour celle des premières bêtas de la 1.30) ; les fenêtres secondaires gardent leurs
 // panneaux, seules les dispositions de la fenêtre principale repartent de zéro. Radios traduites d'office.
+// layoutV 3 (bêtas 42 à 45, écran sans le Circuit) : seulement le Circuit remis au centre.
 function migrateLayout() {
-  if ((prefs.layoutV || 0) >= 3) return;
+  if ((prefs.layoutV || 0) >= 4) return;
+  if (prefs.layoutV === 3) {
+    storageSet(LAYOUTS_KEY, Object.fromEntries(Object.entries(allLayouts()).filter(([k]) => !k.startsWith('main'))));
+    storageSet(PROFILE_KEY, {});
+    setPref('hiddenPanels', (prefs.hiddenPanels || []).filter((id) => id !== 'map'));
+    setPref('hiddenCols', [...new Set([...(prefs.hiddenCols || []), 'name'])]);   // classement : code du pilote seul
+    setPref('layoutV', 4);
+    layout = normalize(defaultLayout());
+    setTimeout(() => toast('Le Circuit revient dans l\'écran principal, au centre ; le classement n\'affiche plus que le code des pilotes (nom complet : menu Colonnes)', 8000, 'map'), 1500);
+    return;
+  }
   const name = prefs.layoutV === 2 ? t('Ma disposition 4 panneaux') : t('Ma disposition d\'avant');
   const before = { name, at: Date.now(), layouts: allLayouts(), wins: [], desk: null, ...viewState() };
   before.prefs.tabLayout ||= pageTabs();   // onglets à leur place d'avant (sans disposition : celle de la page)
@@ -1115,11 +1125,12 @@ function migrateLayout() {
   const def = profileDefaults();
   setPref('hiddenPanels', def.hiddenPanels);
   setPref('hiddenTabs', def.hiddenTabs);
+  setPref('hiddenCols', [...new Set([...(prefs.hiddenCols || []), 'name'])]);   // classement : code du pilote seul
   setPref('tabLayout', null);
   setPref('radioText', true);
-  setPref('layoutV', 3);
+  setPref('layoutV', 4);
   layout = normalize(defaultLayout());
-  setTimeout(() => toast(`Nouvel écran : Classement, Télémétrie, Direction de course et Radios traduites. Circuit, Analyse et Duel s'ouvrent dans une fenêtre (menu Fenêtres ou bouton + d'un panneau). L'ancienne disposition : Réglages → Disposition → Fenêtres (« ${name} »)`, 14000), 1500);
+  setTimeout(() => toast(`Nouvel écran : Classement, Circuit, Télémétrie, Radios traduites et Direction de course. Analyse et Duel s'ouvrent dans une fenêtre (menu Fenêtres ou bouton + d'un panneau). L'ancienne disposition : Réglages → Disposition → Fenêtres (« ${name} »)`, 14000), 1500);
 }
 
 // Ouvre un panneau dans sa propre fenêtre (bouton + d'un panneau, menu Dispo.) ; s'il est déjà dans une fenêtre, rien

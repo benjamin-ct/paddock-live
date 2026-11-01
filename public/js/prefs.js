@@ -6,7 +6,7 @@ import { LANG } from './i18n.js';
 // Écran principal (1.30) : Classement (avec le duel par-dessus), Télémétrie, Direction de course et Radios ; Circuit,
 // Analyse et Duel s'ouvrent dans leur propre fenêtre (bouton + d'un panneau, menu Dispo.) : masqués dans la fenêtre
 // principale (ui/layout.js, ui/tabmove.js). Analyse : 3 onglets selon la séance (les autres : bouton +)
-export const PANELS_HIDDEN = ['map', 'analysis', 'duel'];
+export const PANELS_HIDDEN = ['analysis', 'duel'];
 export const TAB_HIDDEN = {
   race: ['laptimes', 'pace', 'tyrehist', 'sectors', 'tyres', 'pitsim', 'battles', 'champ'],
   quali: ['trace', 'positions', 'pits', 'strategy', 'laptimes', 'pace', 'tyrehist', 'tyres', 'pitsim', 'battles', 'champ'],
@@ -18,7 +18,7 @@ const DEFAULTS = {
   alerts: { sound: true, vibrate: true, notify: false, flags: true, fastest: true, favPit: true, favRcm: true, retire: true, finish: true, favCut: true, rain: true, prono: true },
   hiddenPanels: [...PANELS_HIDDEN],
   hiddenTabs: [...TAB_HIDDEN.race],   // onglets masqués (Réglages → Onglets visibles, bouton +), comme ceux inutiles pour la séance
-  hiddenCols: [],
+  hiddenCols: ['name'],   // classement : code du pilote seul (nom complet : menu Colonnes)
   extraCols: [],          // colonnes facultatives ajoutées au classement (voir EXTRA_COLUMNS)
   bigCols: null,          // colonnes du classement agrandi (bouton ⤢) : { hidden, extra }, sinon les mêmes
   towerFit: true,         // classement agrandi pour remplir la hauteur disponible
@@ -77,8 +77,8 @@ export const prefs = { ...DEFAULTS, ...saved, alerts: { ...DEFAULTS.alerts, ...(
 // v1.28 : nouvelle installation (aucun réglage enregistré) : écrans d'accueil ; v1.30 : déjà au nouvel écran principal
 // (layoutV, ui/layout.js)
 if (!Object.keys(saved).length) {
-  Object.assign(prefs, { welcomed: false, layoutV: 3 });
-  storageSet('paddock.prefs', { ...storageGet('paddock.prefs', {}), welcomed: false, layoutV: 3 });
+  Object.assign(prefs, { welcomed: false, layoutV: 4 });
+  storageSet('paddock.prefs', { ...storageGet('paddock.prefs', {}), welcomed: false, layoutV: 4 });
 }
 // Un seul thème depuis la v1.20 : Pitwall, en mode sombre ou clair. Les anciens thèmes (F1 Pro,
 // F1 sobre, Classique, Bleu nuit) passent sur Pitwall, en mode sombre.

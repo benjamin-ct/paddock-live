@@ -2398,7 +2398,6 @@ export default {
   "Fenêtres": "Ventanas",
   "Accélérateur et frein en direct, rapport engagé": "Acelerador y freno en directo, marcha engranada",
   "Messages (direction de course, enquêtes, limites de piste)": "Mensajes (dirección de carrera, investigaciones, límites de pista)",
-  "Nouvel écran : Classement, Télémétrie, Direction de course et Radios traduites. Circuit, Analyse et Duel s'ouvrent dans une fenêtre (menu Fenêtres ou bouton + d'un panneau). L'ancienne disposition : Réglages → Disposition → Fenêtres (« {} »)": "Nueva pantalla: Clasificación, Telemetría, Dirección de carrera y Radios traducidas. Circuito, Análisis y Duelo se abren en una ventana (menú Ventanas o botón + de un panel). Tu disposición anterior: Ajustes → Disposición → Ventanas (« {} »)",
   "Ouvrir dans une fenêtre": "Abrir en una ventana",
   "Fenêtres : ouvrir le Circuit, l'Analyse ou le Duel dans une fenêtre, dispositions enregistrées, réglages de la disposition": "Ventanas: abre el Circuito, el Análisis o el Duelo en una ventana, disposiciones guardadas, ajustes de la disposición",
   "Ma disposition 4 panneaux": "Mi disposición de 4 paneles",
@@ -2874,4 +2873,6 @@ export default {
   "ou cliquez sur deux pilotes du classement.": "o pulsa dos pilotos de la clasificación.",
   "Options des radios": "Opciones de las radios",
   "Écart tour par tour": "Diferencia vuelta a vuelta",
+  "Nouvel écran : Classement, Circuit, Télémétrie, Radios traduites et Direction de course. Analyse et Duel s'ouvrent dans une fenêtre (menu Fenêtres ou bouton + d'un panneau). L'ancienne disposition : Réglages → Disposition → Fenêtres (« {} »)": "Nueva pantalla: Clasificación, Circuito, Telemetría, Radios traducidas y Dirección de carrera. Análisis y Duelo se abren en una ventana (menú Ventanas o botón + de un panel). Tu disposición anterior: Ajustes → Disposición → Ventanas («{}»)",
+  "Le Circuit revient dans l'écran principal, au centre ; le classement n'affiche plus que le code des pilotes (nom complet : menu Colonnes)": "El Circuito vuelve a la pantalla principal, en el centro; la clasificación solo muestra el código de los pilotos (nombre completo: menú Columnas)",
 };

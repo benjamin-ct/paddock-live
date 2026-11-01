@@ -330,8 +330,10 @@ input[type=range]:not(#rpRange):disabled { opacity: .45; cursor: default; }
 .tag.flag-blue { background: var(--blue); color: #001526; }
 .tag.catch { background: rgba(53,208,127,.18); color: var(--green); }
 /* Bataille repérée toute seule (classement) : pastille cliquable qui ouvre le duel */
-.tag.battle { display: inline-flex; align-items: center; height: 15px; border: 0; cursor: pointer; background: rgba(255, 138, 61, .18); color: #ff8a3d; }
-.tag.battle .ic { width: 11px; height: 11px; stroke-width: 2.4; }
+/* Pastille de bataille : même hauteur que les autres (DÉP, STAND…), zone de clic agrandie autour */
+.tag.battle { position: relative; display: inline-flex; align-items: center; justify-content: center; box-sizing: content-box; height: 15px; min-width: 18px; border: 0; cursor: pointer; background: rgba(255, 138, 61, .18); color: #ff8a3d; }
+.tag.battle::after { content: ''; position: absolute; inset: -6px -5px; }
+.tag.battle .ic { width: 13px; height: 13px; stroke-width: 2.4; }
 .tag.battle:hover { background: #ff8a3d; color: #2a1200; }
 
 .t-gap, .t-int, .t-lap { text-align: right; font-weight: 600; }
@@ -763,7 +765,7 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
 .tele-name { display: flex; align-items: center; gap: 6px; color: var(--tc); font-size: 15px; }
 .tele-name .team-logo { width: 20px; height: 20px; }
 .tele-name .muted { color: var(--text-2); }
-.tele-pick-hint { text-align: center; margin-top: 2px; }   /* aucun pilote choisi : consigne sous le nom du leader */
+.tele-pick-hint { text-align: center; }   /* aucun pilote choisi : la consigne seule */
 .dial { width: 100%; max-width: 300px; display: block; }
 /* Écran principal : le compteur de la télémétrie se règle sur la hauteur de son panneau ; panneau bas : sans la
    courbe des 30 dernières secondes */
@@ -2251,6 +2253,14 @@ body.solo #muteBtn { display: none; }
 .grid:not(.mobile) .panel-head[data-tabs]:not(:has(> [data-tab])) { min-height: 42px; }
 .grid:not(.mobile) .panel-head > .panel-tools { flex-wrap: wrap; min-width: 0; row-gap: 4px; }
 body.solo .grid .panel-head { padding-right: 116px; }
+/* Barre d'onglets : onglets serrés (l'écart de 14 px sert aux en-têtes à sélecteurs) ; panneau étroit (colonne de droite
+   de l'écran principal) : onglets plus compacts, pour tenir sur une ligne */
+.grid:not(.mobile) .panel-head.tabs { column-gap: 2px; }
+@container (max-width: 560px) {
+  :root[data-design="v2"] .grid:not(.mobile) .panel-head.tabs > .tab { padding: 0 6px; font-size: 12px; letter-spacing: 0; }
+  .grid:not(.mobile) .panel-head.tabs > :is(.tab-add, .rd-menu) { margin-left: 0; }
+  .grid:not(.mobile) .panel-head.tabs > .rd-menu { margin-left: auto; }
+}
 /* Duel : sélecteurs qui se partagent la place */
 .duel-pick { flex: 1 1 auto; justify-content: flex-end; }
 .duel-pick select { flex: 1 1 110px; min-width: 0; max-width: 150px; }
@@ -3636,8 +3646,10 @@ html:is(.float-map, .overlay) .boot-cover { display: none; }
 .bt-geta { margin-top: 2px; font-size: 10.5px; font-weight: 700; color: #4ade80; white-space: nowrap; }
 /* Bandeau par-dessus le bas du Classement (deux pilotes choisis) : il passe devant les dernières lignes, sans leur prendre de place */
 .duel-band { position: absolute; left: 8px; right: 8px; bottom: 8px; z-index: 6; animation: bt-up .25s ease-out; }
-.duel-band .bt-band { min-height: 60px; padding: 8px 40px 8px 14px; box-shadow: 0 14px 34px -10px rgba(0, 0, 0, .7); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
-.duel-band .bt-close { position: absolute; top: 50%; right: 8px; transform: translateY(-50%); z-index: 2; color: #fff; background: rgba(0, 0, 0, .3); border-radius: 50%; width: 24px; height: 24px; font-size: 11px; }
+.duel-band .bt-band { min-height: 60px; padding: 8px 48px 8px 14px; box-shadow: 0 14px 34px -10px rgba(0, 0, 0, .7); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+.duel-band .bt-close { position: absolute; top: 50%; right: 8px; transform: translateY(-50%); z-index: 2; color: #fff; background: rgba(0, 0, 0, .45); border-radius: 50%; width: 30px; height: 30px; font-size: 14px; cursor: pointer; }
+.duel-band .bt-close::after { content: ''; position: absolute; inset: -8px; border-radius: 50%; }   /* zone de clic agrandie */
+.duel-band .bt-close:hover { background: rgba(0, 0, 0, .7); }
 @keyframes bt-up { from { transform: translateY(14px); opacity: 0; } }
 html[data-motion="off"] .duel-band { animation: none; }
 .bt-trend { align-self: center; display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 999px; font-size: 12.5px; color: var(--text-2); background: var(--panel-2); border: 1px solid var(--border); }
@@ -3652,7 +3664,7 @@ html[data-motion="off"] .duel-band { animation: none; }
 .bt-spark .bt-zero { stroke: var(--line-2); stroke-width: .6; stroke-dasharray: 2 2; vector-effect: non-scaling-stroke; }
 .bt-spark .bt-line { fill: none; stroke: var(--text); stroke-width: 2; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
 .bt-spark .bt-area { fill: color-mix(in srgb, var(--text) 10%, transparent); }
-.bt-spark .bt-pit { fill: var(--orange); }
+.bt-spark .bt-pit { stroke: var(--orange); stroke-width: 9; stroke-linecap: round; vector-effect: non-scaling-stroke; }
 .bt-spark-lbl { display: flex; justify-content: space-between; font-size: 10.5px; color: var(--muted); margin-top: 2px; }
 /* Panneau Duel, face à face façon retransmission (ui/duel.js) */
 .duel-band.close .bt-tag, .ff.close .bt-tag { color: #4ade80; }

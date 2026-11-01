@@ -2459,7 +2459,6 @@ export default {
   "Fenêtres": "Windows",
   "Accélérateur et frein en direct, rapport engagé": "Live throttle and brake, gear engaged",
   "Messages (direction de course, enquêtes, limites de piste)": "Messages (race control, investigations, track limits)",
-  "Nouvel écran : Classement, Télémétrie, Direction de course et Radios traduites. Circuit, Analyse et Duel s'ouvrent dans une fenêtre (menu Fenêtres ou bouton + d'un panneau). L'ancienne disposition : Réglages → Disposition → Fenêtres (« {} »)": "New screen: Standings, Telemetry, Race control and translated Radios. Circuit, Analysis and Duel open in a window (Windows menu or a panel's + button). Your previous layout: Settings → Layout → Windows (“{}”)",
   "Ouvrir dans une fenêtre": "Open in a window",
   "Fenêtres : ouvrir le Circuit, l'Analyse ou le Duel dans une fenêtre, dispositions enregistrées, réglages de la disposition": "Windows: open the Circuit, Analysis or Duel in a window, saved layouts, layout settings",
   "Ma disposition 4 panneaux": "My 4-panel layout",
@@ -2875,4 +2874,6 @@ export default {
   "ou cliquez sur deux pilotes du classement.": "or click two drivers in the standings.",
   "Options des radios": "Radio options",
   "Écart tour par tour": "Gap lap by lap",
+  "Nouvel écran : Classement, Circuit, Télémétrie, Radios traduites et Direction de course. Analyse et Duel s'ouvrent dans une fenêtre (menu Fenêtres ou bouton + d'un panneau). L'ancienne disposition : Réglages → Disposition → Fenêtres (« {} »)": "New screen: Standings, Circuit, Telemetry, translated Radios and Race control. Analysis and Duel open in a window (Windows menu or a panel's + button). Your previous layout: Settings → Layout → Windows (“{}”)",
+  "Le Circuit revient dans l'écran principal, au centre ; le classement n'affiche plus que le code des pilotes (nom complet : menu Colonnes)": "The Circuit is back in the main screen, in the centre; the standings now show only driver codes (full name: Columns menu)",
 };
