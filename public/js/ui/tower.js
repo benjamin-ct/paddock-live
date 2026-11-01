@@ -7,6 +7,7 @@ import { currentTrack, currentZones } from './map.js';
 import { icon } from '../icons.js';
 import { realStopCount } from '/shared/pits.js';
 import { stewardsData } from './feed.js';
+import { lapGapSeries } from './duel.js';
 
 let lastKey = '';
 let lastRender = 0;
@@ -34,6 +35,17 @@ function sectorCell(sec) {
   const val = sec?.Value || '';
   return `<td class="sector c-sec"><div class="sector-val ${timingClass(sec)}">${esc(val) || '<span class="dim">—</span>'}</div>` +
     (segs.length ? `<div class="segs">${segs.map((s) => `<i class="seg ${segmentClass(s?.Status)}"></i>`).join('')}</div>` : '') + '</td>';
+}
+
+// Tours de suite (les derniers, sans arrêt) où front et back ont fini à moins d'une seconde l'un de l'autre, dans un sens
+// ou dans l'autre (la bataille continue après un dépassement) : écart tour par tour du duel
+function battleLaps(front, back) {
+  let n = 0, next = null;
+  for (const p of lapGapSeries(front, back).reverse()) {
+    if (p.pit || Math.abs(p.y) >= 1 || (next && next.x - p.x !== 1)) break;
+    n++; next = p;
+  }
+  return n;
 }
 
 function gapText(v) {
@@ -134,7 +146,10 @@ export function renderTower(force = false) {
   }
   const flagUtc = chequeredUtc(s.RaceControlMessages?.Messages);
   const flagAt = flagUtc === null ? null : utcToLocal(flagUtc);
-  const rows = nums.map((num) => {
+  // Bataille repérée toute seule (course, aucun duel ouvert, pas sous voiture de sécurité ni drapeau rouge) : pastille sur
+  // le pilote derrière, un clic ouvre le duel (data-battle, comme les Bagarres)
+  const spotBattles = kind === 'race' && !(store.duel.manual && store.duel.a && store.duel.b) && !['4', '5', '6', '7'].includes(String(s.TrackStatus?.Status || ''));
+  const rows = nums.map((num, i) => {
     const d = dl[num] || {};
     const l = lines[num] || {};
     const a = app[num] || {};
@@ -159,6 +174,8 @@ export function renderTower(force = false) {
     const pred = kind !== 'race' && !done ? predictLap(l, stats[num]) : null;
     if (pred) tags.push('<span class="tag push" title="Tour rapide en cours">TOUR</span>');
     if (pens[num]) tags.push(`<span class="tag pen" title="Pénalité en temps : purgée au prochain arrêt, sinon ajoutée à son temps de course">+${pens[num]} s</span>`);
+    const fight = spotBattles && i > 0 && !l.Retired && !l.InPit && !done && ahead > 0 && ahead < 1 ? battleLaps(nums[i - 1], num) : 0;
+    if (fight >= 3) tags.push(`<button type="button" class="tag battle" data-battle="${nums[i - 1]},${num}" title="Bataille avec ${esc(dl[nums[i - 1]]?.Tla || nums[i - 1])} depuis ${fight} tours : ouvrir le duel">${icon('duel')}</button>`);
 
     // Changement de position : surbrillance verte / rouge (animation CSS, voir syncRows)
     const p = Number(pos);
@@ -449,6 +466,7 @@ export function initTower() {
       renderTower(true);
       return;
     }
+    if (e.target.closest('[data-battle]')) return;   // pastille de bataille : le duel s'ouvre (race-tools.js)
     // Clic sur un pilote : choisi (et suivi) ; deux pilotes choisis : le duel s'affiche (bandeau) ; un troisième remplace
     // le deuxième ; un pilote déjà choisi : retiré
     const row = e.target.closest('tr[data-num]');

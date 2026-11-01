@@ -109,6 +109,11 @@ l'application (Réglages → À propos → Nouveautés).
   grand (« À moins d'une seconde » en vert quand ils sont proches) et, en course, si le pilote derrière reprend du temps
   (en vert) ou en perd (en rouge) et combien par tour, sans compter les tours d'arrêt. Il suit la course en direct et
   se ferme avec ✕ ; le classement défile en dessous.
+- Duel en course : quand le pilote derrière reprend du temps, le bandeau prévoit quand il sera sur l'autre
+  (« rattrape en ~4 tours », si c'est avant l'arrivée) ou dit « à portée du DÉP » quand il est déjà à moins d'une
+  seconde. Et les batailles sont repérées toutes seules : deux voitures à moins d'une seconde l'une de l'autre pendant
+  3 tours de suite font apparaître une petite pastille ⚔ sur la ligne du pilote derrière dans le classement ; un clic
+  dessus ouvre leur duel. Aussi dans la version web.
 - Panneau Duel refait, plus simple : le même bandeau, puis une petite courbe de l'écart sur les derniers tours,
   quelques chiffres face à face (dernier et meilleur tour, pneus, arrêts, vitesse de pointe ; en qualifs le meilleur
   tour et les secteurs), le meilleur marqué à la couleur de son écurie, et en direct la vitesse, le rapport,

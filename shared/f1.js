@@ -74,6 +74,17 @@ export function passed(prev, cur, at, L) {
   return run > 0 && run < L / 4 && (((at - prev) % L) + L) % L < run;
 }
 
+// Prévision du duel en course : le pilote derrière, à gap secondes, reprend rate s/tour. 'dep' s'il est déjà à moins
+// d'une seconde (à portée du mode dépassement, comme l'étiquette DÉP du classement), sinon le nombre de tours pour
+// revenir sur lui (écart ÷ gain, au tour supérieur), null s'il ne reprend rien, au-delà de 30 tours ou des tours
+// restants (remaining, null si inconnu)
+export function catchLaps(gap, rate, remaining = null) {
+  if (!(rate > 0) || !(gap >= 0)) return null;
+  if (gap < 1) return 'dep';
+  const n = Math.ceil(gap / rate - 1e-9);   // (1,2 ÷ 0,3 donne 4,000…01 en virgule flottante)
+  return n > 30 || (remaining !== null && n > remaining) ? null : n;
+}
+
 // "1:45.123" -> 105.123 ; "45.123" -> 45.123 ; "" -> null
 export function parseLapTime(s) {
   if (s === null || s === undefined || s === '') return null;
