@@ -219,6 +219,7 @@ function renderHero(a, b) {
 // Télémétrie en direct : vitesse, rapport, accélérateur et frein de chaque pilote
 function renderLive(a, b, dl, ca, cb) {
   const host = $('#btLive');
+  if (!host) return;   // version web : pas de panneau Duel, seulement le bandeau
   host.hidden = !ca && !cb;
   if (host.hidden) return;
   if (host.dataset.pair !== `${a}-${b}`) {
@@ -258,12 +259,12 @@ function renderSlow(a, b) {
     const off = officialGap(s, a, b);
     const gapNow = off && off.gap !== null && !off.laps ? (off.ahead === 'a' ? off.gap : -off.gap) : null;
     const tr = trend(series, tlaA, tlaB, gapNow);
-    $('#btTrend').className = `bt-trend ${tr?.cls || 'stable'}`;
+    if ($('#btTrend')) $('#btTrend').className = `bt-trend ${tr?.cls || 'stable'}`;   // panneau Duel (absent de la version web)
     put('#btTrend', tr?.html || 'Tendance après deux tours communs');
     bandTrend = tr ? `<span class="bt-gtrend ${tr.cls}">${tr.band}</span>${tr.eta ? `<span class="bt-geta">${tr.eta}</span>` : ''}` : '';
   } else {
     bandTrend = '';
-    $('#btTrend').className = 'bt-trend stable';
+    if ($('#btTrend')) $('#btTrend').className = 'bt-trend stable';
     put('#btTrend', kind === 'quali' ? `Meilleurs tours de la Q${Number(s.TimingData?.SessionPart) || 1}` : 'Meilleurs tours de la séance');
   }
   put('#btSpark', spark(series));
@@ -341,6 +342,23 @@ export function renderDuel() {
     renderDuel.lastSlow = now;
     renderSlow(a, b);
   }
+}
+
+// Version web (pas de panneau Duel) : seulement le bandeau sur le classement, quand deux pilotes y ont été cliqués,
+// avec sa tendance et sa prévision (renderSlow) et sa télémétrie (renderHero)
+let bandPair = '';
+export function renderDuelBand() {
+  const dl = drivers(store.state), { a, b } = store.duel;
+  const on = !!(a && b && dl[a] && dl[b] && store.duel.manual);
+  showTowerBand(on);
+  if (!on) return;
+  const now = performance.now(), slowKey = `${a}-${b}|${versionOf(['TimingData', 'TimingAppData', '__reset'])}`;
+  if (slowKey !== bandPair && (slowKey.split('|')[0] !== bandPair.split('|')[0] || now - (renderDuelBand.lastSlow || 0) > 700)) {
+    bandPair = slowKey;
+    renderDuelBand.lastSlow = now;
+    renderSlow(a, b);
+  }
+  if (now - lastFast > 200) { lastFast = now; renderHero(a, b); }
 }
 
 export function initDuel() {
