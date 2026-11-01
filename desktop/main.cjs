@@ -1,6 +1,6 @@
 // Application de bureau Paddock Live : lance le serveur local dans le processus Electron
 // et affiche le dashboard dans une fenêtre, sans installer Node.js.
-const { app, BrowserWindow, shell, Menu, screen, ipcMain, session, components, nativeTheme } = require('electron');
+const { app, BrowserWindow, shell, Menu, Tray, nativeImage, screen, ipcMain, session, components, nativeTheme } = require('electron');
 // Fond des fenêtres avant l'affichage de la page : clair ou sombre comme le système (apparence automatique)
 const winBg = () => (nativeTheme.shouldUseDarkColors ? '#07080A' : '#F4F5F7');
 const path = require('node:path');
@@ -9,6 +9,7 @@ const net = require('node:net');
 const { pathToFileURL } = require('node:url');
 const fs = require('node:fs');
 const { loginValues, diagnose } = require('./f1-cookies.cjs');
+const { countdown } = require('./countdown.cjs');
 
 // Dossier des données (réglages, jeton F1 TV, enregistrements, fenêtres)
 app.setPath('userData', path.join(app.getPath('appData'), 'Paddock Live'));
@@ -399,7 +400,7 @@ app.on('web-contents-created', (_e, wc) => {
 });
 
 // Langue choisie dans l'interface (écran de démarrage suivant)
-ipcMain.on('ui-lang', (_e, l) => { if (UI_LANGS.includes(l) && readState().uiLang !== l) writeState({ uiLang: l }); });
+ipcMain.on('ui-lang', (_e, l) => { if (UI_LANGS.includes(l) && readState().uiLang !== l) { writeState({ uiLang: l }); trayUpdate(); } });
 ipcMain.handle('restore-windows-get', () => readState().restoreWindows !== false);
 ipcMain.handle('restore-windows-set', (_e, v) => { writeState({ restoreWindows: !!v, windowsStart: v ? 'last' : 'none' }); return !!v; });
 ipcMain.handle('windows-start-get', () => { const st = readState(); return st.windowsStart || (st.restoreWindows === false ? 'none' : 'last'); });
@@ -475,6 +476,84 @@ ipcMain.handle('window-focus', (e) => {
   w.focus();
   return true;
 });
+
+// ---------- Compte à rebours de la prochaine séance : barre des menus (macOS), zone de notification ----------
+// Calendrier lu sur le serveur local (relu toutes les 15 min), texte mis à jour toutes les 30 s ; textes traduits
+// avec le dictionnaire de l'interface (i18n-en.js, i18n-it.js, i18n-es.js)
+let tray = null, trayTimer = 0, traySessions = null, trayTried = 0, trayMenuKey = '';
+const trayDicts = {};
+async function trayTr(l) {
+  if (l !== 'fr' && !trayDicts[l]) {
+    trayDicts[l] = (await import(pathToFileURL(path.join(__dirname, 'bundle', 'public', 'js', `i18n-${l}.js`)).href).catch(() => null))?.default || {};
+  }
+  return (s) => trayDicts[l]?.[s] ?? s;
+}
+
+async function scheduleOf(year) {
+  const res = await fetch(`http://127.0.0.1:${process.env.PORT}/api/schedule?year=${year}`);
+  if (!res.ok) throw new Error(`Erreur ${res.status}`);
+  return (await res.json()).races.flatMap((r) => r.sessions.filter((s) => s.t).map((s) => ({ label: s.label, t: Date.parse(s.t) })));
+}
+
+async function loadTraySessions() {
+  const year = new Date().getFullYear();
+  const list = await scheduleOf(year);
+  // Saison finie : celle d'après, si son calendrier est déjà connu
+  if (!list.some((s) => s.t > Date.now())) list.push(...await scheduleOf(year + 1).catch(() => []));
+  traySessions = list.sort((a, b) => a.t - b.t);
+}
+
+function openMain() {
+  if (!mainWindow) return;
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.show();
+  mainWindow.focus();
+  if (process.platform === 'darwin') app.focus({ steal: true });
+}
+
+async function trayUpdate() {
+  if (!tray) return;
+  // Calendrier relu toutes les 15 min (chaque minute tant qu'il n'a pas pu être lu)
+  if (Date.now() - trayTried > (traySessions ? 15 : 1) * 60e3) {
+    trayTried = Date.now();
+    await loadTraySessions().catch((err) => console.warn('[compte à rebours]', err.message));
+  }
+  const l = uiLang();
+  const tr = await trayTr(l);
+  if (!tray) return;
+  const { next, text } = countdown(traySessions || [], Date.now(), { tr, day: { fr: 'j', en: 'd', it: 'g', es: 'd' }[l] });
+  if (process.platform === 'darwin') tray.setTitle(text);
+  tray.setToolTip(text ? `Paddock Live · ${text}` : 'Paddock Live');
+  // Menu refait seulement quand la prochaine séance ou la langue change (un menu ouvert se refermerait)
+  const key = `${l}|${next?.label}|${next?.t}`;
+  if (key === trayMenuKey) return;
+  trayMenuKey = key;
+  const when = next && new Date(next.t).toLocaleString({ fr: 'fr-FR', en: 'en-GB', it: 'it-IT', es: 'es-ES' }[l], { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  tray.setContextMenu(Menu.buildFromTemplate([
+    { label: tr('Ouvrir Paddock Live'), click: openMain },
+    ...(next ? [{ label: `${tr(next.label)} · ${when}`, enabled: false }] : []),
+    { type: 'separator' },
+    { label: tr('Masquer le compte à rebours'), click: () => { writeState({ trayCountdown: false }); setTray(false); } },
+  ]));
+}
+
+function setTray(on) {
+  if (on && !tray) {
+    const size = process.platform === 'linux' ? 22 : 16;
+    // Icône de l'appli en couleur (en image modèle de macOS, son carré plein ne serait plus qu'une tache grise)
+    tray = new Tray(nativeImage.createFromPath(APP_ICON).resize({ width: size, height: size }));
+    if (process.platform === 'win32') tray.on('click', () => tray?.popUpContextMenu());
+    trayMenuKey = '';
+    trayTimer = setInterval(trayUpdate, 30e3);
+    trayUpdate();
+  } else if (!on && tray) {
+    clearInterval(trayTimer);
+    tray.destroy();
+    tray = null;
+  }
+}
+ipcMain.handle('tray-get', () => readState().trayCountdown !== false);
+ipcMain.handle('tray-set', (_e, v) => { writeState({ trayCountdown: !!v }); setTray(!!v); return !!v; });
 
 async function start() {
   // User-agent de Chrome standard pour toutes les fenêtres (sans la mention Electron ni le nom de
@@ -558,6 +637,7 @@ async function start() {
     for (const w of childWindows()) w.destroy();
   });
   mainWindow.on('closed', () => { mainWindow = null; });
+  setTray(readState().trayCountdown !== false);
 }
 
 if (!app.requestSingleInstanceLock()) {

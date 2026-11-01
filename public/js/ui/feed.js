@@ -94,7 +94,8 @@ export function renderRcm() {
     ? msgs.slice().reverse().map((m, i) => {
       const t = parseUtc(m.Utc);
       const title = m.Flag ? `Drapeau ${FLAG_FR[m.Flag] || m.Flag}${m.Scope === 'Sector' ? ` (secteur ${m.Sector})` : ''}` : m.Category;
-      return `<li class="${i < fresh ? 'new' : ''}"><div class="rcm-time">${Number.isFinite(t) ? fmtClock(t) : ''}${m.Lap ? `<br>Tour ${m.Lap}` : ''}</div>
+      // ↺ 3D : revoir ce moment dans la vue 3D, au ralenti (bouton visible seulement quand la vue 3D est ouverte)
+      return `<li class="${i < fresh ? 'new' : ''}"><div class="rcm-time">${Number.isFinite(t) ? fmtClock(t) : ''}${m.Lap ? `<br>Tour ${m.Lap}` : ''}${Number.isFinite(t) ? `<br><button type="button" class="rcm-3d" data-t3d="${t}" title="Revoir ce moment en 3D, au ralenti">↺ 3D</button>` : ''}</div>
         <div class="rcm-flag ${rcmFlagClass(m)}" title="${esc(title)}"></div>${msgHtml(m.Message)}</li>`;
     }).join('')
     : '<li class="note">Aucun message de la direction de course.</li>';
@@ -256,6 +257,10 @@ export function renderPits() {
 }
 
 export function initRcmFilters() {
+  $('#rcmList').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-t3d]');
+    if (b) window.dispatchEvent(new CustomEvent('paddock:rewind3d', { detail: { t: Number(b.dataset.t3d) } }));
+  });
   for (const [id, key] of [['rcmBlue', 'rcmBlue'], ['rcmDeleted', 'rcmDeleted']]) {
     $(`#${id}`).checked = prefs[key];
     $(`#${id}`).addEventListener('change', (e) => setPref(key, e.target.checked));

@@ -3,6 +3,7 @@
 // mesurés par le serveur avec le GPS (voir server/compare.js), au rythme du délai TV.
 import { store, serverNow, versionOf } from '../store.js';
 import { $, esc, api, drivers, orderedNumbers, fmtLap, lapSeconds, storageGet, storageSet, driverOpt } from '../util.js';
+import { cornerStats, typeStats, smoothDelta } from './compare-calc.js';
 
 const KEY = 'paddock.compare';
 const sel = { a: null, b: null, ...storageGet(KEY, {}), la: null, lb: null };   // null : P1 / P2 automatiques, meilleurs tours
@@ -11,7 +12,16 @@ let loading = false;
 let lastReq = '';
 let lastAt = 0;
 
-const COL_A = 'var(--blue)', COL_B = 'var(--orange)';
+// Couleurs des deux pilotes : celles de leurs écuries (deux coéquipiers : la deuxième éclaircie), sinon bleu et orange
+let COL_A = 'var(--blue)', COL_B = 'var(--orange)';
+function pickColors(A, B) {
+  const hex = (c) => (/^#?[0-9a-f]{6}$/i.test(c || '') ? `#${String(c).replace('#', '')}` : null);
+  const rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+  const ca = hex(A.color), cb = hex(B.color);
+  const near = ca && cb && Math.hypot(...rgb(ca).map((v, i) => v - rgb(cb)[i])) < 90;
+  COL_A = ca || 'var(--blue)';
+  COL_B = cb && !near ? cb : ca ? `color-mix(in srgb, ${ca} 40%, #ffffff)` : 'var(--orange)';
+}
 const sgn = (v, d = 3) => `${v > 0 ? '+' : v < 0 ? '−' : '±'}${Math.abs(v).toFixed(d)}`;
 
 // Pilotes classés ayant un meilleur tour
@@ -99,6 +109,163 @@ function deltaSvg(d) {
     ${pts.slice(1).map((p) => `<circle cx="${X(p[0])}" cy="${Y(p[1])}" r="2.5" fill="${p[1] < 0 ? COL_A : p[1] > 0 ? COL_B : 'var(--muted)'}"/>`).join('')}</svg>`;
 }
 
+// ---------- Comparaison de télémétrie (trace du serveur : K+1 points sur la distance du tour) ----------
+const TW = 640, TL = 46, TR = 10;   // largeur, marges gauche et droite des courbes
+const tx = (tr, i) => TL + (i / tr.K) * (TW - TL - TR);
+const km = (tr, i) => (tr.len ? `${((i / tr.K) * tr.len / 1000).toFixed(2).replace('.', ',')} km` : `${Math.round((i / tr.K) * 100)} %`);
+
+// Courbes empilées : écart cumulé, vitesse, accélérateur, frein, rapport, régime ; numéros des virages en haut
+function traceSvg(d) {
+  const tr = d.trace, A = tr.a, B = tr.b;
+  const rows = [
+    { key: 'dt', label: 'Écart (s)', h: 96 },
+    ...(tr.tel ? [
+      { key: 'v', label: 'Vitesse (km/h)', h: 130 },
+      { key: 'th', label: 'Accélérateur (%)', h: 56, min: 0, max: 100 },
+      { key: 'br', label: 'Frein', h: 30, min: 0, max: 100 },
+      { key: 'g', label: 'Rapport', h: 56, min: 1, max: 8 },
+      { key: 'rpm', label: 'Régime (tr/min)', h: 56 },
+    ] : []),
+  ];
+  const dt = smoothDelta(tr);
+  let y = 28, body = '';
+  for (const r of rows) {
+    const sa = r.key === 'dt' ? dt : A[r.key], sb = r.key === 'dt' ? null : B[r.key];
+    const vals = [...sa, ...(sb || [])].filter((v) => v !== null);
+    if (!vals.length) continue;
+    let lo = r.min ?? Math.min(...vals), hi = r.max ?? Math.max(...vals);
+    if (r.key === 'dt') { hi = Math.max(0.05, ...vals.map(Math.abs)); lo = -hi; }
+    if (hi === lo) hi = lo + 1;
+    const Y = (v) => y + 4 + ((hi - v) / (hi - lo)) * (r.h - 8);
+    const line = (s) => {
+      let dpath = '', pen = false;
+      s.forEach((v, i) => { if (v === null) { pen = false; return; } dpath += `${pen ? 'L' : 'M'}${tx(tr, i).toFixed(1)},${Y(v).toFixed(1)}`; pen = true; });
+      return dpath;
+    };
+    body += `<g class="ctl-row"><rect x="${TL}" y="${y}" width="${TW - TL - TR}" height="${r.h}" class="ctl-bg"/>
+      <text x="${TL - 5}" y="${y + 12}" class="cmp-ax" text-anchor="end">${r.key === 'dt' ? `+${hi.toFixed(2)}` : Math.round(hi)}</text>
+      <text x="${TL - 5}" y="${y + r.h - 3}" class="cmp-ax" text-anchor="end">${r.key === 'dt' ? `−${hi.toFixed(2)}` : Math.round(lo)}</text>
+      <text x="${TL + 5}" y="${y + 12}" class="ctl-label">${esc(r.label)}</text>`;
+    if (r.key === 'dt') {
+      // Au-dessus de 0 : B devant (A perd du temps) ; zone colorée selon le pilote devant
+      const z = Y(0);
+      body += `<line x1="${TL}" x2="${TW - TR}" y1="${z}" y2="${z}" class="cmp-zero"/>
+        <path d="${line(dt)}" fill="none" stroke="var(--text)" stroke-width="1.6"/>
+        <text x="${TW - TR - 4}" y="${y + 12}" class="ctl-label" text-anchor="end" style="fill:${COL_B}">${esc(d.b.tla)} devant ▲</text>
+        <text x="${TW - TR - 4}" y="${y + r.h - 4}" class="ctl-label" text-anchor="end" style="fill:${COL_A}">${esc(d.a.tla)} devant ▼</text>`;
+    } else {
+      body += `<path d="${line(sb)}" fill="none" stroke="${COL_B}" stroke-width="1.4" opacity=".95"/><path d="${line(sa)}" fill="none" stroke="${COL_A}" stroke-width="1.4"/>`;
+    }
+    body += '</g>';
+    y += r.h + 6;
+  }
+  // Numéros des virages : sur une deuxième rangée quand ils sont trop près du précédent
+  let lastX = -99, row = 0;
+  const marks = tr.corners.map((c) => {
+    const x = tx(tr, c.q * tr.K);
+    row = x - lastX < 16 ? 1 - row : 0;
+    lastX = x;
+    return `<line x1="${x.toFixed(1)}" x2="${x.toFixed(1)}" y1="${row ? 22 : 13}" y2="${y - 6}" class="ctl-corner"/><text x="${x.toFixed(1)}" y="${row ? 21 : 11}" class="cmp-ax" text-anchor="middle">${c.n}</text>`;
+  }).join('');
+  const ticks = tr.len ? Array.from({ length: Math.floor(tr.len / 500) + 1 }, (_, k) => k * 500).map((m) => { const x = tx(tr, (m / tr.len) * tr.K).toFixed(1); return `<text x="${x}" y="${y + 8}" class="cmp-ax" text-anchor="middle">${(m / 1000).toFixed(1).replace('.', ',')}</text>`; }).join('') : '';
+  return `<svg class="ctl-svg" viewBox="0 0 ${TW} ${y + 12}">${marks}${body}${ticks}
+    <line class="ctl-cursor" x1="0" x2="0" y1="24" y2="${y - 6}" visibility="hidden"/><rect class="ctl-hit" x="${TL}" y="0" width="${TW - TL - TR}" height="${y}" fill="transparent"/></svg>`;
+}
+
+// Lecture au survol (ou au doigt) : distance, écart et valeurs des deux pilotes au point choisi
+function wireTrace(el, d) {
+  const svg = el.querySelector('.ctl-svg'), out = el.querySelector('.ctl-read');
+  if (!svg || !out) return;
+  const tr = d.trace, cur = svg.querySelector('.ctl-cursor');
+  const show = (e) => {
+    const r = svg.getBoundingClientRect(), x = ((e.clientX - r.left) / r.width) * TW;
+    const i = Math.max(0, Math.min(tr.K, Math.round(((x - TL) / (TW - TL - TR)) * tr.K)));
+    cur.setAttribute('x1', tx(tr, i)); cur.setAttribute('x2', tx(tr, i)); cur.setAttribute('visibility', 'visible');
+    const one = (s, x2, col) => `<span style="color:${col}"><b>${esc(x2.tla)}</b> ${s.v[i] ?? '—'} km/h · ${s.g[i] ? `${s.g[i]}e` : 'N'} · ${s.th[i] ?? '—'} %${s.br[i] > 0 ? ' · frein' : ''}</span>`;
+    const g = smoothDelta(tr)[i];
+    out.innerHTML = `<span class="muted">${km(tr, i)}</span>${g === null ? '' : ` · <b>${sgn(g)} s</b>`}${tr.tel ? ` · ${one(tr.a, d.a, COL_A)} · ${one(tr.b, d.b, COL_B)}` : ''}`;
+  };
+  svg.addEventListener('pointermove', show);
+  svg.addEventListener('pointerdown', show);
+  svg.addEventListener('pointerleave', () => { cur.setAttribute('visibility', 'hidden'); out.innerHTML = '<span class="muted">Survoler les courbes pour lire les valeurs</span>'; });
+}
+
+// Étiquette d'un pilote : numéro et trigramme sur la couleur de son écurie
+const tchip = (x, col) => `<span class="ctl-chip" style="--c:${col}">${esc(x.num)} ${esc(x.tla)}</span>`;
+const TYPE_FR = { slow: ['Lents', 'sous 120 km/h'], medium: ['Moyens', '120 à 225 km/h'], fast: ['Rapides', 'plus de 225 km/h'], straight: ['Lignes droites et le reste', 'vitesse de pointe'] };
+const ACT = { flat: ['À fond', 'flat'], lift: ['Levé', 'lift'], brake: ['Freiné', 'brake'] };
+
+// Virages : actions de chaque pilote, tableau par type de virage, tableau virage par virage
+function cornersHtml(d) {
+  const tr = d.trace, st = cornerStats(tr), A = d.a, B = d.b;
+  const dtCell = (v) => (v === null ? '<td class="muted">—</td>' : `<td class="cmp-dt" style="color:${Math.abs(v) < 0.005 ? 'var(--muted)' : v < 0 ? COL_A : COL_B}">${sgn(v)} s</td>`);
+  const dv = (a, b) => (a === null || b === null ? '<td class="muted">—</td>' : `<td>${a - b > 0 ? '+' : a - b < 0 ? '−' : '±'}${Math.abs(a - b)} km/h</td>`);
+  const head = `<th>${tchip(A, COL_A)}</th><th>${tchip(B, COL_B)}</th>`;
+  const acts = tr.tel ? `<div class="ctl-acts">${[[A, 'actA', COL_A], [B, 'actB', COL_B]].map(([x, k, col]) => `<div class="ctl-act-row">${tchip(x, col)}${st.map((c) => (c[k] ? `<span class="ctl-act ${ACT[c[k]][1]}" title="Virage ${c.n} : ${ACT[c[k]][0]}">${c.n}</span>` : '')).join('')}</div>`).join('')}
+    <div class="muted small">${Object.values(ACT).map(([t, c]) => `<span class="ctl-act ${c}"></span> ${t}`).join(' · ')}</div></div>` : '';
+  const types = tr.tel ? `<table class="ctl-table"><tr><th>Virages</th>${head}<th>Écart vitesse</th><th>Écart temps</th></tr>${typeStats(tr, st).map((r) => `<tr><td>${esc(TYPE_FR[r.type][0])}${r.n ? ` · ${r.n}` : ''}<br><small class="muted">${esc(TYPE_FR[r.type][1])}</small></td><td>${r.vA ?? '—'}</td><td>${r.vB ?? '—'}</td>${dv(r.vA, r.vB)}${dtCell(r.dt)}</tr>`).join('')}</table>` : '';
+  const each = `<table class="ctl-table"><tr><th>Virage</th>${tr.tel ? `<th>Type</th>${head}<th>Écart vitesse</th>` : ''}<th>Écart temps</th></tr>${st.map((c) => `<tr><td><b>${c.n}</b></td>${tr.tel ? `<td>${c.type ? `<span class="ctl-type ${c.type}">${esc(TYPE_FR[c.type][0].replace(/s$/, ''))}</span>` : '—'}</td><td>${c.vA ?? '—'}</td><td>${c.vB ?? '—'}</td>${dv(c.vA, c.vB)}` : ''}${dtCell(c.dt)}</tr>`).join('')}</table>`;
+  return { acts, tables: `<div class="ctl-tables">${types}${each}</div>`, st };
+}
+
+// Carte du circuit : tracé épais à la couleur du pilote le plus rapide sur chaque portion (pointillés blancs là où
+// les deux sont à fond), virages numérotés cerclés selon leur type, repères des secteurs, part du tour gagnée par chacun.
+// Points du tracé : ceux des mini-secteurs du serveur (q de from à to).
+function mapSvg(d, st) {
+  const tr = d.trace, K = tr.K;
+  const at = (q) => {
+    const m = d.minis.find((x) => q >= x.from && q <= x.to) || (q < 0.5 ? d.minis[0] : d.minis.at(-1));
+    const f = Math.max(0, Math.min(1, (q - m.from) / ((m.to - m.from) || 1))) * (m.pts.length - 1), i = Math.min(m.pts.length - 2, Math.floor(f)), u = f - i;
+    const p = m.pts[i], n = m.pts[i + 1] || p;
+    return [p[0] + (n[0] - p[0]) * u, p[1] + (n[1] - p[1]) * u];
+  };
+  const pts = Array.from({ length: K + 1 }, (_, i) => at(i / K));
+  const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
+  const x0 = Math.min(...xs), y0 = Math.min(...ys), w = Math.max(...xs) - x0 || 1, h = Math.max(...ys) - y0 || 1;
+  const S = Math.max(w, h), sw = S / 60, pad = S * 0.09, cx = x0 + w / 2, cy = y0 + h / 2;
+  // Qui gagne du temps sur chaque portion : pente de l'écart lissé (sur ±3 points, pour éviter les confettis)
+  const dl = smoothDelta(tr), gain = [];
+  for (let i = 0; i < K; i++) { const lo = Math.max(0, i - 3), hi = Math.min(K, i + 4); gain.push(dl[hi] !== null && dl[lo] !== null ? dl[hi] - dl[lo] : 0); }
+  const nA = gain.filter((g) => g < 0).length, nB = gain.filter((g) => g > 0).length;
+  const runs = [];
+  gain.forEach((g, i) => { const c = g < 0 ? 'a' : g > 0 ? 'b' : 'n'; if (runs.at(-1)?.c === c) runs.at(-1).to = i + 1; else runs.push({ c, from: i, to: i + 1 }); });
+  const poly = (from, to) => pts.slice(from, to + 1).map((p) => `${p[0].toFixed(0)},${p[1].toFixed(0)}`).join(' ');
+  const colored = runs.map((r) => `<polyline points="${poly(r.from, r.to)}" stroke="${r.c === 'a' ? COL_A : r.c === 'b' ? COL_B : 'var(--muted)'}" stroke-width="${sw}"/>`).join('');
+  // À fond tous les deux (accélérateur à 98 % ou plus) : pointillés blancs sur le tracé
+  let flat = '';
+  if (tr.tel) {
+    let from = -1;
+    for (let i = 0; i <= K; i++) {
+      const on = i < K && tr.a.th[i] >= 98 && tr.b.th[i] >= 98;
+      if (on && from < 0) from = i;
+      if (!on && from >= 0) { if (i - from > 2) flat += `<polyline points="${poly(from, i)}" stroke="#fff" stroke-width="${sw * 0.32}" stroke-dasharray="${sw * 0.35} ${sw * 0.9}" opacity=".9"/>`; from = -1; }
+    }
+  }
+  // Repères des secteurs : trait en travers du tracé et libellé
+  const normal = (q) => { const [ax, ay] = at(Math.max(0, q - 0.004)), [bx, by] = at(Math.min(1, q + 0.004)); const l = Math.hypot(bx - ax, by - ay) || 1; return [-(by - ay) / l, (bx - ax) / l]; };
+  const out = (q) => { const [x, y] = at(q), [nx, ny] = normal(q); return (x + nx - cx) ** 2 + (y + ny - cy) ** 2 > (x - nx - cx) ** 2 + (y - ny - cy) ** 2 ? [nx, ny] : [-nx, -ny]; };
+  const secs = [{ q: 0.0005, l: 'S1' }, ...[1, 2].map((si) => ({ q: d.minis.find((m) => m.sector === si)?.from, l: `S${si + 1}` })).filter((x) => x.q > 0)];
+  const ticks = secs.map(({ q, l }) => {
+    const [x, y] = at(q), [nx, ny] = normal(q), [ox, oy] = out(q);
+    return `<line x1="${x - nx * sw * 1.6}" y1="${y - ny * sw * 1.6}" x2="${x + nx * sw * 1.6}" y2="${y + ny * sw * 1.6}" stroke="#fff" stroke-width="${sw * 0.35}"/>
+      <text x="${x - ox * sw * 3}" y="${y - oy * sw * 3}" class="ctl-map-sec" font-size="${sw * 1.6}" text-anchor="middle" dominant-baseline="middle">${l}</text>`;
+  }).join('');
+  // Virages : rond numéroté à l'extérieur du tracé, bordé selon le type (lent, moyen, rapide)
+  const TYPE_COL = { slow: '#60a5fa', medium: '#c084fc', fast: '#fb923c' };
+  const corners = st.map((c) => {
+    const q = tr.corners.find((x) => x.n === c.n).q, [x, y] = at(q), [ox, oy] = out(q), r = sw * 1.15;
+    return `<g><title>Virage ${c.n}${c.type ? ` · ${esc(TYPE_FR[c.type][0].replace(/s$/, ''))}` : ''}</title><circle cx="${x + ox * sw * 2.8}" cy="${y + oy * sw * 2.8}" r="${r}" class="ctl-map-turn" stroke="${TYPE_COL[c.type] || 'var(--muted)'}" stroke-width="${sw * 0.28}"/>
+      <text x="${x + ox * sw * 2.8}" y="${y + oy * sw * 2.8}" font-size="${sw * 1.15}" class="ctl-map-num" text-anchor="middle" dominant-baseline="central">${c.n}</text></g>`;
+  }).join('');
+  const pct = (n) => Math.round((n / (K || 1)) * 100);
+  const chip = tchip;
+  return `<svg class="ctl-map" viewBox="${x0 - pad} ${y0 - pad} ${w + 2 * pad} ${h + 2 * pad}" preserveAspectRatio="xMidYMid meet">
+      <polyline points="${poly(0, K)}" fill="none" stroke="rgba(0,0,0,.55)" stroke-width="${sw * 1.9}" stroke-linecap="round" stroke-linejoin="round"/>
+      <g fill="none" stroke-linecap="round" stroke-linejoin="round">${colored}${flat}</g>${ticks}${corners}</svg>
+    <div class="ctl-map-leg"><span>${chip(d.a, COL_A)} plus rapide sur ${pct(nA)} % du tour</span><span>${chip(d.b, COL_B)} plus rapide sur ${pct(nB)} % du tour</span></div>
+    <div class="ctl-map-leg muted small">Virages : ${['slow', 'medium', 'fast'].map((k) => `<span class="ctl-ring" style="--c:${TYPE_COL[k]}"></span> ${esc(TYPE_FR[k][0])}`).join(' ')}${tr.tel ? ' · <span class="ctl-flat"></span> À fond tous les deux' : ''}</div>`;
+}
+
 function draw() {
   const el = $('#anaCompare');
   if (!el) return;
@@ -107,6 +274,7 @@ function draw() {
   if (d.error) { el.innerHTML = `<div class="note">Comparaison indisponible : ${esc(d.error)}</div>`; return; }
   if (!d.a?.lap || !d.b?.lap) { el.innerHTML = `<div class="note">${esc(d.reason || 'Pas encore de tour chronométré.')}</div>`; return; }
   const A = d.a, B = d.b;
+  pickColors(A, B);
   const gap = A.lap.time - B.lap.time;
   const chip = (x, col) => `<span class="cmp-chip" style="--c:${col}">${esc(x.tla)}</span>`;
   const sectors = [0, 1, 2].map((si) => {
@@ -143,9 +311,13 @@ function draw() {
       <div class="cmp-drv right" style="--c:${COL_B}"><b>${esc(B.tla)}</b><span>${fmtLap(B.lap.time)}</span><small class="muted">${esc(B.team)}${B.lap.lap ? ` · tour ${B.lap.lap}` : ''}${B.lap.best ? ' (meilleur)' : ''}</small></div>
     </div>
     <div class="cmp-sectors">${sectors}</div>
-    ${d.gps ? `${summary}<div class="cmp-vis">${trackSvg(d)}<div class="cmp-right"><div class="muted small">Écart cumulé le long du tour (s) · au-dessus de 0 : <span style="color:${COL_B}">${esc(B.tla)} devant</span> · en dessous : <span style="color:${COL_A}">${esc(A.tla)} devant</span></div>${deltaSvg(d)}</div></div>${minis}` : `<div class="note small">${esc(d.reason || '')}</div>`}
+    ${d.gps && !d.trace ? `${summary}<div class="cmp-vis">${trackSvg(d)}<div class="cmp-right"><div class="muted small">Écart cumulé le long du tour (s) · au-dessus de 0 : <span style="color:${COL_B}">${esc(B.tla)} devant</span> · en dessous : <span style="color:${COL_A}">${esc(A.tla)} devant</span></div>${deltaSvg(d)}</div></div>${minis}` : d.trace ? '' : `<div class="note small">${esc(d.reason || '')}</div>`}
+    ${d.trace ? (() => { const c = cornersHtml(d); return `<section class="ctl"><h4>Télémétrie des deux tours</h4>${d.trace.tel ? '' : '<div class="note small">Télémétrie indisponible pour ces tours (compte F1 TV nécessaire en direct) : seulement l\'écart et les virages.</div>'}
+      <div class="ctl-read"><span class="muted">Survoler les courbes pour lire les valeurs</span></div>${traceSvg(d)}${c.acts}
+      <div class="ctl-bottom"><div class="ctl-mapbox">${mapSvg(d, c.st)}</div>${c.tables}</div>${summary}${minis}</section>`; })() : ''}
     ${sp ? `<table class="cmp-speeds"><tr><th>Vitesse max (km/h)</th><th style="color:${COL_A}">${esc(A.tla)}</th><th style="color:${COL_B}">${esc(B.tla)}</th></tr>${sp}</table>` : ''}
     <p class="muted small">${A.lap.best && B.lap.best ? 'Meilleur tour de chaque pilote' : 'Tours choisis'}</p>`;
+  if (d.trace) wireTrace(el, d);
 }
 
 export function renderCompare(force = false) {

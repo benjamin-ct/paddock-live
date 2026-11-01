@@ -109,6 +109,11 @@ l'application (Réglages → À propos → Nouveautés).
   grand (« À moins d'une seconde » en vert quand ils sont proches) et, en course, si le pilote derrière reprend du temps
   (en vert) ou en perd (en rouge) et combien par tour, sans compter les tours d'arrêt. Il suit la course en direct et
   se ferme avec ✕ ; le classement défile en dessous.
+- Duel en course : quand le pilote derrière reprend du temps, le bandeau prévoit quand il sera sur l'autre
+  (« rattrape en ~4 tours », si c'est avant l'arrivée) ou dit « à portée du DÉP » quand il est déjà à moins d'une
+  seconde. Et les batailles sont repérées toutes seules : deux voitures à moins d'une seconde l'une de l'autre pendant
+  3 tours de suite font apparaître une petite pastille ⚔ sur la ligne du pilote derrière dans le classement ; un clic
+  dessus ouvre leur duel. Aussi dans la version web.
 - Panneau Duel refait, plus simple : le même bandeau, puis une petite courbe de l'écart sur les derniers tours,
   quelques chiffres face à face (dernier et meilleur tour, pneus, arrêts, vitesse de pointe ; en qualifs le meilleur
   tour et les secteurs), le meilleur marqué à la couleur de son écurie, et en direct la vitesse, le rapport,
@@ -138,6 +143,13 @@ l'application (Réglages → À propos → Nouveautés).
   taille. En direct et en replay, dans l'appli et la version web.
 - Carte sans GPS (positions estimées) : après un passage au garage, la voiture ne fait plus des bonds de 600 m sur
   la piste pendant le tour suivant ; elle avance à son vrai rythme.
+- Comparaison de télémétrie (Analyse → Comparaison, deux pilotes et le tour de chacun au choix) : sous les secteurs et
+  les mini-secteurs, les deux tours superposés sur la distance, avec l'écart cumulé mètre par mètre (où l'un gagne ou
+  perd du temps), la vitesse, l'accélérateur, le frein, le rapport et le régime ; survoler ou toucher les courbes donne
+  les valeurs à cet endroit. Pour chaque virage, ce que fait chaque pilote (à fond, pied levé ou freinage), puis un
+  tableau par type de virage (lents, moyens, rapides, lignes droites) et virage par virage : vitesse minimale de chacun
+  et temps gagné ou perdu. Dans l'appli de bureau, avec le compte F1 TV en direct (télémétrie et GPS) et dans les
+  replays qui en ont.
 - Onglet Secteurs : sous les poles et meilleurs tours des éditions précédentes, le meilleur du week-end, c'est-à-dire
   le meilleur tour des séances déjà courues du Grand Prix (temps, pilote et séance : EL2, Qualif…). En direct et en
   replay, dans l'appli et la version web.
@@ -226,6 +238,16 @@ l'application (Réglages → À propos → Nouveautés).
 - Survol plus doux : dans les virages serrés et les chicanes (le stade de Mexico, par exemple), la caméra ne saute plus
   d'un côté à l'autre de la piste et ne pivote plus d'un coup ; elle suit une trajectoire lissée et regarde dans la
   direction de la piste.
+- Mini-carte cliquable : toucher une voiture sur la mini-carte la fait suivre par la caméra (en Réalisation, la vue passe
+  en Poursuite).
+- Compteur en bas à droite avec les caméras Poursuite et Hélico : vitesse, rapport, accélérateur et frein du pilote
+  suivi, à la couleur de son écurie.
+- Réalisation : nouveaux plans de bord de piste, une caméra fixe posée à l'extérieur du virage qui arrive, qui pivote et
+  zoome au passage de la voiture, puis se replace plus loin, comme à la TV.
+- Revoir l'action : le bouton « ↺ 10 s » de la vue 3D rejoue les 10 dernières secondes au ralenti, puis revient au
+  direct ; dans les messages de la direction de course, « ↺ 3D » (visible quand la vue 3D est ouverte) rejoue le moment
+  du message, jusqu'à 3 minutes en arrière. En direct comme en replay.
+- Touches de la vue 3D : 1 à 5 pour les caméras, V pour le survol, R pour revoir les 10 dernières secondes.
 
 ### Téléphone
 - En course, le haut de l'écran tient sur deux lignes (le délai TV à côté du tour) : une ligne de classement en plus, et
@@ -240,6 +262,10 @@ l'application (Réglages → À propos → Nouveautés).
   les écrans comme au moment de l'enregistrement, avec les panneaux et les onglets affichés et les colonnes du
   classement, et ✕ la supprime. Elles sont aussi dans le menu « Dispo. » de la
   barre de gauche. L'emplacement enregistré avant cette version est gardé sous le nom « Mon emplacement ».
+- Application de bureau : le temps avant la prochaine séance s'affiche dans la barre des menus sur Mac (« EL1 2 h 14 »,
+  « Course 12 min », « LIVE » pendant la séance) et dans l'info-bulle de l'icône de la zone de notification sur Windows
+  et Linux. Un clic sur l'icône propose d'ouvrir Paddock Live et montre le jour et l'heure de la prochaine séance.
+  Se coupe dans Réglages → Application ou avec « Masquer le compte à rebours » dans le menu de l'icône.
 - Une disposition enregistrée peut être liée à un type de séance (choix « Qualifs », « Course » ou « Essais » à côté de
   son nom) : au début de chaque séance de ce type, en direct comme en replay, elle est remise toute seule, une seule
   fois (vos changements pendant la séance sont gardés), avec un petit message. Une seule disposition par type de

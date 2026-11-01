@@ -2,7 +2,7 @@
 import { store, setDuel, displayNow, versionOf, on, emit } from '../store.js';
 import { prefs } from '../prefs.js';
 import { $, esc, drivers, orderedNumbers, sessionKind, teamColor, teamMark, tyreBadge, currentStint, fmtSigned, photoUrl, driverOpt } from '../util.js';
-import { parseGap, parseLapTime } from '/shared/f1.js';
+import { parseGap, parseLapTime, catchLaps } from '/shared/f1.js';
 import { carNow } from './gauge.js';
 import { DEC } from '../i18n.js';
 import { realStopCount } from '/shared/pits.js';
@@ -70,7 +70,8 @@ export function lapGapSeries(a, b) {
 }
 
 // Tendance sur les derniers tours sans arrêt (4 au plus, 2 au moins), vue du pilote derrière : il reprend du temps ou
-// en perd. -> { cls: 'closing' | 'pulling' | 'stable', html (panneau, avec le rattrapage estimé), band (bandeau) } ou null
+// en perd. -> { cls: 'closing' | 'pulling' | 'stable', html (panneau, avec le rattrapage estimé), band (bandeau),
+// eta (bandeau : prévision du rattrapage, catchLaps) } ou null
 function trend(series, tlaA, tlaB, gapNow) {
   // Tours qui se suivent sans arrêt ni saut de plus de 3 s de l'écart (tour de sortie des stands, voiture au ralenti)
   const pts = [];
@@ -89,11 +90,14 @@ function trend(series, tlaA, tlaB, gapNow) {
   if (Math.abs(rate) < 0.03) return { cls: 'stable', html: `Écart stable ${on}`, band: 'Écart stable' };
   const closing = (gap >= 0 && rate < 0) || (gap < 0 && rate > 0);
   if (!closing) return { cls: 'pulling', html: `<b>${esc(back)}</b> perd ${r} s/tour ${on}`, band: `<b>${esc(back)}</b> perd ${r} s/tour` };
-  const lapsToCatch = Math.max(1, Math.round(Math.abs(gap) / Math.abs(rate)));
+  const lapsToCatch = Math.max(1, Math.ceil(Math.abs(gap) / Math.abs(rate) - 1e-9));
   const lc = store.state.LapCount;
   const remaining = lc?.TotalLaps && lc?.CurrentLap ? lc.TotalLaps - lc.CurrentLap : null;
   const eta = remaining !== null && lapsToCatch > remaining ? 'pas avant l\'arrivée' : `sur lui dans ~${lapsToCatch} tour(s)`;
-  return { cls: 'closing', html: `<b>${esc(back)}</b> reprend ${r} s/tour ${on} · ${eta}`, band: `<b>${esc(back)}</b> reprend ${r} s/tour` };
+  const n = catchLaps(Math.abs(gap), Math.abs(rate), remaining);
+  const drs = (Number(store.state.SessionInfo?.StartDate?.slice(0, 4)) || 2026) < 2026;   // avant 2026 : DRS (comme le classement)
+  const forecast = n === 'dep' ? (drs ? 'à portée du DRS' : 'à portée du DÉP') : n === 1 ? 'rattrape en ~1 tour' : n ? `rattrape en ~${n} tours` : '';
+  return { cls: 'closing', html: `<b>${esc(back)}</b> reprend ${r} s/tour ${on} · ${eta}`, band: `<b>${esc(back)}</b> reprend ${r} s/tour`, eta: forecast };
 }
 
 // Petite courbe de l'écart sur les 12 derniers tours (plus haut : A plus loin devant ; ligne pointillée : à égalité)
@@ -248,7 +252,7 @@ function renderSlow(a, b) {
     const tr = trend(series, tlaA, tlaB, gapNow);
     $('#btTrend').className = `bt-trend ${tr?.cls || 'stable'}`;
     put('#btTrend', tr?.html || 'Tendance après deux tours communs');
-    bandTrend = tr ? `<span class="bt-gtrend ${tr.cls}">${tr.band}</span>` : '';
+    bandTrend = tr ? `<span class="bt-gtrend ${tr.cls}">${tr.band}</span>${tr.eta ? `<span class="bt-geta">${tr.eta}</span>` : ''}` : '';
   } else {
     bandTrend = '';
     $('#btTrend').className = 'bt-trend stable';
