@@ -125,6 +125,9 @@ l'application (Réglages → À propos → Nouveautés).
 - Bandeau du duel : la télémétrie des deux pilotes en barres horizontales sous chacun, l'accélérateur en vert et le
   frein en rouge, avec le rapport engagé (en direct avec F1 TV, et dans les replays qui en ont). Aussi dans la version
   web, avec la connexion F1 TV de l'extension Paddock Live Companion.
+- Duel plus fluide, dans le bandeau comme dans la fenêtre Duel : l'écart en direct, la vitesse, le rapport,
+  l'accélérateur et le frein suivent la voiture image par image (avant : quatre à cinq fois par seconde). La pastille
+  de bataille du classement a la taille des autres et se touche plus facilement, comme la croix qui ferme le bandeau.
 - Duel en course : quand le pilote derrière reprend du temps, le bandeau prévoit quand il sera sur l'autre
   (« rattrape en ~4 tours », si c'est avant l'arrivée) ou dit « à portée du DÉP » quand il est déjà à moins d'une
   seconde. Et les batailles sont repérées toutes seules : deux voitures à moins d'une seconde l'une de l'autre pendant
