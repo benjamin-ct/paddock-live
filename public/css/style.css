@@ -3546,10 +3546,12 @@ html:is(.float-map, .overlay) .boot-cover { display: none; }
 .bt-gtrend.pulling::before { content: '▲'; font-size: 8px; }
 .bt.close .bt-tag, .duel-band.close .bt-tag { color: #4ade80; }
 /* Bandeau par-dessus le bas du Classement (duel choisi avec A et B) ; le classement laisse sa place en dessous */
-.duel-band { position: absolute; left: 8px; right: 8px; bottom: 8px; z-index: 6; animation: bt-up .25s ease-out; }
+.duel-band { position: absolute; left: 0; right: 0; bottom: 0; z-index: 6; padding: 6px 8px 8px; background: var(--panel); border-radius: 0 0 var(--v2-r, 8px) var(--v2-r, 8px); animation: bt-up .25s ease-out; }
+/* Fond plein sur toute la largeur (rien du classement ne passe sur les côtés), fondu vers le haut */
+.duel-band::before { content: ''; position: absolute; left: 0; right: 0; bottom: 100%; height: 18px; background: linear-gradient(to top, var(--panel), transparent); pointer-events: none; }
 .duel-band .bt-band { min-height: 60px; padding: 8px 40px 8px 14px; box-shadow: 0 14px 34px -10px rgba(0, 0, 0, .7); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
 .duel-band .bt-close { position: absolute; top: 50%; right: 8px; transform: translateY(-50%); z-index: 2; color: #fff; background: rgba(0, 0, 0, .3); border-radius: 50%; width: 24px; height: 24px; font-size: 11px; }
-.panel.has-duel .tower-wrap { padding-bottom: 112px; }
+.panel.has-duel .tower-wrap { padding-bottom: 116px; }
 @keyframes bt-up { from { transform: translateY(14px); opacity: 0; } }
 html[data-motion="off"] .duel-band { animation: none; }
 .bt-trend { align-self: center; display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 999px; font-size: 12.5px; color: var(--text-2); background: var(--panel-2); border: 1px solid var(--border); }
