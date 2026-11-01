@@ -172,7 +172,7 @@
   box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--tc) 85%, #fff), 0 0 14px color-mix(in srgb, var(--tc) 55%, transparent) !important; background-position: center !important; }
 :root[data-design="v2"] .tower .team-logo.color, :root[data-design="v2"] .sz-table .team-logo.color, :root[data-design="v2"] .hm-fav-who .team-logo.color { background-color: #F4F6FA !important; background-size: 62% !important; }
 :root[data-design="v2"] .tower .team-logo { width: 26px; height: 26px; }
-:root[data-design="v2"] .tower tr.focus { background: linear-gradient(90deg, rgba(225, 6, 0, .34), rgba(225, 6, 0, .06) 60%, transparent) !important; box-shadow: inset 3px 0 0 #ff2a1f; }
+:root[data-design="v2"] .tower tr:is(.focus, .duel-a, .duel-b) { background: linear-gradient(90deg, rgba(225, 6, 0, .34), rgba(225, 6, 0, .06) 60%, transparent) !important; box-shadow: inset 3px 0 0 #ff2a1f; }
 @media (hover: hover) { :root[data-design="v2"] .tower tr.trow:hover td { background: rgba(255, 255, 255, .04); } }
 :root[data-design="v2"] .tyre { box-shadow: 0 0 8px color-mix(in srgb, currentColor 45%, transparent); }
 :root[data-design="v2"] .tower .c-duel .duel-btns button, :root[data-design="v2"] .tower .duel-btn { border-radius: 8px; }
@@ -182,14 +182,6 @@
 :root[data-design="v2"] #mapCanvas { filter: drop-shadow(0 0 6px rgba(120, 170, 255, .45)) drop-shadow(0 0 18px rgba(59, 130, 246, .25)); }
 :root[data-design="v2"] .map-ribbon { filter: drop-shadow(0 0 5px rgba(120, 170, 255, .3)); }
 
-/* ---------- Duel : façon carte de jeu vidéo, portraits éclairés de la couleur de l'écurie ---------- */
-:root[data-design="v2"] .duel-hero { position: relative; margin: 8px 10px 4px; padding: 12px 16px; border-radius: 18px; overflow: hidden; border: 1px solid var(--v2-rim);
-  background: radial-gradient(70% 140% at 0% 50%, color-mix(in srgb, var(--ta, #3b82f6) 55%, transparent), transparent 60%),
-    radial-gradient(70% 140% at 100% 50%, color-mix(in srgb, var(--tb, #e10600) 55%, transparent), transparent 60%), rgba(4, 9, 22, .5) !important; }
-:root[data-design="v2"] .duel-hero::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(105deg, transparent 46%, rgba(255, 255, 255, .07) 50%, transparent 54%); }
-:root[data-design="v2"] .duel-photo { border-width: 2px !important; box-shadow: 0 0 0 3px rgba(0, 0, 0, .25), 0 0 24px color-mix(in srgb, var(--tc) 80%, transparent); }
-:root[data-design="v2"] .duel-name { font: italic 800 26px/1 var(--font-cond) !important; letter-spacing: .03em; }
-:root[data-design="v2"] .duel-gap-val { font: italic 800 56px/1 var(--font-cond) !important; text-shadow: 0 0 30px rgba(255, 255, 255, .25); }
 
 /* ---------- Direction de course (bandeau du bas) et barre du replay : pilules de verre flottantes ---------- */
 @media (min-width: 901px) {
@@ -412,9 +404,6 @@
 @media (min-width: 901px) { :root[data-design="v2"][data-scheme="light"] body:not(.solo) .rail { background: rgba(9, 16, 34, .96) !important; } }
 :root[data-design="v2"][data-scheme="light"] .replaybar { background: linear-gradient(180deg, rgba(14, 24, 46, .96), rgba(9, 16, 34, .96)) !important; }
 :root[data-design="v2"][data-scheme="light"] :is(.topbar, .replaybar) :is(.btn, .rp-speed:not(.on)) { background: rgba(255, 255, 255, .08); color: #fff; }
-:root[data-design="v2"][data-scheme="light"] .duel-hero { background: radial-gradient(70% 140% at 0% 50%, color-mix(in srgb, var(--ta, #3b82f6) 30%, transparent), transparent 60%),
-  radial-gradient(70% 140% at 100% 50%, color-mix(in srgb, var(--tb, #e10600) 30%, transparent), transparent 60%), rgba(255, 255, 255, .7) !important; }
-:root[data-design="v2"][data-scheme="light"] .duel-gap-val { text-shadow: none; }
 :root[data-design="v2"][data-scheme="light"] .sz-side { background: rgba(255, 255, 255, .7) !important; }
 :root[data-design="v2"][data-scheme="light"] :is(.sz-drv-card, .sz-drv-hero) { color: #fff; }
 :root[data-design="v2"][data-scheme="light"] :is(.sz-drv-card, .sz-drv-hero) .lg { background-image: var(--logo, none); }

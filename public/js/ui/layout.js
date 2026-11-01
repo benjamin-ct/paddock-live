@@ -25,7 +25,7 @@ const ADDED_NEAR = { radio: ['feed', 1], analysis: ['extra', 0] }; // [voisin, 1
 
 export const COLUMNS = [
   ['name', 'Nom complet du pilote'], ['tags', 'État (stand, sortie, tour rapide…)'], ['int', 'Intervalle'], ['last', 'Dernier tour'], ['best', 'Meilleur tour'], ['sec', 'Secteurs'], ['pred', 'Tour en cours (qualifs)'],
-  ['q', 'Q1/Q2/Q3'], ['tyre', 'Pneus'], ['pits', 'Arrêts / tours'], ['speed', 'Speed trap'], ['duel', 'Boutons duel'],
+  ['q', 'Q1/Q2/Q3'], ['tyre', 'Pneus'], ['pits', 'Arrêts / tours'], ['speed', 'Speed trap'],
 ];
 // Colonnes facultatives, masquées par défaut (prefs.extraCols : celles ajoutées)
 export const EXTRA_COLUMNS = [

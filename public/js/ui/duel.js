@@ -1,20 +1,17 @@
-// Duel entre deux pilotes : écart en direct, tendance, historique, comparaison détaillée.
+// Duel entre deux pilotes, façon bataille de la retransmission : écart en direct, tendance, chiffres face à face.
 import { store, setDuel, displayNow, versionOf, on, emit } from '../store.js';
 import { prefs } from '../prefs.js';
-import { $, esc, drivers, orderedNumbers, sessionKind, teamColor, teamMark, ink, tyreBadge, currentStint, fmtLap, fmtSigned, photoUrl, driverOpt } from '../util.js';
+import { $, esc, drivers, orderedNumbers, sessionKind, teamColor, teamMark, tyreBadge, currentStint, fmtSigned, photoUrl, driverOpt } from '../util.js';
 import { parseGap, parseLapTime } from '/shared/f1.js';
-import { lineChart } from './charts.js';
-import { Dial, animate, carNow, energyOf } from './gauge.js';
+import { carNow } from './gauge.js';
 import { DEC } from '../i18n.js';
 import { realStopCount } from '/shared/pits.js';
 
 let skeletonFor = null;
 let autoFilled = false;   // duel choisi tout seul une fois (jamais après un choix effacé à la main)
 let lastSlowKey = '';
-let liveSeries = [];
-let liveSeriesKey = '';
-let lastLiveSample = 0;
 let lastFast = 0;
+let bandTrend = '';   // tendance dans le bandeau (renderSlow), sous l'écart
 
 function list(obj) {
   if (!obj) return [];
@@ -72,24 +69,48 @@ export function lapGapSeries(a, b) {
   return out;
 }
 
-function trendText(series, tlaA, tlaB, gapNow) {
-  const clean = series.filter((p) => !p.pit);
-  if (clean.length < 3) return 'La tendance apparaîtra après quelques tours communs.';
-  const pts = clean.slice(-4);
+// Tendance sur les derniers tours sans arrêt (4 au plus, 2 au moins), vue du pilote derrière : il reprend du temps ou
+// en perd. -> { cls: 'closing' | 'pulling' | 'stable', html (panneau, avec le rattrapage estimé), band (bandeau) } ou null
+function trend(series, tlaA, tlaB, gapNow) {
+  // Tours qui se suivent sans arrêt ni saut de plus de 3 s de l'écart (tour de sortie des stands, voiture au ralenti)
+  const pts = [];
+  for (let i = series.length - 1; i >= 0 && pts.length < 4; i--) {
+    const p = series[i], next = pts[0];
+    if (p.pit || (next && (next.x - p.x !== 1 || Math.abs(next.y - p.y) > 3))) { if (pts.length >= 2) break; pts.length = 0; if (p.pit) continue; }
+    pts.unshift(p);
+  }
+  if (pts.length < 2) return null;
   const first = pts[0], last = pts[pts.length - 1];
   const rate = (last.y - first.y) / (last.x - first.x || 1); // variation de l'écart par tour (A devant si > 0)
   const gap = gapNow ?? last.y;
-  if (Math.abs(rate) < 0.03) return `Écart <b>stable</b> (${fmtSigned(rate, 2)} s/tour sur les ${pts.length} derniers tours).`;
-  const front = gap >= 0 ? tlaA : tlaB, back = gap >= 0 ? tlaB : tlaA;
-  const closing = (gap >= 0 && rate < 0) || (gap < 0 && rate > 0);
   const r = Math.abs(rate).toFixed(2).replace('.', DEC);
-  if (!closing) return `<b>${esc(front)}</b> creuse l'écart : <b>+${r} s/tour</b> sur ${esc(back)}.`;
-  const lapsToCatch = Math.abs(gap) / Math.abs(rate);
+  const back = gap >= 0 ? tlaB : tlaA;
+  const on = pts.length - 1 > 1 ? `sur les ${pts.length - 1} derniers tours` : 'au dernier tour';
+  if (Math.abs(rate) < 0.03) return { cls: 'stable', html: `Écart stable ${on}`, band: 'Écart stable' };
+  const closing = (gap >= 0 && rate < 0) || (gap < 0 && rate > 0);
+  if (!closing) return { cls: 'pulling', html: `<b>${esc(back)}</b> perd ${r} s/tour ${on}`, band: `<b>${esc(back)}</b> perd ${r} s/tour` };
+  const lapsToCatch = Math.max(1, Math.round(Math.abs(gap) / Math.abs(rate)));
   const lc = store.state.LapCount;
   const remaining = lc?.TotalLaps && lc?.CurrentLap ? lc.TotalLaps - lc.CurrentLap : null;
-  let eta = `rattrapage estimé dans <b>~${Math.max(1, Math.round(lapsToCatch))} tour(s)</b>`;
-  if (remaining !== null && lapsToCatch > remaining) eta += ` (au-delà des ${remaining} tours restants)`;
-  return `<b>${esc(back)}</b> revient sur ${esc(front)} : <b>−${r} s/tour</b> · ${eta}.`;
+  const eta = remaining !== null && lapsToCatch > remaining ? 'pas avant l\'arrivée' : `sur lui dans ~${lapsToCatch} tour(s)`;
+  return { cls: 'closing', html: `<b>${esc(back)}</b> reprend ${r} s/tour ${on} · ${eta}`, band: `<b>${esc(back)}</b> reprend ${r} s/tour` };
+}
+
+// Petite courbe de l'écart sur les 12 derniers tours (plus haut : A plus loin devant ; ligne pointillée : à égalité)
+function spark(series) {
+  const pts = series.slice(-12);
+  if (pts.length < 2) return '';
+  let lo = Math.min(...pts.map((p) => p.y)), hi = Math.max(...pts.map((p) => p.y));
+  const pad = Math.max(0.25, (hi - lo) * 0.15);
+  lo -= pad; hi += pad;
+  const x = (i) => (i / (pts.length - 1)) * 100, y = (v) => 28 - ((v - lo) / (hi - lo)) * 26;
+  const line = pts.map((p, i) => `${x(i).toFixed(1)},${y(p.y).toFixed(1)}`).join(' ');
+  const pits = pts.map((p, i) => (p.pit ? `<circle cx="${x(i).toFixed(1)}" cy="${y(p.y).toFixed(1)}" r="1.6" class="bt-pit"/>` : '')).join('');
+  const zero = lo < 0 && hi > 0 ? `<line x1="0" y1="${y(0).toFixed(1)}" x2="100" y2="${y(0).toFixed(1)}" class="bt-zero"/>` : '';
+  const fmt = (v) => Math.abs(v).toFixed(1).replace('.', DEC);
+  return `<svg class="bt-spark" viewBox="0 0 100 30" preserveAspectRatio="none" aria-hidden="true">${zero}
+    <polygon points="0,30 ${line} 100,30" class="bt-area"/><polyline points="${line}" class="bt-line"/>${pits}</svg>
+    <div class="bt-spark-lbl"><span>T${pts[0].x}</span><span>Écart : ${fmt(pts[0].y)} s → ${fmt(pts.at(-1).y)} s</span><span>T${pts.at(-1).x}</span></div>`;
 }
 
 function fillSelect(sel, value, dl, nums) {
@@ -99,18 +120,35 @@ function fillSelect(sel, value, dl, nums) {
   sel.value = value || '';
 }
 
-function skeleton() {
-  $('#duelBody').innerHTML = `
-    <div class="duel-hero" id="dHero"><div id="dSideA"></div><div id="dGap"></div><div id="dSideB"></div></div>
-    <div class="duel-trend" id="dTrend"></div>
-    <div id="dTele"></div>
-    <div id="dLiveWrap"><div class="chart-title"><span>Écart en direct (GPS) — 3 dernières minutes</span><span>positif = A devant</span></div><div class="duel-chart" id="dLive"></div></div>
-    <div id="dLapWrap"><div class="chart-title"><span>Écart à chaque tour (s)</span><span>positif = A devant</span></div><div class="duel-chart" id="dLap"></div></div>
-    <div id="dPaceWrap"><div class="chart-title"><span>Rythme : temps au tour (s)</span><span class="legend-inline" id="dPaceLegend"></span></div><div class="duel-chart" id="dPace"></div></div>
-    <table class="cmp" id="dCmp"></table>
-    <div class="chart-title"><span>Derniers tours</span></div>
-    <table class="laps-cmp" id="dLaps"></table>`;
+// Bandeau du duel (les deux pilotes, l'écart au milieu), dans le panneau Duel et par-dessus le bas du Classement quand
+// les deux pilotes y ont été choisis (A et B)
+const BAND = '<div class="bt-band"><div class="bt-drv a" data-s="a"></div><div class="bt-gap" data-s="gap"></div><div class="bt-drv b" data-s="b"></div></div>';
+const bands = () => [$('#bt'), $('#duelBand')].filter((el) => el && !el.hidden && el.querySelector('.bt-band'));
+function showTowerBand(on) {
+  const el = $('#duelBand');
+  if (!el) return;
+  if (on && !el.querySelector('.bt-band')) {
+    el.innerHTML = `${BAND}<button type="button" class="bt-close icon-btn small" title="Fermer le duel" aria-label="Fermer le duel">✕</button>`;
+    el.querySelector('.bt-close').addEventListener('click', () => { setDuel('a', null); setDuel('b', null); });
+  }
+  if (el.hidden === !on) return;
+  el.hidden = !on;
+  el.closest('.panel')?.classList.toggle('has-duel', on);
 }
+
+// Bataille façon retransmission : bandeau aux couleurs des deux écuries avec l'écart au milieu, tendance et petite
+// courbe, quelques chiffres face à face, et la télémétrie en direct en barres
+function skeleton() {
+  $('#duelBody').innerHTML = `<div class="bt" id="bt">
+    ${BAND}
+    <div class="bt-trend" id="btTrend"></div>
+    <div class="bt-sparkbox" id="btSpark"></div>
+    <div class="bt-rows" id="btRows"></div>
+    <div class="bt-live" id="btLive" hidden></div>
+  </div>`;
+}
+
+const put = (id, html) => { const el = $(id); if (el && el._h !== html) { el._h = html; el.innerHTML = html; } };
 
 function renderHero(a, b) {
   const s = store.state;
@@ -118,65 +156,79 @@ function renderHero(a, b) {
   const da = dl[a] || {}, db = dl[b] || {};
   const lines = s.TimingData?.Lines || {};
   const disp = displayNow();
+  const ca = carNow(a, disp), cb = carNow(b, disp);   // télémétrie en direct (bandeau, barres du panneau)
+  const race = sessionKind(s) === 'race';
   const off = officialGap(s, a, b);
   const la = lines[a] || {}, lb = lines[b] || {};
   const running = !la.Retired && !lb.Retired && !la.Stopped && !lb.Stopped;
-  let live = sessionKind(s) === 'race' && running ? store.positions.liveGap(a, b, disp) : null;
+  let live = race && running ? store.positions.liveGap(a, b, disp) : null;
   // Garde-fou : si le GPS contredit nettement le chronométrage (voiture au garage, tour de retard…), on s'en tient à l'officiel.
   if (live && off && (off.laps || (off.gap !== null && Math.abs(live.gap - off.gap) > 5))) live = null;
 
-  let main = '—', lbl = '', src = '';
+  let main = '—', unit = '', tag = race ? 'Écart' : 'Écart au meilleur tour', ahead = null, close = false;
   if (live && !live.laps) {
-    main = live.gap.toFixed(live.gap < 10 ? 2 : 1).replace('.', DEC);
-    lbl = `${esc(dl[live.ahead]?.Tla || live.ahead)} devant`;
-    src = off?.gap !== null && off?.gap !== undefined ? `Officiel : ${off.gap.toFixed(3).replace('.', DEC)} s · GPS temps réel` : 'GPS temps réel';
+    main = live.gap.toFixed(live.gap < 10 ? 2 : 1).replace('.', DEC); unit = 's'; ahead = live.ahead === a ? 'a' : 'b';
+    close = live.gap < 1;
   } else if (off) {
-    const aheadNum = off.ahead === 'a' ? a : b;
-    if (off.laps) { main = `+${off.laps} T`; lbl = `${esc(dl[aheadNum]?.Tla || aheadNum)} a un tour d'avance`; }
-    else if (off.gap !== null) { main = off.gap.toFixed(3).replace('.', DEC); lbl = `${esc(dl[aheadNum]?.Tla || aheadNum)} devant`; }
-    src = sessionKind(s) === 'race' ? 'Chronométrage officiel' : 'Écart sur le meilleur tour';
+    ahead = off.ahead;
+    if (off.laps) { main = `+${off.laps}`; unit = off.laps > 1 ? 'tours' : 'tour'; }
+    else if (off.gap !== null) { main = off.gap.toFixed(3).replace('.', DEC); unit = 's'; close = race && off.gap < 1; }
   }
+  if (close) tag = 'À moins d\'une seconde';
 
-  const side = (num, d, cls) => {
-    const l = lines[num] || {};
-    const pos = l.Position ? `P${l.Position}` : '';
-    const photo = photoUrl(d) ? `<img class="duel-photo" src="${esc(photoUrl(d))}" alt="" style="--tc:${teamColor(d)}" onerror="this.remove()">` : '';
-    return `<div class="duel-side ${cls}"><div class="duel-id">${photo}<div><div class="duel-name">${teamMark(d)}${esc(d.Tla || num)}</div>
-      <div class="duel-sub">${esc(pos)} · ${esc(d.TeamName || '')}</div></div></div></div>`;
+  // Portrait, logo et code du pilote, sa position et son écurie, puis son pneu, son dernier tour (le plus rapide des deux
+  // en vert) et sa vitesse en direct (remplie à chaque image, plus bas)
+  const app = s.TimingAppData?.Lines || {};
+  const lastA = parseLapTime(la.LastLapTime?.Value), lastB = parseLapTime(lb.LastLapTime?.Value);
+  const side = (num, d, mine, other) => {
+    const l = lines[num] || {}, st = currentStint(app[num]);
+    const photo = photoUrl(d) ? `<img class="bt-photo" src="${esc(photoUrl(d))}" alt="" style="--tc:${teamColor(d)}" onerror="this.remove()">` : '';
+    const last = l.LastLapTime?.Value ? `<span class="bt-last${mine !== null && other !== null && mine < other ? ' win' : ''}" title="Dernier tour">${esc(l.LastLapTime.Value)}</span>` : '';
+    return `${photo}<div class="bt-id"><b class="bt-name" title="${esc(d.FullName || '')}">${teamMark(d)}${esc(d.Tla || num)}</b>
+      <small>${l.Position ? `P${esc(l.Position)} · ` : ''}${esc(d.TeamName || '')}</small>
+      <span class="bt-stats">${st ? `<span class="bt-tyre">${tyreBadge(st.Compound, st.TotalLaps, st.New)}</span>` : ''}${last}<span class="bt-kmh" hidden><b></b> km/h</span></span></div>`;
   };
-  // Mise à jour ciblée (évite de recharger les photos à chaque rafraîchissement).
-  const put = (id, html) => { const el = $(id); if (el._h !== html) { el._h = html; el.innerHTML = html; } };
-  $('#dHero').style.cssText = `--ta:${teamColor(da)};--tb:${teamColor(db)}`;
-  put('#dSideA', side(a, da, 'a'));
-  put('#dSideB', side(b, db, 'b'));
-  put('#dGap', `<div class="duel-gap"><div class="duel-gap-val">${main}${main !== '—' && !main.includes('T') ? '<small style="font-size:16px"> s</small>' : ''}</div>
-      <div class="duel-gap-lbl">${lbl}</div><div class="duel-gap-src">${src}</div></div>`);
-
-  // Échantillonnage de l'écart GPS pour le graphique "en direct"
-  const key = `${a}-${b}-${store.ver.__reset || 0}`;
-  if (key !== liveSeriesKey) { liveSeries = []; liveSeriesKey = key; }
-  if (live && !live.laps && disp - lastLiveSample >= 1000) {
-    lastLiveSample = disp;
-    liveSeries.push({ t: disp, y: live.ahead === a ? live.gap : -live.gap });
-    while (liveSeries.length && disp - liveSeries[0].t > 180000) liveSeries.shift();
+  const html = { a: side(a, da, lastA, lastB), b: side(b, db, lastB, lastA),
+    gap: `<span class="bt-tag">${tag}</span><b class="bt-val">${main}${unit ? `<small>${unit}</small>` : ''}</b>${ahead ? `<span class="bt-who">${esc((ahead === 'a' ? da : db).Tla || '')} devant</span>` : ''}${bandTrend}` };
+  for (const box of bands()) {
+    box.style.setProperty('--ta', teamColor(da));
+    box.style.setProperty('--tb', teamColor(db));
+    box.classList.toggle('close', close);
+    for (const k of ['a', 'b', 'gap']) { const el = box.querySelector(`.bt-band [data-s="${k}"]`); if (el._h !== html[k]) { el._h = html[k]; el.innerHTML = html[k]; } }
+    for (const [k, c] of [['a', ca], ['b', cb]]) {
+      const el = box.querySelector(`.bt-band [data-s="${k}"] .bt-kmh`);
+      el.hidden = !c?.speed;
+      if (c?.speed) el.firstChild.textContent = Math.round(c.speed);
+    }
   }
-  $('#dLiveWrap').hidden = !liveSeries.length;
-  if (liveSeries.length) {
-    lineChart($('#dLive'), liveSeries.map((p) => ({ x: (p.t - disp) / 1000, y: p.y })), {
-      height: 110, color: '#3ea6ff', yFmt: (v) => v.toFixed(1), xFmt: (v) => `${Math.round(v)} s`,
-      tipFmt: (p) => `${Math.round(-p.x)} s avant : ${p.y >= 0 ? 'A' : 'B'} devant de ${Math.abs(p.y).toFixed(2)} s`, yMinSpan: 0.5,
-    });
+  renderLive(a, b, dl, ca, cb);
+}
+
+// Télémétrie en direct : vitesse, rapport, accélérateur et frein de chaque pilote
+function renderLive(a, b, dl, ca, cb) {
+  const host = $('#btLive');
+  host.hidden = !ca && !cb;
+  if (host.hidden) return;
+  if (host.dataset.pair !== `${a}-${b}`) {
+    host.dataset.pair = `${a}-${b}`;
+    const row = (n, k) => `<div class="bt-car ${k}"><b class="bt-car-tla">${esc(dl[n]?.Tla || n)}</b><span class="bt-spd"><b>—</b><small>km/h</small></span><span class="bt-gear">–</span>
+      <span class="bt-bar thr" title="Accélérateur"><i></i></span><span class="bt-bar brk" title="Frein"><i></i></span></div>`;
+    host.innerHTML = `${row(a, 'a')}${row(b, 'b')}<div class="bt-live-lbl"><span>Vitesse</span><span>Rapport</span><span>Accélérateur</span><span>Frein</span></div>`;
+  }
+  for (const [c, k] of [[ca, 'a'], [cb, 'b']]) {
+    const el = host.querySelector(`.bt-car.${k}`);
+    el.querySelector('.bt-spd b').textContent = c?.speed ? Math.round(c.speed) : '—';
+    el.querySelector('.bt-gear').textContent = c?.gear ? c.gear : 'N';
+    el.querySelector('.thr i').style.width = `${Math.max(0, Math.min(100, c?.thr || 0))}%`;
+    el.querySelector('.brk i').style.width = `${c?.brk ? (c.brk > 1 ? Math.min(100, c.brk) : 100) : 0}%`;
   }
 }
 
-function cmpRow(label, va, vb, better = null) {
-  // better : 'low' | 'high' | null (comparaison numérique des valeurs brutes)
-  let ca = '', cb = '';
-  if (better && va.n !== null && vb.n !== null && va.n !== vb.n) {
-    const aWins = better === 'low' ? va.n < vb.n : va.n > vb.n;
-    ca = aWins ? 'win' : ''; cb = aWins ? '' : 'win';
-  }
-  return `<tr><td class="${ca}">${va.html}</td><td>${esc(label)}</td><td class="${cb}">${vb.html}</td></tr>`;
+// Ligne face à face : valeur de A, nom, valeur de B ; la meilleure aux couleurs de son écurie
+function row(label, va, vb, better = null) {
+  let w = '';
+  if (better && va.n !== null && vb.n !== null && va.n !== vb.n) w = (better === 'low' ? va.n < vb.n : va.n > vb.n) ? 'a' : 'b';
+  return `<div class="bt-row"><span class="bt-v a${w === 'a' ? ' win' : ''}">${va.html}</span><span class="bt-k">${esc(label)}</span><span class="bt-v b${w === 'b' ? ' win' : ''}">${vb.html}</span></div>`;
 }
 
 function renderSlow(a, b) {
@@ -187,111 +239,45 @@ function renderSlow(a, b) {
   const app = s.TimingAppData?.Lines || {};
   const la = lines[a] || {}, lb = lines[b] || {};
   const tlaA = dl[a]?.Tla || a, tlaB = dl[b]?.Tla || b;
-  const chip = (n) => { const c = teamColor(dl[n]); return `<span class="sz-chip" style="--tc:${c};--ink:${ink(c)}">${esc(dl[n]?.Tla || n)}</span>`; };
 
-  // Graphique tour par tour + tendance (course)
+  // Tendance et petite courbe (course)
   const series = kind === 'race' ? lapGapSeries(a, b) : [];
-  $('#dLapWrap').hidden = kind !== 'race';
   if (kind === 'race') {
-    lineChart($('#dLap'), series, {
-      height: 130, color: '#ff9f1a', xFmt: (v) => `T${v}`, yFmt: (v) => v.toFixed(1),
-      tipFmt: (p) => `Tour ${p.x} : ${p.y >= 0 ? tlaA : tlaB} devant de ${Math.abs(p.y).toFixed(3)} s${p.pit ? ' (arrêt)' : ''}`,
-      markers: series.filter((p) => p.pit).map((p) => ({ x: p.x, y: p.y, label: `Arrêt aux stands — tour ${p.x}${p.pitA ? ' ' + tlaA : ''}${p.pitB ? ' ' + tlaB : ''}` })),
-      empty: 'Le graphique se remplit à chaque tour bouclé par les deux pilotes.',
-    });
     const off = officialGap(s, a, b);
     const gapNow = off && off.gap !== null && !off.laps ? (off.ahead === 'a' ? off.gap : -off.gap) : null;
-    $('#dTrend').innerHTML = trendText(series, tlaA, tlaB, gapNow);
+    const tr = trend(series, tlaA, tlaB, gapNow);
+    $('#btTrend').className = `bt-trend ${tr?.cls || 'stable'}`;
+    put('#btTrend', tr?.html || 'Tendance après deux tours communs');
+    bandTrend = tr ? `<span class="bt-gtrend ${tr.cls}">${tr.band}</span>` : '';
   } else {
-    $('#dTrend').innerHTML = kind === 'quali' ? 'Comparaison sur la partie de qualification en cours.' : 'Comparaison des meilleurs tours de la séance.';
+    bandTrend = '';
+    $('#btTrend').className = 'bt-trend stable';
+    put('#btTrend', kind === 'quali' ? `Meilleurs tours de la Q${Number(s.TimingData?.SessionPart) || 1}` : 'Meilleurs tours de la séance');
   }
+  put('#btSpark', spark(series));
 
-  // Rythme : temps au tour hors tours de stand, 1er tour et tours anormaux (SC, incidents)
-  const pace = (n) => {
-    const pts = (store.derived.laps[n] || []).filter((e) => !e.pit && e.lap > 1).map((e) => ({ x: e.lap, y: parseLapTime(e.time) })).filter((p) => p.y);
-    const med = pts.map((p) => p.y).sort((x, y) => x - y)[Math.floor(pts.length / 2)];
-    return pts.filter((p) => p.y < med * 1.07).slice(-30);
-  };
-  const pA = pace(a), pB = pace(b);
-  $('#dPaceWrap').hidden = pA.length + pB.length < 2;
-  if (pA.length + pB.length >= 2) {
-    $('#dPaceLegend').innerHTML = `<span><i style="background:#3ea6ff"></i>${esc(tlaA)} (A)</span><span><i style="background:#ff9f1a"></i>${esc(tlaB)} (B)</span>`;
-    const main = pA.length ? pA : pB;
-    lineChart($('#dPace'), main, {
-      height: 120, color: pA.length ? '#3ea6ff' : '#ff9f1a', zero: false, yMinSpan: 1, xFmt: (v) => `T${v}`, yFmt: (v) => v.toFixed(1),
-      extra: pA.length ? [{ points: pB, color: '#ff9f1a' }] : [],
-      tipAll: (x) => {
-        const va = pA.find((p) => p.x === x), vb = pB.find((p) => p.x === x);
-        return `Tour ${x} · ${tlaA} ${va ? fmtLap(va.y) : '—'} · ${tlaB} ${vb ? fmtLap(vb.y) : '—'}`;
-      },
-    });
-  }
-
-  // Comparatif
-  const num = (v) => ({ html: esc(v ?? '—') || '—', n: null });
-  const lap = (v) => ({ html: v ? esc(v) : '<span class="dim">—</span>', n: parseLapTime(v) });
+  const lap = (v) => ({ html: v ? esc(v) : '—', n: parseLapTime(v) });
   const part = Number(s.TimingData?.SessionPart) || 1;
   const bestOf = (l) => kind === 'quali' ? list(l.BestLapTimes)[part - 1]?.Value : l.BestLapTime?.Value;
   const sec = (l, i) => list(l.Sectors)[i]?.Value;
-  const stA = currentStint(app[a]), stB = currentStint(app[b]);
-  const tyre = (st) => ({ html: st ? `${tyreBadge(st.Compound, st.TotalLaps, st.New)}` : '—', n: null });
-  const spd = (l) => { const v = Number(l.Speeds?.ST?.Value); return { html: v ? `${v} km/h` : '—', n: v || null }; };
-  const posv = (l) => ({ html: l.Position ? `P${esc(l.Position)}` : '—', n: Number(l.Position) || null });
+  const tyre = (st) => ({ html: st ? tyreBadge(st.Compound, st.TotalLaps, st.New) : '—', n: null });
+  const spd = (l) => { const v = Number(l.Speeds?.ST?.Value); return { html: v ? `${v}<small> km/h</small>` : '—', n: v || null }; };
+  const num = (v) => ({ html: esc(v ?? '—') || '—', n: null });
 
-  let rows = cmpRow('Position', posv(la), posv(lb), 'low');
-  rows += cmpRow('Dernier tour', lap(la.LastLapTime?.Value), lap(lb.LastLapTime?.Value), 'low');
-  rows += cmpRow(kind === 'quali' ? `Meilleur (Q${part})` : 'Meilleur tour', lap(bestOf(la)), lap(bestOf(lb)), 'low');
-  for (let i = 0; i < 3; i++) rows += cmpRow(`Secteur ${i + 1}`, lap(sec(la, i)), lap(sec(lb, i)), 'low');
-  rows += cmpRow('Pneus', tyre(stA), tyre(stB));
+  let rows = '';
   if (kind === 'race') {
+    rows += row('Dernier tour', lap(la.LastLapTime?.Value), lap(lb.LastLapTime?.Value), 'low');
+    rows += row('Meilleur tour', lap(bestOf(la)), lap(bestOf(lb)), 'low');
+    rows += row('Pneus', tyre(currentStint(app[a])), tyre(currentStint(app[b])));
     // Vrais arrêts (changements de pneus), sans les passages par les stands sous voiture de sécurité
-    rows += cmpRow('Arrêts', num(realStopCount(app[a], la)), num(realStopCount(app[b], lb)));
-    rows += cmpRow('Écart leader', num(/^LAP/i.test(la.GapToLeader || '') ? 'Leader' : la.GapToLeader), num(/^LAP/i.test(lb.GapToLeader || '') ? 'Leader' : lb.GapToLeader));
+    rows += row('Arrêts', num(realStopCount(app[a], la)), num(realStopCount(app[b], lb)));
   } else {
-    rows += cmpRow('Tours', num(la.NumberOfLaps), num(lb.NumberOfLaps));
+    rows += row(kind === 'quali' ? `Meilleur Q${part}` : 'Meilleur tour', lap(bestOf(la)), lap(bestOf(lb)), 'low');
+    for (let i = 0; i < 3; i++) rows += row(`Secteur ${i + 1}`, lap(sec(la, i)), lap(sec(lb, i)), 'low');
+    rows += row('Pneus', tyre(currentStint(app[a])), tyre(currentStint(app[b])));
   }
-  rows += cmpRow('Speed trap', spd(la), spd(lb), 'high');
-  $('#dCmp').innerHTML = `<tr><td><b style="color:var(--blue)">A</b> ${chip(a)}</td><td></td><td>${chip(b)} <b style="color:var(--orange)">B</b></td></tr>${rows}`;
-
-  // Derniers tours
-  const lapsA = store.derived.laps[a] || [], lapsB = store.derived.laps[b] || [];
-  const mapB = new Map(lapsB.map((e) => [e.lap, e]));
-  const common = lapsA.filter((e) => mapB.has(e.lap) && (e.time || mapB.get(e.lap).time)).slice(-8).reverse();
-  $('#dLaps').innerHTML = common.length
-    ? `<tr><th>Tour</th><th>${esc(tlaA)}</th><th>${esc(tlaB)}</th><th>Δ (A − B)</th><th>Plus rapide</th></tr>` + common.map((ea) => {
-      const eb = mapB.get(ea.lap);
-      const ta = parseLapTime(ea.time), tb = parseLapTime(eb.time);
-      const dlt = ta !== null && tb !== null ? ta - tb : null;
-      const faster = dlt === null || dlt === 0 ? '' : chip(dlt < 0 ? a : b);
-      return `<tr><td>T${ea.lap}${ea.pit || eb.pit ? ' <span class="tag pit">P</span>' : ''}</td><td>${esc(ea.time || '—')}</td><td>${esc(eb.time || '—')}</td>
-        <td>${dlt === null ? '—' : fmtSigned(dlt)}</td><td>${faster}</td></tr>`;
-    }).join('')
-    : '<tr><td class="note">Aucun tour commun pour l\'instant.</td></tr>';
-}
-
-// Télémétrie côte à côte : les mêmes compteurs que l'onglet Télémétrie, animés image par image
-let duelTele = null;   // { a, b, dialA, dialB }
-function renderDuelTele(a, b) {
-  const host = $('#dTele');
-  if (!store.positions.car.size) { if (duelTele) { host.innerHTML = ''; duelTele = null; } return; }
-  if (!duelTele || duelTele.a !== a || duelTele.b !== b || !host.contains(duelTele.dialA.el)) {
-    const dl = drivers(store.state);
-    const head = (n, cls, letter) => `<div class="tele-name" style="--tc:${teamColor(dl[n] || {})}"><b class="duel-letter ${cls}">${letter}</b><b>${esc(dl[n]?.Tla || n)}</b><span class="muted small">${esc(dl[n]?.LastName || '')}</span></div>`;
-    host.innerHTML = `<div class="chart-title"><span>Télémétrie</span></div><div class="tele2-dials two duel-dials">
-      <div class="tele2-col">${head(a, 'a', 'A')}<div class="tele-dial" id="dDialA"></div></div><div class="tele2-vs">VS</div>
-      <div class="tele2-col">${head(b, 'b', 'B')}<div class="tele-dial" id="dDialB"></div></div></div>`;
-    duelTele = { a, b, dialA: new Dial(teamColor(dl[a] || {})), dialB: new Dial(teamColor(dl[b] || {})) };
-    $('#dDialA').appendChild(duelTele.dialA.el);
-    $('#dDialB').appendChild(duelTele.dialB.el);
-  }
-  animate('duel', (dt) => {
-    const t = duelTele;
-    if (!t || !t.dialA.el.isConnected || !t.dialA.el.getClientRects().length) return false;
-    const disp = displayNow();
-    t.dialA.update(carNow(t.a, disp), dt, energyOf(t.a, disp));
-    t.dialB.update(carNow(t.b, disp), dt, energyOf(t.b, disp));
-    return true;
-  });
+  rows += row('Vitesse de pointe', spd(la), spd(lb), 'high');
+  put('#btRows', rows);
 }
 
 export function renderDuel() {
@@ -320,6 +306,8 @@ export function renderDuel() {
   $('#duelAhead').classList.toggle('on', store.duel.auto === 'ahead');
   $('#duelBehind').classList.toggle('on', store.duel.auto === 'behind');
   const { a, b } = store.duel;
+  // Bandeau sur le Classement : seulement quand les deux pilotes y ont été choisis (pas le duel proposé tout seul)
+  showTowerBand(!!(a && b && dl[a] && dl[b] && store.duel.manual));
   if (!a || !b || !dl[a] || !dl[b]) {
     if (skeletonFor !== 'empty') {
       skeletonFor = 'empty';
@@ -334,7 +322,6 @@ export function renderDuel() {
   if (now - lastFast > 200) {
     lastFast = now;
     renderHero(a, b);
-    renderDuelTele(a, b);
   }
   const slowKey = `${versionOf(['TimingData', 'TimingAppData', '__reset'])}`;
   if (slowKey !== lastSlowKey && now - (renderDuel.lastSlow || 0) > 700) {
@@ -345,18 +332,18 @@ export function renderDuel() {
 }
 
 export function initDuel() {
-  $('#duelA').addEventListener('change', (e) => setDuel('a', e.target.value || null));
-  $('#duelB').addEventListener('change', (e) => setDuel('b', e.target.value || null));
+  $('#duelA').addEventListener('change', (e) => setDuel('a', e.target.value || null, true));
+  $('#duelB').addEventListener('change', (e) => setDuel('b', e.target.value || null, true));
   $('#duelSwap').addEventListener('click', () => {
     const { a, b } = store.duel;
-    store.duel = { a: b, b: a };
+    store.duel = { a: b, b: a, manual: store.duel.manual };
     setDuel('a', b);
     setDuel('b', a);
   });
   const auto = (mode) => {
     const a = store.duel.a || store.focus || orderedNumbers(store.state)[1];
     if (!a) return;
-    store.duel = { a, b: store.duel.b, auto: store.duel.auto === mode ? null : mode };
+    store.duel = { a, b: store.duel.b, auto: store.duel.auto === mode ? null : mode, manual: store.duel.manual };
     skeletonFor = null;
   };
   $('#duelAhead').addEventListener('click', () => auto('ahead'));

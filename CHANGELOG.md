@@ -100,6 +100,17 @@ l'application (Réglages → À propos → Nouveautés).
   minute jusqu'à afficher la prochaine séance.
 
 ### En direct
+- Duel en bandeau sur le classement : plus de boutons A et B, on clique simplement sur deux pilotes dans le classement
+  (leurs lignes ressortent ; un troisième remplace le deuxième, un nouveau clic retire le pilote). Un bandeau se pose
+  alors en bas du Classement, à la couleur des deux écuries : portrait, logo, code, position et écurie de chacun, son
+  pneu et ses tours, son dernier tour (le plus rapide des deux en vert) et sa vitesse en direct ; au milieu l'écart en
+  grand (« À moins d'une seconde » en vert quand ils sont proches) et, en course, si le pilote derrière reprend du temps
+  (en vert) ou en perd (en rouge) et combien par tour, sans compter les tours d'arrêt. Il suit la course en direct et
+  se ferme avec ✕ ; le classement défile en dessous.
+- Panneau Duel refait, plus simple : le même bandeau, puis une petite courbe de l'écart sur les derniers tours,
+  quelques chiffres face à face (dernier et meilleur tour, pneus, arrêts, vitesse de pointe ; en qualifs le meilleur
+  tour et les secteurs), le meilleur marqué à la couleur de son écurie, et en direct la vitesse, le rapport,
+  l'accélérateur et le frein de chacun en barres.
 - Replays : quand la F1 teste son flux la veille (répétition d'une séance à venir, avec les voitures de la FIA FM1,
   SC1, MC1…), l'appli ne l'enregistre plus comme un replay et ne la propose plus parmi les séances de la F1 à revoir ;
   un enregistrement de répétition est remplacé par la vraie séance quand elle commence.
