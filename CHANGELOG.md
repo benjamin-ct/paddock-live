@@ -7,6 +7,8 @@ l'application (Réglages → À propos → Nouveautés).
 ## v1.30.0 — à venir
 
 ### Nouveau design
+- Bouton « ± » du délai TV réparé dans Paddock 2 : le petit menu des pas (−5 à +5 s) s'ouvrait caché dans le cadre
+  arrondi du délai ; il s'affiche de nouveau dessous, et sur téléphone il reste dans l'écran.
 - Paddock Live change de look avec le design « Paddock 2 », dans l'appli, la version web et sur le site : fond bleu
   nuit éclairé de lueurs, panneaux en verre dépoli aux coins arrondis, grands titres et chiffres en italique, lueurs
   aux couleurs des écuries derrière les portraits et les logos, et sur l'accueil le tracé lumineux du circuit derrière

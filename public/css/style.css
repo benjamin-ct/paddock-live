@@ -2195,6 +2195,7 @@ body.solo #muteBtn { display: none; }
 }
 /* Téléphone : le menu du délai propose tous les pas */
 [data-theme="pitwall"] .topbar .delay-steps .dbtn { display: block !important; }
+@media (max-width: 900px) { [data-theme="pitwall"] .delay.open .delay-steps { left: auto; right: 0; } }   /* aligné à droite : ne sort pas de l'écran */
 /* Barre du haut : place pour l'heure du circuit (tours restants masqués d'abord ; le design F1 Pro
    montre déjà la progression sous le numéro du tour) */
 @media (max-width: 1950px) {

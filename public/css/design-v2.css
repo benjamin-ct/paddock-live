@@ -149,6 +149,9 @@
 :root[data-design="v2"] .topbar .surface .hstat-value { border-radius: 8px; margin-top: 5px; padding: 3px 10px 2px; font-size: 20px !important; line-height: 1.1 !important; }   /* un peu d'air sous « État piste » */
 :root[data-design="v2"] .topbar .hstat.surface { margin-left: 8px; }   /* « État piste » détaché de « Heure circuit » */
 :root[data-design="v2"] .delay-controls { border-radius: 999px; overflow: hidden; }
+/* Le menu ±0,1 / ±1 / ±5 s se place sous tout le bloc du délai : dans le contour arrondi, il était coupé (invisible) */
+:root[data-design="v2"] .delay { position: relative; }
+:root[data-design="v2"] .delay-controls { position: static; }
 :root[data-design="v2"] .delay #syncBtn { border-radius: 999px; }
 :root[data-design="v2"] .source-badge { border-radius: 999px; }
 
