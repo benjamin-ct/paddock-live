@@ -40,7 +40,8 @@ l'application (Réglages → À propos → Nouveautés).
   place dans l'écran principal. Sur téléphone, où il n'y a qu'un écran, ils restent des onglets : Classement,
   Télémétrie, Messages, Radios et Carte (Duel et Analyse avec la version complète).
 - Version web : le même écran principal que l'appli (Classement, Télémétrie et Radios, Direction de course). Le Circuit
-  et l'Analyse (écarts, positions, temps, rythme, pneus, secteurs) s'ouvrent dans leur propre fenêtre avec les boutons
+  et l'Analyse (écarts, positions, temps, rythme, pneus, secteurs, arrêts, stratégie, simulateur d'arrêt, bagarres,
+  championnat) s'ouvrent dans leur propre fenêtre avec les boutons
   « Circuit » et « Analyse » en haut ; sur téléphone, la carte reste dans la page. Sur un écran moins large, la barre
   du haut passe sur deux lignes au lieu de déborder.
 - Analyse : seulement les onglets utiles selon la séance. En course : Écarts et Arrêts (avec la stratégie) ; en qualifs

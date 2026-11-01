@@ -2868,5 +2868,5 @@ export default {
   "Ouvrir Paddock Live": "Apri Paddock Live",
   "Masquer le compte à rebours": "Nascondi il conto alla rovescia",
   "Carte du circuit dans une fenêtre à part": "Mappa del circuito in una finestra a parte",
-  "Écarts, temps, rythme, pneus et secteurs dans une fenêtre à part": "Distacchi, tempi, passo, gomme e settori in una finestra a parte",
+  "Écarts, temps, secteurs, arrêts, stratégie et bagarres dans une fenêtre à part": "Distacchi, tempi, settori, pit stop, strategia e duelli in una finestra a parte",
 };

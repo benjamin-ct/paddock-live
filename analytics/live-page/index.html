@@ -31,7 +31,7 @@
     .web body { padding-left: 0 !important; }
     .web .grid { grid-template-columns: minmax(0, 1.25fr) minmax(0, .9fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1.15fr) minmax(0, 1fr);
       grid-template-areas: "tower tele radio" "tower feed feed"; }
-    .web .p-map { display: none; }
+    .web .p-map, .web .p-extra { display: none; }   /* onglets de course : rangés dans la fenêtre Analyse par web.js */
     .web .win-btn { gap: 5px; }
     @media (max-width: 1600px) { .web .win-btn { padding: 6px; } .web .win-btn .wb-lbl { display: none; } }
     /* Barre du haut trop longue pour l'écran (séance, météo, délai, boutons) : la suite passe à la ligne au lieu de sortir */
@@ -236,7 +236,7 @@
     <button class="btn small" id="pairBtn" title="Utiliser son compte F1 TV sur cet appareil" hidden></button>
     <button class="source-badge" id="sourceBadge"><span class="src-dot"></span><span id="sourceLabel">—</span></button>
     <button class="btn small win-btn" data-win="map" title="Carte du circuit dans une fenêtre à part"><svg class="ic" aria-hidden="true"><use href="#i-map"/></svg><span class="wb-lbl">Circuit</span></button>
-    <button class="btn small win-btn" data-win="analysis" title="Écarts, temps, rythme, pneus et secteurs dans une fenêtre à part"><svg class="ic" aria-hidden="true"><use href="#i-layout"/></svg><span class="wb-lbl">Analyse</span></button>
+    <button class="btn small win-btn" data-win="analysis" title="Écarts, temps, secteurs, arrêts, stratégie et bagarres dans une fenêtre à part"><svg class="ic" aria-hidden="true"><use href="#i-layout"/></svg><span class="wb-lbl">Analyse</span></button>
     <button class="btn small" id="seasonBtn" title="Calendrier, classements et résultats de la saison" aria-label="Saison"><svg class="ic" aria-hidden="true"><use href="#i-trophy"/></svg><span class="sz-lbl">Saison</span></button>
     <button class="btn small" id="clBtn" title="Ce qui a changé dans Paddock Live">Nouveautés</button>
     <a class="btn small btn-accent" href="https://paddocklive.app/" title="Télécharger l'appli Paddock Live">Appli complète</a>
@@ -258,6 +258,7 @@
     <!--panel:analysis-->
     <!--panel:feed-->
     <!--panel:radio-->
+    <!--panel:extra-->
   </main>
 
   <dialog id="pairDlg" class="pair-dlg">

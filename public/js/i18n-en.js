@@ -2869,5 +2869,5 @@ export default {
   "Ouvrir Paddock Live": "Open Paddock Live",
   "Masquer le compte à rebours": "Hide the countdown",
   "Carte du circuit dans une fenêtre à part": "Circuit map in a separate window",
-  "Écarts, temps, rythme, pneus et secteurs dans une fenêtre à part": "Gaps, lap times, pace, tyres and sectors in a separate window",
+  "Écarts, temps, secteurs, arrêts, stratégie et bagarres dans une fenêtre à part": "Gaps, lap times, sectors, pit stops, strategy and battles in a separate window",
 };
