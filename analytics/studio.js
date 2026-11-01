@@ -13,7 +13,7 @@ import { extractArticle } from '../shared/article.js';
 import { decodeBody } from '../shared/news-collect.js';
 import { publishFacebook, publishInstagram, publishThreads, freshThreads, commentFacebook, replyThreads, withComment, storyInstagram, storyFacebook, storyVideoInstagram, storyVideoFacebook, reelInstagram, hostOnPage, publishFacebookVideo, publishThreadsVideo, publishFacebookLink, publishThreadsLink, cleanTopic } from '../shared/meta-publish.js';
 import { publishBluesky, replyBluesky } from '../shared/bluesky-publish.js';
-import { driveApi } from './drive.js';
+import { suiviApi, sessionKeyOk } from './suivi.js';
 import { liveSession, liveState, pairSend, liveDevices } from './live-relay.js';
 import { freshTiktok, freshYoutube, tiktokDraft, youtubeUpload, tiktokCreator, tiktokDirect, TIKTOK_PRIVACY } from '../shared/video-publish.js';
 import { addEntry, removeEntry, cleanKey, keepStats } from '../shared/post-history.js';
@@ -229,8 +229,6 @@ function keepNewer(old, incoming) {
   // Jeton expiré dans l'appli (restée fermée) : celui que le serveur a renouvelé est gardé
   if (old.f1tv && !out.f1tv && !out.f1tvOff && jwtExp(old.f1tv) > Date.now()) out.f1tv = old.f1tv;
   delete out.f1tvOff;
-  // Accès Google Drive du Studio : connecté depuis le Studio, l'appli ne l'envoie jamais
-  for (const k of ['gdrive', 'gdrivePending']) if (old[k]) out[k] = old[k];
   return out;
 }
 
@@ -841,6 +839,13 @@ export async function studioApi(req, env, url) {
     return json({ ok: true });
   }
 
+  // Suivi écrit par les sessions Claude : clé du suivi (créée dans le Studio) au lieu du code créateur
+  if ((path === 'suivi' || path.startsWith('suivi/')) && req.headers.get('X-Suivi-Key') && !req.headers.get('X-Studio-Key')) {
+    if (await fails(env, req) >= MAX_FAILS) return json({ error: 'Trop d\'essais aujourd\'hui' }, 429);
+    if (!(await sessionKeyOk(env, req))) { await failed(env, req); return json({ error: 'Clé du suivi incorrecte' }, 401); }
+    return suiviApi(env, req, path.slice(6));
+  }
+
   const a = await auth(req, env);
   if (a.error) return a.error;
   let vault = await open(a.raw, await getRow(env, 'vault')).catch(() => null) || {};
@@ -872,14 +877,14 @@ export async function studioApi(req, env, url) {
     if (!vault.f1tv) return json({ count: 0, devices: [] });
     return json(await liveDevices(env, vault.f1tv).catch(() => ({ count: 0, devices: [] })));
   }
-  // Onglet Suivi : dossier Google Drive lu par le serveur
-  if (path.startsWith('drive/')) {
-    // Remplissage de la feuille : journal des publications et chiffres des posts gardés ici
+  // Onglet Suivi : tâches, journal, posts, chiffres et guides gardés dans la base (suivi.js)
+  if (path === 'suivi' || path.startsWith('suivi/')) {
+    // Remplissage des chiffres : journal des publications et chiffres des posts gardés ici
     const rows = async () => {
       const read = async (k) => { try { return JSON.parse(await getRow(env, k) || '[]'); } catch { return []; } };
       return { history: await read('history'), kept: await read('poststats') };
     };
-    return driveApi(path.slice(6), req, url, vault, (v) => saveVault(env, a.raw, v), rows);
+    return suiviApi(env, req, path.slice(6), { studio: true, rows });
   }
   if (path === 'sync' && req.method === 'POST') {
     let body;
@@ -890,7 +895,7 @@ export async function studioApi(req, env, url) {
   }
   // Nouvel ordinateur : copie des comptes (chiffrée par l'appli) et jetons du coffre, peut-être renouvelés ici
   if (path === 'accounts' && req.method === 'GET') {
-    const { gdrive, gdrivePending, ...v } = await refresh(env, a.raw, vault);   // accès Drive du Studio : pas un compte de l'appli
+    const { gdrive, gdrivePending, ...v } = await refresh(env, a.raw, vault);   // ancien accès Drive du Studio : pas un compte de l'appli
     return json({ accounts: await getRow(env, 'accounts'), vault: v });
   }
   if (path === 'forget' && req.method === 'POST') {

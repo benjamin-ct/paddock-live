@@ -1,9 +1,9 @@
-// Onglet « Suivi » : le dossier Google Drive « Paddock Live · Réseaux » lu en direct par le serveur
-// (lecture seule) : tâches (onglet « Tâches » de « Suivi réseaux », cochables d'ici), textes des posts du
-// week-end à copier, chiffres des réseaux, journal et guides. Le reste se modifie dans Google Docs et Sheets.
+// Onglet « Suivi » : tâches (cochables d'ici), textes des posts du week-end à copier, chiffres des réseaux, journal et
+// guides, gardés par le serveur Paddock Live (analytics/suivi.js, sans Google). Les sessions Claude les tiennent à jour
+// avec la clé du suivi (Réglages de l'onglet) et scripts/suivi.mjs.
 import { $, $$, esc, api, fmtN, icon, toast, skeleton, empty, failure, store, state, glide } from './ui.js';
 
-const SUBS = [['todo', 'À faire'], ['posts', 'Posts'], ['net', 'Réseaux'], ['log', 'Journal'], ['guides', 'Guides']];
+const SUBS = [['todo', 'À faire'], ['posts', 'Posts'], ['net', 'Réseaux'], ['log', 'Journal'], ['guides', 'Guides'], ['set', 'Réglages']];
 const TAGS = [
   { key: 'res', icon: '📣', label: 'Réseaux', also: ['📊'] },
   { key: 'app', icon: '💻', label: 'Appli et site' },
@@ -15,43 +15,37 @@ const NET_COLORS = { instagram: '#d62976', facebook: '#1877f2', threads: '#9a9fa
 const netColor = (n) => NET_COLORS[String(n || '').toLowerCase().split(' ')[0]] || '#8e8c86';
 const MONTHS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
 const plain = (s) => s.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
-const docUrl = (id) => `https://docs.google.com/document/d/${id}/edit`;
-const sheetUrl = (id) => `https://docs.google.com/spreadsheets/d/${id}/edit`;
 const linkify = (s) => esc(s).replace(/https?:\/\/[^\s)»<]+[^\s).,»<]/g, (u) => `<a href="${u}" target="_blank" rel="noopener">${u}</a>`);
 const num = (v) => { if (v == null || v === '') return null; const n = Number(String(v).replace(/[\s  ]/g, '').replace(',', '.')); return Number.isFinite(n) ? n : null; };
 const parseFr = (s) => { const m = String(s || '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/); return m ? new Date(+m[3], +m[2] - 1, +m[1]) : null; };
 const today0 = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); };
-const openBtn = (href, label) => `<a class="btn small" href="${href}" target="_blank" rel="noopener">${icon('link')}${label}</a>`;
 let copies = [];
 const copyBtn = (text) => `<button type="button" class="btn small" data-copy="${copies.push(text) - 1}">${icon('copy')}Copier</button>`;
 
-// ---------- Lecture des Google Docs ----------
-const docTab = (d) => (d.tabs ? d.tabs[0].documentTab : d);
-const paraText = (p) => p.elements.filter((x) => x.textRun).map((x) => x.textRun.content).join('').replace(/\n$/, '');
-const cellText = (c) => c.content.filter((x) => x.paragraph).map((x) => paraText(x.paragraph)).join('\n');
-
-// À faire depuis l'onglet « Tâches » de « Suivi réseaux » : une ligne par tâche (Statut, Liste, Quand, Domaine,
-// Tâche, Détails, Lien, Fait le), une colonne par liste dans l'ordre de la feuille, les tâches faites à la fin
+// ---------- Tâches, posts et guides (texte gardé par le serveur) ----------
+// À faire : une tâche par entrée (statut, liste, quand, domaine, titre, détails, lien, fait le), une colonne par liste
+// dans l'ordre d'arrivée, les tâches faites à la fin
 const LIST_COLORS = [[/tester/, '#6d28d9'], [/semaine de|cette semaine|week-end/, '#e10600'], [/chaque semaine/, '#0284c7'], [/attente/, '#64748b'], [/lien/, '#334155'], [/urgence/, '#475569']];
 const DONE_SHOWN = 25;
-function parseTasks(vals) {
+function parseTasks(tasks) {
   const lists = new Map(), done = [];
-  table(vals).forEach((r, i) => {
-    if (!r['Tâche']) return;
-    const tag = TAGS.find((t) => t.label === r['Domaine'])?.key || null;
-    const it = { start: i + 2, when: r['Quand'], title: r['Tâche'], detail: String(r['Détails'] || '').split(' / ').filter((l) => l.trim()), tag, box: true, link: r['Lien'] || null };
-    if (r['Statut'] === 'Fait') { done.push({ ...it, done: true, when: r['Fait le'] || it.when, recent: r['Liste'] !== 'Archive' }); return; }
-    const name = r['Liste'] || 'Sans liste';
+  tasks.forEach((r) => {
+    if (!r.title) return;
+    const tag = TAGS.find((t) => t.label === r.domain)?.key || null;
+    const it = { id: r.id, when: r.when, title: r.title, detail: String(r.detail || '').split(' / ').filter((l) => l.trim()), tag, box: true, link: r.link || null };
+    if (r.status === 'Fait') { done.push({ ...it, done: true, when: r.doneAt || it.when, recent: r.list !== 'Archive' }); return; }
+    const name = r.list || 'Sans liste';
     if (!lists.has(name)) {
       const t = plain(name);
-      lists.set(name, { title: name, color: LIST_COLORS.find(([re]) => re.test(t))?.[1] || 'var(--surface-2)', kind: r['Statut'] === 'Lien' ? 'links' : r['Statut'] === 'En attente' ? 'info' : 'tasks', items: [], notes: [] });
+      lists.set(name, { title: name, color: LIST_COLORS.find(([re]) => re.test(t))?.[1] || 'var(--surface-2)', kind: r.status === 'Lien' ? 'links' : r.status === 'En attente' ? 'info' : 'tasks', items: [], notes: [] });
     }
     lists.get(name).items.push({ ...it, done: false });
   });
-  done.sort((a, b) => b.recent - a.recent);
+  // Faites : les plus récentes d'abord (ajoutées en dernier), l'archive à la fin
+  done.reverse().sort((a, b) => b.recent - a.recent);
   const sections = [...lists.values()];
-  if (done.length) sections.push({ title: 'Fait', color: '#0f766e', kind: 'done', items: done.slice(0, DONE_SHOWN), notes: done.length > DONE_SHOWN ? [`Les ${DONE_SHOWN} dernières sur ${done.length} : les autres sont dans la feuille.`] : [] });
-  return { sections, updated: '' };
+  if (done.length) sections.push({ title: 'Fait', color: '#0f766e', kind: 'done', items: done.slice(0, DONE_SHOWN), notes: done.length > DONE_SHOWN ? [`Les ${DONE_SHOWN} dernières sur ${done.length}.`] : [] });
+  return { sections };
 }
 
 // Textes des posts d'un Grand Prix : « 1. JOUR · HEURE · TITRE », puis images et textes à copier
@@ -60,13 +54,12 @@ function postDate(head, year) {
   return m ? new Date(year, MONTHS.findIndex((x) => plain(x) === m[2]), +m[1]).getTime() : null;
 }
 const isWhen = (s) => /(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche|ce soir|\d+\s*h\b)/i.test(s);
-function parsePosts(d, file) {
-  const year = new Date(file.createdTime || Date.now()).getFullYear();
+function parsePosts(d) {
+  const year = new Date(d.at || Date.now()).getFullYear();
   const info = [], posts = [];
   let post = null, block = null, headline = '';
-  for (const e of docTab(d).body.content) {
-    if (!e.paragraph) continue;
-    const text = paraText(e.paragraph).trim();
+  for (const raw of String(d.text || '').split(/\r?\n/)) {
+    const text = raw.trim();
     if (!text) continue;
     const head = text.match(/^(\d+)\.\s+(.+)$/);
     if (head && head[2] === head[2].toUpperCase()) {
@@ -84,65 +77,50 @@ function parsePosts(d, file) {
     if (block) block.lines.push(text); else post.notes.push(text);
   }
   const dates = posts.map((p) => p.date).filter(Boolean);
-  return { id: file.id, name: file.name.replace(/\s*·\s*textes des posts/i, '').replace(/^week-end (de |d')/i, ''), info, posts, first: Math.min(...dates, Infinity), last: Math.max(...dates, 0) };
+  return { id: d.id, name: d.name.replace(/\s*·\s*textes des posts/i, '').replace(/^week-end (de |d')/i, ''), info, posts, first: Math.min(...dates, Infinity), last: Math.max(...dates, 0) };
 }
 
-// Guide : titres, paragraphes, puces, tableaux ; tableau d'une seule case = texte à copier (prompts)
-function parseGuide(d) {
+// Guide (texte simple) : « # », « ## », « ### » titres, « - » puces, lignes « | a | b | » tableau, bloc entre « ``` »
+// texte à copier (prompts), le reste paragraphes
+function parseGuide(text) {
   const out = [];
-  for (const e of docTab(d).body.content) {
-    if (e.table) {
-      const t = e.table;
-      if (t.rows === 1 && t.columns === 1) out.push({ t: 'copy', text: cellText(t.tableRows[0].tableCells[0]).replace(/\u000b/g, '\n').trim() });
-      else out.push({ t: 'table', rows: t.tableRows.map((r) => r.tableCells.map((c) => cellText(c).replace(/\u000b/g, ' '))) });
+  let copy = null, table = null;
+  for (const raw of String(text || '').split(/\r?\n/)) {
+    if (/^```/.test(raw.trim())) { if (copy) { out.push({ t: 'copy', text: copy.join('\n').trim() }); copy = null; } else copy = []; continue; }
+    if (copy) { copy.push(raw); continue; }
+    const line = raw.trim();
+    if (/^\|.*\|$/.test(line)) {
+      if (/^\|[\s:|-]+\|$/.test(line)) continue;   // ligne de séparation
+      const cells = line.slice(1, -1).split('|').map((c) => c.trim());
+      if (!table) { table = { t: 'table', rows: [] }; out.push(table); }
+      table.rows.push(cells);
       continue;
     }
-    const p = e.paragraph;
-    if (!p) continue;
-    const text = paraText(p).replace(/\u000b/g, '\n');
-    if (!text.trim()) continue;
-    const st = p.paragraphStyle?.namedStyleType || '';
-    out.push({ t: st === 'TITLE' || st === 'HEADING_1' ? 'h1' : st === 'HEADING_2' ? 'h2' : /^HEADING_/.test(st) ? 'h3' : p.bullet ? 'li' : 'p', text });
+    table = null;
+    if (!line) continue;
+    const h = line.match(/^(#{1,3})\s+(.+)$/);
+    if (h) out.push({ t: `h${h[1].length}`, text: h[2] });
+    else if (/^[-•]\s+/.test(line)) out.push({ t: 'li', text: line.replace(/^[-•]\s+/, '') });
+    else out.push({ t: 'p', text: line });
   }
+  if (copy) out.push({ t: 'copy', text: copy.join('\n').trim() });
   return out;
 }
 
 // ---------- Données (gardées sur le téléphone pour l'affichage immédiat) ----------
-const values = async (id, range) => (await api(`drive/values?id=${id}&range=${encodeURIComponent(range)}`)).values || [];
-const doc = (id) => api(`drive/doc?id=${id}`);
-const table = (vals) => { const [h = [], ...r] = vals; return r.map((row) => Object.fromEntries(h.map((k, i) => [k, row[i] ?? '']))); };
-const find = (files, re) => files.find((f) => re.test(f.name));
-const isDoc = (f) => f.mimeType === 'application/vnd.google-apps.document';
-
-const LOADERS = {
-  async todo(files) {
-    const f = find(files, /^Suivi réseaux/i);
-    if (!f) throw new Error('Feuille « Suivi réseaux » introuvable dans le dossier');
-    return { id: f.id, sheet: true, ...parseTasks(await values(f.id, "'Tâches'!A1:H1000")) };
+const table = (vals) => { const [h = [], ...r] = vals || []; return r.map((row) => Object.fromEntries(h.map((k, i) => [k, row[i] ?? '']))); };
+const VIEW = {
+  todo: (d) => parseTasks(d.tasks || []),
+  posts: (d) => (d.posts || []).map(parsePosts).sort((a, b) => a.first - b.first),
+  net: (d) => ({ posts: table(d.net?.posts), subs: { app: d.net?.app || [], benjy: d.net?.benjy || [] }, streamers: table(d.net?.streamers) }),
+  log: (d) => ({ rows: (d.log || []).filter((r) => r.text) }),
+  guides: (d) => {
+    const list = [...(d.guides || [])].sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+    if (!list.some((g) => g.id === state.vguide)) state.vguide = (list.find((g) => /workflow/i.test(g.name)) || list[0])?.id;
+    const sel = list.find((g) => g.id === state.vguide);
+    return { list: list.map(({ id, name }) => ({ id, name })), id: sel?.id, blocks: sel ? parseGuide(sel.text) : [] };
   },
-  async posts(files) {
-    const gps = files.filter((f) => isDoc(f) && /textes des posts/i.test(f.name));
-    return (await Promise.all(gps.map(async (f) => parsePosts(await doc(f.id), f)))).sort((a, b) => a.first - b.first);
-  },
-  async net(files) {
-    const f = find(files, /^Suivi réseaux/i);
-    if (!f) throw new Error('Feuille « Suivi réseaux » introuvable dans le dossier');
-    // Feuille remplie d'abord avec les chiffres des comptes (ceux de l'onglet Stats, sinon relus)
-    await fillSheet(store.get('stats', 6 * 3600e3)?.v?.accounts || (await api('stats/accounts').catch(() => null))?.accounts);
-    const [posts, app, benjy, streamers] = await Promise.all(["'Posts Paddock Live'!A1:L500", "'Abonnés Paddock Live'!A1:J80", "'Benjy Paddock'!A1:L80", 'Streamers!A1:H200'].map((r) => values(f.id, r)));
-    return { id: f.id, posts: table(posts), subs: { app, benjy }, streamers: table(streamers) };
-  },
-  async log(files) {
-    const f = find(files, /^Suivi réseaux/i);
-    if (!f) throw new Error('Feuille « Suivi réseaux » introuvable dans le dossier');
-    return { id: f.id, rows: table(await values(f.id, 'Journal!A1:D400')).filter((r) => r['Ce qui a été fait']) };
-  },
-  async guides(files) {
-    const list = files.filter((f) => isDoc(f) && !/^À faire|textes des posts/i.test(f.name)).sort((a, b) => a.name.localeCompare(b.name, 'fr'));
-    if (!list.some((f) => f.id === state.vguide)) state.vguide = (find(list, /workflow/i) || list[0])?.id;
-    const sel = list.find((f) => f.id === state.vguide);
-    return { list: list.map(({ id, name }) => ({ id, name })), id: sel?.id, blocks: sel ? parseGuide(await doc(sel.id)) : [] };
-  },
+  set: (d) => d,
 };
 
 // ---------- Affichage ----------
@@ -161,15 +139,15 @@ function todoHtml(m) {
     if (s.kind === 'links' && it.link) return `<a class="sv-card" href="${esc(it.link)}" target="_blank" rel="noopener"><span class="sv-box link">↗</span><span><b>${esc(it.title)}</b></span></a>`;
     const t = TAGS.find((x) => x.key === it.tag);
     const dot = (!it.box || s.kind === 'info') && !it.done;
-    // Tâche à cocher : Statut « Fait » dans la feuille, avec la date du jour
-    const check = s.kind === 'tasks' && it.box && !it.done ? ` data-check="${it.start}" data-title="${esc(it.title)}" role="checkbox" aria-checked="false" title="Cocher (rangée dans « Fait »)"` : '';
+    // Tâche à cocher : statut « Fait » sur le serveur, avec la date du jour
+    const check = s.kind === 'tasks' && it.box && !it.done ? ` data-check="${esc(it.id)}" role="checkbox" aria-checked="false" title="Cocher (rangée dans « Fait »)"` : '';
     return `<button type="button" class="sv-card${it.done ? ' done' : ''}"${it.detail.length ? ' data-open' : ''}><span class="sv-box${dot ? ' dot' : ''}"${check}></span><span>
       ${it.when ? `<small class="sv-when" style="color:${s.color}">${esc(it.when)}</small>` : ''}<b>${esc(it.title)}</b>
       ${t || it.detail.length ? `<span class="sv-meta">${t ? `<i class="sv-tag">${t.icon} ${t.label}</i>` : ''}${it.detail.length ? '<i class="sv-more">Détails ▾</i>' : ''}</span>` : ''}
       ${it.detail.length ? `<span class="sv-detail">${it.detail.map((x) => `<span>${linkify(x)}</span>`).join('')}</span>` : ''}</span></button>`;
   };
-  const canCheck = store.get('drive.files')?.v?.canWrite;
-  return `${canCheck ? '' : `<div class="notice">${icon('alert')}<span class="grow">Pour cocher les tâches d'ici, reconnecte Google Drive une fois : il demandera aussi le droit de modifier tes feuilles.</span><button type="button" class="btn small" id="svwrite">${icon('link')}Reconnecter</button></div>`}<div class="sv-sum">
+  if (!m.sections.length) return empty('Aucune tâche pour le moment : les sessions Claude les ajoutent avec la clé du suivi (Réglages), ou importe le fichier de l\'ancienne feuille.', 'list');
+  return `<div class="sv-sum">
       <div class="tile"><b>${open.length}</b><small>à faire</small></div>
       <div class="tile"><b>${tasks.length - open.length + (m.sections.find((s) => s.kind === 'done')?.items.length || 0)}</b><small>faites</small></div>
       <div class="tile"><b${bugs ? ' class="sv-warn"' : ''}>${bugs}</b><small>bug${bugs > 1 ? 's' : ''}</small></div>
@@ -186,12 +164,11 @@ function todoHtml(m) {
         ${s.kind === 'tasks' && s.items.length ? `<div class="sv-prog"><i style="width:${pct}%"></i></div>` : ''}
         ${s.notes.map((n) => `<p class="sv-note">${esc(n)}</p>`).join('')}
         <div class="sv-items">${items.length ? items.map((it) => card(it, s)).join('') : '<p class="sv-note">Rien ici pour le moment.</p>'}</div></section>`;
-    }).join('')}</div>
-    <p class="sv-foot">${openBtn(sheetUrl(m.id), 'Ouvrir la feuille')}</p>`;
+    }).join('')}</div>`;
 }
 
 function postsHtml(list) {
-  if (!list.length) return empty('Aucun texte de posts dans le dossier pour le moment : la routine du lundi les y dépose (« Week-end de <Grand Prix> · textes des posts »).', 'news');
+  if (!list.length) return empty('Aucun texte de posts pour le moment : la routine du lundi les dépose ici (« Week-end de <Grand Prix> · textes des posts »).', 'news');
   const t0 = today0();
   if (!list.some((g) => g.id === state.vgp)) state.vgp = (list.find((g) => g.last >= t0) || list[list.length - 1]).id;
   const gp = list.find((g) => g.id === state.vgp);
@@ -205,8 +182,7 @@ function postsHtml(list) {
         ${p.media.map(([k, v]) => `<p class="sv-media">${/vid/i.test(k) ? '🎬' : '🖼️'} <span>${linkify(v)}</span></p>`).join('')}
         ${p.blocks.map((b) => { const text = b.lines.join('\n\n'); return `<div class="sv-txt"><div class="sv-txthead"><small>${esc(b.label)}</small>${copyBtn(text)}</div><p>${linkify(text)}</p></div>`; }).join('')}
         ${p.notes.map((n) => `<p class="sv-media">ℹ️ <span>${linkify(n)}</span></p>`).join('')}</article>`;
-    }).join('')}</div>
-    <p class="sv-foot">${openBtn(docUrl(gp.id), 'Ouvrir le Doc')}</p>`;
+    }).join('')}</div>`;
 }
 
 function chart(series, dates) {
@@ -242,7 +218,7 @@ function netHtml(m) {
   let subs;
   if (!last) {
     const next = lines.map((r) => parseFr(r[0])).find((d) => d && d.getTime() >= today0());
-    subs = `<p class="sv-note">Pas encore de relevé. Premier relevé prévu le lundi ${next ? next.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' }) : 'prochain'} : une ligne remplie dans l'onglet « ${acc === 'app' ? 'Abonnés Paddock Live' : 'Benjy Paddock'} » et les chiffres apparaissent ici.</p>`;
+    subs = `<p class="sv-note">Pas encore de relevé. Premier relevé le lundi ${next ? next.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' }) : 'prochain'} : le Studio remplit la ligne du lundi tout seul.</p>`;
   } else {
     const max = Math.max(1, ...nets.map((n) => num(last[col(n)]) || 0));
     subs = `<div class="tiles"><div class="tile"><b>${fmtN(total(last))}</b><small>abonnés au ${esc(last[0])}</small></div><div class="tile"><b class="ok">${prev ? `+${fmtN(total(last) - total(prev))}` : '—'}</b><small>en une semaine</small></div></div>
@@ -256,11 +232,8 @@ function netHtml(m) {
   const netRows = Object.entries(byNet).sort((a, b) => b[1] - a[1]);
   const sorted = [...posts].sort((a, b) => (parseFr(b['Date'])?.getTime() || 0) - (parseFr(a['Date'])?.getTime() || 0) || String(b['Heure']).localeCompare(String(a['Heure'])));
   const streamers = m.streamers.filter((s) => s['Nom']);
-  const files = store.get('drive.files')?.v;
-  const lastFill = store.get('drive.filled')?.at;
-  const auto = files?.canWrite
-    ? `<p class="sv-note">Abonnés du lundi, meilleur post de Benjy, liens et chiffres des posts (Instagram, Facebook, Threads, Bluesky ; YouTube publié depuis le Studio) remplis par le Studio${lastFill ? ` · dernier passage ${new Date(lastFill).toLocaleString('fr-FR', { weekday: 'long', hour: '2-digit', minute: '2-digit' })}` : ''}.</p>`
-    : `<div class="notice">${icon('alert')}<span class="grow">Le Studio peut remplir la feuille tout seul (abonnés du lundi, chiffres des posts) : reconnecte Google Drive une fois pour l'autoriser à écrire.</span><button type="button" class="btn small" id="svwrite">${icon('link')}Reconnecter</button></div>`;
+  const lastFill = store.get('suivi.filled')?.at;
+  const auto = `<p class="sv-note">Abonnés du lundi, meilleur post de Benjy, liens et chiffres des posts (Instagram, Facebook, Threads, Bluesky ; YouTube publié depuis le Studio) remplis par le Studio${lastFill ? ` · dernier passage ${new Date(lastFill).toLocaleString('fr-FR', { weekday: 'long', hour: '2-digit', minute: '2-digit' })}` : ''}.</p>`;
   return `${auto}<div class="tiles">
       <div class="tile"><b>${posts.length}</b><small>posts prévus</small></div>
       <div class="tile"><b>${posts.filter((p) => p['Lien du post']).length}</b><small>avec leur lien</small></div>
@@ -276,8 +249,8 @@ function netHtml(m) {
       <div class="sv-scroll"><table class="sv-table"><thead><tr><th>Date</th><th>Réseau</th><th>Sujet</th>${metrics.map((x) => `<th class="n">${x}</th>`).join('')}<th>Lien</th></tr></thead>
       <tbody>${sorted.map((p) => `<tr><td class="nw">${esc(p['Date'].slice(0, 5))} ${esc(p['Heure'])}</td><td class="nw"><i class="sv-dot" style="background:${netColor(p['Réseau'])}"></i>${esc(p['Réseau'])}</td><td>${esc(p['Sujet'])}</td>${metrics.map((x) => `<td class="n">${fmtN(num(p[x]))}</td>`).join('')}<td>${p['Lien du post'] ? `<a href="${esc(p['Lien du post'])}" target="_blank" rel="noopener">Voir ↗</a>` : '—'}</td></tr>`).join('')}</tbody></table></div></section>
     <section class="panel"><div class="sv-h"><b>Streamers</b><small>${streamers.length} notés</small></div>
-      ${streamers.length ? `<div class="sv-scroll"><table class="sv-table"><thead><tr><th>Nom</th><th>Plateforme</th><th class="n">Abonnés</th><th>Statut</th><th>Contacté le</th><th>Relance</th><th>Notes</th></tr></thead><tbody>${streamers.map((s) => `<tr><td>${s['Lien de la chaîne'] ? `<a href="${esc(s['Lien de la chaîne'])}" target="_blank" rel="noopener">${esc(s['Nom'])}</a>` : esc(s['Nom'])}</td><td>${esc(s['Plateforme'])}</td><td class="n">${fmtN(num(s['Abonnés']))}</td><td><i class="sv-tag">${esc(s['Statut'] || 'À contacter')}</i></td><td>${esc(s['Contacté le'])}</td><td>${esc(s['Relance prévue'])}</td><td>${esc(s['Notes'])}</td></tr>`).join('')}</tbody></table></div>` : '<p class="sv-note">Aucun streamer noté pour le moment (onglet « Streamers »).</p>'}</section>
-    <p class="sv-foot">${openBtn(sheetUrl(m.id), 'Ouvrir la feuille')}</p>`;
+      ${streamers.length ? `<div class="sv-scroll"><table class="sv-table"><thead><tr><th>Nom</th><th>Plateforme</th><th class="n">Abonnés</th><th>Statut</th><th>Contacté le</th><th>Relance</th><th>Notes</th></tr></thead><tbody>${streamers.map((s) => `<tr><td>${s['Lien de la chaîne'] ? `<a href="${esc(s['Lien de la chaîne'])}" target="_blank" rel="noopener">${esc(s['Nom'])}</a>` : esc(s['Nom'])}</td><td>${esc(s['Plateforme'])}</td><td class="n">${fmtN(num(s['Abonnés']))}</td><td><i class="sv-tag">${esc(s['Statut'] || 'À contacter')}</i></td><td>${esc(s['Contacté le'])}</td><td>${esc(s['Relance prévue'])}</td><td>${esc(s['Notes'])}</td></tr>`).join('')}</tbody></table></div>` : '<p class="sv-note">Aucun streamer noté pour le moment.</p>'}</section>
+`;
 }
 
 const DOMAINS = { code: '#1a66d2', site: '#0e7490', suivi: '#6b4fbb', reseaux: '#d62976', version: '#0f8a4f', securite: '#c2410c' };
@@ -285,15 +258,14 @@ const domColor = (d) => DOMAINS[plain(d || '')] || '#5a616c';
 function logHtml(m) {
   if (!m.rows.length) return empty('Le Journal est vide.', 'news');
   const days = [];
-  for (const r of m.rows) { if (days[days.length - 1]?.d !== r['Date']) days.push({ d: r['Date'], items: [] }); days[days.length - 1].items.push(r); }
+  for (const r of m.rows) { if (days[days.length - 1]?.d !== r.date) days.push({ d: r.date, items: [] }); days[days.length - 1].items.push(r); }
   const label = (d) => parseFr(d)?.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }) || d;
   return `<div class="sv-log">${days.map((g) => `<section><h3 class="sv-day">${esc(label(g.d))}</h3>${g.items.map((r) => `<div class="sv-entry">
-      <i class="sv-dom" style="background:${domColor(r['Domaine'])}">${esc(r['Domaine'] || '—')}</i><p>${linkify(r['Ce qui a été fait'])}</p>${r['Où'] ? `<small>→ ${linkify(r['Où'])}</small>` : ''}</div>`).join('')}</section>`).join('')}</div>
-    <p class="sv-foot">${openBtn(sheetUrl(m.id), 'Ouvrir la feuille')}</p>`;
+      <i class="sv-dom" style="background:${domColor(r.domain)}">${esc(r.domain || '—')}</i><p>${linkify(r.text)}</p>${r.where ? `<small>→ ${linkify(r.where)}</small>` : ''}</div>`).join('')}</section>`).join('')}</div>`;
 }
 
 function guidesHtml(m) {
-  if (!m.list.length) return empty('Aucun guide dans le dossier.', 'news');
+  if (!m.list.length) return empty('Aucun guide pour le moment.', 'news');
   let html = '', list = false, h2 = 0;
   for (const b of m.blocks) {
     if (b.t !== 'li' && list) { html += '</ul>'; list = false; }
@@ -309,118 +281,71 @@ function guidesHtml(m) {
   const toc = m.blocks.filter((b) => b.t === 'h2');
   return `<div class="chips" id="svguides">${m.list.map((f) => `<button data-guide="${f.id}" class="${f.id === m.id ? 'on' : ''}">${esc(f.name.replace(/\s*·\s*Paddock Live$/i, ''))}</button>`).join('')}</div>
     ${toc.length > 2 ? `<div class="chips wrap sv-toc">${toc.map((b, i) => `<button data-toc="${i}">${esc(b.text.replace(/^\d+\.\s*/, ''))}</button>`).join('')}</div>` : ''}
-    <article class="sv-doc">${html}</article>
-    ${m.id ? `<p class="sv-foot">${openBtn(docUrl(m.id), 'Ouvrir le Doc')}</p>` : ''}`;
+    <article class="sv-doc">${html}</article>`;
 }
 
-const RENDER = { todo: todoHtml, posts: postsHtml, net: netHtml, log: logHtml, guides: guidesHtml };
+// Réglages : clé des sessions Claude, import de l'ancienne feuille
+function setHtml(d) {
+  const counts = [['tâches', d.tasks?.length || 0], ['lignes du journal', d.log?.length || 0], ['Grands Prix (posts)', d.posts?.length || 0], ['guides', d.guides?.length || 0]];
+  return `<section class="panel sv-connect">
+      <h3>${icon('link')}Clé des sessions Claude</h3>
+      <p>Les sessions Claude (Développement, Réseaux…) tiennent ce suivi à jour avec cette clé : tâches, journal, textes des posts. Le serveur ne garde que son empreinte.</p>
+      <p class="sv-note">${d.keySet ? 'Une clé est en service. En créer une nouvelle remplace l\'ancienne.' : 'Aucune clé pour le moment.'}</p>
+      <div id="svkeybox"></div>
+      <button class="btn primary wide" id="svkey">${icon('link')}${d.keySet ? 'Nouvelle clé' : 'Créer la clé'}</button>
+    </section>
+    <section class="panel sv-connect">
+      <h3>${icon('list')}Contenu</h3>
+      <p class="sv-note">${counts.map(([k, n]) => `${n} ${k}`).join(' · ')}</p>
+      <p>Importer un fichier de suivi (.json, par exemple celui tiré de l'ancienne feuille Google) : il remplace les parties qu'il contient.</p>
+      <label class="btn wide">${icon('list')}Importer un fichier<input type="file" id="svimport" accept="application/json,.json" hidden></label>
+    </section>`;
+}
 
-// ---------- Feuille « Suivi réseaux » remplie par le serveur (au plus une fois par heure) ----------
-export async function fillSheet(accounts, force = false) {
-  const files = store.get('drive.files')?.v;
-  if (!accounts?.length || !files?.connected || !files.canWrite || (!force && store.get('drive.filled', 3600e3))) return null;
+const RENDER = { todo: todoHtml, posts: postsHtml, net: netHtml, log: logHtml, guides: guidesHtml, set: setHtml };
+
+// ---------- Chiffres des comptes et des posts écrits par le serveur (au plus une fois par heure) ----------
+export async function fillNet(accounts, force = false) {
+  if (!accounts?.length || (!force && store.get('suivi.filled', 3600e3))) return null;
   try {
-    // Posts publiés à la main retrouvés sur les comptes reliés, et leurs chiffres relus : la feuille les reçoit aussi
+    // Posts publiés à la main retrouvés sur les comptes reliés, et leurs chiffres relus : les tables les reçoivent aussi
     const imp = await api('history/import', { method: 'POST' }).catch(() => null);
     if (imp?.added || !store.get('stats', 3600e3)) await api('stats').catch(() => null);
-    const r = await api('drive/fill', { method: 'POST', body: JSON.stringify({ accounts }) });
-    store.set('drive.filled', r);
-    if (r.cells) toast(`Feuille « Suivi réseaux » remplie (${r.cells} case${r.cells > 1 ? 's' : ''})`, 'ok');
+    const r = await api('suivi/fill', { method: 'POST', body: JSON.stringify({ accounts }) });
+    store.set('suivi.filled', r);
+    if (r.cells) { toast(`Chiffres des réseaux remplis (${r.cells} case${r.cells > 1 ? 's' : ''})`, 'ok'); store.del('suivi.data'); }
     return r;
   } catch (err) {
-    if (!store.get('drive.fillerr', 86400e3)) { store.set('drive.fillerr', 1); toast(err.message, 'bad'); }
+    if (!store.get('suivi.fillerr', 86400e3)) { store.set('suivi.fillerr', 1); toast(err.message, 'bad'); }
     return null;
   }
-}
-
-async function reconnect(btn) {
-  btn.disabled = true;
-  btn.classList.add('busy');
-  try { location.href = (await api('drive/start', { method: 'POST', body: JSON.stringify({ redirect: `${location.origin}/studio/` }) })).url; }
-  catch (err) { toast(err.message, 'bad'); btn.disabled = false; btn.classList.remove('busy'); }
-}
-
-// ---------- Connexion Google Drive ----------
-function connectHtml(r) {
-  const redirect = `${location.origin}/studio/`;
-  return `<div class="panel sv-connect">
-    <h3>${icon('link')}Relier le dossier Google Drive</h3>
-    ${r.expired ? `<p class="notice bad">${icon('alert')}La connexion Google Drive a expiré : reconnectez-la.</p>` : ''}
-    <p>Le Studio lit en direct le dossier « Paddock Live · Réseaux » : tâches, textes des posts, chiffres des réseaux, journal et guides. Lecture seule : rien n'est modifié dans le Drive.</p>
-    <p class="sv-note">Une seule fois, dans la console Google Cloud (projet de YouTube) :</p>
-    <ol>
-      <li>API et services → Bibliothèque : activer <b>Google Drive API</b>, <b>Google Docs API</b> et <b>Google Sheets API</b>.</li>
-      <li>Identifiants → l'ID client OAuth de YouTube → URI de redirection autorisés : ajouter <code>${esc(redirect)}</code> ${copyBtn(redirect)}</li>
-      <li>Le Drive est sur un autre compte Google que YouTube : tant que le projet est en mode « Test », ajouter ce compte dans Google Auth Platform → Audience → Utilisateurs test. Ou « Publier l'application » : tout compte peut se connecter, et l'accès n'expire plus au bout de 7 jours.</li>
-    </ol>
-    <p class="sv-note">Au moment de se connecter, Google demande quel compte utiliser : choisir celui qui contient le dossier « Paddock Live · Réseaux ».</p>
-    <details class="sv-client"${r.youtubeClient ? '' : ' open'}><summary>${r.youtubeClient ? 'Utiliser un autre client Google' : 'Client Google (ID et code secret)'}</summary>
-      <label class="field"><span>ID client</span><input type="text" id="svcid" autocomplete="off" spellcheck="false"></label>
-      <label class="field"><span>Code secret</span><input type="password" id="svcsecret" autocomplete="off"></label>
-    </details>
-    <button class="btn primary wide" id="svconnect">${icon('link')}Connecter Google Drive</button>
-  </div>`;
-}
-
-// Retour de Google sur /studio/?code=…&state=… : connexion terminée par le serveur
-export async function finishDrive(back) {
-  if (back.error) { toast(back.error === 'access_denied' ? 'Connexion Google Drive annulée' : `Google : ${back.error}`, 'bad'); return; }
-  try { await api('drive/finish', { method: 'POST', body: JSON.stringify({ code: back.code, state: back.state }) }); toast('Google Drive connecté', 'ok'); store.del('drive.files'); }
-  catch (err) { toast(err.message, 'bad'); }
 }
 
 // ---------- Onglet ----------
 export async function suiviTab(body, { force, restore, current }) {
   state.vsub ||= 'todo';
-  const known = store.get('drive.files');
-  let files = known?.v;
-  const recent = known && Date.now() - known.at < 2 * 60e3 && !force;
-  if (!files) body.innerHTML = skeleton(3);
-  if (!recent || !files) {
-    files = await api('drive/files');
-    if (!current()) return;
-    store.set('drive.files', files);
-  }
-  if (!files.connected) { renderConnect(body, files); return; }
-  if (!files.folder) { body.innerHTML = empty('Dossier « Paddock Live · Réseaux » introuvable dans ce compte Google Drive.', 'alert'); return; }
   await showSub(body, { force, current });
   if (restore) requestAnimationFrame(() => scrollTo(0, restore));
 }
 
-function renderConnect(body, r) {
-  copies = [];
-  body.innerHTML = connectHtml(r);
-  bindCopies(body);
-  $('#svconnect', body).onclick = async (e) => {
-    const btn = e.currentTarget;
-    btn.disabled = true;
-    btn.classList.add('busy');
-    try {
-      const { url } = await api('drive/start', { method: 'POST', body: JSON.stringify({ redirect: `${location.origin}/studio/`, clientId: $('#svcid', body).value.trim(), clientSecret: $('#svcsecret', body).value.trim() }) });
-      location.href = url;
-    } catch (err) { toast(err.message, 'bad'); btn.disabled = false; btn.classList.remove('busy'); }
-  };
-}
-
 async function showSub(body, { force, current }) {
   const sub = state.vsub;
-  const key = `drive.${sub}${sub === 'guides' ? `.${state.vguide || ''}` : ''}`;
-  const known = store.get(key);
-  const paint = (m, stale) => {
+  const known = store.get('suivi.data');
+  const paint = (d, stale) => {
     if (!current() || state.vsub !== sub) return;
     copies = [];
     body.innerHTML = `<div class="seg wide" id="svsub">${SUBS.map(([k, v]) => `<button data-sub="${k}" class="${k === sub ? 'on' : ''}">${v}</button>`).join('')}</div>
-      ${stale ? '<p class="status"><span class="dot"></span>Mise à jour…</p>' : ''}<div id="svpane">${m ? RENDER[sub](m) : skeleton(3)}</div>`;
-    bind(body, m, { force, current });
+      ${stale ? '<p class="status"><span class="dot"></span>Mise à jour…</p>' : ''}<div id="svpane">${d ? RENDER[sub](VIEW[sub](d)) : skeleton(3)}</div>`;
+    bind(body, d, { force, current });
     glide(body);
   };
-  // Rubrique relue au plus toutes les 2 minutes (sauf « Actualiser »)
+  // Relu au plus toutes les 2 minutes (sauf « Actualiser »)
   if (known && Date.now() - known.at < 2 * 60e3 && !force) { paint(known.v, false); return; }
   paint(known?.v, !!known);
   try {
-    const m = await LOADERS[sub](store.get('drive.files').v.files);
-    store.set(`drive.${sub}${sub === 'guides' ? `.${m.id || ''}` : ''}`, m);
-    paint(m, false);
+    const d = await api('suivi');
+    store.set('suivi.data', d);
+    paint(d, false);
   } catch (err) {
     if (!current() || state.vsub !== sub) return;
     if (known) { paint(known.v, false); toast(`Actualisation impossible : ${err.message}`, 'bad'); return; }
@@ -429,17 +354,33 @@ async function showSub(body, { force, current }) {
   }
 }
 
+// Opérations envoyées au serveur, puis suivi relu
+async function ops(list) {
+  const r = await api('suivi/ops', { method: 'POST', body: JSON.stringify({ ops: list }) });
+  store.del('suivi.data');
+  return r;
+}
+
 function bindCopies(root) {
   $$('[data-copy]', root).forEach((b) => {
     b.onclick = () => navigator.clipboard.writeText(copies[+b.dataset.copy]).then(() => toast('Copié', 'ok'), () => toast('Copie impossible', 'bad'));
   });
 }
 
-function bind(body, m, opts) {
+// Fichier de suivi : { tasks, log, posts, net, guides } (parties absentes laissées telles quelles)
+async function importFile(file) {
+  const d = JSON.parse(await file.text());
+  const list = ['tasks', 'log', 'posts', 'net', 'guides'].filter((k) => d[k] != null).map((part) => ({ op: 'part.put', part, data: d[part] }));
+  if (!list.length) throw new Error('Rien à importer dans ce fichier');
+  await ops(list);
+  return list.length;
+}
+
+function bind(body, d, opts) {
   const again = (force = false) => showSub(body, { ...opts, force });
   $$('#svsub [data-sub]', body).forEach((b) => { b.onclick = () => { state.vsub = b.dataset.sub; again(); }; });
   bindCopies(body);
-  if (!m) return;
+  if (!d) return;
   // Repli : titre d'une liste (une seule) ou bouton « Tout replier / Tout déplier », appliqué sur place
   // (sans redessiner l'onglet) et gardé sur cet appareil
   const all = $('#svfold', body);
@@ -456,19 +397,15 @@ function bind(body, m, opts) {
   });
   if (all) all.onclick = () => { const cols = $$('.sv-col', body).map((c) => c.dataset.col); fold(new Set(cols.every((k) => folded().has(k)) ? [] : cols)); };
   $$('.sv-card[data-open]', body).forEach((c) => { c.onclick = (e) => { if (!e.target.closest('a, [data-check]')) c.classList.toggle('open'); }; });
-  // Case cochée : tâche marquée faite tout de suite, déplacée dans « Fait » du Doc, puis liste relue
+  // Case cochée : tâche marquée faite tout de suite (rangée dans « Fait » avec la date du jour), puis liste relue
   $$('[data-check]', body).forEach((b) => {
     b.onclick = async (e) => {
       e.stopPropagation();
-      if (!store.get('drive.files')?.v?.canWrite) { toast('Reconnecte Google Drive pour cocher d\'ici', 'bad'); return; }
       const card = b.closest('.sv-card');
       if (card.classList.contains('done')) return;
       card.classList.add('done');
       b.setAttribute('aria-checked', 'true');
-      try {
-        await api('drive/done', { method: 'POST', body: JSON.stringify({ id: m.id, row: Number(b.dataset.check), title: b.dataset.title }) });
-        toast('Fait : rangé dans « Fait »', 'ok');
-      } catch (err) { toast(err.message, 'bad'); }
+      try { await ops([{ op: 'task.set', id: b.dataset.check, status: 'Fait' }]); toast('Fait : rangé dans « Fait »', 'ok'); } catch (err) { toast(err.message, 'bad'); }
       again(true);
     };
   });
@@ -476,7 +413,26 @@ function bind(body, m, opts) {
   $$('#svgps [data-gp]', body).forEach((b) => { b.onclick = () => { state.vgp = b.dataset.gp; again(); }; });
   $$('#svacc [data-acc]', body).forEach((b) => { b.onclick = () => { state.vacc = b.dataset.acc; again(); }; });
   $$('#svguides [data-guide]', body).forEach((b) => { b.onclick = () => { state.vguide = b.dataset.guide; again(); }; });
-  const write = $('#svwrite', body);
-  if (write) write.onclick = () => reconnect(write);
   $$('[data-toc]', body).forEach((b) => { b.onclick = () => $(`#svh${b.dataset.toc}`, body)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+  // Réglages : nouvelle clé (montrée une seule fois), import d'un fichier
+  const keyBtn = $('#svkey', body);
+  if (keyBtn) keyBtn.onclick = async () => {
+    if (d.keySet && !confirm('Créer une nouvelle clé ? L\'ancienne ne marchera plus : il faudra la remplacer dans l\'environnement des sessions Claude.')) return;
+    keyBtn.disabled = true;
+    try {
+      const { key } = await api('suivi/key', { method: 'POST' });
+      copies = [key];
+      $('#svkeybox', body).innerHTML = `<div class="sv-txt sv-prompt"><div class="sv-txthead"><small>Clé du suivi (montrée une seule fois)</small>${copyBtn(key).replace(/data-copy="\d+"/, 'data-copy="0"')}</div><pre>${esc(key)}</pre></div>
+        <p class="sv-note">Dans claude.ai : environnement cloud des sessions Paddock Live → variables d'environnement → <code>PADDOCK_SUIVI_KEY=</code> suivi de cette clé. Ne la colle pas dans une conversation.</p>`;
+      bindCopies(body);
+      store.del('suivi.data');
+    } catch (err) { toast(err.message, 'bad'); }
+    keyBtn.disabled = false;
+  };
+  const imp = $('#svimport', body);
+  if (imp) imp.onchange = async () => {
+    const f = imp.files?.[0];
+    if (!f) return;
+    try { const n = await importFile(f); toast(`Importé (${n} partie${n > 1 ? 's' : ''})`, 'ok'); again(true); } catch (err) { toast(`Import impossible : ${err.message}`, 'bad'); }
+  };
 }
