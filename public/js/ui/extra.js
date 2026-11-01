@@ -51,14 +51,17 @@ export function renderTelemetry() {
     return;
   }
   if (!num) return;
-  // Le pilote suivi seul, choisi en cliquant dans le classement (deux pilotes côte à côte : bandeau du duel)
-  const key = num;
+  // Le pilote suivi seul, choisi en cliquant dans le classement (deux pilotes côte à côte : bandeau du duel) ; aucun
+  // pilote choisi : le leader, avec la consigne
+  const picked = !!((store.focus && dl[store.focus]) || (store.duel.manual && store.duel.a && dl[store.duel.a]));   // duel choisi à la main (sinon : automatique)
+  const key = `${num}|${picked}`;
   if (el._k !== key) {
     el._k = key;
     const d = dl[num] || {};
     el.innerHTML = `<div class="tele2">
       <div class="tele2-dials one">
-        <div class="tele2-col"><div class="tele-name" style="--tc:${teamColor(d)}" title="${esc(t('clic sur un pilote du classement = pilote suivi'))}">${teamMark(d)}<b>${esc(d.Tla || num)}</b><span class="muted small">${esc(d.LastName || '')}</span></div><div class="tele-dial" id="teleDialA"></div></div>
+        <div class="tele2-col"><div class="tele-name" style="--tc:${teamColor(d)}">${teamMark(d)}<b>${esc(d.Tla || num)}</b><span class="muted small">${esc(d.LastName || '')}</span></div>
+          ${picked ? '' : `<span class="muted small tele-pick-hint">${esc(t('clic sur un pilote du classement = pilote suivi'))}</span>`}<div class="tele-dial" id="teleDialA"></div></div>
       </div>
       <div class="trace"><div class="chart-title"><span>Vitesse — 30 dernières secondes (km/h)</span></div><div id="teleTrace"></div></div></div>`;
     tele = { num, dialA: new Dial(teamColor(d)), trace: new SpeedTrace($('#teleTrace')) };

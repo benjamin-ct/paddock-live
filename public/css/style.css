@@ -755,7 +755,6 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
 .tele-chip { display: inline-flex; align-items: center; height: 28px; border: 1.5px solid var(--tc); border-radius: 7px; overflow: hidden; background: var(--panel-2); }
 .tele-chip select.tele-pick:not([multiple]):not([size]) { field-sizing: content; min-width: 0; width: auto; height: 100%; background-color: transparent; border: 0; border-radius: 0; box-shadow: none; color: var(--text); font-weight: 800; font-size: 13px; padding: 0 24px 0 9px; background-position: right 7px center; }
 .tele2-vs { color: var(--muted); font-style: italic; font-size: 12px; }
-.tele-hint { margin-left: auto; }
 .tele2-dials { display: grid; align-items: center; gap: 6px; }
 .tele2-dials.two { grid-template-columns: 1fr auto 1fr; }
 .tele2-dials.one { grid-template-columns: minmax(0, 360px); justify-content: center; }
@@ -764,13 +763,14 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
 .tele-name { display: flex; align-items: center; gap: 6px; color: var(--tc); font-size: 15px; }
 .tele-name .team-logo { width: 20px; height: 20px; }
 .tele-name .muted { color: var(--text-2); }
+.tele-pick-hint { text-align: center; margin-top: 2px; }   /* aucun pilote choisi : consigne sous le nom du leader */
 .dial { width: 100%; max-width: 300px; display: block; }
 /* Écran principal : le compteur de la télémétrie se règle sur la hauteur de son panneau ; panneau bas : sans la
    courbe des 30 dernières secondes */
 .grid.custom .p-extra .panel-body { container-type: size; }
 .grid.custom .p-extra .dial { max-width: max(110px, min(320px, calc(100cqh - 200px))); margin: 0 auto; }
 @container (max-height: 440px) {
-  .grid.custom .p-extra :is(.trace, .tele-hint) { display: none; }
+  .grid.custom .p-extra .trace { display: none; }
   .grid.custom .p-extra .tele2 { gap: 4px; padding-top: 6px; }
   .grid.custom .p-extra .dial { max-width: max(90px, min(320px, calc(100cqh - 56px))); }
 }
