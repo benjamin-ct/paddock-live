@@ -33,8 +33,8 @@ l'application (Réglages → À propos → Nouveautés).
   limites de piste). Il s'adapte à la taille de l'écran : sur un écran moins large, la Télémétrie et les Radios passent
   l'une sous l'autre ; sur un écran peu haut, tout tient sans défiler, le compteur de la télémétrie se réduit à la place
   disponible. Une barre entre deux panneaux côte à côte règle leurs largeurs.
-- Télémétrie : le pilote suivi se choisit en cliquant dans le classement (plus de liste à part, la consigne ne s'affiche
-  que tant qu'aucun pilote n'est choisi), le compteur tient en entier dans son panneau.
+- Télémétrie : le pilote suivi se choisit en cliquant dans le classement (plus de liste à part) ; tant qu'aucun pilote
+  n'est choisi, le panneau n'affiche que la consigne. Le compteur tient en entier dans son panneau.
 - Le Circuit, l'Analyse et le Duel s'ouvrent chacun dans leur propre fenêtre, à placer où l'on veut (second écran) :
   menu « Fenêtres » de la barre de gauche, ou bouton « + » au bout des onglets d'un panneau. Ils ne prennent plus de
   place dans l'écran principal. Sur téléphone, où il n'y a qu'un écran, ils restent des onglets : Classement,

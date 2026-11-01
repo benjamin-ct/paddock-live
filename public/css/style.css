@@ -763,7 +763,7 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
 .tele-name { display: flex; align-items: center; gap: 6px; color: var(--tc); font-size: 15px; }
 .tele-name .team-logo { width: 20px; height: 20px; }
 .tele-name .muted { color: var(--text-2); }
-.tele-pick-hint { text-align: center; margin-top: 2px; }   /* aucun pilote choisi : consigne sous le nom du leader */
+.tele-pick-hint { text-align: center; }   /* aucun pilote choisi : la consigne seule */
 .dial { width: 100%; max-width: 300px; display: block; }
 /* Écran principal : le compteur de la télémétrie se règle sur la hauteur de son panneau ; panneau bas : sans la
    courbe des 30 dernières secondes */
