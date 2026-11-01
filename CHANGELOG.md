@@ -180,6 +180,8 @@ l'application (Réglages → À propos → Nouveautés).
   (et leur carte dans la version web).
 - Stratégie (Analyse → Arrêts) : la barre d'un pilote qui vient de changer de pneus ne dépasse plus le nombre de
   tours faits (la F1 continuait parfois à compter le relais d'avant après l'arrêt).
+- Carte : sous drapeau rouge, les voitures arrêtées en piste ou abandonnées plus tôt ne restent plus affichées ; seules
+  celles arrêtées dans la voie des stands, encore en course, restent sur la carte (aussi en 3D).
 - Carte du circuit plus fluide avec le GPS (F1 TV) : les voitures avancent régulièrement, sans les petites saccades
   que donnait l'heure irrégulière des positions envoyées par la F1. Si le GPS se coupe pendant une séance, les voitures
   ne disparaissent plus : elles passent aussitôt en positions estimées, puis reprennent le GPS à son retour, en glissant

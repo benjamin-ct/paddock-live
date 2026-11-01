@@ -118,3 +118,12 @@ test('catchLaps : prévision du duel (tours pour revenir, à portée du DÉP, tr
   assert.equal(catchLaps(15, 0.5, null), 30);
   assert.equal(catchLaps(3, 0, 20), null);           // ne reprend rien
 });
+
+test('carte : voiture arrêtée encore en course seulement sous drapeau rouge, dans les stands, à moins d\'un tour du leader', async () => {
+  const { stoppedInRace } = await import('../shared/f1.js');
+  const lines = { 1: { NumberOfLaps: 46 }, 18: { Stopped: true, InPit: true, NumberOfLaps: 5 }, 77: { Stopped: true, NumberOfLaps: 45 }, 44: { Stopped: true, InPit: true, NumberOfLaps: 46 } };
+  assert.equal(stoppedInRace(lines[44], true, lines), true, 'drapeau rouge, dans la voie des stands');
+  assert.equal(stoppedInRace(lines[44], false, lines), false, 'sans drapeau rouge : arrêtée = hors course');
+  assert.equal(stoppedInRace(lines[77], true, lines), false, 'arrêtée en piste (Bottas)');
+  assert.equal(stoppedInRace(lines[18], true, lines), false, 'abandon au tour 5 (Stroll)');
+});
