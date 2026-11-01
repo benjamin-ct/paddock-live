@@ -261,8 +261,9 @@ l'application (Réglages → À propos → Nouveautés).
   de courbe dans une case à la couleur de l'écurie, plus facile à suivre. Pneus : le logo de l'écurie devant chaque
   pilote (tours de chaque pilote, jeux du week-end), et les composés choisis par Pirelli dans des cartes à leur couleur,
   chiffre en grand. Aussi dans la version web.
-- Calendrier : le drapeau du pays en fond du prochain Grand Prix, compte à rebours en plus grand, et chaque Grand Prix
-  couru teinté de la couleur de l'écurie du vainqueur. Aussi dans la version web.
+- Calendrier : le drapeau du pays en fond du prochain Grand Prix, compte à rebours en plus grand, la prochaine séance
+  en rouge dans le programme du week-end (comme sur l'accueil), et chaque Grand Prix couru teinté de la couleur de
+  l'écurie du vainqueur. Aussi dans la version web.
 - Saison → Pilotes : tous les pilotes en cartes, comme les cartes officielles de la F1 (prénom, nom, écurie, numéro et
   logo de l'écurie bien visible, portrait sur la couleur de l'écurie), à faire défiler ; toucher une carte affiche ce
   pilote, présenté en grand en tête de page avec son numéro et le logo de son écurie. Aussi dans la version web.
