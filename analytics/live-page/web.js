@@ -249,12 +249,6 @@ if (ONLY === 'analysis' && extra) {
   for (const b of extra.querySelectorAll('.panel-head [data-tab]:not([data-tab="tyres"])')) { b.classList.remove('active'); ana.querySelector('.panel-head [data-tab="telemetry"]').before(b); }
   for (const p of extra.querySelectorAll('[data-pane]:not([data-pane="tyres"])')) { p.classList.remove('active'); ana.querySelector('[data-pane="telemetry"]').before(p); }
 }
-// Écran principal : la projection du championnat (pilotes et constructeurs, en direct) à côté de la télémétrie
-if (!ONLY && extra) {
-  const ana = document.querySelector('.p-analysis');
-  ana?.querySelector('.panel-head [data-tab="telemetry"]').after(extra.querySelector('.panel-head [data-tab="champ"]'));
-  ana?.querySelector('[data-pane="telemetry"]').after(extra.querySelector('[data-pane="champ"]'));
-}
 extra?.remove();
 if (ONLY !== 'duel') document.querySelector('.p-duel')?.remove();   // Duel : seulement dans sa fenêtre (bandeau sur le classement ailleurs)
 
@@ -337,8 +331,7 @@ function loop() {
   safe(renderRadios);
   safe(renderTelemetry);
   safe(renderWeather);
-  if (ONLY !== 'duel') safe(renderChampionship);
-  if (ONLY === 'analysis') for (const fn of [renderAnalysis, renderPits, renderStrategy, renderPitSim, renderBattles]) safe(fn);
+  if (ONLY === 'analysis') for (const fn of [renderAnalysis, renderPits, renderStrategy, renderPitSim, renderBattles, renderChampionship]) safe(fn);
   setTimeout(() => (document.visibilityState === 'visible' ? requestAnimationFrame(loop) : loop()), 100);
 }
 setInterval(() => hub.roll(serverNow()), 10000);

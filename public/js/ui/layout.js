@@ -59,6 +59,10 @@ const params = new URLSearchParams(location.search);
 const legacyPanel = PANELS.some((p) => p.id === params.get('panel')) ? params.get('panel') : null;
 export const WIN = params.get('win') || (legacyPanel ? `solo-${legacyPanel}` : 'main');
 const isMain = WIN === 'main';
+// Fenêtre d'un seul onglet (?tab=compare, la Comparaison) : le panneau Analyse réduit à cet onglet. Elle ne prend pas
+// le panneau aux autres fenêtres (l'Analyse reste où elle est, avec sa Comparaison)
+export const TAB_WIN = !isMain && params.get('tab') === 'compare' ? 'compare' : null;
+if (TAB_WIN) document.documentElement.classList.add('tab-win');
 const LAYOUTS_KEY = 'paddock.layouts';
 const MIN_W = 220, MIN_H = 110;
 
@@ -187,10 +191,11 @@ if (isMain) {
   } catch { /* version sans cette fonction */ }
 }
 
-let layout = normalize(allLayouts()[lkey()] || (!isMain && allLayouts()[`${WIN}@quali`]) || (legacyPanel ? { cols: [{ w: 1, items: [{ id: legacyPanel, h: 1 }] }] } : defaultLayout()));
+let layout = TAB_WIN ? { cols: [{ w: 1, items: [{ id: 'analysis', h: 1 }] }] }
+  : normalize(allLayouts()[lkey()] || (!isMain && allLayouts()[`${WIN}@quali`]) || (legacyPanel ? { cols: [{ w: 1, items: [{ id: legacyPanel, h: 1 }] }] } : defaultLayout()));
 
 function save() {
-  storeLayout(lkey(), layout);
+  if (!TAB_WIN) storeLayout(lkey(), layout);
   announce();
 }
 
@@ -860,9 +865,9 @@ function winTitle(panels) {
 
 function announce() {
   if (isMain || !channel) return;
-  const panels = layout.cols.flatMap((c) => c.items.map((it) => it.id));
+  const panels = TAB_WIN ? [] : layout.cols.flatMap((c) => c.items.map((it) => it.id));
   channel.postMessage({ type: 'alive', win: WIN, panels, bounds: { x: window.screenX, y: window.screenY, w: window.outerWidth, h: window.outerHeight } });
-  document.title = `Paddock Live · ${winTitle(panels)}`;
+  document.title = `Paddock Live · ${TAB_WIN ? t('Comparaison') : winTitle(panels)}`;
 }
 
 function openWindow(win) {
@@ -1135,6 +1140,8 @@ function migrateLayout() {
 
 // Ouvre un panneau dans sa propre fenêtre (bouton + d'un panneau, menu Dispo.) ; s'il est déjà dans une fenêtre, rien
 export function openInWindow(id) {
+  // Comparaison : sa fenêtre à elle (une seule), à côté de l'Analyse
+  if (id === 'compare') { track('feature.popout'); window.open('/?win=tab-compare&tab=compare', 'paddock-tab-compare', 'width=1100,height=780')?.focus(); return; }
   if (!isMain || detachedElsewhere(id)) return;
   sendTo(id, 'new');
 }

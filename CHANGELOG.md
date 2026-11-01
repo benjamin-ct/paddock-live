@@ -50,7 +50,8 @@ l'application (Réglages → À propos → Nouveautés).
   haut de l'appli au lieu d'une bande noire.
 - Analyse : seulement les onglets utiles selon la séance. En course : Écarts et Arrêts (avec la stratégie) ; en qualifs
   et en essais : Secteurs et Comparaison. Les autres (Temps, Pneus, Jeux de pneus, simulateur d'arrêt, Bagarres,
-  championnat, et la Comparaison en course) s'ajoutent en un clic.
+  championnat, et la Comparaison en course) s'ajoutent en un clic. La Comparaison s'ouvre aussi seule dans sa propre
+  fenêtre (barre de gauche → Fenêtres → Comparaison, ou bouton ↗ de l'onglet), à côté de l'Analyse.
 - Bouton « + » au bout des onglets de chaque panneau : il rouvre un onglet fermé, amène un onglet d'un autre panneau,
   ou ouvre le Circuit, l'Analyse ou le Duel dans une fenêtre.
 - Barre de gauche plus simple : Accueil, Direct, Saison, Actu et Replays, puis « Plus » qui réunit Résultats, Résumé,
@@ -161,6 +162,8 @@ l'application (Réglages → À propos → Nouveautés).
   à la F1, comme avant.
 - Carte du circuit : en revenant sur la page (autre onglet, autre appli, téléphone en veille), plus de traînées
   qui partent dans tous les sens : elles repartent de la position actuelle des voitures. Aussi dans la version web.
+- Nouvel outil « Championnat » dans la barre du haut, à côté de la Météo (aussi dans la version web) : classement
+  des pilotes et des constructeurs, et pendant une course la projection en direct (points gagnés, places prises).
 - Classement en course : étiquette « DÉP » (mode dépassement, qui remplace le DRS en 2026) à côté de chaque pilote,
   allumée dès qu'il est à moins d'une seconde de la voiture devant, une fois le mode activé par la direction de course
   (pas au départ, ni sous voiture de sécurité ou drapeau rouge). La F1 ne dit pas quand le pilote s'en sert :
@@ -412,10 +415,9 @@ l'application (Réglages → À propos → Nouveautés).
 - Bouton « Nouveautés » (dans le menu ☰ sur téléphone) : les dernières nouveautés de Paddock Live, en bref ; un
   point rouge signale ce qui n'a pas encore été lu.
 - Outils de la barre du haut, comme dans l'appli : documents officiels de la FIA, vitesses aux points de mesure,
-  meilleurs secteurs de chaque pilote et météo avec le radar de pluie.
+  meilleurs secteurs de chaque pilote, météo avec le radar de pluie et championnat.
 - Barre du haut sur une seule ligne sur ordinateur : la météo passe dans le bouton « Météo » et les boutons gardent
   leur icône seule quand l'écran est moins large ; plus de note sur le GPS.
-- Projection du championnat pilotes et constructeurs en direct, en onglet à côté de la Télémétrie.
 - La pastille « duel » du classement (bataille de plus de trois tours) ouvre bien le duel des deux pilotes.
 - Bandeau de la direction de course en bas de l'écran, comme dans l'appli : le dernier message, avec son drapeau et
   le tour.

@@ -122,12 +122,15 @@ export function renderChampionship() {
   const v = versionOf(['ChampionshipPrediction', 'DriverList', '__reset']);
   if (v === champVer) return;
   champVer = v;
+  $('#champ').innerHTML = championshipHtml() || '<div class="note">Projection du championnat pendant les courses et sprints.</div>';
+}
+
+// Projection du championnat pendant une course (pilotes puis écuries), ou null hors course. Aussi l'outil
+// « Championnat » de la barre du haut (topinfo.js)
+export function championshipHtml() {
   const cp = store.state.ChampionshipPrediction;
   const dl = drivers(store.state);
-  if (!cp?.Drivers) {
-    $('#champ').innerHTML = '<div class="note">Projection du championnat pendant les courses et sprints.</div>';
-    return;
-  }
+  if (!cp?.Drivers) return null;
   const rows = Object.values(cp.Drivers).filter(Boolean).sort((a, b) => (a.PredictedPosition || 99) - (b.PredictedPosition || 99));
   const teams = Object.values(cp.Teams || {}).filter(Boolean).sort((a, b) => (a.PredictedPosition || 99) - (b.PredictedPosition || 99));
   // Points marqués sur la course en cours (projetés - actuels)
@@ -139,7 +142,7 @@ export function renderChampionship() {
     const d = (cur || 0) - (pred || 0);
     return d ? `<span class="${d > 0 ? 'up' : 'down'}">${icon(d > 0 ? 'tri-up' : 'tri-down')}${Math.abs(d)}</span>` : '';
   };
-  $('#champ').innerHTML = `<table class="champ"><tr><th>Proj.</th><th>Pilote</th><th>Pts actuels</th><th>Gagnés</th><th>Pts projetés</th><th></th></tr>
+  return `<table class="champ"><tr><th>Proj.</th><th>Pilote</th><th>Pts actuels</th><th>Gagnés</th><th>Pts projetés</th><th></th></tr>
     ${rows.map((r) => {
       const d = dl[r.RacingNumber] || {};
       return `<tr><td>${r.PredictedPosition ?? '—'}</td><td><span class="drv">${teamMark(d)}<b>${esc(d.Tla || r.RacingNumber)}</b></span></td>
