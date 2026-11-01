@@ -2772,4 +2772,5 @@ export default {
   "Accélérateur": "Throttle",
   "Meilleurs tours de la Q{}": "Best laps in Q{}",
   "Meilleurs tours de la séance": "Best laps of the session",
+  "Fermer le duel": "Close the duel",
 };

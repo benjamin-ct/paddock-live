@@ -2771,4 +2771,5 @@ export default {
   "Accélérateur": "Acelerador",
   "Meilleurs tours de la Q{}": "Mejores vueltas de la Q{}",
   "Meilleurs tours de la séance": "Mejores vueltas de la sesión",
+  "Fermer le duel": "Cerrar el duelo",
 };

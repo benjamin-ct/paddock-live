@@ -3511,26 +3511,37 @@ html:is(.float-map, .overlay) .boot-cover { display: none; }
    Bandeau : chaque pilote sur un bloc en biais à la couleur de son écurie, l'écart au milieu sur fond sombre ;
    en dessous la tendance, une petite courbe de l'écart, quelques chiffres face à face et la télémétrie en barres */
 .bt { --ta: #3b82f6; --tb: #e10600; display: flex; flex-direction: column; gap: 10px; padding: 10px 12px 14px; }
-.bt-band { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: stretch; min-height: 64px; }
-.bt-drv { position: relative; display: flex; align-items: center; gap: 10px; padding: 8px 14px; color: #fff; min-width: 0; overflow: hidden; }
-.bt-drv.a { background: linear-gradient(90deg, color-mix(in srgb, var(--ta) 70%, #000) 0%, var(--ta) 100%); clip-path: polygon(0 0, 100% 0, calc(100% - 16px) 100%, 0 100%); border-radius: 10px 0 0 10px; padding-right: 26px; }
-.bt-drv.b { background: linear-gradient(270deg, color-mix(in srgb, var(--tb) 70%, #000) 0%, var(--tb) 100%); clip-path: polygon(16px 0, 100% 0, 100% 100%, 0 100%); border-radius: 0 10px 10px 0; flex-direction: row-reverse; text-align: right; padding-left: 26px; }
-.bt-pos { flex: none; font: 800 26px/1 var(--font-cond, inherit); min-width: 1.1em; text-align: center; text-shadow: 0 1px 6px rgba(0, 0, 0, .35); }
-.bt-photo { flex: none; width: 48px; height: 48px; border-radius: 50%; object-fit: cover; object-position: top; background: rgba(0, 0, 0, .25); border: 2px solid rgba(255, 255, 255, .55); }
+.bt-band { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 10px; min-height: 66px;
+  padding: 10px 16px; border-radius: 16px; overflow: hidden; color: #fff; border: 1px solid rgba(255, 255, 255, .1);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--ta) 62%, #0a1222) 0%, #0a1222 40% 60%, color-mix(in srgb, var(--tb) 62%, #0a1222) 100%); }
+.bt-band::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(105deg, transparent 46%, rgba(255, 255, 255, .07) 50%, transparent 54%); }
+.bt-drv { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.bt-drv.b { flex-direction: row-reverse; text-align: right; }
+.bt-photo { flex: none; width: 46px; height: 46px; border-radius: 50%; object-fit: cover; object-position: top; background: color-mix(in srgb, var(--tc, #8b95a8) 40%, #0a1222);
+  border: 2px solid var(--tc, rgba(255, 255, 255, .5)); box-shadow: 0 0 0 3px rgba(0, 0, 0, .25), 0 0 22px color-mix(in srgb, var(--tc, #fff) 70%, transparent); }
 .bt-id { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-.bt-name { font: italic 800 22px/1 var(--font-cond, inherit); text-transform: uppercase; letter-spacing: .02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 8px rgba(0, 0, 0, .35); }
-.bt-tla { display: none; }
-.bt-id small { display: flex; align-items: center; gap: 5px; font-size: 11.5px; opacity: .9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.bt-drv.b .bt-id small { flex-direction: row-reverse; }
-.bt-id small .drv-bar { display: none; }
-.bt-gap { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-width: 128px; padding: 6px 16px; margin: 0 -6px; z-index: 1;
-  background: #0b1220; color: #fff; clip-path: polygon(14px 0, calc(100% - 14px) 0, 100% 100%, 0 100%); }
-.bt-tag { font-size: 9.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: rgba(255, 255, 255, .6); white-space: nowrap; }
-.bt-val { font: italic 800 34px/1 var(--font-cond, inherit); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.bt-name { display: flex; align-items: center; gap: 7px; font: italic 800 24px/1 var(--font-cond, inherit); letter-spacing: .03em; white-space: nowrap; }
+.bt-drv.b .bt-name { flex-direction: row-reverse; }
+.bt-name .team-logo { width: 24px; height: 24px; }
+.bt-id small { font-size: 11.5px; color: rgba(255, 255, 255, .72); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bt-gap { display: flex; flex-direction: column; align-items: center; gap: 1px; min-width: 110px; z-index: 1; }
+.bt-tag { font-size: 9.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: rgba(255, 255, 255, .55); white-space: nowrap; }
+.bt-val { font: italic 800 38px/1 var(--font-cond, inherit); font-variant-numeric: tabular-nums; white-space: nowrap; text-shadow: 0 0 26px rgba(255, 255, 255, .25); }
 .bt-val small { font-size: 15px; margin-left: 3px; opacity: .7; }
-.bt-who { font-size: 11px; font-weight: 700; color: rgba(255, 255, 255, .75); }
-.bt.close .bt-tag { color: #22c55e; }
-.bt.close .bt-gap { box-shadow: inset 0 -3px 0 #22c55e; }
+.bt-who { font-size: 11px; font-weight: 700; color: rgba(255, 255, 255, .72); }
+.bt.close .bt-tag, .duel-band.close .bt-tag { color: #4ade80; }
+/* Bandeau par-dessus le bas du Classement (duel choisi avec A et B) ; le classement laisse sa place en dessous */
+.duel-band { position: absolute; left: 8px; right: 8px; bottom: 8px; z-index: 6; animation: bt-up .25s ease-out; }
+.duel-band .bt-band { min-height: 60px; padding: 8px 40px 8px 14px; box-shadow: 0 14px 34px -10px rgba(0, 0, 0, .7); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+.duel-band .bt-close { position: absolute; top: 50%; right: 8px; transform: translateY(-50%); z-index: 2; color: #fff; background: rgba(0, 0, 0, .3); border-radius: 50%; width: 24px; height: 24px; font-size: 11px; }
+.duel-band .bt-btrend { position: absolute; left: 50%; top: 1px; transform: translate(-50%, -100%); padding: 2px 10px; border-radius: 9px 9px 0 0; font-size: 11px; white-space: nowrap; background: #0a1222; color: rgba(255, 255, 255, .8); z-index: 1; }
+.duel-band .bt-btrend:empty { display: none; }
+.duel-band .bt-btrend b { color: #fff; }
+.duel-band .bt-btrend.closing { color: #4ade80; }
+.duel-band .bt-btrend.pulling { color: #f87171; }
+.panel.has-duel .tower-wrap { padding-bottom: 92px; }
+@keyframes bt-up { from { transform: translateY(14px); opacity: 0; } }
+html[data-motion="off"] .duel-band { animation: none; }
 .bt-trend { align-self: center; display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 999px; font-size: 12.5px; color: var(--text-2); background: var(--panel-2); border: 1px solid var(--border); }
 .bt-trend::before { content: '•'; font-weight: 900; }
 .bt-trend.closing { color: #16a34a; border-color: color-mix(in srgb, #22c55e 45%, transparent); }
@@ -3572,14 +3583,12 @@ html:is(.float-map, .overlay) .boot-cover { display: none; }
 .bt-live-lbl { display: contents; }
 .bt-live-lbl span { font-size: 9.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .bt-live-lbl span:first-child { grid-column: 2; text-align: right; }
-/* Panneau étroit : code pilote au lieu du nom, sans portrait */
-@container (max-width: 560px) {
-  .bt-full { display: none; }
-  .bt-tla { display: inline; }
+/* Panneau étroit : sans portrait ni écurie, écart un peu moins grand */
+@container (max-width: 520px) {
   .bt-photo { display: none; }
-  .bt-gap { min-width: 96px; padding: 6px 10px; }
+  .bt-id small { display: none; }
+  .bt-gap { min-width: 84px; }
   .bt-val { font-size: 28px; }
+  .bt-name { font-size: 20px; }
 }
-.grid.mobile .bt-full { display: none; }
-.grid.mobile .bt-tla { display: inline; }
-.grid.mobile .bt-photo { width: 38px; height: 38px; }
+.grid.mobile .bt-photo { width: 36px; height: 36px; }

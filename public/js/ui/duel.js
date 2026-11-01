@@ -112,11 +112,27 @@ function fillSelect(sel, value, dl, nums) {
   sel.value = value || '';
 }
 
+// Bandeau du duel (les deux pilotes, l'écart au milieu), dans le panneau Duel et par-dessus le bas du Classement quand
+// les deux pilotes y ont été choisis (A et B)
+const BAND = '<div class="bt-band"><div class="bt-drv a" data-s="a"></div><div class="bt-gap" data-s="gap"></div><div class="bt-drv b" data-s="b"></div></div>';
+const bands = () => [$('#bt'), $('#duelBand')].filter((el) => el && !el.hidden && el.querySelector('.bt-band'));
+function showTowerBand(on) {
+  const el = $('#duelBand');
+  if (!el) return;
+  if (on && !el.querySelector('.bt-band')) {
+    el.innerHTML = `${BAND}<span class="bt-btrend"></span><button type="button" class="bt-close icon-btn small" title="Fermer le duel" aria-label="Fermer le duel">✕</button>`;
+    el.querySelector('.bt-close').addEventListener('click', () => { setDuel('a', null); setDuel('b', null); });
+  }
+  if (el.hidden === !on) return;
+  el.hidden = !on;
+  el.closest('.panel')?.classList.toggle('has-duel', on);
+}
+
 // Bataille façon retransmission : bandeau aux couleurs des deux écuries avec l'écart au milieu, tendance et petite
 // courbe, quelques chiffres face à face, et la télémétrie en direct en barres
 function skeleton() {
   $('#duelBody').innerHTML = `<div class="bt" id="bt">
-    <div class="bt-band"><div class="bt-drv a" id="btA"></div><div class="bt-gap" id="btGap"></div><div class="bt-drv b" id="btB"></div></div>
+    ${BAND}
     <div class="bt-trend" id="btTrend"></div>
     <div class="bt-sparkbox" id="btSpark"></div>
     <div class="bt-rows" id="btRows"></div>
@@ -151,20 +167,21 @@ function renderHero(a, b) {
   }
   if (close) tag = 'À moins d\'une seconde';
 
-  const side = (num, d, cls) => {
+  // Portrait, logo et code du pilote, puis sa position et son écurie
+  const side = (num, d) => {
     const l = lines[num] || {};
-    const photo = photoUrl(d) ? `<img class="bt-photo" src="${esc(photoUrl(d))}" alt="" onerror="this.remove()">` : '';
-    const name = d.LastName || d.FullName || d.Tla || num;
-    return `<span class="bt-pos">${esc(l.Position || '–')}</span>${photo}<div class="bt-id"><b class="bt-name" title="${esc(d.FullName || '')}"><span class="bt-full">${esc(name)}</span><span class="bt-tla">${esc(d.Tla || num)}</span></b>
-      <small>${teamMark(d)}${esc(d.TeamName || '')}</small></div>`;
+    const photo = photoUrl(d) ? `<img class="bt-photo" src="${esc(photoUrl(d))}" alt="" style="--tc:${teamColor(d)}" onerror="this.remove()">` : '';
+    return `${photo}<div class="bt-id"><b class="bt-name" title="${esc(d.FullName || '')}">${teamMark(d)}${esc(d.Tla || num)}</b>
+      <small>${l.Position ? `P${esc(l.Position)} · ` : ''}${esc(d.TeamName || '')}</small></div>`;
   };
-  const box = $('#bt');
-  box.style.cssText = `--ta:${teamColor(da)};--tb:${teamColor(db)}`;
-  box.dataset.ahead = ahead || '';
-  box.classList.toggle('close', close);
-  put('#btA', side(a, da, 'a'));
-  put('#btB', side(b, db, 'b'));
-  put('#btGap', `<span class="bt-tag">${tag}</span><b class="bt-val">${main}${unit ? `<small>${unit}</small>` : ''}</b>${ahead ? `<span class="bt-who">${esc((ahead === 'a' ? da : db).Tla || '')} devant</span>` : ''}`);
+  const html = { a: side(a, da), b: side(b, db),
+    gap: `<span class="bt-tag">${tag}</span><b class="bt-val">${main}${unit ? `<small>${unit}</small>` : ''}</b>${ahead ? `<span class="bt-who">${esc((ahead === 'a' ? da : db).Tla || '')} devant</span>` : ''}` };
+  for (const box of bands()) {
+    box.style.setProperty('--ta', teamColor(da));
+    box.style.setProperty('--tb', teamColor(db));
+    box.classList.toggle('close', close);
+    for (const k of ['a', 'b', 'gap']) { const el = box.querySelector(`.bt-band [data-s="${k}"]`); if (el._h !== html[k]) { el._h = html[k]; el.innerHTML = html[k]; } }
+  }
   renderLive(a, b, dl, disp);
 }
 
@@ -213,6 +230,8 @@ function renderSlow(a, b) {
     const tr = trend(series, tlaA, tlaB, gapNow);
     $('#btTrend').className = `bt-trend ${tr.cls}`;
     put('#btTrend', tr.html);
+    const bt = $('#duelBand .bt-btrend');
+    if (bt) { bt.className = `bt-btrend ${tr.cls}`; bt.innerHTML = tr.cls === 'stable' && series.filter((p) => !p.pit).length < 3 ? '' : tr.html; }
   } else {
     $('#btTrend').className = 'bt-trend stable';
     put('#btTrend', kind === 'quali' ? `Meilleurs tours de la Q${Number(s.TimingData?.SessionPart) || 1}` : 'Meilleurs tours de la séance');
@@ -269,6 +288,8 @@ export function renderDuel() {
   $('#duelAhead').classList.toggle('on', store.duel.auto === 'ahead');
   $('#duelBehind').classList.toggle('on', store.duel.auto === 'behind');
   const { a, b } = store.duel;
+  // Bandeau sur le Classement : seulement quand les deux pilotes y ont été choisis (pas le duel proposé tout seul)
+  showTowerBand(!!(a && b && dl[a] && dl[b] && store.duel.manual));
   if (!a || !b || !dl[a] || !dl[b]) {
     if (skeletonFor !== 'empty') {
       skeletonFor = 'empty';
@@ -293,18 +314,18 @@ export function renderDuel() {
 }
 
 export function initDuel() {
-  $('#duelA').addEventListener('change', (e) => setDuel('a', e.target.value || null));
-  $('#duelB').addEventListener('change', (e) => setDuel('b', e.target.value || null));
+  $('#duelA').addEventListener('change', (e) => setDuel('a', e.target.value || null, true));
+  $('#duelB').addEventListener('change', (e) => setDuel('b', e.target.value || null, true));
   $('#duelSwap').addEventListener('click', () => {
     const { a, b } = store.duel;
-    store.duel = { a: b, b: a };
+    store.duel = { a: b, b: a, manual: store.duel.manual };
     setDuel('a', b);
     setDuel('b', a);
   });
   const auto = (mode) => {
     const a = store.duel.a || store.focus || orderedNumbers(store.state)[1];
     if (!a) return;
-    store.duel = { a, b: store.duel.b, auto: store.duel.auto === mode ? null : mode };
+    store.duel = { a, b: store.duel.b, auto: store.duel.auto === mode ? null : mode, manual: store.duel.manual };
     skeletonFor = null;
   };
   $('#duelAhead').addEventListener('click', () => auto('ahead'));

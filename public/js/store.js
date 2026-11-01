@@ -111,9 +111,10 @@ export function setDelay(ms) {
   emit('delay', store.delay);
 }
 
-export function setDuel(slot, num) {
+// manual : choisi par l'utilisateur (classement, sélecteurs du Duel) ; le bandeau du duel ne s'affiche que dans ce cas
+export function setDuel(slot, num, manual = false) {
   // Un choix manuel du pilote B désactive le duel automatique devant/derrière.
-  store.duel = { ...store.duel, [slot]: num, ...(slot === 'b' ? { auto: null } : {}) };
+  store.duel = { ...store.duel, [slot]: num, ...(slot === 'b' ? { auto: null } : {}), ...(manual ? { manual: true } : {}) };
   if (slot === 'a' && store.duel.b === num) store.duel.b = null;
   if (slot === 'b' && store.duel.a === num) store.duel.a = null;
   storageSet('paddock.duel', store.duel);

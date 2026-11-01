@@ -447,7 +447,7 @@ export function initTower() {
     const b = e.target.closest('[data-duel]');
     if (b) {
       const slot = b.dataset.duel;
-      setDuel(slot, store.duel[slot] === b.dataset.num ? null : b.dataset.num);
+      setDuel(slot, store.duel[slot] === b.dataset.num ? null : b.dataset.num, true);
       renderTower(true);
       return;
     }
