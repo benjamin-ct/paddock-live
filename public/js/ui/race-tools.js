@@ -33,8 +33,9 @@ function gapsToLeader(state) {
 // sur la carte), ligne d'arrivée en haut ; sans tracé, elles sont placées selon leur écart au
 // leader (le leader en haut). La sortie des stands du pilote choisi le suit, en retard du temps
 // perdu au stand.
-const R = 100, C = 130, TAU = 2 * Math.PI;
+const R = 112, C = 228, TAU = 2 * Math.PI, RL = R + 40, RL2 = 32;   // RL : rayon des étiquettes (RL2 : deuxième rangée)
 const pt = (a, r) => [C + r * Math.sin(a), C - r * Math.cos(a)];
+const f1 = (v) => v.toFixed(1);
 function trackAngle(num) {
   const pos = store.positions, L = pos.track?.L, now = displayNow();
   if (!L) return null;
@@ -42,17 +43,36 @@ function trackAngle(num) {
   return p === null || p === undefined ? null : ((((p / L - pos.lineFrac()) % 1) + 1) % 1) * TAU;
 }
 
+// État de la piste affiché au centre du cercle
+const TRACK = { 1: ['Piste dégagée', 'green'], 2: ['Drapeau jaune', 'yellow'], 4: ['Voiture de sécurité', 'yellow'], 5: ['Drapeau rouge', 'red'], 6: ['VSC', 'yellow'], 7: ['Fin de VSC', 'yellow'] };
+
 function circleSvg(gaps, me, dl, live) {
-  const lap = gaps.lap || 90;
-  const ticks = Array.from({ length: 12 }, (_, i) => { const a = (i / 12) * TAU; const [ax, ay] = pt(a, R - 6); const [bx, by] = pt(a, R + 6); return `<line x1="${ax.toFixed(1)}" y1="${ay.toFixed(1)}" x2="${bx.toFixed(1)}" y2="${by.toFixed(1)}"/>`; }).join('');
-  const dots = gaps.map((g) => `<g class="cd-car${g.num === me ? ' me' : ''}" data-num="${g.num}"><circle r="${g.num === me ? 7 : 5.5}" fill="${teamColor(dl[g.num])}"/>
-      <text fill="${teamColor(dl[g.num])}">${esc(dl[g.num]?.Tla || g.num)}</text></g>`).join('');
-  return `<svg class="cd" viewBox="0 0 260 260" role="img" aria-label="Cercle de position">
-    <circle cx="${C}" cy="${C}" r="${R}" class="cd-ring"/><g class="cd-ticks">${ticks}</g>
-    ${live ? `<line x1="${C}" y1="${C - R - 9}" x2="${C}" y2="${C - R + 9}" class="cd-line"/>` : ''}
-    <path class="cd-loss"/><circle r="8" class="cd-ghost"/><text class="cd-ghost-l">sortie ${esc(dl[me]?.Tla || me)}</text>
-    ${dots}
-    <text x="${C}" y="${C - 18}" class="cd-mid2">${live ? 'ligne d\'arrivée en haut' : 'leader en haut'}</text><text x="${C}" y="${C - 2}" class="cd-mid">1 tour</text><text x="${C}" y="${C + 12}" class="cd-mid2">${lap.toFixed(1).replace('.', DEC)} s</text>
+  const lap = gaps.lap || 90, s = store.state;
+  const cur = Number(s.LapCount?.CurrentLap) || 0, total = Number(s.LapCount?.TotalLaps) || 0;
+  const [stTxt, stCls] = TRACK[String(s.TrackStatus?.Status || '1')] || TRACK[1];
+  // Graduations : une par seconde, plus longues et numérotées toutes les 10 s (temps derrière la ligne / le leader)
+  const ticks = Array.from({ length: Math.floor(lap) }, (_, i) => {
+    const a = -(i / lap) * TAU, big = i % 10 === 0 && i;
+    const [ax, ay] = pt(a, R - (big ? 15 : 9)), [bx, by] = pt(a, R - 4);
+    const lbl = big ? (() => { const [tx2, ty2] = pt(a, R - 24); return `<text x="${f1(tx2)}" y="${f1(ty2)}" class="cd-sec">${i}</text>`; })() : '';
+    return `<line x1="${f1(ax)}" y1="${f1(ay)}" x2="${f1(bx)}" y2="${f1(by)}"${big ? ' class="big"' : ''}/>${lbl}`;
+  }).join('');
+  const cars = gaps.map((g) => {
+    const col = teamColor(dl[g.num]);
+    return `<g class="cd-car${g.num === me ? ' me' : ''}" data-num="${g.num}"><line class="cd-lead" stroke="${col}"/><circle class="cd-dot" r="${g.num === me ? 7.5 : 5.5}" fill="${col}"/>
+      <g class="cd-tag"><rect x="-19" y="-12" width="38" height="24" rx="4" fill="${col}"/><text y="-3" class="t1">${esc(dl[g.num]?.Tla || g.num)}</text><text y="7.5" class="t2"></text></g></g>`;
+  }).join('');
+  const flag = `<g class="cd-flag" transform="translate(${C - 7} ${C - R - 23})">${[0, 1, 2].map((r) => [0, 1, 2, 3].map((c) => ((r + c) % 2 ? '' : `<rect x="${c * 3.5}" y="${r * 3.5}" width="3.5" height="3.5"/>`)).join('')).join('')}<rect x="0" y="0" width="14" height="10.5" class="cd-flag-box"/></g>`;
+  return `<svg class="cd" viewBox="0 0 ${2 * C} ${2 * C}" role="img" aria-label="Cercle de position">
+    <circle cx="${C}" cy="${C}" r="${R + 22}" class="cd-bg"/><circle cx="${C}" cy="${C}" r="${R}" class="cd-ring"/><g class="cd-ticks">${ticks}</g>
+    ${live ? flag : ''}
+    <path class="cd-loss"/><g class="cd-in-loss"></g><circle r="9.5" class="cd-ghost"/>
+    <g class="cd-ghost-l"><rect x="-38" y="-9" width="76" height="18" rx="5"/><text y="1">${esc(t('Après l\'arrêt'))}</text></g>
+    ${cars}
+    <text x="${C}" y="${C - 14}" class="cd-lap">${cur ? `${cur}${total ? `/${total}` : ''}` : ''}</text>
+    <g transform="translate(${C} ${C + 8})"><rect x="-44" y="-9" width="88" height="17" rx="4" class="cd-st ${stCls}"/><text y="0" class="cd-st-t">${esc(t(stTxt))}</text></g>
+    <text x="${C}" y="${C + 30}" class="cd-mid2">${esc(t('Tour de référence : {}', `${f1(lap).replace('.', DEC)} s`))}</text>
+    <text x="${C}" y="${C + 43}" class="cd-mid3">${esc(t('Écart à {}', dl[me]?.Tla || me))} · ${live ? esc(t('ligne en haut')) : esc(t('leader en haut'))}</text>
   </svg>`;
 }
 
@@ -66,9 +86,8 @@ function placeCars() {
   const now = performance.now(), k = Math.min(1, ((now - cdLast) / 1000) * 5);
   cdLast = now;
   const { gaps, me, projected } = cd, lap = gaps.lap || 90;
-  const lead = trackAngle(gaps[0].num) ?? 0;
-  const placed = [];
-  let aMe = 0, gMe = 0;
+  const lead = trackAngle(gaps[0].num) ?? 0, mine = gaps.find((g) => g.num === me);
+  const list = [];
   for (const g of gaps) {
     const el = svg.querySelector(`.cd-car[data-num="${g.num}"]`);
     if (!el) continue;
@@ -76,21 +95,50 @@ function placeCars() {
     const prev = cdAng.get(g.num);
     const a = prev === undefined ? target : prev + Math.atan2(Math.sin(target - prev), Math.cos(target - prev)) * k;
     cdAng.set(g.num, a);
-    // Étiquettes alternées dedans / dehors pour limiter les chevauchements
-    const near = placed.filter((b) => Math.abs(Math.atan2(Math.sin(b - a), Math.cos(b - a))) < 0.2).length;
-    placed.push(a);
-    const [x, y] = pt(a, R), [lx, ly] = pt(a, near % 2 ? R - 24 : R + 22);
-    el.firstElementChild.setAttribute('cx', x.toFixed(1)); el.firstElementChild.setAttribute('cy', y.toFixed(1));
-    el.lastElementChild.setAttribute('x', lx.toFixed(1)); el.lastElementChild.setAttribute('y', ly.toFixed(1));
-    if (g.num === me) { aMe = a; gMe = g.gap; }
+    list.push({ g, el, a, la: a });
   }
-  // Sortie des stands : en retard du temps perdu au stand, et arc entre la voiture et sa sortie
-  const span = ((projected - gMe) / lap) * TAU, a1 = aMe - span;
-  const [x0, y0] = pt(aMe, R), [x1, y1] = pt(a1, R), [gx, gy] = pt(a1, R - 40);
-  svg.querySelector('.cd-loss').setAttribute('d', `M${x0.toFixed(1)} ${y0.toFixed(1)} A${R} ${R} 0 ${Math.abs(span) > Math.PI ? 1 : 0} 0 ${x1.toFixed(1)} ${y1.toFixed(1)}`);
-  const gh = svg.querySelector('.cd-ghost'), gl = svg.querySelector('.cd-ghost-l');
-  gh.setAttribute('cx', x1.toFixed(1)); gh.setAttribute('cy', y1.toFixed(1));
-  gl.setAttribute('x', gx.toFixed(1)); gl.setAttribute('y', gy.toFixed(1));
+  // Étiquettes à l'extérieur, au moins MIN radians les unes des autres, au plus près de leur voiture : tour coupé au plus
+  // grand vide entre deux voitures, puis passe avant (pousser vers l'avant) et passe arrière (vers l'arrière), moyennées
+  // Deux rangées en alternance quand elles se suivent de près : l'écart minimal se compte entre voisines de rangée
+  const MIN = Math.min(0.15, (TAU * 0.96) / Math.max(1, list.length));
+  const norm = (x) => (((x % TAU) + TAU) % TAU);
+  list.sort((x, y) => norm(x.a) - norm(y.a));
+  if (list.length > 1) {
+    let cut = 0, gapMax = -1;
+    list.forEach((o, i) => { const d = norm(list[(i + 1) % list.length].a - o.a) || TAU; if (d > gapMax) { gapMax = d; cut = (i + 1) % list.length; } });
+    const seq = [...list.slice(cut), ...list.slice(0, cut)];
+    let base = norm(seq[0].a);
+    const want = seq.map((o) => { const v = norm(o.a - base) + base; return v; });
+    const fw = [], bw = [];
+    want.forEach((v, i) => { fw.push(i ? Math.max(v, fw[i - 1] + MIN) : v); });
+    for (let i = want.length - 1; i >= 0; i--) bw[i] = i === want.length - 1 ? want[i] : Math.min(want[i], bw[i + 1] - MIN);
+    seq.forEach((o, i) => { o.la = (fw[i] + bw[i]) / 2; });
+    seq.forEach((o, i) => { o.ring = i && o.la - seq[i - 1].la < 0.27 ? 1 - seq[i - 1].ring : 0; });
+  } else list.forEach((o) => { o.la = o.a; o.ring = 0; });
+  for (const { g, el, a, la, ring } of list) {
+    const rl = RL + (ring ? RL2 : 0), [x, y] = pt(a, R), [lx, ly] = pt(la, rl), [ex, ey] = pt(la, rl - 13), [sx, sy] = pt(a, R + 8);
+    const dot = el.querySelector('.cd-dot'), lead2 = el.querySelector('.cd-lead'), tag = el.querySelector('.cd-tag');
+    dot.setAttribute('cx', f1(x)); dot.setAttribute('cy', f1(y));
+    lead2.setAttribute('x1', f1(sx)); lead2.setAttribute('y1', f1(sy)); lead2.setAttribute('x2', f1(ex)); lead2.setAttribute('y2', f1(ey));
+    tag.setAttribute('transform', `translate(${f1(lx)} ${f1(ly)})`);
+    // Écart avec le pilote choisi (lui : sa position) ; voitures à un tour ou plus : « 1T »
+    const d = g.gap - mine.gap, t2 = tag.querySelector('.t2');
+    const txt = g.num === me ? `P${gaps.indexOf(g) + 1}` : g.lapped && g.lapped !== mine.lapped ? `${Math.abs(g.lapped - (mine.lapped || 0))}T` : `${d > 0 ? '+' : d < 0 ? '−' : '±'}${Math.abs(d).toFixed(1).replace('.', DEC)}`;
+    if (t2.textContent !== txt) t2.textContent = txt;
+  }
+  // Sortie des stands : arc violet en retard du temps perdu au stand ; repère des voitures que l'arc couvre
+  const aMe = cdAng.get(me) ?? 0, span = ((projected - mine.gap) / lap) * TAU, a1 = aMe - span;
+  const [x0, y0] = pt(aMe, R), [x1, y1] = pt(a1, R), [gx, gy] = pt(a1, R - 30);
+  svg.querySelector('.cd-loss').setAttribute('d', `M${f1(x0)} ${f1(y0)} A${R} ${R} 0 ${Math.abs(span) > Math.PI ? 1 : 0} 0 ${f1(x1)} ${f1(y1)}`);
+  const inLoss = list.filter((o) => o.g.num !== me && o.g.gap > mine.gap && o.g.gap <= projected).map((o) => {
+    const [ax, ay] = pt(o.a, R - 8), [bx, by] = pt(o.a, R + 8);
+    return `<line x1="${f1(ax)}" y1="${f1(ay)}" x2="${f1(bx)}" y2="${f1(by)}"/>`;
+  }).join('');
+  const box = svg.querySelector('.cd-in-loss');
+  if (box._h !== inLoss) { box.innerHTML = inLoss; box._h = inLoss; }
+  const gh = svg.querySelector('.cd-ghost');
+  gh.setAttribute('cx', f1(x1)); gh.setAttribute('cy', f1(y1));
+  svg.querySelector('.cd-ghost-l').setAttribute('transform', `translate(${f1(gx)} ${f1(gy)})`);
 }
 
 // ---------------- Simulateur d'arrêt ----------------
