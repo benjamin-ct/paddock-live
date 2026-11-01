@@ -299,10 +299,11 @@ export function barrierOffsets(turn, ds, { near = 15, far = 30, corner = 1 / 250
 }
 
 // Tribunes : le long de la ligne droite de la ligne d'arrivée (des deux côtés : celle du côté des stands est enlevée
-// ensuite, la voie des stands n'est connue qu'après), et à l'extérieur des plus grands virages (ceux qui tournent le plus,
-// au moins minTurn rad, à plus de gap m les uns des autres et de la ligne). start : point de la ligne. -> [{ from, to
-// (indices, dans le sens du tracé), side (1 : côté SIDE, -1 : l'autre, 0 : les deux) }], la ligne droite d'abord
-export function standSpots(turn, ds, start, { straight = 1 / 300, main = 220, len = 70, corners = 3, minTurn = 1.2, gap = 350, min = 1 / 150 } = {}) {
+// ensuite, la voie des stands n'est connue qu'après), et à l'extérieur des virages (jusqu'à corners, ceux qui tournent
+// le plus d'abord, au moins minTurn rad, à plus de gap m les uns des autres et de la ligne), plus longues pour les grands
+// virages (de len à maxLen m), surtout avant le sommet (freinage). start : point de la ligne. -> [{ from, to (indices,
+// dans le sens du tracé), side (1 : côté SIDE, -1 : l'autre, 0 : les deux) }], la ligne droite d'abord
+export function standSpots(turn, ds, start, { straight = 1 / 300, main = 220, len = 70, maxLen = 170, corners = 14, minTurn = 0.7, gap = 180, min = 1 / 150 } = {}) {
   const n = turn.length, half = Math.round(main / 2 / ds), out = [];
   let a = 0, b = 0;
   while (a < half && Math.abs(turn[wrap(n, start - a - 1)]) < straight) a++;
@@ -313,12 +314,13 @@ export function standSpots(turn, ds, start, { straight = 1 / 300, main = 220, le
     for (let k = 0; k < l; k++) { const i = (s + k) % n; sum += turn[i] * ds; if (Math.abs(turn[i]) > Math.abs(turn[apex])) apex = i; }
     return { apex, sum };
   }).filter((c) => Math.abs(c.sum) >= minTurn).sort((p, q) => Math.abs(q.sum) - Math.abs(p.sum));
-  const dist = (i, j) => Math.min(wrap(n, i - j), wrap(n, j - i)) * ds, taken = [start], h = Math.round(len / 2 / ds);
+  const dist = (i, j) => Math.min(wrap(n, i - j), wrap(n, j - i)) * ds, taken = [start];
   for (const c of list) {
     if (taken.length > corners) break;
     if (taken.some((j) => dist(c.apex, j) < gap)) continue;
     taken.push(c.apex);
-    out.push({ from: wrap(n, c.apex - h), to: wrap(n, c.apex + h), side: -Math.sign(c.sum) });
+    const h = Math.min(maxLen, Math.max(len, 50 + Math.abs(c.sum) * 45)) / ds;
+    out.push({ from: wrap(n, c.apex - Math.round(h * 0.65)), to: wrap(n, c.apex + Math.round(h * 0.35)), side: -Math.sign(c.sum) });
   }
   return out;
 }

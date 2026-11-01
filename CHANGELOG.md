@@ -184,6 +184,14 @@ l'application (Réglages → À propos → Nouveautés).
   terre mêlés loin de la piste, paddock goudronné autour du bâtiment des stands, et dégagements asphaltés et bacs à
   graviers à l'extérieur des virages quand la carte n'en a pas.
 - Plus de mur au milieu de la piste là où la carte du quartier en plaçait un (au Mexique, le long du stade).
+- Circuit moins désert : beaucoup plus de tribunes (jusqu'à une quinzaine de virages, plus longues dans les grands
+  virages, surtout avant le point de corde), découvertes dans les virages, et remplies de public aux t-shirts de toutes
+  les couleurs ; les tribunes connues de la carte du quartier, qui n'étaient que des blocs gris, deviennent de vrais
+  gradins avec toit et public. Aussi des postes de commissaires tous les 250 m environ et de grands panneaux sur
+  poteaux le long des lignes droites. En Économe : seulement les tribunes avec toit et leur public.
+- Vue Embarquée plus vraie : rebords du cockpit et dessus du châssis à la couleur de l'écurie, rétroviseurs, la tête
+  qui vibre avec la vitesse et penche dans les virages, champ de vision un peu plus large à pleine vitesse, et seules
+  les étiquettes des voitures proches.
 
 ### Téléphone
 - En course, le haut de l'écran tient sur deux lignes (le délai TV à côté du tour) : une ligne de classement en plus, et
