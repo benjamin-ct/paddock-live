@@ -178,7 +178,6 @@ export function drawingMarks({ shapes, texts = [] }, track, M = 10) {
     const idx = near(c);
     if (idx !== null && !ticks.some((t) => Math.hypot(...fit.apply(t.c).map((v, k) => v - fit.apply(c)[k])) < 15 * M)) ticks.push({ c, idx });
   }
-  const onMap = (t) => nearest(q, fit.apply([t.x, t.y]))[1] < 80 * M;
   // Libellés « OT D » / « OT A » d'un seul tenant, ou écrits à la verticale en deux morceaux (« OT » puis « D » / « A »)
   const str = (t) => String(t.s).trim();
   const ot = [...texts.filter((t) => /^OT\s*[DA]$/i.test(str(t))).map((t) => ({ ...t, k: str(t).slice(-1).toUpperCase() }))];
@@ -186,14 +185,15 @@ export function drawingMarks({ shapes, texts = [] }, track, M = 10) {
     const l = texts.filter((u) => /^[DA]$/i.test(str(u)) && Math.hypot(u.x - t.x, u.y - t.y) < 30).sort((a, b) => Math.hypot(a.x - t.x, a.y - t.y) - Math.hypot(b.x - t.x, b.y - t.y))[0];
     if (l) ot.push({ x: (t.x + l.x) / 2, y: (t.y + l.y) / 2, k: str(l).toUpperCase() });
   }
-  const labels = (re) => ot.filter((t) => t.k === (re.source.includes('D') ? 'D' : 'A') && onMap(t));
-  const d2 = (t, l) => Math.hypot(t.c[0] - l.x, t.c[1] - l.y);
+  const labels = (re) => ot.filter((t) => t.k === (re.source.includes('D') ? 'D' : 'A'));
+  // Distance trait - libellé, en unités du tracé ; au-delà de 400 m (légende), pas de rattachement
+  const d2 = (t, l) => { const a = fit.apply(t.c), b = fit.apply([l.x, l.y]), d = Math.hypot(a[0] - b[0], a[1] - b[1]); return d < 400 * M ? d : Infinity; };
   let detection = null, activation = null, best = Infinity;
   for (const ld of labels(/^OT\s*D$/i)) for (const la of labels(/^OT\s*A$/i)) {
     for (const td of ticks) for (const ta of ticks) {
       if (td === ta && ticks.length > 1) continue;
       const cost = d2(td, ld) + d2(ta, la);
-      if (cost < best) { best = cost; detection = td.idx; activation = ta.idx; }
+      if (cost < best && Number.isFinite(cost)) { best = cost; detection = td.idx; activation = ta.idx; }
     }
   }
   if (detection === activation) { detection = null; activation = null; }   // un seul trait : on garde le texte du plan
