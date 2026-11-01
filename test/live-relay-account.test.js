@@ -13,7 +13,7 @@ test('relais web par compte F1 TV : mêmes relais pour toutes les connexions du 
   assert.notEqual(await relayId(a1), await relayId(b));
 
   const r = Object.create(LiveRelay.prototype);
-  Object.assign(r, { name: `u:${await relayId(a1)}`, clients: new Set(), ips: new Map(), status: { authenticated: true }, base: {}, recent: [], stream: [] });
+  Object.assign(r, { name: `u:${await relayId(a1)}`, clients: new Set(), ips: new Map(), status: { authenticated: true }, base: {}, recent: [], stream: [], out: [], outStream: [] });
   let connects = 0;
   r.connect = () => { connects++; };
   r.reconnectLater = () => {};
