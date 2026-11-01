@@ -4,7 +4,7 @@ import { prefs } from '../prefs.js';
 import { $, esc, drivers, orderedNumbers, sessionKind, teamColor, teamMark, tyreBadge, currentStint, fmtSigned, photoUrl, driverOpt } from '../util.js';
 import { parseGap, parseLapTime, catchLaps } from '/shared/f1.js';
 import { carNow } from './gauge.js';
-import { DEC } from '../i18n.js';
+import { DEC, t } from '../i18n.js';
 import { realStopCount } from '/shared/pits.js';
 
 let skeletonFor = null;
@@ -190,7 +190,8 @@ function renderHero(a, b) {
     const last = l.LastLapTime?.Value ? `<span class="bt-last${mine !== null && other !== null && mine < other ? ' win' : ''}" title="Dernier tour">${esc(l.LastLapTime.Value)}</span>` : '';
     return `${photo}<div class="bt-id"><b class="bt-name" title="${esc(d.FullName || '')}">${teamMark(d)}${esc(d.Tla || num)}</b>
       <small>${l.Position ? `P${esc(l.Position)} · ` : ''}${esc(d.TeamName || '')}</small>
-      <span class="bt-stats">${st ? `<span class="bt-tyre">${tyreBadge(st.Compound, st.TotalLaps, st.New)}</span>` : ''}${last}<span class="bt-kmh" hidden><b></b> km/h</span></span></div>`;
+      <span class="bt-stats">${st ? `<span class="bt-tyre">${tyreBadge(st.Compound, st.TotalLaps, st.New)}</span>` : ''}${last}<span class="bt-kmh" hidden><b></b> km/h</span></span>
+      <span class="bt-tele" hidden title="${esc(t('Accélérateur et frein en direct, rapport engagé'))}"><span class="bt-tg"></span><span class="bt-tb"><i class="thr"><b></b></i><i class="brk"><b></b></i></span></span></div>`;
   };
   const html = { a: side(a, da, lastA, lastB), b: side(b, db, lastB, lastA),
     gap: `<span class="bt-tag">${tag}</span><b class="bt-val">${main}${unit ? `<small>${unit}</small>` : ''}</b>${ahead ? `<span class="bt-who">${esc((ahead === 'a' ? da : db).Tla || '')} devant</span>` : ''}${bandTrend}` };
@@ -203,6 +204,13 @@ function renderHero(a, b) {
       const el = box.querySelector(`.bt-band [data-s="${k}"] .bt-kmh`);
       el.hidden = !c?.speed;
       if (c?.speed) el.firstChild.textContent = Math.round(c.speed);
+      // Télémétrie en barres horizontales : accélérateur (vert) et frein (rouge), rapport engagé
+      const tl = box.querySelector(`.bt-band [data-s="${k}"] .bt-tele`);
+      tl.hidden = !c;
+      if (!c) continue;
+      tl.querySelector('.bt-tg').textContent = c.gear ? c.gear : 'N';
+      tl.querySelector('.thr b').style.width = `${Math.max(0, Math.min(100, c.thr || 0))}%`;
+      tl.querySelector('.brk b').style.width = `${c.brk ? (c.brk > 1 ? Math.min(100, c.brk) : 100) : 0}%`;
     }
   }
   renderLive(a, b, dl, ca, cb);
@@ -211,6 +219,7 @@ function renderHero(a, b) {
 // Télémétrie en direct : vitesse, rapport, accélérateur et frein de chaque pilote
 function renderLive(a, b, dl, ca, cb) {
   const host = $('#btLive');
+  if (!host) return;   // version web : pas de panneau Duel, seulement le bandeau
   host.hidden = !ca && !cb;
   if (host.hidden) return;
   if (host.dataset.pair !== `${a}-${b}`) {
@@ -250,12 +259,12 @@ function renderSlow(a, b) {
     const off = officialGap(s, a, b);
     const gapNow = off && off.gap !== null && !off.laps ? (off.ahead === 'a' ? off.gap : -off.gap) : null;
     const tr = trend(series, tlaA, tlaB, gapNow);
-    $('#btTrend').className = `bt-trend ${tr?.cls || 'stable'}`;
+    if ($('#btTrend')) $('#btTrend').className = `bt-trend ${tr?.cls || 'stable'}`;   // panneau Duel (absent de la version web)
     put('#btTrend', tr?.html || 'Tendance après deux tours communs');
     bandTrend = tr ? `<span class="bt-gtrend ${tr.cls}">${tr.band}</span>${tr.eta ? `<span class="bt-geta">${tr.eta}</span>` : ''}` : '';
   } else {
     bandTrend = '';
-    $('#btTrend').className = 'bt-trend stable';
+    if ($('#btTrend')) $('#btTrend').className = 'bt-trend stable';
     put('#btTrend', kind === 'quali' ? `Meilleurs tours de la Q${Number(s.TimingData?.SessionPart) || 1}` : 'Meilleurs tours de la séance');
   }
   put('#btSpark', spark(series));
@@ -333,6 +342,23 @@ export function renderDuel() {
     renderDuel.lastSlow = now;
     renderSlow(a, b);
   }
+}
+
+// Version web (pas de panneau Duel) : seulement le bandeau sur le classement, quand deux pilotes y ont été cliqués,
+// avec sa tendance et sa prévision (renderSlow) et sa télémétrie (renderHero)
+let bandPair = '';
+export function renderDuelBand() {
+  const dl = drivers(store.state), { a, b } = store.duel;
+  const on = !!(a && b && dl[a] && dl[b] && store.duel.manual);
+  showTowerBand(on);
+  if (!on) return;
+  const now = performance.now(), slowKey = `${a}-${b}|${versionOf(['TimingData', 'TimingAppData', '__reset'])}`;
+  if (slowKey !== bandPair && (slowKey.split('|')[0] !== bandPair.split('|')[0] || now - (renderDuelBand.lastSlow || 0) > 700)) {
+    bandPair = slowKey;
+    renderDuelBand.lastSlow = now;
+    renderSlow(a, b);
+  }
+  if (now - lastFast > 200) { lastFast = now; renderHero(a, b); }
 }
 
 export function initDuel() {

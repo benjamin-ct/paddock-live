@@ -14,6 +14,7 @@ import { initMap } from './ui/map.js';
 import { renderRcm, initRcmFilters, initStewards, renderStewards } from './ui/feed.js';
 import { renderRadios, initRadios } from './ui/radios.js';
 import { renderTelemetry } from './ui/extra.js';
+import { renderDuelBand } from './ui/duel.js';
 import { initNoLive } from './ui/home.js';
 import { initSeason, closeSeason, openSeason, seasonUrls } from './ui/season.js';
 import { parseSeasonPath } from '/shared/season-urls.js';
@@ -293,6 +294,7 @@ function loop() {
   safe(showWait);
   safe(renderHeader);
   safe(renderTower);
+  safe(renderDuelBand);   // bandeau du duel sur le classement (deux pilotes cliqués)
   safe(renderRcm);
   safe(renderStewards);
   safe(renderRadios);

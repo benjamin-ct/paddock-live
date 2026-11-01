@@ -6,7 +6,7 @@ import { openNews, closeNews } from './news.js';
 import { openHome, closeHome, homeTouched, startWindows } from './home.js';
 import { openReplays, closeReplays } from './replays.js';
 import { openResults, closeResults, isResultsOpen } from './results-view.js';
-import { unmaximize, windowSetups, restoreWindowsSnapshot } from './layout.js';
+import { unmaximize, windowSetups, restoreWindowsSnapshot, openInWindow } from './layout.js';
 import { toast } from './delay.js';
 import { icon } from '../icons.js';
 import { prefs, setPref } from '../prefs.js';
@@ -48,16 +48,20 @@ function schemeMenu(btn) {
 // Dispo. : les dispositions enregistrées, remises en un clic, puis les réglages de la disposition
 function layoutMenu(btn) {
   const list = windowSetups();
-  if (!list.length) { openSettings('display'); return; }
   document.querySelector('.lpop-menu')?.remove();
   const menu = document.createElement('div');
   menu.className = 'lpop-menu rail-menu';
-  menu.innerHTML = `${list.map((w, i) => `<button data-w="${i}">${icon('layout')} <span data-no-i18n>${esc(w.name)}</span></button>`).join('')}<div class="rail-sep"></div><button data-w="set">${icon('sliders')} Réglages de la disposition</button>`;
+  // Fenêtres à ouvrir (Circuit, Analyse, Duel), puis dispositions enregistrées et réglages
+  const wins = [['map', 'Circuit'], ['analysis', 'Analyse'], ['duel', 'Duel']];
+  menu.innerHTML = `<div class="muted small">Ouvrir dans une fenêtre</div>${wins.map(([id, name]) => `<button data-open="${id}">${icon('external')} ${name}</button>`).join('')}
+    ${list.length ? `<div class="rail-sep"></div><div class="muted small">Dispositions enregistrées</div>${list.map((w, i) => `<button data-w="${i}">${icon('layout')} <span data-no-i18n>${esc(w.name)}</span></button>`).join('')}` : ''}<div class="rail-sep"></div><button data-w="set">${icon('sliders')} Réglages de la disposition</button>`;
   const r = btn.getBoundingClientRect();
   menu.style.left = `${r.right + 8}px`;
   document.body.appendChild(menu);
   menu.style.top = `${Math.max(8, Math.min(r.top - 20, innerHeight - menu.offsetHeight - 8))}px`;
   menu.addEventListener('click', (e) => {
+    const o = e.target.closest('[data-open]')?.dataset.open;
+    if (o) { menu.remove(); openInWindow(o); return; }
     const k = e.target.closest('[data-w]')?.dataset.w;
     if (!k) return;
     menu.remove();

@@ -27,18 +27,27 @@ l'application (Réglages → À propos → Nouveautés).
   derrière.
 
 ### Tableau de bord plus clair
-- Nouvelle disposition des panneaux, la même pour tout le monde : le Classement à gauche, le Circuit et l'Analyse au
-  milieu, et un seul panneau « Messages » à droite qui réunit la direction de course, les radios d'équipe, les enquêtes
-  et les limites de piste.
-- Analyse : seulement les 3 onglets utiles selon la séance. En course : Écarts, Arrêts (avec la stratégie) et
-  Télémétrie ; en qualifs et en essais : Secteurs, Comparaison et Télémétrie. Les autres (Temps, Pneus, Jeux de pneus,
-  simulateur d'arrêt, Bagarres, championnat) s'ajoutent en un clic.
+- Nouvel écran principal, le même pour tout le monde : le Classement à gauche, sur plus de la moitié de l'écran (le duel
+  de deux pilotes cliqués passe par-dessus) ; à droite, en haut, la Télémétrie du pilote suivi et les Radios d'équipe
+  côte à côte (transcrites et traduites d'office), et en dessous la Direction de course (avec les enquêtes et les
+  limites de piste). Il s'adapte à la taille de l'écran : sur un écran moins large, la Télémétrie et les Radios passent
+  l'une sous l'autre ; sur un écran peu haut, tout tient sans défiler, le compteur de la télémétrie se réduit à la place
+  disponible. Une barre entre deux panneaux côte à côte règle leurs largeurs.
+- Télémétrie : le pilote suivi se choisit en cliquant dans le classement (plus de liste à part, la consigne ne s'affiche
+  que tant qu'aucun pilote n'est choisi), le compteur tient en entier dans son panneau.
+- Le Circuit, l'Analyse et le Duel s'ouvrent chacun dans leur propre fenêtre, à placer où l'on veut (second écran) :
+  menu « Fenêtres » de la barre de gauche, ou bouton « + » au bout des onglets d'un panneau. Ils ne prennent plus de
+  place dans l'écran principal. Sur téléphone, où il n'y a qu'un écran, ils restent des onglets : Classement,
+  Télémétrie, Messages, Radios et Carte (Duel et Analyse avec la version complète).
+- Analyse : seulement les onglets utiles selon la séance. En course : Écarts et Arrêts (avec la stratégie) ; en qualifs
+  et en essais : Secteurs et Comparaison. Les autres (Temps, Pneus, Jeux de pneus, simulateur d'arrêt, Bagarres,
+  championnat) s'ajoutent en un clic.
 - Bouton « + » au bout des onglets de chaque panneau : il rouvre un onglet fermé, amène un onglet d'un autre panneau,
-  ou affiche un panneau masqué (Duel, Radios ou Stratégie à part).
+  ou ouvre le Circuit, l'Analyse ou le Duel dans une fenêtre.
 - Plus de choix entre les interfaces Essentiel et Complète : une seule, que chacun complète avec le bouton « + ».
-- À la mise à jour, tout le monde passe une fois à cette disposition (les fenêtres sur un second écran gardent leurs
-  panneaux). L'ancienne reste dans Réglages → Disposition → Fenêtres, sous le nom « Ma disposition d'avant » : un clic
-  la remet.
+- À la mise à jour, tout le monde passe une fois à ce nouvel écran (les fenêtres sur un second écran gardent leurs
+  panneaux). L'ancienne disposition reste dans Réglages → Disposition → Fenêtres, sous le nom « Ma disposition
+  d'avant » : un clic la remet.
 - Direction de course vide : le message « Aucun message » ne se coupe plus mot par mot.
 
 ### Langues
@@ -108,7 +117,10 @@ l'application (Réglages → À propos → Nouveautés).
   pneu et ses tours, son dernier tour (le plus rapide des deux en vert) et sa vitesse en direct ; au milieu l'écart en
   grand (« À moins d'une seconde » en vert quand ils sont proches) et, en course, si le pilote derrière reprend du temps
   (en vert) ou en perd (en rouge) et combien par tour, sans compter les tours d'arrêt. Il suit la course en direct et
-  se ferme avec ✕ ; le classement défile en dessous.
+  se ferme avec ✕ ; le classement défile en dessous. Aussi dans la version web.
+- Bandeau du duel : la télémétrie des deux pilotes en barres horizontales sous chacun, l'accélérateur en vert et le
+  frein en rouge, avec le rapport engagé (en direct avec F1 TV, et dans les replays qui en ont). Aussi dans la version
+  web, avec la connexion F1 TV de l'extension Paddock Live Companion.
 - Duel en course : quand le pilote derrière reprend du temps, le bandeau prévoit quand il sera sur l'autre
   (« rattrape en ~4 tours », si c'est avant l'arrivée) ou dit « à portée du DÉP » quand il est déjà à moins d'une
   seconde. Et les batailles sont repérées toutes seules : deux voitures à moins d'une seconde l'une de l'autre pendant
@@ -265,7 +277,7 @@ l'application (Réglages → À propos → Nouveautés).
 - Plusieurs dispositions enregistrées, chacune sous un nom (Réglages → Disposition → Fenêtres, par exemple « Course
   sur 2 écrans » ou « Qualifs portable ») : un clic sur son nom remet les panneaux de chaque fenêtre et leur place sur
   les écrans comme au moment de l'enregistrement, avec les panneaux et les onglets affichés et les colonnes du
-  classement, et ✕ la supprime. Elles sont aussi dans le menu « Dispo. » de la
+  classement, et ✕ la supprime. Elles sont aussi dans le menu « Fenêtres » de la
   barre de gauche. L'emplacement enregistré avant cette version est gardé sous le nom « Mon emplacement ».
 - Application de bureau : le temps avant la prochaine séance s'affiche dans la barre des menus sur Mac (« EL1 2 h 14 »,
   « Course 12 min », « LIVE » pendant la séance) et dans l'info-bulle de l'icône de la zone de notification sur Windows

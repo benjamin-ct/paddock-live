@@ -17,13 +17,14 @@ const QUALI_OFF = ['trace', 'positions', 'tyrehist', 'strategy', 'pitsim', 'batt
 const OFF = { race: ['compare'], quali: QUALI_OFF, practice: QUALI_OFF };
 
 const HOSTS = ['feed', 'radio', 'analysis', 'extra'];   // panneaux à onglets
-// Place des onglets par défaut (1.30) : les radios dans Messages, la stratégie dans Analyse (panneaux Radios et
-// Stratégie vides et masqués : affichés, ils reprennent leurs onglets). Onglets visibles : prefs.js (TAB_HIDDEN)
+// Place des onglets par défaut (1.30) : direction de course (et enquêtes, limites de piste) dans Messages, radios dans
+// Radios, télémétrie dans le panneau Télémétrie ; le reste dans Analyse, ouverte dans sa fenêtre. Onglets visibles :
+// prefs.js (TAB_HIDDEN)
 const START = {
-  feed: ['rcm', 'radios', 'stewards', 'tracklimits'],
-  radio: [],
-  analysis: ['trace', 'pits', 'sectors', 'compare', 'telemetry', 'laptimes', 'tyrehist', 'tyres', 'pitsim', 'battles', 'champ'],
-  extra: [],
+  feed: ['rcm', 'stewards', 'tracklimits'],
+  radio: ['radios'],
+  analysis: ['trace', 'pits', 'sectors', 'compare', 'laptimes', 'tyrehist', 'tyres', 'pitsim', 'battles', 'champ'],
+  extra: ['telemetry'],
 };
 const origin = {};                                      // onglet -> panneau d'origine (page)
 const defaults = {};                                    // panneau -> onglets par défaut (ordre)
@@ -310,7 +311,7 @@ export function canHideTab(t) {
 // Sur un onglet : le fermer ; ailleurs sur la barre d'onglets d'un panneau : tous ses onglets, pour remettre
 // ceux qui sont fermés (mêmes onglets masqués que Réglages → Onglets visibles)
 const groupOf = (t) => GROUPS[t] || [t];
-const PANEL_NAMES = { feed: 'Messages', radio: 'Radios', analysis: 'Analyse', extra: 'Stratégie', tower: 'Classement', map: 'Circuit', duel: 'Duel' };
+const PANEL_NAMES = { feed: 'Messages', radio: 'Radios', analysis: 'Analyse', extra: 'Télémétrie', tower: 'Classement', map: 'Circuit', duel: 'Duel' };
 const tabName = (t) => esc(tabList().find((x) => x[1] === t)?.[2] || t);
 function setTabHidden(t, hide) {
   const g = groupOf(t);
@@ -347,7 +348,7 @@ function tabMenu(e) {
     const panels = Object.entries(PANEL_NAMES).filter(([p]) => prefs.hiddenPanels.includes(p));
     m.innerHTML = `<div class="muted small">Onglets du panneau</div>${tabsOf(id).map((t) => item(t, true)).join('')}
       ${others.length ? `<div class="rail-sep"></div><div class="muted small">Amener un onglet ici</div>${others.map((t) => item(t, false)).join('')}` : ''}
-      ${panels.length ? `<div class="rail-sep"></div><div class="muted small">Afficher un panneau</div>${panels.map(([p, name]) => `<button data-panel="${p}">${icon('plus')}${esc(name)}</button>`).join('')}` : ''}`;
+      ${panels.length ? `<div class="rail-sep"></div><div class="muted small">Ouvrir dans une fenêtre</div>${panels.map(([p, name]) => `<button data-panel="${p}">${icon('external')}${esc(name)}</button>`).join('')}` : ''}`;
   }
   Object.assign(m.style, { maxHeight: 'calc(100vh - 16px)', overflowY: 'auto' });
   document.body.appendChild(m);
@@ -357,7 +358,7 @@ function tabMenu(e) {
     const b = ev.target.closest('[data-close], [data-open], [data-panel]');
     if (!b || b.disabled) return;
     m.remove();
-    if (b.dataset.panel) { setPref('hiddenPanels', prefs.hiddenPanels.filter((x) => x !== b.dataset.panel)); return; }
+    if (b.dataset.panel) { emit('openWindow', b.dataset.panel); return; }   // panneau masqué ici : dans sa propre fenêtre (ui/layout.js)
     if (b.dataset.close) { setTabHidden(b.dataset.close, true); return; }
     const t = b.dataset.open;
     const from = HOSTS.find((x) => tabsOf(x).includes(t));

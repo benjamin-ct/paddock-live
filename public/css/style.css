@@ -650,13 +650,20 @@ body.solo { overflow: hidden; }
 .grid.custom > .lcol { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 .grid.custom > .lcol.note { align-items: center; justify-content: center; flex: 1; }
 .grid.custom .lcol > .panel { min-height: 0; height: auto; }
-.lsplit-v, .lsplit-h { flex: 0 0 10px; position: relative; touch-action: none; }
-.lsplit-v { cursor: col-resize; }
+.lsplit-v, .lsplit-h, .lsplit-r { flex: 0 0 10px; position: relative; touch-action: none; }
+.lsplit-v, .lsplit-r { cursor: col-resize; }
+/* Panneaux côte à côte dans une colonne (même hauteur) ; écran moins large : l'un sous l'autre */
+.grid.custom .lrow { display: flex; min-height: 0; min-width: 0; }
+.grid.custom .lrow > .panel { min-width: 0; min-height: 0; height: auto; }
+@media (max-width: 1250px) { .grid.custom .lrow { flex-direction: column; flex-grow: 1.8 !important; } .grid.custom .lrow > .lsplit-r { display: none; } .grid.custom .lrow > .panel + .lsplit-r + .panel { margin-top: 10px; } }
+.grid.custom.has-max .lrow:not(:has(.panel.maximized)) { display: none; }
+.grid.custom.has-max .lrow:has(.panel.maximized), .grid.custom.has-max .lrow > .panel.maximized { flex: 1 1 0 !important; }
+.grid.custom.has-max .lrow > .panel:not(.maximized) { display: none; }
 .lsplit-h { cursor: row-resize; }
-.lsplit-v::after, .lsplit-h::after { content: ''; position: absolute; border-radius: 2px; background: transparent; transition: background .15s; }
-.lsplit-v::after { left: 4px; width: 2px; top: 30%; bottom: 30%; }
+.lsplit-v::after, .lsplit-h::after, .lsplit-r::after { content: ''; position: absolute; border-radius: 2px; background: transparent; transition: background .15s; }
+.lsplit-v::after, .lsplit-r::after { left: 4px; width: 2px; top: 30%; bottom: 30%; }
 .lsplit-h::after { top: 4px; height: 2px; left: 30%; right: 30%; }
-.lsplit-v:hover::after, .lsplit-h:hover::after, .lsplit-v.active::after, .lsplit-h.active::after { background: var(--blue); }
+.lsplit-v:hover::after, .lsplit-h:hover::after, .lsplit-r:hover::after, .lsplit-v.active::after, .lsplit-h.active::after, .lsplit-r.active::after { background: var(--blue); }
 body.resizing-x, body.resizing-x * { cursor: col-resize !important; user-select: none; }
 body.resizing-y, body.resizing-y * { cursor: row-resize !important; user-select: none; }
 body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-select: none; }
@@ -672,7 +679,7 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
 .lpop-menu button:disabled { opacity: .45; cursor: default; border-color: transparent; }
 .lpop-menu .rail-sep { height: 1px; background: var(--border); margin: 2px 0; }
 #soloFreeBtn.on { color: var(--accent); border-color: var(--accent); }
-.grid.custom.has-max .lsplit-v, .grid.custom.has-max .lsplit-h { display: none; }
+.grid.custom.has-max .lsplit-v, .grid.custom.has-max .lsplit-h, .grid.custom.has-max .lsplit-r { display: none; }
 .grid.custom.has-max > .lcol:not(:has(.panel.maximized)) { display: none; }
 /* Panneau agrandi : toute la place, quelles que soient les proportions enregistrées */
 .grid.custom.has-max > .lcol:has(.panel.maximized), .grid.custom.has-max .panel.maximized { flex: 1 1 0 !important; }
@@ -748,7 +755,6 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
 .tele-chip { display: inline-flex; align-items: center; height: 28px; border: 1.5px solid var(--tc); border-radius: 7px; overflow: hidden; background: var(--panel-2); }
 .tele-chip select.tele-pick:not([multiple]):not([size]) { field-sizing: content; min-width: 0; width: auto; height: 100%; background-color: transparent; border: 0; border-radius: 0; box-shadow: none; color: var(--text); font-weight: 800; font-size: 13px; padding: 0 24px 0 9px; background-position: right 7px center; }
 .tele2-vs { color: var(--muted); font-style: italic; font-size: 12px; }
-.tele-hint { margin-left: auto; }
 .tele2-dials { display: grid; align-items: center; gap: 6px; }
 .tele2-dials.two { grid-template-columns: 1fr auto 1fr; }
 .tele2-dials.one { grid-template-columns: minmax(0, 360px); justify-content: center; }
@@ -757,7 +763,17 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
 .tele-name { display: flex; align-items: center; gap: 6px; color: var(--tc); font-size: 15px; }
 .tele-name .team-logo { width: 20px; height: 20px; }
 .tele-name .muted { color: var(--text-2); }
+.tele-pick-hint { text-align: center; margin-top: 2px; }   /* aucun pilote choisi : consigne sous le nom du leader */
 .dial { width: 100%; max-width: 300px; display: block; }
+/* Écran principal : le compteur de la télémétrie se règle sur la hauteur de son panneau ; panneau bas : sans la
+   courbe des 30 dernières secondes */
+.grid.custom .p-extra .panel-body { container-type: size; }
+.grid.custom .p-extra .dial { max-width: max(110px, min(320px, calc(100cqh - 200px))); margin: 0 auto; }
+@container (max-height: 440px) {
+  .grid.custom .p-extra .trace { display: none; }
+  .grid.custom .p-extra .tele2 { gap: 4px; padding-top: 6px; }
+  .grid.custom .p-extra .dial { max-width: max(90px, min(320px, calc(100cqh - 56px))); }
+}
 .dial path { fill: none; stroke-linecap: round; }
 .dl-track { stroke: var(--panel-3); stroke-width: 12; }
 .dl-speed { stroke-width: 12; }
@@ -2247,7 +2263,7 @@ body.solo .grid .panel-head { padding-right: 116px; }
    barre du haut et barre de replay restent visibles */
 @media (min-width: 901px) and (max-height: 860px) {
   body:not(.solo) { overflow-y: auto; }
-  body:not(.solo) .grid:not(.has-max) { flex: none; height: 1000px; }
+  body:not(.solo) .grid:not(.has-max) { min-height: 540px; }   /* écran principal : à la hauteur de l'écran, défilement en dessous de 540 px */
   body:not(.solo) .topbar { position: sticky; top: 0; z-index: 60; }
   [data-theme="pitwall"] body:not(.solo) .replaybar { position: sticky; bottom: 0; z-index: 60; }
 }
@@ -3590,6 +3606,18 @@ html:is(.float-map, .overlay) .boot-cover { display: none; }
 .bt-last.win { color: #4ade80; }
 .bt-kmh { font-size: 11px; color: rgba(255, 255, 255, .7); }
 .bt-kmh b { font-family: var(--font-mono, monospace); font-variant-numeric: tabular-nums; font-size: 13px; color: #fff; display: inline-block; min-width: 3ch; text-align: right; }
+/* Télémétrie des deux pilotes dans le bandeau : rapport, puis accélérateur (vert) et frein (rouge) en barres
+   horizontales ; côté droit en miroir */
+.bt-tele { display: flex; align-items: center; gap: 6px; margin-top: 4px; width: min(150px, 100%); }
+.bt-tele[hidden] { display: none; }
+.bt-drv.b .bt-tele { flex-direction: row-reverse; margin-left: auto; }
+.bt-tg { font: italic 800 13px/1 var(--font-cond, var(--font)); color: #fff; min-width: 1.1em; text-align: center; }
+.bt-tb { flex: 1; display: grid; gap: 3px; }
+.bt-tb i { display: flex; height: 5px; border-radius: 3px; background: rgba(255, 255, 255, .16); overflow: hidden; }
+.bt-drv.b .bt-tb i { justify-content: flex-end; }
+.bt-tb b { display: block; height: 100%; border-radius: 3px; transition: width .12s linear; }
+.bt-tb .thr b { background: #22c55e; }
+.bt-tb .brk b { background: #ef4444; }
 .bt-gap { display: flex; flex-direction: column; align-items: center; gap: 1px; min-width: 110px; z-index: 1; }
 .bt-tag { font-size: 9.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: rgba(255, 255, 255, .55); white-space: nowrap; }
 .bt-val { font: italic 800 38px/1 var(--font-cond, inherit); font-variant-numeric: tabular-nums; white-space: nowrap; text-shadow: 0 0 26px rgba(255, 255, 255, .25); }

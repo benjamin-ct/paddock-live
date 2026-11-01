@@ -13,13 +13,13 @@ import { markSetup, setupToApply } from './layout-calc.js';
 export const PANELS = [
   { id: 'tower', cls: 'p-tower', name: 'Classement' },
   { id: 'map', cls: 'p-map', name: 'Circuit' },
-  { id: 'feed', cls: 'p-feed', name: 'Messages (direction de course, radios, enquêtes, limites de piste)' },
-  { id: 'radio', cls: 'p-radio', name: 'Radios (panneau à part)' },
+  { id: 'feed', cls: 'p-feed', name: 'Messages (direction de course, enquêtes, limites de piste)' },
+  { id: 'radio', cls: 'p-radio', name: 'Radios' },
   { id: 'duel', cls: 'p-duel', name: 'Duel' },
   { id: 'analysis', cls: 'p-analysis', name: 'Analyse (écarts, arrêts et stratégie, télémétrie, secteurs, comparaison…)' },
-  { id: 'extra', cls: 'p-extra', name: 'Stratégie (panneau à part)' },
+  { id: 'extra', cls: 'p-extra', name: 'Télémétrie' },
 ];
-const SHORT = { tower: 'Classement', map: 'Circuit', feed: 'Messages', radio: 'Radios', duel: 'Duel', analysis: 'Analyse', extra: 'Stratégie' };
+const SHORT = { tower: 'Classement', map: 'Circuit', feed: 'Messages', radio: 'Radios', duel: 'Duel', analysis: 'Analyse', extra: 'Télémétrie' };
 // Panneaux ajoutés dans une version plus récente : placés à côté d'un panneau existant
 // (dans la même colonne) quand on reprend une disposition enregistrée.
 const ADDED_NEAR = { radio: ['feed', 1], analysis: ['extra', 0] }; // [voisin, 1 = après / 0 = avant]
@@ -70,7 +70,8 @@ function panelEl(id) {
 }
 
 // ---------------- Modèle de disposition ----------------
-// {cols: [{w, items: [{id, h}]}]} ; w et h sont des proportions (flex-grow).
+// {cols: [{w, items: [{id, h}]}]} ; w et h sont des proportions (flex-grow). Des panneaux voisins d'une colonne avec
+// le même `row` sont côte à côte (même hauteur, celle du premier ; largeurs : leur `w`).
 // ---------------- Dispositions « Course » et « Qualif & essais » ----------------
 // Chaque type de séance a sa propre disposition (panneaux, tailles, panneaux masqués,
 // colonnes du classement, onglets ouverts), appliquée automatiquement selon la séance.
@@ -92,20 +93,14 @@ const lkey = (win = WIN, prof = profile) => (prof === 'race' || win !== 'main' ?
 function defaultLayout(prof = profile) {
   if (!isMain) return { cols: [] };
   const quali = prof === 'quali';
-  // Classement à gauche (plus large en qualifs et essais : Q1/Q2/Q3, tour en cours), carte et analyse au milieu,
-  // messages (direction de course, radios, enquêtes) à droite. Panneaux masqués par défaut à leur place s'ils sont
-  // affichés : duel au-dessus de l'analyse, radios et stratégie à part sous les messages et l'analyse.
-  // Écran plus étroit : deux colonnes, les messages sous le classement
-  if (window.innerWidth <= 1500) {
-    return { cols: [
-      { w: quali ? 1.3 : 1.2, items: [{ id: 'tower', h: 1.5 }, { id: 'feed', h: 0.8 }, { id: 'radio', h: 0.6 }] },
-      { w: 1, items: [{ id: 'map', h: 1.1 }, { id: 'duel', h: 0.8 }, { id: 'analysis', h: 1 }, { id: 'extra', h: 0.7 }] },
-    ] };
-  }
+  // Écran principal : Classement à gauche, sur plus de la moitié (encore plus large en qualifs et essais : Q1/Q2/Q3,
+  // tour en cours ; le duel passe par-dessus) ; à droite la Télémétrie et les Radios côte à côte en haut, et la
+  // Direction de course en dessous. Circuit, Analyse et Duel (masqués ici, s'ils sont affichés) : entre les deux
+  // (écran moins large : télémétrie et radios l'une sous l'autre, style.css .lrow)
+  const top = [{ id: 'extra', h: 1.15, row: 'tr', w: 1 }, { id: 'radio', h: 1.15, row: 'tr', w: 1.15 }];
   return { cols: [
-    { w: quali ? 1.55 : 1.3, items: [{ id: 'tower', h: 1 }] },
-    { w: 1.55, items: [{ id: 'map', h: 1.3 }, { id: 'duel', h: 0.8 }, { id: 'analysis', h: 1 }, { id: 'extra', h: 0.7 }] },
-    { w: 1.15, items: [{ id: 'feed', h: 1.3 }, { id: 'radio', h: 1 }] },
+    { w: quali ? 1.3 : 1.2, items: [{ id: 'tower', h: 1 }] },
+    { w: 1, items: [...top, { id: 'map', h: 1.1 }, { id: 'duel', h: 0.8 }, { id: 'analysis', h: 1 }, { id: 'feed', h: 1 }] },
   ] };
 }
 
@@ -117,7 +112,7 @@ function normalize(l) {
       if (!PANELS.some((p) => p.id === it?.id) || seen.has(it.id)) return false;
       seen.add(it.id);
       return true;
-    }).map((it) => ({ id: it.id, h: Number(it.h) > 0 ? Number(it.h) : 1 })),
+    }).map((it) => ({ id: it.id, h: Number(it.h) > 0 ? Number(it.h) : 1, ...(it.row ? { row: String(it.row), w: Number(it.w) > 0 ? Number(it.w) : 1 } : {}) })),
   })).filter((c) => c.items.length);
   // La fenêtre principale contient toujours tous les panneaux (ceux détachés y sont simplement cachés).
   if (isMain) {
@@ -154,8 +149,23 @@ function rescale(l) {
     if (sum > 0) for (const x of arr) x[key] = Math.round(((x[key] * arr.length) / sum) * 1000) / 1000;
   };
   fit(l.cols, 'w');
-  for (const c of l.cols) fit(c.items, 'h');
+  // Hauteurs : une rangée de panneaux côte à côte compte pour un (hauteur du premier, recopiée sur les autres)
+  for (const c of l.cols) {
+    const us = units(c.items);
+    fit(us.map((u) => u[0]), 'h');
+    for (const u of us) { for (const it of u) it.h = u[0].h; if (u.length > 1) fit(u, 'w'); }
+  }
   return l;
+}
+
+// Panneaux d'une colonne regroupés en rangées : voisins avec le même `row`, sinon un panneau seul
+function units(items) {
+  const out = [];
+  for (const it of items) {
+    const last = out.at(-1);
+    if (it.row && last?.[0].row === it.row) last.push(it); else out.push([it]);
+  }
+  return out;
 }
 
 function allLayouts() {
@@ -256,8 +266,8 @@ function narrow() {
 
 // Téléphone (et tablette en portrait) : un seul panneau à la fois, choisi dans la barre du bas.
 const MOB_TABS = [
-  ['tower', 'Classement'], ['map', 'Carte'], ['feed', 'Messages'], ['duel', 'Duel'],
-  ['analysis', 'Analyse'], ['extra', 'Stratégie'], ['radio', 'Radios'],
+  ['tower', 'Classement'], ['extra', 'Télémétrie'], ['feed', 'Messages'], ['radio', 'Radios'], ['map', 'Carte'],
+  ['duel', 'Duel'], ['analysis', 'Analyse'],
 ];
 // Icônes dessinées, dans tous les thèmes
 const MOB_SVG = {
@@ -277,7 +287,9 @@ function mobile() {
 }
 // Téléphone : version simplifiée (l'essentiel seulement), sauf « version complète » dans les réglages
 const simple = () => mobile() && !prefs.phoneFull;
-const SIMPLE_TABS = ['tower', 'map', 'feed', 'radio'];
+const SIMPLE_TABS = ['tower', 'extra', 'feed', 'radio', 'map'];
+// Téléphone : pas de fenêtres séparées, les panneaux qui s'ouvrent dans une fenêtre sur ordinateur restent des onglets
+const phoneVisible = (id) => isVisible(id) || PANELS_HIDDEN.includes(id);
 
 export function showMobilePanel(id) {
   mobTab = id;
@@ -294,13 +306,13 @@ function renderMobile(grid) {
   grid.classList.remove('custom', 'has-max', 'free');
   for (const p of PANELS) clearFree(panelEl(p.id));
   grid.classList.add('mobile');
-  const tabs = MOB_TABS.filter(([id]) => isVisible(id) && (!simple() || SIMPLE_TABS.includes(id)));
+  const tabs = MOB_TABS.filter(([id]) => phoneVisible(id) && (!simple() || SIMPLE_TABS.includes(id)));
   if (!tabs.some(([id]) => id === mobTab)) mobTab = tabs[0]?.[0] || 'tower';
   for (const p of PANELS) {
     const el = panelEl(p.id);
     el.style.flex = '';
     el.classList.remove('maximized');
-    el.classList.toggle('hidden-panel', p.id !== mobTab || !isVisible(p.id));
+    el.classList.toggle('hidden-panel', p.id !== mobTab || !phoneVisible(p.id));
     grid.appendChild(el);
   }
   for (const el of grid.querySelectorAll('.lcol, .lsplit-v, .lstash')) el.remove();
@@ -402,20 +414,43 @@ function render(force = false) {
     const col = document.createElement('div');
     col.className = 'lcol';
     col.style.flex = `${(c.w * cols.length) / sumW} 1 0`;
-    const sumH = items.reduce((t, it) => t + it.h, 0) || 1;
+    const us = units(items), sumH = us.reduce((t, u) => t + u[0].h, 0) || 1;
     col._model = c;
-    items.forEach((it, j) => {
+    us.forEach((u, j) => {
       if (j) {
         const sh = document.createElement('div');
         sh.className = 'lsplit-h';
         sh.title = 'Glisser pour redimensionner les panneaux';
-        splitter(sh, 'y', items[j - 1], it);
+        splitter(sh, 'y', us[j - 1][0], u[0]);
         col.appendChild(sh);
       }
-      const el = panelEl(it.id);
-      el.style.flex = `${(it.h * items.length) / sumH} 1 0`;
-      el._model = it;
-      col.appendChild(el);
+      const grow = `${(u[0].h * us.length) / sumH} 1 0`;
+      if (u.length === 1) {
+        const el = panelEl(u[0].id);
+        el.style.flex = grow;
+        el._model = u[0];
+        col.appendChild(el);
+        return;
+      }
+      // Rangée : panneaux côte à côte, séparés par une barre qui règle leurs largeurs
+      const row = document.createElement('div');
+      row.className = 'lrow';
+      row.style.flex = grow;
+      const sumW = u.reduce((t, it) => t + it.w, 0) || 1;
+      u.forEach((it, k) => {
+        if (k) {
+          const sr = document.createElement('div');
+          sr.className = 'lsplit-r';
+          sr.title = 'Glisser pour redimensionner les panneaux';
+          splitter(sr, 'x', u[k - 1], it);
+          row.appendChild(sr);
+        }
+        const el = panelEl(it.id);
+        el.style.flex = `${(it.w * u.length) / sumW} 1 0`;
+        el._model = it;
+        row.appendChild(el);
+      });
+      col.appendChild(row);
     });
     grid.insertBefore(col, stash);
   });
@@ -1064,12 +1099,13 @@ function alignCtrl(head) {
 const headObserver = 'ResizeObserver' in window ? new ResizeObserver((entries) => { const heads = entries.map((e) => e.target); requestAnimationFrame(() => heads.forEach(alignCtrl)); }) : null;
 
 // ---------------- Initialisation ----------------
-// 1.30 : nouvelle disposition des panneaux pour tout le monde, une seule fois (layoutV ; nouvelle installation : déjà
-// faite, prefs.js). L'ancienne est gardée dans les dispositions enregistrées ; les fenêtres secondaires gardent leurs
-// panneaux, seules les dispositions de la fenêtre principale repartent de zéro
+// 1.30 : nouvel écran principal pour tout le monde, une seule fois (layoutV 3 ; nouvelle installation : déjà fait,
+// prefs.js). L'ancienne disposition est gardée dans les dispositions enregistrées (« Ma disposition d'avant », ou
+// « Ma disposition 4 panneaux » pour celle des premières bêtas de la 1.30) ; les fenêtres secondaires gardent leurs
+// panneaux, seules les dispositions de la fenêtre principale repartent de zéro. Radios traduites d'office.
 function migrateLayout() {
-  if ((prefs.layoutV || 0) >= 2) return;
-  const name = t('Ma disposition d\'avant');
+  if ((prefs.layoutV || 0) >= 3) return;
+  const name = prefs.layoutV === 2 ? t('Ma disposition 4 panneaux') : t('Ma disposition d\'avant');
   const before = { name, at: Date.now(), layouts: allLayouts(), wins: [], desk: null, ...viewState() };
   before.prefs.tabLayout ||= pageTabs();   // onglets à leur place d'avant (sans disposition : celle de la page)
   storageSet(SETUPS_KEY, [...windowSetups().filter((s) => s.name !== name), before]);
@@ -1080,10 +1116,18 @@ function migrateLayout() {
   setPref('hiddenPanels', def.hiddenPanels);
   setPref('hiddenTabs', def.hiddenTabs);
   setPref('tabLayout', null);
-  setPref('layoutV', 2);
+  setPref('radioText', true);
+  setPref('layoutV', 3);
   layout = normalize(defaultLayout());
-  setTimeout(() => toast(`Nouvelle disposition : Classement, Circuit, Messages et Analyse. Le bouton + d'un panneau ajoute un onglet ou un panneau. L'ancienne : Réglages → Disposition → Fenêtres (« ${name} »)`, 12000), 1500);
+  setTimeout(() => toast(`Nouvel écran : Classement, Télémétrie, Direction de course et Radios traduites. Circuit, Analyse et Duel s'ouvrent dans une fenêtre (menu Fenêtres ou bouton + d'un panneau). L'ancienne disposition : Réglages → Disposition → Fenêtres (« ${name} »)`, 14000), 1500);
 }
+
+// Ouvre un panneau dans sa propre fenêtre (bouton + d'un panneau, menu Dispo.) ; s'il est déjà dans une fenêtre, rien
+export function openInWindow(id) {
+  if (!isMain || detachedElsewhere(id)) return;
+  sendTo(id, 'new');
+}
+on('openWindow', openInWindow);
 
 export function initLayout() {
   if (isMain) migrateLayout();
