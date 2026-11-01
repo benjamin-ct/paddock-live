@@ -78,9 +78,10 @@ export class LiveRelay {
     for (const ws of ctx.getWebSockets?.() || []) this.track(ws, ws.deserializeAttachment?.() || {});
   }
 
-  track(ws, { nets = [], ua, since = Date.now(), name, ok = false }) {
+  track(ws, { nets = [], ua, since = Date.now(), name, ok = false, app = false }) {
     if (name) this.name = name;
     this.clients.add(ws);
+    ws.app = app;
     ws.ok = ok;   // relais d'un abonné : cet appareil a présenté une connexion F1 TV de ce compte
     ws.nets = nets;
     ws.ua = ua;
@@ -114,7 +115,8 @@ export class LiveRelay {
     if (!priv && ((this.ips.get(ip) || 0) >= MAX_PER_IP || (net && (this.ips.get(net) || 0) >= MAX_PER_NET))) return new Response('Trop de connexions depuis cette adresse', { status: 429 });
     const [client, server] = Object.values(new WebSocketPair());
     // Connexion qui peut rester ouverte pendant la veille du relais (messages reçus par webSocketMessage)
-    const info = { nets: net ? [ip, net] : [ip], ua: shortUA(req.headers.get('User-Agent')), since: Date.now(), name: this.name };   // ua : liste des appareils du Studio
+    const info = { nets: net ? [ip, net] : [ip], ua: shortUA(req.headers.get('User-Agent')), since: Date.now(), name: this.name,
+      app: /Paddock-Live local dashboard/.test(req.headers.get('User-Agent') || '') };   // appli de bureau (server/live.js)   // ua : liste des appareils du Studio
     if (this.ctx.acceptWebSocket) this.ctx.acceptWebSocket(server);
     else {
       server.accept();
@@ -317,7 +319,11 @@ export class LiveRelay {
   // messages pas encore envoyés à tous (out, outStream : la fin de recent et de stream) : le prochain envoi groupé les
   // lui apporte, sinon il les appliquerait deux fois (une fin de tour en double effaçait les secteurs 1 et 2 du tour)
   hello(ws, from = 0) {
-    const events = this.recent.slice(0, this.recent.length - this.out.length);
+    let events = this.recent.slice(0, this.recent.length - this.out.length);
+    // Appli de bureau : l'état de base aussi en message, en tête. Déjà sur la séance, elle ne reprend pas l'état de base
+    // (server/live.js) et resterait figée sur celui d'avant une coupure (relais redémarré) ; à jour, elle l'écarte (heure
+    // pas plus récente que son dernier message)
+    if (ws?.app && this.base.t) events = [['__snapshot', this.base.state, this.base.t], ...events];
     const stream = this.stream.slice(0, this.stream.length - this.outStream.length).filter((s) => s[2] >= from);
     const str = JSON.stringify({ type: 'hello', now: Date.now(), keep: KEEP_MS, status: this.status, base: this.base, events, stream });
     if (ws) this.send(ws, str); else this.broadcast(str);

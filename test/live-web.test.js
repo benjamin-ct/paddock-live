@@ -572,3 +572,19 @@ test('relais web : connexions des navigateurs retrouvées après la veille (adre
   assert.equal(relay.name, 'u:abc');
   assert.deepEqual(relay.clientList().devices.map((d) => d.ua), ['iPhone']);
 });
+
+test('relais : une appli de bureau reçoit aussi l\'état de base en tête des messages (recalage après un redémarrage), pas un navigateur', () => {
+  const relay = new LiveRelay({}, {});
+  const t0 = 1e12;
+  relay.onFrame(snapshot(10, 1), t0);
+  relay.onFrame(feed('LapCount', { CurrentLap: 2 }), t0 + 1000);
+  relay.flush();
+  const app = fakeClient(), web = fakeClient();
+  app.app = true;
+  relay.hello(app, 0);
+  relay.hello(web, 0);
+  const [a, w] = [app.got.at(-1), web.got.at(-1)];
+  assert.deepEqual([a.events[0][0], a.events[0][1].LapCount.CurrentLap, a.events[0][2]], ['__snapshot', 1, t0]);
+  assert.equal(a.events.length, w.events.length + 1);
+  assert.ok(!w.events.some((e) => e[0] === '__snapshot' && e[2] === t0), 'pas de doublon de l\'état de base pour un navigateur');
+});
