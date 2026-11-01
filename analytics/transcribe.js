@@ -11,6 +11,16 @@ export const ASR_FALLBACK = '@cf/openai/whisper';
 const MODEL_TAG = 'wl3t';   // dans la clé : changer de modèle = nouvelles transcriptions
 export const MAX_AUDIO = 2 * 1024 * 1024;
 const MIN_AUDIO = 512;
+// Contexte donné à Whisper : jargon des radios et noms des pilotes de la grille, pour qu'il entende « stewards »,
+// « engine braking », « Kimi » plutôt que des mots courants qui sonnent pareil (accents, son haché de la radio)
+export const ASR_PROMPT = 'Formula 1 team radio between a driver and his race engineer. Box, box. Copy that. Stewards, penalty, '
+  + 'Safety Car, VSC, DRS, engine braking, lift and coast, understeer, oversteer, softs, mediums, hards, deg, pace, gap, '
+  + 'tyres, push, delta, Turn 1. Verstappen, Hadjar, Leclerc, Hamilton, Russell, Antonelli, Norris, Piastri, Alonso, '
+  + 'Stroll, Gasly, Colapinto, Albon, Sainz, Ocon, Bearman, Hülkenberg, Bortoleto, Lawson, Lindblad, Pérez, Bottas, Kimi, '
+  + 'Oscar, Lando, Max, Charles, Lewis, George, Checo.';
+// Son sans parole : Whisper peut recopier le contexte donné ; ce texte-là n'est pas gardé
+const echo = (t) => t.split(/\s+/).length >= 8 && ASR_PROMPT.toLowerCase().includes(t.toLowerCase().replace(/[.…]+$/, ''));
+const asr = (bytes) => ({ audio: base64(bytes), task: 'transcribe', language: 'en', initial_prompt: ASR_PROMPT });
 
 const hex = (buf) => [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
 export const HASH_RE = /^[0-9a-f]{64}$/;
@@ -35,7 +45,7 @@ function base64(bytes) {
 
 async function whisper(env, bytes) {
   try {
-    const r = await runAI(env, ASR_MODEL, { audio: base64(bytes), task: 'transcribe', language: 'en' });
+    const r = await runAI(env, ASR_MODEL, asr(bytes));
     if (typeof r?.text === 'string') return { text: r.text, d: r.transcription_info?.duration };
   } catch { /* modèle de secours */ }
   const r = await runAI(env, ASR_FALLBACK, { audio: [...bytes] });
@@ -59,7 +69,7 @@ export async function transcribeRadio(env, bytes, day = new Date().toISOString()
   const limit = Number(env.ASR_DAILY_LIMIT) || 300;
   if (!(await aiQuota(env, { key: `radio:${day}`, day, n: 1, limit, ip }))) return { limited: true };
   const r = await whisper(env, bytes);
-  const text = clean(r.text);
+  const text = echo(clean(r.text)) ? '' : clean(r.text);
   const d = Number.isFinite(r.d) ? Math.round(r.d * 10) / 10 : null;
   await aiMore(env, { key: `radio:${day}`, day, n: Math.ceil((d || 0) / 30) - 1, ip }).catch(() => {});   // une radio = 30 s
   await env.DB.prepare('INSERT OR REPLACE INTO radio_texts (k, text, d, at) VALUES (?1, ?2, ?3, ?4)').bind(radioKey(hash), text, d, Date.now()).run();
@@ -73,8 +83,8 @@ export async function transcribeWindow(env, bytes, day = new Date().toISOString(
   if (!isWav(bytes)) return { invalid: true };
   const limit = Number(env.ONBOARD_DAILY_LIMIT) || 400;   // week-end de Grand Prix : environ 490 fenêtres par adresse, 1 h de course pour 3 pilotes
   if (!(await aiQuota(env, { key: `onboard:${day}`, day, n: 1, limit, ip }))) return { limited: true };
-  const r = await runAI(env, ASR_MODEL, { audio: base64(bytes), task: 'transcribe', language: 'en' });
-  const segments = (r?.segments || []).map((x) => ({ timestamp: [x.start, x.end], text: x.text || '' }));
+  const r = await runAI(env, ASR_MODEL, asr(bytes));
+  const segments = (r?.segments || []).filter((x) => !echo(clean(x.text))).map((x) => ({ timestamp: [x.start, x.end], text: x.text || '' }));
   const dur = Number(r?.transcription_info?.duration) || (bytes.length - 44) / 32000;
   return { segments: segments.length || !clean(r?.text || '') ? segments : [{ timestamp: [0, dur], text: r.text }] };
 }
