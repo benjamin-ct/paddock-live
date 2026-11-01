@@ -126,8 +126,9 @@ export function renderChampionship() {
 }
 
 // Projection du championnat pendant une course (pilotes puis écuries), ou null hors course. Aussi l'outil
-// « Championnat » de la barre du haut (topinfo.js)
-export function championshipHtml() {
+// « Championnat » de la barre du haut (topinfo.js), un tableau à la fois (only : 'drivers' ou 'teams').
+// names : numéro -> code du pilote pour ceux absents de la séance (classement de la saison)
+export function championshipHtml(only = null, names = {}) {
   const cp = store.state.ChampionshipPrediction;
   const dl = drivers(store.state);
   if (!cp?.Drivers) return null;
@@ -142,14 +143,17 @@ export function championshipHtml() {
     const d = (cur || 0) - (pred || 0);
     return d ? `<span class="${d > 0 ? 'up' : 'down'}">${icon(d > 0 ? 'tri-up' : 'tri-down')}${Math.abs(d)}</span>` : '';
   };
-  return `<table class="champ"><tr><th>Proj.</th><th>Pilote</th><th>Pts actuels</th><th>Gagnés</th><th>Pts projetés</th><th></th></tr>
+  const driversHtml = `<table class="champ"><tr><th>Proj.</th><th>Pilote</th><th>Pts actuels</th><th>Gagnés</th><th>Pts projetés</th><th></th></tr>
     ${rows.map((r) => {
       const d = dl[r.RacingNumber] || {};
-      return `<tr><td>${r.PredictedPosition ?? '—'}</td><td><span class="drv">${teamMark(d)}<b>${esc(d.Tla || r.RacingNumber)}</b></span></td>
+      return `<tr><td>${r.PredictedPosition ?? '—'}</td><td><span class="drv">${teamMark(d)}<b>${esc(d.Tla || names[r.RacingNumber] || r.RacingNumber)}</b></span></td>
         <td>${r.CurrentPoints ?? '—'}</td><td>${gain(r.CurrentPoints, r.PredictedPoints)}</td><td><b>${r.PredictedPoints ?? '—'}</b></td><td>${mv(r.CurrentPosition, r.PredictedPosition)}</td></tr>`;
-    }).join('')}</table>
-    ${teams.length ? `<table class="champ" style="margin-top:10px"><tr><th>Proj.</th><th>Écurie</th><th>Pts actuels</th><th>Gagnés</th><th>Pts projetés</th><th></th></tr>
-      ${teams.map((t) => `<tr><td>${t.PredictedPosition ?? '—'}</td><td><span class="drv">${teamMark(Object.values(dl).find((d) => d.TeamName === t.TeamName) || { TeamName: t.TeamName })}${esc(t.TeamName || '')}</span></td><td>${t.CurrentPoints ?? '—'}</td><td>${gain(t.CurrentPoints, t.PredictedPoints)}</td><td><b>${t.PredictedPoints ?? '—'}</b></td><td>${mv(t.CurrentPosition, t.PredictedPosition)}</td></tr>`).join('')}</table>` : ''}`;
+    }).join('')}</table>`;
+  const teamsHtml = teams.length ? `<table class="champ"><tr><th>Proj.</th><th>Écurie</th><th>Pts actuels</th><th>Gagnés</th><th>Pts projetés</th><th></th></tr>
+      ${teams.map((t) => `<tr><td>${t.PredictedPosition ?? '—'}</td><td><span class="drv">${teamMark(Object.values(dl).find((d) => d.TeamName === t.TeamName) || { TeamName: t.TeamName })}${esc(t.TeamName || '')}</span></td><td>${t.CurrentPoints ?? '—'}</td><td>${gain(t.CurrentPoints, t.PredictedPoints)}</td><td><b>${t.PredictedPoints ?? '—'}</b></td><td>${mv(t.CurrentPosition, t.PredictedPosition)}</td></tr>`).join('')}</table>` : '';
+  if (only === 'drivers') return driversHtml;
+  if (only === 'teams') return teamsHtml || '<p class="muted small">Pas encore de projection des écuries.</p>';
+  return `${driversHtml}${teamsHtml ? `<div style="margin-top:10px">${teamsHtml}</div>` : ''}`;
 }
 
 // Rythme et dégradation sur le relais en cours (tours "propres" uniquement).
