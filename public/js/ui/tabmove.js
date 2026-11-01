@@ -9,16 +9,24 @@ import { icon } from '../icons.js';
 
 // Onglets proches réunis sous un seul onglet de la barre (le premier de la liste) : les autres sont
 // choisis par un sélecteur en haut de leur contenu, et suivent l'onglet principal s'il est déplacé.
-const GROUPS = { trace: ['trace', 'positions'], laptimes: ['laptimes', 'pace'] };
-const SEG = { trace: 'Écarts', positions: 'Positions', laptimes: 'Tours', pace: 'Rythme' };
+const GROUPS = { trace: ['trace', 'positions'], laptimes: ['laptimes', 'pace'], pits: ['pits', 'strategy'] };
+const SEG = { trace: 'Écarts', positions: 'Positions', laptimes: 'Tours', pace: 'Rythme', pits: 'Arrêts', strategy: 'Stratégie' };
 const isMember = (t) => Object.values(GROUPS).some((g) => g.indexOf(t) > 0);
 // Onglets inutiles selon la séance chargée (masqués, de retour à la séance suivante)
 const QUALI_OFF = ['trace', 'positions', 'tyrehist', 'strategy', 'pitsim', 'battles', 'champ'];
 const OFF = { race: ['compare'], quali: QUALI_OFF, practice: QUALI_OFF };
 
 const HOSTS = ['feed', 'radio', 'analysis', 'extra'];   // panneaux à onglets
-const origin = {};                                      // onglet -> panneau d'origine
-const defaults = {};                                    // panneau -> onglets d'origine (ordre)
+// Place des onglets par défaut (1.30) : les radios dans Messages, la stratégie dans Analyse (panneaux Radios et
+// Stratégie vides et masqués : affichés, ils reprennent leurs onglets). Onglets visibles : prefs.js (TAB_HIDDEN)
+const START = {
+  feed: ['rcm', 'radios', 'stewards', 'tracklimits'],
+  radio: [],
+  analysis: ['trace', 'pits', 'sectors', 'compare', 'telemetry', 'laptimes', 'tyrehist', 'tyres', 'pitsim', 'battles', 'champ'],
+  extra: [],
+};
+const origin = {};                                      // onglet -> panneau d'origine (page)
+const defaults = {};                                    // panneau -> onglets par défaut (ordre)
 
 const panel = (id) => document.querySelector(`.panel.p-${id}`);
 const head = (id) => panel(id)?.querySelector('.panel-head[data-tabs]');
@@ -68,7 +76,7 @@ function place(t, id, before = null) {
   const btn = tabBtn(t), p = pane(t), h = head(id), b = body(id);
   if (!btn || !p || !h || !b) return;
   const ref = before && before !== t ? tabBtn(before) : null;
-  h.insertBefore(btn, ref && ref.parentElement === h ? ref : h.querySelector(':scope > [data-menu-for], :scope > .panel-ctrl'));
+  h.insertBefore(btn, ref && ref.parentElement === h ? ref : h.querySelector(':scope > .tab-add, :scope > [data-menu-for], :scope > .panel-ctrl'));
   // Menu d'options de l'onglet (engrenage) : suit son onglet, après les onglets du panneau
   const menu = document.querySelector(`[data-menu-for="${t}"]`);
   if (menu && menu.parentElement !== h) h.insertBefore(menu, h.querySelector(':scope > .panel-ctrl'));
@@ -282,11 +290,11 @@ function applySession() {
   for (const id of HOSTS) head(id)?.classList.toggle('many', shownTabs(id).length > 4);
 }
 
-// Onglets de chaque panneau, pour les réglages : [panneau, onglet, nom, réservé au mode Complet]
+// Onglets de chaque panneau, pour les réglages : [panneau, onglet, nom]
 export function tabList() {
   return [...document.querySelectorAll('[data-tabs] > [data-tab]')].map((b) => {
     const name = SEG[b.dataset.tab] || [...b.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent).join('').trim();
-    return [b.closest('.panel')?.className.match(/\bp-(\w+)/)?.[1], b.dataset.tab, name, b.hasAttribute('data-expert')];
+    return [b.closest('.panel')?.className.match(/\bp-(\w+)/)?.[1], b.dataset.tab, name];
   });
 }
 
@@ -302,7 +310,7 @@ export function canHideTab(t) {
 // Sur un onglet : le fermer ; ailleurs sur la barre d'onglets d'un panneau : tous ses onglets, pour remettre
 // ceux qui sont fermés (mêmes onglets masqués que Réglages → Onglets visibles)
 const groupOf = (t) => GROUPS[t] || [t];
-const PANEL_NAMES = { feed: 'Direction de course', radio: 'Radios', analysis: 'Analyse', extra: 'Stratégie' };
+const PANEL_NAMES = { feed: 'Messages', radio: 'Radios', analysis: 'Analyse', extra: 'Stratégie', tower: 'Classement', map: 'Circuit', duel: 'Duel' };
 const tabName = (t) => esc(tabList().find((x) => x[1] === t)?.[2] || t);
 function setTabHidden(t, hide) {
   const g = groupOf(t);
@@ -336,17 +344,20 @@ function tabMenu(e) {
       return `<button data-${mine ? 'close' : 'open'}="${t}" ${off || (mine && !canHideTab(t)) ? 'disabled' : ''}>${mine ? '' : icon('plus')}${tabName(t)}${note ? ` <span class="muted small">(${note})</span>` : ''}${mine ? icon('check', 'ic-on') : ''}</button>`;
     };
     const others = HOSTS.filter((x) => x !== id).flatMap(tabsOf);
+    const panels = Object.entries(PANEL_NAMES).filter(([p]) => prefs.hiddenPanels.includes(p));
     m.innerHTML = `<div class="muted small">Onglets du panneau</div>${tabsOf(id).map((t) => item(t, true)).join('')}
-      ${others.length ? `<div class="rail-sep"></div><div class="muted small">Amener un onglet ici</div>${others.map((t) => item(t, false)).join('')}` : ''}`;
+      ${others.length ? `<div class="rail-sep"></div><div class="muted small">Amener un onglet ici</div>${others.map((t) => item(t, false)).join('')}` : ''}
+      ${panels.length ? `<div class="rail-sep"></div><div class="muted small">Afficher un panneau</div>${panels.map(([p, name]) => `<button data-panel="${p}">${icon('plus')}${esc(name)}</button>`).join('')}` : ''}`;
   }
   Object.assign(m.style, { maxHeight: 'calc(100vh - 16px)', overflowY: 'auto' });
   document.body.appendChild(m);
   m.style.left = `${Math.max(8, Math.min(window.innerWidth - m.offsetWidth - 8, e.clientX))}px`;
   m.style.top = `${Math.max(8, Math.min(window.innerHeight - m.offsetHeight - 8, e.clientY))}px`;
   m.onclick = (ev) => {
-    const b = ev.target.closest('[data-close], [data-open]');
+    const b = ev.target.closest('[data-close], [data-open], [data-panel]');
     if (!b || b.disabled) return;
     m.remove();
+    if (b.dataset.panel) { setPref('hiddenPanels', prefs.hiddenPanels.filter((x) => x !== b.dataset.panel)); return; }
     if (b.dataset.close) { setTabHidden(b.dataset.close, true); return; }
     const t = b.dataset.open;
     const from = HOSTS.find((x) => tabsOf(x).includes(t));
@@ -366,22 +377,67 @@ function tabMenu(e) {
   }), 0);
 }
 
+// Panneau à onglets affiché alors qu'il est vide (Radios, Stratégie : vides par défaut) : il reprend ses onglets
+// d'origine, où qu'ils soient
+function takeBack() {
+  for (const id of HOSTS) {
+    if (prefs.hiddenPanels.includes(id) || tabsOf(id).length) continue;
+    const mine = Object.keys(origin).filter((t) => origin[t] === id && !isMember(t));
+    if (!mine.length) continue;
+    const from = new Set(mine.map((t) => HOSTS.find((x) => tabsOf(x).includes(t))));
+    for (const t of mine) place(t, id);
+    tidy(id);
+    for (const x of from) if (x) tidy(x);
+    setPref('hiddenTabs', prefs.hiddenTabs.filter((t) => !mine.some((m) => groupOf(m).includes(t))));
+    save();
+    emit('tabsMoved');
+  }
+}
+
+// Bouton « + » au bout des onglets : les onglets fermés et les panneaux masqués (comme le clic droit)
+function addButton(id) {
+  const h = head(id);
+  if (!h || h.querySelector(':scope > .tab-add')) return;
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'tab-add icon-btn small';
+  b.title = 'Ajouter un onglet ou un panneau';
+  b.setAttribute('aria-label', 'Ajouter un onglet ou un panneau');
+  b.innerHTML = icon('plus');
+  h.insertBefore(b, h.querySelector(':scope > [data-menu-for], :scope > .panel-ctrl'));
+  b.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const r = b.getBoundingClientRect();
+    tabMenu({ target: h, clientX: r.left, clientY: r.bottom + 4, preventDefault() {} });
+  });
+}
+
+// Place des onglets dans la page (celle d'avant la 1.30 : radios et stratégie dans leurs panneaux)
+export function pageTabs() {
+  return Object.fromEntries(HOSTS.map((id) => [id, Object.keys(origin).filter((t) => origin[t] === id && !isMember(t))]));
+}
+
 export function resetTabs() {
   setPref('tabLayout', null);
 }
 
 export function initTabMove() {
   buildGroups();
-  for (const id of HOSTS) {
-    defaults[id] = tabsOf(id);
-    for (const b of head(id)?.querySelectorAll(':scope > [data-tab]') || []) origin[b.dataset.tab] = id;
-  }
-  if (prefs.tabLayout) apply(prefs.tabLayout);
+  for (const id of HOSTS) for (const b of head(id)?.querySelectorAll(':scope > [data-tab]') || []) origin[b.dataset.tab] = id;
+  // Onglets par défaut : START, puis ceux qu'il ne cite pas à leur place dans la page
+  const listed = new Set(Object.values(START).flat());
+  for (const id of HOSTS) defaults[id] = [...START[id].filter((t) => origin[t] && !isMember(t)), ...tabsOf(id).filter((t) => !listed.has(t))];
+  for (const id of HOSTS) addButton(id);
+  apply(prefs.tabLayout || defaults);
   // Disposition d'une version précédente (onglet regroupé déplacé seul) : il rejoint son onglet principal
   for (const t of Object.keys(GROUPS)) follow(t);
   for (const id of HOSTS) tidy(id);
   // Disposition changée dans les réglages : ses onglets rouverts (layout.js) sont filtrés ensuite
-  on('prefs', (k) => { if (k === 'tabLayout') apply(prefs.tabLayout); if (k === 'layoutMode' || k === 'hiddenTabs') setTimeout(applySession, 0); });
+  on('prefs', (k) => {
+    if (k === 'tabLayout') apply(prefs.tabLayout || defaults);
+    if (k === 'layoutMode' || k === 'hiddenTabs') setTimeout(applySession, 0);
+    if (k === 'hiddenPanels') takeBack();
+  });
   applySession();
   on('reset', applySession);
   on('events', (events) => { if (events.some(([t]) => t === 'SessionInfo' || t === '__snapshot')) setTimeout(applySession, 0); });

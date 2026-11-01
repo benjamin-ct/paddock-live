@@ -1035,7 +1035,7 @@ function drawCars(dt) {
   }
 
   const order = Object.keys(dl).sort((a, b) => (Number(lines[b]?.Position) || 99) - (Number(lines[a]?.Position) || 99));
-  // Pilotes du duel marqués seulement quand le panneau Duel est affiché (pas en Essentiel, ni panneau masqué)
+  // Pilotes du duel marqués seulement quand le panneau Duel est affiché (pas quand le panneau est masqué)
   const duel = document.querySelector('.p-duel')?.getClientRects().length ? store.duel : {};
   const special = new Set([duel.a, duel.b, store.focus].filter(Boolean));
   const drawOrder = [...order.filter((n) => !special.has(n)), ...order.filter((n) => special.has(n))];

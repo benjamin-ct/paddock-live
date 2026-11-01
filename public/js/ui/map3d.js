@@ -12,7 +12,7 @@ import { drivers, orderedNumbers, storageGet, storageSet, esc, api, COMPOUNDS } 
 import { t, DEC } from '../i18n.js';
 import { gridSlot, gridIndex, gridWeight } from '../grid.js';
 import { FONT, drawPuck, drawBadge, drawSectorBadge, drawCornerChip, drawFlagBadge, drawScBadge } from './map-draw.js';
-import { QUALITY, nearFirst, autoQuality, frameCap, weatherState, compoundOf, accentColor, drsOpen, seconds, pickBattle, bestLap, sessionBest, lapTrace, traceAt, wallCuts, pitRoute, steering, wheelSpin, kerbMask, barrierOffsets, standSpots } from './map3d-calc.js';
+import { QUALITY, nearFirst, autoQuality, frameCap, weatherState, compoundOf, accentColor, drsOpen, seconds, pickBattle, bestLap, sessionBest, lapTrace, traceAt, wallCuts, pitRoute, steering, wheelSpin, kerbMask, barrierOffsets, standSpots, runoffPlan, groundClimate, GROUND } from './map3d-calc.js';
 
 const W = 14;           // largeur de la piste (m)
 const MAX_CARS = 30;
@@ -105,10 +105,24 @@ function buildWorld(track, elevation, surroundings, gpu) {
     k.receiveShadow = true;
     group.add(k);
   }
+  // Dégagements asphaltés et graviers déduits des virages (runoffPlan), quand les alentours n'en ont pas : bandes juste
+  // au-dessus du sol (qui est 35 cm sous la piste près du tracé), après le vibreur
+  if (!(land?.areas?.runoff?.length || land?.areas?.gravel?.length)) {
+    const plan = runoffPlan(TURN, DS), e = W / 2 + 1.25;
+    const asphalt = new THREE.MeshStandardMaterial({ color: 0x7c7f84, roughness: 0.95, side: THREE.DoubleSide });
+    const gravel = new THREE.MeshStandardMaterial({ color: 0xd6c59b, roughness: 1, side: THREE.DoubleSide });
+    for (const [o, side] of [[0, -1], [1, 1]]) {
+      for (const [mat, kind, a, b] of [[asphalt, 1, 0, 20], [asphalt, 2, 0, 5], [gravel, 2, 5, 20]]) {
+        const m = new THREE.Mesh(ribbon({ test: (i) => plan[i][o] === kind, profile: [[side * (e + a), -0.25], [side * (e + b), -0.25]] }), mat);
+        m.receiveShadow = true;
+        group.add(m);
+      }
+    }
+  }
 
   const fromW = (x, zz) => { const X = x + cx, Z = zz + cz; return [X * cos - Z * sin, -X * sin - Z * cos]; };   // -> repère du tracé (m)
   const box = new THREE.Box3().setFromPoints(P);
-  const { groundAt, detailAt = () => {}, setQuality: landQuality = () => {}, cutWalls: landCut = () => {}, osm = {} } = land ? landGround(group, land, { track, P, SIDE, toW, fromW, base: zMin + off, ...gpu }) : { groundAt: flatGround(group, P, box, z) };
+  const { groundAt, detailAt = () => {}, setQuality: landQuality = () => {}, cutWalls: landCut = () => {}, osm = {} } = land ? landGround(group, land, { track, P, SIDE, toW, fromW, base: zMin + off, ...gpu }) : { groundAt: flatGround(group, P, box, z, gpu.pal) };
 
   const world = { track, elevation, surroundings, land: !!land, source: gps ? 'gps' : land ? 'terrain' : null,
     relief: z ? (Math.max(...z) - zMin) / 10 : null, P, T, SIDE, TURN, N, DS, box, group, groundAt, detailAt, toW, fromW, ribbon, road, lineMat, side: null };
@@ -224,7 +238,7 @@ function startGrid(world, i, cars) {
 
 // Sol sans alentours : altitude des points du tracé les plus proches, adoucie au loin (pondération inverse), plaine
 // jusqu'à l'horizon ; -> altitude du sol en (x, z)
-function flatGround(group, P, box, z) {
+function flatGround(group, P, box, z, pal = GROUND.vert) {
   const MARGIN = 450, G = 160;
   const gx0 = box.min.x - MARGIN, gz0 = box.min.z - MARGIN;
   const gw = box.max.x - box.min.x + 2 * MARGIN, gd = box.max.z - box.min.z + 2 * MARGIN;
@@ -252,12 +266,19 @@ function flatGround(group, P, box, z) {
   terrainGeo.translate(gx0 + gw / 2, 0, gz0 + gd / 2);
   {
     const pos = terrainGeo.attributes.position, col = [];
-    const grass = new THREE.Color(0x5f8f3a), far = new THREE.Color(0x4a7a33), verge = new THREE.Color(0x7aa04a), tmp = new THREE.Color();
+    const grass = new THREE.Color(pal.mid), far = new THREE.Color(pal.field), verge = new THREE.Color(pal.near), tmp = new THREE.Color();
+    const patches = pal.patches.map((c) => new THREE.Color(c));
+    // Bruit doux (cases de s m, interpolées) : teinte de l'herbe, et loin de la piste, champs et terre mêlés
+    const noise = (x, zz, s, seed) => {
+      const fx = x / s, fz = zz / s, ix = Math.floor(fx), iz = Math.floor(fz), u = fx - ix, v = fz - iz, h = (a, b) => hash(a * 7919 + b * 104729 + seed);
+      return (h(ix, iz) * (1 - u) + h(ix + 1, iz) * u) * (1 - v) + (h(ix, iz + 1) * (1 - u) + h(ix + 1, iz + 1) * u) * v;
+    };
     for (let i = 0; i < pos.count; i++) {
-      const c = Math.round(((pos.getX(i) - gx0) / gw) * G), r = Math.round(((pos.getZ(i) - gz0) / gd) * G), k = r * (G + 1) + c;
+      const c = Math.round(((pos.getX(i) - gx0) / gw) * G), r = Math.round(((pos.getZ(i) - gz0) / gd) * G), k = r * (G + 1) + c, x = pos.getX(i), zz = pos.getZ(i);
       pos.setY(i, H[k]);
       tmp.copy(far).lerp(grass, 1 - smooth(60, 260, DMIN[k])).lerp(verge, 1 - smooth(W / 2 + 2, W / 2 + 30, DMIN[k]));
-      tmp.offsetHSL(0, 0, (((i * 2654435761) >>> 0) / 4294967296 - 0.5) * 0.04);
+      tmp.lerp(patches[Math.floor(hash(Math.floor(x / 170) * 7919 + Math.floor(zz / 170) * 104729) * patches.length)], 0.7 * smooth(250, 450, DMIN[k]) * smooth(0.35, 0.6, noise(x, zz, 170, 5)));
+      tmp.offsetHSL(0, 0, (noise(x, zz, 45, 1) - 0.5) * 0.08 + (((i * 2654435761) >>> 0) / 4294967296 - 0.5) * 0.03);
       col.push(tmp.r, tmp.g, tmp.b);
     }
     terrainGeo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
@@ -267,7 +288,7 @@ function flatGround(group, P, box, z) {
   terrain.receiveShadow = true;
   group.add(terrain);
   // Au-delà : plaine jusqu'à l'horizon (le bord du sol ne se voit pas)
-  const plain = new THREE.Mesh(new THREE.PlaneGeometry(40000, 40000), new THREE.MeshStandardMaterial({ color: 0x4a7a33, roughness: 1 }));
+  const plain = new THREE.Mesh(new THREE.PlaneGeometry(40000, 40000), new THREE.MeshStandardMaterial({ color: pal.field, roughness: 1 }));
   plain.rotation.x = -Math.PI / 2;
   plain.position.y = Math.min(...H) - 0.6;
   group.add(plain);
@@ -281,14 +302,14 @@ function flatGround(group, P, box, z) {
 // ---------- Alentours (serveur : relief du terrain et OpenStreetMap, en mètres dans le repère du tracé) ----------
 const LAND = { farm: '#a4ad5e', urban: '#a6a398', grass: '#6c9c42', wood: '#3e6a2b', sand: '#dacb9c', parking: '#8f9295', water: '#3f78b5' };
 const LINES = { water: '#3f78b5', road: '#6e7175', raceway: '#3a3d42' };
-const FIELD = '#4f7f36';   // herbe loin de la piste (et plaine jusqu'à l'horizon)
 const hash = (i) => ((i * 2654435761) >>> 0) / 4294967296;
 
 // Sol des alentours : grille du relief (raccordée à la piste près du tracé), couleurs selon l'usage du sol (texture
 // dessinée ici), bâtiments et tribunes extrudés, arbres, plans d'eau, bord prolongé jusqu'à l'horizon. base : altitude
-// (1/10 m) du bas de la scène ; maxTex, aniso : taille de texture et anisotropie de la carte graphique ;
+// (1/10 m) du bas de la scène ; maxTex, aniso : taille de texture et anisotropie de la carte graphique ; pal : couleurs
+// du sol selon le climat (GROUND) ;
 // -> { groundAt : altitude du sol en (x, z), detailAt(x, z) : sol plus détaillé autour de ce point }
-function landGround(group, land, { track, P, SIDE, toW, fromW, base, maxTex, aniso }) {
+function landGround(group, land, { track, P, SIDE, toW, fromW, base, maxTex, aniso, pal = GROUND.vert }) {
   const { x0, y0, step, cols, rows, h } = land.terrain;
   const W2 = (x, y) => toW(x * 10, y * 10);   // repère du tracé (m) -> scène
   const sea = -base / 10;                     // niveau de la mer dans la scène
@@ -343,9 +364,30 @@ function landGround(group, land, { track, P, SIDE, toW, fromW, base, maxTex, ani
     geo.computeVertexNormals();
   }
 
-  // Couleurs du sol : herbe (plus claire près de la piste), mer, surfaces, routes et cours d'eau, pied des bâtiments,
-  // dessinées sur cv pour la zone qui commence en (ox, oy) (repère du tracé, m), à k px par mètre
+  // Taches du sol (repère du tracé, m), sous les surfaces d'OSM : partout, des taches d'herbe plus claire ou plus sombre
+  // (petites près de la piste : en Économe, seulement les grandes) ; à plus de 350 m de la piste, des champs et de la
+  // terre (rectangles en biais)
   const trackFlat = track.pts.flatMap((p) => [p.x / 10, p.y / 10]);
+  const zw = (cols - 1) * step, zh = (rows - 1) * step, soil = [];
+  const spot = (j, r, field) => {
+    const x = x0 + hash(j * 3 + 1) * zw, y = y0 + hash(j * 3 + 2) * zh, d = Math.sqrt(trackNear(P, ...W2(x, y))[0]);
+    if (field ? d < 350 + r : d < W / 2 + 4) return;
+    soil.push({ x, y, r, rot: hash(j * 7 + 5) * Math.PI, col: pal.patches[Math.floor(hash(j * 11 + 3) * pal.patches.length)], a: field ? 0.5 + 0.3 * hash(j * 13) : 0.2 + 0.2 * hash(j * 13), field });
+  };
+  for (let j = 0, n = Math.min(900, (zw * zh) / 18000); j < n; j++) spot(j, 20 + 70 * hash(j * 5 + 9), false);
+  for (let j = 0, n = Math.min(400, (zw * zh) / 50000); j < n; j++) spot(9000 + j, 60 + 120 * hash(j * 5 + 4), true);
+  for (let j = 0, n = Math.min(1500, P.length); j < n; j++) {   // petites taches près de la piste
+    const i = Math.floor(hash(j * 17 + 2) * P.length), d = (W / 2 + 6 + 120 * hash(j * 23 + 7) ** 2) * (hash(j * 31 + 4) < 0.5 ? -1 : 1);
+    const sx = P[i].x + SIDE[i].x * d, sz = P[i].z + SIDE[i].z * d;
+    if (trackNear(P, sx, sz)[0] < (W / 2 + 4) ** 2) continue;
+    const [x, y] = fromW(sx, sz);
+    soil.push({ x, y, r: 3 + 9 * hash(j * 29 + 6), rot: hash(j * 19 + 1) * Math.PI, col: pal.patches[j % 3], a: 0.25, field: false });
+  }
+  let fine = true;   // petites taches et bandes de tonte (pas en Économe)
+  const rgba = (hex, a) => `rgba(${parseInt(hex.slice(1, 3), 16)},${parseInt(hex.slice(3, 5), 16)},${parseInt(hex.slice(5, 7), 16)},${a})`;
+  // Couleurs du sol : herbe ou sable selon le climat (plus clair près de la piste), taches, mer, surfaces, routes et cours
+  // d'eau, pied des bâtiments, bandes de tonte, dessinées sur cv pour la zone qui commence en (ox, oy) (repère du tracé,
+  // m), à k px par mètre
   const paint = (cv, ox, oy, k) => {
     const g = cv.getContext('2d'), X = (x) => (x - ox) * k, Y = (y) => (y - oy) * k;
     const path = (flat, close) => {
@@ -354,9 +396,21 @@ function landGround(group, land, { track, P, SIDE, toW, fromW, base, maxTex, ani
       if (close) g.closePath();
     };
     g.lineJoin = g.lineCap = 'round';
-    g.fillStyle = FIELD;
+    g.fillStyle = pal.field;
     g.fillRect(0, 0, cv.width, cv.height);
-    for (const [w, col] of [[520, 'rgba(95,143,58,.45)'], [300, 'rgba(95,143,58,.6)'], [W + 50, 'rgba(122,160,74,.75)']]) { g.strokeStyle = col; g.lineWidth = w * k; path(trackFlat, true); g.stroke(); }
+    for (const t of soil) {
+      const r = t.r * k, px = X(t.x), py = Y(t.y);
+      if ((!fine && t.r < 12) || r < 0.7 || px < -2 * r || py < -2 * r || px > cv.width + 2 * r || py > cv.height + 2 * r) continue;
+      g.save();
+      g.translate(px, py);
+      g.rotate(t.rot);
+      g.globalAlpha = t.a;
+      g.fillStyle = t.col;
+      if (t.field) g.fillRect(-r, -0.6 * r, 2 * r, 1.2 * r);
+      else { g.beginPath(); g.ellipse(0, 0, r, 0.7 * r, 0, 0, 2 * Math.PI); g.fill(); }
+      g.restore();
+    }
+    for (const [w, col] of [[520, rgba(pal.mid, 0.45)], [300, rgba(pal.mid, 0.6)], [W + 50, rgba(pal.near, 0.75)]]) { g.strokeStyle = col; g.lineWidth = w * k; path(trackFlat, true); g.stroke(); }
     g.fillStyle = LAND.water;
     for (let i = 0; i < count; i++) {
       if (!wetAt[i]) continue;
@@ -364,7 +418,7 @@ function landGround(group, land, { track, P, SIDE, toW, fromW, base, maxTex, ani
       g.arc(X(x0 + (i % cols) * step), Y(y0 + Math.floor(i / cols) * step), step * k * 0.75, 0, 2 * Math.PI);   // bords arrondis
       g.fill();
     }
-    for (const [kind, col] of Object.entries(LAND)) { g.fillStyle = col; for (const ring of land.areas?.[kind] || []) { path(ring, true); g.fill(); } }
+    for (const [kind, col] of Object.entries(LAND)) { g.fillStyle = kind === 'grass' ? pal.grass : col; for (const ring of land.areas?.[kind] || []) { path(ring, true); g.fill(); } }
     for (const [kind, col] of Object.entries(LINES)) {
       g.strokeStyle = col;
       for (const [w, ...pts] of land.lines?.[kind] || []) { g.lineWidth = Math.max(1, w * k); path(pts); g.stroke(); }
@@ -372,10 +426,22 @@ function landGround(group, land, { track, P, SIDE, toW, fromW, base, maxTex, ani
     g.fillStyle = '#8c8b85';
     for (const [, ...ring] of [...(land.buildings || []), ...(land.stands || [])]) { path(ring, true); g.fill(); }
     // Bas-côtés en herbe : la piste d'OSM, décalée de quelques mètres, faisait des taches sombres le long du tracé
-    g.strokeStyle = '#6f9845';
+    g.strokeStyle = pal.verge;
     g.lineWidth = (W + 12) * k;
     path(trackFlat, true);
     g.stroke();
+    // Bandes de tonte le long de la piste : 10 m plus claires, 10 m plus sombres
+    if (fine) {
+      g.lineWidth = (W + 44) * k;
+      for (const [col, off] of [['rgba(255,255,255,.14)', 0], ['rgba(0,0,0,.1)', 10]]) {
+        g.setLineDash([10 * k, 10 * k]);
+        g.lineDashOffset = off * k;
+        g.strokeStyle = col;
+        path(trackFlat, true);
+        g.stroke();
+      }
+      g.setLineDash([]);
+    }
     // Dégagements asphaltés et graviers autour des virages (serveur : OSM, sinon déduits), par-dessus
     for (const [kind, col] of [['runoff', '#7c7f84'], ['gravel', '#d6c59b']]) { g.fillStyle = col; for (const ring of land.areas?.[kind] || []) { path(ring, true); g.fill(); } }
   };
@@ -425,6 +491,7 @@ function landGround(group, land, { track, P, SIDE, toW, fromW, base, maxTex, ani
   };
   // Qualité (map3d-calc.js) : sol de détail plus petit (nouvelle texture, redessinée), anisotropie des textures du sol
   const qualityGround = (q) => {
+    if (fine !== q.props) { fine = q.props; dx = Infinity; }   // sol de détail redessiné
     aniso = Math.min(maxAniso, q.aniso);
     for (const tex of [mat.map, detail.map.value]) if (tex.anisotropy !== aniso) { tex.anisotropy = aniso; tex.needsUpdate = true; }
     if (DPX === DPX0 * q.detail) return;
@@ -447,7 +514,7 @@ function landGround(group, land, { track, P, SIDE, toW, fromW, base, maxTex, ani
   const edge = ring.reduce((sum, i) => sum + H[i], 0) / ring.length;
   const wet = ring.filter((i) => wetAt[i]).length > ring.length / 2;
   const m0 = ((rows >> 1) * cols + (cols >> 1)) * 3, mid = new THREE.Vector3(pos[m0], 0, pos[m0 + 2]);
-  const sPos = [], sCol = [], sIdx = [], green = new THREE.Color(FIELD), blue = new THREE.Color(LAND.water), v = new THREE.Vector3();
+  const sPos = [], sCol = [], sIdx = [], green = new THREE.Color(pal.field), blue = new THREE.Color(LAND.water), v = new THREE.Vector3();
   ring.forEach((i, j) => {
     v.set(pos[i * 3], 0, pos[i * 3 + 2]);
     const out = v.clone().sub(mid).normalize().multiplyScalar(12000).add(v);
@@ -462,7 +529,7 @@ function landGround(group, land, { track, P, SIDE, toW, fromW, base, maxTex, ani
   skirtGeo.setIndex(sIdx);
   skirtGeo.computeVertexNormals();
   group.add(new THREE.Mesh(skirtGeo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, side: THREE.DoubleSide })));
-  const plain = new THREE.Mesh(new THREE.PlaneGeometry(60000, 60000), new THREE.MeshStandardMaterial({ color: wet ? LAND.water : FIELD, roughness: 1 }));
+  const plain = new THREE.Mesh(new THREE.PlaneGeometry(60000, 60000), new THREE.MeshStandardMaterial({ color: wet ? LAND.water : pal.field, roughness: 1 }));
   plain.rotation.x = -Math.PI / 2;
   plain.position.y = H.reduce((lo, y) => Math.min(lo, y), edge) - 1;
   group.add(plain);
@@ -477,7 +544,8 @@ function landGround(group, land, { track, P, SIDE, toW, fromW, base, maxTex, ani
     }
   };
   const solids = { pos: [], col: [] }, spans = [];
-  for (const [kind, wall, roof] of [['buildings', '#e3e0d7', '#c9c6bd'], ['stands', '#bac2cd', '#8e9aab']].map(([kd, a, b]) => [kd, new THREE.Color(a), new THREE.Color(b)])) {
+  // Tribunes d'OSM : pas en blocs, ce sont les gradins des abords (trackside) qui les remplacent
+  for (const [kind, wall, roof] of [['buildings', '#e3e0d7', '#c9c6bd']].map(([kd, a, b]) => [kd, new THREE.Color(a), new THREE.Color(b)])) {
     for (const [height, ...flat] of land[kind] || []) {
       const pts = corners(flat), start = solids.pos.length;
       let lo = Infinity, hi = -Infinity;
@@ -494,7 +562,7 @@ function landGround(group, land, { track, P, SIDE, toW, fromW, base, maxTex, ani
   }
   // Pour les abords faits ici (trackside) : boîtes des bâtiments et tribunes, centres des tribunes, points des murs
   const osm = { blocks: spans.map(([, , pts]) => [Math.min(...pts.map((q) => q[0])), Math.min(...pts.map((q) => q[1])), Math.max(...pts.map((q) => q[0])), Math.max(...pts.map((q) => q[1]))]),
-    stands: (land.stands || []).map(([, ...flat]) => centroid(corners(flat))), walls: [] };
+    stands: (land.stands || []).map(([, ...flat]) => centroid(corners(flat))), standPolys: (land.stands || []).map(([, ...flat]) => corners(flat)), walls: [] };
   // Les plus grands et les plus près de la piste d'abord : en Économe, seuls les premiers sont dessinés (qualityGround)
   const ends = [], sorted = { pos: [], col: [] };
   for (const k of nearFirst(spans.map(([, , pts, height]) => [Math.sqrt(trackNear(P, ...centroid(pts))[0]), height + Math.sqrt(areaOf(pts))]))) {
@@ -552,7 +620,7 @@ function landGround(group, land, { track, P, SIDE, toW, fromW, base, maxTex, ani
   // épaisseur selon le genre
   const wallParts = [];
   WALL_KINDS.forEach(([hgt, thick, color, opacity], kind) => {
-    const segs = [];
+    let segs = [];
     for (const [k, ...flat] of land.walls || []) {
       if (k !== kind) continue;
       const pts = corners(flat), first = segs.length;
@@ -561,6 +629,8 @@ function landGround(group, land, { track, P, SIDE, toW, fromW, base, maxTex, ani
         for (let j = 0; j < n; j++) segs.push([[ax + ((bx - ax) * j) / n, az + ((bz - az) * j) / n], [ax + ((bx - ax) * (j + 1)) / n, az + ((bz - az) * (j + 1)) / n], first]);
       }
     }
+    // Jamais sur la piste (mur des stands ou barrière mal placés dans OSM, tracé GPS un peu décalé)
+    segs = segs.filter(([[ax, az], [bx, bz]]) => trackNear(P, (ax + bx) / 2, (az + bz) / 2)[0] > (W / 2 + 0.5) ** 2);
     if (!segs.length) return;
     const mesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0),
       opacity < 1 ? fenceMaterial(color) : new THREE.MeshStandardMaterial({ color, roughness: 0.8 }), segs.length);
@@ -641,7 +711,7 @@ const placeAt = (x, y, z, rx = 0, ry = 0, rz = 0) => new THREE.Matrix4().makeRot
 // panneaux de couleur, sans marque), glissières à l'extérieur des virages, grillage au-dessus et poteaux, tribunes à
 // gradins et toit (ligne droite de la ligne d'arrivée, grands virages). Jamais sur la piste. start : point de la ligne.
 // -> { setQuality(q), cut(pit) : enlève ce qui gêne la voie des stands (points de la voie dans la scène) }
-function trackside(world, start, { blocks = [], stands = [], walls = [] }) {
+function trackside(world, start, { blocks = [], stands = [], standPolys = [], walls = [] }) {
   const { P, SIDE, TURN, N, DS, group, groundAt } = world;
   // Grille de 16 m : points des murs et boîtes (élargies de 4 m) d'OSM
   const C = 16, grid = new Map(), cell = (x, z) => `${Math.floor(x / C)},${Math.floor(z / C)}`;
@@ -713,15 +783,46 @@ function trackside(world, start, { blocks = [], stands = [], walls = [] }) {
   // morceaux choisis, face à la piste, un peu derrière le mur ; pas là où OSM a déjà une tribune à moins de 120 m
   const ROWS = 8, rise = 0.55, depth = 1.2, back = ROWS * depth, roof = 0.9 + ROWS * rise + 3.2;
   const SEATS = [0x2a62b8, 0x3a74cc];
-  const module = solid([
+  const tiers = () => [
     ...Array.from({ length: ROWS }, (_, r) => [new THREE.BoxGeometry(10.5, 0.9 + r * rise, depth), placeAt(0, (0.9 + r * rise) / 2, (r + 0.5) * depth), SEATS[r % 2]]),
     [new THREE.BoxGeometry(10.5, 1.1, 0.15), placeAt(0, 0.55, -0.1), 0xe8e8e8],
+  ];
+  // Avec toit (tribunes d'OSM et de la ligne droite) ou découvertes (virages : le public se voit d'en haut)
+  const module = solid([
+    ...tiers(),
     [new THREE.BoxGeometry(10.5, roof, 0.3), placeAt(0, roof / 2, back + 0.15), 0x8e96a1],
     [new THREE.BoxGeometry(10.8, 0.25, back + 0.6), placeAt(0, roof, back / 2 + 0.3, 0.06), 0xe9ecef],
     ...[-1, 1].map((s) => [new THREE.BoxGeometry(0.3, roof, 0.3), placeAt(s * 4.8, roof / 2, back + 0.1), 0x6d747c]),
   ]);
+  const open = solid([...tiers(), [new THREE.BoxGeometry(10.5, roof - 2.6, 0.3), placeAt(0, (roof - 2.6) / 2, back + 0.15), 0x8e96a1]]);
   const spots = standSpots(TURN, DS, start), mods = [];
   let nMain = 0;
+  // Tribunes d'OSM (d'abord, gardées en Économe) : nos gradins le long de leur côté le plus proche de la piste, tournés
+  // vers elle
+  for (const pts of standPolys) {
+    let best = null;
+    pts.forEach(([ax, az], i) => {
+      const [bx, bz] = pts[(i + 1) % pts.length], len = Math.hypot(bx - ax, bz - az);
+      if (len < 9) return;
+      const d = trackNear(P, (ax + bx) / 2, (az + bz) / 2)[0];
+      if (!best || d < best.d) best = { ax, az, bx, bz, len, d };
+    });
+    if (!best) continue;
+    const { ax, az, bx, bz, len } = best, ex = (bx - ax) / len, ez = (bz - az) / len, mx = (ax + bx) / 2, mz = (az + bz) / 2;
+    let ti = 0, td = Infinity;
+    for (let i = 0; i < N; i++) { const d = (P[i].x - mx) ** 2 + (P[i].z - mz) ** 2; if (d < td) { td = d; ti = i; } }
+    const flip = (P[ti].x - mx) * -ez + (P[ti].z - mz) * ex > 0 ? 1 : -1;   // normale du côté, vers la piste
+    const zA = new THREE.Vector3(ez * flip, 0, -ex * flip), xA = up.clone().cross(zA), count = Math.floor(len / 10.5), pad = (len - count * 10.5) / 2;
+    for (let k = 0; k < count; k++) {
+      const f = new THREE.Vector3(ax + ex * (pad + (k + 0.5) * 10.5), 0, az + ez * (pad + (k + 0.5) * 10.5));
+      const corner = (dx, dz) => f.clone().addScaledVector(xA, dx).addScaledVector(zA, dz);
+      const foot = [corner(-5, 0), corner(5, 0), corner(-5, back), corner(5, back)];
+      if (foot.some((v) => onTrack(v.x, v.z, W / 2 + 4))) continue;
+      mods.push(new THREE.Matrix4().makeBasis(xA, up, zA).setPosition(f.x, Math.min(...foot.map((v) => groundAt(v.x, v.z))) - 0.3, f.z));
+      nMain++;
+    }
+  }
+  const nOsm = nMain;
   for (const [k, spot] of spots.entries()) {
     const sides = spot.side ? [spot.side] : [-1, 1], mid = (spot.from + Math.round(((spot.to - spot.from + N) % N) / 2)) % N;
     for (const s of sides) {
@@ -744,15 +845,105 @@ function trackside(world, start, { blocks = [], stands = [], walls = [] }) {
       }
     }
   }
-  const standMesh = new THREE.InstancedMesh(module, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8 }), Math.max(1, mods.length));
+  const standMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8 });
+  const standMesh = new THREE.InstancedMesh(module, standMat, Math.max(1, nMain)), openMesh = new THREE.InstancedMesh(open, standMat, Math.max(1, mods.length - nMain));
   mods.forEach((mm, k) => {
-    standMesh.setMatrixAt(k, mm);
-    parts.push({ mid: [mm.elements[12] + mm.elements[8] * back / 2, mm.elements[14] + mm.elements[10] * back / 2], far: true, hide: [[standMesh, k]] });
+    const [mesh, j] = k < nMain ? [standMesh, k] : [openMesh, k - nMain];
+    mesh.setMatrixAt(j, mm);
+    parts.push({ mid: [mm.elements[12] + mm.elements[8] * back / 2, mm.elements[14] + mm.elements[10] * back / 2], far: k < nOsm ? 'osm' : true, hide: [[mesh, j]] });
   });
-  standMesh.count = mods.length;
-  standMesh.castShadow = standMesh.receiveShadow = true;
-  group.add(standMesh);
-  items.push(standMesh);
+  standMesh.count = nMain;
+  openMesh.count = mods.length - nMain;
+  for (const o of [standMesh, openMesh]) {
+    o.castShadow = o.receiveShadow = true;
+    group.add(o);
+    items.push(o);
+  }
+
+  // Public dans les tribunes : un spectateur (tronc et tête) sur environ deux places sur trois, t-shirts de toutes les
+  // couleurs ; ceux de la ligne droite d'abord (Économe : seulement eux)
+  const FANS = [0xe10600, 0xff8000, 0x27f4d2, 0x3671c6, 0xf5f5f5, 0x1e1e1e, 0xffd400, 0x229971, 0x6cd3ff, 0xb6babd, 0xff87bc, 0x52e252];
+  const fanSpots = [];
+  mods.forEach((mm, k) => {
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < 16; c++) {
+        const h = hash(k * 977 + r * 31 + c);
+        if (h > 0.68) continue;
+        fanSpots.push([mm, -4.85 + c * 0.65 + (hash(k * 13 + r * 7 + c * 3) - 0.5) * 0.18, 0.9 + r * rise, (r + 0.45) * depth, FANS[Math.floor(hash(h * 1e6 + 5) * FANS.length)], k]);
+      }
+    }
+  });
+  const SKIN = [0xf1c9a5, 0xd9a982, 0xb7835a, 0x8d5a3b, 0x5e3a24];
+  const crowd = new THREE.InstancedMesh(new THREE.BoxGeometry(0.42, 0.55, 0.3).translate(0, 0.28, 0), new THREE.MeshStandardMaterial({ roughness: 0.9 }), Math.max(1, fanSpots.length));
+  const heads = new THREE.InstancedMesh(new THREE.SphereGeometry(0.13, 6, 4).translate(0, 0.7, 0), new THREE.MeshStandardMaterial({ roughness: 0.8 }), Math.max(1, fanSpots.length));
+  const fm = new THREE.Matrix4(), fl = new THREE.Matrix4(), standPart = parts.length - mods.length;
+  fanSpots.forEach(([mm, x, y, z, color, k], j) => {
+    fm.multiplyMatrices(mm, fl.makeTranslation(x, y, z));
+    crowd.setMatrixAt(j, fm);
+    heads.setMatrixAt(j, fm);
+    crowd.setColorAt(j, col.setHex(color));
+    heads.setColorAt(j, col.setHex(SKIN[j % SKIN.length]));
+    parts[standPart + k].hide.push([crowd, j], [heads, j]);
+  });
+  const nFansMain = fanSpots.findIndex((f) => f[5] >= nMain);
+  for (const o of [crowd, heads]) {
+    o.count = fanSpots.length;
+    if (o.instanceColor) o.instanceColor.needsUpdate = true;
+    group.add(o);
+  }
+
+  // Postes des commissaires (cabine blanche au toit orange, derrière le mur) tous les 250 m environ, et grands panneaux
+  // sur poteaux (sans marque) le long des lignes droites, tous les 90 m environ, d'un côté puis de l'autre
+  const post = solid([
+    [new THREE.BoxGeometry(2.2, 2.3, 1.8), placeAt(0, 1.15, 0), 0xf2f2f2],
+    [new THREE.BoxGeometry(2.5, 0.25, 2.1), placeAt(0, 2.42, 0), 0xf07a1a],
+    [new THREE.BoxGeometry(1.6, 0.7, 0.05), placeAt(0, 1.55, -0.92), 0x25323f],
+  ]);
+  const board = solid([
+    [new THREE.BoxGeometry(12, 3, 0.25), placeAt(0, 4.5, 0), 0xffffff],
+    ...[-1, 1].map((s2) => [new THREE.CylinderGeometry(0.12, 0.12, 6, 6), placeAt(s2 * 4.5, 3, 0.2), 0x6d747c]),
+  ]);
+  const near = (x, z, list, d) => list.some(([px, pz]) => (px - x) ** 2 + (pz - z) ** 2 < d * d);
+  const standAt = mods.map((mm) => [mm.elements[12], mm.elements[14]]);
+  const postM = [], boardM = [], boardC = [];
+  const place = (i, sd, extra, list, foot) => {
+    const d = off[i][sd > 0 ? 1 : 0];
+    if (d === null) return null;
+    const q = P[i].clone().addScaledVector(SIDE[i], sd * (d + extra));
+    if (!free(q.x, q.z) || onTrack(q.x, q.z, W / 2 + foot) || near(q.x, q.z, standAt, 18) || near(q.x, q.z, list, 30)) return null;
+    const zA = SIDE[i].clone().multiplyScalar(-sd), xA = up.clone().cross(zA);
+    return new THREE.Matrix4().makeBasis(xA, up, zA).setPosition(q.x, groundAt(q.x, q.z) - 0.1, q.z);
+  };
+  const stepPost = Math.max(1, Math.round(250 / DS)), stepBoard = Math.max(1, Math.round(90 / DS)), half2 = Math.round(40 / DS);
+  for (let i = Math.round(stepPost / 2), k = 0; i < N; i += stepPost, k++) {
+    const sd = TURN[i] > 0 ? -1 : 1;   // à l'extérieur du virage, sinon d'un côté puis de l'autre
+    const m = place(i, Math.abs(TURN[i]) > 1 / 300 ? sd : (k % 2 ? 1 : -1), 3, postM.map((x) => [x.elements[12], x.elements[14]]), 5);
+    if (m) postM.push(m);
+  }
+  for (let i = 0, k = 0; i < N; i += stepBoard) {
+    let straightHere = true;
+    for (let j = -half2; j <= half2 && straightHere; j += 2) straightHere = Math.abs(TURN[(((i + j) % N) + N) % N]) < 1 / 400;
+    if (!straightHere) continue;
+    const m = place(i, k % 2 ? 1 : -1, 7, boardM.map((x) => [x.elements[12], x.elements[14]]), 8);
+    if (!m) continue;
+    k++;
+    boardM.push(m);
+    boardC.push(ADS[3 + Math.floor(hash(i + 11) * (ADS.length - 3))]);
+  }
+  const extras = [[post, postM, null], [board, boardM, boardC]].map(([geo, list, colors]) => {
+    const mesh = new THREE.InstancedMesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.7 }), Math.max(1, list.length));
+    list.forEach((mm, k) => {
+      mesh.setMatrixAt(k, mm);
+      if (colors) mesh.setColorAt(k, col.setHex(colors[k]));
+      parts.push({ mid: [mm.elements[12], mm.elements[14]], far: true, hide: [[mesh, k]] });
+    });
+    mesh.count = list.length;
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    mesh.castShadow = mesh.receiveShadow = true;
+    group.add(mesh);
+    items.push(mesh);
+    return mesh;
+  });
 
   const hidden = new THREE.Matrix4().makeScale(0, 0, 0);
   let cutFor = '';
@@ -760,7 +951,9 @@ function trackside(world, start, { blocks = [], stands = [], walls = [] }) {
     // Économe : ni poteaux ni tribunes des virages ; ombres des abords comme celles des alentours
     setQuality(q) {
       posts.visible = q.props;
-      standMesh.count = q.props ? mods.length : nMain;
+      openMesh.visible = q.props;
+      crowd.count = heads.count = q.props || nFansMain < 0 ? fanSpots.length : nFansMain;
+      for (const m of extras) m.visible = q.props;
       for (const o of items) o.castShadow = q.shadowAll;
     },
     // Voie des stands : murs à moins de 6 m de la voie, tribunes à moins de 30 m (bâtiment des stands) ; une fois par voie
@@ -768,7 +961,7 @@ function trackside(world, start, { blocks = [], stands = [], walls = [] }) {
       if (cutFor === `${pit.length}${pit[0]}`) return;
       cutFor = `${pit.length}${pit[0]}`;
       for (const { mid: [x, z], far, hide } of parts) {
-        const d = far ? 30 : 6;
+        const d = far === 'osm' ? 12 : far ? 30 : 6;   // tribunes d'OSM : seulement si elles touchent la voie
         if (!pit.some(([px, pz]) => (px - x) ** 2 + (pz - z) ** 2 < d * d)) continue;
         for (const [mesh, k] of hide) { mesh.setMatrixAt(k, hidden); mesh.instanceMatrix.needsUpdate = true; }
       }
@@ -1251,7 +1444,7 @@ function buildLayers(world, L) {
 // Bâtiment des stands le long de la voie des stands (pit : points du tracé MultiViewer), du côté opposé à la piste : 15 m
 // de profondeur, 9 m de haut, garages ouverts (bande sombre) face à la voie ; seulement là où la voie est à plus de
 // 14 m de la piste (pas à l'entrée ni à la sortie) et où les alentours n'ont pas déjà un bâtiment. Un seul bloc continu
-// qui suit la voie lissée (sans décrochements d'un morceau à l'autre). -> groupe
+// qui suit la voie lissée (sans décrochements d'un morceau à l'autre) ; paddock goudronné autour. -> groupe
 function pitBuilding(world, pit) {
   const out = new THREE.Group(), { toW, fromW, P } = world;
   // Bâtiments des alentours (repère du tracé, m) et leur boîte
@@ -1300,12 +1493,19 @@ function pitBuilding(world, pit) {
     if (e > i) for (const j of [i, e]) quad(wall, at(j, 8.5, ys[j] - 0.5), at(j, 23.5, ys[j] - 0.5), at(j, 23.5, ys[j] + 9), at(j, 8.5, ys[j] + 9));
     i = e + 1;
   }
-  for (const [list, color] of [[wall, 0xe3e0d7], [dark, 0x2a2e35]]) {
+  // Paddock goudronné du bord de la voie jusqu'à 60 m derrière (sous le bâtiment et derrière lui), là où la voie est à plus
+  // de 14 m de la piste ; posé 15 cm au-dessus du sol, en trois bandes (il suit le relief)
+  const pad = [], atG = (i, off) => { const [x, , z] = at(i, off, 0); return [x, world.groundAt(x, z) + 0.15, z]; };
+  for (let k = 0; k + 1 < pts.length; k++) {
+    if (dir[k][2] < 14 || dir[k + 1][2] < 14) continue;
+    for (const [a, b] of [[3.5, 23.5], [23.5, 42], [42, 60]]) quad(pad, atG(k, a), atG(k + 1, a), atG(k + 1, b), atG(k, b));
+  }
+  for (const [list, color, extra] of [[wall, 0xe3e0d7], [dark, 0x2a2e35], [pad, 0x5c5f64, { roughness: 0.95, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }]]) {
     if (!list.length) continue;
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(list, 3));
     g.computeVertexNormals();
-    const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color, roughness: 0.85, side: THREE.DoubleSide }));
+    const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color, roughness: 0.85, side: THREE.DoubleSide, ...extra }));
     m.castShadow = m.receiveShadow = true;
     out.add(m);
   }
@@ -1586,7 +1786,7 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
   // ---------- Construction (tracé, ou altitude et alentours arrivés plus tard) ----------
   function rebuild(track, elevation, surroundings) {
     if (world) { scene.remove(world.group); dispose(world.group); }
-    world = buildWorld(track, elevation, surroundings, { maxTex: renderer.capabilities.maxTextureSize, aniso: renderer.capabilities.getMaxAnisotropy() });
+    world = buildWorld(track, elevation, surroundings, { maxTex: renderer.capabilities.maxTextureSize, aniso: renderer.capabilities.getMaxAnisotropy(), pal: GROUND[groundClimate(circuitPlace().key)] });
     world.lit = LIT.has(Number(store.state.SessionInfo?.Meeting?.Circuit?.Key));
     weather.attach(world);
     world.addStartLine(store.positions.lineFrac(), Math.min(26, Math.max(20, Object.keys(store.state.DriverList || {}).length)));
@@ -1781,7 +1981,9 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
     optGhost.parentElement.title = gps ? ghost.title : t('Fantôme : il faut les positions GPS des voitures');
     // Étiquette du pilote suivi cachée derrière lui et à bord (elle tomberait sur l'horizon)
     if (focus && (shot === 'poursuite' || shot === 'embarquee')) focus.tag.visible = false;
-    camera.fov = FOV[shot];
+    // À bord : étiquettes des seules voitures proches (à moins de 150 m), comme une vraie caméra embarquée
+    if (focus && shot === 'embarquee') for (const c of cars.values()) if (c.tag.visible && c.p.distanceTo(focus.p) > 150) c.tag.visible = false;
+    camera.fov = FOV[shot] + (shot === 'embarquee' && focus ? Math.min(1, (focus.v || 0) / 90) * 6 : 0);   // à bord : plus large avec la vitesse
     // Plan proche reculé quand la caméra est loin (précision de la profondeur : piste juste au-dessus du sol)
     camera.near = !world.land ? 0.1 : shot === 'libre' || !focus ? Math.min(20, Math.max(0.1, orbit.dist / 150)) : shot === 'helico' || shot === 'survol' ? 2 : 0.1;
     camera.updateProjectionMatrix();
@@ -1821,7 +2023,12 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
       const floor = Math.max(world.groundAt(camPos.x, camPos.z), (world.P[ci].x - camPos.x) ** 2 + (world.P[ci].z - camPos.z) ** 2 < (W / 2 + 3) ** 2 ? cy : -Infinity);
       camPos.y = Math.max(camPos.y, floor + (shot === 'embarquee' ? 0.6 : 1.2));
       camera.position.copy(camPos);
-      if (shot === 'embarquee') camera.up.copy(upL);
+      if (shot === 'embarquee') {
+        // Tête du pilote : vibrations qui montent avec la vitesse, penchée vers l'extérieur dans les virages
+        const v = Math.min(1, (focus.v || 0) / 90), shake = (0.0015 + 0.0045 * v) * (store.status?.paused ? 0 : 1);
+        camera.position.addScaledVector(upL, (Math.sin(now / 23) + Math.sin(now / 37 + 2)) * shake).addScaledVector(right, Math.sin(now / 29 + 1.3) * shake * 0.7);
+        camera.up.copy(upL).applyAxisAngle(f, (focus.steer?.angle || 0) * 0.1 * v);
+      }
       camera.lookAt(look);
       if (shot === 'helico') { sun.target.position.copy(p); shadowSpan = 110; } else { sun.target.position.copy(p).addScaledVector(fh, 30); shadowSpan = 45; }
     }
@@ -1903,6 +2110,23 @@ function steeringWheel() {
     ...knob(-0.054, -0.04, 0xd8262b), ...knob(-0.018, -0.036, 0xf2c318), ...knob(0.018, -0.036, 0x3fc4e0), ...knob(0.054, -0.04, 0x25a84a),
     ...knob(-0.09, -0.042, 0xe8e8e8), ...knob(0.09, -0.042, 0xe8e8e8),
   ]), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.5, metalness: 0.25 })));
+  // Habitacle autour du pilote : rebords du cockpit et protections de la tête en carbone, dessus du châssis devant lui
+  // (bande à la couleur de l'écurie), rétroviseurs sur leurs supports
+  const shell = new THREE.Group(), stripe = new THREE.MeshStandardMaterial({ color: 0x8b95a8, roughness: 0.45, metalness: 0.2 });
+  shell.add(new THREE.Mesh(solid([
+    ...[-1, 1].map((s) => [new THREE.BoxGeometry(0.13, 0.11, 0.95), placeAt(s * 0.34, -0.31, -0.5, 0, s * 0.07, 0), CARBON]),
+    ...[-1, 1].map((s) => [new THREE.BoxGeometry(0.1, 0.13, 0.32), placeAt(s * 0.3, -0.22, 0.08), 0x24272c]),
+    [new THREE.BoxGeometry(0.34, 0.08, 0.9), placeAt(0, -0.37, -1.05, -0.07), CARBON],
+    ...[-1, 1].flatMap((s) => [[new THREE.BoxGeometry(0.14, 0.06, 0.035), placeAt(s * 0.47, -0.15, -0.82, 0, -s * 0.2, 0), CARBON],
+      [new THREE.BoxGeometry(0.12, 0.045, 0.004), placeAt(s * 0.47, -0.15, -0.80, 0, -s * 0.2, 0), 0x9fb2c4],
+      [new THREE.BoxGeometry(0.02, 0.1, 0.02), placeAt(s * 0.42, -0.21, -0.84, 0, 0, s * 0.5), CARBON]]),
+  ]), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.45, metalness: 0.3 })));
+  const band = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.004, 0.9), stripe);
+  band.position.set(0, -0.328, -1.05);
+  band.rotation.x = -0.07;
+  shell.add(band);
+  root.add(shell);
+  let teamFor = '';
   // Écran et voyants du régime : canevas sur une plaque, sans lumière (il brille)
   const cv = document.createElement('canvas');
   cv.width = 320;
@@ -1952,6 +2176,9 @@ function steeringWheel() {
       const k = Math.max(1, 1.2 / camera.aspect);   // écran étroit (téléphone) : volant plus loin, moins large
       mount.position.set(0, -0.19 * k, -0.37 * k);
       wheel.rotation.z = car.steer?.angle || 0;
+      shell.visible = camera.aspect > 0.8;   // téléphone en portrait : rebords hors de l'image
+      const tc = store.state.DriverList?.[num]?.TeamColour;
+      if (tc && tc !== teamFor) { teamFor = tc; stripe.color.set(`#${String(tc).replace('#', '')}`); }
       hemi.color.copy(lights.hemi.color);
       hemi.groundColor.copy(lights.hemi.groundColor);
       hemi.intensity = lights.hemi.intensity;

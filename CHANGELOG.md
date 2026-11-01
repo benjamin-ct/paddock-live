@@ -24,6 +24,21 @@ l'application (Réglages → À propos → Nouveautés).
   Pilote en grand : le filet tourne aussi autour de la carte, le portrait glisse en place et le grand numéro arrive
   derrière.
 
+### Tableau de bord plus clair
+- Nouvelle disposition des panneaux, la même pour tout le monde : le Classement à gauche, le Circuit et l'Analyse au
+  milieu, et un seul panneau « Messages » à droite qui réunit la direction de course, les radios d'équipe, les enquêtes
+  et les limites de piste.
+- Analyse : seulement les 3 onglets utiles selon la séance. En course : Écarts, Arrêts (avec la stratégie) et
+  Télémétrie ; en qualifs et en essais : Secteurs, Comparaison et Télémétrie. Les autres (Temps, Pneus, Jeux de pneus,
+  simulateur d'arrêt, Bagarres, championnat) s'ajoutent en un clic.
+- Bouton « + » au bout des onglets de chaque panneau : il rouvre un onglet fermé, amène un onglet d'un autre panneau,
+  ou affiche un panneau masqué (Duel, Radios ou Stratégie à part).
+- Plus de choix entre les interfaces Essentiel et Complète : une seule, que chacun complète avec le bouton « + ».
+- À la mise à jour, tout le monde passe une fois à cette disposition (les fenêtres sur un second écran gardent leurs
+  panneaux). L'ancienne reste dans Réglages → Disposition → Fenêtres, sous le nom « Ma disposition d'avant » : un clic
+  la remet.
+- Direction de course vide : le message « Aucun message » ne se coupe plus mot par mot.
+
 ### Langues
 - Paddock Live parle aussi italien et espagnol : Italiano et Español dans Réglages → Apparence, et à la première
   ouverture l'appli suit la langue du système. Toute l'interface est traduite, avec les noms des Grands Prix et des
@@ -190,6 +205,19 @@ l'application (Réglages → À propos → Nouveautés).
   des virages, murs en béton avec quelques panneaux de couleur le long des lignes droites, glissières à l'extérieur des
   virages, grillages et poteaux au-dessus, tribunes avec toit le long de la ligne droite des stands et dans les grands
   virages, portique des feux au-dessus de la ligne de départ. En Économe, sans les poteaux ni les tribunes des virages.
+- Sol plus vrai : herbe aux teintes variées avec des bandes de tonte le long de la piste, jaunie sur les circuits secs
+  (Mexico, Austin, Las Vegas, Bakou) et sable ou terre dans le désert (Bahreïn, Qatar, Abou Dabi, Djeddah), champs et
+  terre mêlés loin de la piste, paddock goudronné autour du bâtiment des stands, et dégagements asphaltés et bacs à
+  graviers à l'extérieur des virages quand la carte n'en a pas.
+- Plus de mur au milieu de la piste là où la carte du quartier en plaçait un (au Mexique, le long du stade).
+- Circuit moins désert : beaucoup plus de tribunes (jusqu'à une quinzaine de virages, plus longues dans les grands
+  virages, surtout avant le point de corde), découvertes dans les virages, et remplies de public aux t-shirts de toutes
+  les couleurs ; les tribunes connues de la carte du quartier, qui n'étaient que des blocs gris, deviennent de vrais
+  gradins avec toit et public. Aussi des postes de commissaires tous les 250 m environ et de grands panneaux sur
+  poteaux le long des lignes droites. En Économe : seulement les tribunes avec toit et leur public.
+- Vue Embarquée plus vraie : rebords du cockpit et dessus du châssis à la couleur de l'écurie, rétroviseurs, la tête
+  qui vibre avec la vitesse et penche dans les virages, champ de vision un peu plus large à pleine vitesse, et seules
+  les étiquettes des voitures proches.
 
 ### Téléphone
 - En course, le haut de l'écran tient sur deux lignes (le délai TV à côté du tour) : une ligne de classement en plus, et
@@ -199,6 +227,11 @@ l'application (Réglages → À propos → Nouveautés).
 
 ### Réglages
 - Compte F1 TV : « Se déconnecter » n'apparaît que lorsqu'une connexion est enregistrée.
+- Plusieurs dispositions enregistrées, chacune sous un nom (Réglages → Disposition → Fenêtres, par exemple « Course
+  sur 2 écrans » ou « Qualifs portable ») : un clic sur son nom remet les panneaux de chaque fenêtre et leur place sur
+  les écrans comme au moment de l'enregistrement, avec les panneaux et les onglets affichés et les colonnes du
+  classement, et ✕ la supprime. Elles sont aussi dans le menu « Dispo. » de la
+  barre de gauche. L'emplacement enregistré avant cette version est gardé sous le nom « Mon emplacement ».
 
 ### Animations
 - Plus de mouvement dans l'appli et la version web : les courbes de la Saison se tracent et les barres se remplissent à

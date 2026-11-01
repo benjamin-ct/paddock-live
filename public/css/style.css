@@ -376,6 +376,7 @@ input[type=range]:not(#rpRange):disabled { opacity: .45; cursor: default; }
 /* ---------- Direction de course ---------- */
 .rcm, .radio { list-style: none; margin: 0; padding: 0; }
 .rcm li { display: grid; grid-template-columns: 62px 18px 1fr; gap: 8px; padding: 6px 12px; border-bottom: 1px solid var(--line); align-items: start; }
+.rcm li.note { display: block; }
 .rcm li.new { animation: flash 2s; }
 @keyframes flash { from { background: rgba(245, 197, 24, .18); } to { background: transparent; } }
 .rcm-time { color: var(--muted); font-size: 12px; line-height: 1.25; }
@@ -1593,27 +1594,6 @@ html:is(.float-map, .overlay) #map3dTog { display: none !important; }
 .mob-nav, .mob-panels { display: none; }
 html:not(.phone) [data-phone] { display: none !important; }
 html.phone [data-desk] { display: none !important; }
-/* Ordinateur, mode Essentiel : le principal seulement (data-expert : mode Complet) */
-html.essential [data-expert] { display: none !important; }
-/* Mode Essentiel : classement compact (code pilote, écart et intervalle avec la voiture devant, secteurs en couleur,
-   pneus), sans nom complet ni mini-secteurs ; agrandi (⤢) : les colonnes choisies dans son menu */
-html.essential:not(.ess-quali):not(.ess-big) .p-tower:not(.maximized) .tower :is(.c-last, .c-best, .c-pits, .c-speed, .c-duel, .drv-last) { display: none !important; }
-/* Essentiel, essais et qualifs : meilleur tour, écart et intervalle, secteurs en couleur (sans mini-secteurs) ;
-   en qualifs (colonnes Q1-Q3), le tour en cours (temps prévu et position visée) */
-html.essential.ess-quali:not(.ess-big) .p-tower:not(.maximized) .tower :is(.c-last, .c-speed, .c-duel, .drv-last),
-html.essential.ess-quali:not(.ess-big) .p-tower:not(.maximized) .tower:not(:has(.c-q)) .c-pred { display: none !important; }
-/* Essentiel, écran plus grand que le 1080p : grand classement (dernier tour, secteurs et mini-secteurs), sans speed trap ni boutons duel ;
-   tour en cours seulement en qualifs */
-html.essential.ess-big .p-tower:not(.maximized) .tower :is(.c-speed, .c-duel),
-html.essential.ess-big .p-tower:not(.maximized) .tower:not(:has(.c-q)) .c-pred { display: none !important; }
-/* Essentiel : télémétrie seule dans le panneau Analyse */
-html.essential .p-analysis [data-tab]:not([data-tab="telemetry"]) { display: none !important; }
-html.essential .p-tower .panel-tools .hint { display: none; }
-html.essential:not(.ess-big) .tower .c-sec .segs { display: none; }
-html.essential:not(.ess-big) .p-tower:not(.maximized) .tower td.c-sec .sector-val { font-size: 0; width: 22px; height: 8px; margin: 0 auto; border-radius: 2px; background: #E3B505; }
-html.essential:not(.ess-big) .p-tower:not(.maximized) .tower td.c-sec .sector-val.green { background: var(--green); }
-html.essential:not(.ess-big) .p-tower:not(.maximized) .tower td.c-sec .sector-val.purple { background: var(--purple); }
-html.essential:not(.ess-big) .p-tower:not(.maximized) .tower td.c-sec .sector-val:has(.dim) { background: var(--line-2); }
 
 /* Design classique : pas de bandeau du bas (il fait partie du design Broadcast) */
 html[data-design="classic"] .rc-bar { display: none !important; }
@@ -3603,3 +3583,13 @@ html[data-motion="off"] .duel-band { animation: none; }
   .bt-name { font-size: 20px; }
 }
 .grid.mobile .bt-photo { width: 36px; height: 36px; }
+/* Dispositions enregistrées (Réglages → Disposition → Fenêtres) : une pastille par disposition */
+.win-save { margin-top: 0; }
+.win-setup [data-setup] { display: inline-flex; align-items: center; gap: 6px; color: var(--text); font-size: 12.5px; font-weight: 600; padding: 4px 2px; }
+.win-setup [data-setup] .ic { width: 14px; height: 14px; color: var(--accent); }
+.win-setup [data-setup]:hover { color: var(--accent); }
+/* Bouton « + » au bout des onglets d'un panneau (ui/tabmove.js) : onglets fermés, panneaux masqués */
+.panel-head .tab-add { flex: none; align-self: center; margin-left: 2px; opacity: .65; }
+.panel-head .tab-add:hover, .panel-head .tab-add:focus-visible { opacity: 1; }
+.panel-head .tab-add .ic { width: 14px; height: 14px; }
+html.phone .panel-head .tab-add { display: none; }
