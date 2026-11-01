@@ -392,6 +392,8 @@ l'application (Réglages → À propos → Nouveautés).
 ### Version web (app.paddocklive.app)
 - Bouton « Nouveautés » (dans le menu ☰ sur téléphone) : les dernières nouveautés de Paddock Live, en bref ; un
   point rouge signale ce qui n'a pas encore été lu.
+- Radios : elles ne restent plus sur « transcription… » quand une fenêtre Analyse ou Duel (ou un autre onglet) reste
+  ouverte en arrière-plan ; la fenêtre au premier plan prend la main. Aussi dans l'appli.
 
 ### Divers
 - Petites améliorations internes.
