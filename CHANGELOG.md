@@ -220,6 +220,9 @@ l'application (Réglages → À propos → Nouveautés).
 - Vue Embarquée plus vraie : rebords du cockpit et dessus du châssis à la couleur de l'écurie, rétroviseurs, la tête
   qui vibre avec la vitesse et penche dans les virages, champ de vision un peu plus large à pleine vitesse, et seules
   les étiquettes des voitures proches.
+- Mini-carte 2D en bas à gauche de la vue 3D avec les caméras Hélico, Poursuite et Embarquée (et Réalisation) : le
+  tracé du circuit vu de haut, comme la carte 2D, et toutes les voitures aux couleurs de leur écurie, le pilote suivi
+  plus gros et cerclé de blanc. Elle se coupe dans Réglages de la vue 3D (Mini-carte 2D). Aussi dans la version web.
 - Survol plus doux : dans les virages serrés et les chicanes (le stade de Mexico, par exemple), la caméra ne saute plus
   d'un côté à l'autre de la piste et ne pivote plus d'un coup ; elle suit une trajectoire lissée et regarde dans la
   direction de la piste.
@@ -264,8 +267,9 @@ l'application (Réglages → À propos → Nouveautés).
   de courbe dans une case à la couleur de l'écurie, plus facile à suivre. Pneus : le logo de l'écurie devant chaque
   pilote (tours de chaque pilote, jeux du week-end), et les composés choisis par Pirelli dans des cartes à leur couleur,
   chiffre en grand. Aussi dans la version web.
-- Calendrier : le drapeau du pays en fond du prochain Grand Prix, compte à rebours en plus grand, et chaque Grand Prix
-  couru teinté de la couleur de l'écurie du vainqueur. Aussi dans la version web.
+- Calendrier : le drapeau du pays en fond du prochain Grand Prix, compte à rebours en plus grand, la prochaine séance
+  en rouge dans le programme du week-end (comme sur l'accueil), et chaque Grand Prix couru teinté de la couleur de
+  l'écurie du vainqueur. Aussi dans la version web.
 - Saison → Pilotes : tous les pilotes en cartes, comme les cartes officielles de la F1 (prénom, nom, écurie, numéro et
   logo de l'écurie bien visible, portrait sur la couleur de l'écurie), à faire défiler ; toucher une carte affiche ce
   pilote, présenté en grand en tête de page avec son numéro et le logo de son écurie. Aussi dans la version web.

@@ -2744,6 +2744,7 @@ export default {
   "La caméra fait le tour du circuit, avec les numéros des virages": "La cámara da la vuelta al circuito, con los números de las curvas",
   "Écart avec la voiture devant": "Diferencia con el coche de delante",
   "Fantôme du meilleur tour": "Fantasma de la vuelta rápida",
+  "Mini-carte 2D": "Minimapa 2D",
   "Bataille pour la P{}": "Lucha por la P{}",
   "Fantôme : tour de {} ({}), le plus rapide dont on a les positions GPS ; meilleur tour de la séance : {} ({})": "Fantasma: vuelta de {} ({}), la más rápida de la que tenemos las posiciones GPS; mejor vuelta de la sesión: {} ({})",
   "Fantôme : meilleur tour de {} ({})": "Fantasma: vuelta rápida de {} ({})",
