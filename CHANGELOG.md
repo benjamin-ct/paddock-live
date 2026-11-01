@@ -201,6 +201,11 @@ l'application (Réglages → À propos → Nouveautés).
 
 ### Réglages
 - Compte F1 TV : « Se déconnecter » n'apparaît que lorsqu'une connexion est enregistrée.
+- Plusieurs dispositions enregistrées, chacune sous un nom (Réglages → Disposition → Fenêtres, par exemple « Course
+  sur 2 écrans » ou « Qualifs portable ») : un clic sur son nom remet les panneaux de chaque fenêtre et leur place sur
+  les écrans comme au moment de l'enregistrement, avec les panneaux et les onglets affichés et les colonnes du
+  classement, et ✕ la supprime. Elles sont aussi dans le menu « Dispo. » de la
+  barre de gauche. L'emplacement enregistré avant cette version est gardé sous le nom « Mon emplacement ».
 
 ### Animations
 - Plus de mouvement dans l'appli et la version web : les courbes de la Saison se tracent et les barres se remplissent à
