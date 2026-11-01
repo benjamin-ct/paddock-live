@@ -302,9 +302,8 @@ input[type=range]:not(#rpRange):disabled { opacity: .45; cursor: default; }
 .tower tr.out td.c-duel { opacity: 1; }
 .tower tr.out td.c-duel .duel-btns { opacity: .45; }
 @media (hover: hover) { .tower tr.trow:hover td { background: var(--hover); } }   /* souris seulement : au doigt, la ligne touchée pour faire défiler restait surlignée */
-.tower tr.focus td { background: var(--focus); }
-.tower tr.duel-a td:first-child { box-shadow: inset 3px 0 0 var(--blue); }
-.tower tr.duel-b td:first-child { box-shadow: inset 3px 0 0 var(--orange); }
+/* Pilote suivi et pilotes choisis pour le duel (clic sur leur ligne) */
+.tower tr:is(.focus, .duel-a, .duel-b) td { background: var(--focus); }
 .tower tr.out td { opacity: .45; }
 .tower tr.danger td { background: rgba(255, 59, 48, .07); }
 .tower tr.cut td { border-bottom: 2px dashed var(--red); }
@@ -2421,8 +2420,8 @@ body.solo .tb-tools { display: none; }
 /* Classement */
 [data-theme="pitwall"] .tower th { font-family: var(--font); font-size: 10.5px; letter-spacing: 1.1px; color: var(--muted); font-weight: 500; }
 [data-theme="pitwall"] .tower td { border-bottom-color: var(--line); }
-[data-theme="pitwall"] .tower tr.focus td { background: rgba(225, 6, 0, .10); }
-[data-theme="pitwall"] .tower tr.focus td:first-child { box-shadow: inset 2px 0 0 var(--accent); }
+[data-theme="pitwall"] .tower tr:is(.focus, .duel-a, .duel-b) td { background: rgba(225, 6, 0, .10); }
+[data-theme="pitwall"] .tower tr:is(.focus, .duel-a, .duel-b) td:first-child { box-shadow: inset 2px 0 0 var(--accent); }
 [data-theme="pitwall"] .seg { height: 9px; border-radius: 2px; min-width: 4px; }
 [data-theme="pitwall"] .seg-yellow { background: #E3B505; }
 [data-theme="pitwall"] .tag { font-family: var(--font); font-size: 10px; font-weight: 700; letter-spacing: .8px; padding: 1px 6px; border-radius: 5px; line-height: 15px; }
@@ -3538,16 +3537,18 @@ html:is(.float-map, .overlay) .boot-cover { display: none; }
 .bt-val { font: italic 800 38px/1 var(--font-cond, inherit); font-variant-numeric: tabular-nums; white-space: nowrap; text-shadow: 0 0 26px rgba(255, 255, 255, .25); }
 .bt-val small { font-size: 15px; margin-left: 3px; opacity: .7; }
 .bt-who { font-size: 11px; font-weight: 700; color: rgba(255, 255, 255, .72); }
+/* Le pilote derrière reprend du temps (vert, flèche vers le bas : l'écart fond) ou en perd (rouge) */
+.bt-gtrend { display: inline-flex; align-items: center; gap: 4px; margin-top: 3px; padding: 1px 8px; border-radius: 999px; font-size: 11px; white-space: nowrap; background: rgba(0, 0, 0, .35); color: rgba(255, 255, 255, .8); }
+.bt-gtrend b { color: #fff; }
+.bt-gtrend.closing { color: #4ade80; }
+.bt-gtrend.closing::before { content: '▼'; font-size: 8px; }
+.bt-gtrend.pulling { color: #f87171; }
+.bt-gtrend.pulling::before { content: '▲'; font-size: 8px; }
 .bt.close .bt-tag, .duel-band.close .bt-tag { color: #4ade80; }
 /* Bandeau par-dessus le bas du Classement (duel choisi avec A et B) ; le classement laisse sa place en dessous */
 .duel-band { position: absolute; left: 8px; right: 8px; bottom: 8px; z-index: 6; animation: bt-up .25s ease-out; }
 .duel-band .bt-band { min-height: 60px; padding: 8px 40px 8px 14px; box-shadow: 0 14px 34px -10px rgba(0, 0, 0, .7); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
 .duel-band .bt-close { position: absolute; top: 50%; right: 8px; transform: translateY(-50%); z-index: 2; color: #fff; background: rgba(0, 0, 0, .3); border-radius: 50%; width: 24px; height: 24px; font-size: 11px; }
-.duel-band .bt-btrend { position: absolute; left: 50%; top: 1px; transform: translate(-50%, -100%); padding: 2px 10px; border-radius: 9px 9px 0 0; font-size: 11px; white-space: nowrap; background: #0a1222; color: rgba(255, 255, 255, .8); z-index: 1; }
-.duel-band .bt-btrend:empty { display: none; }
-.duel-band .bt-btrend b { color: #fff; }
-.duel-band .bt-btrend.closing { color: #4ade80; }
-.duel-band .bt-btrend.pulling { color: #f87171; }
 .panel.has-duel .tower-wrap { padding-bottom: 112px; }
 @keyframes bt-up { from { transform: translateY(14px); opacity: 0; } }
 html[data-motion="off"] .duel-band { animation: none; }

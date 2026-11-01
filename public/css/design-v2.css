@@ -169,7 +169,7 @@
   box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--tc) 85%, #fff), 0 0 14px color-mix(in srgb, var(--tc) 55%, transparent) !important; background-position: center !important; }
 :root[data-design="v2"] .tower .team-logo.color, :root[data-design="v2"] .sz-table .team-logo.color, :root[data-design="v2"] .hm-fav-who .team-logo.color { background-color: #F4F6FA !important; background-size: 62% !important; }
 :root[data-design="v2"] .tower .team-logo { width: 26px; height: 26px; }
-:root[data-design="v2"] .tower tr.focus { background: linear-gradient(90deg, rgba(225, 6, 0, .34), rgba(225, 6, 0, .06) 60%, transparent) !important; box-shadow: inset 3px 0 0 #ff2a1f; }
+:root[data-design="v2"] .tower tr:is(.focus, .duel-a, .duel-b) { background: linear-gradient(90deg, rgba(225, 6, 0, .34), rgba(225, 6, 0, .06) 60%, transparent) !important; box-shadow: inset 3px 0 0 #ff2a1f; }
 @media (hover: hover) { :root[data-design="v2"] .tower tr.trow:hover td { background: rgba(255, 255, 255, .04); } }
 :root[data-design="v2"] .tyre { box-shadow: 0 0 8px color-mix(in srgb, currentColor 45%, transparent); }
 :root[data-design="v2"] .tower .c-duel .duel-btns button, :root[data-design="v2"] .tower .duel-btn { border-radius: 8px; }

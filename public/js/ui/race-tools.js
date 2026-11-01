@@ -1,5 +1,5 @@
 // Outils de course : simulateur d'arrêt au stand et détection des bagarres.
-import { store, setDuel, versionOf, displayNow } from '../store.js';
+import { store, setDuelPair, versionOf, displayNow } from '../store.js';
 import { $, esc, drivers, orderedNumbers, sessionKind, teamColor, fmtSigned, driverOpt } from '../util.js';
 import { parseGap, parseLapTime } from '/shared/f1.js';
 import { currentTrack } from './map.js';
@@ -275,7 +275,6 @@ export function initRaceTools() {
     const b = e.target.closest('[data-battle]');
     if (!b) return;
     const [front, back] = b.dataset.battle.split(',');
-    setDuel('a', front);
-    setDuel('b', back);
+    setDuelPair(front, back);
   });
 }

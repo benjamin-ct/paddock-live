@@ -11,6 +11,7 @@ let skeletonFor = null;
 let autoFilled = false;   // duel choisi tout seul une fois (jamais après un choix effacé à la main)
 let lastSlowKey = '';
 let lastFast = 0;
+let bandTrend = '';   // tendance dans le bandeau (renderSlow), sous l'écart
 
 function list(obj) {
   if (!obj) return [];
@@ -68,24 +69,31 @@ export function lapGapSeries(a, b) {
   return out;
 }
 
-// Tendance sur les 4 derniers tours sans arrêt : { cls: 'closing' | 'pulling' | 'stable', html }
+// Tendance sur les derniers tours sans arrêt (4 au plus, 2 au moins), vue du pilote derrière : il reprend du temps ou
+// en perd. -> { cls: 'closing' | 'pulling' | 'stable', html (panneau, avec le rattrapage estimé), band (bandeau) } ou null
 function trend(series, tlaA, tlaB, gapNow) {
-  const clean = series.filter((p) => !p.pit);
-  if (clean.length < 3) return { cls: 'stable', html: 'Tendance après quelques tours communs' };
-  const pts = clean.slice(-4);
+  // Tours qui se suivent sans arrêt ni saut de plus de 3 s de l'écart (tour de sortie des stands, voiture au ralenti)
+  const pts = [];
+  for (let i = series.length - 1; i >= 0 && pts.length < 4; i--) {
+    const p = series[i], next = pts[0];
+    if (p.pit || (next && (next.x - p.x !== 1 || Math.abs(next.y - p.y) > 3))) { if (pts.length >= 2) break; pts.length = 0; if (p.pit) continue; }
+    pts.unshift(p);
+  }
+  if (pts.length < 2) return null;
   const first = pts[0], last = pts[pts.length - 1];
   const rate = (last.y - first.y) / (last.x - first.x || 1); // variation de l'écart par tour (A devant si > 0)
   const gap = gapNow ?? last.y;
   const r = Math.abs(rate).toFixed(2).replace('.', DEC);
-  if (Math.abs(rate) < 0.03) return { cls: 'stable', html: `Écart stable · ${fmtSigned(rate, 2).replace('.', DEC)} s/tour` };
-  const front = gap >= 0 ? tlaA : tlaB, back = gap >= 0 ? tlaB : tlaA;
+  const back = gap >= 0 ? tlaB : tlaA;
+  const on = pts.length - 1 > 1 ? `sur les ${pts.length - 1} derniers tours` : 'au dernier tour';
+  if (Math.abs(rate) < 0.03) return { cls: 'stable', html: `Écart stable ${on}`, band: 'Écart stable' };
   const closing = (gap >= 0 && rate < 0) || (gap < 0 && rate > 0);
-  if (!closing) return { cls: 'pulling', html: `<b>${esc(front)}</b> s'échappe · +${r} s/tour` };
+  if (!closing) return { cls: 'pulling', html: `<b>${esc(back)}</b> perd ${r} s/tour ${on}`, band: `<b>${esc(back)}</b> perd ${r} s/tour` };
   const lapsToCatch = Math.max(1, Math.round(Math.abs(gap) / Math.abs(rate)));
   const lc = store.state.LapCount;
   const remaining = lc?.TotalLaps && lc?.CurrentLap ? lc.TotalLaps - lc.CurrentLap : null;
-  const eta = remaining !== null && lapsToCatch > remaining ? 'pas avant l\'arrivée' : `dans ~${lapsToCatch} tour(s)`;
-  return { cls: 'closing', html: `<b>${esc(back)}</b> revient · −${r} s/tour · ${eta}` };
+  const eta = remaining !== null && lapsToCatch > remaining ? 'pas avant l\'arrivée' : `sur lui dans ~${lapsToCatch} tour(s)`;
+  return { cls: 'closing', html: `<b>${esc(back)}</b> reprend ${r} s/tour ${on} · ${eta}`, band: `<b>${esc(back)}</b> reprend ${r} s/tour` };
 }
 
 // Petite courbe de l'écart sur les 12 derniers tours (plus haut : A plus loin devant ; ligne pointillée : à égalité)
@@ -120,7 +128,7 @@ function showTowerBand(on) {
   const el = $('#duelBand');
   if (!el) return;
   if (on && !el.querySelector('.bt-band')) {
-    el.innerHTML = `${BAND}<span class="bt-btrend"></span><button type="button" class="bt-close icon-btn small" title="Fermer le duel" aria-label="Fermer le duel">✕</button>`;
+    el.innerHTML = `${BAND}<button type="button" class="bt-close icon-btn small" title="Fermer le duel" aria-label="Fermer le duel">✕</button>`;
     el.querySelector('.bt-close').addEventListener('click', () => { setDuel('a', null); setDuel('b', null); });
   }
   if (el.hidden === !on) return;
@@ -181,7 +189,7 @@ function renderHero(a, b) {
       <span class="bt-stats">${st ? `<span class="bt-tyre">${tyreBadge(st.Compound, st.TotalLaps, st.New)}</span>` : ''}${last}<span class="bt-kmh" hidden><b></b> km/h</span></span></div>`;
   };
   const html = { a: side(a, da, lastA, lastB), b: side(b, db, lastB, lastA),
-    gap: `<span class="bt-tag">${tag}</span><b class="bt-val">${main}${unit ? `<small>${unit}</small>` : ''}</b>${ahead ? `<span class="bt-who">${esc((ahead === 'a' ? da : db).Tla || '')} devant</span>` : ''}` };
+    gap: `<span class="bt-tag">${tag}</span><b class="bt-val">${main}${unit ? `<small>${unit}</small>` : ''}</b>${ahead ? `<span class="bt-who">${esc((ahead === 'a' ? da : db).Tla || '')} devant</span>` : ''}${bandTrend}` };
   for (const box of bands()) {
     box.style.setProperty('--ta', teamColor(da));
     box.style.setProperty('--tb', teamColor(db));
@@ -238,11 +246,11 @@ function renderSlow(a, b) {
     const off = officialGap(s, a, b);
     const gapNow = off && off.gap !== null && !off.laps ? (off.ahead === 'a' ? off.gap : -off.gap) : null;
     const tr = trend(series, tlaA, tlaB, gapNow);
-    $('#btTrend').className = `bt-trend ${tr.cls}`;
-    put('#btTrend', tr.html);
-    const bt = $('#duelBand .bt-btrend');
-    if (bt) { bt.className = `bt-btrend ${tr.cls}`; bt.innerHTML = tr.cls === 'stable' && series.filter((p) => !p.pit).length < 3 ? '' : tr.html; }
+    $('#btTrend').className = `bt-trend ${tr?.cls || 'stable'}`;
+    put('#btTrend', tr?.html || 'Tendance après deux tours communs');
+    bandTrend = tr ? `<span class="bt-gtrend ${tr.cls}">${tr.band}</span>` : '';
   } else {
+    bandTrend = '';
     $('#btTrend').className = 'bt-trend stable';
     put('#btTrend', kind === 'quali' ? `Meilleurs tours de la Q${Number(s.TimingData?.SessionPart) || 1}` : 'Meilleurs tours de la séance');
   }

@@ -121,6 +121,13 @@ export function setDuel(slot, num, manual = false) {
   emit('duel', store.duel);
 }
 
+// Duel choisi par l'utilisateur (deux pilotes cliqués dans le classement, une bagarre) : a et b, ou null
+export function setDuelPair(a, b) {
+  store.duel = { a: a || null, b: b || null, auto: null, manual: true };
+  storageSet('paddock.duel', store.duel);
+  emit('duel', store.duel);
+}
+
 export function setFocus(num) {
   store.focus = num;
   storageSet('paddock.focus', num);

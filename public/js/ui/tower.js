@@ -1,5 +1,5 @@
 // Tableau de classement (course / qualifications / essais).
-import { store, setDuel, setFocus, versionOf, displayNow, f1Now, on, utcToLocal } from '../store.js';
+import { store, setDuelPair, setFocus, versionOf, displayNow, f1Now, on, utcToLocal } from '../store.js';
 import { $, esc, drivers, orderedNumbers, sessionKind, teamMark, tyreBadge, currentStint, lapSeconds, fmtLap } from '../util.js';
 import { prefs, isFav, toggleFav, towerCols, towerBig } from '../prefs.js';
 import { segmentClass, parseUtc, chequeredUtc, parseGap, overtakeEnabled, passed } from '/shared/f1.js';
@@ -66,8 +66,7 @@ export function renderTower(force = false) {
   const now = performance.now();
   const depKnown = updateDep(store.state.TimingData?.Lines || {});
   // Pilotes A et B marqués seulement quand le panneau Duel est affiché (comme sur la carte)
-  const duelOn = !!document.querySelector('.p-duel')?.getClientRects().length;
-  const key = `${versionOf(['TimingData', 'TimingAppData', 'DriverList', 'TimingStats', 'RaceControlMessages', '__reset'])}|${store.duel.a}|${store.duel.b}|${duelOn}|${store.focus}|${towerBig()}|${towerCols().hidden.join()}|${towerCols().extra.join()}|${prefs.favs.join()}|${prefs.hotLapDim}|${depKnown && [...depOn].filter(([, d]) => d.on).map(([n]) => n).join()}`;
+  const key = `${versionOf(['TimingData', 'TimingAppData', 'DriverList', 'TimingStats', 'RaceControlMessages', '__reset'])}|${store.duel.a}|${store.duel.b}|${store.duel.manual}|${store.focus}|${towerBig()}|${towerCols().hidden.join()}|${towerCols().extra.join()}|${prefs.favs.join()}|${prefs.hotLapDim}|${depKnown && [...depOn].filter(([, d]) => d.on).map(([n]) => n).join()}`;
   const carTick = store.positions.car.size ? Math.floor(now / 500) : 0;
   if (!force && key + carTick === lastKey) return;
   if (!force && now - lastRender < 250) return;
@@ -110,13 +109,13 @@ export function renderTower(force = false) {
   let head;
   if (kind === 'race') {
     head = TH('', 'Pos') + TH('', 'Pilote') + TH('c-tags', '') + TH('t-gap', 'Écart') + TH('t-int c-int', 'Interv.') + TH('t-lap c-last', 'Dernier') + TH('t-lap c-best', 'Meilleur') +
-      secHead + TH('c-tyre', 'Pneu') + TH('c-pits', 'Arr.', 'Arrêts aux stands') + TH('c-speed', 'V.max', 'Vitesse au speed trap') + extraHead + TH('c-duel', 'Duel');
+      secHead + TH('c-tyre', 'Pneu') + TH('c-pits', 'Arr.', 'Arrêts aux stands') + TH('c-speed', 'V.max', 'Vitesse au speed trap') + extraHead;
   } else if (kind === 'quali') {
     head = TH('', 'Pos') + TH('', 'Pilote') + TH('c-tags', '') + TH('t-lap', 'Meilleur') + TH('t-gap', 'Écart') + TH('t-int c-int', 'Interv.') + TH('t-lap c-pred', 'Tour en cours', 'Temps prévu du tour lancé et position visée') +
-      TH('t-lap c-last', 'Dernier') + secHead + TH('t-lap c-q', 'Q1') + TH('t-lap c-q', 'Q2') + TH('t-lap c-q', 'Q3') + TH('c-tyre', 'Pneu') + extraHead + TH('c-duel', 'Duel');
+      TH('t-lap c-last', 'Dernier') + secHead + TH('t-lap c-q', 'Q1') + TH('t-lap c-q', 'Q2') + TH('t-lap c-q', 'Q3') + TH('c-tyre', 'Pneu') + extraHead;
   } else {
     head = TH('', 'Pos') + TH('', 'Pilote') + TH('c-tags', '') + TH('t-lap', 'Meilleur') + TH('t-gap', 'Écart') + TH('t-int c-int', 'Interv.') + TH('t-lap c-pred', 'Tour en cours', 'Temps prévu du tour lancé') +
-      TH('t-lap c-last', 'Dernier') + secHead + TH('c-tyre', 'Pneu') + TH('c-pits', 'Tours') + extraHead + TH('c-duel', 'Duel');
+      TH('t-lap c-last', 'Dernier') + secHead + TH('c-tyre', 'Pneu') + TH('c-pits', 'Tours') + extraHead;
   }
 
   // Meilleurs temps de la partie en cours (qualifs) / de la séance, pour classer les tours en cours.
@@ -177,7 +176,6 @@ export function renderTower(force = false) {
     const sectors = list(l.Sectors);
     const secCells = [0, 1, 2].map((i) => sectorCell(sectors[i])).join('');
     const tyre = `<td class="c-tyre">${stint ? tyreBadge(stint.Compound, stint.TotalLaps, stint.New) : '<span class="dim">—</span>'}</td>`;
-    const duel = `<td class="c-duel"><div class="duel-btns"><button class="ab a ${store.duel.a === num ? 'on' : ''}" data-duel="a" data-num="${num}" title="Pilote A du duel">A</button><button class="ab b ${store.duel.b === num ? 'on' : ''}" data-duel="b" data-num="${num}" title="Pilote B du duel">B</button></div></td>`;
     const last = `<td class="t-lap c-last ${timingClass(l.LastLapTime)}">${esc(l.LastLapTime?.Value || '') || '<span class="dim">—</span>'}</td>`;
     let predCell = '<td class="t-lap c-pred"><span class="dim">—</span></td>';
     if (pred) {
@@ -210,7 +208,7 @@ export function renderTower(force = false) {
         <td class="t-int c-int ${int.Catching ? 'catching' : ''}">${l.Retired ? '<span class="dim">—</span>' : gapText(int.Value)}</td>
         ${last}<td class="t-lap c-best ${bestPurple ? 'purple' : ''}">${esc(best) || '<span class="dim">—</span>'}</td>
         ${secCells}${tyre}<td class="c-pits">${realStopCount(store.state.TimingAppData?.Lines?.[num], l)}</td>
-        <td class="c-speed ${timingClass(st)}">${esc(st?.Value || '') || '<span class="dim">—</span>'}</td>${extra}${duel}`;
+        <td class="c-speed ${timingClass(st)}">${esc(st?.Value || '') || '<span class="dim">—</span>'}</td>${extra}`;
     } else if (kind === 'quali') {
       const bl = list(l.BestLapTimes);
       const stp = list(l.Stats)[part - 1] || {};
@@ -220,13 +218,13 @@ export function renderTower(force = false) {
         <td class="t-lap">${esc(best) || '<span class="dim">—</span>'}</td>
         <td class="t-gap">${esc(stp.TimeDiffToFastest || '') || '<span class="dim">—</span>'}</td>
         <td class="t-int c-int">${esc(stp.TimeDifftoPositionAhead || '') || '<span class="dim">—</span>'}</td>
-        ${predCell}${last}${secCells}${q}${tyre}${extra}${duel}`;
+        ${predCell}${last}${secCells}${q}${tyre}${extra}`;
     } else {
       cells = `<td class="pos${String(pos).length < 2 ? ' p1' : ''}">${esc(pos)}</td>${drv}
         <td class="t-lap">${esc(l.BestLapTime?.Value || '') || '<span class="dim">—</span>'}</td>
         <td class="t-gap">${esc(l.TimeDiffToFastest || '') || '<span class="dim">—</span>'}</td>
         <td class="t-int c-int">${esc(l.TimeDiffToPositionAhead || '') || '<span class="dim">—</span>'}</td>
-        ${predCell}${last}${secCells}${tyre}<td class="c-pits">${esc(l.NumberOfLaps ?? '')}</td>${extra}${duel}`;
+        ${predCell}${last}${secCells}${tyre}<td class="c-pits">${esc(l.NumberOfLaps ?? '')}</td>${extra}`;
     }
 
     const cls = ['trow'];
@@ -236,8 +234,9 @@ export function renderTower(force = false) {
     if (done) cls.push('fin');
     if (store.focus === num) cls.push('focus');
     if (hot && !pred && store.focus !== num && store.duel.a !== num && store.duel.b !== num) cls.push('cool');
-    if (duelOn && store.duel.a === num) cls.push('duel-a');
-    if (duelOn && store.duel.b === num) cls.push('duel-b');
+    // Pilotes choisis pour le duel (clic sur leur ligne)
+    if (store.duel.manual && store.duel.a === num) cls.push('duel-a');
+    if (store.duel.manual && store.duel.b === num) cls.push('duel-b');
     return { num, cls: cls.join(' '), cells };
   });
   freshReset = false;
@@ -444,22 +443,20 @@ export function initTower() {
   on('reset', () => { freshReset = true; prevPos.clear(); flashes.clear(); depOn.clear(); });
   on('towerSize', () => renderTower(true));   // agrandi ou réduit : ses colonnes
   $('#tower').addEventListener('click', (e) => {
-    const b = e.target.closest('[data-duel]');
-    if (b) {
-      const slot = b.dataset.duel;
-      setDuel(slot, store.duel[slot] === b.dataset.num ? null : b.dataset.num, true);
-      renderTower(true);
-      return;
-    }
     const fav = e.target.closest('[data-fav]');
     if (fav) {
       toggleFav(fav.dataset.fav);
       renderTower(true);
       return;
     }
+    // Clic sur un pilote : choisi (et suivi) ; deux pilotes choisis : le duel s'affiche (bandeau) ; un troisième remplace
+    // le deuxième ; un pilote déjà choisi : retiré
     const row = e.target.closest('tr[data-num]');
     if (row) {
-      setFocus(store.focus === row.dataset.num ? null : row.dataset.num);
+      const n = row.dataset.num, sel = store.duel.manual ? [store.duel.a, store.duel.b].filter(Boolean) : [];
+      const next = sel.includes(n) ? sel.filter((x) => x !== n) : sel.length < 2 ? [...sel, n] : [sel[0], n];
+      setDuelPair(next[0], next[1]);
+      setFocus(next.includes(n) ? n : next.at(-1) || null);
       renderTower(true);
     }
   });
