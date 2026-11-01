@@ -1,24 +1,24 @@
 // Disposition libre : colonnes et panneaux redimensionnables, panneaux déplaçables par glisser-déposer,
 // fenêtres secondaires (second écran) pouvant regrouper plusieurs panneaux, colonnes du classement.
 import { $, $$, esc, storageGet, storageSet, sessionKind } from '../util.js';
-import { prefs, setPref, shortScreenHidden, towerCols, towerBig } from '../prefs.js';
+import { prefs, setPref, towerCols, towerBig, PANELS_HIDDEN, TAB_HIDDEN } from '../prefs.js';
 import { store, on, emit } from '../store.js';
 import { toast } from './delay.js';
 import { t } from '../i18n.js';
 import { icon } from '../icons.js';
 import { track } from './stats.js';
-import { tabList, canHideTab } from './tabmove.js';
+import { tabList, canHideTab, pageTabs } from './tabmove.js';
 
 export const PANELS = [
   { id: 'tower', cls: 'p-tower', name: 'Classement' },
   { id: 'map', cls: 'p-map', name: 'Circuit' },
-  { id: 'feed', cls: 'p-feed', name: 'Direction de course (messages, enquêtes, limites de piste)' },
-  { id: 'radio', cls: 'p-radio', name: 'Radios (transcriptions, audio)' },
+  { id: 'feed', cls: 'p-feed', name: 'Messages (direction de course, radios, enquêtes, limites de piste)' },
+  { id: 'radio', cls: 'p-radio', name: 'Radios (panneau à part)' },
   { id: 'duel', cls: 'p-duel', name: 'Duel' },
-  { id: 'analysis', cls: 'p-analysis', name: 'Analyse (race trace, positions, temps, pneus, secteurs, télémétrie)' },
-  { id: 'extra', cls: 'p-extra', name: 'Stratégie & course (arrêts, stratégie, simulateur, bagarres, météo, championnat)' },
+  { id: 'analysis', cls: 'p-analysis', name: 'Analyse (écarts, arrêts et stratégie, télémétrie, secteurs, comparaison…)' },
+  { id: 'extra', cls: 'p-extra', name: 'Stratégie (panneau à part)' },
 ];
-const SHORT = { tower: 'Classement', map: 'Circuit', feed: 'Direction de course', radio: 'Radios', duel: 'Duel', analysis: 'Analyse', extra: 'Stratégie' };
+const SHORT = { tower: 'Classement', map: 'Circuit', feed: 'Messages', radio: 'Radios', duel: 'Duel', analysis: 'Analyse', extra: 'Stratégie' };
 // Panneaux ajoutés dans une version plus récente : placés à côté d'un panneau existant
 // (dans la même colonne) quand on reprend une disposition enregistrée.
 const ADDED_NEAR = { radio: ['feed', 1], analysis: ['extra', 0] }; // [voisin, 1 = après / 0 = avant]
@@ -77,75 +77,34 @@ const PROFILES = { race: 'Course', quali: 'Qualif & essais' };
 const PROFILE_KEY = 'paddock.layoutProfiles';   // { race: { hiddenPanels, hiddenCols }, quali: … }
 const TABS_KEY = 'paddock.profileTabs';         // { race: { analysis: 'trace', … }, quali: … }
 const TAB_DEFAULTS = {
-  race: { feed: 'rcm', analysis: 'trace', extra: 'pits' },
-  quali: { feed: 'rcm', analysis: 'compare', extra: 'tyres' },
+  race: { feed: 'rcm', analysis: 'trace' },
+  quali: { feed: 'rcm', analysis: 'compare' },
 };
-// Essentiel : la télémétrie du pilote suivi dans le panneau Analyse
-const ESS_TABS = { analysis: 'telemetry' };
-const profileDefaults = () => ({ hiddenPanels: shortScreenHidden(prefs.fullMode), hiddenCols: [] });
+const profileDefaults = (prof = profile) => ({ hiddenPanels: [...PANELS_HIDDEN], hiddenCols: [], hiddenTabs: [...TAB_HIDDEN[prof]] });
 const profileFor = (mode, kind) => (mode === 'race' || mode === 'quali' ? mode : kind === 'race' ? 'race' : 'quali');
 let profile = prefs.layoutMode === 'race' || prefs.layoutMode === 'quali' ? prefs.layoutMode : storageGet('paddock.lastProfile', 'race');
 if (!PROFILES[profile]) profile = 'race';
 // Fenêtre principale : une disposition par type de séance. Fenêtres secondaires (second écran) :
 // une seule, quelle que soit la séance (sinon un changement de séance leur reprenait des panneaux)
-// Mode Allégé : sa propre disposition, celle du mode Complet reste telle quelle
-const lkey = (win = WIN, prof = profile) => (prof === 'race' || win !== 'main' ? win : `${win}@${prof}`) + (win === 'main' && !prefs.fullMode ? '~ess' : '');
-
-// Écran plus grand que le 1080p (1440p, 4K…)
-const big = () => window.innerWidth >= 2200;
+const lkey = (win = WIN, prof = profile) => (prof === 'race' || win !== 'main' ? win : `${win}@${prof}`);
 
 function defaultLayout(prof = profile) {
   if (!isMain) return { cols: [] };
   const quali = prof === 'quali';
-  // Essentiel : classement compact, grande carte (radios dessous) ; à droite télémétrie du duel, championnat
-  // et limites de piste. Écran plus étroit : classement, puis carte, duel, radios et arrêts
-  if (!prefs.fullMode) {
-    // Essentiel, écran plus grand que le 1080p : grand classement à gauche, carte en haut à droite et dessous,
-    // côte à côte, la télémétrie et la direction de course (radios sous elle). Disposition libre (les colonnes ne
-    // mettent pas deux panneaux côte à côte) : chaque panneau se déplace et se redimensionne ensuite
-    if (big()) {
-      const g = 0.005, L = 0.55, R = 1 - L - g, top = 0.6, half = (R - g) / 2;
-      return { cols: [
-        { w: 2.4, items: [{ id: 'tower', h: 1 }] },
-        { w: 1.6, items: [{ id: 'map', h: 1.5 }, { id: 'analysis', h: 1 }] },
-        { w: 1, items: [{ id: 'feed', h: 1.1 }, { id: 'radio', h: 1 }] },
-      ], free: { z: [], rects: {
-        tower: { x: 0, y: 0, w: L, h: 1 },
-        map: { x: L + g, y: 0, w: R, h: top },
-        analysis: { x: L + g, y: top + 2 * g, w: half, h: 1 - top - 2 * g },
-        feed: { x: L + 2 * g + half, y: top + 2 * g, w: half, h: (1 - top) * 0.55 - 2 * g },
-        radio: { x: L + 2 * g + half, y: top + (1 - top) * 0.55 + g, w: half, h: (1 - top) * 0.45 - g },
-      } } };
-    }
-    // Essentiel : classement (essais et qualifs : avec les temps, donc plus large), grande carte (radios dessous),
-    // direction de course et télémétrie du pilote suivi à droite
-    return window.innerWidth <= 1500 ? { cols: [
-      { w: 1.2, items: [{ id: 'tower', h: 1.5 }, { id: 'feed', h: 0.7 }] },
-      { w: 1, items: [{ id: 'map', h: 1.2 }, { id: 'radio', h: 0.7 }, { id: 'analysis', h: 0.9 }] },
-    ] } : { cols: [
-      { w: quali ? 1.7 : 1.2, items: [{ id: 'tower', h: 1 }] },
-      { w: 1.9, items: [{ id: 'map', h: 1.6 }, { id: 'radio', h: 1 }] },
-      { w: 1, items: [{ id: 'feed', h: 1 }, { id: 'analysis', h: 1.1 }] },
-    ] };
-  }
+  // Classement à gauche (plus large en qualifs et essais : Q1/Q2/Q3, tour en cours), carte et analyse au milieu,
+  // messages (direction de course, radios, enquêtes) à droite. Panneaux masqués par défaut à leur place s'ils sont
+  // affichés : duel au-dessus de l'analyse, radios et stratégie à part sous les messages et l'analyse.
+  // Écran plus étroit : deux colonnes, les messages sous le classement
   if (window.innerWidth <= 1500) {
-    return quali ? { cols: [
-      { w: 1.3, items: [{ id: 'tower', h: 1.5 }, { id: 'feed', h: 0.7 }, { id: 'radio', h: 0.6 }] },
-      { w: 1, items: [{ id: 'map', h: 1.1 }, { id: 'duel', h: 0.9 }, { id: 'analysis', h: 1 }, { id: 'extra', h: 0.6 }] },
-    ] } : { cols: [
-      { w: 1.2, items: [{ id: 'tower', h: 1.4 }, { id: 'feed', h: 0.7 }, { id: 'radio', h: 0.7 }] },
-      { w: 1, items: [{ id: 'map', h: 1.1 }, { id: 'duel', h: 0.9 }, { id: 'analysis', h: 1 }, { id: 'extra', h: 0.8 }] },
+    return { cols: [
+      { w: quali ? 1.3 : 1.2, items: [{ id: 'tower', h: 1.5 }, { id: 'feed', h: 0.8 }, { id: 'radio', h: 0.6 }] },
+      { w: 1, items: [{ id: 'map', h: 1.1 }, { id: 'duel', h: 0.8 }, { id: 'analysis', h: 1 }, { id: 'extra', h: 0.7 }] },
     ] };
   }
-  // Qualif : classement plus large (Q1/Q2/Q3, tour en cours), duel et secteurs mis en avant
-  return quali ? { cols: [
-    { w: 1.8, items: [{ id: 'tower', h: 1 }] },
-    { w: 1, items: [{ id: 'map', h: 1.15 }, { id: 'feed', h: 0.85 }, { id: 'radio', h: 0.7 }] },
-    { w: 0.95, items: [{ id: 'duel', h: 1 }, { id: 'analysis', h: 1.2 }, { id: 'extra', h: 0.55 }] },
-  ] } : { cols: [
-    { w: 1.6, items: [{ id: 'tower', h: 1 }] },
-    { w: 1, items: [{ id: 'map', h: 1.2 }, { id: 'feed', h: 0.75 }, { id: 'radio', h: 0.75 }] },
-    { w: 0.95, items: [{ id: 'duel', h: 0.85 }, { id: 'analysis', h: 1.1 }, { id: 'extra', h: 0.85 }] },
+  return { cols: [
+    { w: quali ? 1.55 : 1.3, items: [{ id: 'tower', h: 1 }] },
+    { w: 1.55, items: [{ id: 'map', h: 1.3 }, { id: 'duel', h: 0.8 }, { id: 'analysis', h: 1 }, { id: 'extra', h: 0.7 }] },
+    { w: 1.15, items: [{ id: 'feed', h: 1.3 }, { id: 'radio', h: 1 }] },
   ] };
 }
 
@@ -280,7 +239,7 @@ function detachedElsewhere(id) {
 
 function isVisible(id) {
   if (!isMain) return !!locate(id);
-  return !prefs.hiddenPanels.includes(id) && !detachedElsewhere(id) && !(essential() && ESS_OFF.includes(id));
+  return !prefs.hiddenPanels.includes(id) && !detachedElsewhere(id);
 }
 
 // ---------------- Rendu ----------------
@@ -296,7 +255,7 @@ function narrow() {
 
 // Téléphone (et tablette en portrait) : un seul panneau à la fois, choisi dans la barre du bas.
 const MOB_TABS = [
-  ['tower', 'Classement'], ['map', 'Carte'], ['feed', 'Course'], ['duel', 'Duel'],
+  ['tower', 'Classement'], ['map', 'Carte'], ['feed', 'Messages'], ['duel', 'Duel'],
   ['analysis', 'Analyse'], ['extra', 'Stratégie'], ['radio', 'Radios'],
 ];
 // Icônes dessinées, dans tous les thèmes
@@ -317,10 +276,6 @@ function mobile() {
 }
 // Téléphone : version simplifiée (l'essentiel seulement), sauf « version complète » dans les réglages
 const simple = () => mobile() && !prefs.phoneFull;
-// Ordinateur, mode Essentiel : le principal seulement (data-expert et ESS_OFF : mode Complet)
-const essential = () => isMain && !mobile() && !prefs.fullMode;
-// Panneaux du mode Complet seulement (Essentiel : la télémétrie du panneau Analyse à la place)
-const ESS_OFF = ['duel', 'extra'];
 const SIMPLE_TABS = ['tower', 'map', 'feed', 'radio'];
 
 export function showMobilePanel(id) {
@@ -403,14 +358,11 @@ function mobMore(btn) {
 function render(force = false) {
   if (resizing) { renderLater = true; return; }
   const grid = $('.grid');
-  const key = `${mobile()}|${simple()}|${essential()}|${narrow()}|${big()}|${JSON.stringify(layout)}|${PANELS.map((p) => isVisible(p.id)).join()}`;
+  const key = `${mobile()}|${simple()}|${narrow()}|${JSON.stringify(layout)}|${PANELS.map((p) => isVisible(p.id)).join()}`;
   if (key === renderKey && !force) return;
   document.documentElement.classList.toggle('phone', mobile());
   document.documentElement.classList.toggle('simple', simple());
-  document.documentElement.classList.toggle('essential', essential());
-  document.documentElement.classList.toggle('ess-quali', essential() && profile === 'quali');
   document.documentElement.classList.toggle('sess-race', profile === 'race');
-  document.documentElement.classList.toggle('ess-big', essential() && big());
   renderKey = key;
   if (mobile()) { renderMobile(grid); return; }
   grid.classList.remove('mobile');
@@ -1032,14 +984,14 @@ const tabHeads = () => PANELS.map((p) => [p.id, panelEl(p.id)?.querySelector('[d
 function applyTabs() {
   const saved = storageGet(TABS_KEY, {})[profile] || {};
   for (const [id, head] of tabHeads()) {
-    const want = saved[id] || (essential() && ESS_TABS[id]) || TAB_DEFAULTS[profile]?.[id];
+    const want = saved[id] || TAB_DEFAULTS[profile]?.[id];
     const b = want && head.querySelector(`[data-tab="${want}"]`);
     if (b && !b.classList.contains('active')) b.click();
   }
   visibleTabs();
 }
 
-// Onglet ouvert masqué (mode Essentiel) : premier onglet affiché du panneau à la place
+// Onglet ouvert masqué : premier onglet affiché du panneau à la place
 function visibleTabs() {
   for (const [, head] of tabHeads()) {
     const cur = head.querySelector(':scope > [data-tab].active');
@@ -1051,16 +1003,17 @@ function visibleTabs() {
 function switchProfile(next, quiet = false) {
   if (!PROFILES[next] || next === profile) return;
   if (isMain) {
-    // Panneaux masqués et colonnes du classement : propres à chaque disposition
+    // Panneaux et onglets masqués, colonnes du classement : propres à chaque disposition
     const st = storageGet(PROFILE_KEY, {});
-    st[profile] = { hiddenPanels: prefs.hiddenPanels, hiddenCols: prefs.hiddenCols, extraCols: prefs.extraCols };
+    st[profile] = { hiddenPanels: prefs.hiddenPanels, hiddenTabs: prefs.hiddenTabs, hiddenCols: prefs.hiddenCols, extraCols: prefs.extraCols };
     storageSet(PROFILE_KEY, st);
-    const n = st[next] || profileDefaults();
+    const n = st[next] || profileDefaults(next);
     profile = next;
     storageSet('paddock.lastProfile', next);
     setPref('hiddenPanels', n.hiddenPanels || []);
     setPref('hiddenCols', n.hiddenCols || []);
     setPref('extraCols', n.extraCols || []);
+    setPref('hiddenTabs', n.hiddenTabs || TAB_HIDDEN[next]);
   } else profile = next;
   // Fenêtre secondaire : elle garde ses panneaux (même disposition pour toutes les séances)
   if (isMain) layout = normalize(allLayouts()[lkey()] || defaultLayout());
@@ -1092,7 +1045,29 @@ function alignCtrl(head) {
 const headObserver = 'ResizeObserver' in window ? new ResizeObserver((entries) => { const heads = entries.map((e) => e.target); requestAnimationFrame(() => heads.forEach(alignCtrl)); }) : null;
 
 // ---------------- Initialisation ----------------
+// 1.30 : nouvelle disposition des panneaux pour tout le monde, une seule fois (layoutV ; nouvelle installation : déjà
+// faite, prefs.js). L'ancienne est gardée dans les dispositions enregistrées ; les fenêtres secondaires gardent leurs
+// panneaux, seules les dispositions de la fenêtre principale repartent de zéro
+function migrateLayout() {
+  if ((prefs.layoutV || 0) >= 2) return;
+  const name = t('Ma disposition d\'avant');
+  const before = { name, at: Date.now(), layouts: allLayouts(), wins: [], desk: null, ...viewState() };
+  before.prefs.tabLayout ||= pageTabs();   // onglets à leur place d'avant (sans disposition : celle de la page)
+  storageSet(SETUPS_KEY, [...windowSetups().filter((s) => s.name !== name), before]);
+  storageSet(LAYOUTS_KEY, Object.fromEntries(Object.entries(allLayouts()).filter(([k]) => !k.startsWith('main'))));
+  storageSet(PROFILE_KEY, {});
+  storageSet(TABS_KEY, {});
+  const def = profileDefaults();
+  setPref('hiddenPanels', def.hiddenPanels);
+  setPref('hiddenTabs', def.hiddenTabs);
+  setPref('tabLayout', null);
+  setPref('layoutV', 2);
+  layout = normalize(defaultLayout());
+  setTimeout(() => toast(`Nouvelle disposition : Classement, Circuit, Messages et Analyse. Le bouton + d'un panneau ajoute un onglet ou un panneau. L'ancienne : Réglages → Disposition → Fenêtres (« ${name} »)`, 12000), 1500);
+}
+
 export function initLayout() {
+  if (isMain) migrateLayout();
   if (!isMain) {
     document.body.classList.add('solo');
     if (legacyPanel && !allLayouts()[lkey()]) storeLayout(lkey(), layout);
@@ -1156,14 +1131,7 @@ export function initLayout() {
   // Disposition modifiée dans une autre instance de la même fenêtre (rechargement) : rien à faire ;
   // la fenêtre principale suit seulement les préférences.
   on('prefs', (k) => {
-    if (k === 'fullMode' && isMain) {
-      // Premier passage dans ce mode, panneaux masqués encore ceux par défaut de l'autre : ceux de ce mode
-      const same = (a, b) => a.length === b.length && a.every((x) => b.includes(x));
-      if (!allLayouts()[lkey()] && same(prefs.hiddenPanels, shortScreenHidden(!prefs.fullMode))) setPref('hiddenPanels', shortScreenHidden(prefs.fullMode));
-      layout = normalize(allLayouts()[lkey()] || defaultLayout());
-    }
-    if (k === 'hiddenPanels' || k === 'phoneFull' || k === 'fullMode') render();
-    if (k === 'fullMode') applyTabs();
+    if (k === 'hiddenPanels' || k === 'phoneFull') render();
     if (['hiddenPanels', 'hiddenTabs', 'tabLayout', 'hiddenCols', 'extraCols', 'towerFit'].includes(k)) renderLayoutOptions();
   });
   render(true);
@@ -1248,7 +1216,8 @@ export async function saveWindowsSnapshot(name) {
 }
 
 // Panneaux et onglets affichés, colonnes du classement, onglets ouverts : gardés avec la disposition
-const VIEW_PREFS = ['hiddenPanels', 'hiddenTabs', 'tabLayout', 'hiddenCols', 'extraCols'];
+// (onglets placés avant les panneaux affichés : un panneau Radios ou Stratégie affiché vide reprend ses onglets, tabmove.js)
+const VIEW_PREFS = ['tabLayout', 'hiddenTabs', 'hiddenPanels', 'hiddenCols', 'extraCols'];
 function viewState() {
   return { prefs: Object.fromEntries(VIEW_PREFS.map((k) => [k, prefs[k]])), profiles: storageGet(PROFILE_KEY, {}), tabs: storageGet(TABS_KEY, {}) };
 }
@@ -1314,7 +1283,7 @@ export function resetLayout(ask = true) {
   setPref('extraCols', []);
   setPref('bigCols', null);
   setPref('tabLayout', null);
-  setPref('hiddenTabs', []);
+  setPref('hiddenTabs', [...def.hiddenTabs]);
   if (!prefs.towerFit) setPref('towerFit', true);
   layout = normalize(defaultLayout());
   applyTabs();
@@ -1329,7 +1298,7 @@ export function renderLayoutOptions() {
     sel.onchange = () => setPref('layoutMode', sel.value);
     $('#layoutProfileNow').textContent = `Disposition affichée : « ${PROFILES[profile]} ».`;
   }
-  $('#panelOpts').innerHTML = PANELS.map((p) => `<label class="toggle small"${ESS_OFF.includes(p.id) ? ' data-expert' : ''}><input type="checkbox" data-panel="${p.id}" ${prefs.hiddenPanels.includes(p.id) ? '' : 'checked'}> ${esc(p.name)}</label>`).join('');
+  $('#panelOpts').innerHTML = PANELS.map((p) => `<label class="toggle small"><input type="checkbox" data-panel="${p.id}" ${prefs.hiddenPanels.includes(p.id) ? '' : 'checked'}> ${esc(p.name)}</label>`).join('');
   $('#panelOpts').onchange = (e) => {
     const id = e.target.dataset.panel;
     if (!id) return;
@@ -1339,7 +1308,7 @@ export function renderLayoutOptions() {
   const tabs = $('#tabOpts');
   if (tabs) {
     tabs.innerHTML = tabList().filter(([p]) => SHORT[p]).sort((a, b) => PANELS.findIndex((x) => x.id === a[0]) - PANELS.findIndex((x) => x.id === b[0]))
-      .map(([p, t, name, expert]) => `<label class="toggle small"${expert ? ' data-expert' : ''}><input type="checkbox" data-tabopt="${t}" ${prefs.hiddenTabs.includes(t) ? '' : 'checked'}> <span>${esc(SHORT[p])}</span> · ${esc(name)}</label>`).join('');
+      .map(([p, t, name]) => `<label class="toggle small"><input type="checkbox" data-tabopt="${t}" ${prefs.hiddenTabs.includes(t) ? '' : 'checked'}> <span>${esc(SHORT[p])}</span> · ${esc(name)}</label>`).join('');
     tabs.onchange = (e) => {
       const t = e.target.dataset.tabopt;
       if (!t) return;

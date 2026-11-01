@@ -1,7 +1,7 @@
 // Tableau de classement (course / qualifications / essais).
 import { store, setDuel, setFocus, versionOf, displayNow, f1Now, on, utcToLocal } from '../store.js';
 import { $, esc, drivers, orderedNumbers, sessionKind, teamMark, tyreBadge, currentStint, lapSeconds, fmtLap } from '../util.js';
-import { prefs, isFav, toggleFav, towerCols, towerBig } from '../prefs.js';
+import { prefs, setPref, isFav, toggleFav, towerCols, towerBig } from '../prefs.js';
 import { segmentClass, parseUtc, chequeredUtc, parseGap, overtakeEnabled, passed } from '/shared/f1.js';
 import { currentTrack, currentZones } from './map.js';
 import { icon } from '../icons.js';
@@ -446,8 +446,10 @@ export function initTower() {
   $('#tower').addEventListener('click', (e) => {
     const b = e.target.closest('[data-duel]');
     if (b) {
-      const slot = b.dataset.duel;
-      setDuel(slot, store.duel[slot] === b.dataset.num ? null : b.dataset.num);
+      const slot = b.dataset.duel, pick = store.duel[slot] !== b.dataset.num;
+      setDuel(slot, pick ? b.dataset.num : null);
+      // Panneau Duel masqué (par défaut) : affiché au premier pilote choisi
+      if (pick && prefs.hiddenPanels.includes('duel')) setPref('hiddenPanels', prefs.hiddenPanels.filter((x) => x !== 'duel'));
       renderTower(true);
       return;
     }

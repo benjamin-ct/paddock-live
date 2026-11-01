@@ -24,6 +24,22 @@ l'application (Réglages → À propos → Nouveautés).
   Pilote en grand : le filet tourne aussi autour de la carte, le portrait glisse en place et le grand numéro arrive
   derrière.
 
+### Tableau de bord plus clair
+- Nouvelle disposition des panneaux, la même pour tout le monde : le Classement à gauche, le Circuit et l'Analyse au
+  milieu, et un seul panneau « Messages » à droite qui réunit la direction de course, les radios d'équipe, les enquêtes
+  et les limites de piste.
+- Analyse : seulement les 3 onglets utiles selon la séance. En course : Écarts, Arrêts (avec la stratégie) et
+  Télémétrie ; en qualifs et en essais : Secteurs, Comparaison et Télémétrie. Les autres (Temps, Pneus, Jeux de pneus,
+  simulateur d'arrêt, Bagarres, championnat) s'ajoutent en un clic.
+- Bouton « + » au bout des onglets de chaque panneau : il rouvre un onglet fermé, amène un onglet d'un autre panneau,
+  ou affiche un panneau masqué (Duel, Radios ou Stratégie à part). Le panneau Duel s'affiche tout seul quand on
+  choisit un pilote avec A ou B dans le classement.
+- Plus de choix entre les interfaces Essentiel et Complète : une seule, que chacun complète avec le bouton « + ».
+- À la mise à jour, tout le monde passe une fois à cette disposition (les fenêtres sur un second écran gardent leurs
+  panneaux). L'ancienne reste dans Réglages → Disposition → Fenêtres, sous le nom « Ma disposition d'avant » : un clic
+  la remet.
+- Direction de course vide : le message « Aucun message » ne se coupe plus mot par mot.
+
 ### Langues
 - Paddock Live parle aussi italien et espagnol : Italiano et Español dans Réglages → Apparence, et à la première
   ouverture l'appli suit la langue du système. Toute l'interface est traduite, avec les noms des Grands Prix et des

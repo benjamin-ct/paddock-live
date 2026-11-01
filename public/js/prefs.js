@@ -3,17 +3,20 @@ import { storageGet, storageSet, setVividTeams, setTeamLogos, setLogoColor } fro
 import { emit, touch } from './store.js';
 import { LANG } from './i18n.js';
 
-// Écran large mais peu haut (1080p), interface complète : direction de course (dernier message dans la barre
-// du bas) et panneau Stratégie (pneus et arrêts dans le classement) masqués par défaut, 2 panneaux au plus
-// par colonne. Le mode Essentiel garde les siens (championnat et limites de piste à droite)
-export const shortScreenHidden = (full = true) => (full && window.innerWidth > 1500 && window.innerHeight < 1150 ? ['feed', 'extra'] : []);
+// Disposition par défaut (1.30) : Classement, Circuit, Messages et Analyse ; panneaux à part masqués (les radios sont
+// dans Messages, la stratégie dans Analyse, ui/tabmove.js) et 3 onglets d'analyse selon la séance (les autres : bouton +)
+export const PANELS_HIDDEN = ['radio', 'duel', 'extra'];
+export const TAB_HIDDEN = {
+  race: ['laptimes', 'pace', 'tyrehist', 'sectors', 'tyres', 'pitsim', 'battles', 'champ'],
+  quali: ['trace', 'positions', 'pits', 'strategy', 'laptimes', 'pace', 'tyrehist', 'tyres', 'pitsim', 'battles', 'champ'],
+};
 
 const DEFAULTS = {
   favs: [],               // numéros des pilotes favoris
   favTeams: [],           // écuries favorites (clés de shared/news.js : 'ferrari', 'redbull'…)
   alerts: { sound: true, vibrate: true, notify: false, flags: true, fastest: true, favPit: true, favRcm: true, retire: true, finish: true, favCut: true, rain: true, prono: true },
-  hiddenPanels: [],
-  hiddenTabs: [],         // onglets masqués (Réglages → Onglets visibles), comme ceux inutiles pour la séance
+  hiddenPanels: [...PANELS_HIDDEN],
+  hiddenTabs: [...TAB_HIDDEN.race],   // onglets masqués (Réglages → Onglets visibles, bouton +), comme ceux inutiles pour la séance
   hiddenCols: [],
   extraCols: [],          // colonnes facultatives ajoutées au classement (voir EXTRA_COLUMNS)
   bigCols: null,          // colonnes du classement agrandi (bouton ⤢) : { hidden, extra }, sinon les mêmes
@@ -27,7 +30,6 @@ const DEFAULTS = {
   logoColor: true,        // logos dans leurs couleurs officielles (sinon logo blanc sur la couleur d'équipe)
   keepAwake: true,        // écran toujours allumé pendant une séance
   phoneFull: false,       // téléphone : tous les onglets et réglages de l'ordinateur (sinon version simplifiée)
-  fullMode: true,         // ordinateur : interface complète (sinon mode Essentiel : le principal seulement)
   welcomed: true,         // écrans d'accueil du premier lancement déjà vus
   motion: true,           // animations de l'interface (désactivées aussi si le système le demande)
   momentsSpoil: false,    // replay : détail des moments clés à venir affiché
@@ -71,11 +73,11 @@ const DEFAULTS = {
 
 const saved = storageGet('paddock.prefs', {});
 export const prefs = { ...DEFAULTS, ...saved, alerts: { ...DEFAULTS.alerts, ...(saved.alerts || {}) } };
-// v1.28 : nouvelle installation (aucun réglage enregistré) : mode Essentiel et écrans d'accueil ; les
-// installations existantes gardent toute l'interface
+// v1.28 : nouvelle installation (aucun réglage enregistré) : écrans d'accueil ; v1.30 : déjà à la nouvelle
+// disposition des panneaux (layoutV, ui/layout.js)
 if (!Object.keys(saved).length) {
-  Object.assign(prefs, { fullMode: false, welcomed: false });
-  storageSet('paddock.prefs', { ...storageGet('paddock.prefs', {}), fullMode: false, welcomed: false });
+  Object.assign(prefs, { welcomed: false, layoutV: 2 });
+  storageSet('paddock.prefs', { ...storageGet('paddock.prefs', {}), welcomed: false, layoutV: 2 });
 }
 // Un seul thème depuis la v1.20 : Pitwall, en mode sombre ou clair. Les anciens thèmes (F1 Pro,
 // F1 sobre, Classique, Bleu nuit) passent sur Pitwall, en mode sombre.
