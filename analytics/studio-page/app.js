@@ -411,8 +411,8 @@ async function statsTab(body, { force, restore, current }) {
   store.set('stats', r);
   keepPostStats(r);
   renderStats(body, r, false);
-  // Feuille « Suivi réseaux » du Drive remplie avec ces chiffres (si Google Drive est relié)
-  suivi().then((m) => m.fillSheet(r.accounts)).catch(() => {});
+  // Chiffres des réseaux de l'onglet Suivi remplis avec ces chiffres (analytics/suivi.js)
+  suivi().then((m) => m.fillNet(r.accounts)).catch(() => {});
 }
 function renderStats(body, r, stale) {
   const f = Object.entries(r.followers || {});
@@ -769,12 +769,7 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
 
 const startAlert = new URLSearchParams(location.search).get('alert');
 if (startAlert) history.replaceState(null, '', '/studio/');
-// Retour de la connexion Google Drive (onglet Suivi) : terminée par le serveur, puis onglet Suivi
-const params = new URLSearchParams(location.search);
-let driveBack = params.get('state') && (params.get('code') || params.get('error')) ? { code: params.get('code'), state: params.get('state'), error: params.get('error') } : null;
-if (driveBack) history.replaceState(null, '', '/studio/');
 const afterLogin = async () => {
-  if (driveBack) { const back = driveBack; driveBack = null; state.tab = 'suivi'; await (await suivi()).finishDrive(back); }
   home();
   openAlert(startAlert);
 };

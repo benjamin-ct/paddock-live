@@ -44,17 +44,19 @@
   dans `server/studio-sync.js`, et celles de l'ancien `server/post-history.js` pour les applis jusqu'à la 1.28, `/e`, `/f`, `/t`, `/r`, `/p/api`) gardent leurs noms, leurs
   paramètres et leurs réponses : on ajoute sans retirer ni changer, et on ne supprime une ancienne forme que quand
   plus aucune version publiée ne l'utilise.
-- **Suivi dans Google Drive** (connecteurs Google Drive, Docs et Sheets) : après chaque action (code fusionné,
-  version publiée, posts préparés, démarche faite), tenir à jour le dossier « Paddock Live · Réseaux » :
-  la feuille « Suivi réseaux · Paddock Live » (onglet Tâches : une ligne par tâche, colonnes Statut [À faire, En
-  attente, Fait, Lien], Liste, Quand, Domaine, Tâche, Détails, Lien, Fait le ; passer le Statut à « Fait » avec la
-  date, ajouter ce qui reste ; affiché et cochable dans le Studio → Suivi. Onglet Journal : une ligne par action, la
-  plus récente en haut ; onglet Posts : les posts préparés). L'ancien Doc « À faire · Paddock Live » n'est plus tenu
-  (archive). Pour chaque Grand Prix, un Google Doc des textes et un dossier
-  « Paddock Live · Médias · <Grand Prix> » (fichiers envoyés avec les secrets `GDRIVE_*` de l'environnement).
+- **Suivi dans le Studio** (onglet Suivi, sans Google ; `scripts/suivi.mjs`, clé `PADDOCK_SUIVI_KEY` de
+  l'environnement, créée dans le Studio → Suivi → Réglages, jamais collée dans une conversation) : après chaque
+  action (code fusionné, version publiée, posts préparés, démarche faite), tenir le suivi à jour. Tâches : statut
+  [À faire, En attente, Fait, Lien], liste, quand, domaine, titre, détails (« / » entre deux lignes), lien, fait le ;
+  `task-done` passe une tâche en « Fait » avec la date, `task-add` ajoute ce qui reste (`tasks` donne les identifiants).
+  Journal : `log-add`, une ligne par action, la plus récente en haut. Pour chaque Grand Prix, les textes des posts
+  (`posts-put`, même format qu'avant : « 1. JOUR · HEURE · TITRE », « Image : … », « Texte long : »…). Sans
+  `PADDOCK_SUIVI_KEY`, le dire à l'utilisateur au lieu d'écrire ailleurs. L'ancien dossier Google Drive « Paddock
+  Live · Réseaux » n'est plus tenu (archive) ; les médias d'un Grand Prix vont encore dans « Paddock Live · Médias ·
+  <Grand Prix> » (secrets `GDRIVE_*` de l'environnement).
 - **À tester avant la version finale** : à chaque PR fusionnée qui change l'appli ou la version web, ajouter dans la
-  liste « À tester avant la version finale (X.Y) » de l'onglet Tâches une ligne par nouveauté (Quand : « bêta N »,
-  ou « Vraie séance · bêta N » pour ce qui demande une vraie séance ; Tâche : la nouveauté ; Détails : où cliquer et
+  liste « À tester avant la version finale (X.Y) » du suivi une tâche par nouveauté (Quand : « bêta N »,
+  ou « Vraie séance · bêta N » pour ce qui demande une vraie séance ; titre : la nouveauté ; détails : où cliquer et
   ce qu'on doit voir). Après « publie », passer en « Fait » ce qui a été vérifié et changer le numéro de la liste.
 - Avant de pousser : `npm test`.
 - **Serveur local de test** (essais, captures, agents) : le lancer sans rien envoyer au Worker en production, sinon les
