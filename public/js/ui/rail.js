@@ -52,8 +52,8 @@ function layoutMenu(btn) {
   document.querySelector('.lpop-menu')?.remove();
   const menu = document.createElement('div');
   menu.className = 'lpop-menu rail-menu';
-  // Fenêtres à ouvrir (Circuit, Analyse, Duel), puis dispositions enregistrées et réglages
-  const wins = [['map', 'Circuit'], ['analysis', 'Analyse'], ['duel', 'Duel']];
+  // Fenêtres à ouvrir (Circuit, Analyse, Duel, Comparaison seule), puis dispositions enregistrées et réglages
+  const wins = [['map', 'Circuit'], ['analysis', 'Analyse'], ['duel', 'Duel'], ['compare', 'Comparaison']];
   menu.innerHTML = `<div class="muted small">Ouvrir dans une fenêtre</div>${wins.map(([id, name]) => `<button data-open="${id}">${icon('external')} ${name}</button>`).join('')}
     ${list.length ? `<div class="rail-sep"></div><div class="muted small">Dispositions enregistrées</div>${list.map((w, i) => `<button data-w="${i}">${icon('layout')} <span data-no-i18n>${esc(w.name)}</span></button>`).join('')}` : ''}<div class="rail-sep"></div><button data-w="set">${icon('sliders')} Réglages de la disposition</button>`;
   const r = btn.getBoundingClientRect();

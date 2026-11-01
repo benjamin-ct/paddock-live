@@ -440,6 +440,10 @@ export function initTabMove() {
     if (k === 'hiddenPanels') takeBack();
   });
   applySession();
+  // Fenêtre d'un seul onglet (?tab=compare, ui/layout.js) : l'onglet dans le panneau Analyse, ouvert, où que
+  // l'utilisateur l'ait rangé ailleurs (rien n'est enregistré)
+  const only = new URLSearchParams(location.search).get('tab');
+  if (only === 'compare') { place(only, 'analysis'); activate('analysis', only); }
   on('reset', applySession);
   on('events', (events) => { if (events.some(([t]) => t === 'SessionInfo' || t === '__snapshot')) setTimeout(applySession, 0); });
   document.addEventListener('pointerdown', onDown);

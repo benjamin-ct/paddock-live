@@ -2876,4 +2876,5 @@ export default {
   "Écart tour par tour": "Gap lap by lap",
   "Nouvel écran : Classement, Circuit, Télémétrie, Radios traduites et Direction de course. Analyse et Duel s'ouvrent dans une fenêtre (menu Fenêtres ou bouton + d'un panneau). L'ancienne disposition : Réglages → Disposition → Fenêtres (« {} »)": "New screen: Standings, Circuit, Telemetry, translated Radios and Race control. Analysis and Duel open in a window (Windows menu or a panel's + button). Your previous layout: Settings → Layout → Windows (“{}”)",
   "Le Circuit revient dans l'écran principal, au centre ; le classement n'affiche plus que le code des pilotes (nom complet : menu Colonnes)": "The Circuit is back in the main screen, in the centre; the standings now show only driver codes (full name: Columns menu)",
+  "Ouvrir la Comparaison dans sa propre fenêtre": "Open the Comparison in its own window",
 };
