@@ -86,8 +86,8 @@ l'application (Réglages → À propos → Nouveautés).
 
 ### En direct
 - Replays : quand la F1 teste son flux la veille (répétition d'une séance à venir, avec les voitures de la FIA FM1,
-  SC1, MC1…), l'appli ne l'enregistre plus comme un replay ; un enregistrement de répétition est remplacé par la vraie
-  séance quand elle commence.
+  SC1, MC1…), l'appli ne l'enregistre plus comme un replay et ne la propose plus parmi les séances de la F1 à revoir ;
+  un enregistrement de répétition est remplacé par la vraie séance quand elle commence.
 - Tour lancé (étiquette « TOUR » du classement, temps prévu, voitures estompées hors tour lancé) repéré dès les
   premiers mètres du tour, et plus seulement à la fin du premier secteur.
 - Direction de course : les motifs suivis de l'heure de l'incident (« conduite erratique (16:22:32) ») et les infractions
