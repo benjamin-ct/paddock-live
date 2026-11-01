@@ -5,8 +5,9 @@
 //    vérifications (tours de chaque pilote dans l'ordre, tour du leader, positions finales, arrêts).
 // 2. Version web : la même séance passée par le relais du Worker (analytics/live-relay.js) et le délai TV du navigateur
 //    (web-hub.js), avec des spectateurs qui arrivent en cours de séance ; leur état final doit être celui de l'appli.
-// 3. --appli : serveur local sans rien envoyer au Worker, replay accéléré dans le navigateur (écran principal et
-//    fenêtres Circuit, Analyse, Duel) ; erreurs de page et tâches longues (gel de l'affichage) relevées.
+// 3. --appli : serveur local sans rien envoyer au Worker, l'appli dans le navigateur (écran principal et fenêtres
+//    Circuit, Analyse, Duel) : gels de l'affichage mesurés une minute à vitesse réelle, puis replay accéléré pour
+//    parcourir la séance ; erreurs de page relevées.
 // Code de sortie 1 si un problème est trouvé. Ne se lance pas pendant une séance en direct (compte F1 TV partagé).
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
@@ -136,7 +137,7 @@ function web(label, events, ref) {
 }
 
 // 3. Appli dans le navigateur, replay accéléré
-async function browser(label, sessionPath, speed, minutes) {
+async function browser(label, sessionPath, startMs, speed, minutes) {
   let chromium;
   try { ({ chromium } = createRequire(import.meta.url)('playwright')); } catch { return fail(label, 'Playwright absent : partie --appli sautée'); }
   const port = 8890 + Math.floor(Math.random() * 50);
@@ -146,7 +147,7 @@ async function browser(label, sessionPath, speed, minutes) {
   const base = `http://127.0.0.1:${port}`;
   try {
     for (let i = 0; i < 60; i++) { if ((await fetch(`${base}/api/archive?year=2026`).then((r) => r.text()).catch(() => '')).includes('Meetings')) break; await new Promise((r) => setTimeout(r, 1000)); }
-    await fetch(`${base}/api/replay`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: sessionPath, startOffsetMs: 0 }) });
+    await fetch(`${base}/api/replay`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: sessionPath, startOffsetMs: startMs }) });
     const b = await chromium.launch();
     const ctx = await b.newContext({ viewport: { width: 1600, height: 900 }, locale: 'fr-FR' });
     const errors = [];
@@ -158,17 +159,19 @@ async function browser(label, sessionPath, speed, minutes) {
       await p.goto(base + url);
       return { p, name };
     };
+    // Gels mesurés une minute à vitesse réelle (accéléré, l'appli reçoit 30 fois plus de messages qu'en direct),
+    // puis replay accéléré pour parcourir la séance à la recherche d'erreurs
     const pages = [await watch('/', 'écran principal')];
-    await pages[0].p.waitForTimeout(15000);
-    await fetch(`${base}/api/replay/control`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'speed', speed }) });
     for (const [w, n] of [['map', 'Circuit'], ['analysis', 'Analyse'], ['duel', 'Duel']]) pages.push(await watch(`/?panel=${w}`, n));
-    await pages[0].p.waitForTimeout(minutes * 60e3);
+    await pages[0].p.waitForTimeout(60e3);
     for (const { p, name } of pages) {
       const long = await p.evaluate(() => window.__long);
       const big = long.filter((d) => d > 200);
-      if (big.length) fail(label, `${name} : ${big.length} gel(s) de plus de 200 ms (le plus long : ${Math.round(Math.max(...big))} ms)`);
-      else ok(`${name} : aucun gel de plus de 200 ms (${long.length} tâches longues au total)`);
+      if (big.length) fail(label, `${name} : ${big.length} gel(s) de plus de 200 ms à vitesse réelle (le plus long : ${Math.round(Math.max(...big))} ms)`);
+      else ok(`${name} : aucun gel de plus de 200 ms à vitesse réelle (${long.length} tâches longues en 1 min)`);
     }
+    await fetch(`${base}/api/replay/control`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'speed', speed }) });
+    await pages[0].p.waitForTimeout(minutes * 60e3);
     if (errors.length) for (const e of [...new Set(errors)].slice(0, 5)) fail(label, `erreur de page, ${e}`);
     else ok(`aucune erreur de page en ${minutes} min de replay à ${speed}×`);
     await b.close();
@@ -180,16 +183,17 @@ const paths = args.filter((a) => !a.startsWith('--'));
 const sessions = paths.length ? paths.map((p) => ({ path: p, label: p })) : await defaultSessions();
 for (const s of sessions) {
   say(`\n${s.label}`);
-  let events;
+  let events, startMs = 0;
   try {
     const a = await loadArchive(s.path);
+    startMs = a.startOff + 15 * 60e3;   // replay dans le navigateur : 15 min après le départ
     events = a.events.map((e) => ({ topic: e.topic, data: e.data, t: T0 + e.off }));
   } catch (err) { fail(s.label, `archive illisible : ${err.message}`); continue; }
   say('Moteur de l\'appli');
   const ref = engine(s.label, events);
   say('Version web (relais et délai TV)');
   web(s.label, events, ref);
-  if (args.includes('--appli')) { say('Appli dans le navigateur'); await browser(s.label, s.path, opt('vitesse', 30), opt('minutes', 3)); }
+  if (args.includes('--appli')) { say('Appli dans le navigateur'); await browser(s.label, s.path, startMs, opt('vitesse', 30), opt('minutes', 3)); }
 }
 say(problems.length ? `\n${problems.length} problème(s) trouvé(s).` : '\nAucun problème trouvé.');
 process.exit(problems.length ? 1 : 0);
