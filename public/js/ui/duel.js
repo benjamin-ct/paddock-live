@@ -109,7 +109,9 @@ function spark(series) {
   lo -= pad; hi += pad;
   const x = (i) => (i / (pts.length - 1)) * 100, y = (v) => 28 - ((v - lo) / (hi - lo)) * 26;
   const line = pts.map((p, i) => `${x(i).toFixed(1)},${y(p.y).toFixed(1)}`).join(' ');
-  const pits = pts.map((p, i) => (p.pit ? `<circle cx="${x(i).toFixed(1)}" cy="${y(p.y).toFixed(1)}" r="1.6" class="bt-pit"/>` : '')).join('');
+  // Arrêts : point de taille fixe (trait de longueur nulle, épaisseur non étirée) ; un cercle se déformait en tache
+  // quand la courbe est étirée sur toute la largeur du panneau
+  const pits = pts.map((p, i) => (p.pit ? `<line x1="${x(i).toFixed(1)}" y1="${y(p.y).toFixed(1)}" x2="${x(i).toFixed(1)}" y2="${y(p.y).toFixed(1)}" class="bt-pit"/>` : '')).join('');
   const zero = lo < 0 && hi > 0 ? `<line x1="0" y1="${y(0).toFixed(1)}" x2="100" y2="${y(0).toFixed(1)}" class="bt-zero"/>` : '';
   const fmt = (v) => Math.abs(v).toFixed(1).replace('.', DEC);
   return `<svg class="bt-spark ${pts.at(-1).y >= 0 ? 'a' : 'b'}" viewBox="0 0 100 30" preserveAspectRatio="none" aria-hidden="true">${zero}

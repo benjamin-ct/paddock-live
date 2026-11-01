@@ -3651,7 +3651,7 @@ html[data-motion="off"] .duel-band { animation: none; }
 .bt-spark .bt-zero { stroke: var(--line-2); stroke-width: .6; stroke-dasharray: 2 2; vector-effect: non-scaling-stroke; }
 .bt-spark .bt-line { fill: none; stroke: var(--text); stroke-width: 2; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
 .bt-spark .bt-area { fill: color-mix(in srgb, var(--text) 10%, transparent); }
-.bt-spark .bt-pit { fill: var(--orange); }
+.bt-spark .bt-pit { stroke: var(--orange); stroke-width: 9; stroke-linecap: round; vector-effect: non-scaling-stroke; }
 .bt-spark-lbl { display: flex; justify-content: space-between; font-size: 10.5px; color: var(--muted); margin-top: 2px; }
 /* Panneau Duel, face à face façon retransmission (ui/duel.js) */
 .duel-band.close .bt-tag, .ff.close .bt-tag { color: #4ade80; }
