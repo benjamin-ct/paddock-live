@@ -48,3 +48,18 @@ test('relais web : pendant une séance, connexion à la F1 gardée 15 min après
   r.recent = [['SessionStatus', { Status: 'Finalised' }, 2]];
   assert.equal(r.idleMs(), 60e3);                                   // séance terminée : une minute
 });
+
+test('relais : messages reçus ensemble (même heure du serveur) envoyés avec des heures croissantes, aucun écarté par l\'appli', () => {
+  const r = Object.create(LiveRelay.prototype);
+  Object.assign(r, { base: { t: 1000 }, recent: [], stream: [], out: [], outStream: [] });
+  // Une trame de la F1 : fin de la VSC et deux secteurs dégagés, puis GPS et télémétrie, tous à 1000 ms
+  for (const m of ['VSC ENDING', 'CLEAR IN SECTOR 4', 'CLEAR IN SECTOR 5']) r.add('RaceControlMessages', { Messages: { 0: { Message: m } } }, 1000);
+  r.addStream('Position', 'gps', 1000);
+  r.addStream('CarData', 'tel', 1000);
+  assert.deepEqual(r.out.map((e) => e[2]), [1001, 1002, 1003]);
+  assert.deepEqual(r.outStream.map((s) => s[2]), [1000, 1001]);
+  // Règle de l'appli (server/live.js) : un message pas plus récent que le précédent est écarté
+  let last = r.base.t;
+  const kept = r.out.filter(([, , t]) => (t > last ? (last = t, true) : false));
+  assert.equal(kept.length, 3);
+});
