@@ -83,6 +83,8 @@
     /* Espace Saison ouvert : seule la Saison défile au doigt (pas la page du direct dessous) */
     .web body:has(#seasonView:not([hidden])) { overflow: hidden; }
     .web body:has(#seasonView:not([hidden])) .grid { display: none; }
+    /* Bandeau de la direction de course : seulement avec l'écran du direct (pas sur la Saison, hors séance ni dans une fenêtre) */
+    html.web:is(.only) .rc-bar, .web body:has(#seasonView:not([hidden]), #noLiveView:not([hidden])) .rc-bar { display: none !important; }
     .web #szContent { overscroll-behavior: contain; }
     html.web:has(#seasonView:not([hidden])), .web body:has(#seasonView:not([hidden])) { overscroll-behavior: none; }   /* pas de rebond de la page (iPhone) */
     /* Saison ouverte : la séance en haut ramène au direct ; pas de favoris à choisir dans la version web */
@@ -278,6 +280,9 @@
     <!--panel:extra-->
     <!--panel:duel-->
   </main>
+
+  <!-- Bandeau du bas : dernier message de la direction de course, comme l'appli (feed.js, renderRcm) -->
+  <div class="rc-bar" id="rcBar" hidden><span class="rc-tag">Direction de course</span><i class="rcm-flag"></i><span class="rc-msg"></span><small class="rc-lap"></small></div>
 
   <dialog id="pairDlg" class="pair-dlg">
     <form method="dialog" class="pair-close"><button value="x" aria-label="Fermer" title="Fermer">✕</button></form>
