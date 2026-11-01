@@ -194,7 +194,8 @@ l'application (Réglages → À propos → Nouveautés).
   gradué en secondes, au centre le tour en grand, l'état de la piste et le tour de référence ; chaque voiture a son
   étiquette à la couleur de l'écurie (trigramme et écart avec le pilote choisi), reliée à sa pastille et rangée sur une
   ou deux rangées pour ne pas se chevaucher ; damier sur la ligne ; arc violet épais jusqu'à la position après l'arrêt,
-  avec un repère sur chaque voiture qui repasserait devant.
+  avec un repère sur chaque voiture qui repasserait devant. Les étiquettes glissent en douceur quand elles changent
+  de place, sans clignoter.
 - Onglet Secteurs : sous les poles et meilleurs tours des éditions précédentes, le meilleur du week-end, c'est-à-dire
   le meilleur tour des séances déjà courues du Grand Prix (temps, pilote et séance : EL2, Qualif…). En direct et en
   replay, dans l'appli et la version web.
