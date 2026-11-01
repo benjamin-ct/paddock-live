@@ -48,6 +48,8 @@ l'application (Réglages → À propos → Nouveautés).
   championnat) s'ajoutent en un clic.
 - Bouton « + » au bout des onglets de chaque panneau : il rouvre un onglet fermé, amène un onglet d'un autre panneau,
   ou ouvre le Circuit, l'Analyse ou le Duel dans une fenêtre.
+- Barre de gauche plus simple : Accueil, Direct, Saison, Actu et Replays, puis « Plus » qui réunit Résultats, Résumé,
+  Commentaires, Mini-classement et Apparence ; en bas, Fenêtres et Réglages.
 - Plus de choix entre les interfaces Essentiel et Complète : une seule, que chacun complète avec le bouton « + ».
 - À la mise à jour, tout le monde passe une fois à ce nouvel écran (les fenêtres sur un second écran gardent leurs
   panneaux). L'ancienne disposition reste dans Réglages → Disposition → Fenêtres, sous le nom « Ma disposition
