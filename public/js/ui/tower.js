@@ -2,8 +2,7 @@
 import { store, setDuelPair, setFocus, versionOf, displayNow, f1Now, on, utcToLocal } from '../store.js';
 import { $, esc, drivers, orderedNumbers, sessionKind, teamMark, tyreBadge, currentStint, lapSeconds, fmtLap } from '../util.js';
 import { prefs, isFav, toggleFav, towerCols, towerBig } from '../prefs.js';
-import { segmentClass, parseUtc, chequeredUtc, parseGap, overtakeEnabled, passed } from '/shared/f1.js';
-import { currentTrack, currentZones } from './map.js';
+import { segmentClass, parseUtc, chequeredUtc, parseGap, overtakeEnabled } from '/shared/f1.js';
 import { icon } from '../icons.js';
 import { realStopCount } from '/shared/pits.js';
 import { stewardsData } from './feed.js';
@@ -54,31 +53,10 @@ function gapText(v) {
   return esc(v);
 }
 
-// Mode dépassement (depuis 2026), comme le DRS : gagné en passant le point de détection à moins d'une seconde de la
-// voiture devant, gardé jusqu'au passage suivant (un tour). Passage repéré avec la place sur la piste (GPS ou estimée,
-// comme la carte). false si le point de détection n'est pas connu (zones pas encore calculées pour ce circuit)
-const depOn = new Map();   // num -> { m : place dans le tour au relevé précédent, on }
-function updateDep(lines) {
-  const track = currentTrack(), det = currentZones()?.detection, pos = store.positions;
-  if (!track?.t || !(det?.idx < track.t.length)) return false;
-  const L = track.L, now = displayNow(), gps = pos.hasGps(now);
-  for (const [num, l] of Object.entries(lines)) {
-    const p = gps ? pos.progressAt(num, now) : pos.estimatedProgress(num, now);
-    if (p === null || p === undefined) continue;
-    const m = ((p % L) + L) % L, d = depOn.get(num) || { m, on: false };
-    if (passed(d.m, m, track.t[det.idx], L)) { const g = parseGap(l.IntervalToPositionAhead?.Value)?.s; d.on = g > 0 && g < 1; }
-    if (l.InPit || l.Retired) d.on = false;
-    d.m = m;
-    depOn.set(num, d);
-  }
-  return true;
-}
-
 export function renderTower(force = false) {
   const now = performance.now();
-  const depKnown = updateDep(store.state.TimingData?.Lines || {});
   // Pilotes A et B marqués seulement quand le panneau Duel est affiché (comme sur la carte)
-  const key = `${versionOf(['TimingData', 'TimingAppData', 'DriverList', 'TimingStats', 'RaceControlMessages', '__reset'])}|${store.duel.a}|${store.duel.b}|${store.duel.manual}|${store.focus}|${towerBig()}|${towerCols().hidden.join()}|${towerCols().extra.join()}|${prefs.favs.join()}|${prefs.hotLapDim}|${depKnown && [...depOn].filter(([, d]) => d.on).map(([n]) => n).join()}`;
+  const key = `${versionOf(['TimingData', 'TimingAppData', 'DriverList', 'TimingStats', 'RaceControlMessages', '__reset'])}|${store.duel.a}|${store.duel.b}|${store.duel.manual}|${store.focus}|${towerBig()}|${towerCols().hidden.join()}|${towerCols().extra.join()}|${prefs.favs.join()}|${prefs.hotLapDim}`;
   const carTick = store.positions.car.size ? Math.floor(now / 500) : 0;
   if (!force && key + carTick === lastKey) return;
   if (!force && now - lastRender < 250) return;
@@ -94,7 +72,7 @@ export function renderTower(force = false) {
   const nums = orderedNumbers(s);
   const dispNow = displayNow();
   const showDrs = (Number(s.SessionInfo?.StartDate?.slice(0, 4)) || 2026) < 2026;
-  // Depuis 2026, mode dépassement à la place du DRS (updateDep), en course, quand la direction de course l'a activé (pas
+  // Depuis 2026, mode dépassement à la place du DRS, en course, quand la direction de course l'a activé (pas
   // sous voiture de sécurité ni drapeau rouge). La F1 ne dit pas quand le pilote l'utilise : l'étiquette dit qu'il y a droit
   const showDep = !showDrs && kind === 'race' && overtakeEnabled(s.RaceControlMessages?.Messages) && !['4', '5', '6', '7'].includes(String(s.TrackStatus?.Status || ''));
 
@@ -169,12 +147,11 @@ export function renderTower(force = false) {
       const car = store.positions.carAt(num, dispNow);
       if (car && car.drs >= 10) tags.push('<span class="tag drs">DRS</span>');
     }
-    // Toujours affiché, allumé à moins d'une seconde de la voiture devant (au point de détection s'il est connu, sinon
-    // tout de suite)
+    // Toujours affiché, allumé dès que l'écart avec la voiture devant passe sous une seconde
     const ahead = parseGap(l.IntervalToPositionAhead?.Value)?.s;
     if (showDep && !tags.length && !done) {
-      const on = depKnown ? depOn.get(num)?.on : ahead > 0 && ahead < 1;
-      tags.push(`<span class="tag drs dep${on ? ' on' : ''}" title="Mode dépassement : à moins d'une seconde de la voiture devant au point de détection, pour un tour">DÉP</span>`);
+      const on = ahead > 0 && ahead < 1;
+      tags.push(`<span class="tag drs dep${on ? ' on' : ''}" title="Mode dépassement : allumé à moins d'une seconde de la voiture devant">DÉP</span>`);
     }
     const pred = kind !== 'race' && !done ? predictLap(l, stats[num]) : null;
     if (pred) tags.push('<span class="tag push" title="Tour rapide en cours">TOUR</span>');
@@ -461,7 +438,7 @@ export function initTower() {
   let fitFrame = 0;
   if ('ResizeObserver' in window) new ResizeObserver(() => { cancelAnimationFrame(fitFrame); fitFrame = requestAnimationFrame(() => fitTower()); }).observe(wrap);
   on('prefs', (k) => { if (k === 'towerFit') fitTower(true); if (k === 'bigCols') renderTower(true); });
-  on('reset', () => { freshReset = true; prevPos.clear(); flashes.clear(); depOn.clear(); });
+  on('reset', () => { freshReset = true; prevPos.clear(); flashes.clear(); });
   on('towerSize', () => renderTower(true));   // agrandi ou réduit : ses colonnes
   $('#tower').addEventListener('click', (e) => {
     const fav = e.target.closest('[data-fav]');

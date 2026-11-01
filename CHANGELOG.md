@@ -158,10 +158,9 @@ l'application (Réglages → À propos → Nouveautés).
 - Carte du circuit : en revenant sur la page (autre onglet, autre appli, téléphone en veille), plus de traînées
   qui partent dans tous les sens : elles repartent de la position actuelle des voitures. Aussi dans la version web.
 - Classement en course : étiquette « DÉP » (mode dépassement, qui remplace le DRS en 2026) à côté de chaque pilote,
-  allumée quand il est passé au point de détection à moins d'une seconde de la voiture devant, pour le tour qui suit,
-  comme le DRS, une fois le mode
-  activé par la direction de course (pas au départ, ni sous voiture de sécurité ou drapeau rouge). La F1 ne dit pas
-  quand le pilote s'en sert : l'étiquette indique qu'il y a droit.
+  allumée dès qu'il est à moins d'une seconde de la voiture devant, une fois le mode activé par la direction de course
+  (pas au départ, ni sous voiture de sécurité ou drapeau rouge). La F1 ne dit pas quand le pilote s'en sert :
+  l'étiquette indique qu'il est à portée.
 - Classement : le meilleur tour de la séance (de la partie en cours en qualifications) en violet dans la colonne
   « Meilleur », dès qu'il tombe.
 - Version web : l'engrenage des options des radios et de la direction de course de nouveau tout à droite de leur
