@@ -1,7 +1,7 @@
 // Analyse → Comparaison : meilleurs tours de deux pilotes, secteur par secteur et mini-secteur
 // par mini-secteur (P1 contre P2 par défaut, ou deux pilotes au choix). Les mini-secteurs sont
 // mesurés par le serveur avec le GPS (voir server/compare.js), au rythme du délai TV.
-import { store, serverNow, versionOf } from '../store.js';
+import { store, serverNow, versionOf, emit } from '../store.js';
 import { $, esc, api, drivers, orderedNumbers, fmtLap, lapSeconds, storageGet, storageSet, driverOpt } from '../util.js';
 import { cornerStats, typeStats, smoothDelta } from './compare-calc.js';
 
@@ -338,6 +338,7 @@ export function initCompare() {
   $('#cmpLapB').addEventListener('change', (e) => set('lb', e.target.value || null));
   $('#cmpSwap').addEventListener('click', () => { const [a, b] = pair(); sel.a = b; sel.b = a; [sel.la, sel.lb] = [sel.lb, sel.la]; storageSet(KEY, sel); data = null; renderCompare(true); });
   $('#cmpTop').addEventListener('click', () => { sel.a = null; sel.b = null; sel.la = null; sel.lb = null; storageSet(KEY, sel); data = null; renderCompare(true); });
+  $('#cmpPop')?.addEventListener('click', () => emit('openWindow', 'compare'));   // sa propre fenêtre (ui/layout.js)
 }
 
 // Ouvre la comparaison sur un tour précis d'un pilote (clic sur un temps : Temps au tour, Pneus).
