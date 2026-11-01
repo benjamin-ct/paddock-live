@@ -432,36 +432,7 @@ input[type=range]:not(#rpRange):disabled { opacity: .45; cursor: default; }
   background: var(--panel-3); border: 1px solid var(--border); border-radius: 6px; padding: 3px 6px;
 }
 .duel-empty { padding: 30px 18px; color: var(--muted); text-align: center; line-height: 1.6; }
-.duel-hero { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; padding: 12px 14px 6px; }
-.duel-side { display: flex; flex-direction: column; gap: 2px; }
-.duel-side.b { align-items: flex-end; text-align: right; }
-.duel-name { font-size: 22px; font-weight: 900; display: flex; align-items: center; gap: 8px; }
-.duel-side.b .duel-name { flex-direction: row-reverse; }
-.duel-sub { color: var(--muted); font-size: 12px; }
-.duel-gap { text-align: center; }
-.duel-gap-val { font-size: 38px; font-weight: 900; line-height: 1; letter-spacing: -.5px; }
-.duel-gap-lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; }
-.duel-gap-src { font-size: 11.5px; color: var(--text-2); margin-top: 3px; }
-.duel-trend { text-align: center; padding: 4px 12px 8px; font-size: 13px; color: var(--text-2); }
-.duel-trend b { color: var(--text); }
-.duel-chart { padding: 0 10px; }
-.duel-chart svg { width: 100%; height: 130px; display: block; }
 .chart-title { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); padding: 6px 12px 2px; display: flex; justify-content: space-between; }
-.cmp { width: 100%; border-collapse: collapse; margin-top: 4px; }
-.cmp td { padding: 4px 12px; border-bottom: 1px solid var(--line); font-size: 13px; }
-.cmp td:first-child { text-align: left; font-weight: 700; }
-.cmp td:nth-child(2) { text-align: center; color: var(--muted); font-size: 11.5px; text-transform: uppercase; letter-spacing: .3px; }
-.cmp td:last-child { text-align: right; font-weight: 700; }
-.cmp .win { color: var(--green); }
-.laps-cmp { width: 100%; border-collapse: collapse; }
-.laps-cmp td, .laps-cmp th { padding: 3px 10px; font-size: 12.5px; border-bottom: 1px solid var(--line); text-align: right; }
-.laps-cmp th { color: var(--muted); font-size: 11px; text-transform: uppercase; }
-.laps-cmp td:first-child, .laps-cmp th:first-child { text-align: left; }
-#dTele { padding: 4px 12px 8px; }
-.duel-dials .dial { max-width: 240px; }
-.duel-letter { font-size: 11px; width: 17px; height: 17px; border-radius: 4px; display: inline-grid; place-items: center; color: #fff; }
-.duel-letter.a { background: var(--blue); }
-.duel-letter.b { background: var(--orange); }
 
 /* ---------- Télémétrie ---------- */
 .tele { padding: 10px 12px; }
@@ -759,9 +730,6 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
 .fav-btn:hover { color: var(--yellow); }
 
 /* ---------- Duel : photos, rythme ---------- */
-.duel-photo { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; object-position: top; background: var(--panel-3); border: 2px solid var(--border); }
-.duel-side .duel-id { display: flex; align-items: center; gap: 8px; }
-.duel-side.b .duel-id { flex-direction: row-reverse; }
 .legend-inline { display: flex; gap: 12px; font-size: 11.5px; color: var(--text-2); }
 .legend-inline i { display: inline-block; width: 12px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 4px; }
 /* Télémétrie : compteurs de deux pilotes */
@@ -2136,7 +2104,7 @@ body.solo #muteBtn { display: none; }
 [data-theme="pitwall"] .tyre-age { color: var(--muted); }
 
 /* Autres panneaux */
-[data-theme="pitwall"] :is(.duel-name, .duel-gap-val, .gauge-val, .battle-gap, .pit-big, .sz-big, .sz-drv-name, .mf-banner) { font-weight: 700; }
+[data-theme="pitwall"] :is(.gauge-val, .battle-gap, .pit-big, .sz-big, .sz-drv-name, .mf-banner) { font-weight: 700; }
 [data-theme="pitwall"] :is(.gauge, .pit-card, .cmp-sector) { background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; }
 [data-theme="pitwall"] .chart-title { letter-spacing: 1.1px; font-size: 10px; }
 [data-theme="pitwall"] .rcm li { border-bottom-color: var(--line); }
@@ -2410,14 +2378,14 @@ body.solo .tb-tools { display: none; }
 
 /* Chiffres en chasse fixe : temps, écarts, vitesses, horloges */
 [data-theme="pitwall"] :is(.tower td.t-gap, .tower td.t-int, .tower td.t-lap, .tower td.pos, .tower td.c-pits, .tower td.c-speed, .tower td.c-grid, .tower td.c-laps, .tower td.c-gapf, .tower td.c-spd,
-  .tower .sector-val, .tyre-age, .hstat-value, .delay-input, .rp-time, .duel-gap-val, .cmp td, .laps-cmp td, .pit-big, .pit-val, .champ td, .strat-pace, .strat-deg,
+  .tower .sector-val, .tyre-age, .hstat-value, .delay-input, .rp-time, .pit-big, .pit-val, .champ td, .strat-pace, .strat-deg,
   .tbp-table td, .tbd-time, .rcm-time, .weather-mini .wm b, .dl-speed-val, .dl-rpm) { font-family: var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: -.2px; }
 [data-theme="pitwall"] .tower td.pos { font-weight: 700; }
 
 /* Titres : Saira Condensed en capitales */
 [data-theme="pitwall"] :is(.panel-head h2, .chart-title, .hstat-label, .tbp-head b, .set-block h3) { font-family: var(--font-cond); letter-spacing: 1.5px; text-transform: uppercase; font-weight: 700; }
 [data-theme="pitwall"] .panel-head h2 { font-size: 14.5px; color: var(--text); }
-[data-theme="pitwall"] :is(.drv-tla, .duel-name, .tele-name b, .strat-name, .tbp-table .drv b) { font-family: var(--font-cond); font-weight: 700; letter-spacing: .8px; }
+[data-theme="pitwall"] :is(.drv-tla, .tele-name b, .strat-name, .tbp-table .drv b) { font-family: var(--font-cond); font-weight: 700; letter-spacing: .8px; }
 [data-theme="pitwall"] .tower .drv-tla { font-size: 15.5px; }
 [data-theme="pitwall"] .session-name { font-family: var(--font-cond); font-size: 19px; font-weight: 700; letter-spacing: .2px; }
 
@@ -3538,3 +3506,80 @@ html:is(.float-map, .overlay) .boot-cover { display: none; }
   .p-map .map-tool-ic { display: inline-block; }
   .p-map .map-mode { position: absolute; left: 10px; top: calc(100% + 8px); padding: 2px 8px; border-radius: 6px; font-size: 11.5px; background: color-mix(in srgb, var(--panel) 82%, transparent); pointer-events: none; }
 }
+
+/* ---------- Duel façon bataille de la retransmission (ui/duel.js) ----------
+   Bandeau : chaque pilote sur un bloc en biais à la couleur de son écurie, l'écart au milieu sur fond sombre ;
+   en dessous la tendance, une petite courbe de l'écart, quelques chiffres face à face et la télémétrie en barres */
+.bt { --ta: #3b82f6; --tb: #e10600; display: flex; flex-direction: column; gap: 10px; padding: 10px 12px 14px; }
+.bt-band { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: stretch; min-height: 64px; }
+.bt-drv { position: relative; display: flex; align-items: center; gap: 10px; padding: 8px 14px; color: #fff; min-width: 0; overflow: hidden; }
+.bt-drv.a { background: linear-gradient(90deg, color-mix(in srgb, var(--ta) 70%, #000) 0%, var(--ta) 100%); clip-path: polygon(0 0, 100% 0, calc(100% - 16px) 100%, 0 100%); border-radius: 10px 0 0 10px; padding-right: 26px; }
+.bt-drv.b { background: linear-gradient(270deg, color-mix(in srgb, var(--tb) 70%, #000) 0%, var(--tb) 100%); clip-path: polygon(16px 0, 100% 0, 100% 100%, 0 100%); border-radius: 0 10px 10px 0; flex-direction: row-reverse; text-align: right; padding-left: 26px; }
+.bt-pos { flex: none; font: 800 26px/1 var(--font-cond, inherit); min-width: 1.1em; text-align: center; text-shadow: 0 1px 6px rgba(0, 0, 0, .35); }
+.bt-photo { flex: none; width: 48px; height: 48px; border-radius: 50%; object-fit: cover; object-position: top; background: rgba(0, 0, 0, .25); border: 2px solid rgba(255, 255, 255, .55); }
+.bt-id { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.bt-name { font: italic 800 22px/1 var(--font-cond, inherit); text-transform: uppercase; letter-spacing: .02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 8px rgba(0, 0, 0, .35); }
+.bt-tla { display: none; }
+.bt-id small { display: flex; align-items: center; gap: 5px; font-size: 11.5px; opacity: .9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bt-drv.b .bt-id small { flex-direction: row-reverse; }
+.bt-id small .drv-bar { display: none; }
+.bt-gap { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-width: 128px; padding: 6px 16px; margin: 0 -6px; z-index: 1;
+  background: #0b1220; color: #fff; clip-path: polygon(14px 0, calc(100% - 14px) 0, 100% 100%, 0 100%); }
+.bt-tag { font-size: 9.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: rgba(255, 255, 255, .6); white-space: nowrap; }
+.bt-val { font: italic 800 34px/1 var(--font-cond, inherit); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.bt-val small { font-size: 15px; margin-left: 3px; opacity: .7; }
+.bt-who { font-size: 11px; font-weight: 700; color: rgba(255, 255, 255, .75); }
+.bt.close .bt-tag { color: #22c55e; }
+.bt.close .bt-gap { box-shadow: inset 0 -3px 0 #22c55e; }
+.bt-trend { align-self: center; display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 999px; font-size: 12.5px; color: var(--text-2); background: var(--panel-2); border: 1px solid var(--border); }
+.bt-trend::before { content: '•'; font-weight: 900; }
+.bt-trend.closing { color: #16a34a; border-color: color-mix(in srgb, #22c55e 45%, transparent); }
+.bt-trend.closing::before { content: '▼'; font-size: 10px; }
+.bt-trend.pulling { color: #ef4444; border-color: color-mix(in srgb, #ef4444 45%, transparent); }
+.bt-trend.pulling::before { content: '▲'; font-size: 10px; }
+.bt-trend b { color: var(--text); }
+.bt-sparkbox:empty { display: none; }
+.bt-spark { display: block; width: 100%; height: 46px; }
+.bt-spark .bt-zero { stroke: var(--line-2); stroke-width: .6; stroke-dasharray: 2 2; vector-effect: non-scaling-stroke; }
+.bt-spark .bt-line { fill: none; stroke: var(--text); stroke-width: 2; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
+.bt-spark .bt-area { fill: color-mix(in srgb, var(--text) 10%, transparent); }
+.bt-spark .bt-pit { fill: var(--orange); }
+.bt-spark-lbl { display: flex; justify-content: space-between; font-size: 10.5px; color: var(--muted); margin-top: 2px; }
+.bt-rows { display: flex; flex-direction: column; }
+.bt-row { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 10px; padding: 6px 2px; border-bottom: 1px solid var(--line); }
+.bt-row:last-child { border-bottom: 0; }
+.bt-k { font-size: 10.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); text-align: center; white-space: nowrap; }
+.bt-v { display: flex; align-items: center; gap: 4px; font-weight: 700; font-size: 14px; font-variant-numeric: tabular-nums; }
+.bt-v.b { justify-content: flex-end; }
+.bt-v small { font-weight: 500; color: var(--muted); }
+.bt-v.win::after { content: ''; width: 7px; height: 7px; border-radius: 50%; }
+.bt-v.a.win { color: color-mix(in srgb, var(--ta) 75%, var(--text)); }
+.bt-v.a.win::after { background: var(--ta); order: 2; }
+.bt-v.b.win { color: color-mix(in srgb, var(--tb) 75%, var(--text)); }
+.bt-v.b.win::after { background: var(--tb); order: -1; }
+.bt-live { display: grid; grid-template-columns: auto auto auto 1fr 1fr; gap: 6px 10px; align-items: center; padding: 8px 10px; border-radius: 10px; background: var(--panel-2); border: 1px solid var(--border); }
+.bt-car { display: contents; }
+.bt-car-tla { font: italic 800 15px/1 var(--font-cond, inherit); padding-left: 6px; border-left: 3px solid var(--ta); }
+.bt-car.b .bt-car-tla { border-left-color: var(--tb); }
+.bt-spd { display: flex; align-items: baseline; gap: 3px; min-width: 76px; justify-content: flex-end; }
+.bt-spd b { font: 800 20px/1 var(--font-mono, monospace); font-variant-numeric: tabular-nums; }
+.bt-spd small { font-size: 10px; color: var(--muted); }
+.bt-gear { font: 800 16px/1 var(--font-mono, monospace); width: 22px; text-align: center; }
+.bt-bar { height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; }
+.bt-bar i { display: block; height: 100%; width: 0; border-radius: inherit; transition: width .2s linear; }
+.bt-bar.thr i { background: #22c55e; }
+.bt-bar.brk i { background: #ef4444; }
+.bt-live-lbl { display: contents; }
+.bt-live-lbl span { font-size: 9.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.bt-live-lbl span:first-child { grid-column: 2; text-align: right; }
+/* Panneau étroit : code pilote au lieu du nom, sans portrait */
+@container (max-width: 560px) {
+  .bt-full { display: none; }
+  .bt-tla { display: inline; }
+  .bt-photo { display: none; }
+  .bt-gap { min-width: 96px; padding: 6px 10px; }
+  .bt-val { font-size: 28px; }
+}
+.grid.mobile .bt-full { display: none; }
+.grid.mobile .bt-tla { display: inline; }
+.grid.mobile .bt-photo { width: 38px; height: 38px; }

@@ -85,6 +85,12 @@ l'application (Réglages → À propos → Nouveautés).
   minute jusqu'à afficher la prochaine séance.
 
 ### En direct
+- Panneau Duel refait, plus simple, comme les bagarres à la télé : les deux pilotes sur un bandeau à la couleur de
+  leur écurie (position, portrait, nom) avec l'écart en grand au milieu, en vert quand ils sont à moins d'une
+  seconde ; dessous, qui revient ou s'échappe et de combien par tour, une petite courbe de l'écart sur les derniers
+  tours, quelques chiffres face à face (dernier et meilleur tour, pneus, arrêts, vitesse de pointe ; en qualifs le
+  meilleur tour et les secteurs), le meilleur marqué à la couleur de son écurie, et en direct la vitesse, le rapport,
+  l'accélérateur et le frein de chacun en barres.
 - Replays : quand la F1 teste son flux la veille (répétition d'une séance à venir, avec les voitures de la FIA FM1,
   SC1, MC1…), l'appli ne l'enregistre plus comme un replay et ne la propose plus parmi les séances de la F1 à revoir ;
   un enregistrement de répétition est remplacé par la vraie séance quand elle commence.
