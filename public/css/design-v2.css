@@ -99,6 +99,9 @@
   :root[data-design="v2"] body:not(.solo) .rail { width: var(--rail-w); gap: 4px; padding: 14px 0; background: rgba(5, 11, 26, .55) !important; border-right: 1px solid var(--v2-rim) !important;
     -webkit-backdrop-filter: var(--v2-blur); backdrop-filter: var(--v2-blur); }
   :root[data-design="v2"] .grid { padding: 12px; gap: 12px; }
+  /* Disposition personnalisée : l'espace vient des poignées de redimensionnement (12 px) ; l'écart de la grille s'y
+     ajoutait de chaque côté (36 px entre deux colonnes) */
+  :root[data-design="v2"] .grid.custom { gap: 0; }
 }
 :root[data-design="v2"] .rail-logo { width: 44px; height: 44px; margin-bottom: 14px; border-radius: 12px; filter: drop-shadow(0 6px 18px rgba(225, 6, 0, .55)); }
 :root[data-design="v2"] .rail-btn { width: 60px; height: 54px; border-radius: 16px; color: #8392AB; }

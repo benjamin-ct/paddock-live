@@ -1180,12 +1180,23 @@ export function initLayout() {
     const menu = d.matches?.('.map-layers') && d.open && !d.closest('.float-bar, .grid.mobile') && d.querySelector('.map-layers-menu');
     if (!menu) return;
     const r = d.querySelector('summary').getBoundingClientRect();
+    // Réglages de la vue 3D : dans le corps du panneau, qui contient ses menus (contain: paint) et en devient le
+    // repère : un menu « fixé » se décalait (coordonnées de l'écran) et sortait de la vue. Sous le bouton, à gauche,
+    // à la hauteur restante du panneau, avec défilement si le panneau est petit
+    if (d.matches('.map3d-opts')) {
+      const box = d.closest('.panel-body')?.getBoundingClientRect();
+      Object.assign(menu.style, { position: '', top: '', bottom: '', left: '0', right: 'auto', overflowY: 'auto',
+        maxHeight: `${Math.max(90, (box ? box.bottom : innerHeight) - r.bottom - 14)}px` });
+      // Trop près du bord droit de la vue : aligné à droite du bouton
+      if (box && r.left + menu.offsetWidth > box.right - 8) Object.assign(menu.style, { left: 'auto', right: '0' });
+      return;
+    }
     const below = innerHeight - r.bottom - 14, above = r.top - 14;
     const up = below < 280 && above > below;
     Object.assign(menu.style, { position: 'fixed', right: 'auto', overflowY: 'auto', maxHeight: `${Math.max(120, up ? above : below)}px`,
       top: up ? 'auto' : `${r.bottom + 6}px`, bottom: up ? `${innerHeight - r.top + 6}px` : 'auto' });
     const w = menu.offsetWidth;
-    menu.style.left = `${Math.max(8, Math.min(innerWidth - w - 8, d.matches('.tower-cols, .rd-menu, .map3d-opts') ? r.left : r.right - w))}px`;
+    menu.style.left = `${Math.max(8, Math.min(innerWidth - w - 8, d.matches('.tower-cols, .rd-menu') ? r.left : r.right - w))}px`;
   }, true);
   addEventListener('resize', () => { for (const d of document.querySelectorAll('.map-layers[open]')) d.open = false; });
   // Menu « Options » des radios (et tout autre menu de ce type) : fermé au clic ailleurs ou avec Échap
