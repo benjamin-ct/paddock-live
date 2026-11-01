@@ -2745,6 +2745,8 @@ export default {
   "La caméra fait le tour du circuit, avec les numéros des virages": "The camera flies around the circuit, with the turn numbers",
   "Écart avec la voiture devant": "Gap to the car ahead",
   "Fantôme du meilleur tour": "Best lap ghost",
+  "À fond tous les deux": "Both flat out",
+  "{} plus rapide sur {} % du tour": "{} faster on {}% of the lap",
   "Écart (s)": "Gap (s)",
   "Accélérateur (%)": "Throttle (%)",
   "Régime (tr/min)": "Engine speed (rpm)",

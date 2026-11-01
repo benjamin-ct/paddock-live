@@ -2744,6 +2744,8 @@ export default {
   "La caméra fait le tour du circuit, avec les numéros des virages": "La cámara da la vuelta al circuito, con los números de las curvas",
   "Écart avec la voiture devant": "Diferencia con el coche de delante",
   "Fantôme du meilleur tour": "Fantasma de la vuelta rápida",
+  "À fond tous les deux": "Los dos a fondo",
+  "{} plus rapide sur {} % du tour": "{} más rápido en el {} % de la vuelta",
   "Écart (s)": "Diferencia (s)",
   "Accélérateur (%)": "Acelerador (%)",
   "Régime (tr/min)": "Régimen (rpm)",

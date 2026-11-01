@@ -1965,6 +1965,21 @@ body.solo #muteBtn { display: none; }
 .ctl-table td.cmp-dt { font-weight: 700; }
 .ctl-type { display: inline-block; padding: 1px 7px; border-radius: 5px; font-size: 11px; font-weight: 700; background: color-mix(in srgb, var(--text) 10%, transparent); }
 .ctl-type.slow { color: #60a5fa; } .ctl-type.medium { color: #c084fc; } .ctl-type.fast { color: #fb923c; }
+/* Carte du circuit de la comparaison, à côté des tableaux */
+.ctl-bottom { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(300px, 1.5fr); gap: 14px; align-items: start; margin-top: 10px; }
+.ctl-bottom .ctl-tables { grid-template-columns: 1fr; }
+.ctl-mapbox { display: grid; gap: 6px; justify-items: center; }
+.ctl-map { width: 100%; max-height: 420px; }
+.ctl-map-turn { fill: #1b1f27; }
+.ctl-map-num { fill: #fff; font-weight: 700; font-family: var(--font); }
+.ctl-map-sec { fill: #fff; font-weight: 800; font-family: var(--font); paint-order: stroke; stroke: rgba(0, 0, 0, .6); stroke-width: 2px; }
+.ctl-map-leg { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 14px; font-size: 12px; align-items: center; }
+.ctl-chip { display: inline-block; padding: 1px 6px; border-radius: 4px; background: var(--c); color: #fff; font: 800 11px/1.4 var(--font); text-shadow: 0 0 2px rgba(0, 0, 0, .55); white-space: nowrap; }
+.ctl-act-row .ctl-chip { min-width: 58px; text-align: center; }
+.ctl-ring { display: inline-block; width: 9px; height: 9px; border-radius: 50%; border: 2px solid var(--c); vertical-align: -1px; }
+.ctl-flat { display: inline-block; width: 18px; height: 6px; border-radius: 3px; vertical-align: 1px; background: repeating-linear-gradient(90deg, #fff 0 3px, transparent 3px 7px), var(--muted); }
+@container (max-width: 640px) { .ctl-bottom { grid-template-columns: 1fr; } }
+@media (max-width: 700px) { .ctl-bottom { grid-template-columns: 1fr; } }   /* téléphone (pas de requête de conteneur) */
 @container (max-width: 560px) { .cmp-vis { grid-template-columns: 1fr; } .cmp-sectors { grid-template-columns: 1fr; } }
 
 /* ---------- Éléments affichés seulement dans la mise en page Pitwall ---------- */
