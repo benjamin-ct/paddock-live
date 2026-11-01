@@ -37,6 +37,7 @@
       "updater.cjs",
       "version.cjs",
       "f1-cookies.cjs",
+      "countdown.cjs",
       "splash.html",
       "icon.png",
       "bundle/**/*",

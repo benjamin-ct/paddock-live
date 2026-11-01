@@ -2807,4 +2807,8 @@ export default {
   "Ma disposition d'avant": "La mia disposizione precedente",
   "Radios": "Radio",
   "Duel": "Duello",
+  "Compte à rebours dans la zone de notification": "Conto alla rovescia nell'area di notifica",
+  "Compte à rebours dans la barre des menus": "Conto alla rovescia nella barra dei menu",
+  "Ouvrir Paddock Live": "Apri Paddock Live",
+  "Masquer le compte à rebours": "Nascondi il conto alla rovescia",
 };

@@ -2807,4 +2807,8 @@ export default {
   "Ma disposition d'avant": "Mi disposición anterior",
   "Radios": "Radios",
   "Duel": "Duelo",
+  "Compte à rebours dans la zone de notification": "Cuenta atrás en el área de notificación",
+  "Compte à rebours dans la barre des menus": "Cuenta atrás en la barra de menús",
+  "Ouvrir Paddock Live": "Abrir Paddock Live",
+  "Masquer le compte à rebours": "Ocultar la cuenta atrás",
 };
