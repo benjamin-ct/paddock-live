@@ -14,7 +14,7 @@ const SEG = { trace: 'Écarts', positions: 'Positions', laptimes: 'Tours', pace:
 const isMember = (t) => Object.values(GROUPS).some((g) => g.indexOf(t) > 0);
 // Onglets inutiles selon la séance chargée (masqués, de retour à la séance suivante)
 const QUALI_OFF = ['trace', 'positions', 'tyrehist', 'strategy', 'pitsim', 'battles', 'champ'];
-const OFF = { race: ['compare'], quali: QUALI_OFF, practice: QUALI_OFF };
+const OFF = { race: [], quali: QUALI_OFF, practice: QUALI_OFF };
 
 const HOSTS = ['feed', 'radio', 'analysis', 'extra'];   // panneaux à onglets
 // Place des onglets par défaut (1.30) : direction de course (et enquêtes, limites de piste) dans Messages, radios dans
