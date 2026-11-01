@@ -813,7 +813,7 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
 }
 
 /* ---------- Enquêtes / limites de piste ---------- */
-.tab-badge { display: inline-grid; place-items: center; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 9px; background: var(--orange); color: #221300; font-size: 10.5px; font-weight: 900; margin-left: 3px; }
+.tab-badge { display: inline-grid; place-items: center; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 9px; background: var(--orange); color: #221300; font-size: 10.5px; line-height: 1; font-weight: 900; margin-left: 3px; vertical-align: middle; }   /* au milieu du texte : l'onglet ne descend pas */
 .inc { padding: 9px 12px; border-bottom: 1px solid var(--line); }
 .inc-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .inc-status { font-size: 10.5px; font-weight: 900; text-transform: uppercase; letter-spacing: .4px; padding: 1px 7px; border-radius: 4px; background: var(--panel-3); color: var(--text-2); }
@@ -3526,11 +3526,10 @@ html:is(.float-map, .overlay) .boot-cover { display: none; }
 .bt-gtrend.pulling { color: #f87171; }
 .bt-gtrend.pulling::before { content: '▲'; font-size: 8px; }
 .bt.close .bt-tag, .duel-band.close .bt-tag { color: #4ade80; }
-/* Bandeau par-dessus le bas du Classement (duel choisi avec A et B) ; le classement laisse sa place en dessous */
+/* Bandeau par-dessus le bas du Classement (deux pilotes choisis) : il passe devant les dernières lignes, sans leur prendre de place */
 .duel-band { position: absolute; left: 8px; right: 8px; bottom: 8px; z-index: 6; animation: bt-up .25s ease-out; }
 .duel-band .bt-band { min-height: 60px; padding: 8px 40px 8px 14px; box-shadow: 0 14px 34px -10px rgba(0, 0, 0, .7); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
 .duel-band .bt-close { position: absolute; top: 50%; right: 8px; transform: translateY(-50%); z-index: 2; color: #fff; background: rgba(0, 0, 0, .3); border-radius: 50%; width: 24px; height: 24px; font-size: 11px; }
-.panel.has-duel .tower-wrap { padding-bottom: 112px; }
 @keyframes bt-up { from { transform: translateY(14px); opacity: 0; } }
 html[data-motion="off"] .duel-band { animation: none; }
 .bt-trend { align-self: center; display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 999px; font-size: 12.5px; color: var(--text-2); background: var(--panel-2); border: 1px solid var(--border); }
@@ -3582,7 +3581,15 @@ html[data-motion="off"] .duel-band { animation: none; }
   .bt-val { font-size: 28px; }
   .bt-name { font-size: 20px; }
 }
-.grid.mobile .bt-photo { width: 36px; height: 36px; }
+/* Téléphone (un panneau à la fois, pas de requête de conteneur) : sans portrait, écurie, dernier tour ni vitesse ;
+   la tendance sur deux lignes au besoin sous l'écart (tout se chevauchait) */
+.grid.mobile :is(.bt-photo, .bt-id small, .bt-last, .bt-kmh) { display: none !important; }
+.grid.mobile .bt-band { gap: 6px; padding-left: 12px; }
+.grid.mobile .bt-name { font-size: 19px; gap: 5px; }
+.grid.mobile .bt-name .team-logo { width: 20px; height: 20px; }
+.grid.mobile .bt-gap { min-width: 0; }
+.grid.mobile .bt-val { font-size: 28px; }
+.grid.mobile .bt-gtrend { white-space: normal; text-align: center; justify-content: center; max-width: 150px; font-size: 10.5px; line-height: 1.25; padding: 2px 8px; }
 /* Dispositions enregistrées (Réglages → Disposition → Fenêtres) : une pastille par disposition */
 .win-save { margin-top: 0; }
 .win-setup [data-setup] { display: inline-flex; align-items: center; gap: 6px; color: var(--text); font-size: 12.5px; font-weight: 600; padding: 4px 2px; }
