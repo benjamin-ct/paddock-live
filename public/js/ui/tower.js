@@ -133,6 +133,9 @@ export function renderTower(force = false) {
   // Meilleurs temps de la partie en cours (qualifs) / de la séance, pour classer les tours en cours.
   const bestOf = (l) => kind === 'quali' ? lapSeconds(list(l.BestLapTimes)[part - 1]?.Value) : lapSeconds(l.BestLapTime?.Value);
   const bests = nums.map((n) => ({ n, t: bestOf(lines[n] || {}) })).filter((x) => x.t);
+  // Meilleur tour de tous (de la partie en cours en qualifs) : en violet dans la colonne « Meilleur »
+  const fastest = Math.min(...bests.map((x) => x.t));
+  const bestCls = (l) => (bestOf(l) === fastest ? ' purple' : '');
   const focusGap = store.focus ? gapSec(store.focus) : null;
 
   const hot = hotLaps();
@@ -166,10 +169,12 @@ export function renderTower(force = false) {
       const car = store.positions.carAt(num, dispNow);
       if (car && car.drs >= 10) tags.push('<span class="tag drs">DRS</span>');
     }
-    // Sans point de détection connu : à moins d'une seconde de la voiture devant, tout de suite
+    // Toujours affiché, allumé à moins d'une seconde de la voiture devant (au point de détection s'il est connu, sinon
+    // tout de suite)
     const ahead = parseGap(l.IntervalToPositionAhead?.Value)?.s;
-    if (showDep && !tags.length && !done && (depKnown ? depOn.get(num)?.on : ahead > 0 && ahead < 1)) {
-      tags.push('<span class="tag drs" title="Mode dépassement : à moins d\'une seconde de la voiture devant au point de détection, pour un tour">DÉP</span>');
+    if (showDep && !tags.length && !done) {
+      const on = depKnown ? depOn.get(num)?.on : ahead > 0 && ahead < 1;
+      tags.push(`<span class="tag drs dep${on ? ' on' : ''}" title="Mode dépassement : à moins d'une seconde de la voiture devant au point de détection, pour un tour">DÉP</span>`);
     }
     const pred = kind !== 'race' && !done ? predictLap(l, stats[num]) : null;
     if (pred) tags.push('<span class="tag push" title="Tour rapide en cours">TOUR</span>');
@@ -218,12 +223,11 @@ export function renderTower(force = false) {
     if (kind === 'race') {
       const int = l.IntervalToPositionAhead || {};
       const best = l.BestLapTime?.Value || '';
-      const bestPurple = stats[num]?.PersonalBestLapTime?.Position === 1;
       const st = l.Speeds?.ST;
       cells = `<td class="pos${String(pos).length < 2 ? ' p1' : ''}">${esc(pos)}${posDelta}</td>${drv}
         <td class="t-gap">${l.Retired ? '<span class="dim">—</span>' : gapText(l.GapToLeader)}</td>
         <td class="t-int c-int ${int.Catching ? 'catching' : ''}">${l.Retired ? '<span class="dim">—</span>' : gapText(int.Value)}</td>
-        ${last}<td class="t-lap c-best ${bestPurple ? 'purple' : ''}">${esc(best) || '<span class="dim">—</span>'}</td>
+        ${last}<td class="t-lap c-best${bestCls(l)}">${esc(best) || '<span class="dim">—</span>'}</td>
         ${secCells}${tyre}<td class="c-pits">${realStopCount(store.state.TimingAppData?.Lines?.[num], l)}</td>
         <td class="c-speed ${timingClass(st)}">${esc(st?.Value || '') || '<span class="dim">—</span>'}</td>${extra}`;
     } else if (kind === 'quali') {
@@ -232,13 +236,13 @@ export function renderTower(force = false) {
       const best = bl[part - 1]?.Value || '';
       const q = [0, 1, 2].map((i) => `<td class="t-lap c-q ${i === part - 1 ? '' : 'dim'}">${esc(bl[i]?.Value || '') || '<span class="dim">—</span>'}</td>`).join('');
       cells = `<td class="pos${String(pos).length < 2 ? ' p1' : ''}">${esc(pos)}</td>${drv}
-        <td class="t-lap">${esc(best) || '<span class="dim">—</span>'}</td>
+        <td class="t-lap${bestCls(l)}">${esc(best) || '<span class="dim">—</span>'}</td>
         <td class="t-gap">${esc(stp.TimeDiffToFastest || '') || '<span class="dim">—</span>'}</td>
         <td class="t-int c-int">${esc(stp.TimeDifftoPositionAhead || '') || '<span class="dim">—</span>'}</td>
         ${predCell}${last}${secCells}${q}${tyre}${extra}`;
     } else {
       cells = `<td class="pos${String(pos).length < 2 ? ' p1' : ''}">${esc(pos)}</td>${drv}
-        <td class="t-lap">${esc(l.BestLapTime?.Value || '') || '<span class="dim">—</span>'}</td>
+        <td class="t-lap${bestCls(l)}">${esc(l.BestLapTime?.Value || '') || '<span class="dim">—</span>'}</td>
         <td class="t-gap">${esc(l.TimeDiffToFastest || '') || '<span class="dim">—</span>'}</td>
         <td class="t-int c-int">${esc(l.TimeDiffToPositionAhead || '') || '<span class="dim">—</span>'}</td>
         ${predCell}${last}${secCells}${tyre}<td class="c-pits">${esc(l.NumberOfLaps ?? '')}</td>${extra}`;
