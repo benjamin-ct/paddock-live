@@ -108,6 +108,7 @@ code { background: var(--panel-3); padding: 1px 5px; border-radius: 4px; font-si
 .hstat { display: flex; flex-direction: column; align-items: flex-start; }
 .hstat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
 .hstat-value { font-size: 18px; font-weight: 700; line-height: 1.1; }
+.hstat-value .dg { display: inline-block; width: 1ch; text-align: center; font-style: inherit; }   /* chiffres de largeur fixe (header.js) */
 .weather-mini { flex-direction: row; gap: 10px; font-size: 13px; color: var(--text-2); }
 .weather-mini .wm { display: flex; flex-direction: column; }
 .weather-mini .wm b { font-size: 15px; color: var(--text); }

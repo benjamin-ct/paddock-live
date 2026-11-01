@@ -7,6 +7,8 @@ l'application (Réglages → À propos → Nouveautés).
 ## v1.30.0 — à venir
 
 ### Nouveau design
+- Barre du haut : le compte à rebours et l'heure du circuit ne font plus bouger le reste de la barre à chaque seconde
+  (chiffres de largeur fixe). Aussi dans la version web.
 - Bouton « ± » du délai TV réparé dans Paddock 2 : le petit menu des pas (−5 à +5 s) s'ouvrait caché dans le cadre
   arrondi du délai ; il s'affiche de nouveau dessous, et sur téléphone il reste dans l'écran.
 - Paddock Live change de look avec le design « Paddock 2 », dans l'appli, la version web et sur le site : fond bleu
