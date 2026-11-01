@@ -175,6 +175,8 @@ l'application (Réglages → À propos → Nouveautés).
   directement sur le dessin du plan du circuit publié par la FIA. Madrid et Sepang, absents des tracés habituels, ont
   maintenant eux aussi leurs zones et les numéros des virages, sur un tracé reconstruit d'après le GPS d'une séance
   (et leur carte dans la version web).
+- Stratégie (Analyse → Arrêts) : la barre d'un pilote qui vient de changer de pneus ne dépasse plus le nombre de
+  tours faits (la F1 continuait parfois à compter le relais d'avant après l'arrêt).
 - Carte du circuit plus fluide avec le GPS (F1 TV) : les voitures avancent régulièrement, sans les petites saccades
   que donnait l'heure irrégulière des positions envoyées par la F1. Si le GPS se coupe pendant une séance, les voitures
   ne disparaissent plus : elles passent aussitôt en positions estimées, puis reprennent le GPS à son retour, en glissant
