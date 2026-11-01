@@ -3582,7 +3582,15 @@ html[data-motion="off"] .duel-band { animation: none; }
   .bt-val { font-size: 28px; }
   .bt-name { font-size: 20px; }
 }
-.grid.mobile .bt-photo { width: 36px; height: 36px; }
+/* Téléphone (un panneau à la fois, pas de requête de conteneur) : sans portrait, écurie, dernier tour ni vitesse ;
+   la tendance sur deux lignes au besoin sous l'écart (tout se chevauchait) */
+.grid.mobile :is(.bt-photo, .bt-id small, .bt-last, .bt-kmh) { display: none !important; }
+.grid.mobile .bt-band { gap: 6px; padding-left: 12px; }
+.grid.mobile .bt-name { font-size: 19px; gap: 5px; }
+.grid.mobile .bt-name .team-logo { width: 20px; height: 20px; }
+.grid.mobile .bt-gap { min-width: 0; }
+.grid.mobile .bt-val { font-size: 28px; }
+.grid.mobile .bt-gtrend { white-space: normal; text-align: center; justify-content: center; max-width: 150px; font-size: 10.5px; line-height: 1.25; padding: 2px 8px; }
 /* Dispositions enregistrées (Réglages → Disposition → Fenêtres) : une pastille par disposition */
 .win-save { margin-top: 0; }
 .win-setup [data-setup] { display: inline-flex; align-items: center; gap: 6px; color: var(--text); font-size: 12.5px; font-weight: 600; padding: 4px 2px; }
