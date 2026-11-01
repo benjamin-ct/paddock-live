@@ -1019,7 +1019,9 @@ function focusSelf() {
 
 
 // ---------------- Changement de disposition (Course / Qualif & essais) ----------------
-const tabHeads = () => PANELS.map((p) => [p.id, panelEl(p.id)?.querySelector('[data-tabs]')]).filter(([, h]) => h);
+// Fenêtre de la Comparaison seule (TAB_WIN) : son onglet n'est ni changé ni mémorisé ici (tabmove.js l'ouvre) ; sans ça,
+// l'onglet mémorisé de l'Analyse (Écarts en course) s'ouvrait sous le titre « Comparaison »
+const tabHeads = () => PANELS.filter((p) => !(TAB_WIN && p.id === 'analysis')).map((p) => [p.id, panelEl(p.id)?.querySelector('[data-tabs]')]).filter(([, h]) => h);
 
 function applyTabs() {
   const saved = storageGet(TABS_KEY, {})[profile] || {};
