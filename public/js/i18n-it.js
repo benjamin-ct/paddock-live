@@ -2398,7 +2398,6 @@ export default {
   "Fenêtres": "Finestre",
   "Accélérateur et frein en direct, rapport engagé": "Acceleratore e freno in diretta, marcia inserita",
   "Messages (direction de course, enquêtes, limites de piste)": "Messaggi (direzione gara, indagini, limiti della pista)",
-  "Nouvel écran : Classement, Télémétrie, Direction de course et Radios traduites. Circuit, Analyse et Duel s'ouvrent dans une fenêtre (menu Fenêtres ou bouton + d'un panneau). L'ancienne disposition : Réglages → Disposition → Fenêtres (« {} »)": "Nuova schermata: Classifica, Telemetria, Direzione gara e Radio tradotte. Circuito, Analisi e Duello si aprono in una finestra (menu Finestre o pulsante + di un pannello). La disposizione di prima: Impostazioni → Disposizione → Finestre (« {} »)",
   "Ouvrir dans une fenêtre": "Apri in una finestra",
   "Fenêtres : ouvrir le Circuit, l'Analyse ou le Duel dans une fenêtre, dispositions enregistrées, réglages de la disposition": "Finestre: apri il Circuito, l'Analisi o il Duello in una finestra, disposizioni salvate, impostazioni della disposizione",
   "Ma disposition 4 panneaux": "La mia disposizione a 4 pannelli",
@@ -2871,4 +2870,6 @@ export default {
   "Masquer le compte à rebours": "Nascondi il conto alla rovescia",
   "Options des radios": "Opzioni dei team radio",
   "Écart tour par tour": "Distacco giro per giro",
+  "Nouvel écran : Classement, Circuit, Télémétrie, Radios traduites et Direction de course. Analyse et Duel s'ouvrent dans une fenêtre (menu Fenêtres ou bouton + d'un panneau). L'ancienne disposition : Réglages → Disposition → Fenêtres (« {} »)": "Nuova schermata: Classifica, Circuito, Telemetria, Team radio tradotti e Direzione gara. Analisi e Duello si aprono in una finestra (menu Finestre o pulsante + di un pannello). La disposizione di prima: Impostazioni → Disposizione → Finestre («{}»)",
+  "Le Circuit revient dans l'écran principal, au centre": "Il Circuito torna nella schermata principale, al centro",
 };
