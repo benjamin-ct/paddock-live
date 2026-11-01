@@ -24,6 +24,19 @@ export function topicName(raw) {
   return raw.endsWith('.z') ? raw.slice(0, -2) : raw;
 }
 
+// Début d'une séance en UTC (ms) d'après SessionInfo : StartDate est l'heure locale du circuit, GmtOffset son
+// décalage (« -06:00:00 ») ; NaN si inconnu
+export function sessionStartUtc(info) {
+  const m = /^(-)?(\d{1,2}):(\d{2})/.exec(info?.GmtOffset || '');
+  const local = Date.parse(`${info?.StartDate || ''}Z`);
+  if (!m || Number.isNaN(local)) return NaN;
+  return local - (m[1] ? -1 : 1) * (Number(m[2]) * 3600e3 + Number(m[3]) * 60e3);
+}
+
+// Répétition de la F1 : le flux sert parfois une séance qui n'a pas encore eu lieu (essai de la course la veille,
+// voitures de la FIA FM1, SC1, MC1…). Séance qui commence plus de 3 h après maintenant
+export const futureSession = (info, now = Date.now()) => sessionStartUtc(info) - now > 3 * 3600e3;
+
 // Les horodatages F1 n'ont pas toujours de fuseau : ils sont en UTC.
 export function parseUtc(s) {
   if (!s) return NaN;

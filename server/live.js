@@ -3,7 +3,7 @@
 // Avec un jeton F1 TV : en plus les positions GPS (Position.z) et la télémétrie (CarData.z).
 import { WebSocket } from 'ws';
 import { agent, request, USER_AGENT } from './net.js';
-import { LIVE_TOPICS, topicName } from '../shared/f1.js';
+import { LIVE_TOPICS, topicName, futureSession } from '../shared/f1.js';
 import { readRecording } from './recorder.js';
 import { PROBE_TOPICS, isProbe, probeAnswer, probeFeed } from './feed-probe.js';
 import { relayId } from '../shared/f1tv-account.js';
@@ -316,7 +316,8 @@ export class LiveSource {
     }
     const fresh = this.hub.sessionKey === null && this.hub.events.length === 0;
     if (key !== null) this.hub.sessionKey = key;
-    const file = this.recorder && result.SessionInfo ? this.recorder.open(result.SessionInfo) : null;
+    // Répétition d'une séance à venir (la F1 teste son flux la veille) : pas enregistrée, sinon un faux « replay »
+    const file = this.recorder && result.SessionInfo && !futureSession(result.SessionInfo) ? this.recorder.open(result.SessionInfo) : null;
 
     const apply = () => {
       const snapshot = {};
