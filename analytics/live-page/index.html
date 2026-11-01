@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#0F172A">
+  <meta name="theme-color" content="#0C1326">
   <title>Paddock Live · Live timing F1 dans le navigateur</title>
   <meta name="description" content="Le direct de la F1 dans le navigateur, sans rien installer : classement, carte du circuit, télémétrie, direction de course et radios d'équipe traduites, calés sur ta TV.">
   <meta property="og:type" content="website">
@@ -18,13 +18,15 @@
   <link rel="apple-touch-icon" href="/live/apple-touch-icon.png">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <!-- Barre d'état de l'iPhone (page installée) transparente : la barre du haut (fond sombre, place prévue sous l'heure
+       et la batterie : env(safe-area-inset-top)) remonte derrière, même couleur que le haut de l'appli -->
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Paddock Live">
   <link rel="canonical" href="https://app.paddocklive.app/">
   <link rel="stylesheet" href="/live/css/style.css">
   <link rel="stylesheet" href="/live/css/broadcast.css">
   <link rel="stylesheet" href="/live/css/design-v2.css">
-  <script>/* Apparence (sombre / clair / système) et design posés avant l'affichage : pas d'éclair */ try { const p = JSON.parse(localStorage.getItem('paddock.prefs') || '{}'); const s = p.schemeSet || p.scheme === 'light' ? p.scheme : 'auto'; const light = s === 'light' || (s === 'auto' && matchMedia('(prefers-color-scheme: light)').matches); document.documentElement.dataset.scheme = light ? 'light' : 'dark'; document.documentElement.dataset.design = p.designV || p.design === 'classic' ? p.design || 'v2' : 'v2'; } catch { document.documentElement.dataset.scheme = 'dark'; document.documentElement.dataset.design = 'v2'; } document.documentElement.dataset.theme = 'pitwall'; document.documentElement.classList.add('web'); const only = /[?&]only=(map|analysis|duel)\b/.exec(location.search)?.[1]; if (only) document.documentElement.classList.add('only', `only-${only}`);</script>
+  <script>/* Apparence (sombre / clair / système) et design posés avant l'affichage : pas d'éclair */ try { const p = JSON.parse(localStorage.getItem('paddock.prefs') || '{}'); const s = p.schemeSet || p.scheme === 'light' ? p.scheme : 'auto'; const light = s === 'light' || (s === 'auto' && matchMedia('(prefers-color-scheme: light)').matches); document.documentElement.dataset.scheme = light ? 'light' : 'dark'; document.documentElement.dataset.design = p.designV || p.design === 'classic' ? p.design || 'v2' : 'v2'; if (light && document.documentElement.dataset.design !== 'v2') document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]').content = 'default'; } catch { document.documentElement.dataset.scheme = 'dark'; document.documentElement.dataset.design = 'v2'; } document.documentElement.dataset.theme = 'pitwall'; document.documentElement.classList.add('web'); const only = /[?&]only=(map|analysis|duel)\b/.exec(location.search)?.[1]; if (only) document.documentElement.classList.add('only', `only-${only}`);</script>
   <style>
     /* Version web : écran principal de l'appli, sans menu latéral ni outils. Classement à gauche, circuit au centre,
        télémétrie, radios et direction de course l'une sous l'autre à droite ; Analyse et Duel dans des fenêtres à part */
@@ -33,14 +35,24 @@
       grid-template-areas: "tower map tele" "tower map radio" "tower map feed"; }
     .web .p-extra, .web .p-duel { display: none; }   /* onglets de course : rangés dans la fenêtre Analyse par web.js */
     .web .win-btn { gap: 5px; }
-    @media (max-width: 1600px) { .web .win-btn { padding: 6px; } .web .win-btn .wb-lbl { display: none; } }
+    /* Barre du haut sur une seule ligne sur ordinateur : écarts resserrés ; en dessous de 2400 px la météo passe dans le
+       bouton « Météo » des outils, puis les boutons Analyse, Duel et Saison gardent leur icône seule, enfin les pas de 5 s
+       du délai, l'heure du circuit, les tours restants et les noms des outils s'effacent */
+    @media (min-width: 901px) {
+      .web .topbar { column-gap: 14px; }
+      .web .topbar .spacer { min-width: 0; }
+    }
+    @media (min-width: 901px) and (max-width: 2400px) { html.web .topbar .weather-mini { display: none !important; } }
+    @media (min-width: 901px) and (max-width: 2300px) { .web .win-btn, .web .topbar #seasonBtn { padding: 6px; } .web .win-btn .wb-lbl, .web .topbar #seasonBtn .sz-lbl { display: none; } }
+    @media (min-width: 901px) and (max-width: 1800px) { .web .web-delay .m:first-of-type, .web .web-delay [data-step="5000"], .web #circuitTimeBox { display: none !important; } }
+    @media (min-width: 901px) and (max-width: 1700px) { .web #lapsLeftBox, .web .tb-tool small { display: none !important; } }
     /* Barre du haut trop longue pour l'écran (séance, météo, délai, boutons) : la suite passe à la ligne au lieu de sortir */
     .web .topbar { flex-wrap: wrap; row-gap: 6px; }
     .web .p-radio { grid-area: radio; }
     .web .p-analysis { grid-area: tele; }
-    /* Panneau Analyse : la télémétrie seule dans l'écran principal ; les autres onglets dans la fenêtre « Analyse »
+    /* Panneau Analyse : la télémétrie et la projection du championnat dans l'écran principal ; les autres onglets dans la fenêtre « Analyse »
        (sans la comparaison, calculée par le serveur de l'appli) */
-    html.web:not(.only-analysis) .p-analysis .panel-head [data-tab]:not([data-tab="telemetry"]),
+    html.web:not(.only-analysis) .p-analysis .panel-head [data-tab]:not([data-tab="telemetry"], [data-tab="champ"]),
     html.web.only-analysis .p-analysis .panel-head [data-tab]:is([data-tab="telemetry"], [data-tab="compare"]) { display: none !important; }
     /* Pas de séance en direct : compte à rebours, puis résultats et classements sur demande (replays dans l'appli) */
     .web .nl-actions { display: none; }
@@ -85,13 +97,13 @@
     .web .topbar .web-delay input { width: 54px; height: 34px; padding: 0 4px; text-align: center; border: 1px solid var(--border); border-radius: 8px;
       background: var(--panel-2); color: var(--text); font: 700 17px/1 inherit; font-variant-numeric: tabular-nums; }
     .web .topbar .web-delay .unit { color: var(--text-2); font-weight: 700; margin-left: -2px; }
-    .web .web-note { font-size: 11px; color: var(--text-2); flex: 1 1 0; min-width: 200px; max-width: 280px; line-height: 1.3; }
-    .web .web-note a { color: inherit; text-decoration: underline; }
-    /* Écran de moins de 1700 px : la note (GPS, appli complète) laisse la place aux boutons (Saison, Appli complète) */
-    @media (max-width: 1700px) { .web .web-note { display: none; } }
     /* iPhone (page installée) : barre du haut fixée en haut, fond plein jusque sous la barre d'état, comme l'en-tête
        du Studio. Sans élément fixé en haut, iOS floute le haut de la page (titre de la séance flou) */
     .web body { padding-top: 0; }
+    /* iPhone : zone de l'heure et de la batterie de la couleur de la barre du haut. L'iPhone la remplit avec le fond de
+       la page (fond de html, le body garde le sien) ou laisse voir la page dessous (bande fixée de la hauteur de la zone) */
+    html.web:is([data-design="v2"], [data-scheme="dark"]) { background-color: #0C1326; }
+    html.web:is([data-design="v2"], [data-scheme="dark"])::before { content: ''; position: fixed; top: 0; left: 0; right: 0; height: env(safe-area-inset-top); background: #0C1326; z-index: 801; pointer-events: none; }
     .web .topbar { position: sticky; top: 0; z-index: 800; padding-top: calc(8px + env(safe-area-inset-top)); background: linear-gradient(180deg, #0F172A, #0A1120); }
     .web .web-wait { padding: 8px 14px; background: var(--panel-2); border-bottom: 1px solid var(--border); color: var(--text); font-size: 13px; font-weight: 600; text-align: center; }
     /* Appairage d'un téléphone (version web avec compte F1 TV, sans extension) */
@@ -162,14 +174,14 @@
       .web .tower tr.fin td:nth-child(-n+2) { background: var(--chequer) 0 0 / 16px 16px, var(--panel); }
       .web .tower tr.out td:nth-child(-n+2) { opacity: 1; }
       .web .tower tr.out td:nth-child(-n+2) > * { opacity: .45; }
-      .web .web-note, .web .web-delay .hstat-label { display: none; }
+      .web .web-delay .hstat-label { display: none; }
       .web .web-delay, .web #sourceBadge, .web .topbar > .btn { order: 5; }
       .web .web-delay { margin-right: auto; }
       .web .topbar .weather-mini { order: 4; flex-basis: 100%; max-height: none; gap: 14px; }
       /* Réglages du direct (délai, F1 TV, état du serveur, Saison, appli) derrière l'engrenage : la barre du haut
          garde la séance, le chrono et les infos (longueur, course, météo, piste) */
       .web #webMenuBtn { display: inline-flex; order: 2; margin-left: 2px; color: #fff; }   /* après l’état de la piste et la Saison */
-      .web .topbar:not(.menu-open) > :is(.web-delay, #pairBtn, #sourceBadge, #clBtn, a.btn) { display: none !important; }
+      .web .topbar:not(.menu-open) > :is(.web-delay, #pairBtn, #sourceBadge, #clBtn, a.btn, #tbTools) { display: none !important; }
       /* Saison : icône à côté de l'engrenage, toujours là */
       .web .topbar #seasonBtn, .web .topbar #seasonBtn:not(.on) { order: 1; padding: 6px; gap: 0; border-color: transparent; color: #fff; }
       .web .topbar #seasonBtn .sz-lbl { display: none; }
@@ -221,9 +233,14 @@
     <div class="hstat" id="circuitTimeBox" hidden><div class="hstat-label">Heure circuit</div><div class="hstat-value" id="circuitTime">—</div></div>
     <div class="hstat weather-mini" id="weatherMini"></div>
     <div class="hstat surface" id="surfaceBox" hidden><div class="hstat-label">État piste</div><div class="hstat-value" id="surfaceValue">—</div></div>
+    <div class="tb-tools" id="tbTools">
+      <button class="tb-tool" data-tool="docs" title="Documents officiels de la FIA (Grand Prix en cours)"><svg viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h6"/></svg><small>FIA</small><i class="tb-dot" hidden></i></button>
+      <button class="tb-tool" data-tool="speeds" title="Vitesses aux points de mesure"><svg viewBox="0 0 24 24"><path d="M4 17a8 8 0 1 1 16 0"/><path d="M12 17l4-5"/><circle cx="12" cy="17" r="1.3"/></svg><small>Vitesses</small></button>
+      <button class="tb-tool" data-tool="sectors" title="Meilleurs secteurs de chaque pilote et tour idéal"><svg viewBox="0 0 24 24"><path d="M5 20V11M10 20V5M15 20v-7M20 20V9"/></svg><small>Secteurs</small></button>
+      <button class="tb-tool" data-tool="weather" title="Météo et radar de pluie du circuit"><svg viewBox="0 0 24 24"><path d="M7 18a4 4 0 0 1-.6-8A6 6 0 0 1 18 9a4.5 4.5 0 0 1-.5 9z"/></svg><small>Météo</small></button>
+    </div>
     <div class="spacer"></div>
     <div class="tb-break b2"></div>
-    <div class="web-note">GPS : <a href="https://paddocklive.app/extension" target="_blank" rel="noopener">extension Paddock Live Companion</a> et votre compte F1 TV, ou « Connexion F1 TV » pour relier un appareil. Toutes les fonctions dans l'appli de bureau.</div>
     <div class="web-delay" title="Délai TV : l'affichage attend autant que votre diffusion">
       <span class="hstat-label">Délai</span>
       <button class="dbtn m" data-step="-5000">−5</button>
@@ -241,6 +258,7 @@
     <a class="btn small btn-accent" href="https://paddocklive.app/" title="Télécharger l'appli Paddock Live">Appli complète</a>
   </header>
 
+  <div id="weatherHold" hidden><div id="weather" class="wx-pop-body"></div></div>
   <div class="web-wait" id="webWait" role="status" hidden></div>
   <div class="flag-banner" id="flagBanner" hidden><span class="fb-icon"></span><span class="fb-text"></span><span class="fb-sub"></span></div>
 

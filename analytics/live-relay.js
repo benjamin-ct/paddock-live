@@ -845,7 +845,7 @@ export async function liveApi(req, url, env = {}) {
   if (url.pathname === '/live/api/circuit') {
     const key = Number(url.searchParams.get('key')), year = Number(url.searchParams.get('year'));
     if (!Number.isInteger(key) || !Number.isInteger(year)) return json({ error: 'Paramètres invalides' }, 400);
-    const d = await circuitData(key, year);
+    const d = await circuitData(key, year, fetch, env);
     return d ? json(d, 200, { 'Cache-Control': 'public, max-age=86400' }) : json({ error: 'Tracé introuvable' }, 404);
   }
   return json({ error: 'Pas disponible dans la version web' }, 404);
