@@ -2869,4 +2869,5 @@ export default {
   "Compte à rebours dans la barre des menus": "Conto alla rovescia nella barra dei menu",
   "Ouvrir Paddock Live": "Apri Paddock Live",
   "Masquer le compte à rebours": "Nascondi il conto alla rovescia",
+  "Options des radios": "Opzioni dei team radio",
 };

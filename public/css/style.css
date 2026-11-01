@@ -978,7 +978,7 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
 .tabpane.rd-pane.active { display: flex; flex-direction: column; height: 100%; }
 /* Réglages sur une seule ligne (défilable) : les cartes des radios restent visibles dans un petit panneau */
 /* Réglages des radios : menu « Options » de l'en-tête du panneau, en colonne */
-.rd-menu { margin-left: 8px; }
+.rd-menu { margin-left: auto; }   /* engrenage des options tout à droite de la barre des onglets */
 .rd-menu-body { min-width: 250px; max-width: 320px; }
 /* Menu d'options d'un onglet : seulement quand cet onglet est ouvert */
 .panel-head:has(> [data-tab="rcm"]:not(.active)) > [data-menu-for="rcm"],

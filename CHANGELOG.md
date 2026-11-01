@@ -51,6 +51,8 @@ l'application (Réglages → À propos → Nouveautés).
   panneaux). L'ancienne disposition reste dans Réglages → Disposition → Fenêtres, sous le nom « Ma disposition
   d'avant » : un clic la remet.
 - Direction de course vide : le message « Aucun message » ne se coupe plus mot par mot.
+- Radios d'équipe et Direction de course : les options s'ouvrent avec un engrenage tout à droite de la barre des
+  onglets (le bouton « Options » des radios devient un engrenage). Aussi dans la version web.
 
 ### Langues
 - Paddock Live parle aussi italien et espagnol : Italiano et Español dans Réglages → Apparence, et à la première
