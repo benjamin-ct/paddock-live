@@ -46,6 +46,8 @@ l'application (Réglages → À propos → Nouveautés).
   bagarres, championnat) et le Duel s'ouvrent dans leur propre fenêtre avec les boutons « Analyse » et « Duel » en haut ;
   le pilote suivi et le duel cliqués dans le classement s'y retrouvent. Sur téléphone, rien ne change. Sur un écran
   moins large, la barre du haut passe sur deux lignes au lieu de déborder.
+- Version web installée sur l'écran d'accueil de l'iPhone : la barre de l'heure et de la batterie prend la couleur du
+  haut de l'appli au lieu d'une bande noire.
 - Analyse : seulement les onglets utiles selon la séance. En course : Écarts et Arrêts (avec la stratégie) ; en qualifs
   et en essais : Secteurs et Comparaison. Les autres (Temps, Pneus, Jeux de pneus, simulateur d'arrêt, Bagarres,
   championnat) s'ajoutent en un clic.
@@ -163,6 +165,10 @@ l'application (Réglages → À propos → Nouveautés).
   point de détection à moins d'une seconde de la voiture devant, pour le tour qui suit, comme le DRS, une fois le mode
   activé par la direction de course (pas au départ, ni sous voiture de sécurité ou drapeau rouge). La F1 ne dit pas
   quand le pilote s'en sert : l'étiquette indique qu'il y a droit.
+- Zones du mode dépassement plus justes sur la carte : leur fin et les points de détection et d'activation sont lus
+  directement sur le dessin du plan du circuit publié par la FIA. Madrid et Sepang, absents des tracés habituels, ont
+  maintenant eux aussi leurs zones et les numéros des virages, sur un tracé reconstruit d'après le GPS d'une séance
+  (et leur carte dans la version web).
 - Carte du circuit plus fluide avec le GPS (F1 TV) : les voitures avancent régulièrement, sans les petites saccades
   que donnait l'heure irrégulière des positions envoyées par la F1. Si le GPS se coupe pendant une séance, les voitures
   ne disparaissent plus : elles passent aussitôt en positions estimées, puis reprennent le GPS à son retour, en glissant

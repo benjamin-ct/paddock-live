@@ -141,7 +141,7 @@ const contains = (a, b) => a.s <= b.s && a.w <= b.w && a.n >= b.n && a.e >= b.e;
 // Calcul d'un circuit pour une saison : { data } (données de /live/api/surroundings), sinon { error } ; fit : calage.
 // at : position du circuit si déjà connue ; pause : 0 dans les tests. Source injoignable : exception (passing)
 export async function computeSurroundings(env, key, year, { now = Date.now(), fetchFn = fetch, at, pause = 1 } = {}) {
-  const raw = await circuitData(key, year, fetchFn);
+  const raw = await circuitData(key, year, fetchFn, env);
   if (!raw) return { error: 'tracé introuvable' };
   const c = at || await place(env, key);
   if (!c) return { error: 'position du circuit inconnue' };
