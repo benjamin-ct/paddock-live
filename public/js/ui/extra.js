@@ -90,15 +90,16 @@ export function renderStrategy() {
   const app = s.TimingAppData?.Lines || {};
   const nums = orderedNumbers(s).filter((n) => dl[n]);
   let total = Number(s.LapCount?.TotalLaps) || 0;
+  const td = s.TimingData?.Lines || {};
   const rows = nums.map((num) => {
     let start = 0;
     // Relais réels : un passage par les stands sans changer de pneus ne coupe pas le relais
-    const stints = realStints(stintsOf(app[num])).map((st) => {
-      const len = Math.max(0, (Number(st.TotalLaps) || 0) - (Number(st.StartLaps) || 0));
-      const out = { ...st, from: start, len };
-      start += len;
-      return out;
-    });
+    const stints = realStints(stintsOf(app[num])).map((st) => ({ ...st, len: Math.max(0, (Number(st.TotalLaps) || 0) - (Number(st.StartLaps) || 0)) }));
+    // La F1 laisse parfois compter le relais précédent après l'arrêt (Hirakawa : 34 tours en mediums puis 7 en tendres
+    // au 34e tour) : le surplus sur les tours faits est retiré des relais d'avant, en partant du plus récent
+    let extra = stints.reduce((a, st) => a + st.len, 0) - (Number(td[num]?.NumberOfLaps) || Infinity);
+    for (let i = stints.length - 2; i >= 0 && extra > 0; i--) { const cut = Math.min(extra, stints[i].len); stints[i].len -= cut; extra -= cut; }
+    for (const st of stints) { st.from = start; start += st.len; }
     return { num, stints, laps: start, pace: stintPace(num) };
   });
   total = Math.max(total, ...rows.map((r) => r.laps), 1);
