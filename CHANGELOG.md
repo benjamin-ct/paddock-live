@@ -138,6 +138,11 @@ l'application (Réglages → À propos → Nouveautés).
   taille. En direct et en replay, dans l'appli et la version web.
 - Carte sans GPS (positions estimées) : après un passage au garage, la voiture ne fait plus des bonds de 600 m sur
   la piste pendant le tour suivant ; elle avance à son vrai rythme.
+- Cercle de position du simulateur d'arrêt (Analyse → Simul.) refait, façon graphique des écuries : disque sombre
+  gradué en secondes, au centre le tour en grand, l'état de la piste et le tour de référence ; chaque voiture a son
+  étiquette à la couleur de l'écurie (trigramme et écart avec le pilote choisi), reliée à sa pastille et rangée sur une
+  ou deux rangées pour ne pas se chevaucher ; damier sur la ligne ; arc violet épais jusqu'à la position après l'arrêt,
+  avec un repère sur chaque voiture qui repasserait devant. Aussi dans la version web.
 - Onglet Secteurs : sous les poles et meilleurs tours des éditions précédentes, le meilleur du week-end, c'est-à-dire
   le meilleur tour des séances déjà courues du Grand Prix (temps, pilote et séance : EL2, Qualif…). En direct et en
   replay, dans l'appli et la version web.

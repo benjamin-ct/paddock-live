@@ -2210,19 +2210,30 @@ body.solo .grid .panel-head { padding-right: 116px; }
 .cd-wrap { flex: 0 1 clamp(240px, 34%, 460px); min-width: 220px; margin: 0 auto; }
 .pitsim-res { flex: 1 1 240px; min-width: 0; }
 .cd { width: 100%; height: auto; display: block; overflow: visible; }
-.cd-ring { fill: none; stroke: var(--line-2); stroke-width: 10; }
-.cd-ticks line { stroke: var(--panel); stroke-width: 2; }
-.cd-loss { fill: none; stroke: var(--accent); stroke-width: 10; stroke-opacity: .35; stroke-linecap: round; }
-.cd-car circle { stroke: var(--panel); stroke-width: 2; }
-.cd-car.me circle { stroke: #fff; stroke-width: 2.5; }
-.cd-car text { font: 700 10px var(--font); text-anchor: middle; dominant-baseline: middle; paint-order: stroke; stroke: var(--panel); stroke-width: 3px; }
-.cd-car.me text { font-size: 11.5px; }
-.cd-ghost { fill: none; stroke: #fff; stroke-width: 2; stroke-dasharray: 3 3; }
-.cd-ghost-l { font: 700 10px var(--font); fill: var(--text-2); text-anchor: middle; dominant-baseline: middle; }
-.cd-line { stroke: var(--text); stroke-width: 2.5; stroke-linecap: round; }
-.cd-top { font: 700 9px var(--font); fill: var(--muted); text-anchor: middle; letter-spacing: 1px; }
-.cd-mid { font: 700 11px var(--font); fill: var(--muted); text-anchor: middle; letter-spacing: .5px; text-transform: uppercase; }
-.cd-mid2 { font: 600 11px var(--font); fill: var(--muted); text-anchor: middle; }
+/* Cercle de position, façon graphique des écuries : disque sombre, graduations des secondes, étiquettes aux couleurs
+   des écuries reliées à chaque voiture, arc violet jusqu'à la position après l'arrêt */
+.cd-bg { fill: #0d1016; stroke: rgba(255, 255, 255, .06); stroke-width: 1; }
+.cd-ring { fill: none; stroke: #2a303b; stroke-width: 3; }
+.cd-ticks line { stroke: #4a5262; stroke-width: 1; }
+.cd-ticks line.big { stroke: #8b93a3; stroke-width: 1.5; }
+.cd-sec { font: 600 8.5px var(--font); fill: #6b7383; text-anchor: middle; dominant-baseline: middle; }
+.cd-flag rect { fill: #fff; } .cd-flag .cd-flag-box { fill: none; stroke: #fff; stroke-width: .8; }
+.cd-loss { fill: none; stroke: #8b3fd1; stroke-width: 16; stroke-opacity: .75; stroke-linecap: round; }
+.cd-in-loss line { stroke: #f59e0b; stroke-width: 3; stroke-dasharray: 3 2; }
+.cd-car .cd-dot { stroke: #0d1016; stroke-width: 2; }
+.cd-car.me .cd-dot { stroke: #fff; stroke-width: 2.5; }
+.cd-car .cd-lead { stroke-width: 1; opacity: .7; }
+.cd-tag text { font: 800 10px var(--font-cond, var(--font)); fill: #fff; text-anchor: middle; dominant-baseline: middle; text-shadow: 0 0 2px rgba(0, 0, 0, .6); }
+.cd-tag .t2 { font: 700 8px var(--font); opacity: .92; font-variant-numeric: tabular-nums; }
+.cd-car.me .cd-tag rect { stroke: #fff; stroke-width: 1.5; }
+.cd-ghost { fill: rgba(139, 63, 209, .35); stroke: #fff; stroke-width: 2; }
+.cd-ghost-l rect { fill: #c9a4f0; }
+.cd-ghost-l text { font: 700 9.5px var(--font); fill: #2a1145; text-anchor: middle; dominant-baseline: middle; }
+.cd-lap { font: italic 800 34px var(--font-cond, var(--font)); fill: #fff; text-anchor: middle; dominant-baseline: middle; }
+.cd-st { fill: #166534; } .cd-st.yellow { fill: #a16207; } .cd-st.red { fill: #b91c1c; }
+.cd-st-t { font: 700 9.5px var(--font); fill: #fff; text-anchor: middle; dominant-baseline: middle; }
+.cd-mid2 { font: 600 9.5px var(--font); fill: #aab2c0; text-anchor: middle; }
+.cd-mid3 { font: 600 8.5px var(--font); fill: #6b7383; text-anchor: middle; }
 .sector-board td.sec-better { color: var(--green); }
 .sector-board td.sec-worse { color: #ff6b61; }
 .sector-board tr.is-ref td { background: var(--focus); font-weight: 700; }
