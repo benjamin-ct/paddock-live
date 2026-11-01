@@ -147,21 +147,21 @@
 :root[data-design="v2"] .delay #syncBtn { border-radius: 999px; }
 :root[data-design="v2"] .source-badge { border-radius: 999px; }
 
-/* ---------- Classement : lignes plus aérées, position en pastille, logos ronds éclairés ---------- */
+/* ---------- Classement : lignes plus aérées, position en chiffre, logos ronds éclairés ---------- */
 :root[data-design="v2"] .tower th { background: transparent; color: #8495B0; font: 700 10.5px/1 var(--font); letter-spacing: .12em; border-bottom-color: var(--v2-rim); padding-top: 9px; padding-bottom: 9px; }
 :root[data-design="v2"] .tower thead th { background: rgba(9, 16, 32, .9); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
 :root[data-design="v2"][data-scheme="light"] .tower thead th { background: rgba(255, 255, 255, .9); }
 :root[data-design="v2"] .tower td { border-bottom-color: var(--line); }
 :root[data-design="v2"] .tower td.c-duel { background: transparent; }
-:root[data-design="v2"] .tower td.pos { font: italic 800 17px/1 var(--font-cond); color: #0B1220; }
-/* Pastille de la position : taille fixe (un ou deux chiffres), centrée dans sa colonne, chiffre centré (léger décalage
-   pour l'italique) ; elle remplissait toute la colonne, trop grande et décentrée avec un seul chiffre */
-:root[data-design="v2"] .tower td.pos { text-align: center !important; padding-left: 0 !important; padding-right: 2px !important; }
-:root[data-design="v2"] .tower td.pos::before { inset: auto; left: 50%; top: 50%; width: 30px; height: 26px; transform: translate(-50%, -50%); border-radius: 8px; background: linear-gradient(180deg, #fff, #DCE3EE); box-shadow: 0 2px 8px rgba(0, 0, 0, .35); }
-:root[data-design="v2"] .tower td.pos.p1::before { width: 24px; }   /* un seul chiffre : pastille plus étroite */
-:root[data-design="v2"] .tower tr:nth-child(1) td.pos::before { background: linear-gradient(180deg, #FFE27A, #E2A90F); box-shadow: 0 0 14px rgba(255, 196, 0, .45); }
-:root[data-design="v2"] .tower tr:nth-child(2) td.pos::before { background: linear-gradient(180deg, #F4F7FB, #AEB9C8); }
-:root[data-design="v2"] .tower tr:nth-child(3) td.pos::before { background: linear-gradient(180deg, #F2C29A, #B9743F); }
+:root[data-design="v2"] .tower td.pos { font: italic 800 18px/1 var(--font-cond); color: var(--text); text-align: center !important; padding-left: 0 !important; padding-right: 2px !important; }
+/* Position en simple chiffre (sans pastille : trop lourde dans la colonne) ; le podium en or, argent et bronze */
+:root[data-design="v2"] .tower td.pos::before { display: none; }
+:root[data-design="v2"] .tower tr:nth-child(1) td.pos { color: #FFC93C; text-shadow: 0 0 14px rgba(255, 196, 0, .45); }
+:root[data-design="v2"] .tower tr:nth-child(2) td.pos { color: #C9D3E0; }
+:root[data-design="v2"] .tower tr:nth-child(3) td.pos { color: #E39A62; }
+:root[data-design="v2"][data-scheme="light"] .tower tr:nth-child(1) td.pos { color: #C98A00; text-shadow: none; }
+:root[data-design="v2"][data-scheme="light"] .tower tr:nth-child(2) td.pos { color: #7A8799; }
+:root[data-design="v2"][data-scheme="light"] .tower tr:nth-child(3) td.pos { color: #B5652A; }
 :root[data-design="v2"] .tower .drv-tla { font: italic 800 17px/1 var(--font-cond); letter-spacing: .05em; }
 :root[data-design="v2"] .tower .drv-last { color: #8495B0; }
 :root[data-design="v2"] .tower .team-logo, :root[data-design="v2"] .hm-fav-who .team-logo, :root[data-design="v2"] .sz-table .team-logo {
