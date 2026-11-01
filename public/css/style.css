@@ -1941,6 +1941,30 @@ body.solo #muteBtn { display: none; }
 .cmp-speeds th, .cmp-speeds td { padding: 3px 10px; text-align: right; border-bottom: 1px solid var(--line); }
 .cmp-speeds th:first-child, .cmp-speeds td:first-child { text-align: left; }
 .cmp-speeds td.best { color: var(--purple); font-weight: 700; }
+/* Télémétrie des deux tours : courbes empilées sur la distance, actions par virage, tableaux */
+.ctl { margin: 14px 0 8px; }
+.ctl h4 { margin: 0 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.ctl-read { min-height: 20px; font-size: 12.5px; font-variant-numeric: tabular-nums; margin-bottom: 2px; }
+.ctl-svg { width: 100%; height: auto; display: block; touch-action: pan-y; }
+.ctl-svg .cmp-ax { font-size: 10px; fill: var(--muted); }
+.ctl-svg .cmp-zero { stroke: var(--line-2); stroke-width: 1; }
+.ctl-bg { fill: color-mix(in srgb, var(--text) 3%, transparent); }
+.ctl-label { font-size: 10.5px; font-weight: 700; fill: var(--muted); paint-order: stroke; stroke: var(--panel, var(--bg)); stroke-width: 3px; stroke-linejoin: round; }
+.ctl-corner { stroke: var(--line-2); stroke-dasharray: 2 4; }
+.ctl-cursor { stroke: var(--text); stroke-width: 1; opacity: .6; pointer-events: none; }
+.ctl-acts { display: grid; gap: 5px; margin: 10px 0; }
+.ctl-act-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; font-size: 12px; }
+.ctl-act-row b { min-width: 34px; }
+.ctl-act { display: inline-grid; place-items: center; min-width: 20px; height: 18px; padding: 0 4px; border-radius: 5px; font: 700 11px/1 var(--font); color: #fff; vertical-align: middle; }
+.ctl-act.flat { background: #16a34a; } .ctl-act.lift { background: #d97706; } .ctl-act.brake { background: #dc2626; }
+.muted .ctl-act { min-width: 10px; height: 10px; padding: 0; }
+.ctl-tables { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; align-items: start; }
+.ctl-table { border-collapse: collapse; font-size: 12.5px; width: 100%; font-variant-numeric: tabular-nums; }
+.ctl-table th, .ctl-table td { padding: 4px 8px; text-align: right; border-bottom: 1px solid var(--line); }
+.ctl-table th:first-child, .ctl-table td:first-child { text-align: left; }
+.ctl-table td.cmp-dt { font-weight: 700; }
+.ctl-type { display: inline-block; padding: 1px 7px; border-radius: 5px; font-size: 11px; font-weight: 700; background: color-mix(in srgb, var(--text) 10%, transparent); }
+.ctl-type.slow { color: #60a5fa; } .ctl-type.medium { color: #c084fc; } .ctl-type.fast { color: #fb923c; }
 @container (max-width: 560px) { .cmp-vis { grid-template-columns: 1fr; } .cmp-sectors { grid-template-columns: 1fr; } }
 
 /* ---------- Éléments affichés seulement dans la mise en page Pitwall ---------- */
