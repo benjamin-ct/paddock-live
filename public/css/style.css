@@ -382,6 +382,10 @@ input[type=range]:not(#rpRange):disabled { opacity: .45; cursor: default; }
 .rcm-time { color: var(--muted); font-size: 12px; line-height: 1.25; }
 .rcm-flag { width: 16px; height: 12px; border-radius: 2px; margin-top: 3px; background: var(--line-2); }
 .rcm-msg { font-size: 13px; line-height: 1.3; }
+/* ↺ 3D : revoir le moment dans la vue 3D (seulement quand elle est ouverte) */
+.rcm-3d { display: none; margin-top: 3px; padding: 1px 6px; border: 1px solid var(--border); border-radius: 999px; background: transparent; color: var(--muted); font: 700 10.5px/1.4 var(--font); cursor: pointer; }
+.has-3d .rcm-3d { display: inline-block; }
+.rcm-3d:hover { color: var(--text); border-color: var(--text); }
 .flag-GREEN { background: var(--green); }
 .flag-YELLOW { background: var(--yellow); }
 .flag-DOUBLE-YELLOW { background: repeating-linear-gradient(90deg, var(--yellow) 0 6px, #111 6px 8px); }
@@ -1375,6 +1379,20 @@ body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-selec
 .map3d-mini { position: absolute; left: 8px; bottom: 8px; max-width: 34%; height: auto; border-radius: 10px; pointer-events: none;
   background: rgba(7, 8, 10, .45); box-shadow: 0 2px 10px rgba(0, 0, 0, .35); }
 .map3d-mini[hidden] { display: none; }
+.map3d-mini { pointer-events: auto; cursor: pointer; }
+/* Compteur du pilote suivi, en bas à droite à côté du bouton des sources (Poursuite, Hélico, bord de piste) */
+.map3d-hud { position: absolute; right: 38px; bottom: 8px; display: flex; align-items: center; gap: 10px;
+  padding: 4px 12px 4px 10px; border-radius: 10px; border-left: 3px solid var(--tc, #8b95a8); pointer-events: none;
+  background: rgba(7, 8, 10, .62); color: #fff; font: 700 13px/1.2 var(--font-cond, var(--font)); font-variant-numeric: tabular-nums; }
+.map3d-hud[hidden] { display: none; }
+.map3d-hud .mh-v { font-size: 20px; font-style: italic; min-width: 3.4em; text-align: right; }
+.map3d-hud .mh-v small { font-size: 11px; font-style: normal; opacity: .7; margin-left: 3px; }
+.map3d-hud .mh-g { font-size: 20px; font-style: italic; min-width: 1em; text-align: center; color: #F5C518; }
+.map3d-hud .mh-bars { display: grid; gap: 3px; width: 54px; }
+.map3d-hud .mh-bars i { display: block; height: 5px; border-radius: 3px; background: linear-gradient(90deg, #22c55e var(--v), rgba(255, 255, 255, .15) var(--v)); }
+.map3d-hud .mh-bars i.brk { background: linear-gradient(90deg, #ef4444 var(--v), rgba(255, 255, 255, .15) var(--v)); }
+.map3d-keys { margin: 4px 0 0; max-width: 240px; white-space: normal; }
+@media (max-width: 600px) { .map3d-keys { display: none; } }   /* téléphone : pas de clavier */
 .map3d-note { font-size: 11.5px; font-weight: 600; }
 .map3d-credit a { color: inherit; }
 .map3d-credit[hidden] { display: none; }

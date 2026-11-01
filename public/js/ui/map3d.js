@@ -17,7 +17,10 @@ import { QUALITY, nearFirst, autoQuality, frameCap, weatherState, compoundOf, ac
 const W = 14;           // largeur de la piste (m)
 const MAX_CARS = 30;
 const CAMS = [['helico', 'Hélico'], ['poursuite', 'Poursuite'], ['embarquee', 'Embarquée'], ['libre', 'Libre'], ['realisation', 'Réalisation']];
-const FOV = { helico: 38, poursuite: 62, embarquee: 74, libre: 50, survol: 55 };
+const FOV = { helico: 38, poursuite: 62, embarquee: 74, libre: 50, survol: 55, bordpiste: 30 };
+// Temps affiché par la vue : celui du direct ou du replay, sauf pendant « Revoir l'action » (ralenti des secondes passées)
+let viewT = null;
+const viewNow = () => viewT ?? displayNow();
 const TIMES = [['auto', 'Heure du circuit'], ['lever', 'Lever'], ['jour', 'Jour'], ['coucher', 'Coucher'], ['nuit', 'Nuit']];
 const QUALITIES = [['auto', 'Qualité : Auto'], ['econome', 'Qualité : Économe'], ['haute', 'Qualité : Haute']];
 const Q_NAMES = ['économe', 'moyenne', 'haute'];   // niveaux de map3d-calc.js (QUALITY)
@@ -1558,6 +1561,7 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
       <div class="map3d-cams" role="group" aria-label="Caméra">${CAMS.map(([k, txt]) => `<button class="btn small" data-cam="${k}">${txt}</button>`).join('')}</div>
       <select class="map3d-driver" aria-label="Pilote suivi" title="Pilote suivi (le même que sur la carte 2D et le classement)"></select>
       <button class="btn small map3d-fly" title="La caméra fait le tour du circuit, avec les numéros des virages">Survol</button>
+      <button class="btn small map3d-rw" title="Revoir les 10 dernières secondes au ralenti">↺ 10 s</button>
       <details class="map-layers map3d-opts">
         <summary class="btn small">Réglages <svg class="ic ic-s" aria-hidden="true"><use href="#i-chevron-down"/></svg></summary>
         <div class="map-layers-menu">
@@ -1567,11 +1571,13 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
           <label class="toggle"><input type="checkbox" class="map3d-gap"> Écart avec la voiture devant</label>
           <label class="toggle"><input type="checkbox" class="map3d-ghost"> Fantôme du meilleur tour</label>
           <label class="toggle"><input type="checkbox" class="map3d-mini-opt"> Mini-carte 2D</label>
+          <p class="muted small map3d-keys">Touches : 1 à 5 pour les caméras, V pour le survol, R pour revoir les 10 dernières secondes.</p>
         </div>
       </details>
     </div>
     <div class="map3d-cap" hidden></div>
-    <canvas class="map3d-mini" hidden aria-hidden="true"></canvas>
+    <canvas class="map3d-mini" hidden title="Toucher une voiture pour la suivre"></canvas>
+    <div class="map3d-hud" hidden data-no-i18n></div>
     <button type="button" class="map3d-info" aria-expanded="false" title="${esc(t('Relief et sources de la carte'))}" aria-label="${esc(t('Relief et sources de la carte'))}">i</button>
     <div class="map3d-pop" hidden><div class="map3d-note"></div>
     <div class="map3d-credit" hidden><a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a> <a href="https://www.openmaptiles.org/" target="_blank" rel="noopener">© OpenMapTiles</a> <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">${esc(t('© contributeurs OpenStreetMap'))}</a> · ${esc(t('Altitude : Terrain Tiles (Mapzen, AWS Open Data)'))}</div></div>`;
@@ -1708,11 +1714,41 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
   };
   const cap = host.querySelector('.map3d-cap'), race = raceDirector(cap), fly = flyover(cap);
   const optGap = host.querySelector('.map3d-gap'), optGhost = host.querySelector('.map3d-ghost'), optMini = host.querySelector('.map3d-mini-opt');
-  const mini = miniMap(host.querySelector('.map3d-mini'));
+  const miniCvs = host.querySelector('.map3d-mini'), mini = miniMap(miniCvs), hud = speedHud(host.querySelector('.map3d-hud'));
+  // Mini-carte : toucher une voiture la fait suivre (en Réalisation, passe en Poursuite)
+  miniCvs.addEventListener('click', (e) => {
+    const num = mini.pick(e);
+    if (!num) return;
+    setFocus(num);
+    if (mode === 'realisation') { race.stop(); mode = 'poursuite'; }
+    snap = true;
+    showCam();
+  });
+  // Revoir l'action : la vue rejoue au ralenti (×0,5) des secondes passées, avec les positions gardées par l'appli
+  // (environ 3 min) ; depuis le bouton (10 dernières secondes) ou un message de la direction de course
+  const rwBtn = host.querySelector('.map3d-rw'), rw = { from: 0, to: 0, t0: -1, note: '', noteUntil: 0 };
+  const rewind = (from, to) => Object.assign(rw, { from, to, t0: -1 });
+  const onRewind = (e) => {
+    const at = e.detail?.t, live = displayNow();
+    if (!Number.isFinite(at) || at > live) return;
+    if (live - at > 185000) { Object.assign(rw, { note: t('Trop ancien pour la 3D (plus de 3 minutes)'), noteUntil: performance.now() + 3000 }); return; }
+    rewind(at - 8000, Math.min(at + 7000, live));
+  };
+  window.addEventListener('paddock:rewind3d', onRewind);
+  document.documentElement.classList.add('has-3d');
+  // Touches : 1 à 5 caméras, V survol, R revoir (vue affichée, pas pendant une saisie ni avec Ctrl, Cmd, Alt ou Maj)
+  const onKey = (e) => {
+    if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey || !host.getClientRects().length || e.target.closest?.('input, select, textarea, [contenteditable]')) return;
+    const k = e.key.toLowerCase(), n = Number(k);
+    const b = n >= 1 && n <= CAMS.length ? bar.querySelector(`[data-cam="${CAMS[n - 1][0]}"]`) : k === 'v' ? bar.querySelector('.map3d-fly') : k === 'r' ? rwBtn : null;
+    if (b) { e.preventDefault(); b.click(); }
+  };
+  document.addEventListener('keydown', onKey);
   optGap.checked = saved.gap !== false;
   optGhost.checked = !!saved.ghost;
   optMini.checked = saved.mini !== false;
   for (const [el, key] of [[optGap, 'gap'], [optGhost, 'ghost'], [optMini, 'mini']]) el.addEventListener('change', () => storageSet('paddock.map3d', { ...storageGet('paddock.map3d', {}), [key]: el.checked }));
+  let tv = null;       // Réalisation : caméra de bord de piste en place
   let flown = false;   // survol lancé tout seul une fois, à l'ouverture sans voiture en piste
   // Menu Réglages : fermé au clic ailleurs
   const opts = host.querySelector('.map3d-opts'), closeOpts = (e) => { if (opts.open && !opts.contains(e.target)) opts.open = false; };
@@ -1720,6 +1756,7 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
   showCam();
   bar.addEventListener('click', (e) => {
     if (e.target.closest('.map3d-fly')) { if (fly.on) fly.stop(); else { fly.start(performance.now()); race.stop(); snap = true; } showCam(); return; }
+    if (e.target.closest('.map3d-rw')) { const live = displayNow(); if (rw.to) rw.to = live; else rewind(live - 10000, live); return; }
     const b = e.target.closest('[data-cam]');
     if (!b) return;
     fly.stop();
@@ -1870,6 +1907,12 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
     if (document.hidden || !host.getClientRects().length || now - last < 1000 / quality.cap - 4) return;   // économie (quality)
     const dt = Math.min(0.1, (now - last) / 1000), dtCam = Math.min(1, (now - last) / 1000);   // caméra : temps réel
     last = now;
+    if (rw.to) {
+      if (rw.t0 < 0) { rw.t0 = now; snap = true; }
+      viewT = rw.from + (now - rw.t0) * 0.5;
+      if (viewT >= rw.to) { viewT = null; rw.to = 0; snap = true; cap.hidden = true; }
+    }
+    rwBtn.classList.toggle('on', !!rw.to);
     const tr = getTrack(), el = getElevation(), su = tr ? getSurroundings() : null;
     if (!tr) return;
     if (!world || world.track !== tr || world.elevation !== el || world.surroundings !== su) rebuild(tr, el, su);
@@ -1881,7 +1924,7 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
     pollLayers(now);
     const dl = roster();
     if (sel.value !== (store.focus && dl[store.focus] ? store.focus : '') && document.activeElement !== sel) fillDrivers(dl);
-    const disp = displayNow(), gps = store.positions.hasGps(disp);
+    const disp = viewNow(), gps = store.positions.hasGps(disp);
     const lines = store.state.TimingData?.Lines || {};
     const showOut = document.getElementById('mapShowOut')?.checked;
     const redFlag = String(store.state.TrackStatus?.Status || '') === '5';
@@ -2015,6 +2058,20 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
       } else if (shot === 'poursuite') { // derrière la voiture, un peu au-dessus
         want = p.clone().addScaledVector(fh, -7).add(new THREE.Vector3(0, 2.1, 0));
         target = p.clone().addScaledVector(f, 7).add(new THREE.Vector3(0, 0.9, 0)); kPos = 7; kLook = 12;
+      } else if (shot === 'bordpiste') { // caméra fixe au bord de la piste, 160 m devant, qui pivote au passage
+        const { N, DS, P, SIDE, TURN } = world, ahead = tv ? (tv.i - focus.hint + N) % N : -1;
+        if (!tv || ahead > N / 2 && N - ahead > 60 / DS) {   // nouvelle caméra quand la voiture l'a dépassée de 60 m
+          const i = (focus.hint + Math.round(160 / DS)) % N, c = world.box.getCenter(new THREE.Vector3());
+          // À l'extérieur du virage ; en ligne droite, du côté extérieur du circuit
+          const side = Math.abs(TURN[i]) > 0.004 ? -Math.sign(TURN[i]) : SIDE[i].x * (P[i].x - c.x) + SIDE[i].z * (P[i].z - c.z) > 0 ? 1 : -1;
+          const at = P[i].clone().addScaledVector(SIDE[i], side * (W / 2 + 16));
+          at.y = Math.max(world.groundAt(at.x, at.z), P[i].y) + 4;
+          tv = { i, at };
+          snap = true;
+        }
+        want = tv.at; target = p.clone().add(new THREE.Vector3(0, 0.6, 0)); kPos = Infinity; kLook = 10;
+        camera.fov = Math.min(55, Math.max(14, 2 * Math.atan(14 / Math.max(1, tv.at.distanceTo(p))) * 180 / Math.PI));   // zoom : la voiture garde sa taille
+        camera.updateProjectionMatrix();
       } else {                           // embarquée : yeux du pilote, dans le casque, solidaire de la voiture
         want = p.clone().addScaledVector(f, 0.08).addScaledVector(upL, 0.77);
         target = p.clone().addScaledVector(f, 30).addScaledVector(upL, 0.45); kPos = Infinity; kLook = Infinity;
@@ -2036,9 +2093,15 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
       camera.lookAt(look);
       if (shot === 'helico') { sun.target.position.copy(p); shadowSpan = 110; } else { sun.target.position.copy(p).addScaledVector(fh, 30); shadowSpan = 45; }
     }
+    if (shot !== 'bordpiste' || !focus) tv = null;
     snap = false;
+    // Compteur (vitesse, rapport, accélérateur, frein) du pilote suivi en Poursuite, Hélico et bord de piste
+    hud(focus && (shot === 'poursuite' || shot === 'helico' || shot === 'bordpiste'), fnum, focus, dl, now);
+    // Revoir l'action : légende du ralenti ; message bref (« trop ancien »)
+    if (rw.to && viewT !== null) { cap.textContent = t('Ralenti · il y a {} s', Math.max(0, Math.round((displayNow() - viewT) / 1000))); cap.hidden = false; }
+    else if (rw.noteUntil) { cap.textContent = rw.note; cap.hidden = !rw.note || now > rw.noteUntil; if (now > rw.noteUntil) rw.noteUntil = 0; }
     // Mini-carte 2D dans un coin quand la caméra suit une voiture de près (pas en Libre ni en Survol : tout le circuit se voit)
-    mini(optMini.checked && focus && (shot === 'helico' || shot === 'poursuite' || shot === 'embarquee'), world, cars, fnum, dl, now);
+    mini(optMini.checked && focus && (shot === 'helico' || shot === 'poursuite' || shot === 'embarquee' || shot === 'bordpiste'), world, cars, fnum, dl, now);
     // Sol détaillé devant la caméra (inutile de très haut : pas redessiné en tournant autour du circuit)
     camera.getWorldDirection(dir);
     const hd = Math.hypot(dir.x, dir.z) || 1;
@@ -2070,6 +2133,10 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
   return {
     close() {
       cancelAnimationFrame(raf);
+      viewT = null;
+      window.removeEventListener('paddock:rewind3d', onRewind);
+      document.removeEventListener('keydown', onKey);
+      document.documentElement.classList.remove('has-3d');
       cvs.removeEventListener('webglcontextlost', lost);
       quality.close();
       document.removeEventListener('pointerdown', closeOpts);
@@ -2088,8 +2155,8 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
 // aux couleurs des écuries, le pilote suivi plus gros et cerclé de blanc ; redessinée une dizaine de fois par seconde.
 function miniMap(cvs) {
   const g = cvs.getContext('2d');
-  let forWorld = null, path = null, scale = 1, ox = 0, oz = 0, last = 0;
-  return (show, world, cars, fnum, dl, now) => {
+  let forWorld = null, path = null, scale = 1, ox = 0, oz = 0, last = 0, spots = [];
+  const draw = (show, world, cars, fnum, dl, now) => {
     cvs.hidden = !show || !world;
     if (cvs.hidden || now - last < 90) return;
     last = now;
@@ -2110,11 +2177,13 @@ function miniMap(cvs) {
     }
     g.setTransform(px, 0, 0, px, 0, 0);
     g.clearRect(0, 0, cvs.width, cvs.height);
+    spots = [];
     g.lineJoin = 'round';
     g.strokeStyle = 'rgba(7, 8, 10, .85)'; g.lineWidth = 6; g.stroke(path);
     g.strokeStyle = 'rgba(255, 255, 255, .9)'; g.lineWidth = 2.5; g.stroke(path);
     const dot = (num, c) => {
       const x = pad + (c.p.x - ox) * scale, y = pad + (c.p.z - oz) * scale, me = num === fnum;
+      spots.push([num, x, y]);
       g.beginPath();
       g.arc(x, y, me ? 5.5 : 3.5, 0, Math.PI * 2);
       g.fillStyle = `#${String(dl[num]?.TeamColour || '8b95a8').replace('#', '')}`;
@@ -2125,6 +2194,34 @@ function miniMap(cvs) {
     };
     for (const [num, c] of cars) if (c.seen && num !== fnum) dot(num, c);
     if (cars.get(fnum)?.seen) dot(fnum, cars.get(fnum));   // pilote suivi par-dessus les autres
+  };
+  // Voiture la plus proche du point touché (à moins de 14 px), en tenant compte de la taille affichée du canevas
+  draw.pick = (e) => {
+    const r = cvs.getBoundingClientRect(), k = (cvs.width / (Math.min(window.devicePixelRatio || 1, 2))) / (r.width || 1);
+    const x = (e.clientX - r.left) * k, y = (e.clientY - r.top) * k;
+    let best = null, bd = 14 * k;
+    for (const [num, sx, sy] of spots) { const d = Math.hypot(sx - x, sy - y); if (d < bd) { bd = d; best = num; } }
+    return best;
+  };
+  return draw;
+}
+
+// ---------- Compteur ----------
+// Vitesse, rapport, accélérateur et frein du pilote suivi (télémétrie, sinon vitesse sur la piste), en bas de la vue
+// avec les caméras Poursuite, Hélico et bord de piste ; redessiné 5 fois par seconde.
+function speedHud(el) {
+  let last = 0;
+  return (show, num, car, dl, now) => {
+    el.hidden = !show;
+    if (!show || now - last < 200) return;
+    last = now;
+    const tm = store.positions.carLerp(num, viewNow()), d = dl[num];
+    const v = Math.round(Number.isFinite(tm?.speed) ? tm.speed : (car.v * 3.6) / (store.positions.speed?.() || 1));
+    const gear = !Number.isFinite(tm?.gear) ? '–' : tm.gear ? String(tm.gear) : 'N';
+    const pc = (x) => (Number.isFinite(x) ? Math.max(0, Math.min(100, x)) : 0);
+    el.style.setProperty('--tc', `#${String(d?.TeamColour || '8b95a8').replace('#', '')}`);
+    el.innerHTML = `<b>${esc(d?.Tla || num)}</b><span class="mh-v">${v}<small>km/h</small></span><span class="mh-g">${esc(gear)}</span>
+      <span class="mh-bars"><i style="--v:${pc(tm?.thr)}%"></i><i class="brk" style="--v:${pc(tm?.brk)}%"></i></span>`;
   };
 }
 
@@ -2238,7 +2335,7 @@ function steeringWheel() {
       sun.position.copy(lights.sunDir);
       if (now - last < 200) return;
       last = now;
-      const tm = store.positions.carLerp(num, displayNow()), l = store.state.TimingData?.Lines?.[num] || {};
+      const tm = store.positions.carLerp(num, viewNow()), l = store.state.TimingData?.Lines?.[num] || {};
       const lap = Number(l.NumberOfLaps) || 0, total = Number(store.state.LapCount?.TotalLaps) || 0, pct = (v) => (Number.isFinite(v) ? Math.round(v / 10) / 10 : 0);
       draw({
         gear: !Number.isFinite(tm?.gear) ? '–' : tm.gear ? String(tm.gear) : 'N',
@@ -2257,7 +2354,7 @@ function steeringWheel() {
 // caméra Poursuite, Hélico ou Embarquée à tour de rôle ; légende « Bataille pour la P5 · LEC – HAM · 0,3 s ».
 // -> { num : voiture suivie, update(now, order) : plan en cours (mode de caméra) }
 function raceDirector(cap) {
-  const SHOTS = ['poursuite', 'helico', 'embarquee'];
+  const SHOTS = ['poursuite', 'bordpiste', 'helico', 'embarquee'];
   const seen = new Map();   // num -> { pos, gainAt } : places gagnées depuis peu
   let cur = null, shot = 0, lastPick = -1e9;
   return {
@@ -2274,7 +2371,7 @@ function raceDirector(cap) {
           if (pos < s.pos) s.gainAt = now;
           s.pos = pos;
           seen.set(num, s);
-          lines.push({ num, pos, gap: pos > 1 ? seconds(l?.IntervalToPositionAhead?.Value) : null, drs: drsOpen(store.positions.carAt(num, displayNow())?.drs), gained: now - s.gainAt < 10000 ? 1 : 0 });
+          lines.push({ num, pos, gap: pos > 1 ? seconds(l?.IntervalToPositionAhead?.Value) : null, drs: drsOpen(store.positions.carAt(num, viewNow())?.drs), gained: now - s.gainAt < 10000 ? 1 : 0 });
         }
         const next = pickBattle(lines, cur, now);
         if (next.num !== cur?.num) shot = (shot + 1) % SHOTS.length;
