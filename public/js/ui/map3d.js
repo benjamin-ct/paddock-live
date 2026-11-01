@@ -1566,10 +1566,12 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
           <select class="map3d-weather" aria-label="Météo">${WEATHERS.map(([k, txt]) => `<option value="${k}">${txt}</option>`).join('')}</select>
           <label class="toggle"><input type="checkbox" class="map3d-gap"> Écart avec la voiture devant</label>
           <label class="toggle"><input type="checkbox" class="map3d-ghost"> Fantôme du meilleur tour</label>
+          <label class="toggle"><input type="checkbox" class="map3d-mini-opt"> Mini-carte 2D</label>
         </div>
       </details>
     </div>
     <div class="map3d-cap" hidden></div>
+    <canvas class="map3d-mini" hidden aria-hidden="true"></canvas>
     <button type="button" class="map3d-info" aria-expanded="false" title="${esc(t('Relief et sources de la carte'))}" aria-label="${esc(t('Relief et sources de la carte'))}">i</button>
     <div class="map3d-pop" hidden><div class="map3d-note"></div>
     <div class="map3d-credit" hidden><a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a> <a href="https://www.openmaptiles.org/" target="_blank" rel="noopener">© OpenMapTiles</a> <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">${esc(t('© contributeurs OpenStreetMap'))}</a> · ${esc(t('Altitude : Terrain Tiles (Mapzen, AWS Open Data)'))}</div></div>`;
@@ -1705,10 +1707,12 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
     bar.querySelector('.map3d-fly').classList.toggle('on', fly.on);
   };
   const cap = host.querySelector('.map3d-cap'), race = raceDirector(cap), fly = flyover(cap);
-  const optGap = host.querySelector('.map3d-gap'), optGhost = host.querySelector('.map3d-ghost');
+  const optGap = host.querySelector('.map3d-gap'), optGhost = host.querySelector('.map3d-ghost'), optMini = host.querySelector('.map3d-mini-opt');
+  const mini = miniMap(host.querySelector('.map3d-mini'));
   optGap.checked = saved.gap !== false;
   optGhost.checked = !!saved.ghost;
-  for (const [el, key] of [[optGap, 'gap'], [optGhost, 'ghost']]) el.addEventListener('change', () => storageSet('paddock.map3d', { ...storageGet('paddock.map3d', {}), [key]: el.checked }));
+  optMini.checked = saved.mini !== false;
+  for (const [el, key] of [[optGap, 'gap'], [optGhost, 'ghost'], [optMini, 'mini']]) el.addEventListener('change', () => storageSet('paddock.map3d', { ...storageGet('paddock.map3d', {}), [key]: el.checked }));
   let flown = false;   // survol lancé tout seul une fois, à l'ouverture sans voiture en piste
   // Menu Réglages : fermé au clic ailleurs
   const opts = host.querySelector('.map3d-opts'), closeOpts = (e) => { if (opts.open && !opts.contains(e.target)) opts.open = false; };
@@ -2033,6 +2037,8 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
       if (shot === 'helico') { sun.target.position.copy(p); shadowSpan = 110; } else { sun.target.position.copy(p).addScaledVector(fh, 30); shadowSpan = 45; }
     }
     snap = false;
+    // Mini-carte 2D dans un coin quand la caméra suit une voiture de près (pas en Libre ni en Survol : tout le circuit se voit)
+    mini(optMini.checked && focus && (shot === 'helico' || shot === 'poursuite' || shot === 'embarquee'), world, cars, fnum, dl, now);
     // Sol détaillé devant la caméra (inutile de très haut : pas redessiné en tournant autour du circuit)
     camera.getWorldDirection(dir);
     const hd = Math.hypot(dir.x, dir.z) || 1;
@@ -2074,6 +2080,51 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
       renderer.dispose();
       host.innerHTML = '';
     },
+  };
+}
+
+// ---------- Mini-carte 2D ----------
+// Tracé du circuit vu de haut (même orientation que la carte 2D : x à droite, z vers le bas) et pastilles des voitures
+// aux couleurs des écuries, le pilote suivi plus gros et cerclé de blanc ; redessinée une dizaine de fois par seconde.
+function miniMap(cvs) {
+  const g = cvs.getContext('2d');
+  let forWorld = null, path = null, scale = 1, ox = 0, oz = 0, last = 0;
+  return (show, world, cars, fnum, dl, now) => {
+    cvs.hidden = !show || !world;
+    if (cvs.hidden || now - last < 90) return;
+    last = now;
+    const px = Math.min(window.devicePixelRatio || 1, 2), pad = 9;
+    if (world !== forWorld) {
+      forWorld = world;
+      let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+      for (const p of world.P) { x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x); z0 = Math.min(z0, p.z); z1 = Math.max(z1, p.z); }
+      // Taille : 150 px de côté pour le plus grand, l'autre selon la forme du circuit
+      const w = x1 - x0 || 1, h = z1 - z0 || 1, k = 150 / Math.max(w, h);
+      const cw = Math.round(w * k + 2 * pad), ch = Math.round(h * k + 2 * pad);
+      cvs.style.width = `${cw}px`;   // hauteur selon la forme (height: auto)
+      cvs.width = cw * px; cvs.height = ch * px;
+      scale = k; ox = x0; oz = z0;
+      path = new Path2D();
+      world.P.forEach((p, i) => path[i ? 'lineTo' : 'moveTo'](pad + (p.x - ox) * scale, pad + (p.z - oz) * scale));
+      path.closePath();
+    }
+    g.setTransform(px, 0, 0, px, 0, 0);
+    g.clearRect(0, 0, cvs.width, cvs.height);
+    g.lineJoin = 'round';
+    g.strokeStyle = 'rgba(7, 8, 10, .85)'; g.lineWidth = 6; g.stroke(path);
+    g.strokeStyle = 'rgba(255, 255, 255, .9)'; g.lineWidth = 2.5; g.stroke(path);
+    const dot = (num, c) => {
+      const x = pad + (c.p.x - ox) * scale, y = pad + (c.p.z - oz) * scale, me = num === fnum;
+      g.beginPath();
+      g.arc(x, y, me ? 5.5 : 3.5, 0, Math.PI * 2);
+      g.fillStyle = `#${String(dl[num]?.TeamColour || '8b95a8').replace('#', '')}`;
+      g.fill();
+      g.lineWidth = me ? 2 : 1;
+      g.strokeStyle = me ? '#fff' : 'rgba(7, 8, 10, .9)';
+      g.stroke();
+    };
+    for (const [num, c] of cars) if (c.seen && num !== fnum) dot(num, c);
+    if (cars.get(fnum)?.seen) dot(fnum, cars.get(fnum));   // pilote suivi par-dessus les autres
   };
 }
 
