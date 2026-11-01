@@ -1241,10 +1241,16 @@ export async function saveWindowsSnapshot(name) {
   const wins = [...others.entries()].map(([win, o]) => ({ win, bounds: o.bounds || null }));
   let desk = null;
   try { desk = await window.f1desktop?.saveWindows?.(layouts); } catch { /* ancienne version */ }
-  const snap = { name, at: Date.now(), layouts, wins, desk: desk && typeof desk === 'object' ? desk : null };
+  const snap = { name, at: Date.now(), layouts, wins, desk: desk && typeof desk === 'object' ? desk : null, ...viewState() };
   storageSet(SNAP_KEY, snap);
   storageSet(SETUPS_KEY, [...windowSetups().filter((s) => s.name !== name), snap]);
   toast(`Disposition « ${name} » enregistrée (${wins.length + 1} fenêtre${wins.length ? 's' : ''})`, 3500, 'check');
+}
+
+// Panneaux et onglets affichés, colonnes du classement, onglets ouverts : gardés avec la disposition
+const VIEW_PREFS = ['hiddenPanels', 'hiddenTabs', 'tabLayout', 'hiddenCols', 'extraCols'];
+function viewState() {
+  return { prefs: Object.fromEntries(VIEW_PREFS.map((k) => [k, prefs[k]])), profiles: storageGet(PROFILE_KEY, {}), tabs: storageGet(TABS_KEY, {}) };
 }
 
 export function deleteWindowSetup(name) {
@@ -1257,13 +1263,22 @@ export async function restoreWindowsSnapshot(name) {
   if (!snap?.layouts) { toast('Aucun emplacement enregistré'); return; }
   storageSet(SNAP_KEY, snap);
   storageSet(LAYOUTS_KEY, snap.layouts);
+  // Disposition enregistrée avant la 1.30 : sans les panneaux ni les onglets affichés (gardés tels quels)
+  if (snap.prefs) {
+    storageSet(PROFILE_KEY, snap.profiles || {});
+    storageSet(TABS_KEY, snap.tabs || {});
+    for (const k of VIEW_PREFS) if (k in snap.prefs) setPref(k, snap.prefs[k]);
+  }
   unmaximize();
   layout = normalize(snap.layouts[lkey()] || defaultLayout());
   renderKey = '';
   if (window.f1desktop?.restoreWindows) {
-    // L'application ferme les fenêtres secondaires et les rouvre à leur place enregistrée
-    others.clear();
-    await window.f1desktop.restoreWindows(snap.desk || undefined);
+    // L'application ferme les fenêtres secondaires et les rouvre à leur place enregistrée (sans place enregistrée :
+    // les fenêtres restent où elles sont)
+    if (snap.desk) {
+      others.clear();
+      await window.f1desktop.restoreWindows(snap.desk);
+    }
   } else {
     channel?.postMessage({ type: 'reset', win: WIN });
     others.clear();
@@ -1277,6 +1292,7 @@ export async function restoreWindowsSnapshot(name) {
     if (blocked) toast(`${blocked} fenêtre(s) bloquée(s) : autorisez les pop-up`, 5000);
   }
   render(true);
+  applyTabs();
   renderLayoutOptions();
   toast(`Disposition « ${name} » remise`, 2500, 'check');
 }
