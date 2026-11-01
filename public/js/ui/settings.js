@@ -223,10 +223,6 @@ export function initSettings() {
   $('#designSel').value = prefs.design;
   $('#designSel').addEventListener('change', (e) => setPref('design', e.target.value));
   on('prefs', (k) => { if (k === 'design') $('#designSel').value = prefs.design; });
-  const fullSel = $('#fullModeSel');
-  fullSel.value = prefs.fullMode ? '1' : '0';
-  fullSel.addEventListener('change', () => setPref('fullMode', fullSel.value === '1'));
-  on('prefs', (k) => { if (k === 'fullMode') fullSel.value = prefs.fullMode ? '1' : '0'; });
   $('#vividTeams').checked = prefs.vividTeams;
   $('#vividTeams').addEventListener('change', (e) => setPref('vividTeams', e.target.checked));
   on('prefs', (k) => { if (k === 'vividTeams') $('#vividTeams').checked = prefs.vividTeams; });

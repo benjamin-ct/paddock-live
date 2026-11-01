@@ -6,7 +6,6 @@ import { t, LANG } from '../i18n.js';
 import { icon } from '../icons.js';
 import { toast } from './delay.js';
 import { cleanErrorText, stackFrames } from '/shared/stats.js';
-import { prefs } from '../prefs.js';
 
 let on = null;   // null tant que le réglage n'est pas connu : les événements attendent
 const queue = new Map();
@@ -157,8 +156,6 @@ export async function initStats() {
   listen();
   const main = !new URLSearchParams(location.search).has('win');   // pas les fenêtres détachées
   if (main) { track('app.open'); track(`lang.${LANG}`); }
-  // Interface de l'ordinateur : Essentiel ou Complète
-  if (main && innerWidth > 900) track(prefs.fullMode ? 'mode.full' : 'mode.essential');
   let state;
   try { state = await (await fetch('/api/stats')).json(); } catch { on = false; return; }
   apply(state);
