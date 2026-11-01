@@ -421,6 +421,9 @@ l'application (Réglages → À propos → Nouveautés).
 - La pastille « duel » du classement (bataille de plus de trois tours) ouvre bien le duel des deux pilotes.
 - Bandeau de la direction de course en bas de l'écran, comme dans l'appli : le dernier message, avec son drapeau et
   le tour.
+- Comparaison des tours de deux pilotes, comme dans l'appli : dans la fenêtre Analyse, et seule dans sa propre fenêtre
+  (bouton « Comparaison » en haut). Les mini-secteurs et la télémétrie viennent du GPS reçu depuis l'ouverture de la
+  fenêtre : on compare les tours faits depuis.
 - Radios : elles ne restent plus sur « transcription… » quand une fenêtre Analyse ou Duel (ou un autre onglet) reste
   ouverte en arrière-plan ; la fenêtre au premier plan prend la main. Aussi dans l'appli.
 
