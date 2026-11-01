@@ -329,6 +329,10 @@ input[type=range]:not(#rpRange):disabled { opacity: .45; cursor: default; }
 .tag.drs { background: var(--green); color: #002012; }
 .tag.flag-blue { background: var(--blue); color: #001526; }
 .tag.catch { background: rgba(53,208,127,.18); color: var(--green); }
+/* Bataille repérée toute seule (classement) : pastille cliquable qui ouvre le duel */
+.tag.battle { display: inline-flex; align-items: center; height: 15px; border: 0; cursor: pointer; background: rgba(255, 138, 61, .18); color: #ff8a3d; }
+.tag.battle .ic { width: 11px; height: 11px; stroke-width: 2.4; }
+.tag.battle:hover { background: #ff8a3d; color: #2a1200; }
 
 .t-gap, .t-int, .t-lap { text-align: right; font-weight: 600; }
 .t-int.catching { color: var(--green); }
@@ -2741,6 +2745,7 @@ kbd .ic { width: 12px; height: 12px; opacity: 1; }
 :root[data-scheme="light"] .tag.stop { background: rgba(220, 38, 38, .12); color: #B91C1C; }
 :root[data-scheme="light"] .tag.ret { background: rgba(107, 115, 128, .14); color: #4B5563; }
 :root[data-scheme="light"] .tag.catch { background: rgba(5, 150, 105, .12); color: #047857; }
+:root[data-scheme="light"] .tag.battle:not(:hover) { background: rgba(234, 88, 12, .16); color: #C2410C; }
 :root[data-scheme="light"] .hstat.surface.dry .hstat-value { background: rgba(202, 138, 4, .14); color: #8A6100; }
 :root[data-scheme="light"] .hstat.surface.damp .hstat-value { background: rgba(22, 163, 74, .14); color: #15803D; }
 :root[data-scheme="light"] .hstat.surface.wet .hstat-value { background: rgba(37, 99, 235, .14); color: #1D4ED8; }
@@ -3529,6 +3534,8 @@ html:is(.float-map, .overlay) .boot-cover { display: none; }
 .bt-gtrend.closing::before { content: '▼'; font-size: 8px; }
 .bt-gtrend.pulling { color: #f87171; }
 .bt-gtrend.pulling::before { content: '▲'; font-size: 8px; }
+/* Prévision sous la tendance : « rattrape en ~N tours », « à portée du DÉP » */
+.bt-geta { margin-top: 2px; font-size: 10.5px; font-weight: 700; color: #4ade80; white-space: nowrap; }
 .bt.close .bt-tag, .duel-band.close .bt-tag { color: #4ade80; }
 /* Bandeau par-dessus le bas du Classement (deux pilotes choisis) : il passe devant les dernières lignes, sans leur prendre de place */
 .duel-band { position: absolute; left: 8px; right: 8px; bottom: 8px; z-index: 6; animation: bt-up .25s ease-out; }
@@ -3593,6 +3600,7 @@ html[data-motion="off"] .duel-band { animation: none; }
 .grid.mobile .bt-name .team-logo { width: 20px; height: 20px; }
 .grid.mobile .bt-gap { min-width: 0; }
 .grid.mobile .bt-val { font-size: 28px; }
+.grid.mobile .bt-geta { font-size: 10px; }
 .grid.mobile .bt-gtrend { white-space: normal; text-align: center; justify-content: center; max-width: 150px; font-size: 10.5px; line-height: 1.25; padding: 2px 8px; }
 /* Dispositions enregistrées (Réglages → Disposition → Fenêtres) : une pastille par disposition */
 .win-save { margin-top: 0; }
