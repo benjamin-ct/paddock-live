@@ -163,25 +163,29 @@ export function buildTrackFromArchive(events, positions) {
       }
     }
   }
-  let best = null;
+  const cands = [];
   for (const [num, ends] of laps) {
     for (let i = 1; i < ends.length; i++) {
       const d = ends[i].off - ends[i - 1].off;
       if (ends[i].pit || ends[i - 1].pit || d < 40000 || d > 200000) continue;
-      if (!best || d < best.d) best = { num, from: ends[i - 1].off, to: ends[i].off, d };
+      cands.push({ num, from: ends[i - 1].off, to: ends[i].off, d });
     }
+  }
+  // Tour le plus rapide qui a ses positions GPS (le serveur ne garde pas toutes celles d'une longue séance)
+  let best = null, pts = [];
+  for (const c of cands.sort((a, b) => a.d - b.d).slice(0, 10)) {
+    pts = [];
+    for (const msg of positions) {
+      for (const snap of msg.data?.Position || []) {
+        const e = snap.Entries?.[c.num];
+        if (!e || (e.X === 0 && e.Y === 0)) continue;
+        const off = toOff(parseUtc(snap.Timestamp));
+        if (off >= c.from && off <= c.to && (!pts.length || off > pts[pts.length - 1].off)) pts.push({ off, x: e.X, y: e.Y });
+      }
+    }
+    if (pts.length >= 100) { best = c; break; }
   }
   if (!best) return null;
-  const pts = [];
-  for (const msg of positions) {
-    for (const snap of msg.data?.Position || []) {
-      const e = snap.Entries?.[best.num];
-      if (!e || (e.X === 0 && e.Y === 0)) continue;
-      const off = toOff(parseUtc(snap.Timestamp));
-      if (off >= best.from && off <= best.to && (!pts.length || off > pts[pts.length - 1].off)) pts.push({ off, x: e.X, y: e.Y });
-    }
-  }
-  if (pts.length < 100) return null;
   // Orientation : rotation (pas de 5°) qui donne le cadre le plus compact, en format paysage.
   let rotation = 0, bestArea = Infinity;
   for (let r = 0; r < 180; r += 5) {

@@ -163,6 +163,10 @@ l'application (Réglages → À propos → Nouveautés).
   point de détection à moins d'une seconde de la voiture devant, pour le tour qui suit, comme le DRS, une fois le mode
   activé par la direction de course (pas au départ, ni sous voiture de sécurité ou drapeau rouge). La F1 ne dit pas
   quand le pilote s'en sert : l'étiquette indique qu'il y a droit.
+- Zones du mode dépassement plus justes sur la carte : leur fin et les points de détection et d'activation sont lus
+  directement sur le dessin du plan du circuit publié par la FIA. Madrid et Sepang, absents des tracés habituels, ont
+  maintenant eux aussi leurs zones et les numéros des virages, sur un tracé reconstruit d'après le GPS d'une séance
+  (et leur carte dans la version web).
 - Carte du circuit plus fluide avec le GPS (F1 TV) : les voitures avancent régulièrement, sans les petites saccades
   que donnait l'heure irrégulière des positions envoyées par la F1. Si le GPS se coupe pendant une séance, les voitures
   ne disparaissent plus : elles passent aussitôt en positions estimées, puis reprennent le GPS à son retour, en glissant
