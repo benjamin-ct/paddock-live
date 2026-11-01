@@ -5,7 +5,7 @@ import { $, $$, esc, api, fmtDuration, drivers, orderedNumbers, storageGet, stor
 import { toast } from './delay.js';
 import { prefs, setPref, toggleFav, toggleTeamFav } from '../prefs.js';
 import { NEWS_TEAMS, fold } from '/shared/news.js';
-import { saveWindowsSnapshot, restoreWindowsSnapshot, hasWindowsSnapshot } from './layout.js';
+import { saveWindowsSnapshot, restoreWindowsSnapshot, windowSetups, deleteWindowSetup, migrateWindowSetups } from './layout.js';
 import { icon } from '../icons.js';
 import { LANG, LOCALE, t } from '../i18n.js';
 
@@ -250,9 +250,25 @@ export function initSettings() {
   $('#keepAwake').addEventListener('change', (e) => setPref('keepAwake', e.target.checked));
   on('prefs', (k) => { if (k === 'keepAwake') $('#keepAwake').checked = prefs.keepAwake; });
   // Emplacement des fenêtres : enregistrer / revenir ; application de bureau : choix au lancement
-  $('#winSave').addEventListener('click', () => { saveWindowsSnapshot(); $('#winRestore').disabled = false; });
-  $('#winRestore').disabled = !hasWindowsSnapshot();
-  $('#winRestore').addEventListener('click', () => restoreWindowsSnapshot());
+  // Dispositions enregistrées : une pastille par disposition (clic : la remettre ; × : la supprimer)
+  const renderSetups = () => {
+    $('#winSetups').innerHTML = windowSetups().map((w, i) => `<span class="chip win-setup"><button type="button" data-setup="${i}" title="Remettre cette disposition">${icon('layout')}<span data-no-i18n>${esc(w.name)}</span></button><button type="button" data-setup-del="${i}" title="Supprimer cette disposition" aria-label="Supprimer">✕</button></span>`).join('');
+  };
+  migrateWindowSetups().then(renderSetups);
+  const saveSetup = async () => {
+    const name = $('#winName').value.trim() || `${t('Disposition')} ${windowSetups().length + 1}`;
+    await saveWindowsSnapshot(name);
+    $('#winName').value = '';
+    renderSetups();
+  };
+  $('#winSave').addEventListener('click', saveSetup);
+  $('#winName').addEventListener('keydown', (e) => { if (e.key === 'Enter') saveSetup(); });
+  $('#winSetups').addEventListener('click', (e) => {
+    const use = e.target.closest('[data-setup]'), del = e.target.closest('[data-setup-del]');
+    const list = windowSetups();
+    if (use) restoreWindowsSnapshot(list[Number(use.dataset.setup)]?.name);
+    if (del) { deleteWindowSetup(list[Number(del.dataset.setupDel)]?.name); renderSetups(); }
+  });
   if (window.f1desktop?.getWindowsStart) {
     $('#winStartRow').hidden = false;
     window.f1desktop.getWindowsStart().then((v) => { $('#winStart').value = v; });

@@ -409,19 +409,24 @@ ipcMain.handle('windows-start-set', (_e, v) => {
   return mode;
 });
 // Enregistre la place de toutes les fenêtres et leurs dispositions (envoyées par la page)
+// (renvoyées à la page, qui garde une disposition par nom)
 ipcMain.handle('windows-save', (_e, layouts) => {
   if (!mainWindow) return false;
-  writeState({ saved: {
+  const saved = {
     at: Date.now(),
     main: { bounds: mainWindow.getNormalBounds(), maximized: mainWindow.isMaximized() || mainWindow.isFullScreen() },
     children: snapshotChildren(),
     layouts: layouts && typeof layouts === 'object' ? layouts : null,
-  } });
-  return true;
+  };
+  writeState({ saved });
+  return saved;
 });
-// Remet les fenêtres à leur place enregistrée : fenêtre principale déplacée, fenêtres
-// secondaires fermées puis rouvertes (elles reprennent leur disposition enregistrée)
-ipcMain.handle('windows-restore', () => {
+// Dernière disposition enregistrée (emplacement unique des versions précédentes)
+ipcMain.handle('windows-saved-get', () => readState().saved || null);
+// Remet les fenêtres à leur place enregistrée (snap : disposition choisie dans la page, sinon la dernière) :
+// fenêtre principale déplacée, fenêtres secondaires fermées puis rouvertes (elles reprennent leur disposition)
+ipcMain.handle('windows-restore', (_e, snap) => {
+  if (snap && typeof snap === 'object' && snap.main) writeState({ saved: snap });
   const saved = readState().saved;
   if (!saved || !mainWindow) return false;
   const base = mainWindow.webContents.getURL().replace(/[?#].*$/, '');

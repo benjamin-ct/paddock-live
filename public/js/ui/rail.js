@@ -1,12 +1,12 @@
 // Barre de navigation latérale (Accueil, Direct, Résultats, Saison, Replays, Radios,
 // Réglages). Elle reprend les actions des boutons du haut, masqués.
-import { $, $$, api } from '../util.js';
+import { $, $$, api, esc } from '../util.js';
 import { openSeason, closeSeason } from './season.js';
 import { openNews, closeNews } from './news.js';
 import { openHome, closeHome, homeTouched, startWindows } from './home.js';
 import { openReplays, closeReplays } from './replays.js';
 import { openResults, closeResults, isResultsOpen } from './results-view.js';
-import { unmaximize } from './layout.js';
+import { unmaximize, windowSetups, restoreWindowsSnapshot } from './layout.js';
 import { toast } from './delay.js';
 import { icon } from '../icons.js';
 import { prefs, setPref } from '../prefs.js';
@@ -45,6 +45,27 @@ function schemeMenu(btn) {
   setTimeout(() => document.addEventListener('pointerdown', function off(e) { if (!menu.contains(e.target)) { menu.remove(); document.removeEventListener('pointerdown', off); } }), 0);
 }
 
+// Dispo. : les dispositions enregistrées, remises en un clic, puis les réglages de la disposition
+function layoutMenu(btn) {
+  const list = windowSetups();
+  if (!list.length) { openSettings('display'); return; }
+  document.querySelector('.lpop-menu')?.remove();
+  const menu = document.createElement('div');
+  menu.className = 'lpop-menu rail-menu';
+  menu.innerHTML = `${list.map((w, i) => `<button data-w="${i}">${icon('layout')} <span data-no-i18n>${esc(w.name)}</span></button>`).join('')}<div class="rail-sep"></div><button data-w="set">${icon('sliders')} Réglages de la disposition</button>`;
+  const r = btn.getBoundingClientRect();
+  menu.style.left = `${r.right + 8}px`;
+  document.body.appendChild(menu);
+  menu.style.top = `${Math.max(8, Math.min(r.top - 20, innerHeight - menu.offsetHeight - 8))}px`;
+  menu.addEventListener('click', (e) => {
+    const k = e.target.closest('[data-w]')?.dataset.w;
+    if (!k) return;
+    menu.remove();
+    if (k === 'set') openSettings('display'); else restoreWindowsSnapshot(list[Number(k)].name);
+  });
+  setTimeout(() => document.addEventListener('pointerdown', function off(e) { if (!menu.contains(e.target)) { menu.remove(); document.removeEventListener('pointerdown', off); } }), 0);
+}
+
 function openSettings(group) {
   $('#settingsBtn').click();
   if (group) $(`#setNav [data-sgroup="${group}"]`)?.click();
@@ -70,7 +91,7 @@ const ACTIONS = {
     if ($('#replayView').hidden) openReplays(); else closeReplays();
   },
   radio: () => $('#commBtn').click(),
-  reset: () => openSettings('display'),   // Dispo. : réglages de la disposition (panneaux, onglets, colonnes, fenêtres)
+  reset: (btn) => layoutMenu(btn),   // Dispo. : dispositions enregistrées, réglages de la disposition (panneaux, onglets, colonnes, fenêtres)
   scheme: (btn) => schemeMenu(btn),
   settings: () => openSettings(),
 };

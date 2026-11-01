@@ -571,11 +571,12 @@
       </section>
       <section data-full class="set-block" data-sgroup="display">
         <div class="set-bhead"><h4><svg class="ic" aria-hidden="true"><use href="#i-window"/></svg> Fenêtres</h4></div>
-        <div class="row" id="winStartRow" hidden><label class="small">Au lancement de l'application <select id="winStart"><option value="last">rouvrir les fenêtres comme à la fermeture</option><option value="saved">reprendre l'emplacement enregistré</option><option value="none">ne pas rouvrir les fenêtres détachées</option></select></label></div>
+        <div class="row" id="winStartRow" hidden><label class="small">Au lancement de l'application <select id="winStart"><option value="last">rouvrir les fenêtres comme à la fermeture</option><option value="saved">reprendre la dernière disposition enregistrée ou remise</option><option value="none">ne pas rouvrir les fenêtres détachées</option></select></label></div>
         <div class="set-row">
-          <div class="set-txt"><b>Emplacement des fenêtres</b><small>Garde les panneaux de chaque fenêtre et leur place sur les écrans</small></div>
-          <div class="set-ctl"><button class="btn" id="winSave"><svg class="ic" aria-hidden="true"><use href="#i-save"/></svg> Enregistrer</button><button class="btn" id="winRestore"><svg class="ic" aria-hidden="true"><use href="#i-undo"/></svg> Restaurer</button></div>
+          <div class="set-txt"><b>Dispositions enregistrées</b><small>Les panneaux de chaque fenêtre et leur place sur les écrans, remis en un clic</small></div>
         </div>
+        <div class="sync-save win-save"><input type="text" id="winName" placeholder="Nom de la disposition (ex. Course sur 2 écrans)" maxlength="40" aria-label="Nom de la disposition"><button class="btn" id="winSave"><svg class="ic" aria-hidden="true"><use href="#i-save"/></svg> Enregistrer la disposition actuelle</button></div>
+        <div class="preset-manage" id="winSetups"></div>
         <div class="set-row">
           <div class="set-txt"><b>Onglets</b><small>Chaque onglet revient à sa place d'origine</small></div>
           <div class="set-ctl"><button class="btn" id="tabsReset"><svg class="ic" aria-hidden="true"><use href="#i-undo"/></svg> Remettre en place</button></div>

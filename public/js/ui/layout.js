@@ -4,6 +4,7 @@ import { $, $$, esc, storageGet, storageSet, sessionKind } from '../util.js';
 import { prefs, setPref, shortScreenHidden, towerCols, towerBig } from '../prefs.js';
 import { store, on, emit } from '../store.js';
 import { toast } from './delay.js';
+import { t } from '../i18n.js';
 import { icon } from '../icons.js';
 import { track } from './stats.js';
 import { tabList, canHideTab } from './tabmove.js';
@@ -1209,28 +1210,52 @@ export function initLayout() {
   checkProfile();
 }
 
-// ---------------- Emplacement des fenêtres enregistré ----------------
-// « Enregistrer » garde les dispositions de toutes les fenêtres (panneaux, tailles, mode libre)
-// et la place de chaque fenêtre ; « Revenir » remet tout comme au moment de l'enregistrement.
-// Application de bureau : la place des fenêtres est gérée par l'application (et peut être reprise
-// à chaque lancement) ; navigateur : les fenêtres secondaires sont rouvertes à leur place.
-const SNAP_KEY = 'paddock.savedWindows';
-export const hasWindowsSnapshot = () => !!storageGet(SNAP_KEY, null)?.layouts;
+// ---------------- Dispositions enregistrées ----------------
+// « Enregistrer » garde, sous un nom, les dispositions de toutes les fenêtres (panneaux, tailles, mode libre)
+// et la place de chaque fenêtre ; un clic sur son nom remet tout comme au moment de l'enregistrement.
+// Application de bureau : la place des fenêtres est gérée par l'application (desk : renvoyé à l'enregistrement,
+// la dernière disposition enregistrée ou remise peut être reprise à chaque lancement) ; navigateur : les fenêtres
+// secondaires sont rouvertes à leur place.
+const SNAP_KEY = 'paddock.savedWindows';     // dernière disposition enregistrée ou remise (seule gardée avant la 1.30)
+const SETUPS_KEY = 'paddock.windowSetups';   // [{ name, at, layouts, wins, desk }]
+export function windowSetups() {
+  const list = storageGet(SETUPS_KEY, null);
+  if (Array.isArray(list)) return list;
+  const old = storageGet(SNAP_KEY, null);
+  return old?.layouts ? [{ name: t('Mon emplacement'), ...old }] : [];
+}
+// Emplacement unique d'une version précédente : gardé dans la liste avec la place des fenêtres de l'application
+export async function migrateWindowSetups() {
+  if (Array.isArray(storageGet(SETUPS_KEY, null))) return;
+  const list = windowSetups();
+  if (list[0] && !list[0].desk) {
+    try { list[0].desk = (await window.f1desktop?.savedWindows?.()) || null; } catch { /* ancienne version */ }
+  }
+  storageSet(SETUPS_KEY, list);
+}
 
-export async function saveWindowsSnapshot() {
+export async function saveWindowsSnapshot(name) {
   if (!isMain) return;
   save();
   const layouts = allLayouts();
   const wins = [...others.entries()].map(([win, o]) => ({ win, bounds: o.bounds || null }));
-  storageSet(SNAP_KEY, { at: Date.now(), layouts, wins });
-  try { await window.f1desktop?.saveWindows?.(layouts); } catch { /* ancienne version */ }
-  toast(`Emplacement des fenêtres enregistré (${wins.length + 1} fenêtre${wins.length ? 's' : ''})`, 3500);
+  let desk = null;
+  try { desk = await window.f1desktop?.saveWindows?.(layouts); } catch { /* ancienne version */ }
+  const snap = { name, at: Date.now(), layouts, wins, desk: desk && typeof desk === 'object' ? desk : null };
+  storageSet(SNAP_KEY, snap);
+  storageSet(SETUPS_KEY, [...windowSetups().filter((s) => s.name !== name), snap]);
+  toast(`Disposition « ${name} » enregistrée (${wins.length + 1} fenêtre${wins.length ? 's' : ''})`, 3500, 'check');
 }
 
-export async function restoreWindowsSnapshot() {
+export function deleteWindowSetup(name) {
+  storageSet(SETUPS_KEY, windowSetups().filter((s) => s.name !== name));
+}
+
+export async function restoreWindowsSnapshot(name) {
   if (!isMain) return;
-  const snap = storageGet(SNAP_KEY, null);
+  const snap = windowSetups().find((s) => s.name === name);
   if (!snap?.layouts) { toast('Aucun emplacement enregistré'); return; }
+  storageSet(SNAP_KEY, snap);
   storageSet(LAYOUTS_KEY, snap.layouts);
   unmaximize();
   layout = normalize(snap.layouts[lkey()] || defaultLayout());
@@ -1238,7 +1263,7 @@ export async function restoreWindowsSnapshot() {
   if (window.f1desktop?.restoreWindows) {
     // L'application ferme les fenêtres secondaires et les rouvre à leur place enregistrée
     others.clear();
-    await window.f1desktop.restoreWindows();
+    await window.f1desktop.restoreWindows(snap.desk || undefined);
   } else {
     channel?.postMessage({ type: 'reset', win: WIN });
     others.clear();
@@ -1253,6 +1278,7 @@ export async function restoreWindowsSnapshot() {
   }
   render(true);
   renderLayoutOptions();
+  toast(`Disposition « ${name} » remise`, 2500, 'check');
 }
 
 // Retour à l'interface par défaut : disposition, panneaux masqués, colonnes du classement ;
