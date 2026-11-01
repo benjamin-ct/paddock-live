@@ -2745,6 +2745,7 @@ export default {
   "La caméra fait le tour du circuit, avec les numéros des virages": "The camera flies around the circuit, with the turn numbers",
   "Écart avec la voiture devant": "Gap to the car ahead",
   "Fantôme du meilleur tour": "Best lap ghost",
+  "Mini-carte 2D": "2D mini-map",
   "Bataille pour la P{}": "Battle for P{}",
   "Fantôme : tour de {} ({}), le plus rapide dont on a les positions GPS ; meilleur tour de la séance : {} ({})": "Ghost: lap by {} ({}), the fastest with GPS positions; best lap of the session: {} ({})",
   "Fantôme : meilleur tour de {} ({})": "Ghost: best lap by {} ({})",
