@@ -32,8 +32,7 @@ l'application (Réglages → À propos → Nouveautés).
   Télémétrie ; en qualifs et en essais : Secteurs, Comparaison et Télémétrie. Les autres (Temps, Pneus, Jeux de pneus,
   simulateur d'arrêt, Bagarres, championnat) s'ajoutent en un clic.
 - Bouton « + » au bout des onglets de chaque panneau : il rouvre un onglet fermé, amène un onglet d'un autre panneau,
-  ou affiche un panneau masqué (Duel, Radios ou Stratégie à part). Le panneau Duel s'affiche tout seul quand on
-  choisit un pilote avec A ou B dans le classement.
+  ou affiche un panneau masqué (Duel, Radios ou Stratégie à part).
 - Plus de choix entre les interfaces Essentiel et Complète : une seule, que chacun complète avec le bouton « + ».
 - À la mise à jour, tout le monde passe une fois à cette disposition (les fenêtres sur un second écran gardent leurs
   panneaux). L'ancienne reste dans Réglages → Disposition → Fenêtres, sous le nom « Ma disposition d'avant » : un clic
