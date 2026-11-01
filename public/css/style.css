@@ -2057,6 +2057,8 @@ body.solo #muteBtn { display: none; }
   [data-theme="pitwall"] body:not(.solo) .comm-panel { right: auto; left: calc(var(--rail-w) + 10px); }
 }
 .rail-logo { width: 38px; height: 38px; display: block; margin-bottom: 12px; flex: none; filter: drop-shadow(0 4px 10px rgba(225, 6, 0, .25)); }
+/* Barre de gauche : Résultats, Résumé, Commentaires, Mini et Apparence rangés dans « Plus » (boutons gardés, cachés) */
+.rail .rail-in-more { display: none !important; }
 .rail-btn { width: 46px; height: 46px; border-radius: 10px; display: grid; place-items: center; color: var(--muted); position: relative;
   background: none; border: 0; padding: 0; cursor: pointer; flex: none; transition: color .15s, background-color .15s; }
 .rail-btn:hover { color: var(--text-2); background: var(--panel-2); }

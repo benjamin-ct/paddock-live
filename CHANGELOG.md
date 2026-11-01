@@ -44,6 +44,8 @@ l'application (Réglages → À propos → Nouveautés).
   championnat) s'ajoutent en un clic.
 - Bouton « + » au bout des onglets de chaque panneau : il rouvre un onglet fermé, amène un onglet d'un autre panneau,
   ou ouvre le Circuit, l'Analyse ou le Duel dans une fenêtre.
+- Barre de gauche plus simple : Accueil, Direct, Saison, Actu et Replays, puis « Plus » qui réunit Résultats, Résumé,
+  Commentaires, Mini-classement et Apparence ; en bas, Fenêtres et Réglages.
 - Plus de choix entre les interfaces Essentiel et Complète : une seule, que chacun complète avec le bouton « + ».
 - À la mise à jour, tout le monde passe une fois à ce nouvel écran (les fenêtres sur un second écran gardent leurs
   panneaux). L'ancienne disposition reste dans Réglages → Disposition → Fenêtres, sous le nom « Ma disposition
@@ -275,6 +277,8 @@ l'application (Réglages → À propos → Nouveautés).
   dans les Réglages, les rubriques montrent qu'il y en a d'autres à droite.
 
 ### Réglages
+- Réglages en 4 rubriques au lieu de 7 : Compte F1 TV, Affichage (thème, langue, couleurs et disposition), Alertes et
+  favoris, Application (mises à jour, téléphone, streaming et À propos).
 - Compte F1 TV : « Se déconnecter » n'apparaît que lorsqu'une connexion est enregistrée.
 - Plusieurs dispositions enregistrées, chacune sous un nom (Réglages → Disposition → Fenêtres, par exemple « Course
   sur 2 écrans » ou « Qualifs portable ») : un clic sur son nom remet les panneaux de chaque fenêtre et leur place sur

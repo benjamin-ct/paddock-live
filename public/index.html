@@ -25,16 +25,17 @@
     <img class="rail-logo" src="/logo.svg" alt="Paddock Live">
     <button class="rail-btn" data-rail="home" title="Accueil : prochaine séance, dernière séance sans spoiler, actualités"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7M5 10v10h5v-6h4v6h5V10"/></svg><small>Accueil</small></button>
     <button class="rail-btn" data-rail="live" title="Direct : tableau de bord de la séance"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M5.6 5.6a9 9 0 0 0 0 12.8M18.4 5.6a9 9 0 0 1 0 12.8M8.5 8.5a5 5 0 0 0 0 7M15.5 8.5a5 5 0 0 1 0 7"/></svg><small>Direct</small></button>
-    <button class="rail-btn" data-rail="results" title="Résultats de la séance : podium, stratégies, classement complet"><svg viewBox="0 0 24 24"><path d="M5 21V4M5 4h13l-2 4 2 4H5"/><path d="M9 4v8M13 4v8" opacity=".5"/></svg><small>Résultats</small></button>
+    <button class="rail-btn rail-in-more" data-rail="results" title="Résultats de la séance : podium, stratégies, classement complet"><svg viewBox="0 0 24 24"><path d="M5 21V4M5 4h13l-2 4 2 4H5"/><path d="M9 4v8M13 4v8" opacity=".5"/></svg><small>Résultats</small></button>
     <button class="rail-btn" data-rail="season" title="Saison : calendrier, classements, résultats, statistiques"><svg viewBox="0 0 24 24"><path d="M8 4h8v5a4 4 0 0 1-8 0zM12 13v4M8 20h8M16 6h3a3 3 0 0 1-3 4M8 6H5a3 3 0 0 0 3 4"/></svg><small>Saison</small></button>
     <button class="rail-btn" data-rail="news" title="Actu : toute l'actualité de la F1, traduite"><svg viewBox="0 0 24 24"><path d="M4 5h13v14H6a2 2 0 0 1-2-2zM17 9h3v8a2 2 0 0 1-2 2M7 9h7M7 12h7M7 15h4"/></svg><small>Actu</small></button>
     <div class="rail-div" aria-hidden="true"></div>
     <button class="rail-btn" data-rail="replay" title="Replays : rejouer une séance passée (pendant un replay, y revenir)"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M10 9l5 3-5 3z"/></svg><small>Replays</small></button>
-    <button class="rail-btn" data-rail="radio" title="Commentaires en direct : F1 TV ou radio, calés sur votre délai TV"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg><small class="rail-long">Commentaires</small></button>
-    <button class="rail-btn" data-rail="summary" id="summaryBtn" title="Résumé de la séance, rédigé automatiquement"><svg viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 12h6M10 15h6M10 18h4"/></svg><small>Résumé</small></button>
-    <button class="rail-btn" data-rail="mini" id="miniBtn" title="Mini-classement, par-dessus la vidéo"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><rect x="12" y="11" width="7" height="7" rx="1"/></svg><small>Mini</small></button>
+    <button class="rail-btn" data-rail="more" title="Plus : résultats, résumé, commentaires, mini-classement, apparence" aria-haspopup="menu"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg><small>Plus</small></button>
+    <button class="rail-btn rail-in-more" data-rail="radio" title="Commentaires en direct : F1 TV ou radio, calés sur votre délai TV"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg><small class="rail-long">Commentaires</small></button>
+    <button class="rail-btn rail-in-more" data-rail="summary" id="summaryBtn" title="Résumé de la séance, rédigé automatiquement"><svg viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 12h6M10 15h6M10 18h4"/></svg><small>Résumé</small></button>
+    <button class="rail-btn rail-in-more" data-rail="mini" id="miniBtn" title="Mini-classement, par-dessus la vidéo"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><rect x="12" y="11" width="7" height="7" rx="1"/></svg><small>Mini</small></button>
     <div class="rail-sp"></div>
-    <button class="rail-btn" data-rail="scheme" title="Apparence : automatique, sombre ou clair"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></svg><small>Auto</small></button>
+    <button class="rail-btn rail-in-more" data-rail="scheme" title="Apparence : automatique, sombre ou clair"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></svg><small>Auto</small></button>
     <button class="rail-btn" data-rail="reset" title="Fenêtres : ouvrir le Circuit, l'Analyse ou le Duel dans une fenêtre, dispositions enregistrées, réglages de la disposition"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M10 4v16M3 10h7"/></svg><small>Fenêtres</small></button>
     <button class="rail-btn" data-rail="settings" title="Réglages : source, compte F1 TV, affichage, alertes, application"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><small>Réglages</small></button>
   </nav>
@@ -494,12 +495,9 @@
         <label class="set-search"><svg class="ic" aria-hidden="true"><use href="#i-search"/></svg><input type="search" id="setSearch" placeholder="Rechercher un réglage" autocomplete="off" aria-label="Rechercher un réglage"></label>
         <nav class="set-nav" id="setNav">
           <button data-full class="set-tab active" data-sgroup="f1tv"><span class="set-ico"><svg class="ic" aria-hidden="true"><use href="#i-lock"/></svg></span><span class="set-lbl"><b>Compte F1 TV</b><small>GPS et télémétrie en direct</small></span></button>
-          <button class="set-tab" data-sgroup="look"><span class="set-ico"><svg class="ic" aria-hidden="true"><use href="#i-sliders"/></svg></span><span class="set-lbl"><b>Apparence</b><small>Thème, langue, couleurs</small></span></button>
-          <button data-full class="set-tab" data-sgroup="display"><span class="set-ico"><svg class="ic" aria-hidden="true"><use href="#i-layout"/></svg></span><span class="set-lbl"><b>Disposition</b><small>Panneaux, onglets, colonnes, fenêtres</small></span></button>
+          <button class="set-tab" data-sgroup="display"><span class="set-ico"><svg class="ic" aria-hidden="true"><use href="#i-sliders"/></svg></span><span class="set-lbl"><b>Affichage</b><small>Thème, langue, couleurs, disposition</small></span></button>
           <button class="set-tab" data-sgroup="alerts"><span class="set-ico"><svg class="ic" aria-hidden="true"><use href="#i-bell"/></svg></span><span class="set-lbl"><b>Alertes & favoris</b><small>Notifications, rappels, favoris</small></span></button>
-          <button class="set-tab" data-sgroup="app"><span class="set-ico"><svg class="ic" aria-hidden="true"><use href="#i-gear"/></svg></span><span class="set-lbl"><b>Application</b><small>Mises à jour, téléphone, sauvegarde</small></span></button>
-          <button data-full class="set-tab" data-sgroup="stream"><span class="set-ico"><svg class="ic" aria-hidden="true"><use href="#i-video"/></svg></span><span class="set-lbl"><b>Streaming</b><small>OBS, Streamlabs, Meld, Stream Deck</small></span></button>
-          <button class="set-tab" data-sgroup="about"><span class="set-ico"><svg class="ic" aria-hidden="true"><use href="#i-info"/></svg></span><span class="set-lbl"><b>À propos</b><small>Nouveautés, réseaux, légal</small></span></button>
+          <button class="set-tab" data-sgroup="app"><span class="set-ico"><svg class="ic" aria-hidden="true"><use href="#i-gear"/></svg></span><span class="set-lbl"><b>Application</b><small>Mises à jour, téléphone, streaming, à propos</small></span></button>
         </nav>
       </aside>
       <div class="set-main">
@@ -529,7 +527,7 @@
       </section>
 
       <!-- Apparence -->
-      <section class="set-block" data-sgroup="look">
+      <section class="set-block" data-sgroup="display">
         <div class="set-bhead"><h4><svg class="ic" aria-hidden="true"><use href="#i-sliders"/></svg> Général</h4></div>
         <div class="row"><label class="small" title="Automatique : comme l'ordinateur ou le téléphone">Apparence <select id="schemeSel"><option value="auto">Automatique (système)</option><option value="dark">Sombre</option><option value="light">Clair</option></select></label></div>
         <div class="row"><label class="small" title="Paddock 2 : le nouveau design. Broadcast : habillage façon retransmission TV. Classique : l'ancien design.">Design <select id="designSel"><option value="v2">Paddock 2</option><option value="broadcast">Broadcast (façon TV)</option><option value="classic">Classique</option></select></label></div>
@@ -537,7 +535,7 @@
         <div class="row"><label class="toggle small" title="Panneaux et menus qui apparaissent en douceur"><input type="checkbox" id="motionOpt"> Animations de l'interface</label></div>
         <div class="row"><label class="toggle small"><input type="checkbox" id="keepAwake"> Garder l'écran allumé pendant une séance</label></div>
       </section>
-      <section data-full class="set-block" data-sgroup="look">
+      <section data-full class="set-block" data-sgroup="display">
         <div class="set-bhead"><h4><svg class="ic" aria-hidden="true"><use href="#i-star"/></svg> Écuries et couleurs</h4></div>
         <div class="row"><label class="toggle small"><input type="checkbox" id="teamLogos"> Logos des écuries dans le classement</label></div>
         <div class="row"><label class="toggle small"><input type="checkbox" id="logoColor"> Logos en couleurs officielles</label></div>
@@ -720,16 +718,16 @@
         <div id="feedDiagOut"></div>
       </section>
 
-      <section data-full class="set-block" data-sgroup="stream" id="streamOverlays"></section>
-      <section data-full class="set-block" data-sgroup="stream" id="streamDeck"></section>
+      <section data-full class="set-block" data-sgroup="app" id="streamOverlays"></section>
+      <section data-full class="set-block" data-sgroup="app" id="streamDeck"></section>
 
       <!-- À propos -->
-      <section class="set-block" data-sgroup="about">
+      <section class="set-block" data-sgroup="app">
         <div class="set-bhead"><h4><svg class="ic" aria-hidden="true"><use href="#i-note"/></svg> Nouveautés</h4><p>Cliquez sur une version pour voir ce qui a changé.</p></div>
         <div class="cl-list" id="changelog"><p class="muted">Chargement…</p></div>
       </section>
 
-      <section class="set-block" data-sgroup="about">
+      <section class="set-block" data-sgroup="app">
         <div class="set-bhead"><h4><svg class="ic" aria-hidden="true"><use href="#i-megaphone"/></svg> Une question, une idée ?</h4><p>Votre message arrive directement au créateur de Paddock Live.</p></div>
         <form class="fb-form" id="fbForm">
           <select id="fbKind" aria-label="Type de message"><option value="idea">Suggestion</option><option value="question">Question</option><option value="bug">Problème</option></select>
@@ -743,7 +741,7 @@
         <p class="small muted">Aussi sur <a href="https://github.com/benjamin-ct/paddock-live/issues" target="_blank" rel="noopener">GitHub</a>.</p>
       </section>
 
-      <section class="set-block" data-sgroup="about">
+      <section class="set-block" data-sgroup="app">
         <div class="set-bhead"><h4><svg class="ic" aria-hidden="true"><use href="#i-share"/></svg> Paddock Live</h4></div>
         <div class="set-row">
           <div class="set-txt"><b>Suivre Paddock Live</b><small>Instagram, Facebook, TikTok, YouTube, X, Threads et Bluesky</small></div>

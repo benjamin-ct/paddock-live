@@ -11,6 +11,7 @@ import { toast } from './delay.js';
 import { icon } from '../icons.js';
 import { prefs, setPref } from '../prefs.js';
 import { on, store } from '../store.js';
+import { t } from '../i18n.js';
 
 // Apparence : automatique (comme le système), sombre ou clair
 const SCHEMES = [
@@ -70,6 +71,32 @@ function layoutMenu(btn) {
   setTimeout(() => document.addEventListener('pointerdown', function off(e) { if (!menu.contains(e.target)) { menu.remove(); document.removeEventListener('pointerdown', off); } }), 0);
 }
 
+// Plus : les entrées moins utilisées, rangées dans un menu (leurs boutons restent dans la barre, cachés : chacun garde
+// sa logique, grisé sans séance, Résumé seulement quand il existe)
+const MORE = [['results', 'Résultats'], ['summary', 'Résumé'], ['radio', 'Commentaires'], ['mini', 'Mini-classement'], ['scheme', 'Apparence']];
+function moreMenu(btn) {
+  document.querySelector('.lpop-menu')?.remove();
+  const menu = document.createElement('div');
+  menu.className = 'lpop-menu rail-menu';
+  menu.innerHTML = MORE.map(([k, label]) => {
+    const b = $(`#rail [data-rail="${k}"]`);
+    if (!b || b.hidden) return '';
+    const on = b.classList.contains('on') || b.classList.contains('playing');
+    return `<button data-more="${k}" ${b.disabled ? 'disabled' : ''}>${b.querySelector('svg').outerHTML.replace('<svg', '<svg class="ic"')} ${esc(t(label))}${on ? icon('check', 'ic-on') : ''}</button>`;
+  }).join('');
+  const r = btn.getBoundingClientRect();
+  menu.style.left = `${r.right + 8}px`;
+  document.body.appendChild(menu);
+  menu.style.top = `${Math.max(8, Math.min(r.top - 20, innerHeight - menu.offsetHeight - 8))}px`;
+  menu.addEventListener('click', (e) => {
+    const k = e.target.closest('[data-more]')?.dataset.more;
+    if (!k) return;
+    menu.remove();
+    if (k === 'scheme') schemeMenu(btn); else $(`#rail [data-rail="${k}"]`).click();
+  });
+  setTimeout(() => document.addEventListener('pointerdown', function off(e) { if (!menu.contains(e.target)) { menu.remove(); document.removeEventListener('pointerdown', off); } }), 0);
+}
+
 function openSettings(group) {
   $('#settingsBtn').click();
   if (group) $(`#setNav [data-sgroup="${group}"]`)?.click();
@@ -95,6 +122,7 @@ const ACTIONS = {
     if ($('#replayView').hidden) openReplays(); else closeReplays();
   },
   radio: () => $('#commBtn').click(),
+  more: (btn) => moreMenu(btn),
   reset: (btn) => layoutMenu(btn),   // Dispo. : dispositions enregistrées, réglages de la disposition (panneaux, onglets, colonnes, fenêtres)
   scheme: (btn) => schemeMenu(btn),
   settings: () => openSettings(),
@@ -114,7 +142,7 @@ function sync() {
   if (!page) startWindows();
   for (const b of $$('#rail [data-rail]')) {
     const k = b.dataset.rail;
-    b.classList.toggle('on', k === cur);
+    b.classList.toggle('on', k === cur || (k === 'more' && cur === 'results'));   // Résultats : rangé dans Plus
     if (k === 'radio') b.classList.toggle('playing', $('#commBtn').classList.contains('on'));
   }
 }
