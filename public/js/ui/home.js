@@ -115,7 +115,22 @@ function drawTrack(nx) {
     const card = $('#homeView .hm-next');
     if (!s || !card || card.querySelector('.hm-trk')) return;
     card.insertAdjacentHTML('beforeend', `<svg class="hm-trk" viewBox="-4 -4 108 108" aria-hidden="true"><polygon points="${shapeOutline(s.line)}"/><polygon class="run" points="${shapeOutline(s.line)}" pathLength="100"/></svg>`);
+    placeTrack(card);
+    new ResizeObserver(() => placeTrack(card)).observe(card);
   });
+}
+// Tracé dans l'espace libre entre la fin des textes (compte à rebours, titre…) et le programme du week-end : jamais
+// par-dessus un texte, quelle que soit sa longueur ; pas de tracé s'il n'y a pas la place
+function placeTrack(card) {
+  const svg = card.querySelector('.hm-trk'), main = card.querySelector('.hm-next-main'), days = card.querySelector('.cal-days');
+  if (!svg || !main) return;
+  const box = card.getBoundingClientRect();
+  const r = document.createRange();
+  let right = box.left;
+  for (const el of main.children) { r.selectNodeContents(el); right = Math.max(right, r.getBoundingClientRect().right); }
+  const end = days ? days.getBoundingClientRect().left : box.right - 24;
+  const size = Math.min(270, end - right - 40, box.height - 40);
+  svg.style.cssText = size < 120 ? 'display:none' : `left:${Math.round((right + end) / 2 - box.left)}px;width:${Math.round(size)}px;height:${Math.round(size)}px`;
 }
 
 async function loadWeather(nx) {

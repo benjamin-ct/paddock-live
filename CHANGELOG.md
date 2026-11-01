@@ -7,6 +7,8 @@ l'application (Réglages → À propos → Nouveautés).
 ## v1.30.0 — à venir
 
 ### Nouveau design
+- Accueil : le tracé lumineux du circuit se place dans l'espace libre entre le compte à rebours et le programme du
+  week-end ; il ne passe plus par-dessus le compte à rebours (quand il manque de place, il n'est pas affiché).
 - Barre du haut : le compte à rebours et l'heure du circuit ne font plus bouger le reste de la barre à chaque seconde
   (chiffres de largeur fixe). Aussi dans la version web.
 - Bouton « ± » du délai TV réparé dans Paddock 2 : le petit menu des pas (−5 à +5 s) s'ouvrait caché dans le cadre
