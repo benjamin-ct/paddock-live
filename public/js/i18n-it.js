@@ -2874,4 +2874,5 @@ export default {
   "Duel des deux pilotes cliqués dans le classement, dans une fenêtre à part": "Duello dei due piloti cliccati nella classifica, in una finestra a parte",
   "ou cliquez sur deux pilotes du classement.": "oppure clicca due piloti della classifica.",
   "Options des radios": "Opzioni dei team radio",
+  "Écart tour par tour": "Distacco giro per giro",
 };

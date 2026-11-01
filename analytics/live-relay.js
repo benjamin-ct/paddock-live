@@ -313,9 +313,13 @@ export class LiveRelay {
     for (const ws of this.clients) this.send(ws, str);
   }
 
-  // Arrivée d'un navigateur (ou nouvelle séance pour tous) : état de base, messages depuis et GPS depuis from
+  // Arrivée d'un navigateur (ou nouvelle séance pour tous) : état de base, messages depuis et GPS depuis from. Sans les
+  // messages pas encore envoyés à tous (out, outStream : la fin de recent et de stream) : le prochain envoi groupé les
+  // lui apporte, sinon il les appliquerait deux fois (une fin de tour en double effaçait les secteurs 1 et 2 du tour)
   hello(ws, from = 0) {
-    const str = JSON.stringify({ type: 'hello', now: Date.now(), keep: KEEP_MS, status: this.status, base: this.base, events: this.recent, stream: this.streamBetween(from, Infinity) });
+    const events = this.recent.slice(0, this.recent.length - this.out.length);
+    const stream = this.stream.slice(0, this.stream.length - this.outStream.length).filter((s) => s[2] >= from);
+    const str = JSON.stringify({ type: 'hello', now: Date.now(), keep: KEEP_MS, status: this.status, base: this.base, events, stream });
     if (ws) this.send(ws, str); else this.broadcast(str);
   }
 

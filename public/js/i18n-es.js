@@ -2874,4 +2874,5 @@ export default {
   "Duel des deux pilotes cliqués dans le classement, dans une fenêtre à part": "Duelo de los dos pilotos pulsados en la clasificación, en una ventana aparte",
   "ou cliquez sur deux pilotes du classement.": "o pulsa dos pilotos de la clasificación.",
   "Options des radios": "Opciones de las radios",
+  "Écart tour par tour": "Diferencia vuelta a vuelta",
 };

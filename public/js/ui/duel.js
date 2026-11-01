@@ -100,9 +100,9 @@ function trend(series, tlaA, tlaB, gapNow) {
   return { cls: 'closing', html: `<b>${esc(back)}</b> reprend ${r} s/tour ${on} · ${eta}`, band: `<b>${esc(back)}</b> reprend ${r} s/tour`, eta: forecast };
 }
 
-// Petite courbe de l'écart sur les 12 derniers tours (plus haut : A plus loin devant ; ligne pointillée : à égalité)
+// Courbe de l'écart sur les 30 derniers tours (plus haut : A plus loin devant ; ligne pointillée : à égalité)
 function spark(series) {
-  const pts = series.slice(-12);
+  const pts = series.slice(-30);
   if (pts.length < 2) return '';
   let lo = Math.min(...pts.map((p) => p.y)), hi = Math.max(...pts.map((p) => p.y));
   const pad = Math.max(0.25, (hi - lo) * 0.15);
@@ -112,7 +112,7 @@ function spark(series) {
   const pits = pts.map((p, i) => (p.pit ? `<circle cx="${x(i).toFixed(1)}" cy="${y(p.y).toFixed(1)}" r="1.6" class="bt-pit"/>` : '')).join('');
   const zero = lo < 0 && hi > 0 ? `<line x1="0" y1="${y(0).toFixed(1)}" x2="100" y2="${y(0).toFixed(1)}" class="bt-zero"/>` : '';
   const fmt = (v) => Math.abs(v).toFixed(1).replace('.', DEC);
-  return `<svg class="bt-spark" viewBox="0 0 100 30" preserveAspectRatio="none" aria-hidden="true">${zero}
+  return `<svg class="bt-spark ${pts.at(-1).y >= 0 ? 'a' : 'b'}" viewBox="0 0 100 30" preserveAspectRatio="none" aria-hidden="true">${zero}
     <polygon points="0,30 ${line} 100,30" class="bt-area"/><polyline points="${line}" class="bt-line"/>${pits}</svg>
     <div class="bt-spark-lbl"><span>T${pts[0].x}</span><span>Écart : ${fmt(pts[0].y)} s → ${fmt(pts.at(-1).y)} s</span><span>T${pts.at(-1).x}</span></div>`;
 }
@@ -140,15 +140,19 @@ function showTowerBand(on) {
   el.closest('.panel')?.classList.toggle('has-duel', on);
 }
 
-// Bataille façon retransmission : bandeau aux couleurs des deux écuries avec l'écart au milieu, tendance et petite
-// courbe, quelques chiffres face à face, et la télémétrie en direct en barres
+// Panneau Duel, face à face façon retransmission : deux grandes cartes aux couleurs des écuries (portrait, pneu, dernier
+// tour, télémétrie en direct en barres verticales), l'écart en grand au milieu avec la tendance, les chiffres face à
+// face en barres qui penchent vers le meilleur, puis la courbe de l'écart tour par tour
+const CARD = '<div class="ff-photo"></div><div class="ff-info"></div><div class="ff-tele" hidden><div class="ff-num"><b>—</b><small>km/h</small><span class="ff-gear">N</span></div><div class="ff-vb thr" title="Accélérateur"><i></i></div><div class="ff-vb brk" title="Frein"><i></i></div></div>';
 function skeleton() {
-  $('#duelBody').innerHTML = `<div class="bt" id="bt">
-    ${BAND}
-    <div class="bt-trend" id="btTrend"></div>
-    <div class="bt-sparkbox" id="btSpark"></div>
-    <div class="bt-rows" id="btRows"></div>
-    <div class="bt-live" id="btLive" hidden></div>
+  $('#duelBody').innerHTML = `<div class="ff" id="bt">
+    <div class="ff-top">
+      <div class="ff-card a" id="ffA">${CARD}</div>
+      <div class="ff-mid"><div class="ff-gap" id="ffGap"></div><div class="bt-trend" id="btTrend"></div></div>
+      <div class="ff-card b" id="ffB">${CARD}</div>
+    </div>
+    <div class="ff-rows" id="btRows"></div>
+    <div class="ff-chart"><span class="ff-ttl">Écart tour par tour</span><div class="bt-sparkbox" id="btSpark"></div></div>
   </div>`;
 }
 
@@ -213,35 +217,48 @@ function renderHero(a, b) {
       tl.querySelector('.brk b').style.width = `${c.brk ? (c.brk > 1 ? Math.min(100, c.brk) : 100) : 0}%`;
     }
   }
-  renderLive(a, b, dl, ca, cb);
+  // Panneau Duel (absent de la version web, qui n'a que le bandeau)
+  const ff = $('#bt');
+  if (!ff) return;
+  ff.style.setProperty('--ta', teamColor(da));
+  ff.style.setProperty('--tb', teamColor(db));
+  ff.classList.toggle('close', close);
+  put('#ffGap', `<span class="bt-tag">${tag}</span><b class="bt-val">${main}${unit ? `<small>${unit}</small>` : ''}</b>${ahead ? `<span class="bt-who">${esc((ahead === 'a' ? da : db).Tla || '')} devant</span>` : ''}`);
+  const info = (num, d, mine, other) => {
+    const l = lines[num] || {}, st = currentStint(app[num]);
+    const last = l.LastLapTime?.Value ? `<span class="bt-last${mine !== null && other !== null && mine < other ? ' win' : ''}" title="Dernier tour">${esc(l.LastLapTime.Value)}</span>` : '';
+    return `<b class="ff-name" title="${esc(d.FullName || '')}">${teamMark(d)}${esc(d.Tla || num)}</b>
+      <small>${l.Position ? `P${esc(l.Position)} · ` : ''}${esc(d.TeamName || '')}</small>
+      <span class="ff-stats">${st ? `<span class="bt-tyre">${tyreBadge(st.Compound, st.TotalLaps, st.New)}</span>` : ''}${last}</span>`;
+  };
+  for (const [k, num, d, c, mine, other] of [['A', a, da, ca, lastA, lastB], ['B', b, db, cb, lastB, lastA]]) {
+    put(`#ff${k} .ff-photo`, photoUrl(d) ? `<img src="${esc(photoUrl(d))}" alt="" onerror="this.remove()">` : '');
+    put(`#ff${k} .ff-info`, info(num, d, mine, other));
+    const tl = $(`#ff${k} .ff-tele`);
+    tl.hidden = !c;
+    if (!c) continue;
+    tl.querySelector('.ff-num b').textContent = c.speed ? Math.round(c.speed) : '—';
+    tl.querySelector('.ff-gear').textContent = c.gear ? c.gear : 'N';
+    tl.querySelector('.thr i').style.height = `${Math.max(0, Math.min(100, c.thr || 0))}%`;
+    tl.querySelector('.brk i').style.height = `${c.brk ? (c.brk > 1 ? Math.min(100, c.brk) : 100) : 0}%`;
+  }
 }
 
-// Télémétrie en direct : vitesse, rapport, accélérateur et frein de chaque pilote
-function renderLive(a, b, dl, ca, cb) {
-  const host = $('#btLive');
-  if (!host) return;   // version web : pas de panneau Duel, seulement le bandeau
-  host.hidden = !ca && !cb;
-  if (host.hidden) return;
-  if (host.dataset.pair !== `${a}-${b}`) {
-    host.dataset.pair = `${a}-${b}`;
-    const row = (n, k) => `<div class="bt-car ${k}"><b class="bt-car-tla">${esc(dl[n]?.Tla || n)}</b><span class="bt-spd"><b>—</b><small>km/h</small></span><span class="bt-gear">–</span>
-      <span class="bt-bar thr" title="Accélérateur"><i></i></span><span class="bt-bar brk" title="Frein"><i></i></span></div>`;
-    host.innerHTML = `${row(a, 'a')}${row(b, 'b')}<div class="bt-live-lbl"><span>Vitesse</span><span>Rapport</span><span>Accélérateur</span><span>Frein</span></div>`;
+// Ligne face à face : valeur de A, barre, nom, barre, valeur de B. Le meilleur des deux a la barre entière aux couleurs
+// de son écurie et l'avance sous sa valeur ; l'autre une barre plus courte selon l'écart (scale : écart qui la réduit
+// au quart, en s ou en km/h)
+function row(label, va, vb, better = null, scale = 1, unit = '') {
+  let w = '', fa = 100, fb = 100, adv = '';
+  const bars = !!better && va.n !== null && vb.n !== null;
+  if (bars && va.n !== vb.n) {
+    w = (better === 'low' ? va.n < vb.n : va.n > vb.n) ? 'a' : 'b';
+    const d = Math.abs(va.n - vb.n), lose = Math.max(25, 100 - (d / scale) * 75);
+    if (w === 'a') fb = lose; else fa = lose;
+    adv = `<em>${better === 'low' ? '−' : '+'}${unit ? Math.round(d) : d.toFixed(3).replace('.', DEC)}${unit}</em>`;
   }
-  for (const [c, k] of [[ca, 'a'], [cb, 'b']]) {
-    const el = host.querySelector(`.bt-car.${k}`);
-    el.querySelector('.bt-spd b').textContent = c?.speed ? Math.round(c.speed) : '—';
-    el.querySelector('.bt-gear').textContent = c?.gear ? c.gear : 'N';
-    el.querySelector('.thr i').style.width = `${Math.max(0, Math.min(100, c?.thr || 0))}%`;
-    el.querySelector('.brk i').style.width = `${c?.brk ? (c.brk > 1 ? Math.min(100, c.brk) : 100) : 0}%`;
-  }
-}
-
-// Ligne face à face : valeur de A, nom, valeur de B ; la meilleure aux couleurs de son écurie
-function row(label, va, vb, better = null) {
-  let w = '';
-  if (better && va.n !== null && vb.n !== null && va.n !== vb.n) w = (better === 'low' ? va.n < vb.n : va.n > vb.n) ? 'a' : 'b';
-  return `<div class="bt-row"><span class="bt-v a${w === 'a' ? ' win' : ''}">${va.html}</span><span class="bt-k">${esc(label)}</span><span class="bt-v b${w === 'b' ? ' win' : ''}">${vb.html}</span></div>`;
+  const v = (k, x) => `<span class="ff-v ${k}${w === k ? ' win' : ''}"><span>${x.html}</span>${w === k ? adv : ''}</span>`;
+  const bar = (k, f) => `<span class="ff-bar ${k}${w === k ? ' win' : ''}"><i style="width:${f}%"></i></span>`;
+  return `<div class="ff-row${bars ? '' : ' nobar'}">${v('a', va)}${bar('a', fa)}<span class="ff-k">${esc(label)}</span>${bar('b', fb)}${v('b', vb)}</div>`;
 }
 
 function renderSlow(a, b) {
@@ -279,17 +296,17 @@ function renderSlow(a, b) {
 
   let rows = '';
   if (kind === 'race') {
-    rows += row('Dernier tour', lap(la.LastLapTime?.Value), lap(lb.LastLapTime?.Value), 'low');
-    rows += row('Meilleur tour', lap(bestOf(la)), lap(bestOf(lb)), 'low');
+    rows += row('Dernier tour', lap(la.LastLapTime?.Value), lap(lb.LastLapTime?.Value), 'low', 1);
+    rows += row('Meilleur tour', lap(bestOf(la)), lap(bestOf(lb)), 'low', 1);
     rows += row('Pneus', tyre(currentStint(app[a])), tyre(currentStint(app[b])));
     // Vrais arrêts (changements de pneus), sans les passages par les stands sous voiture de sécurité
     rows += row('Arrêts', num(realStopCount(app[a], la)), num(realStopCount(app[b], lb)));
   } else {
-    rows += row(kind === 'quali' ? `Meilleur Q${part}` : 'Meilleur tour', lap(bestOf(la)), lap(bestOf(lb)), 'low');
-    for (let i = 0; i < 3; i++) rows += row(`Secteur ${i + 1}`, lap(sec(la, i)), lap(sec(lb, i)), 'low');
+    rows += row(kind === 'quali' ? `Meilleur Q${part}` : 'Meilleur tour', lap(bestOf(la)), lap(bestOf(lb)), 'low', 1);
+    for (let i = 0; i < 3; i++) rows += row(`Secteur ${i + 1}`, lap(sec(la, i)), lap(sec(lb, i)), 'low', 0.3);
     rows += row('Pneus', tyre(currentStint(app[a])), tyre(currentStint(app[b])));
   }
-  rows += row('Vitesse de pointe', spd(la), spd(lb), 'high');
+  rows += row('Vitesse de pointe', spd(la), spd(lb), 'high', 10, ' km/h');
   put('#btRows', rows);
 }
 

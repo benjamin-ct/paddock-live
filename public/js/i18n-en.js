@@ -2875,4 +2875,5 @@ export default {
   "Duel des deux pilotes cliqués dans le classement, dans une fenêtre à part": "Duel of the two drivers clicked in the standings, in a separate window",
   "ou cliquez sur deux pilotes du classement.": "or click two drivers in the standings.",
   "Options des radios": "Radio options",
+  "Écart tour par tour": "Gap lap by lap",
 };

@@ -52,6 +52,25 @@ test('relais web : état de la séance, messages groupés, messages anciens int�
   assert.deepEqual(c.got.at(-1).events, []);
 });
 
+test('relais web : un navigateur arrivé entre deux envois groupés ne reçoit aucun message en double', () => {
+  const relay = new LiveRelay({}, {});
+  const t0 = 1e12;
+  relay.onFrame(snapshot(10, 1), t0);
+  relay.onFrame(feed('LapCount', { CurrentLap: 2 }), t0 + 1000);
+  relay.onFrame(feed('CarData.z', 'aa'), t0 + 1000);
+  relay.flush();
+  relay.onFrame(feed('LapCount', { CurrentLap: 3 }), t0 + 2000);   // pas encore envoyé à tous
+  relay.onFrame(feed('CarData.z', 'bb'), t0 + 2000);
+  const c = fakeClient();
+  relay.clients.add(c);
+  relay.hello(c, 0);
+  relay.flush();
+  const [hello, evs] = c.got;
+  const got = [...hello.events, ...evs.events].map((e) => e[1].CurrentLap);
+  assert.deepEqual(got, [2, 3]);   // chacun une fois
+  assert.deepEqual([...hello.stream, ...evs.stream].filter((s) => s[0] === 'CarData').map((s) => s[1]), ['aa', 'bb']);
+});
+
 test('version web : délai TV appliqué dans le navigateur, comme le serveur local', () => {
   const shown = [];
   let state = null;
