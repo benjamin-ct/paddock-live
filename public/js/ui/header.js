@@ -115,19 +115,23 @@ export function renderHeader() {
   // Temps restant (recalculé à chaque image)
   const rem = timeLeft();
   const txt = rem === null ? '—' : fmtDuration(rem);
-  const cv = $('#clockValue');
-  if (cv.textContent !== txt) cv.textContent = txt;
+  digits($('#clockValue'), txt);
 
   // Heure locale du circuit, au moment affiché (délai TV et replay compris)
   if (gmtOffset !== null) {
     const d = new Date(f1Now() + gmtOffset);
     const hm = `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`;
-    const ct = $('#circuitTime');
-    if (ct.textContent !== hm) ct.textContent = hm;
+    digits($('#circuitTime'), hm);
   }
 }
 
 let gmtOffset = null;
+
+// Chiffres de largeur fixe (case .dg) : la police des chiffres n'en a pas de tabulaires, le compte à rebours
+// changeait de largeur à chaque seconde et faisait bouger toute la barre du haut
+function digits(el, txt) {
+  if (el.textContent !== txt) el.innerHTML = esc(txt).replace(/\d/g, '<i class="dg">$&</i>');
+}
 
 // ---------- Prochain Grand Prix (aucune séance en cours) ----------
 // Nom, lieu et dates du week-end, compte à rebours de la prochaine séance, tours et longueur de la
@@ -171,12 +175,10 @@ function renderUpcoming(nx) {
   const left = Math.max(0, Math.floor((nx.t - Date.now()) / 1000));
   const d = Math.floor(left / 86400);
   const txt = `${d ? `${d} ${DAY} ` : ''}${two(Math.floor(left / 3600) % 24)}:${two(Math.floor(left / 60) % 60)}:${two(left % 60)}`;
-  const cv = $('#clockValue');
-  if (cv.textContent !== txt) cv.textContent = txt;
+  digits($('#clockValue'), txt);
   if (nx.tz) {
     const hm = new Date().toLocaleTimeString('fr-FR', { timeZone: nx.tz, hour: '2-digit', minute: '2-digit' });
-    const ct = $('#circuitTime');
-    if (ct.textContent !== hm) ct.textContent = hm;
+    digits($('#circuitTime'), hm);
   }
 }
 
