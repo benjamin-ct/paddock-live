@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { QUALITY, nearFirst, autoQuality, frameCap, weatherState, compoundOf, accentColor, drsOpen, seconds, pickBattle, bestLap, sessionBest, lapTrace, traceAt, wallCuts, pitRoute } from '../public/js/ui/map3d-calc.js';
+import { QUALITY, nearFirst, autoQuality, frameCap, weatherState, compoundOf, accentColor, drsOpen, seconds, pickBattle, bestLap, sessionBest, lapTrace, traceAt, wallCuts, pitRoute, steering, wheelSpin, kerbMask, barrierOffsets, standSpots } from '../public/js/ui/map3d-calc.js';
 
 // Images à cadence fixe (fps) pendant ms, à partir de t ; -> [instant de fin, niveaux choisis en route]
 function run(auto, t, ms, fps, cap = Infinity) {
@@ -16,6 +16,7 @@ test('qualité : trois niveaux, du plus économe au rendu complet', () => {
   assert.ok(QUALITY[0].trees < QUALITY[1].trees && QUALITY[1].trees < QUALITY[2].trees);
   assert.equal(QUALITY[2].trees, 1);
   assert.equal(QUALITY[2].buildings, 1);
+  assert.deepEqual(QUALITY.map((q) => q.props), [false, true, true], 'Économe : sans poteaux ni tribunes des virages');
 });
 
 test('qualité : arbres et bâtiments les plus grands et les plus près de la piste d\'abord', () => {
@@ -262,4 +263,96 @@ test('voie des stands : une voie qui passe sous la piste garde son côté de par
   assert.ok(lane.slice(30, 95).every((p) => p.z >= 12.3 - 1e-9), 'avant : à droite');
   assert.ok(lane.slice(140, 170).every((p) => p.z <= -12.3 + 1e-9), 'après : à gauche');
   assert.equal(pitRoute([[0, 0]], near).length, 0);
+});
+
+// Volant : voiture qui roule à v m/s pendant ms sur un virage de rayon R (signe : à gauche si positif ; Infinity : tout
+// droit), images de 1/60 s -> état final
+function drive(s, R, ms, v = 40) {
+  const dt = 1 / 60;
+  let yaw = s ? s.yaw + 0 : 0;
+  for (let t = 0; t < ms; t += 1000 / 60) {
+    yaw += R === Infinity ? 0 : (v * dt) / R;
+    s = steering(s, yaw, v * dt, dt);
+  }
+  return s;
+}
+
+test('volant : tourne du côté du virage, d\'autant plus que le virage est serré, borné et sans saccade', () => {
+  let s = steering(null, 0, 0, 0);
+  assert.deepEqual([s.angle, s.front], [0, 0]);
+  s = drive(s, Infinity, 1000);
+  assert.ok(Math.abs(s.angle) < 1e-9, 'tout droit : volant droit');
+  const left = drive(s, 100, 3000), right = drive(s, -100, 3000);
+  // Rayon 100 m, empattement 3,6 m : roues braquées de atan(0,036) ≈ 2,06°, volant 7 fois plus
+  assert.ok(Math.abs(left.angle - 7 * Math.atan(0.036)) < 0.01, `virage à gauche : ${left.angle}`);
+  assert.ok(Math.abs(right.angle + left.angle) < 1e-6, 'à droite : l\'inverse');
+  assert.ok(Math.abs(left.front - left.angle / 7) < 1e-12);
+  assert.ok(drive(s, 30, 3000).angle > left.angle, 'virage serré : plus de volant');
+  assert.equal(drive(s, 5, 3000, 10).angle.toFixed(6), (Math.PI / 2).toFixed(6), 'épingle : borné à 90°');
+  // Lissé : à l'entrée du virage, le volant tourne peu à peu (jamais plus de 0,2 rad d'une image à l'autre)
+  let prev = s, jump = 0;
+  for (let k = 0; k < 120; k++) { const next = drive(prev, 15, 1000 / 60); jump = Math.max(jump, Math.abs(next.angle - prev.angle)); prev = next; }
+  assert.ok(jump < 0.2, `saut de ${jump}`);
+  // À l'arrêt (aucune distance) : volant gardé
+  const stop = steering(left, left.yaw + 1, 0, 1);
+  assert.ok(Math.abs(stop.angle - left.angle) < 0.01);
+  // Cap qui passe de +π à -π : petit virage, pas un demi-tour
+  const wrapS = steering({ yaw: Math.PI - 0.01, run: 0, target: 0, angle: 0 }, -Math.PI + 0.01, 4, 10);
+  assert.ok(wrapS.target > 0 && wrapS.target < 0.2, `cap qui fait le tour : ${wrapS.target}`);
+});
+
+test('roues : tournent à la vitesse de la voiture, sans effet stroboscopique', () => {
+  assert.ok(Math.abs(wheelSpin(0, 3.6, 0.05) - 0.5) < 1e-12, '3,6 m/s pendant 0,05 s : 0,18 m, soit 0,5 rad');
+  assert.equal(wheelSpin(1, 0, 0.1), 1, 'à l\'arrêt : immobiles');
+  assert.equal(wheelSpin(0, 80, 1 / 60), 0.5, 'très vite : au plus 0,5 rad par image');
+  assert.ok(wheelSpin(6.2, 2, 0.05) < 1, 'reste entre 0 et 2π');
+  assert.equal(wheelSpin(1, -5, 0.1), 1, 'jamais à l\'envers');
+});
+
+// Tracé de n points tous les 2,5 m : courbure k entre les points a et b, 0 ailleurs
+const bend = (n, parts) => Array.from({ length: n }, (_, i) => parts.find(([a, b]) => i >= a && i < b)?.[2] ?? 0);
+
+test('vibreurs : dans les virages (prolongés un peu), pas sur les lignes droites ni pour un petit bruit', () => {
+  const m = kerbMask(bend(400, [[100, 120, 1 / 40], [250, 252, 1 / 40]]), 2.5);
+  assert.equal(m.length, 400);
+  assert.ok(m.slice(100, 120).every(Boolean), 'virage');
+  assert.ok(m[97] && m[122], 'prolongés de 8 m');
+  assert.ok(!m[90] && !m[130], 'pas au-delà');
+  assert.ok(m.slice(240, 262).every((v) => !v), 'bruit de 5 m : rien');
+  assert.ok(m.slice(140, 240).every((v) => !v), 'ligne droite : rien');
+  // Virage à cheval sur le début du tour
+  const w = kerbMask(bend(400, [[0, 10, -1 / 40], [390, 400, -1 / 40]]), 2.5);
+  assert.ok(w[0] && w[399] && w[387] && w[12] && !w[200]);
+});
+
+test('murs : des deux côtés des lignes droites, à l\'extérieur des virages et plus loin, sans marche', () => {
+  const off = barrierOffsets(bend(400, [[100, 140, 1 / 50]]), 2.5);
+  assert.deepEqual(off[300], [15, 15], 'ligne droite : les deux côtés');
+  // Virage vers la droite (côté SIDE) : mur à gauche, au loin ; rien à droite
+  assert.equal(off[120][1], null);
+  assert.equal(off[120][0], 26);
+  // Écart adouci : pas plus de 1,5 m d'un point à l'autre
+  for (let i = 1; i < 400; i++) if (off[i][0] !== null && off[i - 1][0] !== null) assert.ok(Math.abs(off[i][0] - off[i - 1][0]) <= 1.5, `marche au point ${i}`);
+  // Virage à gauche : l'inverse
+  const left = barrierOffsets(bend(400, [[100, 140, -1 / 50]]), 2.5);
+  assert.equal(left[120][0], null);
+  assert.equal(left[120][1], 26);
+});
+
+test('tribunes : ligne droite de la ligne d\'arrivée, puis à l\'extérieur des plus grands virages, espacées', () => {
+  // Ligne au point 20 ; épingle vers la droite (point 200), grand virage à gauche (point 350), petit virage (point 430),
+  // épingle trop près de la première (point 230)
+  const turn = bend(480, [[190, 210, 1 / 20], [228, 236, 1 / 20], [330, 370, -1 / 50], [425, 435, 1 / 200 + 0.002]]);
+  const spots = standSpots(turn, 2.5, 20);
+  assert.deepEqual(spots[0].side, 0, 'ligne droite : des deux côtés');
+  assert.ok(spots[0].from > 400 || spots[0].from < 20, 'avant la ligne');
+  assert.ok(spots[0].to > 20 && spots[0].to <= 20 + 44, 'après la ligne, 110 m au plus');
+  const [hair, big] = spots.slice(1);
+  assert.equal(spots.length, 3, 'virages trop proches ou trop petits laissés');
+  assert.equal(hair.side, -1, 'épingle à droite : tribune à gauche');
+  assert.ok(hair.from < 200 && hair.to > 200);
+  assert.equal(big.side, 1);
+  assert.ok(big.from < 350 && big.to > 340);
+  // Tracé sans ligne droite autour de la ligne : seulement les virages
+  assert.ok(standSpots(bend(480, [[0, 480, 1 / 100]]), 2.5, 20).every((s) => s.side !== 0));
 });
