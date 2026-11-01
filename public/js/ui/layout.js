@@ -94,13 +94,13 @@ function defaultLayout(prof = profile) {
   if (!isMain) return { cols: [] };
   const quali = prof === 'quali';
   // Écran principal : Classement à gauche, sur plus de la moitié (encore plus large en qualifs et essais : Q1/Q2/Q3,
-  // tour en cours ; le duel passe par-dessus) ; à droite la Direction de course en haut, et en dessous la Télémétrie et
-  // les Radios côte à côte. Circuit, Analyse et Duel (masqués ici, s'ils sont affichés) : sous la direction de course
+  // tour en cours ; le duel passe par-dessus) ; à droite la Télémétrie et les Radios côte à côte en haut, et la
+  // Direction de course en dessous. Circuit, Analyse et Duel (masqués ici, s'ils sont affichés) : entre les deux
   // (écran moins large : télémétrie et radios l'une sous l'autre, style.css .lrow)
-  const below = [{ id: 'extra', h: 1, row: 'tr', w: 1 }, { id: 'radio', h: 1, row: 'tr', w: 1.15 }];
+  const top = [{ id: 'extra', h: 1.15, row: 'tr', w: 1 }, { id: 'radio', h: 1.15, row: 'tr', w: 1.15 }];
   return { cols: [
     { w: quali ? 1.3 : 1.2, items: [{ id: 'tower', h: 1 }] },
-    { w: 1, items: [{ id: 'feed', h: 1 }, { id: 'map', h: 1.1 }, { id: 'duel', h: 0.8 }, { id: 'analysis', h: 1 }, ...below] },
+    { w: 1, items: [...top, { id: 'map', h: 1.1 }, { id: 'duel', h: 0.8 }, { id: 'analysis', h: 1 }, { id: 'feed', h: 1 }] },
   ] };
 }
 

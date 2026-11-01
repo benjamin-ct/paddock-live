@@ -1,7 +1,8 @@
 // Onglets : télémétrie du pilote suivi, stratégie pneus, météo, championnat (prévision).
-import { store, displayNow, versionOf, setFocus } from '../store.js';
+import { store, displayNow, versionOf } from '../store.js';
 import { Dial, SpeedTrace, animate, carNow, energyOf } from './gauge.js';
-import { $, esc, drivers, orderedNumbers, teamColor, teamMark, stintsOf, compoundInfo, COMPOUNDS, fmtLap, fmtSigned, lapSeconds, driverOpt } from '../util.js';
+import { $, esc, drivers, orderedNumbers, teamColor, teamMark, stintsOf, compoundInfo, COMPOUNDS, fmtLap, fmtSigned, lapSeconds } from '../util.js';
+import { t } from '../i18n.js';
 import { icon } from '../icons.js';
 import { realStints } from '/shared/pits.js';
 
@@ -50,20 +51,16 @@ export function renderTelemetry() {
     return;
   }
   if (!num) return;
-  // Le pilote suivi seul (deux pilotes côte à côte : télémétrie du panneau Duel)
-  const nums = orderedNumbers(store.state).filter((n) => dl[n]);
-  const key = `${num}|${nums.join(',')}`;
+  // Le pilote suivi seul, choisi en cliquant dans le classement (deux pilotes côte à côte : bandeau du duel)
+  const key = num;
   if (el._k !== key) {
     el._k = key;
     const d = dl[num] || {};
     el.innerHTML = `<div class="tele2">
-      <div class="tele2-bar"><span class="tele-chip" style="--tc:${teamColor(d)}"><select id="teleSel" class="tele-pick">${nums.map((n) => `<option value="${n}" ${n === num ? 'selected' : ''}${driverOpt(dl[n], n)}>${esc(dl[n].Tla)}</option>`).join('')}</select></span>
-        <span class="muted small tele-hint">clic sur un pilote du classement = pilote suivi</span></div>
       <div class="tele2-dials one">
-        <div class="tele2-col"><div class="tele-name" style="--tc:${teamColor(d)}">${teamMark(d)}<b>${esc(d.Tla || num)}</b><span class="muted small">${esc(d.LastName || '')}</span></div><div class="tele-dial" id="teleDialA"></div></div>
+        <div class="tele2-col"><div class="tele-name" style="--tc:${teamColor(d)}" title="${esc(t('clic sur un pilote du classement = pilote suivi'))}">${teamMark(d)}<b>${esc(d.Tla || num)}</b><span class="muted small">${esc(d.LastName || '')}</span></div><div class="tele-dial" id="teleDialA"></div></div>
       </div>
       <div class="trace"><div class="chart-title"><span>Vitesse — 30 dernières secondes (km/h)</span></div><div id="teleTrace"></div></div></div>`;
-    $('#teleSel').addEventListener('change', (e) => setFocus(e.target.value));
     tele = { num, dialA: new Dial(teamColor(d)), trace: new SpeedTrace($('#teleTrace')) };
     $('#teleDialA').appendChild(tele.dialA.el);
   }

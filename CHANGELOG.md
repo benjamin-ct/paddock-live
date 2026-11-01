@@ -28,11 +28,13 @@ l'application (Réglages → À propos → Nouveautés).
 
 ### Tableau de bord plus clair
 - Nouvel écran principal, le même pour tout le monde : le Classement à gauche, sur plus de la moitié de l'écran (le duel
-  de deux pilotes cliqués passe par-dessus) ; à droite la Direction de course (avec les enquêtes et les limites de
-  piste), et en dessous la Télémétrie du pilote suivi et les Radios d'équipe côte à côte, transcrites et traduites
-  d'office. Il s'adapte à la taille de l'écran : sur un écran moins large, la Télémétrie et les Radios passent l'une sous
-  l'autre ; sur un écran peu haut, tout tient sans défiler, le compteur de la télémétrie se réduit à la place
+  de deux pilotes cliqués passe par-dessus) ; à droite, en haut, la Télémétrie du pilote suivi et les Radios d'équipe
+  côte à côte (transcrites et traduites d'office), et en dessous la Direction de course (avec les enquêtes et les
+  limites de piste). Il s'adapte à la taille de l'écran : sur un écran moins large, la Télémétrie et les Radios passent
+  l'une sous l'autre ; sur un écran peu haut, tout tient sans défiler, le compteur de la télémétrie se réduit à la place
   disponible. Une barre entre deux panneaux côte à côte règle leurs largeurs.
+- Télémétrie : le pilote suivi se choisit en cliquant dans le classement (plus de liste à part), le compteur tient en
+  entier dans son panneau.
 - Le Circuit, l'Analyse et le Duel s'ouvrent chacun dans leur propre fenêtre, à placer où l'on veut (second écran) :
   menu « Fenêtres » de la barre de gauche, ou bouton « + » au bout des onglets d'un panneau. Ils ne prennent plus de
   place dans l'écran principal. Sur téléphone, où il n'y a qu'un écran, ils restent des onglets : Classement,
@@ -116,11 +118,13 @@ l'application (Réglages → À propos → Nouveautés).
   grand (« À moins d'une seconde » en vert quand ils sont proches) et, en course, si le pilote derrière reprend du temps
   (en vert) ou en perd (en rouge) et combien par tour, sans compter les tours d'arrêt. Il suit la course en direct et
   se ferme avec ✕ ; le classement défile en dessous.
+- Bandeau du duel : la télémétrie des deux pilotes en barres horizontales sous chacun, l'accélérateur en vert et le
+  frein en rouge, avec le rapport engagé (en direct avec F1 TV, et dans les replays qui en ont).
 - Duel en course : quand le pilote derrière reprend du temps, le bandeau prévoit quand il sera sur l'autre
   (« rattrape en ~4 tours », si c'est avant l'arrivée) ou dit « à portée du DÉP » quand il est déjà à moins d'une
   seconde. Et les batailles sont repérées toutes seules : deux voitures à moins d'une seconde l'une de l'autre pendant
   3 tours de suite font apparaître une petite pastille ⚔ sur la ligne du pilote derrière dans le classement ; un clic
-  dessus ouvre leur duel. Aussi dans la version web.
+  dessus ouvre leur duel.
 - Panneau Duel refait, plus simple : le même bandeau, puis une petite courbe de l'écart sur les derniers tours,
   quelques chiffres face à face (dernier et meilleur tour, pneus, arrêts, vitesse de pointe ; en qualifs le meilleur
   tour et les secteurs), le meilleur marqué à la couleur de son écurie, et en direct la vitesse, le rapport,

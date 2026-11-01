@@ -768,11 +768,11 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
 /* Écran principal : le compteur de la télémétrie se règle sur la hauteur de son panneau ; panneau bas : sans la
    courbe des 30 dernières secondes */
 .grid.custom .p-extra .panel-body { container-type: size; }
-.grid.custom .p-extra .dial { max-width: max(110px, min(300px, calc(100cqh - 250px))); margin: 0 auto; }
+.grid.custom .p-extra .dial { max-width: max(110px, min(320px, calc(100cqh - 200px))); margin: 0 auto; }
 @container (max-height: 440px) {
   .grid.custom .p-extra :is(.trace, .tele-hint) { display: none; }
   .grid.custom .p-extra .tele2 { gap: 4px; padding-top: 6px; }
-  .grid.custom .p-extra .dial { max-width: max(90px, min(300px, calc(100cqh - 82px))); }
+  .grid.custom .p-extra .dial { max-width: max(90px, min(320px, calc(100cqh - 56px))); }
 }
 .dial path { fill: none; stroke-linecap: round; }
 .dl-track { stroke: var(--panel-3); stroke-width: 12; }
@@ -3606,6 +3606,18 @@ html:is(.float-map, .overlay) .boot-cover { display: none; }
 .bt-last.win { color: #4ade80; }
 .bt-kmh { font-size: 11px; color: rgba(255, 255, 255, .7); }
 .bt-kmh b { font-family: var(--font-mono, monospace); font-variant-numeric: tabular-nums; font-size: 13px; color: #fff; display: inline-block; min-width: 3ch; text-align: right; }
+/* Télémétrie des deux pilotes dans le bandeau : rapport, puis accélérateur (vert) et frein (rouge) en barres
+   horizontales ; côté droit en miroir */
+.bt-tele { display: flex; align-items: center; gap: 6px; margin-top: 4px; width: min(150px, 100%); }
+.bt-tele[hidden] { display: none; }
+.bt-drv.b .bt-tele { flex-direction: row-reverse; margin-left: auto; }
+.bt-tg { font: italic 800 13px/1 var(--font-cond, var(--font)); color: #fff; min-width: 1.1em; text-align: center; }
+.bt-tb { flex: 1; display: grid; gap: 3px; }
+.bt-tb i { display: flex; height: 5px; border-radius: 3px; background: rgba(255, 255, 255, .16); overflow: hidden; }
+.bt-drv.b .bt-tb i { justify-content: flex-end; }
+.bt-tb b { display: block; height: 100%; border-radius: 3px; transition: width .12s linear; }
+.bt-tb .thr b { background: #22c55e; }
+.bt-tb .brk b { background: #ef4444; }
 .bt-gap { display: flex; flex-direction: column; align-items: center; gap: 1px; min-width: 110px; z-index: 1; }
 .bt-tag { font-size: 9.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: rgba(255, 255, 255, .55); white-space: nowrap; }
 .bt-val { font: italic 800 38px/1 var(--font-cond, inherit); font-variant-numeric: tabular-nums; white-space: nowrap; text-shadow: 0 0 26px rgba(255, 255, 255, .25); }

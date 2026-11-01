@@ -2454,6 +2454,7 @@ export default {
   "Général": "General",
   "Écuries et couleurs": "Teams and colours",
   "Fenêtres": "Windows",
+  "Accélérateur et frein en direct, rapport engagé": "Live throttle and brake, gear engaged",
   "Messages (direction de course, enquêtes, limites de piste)": "Messages (race control, investigations, track limits)",
   "Nouvel écran : Classement, Télémétrie, Direction de course et Radios traduites. Circuit, Analyse et Duel s'ouvrent dans une fenêtre (menu Fenêtres ou bouton + d'un panneau). L'ancienne disposition : Réglages → Disposition → Fenêtres (« {} »)": "New screen: Standings, Telemetry, Race control and translated Radios. Circuit, Analysis and Duel open in a window (Windows menu or a panel's + button). Your previous layout: Settings → Layout → Windows (“{}”)",
   "Ouvrir dans une fenêtre": "Open in a window",

@@ -2393,6 +2393,7 @@ export default {
   "Général": "Generale",
   "Écuries et couleurs": "Scuderie e colori",
   "Fenêtres": "Finestre",
+  "Accélérateur et frein en direct, rapport engagé": "Acceleratore e freno in diretta, marcia inserita",
   "Messages (direction de course, enquêtes, limites de piste)": "Messaggi (direzione gara, indagini, limiti della pista)",
   "Nouvel écran : Classement, Télémétrie, Direction de course et Radios traduites. Circuit, Analyse et Duel s'ouvrent dans une fenêtre (menu Fenêtres ou bouton + d'un panneau). L'ancienne disposition : Réglages → Disposition → Fenêtres (« {} »)": "Nuova schermata: Classifica, Telemetria, Direzione gara e Radio tradotte. Circuito, Analisi e Duello si aprono in una finestra (menu Finestre o pulsante + di un pannello). La disposizione di prima: Impostazioni → Disposizione → Finestre (« {} »)",
   "Ouvrir dans une fenêtre": "Apri in una finestra",

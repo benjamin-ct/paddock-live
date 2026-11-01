@@ -4,7 +4,7 @@ import { prefs } from '../prefs.js';
 import { $, esc, drivers, orderedNumbers, sessionKind, teamColor, teamMark, tyreBadge, currentStint, fmtSigned, photoUrl, driverOpt } from '../util.js';
 import { parseGap, parseLapTime, catchLaps } from '/shared/f1.js';
 import { carNow } from './gauge.js';
-import { DEC } from '../i18n.js';
+import { DEC, t } from '../i18n.js';
 import { realStopCount } from '/shared/pits.js';
 
 let skeletonFor = null;
@@ -190,7 +190,8 @@ function renderHero(a, b) {
     const last = l.LastLapTime?.Value ? `<span class="bt-last${mine !== null && other !== null && mine < other ? ' win' : ''}" title="Dernier tour">${esc(l.LastLapTime.Value)}</span>` : '';
     return `${photo}<div class="bt-id"><b class="bt-name" title="${esc(d.FullName || '')}">${teamMark(d)}${esc(d.Tla || num)}</b>
       <small>${l.Position ? `P${esc(l.Position)} · ` : ''}${esc(d.TeamName || '')}</small>
-      <span class="bt-stats">${st ? `<span class="bt-tyre">${tyreBadge(st.Compound, st.TotalLaps, st.New)}</span>` : ''}${last}<span class="bt-kmh" hidden><b></b> km/h</span></span></div>`;
+      <span class="bt-stats">${st ? `<span class="bt-tyre">${tyreBadge(st.Compound, st.TotalLaps, st.New)}</span>` : ''}${last}<span class="bt-kmh" hidden><b></b> km/h</span></span>
+      <span class="bt-tele" hidden title="${esc(t('Accélérateur et frein en direct, rapport engagé'))}"><span class="bt-tg"></span><span class="bt-tb"><i class="thr"><b></b></i><i class="brk"><b></b></i></span></span></div>`;
   };
   const html = { a: side(a, da, lastA, lastB), b: side(b, db, lastB, lastA),
     gap: `<span class="bt-tag">${tag}</span><b class="bt-val">${main}${unit ? `<small>${unit}</small>` : ''}</b>${ahead ? `<span class="bt-who">${esc((ahead === 'a' ? da : db).Tla || '')} devant</span>` : ''}${bandTrend}` };
@@ -203,6 +204,13 @@ function renderHero(a, b) {
       const el = box.querySelector(`.bt-band [data-s="${k}"] .bt-kmh`);
       el.hidden = !c?.speed;
       if (c?.speed) el.firstChild.textContent = Math.round(c.speed);
+      // Télémétrie en barres horizontales : accélérateur (vert) et frein (rouge), rapport engagé
+      const tl = box.querySelector(`.bt-band [data-s="${k}"] .bt-tele`);
+      tl.hidden = !c;
+      if (!c) continue;
+      tl.querySelector('.bt-tg').textContent = c.gear ? c.gear : 'N';
+      tl.querySelector('.thr b').style.width = `${Math.max(0, Math.min(100, c.thr || 0))}%`;
+      tl.querySelector('.brk b').style.width = `${c.brk ? (c.brk > 1 ? Math.min(100, c.brk) : 100) : 0}%`;
     }
   }
   renderLive(a, b, dl, ca, cb);
