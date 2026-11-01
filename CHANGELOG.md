@@ -163,6 +163,8 @@ l'application (Réglages → À propos → Nouveautés).
   l'étiquette indique qu'il est à portée.
 - Classement : le meilleur tour de la séance (de la partie en cours en qualifications) en violet dans la colonne
   « Meilleur », dès qu'il tombe.
+- Version web : le classement passe lui aussi au code du pilote seul (nom complet : menu « Colonnes »), y compris
+  pour ceux qui l'avaient déjà ouverte.
 - Version web : l'engrenage des options des radios et de la direction de course de nouveau tout à droite de leur
   barre (une place vide restait réservée à des boutons absents).
 - Carte du circuit plus fluide avec le GPS (F1 TV) : les voitures avancent régulièrement, sans les petites saccades
