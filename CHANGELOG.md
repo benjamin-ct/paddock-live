@@ -275,6 +275,8 @@ l'application (Réglages → À propos → Nouveautés).
   dans les Réglages, les rubriques montrent qu'il y en a d'autres à droite.
 
 ### Réglages
+- Réglages en 4 rubriques au lieu de 7 : Compte F1 TV, Affichage (thème, langue, couleurs et disposition), Alertes et
+  favoris, Application (mises à jour, téléphone, streaming et À propos).
 - Compte F1 TV : « Se déconnecter » n'apparaît que lorsqu'une connexion est enregistrée.
 - Plusieurs dispositions enregistrées, chacune sous un nom (Réglages → Disposition → Fenêtres, par exemple « Course
   sur 2 écrans » ou « Qualifs portable ») : un clic sur son nom remet les panneaux de chaque fenêtre et leur place sur

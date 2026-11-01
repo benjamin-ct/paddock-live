@@ -367,6 +367,8 @@ export default {
   "Anti-spoiler pendant les séances": "Anti-spoiler during sessions",
   "Appareil injoignable (délai dépassé)": "Device unreachable (timed out)",
   "Apparence": "Appearance",
+  "Thème, langue, couleurs, disposition": "Theme, language, colours, layout",
+  "Mises à jour, téléphone, streaming, à propos": "Updates, phone, streaming, about",
   "Panneaux et menus qui apparaissent en douceur": "Panels and menus fade in smoothly",
   "Appendices du fond plat": "Floor appendages",
   "Application": "App",
