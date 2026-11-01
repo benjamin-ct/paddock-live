@@ -13,7 +13,9 @@ import { initTower, renderTower } from './ui/tower.js';
 import { initMap } from './ui/map.js';
 import { renderRcm, renderPits, initRcmFilters, initStewards, renderStewards } from './ui/feed.js';
 import { renderRadios, initRadios } from './ui/radios.js';
-import { renderTelemetry, renderStrategy, renderChampionship } from './ui/extra.js';
+import { renderTelemetry, renderStrategy, renderChampionship, renderWeather } from './ui/extra.js';
+import { initTopInfo } from './ui/topinfo.js';
+import { initRadar } from './ui/radar.js';
 import { renderPitSim, renderBattles, initRaceTools } from './ui/race-tools.js';
 import { initAnalysis, renderAnalysis } from './ui/analysis.js';
 import { renderDuelBand, renderDuel, initDuel } from './ui/duel.js';
@@ -23,8 +25,15 @@ import { parseSeasonPath } from '/shared/season-urls.js';
 import './ui/calendar-menu.js';   // « Ajouter à mon agenda » (Saison)
 import { initSelects } from './ui/select.js';
 import { changelogHtml } from './ui/changelog.js';
+import { prefs, setPref } from './prefs.js';
 
 translatePage();
+// Réglages gardés d'une ancienne visite : le classement passe au code du pilote seul, comme l'appli 1.30 (nom complet :
+// menu « Colonnes ») ; une fois seulement (layoutV, que l'appli tient dans ui/layout.js, pas chargé ici)
+if ((prefs.layoutV || 0) < 4) {
+  setPref('hiddenCols', [...new Set([...(prefs.hiddenCols || []), 'name'])]);
+  setPref('layoutV', 4);
+}
 initSelects();   // listes déroulantes aux couleurs de l'appli (sur ordinateur ; le téléphone garde la sienne)
 // Rien n'est traduit dans le navigateur (pas de moteur local) : documents FIA traduits par le serveur, relus plus tard
 store.isHost = false;
@@ -240,6 +249,12 @@ if (ONLY === 'analysis' && extra) {
   for (const b of extra.querySelectorAll('.panel-head [data-tab]:not([data-tab="tyres"])')) { b.classList.remove('active'); ana.querySelector('.panel-head [data-tab="telemetry"]').before(b); }
   for (const p of extra.querySelectorAll('[data-pane]:not([data-pane="tyres"])')) { p.classList.remove('active'); ana.querySelector('[data-pane="telemetry"]').before(p); }
 }
+// Écran principal : la projection du championnat (pilotes et constructeurs, en direct) à côté de la télémétrie
+if (!ONLY && extra) {
+  const ana = document.querySelector('.p-analysis');
+  ana?.querySelector('.panel-head [data-tab="telemetry"]').after(extra.querySelector('.panel-head [data-tab="champ"]'));
+  ana?.querySelector('[data-pane="telemetry"]').after(extra.querySelector('[data-pane="champ"]'));
+}
 extra?.remove();
 if (ONLY !== 'duel') document.querySelector('.p-duel')?.remove();   // Duel : seulement dans sa fenêtre (bandeau sur le classement ailleurs)
 
@@ -321,7 +336,9 @@ function loop() {
   safe(renderStewards);
   safe(renderRadios);
   safe(renderTelemetry);
-  if (ONLY === 'analysis') for (const fn of [renderAnalysis, renderPits, renderStrategy, renderPitSim, renderBattles, renderChampionship]) safe(fn);
+  safe(renderWeather);
+  if (ONLY !== 'duel') safe(renderChampionship);
+  if (ONLY === 'analysis') for (const fn of [renderAnalysis, renderPits, renderStrategy, renderPitSim, renderBattles]) safe(fn);
   setTimeout(() => (document.visibilityState === 'visible' ? requestAnimationFrame(loop) : loop()), 100);
 }
 setInterval(() => hub.roll(serverNow()), 10000);
@@ -331,6 +348,9 @@ safe(initMap);
 safe(initRcmFilters);
 safe(initStewards);
 safe(initRadios);
+// Outils de la barre du haut, comme l'appli : documents FIA, vitesses, meilleurs secteurs, météo et radar de pluie
+safe(initTopInfo);
+safe(initRadar);
 // Pas de séance en direct : prochaine séance et compte à rebours, comme l'appli
 safe(initNoLive);
 // Espace Saison de l'appli (calendrier, classements, résultats…), d'après la saison gardée par le serveur
@@ -356,7 +376,8 @@ document.querySelector('#seasonBtn').addEventListener('click', () => webMenu(fal
 // Saison ouverte : toucher la séance en haut revient au direct
 document.querySelector('.topbar .session').addEventListener('click', () => { if (!document.querySelector('#seasonView').hidden) closeSeason(); });
 // Panneau Analyse : la télémétrie du pilote suivi dans l'écran principal, les autres onglets dans la fenêtre « Analyse »
-if (ONLY === 'analysis') { safe(initAnalysis); safe(initRaceTools); }
+if (ONLY === 'analysis') safe(initAnalysis);
+safe(initRaceTools);   // aussi la pastille « duel » du classement (bataille de plus de 3 tours) : le duel des deux pilotes
 if (ONLY === 'duel') safe(initDuel);
 else document.querySelector('.p-analysis [data-tab="telemetry"]')?.click();
 on('status', renderSource);
