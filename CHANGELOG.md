@@ -415,6 +415,8 @@ l'application (Réglages → À propos → Nouveautés).
   leur icône seule quand l'écran est moins large ; plus de note sur le GPS.
 - Projection du championnat pilotes et constructeurs en direct, en onglet à côté de la Télémétrie.
 - La pastille « duel » du classement (bataille de plus de trois tours) ouvre bien le duel des deux pilotes.
+- Bandeau de la direction de course en bas de l'écran, comme dans l'appli : le dernier message, avec son drapeau et
+  le tour.
 - Radios : elles ne restent plus sur « transcription… » quand une fenêtre Analyse ou Duel (ou un autre onglet) reste
   ouverte en arrière-plan ; la fenêtre au premier plan prend la main. Aussi dans l'appli.
 
