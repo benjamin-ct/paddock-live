@@ -50,7 +50,8 @@ l'application (Réglages → À propos → Nouveautés).
   haut de l'appli au lieu d'une bande noire.
 - Analyse : seulement les onglets utiles selon la séance. En course : Écarts et Arrêts (avec la stratégie) ; en qualifs
   et en essais : Secteurs et Comparaison. Les autres (Temps, Pneus, Jeux de pneus, simulateur d'arrêt, Bagarres,
-  championnat, et la Comparaison en course) s'ajoutent en un clic.
+  championnat, et la Comparaison en course) s'ajoutent en un clic. La Comparaison s'ouvre aussi seule dans sa propre
+  fenêtre (barre de gauche → Fenêtres → Comparaison, ou bouton ↗ de l'onglet), à côté de l'Analyse.
 - Bouton « + » au bout des onglets de chaque panneau : il rouvre un onglet fermé, amène un onglet d'un autre panneau,
   ou ouvre le Circuit, l'Analyse ou le Duel dans une fenêtre.
 - Barre de gauche plus simple : Accueil, Direct, Saison, Actu et Replays, puis « Plus » qui réunit Résultats, Résumé,

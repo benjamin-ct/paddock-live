@@ -2879,4 +2879,5 @@ export default {
   "Classement indisponible pour le moment.": "Clasificación no disponible por ahora.",
   "classement après la dernière course · projection en direct pendant les courses": "clasificación tras la última carrera · proyección en directo durante las carreras",
   "Championnat pilotes et constructeurs, avec la projection en direct pendant les courses": "Campeonato de pilotos y constructores, con la proyección en directo durante las carreras",
+  "Ouvrir la Comparaison dans sa propre fenêtre": "Abrir la Comparación en su propia ventana",
 };
