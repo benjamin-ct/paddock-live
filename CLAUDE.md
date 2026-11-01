@@ -51,9 +51,9 @@
   `task-done` passe une tâche en « Fait » avec la date, `task-add` ajoute ce qui reste (`tasks` donne les identifiants).
   Journal : `log-add`, une ligne par action, la plus récente en haut. Pour chaque Grand Prix, les textes des posts
   (`posts-put`, même format qu'avant : « 1. JOUR · HEURE · TITRE », « Image : … », « Texte long : »…). Sans
-  `PADDOCK_SUIVI_KEY`, le dire à l'utilisateur au lieu d'écrire ailleurs. L'ancien dossier Google Drive « Paddock
-  Live · Réseaux » n'est plus tenu (archive) ; les médias d'un Grand Prix vont encore dans « Paddock Live · Médias ·
-  <Grand Prix> » (secrets `GDRIVE_*` de l'environnement).
+  `PADDOCK_SUIVI_KEY`, le dire à l'utilisateur au lieu d'écrire ailleurs. Photos et vidéos d'un Grand Prix : `media-put`
+  (gardées par le serveur, affichées sous les textes des posts ; `media-list` donne leurs adresses). L'ancien dossier
+  Google Drive « Paddock Live · Réseaux » n'est plus tenu (archive), Google n'est plus utilisé pour le suivi.
 - **À tester avant la version finale** : à chaque PR fusionnée qui change l'appli ou la version web, ajouter dans la
   liste « À tester avant la version finale (X.Y) » du suivi une tâche par nouveauté (Quand : « bêta N »,
   ou « Vraie séance · bêta N » pour ce qui demande une vraie séance ; titre : la nouveauté ; détails : où cliquer et

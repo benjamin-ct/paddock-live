@@ -545,6 +545,13 @@ dialog.sheet .group, dialog.sheet .card { background: var(--surface); }
 .sv-pill { padding: 1px 7px; border-radius: 999px; background: var(--surface-3); color: var(--text-2); font: 700 10.5px var(--ui); font-style: normal; letter-spacing: .06em; text-transform: uppercase; }
 .sv-pill.ok { background: var(--ok); color: #fff; }
 .sv-media { display: flex; gap: 6px; margin: 4px 0; color: var(--text-2); font-size: 14px; overflow-wrap: anywhere; }
+/* Photos et vidéos d'un Grand Prix (Suivi → Posts) */
+.sv-files { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr)); gap: 10px; margin-bottom: 10px; }
+.sv-file { margin: 6px 0; border-radius: var(--r-s); background: var(--surface-2); overflow: hidden; min-width: 0; }
+.sv-file img, .sv-file video { display: block; width: 100%; max-height: 360px; object-fit: contain; background: #000; }
+.sv-fileicon { display: grid; place-items: center; height: 90px; font-size: 32px; }
+.sv-file figcaption { display: flex; align-items: center; gap: 8px; padding: 6px 8px; font-size: 13px; overflow-wrap: anywhere; }
+.sv-file figcaption small { color: var(--muted); }
 .sv-txt { margin-top: 8px; padding: 10px 12px; border-radius: var(--r-s); background: var(--surface-2); }
 .sv-txthead { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
 .sv-txt p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 15px; -webkit-user-select: text; user-select: text; }

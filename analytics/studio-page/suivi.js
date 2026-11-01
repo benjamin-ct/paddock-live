@@ -77,7 +77,7 @@ function parsePosts(d) {
     if (block) block.lines.push(text); else post.notes.push(text);
   }
   const dates = posts.map((p) => p.date).filter(Boolean);
-  return { id: d.id, name: d.name.replace(/\s*·\s*textes des posts/i, '').replace(/^week-end (de |d')/i, ''), info, posts, first: Math.min(...dates, Infinity), last: Math.max(...dates, 0) };
+  return { id: d.id, gp: d.name, files: d.files || [], name: d.name.replace(/\s*·\s*textes des posts/i, '').replace(/^week-end (de |d')/i, ''), info, posts, first: Math.min(...dates, Infinity), last: Math.max(...dates, 0) };
 }
 
 // Guide (texte simple) : « # », « ## », « ### » titres, « - » puces, lignes « | a | b | » tableau, bloc entre « ``` »
@@ -167,6 +167,15 @@ function todoHtml(m) {
     }).join('')}</div>`;
 }
 
+// Photos et vidéos d'un Grand Prix (stockage du serveur) : vignette, lecture, téléchargement
+const fileUrl = (f) => `/studio/f/${f.key}/${encodeURIComponent(f.name)}`;
+const sizeTxt = (n) => (n >= 1e6 ? `${(n / 1e6).toFixed(1).replace('.', ',')} Mo` : `${Math.max(1, Math.round(n / 1e3))} Ko`);
+function fileCard(f) {
+  const u = fileUrl(f);
+  const view = /^image\//.test(f.type) ? `<img src="${u}" alt="" loading="lazy">` : /^video\//.test(f.type) ? `<video src="${u}" controls preload="metadata" playsinline></video>` : '<span class="sv-fileicon">📄</span>';
+  return `<figure class="sv-file">${view}<figcaption><span class="grow">${esc(f.name)} <small>${sizeTxt(f.size)}</small></span><a class="btn small" href="${u}" download="${esc(f.name)}">${icon('link')}Télécharger</a></figcaption></figure>`;
+}
+
 function postsHtml(list) {
   if (!list.length) return empty('Aucun texte de posts pour le moment : la routine du lundi les dépose ici (« Week-end de <Grand Prix> · textes des posts »).', 'news');
   const t0 = today0();
@@ -179,10 +188,13 @@ function postsHtml(list) {
       return `<article class="sv-post ${when}"><header><span class="sv-num">${esc(p.n)}</span><span class="grow">
           <small class="sv-when">${esc(p.when || 'Quand tu veux')}${when === 'today' ? ' <i class="sv-pill ok">Aujourd\'hui</i>' : when === 'past' ? ' <i class="sv-pill">Passé</i>' : ''}</small>
           <b>${esc(p.title)}</b></span></header>
-        ${p.media.map(([k, v]) => `<p class="sv-media">${/vid/i.test(k) ? '🎬' : '🖼️'} <span>${linkify(v)}</span></p>`).join('')}
+        ${p.media.map(([k, v]) => { const f = gp.files.find((x) => v.includes(x.name)); return f ? fileCard(f) : `<p class="sv-media">${/vid/i.test(k) ? '🎬' : '🖼️'} <span>${linkify(v)}</span></p>`; }).join('')}
         ${p.blocks.map((b) => { const text = b.lines.join('\n\n'); return `<div class="sv-txt"><div class="sv-txthead"><small>${esc(b.label)}</small>${copyBtn(text)}</div><p>${linkify(text)}</p></div>`; }).join('')}
         ${p.notes.map((n) => `<p class="sv-media">ℹ️ <span>${linkify(n)}</span></p>`).join('')}</article>`;
-    }).join('')}</div>`;
+    }).join('')}</div>
+    <section class="panel"><div class="sv-h"><b>Photos et vidéos</b><small>${gp.files.length}</small></div>
+      ${gp.files.length ? `<div class="sv-files">${gp.files.map(fileCard).join('')}</div>` : '<p class="sv-note">Aucun fichier pour ce Grand Prix.</p>'}
+      <label class="btn wide">${icon('link')}Ajouter des fichiers<input type="file" id="svfiles" data-gp="${esc(gp.gp)}" accept="image/*,video/mp4,video/quicktime,video/webm,application/pdf" multiple hidden></label></section>`;
 }
 
 function chart(series, dates) {
@@ -428,6 +440,15 @@ function bind(body, d, opts) {
       store.del('suivi.data');
     } catch (err) { toast(err.message, 'bad'); }
     keyBtn.disabled = false;
+  };
+  const up = $('#svfiles', body);
+  if (up) up.onchange = async () => {
+    const files = [...(up.files || [])];
+    let n = 0;
+    for (const f of files) {
+      try { await api(`suivi/file?gp=${encodeURIComponent(up.dataset.gp)}&f=${encodeURIComponent(f.name)}`, { method: 'PUT', body: f }); n++; } catch (err) { toast(`${f.name} : ${err.message}`, 'bad'); }
+    }
+    if (n) { toast(`${n} fichier${n > 1 ? 's' : ''} ajouté${n > 1 ? 's' : ''}`, 'ok'); store.del('suivi.data'); again(true); }
   };
   const imp = $('#svimport', body);
   if (imp) imp.onchange = async () => {

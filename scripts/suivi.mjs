@@ -9,9 +9,13 @@
 //   node scripts/suivi.mjs task-set <identifiant ou titre> --when "…" [--title …] [--list …] [--detail …] [--status …]
 //   node scripts/suivi.mjs log-add --domain "Développement" --text "…" [--where "Fait"]   ligne en tête du journal
 //   node scripts/suivi.mjs posts-put "<Week-end de … · textes des posts>" fichier.txt     textes des posts d'un Grand Prix
+//   node scripts/suivi.mjs media-put "<Week-end de … · textes des posts>" image.png video.mp4 …   photos et vidéos du Grand Prix
+//   node scripts/suivi.mjs media-list "<Week-end de … · textes des posts>"                     fichiers et leurs adresses
+//   node scripts/suivi.mjs net-add posts fichier.json                 lignes ajoutées à une table des réseaux (posts, app, benjy, streamers)
 //   node scripts/suivi.mjs guide-put "<nom du guide>" fichier.md
 //   node scripts/suivi.mjs ops fichier.json                          liste d'opérations (voir analytics/suivi.js)
 import fs from 'node:fs';
+import path from 'node:path';
 
 const BASE = (process.env.PADDOCK_SUIVI_URL || 'https://paddocklive.app/studio/api/suivi').replace(/\/$/, '');
 const KEY = process.env.PADDOCK_SUIVI_KEY || '';
@@ -39,6 +43,17 @@ async function call(path, body) {
   return d;
 }
 const ops = (list) => call('/ops', { ops: list });
+const TYPES = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif', '.mp4': 'video/mp4', '.mov': 'video/quicktime', '.webm': 'video/webm', '.pdf': 'application/pdf' };
+async function putFile(gp, file) {
+  const type = TYPES[path.extname(file).toLowerCase()];
+  if (!type) throw new Error(`${file} : type non pris en charge (${Object.keys(TYPES).join(' ')})`);
+  const res = await fetch(`${BASE}/file?gp=${encodeURIComponent(gp)}&f=${encodeURIComponent(path.basename(file))}`, {
+    method: 'PUT', headers: { 'X-Suivi-Key': KEY, 'Content-Type': type }, body: fs.readFileSync(file), signal: AbortSignal.timeout(300000),
+  });
+  const d = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(`${file} : ${d.error || `HTTP ${res.status}`}`);
+  return new URL(d.file.url, BASE).href;
+}
 const show = (d) => console.log(JSON.stringify(d, null, 2));
 
 const { pos, opt } = args(rest);
@@ -61,6 +76,17 @@ const run = {
     console.log('Ajouté au journal');
   },
   'posts-put': async () => { await ops([{ op: 'posts.put', name: pos[0], text: fs.readFileSync(pos[1], 'utf8') }]); console.log('Textes des posts enregistrés'); },
+  'media-put': async () => {
+    if (!KEY) await call('');
+    for (const f of pos.slice(1)) console.log(`${path.basename(f)} → ${await putFile(pos[0], f)}`);
+  },
+  'media-list': async () => {
+    const { posts } = await call('/posts');
+    const doc = posts.find((x) => x.name === pos[0]);
+    if (!doc) throw new Error(`Grand Prix introuvable : ${pos[0]} (noms : ${posts.map((x) => x.name).join(', ')})`);
+    for (const f of doc.files || []) console.log(`${f.name}\t${f.size}\t${new URL(`/studio/f/${f.key}/${encodeURIComponent(f.name)}`, BASE).href}`);
+  },
+  'net-add': async () => { await ops([{ op: 'net.add', table: pos[0], rows: JSON.parse(fs.readFileSync(pos[1], 'utf8')) }]); console.log('Lignes ajoutées'); },
   'guide-put': async () => { await ops([{ op: 'guide.put', name: pos[0], text: fs.readFileSync(pos[1], 'utf8') }]); console.log('Guide enregistré'); },
   ops: async () => show(await ops(JSON.parse(fs.readFileSync(pos[0], 'utf8')))),
 }[cmd];

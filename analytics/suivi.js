@@ -3,6 +3,7 @@
 // Claude avec la clé du suivi (créée dans le Studio, seule son empreinte est gardée ; variable PADDOCK_SUIVI_KEY,
 // scripts/suivi.mjs). Une modification = une liste d'opérations appliquées sur le serveur (ops).
 import { getRow, setRow } from './alerts.js';
+import { served } from './download.js';
 
 const json = (d, status = 200) => new Response(JSON.stringify(d), { status, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' } });
 export const PARTS = ['tasks', 'log', 'posts', 'net', 'guides'];
@@ -12,7 +13,14 @@ const NET_TABS = { app: 'Abonnés Paddock Live', benjy: 'Benjy Paddock', posts: 
 export const STATUSES = ['À faire', 'En attente', 'Fait', 'Lien'];
 const KEY_ROW = 'suivi:key';
 const MAX_BODY = 1_500_000;
-const POSTS_KEPT = 12;   // textes des posts : les 12 derniers Grands Prix
+const POSTS_KEPT = 12;   // textes des posts : les 12 derniers Grands Prix (leurs fichiers effacés avec eux)
+// Photos et vidéos des posts : stockage R2 du serveur, à une adresse publique impossible à deviner (comme un lien de
+// partage), effacées avec leur Grand Prix ; 90 Mo au plus par fichier (envoi au serveur limité à 100 Mo)
+const MAX_FILE = 90 * 1024 * 1024;
+const FILE_TYPES = /^(image\/(png|jpeg|webp|gif)|video\/(mp4|quicktime|webm)|application\/pdf)$/;
+const fileKey = (f) => `suivi/${f.key}/${f.name}`;
+export const fileUrl = (f) => `/studio/f/${f.key}/${encodeURIComponent(f.name)}`;
+const cleanName = (n) => String(n || '').split(/[\\/]/).pop().replace(/[^\p{L}\p{N}._ -]+/gu, '-').slice(0, 120);
 
 const hex = (buf) => [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
 const sha = async (s) => hex(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)));
@@ -35,7 +43,8 @@ const cleanTask = (t, old = {}) => {
   return out;
 };
 const cleanLog = (e) => ({ date: str(e.date, 20), domain: str(e.domain, 60), text: str(e.text, 4000), where: str(e.where, 400) });
-const cleanDoc = (d) => ({ id: str(d.id, 40) || id(), name: str(d.name, 200), text: str(d.text, 200000), at: Number(d.at) || Date.now() });
+const cleanFile = (f) => ({ key: /^[a-f0-9]{16}$/.test(f?.key) ? f.key : '', name: cleanName(f?.name), type: str(f?.type, 60), size: Number(f?.size) || 0, at: Number(f?.at) || 0 });
+const cleanDoc = (d) => ({ id: str(d.id, 40) || id(), name: str(d.name, 200), text: str(d.text, 200000), at: Number(d.at) || Date.now(), ...(Array.isArray(d.files) ? { files: d.files.map(cleanFile).filter((f) => f.key && f.name) } : {}) });
 const cleanTable = (rows) => (Array.isArray(rows) ? rows.slice(0, 2000).map((r) => (Array.isArray(r) ? r.slice(0, 30).map((c) => (typeof c === 'number' ? c : str(c, 2000))) : [])) : []);
 const cleanNet = (n) => Object.fromEntries(Object.keys(EMPTY.net).map((k) => [k, cleanTable(n?.[k])]));
 
@@ -49,8 +58,10 @@ function findTask(tasks, ref) {
 
 // Opérations : { op: 'task.add', task } · { op: 'task.set', id, ...champs } (status « Fait » : date du jour) ·
 // { op: 'task.del', id } · { op: 'log.add', entry } (en tête) · { op: 'posts.put', name, text } (même nom : remplacé) ·
-// { op: 'guide.put', name, text } · { op: 'guide.del', name } · { op: 'net.put', net } · { op: 'part.put', part, data }
-export function applyOps(parts, ops, now = Date.now()) {
+// { op: 'guide.put', name, text } · { op: 'guide.del', name } · { op: 'net.put', net } · { op: 'net.add', table, rows } ·
+// { op: 'file.del', name, file } (fichier d'un Grand Prix) · { op: 'part.put', part, data }
+// gone : fichiers retirés (effacés du stockage une fois les parties enregistrées)
+export function applyOps(parts, ops, now = Date.now(), gone = []) {
   const touched = new Set();
   for (const o of ops) {
     const need = (p) => { touched.add(p); return parts[p]; };
@@ -70,17 +81,29 @@ export function applyOps(parts, ops, now = Date.now()) {
       const d = cleanDoc({ ...o, at: now });
       if (!d.name) throw new Error('Nom manquant');
       const i = list.findIndex((x) => x.name === d.name);
-      if (i >= 0) list[i] = { ...d, id: list[i].id }; else list.push(d);
-      if (part === 'posts' && list.length > POSTS_KEPT) list.splice(0, list.length - POSTS_KEPT);
+      if (i >= 0) list[i] = { ...d, id: list[i].id, ...(list[i].files ? { files: list[i].files } : {}) }; else list.push(d);
+      if (part === 'posts' && list.length > POSTS_KEPT) gone.push(...list.splice(0, list.length - POSTS_KEPT).flatMap((x) => x.files || []));
+    } else if (o?.op === 'file.del') {
+      const doc = need('posts').find((x) => x.name === o.name);
+      const i = doc?.files?.findIndex((f) => f.name === o.file) ?? -1;
+      if (i < 0) throw new Error(`Fichier introuvable : ${o.file}`);
+      gone.push(...doc.files.splice(i, 1));
+    } else if (o?.op === 'net.add') {
+      if (!(o.table in EMPTY.net)) throw new Error('Table inconnue');
+      touched.add('net');
+      parts.net[o.table] = cleanTable([...(parts.net[o.table] || []), ...(Array.isArray(o.rows) ? o.rows : [])]);
     } else if (o?.op === 'guide.del') { const list = need('guides'); const i = list.findIndex((x) => x.name === o.name); if (i >= 0) list.splice(i, 1); }
     else if (o?.op === 'net.put') { touched.add('net'); parts.net = cleanNet(o.net); }
     else if (o?.op === 'part.put') {
       if (!PARTS.includes(o.part)) throw new Error('Partie inconnue');
       touched.add(o.part);
       const d = o.data;
+      const before = o.part === 'posts' ? parts.posts.flatMap((x) => x.files || []) : [];
       parts[o.part] = o.part === 'tasks' ? (Array.isArray(d) ? d.map((t) => cleanTask(t)) : [])
         : o.part === 'log' ? (Array.isArray(d) ? d.map(cleanLog) : [])
         : o.part === 'net' ? cleanNet(d) : (Array.isArray(d) ? d.map(cleanDoc) : []);
+      const kept = new Set(o.part === 'posts' ? parts.posts.flatMap((x) => (x.files || []).map(fileKey)) : []);
+      gone.push(...before.filter((f) => !kept.has(fileKey(f))));
     } else throw new Error(`Opération inconnue : ${o?.op}`);
   }
   return touched;
@@ -213,6 +236,8 @@ export async function suiviApi(env, req, sub, { studio = false, rows = async () 
     const out = Object.fromEntries(await Promise.all(PARTS.map(async (p) => [p, await readPart(env, p)])));
     return json({ ...out, keySet: !!(await getRow(env, KEY_ROW)) });
   }
+  // Photo ou vidéo d'un Grand Prix (gp : nom de ses textes des posts, créés vides s'il n'y en a pas) : même nom = remplacé
+  if (sub === 'file' && req.method === 'PUT') return putFile(env, req, now);
   if (req.method !== 'POST') return json({ error: 'Méthode non prise en charge' }, 405);
   const text = await req.text();
   if (text.length > MAX_BODY) return json({ error: 'Envoi trop gros' }, 413);
@@ -223,8 +248,10 @@ export async function suiviApi(env, req, sub, { studio = false, rows = async () 
     if (!Array.isArray(ops) || !ops.length || ops.length > 200) return json({ error: 'Liste d\'opérations attendue' }, 400);
     const parts = Object.fromEntries(await Promise.all(PARTS.map(async (p) => [p, await readPart(env, p)])));
     let touched;
-    try { touched = applyOps(parts, ops, now); } catch (err) { return json({ error: err.message }, 400); }
+    const gone = [];
+    try { touched = applyOps(parts, ops, now, gone); } catch (err) { return json({ error: err.message }, 400); }
     for (const p of touched) await writePart(env, p, parts[p]);
+    if (gone.length) await env.MEDIA?.delete(gone.map(fileKey)).catch(() => {});
     return json({ ok: true, ids: ops.map((o) => o.result).filter(Boolean), ...Object.fromEntries([...touched].map((p) => [p, parts[p]])) });
   }
   if (!studio) return json({ error: 'Réservé au Studio' }, 403);
@@ -242,4 +269,37 @@ export async function suiviApi(env, req, sub, { studio = false, rows = async () 
     return json({ ok: true, cells });
   }
   return json({ error: 'Introuvable' }, 404);
+}
+
+async function putFile(env, req, now) {
+  if (!env.MEDIA) return json({ error: 'Stockage des fichiers (R2) absent du serveur' }, 503);
+  const url = new URL(req.url);
+  const gp = str(url.searchParams.get('gp'), 200), name = cleanName(url.searchParams.get('f'));
+  const type = (req.headers.get('Content-Type') || '').split(';')[0].trim();
+  const size = Number(req.headers.get('Content-Length')) || 0;
+  if (!gp || !name) return json({ error: 'Grand Prix (gp) et nom du fichier (f) attendus' }, 400);
+  if (!FILE_TYPES.test(type)) return json({ error: 'Type de fichier refusé (images, vidéos MP4/MOV/WebM, PDF)' }, 415);
+  if (!size || size > MAX_FILE) return json({ error: 'Fichier vide ou trop gros (90 Mo au plus)' }, 413);
+  const f = { key: hex(crypto.getRandomValues(new Uint8Array(8))), name, type, size, at: now };
+  await env.MEDIA.put(fileKey(f), req.body, { httpMetadata: { contentType: type } });
+  const posts = await readPart(env, 'posts');
+  let doc = posts.find((x) => x.name === gp);
+  if (!doc) { doc = cleanDoc({ name: gp, text: '', at: now }); posts.push(doc); }
+  const old = (doc.files ||= []).findIndex((x) => x.name === name);
+  const gone = old >= 0 ? doc.files.splice(old, 1, f) : (doc.files.push(f), []);
+  if (posts.length > POSTS_KEPT) gone.push(...posts.splice(0, posts.length - POSTS_KEPT).flatMap((x) => x.files || []));
+  await writePart(env, 'posts', posts);
+  if (gone.length) await env.MEDIA.delete(gone.map(fileKey)).catch(() => {});
+  return json({ ok: true, file: { ...f, url: fileUrl(f) } });
+}
+
+// Fichier public : /studio/f/<clé>/<nom> (morceaux acceptés pour les vidéos)
+export async function suiviFile(req, env, rest) {
+  const m = /^([a-f0-9]{16})\/([^/]+)$/.exec(rest);
+  if (!m) return new Response('Introuvable', { status: 404 });
+  let name;
+  try { name = decodeURIComponent(m[2]); } catch { return new Response('Introuvable', { status: 404 }); }
+  const obj = await env.MEDIA?.get(`suivi/${m[1]}/${name}`, req.headers.has('Range') ? { range: req.headers } : {});
+  if (!obj?.body) return new Response('Introuvable', { status: 404 });
+  return served(req, obj, { 'Content-Type': obj.httpMetadata?.contentType || 'application/octet-stream', 'Cache-Control': 'public, max-age=86400', 'X-Robots-Tag': 'noindex' });
 }
