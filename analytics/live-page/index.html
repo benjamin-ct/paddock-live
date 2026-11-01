@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#0F172A">
+  <meta name="theme-color" content="#0C1326">
   <title>Paddock Live · Live timing F1 dans le navigateur</title>
   <meta name="description" content="Le direct de la F1 dans le navigateur, sans rien installer : classement, carte du circuit, télémétrie, direction de course et radios d'équipe traduites, calés sur ta TV.">
   <meta property="og:type" content="website">
@@ -18,13 +18,15 @@
   <link rel="apple-touch-icon" href="/live/apple-touch-icon.png">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <!-- Barre d'état de l'iPhone (page installée) transparente : la barre du haut (fond sombre, place prévue sous l'heure
+       et la batterie : env(safe-area-inset-top)) remonte derrière, même couleur que le haut de l'appli -->
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Paddock Live">
   <link rel="canonical" href="https://app.paddocklive.app/">
   <link rel="stylesheet" href="/live/css/style.css">
   <link rel="stylesheet" href="/live/css/broadcast.css">
   <link rel="stylesheet" href="/live/css/design-v2.css">
-  <script>/* Apparence (sombre / clair / système) et design posés avant l'affichage : pas d'éclair */ try { const p = JSON.parse(localStorage.getItem('paddock.prefs') || '{}'); const s = p.schemeSet || p.scheme === 'light' ? p.scheme : 'auto'; const light = s === 'light' || (s === 'auto' && matchMedia('(prefers-color-scheme: light)').matches); document.documentElement.dataset.scheme = light ? 'light' : 'dark'; document.documentElement.dataset.design = p.designV || p.design === 'classic' ? p.design || 'v2' : 'v2'; } catch { document.documentElement.dataset.scheme = 'dark'; document.documentElement.dataset.design = 'v2'; } document.documentElement.dataset.theme = 'pitwall'; document.documentElement.classList.add('web'); const only = /[?&]only=(map|analysis|duel)\b/.exec(location.search)?.[1]; if (only) document.documentElement.classList.add('only', `only-${only}`);</script>
+  <script>/* Apparence (sombre / clair / système) et design posés avant l'affichage : pas d'éclair */ try { const p = JSON.parse(localStorage.getItem('paddock.prefs') || '{}'); const s = p.schemeSet || p.scheme === 'light' ? p.scheme : 'auto'; const light = s === 'light' || (s === 'auto' && matchMedia('(prefers-color-scheme: light)').matches); document.documentElement.dataset.scheme = light ? 'light' : 'dark'; document.documentElement.dataset.design = p.designV || p.design === 'classic' ? p.design || 'v2' : 'v2'; if (light && document.documentElement.dataset.design !== 'v2') document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]').content = 'default'; } catch { document.documentElement.dataset.scheme = 'dark'; document.documentElement.dataset.design = 'v2'; } document.documentElement.dataset.theme = 'pitwall'; document.documentElement.classList.add('web'); const only = /[?&]only=(map|analysis|duel)\b/.exec(location.search)?.[1]; if (only) document.documentElement.classList.add('only', `only-${only}`);</script>
   <style>
     /* Version web : écran principal de l'appli, sans menu latéral ni outils. Classement à gauche, circuit au centre,
        télémétrie, radios et direction de course l'une sous l'autre à droite ; Analyse et Duel dans des fenêtres à part */
@@ -98,6 +100,10 @@
     /* iPhone (page installée) : barre du haut fixée en haut, fond plein jusque sous la barre d'état, comme l'en-tête
        du Studio. Sans élément fixé en haut, iOS floute le haut de la page (titre de la séance flou) */
     .web body { padding-top: 0; }
+    /* iPhone : zone de l'heure et de la batterie de la couleur de la barre du haut. L'iPhone la remplit avec le fond de
+       la page (fond de html, le body garde le sien) ou laisse voir la page dessous (bande fixée de la hauteur de la zone) */
+    html.web:is([data-design="v2"], [data-scheme="dark"]) { background-color: #0C1326; }
+    html.web:is([data-design="v2"], [data-scheme="dark"])::before { content: ''; position: fixed; top: 0; left: 0; right: 0; height: env(safe-area-inset-top); background: #0C1326; z-index: 801; pointer-events: none; }
     .web .topbar { position: sticky; top: 0; z-index: 800; padding-top: calc(8px + env(safe-area-inset-top)); background: linear-gradient(180deg, #0F172A, #0A1120); }
     .web .web-wait { padding: 8px 14px; background: var(--panel-2); border-bottom: 1px solid var(--border); color: var(--text); font-size: 13px; font-weight: 600; text-align: center; }
     /* Appairage d'un téléphone (version web avec compte F1 TV, sans extension) */

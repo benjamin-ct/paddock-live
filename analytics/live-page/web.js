@@ -25,8 +25,15 @@ import { parseSeasonPath } from '/shared/season-urls.js';
 import './ui/calendar-menu.js';   // « Ajouter à mon agenda » (Saison)
 import { initSelects } from './ui/select.js';
 import { changelogHtml } from './ui/changelog.js';
+import { prefs, setPref } from './prefs.js';
 
 translatePage();
+// Réglages gardés d'une ancienne visite : le classement passe au code du pilote seul, comme l'appli 1.30 (nom complet :
+// menu « Colonnes ») ; une fois seulement (layoutV, que l'appli tient dans ui/layout.js, pas chargé ici)
+if ((prefs.layoutV || 0) < 4) {
+  setPref('hiddenCols', [...new Set([...(prefs.hiddenCols || []), 'name'])]);
+  setPref('layoutV', 4);
+}
 initSelects();   // listes déroulantes aux couleurs de l'appli (sur ordinateur ; le téléphone garde la sienne)
 // Rien n'est traduit dans le navigateur (pas de moteur local) : documents FIA traduits par le serveur, relus plus tard
 store.isHost = false;
