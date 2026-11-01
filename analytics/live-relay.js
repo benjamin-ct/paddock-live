@@ -533,6 +533,9 @@ export class LiveRelay {
         this.outStream = [];
         this.status = { connected: true, error: this.gpsWhy, session: label(result.SessionInfo), authenticated, f1tv: !!this.token, elsewhere: !!this.elsewhere };
         this.hello();
+        // Aussi en message : une appli déjà sur cette séance (relais redémarré, nouvelle version du serveur) ne reprend
+        // pas l'état de base (server/live.js) et restait figée sur celui d'avant la coupure, sans ce qui s'est passé entre
+        this.add('__snapshot', snapshot, now);
       } else {
         this.add('__snapshot', snapshot, now);
         this.setStatus({ connected: true, error: this.gpsWhy, authenticated });

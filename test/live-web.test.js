@@ -28,7 +28,10 @@ test('relais web : état de la séance, messages groupés, messages anciens int�
   relay.onFrame(feed('CarData.z', 'xx'), t0 + 1100);
   relay.onFrame(feed('LapCount', { CurrentLap: 3 }), t0 + 2000);
   relay.flush();
-  assert.deepEqual(c.got.at(-1), { type: 'evs', events: [['LapCount', { CurrentLap: 2 }, t0 + 1000], ['LapCount', { CurrentLap: 3 }, t0 + 2000]], stream: [['Position', 'xx', t0], ['CarData', 'xx', t0 + 1100]] });
+  // L'état de départ part aussi en message (une appli déjà sur la séance s'y recale après un redémarrage du relais)
+  const [snap, ...evs] = c.got.at(-1).events;
+  assert.deepEqual([snap[0], snap[1].LapCount.CurrentLap, snap[2]], ['__snapshot', 1, t0 + 1]);
+  assert.deepEqual({ ...c.got.at(-1), events: evs }, { type: 'evs', events: [['LapCount', { CurrentLap: 2 }, t0 + 1000], ['LapCount', { CurrentLap: 3 }, t0 + 2000]], stream: [['Position', 'xx', t0], ['CarData', 'xx', t0 + 1100]] });
   assert.equal(relay.status.authenticated, true);
   assert.deepEqual(relay.streamBetween(t0 + 500, t0 + 2000), [['CarData', 'xx', t0 + 1100]]);
   relay.flush();
@@ -66,7 +69,7 @@ test('relais web : un navigateur arrivé entre deux envois groupés ne reçoit a
   relay.hello(c, 0);
   relay.flush();
   const [hello, evs] = c.got;
-  const got = [...hello.events, ...evs.events].map((e) => e[1].CurrentLap);
+  const got = [...hello.events, ...evs.events].filter((e) => e[0] === 'LapCount').map((e) => e[1].CurrentLap);
   assert.deepEqual(got, [2, 3]);   // chacun une fois
   assert.deepEqual([...hello.stream, ...evs.stream].filter((s) => s[0] === 'CarData').map((s) => s[1]), ['aa', 'bb']);
 });
