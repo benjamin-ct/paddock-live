@@ -117,9 +117,12 @@ function applyScheme() {
     emit('scheme', v);
     touch('DriverList');   // panneaux redessinés avec les couleurs de l'apparence (pneus, carte…)
   }
-  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', v === 'light' ? '#F4F5F7' : '#07080A');
-  // Appli installée sur iPhone : barre d'état claire ou noire (prise en compte au lancement suivant)
-  document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]')?.setAttribute('content', v === 'light' ? 'default' : 'black');
+  const webDark = document.documentElement.classList.contains('web') && (v === 'dark' || document.documentElement.dataset.design === 'v2');
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', webDark ? '#0C1326' : v === 'light' ? '#F4F5F7' : '#07080A');   // version web : couleur de la barre du haut
+  // Appli installée sur iPhone : barre d'état claire ou noire (prise en compte au lancement suivant). Version web à barre
+  // du haut sombre (Paddock 2, ou apparence sombre) : transparente, la barre du haut remonte derrière l'heure et la batterie
+  const bar = webDark ? 'black-translucent' : v === 'light' ? 'default' : 'black';
+  document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]')?.setAttribute('content', bar);
 }
 // Habillage : la feuille broadcast.css (posée par-dessus le thème Pitwall) est coupée en design classique
 function applyDesign() {

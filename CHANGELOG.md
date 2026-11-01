@@ -44,6 +44,8 @@ l'application (Réglages → À propos → Nouveautés).
   bagarres, championnat) et le Duel s'ouvrent dans leur propre fenêtre avec les boutons « Analyse » et « Duel » en haut ;
   le pilote suivi et le duel cliqués dans le classement s'y retrouvent. Sur téléphone, rien ne change. Sur un écran
   moins large, la barre du haut passe sur deux lignes au lieu de déborder.
+- Version web installée sur l'écran d'accueil de l'iPhone : la barre de l'heure et de la batterie prend la couleur du
+  haut de l'appli au lieu d'une bande noire.
 - Analyse : seulement les onglets utiles selon la séance. En course : Écarts et Arrêts (avec la stratégie) ; en qualifs
   et en essais : Secteurs et Comparaison. Les autres (Temps, Pneus, Jeux de pneus, simulateur d'arrêt, Bagarres,
   championnat) s'ajoutent en un clic.
