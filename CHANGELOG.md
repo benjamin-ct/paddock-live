@@ -183,6 +183,7 @@ l'application (Réglages → À propos → Nouveautés).
   (Mexico, Austin, Las Vegas, Bakou) et sable ou terre dans le désert (Bahreïn, Qatar, Abou Dabi, Djeddah), champs et
   terre mêlés loin de la piste, paddock goudronné autour du bâtiment des stands, et dégagements asphaltés et bacs à
   graviers à l'extérieur des virages quand la carte n'en a pas.
+- Plus de mur au milieu de la piste là où la carte du quartier en plaçait un (au Mexique, le long du stade).
 
 ### Téléphone
 - En course, le haut de l'écran tient sur deux lignes (le délai TV à côté du tour) : une ligne de classement en plus, et

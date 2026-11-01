@@ -619,7 +619,7 @@ function landGround(group, land, { track, P, SIDE, toW, fromW, base, maxTex, ani
   // épaisseur selon le genre
   const wallParts = [];
   WALL_KINDS.forEach(([hgt, thick, color, opacity], kind) => {
-    const segs = [];
+    let segs = [];
     for (const [k, ...flat] of land.walls || []) {
       if (k !== kind) continue;
       const pts = corners(flat), first = segs.length;
@@ -628,6 +628,8 @@ function landGround(group, land, { track, P, SIDE, toW, fromW, base, maxTex, ani
         for (let j = 0; j < n; j++) segs.push([[ax + ((bx - ax) * j) / n, az + ((bz - az) * j) / n], [ax + ((bx - ax) * (j + 1)) / n, az + ((bz - az) * (j + 1)) / n], first]);
       }
     }
+    // Jamais sur la piste (mur des stands ou barrière mal placés dans OSM, tracé GPS un peu décalé)
+    segs = segs.filter(([[ax, az], [bx, bz]]) => trackNear(P, (ax + bx) / 2, (az + bz) / 2)[0] > (W / 2 + 0.5) ** 2);
     if (!segs.length) return;
     const mesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0),
       opacity < 1 ? fenceMaterial(color) : new THREE.MeshStandardMaterial({ color, roughness: 0.8 }), segs.length);
