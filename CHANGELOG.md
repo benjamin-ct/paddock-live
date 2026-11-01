@@ -220,6 +220,9 @@ l'application (Réglages → À propos → Nouveautés).
 - Vue Embarquée plus vraie : rebords du cockpit et dessus du châssis à la couleur de l'écurie, rétroviseurs, la tête
   qui vibre avec la vitesse et penche dans les virages, champ de vision un peu plus large à pleine vitesse, et seules
   les étiquettes des voitures proches.
+- Survol plus doux : dans les virages serrés et les chicanes (le stade de Mexico, par exemple), la caméra ne saute plus
+  d'un côté à l'autre de la piste et ne pivote plus d'un coup ; elle suit une trajectoire lissée et regarde dans la
+  direction de la piste.
 
 ### Téléphone
 - En course, le haut de l'écran tient sur deux lignes (le délai TV à côté du tour) : une ligne de classement en plus, et

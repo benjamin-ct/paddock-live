@@ -2311,8 +2311,8 @@ function ghostCar(scene, geos, wheelGeo) {
 // Survol du circuit : la caméra fait le tour de la piste en 45 s, de l'extérieur et en hauteur, en regardant devant ;
 // légende : numéro du virage qui arrive. -> { on, start(now), stop(), step(now, dt, world, camPos, look) : faux à la fin }
 function flyover(cap) {
-  const DUR = 45000;
-  let t0 = -1, corners = null, cw = null;
+  const DUR = 45000, a = new THREE.Vector3(), b = new THREE.Vector3();
+  let t0 = -1, corners = null, cw = null, path = null;
   return {
     get on() { return t0 >= 0; },
     start(now) { t0 = now; },
@@ -2320,19 +2320,48 @@ function flyover(cap) {
     step(now, dt, world, camPos, look, first) {
       const u = (now - t0) / DUR;
       if (u >= 1) { this.stop(); return false; }
-      const { P, SIDE, N, DS, box } = world, i = Math.floor(u * N) % N, c = box.getCenter(new THREE.Vector3());
-      const out = SIDE[i].x * (P[i].x - c.x) + SIDE[i].z * (P[i].z - c.z) > 0 ? 1 : -1;
-      const want = P[i].clone().addScaledVector(SIDE[i], out * 70).add(new THREE.Vector3(0, 50, 0)), target = P[(i + Math.round(140 / DS)) % N];
+      // Trajet et virages préparés une fois par décor
+      if (cw !== world) {
+        cw = world;
+        path = flyPath(world);
+        corners = world.track.corners.map((v) => { const [x, z] = world.toW(v.x, v.y); return [nearestIndex(world, x, z, -1), v.number]; });
+      }
+      // Position entre deux points du trajet (pas de petits sauts d'un point à l'autre)
+      const { N, DS } = world, f = u * N, i = Math.floor(f) % N, j = (i + 1) % N, r = f - Math.floor(f);
       const k = first ? 1 : 1 - Math.exp(-dt * 2.5);
-      camPos.lerp(want, k);
-      look.lerp(target, k);
-      // Virages : indice sur le tracé (une fois par décor) ; légende du prochain dans les 250 m
-      if (cw !== world) { cw = world; corners = world.track.corners.map((v) => { const [x, z] = world.toW(v.x, v.y); return [nearestIndex(world, x, z, -1), v.number]; }); }
-      const next = corners.filter(([j]) => (j - i + N) % N < 250 / DS).sort((a, b) => ((a[0] - i + N) % N) - ((b[0] - i + N) % N))[0];
+      camPos.lerp(a.copy(path.cam[i]).lerp(path.cam[j], r), k);
+      look.lerp(b.copy(path.look[i]).lerp(path.look[j], r), k);
+      // Légende du prochain virage dans les 250 m
+      const next = corners.filter(([m]) => (m - i + N) % N < 250 / DS).sort((x, y) => ((x[0] - i + N) % N) - ((y[0] - i + N) % N))[0];
       cap.textContent = next ? t('Virage {}', next[1]) : '';
       cap.hidden = !next;
       return true;
     },
+  };
+}
+
+// Trajet du survol : à 70 m du côté extérieur du circuit et 50 m au-dessus, le regard 150 m devant. Décalage et regard
+// lissés sur environ 300 m : dans les virages serrés et les chicanes, la caméra ne bascule plus d'un côté à l'autre
+// de la piste ni ne tourne d'un coup, elle passe en douceur au-dessus.
+function flyPath({ P, SIDE, N, DS, box }) {
+  const c = box.getCenter(new THREE.Vector3()), ahead = Math.round(140 / DS), w = Math.max(2, Math.round(150 / DS));
+  const off = P.map((p, i) => SIDE[i].clone().multiplyScalar(SIDE[i].x * (p.x - c.x) + SIDE[i].z * (p.z - c.z) > 0 ? 70 : -70));
+  const dirs = P.map((p, i) => P[(i + ahead) % N].clone().sub(p).setY(0).normalize());
+  // Moyenne glissante sur le tour (circulaire), deux fois : courbe douce sans angle
+  const smooth = (v) => {
+    const out = [], s = new THREE.Vector3();
+    for (let k = -w; k <= w; k++) s.add(v[(k + N) % N]);
+    for (let i = 0; i < N; i++) {
+      out.push(s.clone().divideScalar(2 * w + 1));
+      s.add(v[(i + w + 1) % N]).sub(v[(i - w + N) % N]);
+    }
+    return out;
+  };
+  // Regard : 150 m devant dans la direction lissée de la piste (et non un point du tracé, qui dans une boucle serrée
+  // comme le stade de Mexico tombe juste à côté de la caméra et la fait pivoter d'un coup)
+  return {
+    cam: smooth(smooth(off)).map((o, i) => o.add(P[i]).setY(P[i].y + 50)),
+    look: smooth(smooth(dirs)).map((d, i) => P[i].clone().addScaledVector(d.normalize(), 150).setY(P[(i + ahead) % N].y)),
   };
 }
 
