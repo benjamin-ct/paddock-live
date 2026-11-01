@@ -242,7 +242,11 @@
 :root[data-design="v2"] .hm-trk polygon.run { stroke: #ff2a1f; stroke-width: 3; stroke-linecap: round; stroke-dasharray: 6 94; filter: drop-shadow(0 0 4px #ff2a1f) drop-shadow(0 0 10px rgba(255, 42, 31, .9)); animation: hm-trk 9s linear infinite; }
 @keyframes hm-trk { to { stroke-dashoffset: -100; } }
 @media (prefers-reduced-motion: reduce) { :root[data-design="v2"] .hm-trk polygon.run { animation: none; } }
-@media (max-width: 1250px) { :root[data-design="v2"] .hm-next .hm-trk { left: auto; right: -40px; opacity: .35; } }
+/* Écran moins large : tracé plus petit, toujours entre le compte à rebours et le programme (plus derrière les jours) ;
+   s'il n'y a plus la place, pas de tracé */
+:root[data-design="v2"] .hm-next { container-type: inline-size; }   /* d'après la largeur de la carte (fenêtre, barre latérale) */
+@container (max-width: 1180px) { :root[data-design="v2"] .hm-next .hm-trk { left: 43%; width: 190px; height: 190px; } }
+@container (max-width: 990px) { :root[data-design="v2"] .hm-next .hm-trk { display: none; } }
 :root[data-design="v2"] .hm-next .hm-title { font: italic 900 46px/1 var(--font-cond); letter-spacing: .01em; }
 :root[data-design="v2"] .hm-next .hm-title .cal-flag { width: 54px; height: auto; border-radius: 6px; box-shadow: 0 6px 20px rgba(0, 0, 0, .5); }
 :root[data-design="v2"] .hm-next .hm-title small { font: italic 800 22px var(--font-cond); color: #FF6B62; opacity: 1; letter-spacing: .04em; }
