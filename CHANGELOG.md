@@ -223,6 +223,9 @@ l'application (Réglages → À propos → Nouveautés).
 - Mini-carte 2D en bas à gauche de la vue 3D avec les caméras Hélico, Poursuite et Embarquée (et Réalisation) : le
   tracé du circuit vu de haut, comme la carte 2D, et toutes les voitures aux couleurs de leur écurie, le pilote suivi
   plus gros et cerclé de blanc. Elle se coupe dans Réglages de la vue 3D (Mini-carte 2D). Aussi dans la version web.
+- Survol plus doux : dans les virages serrés et les chicanes (le stade de Mexico, par exemple), la caméra ne saute plus
+  d'un côté à l'autre de la piste et ne pivote plus d'un coup ; elle suit une trajectoire lissée et regarde dans la
+  direction de la piste.
 
 ### Téléphone
 - En course, le haut de l'écran tient sur deux lignes (le délai TV à côté du tour) : une ligne de classement en plus, et
