@@ -2871,5 +2871,5 @@ export default {
   "Options des radios": "Opciones de las radios",
   "Écart tour par tour": "Diferencia vuelta a vuelta",
   "Nouvel écran : Classement, Circuit, Télémétrie, Radios traduites et Direction de course. Analyse et Duel s'ouvrent dans une fenêtre (menu Fenêtres ou bouton + d'un panneau). L'ancienne disposition : Réglages → Disposition → Fenêtres (« {} »)": "Nueva pantalla: Clasificación, Circuito, Telemetría, Radios traducidas y Dirección de carrera. Análisis y Duelo se abren en una ventana (menú Ventanas o botón + de un panel). Tu disposición anterior: Ajustes → Disposición → Ventanas («{}»)",
-  "Le Circuit revient dans l'écran principal, au centre": "El Circuito vuelve a la pantalla principal, en el centro",
+  "Le Circuit revient dans l'écran principal, au centre ; le classement n'affiche plus que le code des pilotes (nom complet : menu Colonnes)": "El Circuito vuelve a la pantalla principal, en el centro; la clasificación solo muestra el código de los pilotos (nombre completo: menú Columnas)",
 };

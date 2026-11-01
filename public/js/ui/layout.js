@@ -82,7 +82,7 @@ const TAB_DEFAULTS = {
   race: { feed: 'rcm', analysis: 'trace' },
   quali: { feed: 'rcm', analysis: 'compare' },
 };
-const profileDefaults = (prof = profile) => ({ hiddenPanels: [...PANELS_HIDDEN], hiddenCols: [], hiddenTabs: [...TAB_HIDDEN[prof]] });
+const profileDefaults = (prof = profile) => ({ hiddenPanels: [...PANELS_HIDDEN], hiddenCols: ['name'], hiddenTabs: [...TAB_HIDDEN[prof]] });
 const profileFor = (mode, kind) => (mode === 'race' || mode === 'quali' ? mode : kind === 'race' ? 'race' : 'quali');
 let profile = prefs.layoutMode === 'race' || prefs.layoutMode === 'quali' ? prefs.layoutMode : storageGet('paddock.lastProfile', 'race');
 if (!PROFILES[profile]) profile = 'race';
@@ -1046,7 +1046,7 @@ function switchProfile(next, quiet = false) {
     profile = next;
     storageSet('paddock.lastProfile', next);
     setPref('hiddenPanels', n.hiddenPanels || []);
-    setPref('hiddenCols', n.hiddenCols || []);
+    setPref('hiddenCols', n.hiddenCols || ['name']);
     setPref('extraCols', n.extraCols || []);
     setPref('hiddenTabs', n.hiddenTabs || TAB_HIDDEN[next]);
   } else profile = next;
@@ -1109,9 +1109,10 @@ function migrateLayout() {
     storageSet(LAYOUTS_KEY, Object.fromEntries(Object.entries(allLayouts()).filter(([k]) => !k.startsWith('main'))));
     storageSet(PROFILE_KEY, {});
     setPref('hiddenPanels', (prefs.hiddenPanels || []).filter((id) => id !== 'map'));
+    setPref('hiddenCols', [...new Set([...(prefs.hiddenCols || []), 'name'])]);   // classement : code du pilote seul
     setPref('layoutV', 4);
     layout = normalize(defaultLayout());
-    setTimeout(() => toast('Le Circuit revient dans l\'écran principal, au centre', 6000, 'map'), 1500);
+    setTimeout(() => toast('Le Circuit revient dans l\'écran principal, au centre ; le classement n\'affiche plus que le code des pilotes (nom complet : menu Colonnes)', 8000, 'map'), 1500);
     return;
   }
   const name = prefs.layoutV === 2 ? t('Ma disposition 4 panneaux') : t('Ma disposition d\'avant');
@@ -1124,6 +1125,7 @@ function migrateLayout() {
   const def = profileDefaults();
   setPref('hiddenPanels', def.hiddenPanels);
   setPref('hiddenTabs', def.hiddenTabs);
+  setPref('hiddenCols', [...new Set([...(prefs.hiddenCols || []), 'name'])]);   // classement : code du pilote seul
   setPref('tabLayout', null);
   setPref('radioText', true);
   setPref('layoutV', 4);
