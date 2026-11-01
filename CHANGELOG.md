@@ -266,6 +266,12 @@ l'application (Réglages → À propos → Nouveautés).
   « Course 12 min », « LIVE » pendant la séance) et dans l'info-bulle de l'icône de la zone de notification sur Windows
   et Linux. Un clic sur l'icône propose d'ouvrir Paddock Live et montre le jour et l'heure de la prochaine séance.
   Se coupe dans Réglages → Application ou avec « Masquer le compte à rebours » dans le menu de l'icône.
+- Une disposition enregistrée peut être liée à un type de séance (choix « Qualifs », « Course » ou « Essais » à côté de
+  son nom) : au début de chaque séance de ce type, en direct comme en replay, elle est remise toute seule, une seule
+  fois (vos changements pendant la séance sont gardés), avec un petit message. Une seule disposition par type de
+  séance ; les qualifs comprennent la qualif sprint et la course le sprint.
+- Raccourcis clavier : Maj+1 à Maj+9 remettent la disposition enregistrée n° 1 à 9, et D ferme le duel affiché en bas
+  du classement (rappel dans Réglages → Disposition → Fenêtres).
 
 ### Animations
 - Plus de mouvement dans l'appli et la version web : les courbes de la Saison se tracent et les barres se remplissent à
