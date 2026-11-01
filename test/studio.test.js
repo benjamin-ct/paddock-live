@@ -1109,6 +1109,40 @@ test('onglet Suivi sans Google : tâches, journal et posts gardés par le serveu
   assert.equal((await call('suivi', {}, sess)).status, 401);
 });
 
+test('onglet Suivi : photos et vidéos des posts gardées par le serveur, adresse publique, effacées avec leur Grand Prix', async () => {
+  const { suiviFile } = await import('../analytics/suivi.js');
+  const skey = { 'X-Studio-Key': studioKey(CODE) };
+  const call = (p, init = {}, headers = skey) => worker(`https://s.test/studio/api/${p}`, { ...init, headers: { ...headers, ...(init.headers || {}) } });
+  const put = (gp, f, body, type = 'image/png') => call(`suivi/file?gp=${encodeURIComponent(gp)}&f=${encodeURIComponent(f)}`, { method: 'PUT', body, headers: { 'Content-Type': type, 'Content-Length': String(body.length) } });
+  const gp = 'Week-end de Mexico · textes des posts';
+  assert.equal((await put(gp, 'a.exe', new Uint8Array(10), 'application/x-msdownload')).status, 415);
+  let r = await put(gp, 'mx-1.png', new Uint8Array([1, 2, 3]));
+  assert.equal(r.status, 200);
+  const f = (await r.json()).file;
+  assert.match(f.url, /^\/studio\/f\/[a-f0-9]{16}\/mx-1\.png$/);
+  // Adresse publique (sans clé), morceaux acceptés
+  const got = await suiviFile(new Request(`https://s.test${f.url}`), env, f.url.slice(10));
+  assert.equal(got.status, 200);
+  assert.deepEqual([...new Uint8Array(await got.arrayBuffer())], [1, 2, 3]);
+  assert.equal((await suiviFile(new Request('https://s.test/x'), env, 'zzzz/mx-1.png')).status, 404);
+  // Même nom : remplacé (l'ancien fichier effacé) ; textes des posts envoyés ensuite : fichiers gardés
+  await put(gp, 'mx-1.png', new Uint8Array([9]));
+  assert.equal(env.MEDIA.objs.has(`suivi/${f.key}/mx-1.png`), false);
+  await call('suivi/ops', { method: 'POST', body: JSON.stringify({ ops: [{ op: 'posts.put', name: gp, text: '1. LUNDI · TEST' }] }) });
+  let doc = (await (await call('suivi/posts')).json()).posts.find((x) => x.name === gp);
+  assert.equal(doc.files.length, 1);
+  assert.equal(doc.text, '1. LUNDI · TEST');
+  // Fichier retiré : effacé du stockage
+  const key = doc.files[0].key;
+  await call('suivi/ops', { method: 'POST', body: JSON.stringify({ ops: [{ op: 'file.del', name: gp, file: 'mx-1.png' }] }) });
+  doc = (await (await call('suivi/posts')).json()).posts.find((x) => x.name === gp);
+  assert.equal(doc.files.length, 0);
+  assert.equal(env.MEDIA.objs.has(`suivi/${key}/mx-1.png`), false);
+  // Lignes ajoutées à une table des réseaux
+  await call('suivi/ops', { method: 'POST', body: JSON.stringify({ ops: [{ op: 'net.add', table: 'posts', rows: [['08/11/2026', '12:00', 'Instagram', 'Test']] }] }) });
+  assert.equal((await (await call('suivi/net')).json()).net.posts.at(-1)[3], 'Test');
+});
+
 test('onglet Suivi : feuille « Suivi réseaux » remplie avec les chiffres du Studio', async () => {
   const { sheetUpdates, mondayParis } = await import('../analytics/suivi.js');
   const now = Date.UTC(2026, 9, 26, 8);   // lundi 26 octobre, 9 h à Paris

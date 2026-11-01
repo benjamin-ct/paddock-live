@@ -15,6 +15,7 @@
 import { cleanBatch } from '../shared/stats.js';
 import { summary } from './usage.js';
 import { studioApi, runSchedule, schedInternal, schedVideo, seasonRow, fails, failed, MAX_FAILS } from './studio.js';
+import { suiviFile } from './suivi.js';
 import { loginPage, dashboardPage } from './page.js';
 import { cleanRequest, translateBatch } from './translate.js';
 import { cleanSummaryRequest, summarizeArticle } from './summarize.js';
@@ -348,6 +349,8 @@ export default {
       try { return await publicPushApi(req, env, url.pathname.slice(3)); } catch { return json({ error: 'Erreur' }, 500); }
     }
     if (['GET', 'HEAD'].includes(req.method) && url.pathname.startsWith('/studio/v/')) return schedVideo(req, env, url.pathname.slice(10));
+    // Photos et vidéos des posts du suivi (onglet Suivi du Studio)
+    if (['GET', 'HEAD'].includes(req.method) && url.pathname.startsWith('/studio/f/')) return suiviFile(req, env, url.pathname.slice(10));
     if (url.pathname.startsWith('/studio/api/')) {
       try { return await studioApi(req, env, url); } catch { return json({ error: 'Erreur' }, 500); }
     }
