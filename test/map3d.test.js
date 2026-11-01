@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { QUALITY, nearFirst, autoQuality, frameCap, weatherState, compoundOf, accentColor, drsOpen, seconds, pickBattle, bestLap, sessionBest, lapTrace, traceAt, wallCuts, pitRoute, steering, wheelSpin, kerbMask, barrierOffsets, standSpots } from '../public/js/ui/map3d-calc.js';
+import { QUALITY, nearFirst, autoQuality, frameCap, weatherState, compoundOf, accentColor, drsOpen, seconds, pickBattle, bestLap, sessionBest, lapTrace, traceAt, wallCuts, pitRoute, steering, wheelSpin, kerbMask, barrierOffsets, standSpots, runoffPlan, groundClimate, GROUND } from '../public/js/ui/map3d-calc.js';
 
 // Images à cadence fixe (fps) pendant ms, à partir de t ; -> [instant de fin, niveaux choisis en route]
 function run(auto, t, ms, fps, cap = Infinity) {
@@ -330,13 +330,13 @@ test('murs : des deux côtés des lignes droites, à l\'extérieur des virages e
   assert.deepEqual(off[300], [15, 15], 'ligne droite : les deux côtés');
   // Virage vers la droite (côté SIDE) : mur à gauche, au loin ; rien à droite
   assert.equal(off[120][1], null);
-  assert.equal(off[120][0], 26);
+  assert.equal(off[120][0], 30);
   // Écart adouci : pas plus de 1,5 m d'un point à l'autre
   for (let i = 1; i < 400; i++) if (off[i][0] !== null && off[i - 1][0] !== null) assert.ok(Math.abs(off[i][0] - off[i - 1][0]) <= 1.5, `marche au point ${i}`);
   // Virage à gauche : l'inverse
   const left = barrierOffsets(bend(400, [[100, 140, -1 / 50]]), 2.5);
   assert.equal(left[120][0], null);
-  assert.equal(left[120][1], 26);
+  assert.equal(left[120][1], 30);
 });
 
 test('tribunes : ligne droite de la ligne d\'arrivée, puis à l\'extérieur des plus grands virages, espacées', () => {
@@ -355,4 +355,31 @@ test('tribunes : ligne droite de la ligne d\'arrivée, puis à l\'extérieur des
   assert.ok(big.from < 350 && big.to > 340);
   // Tracé sans ligne droite autour de la ligne : seulement les virages
   assert.ok(standSpots(bend(480, [[0, 480, 1 / 100]]), 2.5, 20).every((s) => s.side !== 0));
+});
+
+test('dégagements : à l\'extérieur des virages et en sortie, graviers dans les virages lents', () => {
+  // Virage rapide vers la droite (rayon 100 m, points 100 à 120), épingle vers la gauche (rayon 20 m, points 250 à 262)
+  const plan = runoffPlan(bend(400, [[100, 120, 1 / 100], [250, 262, -1 / 20], [330, 332, 1 / 20]]), 2.5);
+  assert.deepEqual(plan[110], [1, 0], 'virage rapide à droite : asphalte à gauche');
+  assert.deepEqual(plan[92], [1, 0], '20 m avant');
+  assert.deepEqual(plan[138], [1, 0], 'en sortie (50 m après)');
+  assert.deepEqual(plan[145], [0, 0]);
+  assert.deepEqual(plan[255], [0, 2], 'épingle à gauche : asphalte et graviers à droite');
+  assert.deepEqual(plan[200], [0, 0], 'ligne droite : rien');
+  assert.deepEqual(plan[331], [0, 0], 'bruit de 5 m : rien');
+});
+
+test('sol : sable dans le désert, herbe jaunie au sec, verte ailleurs', () => {
+  assert.equal(groundClimate(63), 'desert', 'Bahreïn');
+  assert.equal(groundClimate('150'), 'desert', 'Qatar');
+  assert.equal(groundClimate(70), 'desert', 'Abou Dabi');
+  assert.equal(groundClimate(149), 'desert', 'Djeddah');
+  for (const k of [65, 9, 152]) assert.equal(groundClimate(k), 'sec', `circuit ${k}`);
+  assert.equal(groundClimate(2), 'vert', 'Silverstone');
+  assert.equal(groundClimate(undefined), 'vert', 'circuit inconnu');
+  for (const pal of Object.values(GROUND)) {
+    for (const k of ['field', 'mid', 'near', 'verge', 'grass']) assert.match(pal[k], /^#[0-9a-f]{6}$/);
+    assert.ok(pal.patches.length >= 4);
+  }
+  assert.equal(GROUND.vert.field, '#4f7f36', 'vert : la couleur d\'avant');
 });

@@ -287,9 +287,10 @@ export function kerbMask(turn, ds, { min = 1 / 150, pad = 8, minLen = 12 } = {})
 }
 
 // Murs (avec grillage) : des deux côtés le long des lignes droites, à near m du milieu de la piste ; dans les virages
-// (courbure moyenne sur ± 10 m de plus de corner), seulement à l'extérieur et plus loin (far m : dégagement) ; écart
+// (courbure moyenne sur ± 10 m de plus de corner), seulement à l'extérieur et plus loin (far m : derrière le dégagement
+// de runoffPlan) ; écart
 // adouci sur ± ease m (pas de marche). -> [[gauche, droite]…] : écart de chaque côté (m, droite : côté SIDE), null : pas de mur
-export function barrierOffsets(turn, ds, { near = 15, far = 26, corner = 1 / 250, ease = 30 } = {}) {
+export function barrierOffsets(turn, ds, { near = 15, far = 30, corner = 1 / 250, ease = 30 } = {}) {
   const n = turn.length, r = Math.max(1, Math.round(ease / ds)), m = Math.max(1, Math.round(10 / ds));
   const avg = (get, i, k) => { let s = 0, c = 0; for (let j = -k; j <= k; j++) { const v = get(wrap(n, i + j)); if (v !== null) { s += v; c++; } } return c ? s / c : null; };
   const smooth = turn.map((_, i) => avg((j) => turn[j], i, m));
@@ -321,3 +322,32 @@ export function standSpots(turn, ds, start, { straight = 1 / 300, main = 220, le
   }
   return out;
 }
+
+// Dégagements déduits des virages, quand les alentours n'en ont pas : à l'extérieur de chaque virage (courbure de plus
+// de min sur au moins minLen m), de before m avant à after m après (sortie) ; virage lent (rayon de moins de slow m) :
+// un peu d'asphalte puis des graviers, sinon asphalte seul. -> [[gauche, droite]…] : 0 rien, 1 asphalte, 2 asphalte et
+// graviers (droite : côté SIDE)
+export function runoffPlan(turn, ds, { min = 1 / 150, minLen = 10, before = 20, after = 50, slow = 70 } = {}) {
+  const n = turn.length, out = turn.map(() => [0, 0]);
+  for (const [s, l] of runs(turn.map((k) => Math.abs(k) > min))) {
+    if (l * ds < minLen) continue;
+    let sum = 0, peak = 0;
+    for (let k = 0; k < l; k++) { const v = turn[(s + k) % n]; sum += v; peak = Math.max(peak, Math.abs(v)); }
+    const o = sum > 0 ? 0 : 1, kind = peak > 1 / slow ? 2 : 1;   // virage vers la droite : extérieur à gauche
+    for (let k = -Math.round(before / ds); k < l + Math.round(after / ds); k++) { const c = out[wrap(n, s + k)]; c[o] = Math.max(c[o], kind); }
+  }
+  return out;
+}
+
+// ---------- Sol selon le climat ----------
+// Climat du circuit (clé du tracé, celle de CIRCUITS) : 'desert' (sable et terre), 'sec' (herbe jaunie), sinon 'vert'
+const CLIMATE = { 63: 'desert', 150: 'desert', 70: 'desert', 149: 'desert', 65: 'sec', 9: 'sec', 152: 'sec', 144: 'sec' };
+export const groundClimate = (key) => CLIMATE[Number(key)] || 'vert';
+// Couleurs du sol de chaque climat : field (loin de la piste et plaine), mid (alentours de la piste), near (près de la
+// piste), verge (bas-côtés), grass (pelouses d'OSM), patches (taches mêlées : herbe plus claire ou plus sombre, terre,
+// champs) ; 'vert' : les couleurs d'avant
+export const GROUND = {
+  vert: { field: '#4f7f36', mid: '#5f8f3a', near: '#7aa04a', verge: '#6f9845', grass: '#6c9c42', patches: ['#5d8f3c', '#436f2d', '#6f9446', '#8c8a56', '#7b6b4a', '#a4ad5e'] },
+  sec: { field: '#86864c', mid: '#8f9152', near: '#97a05a', verge: '#8a9850', grass: '#95a058', patches: ['#a59b60', '#77783f', '#b2a16b', '#8d7e50', '#9f8a5c', '#6c793f'] },
+  desert: { field: '#c2aa7f', mid: '#c6af86', near: '#b3a479', verge: '#9c9c66', grass: '#8a9a55', patches: ['#d3be93', '#b59a6f', '#a68a61', '#cbb489', '#9a8865', '#bea67b'] },
+};

@@ -12,7 +12,7 @@ import { drivers, orderedNumbers, storageGet, storageSet, esc, api, COMPOUNDS } 
 import { t, DEC } from '../i18n.js';
 import { gridSlot, gridIndex, gridWeight } from '../grid.js';
 import { FONT, drawPuck, drawBadge, drawSectorBadge, drawCornerChip, drawFlagBadge, drawScBadge } from './map-draw.js';
-import { QUALITY, nearFirst, autoQuality, frameCap, weatherState, compoundOf, accentColor, drsOpen, seconds, pickBattle, bestLap, sessionBest, lapTrace, traceAt, wallCuts, pitRoute, steering, wheelSpin, kerbMask, barrierOffsets, standSpots } from './map3d-calc.js';
+import { QUALITY, nearFirst, autoQuality, frameCap, weatherState, compoundOf, accentColor, drsOpen, seconds, pickBattle, bestLap, sessionBest, lapTrace, traceAt, wallCuts, pitRoute, steering, wheelSpin, kerbMask, barrierOffsets, standSpots, runoffPlan, groundClimate, GROUND } from './map3d-calc.js';
 
 const W = 14;           // largeur de la piste (m)
 const MAX_CARS = 30;
@@ -105,10 +105,24 @@ function buildWorld(track, elevation, surroundings, gpu) {
     k.receiveShadow = true;
     group.add(k);
   }
+  // Dégagements asphaltés et graviers déduits des virages (runoffPlan), quand les alentours n'en ont pas : bandes juste
+  // au-dessus du sol (qui est 35 cm sous la piste près du tracé), après le vibreur
+  if (!(land?.areas?.runoff?.length || land?.areas?.gravel?.length)) {
+    const plan = runoffPlan(TURN, DS), e = W / 2 + 1.25;
+    const asphalt = new THREE.MeshStandardMaterial({ color: 0x7c7f84, roughness: 0.95, side: THREE.DoubleSide });
+    const gravel = new THREE.MeshStandardMaterial({ color: 0xd6c59b, roughness: 1, side: THREE.DoubleSide });
+    for (const [o, side] of [[0, -1], [1, 1]]) {
+      for (const [mat, kind, a, b] of [[asphalt, 1, 0, 20], [asphalt, 2, 0, 5], [gravel, 2, 5, 20]]) {
+        const m = new THREE.Mesh(ribbon({ test: (i) => plan[i][o] === kind, profile: [[side * (e + a), -0.25], [side * (e + b), -0.25]] }), mat);
+        m.receiveShadow = true;
+        group.add(m);
+      }
+    }
+  }
 
   const fromW = (x, zz) => { const X = x + cx, Z = zz + cz; return [X * cos - Z * sin, -X * sin - Z * cos]; };   // -> repère du tracé (m)
   const box = new THREE.Box3().setFromPoints(P);
-  const { groundAt, detailAt = () => {}, setQuality: landQuality = () => {}, cutWalls: landCut = () => {}, osm = {} } = land ? landGround(group, land, { track, P, SIDE, toW, fromW, base: zMin + off, ...gpu }) : { groundAt: flatGround(group, P, box, z) };
+  const { groundAt, detailAt = () => {}, setQuality: landQuality = () => {}, cutWalls: landCut = () => {}, osm = {} } = land ? landGround(group, land, { track, P, SIDE, toW, fromW, base: zMin + off, ...gpu }) : { groundAt: flatGround(group, P, box, z, gpu.pal) };
 
   const world = { track, elevation, surroundings, land: !!land, source: gps ? 'gps' : land ? 'terrain' : null,
     relief: z ? (Math.max(...z) - zMin) / 10 : null, P, T, SIDE, TURN, N, DS, box, group, groundAt, detailAt, toW, fromW, ribbon, road, lineMat, side: null };
@@ -224,7 +238,7 @@ function startGrid(world, i, cars) {
 
 // Sol sans alentours : altitude des points du tracé les plus proches, adoucie au loin (pondération inverse), plaine
 // jusqu'à l'horizon ; -> altitude du sol en (x, z)
-function flatGround(group, P, box, z) {
+function flatGround(group, P, box, z, pal = GROUND.vert) {
   const MARGIN = 450, G = 160;
   const gx0 = box.min.x - MARGIN, gz0 = box.min.z - MARGIN;
   const gw = box.max.x - box.min.x + 2 * MARGIN, gd = box.max.z - box.min.z + 2 * MARGIN;
@@ -252,12 +266,19 @@ function flatGround(group, P, box, z) {
   terrainGeo.translate(gx0 + gw / 2, 0, gz0 + gd / 2);
   {
     const pos = terrainGeo.attributes.position, col = [];
-    const grass = new THREE.Color(0x5f8f3a), far = new THREE.Color(0x4a7a33), verge = new THREE.Color(0x7aa04a), tmp = new THREE.Color();
+    const grass = new THREE.Color(pal.mid), far = new THREE.Color(pal.field), verge = new THREE.Color(pal.near), tmp = new THREE.Color();
+    const patches = pal.patches.map((c) => new THREE.Color(c));
+    // Bruit doux (cases de s m, interpolées) : teinte de l'herbe, et loin de la piste, champs et terre mêlés
+    const noise = (x, zz, s, seed) => {
+      const fx = x / s, fz = zz / s, ix = Math.floor(fx), iz = Math.floor(fz), u = fx - ix, v = fz - iz, h = (a, b) => hash(a * 7919 + b * 104729 + seed);
+      return (h(ix, iz) * (1 - u) + h(ix + 1, iz) * u) * (1 - v) + (h(ix, iz + 1) * (1 - u) + h(ix + 1, iz + 1) * u) * v;
+    };
     for (let i = 0; i < pos.count; i++) {
-      const c = Math.round(((pos.getX(i) - gx0) / gw) * G), r = Math.round(((pos.getZ(i) - gz0) / gd) * G), k = r * (G + 1) + c;
+      const c = Math.round(((pos.getX(i) - gx0) / gw) * G), r = Math.round(((pos.getZ(i) - gz0) / gd) * G), k = r * (G + 1) + c, x = pos.getX(i), zz = pos.getZ(i);
       pos.setY(i, H[k]);
       tmp.copy(far).lerp(grass, 1 - smooth(60, 260, DMIN[k])).lerp(verge, 1 - smooth(W / 2 + 2, W / 2 + 30, DMIN[k]));
-      tmp.offsetHSL(0, 0, (((i * 2654435761) >>> 0) / 4294967296 - 0.5) * 0.04);
+      tmp.lerp(patches[Math.floor(hash(Math.floor(x / 170) * 7919 + Math.floor(zz / 170) * 104729) * patches.length)], 0.7 * smooth(250, 450, DMIN[k]) * smooth(0.35, 0.6, noise(x, zz, 170, 5)));
+      tmp.offsetHSL(0, 0, (noise(x, zz, 45, 1) - 0.5) * 0.08 + (((i * 2654435761) >>> 0) / 4294967296 - 0.5) * 0.03);
       col.push(tmp.r, tmp.g, tmp.b);
     }
     terrainGeo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
@@ -267,7 +288,7 @@ function flatGround(group, P, box, z) {
   terrain.receiveShadow = true;
   group.add(terrain);
   // Au-delà : plaine jusqu'à l'horizon (le bord du sol ne se voit pas)
-  const plain = new THREE.Mesh(new THREE.PlaneGeometry(40000, 40000), new THREE.MeshStandardMaterial({ color: 0x4a7a33, roughness: 1 }));
+  const plain = new THREE.Mesh(new THREE.PlaneGeometry(40000, 40000), new THREE.MeshStandardMaterial({ color: pal.field, roughness: 1 }));
   plain.rotation.x = -Math.PI / 2;
   plain.position.y = Math.min(...H) - 0.6;
   group.add(plain);
@@ -281,14 +302,14 @@ function flatGround(group, P, box, z) {
 // ---------- Alentours (serveur : relief du terrain et OpenStreetMap, en mètres dans le repère du tracé) ----------
 const LAND = { farm: '#a4ad5e', urban: '#a6a398', grass: '#6c9c42', wood: '#3e6a2b', sand: '#dacb9c', parking: '#8f9295', water: '#3f78b5' };
 const LINES = { water: '#3f78b5', road: '#6e7175', raceway: '#3a3d42' };
-const FIELD = '#4f7f36';   // herbe loin de la piste (et plaine jusqu'à l'horizon)
 const hash = (i) => ((i * 2654435761) >>> 0) / 4294967296;
 
 // Sol des alentours : grille du relief (raccordée à la piste près du tracé), couleurs selon l'usage du sol (texture
 // dessinée ici), bâtiments et tribunes extrudés, arbres, plans d'eau, bord prolongé jusqu'à l'horizon. base : altitude
-// (1/10 m) du bas de la scène ; maxTex, aniso : taille de texture et anisotropie de la carte graphique ;
+// (1/10 m) du bas de la scène ; maxTex, aniso : taille de texture et anisotropie de la carte graphique ; pal : couleurs
+// du sol selon le climat (GROUND) ;
 // -> { groundAt : altitude du sol en (x, z), detailAt(x, z) : sol plus détaillé autour de ce point }
-function landGround(group, land, { track, P, SIDE, toW, fromW, base, maxTex, aniso }) {
+function landGround(group, land, { track, P, SIDE, toW, fromW, base, maxTex, aniso, pal = GROUND.vert }) {
   const { x0, y0, step, cols, rows, h } = land.terrain;
   const W2 = (x, y) => toW(x * 10, y * 10);   // repère du tracé (m) -> scène
   const sea = -base / 10;                     // niveau de la mer dans la scène
@@ -343,9 +364,30 @@ function landGround(group, land, { track, P, SIDE, toW, fromW, base, maxTex, ani
     geo.computeVertexNormals();
   }
 
-  // Couleurs du sol : herbe (plus claire près de la piste), mer, surfaces, routes et cours d'eau, pied des bâtiments,
-  // dessinées sur cv pour la zone qui commence en (ox, oy) (repère du tracé, m), à k px par mètre
+  // Taches du sol (repère du tracé, m), sous les surfaces d'OSM : partout, des taches d'herbe plus claire ou plus sombre
+  // (petites près de la piste : en Économe, seulement les grandes) ; à plus de 350 m de la piste, des champs et de la
+  // terre (rectangles en biais)
   const trackFlat = track.pts.flatMap((p) => [p.x / 10, p.y / 10]);
+  const zw = (cols - 1) * step, zh = (rows - 1) * step, soil = [];
+  const spot = (j, r, field) => {
+    const x = x0 + hash(j * 3 + 1) * zw, y = y0 + hash(j * 3 + 2) * zh, d = Math.sqrt(trackNear(P, ...W2(x, y))[0]);
+    if (field ? d < 350 + r : d < W / 2 + 4) return;
+    soil.push({ x, y, r, rot: hash(j * 7 + 5) * Math.PI, col: pal.patches[Math.floor(hash(j * 11 + 3) * pal.patches.length)], a: field ? 0.5 + 0.3 * hash(j * 13) : 0.2 + 0.2 * hash(j * 13), field });
+  };
+  for (let j = 0, n = Math.min(900, (zw * zh) / 18000); j < n; j++) spot(j, 20 + 70 * hash(j * 5 + 9), false);
+  for (let j = 0, n = Math.min(400, (zw * zh) / 50000); j < n; j++) spot(9000 + j, 60 + 120 * hash(j * 5 + 4), true);
+  for (let j = 0, n = Math.min(1500, P.length); j < n; j++) {   // petites taches près de la piste
+    const i = Math.floor(hash(j * 17 + 2) * P.length), d = (W / 2 + 6 + 120 * hash(j * 23 + 7) ** 2) * (hash(j * 31 + 4) < 0.5 ? -1 : 1);
+    const sx = P[i].x + SIDE[i].x * d, sz = P[i].z + SIDE[i].z * d;
+    if (trackNear(P, sx, sz)[0] < (W / 2 + 4) ** 2) continue;
+    const [x, y] = fromW(sx, sz);
+    soil.push({ x, y, r: 3 + 9 * hash(j * 29 + 6), rot: hash(j * 19 + 1) * Math.PI, col: pal.patches[j % 3], a: 0.25, field: false });
+  }
+  let fine = true;   // petites taches et bandes de tonte (pas en Économe)
+  const rgba = (hex, a) => `rgba(${parseInt(hex.slice(1, 3), 16)},${parseInt(hex.slice(3, 5), 16)},${parseInt(hex.slice(5, 7), 16)},${a})`;
+  // Couleurs du sol : herbe ou sable selon le climat (plus clair près de la piste), taches, mer, surfaces, routes et cours
+  // d'eau, pied des bâtiments, bandes de tonte, dessinées sur cv pour la zone qui commence en (ox, oy) (repère du tracé,
+  // m), à k px par mètre
   const paint = (cv, ox, oy, k) => {
     const g = cv.getContext('2d'), X = (x) => (x - ox) * k, Y = (y) => (y - oy) * k;
     const path = (flat, close) => {
@@ -354,9 +396,21 @@ function landGround(group, land, { track, P, SIDE, toW, fromW, base, maxTex, ani
       if (close) g.closePath();
     };
     g.lineJoin = g.lineCap = 'round';
-    g.fillStyle = FIELD;
+    g.fillStyle = pal.field;
     g.fillRect(0, 0, cv.width, cv.height);
-    for (const [w, col] of [[520, 'rgba(95,143,58,.45)'], [300, 'rgba(95,143,58,.6)'], [W + 50, 'rgba(122,160,74,.75)']]) { g.strokeStyle = col; g.lineWidth = w * k; path(trackFlat, true); g.stroke(); }
+    for (const t of soil) {
+      const r = t.r * k, px = X(t.x), py = Y(t.y);
+      if ((!fine && t.r < 12) || r < 0.7 || px < -2 * r || py < -2 * r || px > cv.width + 2 * r || py > cv.height + 2 * r) continue;
+      g.save();
+      g.translate(px, py);
+      g.rotate(t.rot);
+      g.globalAlpha = t.a;
+      g.fillStyle = t.col;
+      if (t.field) g.fillRect(-r, -0.6 * r, 2 * r, 1.2 * r);
+      else { g.beginPath(); g.ellipse(0, 0, r, 0.7 * r, 0, 0, 2 * Math.PI); g.fill(); }
+      g.restore();
+    }
+    for (const [w, col] of [[520, rgba(pal.mid, 0.45)], [300, rgba(pal.mid, 0.6)], [W + 50, rgba(pal.near, 0.75)]]) { g.strokeStyle = col; g.lineWidth = w * k; path(trackFlat, true); g.stroke(); }
     g.fillStyle = LAND.water;
     for (let i = 0; i < count; i++) {
       if (!wetAt[i]) continue;
@@ -364,7 +418,7 @@ function landGround(group, land, { track, P, SIDE, toW, fromW, base, maxTex, ani
       g.arc(X(x0 + (i % cols) * step), Y(y0 + Math.floor(i / cols) * step), step * k * 0.75, 0, 2 * Math.PI);   // bords arrondis
       g.fill();
     }
-    for (const [kind, col] of Object.entries(LAND)) { g.fillStyle = col; for (const ring of land.areas?.[kind] || []) { path(ring, true); g.fill(); } }
+    for (const [kind, col] of Object.entries(LAND)) { g.fillStyle = kind === 'grass' ? pal.grass : col; for (const ring of land.areas?.[kind] || []) { path(ring, true); g.fill(); } }
     for (const [kind, col] of Object.entries(LINES)) {
       g.strokeStyle = col;
       for (const [w, ...pts] of land.lines?.[kind] || []) { g.lineWidth = Math.max(1, w * k); path(pts); g.stroke(); }
@@ -372,10 +426,22 @@ function landGround(group, land, { track, P, SIDE, toW, fromW, base, maxTex, ani
     g.fillStyle = '#8c8b85';
     for (const [, ...ring] of [...(land.buildings || []), ...(land.stands || [])]) { path(ring, true); g.fill(); }
     // Bas-côtés en herbe : la piste d'OSM, décalée de quelques mètres, faisait des taches sombres le long du tracé
-    g.strokeStyle = '#6f9845';
+    g.strokeStyle = pal.verge;
     g.lineWidth = (W + 12) * k;
     path(trackFlat, true);
     g.stroke();
+    // Bandes de tonte le long de la piste : 10 m plus claires, 10 m plus sombres
+    if (fine) {
+      g.lineWidth = (W + 44) * k;
+      for (const [col, off] of [['rgba(255,255,255,.14)', 0], ['rgba(0,0,0,.1)', 10]]) {
+        g.setLineDash([10 * k, 10 * k]);
+        g.lineDashOffset = off * k;
+        g.strokeStyle = col;
+        path(trackFlat, true);
+        g.stroke();
+      }
+      g.setLineDash([]);
+    }
     // Dégagements asphaltés et graviers autour des virages (serveur : OSM, sinon déduits), par-dessus
     for (const [kind, col] of [['runoff', '#7c7f84'], ['gravel', '#d6c59b']]) { g.fillStyle = col; for (const ring of land.areas?.[kind] || []) { path(ring, true); g.fill(); } }
   };
@@ -425,6 +491,7 @@ function landGround(group, land, { track, P, SIDE, toW, fromW, base, maxTex, ani
   };
   // Qualité (map3d-calc.js) : sol de détail plus petit (nouvelle texture, redessinée), anisotropie des textures du sol
   const qualityGround = (q) => {
+    if (fine !== q.props) { fine = q.props; dx = Infinity; }   // sol de détail redessiné
     aniso = Math.min(maxAniso, q.aniso);
     for (const tex of [mat.map, detail.map.value]) if (tex.anisotropy !== aniso) { tex.anisotropy = aniso; tex.needsUpdate = true; }
     if (DPX === DPX0 * q.detail) return;
@@ -447,7 +514,7 @@ function landGround(group, land, { track, P, SIDE, toW, fromW, base, maxTex, ani
   const edge = ring.reduce((sum, i) => sum + H[i], 0) / ring.length;
   const wet = ring.filter((i) => wetAt[i]).length > ring.length / 2;
   const m0 = ((rows >> 1) * cols + (cols >> 1)) * 3, mid = new THREE.Vector3(pos[m0], 0, pos[m0 + 2]);
-  const sPos = [], sCol = [], sIdx = [], green = new THREE.Color(FIELD), blue = new THREE.Color(LAND.water), v = new THREE.Vector3();
+  const sPos = [], sCol = [], sIdx = [], green = new THREE.Color(pal.field), blue = new THREE.Color(LAND.water), v = new THREE.Vector3();
   ring.forEach((i, j) => {
     v.set(pos[i * 3], 0, pos[i * 3 + 2]);
     const out = v.clone().sub(mid).normalize().multiplyScalar(12000).add(v);
@@ -462,7 +529,7 @@ function landGround(group, land, { track, P, SIDE, toW, fromW, base, maxTex, ani
   skirtGeo.setIndex(sIdx);
   skirtGeo.computeVertexNormals();
   group.add(new THREE.Mesh(skirtGeo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, side: THREE.DoubleSide })));
-  const plain = new THREE.Mesh(new THREE.PlaneGeometry(60000, 60000), new THREE.MeshStandardMaterial({ color: wet ? LAND.water : FIELD, roughness: 1 }));
+  const plain = new THREE.Mesh(new THREE.PlaneGeometry(60000, 60000), new THREE.MeshStandardMaterial({ color: wet ? LAND.water : pal.field, roughness: 1 }));
   plain.rotation.x = -Math.PI / 2;
   plain.position.y = H.reduce((lo, y) => Math.min(lo, y), edge) - 1;
   group.add(plain);
@@ -1251,7 +1318,7 @@ function buildLayers(world, L) {
 // Bâtiment des stands le long de la voie des stands (pit : points du tracé MultiViewer), du côté opposé à la piste : 15 m
 // de profondeur, 9 m de haut, garages ouverts (bande sombre) face à la voie ; seulement là où la voie est à plus de
 // 14 m de la piste (pas à l'entrée ni à la sortie) et où les alentours n'ont pas déjà un bâtiment. Un seul bloc continu
-// qui suit la voie lissée (sans décrochements d'un morceau à l'autre). -> groupe
+// qui suit la voie lissée (sans décrochements d'un morceau à l'autre) ; paddock goudronné autour. -> groupe
 function pitBuilding(world, pit) {
   const out = new THREE.Group(), { toW, fromW, P } = world;
   // Bâtiments des alentours (repère du tracé, m) et leur boîte
@@ -1300,12 +1367,19 @@ function pitBuilding(world, pit) {
     if (e > i) for (const j of [i, e]) quad(wall, at(j, 8.5, ys[j] - 0.5), at(j, 23.5, ys[j] - 0.5), at(j, 23.5, ys[j] + 9), at(j, 8.5, ys[j] + 9));
     i = e + 1;
   }
-  for (const [list, color] of [[wall, 0xe3e0d7], [dark, 0x2a2e35]]) {
+  // Paddock goudronné du bord de la voie jusqu'à 60 m derrière (sous le bâtiment et derrière lui), là où la voie est à plus
+  // de 14 m de la piste ; posé 15 cm au-dessus du sol, en trois bandes (il suit le relief)
+  const pad = [], atG = (i, off) => { const [x, , z] = at(i, off, 0); return [x, world.groundAt(x, z) + 0.15, z]; };
+  for (let k = 0; k + 1 < pts.length; k++) {
+    if (dir[k][2] < 14 || dir[k + 1][2] < 14) continue;
+    for (const [a, b] of [[3.5, 23.5], [23.5, 42], [42, 60]]) quad(pad, atG(k, a), atG(k + 1, a), atG(k + 1, b), atG(k, b));
+  }
+  for (const [list, color, extra] of [[wall, 0xe3e0d7], [dark, 0x2a2e35], [pad, 0x5c5f64, { roughness: 0.95, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }]]) {
     if (!list.length) continue;
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(list, 3));
     g.computeVertexNormals();
-    const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color, roughness: 0.85, side: THREE.DoubleSide }));
+    const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color, roughness: 0.85, side: THREE.DoubleSide, ...extra }));
     m.castShadow = m.receiveShadow = true;
     out.add(m);
   }
@@ -1586,7 +1660,7 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
   // ---------- Construction (tracé, ou altitude et alentours arrivés plus tard) ----------
   function rebuild(track, elevation, surroundings) {
     if (world) { scene.remove(world.group); dispose(world.group); }
-    world = buildWorld(track, elevation, surroundings, { maxTex: renderer.capabilities.maxTextureSize, aniso: renderer.capabilities.getMaxAnisotropy() });
+    world = buildWorld(track, elevation, surroundings, { maxTex: renderer.capabilities.maxTextureSize, aniso: renderer.capabilities.getMaxAnisotropy(), pal: GROUND[groundClimate(circuitPlace().key)] });
     world.lit = LIT.has(Number(store.state.SessionInfo?.Meeting?.Circuit?.Key));
     weather.attach(world);
     world.addStartLine(store.positions.lineFrac(), Math.min(26, Math.max(20, Object.keys(store.state.DriverList || {}).length)));

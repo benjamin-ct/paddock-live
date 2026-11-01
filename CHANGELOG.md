@@ -179,6 +179,10 @@ l'application (Réglages → À propos → Nouveautés).
   des virages, murs en béton avec quelques panneaux de couleur le long des lignes droites, glissières à l'extérieur des
   virages, grillages et poteaux au-dessus, tribunes avec toit le long de la ligne droite des stands et dans les grands
   virages, portique des feux au-dessus de la ligne de départ. En Économe, sans les poteaux ni les tribunes des virages.
+- Sol plus vrai : herbe aux teintes variées avec des bandes de tonte le long de la piste, jaunie sur les circuits secs
+  (Mexico, Austin, Las Vegas, Bakou) et sable ou terre dans le désert (Bahreïn, Qatar, Abou Dabi, Djeddah), champs et
+  terre mêlés loin de la piste, paddock goudronné autour du bâtiment des stands, et dégagements asphaltés et bacs à
+  graviers à l'extérieur des virages quand la carte n'en a pas.
 
 ### Téléphone
 - En course, le haut de l'écran tient sur deux lignes (le délai TV à côté du tour) : une ligne de classement en plus, et
