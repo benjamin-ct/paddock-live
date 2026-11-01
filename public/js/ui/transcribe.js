@@ -42,11 +42,26 @@ function cleanTexts(o) {
   return o || {};
 }
 
-navigator.locks?.request('paddock-radio-transcriber', () => {
-  isTranscriber = true;
-  pump();
-  return new Promise(() => {});
-});
+// Une seule fenêtre retranscrit (verrou partagé). Une fenêtre qui passe au premier plan prend la main : celle qui
+// l'avait, en arrière-plan (fenêtre Analyse ou Duel réduite, onglet gelé par le navigateur), ne retranscrivait plus
+// qu'au ralenti, voire plus du tout, et les radios restaient sur « transcription… » partout
+let pendingLock = null;
+function claimTranscriber(steal = false) {
+  if (!navigator.locks) return;
+  pendingLock?.abort();
+  pendingLock = steal ? null : new AbortController();
+  navigator.locks.request('paddock-radio-transcriber', steal ? { steal: true } : { signal: pendingLock.signal }, () => {
+    pendingLock = null;
+    isTranscriber = true;
+    pump();
+    return new Promise(() => {});
+  }).catch(() => {
+    // Verrou pris par une autre fenêtre : de nouveau candidate (une demande annulée ne relance rien)
+    if (isTranscriber) { isTranscriber = false; claimTranscriber(); }
+  });
+}
+claimTranscriber(document.visibilityState === 'visible');
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && !isTranscriber) claimTranscriber(true); });
 
 // Textes reçus d'une autre fenêtre
 window.addEventListener('storage', (e) => {
