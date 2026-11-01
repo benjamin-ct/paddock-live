@@ -247,7 +247,8 @@
 :root[data-design="v2"] .hm-next .hm-title .cal-flag { width: 54px; height: auto; border-radius: 6px; box-shadow: 0 6px 20px rgba(0, 0, 0, .5); }
 :root[data-design="v2"] .hm-next .hm-title small { font: italic 800 22px var(--font-cond); color: #FF6B62; opacity: 1; letter-spacing: .04em; }
 :root[data-design="v2"] .hm-count { font: italic 900 92px/.95 var(--font-cond) !important; letter-spacing: -.01em; margin: 6px 0 2px;
-  background: linear-gradient(180deg, #fff 35%, #FFB3AE); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 6px 30px rgba(255, 42, 31, .35)); }
+  background: linear-gradient(180deg, #fff 35%, #FFB3AE); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 6px 30px rgba(255, 42, 31, .35));
+  padding: .04em .16em 0 0; }   /* italique : la dernière lettre débordait de la boîte et le dégradé la coupait */
 :root[data-design="v2"] .hm-next .muted { color: #CBD5E1 !important; font-size: 15px; }
 :root[data-design="v2"] .hm-wx span { padding: 5px 12px; border-radius: 999px; background: rgba(255, 255, 255, .07); border: 1px solid rgba(255, 255, 255, .1); }
 :root[data-design="v2"] .hm-wx { display: flex; gap: 8px; margin-top: 6px; }
