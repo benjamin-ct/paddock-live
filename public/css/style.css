@@ -3524,6 +3524,15 @@ html:is(.float-map, .overlay) .boot-cover { display: none; }
 .bt-drv.b .bt-name { flex-direction: row-reverse; }
 .bt-name .team-logo { width: 24px; height: 24px; }
 .bt-id small { font-size: 11.5px; color: rgba(255, 255, 255, .72); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bt-stats { display: flex; align-items: center; gap: 8px; margin-top: 2px; font-size: 12px; white-space: nowrap; }
+.bt-drv.b .bt-stats { flex-direction: row-reverse; }
+.bt-stats .tyre { width: 18px; height: 18px; font-size: 10px; }
+.bt-tyre { display: inline-flex; align-items: center; gap: 3px; }
+.bt-tyre .tyre-age { color: rgba(255, 255, 255, .75); font-size: 11px; }
+.bt-last { font-family: var(--font-mono, monospace); font-variant-numeric: tabular-nums; font-weight: 700; color: rgba(255, 255, 255, .9); }
+.bt-last.win { color: #4ade80; }
+.bt-kmh { font-size: 11px; color: rgba(255, 255, 255, .7); }
+.bt-kmh b { font-family: var(--font-mono, monospace); font-variant-numeric: tabular-nums; font-size: 13px; color: #fff; display: inline-block; min-width: 3ch; text-align: right; }
 .bt-gap { display: flex; flex-direction: column; align-items: center; gap: 1px; min-width: 110px; z-index: 1; }
 .bt-tag { font-size: 9.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: rgba(255, 255, 255, .55); white-space: nowrap; }
 .bt-val { font: italic 800 38px/1 var(--font-cond, inherit); font-variant-numeric: tabular-nums; white-space: nowrap; text-shadow: 0 0 26px rgba(255, 255, 255, .25); }
@@ -3539,7 +3548,7 @@ html:is(.float-map, .overlay) .boot-cover { display: none; }
 .duel-band .bt-btrend b { color: #fff; }
 .duel-band .bt-btrend.closing { color: #4ade80; }
 .duel-band .bt-btrend.pulling { color: #f87171; }
-.panel.has-duel .tower-wrap { padding-bottom: 92px; }
+.panel.has-duel .tower-wrap { padding-bottom: 112px; }
 @keyframes bt-up { from { transform: translateY(14px); opacity: 0; } }
 html[data-motion="off"] .duel-band { animation: none; }
 .bt-trend { align-self: center; display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 999px; font-size: 12.5px; color: var(--text-2); background: var(--panel-2); border: 1px solid var(--border); }
@@ -3586,7 +3595,7 @@ html[data-motion="off"] .duel-band { animation: none; }
 /* Panneau étroit : sans portrait ni écurie, écart un peu moins grand */
 @container (max-width: 520px) {
   .bt-photo { display: none; }
-  .bt-id small { display: none; }
+  .bt-id small, .bt-kmh { display: none !important; }
   .bt-gap { min-width: 84px; }
   .bt-val { font-size: 28px; }
   .bt-name { font-size: 20px; }

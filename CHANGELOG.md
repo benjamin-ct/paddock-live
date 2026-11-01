@@ -86,7 +86,8 @@ l'application (Réglages → À propos → Nouveautés).
 
 ### En direct
 - Duel en bandeau sur le classement : dès qu'on choisit deux pilotes avec A et B dans le classement, un bandeau se
-  pose en bas du Classement, à la couleur des deux écuries (portrait, logo, code, position et écurie de chacun) avec
+  pose en bas du Classement, à la couleur des deux écuries (portrait, logo, code, position et écurie de chacun, son
+  pneu et ses tours, son dernier tour, le plus rapide des deux en vert, et sa vitesse en direct) avec
   l'écart en grand au milieu (« À moins d'une seconde » en vert quand ils sont proches) et, en course, qui revient ou
   s'échappe et de combien par tour. Il suit la course en direct et se ferme avec ✕ ; le classement défile en dessous.
 - Panneau Duel refait, plus simple : le même bandeau, puis une petite courbe de l'écart sur les derniers tours,

@@ -148,6 +148,7 @@ function renderHero(a, b) {
   const da = dl[a] || {}, db = dl[b] || {};
   const lines = s.TimingData?.Lines || {};
   const disp = displayNow();
+  const ca = carNow(a, disp), cb = carNow(b, disp);   // télémétrie en direct (bandeau, barres du panneau)
   const race = sessionKind(s) === 'race';
   const off = officialGap(s, a, b);
   const la = lines[a] || {}, lb = lines[b] || {};
@@ -167,28 +168,37 @@ function renderHero(a, b) {
   }
   if (close) tag = 'À moins d\'une seconde';
 
-  // Portrait, logo et code du pilote, puis sa position et son écurie
-  const side = (num, d) => {
-    const l = lines[num] || {};
+  // Portrait, logo et code du pilote, sa position et son écurie, puis son pneu, son dernier tour (le plus rapide des deux
+  // en vert) et sa vitesse en direct (remplie à chaque image, plus bas)
+  const app = s.TimingAppData?.Lines || {};
+  const lastA = parseLapTime(la.LastLapTime?.Value), lastB = parseLapTime(lb.LastLapTime?.Value);
+  const side = (num, d, mine, other) => {
+    const l = lines[num] || {}, st = currentStint(app[num]);
     const photo = photoUrl(d) ? `<img class="bt-photo" src="${esc(photoUrl(d))}" alt="" style="--tc:${teamColor(d)}" onerror="this.remove()">` : '';
+    const last = l.LastLapTime?.Value ? `<span class="bt-last${mine !== null && other !== null && mine < other ? ' win' : ''}" title="Dernier tour">${esc(l.LastLapTime.Value)}</span>` : '';
     return `${photo}<div class="bt-id"><b class="bt-name" title="${esc(d.FullName || '')}">${teamMark(d)}${esc(d.Tla || num)}</b>
-      <small>${l.Position ? `P${esc(l.Position)} · ` : ''}${esc(d.TeamName || '')}</small></div>`;
+      <small>${l.Position ? `P${esc(l.Position)} · ` : ''}${esc(d.TeamName || '')}</small>
+      <span class="bt-stats">${st ? `<span class="bt-tyre">${tyreBadge(st.Compound, st.TotalLaps, st.New)}</span>` : ''}${last}<span class="bt-kmh" hidden><b></b> km/h</span></span></div>`;
   };
-  const html = { a: side(a, da), b: side(b, db),
+  const html = { a: side(a, da, lastA, lastB), b: side(b, db, lastB, lastA),
     gap: `<span class="bt-tag">${tag}</span><b class="bt-val">${main}${unit ? `<small>${unit}</small>` : ''}</b>${ahead ? `<span class="bt-who">${esc((ahead === 'a' ? da : db).Tla || '')} devant</span>` : ''}` };
   for (const box of bands()) {
     box.style.setProperty('--ta', teamColor(da));
     box.style.setProperty('--tb', teamColor(db));
     box.classList.toggle('close', close);
     for (const k of ['a', 'b', 'gap']) { const el = box.querySelector(`.bt-band [data-s="${k}"]`); if (el._h !== html[k]) { el._h = html[k]; el.innerHTML = html[k]; } }
+    for (const [k, c] of [['a', ca], ['b', cb]]) {
+      const el = box.querySelector(`.bt-band [data-s="${k}"] .bt-kmh`);
+      el.hidden = !c?.speed;
+      if (c?.speed) el.firstChild.textContent = Math.round(c.speed);
+    }
   }
-  renderLive(a, b, dl, disp);
+  renderLive(a, b, dl, ca, cb);
 }
 
 // Télémétrie en direct : vitesse, rapport, accélérateur et frein de chaque pilote
-function renderLive(a, b, dl, disp) {
+function renderLive(a, b, dl, ca, cb) {
   const host = $('#btLive');
-  const ca = carNow(a, disp), cb = carNow(b, disp);
   host.hidden = !ca && !cb;
   if (host.hidden) return;
   if (host.dataset.pair !== `${a}-${b}`) {
