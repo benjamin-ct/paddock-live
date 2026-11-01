@@ -143,6 +143,13 @@ l'application (Réglages → À propos → Nouveautés).
   taille. En direct et en replay, dans l'appli et la version web.
 - Carte sans GPS (positions estimées) : après un passage au garage, la voiture ne fait plus des bonds de 600 m sur
   la piste pendant le tour suivant ; elle avance à son vrai rythme.
+- Comparaison de télémétrie (Analyse → Comparaison, deux pilotes et le tour de chacun au choix) : sous les secteurs et
+  les mini-secteurs, les deux tours superposés sur la distance, avec l'écart cumulé mètre par mètre (où l'un gagne ou
+  perd du temps), la vitesse, l'accélérateur, le frein, le rapport et le régime ; survoler ou toucher les courbes donne
+  les valeurs à cet endroit. Pour chaque virage, ce que fait chaque pilote (à fond, pied levé ou freinage), puis un
+  tableau par type de virage (lents, moyens, rapides, lignes droites) et virage par virage : vitesse minimale de chacun
+  et temps gagné ou perdu. Dans l'appli de bureau, avec le compte F1 TV en direct (télémétrie et GPS) et dans les
+  replays qui en ont.
 - Onglet Secteurs : sous les poles et meilleurs tours des éditions précédentes, le meilleur du week-end, c'est-à-dire
   le meilleur tour des séances déjà courues du Grand Prix (temps, pilote et séance : EL2, Qualif…). En direct et en
   replay, dans l'appli et la version web.
