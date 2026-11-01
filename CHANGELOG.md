@@ -50,7 +50,7 @@ l'application (Réglages → À propos → Nouveautés).
   haut de l'appli au lieu d'une bande noire.
 - Analyse : seulement les onglets utiles selon la séance. En course : Écarts et Arrêts (avec la stratégie) ; en qualifs
   et en essais : Secteurs et Comparaison. Les autres (Temps, Pneus, Jeux de pneus, simulateur d'arrêt, Bagarres,
-  championnat) s'ajoutent en un clic.
+  championnat, et la Comparaison en course) s'ajoutent en un clic.
 - Bouton « + » au bout des onglets de chaque panneau : il rouvre un onglet fermé, amène un onglet d'un autre panneau,
   ou ouvre le Circuit, l'Analyse ou le Duel dans une fenêtre.
 - Barre de gauche plus simple : Accueil, Direct, Saison, Actu et Replays, puis « Plus » qui réunit Résultats, Résumé,
@@ -409,6 +409,12 @@ l'application (Réglages → À propos → Nouveautés).
 ### Version web (app.paddocklive.app)
 - Bouton « Nouveautés » (dans le menu ☰ sur téléphone) : les dernières nouveautés de Paddock Live, en bref ; un
   point rouge signale ce qui n'a pas encore été lu.
+- Outils de la barre du haut, comme dans l'appli : documents officiels de la FIA, vitesses aux points de mesure,
+  meilleurs secteurs de chaque pilote et météo avec le radar de pluie.
+- Barre du haut sur une seule ligne sur ordinateur : la météo passe dans le bouton « Météo » et les boutons gardent
+  leur icône seule quand l'écran est moins large ; plus de note sur le GPS.
+- Projection du championnat pilotes et constructeurs en direct, en onglet à côté de la Télémétrie.
+- La pastille « duel » du classement (bataille de plus de trois tours) ouvre bien le duel des deux pilotes.
 
 ### Divers
 - Petites améliorations internes.
