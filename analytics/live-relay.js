@@ -403,7 +403,11 @@ export class LiveRelay {
   }
 
   // utc : heure d'émission par la F1 (chronométrage), transmise aux navigateurs avec l'événement
+  // Heures strictement croissantes : les messages d'une même trame de la F1 arrivent ensemble, à la même heure (l'horloge
+  // du serveur n'avance pas pendant un traitement), et l'appli écarte un message à la même heure que le précédent
+  // (reconnexion) : elle perdait la fin de la VSC, un secteur dégagé, des relevés GPS…
   add(topic, data, t, utc) {
+    t = Math.max(t, (this.recent.at(-1)?.[2] ?? this.base.t) + 1);
     const e = utc ? [topic, data, t, utc] : [topic, data, t];
     this.recent.push(e);
     this.out.push(e);
@@ -411,6 +415,7 @@ export class LiveRelay {
 
   addStream(topic, raw, t) {
     if (typeof raw !== 'string') return;
+    t = Math.max(t, (this.stream.at(-1)?.[2] ?? -Infinity) + 1);
     const s = [topic, raw, t];
     this.stream.push(s);
     this.outStream.push(s);
