@@ -141,9 +141,19 @@ export async function loadState(path, topics = TOPICS, { live = false } = {}) {
   const st = {};
   const derived = createDerived();
   for (const e of events) applyEvent(st, derived, e.topic, e.data, e.off);
+  // La veille, la F1 répète son flux en rejouant une ancienne course sous le nom de la séance à venir (Mexico 2026 :
+  // le début de la course d'Austin, sa grille et ses 56 tours) et l'archive de la séance garde cette répétition tant
+  // que la vraie n'est pas publiée. Le direct a encore la séance : il l'emporte s'il a plus de tours
+  if (topics.includes('TimingData')) {
+    const live = await api(`live-state?p=${encodeURIComponent(path)}`).catch(() => null);
+    if (live?.SessionInfo && lapsDone(live) > lapsDone(st)) return live;
+  }
   LAPS.set(st, derived.laps);
   return st;
 }
+// Tours faits par la séance : tour en cours (course), sinon le plus de tours d'un pilote
+export const lapsDone = (st) => Number(st?.LapCount?.CurrentLap)
+  || Math.max(0, ...Object.values(st?.TimingData?.Lines || {}).map((l) => Number(l?.NumberOfLaps) || 0));
 const LAPS = new WeakMap();
 export const lapsOf = (st) => LAPS.get(st) || null;
 
