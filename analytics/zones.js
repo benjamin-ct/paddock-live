@@ -13,6 +13,7 @@ import { fiaDocsWeb } from './fia-tech.js';
 import { parseStream } from '../shared/race-stats.js';
 import { pdfPages } from '../shared/fia-tech.js';
 import { parseCircuitData } from '../shared/fia-circuit.js';
+import { pdfDrawing, drawingMarks } from '../shared/fia-drawing.js';
 import { Track } from '../shared/track.js';
 import { estimateZones } from '../shared/zones.js';
 import { calibrateLoops } from '../shared/calibrate.js';
@@ -87,15 +88,20 @@ async function sessionData(path, token, fetchFn, need = { timing: true, carData:
   return { events, positions, carData };
 }
 
-// Définitions officielles du Grand Prix (plan du circuit de la FIA), ou null s'il n'est pas encore publié
-async function officialData(year, raw, fetchFn) {
+// Définitions officielles du Grand Prix (plan du circuit de la FIA), ou null s'il n'est pas encore publié. marks : marques
+// du dessin du plan recalées sur le tracé (fin des zones, détection, activation), false si le dessin est inutilisable
+async function officialData(year, raw, fetchFn, track) {
   const { docs } = await fiaDocsWeb(year, { name: raw.meetingName, location: raw.location, country: raw.countryName }, { fetchFn });
   const doc = docs.filter((d) => /circuit map/i.test(d.title)).sort((a, b) => (b.published || 0) - (a.published || 0))[0];
   if (!doc) return null;
   const r = await fetchFn(doc.url, { headers: { 'User-Agent': UA } });
   if (r.status !== 200) throw new Error(`plan du circuit FIA : HTTP ${r.status}`);
-  const data = parseCircuitData(await pdfPages(new Uint8Array(await r.arrayBuffer())));
-  return data && { ...data, source: doc.url, title: doc.title };
+  const buf = new Uint8Array(await r.arrayBuffer());
+  const data = parseCircuitData(await pdfPages(buf));
+  if (!data) return null;
+  const drawing = await pdfDrawing(buf).catch(() => null);
+  const marks = (drawing && track && drawingMarks(drawing, track)) || false;
+  return { ...data, marks, source: doc.url, title: doc.title };
 }
 
 // Séances archivées sur ce circuit (cette année et la précédente) : qualifications d'abord (une heure, voitures à fond),
@@ -130,7 +136,7 @@ export async function computeZones(env, key, year, { now = Date.now(), fetchFn =
   const raw = await circuitData(key, year, fetchFn);
   if (!raw) return { at: now, zones, loops, elevation, error: 'tracé introuvable' };
   const track = new Track(raw);
-  const official = zones ? null : await officialData(year, raw, fetchFn).catch(() => null);
+  const official = zones ? null : await officialData(year, raw, fetchFn, track).catch(() => null);
   token ??= await archiveToken(env, { now, fetchFn });
   let error = token ? 'aucune séance archivée utilisable' : 'connexion F1 TV absente ou expirée';
   for (const p of token ? (await candidateSessions(key, year, token, fetchFn, now)).slice(0, 3) : []) {
@@ -154,8 +160,9 @@ export async function computeZones(env, key, year, { now = Date.now(), fetchFn =
   return { at: now, zones, loops, elevation, ...(zones && loops && elevation ? {} : { error }) };
 }
 
-// Zones à revoir : estimées sans définitions officielles pour la saison en cours
-const zonesStale = (row, year, now) => !row.zones || (!row.zones.official && year >= new Date(now).getUTCFullYear());
+// Zones à revoir : estimées sans définitions officielles, ou officielles sans lecture du dessin du plan (drawing absent),
+// pour la saison en cours
+const zonesStale = (row, year, now) => !row.zones || ((!row.zones.official || row.zones.drawing === undefined) && year >= new Date(now).getUTCFullYear());
 // Profil d'altitude à refaire : absent, ou calculé par une version plus ancienne (creux faux de Spa)
 const elevationStale = (row) => row.elevation?.v !== ELEVATION_VERSION;
 // Résultat gardé à revoir : échec (une partie manque), zones à revoir ou altitude d'une ancienne version ; revu tout
