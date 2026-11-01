@@ -2192,6 +2192,7 @@ export default {
   "Météo prévue sur le circuit": "Forecast at the circuit",
   "Mon favori": "My favourite",
   "Plus": "More",
+  "Plus : résultats, résumé, commentaires, mini-classement, apparence": "More: results, summary, commentary, mini standings, appearance",
   "Résumé de la séance": "Session summary",
   "Chargement des séances…": "Loading sessions…",
   "Archives {} indisponibles": "{} archives unavailable",

@@ -2131,6 +2131,7 @@ export default {
   "Météo prévue sur le circuit": "Previsión meteorológica en el circuito",
   "Mon favori": "Mi favorito",
   "Plus": "Más",
+  "Plus : résultats, résumé, commentaires, mini-classement, apparence": "Más: resultados, resumen, comentarios, mini clasificación, apariencia",
   "Résumé de la séance": "Resumen de la sesión",
   "Chargement des séances…": "Cargando las sesiones…",
   "Archives {} indisponibles": "Archivos de {} no disponibles",
