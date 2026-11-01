@@ -2881,4 +2881,7 @@ export default {
   "classement après la dernière course · projection en direct pendant les courses": "standings after the last race · live projection during races",
   "Championnat pilotes et constructeurs, avec la projection en direct pendant les courses": "Drivers' and constructors' championship, with the live projection during races",
   "Ouvrir la Comparaison dans sa propre fenêtre": "Open the Comparison in its own window",
+  "La version web garde le GPS depuis l'ouverture de cette fenêtre : comparez un tour fait depuis.": "The web version keeps the GPS from when this window was opened: compare a lap driven since then.",
+  "Comparaison des tours de deux pilotes, dans une fenêtre à part": "Lap comparison of two drivers, in a separate window",
+  "Pas encore de projection des écuries.": "No team projection yet.",
 };

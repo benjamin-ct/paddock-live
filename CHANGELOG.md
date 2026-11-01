@@ -163,7 +163,8 @@ l'application (Réglages → À propos → Nouveautés).
 - Carte du circuit : en revenant sur la page (autre onglet, autre appli, téléphone en veille), plus de traînées
   qui partent dans tous les sens : elles repartent de la position actuelle des voitures. Aussi dans la version web.
 - Nouvel outil « Championnat » dans la barre du haut, à côté de la Météo (aussi dans la version web) : classement
-  des pilotes et des constructeurs, et pendant une course la projection en direct (points gagnés, places prises).
+  des pilotes et des constructeurs, en deux onglets, et pendant une course la projection en direct (points gagnés,
+  places prises).
 - Classement en course : étiquette « DÉP » (mode dépassement, qui remplace le DRS en 2026) à côté de chaque pilote,
   allumée dès qu'il est à moins d'une seconde de la voiture devant, une fois le mode activé par la direction de course
   (pas au départ, ni sous voiture de sécurité ou drapeau rouge). La F1 ne dit pas quand le pilote s'en sert :
@@ -421,6 +422,9 @@ l'application (Réglages → À propos → Nouveautés).
 - La pastille « duel » du classement (bataille de plus de trois tours) ouvre bien le duel des deux pilotes.
 - Bandeau de la direction de course en bas de l'écran, comme dans l'appli : le dernier message, avec son drapeau et
   le tour.
+- Comparaison des tours de deux pilotes, comme dans l'appli : dans la fenêtre Analyse, et seule dans sa propre fenêtre
+  (bouton « Comparaison » en haut). Les mini-secteurs et la télémétrie viennent du GPS reçu depuis l'ouverture de la
+  fenêtre : on compare les tours faits depuis.
 - Radios : elles ne restent plus sur « transcription… » quand une fenêtre Analyse ou Duel (ou un autre onglet) reste
   ouverte en arrière-plan ; la fenêtre au premier plan prend la main. Aussi dans l'appli.
 

@@ -2880,4 +2880,7 @@ export default {
   "classement après la dernière course · projection en direct pendant les courses": "classifica dopo l'ultima gara · proiezione in diretta durante le gare",
   "Championnat pilotes et constructeurs, avec la projection en direct pendant les courses": "Campionato piloti e costruttori, con la proiezione in diretta durante le gare",
   "Ouvrir la Comparaison dans sa propre fenêtre": "Apri il Confronto in una finestra a parte",
+  "La version web garde le GPS depuis l'ouverture de cette fenêtre : comparez un tour fait depuis.": "La versione web conserva il GPS dall'apertura di questa finestra: confronta un giro fatto da allora.",
+  "Comparaison des tours de deux pilotes, dans une fenêtre à part": "Confronto dei giri di due piloti, in una finestra a parte",
+  "Pas encore de projection des écuries.": "Ancora nessuna proiezione dei team.",
 };
