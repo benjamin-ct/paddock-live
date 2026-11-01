@@ -2870,4 +2870,5 @@ export default {
   "Ouvrir Paddock Live": "Abrir Paddock Live",
   "Masquer le compte à rebours": "Ocultar la cuenta atrás",
   "Options des radios": "Opciones de las radios",
+  "Écart tour par tour": "Diferencia vuelta a vuelta",
 };

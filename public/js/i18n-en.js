@@ -2871,4 +2871,5 @@ export default {
   "Ouvrir Paddock Live": "Open Paddock Live",
   "Masquer le compte à rebours": "Hide the countdown",
   "Options des radios": "Radio options",
+  "Écart tour par tour": "Gap lap by lap",
 };
