@@ -650,13 +650,20 @@ body.solo { overflow: hidden; }
 .grid.custom > .lcol { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 .grid.custom > .lcol.note { align-items: center; justify-content: center; flex: 1; }
 .grid.custom .lcol > .panel { min-height: 0; height: auto; }
-.lsplit-v, .lsplit-h { flex: 0 0 10px; position: relative; touch-action: none; }
-.lsplit-v { cursor: col-resize; }
+.lsplit-v, .lsplit-h, .lsplit-r { flex: 0 0 10px; position: relative; touch-action: none; }
+.lsplit-v, .lsplit-r { cursor: col-resize; }
+/* Panneaux côte à côte dans une colonne (même hauteur) ; écran moins large : l'un sous l'autre */
+.grid.custom .lrow { display: flex; min-height: 0; min-width: 0; }
+.grid.custom .lrow > .panel { min-width: 0; min-height: 0; height: auto; }
+@media (max-width: 1250px) { .grid.custom .lrow { flex-direction: column; flex-grow: 1.8 !important; } .grid.custom .lrow > .lsplit-r { display: none; } .grid.custom .lrow > .panel + .lsplit-r + .panel { margin-top: 10px; } }
+.grid.custom.has-max .lrow:not(:has(.panel.maximized)) { display: none; }
+.grid.custom.has-max .lrow:has(.panel.maximized), .grid.custom.has-max .lrow > .panel.maximized { flex: 1 1 0 !important; }
+.grid.custom.has-max .lrow > .panel:not(.maximized) { display: none; }
 .lsplit-h { cursor: row-resize; }
-.lsplit-v::after, .lsplit-h::after { content: ''; position: absolute; border-radius: 2px; background: transparent; transition: background .15s; }
-.lsplit-v::after { left: 4px; width: 2px; top: 30%; bottom: 30%; }
+.lsplit-v::after, .lsplit-h::after, .lsplit-r::after { content: ''; position: absolute; border-radius: 2px; background: transparent; transition: background .15s; }
+.lsplit-v::after, .lsplit-r::after { left: 4px; width: 2px; top: 30%; bottom: 30%; }
 .lsplit-h::after { top: 4px; height: 2px; left: 30%; right: 30%; }
-.lsplit-v:hover::after, .lsplit-h:hover::after, .lsplit-v.active::after, .lsplit-h.active::after { background: var(--blue); }
+.lsplit-v:hover::after, .lsplit-h:hover::after, .lsplit-r:hover::after, .lsplit-v.active::after, .lsplit-h.active::after, .lsplit-r.active::after { background: var(--blue); }
 body.resizing-x, body.resizing-x * { cursor: col-resize !important; user-select: none; }
 body.resizing-y, body.resizing-y * { cursor: row-resize !important; user-select: none; }
 body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-select: none; }
@@ -672,7 +679,7 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
 .lpop-menu button:disabled { opacity: .45; cursor: default; border-color: transparent; }
 .lpop-menu .rail-sep { height: 1px; background: var(--border); margin: 2px 0; }
 #soloFreeBtn.on { color: var(--accent); border-color: var(--accent); }
-.grid.custom.has-max .lsplit-v, .grid.custom.has-max .lsplit-h { display: none; }
+.grid.custom.has-max .lsplit-v, .grid.custom.has-max .lsplit-h, .grid.custom.has-max .lsplit-r { display: none; }
 .grid.custom.has-max > .lcol:not(:has(.panel.maximized)) { display: none; }
 /* Panneau agrandi : toute la place, quelles que soient les proportions enregistrées */
 .grid.custom.has-max > .lcol:has(.panel.maximized), .grid.custom.has-max .panel.maximized { flex: 1 1 0 !important; }
@@ -758,6 +765,15 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
 .tele-name .team-logo { width: 20px; height: 20px; }
 .tele-name .muted { color: var(--text-2); }
 .dial { width: 100%; max-width: 300px; display: block; }
+/* Écran principal : le compteur de la télémétrie se règle sur la hauteur de son panneau ; panneau bas : sans la
+   courbe des 30 dernières secondes */
+.grid.custom .p-extra .panel-body { container-type: size; }
+.grid.custom .p-extra .dial { max-width: max(110px, min(300px, calc(100cqh - 250px))); margin: 0 auto; }
+@container (max-height: 440px) {
+  .grid.custom .p-extra :is(.trace, .tele-hint) { display: none; }
+  .grid.custom .p-extra .tele2 { gap: 4px; padding-top: 6px; }
+  .grid.custom .p-extra .dial { max-width: max(90px, min(300px, calc(100cqh - 82px))); }
+}
 .dial path { fill: none; stroke-linecap: round; }
 .dl-track { stroke: var(--panel-3); stroke-width: 12; }
 .dl-speed { stroke-width: 12; }
@@ -2247,7 +2263,7 @@ body.solo .grid .panel-head { padding-right: 116px; }
    barre du haut et barre de replay restent visibles */
 @media (min-width: 901px) and (max-height: 860px) {
   body:not(.solo) { overflow-y: auto; }
-  body:not(.solo) .grid:not(.has-max) { flex: none; height: 1000px; }
+  body:not(.solo) .grid:not(.has-max) { min-height: 540px; }   /* écran principal : à la hauteur de l'écran, défilement en dessous de 540 px */
   body:not(.solo) .topbar { position: sticky; top: 0; z-index: 60; }
   [data-theme="pitwall"] body:not(.solo) .replaybar { position: sticky; bottom: 0; z-index: 60; }
 }

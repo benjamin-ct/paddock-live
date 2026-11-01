@@ -70,7 +70,8 @@ function panelEl(id) {
 }
 
 // ---------------- Modèle de disposition ----------------
-// {cols: [{w, items: [{id, h}]}]} ; w et h sont des proportions (flex-grow).
+// {cols: [{w, items: [{id, h}]}]} ; w et h sont des proportions (flex-grow). Des panneaux voisins d'une colonne avec
+// le même `row` sont côte à côte (même hauteur, celle du premier ; largeurs : leur `w`).
 // ---------------- Dispositions « Course » et « Qualif & essais » ----------------
 // Chaque type de séance a sa propre disposition (panneaux, tailles, panneaux masqués,
 // colonnes du classement, onglets ouverts), appliquée automatiquement selon la séance.
@@ -92,20 +93,14 @@ const lkey = (win = WIN, prof = profile) => (prof === 'race' || win !== 'main' ?
 function defaultLayout(prof = profile) {
   if (!isMain) return { cols: [] };
   const quali = prof === 'quali';
-  // Écran principal : Classement à gauche (plus large en qualifs et essais : Q1/Q2/Q3, tour en cours ; le duel passe
-  // par-dessus), Télémétrie au-dessus de la Direction de course au milieu, Radios à droite. Circuit, Analyse et Duel
-  // (masqués ici, s'ils sont affichés) : sous la télémétrie. Écran plus étroit : deux colonnes, les radios sous le
-  // classement
-  if (window.innerWidth <= 1500) {
-    return { cols: [
-      { w: quali ? 1.3 : 1.2, items: [{ id: 'tower', h: 1.5 }, { id: 'radio', h: 0.9 }] },
-      { w: 1, items: [{ id: 'extra', h: 1 }, { id: 'map', h: 1.1 }, { id: 'duel', h: 0.8 }, { id: 'analysis', h: 1 }, { id: 'feed', h: 1.1 }] },
-    ] };
-  }
+  // Écran principal : Classement à gauche, sur plus de la moitié (encore plus large en qualifs et essais : Q1/Q2/Q3,
+  // tour en cours ; le duel passe par-dessus) ; à droite la Direction de course en haut, et en dessous la Télémétrie et
+  // les Radios côte à côte. Circuit, Analyse et Duel (masqués ici, s'ils sont affichés) : sous la direction de course
+  // (écran moins large : télémétrie et radios l'une sous l'autre, style.css .lrow)
+  const below = [{ id: 'extra', h: 1, row: 'tr', w: 1 }, { id: 'radio', h: 1, row: 'tr', w: 1.15 }];
   return { cols: [
-    { w: quali ? 1.55 : 1.35, items: [{ id: 'tower', h: 1 }] },
-    { w: 1.2, items: [{ id: 'extra', h: 1 }, { id: 'map', h: 1.3 }, { id: 'duel', h: 0.8 }, { id: 'analysis', h: 1 }, { id: 'feed', h: 1.15 }] },
-    { w: 1.1, items: [{ id: 'radio', h: 1 }] },
+    { w: quali ? 1.3 : 1.2, items: [{ id: 'tower', h: 1 }] },
+    { w: 1, items: [{ id: 'feed', h: 1 }, { id: 'map', h: 1.1 }, { id: 'duel', h: 0.8 }, { id: 'analysis', h: 1 }, ...below] },
   ] };
 }
 
@@ -117,7 +112,7 @@ function normalize(l) {
       if (!PANELS.some((p) => p.id === it?.id) || seen.has(it.id)) return false;
       seen.add(it.id);
       return true;
-    }).map((it) => ({ id: it.id, h: Number(it.h) > 0 ? Number(it.h) : 1 })),
+    }).map((it) => ({ id: it.id, h: Number(it.h) > 0 ? Number(it.h) : 1, ...(it.row ? { row: String(it.row), w: Number(it.w) > 0 ? Number(it.w) : 1 } : {}) })),
   })).filter((c) => c.items.length);
   // La fenêtre principale contient toujours tous les panneaux (ceux détachés y sont simplement cachés).
   if (isMain) {
@@ -154,8 +149,23 @@ function rescale(l) {
     if (sum > 0) for (const x of arr) x[key] = Math.round(((x[key] * arr.length) / sum) * 1000) / 1000;
   };
   fit(l.cols, 'w');
-  for (const c of l.cols) fit(c.items, 'h');
+  // Hauteurs : une rangée de panneaux côte à côte compte pour un (hauteur du premier, recopiée sur les autres)
+  for (const c of l.cols) {
+    const us = units(c.items);
+    fit(us.map((u) => u[0]), 'h');
+    for (const u of us) { for (const it of u) it.h = u[0].h; if (u.length > 1) fit(u, 'w'); }
+  }
   return l;
+}
+
+// Panneaux d'une colonne regroupés en rangées : voisins avec le même `row`, sinon un panneau seul
+function units(items) {
+  const out = [];
+  for (const it of items) {
+    const last = out.at(-1);
+    if (it.row && last?.[0].row === it.row) last.push(it); else out.push([it]);
+  }
+  return out;
 }
 
 function allLayouts() {
@@ -404,20 +414,43 @@ function render(force = false) {
     const col = document.createElement('div');
     col.className = 'lcol';
     col.style.flex = `${(c.w * cols.length) / sumW} 1 0`;
-    const sumH = items.reduce((t, it) => t + it.h, 0) || 1;
+    const us = units(items), sumH = us.reduce((t, u) => t + u[0].h, 0) || 1;
     col._model = c;
-    items.forEach((it, j) => {
+    us.forEach((u, j) => {
       if (j) {
         const sh = document.createElement('div');
         sh.className = 'lsplit-h';
         sh.title = 'Glisser pour redimensionner les panneaux';
-        splitter(sh, 'y', items[j - 1], it);
+        splitter(sh, 'y', us[j - 1][0], u[0]);
         col.appendChild(sh);
       }
-      const el = panelEl(it.id);
-      el.style.flex = `${(it.h * items.length) / sumH} 1 0`;
-      el._model = it;
-      col.appendChild(el);
+      const grow = `${(u[0].h * us.length) / sumH} 1 0`;
+      if (u.length === 1) {
+        const el = panelEl(u[0].id);
+        el.style.flex = grow;
+        el._model = u[0];
+        col.appendChild(el);
+        return;
+      }
+      // Rangée : panneaux côte à côte, séparés par une barre qui règle leurs largeurs
+      const row = document.createElement('div');
+      row.className = 'lrow';
+      row.style.flex = grow;
+      const sumW = u.reduce((t, it) => t + it.w, 0) || 1;
+      u.forEach((it, k) => {
+        if (k) {
+          const sr = document.createElement('div');
+          sr.className = 'lsplit-r';
+          sr.title = 'Glisser pour redimensionner les panneaux';
+          splitter(sr, 'x', u[k - 1], it);
+          row.appendChild(sr);
+        }
+        const el = panelEl(it.id);
+        el.style.flex = `${(it.w * u.length) / sumW} 1 0`;
+        el._model = it;
+        row.appendChild(el);
+      });
+      col.appendChild(row);
     });
     grid.insertBefore(col, stash);
   });

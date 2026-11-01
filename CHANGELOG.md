@@ -27,9 +27,12 @@ l'application (Réglages → À propos → Nouveautés).
   derrière.
 
 ### Tableau de bord plus clair
-- Nouvel écran principal, le même pour tout le monde : le Classement à gauche (le duel de deux pilotes cliqués passe
-  par-dessus), la Télémétrie du pilote suivi et la Direction de course (avec les enquêtes et les limites de piste) au
-  milieu, et les Radios d'équipe à droite, transcrites et traduites d'office.
+- Nouvel écran principal, le même pour tout le monde : le Classement à gauche, sur plus de la moitié de l'écran (le duel
+  de deux pilotes cliqués passe par-dessus) ; à droite la Direction de course (avec les enquêtes et les limites de
+  piste), et en dessous la Télémétrie du pilote suivi et les Radios d'équipe côte à côte, transcrites et traduites
+  d'office. Il s'adapte à la taille de l'écran : sur un écran moins large, la Télémétrie et les Radios passent l'une sous
+  l'autre ; sur un écran peu haut, tout tient sans défiler, le compteur de la télémétrie se réduit à la place
+  disponible. Une barre entre deux panneaux côte à côte règle leurs largeurs.
 - Le Circuit, l'Analyse et le Duel s'ouvrent chacun dans leur propre fenêtre, à placer où l'on veut (second écran) :
   menu « Fenêtres » de la barre de gauche, ou bouton « + » au bout des onglets d'un panneau. Ils ne prennent plus de
   place dans l'écran principal. Sur téléphone, où il n'y a qu'un écran, ils restent des onglets : Classement,
