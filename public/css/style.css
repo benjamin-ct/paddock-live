@@ -2252,6 +2252,14 @@ body.solo #muteBtn { display: none; }
 .grid:not(.mobile) .panel-head[data-tabs]:not(:has(> [data-tab])) { min-height: 42px; }
 .grid:not(.mobile) .panel-head > .panel-tools { flex-wrap: wrap; min-width: 0; row-gap: 4px; }
 body.solo .grid .panel-head { padding-right: 116px; }
+/* Barre d'onglets : onglets serrés (l'écart de 14 px sert aux en-têtes à sélecteurs) ; panneau étroit (colonne de droite
+   de l'écran principal) : onglets plus compacts, pour tenir sur une ligne */
+.grid:not(.mobile) .panel-head.tabs { column-gap: 2px; }
+@container (max-width: 560px) {
+  :root[data-design="v2"] .grid:not(.mobile) .panel-head.tabs > .tab { padding: 0 6px; font-size: 12px; letter-spacing: 0; }
+  .grid:not(.mobile) .panel-head.tabs > :is(.tab-add, .rd-menu) { margin-left: 0; }
+  .grid:not(.mobile) .panel-head.tabs > .rd-menu { margin-left: auto; }
+}
 /* Duel : sélecteurs qui se partagent la place */
 .duel-pick { flex: 1 1 auto; justify-content: flex-end; }
 .duel-pick select { flex: 1 1 110px; min-width: 0; max-width: 150px; }
