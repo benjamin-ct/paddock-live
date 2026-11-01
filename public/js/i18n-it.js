@@ -2875,4 +2875,8 @@ export default {
   "Écart tour par tour": "Distacco giro per giro",
   "Nouvel écran : Classement, Circuit, Télémétrie, Radios traduites et Direction de course. Analyse et Duel s'ouvrent dans une fenêtre (menu Fenêtres ou bouton + d'un panneau). L'ancienne disposition : Réglages → Disposition → Fenêtres (« {} »)": "Nuova schermata: Classifica, Circuito, Telemetria, Team radio tradotti e Direzione gara. Analisi e Duello si aprono in una finestra (menu Finestre o pulsante + di un pannello). La disposizione di prima: Impostazioni → Disposizione → Finestre («{}»)",
   "Le Circuit revient dans l'écran principal, au centre ; le classement n'affiche plus que le code des pilotes (nom complet : menu Colonnes)": "Il Circuito torna nella schermata principale, al centro; la classifica mostra solo la sigla dei piloti (nome completo: menu Colonne)",
+  "projection en direct, d'après les positions en course": "proiezione in diretta, secondo le posizioni in gara",
+  "Classement indisponible pour le moment.": "Classifica non disponibile per ora.",
+  "classement après la dernière course · projection en direct pendant les courses": "classifica dopo l'ultima gara · proiezione in diretta durante le gare",
+  "Championnat pilotes et constructeurs, avec la projection en direct pendant les courses": "Campionato piloti e costruttori, con la proiezione in diretta durante le gare",
 };

@@ -10,8 +10,9 @@ import { LOCALE, LANG } from '../i18n.js';
 import { gpFull } from '/shared/gp-names.js';
 import { pdfHref } from './pdf-view.js';
 import { upcoming } from './home.js';
+import { championshipHtml } from './extra.js';
 
-let open = null;      // outil ouvert : 'docs' | 'speeds' | 'sectors' | 'weather'
+let open = null;      // outil ouvert : 'docs' | 'speeds' | 'sectors' | 'weather' | 'champ'
 let pop = null;
 let timer = 0;
 let lastHtml = '';
@@ -171,9 +172,24 @@ function sectorsHtml() {
     <div class="tbp-scroll">${table('sectors', [['s0', 'Secteur 1'], ['s1', 'Secteur 2'], ['s2', 'Secteur 3'], ['ideal', 'Tour idéal', 'Somme des trois meilleurs secteurs du pilote']], rows, () => 1)}</div>`;
 }
 
+// Championnat : projection en direct pendant une course (pilotes et écuries), sinon le classement de la saison
+let season = null;    // { drivers, constructors } de /api/season, chargé à la première ouverture
+function champHtml() {
+  const live = championshipHtml();
+  if (live) return `<div class="tbp-head"><b>Championnat</b><span class="muted small">projection en direct, d'après les positions en course</span></div><div class="tbp-scroll">${live}</div>`;
+  if (!season) {
+    season = { drivers: [], constructors: [], loading: true };
+    api(`/api/season?year=${new Date().getFullYear()}`).then((d) => { season = d || {}; render(true); }).catch(() => { season = { error: true }; render(true); });
+  }
+  const rows = (list, label) => `<table class="champ"><tr><th>Pos.</th><th>${label}</th><th>Points</th></tr>${list.map((x) => `<tr><td>${esc(x.pos ?? '')}</td><td>${esc(x.name || '')}</td><td><b>${esc(x.points ?? '')}</b></td></tr>`).join('')}</table>`;
+  const body = season.loading ? '<p class="muted small">Chargement…</p>' : season.error || !season.drivers?.length ? '<p class="muted small">Classement indisponible pour le moment.</p>'
+    : `${rows(season.drivers, 'Pilote')}${season.constructors?.length ? `<div style="margin-top:10px">${rows(season.constructors, 'Écurie')}</div>` : ''}`;
+  return `<div class="tbp-head"><b>Championnat</b><span class="muted small">classement après la dernière course · projection en direct pendant les courses</span></div><div class="tbp-scroll">${body}</div>`;
+}
+
 function render(force = false) {
   if (!pop || open === 'weather') return;
-  const html = open === 'docs' ? docsHtml() : open === 'speeds' ? speedsHtml() : sectorsHtml();
+  const html = open === 'docs' ? docsHtml() : open === 'speeds' ? speedsHtml() : open === 'champ' ? champHtml() : sectorsHtml();
   if (!force && html === lastHtml) return;
   // Le champ de filtre garde le focus et la position du curseur
   const fe = document.activeElement?.id === 'tbDocFilter' ? document.activeElement.selectionStart : null;
