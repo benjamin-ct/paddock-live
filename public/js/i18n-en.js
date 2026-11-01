@@ -2814,4 +2814,8 @@ export default {
   "Ma disposition d'avant": "My previous layout",
   "Radios": "Radios",
   "Duel": "Duel",
+  "Compte à rebours dans la zone de notification": "Countdown in the notification area",
+  "Compte à rebours dans la barre des menus": "Countdown in the menu bar",
+  "Ouvrir Paddock Live": "Open Paddock Live",
+  "Masquer le compte à rebours": "Hide the countdown",
 };

@@ -250,6 +250,10 @@ l'application (Réglages → À propos → Nouveautés).
   les écrans comme au moment de l'enregistrement, avec les panneaux et les onglets affichés et les colonnes du
   classement, et ✕ la supprime. Elles sont aussi dans le menu « Dispo. » de la
   barre de gauche. L'emplacement enregistré avant cette version est gardé sous le nom « Mon emplacement ».
+- Application de bureau : le temps avant la prochaine séance s'affiche dans la barre des menus sur Mac (« EL1 2 h 14 »,
+  « Course 12 min », « LIVE » pendant la séance) et dans l'info-bulle de l'icône de la zone de notification sur Windows
+  et Linux. Un clic sur l'icône propose d'ouvrir Paddock Live et montre le jour et l'heure de la prochaine séance.
+  Se coupe dans Réglages → Application ou avec « Masquer le compte à rebours » dans le menu de l'icône.
 
 ### Animations
 - Plus de mouvement dans l'appli et la version web : les courbes de la Saison se tracent et les barres se remplissent à
