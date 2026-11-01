@@ -29,4 +29,8 @@ contextBridge.exposeInMainWorld('f1desktop', {
   // Carte flottante (fenêtre sans cadre) : position et taille
   floatBounds: (b) => ipcRenderer.send('float-bounds', b),
   floatGetBounds: () => ipcRenderer.invoke('float-bounds-get'),
+  // Compte à rebours de la prochaine séance (barre des menus sur macOS, zone de notification ailleurs)
+  platform: process.platform,
+  getTray: () => ipcRenderer.invoke('tray-get'),
+  setTray: (v) => ipcRenderer.invoke('tray-set', !!v),
 });

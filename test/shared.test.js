@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { merge } from '../shared/merge.js';
-import { parseGap, parseLapTime, parseUtc, chequeredUtc, overtakeEnabled, passed } from '../shared/f1.js';
+import { parseGap, parseLapTime, parseUtc, chequeredUtc, overtakeEnabled, passed, catchLaps } from '../shared/f1.js';
 import { applyEvent, createDerived, createSyncContext, extractSyncEvents } from '../shared/derive.js';
 
 test('merge : mises à jour indexées dans un tableau', () => {
@@ -117,4 +117,15 @@ test('point de détection franchi : entre deux relevés, en avançant, aussi au 
   assert.equal(passed(89, 1, 89.5, L), true, 'point juste avant la ligne');
   assert.equal(passed(10, 60, 30, L), false, 'saut de plus d\'un quart de tour (replay, recalage)');
   assert.equal(passed(41, 41, 41, L), false, 'à l\'arrêt');
+});
+
+test('catchLaps : prévision du duel (tours pour revenir, à portée du DÉP, trop loin)', () => {
+  assert.equal(catchLaps(2.5, 0.5, 20), 5);
+  assert.equal(catchLaps(2.6, 0.5, 20), 6);          // au tour supérieur
+  assert.equal(catchLaps(1.2, 0.3, null), 4);        // 4,000…01 en virgule flottante : 4 tours
+  assert.equal(catchLaps(0.8, 0.2, 20), 'dep');      // déjà à moins d'une seconde
+  assert.equal(catchLaps(5, 0.5, 8), null);          // 10 tours : plus que les tours restants
+  assert.equal(catchLaps(16, 0.5, null), null);      // 32 tours : au-delà de 30
+  assert.equal(catchLaps(15, 0.5, null), 30);
+  assert.equal(catchLaps(3, 0, 20), null);           // ne reprend rien
 });

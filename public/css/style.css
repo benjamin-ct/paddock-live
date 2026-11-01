@@ -329,6 +329,10 @@ input[type=range]:not(#rpRange):disabled { opacity: .45; cursor: default; }
 .tag.drs { background: var(--green); color: #002012; }
 .tag.flag-blue { background: var(--blue); color: #001526; }
 .tag.catch { background: rgba(53,208,127,.18); color: var(--green); }
+/* Bataille repérée toute seule (classement) : pastille cliquable qui ouvre le duel */
+.tag.battle { display: inline-flex; align-items: center; height: 15px; border: 0; cursor: pointer; background: rgba(255, 138, 61, .18); color: #ff8a3d; }
+.tag.battle .ic { width: 11px; height: 11px; stroke-width: 2.4; }
+.tag.battle:hover { background: #ff8a3d; color: #2a1200; }
 
 .t-gap, .t-int, .t-lap { text-align: right; font-weight: 600; }
 .t-int.catching { color: var(--green); }
@@ -382,6 +386,10 @@ input[type=range]:not(#rpRange):disabled { opacity: .45; cursor: default; }
 .rcm-time { color: var(--muted); font-size: 12px; line-height: 1.25; }
 .rcm-flag { width: 16px; height: 12px; border-radius: 2px; margin-top: 3px; background: var(--line-2); }
 .rcm-msg { font-size: 13px; line-height: 1.3; }
+/* ↺ 3D : revoir le moment dans la vue 3D (seulement quand elle est ouverte) */
+.rcm-3d { display: none; margin-top: 3px; padding: 1px 6px; border: 1px solid var(--border); border-radius: 999px; background: transparent; color: var(--muted); font: 700 10.5px/1.4 var(--font); cursor: pointer; }
+.has-3d .rcm-3d { display: inline-block; }
+.rcm-3d:hover { color: var(--text); border-color: var(--text); }
 .flag-GREEN { background: var(--green); }
 .flag-YELLOW { background: var(--yellow); }
 .flag-DOUBLE-YELLOW { background: repeating-linear-gradient(90deg, var(--yellow) 0 6px, #111 6px 8px); }
@@ -1375,6 +1383,20 @@ body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-selec
 .map3d-mini { position: absolute; left: 8px; bottom: 8px; max-width: 34%; height: auto; border-radius: 10px; pointer-events: none;
   background: rgba(7, 8, 10, .45); box-shadow: 0 2px 10px rgba(0, 0, 0, .35); }
 .map3d-mini[hidden] { display: none; }
+.map3d-mini { pointer-events: auto; cursor: pointer; }
+/* Compteur du pilote suivi, en bas à droite à côté du bouton des sources (Poursuite, Hélico, bord de piste) */
+.map3d-hud { position: absolute; right: 38px; bottom: 8px; display: flex; align-items: center; gap: 10px;
+  padding: 4px 12px 4px 10px; border-radius: 10px; border-left: 3px solid var(--tc, #8b95a8); pointer-events: none;
+  background: rgba(7, 8, 10, .62); color: #fff; font: 700 13px/1.2 var(--font-cond, var(--font)); font-variant-numeric: tabular-nums; }
+.map3d-hud[hidden] { display: none; }
+.map3d-hud .mh-v { font-size: 20px; font-style: italic; min-width: 3.4em; text-align: right; }
+.map3d-hud .mh-v small { font-size: 11px; font-style: normal; opacity: .7; margin-left: 3px; }
+.map3d-hud .mh-g { font-size: 20px; font-style: italic; min-width: 1em; text-align: center; color: #F5C518; }
+.map3d-hud .mh-bars { display: grid; gap: 3px; width: 54px; }
+.map3d-hud .mh-bars i { display: block; height: 5px; border-radius: 3px; background: linear-gradient(90deg, #22c55e var(--v), rgba(255, 255, 255, .15) var(--v)); }
+.map3d-hud .mh-bars i.brk { background: linear-gradient(90deg, #ef4444 var(--v), rgba(255, 255, 255, .15) var(--v)); }
+.map3d-keys { margin: 4px 0 0; max-width: 240px; white-space: normal; }
+@media (max-width: 600px) { .map3d-keys { display: none; } }   /* téléphone : pas de clavier */
 .map3d-note { font-size: 11.5px; font-weight: 600; }
 .map3d-credit a { color: inherit; }
 .map3d-credit[hidden] { display: none; }
@@ -1941,6 +1963,45 @@ body.solo #muteBtn { display: none; }
 .cmp-speeds th, .cmp-speeds td { padding: 3px 10px; text-align: right; border-bottom: 1px solid var(--line); }
 .cmp-speeds th:first-child, .cmp-speeds td:first-child { text-align: left; }
 .cmp-speeds td.best { color: var(--purple); font-weight: 700; }
+/* Télémétrie des deux tours : courbes empilées sur la distance, actions par virage, tableaux */
+.ctl { margin: 14px 0 8px; }
+.ctl h4 { margin: 0 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.ctl-read { min-height: 20px; font-size: 12.5px; font-variant-numeric: tabular-nums; margin-bottom: 2px; }
+.ctl-svg { width: 100%; height: auto; display: block; touch-action: pan-y; }
+.ctl-svg .cmp-ax { font-size: 10px; fill: var(--muted); }
+.ctl-svg .cmp-zero { stroke: var(--line-2); stroke-width: 1; }
+.ctl-bg { fill: color-mix(in srgb, var(--text) 3%, transparent); }
+.ctl-label { font-size: 10.5px; font-weight: 700; fill: var(--muted); paint-order: stroke; stroke: var(--panel, var(--bg)); stroke-width: 3px; stroke-linejoin: round; }
+.ctl-corner { stroke: var(--line-2); stroke-dasharray: 2 4; }
+.ctl-cursor { stroke: var(--text); stroke-width: 1; opacity: .6; pointer-events: none; }
+.ctl-acts { display: grid; gap: 5px; margin: 10px 0; }
+.ctl-act-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; font-size: 12px; }
+.ctl-act-row b { min-width: 34px; }
+.ctl-act { display: inline-grid; place-items: center; min-width: 20px; height: 18px; padding: 0 4px; border-radius: 5px; font: 700 11px/1 var(--font); color: #fff; vertical-align: middle; }
+.ctl-act.flat { background: #16a34a; } .ctl-act.lift { background: #d97706; } .ctl-act.brake { background: #dc2626; }
+.muted .ctl-act { min-width: 10px; height: 10px; padding: 0; }
+.ctl-tables { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; align-items: start; }
+.ctl-table { border-collapse: collapse; font-size: 12.5px; width: 100%; font-variant-numeric: tabular-nums; }
+.ctl-table th, .ctl-table td { padding: 4px 8px; text-align: right; border-bottom: 1px solid var(--line); }
+.ctl-table th:first-child, .ctl-table td:first-child { text-align: left; }
+.ctl-table td.cmp-dt { font-weight: 700; }
+.ctl-type { display: inline-block; padding: 1px 7px; border-radius: 5px; font-size: 11px; font-weight: 700; background: color-mix(in srgb, var(--text) 10%, transparent); }
+.ctl-type.slow { color: #60a5fa; } .ctl-type.medium { color: #c084fc; } .ctl-type.fast { color: #fb923c; }
+/* Carte du circuit de la comparaison, à côté des tableaux */
+.ctl-bottom { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(300px, 1.5fr); gap: 14px; align-items: start; margin-top: 10px; }
+.ctl-bottom .ctl-tables { grid-template-columns: 1fr; }
+.ctl-mapbox { display: grid; gap: 6px; justify-items: center; }
+.ctl-map { width: 100%; max-height: 420px; }
+.ctl-map-turn { fill: #1b1f27; }
+.ctl-map-num { fill: #fff; font-weight: 700; font-family: var(--font); }
+.ctl-map-sec { fill: #fff; font-weight: 800; font-family: var(--font); paint-order: stroke; stroke: rgba(0, 0, 0, .6); stroke-width: 2px; }
+.ctl-map-leg { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 14px; font-size: 12px; align-items: center; }
+.ctl-chip { display: inline-block; padding: 1px 6px; border-radius: 4px; background: var(--c); color: #fff; font: 800 11px/1.4 var(--font); text-shadow: 0 0 2px rgba(0, 0, 0, .55); white-space: nowrap; }
+.ctl-act-row .ctl-chip { min-width: 58px; text-align: center; }
+.ctl-ring { display: inline-block; width: 9px; height: 9px; border-radius: 50%; border: 2px solid var(--c); vertical-align: -1px; }
+.ctl-flat { display: inline-block; width: 18px; height: 6px; border-radius: 3px; vertical-align: 1px; background: repeating-linear-gradient(90deg, #fff 0 3px, transparent 3px 7px), var(--muted); }
+@container (max-width: 640px) { .ctl-bottom { grid-template-columns: 1fr; } }
+@media (max-width: 700px) { .ctl-bottom { grid-template-columns: 1fr; } }   /* téléphone (pas de requête de conteneur) */
 @container (max-width: 560px) { .cmp-vis { grid-template-columns: 1fr; } .cmp-sectors { grid-template-columns: 1fr; } }
 
 /* ---------- Éléments affichés seulement dans la mise en page Pitwall ---------- */
@@ -2752,6 +2813,7 @@ kbd .ic { width: 12px; height: 12px; opacity: 1; }
 :root[data-scheme="light"] .tag.stop { background: rgba(220, 38, 38, .12); color: #B91C1C; }
 :root[data-scheme="light"] .tag.ret { background: rgba(107, 115, 128, .14); color: #4B5563; }
 :root[data-scheme="light"] .tag.catch { background: rgba(5, 150, 105, .12); color: #047857; }
+:root[data-scheme="light"] .tag.battle:not(:hover) { background: rgba(234, 88, 12, .16); color: #C2410C; }
 :root[data-scheme="light"] .hstat.surface.dry .hstat-value { background: rgba(202, 138, 4, .14); color: #8A6100; }
 :root[data-scheme="light"] .hstat.surface.damp .hstat-value { background: rgba(22, 163, 74, .14); color: #15803D; }
 :root[data-scheme="light"] .hstat.surface.wet .hstat-value { background: rgba(37, 99, 235, .14); color: #1D4ED8; }
@@ -3540,6 +3602,8 @@ html:is(.float-map, .overlay) .boot-cover { display: none; }
 .bt-gtrend.closing::before { content: '▼'; font-size: 8px; }
 .bt-gtrend.pulling { color: #f87171; }
 .bt-gtrend.pulling::before { content: '▲'; font-size: 8px; }
+/* Prévision sous la tendance : « rattrape en ~N tours », « à portée du DÉP » */
+.bt-geta { margin-top: 2px; font-size: 10.5px; font-weight: 700; color: #4ade80; white-space: nowrap; }
 .bt.close .bt-tag, .duel-band.close .bt-tag { color: #4ade80; }
 /* Bandeau par-dessus le bas du Classement (deux pilotes choisis) : il passe devant les dernières lignes, sans leur prendre de place */
 .duel-band { position: absolute; left: 8px; right: 8px; bottom: 8px; z-index: 6; animation: bt-up .25s ease-out; }
@@ -3604,6 +3668,7 @@ html[data-motion="off"] .duel-band { animation: none; }
 .grid.mobile .bt-name .team-logo { width: 20px; height: 20px; }
 .grid.mobile .bt-gap { min-width: 0; }
 .grid.mobile .bt-val { font-size: 28px; }
+.grid.mobile .bt-geta { font-size: 10px; }
 .grid.mobile .bt-gtrend { white-space: normal; text-align: center; justify-content: center; max-width: 150px; font-size: 10.5px; line-height: 1.25; padding: 2px 8px; }
 /* Dispositions enregistrées (Réglages → Disposition → Fenêtres) : une pastille par disposition */
 .win-save { margin-top: 0; }

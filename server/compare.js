@@ -37,6 +37,43 @@ function decodePositions(hub) {
   return cache.cars;
 }
 
+// Télémétrie décodée par pilote (cache par génération du hub) : { utc, v (km/h), g (rapport), th, br (%), rpm }
+let telCache = { gen: -1, seen: new WeakSet(), cars: new Map() };
+
+function decodeCarData(hub) {
+  if (telCache.gen !== hub.gen) telCache = { gen: hub.gen, seen: new WeakSet(), cars: new Map() };
+  const items = [...(hub.posArchive || []), ...hub.stream].filter((s) => s.topic === 'CarData' && !telCache.seen.has(s));
+  for (const s of items) {
+    telCache.seen.add(s);
+    let msg;
+    try { msg = JSON.parse(zlib.inflateRawSync(Buffer.from(s.raw, 'base64')).toString('utf8')); } catch { continue; }
+    for (const e of msg?.Entries || []) {
+      const utc = parseUtc(e.Utc);
+      if (!Number.isFinite(utc)) continue;
+      for (const [num, car] of Object.entries(e.Cars || {})) {
+        const ch = car?.Channels;
+        if (!ch) continue;
+        let c = telCache.cars.get(num);
+        if (!c) telCache.cars.set(num, (c = { utc: [], v: [], g: [], th: [], br: [], rpm: [] }));
+        if (c.utc.length && utc <= c.utc[c.utc.length - 1]) continue;
+        // Valeurs > 100 sur l'accélérateur et le frein : donnée invalide (voiture à l'arrêt, capteur)
+        const pct = (v) => (typeof v === 'number' && v >= 0 && v <= 100 ? v : null);
+        c.utc.push(utc); c.v.push(ch['2'] ?? null); c.g.push(ch['3'] ?? null); c.th.push(pct(ch['4'])); c.br.push(pct(ch['5'])); c.rpm.push(ch['0'] ?? null);
+      }
+    }
+  }
+  return telCache.cars;
+}
+
+// Indice de l'échantillon de télémétrie le plus proche de utc (à moins de 600 ms), sinon -1
+function telIndex(c, utc) {
+  let lo = 0, hi = c.utc.length - 1;
+  if (hi < 0) return -1;
+  while (lo < hi) { const mid = (lo + hi) >> 1; if (c.utc[mid] < utc) lo = mid + 1; else hi = mid; }
+  const j = lo > 0 && Math.abs(c.utc[lo - 1] - utc) < Math.abs(c.utc[lo] - utc) ? lo - 1 : lo;
+  return Math.abs(c.utc[j] - utc) < 600 ? j : -1;
+}
+
 // Heure locale de réception - heure F1, d'après les Heartbeat reçus jusqu'à `until`
 function clockOffset(events, until) {
   let best = null;
@@ -222,6 +259,7 @@ export async function compareLaps(hub, { a, b, until, la = null, lb = null }) {
   if (offset === null) { out.reason = 'Mini-secteurs : horloge du flux indisponible.'; return out; }
   const untilUtc = until - offset;
   const cars = decodePositions(hub);
+  const laps = {};
 
   for (const side of ['a', 'b']) {
     const d = out[side];
@@ -231,6 +269,7 @@ export async function compareLaps(hub, { a, b, until, la = null, lb = null }) {
     const runs = progressRuns(car, track, ldata.line ?? 0, untilUtc);
     const found = findLapRun(runs, d.lap.time, untilUtc, endUtc) || (d.lap.best ? findLapRun(runs, d.lap.time, untilUtc) : null);
     if (!found) { out.reason = `Tour ${d.lap.lap || ''} de ${d.tla} introuvable dans le GPS.`; return out; }
+    laps[side] = found;
     const raw = [];
     let prev = found.t0;
     for (const m of minis) {
@@ -266,5 +305,37 @@ export async function compareLaps(hub, { a, b, until, la = null, lb = null }) {
     return { name: m.name, sector: m.sector, from: m.from, to: m.to, approx: !!m.approx, pts };
   });
   out.gps = true;
+  out.trace = lapTraces(hub, out, laps, track, line);
   return out;
+}
+
+// Comparaison de télémétrie : pour chaque tour, K+1 points répartis sur la distance du tour (fraction q depuis la
+// ligne) : temps écoulé (recalé sur le temps officiel), et si la F1 envoie la télémétrie, vitesse, rapport,
+// accélérateur, frein et régime. Avec la position des virages (fraction du tour) et la longueur du tour (m).
+const K = 400;
+export function lapTraces(hub, out, laps, track, line) {
+  const tel = hub.hasCarData ? decodeCarData(hub) : null;
+  const side = (d, found) => {
+    const k = d.lap.time / ((found.t1 - found.t0) / 1000), c = tel?.get(String(d.num));
+    const r = { t: [], v: [], g: [], th: [], br: [], rpm: [] };
+    let n = 0;
+    for (let i = 0; i <= K; i++) {
+      const t = i === K ? found.t1 : i === 0 ? found.t0 : timeAt(found.run, found.n + i / K);
+      const j = t !== null && c ? telIndex(c, t) : -1;
+      if (j >= 0) n++;
+      r.t.push(t === null ? null : Math.round(((t - found.t0) / 1000) * k * 1000) / 1000);
+      for (const ch of ['v', 'g', 'th', 'br', 'rpm']) r[ch].push(j >= 0 ? c[ch][j] : null);
+    }
+    r.tel = n > K * 0.8;   // télémétrie sur presque tout le tour
+    return r;
+  };
+  const a = side(out.a, laps.a), b = side(out.b, laps.b);
+  const corners = track.corners.map((c) => {
+    const p = track.project(c.x, c.y, -1);
+    return { n: c.number, q: Math.round(((((p.r / track.L - line) % 1) + 1) % 1) * 10000) / 10000 };
+  }).sort((x, y) => x.q - y.q);
+  // Longueur du tour (m) : vitesse intégrée sur le temps (les coordonnées du tracé n'ont pas d'échelle fiable)
+  let len = 0;
+  for (let i = 0; i < K; i++) if (a.v[i] !== null && a.v[i + 1] !== null && a.t[i] !== null && a.t[i + 1] !== null) len += ((a.v[i] + a.v[i + 1]) / 7.2) * (a.t[i + 1] - a.t[i]);
+  return { K, len: a.tel ? Math.round(len) : null, corners, tel: a.tel && b.tel, a, b };
 }
