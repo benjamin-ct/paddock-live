@@ -24,14 +24,14 @@
   <link rel="stylesheet" href="/live/css/style.css">
   <link rel="stylesheet" href="/live/css/broadcast.css">
   <link rel="stylesheet" href="/live/css/design-v2.css">
-  <script>/* Apparence (sombre / clair / système) et design posés avant l'affichage : pas d'éclair */ try { const p = JSON.parse(localStorage.getItem('paddock.prefs') || '{}'); const s = p.schemeSet || p.scheme === 'light' ? p.scheme : 'auto'; const light = s === 'light' || (s === 'auto' && matchMedia('(prefers-color-scheme: light)').matches); document.documentElement.dataset.scheme = light ? 'light' : 'dark'; document.documentElement.dataset.design = p.designV || p.design === 'classic' ? p.design || 'v2' : 'v2'; } catch { document.documentElement.dataset.scheme = 'dark'; document.documentElement.dataset.design = 'v2'; } document.documentElement.dataset.theme = 'pitwall'; document.documentElement.classList.add('web'); const only = /[?&]only=(map|analysis)\b/.exec(location.search)?.[1]; if (only) document.documentElement.classList.add('only', `only-${only}`);</script>
+  <script>/* Apparence (sombre / clair / système) et design posés avant l'affichage : pas d'éclair */ try { const p = JSON.parse(localStorage.getItem('paddock.prefs') || '{}'); const s = p.schemeSet || p.scheme === 'light' ? p.scheme : 'auto'; const light = s === 'light' || (s === 'auto' && matchMedia('(prefers-color-scheme: light)').matches); document.documentElement.dataset.scheme = light ? 'light' : 'dark'; document.documentElement.dataset.design = p.designV || p.design === 'classic' ? p.design || 'v2' : 'v2'; } catch { document.documentElement.dataset.scheme = 'dark'; document.documentElement.dataset.design = 'v2'; } document.documentElement.dataset.theme = 'pitwall'; document.documentElement.classList.add('web'); const only = /[?&]only=(map|analysis|duel)\b/.exec(location.search)?.[1]; if (only) document.documentElement.classList.add('only', `only-${only}`);</script>
   <style>
     /* Version web : écran principal de l'appli, sans menu latéral ni outils. Classement à gauche ; télémétrie et radios
        en haut à droite, direction de course dessous ; le circuit dans une fenêtre à part (bouton « Circuit ») */
     .web body { padding-left: 0 !important; }
     .web .grid { grid-template-columns: minmax(0, 1.25fr) minmax(0, .9fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1.15fr) minmax(0, 1fr);
       grid-template-areas: "tower tele radio" "tower feed feed"; }
-    .web .p-map, .web .p-extra { display: none; }   /* onglets de course : rangés dans la fenêtre Analyse par web.js */
+    .web .p-map, .web .p-extra, .web .p-duel { display: none; }   /* onglets de course : rangés dans la fenêtre Analyse par web.js */
     .web .win-btn { gap: 5px; }
     @media (max-width: 1600px) { .web .win-btn { padding: 6px; } .web .win-btn .wb-lbl { display: none; } }
     /* Barre du haut trop longue pour l'écran (séance, météo, délai, boutons) : la suite passe à la ligne au lieu de sortir */
@@ -195,12 +195,12 @@
       .web .p-tower { height: auto; min-height: 0; overflow: auto; }
       .web .p-tower .tower-wrap { overflow: auto; }
     }
-    /* Fenêtres « Circuit » et « Analyse » (/live/?only=map, ?only=analysis) : le panneau seul, sur toute la fenêtre */
+    /* Fenêtres « Circuit », « Analyse » et « Duel » (/live/?only=map, analysis, duel) : le panneau seul, sur toute la fenêtre */
     html.web.only body { height: 100dvh; overflow: hidden; padding: 0 !important; }
     html.web.only :is(.topbar, #seasonView) { display: none !important; }
     html.web.only .grid { display: grid; flex: 1; grid-template: "only" minmax(0, 1fr) / minmax(0, 1fr); }
     html.web.only .grid > .panel { display: none; }
-    html.web.only-map .grid > .p-map, html.web.only-analysis .grid > .p-analysis { display: flex; grid-area: only; height: auto; }
+    html.web.only-map .grid > .p-map, html.web.only-analysis .grid > .p-analysis, html.web.only-duel .grid > .p-duel { display: flex; grid-area: only; height: auto; }
   </style>
 </head>
 <body>
@@ -237,6 +237,7 @@
     <button class="source-badge" id="sourceBadge"><span class="src-dot"></span><span id="sourceLabel">—</span></button>
     <button class="btn small win-btn" data-win="map" title="Carte du circuit dans une fenêtre à part"><svg class="ic" aria-hidden="true"><use href="#i-map"/></svg><span class="wb-lbl">Circuit</span></button>
     <button class="btn small win-btn" data-win="analysis" title="Écarts, temps, secteurs, arrêts, stratégie et bagarres dans une fenêtre à part"><svg class="ic" aria-hidden="true"><use href="#i-layout"/></svg><span class="wb-lbl">Analyse</span></button>
+    <button class="btn small win-btn" data-win="duel" title="Duel des deux pilotes cliqués dans le classement, dans une fenêtre à part"><svg class="ic" aria-hidden="true"><use href="#i-duel"/></svg><span class="wb-lbl">Duel</span></button>
     <button class="btn small" id="seasonBtn" title="Calendrier, classements et résultats de la saison" aria-label="Saison"><svg class="ic" aria-hidden="true"><use href="#i-trophy"/></svg><span class="sz-lbl">Saison</span></button>
     <button class="btn small" id="clBtn" title="Ce qui a changé dans Paddock Live">Nouveautés</button>
     <a class="btn small btn-accent" href="https://paddocklive.app/" title="Télécharger l'appli Paddock Live">Appli complète</a>
@@ -259,6 +260,7 @@
     <!--panel:feed-->
     <!--panel:radio-->
     <!--panel:extra-->
+    <!--panel:duel-->
   </main>
 
   <dialog id="pairDlg" class="pair-dlg">

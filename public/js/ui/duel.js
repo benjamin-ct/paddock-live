@@ -324,7 +324,7 @@ export function renderDuel() {
   if (!a || !b || !dl[a] || !dl[b]) {
     if (skeletonFor !== 'empty') {
       skeletonFor = 'empty';
-      $('#duelBody').innerHTML = `<div class="duel-empty">Choisissez deux pilotes ci-dessus,<br>ou cliquez sur <b style="color:var(--blue)">A</b> et <b style="color:var(--orange)">B</b> dans le classement.</div>`;
+      $('#duelBody').innerHTML = `<div class="duel-empty">Choisissez deux pilotes ci-dessus,<br>ou cliquez sur deux pilotes du classement.</div>`;
     }
     return;
   }
