@@ -3,6 +3,7 @@
 // et bronze en relief, titres chromés. Couverture, podium et classement dessinés à part ; les autres visuels
 // reprennent le fond, l'en-tête, le pied et les pastilles (background, frame, footer et pill de social-draw.js).
 
+import { teamShort } from './season-calc.js';
 import { C, rr, txt, alpha, vivid, photo, grain, topY, footY, pageDots, heroItems } from './social-draw.js';
 
 export const TV_TITLE = '"Barlow Condensed", "Saira Condensed", sans-serif';
@@ -289,15 +290,16 @@ export function tvPodium(ctx, W, H, d, o) {
     label(ctx, p.first || '', x + 26 * u, py + 40 * u, 19 * u, { spacing: 4, color: 'rgba(255,255,255,0.7)', max: w - 40 * u });
     tt(ctx, p.last.toUpperCase(), x + 24 * u, py + 98 * u, 58 * u, { fill: 'chrome', max: w - 44 * u });
     ctx.fillStyle = vivid(p.color); slant(ctx, x + 24 * u, py + 118 * u, 8 * u, 30 * u, 4 * u); ctx.fill();
-    label(ctx, p.team || '', x + 40 * u, py + 142 * u, 19 * u, { spacing: 1.5, max: w * 0.5 });
     const gapText = i === 0 ? (d.kind === 'race' ? 'VAINQUEUR' : p.gap || '') : p.gap || '';
+    ctx.font = f(26 * u, 800);
+    const gw = gapText ? ctx.measureText(gapText).width + 24 * u : 0;
+    const gx = x + w - gw - 20 * u;
+    // Écurie (nom court : « Red Bull ») dans la place laissée par l'écart, sans passer dessous
+    label(ctx, teamShort(p.team || ''), x + 40 * u, py + 142 * u, 19 * u, { spacing: 1.5, max: gx - x - 52 * u });
     if (gapText) {
-      ctx.font = f(30 * u, 800);
-      const gw = ctx.measureText(gapText).width + 34 * u;
-      const gx = x + w - gw - 20 * u;
       slant(ctx, gx, py + 116 * u, gw, 38 * u, 8 * u);
       ctx.fillStyle = i === 0 && d.kind === 'race' ? metal(ctx, 'gold', py + 116 * u, py + 154 * u) : 'rgba(255,255,255,0.12)'; ctx.fill();
-      tt(ctx, gapText, gx + gw / 2, py + 146 * u, 30 * u, { w: 800, align: 'center', fill: i === 0 && d.kind === 'race' ? '#1a1206' : '#fff' });
+      tt(ctx, gapText, gx + gw / 2, py + 145 * u, 26 * u, { w: 800, align: 'center', fill: i === 0 && d.kind === 'race' ? '#1a1206' : '#fff' });
     }
     // Chiffre de la place, posé au-dessus de la plaque (jamais sur le texte)
     bigNum(ctx, String(i + 1), x + 6 * u, py - 8 * u, (i === 0 ? 250 : 210) * u, MEDAL_KIND[i]);
