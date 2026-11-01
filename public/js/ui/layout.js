@@ -8,6 +8,7 @@ import { t } from '../i18n.js';
 import { icon } from '../icons.js';
 import { track } from './stats.js';
 import { tabList, canHideTab, pageTabs } from './tabmove.js';
+import { markSetup, setupToApply } from './layout-calc.js';
 
 export const PANELS = [
   { id: 'tower', cls: 'p-tower', name: 'Classement' },
@@ -1029,6 +1030,24 @@ function checkProfile() {
   const kind = store.state.SessionInfo ? sessionKind(store.state) : null;
   if (!kind && prefs.layoutMode !== 'race' && prefs.layoutMode !== 'quali') return;
   switchProfile(profileFor(prefs.layoutMode, kind));
+  autoSetup();
+}
+
+// Début d'une séance (direct ou replay) : la disposition enregistrée marquée pour son type est remise toute seule, une
+// seule fois par séance (séance gardée : pas remise de nouveau au rechargement de la page)
+const AUTO_KEY = 'paddock.autoSetupSession';
+const AUTO_MSG = {
+  race: (n) => `Disposition « ${n} » remise pour la course`,
+  quali: (n) => `Disposition « ${n} » remise pour les qualifs`,
+  practice: (n) => `Disposition « ${n} » remise pour les essais`,
+};
+function autoSetup() {
+  const info = store.state.SessionInfo, id = info?.Path || info?.Key;
+  if (!isMain || !info?.Type || !id) return;
+  const kind = sessionKind(store.state);
+  const snap = setupToApply(windowSetups(), kind, String(id), storageGet(AUTO_KEY, null));
+  storageSet(AUTO_KEY, String(id));
+  if (snap) restoreWindowsSnapshot(snap.name, AUTO_MSG[kind](snap.name));
 }
 
 // Boutons de panneau (poignée, agrandir, envoyer, masquer) centrés sur la hauteur de la première ligne de l'en-tête (titre, outils ou
@@ -1108,6 +1127,15 @@ export function initLayout() {
   }
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && $('.grid').classList.contains('has-max') && !document.querySelector('dialog[open]')) unmaximize();
+  });
+  // Raccourcis : Maj+1 à Maj+9 remettent la disposition enregistrée n° 1 à 9 (e.code : la touche, quel que soit le
+  // clavier), D ferme le duel du classement (son ✕)
+  window.addEventListener('keydown', (e) => {
+    if (e.ctrlKey || e.metaKey || e.altKey || e.repeat || e.target.closest?.('input, select, textarea, [contenteditable]')) return;
+    const n = e.shiftKey && /^Digit[1-9]$/.test(e.code) ? Number(e.code[5]) : 0;
+    const snap = n && windowSetups()[n - 1];
+    if (snap) { e.preventDefault(); restoreWindowsSnapshot(snap.name); }
+    else if (e.key === 'd' || e.key === 'D') $('#duelBand:not([hidden]) .bt-close')?.click();
   });
   window.addEventListener('resize', () => render());
   $('#mobNav')?.addEventListener('click', async (e) => {
@@ -1196,7 +1224,7 @@ export function initLayout() {
 // la dernière disposition enregistrée ou remise peut être reprise à chaque lancement) ; navigateur : les fenêtres
 // secondaires sont rouvertes à leur place.
 const SNAP_KEY = 'paddock.savedWindows';     // dernière disposition enregistrée ou remise (seule gardée avant la 1.30)
-const SETUPS_KEY = 'paddock.windowSetups';   // [{ name, at, layouts, wins, desk }]
+const SETUPS_KEY = 'paddock.windowSetups';   // [{ name, at, layouts, wins, desk, kind? }]
 export function windowSetups() {
   const list = storageGet(SETUPS_KEY, null);
   if (Array.isArray(list)) return list;
@@ -1220,7 +1248,8 @@ export async function saveWindowsSnapshot(name) {
   const wins = [...others.entries()].map(([win, o]) => ({ win, bounds: o.bounds || null }));
   let desk = null;
   try { desk = await window.f1desktop?.saveWindows?.(layouts); } catch { /* ancienne version */ }
-  const snap = { name, at: Date.now(), layouts, wins, desk: desk && typeof desk === 'object' ? desk : null, ...viewState() };
+  const kind = windowSetups().find((s) => s.name === name)?.kind;   // même nom : garde son type de séance
+  const snap = { name, at: Date.now(), layouts, wins, desk: desk && typeof desk === 'object' ? desk : null, ...viewState(), ...(kind && { kind }) };
   storageSet(SNAP_KEY, snap);
   storageSet(SETUPS_KEY, [...windowSetups().filter((s) => s.name !== name), snap]);
   toast(`Disposition « ${name} » enregistrée (${wins.length + 1} fenêtre${wins.length ? 's' : ''})`, 3500, 'check');
@@ -1233,11 +1262,16 @@ function viewState() {
   return { prefs: Object.fromEntries(VIEW_PREFS.map((k) => [k, prefs[k]])), profiles: storageGet(PROFILE_KEY, {}), tabs: storageGet(TABS_KEY, {}) };
 }
 
+// Disposition remise toute seule au début d'un type de séance ('quali', 'race', 'practice' ; vide : aucun)
+export function setWindowSetupKind(name, kind) {
+  storageSet(SETUPS_KEY, markSetup(windowSetups(), name, kind));
+}
+
 export function deleteWindowSetup(name) {
   storageSet(SETUPS_KEY, windowSetups().filter((s) => s.name !== name));
 }
 
-export async function restoreWindowsSnapshot(name) {
+export async function restoreWindowsSnapshot(name, msg) {
   if (!isMain) return;
   const snap = windowSetups().find((s) => s.name === name);
   if (!snap?.layouts) { toast('Aucun emplacement enregistré'); return; }
@@ -1274,7 +1308,7 @@ export async function restoreWindowsSnapshot(name) {
   render(true);
   applyTabs();
   renderLayoutOptions();
-  toast(`Disposition « ${name} » remise`, 2500, 'check');
+  toast(msg || `Disposition « ${name} » remise`, msg ? 4000 : 2500, 'check');
 }
 
 // Retour à l'interface par défaut : disposition, panneaux masqués, colonnes du classement ;

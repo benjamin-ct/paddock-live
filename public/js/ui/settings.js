@@ -5,7 +5,7 @@ import { $, $$, esc, api, fmtDuration, drivers, orderedNumbers, storageGet, stor
 import { toast } from './delay.js';
 import { prefs, setPref, toggleFav, toggleTeamFav } from '../prefs.js';
 import { NEWS_TEAMS, fold } from '/shared/news.js';
-import { saveWindowsSnapshot, restoreWindowsSnapshot, windowSetups, deleteWindowSetup, migrateWindowSetups } from './layout.js';
+import { saveWindowsSnapshot, restoreWindowsSnapshot, windowSetups, deleteWindowSetup, setWindowSetupKind, migrateWindowSetups } from './layout.js';
 import { icon } from '../icons.js';
 import { LANG, LOCALE, t } from '../i18n.js';
 
@@ -246,9 +246,11 @@ export function initSettings() {
   $('#keepAwake').addEventListener('change', (e) => setPref('keepAwake', e.target.checked));
   on('prefs', (k) => { if (k === 'keepAwake') $('#keepAwake').checked = prefs.keepAwake; });
   // Emplacement des fenêtres : enregistrer / revenir ; application de bureau : choix au lancement
-  // Dispositions enregistrées : une pastille par disposition (clic : la remettre ; × : la supprimer)
+  // Dispositions enregistrées : une pastille par disposition (clic : la remettre ; × : la supprimer ; type de séance :
+  // remise toute seule au début de ce type de séance, layout.js)
+  const SETUP_KINDS = [['', 'À la main'], ['quali', 'Qualifs'], ['race', 'Course'], ['practice', 'Essais']];
   const renderSetups = () => {
-    $('#winSetups').innerHTML = windowSetups().map((w, i) => `<span class="chip win-setup"><button type="button" data-setup="${i}" title="Remettre cette disposition">${icon('layout')}<span data-no-i18n>${esc(w.name)}</span></button><button type="button" data-setup-del="${i}" title="Supprimer cette disposition" aria-label="Supprimer">✕</button></span>`).join('');
+    $('#winSetups').innerHTML = windowSetups().map((w, i) => `<span class="chip win-setup"><button type="button" data-setup="${i}" title="Remettre cette disposition">${icon('layout')}<span data-no-i18n>${esc(w.name)}</span></button><select data-setup-kind="${i}" title="Remise toute seule au début de ce type de séance" aria-label="Type de séance">${SETUP_KINDS.map(([k, l]) => `<option value="${k}"${(w.kind || '') === k ? ' selected' : ''}>${l}</option>`).join('')}</select><button type="button" data-setup-del="${i}" title="Supprimer cette disposition" aria-label="Supprimer">✕</button></span>`).join('');
   };
   migrateWindowSetups().then(renderSetups);
   const saveSetup = async () => {
@@ -259,6 +261,12 @@ export function initSettings() {
   };
   $('#winSave').addEventListener('click', saveSetup);
   $('#winName').addEventListener('keydown', (e) => { if (e.key === 'Enter') saveSetup(); });
+  $('#winSetups').addEventListener('change', (e) => {
+    const sel = e.target.closest('[data-setup-kind]');
+    if (!sel) return;
+    setWindowSetupKind(windowSetups()[Number(sel.dataset.setupKind)]?.name, sel.value);
+    renderSetups();
+  });
   $('#winSetups').addEventListener('click', (e) => {
     const use = e.target.closest('[data-setup]'), del = e.target.closest('[data-setup-del]');
     const list = windowSetups();

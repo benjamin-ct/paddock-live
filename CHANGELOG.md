@@ -240,6 +240,12 @@ l'application (Réglages → À propos → Nouveautés).
   les écrans comme au moment de l'enregistrement, avec les panneaux et les onglets affichés et les colonnes du
   classement, et ✕ la supprime. Elles sont aussi dans le menu « Dispo. » de la
   barre de gauche. L'emplacement enregistré avant cette version est gardé sous le nom « Mon emplacement ».
+- Une disposition enregistrée peut être liée à un type de séance (choix « Qualifs », « Course » ou « Essais » à côté de
+  son nom) : au début de chaque séance de ce type, en direct comme en replay, elle est remise toute seule, une seule
+  fois (vos changements pendant la séance sont gardés), avec un petit message. Une seule disposition par type de
+  séance ; les qualifs comprennent la qualif sprint et la course le sprint.
+- Raccourcis clavier : Maj+1 à Maj+9 remettent la disposition enregistrée n° 1 à 9, et D ferme le duel affiché en bas
+  du classement (rappel dans Réglages → Disposition → Fenêtres).
 
 ### Animations
 - Plus de mouvement dans l'appli et la version web : les courbes de la Saison se tracent et les barres se remplissent à
