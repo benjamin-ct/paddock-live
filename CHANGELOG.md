@@ -7,6 +7,8 @@ l'application (Réglages → À propos → Nouveautés).
 ## v1.30.0 — à venir
 
 ### Nouveau design
+- Bouton « ± » du délai TV réparé dans Paddock 2 : le petit menu des pas (−5 à +5 s) s'ouvrait caché dans le cadre
+  arrondi du délai ; il s'affiche de nouveau dessous, et sur téléphone il reste dans l'écran.
 - Paddock Live change de look avec le design « Paddock 2 », dans l'appli, la version web et sur le site : fond bleu
   nuit éclairé de lueurs, panneaux en verre dépoli aux coins arrondis, grands titres et chiffres en italique, lueurs
   aux couleurs des écuries derrière les portraits et les logos, et sur l'accueil le tracé lumineux du circuit derrière
@@ -44,6 +46,8 @@ l'application (Réglages → À propos → Nouveautés).
   bagarres, championnat) et le Duel s'ouvrent dans leur propre fenêtre avec les boutons « Analyse » et « Duel » en haut ;
   le pilote suivi et le duel cliqués dans le classement s'y retrouvent. Sur téléphone, rien ne change. Sur un écran
   moins large, la barre du haut passe sur deux lignes au lieu de déborder.
+- Version web installée sur l'écran d'accueil de l'iPhone : la barre de l'heure et de la batterie prend la couleur du
+  haut de l'appli au lieu d'une bande noire.
 - Analyse : seulement les onglets utiles selon la séance. En course : Écarts et Arrêts (avec la stratégie) ; en qualifs
   et en essais : Secteurs et Comparaison. Les autres (Temps, Pneus, Jeux de pneus, simulateur d'arrêt, Bagarres,
   championnat) s'ajoutent en un clic.
@@ -157,10 +161,20 @@ l'application (Réglages → À propos → Nouveautés).
   à la F1, comme avant.
 - Carte du circuit : en revenant sur la page (autre onglet, autre appli, téléphone en veille), plus de traînées
   qui partent dans tous les sens : elles repartent de la position actuelle des voitures. Aussi dans la version web.
-- Classement en course : étiquette « DÉP » (mode dépassement, qui remplace le DRS en 2026) à côté d'un pilote passé au
-  point de détection à moins d'une seconde de la voiture devant, pour le tour qui suit, comme le DRS, une fois le mode
-  activé par la direction de course (pas au départ, ni sous voiture de sécurité ou drapeau rouge). La F1 ne dit pas
-  quand le pilote s'en sert : l'étiquette indique qu'il y a droit.
+- Classement en course : étiquette « DÉP » (mode dépassement, qui remplace le DRS en 2026) à côté de chaque pilote,
+  allumée dès qu'il est à moins d'une seconde de la voiture devant, une fois le mode activé par la direction de course
+  (pas au départ, ni sous voiture de sécurité ou drapeau rouge). La F1 ne dit pas quand le pilote s'en sert :
+  l'étiquette indique qu'il est à portée.
+- Classement : le meilleur tour de la séance (de la partie en cours en qualifications) en violet dans la colonne
+  « Meilleur », dès qu'il tombe.
+- Version web : le classement passe lui aussi au code du pilote seul (nom complet : menu « Colonnes »), y compris
+  pour ceux qui l'avaient déjà ouverte.
+- Version web : l'engrenage des options des radios et de la direction de course de nouveau tout à droite de leur
+  barre (une place vide restait réservée à des boutons absents).
+- Zones du mode dépassement plus justes sur la carte : leur fin et les points de détection et d'activation sont lus
+  directement sur le dessin du plan du circuit publié par la FIA. Madrid et Sepang, absents des tracés habituels, ont
+  maintenant eux aussi leurs zones et les numéros des virages, sur un tracé reconstruit d'après le GPS d'une séance
+  (et leur carte dans la version web).
 - Carte du circuit plus fluide avec le GPS (F1 TV) : les voitures avancent régulièrement, sans les petites saccades
   que donnait l'heure irrégulière des positions envoyées par la F1. Si le GPS se coupe pendant une séance, les voitures
   ne disparaissent plus : elles passent aussitôt en positions estimées, puis reprennent le GPS à son retour, en glissant
