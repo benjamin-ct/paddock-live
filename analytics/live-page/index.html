@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#0F172A">
+  <meta name="theme-color" content="#0C1326">
   <title>Paddock Live · Live timing F1 dans le navigateur</title>
   <meta name="description" content="Le direct de la F1 dans le navigateur, sans rien installer : classement, carte du circuit, télémétrie, direction de course et radios d'équipe traduites, calés sur ta TV.">
   <meta property="og:type" content="website">
@@ -94,6 +94,10 @@
     /* iPhone (page installée) : barre du haut fixée en haut, fond plein jusque sous la barre d'état, comme l'en-tête
        du Studio. Sans élément fixé en haut, iOS floute le haut de la page (titre de la séance flou) */
     .web body { padding-top: 0; }
+    /* iPhone : zone de l'heure et de la batterie de la couleur de la barre du haut. L'iPhone la remplit avec le fond de
+       la page (fond de html, le body garde le sien) ou laisse voir la page dessous (bande fixée de la hauteur de la zone) */
+    html.web:is([data-design="v2"], [data-scheme="dark"]) { background-color: #0C1326; }
+    html.web:is([data-design="v2"], [data-scheme="dark"])::before { content: ''; position: fixed; top: 0; left: 0; right: 0; height: env(safe-area-inset-top); background: #0C1326; z-index: 801; pointer-events: none; }
     .web .topbar { position: sticky; top: 0; z-index: 800; padding-top: calc(8px + env(safe-area-inset-top)); background: linear-gradient(180deg, #0F172A, #0A1120); }
     .web .web-wait { padding: 8px 14px; background: var(--panel-2); border-bottom: 1px solid var(--border); color: var(--text); font-size: 13px; font-weight: 600; text-align: center; }
     /* Appairage d'un téléphone (version web avec compte F1 TV, sans extension) */
