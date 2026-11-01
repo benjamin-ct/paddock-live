@@ -26,12 +26,12 @@
   <link rel="stylesheet" href="/live/css/design-v2.css">
   <script>/* Apparence (sombre / clair / système) et design posés avant l'affichage : pas d'éclair */ try { const p = JSON.parse(localStorage.getItem('paddock.prefs') || '{}'); const s = p.schemeSet || p.scheme === 'light' ? p.scheme : 'auto'; const light = s === 'light' || (s === 'auto' && matchMedia('(prefers-color-scheme: light)').matches); document.documentElement.dataset.scheme = light ? 'light' : 'dark'; document.documentElement.dataset.design = p.designV || p.design === 'classic' ? p.design || 'v2' : 'v2'; } catch { document.documentElement.dataset.scheme = 'dark'; document.documentElement.dataset.design = 'v2'; } document.documentElement.dataset.theme = 'pitwall'; document.documentElement.classList.add('web'); const only = /[?&]only=(map|analysis|duel)\b/.exec(location.search)?.[1]; if (only) document.documentElement.classList.add('only', `only-${only}`);</script>
   <style>
-    /* Version web : écran principal de l'appli, sans menu latéral ni outils. Classement à gauche ; télémétrie et radios
-       en haut à droite, direction de course dessous ; le circuit dans une fenêtre à part (bouton « Circuit ») */
+    /* Version web : écran principal de l'appli, sans menu latéral ni outils. Classement à gauche, circuit au centre,
+       télémétrie, radios et direction de course l'une sous l'autre à droite ; Analyse et Duel dans des fenêtres à part */
     .web body { padding-left: 0 !important; }
-    .web .grid { grid-template-columns: minmax(0, 1.25fr) minmax(0, .9fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1.15fr) minmax(0, 1fr);
-      grid-template-areas: "tower tele radio" "tower feed feed"; }
-    .web .p-map, .web .p-extra, .web .p-duel { display: none; }   /* onglets de course : rangés dans la fenêtre Analyse par web.js */
+    .web .grid { grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.15fr) minmax(0, .95fr); grid-template-rows: minmax(0, 1fr) minmax(0, 1.1fr) minmax(0, 1.1fr);
+      grid-template-areas: "tower map tele" "tower map radio" "tower map feed"; }
+    .web .p-extra, .web .p-duel { display: none; }   /* onglets de course : rangés dans la fenêtre Analyse par web.js */
     .web .win-btn { gap: 5px; }
     @media (max-width: 1600px) { .web .win-btn { padding: 6px; } .web .win-btn .wb-lbl { display: none; } }
     /* Barre du haut trop longue pour l'écran (séance, météo, délai, boutons) : la suite passe à la ligne au lieu de sortir */
@@ -130,8 +130,8 @@
       html.web body .topbar { position: fixed; top: 0; left: 0; right: 0; z-index: 800; }   /* passe devant la règle des écrans peu hauts */
       .web body { padding-top: var(--web-top, 0px); }
       html.web { overscroll-behavior-y: none; }
-      .web .grid { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); grid-template-rows: 460px 460px 460px;
-        grid-template-areas: "tower tele" "tower radio" "feed feed"; }
+      .web .grid { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); grid-template-rows: 560px 440px 440px;
+        grid-template-areas: "tower map" "tele radio" "feed feed"; }
     }
     @media (max-width: 900px) {
       .web .grid { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto; grid-template-areas: "map" "tower" "tele" "feed" "radio"; }
@@ -141,7 +141,6 @@
     /* Téléphone, en portrait comme en paysage (écran peu haut) : menus, classement et réglages du direct */
     @media (max-width: 900px), (max-height: 500px) and (orientation: landscape) {
       /* Téléphone : le circuit reste dans la page (pas de fenêtres à part), comme dans l'appli sur téléphone */
-      .web .p-map { display: flex; }
       .web .win-btn { display: none; }
       /* Menus en bas de l'écran, sur toute la largeur, défilement au doigt (comme l'appli sur téléphone) */
       .web .map-layers-menu { position: fixed; left: 8px; right: 8px; top: auto; bottom: calc(12px + env(safe-area-inset-bottom));
@@ -235,7 +234,6 @@
     </div>
     <button class="btn small" id="pairBtn" title="Utiliser son compte F1 TV sur cet appareil" hidden></button>
     <button class="source-badge" id="sourceBadge"><span class="src-dot"></span><span id="sourceLabel">—</span></button>
-    <button class="btn small win-btn" data-win="map" title="Carte du circuit dans une fenêtre à part"><svg class="ic" aria-hidden="true"><use href="#i-map"/></svg><span class="wb-lbl">Circuit</span></button>
     <button class="btn small win-btn" data-win="analysis" title="Écarts, temps, secteurs, arrêts, stratégie et bagarres dans une fenêtre à part"><svg class="ic" aria-hidden="true"><use href="#i-layout"/></svg><span class="wb-lbl">Analyse</span></button>
     <button class="btn small win-btn" data-win="duel" title="Duel des deux pilotes cliqués dans le classement, dans une fenêtre à part"><svg class="ic" aria-hidden="true"><use href="#i-duel"/></svg><span class="wb-lbl">Duel</span></button>
     <button class="btn small" id="seasonBtn" title="Calendrier, classements et résultats de la saison" aria-label="Saison"><svg class="ic" aria-hidden="true"><use href="#i-trophy"/></svg><span class="sz-lbl">Saison</span></button>

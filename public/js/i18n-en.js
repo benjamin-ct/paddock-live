@@ -2870,7 +2870,6 @@ export default {
   "Compte à rebours dans la barre des menus": "Countdown in the menu bar",
   "Ouvrir Paddock Live": "Open Paddock Live",
   "Masquer le compte à rebours": "Hide the countdown",
-  "Carte du circuit dans une fenêtre à part": "Circuit map in a separate window",
   "Écarts, temps, secteurs, arrêts, stratégie et bagarres dans une fenêtre à part": "Gaps, lap times, sectors, pit stops, strategy and battles in a separate window",
   "Duel des deux pilotes cliqués dans le classement, dans une fenêtre à part": "Duel of the two drivers clicked in the standings, in a separate window",
   "ou cliquez sur deux pilotes du classement.": "or click two drivers in the standings.",

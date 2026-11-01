@@ -767,12 +767,13 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
 .dial { width: 100%; max-width: 300px; display: block; }
 /* Écran principal : le compteur de la télémétrie se règle sur la hauteur de son panneau ; panneau bas : sans la
    courbe des 30 dernières secondes */
-.grid.custom .p-extra .panel-body { container-type: size; }
-.grid.custom .p-extra .dial { max-width: max(110px, min(320px, calc(100cqh - 200px))); margin: 0 auto; }
+/* Compteur de la télémétrie à la hauteur de son panneau (appli : panneau Télémétrie ; version web : panneau Analyse) */
+:is(.grid.custom .p-extra, html.web .p-analysis) .panel-body { container-type: size; }
+:is(.grid.custom .p-extra, html.web .p-analysis) .dial { max-width: max(110px, min(320px, calc(100cqh - 200px))); margin: 0 auto; }
 @container (max-height: 440px) {
-  .grid.custom .p-extra .trace { display: none; }
-  .grid.custom .p-extra .tele2 { gap: 4px; padding-top: 6px; }
-  .grid.custom .p-extra .dial { max-width: max(90px, min(320px, calc(100cqh - 56px))); }
+  :is(.grid.custom .p-extra, html.web .p-analysis) .trace { display: none; }
+  :is(.grid.custom .p-extra, html.web .p-analysis) .tele2 { gap: 4px; padding-top: 6px; }
+  :is(.grid.custom .p-extra, html.web .p-analysis) .dial { max-width: max(90px, min(320px, calc(100cqh - 56px))); }
 }
 .dial path { fill: none; stroke-linecap: round; }
 .dl-track { stroke: var(--panel-3); stroke-width: 12; }

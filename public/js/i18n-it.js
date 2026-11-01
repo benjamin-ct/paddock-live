@@ -2869,7 +2869,6 @@ export default {
   "Compte à rebours dans la barre des menus": "Conto alla rovescia nella barra dei menu",
   "Ouvrir Paddock Live": "Apri Paddock Live",
   "Masquer le compte à rebours": "Nascondi il conto alla rovescia",
-  "Carte du circuit dans une fenêtre à part": "Mappa del circuito in una finestra a parte",
   "Écarts, temps, secteurs, arrêts, stratégie et bagarres dans une fenêtre à part": "Distacchi, tempi, settori, pit stop, strategia e duelli in una finestra a parte",
   "Duel des deux pilotes cliqués dans le classement, dans une fenêtre à part": "Duello dei due piloti cliccati nella classifica, in una finestra a parte",
   "ou cliquez sur deux pilotes du classement.": "oppure clicca due piloti della classifica.",
