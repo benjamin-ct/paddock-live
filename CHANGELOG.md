@@ -226,6 +226,16 @@ l'application (Réglages → À propos → Nouveautés).
 - Survol plus doux : dans les virages serrés et les chicanes (le stade de Mexico, par exemple), la caméra ne saute plus
   d'un côté à l'autre de la piste et ne pivote plus d'un coup ; elle suit une trajectoire lissée et regarde dans la
   direction de la piste.
+- Mini-carte cliquable : toucher une voiture sur la mini-carte la fait suivre par la caméra (en Réalisation, la vue passe
+  en Poursuite).
+- Compteur en bas à droite avec les caméras Poursuite et Hélico : vitesse, rapport, accélérateur et frein du pilote
+  suivi, à la couleur de son écurie.
+- Réalisation : nouveaux plans de bord de piste, une caméra fixe posée à l'extérieur du virage qui arrive, qui pivote et
+  zoome au passage de la voiture, puis se replace plus loin, comme à la TV.
+- Revoir l'action : le bouton « ↺ 10 s » de la vue 3D rejoue les 10 dernières secondes au ralenti, puis revient au
+  direct ; dans les messages de la direction de course, « ↺ 3D » (visible quand la vue 3D est ouverte) rejoue le moment
+  du message, jusqu'à 3 minutes en arrière. En direct comme en replay.
+- Touches de la vue 3D : 1 à 5 pour les caméras, V pour le survol, R pour revoir les 10 dernières secondes.
 
 ### Téléphone
 - En course, le haut de l'écran tient sur deux lignes (le délai TV à côté du tour) : une ligne de classement en plus, et
