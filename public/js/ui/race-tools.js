@@ -79,6 +79,8 @@ function circleSvg(gaps, me, dl, live) {
 // Placement des voitures, à chaque image tant que le simulateur est affiché (mouvement lissé)
 let cd = null;
 const cdAng = new Map();
+let cdCut = null;          // voiture où commence le tour des étiquettes
+const cdTag = new Map();   // num -> { la, rl, paired } : étiquette affichée, qui glisse vers sa place (pas de saut)
 let cdLast = 0;
 function placeCars() {
   const svg = $('#pitsim svg.cd');
@@ -105,18 +107,36 @@ function placeCars() {
   list.sort((x, y) => norm(x.a) - norm(y.a));
   if (list.length > 1) {
     let cut = 0, gapMax = -1;
-    list.forEach((o, i) => { const d = norm(list[(i + 1) % list.length].a - o.a) || TAU; if (d > gapMax) { gapMax = d; cut = (i + 1) % list.length; } });
+    const before = (j) => norm(list[j].a - list[(j - 1 + list.length) % list.length].a);   // vide avant la voiture j (0 : même place)
+    list.forEach((o, i) => { const d = before((i + 1) % list.length); if (d > gapMax) { gapMax = d; cut = (i + 1) % list.length; } });
+    // Coupure gardée au même endroit tant que son vide reste presque le plus grand : sinon, deux vides presque égaux
+    // la font sauter d'une image à l'autre et toutes les étiquettes avec
+    const kept = list.findIndex((o) => o.g.num === cdCut);
+    if (kept >= 0 && before(kept) > gapMax - 0.2) cut = kept;
+    cdCut = list[cut].g.num;
     const seq = [...list.slice(cut), ...list.slice(0, cut)];
-    let base = norm(seq[0].a);
-    const want = seq.map((o) => { const v = norm(o.a - base) + base; return v; });
+    // Angles ramenés entre 0 et 2π avant l'écart : celui des voitures grandit tour après tour, et norm(a - base) d'une
+    // voiture avec elle-même donnait parfois 2π (arrondi) au lieu de 0 : toutes les étiquettes sautaient d'un demi-tour
+    const base = norm(seq[0].a);
+    const want = seq.map((o) => norm(norm(o.a) - base) + base);
     const fw = [], bw = [];
     want.forEach((v, i) => { fw.push(i ? Math.max(v, fw[i - 1] + MIN) : v); });
     for (let i = want.length - 1; i >= 0; i--) bw[i] = i === want.length - 1 ? want[i] : Math.min(want[i], bw[i + 1] - MIN);
     seq.forEach((o, i) => { o.la = (fw[i] + bw[i]) / 2; });
-    seq.forEach((o, i) => { o.ring = i && o.la - seq[i - 1].la < 0.27 ? 1 - seq[i - 1].ring : 0; });
+    // Rangée gardée tant que l'écart ne dépasse pas nettement le seuil (pas d'aller-retour entre les deux rangées)
+    seq.forEach((o, i) => {
+      o.paired = i > 0 && o.la - seq[i - 1].la < (cdTag.get(o.g.num)?.paired ? 0.33 : 0.27);
+      o.ring = o.paired ? 1 - seq[i - 1].ring : 0;
+    });
   } else list.forEach((o) => { o.la = o.a; o.ring = 0; });
-  for (const { g, el, a, la, ring } of list) {
-    const rl = RL + (ring ? RL2 : 0), [x, y] = pt(a, R), [lx, ly] = pt(la, rl), [ex, ey] = pt(la, rl - 13), [sx, sy] = pt(a, R + 8);
+  for (const o of list) {
+    const prev = cdTag.get(o.g.num), want = RL + (o.ring ? RL2 : 0);
+    const nt = prev ? { la: prev.la + Math.atan2(Math.sin(o.la - prev.la), Math.cos(o.la - prev.la)) * k, rl: prev.rl + (want - prev.rl) * k } : { la: o.la, rl: want };
+    cdTag.set(o.g.num, { ...nt, paired: o.paired });
+    Object.assign(o, nt);
+  }
+  for (const { g, el, a, la, rl } of list) {
+    const [x, y] = pt(a, R), [lx, ly] = pt(la, rl), [ex, ey] = pt(la, rl - 13), [sx, sy] = pt(a, R + 8);
     const dot = el.querySelector('.cd-dot'), lead2 = el.querySelector('.cd-lead'), tag = el.querySelector('.cd-tag');
     dot.setAttribute('cx', f1(x)); dot.setAttribute('cy', f1(y));
     lead2.setAttribute('x1', f1(sx)); lead2.setAttribute('y1', f1(sy)); lead2.setAttribute('x2', f1(ex)); lead2.setAttribute('y2', f1(ey));
