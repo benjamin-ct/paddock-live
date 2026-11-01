@@ -308,6 +308,8 @@ export default {
   "Anti-spoiler pendant les séances": "Anti-spoiler durante le sessioni",
   "Appareil injoignable (délai dépassé)": "Dispositivo irraggiungibile (tempo scaduto)",
   "Apparence": "Aspetto",
+  "Thème, langue, couleurs, disposition": "Tema, lingua, colori, disposizione",
+  "Mises à jour, téléphone, streaming, à propos": "Aggiornamenti, telefono, streaming, informazioni",
   "Panneaux et menus qui apparaissent en douceur": "Pannelli e menu che compaiono con dissolvenza",
   "Appendices du fond plat": "Appendici del fondo",
   "Application": "Applicazione",
@@ -2871,4 +2873,5 @@ export default {
   "Écarts, temps, secteurs, arrêts, stratégie et bagarres dans une fenêtre à part": "Distacchi, tempi, settori, pit stop, strategia e duelli in una finestra a parte",
   "Duel des deux pilotes cliqués dans le classement, dans une fenêtre à part": "Duello dei due piloti cliccati nella classifica, in una finestra a parte",
   "ou cliquez sur deux pilotes du classement.": "oppure clicca due piloti della classifica.",
+  "Options des radios": "Opzioni dei team radio",
 };

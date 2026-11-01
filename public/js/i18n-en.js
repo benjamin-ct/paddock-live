@@ -367,6 +367,8 @@ export default {
   "Anti-spoiler pendant les séances": "Anti-spoiler during sessions",
   "Appareil injoignable (délai dépassé)": "Device unreachable (timed out)",
   "Apparence": "Appearance",
+  "Thème, langue, couleurs, disposition": "Theme, language, colours, layout",
+  "Mises à jour, téléphone, streaming, à propos": "Updates, phone, streaming, about",
   "Panneaux et menus qui apparaissent en douceur": "Panels and menus fade in smoothly",
   "Appendices du fond plat": "Floor appendages",
   "Application": "App",
@@ -2872,4 +2874,5 @@ export default {
   "Écarts, temps, secteurs, arrêts, stratégie et bagarres dans une fenêtre à part": "Gaps, lap times, sectors, pit stops, strategy and battles in a separate window",
   "Duel des deux pilotes cliqués dans le classement, dans une fenêtre à part": "Duel of the two drivers clicked in the standings, in a separate window",
   "ou cliquez sur deux pilotes du classement.": "or click two drivers in the standings.",
+  "Options des radios": "Radio options",
 };
