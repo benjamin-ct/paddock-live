@@ -22,6 +22,7 @@ import { renderDuelBand, renderDuel, initDuel } from './ui/duel.js';
 import { initNoLive } from './ui/home.js';
 import { initSeason, closeSeason, openSeason, seasonUrls } from './ui/season.js';
 import { parseSeasonPath } from '/shared/season-urls.js';
+import { addPositions, addCarData, compareFrom } from '/shared/compare.js';
 import './ui/calendar-menu.js';   // « Ajouter à mon agenda » (Saison)
 import { initSelects } from './ui/select.js';
 import { changelogHtml } from './ui/changelog.js';
@@ -43,10 +44,24 @@ async function inflate(b64) {
   return JSON.parse(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).text());
 }
 let ws = null;
+// Comparaison (fenêtres Analyse et Comparaison) : GPS et télémétrie gardés depuis l'ouverture de la page (le relais
+// n'en garde que quelques minutes), calculés ici comme le fait le serveur de l'appli (shared/compare.js)
+const gps = new Map(), tel = new Map();
+const keepTel = /[?&]only=(analysis|compare)\b/.test(location.search);
 const hub = new WebHub({
   apply: applyEvent, reset: handleReset, batch: handleBatch, inflate,
   ask: (from, to) => { if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'stream', from, to })); },
+  tap: keepTel ? (topic, data) => { if (topic === 'Position') addPositions(gps, data); else if (topic === 'CarData') addCarData(tel, data); } : null,
 });
+const getJSON = (u) => fetch(u).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+store.compareFetch = async ({ a, b, until, la, lb }) => {
+  const out = await compareFrom({ state: store.state, derived: store.derived, events: hub.events.map(([topic, data, t]) => ({ topic, data, t })),
+    cars: gps, tel: tel.size ? tel : null, until, a, b, la, lb,
+    load: (key, year) => Promise.all([getJSON(`/live/api/circuit?key=${key}&year=${year}`), getJSON(`/live/api/loops?key=${key}&year=${year}`)]) });
+  // Tour d'avant l'ouverture de la page : pas de GPS gardé pour lui
+  if (/introuvable dans le GPS|GPS incomplet/.test(out.reason || '')) out.reason += ' La version web garde le GPS depuis l\'ouverture de cette fenêtre : comparez un tour fait depuis.';
+  return out;
+};
 let relay = {};
 
 // Connexion F1 TV du visiteur, donnée par l'extension Paddock Live Companion (formula1.com) : GPS et télémétrie
@@ -237,10 +252,13 @@ addEventListener('storage', (e) => {
   if (e.key === 'paddock.delayMs' && Number.isFinite(ms) && ms !== store.delay) setDelay(ms);
 });
 // Circuit, Analyse et Duel dans une fenêtre à part, comme dans l'appli : la page, réduite à ce panneau, reliée au même relais
-for (const b of $$('.win-btn')) b.addEventListener('click', () => open(`/live/?only=${b.dataset.win}`, `pl-${b.dataset.win}`, 'popup,width=1000,height=720')?.focus());
+const openWin = (w) => open(`/live/?only=${w}`, `pl-${w}`, 'popup,width=1000,height=720')?.focus();
+for (const b of $$('.win-btn')) b.addEventListener('click', () => openWin(b.dataset.win));
+on('openWindow', (id) => { if (id === 'compare') openWin('compare'); });   // bouton ↗ de l'onglet Comparaison (compare.js)
 
-// Fenêtre « Circuit », « Analyse » ou « Duel » (?only=map, analysis, duel) : un seul panneau, le reste de la page caché
-const ONLY = /[?&]only=(map|analysis|duel)\b/.exec(location.search)?.[1] || '';
+// Fenêtre « Circuit », « Analyse », « Duel » ou « Comparaison » (?only=map, analysis, duel, compare) : un seul panneau,
+// le reste de la page caché (Comparaison : le panneau Analyse réduit à cet onglet)
+const ONLY = /[?&]only=(map|analysis|duel|compare)\b/.exec(location.search)?.[1] || '';
 // Fenêtre « Analyse » : les onglets de course de l'appli (arrêts, stratégie, simulateur, bagarres, championnat) rejoignent
 // ceux de l'analyse, comme dans la fenêtre Analyse de l'appli ; sans les jeux de pneus (calculés par le serveur de l'appli)
 const extra = document.querySelector('.p-extra');
@@ -332,6 +350,7 @@ function loop() {
   safe(renderTelemetry);
   safe(renderWeather);
   if (ONLY === 'analysis') for (const fn of [renderAnalysis, renderPits, renderStrategy, renderPitSim, renderBattles, renderChampionship]) safe(fn);
+  if (ONLY === 'compare') safe(renderAnalysis);
   setTimeout(() => (document.visibilityState === 'visible' ? requestAnimationFrame(loop) : loop()), 100);
 }
 setInterval(() => hub.roll(serverNow()), 10000);
@@ -369,10 +388,10 @@ document.querySelector('#seasonBtn').addEventListener('click', () => webMenu(fal
 // Saison ouverte : toucher la séance en haut revient au direct
 document.querySelector('.topbar .session').addEventListener('click', () => { if (!document.querySelector('#seasonView').hidden) closeSeason(); });
 // Panneau Analyse : la télémétrie du pilote suivi dans l'écran principal, les autres onglets dans la fenêtre « Analyse »
-if (ONLY === 'analysis') safe(initAnalysis);
+if (ONLY === 'analysis' || ONLY === 'compare') safe(initAnalysis);
 safe(initRaceTools);   // aussi la pastille « duel » du classement (bataille de plus de 3 tours) : le duel des deux pilotes
 if (ONLY === 'duel') safe(initDuel);
-else document.querySelector('.p-analysis [data-tab="telemetry"]')?.click();
+else document.querySelector(`.p-analysis [data-tab="${ONLY === 'compare' ? 'compare' : 'telemetry'}"]`)?.click();
 on('status', renderSource);
 on('connection', renderSource);
 initGpsBadge();

@@ -64,7 +64,10 @@ async function load(a, b) {
   lastReq = req;
   lastAt = Date.now();
   try {
-    data = await api(`/api/compare?a=${a}&b=${b}&until=${Math.round(serverNow() - store.delay)}${sel.la ? `&la=${sel.la}` : ''}${sel.lb ? `&lb=${sel.lb}` : ''}`);
+    const until = Math.round(serverNow() - store.delay);
+    // Version web : calcul dans la page (store.compareFetch, analytics/live-page/web.js) ; appli : son serveur
+    data = store.compareFetch ? await store.compareFetch({ a, b, until, la: sel.la, lb: sel.lb })
+      : await api(`/api/compare?a=${a}&b=${b}&until=${until}${sel.la ? `&la=${sel.la}` : ''}${sel.lb ? `&lb=${sel.lb}` : ''}`);
   } catch (err) {
     data = { error: err.message };
   } finally {
