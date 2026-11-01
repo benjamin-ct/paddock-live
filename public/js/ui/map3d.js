@@ -8,6 +8,7 @@ import * as THREE from '/vendor/three/three.module.min.js';
 import { store, displayNow, f1Now, setFocus } from '../store.js';
 import { CIRCUITS } from '/shared/circuits-info.js';
 import { smoothAlong } from '/shared/elevation.js';
+import { stoppedInRace } from '/shared/f1.js';
 import { drivers, orderedNumbers, storageGet, storageSet, esc, api, COMPOUNDS } from '../util.js';
 import { t, DEC } from '../i18n.js';
 import { gridSlot, gridIndex, gridWeight } from '../grid.js';
@@ -1927,7 +1928,7 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
     const disp = viewNow(), gps = store.positions.hasGps(disp);
     const lines = store.state.TimingData?.Lines || {};
     const showOut = document.getElementById('mapShowOut')?.checked;
-    const redFlag = String(store.state.TrackStatus?.Status || '') === '5';
+    const redFlag = String(store.state.TrackStatus?.Status || '') === '5' || store.state.SessionStatus?.Status === 'Aborted';
     const a = 1 - Math.exp(-dtCam * 12);
     // Pastilles : même dessin que la carte 2D (trigramme ou simple point, position, anneaux du leader et des pilotes
     // suivis), redessinées seulement quand elles changent
@@ -1956,7 +1957,7 @@ export function open(host, { getTrack, getElevation, getSurroundings = () => nul
       const l = lines[num] || {};
       let g = null;
       // GPS, sinon (pas de GPS, ou plus de nouvelle position de cette voiture) position estimée, hors stands
-      if (!(l.Retired || (!showOut && (l.KnockedOut || (l.Stopped && !redFlag))))) {
+      if (!(l.Retired || (!showOut && (l.KnockedOut || (l.Stopped && !stoppedInRace(l, redFlag, lines)))))) {
         g = gps ? store.positions.gpsAt(num, disp) : null;
         if (!g && !l.InPit && !l.Stopped) g = store.positions.estimatedXY(num, disp, dt);
       }

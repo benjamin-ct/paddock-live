@@ -3,7 +3,7 @@ import { store, displayNow, f1Now, on, versionOf } from '../store.js';
 import { prefs, setPref } from '../prefs.js';
 import { $, api, drivers, teamColor, storageGet, storageSet } from '../util.js';
 import { loadTrack } from '../track.js';
-import { parseUtc, segmentClass } from '/shared/f1.js';
+import { parseUtc, segmentClass, stoppedInRace } from '/shared/f1.js';
 import { hotLaps } from './tower.js';
 import { icon } from '../icons.js';
 import { DEC, tx, t } from '../i18n.js';
@@ -1053,8 +1053,8 @@ function drawCars(dt) {
     const l = lines[num] || {};
     // Pilotes hors course (abandon, voiture arrêtée, éliminé en qualif) : retirés de la carte
     // (case « Pilotes hors course » du menu Calques). Sous drapeau rouge, une voiture arrêtée
-    // dans les stands n'est pas hors course.
-    if (l.Retired || (hideOut && (l.KnockedOut || (l.Stopped && !red)))) { trail.delete(num); continue; }
+    // dans les stands n'est pas hors course (stoppedInRace).
+    if (l.Retired || (hideOut && (l.KnockedOut || (l.Stopped && !stoppedInRace(l, red, lines))))) { trail.delete(num); continue; }
     // GPS, sinon (pas de GPS, ou plus de nouvelle position de cette voiture depuis 1,5 s) position estimée
     let g = gps ? store.positions.gpsAt(num, disp) : null;
     const src = g ? 'gps' : 'est';

@@ -140,3 +140,12 @@ export function segmentClass(status) {
     default: return status ? 'seg-yellow' : 'seg-none';
   }
 }
+
+// Voiture arrêtée (Stopped) encore en course, pour la carte : sous drapeau rouge, les voitures s'arrêtent dans la voie
+// des stands et restent en course ; une voiture arrêtée hors des stands, ou déjà arrêtée avant (plus d'un tour de retard
+// sur le leader : abandon au tour 5 encore marqué « arrêtée » au tour 46), est hors course
+export function stoppedInRace(line, red, lines) {
+  if (!red || !line?.InPit) return false;
+  const leader = Math.max(0, ...Object.values(lines || {}).map((l) => Number(l?.NumberOfLaps) || 0));
+  return leader - (Number(line.NumberOfLaps) || 0) <= 1;
+}
