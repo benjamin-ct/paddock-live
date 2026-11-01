@@ -308,6 +308,8 @@ export default {
   "Anti-spoiler pendant les séances": "Anti-spoiler durante le sessioni",
   "Appareil injoignable (délai dépassé)": "Dispositivo irraggiungibile (tempo scaduto)",
   "Apparence": "Aspetto",
+  "Thème, langue, couleurs, disposition": "Tema, lingua, colori, disposizione",
+  "Mises à jour, téléphone, streaming, à propos": "Aggiornamenti, telefono, streaming, informazioni",
   "Panneaux et menus qui apparaissent en douceur": "Pannelli e menu che compaiono con dissolvenza",
   "Appendices du fond plat": "Appendici del fondo",
   "Application": "Applicazione",

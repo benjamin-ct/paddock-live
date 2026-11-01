@@ -494,12 +494,9 @@
         <label class="set-search"><svg class="ic" aria-hidden="true"><use href="#i-search"/></svg><input type="search" id="setSearch" placeholder="Rechercher un réglage" autocomplete="off" aria-label="Rechercher un réglage"></label>
         <nav class="set-nav" id="setNav">
           <button data-full class="set-tab active" data-sgroup="f1tv"><span class="set-ico"><svg class="ic" aria-hidden="true"><use href="#i-lock"/></svg></span><span class="set-lbl"><b>Compte F1 TV</b><small>GPS et télémétrie en direct</small></span></button>
-          <button class="set-tab" data-sgroup="look"><span class="set-ico"><svg class="ic" aria-hidden="true"><use href="#i-sliders"/></svg></span><span class="set-lbl"><b>Apparence</b><small>Thème, langue, couleurs</small></span></button>
-          <button data-full class="set-tab" data-sgroup="display"><span class="set-ico"><svg class="ic" aria-hidden="true"><use href="#i-layout"/></svg></span><span class="set-lbl"><b>Disposition</b><small>Panneaux, onglets, colonnes, fenêtres</small></span></button>
+          <button class="set-tab" data-sgroup="display"><span class="set-ico"><svg class="ic" aria-hidden="true"><use href="#i-sliders"/></svg></span><span class="set-lbl"><b>Affichage</b><small>Thème, langue, couleurs, disposition</small></span></button>
           <button class="set-tab" data-sgroup="alerts"><span class="set-ico"><svg class="ic" aria-hidden="true"><use href="#i-bell"/></svg></span><span class="set-lbl"><b>Alertes & favoris</b><small>Notifications, rappels, favoris</small></span></button>
-          <button class="set-tab" data-sgroup="app"><span class="set-ico"><svg class="ic" aria-hidden="true"><use href="#i-gear"/></svg></span><span class="set-lbl"><b>Application</b><small>Mises à jour, téléphone, sauvegarde</small></span></button>
-          <button data-full class="set-tab" data-sgroup="stream"><span class="set-ico"><svg class="ic" aria-hidden="true"><use href="#i-video"/></svg></span><span class="set-lbl"><b>Streaming</b><small>OBS, Streamlabs, Meld, Stream Deck</small></span></button>
-          <button class="set-tab" data-sgroup="about"><span class="set-ico"><svg class="ic" aria-hidden="true"><use href="#i-info"/></svg></span><span class="set-lbl"><b>À propos</b><small>Nouveautés, réseaux, légal</small></span></button>
+          <button class="set-tab" data-sgroup="app"><span class="set-ico"><svg class="ic" aria-hidden="true"><use href="#i-gear"/></svg></span><span class="set-lbl"><b>Application</b><small>Mises à jour, téléphone, streaming, à propos</small></span></button>
         </nav>
       </aside>
       <div class="set-main">
@@ -529,7 +526,7 @@
       </section>
 
       <!-- Apparence -->
-      <section class="set-block" data-sgroup="look">
+      <section class="set-block" data-sgroup="display">
         <div class="set-bhead"><h4><svg class="ic" aria-hidden="true"><use href="#i-sliders"/></svg> Général</h4></div>
         <div class="row"><label class="small" title="Automatique : comme l'ordinateur ou le téléphone">Apparence <select id="schemeSel"><option value="auto">Automatique (système)</option><option value="dark">Sombre</option><option value="light">Clair</option></select></label></div>
         <div class="row"><label class="small" title="Paddock 2 : le nouveau design. Broadcast : habillage façon retransmission TV. Classique : l'ancien design.">Design <select id="designSel"><option value="v2">Paddock 2</option><option value="broadcast">Broadcast (façon TV)</option><option value="classic">Classique</option></select></label></div>
@@ -537,7 +534,7 @@
         <div class="row"><label class="toggle small" title="Panneaux et menus qui apparaissent en douceur"><input type="checkbox" id="motionOpt"> Animations de l'interface</label></div>
         <div class="row"><label class="toggle small"><input type="checkbox" id="keepAwake"> Garder l'écran allumé pendant une séance</label></div>
       </section>
-      <section data-full class="set-block" data-sgroup="look">
+      <section data-full class="set-block" data-sgroup="display">
         <div class="set-bhead"><h4><svg class="ic" aria-hidden="true"><use href="#i-star"/></svg> Écuries et couleurs</h4></div>
         <div class="row"><label class="toggle small"><input type="checkbox" id="teamLogos"> Logos des écuries dans le classement</label></div>
         <div class="row"><label class="toggle small"><input type="checkbox" id="logoColor"> Logos en couleurs officielles</label></div>
@@ -720,16 +717,16 @@
         <div id="feedDiagOut"></div>
       </section>
 
-      <section data-full class="set-block" data-sgroup="stream" id="streamOverlays"></section>
-      <section data-full class="set-block" data-sgroup="stream" id="streamDeck"></section>
+      <section data-full class="set-block" data-sgroup="app" id="streamOverlays"></section>
+      <section data-full class="set-block" data-sgroup="app" id="streamDeck"></section>
 
       <!-- À propos -->
-      <section class="set-block" data-sgroup="about">
+      <section class="set-block" data-sgroup="app">
         <div class="set-bhead"><h4><svg class="ic" aria-hidden="true"><use href="#i-note"/></svg> Nouveautés</h4><p>Cliquez sur une version pour voir ce qui a changé.</p></div>
         <div class="cl-list" id="changelog"><p class="muted">Chargement…</p></div>
       </section>
 
-      <section class="set-block" data-sgroup="about">
+      <section class="set-block" data-sgroup="app">
         <div class="set-bhead"><h4><svg class="ic" aria-hidden="true"><use href="#i-megaphone"/></svg> Une question, une idée ?</h4><p>Votre message arrive directement au créateur de Paddock Live.</p></div>
         <form class="fb-form" id="fbForm">
           <select id="fbKind" aria-label="Type de message"><option value="idea">Suggestion</option><option value="question">Question</option><option value="bug">Problème</option></select>
@@ -743,7 +740,7 @@
         <p class="small muted">Aussi sur <a href="https://github.com/benjamin-ct/paddock-live/issues" target="_blank" rel="noopener">GitHub</a>.</p>
       </section>
 
-      <section class="set-block" data-sgroup="about">
+      <section class="set-block" data-sgroup="app">
         <div class="set-bhead"><h4><svg class="ic" aria-hidden="true"><use href="#i-share"/></svg> Paddock Live</h4></div>
         <div class="set-row">
           <div class="set-txt"><b>Suivre Paddock Live</b><small>Instagram, Facebook, TikTok, YouTube, X, Threads et Bluesky</small></div>
