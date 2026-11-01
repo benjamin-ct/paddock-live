@@ -39,6 +39,11 @@ l'application (Réglages → À propos → Nouveautés).
   Circuit si on le préfère à part : menu « Fenêtres » de la barre de gauche, ou bouton « + » au bout des onglets d'un
   panneau. Sur téléphone, où il n'y a qu'un écran, ils restent des onglets : Classement,
   Télémétrie, Messages, Radios et Carte (Duel et Analyse avec la version complète).
+- Version web : le même écran principal que l'appli (Classement, Circuit au centre, Télémétrie, Radios et Direction de
+  course). L'Analyse (écarts, positions, temps, rythme, pneus, secteurs, arrêts, stratégie, simulateur d'arrêt,
+  bagarres, championnat) et le Duel s'ouvrent dans leur propre fenêtre avec les boutons « Analyse » et « Duel » en haut ;
+  le pilote suivi et le duel cliqués dans le classement s'y retrouvent. Sur téléphone, rien ne change. Sur un écran
+  moins large, la barre du haut passe sur deux lignes au lieu de déborder.
 - Analyse : seulement les onglets utiles selon la séance. En course : Écarts et Arrêts (avec la stratégie) ; en qualifs
   et en essais : Secteurs et Comparaison. Les autres (Temps, Pneus, Jeux de pneus, simulateur d'arrêt, Bagarres,
   championnat) s'ajoutent en un clic.

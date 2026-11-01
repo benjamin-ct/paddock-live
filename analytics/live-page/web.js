@@ -11,10 +11,12 @@ import { WebHub } from './web-hub.js';
 import { renderHeader, renderSource, initGpsBadge, initSourceTap } from './ui/header.js';
 import { initTower, renderTower } from './ui/tower.js';
 import { initMap } from './ui/map.js';
-import { renderRcm, initRcmFilters, initStewards, renderStewards } from './ui/feed.js';
+import { renderRcm, renderPits, initRcmFilters, initStewards, renderStewards } from './ui/feed.js';
 import { renderRadios, initRadios } from './ui/radios.js';
-import { renderTelemetry } from './ui/extra.js';
-import { renderDuelBand } from './ui/duel.js';
+import { renderTelemetry, renderStrategy, renderChampionship } from './ui/extra.js';
+import { renderPitSim, renderBattles, initRaceTools } from './ui/race-tools.js';
+import { initAnalysis, renderAnalysis } from './ui/analysis.js';
+import { renderDuelBand, renderDuel, initDuel } from './ui/duel.js';
 import { initNoLive } from './ui/home.js';
 import { initSeason, closeSeason, openSeason, seasonUrls } from './ui/season.js';
 import { parseSeasonPath } from '/shared/season-urls.js';
@@ -220,6 +222,26 @@ input.addEventListener('change', () => {
 for (const b of $$('.web-delay [data-step]')) b.addEventListener('click', () => setDelay(store.delay + Number(b.dataset.step)));
 on('delay', showDelay);
 showDelay();
+// Délai changé dans une autre fenêtre de la version web (fenêtre du circuit, autre onglet) : le même partout
+addEventListener('storage', (e) => {
+  const ms = Number(e.newValue);
+  if (e.key === 'paddock.delayMs' && Number.isFinite(ms) && ms !== store.delay) setDelay(ms);
+});
+// Circuit, Analyse et Duel dans une fenêtre à part, comme dans l'appli : la page, réduite à ce panneau, reliée au même relais
+for (const b of $$('.win-btn')) b.addEventListener('click', () => open(`/live/?only=${b.dataset.win}`, `pl-${b.dataset.win}`, 'popup,width=1000,height=720')?.focus());
+
+// Fenêtre « Circuit », « Analyse » ou « Duel » (?only=map, analysis, duel) : un seul panneau, le reste de la page caché
+const ONLY = /[?&]only=(map|analysis|duel)\b/.exec(location.search)?.[1] || '';
+// Fenêtre « Analyse » : les onglets de course de l'appli (arrêts, stratégie, simulateur, bagarres, championnat) rejoignent
+// ceux de l'analyse, comme dans la fenêtre Analyse de l'appli ; sans les jeux de pneus (calculés par le serveur de l'appli)
+const extra = document.querySelector('.p-extra');
+if (ONLY === 'analysis' && extra) {
+  const ana = document.querySelector('.p-analysis');
+  for (const b of extra.querySelectorAll('.panel-head [data-tab]:not([data-tab="tyres"])')) { b.classList.remove('active'); ana.querySelector('.panel-head [data-tab="telemetry"]').before(b); }
+  for (const p of extra.querySelectorAll('[data-pane]:not([data-pane="tyres"])')) { p.classList.remove('active'); ana.querySelector('[data-pane="telemetry"]').before(p); }
+}
+extra?.remove();
+if (ONLY !== 'duel') document.querySelector('.p-duel')?.remove();   // Duel : seulement dans sa fenêtre (bandeau sur le classement ailleurs)
 
 for (const head of $$('[data-tabs]')) {
   const panel = head.closest('.panel');
@@ -294,11 +316,12 @@ function loop() {
   safe(showWait);
   safe(renderHeader);
   safe(renderTower);
-  safe(renderDuelBand);   // bandeau du duel sur le classement (deux pilotes cliqués)
+  safe(ONLY === 'duel' ? renderDuel : renderDuelBand);   // bandeau du duel sur le classement (deux pilotes cliqués)
   safe(renderRcm);
   safe(renderStewards);
   safe(renderRadios);
   safe(renderTelemetry);
+  if (ONLY === 'analysis') for (const fn of [renderAnalysis, renderPits, renderStrategy, renderPitSim, renderBattles, renderChampionship]) safe(fn);
   setTimeout(() => (document.visibilityState === 'visible' ? requestAnimationFrame(loop) : loop()), 100);
 }
 setInterval(() => hub.roll(serverNow()), 10000);
@@ -332,8 +355,10 @@ document.querySelector('#webMenuBtn').addEventListener('click', () => webMenu(!t
 document.querySelector('#seasonBtn').addEventListener('click', () => webMenu(false));
 // Saison ouverte : toucher la séance en haut revient au direct
 document.querySelector('.topbar .session').addEventListener('click', () => { if (!document.querySelector('#seasonView').hidden) closeSeason(); });
-// Panneau Analyse : seulement la télémétrie du pilote suivi
-document.querySelector('.p-analysis [data-tab="telemetry"]')?.click();
+// Panneau Analyse : la télémétrie du pilote suivi dans l'écran principal, les autres onglets dans la fenêtre « Analyse »
+if (ONLY === 'analysis') { safe(initAnalysis); safe(initRaceTools); }
+if (ONLY === 'duel') safe(initDuel);
+else document.querySelector('.p-analysis [data-tab="telemetry"]')?.click();
 on('status', renderSource);
 on('connection', renderSource);
 initGpsBadge();

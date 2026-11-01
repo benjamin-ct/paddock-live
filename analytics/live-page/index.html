@@ -24,15 +24,24 @@
   <link rel="stylesheet" href="/live/css/style.css">
   <link rel="stylesheet" href="/live/css/broadcast.css">
   <link rel="stylesheet" href="/live/css/design-v2.css">
-  <script>/* Apparence (sombre / clair / système) et design posés avant l'affichage : pas d'éclair */ try { const p = JSON.parse(localStorage.getItem('paddock.prefs') || '{}'); const s = p.schemeSet || p.scheme === 'light' ? p.scheme : 'auto'; const light = s === 'light' || (s === 'auto' && matchMedia('(prefers-color-scheme: light)').matches); document.documentElement.dataset.scheme = light ? 'light' : 'dark'; document.documentElement.dataset.design = p.designV || p.design === 'classic' ? p.design || 'v2' : 'v2'; } catch { document.documentElement.dataset.scheme = 'dark'; document.documentElement.dataset.design = 'v2'; } document.documentElement.dataset.theme = 'pitwall'; document.documentElement.classList.add('web');</script>
+  <script>/* Apparence (sombre / clair / système) et design posés avant l'affichage : pas d'éclair */ try { const p = JSON.parse(localStorage.getItem('paddock.prefs') || '{}'); const s = p.schemeSet || p.scheme === 'light' ? p.scheme : 'auto'; const light = s === 'light' || (s === 'auto' && matchMedia('(prefers-color-scheme: light)').matches); document.documentElement.dataset.scheme = light ? 'light' : 'dark'; document.documentElement.dataset.design = p.designV || p.design === 'classic' ? p.design || 'v2' : 'v2'; } catch { document.documentElement.dataset.scheme = 'dark'; document.documentElement.dataset.design = 'v2'; } document.documentElement.dataset.theme = 'pitwall'; document.documentElement.classList.add('web'); const only = /[?&]only=(map|analysis|duel)\b/.exec(location.search)?.[1]; if (only) document.documentElement.classList.add('only', `only-${only}`);</script>
   <style>
-    /* Version web : quatre panneaux, sans menu latéral ni outils de l'appli */
+    /* Version web : écran principal de l'appli, sans menu latéral ni outils. Classement à gauche, circuit au centre,
+       télémétrie, radios et direction de course l'une sous l'autre à droite ; Analyse et Duel dans des fenêtres à part */
     .web body { padding-left: 0 !important; }
-    .web .grid { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, .85fr); grid-template-rows: minmax(0, 1.1fr) minmax(0, 1fr);
-      grid-template-areas: "tower map tele" "tower feed radio"; }
+    .web .grid { grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.15fr) minmax(0, .95fr); grid-template-rows: minmax(0, 1fr) minmax(0, 1.1fr) minmax(0, 1.1fr);
+      grid-template-areas: "tower map tele" "tower map radio" "tower map feed"; }
+    .web .p-extra, .web .p-duel { display: none; }   /* onglets de course : rangés dans la fenêtre Analyse par web.js */
+    .web .win-btn { gap: 5px; }
+    @media (max-width: 1600px) { .web .win-btn { padding: 6px; } .web .win-btn .wb-lbl { display: none; } }
+    /* Barre du haut trop longue pour l'écran (séance, météo, délai, boutons) : la suite passe à la ligne au lieu de sortir */
+    .web .topbar { flex-wrap: wrap; row-gap: 6px; }
     .web .p-radio { grid-area: radio; }
     .web .p-analysis { grid-area: tele; }
-    .web .p-analysis [data-tab]:not([data-tab="telemetry"]) { display: none; }
+    /* Panneau Analyse : la télémétrie seule dans l'écran principal ; les autres onglets dans la fenêtre « Analyse »
+       (sans la comparaison, calculée par le serveur de l'appli) */
+    html.web:not(.only-analysis) .p-analysis .panel-head [data-tab]:not([data-tab="telemetry"]),
+    html.web.only-analysis .p-analysis .panel-head [data-tab]:is([data-tab="telemetry"], [data-tab="compare"]) { display: none !important; }
     /* Pas de séance en direct : compte à rebours, puis résultats et classements sur demande (replays dans l'appli) */
     .web .nl-actions { display: none; }
     .web .nolive-view { flex-direction: column; justify-content: flex-start; }
@@ -76,7 +85,7 @@
     .web .topbar .web-delay input { width: 54px; height: 34px; padding: 0 4px; text-align: center; border: 1px solid var(--border); border-radius: 8px;
       background: var(--panel-2); color: var(--text); font: 700 17px/1 inherit; font-variant-numeric: tabular-nums; }
     .web .topbar .web-delay .unit { color: var(--text-2); font-weight: 700; margin-left: -2px; }
-    .web .web-note { font-size: 11px; color: var(--text-2); max-width: 280px; line-height: 1.3; }
+    .web .web-note { font-size: 11px; color: var(--text-2); flex: 1 1 0; min-width: 200px; max-width: 280px; line-height: 1.3; }
     .web .web-note a { color: inherit; text-decoration: underline; }
     /* Écran de moins de 1700 px : la note (GPS, appli complète) laisse la place aux boutons (Saison, Appli complète) */
     @media (max-width: 1700px) { .web .web-note { display: none; } }
@@ -121,8 +130,8 @@
       html.web body .topbar { position: fixed; top: 0; left: 0; right: 0; z-index: 800; }   /* passe devant la règle des écrans peu hauts */
       .web body { padding-top: var(--web-top, 0px); }
       html.web { overscroll-behavior-y: none; }
-      .web .grid { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); grid-template-rows: 560px 460px 460px;
-        grid-template-areas: "tower map" "tower tele" "feed radio"; }
+      .web .grid { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); grid-template-rows: 560px 440px 440px;
+        grid-template-areas: "tower map" "tele radio" "feed feed"; }
     }
     @media (max-width: 900px) {
       .web .grid { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto; grid-template-areas: "map" "tower" "tele" "feed" "radio"; }
@@ -131,6 +140,8 @@
     }
     /* Téléphone, en portrait comme en paysage (écran peu haut) : menus, classement et réglages du direct */
     @media (max-width: 900px), (max-height: 500px) and (orientation: landscape) {
+      /* Téléphone : le circuit reste dans la page (pas de fenêtres à part), comme dans l'appli sur téléphone */
+      .web .win-btn { display: none; }
       /* Menus en bas de l'écran, sur toute la largeur, défilement au doigt (comme l'appli sur téléphone) */
       .web .map-layers-menu { position: fixed; left: 8px; right: 8px; top: auto; bottom: calc(12px + env(safe-area-inset-bottom));
         width: auto; max-height: 60dvh; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; z-index: 900; }
@@ -183,6 +194,12 @@
       .web .p-tower { height: auto; min-height: 0; overflow: auto; }
       .web .p-tower .tower-wrap { overflow: auto; }
     }
+    /* Fenêtres « Circuit », « Analyse » et « Duel » (/live/?only=map, analysis, duel) : le panneau seul, sur toute la fenêtre */
+    html.web.only body { height: 100dvh; overflow: hidden; padding: 0 !important; }
+    html.web.only :is(.topbar, #seasonView) { display: none !important; }
+    html.web.only .grid { display: grid; flex: 1; grid-template: "only" minmax(0, 1fr) / minmax(0, 1fr); }
+    html.web.only .grid > .panel { display: none; }
+    html.web.only-map .grid > .p-map, html.web.only-analysis .grid > .p-analysis, html.web.only-duel .grid > .p-duel { display: flex; grid-area: only; height: auto; }
   </style>
 </head>
 <body>
@@ -217,6 +234,8 @@
     </div>
     <button class="btn small" id="pairBtn" title="Utiliser son compte F1 TV sur cet appareil" hidden></button>
     <button class="source-badge" id="sourceBadge"><span class="src-dot"></span><span id="sourceLabel">—</span></button>
+    <button class="btn small win-btn" data-win="analysis" title="Écarts, temps, secteurs, arrêts, stratégie et bagarres dans une fenêtre à part"><svg class="ic" aria-hidden="true"><use href="#i-layout"/></svg><span class="wb-lbl">Analyse</span></button>
+    <button class="btn small win-btn" data-win="duel" title="Duel des deux pilotes cliqués dans le classement, dans une fenêtre à part"><svg class="ic" aria-hidden="true"><use href="#i-duel"/></svg><span class="wb-lbl">Duel</span></button>
     <button class="btn small" id="seasonBtn" title="Calendrier, classements et résultats de la saison" aria-label="Saison"><svg class="ic" aria-hidden="true"><use href="#i-trophy"/></svg><span class="sz-lbl">Saison</span></button>
     <button class="btn small" id="clBtn" title="Ce qui a changé dans Paddock Live">Nouveautés</button>
     <a class="btn small btn-accent" href="https://paddocklive.app/" title="Télécharger l'appli Paddock Live">Appli complète</a>
@@ -238,6 +257,8 @@
     <!--panel:analysis-->
     <!--panel:feed-->
     <!--panel:radio-->
+    <!--panel:extra-->
+    <!--panel:duel-->
   </main>
 
   <dialog id="pairDlg" class="pair-dlg">
