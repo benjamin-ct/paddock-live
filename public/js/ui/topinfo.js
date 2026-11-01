@@ -19,6 +19,7 @@ let lastHtml = '';
 let filter = '';
 const sort = { speeds: { k: 'ST', dir: -1 }, sectors: { k: 'ideal', dir: 1 } };
 let speedMode = 'best';   // 'best' : meilleures vitesses de la séance ; 'last' : dernier passage
+let champTab = 'drivers'; // Championnat : 'drivers' (pilotes) ou 'teams' (constructeurs)
 
 const list = (o) => (!o ? [] : Array.isArray(o) ? o : Object.keys(o).sort((a, b) => a - b).map((k) => o[k]));
 
@@ -172,19 +173,24 @@ function sectorsHtml() {
     <div class="tbp-scroll">${table('sectors', [['s0', 'Secteur 1'], ['s1', 'Secteur 2'], ['s2', 'Secteur 3'], ['ideal', 'Tour idéal', 'Somme des trois meilleurs secteurs du pilote']], rows, () => 1)}</div>`;
 }
 
-// Championnat : projection en direct pendant une course (pilotes et écuries), sinon le classement de la saison
+// Championnat : projection en direct pendant une course, sinon le classement de la saison ; pilotes ou constructeurs
+// en onglets
 let season = null;    // { drivers, constructors } de /api/season, chargé à la première ouverture
 function champHtml() {
-  const live = championshipHtml();
-  if (live) return `<div class="tbp-head"><b>Championnat</b><span class="muted small">projection en direct, d'après les positions en course</span></div><div class="tbp-scroll">${live}</div>`;
   if (!season) {
     season = { drivers: [], constructors: [], loading: true };
     api(`/api/season?year=${new Date().getFullYear()}`).then((d) => { season = d || {}; render(true); }).catch(() => { season = { error: true }; render(true); });
   }
-  const rows = (list, label) => `<table class="champ"><tr><th>Pos.</th><th>${label}</th><th>Points</th></tr>${list.map((x) => `<tr><td>${esc(x.pos ?? '')}</td><td>${esc(x.name || '')}</td><td><b>${esc(x.points ?? '')}</b></td></tr>`).join('')}</table>`;
-  const body = season.loading ? '<p class="muted small">Chargement…</p>' : season.error || !season.drivers?.length ? '<p class="muted small">Classement indisponible pour le moment.</p>'
-    : `${rows(season.drivers, 'Pilote')}${season.constructors?.length ? `<div style="margin-top:10px">${rows(season.constructors, 'Écurie')}</div>` : ''}`;
-  return `<div class="tbp-head"><b>Championnat</b><span class="muted small">classement après la dernière course · projection en direct pendant les courses</span></div><div class="tbp-scroll">${body}</div>`;
+  // Pilotes absents de la séance (projection) : leur code d'après le classement de la saison
+  const names = Object.fromEntries((season.drivers || []).filter((x) => x.number).map((x) => [String(x.number), x.code || x.name]));
+  const live = championshipHtml(champTab, names);
+  const tabs = `<span class="tbp-seg"><button data-champ="drivers" class="${champTab === 'drivers' ? 'on' : ''}">Pilotes</button><button data-champ="teams" class="${champTab === 'teams' ? 'on' : ''}">Constructeurs</button></span>`;
+  const head = (sub) => `<div class="tbp-head"><b>Championnat</b><span class="muted small">${sub}</span>${tabs}</div>`;
+  if (live) return `${head('projection en direct, d\'après les positions en course')}<div class="tbp-scroll">${live}</div>`;
+  const list = champTab === 'teams' ? season.constructors : season.drivers;
+  const body = season.loading ? '<p class="muted small">Chargement…</p>' : season.error || !list?.length ? '<p class="muted small">Classement indisponible pour le moment.</p>'
+    : `<table class="champ"><tr><th>Pos.</th><th>${champTab === 'teams' ? 'Écurie' : 'Pilote'}</th><th>Points</th></tr>${list.map((x) => `<tr><td>${esc(x.pos ?? '')}</td><td>${esc(x.name || '')}</td><td><b>${esc(x.points ?? '')}</b></td></tr>`).join('')}</table>`;
+  return `${head('classement après la dernière course · projection en direct pendant les courses')}<div class="tbp-scroll">${body}</div>`;
 }
 
 function render(force = false) {
@@ -235,6 +241,8 @@ function show(tool, btn) {
     }
     const m = e.target.closest('[data-mode]');
     if (m) { speedMode = m.dataset.mode; render(true); }
+    const c = e.target.closest('[data-champ]');
+    if (c) { champTab = c.dataset.champ; render(true); }
   });
   if (tool === 'docs') { markDocsSeen(); $('.tb-tool[data-tool="docs"] .tb-dot').hidden = true; }
   if (tool === 'weather') {
