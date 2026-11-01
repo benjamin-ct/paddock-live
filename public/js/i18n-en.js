@@ -2867,4 +2867,5 @@ export default {
   "Compte à rebours dans la barre des menus": "Countdown in the menu bar",
   "Ouvrir Paddock Live": "Open Paddock Live",
   "Masquer le compte à rebours": "Hide the countdown",
+  "Options des radios": "Radio options",
 };

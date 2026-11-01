@@ -1237,7 +1237,7 @@ export function initLayout() {
     Object.assign(menu.style, { position: 'fixed', right: 'auto', overflowY: 'auto', maxHeight: `${Math.max(120, up ? above : below)}px`,
       top: up ? 'auto' : `${r.bottom + 6}px`, bottom: up ? `${innerHeight - r.top + 6}px` : 'auto' });
     const w = menu.offsetWidth;
-    menu.style.left = `${Math.max(8, Math.min(innerWidth - w - 8, d.matches('.tower-cols, .rd-menu') ? r.left : r.right - w))}px`;
+    menu.style.left = `${Math.max(8, Math.min(innerWidth - w - 8, d.matches('.tower-cols') ? r.left : r.right - w))}px`;
   }, true);
   addEventListener('resize', () => { for (const d of document.querySelectorAll('.map-layers[open]')) d.open = false; });
   // Menu « Options » des radios (et tout autre menu de ce type) : fermé au clic ailleurs ou avec Échap
