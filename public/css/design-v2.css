@@ -76,7 +76,9 @@
 :root[data-design="v2"] :is(.panel-head h2, .rc-tag)::before { content: ''; width: 5px; height: 16px; border-radius: 2px; background: var(--v2-red); transform: skewX(-18deg); box-shadow: 0 0 12px rgba(255, 42, 31, .7); flex: none; }
 /* Onglets : contrôle segmenté en verre, onglet choisi en pilule rouge lumineuse */
 :root[data-design="v2"] :is(.panel-head .tabs [data-tab], .panel-head.tabs > .tab) {
-  font: italic 800 13px/1 var(--font-cond); letter-spacing: .02em; height: 28px; padding: 0 8px; border-radius: 999px; color: var(--muted); }
+  font: italic 800 13px/1 var(--font-cond); letter-spacing: .02em; height: 28px; padding: 0 8px; border-radius: 999px; color: var(--muted);
+  display: inline-flex; align-items: center; justify-content: center; }   /* texte toujours au même endroit, pastille ou non */
+:root[data-design="v2"] :is(.panel-head .tabs [data-tab], .panel-head.tabs > .tab):is([hidden], .sess-off) { display: none; }
 :root[data-design="v2"] :is(.tabs [data-tab], .panel-head.tabs > .tab):hover { color: var(--text); background: var(--hover); }
 :root[data-design="v2"] :is(.tabs [data-tab], .panel-head.tabs > .tab, .tab).active { background: var(--v2-red) !important; color: #fff !important; box-shadow: var(--v2-red-glow); }
 :root[data-design="v2"] .panel-head.tabs.many > .tab { padding: 0 6px; font-size: 12px; letter-spacing: 0; }
