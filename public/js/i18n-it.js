@@ -2866,4 +2866,6 @@ export default {
   "Compte à rebours dans la barre des menus": "Conto alla rovescia nella barra dei menu",
   "Ouvrir Paddock Live": "Apri Paddock Live",
   "Masquer le compte à rebours": "Nascondi il conto alla rovescia",
+  "Carte du circuit dans une fenêtre à part": "Mappa del circuito in una finestra a parte",
+  "Écarts, temps, rythme, pneus et secteurs dans une fenêtre à part": "Distacchi, tempi, passo, gomme e settori in una finestra a parte",
 };

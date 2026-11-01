@@ -2867,4 +2867,6 @@ export default {
   "Compte à rebours dans la barre des menus": "Countdown in the menu bar",
   "Ouvrir Paddock Live": "Open Paddock Live",
   "Masquer le compte à rebours": "Hide the countdown",
+  "Carte du circuit dans une fenêtre à part": "Circuit map in a separate window",
+  "Écarts, temps, rythme, pneus et secteurs dans une fenêtre à part": "Gaps, lap times, pace, tyres and sectors in a separate window",
 };

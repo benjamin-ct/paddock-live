@@ -14,6 +14,7 @@ import { initMap } from './ui/map.js';
 import { renderRcm, initRcmFilters, initStewards, renderStewards } from './ui/feed.js';
 import { renderRadios, initRadios } from './ui/radios.js';
 import { renderTelemetry } from './ui/extra.js';
+import { initAnalysis, renderAnalysis } from './ui/analysis.js';
 import { renderDuelBand } from './ui/duel.js';
 import { initNoLive } from './ui/home.js';
 import { initSeason, closeSeason, openSeason, seasonUrls } from './ui/season.js';
@@ -220,6 +221,13 @@ input.addEventListener('change', () => {
 for (const b of $$('.web-delay [data-step]')) b.addEventListener('click', () => setDelay(store.delay + Number(b.dataset.step)));
 on('delay', showDelay);
 showDelay();
+// Délai changé dans une autre fenêtre de la version web (fenêtre du circuit, autre onglet) : le même partout
+addEventListener('storage', (e) => {
+  const ms = Number(e.newValue);
+  if (e.key === 'paddock.delayMs' && Number.isFinite(ms) && ms !== store.delay) setDelay(ms);
+});
+// Circuit et Analyse dans une fenêtre à part, comme dans l'appli : la page, réduite à ce panneau, reliée au même relais
+for (const b of $$('.win-btn')) b.addEventListener('click', () => open(`/live/?only=${b.dataset.win}`, `pl-${b.dataset.win}`, 'popup,width=1000,height=720')?.focus());
 
 for (const head of $$('[data-tabs]')) {
   const panel = head.closest('.panel');
@@ -281,6 +289,8 @@ clBtn?.addEventListener('click', () => {
   if (clList?.[0]) { try { localStorage.setItem('pl.changelog', clKey(clList[0])); } catch { /* sans stockage */ } clBtn.classList.remove('fresh'); }
 });
 
+// Fenêtre « Circuit » ou « Analyse » (?only=map, ?only=analysis) : un seul panneau, le reste de la page caché
+const ONLY = /[?&]only=(map|analysis)\b/.exec(location.search)?.[1] || '';
 const safe = (fn) => { try { fn(); } catch (err) { console.error(err); } };
 // Relais qui vient de redémarrer : rien n'est montré avant que le délai TV l'ait rattrapé (pas de spoiler)
 const waitBar = document.querySelector('#webWait');
@@ -299,6 +309,7 @@ function loop() {
   safe(renderStewards);
   safe(renderRadios);
   safe(renderTelemetry);
+  if (ONLY === 'analysis') safe(renderAnalysis);
   setTimeout(() => (document.visibilityState === 'visible' ? requestAnimationFrame(loop) : loop()), 100);
 }
 setInterval(() => hub.roll(serverNow()), 10000);
@@ -332,8 +343,9 @@ document.querySelector('#webMenuBtn').addEventListener('click', () => webMenu(!t
 document.querySelector('#seasonBtn').addEventListener('click', () => webMenu(false));
 // Saison ouverte : toucher la séance en haut revient au direct
 document.querySelector('.topbar .session').addEventListener('click', () => { if (!document.querySelector('#seasonView').hidden) closeSeason(); });
-// Panneau Analyse : seulement la télémétrie du pilote suivi
-document.querySelector('.p-analysis [data-tab="telemetry"]')?.click();
+// Panneau Analyse : la télémétrie du pilote suivi dans l'écran principal, les autres onglets dans la fenêtre « Analyse »
+if (ONLY === 'analysis') safe(initAnalysis);
+else document.querySelector('.p-analysis [data-tab="telemetry"]')?.click();
 on('status', renderSource);
 on('connection', renderSource);
 initGpsBadge();
