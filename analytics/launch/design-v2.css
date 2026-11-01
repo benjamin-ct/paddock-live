@@ -85,6 +85,7 @@ html[data-design="v2"] .frame img[src$="/carte-zoom.webp"] { content: url('/site
 html[data-design="v2"] .frame img[src$="/radios-zoom.webp"] { content: url('/site/img/v2-radios.webp'); }
 html[data-design="v2"] .frame img[src$="/saison.webp"] { content: url('/site/img/v2-saison.webp'); }
 html[data-design="v2"] .frame img[src$="/telephone.webp"] { content: url('/site/img/v2-telephone.webp'); }
+html[data-design="v2"] .frame img[src$="/moments-zoom.webp"] { content: url('/site/img/v2-moments.webp'); }
 html[data-design="v2"] #telephone .frame.narrow { max-width: 330px; padding: 10px; border-radius: 46px; }
 html[data-design="v2"] #telephone .frame.narrow img { border-radius: 37px; }
 

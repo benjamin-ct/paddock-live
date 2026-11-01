@@ -10,11 +10,13 @@
 <link rel="stylesheet" href="/legal/style.css">
 <style>
   .top { display: flex; align-items: center; gap: 16px; }
-  .top img { width: 72px; height: 72px; border-radius: 12px; }
-  .shot { width: 100%; border-radius: 6px; border: 1px solid var(--line); border-top: 3px solid var(--red); margin: 24px 0 8px; box-shadow: 0 30px 90px rgba(0, 0, 0, .55), 0 0 140px -30px rgba(59, 130, 246, .35); }
-  .btn { display: inline-block; background: var(--red); color: #fff; text-decoration: none; font-weight: 600; padding: 12px 22px; border-radius: 6px; margin: 8px 8px 0 0; }
-  .btn.ghost { background: transparent; border: 1px solid #334155; color: var(--fg); }
-  footer { color: var(--dim); font-size: 14px; margin-top: 48px; }
+  .top img { width: 72px; height: 72px; border-radius: 18px; box-shadow: 0 12px 34px -10px rgba(225, 6, 0, .6); }
+  .shot { display: block; width: 100%; border-radius: 18px; border: 1px solid var(--line-2); margin: 28px 0 16px;
+    box-shadow: 0 40px 90px -30px rgba(0, 0, 0, .9), 0 -20px 90px -40px rgba(59, 130, 246, .6), 0 30px 110px -50px rgba(225, 6, 0, .7), inset 0 1px 0 rgba(255, 255, 255, .1); }
+  main > section + section { margin-top: 16px; }
+  .btn { display: inline-block; background: var(--red-grad); color: #fff; text-decoration: none; font-weight: 700; padding: 13px 26px; border-radius: 999px; margin: 20px 8px 0 0; box-shadow: var(--red-glow); }
+  .btn.ghost { background: rgba(255, 255, 255, .05); border: 1px solid var(--line-2); color: var(--fg); box-shadow: none; -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+  footer { color: var(--dim); font-size: 14px; margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--line); }
   footer a { color: var(--dim); }
 </style>
 </head>
@@ -48,7 +50,8 @@
 
 <footer>
   <a href="/legal/terms">Conditions d'utilisation · Terms of Service</a> ·
-  <a href="/legal/privacy">Confidentialité · Privacy Policy</a><br>
+  <a href="/legal/privacy">Confidentialité · Privacy Policy</a> ·
+  <a href="/legal/mentions">Mentions légales · Legal notice</a><br>
   Projet indépendant, non affilié à la Formula 1, à la FIA ni à TikTok. · Independent project, not affiliated with Formula 1, the FIA or TikTok.<br>
   © 2026 Paddock Live · <a href="https://github.com/benjamin-ct/paddock-live#licence">Licences : appli MIT, serveur AGPL v3 · Licenses: app MIT, server AGPL v3</a>
 </footer>
