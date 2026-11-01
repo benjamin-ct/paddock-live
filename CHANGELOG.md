@@ -130,10 +130,12 @@ l'application (Réglages → À propos → Nouveautés).
   seconde. Et les batailles sont repérées toutes seules : deux voitures à moins d'une seconde l'une de l'autre pendant
   3 tours de suite font apparaître une petite pastille ⚔ sur la ligne du pilote derrière dans le classement ; un clic
   dessus ouvre leur duel. Aussi dans la version web.
-- Panneau Duel refait, plus simple : le même bandeau, puis une petite courbe de l'écart sur les derniers tours,
-  quelques chiffres face à face (dernier et meilleur tour, pneus, arrêts, vitesse de pointe ; en qualifs le meilleur
-  tour et les secteurs), le meilleur marqué à la couleur de son écurie, et en direct la vitesse, le rapport,
-  l'accélérateur et le frein de chacun en barres.
+- Panneau Duel refait en face à face, façon retransmission : deux grandes cartes aux couleurs des écuries (portrait,
+  position, pneu, dernier tour, et en direct la vitesse, le rapport, l'accélérateur et le frein en barres verticales),
+  l'écart en grand au milieu avec la tendance ; puis les chiffres face à face (dernier et meilleur tour, pneus, arrêts,
+  vitesse de pointe ; en qualifs le meilleur tour et les secteurs) en barres qui penchent vers le meilleur, avec son
+  avance ; et en bas la courbe de l'écart tour par tour, aux couleurs du pilote devant. Il s'adapte à la largeur de
+  sa fenêtre (cartes l'une sous l'autre quand elle est étroite).
 - Replays : quand la F1 teste son flux la veille (répétition d'une séance à venir, avec les voitures de la FIA FM1,
   SC1, MC1…), l'appli ne l'enregistre plus comme un replay et ne la propose plus parmi les séances de la F1 à revoir ;
   un enregistrement de répétition est remplacé par la vraie séance quand elle commence.
