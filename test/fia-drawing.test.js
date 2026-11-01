@@ -34,6 +34,10 @@ function drawing(track) {
     { x: ax, y: ay - 4, s: 'OT' }, { x: ax, y: ay + 4, s: 'A' },   // à la verticale, en deux morceaux
     { x: 900, y: 900, s: 'OT D' }, { x: 900, y: 920, s: 'OT A' },  // légende, loin du tracé
   ];
+  // Numéros des virages (gros, à 40 m du tracé ; 3 à 5 le long des lignes droites) et des postes des commissaires (petits)
+  const turn = (s, x, y, h) => { const [px, py] = toPdf([x, y]); texts.push({ x: px, y: py, s, h }); };
+  [['1', 12400, 2000], ['2', -2400, 2000], ['3', 5000, -400], ['4', 5000, 4400], ['5', 2000, -400]].forEach(([n, x, y]) => turn(n, x, y, 10));
+  [['1', 1000, 4300], ['2', 3000, -300], ['3', 7000, -300], ['4', 9000, 4300], ['5', 11000, 4300], ['6', 500, -300]].forEach(([n, x, y]) => turn(n, x, y, 6));
   return { shapes, texts };
 }
 
@@ -57,6 +61,11 @@ test('dessin du plan FIA : recalé sur le tracé, bandes des zones et traits de 
   assert.ok(Math.abs(m.runs[0].to - nearestIdx(track, 8000, 0)) <= 1);
   assert.ok(Math.abs(m.detection - nearestIdx(track, 6000, 4000)) <= 1);
   assert.ok(Math.abs(m.activation - nearestIdx(track, 3000, 4000)) <= 1);
+  // Virages : numéros écrits le plus gros, au point du tracé le plus proche, angle vers le libellé (vers l'extérieur)
+  assert.deepEqual(m.corners.map((c) => c.number), [1, 2, 3, 4, 5]);
+  const c1 = m.corners[0], c2 = m.corners[1];
+  assert.ok(Math.abs(c1.idx - nearestIdx(track, 12000, 2000)) <= 1 && Math.abs(c1.angle) <= 10, JSON.stringify(c1));
+  assert.ok(Math.abs(c2.idx - nearestIdx(track, -2000, 2000)) <= 1 && Math.abs(Math.abs(c2.angle) - 180) <= 10, JSON.stringify(c2));
   // Dessin sans le tracé : inutilisable
   assert.equal(drawingMarks({ shapes: drawing(track).shapes.filter((s) => s.fill !== '#545454'), texts: [] }, track), null);
 });

@@ -7,7 +7,7 @@
 // ce qui sert, pour tenir dans la mémoire du serveur.
 import { setRow, readJSON, rowsWithPrefix } from './alerts.js';
 import { archiveToken, seasonRow } from './studio.js';
-import { archiveText, circuitData } from './race-stats.js';
+import { archiveText, circuitData, gpsTrackKey } from './race-stats.js';
 import { seasonIndex } from './tyres.js';
 import { fiaDocsWeb } from './fia-tech.js';
 import { parseStream } from '../shared/race-stats.js';
@@ -16,7 +16,7 @@ import { parseCircuitData } from '../shared/fia-circuit.js';
 import { pdfDrawing, drawingMarks } from '../shared/fia-drawing.js';
 import { Track } from '../shared/track.js';
 import { estimateZones } from '../shared/zones.js';
-import { calibrateLoops } from '../shared/calibrate.js';
+import { calibrateLoops, buildTrackFromArchive } from '../shared/calibrate.js';
 import { elevationProfile, VERSION as ELEVATION_VERSION } from '../shared/elevation.js';
 import { CIRCUITS } from '../shared/circuits-info.js';
 
@@ -105,7 +105,8 @@ async function officialData(year, raw, fetchFn, track) {
 }
 
 // Séances archivées sur ce circuit (cette année et la précédente) : qualifications d'abord (une heure, voitures à fond),
-// puis essais, puis courses, les plus récentes d'abord ; les séances de moins de 3 h n'ont pas encore d'archive complète
+// puis essais, puis courses, les plus récentes d'abord ; les séances de moins de 3 h n'ont pas encore d'archive complète.
+// [{ path, meeting }] (meeting : Grand Prix de l'index des archives)
 async function candidateSessions(key, year, token, fetchFn, now) {
   const out = [];
   for (const y of [year, year - 1]) {
@@ -114,12 +115,12 @@ async function candidateSessions(key, year, token, fetchFn, now) {
       for (const s of [...m.sessions].reverse()) {
         const [, sign, h, mn] = /^(-)?(\d+):(\d+)/.exec(s.gmtOffset || '') || [];
         const start = Date.parse(`${s.start}Z`) - (sign ? -1 : 1) * ((Number(h) || 0) * 60 + (Number(mn) || 0)) * 60000;
-        if (now - start > 3 * 3600e3) out.push(s);
+        if (now - start > 3 * 3600e3) out.push({ ...s, meeting: m });
       }
     }
   }
   const rank = (s) => (s.type === 'Qualifying' && !/sprint/i.test(s.name) ? 0 : s.type === 'Practice' ? 1 : s.type === 'Race' ? 3 : 2);
-  return out.map((s, i) => ({ s, i })).sort((a, b) => rank(a.s) - rank(b.s) || a.i - b.i).map(({ s }) => s.path);
+  return out.map((s, i) => ({ s, i })).sort((a, b) => rank(a.s) - rank(b.s) || a.i - b.i).map(({ s }) => ({ path: s.path, meeting: s.meeting }));
 }
 
 // Positions GPS de la séance -> [{ car, x, y, z }] (profil d'altitude)
@@ -133,16 +134,27 @@ function* gpsSamples(positions) {
 // gardés tels quels (seul ce qui manque est calculé)
 export async function computeZones(env, key, year, { now = Date.now(), fetchFn = fetch, token, keep = {} } = {}) {
   let zones = keep.zones || null, loops = keep.loops || null, elevation = keep.elevation || null;
-  const raw = await circuitData(key, year, fetchFn);
-  if (!raw) return { at: now, zones, loops, elevation, error: 'tracé introuvable' };
-  const track = new Track(raw);
-  const official = zones ? null : await officialData(year, raw, fetchFn, track).catch(() => null);
+  let raw = await circuitData(key, year, fetchFn, env);
+  let track = raw && new Track(raw);
+  let official = zones || !track ? null : await officialData(year, raw, fetchFn, track).catch(() => null);
   token ??= await archiveToken(env, { now, fetchFn });
   let error = token ? 'aucune séance archivée utilisable' : 'connexion F1 TV absente ou expirée';
-  for (const p of token ? (await candidateSessions(key, year, token, fetchFn, now)).slice(0, 3) : []) {
-    if (zones && loops && elevation) break;
+  if (!track && !token) return { at: now, zones, loops, elevation, error: `tracé introuvable (${error})` };
+  for (const { path: p, meeting } of token ? (await candidateSessions(key, year, token, fetchFn, now)).slice(0, 3) : []) {
+    if (track && zones && loops && elevation) break;
     try {
-      const { events, positions, carData } = await sessionData(p, token, fetchFn, { timing: !loops, carData: !zones });
+      const { events, positions, carData } = await sessionData(p, token, fetchFn, { timing: !loops || !track, carData: !zones });
+      if (!track) {
+        // Circuit que MultiViewer n'a pas (Madrid, Sepang) : tracé du meilleur tour de la séance d'après le GPS, numéros
+        // des virages pris sur le dessin du plan FIA ; gardé dans la base (circuitData le sert ensuite à tous)
+        const gps = buildTrackFromArchive(events, positions);
+        if (!gps) continue;
+        raw = { ...gps, meetingName: meeting.name, location: meeting.location, countryName: meeting.country, source: p };
+        official = await officialData(year, raw, fetchFn, new Track(raw)).catch(() => null);
+        raw.corners = (official?.marks?.corners || []).map((c) => ({ number: c.number, angle: c.angle, trackPosition: { x: raw.x[c.idx], y: raw.y[c.idx] } }));
+        track = new Track(raw);
+        await setRow(env, gpsTrackKey(key, year), JSON.stringify(raw));
+      }
       if (!loops) {
         const l = calibrateLoops(track, events, positions);
         if (l && Object.keys(l.segs).length > 5) loops = { ...l, source: p };
@@ -157,6 +169,7 @@ export async function computeZones(env, key, year, { now = Date.now(), fetchFn =
       }
     } catch (err) { error = `${p} : ${err.message}`; }
   }
+  if (!track) return { at: now, zones, loops, elevation, error: `tracé introuvable (${error})` };
   return { at: now, zones, loops, elevation, ...(zones && loops && elevation ? {} : { error }) };
 }
 

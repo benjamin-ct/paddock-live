@@ -4,7 +4,8 @@
 // et orientation), puis ses marques sont projetées sur le tracé : fin exacte de chaque zone, points de détection et
 // d'activation à leur place. Lu par le serveur de Paddock Live (analytics/zones.js, via shared/zones.js).
 
-// PDF -> dessin de la page du plan (celle de l'encadré « CIRCUIT DATA ») : { texts: [{ x, y, s }], shapes } ou null
+// PDF -> dessin de la page du plan (celle de l'encadré « CIRCUIT DATA ») : { texts: [{ x, y, s, h }], shapes } ou null (h : hauteur
+// des caractères)
 let pdfLib = null;
 export async function pdfDrawing(buf) {
   pdfLib ||= await import('unpdf');
@@ -12,7 +13,7 @@ export async function pdfDrawing(buf) {
   try {
     for (let i = 1; i <= pdf.numPages; i++) {
       const page = await pdf.getPage(i);
-      const texts = (await page.getTextContent()).items.filter((it) => it.str && it.str.trim()).map((it) => ({ x: it.transform[4], y: it.transform[5], s: it.str }));
+      const texts = (await page.getTextContent()).items.filter((it) => it.str && it.str.trim()).map((it) => ({ x: it.transform[4], y: it.transform[5], s: it.str, h: Math.abs(it.transform[3]) }));
       if (texts.some((t) => /^CIRCUIT DATA$/i.test(t.s.trim()))) return { texts, shapes: drawingShapes(await page.getOperatorList()) };
     }
     return null;
@@ -125,9 +126,10 @@ export function fitDrawing(outline, track) {
   return { ...best, apply: (pt) => apply(best.t, pt) };
 }
 
-// Dessin d'une page ({ shapes, texts }) + tracé (Track) -> { runs: [{ from, to }], detection, activation, err } ou null :
-// runs = portions du tracé couvertes par les bandes des zones « ligne droite » ; detection / activation = indices du
-// tracé ; err = écart moyen du recalage (unités du tracé). M : unités du tracé par mètre.
+// Dessin d'une page ({ shapes, texts }) + tracé (Track) -> { runs: [{ from, to }], detection, activation, corners, err } ou
+// null : runs = portions du tracé couvertes par les bandes des zones « ligne droite » ; detection / activation = indices
+// du tracé ; corners = numéros des virages [{ number, idx, angle }] ; err = écart moyen du recalage (en m). M : unités du
+// tracé par mètre.
 export function drawingMarks({ shapes, texts = [] }, track, M = 10) {
   const n = track.pts.length;
   if (n < 20 || !shapes?.length) return null;
@@ -197,5 +199,15 @@ export function drawingMarks({ shapes, texts = [] }, track, M = 10) {
     }
   }
   if (detection === activation) { detection = null; activation = null; }   // un seul trait : on garde le texte du plan
-  return { runs, detection, activation, err: Math.round(fit.e / M) };
+  // Numéros des virages : le groupe de numéros (même hauteur, au moins 5) écrit le plus gros (les postes des commissaires
+  // sont plus petits), au point du tracé le plus proche du libellé (à moins de 100 m) ; angle : direction du libellé
+  const groups = new Map();
+  for (const t of texts) if (/^\d{1,2}$/.test(str(t)) && t.h) groups.set(t.h.toFixed(1), [...(groups.get(t.h.toFixed(1)) || []), t]);
+  const turns = [...groups].filter(([, g]) => new Set(g.map(str)).size >= 5).sort((a, b) => b[0] - a[0])[0]?.[1] || [];
+  const corners = [];
+  for (const t of turns) {
+    const number = Number(str(t)), p = fit.apply([t.x, t.y]), [idx, d] = nearest(q, p);
+    if (d < 100 * M && !corners.some((c) => c.number === number)) corners.push({ number, idx, angle: Math.round((Math.atan2(p[1] - q[idx][1], p[0] - q[idx][0]) * 180) / Math.PI) });
+  }
+  return { runs, detection, activation, corners, err: Math.round(fit.e / M) };
 }
