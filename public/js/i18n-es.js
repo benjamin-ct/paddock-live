@@ -2882,4 +2882,5 @@ export default {
   "Ouvrir la Comparaison dans sa propre fenêtre": "Abrir la Comparación en su propia ventana",
   "La version web garde le GPS depuis l'ouverture de cette fenêtre : comparez un tour fait depuis.": "La versión web guarda el GPS desde que se abrió esta ventana: compara una vuelta hecha desde entonces.",
   "Comparaison des tours de deux pilotes, dans une fenêtre à part": "Comparación de las vueltas de dos pilotos, en una ventana aparte",
+  "Pas encore de projection des écuries.": "Todavía no hay proyección de los equipos.",
 };
