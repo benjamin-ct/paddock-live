@@ -207,8 +207,9 @@ export function estimateZones(track, carData, positions, official = null) {
   return { v: 3, zones, detection, pitLane, samples };
 }
 
-// Positions officielles (« 45m after T19 ») -> indices du tracé, fin des zones « ligne droite » :
-// là où les voitures cessent d'être à fond (télémétrie), au plus tard au virage suivant.
+// Positions officielles (« 45m after T19 ») -> indices du tracé, fin des zones « ligne droite » : celle de la bande
+// dessinée sur le plan FIA (official.marks, shared/fia-drawing.js), sinon là où les voitures cessent d'être à fond
+// (télémétrie), au plus tard au virage suivant. Détection et activation : traits du plan s'ils sont lus.
 function officialLayout(track, official, cum, frac, estimated = []) {
   const pts = track.pts;
   const n = pts.length;
@@ -227,12 +228,16 @@ function officialLayout(track, official, cum, frac, estimated = []) {
   const distFwd = (i, j) => { const d = cum[j] - cum[i]; return d >= 0 ? d : d + total; };
   const corners = [...cornerIdx.values()];
   const zones = [];
+  const marks = official.marks || null;
   for (const z of official.zones || []) {
     const from = at(z.normal) ?? at(z.low);
     if (from === null) continue;
     let end = from;
     const hasTelemetry = frac.some((v) => v > 0);
-    if (hasTelemetry) {
+    // Bande du plan qui contient le début de la zone, ou qui commence dans les 300 m qui suivent
+    const run = marks?.runs?.find((r) => distFwd(r.from, from) <= distFwd(r.from, r.to) || distFwd(from, r.from) < 300 * M);
+    if (run) end = run.to;
+    else if (hasTelemetry) {
       // Fin : là où les voitures cessent d'être à fond (au moins 60 m d'affilée : un léger
       // lever de pied dans un virage rapide ne termine pas la zone), 2,5 km au plus
       let lowSince = null;
@@ -252,8 +257,9 @@ function officialLayout(track, official, cum, frac, estimated = []) {
     }
     zones.push({ name: z.name, from, to: end, length: Math.round(distFwd(from, end) / M), lowFrom: at(z.low), text: z.normal?.text || z.low?.text || '' });
   }
-  const point = (p) => { const idx = at(p); return idx === null ? null : { idx, text: p.text }; };
-  return { v: 3, official: true, source: official.source, zones, detection: point(official.detection), activation: point(official.activation) };
+  const point = (p, drawn) => { const idx = drawn ?? at(p); return idx === null ? null : { idx, text: p?.text || '' }; };
+  return { v: 3, official: true, source: official.source, zones, detection: point(official.detection, marks?.detection), activation: point(official.activation, marks?.activation),
+    drawing: marks ? { err: marks.err } : false };   // plan FIA lu (écart moyen du recalage, en m) ou non
 }
 
 // Voie des stands : moyenne des passages des voitures (rééchantillonnés le long de leur
