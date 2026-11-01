@@ -17,6 +17,8 @@ const QUALI_OFF = ['trace', 'positions', 'tyrehist', 'strategy', 'pitsim', 'batt
 const OFF = { race: [], quali: QUALI_OFF, practice: QUALI_OFF };
 
 const HOSTS = ['feed', 'radio', 'analysis', 'extra'];   // panneaux à onglets
+// Fenêtre de la Comparaison seule (?tab=compare, ui/layout.js) : l'onglet reste ouvert, même masqué pour la séance
+const ONLY_TAB = new URLSearchParams(location.search).get('tab') === 'compare' ? 'compare' : null;
 // Place des onglets par défaut (1.30) : direction de course (et enquêtes, limites de piste) dans Messages, radios dans
 // Radios, télémétrie dans le panneau Télémétrie ; le reste dans Analyse, ouverte dans sa fenêtre. Onglets visibles :
 // prefs.js (TAB_HIDDEN)
@@ -282,7 +284,7 @@ function applySession() {
     if (!h) continue;
     const cur = h.querySelector(':scope > [data-tab].active');
     const t = cur?.dataset.tab;
-    if (!t || !off.has(t)) continue;
+    if (!t || !off.has(t) || (ONLY_TAB && id === 'analysis')) continue;
     // Onglet ouvert masqué : un autre onglet du même regroupement, sinon le premier onglet affiché
     const main = Object.keys(GROUPS).find((g) => GROUPS[g].includes(t));
     const alt = main && GROUPS[main].find((x) => !off.has(x));
@@ -442,8 +444,7 @@ export function initTabMove() {
   applySession();
   // Fenêtre d'un seul onglet (?tab=compare, ui/layout.js) : l'onglet dans le panneau Analyse, ouvert, où que
   // l'utilisateur l'ait rangé ailleurs (rien n'est enregistré)
-  const only = new URLSearchParams(location.search).get('tab');
-  if (only === 'compare') { place(only, 'analysis'); activate('analysis', only); }
+  if (ONLY_TAB) { place(ONLY_TAB, 'analysis'); activate('analysis', ONLY_TAB); }
   on('reset', applySession);
   on('events', (events) => { if (events.some(([t]) => t === 'SessionInfo' || t === '__snapshot')) setTimeout(applySession, 0); });
   document.addEventListener('pointerdown', onDown);
