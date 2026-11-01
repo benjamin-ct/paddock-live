@@ -119,7 +119,7 @@ export const GUIDES = [
     eyebrow: 'Live timing',
     h1: 'Le live timing de la F1, gratuit et en français',
     intro: 'Classement, écarts, secteurs, pneus et arrêts de chaque voiture, mis à jour en direct pendant les essais, les qualifs, le sprint et la course. Paddock Live rassemble tout le live timing de la F1 dans une seule appli, avec la carte du circuit et les radios traduites.',
-    img: ['tableau-de-bord.webp', 1600, 888, 'Live timing F1 dans Paddock Live : classement, carte du circuit, radios et direction de course'],
+    img: ['v2-tableau-de-bord.webp', 1920, 1200, 'Live timing F1 dans Paddock Live : classement, carte du circuit, radios et direction de course'],
     points: [
       'Classement complet : écart, intervalle, dernier et meilleur tour, secteurs et mini-secteurs',
       'Pneus et âge des gommes, arrêts, speed trap, drapeaux bleus et abandons',
@@ -142,7 +142,7 @@ export const GUIDES = [
     eyebrow: 'Alternative à MultiViewer',
     h1: 'Une alternative à MultiViewer pour la F1',
     intro: 'MultiViewer est surtout connu pour regarder F1 TV sur plusieurs fenêtres. Paddock Live fait autre chose : il ne diffuse pas la vidéo, il l\'accompagne, avec tout le live timing de la course calé sur ta TV, en français.',
-    img: ['tableau-de-bord.webp', 1600, 888, 'Paddock Live pendant une course : classement, carte du circuit, radios et direction de course'],
+    img: ['v2-tableau-de-bord.webp', 1920, 1200, 'Paddock Live pendant une course : classement, carte du circuit, radios et direction de course'],
     points: [
       'Sans abonnement F1 TV : tu regardes la course où tu veux (TV, streaming)',
       'Live timing, carte GPS, pneus, stratégie et analyse de course',
@@ -165,7 +165,7 @@ export const GUIDES = [
     eyebrow: 'Dashboard F1',
     h1: 'Ton dashboard F1, tout sur un seul écran',
     intro: 'Pendant la course, ce qui compte est éparpillé : classement, pneus, radios, messages de la FIA. Paddock Live rassemble tout dans un tableau de bord que tu organises à ta façon, calé sur le retard de ta diffusion TV.',
-    img: ['tableau-de-bord.webp', 1600, 888, 'Dashboard F1 de Paddock Live : classement, carte du circuit, radios et direction de course sur un seul écran'],
+    img: ['v2-tableau-de-bord.webp', 1920, 1200, 'Dashboard F1 de Paddock Live : classement, carte du circuit, radios et direction de course sur un seul écran'],
     points: [
       'Des panneaux à placer où tu veux : classement, carte, radios, pneus, télémétrie, direction de course',
       'Interface essentielle ou complète, onglets à masquer, second écran et carte flottante',
@@ -189,7 +189,7 @@ export const GUIDES = [
     eyebrow: 'Live timing',
     h1: 'F1 live timing, free on your computer',
     intro: 'Standings, gaps, sectors, tyres and pit stops for every car, updated live during practice, qualifying, the sprint and the race. Paddock Live brings all of F1 live timing into one app, with the track map and team radio.',
-    img: ['tableau-de-bord.webp', 1600, 888, 'F1 live timing in Paddock Live: standings, track map, team radio and race control'],
+    img: ['v2-tableau-de-bord.webp', 1920, 1200, 'F1 live timing in Paddock Live: standings, track map, team radio and race control'],
     points: [
       'Full timing tower: gap, interval, last and best lap, sectors and mini-sectors',
       'Tyres and tyre age, pit stops, speed trap, blue flags and retirements',
@@ -212,7 +212,7 @@ export const GUIDES = [
     eyebrow: 'MultiViewer alternative',
     h1: 'A MultiViewer alternative for F1',
     intro: 'MultiViewer is best known for watching F1 TV in several windows. Paddock Live does something else: it doesn\'t stream the video, it goes alongside it, with all the race\'s live timing synced to your TV.',
-    img: ['tableau-de-bord.webp', 1600, 888, 'Paddock Live during a race: standings, track map, team radio and race control'],
+    img: ['v2-tableau-de-bord.webp', 1920, 1200, 'Paddock Live during a race: standings, track map, team radio and race control'],
     points: [
       'No F1 TV subscription needed: watch the race wherever you like (TV, streaming)',
       'Live timing, GPS track map, tyres, strategy and race analysis',
@@ -235,7 +235,7 @@ export const GUIDES = [
     eyebrow: 'F1 dashboard',
     h1: 'Your F1 dashboard, everything on one screen',
     intro: 'During a race, what matters is scattered everywhere: standings, tyres, team radio, FIA messages. Paddock Live brings it all into one dashboard you arrange your way, synced to the delay of your TV broadcast.',
-    img: ['tableau-de-bord.webp', 1600, 888, 'Paddock Live F1 dashboard: standings, track map, team radio and race control on one screen'],
+    img: ['v2-tableau-de-bord.webp', 1920, 1200, 'Paddock Live F1 dashboard: standings, track map, team radio and race control on one screen'],
     points: [
       'Panels you place wherever you like: standings, map, team radio, tyres, telemetry, race control',
       'Essential or full layout, tabs you can hide, second screen and floating map',
@@ -358,52 +358,66 @@ export const GUIDES = [
 
 // Textes de la page dans chaque langue (les pages anglaises renvoient vers l'accueil anglais, /en/)
 const UI = {
-  fr: { home: '/', season: 'https://app.paddocklive.app/saison/', seasonName: 'Saison de F1', dl: 'Télécharger', cta: 'Télécharger Paddock Live gratuitement', os: 'Windows, macOS et Linux', faq: 'Questions fréquentes', more: 'Aussi dans Paddock Live', all: 'Toutes les fonctions', terms: 'Conditions d\'utilisation', privacy: 'Confidentialité', locale: 'fr_FR',
+  fr: { home: '/', season: 'https://app.paddocklive.app/saison/', seasonName: 'Saison de F1', dl: 'Télécharger', cta: 'Télécharger Paddock Live gratuitement', os: 'Windows, macOS et Linux', faq: 'Questions fréquentes', more: 'Aussi dans Paddock Live', all: 'Toutes les fonctions', terms: 'Conditions d\'utilisation', privacy: 'Confidentialité', mentions: 'Mentions légales', locale: 'fr_FR',
     legal: 'Paddock Live est un projet indépendant, sans lien avec la Formula 1, la FIA ni les écuries. F1, FORMULA 1 et les marques associées appartiennent à Formula One Licensing B.V.' },
-  en: { home: '/en/', season: 'https://app.paddocklive.app/saison/', seasonName: 'F1 season', dl: 'Download', cta: 'Download Paddock Live for free', os: 'Windows, macOS and Linux', faq: 'Frequently asked questions', more: 'Also in Paddock Live', all: 'All features', terms: 'Terms of Service', privacy: 'Privacy', locale: 'en_US',
+  en: { home: '/en/', season: 'https://app.paddocklive.app/saison/', seasonName: 'F1 season', dl: 'Download', cta: 'Download Paddock Live for free', os: 'Windows, macOS and Linux', faq: 'Frequently asked questions', more: 'Also in Paddock Live', all: 'All features', terms: 'Terms of Service', privacy: 'Privacy', mentions: 'Legal notice', locale: 'en_US',
     legal: 'Paddock Live is an independent project, not affiliated with Formula 1, the FIA or the teams. F1, FORMULA 1 and related marks are trademarks of Formula One Licensing B.V.' },
 };
 
-// Style des pages du site écrites ici
+// Style des pages du site écrites ici : design « Paddock 2 » de l'appli et de l'accueil (analytics/launch/design-v2.css)
 const PAGE_STYLE = `@font-face { font-family: 'Titillium Web'; font-weight: 400; font-display: swap; src: url('/fonts/titillium-400.woff2') format('woff2'); }
 @font-face { font-family: 'Titillium Web'; font-weight: 700; font-display: swap; src: url('/fonts/titillium-700.woff2') format('woff2'); }
 @font-face { font-family: 'Saira Condensed'; font-weight: 800; font-display: swap; src: url('/fonts/sairacondensed-800.woff2') format('woff2'); }
-/* Bleu nuit de l'appli (thème pitwall) ; touches aux couleurs officielles des écuries (OFFICIAL, public/js/util.js) */
-:root { color-scheme: dark; --bg: #020817; --card: #0B1324; --card-2: #111C31; --line: #1E293B; --line-2: #334155; --text: #F8FAFC; --text-2: #CBD5E1; --muted: #94A3B8; --red: #e10600;
+/* Bleu nuit éclairé de lueurs, verre dépoli ; touches aux couleurs officielles des écuries (OFFICIAL, public/js/util.js) */
+:root { color-scheme: dark; --bg: #030814; --line: rgba(148, 163, 184, .16); --line-2: rgba(148, 163, 184, .28); --text: #F8FAFC; --text-2: #CBD5E1; --muted: #94A3B8; --red: #e10600;
+  --glass: linear-gradient(180deg, rgba(20, 32, 58, .7), rgba(14, 24, 46, .55)); --blur: blur(20px) saturate(1.5); --red-grad: linear-gradient(135deg, #ff2a1f, #c80500);
+  --shadow: 0 30px 60px -30px rgba(0, 0, 0, .7), inset 0 1px 0 rgba(255, 255, 255, .06); --title: 'Saira Condensed', 'Arial Narrow', sans-serif;
   --mercedes: #00D7B6; --mclaren: #F47600; --redbull: #4781D7; --aston: #229971; --alpine: #00A1E8; --rb: #6C98FF; --sauber: #01C00E; --ferrari: #ED1131; --williams: #1868DB; --haas: #9C9FA2; --audi: #F50537; }
 * { box-sizing: border-box; }
-body { margin: 0; background: radial-gradient(60% 520px at 50% 0, rgba(37, 99, 235, .16), transparent 70%) no-repeat, radial-gradient(35% 420px at 92% 0, rgba(225, 6, 0, .12), transparent 70%) no-repeat, var(--bg); color: var(--text); font: 17px/1.6 'Titillium Web', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+body { margin: 0; background: radial-gradient(1200px 700px at 15% -120px, rgba(37, 99, 235, .2), transparent 70%), radial-gradient(1000px 600px at 100% 0, rgba(225, 6, 0, .16), transparent 70%), var(--bg);
+  color: var(--text); font: 17px/1.6 'Titillium Web', system-ui, sans-serif; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
 a { color: inherit; }
 img { display: block; max-width: 100%; height: auto; }
 .wrap { max-width: 1000px; margin: 0 auto; padding: 0 max(16px, env(safe-area-inset-left)); }
-.nav { position: relative; background: linear-gradient(180deg, #0F172A, #0A1120); border-bottom: 1px solid var(--line); }
-.nav::after { content: ''; position: absolute; inset: auto 0 -1px; height: 2px; opacity: .9; background: linear-gradient(90deg, var(--ferrari) 0 9%, var(--mercedes) 0 18%, var(--mclaren) 0 27%, var(--redbull) 0 36%, var(--aston) 0 45%, var(--alpine) 0 54%, var(--williams) 0 63%, var(--rb) 0 72%, var(--haas) 0 81%, var(--sauber) 0 90%, var(--audi) 0); }
-.nav .wrap { display: flex; align-items: center; gap: 16px; height: 64px; }
-.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; font: 800 24px/1 'Saira Condensed', sans-serif; }
-.brand img { width: 32px; height: 32px; border-radius: 8px; }
+/* Barre du haut : pilule de verre flottante, filet aux couleurs des écuries */
+.nav { position: sticky; top: 12px; z-index: 20; margin: 12px auto 0; max-width: 1020px; width: calc(100% - 24px); border-radius: 999px; border: 1px solid var(--line);
+  background: rgba(8, 15, 32, .62); -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur); box-shadow: 0 20px 50px -20px rgba(0, 0, 0, .8), inset 0 1px 0 rgba(255, 255, 255, .06); }
+.nav::after { content: ''; position: absolute; left: 40px; right: 40px; bottom: -1px; height: 1px; opacity: .8; background: linear-gradient(90deg, var(--ferrari) 0 9%, var(--mercedes) 0 18%, var(--mclaren) 0 27%, var(--redbull) 0 36%, var(--aston) 0 45%, var(--alpine) 0 54%, var(--williams) 0 63%, var(--rb) 0 72%, var(--haas) 0 81%, var(--sauber) 0 90%, var(--audi) 0); }
+.nav .wrap { display: flex; align-items: center; gap: 16px; height: 58px; padding: 0 10px 0 18px; }
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; font: italic 800 23px/1 var(--title); text-transform: uppercase; }
+.brand img { width: 32px; height: 32px; border-radius: 9px; }
 .brand b { color: var(--red); }
-.btn { display: inline-flex; align-items: center; justify-content: center; padding: 13px 24px; border-radius: 6px; background: var(--red); color: #fff; text-decoration: none; font-weight: 700; white-space: nowrap; box-shadow: 0 8px 24px rgba(225, 6, 0, .28); }
-.nav .btn { margin-left: auto; padding: 9px 16px; font-size: 14px; }
-.eyebrow { display: inline-flex; align-items: center; height: 26px; padding: 0 10px; border-radius: 4px; background: var(--red); color: #fff; font-weight: 700; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; margin: 48px 0 14px; }
-h1, h2 { font-family: 'Saira Condensed', 'Arial Narrow', sans-serif; font-weight: 800; line-height: 1.04; margin: 0; }
-h1 { font-size: clamp(36px, 6vw, 58px); }
-h2 { font-size: clamp(26px, 4vw, 36px); margin: 56px 0 16px; }
-.lead { color: var(--text-2); font-size: 19px; max-width: 62ch; }
-.frame { margin: 32px 0; border-radius: 6px; overflow: hidden; border: 1px solid var(--line-2); border-top: 4px solid var(--red); box-shadow: 0 30px 90px rgba(0, 0, 0, .55), 0 0 140px -30px rgba(59, 130, 246, .35); }
+.btn { display: inline-flex; align-items: center; justify-content: center; padding: 14px 26px; border-radius: 999px; background: var(--red-grad); color: #fff; text-decoration: none; font-weight: 700; white-space: nowrap;
+  box-shadow: 0 12px 34px -8px rgba(225, 6, 0, .7), inset 0 1px 0 rgba(255, 255, 255, .25); transition: transform .15s; }
+.btn:hover { transform: translateY(-1px); }
+.nav .btn { margin-left: auto; padding: 9px 18px; font-size: 14px; }
+.eyebrow { display: inline-flex; align-items: center; gap: 9px; height: 30px; padding: 0 14px 0 12px; border-radius: 999px; background: rgba(225, 6, 0, .12); border: 1px solid rgba(255, 59, 48, .4); color: #FF8A82;
+  font-weight: 700; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; margin: 64px 0 18px; }
+.eyebrow::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: #ff3b30; box-shadow: 0 0 10px #ff3b30; }
+h1, h2 { font-family: var(--title); font-style: italic; font-weight: 800; text-transform: uppercase; letter-spacing: 0; margin: 0; }
+h1 { font-size: clamp(44px, 8vw, 84px); line-height: .9; max-width: 16ch; text-shadow: 0 10px 60px rgba(0, 0, 0, .5); }
+h2 { font-size: clamp(32px, 5vw, 52px); line-height: .95; margin: 64px 0 18px; }
+.lead { color: #D3DCEA; font-size: 19px; max-width: 62ch; margin: 18px 0 0; }
+.frame { margin: 40px 0; padding: 8px; border-radius: 24px; border: 1px solid var(--line-2); background: rgba(12, 20, 40, .8);
+  box-shadow: 0 50px 100px -30px rgba(0, 0, 0, .9), 0 -30px 120px -40px rgba(59, 130, 246, .6), 0 40px 140px -50px rgba(225, 6, 0, .7), inset 0 1px 0 rgba(255, 255, 255, .1); }
+.frame img { border-radius: 17px; }
 ul.points { padding-left: 1.2em; color: var(--text-2); }
 ul.points li { margin: 8px 0; }
 ul.points li::marker { color: var(--mercedes); }
 ul.points li:nth-child(4n+2)::marker { color: var(--mclaren); }
 ul.points li:nth-child(4n+3)::marker { color: var(--redbull); }
 ul.points li:nth-child(4n)::marker { color: var(--aston); }
-details { border: 1px solid var(--line); border-radius: 6px; padding: 14px 18px; margin: 10px 0; background: linear-gradient(160deg, var(--card-2), var(--card)); }
+details { border: 1px solid var(--line); border-radius: 18px; padding: 16px 22px; margin: 10px 0; background: var(--glass); -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur); box-shadow: var(--shadow); }
+details[open] { border-color: rgba(255, 59, 48, .35); }
 summary { font-weight: 700; cursor: pointer; }
-summary::marker { color: var(--red); }
+summary::marker { color: #ff3b30; }
 details p { color: var(--text-2); margin: 10px 0 0; }
-.cta { margin: 40px 0; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+.cta { margin: 44px 0; display: flex; gap: 12px 16px; flex-wrap: wrap; align-items: center; }
 .cta small { color: var(--muted); }
-.more { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
-.more a { --acc: var(--red); display: block; padding: 14px 16px; border: 1px solid var(--line); border-radius: 6px; background: linear-gradient(160deg, var(--card-2), var(--card)); box-shadow: inset 3px 0 0 var(--acc); text-decoration: none; font-weight: 700; }
+.more { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.more a { --acc: var(--red); position: relative; overflow: hidden; display: block; padding: 18px 20px; border: 1px solid var(--line); border-radius: 18px; background: var(--glass); -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur);
+  box-shadow: var(--shadow); text-decoration: none; font: italic 800 19px/1.1 var(--title); text-transform: uppercase; transition: border-color .15s, transform .15s; }
+.more a::after { content: ''; position: absolute; right: -50px; top: -50px; width: 130px; height: 130px; border-radius: 50%; background: radial-gradient(circle, color-mix(in srgb, var(--acc) 40%, transparent), transparent 70%); pointer-events: none; }
 .more a:nth-child(8n+1) { --acc: var(--mercedes); }
 .more a:nth-child(8n+2) { --acc: var(--mclaren); }
 .more a:nth-child(8n+3) { --acc: var(--redbull); }
@@ -411,9 +425,18 @@ details p { color: var(--text-2); margin: 10px 0 0; }
 .more a:nth-child(8n+5) { --acc: var(--alpine); }
 .more a:nth-child(8n+6) { --acc: var(--ferrari); }
 .more a:nth-child(8n+7) { --acc: var(--rb); }
-.more a:hover { border-color: var(--acc); }
-footer { margin-top: 72px; padding: 28px 0 40px; border-top: 1px solid var(--line); background: linear-gradient(180deg, var(--bg), var(--card)); color: var(--muted); font-size: 14px; }
-footer a { color: var(--text-2); }
+.more a:hover { border-color: color-mix(in srgb, var(--acc) 60%, transparent); transform: translateY(-2px); }
+footer { margin-top: 80px; padding: 28px 0 40px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; }
+footer a { color: #ff5a4f; }
+@media (max-width: 520px) {
+  .nav { width: calc(100% - 16px); }
+  .nav .wrap { padding: 0 6px 0 14px; height: 54px; }
+  .eyebrow { margin-top: 44px; }
+  .cta .btn { width: 100%; }
+  .frame { padding: 5px; border-radius: 16px; }
+  .frame img { border-radius: 12px; }
+}
+@media (prefers-reduced-motion: reduce) { .btn, .more a { transition: none; } .btn:hover, .more a:hover { transform: none; } }
 `;
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -476,7 +499,7 @@ ${PAGE_STYLE}</style>
   <div class="more">${others.map((x) => `<a href="/${x.slug}/">${esc(x.eyebrow)}</a>`).join('')}<a href="${ui.home}">${ui.all}</a></div>
 </main>
 <footer><div class="wrap">
-  <p><a href="${ui.home}">Paddock Live</a> · <a href="${ui.season}">${ui.seasonName}</a> · <a href="/legal/terms">${ui.terms}</a> · <a href="/legal/privacy">${ui.privacy}</a> · <a href="/${g.pair}/">${g.lang === 'fr' ? 'English' : 'Français'}</a></p>
+  <p><a href="${ui.home}">Paddock Live</a> · <a href="${ui.season}">${ui.seasonName}</a> · <a href="/legal/terms">${ui.terms}</a> · <a href="/legal/privacy">${ui.privacy}</a> · <a href="/legal/mentions">${ui.mentions}</a> · <a href="/${g.pair}/">${g.lang === 'fr' ? 'English' : 'Français'}</a></p>
   <p>${ui.legal}</p>
 </div></footer>
 </body>
@@ -522,7 +545,7 @@ export function englishHome(html) {
 // Plan du site pour les moteurs de recherche, et règles d'exploration (Studio, outils et pages privées exclus)
 export const sitemap = () => `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${['', 'en/', ...GUIDES.map((g) => `${g.slug}/`), 'alertes/', 'extension/', 'legal/terms', 'legal/privacy'].map((p) => `  <url><loc>${SITE}/${p}</loc></url>`).join('\n')}
+${['', 'en/', ...GUIDES.map((g) => `${g.slug}/`), 'alertes/', 'extension/', 'legal/terms', 'legal/privacy', 'legal/mentions'].map((p) => `  <url><loc>${SITE}/${p}</loc></url>`).join('\n')}
   <url><loc>https://app.paddocklive.app/</loc></url>
 </urlset>
 `;

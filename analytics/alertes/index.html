@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Alertes F1 sur ton téléphone · Paddock Live</title>
 <meta name="description" content="Un rappel avant chaque séance de F1, les résultats si tu le veux et les grosses news, sur ton téléphone, même loin de ton ordinateur. Gratuit.">
-<meta name="theme-color" content="#000000">
+<meta name="theme-color" content="#030814">
 <link rel="canonical" href="https://paddocklive.app/alertes/">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Alertes F1 sur ton téléphone · Paddock Live">
@@ -23,36 +23,48 @@
 @font-face { font-family: 'Titillium Web'; font-weight: 400; font-display: swap; src: url('/fonts/titillium-400.woff2') format('woff2'); }
 @font-face { font-family: 'Titillium Web'; font-weight: 700; font-display: swap; src: url('/fonts/titillium-700.woff2') format('woff2'); }
 @font-face { font-family: 'Saira Condensed'; font-weight: 800; font-display: swap; src: url('/fonts/sairacondensed-800.woff2') format('woff2'); }
-:root { color-scheme: dark; --bg: #0b0c0f; --card: #15171c; --line: rgba(255, 255, 255, .08); --line-2: rgba(255, 255, 255, .15); --text: #f2f1ee; --text-2: #c8c7c1; --muted: #8f8d87; --red: #e10600; --ok: #2fbf71; }
+/* Design « Paddock 2 » de l'appli et de l'accueil : bleu nuit éclairé de lueurs, verre dépoli, titres condensés en italique */
+:root { color-scheme: dark; --bg: #030814; --line: rgba(148, 163, 184, .16); --line-2: rgba(148, 163, 184, .28); --text: #F8FAFC; --text-2: #CBD5E1; --muted: #94A3B8; --red: #e10600; --ok: #2fbf71;
+  --glass: linear-gradient(180deg, rgba(20, 32, 58, .7), rgba(14, 24, 46, .55)); --blur: blur(20px) saturate(1.5); --red-grad: linear-gradient(135deg, #ff2a1f, #c80500); }
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--text); font: 17px/1.55 'Titillium Web', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+body { margin: 0; min-height: 100vh; background: radial-gradient(1200px 700px at 15% -120px, rgba(37, 99, 235, .2), transparent 70%), radial-gradient(1000px 600px at 100% 0, rgba(225, 6, 0, .16), transparent 70%), var(--bg);
+  color: var(--text); font: 17px/1.55 'Titillium Web', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
 a { color: inherit; }
-.wrap { max-width: 560px; margin: 0 auto; padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) calc(32px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); }
-.top { display: flex; align-items: center; gap: 10px; margin: 8px 0 28px; }
-.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; font: 800 24px/1 'Saira Condensed', sans-serif; }
-.brand img { width: 32px; height: 32px; border-radius: 8px; }
+.wrap { max-width: 560px; margin: 0 auto; padding: max(12px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) calc(32px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); }
+/* Barre du haut : pilule de verre */
+.top { display: flex; align-items: center; gap: 10px; margin: 0 0 36px; height: 56px; padding: 0 8px 0 14px; border-radius: 999px; border: 1px solid var(--line);
+  background: rgba(8, 15, 32, .62); -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur); box-shadow: 0 20px 50px -20px rgba(0, 0, 0, .8), inset 0 1px 0 rgba(255, 255, 255, .06); }
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; font: italic 800 23px/1 'Saira Condensed', sans-serif; text-transform: uppercase; }
+.brand img { width: 32px; height: 32px; border-radius: 9px; }
 .brand b { color: var(--red); }
-#lang { margin-left: auto; background: none; border: 1px solid var(--line-2); color: var(--text-2); border-radius: 999px; padding: 6px 12px; font: inherit; font-size: 14px; cursor: pointer; }
-h1 { font: 800 clamp(34px, 9vw, 46px)/1.02 'Saira Condensed', 'Arial Narrow', sans-serif; margin: 0 0 12px; }
-.lead { color: var(--text-2); margin: 0 0 24px; }
-.topic { display: flex; gap: 14px; align-items: flex-start; padding: 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--card); margin-bottom: 10px; cursor: pointer; }
-.topic input { width: 22px; height: 22px; margin: 2px 0 0; accent-color: var(--red); flex: none; }
-.topic b { display: block; }
-.topic small { color: var(--muted); font-size: 14px; }
+#lang { margin-left: auto; min-height: 40px; background: rgba(255, 255, 255, .05); border: 1px solid var(--line-2); color: var(--text-2); border-radius: 999px; padding: 6px 16px; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+#lang:hover { color: var(--text); background: rgba(255, 255, 255, .1); }
+h1 { font: italic 800 clamp(42px, 12vw, 64px)/.92 'Saira Condensed', 'Arial Narrow', sans-serif; text-transform: uppercase; margin: 0 0 16px; text-shadow: 0 10px 60px rgba(0, 0, 0, .5); }
+.lead { color: var(--text-2); margin: 0 0 26px; font-size: 18px; }
+.topic { display: flex; gap: 14px; align-items: flex-start; padding: 18px; border: 1px solid var(--line); border-radius: 18px; background: var(--glass); -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur);
+  box-shadow: 0 20px 50px -30px rgba(0, 0, 0, .7), inset 0 1px 0 rgba(255, 255, 255, .06); margin-bottom: 10px; cursor: pointer; transition: border-color .15s, box-shadow .15s; }
+.topic:has(input:checked) { border-color: rgba(255, 59, 48, .45); box-shadow: 0 20px 50px -30px rgba(225, 6, 0, .6), inset 0 1px 0 rgba(255, 255, 255, .06); }
+.topic input { width: 24px; height: 24px; margin: 1px 0 0; accent-color: var(--red); flex: none; cursor: pointer; }
+.topic b { display: block; font-size: 18px; }
+.topic small { display: block; margin-top: 2px; color: var(--muted); font-size: 14px; line-height: 1.45; }
 .topic.warn small em { color: #ffb020; font-style: normal; }
-.btn { display: block; width: 100%; margin-top: 16px; padding: 15px; border-radius: 999px; border: 1px solid var(--line-2); background: var(--card); color: var(--text); font: 700 17px 'Titillium Web', sans-serif; cursor: pointer; }
-.btn.primary { background: var(--red); border-color: var(--red); color: #fff; }
-.btn:disabled { opacity: .5; cursor: default; }
+.btn { display: block; width: 100%; min-height: 54px; margin-top: 16px; padding: 15px; border-radius: 999px; border: 1px solid var(--line-2); background: rgba(255, 255, 255, .05); color: var(--text);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); font: 700 17px 'Titillium Web', sans-serif; cursor: pointer; transition: background .15s, transform .15s; }
+.btn:hover { background: rgba(255, 255, 255, .1); }
+.btn.primary { background: var(--red-grad); border-color: transparent; color: #fff; box-shadow: 0 12px 34px -8px rgba(225, 6, 0, .7), inset 0 1px 0 rgba(255, 255, 255, .25); }
+.btn.primary:hover { transform: translateY(-1px); }
+.btn:disabled { opacity: .5; cursor: default; transform: none; }
 .row { display: flex; gap: 10px; }
 .row .btn { flex: 1; }
-.note { padding: 14px 16px; border-radius: 12px; border: 1px solid var(--line-2); color: var(--text-2); margin: 0 0 20px; font-size: 15px; }
+.note { padding: 14px 16px; border-radius: 16px; border: 1px solid rgba(255, 176, 32, .35); background: rgba(255, 176, 32, .07); color: var(--text-2); margin: 0 0 20px; font-size: 15px; }
 .note b { color: var(--text); }
 #state { margin: 16px 0 0; min-height: 1.5em; color: var(--text-2); font-size: 15px; }
 #state.ok { color: var(--ok); }
 #state.bad { color: #ff6b6b; }
-footer { margin-top: 36px; color: var(--muted); font-size: 13px; }
-footer a { color: var(--text-2); }
+footer { margin-top: 36px; padding-top: 20px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; }
+footer a { color: #ff5a4f; }
 [hidden] { display: none !important; }
+@media (prefers-reduced-motion: reduce) { .topic, .btn { transition: none; } .btn.primary:hover { transform: none; } }
 </style>
 </head>
 <body>
