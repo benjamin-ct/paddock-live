@@ -11,6 +11,57 @@ const { youtubeSnippet, youtubeUpload } = await import('../shared/video-publish.
 // Images envoyées par le Studio (PNG en base64), avec leur texte alternatif
 const blobs = (images, alts = []) => images.map((b, i) => Object.assign(new Blob([Buffer.from(b, 'base64')], { type: 'image/png' }), { alt: alts[i] || '' }));
 
+
+// Faux serveurs Meta : images déposées sur la page, conteneurs « en cours » puis prêts
+function fakeMeta({ errorOn = null, blocked = false, lagged = false, caption = null } = {}) {
+  const log = [];
+  const polls = {};
+  const published = new Set();
+  let n = 0;
+  globalThis.fetch = async (url, opts = {}) => {
+    const u = new URL(url);
+    const method = opts.method || 'GET';
+    const form = opts.body instanceof URLSearchParams ? Object.fromEntries(opts.body)
+      : opts.body instanceof FormData ? Object.fromEntries([...opts.body].filter(([, v]) => typeof v === 'string')) : {};
+    log.push({ method, path: u.pathname, form, fields: u.searchParams.get('fields') });
+    const json = (d) => ({ ok: true, status: 200, text: async () => JSON.stringify(d) });
+    if (method === 'POST' && u.pathname.endsWith('/photos')) return json({ id: `ph${++n}` });
+    if (method === 'GET' && u.searchParams.get('fields') === 'images') return json({ images: [{ width: 1080, source: `https://cdn.test${u.pathname}.jpg` }, { width: 320, source: 'https://cdn.test/petite.jpg' }] });
+    if (method === 'POST' && /\/(media|threads)$/.test(u.pathname)) {
+      const id = `c${++n}`;
+      if (form.media_type === 'CAROUSEL') {
+        // Refusé si une image n'a pas fini d'être préparée (comportement de Threads)
+        const notReady = form.children.split(',').filter((k) => (polls[k] || 0) < 2);
+        if (notReady.length) return { ok: false, status: 400, text: async () => JSON.stringify({ error: { message: `Les enfants avec les ID ${notReady.join(',')} ne sont pas valides` } }) };
+      }
+      return json({ id });
+    }
+    if (method === 'GET' && /status/.test(u.searchParams.get('fields') || '')) {
+      const id = u.pathname.split('/').pop();
+      polls[id] = (polls[id] || 0) + 1;
+      const field = u.searchParams.get('fields').startsWith('status_code') ? 'status_code' : 'status';
+      if (errorOn === id) return json({ [field]: 'ERROR', ...(field === 'status' ? { error_message: 'Image illisible' } : { status: 'Error: Media download has failed.' }) });
+      return json({ [field]: published.has(id) ? 'PUBLISHED' : polls[id] >= 2 ? 'FINISHED' : 'IN_PROGRESS' });
+    }
+    if (method === 'POST' && /(media_publish|threads_publish)$/.test(u.pathname)) {
+      // Instagram en retard : conteneur pas encore marqué publié après la réponse
+      if (!lagged) published.add(form.creation_id);
+      // Publié, mais réponse en erreur (blocage d'activité d'Instagram)
+      if (blocked) return { ok: false, status: 400, text: async () => JSON.stringify({ error: { code: 368, error_user_msg: 'Nous restreignons certaines activités afin de protéger notre communauté.' } }) };
+      return json({ id: 'pub1' });
+    }
+    if (method === 'GET' && u.pathname.endsWith('/media') && (u.searchParams.get('fields') || '').startsWith('id,permalink')) return json({ data: [{ id: 'ig-post', permalink: 'https://example.test/p/ig', caption: caption ?? 'Ancien post', timestamp: new Date().toISOString() }] });
+    if (method === 'POST' && u.pathname.endsWith('/feed')) return json({ id: 'page_post' });
+    if (method === 'POST' && u.pathname.endsWith('/photo_stories')) return json({ success: true, post_id: `st${++n}` });
+    if (u.searchParams.get('fields') === 'permalink') return json({ permalink: 'https://example.test/p/1' });
+    return { ok: false, status: 404, text: async () => '{}' };
+  };
+  return { log, polls };
+}
+
+const PNG = (k) => Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.from(`image-${k}`)]).toString('base64');
+
+
 test('Threads et Instagram : chaque image du carrousel est prête avant le carrousel, images déposées une seule fois', async () => {
   const realFetch = globalThis.fetch;
   Object.assign(timing, { poll: 1, maxPoll: 1, readyMs: 2000, visible: [] });

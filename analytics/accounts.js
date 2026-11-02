@@ -6,7 +6,7 @@ import { call, GRAPH, THREADS } from '../shared/meta-publish.js';
 import { bskySession } from '../shared/bluesky-publish.js';
 import { tiktokOAuth, googleOAuth, tiktokTokens, youtubeTokens, YOUTUBE } from '../shared/video-publish.js';
 
-// Même retour que l'appli (server/social-publish.js), déjà déclaré dans l'app Meta : le serveur reconnaît une
+// Même retour que les applis jusqu'à la 1.30 (leur connexion Facebook), déjà déclaré dans l'app Meta : le serveur reconnaît une
 // connexion du Studio à son « state » (s.<32 hexa>) et renvoie le navigateur au Studio
 export const META_REDIRECT = 'https://paddocklive.app/fb-callback';
 const META_SCOPES = 'pages_show_list,pages_read_engagement,pages_manage_posts,pages_manage_engagement,read_insights,instagram_basic,instagram_content_publish,instagram_manage_insights,business_management';
