@@ -2829,4 +2829,5 @@ export default {
   "Connexion F1 TV envoyée": "Connessione F1 TV inviata",
   "Renvoyer F1 TV": "Reinvia F1 TV",
   "Page web des posts et des comptes des réseaux ; cette appli lui envoie la connexion F1 TV": "Pagina web dei post e degli account dei social; questa app gli invia la connessione F1 TV",
+  "Études de faisabilité : trajectoires, freinages, pneus, départ, piste, aileron": "Studi di fattibilità: traiettorie, frenate, gomme, partenza, pista, ala",
 };
