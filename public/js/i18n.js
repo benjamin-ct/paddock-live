@@ -1,32 +1,39 @@
-// Langue de l'interface. Le texte d'origine (dans le code et le HTML) est en français ; en anglais,
-// chaque texte affiché est remplacé à la volée d'après le dictionnaire i18n-en.js :
+// Langue de l'interface. Le texte d'origine (dans le code et le HTML) est en français ; en anglais, italien
+// ou espagnol, chaque texte affiché est remplacé à la volée d'après le dictionnaire de la langue
+// (i18n-en.js, i18n-it.js, i18n-es.js : mêmes clés, le texte français) :
 // - t('Texte', valeurs…) dans le code (dessins sur canvas, messages, attributs) ;
 // - traduction automatique de la page (textes et infobulles), y compris de ce qui s'affiche ensuite.
 // Les valeurs dynamiques s'écrivent {} dans le dictionnaire (dans l'ordre), ou {0}, {1}… pour les
-// remettre dans un autre ordre en anglais.
+// remettre dans un autre ordre.
+
+export const LANGS = ['fr', 'en', 'it', 'es'];
 
 function storedLang() {
   try {
     const p = JSON.parse(localStorage.getItem('paddock.prefs') || 'null');
-    if (p === null) return null;            // première ouverture
-    return p.lang === 'en' ? 'en' : 'fr';   // installations existantes : français, sauf choix contraire
+    if (p === null) return null;                    // première ouverture
+    return LANGS.includes(p.lang) ? p.lang : 'fr';  // installations existantes : français, sauf choix contraire
   } catch { return null; }
 }
 
-// Première ouverture : la langue du système (français, sinon anglais)
-export const LANG = storedLang() ?? ((navigator.language || 'fr').toLowerCase().startsWith('fr') ? 'fr' : 'en');
+// Première ouverture : la langue du système (français, italien, espagnol, sinon anglais)
+const sysLang = () => { const l = (navigator.language || 'fr').toLowerCase().slice(0, 2); return LANGS.includes(l) ? l : 'en'; };
+export const LANG = storedLang() ?? sysLang();
+export const FR = LANG === 'fr';
 export const EN = LANG === 'en';
-export const LOCALE = EN ? 'en-GB' : 'fr-FR';
-export const DEC = EN ? '.' : ',';          // séparateur décimal
+export const LOCALE = { fr: 'fr-FR', en: 'en-GB', it: 'it-IT', es: 'es-ES' }[LANG];
+export const DEC = EN ? '.' : ',';          // séparateur décimal (virgule en français, italien et espagnol)
+export const DAY = { fr: 'j', en: 'd', it: 'g', es: 'd' }[LANG];   // « jours » abrégé des comptes à rebours
 
 // Appli de bureau : l'écran de démarrage suit la langue choisie
 try { window.f1desktop?.setLang?.(LANG); } catch { /* navigateur */ }
 
-const DICT = EN ? new Map(Object.entries((await import('./i18n-en.js')).default)) : null;
+const DICTS = { en: () => import('./i18n-en.js'), it: () => import('./i18n-it.js'), es: () => import('./i18n-es.js') };
+const DICT = FR ? null : new Map(Object.entries((await DICTS[LANG]()).default));
 
 // Gabarits (textes avec {}) : expression régulière + traduction
 const PATTERNS = [];
-if (EN) {
+if (!FR) {
   for (const [fr, en] of DICT) {
     if (!fr.includes('{}')) continue;
     const parts = fr.split('{}').map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
@@ -45,7 +52,7 @@ const misses = new Set();
 
 // Traduction d'un texte déjà composé (valeurs comprises) ; null si inconnu
 export function translate(text) {
-  if (!EN) return null;
+  if (FR) return null;
   const key = text.replace(/\s+/g, ' ').trim();
   if (!key) return null;
   const hit = DICT.get(key);
@@ -66,7 +73,7 @@ export function translate(text) {
 
 // Texte dessiné (canvas) : traduit s'il est connu, tel quel sinon (rapide en français)
 export function tx(s) {
-  if (!EN || typeof s !== 'string') return s;
+  if (FR || typeof s !== 'string') return s;
   const hit = DICT.get(s);
   if (hit !== undefined) return hit;
   if (misses.has(s)) return s;
@@ -75,14 +82,21 @@ export function tx(s) {
   return en;
 }
 
-// Dans le code : t('Il y a {} s', n) -> « Il y a 3 s » ou « 3 s ago »
+// Dans le code : t('Il y a {} s', n) -> « Il y a 3 s », « 3 s ago », « 3 s fa »…
 export function t(fr, ...vals) {
-  const en = EN ? DICT.get(fr) : undefined;
+  const en = FR ? undefined : DICT.get(fr);
   return vals.length ? fill(en ?? fr, vals) : (en ?? fr);
 }
 
-// Nombre décimal à la française ou à l'anglaise
+// Nombre décimal avec le séparateur de la langue
 export const dec = (s) => (EN ? String(s) : String(s).replace('.', ','));
+
+// Rang : « 1er », « 2e » ; « 1st », « 2nd » ; « 2º » ; « 2.º »
+export function ord(n) {
+  if (EN) return `${n}${['th', 'st', 'nd', 'rd'][n % 100 > 10 && n % 100 < 14 ? 0 : n % 10] || 'th'}`;
+  if (FR) return n === 1 ? '1er' : `${n}e`;
+  return LANG === 'it' ? `${n}º` : `${n}.º`;
+}
 
 // ---------- Traduction de la page ----------
 const ATTRS = ['title', 'placeholder', 'aria-label', 'alt', 'data-tip'];
@@ -120,8 +134,8 @@ function walk(root) {
 }
 
 export function translatePage() {
-  if (!EN) return;
-  document.documentElement.lang = 'en';
+  if (FR) return;
+  document.documentElement.lang = LANG;
   const title = translate(document.title);
   if (title) document.title = title;
   walk(document.body);

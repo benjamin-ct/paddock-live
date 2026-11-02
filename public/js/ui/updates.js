@@ -75,4 +75,14 @@ export function initUpdates() {
   // Ancienne appli de bureau (sans les bêtas) : réglage caché
   if (!desk.setBetaUpdates) $('#updateBeta').closest('.row').hidden = true;
   else $('#updateBeta').addEventListener('change', async (e) => render(await desk.setBetaUpdates(e.target.checked)));
+  // Compte à rebours de la prochaine séance : barre des menus (macOS), zone de notification (Windows, Linux) ;
+  // relu à l'ouverture des réglages (« Masquer le compte à rebours » dans le menu de l'icône)
+  if (desk.setTray) {
+    const syncTray = () => desk.getTray().then((v) => { $('#trayOpt').checked = v; });
+    $('#trayRow').hidden = false;
+    if (desk.platform === 'darwin') $('#trayLabel').textContent = t('Compte à rebours dans la barre des menus');
+    syncTray();
+    $('#settingsBtn')?.addEventListener('click', syncTray);
+    $('#trayOpt').addEventListener('change', (e) => desk.setTray(e.target.checked));
+  }
 }

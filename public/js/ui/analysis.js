@@ -2,10 +2,11 @@
 // tour, historique des pneus, secteurs et vitesses de pointe. Calculé à partir de l'historique
 // tour par tour (données dérivées) et des statistiques du chronométrage.
 import { store, versionOf, on, setFocus } from '../store.js';
-import { $, esc, api, drivers, orderedNumbers, sessionKind, teamColor, compoundInfo, fmtLap, lapSeconds, storageGet, storageSet, driverOpt } from '../util.js';
+import { $, esc, api, drivers, orderedNumbers, sessionKind, teamColor, teamMark, ink, compoundInfo, fmtLap, lapSeconds, storageGet, storageSet, driverOpt } from '../util.js';
 import { prefs, isFav } from '../prefs.js';
 import { renderCompare, initCompare, openCompareLap } from './compare.js';
 import { tx } from '../i18n.js';
+import { weekendQuery, SESSION_FR } from './tyres.js';
 
 const OPTS_KEY = 'paddock.analysis';
 const opts = { trace: 'leader', ref: null, scope: 'top10', clamp: 60, lapsSlow: true, cutoff: 107, sort: 'ideal', ...storageGet(OPTS_KEY, {}) };
@@ -116,7 +117,7 @@ function multiChart(canvas, series, o) {
     labels.push({ s, x: X(last.x) + 4, y: Math.max(padT + 5, Math.min(H - padB - 5, Y(last.y))), alpha: dim ? 0.25 : 1 });
   }
   // Étiquettes : écartées verticalement quand elles se touchent (même fin de courbe)
-  const GAP = 11;
+  const GAP = 15;
   labels.sort((a, b) => a.y - b.y);
   for (let i = 1; i < labels.length; i++) {
     const prev = labels[i - 1], cur = labels[i];
@@ -127,8 +128,14 @@ function multiChart(canvas, series, o) {
     if (next.y > H - padB - 5) next.y = H - padB - 5;
     if (Math.abs(cur.x - next.x) < 34 && next.y - cur.y < GAP) cur.y = next.y - GAP;
   }
+  // Étiquettes en cases pleines à la couleur de l'écurie (comme les pilotes de la Saison)
   ctx.font = '700 10.5px "Titillium Web", sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-  for (const l of labels) { ctx.globalAlpha = l.alpha; ctx.fillStyle = l.s.color; ctx.fillText(tx(l.s.label), l.x, l.y); }
+  for (const l of labels) {
+    const txt = tx(l.s.label), w = ctx.measureText(txt).width + 8;
+    ctx.globalAlpha = l.alpha; ctx.fillStyle = l.s.color;
+    ctx.beginPath(); ctx.roundRect(l.x, l.y - 7, w, 14, 3); ctx.fill();
+    ctx.fillStyle = ink(l.s.color); ctx.fillText(txt, l.x + 4, l.y + 0.5);
+  }
   ctx.globalAlpha = 1;
 
   // Réticule
@@ -252,7 +259,7 @@ export function neutralBands(state = store.state) {
     if (!lap) continue;
     const text = String(m.Message || '').toUpperCase();
     if (m.Category === 'SafetyCar') {
-      const vsc = /VIRTUAL/.test(String(m.Mode || text));
+      const vsc = /VIRTUAL|\bVSC\b/.test(`${m.Mode || ''} ${text}`);
       if (m.Status === 'DEPLOYED') { if (!cur || cur.kind !== (vsc ? 'vsc' : 'sc')) { close(lap); cur = { kind: vsc ? 'vsc' : 'sc', from: lap }; } } else if (m.Status === 'ENDING' || m.Status === 'IN THIS LAP') close(lap);
     } else if (m.Flag === 'RED' && (m.Scope === 'Track' || /RED FLAG/.test(text))) {
       close(lap);
@@ -366,7 +373,7 @@ function renderTyres() {
       const cls = l.pit ? 'pit' : v && v <= best + 0.001 ? 'best' : '';
       return `<td class="${cls}${v ? ' cmp-link' : ''}" style="--tc:${ci.color}" ${v ? `data-cmp="${n}|${i + 1}"` : ''} title="Tour ${i + 1} · ${esc(ci.name)}${l.pit ? ' · stand' : ''}${v ? ' · clic : comparer ce tour' : ''}">${v ? fmtLap(v) : '—'}</td>`;
     }).join('');
-    return `<tr><th class="sticky"><span class="drv"><span class="drv-bar" style="background:${teamColor(dl[n])}"></span>${esc(dl[n]?.Tla || n)}</span></th>${cells}</tr>`;
+    return `<tr><th class="sticky"><span class="drv">${teamMark(dl[n])}${esc(dl[n]?.Tla || n)}</span></th>${cells}</tr>`;
   }).join('');
   const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 30;
   el.innerHTML = `<table class="tyre-hist"><tr><th class="sticky">Tour</th>${head}</tr>${rows}</table>
@@ -374,8 +381,10 @@ function renderTyres() {
   if (atEnd) el.scrollLeft = el.scrollWidth;
 }
 
-// Références du circuit (éditions précédentes) : chargées une fois par circuit
+// Références du circuit (éditions précédentes) : chargées une fois par circuit ; meilleur tour des séances du week-end
+// déjà courues (pneus du week-end), relu toutes les 10 min (archive de la séance d'avant pas encore prête)
 let records = null, recordsKey = '', recordsLoading = false;
+let weekend = null, weekendKey = '', weekendAt = 0, weekendLoading = false;
 function recordsStrip(rows, dl) {
   const info = store.state.SessionInfo;
   const key = info?.Meeting?.Circuit?.Key;
@@ -387,7 +396,16 @@ function recordsStrip(rows, dl) {
     api(`/api/records?key=${key}&year=${year}`).then((r) => { records = r; recordsKey = k; }).catch(() => { records = null; recordsKey = k; })
       .finally(() => { recordsLoading = false; lastKeys = {}; });
   }
-  if (recordsKey !== k || !records?.editions?.length) return '';
+  const path = info?.Path;
+  if (path && (path !== weekendKey || Date.now() - weekendAt > 10 * 60 * 1000) && !weekendLoading) {
+    weekendLoading = true;
+    if (path !== weekendKey) weekend = null;
+    api(weekendQuery(path)).then((d) => { weekend = d.best || null; }).catch(() => {})
+      .finally(() => { weekendKey = path; weekendAt = Date.now(); weekendLoading = false; lastKeys = {}; });
+  }
+  const wb = weekendKey === path && weekend;
+  const wbRow = wb ? `<div class="rec-row rec-now"><span class="rec-k">Meilleur du week-end</span><span class="rec-i"><i style="background:#${esc(wb.color || '888')}"></i><span class="rec-t">${esc(wb.tla)}</span>${fmtLap(wb.time)}</span><span class="muted">${esc(SESSION_FR(wb.session))}</span></div>` : '';
+  if (recordsKey !== k || !records?.editions?.length) return wbRow && `<div class="rec-strip">${wbRow}</div>`;
   const race = sessionKind(store.state) === 'race';
   const ref = race ? records.bestRaceLap : records.bestPole;
   const last = records.editions[0];
@@ -398,6 +416,7 @@ function recordsStrip(rows, dl) {
   return `<div class="rec-strip" style="--n:${records.editions.length}">
     <div class="rec-row"><span class="rec-k">Pole</span>${records.editions.map((e) => item(e, 'pole')).join('')}</div>
     <div class="rec-row"><span class="rec-k">Meilleur tour en course</span>${records.editions.map((e) => item(e, 'fastest')).join('')}</div>
+    ${wbRow}
     ${best ? `<div class="rec-row rec-now"><span class="rec-k">Cette séance</span><span class="rec-i"><i style="background:${teamColor(dl[best.n])}"></i><span class="rec-t">${esc(dl[best.n]?.Tla || best.n)}</span>${fmtLap(best.best)}</span>
       ${lastRef ? `<span class="muted">vs ${race ? 'meilleur tour' : 'pole'} ${last.year} :</span>${cmp(lastRef)}` : ''}
       ${ref && ref.year !== last.year ? `<span class="muted">· vs meilleur ${race ? 'tour' : 'pole'} (${ref.year}) :</span>${cmp(ref)}` : ''}</div>` : ''}

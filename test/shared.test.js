@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { merge } from '../shared/merge.js';
-import { parseGap, parseLapTime, parseUtc, chequeredUtc } from '../shared/f1.js';
+import { parseGap, parseLapTime, parseUtc, chequeredUtc, overtakeEnabled, catchLaps } from '../shared/f1.js';
 import { applyEvent, createDerived, createSyncContext, extractSyncEvents } from '../shared/derive.js';
 
 test('merge : mises à jour indexées dans un tableau', () => {
@@ -98,4 +98,32 @@ test('drapeau à damier : dernier de la séance, oublié au feu vert de la parti
   assert.equal(chequeredUtc({ 0: q1[0], 1: q1[1] }), Date.parse('2026-10-24T21:18:00Z'));   // messages indexés
   assert.equal(chequeredUtc([...q1, m('GREEN', '2026-10-24T21:25:00')]), null);   // Q2 commencée
   assert.equal(chequeredUtc([...q1, m('GREEN', '2026-10-24T21:25:00'), m('CHEQUERED', '2026-10-24T21:40:00')]), Date.parse('2026-10-24T21:40:00Z'));
+});
+
+test('mode dépassement : activé ou coupé par le dernier message de la direction de course', () => {
+  const m = (Message) => ({ Utc: '2026-10-25T20:00:00', Category: 'Other', Message });
+  assert.equal(overtakeEnabled(undefined), true, 'pas de message : activé');
+  assert.equal(overtakeEnabled([m('OVERTAKE DISABLED')]), false, 'coupé avant le départ');
+  assert.equal(overtakeEnabled([m('OVERTAKE DISABLED'), m('GREEN LIGHT - PIT EXIT OPEN'), m('OVERTAKE ENABLED')]), true, 'rétabli en fin de premier tour');
+  assert.equal(overtakeEnabled({ 0: m('OVERTAKE ENABLED'), 1: m('OVERTAKE DISABLED') }), false, 'messages en objet (état fusionné)');
+});
+
+test('catchLaps : prévision du duel (tours pour revenir, à portée du DÉP, trop loin)', () => {
+  assert.equal(catchLaps(2.5, 0.5, 20), 5);
+  assert.equal(catchLaps(2.6, 0.5, 20), 6);          // au tour supérieur
+  assert.equal(catchLaps(1.2, 0.3, null), 4);        // 4,000…01 en virgule flottante : 4 tours
+  assert.equal(catchLaps(0.8, 0.2, 20), 'dep');      // déjà à moins d'une seconde
+  assert.equal(catchLaps(5, 0.5, 8), null);          // 10 tours : plus que les tours restants
+  assert.equal(catchLaps(16, 0.5, null), null);      // 32 tours : au-delà de 30
+  assert.equal(catchLaps(15, 0.5, null), 30);
+  assert.equal(catchLaps(3, 0, 20), null);           // ne reprend rien
+});
+
+test('carte : voiture arrêtée encore en course seulement sous drapeau rouge, dans les stands, à moins d\'un tour du leader', async () => {
+  const { stoppedInRace } = await import('../shared/f1.js');
+  const lines = { 1: { NumberOfLaps: 46 }, 18: { Stopped: true, InPit: true, NumberOfLaps: 5 }, 77: { Stopped: true, NumberOfLaps: 45 }, 44: { Stopped: true, InPit: true, NumberOfLaps: 46 } };
+  assert.equal(stoppedInRace(lines[44], true, lines), true, 'drapeau rouge, dans la voie des stands');
+  assert.equal(stoppedInRace(lines[44], false, lines), false, 'sans drapeau rouge : arrêtée = hors course');
+  assert.equal(stoppedInRace(lines[77], true, lines), false, 'arrêtée en piste (Bottas)');
+  assert.equal(stoppedInRace(lines[18], true, lines), false, 'abandon au tour 5 (Stroll)');
 });

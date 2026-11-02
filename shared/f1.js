@@ -24,6 +24,19 @@ export function topicName(raw) {
   return raw.endsWith('.z') ? raw.slice(0, -2) : raw;
 }
 
+// Début d'une séance en UTC (ms) d'après SessionInfo : StartDate est l'heure locale du circuit, GmtOffset son
+// décalage (« -06:00:00 ») ; NaN si inconnu
+export function sessionStartUtc(info) {
+  const m = /^(-)?(\d{1,2}):(\d{2})/.exec(info?.GmtOffset || '');
+  const local = Date.parse(`${info?.StartDate || ''}Z`);
+  if (!m || Number.isNaN(local)) return NaN;
+  return local - (m[1] ? -1 : 1) * (Number(m[2]) * 3600e3 + Number(m[3]) * 60e3);
+}
+
+// Répétition de la F1 : le flux sert parfois une séance qui n'a pas encore eu lieu (essai de la course la veille,
+// voitures de la FIA FM1, SC1, MC1…). Séance qui commence plus de 3 h après maintenant
+export const futureSession = (info, now = Date.now()) => sessionStartUtc(info) - now > 3 * 3600e3;
+
 // Les horodatages F1 n'ont pas toujours de fuseau : ils sont en UTC.
 export function parseUtc(s) {
   if (!s) return NaN;
@@ -40,6 +53,29 @@ export function chequeredUtc(messages) {
     else if (m?.Flag === 'GREEN' && m.Scope === 'Track') at = null;
   }
   return Number.isFinite(at) ? at : null;
+}
+
+// Mode dépassement 2026 (successeur du DRS) activé par la direction de course : son dernier message OVERTAKE ENABLED /
+// DISABLED (coupé avant le départ, rétabli en fin de premier tour) ; activé quand il n'y a pas de message
+export function overtakeEnabled(messages) {
+  let on = true;
+  for (const m of Array.isArray(messages) ? messages : Object.values(messages || {})) {
+    const t = String(m?.Message || '').trim().toUpperCase();
+    if (t === 'OVERTAKE ENABLED') on = true;
+    else if (t === 'OVERTAKE DISABLED') on = false;
+  }
+  return on;
+}
+
+// Prévision du duel en course : le pilote derrière, à gap secondes, reprend rate s/tour. 'dep' s'il est déjà à moins
+// d'une seconde (à portée du mode dépassement, comme l'étiquette DÉP du classement), sinon le nombre de tours pour
+// revenir sur lui (écart ÷ gain, au tour supérieur), null s'il ne reprend rien, au-delà de 30 tours ou des tours
+// restants (remaining, null si inconnu)
+export function catchLaps(gap, rate, remaining = null) {
+  if (!(rate > 0) || !(gap >= 0)) return null;
+  if (gap < 1) return 'dep';
+  const n = Math.ceil(gap / rate - 1e-9);   // (1,2 ÷ 0,3 donne 4,000…01 en virgule flottante)
+  return n > 30 || (remaining !== null && n > remaining) ? null : n;
 }
 
 // "1:45.123" -> 105.123 ; "45.123" -> 45.123 ; "" -> null
@@ -103,4 +139,13 @@ export function segmentClass(status) {
     case 2052: return 'seg-yellow';
     default: return status ? 'seg-yellow' : 'seg-none';
   }
+}
+
+// Voiture arrêtée (Stopped) encore en course, pour la carte : sous drapeau rouge, les voitures s'arrêtent dans la voie
+// des stands et restent en course ; une voiture arrêtée hors des stands, ou déjà arrêtée avant (plus d'un tour de retard
+// sur le leader : abandon au tour 5 encore marqué « arrêtée » au tour 46), est hors course
+export function stoppedInRace(line, red, lines) {
+  if (!red || !line?.InPit) return false;
+  const leader = Math.max(0, ...Object.values(lines || {}).map((l) => Number(l?.NumberOfLaps) || 0));
+  return leader - (Number(line.NumberOfLaps) || 0) <= 1;
 }

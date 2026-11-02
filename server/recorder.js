@@ -7,6 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import readline from 'node:readline';
 import { DATA_DIR } from './config.js';
+import { sessionStartUtc } from '../shared/f1.js';
 
 export const REC_DIR = process.env.RECORDINGS_DIR || path.join(DATA_DIR, 'recordings');
 
@@ -32,7 +33,11 @@ export class Recorder {
     const file = this.fileFor(info);
     if (file === this.file) return file;
     this.close();
-    const fresh = !fs.existsSync(file);
+    // Fichier écrit bien avant le début de la séance (répétition de la F1 la veille, même numéro de séance) :
+    // remplacé, sinon le replay commencerait par la répétition
+    const start = sessionStartUtc(info);
+    let fresh = !fs.existsSync(file);
+    if (!fresh && start - fs.statSync(file).mtimeMs > 6 * 3600e3) { fs.writeFileSync(file, ''); fresh = true; }
     if (fresh) try { fs.closeSync(fs.openSync(file, 'a')); } catch { /* erreur signalée par le flux */ }   // créé tout de suite : compté parmi les plus récents
     this.file = file;
     this.stream = fs.createWriteStream(file, { flags: 'a' });

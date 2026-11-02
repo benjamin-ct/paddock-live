@@ -5,7 +5,7 @@
   "start_url": "/alertes/",
   "scope": "/alertes/",
   "display": "standalone",
-  "background_color": "#0b0c0f",
-  "theme_color": "#000000",
+  "background_color": "#030814",
+  "theme_color": "#030814",
   "icons": [{ "src": "/app/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }]
 }

@@ -3,23 +3,27 @@ import { storageGet, storageSet, setVividTeams, setTeamLogos, setLogoColor } fro
 import { emit, touch } from './store.js';
 import { LANG } from './i18n.js';
 
-// Écran large mais peu haut (1080p), interface complète : direction de course (dernier message dans la barre
-// du bas) et panneau Stratégie (pneus et arrêts dans le classement) masqués par défaut, 2 panneaux au plus
-// par colonne. Le mode Essentiel garde les siens (championnat et limites de piste à droite)
-export const shortScreenHidden = (full = true) => (full && window.innerWidth > 1500 && window.innerHeight < 1150 ? ['feed', 'extra'] : []);
+// Écran principal (1.30) : Classement (avec le duel par-dessus), Télémétrie, Direction de course et Radios ; Circuit,
+// Analyse et Duel s'ouvrent dans leur propre fenêtre (bouton + d'un panneau, menu Dispo.) : masqués dans la fenêtre
+// principale (ui/layout.js, ui/tabmove.js). Analyse : 3 onglets selon la séance (les autres : bouton +)
+export const PANELS_HIDDEN = ['analysis', 'duel'];
+export const TAB_HIDDEN = {
+  race: ['laptimes', 'pace', 'tyrehist', 'sectors', 'tyres', 'pitsim', 'battles', 'champ'],
+  quali: ['trace', 'positions', 'pits', 'strategy', 'laptimes', 'pace', 'tyrehist', 'tyres', 'pitsim', 'battles', 'champ'],
+};
 
 const DEFAULTS = {
   favs: [],               // numéros des pilotes favoris
   favTeams: [],           // écuries favorites (clés de shared/news.js : 'ferrari', 'redbull'…)
   alerts: { sound: true, vibrate: true, notify: false, flags: true, fastest: true, favPit: true, favRcm: true, retire: true, finish: true, favCut: true, rain: true, prono: true },
-  hiddenPanels: [],
-  hiddenTabs: [],         // onglets masqués (Réglages → Onglets visibles), comme ceux inutiles pour la séance
-  hiddenCols: [],
+  hiddenPanels: [...PANELS_HIDDEN],
+  hiddenTabs: [...TAB_HIDDEN.race],   // onglets masqués (Réglages → Onglets visibles, bouton +), comme ceux inutiles pour la séance
+  hiddenCols: ['name'],   // classement : code du pilote seul (nom complet : menu Colonnes)
   extraCols: [],          // colonnes facultatives ajoutées au classement (voir EXTRA_COLUMNS)
   bigCols: null,          // colonnes du classement agrandi (bouton ⤢) : { hidden, extra }, sinon les mêmes
   towerFit: true,         // classement agrandi pour remplir la hauteur disponible
   theme: 'pitwall',       // thème unique de l'application
-  design: 'broadcast',    // habillage : 'broadcast' (façon retransmission TV) | 'classic' (ancien design Pitwall)
+  design: 'v2',           // habillage : 'v2' (Paddock 2) | 'broadcast' (façon retransmission TV) | 'classic' (ancien design Pitwall)
   scheme: 'auto',         // apparence : 'auto' (comme le système) | 'dark' (sombre) | 'light' (clair)
   schemeSet: false,       // apparence choisie par l'utilisateur (sinon : automatique)
   vividTeams: false,      // couleurs d'équipe contrastées plutôt qu'officielles
@@ -27,11 +31,10 @@ const DEFAULTS = {
   logoColor: true,        // logos dans leurs couleurs officielles (sinon logo blanc sur la couleur d'équipe)
   keepAwake: true,        // écran toujours allumé pendant une séance
   phoneFull: false,       // téléphone : tous les onglets et réglages de l'ordinateur (sinon version simplifiée)
-  fullMode: true,         // ordinateur : interface complète (sinon mode Essentiel : le principal seulement)
   welcomed: true,         // écrans d'accueil du premier lancement déjà vus
   motion: true,           // animations de l'interface (désactivées aussi si le système le demande)
   momentsSpoil: false,    // replay : détail des moments clés à venir affiché
-  lang: LANG,             // langue de l'interface : 'fr' | 'en' (voir i18n.js)
+  lang: LANG,             // langue de l'interface : 'fr' | 'en' | 'it' | 'es' (voir i18n.js)
   autoSyncAdj: 0,         // synchro TV par le son : correction ajoutée au délai trouvé (s)
   remindMin: 15,          // rappel avant chaque séance (minutes, 0 : désactivé)
   legends: false,         // légendes sous les panneaux (couleurs et badges), à afficher dans Apparence
@@ -40,8 +43,8 @@ const DEFAULTS = {
   layoutMode: 'auto',     // disposition : 'auto' (selon la séance) | 'race' | 'quali'
   tabLayout: null,        // onglets déplacés : { panneau: [onglets dans l'ordre] } (null : à leur place d'origine)
   radioAuto: false,
-  radioText: false,       // transcription des radios en texte (serveur Paddock Live)
-  radioLang: LANG === 'en' ? 'none' : 'fr',        // langue de traduction des transcriptions ('none' : anglais)
+  radioText: true,        // transcription des radios en texte et traduction (serveur Paddock Live), active d'office
+  radioLang: LANG === 'en' ? 'none' : LANG,        // langue de traduction des transcriptions ('none' : anglais)
   radioFilter: 'all',
   obRadio: false,         // radios captées sur les caméras embarquées F1 TV (expérimental)
   obRadioWho: 'auto',     // pilotes écoutés : 'auto' (suivi + duel) | 'favs' (3 premiers favoris)
@@ -71,11 +74,11 @@ const DEFAULTS = {
 
 const saved = storageGet('paddock.prefs', {});
 export const prefs = { ...DEFAULTS, ...saved, alerts: { ...DEFAULTS.alerts, ...(saved.alerts || {}) } };
-// v1.28 : nouvelle installation (aucun réglage enregistré) : mode Essentiel et écrans d'accueil ; les
-// installations existantes gardent toute l'interface
+// v1.28 : nouvelle installation (aucun réglage enregistré) : écrans d'accueil ; v1.30 : déjà au nouvel écran principal
+// (layoutV, ui/layout.js)
 if (!Object.keys(saved).length) {
-  Object.assign(prefs, { fullMode: false, welcomed: false });
-  storageSet('paddock.prefs', { ...storageGet('paddock.prefs', {}), fullMode: false, welcomed: false });
+  Object.assign(prefs, { welcomed: false, layoutV: 4 });
+  storageSet('paddock.prefs', { ...storageGet('paddock.prefs', {}), welcomed: false, layoutV: 4 });
 }
 // Un seul thème depuis la v1.20 : Pitwall, en mode sombre ou clair. Les anciens thèmes (F1 Pro,
 // F1 sobre, Classique, Bleu nuit) passent sur Pitwall, en mode sombre.
@@ -86,6 +89,10 @@ prefs.themeV = 5;   // gardé dans chaque enregistrement des préférences
 // réaffichées ensuite si on les recoche dans Réglages → Apparence)
 if (!saved.legendsV) { prefs.legends = false; storageSet('paddock.prefs', { ...storageGet('paddock.prefs', {}), legends: false, legendsV: 1 }); }
 prefs.legendsV = 1;
+// v1.30 : design Paddock 2 par défaut, aussi pour les installations existantes restées sur Broadcast (l'ancien
+// défaut) ; un choix de Classique est gardé. Une seule fois : Broadcast se rechoisit dans Réglages → Apparence
+if (!saved.designV) { if (prefs.design === 'broadcast') prefs.design = 'v2'; storageSet('paddock.prefs', { ...storageGet('paddock.prefs', {}), design: prefs.design, designV: 1 }); }
+prefs.designV = 1;
 // Langue retenue dès la première ouverture (sinon une autre fenêtre la redéduirait autrement)
 if (saved.lang !== LANG) storageSet('paddock.prefs', { ...storageGet('paddock.prefs', {}), lang: LANG });
 // Apparence automatique par défaut depuis la v1.20.1. En v1.20.0, « sombre » était enregistré par
@@ -110,9 +117,12 @@ function applyScheme() {
     emit('scheme', v);
     touch('DriverList');   // panneaux redessinés avec les couleurs de l'apparence (pneus, carte…)
   }
-  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', v === 'light' ? '#F4F5F7' : '#07080A');
-  // Appli installée sur iPhone : barre d'état claire ou noire (prise en compte au lancement suivant)
-  document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]')?.setAttribute('content', v === 'light' ? 'default' : 'black');
+  const webDark = document.documentElement.classList.contains('web') && (v === 'dark' || document.documentElement.dataset.design === 'v2');
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', webDark ? '#0C1326' : v === 'light' ? '#F4F5F7' : '#07080A');   // version web : couleur de la barre du haut
+  // Appli installée sur iPhone : barre d'état claire ou noire (prise en compte au lancement suivant). Version web à barre
+  // du haut sombre (Paddock 2, ou apparence sombre) : transparente, la barre du haut remonte derrière l'heure et la batterie
+  const bar = webDark ? 'black-translucent' : v === 'light' ? 'default' : 'black';
+  document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]')?.setAttribute('content', bar);
 }
 // Habillage : la feuille broadcast.css (posée par-dessus le thème Pitwall) est coupée en design classique
 function applyDesign() {

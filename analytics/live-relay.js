@@ -15,12 +15,15 @@ import { pronosApi, GROUP_RE } from './pronos.js';
 import { circuitData, seasonStatsWeb } from './race-stats.js';
 import { seasonFiaWeb, fiaTranslations, fiaDocsWeb } from './fia-tech.js';
 import { weekendTyres } from './tyres.js';
+import { destructorsWeb } from './destructors.js';
 import { circuitRecords } from './records.js';
 import { zonesWeb } from './zones.js';
+import { surroundingsWeb, surroundingsStatus } from './surroundings.js';
 import { forecast } from '../shared/forecast.js';
 import { validHeadshot } from '../shared/portraits.js';
 import { buildIcs } from '../shared/ics.js';
 import { WEB_HIST_MS } from '../shared/live-delay.js';
+import { accountOf, relayId } from '../shared/f1tv-account.js';
 
 const BASE = 'https://livetiming.formula1.com/signalrcore';
 const UA = 'Mozilla/5.0 (Paddock-Live web relay)';
@@ -28,6 +31,7 @@ const RS = '\x1e';
 export const KEEP_MS = 5 * 60e3;   // délai TV possible en ligne
 export const HIST_MS = WEB_HIST_MS; // GPS et télémétrie d'avant le délai (traînées, vitesse des 30 dernières secondes)
 const IDLE_MS = 60e3;              // plus personne : connexion à la F1 fermée au bout d'une minute
+export const LIVE_IDLE_MS = 15 * 60e3;   // pendant une séance : au bout de 15 min (appli quittée, téléphone en veille)
 const MAX_CLIENTS = 1000;
 const MAX_PER_IP = 10;             // relais commun : un seul appelant ne peut pas prendre toutes les places
 const MAX_PER_NET = 30;            // et en IPv6, un bloc /48 (donné gratuitement par certains fournisseurs) pas plus
@@ -35,6 +39,10 @@ const MAX_PRIVATE = 4;             // relais d'un abonné F1 TV : ses onglets et
 export const AUTH_MS = 15e3, PRIVATE_MS = 6 * 3600e3;   // relais d'un abonné : connexion F1 TV attendue, durée d'une connexion
 const ORIGINS = ['https://app.paddocklive.app'];
 const STREAM_EVERY = 2000;         // GPS plus ancien : une demande toutes les 2 s au plus par connexion
+// Hors séance (calendrier de la saison, pas de chronos depuis 2 min) : relais au repos, F1 débranchée et connexions
+// des navigateurs en veille (Durable Object en hibernation, plus facturé à la durée) ; réveillé LEAD_MS avant la
+// séance suivante. Une séance dure au plus SPAN_MS après son heure de départ
+export const LEAD_MS = 30 * 60e3, SPAN_MS = 4 * 3600e3, LIVE_MS = 2 * 60e3;
 
 // Jeton d'abonnement F1 TV (JWT) encore valable, ou null. Signature non vérifiable ici : la F1 la vérifie ;
 // ce contrôle écarte seulement ce qui ne peut pas en être un
@@ -47,7 +55,8 @@ export function f1tvToken(t) {
     return pl.SubscriptionStatus || pl.subscriptionStatus || pl.SubscribedProduct ? t : null;
   } catch { return null; }
 }
-export const relayId = async (token) => [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token)))].map((b) => b.toString(16).padStart(2, '0')).join('').slice(0, 32);
+const payload = (t) => { try { return JSON.parse(atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))); } catch { return {}; } };
+export { accountOf, relayId };
 
 export class LiveRelay {
   constructor(ctx, env) {
@@ -65,6 +74,19 @@ export class LiveRelay {
     this.outStream = [];
     this.status = { connected: false, error: null, session: null, authenticated: false };
     this.resetData(null);
+    // Réveil après la veille : connexions des navigateurs retrouvées (adresse, appareil, nom du relais)
+    for (const ws of ctx.getWebSockets?.() || []) this.track(ws, ws.deserializeAttachment?.() || {});
+  }
+
+  track(ws, { nets = [], ua, since = Date.now(), name, ok = false, app = false }) {
+    if (name) this.name = name;
+    this.clients.add(ws);
+    ws.app = app;
+    ws.ok = ok;   // relais d'un abonné : cet appareil a présenté une connexion F1 TV de ce compte
+    ws.nets = nets;
+    ws.ua = ua;
+    ws.since = since;
+    for (const k of nets) this.ips.set(k, (this.ips.get(k) || 0) + 1);
   }
 
   resetData(key) {
@@ -92,41 +114,94 @@ export class LiveRelay {
     const net = ip.includes(':') ? `${ip.split(':').slice(0, 3).join(':')}::/48` : null;
     if (!priv && ((this.ips.get(ip) || 0) >= MAX_PER_IP || (net && (this.ips.get(net) || 0) >= MAX_PER_NET))) return new Response('Trop de connexions depuis cette adresse', { status: 429 });
     const [client, server] = Object.values(new WebSocketPair());
-    server.accept();
-    this.clients.add(server);
-    server.nets = net ? [ip, net] : [ip];
-    for (const k of server.nets) this.ips.set(k, (this.ips.get(k) || 0) + 1);
-    server.ua = shortUA(req.headers.get('User-Agent'));   // type d'appareil, pour la liste des appareils du Studio
-    server.since = Date.now();
+    // Connexion qui peut rester ouverte pendant la veille du relais (messages reçus par webSocketMessage)
+    const info = { nets: net ? [ip, net] : [ip], ua: shortUA(req.headers.get('User-Agent')), since: Date.now(), name: this.name,
+      app: /Paddock-Live local dashboard/.test(req.headers.get('User-Agent') || '') };   // appli de bureau (server/live.js)   // ua : liste des appareils du Studio
+    if (this.ctx.acceptWebSocket) this.ctx.acceptWebSocket(server);
+    else {
+      server.accept();
+      server.addEventListener('message', (ev) => this.webSocketMessage(server, ev.data));
+      server.addEventListener('close', () => this.drop(server));
+      server.addEventListener('error', () => this.drop(server));
+    }
+    server.serializeAttachment?.(info);
+    this.track(server, info);
     const drop = () => this.drop(server);
-    server.addEventListener('close', drop);
-    server.addEventListener('error', drop);
     // Relais d'un abonné (facturé à la durée) : fermé sans connexion F1 TV valable au bout de AUTH_MS (la page repasse
     // alors au relais commun), et toute connexion au bout de PRIVATE_MS (la page se reconnecte d'elle-même)
     if (priv) {
       const end = (code, why) => { try { server.close(code, why); } catch { /* déjà fermée */ } drop(); };
-      this.timers.push(setTimeout(() => { if (!this.userToken) end(4001, 'Connexion F1 TV attendue'); }, AUTH_MS));
+      this.timers.push(setTimeout(() => { if (!server.ok) end(4001, 'Connexion F1 TV attendue'); }, AUTH_MS));
       this.timers.push(setTimeout(() => end(4000, 'Reconnexion'), PRIVATE_MS));
     }
-    server.addEventListener('message', (ev) => {
-      let m;
-      try { m = JSON.parse(ev.data); } catch { return; }
-      // GPS et télémétrie plus anciens, demandés quand le délai TV s'allonge (une demande toutes les 2 s au plus)
-      if (m?.type === 'stream' && Number.isFinite(m.from) && Number.isFinite(m.to)) {
-        if (Date.now() - (server.asked || 0) < STREAM_EVERY) return;
-        server.asked = Date.now();
-        this.send(server, JSON.stringify({ type: 'stream', items: this.streamBetween(m.from, m.to) }));
-      }
-      // Relais d'un abonné : sa connexion F1 TV (renvoyée par la page à chaque connexion et quand elle change)
-      if (m?.type === 'auth' && priv) this.auth(m.token);
-      // GPS laissé à un autre appareil : repris ici à la demande de la page
-      if (m?.type === 'here' && priv) this.here();
-    });
+    // Relais au repos, même après une veille complète (réveil programmé) : la page reçoit « Hors séance » et la F1
+    // reste débranchée jusqu'au réveil
+    if (!this.active && !this.resting) {
+      const at = await this.ctx.storage?.getAlarm?.();
+      if (at > Date.now()) { this.resting = true; Object.assign(this.status, { connected: false, rest: true, next: at + LEAD_MS }); }
+    }
     // ?d= : délai TV du navigateur, pour ne lui envoyer que le GPS et la télémétrie utiles
     const d = Number(new URL(req.url).searchParams.get('d'));
-    this.hello(server, Date.now() - (Number.isFinite(d) ? Math.min(Math.max(d, 0), KEEP_MS) : KEEP_MS) - HIST_MS);
-    this.start();
+    server.from = Date.now() - (Number.isFinite(d) ? Math.min(Math.max(d, 0), KEEP_MS) : KEEP_MS) - HIST_MS;
+    // Relais d'un abonné : rien n'est envoyé avant que cet appareil présente sa propre connexion F1 TV du compte
+    if (!priv) this.hello(server, server.from);
+    if (this.resting) { clearTimeout(this.idle); this.idle = null; } else this.start();
     return new Response(null, { status: 101, webSocket: client });
+  }
+
+  webSocketMessage(ws, data) {
+    let m;
+    try { m = JSON.parse(data); } catch { return; }
+    const priv = this.name.startsWith('u:');
+    // GPS et télémétrie plus anciens, demandés quand le délai TV s'allonge (une demande toutes les 2 s au plus)
+    if (m?.type === 'stream' && Number.isFinite(m.from) && Number.isFinite(m.to)) {
+      if (Date.now() - (ws.asked || 0) < STREAM_EVERY) return;
+      ws.asked = Date.now();
+      this.send(ws, JSON.stringify({ type: 'stream', items: this.streamBetween(m.from, m.to) }));
+    }
+    // Relais d'un abonné : sa connexion F1 TV (renvoyée par la page à chaque connexion et quand elle change)
+    if (m?.type === 'auth' && priv) this.auth(m.token, ws);
+    // GPS laissé à un autre appareil : repris ici à la demande de la page
+    if (m?.type === 'here' && priv && ws.ok) this.here();
+  }
+
+  webSocketClose(ws) { this.drop(ws); }
+  webSocketError(ws) { this.drop(ws); }
+
+  // Réveil programmé avant une séance (relais au repos) : reconnexion à la F1 pour les navigateurs restés ouverts
+  async alarm() {
+    this.resting = false;
+    if (this.clients.size) this.start();
+  }
+
+  // Séance en cours ou proche d'après le calendrier de la saison (gardé une heure), ou chronos reçus il y a peu ;
+  // sinon heure de la prochaine séance (null : calendrier inconnu, le relais reste branché)
+  async rest(now = Date.now()) {
+    if (now - (this.lastTimingAt || 0) < LIVE_MS || !this.env.DB) return null;
+    if (!this.sched || now - this.sched.at > 3600e3) {
+      const y = new Date(now).getUTCFullYear();
+      const rows = await Promise.all([y, y + 1].map((yr) => seasonRow(this.env, yr, { maxAge: Infinity }).catch(() => null)));
+      const starts = rows.flatMap((r) => r?.v?.races || []).flatMap((r) => r.sessions || []).map((x) => Date.parse(x.t)).filter(Number.isFinite).sort((a, b) => a - b);
+      this.sched = { at: now, starts };
+    }
+    const { starts } = this.sched;
+    if (!starts.length || starts.some((t) => now >= t - LEAD_MS && now <= t + SPAN_MS)) return null;
+    return starts.find((t) => t > now) ?? null;
+  }
+
+  // Hors séance : F1 débranchée, minuteries arrêtées (le Durable Object peut se mettre en veille avec les
+  // navigateurs connectés) et réveil programmé avant la séance suivante
+  async sleepUntilNext(now = Date.now()) {
+    if (!this.active || this.resting) return;
+    const next = await this.rest(now);
+    if (!next || !this.active) return;
+    this.resting = true;
+    this.setStatus({ connected: false, rest: true, next, error: null });
+    this.active = false;
+    for (const t of this.timers) clearInterval(t), clearTimeout(t);
+    this.timers = [];
+    this.closeUp();
+    await this.ctx.storage?.setAlarm?.(next - LEAD_MS);
   }
 
   // Appairage d'un téléphone (version web sans extension, ex. iPhone) : boîte de rendez-vous éphémère, en mémoire
@@ -176,10 +251,17 @@ export class LiveRelay {
     return { count: this.clients.size, authenticated: !!this.userToken, devices: [...this.clients].map((c) => ({ ua: c.ua || 'Appareil', since: Math.max(0, Math.round((now - (c.since || now)) / 1000)) })).sort((a, b) => b.since - a.since) };
   }
 
-  // Connexion F1 TV d'un abonné : acceptée seulement si elle correspond à ce relais (son empreinte en est le nom)
-  async auth(t) {
+  // Connexion F1 TV d'un appareil : acceptée seulement si elle est de ce compte (son empreinte est le nom du relais).
+  // L'appareil reçoit alors le direct ; le relais garde la connexion qui expire le plus tard pour parler à la F1
+  async auth(t, ws = null) {
     const token = f1tvToken(t);
-    if (!token || token === this.userToken || `u:${await relayId(token)}` !== this.name) return;
+    if (!token || `u:${await relayId(token)}` !== this.name) return;
+    if (ws && !ws.ok) {
+      ws.ok = true;
+      try { ws.serializeAttachment?.({ ...(ws.deserializeAttachment?.() || {}), ok: true }); } catch { /* sans hibernation */ }
+      this.hello(ws, ws.from || 0);
+    }
+    if (token === this.userToken || (this.userToken && payload(token).exp <= payload(this.userToken).exp)) return;
     const first = !this.userToken;
     this.userToken = token;
     if (first) this.connect();                                   // en attente de la connexion : on y va
@@ -225,6 +307,7 @@ export class LiveRelay {
   }
 
   send(ws, str) {
+    if (!ws.ok && this.name.startsWith('u:')) return;   // appareil pas encore reconnu sur le relais d'un abonné
     try { ws.send(str); } catch { this.drop(ws); }
   }
 
@@ -232,9 +315,17 @@ export class LiveRelay {
     for (const ws of this.clients) this.send(ws, str);
   }
 
-  // Arrivée d'un navigateur (ou nouvelle séance pour tous) : état de base, messages depuis et GPS depuis from
+  // Arrivée d'un navigateur (ou nouvelle séance pour tous) : état de base, messages depuis et GPS depuis from. Sans les
+  // messages pas encore envoyés à tous (out, outStream : la fin de recent et de stream) : le prochain envoi groupé les
+  // lui apporte, sinon il les appliquerait deux fois (une fin de tour en double effaçait les secteurs 1 et 2 du tour)
   hello(ws, from = 0) {
-    const str = JSON.stringify({ type: 'hello', now: Date.now(), keep: KEEP_MS, status: this.status, base: this.base, events: this.recent, stream: this.streamBetween(from, Infinity) });
+    let events = this.recent.slice(0, this.recent.length - this.out.length);
+    // Appli de bureau : l'état de base aussi en message, en tête. Déjà sur la séance, elle ne reprend pas l'état de base
+    // (server/live.js) et resterait figée sur celui d'avant une coupure (relais redémarré) ; à jour, elle l'écarte (heure
+    // pas plus récente que son dernier message)
+    if (ws?.app && this.base.t) events = [['__snapshot', this.base.state, this.base.t], ...events];
+    const stream = this.stream.slice(0, this.stream.length - this.outStream.length).filter((s) => s[2] >= from);
+    const str = JSON.stringify({ type: 'hello', now: Date.now(), keep: KEEP_MS, status: this.status, base: this.base, events, stream });
     if (ws) this.send(ws, str); else this.broadcast(str);
   }
 
@@ -249,7 +340,15 @@ export class LiveRelay {
         if (n > 0) this.ips.set(k, n); else this.ips.delete(k);
       }
     }
-    if (!this.clients.size && !this.idle) this.idle = setTimeout(() => this.stop(), IDLE_MS);
+    if (!this.clients.size && !this.idle) this.idle = setTimeout(() => this.stop(), this.idleMs());
+  }
+
+  // Plus personne : délai avant de fermer la connexion à la F1. Pendant une séance, un appareil qui revient
+  // (appli quittée, téléphone en veille) retrouve l'historique au lieu d'attendre tout son délai TV ; sinon une minute
+  idleMs() {
+    let status = this.base?.state?.SessionStatus?.Status;
+    for (const [topic, data] of this.recent) if (topic === 'SessionStatus' && data?.Status) status = data.Status;
+    return this.base?.t && status && !['Ends', 'Finalised'].includes(status) ? LIVE_IDLE_MS : IDLE_MS;
   }
 
   setStatus(patch) {
@@ -262,8 +361,10 @@ export class LiveRelay {
     this.idle = null;
     if (this.active) return;
     this.active = true;
+    this.resting = false;
+    this.status.rest = false;
     this.timers.push(setInterval(() => this.flush(), 250));
-    this.timers.push(setInterval(() => this.roll(), 10000));
+    this.timers.push(setInterval(() => { this.roll(); if (this.clients.size) this.sleepUntilNext().catch(() => {}); }, 10000));
     this.timers.push(setInterval(() => this.broadcast(JSON.stringify({ type: 'up', now: Date.now(), status: this.status })), 5000));
     this.connect();
   }
@@ -308,7 +409,11 @@ export class LiveRelay {
   }
 
   // utc : heure d'émission par la F1 (chronométrage), transmise aux navigateurs avec l'événement
+  // Heures strictement croissantes : les messages d'une même trame de la F1 arrivent ensemble, à la même heure (l'horloge
+  // du serveur n'avance pas pendant un traitement), et l'appli écarte un message à la même heure que le précédent
+  // (reconnexion) : elle perdait la fin de la VSC, un secteur dégagé, des relevés GPS…
   add(topic, data, t, utc) {
+    t = Math.max(t, (this.recent.at(-1)?.[2] ?? this.base.t) + 1);
     const e = utc ? [topic, data, t, utc] : [topic, data, t];
     this.recent.push(e);
     this.out.push(e);
@@ -316,6 +421,7 @@ export class LiveRelay {
 
   addStream(topic, raw, t) {
     if (typeof raw !== 'string') return;
+    t = Math.max(t, (this.stream.at(-1)?.[2] ?? -Infinity) + 1);
     const s = [topic, raw, t];
     this.stream.push(s);
     this.outStream.push(s);
@@ -414,13 +520,16 @@ export class LiveRelay {
     let msg;
     try { msg = JSON.parse(frame); } catch { return; }
     if (msg.type === 3 && msg.invocationId === '1') {
-      if (msg.error) { this.setStatus({ error: `Abonnement refusé : ${msg.error}` }); return; }
+      if (msg.error) { console.log(`[relais] abonnement refusé : ${msg.error}`); this.setStatus({ error: `Abonnement refusé par la F1 : ${msg.error}` }); return; }
       this.retry = 0;
       const result = msg.result || {};
       const key = result.SessionInfo?.Key ?? null;
       const snapshot = {};
       for (const [raw, value] of Object.entries(result)) if (!raw.endsWith('.z')) snapshot[topicName(raw)] = value;
       const authenticated = 'Position.z' in result || 'CarData.z' in result;
+      // Diagnostic (infobulle du badge) : connexion F1 TV envoyée mais pas de GPS dans la réponse de la F1
+      // (la F1 ne l'envoie qu'à une connexion par compte : le plus souvent un autre appareil avec une autre connexion)
+      this.gpsWhy = this.token && !authenticated ? `La F1 n'envoie pas le GPS ici : votre compte F1 TV le reçoit sans doute sur un autre appareil (téléphone, autre navigateur, appli). Fermez-le, ou reliez-le à celui-ci avec « Connexion F1 TV » : avec la même connexion, les deux ont le GPS (${Object.keys(result).length} sujets reçus${this.gpsRetried === `${this.key}|${this.token}` ? ', déjà redemandé une fois' : ', nouvel essai une minute après la connexion'})` : null;
       // Nouvelle séance (ou première connexion) : on repart de cet état
       if (key !== this.key || !this.base.t) {
         this.resetData(key);
@@ -428,11 +537,14 @@ export class LiveRelay {
         applyEvent(this.base.state, this.base.derived, '__snapshot', snapshot, now);
         this.out = [];
         this.outStream = [];
-        this.status = { connected: true, error: null, session: label(result.SessionInfo), authenticated, f1tv: !!this.token, elsewhere: !!this.elsewhere };
+        this.status = { connected: true, error: this.gpsWhy, session: label(result.SessionInfo), authenticated, f1tv: !!this.token, elsewhere: !!this.elsewhere };
         this.hello();
+        // Aussi en message : une appli déjà sur cette séance (relais redémarré, nouvelle version du serveur) ne reprend
+        // pas l'état de base (server/live.js) et restait figée sur celui d'avant la coupure, sans ce qui s'est passé entre
+        this.add('__snapshot', snapshot, now);
       } else {
         this.add('__snapshot', snapshot, now);
-        this.setStatus({ connected: true, error: null, authenticated });
+        this.setStatus({ connected: true, error: this.gpsWhy, authenticated });
       }
       for (const z of ['Position.z', 'CarData.z']) if (typeof result[z] === 'string') this.addStream(topicName(z), result[z], now);
     } else if (msg.type === 1 && msg.target === 'feed' && Array.isArray(msg.arguments)) {
@@ -441,7 +553,7 @@ export class LiveRelay {
       const topic = topicName(raw);
       if (raw.endsWith('.z')) {
         this.addStream(topic, data, now);
-        if (!this.status.authenticated) this.setStatus({ authenticated: true });
+        if (!this.status.authenticated) { this.gpsWhy = null; this.setStatus({ authenticated: true, error: null }); }
         return;
       }
       if (topic === 'TimingData') this.lastTimingAt = now;
@@ -463,16 +575,21 @@ const label = (info) => (info ? [info.Meeting?.Name, info.Name].filter(Boolean).
 const relay = (env, name) => env.LIVE.get(env.LIVE.idFromName(name));
 const privateName = (id) => (/^[0-9a-f]{32}$/.test(id || '') ? `u:${id}` : null);
 const cookieId = (req) => /(?:^|;\s*)plu=([0-9a-f]{32})(?:;|$)/.exec(req.headers.get('Cookie') || '')?.[1] || null;
+const relaySeen = async (env, day, ip, name) => !!(await env.DB.prepare('SELECT n FROM ai_usage WHERE day = ?1').bind(`${day}|${ip}|live-${name}`).first());
 const toRelay = (req, name, url = req.url) => { const r = new Request(url, req); r.headers.set('X-Relay', name); return r; };
 
 // /live/ws : navigateur relié au relais commun, ou à son propre relais s'il a une connexion F1 TV. Relais
-// d'abonné ouverts par une même adresse : 50 par jour au plus (chacun ouvre une connexion à la F1)
+// d'abonné ouverts par une même adresse : 50 différents par jour au plus (chacun ouvre une connexion à la F1).
+// Revenir sur un relais déjà ouvert dans la journée (coupure, mise à jour du serveur) n'est pas recompté
 export async function liveSocket(req, env) {
   if (!env.LIVE) return new Response('Relais indisponible', { status: 503 });
   const name = privateName(new URL(req.url).searchParams.get('u'));
   if (name && env.DB) {
-    const ip = callerIp(req);
-    if (ip && !(await ipQuota(env, { key: 'live-u', day: new Date().toISOString().slice(0, 10), ip, limit: 50 }).catch(() => true))) return new Response('Trop de connexions aujourd\'hui', { status: 429 });
+    const ip = callerIp(req), day = new Date().toISOString().slice(0, 10);
+    if (ip && !(await relaySeen(env, day, ip, name).catch(() => true))) {
+      if (!(await ipQuota(env, { key: 'live-relais', day, ip, limit: 50 }).catch(() => true))) return new Response('Trop de connexions aujourd\'hui', { status: 429 });
+      await ipQuota(env, { key: `live-${name}`, day, ip, limit: 1 }).catch(() => null);
+    }
   }
   return relay(env, name || 'f1').fetch(toRelay(req, name || 'f1'));
 }
@@ -585,6 +702,10 @@ export async function liveApi(req, url, env = {}) {
     const year = Number(url.searchParams.get('year')), now = new Date().getUTCFullYear();
     if (!env.DB || !Number.isInteger(year) || year < 2018 || year > now) return json({ error: 'Année invalide' }, 400);
     return json(await seasonFiaWeb(env, year).catch((err) => ({ year, pending: false, done: 0, total: 0, events: [], error: err.message })));
+  }
+  // Championnat des casseurs : dégâts estimés de la saison (analytics/destructors.js) ; autre saison : liste vide
+  if (url.pathname === '/live/api/season/destructors' && req.method === 'GET') {
+    return json(await destructorsWeb(env, Number(url.searchParams.get('year'))), 200, { 'Cache-Control': 'public, max-age=600' });
   }
   // Évolutions techniques en français : traductions faites par le serveur en lisant les documents FIA
   if (url.pathname === '/live/api/translations' && req.method === 'GET') {
@@ -714,17 +835,26 @@ export async function liveApi(req, url, env = {}) {
     const meeting = { name, country: url.searchParams.get('country'), location: url.searchParams.get('location') };
     return fiaDocsWeb(year, meeting).then((d) => json(d), (err) => json({ error: err.message }, 502));
   }
-  // Zones du mode dépassement et boucles de chronométrage (mini-secteurs) du circuit, calculées par le serveur
-  if ((url.pathname === '/live/api/zones' || url.pathname === '/live/api/loops') && req.method === 'GET') {
+  // Zones du mode dépassement, boucles de chronométrage (mini-secteurs) et profil d'altitude (carte 3D : z de chaque
+  // point du tracé de /live/api/circuit, 1/10 m) du circuit, calculés par le serveur
+  if (['/live/api/zones', '/live/api/loops', '/live/api/elevation'].includes(url.pathname) && req.method === 'GET') {
     const key = Number(url.searchParams.get('key')), year = Number(url.searchParams.get('year'));
     if (!env.DB || !circuitKey(key) || !Number.isInteger(year) || year < 2018 || year > new Date().getUTCFullYear() + 1) return json({ error: 'Paramètres invalides' }, 400);
     const d = await zonesWeb(env, url.pathname.slice(10), key, year);
     return d ? json(d, 200, { 'Cache-Control': 'public, max-age=3600' }) : json({ error: 'Pas encore calculé par le serveur', pending: true }, 404);
   }
+  // Alentours du circuit (vue 3D : relief du terrain, bâtiments, bois, eau, routes d'OSM), calculés par le serveur
+  if (url.pathname === '/live/api/surroundings' && req.method === 'GET') {
+    const key = Number(url.searchParams.get('key')), year = Number(url.searchParams.get('year'));
+    if (!env.DB || !env.MEDIA || !circuitKey(key) || !Number.isInteger(year) || year < 2018 || year > new Date().getUTCFullYear() + 1) return json({ error: 'Paramètres invalides' }, 400);
+    const obj = await surroundingsWeb(env, key, year);
+    return obj ? new Response(obj.body, { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=86400' } })
+      : json({ error: 'Pas encore calculé par le serveur', pending: true, last: await surroundingsStatus(env, key, year) }, 404);
+  }
   if (url.pathname === '/live/api/circuit') {
     const key = Number(url.searchParams.get('key')), year = Number(url.searchParams.get('year'));
     if (!Number.isInteger(key) || !Number.isInteger(year)) return json({ error: 'Paramètres invalides' }, 400);
-    const d = await circuitData(key, year);
+    const d = await circuitData(key, year, fetch, env);
     return d ? json(d, 200, { 'Cache-Control': 'public, max-age=86400' }) : json({ error: 'Tracé introuvable' }, 404);
   }
   return json({ error: 'Pas disponible dans la version web' }, 404);

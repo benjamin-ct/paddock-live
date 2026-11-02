@@ -25,24 +25,27 @@ const building = new Map();
 export async function circuit(key, year) {
   const name = `circuit-${key}-${year}.json`;
   const cached = readCache(name);
-  if (cached) return cached;
+  // Tracé reconstruit ici d'après le GPS : remplacé par celui du serveur dès qu'il en a un (ses zones y sont calculées)
+  if (cached && !cached.generated) return cached;
   if (building.has(name)) return building.get(name);
-  const job = fetchCircuit(key, year, name).finally(() => building.delete(name));
+  const job = fetchCircuit(key, year, name, cached).finally(() => building.delete(name));
   building.set(name, job);
   return job;
 }
 
-async function fetchCircuit(key, year, name) {
-  // Tracé lu par le serveur de Paddock Live (API MultiViewer : l'année demandée ou une des précédentes)
+async function fetchCircuit(key, year, name, cached) {
+  // Tracé lu par le serveur de Paddock Live (API MultiViewer, ou reconstruit par lui d'après le GPS)
   try {
-    const data = await getJSON(`${SEASON_URL}/live/api/circuit?key=${key}&year=${year}`, { timeout: 30000 });
+    const data = await getJSON(`${SEASON_URL}/live/api/circuit?key=${key}&year=${year}`, { timeout: cached ? 5000 : 30000 });
     if (Array.isArray(data?.x) && data.x.length) {
       writeCache(name, data);
       return data;
     }
   } catch (err) {
+    if (cached) return cached;
     if (!(err instanceof HttpError)) throw err;
   }
+  if (cached) return cached;
   // Circuit inconnu de MultiViewer (nouveau tracé) : reconstruction à partir du GPS d'une archive.
   for (const p of (await candidateSessions(key, year)).slice(0, 3)) {
     try {

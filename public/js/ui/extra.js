@@ -1,7 +1,8 @@
 // Onglets : télémétrie du pilote suivi, stratégie pneus, météo, championnat (prévision).
-import { store, displayNow, versionOf, setFocus } from '../store.js';
+import { store, displayNow, versionOf } from '../store.js';
 import { Dial, SpeedTrace, animate, carNow, energyOf } from './gauge.js';
-import { $, esc, drivers, orderedNumbers, teamColor, teamMark, stintsOf, compoundInfo, COMPOUNDS, fmtLap, fmtSigned, lapSeconds, driverOpt } from '../util.js';
+import { $, esc, drivers, orderedNumbers, teamColor, teamMark, stintsOf, compoundInfo, COMPOUNDS, fmtLap, fmtSigned, lapSeconds } from '../util.js';
+import { t } from '../i18n.js';
 import { icon } from '../icons.js';
 import { realStints } from '/shared/pits.js';
 
@@ -44,26 +45,33 @@ export function renderTelemetry() {
   const dl = drivers(store.state);
   const num = focusDriver();
   if (!store.positions.car.size) {
-    el.innerHTML = `<div class="note">Pas de télémétrie : en direct, connectez F1 TV dans Réglages.</div>`;
+    el.innerHTML = `<div class="note">${store.status?.source?.mode === 'replay' ? 'Pas de télémétrie dans ce replay.' : 'Pas de télémétrie : en direct, connectez F1 TV dans Réglages.'}</div>`;
     el._k = null;
     tele = null;
     return;
   }
   if (!num) return;
-  // Le pilote suivi seul (deux pilotes côte à côte : télémétrie du panneau Duel)
-  const nums = orderedNumbers(store.state).filter((n) => dl[n]);
-  const key = `${num}|${nums.join(',')}`;
+  // Le pilote suivi seul, choisi en cliquant dans le classement (deux pilotes côte à côte : bandeau du duel) ; aucun
+  // pilote choisi : seulement la consigne (jamais la consigne à côté d'un pilote)
+  const picked = !!((store.focus && dl[store.focus]) || (store.duel.manual && store.duel.a && dl[store.duel.a]));   // duel choisi à la main (sinon : automatique)
+  if (!picked) {
+    if (el._k !== 'none') {
+      el._k = 'none';
+      tele = null;
+      el.innerHTML = `<div class="note tele-pick-hint">${esc(t('clic sur un pilote du classement = pilote suivi'))}</div>`;
+    }
+    return;
+  }
+  const key = num;
   if (el._k !== key) {
     el._k = key;
     const d = dl[num] || {};
     el.innerHTML = `<div class="tele2">
-      <div class="tele2-bar"><span class="tele-chip" style="--tc:${teamColor(d)}"><select id="teleSel" class="tele-pick">${nums.map((n) => `<option value="${n}" ${n === num ? 'selected' : ''}${driverOpt(dl[n], n)}>${esc(dl[n].Tla)}</option>`).join('')}</select></span>
-        <span class="muted small tele-hint">clic sur un pilote du classement = pilote suivi</span></div>
       <div class="tele2-dials one">
-        <div class="tele2-col"><div class="tele-name" style="--tc:${teamColor(d)}">${teamMark(d)}<b>${esc(d.Tla || num)}</b><span class="muted small">${esc(d.LastName || '')}</span></div><div class="tele-dial" id="teleDialA"></div></div>
+        <div class="tele2-col"><div class="tele-name" style="--tc:${teamColor(d)}">${teamMark(d)}<b>${esc(d.Tla || num)}</b><span class="muted small">${esc(d.LastName || '')}</span></div>
+          <div class="tele-dial" id="teleDialA"></div></div>
       </div>
       <div class="trace"><div class="chart-title"><span>Vitesse — 30 dernières secondes (km/h)</span></div><div id="teleTrace"></div></div></div>`;
-    $('#teleSel').addEventListener('change', (e) => setFocus(e.target.value));
     tele = { num, dialA: new Dial(teamColor(d)), trace: new SpeedTrace($('#teleTrace')) };
     $('#teleDialA').appendChild(tele.dialA.el);
   }
@@ -82,15 +90,16 @@ export function renderStrategy() {
   const app = s.TimingAppData?.Lines || {};
   const nums = orderedNumbers(s).filter((n) => dl[n]);
   let total = Number(s.LapCount?.TotalLaps) || 0;
+  const td = s.TimingData?.Lines || {};
   const rows = nums.map((num) => {
     let start = 0;
     // Relais réels : un passage par les stands sans changer de pneus ne coupe pas le relais
-    const stints = realStints(stintsOf(app[num])).map((st) => {
-      const len = Math.max(0, (Number(st.TotalLaps) || 0) - (Number(st.StartLaps) || 0));
-      const out = { ...st, from: start, len };
-      start += len;
-      return out;
-    });
+    const stints = realStints(stintsOf(app[num])).map((st) => ({ ...st, len: Math.max(0, (Number(st.TotalLaps) || 0) - (Number(st.StartLaps) || 0)) }));
+    // La F1 laisse parfois compter le relais précédent après l'arrêt (Hirakawa : 34 tours en mediums puis 7 en tendres
+    // au 34e tour) : le surplus sur les tours faits est retiré des relais d'avant, en partant du plus récent
+    let extra = stints.reduce((a, st) => a + st.len, 0) - (Number(td[num]?.NumberOfLaps) || Infinity);
+    for (let i = stints.length - 2; i >= 0 && extra > 0; i--) { const cut = Math.min(extra, stints[i].len); stints[i].len -= cut; extra -= cut; }
+    for (const st of stints) { st.from = start; start += st.len; }
     return { num, stints, laps: start, pace: stintPace(num) };
   });
   total = Math.max(total, ...rows.map((r) => r.laps), 1);
@@ -113,12 +122,16 @@ export function renderChampionship() {
   const v = versionOf(['ChampionshipPrediction', 'DriverList', '__reset']);
   if (v === champVer) return;
   champVer = v;
+  $('#champ').innerHTML = championshipHtml() || '<div class="note">Projection du championnat pendant les courses et sprints.</div>';
+}
+
+// Projection du championnat pendant une course (pilotes puis écuries), ou null hors course. Aussi l'outil
+// « Championnat » de la barre du haut (topinfo.js), un tableau à la fois (only : 'drivers' ou 'teams').
+// names : numéro -> code du pilote pour ceux absents de la séance (classement de la saison)
+export function championshipHtml(only = null, names = {}) {
   const cp = store.state.ChampionshipPrediction;
   const dl = drivers(store.state);
-  if (!cp?.Drivers) {
-    $('#champ').innerHTML = '<div class="note">Projection du championnat pendant les courses et sprints.</div>';
-    return;
-  }
+  if (!cp?.Drivers) return null;
   const rows = Object.values(cp.Drivers).filter(Boolean).sort((a, b) => (a.PredictedPosition || 99) - (b.PredictedPosition || 99));
   const teams = Object.values(cp.Teams || {}).filter(Boolean).sort((a, b) => (a.PredictedPosition || 99) - (b.PredictedPosition || 99));
   // Points marqués sur la course en cours (projetés - actuels)
@@ -130,14 +143,17 @@ export function renderChampionship() {
     const d = (cur || 0) - (pred || 0);
     return d ? `<span class="${d > 0 ? 'up' : 'down'}">${icon(d > 0 ? 'tri-up' : 'tri-down')}${Math.abs(d)}</span>` : '';
   };
-  $('#champ').innerHTML = `<table class="champ"><tr><th>Proj.</th><th>Pilote</th><th>Pts actuels</th><th>Gagnés</th><th>Pts projetés</th><th></th></tr>
+  const driversHtml = `<table class="champ"><tr><th>Proj.</th><th>Pilote</th><th>Pts actuels</th><th>Gagnés</th><th>Pts projetés</th><th></th></tr>
     ${rows.map((r) => {
       const d = dl[r.RacingNumber] || {};
-      return `<tr><td>${r.PredictedPosition ?? '—'}</td><td><span class="drv">${teamMark(d)}<b>${esc(d.Tla || r.RacingNumber)}</b></span></td>
+      return `<tr><td>${r.PredictedPosition ?? '—'}</td><td><span class="drv">${teamMark(d)}<b>${esc(d.Tla || names[r.RacingNumber] || r.RacingNumber)}</b></span></td>
         <td>${r.CurrentPoints ?? '—'}</td><td>${gain(r.CurrentPoints, r.PredictedPoints)}</td><td><b>${r.PredictedPoints ?? '—'}</b></td><td>${mv(r.CurrentPosition, r.PredictedPosition)}</td></tr>`;
-    }).join('')}</table>
-    ${teams.length ? `<table class="champ" style="margin-top:10px"><tr><th>Proj.</th><th>Écurie</th><th>Pts actuels</th><th>Gagnés</th><th>Pts projetés</th><th></th></tr>
-      ${teams.map((t) => `<tr><td>${t.PredictedPosition ?? '—'}</td><td><span class="drv">${teamMark(Object.values(dl).find((d) => d.TeamName === t.TeamName) || { TeamName: t.TeamName })}${esc(t.TeamName || '')}</span></td><td>${t.CurrentPoints ?? '—'}</td><td>${gain(t.CurrentPoints, t.PredictedPoints)}</td><td><b>${t.PredictedPoints ?? '—'}</b></td><td>${mv(t.CurrentPosition, t.PredictedPosition)}</td></tr>`).join('')}</table>` : ''}`;
+    }).join('')}</table>`;
+  const teamsHtml = teams.length ? `<table class="champ"><tr><th>Proj.</th><th>Écurie</th><th>Pts actuels</th><th>Gagnés</th><th>Pts projetés</th><th></th></tr>
+      ${teams.map((t) => `<tr><td>${t.PredictedPosition ?? '—'}</td><td><span class="drv">${teamMark(Object.values(dl).find((d) => d.TeamName === t.TeamName) || { TeamName: t.TeamName })}${esc(t.TeamName || '')}</span></td><td>${t.CurrentPoints ?? '—'}</td><td>${gain(t.CurrentPoints, t.PredictedPoints)}</td><td><b>${t.PredictedPoints ?? '—'}</b></td><td>${mv(t.CurrentPosition, t.PredictedPosition)}</td></tr>`).join('')}</table>` : '';
+  if (only === 'drivers') return driversHtml;
+  if (only === 'teams') return teamsHtml || '<p class="muted small">Pas encore de projection des écuries.</p>';
+  return `${driversHtml}${teamsHtml ? `<div style="margin-top:10px">${teamsHtml}</div>` : ''}`;
 }
 
 // Rythme et dégradation sur le relais en cours (tours "propres" uniquement).

@@ -8,6 +8,8 @@ import { preraceData, champData, flashEvents, flashData, moreCaptions, FLASH_KIN
 import { builtinNomination } from '/shared/tyres.js';
 import { CHAMPIONSHIP, parseSeasons, parseDocumentList, pickEvent } from '/shared/fia-list.js';
 import { gridDocument, parseStartingGrid } from '/shared/fia-grid.js';
+import { parseFiaDoc } from '/shared/stewards.js';
+import { parseDecisionDoc, docDecisions, rcmDecisions, mergeDecisions, decisionData } from '/shared/social-decision.js';
 import { extractArticle } from '/shared/article.js';
 import { recapData, seasonCaptions } from '/shared/social-season.js';
 import { $, $$, esc, api, ago, icon, toggle, toast, glide, state, SIG, NET_NAMES, musicField, bindMusic, clipFile, shareClip } from './ui.js';
@@ -15,7 +17,7 @@ import { toFrench, freshNews, cachedNews, latestDrivers, loadState, lapsOf, reme
 import { editor, assets } from './editor.js';
 import { photoPicker, cropImage, bitmapUrl, photoGrid, addFiles, picked } from './photos.js';
 import { makeAnimation, makeVideo, unlockAudio } from '/shared/social-video.js';
-import { videoCover, newsPhotoBox, FORMATS, slidesFor, chosenSlides, drawSlide } from '/shared/social-draw.js';
+import { videoCover, styled, newsPhotoBox, FORMATS, slidesFor, chosenSlides, drawSlide } from '/shared/social-draw.js';
 import { newsFrame, newsVideoTiming } from '/shared/social-news-video.js';
 import { makeClipVideo, CLIP_MAX } from '/shared/social-clip-video.js';
 import { appPost, appCaptions } from '/shared/social-app.js';
@@ -95,7 +97,7 @@ function bindOwnVideo(p, onPick) {
 // ---------- Vidéo de la news (TikTok, Reels, Shorts, story…), commune aux news et aux posts écrits ----------
 // Style « Breaking news » quand la très grosse info est cochée (BREAKING, étape Contenu)
 const BREAKING = (on) => toggle('brk', 'Très grosse info', on, 'Style « Breaking news » du visuel et de la vidéo');
-const NEWS_VIDEO = () => `<h3 class="section">Vidéo de la news</h3>${musicField('news', 'flash')}<div class="row"><button class="btn" id="mkvid">${icon('video')}Créer la vidéo</button><button class="btn" id="sharevid" disabled title="Zone sûre : Reels, TikTok, Shorts">${icon('share')}Partager</button><button class="btn" id="sharefull" disabled title="X, Bluesky, Facebook, Threads…">${icon('share')}Plein écran</button></div>
+const NEWS_VIDEO = () => `<h3 class="section">Vidéo de la news</h3>${musicField('news', 'flash')}<div class="row"><button class="btn" id="mkvid">${icon('video')}Créer la vidéo</button><button class="btn" id="sharevid" disabled>${icon('share')}Partager</button></div>
   <p class="hint" id="vidst">Garder l'écran allumé pendant l'enregistrement.</p>
   <video id="vid" controls playsinline hidden></video>`;
 // onBreaking(on) : très grosse info cochée ou décochée à la main
@@ -115,15 +117,14 @@ function bindNewsVideo(getD, onBreaking, onClip, source = () => null) {
       const src = source();
       const onProgress = (p) => { $('#vidst').textContent = `${src ? 'Habillage de votre vidéo' : 'Enregistrement'}… ${Math.round(p * 100)} %`; };
       clip = src ? await makeClipVideo(src, d, o, { ...track(), onProgress })
-        : await makeAnimation((ctx, t, w, h) => newsFrame(ctx, w, h, d, o, t), newsVideoTiming(d).duration, { box: true, cover: (ctx) => videoCover(ctx, 1080, 1920, d, o), ...track(), onProgress });
+        : await makeAnimation((ctx, t, w, h) => styled(o, () => newsFrame(ctx, w, h, d, o, t)), newsVideoTiming(d).duration, { cover: (ctx, w, h) => styled(o, () => videoCover(ctx, w, h, d, o)), ...track(), onProgress });
       $('#vid').src = URL.createObjectURL(clip.blob); $('#vid').hidden = false;
-      $('#sharevid').disabled = false; $('#sharefull').disabled = false;
+      $('#sharevid').disabled = false;
       $('#vidst').textContent = `Vidéo prête : ${src ? '' : `${Math.round(newsVideoTiming(d).duration)} s, `}${(clip.blob.size / 1e6).toFixed(1).replace('.', ',')} Mo${clip.silent ? ' · sans son : le navigateur a bloqué la musique, recommencez' : ''}${clipFile(clip, name()) ? ' · jointe au post : Reel, vidéo, TikTok et Short à choisir à l\'étape Publier' : ' · format WebM : à partager seulement (publication en MP4)'}`;
       onClip(clipFile(clip, name()));
     } catch (err) { $('#vidst').textContent = err.message; } finally { $('#mkvid').disabled = false; }
   };
   $('#sharevid').onclick = () => clip && shareClip(clip, name());
-  $('#sharefull').onclick = () => clip && shareClip(clip, name(), true);
 }
 
 export async function newsEditor(it, done, back) {
@@ -365,7 +366,7 @@ export async function appEditor(back) {
       <div id="apages"></div>
       <div class="row"><button class="btn small" id="aadd">${icon('pen')}Ajouter une page</button><label class="btn small">${icon('image')}Une page par photo<input type="file" accept="image/*" multiple id="aphotos" hidden></label><span class="hint" id="aphst"></span></div>`,
     vhead: `<p class="hint">Votre vidéo (enregistrement d'écran…) se choisit dans une page, à l'étape Contenu : « Capture, photo ou vidéo ».</p>
-      ${musicField('app', 'flash')}<div class="row"><button class="btn" id="mkvid">${icon('video')}Créer la vidéo</button><button class="btn" id="sharevid" disabled title="Zone sûre : Reels, TikTok, Shorts">${icon('share')}Partager</button><button class="btn" id="sharefull" disabled title="X, Bluesky, Facebook, Threads…">${icon('share')}Plein écran</button></div>
+      ${musicField('app', 'flash')}<div class="row"><button class="btn" id="mkvid">${icon('video')}Créer la vidéo</button><button class="btn" id="sharevid" disabled>${icon('share')}Partager</button></div>
       <p class="hint" id="vidst">Sans vidéo à vous : les images gardées, au format story, environ 3 s chacune. Garder l'écran allumé pendant l'enregistrement.</p>
       <video id="vid" controls playsinline hidden></video>`,
     data: () => d,
@@ -450,16 +451,16 @@ export async function appEditor(back) {
           const opts = { ...track(), onProgress: (x) => { $('#vidst').textContent = `${v.video ? 'Habillage de votre vidéo' : 'Enregistrement'}… ${Math.round(x * 100)} %`; } };
           // Sans vidéo à vous : les images gardées au format story, enchaînées (comme la vidéo des visuels des autres posts)
           const list = chosenSlides(slidesFor(d, { fmt: 'story' }), [...state.skip]);
-          clip = v.video ? await makeClipVideo(v.video, d, await assets(d), opts) : await makeVideo(list.map((sl) => drawSlide(document.createElement('canvas'), sl, 'story', d, { slides: list })), opts);
+          const o = await assets(d);
+          clip = v.video ? await makeClipVideo(v.video, d, o, opts) : await makeVideo(list.map((sl) => drawSlide(document.createElement('canvas'), sl, 'story', d, { slides: list, style: o.style })), opts);
           $('#vid').src = URL.createObjectURL(clip.blob); $('#vid').hidden = false;
-          $('#sharevid').disabled = false; $('#sharefull').disabled = false;
+          $('#sharevid').disabled = false;
           v.made = clipFile(clip, 'paddock-live');
           $('#vidst').textContent = `Vidéo prête : ${(clip.blob.size / 1e6).toFixed(1).replace('.', ',')} Mo${clip.silent ? ' · sans son : le navigateur a bloqué la musique, recommencez' : ''} · « Partager » pour l'enregistrer ou l'envoyer (Reels, TikTok, Shorts)`;
           redraw();
         } catch (err) { $('#vidst').textContent = err.message; } finally { $('#mkvid').disabled = false; }
       };
       $('#sharevid').onclick = () => clip && shareClip(clip, 'paddock-live');
-      $('#sharefull').onclick = () => clip && shareClip(clip, 'paddock-live', true);
     },
   });
 }
@@ -519,9 +520,26 @@ async function fiaGrid(year, meeting, sprint) {
   const grid = parseStartingGrid(await pdfItems(await (await fiaGet(new URL(doc.url).pathname)).arrayBuffer()));
   return grid && { ...grid, title: doc.title };
 }
+// Documents de décision des commissaires d'un Grand Prix (« Decision », « Infringement », « Offence » avec une voiture ;
+// « Infringment » mal écrit compris), lus 6 à la fois : [{ doc, num, p }] (p : null pour un PDF illisible)
+async function fiaDecisions(year, meeting) {
+  const { bySeason, events } = parseSeasons(await (await fiaGet(CHAMPIONSHIP)).text());
+  const event = bySeason[year] && pickEvent(events, meeting);
+  if (!event) return [];
+  const docs = parseDocumentList(await (await fiaGet(`${bySeason[year]}/event/${encodeURIComponent(event)}`)).text())
+    .filter((doc) => /^Doc\s+\d+\s*[-–]\s*(?:Decision|Infring?ement|Offence)\b/i.test(doc.title)).map((doc) => ({ doc, info: parseFiaDoc(doc) }))
+    .filter((x) => x.info.cars.length).slice(0, 40);
+  const out = [];
+  for (let i = 0; i < docs.length; i += 6) {
+    out.push(...await Promise.all(docs.slice(i, i + 6).map(async ({ doc, info }) => ({
+      doc, num: info.num, p: await fiaGet(new URL(doc.url).pathname).then((r) => r.arrayBuffer()).then(pdfItems).then(parseDecisionDoc).catch(() => null),
+    }))));
+  }
+  return out;
+}
 
 // Types de posts d'une séance : résultats, avant-course (grille, météo, pneus), championnat, flash
-const POST_TYPES = [['results', 'Résultats'], ['prerace', 'Avant-course'], ['champ', 'Championnat'], ['flash', 'Flash']];
+const POST_TYPES = [['results', 'Résultats'], ['prerace', 'Avant-course'], ['champ', 'Championnat'], ['flash', 'Flash'], ['decision', 'Décisions']];
 export async function sessionEditor(s, back) {
   const st = await loadState(s.path, undefined, { live: s.live });
   rememberDrivers(st.DriverList);
@@ -534,8 +552,21 @@ export async function sessionEditor(s, back) {
   let ev = events[0] || null;
   let grid;   // grille officielle de la FIA : undefined = pas encore lue
   let gridNote = '';
-  const avail = (k) => k === 'results' || k === 'prerace' || (k === 'champ' && champ) || (k === 'flash' && ev);
-  const data = () => (type === 'prerace' ? preraceData(st, { tyres, grid }) : type === 'champ' ? champ : type === 'flash' ? flashData(st, ev) : results);
+  // Décisions des commissaires : messages de la direction de course, puis documents de la FIA (lus à l'ouverture de
+  // l'onglet) ; motif retouché à la main (par décision) ; votre photo en fond
+  let decs = rcmDecisions(st.RaceControlMessages?.Messages);
+  let dec = decs[0] || null;
+  let decLoaded = false;
+  const motifs = {};
+  const decPhotos = [];
+  const decName = (x) => `${x.penalty.short} · ${x.drivers.map((p) => st.DriverList?.[p.num]?.LastName || p.name || `voiture ${p.num}`).join(', ')}${x.source === 'fia' ? ` · doc. ${x.docs.join(', ')}` : x.lap ? ` · tour ${x.lap}` : ''}`;
+  const decisionPost = () => {
+    const dd = decisionData(st, dec, { motif: dec ? motifs[dec.id] ?? null : null });
+    const [photo] = picked(decPhotos);
+    return photo ? { ...dd, ...photo } : dd;
+  };
+  const avail = (k) => k === 'results' || k === 'prerace' || k === 'decision' || (k === 'champ' && champ) || (k === 'flash' && ev);
+  const data = () => (type === 'prerace' ? preraceData(st, { tyres, grid }) : type === 'champ' ? champ : type === 'flash' ? flashData(st, ev) : type === 'decision' ? decisionPost() : results);
   const typeName = () => POST_TYPES.find(([k]) => k === type)[1];
   const loadGrid = async (redraw) => {
     if (grid !== undefined) return;
@@ -549,6 +580,27 @@ export async function sessionEditor(s, back) {
     if ($('#gridnote')) $('#gridnote').textContent = type === 'prerace' ? gridNote : '';
     if (type === 'prerace') redraw(true);
   };
+  const loadDecisions = async (redraw) => {
+    if (decLoaded) return;
+    decLoaded = true;
+    $('#decnote').textContent = 'Lecture des décisions de la FIA…';
+    let note;
+    try {
+      const fromDocs = docDecisions(await fiaDecisions(Number(String(s.path).slice(0, 4)), { name: meet.Name, country: meet.Country?.Name, location: meet.Location }), st.SessionInfo?.Name);
+      decs = mergeDecisions(fromDocs, decs);
+      note = fromDocs.length ? `${fromDocs.length} décision${fromDocs.length > 1 ? 's' : ''} d'après les documents de la FIA${decs.length > fromDocs.length ? ', les autres d\'après la direction de course' : ''}.` : decs.length ? 'Pas encore de document de la FIA pour cette séance : décisions de la direction de course.' : '';
+    } catch (err) { note = `Documents de la FIA indisponibles (${err.message}) : décisions de la direction de course.`; }
+    // Motifs en texte libre traduits par le serveur (sinon laissés en anglais)
+    const todo = decs.filter((x) => !x.factFr && x.fact);
+    const fr = await toFrench(todo.map((x) => ({ text: x.fact, from: 'en' })));
+    todo.forEach((x, i) => { if (fr[i]) x.factFr = fr[i]; });
+    dec = decs[0] || null;   // la plus récente des documents de la FIA (sinon de la direction de course)
+    $('#decpick').innerHTML = decs.map((x, i) => `<option value="${i}" ${x === dec ? 'selected' : ''}>${esc(decName(x))}</option>`).join('');
+    $('#decpick').disabled = !decs.length;
+    $('#decmotif').value = dec ? motifs[dec.id] ?? (dec.factFr || dec.fact) : '';
+    $('#decnote').textContent = decs.length ? `${note} Motif traduit automatiquement : à relire.` : 'Aucune décision des commissaires pour cette séance.';
+    if (type === 'decision') redraw(true);
+  };
   editor({
     back,
     title: SESSION_FR(s.name),
@@ -556,14 +608,24 @@ export async function sessionEditor(s, back) {
     head: `<div class="seg wide" id="ptype">${POST_TYPES.map(([k, v]) => `<button data-ptype="${k}" class="${k === type ? 'on' : ''}" ${avail(k) ? '' : 'disabled'}>${v}</button>`).join('')}</div>
       <p class="hint" id="gridnote" hidden></p>
       <label class="field" id="flashrow" hidden><span>Moment de la séance</span><select id="flashpick">${events.map((x, i) => `<option value="${i}">${esc(FLASH_KINDS[x.kind].label)} · ${esc(x.title)}${x.lap ? ` · tour ${x.lap}` : ''}</option>`).join('')}</select></label>
+      <div id="decrow" hidden><p class="hint" id="decnote"></p>
+        <label class="field"><span>Décision</span><select id="decpick">${decs.map((x, i) => `<option value="${i}">${esc(decName(x))}</option>`).join('')}</select></label>
+        <label class="field"><span>Motif</span><textarea id="decmotif" rows="3" maxlength="400">${esc(dec ? dec.factFr || dec.fact : '')}</textarea></label>
+        <div class="field"><span>Votre photo en fond <small>(facultatif : la première touchée)</small></span><div class="row">${MINE('d')}<span class="hint" id="dartst"></span></div><div class="photos" id="dartlist"></div></div></div>
       <div id="nospoilrow">${toggle('nospoil', 'Texte sans spoiler', state.noSpoiler, 'Vainqueur absent du début du texte')}</div>`,
     data,
     caps: (dd) => (type === 'results' ? captions(dd, SIG, { spoiler: !state.noSpoiler }) : moreCaptions(dd, SIG)),
     record: () => (type === 'results' ? { key: `session:${s.path}`, kind: 'session', title: `${SESSION_FR(s.name)} · ${results.gp}` }
+      : type === 'decision' ? { key: `decision:${s.path}:${dec?.id || ''}`, kind: 'decision', title: `Décision · ${dec ? decName(dec) : 'aucune'} · ${results.gp}` }
       : { key: `${type}:${s.path}${type === 'flash' ? `:${ev.id}` : ''}`, kind: type, title: `${type === 'flash' ? ev.title : typeName()} · ${results.gp}` }),
     bind: (redraw) => {
       $('#nospoil').onchange = (e) => { state.noSpoiler = e.target.checked; redraw(true); };
       $('#flashpick').onchange = (e) => { ev = events[Number(e.target.value)]; redraw(true); };
+      $('#decpick').onchange = (e) => { dec = decs[Number(e.target.value)] || null; $('#decmotif').value = dec ? motifs[dec.id] ?? (dec.factFr || dec.fact) : ''; redraw(true); };
+      let tm = null;
+      $('#decmotif').oninput = (e) => { if (dec) motifs[dec.id] = e.target.value; clearTimeout(tm); tm = setTimeout(() => redraw(true), 400); };
+      const showDec = photoGrid($('#dartlist'), decPhotos, { frame: () => { const f = FORMATS[state.fmt] || FORMATS.ig; return f.w / f.h; }, onChange: () => redraw(true) });
+      bindMine('d', decPhotos, showDec, () => redraw(true));
       $$('[data-ptype]').forEach((b) => {
         b.onclick = () => {
           type = b.dataset.ptype;
@@ -571,6 +633,8 @@ export async function sessionEditor(s, back) {
           glide();
           $('#flashrow').hidden = type !== 'flash';
           $('#gridnote').hidden = type !== 'prerace';
+          $('#decrow').hidden = type !== 'decision';
+          if (type === 'decision') loadDecisions(redraw);
           if (type === 'prerace') { $('#gridnote').textContent = gridNote; loadGrid(redraw); }
           $('#nospoilrow').hidden = type !== 'results';
           redraw(true);

@@ -181,7 +181,7 @@ test('race week : tracé du circuit, couleurs du pays, vainqueur précédent, mi
   assert.ok(sh.pts.every(([x, y]) => x >= 0 && x <= 1 && y >= 0 && y <= 1));
   assert.ok(Math.abs(sh.h - 1) < 1e-9 && Math.abs(sh.w - 0.5) < 1e-9);   // tourné d'un quart de tour
   assert.equal(trackShape(null), null);
-  assert.deepEqual(circuitInfo('americas'), { key: 9, km: 5.513, laps: 56 });
+  assert.deepEqual(circuitInfo('americas'), { key: 9, km: 5.513, laps: 56, lat: 30.1328, lon: -97.6411 });
   assert.deepEqual(flagColors('zz'), ['#e10600', '#f3f5f9']);
   const race = { ...R1, round: 18, circuitId: 'americas' };
   const d = raceWeekData(race, { year: 2026, rounds: 23, track, prev: { name: 'Max Verstappen', team: 'Red Bull', teamId: 'red_bull' }, tyres: { hard: 2, medium: 3, soft: 4 } });
@@ -267,11 +267,29 @@ test('vidéo de course : safety car, VSC, drapeaux et moments forts (direction d
   assert.deepEqual(s.counts, { sc: 1, vsc: 1, red: 0, neutral: 0, lead: 2 });
   assert.equal(s.events.find((e) => e.kind === 'penalty').text, '5 S');
   assert.deepEqual(s.best, { time: 88.5, lap: 10, code: 'RUS' });
+  // Messages de 2026 : « VSC DEPLOYED » / « VSC ENDING », sans « VIRTUAL »
+  const vsc26 = parseRaceControl({ Messages: [
+    { Utc: '2026-10-25T20:05:00', Lap: 2, Category: 'SafetyCar', Status: 'DEPLOYED', Message: 'VSC DEPLOYED' },
+    { Utc: '2026-10-25T20:06:00', Lap: 2, Category: 'SafetyCar', Status: 'ENDING', Message: 'VSC ENDING' },
+    { Utc: '2026-10-25T21:30:00', Lap: 8, Category: 'SafetyCar', Status: 'DEPLOYED', Message: 'VSC DEPLOYED' },
+    { Utc: '2026-10-25T21:33:00', Lap: 9, Category: 'SafetyCar', Status: 'ENDING', Message: 'VSC ENDING' },
+  ] });
+  const s26 = raceStory(laps, vsc26);
+  assert.deepEqual(s26.status, ['green', 'vsc', 'green', 'green', 'green', 'green', 'green', 'vsc', 'vsc', 'green']);
+  assert.deepEqual([s26.counts.sc, s26.counts.vsc], [0, 2]);
   // Sans direction de course : tours lents de tout le peloton = neutralisation estimée
   const e = raceStory(laps, null);
   assert.equal(e.estimated, true);
   assert.deepEqual(e.status.slice(2, 6), ['green', 'neutral', 'neutral', 'green']);
   assert.ok(e.events.some((x) => x.kind === 'neutral' && x.lap === 4) && e.events.some((x) => x.kind === 'restart' && x.lap === 6));
+  // Estimation : peloton regroupé (écart du leader au 5e fondu) = safety car, écarts gardés = VSC
+  const field = (slow) => ({ total: 10, drivers: [0, 1, 2, 3, 4].map((k) => mk(`D${k}`, Array(10).fill(k + 1), [90 + k * 3, ...Array(9).fill(90)].map((t, i) => (slow(i, k) ?? t)))) });
+  const sc = raceStory(field((i, k) => (i === 3 ? 120 : i === 4 ? 130 - k * 2.6 : null)), null);
+  assert.deepEqual(sc.status.slice(2, 6), ['green', 'sc', 'sc', 'green']);
+  assert.equal(sc.counts.sc, 1);
+  const vsc = raceStory(field((i) => (i === 3 || i === 4 ? 125 : null)), null);
+  assert.deepEqual(vsc.status.slice(2, 6), ['green', 'vsc', 'vsc', 'green']);
+  assert.equal(vsc.counts.vsc, 1);
   // Course retrouvée dans l'Index des archives (nom, sinon circuit)
   const idx = { Meetings: [{ Name: 'Italian Grand Prix', Circuit: { Key: 39 }, Sessions: [{ Name: 'Sprint', Type: 'Race', Path: 'x/sprint/' }, { Name: 'Race', Type: 'Race', Path: 'x/race/' }] }] };
   assert.equal(raceSessionPath(idx, { name: 'Italian Grand Prix' }), 'x/race/');

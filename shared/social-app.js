@@ -2,7 +2,7 @@
 // visuel (logo, petit titre rouge, grand titre aux mots en rouge, texte, capture ou photo dans un cadre, pied
 // « Gratuit · Windows, Mac, Linux » et le site), une image par page du carrousel, et ses textes. Une vidéo à soi
 // (enregistrement d'écran) prend la place de la capture de la première page.
-import { C, TITLE, BODY, MONO, txt, rr, alpha, photoCredit } from './social-draw.js';
+import { C, TITLE, BODY, MONO, txt, rr, photoCredit, background, pill } from './social-draw.js';
 import { xLength } from './social.js';
 
 export const APP_SITE = 'paddocklive.app';
@@ -43,12 +43,8 @@ function logo(ctx, x, y, s) {
   txt(ctx, 'Live', x + s * 1.3 + ctx.measureText('Paddock ').width, y + s * 0.78, { size, weight: 800, family: TITLE, color: C.red });
 }
 
-function backdrop(ctx, W, H) {
-  ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H);
-  const g = ctx.createRadialGradient(W, 0, 0, W, 0, Math.max(W, H) * 0.75);
-  g.addColorStop(0, alpha(C.red, 0.22)); g.addColorStop(1, alpha(C.red, 0));
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-}
+// Même fond que les autres visuels (halo rouge, grain)
+const backdrop = (ctx, W, H) => background(ctx, W, H, C.red);
 
 // Titre au plus grand qui tient (largeur, lignes au plus, hauteur) : { size, lines: [[{ w, red }]] }
 function fitRich(ctx, words, maxW, maxH, sizes, maxLines) {
@@ -111,14 +107,14 @@ export function appPage(ctx, W, H, d, n, { media = null, num = n, total = 1 } = 
   const block = (p.kicker ? 62 * u : 0) + t.lines.length * lh + 34 * u + (body.length ? body.length * 52 * u + 24 * u : 0);
   if (!iw) y += Math.max(0, (foot - 80 * u - y - block) / 2);
   if (p.kicker) {
-    txt(ctx, String(p.kicker).toUpperCase(), pad, y + 26 * u, { size: Math.round(30 * u), weight: 700, family: TITLE, color: C.red, spacing: 6 * u, max: W - pad * 2 });
-    y += 62 * u;
+    pill(ctx, String(p.kicker).toUpperCase(), pad, y - 4 * u, 50 * u, { bg: C.red, dot: '#fff' });
+    y += 66 * u;
   }
   ctx.font = `800 ${t.size}px ${TITLE}`;
   const space = ctx.measureText(' ').width;
   t.lines.forEach((line, i) => {
     let x = pad;
-    for (const w of line) { txt(ctx, w.w, x, y + t.size * 0.82 + i * lh, { size: t.size, weight: 800, family: TITLE, color: w.red ? C.red : C.text }); ctx.font = `800 ${t.size}px ${TITLE}`; x += ctx.measureText(w.w).width + space; }
+    for (const w of line) { txt(ctx, w.w, x, y + t.size * 0.82 + i * lh, { size: t.size, weight: 800, family: TITLE, italic: true, color: w.red ? C.red : C.text }); ctx.font = `800 ${t.size}px ${TITLE}`; x += ctx.measureText(w.w).width + space; }
   });
   y += t.lines.length * lh + 34 * u;
   body.forEach((l, i) => txt(ctx, l, pad, y + 36 * u + i * 52 * u, { size: Math.round(38 * u), weight: 400, family: BODY, color: '#c9ced8' }));
@@ -156,7 +152,7 @@ export function appOutro(ctx, W, H, s) {
   const s1 = 110 * u;
   ctx.font = `800 ${Math.round(s1 * 0.78)}px ${TITLE}`;
   logo(ctx, (W - s1 * 1.3 - ctx.measureText('Paddock Live').width) / 2, cy - 160 * u + (1 - k1) * 40 * u, s1);
-  txt(ctx, 'LA F1 EN DIRECT, CALÉE SUR TA TV', W / 2, cy + 60 * u, { size: Math.round(64 * u), weight: 800, family: TITLE, align: 'center', max: W * 0.88, spacing: 1 });
+  txt(ctx, 'LA F1 EN DIRECT, CALÉE SUR TA TV', W / 2, cy + 60 * u, { size: Math.round(64 * u), weight: 800, family: TITLE, italic: true, align: 'center', max: W * 0.88, spacing: 1 });
   ctx.restore();
   const k2 = out3((s - 0.35) / 0.5);
   ctx.save(); ctx.globalAlpha = k2;

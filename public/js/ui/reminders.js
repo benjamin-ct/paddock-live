@@ -5,7 +5,7 @@ import { api, storageGet, storageSet } from '../util.js';
 import { prefs } from '../prefs.js';
 import { notifyReminder } from './alerts.js';
 import { dueReminders } from '/shared/ics.js';
-import { LOCALE, EN } from '../i18n.js';
+import { LOCALE, LANG } from '../i18n.js';
 import { gpFull } from '/shared/gp-names.js';
 import { pronoMissing } from './predict-view.js';
 
@@ -34,7 +34,7 @@ async function pronoCheck() {
   for (const s of due) {
     const [field, what] = PRONO[s.label];
     if (await pronoMissing(new Date(s.t).getFullYear(), field)) {
-      notifyReminder(`Pronostics — ${gpFull(s.name, EN, 'GP')}`, `${what} : fermeture dans ${Math.max(1, Math.round((s.t - Date.now()) / 60e3))} min, votre pronostic n'est pas encore fait`);
+      notifyReminder(`Pronostics — ${gpFull(s.name, LANG, 'GP')}`, `${what} : fermeture dans ${Math.max(1, Math.round((s.t - Date.now()) / 60e3))} min, votre pronostic n'est pas encore fait`);
     }
   }
 }
@@ -49,7 +49,7 @@ function check() {
   storageSet('paddock.reminded', [...done, ...due.map((s) => `${s.t}|${s.label}`)].slice(-60));
   for (const s of due) {
     const min = Math.max(1, Math.round((s.t - Date.now()) / 60e3));
-    notifyReminder(`${gpFull(s.name, EN, 'GP')} — ${s.label}`, `début dans ${min} min (${new Date(s.t).toLocaleTimeString(LOCALE, { hour: '2-digit', minute: '2-digit' })})`);
+    notifyReminder(`${gpFull(s.name, LANG, 'GP')} — ${s.label}`, `début dans ${min} min (${new Date(s.t).toLocaleTimeString(LOCALE, { hour: '2-digit', minute: '2-digit' })})`);
   }
 }
 

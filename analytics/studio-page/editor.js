@@ -1,15 +1,16 @@
 // Studio : éditeur d'un post (contenu, visuels, vidéo, puis publication : publish.js), commun aux news,
 // séances et posts de la saison.
-import { slidesFor, drawSlide, slideName, chosenSlides, keptData } from '/shared/social-draw.js';
+import { slidesFor, drawSlide, slideName, chosenSlides, keptData, xSplit } from '/shared/social-draw.js';
 import { openImageViewer } from '/shared/image-viewer.js';
 import { creditCaptions, followCaptions, questionCaptions } from '/shared/social-follow.js';
 import { videoTexts } from '/shared/social.js';
 import { makeVideo, unlockAudio } from '/shared/social-video.js';
 import { FLAG_ISO } from '/shared/flags.js';
+import { trackShape } from '/shared/circuits-info.js';
 import { loadTeamLogos } from '/shared/team-logos.js';
-import { $, $$, esc, api, icon, toast, toggle, schedList, glide, state, SIG, IOS, installed, musicField, bindMusic, shareClip, clipFile } from './ui.js';
+import { $, $$, esc, api, icon, toast, toggle, schedList, glide, state, store, SIG, IOS, installed, musicField, bindMusic, shareClip, clipFile } from './ui.js';
 import { packDraftImages } from '/shared/post-draft.js';
-import { renderPublish, refreshTexts, resetPublish, confirmPublish, followSent, planNets, openX, xCanvases } from './publish.js';
+import { renderPublish, refreshTexts, resetPublish, confirmPublish, followSent, planNets, openX, xCanvases, xParts, showXMore } from './publish.js';
 
 // ---------- Images (photos des pilotes, drapeaux) par le relais du serveur ----------
 const imgCache = new Map();
@@ -25,21 +26,39 @@ async function headshot(url) {
   const big = url.replace(/\.transform\/\dcol\//, '.transform/4col/');
   return (big !== url && await loadImage(big)) || loadImage(url);
 }
+// Tracé du circuit d'une séance (API MultiViewer, l'année d'avant si besoin) : en filigrane des visuels
+const tracks = new Map();
+const trackOf = (year, key) => {
+  if (!tracks.has(`${key}-${year}`)) {
+    tracks.set(`${key}-${year}`, (async () => {
+      for (const y of [year, year - 1]) {
+        const r = await fetch(`https://api.multiviewer.app/api/v1/circuits/${key}/${y}`).catch(() => null);
+        if (r?.ok) return r.json().catch(() => null);
+      }
+      return null;
+    })());
+  }
+  return tracks.get(`${key}-${year}`);
+};
+// Style des visuels : choix gardé sur l'appareil
+if (state.tv === undefined) state.tv = !!store.get('tvstyle')?.v;
 export async function assets(d) {
-  await Promise.all(['800 40px "Saira Condensed"', '700 40px "Saira Condensed"', '600 30px "Titillium Web"', '400 30px "Titillium Web"', '700 30px "JetBrains Mono"'].map((f) => document.fonts.load(f).catch(() => {})));
+  await Promise.all(['800 40px "Saira Condensed"', '700 40px "Saira Condensed"', '600 30px "Titillium Web"', '400 30px "Titillium Web"', '700 30px "JetBrains Mono"',
+    ...(state.tv ? ['italic 900 40px "Barlow Condensed"', 'italic 800 40px "Barlow Condensed"', '700 20px "Chakra Petch"', '600 20px "Chakra Petch"'] : [])].map((f) => document.fonts.load(f).catch(() => {})));
   const photos = {};
   if (state.photos) await Promise.all((d.rows || []).slice(0, 3).map(async (r) => { photos[r.num] = await headshot(r.headshot); }));
   const iso = d.iso || FLAG_ISO[String(d.country || '').toUpperCase()];
-  const [flag, logos] = await Promise.all([iso ? loadImage(`https://flagcdn.com/${d.post === 'raceweek' ? 'w1280' : 'w160'}/${iso}.png`) : null, loadTeamLogos(loadImage)]);
-  return { photos, flag, logos, signature: SIG };
+  const [flag, logos, track] = await Promise.all([iso ? loadImage(`https://flagcdn.com/${d.post === 'raceweek' ? 'w1280' : 'w160'}/${iso}.png`) : null, loadTeamLogos(loadImage), d.circuitKey ? trackOf(d.year, d.circuitKey) : null]);
+  return { photos, flag, logos, signature: SIG, shape: trackShape(track), style: state.tv ? 'tv' : null };
 }
 
-// Post : Instagram, Facebook, Threads et Bluesky ; X : ses 4 images et son texte, publiés dans l'appli X ;
+// Post : Instagram, Facebook, Threads et Bluesky ; X : images de X et Bluesky (4 par post, la suite en réponse,
+// choisies à part) et texte de X, publié dans l'appli X ;
 // Lien (news avec un article) : texte et lien seuls, la carte de l'article affichée par le réseau
 const FORMATS = [['ig', 'Post'], ['story', 'Story'], ['x', 'X']];
 // Vidéo des visuels (posts sans vidéo à eux : résultats, avant-course, championnat, saison…) : les images
 // gardées, au format story, enchaînées avec un fondu ; pour TikTok, YouTube Shorts et les Reels
-const SLIDES_VIDEO = () => `<h3 class="section">Vidéo des visuels</h3>${musicField('slides', 'depart')}<div class="row"><button class="btn" id="mkvid">${icon('video')}Créer la vidéo</button><button class="btn" id="sharevid" disabled title="Zone sûre : Reels, TikTok, Shorts">${icon('share')}Partager</button><button class="btn" id="sharefull" disabled title="X, Bluesky, Facebook, Threads…">${icon('share')}Plein écran</button></div>
+const SLIDES_VIDEO = () => `<h3 class="section">Vidéo des visuels</h3>${musicField('slides', 'depart')}<div class="row"><button class="btn" id="mkvid">${icon('video')}Créer la vidéo</button><button class="btn" id="sharevid" disabled>${icon('share')}Partager</button></div>
   <p class="hint" id="vidst">Les images gardées, au format story, environ 3 s chacune. Garder l'écran allumé pendant l'enregistrement.</p>
   <video id="vid" controls playsinline hidden></video>`;
 
@@ -100,6 +119,7 @@ export function editor({ back, title, subtitle = '', head = '', vhead = '', note
   let canvases = [];
   let edited = { ...draft?.edited };   // textes retouchés à la main : gardés en changeant de format
   state.skip = new Set(draft?.skip);   // images écartées de ce post (toutes publiées par défaut)
+  state.xs = draft?.xs || null;   // X et Bluesky : { post, more } choisis à l'onglet X (null : choix par défaut)
   draftId = draft?.id || null;
   resetPublish(record?.()?.kind || 'post');
   const root = $('#app');
@@ -117,6 +137,7 @@ export function editor({ back, title, subtitle = '', head = '', vhead = '', note
       <section class="panel" id="opts" data-in="visuels">
         <h3 class="section">Options</h3>
         ${toggle('photos', 'Photos des pilotes', state.photos)}
+        ${toggle('tvstyle', 'Style « Télé premium » (fibre de carbone, chiffres or)', state.tv)}
         ${toggle('follow', 'Image « Abonnez-vous »', state.follow, '', state.question ? 'disabled' : '')}
         ${toggle('question', 'Question pour faire réagir', state.question, '', state.follow ? 'disabled' : '')}
       </section>
@@ -170,12 +191,15 @@ export function editor({ back, title, subtitle = '', head = '', vhead = '', note
     const d = data();
     const c = texts(d);
     const linkTab = state.fmt === 'link';
+    const xTab = state.fmt === 'x';
     const slides = linkTab ? [] : slidesFor(d, { fmt: state.fmt, follow: state.follow, question: state.question });
     const lk = link?.() || null;
     $('#main').innerHTML = linkTab ? `<div class="linkcard"><div id="lcimg"></div><small>${esc(new URL(lk.url).hostname.replace(/^www\./, ''))}</small><b>${esc(lk.title)}</b><p>${esc(lk.description)}</p></div>
       <p class="hint">Carte de l'article sur Facebook, Threads et X ; titre et résumé sur Bluesky ; Instagram : visuels de l'onglet Post.</p>
-      <div class="row"><button class="btn small" id="xlink">${icon('send')}Ouvrir X avec le lien</button></div>` : `<div class="slides ${state.fmt}">${slides.map((sl) => `<figure class="sl"><canvas data-slide="${sl}" title="${esc(slideName(sl))} : voir en grand"></canvas>
-        <label class="pick"><input type="checkbox" data-pick="${sl}" ${state.skip.has(sl) ? '' : 'checked'}><span data-num></span>${esc(slideName(sl))}</label></figure>`).join('')}</div>`;
+      <div class="row"><button class="btn small" id="xlink">${icon('send')}Ouvrir X avec le lien</button></div>` : `${xTab ? '<p class="hint">X et Bluesky : 4 images dans le post, 4 de plus dans la suite, publiée en réponse. Ce choix ne change pas les autres réseaux.</p>' : ''}
+      <div class="slides ${state.fmt}">${slides.map((sl) => `<figure class="sl"><canvas data-slide="${sl}" title="${esc(slideName(sl))} : voir en grand"></canvas>
+        ${xTab ? `<div class="pick"><span data-num></span>${esc(slideName(sl))}</div><div class="seg wide xpick" role="group" aria-label="${esc(slideName(sl))} sur X et Bluesky">${[['post', 'Post'], ['more', 'Suite'], ['off', 'Non']].map(([k, v]) => `<button type="button" data-xp="${k}" data-sl="${sl}">${v}</button>`).join('')}</div>`
+          : `<label class="pick"><input type="checkbox" data-pick="${sl}" ${state.skip.has(sl) ? '' : 'checked'}><span data-num></span>${esc(slideName(sl))}</label>`}</figure>`).join('')}</div>`;
     // Étape Publier : une carte par réseau (formats, texte, compte), ou l'export du compte Paddock Live
     const vid = video();
     $('#go').hidden = app;
@@ -188,8 +212,9 @@ export function editor({ back, title, subtitle = '', head = '', vhead = '', note
       $('#expshare').onclick = () => $('#share').click();
       if ($('#expdl')) $('#expdl').onclick = () => $('#dl').click();
     }
-    const xOpen = async () => openX(xCanvases(d, await assets(d)), $('#cap-x').value, vid);
-    renderPublish($('#netsbox'), { c, edited, vid, lk, title: record?.()?.title, app, x: xOpen });
+    // part 'more' : la suite du fil (ses images et son texte), à poster en réponse au post
+    const xOpen = async (part) => { const x = xCanvases(d, await assets(d)); return part === 'more' ? openX(x.more, x.text) : openX(x.post, $('#cap-x').value, vid); };
+    renderPublish($('#netsbox'), { c, edited, vid, lk, title: record?.()?.title, app, x: xOpen, xmore: xParts(d).more.length });
     // Post jumeau à publier aussi : ses textes faits d'office (toutes ses images gardées)
     const ctx = { d, record: record?.(), vid, lk, o: () => assets(d),
       twin: () => (twin ? { data: twin.data(), record: twin.record(), texts: texts(twin.data(), new Set(), {}) } : null),
@@ -208,20 +233,39 @@ export function editor({ back, title, subtitle = '', head = '', vhead = '', note
     }
     const o = await assets(d);
     const all = $$('#main canvas');
-    // Images gardées : redessinées (sommaire, points, numéros) ; écartées : grisées, sans numéro
+    // Images gardées : redessinées (sommaire, points, numéros) ; écartées : grisées, sans numéro.
+    // Onglet X : numérotées sur tout le fil (post puis suite), choix Post / Suite / Non de chaque image
     const paint = () => {
-      const list = chosenSlides(slides, [...state.skip]);
-      canvases = all.filter((cv) => list.includes(cv.dataset.slide));
+      const xs = xTab && xSplit(slides, state.xs);
+      const list = xTab ? [...xs.post, ...xs.more] : chosenSlides(slides, [...state.skip]);
+      canvases = list.map((sl) => all.find((cv) => cv.dataset.slide === sl));
       for (const cv of all) {
         const on = list.includes(cv.dataset.slide);
         drawSlide(cv, cv.dataset.slide, state.fmt, d, { ...o, slides: list });
         cv.closest('.sl').classList.toggle('off', !on);
         cv.closest('.sl').querySelector('[data-num]').textContent = on ? `${list.indexOf(cv.dataset.slide) + 1}` : '–';
       }
+      if (!xTab) return;
+      for (const b of $$('#main [data-xp]')) b.classList.toggle('on', b.dataset.xp === (xs.post.includes(b.dataset.sl) ? 'post' : xs.more.includes(b.dataset.sl) ? 'more' : 'off'));
+      glide($('#main'));
+      showXMore(vid ? 0 : xs.more.length);
     };
     paint();
     // Image touchée : vue en grand (glisser pour passer à la suivante, vers le bas pour fermer)
     for (const cv of all) cv.onclick = () => openImageViewer(all.map((c) => ({ canvas: c, label: slideName(c.dataset.slide), off: !canvases.includes(c) })), all.indexOf(cv));
+    // Onglet X : 4 images au plus dans le post et dans la suite, une au moins dans le post
+    $$('#main [data-xp]').forEach((b) => {
+      b.onclick = () => {
+        const { post, more } = xSplit(slides, state.xs);
+        const sl = b.dataset.sl;
+        const next = { post: post.filter((s) => s !== sl), more: more.filter((s) => s !== sl) };
+        if (b.dataset.xp !== 'off') next[b.dataset.xp].push(sl);
+        const why = next.post.length > 4 ? '4 images au plus dans le post : passez-en une en « Suite »' : next.more.length > 4 ? '4 images au plus dans la suite' : !next.post.length ? 'Gardez au moins une image dans le post' : '';
+        if (why) { toast(why, 'bad'); return; }
+        state.xs = next;
+        paint();
+      };
+    });
     $$('#main [data-pick]').forEach((cb) => {
       cb.onchange = () => {
         if (cb.checked) state.skip.delete(cb.dataset.pick); else state.skip.add(cb.dataset.pick);
@@ -243,7 +287,7 @@ export function editor({ back, title, subtitle = '', head = '', vhead = '', note
       const rec = record?.() || {};
       const id = draftId || crypto.randomUUID();
       await api('drafts', { method: 'POST', body: JSON.stringify({ id, title: rec.title || title, kind: rec.kind || '', key: rec.key || '', at: Date.now(),
-        d: packDraftImages(data()), fmt: state.fmt, skip: [...state.skip], edited,
+        d: packDraftImages(data()), fmt: state.fmt, skip: [...state.skip], xs: state.xs, edited,
         opts: { follow: state.follow, question: state.question, photos: state.photos, noSpoiler: state.noSpoiler, linkComment: state.linkComment } }) });
       draftId = id;
       toast('Brouillon enregistré', 'ok');
@@ -251,6 +295,7 @@ export function editor({ back, title, subtitle = '', head = '', vhead = '', note
   };
   $$('[data-fmt]').forEach((b) => { b.onclick = () => { state.fmt = b.dataset.fmt; $$('[data-fmt]').forEach((x) => x.classList.toggle('on', x === b)); glide(); redraw(); }; });
   $('#photos').onchange = (e) => { state.photos = e.target.checked; redraw(); };
+  $('#tvstyle').onchange = (e) => { state.tv = e.target.checked; store.set('tvstyle', state.tv); redraw(); };
   // Question et abonnement : un seul appel par post
   $('#follow').onchange = (e) => { state.follow = e.target.checked; $('#question').disabled = state.follow; redraw(true); };
   $('#question').onchange = (e) => { state.question = e.target.checked; $('#follow').disabled = state.question; redraw(true); };
@@ -269,14 +314,13 @@ export function editor({ back, title, subtitle = '', head = '', vhead = '', note
         const slides = list.map((sl) => drawSlide(document.createElement('canvas'), sl, 'story', d, { ...o, slides: list }));
         clip = await makeVideo(slides, { ...track(), onProgress: (p) => { $('#vidst').textContent = `Enregistrement… ${Math.round(p * 100)} %`; } });
         $('#vid').src = URL.createObjectURL(clip.blob); $('#vid').hidden = false;
-        $('#sharevid').disabled = false; $('#sharefull').disabled = false;
+        $('#sharevid').disabled = false;
         slideClip = clipFile(clip, name);
         $('#vidst').textContent = `Vidéo prête : ${(clip.blob.size / 1e6).toFixed(1).replace('.', ',')} Mo${clip.silent ? ' · sans son : le navigateur a bloqué la musique, recommencez' : ''}${slideClip ? ' · jointe au post : Reel, vidéo, TikTok et Short à choisir à l\'étape Publier' : ' · format WebM : à partager seulement (publication en MP4)'}`;
         redraw();
       } catch (err) { $('#vidst').textContent = err.message; } finally { $('#mkvid').disabled = false; }
     };
     $('#sharevid').onclick = () => clip && shareClip(clip, name);
-    $('#sharefull').onclick = () => clip && shareClip(clip, name, true);
   }
   bind(redraw);
   glide();

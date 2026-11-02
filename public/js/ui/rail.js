@@ -1,16 +1,17 @@
 // Barre de navigation latérale (Accueil, Direct, Résultats, Saison, Replays, Radios,
 // Réglages). Elle reprend les actions des boutons du haut, masqués.
-import { $, $$, api } from '../util.js';
+import { $, $$, api, esc } from '../util.js';
 import { openSeason, closeSeason } from './season.js';
 import { openNews, closeNews } from './news.js';
 import { openHome, closeHome, homeTouched, startWindows } from './home.js';
 import { openReplays, closeReplays } from './replays.js';
 import { openResults, closeResults, isResultsOpen } from './results-view.js';
-import { unmaximize } from './layout.js';
+import { unmaximize, windowSetups, restoreWindowsSnapshot, openInWindow } from './layout.js';
 import { toast } from './delay.js';
 import { icon } from '../icons.js';
 import { prefs, setPref } from '../prefs.js';
 import { on, store } from '../store.js';
+import { t } from '../i18n.js';
 
 // Apparence : automatique (comme le système), sombre ou clair
 const SCHEMES = [
@@ -45,6 +46,57 @@ function schemeMenu(btn) {
   setTimeout(() => document.addEventListener('pointerdown', function off(e) { if (!menu.contains(e.target)) { menu.remove(); document.removeEventListener('pointerdown', off); } }), 0);
 }
 
+// Dispo. : les dispositions enregistrées, remises en un clic, puis les réglages de la disposition
+function layoutMenu(btn) {
+  const list = windowSetups();
+  document.querySelector('.lpop-menu')?.remove();
+  const menu = document.createElement('div');
+  menu.className = 'lpop-menu rail-menu';
+  // Fenêtres à ouvrir (Circuit, Analyse, Duel, Comparaison seule), puis dispositions enregistrées et réglages
+  const wins = [['map', 'Circuit'], ['analysis', 'Analyse'], ['duel', 'Duel'], ['compare', 'Comparaison']];
+  menu.innerHTML = `<div class="muted small">Ouvrir dans une fenêtre</div>${wins.map(([id, name]) => `<button data-open="${id}">${icon('external')} ${name}</button>`).join('')}
+    ${list.length ? `<div class="rail-sep"></div><div class="muted small">Dispositions enregistrées</div>${list.map((w, i) => `<button data-w="${i}">${icon('layout')} <span data-no-i18n>${esc(w.name)}</span></button>`).join('')}` : ''}<div class="rail-sep"></div><button data-w="set">${icon('sliders')} Réglages de la disposition</button>`;
+  const r = btn.getBoundingClientRect();
+  menu.style.left = `${r.right + 8}px`;
+  document.body.appendChild(menu);
+  menu.style.top = `${Math.max(8, Math.min(r.top - 20, innerHeight - menu.offsetHeight - 8))}px`;
+  menu.addEventListener('click', (e) => {
+    const o = e.target.closest('[data-open]')?.dataset.open;
+    if (o) { menu.remove(); openInWindow(o); return; }
+    const k = e.target.closest('[data-w]')?.dataset.w;
+    if (!k) return;
+    menu.remove();
+    if (k === 'set') openSettings('display'); else restoreWindowsSnapshot(list[Number(k)].name);
+  });
+  setTimeout(() => document.addEventListener('pointerdown', function off(e) { if (!menu.contains(e.target)) { menu.remove(); document.removeEventListener('pointerdown', off); } }), 0);
+}
+
+// Plus : les entrées moins utilisées, rangées dans un menu (leurs boutons restent dans la barre, cachés : chacun garde
+// sa logique, grisé sans séance, Résumé seulement quand il existe)
+const MORE = [['results', 'Résultats'], ['summary', 'Résumé'], ['radio', 'Commentaires'], ['mini', 'Mini-classement'], ['scheme', 'Apparence']];
+function moreMenu(btn) {
+  document.querySelector('.lpop-menu')?.remove();
+  const menu = document.createElement('div');
+  menu.className = 'lpop-menu rail-menu';
+  menu.innerHTML = MORE.map(([k, label]) => {
+    const b = $(`#rail [data-rail="${k}"]`);
+    if (!b || b.hidden) return '';
+    const on = b.classList.contains('on') || b.classList.contains('playing');
+    return `<button data-more="${k}" ${b.disabled ? 'disabled' : ''}>${b.querySelector('svg').outerHTML.replace('<svg', '<svg class="ic"')} ${esc(t(label))}${on ? icon('check', 'ic-on') : ''}</button>`;
+  }).join('');
+  const r = btn.getBoundingClientRect();
+  menu.style.left = `${r.right + 8}px`;
+  document.body.appendChild(menu);
+  menu.style.top = `${Math.max(8, Math.min(r.top - 20, innerHeight - menu.offsetHeight - 8))}px`;
+  menu.addEventListener('click', (e) => {
+    const k = e.target.closest('[data-more]')?.dataset.more;
+    if (!k) return;
+    menu.remove();
+    if (k === 'scheme') schemeMenu(btn); else $(`#rail [data-rail="${k}"]`).click();
+  });
+  setTimeout(() => document.addEventListener('pointerdown', function off(e) { if (!menu.contains(e.target)) { menu.remove(); document.removeEventListener('pointerdown', off); } }), 0);
+}
+
 function openSettings(group) {
   $('#settingsBtn').click();
   if (group) $(`#setNav [data-sgroup="${group}"]`)?.click();
@@ -70,7 +122,8 @@ const ACTIONS = {
     if ($('#replayView').hidden) openReplays(); else closeReplays();
   },
   radio: () => $('#commBtn').click(),
-  reset: () => openSettings('display'),   // Dispo. : réglages de la disposition (panneaux, onglets, colonnes, fenêtres)
+  more: (btn) => moreMenu(btn),
+  reset: (btn) => layoutMenu(btn),   // Dispo. : dispositions enregistrées, réglages de la disposition (panneaux, onglets, colonnes, fenêtres)
   scheme: (btn) => schemeMenu(btn),
   settings: () => openSettings(),
 };
@@ -89,7 +142,7 @@ function sync() {
   if (!page) startWindows();
   for (const b of $$('#rail [data-rail]')) {
     const k = b.dataset.rail;
-    b.classList.toggle('on', k === cur);
+    b.classList.toggle('on', k === cur || (k === 'more' && cur === 'results'));   // Résultats : rangé dans Plus
     if (k === 'radio') b.classList.toggle('playing', $('#commBtn').classList.contains('on'));
   }
 }
@@ -97,6 +150,8 @@ function sync() {
 export function initRail() {
   const rail = $('#rail');
   if (!rail) return;
+  // Libellé long une fois traduit (« Impostazioni », « Repeticiones ») : plus petit, comme « Commentaires »
+  for (const s of rail.querySelectorAll('.rail-btn small')) if (s.textContent.trim().length > 10) s.classList.add('rail-long');
   rail.addEventListener('click', (e) => {
     const b = e.target.closest('[data-rail]');
     if (!b) return;

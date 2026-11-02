@@ -13,9 +13,8 @@ import { cloudOn, cloudTranslate } from '../cloud.js';
 import { notifyNews } from './alerts.js';
 import { toast } from './delay.js';
 import { icon } from '../icons.js';
-import { LOCALE, EN } from '../i18n.js';
+import { LOCALE, LANG } from '../i18n.js';
 
-const LANG = EN ? 'en' : 'fr';   // langue cible des traductions = langue de l'interface
 const CAT_LABEL = { official: 'Officiel', team: 'Écurie', driver: 'Pilote', media: 'Média' };
 const LANG_LABEL = { en: 'Anglais', fr: 'Français', es: 'Espagnol', it: 'Italien', de: 'Allemand', nl: 'Néerlandais', pt: 'Portugais', ja: 'Japonais', zh: 'Chinois' };
 const TEAM_NAME = Object.fromEntries(NEWS_TEAMS.map(([k, name]) => [k, name]));

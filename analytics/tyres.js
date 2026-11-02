@@ -8,6 +8,7 @@ import { archiveText } from './race-stats.js';
 import { indexMeetings } from '../shared/race-stats.js';
 import { dryAllocation, builtinNomination } from '../shared/tyres.js';
 import { fold } from '../shared/news.js';
+import { sessionBest } from '../shared/circuit-records.js';
 
 const FEED = 'https://press.pirelli.com/feed/';
 const UA = 'Mozilla/5.0 (Paddock-Live web relay)';
@@ -151,18 +152,28 @@ export async function seasonIndex(year, token, fetchFn) {
 async function sessionStints(env, ses, token, fetchFn) {
   const k = `tyres:${ses.path}`;
   const kept = await readJSON(env, k, null);
-  if (kept) return kept;
+  if (kept && 'best' in kept) return kept;   // gardées avant le meilleur tour : relues une fois
   const read = (f) => archiveText(`${ses.path}${f}`, token, fetchFn).then(JSON.parse);
   const stints = (await read('TyreStintSeries.json').catch(() => null))?.Stints || {};
+  const [td, dl] = await Promise.all([read('TimingData.json').catch(() => null), read('DriverList.json').catch(() => ({}))]);
   let q3 = [];
   if (ses.type === 'Qualifying' && !/sprint/i.test(ses.name)) {
-    const td = await read('TimingData.json').catch(() => null);
     q3 = Object.entries(td?.Lines || {}).filter(([, l]) => !l.KnockedOut && Number(l.Position) >= 1 && Number(l.Position) <= 10).map(([n]) => n);
   }
-  const data = { name: ses.name, type: ses.type, stints, q3 };
+  const data = { name: ses.name, type: ses.type, stints, q3, best: sessionBest(td, dl) };
   // Archive définitive quelques heures après la séance : gardée dans la base
   if (Object.keys(stints).length && Date.parse(ses.start) < Date.now() - 6 * 3600 * 1000) await setRow(env, k, JSON.stringify(data));
   return data;
+}
+
+// Séances du Grand Prix déjà courues avant la séance affichée (sessions dans l'ordre du week-end, tests exclus)
+export const previousSessions = (sessions, path) => sessions.slice(0, Math.max(0, sessions.findIndex((s) => s.path === path))).filter((s) => !/test/i.test(s.name));
+
+// Meilleur du week-end (bandeau des records de l'Analyse) : le plus rapide des meilleurs tours de ces séances,
+// { time, tla, team, color, lap, session } ou null
+export function weekendBest(sessions) {
+  const s = sessions.filter((x) => x.best?.time > 0).sort((a, b) => a.best.time - b.best.time)[0];
+  return s ? { ...s.best, session: s.name } : null;
 }
 
 // Tout ce qu'il faut pour le panneau Pneus (même forme que /api/tyres des anciennes applis). until : instant affiché
@@ -183,9 +194,8 @@ export async function weekendTyres(env, sessionPath, until = Date.now(), hint = 
   }
   if (!meeting) throw new Error('Grand Prix introuvable dans les archives');
   const idx = meeting.sessions.findIndex((s) => s.path === sessionPath);
-  const before = meeting.sessions.slice(0, idx).filter((s) => !/test/i.test(s.name));
   const sessions = [];
-  for (const s of before) sessions.push(await sessionStints(env, s, token, fetchFn));
+  for (const s of previousSessions(meeting.sessions, sessionPath)) sessions.push(await sessionStints(env, s, token, fetchFn));
   const sprint = meeting.sessions.some((s) => /sprint/i.test(s.name)) || /sprint/i.test(hint.session || '');
   const start = Date.parse(meeting.sessions[0]?.start) || 0;
   const m = { name: meeting.name, location: meeting.location, country: meeting.country, start };
@@ -205,6 +215,7 @@ export async function weekendTyres(env, sessionPath, until = Date.now(), hint = 
     meeting: { name: meeting.name, location: meeting.location, country: meeting.country, sprint },
     current: meeting.sessions[idx]?.name,
     sessions,
+    best: weekendBest(sessions),
     allocation: dryAllocation(sprint),
     nominations: nominationFor(year, m, found),
     articles,

@@ -5,9 +5,9 @@ import { $, $$, esc, api, fmtDuration, drivers, orderedNumbers, storageGet, stor
 import { toast } from './delay.js';
 import { prefs, setPref, toggleFav, toggleTeamFav } from '../prefs.js';
 import { NEWS_TEAMS, fold } from '/shared/news.js';
-import { saveWindowsSnapshot, restoreWindowsSnapshot, hasWindowsSnapshot } from './layout.js';
+import { saveWindowsSnapshot, restoreWindowsSnapshot, windowSetups, deleteWindowSetup, setWindowSetupKind, migrateWindowSetups } from './layout.js';
 import { icon } from '../icons.js';
-import { LANG, LOCALE, EN, t } from '../i18n.js';
+import { LANG, LOCALE, t } from '../i18n.js';
 
 let dragging = false;
 
@@ -19,6 +19,8 @@ async function refreshAuth() {
     const a = await api('/api/auth');
     renderAuthPill(a);
     const el = $('#tokenStatus');
+    // « Se déconnecter » seulement quand une connexion est enregistrée
+    $('#tokenClearRow').hidden = !!window.f1desktop?.isDesktop || !a.hasToken;
     if (!a.hasToken) { el.innerHTML = '<span class="muted">Aucun jeton enregistré : positions estimées en live.</span>'; return; }
     const live = store.status?.source?.authenticated;
     const offer = a.product ? ` · offre « ${esc(a.product)} »${a.country ? ` (${esc(a.country)})` : ''}${/pro/i.test(a.product) ? '' : ' — commentaires en direct réservés à F1 TV Pro'}` : '';
@@ -221,10 +223,6 @@ export function initSettings() {
   $('#designSel').value = prefs.design;
   $('#designSel').addEventListener('change', (e) => setPref('design', e.target.value));
   on('prefs', (k) => { if (k === 'design') $('#designSel').value = prefs.design; });
-  const fullSel = $('#fullModeSel');
-  fullSel.value = prefs.fullMode ? '1' : '0';
-  fullSel.addEventListener('change', () => setPref('fullMode', fullSel.value === '1'));
-  on('prefs', (k) => { if (k === 'fullMode') fullSel.value = prefs.fullMode ? '1' : '0'; });
   $('#vividTeams').checked = prefs.vividTeams;
   $('#vividTeams').addEventListener('change', (e) => setPref('vividTeams', e.target.checked));
   on('prefs', (k) => { if (k === 'vividTeams') $('#vividTeams').checked = prefs.vividTeams; });
@@ -248,9 +246,33 @@ export function initSettings() {
   $('#keepAwake').addEventListener('change', (e) => setPref('keepAwake', e.target.checked));
   on('prefs', (k) => { if (k === 'keepAwake') $('#keepAwake').checked = prefs.keepAwake; });
   // Emplacement des fenêtres : enregistrer / revenir ; application de bureau : choix au lancement
-  $('#winSave').addEventListener('click', () => { saveWindowsSnapshot(); $('#winRestore').disabled = false; });
-  $('#winRestore').disabled = !hasWindowsSnapshot();
-  $('#winRestore').addEventListener('click', () => restoreWindowsSnapshot());
+  // Dispositions enregistrées : une pastille par disposition (clic : la remettre ; × : la supprimer ; type de séance :
+  // remise toute seule au début de ce type de séance, layout.js)
+  const SETUP_KINDS = [['', 'À la main'], ['quali', 'Qualifs'], ['race', 'Course'], ['practice', 'Essais']];
+  const renderSetups = () => {
+    $('#winSetups').innerHTML = windowSetups().map((w, i) => `<span class="chip win-setup"><button type="button" data-setup="${i}" title="Remettre cette disposition">${icon('layout')}<span data-no-i18n>${esc(w.name)}</span></button><select data-setup-kind="${i}" title="Remise toute seule au début de ce type de séance" aria-label="Type de séance">${SETUP_KINDS.map(([k, l]) => `<option value="${k}"${(w.kind || '') === k ? ' selected' : ''}>${l}</option>`).join('')}</select><button type="button" data-setup-del="${i}" title="Supprimer cette disposition" aria-label="Supprimer">✕</button></span>`).join('');
+  };
+  migrateWindowSetups().then(renderSetups);
+  const saveSetup = async () => {
+    const name = $('#winName').value.trim() || `${t('Disposition')} ${windowSetups().length + 1}`;
+    await saveWindowsSnapshot(name);
+    $('#winName').value = '';
+    renderSetups();
+  };
+  $('#winSave').addEventListener('click', saveSetup);
+  $('#winName').addEventListener('keydown', (e) => { if (e.key === 'Enter') saveSetup(); });
+  $('#winSetups').addEventListener('change', (e) => {
+    const sel = e.target.closest('[data-setup-kind]');
+    if (!sel) return;
+    setWindowSetupKind(windowSetups()[Number(sel.dataset.setupKind)]?.name, sel.value);
+    renderSetups();
+  });
+  $('#winSetups').addEventListener('click', (e) => {
+    const use = e.target.closest('[data-setup]'), del = e.target.closest('[data-setup-del]');
+    const list = windowSetups();
+    if (use) restoreWindowsSnapshot(list[Number(use.dataset.setup)]?.name);
+    if (del) { deleteWindowSetup(list[Number(del.dataset.setupDel)]?.name); renderSetups(); }
+  });
   if (window.f1desktop?.getWindowsStart) {
     $('#winStartRow').hidden = false;
     window.f1desktop.getWindowsStart().then((v) => { $('#winStart').value = v; });
@@ -290,9 +312,6 @@ export function initSettings() {
       toast('Session F1 TV oubliée');
       refreshAuth();
     });
-  } else {
-    // Navigateur : connexion par l'extension, bouton pour l'oublier
-    $('#tokenClearRow').hidden = false;
   }
 
   $('#tokenClear').addEventListener('click', async () => {

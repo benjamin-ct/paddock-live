@@ -21,6 +21,7 @@ on:
       - 'public/**'
       - 'scripts/build-studio.mjs'
       - 'docs/obs/*.json'
+      - 'scripts/seance-en-cours.mjs'
       - '.github/workflows/stats.yml'
 
 concurrency: stats-deploy
@@ -43,8 +44,11 @@ jobs:
         run: |
           if ! git merge-base --is-ancestor origin/develop HEAD; then echo "::notice::Studio non déployé : cette branche n'a pas toutes les modifications de develop"
           # Séance en cours suivie sur la version web : un déploiement couperait tous ses spectateurs. Remis à
-          # plus tard (lancement à la main : onglet Actions → « Statistiques » → Run workflow)
-          elif [ "${{ github.event_name }}" = push ] && curl -s --max-time 10 https://app.paddocklive.app/live/api/session | grep -q '"status":"Started".*"live":true'; then
+          # plus tard (lancement à la main : onglet Actions → « Statistiques » → Run workflow). Le calendrier
+          # d'abord : /live/api/session n'a pas répondu depuis les machines de GitHub pendant l'EL2 de Mexico
+          elif [ "${{ github.event_name }}" = push ] && seance=$(node scripts/seance-en-cours.mjs); then
+            echo "::notice::Séance en cours ($seance) : déploiement remis, à relancer à la main après la séance"
+          elif [ "${{ github.event_name }}" = push ] && { live=$(curl -s --max-time 10 -w '\nHTTP %{http_code}' https://app.paddocklive.app/live/api/session); echo "$live" | tail -n 1; echo "$live" | grep -q '"status":"Started".*"live":true'; }; then
             echo "::notice::Séance en cours sur la version web : déploiement remis, à relancer à la main après la séance"
           else echo ok=1 >> "$GITHUB_OUTPUT"; fi
 

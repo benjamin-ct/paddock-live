@@ -34,7 +34,7 @@ export function cleanFeedback(b) {
   if (text.length < 5) return null;
   return {
     kind: b.kind, text, contact: line(b.contact, 120),
-    src: b.src === 'app' ? 'app' : 'site', version: line(b.version, 24), os: line(b.os, 12), lang: b.lang === 'en' ? 'en' : 'fr',
+    src: b.src === 'app' ? 'app' : 'site', version: line(b.version, 24), os: line(b.os, 12), lang: ['en', 'it', 'es'].includes(b.lang) ? b.lang : 'fr',
     files: Math.max(0, Math.min(MAX_FILES, Math.floor(Number(b.files) || 0))),
   };
 }

@@ -183,6 +183,9 @@ export function driverRatings(data, stats) {
 export const CIRCUIT_FEATURES = [
   ['length', 'longueur'], ['corners', 'virages'], ['avgSpeed', 'vitesse moyenne'], ['topSpeed', 'vitesse de pointe'],
   ['passes', 'dépassements'], ['stopsPerCar', 'arrêts'], ['hard', 'pneus'],
+  // ADN Pirelli (shared/circuit-dna.js), quand le circuit en a un
+  ['traction', 'traction'], ['asphaltGrip', 'adhérence'], ['asphaltAbrasion', 'abrasion'], ['trackEvolution', 'évolution de la piste'],
+  ['tyreStress', 'contrainte sur les pneus'], ['braking', 'freinage'], ['lateral', 'appui latéral'],
 ];
 export function similarCircuits(items, n = 3) {
   const stat = {};
@@ -267,6 +270,101 @@ export function titleRace(data, year) {
 }
 
 // Points d'une place à l'arrivée d'une course (barème depuis 2010, sans le point du meilleur tour)
+// Classements après les « round » premières manches (Saison → Comparer deux saisons) : points des courses et des sprints,
+// victoires ; pilotes repérés par leur code, écuries par leur identifiant ; à égalité de points, le plus de victoires
+export function standingsAfter(data, round) {
+  const races = (data?.races || []).filter((r) => r.round <= round && r.results?.length);
+  const tally = (keyOf, info) => {
+    const m = new Map();
+    for (const r of races) {
+      for (const x of [...r.results, ...(r.sprintResults || [])]) {
+        const k = keyOf(x);
+        if (!m.has(k)) m.set(k, { key: k, ...info(x), points: 0, wins: 0 });
+        m.get(k).points += x.points || 0;
+      }
+      if (r.results[0]?.pos === 1) m.get(keyOf(r.results[0])).wins++;
+    }
+    return [...m.values()].sort((a, b) => b.points - a.points || b.wins - a.wins).map((e, i) => ({ ...e, pos: i + 1 }));
+  };
+  return {
+    races: races.length,
+    drivers: tally((x) => x.code, (x) => ({ code: x.code, name: x.name, last: x.last, team: x.team, teamId: x.teamId })),
+    constructors: tally((x) => x.teamId, (x) => ({ name: x.team, id: x.teamId })),
+  };
+}
+
+// Nom court d'une écurie, le même dans toute la Saison : Jolpica dit « RB F1 Team », « Alpine F1 Team », la F1 et la FIA
+// « Racing Bulls », « Red Bull Racing », « Haas F1 Team »
+export const teamShort = (name) => (typeof name !== 'string' ? name
+  : /^(rb f1 team|visa cash app rb)/i.test(name) ? 'Racing Bulls' : name === 'Red Bull Racing' ? 'Red Bull' : name.replace(/ F1 Team$/, ''));
+// Tous les noms d'écuries d'une réponse du serveur (champs « team », et « name » des constructeurs), raccourcis sur place
+export function shortTeams(v) {
+  if (Array.isArray(v)) v.forEach(shortTeams);
+  else if (v && typeof v === 'object') {
+    for (const [k, x] of Object.entries(v)) {
+      if (k === 'team') v[k] = teamShort(x);
+      else if (k === 'constructors' && Array.isArray(x)) x.forEach((c) => { c.name = teamShort(c.name); });
+      else if (x && typeof x === 'object') shortTeams(x);
+    }
+  }
+  return v;
+}
+
+// Même écurie sous un autre nom d'une saison à l'autre (identifiants Jolpica) : Sauber (Alfa Romeo, Audi), Racing Bulls
+// (Toro Rosso, AlphaTauri), Aston Martin (Force India, Racing Point), Alpine (Renault)
+const LINEAGE = { alfa: 'sauber', audi: 'sauber', toro_rosso: 'rb', alphatauri: 'rb', force_india: 'aston_martin', racing_point: 'aston_martin', renault: 'alpine' };
+export const lineage = (id) => LINEAGE[id] || id;
+
+// Points cumulés d'un pilote (code) ou d'une écurie (identifiant, même lignée) après chaque manche jusqu'à « round » :
+// [{ x: manche, y: points, pos, gp }] (pos : arrivée en course, gp : nom du Grand Prix)
+export function pointsPath(data, kind, key, round) {
+  const races = [...(data?.races || [])].filter((r) => r.round <= round && r.results?.length).sort((a, b) => a.round - b.round);
+  const mine = (x) => (kind === 'd' ? x.code === key : lineage(x.teamId) === lineage(key));
+  let y = 0;
+  return races.map((r) => {
+    for (const x of [...r.results, ...(r.sprintResults || [])]) if (mine(x)) y += x.points || 0;
+    const res = r.results.find(mine);
+    return { x: r.round, y, pos: res ? res.posText || res.pos : null, gp: r.name };
+  });
+}
+
+// Écart de chaque écurie à la pole, Grand Prix par Grand Prix : son meilleur tour des qualifs (Q1, Q2 ou Q3) face au
+// meilleur tour de tous, en % et en secondes. Manche sans temps de qualif : ignorée
+export function teamPoleGaps(races) {
+  const best = (x) => Math.min(...(x.q || []).filter(Number.isFinite));
+  const teams = new Map();
+  for (const r of races) {
+    const times = r.quali.map((x) => ({ x, t: best(x) })).filter((e) => Number.isFinite(e.t));
+    if (!times.length) continue;
+    const pole = Math.min(...times.map((e) => e.t));
+    const byTeam = new Map();
+    for (const { x, t } of times) if (!byTeam.has(x.teamId) || t < byTeam.get(x.teamId).t) byTeam.set(x.teamId, { x, t });
+    for (const [id, { x, t }] of byTeam) {
+      if (!teams.has(id)) teams.set(id, { teamId: id, team: x.team, points: [] });
+      teams.get(id).points.push({ round: r.round, s: t - pole, pct: ((t - pole) / pole) * 100 });
+    }
+  }
+  return [...teams.values()];
+}
+
+// Kilomètres parcourus par écurie en course et en sprint : tours bouclés × longueur du circuit (length(round) : km ou
+// null, manche alors ignorée)
+export function teamMileage(races, length) {
+  const m = new Map();
+  for (const r of races) {
+    const km = length(r.round);
+    if (!km) continue;
+    for (const x of [...r.results, ...(r.sprintResults || [])]) {
+      if (!x.laps) continue;
+      const t = m.get(x.teamId) || { teamId: x.teamId, team: x.team, laps: 0, km: 0 };
+      t.laps += x.laps;
+      t.km += x.laps * km;
+      m.set(x.teamId, t);
+    }
+  }
+  return [...m.values()].sort((a, b) => b.km - a.km);
+}
+
 export const RACE_POINTS = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
 // Meilleure place qui rapporte au plus « pts » points (11 = hors des points)
 export function placeForMaxPoints(pts) {

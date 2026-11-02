@@ -2,7 +2,7 @@
 // rythme), vitesses de pointe, arrêts aux stands, relais de pneus et profil du circuit. Fonctions pures, communes à
 // l'appli (server/race-stats.js) et au serveur de la version web (analytics/race-stats.js).
 import { createDerived, applyEvent } from './derive.js';
-import { parseLapTime } from './f1.js';
+import { parseLapTime, sessionStartUtc } from './f1.js';
 import { realStints } from './pits.js';
 
 export const STATS_VERSION = 3;   // 3 : relais sans changement de pneus fusionnés (arrêts réels)
@@ -150,14 +150,16 @@ export function parseStream(text, topic) {
 }
 
 // Index des archives d'une année (Index.json) : Grands Prix et séances publiées
-export function indexMeetings(raw) {
+// Séances pas encore commencées laissées de côté : la F1 met parfois dans l'index une séance à venir dont elle a
+// testé le flux la veille (répétition de la course, voitures de la FIA FM1, SC1…), pas un vrai replay
+export function indexMeetings(raw, now = Date.now()) {
   return (raw?.Meetings || []).map((m) => ({
     key: m.Key,
     name: m.Name,
     location: m.Location,
     country: m.Country?.Name,
     circuitKey: m.Circuit?.Key,
-    sessions: (m.Sessions || []).filter((s) => s.Path).map((s) => ({
+    sessions: (m.Sessions || []).filter((s) => s.Path && !(sessionStartUtc(s) > now)).map((s) => ({
       key: s.Key,
       name: s.Name,
       type: s.Type,

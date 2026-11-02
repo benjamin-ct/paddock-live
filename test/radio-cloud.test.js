@@ -2,11 +2,12 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import worker from '../analytics/worker.js';
-import { transcribeRadio, isAudio, ASR_MODEL, ASR_FALLBACK } from '../analytics/transcribe.js';
+import { transcribeRadio, isAudio, ASR_MODEL, ASR_FALLBACK, ASR_PROMPT } from '../analytics/transcribe.js';
 import { createCloudTranscriber } from '../server/cloud-transcribe.js';
 
 // Faux MP3 (en-tête ID3) de la taille voulue
 const mp3 = (n = 2000, fill = 7) => { const b = new Uint8Array(n).fill(fill); b.set([0x49, 0x44, 0x33]); return b; };
+const echoAudio = Buffer.from(mp3(2000, 99)).toString('base64');
 const sha = (b) => crypto.createHash('sha256').update(b).digest('hex');
 
 // Base D1 et Workers AI simulés
@@ -38,6 +39,8 @@ function fakeEnv({ limit = 100, failTurbo = false } = {}) {
             if (failTurbo) throw new Error('indisponible');
             assert.equal(typeof input.audio, 'string');   // son envoyé en base64
             assert.equal(input.language, 'en');
+            assert.match(input.initial_prompt, /Stewards.*Leclerc/);   // jargon et noms des pilotes donnés à Whisper
+            if (input.audio === echoAudio) return { text: ASR_PROMPT.split('. ').slice(-1)[0], transcription_info: { duration: 3 } };
             return { text: ' Box, box. (static) ', transcription_info: { duration: 4.26 } };
           }
           assert.equal(model, ASR_FALLBACK);
@@ -171,4 +174,10 @@ test('caméras embarquées : fenêtre WAV retranscrite par le serveur avec l\'he
   assert.deepEqual(await transcribeWindow(env, wav(), '2026-10-30'), { segments: [{ timestamp: [1.2, 2.5], text: ' Box box.' }, { timestamp: [4, 4.8], text: ' Copy.' }] });
   assert.deepEqual(await transcribeWindow(env, wav(), '2026-10-30'), { limited: true });
   assert.deepEqual(await transcribeWindow(env, mp3(), '2026-10-30'), { invalid: true });
+});
+
+test('transcription partagée : le contexte recopié par Whisper sur un son sans parole n\'est pas gardé', async () => {
+  const { env } = fakeEnv();
+  assert.equal((await transcribeRadio(env, mp3(2000, 99), '2026-11-01')).text, '');
+  assert.equal((await transcribeRadio(env, mp3(2000, 98), '2026-11-01')).text, 'Box, box.', 'une vraie radio courte reste');
 });

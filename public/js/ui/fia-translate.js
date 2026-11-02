@@ -4,7 +4,7 @@
 import { api } from '../util.js';
 import { store, on } from '../store.js';
 import { translateText, transcribeStatus } from './transcribe.js';
-import { EN } from '../i18n.js';
+import { FR } from '../i18n.js';
 
 const LANG = 'fr';
 let cache = null;            // anglais -> { t, q }
@@ -30,7 +30,7 @@ export function onTranslation(fn) {
 }
 
 export function translated(en) {
-  if (EN) return null;
+  if (!FR) return null;
   return (en && cache?.[en]?.t) || null;
 }
 
@@ -51,7 +51,7 @@ function save(item) {
 
 // Textes à afficher : ceux qui manquent sont traduits (ordinateur) ou relus plus tard (téléphone)
 export async function requestTranslations(texts) {
-  if (EN) return;                 // interface en anglais : textes FIA laissés tels quels
+  if (!FR) return;                // interface dans une autre langue : textes FIA laissés en anglais
   await load();
   notify(null);                   // traductions gardées, arrivées après l'affichage : mises en place
   const missing = [...new Set(texts.filter((t) => t && !cache[t] && !queued.has(t)))];

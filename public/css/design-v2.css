@@ -1,0 +1,551 @@
+/* =====================================================================================
+   Design « Paddock 2 » (par défaut depuis la v1.30) : posé par-dessus le thème Pitwall et l'habillage Broadcast,
+   seulement quand <html data-design="v2"> (Réglages → Apparence → Design). Rien ne change sinon.
+   Même ADN (bleu nuit, rouge F1, Titillium Web et Saira Condensed), en plus riche :
+   fond bleu nuit éclairé de lueurs, panneaux en verre dépoli à grands coins arrondis et filet fin,
+   titres et chiffres condensés en italique, lueurs aux couleurs des écuries (--tc) derrière les
+   portraits et les logos, barre du bas flottante en verre sur téléphone.
+   ===================================================================================== */
+:root[data-design="v2"] {
+  --v2-bg: #030814;
+  --v2-glass: rgba(16, 26, 48, .62);
+  --v2-glass-2: rgba(22, 34, 60, .7);
+  --v2-glass-hi: rgba(255, 255, 255, .06);
+  --v2-rim: rgba(148, 163, 184, .14);
+  --v2-rim-2: rgba(148, 163, 184, .24);
+  --v2-blur: blur(22px) saturate(1.5);
+  --v2-shadow: 0 24px 60px -24px rgba(0, 0, 0, .75), 0 2px 0 rgba(255, 255, 255, .025) inset;
+  --v2-red: linear-gradient(135deg, #ff2a1f, #c80500);
+  --v2-red-glow: 0 8px 24px -6px rgba(225, 6, 0, .6);
+  --v2-r: 20px;
+  --v2-r-s: 12px;
+  --v2-ambient:
+    radial-gradient(900px 520px at 12% -8%, rgba(37, 99, 235, .22), transparent 70%),
+    radial-gradient(760px 480px at 100% 0%, rgba(225, 6, 0, .14), transparent 70%),
+    radial-gradient(900px 700px at 60% 110%, rgba(0, 215, 182, .07), transparent 70%),
+    linear-gradient(180deg, #050C1D, #030814 60%);
+  --bg: #030814; --panel: #0B1427; --panel-2: #111D35; --panel-3: #1A2A4A;
+  --border: rgba(148, 163, 184, .14); --line: rgba(148, 163, 184, .08); --line-2: rgba(148, 163, 184, .22);
+  --hover: rgba(148, 163, 184, .07); --focus: rgba(59, 130, 246, .12);
+  --text: #F8FAFC; --text-2: #CBD5E1; --muted: #94A3B8;
+  --radius: 20px;
+  --rail-w: 76px;
+}
+:root[data-design="v2"][data-scheme="light"] {
+  --v2-bg: #EEF2F8;
+  --v2-glass: rgba(255, 255, 255, .72);
+  --v2-glass-2: rgba(255, 255, 255, .86);
+  --v2-glass-hi: rgba(255, 255, 255, .8);
+  --v2-rim: rgba(15, 23, 42, .08);
+  --v2-rim-2: rgba(15, 23, 42, .14);
+  --v2-shadow: 0 18px 40px -22px rgba(15, 23, 42, .28);
+  --v2-ambient:
+    radial-gradient(900px 520px at 10% -10%, rgba(59, 130, 246, .16), transparent 70%),
+    radial-gradient(760px 480px at 100% 0%, rgba(225, 6, 0, .09), transparent 70%),
+    linear-gradient(180deg, #F4F7FC, #E9EEF6);
+  --bg: #EEF2F8; --panel: #FFFFFF; --panel-2: #F4F6FA; --panel-3: #E8ECF3;
+  --border: rgba(15, 23, 42, .08); --line: rgba(15, 23, 42, .06); --line-2: rgba(15, 23, 42, .14);
+  --hover: rgba(15, 23, 42, .04);
+  --text: #0B1220; --text-2: #3D4A60; --muted: #5B677C;
+}
+
+/* ---------- Fond : bleu nuit éclairé, partout (direct, espaces Saison / Accueil / Actu) ---------- */
+:root[data-design="v2"] body, :root[data-design="v2"] .season-view { background: var(--v2-ambient); background-color: var(--v2-bg); background-attachment: fixed; }
+:root[data-design="v2"] body::before { content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none; opacity: .5;
+  background-image: linear-gradient(rgba(148, 163, 184, .045) 1px, transparent 1px), linear-gradient(90deg, rgba(148, 163, 184, .045) 1px, transparent 1px);
+  background-size: 44px 44px; -webkit-mask-image: radial-gradient(ellipse at 50% 0%, #000 10%, transparent 70%); mask-image: radial-gradient(ellipse at 50% 0%, #000 10%, transparent 70%); }
+:root[data-design="v2"][data-scheme="light"] body::before { opacity: .8; }
+
+/* ---------- Verre : panneaux, cartes ---------- */
+:root[data-design="v2"] :is(.panel, .sz-card, .sz-box, .hm-card, .hm-go button, .cal-day, .rc-bar, .ty-card, .pit-card, .gauge, .cmp-sector) {
+  background: linear-gradient(180deg, var(--v2-glass-2), var(--v2-glass)) !important; border: 1px solid var(--v2-rim) !important;
+  -webkit-backdrop-filter: var(--v2-blur); backdrop-filter: var(--v2-blur); box-shadow: var(--v2-shadow), inset 0 1px 0 var(--v2-glass-hi);
+}
+:root[data-design="v2"] .panel { border-radius: var(--v2-r) !important; }
+/* Menu ouvert dans un panneau (calques de la carte, colonnes…) : sans flou pendant qu'il est ouvert. Un panneau flouté
+   devient le repère des menus « fixés » du téléphone, qui se calaient sur lui et dépassaient en haut de l'écran */
+:root[data-design="v2"] .panel:has(details[open]) { -webkit-backdrop-filter: none; backdrop-filter: none; }
+:root[data-design="v2"] :is(.sz-card, .sz-box, .hm-card) { border-radius: var(--v2-r) !important; }
+:root[data-design="v2"] :is(.ty-card, .pit-card, .gauge, .cmp-sector) { border-radius: 14px !important; box-shadow: inset 0 1px 0 var(--v2-glass-hi); }
+
+/* Titres de panneau : texte condensé italique, trait rouge incliné devant (plus d'étiquette rouge pleine) */
+:root[data-design="v2"] .panel-head { background: linear-gradient(180deg, rgba(255, 255, 255, .035), transparent); border-bottom: 1px solid var(--v2-rim); padding-top: 5px; padding-bottom: 5px; padding-left: 14px; min-height: 42px; }
+:root[data-design="v2"] .panel-head h2, :root[data-design="v2"] .rc-tag {
+  display: inline-flex; align-items: center; gap: 10px; height: auto; padding: 0; background: none; color: var(--text);
+  font: italic 800 16px/1 var(--font-cond); letter-spacing: .04em; text-transform: uppercase; }
+:root[data-design="v2"] :is(.panel-head h2, .rc-tag)::before { content: ''; width: 5px; height: 16px; border-radius: 2px; background: var(--v2-red); transform: skewX(-18deg); box-shadow: 0 0 12px rgba(255, 42, 31, .7); flex: none; }
+/* Onglets : contrôle segmenté en verre, onglet choisi en pilule rouge lumineuse */
+:root[data-design="v2"] :is(.panel-head .tabs [data-tab], .panel-head.tabs > .tab) {
+  font: italic 800 13px/1 var(--font-cond); letter-spacing: .02em; height: 28px; padding: 0 8px; border-radius: 999px; color: var(--muted);
+  display: inline-flex; align-items: center; justify-content: center; }   /* texte toujours au même endroit, pastille ou non */
+:root[data-design="v2"] :is(.panel-head .tabs [data-tab], .panel-head.tabs > .tab):is([hidden], .sess-off) { display: none; }
+:root[data-design="v2"] :is(.tabs [data-tab], .panel-head.tabs > .tab):hover { color: var(--text); background: var(--hover); }
+:root[data-design="v2"] :is(.tabs [data-tab], .panel-head.tabs > .tab, .tab).active { background: var(--v2-red) !important; color: #fff !important; box-shadow: var(--v2-red-glow); }
+:root[data-design="v2"] .panel-head.tabs.many > .tab { padding: 0 6px; font-size: 12px; letter-spacing: 0; }
+:root[data-design="v2"] .tab-seg { border-radius: 999px; padding: 3px; background: rgba(2, 6, 18, .45); border-color: var(--v2-rim); }
+:root[data-design="v2"][data-scheme="light"] .tab-seg { background: rgba(15, 23, 42, .05); }
+:root[data-design="v2"] .tab-seg button { border-radius: 999px; padding: 5px 13px; }
+:root[data-design="v2"] .tab-seg button.on { background: rgba(255, 255, 255, .12); color: var(--text); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .1); }
+:root[data-design="v2"][data-scheme="light"] .tab-seg button.on { background: #fff; box-shadow: 0 1px 3px rgba(15, 23, 42, .15); }
+/* Boutons : pilules, rouge en dégradé lumineux */
+:root[data-design="v2"] .btn { border-radius: 999px; border-color: var(--v2-rim-2); background: rgba(255, 255, 255, .05); }
+:root[data-design="v2"][data-scheme="light"] .btn { background: rgba(255, 255, 255, .7); }
+:root[data-design="v2"] .btn:hover { background: rgba(255, 255, 255, .1); }
+:root[data-design="v2"] .btn-accent, :root[data-design="v2"] .hm-actions .btn-accent { background: var(--v2-red) !important; border-color: transparent !important; color: #fff !important; box-shadow: var(--v2-red-glow); }
+:root[data-design="v2"] :is(select, .csel-btn) { border-radius: 999px; }
+:root[data-design="v2"] :is(.lpop-menu, .csel-pop, .map-layers-menu, .tb-pop, .modal) { border-radius: 16px; border-color: var(--v2-rim-2); background: rgba(12, 20, 38, .9); -webkit-backdrop-filter: var(--v2-blur); backdrop-filter: var(--v2-blur); box-shadow: 0 30px 70px -20px rgba(0, 0, 0, .8); }
+:root[data-design="v2"][data-scheme="light"] :is(.lpop-menu, .csel-pop, .map-layers-menu, .tb-pop, .modal) { background: rgba(255, 255, 255, .92); }
+
+/* ---------- Barre latérale : verre, onglet choisi en pastille rouge lumineuse ---------- */
+@media (min-width: 901px) {
+  :root[data-design="v2"] body:not(.solo) .rail { width: var(--rail-w); gap: 4px; padding: 14px 0; background: rgba(5, 11, 26, .55) !important; border-right: 1px solid var(--v2-rim) !important;
+    -webkit-backdrop-filter: var(--v2-blur); backdrop-filter: var(--v2-blur); }
+  :root[data-design="v2"] .grid { padding: 12px; gap: 12px; }
+  /* Disposition personnalisée : l'espace vient des poignées de redimensionnement (12 px) ; l'écart de la grille s'y
+     ajoutait de chaque côté (36 px entre deux colonnes) */
+  :root[data-design="v2"] .grid.custom { gap: 0; }
+}
+:root[data-design="v2"] .rail-logo { width: 44px; height: 44px; margin-bottom: 14px; border-radius: 12px; filter: drop-shadow(0 6px 18px rgba(225, 6, 0, .55)); }
+:root[data-design="v2"] .rail-btn { width: 60px; height: 54px; border-radius: 16px; color: #8392AB; }
+:root[data-design="v2"] .rail-btn svg { width: 22px; height: 22px; margin-top: -12px; transition: transform .2s; }
+:root[data-design="v2"] .rail-btn small { bottom: 5px; font: 700 9.5px/1 var(--font); letter-spacing: .05em; }
+:root[data-design="v2"] .rail-btn small.rail-long { font-size: 8px; letter-spacing: 0; }
+:root[data-design="v2"] .rail-btn:hover { background: rgba(255, 255, 255, .06); color: #fff; }
+:root[data-design="v2"] .rail-btn.on { color: #fff; background: linear-gradient(180deg, rgba(225, 6, 0, .28), rgba(225, 6, 0, .1)) !important; box-shadow: inset 0 0 0 1px rgba(255, 59, 48, .45), 0 10px 26px -10px rgba(225, 6, 0, .7); }
+:root[data-design="v2"] .rail-btn.on svg { stroke: #ff5a50; filter: drop-shadow(0 0 6px rgba(255, 59, 48, .8)); }
+:root[data-design="v2"] .rail-btn.on::before { display: none; }
+:root[data-design="v2"] .rail-div { background: var(--v2-rim); width: 36px; }
+
+/* ---------- Barre du haut : verre sombre, chiffres condensés italiques, avancement lumineux ---------- */
+:root[data-design="v2"] :is(.topbar, .replaybar) { --panel: #0E1830; --panel-2: #132140; --panel-3: #1C2D52; --border: rgba(148, 163, 184, .16); --line-2: rgba(148, 163, 184, .26); }
+/* position faible (:where) : la barre fixée ou collée de la version web et des écrans peu hauts garde la sienne */
+:where(:root[data-design="v2"]) .topbar { position: relative; z-index: 5; }
+:root[data-design="v2"] .topbar { background: linear-gradient(180deg, rgba(10, 18, 38, .88), rgba(6, 12, 28, .72)) !important; border-bottom: 1px solid var(--v2-rim) !important;
+  -webkit-backdrop-filter: var(--v2-blur); backdrop-filter: var(--v2-blur); }
+:root[data-design="v2"] .topbar::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 1px; pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(255, 42, 31, .9) 18%, rgba(96, 165, 250, .7) 55%, rgba(0, 215, 182, .6) 80%, transparent); opacity: .7; }
+@media (min-width: 901px) { :root[data-design="v2"] .topbar { min-height: 64px; padding: 6px 20px; } }
+:root[data-design="v2"] .topbar .session-name { font: italic 800 20px/1.05 var(--font-cond); letter-spacing: .02em; }
+:root[data-design="v2"] .topbar .session-flag { border-radius: 6px; box-shadow: 0 4px 14px rgba(0, 0, 0, .5); }
+:root[data-design="v2"] .topbar .hstat-label { font: 700 10px/1 var(--font); letter-spacing: .14em; color: #8EA0BC; }
+:root[data-design="v2"] .topbar .hstat-value { font: italic 800 26px/1 var(--font-cond); letter-spacing: .01em; }
+:root[data-design="v2"] .topbar #clockValue { font-size: 32px; background: linear-gradient(180deg, #fff 30%, #A8B8D8); -webkit-background-clip: text; background-clip: text; color: transparent; }
+/* Chiffres à largeur fixe : les raccourcis « font: » remettaient les chiffres proportionnels, le compte à rebours changeait
+   de largeur à chaque seconde et poussait l'heure du circuit */
+:root[data-design="v2"] :is(.topbar .hstat-value, .sz-countdown b, .sz-big, .hm-count, .pit-big, .gauge-val, .battle-gap) { font-variant-numeric: tabular-nums !important; }
+/* Saira Condensed n'a pas de chiffres à largeur fixe : largeur réservée pour « 00:00:00 », l'heure du circuit ne bouge plus */
+:root[data-design="v2"] .topbar #clockValue { display: inline-block; min-width: 3.9em; box-sizing: border-box; }
+/* Chiffres en italique : ils débordent de leur boîte à droite et en haut, et le dégradé (posé dans la boîte) les coupait */
+:root[data-design="v2"] .topbar #clockValue { padding: .08em .16em .04em 0; margin: -.08em 0 -.04em 0; }
+:root[data-design="v2"] .topbar .lap-box { border-radius: 14px; background: linear-gradient(180deg, rgba(255, 255, 255, .09), rgba(255, 255, 255, .03)); border: 1px solid var(--v2-rim-2); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08); }
+:root[data-design="v2"] .topbar .lap-box .hstat-value { font-size: 26px; }
+:root[data-design="v2"] .topbar .lap-box .lap-bar:not([hidden]) { height: 4px; border-radius: 2px; }
+:root[data-design="v2"] .topbar .lap-box .lap-bar i { background: var(--v2-red); box-shadow: 0 0 10px rgba(255, 42, 31, .9); border-radius: 2px; }
+:root[data-design="v2"] .track-status { border-radius: 999px !important; }
+/* Verre seulement pour le drapeau vert et « À venir » : jaune, voiture de sécurité, rouge et arrivée gardent leur couleur
+   (l'arrivée, texte sombre sur verre sombre, ne se voyait plus) */
+:root[data-design="v2"] .track-status:not(.yellow):not(.sc):not(.vsc):not(.red):not(.chequered) { background: rgba(255, 255, 255, .05) !important; border-color: var(--v2-rim-2) !important; }
+:root[data-design="v2"] .track-status .ts-dot { box-shadow: 0 0 10px currentColor; }
+:root[data-design="v2"] .topbar .surface .hstat-value { border-radius: 8px; margin-top: 5px; padding: 3px 10px 2px; font-size: 20px !important; line-height: 1.1 !important; }   /* un peu d'air sous « État piste » */
+:root[data-design="v2"] .topbar .hstat.surface { margin-left: 8px; }   /* « État piste » détaché de « Heure circuit » */
+:root[data-design="v2"] .delay-controls { border-radius: 999px; overflow: hidden; }
+/* Le menu ±0,1 / ±1 / ±5 s se place sous tout le bloc du délai : dans le contour arrondi, il était coupé (invisible) */
+:root[data-design="v2"] .delay { position: relative; }
+:root[data-design="v2"] .delay-controls { position: static; }
+:root[data-design="v2"] .delay #syncBtn { border-radius: 999px; }
+:root[data-design="v2"] .source-badge { border-radius: 999px; }
+
+/* ---------- Classement : lignes plus aérées, position en chiffre, logos ronds éclairés ---------- */
+:root[data-design="v2"] .tower th { background: transparent; color: #8495B0; font: 700 10.5px/1 var(--font); letter-spacing: .12em; border-bottom-color: var(--v2-rim); padding-top: 9px; padding-bottom: 9px; }
+:root[data-design="v2"] .tower thead th { background: rgba(9, 16, 32, .9); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+:root[data-design="v2"][data-scheme="light"] .tower thead th { background: rgba(255, 255, 255, .9); }
+:root[data-design="v2"] .tower td { border-bottom-color: var(--line); }
+:root[data-design="v2"] .tower td.c-duel { background: transparent; }
+:root[data-design="v2"] .tower td.pos { font: italic 800 18px/1 var(--font-cond); color: var(--text); text-align: center !important; padding-left: 0 !important; padding-right: 2px !important; }
+/* Position en simple chiffre (sans pastille : trop lourde dans la colonne) ; le podium en or, argent et bronze */
+:root[data-design="v2"] .tower td.pos::before { display: none; }
+:root[data-design="v2"] .tower tr:nth-child(1) td.pos { color: #FFC93C; text-shadow: 0 0 14px rgba(255, 196, 0, .45); }
+:root[data-design="v2"] .tower tr:nth-child(2) td.pos { color: #C9D3E0; }
+:root[data-design="v2"] .tower tr:nth-child(3) td.pos { color: #E39A62; }
+:root[data-design="v2"][data-scheme="light"] .tower tr:nth-child(1) td.pos { color: #C98A00; text-shadow: none; }
+:root[data-design="v2"][data-scheme="light"] .tower tr:nth-child(2) td.pos { color: #7A8799; }
+:root[data-design="v2"][data-scheme="light"] .tower tr:nth-child(3) td.pos { color: #B5652A; }
+:root[data-design="v2"] .tower .drv-tla { font: italic 800 17px/1 var(--font-cond); letter-spacing: .05em; }
+:root[data-design="v2"] .tower .drv-last { color: #8495B0; }
+:root[data-design="v2"] .tower .team-logo, :root[data-design="v2"] .hm-fav-who .team-logo, :root[data-design="v2"] .sz-table .team-logo {
+  border-radius: 50% !important; background-color: color-mix(in srgb, var(--tc) 30%, #0B1427) !important;
+  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--tc) 85%, #fff), 0 0 14px color-mix(in srgb, var(--tc) 55%, transparent) !important; background-position: center !important; }
+:root[data-design="v2"] .tower .team-logo.color, :root[data-design="v2"] .sz-table .team-logo.color, :root[data-design="v2"] .hm-fav-who .team-logo.color { background-color: #F4F6FA !important; background-size: 62% !important; }
+:root[data-design="v2"] .tower .team-logo { width: 26px; height: 26px; }
+:root[data-design="v2"] .tower tr:is(.focus, .duel-a, .duel-b) { background: linear-gradient(90deg, rgba(225, 6, 0, .34), rgba(225, 6, 0, .06) 60%, transparent) !important; box-shadow: inset 3px 0 0 #ff2a1f; }
+@media (hover: hover) { :root[data-design="v2"] .tower tr.trow:hover td { background: rgba(255, 255, 255, .04); } }
+:root[data-design="v2"] .tyre { box-shadow: 0 0 8px color-mix(in srgb, currentColor 45%, transparent); }
+:root[data-design="v2"] .tower .c-duel .duel-btns button, :root[data-design="v2"] .tower .duel-btn { border-radius: 8px; }
+
+/* ---------- Carte : tracé lumineux (lueur sur le dessin), fond éclairé ---------- */
+:root[data-design="v2"] .map-wrap { background: radial-gradient(60% 70% at 50% 50%, rgba(59, 130, 246, .12), transparent 70%); }
+:root[data-design="v2"] #mapCanvas { filter: drop-shadow(0 0 6px rgba(120, 170, 255, .45)) drop-shadow(0 0 18px rgba(59, 130, 246, .25)); }
+:root[data-design="v2"] .map-ribbon { filter: drop-shadow(0 0 5px rgba(120, 170, 255, .3)); }
+
+
+/* ---------- Direction de course (bandeau du bas) et barre du replay : pilules de verre flottantes ---------- */
+@media (min-width: 901px) {
+  :root[data-design="v2"] body:not(.solo) .rc-bar:not([hidden]) { height: 42px; margin: -2px 12px 10px; border-radius: 999px; border-left-width: 1px !important; padding: 0 22px 0 18px; }
+  :root[data-design="v2"] .replaybar { margin: 0 12px 12px; padding: 6px 18px 8px 12px; row-gap: 8px; border-radius: 22px; border: 1px solid var(--v2-rim) !important; background: linear-gradient(180deg, rgba(16, 26, 48, .78), rgba(8, 15, 32, .78)) !important;
+    -webkit-backdrop-filter: var(--v2-blur); backdrop-filter: var(--v2-blur); box-shadow: var(--v2-shadow); }
+}
+:root[data-design="v2"] .rc-bar:has(.flag-GREEN, .flag-CLEAR) { box-shadow: var(--v2-shadow), -14px 0 34px -14px var(--green), inset 0 0 0 1px color-mix(in srgb, var(--green) 35%, transparent) !important; }
+:root[data-design="v2"] .rc-bar:has(.flag-BLUE) { box-shadow: var(--v2-shadow), -14px 0 34px -14px var(--blue), inset 0 0 0 1px color-mix(in srgb, var(--blue) 35%, transparent) !important; }
+:root[data-design="v2"] .rc-bar:has(.flag-YELLOW, .flag-DOUBLE-YELLOW, .flag-SC) { box-shadow: var(--v2-shadow), -14px 0 34px -14px var(--yellow), inset 0 0 0 1px color-mix(in srgb, var(--yellow) 35%, transparent) !important; }
+:root[data-design="v2"] .rc-msg { font-size: 15px; }
+:root[data-design="v2"] .rp-play { border-radius: 50% !important; width: 42px; height: 42px; background: var(--v2-red) !important; color: #fff; box-shadow: var(--v2-red-glow), 0 0 0 5px rgba(225, 6, 0, .14); }
+:root[data-design="v2"] .rp-title { color: #ff5a50; font: italic 800 15px/1 var(--font-cond); letter-spacing: .08em; }
+:root[data-design="v2"] .rp-played { background: linear-gradient(90deg, #c80500, #ff3b30); box-shadow: 0 0 10px rgba(255, 42, 31, .8); }
+:root[data-design="v2"] .rp-track input[type=range]::-webkit-slider-thumb { border-color: #ff2a1f; box-shadow: 0 0 12px rgba(255, 42, 31, .9); }
+:root[data-design="v2"] .rp-speed { border-radius: 999px; background: rgba(255, 255, 255, .05); border-color: var(--v2-rim-2); }
+:root[data-design="v2"] .rp-speed.on { background: var(--v2-red); border-color: transparent; box-shadow: var(--v2-red-glow); }
+:root[data-design="v2"] .replaybar .btn.small { border-radius: 999px; }
+
+/* ---------- Radios : avatars arrondis éclairés ---------- */
+:root[data-design="v2"] :is(.rd-card, .rd-line) { border-radius: 16px !important; background: rgba(255, 255, 255, .035); border-color: var(--v2-rim) !important; }
+:root[data-design="v2"] .rd-av { border-radius: 14px !important; overflow: hidden; background: radial-gradient(circle at 50% 30%, color-mix(in srgb, var(--tc) 70%, #0B1427), #070D1C) !important; box-shadow: inset 0 -3px var(--tc), 0 0 16px color-mix(in srgb, var(--tc) 45%, transparent) !important; }
+:root[data-design="v2"] .rd-av img { border-radius: 14px 14px 0 0 !important; }
+/* Pastille du micro bien visible : elle dépasse du portrait (plus coupée par ses coins arrondis) */
+:root[data-design="v2"] .rd-av { overflow: visible !important; }
+:root[data-design="v2"] .rd-mic { z-index: 2; right: -7px; bottom: -6px; width: 22px; height: 22px; border-radius: 8px; border: 2px solid #0B1427; box-shadow: 0 4px 10px rgba(0, 0, 0, .45); }
+:root[data-design="v2"] .rd-mic .ic { width: 11px; height: 11px; }
+:root[data-design="v2"] .rd-l-main::after { background: #ff3b30; }
+
+/* ---------- Arrêts, écarts : grands chiffres condensés ---------- */
+:root[data-design="v2"] :is(.pit-big, .gauge-val, .battle-gap) { font: italic 800 30px/1 var(--font-cond) !important; }
+
+/* ---------- Accueil : grande carte de la prochaine séance, compte à rebours géant, raccourcis lumineux ---------- */
+:root[data-design="v2"] .hm-main { max-width: 1240px; gap: 18px; padding-top: 30px; }
+:root[data-design="v2"] .hm-hello { display: flex; align-items: baseline; gap: 14px; font: italic 900 40px/1 var(--font-cond); letter-spacing: .01em; text-transform: uppercase; }
+:root[data-design="v2"] .hm-hello::after { width: 72px; height: 5px; border-radius: 3px; margin: 0; background: var(--v2-red); box-shadow: 0 0 16px rgba(255, 42, 31, .8); transform: skewX(-20deg); }
+:root[data-design="v2"] .hm-tag { height: 26px; padding: 0 12px; border-radius: 999px; background: var(--v2-red); box-shadow: var(--v2-red-glow); font: 800 11.5px/1 var(--font); letter-spacing: .1em; }
+:root[data-design="v2"] .hm-card { padding: 22px 24px; gap: 8px; }
+:root[data-design="v2"] .hm-card:is(.hm-next, .hm-live) { position: relative; overflow: hidden; flex: none; padding: 30px 32px; min-height: 280px; border-left: 1px solid var(--v2-rim) !important;
+  background: radial-gradient(60% 120% at 0% 0%, rgba(225, 6, 0, .42), transparent 60%), radial-gradient(50% 100% at 100% 100%, rgba(37, 99, 235, .32), transparent 60%), linear-gradient(135deg, rgba(26, 14, 30, .9), rgba(8, 14, 32, .85)) !important; }
+/* Mode clair : la carte reste sombre, donc les couleurs du mode sombre à l'intérieur (programme, météo, manche) */
+:root[data-design="v2"][data-scheme="light"] :is(.hm-next, .hm-live) { color: #fff;
+  --bg: #030814; --panel: #0B1427; --panel-2: #111D35; --panel-3: #1A2A4A; --border: rgba(148, 163, 184, .14); --line: rgba(148, 163, 184, .08);
+  --line-2: rgba(148, 163, 184, .22); --hover: rgba(148, 163, 184, .07); --text: #F8FAFC; --text-2: #CBD5E1; --muted: #94A3B8;
+  --v2-glass: rgba(16, 26, 48, .62); --v2-glass-2: rgba(22, 34, 60, .7); --v2-glass-hi: rgba(255, 255, 255, .06); --v2-rim: rgba(148, 163, 184, .14); --v2-rim-2: rgba(148, 163, 184, .24); }
+:root[data-design="v2"] :is(.hm-next, .hm-live)::before { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: .5;
+  background: repeating-linear-gradient(115deg, transparent 0 22px, rgba(255, 255, 255, .025) 22px 23px); -webkit-mask-image: linear-gradient(90deg, #000, transparent 70%); mask-image: linear-gradient(90deg, #000, transparent 70%); }
+:root[data-design="v2"] :is(.hm-next, .hm-live) > * { position: relative; }
+/* Tracé du circuit (posé par home.js en design Paddock 2) : filet lumineux et point rouge qui fait le tour */
+.hm-trk { display: none; }
+:root[data-design="v2"] .hm-next .hm-trk { display: block; position: absolute; left: 50%; top: 50%; width: 0; height: 0; transform: translate(-50%, -50%) rotate(-4deg); pointer-events: none; overflow: visible; }   /* place et taille : home.js (placeTrack) */
+:root[data-design="v2"] .hm-trk polygon { fill: none; stroke: rgba(255, 255, 255, .85); stroke-width: 1.6; stroke-linejoin: round; filter: drop-shadow(0 0 2px rgba(255, 255, 255, .8)) drop-shadow(0 0 6px rgba(96, 165, 250, .9)); }
+:root[data-design="v2"] .hm-trk polygon.run { stroke: #ff2a1f; stroke-width: 3; stroke-linecap: round; stroke-dasharray: 6 94; filter: drop-shadow(0 0 4px #ff2a1f) drop-shadow(0 0 10px rgba(255, 42, 31, .9)); animation: hm-trk 9s linear infinite; }
+@keyframes hm-trk { to { stroke-dashoffset: -100; } }
+@media (prefers-reduced-motion: reduce) { :root[data-design="v2"] .hm-trk polygon.run { animation: none; } }
+:root[data-design="v2"] .hm-next .hm-title { font: italic 900 46px/1 var(--font-cond); letter-spacing: .01em; }
+:root[data-design="v2"] .hm-next .hm-title .cal-flag { width: 54px; height: auto; border-radius: 6px; box-shadow: 0 6px 20px rgba(0, 0, 0, .5); }
+:root[data-design="v2"] .hm-next .hm-title small { font: italic 800 22px var(--font-cond); color: #FF6B62; opacity: 1; letter-spacing: .04em; }
+:root[data-design="v2"] .hm-count { font: italic 900 92px/.95 var(--font-cond) !important; letter-spacing: -.01em; margin: 6px 0 2px;
+  background: linear-gradient(180deg, #fff 35%, #FFB3AE); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 6px 30px rgba(255, 42, 31, .35));
+  padding: .04em .16em 0 0; }   /* italique : la dernière lettre débordait de la boîte et le dégradé la coupait */
+:root[data-design="v2"] .hm-next .muted { color: #CBD5E1 !important; font-size: 15px; }
+:root[data-design="v2"] .hm-wx span { padding: 5px 12px; border-radius: 999px; background: rgba(255, 255, 255, .07); border: 1px solid rgba(255, 255, 255, .1); }
+:root[data-design="v2"] .hm-wx { display: flex; gap: 8px; margin-top: 6px; }
+:root[data-design="v2"] .hm-next .btn { background: rgba(255, 255, 255, .08) !important; border-color: rgba(255, 255, 255, .18) !important; }
+:root[data-design="v2"] .hm-next .cal-days { gap: 12px; }
+:root[data-design="v2"] .cal-day { min-width: 150px; border-radius: 16px !important; overflow: hidden; }
+:root[data-design="v2"] .cal-day-h { background: rgba(255, 255, 255, .92); color: #0B1220; font: italic 800 14px/1.5 var(--font-cond); padding: 6px 14px; }
+:root[data-design="v2"] .cal-s { padding: 9px 14px; font-size: 14px; }
+:root[data-design="v2"] .cal-s.now { background: linear-gradient(90deg, rgba(225, 6, 0, .55), rgba(225, 6, 0, .18)); box-shadow: inset 3px 0 #ff2a1f; }
+:root[data-design="v2"] .hm-last .hm-title { font: italic 900 34px/1 var(--font-cond); text-transform: uppercase; }
+/* Dernière séance : damier en filigrane et lueur bleue (la carte s'étire à la hauteur des favoris) */
+:root[data-design="v2"] .hm-card.hm-last { position: relative; overflow: hidden;
+  background: radial-gradient(70% 90% at 100% 100%, rgba(37, 99, 235, .3), transparent 65%), linear-gradient(180deg, var(--v2-glass-2), var(--v2-glass)) !important; }
+:root[data-design="v2"] .hm-card.hm-last::after { content: ''; position: absolute; right: -30px; bottom: -30px; width: 320px; height: 240px; pointer-events: none; opacity: .14; transform: skewX(-14deg);
+  background: conic-gradient(#fff 25%, transparent 0 50%, #fff 0 75%, transparent 0) 0 0 / 36px 36px; -webkit-mask-image: radial-gradient(circle at 100% 100%, #000 20%, transparent 70%); mask-image: radial-gradient(circle at 100% 100%, #000 20%, transparent 70%); }
+:root[data-design="v2"] .hm-card.hm-last > * { position: relative; z-index: 1; }
+:root[data-design="v2"] .hm-title small { font-family: var(--font-cond); font-style: italic; }
+:root[data-design="v2"] .hm-fav-row { padding: 9px 0; }
+:root[data-design="v2"] .hm-fav-pic { width: 46px; height: 46px; border-width: 2px; box-shadow: 0 0 16px color-mix(in srgb, var(--tc) 60%, transparent); background: radial-gradient(circle at 50% 30%, color-mix(in srgb, var(--tc) 75%, #0B1427), #070D1C); }
+:root[data-design="v2"] .hm-fav-who { gap: 12px; }
+:root[data-design="v2"] .hm-fav-row b { font: italic 800 17px/1 var(--font-cond); letter-spacing: .02em; }
+:root[data-design="v2"] .hm-fav-pos { width: 40px; height: 28px; border-radius: 8px; font: italic 800 16px/1 var(--font-cond); background: linear-gradient(180deg, #fff, #DCE3EE); color: #0B1220; }
+:root[data-design="v2"] .hm-favs { grid-template-columns: 44px minmax(0, 1fr) minmax(0, 120px) auto; }
+:root[data-design="v2"] .hm-go { gap: 14px; }
+:root[data-design="v2"] .hm-go button { position: relative; overflow: hidden; min-height: 132px; padding: 20px; border-radius: var(--v2-r) !important; border-top-width: 1px !important; text-align: left; }
+:root[data-design="v2"] .hm-go button { --acc: #ff2a1f; }
+:root[data-design="v2"] .hm-go button:nth-child(2) { --acc: #00D7B6; }
+:root[data-design="v2"] .hm-go button:nth-child(3) { --acc: #4781D7; }
+:root[data-design="v2"] .hm-go button:nth-child(4) { --acc: #F47600; }
+:root[data-design="v2"] .hm-go button::before { content: ''; position: absolute; right: -40px; top: -40px; width: 160px; height: 160px; border-radius: 50%; background: radial-gradient(circle, color-mix(in srgb, var(--acc) 45%, transparent), transparent 70%); pointer-events: none; }
+:root[data-design="v2"] .hm-go button .ic { width: 22px; height: 22px; padding: 9px; box-sizing: content-box; border-radius: 12px; color: var(--acc); background: color-mix(in srgb, var(--acc) 18%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--acc) 40%, transparent), 0 0 18px color-mix(in srgb, var(--acc) 35%, transparent); }
+:root[data-design="v2"] .hm-go b { font: italic 800 22px/1 var(--font-cond) !important; letter-spacing: .03em !important; margin-top: 10px; }
+:root[data-design="v2"] .hm-go button:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--acc) 55%, transparent) !important; }
+:root[data-design="v2"] .hm-news-item { border-radius: 12px; }
+:root[data-design="v2"] .hm-follow { border-radius: 999px; }
+
+/* ---------- Espace Saison : menu en verre, cartes et grands chiffres ---------- */
+:root[data-design="v2"] .sz-side { background: rgba(5, 11, 26, .5) !important; border-right: 1px solid var(--v2-rim) !important; -webkit-backdrop-filter: var(--v2-blur); backdrop-filter: var(--v2-blur); width: 236px; }
+:root[data-design="v2"] .sz-side-head b { font: italic 900 24px/1 var(--font-cond); text-transform: uppercase; letter-spacing: .02em; }
+:root[data-design="v2"] :is(#szNav, #nwNav, #rvNav) button { border-radius: 12px; padding: 9px 12px; }
+:root[data-design="v2"] :is(#szNav, #nwNav, #rvNav) button.active { background: linear-gradient(90deg, rgba(225, 6, 0, .3), rgba(225, 6, 0, .06)) !important; box-shadow: inset 0 0 0 1px rgba(255, 59, 48, .3); color: #fff; }
+:root[data-design="v2"][data-scheme="light"] :is(#szNav, #nwNav, #rvNav) button.active { color: var(--text); }
+:root[data-design="v2"] :is(#szNav, #nwNav, #rvNav) button.active .ic { color: #ff5a50; }
+:root[data-design="v2"] #szNav button.active::before { display: none; }
+:root[data-design="v2"] .sz-main { padding: 22px 26px 40px; }
+:root[data-design="v2"] .sz-card { padding: 18px 20px; position: relative; overflow: hidden; }
+:root[data-design="v2"] .sz-card > .muted.small:first-child { font: 700 11px/1.2 var(--font); letter-spacing: .12em; text-transform: uppercase; color: #8EA0BC; }
+:root[data-design="v2"] .sz-big { font: italic 800 40px/1 var(--font-cond) !important; letter-spacing: .01em; }
+:root[data-design="v2"] .sz-box h3 { font: italic 800 24px/1 var(--font-cond) !important; text-transform: uppercase; letter-spacing: .03em; }
+:root[data-design="v2"] .sz-box h3::before { content: ''; width: 5px; height: 18px; border-radius: 2px; background: var(--v2-red); transform: skewX(-18deg); box-shadow: 0 0 12px rgba(255, 42, 31, .7); flex: none; }
+:root[data-design="v2"] .sz-countdown b { font: italic 800 52px/1 var(--font-cond); }
+:root[data-design="v2"] .sz-table th { letter-spacing: .12em; color: #8495B0; }
+:root[data-design="v2"] .sz-progress, :root[data-design="v2"] .rv-progress { height: 8px; border-radius: 4px; }
+:root[data-design="v2"] .sz-progress i { background: var(--v2-red); box-shadow: 0 0 10px rgba(255, 42, 31, .8); }
+:root[data-design="v2"] .sz-chip { border-radius: 999px; }
+
+/* Cartes des pilotes et pilote en grand : façon appli F1 (dégradé de l'écurie, portrait détouré éclairé, grand numéro en filigrane) */
+:root[data-design="v2"] .sz-drv-strip { gap: 14px; padding: 16px 20px 38px; margin: 0 -20px -14px; scroll-padding-inline: 20px; }   /* place pour le halo de la carte choisie (aussi quand la bande défile jusqu'à elle), cartes alignées sur la page */
+@media (max-width: 900px) { :root[data-design="v2"] .sz-drv-strip { padding: 16px 10px 38px; margin: 0 -10px -14px; scroll-padding-inline: 10px; } }
+:root[data-design="v2"] .sz-drv-card { width: 232px; height: 168px; padding: 14px 16px; border-radius: 22px; isolation: isolate;
+  border: 1px solid color-mix(in srgb, var(--tc) 50%, rgba(255, 255, 255, .12));
+  background: radial-gradient(circle at 78% 38%, color-mix(in srgb, var(--tc) 85%, #fff 0%), transparent 58%), linear-gradient(155deg, color-mix(in srgb, var(--tc) 78%, #0B1427), color-mix(in srgb, var(--tc) 22%, #050A18) 88%);
+  box-shadow: 0 18px 40px -18px color-mix(in srgb, var(--tc) 70%, transparent), inset 0 1px 0 rgba(255, 255, 255, .18); }
+:root[data-design="v2"] .sz-drv-card::after { content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none; opacity: .35;
+  background: repeating-linear-gradient(120deg, transparent 0 14px, rgba(255, 255, 255, .06) 14px 15px); -webkit-mask-image: linear-gradient(90deg, #000, transparent 60%); mask-image: linear-gradient(90deg, #000, transparent 60%); }
+:root[data-design="v2"] .sz-drv-card img { height: 158px; right: -14px; filter: drop-shadow(0 10px 18px rgba(0, 0, 0, .45)); z-index: 0; }
+:root[data-design="v2"] .sz-drv-card .nm { font: italic 900 21px/1 var(--font-cond); text-transform: uppercase; letter-spacing: .02em; }
+:root[data-design="v2"] .sz-drv-card .nm small { font: 600 12.5px/1.3 var(--font); text-transform: none; letter-spacing: 0; color: rgba(255, 255, 255, .85); }
+:root[data-design="v2"] .sz-drv-card .tm { font-weight: 600; color: rgba(255, 255, 255, .8); }
+:root[data-design="v2"] .sz-drv-card .no { font: italic 900 46px/.9 var(--font-cond); color: transparent; -webkit-text-stroke: 1.5px rgba(255, 255, 255, .9); text-shadow: 0 0 20px rgba(255, 255, 255, .25); }
+:root[data-design="v2"] .sz-drv-card.on { box-shadow: 0 0 0 2px #fff, 0 0 0 5px color-mix(in srgb, var(--tc) 60%, transparent), 0 20px 44px -14px color-mix(in srgb, var(--tc) 90%, transparent); }
+:root[data-design="v2"] .sz-drv-card:hover { transform: translateY(-4px); }
+:root[data-design="v2"] .sz-drv-hero { min-height: 300px; padding: 34px 40px; border-radius: 28px; isolation: isolate; margin-bottom: 16px;
+  border: 1px solid color-mix(in srgb, var(--tc) 50%, rgba(255, 255, 255, .12));
+  background: radial-gradient(45% 90% at 82% 55%, color-mix(in srgb, var(--tc) 90%, #fff 6%), transparent 65%), radial-gradient(40% 80% at 0% 0%, rgba(255, 255, 255, .1), transparent 60%),
+    linear-gradient(120deg, color-mix(in srgb, var(--tc) 70%, #050A18), color-mix(in srgb, var(--tc) 30%, #050A18) 55%, #050A18) !important;
+  box-shadow: 0 40px 80px -40px color-mix(in srgb, var(--tc) 80%, transparent), inset 0 1px 0 rgba(255, 255, 255, .15); }
+:root[data-design="v2"] .sz-drv-hero::after { content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none; opacity: .4;
+  background: repeating-linear-gradient(120deg, transparent 0 26px, rgba(255, 255, 255, .05) 26px 27px); -webkit-mask-image: linear-gradient(90deg, #000 10%, transparent 70%); mask-image: linear-gradient(90deg, #000 10%, transparent 70%); }
+:root[data-design="v2"] .sz-drv-hero img { height: 340px; right: 60px; filter: drop-shadow(0 20px 40px rgba(0, 0, 0, .5)); z-index: 0; }
+:root[data-design="v2"] .sz-drv-hero .txt { position: static; max-width: 58%; }
+:root[data-design="v2"] .sz-drv-hero .txt > * { position: relative; z-index: 1; }
+:root[data-design="v2"] .sz-drv-hero .sz-drv-name { font: italic 900 58px/.95 var(--font-cond); text-transform: uppercase; letter-spacing: .01em; text-shadow: 0 4px 30px rgba(0, 0, 0, .35); }
+/* Numéro : très grand, en creux, derrière le portrait (filigrane façon appli F1) */
+:root[data-design="v2"] .sz-drv-hero .ft { margin: 14px 0 16px; }
+:root[data-design="v2"] .sz-drv-hero .no { position: absolute !important; z-index: -1 !important; right: 70px; top: 54%; transform: translateY(-50%); font: italic 900 300px/.8 var(--font-cond);
+  color: rgba(255, 255, 255, .06); -webkit-text-stroke: 2px rgba(255, 255, 255, .28); pointer-events: none; }
+:root[data-design="v2"] .sz-drv-hero .lg { width: 150px; height: 56px; filter: drop-shadow(0 4px 12px rgba(0, 0, 0, .3)); }
+:root[data-design="v2"] .sz-drv-hero .sub { display: inline-flex; padding: 8px 16px; border-radius: 999px; font-size: 15px; font-weight: 600; color: #fff;
+  background: rgba(0, 0, 0, .22); border: 1px solid rgba(255, 255, 255, .16); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
+:root[data-design="v2"] .sz-team-card, :root[data-design="v2"] .sz-rv-card { border-radius: 22px; box-shadow: 0 18px 40px -20px color-mix(in srgb, var(--tc) 70%, transparent), inset 0 1px 0 rgba(255, 255, 255, .14); }
+:root[data-design="v2"] .sz-team-card .tm-name, :root[data-design="v2"] .sz-rv-card .rv-big { font-family: var(--font-cond); font-style: italic; font-weight: 900; text-transform: uppercase; }
+:root[data-design="v2"] .tm-drv img { box-shadow: 0 0 0 2px rgba(255, 255, 255, .9), 0 0 18px color-mix(in srgb, var(--tc) 70%, transparent); }
+@media (max-width: 700px) {
+  :root[data-design="v2"] .sz-drv-hero { min-height: 220px; padding: 22px; }
+  :root[data-design="v2"] .sz-drv-hero img { height: 210px; right: -6px; }
+  :root[data-design="v2"] .sz-drv-hero .sz-drv-name { font-size: 36px; }
+  :root[data-design="v2"] .sz-drv-hero .no { font-size: 170px; right: 90px; }
+}
+
+/* ---------- Téléphone : barre du haut en verre, onglets segmentés, barre du bas flottante façon iOS ---------- */
+/* Saison sur téléphone : chiffres et titres moins gros ; tableaux larges : le titre et le bouton restent en place
+   quand le tableau défile de côté (le tableau des pilotes tient en largeur : barre des points courte, marges serrées) */
+@media (max-width: 600px) {
+  :root[data-design="v2"] .sz-card { padding: 14px 16px; }
+  :root[data-design="v2"] .sz-big { font-size: 26px !important; }
+  :root[data-design="v2"] .sz-countdown b { font-size: 36px; }
+  :root[data-design="v2"] .sz-box h3 { font-size: 19px !important; }
+  :root[data-design="v2"] .sz-box > :is(h3, .btn) { position: sticky; left: 0; }
+  :root[data-design="v2"] .sz-table :is(th, td) { padding-left: 4px; padding-right: 4px; }
+  :root[data-design="v2"] .sz-table td { font-size: 13px; }
+  :root[data-design="v2"] .sz-table th { letter-spacing: .02em; font-size: 10px; }
+  :root[data-design="v2"] .sz-cb::before { width: 24px; }
+  /* Nom du pilote sur deux lignes si besoin (« Andrea Kimi / Antonelli ») : les tableaux larges tiennent dans l'écran */
+  :root[data-design="v2"] .sz-table:not(.sz-heat) td:has(> .team-logo) { white-space: normal; line-height: 1.15; overflow-wrap: normal; }
+  :root[data-design="v2"] .sz-table:not(.sz-heat) td:has(> .team-logo) > .team-logo { float: left; }
+  :root[data-design="v2"] .sz-table:not(.sz-heat) td:has(> .team-logo) > b { display: flex; align-items: center; min-height: 26px; overflow: hidden; }
+}
+@media (max-width: 900px) {
+  :root[data-design="v2"] .topbar { padding-top: max(8px, env(safe-area-inset-top)); }
+  :root[data-design="v2"] .topbar .session-name { font-size: 22px; }
+  :root[data-design="v2"] .topbar #clockValue { font-size: 28px; }   /* place pour la fin des chiffres en italique avant l'heure du circuit */
+  :root[data-design="v2"] .topbar .lap-box .hstat-value { font-size: 24px; }
+  :root[data-design="v2"] .mob-panels:not([hidden]) { margin: 10px 12px 4px; padding: 4px; gap: 2px; border-radius: 999px; background: rgba(16, 26, 48, .6) !important; border: 1px solid var(--v2-rim) !important;
+    -webkit-backdrop-filter: var(--v2-blur); backdrop-filter: var(--v2-blur); }
+  :root[data-design="v2"] .mob-panels button { flex: 1 0 auto; padding: 8px 14px; border: 0 !important; font: italic 800 15.5px/1 var(--font-cond); letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+  :root[data-design="v2"] .mob-panels button.active { background: var(--v2-red) !important; color: #fff; box-shadow: var(--v2-red-glow); }
+  :root[data-design="v2"] .grid.mobile { padding: 8px 12px; }
+  :root[data-design="v2"] .grid.mobile > .panel { border-radius: 22px !important; }
+  :root[data-design="v2"] .grid.mobile .panel-head { min-height: 46px; }
+  /* Barre du bas : pilule de verre détachée des bords, onglet choisi éclairé en rouge */
+  :root[data-design="v2"] .mob-nav { margin: 4px 12px calc(10px + env(safe-area-inset-bottom)); padding: 6px; border-radius: 28px; gap: 2px;
+    background: rgba(14, 22, 42, .72) !important; border: 1px solid var(--v2-rim-2) !important; -webkit-backdrop-filter: blur(24px) saturate(1.8); backdrop-filter: blur(24px) saturate(1.8);
+    box-shadow: 0 18px 40px -12px rgba(0, 0, 0, .8), inset 0 1px 0 rgba(255, 255, 255, .08); }
+  :root[data-design="v2"][data-scheme="light"] .mob-nav { background: rgba(255, 255, 255, .8) !important; }
+  :root[data-design="v2"] .mob-nav button { border-radius: 22px; padding: 7px 2px 6px; font-size: 10.5px; font-weight: 700; }
+  :root[data-design="v2"] .mob-nav button.active { background: rgba(225, 6, 0, .16) !important; color: #fff; }
+  :root[data-design="v2"][data-scheme="light"] .mob-nav button.active { color: var(--text); }
+  :root[data-design="v2"] .mob-nav button.active .mn-svg { stroke: #ff4a40; filter: drop-shadow(0 0 6px rgba(255, 59, 48, .9)); }
+  :root[data-design="v2"] .replaybar { margin: 0 12px 4px; border-radius: 22px; border: 1px solid var(--v2-rim) !important; background: rgba(14, 22, 42, .72) !important; -webkit-backdrop-filter: var(--v2-blur); backdrop-filter: var(--v2-blur); }
+  :root[data-design="v2"] .replaybar .rp-play { width: 40px; height: 40px; }
+  :root[data-design="v2"] .tower td.pos { font-size: 17px; }
+  :root[data-design="v2"] .tower .drv-tla { font-size: 18px; }
+  :root[data-design="v2"] .sz-drv-card { width: 196px; height: 148px; }
+  :root[data-design="v2"] .sz-drv-card img { height: 138px; }
+  :root[data-design="v2"] #seasonView .sz-menu { background: rgba(10, 18, 36, .75); -webkit-backdrop-filter: var(--v2-blur); backdrop-filter: var(--v2-blur); }
+}
+
+@media (prefers-reduced-motion: reduce) { :root[data-design="v2"] :is(.hm-go button, .sz-drv-card):hover { transform: none; } }
+
+/* ---------- Clair : barres (haut, côté, replay) toujours sombres comme en Broadcast, cartes des pilotes gardées
+   aux couleurs de l'écurie (texte blanc, logo blanc), duel sur fond clair ---------- */
+:root[data-design="v2"][data-scheme="light"] .topbar { background: linear-gradient(180deg, #0C1630, #091226) !important; }
+@media (min-width: 901px) { :root[data-design="v2"][data-scheme="light"] body:not(.solo) .rail { background: rgba(9, 16, 34, .96) !important; } }
+:root[data-design="v2"][data-scheme="light"] .replaybar { background: linear-gradient(180deg, rgba(14, 24, 46, .96), rgba(9, 16, 34, .96)) !important; }
+:root[data-design="v2"][data-scheme="light"] :is(.topbar, .replaybar) :is(.btn, .rp-speed:not(.on)) { background: rgba(255, 255, 255, .08); color: #fff; }
+:root[data-design="v2"][data-scheme="light"] .sz-side { background: rgba(255, 255, 255, .7) !important; }
+:root[data-design="v2"][data-scheme="light"] :is(.sz-drv-card, .sz-drv-hero) { color: #fff; }
+:root[data-design="v2"][data-scheme="light"] :is(.sz-drv-card, .sz-drv-hero) .lg { background-image: var(--logo, none); }
+:root[data-design="v2"][data-scheme="light"] .sz-drv-card :is(.tm, .nm small) { color: rgba(255, 255, 255, .85); }
+:root[data-design="v2"][data-scheme="light"] .sz-drv-card .no { color: transparent; }
+:root[data-design="v2"][data-scheme="light"] .sz-drv-hero .sub { color: #fff; }
+
+/* ---------- Animations Paddock 2 : icônes qui réagissent, boutons et cartes qui suivent la souris, menus qui s'ouvrent en douceur ----------
+   Seulement avec les animations de l'interface (Réglages) et sans « réduire les animations » du système. */
+@media (prefers-reduced-motion: no-preference) {
+  :root[data-design="v2"]:not([data-motion="off"]) { --v2-smooth: cubic-bezier(.22, 1, .36, 1); --v2-spring: cubic-bezier(.34, 1.56, .64, 1); }
+  /* Icônes : chacune a son geste au survol de son bouton (engrenage qui tourne, trophée qui se lève, flèche qui avance…),
+     en transition (petit rebond, retour en douceur quand la souris s'en va, plus d'animation coupée net) */
+  :root[data-design="v2"]:not([data-motion="off"]) :is(svg.ic, .rail-btn svg, .mob-nav svg) { transition: transform .4s var(--v2-spring), color .2s, filter .3s; transform-origin: 50% 50%; }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(button, a, label, .rail-btn, #_):hover :is(svg.ic, .rail-btn svg) { transform: scale(1.1); }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(button, a, label, .rail-btn, #_):hover :is(.i-gear, svg:has(> use[href="#i-gear"])) { transform: rotate(90deg); }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(button, a, label, .rail-btn, #_):hover :is(.i-refresh, svg:has(> use[href="#i-refresh"]), .i-undo, svg:has(> use[href="#i-undo"])) { transform: rotate(-180deg); }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(button, a, label, .rail-btn, #_):hover :is(.i-close, svg:has(> use[href="#i-close"]), .i-plus, svg:has(> use[href="#i-plus"])) { transform: rotate(90deg); }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(button, a, label, .rail-btn, #_):hover :is(.i-arrow-right, svg:has(> use[href="#i-arrow-right"]), .i-chevron-right, svg:has(> use[href="#i-chevron-right"]), .i-skip-next, svg:has(> use[href="#i-skip-next"])) { transform: translateX(3px); }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(button, a, label, .rail-btn, #_):hover :is(.i-arrow-left, svg:has(> use[href="#i-arrow-left"]), .i-skip-start, svg:has(> use[href="#i-skip-start"])) { transform: translateX(-3px); }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(button, a, label, .rail-btn, #_):hover :is(.i-external, svg:has(> use[href="#i-external"])) { transform: translate(2px, -2px); }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(button, a, label, .rail-btn, #_):hover :is(.i-chevron-down, svg:has(> use[href="#i-chevron-down"]), .i-save, svg:has(> use[href="#i-save"])) { transform: translateY(2px); }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(button, a, label, .rail-btn, #_):hover :is(.i-target, svg:has(> use[href="#i-target"])) { transform: rotate(90deg) scale(1.1); }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(button, a, label, .rail-btn, #_):hover :is(.i-sliders, svg:has(> use[href="#i-sliders"]), .i-layout, svg:has(> use[href="#i-layout"]), .i-window, svg:has(> use[href="#i-window"])) { transform: translateY(-1px) scale(1.12); }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(button, a, label, .rail-btn, #_):hover :is(.i-home, svg:has(> use[href="#i-home"])) { transform: translateY(-2px) scale(1.1); }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(button, a, label, .rail-btn, #_):hover :is(.i-calendar, svg:has(> use[href="#i-calendar"]), .i-news, svg:has(> use[href="#i-news"])) { transform: rotate(-8deg) scale(1.12); }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(button, a, label, .rail-btn, #_):hover :is(.i-trophy, svg:has(> use[href="#i-trophy"]), .i-medal, svg:has(> use[href="#i-medal"])) { transform: translateY(-2px) rotate(-10deg) scale(1.14); }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(button, a, label, .rail-btn, #_):hover :is(.i-star, svg:has(> use[href="#i-star"])) { transform: rotate(72deg) scale(1.18); }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(button, a, label, .rail-btn, #_):hover :is(.i-duel, svg:has(> use[href="#i-duel"]), .i-swap, svg:has(> use[href="#i-swap"])) { transform: rotate(-15deg) scale(1.12); }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(button, a, label, .rail-btn, #_):hover :is(.i-checkered, svg:has(> use[href="#i-checkered"])) { transform: skewX(-12deg) scale(1.12); }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(button, a, label, .rail-btn, #_):hover :is(.i-stopwatch, svg:has(> use[href="#i-stopwatch"])) { transform: rotate(22deg) scale(1.1); }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(button, a, label, .rail-btn, #_):hover :is(.i-wrench, svg:has(> use[href="#i-wrench"])) { transform: rotate(-30deg) scale(1.08); }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(button, a, label, .rail-btn, #_):hover :is(.i-user, svg:has(> use[href="#i-user"]), .i-mic, svg:has(> use[href="#i-mic"]), .i-eye, svg:has(> use[href="#i-eye"]), .i-eye-off, svg:has(> use[href="#i-eye-off"]), .i-phone, svg:has(> use[href="#i-phone"]), .i-video, svg:has(> use[href="#i-video"])) { transform: scale(1.16); }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(button, a, label, .rail-btn, #_):hover :is(.i-car, svg:has(> use[href="#i-car"])) { transform: translateX(3px) scale(1.08); }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(button, a, label, .rail-btn, #_):hover :is(.i-ruler, svg:has(> use[href="#i-ruler"])) { transform: rotate(-14deg) scale(1.08); }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(button, a, label, .rail-btn, #_):hover :is(.i-bolt, svg:has(> use[href="#i-bolt"])) { transform: rotate(-10deg) scale(1.2); }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(button, a, label, .rail-btn, #_):hover :is(.i-map, svg:has(> use[href="#i-map"])) { transform: rotate(-6deg) scale(1.12); }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(button, a, label, .rail-btn, #_):hover :is(.i-wing, svg:has(> use[href="#i-wing"])) { transform: translateY(-2px) scale(1.12); }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(button, a, label, .rail-btn, #_):hover :is(.i-engine, svg:has(> use[href="#i-engine"])) { transform: rotate(30deg) scale(1.08); }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(button, a, label, .rail-btn, #_):hover :is(.i-bell, svg:has(> use[href="#i-bell"])) { transform: rotate(16deg) scale(1.08); }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(button, a, label, .rail-btn, #_):hover :is(.i-megaphone, svg:has(> use[href="#i-megaphone"]), .i-volume, svg:has(> use[href="#i-volume"])) { transform: rotate(-8deg) scale(1.15); }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(button, a, label, .rail-btn, #_):hover :is(.i-trash, svg:has(> use[href="#i-trash"])) { transform: rotate(-12deg) scale(1.08); }
+  /* Barre latérale (icônes dessinées dans la page) : un geste par rubrique */
+  :root[data-design="v2"]:not([data-motion="off"]) .rail-btn[data-rail="settings"]:hover svg { transform: rotate(90deg); }
+  :root[data-design="v2"]:not([data-motion="off"]) .rail-btn:is([data-rail="reset"], [data-rail="replay"]):hover svg { transform: rotate(-120deg); }
+  :root[data-design="v2"]:not([data-motion="off"]) .rail-btn[data-rail="scheme"]:hover svg { transform: rotate(180deg); }
+  :root[data-design="v2"]:not([data-motion="off"]) .rail-btn:is([data-rail="home"], [data-rail="summary"]):hover svg { transform: translateY(-2px) scale(1.1); }
+  :root[data-design="v2"]:not([data-motion="off"]) .rail-btn[data-rail="news"]:hover svg { transform: rotate(-8deg) scale(1.12); }
+  :root[data-design="v2"]:not([data-motion="off"]) .rail-btn[data-rail="season"]:hover svg { transform: translateY(-2px) rotate(-10deg) scale(1.14); }
+  :root[data-design="v2"]:not([data-motion="off"]) .rail-btn[data-rail="results"]:hover svg { transform: skewX(-12deg) scale(1.12); }
+  :root[data-design="v2"]:not([data-motion="off"]) .rail-btn:is([data-rail="live"], [data-rail="radio"], [data-rail="mini"]):hover svg { transform: scale(1.16); }
+  :root[data-design="v2"]:not([data-motion="off"]) .rail-btn:hover svg { filter: drop-shadow(0 0 6px rgba(147, 197, 253, .45)); }
+  /* Rubrique choisie (barre latérale, barre du bas du téléphone) : l'icône rebondit et s'allume */
+  :root[data-design="v2"]:not([data-motion="off"]) :is(.rail-btn.on, .mob-nav .active) svg { animation: v2-pop .5s var(--v2-spring); filter: drop-shadow(0 0 8px rgba(255, 42, 31, .55)); }
+  :root[data-design="v2"]:not([data-motion="off"]) .mob-nav button { transition: transform .3s var(--v2-spring), background-color .25s, color .2s; }
+  :root[data-design="v2"]:not([data-motion="off"]) .mob-nav button:active { transform: scale(.9); }
+  /* Boutons : se soulèvent un peu au survol, ombre douce ; onglets segmentés : la pastille choisie glisse en place */
+  :root[data-design="v2"]:not([data-motion="off"]) .btn { transition: transform .3s var(--v2-smooth), box-shadow .3s, background-color .2s, border-color .2s, color .2s; }
+  :root[data-design="v2"]:not([data-motion="off"]) .btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 8px 20px -10px rgba(0, 0, 0, .6); }
+  :root[data-design="v2"]:not([data-motion="off"]) .btn:active:not(:disabled) { transform: scale(.96); transition-duration: .1s; }
+  :root[data-design="v2"]:not([data-motion="off"]) .tab-seg button { transition: background-color .3s var(--v2-smooth), color .2s, box-shadow .3s; }
+  :root[data-design="v2"]:not([data-motion="off"]) .tab-seg button.on { animation: v2-seg .35s var(--v2-smooth); }
+  /* Menus et listes déroulantes : s'ouvrent en glissant, avec un léger zoom */
+  :root[data-design="v2"]:not([data-motion="off"]) :is(.lpop-menu, .csel-pop, .map-layers-menu, .tb-pop) { animation: v2-menu .24s var(--v2-smooth); transform-origin: top center; }
+  /* Panneaux et cartes : le filet s'éclaire au survol */
+  :root[data-design="v2"]:not([data-motion="off"]) :is(.panel, .hm-card, .sz-box, .cal-day) { transition: border-color .35s, box-shadow .35s, transform .35s var(--v2-smooth); }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(.panel, .sz-box):hover { border-color: var(--v2-rim-2) !important; }
+  :root[data-design="v2"]:not([data-motion="off"]) .hm-card:not(.hm-next, .hm-live):hover { transform: translateY(-2px); box-shadow: var(--v2-shadow), 0 16px 40px -20px rgba(37, 99, 235, .45); }
+  /* Raccourcis de l'accueil : l'icône saute, la lueur de couleur glisse dans la carte */
+  :root[data-design="v2"]:not([data-motion="off"]) .hm-go button { transition: transform .35s var(--v2-smooth), border-color .3s, box-shadow .35s; }
+  :root[data-design="v2"]:not([data-motion="off"]) .hm-go button .ic { transition: transform .45s var(--v2-spring), box-shadow .3s; }
+  :root[data-design="v2"]:not([data-motion="off"]) .hm-go button:hover .ic { transform: translateY(-3px) rotate(-8deg) scale(1.1); box-shadow: 0 8px 22px -6px var(--acc); }
+  :root[data-design="v2"]:not([data-motion="off"]) .hm-go button::before { transition: transform .7s var(--v2-smooth), opacity .4s; }
+  :root[data-design="v2"]:not([data-motion="off"]) .hm-go button:hover::before { transform: translate(-18px, 18px) scale(1.25); }
+  :root[data-design="v2"]:not([data-motion="off"]) .hm-go button:hover { box-shadow: var(--v2-shadow), 0 18px 40px -22px var(--acc); }
+  /* Classement : la ligne survolée s'éclaire en douceur, le logo de l'écurie grossit un peu */
+  :root[data-design="v2"]:not([data-motion="off"]) :is(.tower, .sz-table) tbody tr { transition: background-color .25s; }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(.tower, .sz-table) .team-logo { transition: transform .35s var(--v2-spring); }
+  @media (hover: hover) { :root[data-design="v2"]:not([data-motion="off"]) :is(.tower, .sz-table) tbody tr:hover .team-logo { transform: scale(1.12); } }
+  /* Pilotes de la Saison : le portrait avance un peu au survol */
+  /* Cartes des pilotes et des écuries (Saison) : arrivée en cascade, la carte se soulève au survol avec une lueur
+     aux couleurs de l'écurie, un filet de lumière tourne en continu autour du bord (plus vif au survol et sur la carte choisie, qui « respire ») */
+  :root[data-design="v2"]:not([data-motion="off"]) :is(.sz-drv-card, .sz-team-card) { transition: transform .45s var(--v2-smooth), box-shadow .45s var(--v2-smooth); }
+  /* Survol seulement avec une souris : sur le téléphone, la carte touchée restait soulevée et dépassait en haut */
+  @media (hover: hover) { :root[data-design="v2"]:not([data-motion="off"]) :is(.sz-drv-card, .sz-team-card):hover { transform: translateY(-6px) scale(1.02); box-shadow: 0 26px 50px -18px color-mix(in srgb, var(--tc) 85%, transparent), 0 0 0 1px color-mix(in srgb, var(--tc) 55%, transparent); } }
+  /* Chaque carte isole son filet : sinon il passait par-dessus le menu de la Saison ouvert sur le téléphone */
+  :root[data-design="v2"]:not([data-motion="off"]) .sz-team-card { isolation: isolate; }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(.sz-drv-card, .sz-team-card, .sz-drv-hero)::before { content: ''; position: absolute; inset: 0; z-index: 3; border-radius: inherit; padding: 3px; pointer-events: none;
+    background: conic-gradient(from var(--v2-a), transparent 0 46%, color-mix(in srgb, var(--tc) 55%, #fff) 64%, #fff 76%, color-mix(in srgb, var(--tc) 55%, #fff) 86%, transparent 96%);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+    opacity: .75; transition: opacity .4s; animation: v2-spin 4s linear infinite; }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(.sz-drv-card, .sz-team-card):is(:hover, :focus-visible, .on)::before, :root[data-design="v2"]:not([data-motion="off"]) .sz-drv-hero::before { opacity: 1; }
+  /* Départs décalés : les filets ne tournent pas tous ensemble */
+  :root[data-design="v2"]:not([data-motion="off"]) :is(.sz-drv-card, .sz-team-card):nth-child(3n+2)::before { animation-delay: -1.3s; }
+  :root[data-design="v2"]:not([data-motion="off"]) :is(.sz-drv-card, .sz-team-card):nth-child(3n)::before { animation-delay: -2.6s; }
+  :root[data-design="v2"]:not([data-motion="off"]) .sz-drv-card.on { animation: v2-breathe 2.6s ease-in-out infinite; }
+  :root[data-design="v2"]:not([data-motion="off"]) .sz-drv-card img { transition: transform .5s var(--v2-smooth), filter .5s; }
+  :root[data-design="v2"]:not([data-motion="off"]) .sz-drv-card:hover img { transform: translateX(-6px) scale(1.06); filter: drop-shadow(0 14px 22px rgba(0, 0, 0, .5)) brightness(1.06); }
+  :root[data-design="v2"]:not([data-motion="off"]) .sz-drv-card .no { transition: text-shadow .4s, -webkit-text-stroke-color .4s; }
+  :root[data-design="v2"]:not([data-motion="off"]) .sz-drv-card:hover .no { text-shadow: 0 0 24px color-mix(in srgb, var(--tc) 90%, #fff); }
+  :root[data-design="v2"]:not([data-motion="off"]) .sz-main.sz-anim:not(.sz-again) :is(.sz-drv-strip, .sz-team-grid) > * { animation: v2-card-in .55s var(--v2-smooth) both; }
+  :root[data-design="v2"]:not([data-motion="off"]) .sz-main.sz-anim:not(.sz-again) :is(.sz-drv-strip, .sz-team-grid) > :nth-child(2) { animation-delay: 0.04s; }
+  :root[data-design="v2"]:not([data-motion="off"]) .sz-main.sz-anim:not(.sz-again) :is(.sz-drv-strip, .sz-team-grid) > :nth-child(3) { animation-delay: 0.08s; }
+  :root[data-design="v2"]:not([data-motion="off"]) .sz-main.sz-anim:not(.sz-again) :is(.sz-drv-strip, .sz-team-grid) > :nth-child(4) { animation-delay: 0.12s; }
+  :root[data-design="v2"]:not([data-motion="off"]) .sz-main.sz-anim:not(.sz-again) :is(.sz-drv-strip, .sz-team-grid) > :nth-child(5) { animation-delay: 0.16s; }
+  :root[data-design="v2"]:not([data-motion="off"]) .sz-main.sz-anim:not(.sz-again) :is(.sz-drv-strip, .sz-team-grid) > :nth-child(6) { animation-delay: 0.20s; }
+  :root[data-design="v2"]:not([data-motion="off"]) .sz-main.sz-anim:not(.sz-again) :is(.sz-drv-strip, .sz-team-grid) > :nth-child(7) { animation-delay: 0.24s; }
+  :root[data-design="v2"]:not([data-motion="off"]) .sz-main.sz-anim:not(.sz-again) :is(.sz-drv-strip, .sz-team-grid) > :nth-child(8) { animation-delay: 0.28s; }
+  :root[data-design="v2"]:not([data-motion="off"]) .sz-main.sz-anim:not(.sz-again) :is(.sz-drv-strip, .sz-team-grid) > :nth-child(n+9) { animation-delay: .32s; }
+  /* Pilote en grand : le portrait glisse en place, le grand numéro arrive derrière */
+  :root[data-design="v2"]:not([data-motion="off"]) .sz-drv-hero img { animation: v2-hero-img .75s var(--v2-smooth) both; }
+  :root[data-design="v2"]:not([data-motion="off"]) .sz-drv-hero .no { animation: v2-hero-no .9s var(--v2-smooth) both; }
+  :root[data-design="v2"]:not([data-motion="off"]) .sz-drv-hero .txt > * { animation: rise-in .5s var(--v2-smooth) both; }
+  :root[data-design="v2"]:not([data-motion="off"]) .sz-drv-hero .txt > :nth-child(2) { animation-delay: .06s; }
+  :root[data-design="v2"]:not([data-motion="off"]) .sz-drv-hero .txt > :nth-child(n+3) { animation-delay: .12s; }
+}
+@property --v2-a { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
+@keyframes v2-spin { to { --v2-a: 360deg; } }
+@keyframes v2-breathe { 0%, 100% { box-shadow: 0 0 0 2px #fff, 0 0 0 5px color-mix(in srgb, var(--tc) 60%, transparent), 0 14px 30px -12px color-mix(in srgb, var(--tc) 90%, transparent); }
+  50% { box-shadow: 0 0 0 2px #fff, 0 0 0 7px color-mix(in srgb, var(--tc) 35%, transparent), 0 16px 34px -12px color-mix(in srgb, var(--tc) 100%, transparent); } }
+@keyframes v2-card-in { from { opacity: 0; transform: translateY(18px) scale(.96); } to { opacity: 1; transform: none; } }
+@keyframes v2-hero-img { from { opacity: 0; transform: translateX(40px) scale(.96); } to { opacity: 1; transform: none; } }
+@keyframes v2-hero-no { from { opacity: 0; transform: translate(60px, -50%); } to { opacity: 1; transform: translateY(-50%); } }
+@keyframes v2-pop { 0% { transform: scale(.7); } 55% { transform: scale(1.15); } 100% { transform: scale(1); } }
+@keyframes v2-seg { from { transform: scale(.88); opacity: .6; } to { transform: none; opacity: 1; } }
+@keyframes v2-menu { from { opacity: 0; transform: translateY(-6px) scale(.97); } to { opacity: 1; transform: none; } }
+
+/* ---------- Carte 2D et 3D : boutons sur la vue harmonisés (même hauteur, même verre, même police, pastilles) ---------- */
+:root[data-design="v2"] .map-zoom { border-radius: 14px !important; border: 1px solid var(--v2-rim-2) !important; background: rgba(10, 18, 36, .74) !important; -webkit-backdrop-filter: var(--v2-blur); backdrop-filter: var(--v2-blur); box-shadow: 0 8px 20px -10px rgba(0, 0, 0, .7); }
+:root[data-design="v2"] .map-zoom .icon-btn { width: 32px; height: 30px; border-radius: 10px; color: #fff; }
+:root[data-design="v2"] .map3d-bar { gap: 8px; }
+:root[data-design="v2"] :is(.map3d-cams, .map3d-driver, .map3d-bar .map3d-fly, .map3d-bar .map3d-opts > summary) {
+  height: 36px; box-sizing: border-box; margin: 0; border-radius: 999px !important; border: 1px solid var(--v2-rim-2) !important;
+  background-color: rgba(10, 18, 36, .74) !important; color: #fff !important; font: 700 13px/1 var(--font) !important; letter-spacing: 0;
+  -webkit-backdrop-filter: var(--v2-blur); backdrop-filter: var(--v2-blur); box-shadow: 0 8px 20px -10px rgba(0, 0, 0, .7); }
+:root[data-design="v2"] .map3d-cams { display: flex; align-items: center; gap: 2px; padding: 3px; }
+:root[data-design="v2"] .map3d-cams .btn { height: 28px; padding: 0 12px; border-radius: 999px; border: 0; background: transparent; color: #CBD5E1; font: 700 13px/1 var(--font); }
+:root[data-design="v2"] .map3d-cams .btn:hover { color: #fff; background: rgba(255, 255, 255, .06); }
+:root[data-design="v2"] :is(.map3d-cams .btn, .map3d-bar .map3d-fly).on { background: rgba(255, 255, 255, .16) !important; color: #fff !important; border-color: transparent; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12); }
+:root[data-design="v2"] .map3d-driver { max-width: 200px; padding: 0 30px 0 14px; }
+:root[data-design="v2"] :is(.map3d-bar .map3d-fly, .map3d-bar .map3d-opts > summary) { display: inline-flex; align-items: center; gap: 6px; padding: 0 14px; }
+@media (max-width: 600px) {
+  :root[data-design="v2"] .map3d-cams { gap: 0; max-width: 100%; }
+  :root[data-design="v2"] .map3d-cams .btn { padding: 0 9px; font-size: 12.5px; }
+}

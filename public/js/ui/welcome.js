@@ -1,5 +1,5 @@
 // Premier lancement (ordinateur, nouvelle installation) : quelques écrans pour bien démarrer, à passer
-// à tout moment. Favoris, délai TV expliqué, compte F1 TV Pro, interface Essentiel ou Complète.
+// à tout moment. Favoris, délai TV expliqué, compte F1 TV Pro.
 import { $ } from '../util.js';
 import { prefs, setPref } from '../prefs.js';
 import { on } from '../store.js';
@@ -18,11 +18,6 @@ const STEPS = [
       <button class="wl-choice" data-f1tv="1">${icon('lock')}<b>Oui, me connecter</b><small>Ouvre la connexion à la fin</small></button>
       <button class="wl-choice" data-f1tv="0">${icon('close')}<b>Non</b><small>Positions estimées</small></button>
     </div>` },
-  { title: 'Quelle interface ?', body: () => `<div class="wl-choices">
-      <button class="wl-choice" data-mode="0">${icon('check')}<b>Essentiel</b><small>Classement, carte, radios, duel, arrêts et alertes. Recommandé pour commencer.</small></button>
-      <button class="wl-choice" data-mode="1">${icon('layout')}<b>Complète</b><small>Aussi l'analyse détaillée, les outils techniques, le streaming et les lumières.</small></button>
-    </div>
-    <p class="muted small">Modifiable à tout moment : Réglages → Apparence → Interface.</p>` },
 ];
 
 let step = 0;
@@ -37,7 +32,6 @@ function render(dlg) {
     <div class="wl-foot">${step ? `<button class="btn" data-wl="back">${icon('arrow-left')} Retour</button>` : '<span></span>'}
       <button class="btn btn-accent" data-wl="next">${last ? `${icon('check')} C'est parti` : 'Suivant'}</button></div>`;
   for (const b of dlg.querySelectorAll('[data-f1tv]')) b.classList.toggle('on', String(f1tv) === b.dataset.f1tv);
-  for (const b of dlg.querySelectorAll('[data-mode]')) b.classList.toggle('on', (prefs.fullMode ? '1' : '0') === b.dataset.mode);
   const favs = dlg.querySelector('[data-favs]');
   if (favs) favPicker().then((html) => { if (favs.isConnected) favs.innerHTML = html; });
 }
@@ -67,8 +61,6 @@ function open() {
     if (fav) { favAction(fav.dataset.home); return; }
     const t = e.target.closest('[data-f1tv]');
     if (t) { f1tv = t.dataset.f1tv === '1'; render(dlg); return; }
-    const m = e.target.closest('[data-mode]');
-    if (m) { setPref('fullMode', m.dataset.mode === '1'); render(dlg); return; }
     const k = e.target.closest('[data-wl]')?.dataset.wl;
     if (k === 'skip') finish(dlg, 'skip');
     else if (k === 'back') { step--; render(dlg); }

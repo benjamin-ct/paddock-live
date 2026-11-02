@@ -2,16 +2,17 @@
 // résultat (replay depuis le début ou tableau de bord), dernières actualités, raccourcis.
 // Ouverte au lancement quand aucune séance n'est en cours ; pendant une séance, l'appli s'ouvre
 // directement sur le Direct.
-import { $, $$, esc, api, drivers, placeView, hideBoot, dayIn } from '../util.js';
+import { $, $$, esc, api, drivers, placeView, hideBoot, dayIn, teamColor, teamLogo, photoUrl, OFFICIAL } from '../util.js';
 import { store, on } from '../store.js';
 import { icon } from '../icons.js';
-import { LOCALE, EN, t } from '../i18n.js';
+import { LOCALE, LANG, t } from '../i18n.js';
 import { gpShort, sessionLabel } from '/shared/gp-names.js';
 import { toast } from './delay.js';
 import { prefs, setPref, toggleFav, toggleTeamFav } from '../prefs.js';
 import { teamKey } from '/shared/news.js';
 import { openResults } from './results-view.js';
 import { COUNTRY_ISO } from '/shared/social-season.js';
+import { nearestShape, shapeOutline } from '/shared/circuit-shapes.js';
 
 let schedule = null;   // [{ race, round, label, t }]
 let archive = null;    // dernière séance rejouable { meeting, name, path, t }
@@ -26,18 +27,24 @@ let resultsOpen = false;   // résultats de la dernière séance demandés : tab
 // Durée approximative d'une séance (fenêtre « en cours »)
 const LONG = /course|race|grand prix/i;
 const lengthOf = (label) => (LONG.test(label) && !/sprint/i.test(label) ? 150 : 75) * 60e3;
-const sessionName = (n) => sessionLabel(n, EN);
+const sessionName = (n) => t(sessionLabel(n, LANG));   // nom anglais de la F1 ou libellé déjà en français
 
-// Calendrier chargé une fois (accueil et écran « Pas de séance en direct »)
-let scheduleLoad = null;
+// Calendrier chargé une fois (accueil et écran « Pas de séance en direct »). Serveur injoignable (appli ouverte
+// hors connexion) : pas de « Hors saison » ni de « Saison terminée » faute de données, nouvel essai chaque minute
+let scheduleLoad = null, scheduleFailed = false;
 const loadSchedule = () => (scheduleLoad ||= readSchedule());
 async function readSchedule() {
   const year = new Date().getFullYear();
   const races = [];
   for (const y of [year, year + 1]) {
-    try { races.push(...(await api(`/api/schedule?year=${y}`)).races.map((r) => ({ ...r, year: y }))); } catch { /* hors ligne */ }
+    try { races.push(...(await api(`/api/schedule?year=${y}`)).races.map((r) => ({ ...r, year: y }))); } catch {
+      scheduleFailed = true;
+      setTimeout(() => { scheduleLoad = null; loadSchedule().then(() => { noLiveCheck(); render(); }); }, 60e3);
+      return;
+    }
     if (races.some((r) => r.sessions.some((s) => Date.parse(s.t) > Date.now()))) break;
   }
+  scheduleFailed = false;
   schedule = races.flatMap((r) => r.sessions.filter((s) => s.t).map((s) => ({ race: r.name, round: r.round, year: r.year, label: s.label, t: Date.parse(s.t), lat: r.lat, lon: r.lon, locality: r.locality, country: r.country, circuitId: r.circuitId })))
     .sort((a, b) => a.t - b.t);
 }
@@ -97,9 +104,35 @@ function daysHtml(nx) {
   return `<div class="cal-days">${[...days.values()].map((d) => `<div class="cal-day"><div class="cal-day-h">${esc(new Date(d.t).toLocaleDateString(LOCALE, { weekday: 'short', day: 'numeric' }))}</div>
     ${d.list.map((s) => `<div class="cal-s ${s.t < Date.now() ? 'past' : ''} ${s === nx ? 'now' : ''}"><span>${esc(s.label)}</span><b>${hm(s.t)}</b></div>`).join('')}</div>`).join('')}</div>`;
 }
-const gp = (name) => gpShort(name, EN);
+const gp = (name) => gpShort(name, LANG);
 
 // Météo prévue des jours du prochain week-end (Open-Meteo, 16 jours au plus)
+// Design Paddock 2 : tracé lumineux du circuit derrière la prochaine séance (tracés déjà utilisés par le Calendrier)
+let shapes = null;
+function drawTrack(nx) {
+  (shapes ??= fetch('/data/f1-circuits.json').then((r) => r.json()).then((d) => d.circuits || []).catch(() => [])).then((all) => {
+    const s = nearestShape(all, Number(nx.lat), Number(nx.lon));
+    const card = $('#homeView .hm-next');
+    if (!s || !card || card.querySelector('.hm-trk')) return;
+    card.insertAdjacentHTML('beforeend', `<svg class="hm-trk" viewBox="-4 -4 108 108" aria-hidden="true"><polygon points="${shapeOutline(s.line)}"/><polygon class="run" points="${shapeOutline(s.line)}" pathLength="100"/></svg>`);
+    placeTrack(card);
+    new ResizeObserver(() => placeTrack(card)).observe(card);
+  });
+}
+// Tracé dans l'espace libre entre la fin des textes (compte à rebours, titre…) et le programme du week-end : jamais
+// par-dessus un texte, quelle que soit sa longueur ; pas de tracé s'il n'y a pas la place
+function placeTrack(card) {
+  const svg = card.querySelector('.hm-trk'), main = card.querySelector('.hm-next-main'), days = card.querySelector('.cal-days');
+  if (!svg || !main) return;
+  const box = card.getBoundingClientRect();
+  const r = document.createRange();
+  let right = box.left;
+  for (const el of main.children) { r.selectNodeContents(el); right = Math.max(right, r.getBoundingClientRect().right); }
+  const end = days ? days.getBoundingClientRect().left : box.right - 24;
+  const size = Math.min(270, end - right - 40, box.height - 40);
+  svg.style.cssText = size < 120 ? 'display:none' : `left:${Math.round((right + end) / 2 - box.left)}px;width:${Math.round(size)}px;height:${Math.round(size)}px`;
+}
+
 async function loadWeather(nx) {
   if (!nx?.lat) return;
   const key = `${nx.race}|${nx.year}`;
@@ -183,7 +216,7 @@ function favHtml() {
   const favT = teams.filter((c) => prefs.favTeams.includes(c.key));
   const count = favD.length + favT.length;
   const edit = `<button class="btn small" data-home="editfav">${icon(editFav ? 'check' : 'star')} ${editFav ? 'Terminé' : count ? 'Modifier' : 'Choisir mes favoris'}</button>`;
-  const head = `<div class="hm-kicker"><span class="hm-tag">${count === 1 ? 'Mon favori au championnat' : 'Mes favoris au championnat'}</span> ${edit}</div>`;
+  const head = `<div class="hm-kicker"><span class="hm-tag">${count === 1 ? 'Mon favori' : 'Mes favoris'}</span> ${edit}</div>`;
   if (!count) {
     return `<section class="hm-card hm-fav" id="hmFav">${head}${editFav ? favEditor(ds, teams)
       : '<div class="muted">Ajoutez vos pilotes et écuries favoris.</div>'}</section>`;
@@ -191,11 +224,15 @@ function favHtml() {
   const recent = lastSession() && Date.now() - lastSession().t < 72 * 3600e3;
   const hide = recent && !showFav;
   // Pilotes puis écuries, chacun sous son titre ; mêmes colonnes pour toutes les lignes (grille commune)
+  // Portrait du pilote (cerclé de la couleur de son écurie), logo de l'écurie
+  const tc = (team, id) => teamColor({ TeamName: team, TeamColour: OFFICIAL[id] || '8b95a8' });
+  const face = (d) => { const u = photoUrl({ Tla: d.code }); return u ? `<img class="hm-fav-pic" src="${u}" alt="" loading="lazy" style="--tc:${tc(d.team, d.teamId)}" onerror="this.remove()">` : ''; };
+  const logo = (c) => { const u = teamLogo(c.name); return u ? `<span class="team-logo color" style="--tc:${tc(c.name, c.id || c.key)};background-image:url('${u}')"></span>` : ''; };
   const rows = [
     ...(favD.length ? ['<div class="hm-fav-group muted">Pilotes</div>'] : []),
-    ...favD.map((d) => `<div class="hm-fav-row"><span class="hm-fav-pos">P${d.pos}</span><b>${esc(d.name)}</b><span class="muted">${esc(d.team)}</span><span class="muted">${pts(d)}</span></div>`),
+    ...favD.map((d) => `<div class="hm-fav-row"><span class="hm-fav-pos">P${d.pos}</span><b class="hm-fav-who">${face(d)}${esc(d.name)}</b><span class="muted">${esc(d.team)}</span><span class="muted">${pts(d)}</span></div>`),
     ...(favT.length ? ['<div class="hm-fav-group muted">Écuries</div>'] : []),
-    ...favT.map((c) => `<div class="hm-fav-row"><span class="hm-fav-pos">P${c.pos}</span><b>${esc(c.name)}</b><span></span><span class="muted">${pts(c)}</span></div>`),
+    ...favT.map((c) => `<div class="hm-fav-row"><span class="hm-fav-pos">P${c.pos}</span><b class="hm-fav-who">${logo(c)}${esc(c.name)}</b><span></span><span class="muted">${pts(c)}</span></div>`),
   ];
   return `<section class="hm-card hm-fav" id="hmFav">${head}
     <div class="hm-favs${hide ? ' hm-blur' : ''}">${rows.join('')}</div>
@@ -248,7 +285,7 @@ function render() {
         ${weatherHtml(nx)}
         <div class="hm-actions"><a class="btn small" href="#" data-cal="${nx.year}" data-round="${nx.round}" title="Séances dans votre agenda (Google, Apple, Outlook)">${icon('calendar')} Ajouter ce week-end à mon agenda</a></div></div>
         ${daysHtml(nx)}`
-          : `<div class="hm-title">${schedule ? 'Saison terminée' : 'Calendrier en chargement…'}</div></div>`}</section>`;
+          : `<div class="hm-title">${schedule ? 'Saison terminée' : scheduleFailed ? 'Calendrier indisponible pour l\'instant' : 'Calendrier en chargement…'}</div></div>`}</section>`;
   const ls = live ? null : lastSession();
   const last = ls
     ? `<section class="hm-card hm-last"><div class="hm-kicker"><span class="hm-tag">Dernière séance</span></div>
@@ -269,6 +306,7 @@ function render() {
     </nav>
     <a class="hm-follow" href="https://paddocklive.app/liens/" target="_blank" rel="noopener">${icon('share')} Suivre Paddock Live sur les réseaux ${icon('arrow-right', 'ic-s')}</a>`;
   if (nx && !live) loadWeather(nx);
+  if (nx && !live && prefs.design === 'v2') drawTrack(nx);
   // Actualités et favoris : l'accueil est complet quand les deux sont là
   return Promise.allSettled([news(), loadStandings()]);
 }
@@ -292,6 +330,11 @@ export function openHome() {
   import('./replays.js').then((m) => m.closeReplays());
   placeView($('#homeView'));
   view.hidden = false;
+  // Ouverture : cartes en cascade (une fois, pas à chaque mise à jour)
+  const main = view.querySelector('.hm-main');
+  main?.classList.add('hm-anim');
+  clearTimeout(openHome.t);
+  openHome.t = setTimeout(() => main?.classList.remove('hm-anim'), 900);
   render();
   clearInterval(timer);
   timer = setInterval(() => {
@@ -391,7 +434,7 @@ function noLiveCheck(show = true) {
   const running = st === 'Started' || st === 'Aborted' || !!liveNow();
   if (running) resultsOpen = false;
   const covered = COVERS.some((s) => $(s) && !$(s).hidden);
-  if (!schedule || running || covered || resultsOpen || store.status?.source?.mode === 'replay') { view.hidden = true; return; }
+  if ((!schedule && !scheduleFailed) || running || covered || resultsOpen || store.status?.source?.mode === 'replay') { view.hidden = true; return; }
   if (view.hidden && !show) return;
   if (view.hidden) { placeView(view); view.hidden = false; noLiveKey = ''; }
   const nx = nextSession(), ls = lastSession();
@@ -401,7 +444,7 @@ function noLiveCheck(show = true) {
   $('#noLiveBox').innerHTML = `<div class="nl-icon">${icon('signal')}</div>
     <h2>Pas de séance en direct</h2>
     ${nx ? `<p class="nl-next">Prochaine séance : <b>${esc(gp(nx.race))} : ${esc(nx.label)}</b><br><span class="muted">${esc(when(nx.t))}</span></p>
-      <div class="nl-count">${countdown(nx.t - Date.now())}</div>` : '<p class="muted">Saison terminée.</p>'}
+      <div class="nl-count">${countdown(nx.t - Date.now())}</div>${daysHtml(nx)}` : `<p class="muted">${schedule ? 'Saison terminée.' : 'Calendrier indisponible pour l\'instant : nouvel essai dans une minute.'}</p>`}
     <p class="muted small">Le tableau de bord s'ouvre tout seul au début de la séance.</p>
     <div class="nl-actions">
       ${ls ? `<button class="btn btn-accent" data-nl="replay">${icon('play')} ${esc(t('Revoir {} : {}', gp(ls.meeting), sessionName(ls.name)))}</button>` : ''}

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import zlib from 'node:zlib';
-import { LiveRelay, KEEP_MS, AUTH_MS, PRIVATE_MS, liveApi, pairSend, liveDevices, liveState } from '../analytics/live-relay.js';
+import { LiveRelay, KEEP_MS, AUTH_MS, PRIVATE_MS, LEAD_MS, liveApi, pairSend, liveDevices, liveState } from '../analytics/live-relay.js';
 import { WebHub } from '../analytics/live-page/web-hub.js';
 import { applyEvent, createDerived } from '../shared/derive.js';
 
@@ -28,7 +28,10 @@ test('relais web : état de la séance, messages groupés, messages anciens int�
   relay.onFrame(feed('CarData.z', 'xx'), t0 + 1100);
   relay.onFrame(feed('LapCount', { CurrentLap: 3 }), t0 + 2000);
   relay.flush();
-  assert.deepEqual(c.got.at(-1), { type: 'evs', events: [['LapCount', { CurrentLap: 2 }, t0 + 1000], ['LapCount', { CurrentLap: 3 }, t0 + 2000]], stream: [['Position', 'xx', t0], ['CarData', 'xx', t0 + 1100]] });
+  // L'état de départ part aussi en message (une appli déjà sur la séance s'y recale après un redémarrage du relais)
+  const [snap, ...evs] = c.got.at(-1).events;
+  assert.deepEqual([snap[0], snap[1].LapCount.CurrentLap, snap[2]], ['__snapshot', 1, t0 + 1]);
+  assert.deepEqual({ ...c.got.at(-1), events: evs }, { type: 'evs', events: [['LapCount', { CurrentLap: 2 }, t0 + 1000], ['LapCount', { CurrentLap: 3 }, t0 + 2000]], stream: [['Position', 'xx', t0], ['CarData', 'xx', t0 + 1100]] });
   assert.equal(relay.status.authenticated, true);
   assert.deepEqual(relay.streamBetween(t0 + 500, t0 + 2000), [['CarData', 'xx', t0 + 1100]]);
   relay.flush();
@@ -50,6 +53,25 @@ test('relais web : état de la séance, messages groupés, messages anciens int�
   assert.equal(c.got.at(-1).type, 'hello');
   assert.equal(c.got.at(-1).base.state.SessionInfo.Key, 11);
   assert.deepEqual(c.got.at(-1).events, []);
+});
+
+test('relais web : un navigateur arrivé entre deux envois groupés ne reçoit aucun message en double', () => {
+  const relay = new LiveRelay({}, {});
+  const t0 = 1e12;
+  relay.onFrame(snapshot(10, 1), t0);
+  relay.onFrame(feed('LapCount', { CurrentLap: 2 }), t0 + 1000);
+  relay.onFrame(feed('CarData.z', 'aa'), t0 + 1000);
+  relay.flush();
+  relay.onFrame(feed('LapCount', { CurrentLap: 3 }), t0 + 2000);   // pas encore envoyé à tous
+  relay.onFrame(feed('CarData.z', 'bb'), t0 + 2000);
+  const c = fakeClient();
+  relay.clients.add(c);
+  relay.hello(c, 0);
+  relay.flush();
+  const [hello, evs] = c.got;
+  const got = [...hello.events, ...evs.events].filter((e) => e[0] === 'LapCount').map((e) => e[1].CurrentLap);
+  assert.deepEqual(got, [2, 3]);   // chacun une fois
+  assert.deepEqual([...hello.stream, ...evs.stream].filter((s) => s[0] === 'CarData').map((s) => s[1]), ['aa', 'bb']);
 });
 
 test('version web : délai TV appliqué dans le navigateur, comme le serveur local', () => {
@@ -445,7 +467,7 @@ test('relais web : compte F1 TV suivi par l\'appli, GPS laissé après deux coup
   assert.deepEqual([relay.elsewhere, relay.status.elsewhere, relay.losses.length, reconnects], [false, false, 0, 1]);
 });
 
-test('version web : relais d\'un abonné fermé sans connexion F1 TV au bout de 15 s, et au bout de 6 h', async (t) => {
+test('version web : appareil fermé sans connexion F1 TV au bout de 15 s sur le relais d\'un abonné, et au bout de 6 h', async (t) => {
   t.mock.timers.enable({ apis: ['setTimeout', 'setInterval'] });
   const sockets = [];
   globalThis.WebSocketPair = class {
@@ -472,7 +494,7 @@ test('version web : relais d\'un abonné fermé sans connexion F1 TV au bout de 
     const mine = new LiveRelay({}, {});
     mine.name = 'u:'.padEnd(34, 'b');
     const s2 = await open(mine);
-    mine.userToken = 'jeton';
+    s2.ok = true;   // cet appareil a présenté une connexion F1 TV du compte (auth)
     t.mock.timers.tick(AUTH_MS);
     assert.equal(s2.closed, null);   // connexion F1 TV reçue : gardé
     t.mock.timers.tick(PRIVATE_MS);
@@ -484,4 +506,85 @@ test('version web : relais d\'un abonné fermé sans connexion F1 TV au bout de 
     assert.equal(s3.closed, null);   // relais commun : pas concerné
     for (const r of [idle, mine, shared]) { r.clients.clear(); r.stop(); }
   } finally { delete globalThis.WebSocketPair; }
+});
+
+test('relais web : au repos hors séance (F1 débranchée, veille), réveillé avant la séance suivante', async () => {
+  const now = Date.UTC(2026, 9, 28, 12);
+  const alarms = [];
+  const relay = new LiveRelay({ storage: { setAlarm: async (t) => alarms.push(t) } }, { DB: {} });
+  relay.connect = () => {};
+  const sent = [];
+  relay.clients.add({ send: (s) => sent.push(JSON.parse(s)) });
+  relay.start();
+  relay.base.t = now;
+  // Séance dans 10 min, ou chronos reçus il y a 30 s : le relais reste branché
+  relay.sched = { at: now, starts: [now + 10 * 60e3] };
+  await relay.sleepUntilNext(now);
+  assert.equal(relay.active, true);
+  relay.sched = { at: now, starts: [now - 5 * 3600e3, now + 2 * 86400e3] };
+  relay.lastTimingAt = now - 30e3;
+  await relay.sleepUntilNext(now);
+  assert.equal(relay.active, true, 'séance encore en cours d\'après les chronos');
+  // Plus rien : repos jusqu'à 30 min avant la séance suivante, minuteries arrêtées
+  relay.lastTimingAt = now - 10 * 60e3;
+  await relay.sleepUntilNext(now);
+  assert.equal(relay.active, false);
+  assert.equal(relay.timers.length, 0);
+  assert.deepEqual(alarms, [now + 2 * 86400e3 - LEAD_MS]);
+  assert.deepEqual([sent.at(-1).type, sent.at(-1).status.rest, sent.at(-1).status.next], ['up', true, now + 2 * 86400e3]);
+  await relay.alarm();
+  assert.equal(relay.active, true, 'réveillé pour la séance');
+  assert.equal(relay.status.rest, false);
+  for (const t of relay.timers) clearInterval(t), clearTimeout(t);
+});
+
+test('relais web : une page qui arrive pendant le repos reçoit « Hors séance » sans rebrancher la F1', async () => {
+  const sockets = [];
+  globalThis.WebSocketPair = class {
+    constructor() {
+      const s = { sent: [], accept() {}, addEventListener() {}, send(m) { this.sent.push(JSON.parse(m)); }, close() {} };
+      sockets.push(s);
+      return { 0: {}, 1: s };
+    }
+  };
+  try {
+    // Relais sorti de la veille complète (état oublié) : le réveil programmé dit qu'il est au repos
+    const wake = Date.now() + 86400e3;
+    const relay = new LiveRelay({ storage: { getAlarm: async () => wake } }, {});
+    let connects = 0;
+    relay.connect = () => { connects++; };
+    const req = new Request('https://relay/ws', { headers: { Upgrade: 'websocket', Origin: 'https://app.paddocklive.app', 'X-Relay': 'live' } });
+    await relay.fetch(req).catch(() => {});
+    const hello = sockets.at(-1).sent.find((m) => m.type === 'hello');
+    assert.deepEqual([hello.status.rest, hello.status.next, !!relay.active, connects], [true, wake + LEAD_MS, false, 0]);
+    // Réveil avant la séance : rebranché pour les pages ouvertes
+    await relay.alarm();
+    assert.deepEqual([relay.active, relay.resting, connects], [true, false, 1]);
+    relay.clients.clear(); relay.stop();
+  } finally { delete globalThis.WebSocketPair; }
+});
+
+test('relais web : connexions des navigateurs retrouvées après la veille (adresse, appareil, relais)', () => {
+  const ws = { deserializeAttachment: () => ({ nets: ['1.2.3.4'], ua: 'iPhone', since: 5, name: 'u:abc' }) };
+  const relay = new LiveRelay({ getWebSockets: () => [ws] }, {});
+  assert.equal(relay.clients.size, 1);
+  assert.equal(relay.ips.get('1.2.3.4'), 1);
+  assert.equal(relay.name, 'u:abc');
+  assert.deepEqual(relay.clientList().devices.map((d) => d.ua), ['iPhone']);
+});
+
+test('relais : une appli de bureau reçoit aussi l\'état de base en tête des messages (recalage après un redémarrage), pas un navigateur', () => {
+  const relay = new LiveRelay({}, {});
+  const t0 = 1e12;
+  relay.onFrame(snapshot(10, 1), t0);
+  relay.onFrame(feed('LapCount', { CurrentLap: 2 }), t0 + 1000);
+  relay.flush();
+  const app = fakeClient(), web = fakeClient();
+  app.app = true;
+  relay.hello(app, 0);
+  relay.hello(web, 0);
+  const [a, w] = [app.got.at(-1), web.got.at(-1)];
+  assert.deepEqual([a.events[0][0], a.events[0][1].LapCount.CurrentLap, a.events[0][2]], ['__snapshot', 1, t0]);
+  assert.equal(a.events.length, w.events.length + 1);
+  assert.ok(!w.events.some((e) => e[0] === '__snapshot' && e[2] === t0), 'pas de doublon de l\'état de base pour un navigateur');
 });

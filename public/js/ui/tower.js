@@ -1,11 +1,12 @@
 // Tableau de classement (course / qualifications / essais).
-import { store, setDuel, setFocus, versionOf, displayNow, f1Now, on, utcToLocal } from '../store.js';
+import { store, setDuelPair, setFocus, versionOf, displayNow, f1Now, on, utcToLocal } from '../store.js';
 import { $, esc, drivers, orderedNumbers, sessionKind, teamMark, tyreBadge, currentStint, lapSeconds, fmtLap } from '../util.js';
 import { prefs, isFav, toggleFav, towerCols, towerBig } from '../prefs.js';
-import { segmentClass, parseUtc, chequeredUtc } from '/shared/f1.js';
+import { segmentClass, parseUtc, chequeredUtc, parseGap, overtakeEnabled } from '/shared/f1.js';
 import { icon } from '../icons.js';
 import { realStopCount } from '/shared/pits.js';
 import { stewardsData } from './feed.js';
+import { lapGapSeries } from './duel.js';
 
 let lastKey = '';
 let lastRender = 0;
@@ -35,6 +36,17 @@ function sectorCell(sec) {
     (segs.length ? `<div class="segs">${segs.map((s) => `<i class="seg ${segmentClass(s?.Status)}"></i>`).join('')}</div>` : '') + '</td>';
 }
 
+// Tours de suite (les derniers, sans arrêt) où front et back ont fini à moins d'une seconde l'un de l'autre, dans un sens
+// ou dans l'autre (la bataille continue après un dépassement) : écart tour par tour du duel
+function battleLaps(front, back) {
+  let n = 0, next = null;
+  for (const p of lapGapSeries(front, back).reverse()) {
+    if (p.pit || Math.abs(p.y) >= 1 || (next && next.x - p.x !== 1)) break;
+    n++; next = p;
+  }
+  return n;
+}
+
 function gapText(v) {
   if (v === undefined || v === null || v === '') return '<span class="dim">—</span>';
   if (/^LAP/i.test(v)) return '<span class="dim">Leader</span>';
@@ -44,8 +56,7 @@ function gapText(v) {
 export function renderTower(force = false) {
   const now = performance.now();
   // Pilotes A et B marqués seulement quand le panneau Duel est affiché (comme sur la carte)
-  const duelOn = !!document.querySelector('.p-duel')?.getClientRects().length;
-  const key = `${versionOf(['TimingData', 'TimingAppData', 'DriverList', 'TimingStats', 'RaceControlMessages', '__reset'])}|${store.duel.a}|${store.duel.b}|${duelOn}|${store.focus}|${towerBig()}|${towerCols().hidden.join()}|${towerCols().extra.join()}|${prefs.favs.join()}|${prefs.hotLapDim}`;
+  const key = `${versionOf(['TimingData', 'TimingAppData', 'DriverList', 'TimingStats', 'RaceControlMessages', '__reset'])}|${store.duel.a}|${store.duel.b}|${store.duel.manual}|${store.focus}|${towerBig()}|${towerCols().hidden.join()}|${towerCols().extra.join()}|${prefs.favs.join()}|${prefs.hotLapDim}`;
   const carTick = store.positions.car.size ? Math.floor(now / 500) : 0;
   if (!force && key + carTick === lastKey) return;
   if (!force && now - lastRender < 250) return;
@@ -61,6 +72,9 @@ export function renderTower(force = false) {
   const nums = orderedNumbers(s);
   const dispNow = displayNow();
   const showDrs = (Number(s.SessionInfo?.StartDate?.slice(0, 4)) || 2026) < 2026;
+  // Depuis 2026, mode dépassement à la place du DRS, en course, quand la direction de course l'a activé (pas
+  // sous voiture de sécurité ni drapeau rouge). La F1 ne dit pas quand le pilote l'utilise : l'étiquette dit qu'il y a droit
+  const showDep = !showDrs && kind === 'race' && overtakeEnabled(s.RaceControlMessages?.Messages) && !['4', '5', '6', '7'].includes(String(s.TrackStatus?.Status || ''));
 
   const part = Number(s.TimingData?.SessionPart) || 1;
   const noEntries = list(s.TimingData?.NoEntries);
@@ -85,18 +99,21 @@ export function renderTower(force = false) {
   let head;
   if (kind === 'race') {
     head = TH('', 'Pos') + TH('', 'Pilote') + TH('c-tags', '') + TH('t-gap', 'Écart') + TH('t-int c-int', 'Interv.') + TH('t-lap c-last', 'Dernier') + TH('t-lap c-best', 'Meilleur') +
-      secHead + TH('c-tyre', 'Pneu') + TH('c-pits', 'Arr.', 'Arrêts aux stands') + TH('c-speed', 'V.max', 'Vitesse au speed trap') + extraHead + TH('c-duel', 'Duel');
+      secHead + TH('c-tyre', 'Pneu') + TH('c-pits', 'Arr.', 'Arrêts aux stands') + TH('c-speed', 'V.max', 'Vitesse au speed trap') + extraHead;
   } else if (kind === 'quali') {
     head = TH('', 'Pos') + TH('', 'Pilote') + TH('c-tags', '') + TH('t-lap', 'Meilleur') + TH('t-gap', 'Écart') + TH('t-int c-int', 'Interv.') + TH('t-lap c-pred', 'Tour en cours', 'Temps prévu du tour lancé et position visée') +
-      TH('t-lap c-last', 'Dernier') + secHead + TH('t-lap c-q', 'Q1') + TH('t-lap c-q', 'Q2') + TH('t-lap c-q', 'Q3') + TH('c-tyre', 'Pneu') + extraHead + TH('c-duel', 'Duel');
+      TH('t-lap c-last', 'Dernier') + secHead + TH('t-lap c-q', 'Q1') + TH('t-lap c-q', 'Q2') + TH('t-lap c-q', 'Q3') + TH('c-tyre', 'Pneu') + extraHead;
   } else {
     head = TH('', 'Pos') + TH('', 'Pilote') + TH('c-tags', '') + TH('t-lap', 'Meilleur') + TH('t-gap', 'Écart') + TH('t-int c-int', 'Interv.') + TH('t-lap c-pred', 'Tour en cours', 'Temps prévu du tour lancé') +
-      TH('t-lap c-last', 'Dernier') + secHead + TH('c-tyre', 'Pneu') + TH('c-pits', 'Tours') + extraHead + TH('c-duel', 'Duel');
+      TH('t-lap c-last', 'Dernier') + secHead + TH('c-tyre', 'Pneu') + TH('c-pits', 'Tours') + extraHead;
   }
 
   // Meilleurs temps de la partie en cours (qualifs) / de la séance, pour classer les tours en cours.
   const bestOf = (l) => kind === 'quali' ? lapSeconds(list(l.BestLapTimes)[part - 1]?.Value) : lapSeconds(l.BestLapTime?.Value);
   const bests = nums.map((n) => ({ n, t: bestOf(lines[n] || {}) })).filter((x) => x.t);
+  // Meilleur tour de tous (de la partie en cours en qualifs) : en violet dans la colonne « Meilleur »
+  const fastest = Math.min(...bests.map((x) => x.t));
+  const bestCls = (l) => (bestOf(l) === fastest ? ' purple' : '');
   const focusGap = store.focus ? gapSec(store.focus) : null;
 
   const hot = hotLaps();
@@ -110,7 +127,10 @@ export function renderTower(force = false) {
   }
   const flagUtc = chequeredUtc(s.RaceControlMessages?.Messages);
   const flagAt = flagUtc === null ? null : utcToLocal(flagUtc);
-  const rows = nums.map((num) => {
+  // Bataille repérée toute seule (course, aucun duel ouvert, pas sous voiture de sécurité ni drapeau rouge) : pastille sur
+  // le pilote derrière, un clic ouvre le duel (data-battle, comme les Bagarres)
+  const spotBattles = kind === 'race' && !(store.duel.manual && store.duel.a && store.duel.b) && !['4', '5', '6', '7'].includes(String(s.TrackStatus?.Status || ''));
+  const rows = nums.map((num, i) => {
     const d = dl[num] || {};
     const l = lines[num] || {};
     const a = app[num] || {};
@@ -127,9 +147,17 @@ export function renderTower(force = false) {
       const car = store.positions.carAt(num, dispNow);
       if (car && car.drs >= 10) tags.push('<span class="tag drs">DRS</span>');
     }
+    // Toujours affiché, allumé dès que l'écart avec la voiture devant passe sous une seconde
+    const ahead = parseGap(l.IntervalToPositionAhead?.Value)?.s;
+    if (showDep && !tags.length && !done) {
+      const on = ahead > 0 && ahead < 1;
+      tags.push(`<span class="tag drs dep${on ? ' on' : ''}" title="Mode dépassement : allumé à moins d'une seconde de la voiture devant">DÉP</span>`);
+    }
     const pred = kind !== 'race' && !done ? predictLap(l, stats[num]) : null;
     if (pred) tags.push('<span class="tag push" title="Tour rapide en cours">TOUR</span>');
     if (pens[num]) tags.push(`<span class="tag pen" title="Pénalité en temps : purgée au prochain arrêt, sinon ajoutée à son temps de course">+${pens[num]} s</span>`);
+    const fight = spotBattles && i > 0 && !l.Retired && !l.InPit && !done && ahead > 0 && ahead < 1 ? battleLaps(nums[i - 1], num) : 0;
+    if (fight >= 3) tags.push(`<button type="button" class="tag battle" data-battle="${nums[i - 1]},${num}" title="Bataille avec ${esc(dl[nums[i - 1]]?.Tla || nums[i - 1])} depuis ${fight} tours : ouvrir le duel">${icon('duel')}</button>`);
 
     // Changement de position : surbrillance verte / rouge (animation CSS, voir syncRows)
     const p = Number(pos);
@@ -147,7 +175,6 @@ export function renderTower(force = false) {
     const sectors = list(l.Sectors);
     const secCells = [0, 1, 2].map((i) => sectorCell(sectors[i])).join('');
     const tyre = `<td class="c-tyre">${stint ? tyreBadge(stint.Compound, stint.TotalLaps, stint.New) : '<span class="dim">—</span>'}</td>`;
-    const duel = `<td class="c-duel"><div class="duel-btns"><button class="ab a ${store.duel.a === num ? 'on' : ''}" data-duel="a" data-num="${num}" title="Pilote A du duel">A</button><button class="ab b ${store.duel.b === num ? 'on' : ''}" data-duel="b" data-num="${num}" title="Pilote B du duel">B</button></div></td>`;
     const last = `<td class="t-lap c-last ${timingClass(l.LastLapTime)}">${esc(l.LastLapTime?.Value || '') || '<span class="dim">—</span>'}</td>`;
     let predCell = '<td class="t-lap c-pred"><span class="dim">—</span></td>';
     if (pred) {
@@ -173,30 +200,29 @@ export function renderTower(force = false) {
     if (kind === 'race') {
       const int = l.IntervalToPositionAhead || {};
       const best = l.BestLapTime?.Value || '';
-      const bestPurple = stats[num]?.PersonalBestLapTime?.Position === 1;
       const st = l.Speeds?.ST;
-      cells = `<td class="pos">${esc(pos)}${posDelta}</td>${drv}
-        <td class="t-gap">${gapText(l.GapToLeader)}</td>
-        <td class="t-int c-int ${int.Catching ? 'catching' : ''}">${gapText(int.Value)}</td>
-        ${last}<td class="t-lap c-best ${bestPurple ? 'purple' : ''}">${esc(best) || '<span class="dim">—</span>'}</td>
+      cells = `<td class="pos${String(pos).length < 2 ? ' p1' : ''}">${esc(pos)}${posDelta}</td>${drv}
+        <td class="t-gap">${l.Retired ? '<span class="dim">—</span>' : gapText(l.GapToLeader)}</td>
+        <td class="t-int c-int ${int.Catching ? 'catching' : ''}">${l.Retired ? '<span class="dim">—</span>' : gapText(int.Value)}</td>
+        ${last}<td class="t-lap c-best${bestCls(l)}">${esc(best) || '<span class="dim">—</span>'}</td>
         ${secCells}${tyre}<td class="c-pits">${realStopCount(store.state.TimingAppData?.Lines?.[num], l)}</td>
-        <td class="c-speed ${timingClass(st)}">${esc(st?.Value || '') || '<span class="dim">—</span>'}</td>${extra}${duel}`;
+        <td class="c-speed ${timingClass(st)}">${esc(st?.Value || '') || '<span class="dim">—</span>'}</td>${extra}`;
     } else if (kind === 'quali') {
       const bl = list(l.BestLapTimes);
       const stp = list(l.Stats)[part - 1] || {};
       const best = bl[part - 1]?.Value || '';
       const q = [0, 1, 2].map((i) => `<td class="t-lap c-q ${i === part - 1 ? '' : 'dim'}">${esc(bl[i]?.Value || '') || '<span class="dim">—</span>'}</td>`).join('');
-      cells = `<td class="pos">${esc(pos)}</td>${drv}
-        <td class="t-lap">${esc(best) || '<span class="dim">—</span>'}</td>
+      cells = `<td class="pos${String(pos).length < 2 ? ' p1' : ''}">${esc(pos)}</td>${drv}
+        <td class="t-lap${bestCls(l)}">${esc(best) || '<span class="dim">—</span>'}</td>
         <td class="t-gap">${esc(stp.TimeDiffToFastest || '') || '<span class="dim">—</span>'}</td>
         <td class="t-int c-int">${esc(stp.TimeDifftoPositionAhead || '') || '<span class="dim">—</span>'}</td>
-        ${predCell}${last}${secCells}${q}${tyre}${extra}${duel}`;
+        ${predCell}${last}${secCells}${q}${tyre}${extra}`;
     } else {
-      cells = `<td class="pos">${esc(pos)}</td>${drv}
-        <td class="t-lap">${esc(l.BestLapTime?.Value || '') || '<span class="dim">—</span>'}</td>
+      cells = `<td class="pos${String(pos).length < 2 ? ' p1' : ''}">${esc(pos)}</td>${drv}
+        <td class="t-lap${bestCls(l)}">${esc(l.BestLapTime?.Value || '') || '<span class="dim">—</span>'}</td>
         <td class="t-gap">${esc(l.TimeDiffToFastest || '') || '<span class="dim">—</span>'}</td>
         <td class="t-int c-int">${esc(l.TimeDiffToPositionAhead || '') || '<span class="dim">—</span>'}</td>
-        ${predCell}${last}${secCells}${tyre}<td class="c-pits">${esc(l.NumberOfLaps ?? '')}</td>${extra}${duel}`;
+        ${predCell}${last}${secCells}${tyre}<td class="c-pits">${esc(l.NumberOfLaps ?? '')}</td>${extra}`;
     }
 
     const cls = ['trow'];
@@ -206,8 +232,9 @@ export function renderTower(force = false) {
     if (done) cls.push('fin');
     if (store.focus === num) cls.push('focus');
     if (hot && !pred && store.focus !== num && store.duel.a !== num && store.duel.b !== num) cls.push('cool');
-    if (duelOn && store.duel.a === num) cls.push('duel-a');
-    if (duelOn && store.duel.b === num) cls.push('duel-b');
+    // Pilotes choisis pour le duel (clic sur leur ligne)
+    if (store.duel.manual && store.duel.a === num) cls.push('duel-a');
+    if (store.duel.manual && store.duel.b === num) cls.push('duel-b');
     return { num, cls: cls.join(' '), cells };
   });
   freshReset = false;
@@ -387,6 +414,8 @@ function predictLap(l, st) {
   for (let i = 0; i < 3; i++) {
     const segs = list(secs[i]?.Segments);
     const statuses = segs.map((g) => g?.Status || 0);
+    // Rien de passé sur ce secteur ni le précédent pendant ce tour : restes du tour d'avant, pas comptés
+    if (i > done) break;
     seen += statuses.filter(Boolean).length;
     good += statuses.filter((x) => x === 2049 || x === 2051).length;
     const complete = segs.length && statuses.every(Boolean) && !statuses.includes(2064);
@@ -397,7 +426,9 @@ function predictLap(l, st) {
       done++;
     }
   }
-  if (!done || done === 3 || seen < 2 || good / seen < 0.5) return null;
+  // Tour lancé dès les premiers mini-secteurs du tour en vert ou violet (et plus seulement à la fin du premier
+  // secteur, au milieu du circuit) : temps prévu = secteurs faits + meilleurs secteurs personnels restants
+  if (done === 3 || seen < 2 || good / seen < 0.5) return null;
   for (let i = done; i < 3; i++) time += best[i];
   return { time, done };
 }
@@ -410,22 +441,21 @@ export function initTower() {
   on('reset', () => { freshReset = true; prevPos.clear(); flashes.clear(); });
   on('towerSize', () => renderTower(true));   // agrandi ou réduit : ses colonnes
   $('#tower').addEventListener('click', (e) => {
-    const b = e.target.closest('[data-duel]');
-    if (b) {
-      const slot = b.dataset.duel;
-      setDuel(slot, store.duel[slot] === b.dataset.num ? null : b.dataset.num);
-      renderTower(true);
-      return;
-    }
     const fav = e.target.closest('[data-fav]');
     if (fav) {
       toggleFav(fav.dataset.fav);
       renderTower(true);
       return;
     }
+    if (e.target.closest('[data-battle]')) return;   // pastille de bataille : le duel s'ouvre (race-tools.js)
+    // Clic sur un pilote : choisi (et suivi) ; deux pilotes choisis : le duel s'affiche (bandeau) ; un troisième remplace
+    // le deuxième ; un pilote déjà choisi : retiré
     const row = e.target.closest('tr[data-num]');
     if (row) {
-      setFocus(store.focus === row.dataset.num ? null : row.dataset.num);
+      const n = row.dataset.num, sel = store.duel.manual ? [store.duel.a, store.duel.b].filter(Boolean) : [];
+      const next = sel.includes(n) ? sel.filter((x) => x !== n) : sel.length < 2 ? [...sel, n] : [sel[0], n];
+      setDuelPair(next[0], next[1]);
+      setFocus(next.includes(n) ? n : next.at(-1) || null);
       renderTower(true);
     }
   });

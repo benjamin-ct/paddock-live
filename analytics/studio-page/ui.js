@@ -74,7 +74,8 @@ export async function api(path, { method = 'GET', body, raw = false } = {}) {
   try {
     res = await fetch(`/studio/api/${path}`, { method, body, signal, headers: { 'X-Studio-Key': key || '' } });
   } catch (err) {
-    throw err?.name === 'TimeoutError' ? new Error('Le serveur ne répond pas (réseau lent ou coupé) : réessayez') : err;
+    // Délai dépassé : TimeoutError, AbortError sur Safari (« Fetch is aborted »)
+    throw ['TimeoutError', 'AbortError'].includes(err?.name) ? new Error('Le serveur ne répond pas (réseau lent ou coupé) : réessayez') : err;
   }
   if (res.status === 401) { forgetKey(); logoutHook(); throw new Error('Code incorrect'); }
   if (raw) {
@@ -305,7 +306,9 @@ export const musicField = (kind, def) => {
   return `<div class="field"><span>Musique <small>(fabriquée sur place et libre de droits, la vôtre, ou aucune)</small></span>
     <div class="row"><select id="vtrack">${TRACKS.map((x) => `<option value="${x.id}" ${x.id === cur ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}<option value="file" ${cur === 'file' ? 'selected' : ''}>Mon fichier audio…</option><option value="none" ${cur === 'none' ? 'selected' : ''}>Sans musique</option></select><button type="button" class="btn small" id="vlisten">${icon('play')}Écouter</button></div>
     <input type="file" id="vaudio" accept="audio/*" hidden>
-    <small class="hint" id="vtrackdesc">${esc(musicDesc(cur))}${cur === 'file' && ownAudio ? ` · ${esc(ownAudio.name)}` : ''}</small></div>`;
+    <small class="hint" id="vtrackdesc">${esc(musicDesc(cur))}${cur === 'file' && ownAudio ? ` · ${esc(ownAudio.name)}` : ''}</small></div>
+    <div class="field"><span>Format <small>(plus haute : plein écran sur les iPhone et téléphones récents ; 9:16 : format conseillé par Instagram et YouTube${kind === 'race' ? ' ; Instagram : remplit le cadre des Reels ; paysage : vidéo YouTube classique, X, Facebook' : ''})</small></span>
+    <select id="vformat">${[['std', '9:16 (standard)'], ['tall', "Plus haute (forme de l'iPhone)"], ...(kind === 'race' ? [['insta', 'Instagram (Reels)'], ['wide', 'Paysage 16:9']] : [])].map(([v, l]) => `<option value="${v}" ${store.get('vformat')?.v === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>`;
 };
 // Branche la liste et l'écoute (15 s) ; renvoie de quoi faire la musique : { music, track, file }
 export function bindMusic(kind) {
@@ -335,27 +338,28 @@ export function bindMusic(kind) {
     if (stop) listen();
   };
   $('#vaudio').onchange = (e) => { if (e.target.files?.[0]) ownAudio = e.target.files[0]; desc(); };
+  $('#vformat').onchange = (e) => store.set('vformat', e.target.value);
   desc();
   $('#vlisten').onclick = () => (stop ? end() : listen());
   addEventListener('popstate', end, { once: true });
+  // Musique et format de la vidéo
   return () => {
-    const v = $('#vtrack').value;
-    if (v === 'none') return { music: 'none' };
-    if (v === 'file' && ownAudio) return { music: 'file', file: ownAudio };
-    return { music: 'gen', track: v === 'file' ? trackOf().id : v };
+    const v = $('#vtrack').value, format = $('#vformat').value;
+    if (v === 'none') return { music: 'none', format };
+    if (v === 'file' && ownAudio) return { music: 'file', file: ownAudio, format };
+    return { music: 'gen', track: v === 'file' ? trackOf().id : v, format };
   };
 }
 
 // Vidéo fabriquée sur place, jointe au post si elle est en MP4 (format accepté par tous les réseaux)
-// Partage d'une vidéo fabriquée (sinon téléchargement) ; full : version plein écran (X, Bluesky…)
-export async function shareClip(clip, name, full = false) {
-  const v = full ? clip.full : clip;
-  const file = new File([v.blob], `${name}${full ? '-plein-ecran' : ''}.${v.mime.includes('mp4') ? 'mp4' : 'webm'}`, { type: v.mime });
+// Partage d'une vidéo fabriquée (sinon téléchargement)
+export async function shareClip(clip, name) {
+  const file = new File([clip.blob], `${name}.${clip.mime.includes('mp4') ? 'mp4' : 'webm'}`, { type: clip.mime });
   if (navigator.canShare?.({ files: [file] })) { try { await navigator.share({ files: [file] }); } catch { /* annulé */ } return; }
   const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = file.name; a.click();
 }
 
-// Vidéo fabriquée (MP4) avec sa couverture (JPEG, envoyée à Instagram et Facebook) et sa version plein écran
+// Vidéo fabriquée (MP4) avec sa couverture (JPEG, envoyée à Instagram et Facebook)
 export const clipFile = (clip, name) => (clip?.mime.includes('mp4') ? Object.assign(new File([clip.blob], `${name}.mp4`, { type: 'video/mp4' }), {
-  cover: clip.cover || null, vsize: '1080x1920', full: clip.full?.mime.includes('mp4') ? new File([clip.full.blob], `${name}-plein-ecran.mp4`, { type: 'video/mp4' }) : null,
+  cover: clip.cover || null, vsize: `${clip.w || 1080}x${clip.h || 1920}`,
 }) : null);

@@ -6,8 +6,10 @@
 
 import { playTrack } from './social-music.js';
 
-const W = 1080;
-const H = 1920;
+// Tailles des vidéos (opts.format) : 9:16 (format des réseaux), plus haute (forme des téléphones récents, TikTok),
+// Instagram (1:2, forme de son cadre de lecture : ni réduite ni rognée) ou paysage
+const SIZES = { std: [1080, 1920], tall: [1080, 2340], insta: [1080, 2160], wide: [1920, 1080] };
+const STD = 1920;
 
 function pickMime(withAudio) {
   const list = withAudio
@@ -79,13 +81,14 @@ async function renderMusic(music, file, track, duration, rate = 48000) {
   return ac.startRendering();
 }
 
-// Formats essayés dans l'ordre : MP4 (H.264 + AAC, lu partout), sinon WebM (VP9 + Opus, accepté par TikTok)
+// Formats essayés dans l'ordre : MP4 (H.264 + AAC, lu partout ; niveau 5.1 pour la vidéo plus haute, au-delà du 4.0),
+// sinon WebM (VP9 + Opus, accepté par TikTok)
 const PLANS = [
-  { mime: 'video/mp4', lib: () => import('./mp4-muxer.js'), video: [['avc1.640028', 'avc'], ['avc1.4d0028', 'avc'], ['avc1.42002a', 'avc']], audio: ['mp4a.40.2', 'aac'], opts: { fastStart: 'in-memory' } },
+  { mime: 'video/mp4', lib: () => import('./mp4-muxer.js'), video: [['avc1.640028', 'avc'], ['avc1.4d0028', 'avc'], ['avc1.42002a', 'avc'], ['avc1.640033', 'avc'], ['avc1.4d0033', 'avc']], audio: ['mp4a.40.2', 'aac'], opts: { fastStart: 'in-memory' } },
   { mime: 'video/webm', lib: () => import('./webm-muxer.js'), video: [['vp09.00.40.08', 'V_VP9'], ['vp8', 'V_VP8']], audio: ['opus', 'A_OPUS'], opts: {} },
 ];
 const FPS = 30;
-async function pickPlan(withAudio) {
+async function pickPlan(withAudio, [W, H]) {
   if (!window.VideoEncoder || !window.VideoFrame || (withAudio && !window.AudioEncoder)) return null;
   for (const plan of PLANS) {
     if (withAudio && !(await AudioEncoder.isConfigSupported({ codec: plan.audio[0], sampleRate: 48000, numberOfChannels: 2, bitrate: 192e3 }).catch(() => ({}))).supported) continue;
@@ -101,9 +104,9 @@ async function pickPlan(withAudio) {
 // paints : une vidéo par fonction de dessin, même musique ; null si le navigateur ne sait pas faire
 // (enregistrement en temps réel à la place).
 // prepare(t) : attendu avant de dessiner l'image de l'instant t (vidéo source calée sur t)
-async function encodeFrames(paints, duration, { music, file, track, onProgress, prepare = null }) {
+async function encodeFrames(paints, duration, [W, H], { music, file, track, onProgress, prepare = null }) {
   const withAudio = music !== 'none';
-  const plan = await pickPlan(withAudio);
+  const plan = await pickPlan(withAudio, [W, H]);
   if (!plan) return null;
   const { Muxer, ArrayBufferTarget } = await plan.lib();
   const outs = paints.map((paint) => {
@@ -123,8 +126,11 @@ async function encodeFrames(paints, duration, { music, file, track, onProgress, 
   if (withAudio) {
     const buf = await renderMusic(music, file, track, duration);
     silent = !buf.getChannelData(0).some((x) => Math.abs(x) > 1e-4);
-    // Son encodé une fois, copié dans chaque vidéo
-    const enc = new AudioEncoder({ output: (c, m) => outs.forEach((o) => o.muxer.addAudioChunk(c, m)), error: fail });
+    // Son encodé une fois, copié dans chaque vidéo. AAC : réglages écrits ici (AAC-LC, 48 kHz, stéréo), Safari
+    // donnant sa boîte esds entière à la place (bug WebKit 302253) : son illisible, vidéo refaite en temps réel
+    const asc = plan.audio[1] === 'aac' ? new Uint8Array([0x11, 0x90]) : null;
+    const fix = (m) => (asc && m?.decoderConfig ? { ...m, decoderConfig: { ...m.decoderConfig, description: asc } } : m);
+    const enc = new AudioEncoder({ output: (c, m) => outs.forEach((o) => o.muxer.addAudioChunk(c, fix(m))), error: fail });
     enc.configure({ codec: plan.audio[0], sampleRate: 48000, numberOfChannels: 2, bitrate: 192e3 });
     const step = 4800;
     for (let i = 0; i < buf.length; i += step) {
@@ -180,82 +186,60 @@ export function unlockAudio() {
   } catch { /* pas de son possible dans ce navigateur */ }
 }
 
-// Zone sûre : sur les téléphones (écran plus allongé que 9:16), Reels, TikTok et Shorts remplissent l'écran
-// en rognant les côtés (environ 9 % de chaque côté, ~100 px) et posent leur interface par-dessus : en haut
-// l'onglet, la recherche ou le retour (~13 %), à droite la colonne J'aime / Commentaire / Partage (~110 px
-// visibles), en bas le compte, la légende et la musique (~18 %). L'image est dessinée réduite (SAFE.s) dans
-// le rectangle libre ; ses aplats pleine page (fond, lueurs, fondus) couvrent toute la vidéo : un seul fond
-// continu, rien de coupé ni caché, ni bandes noires ni cadre.
-const SAFE = { x: 120, y: 260, s: 0.68 };
-// Vidéos animées (course, Breaking news) : mise en page refaite à la taille du rectangle libre (texte et
-// graphique plus grands qu'une image réduite) ; paint(ctx, t, w, h)
-const BOX = { x: 100, y: 240, w: 790, h: 1340 };
-export function safeFrame(paint, { box = false } = {}) {
-  const [ox, oy, s, fw, fh] = box ? [BOX.x, BOX.y, 1, BOX.w, BOX.h] : [SAFE.x, SAFE.y, SAFE.s, W, H];
-  return (ctx, t) => {
-    const fill = ctx.fillRect;
-    ctx.fillRect = function fullRect(x, y, w, h) {
-      if (x !== 0 || y !== 0 || w !== fw || h !== fh) return fill.call(this, x, y, w, h);
-      // Aplat de toute l'image : étendu à toute la vidéo (coins de la vidéo ramenés dans le repère courant)
-      const m = this.getTransform().invertSelf();
-      const pts = [[0, 0], [W, 0], [0, H], [W, H]].map(([a, b]) => m.transformPoint({ x: a, y: b }));
-      const xs = pts.map((q) => q.x); const ys = pts.map((q) => q.y);
-      return fill.call(this, Math.min(...xs), Math.min(...ys), Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys));
-    };
-    // Liseré pleine image (Breaking news) : autour de tout l'écran, pas du contenu réduit
-    const stroke = ctx.strokeRect;
-    ctx.strokeRect = function edgeRect(x, y, w, h) {
-      if (Math.abs(x * 2 + w - fw) > 1 || Math.abs(y * 2 + h - fh) > 1 || x > fw * 0.05) return stroke.call(this, x, y, w, h);
-      const k = this.getTransform().a;
-      const per = (2 * (W + H)) / (2 * (fw + fh) * k);   // tirets (tracé progressif) à l'échelle du tour d'écran
-      this.save();
-      this.setTransform(1, 0, 0, 1, 0, 0);
-      this.lineWidth *= k;
-      this.setLineDash(this.getLineDash().map((v) => v * k * per));
-      const lw = this.lineWidth;
-      stroke.call(this, lw / 2, lw / 2, W - lw, H - lw);
-      this.restore();
-    };
-    ctx.save();
-    ctx.setTransform(s, 0, 0, s, ox, oy);
-    try { paint(ctx, t, fw, fh); } finally { ctx.restore(); delete ctx.fillRect; delete ctx.strokeRect; }
-  };
-}
-
 // Couverture (miniature) : montrée COVER secondes au début de la vidéo (première image, couverture par
 // défaut de TikTok) et rendue en JPEG (couverture envoyée à Instagram et Facebook)
 const COVER = 0.4;
-async function coverJpeg(paint) {
+async function coverJpeg(paint, [W, H]) {
   const c = document.createElement('canvas');
   c.width = W; c.height = H;
   paint(c.getContext('2d'), 0);
   return new Promise((resolve) => c.toBlob(resolve, 'image/jpeg', 0.9));
 }
 
-// Animation : draw(ctx, t) dessine l'image à l'instant t (secondes). Deux vidéos fabriquées ensemble :
-// l'une placée dans la zone sûre (Reels, TikTok, Shorts), l'autre en plein écran (full : Facebook, Threads,
-// Bluesky, X, partage). Résultat : { blob, mime, cover, full: { blob, mime } } ;
-// opts.cover(ctx) : couverture dessinée au format de la vidéo ;
-// opts.box : draw(ctx, t, w, h) mis en page à la taille du rectangle libre (sinon image réduite)
-export async function makeAnimation(draw, duration, { cover = null, box = false, ...opts } = {}) {
+// Animation : draw(ctx, t, w, h) dessine l'image à l'instant t (secondes), en plein écran, la même vidéo pour tous
+// les réseaux. Résultat : { blob, mime, cover, silent, w, h } ; opts.cover(ctx, w, h) : couverture dessinée au format
+// de la vidéo ; opts.format : 'std' (9:16), 'tall' (1080 × 2340), 'insta' (1080 × 2160) ou 'wide' (1920 × 1080),
+// les deux derniers pour un dessin prévu pour
+export async function makeAnimation(draw, duration, { cover = null, format = 'std', ...opts } = {}) {
+  const size = SIZES[format] || SIZES.std;
+  const [W, H] = size;
   // Couverture en plein cadre (son contenu reste dans la partie centrale, celle des grilles de profil)
-  const front = cover && ((ctx) => { ctx.save(); ctx.globalAlpha = 1; cover(ctx); ctx.restore(); });
+  const front = cover && ((ctx) => { ctx.save(); ctx.globalAlpha = 1; cover(ctx, W, H); ctx.restore(); });
   const withCover = (body) => (front ? (ctx, t) => (t < COVER ? front(ctx, 0) : body(ctx, t - COVER)) : body);
-  const paints = [safeFrame(draw, { box }), (ctx, t) => draw(ctx, t, W, H)].map(withCover);
+  const paints = [(ctx, t) => draw(ctx, t, W, H)].map(withCover);
   const total = duration + (front ? COVER : 0);
   // Vidéo source calée sur le temps de l'animation (après la couverture)
   if (opts.prepare) { const prep = opts.prepare; opts.prepare = (t) => (front && t < COVER ? null : prep(t - (front ? COVER : 0))); }
-  const extra = front ? { cover: await coverJpeg(front).catch(() => null) } : {};
+  const extra = { w: W, h: H, ...(front ? { cover: await coverJpeg(front, size).catch(() => null) } : {}) };
+  const music = opts.music || 'gen';
   let vids = null;
   try {
-    vids = await encodeFrames(paints, total, { music: 'gen', ...opts });
+    vids = await encodeFrames(paints, total, size, { ...opts, music });
   } catch { /* encodeur du navigateur en échec : enregistrement en temps réel */ }
-  const [safe, full] = vids || await recordLive(paints, total, opts);
-  return { ...safe, ...extra, full: { blob: full.blob, mime: full.mime } };
+  if (!vids) return { ...(await recordLive(paints, total, size, { ...opts, music }))[0], ...extra };
+  // Musique perdue à l'encodage (piste muette ou illisible, selon les navigateurs) : enregistrement en temps réel
+  // essayé ; gardé seulement s'il a du son, sinon la vidéo encodée (signalée muette si sa piste l'est vraiment)
+  const heard = music === 'none' ? true : await audible(vids[0].blob);
+  if (vids[0].silent || heard === false || heard === null) {
+    const live = await recordLive(paints, total, size, { ...opts, music }).catch(() => null);
+    if (live && !live[0].silent) return { ...live[0], ...extra };
+    if (heard === false) vids[0].silent = true;
+  }
+  return { ...vids[0], ...extra };
+}
+
+// Son de la vidéo fabriquée : true (audible), false (piste muette), null (illisible par le navigateur), undefined
+// (vidéo de plus de 50 Mo pas vérifiée : trop de mémoire sur téléphone)
+async function audible(blob) {
+  if (blob.size > 50e6) return undefined;
+  try {
+    const buf = await new OfflineAudioContext(1, 1, 48000).decodeAudioData(await blob.arrayBuffer());
+    return buf.getChannelData(0).some((x) => Math.abs(x) > 1e-3);
+  } catch { return null; }
 }
 
 // Enregistrement en temps réel (navigateur sans WebCodecs) : une vidéo par fonction de dessin, même son
-async function recordLive(paints, duration, { music = 'gen', file = null, track, onProgress, prepare = null } = {}) {
+async function recordLive(paints, duration, [W, H], { music = 'gen', file = null, track, onProgress, prepare = null } = {}) {
   let silent = false;   // son bloqué par le navigateur : vidéo muette, signalée à l'appelant
   if (!window.MediaRecorder) throw new Error('Enregistrement vidéo indisponible dans ce navigateur');
   let ac = null;
@@ -301,54 +285,83 @@ async function recordLive(paints, duration, { music = 'gen', file = null, track,
   draw(0);
   outs.forEach((o) => o.rec.start(500));
   const start = performance.now();
+  // Page cachée (autre appli, écran verrouillé : l'iPhone la met en pause) : enregistrement et horloge
+  // arrêtés, repris au retour, sinon la vidéo s'arrêtait au retour sans sa fin
+  let away = 0;
+  let since = 0;
+  const vis = () => {
+    if (document.hidden) { since = performance.now(); outs.forEach((o) => o.rec.state === 'recording' && o.rec.pause()); }
+    else if (since) { away += performance.now() - since; since = 0; ac?.resume().catch(() => {}); outs.forEach((o) => o.rec.state === 'paused' && o.rec.resume()); }
+  };
+  document.addEventListener('visibilitychange', vis);
   await new Promise((resolve) => {
     const tick = () => {
-      const t = (performance.now() - start) / 1000;
+      if (since) { requestAnimationFrame(tick); return; }
+      const t = (performance.now() - start - away) / 1000;
       draw(Math.min(t, duration - 0.001));
       onProgress?.(Math.min(1, t / duration));
       if (t >= duration) resolve(); else requestAnimationFrame(tick);
     };
     requestAnimationFrame(tick);
   });
+  document.removeEventListener('visibilitychange', vis);
   outs.forEach((o) => o.rec.stop());
   await Promise.all(outs.map((o) => o.done));
   outs.forEach((o) => o.video.getTracks().forEach((tr) => tr.stop()));
   // Contexte ouvert pendant le geste : gardé pour la vidéo suivante, seul le son de celle-ci est coupé
   if (ac === liveAc) master?.disconnect(); else await ac?.close();
-  return Promise.all(outs.map(async ({ rec, chunks }) => {
+  const vids = await Promise.all(outs.map(async ({ rec, chunks }) => {
     const type = (rec.mimeType || mimeType || 'video/webm').split(';')[0];
     let blob = new Blob(chunks, { type });
     if (type === 'video/webm') blob = new Blob([webmWithDuration(await blob.arrayBuffer(), duration * 1000)], { type });
-    return { blob, mime: type, ...(silent ? { silent } : {}) };
+    return { blob, mime: type };
   }));
+  // Son vérifié sur la vidéo enregistrée : bloqué ou muet, elle est signalée à l'appelant (illisible : rien de sûr)
+  if (music !== 'none' && (silent || await audible(vids[0].blob) === false)) vids.forEach((v) => { v.silent = true; });
+  return vids;
 }
 
-// Diaporama des visuels au format story : léger zoom et fondu enchaîné
+// Diaporama des visuels au format story : zoom lent et continu, passage d'une image à l'autre en
+// glissant (comme un carrousel qu'on fait défiler), adouci au départ et à l'arrivée
+const easeInOut = (p) => (p < 0.5 ? 4 * p * p * p : 1 - (-2 * p + 2) ** 3 / 2);
+// Visuels au format story (1080 × 1920) dans une vidéo plus haute : centrés, leur fond prolongé en haut et en bas
 export async function makeVideo(slides, { perSlide = 3.2, ...opts } = {}) {
   const duration = slides.length * perSlide;
-  const fade = 0.45;
+  const W = 1080;
+  const H = opts.format === 'tall' ? SIZES.tall[1] : STD;
+  const oy = (H - STD) / 2;
+  const swap = 0.6;
+  // Visuel centré en hauteur, ses lignes du haut et du bas étirées jusqu'aux bords
+  const place = (ctx, c) => {
+    if (c.width && oy) { ctx.drawImage(c, 0, 0, W, 2, 0, 0, W, oy + 1); ctx.drawImage(c, 0, STD - 2, W, 2, 0, oy + STD - 1, W, oy + 1); }
+    ctx.translate(0, oy);
+    if (c.width) ctx.drawImage(c, 0, 0, W, STD); else c.paint(ctx);
+  };
   const draw = (ctx, t) => {
     const i = Math.min(slides.length - 1, Math.floor(t / perSlide));
     const local = t - i * perSlide;
-    const paint = (c, k, alpha, dy = 0) => {
-      const s = 1 + 0.045 * k;
+    // Image déjà dessinée (rapide, sans saccade) ; zoom de 0 à 4 % sur toute sa durée
+    const paint = (c, k, x, fade = 1) => {
+      const s = 1 + 0.04 * k;
       ctx.save();
-      ctx.globalAlpha = alpha;
-      ctx.translate((W - W * s) / 2, (H - H * s) / 2 + dy);
+      ctx.globalAlpha = fade;
+      ctx.translate(x + (W - W * s) / 2, (H - H * s) / 2);
       ctx.scale(s, s);
-      if (c.paint) c.paint(ctx); else ctx.drawImage(c, 0, 0, W, H);
+      place(ctx, c);
       ctx.restore();
     };
     ctx.globalAlpha = 1;
-    ctx.fillStyle = '#0b0d12'; ctx.fillRect(0, 0, W, H);
-    paint(slides[i], local / perSlide, 1);
+    ctx.fillStyle = '#06070b'; ctx.fillRect(0, 0, W, H);
     const next = slides[i + 1];
-    if (next && local > perSlide - fade) {
-      const p = (local - (perSlide - fade)) / fade;
-      paint(next, 0, p, (1 - p) * 80);
-    }
+    const p = next && local > perSlide - swap ? easeInOut((local - (perSlide - swap)) / swap) : 0;
+    // Zoom continu d'une image à l'autre : celle qui arrive a déjà commencé le sien
+    const zoom = (l) => (l + swap) / (perSlide + swap);
+    paint(slides[i], zoom(local), -W * 0.35 * p, 1 - p * 0.6);
+    if (p) paint(next, zoom(local - perSlide), W * (1 - p));
     ctx.globalAlpha = 1;
   };
   // Couverture : le premier visuel (sa couverture le plus souvent)
-  return makeAnimation(draw, duration, { cover: slides[0]?.paint ? (ctx) => slides[0].paint(ctx) : null, ...opts });
+  // Couverture dessinée à la taille de la vidéo (plus haute comprise)
+  const cover = (ctx, w, h) => slides[0].paint(ctx, [w, h]);
+  return makeAnimation(draw, duration, { ...opts, cover: slides[0]?.paint ? cover : null, format: oy ? 'tall' : 'std' });
 }

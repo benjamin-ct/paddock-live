@@ -9,12 +9,12 @@ const race = { kind: 'race', rows: [{}], facts: [{}], champ: null, summary: { pa
 const item = { id: 'n1', title: 'Hamilton extends Ferrari deal', summary: 'Ferrari has extended Hamilton.', tags: ['HAM'], src: 'f1', t: Date.UTC(2026, 9, 16), link: 'https://www.formula1.com/a/1', lang: 'en', sources: 1 };
 
 test('abonnement : dernière image des carrousels et du format X, pas sur une image seule', () => {
-  assert.deepEqual(slidesFor(race), ['couverture', 'vainqueur', 'podium', 'classement', 'faits']);
+  assert.deepEqual(slidesFor(race), ['couverture', 'podium', 'classement', 'faits']);
   assert.equal(slidesFor(race, { fmt: 'ig', follow: true }).at(-1), 'abonnement');
   assert.equal(slidesFor(race, { fmt: 'story', follow: true }).at(-1), 'abonnement');
-  // X : 4 images au plus, l'image de fin passe avant les dernières du post
-  assert.deepEqual(slidesFor(race, { fmt: 'x', follow: true }), ['couverture', 'vainqueur', 'podium', 'abonnement']);
-  assert.deepEqual(slidesFor({ post: 'raceweek', tyres: {} }, { fmt: 'x', follow: true, question: true }), ['raceweek', 'horaires', 'question', 'abonnement']);
+  // X : toutes les images (réparties entre le post et sa suite par xSplit)
+  assert.deepEqual(slidesFor(race, { fmt: 'x', follow: true }), ['couverture', 'podium', 'classement', 'faits', 'abonnement']);
+  assert.deepEqual(slidesFor({ post: 'raceweek', tyres: {} }, { fmt: 'x', follow: true, question: true }), ['raceweek', 'horaires', 'infos', 'question', 'abonnement']);
   assert.deepEqual(slidesFor(race, { fmt: 'x' }), slidesFor(race));
   assert.deepEqual(slidesFor({ post: 'flash', rows: [] }, { follow: true }), ['flash']);
   assert.deepEqual(slidesFor(newsPost(item, { title: 'T', summary: 'S' }), { follow: true }), ['news']);
@@ -73,8 +73,7 @@ test("news en plusieurs images : points clés répartis, légendes avec l'essent
   // Question en avant-dernière image des carrousels, aussi sur X
   assert.deepEqual(slidesFor(d, { fmt: 'ig', follow: true, question: true }), ['news', 'essentiel-1', 'essentiel-2', 'question', 'abonnement']);
   assert.deepEqual(slidesFor(d, { fmt: 'ig', question: true }).at(-1), 'question');
-  assert.deepEqual(slidesFor(d, { fmt: 'x', follow: true, question: true }), ['news', 'essentiel-1', 'question', 'abonnement']);
-  assert.ok(slidesFor(d, { fmt: 'x', follow: true }).length <= 4);
+  assert.deepEqual(slidesFor(d, { fmt: 'x', follow: true, question: true }), ['news', 'essentiel-1', 'essentiel-2', 'question', 'abonnement']);
   const c = newsCaptions(d, '@moi');
   assert.match(c.instagram, /📌 L'essentiel :\n👉 Ferrari prolonge Hamilton de deux saisons\.\n👉 Le Britannique/);
   assert.match(c.facebook, /L'essentiel :/);

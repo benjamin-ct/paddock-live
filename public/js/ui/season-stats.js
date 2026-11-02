@@ -4,8 +4,11 @@
 import { esc, teamColor, teamMark } from '../util.js';
 import { cleanLaps, lapsLed, similarCircuits, SEASON_CRITERIA, MATE_CRITERIA, GRADES, retired } from '/shared/season-calc.js';
 import { icon } from '../icons.js';
-import { DEC, EN } from '../i18n.js';
+import { DEC, LANG, t } from '../i18n.js';
 import { gpShort } from '/shared/gp-names.js';
+import { CIRCUIT_DNA, DNA_KEYS } from '/shared/circuit-dna.js';
+import { nearestShape, shapeOutline } from '/shared/circuit-shapes.js';
+import { tip, hit } from './season-tip.js';
 
 const median = (a) => {
   if (!a.length) return null;
@@ -21,7 +24,7 @@ const sd = (a) => {
 const fr = (v, d = 1) => (v === null || v === undefined || Number.isNaN(v) ? '—' : v.toFixed(d).replace('.', DEC));
 // Immobilisation : au centième quand elle vient de DHL, au dixième (F1) sinon
 export const stopTxt = (s) => `${fr(s.stop, s.dhl ? 2 : 1)} s`;
-export const DHL_NOTE = '<p class="muted small">Immobilisations au centième : DHL Fastest Pit Stop Award. Copyright © DHL International GmbH. All Rights Reserved.</p>';
+export const DHL_NOTE = '<p class="muted small">Immobilisations au centième : DHL Fastest Pit Stop Award ; sans relevé DHL, au dixième (chronos de la F1). Copyright © DHL International GmbH. All Rights Reserved.</p>';
 export const fmtLap = (s) => {
   if (!s) return '—';
   const m = Math.floor(s / 60);
@@ -33,7 +36,9 @@ export const statusFr = (st) => {
   const m = /^\+(\d+) Laps?$/.exec(st || '');
   return m ? `+${m[1]} tour${m[1] > 1 ? 's' : ''}` : STATUS_FR[st] || st || '';
 };
-const short = (name) => gpShort(name, EN);
+const short = (name) => gpShort(name, LANG);
+// Chiffre d'un tableau précédé d'une petite barre (part de max, couleur de l'écurie) : points, dégâts…
+export const cellBar = (v, max, c, html) => `<span class="sz-cb" style="--p:${Math.max(3, Math.round((100 * v) / (max || 1)))}%${c ? `;--c:${c}` : ''}">${html}</span>`;
 const mark = (team, col) => teamMark({ TeamName: team, TeamColour: col?.replace('#', '') });
 const tcol = (team, col) => teamColor({ TeamName: team, TeamColour: col?.replace('#', '') });
 
@@ -48,25 +53,31 @@ function byRound(stats) {
 export const gradeBadge = (score, g, big = false) => (score === null || score === undefined ? '<span class="muted">—</span>'
   : `<span class="sz-grade g-${g}${big ? ' big' : ''}">${g}</span><span class="sz-grade-n">${score}</span>`);
 
-// Répartition des arrivées : nombre de courses terminées à chaque place, et abandons
 // Graphiques dessinés à la largeur réelle de la page (textes et traits gardent leur taille, pas étirés)
 const pageWidth = () => Math.max(600, (document.querySelector('#szContent')?.clientWidth || 934) - 34);
 const halfWidth = () => Math.max(300, Math.round(pageWidth() / 2 - 30));
 
-const PLACES = 22;   // voitures en 2026 ; la dernière colonne : abandons
-function finishHistogram(started, col) {
-  const n = new Array(PLACES + 1).fill(0);
-  for (const x of started) if (isNum(x.res) || retired(x.res)) n[isNum(x.res) && x.res.pos <= PLACES ? x.res.pos - 1 : PLACES]++;
+const PLACES = 22;   // voitures en 2026 ; en course et en sprint, la dernière colonne : abandons
+// Répartition des places (course, sprint ou qualifs) ; en qualifs, traits des éliminations après la 16e (Q1) et la
+// 10e place (Q2)
+let histKind = 'race';
+export const setHistKind = (k) => { histKind = k; };
+function placeHistogram(list, col, quali = false) {
+  const n = new Array(PLACES + (quali ? 0 : 1)).fill(0);
+  for (const x of list) {
+    if (quali) { if (x.pos >= 1 && x.pos <= PLACES) n[x.pos - 1]++; } else if (isNum(x) || retired(x)) n[isNum(x) && x.pos <= PLACES ? x.pos - 1 : PLACES]++;
+  }
   const hi = Math.max(1, ...n);
-  const W = halfWidth(), H = 170, pl = 6, pb = 22, bw = (W - pl * 2) / (PLACES + 1);
+  const W = halfWidth(), H = 170, pl = 6, pt = quali ? 16 : 0, pb = 22, bw = (W - pl * 2) / n.length;
   const bars = n.map((v, i) => {
-    const h = ((H - pb - 16) * v) / hi;
+    const h = ((H - pb - pt - 16) * v) / hi;
     const x = pl + i * bw;
     const c = i === PLACES ? 'var(--red)' : i < 3 ? '#ffd166' : col;
-    return `${v ? `<rect x="${x + 2}" y="${H - pb - h}" width="${bw - 4}" height="${h}" rx="2" fill="${c}"><title>${i === PLACES ? 'Abandons' : `P${i + 1}`} : ${v}</title></rect><text x="${x + bw / 2}" y="${H - pb - h - 4}" class="sz-ax" text-anchor="middle">${v}</text>` : ''}
-      <text x="${x + bw / 2}" y="${H - 6}" class="sz-ax" text-anchor="middle">${i === PLACES ? 'Ab' : i + 1}</text>`;
+    return `${v ? `<rect x="${x + 2}" y="${H - pb - h}" width="${bw - 4}" height="${h}" rx="2" fill="${c}"${tip(i === PLACES ? t('Abandons') : `P${i + 1}`, [[t(quali ? 'Qualifs' : histKind === 'sprint' ? 'Sprint' : 'Courses'), v]], c)}/><text x="${x + bw / 2}" y="${H - pb - h - 4}" class="sz-ax" text-anchor="middle">${v}</text>` : ''}
+      ${bw >= 14 || i % 2 === 0 || i === PLACES ? `<text x="${x + bw / 2}" y="${H - 6}" class="sz-ax" text-anchor="middle">${i === PLACES ? 'Ab' : i + 1}</text>` : ''}`;
   }).join('');
-  return `<svg viewBox="0 0 ${W} ${H}" class="sz-svg">${bars}</svg>`;
+  const cuts = quali ? [[0, 10, 'Q3'], [10, 16, 'Q2'], [16, PLACES, 'Q1']].map(([a, b, l]) => `${a ? `<line x1="${pl + a * bw}" x2="${pl + a * bw}" y1="2" y2="${H - pb}" class="sz-gl" stroke-dasharray="3 3"/>` : ''}<text x="${pl + ((a + b) / 2) * bw}" y="11" class="sz-ax" text-anchor="middle">${l}</text>`).join('') : '';
+  return `<svg viewBox="0 0 ${W} ${H}" class="sz-svg">${cuts}${bars}</svg>`;
 }
 
 // Points cumulés manche par manche : saison affichée et saison précédente
@@ -92,16 +103,24 @@ function pointsVsPrev(drv, data, prev, col) {
   let grid = '';
   for (let v = 0; v <= yMax; v += step) grid += `<line x1="${pl}" x2="${W - pr}" y1="${Y(v)}" y2="${Y(v)}" class="sz-gl"/><text x="${pl - 5}" y="${Y(v) + 4}" class="sz-ax" text-anchor="end">${v}</text>`;
   for (let i = 0; i < nMax; i += Math.ceil(nMax / 8)) grid += `<text x="${X(i)}" y="${H - 6}" class="sz-ax" text-anchor="middle">${i + 1}</text>`;
-  const line = (a, c, dash) => `<polyline fill="none" stroke="${c}" stroke-width="2.2" ${dash ? 'stroke-dasharray="5 4"' : ''} points="${a.map((v, i) => `${X(i)},${Y(v)}`).join(' ')}"/>`;
+  const line = (a, c, dash) => `<polyline fill="none" stroke="${c}" stroke-width="2.2" ${dash ? 'stroke-dasharray="5 4"' : 'pathLength="1"'} points="${a.map((v, i) => `${X(i)},${Y(v)}`).join(' ')}"/>`;
   const lbl = (a, c, txt) => `<text x="${X(a.length - 1) + 5}" y="${Y(a.at(-1)) + 4}" fill="${c}" class="sz-lbl">${txt}</text>`;
   const same = before[now.length - 1];
   const diff = same !== undefined ? now.at(-1) - same : null;
-  return `<svg viewBox="0 0 ${W} ${H}" class="sz-svg">${grid}${line(before, 'var(--muted)', true)}${line(now, col)}${lbl(before, 'var(--muted)', data.year - 1)}${now.length ? lbl(now, col, data.year) : ''}</svg>
+  const hits = (a, c, y) => a.map((v, i) => hit(X(i), Y(v), c, tip(`R${i + 1} · ${y}`, [[t('Total'), t('{} pts', v)]], c))).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" class="sz-svg">${grid}${line(before, 'var(--muted)', true)}${line(now, col)}${lbl(before, 'var(--muted)', data.year - 1)}${now.length ? lbl(now, col, data.year) : ''}${hits(before, 'var(--muted)', data.year - 1)}${hits(now, col, data.year)}</svg>
     ${diff !== null ? `<div class="small muted">Après ${now.length} courses : <b class="${diff >= 0 ? 'sz-up' : 'sz-down'}">${diff >= 0 ? '+' : ''}${diff} pts</b> par rapport à ${data.year - 1} (${now.at(-1)} contre ${same}).</div>` : ''}`;
 }
 
+// Squelette affiché pendant un chargement : cartes et blocs gris qui scintillent, à la place de la page qui arrive
+export function skeleton(label) {
+  return `<div class="sz-skel" aria-busy="true"><div class="muted small">${esc(label)}</div>
+    <div class="sz-skel-cards">${'<i></i>'.repeat(4)}</div>
+    <div class="sz-skel-box"><i class="t"></i>${'<i></i>'.repeat(6)}</div><div class="sz-skel-box"><i class="t"></i><i class="g"></i></div></div>`;
+}
+
 function pendingNote(stats) {
-  if (!stats) return '<div class="note">Chargement des statistiques détaillées…</div>';
+  if (!stats) return skeleton('Chargement des statistiques détaillées…');
   if (stats.error) return `<div class="note">Statistiques détaillées indisponibles (${esc(stats.error)}).</div>`;
   if (stats.pending || stats.done < stats.total) {
     return `<div class="note">${stats.pending ? `${icon('hourglass')} Analyse des courses de la saison` : 'Courses analysées'} : <b>${stats.done} / ${stats.total}</b></div>`;
@@ -159,24 +178,29 @@ export function renderDrivers(ctx, code) {
   const climb = started.filter((x) => x.res.grid && isNum(x.res)).sort((a, b) => (b.res.grid - b.res.pos) - (a.res.grid - a.res.pos))[0];
 
   // Graphique : position au départ (pointillés) et à l'arrivée, manche par manche
-  const W = pageWidth(), H = 230, pl = 30, pr = 12, pt = 10, pb = 24;
+  const W = pageWidth(), H = 244, pl = 30, pr = 12, pt = 10, pb = 38;
   const rounds = races.map((r) => r.round);
   const X = (rd) => pl + ((rounds.indexOf(rd)) / Math.max(1, rounds.length - 1)) * (W - pl - pr);
   const Y = (p) => pt + ((p - 1) / 21) * (H - pt - pb);
-  const line = (pts2, dash) => `<polyline fill="none" stroke="${col}" stroke-width="2.2" ${dash ? 'stroke-dasharray="4 4" opacity=".6"' : ''} points="${pts2.map(([x, y]) => `${x},${y}`).join(' ')}"/>`;
+  const line = (pts2, dash) => `<polyline fill="none" stroke="${col}" stroke-width="2.2" ${dash ? 'stroke-dasharray="4 4" opacity=".6"' : 'pathLength="1"'} points="${pts2.map(([x, y]) => `${x},${y}`).join(' ')}"/>`;
   const finPts = started.filter((x) => isNum(x.res)).map((x) => [X(x.r.round), Y(x.res.pos)]);
   const gridPts = started.filter((x) => x.res.grid).map((x) => [X(x.r.round), Y(x.res.grid)]);
   let grid = '';
   for (const p of [1, 5, 10, 15, 20]) grid += `<line x1="${pl}" x2="${W - pr}" y1="${Y(p)}" y2="${Y(p)}" class="sz-gl"/><text x="${pl - 6}" y="${Y(p) + 4}" class="sz-ax" text-anchor="end">${p}</text>`;
-  for (const rd of rounds) grid += `<text x="${X(rd)}" y="${H - 6}" class="sz-ax" text-anchor="middle">R${rd}</text>`;
+  for (const rd of rounds) grid += `${ctx.flag?.(rd, X(rd), H - pb + 7) || ''}<text x="${X(rd)}" y="${H - 6}" class="sz-ax" text-anchor="middle">R${rd}</text>`;
   const dots = started.map((x) => (isNum(x.res)
-    ? `<circle cx="${X(x.r.round)}" cy="${Y(x.res.pos)}" r="${x.res.pos <= 3 ? 5 : 3.5}" fill="${x.res.pos === 1 ? '#ffd166' : col}" stroke="var(--panel)" stroke-width="1.5"><title>R${x.r.round} ${esc(short(x.r.name))} : P${x.res.pos}</title></circle>`
+    ? `<circle cx="${X(x.r.round)}" cy="${Y(x.res.pos)}" r="${x.res.pos <= 3 ? 5 : 3.5}" fill="${x.res.pos === 1 ? '#ffd166' : col}" stroke="var(--panel)" stroke-width="1.5"${tip(`R${x.r.round} · ${esc(short(x.r.name))}`, [x.res.grid && [t('Départ'), `P${x.res.grid}`], [t('Arrivée'), `P${x.res.pos}`], [t('Points'), t('{} pts', x.res.points + (x.spr?.points || 0))]], col)}/>`
     : `<path d="M${X(x.r.round) - 3.5} ${H - pb - 9}l7 7m0 -7l-7 7" class="sz-dnf-x"/>`)).join('');
   const chart = `<svg viewBox="0 0 ${W} ${H}" class="sz-svg">${grid}${line(gridPts, true)}${line(finPts)}${dots}</svg>`;
 
-  return `<div class="sz-h2h-pick"><label class="small">Pilote <select id="szDriver">${data.drivers.map((d) => `<option value="${d.code}" ${d.code === drv.code ? 'selected' : ''}${ctx.opt(d)}>${esc(d.name)}</option>`).join('')}</select></label></div>
-    <div class="sz-drv-head" style="--tc:${col}">${ctx.bar(drv.team, drv.teamId)}<div><div class="sz-drv-name">${esc(drv.name)} <span class="muted">#${esc(drv.number || '')}</span></div>
-      <div class="muted">${esc(drv.team)} · P${drv.pos} au championnat · ${drv.points} pts</div></div></div>
+  // Cartes des pilotes (portrait sur la couleur de l'écurie, prénom, nom, numéro et logo) : la carte touchée choisit le pilote
+  const look = (d) => ctx.look(d.team, d.teamId);
+  const pic = (d) => { const u = ctx.photo(d); return u ? `<img src="${u}" alt="" loading="lazy" onerror="this.remove()">` : ''; };
+  const first = (d) => (d.last && d.name?.endsWith(d.last) ? d.name.slice(0, -d.last.length).trim() : '');
+  return `<div class="sz-drv-strip">${data.drivers.map((d) => `<button type="button" class="sz-drv-card${d.code === drv.code ? ' on' : ''}" data-szdrv="${esc(d.code)}" style="${look(d)}" aria-pressed="${d.code === drv.code}">
+      <span class="nm"><small>${esc(first(d))}</small>${esc(d.last || d.name)}</span><span class="tm">${esc(d.team)}</span><span class="ft"><b class="no">${esc(d.number || '')}</b><i class="lg" aria-hidden="true"></i></span>${pic(d)}</button>`).join('')}</div>
+    <div class="sz-drv-hero" style="${look(drv)}"><div class="txt"><div class="sz-drv-name">${esc(drv.name)}</div><span class="ft"><b class="no">${esc(drv.number || '')}</b><i class="lg" aria-hidden="true"></i></span>
+      <div class="sub">${esc(drv.team)} · P${drv.pos} au championnat · ${drv.points} pts</div></div>${pic(drv)}</div>
     <div class="sz-cards sz-kpis">
       ${card('Victoires', drv.wins || 0)}
       ${card('Podiums', fin.filter((x) => x.res.pos <= 3).length)}
@@ -199,12 +223,16 @@ export function renderDrivers(ctx, code) {
     </div>
     <section class="sz-box"><h3>Départ (pointillés) et arrivée, course par course</h3>${chart}</section>
     <div class="sz-grid2">
-      <section class="sz-box"><h3>Répartition des arrivées</h3>${finishHistogram(started, col)}</section>
+      <section class="sz-box"><h3>Répartition des places</h3>
+        <div class="tab-seg">${[['race', 'Course'], ['quali', 'Qualifs'], ['sprint', 'Sprint']].map(([k, l]) => `<button type="button" data-hist="${k}" class="${histKind === k ? 'on' : ''}">${l}</button>`).join('')}</div>
+        ${histKind === 'quali' ? placeHistogram(rows.map((x) => x.q).filter(Boolean), col, true)
+    : histKind === 'sprint' ? (rows.some((x) => x.spr) ? placeHistogram(rows.map((x) => x.spr).filter(Boolean), col) : '<div class="note small">Aucun sprint couru cette saison.</div>')
+      : placeHistogram(started.map((x) => x.res), col)}</section>
       <section class="sz-box"><h3>Points cumulés : ${data.year} et ${data.year - 1}</h3>${pointsVsPrev(drv, data, ctx.prev, col)}</section>
     </div>
     <section class="sz-box"><h3>Courses</h3><table class="sz-table"><tr><th>Manche</th><th>Grand Prix</th><th>Qualif.</th><th>Grille</th><th>Arrivée</th><th>Points</th><th>En tête</th><th>Meilleur tour</th><th>V. max</th><th>Arrêts</th><th>Statut</th></tr>
       ${rows.map((x, i) => `<tr><td>R${x.r.round}</td><td>${esc(short(x.r.name))}${x.spr ? ` <span class="sz-tag sprint">Sprint P${x.spr.pos ?? '—'}</span>` : ''}</td><td>${x.q?.pos ? `P${x.q.pos}` : '—'}</td>
-        <td>${x.res?.grid ? `P${x.res.grid}` : x.res ? 'Stands' : '—'}</td><td><b>${x.res ? (isNum(x.res) ? `P${x.res.pos}` : 'Abandon') : '—'}</b></td><td>${x.res?.points || ''}</td><td>${led[i] ? `${led[i]} t.` : x.a ? '' : '—'}</td>
+        <td>${x.res?.grid ? `P${x.res.grid}` : x.res ? 'Stands' : '—'}</td><td><b>${x.res ? (isNum(x.res) ? (x.res.pos <= 3 ? `<span class="sz-pp p${x.res.pos}">P${x.res.pos}</span>` : `P${x.res.pos}`) : 'Abandon') : '—'}</b></td><td>${x.res?.points ? cellBar(x.res.points, 25, col, x.res.points) : ''}</td><td>${led[i] ? `${led[i]} t.` : x.a ? '' : '—'}</td>
         <td>${x.a?.best ? fmtLap(x.a.best) : '—'}${x.res?.fastest ? ' <span class="sz-tag sprint">MT</span>' : ''}</td><td>${x.a?.speeds?.ST ? `${x.a.speeds.ST} km/h` : '—'}</td>
         <td>${x.a ? x.a.stops.map(stopTxt).join(' · ') || '0' : '—'}</td><td class="muted small">${esc(statusFr(x.res?.status))}</td></tr>`).join('')}</table></section>
     ${rows.some((x) => x.a?.stops.some((s) => s.dhl)) ? DHL_NOTE : ''}${pendingNote(stats)}`;
@@ -226,7 +254,8 @@ export function renderRatings(ctx, sortBy = 'season') {
   const val = (e) => (sortBy === 'season' || sortBy === 'mate' ? e[sortBy] : e.parts[sortBy]) ?? -1;
   const rows = [...all].sort((a, b) => val(b) - val(a) || b.pts - a.pts);
   const th = (k, label, title = 'Trier par cette colonne') => `<th class="sz-sort${k === sortBy ? ' on' : ''}"><button type="button" data-rate-sort="${k}" title="${esc(title)}">${label}</button></th>`;
-  const drvCell = (e) => `${ctx.bar(e.team, e.teamId)}<b>${esc(e.name)}</b> <span class="muted small">${esc(e.team)}</span>`;
+  // Nom de famille seul (nom complet et écurie au survol) : les 12 colonnes tiennent dans la case
+  const drvCell = (e) => `${ctx.bar(e.team, e.teamId)}<b title="${esc(`${e.name} · ${e.team}`)}">${esc(e.last || e.name)}</b>`;
   const top = (k) => rows.filter((e) => e[k] !== null).sort((a, b) => b[k] - a[k])[0];
   const best = top('season'), bestMate = top('mate');
   const card = (title, e, k, g) => `<div class="sz-card"><div class="muted small">${title}</div><div class="sz-big">${e ? `${ctx.bar(e.team, e.teamId)}${esc(e.last || e.name)}` : '—'}</div><div class="small">${e ? gradeBadge(e[k], e[g]) : ''}</div></div>`;
@@ -334,13 +363,13 @@ export function renderPits(ctx) {
     <div class="sz-grid2">
       <section class="sz-box"><h3>Immobilisation médiane par écurie</h3>${hbars(tl.map((t) => ({ html: `${mark(t.team, t.color)}<b>${esc(t.team)}</b>`, v: t.med, text: `${fr(t.med, 2)} s`, color: tcol(t.team, t.color) })), { invert: true })}</section>
       <section class="sz-box"><h3>Les 15 arrêts les plus rapides</h3><table class="sz-table"><tr><th>#</th><th>Écurie</th><th>Pilote</th><th>Grand Prix</th><th>Tour</th><th>Immob.</th></tr>
-        ${fastest.map((s, i) => `<tr><td>${i + 1}</td><td>${mark(s.d.team, s.d.color)}${esc(s.d.team)}</td><td><b>${esc(s.d.tla)}</b></td><td>R${s.round} ${esc(name(s.round))}</td><td>${s.lap ?? '—'}</td><td><b>${stopTxt(s)}</b></td></tr>`).join('')}</table></section>
+        ${fastest.map((s, i) => `<tr><td>${i + 1}</td><td>${mark(s.d.team, s.d.color)}${esc(s.d.team)}</td><td><b>${esc(s.d.tla)}</b></td><td class="sz-wrap">R${s.round} ${esc(name(s.round))}</td><td>${s.lap ?? '—'}</td><td><b>${stopTxt(s)}</b></td></tr>`).join('')}</table></section>
     </div>
     <section class="sz-box"><h3>Écuries</h3><table class="sz-table"><tr><th>Écurie</th><th>Arrêts</th><th>Médiane</th><th>Meilleur</th><th>Sous 2,5 s</th></tr>
       ${tl.map((t) => `<tr><td>${mark(t.team, t.color)}<b>${esc(t.team)}</b></td><td>${t.n}</td><td>${fr(t.med, 2)} s</td><td>${stopTxt(t.best)}</td><td>${t.under25}</td></tr>`).join('')}</table></section>
     <section class="sz-box"><h3>Par Grand Prix</h3><table class="sz-table"><tr><th>Manche</th><th>Grand Prix</th><th>Arrêts</th><th>Immob. médiane</th><th>Plus rapide</th><th>Voie des stands</th></tr>
       ${rounds.map((rd) => { const p = R.get(rd).race.profile; const f = valid.filter((s) => s.round === rd).sort((a, b) => a.stop - b.stop)[0];
-        return `<tr><td>R${rd}</td><td>${esc(name(rd))}</td><td>${p.stops}</td><td>${p.stopMedian ? `${fr(p.stopMedian, 2)} s` : '—'}</td><td>${f ? `${stopTxt(f)} · ${esc(f.d.tla)}` : '—'}</td><td>${p.pitLane ? `${fr(p.pitLane, 1)} s` : '—'}</td></tr>`; }).join('')}</table></section>
+        return `<tr><td>R${rd}</td><td class="sz-wrap">${esc(name(rd))}</td><td>${p.stops}</td><td>${p.stopMedian ? `${fr(p.stopMedian, 2)} s` : '—'}</td><td class="sz-wrap">${f ? `<span class="sz-nw">${stopTxt(f)}</span> · ${esc(f.d.tla)}` : '—'}</td><td>${p.pitLane ? `${fr(p.pitLane, 1)} s` : '—'}</td></tr>`; }).join('')}</table></section>
     ${[...R.values()].some(({ race }) => race.dhl) ? DHL_NOTE : ''}`;
 }
 
@@ -368,21 +397,23 @@ export function renderSpeeds(ctx, point = 'ST') {
   }
   const dl = [...drv.values()].map((e) => ({ ...e, max: Math.max(...e.vals), avg: mean(e.vals) })).sort((a, b) => b.max - a.max);
   const tl = [...team.values()].map((t) => ({ ...t, avg: mean([...t.by.values()]) })).sort((a, b) => b.avg - a.avg);
-  const lo = Math.min(...dl.map((e) => e.avg)) - 3;
+  // Barres à partir d'un peu sous la plus basse (pas de zéro) : les écarts de quelques km/h se voient
+  const base = (vals) => Math.floor(Math.min(...vals) - Math.max(1, (Math.max(...vals) - Math.min(...vals)) / 4));
+  const tlo = base(tl.map((t) => t.avg)), dlo = base(dl.slice(0, 22).map((e) => e.max));
   const top = (rd) => Math.max(...[...team.values()].map((t) => t.by.get(rd) || 0));
   const low = (rd) => Math.min(...[...team.values()].map((t) => t.by.get(rd)).filter(Boolean));
   return `${pendingNote(stats)}
     <div class="sz-h2h-pick"><label class="small">Point de mesure <select id="szSpeedPt">${Object.entries(SPEED_POINTS).map(([k, l]) => `<option value="${k}" ${k === point ? 'selected' : ''}>${l}</option>`).join('')}</select></label></div>
     <div class="sz-grid2">
-      <section class="sz-box"><h3>Écuries : moyenne des meilleures vitesses par course</h3>${hbars(tl.map((t) => ({ html: `${mark(t.team, t.color)}<b>${esc(t.team)}</b>`, v: t.avg - lo, text: `${fr(t.avg, 1)} km/h`, color: tcol(t.team, t.color) })))}</section>
-      <section class="sz-box"><h3>Pilotes : vitesse maximale de la saison</h3>${hbars(dl.slice(0, 22).map((e) => ({ html: `${mark(e.d.team, e.d.color)}<b>${esc(e.d.tla)}</b>`, v: e.max - lo, text: `${e.max} km/h`, color: tcol(e.d.team, e.d.color) })))}</section>
+      <section class="sz-box"><h3>Écuries : moyenne des meilleures vitesses par course</h3>${hbars(tl.map((t) => ({ html: `${mark(t.team, t.color)}<b>${esc(t.team)}</b>`, v: t.avg - tlo, text: `${fr(t.avg, 1)} km/h`, color: tcol(t.team, t.color) })))}</section>
+      <section class="sz-box"><h3>Pilotes : vitesse maximale de la saison</h3>${hbars(dl.slice(0, 22).map((e) => ({ html: `${mark(e.d.team, e.d.color)}<b>${esc(e.d.tla)}</b>`, v: e.max - dlo, text: `${e.max} km/h`, color: tcol(e.d.team, e.d.color) })))}</section>
     </div>
     <section class="sz-box"><h3>Meilleure vitesse de chaque écurie par Grand Prix (km/h)</h3><div class="sz-scroll"><table class="sz-table sz-heat"><tr><th>Écurie</th>${rounds.map((rd) => `<th title="${esc(short(data.races.find((r) => r.round === rd)?.name))}">R${rd}</th>`).join('')}<th>Moy.</th></tr>
       ${tl.map((t) => `<tr><td>${mark(t.team, t.color)}<b>${esc(t.team)}</b></td>${rounds.map((rd) => { const v = t.by.get(rd); if (!v) return '<td class="muted">—</td>'; const span = top(rd) - low(rd) || 1; return heat((top(rd) - v) / span, v); }).join('')}<td><b>${fr(t.avg, 1)}</b></td></tr>`).join('')}</table></div></section>
     <section class="sz-box"><h3>Vitesse maximale par Grand Prix</h3><table class="sz-table"><tr><th>Manche</th><th>Grand Prix</th><th>Vitesse</th><th>Pilote</th></tr>
       ${rounds.map((rd) => { const b = R.get(rd).race.drivers.filter((d) => d.speeds?.[point]).sort((a, c) => c.speeds[point] - a.speeds[point])[0];
         return `<tr><td>R${rd}</td><td>${esc(short(data.races.find((r) => r.round === rd)?.name))}</td><td><b>${b ? `${b.speeds[point]} km/h` : '—'}</b></td><td>${b ? `${mark(b.team, b.color)}${esc(b.tla)}` : ''}</td></tr>`; }).join('')}</table></section>
-    <p class="muted small">Meilleure vitesse de chaque pilote au point de mesure choisi.</p>`;
+    <p class="muted small">Meilleure vitesse de chaque pilote au point de mesure choisi. Les barres ne partent pas de zéro, pour mieux voir les écarts.</p>`;
 }
 
 // ---------------- Profil des circuits ----------------
@@ -390,13 +421,54 @@ const SORTS = { round: 'Calendrier', avgSpeed: 'Vitesse moyenne', topSpeed: 'Vit
 // Sollicitation des pneus d'après le composé le plus dur choisi par Pirelli (C1 = le plus dur)
 const STRESS = { 1: ['Très élevée', 5], 2: ['Élevée', 4], 3: ['Moyenne', 3], 4: ['Faible', 2], 5: ['Très faible', 1] };
 
+// Circuits sans tracé dans l'API des cartes (Madring, nouveau ; Sepang, absent depuis 2017) : longueur et virages
+// officiels (formula1.com : 5,414 km et 22 virages ; Sepang : 5,543 km et 15 virages)
+// ADN du circuit : notes Pirelli de 1 à 5 (traction, adhérence, abrasion…), avec la source
+export function dnaBlock(circuitId, head = true) {
+  const n = CIRCUIT_DNA[circuitId];
+  if (!n) return '';
+  return `<div class="sz-dna">${head ? '<div class="muted small sz-dna-h">ADN du circuit</div>' : ''}${DNA_KEYS.map(([k, l]) => `<div class="sz-meter sz-stress"><span>${l}</span><div class="sz-dots">${Array.from({ length: 5 }, (_, i) => `<i class="${i < n[k] ? 'on' : ''}"></i>`).join('')}</div><b>${n[k]}/5</b></div>`).join('')}
+    <div class="muted small"><span>D'après Pirelli :</span> <a href="${esc(n.source)}" target="_blank" rel="noopener">${t('preview du Grand Prix {}', n.season)}</a></div></div>`;
+}
+
+// Circuits qui se ressemblent : familles d'après les notes Pirelli (virages lents, mixtes ou rapides selon traction et
+// appui latéral ; contrainte sur les pneus forte, moyenne ou faible), en cartes avec le mini-tracé de chaque circuit
+const PROFILES = [[1, 'Virages rapides, appui latéral'], [0, 'Profil mixte'], [-1, 'Virages lents, traction']];
+const STRESSES = [['hi', 'Pneus très sollicités', (s) => s >= 4], ['mid', 'Pneus moyennement sollicités', (s) => s === 3], ['lo', 'Pneus peu sollicités', (s) => s <= 2]];
+let shapes = null;
+export function dnaMap(races) {
+  const list = races.map((r) => ({ r, n: CIRCUIT_DNA[r.circuitId] })).filter((x) => x.n);
+  if (!list.length) return '';
+  const fams = STRESSES.flatMap(([k, sl, inS]) => PROFILES.map(([p, pl]) => ({ k, sl, pl,
+    items: list.filter(({ n }) => inS(n.tyreStress) && Math.sign(n.lateral - n.traction) === p).sort((a, b) => b.n.tyreStress - a.n.tyreStress || a.r.round - b.r.round) })))
+    .filter((f) => f.items.length);
+  // Tracés (fichier déjà utilisé par le Calendrier) : posés une fois la rubrique affichée
+  (shapes ??= fetch('/data/f1-circuits.json').then((x) => x.json()).then((d) => d.circuits || []).catch(() => [])).then((all) => {
+    for (const el of document.querySelectorAll('.sz-fam-trk:not(.ok)')) {
+      const s = nearestShape(all, Number(el.dataset.lat), Number(el.dataset.lon));
+      if (s) el.innerHTML = `<polygon points="${shapeOutline(s.line)}"/>`;
+      el.classList.add('ok');
+    }
+  });
+  return `<section class="sz-box"><h3>Circuits qui se ressemblent</h3><div class="sz-fams">${fams.map((f) => `<article class="sz-fam ${f.k}">
+      <div class="sz-fam-h"><b>${t(f.pl)}</b><span class="muted small">${t(f.sl)}</span></div>
+      <div class="sz-fam-list">${f.items.map(({ r }) => `<div class="sz-fam-c"><svg class="sz-fam-trk" viewBox="0 0 100 100" aria-hidden="true" data-lat="${r.lat}" data-lon="${r.lon}"></svg><span>${esc(r.locality || short(r.name))}</span></div>`).join('')}</div>
+    </article>`).join('')}</div>
+    <p class="muted small">${t('Familles d\'après les notes des previews Pirelli : virages lents (traction) ou rapides (appui latéral), et contrainte sur les pneus.')}</p></section>`;
+}
+
+const KNOWN = { madring: { length: 5.414, corners: 22 }, sepang: { length: 5.543, corners: 15 } };
+// Longueur du circuit d'une manche (km) : analyse des archives, sinon valeur connue
+export const circuitLength = (ctx, round) => byRound(ctx.stats).get(round)?.race.profile.length || KNOWN[ctx.data.races.find((r) => r.round === round)?.circuitId]?.length || null;
 export function renderCircuits(ctx, sort = 'round') {
   const { data, stats } = ctx;
   const R = byRound(stats);
   if (!R.size) return pendingNote(stats);
   const items = [...R.values()].map(({ race }) => {
     const r = data.races.find((x) => x.round === race.round) || {};
-    const p = race.profile;
+    const k = !race.profile.length && KNOWN[r.circuitId];
+    const p = k ? { ...race.profile, ...k, distance: Math.round(k.length * race.profile.laps * 10) / 10,
+      fastest: race.profile.fastest && { ...race.profile.fastest, avgSpeed: Math.round((k.length / race.profile.fastest.time) * 36000) / 10 } } : race.profile;
     const ty = stats.tyres?.[race.round] || null;
     const cars = race.drivers.filter((d) => d.laps.length > p.laps * 0.9).length || race.drivers.length || 1;
     const finStops = race.drivers.filter((d) => d.laps.length > p.laps * 0.9).reduce((n, d) => n + (d.stopCount ?? d.stops.length), 0);
@@ -404,7 +476,7 @@ export function renderCircuits(ctx, sort = 'round') {
       round: race.round, r, p, ty, avgSpeed: p.fastest?.avgSpeed || 0, topSpeed: p.topSpeed?.kmh || 0, gains: p.gains || 0, neutral: p.neutralPct || 0, length: p.length || 0,
       tyre: ty ? 6 - ty.hard : 0, stopsPerCar: finStops / cars,
       // Caractéristiques comparées pour trouver les circuits proches
-      key: r.circuit, corners: p.corners, passes: p.laps ? p.gains / p.laps : null, hard: ty?.hard ?? null,
+      key: r.circuit, corners: p.corners, passes: p.laps ? p.gains / p.laps : null, hard: ty?.hard ?? null, ...CIRCUIT_DNA[r.circuitId],
     };
   });
   for (const x of items) { x.avgSpeed ||= null; x.topSpeed ||= null; x.length ||= null; }
@@ -418,6 +490,7 @@ export function renderCircuits(ctx, sort = 'round') {
     return `<div class="sz-meter"><span>${label}</span><div><i style="width:${v ? w : 0}%"></i></div><b>${txt}</b></div>`;
   };
   return `${pendingNote(stats)}
+    ${dnaMap(data.races)}
     <div class="sz-h2h-pick"><label class="small">Trier par <select id="szCircSort">${Object.entries(SORTS).map(([k, l]) => `<option value="${k}" ${k === sort ? 'selected' : ''}>${l}</option>`).join('')}</select></label></div>
     <div class="sz-circs">${items.map(({ round, r, p, ty, stopsPerCar, key }) => `<article class="sz-circ">
       <div class="sz-circ-head"><span class="muted">R${round}</span> <b>${esc(short(r.name))}</b><div class="muted small">${esc(r.circuit || '')} · ${esc(r.locality || '')}</div></div>
@@ -433,7 +506,7 @@ export function renderCircuits(ctx, sort = 'round') {
           <dt>Pneus Pirelli</dt><dd>${ty ? `<span class="sz-cpd">C${ty.hard} · C${ty.medium} · C${ty.soft}</span>` : '—'}</dd>
         </dl>
       </div>
-      <div class="sz-meter sz-stress"><span>Contrainte pneus</span><div class="sz-dots">${ty ? Array.from({ length: 5 }, (_, i) => `<i class="${i < STRESS[ty.hard][1] ? 'on' : ''}"></i>`).join('') : ''}</div><b>${ty ? STRESS[ty.hard][0] : '—'}</b></div>
+      ${dnaBlock(r.circuitId) || `<div class="sz-meter sz-stress"><span>Contrainte pneus</span><div class="sz-dots">${ty ? Array.from({ length: 5 }, (_, i) => `<i class="${i < STRESS[ty.hard][1] ? 'on' : ''}"></i>`).join('') : ''}</div><b>${ty ? STRESS[ty.hard][0] : '—'}</b></div>`}
       ${meter('Arrêts par pilote', 'stopsPerCar', stopsPerCar, fr(stopsPerCar))}
       ${meter('Vitesse moyenne', 'avgSpeed', p.fastest?.avgSpeed, p.fastest?.avgSpeed ? `${fr(p.fastest.avgSpeed, 0)} km/h` : '—')}
       ${meter('Vitesse de pointe', 'topSpeed', p.topSpeed?.kmh, p.topSpeed ? `${p.topSpeed.kmh} km/h` : '—')}

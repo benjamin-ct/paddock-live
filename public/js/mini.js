@@ -3,6 +3,7 @@
 // fenêtre principale.
 import { translatePage } from './i18n.js';
 import { icon } from './icons.js';
+import './ranges.js';
 import { store, versionOf, setDelay, on } from './store.js';
 import { $, esc, drivers, orderedNumbers, sessionKind, teamColor, currentStint, compoundInfo, tyreBadge, storageGet, storageSet, fmtDelay } from './util.js';
 import { realStopCount } from '/shared/pits.js';

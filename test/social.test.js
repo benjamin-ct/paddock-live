@@ -35,7 +35,13 @@ test('posts : données de la course (classement, points, faits marquants, champi
   assert.equal(d.rows[2].delta, 7);
   const f = Object.fromEntries(d.facts.map((x) => [x.label, x]));
   assert.equal(f['Meilleur tour'].value, 'Hamilton');
-  assert.equal(f['Plus belle remontée'].sub, 'P10 → P3 (+7)');
+  // Hamilton fait aussi la plus belle remontée : une seule case par pilote (la remontée est sur « Grille → arrivée »)
+  assert.equal(f['Plus belle remontée'], undefined);
+  assert.equal(f["Écart à l'arrivée"].value, '2,5 s');
+  assert.equal(f["Écart à l'arrivée"].sub, 'Norris devant Leclerc');
+  // Meilleur tour d'un autre pilote : la remontée de Hamilton revient
+  const other = postData({ ...state, TimingStats: { Lines: { 16: { PersonalBestLapTime: { Value: '1:21.000', Position: 1, Lap: 50 } } } } });
+  assert.equal(other.facts.find((x) => x.label === 'Plus belle remontée').sub, 'P10 → P3 (+7)');
   assert.equal(f['Stratégie du vainqueur'].sub, 'Médiums → Durs');
   assert.equal(f.Neutralisations.value, '1 safety car');
   assert.equal(f.Abandons.sub, 'Alonso');
@@ -58,7 +64,9 @@ test('posts : légendes Instagram et X', () => {
   assert.ok(c.x.length <= 280);
   assert.ok(c.threads.length <= 500);
   assert.match(c.threads, /^🏆 Lando Norris remporte/);
-  assert.match(c.x, /^🏆 NORRIS remporte le Grand Prix d'Italie 🇮🇹 !\n🥈 Leclerc · 🥉 Hamilton\n/);
+  // X : vainqueur et écurie, poursuivants avec leur écart, un fait marquant, en laissant la place de « fait par IA »
+  assert.match(c.x, /^🏆 Lando NORRIS \(McLaren\) remporte le Grand Prix d'Italie 🇮🇹 !\n\n🥈 Leclerc \(Ferrari\) \+2,5 s\n🥉 Hamilton \(Ferrari\) \+8,123 s\n\n⏱️ Meilleur tour : /);
+  assert.ok(c.x.length <= 280 - 46);
 });
 
 test('posts : qualifications', () => {
@@ -80,9 +88,9 @@ test('posts : qualifications', () => {
 
 test('posts : couverture « Résultats » (anti-spoiler) en première image de chaque format', () => {
   const d = { kind: 'race', rows: [{}], facts: [], champ: {} };
-  assert.deepEqual(slidesFor(d), ['couverture', 'vainqueur', 'podium', 'classement', 'faits', 'championnat']);
-  assert.deepEqual(slidesFor({ ...d, kind: 'quali', champ: null }).slice(0, 2), ['couverture', 'pole']);
-  assert.deepEqual(slidesFor({ ...d, kind: 'practice' }), ['couverture', 'meilleurtemps', 'podium', 'classement']);
+  assert.deepEqual(slidesFor(d), ['couverture', 'podium', 'classement', 'faits', 'championnat']);
+  assert.deepEqual(slidesFor({ ...d, kind: 'quali', champ: null }).slice(0, 2), ['couverture', 'podium']);
+  assert.deepEqual(slidesFor({ ...d, kind: 'practice' }), ['couverture', 'podium', 'classement']);
   assert.deepEqual(slidesFor({ ...d, kind: 'practice', facts: [{}] }).at(-1), 'faits');
   assert.deepEqual(slidesFor({ ...d, rows: [] }), []);
 });
@@ -98,7 +106,7 @@ test('posts : texte sans spoiler (début de légende et texte court sans le vain
   for (const k of ['x', 'threads', 'story']) assert.ok(!c[k].includes('Verstappen'), k);
   assert.ok(c.x.length <= 280 && c.threads.length <= 500);
   // Par défaut : comme avant
-  assert.match(captions(d, '').x, /^🏆 VERSTAPPEN remporte/);
+  assert.match(captions(d, '').x, /^🏆 Max VERSTAPPEN \(Red Bull Racing\) remporte/);
 });
 
 test('posts : essais libres (meilleur temps, top 3, faits marquants)', () => {
@@ -122,10 +130,50 @@ test('posts : essais libres (meilleur temps, top 3, faits marquants)', () => {
   assert.equal(f['Le plus de tours'], 'Leclerc | 31 tours');
   assert.equal(f['Tours bouclés'], '82 | par les 3 pilotes');
   assert.equal(f['Dans la seconde'], "2 pilotes | à moins d'1 s du meilleur temps");
-  assert.deepEqual(slidesFor(d), ['couverture', 'meilleurtemps', 'podium', 'classement', 'faits']);
+  assert.deepEqual(slidesFor(d), ['couverture', 'podium', 'classement', 'faits']);
   const c = captions(d);
-  assert.match(c.instagram, /^⏱️ Essais libres 2 du Grand Prix d'Italie 🇮🇹 : Lando Norris en tête !\n\n📊 Top 3 :\n🥇 Lando Norris \(McLaren\) 1:20\.100\n/);
+  assert.match(c.instagram, /^⏱️ Essais libres 2 du Grand Prix d'Italie 🇮🇹 : meilleur temps pour Lando Norris en 1:20\.100 !\n\n📊 Top 3 :\n🥇 Lando Norris \(McLaren\) 1:20\.100\n/);
+  assert.match(c.x, /^⏱️ EL2 · Grand Prix d'Italie 🇮🇹\nMeilleur temps pour Lando NORRIS \(McLaren\) en 1:20\.100 !\n\n🥈 Leclerc/);
   assert.match(captions(d, '', { spoiler: false }).x, /^⏱️ Essais libres 2 du Grand Prix d'Italie 🇮🇹 : qui signe le meilleur temps \?/);
+});
+
+test('posts : vitesses de pointe et meilleurs secteurs des essais (ordre, écarts, tour idéal, images, texte alternatif)', async () => {
+  const { slideAlt } = await import('../shared/social-draw.js');
+  const sp = (st, i1) => ({ ST: { Value: st, Position: 0 }, I1: { Value: i1, Position: 0 } });
+  const fp = {
+    ...state,
+    SessionInfo: { ...state.SessionInfo, Type: 'Practice', Name: 'Practice 1' },
+    TimingData: { Lines: { 1: { Position: '1', BestLapTime: { Value: '1:20.100' } }, 16: { Position: '2', TimeDiffToFastest: '+0.250' }, 44: { Position: '3', TimeDiffToFastest: '+1.200' }, 14: { Position: '4' } } },
+    TimingStats: { Lines: {
+      1: { PersonalBestLapTime: { Value: '1:20.300' }, BestSectors: [{ Value: '27.300', Position: 2 }, { Value: '31.000', Position: 1 }, { Value: '21.900', Position: 2 }], BestSpeeds: { ...sp('340', '320'), ST: { Value: '340', Position: 2 } } },
+      16: { PersonalBestLapTime: { Value: '1:20.350' }, BestSectors: [{ Value: '27.200', Position: 1 }, { Value: '31.150', Position: 2 }, { Value: '21.900', Position: 1 }], BestSpeeds: { ...sp('340', '318'), ST: { Value: '340', Position: 1 } } },
+      44: { BestSectors: [{ Value: '27.512', Position: 3 }, { Value: '31.400', Position: 3 }, { Value: '22.000', Position: 3 }], BestSpeeds: sp('336', '322') },
+      14: { BestSectors: [{ Value: '' }, {}, {}], BestSpeeds: { ST: { Value: '' } } },
+    } },
+  };
+  const d = postData(fp);
+  // Piège à vitesse : du plus rapide au plus lent, égalité départagée par la F1, écart au plus rapide ; sans mesure, absent
+  assert.equal(d.speeds.label, 'Piège à vitesse');
+  assert.deepEqual(d.speeds.rows.map((r) => [r.tla, r.kmh, r.diff]), [['LEC', 340, 0], ['NOR', 340, 0], ['HAM', 336, -4]]);
+  // Chaque secteur classé à part ; écarts au meilleur du secteur ; tour idéal = meilleurs secteurs réunis
+  assert.deepEqual(d.sectors.map((l) => l.map((r) => `${r.tla} ${r.time} ${r.gap}`)), [
+    ['LEC 27.200 0', 'NOR 27.300 0.1', 'HAM 27.512 0.312'],
+    ['NOR 31.000 0', 'LEC 31.150 0.15', 'HAM 31.400 0.4'],
+    ['LEC 21.900 0', 'NOR 21.900 0', 'HAM 22.000 0.1'],
+  ]);
+  assert.deepEqual(d.ideal, { time: '1:20.100', gain: 0.2, best: '1:20.300' });
+  assert.deepEqual(slidesFor(d), ['couverture', 'podium', 'classement', 'vitesses', 'secteurs', 'faits']);
+  assert.equal(slideAlt(d, 'vitesses'), "Vitesses de pointe — Essais libres 1 · Grand Prix d'Italie (piège à vitesse) : 1. Charles Leclerc 340 km/h, 2. Lando Norris 340 km/h, 3. Lewis Hamilton 336 km/h");
+  assert.equal(slideAlt(d, 'secteurs'), "Meilleurs secteurs — Essais libres 1 · Grand Prix d'Italie : secteur 1, Charles Leclerc en 27.200 ; secteur 2, Lando Norris en 31.000 ; secteur 3, Charles Leclerc en 21.900 ; tour idéal 1:20.100");
+  // Sans piège à vitesse : la mesure la plus rapide ; qualifs : mêmes images après le classement
+  const noSt = postData({ ...fp, TimingStats: { Lines: Object.fromEntries(Object.entries(fp.TimingStats.Lines).map(([k, v]) => [k, { ...v, BestSpeeds: { I1: v.BestSpeeds.I1 } }])) } });
+  assert.deepEqual([noSt.speeds.label, noSt.speeds.rows[0].tla, noSt.speeds.rows[0].kmh], ['Intermédiaire 1', 'HAM', 322]);
+  const q = postData({ ...fp, SessionInfo: { ...fp.SessionInfo, Type: 'Qualifying', Name: 'Qualifying' } });
+  assert.deepEqual(slidesFor(q).slice(2, 5), ['classement', 'vitesses', 'secteurs']);
+  // Moins de trois pilotes mesurés, ou course : pas d'image
+  const few = postData({ ...fp, TimingStats: { Lines: { 1: fp.TimingStats.Lines[1], 16: fp.TimingStats.Lines[16] } } });
+  assert.deepEqual([few.speeds, few.sectors, few.ideal], [null, null, null]);
+  assert.equal(postData({ ...fp, SessionInfo: state.SessionInfo }).speeds, null);
 });
 
 test('brouillons : textes refaits d\'après les données, comme dans l\'éditeur qui a fait le post', async () => {
@@ -167,7 +215,7 @@ test('dépassements : échanges de places en piste, sans le départ, les arrêts
 test('posts : textes de la vidéo (TikTok, YouTube Shorts) tirés de ceux du post, sans spoiler si demandé', () => {
   const v = videoTexts(captions(postData(state), '@BenjyPaddock'));
   // TikTok : texte court et 5 hashtags au plus ; YouTube : titre (1re ligne, 100 caractères au plus) puis description
-  assert.match(v.tiktok, /^🏆 NORRIS remporte le Grand Prix d'Italie 🇮🇹 !/);
+  assert.match(v.tiktok, /^🏆 Lando NORRIS \(McLaren\) remporte le Grand Prix d'Italie 🇮🇹 !/);
   assert.match(v.tiktok, /\n\n#F1 #BenjyPaddock #ItalianGP #Formula1$/);
   const [title, ...desc] = v.youtube.split('\n');
   assert.match(title, /^🏆 Lando Norris remporte le Grand Prix d'Italie 🇮🇹 !$/);

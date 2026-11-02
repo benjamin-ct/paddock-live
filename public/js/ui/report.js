@@ -2,7 +2,7 @@
 // classement complet : fenêtre « Résumé » et page Résultats. Au rythme du délai TV (état affiché).
 import { esc, teamMark, tyreBadge, compoundInfo } from '../util.js';
 import { icon } from '../icons.js';
-import { t, EN, DEC } from '../i18n.js';
+import { t, FR, LANG, DEC } from '../i18n.js';
 import { summaryFacts } from '/shared/summary.js';
 import { realStints, realStopCount } from '/shared/pits.js';
 
@@ -15,7 +15,7 @@ function gapText(g) {
   return /^\+?\d/.test(v) ? `+${v.replace('+', '').replace('.', DEC)} s` : esc(v);
 }
 // Numéro de tour court : « T12 » (Lap -> « L12 ») ; pas de gabarit « T{} », qui happerait tout texte en T
-const lapNo = (l) => `${EN ? 'L' : 'T'}${l}`;
+const lapNo = (l) => `${{ en: 'L', it: 'G', es: 'V' }[LANG] || 'T'}${l}`;   // tour, lap, giro, vuelta
 
 // Pilote : repère d'écurie (logo ou barre) + trigramme
 function who(d, dl, full = false) {
@@ -48,7 +48,7 @@ function podium(f, dl) {
 }
 
 export function reportHtml(state) {
-  const f = summaryFacts(state, { lang: EN ? 'en' : 'fr' });
+  const f = summaryFacts(state, { lang: FR ? 'fr' : 'en' });
   const dl = state?.DriverList || {};
   if (!f.top.length) return `<div class="note">${t('Pas encore de classement pour cette séance.')}</div>`;
   const tiles = [];

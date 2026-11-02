@@ -7,6 +7,7 @@ import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { PAGES, linksPage } from '../analytics/links/pages.mjs';
 import { GUIDES, guidePage, sitemap, robots, englishHome } from '../analytics/launch/guides.mjs';
+import { parseChangelog } from '../shared/changelog.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = path.join(ROOT, 'analytics', 'site');
@@ -48,7 +49,7 @@ const visit = (file) => {
 };
 visit(path.join(M, 'studio', 'app.js'));
 const rel = (f) => `/${path.relative(OUT, f).split(path.sep).join('/')}`;
-const FONTS = ['manrope-latin', 'sairacondensed-800'];
+const FONTS = ['titillium-400', 'titillium-700', 'sairacondensed-800'];
 const head = [
   ...FONTS.map((f) => `<link rel="preload" href="/fonts/${f}.woff2" as="font" type="font/woff2" crossorigin>`),
   `<link rel="stylesheet" href="/m/${VERSION}/studio/style.css">`,
@@ -119,8 +120,12 @@ const copyLive = (from, to) => {
 };
 for (const d of ['js', 'css', 'fonts', 'data']) copyLive(path.join(ROOT, 'public', d), path.join(LIVE, d));
 copyLive(path.join(ROOT, 'public', 'vendor', 'nosleep'), path.join(LIVE, 'vendor', 'nosleep'));
+copy(path.join(ROOT, 'public', 'vendor', 'three'), path.join(LIVE, 'vendor', 'three'));   // vue 3D : copié tel quel
+copy(path.join(ROOT, 'public', 'vendor', 'maplibre'), path.join(LIVE, 'vendor', 'maplibre'));   // globe du Calendrier : copié tel quel
 copyLive(SHARED, path.join(LIVE, 'shared'));
 fs.copyFileSync(path.join(ROOT, 'public', 'logo.svg'), path.join(LIVE, 'logo.svg'));
+// Nouveautés de la version web (bouton « Nouveautés ») : les 3 dernières sections du journal, rien de plus
+fs.writeFileSync(path.join(LIVE, 'changelog.json'), JSON.stringify(parseChangelog(fs.readFileSync(path.join(ROOT, 'CHANGELOG.md'), 'utf8')).slice(0, 3)));
 // Code de la page : chemins absolus et chemin relatif du code partagé (lisible tel quel par les tests) vers /live/shared/
 for (const f of ['web.js', 'web-hub.js']) fs.writeFileSync(path.join(LIVE, 'js', f), toLive(fs.readFileSync(path.join(LIVE_PAGE, f), 'utf8')).replace(/(['"])\.\.\/\.\.\/shared\//g, '$1/live/shared/'));
 // Écran d'accueil du téléphone : manifeste et icônes de l'appli
@@ -153,11 +158,16 @@ liveVisit(path.join(LIVE, 'js', 'web.js'));
 // Liste des modules donnée d'emblée (modulepreload) : chargés ensemble au lieu d'être découverts un à un (navigateur
 // neuf, rien en cache, ex. celui d'Instagram : page prête vers 0,8 s au lieu de 1,2 s avec la latence d'un téléphone)
 if (!livePage.includes('</head>')) throw new Error('Version web : </head> introuvable');
-fs.writeFileSync(path.join(LIVE, 'index.html'), livePage.replace('</head>', `${[...liveGraph].map((f) => `<link rel="modulepreload" href="${rel(f)}">`).join('\n')}\n</head>`));
+// Empreinte de la version web : l'appli installée sur l'écran d'accueil se recharge au retour quand elle change (web.js)
+const walk = (d) => fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(d, e.name)) : [path.join(d, e.name)]));
+const liveHash = crypto.createHash('sha256').update(livePage);
+for (const f of walk(LIVE).sort()) liveHash.update(`${path.relative(LIVE, f)}\0`).update(fs.readFileSync(f));
+const LIVE_VERSION = liveHash.digest('hex').slice(0, 12);
+fs.writeFileSync(path.join(LIVE, 'index.html'), livePage.replace('</head>', `<meta name="pl-version" content="${LIVE_VERSION}">\n${[...liveGraph].map((f) => `<link rel="modulepreload" href="${rel(f)}">`).join('\n')}\n</head>`));
 // Fichiers servis à la racine du site (vérification du domaine par TikTok)
 copy(path.join(ROOT, 'analytics', 'root'), OUT);
 copy(path.join(ROOT, 'public', 'fonts'), path.join(OUT, 'fonts'), (f) => /^(titillium|sairacondensed|jetbrainsmono).*\.woff2$|^OFL/.test(f));
-copy(path.join(ROOT, 'analytics', 'fonts'), path.join(OUT, 'fonts'));   // Manrope : texte du Studio
+copy(path.join(ROOT, 'analytics', 'fonts'), path.join(OUT, 'fonts'));   // Barlow Condensed et Chakra Petch : visuels « Télé premium »
 // En-têtes : la page et l'API ne doivent pas être indexées ni mises en cache trop longtemps
 fs.writeFileSync(path.join(OUT, '_headers'), `/studio/*
   X-Robots-Tag: noindex, nofollow

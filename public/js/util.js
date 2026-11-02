@@ -69,10 +69,17 @@ export function setVividTeams(v) { vividTeams = !!v; }
 
 // Photo d'un pilote (portrait de la saison, sinon celle de la séance), relayée par le serveur et gardée
 // en cache ; null si la F1 n'en fournit pas
-export function photoUrl(driver) {
-  const u = portraitUrl(driver?.Tla) || driver?.HeadshotUrl;
+export function photoUrl(driver, w) {
+  const u = portraitUrl(driver?.Tla, false, w) || driver?.HeadshotUrl;
   return u ? `/api/headshot?u=${encodeURIComponent(u)}` : null;
 }
+
+// Couleurs officielles des écuries par identifiant Jolpica (Saison, accueil ; utilisées si les couleurs contrastées
+// sont désactivées)
+export const OFFICIAL = {
+  mercedes: '00D7B6', ferrari: 'ED1131', mclaren: 'F47600', red_bull: '4781D7', rb: '6C98FF', williams: '1868DB',
+  alpine: '00A1E8', aston_martin: '229971', haas: '9C9FA2', sauber: '01C00E', audi: 'F50537', cadillac: '909090',
+};
 
 export function teamColor(driver) {
   let c = null;
@@ -82,14 +89,18 @@ export function teamColor(driver) {
 }
 
 
+// Texte lisible sur la couleur de l'écurie (sombre sur les couleurs claires : Mercedes, McLaren, Haas…)
+export const ink = (c) => { const m = /^#([0-9a-f]{6})$/i.exec(c); const v = m ? parseInt(m[1], 16) : 0; return 0.2126 * (v >> 16) + 0.7152 * ((v >> 8) & 255) + 0.0722 * (v & 255) > 150 ? '#0b1220' : '#fff'; };
+
 let teamLogos = true;
 export function setTeamLogos(v) { teamLogos = !!v; }
 let logoColor = true;
 export function setLogoColor(v) { logoColor = !!v; }
 
 // Logo en couleurs officielles (sur pastille claire : certains sont noirs) ou version blanche
-export function teamLogo(teamName, color = logoColor) {
-  return teamLogoUrl(teamName, { white: !color });
+// h : hauteur demandée au serveur des images (64 px pour les petits repères, plus pour les logos en filigrane, sinon flous)
+export function teamLogo(teamName, color = logoColor, h = 64) {
+  return teamLogoUrl(teamName, { white: !color, h });
 }
 
 // Repère d'écurie d'un pilote : logo officiel (réglage « logos »), sinon barre de couleur.

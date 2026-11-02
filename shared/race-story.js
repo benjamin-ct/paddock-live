@@ -45,8 +45,8 @@ function statusFromControl(msgs, total) {
     // Après le drapeau à damier : seulement les pénalités (drapeaux d'après-course ignorés)
     if (m.flag === 'CHEQUERED' || /\bCHEQUERED FLAG\b/.test(t)) ended = true;
     if (ended && !/PENALTY/.test(t)) continue;
-    if (m.cat === 'SafetyCar' || /SAFETY CAR/.test(t)) {
-      const vsc = /VIRTUAL/.test(`${m.mode} ${t}`);
+    if (m.cat === 'SafetyCar' || /SAFETY CAR|\bVSC\b/.test(t)) {
+      const vsc = /VIRTUAL|\bVSC\b/.test(`${m.mode} ${t}`);   // « VSC DEPLOYED » depuis 2026
       if (/DEPLOYED/.test(`${m.status} ${t}`)) { next = vsc ? 'vsc' : 'sc'; events.push({ lap, kind: next }); }
       else if (/ENDING|IN THIS LAP/.test(`${m.status} ${t}`) && cur !== 'green' && cur !== 'red') { fill(lap, cur); from = lap + 1; cur = 'green'; events.push({ lap: Math.min(total, lap + (vsc ? 0 : 1)), kind: 'restart' }); continue; }
     } else if (m.flag === 'RED' || /(^|[^A-Z])RED FLAG/.test(t)) { next = 'red'; events.push({ lap, kind: 'red' }); }
@@ -70,6 +70,21 @@ function statusFromTimes(laps) {
   for (let l = 1; l <= total; l++) per.push(median(laps.drivers.map((x) => x.times[l - 1]).filter((t) => t > 0)));
   const ref = median(per.slice(1).filter(Boolean));
   const status = per.map((t, i) => (!ref || !t || i === 0 ? 'green' : t > ref * 3 ? 'red' : t > ref * 1.22 ? 'neutral' : 'green'));
+  // Safety car ou VSC : sous safety car le peloton se regroupe derrière la voiture (écart du leader au 5e
+  // fondu), sous VSC chacun garde son écart
+  const cum = (x, l) => { let t = 0; for (let i = 0; i < l; i++) { if (!(x.times[i] > 0)) return null; t += x.times[i]; } return t; };
+  const spread = (l) => {
+    const at = laps.drivers.map((x) => ({ p: x.pos[l - 1], t: cum(x, l) })).filter((x) => x.p && x.t != null).sort((a, b) => a.p - b.p);
+    return at.length >= 3 ? at[Math.min(4, at.length - 1)].t - at[0].t : null;
+  };
+  for (let i = 0; i < total; i++) {
+    if (status[i] !== 'neutral' || status[i - 1] === 'neutral') continue;
+    let j = i;
+    while (status[j + 1] === 'neutral') j++;
+    const before = spread(i); const after = spread(j + 1);
+    const kind = before == null || after == null || before < 4 ? 'neutral' : after < before * 0.5 ? 'sc' : 'vsc';
+    for (let k = i; k <= j; k++) status[k] = kind;
+  }
   const events = [];
   status.forEach((s, i) => {
     if (s !== 'green' && status[i - 1] !== s) events.push({ lap: i + 1, kind: s });

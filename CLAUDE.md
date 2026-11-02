@@ -44,21 +44,34 @@
   dans `server/studio-sync.js`, et celles de l'ancien `server/post-history.js` pour les applis jusqu'à la 1.28, `/e`, `/f`, `/t`, `/r`, `/p/api`) gardent leurs noms, leurs
   paramètres et leurs réponses : on ajoute sans retirer ni changer, et on ne supprime une ancienne forme que quand
   plus aucune version publiée ne l'utilise.
-- **Suivi dans Google Drive** (connecteurs Google Drive, Docs et Sheets) : après chaque action (code fusionné,
-  version publiée, posts préparés, démarche faite), tenir à jour le dossier « Paddock Live · Réseaux » :
-  la liste « À faire · Paddock Live » (cocher ce qui est fait, ajouter ce qui reste), la feuille
-  « Suivi réseaux · Paddock Live » (onglet Journal : une ligne par action, la plus récente en haut ; onglet Posts :
-  les posts préparés) et, pour chaque Grand Prix, un Google Doc des textes et un dossier
-  « Paddock Live · Médias · <Grand Prix> » (fichiers envoyés avec les secrets `GDRIVE_*` de l'environnement).
+- **Suivi dans le Studio** (onglet Suivi, sans Google ; `scripts/suivi.mjs`, clé `PADDOCK_SUIVI_KEY` de
+  l'environnement, créée dans le Studio → Suivi → Réglages, jamais collée dans une conversation) : après chaque
+  action (code fusionné, version publiée, posts préparés, démarche faite), tenir le suivi à jour. Tâches : statut
+  [À faire, En attente, Fait, Lien], liste, quand, domaine, titre, détails (« / » entre deux lignes), lien, fait le ;
+  `task-done` passe une tâche en « Fait » avec la date, `task-add` ajoute ce qui reste (`tasks` donne les identifiants).
+  Journal : `log-add`, une ligne par action, la plus récente en haut. Pour chaque Grand Prix, les textes des posts
+  (`posts-put`, même format qu'avant : « 1. JOUR · HEURE · TITRE », « Image : … », « Texte long : »…). Sans
+  `PADDOCK_SUIVI_KEY`, le dire à l'utilisateur au lieu d'écrire ailleurs. Photos et vidéos d'un Grand Prix : `media-put`
+  (gardées par le serveur, affichées sous les textes des posts ; `media-list` donne leurs adresses). L'ancien dossier
+  Google Drive « Paddock Live · Réseaux » n'est plus tenu (archive), Google n'est plus utilisé pour le suivi.
 - **À tester avant la version finale** : à chaque PR fusionnée qui change l'appli ou la version web, ajouter dans la
-  partie « À tester avant la version finale » de « À faire » une case par nouveauté : où cliquer et ce qu'on doit
-  voir (avec le numéro de la bêta), en séparant ce qui demande une vraie séance. Après « publie », vider la partie
-  et changer son numéro de version.
+  liste « À tester avant la version finale (X.Y) » du suivi une tâche par nouveauté (Quand : « bêta N »,
+  ou « Vraie séance · bêta N » pour ce qui demande une vraie séance ; titre : la nouveauté ; détails : où cliquer et
+  ce qu'on doit voir). Après « publie », passer en « Fait » ce qui a été vérifié et changer le numéro de la liste.
 - Avant de pousser : `npm test`.
-- **Version anglaise** : tout nouveau texte affiché a sa traduction dans `public/js/i18n-en.js` (clé = texte
-  français, `{}` pour les valeurs) ; `node scripts/i18n-missing.mjs` liste ceux qui manquent.
+- **Serveur local de test** (essais, captures, agents) : le lancer sans rien envoyer au Worker en production, sinon les
+  replays de test sont traduits et transcrits en production (crédits Claude) :
+  `PADDOCK_TRANSLATE_URL= PADDOCK_RADIO_URL= PADDOCK_STATS_URL= PADDOCK_FEEDBACK_URL= PADDOCK_PRONOS_URL= PADDOCK_STUDIO_URL= PADDOCK_RELAY_URL= node server/index.js`
+  (adresse vide = fonction coupée).
+- **Versions anglaise, italienne et espagnole** : tout nouveau texte affiché a sa traduction dans `public/js/i18n-en.js`,
+  `public/js/i18n-it.js` et `public/js/i18n-es.js` (clé = texte français, `{}` pour les valeurs ; tutoiement en italien
+  et en espagnol) ; `node scripts/i18n-missing.mjs` liste ceux qui manquent.
 - **Ponytail** (`.claude/skills/ponytail*`, licence MIT, github.com/DietrichGebert/ponytail) : la plus petite
   modification qui règle tout le problème, réutiliser l'existant, rien « pour plus tard ». `/ponytail-review`
   (une modification), `/ponytail-audit` (tout le dépôt), `/ponytail-debt` (raccourcis `shortcut:` en attente).
   Ces consignes priment sur ses règles : réponses, rapports et commentaires en français, journal et
-  traductions anglaises toujours tenus.
+  traductions (anglais, italien, espagnol) toujours tenus.
+- **Compétences 3D et Electron** (`.claude/skills/`, licence MIT) : `threejs-animation`, `shader-glsl`,
+  `particle-system` (github.com/iart-ai/webgl-animation-skills) pour la carte 3D, et `electron-best-practices`
+  (github.com/jwynia/agent-skills, parties sécurité et empaquetage) pour `desktop/`. Mêmes priorités que pour Ponytail :
+  ces consignes priment, réponses en français.

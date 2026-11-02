@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 process.env.PADDOCK_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'paddock-studio-'));
+delete process.env.F1TV_TOKEN;   // jeton de l'environnement : remplacerait celui des tests (server/config.js)
 // Code d'essai (le vrai code n'est jamais dans le dépôt) : son empreinte remplace celle du créateur
 const CODE = 'ESSAI-42';
 const nodeCrypto = await import('node:crypto');
@@ -151,7 +152,8 @@ test('page du créateur : comptes repris sur un nouvel ordinateur, copie illisib
   await enableStudio(CODE, { fetchFn });
   assert.equal(studioInfo().backup, true);
   const box = env.DB.studio.get('accounts');
-  for (const s of ['cle-x', 'secret-x', 'secret-app', 'secret-th', 'jeton-page', 'moi']) assert.ok(!box.includes(s));
+  // « @moi » et pas « moi » : trois lettres se trouvent parfois par hasard dans une copie chiffrée (base64)
+  for (const s of ['cle-x', 'secret-x', 'secret-app', 'secret-th', 'jeton-page', '@moi']) assert.ok(!box.includes(s));
   // Une ancienne appli qui renvoie ses comptes sans copie : la copie reste
   await worker('https://s.test/studio/api/sync', { method: 'POST', headers: { 'X-Studio-Key': studioKey(CODE) }, body: JSON.stringify({ vault: { meta: social.meta } }) });
   assert.equal(env.DB.studio.get('accounts'), box);
@@ -690,6 +692,55 @@ test('page du créateur : post « lien » sans visuels (carte de l\'article affi
   await disableStudio({ fetchFn });
 });
 
+test('page du créateur : Bluesky, suite du fil (images 5 à 8) publiée en réponse ; anciens envois sans suite inchangés', async () => {
+  saveConfig({ creator: true, social: { bluesky: { handle: 'moi.bsky.social', appPassword: 'mdp-app', did: 'did:plc:moi' } } });
+  const fetchFn = (url, init) => worker(url, init);
+  await enableStudio(CODE, { fetchFn });
+  const key = { 'X-Studio-Key': studioKey(CODE) };
+  const add = (n, post) => {
+    const f = new FormData();
+    f.append('at', String(Date.now()));
+    f.append('title', 'Qualifs');
+    f.append('posts', JSON.stringify([post]));
+    for (let i = 0; i < n; i++) f.append('x', new Blob([new Uint8Array([0xff, 0xd8, 0xff, i])], { type: 'image/jpeg' }), `x-${i + 1}.jpg`);
+    f.append('alts', JSON.stringify({ ig: [], x: Array.from({ length: n }, (_, i) => `Image ${i + 1}`) }));
+    return worker('https://s.test/studio/api/schedule', { method: 'POST', body: f, headers: key });
+  };
+  const realFetch = globalThis.fetch;
+  let records = [];
+  globalThis.fetch = async (url, opts = {}) => {
+    const u = new URL(url);
+    const ok = (d) => new Response(JSON.stringify(d));
+    if (u.pathname.endsWith('createSession')) return ok({ accessJwt: 'jwt', did: 'did:plc:moi', handle: 'moi.bsky.social' });
+    if (u.pathname.endsWith('uploadBlob')) return ok({ blob: { ref: 'b' } });
+    if (u.pathname.endsWith('createRecord')) { records.push(JSON.parse(opts.body).record); return ok({ uri: `at://did:plc:moi/app.bsky.feed.post/r${records.length}`, cid: `c${records.length}` }); }
+    throw new Error(`inattendu : ${url}`);
+  };
+  try {
+    // Post de 4 images, suite de 3 en réponse, puis le premier commentaire
+    const { item } = await (await add(7, { network: 'bluesky', text: 'Qualifs', comment: 'Lien', more: '📊 La suite : meilleurs secteurs' })).json();
+    assert.equal(JSON.parse(env.DB.studio.get(`sched:${item.id}`)).posts[0].more, '📊 La suite : meilleurs secteurs');
+    assert.deepEqual(await runSchedule(env), { published: 'bluesky', id: item.id });
+    assert.deepEqual(records.map((r) => [r.text, r.embed?.images.length ?? 0, r.reply?.parent.uri.slice(-2) ?? null]), [['Qualifs', 4, null], ['📊 La suite : meilleurs secteurs', 3, 'r1'], ['Lien', 0, 'r1']]);
+    assert.deepEqual(records[1].embed.images.map((i) => i.alt), ['Image 5', 'Image 6', 'Image 7']);
+    await runSchedule(env);
+    // Ancienne version de la page : 4 images, pas de suite ; texte « more » ignoré hors Bluesky ou sans images en plus
+    records = [];
+    const old = (await (await add(4, { network: 'bluesky', text: 'Avant' })).json()).item;
+    assert.equal('more' in JSON.parse(env.DB.studio.get(`sched:${old.id}`)).posts[0], false);
+    assert.deepEqual(await runSchedule(env), { published: 'bluesky', id: old.id });
+    assert.deepEqual(records.map((r) => [r.text, r.embed.images.length]), [['Avant', 4]]);
+    await runSchedule(env);
+    records = [];
+    const four = (await (await add(4, { network: 'bluesky', text: 'Quatre', more: '📊 La suite' })).json()).item;
+    await runSchedule(env);
+    assert.equal(records.length, 1);
+    await runSchedule(env);
+    assert.equal((await (await worker('https://s.test/studio/api/schedule', { headers: key })).json()).items.some((x) => [item.id, old.id, four.id].includes(x.id)), false);
+  } finally { globalThis.fetch = realFetch; }
+  await disableStudio({ fetchFn });
+});
+
 test('page du créateur : photos libres de droits (Commons, Flickr par Openverse), licences « NC » et « ND » écartées', async () => {
   const { freePhotos, shortLicense } = await import('../analytics/photos.js');
   assert.equal(shortLicense('Attribution-ShareAlike License'), 'CC BY-SA');
@@ -928,6 +979,24 @@ test('Studio : saison résumée par le serveur, gardée 30 minutes, ancienne ver
   assert.equal((await seasonRow(env, 2026, { now: t0 + 42 * 60e3, fetchFn, wait })).at, t0 + 42 * 60e3);
 });
 
+test('Studio : saison gardée servie tout de suite jusqu\'à 6 h, sans attendre Jolpica', async () => {
+  const env4 = { DB: fakeDB(), STUDIO_KEY_HASH: HASH };
+  const w = (p) => studioApi(new Request(`https://s.test/studio/api/${p}`, { headers: { 'X-Studio-Key': studioKey(CODE) } }), env4, new URL(`https://s.test/studio/api/${p}`));
+  assert.equal((await studioApi(new Request('https://s.test/studio/api/init', { method: 'POST', body: JSON.stringify({ key: studioKey(CODE), vault: {} }) }), env4, new URL('https://s.test/studio/api/init'))).status, 200);
+  const empty = async () => new Response(JSON.stringify({ MRData: { total: '0', RaceTable: { Races: [] } } }));
+  const at = Date.now() - 2 * 3600e3;
+  await seasonRow(env4, 2026, { now: at, fetchFn: empty, wait: async () => {} });
+  const real = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async () => { calls++; throw new Error('Jolpica lent'); };
+  try {
+    const r = await w('season?year=2026');
+    assert.equal(r.status, 200);
+    assert.equal((await r.json()).at, at);
+    assert.equal(calls, 0);
+  } finally { globalThis.fetch = real; }
+});
+
 test('Studio : résultats parus signalés une fois (post prêt), seulement pour un Grand Prix récent', async () => {
   const { resultsReady } = await import('../analytics/season-cache.js');
   const now = Date.parse('2026-10-19T22:00:00Z');
@@ -990,77 +1059,92 @@ test('version web : la connexion F1 TV du créateur n\'est plus gardée pour le 
   assert.equal(await (await worker('https://s.test/studio/api/live-session', { headers: key })).json(), null);
 });
 
-test('onglet Suivi : connexion Google Drive depuis le Studio (lecture seule), gardée à l\'envoi de l\'appli', async () => {
-  const key = { 'X-Studio-Key': studioKey(CODE) };
-  const call = (p, init = {}) => worker(`https://s.test/studio/api/${p}`, { ...init, headers: key });
-  let r = await worker('https://s.test/studio/api/init', { method: 'POST', body: JSON.stringify({ key: studioKey(CODE), vault: { youtube: { clientId: 'yt.apps', clientSecret: 'secret-google', refreshToken: 'rt-yt', accessToken: 'a', expiresAt: 0 } } }) });
+test('onglet Suivi sans Google : tâches, journal et posts gardés par le serveur, clé des sessions Claude', async () => {
+  const skey = { 'X-Studio-Key': studioKey(CODE) };
+  const call = (p, init = {}, headers = skey) => worker(`https://s.test/studio/api/${p}`, { ...init, headers });
+  assert.equal((await worker('https://s.test/studio/api/init', { method: 'POST', body: JSON.stringify({ key: studioKey(CODE), vault: {} }) })).status, 200);
+  let d = await (await call('suivi')).json();
+  assert.deepEqual(d.tasks, []);
+  assert.equal(d.keySet, false);
+  // Session sans clé, ou clé fausse : refusée
+  assert.equal((await call('suivi', {}, { 'X-Suivi-Key': 'x'.repeat(48) })).status, 401);
+  const { key } = await (await call('suivi/key', { method: 'POST' })).json();
+  assert.equal(key.length, 48);
+  assert.ok(![...env.DB.studio.values()].some((v) => String(v).includes(key)), 'seule l\'empreinte de la clé est gardée');
+  const sess = { 'X-Suivi-Key': key };
+  const post = (ops, h = sess) => call('suivi/ops', { method: 'POST', body: JSON.stringify({ ops }) }, h);
+  let r = await post([
+    { op: 'task.add', task: { list: 'À tester avant la version finale (1.30)', when: 'bêta 51', domain: 'Appli et site', title: 'Compte à rebours stable', detail: 'Barre du haut / secondes' } },
+    { op: 'log.add', entry: { domain: 'Développement', text: 'PR #372 fusionnée', where: 'Fait' } },
+    { op: 'posts.put', name: 'Week-end de Mexico · textes des posts', text: 'Week-end de Mexico\n1. LUNDI 2 NOVEMBRE · 12 H · REVIS LA COURSE\nTexte long :\nBonjour' },
+  ]);
   assert.equal(r.status, 200);
-  assert.deepEqual(await (await call('drive/files')).json(), { connected: false, youtubeClient: true });
-  // Adresse de retour : seulement la page du Studio en https
-  assert.equal((await call('drive/start', { method: 'POST', body: JSON.stringify({ redirect: 'https://ailleurs.test/autre' }) })).status, 400);
-  const { url } = await (await call('drive/start', { method: 'POST', body: JSON.stringify({ redirect: 'https://s.test/studio/' }) })).json();
-  const q = new URL(url).searchParams;
-  assert.equal(q.get('client_id'), 'yt.apps');
-  assert.equal(q.get('scope'), 'https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/documents');
-  assert.equal(q.get('redirect_uri'), 'https://s.test/studio/');
-
-  const realFetch = globalThis.fetch;
-  let refresh = 'ok';
-  const seen = [];
-  globalThis.fetch = async (u, opts = {}) => {
-    u = String(u);
-    seen.push(u);
-    const ok = (d, status = 200) => new Response(JSON.stringify(d), { status });
-    if (u === 'https://oauth2.googleapis.com/token') {
-      const f = new URLSearchParams(String(opts.body));
-      assert.equal(f.get('client_secret'), 'secret-google');
-      if (f.get('grant_type') === 'authorization_code') { assert.equal(f.get('code'), 'c1'); assert.ok(f.get('code_verifier')); return ok({ access_token: 'at1', expires_in: 3599, refresh_token: 'rt-drive', scope: 'https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/documents' }); }
-      return refresh === 'ok' ? ok({ access_token: 'at2', expires_in: 3599 }) : ok({ error: 'invalid_grant', error_description: 'Token has been expired or revoked.' }, 400);
-    }
-    assert.match(opts.headers.Authorization, /^Bearer at[12]$/);
-    if (u.startsWith('https://www.googleapis.com/drive/v3/files?')) {
-      const s = new URL(u).searchParams.get('q');
-      return ok(s.includes("name = 'Paddock Live · Réseaux'") ? { files: [{ id: 'dossier123456', name: 'Paddock Live · Réseaux' }] } : { files: [{ id: 'docafaire123456', name: 'À faire · Paddock Live', mimeType: 'application/vnd.google-apps.document' }] });
-    }
-    if (u === 'https://docs.googleapis.com/v1/documents/docafaire123456?includeTabsContent=true') return ok({ title: 'À faire', tabs: [] });
-    if (u === 'https://sheets.googleapis.com/v4/spreadsheets/feuille1234567/values/Journal!A1%3AD400') return ok({ values: [['Date']] });
-    if (u.startsWith('https://docs.googleapis.com/v1/documents/inconnu')) return ok({ error: { message: 'Requested entity was not found.' } }, 404);
-    throw new Error(`inattendu : ${u}`);
-  };
-  try {
-    assert.equal((await call('drive/finish', { method: 'POST', body: JSON.stringify({ code: 'c1', state: 'faux' }) })).status, 400);
-    r = await call('drive/finish', { method: 'POST', body: JSON.stringify({ code: 'c1', state: q.get('state') }) });
-    assert.deepEqual(await r.json(), { ok: true });
-    assert.ok(!env.DB.studio.get('vault').includes('rt-drive'));   // dans le coffre chiffré
-    const files = await (await call('drive/files')).json();
-    assert.deepEqual(files.folder, { id: 'dossier123456', name: 'Paddock Live · Réseaux' });
-    assert.equal(files.canWrite, true);
-    assert.equal(files.files[0].name, 'À faire · Paddock Live');
-    assert.equal((await (await call('drive/doc?id=docafaire123456')).json()).title, 'À faire');
-    assert.deepEqual(await (await call(`drive/values?id=feuille1234567&range=${encodeURIComponent('Journal!A1:D400')}`)).json(), { values: [['Date']] });
-    assert.deepEqual(await (await call('drive/fill', { method: 'POST', body: JSON.stringify({ accounts: [] }) })).json(), { error: 'Feuille « Suivi réseaux » introuvable dans le dossier' });
-    assert.equal((await call('drive/doc?id=../x')).status, 400);
-    assert.equal((await call('drive/doc?id=inconnu1234567')).status, 404);
-    // Envoi de l'appli (qui ne connaît pas Drive) : connexion gardée ; pas rendue comme un compte de l'appli
-    assert.equal((await call('sync', { method: 'POST', body: JSON.stringify({ vault: { youtube: { clientId: 'yt.apps', clientSecret: 'secret-google', refreshToken: 'rt-yt' } } }) })).status, 200);
-    assert.equal((await (await call('drive/files')).json()).connected, true);
-    assert.equal(JSON.stringify(await (await call('accounts')).json()).includes('gdrive'), false);
-    // Accès retiré chez Google (mode « Test » : 7 jours) : jeton d'accès à renouveler refusé, à reconnecter
-    refresh = 'expire';
-    const { url: url2 } = await (await call('drive/start', { method: 'POST', body: JSON.stringify({ redirect: 'https://s.test/studio/' }) })).json();
-    const exchange = globalThis.fetch;
-    globalThis.fetch = async (u, opts = {}) => (new URLSearchParams(String(opts.body)).get('grant_type') === 'authorization_code'
-      ? new Response(JSON.stringify({ access_token: 'at1', expires_in: 1, refresh_token: 'rt-drive' })) : exchange(u, opts));
-    await call('drive/finish', { method: 'POST', body: JSON.stringify({ code: 'c1', state: new URL(url2).searchParams.get('state') }) });
-    assert.deepEqual(await (await call('drive/files')).json(), { connected: false, expired: true, youtubeClient: true });
-    assert.equal((await call('drive/forget', { method: 'POST' })).status, 200);
-  } finally { globalThis.fetch = realFetch; }
-  assert.ok(seen.length > 4);
+  const out = await r.json();
+  assert.equal(out.ids.length, 1);
+  assert.equal(out.tasks[0].status, 'À faire');
+  assert.match(out.log[0].date, /^\d{1,2}\/\d{1,2}\/\d{4}$/);
+  // Réservé au Studio : nouvelle clé et remplissage ; opération inconnue ou tâche introuvable : rien d'écrit
+  assert.equal((await call('suivi/key', { method: 'POST' }, sess)).status, 403);
+  assert.equal((await post([{ op: 'task.set', id: 'inconnue', status: 'Fait' }])).status, 400);
+  assert.equal((await post([{ op: 'task.add', task: { title: 'B' } }, { op: 'zut' }])).status, 400);
+  // Coche du Studio par l'identifiant, ou d'une session par le titre : « Fait » avec la date du jour
+  r = await post([{ op: 'task.set', id: 'Compte à rebours stable', status: 'Fait' }], skey);
+  const t = (await r.json()).tasks[0];
+  assert.equal(t.status, 'Fait');
+  assert.ok(t.doneAt);
+  d = await (await call('suivi', {}, sess)).json();
+  assert.equal(d.tasks.length, 1, 'la liste refusée n\'a rien ajouté');
+  assert.equal(d.posts[0].name, 'Week-end de Mexico · textes des posts');
+  assert.equal(d.keySet, true);
+  // Import (remplace la partie) puis remplissage des abonnés du lundi par le Studio
+  const head = ['Lundi', 'Instagram', 'Total'];
+  await post([{ op: 'part.put', part: 'net', data: { app: [head, ['19/10/2026', '3', '3']], posts: [], benjy: [], streamers: [] } }], skey);
+  const accounts = [{ name: 'Paddock Live', nets: { instagram: { stats: { followers: 5 } } } }];
+  r = await (await call('suivi/fill', { method: 'POST', body: JSON.stringify({ accounts }) })).json();
+  assert.equal(r.cells, 2);
+  const app = (await (await call('suivi/net')).json()).net.app;
+  assert.deepEqual(app.at(-1).slice(1), [5, 5]);
+  // Nouvelle clé : l'ancienne ne marche plus
+  await call('suivi/key', { method: 'POST' });
+  assert.equal((await call('suivi', {}, sess)).status, 401);
 });
 
+test('onglet Suivi : photos et vidéos des posts gardées par le serveur, adresse publique, effacées avec leur Grand Prix', async () => {
+  const { suiviFile } = await import('../analytics/suivi.js');
+  const skey = { 'X-Studio-Key': studioKey(CODE) };
+  const call = (p, init = {}, headers = skey) => worker(`https://s.test/studio/api/${p}`, { ...init, headers: { ...headers, ...(init.headers || {}) } });
+  const put = (gp, f, body, type = 'image/png') => call(`suivi/file?gp=${encodeURIComponent(gp)}&f=${encodeURIComponent(f)}`, { method: 'PUT', body, headers: { 'Content-Type': type, 'Content-Length': String(body.length) } });
+  const gp = 'Week-end de Mexico · textes des posts';
+  assert.equal((await put(gp, 'a.exe', new Uint8Array(10), 'application/x-msdownload')).status, 415);
+  let r = await put(gp, 'mx-1.png', new Uint8Array([1, 2, 3]));
+  assert.equal(r.status, 200);
+  const f = (await r.json()).file;
+  assert.match(f.url, /^\/studio\/f\/[a-f0-9]{16}\/mx-1\.png$/);
+  // Adresse publique (sans clé), morceaux acceptés
+  const got = await suiviFile(new Request(`https://s.test${f.url}`), env, f.url.slice(10));
+  assert.equal(got.status, 200);
+  assert.deepEqual([...new Uint8Array(await got.arrayBuffer())], [1, 2, 3]);
+  assert.equal((await suiviFile(new Request('https://s.test/x'), env, 'zzzz/mx-1.png')).status, 404);
+  // Même nom : remplacé (l'ancien fichier effacé) ; textes des posts envoyés ensuite : fichiers gardés
+  await put(gp, 'mx-1.png', new Uint8Array([9]));
+  assert.equal(env.MEDIA.objs.has(`suivi/${f.key}/mx-1.png`), false);
+  await call('suivi/ops', { method: 'POST', body: JSON.stringify({ ops: [{ op: 'posts.put', name: gp, text: '1. LUNDI · TEST' }] }) });
+  let doc = (await (await call('suivi/posts')).json()).posts.find((x) => x.name === gp);
+  assert.equal(doc.files.length, 1);
+  assert.equal(doc.text, '1. LUNDI · TEST');
+  // Fichier retiré : effacé du stockage
+  const key = doc.files[0].key;
+  await call('suivi/ops', { method: 'POST', body: JSON.stringify({ ops: [{ op: 'file.del', name: gp, file: 'mx-1.png' }] }) });
+  doc = (await (await call('suivi/posts')).json()).posts.find((x) => x.name === gp);
+  assert.equal(doc.files.length, 0);
+  assert.equal(env.MEDIA.objs.has(`suivi/${key}/mx-1.png`), false);
+  // Lignes ajoutées à une table des réseaux
+  await call('suivi/ops', { method: 'POST', body: JSON.stringify({ ops: [{ op: 'net.add', table: 'posts', rows: [['08/11/2026', '12:00', 'Instagram', 'Test']] }] }) });
+  assert.equal((await (await call('suivi/net')).json()).net.posts.at(-1)[3], 'Test');
+});
 
 test('onglet Suivi : feuille « Suivi réseaux » remplie avec les chiffres du Studio', async () => {
-  const { sheetUpdates, mondayParis } = await import('../analytics/drive.js');
+  const { sheetUpdates, mondayParis } = await import('../analytics/suivi.js');
   const now = Date.UTC(2026, 9, 26, 8);   // lundi 26 octobre, 9 h à Paris
   assert.equal(mondayParis(now), '26/10/2026');
   assert.equal(mondayParis(Date.UTC(2026, 10, 1, 22, 59)), '26/10/2026');   // dimanche 23 h 59 à Paris
@@ -1092,7 +1176,7 @@ test('onglet Suivi : feuille « Suivi réseaux » remplie avec les chiffres du S
 });
 
 test('Suivi : lien d\'un post prévu retrouvé dans le journal (même réseau, même jour, heure la plus proche)', async () => {
-  const { sheetUpdates } = await import('../analytics/drive.js');
+  const { sheetUpdates } = await import('../analytics/suivi.js');
   const paris = (h, m) => Date.UTC(2026, 9, 24, h - 2, m);   // 24 octobre, heure d'été à Paris
   const tables = { 'Posts Paddock Live': [['Date', 'Heure', 'Réseau', 'Sujet', 'Lien du post', 'Vues'],
     ['24/10/2026', '', 'Instagram Reels', 'Vidéo'], ['24/10/2026', '12:00', 'Instagram', 'Zéro spoiler'], ['24/10/2026', '12:00', 'X', 'Zéro spoiler'], ['25/10/2026', '19:00', 'Instagram', 'Règle ton délai']] };
@@ -1106,40 +1190,6 @@ test('Suivi : lien d\'un post prévu retrouvé dans le journal (même réseau, m
     { range: "'Posts Paddock Live'!F3", values: [[90]] },
     { range: "'Posts Paddock Live'!E2", values: [['https://www.instagram.com/reel/R/']] },
   ]);
-});
-
-test('Suivi : tâche cochée déplacée en tête de « Fait » avec la date, Doc inchangé entre-temps exigé', async () => {
-  const { checkTask } = await import('../analytics/drive.js');
-  const run = (startIndex, content, textStyle = {}) => ({ startIndex, endIndex: startIndex + content.length, textRun: { content, textStyle } });
-  const para = (startIndex, runs, extra = {}) => ({ startIndex, endIndex: runs.at(-1).endIndex, paragraph: { elements: runs, ...extra } });
-  const H = { paragraphStyle: { namedStyleType: 'HEADING_2' } };
-  const grey = { foregroundColor: { color: { rgbColor: { red: 0.5 } } }, fontSize: { magnitude: 12.5, unit: 'PT' } };
-  // « Cette semaine » : une tâche (titre + détail) ; « ✅ Fait » : une tâche faite (modèle de mise en forme)
-  const task = 'À faire en premier  ·  📣 Publier l\'application Google\u000bDétail de la tâche\n';
-  const doc = { revisionId: 'r1', body: { content: [
-    para(1, [run(1, 'Cette semaine\n')], H),
-    para(15, [run(15, task)], { bullet: { listId: 'a' } }),
-    para(15 + task.length, [run(15 + task.length, '✅  Fait\n')], H),
-    para(23 + task.length, [run(23 + task.length, '24 oct.  ·  Vidéos du Studio', { bold: true, ...grey }), run(51 + task.length, '\u000bInstagram…\n', { fontSize: { magnitude: 10.5, unit: 'PT' } })], { bullet: { listId: 'b' } }),
-  ] } };
-  let sent = null;
-  const call = async (url, at, body) => { if (body) { sent = { url, body }; return {}; } return doc; };
-  const r = await checkTask('jeton', 'docid0123456', 15, 'Publier l\'application Google', new Date('2026-10-25T21:00:00Z'), call);
-  assert.equal(r.date, '25 oct.');
-  assert.match(sent.url, /documents\/docid0123456:batchUpdate$/);
-  assert.equal(sent.body.writeControl.requiredRevisionId, 'r1');
-  const [ins, st1, st2, del] = sent.body.requests;
-  // Insertion avant la première tâche faite (plus loin dans le Doc), puis suppression de la tâche
-  assert.equal(ins.insertText.location.index, 23 + task.length);
-  assert.equal(ins.insertText.text, '25 oct.  ·  Publier l\'application Google\u000bDétail de la tâche\n');
-  assert.equal(st1.updateTextStyle.textStyle.bold, true);
-  assert.deepEqual(st1.updateTextStyle.textStyle.fontSize, grey.fontSize);
-  assert.equal(st2.updateTextStyle.textStyle.bold, false);
-  assert.deepEqual(del.deleteContentRange.range, { startIndex: 15, endIndex: 15 + task.length });
-  // Liste changée entre-temps (autre titre à cet endroit) : rien n'est écrit
-  sent = null;
-  await assert.rejects(checkTask('jeton', 'docid0123456', 15, 'Autre tâche', new Date(), call), /La liste a changé/);
-  assert.equal(sent, null);
 });
 
 test('page du créateur : connexions expirées signalées avant de publier (YouTube refusé, TikTok injoignable, Threads)', async () => {
@@ -1165,30 +1215,6 @@ test('page du créateur : connexions expirées signalées avant de publier (YouT
     assert.equal(r.tiktok, undefined, 'réseau injoignable : pas annoncé comme expiré');
     assert.match(r.threads, /Connexion Threads expirée/);
   } finally { globalThis.fetch = realFetch; }
-});
-
-test('Suivi : détail d\'une tâche cochée mis en forme comme celui d\'une tâche faite qui en a un', async () => {
-  const { checkTask } = await import('../analytics/drive.js');
-  const run = (startIndex, content, textStyle = {}) => ({ startIndex, endIndex: startIndex + content.length, textRun: { content, textStyle } });
-  const para = (startIndex, runs, extra = {}) => ({ startIndex, endIndex: runs.at(-1).endIndex, paragraph: { elements: runs, ...extra } });
-  const H = { paragraphStyle: { namedStyleType: 'HEADING_2' } };
-  const big = { fontSize: { magnitude: 12.5, unit: 'PT' } };
-  const small = { fontSize: { magnitude: 10.5, unit: 'PT' } };
-  const task = 'Tâche\u000bSon détail\n';
-  const one = '25 oct.  ·  Faite sans détail\n';
-  const two = '24 oct.  ·  Faite avec détail';
-  const doc = { revisionId: 'r', body: { content: [
-    para(1, [run(1, 'À faire\n')], H),
-    para(9, [run(9, task)], { bullet: { listId: 'a' } }),
-    para(9 + task.length, [run(9 + task.length, 'Fait\n')], H),
-    para(14 + task.length, [run(14 + task.length, one, { bold: true, ...big })], { bullet: { listId: 'b' } }),
-    para(14 + task.length + one.length, [run(14 + task.length + one.length, two, { bold: true, ...big }), run(14 + task.length + one.length + two.length, '\u000bdétail\n', small)], { bullet: { listId: 'b' } }),
-  ] } };
-  let sent = null;
-  await checkTask('j', 'docid0123456', 9, 'Tâche', new Date('2026-10-25T12:00:00Z'), async (u, a, body) => { if (body) { sent = body; return {}; } return doc; });
-  const styles = sent.requests.filter((q) => q.updateTextStyle).map((q) => q.updateTextStyle.textStyle);
-  assert.deepEqual(styles[0].fontSize, big.fontSize);     // titre : comme le titre de la première tâche faite
-  assert.deepEqual(styles[1].fontSize, small.fontSize);   // détail : comme un détail, pas comme un titre
 });
 
 test('page du créateur : « Reste à faire » (X avec ses images, fichiers refusés, fait = effacé, 7 jours au plus)', async () => {

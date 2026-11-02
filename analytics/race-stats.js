@@ -3,7 +3,7 @@
 // serveur, d'après les archives officielles de la F1 lues avec la connexion F1 TV du créateur (copie à part, voir
 // archiveToken), puis gardée dans la base. Même calcul que l'appli (shared/race-stats.js).
 import { seasonRow, archiveToken } from './studio.js';
-import { getRow, setRow, rowsWithPrefix } from './alerts.js';
+import { getRow, setRow, rowsWithPrefix, readJSON } from './alerts.js';
 import { seasonNominations } from './tyres.js';
 import { summarizeRace, findRaceSession, parseStream, indexMeetings, STATS_VERSION } from '../shared/race-stats.js';
 import { fetchDhl, withDhl } from '../shared/dhl-pits.js';
@@ -19,11 +19,19 @@ const FINISHED_AGE = 7 * 86400e3;   // saison finie : relue chez Jolpica une foi
 const json = (d, status = 200, headers = {}) => new Response(JSON.stringify(d), { status, headers: { 'Content-Type': 'application/json', ...headers } });
 const season = (env, year, now) => seasonRow(env, year, year < new Date(now).getUTCFullYear() ? { now, maxAge: FINISHED_AGE } : { now });
 
-// Tracé d'un circuit (API MultiViewer, l'année demandée ou une des précédentes), gardé un jour
-export async function circuitData(key, year, fetchFn = fetch) {
+// Tracé d'un circuit, gardé un jour : celui reconstruit d'après le GPS d'une séance archivée pour un circuit que
+// MultiViewer n'a pas (ligne gpstrack:clé:année de la base, analytics/zones.js : prioritaire, ses zones y sont calculées),
+// sinon celui de l'API MultiViewer (l'année demandée ou une des précédentes)
+export const gpsTrackKey = (key, year) => `gpstrack:${key}:${year}`;
+export async function circuitData(key, year, fetchFn = fetch, env = null) {
   const ck = new Request(`https://live.cache/circuit/${key}/${year}`);
   const hit = await caches.default.match(ck);
   if (hit) return hit.json();
+  const gps = env?.DB ? await readJSON(env, gpsTrackKey(key, year), null) : null;
+  if (gps) {
+    await caches.default.put(ck, json(gps, 200, { 'Cache-Control': 'public, max-age=86400' }));
+    return gps;
+  }
   for (let y = year; y >= year - 6; y--) {
     const r = await fetchFn(`https://api.multiviewer.app/api/v1/circuits/${key}/${y}`, { headers: { 'User-Agent': UA } }).catch(() => null);
     const d = r?.ok ? await r.json().catch(() => null) : null;
@@ -42,7 +50,7 @@ export async function archiveText(rel, token, fetchFn) {
 }
 
 // Analyse d'une course : flux du chronométrage, états finaux et tracé du circuit
-async function analyse(race, year, token, fetchFn) {
+async function analyse(env, race, year, token, fetchFn) {
   const s = findRaceSession(indexMeetings(JSON.parse(await archiveText(`${year}/Index.json`, token, fetchFn))), race);
   if (!s) throw new Error('course absente de l\'index des archives');
   const streams = await Promise.all(['TimingData', 'TrackStatus', 'TimingAppData'].map(async (t) => parseStream(await archiveText(`${s.path}${t}.jsonStream`, token, fetchFn), t)));
@@ -51,7 +59,7 @@ async function analyse(race, year, token, fetchFn) {
     .map(async (t) => [t, await archiveText(`${s.path}${t}.json`, token, fetchFn).then(JSON.parse).catch(() => null)])));
   let track = null;
   try {
-    const raw = s.circuitKey ? await circuitData(s.circuitKey, year, fetchFn) : null;
+    const raw = s.circuitKey ? await circuitData(s.circuitKey, year, fetchFn, env) : null;
     if (raw) track = new Track(raw);
   } catch { /* profil sans tracé */ }
   const res = summarizeRace({ events, keyframes, track });
@@ -85,7 +93,7 @@ export async function analyseNext(env, year, { now = Date.now(), fetchFn = fetch
   if (!token) return { round: race.round, error: 'connexion F1 TV absente ou expirée' };
   await setRow(env, `racelock:${year}`, String(now));
   try {
-    const res = await analyse(race, year, token, fetchFn);
+    const res = await analyse(env, race, year, token, fetchFn);
     await setRow(env, `racestats:${year}:${race.round}`, JSON.stringify(res));
     return { round: race.round };
   } catch (err) {

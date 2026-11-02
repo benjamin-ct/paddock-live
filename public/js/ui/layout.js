@@ -1,30 +1,32 @@
 // Disposition libre : colonnes et panneaux redimensionnables, panneaux déplaçables par glisser-déposer,
 // fenêtres secondaires (second écran) pouvant regrouper plusieurs panneaux, colonnes du classement.
 import { $, $$, esc, storageGet, storageSet, sessionKind } from '../util.js';
-import { prefs, setPref, shortScreenHidden, towerCols, towerBig } from '../prefs.js';
+import { prefs, setPref, towerCols, towerBig, PANELS_HIDDEN, TAB_HIDDEN } from '../prefs.js';
 import { store, on, emit } from '../store.js';
 import { toast } from './delay.js';
+import { t } from '../i18n.js';
 import { icon } from '../icons.js';
 import { track } from './stats.js';
-import { tabList, canHideTab } from './tabmove.js';
+import { tabList, canHideTab, pageTabs } from './tabmove.js';
+import { markSetup, setupToApply } from './layout-calc.js';
 
 export const PANELS = [
   { id: 'tower', cls: 'p-tower', name: 'Classement' },
   { id: 'map', cls: 'p-map', name: 'Circuit' },
-  { id: 'feed', cls: 'p-feed', name: 'Direction de course (messages, enquêtes, limites de piste)' },
-  { id: 'radio', cls: 'p-radio', name: 'Radios (transcriptions, audio)' },
+  { id: 'feed', cls: 'p-feed', name: 'Messages (direction de course, enquêtes, limites de piste)' },
+  { id: 'radio', cls: 'p-radio', name: 'Radios' },
   { id: 'duel', cls: 'p-duel', name: 'Duel' },
-  { id: 'analysis', cls: 'p-analysis', name: 'Analyse (race trace, positions, temps, pneus, secteurs, télémétrie)' },
-  { id: 'extra', cls: 'p-extra', name: 'Stratégie & course (arrêts, stratégie, simulateur, bagarres, météo, championnat)' },
+  { id: 'analysis', cls: 'p-analysis', name: 'Analyse (écarts, arrêts et stratégie, télémétrie, secteurs, comparaison…)' },
+  { id: 'extra', cls: 'p-extra', name: 'Télémétrie' },
 ];
-const SHORT = { tower: 'Classement', map: 'Circuit', feed: 'Direction de course', radio: 'Radios', duel: 'Duel', analysis: 'Analyse', extra: 'Stratégie' };
+const SHORT = { tower: 'Classement', map: 'Circuit', feed: 'Messages', radio: 'Radios', duel: 'Duel', analysis: 'Analyse', extra: 'Télémétrie' };
 // Panneaux ajoutés dans une version plus récente : placés à côté d'un panneau existant
 // (dans la même colonne) quand on reprend une disposition enregistrée.
 const ADDED_NEAR = { radio: ['feed', 1], analysis: ['extra', 0] }; // [voisin, 1 = après / 0 = avant]
 
 export const COLUMNS = [
   ['name', 'Nom complet du pilote'], ['tags', 'État (stand, sortie, tour rapide…)'], ['int', 'Intervalle'], ['last', 'Dernier tour'], ['best', 'Meilleur tour'], ['sec', 'Secteurs'], ['pred', 'Tour en cours (qualifs)'],
-  ['q', 'Q1/Q2/Q3'], ['tyre', 'Pneus'], ['pits', 'Arrêts / tours'], ['speed', 'Speed trap'], ['duel', 'Boutons duel'],
+  ['q', 'Q1/Q2/Q3'], ['tyre', 'Pneus'], ['pits', 'Arrêts / tours'], ['speed', 'Speed trap'],
 ];
 // Colonnes facultatives, masquées par défaut (prefs.extraCols : celles ajoutées)
 export const EXTRA_COLUMNS = [
@@ -57,6 +59,10 @@ const params = new URLSearchParams(location.search);
 const legacyPanel = PANELS.some((p) => p.id === params.get('panel')) ? params.get('panel') : null;
 export const WIN = params.get('win') || (legacyPanel ? `solo-${legacyPanel}` : 'main');
 const isMain = WIN === 'main';
+// Fenêtre d'un seul onglet (?tab=compare, la Comparaison) : le panneau Analyse réduit à cet onglet. Elle ne prend pas
+// le panneau aux autres fenêtres (l'Analyse reste où elle est, avec sa Comparaison)
+export const TAB_WIN = !isMain && params.get('tab') === 'compare' ? 'compare' : null;
+if (TAB_WIN) document.documentElement.classList.add('tab-win');
 const LAYOUTS_KEY = 'paddock.layouts';
 const MIN_W = 220, MIN_H = 110;
 
@@ -68,7 +74,8 @@ function panelEl(id) {
 }
 
 // ---------------- Modèle de disposition ----------------
-// {cols: [{w, items: [{id, h}]}]} ; w et h sont des proportions (flex-grow).
+// {cols: [{w, items: [{id, h}]}]} ; w et h sont des proportions (flex-grow). Des panneaux voisins d'une colonne avec
+// le même `row` sont côte à côte (même hauteur, celle du premier ; largeurs : leur `w`).
 // ---------------- Dispositions « Course » et « Qualif & essais » ----------------
 // Chaque type de séance a sa propre disposition (panneaux, tailles, panneaux masqués,
 // colonnes du classement, onglets ouverts), appliquée automatiquement selon la séance.
@@ -76,75 +83,27 @@ const PROFILES = { race: 'Course', quali: 'Qualif & essais' };
 const PROFILE_KEY = 'paddock.layoutProfiles';   // { race: { hiddenPanels, hiddenCols }, quali: … }
 const TABS_KEY = 'paddock.profileTabs';         // { race: { analysis: 'trace', … }, quali: … }
 const TAB_DEFAULTS = {
-  race: { feed: 'rcm', analysis: 'trace', extra: 'pits' },
-  quali: { feed: 'rcm', analysis: 'compare', extra: 'tyres' },
+  race: { feed: 'rcm', analysis: 'trace' },
+  quali: { feed: 'rcm', analysis: 'compare' },
 };
-// Essentiel : la télémétrie du pilote suivi dans le panneau Analyse
-const ESS_TABS = { analysis: 'telemetry' };
-const profileDefaults = () => ({ hiddenPanels: shortScreenHidden(prefs.fullMode), hiddenCols: [] });
+const profileDefaults = (prof = profile) => ({ hiddenPanels: [...PANELS_HIDDEN], hiddenCols: ['name'], hiddenTabs: [...TAB_HIDDEN[prof]] });
 const profileFor = (mode, kind) => (mode === 'race' || mode === 'quali' ? mode : kind === 'race' ? 'race' : 'quali');
 let profile = prefs.layoutMode === 'race' || prefs.layoutMode === 'quali' ? prefs.layoutMode : storageGet('paddock.lastProfile', 'race');
 if (!PROFILES[profile]) profile = 'race';
 // Fenêtre principale : une disposition par type de séance. Fenêtres secondaires (second écran) :
 // une seule, quelle que soit la séance (sinon un changement de séance leur reprenait des panneaux)
-// Mode Allégé : sa propre disposition, celle du mode Complet reste telle quelle
-const lkey = (win = WIN, prof = profile) => (prof === 'race' || win !== 'main' ? win : `${win}@${prof}`) + (win === 'main' && !prefs.fullMode ? '~ess' : '');
-
-// Écran plus grand que le 1080p (1440p, 4K…)
-const big = () => window.innerWidth >= 2200;
+const lkey = (win = WIN, prof = profile) => (prof === 'race' || win !== 'main' ? win : `${win}@${prof}`);
 
 function defaultLayout(prof = profile) {
   if (!isMain) return { cols: [] };
   const quali = prof === 'quali';
-  // Essentiel : classement compact, grande carte (radios dessous) ; à droite télémétrie du duel, championnat
-  // et limites de piste. Écran plus étroit : classement, puis carte, duel, radios et arrêts
-  if (!prefs.fullMode) {
-    // Essentiel, écran plus grand que le 1080p : grand classement à gauche, carte en haut à droite et dessous,
-    // côte à côte, la télémétrie et la direction de course (radios sous elle). Disposition libre (les colonnes ne
-    // mettent pas deux panneaux côte à côte) : chaque panneau se déplace et se redimensionne ensuite
-    if (big()) {
-      const g = 0.005, L = 0.55, R = 1 - L - g, top = 0.6, half = (R - g) / 2;
-      return { cols: [
-        { w: 2.4, items: [{ id: 'tower', h: 1 }] },
-        { w: 1.6, items: [{ id: 'map', h: 1.5 }, { id: 'analysis', h: 1 }] },
-        { w: 1, items: [{ id: 'feed', h: 1.1 }, { id: 'radio', h: 1 }] },
-      ], free: { z: [], rects: {
-        tower: { x: 0, y: 0, w: L, h: 1 },
-        map: { x: L + g, y: 0, w: R, h: top },
-        analysis: { x: L + g, y: top + 2 * g, w: half, h: 1 - top - 2 * g },
-        feed: { x: L + 2 * g + half, y: top + 2 * g, w: half, h: (1 - top) * 0.55 - 2 * g },
-        radio: { x: L + 2 * g + half, y: top + (1 - top) * 0.55 + g, w: half, h: (1 - top) * 0.45 - g },
-      } } };
-    }
-    // Essentiel : classement (essais et qualifs : avec les temps, donc plus large), grande carte (radios dessous),
-    // direction de course et télémétrie du pilote suivi à droite
-    return window.innerWidth <= 1500 ? { cols: [
-      { w: 1.2, items: [{ id: 'tower', h: 1.5 }, { id: 'feed', h: 0.7 }] },
-      { w: 1, items: [{ id: 'map', h: 1.2 }, { id: 'radio', h: 0.7 }, { id: 'analysis', h: 0.9 }] },
-    ] } : { cols: [
-      { w: quali ? 1.7 : 1.2, items: [{ id: 'tower', h: 1 }] },
-      { w: 1.9, items: [{ id: 'map', h: 1.6 }, { id: 'radio', h: 1 }] },
-      { w: 1, items: [{ id: 'feed', h: 1 }, { id: 'analysis', h: 1.1 }] },
-    ] };
-  }
-  if (window.innerWidth <= 1500) {
-    return quali ? { cols: [
-      { w: 1.3, items: [{ id: 'tower', h: 1.5 }, { id: 'feed', h: 0.7 }, { id: 'radio', h: 0.6 }] },
-      { w: 1, items: [{ id: 'map', h: 1.1 }, { id: 'duel', h: 0.9 }, { id: 'analysis', h: 1 }, { id: 'extra', h: 0.6 }] },
-    ] } : { cols: [
-      { w: 1.2, items: [{ id: 'tower', h: 1.4 }, { id: 'feed', h: 0.7 }, { id: 'radio', h: 0.7 }] },
-      { w: 1, items: [{ id: 'map', h: 1.1 }, { id: 'duel', h: 0.9 }, { id: 'analysis', h: 1 }, { id: 'extra', h: 0.8 }] },
-    ] };
-  }
-  // Qualif : classement plus large (Q1/Q2/Q3, tour en cours), duel et secteurs mis en avant
-  return quali ? { cols: [
-    { w: 1.8, items: [{ id: 'tower', h: 1 }] },
-    { w: 1, items: [{ id: 'map', h: 1.15 }, { id: 'feed', h: 0.85 }, { id: 'radio', h: 0.7 }] },
-    { w: 0.95, items: [{ id: 'duel', h: 1 }, { id: 'analysis', h: 1.2 }, { id: 'extra', h: 0.55 }] },
-  ] } : { cols: [
-    { w: 1.6, items: [{ id: 'tower', h: 1 }] },
-    { w: 1, items: [{ id: 'map', h: 1.2 }, { id: 'feed', h: 0.75 }, { id: 'radio', h: 0.75 }] },
-    { w: 0.95, items: [{ id: 'duel', h: 0.85 }, { id: 'analysis', h: 1.1 }, { id: 'extra', h: 0.85 }] },
+  // Écran principal : Classement à gauche (plus large en qualifs et essais : Q1/Q2/Q3, tour en cours ; le duel passe
+  // par-dessus), le Circuit au centre sur toute la hauteur, et à droite la Télémétrie, les Radios et la Direction de
+  // course l'une sous l'autre. Analyse et Duel (masqués ici, s'ils sont affichés) : sous le Circuit
+  return { cols: [
+    { w: quali ? 1.2 : 1.05, items: [{ id: 'tower', h: 1 }] },
+    { w: 1.15, items: [{ id: 'map', h: 1.6 }, { id: 'duel', h: 0.8 }, { id: 'analysis', h: 1 }] },
+    { w: 0.95, items: [{ id: 'extra', h: 1 }, { id: 'radio', h: 1.1 }, { id: 'feed', h: 1.1 }] },
   ] };
 }
 
@@ -156,7 +115,7 @@ function normalize(l) {
       if (!PANELS.some((p) => p.id === it?.id) || seen.has(it.id)) return false;
       seen.add(it.id);
       return true;
-    }).map((it) => ({ id: it.id, h: Number(it.h) > 0 ? Number(it.h) : 1 })),
+    }).map((it) => ({ id: it.id, h: Number(it.h) > 0 ? Number(it.h) : 1, ...(it.row ? { row: String(it.row), w: Number(it.w) > 0 ? Number(it.w) : 1 } : {}) })),
   })).filter((c) => c.items.length);
   // La fenêtre principale contient toujours tous les panneaux (ceux détachés y sont simplement cachés).
   if (isMain) {
@@ -193,8 +152,23 @@ function rescale(l) {
     if (sum > 0) for (const x of arr) x[key] = Math.round(((x[key] * arr.length) / sum) * 1000) / 1000;
   };
   fit(l.cols, 'w');
-  for (const c of l.cols) fit(c.items, 'h');
+  // Hauteurs : une rangée de panneaux côte à côte compte pour un (hauteur du premier, recopiée sur les autres)
+  for (const c of l.cols) {
+    const us = units(c.items);
+    fit(us.map((u) => u[0]), 'h');
+    for (const u of us) { for (const it of u) it.h = u[0].h; if (u.length > 1) fit(u, 'w'); }
+  }
   return l;
+}
+
+// Panneaux d'une colonne regroupés en rangées : voisins avec le même `row`, sinon un panneau seul
+function units(items) {
+  const out = [];
+  for (const it of items) {
+    const last = out.at(-1);
+    if (it.row && last?.[0].row === it.row) last.push(it); else out.push([it]);
+  }
+  return out;
 }
 
 function allLayouts() {
@@ -217,10 +191,11 @@ if (isMain) {
   } catch { /* version sans cette fonction */ }
 }
 
-let layout = normalize(allLayouts()[lkey()] || (!isMain && allLayouts()[`${WIN}@quali`]) || (legacyPanel ? { cols: [{ w: 1, items: [{ id: legacyPanel, h: 1 }] }] } : defaultLayout()));
+let layout = TAB_WIN ? { cols: [{ w: 1, items: [{ id: 'analysis', h: 1 }] }] }
+  : normalize(allLayouts()[lkey()] || (!isMain && allLayouts()[`${WIN}@quali`]) || (legacyPanel ? { cols: [{ w: 1, items: [{ id: legacyPanel, h: 1 }] }] } : defaultLayout()));
 
 function save() {
-  storeLayout(lkey(), layout);
+  if (!TAB_WIN) storeLayout(lkey(), layout);
   announce();
 }
 
@@ -279,7 +254,7 @@ function detachedElsewhere(id) {
 
 function isVisible(id) {
   if (!isMain) return !!locate(id);
-  return !prefs.hiddenPanels.includes(id) && !detachedElsewhere(id) && !(essential() && ESS_OFF.includes(id));
+  return !prefs.hiddenPanels.includes(id) && !detachedElsewhere(id);
 }
 
 // ---------------- Rendu ----------------
@@ -295,8 +270,8 @@ function narrow() {
 
 // Téléphone (et tablette en portrait) : un seul panneau à la fois, choisi dans la barre du bas.
 const MOB_TABS = [
-  ['tower', 'Classement'], ['map', 'Carte'], ['feed', 'Course'], ['duel', 'Duel'],
-  ['analysis', 'Analyse'], ['extra', 'Stratégie'], ['radio', 'Radios'],
+  ['tower', 'Classement'], ['extra', 'Télémétrie'], ['feed', 'Messages'], ['radio', 'Radios'], ['map', 'Carte'],
+  ['duel', 'Duel'], ['analysis', 'Analyse'],
 ];
 // Icônes dessinées, dans tous les thèmes
 const MOB_SVG = {
@@ -316,29 +291,32 @@ function mobile() {
 }
 // Téléphone : version simplifiée (l'essentiel seulement), sauf « version complète » dans les réglages
 const simple = () => mobile() && !prefs.phoneFull;
-// Ordinateur, mode Essentiel : le principal seulement (data-expert et ESS_OFF : mode Complet)
-const essential = () => isMain && !mobile() && !prefs.fullMode;
-// Panneaux du mode Complet seulement (Essentiel : la télémétrie du panneau Analyse à la place)
-const ESS_OFF = ['duel', 'extra'];
-const SIMPLE_TABS = ['tower', 'map', 'feed', 'radio'];
+const SIMPLE_TABS = ['tower', 'extra', 'feed', 'radio', 'map'];
+// Téléphone : pas de fenêtres séparées, les panneaux qui s'ouvrent dans une fenêtre sur ordinateur restent des onglets
+const phoneVisible = (id) => isVisible(id) || PANELS_HIDDEN.includes(id);
 
 export function showMobilePanel(id) {
   mobTab = id;
   storageSet(MOB_KEY, id);
   render(true);
+  // Panneau choisi : glisse en place
+  if (!mobile()) return;
+  const el = panelEl(id);
+  el?.classList.add('mob-in');
+  setTimeout(() => el?.classList.remove('mob-in'), 300);
 }
 
 function renderMobile(grid) {
   grid.classList.remove('custom', 'has-max', 'free');
   for (const p of PANELS) clearFree(panelEl(p.id));
   grid.classList.add('mobile');
-  const tabs = MOB_TABS.filter(([id]) => isVisible(id) && (!simple() || SIMPLE_TABS.includes(id)));
+  const tabs = MOB_TABS.filter(([id]) => phoneVisible(id) && (!simple() || SIMPLE_TABS.includes(id)));
   if (!tabs.some(([id]) => id === mobTab)) mobTab = tabs[0]?.[0] || 'tower';
   for (const p of PANELS) {
     const el = panelEl(p.id);
     el.style.flex = '';
     el.classList.remove('maximized');
-    el.classList.toggle('hidden-panel', p.id !== mobTab || !isVisible(p.id));
+    el.classList.toggle('hidden-panel', p.id !== mobTab || !phoneVisible(p.id));
     grid.appendChild(el);
   }
   for (const el of grid.querySelectorAll('.lcol, .lsplit-v, .lstash')) el.remove();
@@ -397,13 +375,11 @@ function mobMore(btn) {
 function render(force = false) {
   if (resizing) { renderLater = true; return; }
   const grid = $('.grid');
-  const key = `${mobile()}|${simple()}|${essential()}|${narrow()}|${big()}|${JSON.stringify(layout)}|${PANELS.map((p) => isVisible(p.id)).join()}`;
+  const key = `${mobile()}|${simple()}|${narrow()}|${JSON.stringify(layout)}|${PANELS.map((p) => isVisible(p.id)).join()}`;
   if (key === renderKey && !force) return;
   document.documentElement.classList.toggle('phone', mobile());
   document.documentElement.classList.toggle('simple', simple());
-  document.documentElement.classList.toggle('essential', essential());
-  document.documentElement.classList.toggle('ess-quali', essential() && profile === 'quali');
-  document.documentElement.classList.toggle('ess-big', essential() && big());
+  document.documentElement.classList.toggle('sess-race', profile === 'race');
   renderKey = key;
   if (mobile()) { renderMobile(grid); return; }
   grid.classList.remove('mobile');
@@ -442,20 +418,43 @@ function render(force = false) {
     const col = document.createElement('div');
     col.className = 'lcol';
     col.style.flex = `${(c.w * cols.length) / sumW} 1 0`;
-    const sumH = items.reduce((t, it) => t + it.h, 0) || 1;
+    const us = units(items), sumH = us.reduce((t, u) => t + u[0].h, 0) || 1;
     col._model = c;
-    items.forEach((it, j) => {
+    us.forEach((u, j) => {
       if (j) {
         const sh = document.createElement('div');
         sh.className = 'lsplit-h';
         sh.title = 'Glisser pour redimensionner les panneaux';
-        splitter(sh, 'y', items[j - 1], it);
+        splitter(sh, 'y', us[j - 1][0], u[0]);
         col.appendChild(sh);
       }
-      const el = panelEl(it.id);
-      el.style.flex = `${(it.h * items.length) / sumH} 1 0`;
-      el._model = it;
-      col.appendChild(el);
+      const grow = `${(u[0].h * us.length) / sumH} 1 0`;
+      if (u.length === 1) {
+        const el = panelEl(u[0].id);
+        el.style.flex = grow;
+        el._model = u[0];
+        col.appendChild(el);
+        return;
+      }
+      // Rangée : panneaux côte à côte, séparés par une barre qui règle leurs largeurs
+      const row = document.createElement('div');
+      row.className = 'lrow';
+      row.style.flex = grow;
+      const sumW = u.reduce((t, it) => t + it.w, 0) || 1;
+      u.forEach((it, k) => {
+        if (k) {
+          const sr = document.createElement('div');
+          sr.className = 'lsplit-r';
+          sr.title = 'Glisser pour redimensionner les panneaux';
+          splitter(sr, 'x', u[k - 1], it);
+          row.appendChild(sr);
+        }
+        const el = panelEl(it.id);
+        el.style.flex = `${(it.w * u.length) / sumW} 1 0`;
+        el._model = it;
+        row.appendChild(el);
+      });
+      col.appendChild(row);
     });
     grid.insertBefore(col, stash);
   });
@@ -866,9 +865,9 @@ function winTitle(panels) {
 
 function announce() {
   if (isMain || !channel) return;
-  const panels = layout.cols.flatMap((c) => c.items.map((it) => it.id));
+  const panels = TAB_WIN ? [] : layout.cols.flatMap((c) => c.items.map((it) => it.id));
   channel.postMessage({ type: 'alive', win: WIN, panels, bounds: { x: window.screenX, y: window.screenY, w: window.outerWidth, h: window.outerHeight } });
-  document.title = `Paddock Live · ${winTitle(panels)}`;
+  document.title = `Paddock Live · ${TAB_WIN ? t('Comparaison') : winTitle(panels)}`;
 }
 
 function openWindow(win) {
@@ -1020,19 +1019,21 @@ function focusSelf() {
 
 
 // ---------------- Changement de disposition (Course / Qualif & essais) ----------------
-const tabHeads = () => PANELS.map((p) => [p.id, panelEl(p.id)?.querySelector('[data-tabs]')]).filter(([, h]) => h);
+// Fenêtre de la Comparaison seule (TAB_WIN) : son onglet n'est ni changé ni mémorisé ici (tabmove.js l'ouvre) ; sans ça,
+// l'onglet mémorisé de l'Analyse (Écarts en course) s'ouvrait sous le titre « Comparaison »
+const tabHeads = () => PANELS.filter((p) => !(TAB_WIN && p.id === 'analysis')).map((p) => [p.id, panelEl(p.id)?.querySelector('[data-tabs]')]).filter(([, h]) => h);
 
 function applyTabs() {
   const saved = storageGet(TABS_KEY, {})[profile] || {};
   for (const [id, head] of tabHeads()) {
-    const want = saved[id] || (essential() && ESS_TABS[id]) || TAB_DEFAULTS[profile]?.[id];
+    const want = saved[id] || TAB_DEFAULTS[profile]?.[id];
     const b = want && head.querySelector(`[data-tab="${want}"]`);
     if (b && !b.classList.contains('active')) b.click();
   }
   visibleTabs();
 }
 
-// Onglet ouvert masqué (mode Essentiel) : premier onglet affiché du panneau à la place
+// Onglet ouvert masqué : premier onglet affiché du panneau à la place
 function visibleTabs() {
   for (const [, head] of tabHeads()) {
     const cur = head.querySelector(':scope > [data-tab].active');
@@ -1044,16 +1045,17 @@ function visibleTabs() {
 function switchProfile(next, quiet = false) {
   if (!PROFILES[next] || next === profile) return;
   if (isMain) {
-    // Panneaux masqués et colonnes du classement : propres à chaque disposition
+    // Panneaux et onglets masqués, colonnes du classement : propres à chaque disposition
     const st = storageGet(PROFILE_KEY, {});
-    st[profile] = { hiddenPanels: prefs.hiddenPanels, hiddenCols: prefs.hiddenCols, extraCols: prefs.extraCols };
+    st[profile] = { hiddenPanels: prefs.hiddenPanels, hiddenTabs: prefs.hiddenTabs, hiddenCols: prefs.hiddenCols, extraCols: prefs.extraCols };
     storageSet(PROFILE_KEY, st);
-    const n = st[next] || profileDefaults();
+    const n = st[next] || profileDefaults(next);
     profile = next;
     storageSet('paddock.lastProfile', next);
     setPref('hiddenPanels', n.hiddenPanels || []);
-    setPref('hiddenCols', n.hiddenCols || []);
+    setPref('hiddenCols', n.hiddenCols || ['name']);
     setPref('extraCols', n.extraCols || []);
+    setPref('hiddenTabs', n.hiddenTabs || TAB_HIDDEN[next]);
   } else profile = next;
   // Fenêtre secondaire : elle garde ses panneaux (même disposition pour toutes les séances)
   if (isMain) layout = normalize(allLayouts()[lkey()] || defaultLayout());
@@ -1069,6 +1071,24 @@ function checkProfile() {
   const kind = store.state.SessionInfo ? sessionKind(store.state) : null;
   if (!kind && prefs.layoutMode !== 'race' && prefs.layoutMode !== 'quali') return;
   switchProfile(profileFor(prefs.layoutMode, kind));
+  autoSetup();
+}
+
+// Début d'une séance (direct ou replay) : la disposition enregistrée marquée pour son type est remise toute seule, une
+// seule fois par séance (séance gardée : pas remise de nouveau au rechargement de la page)
+const AUTO_KEY = 'paddock.autoSetupSession';
+const AUTO_MSG = {
+  race: (n) => `Disposition « ${n} » remise pour la course`,
+  quali: (n) => `Disposition « ${n} » remise pour les qualifs`,
+  practice: (n) => `Disposition « ${n} » remise pour les essais`,
+};
+function autoSetup() {
+  const info = store.state.SessionInfo, id = info?.Path || info?.Key;
+  if (!isMain || !info?.Type || !id) return;
+  const kind = sessionKind(store.state);
+  const snap = setupToApply(windowSetups(), kind, String(id), storageGet(AUTO_KEY, null));
+  storageSet(AUTO_KEY, String(id));
+  if (snap) restoreWindowsSnapshot(snap.name, AUTO_MSG[kind](snap.name));
 }
 
 // Boutons de panneau (poignée, agrandir, envoyer, masquer) centrés sur la hauteur de la première ligne de l'en-tête (titre, outils ou
@@ -1085,7 +1105,52 @@ function alignCtrl(head) {
 const headObserver = 'ResizeObserver' in window ? new ResizeObserver((entries) => { const heads = entries.map((e) => e.target); requestAnimationFrame(() => heads.forEach(alignCtrl)); }) : null;
 
 // ---------------- Initialisation ----------------
+// 1.30 : nouvel écran principal pour tout le monde, une seule fois (layoutV 4 ; nouvelle installation : déjà fait,
+// prefs.js). L'ancienne disposition est gardée dans les dispositions enregistrées (« Ma disposition d'avant », ou
+// « Ma disposition 4 panneaux » pour celle des premières bêtas de la 1.30) ; les fenêtres secondaires gardent leurs
+// panneaux, seules les dispositions de la fenêtre principale repartent de zéro. Radios traduites d'office.
+// layoutV 3 (bêtas 42 à 45, écran sans le Circuit) : seulement le Circuit remis au centre.
+function migrateLayout() {
+  if ((prefs.layoutV || 0) >= 4) return;
+  if (prefs.layoutV === 3) {
+    storageSet(LAYOUTS_KEY, Object.fromEntries(Object.entries(allLayouts()).filter(([k]) => !k.startsWith('main'))));
+    storageSet(PROFILE_KEY, {});
+    setPref('hiddenPanels', (prefs.hiddenPanels || []).filter((id) => id !== 'map'));
+    setPref('hiddenCols', [...new Set([...(prefs.hiddenCols || []), 'name'])]);   // classement : code du pilote seul
+    setPref('layoutV', 4);
+    layout = normalize(defaultLayout());
+    setTimeout(() => toast('Le Circuit revient dans l\'écran principal, au centre ; le classement n\'affiche plus que le code des pilotes (nom complet : menu Colonnes)', 8000, 'map'), 1500);
+    return;
+  }
+  const name = prefs.layoutV === 2 ? t('Ma disposition 4 panneaux') : t('Ma disposition d\'avant');
+  const before = { name, at: Date.now(), layouts: allLayouts(), wins: [], desk: null, ...viewState() };
+  before.prefs.tabLayout ||= pageTabs();   // onglets à leur place d'avant (sans disposition : celle de la page)
+  storageSet(SETUPS_KEY, [...windowSetups().filter((s) => s.name !== name), before]);
+  storageSet(LAYOUTS_KEY, Object.fromEntries(Object.entries(allLayouts()).filter(([k]) => !k.startsWith('main'))));
+  storageSet(PROFILE_KEY, {});
+  storageSet(TABS_KEY, {});
+  const def = profileDefaults();
+  setPref('hiddenPanels', def.hiddenPanels);
+  setPref('hiddenTabs', def.hiddenTabs);
+  setPref('hiddenCols', [...new Set([...(prefs.hiddenCols || []), 'name'])]);   // classement : code du pilote seul
+  setPref('tabLayout', null);
+  setPref('radioText', true);
+  setPref('layoutV', 4);
+  layout = normalize(defaultLayout());
+  setTimeout(() => toast(`Nouvel écran : Classement, Circuit, Télémétrie, Radios traduites et Direction de course. Analyse et Duel s'ouvrent dans une fenêtre (menu Fenêtres ou bouton + d'un panneau). L'ancienne disposition : Réglages → Disposition → Fenêtres (« ${name} »)`, 14000), 1500);
+}
+
+// Ouvre un panneau dans sa propre fenêtre (bouton + d'un panneau, menu Dispo.) ; s'il est déjà dans une fenêtre, rien
+export function openInWindow(id) {
+  // Comparaison : sa fenêtre à elle (une seule), à côté de l'Analyse
+  if (id === 'compare') { track('feature.popout'); window.open('/?win=tab-compare&tab=compare', 'paddock-tab-compare', 'width=1100,height=780')?.focus(); return; }
+  if (!isMain || detachedElsewhere(id)) return;
+  sendTo(id, 'new');
+}
+on('openWindow', openInWindow);
+
 export function initLayout() {
+  if (isMain) migrateLayout();
   if (!isMain) {
     document.body.classList.add('solo');
     if (legacyPanel && !allLayouts()[lkey()]) storeLayout(lkey(), layout);
@@ -1127,6 +1192,15 @@ export function initLayout() {
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && $('.grid').classList.contains('has-max') && !document.querySelector('dialog[open]')) unmaximize();
   });
+  // Raccourcis : Maj+1 à Maj+9 remettent la disposition enregistrée n° 1 à 9 (e.code : la touche, quel que soit le
+  // clavier), D ferme le duel du classement (son ✕)
+  window.addEventListener('keydown', (e) => {
+    if (e.ctrlKey || e.metaKey || e.altKey || e.repeat || e.target.closest?.('input, select, textarea, [contenteditable]')) return;
+    const n = e.shiftKey && /^Digit[1-9]$/.test(e.code) ? Number(e.code[5]) : 0;
+    const snap = n && windowSetups()[n - 1];
+    if (snap) { e.preventDefault(); restoreWindowsSnapshot(snap.name); }
+    else if (e.key === 'd' || e.key === 'D') $('#duelBand:not([hidden]) .bt-close')?.click();
+  });
   window.addEventListener('resize', () => render());
   $('#mobNav')?.addEventListener('click', async (e) => {
     const b = e.target.closest('[data-mob]');
@@ -1149,14 +1223,7 @@ export function initLayout() {
   // Disposition modifiée dans une autre instance de la même fenêtre (rechargement) : rien à faire ;
   // la fenêtre principale suit seulement les préférences.
   on('prefs', (k) => {
-    if (k === 'fullMode' && isMain) {
-      // Premier passage dans ce mode, panneaux masqués encore ceux par défaut de l'autre : ceux de ce mode
-      const same = (a, b) => a.length === b.length && a.every((x) => b.includes(x));
-      if (!allLayouts()[lkey()] && same(prefs.hiddenPanels, shortScreenHidden(!prefs.fullMode))) setPref('hiddenPanels', shortScreenHidden(prefs.fullMode));
-      layout = normalize(allLayouts()[lkey()] || defaultLayout());
-    }
-    if (k === 'hiddenPanels' || k === 'phoneFull' || k === 'fullMode') render();
-    if (k === 'fullMode') applyTabs();
+    if (k === 'hiddenPanels' || k === 'phoneFull') render();
     if (['hiddenPanels', 'hiddenTabs', 'tabLayout', 'hiddenCols', 'extraCols', 'towerFit'].includes(k)) renderLayoutOptions();
   });
   render(true);
@@ -1174,12 +1241,23 @@ export function initLayout() {
     const menu = d.matches?.('.map-layers') && d.open && !d.closest('.float-bar, .grid.mobile') && d.querySelector('.map-layers-menu');
     if (!menu) return;
     const r = d.querySelector('summary').getBoundingClientRect();
+    // Réglages de la vue 3D : dans le corps du panneau, qui contient ses menus (contain: paint) et en devient le
+    // repère : un menu « fixé » se décalait (coordonnées de l'écran) et sortait de la vue. Sous le bouton, à gauche,
+    // à la hauteur restante du panneau, avec défilement si le panneau est petit
+    if (d.matches('.map3d-opts')) {
+      const box = d.closest('.panel-body')?.getBoundingClientRect();
+      Object.assign(menu.style, { position: '', top: '', bottom: '', left: '0', right: 'auto', overflowY: 'auto',
+        maxHeight: `${Math.max(90, (box ? box.bottom : innerHeight) - r.bottom - 14)}px` });
+      // Trop près du bord droit de la vue : aligné à droite du bouton
+      if (box && r.left + menu.offsetWidth > box.right - 8) Object.assign(menu.style, { left: 'auto', right: '0' });
+      return;
+    }
     const below = innerHeight - r.bottom - 14, above = r.top - 14;
     const up = below < 280 && above > below;
     Object.assign(menu.style, { position: 'fixed', right: 'auto', overflowY: 'auto', maxHeight: `${Math.max(120, up ? above : below)}px`,
       top: up ? 'auto' : `${r.bottom + 6}px`, bottom: up ? `${innerHeight - r.top + 6}px` : 'auto' });
     const w = menu.offsetWidth;
-    menu.style.left = `${Math.max(8, Math.min(innerWidth - w - 8, d.matches('.tower-cols, .rd-menu') ? r.left : r.right - w))}px`;
+    menu.style.left = `${Math.max(8, Math.min(innerWidth - w - 8, d.matches('.tower-cols') ? r.left : r.right - w))}px`;
   }, true);
   addEventListener('resize', () => { for (const d of document.querySelectorAll('.map-layers[open]')) d.open = false; });
   // Menu « Options » des radios (et tout autre menu de ce type) : fermé au clic ailleurs ou avec Échap
@@ -1203,36 +1281,82 @@ export function initLayout() {
   checkProfile();
 }
 
-// ---------------- Emplacement des fenêtres enregistré ----------------
-// « Enregistrer » garde les dispositions de toutes les fenêtres (panneaux, tailles, mode libre)
-// et la place de chaque fenêtre ; « Revenir » remet tout comme au moment de l'enregistrement.
-// Application de bureau : la place des fenêtres est gérée par l'application (et peut être reprise
-// à chaque lancement) ; navigateur : les fenêtres secondaires sont rouvertes à leur place.
-const SNAP_KEY = 'paddock.savedWindows';
-export const hasWindowsSnapshot = () => !!storageGet(SNAP_KEY, null)?.layouts;
+// ---------------- Dispositions enregistrées ----------------
+// « Enregistrer » garde, sous un nom, les dispositions de toutes les fenêtres (panneaux, tailles, mode libre)
+// et la place de chaque fenêtre ; un clic sur son nom remet tout comme au moment de l'enregistrement.
+// Application de bureau : la place des fenêtres est gérée par l'application (desk : renvoyé à l'enregistrement,
+// la dernière disposition enregistrée ou remise peut être reprise à chaque lancement) ; navigateur : les fenêtres
+// secondaires sont rouvertes à leur place.
+const SNAP_KEY = 'paddock.savedWindows';     // dernière disposition enregistrée ou remise (seule gardée avant la 1.30)
+const SETUPS_KEY = 'paddock.windowSetups';   // [{ name, at, layouts, wins, desk, kind? }]
+export function windowSetups() {
+  const list = storageGet(SETUPS_KEY, null);
+  if (Array.isArray(list)) return list;
+  const old = storageGet(SNAP_KEY, null);
+  return old?.layouts ? [{ name: t('Mon emplacement'), ...old }] : [];
+}
+// Emplacement unique d'une version précédente : gardé dans la liste avec la place des fenêtres de l'application
+export async function migrateWindowSetups() {
+  if (Array.isArray(storageGet(SETUPS_KEY, null))) return;
+  const list = windowSetups();
+  if (list[0] && !list[0].desk) {
+    try { list[0].desk = (await window.f1desktop?.savedWindows?.()) || null; } catch { /* ancienne version */ }
+  }
+  storageSet(SETUPS_KEY, list);
+}
 
-export async function saveWindowsSnapshot() {
+export async function saveWindowsSnapshot(name) {
   if (!isMain) return;
   save();
   const layouts = allLayouts();
   const wins = [...others.entries()].map(([win, o]) => ({ win, bounds: o.bounds || null }));
-  storageSet(SNAP_KEY, { at: Date.now(), layouts, wins });
-  try { await window.f1desktop?.saveWindows?.(layouts); } catch { /* ancienne version */ }
-  toast(`Emplacement des fenêtres enregistré (${wins.length + 1} fenêtre${wins.length ? 's' : ''})`, 3500);
+  let desk = null;
+  try { desk = await window.f1desktop?.saveWindows?.(layouts); } catch { /* ancienne version */ }
+  const kind = windowSetups().find((s) => s.name === name)?.kind;   // même nom : garde son type de séance
+  const snap = { name, at: Date.now(), layouts, wins, desk: desk && typeof desk === 'object' ? desk : null, ...viewState(), ...(kind && { kind }) };
+  storageSet(SNAP_KEY, snap);
+  storageSet(SETUPS_KEY, [...windowSetups().filter((s) => s.name !== name), snap]);
+  toast(`Disposition « ${name} » enregistrée (${wins.length + 1} fenêtre${wins.length ? 's' : ''})`, 3500, 'check');
 }
 
-export async function restoreWindowsSnapshot() {
+// Panneaux et onglets affichés, colonnes du classement, onglets ouverts : gardés avec la disposition
+// (onglets placés avant les panneaux affichés : un panneau Radios ou Stratégie affiché vide reprend ses onglets, tabmove.js)
+const VIEW_PREFS = ['tabLayout', 'hiddenTabs', 'hiddenPanels', 'hiddenCols', 'extraCols'];
+function viewState() {
+  return { prefs: Object.fromEntries(VIEW_PREFS.map((k) => [k, prefs[k]])), profiles: storageGet(PROFILE_KEY, {}), tabs: storageGet(TABS_KEY, {}) };
+}
+
+// Disposition remise toute seule au début d'un type de séance ('quali', 'race', 'practice' ; vide : aucun)
+export function setWindowSetupKind(name, kind) {
+  storageSet(SETUPS_KEY, markSetup(windowSetups(), name, kind));
+}
+
+export function deleteWindowSetup(name) {
+  storageSet(SETUPS_KEY, windowSetups().filter((s) => s.name !== name));
+}
+
+export async function restoreWindowsSnapshot(name, msg) {
   if (!isMain) return;
-  const snap = storageGet(SNAP_KEY, null);
+  const snap = windowSetups().find((s) => s.name === name);
   if (!snap?.layouts) { toast('Aucun emplacement enregistré'); return; }
+  storageSet(SNAP_KEY, snap);
   storageSet(LAYOUTS_KEY, snap.layouts);
+  // Disposition enregistrée avant la 1.30 : sans les panneaux ni les onglets affichés (gardés tels quels)
+  if (snap.prefs) {
+    storageSet(PROFILE_KEY, snap.profiles || {});
+    storageSet(TABS_KEY, snap.tabs || {});
+    for (const k of VIEW_PREFS) if (k in snap.prefs) setPref(k, snap.prefs[k]);
+  }
   unmaximize();
   layout = normalize(snap.layouts[lkey()] || defaultLayout());
   renderKey = '';
   if (window.f1desktop?.restoreWindows) {
-    // L'application ferme les fenêtres secondaires et les rouvre à leur place enregistrée
-    others.clear();
-    await window.f1desktop.restoreWindows();
+    // L'application ferme les fenêtres secondaires et les rouvre à leur place enregistrée (sans place enregistrée :
+    // les fenêtres restent où elles sont)
+    if (snap.desk) {
+      others.clear();
+      await window.f1desktop.restoreWindows(snap.desk);
+    }
   } else {
     channel?.postMessage({ type: 'reset', win: WIN });
     others.clear();
@@ -1246,7 +1370,9 @@ export async function restoreWindowsSnapshot() {
     if (blocked) toast(`${blocked} fenêtre(s) bloquée(s) : autorisez les pop-up`, 5000);
   }
   render(true);
+  applyTabs();
   renderLayoutOptions();
+  toast(msg || `Disposition « ${name} » remise`, msg ? 4000 : 2500, 'check');
 }
 
 // Retour à l'interface par défaut : disposition, panneaux masqués, colonnes du classement ;
@@ -1266,7 +1392,7 @@ export function resetLayout(ask = true) {
   setPref('extraCols', []);
   setPref('bigCols', null);
   setPref('tabLayout', null);
-  setPref('hiddenTabs', []);
+  setPref('hiddenTabs', [...def.hiddenTabs]);
   if (!prefs.towerFit) setPref('towerFit', true);
   layout = normalize(defaultLayout());
   applyTabs();
@@ -1281,7 +1407,7 @@ export function renderLayoutOptions() {
     sel.onchange = () => setPref('layoutMode', sel.value);
     $('#layoutProfileNow').textContent = `Disposition affichée : « ${PROFILES[profile]} ».`;
   }
-  $('#panelOpts').innerHTML = PANELS.map((p) => `<label class="toggle small"${ESS_OFF.includes(p.id) ? ' data-expert' : ''}><input type="checkbox" data-panel="${p.id}" ${prefs.hiddenPanels.includes(p.id) ? '' : 'checked'}> ${esc(p.name)}</label>`).join('');
+  $('#panelOpts').innerHTML = PANELS.map((p) => `<label class="toggle small"><input type="checkbox" data-panel="${p.id}" ${prefs.hiddenPanels.includes(p.id) ? '' : 'checked'}> ${esc(p.name)}</label>`).join('');
   $('#panelOpts').onchange = (e) => {
     const id = e.target.dataset.panel;
     if (!id) return;
@@ -1291,7 +1417,7 @@ export function renderLayoutOptions() {
   const tabs = $('#tabOpts');
   if (tabs) {
     tabs.innerHTML = tabList().filter(([p]) => SHORT[p]).sort((a, b) => PANELS.findIndex((x) => x.id === a[0]) - PANELS.findIndex((x) => x.id === b[0]))
-      .map(([p, t, name, expert]) => `<label class="toggle small"${expert ? ' data-expert' : ''}><input type="checkbox" data-tabopt="${t}" ${prefs.hiddenTabs.includes(t) ? '' : 'checked'}> ${esc(SHORT[p])} · ${esc(name)}</label>`).join('');
+      .map(([p, t, name]) => `<label class="toggle small"><input type="checkbox" data-tabopt="${t}" ${prefs.hiddenTabs.includes(t) ? '' : 'checked'}> <span>${esc(SHORT[p])}</span> · ${esc(name)}</label>`).join('');
     tabs.onchange = (e) => {
       const t = e.target.dataset.tabopt;
       if (!t) return;

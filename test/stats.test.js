@@ -319,6 +319,16 @@ test('statistiques : tirer vers le bas dans un script à part (jamais recopié d
   assert.ok(js.startsWith('//') && !/\bexport\b|__name/.test(js));
   assert.match(js, /\npullToRefresh\(\(\) => \{ location\.reload\(\)/);
   new Function(js);   // syntaxe valide
+  // Version web : vue 3D chargée à la demande, avec three.js copié tel quel
+  const fs = await import('node:fs');
+  const live = (f) => new URL(`../analytics/site/live/${f}`, import.meta.url);
+  assert.match(fs.readFileSync(live('js/ui/map3d.js'), 'utf8'), /from '\/live\/vendor\/three\/three\.module\.min\.js'/);
+  assert.equal(fs.readFileSync(live('vendor/three/three.module.min.js'), 'utf8'), fs.readFileSync(new URL('../public/vendor/three/three.module.min.js', import.meta.url), 'utf8'));
+  // Globe du Calendrier : MapLibre copié tel quel, chargé à la demande depuis /live/, fonds OpenFreeMap permis
+  assert.match(fs.readFileSync(live('js/ui/cal-globe.js'), 'utf8'), /import\('\/live\/vendor\/maplibre\/maplibre-gl\.js'\)/);
+  assert.equal(fs.readFileSync(live('vendor/maplibre/maplibre-gl.js'), 'utf8'), fs.readFileSync(new URL('../public/vendor/maplibre/maplibre-gl.js', import.meta.url), 'utf8'));
+  const { LIVE_HEADERS } = await import('../analytics/live-page/headers.js');
+  assert.match(LIVE_HEADERS['Content-Security-Policy'], /connect-src [^;]*https:\/\/tiles\.openfreemap\.org/);
 });
 
 test('serveur des statistiques : lignes écrites plafonnées par adresse (IPv6 : par bloc /64)', async () => {

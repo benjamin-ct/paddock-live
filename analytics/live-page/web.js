@@ -1,25 +1,40 @@
 // Point d'entrée de la version web (app.paddocklive.app) : classement, carte, télémétrie, direction de course et
 // radios de l'appli, reliés au relais du Worker au lieu du serveur local. Copié dans /live/js/ par scripts/build-studio.mjs.
-import { translatePage, DEC, EN, LOCALE, t } from './i18n.js';
+import { translatePage, DEC, LANG, LOCALE, t } from './i18n.js';
 import './icons.js';
+import './ranges.js';
 import { store, emit, on, handleReset, handleBatch, setDelay, serverNow } from './store.js';
 import { applyEvent } from '/shared/derive.js';
 import { gpShort } from '/shared/gp-names.js';
 import { $$, esc } from './util.js';
 import { WebHub } from './web-hub.js';
-import { renderHeader, renderSource, initGpsBadge } from './ui/header.js';
+import { renderHeader, renderSource, initGpsBadge, initSourceTap } from './ui/header.js';
 import { initTower, renderTower } from './ui/tower.js';
 import { initMap } from './ui/map.js';
-import { renderRcm, initRcmFilters, initStewards, renderStewards } from './ui/feed.js';
+import { renderRcm, renderPits, initRcmFilters, initStewards, renderStewards } from './ui/feed.js';
 import { renderRadios, initRadios } from './ui/radios.js';
-import { renderTelemetry } from './ui/extra.js';
+import { renderTelemetry, renderStrategy, renderChampionship, renderWeather } from './ui/extra.js';
+import { initTopInfo } from './ui/topinfo.js';
+import { initRadar } from './ui/radar.js';
+import { renderPitSim, renderBattles, initRaceTools } from './ui/race-tools.js';
+import { initAnalysis, renderAnalysis } from './ui/analysis.js';
+import { renderDuelBand, renderDuel, initDuel } from './ui/duel.js';
 import { initNoLive } from './ui/home.js';
 import { initSeason, closeSeason, openSeason, seasonUrls } from './ui/season.js';
 import { parseSeasonPath } from '/shared/season-urls.js';
+import { addPositions, addCarData, compareFrom } from '/shared/compare.js';
 import './ui/calendar-menu.js';   // « Ajouter à mon agenda » (Saison)
 import { initSelects } from './ui/select.js';
+import { changelogHtml } from './ui/changelog.js';
+import { prefs, setPref } from './prefs.js';
 
 translatePage();
+// Réglages gardés d'une ancienne visite : le classement passe au code du pilote seul, comme l'appli 1.30 (nom complet :
+// menu « Colonnes ») ; une fois seulement (layoutV, que l'appli tient dans ui/layout.js, pas chargé ici)
+if ((prefs.layoutV || 0) < 4) {
+  setPref('hiddenCols', [...new Set([...(prefs.hiddenCols || []), 'name'])]);
+  setPref('layoutV', 4);
+}
 initSelects();   // listes déroulantes aux couleurs de l'appli (sur ordinateur ; le téléphone garde la sienne)
 // Rien n'est traduit dans le navigateur (pas de moteur local) : documents FIA traduits par le serveur, relus plus tard
 store.isHost = false;
@@ -29,10 +44,24 @@ async function inflate(b64) {
   return JSON.parse(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).text());
 }
 let ws = null;
+// Comparaison (fenêtres Analyse et Comparaison) : GPS et télémétrie gardés depuis l'ouverture de la page (le relais
+// n'en garde que quelques minutes), calculés ici comme le fait le serveur de l'appli (shared/compare.js)
+const gps = new Map(), tel = new Map();
+const keepTel = /[?&]only=(analysis|compare)\b/.test(location.search);
 const hub = new WebHub({
   apply: applyEvent, reset: handleReset, batch: handleBatch, inflate,
   ask: (from, to) => { if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'stream', from, to })); },
+  tap: keepTel ? (topic, data) => { if (topic === 'Position') addPositions(gps, data); else if (topic === 'CarData') addCarData(tel, data); } : null,
 });
+const getJSON = (u) => fetch(u).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+store.compareFetch = async ({ a, b, until, la, lb }) => {
+  const out = await compareFrom({ state: store.state, derived: store.derived, events: hub.events.map(([topic, data, t]) => ({ topic, data, t })),
+    cars: gps, tel: tel.size ? tel : null, until, a, b, la, lb,
+    load: (key, year) => Promise.all([getJSON(`/live/api/circuit?key=${key}&year=${year}`), getJSON(`/live/api/loops?key=${key}&year=${year}`)]) });
+  // Tour d'avant l'ouverture de la page : pas de GPS gardé pour lui
+  if (/introuvable dans le GPS|GPS incomplet/.test(out.reason || '')) out.reason += ' La version web garde le GPS depuis l\'ouverture de cette fenêtre : comparez un tour fait depuis.';
+  return out;
+};
 let relay = {};
 
 // Connexion F1 TV du visiteur, donnée par l'extension Paddock Live Companion (formula1.com) : GPS et télémétrie
@@ -40,7 +69,9 @@ let relay = {};
 // (empreinte, pas le jeton) désigne ce relais pour les radios réservées aux abonnés
 let f1tv = null, relayId = '';
 const F1TV_KEY = 'paddock.f1tv';
-const sha = async (t) => [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t)))].map((b) => b.toString(16).padStart(2, '0')).join('').slice(0, 32);
+// Empreinte du relais : celle du compte F1 TV (identifiant d'abonné du jeton), la même sur tous ses appareils
+const account = (t) => { try { const p = JSON.parse(atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))); return String(p.SubscriberId || p.hashedSubscriberId || t); } catch { return t; } };
+const sha = async (t) => [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(account(t))))].map((b) => b.toString(16).padStart(2, '0')).join('').slice(0, 32);
 // JWT F1 TV encore valable (contrôle d'expiration côté navigateur ; la F1 fait la vraie vérification)
 const tokenExp = (tok) => { try { return (JSON.parse(atob(tok.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).exp || 0) * 1000; } catch { return 0; } };
 // Connexion F1 TV reçue (extension, ou appairage d'un téléphone) : gardée en mémoire et sur cet appareil (son
@@ -174,9 +205,11 @@ function status(now) {
 // GPS laissé à un autre appareil du même compte F1 TV : repris par le relais (badge « GPS ailleurs »)
 store.takeGps = () => { if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'here' })); };
 
+let fails = 0;   // tentatives d'affilée sans connexion
 function connect() {
   ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/live/ws?d=${store.delay}${relayId ? `&u=${relayId}` : ''}`);
   ws.onopen = () => {
+    fails = 0;
     store.connected = true;
     emit('connection', true);
     if (f1tv) ws.send(JSON.stringify({ type: 'auth', token: f1tv }));
@@ -190,9 +223,13 @@ function connect() {
     else if (msg.type === 'up') { relay = msg.status || {}; status(msg.now); }
   };
   ws.onclose = (ev) => {
+    const opened = store.connected;
     store.connected = false;
     emit('connection', false);
     if (ev.code === 4001) relayId = '';   // connexion F1 TV refusée par son relais (expirée) : relais commun, sans GPS
+    // Son relais injoignable trois fois de suite (refusé, plafond du jour) : relais commun, sans GPS, plutôt que
+    // « Serveur déconnecté » jusqu'au lendemain
+    else if (!opened && relayId && ++fails >= 3) relayId = '';
     setTimeout(connect, 3000);
   };
   ws.onerror = () => ws.close();
@@ -209,6 +246,29 @@ input.addEventListener('change', () => {
 for (const b of $$('.web-delay [data-step]')) b.addEventListener('click', () => setDelay(store.delay + Number(b.dataset.step)));
 on('delay', showDelay);
 showDelay();
+// Délai changé dans une autre fenêtre de la version web (fenêtre du circuit, autre onglet) : le même partout
+addEventListener('storage', (e) => {
+  const ms = Number(e.newValue);
+  if (e.key === 'paddock.delayMs' && Number.isFinite(ms) && ms !== store.delay) setDelay(ms);
+});
+// Circuit, Analyse et Duel dans une fenêtre à part, comme dans l'appli : la page, réduite à ce panneau, reliée au même relais
+const openWin = (w) => open(`/live/?only=${w}`, `pl-${w}`, 'popup,width=1000,height=720')?.focus();
+for (const b of $$('.win-btn')) b.addEventListener('click', () => openWin(b.dataset.win));
+on('openWindow', (id) => { if (id === 'compare') openWin('compare'); });   // bouton ↗ de l'onglet Comparaison (compare.js)
+
+// Fenêtre « Circuit », « Analyse », « Duel » ou « Comparaison » (?only=map, analysis, duel, compare) : un seul panneau,
+// le reste de la page caché (Comparaison : le panneau Analyse réduit à cet onglet)
+const ONLY = /[?&]only=(map|analysis|duel|compare)\b/.exec(location.search)?.[1] || '';
+// Fenêtre « Analyse » : les onglets de course de l'appli (arrêts, stratégie, simulateur, bagarres, championnat) rejoignent
+// ceux de l'analyse, comme dans la fenêtre Analyse de l'appli ; sans les jeux de pneus (calculés par le serveur de l'appli)
+const extra = document.querySelector('.p-extra');
+if (ONLY === 'analysis' && extra) {
+  const ana = document.querySelector('.p-analysis');
+  for (const b of extra.querySelectorAll('.panel-head [data-tab]:not([data-tab="tyres"])')) { b.classList.remove('active'); ana.querySelector('.panel-head [data-tab="telemetry"]').before(b); }
+  for (const p of extra.querySelectorAll('[data-pane]:not([data-pane="tyres"])')) { p.classList.remove('active'); ana.querySelector('[data-pane="telemetry"]').before(p); }
+}
+extra?.remove();
+if (ONLY !== 'duel') document.querySelector('.p-duel')?.remove();   // Duel : seulement dans sa fenêtre (bandeau sur le classement ailleurs)
 
 for (const head of $$('[data-tabs]')) {
   const panel = head.closest('.panel');
@@ -245,9 +305,29 @@ document.querySelector('#webResultsBtn')?.addEventListener('click', async (e) =>
   }
   if (!d?.races) { box.innerHTML = '<p class="muted">Résultats indisponibles pour le moment.</p>'; return; }
   const last = lastSession(d.races);
-  box.innerHTML = `<div class="web-res-grid">${last ? resCard(`${gpShort(last.race, EN)} · ${last.label}`, last.rows.slice(0, 10)) : ''}
+  box.innerHTML = `<div class="web-res-grid">${last ? resCard(`${gpShort(last.race, LANG)} · ${last.label}`, last.rows.slice(0, 10)) : ''}
     ${resCard('Championnat pilotes', (d.drivers || []).slice(0, 10).map((x) => [x.pos, x.name, `${x.points} pts`]))}
     ${resCard('Championnat constructeurs', (d.constructors || []).map((x) => [x.pos, x.name, `${x.points} pts`]))}</div>`;
+});
+
+// Nouveautés : les 3 dernières sections du journal (fichier écrit à la construction), la plus récente ouverte.
+// Point rouge sur le bouton tant que la plus récente n'a pas été lue (mémorisée dans ce navigateur)
+const clBtn = document.querySelector('#clBtn');
+const clSeen = () => { try { return localStorage.getItem('pl.changelog') || ''; } catch { return ''; } };
+let clList = null;
+const clKey = (v) => `${v.version}:${v.body.length}`;
+fetch('/live/changelog.json').then((r) => r.json()).then((list) => {
+  clList = Array.isArray(list) ? list : [];
+  if (clList[0] && clSeen() !== clKey(clList[0])) clBtn?.classList.add('fresh');
+}).catch(() => {});
+clBtn?.addEventListener('click', () => {
+  const dlg = document.querySelector('#clDlg');
+  const when = (v) => (v.date ? new Date(`${v.date}T12:00:00Z`).toLocaleDateString(LOCALE, { day: 'numeric', month: 'long', year: 'numeric' }) : t('en préparation'));
+  document.querySelector('#clBody').innerHTML = clList?.length
+    ? clList.map((v, i) => `<details${i ? '' : ' open'}><summary>v${esc(v.version)} · ${esc(when(v))}</summary>${changelogHtml(v.body)}</details>`).join('')
+    : `<p class="muted">${t('Journal indisponible.')}</p>`;
+  dlg.showModal();
+  if (clList?.[0]) { try { localStorage.setItem('pl.changelog', clKey(clList[0])); } catch { /* sans stockage */ } clBtn.classList.remove('fresh'); }
 });
 
 const safe = (fn) => { try { fn(); } catch (err) { console.error(err); } };
@@ -263,10 +343,14 @@ function loop() {
   safe(showWait);
   safe(renderHeader);
   safe(renderTower);
+  safe(ONLY === 'duel' ? renderDuel : renderDuelBand);   // bandeau du duel sur le classement (deux pilotes cliqués)
   safe(renderRcm);
   safe(renderStewards);
   safe(renderRadios);
   safe(renderTelemetry);
+  safe(renderWeather);
+  if (ONLY === 'analysis') for (const fn of [renderAnalysis, renderPits, renderStrategy, renderPitSim, renderBattles, renderChampionship]) safe(fn);
+  if (ONLY === 'compare') safe(renderAnalysis);
   setTimeout(() => (document.visibilityState === 'visible' ? requestAnimationFrame(loop) : loop()), 100);
 }
 setInterval(() => hub.roll(serverNow()), 10000);
@@ -276,6 +360,9 @@ safe(initMap);
 safe(initRcmFilters);
 safe(initStewards);
 safe(initRadios);
+// Outils de la barre du haut, comme l'appli : documents FIA, vitesses, meilleurs secteurs, météo et radar de pluie
+safe(initTopInfo);
+safe(initRadar);
 // Pas de séance en direct : prochaine séance et compte à rebours, comme l'appli
 safe(initNoLive);
 // Espace Saison de l'appli (calendrier, classements, résultats…), d'après la saison gardée par le serveur
@@ -300,11 +387,15 @@ document.querySelector('#webMenuBtn').addEventListener('click', () => webMenu(!t
 document.querySelector('#seasonBtn').addEventListener('click', () => webMenu(false));
 // Saison ouverte : toucher la séance en haut revient au direct
 document.querySelector('.topbar .session').addEventListener('click', () => { if (!document.querySelector('#seasonView').hidden) closeSeason(); });
-// Panneau Analyse : seulement la télémétrie du pilote suivi
-document.querySelector('.p-analysis [data-tab="telemetry"]')?.click();
+// Panneau Analyse : la télémétrie du pilote suivi dans l'écran principal, les autres onglets dans la fenêtre « Analyse »
+if (ONLY === 'analysis' || ONLY === 'compare') safe(initAnalysis);
+safe(initRaceTools);   // aussi la pastille « duel » du classement (bataille de plus de 3 tours) : le duel des deux pilotes
+if (ONLY === 'duel') safe(initDuel);
+else document.querySelector(`.p-analysis [data-tab="${ONLY === 'compare' ? 'compare' : 'telemetry'}"]`)?.click();
 on('status', renderSource);
 on('connection', renderSource);
 initGpsBadge();
+initSourceTap();
 on('focus', () => renderTower(true));
 on('duel', () => renderTower(true));
 // Connexion F1 TV gardée d'une ouverture à l'autre sur cet appareil : reprise avant la connexion, pour rejoindre
@@ -316,3 +407,14 @@ try {
 } catch { /* stockage indisponible */ }
 connect();
 loop();
+
+// Version web installée sur l'écran d'accueil : le téléphone la garde en mémoire et la reprend telle quelle au retour
+// dans l'appli ; rechargée quand une nouvelle version est en ligne (empreinte mise dans la page par build-studio.mjs)
+const VERSION = document.querySelector('meta[name="pl-version"]')?.content;
+document.addEventListener('visibilitychange', async () => {
+  if (!VERSION || document.visibilityState !== 'visible') return;
+  try {
+    const v = /<meta name="pl-version" content="(\w+)"/.exec(await (await fetch('/live/', { cache: 'no-store' })).text())?.[1];
+    if (v && v !== VERSION && !document.querySelector('dialog[open]')) location.reload();
+  } catch { /* hors ligne */ }
+});

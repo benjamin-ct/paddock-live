@@ -7,8 +7,9 @@ import { LOOKAHEAD_MS, WEB_HIST_MS as HIST_MS } from '../../shared/live-delay.js
 export class WebHub {
   // apply(state, derived, topic, data, t) : shared/derive.js ; reset/batch : store.js (handleReset/handleBatch) ;
   // inflate(raw) : promesse de l'objet décompressé ; ask(from, to) : GPS plus ancien demandé au relais
-  constructor({ apply, reset, batch, inflate = null, ask = () => {} }) {
-    Object.assign(this, { apply, reset, batch, inflate, ask });
+  // tap(topic, data) : chaque élément du flux décompressé (la Comparaison garde le GPS et la télémétrie de la séance)
+  constructor({ apply, reset, batch, inflate = null, ask = () => {}, tap = null }) {
+    Object.assign(this, { apply, reset, batch, inflate, ask, tap });
     this.base = null;
     this.events = [];
     this.stream = [];
@@ -45,7 +46,7 @@ export class WebHub {
       const out = [];
       for (const [topic, raw, t] of items) {
         const data = await this.inflate(raw).catch(() => null);
-        if (data) out.push([topic, data, t]);
+        if (data) { out.push([topic, data, t]); this.tap?.(topic, data); }
       }
       if (gen !== this.gen && !older) return;
       if (older) { this.stream.unshift(...out.filter((s) => !this.stream.length || s[2] < this.stream[0][2])); this.gen++; } else for (const s of out) this.stream.push(s);

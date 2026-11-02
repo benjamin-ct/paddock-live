@@ -50,7 +50,7 @@ export async function summary(env, days, now = Date.now()) {
   const unused = Object.keys(LABELS).filter((k) => ['rail', 'tab', 'season', 'tool', 'feature'].includes(k.split('.')[0]) && !used.has(k)).map((k) => LABELS[k]);
   const devices = Object.entries(byEvent.get('app.open') || {}).filter(([k, n]) => k in DEVICE_NAMES && n > 0)
     .map(([k, n]) => ({ label: DEVICE_NAMES[k], n })).sort((a, b) => b.n - a.n);
-  const langs = [['lang.fr', 'Français'], ['lang.en', 'Anglais']].map(([k, label]) => ({ label, n: byEvent.get(k)?.total || 0 })).filter((r) => r.n).sort((a, b) => b.n - a.n);
+  const langs = [['lang.fr', 'Français'], ['lang.en', 'Anglais'], ['lang.it', 'Italien'], ['lang.es', 'Espagnol']].map(([k, label]) => ({ label, n: byEvent.get(k)?.total || 0 })).filter((r) => r.n).sort((a, b) => b.n - a.n);
 
   return {
     days, since, until, series, prev,

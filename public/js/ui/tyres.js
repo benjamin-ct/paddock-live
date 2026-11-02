@@ -1,11 +1,11 @@
 // Onglet « Pneus » : choix de composés et préconisations de Pirelli pour le Grand Prix, et jeux
 // de pneus de chaque pilote sur tout le week-end (neufs encore disponibles, jeux déjà utilisés).
 import { store, f1Now, versionOf } from '../store.js';
-import { $, esc, api, drivers, orderedNumbers, teamColor, compoundInfo } from '../util.js';
+import { $, esc, api, drivers, orderedNumbers, teamColor, teamMark, compoundInfo } from '../util.js';
 import { buildSets, setSummary, DRY, WET } from '/shared/tyres.js';
 import { translated, requestTranslations, onTranslation } from './fia-translate.js';
 import { icon } from '../icons.js';
-import { LOCALE, EN } from '../i18n.js';
+import { LOCALE, LANG, FR } from '../i18n.js';
 import { gpFull } from '/shared/gp-names.js';
 
 let data = null;          // réponse de /api/tyres
@@ -17,15 +17,19 @@ let lastVer = -1;
 let showFr = true;
 
 const NAME_FR = { SOFT: 'Tendre', MEDIUM: 'Medium', HARD: 'Dur', INTERMEDIATE: 'Intermédiaire', WET: 'Pluie' };
-const SESSION_FR = (n) => String(n || '').replace('Practice ', 'EL').replace('Sprint Qualifying', 'Qualif sprint').replace('Sprint Shootout', 'Qualif sprint').replace('Qualifying', 'Qualif').replace('Race', 'Course');
+export const SESSION_FR = (n) => String(n || '').replace('Practice ', 'EL').replace('Sprint Qualifying', 'Qualif sprint').replace('Sprint Shootout', 'Qualif sprint').replace('Qualifying', 'Qualif').replace('Race', 'Course');
+
+// Séances du week-end avant la séance affichée (pneus, et meilleur du week-end de l'Analyse)
+export function weekendQuery(path) {
+  const info = store.state.SessionInfo || {};
+  return `/api/tyres?${new URLSearchParams({ path, until: Math.round(f1Now()), name: info.Meeting?.Name || '', location: info.Meeting?.Location || '', country: info.Meeting?.Country?.Name || '', session: info.Name || '' })}`;
+}
 
 async function load(path) {
   if (loading) return;
   loading = true;
   try {
-    const info = store.state.SessionInfo || {};
-    const q = new URLSearchParams({ path, until: Math.round(f1Now()), name: info.Meeting?.Name || '', location: info.Meeting?.Location || '', country: info.Meeting?.Country?.Name || '', session: info.Name || '' });
-    data = await api(`/api/tyres?${q}`);
+    data = await api(weekendQuery(path));
     dataKey = path;
     error = '';
   } catch (err) {
@@ -49,7 +53,7 @@ function pirelliCard(d) {
     return `<div class="ty-comp" style="--tc:${ci.color}"><span class="tyre">${ci.letter}</span><div><b>${c ? `C${c}` : '—'}</b><span>${NAME_FR[key]} · ${a[key]} jeux${key === 'SOFT' && !d.meeting.sprint ? ' (+1 en Q3)' : ''}</span></div></div>`;
   };
   return `<div class="ty-card">
-    <div class="ty-card-head"><b>Choix de Pirelli</b><span class="muted small">${esc(gpFull(d.meeting.name, EN))}${d.meeting.sprint ? ' · week-end sprint' : ''}</span>
+    <div class="ty-card-head"><b>Choix de Pirelli</b><span class="muted small">${esc(gpFull(d.meeting.name, LANG))}${d.meeting.sprint ? ' · week-end sprint' : ''}</span>
       ${n?.url ? `<a class="ty-src" href="${esc(n.url)}" target="_blank" rel="noopener">source ${icon('external', 'ic-s')}</a>` : ''}</div>
     ${n ? `<div class="ty-comps">${comp('HARD', n.hard)}${comp('MEDIUM', n.medium)}${comp('SOFT', n.soft)}</div>`
       : `<div class="note">Composés pas encore annoncés par Pirelli pour ce Grand Prix.</div>`}
@@ -61,12 +65,12 @@ function adviceCard(d) {
   const arts = (d.articles || []).filter((a) => a.advice?.length || a.paras?.length);
   if (!arts.length) return '';
   const texts = arts.flatMap((a) => a.advice.length ? a.advice : a.paras.slice(0, 1));
-  const missing = !EN && texts.some((t) => !translated(t));   // en anglais : communiqués tels quels
+  const missing = FR && texts.some((t) => !translated(t));   // en anglais : communiqués tels quels
   const host = store.isHost !== false;
   return `<div class="ty-card">
     <div class="ty-card-head"><b>Ce que préconise Pirelli</b><span class="muted small">communiqués du week-end</span>
       ${missing && host ? '<button class="btn small" id="tyTranslate" title="Traduction par le serveur Paddock Live">Traduire</button>' : ''}
-      ${!missing && !EN ? `<label class="toggle small"><input type="checkbox" id="tyFr" ${showFr ? 'checked' : ''}> Français</label>` : ''}</div>
+      ${!missing && FR ? `<label class="toggle small"><input type="checkbox" id="tyFr" ${showFr ? 'checked' : ''}> Français</label>` : ''}</div>
     ${arts.map((a) => `<div class="ty-art">
       <div class="ty-art-head"><a href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.title)}</a><span class="muted small">${fmtDate(a.date)}</span></div>
       <ul>${(a.advice.length ? a.advice : a.paras.slice(0, 1)).map((t) => `<li>${esc(tr(t))}</li>`).join('')}</ul>
@@ -96,7 +100,7 @@ function setsTable(d) {
     const sum = setSummary(mine, d.allocation, q3.has(n));
     const lastStint = [...(Array.isArray(cur[n]?.Stints) ? cur[n].Stints : Object.values(cur[n]?.Stints || {}))].pop();
     const curSet = lastStint ? mine.filter((x) => x.compound === lastStint.Compound).find((x) => x.laps === Number(lastStint.TotalLaps)) : null;
-    return `<tr><td class="ty-drv" style="--c:${teamColor(dl[n])}"><b>${esc(dl[n].Tla)}</b>${q3.has(n) ? '<span class="ty-q3" title="Qualifié en Q3 : un jeu de tendres en plus">Q3</span>' : ''}</td>${cols.map((c) => cell(sum[c], c, curSet)).join('')}</tr>`;
+    return `<tr><td class="ty-drv" style="--c:${teamColor(dl[n])}">${teamMark(dl[n])}<b>${esc(dl[n].Tla)}</b>${q3.has(n) ? '<span class="ty-q3" title="Qualifié en Q3 : un jeu de tendres en plus">Q3</span>' : ''}</td>${cols.map((c) => cell(sum[c], c, curSet)).join('')}</tr>`;
   }).join('');
   const done = d.sessions.map((x) => SESSION_FR(x.name)).join(', ');
   return `<div class="ty-card">

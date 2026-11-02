@@ -112,7 +112,7 @@ export function buildSummary(state, { lang = 'fr' } = {}) {
 
     // Neutralisations, abandons, pénalités, meilleur tour
     const sc = msgs.filter((m) => /^SAFETY CAR DEPLOYED/.test(m?.Message || '')).map((m) => m.Lap).filter(Boolean);
-    const vsc = msgs.filter((m) => /^VIRTUAL SAFETY CAR DEPLOYED/.test(m?.Message || '')).map((m) => m.Lap).filter(Boolean);
+    const vsc = msgs.filter((m) => /^(VIRTUAL SAFETY CAR|VSC) DEPLOYED/.test(m?.Message || '')).map((m) => m.Lap).filter(Boolean);
     const red = msgs.filter((m) => m?.Flag === 'RED').map((m) => m.Lap).filter(Boolean);
     const neut = [];
     if (sc.length) neut.push(`${sc.length === 1 ? 'une voiture de sécurité' : `${sc.length} voitures de sécurité`} (tour${sc.length > 1 ? 's' : ''} ${joinFr(sc.map(String))})`);
@@ -202,7 +202,7 @@ function buildSummaryEn(state) {
     if (common && common[1] >= 4) out.paragraphs.push(`Most common strategy: ${common[0]} (${common[1]} drivers).`);
 
     const sc = msgs.filter((m) => /^SAFETY CAR DEPLOYED/.test(m?.Message || '')).map((m) => m.Lap).filter(Boolean);
-    const vsc = msgs.filter((m) => /^VIRTUAL SAFETY CAR DEPLOYED/.test(m?.Message || '')).map((m) => m.Lap).filter(Boolean);
+    const vsc = msgs.filter((m) => /^(VIRTUAL SAFETY CAR|VSC) DEPLOYED/.test(m?.Message || '')).map((m) => m.Lap).filter(Boolean);
     const red = msgs.filter((m) => m?.Flag === 'RED').map((m) => m.Lap).filter(Boolean);
     const neut = [];
     const laps = (a) => `(lap${a.length > 1 ? 's' : ''} ${joinEn(a.map(String))})`;
@@ -270,7 +270,7 @@ export function summaryFacts(state, { lang = 'fr' } = {}) {
     const common = [...counts].sort((a, b) => b[1] - a[1])[0];
     f.common = common && common[1] >= 4 ? { comps: common[0].split('-'), count: common[1] } : null;
     f.sc = msgs.filter((m) => /^SAFETY CAR DEPLOYED/.test(m?.Message || '')).map((m) => m.Lap).filter(Boolean);
-    f.vsc = msgs.filter((m) => /^VIRTUAL SAFETY CAR DEPLOYED/.test(m?.Message || '')).map((m) => m.Lap).filter(Boolean);
+    f.vsc = msgs.filter((m) => /^(VIRTUAL SAFETY CAR|VSC) DEPLOYED/.test(m?.Message || '')).map((m) => m.Lap).filter(Boolean);
     f.red = redFlags.filter(Boolean);
     f.out = ranked.filter(isOut).map(drv);
     const fl = Object.keys(stats).find((n) => stats[n]?.PersonalBestLapTime?.Position === 1);

@@ -12,6 +12,11 @@ const RACE_PTS = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
 const SPRINT_PTS = [8, 7, 6, 5, 4, 3, 2, 1];
 const COMP = { SOFT: 'Tendres', MEDIUM: 'Médiums', HARD: 'Durs', INTERMEDIATE: 'Intermédiaires', WET: 'Pluie' };
 const dec = (v) => String(v).replace('.', ',');
+// Points de mesure de la vitesse (TimingStats.BestSpeeds)
+const SPEED_TRAP = { ST: 'Piège à vitesse', I1: 'Intermédiaire 1', I2: 'Intermédiaire 2', FL: "Ligne d'arrivée" };
+// « 1:17.827 » ou « 27.112 » -> secondes (NaN sinon), et l'inverse
+const lapSeconds = (v) => { const m = /^(?:(\d+):)?(\d+(?:\.\d+)?)$/.exec(String(v ?? '').trim()); return m ? (Number(m[1]) || 0) * 60 + Number(m[2]) : NaN; };
+const lapText = (s) => `${Math.floor(s / 60)}:${(s % 60).toFixed(3).padStart(6, '0')}`;
 
 // « +7.335 » -> « +7,335 s », « 1L » -> « +1 tour »
 export function gapFr(v) {
@@ -91,6 +96,8 @@ export function postData(state, { laps = null } = {}) {
       pos: i + 1, num: n, tla: d.Tla || n, first: d.FirstName || '', last: d.LastName || d.Tla || n,
       team: d.TeamName || '', color: d.TeamColour ? `#${String(d.TeamColour).replace('#', '')}` : '#8b95a8', headshot: portraitUrl(d.Tla, true) || d.HeadshotUrl || null,
       gap, grid, delta: kind === 'race' && grid && !out ? grid - (i + 1) : null, out, laps: Number(lines[n].NumberOfLaps) || 0,
+      // Relais réels (composé, tours) : visuel « Stratégie des pneus »
+      stints: realStints(list(app[n]?.Stints)).filter((s) => COMP[s?.Compound]).map((s) => ({ c: s.Compound, laps: Math.max(0, (Number(s.TotalLaps) || 0) - (Number(s.StartLaps) || 0)) })),
       points: kind === 'race' && !out ? (pts[i] || 0) : 0, knockedOut: !!lines[n].KnockedOut,
       // Partie de la qualif où le pilote a été éliminé (dernier temps réalisé : Q1 ou Q2)
       koPart: lines[n].KnockedOut ? Math.max(1, list(lines[n].BestLapTimes).filter((x) => x?.Value).length) : null,
@@ -101,15 +108,18 @@ export function postData(state, { laps = null } = {}) {
   const facts = [];
   const byNum = Object.fromEntries(rows.map((r) => [r.num, r]));
   if (kind === 'race' && rows.length) {
+    // Écart à l'arrivée entre les deux premiers
+    if (finished && rows[1]?.gap && !rows[1].out && /^\+\d/.test(rows[1].gap)) facts.push({ label: 'Écart à l\'arrivée', value: rows[1].gap.replace(/^\+/, ''), sub: `${rows[0].last} devant ${rows[1].last}`, color: rows[0].color });
     const fl = Object.keys(stats).find((n) => stats[n]?.PersonalBestLapTime?.Position === 1);
     if (fl && byNum[fl] && stats[fl].PersonalBestLapTime.Value) facts.push({ label: 'Meilleur tour', value: byNum[fl].last, sub: `${stats[fl].PersonalBestLapTime.Value}${stats[fl].PersonalBestLapTime.Lap ? ` · tour ${stats[fl].PersonalBestLapTime.Lap}` : ''}`, color: byNum[fl].color });
+    // Plus belle remontée (aussi sur « Grille → arrivée ») : pas deux cases pour le même pilote
     const up = rows.filter((r) => r.delta > 0).sort((a, b) => b.delta - a.delta)[0];
-    if (up && up.delta >= 3) facts.push({ label: 'Plus belle remontée', value: up.last, sub: `P${up.grid} → P${up.pos} (+${up.delta})`, color: up.color });
+    if (up && up.delta >= 3 && up.num !== fl) facts.push({ label: 'Plus belle remontée', value: up.last, sub: `P${up.grid} → P${up.pos} (+${up.delta})`, color: up.color });
     const w = rows[0];
     const stints = realStints(list(app[w.num]?.Stints)).map((s) => s?.Compound).filter((c) => COMP[c]);
     if (stints.length) facts.push({ label: 'Stratégie du vainqueur', value: stints.length === 1 ? 'Sans arrêt' : `${stints.length - 1} arrêt${stints.length > 2 ? 's' : ''}`, sub: stints.map((c) => COMP[c]).join(' → '), color: w.color });
     const sc = msgs.filter((m) => /^SAFETY CAR DEPLOYED/.test(m?.Message || '')).length;
-    const vsc = msgs.filter((m) => /^VIRTUAL SAFETY CAR DEPLOYED/.test(m?.Message || '')).length;
+    const vsc = msgs.filter((m) => /^(VIRTUAL SAFETY CAR|VSC) DEPLOYED/.test(m?.Message || '')).length;
     const red = msgs.filter((m) => m?.Flag === 'RED').length;
     const neut = [sc && `${sc} safety car${sc > 1 ? 's' : ''}`, vsc && `${vsc} VSC`, red && `${red} drapeau${red > 1 ? 'x' : ''} rouge${red > 1 ? 's' : ''}`].filter(Boolean);
     facts.push({ label: 'Neutralisations', value: neut.length ? neut.join(' · ') : 'Aucune', sub: neut.length ? '' : 'Drapeau vert de bout en bout' });
@@ -140,6 +150,29 @@ export function postData(state, { laps = null } = {}) {
     if (best && rows.slice(1).some((r) => diff(r) > 0)) facts.push({ label: 'Dans la seconde', value: `${close} pilote${close > 1 ? 's' : ''}`, sub: 'à moins d\'1 s du meilleur temps' });
   }
 
+  // Essais et qualifs : vitesses de pointe (piège à vitesse, sinon la mesure la plus rapide) et meilleurs secteurs de
+  // chaque pilote, du plus rapide au plus lent (à égalité, l'ordre de la F1) ; visuels « Vitesses de pointe » et
+  // « Meilleurs secteurs », seulement si trois pilotes au moins ont une mesure
+  let speeds = null; let sectors = null; let ideal = null;
+  if (kind !== 'race') {
+    const who = (r) => ({ num: r.num, tla: r.tla, first: r.first, last: r.last, team: r.team, color: r.color });
+    const trap = (k) => rows.map((r) => ({ r, v: Number(stats[r.num]?.BestSpeeds?.[k]?.Value), p: Number(stats[r.num]?.BestSpeeds?.[k]?.Position) || 99 }))
+      .filter((x) => x.v > 0).sort((a, b) => b.v - a.v || a.p - b.p);
+    const traps = ['ST', 'I1', 'I2', 'FL'].map((k) => [k, trap(k)]).filter(([, l]) => l.length >= 3);
+    const [key, top] = traps.find(([k]) => k === 'ST') || traps.sort((a, b) => b[1][0].v - a[1][0].v)[0] || [];
+    if (top) speeds = { key, label: SPEED_TRAP[key], rows: top.map(({ r, v }) => ({ ...who(r), kmh: v, diff: v - top[0].v })) };
+    const sec = [0, 1, 2].map((i) => rows.map((r) => ({ r, s: lapSeconds(stats[r.num]?.BestSectors?.[i]?.Value), p: Number(stats[r.num]?.BestSectors?.[i]?.Position) || 99 }))
+      .filter((x) => x.s > 0).sort((a, b) => a.s - b.s || a.p - b.p)
+      .map(({ r, s }, _, l) => ({ ...who(r), time: String(stats[r.num].BestSectors[i].Value), gap: Math.round((s - l[0].s) * 1000) / 1000 })));
+    if (sec.every((l) => l.length >= 3)) {
+      sectors = sec;
+      // Tour idéal : les trois meilleurs secteurs réunis, comparé au meilleur tour de la séance
+      const sum = sec.reduce((n, l) => n + lapSeconds(l[0].time), 0);
+      const best = Math.min(...Object.values(stats).map((x) => lapSeconds(x?.PersonalBestLapTime?.Value)).filter((v) => v > 0));
+      ideal = { time: lapText(sum), gain: Number.isFinite(best) ? Math.round((best - sum) * 1000) / 1000 : null, best: Number.isFinite(best) ? lapText(best) : '' };
+    }
+  }
+
   // Championnat projeté (publié par la F1 pendant les courses et les sprints)
   let champ = null;
   const cp = state?.ChampionshipPrediction;
@@ -157,11 +190,11 @@ export function postData(state, { laps = null } = {}) {
   const start = /^\d{4}-\d\d-\d\d/.test(info.StartDate || '') ? new Date(`${info.StartDate.slice(0, 10)}T12:00:00Z`) : null;
   return {
     kind, sprint, final: finished, label, gp, gpEn,
-    country: info.Meeting?.Country?.Code || '', countryName: info.Meeting?.Country?.Name || '', circuit: info.Meeting?.Circuit?.ShortName || info.Meeting?.Location || '',
+    country: info.Meeting?.Country?.Code || '', countryName: info.Meeting?.Country?.Name || '', circuit: info.Meeting?.Circuit?.ShortName || info.Meeting?.Location || '', circuitKey: info.Meeting?.Circuit?.Key || null,
     date: start && !Number.isNaN(start.getTime()) ? start.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }) : '',
     year: start && !Number.isNaN(start.getTime()) ? start.getFullYear() : '',
     laps: state?.LapCount?.TotalLaps || null,
-    rows, facts, champ, summary: buildSummary(state, { lang: 'fr' }),
+    rows, facts, champ, speeds, sectors, ideal, summary: buildSummary(state, { lang: 'fr' }),
   };
 }
 
@@ -221,6 +254,8 @@ export function flagEmoji(d) {
 // Nom du Grand Prix suivi de son drapeau
 export const gpFlag = (d, name = d.gp) => [name, flagEmoji(d)].filter(Boolean).join(' ');
 export const MEDALS = ['🥇', '🥈', '🥉'];
+// Place gardée dans le texte court pour la ligne « 🤖 Fait par IA avec l'appli @paddockliveapp » (creditCaptions)
+const CREDIT_ROOM = 46;
 // Faits marquants : un emoji par type
 const FACT_ICON = { 'Meilleur tour': '⏱️', 'Plus belle remontée': '🚀', 'Stratégie du vainqueur': '🛞', Neutralisations: '🚨', Abandons: '💥', 'Éliminés': '❌', 'Pneus du meilleur temps': '🛞', 'Le plus de tours': '🔁', 'Tours bouclés': '🔁', 'Dans la seconde': '🔥', Dépassements: '⚔️' };
 
@@ -240,21 +275,26 @@ export function captions(d, signature = '', { spoiler = true } = {}) {
   const tags = hashtags(d);
   // Essais et qualifs : temps du premier aussi ; course : écarts seulement
   const podium = [p1, p2, p3].filter(Boolean).map((r, i) => `${MEDALS[i]} ${r.first} ${r.last} (${r.team})${(i || d.kind !== 'race') && r.gap ? ` ${r.gap}` : ''}`).join('\n');
-  // Texte court : le premier, puis ses deux poursuivants avec leur médaille
-  const chase = [p2, p3].map((r, i) => r && `${MEDALS[i + 1]} ${r.last}`).filter(Boolean).join(' · ');
   const gp = gpFlag(d);
+  const time = p1.gap && d.kind !== 'race' ? ` en ${p1.gap}` : '';
   let head; let short;
   if (d.kind === 'race') {
     head = `🏆 ${p1.first} ${p1.last} remporte ${d.sprint ? 'le sprint du ' : 'le '}${gp} !`;
-    short = `🏆 ${p1.last.toUpperCase()} remporte ${d.sprint ? 'le sprint du ' : 'le '}${gp} !`;
+    short = `🏆 ${p1.first} ${p1.last.toUpperCase()} (${p1.team}) remporte ${d.sprint ? 'le sprint du ' : 'le '}${gp} !`;
   } else if (d.kind === 'quali') {
     head = `⚡ Pole position pour ${p1.first} ${p1.last} au ${gp}${d.sprint ? ' (sprint)' : ''} !`;
-    short = `⚡ POLE pour ${p1.last}${p1.gap ? ` en ${p1.gap}` : ''} au ${gp}${d.sprint ? ' (sprint)' : ''} !`;
+    short = `⚡ POLE pour ${p1.first} ${p1.last.toUpperCase()} (${p1.team})${time} au ${gp}${d.sprint ? ' (sprint)' : ''} !`;
   } else {
-    head = `⏱️ ${d.label} du ${gp} : ${p1.first} ${p1.last} en tête !`;
-    short = `⏱️ ${d.label} du ${gp} : ${p1.last} en tête !`;
+    head = `⏱️ ${d.label} du ${gp} : meilleur temps pour ${p1.first} ${p1.last}${time} !`;
+    short = `⏱️ ${String(d.label).replace(/^Essais libres (\d)$/, 'EL$1')} · ${gp}\nMeilleur temps pour ${p1.first} ${p1.last.toUpperCase()} (${p1.team})${time} !`;
   }
-  if (chase) short += `\n${chase}`;
+  // Texte court (X, Bluesky) : le premier, ses deux poursuivants avec leur écart, un fait marquant ; ce qui ne tient
+  // pas est retiré (fait, puis écuries), en gardant la place des lignes ajoutées ensuite (abonnement, « fait par IA »)
+  const fact = d.facts.find((f) => f.value && !['Aucun', 'Aucune'].includes(f.value) && !/^Écart/.test(f.label));
+  const chase = (teams) => [p2, p3].map((r, i) => r && `${MEDALS[i + 1]} ${r.last}${teams ? ` (${r.team})` : ''}${r.gap ? ` ${r.gap}` : ''}`).filter(Boolean).join('\n');
+  const factLine = fact ? `${FACT_ICON[fact.label] || '📌'} ${fact.label} : ${fact.value}${fact.sub ? ` (${fact.sub})` : ''}` : '';
+  const shorts = [[true, true], [false, true], [false, false]].map(([teams, f]) => [short, chase(teams), f && factLine].filter(Boolean).join('\n\n'));
+  short = shorts.find((t) => xLength(`${t}\n\n${tags.x.join(' ')}`) <= 280 - CREDIT_ROOM) || shorts.at(-1);
   const facts = d.facts.filter((f) => f.value && f.value !== 'Aucun').map((f) => `${FACT_ICON[f.label] || '📌'} ${f.label} : ${f.value}${f.sub ? ` (${f.sub})` : ''}`).join('\n');
   const story = d.summary.paragraphs.slice(0, 2).join(' ');
   if (!spoiler) {
