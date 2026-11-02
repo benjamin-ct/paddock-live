@@ -279,7 +279,10 @@ for (const s of sessions) {
   try {
     a = await loadArchive(s.path);
     startMs = a.startOff + 15 * 60e3;   // replay dans le navigateur : 15 min après le départ
-    events = a.events.map((e) => ({ topic: e.topic, data: e.data, t: T0 + e.off }));
+    // Heures strictement croissantes, comme le relais du serveur (live-relay.js, add) par lequel passent maintenant
+    // l'appli et la version web : messages d'une même milliseconde décalés d'1 ms
+    let prev = T0;
+    events = a.events.map((e) => ({ topic: e.topic, data: e.data, t: (prev = Math.max(T0 + e.off, prev + 1)) }));
   } catch (err) { fail(s.label, `archive illisible : ${err.message}`); continue; }
   say('Moteur de l\'appli');
   const ref = engine(s.label, events);

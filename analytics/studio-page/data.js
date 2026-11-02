@@ -112,9 +112,10 @@ export const TOPICS = ['SessionInfo', 'SessionStatus', 'DriverList', 'TimingData
 const parseStream = (text, topic) => {
   const out = [];
   for (const line of text.replace(/^﻿/, '').split(/\r?\n/)) {
-    const m = /^(\d+):(\d\d):(\d\d)\.(\d+)(.*)$/.exec(line);
+    // « j.hh:mm:ss.mmm » au-delà de 24 h (archive commencée la veille, comme la course de Mexico 2026)
+    const m = /^(?:(\d+)\.)?(\d+):(\d\d):(\d\d)\.(\d+)(.*)$/.exec(line);
     if (!m) continue;
-    try { out.push({ off: ((+m[1] * 60 + +m[2]) * 60 + +m[3]) * 1000 + Math.round(+`0.${m[4]}` * 1000), topic, data: JSON.parse(m[5]) }); } catch { /* ligne illisible */ }
+    try { out.push({ off: (((+(m[1] || 0) * 24 + +m[2]) * 60 + +m[3]) * 60 + +m[4]) * 1000 + Math.round(+`0.${m[5]}` * 1000), topic, data: JSON.parse(m[6]) }); } catch { /* ligne illisible */ }
   }
   return out;
 };
@@ -129,7 +130,12 @@ export async function loadState(path, topics = TOPICS, { live = false } = {}) {
   const parts = await mapLimit(topics, 5, async (t) => {
     try { return parseStream(await (await api(`archive?p=${encodeURIComponent(`${path}${t}.jsonStream`)}`, { raw: true })).text(), t); } catch (err) { why ||= err.message; return []; }
   });
-  const events = parts.flat().sort((a, b) => a.off - b.off);
+  let events = parts.flat().sort((a, b) => a.off - b.off);
+  // Archive qui reprend après plus de 6 h de silence (course de Mexico 2026 commencée aux essais libres 3 de la veille) :
+  // la séance est la dernière partie ; avant, seulement la liste des pilotes et la séance
+  let cut = 0;
+  for (let i = 1; i < events.length; i++) if (events[i].off - events[i - 1].off > 6 * 3600e3) cut = events[i].off;
+  if (cut) events = [...events.filter((e) => e.off < cut && (e.topic === 'DriverList' || e.topic === 'SessionInfo')), ...events.filter((e) => e.off >= cut)];
   // Séance qui vient de finir : archive pas encore publiée, mais le direct de la F1 garde son état final (relais
   // de la version web) ; résultats sans l'historique des tours (pas de dépassements comptés)
   if (!events.length && why === 'Archive pas encore publiée') {

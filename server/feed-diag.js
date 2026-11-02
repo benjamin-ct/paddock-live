@@ -5,6 +5,9 @@
 import zlib from 'node:zlib';
 import { archiveGet, archiveJSON } from './archive.js';
 import { parseUtc } from '../shared/f1.js';
+import { lineOffset } from '../shared/race-stats.js';
+import { circuit } from './circuits.js';
+import { studyCollector } from './studies.js';
 
 const SAMPLES = 6;     // valeurs d'exemple gardées par champ
 const DISTINCT = 400;  // valeurs comptées par champ (au-delà : seulement min/max)
@@ -28,7 +31,7 @@ function walk(fields, node, path, parent) {
 
 const inflate = (s) => JSON.parse(zlib.inflateRawSync(Buffer.from(s, 'base64')).toString('utf8'));
 const decode = (v) => (typeof v === 'string' ? inflate(v) : v);
-const offOf = (line) => { const m = /^(\d+):(\d\d):(\d\d)\.(\d+)/.exec(line); return m ? ((+m[1] * 60 + +m[2]) * 60 + +m[3]) * 1000 + Math.round(+`0.${m[4]}` * 1000) : 0; };
+const offOf = (line) => lineOffset(line)?.off ?? 0;
 
 // Chronologie des indices possibles du mode dépassement 2026 : chaque changement d'OvertakeState
 // (DriverRaceInfo) et des indicateurs 4096 / 8192 du statut d'un pilote (TimingData, absents de
@@ -131,8 +134,9 @@ function summary(fields) {
 }
 
 // Tous les flux de la séance (chemin d'archive "2026/…/") : liste, champs et canaux
-export async function feedDiag(path, { get = archiveGet, getJSON = archiveJSON } = {}) {
+export async function feedDiag(path, { get = archiveGet, getJSON = archiveJSON, load = circuit } = {}) {
   const t0 = Date.now();
+  const study = studyCollector();   // études de faisabilité de la 2.0 (server/studies.js)
   const feeds = (await getJSON(`${path}Index.json`)).Feeds || {};
   const chrono = [];
   const cal = energyCalibration();
@@ -143,6 +147,7 @@ export async function feedDiag(path, { get = archiveGet, getJSON = archiveJSON }
       if (f.KeyFramePath) {
         const kf = decode(await getJSON(`${path}${f.KeyFramePath}`));
         walk(fields, kf, name);
+        study.keyframe(name, kf);
         if (name === 'DriverList') chrono.push({ off: -1, feed: name, data: kf });   // les autres : état de fin de séance
       }
     } catch { /* image de départ absente : le flux suffit */ }
@@ -154,6 +159,7 @@ export async function feedDiag(path, { get = archiveGet, getJSON = archiveJSON }
         try {
           const data = decode(JSON.parse(line.slice(i)));
           walk(fields, data, name);
+          study.add(name, offOf(line), data);
           if (CHRONO.has(name)) chrono.push({ off: offOf(line), feed: name, data });
           else if (name === 'CarData.z') cal.add(data);
           lines++;
@@ -162,5 +168,6 @@ export async function feedDiag(path, { get = archiveGet, getJSON = archiveJSON }
     } catch (err) { error = err.message; }
     return { name, lines, error, fields: summary(fields) };
   }));
-  return { path, ms: Date.now() - t0, feeds: out.sort((a, b) => (a.name < b.name ? -1 : 1)), overtake: overtakeChrono(chrono), energy: cal.result() };
+  const studies = await study.result(load).catch((err) => ({ lines: [`Études impossibles : ${err.message}`] }));
+  return { path, ms: Date.now() - t0, feeds: out.sort((a, b) => (a.name < b.name ? -1 : 1)), overtake: overtakeChrono(chrono), energy: cal.result(), studies };
 }

@@ -4,6 +4,31 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → À propos → Nouveautés).
 
+## v1.31.0 — 2026-11-02
+
+### En direct
+- Comparaison en direct : dans Analyse → Comparaison, choisissez « Tour en cours (direct) » pour le second pilote. Son
+  tour se dessine pendant qu'il roule, par-dessus le tour de référence du premier (son meilleur tour, ou un tour au
+  choix) : écart au même point de la piste, vitesse, accélérateur, frein et rapport, recalculés chaque seconde ; entre
+  deux, le chrono du tour avance et l'écart glisse en continu.
+  À la fin du tour, le tour fini s'affiche quelques secondes, recalé sur le temps officiel, puis le suivant commence.
+  Avec le compte F1 TV connecté (GPS) ; pendant le tour, l'écart est une estimation d'après le GPS.
+
+### Analyse
+- Nouvel onglet « Tendances » : en course, les places gagnées par chaque pilote entre la grille et le premier virage
+  (d'après le GPS, avec F1 TV), l'usure des pneus de chaque pilote sur son relais en cours (perte par tour, corrigée de
+  l'allègement en carburant) et le choix d'aileron de chaque écurie (vitesse de pointe face au meilleur tour) ; en
+  qualifs et en essais, l'évolution de la piste (combien elle a gagné depuis le début) et le choix d'aileron.
+- Comparaison : l'heure des données GPS est mieux calée sur les replays (la course de Mexico la décalait de 20 minutes).
+
+### Replays
+- La course de Mexico se rejoue en entier : la F1 l'a publiée dans un fichier qui commence aux essais libres 3 de la
+  veille, et le replay montrait ces essais à la place de la course. Toute archive dans ce cas est maintenant rejouée à
+  partir de sa vraie séance.
+
+### Divers
+- Petites améliorations internes.
+
 ## v1.30.0 — 2026-11-02
 
 ### Nouveau design

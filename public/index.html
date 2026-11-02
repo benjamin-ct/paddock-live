@@ -375,6 +375,7 @@
         <button class="tab" data-tab="tyrehist" title="Tous les tours de chaque pilote, colorés selon le pneu">Pneus</button>
         <button class="tab" data-tab="sectors" title="Meilleurs secteurs, tour idéal et vitesses de pointe">Secteurs</button>
         <button class="tab" data-tab="compare" title="Meilleurs tours de deux pilotes, secteur par secteur">Comparaison</button>
+        <button class="tab" data-tab="insights" title="Départ, usure des pneus, évolution de la piste, choix d'aileron">Tendances</button>
         <button class="tab" data-tab="telemetry" title="Télémétrie du pilote suivi">Télémétrie</button>
       </div>
       <div class="panel-body">
@@ -425,6 +426,7 @@
           </div>
           <div id="anaCompare" class="cmp"></div>
         </div>
+        <div class="tabpane" data-pane="insights"><div id="anaInsights" class="ins"></div></div>
         <div class="tabpane" data-pane="telemetry" id="telemetry"></div>
       </div>
     </section>
@@ -713,8 +715,8 @@
       <section data-full class="set-block" data-sgroup="app" id="creatorBlock" hidden>
         <div class="set-bhead"><h4><svg class="ic" aria-hidden="true"><use href="#i-megaphone"/></svg> Mode créateur</h4></div>
         <div class="set-row"><div class="set-txt"><b>Mode créateur activé</b></div><div class="set-ctl"><button class="btn" id="creatorOff">Désactiver</button></div></div>
-        <div class="set-row"><div class="set-txt"><b>Comptes des réseaux</b><small>Connexions et page web du Studio ; les posts se préparent dans le Studio</small></div>
-          <div class="set-ctl"><button class="btn" id="creatorAccounts">Comptes…</button></div></div>
+        <div class="set-row"><div class="set-txt"><b>Studio</b><small>Page web des posts et des comptes des réseaux ; cette appli lui envoie la connexion F1 TV</small></div>
+          <div class="set-ctl"><button class="btn" id="creatorAccounts">Studio…</button></div></div>
         <div class="set-row"><div class="set-txt"><b>Données reçues de la F1</b><small>Flux et canaux de télémétrie de la séance chargée, nouveautés signalées</small></div>
           <div class="set-ctl"><button class="btn" id="feedDiagBtn">Analyser</button></div></div>
         <div id="feedDiagOut"></div>

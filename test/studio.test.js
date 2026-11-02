@@ -1211,7 +1211,7 @@ test('page du créateur : connexions expirées signalées avant de publier (YouT
   };
   try {
     const r = await (await w('accounts/check', { headers: { 'X-Studio-Key': studioKey(CODE) } })).json();
-    assert.match(r.youtube, /Connexion YouTube expirée.*Renvoyer les comptes.*7 jours/);
+    assert.match(r.youtube, /Connexion YouTube expirée.*Studio.*7 jours/);
     assert.equal(r.tiktok, undefined, 'réseau injoignable : pas annoncé comme expiré');
     assert.match(r.threads, /Connexion Threads expirée/);
   } finally { globalThis.fetch = realFetch; }
@@ -1239,4 +1239,99 @@ test('page du créateur : « Reste à faire » (X avec ses images, fichiers refu
   // Tâche de plus de 7 jours : effacée à la lecture
   env3.DB.studio.set('todo', JSON.stringify([{ id: 'a'.repeat(16), kind: 'tiktok', title: 'Vieux', text: '', after: 0, at: Date.now() - 8 * 86400e3, files: [] }]));
   assert.deepEqual((await (await w('todo')).json()).items, []);
+});
+
+test('Studio : comptes connectés et retirés depuis le Studio, plus remplacés par l\'appli (anciennes versions comprises)', async () => {
+  const { fbCallback } = await import('../analytics/worker.js');
+  const env2 = { DB: fakeDB(), MEDIA: fakeR2(), STUDIO_KEY_HASH: HASH, STATS_KEY: 's' };
+  const key = { 'X-Studio-Key': studioKey(CODE) };
+  const w = (p, init = {}) => studioApi(new Request(`https://s.test/studio/api/${p}`, { ...init, headers: { ...key, ...init.headers } }), env2, new URL(`https://s.test/studio/api/${p}`));
+  const post = (p, body) => w(p, { method: 'POST', body: JSON.stringify(body) });
+  const me = async () => (await w('me')).json();
+  // Coffre envoyé par l'appli : Threads, TikTok, F1 TV
+  const fromApp = { threads: { token: 'th-app', userId: 'u1', username: 'appli' }, tiktok: { clientKey: 'ck', clientSecret: 'cs', refreshToken: 'rt', openId: 'o1', name: 'PL' }, bluesky: { handle: 'vieux.bsky.social', appPassword: 'old', did: 'd0' } };
+  assert.equal((await post('init', { key: studioKey(CODE), vault: fromApp })).status, 200);
+  const realFetch = globalThis.fetch;
+  const graph = [];
+  globalThis.fetch = async (u) => {
+    u = String(u);
+    const ok = (d) => new Response(JSON.stringify(d), { status: 200 });
+    if (u.includes('createSession')) return ok({ accessJwt: 'j', did: 'did:plc:1', handle: 'paddocklive.bsky.social' });
+    if (u === 'https://open.tiktokapis.com/v2/oauth/token/') return ok({ access_token: 'tk-a', refresh_token: 'tk-r', expires_in: 86400, open_id: 'o2' });
+    if (u.includes('open.tiktokapis.com/v2/user/info')) return ok({ data: { user: { display_name: 'Paddock Live', username: 'paddocklive' } } });
+    if (u === 'https://oauth2.googleapis.com/token') return ok({ access_token: 'yt-a', refresh_token: 'yt-r', expires_in: 3600 });
+    if (u.includes('youtube/v3/channels')) return ok({ items: [{ snippet: { title: 'Paddock Live' } }] });
+    if (u.includes('graph.facebook.com')) {
+      graph.push(u);
+      if (u.includes('/oauth/access_token') && u.includes('code=')) return ok({ access_token: 'court' });
+      if (u.includes('fb_exchange_token')) return ok({ access_token: 'long' });
+      if (u.includes('/me/accounts')) return ok({ data: [{ id: 'p9', name: 'Paddock Live', access_token: 'page-jeton', instagram_business_account: { id: 'ig9', username: 'paddocklive' } }] });
+    }
+    throw new Error(`inattendu : ${u}`);
+  };
+  try {
+    // Bluesky connecté ici, TikTok retiré ici
+    assert.equal((await post('accounts/set', { net: 'bluesky', handle: '@paddocklive.bsky.social', appPassword: 'app-pass' })).status, 200);
+    assert.equal((await post('accounts/set', { net: 'tiktok', remove: true })).status, 200);
+    let m = await me();
+    assert.deepEqual([m.bluesky, m.tiktok, m.threads], ['@paddocklive.bsky.social', null, '@appli']);
+    assert.deepEqual(m.managed, ['bluesky', 'tiktok']);
+    // Envoi suivant de l'appli (comme une ancienne version) : Bluesky et TikTok gérés ici gardés, Threads et F1 TV repris
+    await post('sync', { vault: { ...fromApp, threads: { token: 'th-2', userId: 'u1', username: 'appli2' }, f1tv: 'x.e30.y' } });
+    m = await me();
+    assert.deepEqual([m.bluesky, m.tiktok, m.threads, m.f1tv], ['@paddocklive.bsky.social', null, '@appli2', true]);
+    // Réactivation depuis l'appli : idem
+    await post('init', { key: studioKey(CODE), vault: fromApp });
+    assert.equal((await me()).bluesky, '@paddocklive.bsky.social');
+
+    // Facebook : app Meta d'abord, puis connexion ; retour de Facebook renvoyé au Studio, code échangé avec la clé du Studio
+    assert.equal((await post('accounts/login', { net: 'meta' })).status, 409);
+    assert.equal((await post('accounts/set', { net: 'meta-app', appId: 'abc', appSecret: 'x' })).status, 400);
+    assert.equal((await post('accounts/set', { net: 'meta-app', appId: '123456', appSecret: 'secret-meta' })).status, 200);
+    assert.ok(!env2.DB.studio.get('vault').includes('secret-meta'));   // chiffré
+    const { url } = await (await post('accounts/login', { net: 'meta' })).json();
+    const state = new URL(url).searchParams.get('state');
+    assert.match(state, /^s\.[0-9a-f]{32}$/);
+    assert.equal(new URL(url).searchParams.get('redirect_uri'), 'https://paddocklive.app/fb-callback');
+    const back = fbCallback(new URL(`https://paddocklive.app/fb-callback?code=CODE1&state=${state}`));
+    assert.equal(back.status, 302);
+    const loc = back.headers.get('Location');
+    assert.ok(loc.startsWith('https://paddocklive.app/studio/#connect='), loc);
+    const params = Object.fromEntries(new URLSearchParams(decodeURIComponent(loc.split('#connect=')[1])));
+    // Autre « state » refusé, puis le bon : Facebook et Instagram connectés
+    assert.equal((await post('accounts/finish', { ...params, state: `s.${'0'.repeat(32)}` })).status, 409);
+    const r = await (await post('accounts/finish', params)).json();
+    assert.deepEqual(r, { net: 'meta', name: 'Paddock Live · @paddocklive' });
+    assert.ok(graph.some((u) => u.includes('redirect_uri=https%3A%2F%2Fpaddocklive.app%2Ffb-callback') && u.includes('client_secret=secret-meta')));
+    assert.equal((await post('accounts/finish', params)).status, 409);   // demande déjà utilisée
+    m = await me();
+    assert.deepEqual([m.facebook, m.instagram, m.apps.meta], ['Paddock Live', '@paddocklive', true]);
+
+    // TikTok (retiré plus haut) : app enregistrée dans le Studio, connexion par /studio-callback, publication directe
+    const { studioCallback } = await import('../analytics/worker.js');
+    assert.equal((await post('accounts/set', { net: 'tiktok-app', clientKey: 'ck2', clientSecret: 'cs2', direct: true })).status, 200);
+    const tk = new URL((await (await post('accounts/login', { net: 'tiktok' })).json()).url);
+    assert.equal(tk.searchParams.get('redirect_uri'), 'https://paddocklive.app/studio-callback');
+    assert.equal(tk.searchParams.get('scope'), 'user.info.basic,video.upload,video.publish');
+    const tkBack = studioCallback(new URL(`https://paddocklive.app/studio-callback?code=TK&state=${tk.searchParams.get('state')}`)).headers.get('Location');
+    const tr = await (await post('accounts/finish', Object.fromEntries(new URLSearchParams(decodeURIComponent(tkBack.split('#connect=')[1]))))).json();
+    assert.deepEqual(tr, { net: 'tiktok', name: 'Paddock Live' });
+    // YouTube : client Google « Application Web » ; refus de Google transmis
+    assert.equal((await post('accounts/set', { net: 'youtube-app', clientId: 'x', clientSecret: 'y' })).status, 400);
+    assert.equal((await post('accounts/set', { net: 'youtube-app', clientId: '12-ab.apps.googleusercontent.com', clientSecret: 'g-secret' })).status, 200);
+    const yt = new URL((await (await post('accounts/login', { net: 'youtube' })).json()).url);
+    assert.deepEqual([yt.host, yt.searchParams.get('access_type'), yt.searchParams.get('redirect_uri')], ['accounts.google.com', 'offline', 'https://paddocklive.app/studio-callback']);
+    const denied = await post('accounts/finish', { state: yt.searchParams.get('state'), error: 'access_denied' });
+    assert.deepEqual([denied.status, (await denied.json()).error], [400, 'Connexion refusée']);
+    const yt2 = new URL((await (await post('accounts/login', { net: 'youtube' })).json()).url);
+    assert.deepEqual(await (await post('accounts/finish', { state: yt2.searchParams.get('state'), code: 'YT' })).json(), { net: 'youtube', name: 'Paddock Live' });
+    m = await me();
+    assert.deepEqual([m.tiktok, m.youtube, m.managed.sort()], ['Paddock Live', 'Paddock Live', ['bluesky', 'meta', 'tiktok', 'youtube']]);
+    // L'appli renvoie ses anciens TikTok et YouTube : ceux du Studio restent
+    await post('sync', { vault: { ...fromApp, youtube: { clientId: 'desk.apps.googleusercontent.com', clientSecret: 's', refreshToken: 'vieux', name: 'Vieux' } } });
+    m = await me();
+    assert.deepEqual([m.tiktok, m.youtube], ['Paddock Live', 'Paddock Live']);
+    // Retour vers l'appli inchangé (port au début du state)
+    assert.equal(fbCallback(new URL(`https://paddocklive.app/fb-callback?code=c&state=3000.${'a'.repeat(32)}`)).headers.get('Location').startsWith('http://127.0.0.1:3000/meta-callback/'), true);
+  } finally { globalThis.fetch = realFetch; }
 });

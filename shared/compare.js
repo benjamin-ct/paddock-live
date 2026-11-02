@@ -5,6 +5,7 @@
 // elle-même le GPS reçu depuis l'ouverture de la page (analytics/live-page/web.js).
 import { Track } from './track.js';
 import { parseUtc, parseLapTime } from './f1.js';
+import { startGains } from './insights.js';
 
 const MAX_GAP_MS = 2000;       // trou de GPS au-delà duquel la trajectoire est coupée
 const OFF_TRACK2 = 300 ** 2;   // voie des stands, garage : hors du tracé
@@ -51,24 +52,28 @@ function telIndex(c, utc) {
   return Math.abs(c.utc[j] - utc) < 600 ? j : -1;
 }
 
-// Heure locale de réception - heure F1, d'après les Heartbeat reçus jusqu'à `until`
-function clockOffset(events, until) {
-  let best = null;
+// Heure locale de réception - heure F1, d'après les Heartbeat reçus jusqu'à `until` : écart médian. L'archive de la
+// course de Mexico 2026 a des Heartbeat décalés de 20 min ; le plus petit écart plaçait le départ 20 min trop tard
+export function clockOffset(events, until) {
+  const offs = [];
   for (const e of events) {
     if (e.t > until) break;
     if (e.topic !== 'Heartbeat' || !e.data?.Utc) continue;
     const off = e.t - parseUtc(e.data.Utc);
-    if (Number.isFinite(off) && (best === null || off < best)) best = off;
+    if (Number.isFinite(off)) offs.push(off);
   }
-  return best;
+  if (!offs.length) return null;
+  offs.sort((x, y) => x - y);
+  return offs[offs.length >> 1];
 }
 
 // Trajectoire d'un pilote en « tours parcourus depuis la ligne » (continue par morceaux)
-function progressRuns(car, track, line, untilUtc) {
+// slack : positions gardées après untilUtc (passage sur la ligne d'un tour fini) ; 0 pour le tour en cours (rien après)
+function progressRuns(car, track, line, untilUtc, slack = 5000) {
   const L = track.L;
   const runs = [];
   let run = null, hint = -1, prevRaw = null, prog = 0, prevUtc = -Infinity;
-  for (let i = 0; i < car.utc.length && car.utc[i] <= untilUtc + 5000; i++) {
+  for (let i = 0; i < car.utc.length && car.utc[i] <= untilUtc + slack; i++) {
     const p = track.project(car.x[i], car.y[i], hint);
     hint = p.i ?? hint;
     if (p.d2 > OFF_TRACK2) { run = null; continue; }
@@ -180,9 +185,10 @@ function bestLap(state, derived, num) {
   return { time, lap: Number(line.BestLapTime.Lap) || entry?.lap || null, sectors: s, best: true, endT: entry?.t ?? null };
 }
 
-// Tour précis d'un pilote (numéro de tour), sinon son meilleur tour
+// Tour précis d'un pilote (numéro de tour), 'live' pour son tour en cours, sinon son meilleur tour
 function pickLap(state, derived, num, lapNo) {
   if (!lapNo) return bestLap(state, derived, num);
+  if (lapNo === 'live') return { time: null, lap: (Number(state.TimingData?.Lines?.[num]?.NumberOfLaps) || 0) + 1, sectors: [null, null, null], best: false, live: true, endT: null };
   const entry = (derived.laps[num] || []).find((l) => Number(l.lap) === Number(lapNo));
   const time = parseLapTime(entry?.time);
   if (!time) return null;
@@ -193,9 +199,11 @@ function pickLap(state, derived, num, lapNo) {
 /**
  * state, derived : état de la séance à l'heure `until` (délai TV) ; events [{ t, topic, data }] : messages reçus
  * (horloge du flux, d'après les Heartbeat) ; cars, tel : GPS et télémétrie par pilote (addPositions, addCarData) ;
- * load(key, year) : promesse de [tracé, boucles de chronométrage] ; a, b : pilotes ; la, lb : tours (meilleur sinon)
+ * load(key, year) : promesse de [tracé, boucles de chronométrage] ; a, b : pilotes ; la, lb : tours (meilleur sinon,
+ * 'live' : tour en cours, jusqu'à `until`, comparé en direct ; out.live = { side, frac, elapsed, gap })
  */
-export async function compareFrom({ state, derived, events, cars, tel = null, until, load, a, b, la = null, lb = null }) {
+export async function compareFrom(opts) {
+  const { state, derived, events, cars, tel = null, until, load, a, b, la = null, lb = null } = opts;
   const dl = state.DriverList || {};
   const stats = state.TimingStats?.Lines || {};
   const who = (num, lapNo) => {
@@ -235,6 +243,30 @@ export async function compareFrom({ state, derived, events, cars, tel = null, un
     const d = out[side];
     const car = cars.get(String(d.num));
     if (!car) { out.reason = `Pas de GPS pour ${d.tla}.`; return out; }
+    if (d.lap.live) {
+      // Tour en cours : depuis le dernier passage sur la ligne jusqu'à la dernière position (rien après `until`)
+      const run = progressRuns(car, track, ldata.line ?? 0, untilUtc, 0).at(-1);
+      const P = run?.p.at(-1), n = Math.floor(P);
+      const t0 = run && untilUtc - run.utc.at(-1) <= 5000 ? timeAt(run, n) : null;
+      if (t0 === null) { out.reason = `${d.tla} n'est pas dans un tour lancé : la comparaison reprend à son prochain passage sur la ligne.`; return out; }
+      const frac = P - n;
+      // Tour tout juste fini (début du suivant) : le tour fini reste affiché quelques secondes, recalé sur le temps officiel
+      const done = d.lap.lap - 1;
+      if (frac < 0.06 && (derived.laps[d.num] || []).some((l) => Number(l.lap) === done && parseLapTime(l.time))) {
+        return { ...(await compareFrom({ ...opts, [side === 'a' ? 'la' : 'lb']: done })), live: { side, done: true } };
+      }
+      laps[side] = { run, n, t0, t1: null, frac };
+      let prev = t0;
+      d.mini = minis.map((m) => {
+        const t = m.to <= frac ? timeAt(run, n + m.to) : null;
+        if (t === null) return null;
+        const v = Math.round(t - prev) / 1000;
+        prev = t;
+        return v;
+      });
+      out.live = { side, frac: Math.round(frac * 10000) / 10000, elapsed: Math.round(run.utc.at(-1) - t0) / 1000, gap: null };
+      continue;
+    }
     const endUtc = d.lap.endT != null ? d.lap.endT - offset : null;
     const runs = progressRuns(car, track, ldata.line ?? 0, untilUtc);
     const found = findLapRun(runs, d.lap.time, untilUtc, endUtc) || (d.lap.best ? findLapRun(runs, d.lap.time, untilUtc) : null);
@@ -276,6 +308,12 @@ export async function compareFrom({ state, derived, events, cars, tel = null, un
   });
   out.gps = true;
   out.trace = lapTraces(tel, out, laps, track, line);
+  // Écart en direct (A − B, négatif : A devant) : temps du tour de référence au même point de la piste
+  if (out.live) {
+    const ref = out.trace[out.live.side === 'a' ? 'b' : 'a'].t, x = out.live.frac * K, i = Math.floor(x);
+    const at = ref[i] !== null && ref[i + 1] != null ? ref[i] + (ref[i + 1] - ref[i]) * (x - i) : null;
+    if (at !== null) out.live.gap = Math.round((out.live.side === 'b' ? at - out.live.elapsed : out.live.elapsed - at) * 1000) / 1000;
+  }
   return out;
 }
 
@@ -285,17 +323,20 @@ export async function compareFrom({ state, derived, events, cars, tel = null, un
 const K = 400;
 export function lapTraces(tel, out, laps, track, line) {
   const side = (d, found) => {
-    const k = d.lap.time / ((found.t1 - found.t0) / 1000), c = tel?.get(String(d.num));
+    // Tour en cours (t1 inconnu) : points jusqu'à la position atteinte, temps du GPS sans recalage
+    const live = found.t1 === null;
+    const k = live ? 1 : d.lap.time / ((found.t1 - found.t0) / 1000), c = tel?.get(String(d.num));
     const r = { t: [], v: [], g: [], th: [], br: [], rpm: [] };
-    let n = 0;
+    let n = 0, reached = 0;
     for (let i = 0; i <= K; i++) {
-      const t = i === K ? found.t1 : i === 0 ? found.t0 : timeAt(found.run, found.n + i / K);
+      const t = i === 0 ? found.t0 : live ? (i / K <= found.frac ? timeAt(found.run, found.n + i / K) : null) : i === K ? found.t1 : timeAt(found.run, found.n + i / K);
       const j = t !== null && c ? telIndex(c, t) : -1;
+      if (t !== null) reached++;
       if (j >= 0) n++;
       r.t.push(t === null ? null : Math.round(((t - found.t0) / 1000) * k * 1000) / 1000);
       for (const ch of ['v', 'g', 'th', 'br', 'rpm']) r[ch].push(j >= 0 ? c[ch][j] : null);
     }
-    r.tel = n > K * 0.8;   // télémétrie sur presque tout le tour
+    r.tel = n > (live ? reached : K) * 0.8;   // télémétrie sur presque tout le tour (en cours : sur ce qui est parcouru)
     return r;
   };
   const a = side(out.a, laps.a), b = side(out.b, laps.b);
@@ -307,4 +348,24 @@ export function lapTraces(tel, out, laps, track, line) {
   let len = 0;
   for (let i = 0; i < K; i++) if (a.v[i] !== null && a.v[i + 1] !== null && a.t[i] !== null && a.t[i + 1] !== null) len += ((a.v[i] + a.v[i + 1]) / 7.2) * (a.t[i + 1] - a.t[i]);
   return { K, len: a.tel ? Math.round(len) : null, corners, tel: a.tel && b.tel, a, b };
+}
+
+// Départ d'une course (Analyse → Tendances) : grille (positions du chronométrage juste avant le feu vert) et ordre au
+// premier virage d'après le GPS, rien après `until` (délai TV). Commun à l'appli et à la version web ; null si pas de
+// départ affiché, pas de GPS ou pas de tracé
+export async function raceStartFrom({ events, cars, until, load }) {
+  const started = events.find((e) => e.topic === 'SessionStatus' && e.data?.Status === 'Started');
+  if (!started || started.t > until || !cars?.size) return null;
+  const grid = new Map();
+  let info = null;
+  for (const e of events) {
+    if (e.t > started.t) break;
+    if (e.topic === 'SessionInfo') info = { ...info, ...e.data };
+    if (e.topic === 'TimingData') for (const [n, l] of Object.entries(e.data?.Lines || {})) if (l?.Position) grid.set(n, Number(l.Position));
+  }
+  const offset = clockOffset(events, until);
+  const key = info?.Meeting?.Circuit?.Key, year = Number(String(info?.StartDate || '').slice(0, 4)) || new Date().getFullYear();
+  if (offset === null || !key || !grid.size) return null;
+  const [cdata] = await load(key, year);
+  return cdata ? startGains(new Track(cdata), cars, started.t - offset, grid, until - offset) : null;
 }

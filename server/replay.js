@@ -7,7 +7,7 @@ import { ARCHIVE_TOPICS, topicName } from '../shared/f1.js';
 import { sessionLabel } from './live.js';
 import { readRecording, recordingPath } from './recorder.js';
 import { keyMoments } from '../shared/moments.js';
-import { parseStream, indexMeetings } from '../shared/race-stats.js';
+import { parseStream, indexMeetings, sessionCut } from '../shared/race-stats.js';
 
 async function mapLimit(items, limit, fn) {
   const results = new Array(items.length);
@@ -36,8 +36,8 @@ export async function loadArchive(path, onProgress = () => {}, topics = ARCHIVE_
     }
   });
 
-  const events = [];
-  const stream = [];
+  let events = [];
+  let stream = [];
   for (const list of parts) {
     for (const e of list) {
       const topic = topicName(e.topic);
@@ -49,6 +49,14 @@ export async function loadArchive(path, onProgress = () => {}, topics = ARCHIVE_
   const byOff = (a, b) => a.off - b.off;
   events.sort(byOff);
   stream.sort(byOff);
+  // Archive qui reprend après un long silence (course de Mexico 2026 : essais libres 3 la veille, puis la course) : seule
+  // la dernière partie est rejouée ; de ce qui précède, seulement la liste des pilotes et la séance, au début
+  const cut = sessionCut([...events, ...stream].sort(byOff));
+  if (cut) {
+    events = [...events.filter((e) => e.off < cut && (e.topic === 'DriverList' || e.topic === 'SessionInfo')).map((e) => ({ ...e, off: 0 })),
+      ...events.filter((e) => e.off >= cut).map((e) => ({ ...e, off: e.off - cut }))];
+    stream = stream.filter((s) => s.off >= cut).map((s) => ({ ...s, off: s.off - cut }));
+  }
   const duration = Math.max(events[events.length - 1].off, stream.length ? stream[stream.length - 1].off : 0);
 
   // Début réel de la session (extinction des feux / feu vert en qualif).

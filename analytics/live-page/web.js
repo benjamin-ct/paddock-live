@@ -22,7 +22,7 @@ import { renderDuelBand, renderDuel, initDuel } from './ui/duel.js';
 import { initNoLive } from './ui/home.js';
 import { initSeason, closeSeason, openSeason, seasonUrls } from './ui/season.js';
 import { parseSeasonPath } from '/shared/season-urls.js';
-import { addPositions, addCarData, compareFrom } from '/shared/compare.js';
+import { addPositions, addCarData, compareFrom, raceStartFrom } from '/shared/compare.js';
 import './ui/calendar-menu.js';   // « Ajouter à mon agenda » (Saison)
 import { initSelects } from './ui/select.js';
 import { changelogHtml } from './ui/changelog.js';
@@ -62,6 +62,9 @@ store.compareFetch = async ({ a, b, until, la, lb }) => {
   if (/introuvable dans le GPS|GPS incomplet/.test(out.reason || '')) out.reason += ' La version web garde le GPS depuis l\'ouverture de cette fenêtre : comparez un tour fait depuis.';
   return out;
 };
+// Départ de la course (Analyse → Tendances) : GPS gardé depuis l'ouverture de la page (rien si elle a été ouverte après)
+store.startFetch = ({ until }) => raceStartFrom({ events: hub.events.map(([topic, data, t]) => ({ topic, data, t })), cars: gps, until,
+  load: (key, year) => Promise.all([getJSON(`/live/api/circuit?key=${key}&year=${year}`)]) });
 let relay = {};
 
 // Connexion F1 TV du visiteur, donnée par l'extension Paddock Live Companion (formula1.com) : GPS et télémétrie

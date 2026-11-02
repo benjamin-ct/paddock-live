@@ -605,42 +605,52 @@ Happy to help you set it up before the next Grand Prix!`],
 ];
 
 // ---------- Réglages : comptes, alertes, déconnexion ----------
-function settings() {
-  const me = session.me || {};
-  const accounts = [['Instagram', me.instagram], ['Facebook', me.facebook], ['Threads', me.threads], ['Bluesky', me.bluesky], ['F1 TV (archives des séances)', me.f1tv ? 'connecté' : null]];
-  const pages = [['Paddock Live', 'https://paddocklive.app/liens/'], ['Benjy Paddock', 'https://paddocklive.app/benjy/']];
-  const link = ([n, u]) => `<div class="row-item static"><span class="grow"><b>${esc(n)}</b><small>${esc(u.replace('https://', ''))}</small></span>
-      <a class="btn small" href="${esc(u)}" target="_blank" rel="noopener">${icon('link')}Ouvrir</a><button class="btn small" data-copy="${esc(u)}">${icon('copy')}Copier</button></div>`;
-  // Le plus utile en premier : comptes, alertes, signature ; puis liens, pack streamers et outils
-  const dlg = sheet('Réglages', `<h3 class="section">Comptes</h3><div class="group">${accounts.map(([n, v]) => `<div class="row-item static"><span class="grow"><b>${esc(n)}</b><small>${esc(v || 'non connecté')}</small></span><span class="state ${v ? 'on' : ''}"></span></div>`).join('')}</div>
-    <p class="hint">Comptes envoyés par l'appli de bureau (Réglages → Mode créateur → Comptes…).</p>
-    <h3 class="section">Alertes des grosses news</h3><div id="alerts"></div>
-    <h3 class="section">Posts</h3><label class="field"><span>Signature des visuels et des textes <small>(gardée sur cet appareil)</small></span><input type="text" id="sigin" maxlength="40" value="${esc(SIG)}" placeholder="${esc(SIG_DEFAULT)}"></label>
-    <h3 class="section">Mes pages de liens</h3><div class="group">${pages.map(link).join('')}</div>
-    <p class="hint">Tous les réseaux sur une seule page : le lien à mettre en bio.</p>
-    <h3 class="section">Pack streamers</h3><div class="group">${link(['Présentation pour les streamers', KIT])}
+// Réglages : un menu, une ligne par rubrique ; chaque rubrique s'ouvre seule (« ‹ Réglages » pour revenir)
+const field = (id, label, type = 'text') => `<label class="field"><span>${label}</span><input type="${type}" id="${id}" autocomplete="off" autocapitalize="off" spellcheck="false"></label>`;
+const pages = [['Paddock Live', 'https://paddocklive.app/liens/'], ['Benjy Paddock', 'https://paddocklive.app/benjy/']];
+const link = ([n, u]) => `<div class="row-item static"><span class="grow"><b>${esc(n)}</b><small>${esc(u.replace('https://', ''))}</small></span>
+  <a class="btn small" href="${esc(u)}" target="_blank" rel="noopener">${icon('link')}Ouvrir</a><button class="btn small" data-copy="${esc(u)}">${icon('copy')}Copier</button></div>`;
+const ACCOUNTS = (me) => [['meta', 'Facebook et Instagram', me.facebook ? `${me.facebook}${me.instagram ? ` · ${me.instagram}` : ''}` : null], ['tiktok', 'TikTok', me.tiktok], ['tiktok2', 'TikTok (2e compte, statistiques)', me.tiktok2], ['youtube', 'YouTube', me.youtube], ['threads', 'Threads', me.threads], ['bluesky', 'Bluesky', me.bluesky]];
+const SECTIONS = [
+  { id: 'accounts', icon: 'user', title: 'Comptes des réseaux', sub: (me) => `${ACCOUNTS(me).filter((x) => x[2]).length} sur ${ACCOUNTS(me).length} connectés · F1 TV ${me.f1tv ? 'connecté' : 'non connecté'}`,
+    html: (me) => { const accounts = ACCOUNTS(me), apps = me.apps || {}; return `<div class="group">${accounts.map(([k, n, v]) => `<div class="row-item static acc"><span class="grow"><b>${esc(n)}</b><small>${esc(v || 'non connecté')}</small></span>${v ? `<button class="btn small" data-acc-del="${k}">${icon('close')}Retirer</button>` : ''}<span class="state ${v ? 'on' : ''}"></span></div>`).join('')}
+      <div class="row-item static"><span class="grow"><b>F1 TV (archives des séances)</b><small>${me.f1tv ? 'connecté' : 'non connecté'}</small></span><span class="state ${me.f1tv ? 'on' : ''}"></span></div></div>
+    <details class="cap"><summary><span>Connecter Facebook et Instagram</span></summary>
+      ${apps.meta ? `<button class="btn primary wide" data-login="meta">${icon('link')}Se connecter avec Facebook</button>` : ''}
+      <details class="cap"><summary><span>App Meta${apps.meta ? ' (enregistrée)' : ''}</span></summary>${field('maId', 'Identifiant de l\'app')}${field('maSecret', 'Clé secrète de l\'app', 'password')}${field('maConf', 'ID de configuration (facultatif)')}
+        <button class="btn small" id="maSave">Enregistrer</button><p class="hint">developers.facebook.com → ton app → Paramètres → Général. Adresse de retour : https://paddocklive.app/fb-callback (déjà déclarée).</p></details></details>
+    <details class="cap"><summary><span>Connecter TikTok</span></summary>
+      ${apps.tiktok ? `<button class="btn primary wide" data-login="tiktok">${icon('link')}Se connecter avec TikTok</button><button class="btn wide" data-login="tiktok2">${icon('link')}2e compte (statistiques)</button>` : ''}
+      <details class="cap"><summary><span>App TikTok${apps.tiktok ? ' (enregistrée)' : ''}</span></summary>${field('tkKey', 'Client key')}${field('tkSecret', 'Client secret', 'password')}
+        <label class="check"><input type="checkbox" id="tkDirect"> Publication directe (video.publish)</label><label class="check"><input type="checkbox" id="tkStats"> Statistiques (profil, chiffres, vidéos)</label>
+        <button class="btn small" id="tkSave">Enregistrer</button><p class="hint">developers.tiktok.com → ton app → Login Kit, plateforme Web : adresse de retour https://paddocklive.app/studio-callback.</p></details></details>
+    <details class="cap"><summary><span>Connecter YouTube</span></summary>
+      ${apps.youtube ? `<button class="btn primary wide" data-login="youtube">${icon('link')}Se connecter avec Google</button>` : ''}
+      <details class="cap"><summary><span>Client Google${apps.youtube ? ' (enregistré)' : ''}</span></summary>${field('ytId', 'ID client (…apps.googleusercontent.com)')}${field('ytSecret', 'Code secret du client', 'password')}
+        <button class="btn small" id="ytSave">Enregistrer</button><p class="hint">console.cloud.google.com → API et services → Identifiants → client OAuth « Application Web », URI de redirection https://paddocklive.app/studio-callback.</p></details></details>
+    <details class="cap"><summary><span>Connecter Threads</span></summary>${field('thSecret', 'Clé secrète Threads', 'password')}${field('thToken', 'Jeton d\'accès Threads', 'password')}<button class="btn small" id="thSave">Connecter</button></details>
+    <details class="cap"><summary><span>Connecter Bluesky</span></summary>${field('bsHandle', 'Identifiant (ex. paddocklive.bsky.social)')}${field('bsPass', 'Mot de passe d\'application', 'password')}<button class="btn small" id="bsSave">Connecter</button></details>
+    <p class="hint">Tous les réseaux se connectent ici ; F1 TV vient de l'appli de bureau (Réglages → Compte F1 TV). Un compte connecté ou retiré ici n'est plus remplacé par l'appli.</p>`; }, wire: (dlg) => accountsBlock(dlg) },
+  { id: 'alerts', icon: 'bell', title: 'Alertes des grosses news', sub: () => 'Notifications sur cet appareil', html: () => '<div id="alerts"></div>', wire: (dlg) => alertsBlock($('#alerts', dlg)) },
+  { id: 'posts', icon: 'pen', title: 'Signature des posts', sub: () => SIG,
+    html: () => `<label class="field"><span>Signature des visuels et des textes <small>(gardée sur cet appareil)</small></span><input type="text" id="sigin" maxlength="40" value="${esc(SIG)}" placeholder="${esc(SIG_DEFAULT)}"></label>`,
+    wire: (dlg) => { $('#sigin', dlg).onchange = (e) => { setSig(e.target.value); e.target.value = SIG; toast(`Signature : ${SIG}`, 'ok'); }; } },
+  { id: 'links', icon: 'link', title: 'Mes pages de liens', sub: () => 'Le lien à mettre en bio', html: () => `<div class="group">${pages.map(link).join('')}</div>
+    <p class="hint">Tous les réseaux sur une seule page : le lien à mettre en bio.</p>` },
+  { id: 'streamers', icon: 'video', title: 'Pack streamers', sub: () => 'Présentation, PDF et messages à envoyer', html: () => `<div class="group">${link(['Présentation pour les streamers', KIT])}
       <div class="row-item static"><span class="grow"><b>Pack en PDF</b><small>Les 6 pages en un fichier, à joindre à un e-mail</small></span>
         <a class="btn small" href="${KIT}paddock-live-streamers.pdf" download>${icon('download')}Télécharger</a></div></div>
     ${PITCH.map(([n, t]) => `<details class="cap"><summary><span>${esc(n)}</span></summary><textarea rows="9">${esc(t)}</textarea>
       <button class="btn small" data-copy="">${icon('copy')}Copier le message</button></details>`).join('')}
-    <p class="hint">Page non listée : envoie le lien avec un des messages.</p>
-    ${me.f1tv ? `<h3 class="section">Relier un téléphone à F1 TV</h3><div class="group">
+    <p class="hint">Page non listée : envoie le lien avec un des messages.</p>` },
+  { id: 'f1tv', icon: 'flag', title: 'F1 TV sur un autre appareil', show: (me) => me.f1tv, sub: () => 'Relier un téléphone, appareils connectés', html: () => `<h3 class="section">Relier un téléphone</h3><div class="group">
       <div class="row-item static"><span class="grow"><b>Ton compte F1 TV sur un autre appareil</b><small>Sur le téléphone, ouvre Paddock Live (app.paddocklive.app), touche « Connexion F1 TV » et lis le code à 6 chiffres.</small></span></div>
       <div class="row-item"><input id="pairCode" type="text" class="grow pair-code-in" inputmode="numeric" autocomplete="off" maxlength="6" placeholder="Code à 6 chiffres"><button class="btn small btn-accent" id="pairGo">Relier</button></div></div>
     <p class="hint">Ta connexion F1 TV est envoyée chiffrée à ce téléphone (GPS et télémétrie activés). Elle n'est gardée que dans ton coffre, comme pour les archives.</p>
     <h3 class="section">Appareils connectés <button class="btn small" id="pairRefresh">${icon('refresh')}Rafraîchir</button></h3>
     <div class="group" id="pairDevices"><div class="row-item static"><span class="grow"><small>Chargement…</small></span></div></div>
-    <p class="hint">Appareils reliés à ton compte F1 TV en ce moment (version web). Un appareil se déconnecte seul quand tu le fermes.</p>` : ''}
-    <h3 class="section">Sources d'actu en plus</h3><div class="group" id="nsList"><div class="row-item static"><span class="grow"><small>Chargement…</small></span></div></div>
-    <div class="row-item ns-add"><input id="nsAdd" type="text" placeholder="https://… ou @compte.bsky.social"><select id="nsCat" aria-label="Catégorie"><option value="media">Média</option><option value="team">Écurie</option><option value="driver">Pilote</option><option value="official">Officiel</option></select><button class="btn small btn-accent" id="nsGo">Ajouter</button></div>
-    <p class="hint">Flux RSS, chaîne YouTube ou compte Bluesky : ajouté à l'onglet Actu de l'appli, pour tout le monde.</p>
-    <button class="btn danger wide" id="out">${icon('logout')}Se déconnecter de cet appareil</button>
-    <p class="hint center"><a class="to-site" href="https://paddocklive.app/">${icon('back')}Retour au site</a></p>
-    <p class="hint center">Version du Studio : ${esc(VERSION)} · © 2026 Paddock Live · <a href="https://github.com/benjamin-ct/paddock-live/blob/main/analytics/LICENSE" target="_blank" rel="noopener">Licence AGPL v3</a></p>`);
-  alertsBlock($('#alerts', dlg));
-  newsSourcesBlock(dlg);
-  $('#sigin', dlg).onchange = (e) => { setSig(e.target.value); e.target.value = SIG; toast(`Signature : ${SIG}`, 'ok'); };
-  if (me.f1tv) {
+    <p class="hint">Appareils reliés à ton compte F1 TV en ce moment (version web). Un appareil se déconnecte seul quand tu le fermes.</p>`,
+    wire: (dlg) => {
     const go = $('#pairGo', dlg), inp = $('#pairCode', dlg), devs = $('#pairDevices', dlg);
     const since = (s) => (s < 60 ? 'quelques secondes' : s < 3600 ? `${Math.round(s / 60)} min` : `${Math.floor(s / 3600)} h ${Math.round((s % 3600) / 60)}`.replace(/ 0$/, ''));
     const loadDevices = async () => {
@@ -662,9 +672,62 @@ function settings() {
     inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') go.click(); });
     $('#pairRefresh', dlg).onclick = loadDevices;
     loadDevices();
-  }
-  $$('[data-copy]', dlg).forEach((b) => { b.onclick = () => navigator.clipboard.writeText(b.dataset.copy || b.previousElementSibling.value).then(() => toast(b.dataset.copy ? 'Lien copié' : 'Message copié', 'ok'), () => toast('Copie impossible', 'bad')); });
+    } },
+  { id: 'sources', icon: 'news', title: 'Sources d\'actu en plus', sub: () => 'Ajoutées à l\'onglet Actu de l\'appli', html: () => `<div class="group" id="nsList"><div class="row-item static"><span class="grow"><small>Chargement…</small></span></div></div>
+    <div class="row-item ns-add"><input id="nsAdd" type="text" placeholder="https://… ou @compte.bsky.social"><select id="nsCat" aria-label="Catégorie"><option value="media">Média</option><option value="team">Écurie</option><option value="driver">Pilote</option><option value="official">Officiel</option></select><button class="btn small btn-accent" id="nsGo">Ajouter</button></div>
+    <p class="hint">Flux RSS, chaîne YouTube ou compte Bluesky : ajouté à l'onglet Actu de l'appli, pour tout le monde.</p>`, wire: (dlg) => newsSourcesBlock(dlg) },
+];
+
+function settings() {
+  const me = session.me || {};
+  const rows = SECTIONS.filter((x) => !x.show || x.show(me)).map((x) => `<button class="row-item" data-sec="${x.id}">${icon(x.icon)}<span class="grow"><b>${esc(x.title)}</b><small>${esc(x.sub(me))}</small></span>${icon('next')}</button>`).join('');
+  const dlg = sheet('Réglages', `<div class="group">${rows}</div>
+    <button class="btn danger wide" id="out">${icon('logout')}Se déconnecter de cet appareil</button>
+    <p class="hint center"><a class="to-site" href="https://paddocklive.app/">${icon('back')}Retour au site</a></p>
+    <p class="hint center">Version du Studio : ${esc(VERSION)} · © 2026 Paddock Live · <a href="https://github.com/benjamin-ct/paddock-live/blob/main/analytics/LICENSE" target="_blank" rel="noopener">Licence AGPL v3</a></p>`);
+  $$('[data-sec]', dlg).forEach((b) => { b.onclick = () => openSection(b.dataset.sec); });
   $('#out', dlg).onclick = () => { dlg.close(); forgetKey(); login(); };
+}
+function openSection(id) {
+  const me = session.me || {};
+  const sec = SECTIONS.find((x) => x.id === id);
+  const dlg = sheet(sec.title, `<button class="btn small sec-back" id="secBack">${icon('back')}Réglages</button>${sec.html(me)}`);
+  $('#secBack', dlg).onclick = settings;
+  sec.wire?.(dlg, me);
+  $$('[data-copy]', dlg).forEach((b) => { b.onclick = () => navigator.clipboard.writeText(b.dataset.copy || b.previousElementSibling.value).then(() => toast(b.dataset.copy ? 'Lien copié' : 'Message copié', 'ok'), () => toast('Copie impossible', 'bad')); });
+}
+
+// Comptes connectés ou retirés depuis le Studio (analytics/accounts.js) ; Réglages rouverts à jour
+async function reloadMe(msg) {
+  session.me = await api('me');
+  store.set('me', session.me);
+  toast(msg, 'ok');
+}
+function accountsBlock(dlg) {
+  const send = async (btn, body, msg) => {
+    btn.disabled = true;
+    try { await api('accounts/set', { method: 'POST', body: JSON.stringify(body) }); await reloadMe(msg); openSection('accounts'); }
+    catch (e) { toast(e.message || 'Échec', 'bad'); btn.disabled = false; }
+  };
+  const val = (id) => $(`#${id}`, dlg).value;
+  $$('[data-acc-del]', dlg).forEach((b) => { b.onclick = () => { if (confirm('Retirer ce compte du Studio ? L\'appli de bureau ne le renverra plus.')) send(b, { net: b.dataset.accDel, remove: true }, 'Compte retiré'); }; });
+  $('#maSave', dlg).onclick = (e) => send(e.target, { net: 'meta-app', appId: val('maId'), appSecret: val('maSecret'), configId: val('maConf') }, 'App Meta enregistrée');
+  $('#tkSave', dlg).onclick = (e) => send(e.target, { net: 'tiktok-app', clientKey: val('tkKey'), clientSecret: val('tkSecret'), direct: $('#tkDirect', dlg).checked, stats: $('#tkStats', dlg).checked }, 'App TikTok enregistrée');
+  $('#ytSave', dlg).onclick = (e) => send(e.target, { net: 'youtube-app', clientId: val('ytId'), clientSecret: val('ytSecret') }, 'Client Google enregistré');
+  $('#thSave', dlg).onclick = (e) => send(e.target, { net: 'threads', appSecret: val('thSecret'), token: val('thToken') }, 'Threads connecté');
+  $('#bsSave', dlg).onclick = (e) => send(e.target, { net: 'bluesky', handle: val('bsHandle'), appPassword: val('bsPass') }, 'Bluesky connecté');
+  $$('[data-login]', dlg).forEach((b) => { b.onclick = async () => {
+    b.disabled = true;
+    try { location.href = (await api('accounts/login', { method: 'POST', body: JSON.stringify({ net: b.dataset.login }) })).url; } catch (e) { toast(e.message, 'bad'); b.disabled = false; }
+  }; });
+}
+// Retour d'une connexion (/fb-callback ou /studio-callback renvoie ici avec #connect=…)
+const NET_FR = { meta: 'Facebook et Instagram', tiktok: 'TikTok', tiktok2: 'TikTok (2e compte)', youtube: 'YouTube' };
+async function finishLogin(params) {
+  try {
+    const r = await api('accounts/finish', { method: 'POST', body: JSON.stringify(Object.fromEntries(params)) });
+    await reloadMe(`${NET_FR[r.net] || 'Compte'} connecté : ${r.name}`);
+  } catch (e) { toast(e.message || 'Connexion impossible', 'bad'); }
 }
 
 // Sources d'actu ajoutées pour l'onglet Actu de l'appli (lues par le serveur avec les sources par défaut)
@@ -768,10 +831,13 @@ async function checkUpdate() {
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkUpdate(); });
 
 const startAlert = new URLSearchParams(location.search).get('alert');
-if (startAlert) history.replaceState(null, '', '/studio/');
+const connectBack = location.hash.startsWith('#connect=') ? new URLSearchParams(decodeURIComponent(location.hash.slice(9))) : null;
+if (startAlert || connectBack) history.replaceState(null, '', '/studio/');
+let connectDone = false;
 const afterLogin = async () => {
   home();
   openAlert(startAlert);
+  if (connectBack && !connectDone) { connectDone = true; finishLogin(connectBack); }
 };
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/studio/sw.js', { scope: '/studio/' }).catch(() => {});
