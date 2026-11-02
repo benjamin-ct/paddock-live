@@ -228,7 +228,8 @@ function show(tool, btn) {
   document.body.appendChild(pop);
   const r = btn.getBoundingClientRect();
   pop.style.top = `${r.bottom + 8}px`;
-  pop.style.right = `${Math.max(8, innerWidth - r.right - 40)}px`;
+  // Calé à droite du bouton, sans jamais sortir de l'écran à gauche (téléphone : boutons au milieu de la barre)
+  pop.style.right = `${Math.max(8, Math.min(innerWidth - r.right - 40, innerWidth - pop.offsetWidth - 8))}px`;
   pop.addEventListener('input', (e) => { if (e.target.id === 'tbDocFilter') { filter = e.target.value; render(); } });
   pop.addEventListener('change', (e) => { if (e.target.id === 'tbDocGp') { docGp = e.target.value; render(true); } });
   pop.addEventListener('click', (e) => {

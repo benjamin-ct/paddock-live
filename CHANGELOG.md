@@ -312,6 +312,8 @@ l'application (Réglages → À propos → Nouveautés).
   la colonne des arrêts tient dans l'écran.
 - La demande « Aider à améliorer Paddock Live ? » ne cache plus la barre du replay ; l'accueil dit « Mes favoris » ;
   dans les Réglages, les rubriques montrent qu'il y en a d'autres à droite.
+- Version web sur téléphone : les panneaux Documents FIA, Vitesses, Secteurs, Météo et Championnat s'ouvrent en
+  entier dans l'écran (leur partie gauche était coupée).
 
 ### Réglages
 - Réglages en 4 rubriques au lieu de 7 : Compte F1 TV, Affichage (thème, langue, couleurs et disposition), Alertes et
