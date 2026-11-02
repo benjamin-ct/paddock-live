@@ -177,7 +177,7 @@ function renderHero(a, b) {
     close = live.gap < 1;
   } else if (off) {
     ahead = off.ahead;
-    if (off.laps) { main = `+${off.laps}`; unit = off.laps > 1 ? 'tours' : 'tour'; }
+    if (off.laps) { main = `+${off.laps}`; unit = t(off.laps > 1 ? 'tours' : 'tour'); }
     else if (off.gap !== null) { main = off.gap.toFixed(3).replace('.', DEC); unit = 's'; close = race && off.gap < 1; }
   }
   if (close) tag = 'À moins d\'une seconde';

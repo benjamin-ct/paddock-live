@@ -4,6 +4,8 @@
 // F1) quand ils sont disponibles, sinon estimation d'après les temps au tour. Code pur, partagé par
 // l'appli et la page web du créateur.
 
+import { median } from './season-calc.js';
+
 // RaceControlMessages.json (état final, tableau ou objet numéroté) -> messages triés
 export function parseRaceControl(json) {
   const raw = json?.Messages;
@@ -21,12 +23,6 @@ export function raceSessionPath(index, { name = '', circuitKey = null } = {}) {
   return (m?.Sessions || []).find((s) => s.Type === 'Race' && s.Path && !/sprint/i.test(s.Name || ''))?.Path || null;
 }
 
-const median = (a) => {
-  if (!a.length) return null;
-  const s = [...a].sort((x, y) => x - y);
-  const k = s.length >> 1;
-  return s.length % 2 ? s[k] : (s[k - 1] + s[k]) / 2;
-};
 // Gravité des états (le plus grave l'emporte sur un même tour)
 const LEVEL = { green: 0, yellow: 1, vsc: 2, sc: 3, red: 4 };
 

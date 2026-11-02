@@ -3,27 +3,19 @@
 // voitures de sécurité, abandons, pénalités, meilleur tour. Course, qualifications et essais.
 
 import { realStints } from './pits.js';
+import { stoppedInRace, parseGap } from './f1.js';
+import { gpFull } from './gp-names.js';
 
 const list = (o) => (!o ? [] : Array.isArray(o) ? o : Object.keys(o).sort((a, b) => a - b).map((k) => o[k]));
 const COMP = { SOFT: 'tendres', MEDIUM: 'médiums', HARD: 'durs', INTERMEDIATE: 'intermédiaires', WET: 'pluie' };
 const COMP_EN = { SOFT: 'soft', MEDIUM: 'medium', HARD: 'hard', INTERMEDIATE: 'intermediate', WET: 'wet' };
 const LETTER = { SOFT: 'T', MEDIUM: 'M', HARD: 'D', INTERMEDIATE: 'I', WET: 'P' };
 
-// Nom du Grand Prix en français (« Azerbaijan Grand Prix » -> « Grand Prix d'Azerbaïdjan »)
-const GP_FR = {
-  Australian: "d'Australie", Chinese: 'de Chine', Japanese: 'du Japon', Bahrain: 'de Bahreïn', 'Saudi Arabian': "d'Arabie saoudite",
-  Miami: 'de Miami', 'Emilia Romagna': "d'Émilie-Romagne", Monaco: 'de Monaco', Spanish: "d'Espagne", 'Barcelona-Catalunya': 'de Barcelone-Catalogne',
-  Canadian: 'du Canada', Austrian: "d'Autriche", British: 'de Grande-Bretagne', Belgian: 'de Belgique', Hungarian: 'de Hongrie',
-  Dutch: 'des Pays-Bas', Italian: "d'Italie", Madrid: 'de Madrid', Azerbaijan: "d'Azerbaïdjan", Singapore: 'de Singapour',
-  'United States': 'des États-Unis', 'Mexico City': 'de Mexico', 'São Paulo': 'de São Paulo', 'Las Vegas': 'de Las Vegas',
-  Qatar: 'du Qatar', 'Abu Dhabi': "d'Abou Dhabi", Brazilian: 'du Brésil', Mexican: 'du Mexique', Portuguese: 'du Portugal', French: 'de France',
-  German: "d'Allemagne", Turkish: 'de Turquie', Russian: 'de Russie', Styrian: 'de Styrie', Malaysian: 'de Malaisie', Korean: 'de Corée', Indian: "d'Inde",
-};
+// Nom du Grand Prix en français (« Azerbaijan Grand Prix » -> « le Grand Prix d'Azerbaïdjan »), noms de shared/gp-names.js
 export function gpNameFr(name) {
   // « Bahrain Grand Prix in Malaysia » (Grand Prix déplacé) : nom du Grand Prix seul
   const base = String(name || '').replace(/ Grand Prix( in .+)?$/i, '').trim();
-  if (!base) return 'ce Grand Prix';
-  return `le Grand Prix ${GP_FR[base] || `${/^[AEIOUÉÂ]/i.test(base) ? "d'" : 'de '}${base}`}`;
+  return base ? `le ${gpFull(`${base} Grand Prix`)}` : 'ce Grand Prix';
 }
 const num = (v) => String(v).replace('+', '').replace('.', ',');
 
@@ -31,6 +23,14 @@ function ordinal(n) { return n === 1 ? '1er' : `${n}e`; }
 function joinFr(arr) { return arr.length <= 1 ? arr.join('') : `${arr.slice(0, -1).join(', ')} et ${arr.at(-1)}`; }
 function ordinalEn(n) { const t = n % 100; return `${n}${t >= 11 && t <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th'}`; }
 function joinEn(arr) { return arr.length <= 1 ? arr.join('') : `${arr.slice(0, -1).join(', ')} and ${arr.at(-1)}`; }
+
+// Abandons : retirés, ou arrêtés en piste (sous drapeau rouge, une voiture arrêtée aux stands reste en course).
+// Course terminée : une voiture arrêtée qui a couvert 90 % de la distance du vainqueur est classée (garée après l'arrivée)
+function outOfRace(state, finished, leaderLaps) {
+  const lines = state?.TimingData?.Lines || {};
+  const red = String(state?.TrackStatus?.Status || '') === '5' || state?.SessionStatus?.Status === 'Aborted';
+  return (n) => lines[n].Retired || (lines[n].Stopped && !stoppedInRace(lines[n], red, lines) && (!finished || (Number(lines[n].NumberOfLaps) || 0) < 0.9 * leaderLaps));
+}
 
 export function sessionKindOf(state) {
   const info = state?.SessionInfo || {};
@@ -80,16 +80,17 @@ export function buildSummary(state, { lang = 'fr' } = {}) {
     let para = finished
       ? `${name(p1)}${team(p1)} s'impose devant ${name(p2)}${p3 ? ` et ${name(p3)}` : ''}`
       : `${name(p1)}${team(p1)} mène devant ${name(p2)}${p3 ? ` et ${name(p3)}` : ''}`;
-    if (gap2 && /^\+?\d/.test(gap2)) para += `, avec ${num(gap2)} s d'avance sur son dauphin`;
+    const g2 = parseGap(gap2);   // « +2.5 » ou « 1L » (dauphin à un tour)
+    if (g2?.laps) para += `, avec ${g2.laps === 1 ? 'un tour' : `${g2.laps} tours`} d'avance sur son dauphin`;
+    else if (g2?.s > 0) para += `, avec ${num(g2.s)} s d'avance sur son dauphin`;
     const grid1 = Number(app[p1]?.GridPos);
     if (grid1 > 1) para += `, après être parti ${ordinal(grid1)}`;
     else if (grid1 === 1) para += ', depuis la pole position';
     out.paragraphs.push(`${para}.`);
 
-    // Abandons : retirés, ou arrêtés en piste. Course terminée : une voiture arrêtée qui a couvert
-    // 90 % de la distance du vainqueur est classée (règle de la F1 ; garée après l'arrivée)
+    // Abandons (outOfRace)
     const leaderLaps = Number(lines[p1]?.NumberOfLaps) || 0;
-    const isOut = (n) => lines[n].Retired || (lines[n].Stopped && (!finished || (Number(lines[n].NumberOfLaps) || 0) < 0.9 * leaderLaps));
+    const isOut = outOfRace(state, finished, leaderLaps);
     // Remontées et reculs (grille -> position actuelle, pilotes encore en course)
     const moves = ranked.filter((n) => !isOut(n) && Number(app[n]?.GridPos) > 0)
       .map((n) => ({ n, d: Number(app[n].GridPos) - Number(lines[n].Position) }));
@@ -175,14 +176,16 @@ function buildSummaryEn(state) {
     out.title = finished ? `${name(p1)} wins ${label}` : `${name(p1)} leads (lap ${lap?.CurrentLap || '?'}${lap?.TotalLaps ? ` / ${lap.TotalLaps}` : ''})`;
     const gap2 = lines[p2]?.GapToLeader;
     let para = `${name(p1)}${team(p1)} ${finished ? 'wins ahead of' : 'leads'} ${name(p2)}${p3 ? ` and ${name(p3)}` : ''}`;
-    if (gap2 && /^\+?\d/.test(gap2)) para += `, ${String(gap2).replace('+', '')} s clear of second place`;
+    const g2 = parseGap(gap2);
+    if (g2?.laps) para += `, ${g2.laps === 1 ? 'a lap' : `${g2.laps} laps`} clear of second place`;
+    else if (g2?.s > 0) para += `, ${g2.s} s clear of second place`;
     const grid1 = Number(app[p1]?.GridPos);
     if (grid1 > 1) para += `, having started ${ordinalEn(grid1)}`;
     else if (grid1 === 1) para += ', from pole position';
     out.paragraphs.push(`${para}.`);
 
     const leaderLaps = Number(lines[p1]?.NumberOfLaps) || 0;
-    const isOut = (n) => lines[n].Retired || (lines[n].Stopped && (!finished || (Number(lines[n].NumberOfLaps) || 0) < 0.9 * leaderLaps));
+    const isOut = outOfRace(state, finished, leaderLaps);
     const moves = ranked.filter((n) => !isOut(n) && Number(app[n]?.GridPos) > 0)
       .map((n) => ({ n, d: Number(app[n].GridPos) - Number(lines[n].Position) }));
     const up = moves.filter((m) => m.d >= 4).sort((a, b) => b.d - a.d).slice(0, 3);
@@ -257,7 +260,7 @@ export function summaryFacts(state, { lang = 'fr' } = {}) {
   const redFlags = msgs.filter((m) => m?.Flag === 'RED').map((m) => m.Lap || null);
   if (kind === 'race') {
     const leaderLaps = Number(lines[ranked[0]]?.NumberOfLaps) || 0;
-    const isOut = (n) => lines[n].Retired || (lines[n].Stopped && (!finished || (Number(lines[n].NumberOfLaps) || 0) < 0.9 * leaderLaps));
+    const isOut = outOfRace(state, finished, leaderLaps);
     f.top = ranked.slice(0, 3).map((n, i) => ({ ...drv(n), gap: i ? lines[n]?.GapToLeader || '' : '', grid: Number(app[n]?.GridPos) || null }));
     const moves = ranked.filter((n) => !isOut(n) && Number(app[n]?.GridPos) > 0)
       .map((n) => ({ ...drv(n), from: Number(app[n].GridPos), to: Number(lines[n].Position), d: Number(app[n].GridPos) - Number(lines[n].Position) }));

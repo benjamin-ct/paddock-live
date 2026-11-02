@@ -61,3 +61,24 @@ test('résumé en cartes : mêmes éléments en données (podium, remontées, st
   assert.equal(f.fastest.tla, 'HAM');
   assert.equal(f.fastest.lap, 50);
 });
+
+test('résumé : dauphin à un tour, voitures arrêtées aux stands sous drapeau rouge', () => {
+  const lap = { ...state, TimingData: { Lines: { ...state.TimingData.Lines, 16: { Position: '2', GapToLeader: '1L', NumberOfLaps: 52 } } } };
+  assert.match(buildSummary(lap).paragraphs[0], /avec un tour d'avance sur son dauphin/);
+  assert.match(buildSummary(lap, { lang: 'en' }).paragraphs[0], /a lap clear of second place/);
+  // Drapeau rouge : Stroll arrêté dans la voie des stands reste en course, Alonso (abandon) non
+  const red = { ...state, SessionStatus: { Status: 'Started' }, TrackStatus: { Status: '5' }, LapCount: { CurrentLap: 30, TotalLaps: 53 },
+    TimingData: { Lines: { 1: { Position: '1', NumberOfLaps: 30 }, 16: { Position: '2', NumberOfLaps: 30 }, 44: { Position: '3', NumberOfLaps: 30 },
+      18: { Position: '4', NumberOfLaps: 30, Stopped: true, InPit: true }, 14: { Position: '5', NumberOfLaps: 20, Retired: true } } } };
+  const t = buildSummary(red).paragraphs.join('\n');
+  assert.match(t, /Abandon : Alonso\./);
+  assert.deepEqual(summaryFacts(red).out.map((d) => d.name), ['Alonso']);
+});
+
+test('résumé : noms des Grands Prix tirés de la même liste que l\'appli (gp-names.js)', () => {
+  assert.equal(gpNameFr('Abu Dhabi Grand Prix'), "le Grand Prix d'Abou Dabi");
+  assert.equal(gpNameFr('Sao Paulo Grand Prix'), 'le Grand Prix de São Paulo');
+  assert.equal(gpNameFr('Bahrain Grand Prix in Malaysia'), 'le Grand Prix de Bahreïn');
+  assert.equal(gpNameFr('Atlantis Grand Prix'), "le Grand Prix d'Atlantis");
+  assert.equal(gpNameFr(''), 'ce Grand Prix');
+});

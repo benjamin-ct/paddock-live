@@ -146,7 +146,11 @@ function renderUpcoming(nx) {
     sn.textContent = `${EN ? gpFull(nx.race, true, 'GP') : gpShort(nx.race, LANG)} — ${t(nx.label)}`;
     sn.title = gpFull(nx.race, LANG);
     const day = (t, o) => new Date(t).toLocaleDateString(LOCALE, o);
-    $('#sessionSub').textContent = [nx.locality, nx.country, `${day(nx.first, { day: 'numeric' })}–${day(nx.raceT, { day: 'numeric', month: 'long' })}`].filter(Boolean).join(' · ');
+    // Week-end sur deux mois : « 30 oct. – 1 nov. » (comme le calendrier de la Saison), sinon « 23–25 octobre »
+    const same = new Date(nx.first).getMonth() === new Date(nx.raceT).getMonth();
+    const span = same ? `${day(nx.first, { day: 'numeric' })}–${day(nx.raceT, { day: 'numeric', month: 'long' })}`
+      : `${day(nx.first, { day: 'numeric', month: 'short' })} – ${day(nx.raceT, { day: 'numeric', month: 'short' })}`;
+    $('#sessionSub').textContent = [nx.locality, nx.country, span].filter(Boolean).join(' · ');
     if (!POPOUT && !document.documentElement.dataset.seasonTitle) document.title = `Paddock Live · ${nx.race}`;
     const ts = $('#trackStatus');
     ts.className = 'track-status none';

@@ -280,14 +280,15 @@ function calSpan(r) {
 }
 function calDays(r) {
   const days = new Map();
-  for (const s of r.sessions.filter((x) => x.t)) {
-    const k = new Date(s.t).toDateString();
-    if (!days.has(k)) days.set(k, { t: s.t, list: [] });
+  // Séance sans heure (horaires pas encore publiés) : date seule (day, à midi UTC pour le bon jour)
+  for (const s of r.sessions.filter((x) => x.t || x.day)) {
+    const at = s.t || `${s.day}T12:00:00Z`, k = new Date(at).toDateString();
+    if (!days.has(k)) days.set(k, { t: at, list: [] });
     days.get(k).list.push(s);
   }
   const nx = nextSession()?.s;   // prochaine séance en rouge, comme sur l'accueil
   return `<div class="cal-days">${[...days.values()].map((d) => `<div class="cal-day"><div class="cal-day-h">${esc(fmtDate(d.t, { weekday: 'short', day: 'numeric' }))}</div>
-    ${d.list.map((s) => `<div class="cal-s ${Date.parse(s.t) < Date.now() ? 'past' : ''} ${s === nx ? 'now' : ''}"><span>${esc(s.label)}</span><b>${fmtTime(s.t)}</b></div>`).join('')}</div>`).join('')}</div>`;
+    ${d.list.map((s) => `<div class="cal-s ${Date.parse(s.t) < Date.now() ? 'past' : ''} ${s === nx ? 'now' : ''}"><span>${esc(s.label)}</span><b>${s.t ? fmtTime(s.t) : '—'}</b></div>`).join('')}</div>`).join('')}</div>`;
 }
 // Lien vers la fiche d'un Grand Prix (vraie adresse dans la version web, pour la partager et pour les moteurs de recherche)
 const gpLink = (r, text, cls = '', pre = '') => `<a href="${seasonPath(year, 'gp', gpSlug(r.name))}" data-szgp="${r.round}"${cls ? ` class="${cls}"` : ''}>${pre}${esc(text)}</a>`;

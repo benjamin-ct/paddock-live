@@ -25,7 +25,7 @@ import { exportServerSettings, importServerSettings } from './backup.js';
 import { creatorEnabled, setCreator } from './creator.js';
 import { studioInfo, enableStudio, disableStudio, restoreAccounts, syncStudio, startStudioSync } from './studio-sync.js';
 import { startAutoRenew, renew as renewF1tv, sessionOf, state as renewState, resetRenewState } from './f1tv-auth.js';
-import { localHost, sameSiteRequest, decodePath, extensionRequest, EXTENSION_ROUTES } from './guard.js';
+import { localHost, directHost, sameSiteRequest, decodePath, extensionRequest, EXTENSION_ROUTES, EXT_KEY, extensionProof } from './guard.js';
 import { stats, startStats, sendFeedback, sendFeedbackFile } from './stats.js';
 import { archivePath, sendArchiveFile, archiveError } from './archive.js';
 import { feedDiag } from './feed-diag.js';
@@ -280,7 +280,7 @@ async function handleApi(req, res, url) {
       const round = Number(url.searchParams.get('round')) || null;
       const alarm = Math.max(0, Math.min(120, Number(url.searchParams.get('alarm') ?? 15) || 0));
       const d = await season(year);
-      const body = buildIcs(d.races, { year, round, alarmMin: alarm, lang: url.searchParams.get('lang') === 'en' ? 'en' : 'fr' });
+      const body = buildIcs(d.races, { year, round, alarmMin: alarm, lang: url.searchParams.get('lang') || 'fr' });
       res.writeHead(200, {
         'Content-Type': 'text/calendar; charset=utf-8',
         'Content-Disposition': `attachment; filename="f1-${year}${round ? `-manche-${round}` : ''}.ics"`,
@@ -581,8 +581,11 @@ async function handleApi(req, res, url) {
       return sendJSON(res, 200, { ok: true, paused: hub.pausedAt !== null });
     }
 
-    case 'GET /api/auth':
-      return sendJSON(res, 200, authInfo());
+    case 'GET /api/auth': {
+      // Extension (depuis la 1.2.0) : pairing = clé gardée par cette appli ; preuve demandée (?c=) avec la clé reçue
+      const c = url.searchParams.get('c'), key = getConfig().extKey;
+      return sendJSON(res, 200, { ...authInfo(), pairing: true, ...(c && key ? { proof: extensionProof(key, c.slice(0, 100), req.socket.localPort) } : {}) });
+    }
 
     // Renouveler le jeton tout de suite (sinon fait automatiquement dans ses dernières 24 h)
     case 'POST /api/auth/renew':
@@ -616,7 +619,10 @@ async function handleApi(req, res, url) {
       if (sessionOf(getConfig().f1tvToken)) await renewF1tv({ force: true, swap: true }).catch(() => {});
       resetRenewState();
       if (hub.source.mode === 'live') live.restart();
-      return sendJSON(res, 200, authInfo());
+      // Clé de l'extension (depuis la 1.2.0) : gardée pour prouver ensuite que c'est bien cette appli
+      const paired = typeof body.pair === 'string' && EXT_KEY.test(body.pair);
+      if (paired) saveConfig({ extKey: body.pair });
+      return sendJSON(res, 200, { ...authInfo(), ...(paired ? { paired: true } : {}) });
     }
 
     // GPS laissé à un autre appareil du même compte F1 TV (version web…) : repris ici
@@ -637,11 +643,13 @@ async function handleApi(req, res, url) {
 
 // Serveur principal, qui n'écoute que sur cet ordinateur : seules les adresses locales sont
 // acceptées (un nom de domaine extérieur pointant vers 127.0.0.1 = attaque « DNS rebinding »).
-// L'accès depuis le réseau local passe par son propre serveur, protégé par une clé.
+// L'accès depuis le réseau local passe par son propre serveur, protégé par une clé. Avec HOST=0.0.0.0 :
+// adresses IP et nom de l'ordinateur en plus, jamais un autre nom de domaine
 const loopbackOnly = ['127.0.0.1', 'localhost', '::1'].includes(settings.host);
+const hostOk = (h) => (loopbackOnly ? localHost(h) : directHost(h));
 
 async function handler(req, res) {
-  if (loopbackOnly && req.socket.server === server && !localHost(req.headers.host)) {
+  if (req.socket.server === server && !hostOk(req.headers.host)) {
     res.writeHead(421, { 'Content-Type': 'text/plain; charset=utf-8' });
     res.end('Hôte non autorisé');
     return;
@@ -665,7 +673,7 @@ const server = http.createServer(handler);
 const wss = new WebSocketServer({
   server, path: '/ws', perMessageDeflate: { threshold: 4096 },
   // Connexion depuis l'interface uniquement (pas depuis la page d'un autre site)
-  verifyClient: ({ req }) => (!loopbackOnly || localHost(req.headers.host)) && sameSiteRequest({ origin: req.headers.origin, host: req.headers.host }),
+  verifyClient: ({ req }) => hostOk(req.headers.host) && sameSiteRequest({ origin: req.headers.origin, host: req.headers.host }),
 });
 // follow : overlay de streaming (OBS, Streamlabs, Meld Studio) : suit le délai TV de l'appli au lieu d'imposer le sien
 wss.on('connection', (ws, req) => hub.addClient(ws, { host: isLoopback(req.socket.remoteAddress) && !/[?&]follow=1(&|$)/.test(req.url || '') }));

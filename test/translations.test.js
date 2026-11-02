@@ -22,3 +22,15 @@ test('traductions FIA : ajout, gardées sans être remplacées, anciennes traduc
   fs.writeFileSync(path.join(process.env.PADDOCK_DATA_DIR, '.cache', 'translations-de.json'), JSON.stringify({ Floor: { t: 'Boden', q: 'high' }, Wing: { t: 'Flügel', q: 'light' }, Duct: { t: 'Kanal', q: 'cloud' } }));
   assert.deepEqual(Object.keys(getTranslations('de')), ['Duct']);
 });
+
+test('traductions : cache plein, la plus ancienne retirée pour garder la nouvelle', () => {
+  const full = {};
+  for (let i = 0; i < 20000; i++) full[`Text ${i}`] = { t: `Texto ${i}`, q: 'cloud' };
+  fs.mkdirSync(path.join(process.env.PADDOCK_DATA_DIR, '.cache'), { recursive: true });
+  fs.writeFileSync(path.join(process.env.PADDOCK_DATA_DIR, '.cache', 'translations-es.json'), JSON.stringify(full));
+  assert.equal(addTranslations('es', [{ en: 'Rear wing', t: 'Alerón trasero', q: 'cloud' }]), 1);
+  const es = getTranslations('es');
+  assert.equal(Object.keys(es).length, 20000);
+  assert.equal(es['Text 0'], undefined);
+  assert.deepEqual(es['Rear wing'], { t: 'Alerón trasero', q: 'cloud' });
+});

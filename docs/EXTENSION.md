@@ -10,6 +10,13 @@ ouverte sur l'ordinateur reçoit la connexion toute seule (GPS et télémétrie 
 - L'extension lit seulement le cookie de connexion de formula1.com (`entitlement_token` sur le site actuel,
   `login-session` sur l'ancien), garde le jeton d'abonnement F1 TV qu'il contient et l'envoie à l'appli sur
   `http://127.0.0.1` (ports 3000, 3001, 3002 et 3010, ceux qu'essaie l'appli de bureau) : `POST /api/auth`.
+- Liaison par clé (extension 1.2.0) : au premier envoi, l'extension crée une clé (`pairKey`) et l'envoie avec le
+  jeton (champ `pair`) ; l'appli la garde dans `config.json` (`extKey`, jamais dans les sauvegardes). Ensuite,
+  avant chaque envoi, l'extension pose une question au hasard (`GET /api/auth?c=…`) et n'envoie le jeton que si
+  l'appli répond `proof` = HMAC-SHA256(clé, « question:port ») : un autre programme placé sur l'un des ports ne
+  reçoit rien. Appli réinstallée : la fenêtre de l'extension affiche « Pas reconnue » et un clic sur « Envoyer »
+  la relie de nouveau. Une extension 1.1.0 avec une appli récente, ou une 1.2.0 avec une ancienne appli,
+  marche comme avant (sans la protection).
 - Version web (`app.paddocklive.app`, depuis la 1.1.0) : le script `web.js` (seulement sur les pages de Paddock
   Live) donne la connexion à la page ouverte, qui l'envoie au relais du serveur Paddock Live pour ouvrir SA
   connexion au direct de la F1 (GPS et télémétrie de son propre abonnement). Le relais la garde en mémoire le

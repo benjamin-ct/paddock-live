@@ -47,6 +47,7 @@ let ws = null;
 // Comparaison (fenêtres Analyse et Comparaison) : GPS et télémétrie gardés depuis l'ouverture de la page (le relais
 // n'en garde que quelques minutes), calculés ici comme le fait le serveur de l'appli (shared/compare.js)
 const gps = new Map(), tel = new Map();
+let gpsSession;   // séance de ce GPS (Path du relais)
 const keepTel = /[?&]only=(analysis|compare)\b/.test(location.search);
 const hub = new WebHub({
   apply: applyEvent, reset: handleReset, batch: handleBatch, inflate,
@@ -157,7 +158,7 @@ function pairSend() {
   const until = new Date(exp).toLocaleString(LOCALE, { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
   pairBody.innerHTML = `<p class="pair-ok">${esc(t('Connecté à F1 TV sur cet appareil : GPS et télémétrie en direct.'))}${exp ? `<br><small>${esc(t('Connexion valable jusqu\'au {}.', until))}</small>` : ''}</p>`
     + `<p class="pair-h">${esc(t('Sur le téléphone ou l\'autre navigateur, ouvrez Paddock Live et touchez « Connexion F1 TV » pour afficher un code, puis tapez-le ici :'))}</p>`
-    + `<form id="pairForm"><input id="pairInput" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" placeholder="------" aria-label="${esc(t('Code à 6 chiffres'))}"><button class="btn btn-accent" type="submit">${esc(t('Relier'))}</button></form>`
+    + `<form id="pairForm"><input id="pairInput" inputmode="numeric" autocomplete="one-time-code" maxlength="8" pattern="[0-9]{6}([0-9]{2})?" placeholder="--------" aria-label="${esc(t('Code à 8 chiffres'))}"><button class="btn btn-accent" type="submit">${esc(t('Relier'))}</button></form>`
     + '<p class="pair-note" id="pairSendMsg"></p>'
     + `<button class="btn pair-out" id="pairOut">${esc(t('Se déconnecter de F1 TV sur cet appareil'))}</button>`;
   const form = pairBody.querySelector('#pairForm');
@@ -175,8 +176,8 @@ function pairSend() {
   const msg = pairBody.querySelector('#pairSendMsg');
   form.addEventListener('submit', async (ev) => {
     ev.preventDefault();
-    const code = (input.value.match(/\d/g) || []).join('').slice(0, 6);
-    if (code.length !== 6) { msg.textContent = t('Entrez le code à 6 chiffres.'); return; }
+    const code = (input.value.match(/\d/g) || []).join('').slice(0, 8);
+    if (code.length !== 8 && code.length !== 6) { msg.textContent = t('Entrez le code à 8 chiffres.'); return; }   // 6 : code d'avant la mise à jour
     if (!f1tv) { msg.textContent = t('Aucune connexion F1 TV sur cet appareil.'); return; }
     msg.textContent = t('Envoi…');
     const pr = await fetch(`/live/api/pair?code=${code}`).then((x) => (x.status === 200 ? x.json() : null)).catch(() => null);
@@ -209,10 +210,14 @@ function status(now) {
 store.takeGps = () => { if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'here' })); };
 
 let fails = 0;   // tentatives d'affilée sans connexion
+// Nouvel essai : 3 s, puis doublé à chaque échec jusqu'à 60 s, avec une part au hasard (des visiteurs refusés ensemble
+// ne reviennent pas ensemble) ; 3 s de nouveau après une connexion réussie
+let wait = 3000;
 function connect() {
   ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/live/ws?d=${store.delay}${relayId ? `&u=${relayId}` : ''}`);
   ws.onopen = () => {
     fails = 0;
+    wait = 3000;
     store.connected = true;
     emit('connection', true);
     if (f1tv) ws.send(JSON.stringify({ type: 'auth', token: f1tv }));
@@ -220,7 +225,12 @@ function connect() {
   ws.onmessage = (ev) => {
     let msg;
     try { msg = JSON.parse(ev.data); } catch { return; }
-    if (msg.type === 'hello') { relay = msg.status || {}; hub.hello(msg); status(msg.now); setDelay(store.delay); }
+    if (msg.type === 'hello') {
+      // Nouvelle séance : GPS et télémétrie de la précédente oubliés (sinon gardés tout le week-end)
+      const ses = msg.base?.state?.SessionInfo?.Path ?? null;
+      if (ses !== gpsSession) { gpsSession = ses; gps.clear(); tel.clear(); }
+      relay = msg.status || {}; hub.hello(msg); status(msg.now); setDelay(store.delay);
+    }
     else if (msg.type === 'evs') { hub.push(msg.events); hub.pushStream(msg.stream || []); }
     else if (msg.type === 'stream') hub.pushStream(msg.items || [], true);
     else if (msg.type === 'up') { relay = msg.status || {}; status(msg.now); }
@@ -233,7 +243,8 @@ function connect() {
     // Son relais injoignable trois fois de suite (refusé, plafond du jour) : relais commun, sans GPS, plutôt que
     // « Serveur déconnecté » jusqu'au lendemain
     else if (!opened && relayId && ++fails >= 3) relayId = '';
-    setTimeout(connect, 3000);
+    setTimeout(connect, Math.min(60e3, wait * (1 + Math.random() / 3)));
+    wait = Math.min(60e3, wait * 2);
   };
   ws.onerror = () => ws.close();
 }
@@ -298,20 +309,28 @@ function lastSession(races) {
   return out.filter((s) => s.rows.length && s.t < Date.now()).sort((a, b) => b.t - a.t)[0] || null;
 }
 const resCard = (title, rows) => `<div class="web-res-card"><h3>${esc(title)}</h3><ol>${rows.map(([p, n, v]) => `<li><b>${esc(p ?? '')}</b><span>${esc(n)}</span><small>${esc(v ?? '')}</small></li>`).join('')}</ol></div>`;
-document.querySelector('#webResultsBtn')?.addEventListener('click', async (e) => {
+// Serveur injoignable : bouton Réessayer, et nouvel essai tout seul au bout de 30 s
+let resRetry = null;
+async function loadResults() {
+  clearTimeout(resRetry);
   const box = document.querySelector('#webResults');
-  e.currentTarget.disabled = true;
   let d = null;
   for (const y of [new Date().getFullYear(), new Date().getFullYear() - 1]) {
     d = await fetch(`/live/api/season?year=${y}`).then((r) => r.json()).catch(() => null);
     if (d?.races?.some((r) => r.results?.length)) break;
   }
-  if (!d?.races) { box.innerHTML = '<p class="muted">Résultats indisponibles pour le moment.</p>'; return; }
+  if (!d?.races) {
+    box.innerHTML = `<p class="muted">${esc(t('Résultats indisponibles pour le moment.'))} <button class="btn small" id="webResRetry">${esc(t('Réessayer'))}</button></p>`;
+    box.querySelector('#webResRetry').addEventListener('click', loadResults);
+    resRetry = setTimeout(loadResults, 30e3);
+    return;
+  }
   const last = lastSession(d.races);
   box.innerHTML = `<div class="web-res-grid">${last ? resCard(`${gpShort(last.race, LANG)} · ${last.label}`, last.rows.slice(0, 10)) : ''}
     ${resCard('Championnat pilotes', (d.drivers || []).slice(0, 10).map((x) => [x.pos, x.name, `${x.points} pts`]))}
     ${resCard('Championnat constructeurs', (d.constructors || []).map((x) => [x.pos, x.name, `${x.points} pts`]))}</div>`;
-});
+}
+document.querySelector('#webResultsBtn')?.addEventListener('click', (e) => { e.currentTarget.disabled = true; loadResults(); });
 
 // Nouveautés : les 3 dernières sections du journal (fichier écrit à la construction), la plus récente ouverte.
 // Point rouge sur le bouton tant que la plus récente n'a pas été lue (mémorisée dans ce navigateur)

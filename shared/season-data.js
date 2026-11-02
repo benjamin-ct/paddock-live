@@ -2,6 +2,8 @@
 // à partir des réponses de l'API publique Jolpica. Code pur, partagé par le serveur de l'appli et la
 // page web du créateur (qui interroge l'API directement).
 
+import { lapTime } from './race-laps.js';
+
 // Les courses sont découpées sur plusieurs pages : on regroupe par manche
 function byRound(races, key) {
   const m = new Map();
@@ -15,11 +17,8 @@ function byRound(races, key) {
 
 const driverOf = (d) => ({ code: d?.code || d?.familyName?.slice(0, 3).toUpperCase(), name: `${d?.givenName || ''} ${d?.familyName || ''}`.trim(), last: d?.familyName || '', number: d?.permanentNumber || null });
 const iso = (s) => (s?.date ? `${s.date}T${s.time || '00:00:00Z'}` : null);
-// « 1:23.456 » -> secondes (null si pas de temps)
-const lapTime = (t) => {
-  const m = /^(?:(\d+):)?(\d+(?:\.\d+)?)$/.exec(String(t || '').trim());
-  return m ? Math.round(((Number(m[1]) || 0) * 60 + Number(m[2])) * 1000) / 1000 : null;
-};
+// Séance sans heure (calendrier publié avant les horaires) : t null (ni rappel ni agenda), date seule dans day
+const session = (label, s) => (s?.date && !s.time ? { label, t: null, day: s.date } : { label, t: iso(s) });
 
 export function summarize({ schedule, driverStandings, constructorStandings, results, quali, sprint }) {
   const res = new Map(byRound(results, 'Results').map((r) => [r.round, r.Results]));
@@ -32,8 +31,8 @@ export function summarize({ schedule, driverStandings, constructorStandings, res
   });
   const races = schedule.map((r) => {
     const sessions = [['FirstPractice', 'EL1'], ['SecondPractice', 'EL2'], ['ThirdPractice', 'EL3'], ['SprintQualifying', 'Qualif. sprint'], ['Sprint', 'Sprint'], ['Qualifying', 'Qualifications']]
-      .filter(([k]) => r[k]).map(([k, label]) => ({ label, t: iso(r[k]) }));
-    sessions.push({ label: 'Course', t: iso(r) });
+      .filter(([k]) => r[k]).map(([k, label]) => session(label, r[k]));
+    sessions.push(session('Course', r));
     const results = (res.get(r.round) || []).map(row);
     const q = (qual.get(r.round) || []).map((x) => ({ ...driverOf(x.Driver), team: x.Constructor?.name || '', teamId: x.Constructor?.constructorId || '', pos: Number(x.position) || null,
       q: [x.Q1, x.Q2, x.Q3].map((t) => lapTime(t)) }));

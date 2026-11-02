@@ -8,6 +8,8 @@
 // pneus pas neufs, usure qui reprend exactement là où elle s'était arrêtée), est rattaché au
 // précédent : il ne reste que les vrais changements de pneus.
 
+import { median } from './season-calc.js';
+
 const list = (o) => (!o ? [] : Array.isArray(o) ? o : Object.keys(o).sort((a, b) => a - b).map((k) => o[k])).filter(Boolean);
 const num = (v) => (v === undefined || v === null || v === '' ? null : Number(v));
 const isNew = (s) => s?.New === true || s?.New === 'true';
@@ -68,13 +70,16 @@ export function neutralLaps(messages) {
     if (m.Category === 'SafetyCar') {
       if (m.Status === 'DEPLOYED') from ??= lap;
       else if ((m.Status === 'ENDING' || m.Status === 'IN THIS LAP') && from !== null) { for (let l = from; l <= lap + 1; l++) out.add(l); from = null; }
-    } else if (m.Flag === 'RED' && (m.Scope === 'Track' || /RED FLAG/.test(text))) { out.add(lap); out.add(lap + 1); }
+    } else if (m.Flag === 'RED' && (m.Scope === 'Track' || /RED FLAG/.test(text))) {
+      // Drapeau rouge pendant une voiture de sécurité : la période se referme ici (comme race-story.js)
+      if (from !== null) { for (let l = from; l < lap; l++) out.add(l); from = null; }
+      out.add(lap); out.add(lap + 1);
+    }
   }
   if (from !== null) for (let l = from; l <= from + 60; l++) out.add(l);
   return out;
 }
 
-const median = (a) => { const s = [...a].sort((x, y) => x - y); return s.length ? (s.length % 2 ? s[s.length >> 1] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2) : null; };
 
 /**
  * Temps réellement perdu dans la voie des stands, mesuré pendant la course. La voie des stands

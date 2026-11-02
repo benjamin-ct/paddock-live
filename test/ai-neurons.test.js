@@ -62,6 +62,24 @@ test('IA : chaque appel compté, plus aucun appel passé le plafond', async () =
   assert.equal(f.calls.length, 1);
 });
 
+test('IA : appels simultanés près du plafond, neurones réservés avant chaque appel', async () => {
+  const day = new Date().toISOString().slice(0, 10);
+  const f = fakeEnv();
+  const top = (await neuronBudget(f.env, day)).top;
+  f.usage.set(`neurons:${day}`, top - 1000);
+  const run = f.env.AI.run;
+  f.env.AI.run = async (...a) => { await new Promise((r) => setTimeout(r, 20)); return run(...a); };
+  const res = await Promise.allSettled(Array.from({ length: 10 }, () => runAI(f.env, MODEL, { messages: [], max_tokens: 4000 })));
+  const ok = res.filter((r) => r.status === 'fulfilled').length;
+  assert.ok(ok >= 1 && ok <= 5, `${ok} appels passés`);   // 4 000 jetons de sortie au plus : environ 200 neurones réservés chacun
+  assert.equal(f.usage.get(`neurons:${day}`), top - 1000 + ok * 420, 'réserves remplacées par les neurones de la réponse');
+  // Appel en échec : réserve rendue
+  f.usage.set(`neurons:${day}`, 0);
+  f.env.AI.run = async () => { throw new Error('panne'); };
+  await assert.rejects(runAI(f.env, MODEL, { messages: [], max_tokens: 4000 }), /panne/);
+  assert.equal(f.usage.get(`neurons:${day}`), 0);
+});
+
 test('IA : ce qui a été produit, aujourd\'hui et sur 30 jours (parts par appelant non recomptées)', async () => {
   const f = fakeEnv({}, new Map([
     ['2026-10-27', 109], ['2026-10-27|1.2.3.4|2026-10-27', 40], ['2026-10-27|studio', 45], ['2026-10-20', 1000], ['2026-09-20', 5000],

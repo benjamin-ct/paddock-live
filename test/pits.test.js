@@ -35,6 +35,9 @@ test('arrêts : résumé de course sans les passages sous voiture de sécurité'
 test('arrêts : tours neutralisés d\'après la direction de course', () => {
   const n = neutralLaps([{ Category: 'SafetyCar', Status: 'DEPLOYED', Lap: 31 }, { Category: 'SafetyCar', Status: 'IN THIS LAP', Lap: 34 }, { Flag: 'RED', Scope: 'Track', Lap: 40 }]);
   assert.deepEqual([...n].sort((a, b) => a - b), [31, 32, 33, 34, 35, 40, 41]);
+  // Voiture de sécurité puis drapeau rouge : la période se referme au drapeau rouge
+  const r = neutralLaps([{ Category: 'SafetyCar', Status: 'DEPLOYED', Lap: 10 }, { Flag: 'RED', Scope: 'Track', Lap: 12 }]);
+  assert.deepEqual([...r].sort((a, b) => a - b), [10, 11, 12, 13]);
 });
 
 test('arrêts : temps perdu au stand mesuré sur les secteurs d\'entrée et de sortie', () => {

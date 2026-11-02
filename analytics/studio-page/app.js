@@ -645,7 +645,7 @@ const SECTIONS = [
     <p class="hint">Page non listée : envoie le lien avec un des messages.</p>` },
   { id: 'f1tv', icon: 'flag', title: 'F1 TV sur un autre appareil', show: (me) => me.f1tv, sub: () => 'Relier un téléphone, appareils connectés', html: () => `<h3 class="section">Relier un téléphone</h3><div class="group">
       <div class="row-item static"><span class="grow"><b>Ton compte F1 TV sur un autre appareil</b><small>Sur le téléphone, ouvre Paddock Live (app.paddocklive.app), touche « Connexion F1 TV » et lis le code à 6 chiffres.</small></span></div>
-      <div class="row-item"><input id="pairCode" type="text" class="grow pair-code-in" inputmode="numeric" autocomplete="off" maxlength="6" placeholder="Code à 6 chiffres"><button class="btn small btn-accent" id="pairGo">Relier</button></div></div>
+      <div class="row-item"><input id="pairCode" type="text" class="grow pair-code-in" inputmode="numeric" autocomplete="off" maxlength="8" placeholder="Code à 8 chiffres"><button class="btn small btn-accent" id="pairGo">Relier</button></div></div>
     <p class="hint">Ta connexion F1 TV est envoyée chiffrée à ce téléphone (GPS et télémétrie activés). Elle n'est gardée que dans ton coffre, comme pour les archives.</p>
     <h3 class="section">Appareils connectés <button class="btn small" id="pairRefresh">${icon('refresh')}Rafraîchir</button></h3>
     <div class="group" id="pairDevices"><div class="row-item static"><span class="grow"><small>Chargement…</small></span></div></div>
@@ -662,8 +662,8 @@ const SECTIONS = [
       } catch { devs.innerHTML = '<div class="row-item static"><span class="grow"><small>Liste indisponible.</small></span></div>'; }
     };
     go.onclick = async () => {
-      const code = (inp.value.match(/\d/g) || []).join('').slice(0, 6);
-      if (code.length !== 6) { toast('Entre le code à 6 chiffres', 'bad'); return; }
+      const code = (inp.value.match(/\d/g) || []).join('').slice(0, 8);
+      if (code.length !== 8 && code.length !== 6) { toast('Entre le code à 8 chiffres', 'bad'); return; }   // 6 : code d'avant la mise à jour
       go.disabled = true;
       try { await api('pair', { method: 'POST', body: JSON.stringify({ code }) }); toast('Téléphone relié', 'ok'); inp.value = ''; setTimeout(loadDevices, 1500); }
       catch (e) { toast(e.message || 'Échec de l\'envoi', 'bad'); }

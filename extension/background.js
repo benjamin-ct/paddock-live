@@ -1,7 +1,7 @@
 // Paddock Live Companion : transmet la connexion F1 TV faite dans le navigateur (cookie
 // « entitlement_token » de formula1.com, « login-session » sur l'ancien site) à l'appli Paddock Live
 // qui tourne sur cet ordinateur.
-// Rien d'autre n'est lu, et rien ne part ailleurs que vers 127.0.0.1.
+// Rien d'autre n'est lu, et rien ne part ailleurs que vers 127.0.0.1 (l'appli reliée, voir pairing).
 const api = globalThis.browser ?? globalThis.chrome;
 const PORTS = [3000, 3001, 3002, 3010];   // ports essayés par l'appli de bureau au démarrage
 const ORIGINS = ['https://*.formula1.com/*', 'http://127.0.0.1/*'];
@@ -58,16 +58,38 @@ async function session() {
   return null;
 }
 
-// Appli Paddock Live ouverte : { port, auth } (auth : état de sa connexion F1 TV), ou null
+// Clé partagée avec l'appli (depuis la 1.2.0) : donnée avec le premier envoi, puis l'appli prouve qu'elle la
+// connaît avant chaque envoi. Un autre programme qui répond sur l'un de ces ports n'a pas la clé : rien ne lui
+// est envoyé sans un clic sur « Envoyer » (qui relie l'appli trouvée, par exemple réinstallée)
+const b64url = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const randomKey = (n) => b64url(crypto.getRandomValues(new Uint8Array(n)));
+async function proof(key, nonce, port) {
+  const enc = new TextEncoder();
+  const k = await crypto.subtle.importKey('raw', enc.encode(key), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  return b64url(await crypto.subtle.sign('HMAC', k, enc.encode(`${nonce}:${port}`)));
+}
+async function pairing() {
+  let { pairKey, paired } = await api.storage.local.get(['pairKey', 'paired']);
+  if (!pairKey) { pairKey = randomKey(32); await api.storage.local.set({ pairKey }); }
+  return { key: pairKey, paired: !!paired };
+}
+
+// Appli Paddock Live ouverte : { port, auth, known } (auth : état de sa connexion F1 TV ; known : appli reliée
+// qui a prouvé connaître la clé, ou première trouvée tant qu'aucune n'est reliée), ou null
 async function findApp() {
+  const { key, paired } = await pairing();
+  let other = null;
   for (const port of PORTS) {
     try {
-      const r = await fetch(`http://127.0.0.1:${port}/api/auth`, { signal: AbortSignal.timeout(1500) });
+      const nonce = randomKey(16);
+      const r = await fetch(`http://127.0.0.1:${port}/api/auth?c=${nonce}`, { signal: AbortSignal.timeout(1500) });
       const auth = await r.json();
-      if (r.ok && 'hasToken' in auth) return { port, auth };
+      if (!r.ok || !('hasToken' in auth)) continue;
+      if (!paired || (auth.proof && auth.proof === await proof(key, nonce, port))) return { port, auth, known: true };
+      other ||= { port, auth, known: false };
     } catch { /* port libre ou autre logiciel */ }
   }
-  return null;
+  return other;
 }
 
 // État affiché par la fenêtre de l'extension ; send : transmet la connexion si elle a changé (ou
@@ -76,21 +98,23 @@ async function sync({ send = true, force = false } = {}) {
   const value = await session();
   const app = await findApp();
   const access = await api.permissions.contains({ origins: ORIGINS }).catch(() => true);
-  const out = { signedIn: !!value, access, app: app && { port: app.port, linked: !!app.auth.hasToken, expiresAt: app.auth.expiresAt || null } };
+  const out = { signedIn: !!value, access, app: app && { port: app.port, linked: !!app.auth.hasToken, expiresAt: app.auth.expiresAt || null, known: app.known } };
   // Pas de session trouvée : noms des cookies formula1.com visibles (jamais leurs valeurs), pour le diagnostic
   if (!value && access) {
     const all = await f1Cookies();
     out.seen = [...new Set(all.map((c) => (NAMES.includes(c.name) ? `${c.name} : ${shape(c.value)}` : c.name)))].sort();
   }
-  if (!send || !value || !app) return out;
+  if (!send || !value || !app || (!app.known && !force)) return out;
   const { sent } = await api.storage.local.get('sent');
-  if (!force && sent === value) return out;
+  const { key, paired } = await pairing();
+  // Déjà envoyée : seulement renvoyée pour relier une appli qui sait garder la clé (pairing)
+  if (!force && sent === value && (paired || !app.auth.pairing)) return out;
   try {
-    const r = await fetch(`http://127.0.0.1:${app.port}/api/auth`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: value }) });
+    const r = await fetch(`http://127.0.0.1:${app.port}/api/auth`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: value, pair: key }) });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) return { ...out, error: j.error || `HTTP ${r.status}` };
-    await api.storage.local.set({ sent: value });
-    return { ...out, app: { ...out.app, linked: true, expiresAt: j.expiresAt || null }, justSent: true };
+    await api.storage.local.set({ sent: value, ...(j.paired ? { paired: true } : {}) });
+    return { ...out, app: { ...out.app, linked: true, expiresAt: j.expiresAt || null, known: true }, justSent: true };
   } catch (err) { return { ...out, error: String(err?.message || err) }; }
 }
 

@@ -237,3 +237,21 @@ test('kilomètres par écurie : tours bouclés en course et en sprint × longueu
   const m = teamMileage(races, (r) => (r === 1 ? 5 : null));
   assert.deepEqual(m.map((t) => [t.teamId, t.laps, t.km]), [['a', 60, 300], ['b', 20, 100]]);
 });
+
+test('course au titre : le sprint déjà couru du week-end en cours n\'est plus à prendre', () => {
+  const pts = (o) => Object.entries(o).map(([code, points]) => ({ code, teamId: code, points }));
+  // Samedi soir : sprint couru (8 pts à AAA), course du dimanche à venir, dernière manche
+  const data = {
+    races: [
+      { round: 1, name: 'GP 1', results: pts({ AAA: 25, BBB: 0 }), sprintResults: [] },
+      { round: 2, name: 'GP 2', sprint: true, results: [], sprintResults: pts({ AAA: 8, BBB: 0 }) },
+    ],
+    drivers: [{ pos: 1, code: 'AAA', name: 'A', points: 33, teamId: 'AAA' }, { pos: 2, code: 'BBB', name: 'B', points: 7, teamId: 'BBB' }],
+    constructors: [],
+  };
+  const t = titleRace(data, 2026);
+  assert.equal(t.maxD, 25, 'seule la course reste');
+  assert.equal(t.sprints, 0);
+  assert.equal(t.drivers.find((e) => e.code === 'BBB').alive, false, '7 + 25 < 33');
+  assert.equal(t.champion.code, 'AAA');
+});

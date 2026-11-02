@@ -173,15 +173,16 @@ test('traduction : réponse du modèle au lieu d\'une traduction refusée', asyn
 });
 
 // API de Claude simulée (fetch donné au SDK) : réponse « [modèle] texte », ou erreur de crédits
-function fakeClaude(f, { fail = false, reply = null } = {}) {
+function fakeClaude(f, { fail = false, reply = null, usage = { input_tokens: 1, output_tokens: 1 }, wait = 0 } = {}) {
   const sent = [];
   f.env.ANTHROPIC_API_KEY = 'test';
   f.env.CLAUDE_FETCH = async (url, init) => {
     const body = JSON.parse(init.body);
     sent.push(body);
+    if (wait) await new Promise((r) => setTimeout(r, wait));
     if (fail) return new Response(JSON.stringify({ type: 'error', error: { type: 'invalid_request_error', message: 'Your credit balance is too low to access the Anthropic API.' } }), { status: 400, headers: { 'content-type': 'application/json' } });
     const list = JSON.parse(body.messages[0].content).map(reply || ((t) => `[${body.model}] ${t}`));
-    return new Response(JSON.stringify({ id: 'msg_1', type: 'message', role: 'assistant', model: body.model, content: [{ type: 'text', text: JSON.stringify(list) }], stop_reason: 'end_turn', usage: { input_tokens: 1, output_tokens: 1 } }), { status: 200, headers: { 'content-type': 'application/json' } });
+    return new Response(JSON.stringify({ id: 'msg_1', type: 'message', role: 'assistant', model: body.model, content: [{ type: 'text', text: JSON.stringify(list) }], stop_reason: 'end_turn', usage }), { status: 200, headers: { 'content-type': 'application/json' } });
   };
   return sent;
 }
@@ -213,6 +214,20 @@ test('traduction partagée : plafond en dollars du jour atteint -> Mistral, sans
   f.env.CLAUDE_DAILY_USD = '6';
   const r2 = await translateBatch(f.env, { to: 'fr', items: [{ text: 'Other', from: 'en', kind: 'news' }] }, '2026-10-15');
   assert.deepEqual([r2.out, sent.length], [['[claude-opus-5-5] Other'], 1]);
+});
+
+test('traduction partagée : requêtes simultanées, plafond en dollars tenu (coût réservé avant chaque appel)', async () => {
+  const f = fakeEnv();
+  f.env.CLAUDE_DAILY_USD = '0.5';
+  // Appel réel du 27 oct. 2026 : 0,060628 $ ; réponse en 30 ms, les 20 demandes partent ensemble
+  const sent = fakeClaude(f, { usage: { input_tokens: 1722, output_tokens: 2687 }, wait: 30 });
+  const day = '2026-10-15', today = new Date().toISOString().slice(0, 10);
+  const all = await Promise.all(Array.from({ length: 20 }, (_, i) => translateBatch(f.env, { to: 'fr', items: [{ text: `Titre ${i}`, from: 'en', kind: 'news' }] }, day)));
+  assert.ok(all.every((r) => r.out[0]), 'chaque texte traduit (Claude ou Mistral)');
+  assert.ok(sent.length >= 1 && sent.length < 20, `${sent.length} appels à Claude`);
+  assert.ok(f.usage.get(`claude-opus:${today}`) <= 0.5e6, 'dépense sous le plafond');
+  assert.equal(f.usage.get(`claude:${day}`), sent.length * 60628, 'réserves remplacées par le coût réel');
+  assert.equal(f.calls.length, 20 - sent.length);   // le reste par Mistral
 });
 
 test('traduction partagée : un titre « il semble que » gardé ; réponse de Claude refusée -> secours gardé, Claude pas rappelé', async () => {

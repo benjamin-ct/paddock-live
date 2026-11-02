@@ -219,6 +219,31 @@ test('version web : PDF de la FIA relayé pour être affiché (pas téléchargé
   }
 });
 
+test('version web : radar de pluie (fond de carte relayé et gardé, RainViewer et Windy permis), tracé du circuit borné', async () => {
+  const asked = [];
+  const kept = new Map();
+  const realFetch = globalThis.fetch;
+  globalThis.caches = { default: { match: async (r) => kept.get(r.url)?.clone() || null, put: async (r, res) => { kept.set(r.url, res); } } };
+  globalThis.fetch = async (u, init) => { asked.push([String(u), init?.headers?.['User-Agent']]); return new Response(new Uint8Array([137, 80, 78, 71]), { status: 200 }); };
+  try {
+    const get = (q, p = 'tile') => { const url = new URL(`https://app.paddocklive.app/live/api/${p}?${q}`); return liveApi(new Request(url), url, {}); };
+    const r = await get('z=12&x=2048&y=1361');
+    assert.deepEqual([r.status, r.headers.get('Content-Type'), r.headers.get('Cache-Control')], [200, 'image/png', 'public, max-age=604800']);
+    assert.equal((await get('z=12&x=2048&y=1361')).status, 200);
+    assert.deepEqual(asked.map(([u]) => u), ['https://tile.openstreetmap.org/12/2048/1361.png']);   // une seule fois : gardée
+    assert.match(asked[0][1], /PaddockLive/);
+    for (const bad of ['z=17&x=0&y=0', 'z=2&x=4&y=0', 'z=2&x=-1&y=0', 'z=a&x=0&y=0']) assert.equal((await get(bad)).status, 404);
+    for (const bad of ['key=999999&year=2026', 'key=10&year=1900', 'key=10&year=2999', 'key=abc&year=2026']) assert.equal((await get(bad, 'circuit')).status, 400);
+    assert.equal(asked.length, 1);
+  } finally {
+    globalThis.fetch = realFetch;
+    delete globalThis.caches;
+  }
+  const { LIVE_HEADERS } = await import('../analytics/live-page/headers.js');
+  assert.match(LIVE_HEADERS['Content-Security-Policy'], /connect-src [^;]*https:\/\/api\.rainviewer\.com/);
+  assert.match(LIVE_HEADERS['Content-Security-Policy'], /frame-src https:\/\/embed\.windy\.com/);
+});
+
 test('relais web : séance en cours pour la page du créateur, sans rallumer le relais sur un appel public', async () => {
   const relay = new LiveRelay({}, {});
   const t0 = 1e12;
@@ -254,6 +279,21 @@ test('relais web : GPS seulement avec la connexion F1 TV du visiteur, sur son pr
   assert.equal(connects, 1);
   await mine.auth(token);
   assert.equal(connects, 1);   // même connexion : rien de plus
+});
+
+test('relais web : connexion F1 TV refusée par la F1 (jeton inventé) : appareils fermés en 4001, relais arrêté', async () => {
+  const relay = new LiveRelay({}, {});
+  relay.name = 'u:'.padEnd(34, 'c');
+  const ws = { closed: null, close(code) { this.closed = code; } };
+  relay.clients.add(ws);
+  relay.userToken = okToken();
+  relay.active = true;
+  const real = globalThis.fetch;
+  let asked = 0;
+  globalThis.fetch = async () => { asked++; return new Response('', { status: 401 }); };
+  try { await relay.connect(); } finally { globalThis.fetch = real; }
+  assert.deepEqual([asked, ws.closed, relay.clients.size, relay.userToken, relay.active], [1, 4001, 0, null, false]);
+  assert.equal(relay.timers.length, 0);   // aucun nouvel essai programmé
 });
 
 test('relais web : page d\'un autre site refusée, places limitées par adresse', async () => {
@@ -297,7 +337,7 @@ test('appairage : la connexion passe chiffrée, le serveur ne la lit pas, le cod
   // Téléphone : publie sa clé, reçoit un code
   const phone = await keys();
   const { code } = await (await call('POST', '', { pub: await jwk(phone) })).json();
-  assert.match(code, /^\d{6}$/);
+  assert.match(code, /^\d{8}$/);
 
   // Ordinateur : lit la clé du téléphone (et son type : téléphone par défaut, navigateur s'il le dit), chiffre la connexion, la dépose
   const { pub, kind } = await (await call('GET', `?code=${code}`)).json();
@@ -309,6 +349,8 @@ test('appairage : la connexion passe chiffrée, le serveur ne la lit pas, le cod
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const data = b64(await subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(token)));
   assert.equal((await (await call('PUT', `?code=${code}`, { spub: await jwk(comp), iv: b64(iv), data })).json()).ok, true);
+  // Connexion déjà déposée : jamais remplacée par une autre (un tiers qui aurait deviné le code)
+  assert.equal((await call('PUT', `?code=${code}`, { spub: await jwk(await keys()), iv: b64(iv), data: 'autre' })).status, 409);
 
   // Ce que le serveur garde est le message chiffré, jamais la connexion en clair
   assert.ok(!JSON.stringify([...relay.pairs.values()]).includes(token));
@@ -339,6 +381,11 @@ test('appairage : clé invalide, code inconnu et données trop grosses refusés'
   const pub = { kty: 'EC', crv: 'P-256', x: 'a', y: 'b' };
   const { code } = await (await call('POST', '', { pub })).json();
   assert.equal((await call('PUT', `?code=${code}`, { spub: pub, iv: 'x', data: 'y'.repeat(20000) })).status, 400);
+  // Codes inconnus : 20 essais par adresse (le premier « 000000 » compte), puis plus rien pendant 10 minutes, même un bon code
+  for (let i = 0; i < 19; i++) assert.equal((await call('GET', `?code=${String(i).padStart(8, '1')}`)).status, 404);
+  assert.equal((await call('GET', `?code=${code}`)).status, 429);
+  // 6 chiffres (codes d'avant la mise à jour) ou 8 : rien d'autre
+  assert.equal((await call('GET', '?code=1234567')).status, 400);
 });
 
 // Appairage depuis le Studio (pairSend) : le serveur chiffre la connexion du créateur pour le téléphone

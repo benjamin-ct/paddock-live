@@ -101,6 +101,25 @@ export async function failed(env, req) {
   await new Promise((r) => setTimeout(r, 600));
 }
 
+// Mot de passe des statistiques : l'essai est compté avant d'être comparé (des essais envoyés ensemble ne lisent plus
+// tous le même total), par adresse (/64 en IPv6), par bloc /48 en IPv6 (65 536 blocs /64) et pour tout le monde
+// (MAX_FAILS_ALL par jour) ; rendu si c'est le bon. true, false (raté) ou null (trop d'essais aujourd'hui)
+export const MAX_FAILS_ALL = 300;
+export async function tryKey(env, req, ok) {
+  const ip = req.headers.get('CF-Connecting-IP') || '';
+  const keys = [ipOf(req), ...(ip.includes(':') ? [`${ip.split(':').slice(0, 3).join(':')}::/48`] : []), '*'];
+  const day = today();
+  const n = [];
+  for (const k of keys) n.push((await env.DB.prepare('INSERT INTO studio_fail (ip, day, n) VALUES (?, ?, 1) ON CONFLICT(ip, day) DO UPDATE SET n = n + 1 RETURNING n').bind(k, day).first())?.n || 0);
+  if (n.some((x, i) => x > (keys[i] === '*' ? MAX_FAILS_ALL : MAX_FAILS))) return null;
+  if (ok()) {
+    for (const k of keys) await env.DB.prepare('UPDATE studio_fail SET n = n - 1 WHERE ip = ? AND day = ?').bind(k, day).run();
+    return true;
+  }
+  await new Promise((r) => setTimeout(r, 600));
+  return false;
+}
+
 // ---------- Coffre chiffré (jetons des réseaux, connexion F1 TV) ----------
 const aesKey = (raw) => crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['encrypt', 'decrypt']);
 async function seal(raw, data) {
@@ -819,6 +838,12 @@ async function todoAdd(req, env, now = Date.now()) {
   return json({ item: t });
 }
 
+// « Désactiver la page » : lignes du créateur effacées (accès, coffre et copies de ses jetons, comptes, connexion en
+// cours, téléphones abonnés, programmations, brouillons, à faire). Le reste de la table n'est pas à lui : Suivi, clés
+// des alertes (vapid), sources d'actu, journal des publications, données calculées
+const CREATOR_ROWS = ['verifier', 'vault', 'accounts', 'live:f1tv', ARCHIVE_TOKEN, 'archivefail', 'expiries', 'push', 'todo'];
+const CREATOR_PREFIXES = ['oauth:', 'sched', 'draft'];
+
 // ---------- Routes /studio/api/… ----------
 export async function studioApi(req, env, url) {
   if (!env.DB) return json({ error: 'Base indisponible' }, 503);
@@ -938,7 +963,9 @@ export async function studioApi(req, env, url) {
   if (path === 'forget' && req.method === 'POST') {
     // Visuels et vidéos des programmations en attente : effacés avec elles (plus rien ne les retrouverait)
     for (const j of await schedJobs(env)) await dropMedia(env, j.id);
-    await env.DB.prepare('DELETE FROM studio').run();
+    // Seulement les lignes du créateur : la table sert aussi au Suivi, aux alertes, à l'actu et aux données calculées
+    await env.DB.prepare(`DELETE FROM studio WHERE k IN (${CREATOR_ROWS.map(() => '?').join(', ')})`).bind(...CREATOR_ROWS).run();
+    for (const p of CREATOR_PREFIXES) await delLike(env, p);
     return json({ ok: true });
   }
   if (path === 'me' && req.method === 'GET') {

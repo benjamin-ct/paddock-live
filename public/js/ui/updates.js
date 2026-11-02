@@ -85,4 +85,14 @@ export function initUpdates() {
     $('#settingsBtn')?.addEventListener('click', syncTray);
     $('#trayOpt').addEventListener('change', (e) => desk.setTray(e.target.checked));
   }
+  // Taille de l'interface (écran 4K à 100 %…) : zoom de toutes les fenêtres de l'appli, gardé par l'appli ;
+  // relue à l'ouverture des réglages (Ctrl + / Ctrl − / Ctrl 0)
+  if (desk.setZoom) {
+    const sel = $('#zoomSel');
+    const syncZoom = () => desk.getZoom().then((v) => { sel.value = String(Math.round(v * 100)); });
+    $('#zoomRow').hidden = false;
+    syncZoom();
+    $('#settingsBtn')?.addEventListener('click', syncZoom);
+    sel.addEventListener('change', () => desk.setZoom(Number(sel.value) / 100));
+  }
 }

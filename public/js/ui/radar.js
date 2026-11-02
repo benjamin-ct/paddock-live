@@ -34,7 +34,7 @@ const lat2y = (lat, z) => { const r = (lat * Math.PI) / 180; return ((1 - Math.l
 export const placeNow = () => place;
 
 async function loadFrames() {
-  if (Date.now() - framesAt < 5 * 60e3 && frames.length) return;
+  if (Date.now() - framesAt < (frames.length ? 5 * 60e3 : 60e3)) return;   // RainViewer sans réponse : nouvel essai 1 min après
   framesAt = Date.now();
   try {
     const r = await fetch('https://api.rainviewer.com/public/weather-maps.json');
@@ -124,6 +124,8 @@ function build(el) {
       <p class="muted small wxr-note">Carte animée Windy : pluie, vent, nuages et prévisions (changer de calque en bas à droite).</p>`;
     return;
   }
+  // Pas d'images radar : message sous les onglets (Windy reste accessible)
+  if (!frames.length) { el.innerHTML = `${head}<p class="muted small">Radar des précipitations indisponible (connexion internet nécessaire).</p>`; return; }
   const { z, cx, cy } = frame(W, shape);
   const left = cx - W / 2, top = cy - H / 2;
   const base = tiles(W, z, Math.min(z, 16), cx, cy).map((tl) => `<img src="/api/tile?z=${Math.min(z, 16)}&x=${tl.x}&y=${tl.y}" style="left:${tl.left}px;top:${tl.top}px;width:${tl.size}px;height:${tl.size}px" alt="" loading="lazy">`).join('');
@@ -164,9 +166,8 @@ async function tick() {
   if (!el || !el.offsetParent) return;   // onglet Météo masqué : rien à faire
   await Promise.all([loadFrames(), loadPlace(), loadShapes()]);
   if (!place) { el.innerHTML = '<p class="muted small">Radar indisponible : circuit de la séance inconnu.</p>'; built = ''; return; }
-  if (!frames.length && view !== 'windy') { el.innerHTML = '<p class="muted small">Radar des précipitations indisponible (connexion internet nécessaire).</p>'; built = ''; return; }
   build(el);
-  if (view !== 'windy' && playing && Date.now() > pauseUntil) {
+  if (view !== 'windy' && frames.length && playing && Date.now() > pauseUntil) {
     idx = (idx + 1) % frames.length;
     if (idx === frames.length - 1) pauseUntil = Date.now() + 1800;   // pause sur la dernière image
     show(el);
