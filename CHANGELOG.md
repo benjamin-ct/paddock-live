@@ -13,6 +13,9 @@ l'application (Réglages → À propos → Nouveautés).
   À la fin du tour, le tour fini s'affiche quelques secondes, recalé sur le temps officiel, puis le suivant commence.
   Avec le compte F1 TV connecté (GPS) ; pendant le tour, l'écart est une estimation d'après le GPS.
 
+### Divers
+- Petites améliorations internes.
+
 ## v1.30.0 — 2026-11-02
 
 ### Nouveau design

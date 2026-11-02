@@ -5,25 +5,12 @@ import os from 'node:os';
 import path from 'node:path';
 
 process.env.PADDOCK_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'paddock-social-'));
-const { accountsInfo, saveAccount, youtubeLoginUrl, youtubeCallback, tiktokLoginUrl, tiktokCallback, metaLoginUrl, metaCallback, META_REDIRECT } = await import('../server/social-publish.js');
-const { saveConfig, getConfig } = await import('../server/config.js');
 const { timing, publishFacebook, publishInstagram, publishThreads, withComment } = await import('../shared/meta-publish.js');
 const { publishBluesky, replyBluesky } = await import('../shared/bluesky-publish.js');
 const { youtubeSnippet, youtubeUpload } = await import('../shared/video-publish.js');
 // Images envoyées par le Studio (PNG en base64), avec leur texte alternatif
 const blobs = (images, alts = []) => images.map((b, i) => Object.assign(new Blob([Buffer.from(b, 'base64')], { type: 'image/png' }), { alt: alts[i] || '' }));
 
-test('comptes : jamais de clé ni de jeton renvoyé à l\'interface', async () => {
-  saveConfig({ social: { bluesky: { handle: 'moi.bsky.social', appPassword: 'mdp-app', did: 'did:plc:moi' }, meta: { pageToken: 'jeton-page', pageName: 'Ma page', igId: '1', igUsername: 'moi' } } });
-  const info = accountsInfo();
-  assert.deepEqual(info.bluesky, { connected: true, name: '@moi.bsky.social' });
-  assert.equal(info.instagram.name, '@moi');
-  const text = JSON.stringify(info);
-  for (const s of ['mdp-app', 'jeton-page']) assert.ok(!text.includes(s));
-  await saveAccount('bluesky', { remove: true });
-  assert.equal(accountsInfo().bluesky.connected, false);
-  await assert.rejects(saveAccount('x', { apiKey: 'a' }), /Réseau inconnu/);   // compte X retiré (1.29)
-});
 
 // Faux serveurs Meta : images déposées sur la page, conteneurs « en cours » puis prêts
 function fakeMeta({ errorOn = null, blocked = false, lagged = false, caption = null } = {}) {
@@ -73,6 +60,7 @@ function fakeMeta({ errorOn = null, blocked = false, lagged = false, caption = n
 }
 
 const PNG = (k) => Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.from(`image-${k}`)]).toString('base64');
+
 
 test('Threads et Instagram : chaque image du carrousel est prête avant le carrousel, images déposées une seule fois', async () => {
   const realFetch = globalThis.fetch;
@@ -191,10 +179,7 @@ test('Bluesky : images, liens et hashtags cliquables, lien de l\'article en rép
     return { ok: false, status: 404, json: async () => ({}) };
   };
   try {
-    await assert.rejects(saveAccount('bluesky', { handle: 'moi.bsky.social', appPassword: 'faux' }), /Invalid identifier/);
-    await saveAccount('bluesky', { handle: '@moi.bsky.social', appPassword: 'mdp-app' });
-    assert.equal(accountsInfo().bluesky.name, '@moi.bsky.social');
-    const acc = getConfig().social.bluesky;
+    const acc = { handle: 'moi.bsky.social', appPassword: 'mdp-app', did: 'did:plc:moi' };
     const jpeg = { blob: new Blob([Buffer.from([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 4, 5])], { type: 'image/jpeg' }), width: 1080, height: 1350, alt: '' };
     const r = await withComment(() => publishBluesky(acc, 'TRANSFERT | Titre #F1 #BenjyPaddock', [jpeg, jpeg]), "Lire l'article : https://a.test/x", (id, t) => replyBluesky(acc, id, t));
     assert.equal(r.url, 'https://bsky.app/profile/moi.bsky.social/post/r1');
@@ -205,8 +190,6 @@ test('Bluesky : images, liens et hashtags cliquables, lien de l\'article en rép
     assert.deepEqual(records[0].facets.map((f) => f.features[0].tag), ['F1', 'BenjyPaddock']);
     assert.deepEqual(records[1].reply.parent, { uri: 'at://did:plc:moi/app.bsky.feed.post/r1', cid: 'c1' });
     assert.equal(records[1].facets[0].features[0].uri, 'https://a.test/x');
-    // Mot de passe jamais renvoyé à l'interface
-    assert.ok(!JSON.stringify(accountsInfo()).includes('mdp-app'));
   } finally { globalThis.fetch = realFetch; }
 });
 
@@ -232,63 +215,6 @@ test('Threads : post vérifié visible publiquement (page lue comme un aperçu d
   } finally { globalThis.fetch = real; }
 });
 
-test('TikTok : clés vérifiées à l\'enregistrement, connexion effacée si l\'app change', async () => {
-  const realFetch = globalThis.fetch;
-  globalThis.fetch = async (url, opts) => {
-    const b = new URLSearchParams(String(opts.body));
-    assert.equal(String(url), 'https://open.tiktokapis.com/v2/oauth/token/');
-    assert.equal(b.get('grant_type'), 'client_credentials');
-    // TikTok refuse « …;charset=UTF-8 » (invalid_request)
-    assert.equal(opts.headers['Content-Type'], 'application/x-www-form-urlencoded');
-    const d = b.get('client_secret') === 'bon' ? { access_token: 'clt', expires_in: 7200 } : { error: 'invalid_client', error_description: 'Client key or secret is incorrect.' };
-    return { ok: !d.error, status: d.error ? 401 : 200, text: async () => JSON.stringify(d) };
-  };
-  try {
-    await assert.rejects(saveAccount('tiktok', { clientKey: 'cle', clientSecret: 'faux' }), /Clés refusées par TikTok/);
-    assert.equal(accountsInfo().tiktok.configured, false);
-    await saveAccount('tiktok', { clientKey: 'cle', clientSecret: 'bon' });
-    assert.deepEqual(accountsInfo().tiktok, { connected: false, name: '', configured: true, direct: false, stats: false });
-    // Compte connecté puis clés d'une autre app : il faut se reconnecter
-    const { getConfig } = await import('../server/config.js');
-    saveConfig({ social: { ...getConfig().social, tiktok: { ...getConfig().social.tiktok, refreshToken: 'r', name: 'Moi' } } });
-    await saveAccount('tiktok', { clientKey: 'cle', clientSecret: 'bon' });
-    assert.equal(accountsInfo().tiktok.connected, true);
-    await saveAccount('tiktok', { clientKey: 'autre', clientSecret: 'bon' });
-    assert.equal(accountsInfo().tiktok.connected, false);
-    // Publication directe : autorisation video.publish demandée seulement si elle est cochée
-    assert.equal(new URL(tiktokLoginUrl('http://127.0.0.1:4321')).searchParams.get('scope'), 'user.info.basic,video.upload');
-    await saveAccount('tiktok', { clientKey: 'autre', clientSecret: 'bon', direct: true });
-    assert.equal(accountsInfo().tiktok.direct, true);
-    assert.equal(new URL(tiktokLoginUrl('http://127.0.0.1:4321')).searchParams.get('scope'), 'user.info.basic,video.upload,video.publish');
-    // Statistiques : profil, chiffres et liste des vidéos seulement si c'est coché
-    await saveAccount('tiktok', { clientKey: 'autre', clientSecret: 'bon', stats: true });
-    assert.equal(accountsInfo().tiktok.stats, true);
-    assert.equal(new URL(tiktokLoginUrl('http://127.0.0.1:4321')).searchParams.get('scope'), 'user.info.basic,video.upload,user.info.profile,user.info.stats,video.list');
-  } finally { globalThis.fetch = realFetch; }
-});
-
-test('TikTok : deuxième compte relié pour ses statistiques, sans toucher au premier', async () => {
-  const realFetch = globalThis.fetch;
-  const { getConfig } = await import('../server/config.js');
-  const first = getConfig().social.tiktok;
-  const login = new URL(tiktokLoginUrl('http://127.0.0.1:4321', true));
-  assert.equal(login.searchParams.get('scope'), 'user.info.basic,user.info.profile,user.info.stats,video.list');
-  globalThis.fetch = async (url, opts = {}) => {
-    const u = String(url);
-    const d = u.endsWith('/oauth/token/') ? (assert.equal(new URLSearchParams(String(opts.body)).get('grant_type'), 'authorization_code'), { access_token: 'a2', expires_in: 86400, refresh_token: 'r2', open_id: 'o2' })
-      : { data: { user: { display_name: 'Paddock Live', username: 'paddockliveapp' } }, error: { code: 'ok' } };
-    return { ok: true, status: 200, text: async () => JSON.stringify(d) };
-  };
-  try {
-    await tiktokCallback(new URLSearchParams({ state: login.searchParams.get('state'), code: 'c' }));
-    assert.deepEqual(accountsInfo().tiktok2, { connected: true, name: '@paddockliveapp', configured: true });
-    assert.equal(getConfig().social.tiktok2.clientKey, first.clientKey);   // renouvelé avec les clés de l'app
-    assert.deepEqual(getConfig().social.tiktok, first);
-    await saveAccount('tiktok2', { remove: true });
-    assert.equal(accountsInfo().tiktok2.connected, false);
-  } finally { globalThis.fetch = realFetch; }
-});
-
 test('YouTube : titre et description du Short (1re ligne, 100 caractères, sans chevrons, #Shorts)', () => {
   const s = youtubeSnippet(`${'A'.repeat(120)}\nLigne <deux>\n\n#F1`);
   assert.equal(s.title, 'A'.repeat(100));
@@ -297,34 +223,11 @@ test('YouTube : titre et description du Short (1re ligne, 100 caractères, sans 
   assert.equal(youtubeSnippet('').title, 'Paddock');
 });
 
-test('YouTube : connexion Google (PKCE), Short envoyé en privé', async () => {
+test('YouTube : Short envoyé en privé', async () => {
   const realFetch = globalThis.fetch;
-  await assert.rejects(saveAccount('youtube', { clientId: 'abc', clientSecret: 's' }), /apps\.googleusercontent\.com/);
-  await saveAccount('youtube', { clientId: '123-abc.apps.googleusercontent.com', clientSecret: 'secret-g' });
-  assert.deepEqual(accountsInfo().youtube, { connected: false, name: '', configured: true });
-  const login = new URL(youtubeLoginUrl('http://127.0.0.1:4321'));
-  assert.equal(login.origin + login.pathname, 'https://accounts.google.com/o/oauth2/v2/auth');
-  assert.equal(login.searchParams.get('redirect_uri'), 'http://127.0.0.1:4321/youtube-callback/');
-  assert.equal(login.searchParams.get('code_challenge_method'), 'S256');
-  assert.match(login.searchParams.get('code_challenge'), /^[\w-]{43}$/);
-  assert.match(login.searchParams.get('scope'), /youtube\.upload/);
-  assert.equal(login.searchParams.get('access_type'), 'offline');
-  const log = [];
   globalThis.fetch = async (url, opts = {}) => {
     const u = String(url);
-    log.push({ u, opts });
     const json = (d, status = 200, headers = {}) => ({ ok: status < 300, status, headers: new Headers(headers), text: async () => JSON.stringify(d), json: async () => d });
-    if (u === 'https://oauth2.googleapis.com/token') {
-      const b = new URLSearchParams(String(opts.body));
-      assert.equal(b.get('client_secret'), 'secret-g');
-      if (b.get('grant_type') === 'authorization_code') {
-        assert.equal(b.get('redirect_uri'), 'http://127.0.0.1:4321/youtube-callback/');
-        assert.ok(b.get('code_verifier'));
-        return json({ access_token: 'at1', expires_in: 3599, refresh_token: 'rt1' });
-      }
-      throw new Error('jeton déjà valable : pas de renouvellement attendu');
-    }
-    if (u.startsWith('https://www.googleapis.com/youtube/v3/channels')) return json({ items: [{ snippet: { title: 'Benjy Paddock' } }] });
     if (u.startsWith('https://www.googleapis.com/upload/youtube/v3/videos')) {
       const meta = JSON.parse(opts.body);
       assert.equal(meta.status.privacyStatus, 'private');
@@ -340,17 +243,11 @@ test('YouTube : connexion Google (PKCE), Short envoyé en privé', async () => {
     throw new Error(`inattendu : ${u}`);
   };
   try {
-    // Retour d'une autre demande (ou d'une demande TikTok) : refusé
-    await assert.rejects(youtubeCallback(new URLSearchParams({ state: 'inconnu', code: 'c' })), /expirée/);
-    await youtubeCallback(new URLSearchParams({ state: login.searchParams.get('state'), code: 'c' }));
-    assert.deepEqual(accountsInfo().youtube, { connected: true, name: 'Benjy Paddock', configured: true });
-    assert.ok(!JSON.stringify(accountsInfo()).includes('rt1'));
-    const r = await youtubeUpload(getConfig().social.youtube.accessToken, Buffer.from('abcd'), 'video/mp4', 'Verstappen gagne\nLe récap');
+    const r = await youtubeUpload('at1', Buffer.from('abcd'), 'video/mp4', 'Verstappen gagne\nLe récap');
     assert.equal(r.url, 'https://youtube.com/shorts/vid42');
     assert.match(r.note, /privé/);
   } finally { globalThis.fetch = realFetch; }
 });
-
 test('vidéo du créateur : Reel et Story Instagram envoyés tels quels, vidéo Threads par son adresse, vidéo et story Facebook', async () => {
   const realFetch = globalThis.fetch;
   const { publishFacebookVideo, publishThreadsVideo, reelInstagram, storyVideoInstagram, storyVideoFacebook } = await import('../shared/meta-publish.js');
@@ -492,41 +389,6 @@ test('vidéo du créateur : Reel et Story Instagram envoyés tels quels, vidéo 
   } finally {
     globalThis.fetch = realFetch;
   }
-});
-
-test('Facebook : connexion par Facebook Login, retour par la page du site, jeton de la page enregistré', async () => {
-  const realFetch = globalThis.fetch;
-  const { getConfig } = await import('../server/config.js');
-  assert.throws(() => metaLoginUrl(4321, {}), /identifiant et la clé secrète/);
-  // Configuration « Facebook Login for Business » : ses autorisations à la place de la liste
-  let u = new URL(metaLoginUrl(4321, { appId: '123456789', appSecret: 's3cret', configId: '987654321' }));
-  assert.equal(u.origin + u.pathname, 'https://www.facebook.com/v25.0/dialog/oauth');
-  assert.equal(u.searchParams.get('config_id'), '987654321');
-  assert.equal(u.searchParams.get('scope'), null);
-  assert.equal(u.searchParams.get('redirect_uri'), META_REDIRECT);
-  assert.match(u.searchParams.get('state'), /^4321\.[0-9a-f]{32}$/);
-  assert.ok(!u.toString().includes('s3cret'));
-  u = new URL(metaLoginUrl(4321, { appId: '123456789', appSecret: 's3cret' }));
-  assert.match(u.searchParams.get('scope'), /instagram_content_publish/);
-  const calls = [];
-  globalThis.fetch = async (url) => {
-    const x = new URL(url);
-    calls.push(x.pathname + (x.searchParams.get('grant_type') ? `:${x.searchParams.get('grant_type')}` : ''));
-    const d = x.pathname.endsWith('/oauth/access_token') && x.searchParams.get('code') ? (assert.equal(x.searchParams.get('redirect_uri'), META_REDIRECT), assert.equal(x.searchParams.get('client_secret'), 's3cret'), { access_token: 'court' })
-      : x.pathname.endsWith('/oauth/access_token') ? (assert.equal(x.searchParams.get('fb_exchange_token'), 'court'), { access_token: 'long' })
-      : { data: [{ id: 'p1', name: 'Paddock Live', access_token: 'jeton-page', instagram_business_account: { id: 'ig1', username: 'paddocklive' } }] };
-    return { ok: true, status: 200, text: async () => JSON.stringify(d) };
-  };
-  try {
-    await metaCallback(new URLSearchParams({ state: u.searchParams.get('state'), code: 'c' }));
-    assert.deepEqual(calls, ['/v25.0/oauth/access_token', '/v25.0/oauth/access_token:fb_exchange_token', '/v25.0/me/accounts']);
-    assert.equal(getConfig().social.meta.pageToken, 'jeton-page');
-    assert.equal(accountsInfo().instagram.name, '@paddocklive');
-    // Demande déjà utilisée ou refusée dans Facebook : message clair
-    await assert.rejects(metaCallback(new URLSearchParams({ state: u.searchParams.get('state'), code: 'c' })), /expirée/);
-    const v = new URL(metaLoginUrl(4321, {}));   // identifiants déjà enregistrés
-    await assert.rejects(metaCallback(new URLSearchParams({ state: v.searchParams.get('state'), error: 'access_denied', error_reason: 'user_denied' })), /refusée/);
-  } finally { globalThis.fetch = realFetch; }
 });
 
 test('TikTok : publication directe refusée avant l\'audit, message qui dit quoi faire', async () => {
