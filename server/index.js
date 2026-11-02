@@ -197,7 +197,8 @@ async function handleApi(req, res, url) {
       const a = url.searchParams.get('a'), b = url.searchParams.get('b');
       const until = Number(url.searchParams.get('until')) || Date.now();
       if (!/^\d+$/.test(a || '') || !/^\d+$/.test(b || '')) return sendJSON(res, 400, { error: 'Pilotes manquants' });
-      const lapNo = (k) => (/^\d{1,3}$/.test(url.searchParams.get(k) || '') ? Number(url.searchParams.get(k)) : null);
+      // Numéro de tour, ou 'live' : tour en cours
+      const lapNo = (k) => { const v = url.searchParams.get(k) || ''; return v === 'live' ? v : /^\d{1,3}$/.test(v) ? Number(v) : null; };
       return sendJSON(res, 200, await compareLaps(hub, { a, b, until: Math.min(until, hub.clock()), la: lapNo('la'), lb: lapNo('lb') }));
     }
 

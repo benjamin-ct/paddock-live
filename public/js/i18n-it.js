@@ -2883,4 +2883,9 @@ export default {
   "La version web garde le GPS depuis l'ouverture de cette fenêtre : comparez un tour fait depuis.": "La versione web conserva il GPS dall'apertura di questa finestra: confronta un giro fatto da allora.",
   "Comparaison des tours de deux pilotes, dans une fenêtre à part": "Confronto dei giri di due piloti, in una finestra a parte",
   "Pas encore de projection des écuries.": "Ancora nessuna proiezione dei team.",
+  "Tour en cours (direct)": "Giro in corso (live)",
+  "{} % du tour": "{}% del giro",
+  "En direct": "Live",
+  "Tour qui vient de finir": "Giro appena concluso",
+  "Tour en cours comparé en direct au tour de référence : écart estimé d'après le GPS, recalé sur le temps officiel à la fin du tour": "Giro in corso confrontato in diretta con il giro di riferimento: distacco stimato dal GPS, allineato al tempo ufficiale a fine giro",
 };

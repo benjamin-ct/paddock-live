@@ -2884,4 +2884,9 @@ export default {
   "La version web garde le GPS depuis l'ouverture de cette fenêtre : comparez un tour fait depuis.": "The web version keeps the GPS from when this window was opened: compare a lap driven since then.",
   "Comparaison des tours de deux pilotes, dans une fenêtre à part": "Lap comparison of two drivers, in a separate window",
   "Pas encore de projection des écuries.": "No team projection yet.",
+  "Tour en cours (direct)": "Current lap (live)",
+  "{} % du tour": "{}% of the lap",
+  "En direct": "Live",
+  "Tour qui vient de finir": "Lap just completed",
+  "Tour en cours comparé en direct au tour de référence : écart estimé d'après le GPS, recalé sur le temps officiel à la fin du tour": "Current lap compared live with the reference lap: gap estimated from GPS, adjusted to the official time at the end of the lap",
 };

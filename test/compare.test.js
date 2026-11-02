@@ -38,7 +38,7 @@ test('comparaison : calcul commun (appli et version web) d\'après le GPS gardé
   const cars = new Map();
   for (const [num, lap] of [['1', 60], ['16', 61]]) {
     const Position = [];
-    for (let ms = 0; ms <= 3 * lap * 1000; ms += 250) { const [X, Y] = at((ms / 1000 / lap) * L); Position.push({ Timestamp: new Date(t0 + ms).toISOString(), Entries: { [num]: { X, Y } } }); }
+    for (let ms = 0; ms <= 4 * lap * 1000; ms += 250) { const [X, Y] = at((ms / 1000 / lap) * L); Position.push({ Timestamp: new Date(t0 + ms).toISOString(), Entries: { [num]: { X, Y } } }); }
     addPositions(cars, { Position });
   }
   const off = 5000;   // heure de réception = heure F1 + 5 s
@@ -53,6 +53,29 @@ test('comparaison : calcul commun (appli et version web) d\'après le GPS gardé
   assert.equal(out.minis.length, 3);
   const sum = (m) => m.reduce((x, y) => x + y, 0);
   assert.ok(Math.abs(sum(out.a.mini) - 60) < 0.01 && Math.abs(sum(out.b.mini) - 61) < 0.01, `${sum(out.a.mini)} ${sum(out.b.mini)}`);
+  // Tour en cours de B (lb = 'live') à 170 s : 48 s dans son 3e tour (61 s le tour), comparé au meilleur tour de A (60 s)
+  const live = await compareFrom({ state, derived, events, cars, until: t0 + 170000 + off, a: '1', b: '16', lb: 'live',
+    load: async () => [cdata, { line: 0, segs: { S0: 1 / 3, S1: 2 / 3 } }] });
+  assert.equal(live.gps, true, live.reason);
+  assert.equal(live.b.lap.live, true);
+  assert.ok(Math.abs(live.live.frac - 48 / 61) < 0.01 && Math.abs(live.live.elapsed - 48) < 0.3, JSON.stringify(live.live));
+  assert.ok(Math.abs(live.live.gap - (60 * 48 / 61 - 48)) < 0.05, `écart ${live.live.gap}`);   // A devant de 0,79 s
+  assert.equal(live.b.mini.filter((v) => v !== null).length, 2);   // deux secteurs finis sur trois
+  assert.ok(Math.abs(live.b.mini[0] - 61 / 3) < 0.1, `${live.b.mini[0]}`);
+  const iLast = live.trace.b.t.findLastIndex((v) => v !== null);
+  assert.ok(Math.abs(iLast / live.trace.K - 48 / 61) < 0.01, `tracé jusqu'à ${iLast}`);   // rien après la position atteinte
+  // Pilote hors piste depuis plus de 5 s (plus de GPS après 244 s) : en attente de son passage sur la ligne
+  const gone = await compareFrom({ state, derived, events, cars, until: t0 + 260000 + off, a: '1', b: '16', lb: 'live',
+    load: async () => [cdata, { line: 0, segs: { S0: 1 / 3, S1: 2 / 3 } }] });
+  assert.match(gone.reason, /tour lancé/);
+  // Tour tout juste fini (2 s dans le suivant) : le tour fini, recalé sur le temps officiel
+  const st3 = { ...state, TimingData: { Lines: { ...state.TimingData.Lines, 16: { ...state.TimingData.Lines[16], NumberOfLaps: 3 } } } };
+  const der3 = { laps: { ...derived.laps, 16: [...derived.laps[16], lapEntry(61, 3)] } };
+  const done = await compareFrom({ state: st3, derived: der3, events, cars, until: t0 + 185000 + off, a: '1', b: '16', lb: 'live',
+    load: async () => [cdata, { line: 0, segs: { S0: 1 / 3, S1: 2 / 3 } }] });
+  assert.equal(done.live.done, true);
+  assert.equal(done.b.lap.lap, 3);
+  assert.ok(Math.abs(sum(done.b.mini) - 61) < 0.01);
   // Sans GPS du tour demandé : la raison est donnée (la version web la complète)
   const none = await compareFrom({ state, derived, events, cars: new Map(), until: t0 + 200000 + off, a: '1', b: '16', load: async () => [cdata, null] });
   assert.equal(none.gps, false);

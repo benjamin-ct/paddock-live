@@ -4,6 +4,15 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → À propos → Nouveautés).
 
+## v1.31.0 — à venir
+
+### En direct
+- Comparaison en direct : dans Analyse → Comparaison, choisissez « Tour en cours (direct) » pour le second pilote. Son
+  tour se dessine pendant qu'il roule, par-dessus le tour de référence du premier (son meilleur tour, ou un tour au
+  choix) : écart au même point de la piste, vitesse, accélérateur, frein et rapport, mis à jour toutes les 2 secondes.
+  À la fin du tour, le tour fini s'affiche quelques secondes, recalé sur le temps officiel, puis le suivant commence.
+  Avec le compte F1 TV connecté (GPS) ; pendant le tour, l'écart est une estimation d'après le GPS.
+
 ## v1.30.0 — 2026-11-02
 
 ### Nouveau design
