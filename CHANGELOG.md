@@ -9,7 +9,8 @@ l'application (Réglages → À propos → Nouveautés).
 ### En direct
 - Comparaison en direct : dans Analyse → Comparaison, choisissez « Tour en cours (direct) » pour le second pilote. Son
   tour se dessine pendant qu'il roule, par-dessus le tour de référence du premier (son meilleur tour, ou un tour au
-  choix) : écart au même point de la piste, vitesse, accélérateur, frein et rapport, mis à jour toutes les 2 secondes.
+  choix) : écart au même point de la piste, vitesse, accélérateur, frein et rapport, recalculés chaque seconde ; entre
+  deux, le chrono du tour avance et l'écart glisse en continu.
   À la fin du tour, le tour fini s'affiche quelques secondes, recalé sur le temps officiel, puis le suivant commence.
   Avec le compte F1 TV connecté (GPS) ; pendant le tour, l'écart est une estimation d'après le GPS.
 

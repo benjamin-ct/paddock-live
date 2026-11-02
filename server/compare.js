@@ -28,13 +28,19 @@ function decoded(hub) {
  * @param a, b numéros des pilotes
  * @param until heure locale : rien après (délai TV du navigateur)
  */
+// État de la séance à `until` : repris là où le calcul précédent s'était arrêté quand l'heure avance (comparaison en
+// direct recalculée chaque seconde), refait depuis le début sinon (retour en arrière, autre séance)
+let past = { events: null, gen: -1, i: 0, until: -Infinity, state: null, derived: null };
+function stateAt(hub, until) {
+  if (past.events !== hub.events || past.gen !== hub.gen || until < past.until) past = { events: hub.events, gen: hub.gen, i: 0, until, state: {}, derived: createDerived() };
+  const ev = hub.events;
+  while (past.i < ev.length && ev[past.i].t <= until) { const e = ev[past.i++]; applyEvent(past.state, past.derived, e.topic, e.data, e.t); }
+  past.until = until;
+  return past;
+}
+
 export async function compareLaps(hub, { a, b, until, la = null, lb = null }) {
-  const state = {};
-  const derived = createDerived();
-  for (const e of hub.events) {
-    if (e.t > until) break;
-    applyEvent(state, derived, e.topic, e.data, e.t);
-  }
+  const { state, derived } = stateAt(hub, until);
   const { cars, tel } = hub.hasPositions ? decoded(hub) : { cars: new Map(), tel: new Map() };
   return compareFrom({ state, derived, events: hub.events, cars, tel: hub.hasCarData ? tel : null, until, a, b, la, lb,
     load: (key, year) => Promise.all([circuit(key, year), loops(key, year).catch(() => null)]) });

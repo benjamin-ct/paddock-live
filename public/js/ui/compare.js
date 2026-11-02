@@ -1,7 +1,7 @@
 // Analyse → Comparaison : meilleurs tours de deux pilotes, secteur par secteur et mini-secteur
 // par mini-secteur (P1 contre P2 par défaut, ou deux pilotes au choix). Les mini-secteurs sont
 // mesurés par le serveur avec le GPS (voir server/compare.js), au rythme du délai TV.
-import { store, serverNow, versionOf, emit } from '../store.js';
+import { store, serverNow, versionOf, emit, replaySpeed } from '../store.js';
 import { $, esc, api, drivers, orderedNumbers, fmtLap, lapSeconds, storageGet, storageSet, driverOpt } from '../util.js';
 import { cornerStats, typeStats, smoothDelta } from './compare-calc.js';
 
@@ -59,16 +59,20 @@ function fillSelects(a, b) {
 async function load(a, b) {
   const lines = store.state.TimingData?.Lines || {};
   const req = `${a}|${b}|${sel.la}|${sel.lb}|${lines[a]?.BestLapTime?.Value}|${lines[b]?.BestLapTime?.Value}|${store.status?.source?.path || ''}`;
-  // Tour en cours : recalculé toutes les 2 s (le pilote avance) ; sinon toutes les 30 s au plus
-  if (loading || (req === lastReq && Date.now() - lastAt < (sel.lb === 'live' ? 2000 : 30000))) return;
+  // Tour en cours : recalculé chaque seconde (le pilote avance ; entre deux, le chrono tourne et l'écart glisse dans la
+  // page, voir tick) ; sinon toutes les 30 s au plus
+  if (loading || (req === lastReq && Date.now() - lastAt < (sel.lb === 'live' ? 1000 : 30000))) return;
   loading = true;
   lastReq = req;
   lastAt = Date.now();
   try {
     const until = Math.round(serverNow() - store.delay);
     // Version web : calcul dans la page (store.compareFetch, analytics/live-page/web.js) ; appli : son serveur
-    data = store.compareFetch ? await store.compareFetch({ a, b, until, la: sel.la, lb: sel.lb })
+    const next = store.compareFetch ? await store.compareFetch({ a, b, until, la: sel.la, lb: sel.lb })
       : await api(`/api/compare?a=${a}&b=${b}&until=${until}${sel.la ? `&la=${sel.la}` : ''}${sel.lb ? `&lb=${sel.lb}` : ''}`);
+    // Tour en cours : l'écart affiché glisse de sa valeur actuelle vers la nouvelle (voir tick)
+    if (next?.live) { next.live.until = until; next.live.from = shownGap ?? next.live.gap; next.live.at = performance.now(); }
+    data = next;
   } catch (err) {
     data = { error: err.message };
   } finally {
@@ -281,7 +285,7 @@ function draw() {
   pickColors(A, B);
   // Tour en cours de B : écart au même point de la piste (A − B, estimé d'après le GPS)
   const run = d.live && !d.live.done ? d.live : null;
-  const gap = run ? run.gap : B.lap.live ? null : A.lap.time - B.lap.time;   // pas dans un tour lancé : pas d'écart
+  const gap = run ? liveGap(run) : B.lap.live ? null : A.lap.time - B.lap.time;   // pas dans un tour lancé : pas d'écart
   const chip = (x, col) => `<span class="cmp-chip" style="--c:${col}">${esc(x.tla)}</span>`;
   const sectors = [0, 1, 2].map((si) => {
     const a = A.lap.sectors[si], b = B.lap.sectors[si];
@@ -314,8 +318,8 @@ function draw() {
   el.innerHTML = `
     <div class="cmp-head">
       <div class="cmp-drv" style="--c:${COL_A}"><b>${esc(A.tla)}</b><span>${fmtLap(A.lap.time)}</span><small class="muted">${esc(A.team)}${A.lap.lap ? ` · tour ${A.lap.lap}` : ''}${A.lap.best ? ' (meilleur)' : ''}</small></div>
-      <div class="cmp-gap"><b>${gap === null ? '—' : sgn(gap)}</b><small class="muted">${gap === null ? '' : gap < 0 ? `${esc(A.tla)} devant` : gap > 0 ? `${esc(B.tla)} devant` : 'égalité'}</small>${run ? `<small class="muted">${Math.round(run.frac * 100)} % du tour</small>` : ''}</div>
-      <div class="cmp-drv right" style="--c:${COL_B}"><b>${esc(B.tla)}</b><span>${fmtLap(run ? run.elapsed : B.lap.time)}</span><small class="muted">${esc(B.team)}${B.lap.lap ? ` · tour ${B.lap.lap}` : ''}${B.lap.best ? ' (meilleur)' : ''}</small>${run ? '<small class="cmp-live">En direct</small>' : d.live?.done ? '<small class="muted">Tour qui vient de finir</small>' : ''}</div>
+      <div class="cmp-gap"><b${run ? ' class="cmp-live-gap"' : ''}>${gap === null ? '—' : sgn(gap)}</b><small class="muted">${gap === null ? '' : gap < 0 ? `${esc(A.tla)} devant` : gap > 0 ? `${esc(B.tla)} devant` : 'égalité'}</small>${run ? `<small class="muted">${Math.round(run.frac * 100)} % du tour</small>` : ''}</div>
+      <div class="cmp-drv right" style="--c:${COL_B}"><b>${esc(B.tla)}</b><span${run ? ' class="cmp-live-clock"' : ''}>${fmtLap(run ? liveClock(run) : B.lap.time)}</span><small class="muted">${esc(B.team)}${B.lap.lap ? ` · tour ${B.lap.lap}` : ''}${B.lap.best ? ' (meilleur)' : ''}</small>${run ? '<small class="cmp-live">En direct</small>' : d.live?.done ? '<small class="muted">Tour qui vient de finir</small>' : ''}</div>
     </div>
     <div class="cmp-sectors">${sectors}</div>
     ${d.gps && !d.trace ? `${summary}<div class="cmp-vis">${trackSvg(d)}<div class="cmp-right"><div class="muted small">Écart cumulé le long du tour (s) · au-dessus de 0 : <span style="color:${COL_B}">${esc(B.tla)} devant</span> · en dessous : <span style="color:${COL_A}">${esc(A.tla)} devant</span></div>${deltaSvg(d)}</div></div>${minis}` : d.trace ? '' : `<div class="note small">${esc(d.reason || '')}</div>`}
@@ -338,7 +342,28 @@ export function renderCompare(force = false) {
   load(a, b);
 }
 
+// Tour en cours, entre deux calculs (une fois par seconde) : le chrono avance au rythme de l'affichage (replay accéléré,
+// pause compris, 3 s d'avance au plus si les calculs s'arrêtent) et l'écart glisse en 0,9 s vers la nouvelle valeur
+// (mêmes valeurs dans le dessin de la comparaison et dans le tick, sinon chaque dessin ramènerait un instant en arrière)
+let shownGap = null;
+function liveClock(run) {
+  return run.until === undefined ? run.elapsed : run.elapsed + Math.min(3, Math.max(0, ((serverNow() - store.delay - run.until) * replaySpeed()) / 1000));
+}
+function liveGap(run) {
+  if (run.gap === null || run.from === null || run.from === undefined) return run.gap;
+  return run.from + (run.gap - run.from) * Math.min(1, (performance.now() - run.at) / 900);
+}
+function tick() {
+  const run = data?.live && !data.live.done ? data.live : null;
+  if (!run) { shownGap = null; return; }
+  const clock = document.querySelector('#anaCompare .cmp-live-clock'), gapEl = document.querySelector('#anaCompare .cmp-live-gap');
+  if (clock) clock.textContent = fmtLap(liveClock(run));
+  shownGap = liveGap(run);
+  if (gapEl && shownGap !== null) gapEl.textContent = sgn(shownGap);
+}
+
 export function initCompare() {
+  setInterval(tick, 100);
   const set = (k, v) => { sel[k] = v; storageSet(KEY, { a: sel.a, b: sel.b }); data = null; renderCompare(true); };
   $('#cmpA').addEventListener('change', (e) => { sel.la = null; set('a', e.target.value); });
   $('#cmpB').addEventListener('change', (e) => { if (sel.lb !== 'live') sel.lb = null; set('b', e.target.value); });   // tour en cours gardé
