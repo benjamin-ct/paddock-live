@@ -4,7 +4,7 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → À propos → Nouveautés).
 
-## v1.31.0 — à venir
+## v1.31.0 — 2026-11-02
 
 ### En direct
 - Comparaison en direct : dans Analyse → Comparaison, choisissez « Tour en cours (direct) » pour le second pilote. Son
