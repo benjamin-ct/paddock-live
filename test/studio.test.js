@@ -1240,3 +1240,69 @@ test('page du créateur : « Reste à faire » (X avec ses images, fichiers refu
   env3.DB.studio.set('todo', JSON.stringify([{ id: 'a'.repeat(16), kind: 'tiktok', title: 'Vieux', text: '', after: 0, at: Date.now() - 8 * 86400e3, files: [] }]));
   assert.deepEqual((await (await w('todo')).json()).items, []);
 });
+
+test('Studio : comptes connectés et retirés depuis le Studio, plus remplacés par l\'appli (anciennes versions comprises)', async () => {
+  const { fbCallback } = await import('../analytics/worker.js');
+  const env2 = { DB: fakeDB(), MEDIA: fakeR2(), STUDIO_KEY_HASH: HASH, STATS_KEY: 's' };
+  const key = { 'X-Studio-Key': studioKey(CODE) };
+  const w = (p, init = {}) => studioApi(new Request(`https://s.test/studio/api/${p}`, { ...init, headers: { ...key, ...init.headers } }), env2, new URL(`https://s.test/studio/api/${p}`));
+  const post = (p, body) => w(p, { method: 'POST', body: JSON.stringify(body) });
+  const me = async () => (await w('me')).json();
+  // Coffre envoyé par l'appli : Threads, TikTok, F1 TV
+  const fromApp = { threads: { token: 'th-app', userId: 'u1', username: 'appli' }, tiktok: { clientKey: 'ck', clientSecret: 'cs', refreshToken: 'rt', openId: 'o1', name: 'PL' }, bluesky: { handle: 'vieux.bsky.social', appPassword: 'old', did: 'd0' } };
+  assert.equal((await post('init', { key: studioKey(CODE), vault: fromApp })).status, 200);
+  const realFetch = globalThis.fetch;
+  const graph = [];
+  globalThis.fetch = async (u) => {
+    u = String(u);
+    const ok = (d) => new Response(JSON.stringify(d), { status: 200 });
+    if (u.includes('createSession')) return ok({ accessJwt: 'j', did: 'did:plc:1', handle: 'paddocklive.bsky.social' });
+    if (u.includes('graph.facebook.com')) {
+      graph.push(u);
+      if (u.includes('/oauth/access_token') && u.includes('code=')) return ok({ access_token: 'court' });
+      if (u.includes('fb_exchange_token')) return ok({ access_token: 'long' });
+      if (u.includes('/me/accounts')) return ok({ data: [{ id: 'p9', name: 'Paddock Live', access_token: 'page-jeton', instagram_business_account: { id: 'ig9', username: 'paddocklive' } }] });
+    }
+    throw new Error(`inattendu : ${u}`);
+  };
+  try {
+    // Bluesky connecté ici, TikTok retiré ici
+    assert.equal((await post('accounts/set', { net: 'bluesky', handle: '@paddocklive.bsky.social', appPassword: 'app-pass' })).status, 200);
+    assert.equal((await post('accounts/set', { net: 'tiktok', remove: true })).status, 200);
+    let m = await me();
+    assert.deepEqual([m.bluesky, m.tiktok, m.threads], ['@paddocklive.bsky.social', null, '@appli']);
+    assert.deepEqual(m.managed, ['bluesky', 'tiktok']);
+    // Envoi suivant de l'appli (comme une ancienne version) : Bluesky et TikTok gérés ici gardés, Threads et F1 TV repris
+    await post('sync', { vault: { ...fromApp, threads: { token: 'th-2', userId: 'u1', username: 'appli2' }, f1tv: 'x.e30.y' } });
+    m = await me();
+    assert.deepEqual([m.bluesky, m.tiktok, m.threads, m.f1tv], ['@paddocklive.bsky.social', null, '@appli2', true]);
+    // Réactivation depuis l'appli : idem
+    await post('init', { key: studioKey(CODE), vault: fromApp });
+    assert.equal((await me()).bluesky, '@paddocklive.bsky.social');
+
+    // Facebook : app Meta d'abord, puis connexion ; retour de Facebook renvoyé au Studio, code échangé avec la clé du Studio
+    assert.equal((await post('accounts/meta-login', {})).status, 409);
+    assert.equal((await post('accounts/set', { net: 'meta-app', appId: 'abc', appSecret: 'x' })).status, 400);
+    assert.equal((await post('accounts/set', { net: 'meta-app', appId: '123456', appSecret: 'secret-meta' })).status, 200);
+    assert.ok(!env2.DB.studio.get('vault').includes('secret-meta'));   // chiffré
+    const { url } = await (await post('accounts/meta-login', {})).json();
+    const state = new URL(url).searchParams.get('state');
+    assert.match(state, /^s\.[0-9a-f]{32}$/);
+    assert.equal(new URL(url).searchParams.get('redirect_uri'), 'https://paddocklive.app/fb-callback');
+    const back = fbCallback(new URL(`https://paddocklive.app/fb-callback?code=CODE1&state=${state}`));
+    assert.equal(back.status, 302);
+    const loc = back.headers.get('Location');
+    assert.ok(loc.startsWith('https://paddocklive.app/studio/#meta='), loc);
+    const params = Object.fromEntries(new URLSearchParams(decodeURIComponent(loc.split('#meta=')[1])));
+    // Autre « state » refusé, puis le bon : Facebook et Instagram connectés
+    assert.equal((await post('accounts/meta-finish', { ...params, state: `s.${'0'.repeat(32)}` })).status, 409);
+    const r = await (await post('accounts/meta-finish', params)).json();
+    assert.deepEqual(r, { facebook: 'Paddock Live', instagram: '@paddocklive' });
+    assert.ok(graph.some((u) => u.includes('redirect_uri=https%3A%2F%2Fpaddocklive.app%2Ffb-callback') && u.includes('client_secret=secret-meta')));
+    assert.equal((await post('accounts/meta-finish', params)).status, 409);   // demande déjà utilisée
+    m = await me();
+    assert.deepEqual([m.facebook, m.instagram, m.metaApp], ['Paddock Live', '@paddocklive', true]);
+    // Retour vers l'appli inchangé (port au début du state)
+    assert.equal(fbCallback(new URL(`https://paddocklive.app/fb-callback?code=c&state=3000.${'a'.repeat(32)}`)).headers.get('Location').startsWith('http://127.0.0.1:3000/meta-callback/'), true);
+  } finally { globalThis.fetch = realFetch; }
+});

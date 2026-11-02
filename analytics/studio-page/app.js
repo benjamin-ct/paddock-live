@@ -607,13 +607,24 @@ Happy to help you set it up before the next Grand Prix!`],
 // ---------- Réglages : comptes, alertes, déconnexion ----------
 function settings() {
   const me = session.me || {};
-  const accounts = [['Instagram', me.instagram], ['Facebook', me.facebook], ['Threads', me.threads], ['Bluesky', me.bluesky], ['F1 TV (archives des séances)', me.f1tv ? 'connecté' : null]];
+  // Comptes : Facebook, Instagram, Threads et Bluesky se connectent ici ; tous se retirent ici (gérés ensuite par le
+  // Studio, plus remplacés par l'appli) ; TikTok, YouTube et F1 TV viennent de l'appli de bureau
+  const meta = me.facebook ? `${me.facebook}${me.instagram ? ` · ${me.instagram}` : ''}` : null;
+  const accounts = [['meta', 'Facebook et Instagram', meta], ['threads', 'Threads', me.threads], ['bluesky', 'Bluesky', me.bluesky], ['tiktok', 'TikTok', me.tiktok], ['youtube', 'YouTube', me.youtube]];
   const pages = [['Paddock Live', 'https://paddocklive.app/liens/'], ['Benjy Paddock', 'https://paddocklive.app/benjy/']];
   const link = ([n, u]) => `<div class="row-item static"><span class="grow"><b>${esc(n)}</b><small>${esc(u.replace('https://', ''))}</small></span>
       <a class="btn small" href="${esc(u)}" target="_blank" rel="noopener">${icon('link')}Ouvrir</a><button class="btn small" data-copy="${esc(u)}">${icon('copy')}Copier</button></div>`;
   // Le plus utile en premier : comptes, alertes, signature ; puis liens, pack streamers et outils
-  const dlg = sheet('Réglages', `<h3 class="section">Comptes</h3><div class="group">${accounts.map(([n, v]) => `<div class="row-item static"><span class="grow"><b>${esc(n)}</b><small>${esc(v || 'non connecté')}</small></span><span class="state ${v ? 'on' : ''}"></span></div>`).join('')}</div>
-    <p class="hint">Comptes envoyés par l'appli de bureau (Réglages → Mode créateur → Comptes…).</p>
+  const field = (id, label, type = 'text') => `<label class="field"><span>${label}</span><input type="${type}" id="${id}" autocomplete="off" autocapitalize="off" spellcheck="false"></label>`;
+  const dlg = sheet('Réglages', `<h3 class="section">Comptes</h3><div class="group">${accounts.map(([k, n, v]) => `<div class="row-item static"><span class="grow"><b>${esc(n)}</b><small>${esc(v || 'non connecté')}</small></span>${v ? `<button class="btn small" data-acc-del="${k}">${icon('close')}Retirer</button>` : ''}<span class="state ${v ? 'on' : ''}"></span></div>`).join('')}
+      <div class="row-item static"><span class="grow"><b>F1 TV (archives des séances)</b><small>${me.f1tv ? 'connecté' : 'non connecté'}</small></span><span class="state ${me.f1tv ? 'on' : ''}"></span></div></div>
+    <details class="cap"><summary><span>Connecter Facebook et Instagram</span></summary>
+      ${me.metaApp ? `<button class="btn primary wide" id="metaGo">${icon('link')}Se connecter avec Facebook</button>` : ''}
+      <details class="cap"><summary><span>App Meta${me.metaApp ? ' (enregistrée)' : ''}</span></summary>${field('maId', 'Identifiant de l\'app')}${field('maSecret', 'Clé secrète de l\'app', 'password')}${field('maConf', 'ID de configuration (facultatif)')}
+        <button class="btn small" id="maSave">Enregistrer</button><p class="hint">developers.facebook.com → ton app → Paramètres → Général. L'adresse de retour reste https://paddocklive.app/fb-callback.</p></details></details>
+    <details class="cap"><summary><span>Connecter Threads</span></summary>${field('thSecret', 'Clé secrète Threads', 'password')}${field('thToken', 'Jeton d\'accès Threads', 'password')}<button class="btn small" id="thSave">Connecter</button></details>
+    <details class="cap"><summary><span>Connecter Bluesky</span></summary>${field('bsHandle', 'Identifiant (ex. paddocklive.bsky.social)')}${field('bsPass', 'Mot de passe d\'application', 'password')}<button class="btn small" id="bsSave">Connecter</button></details>
+    <p class="hint">Facebook, Instagram, Threads et Bluesky se connectent ici. TikTok, YouTube et F1 TV viennent de l'appli de bureau (Réglages → Mode créateur → Comptes…). Un compte connecté ou retiré ici n'est plus remplacé par l'appli.</p>
     <h3 class="section">Alertes des grosses news</h3><div id="alerts"></div>
     <h3 class="section">Posts</h3><label class="field"><span>Signature des visuels et des textes <small>(gardée sur cet appareil)</small></span><input type="text" id="sigin" maxlength="40" value="${esc(SIG)}" placeholder="${esc(SIG_DEFAULT)}"></label>
     <h3 class="section">Mes pages de liens</h3><div class="group">${pages.map(link).join('')}</div>
@@ -639,6 +650,7 @@ function settings() {
     <p class="hint center">Version du Studio : ${esc(VERSION)} · © 2026 Paddock Live · <a href="https://github.com/benjamin-ct/paddock-live/blob/main/analytics/LICENSE" target="_blank" rel="noopener">Licence AGPL v3</a></p>`);
   alertsBlock($('#alerts', dlg));
   newsSourcesBlock(dlg);
+  accountsBlock(dlg);
   $('#sigin', dlg).onchange = (e) => { setSig(e.target.value); e.target.value = SIG; toast(`Signature : ${SIG}`, 'ok'); };
   if (me.f1tv) {
     const go = $('#pairGo', dlg), inp = $('#pairCode', dlg), devs = $('#pairDevices', dlg);
@@ -665,6 +677,34 @@ function settings() {
   }
   $$('[data-copy]', dlg).forEach((b) => { b.onclick = () => navigator.clipboard.writeText(b.dataset.copy || b.previousElementSibling.value).then(() => toast(b.dataset.copy ? 'Lien copié' : 'Message copié', 'ok'), () => toast('Copie impossible', 'bad')); });
   $('#out', dlg).onclick = () => { dlg.close(); forgetKey(); login(); };
+}
+
+// Comptes connectés ou retirés depuis le Studio (analytics/accounts.js) ; Réglages rouverts à jour
+async function reloadMe(msg) {
+  session.me = await api('me');
+  store.set('me', session.me);
+  toast(msg, 'ok');
+}
+function accountsBlock(dlg) {
+  const send = async (btn, body, msg) => {
+    btn.disabled = true;
+    try { await api('accounts/set', { method: 'POST', body: JSON.stringify(body) }); await reloadMe(msg); dlg.close(); settings(); }
+    catch (e) { toast(e.message || 'Échec', 'bad'); btn.disabled = false; }
+  };
+  const val = (id) => $(`#${id}`, dlg).value;
+  $$('[data-acc-del]', dlg).forEach((b) => { b.onclick = () => { if (confirm('Retirer ce compte du Studio ? L\'appli de bureau ne le renverra plus.')) send(b, { net: b.dataset.accDel, remove: true }, 'Compte retiré'); }; });
+  $('#maSave', dlg).onclick = (e) => send(e.target, { net: 'meta-app', appId: val('maId'), appSecret: val('maSecret'), configId: val('maConf') }, 'App Meta enregistrée');
+  $('#thSave', dlg).onclick = (e) => send(e.target, { net: 'threads', appSecret: val('thSecret'), token: val('thToken') }, 'Threads connecté');
+  $('#bsSave', dlg).onclick = (e) => send(e.target, { net: 'bluesky', handle: val('bsHandle'), appPassword: val('bsPass') }, 'Bluesky connecté');
+  const go = $('#metaGo', dlg);
+  if (go) go.onclick = async () => { go.disabled = true; try { location.href = (await api('accounts/meta-login', { method: 'POST' })).url; } catch (e) { toast(e.message, 'bad'); go.disabled = false; } };
+}
+// Retour de la connexion Facebook (/fb-callback renvoie ici avec #meta=…)
+async function finishMeta(params) {
+  try {
+    const r = await api('accounts/meta-finish', { method: 'POST', body: JSON.stringify(Object.fromEntries(params)) });
+    await reloadMe(`Facebook connecté : ${r.facebook}${r.instagram ? ` · ${r.instagram}` : ''}`);
+  } catch (e) { toast(e.message || 'Connexion Facebook impossible', 'bad'); }
 }
 
 // Sources d'actu ajoutées pour l'onglet Actu de l'appli (lues par le serveur avec les sources par défaut)
@@ -768,10 +808,13 @@ async function checkUpdate() {
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkUpdate(); });
 
 const startAlert = new URLSearchParams(location.search).get('alert');
-if (startAlert) history.replaceState(null, '', '/studio/');
+const metaBack = location.hash.startsWith('#meta=') ? new URLSearchParams(decodeURIComponent(location.hash.slice(6))) : null;
+if (startAlert || metaBack) history.replaceState(null, '', '/studio/');
+let metaDone = false;
 const afterLogin = async () => {
   home();
   openAlert(startAlert);
+  if (metaBack && !metaDone) { metaDone = true; finishMeta(metaBack); }
 };
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/studio/sw.js', { scope: '/studio/' }).catch(() => {});

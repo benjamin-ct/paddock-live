@@ -35,6 +35,7 @@ import { buildSeason, SEASON_TTL, resultsReady } from './season-cache.js';
 import { accountStats } from './account-stats.js';
 import { callerIp, studioQuota, neuronBudget, aiCounters, dayLimit } from './quota.js';
 import { served } from './download.js';
+import { setAccount, fromApp, metaAccount, metaLoginUrl, STUDIO_STATE, LOGIN_TTL } from './accounts.js';
 
 // Empreinte de la clé tirée du code (la même que dans l'appli, server/creator.js) : SHA-256 de la clé PBKDF2 de
 // 200 000 tours, longue à essayer à la chaîne (STUDIO_KEY_HASH : autre empreinte, pour les tests)
@@ -834,7 +835,9 @@ export async function studioApi(req, env, url) {
     if (!raw || raw.length !== 32) return json({ error: 'Clé invalide' }, 400);
     if (!sameHex(await sha(raw), env.STUDIO_KEY_HASH || KEY_HASH)) { await failed(env, req); return json({ error: 'Code incorrect' }, 401); }
     await setRow(env, 'verifier', await sha(raw));
-    await saveVault(env, raw, cleanVault(body.vault));
+    // Réactivation (même code) : comptes gérés par le Studio gardés
+    const old = await open(raw, await getRow(env, 'vault')).catch(() => null) || {};
+    await saveVault(env, raw, fromApp(old, cleanVault(body.vault)));
     await keepAccounts(env, body.accounts);
     return json({ ok: true });
   }
@@ -889,9 +892,39 @@ export async function studioApi(req, env, url) {
   if (path === 'sync' && req.method === 'POST') {
     let body;
     try { body = await req.json(); } catch { return json({ error: 'JSON invalide' }, 400); }
-    await saveVault(env, a.raw, keepNewer(vault, cleanVault(body?.vault)));
+    await saveVault(env, a.raw, fromApp(vault, keepNewer(vault, cleanVault(body?.vault))));
     await keepAccounts(env, body?.accounts);
     return json({ ok: true });
+  }
+  // Comptes connectés ou retirés depuis le Studio (analytics/accounts.js) : Bluesky, Threads, app Meta, retrait
+  if (path === 'accounts/set' && req.method === 'POST') {
+    let body;
+    try { body = await req.json(); } catch { return json({ error: 'JSON invalide' }, 400); }
+    try { vault = await setAccount(vault, body); } catch (err) { return json({ error: err.message }, 400); }
+    await saveVault(env, a.raw, vault);
+    return json({ ok: true });
+  }
+  // Connexion Facebook (Facebook et Instagram) : adresse de Meta ; une seule demande en cours, valable 15 minutes
+  if (path === 'accounts/meta-login' && req.method === 'POST') {
+    if (!vault.metaApp) return json({ error: 'Renseignez d\'abord l\'identifiant et la clé secrète de l\'app Meta' }, 409);
+    const nonce = [...crypto.getRandomValues(new Uint8Array(16))].map((x) => x.toString(16).padStart(2, '0')).join('');
+    await setRow(env, 'oauth:meta', `${nonce}.${Date.now()}`);
+    return json({ url: metaLoginUrl(vault.metaApp, `s.${nonce}`) });
+  }
+  // Retour de Facebook (renvoyé au Studio par /fb-callback) : code échangé avec l'app Meta du coffre
+  if (path === 'accounts/meta-finish' && req.method === 'POST') {
+    let body;
+    try { body = await req.json(); } catch { return json({ error: 'JSON invalide' }, 400); }
+    const [nonce, at] = String(await getRow(env, 'oauth:meta') || '').split('.');
+    const state = String(body?.state || '');
+    if (!STUDIO_STATE.test(state) || state !== `s.${nonce}` || Date.now() - Number(at) > LOGIN_TTL) return json({ error: 'Demande de connexion expirée : recommencez depuis Réglages → Comptes' }, 409);
+    await setRow(env, 'oauth:meta', '');
+    if (body.error) return json({ error: body.error_reason === 'user_denied' ? 'Connexion refusée dans Facebook' : String(body.error_description || body.error).slice(0, 300) }, 400);
+    if (!vault.metaApp) return json({ error: 'App Meta absente du coffre' }, 409);
+    try { vault = { ...vault, meta: await metaAccount(vault.metaApp, String(body.code || ''), vault.meta?.pageId), managed: [...new Set([...(vault.managed || []), 'meta'])] }; }
+    catch (err) { return json({ error: err.message }, 400); }
+    await saveVault(env, a.raw, vault);
+    return json({ facebook: vault.meta.pageName, instagram: vault.meta.igId ? `@${vault.meta.igUsername || ''}` : null });
   }
   // Nouvel ordinateur : copie des comptes (chiffrée par l'appli) et jetons du coffre, peut-être renouvelés ici
   if (path === 'accounts' && req.method === 'GET') {
@@ -912,6 +945,7 @@ export async function studioApi(req, env, url) {
       facebook: vault.meta?.pageName || null, instagram: vault.meta?.igId ? `@${vault.meta.igUsername || ''}` : null,
       threads: vault.threads?.token ? `@${vault.threads.username || ''}` : null, bluesky: vault.bluesky ? `@${vault.bluesky.handle}` : null, f1tv: !!vault.f1tv, at: vault.at || null,
       tiktok: vault.tiktok ? vault.tiktok.name || 'TikTok' : null, youtube: vault.youtube ? vault.youtube.name || 'YouTube' : null,
+      managed: vault.managed || [], metaApp: !!vault.metaApp,   // comptes gérés par le Studio (Réglages → Comptes)
       sources: DEFAULT_SOURCES.filter((s) => s.kind === 'rss').map(({ id, name, cat, lang, filter }) => ({ id, name, cat, lang, filter: filter || null })),
     });
   }
@@ -925,7 +959,7 @@ export async function studioApi(req, env, url) {
       const acc = await clipAccount(env, a.raw, v, net).catch((err) => { if (refused(err)) out[net] = clipExpired(net); return null; });
       if (acc) v = { ...v, [net]: acc };
     }
-    if (v.threads?.expiresAt && v.threads.expiresAt < Date.now()) out.threads = 'Connexion Threads expirée : reconnectez-la dans l\'appli (Comptes…), puis « Renvoyer les comptes »';
+    if (v.threads?.expiresAt && v.threads.expiresAt < Date.now()) out.threads = 'Connexion Threads expirée : reconnectez-la dans le Studio (Réglages → Comptes)';
     return json(out);
   }
   // Bilan des fonctions de l'appli (statistiques anonymes des 30 derniers jours)
