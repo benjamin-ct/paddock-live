@@ -1959,6 +1959,7 @@ body.solo #muteBtn { display: none; }
 .cmp-drv.right { border-left: 0; border-right: 3px solid var(--c); padding: 0 10px 0 0; text-align: right; align-items: flex-end; }
 .cmp-drv b { font-size: 20px; letter-spacing: .5px; }
 .cmp-drv span { font-size: 16px; font-weight: 600; }
+.cmp-live { color: var(--red, #e10600); font-weight: 700; text-transform: uppercase; letter-spacing: .06em; font-size: 11px; }   /* tour en cours comparé en direct */
 .cmp-gap { text-align: center; display: flex; flex-direction: column; }
 .cmp-gap b { font-size: 24px; font-weight: 700; }
 .cmp-sectors { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
