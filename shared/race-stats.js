@@ -134,19 +134,36 @@ export function summarizeRace({ events, keyframes = {}, track = null }) {
   };
 }
 
-// Fichier .jsonStream d'une archive : une ligne par message, « hh:mm:ss.mmm{json} » depuis le début de la séance
+// Instant d'une ligne d'archive (ms depuis le début de l'enregistrement) : « hh:mm:ss.mmm{json} », et au-delà de
+// 24 h « j.hh:mm:ss.mmm{json} » (Mexico 2026 : le fichier de la course commence aux essais libres 3 de la veille) ;
+// { off, rest } ou null
+const LINE = /^(?:(\d+)\.)?(\d+):(\d\d):(\d\d)\.(\d+)(.*)$/;
+export function lineOffset(line) {
+  const m = LINE.exec(line);
+  return m ? { off: (((+(m[1] || 0) * 24 + +m[2]) * 60 + +m[3]) * 60 + +m[4]) * 1000 + Math.round(+`0.${m[5]}` * 1000), rest: m[6] } : null;
+}
+
+// Fichier .jsonStream d'une archive : une ligne par message, depuis le début de l'enregistrement
 export function parseStream(text, topic) {
   const out = [];
-  const re = /^(\d+):(\d\d):(\d\d)\.(\d+)(.*)$/;
   for (const line of text.split(/\r?\n/)) {
-    const m = re.exec(line);
+    const m = lineOffset(line);
     if (!m) continue;
-    const off = ((+m[1] * 60 + +m[2]) * 60 + +m[3]) * 1000 + Math.round(+`0.${m[4]}` * 1000);
     let data;
-    try { data = JSON.parse(m[5]); } catch { continue; }
-    out.push({ off, topic, data });
+    try { data = JSON.parse(m.rest); } catch { continue; }
+    out.push({ off: m.off, topic, data });
   }
   return out;
+}
+
+// Archive qui reprend après un long silence (Mexico 2026 : essais libres 3 le samedi, puis plus rien pendant 24 h, puis
+// la course) : la séance est la partie après le dernier silence de plus de 6 h (dans une séance, même un drapeau rouge
+// ne laisse jamais 6 h sans message). events triés ; instant de reprise, 0 sinon
+export const ARCHIVE_GAP = 6 * 3600e3;
+export function sessionCut(events) {
+  let cut = 0;
+  for (let i = 1; i < events.length; i++) if (events[i].off - events[i - 1].off > ARCHIVE_GAP) cut = events[i].off;
+  return cut;
 }
 
 // Index des archives d'une année (Index.json) : Grands Prix et séances publiées

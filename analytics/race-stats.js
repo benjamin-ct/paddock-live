@@ -5,7 +5,7 @@
 import { seasonRow, archiveToken } from './studio.js';
 import { getRow, setRow, rowsWithPrefix, readJSON } from './alerts.js';
 import { seasonNominations } from './tyres.js';
-import { summarizeRace, findRaceSession, parseStream, indexMeetings, STATS_VERSION } from '../shared/race-stats.js';
+import { summarizeRace, findRaceSession, parseStream, indexMeetings, sessionCut, STATS_VERSION } from '../shared/race-stats.js';
 import { fetchDhl, withDhl } from '../shared/dhl-pits.js';
 import { topicName } from '../shared/f1.js';
 import { Track } from '../shared/track.js';
@@ -54,7 +54,9 @@ async function analyse(env, race, year, token, fetchFn) {
   const s = findRaceSession(indexMeetings(JSON.parse(await archiveText(`${year}/Index.json`, token, fetchFn))), race);
   if (!s) throw new Error('course absente de l\'index des archives');
   const streams = await Promise.all(['TimingData', 'TrackStatus', 'TimingAppData'].map(async (t) => parseStream(await archiveText(`${s.path}${t}.jsonStream`, token, fetchFn), t)));
-  const events = streams.flat().map((e) => ({ off: e.off, topic: topicName(e.topic), data: e.data })).sort((a, b) => a.off - b.off);
+  const all = streams.flat().map((e) => ({ off: e.off, topic: topicName(e.topic), data: e.data })).sort((a, b) => a.off - b.off);
+  const cut = sessionCut(all);   // archive commencée à une séance précédente (course de Mexico 2026) : la course seule
+  const events = cut ? all.filter((e) => e.off >= cut) : all;
   const keyframes = Object.fromEntries(await Promise.all(['TimingStats', 'PitStopSeries', 'DriverList', 'LapCount', 'TimingAppData']
     .map(async (t) => [t, await archiveText(`${s.path}${t}.json`, token, fetchFn).then(JSON.parse).catch(() => null)])));
   let track = null;

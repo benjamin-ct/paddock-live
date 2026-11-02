@@ -14,9 +14,10 @@ import { applyEvent, createDerived } from '../shared/derive.js';
 import { addPositions, addCarData } from '../shared/compare.js';
 import { parseUtc, parseLapTime } from '../shared/f1.js';
 import { neutralLaps } from '../shared/pits.js';
+import { sessionCut } from '../shared/race-stats.js';
+import { projected, passes, bisect, startGains } from '../shared/insights.js';
 
 const KEEP = new Set(['SessionInfo', 'DriverList', 'TimingData', 'TimingAppData', 'TimingStats', 'RaceControlMessages', 'TrackStatus', 'SessionStatus', 'LapCount', 'Heartbeat']);
-const OFF_TRACK = 200;   // unités (≈ 20 m) : au-delà, voie des stands ou hors piste
 
 const median = (a) => { const s = a.filter(Number.isFinite).sort((x, y) => x - y); return s.length ? (s.length % 2 ? s[s.length >> 1] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2) : null; };
 const quant = (a, q) => { const s = a.filter(Number.isFinite).sort((x, y) => x - y); return s.length ? s[Math.min(s.length - 1, Math.floor(q * s.length))] : null; };
@@ -38,7 +39,13 @@ export function studyCollector() {
         if (name === 'SessionInfo') info = { ...info, ...data };
       }
     },
-    result: (load) => studies({ events: events.sort((a, b) => a.t - b.t), cars, tel, beats, info, load }),
+    result: (load) => {
+      // Archive commencée à une séance précédente (course de Mexico 2026) : la séance seule, liste des pilotes gardée
+      const all = events.sort((a, b) => a.t - b.t);
+      const cut = sessionCut(all.map((e) => ({ off: e.t })));
+      const kept = cut ? all.filter((e) => e.t >= cut || e.topic === 'DriverList' || e.topic === 'SessionInfo') : all;
+      return studies({ events: kept, cars, tel, beats, info, load });
+    },
   };
 }
 
@@ -48,14 +55,6 @@ function rate(map) {
   let holes = 0;
   for (const c of map.values()) for (let i = 1; i < c.utc.length; i++) { const d = c.utc[i] - c.utc[i - 1]; dts.push(d); if (d > 2000) holes++; }
   return { med: median(dts), p90: quant(dts, 0.9), holes, cars: map.size };
-}
-
-// Écart signé à la ligne du tracé (unités ; positif à gauche du sens de la course) et temps de référence r
-function along(track, x, y, hint) {
-  const p = track.project(x, y, hint);
-  const n = track.pts.length, a = track.pts[p.i], b = track.pts[(p.i + 1) % n];
-  const dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy) || 1;
-  return { r: p.r, i: p.i, lat: ((x - a.x) * dy * -1 + (y - a.y) * dx) / len };
 }
 
 // Unités par mètre : distance GPS parcourue face à la vitesse intégrée (télémétrie), sur les mêmes instants
@@ -77,39 +76,6 @@ function unitsPerMetre(cars, tel) {
     if (dm > 2000) ratios.push(du / dm);
   }
   return median(ratios);
-}
-
-// Positions d'une voiture projetées une fois sur le tracé : [{ r, lat, utc, x, y }] (null : hors piste)
-function projected(track, c) {
-  let hint = -1;
-  return c.utc.map((utc, i) => {
-    const p = along(track, c.x[i], c.y[i], hint);
-    hint = p.i;
-    return Math.abs(p.lat) > OFF_TRACK ? null : { r: p.r, lat: p.lat, utc, x: c.x[i], y: c.y[i] };
-  });
-}
-// Premier indice de a (croissant) dont la valeur est >= v
-const bisect = (a, v) => { let lo = 0, hi = a.length; while (lo < hi) { const m = (lo + hi) >> 1; if (a[m] < v) lo = m + 1; else hi = m; } return lo; };
-
-// Passages au point r0 du tracé (positions déjà projetées) : [{ utc, lat, gap (unités entre les deux points) }]
-function passes(track, proj, r0) {
-  const out = [];
-  let prev = null;
-  const L = track.L;
-  for (const cur of proj) {
-    if (!cur) { prev = null; continue; }
-    if (prev && cur.utc - prev.utc < 1500) {
-      let a = prev.r, b = cur.r, target = r0;
-      if (b < a - L / 2) b += L;   // passage de la ligne de référence du tracé
-      if (target < a) target += L;
-      if (a <= target && target <= b && b > a) {
-        const u = (target - a) / (b - a);
-        out.push({ utc: prev.utc + u * (cur.utc - prev.utc), lat: prev.lat + u * (cur.lat - prev.lat), gap: Math.hypot(cur.x - prev.x, cur.y - prev.y), rA: prev.r });
-      }
-    }
-    prev = cur;
-  }
-  return out;
 }
 
 // Trajectoires et freinages, virage par virage
@@ -197,24 +163,13 @@ function start(track, cars, events, beats, dl) {
   const st = events.find((e) => e.topic === 'SessionStatus' && e.data?.Status === 'Started');
   if (!st || !beats.length || !track.corners.length) return null;
   const off = median(beats.map(([o, u]) => u - o));
-  const t0 = st.t + off;
   const grid = new Map();
   for (const e of events) {
     if (e.topic !== 'TimingData' || e.t > st.t) continue;
     for (const [n, l] of Object.entries(e.data?.Lines || {})) if (l?.Position) grid.set(n, Number(l.Position));
   }
-  const r1 = track.project(track.corners[0].x, track.corners[0].y).r;
-  const at = [];
-  for (const [num, c] of cars) {
-    const i0 = bisect(c.utc, t0 - 2000);
-    if (i0 >= c.utc.length) continue;
-    const sub = { utc: c.utc.slice(i0, i0 + 200), x: c.x.slice(i0, i0 + 200), y: c.y.slice(i0, i0 + 200) };
-    const first = passes(track, projected(track, sub), r1).find((p) => p.utc >= t0);
-    if (first) at.push({ num, utc: first.utc });
-  }
-  at.sort((a, b) => a.utc - b.utc);
-  const moves = at.map((x, i) => ({ tla: dl[x.num]?.Tla || x.num, grid: grid.get(x.num), t1: i + 1 })).filter((x) => x.grid);
-  return { cars: cars.size, seen: at.length, moves: moves.map((x) => ({ ...x, gained: x.grid - x.t1 })).sort((a, b) => b.gained - a.gained) };
+  const r = startGains(track, cars, st.t + off, grid);
+  return r && { cars: cars.size, seen: r.seen, moves: r.moves.map((m) => ({ ...m, tla: dl[m.num]?.Tla || m.num })) };
 }
 
 // Choix d'aileron : vitesse au point de mesure (meilleure) et meilleur tour, médiane par écurie

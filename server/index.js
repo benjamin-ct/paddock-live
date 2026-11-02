@@ -14,7 +14,7 @@ import { Recorder, listRecordings, pruneRecordings, recordingPath } from './reco
 import { ROOT, settings, getConfig, saveConfig, parseF1tvToken, tokenInfo } from './config.js';
 import { createLan, isLoopback, qrSvg } from './lan.js';
 import { getTranslations, addTranslations } from './translations.js';
-import { compareLaps } from './compare.js';
+import { compareLaps, raceStart } from './compare.js';
 import { startNews, refreshNews, newsSnapshot, onNews, setNewsSourceEnabled } from './news.js';
 import { parseChangelog } from '../shared/changelog.js';
 import { buildIcs } from '../shared/ics.js';
@@ -192,6 +192,11 @@ async function handleApi(req, res, url) {
       return sendJSON(res, 200, { ...hub.statusPayload(), auth: authInfo() });
 
     // Meilleurs tours de deux pilotes : secteurs et mini-secteurs (à la date du délai TV)
+    // Départ de la course : places gagnées jusqu'au premier virage (GPS), à la date du délai TV
+    case 'GET /api/start': {
+      const until = Number(url.searchParams.get('until')) || Date.now();
+      return sendJSON(res, 200, await raceStart(hub, Math.min(until, hub.clock())) || { none: true });
+    }
     case 'GET /api/compare': {
       const a = url.searchParams.get('a'), b = url.searchParams.get('b');
       const until = Number(url.searchParams.get('until')) || Date.now();

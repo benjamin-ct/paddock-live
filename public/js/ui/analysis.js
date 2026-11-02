@@ -5,6 +5,7 @@ import { store, versionOf, on, setFocus } from '../store.js';
 import { $, esc, api, drivers, orderedNumbers, sessionKind, teamColor, teamMark, ink, compoundInfo, fmtLap, lapSeconds, storageGet, storageSet, driverOpt } from '../util.js';
 import { prefs, isFav } from '../prefs.js';
 import { renderCompare, initCompare, openCompareLap } from './compare.js';
+import { renderInsights } from './insights.js';
 import { tx } from '../i18n.js';
 import { weekendQuery, SESSION_FR } from './tyres.js';
 
@@ -487,7 +488,7 @@ export function renderAnalysis(force = false) {
     fn();
   }
 }
-Object.assign(RENDER, { trace: renderTrace, positions: renderPositions, laptimes: renderLapTimes, tyrehist: renderTyres, sectors: renderSectors, pace: renderPace, compare: renderCompare });
+Object.assign(RENDER, { trace: renderTrace, positions: renderPositions, laptimes: renderLapTimes, tyrehist: renderTyres, sectors: renderSectors, pace: renderPace, compare: renderCompare, insights: renderInsights });
 
 function fillRefSelect() {
   const dl = drivers(store.state);
