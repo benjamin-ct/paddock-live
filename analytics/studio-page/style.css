@@ -246,6 +246,9 @@ button.row-item:active { background: var(--surface-2); }
   .row-item.static:has(> .btn) { flex-wrap: wrap; gap: 8px; padding-block: 12px; }
   .row-item.static:has(> .btn) > .grow { flex-basis: 100%; }
 }
+/* Comptes : « Retirer » reste à droite du nom (une ligne par compte) */
+.row-item.static.acc { flex-wrap: nowrap; }
+.row-item.static.acc > .grow { flex-basis: auto; }
 .num { display: grid; place-items: center; flex: none; width: 32px; height: 32px; border-radius: 8px; background: var(--surface-3); color: var(--text-2); font: 700 13px var(--mono); }
 .state { flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--line-2); }
 .state.on { background: var(--ok); box-shadow: 0 0 0 4px rgba(34, 197, 94, .18); }
@@ -709,3 +712,4 @@ dialog.sheet .group, dialog.sheet .card { background: var(--surface); }
   .steps button { flex-direction: row; justify-content: center; gap: 8px; min-height: 40px; padding: 6px; font-size: 14px; }
   .steps button:hover:not(.on) { color: var(--text); background: var(--surface-2); }
 }
+.sec-back { align-self: flex-start; margin-bottom: 4px; }   /* Réglages : retour au menu depuis une rubrique */
