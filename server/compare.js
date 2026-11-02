@@ -3,7 +3,7 @@
 // (son délai TV) : aucun spoiler.
 import zlib from 'node:zlib';
 import { applyEvent, createDerived } from '../shared/derive.js';
-import { addPositions, addCarData, compareFrom } from '../shared/compare.js';
+import { addPositions, addCarData, compareFrom, raceStartFrom } from '../shared/compare.js';
 import { circuit, loops } from './circuits.js';
 
 export { miniSectors } from '../shared/compare.js';
@@ -38,4 +38,10 @@ export async function compareLaps(hub, { a, b, until, la = null, lb = null }) {
   const { cars, tel } = hub.hasPositions ? decoded(hub) : { cars: new Map(), tel: new Map() };
   return compareFrom({ state, derived, events: hub.events, cars, tel: hub.hasCarData ? tel : null, until, a, b, la, lb,
     load: (key, year) => Promise.all([circuit(key, year), loops(key, year).catch(() => null)]) });
+}
+
+// Départ de la course (Analyse → Tendances) : GPS du hub, rien après `until` (délai TV du navigateur)
+export async function raceStart(hub, until) {
+  const { cars } = hub.hasPositions ? decoded(hub) : { cars: new Map() };
+  return raceStartFrom({ events: hub.events, cars, until, load: (key, year) => Promise.all([circuit(key, year)]) });
 }

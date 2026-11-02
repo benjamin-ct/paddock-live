@@ -13,6 +13,13 @@ l'application (Réglages → À propos → Nouveautés).
   À la fin du tour, le tour fini s'affiche quelques secondes, recalé sur le temps officiel, puis le suivant commence.
   Avec le compte F1 TV connecté (GPS) ; pendant le tour, l'écart est une estimation d'après le GPS.
 
+### Analyse
+- Nouvel onglet « Tendances » : en course, les places gagnées par chaque pilote entre la grille et le premier virage
+  (d'après le GPS, avec F1 TV), l'usure des pneus de chaque pilote sur son relais en cours (perte par tour, corrigée de
+  l'allègement en carburant) et le choix d'aileron de chaque écurie (vitesse de pointe face au meilleur tour) ; en
+  qualifs et en essais, l'évolution de la piste (combien elle a gagné depuis le début) et le choix d'aileron.
+- Comparaison : l'heure des données GPS est mieux calée sur les replays (la course de Mexico la décalait de 20 minutes).
+
 ### Replays
 - La course de Mexico se rejoue en entier : la F1 l'a publiée dans un fichier qui commence aux essais libres 3 de la
   veille, et le replay montrait ces essais à la place de la course. Toute archive dans ce cas est maintenant rejouée à

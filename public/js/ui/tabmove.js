@@ -25,7 +25,7 @@ const ONLY_TAB = new URLSearchParams(location.search).get('tab') === 'compare' ?
 const START = {
   feed: ['rcm', 'stewards', 'tracklimits'],
   radio: ['radios'],
-  analysis: ['trace', 'pits', 'sectors', 'compare', 'laptimes', 'tyrehist', 'tyres', 'pitsim', 'battles', 'champ'],
+  analysis: ['trace', 'pits', 'sectors', 'compare', 'insights', 'laptimes', 'tyrehist', 'tyres', 'pitsim', 'battles', 'champ'],
   extra: ['telemetry'],
 };
 const origin = {};                                      // onglet -> panneau d'origine (page)

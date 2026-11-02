@@ -5,6 +5,7 @@
 // elle-même le GPS reçu depuis l'ouverture de la page (analytics/live-page/web.js).
 import { Track } from './track.js';
 import { parseUtc, parseLapTime } from './f1.js';
+import { startGains } from './insights.js';
 
 const MAX_GAP_MS = 2000;       // trou de GPS au-delà duquel la trajectoire est coupée
 const OFF_TRACK2 = 300 ** 2;   // voie des stands, garage : hors du tracé
@@ -51,16 +52,19 @@ function telIndex(c, utc) {
   return Math.abs(c.utc[j] - utc) < 600 ? j : -1;
 }
 
-// Heure locale de réception - heure F1, d'après les Heartbeat reçus jusqu'à `until`
-function clockOffset(events, until) {
-  let best = null;
+// Heure locale de réception - heure F1, d'après les Heartbeat reçus jusqu'à `until` : écart médian. L'archive de la
+// course de Mexico 2026 a des Heartbeat décalés de 20 min ; le plus petit écart plaçait le départ 20 min trop tard
+export function clockOffset(events, until) {
+  const offs = [];
   for (const e of events) {
     if (e.t > until) break;
     if (e.topic !== 'Heartbeat' || !e.data?.Utc) continue;
     const off = e.t - parseUtc(e.data.Utc);
-    if (Number.isFinite(off) && (best === null || off < best)) best = off;
+    if (Number.isFinite(off)) offs.push(off);
   }
-  return best;
+  if (!offs.length) return null;
+  offs.sort((x, y) => x - y);
+  return offs[offs.length >> 1];
 }
 
 // Trajectoire d'un pilote en « tours parcourus depuis la ligne » (continue par morceaux)
@@ -344,4 +348,24 @@ export function lapTraces(tel, out, laps, track, line) {
   let len = 0;
   for (let i = 0; i < K; i++) if (a.v[i] !== null && a.v[i + 1] !== null && a.t[i] !== null && a.t[i + 1] !== null) len += ((a.v[i] + a.v[i + 1]) / 7.2) * (a.t[i + 1] - a.t[i]);
   return { K, len: a.tel ? Math.round(len) : null, corners, tel: a.tel && b.tel, a, b };
+}
+
+// Départ d'une course (Analyse → Tendances) : grille (positions du chronométrage juste avant le feu vert) et ordre au
+// premier virage d'après le GPS, rien après `until` (délai TV). Commun à l'appli et à la version web ; null si pas de
+// départ affiché, pas de GPS ou pas de tracé
+export async function raceStartFrom({ events, cars, until, load }) {
+  const started = events.find((e) => e.topic === 'SessionStatus' && e.data?.Status === 'Started');
+  if (!started || started.t > until || !cars?.size) return null;
+  const grid = new Map();
+  let info = null;
+  for (const e of events) {
+    if (e.t > started.t) break;
+    if (e.topic === 'SessionInfo') info = { ...info, ...e.data };
+    if (e.topic === 'TimingData') for (const [n, l] of Object.entries(e.data?.Lines || {})) if (l?.Position) grid.set(n, Number(l.Position));
+  }
+  const offset = clockOffset(events, until);
+  const key = info?.Meeting?.Circuit?.Key, year = Number(String(info?.StartDate || '').slice(0, 4)) || new Date().getFullYear();
+  if (offset === null || !key || !grid.size) return null;
+  const [cdata] = await load(key, year);
+  return cdata ? startGains(new Track(cdata), cars, started.t - offset, grid, until - offset) : null;
 }
