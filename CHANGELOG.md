@@ -4,7 +4,7 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → À propos → Nouveautés).
 
-## v1.30.0 — à venir
+## v1.30.0 — 2026-11-02
 
 ### Nouveau design
 - Accueil : le tracé lumineux du circuit se place dans l'espace libre entre le compte à rebours et le programme du
