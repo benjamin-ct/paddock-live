@@ -58,6 +58,7 @@ function report(r, p) {
     out.push('', `## ${f.name}${KNOWN_FEEDS.has(f.name) ? '' : ' (nouveau)'} · ${f.lines} messages${f.error ? ` · erreur : ${f.error}` : ''}`);
     for (const x of f.fields) out.push(line(x));
   }
+  if (r.studies?.lines) out.push('', '# Études de faisabilité (2.0)', ...r.studies.lines);
   const e = r.energy;
   if (e?.bands) out.push('', `## Énergie estimée : calibrage (plein gaz, km/h gagnés en 1 s) · ${binNames(e.gains).join(' | ')}`, ...e.bands.map((b, i) => `${band(b, e.bands[i + 1])} km/h · n ${b.n} · ${b.bins.map((x) => pct(b, x)).join(' | ')}`));
   const o = r.overtake;
@@ -76,6 +77,8 @@ function render(r) {
       ${t('{} champs lus dans toute la séance, en {} s.', fields.length, Math.round(r.ms / 1000))}</p>
     <p class="small"><b>${t('Canaux de télémétrie')}</b></p>
     <ul class="small diag-list" data-no-i18n>${channels.map((x) => { const k = channelOf(x.path); return `<li>${CHANNELS[k] ? t('Canal {} ({})', k, t(CHANNELS[k])) : `<b class="diag-new">${t('Canal {} ({})', k, t('nouveau'))}</b>`} : ${x.min} → ${x.max} · ${t('{} valeurs', `${x.distinct}${x.more ? '+' : ''}`)} · ${esc(vals(x.top))} · max ${esc(vals(x.highest))}</li>`; }).join('') || `<li>${t('Aucune télémétrie dans cette séance.')}</li>`}</ul>
+    ${r.studies?.lines ? `<details class="small" open><summary><b>${t('Études de faisabilité : trajectoires, freinages, pneus, départ, piste, aileron')}</b></summary>
+      <pre class="diag-pre" data-no-i18n>${esc(r.studies.lines.join('\n'))}</pre></details>` : ''}
     ${energyHtml(r.energy)}
     ${r.overtake?.events.length ? `<p class="small"><b>${t('Mode dépassement 2026 (pistes)')}</b> <span class="muted">${t('OvertakeState, indicateurs 4096 / 8192 du statut des pilotes, OvertakeSeries')}</span></p>
     <ul class="small diag-list" data-no-i18n>${r.overtake.summary.map((x) => `<li>${esc(changes(x))}</li>`).join('')}${r.overtake.overtakes.length ? `<li>${t('OvertakeSeries par pilote : {}', esc(perDriver(r.overtake)))}</li>` : ''}</ul>
