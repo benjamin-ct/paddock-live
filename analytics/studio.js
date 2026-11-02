@@ -35,7 +35,7 @@ import { buildSeason, SEASON_TTL, resultsReady } from './season-cache.js';
 import { accountStats } from './account-stats.js';
 import { callerIp, studioQuota, neuronBudget, aiCounters, dayLimit } from './quota.js';
 import { served } from './download.js';
-import { setAccount, fromApp, metaAccount, metaLoginUrl, STUDIO_STATE, LOGIN_TTL } from './accounts.js';
+import { setAccount, fromApp, loginUrl, finishLogin, STUDIO_STATE, LOGIN_TTL } from './accounts.js';
 
 // Empreinte de la clé tirée du code (la même que dans l'appli, server/creator.js) : SHA-256 de la clé PBKDF2 de
 // 200 000 tours, longue à essayer à la chaîne (STUDIO_KEY_HASH : autre empreinte, pour les tests)
@@ -426,16 +426,16 @@ const LINKS = ['facebook', 'threads', 'bluesky'];
 const SAFE_NETS = ['instagram', ...CLIPS, ...STORIES];
 // Compte du réseau absent du coffre : raison, sinon null
 function missing(net, vault) {
-  if (CLIPS.includes(net)) return vault[net] ? null : `Compte ${net === 'tiktok' ? 'TikTok' : 'YouTube'} non envoyé : connectez-le dans l'appli (Comptes…), puis « Renvoyer les comptes »`;
-  if (net === 'bluesky') return vault.bluesky ? null : 'Compte Bluesky non envoyé : connectez-le dans l\'appli';
-  if (!vault.meta?.pageToken) return 'Comptes Meta non envoyés : connectez-les dans l\'appli';
-  if (net === 'threads' && !vault.threads?.token) return 'Compte Threads non envoyé : connectez-le dans l\'appli';
+  if (CLIPS.includes(net)) return vault[net] ? null : `Compte ${net === 'tiktok' ? 'TikTok' : 'YouTube'} non connecté : connectez-le dans le Studio (Réglages → Comptes)`;
+  if (net === 'bluesky') return vault.bluesky ? null : 'Compte Bluesky non connecté : connectez-le dans le Studio (Réglages → Comptes)';
+  if (!vault.meta?.pageToken) return 'Facebook et Instagram non connectés : connectez-les dans le Studio (Réglages → Comptes)';
+  if (net === 'threads' && !vault.threads?.token) return 'Compte Threads non connecté : connectez-le dans le Studio (Réglages → Comptes)';
   return null;
 }
 const resultOf = (r) => ({ url: r.url || null, id: r.id ?? null, comment: !!r.comment, commentError: r.commentError || null, ...(r.visible != null ? { visible: r.visible } : {}) });
 
 // Connexion TikTok ou YouTube refusée par le réseau (expirée, retirée) : ce qu'il faut faire
-const clipExpired = (net) => `Connexion ${net === 'tiktok' ? 'TikTok' : 'YouTube'} expirée : reconnectez-vous dans l'appli (Comptes…), puis « Renvoyer les comptes »${net === 'youtube' ? ' (Google la coupe tous les 7 jours tant que l\'application Google est « en test »)' : ''}`;
+const clipExpired = (net) => `Connexion ${net === 'tiktok' ? 'TikTok' : 'YouTube'} expirée : reconnectez-la dans le Studio (Réglages → Comptes)${net === 'youtube' ? ' (Google la coupe tous les 7 jours tant que l\'application Google est « en test »)' : ''}`;
 const refused = (err) => err?.code === 'invalid_grant' || err?.code === 'invalid_client';
 
 // Brouillon TikTok ou Short YouTube. account() : compte aux jetons à jour
@@ -904,27 +904,31 @@ export async function studioApi(req, env, url) {
     await saveVault(env, a.raw, vault);
     return json({ ok: true });
   }
-  // Connexion Facebook (Facebook et Instagram) : adresse de Meta ; une seule demande en cours, valable 15 minutes
-  if (path === 'accounts/meta-login' && req.method === 'POST') {
-    if (!vault.metaApp) return json({ error: 'Renseignez d\'abord l\'identifiant et la clé secrète de l\'app Meta' }, 409);
-    const nonce = [...crypto.getRandomValues(new Uint8Array(16))].map((x) => x.toString(16).padStart(2, '0')).join('');
-    await setRow(env, 'oauth:meta', `${nonce}.${Date.now()}`);
-    return json({ url: metaLoginUrl(vault.metaApp, `s.${nonce}`) });
-  }
-  // Retour de Facebook (renvoyé au Studio par /fb-callback) : code échangé avec l'app Meta du coffre
-  if (path === 'accounts/meta-finish' && req.method === 'POST') {
+  // Connexion d'un réseau (Facebook et Instagram, TikTok, 2e compte TikTok, YouTube) : adresse du réseau ; une seule
+  // demande en cours, valable 15 minutes, utilisable une fois
+  if (path === 'accounts/login' && req.method === 'POST') {
     let body;
     try { body = await req.json(); } catch { return json({ error: 'JSON invalide' }, 400); }
-    const [nonce, at] = String(await getRow(env, 'oauth:meta') || '').split('.');
+    const net = String(body?.net || '');
+    const nonce = [...crypto.getRandomValues(new Uint8Array(16))].map((x) => x.toString(16).padStart(2, '0')).join('');
+    let url;
+    try { url = loginUrl(net, vault, `s.${nonce}`); } catch (err) { return json({ error: err.message }, 409); }
+    await setRow(env, 'oauth:login', `${net}|${nonce}|${Date.now()}`);
+    return json({ url });
+  }
+  // Retour du réseau (renvoyé au Studio par /fb-callback ou /studio-callback) : code échangé avec l'app du coffre
+  if (path === 'accounts/finish' && req.method === 'POST') {
+    let body;
+    try { body = await req.json(); } catch { return json({ error: 'JSON invalide' }, 400); }
+    const [net, nonce, at] = String(await getRow(env, 'oauth:login') || '').split('|');
     const state = String(body?.state || '');
     if (!STUDIO_STATE.test(state) || state !== `s.${nonce}` || Date.now() - Number(at) > LOGIN_TTL) return json({ error: 'Demande de connexion expirée : recommencez depuis Réglages → Comptes' }, 409);
-    await setRow(env, 'oauth:meta', '');
-    if (body.error) return json({ error: body.error_reason === 'user_denied' ? 'Connexion refusée dans Facebook' : String(body.error_description || body.error).slice(0, 300) }, 400);
-    if (!vault.metaApp) return json({ error: 'App Meta absente du coffre' }, 409);
-    try { vault = { ...vault, meta: await metaAccount(vault.metaApp, String(body.code || ''), vault.meta?.pageId), managed: [...new Set([...(vault.managed || []), 'meta'])] }; }
-    catch (err) { return json({ error: err.message }, 400); }
+    await setRow(env, 'oauth:login', '');
+    if (body.error) return json({ error: ['user_denied', 'access_denied'].includes(body.error_reason || body.error) ? 'Connexion refusée' : String(body.error_description || body.error).slice(0, 300) }, 400);
+    try { vault = await finishLogin(net, vault, String(body.code || '')); } catch (err) { return json({ error: err.message }, 400); }
     await saveVault(env, a.raw, vault);
-    return json({ facebook: vault.meta.pageName, instagram: vault.meta.igId ? `@${vault.meta.igUsername || ''}` : null });
+    const NAME = { meta: () => `${vault.meta.pageName}${vault.meta.igId ? ` · @${vault.meta.igUsername || ''}` : ''}`, tiktok: () => vault.tiktok.name || 'TikTok', tiktok2: () => vault.tiktok2.name || 'TikTok', youtube: () => vault.youtube.name || 'YouTube' };
+    return json({ net, name: NAME[net]() });
   }
   // Nouvel ordinateur : copie des comptes (chiffrée par l'appli) et jetons du coffre, peut-être renouvelés ici
   if (path === 'accounts' && req.method === 'GET') {
@@ -945,7 +949,8 @@ export async function studioApi(req, env, url) {
       facebook: vault.meta?.pageName || null, instagram: vault.meta?.igId ? `@${vault.meta.igUsername || ''}` : null,
       threads: vault.threads?.token ? `@${vault.threads.username || ''}` : null, bluesky: vault.bluesky ? `@${vault.bluesky.handle}` : null, f1tv: !!vault.f1tv, at: vault.at || null,
       tiktok: vault.tiktok ? vault.tiktok.name || 'TikTok' : null, youtube: vault.youtube ? vault.youtube.name || 'YouTube' : null,
-      managed: vault.managed || [], metaApp: !!vault.metaApp,   // comptes gérés par le Studio (Réglages → Comptes)
+      tiktok2: vault.tiktok2 ? vault.tiktok2.name || 'TikTok' : null,
+      managed: vault.managed || [], apps: { meta: !!vault.metaApp, tiktok: !!(vault.tiktokApp || vault.tiktok?.clientKey), youtube: !!(vault.youtubeApp || vault.youtube?.clientId) },   // Réglages → Comptes
       sources: DEFAULT_SOURCES.filter((s) => s.kind === 'rss').map(({ id, name, cat, lang, filter }) => ({ id, name, cat, lang, filter: filter || null })),
     });
   }
@@ -1138,7 +1143,7 @@ export async function studioApi(req, env, url) {
       return json(await tiktokCreator((await clipAccount(env, a.raw, vault, 'tiktok')).accessToken));
     } catch (err) {
       const m = String(err?.message || err);
-      return json({ error: /scope/i.test(m) ? 'Publication directe pas encore autorisée : activez « Direct Post » (video.publish) dans votre app TikTok, cochez « Publication directe » dans l\'appli (Comptes…, TikTok), reconnectez TikTok puis « Renvoyer les comptes »' : m.slice(0, 300), scope: /scope/i.test(m) }, 502);
+      return json({ error: /scope/i.test(m) ? 'Publication directe pas encore autorisée : activez « Direct Post » (video.publish) dans votre app TikTok, cochez « Publication directe » dans le Studio (Réglages → Comptes → App TikTok), puis reconnectez TikTok' : m.slice(0, 300), scope: /scope/i.test(m) }, 502);
     }
   }
   // Alertes des grosses news sur le téléphone (abonnements, dernières alertes)

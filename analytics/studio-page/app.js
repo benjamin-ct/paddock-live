@@ -607,10 +607,11 @@ Happy to help you set it up before the next Grand Prix!`],
 // ---------- Réglages : comptes, alertes, déconnexion ----------
 function settings() {
   const me = session.me || {};
-  // Comptes : Facebook, Instagram, Threads et Bluesky se connectent ici ; tous se retirent ici (gérés ensuite par le
-  // Studio, plus remplacés par l'appli) ; TikTok, YouTube et F1 TV viennent de l'appli de bureau
+  // Comptes des réseaux connectés et retirés ici (gérés ensuite par le Studio, plus remplacés par l'appli) ; F1 TV vient
+  // de l'appli de bureau
   const meta = me.facebook ? `${me.facebook}${me.instagram ? ` · ${me.instagram}` : ''}` : null;
-  const accounts = [['meta', 'Facebook et Instagram', meta], ['threads', 'Threads', me.threads], ['bluesky', 'Bluesky', me.bluesky], ['tiktok', 'TikTok', me.tiktok], ['youtube', 'YouTube', me.youtube]];
+  const apps = me.apps || {};
+  const accounts = [['meta', 'Facebook et Instagram', meta], ['tiktok', 'TikTok', me.tiktok], ['tiktok2', 'TikTok (2e compte, statistiques)', me.tiktok2], ['youtube', 'YouTube', me.youtube], ['threads', 'Threads', me.threads], ['bluesky', 'Bluesky', me.bluesky]];
   const pages = [['Paddock Live', 'https://paddocklive.app/liens/'], ['Benjy Paddock', 'https://paddocklive.app/benjy/']];
   const link = ([n, u]) => `<div class="row-item static"><span class="grow"><b>${esc(n)}</b><small>${esc(u.replace('https://', ''))}</small></span>
       <a class="btn small" href="${esc(u)}" target="_blank" rel="noopener">${icon('link')}Ouvrir</a><button class="btn small" data-copy="${esc(u)}">${icon('copy')}Copier</button></div>`;
@@ -619,12 +620,21 @@ function settings() {
   const dlg = sheet('Réglages', `<h3 class="section">Comptes</h3><div class="group">${accounts.map(([k, n, v]) => `<div class="row-item static"><span class="grow"><b>${esc(n)}</b><small>${esc(v || 'non connecté')}</small></span>${v ? `<button class="btn small" data-acc-del="${k}">${icon('close')}Retirer</button>` : ''}<span class="state ${v ? 'on' : ''}"></span></div>`).join('')}
       <div class="row-item static"><span class="grow"><b>F1 TV (archives des séances)</b><small>${me.f1tv ? 'connecté' : 'non connecté'}</small></span><span class="state ${me.f1tv ? 'on' : ''}"></span></div></div>
     <details class="cap"><summary><span>Connecter Facebook et Instagram</span></summary>
-      ${me.metaApp ? `<button class="btn primary wide" id="metaGo">${icon('link')}Se connecter avec Facebook</button>` : ''}
-      <details class="cap"><summary><span>App Meta${me.metaApp ? ' (enregistrée)' : ''}</span></summary>${field('maId', 'Identifiant de l\'app')}${field('maSecret', 'Clé secrète de l\'app', 'password')}${field('maConf', 'ID de configuration (facultatif)')}
-        <button class="btn small" id="maSave">Enregistrer</button><p class="hint">developers.facebook.com → ton app → Paramètres → Général. L'adresse de retour reste https://paddocklive.app/fb-callback.</p></details></details>
+      ${apps.meta ? `<button class="btn primary wide" data-login="meta">${icon('link')}Se connecter avec Facebook</button>` : ''}
+      <details class="cap"><summary><span>App Meta${apps.meta ? ' (enregistrée)' : ''}</span></summary>${field('maId', 'Identifiant de l\'app')}${field('maSecret', 'Clé secrète de l\'app', 'password')}${field('maConf', 'ID de configuration (facultatif)')}
+        <button class="btn small" id="maSave">Enregistrer</button><p class="hint">developers.facebook.com → ton app → Paramètres → Général. Adresse de retour : https://paddocklive.app/fb-callback (déjà déclarée).</p></details></details>
+    <details class="cap"><summary><span>Connecter TikTok</span></summary>
+      ${apps.tiktok ? `<button class="btn primary wide" data-login="tiktok">${icon('link')}Se connecter avec TikTok</button><button class="btn wide" data-login="tiktok2">${icon('link')}2e compte (statistiques)</button>` : ''}
+      <details class="cap"><summary><span>App TikTok${apps.tiktok ? ' (enregistrée)' : ''}</span></summary>${field('tkKey', 'Client key')}${field('tkSecret', 'Client secret', 'password')}
+        <label class="check"><input type="checkbox" id="tkDirect"> Publication directe (video.publish)</label><label class="check"><input type="checkbox" id="tkStats"> Statistiques (profil, chiffres, vidéos)</label>
+        <button class="btn small" id="tkSave">Enregistrer</button><p class="hint">developers.tiktok.com → ton app → Login Kit, plateforme Web : adresse de retour https://paddocklive.app/studio-callback.</p></details></details>
+    <details class="cap"><summary><span>Connecter YouTube</span></summary>
+      ${apps.youtube ? `<button class="btn primary wide" data-login="youtube">${icon('link')}Se connecter avec Google</button>` : ''}
+      <details class="cap"><summary><span>Client Google${apps.youtube ? ' (enregistré)' : ''}</span></summary>${field('ytId', 'ID client (…apps.googleusercontent.com)')}${field('ytSecret', 'Code secret du client', 'password')}
+        <button class="btn small" id="ytSave">Enregistrer</button><p class="hint">console.cloud.google.com → API et services → Identifiants → client OAuth « Application Web », URI de redirection https://paddocklive.app/studio-callback.</p></details></details>
     <details class="cap"><summary><span>Connecter Threads</span></summary>${field('thSecret', 'Clé secrète Threads', 'password')}${field('thToken', 'Jeton d\'accès Threads', 'password')}<button class="btn small" id="thSave">Connecter</button></details>
     <details class="cap"><summary><span>Connecter Bluesky</span></summary>${field('bsHandle', 'Identifiant (ex. paddocklive.bsky.social)')}${field('bsPass', 'Mot de passe d\'application', 'password')}<button class="btn small" id="bsSave">Connecter</button></details>
-    <p class="hint">Facebook, Instagram, Threads et Bluesky se connectent ici. TikTok, YouTube et F1 TV viennent de l'appli de bureau (Réglages → Mode créateur → Comptes…). Un compte connecté ou retiré ici n'est plus remplacé par l'appli.</p>
+    <p class="hint">Tous les réseaux se connectent ici ; F1 TV vient de l'appli de bureau (Réglages → Compte F1 TV). Un compte connecté ou retiré ici n'est plus remplacé par l'appli.</p>
     <h3 class="section">Alertes des grosses news</h3><div id="alerts"></div>
     <h3 class="section">Posts</h3><label class="field"><span>Signature des visuels et des textes <small>(gardée sur cet appareil)</small></span><input type="text" id="sigin" maxlength="40" value="${esc(SIG)}" placeholder="${esc(SIG_DEFAULT)}"></label>
     <h3 class="section">Mes pages de liens</h3><div class="group">${pages.map(link).join('')}</div>
@@ -694,17 +704,22 @@ function accountsBlock(dlg) {
   const val = (id) => $(`#${id}`, dlg).value;
   $$('[data-acc-del]', dlg).forEach((b) => { b.onclick = () => { if (confirm('Retirer ce compte du Studio ? L\'appli de bureau ne le renverra plus.')) send(b, { net: b.dataset.accDel, remove: true }, 'Compte retiré'); }; });
   $('#maSave', dlg).onclick = (e) => send(e.target, { net: 'meta-app', appId: val('maId'), appSecret: val('maSecret'), configId: val('maConf') }, 'App Meta enregistrée');
+  $('#tkSave', dlg).onclick = (e) => send(e.target, { net: 'tiktok-app', clientKey: val('tkKey'), clientSecret: val('tkSecret'), direct: $('#tkDirect', dlg).checked, stats: $('#tkStats', dlg).checked }, 'App TikTok enregistrée');
+  $('#ytSave', dlg).onclick = (e) => send(e.target, { net: 'youtube-app', clientId: val('ytId'), clientSecret: val('ytSecret') }, 'Client Google enregistré');
   $('#thSave', dlg).onclick = (e) => send(e.target, { net: 'threads', appSecret: val('thSecret'), token: val('thToken') }, 'Threads connecté');
   $('#bsSave', dlg).onclick = (e) => send(e.target, { net: 'bluesky', handle: val('bsHandle'), appPassword: val('bsPass') }, 'Bluesky connecté');
-  const go = $('#metaGo', dlg);
-  if (go) go.onclick = async () => { go.disabled = true; try { location.href = (await api('accounts/meta-login', { method: 'POST' })).url; } catch (e) { toast(e.message, 'bad'); go.disabled = false; } };
+  $$('[data-login]', dlg).forEach((b) => { b.onclick = async () => {
+    b.disabled = true;
+    try { location.href = (await api('accounts/login', { method: 'POST', body: JSON.stringify({ net: b.dataset.login }) })).url; } catch (e) { toast(e.message, 'bad'); b.disabled = false; }
+  }; });
 }
-// Retour de la connexion Facebook (/fb-callback renvoie ici avec #meta=…)
-async function finishMeta(params) {
+// Retour d'une connexion (/fb-callback ou /studio-callback renvoie ici avec #connect=…)
+const NET_FR = { meta: 'Facebook et Instagram', tiktok: 'TikTok', tiktok2: 'TikTok (2e compte)', youtube: 'YouTube' };
+async function finishLogin(params) {
   try {
-    const r = await api('accounts/meta-finish', { method: 'POST', body: JSON.stringify(Object.fromEntries(params)) });
-    await reloadMe(`Facebook connecté : ${r.facebook}${r.instagram ? ` · ${r.instagram}` : ''}`);
-  } catch (e) { toast(e.message || 'Connexion Facebook impossible', 'bad'); }
+    const r = await api('accounts/finish', { method: 'POST', body: JSON.stringify(Object.fromEntries(params)) });
+    await reloadMe(`${NET_FR[r.net] || 'Compte'} connecté : ${r.name}`);
+  } catch (e) { toast(e.message || 'Connexion impossible', 'bad'); }
 }
 
 // Sources d'actu ajoutées pour l'onglet Actu de l'appli (lues par le serveur avec les sources par défaut)
@@ -808,13 +823,13 @@ async function checkUpdate() {
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkUpdate(); });
 
 const startAlert = new URLSearchParams(location.search).get('alert');
-const metaBack = location.hash.startsWith('#meta=') ? new URLSearchParams(decodeURIComponent(location.hash.slice(6))) : null;
-if (startAlert || metaBack) history.replaceState(null, '', '/studio/');
-let metaDone = false;
+const connectBack = location.hash.startsWith('#connect=') ? new URLSearchParams(decodeURIComponent(location.hash.slice(9))) : null;
+if (startAlert || connectBack) history.replaceState(null, '', '/studio/');
+let connectDone = false;
 const afterLogin = async () => {
   home();
   openAlert(startAlert);
-  if (metaBack && !metaDone) { metaDone = true; finishMeta(metaBack); }
+  if (connectBack && !connectDone) { connectDone = true; finishLogin(connectBack); }
 };
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/studio/sw.js', { scope: '/studio/' }).catch(() => {});

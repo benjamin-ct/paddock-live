@@ -187,13 +187,16 @@ const periodOf = (url) => {
 // « state » par l'appli), avec la réponse de Meta telle quelle. Rien n'est lu ni gardé ici ; seule l'appli
 // qui a ouvert la connexion connaît le reste de « state » et la clé secrète pour utiliser le code.
 const FB_STATE = /^(\d{2,5})\.[0-9a-f]{32}$/;
+// Retour d'une connexion lancée depuis le Studio (Facebook par /fb-callback, TikTok et Google par /studio-callback) :
+// renvoyé au Studio, qui finit la connexion avec sa clé (analytics/accounts.js)
+export function studioCallback(url) {
+  const back = new URLSearchParams();
+  for (const k of ['code', 'state', 'error', 'error_reason', 'error_description']) if (url.searchParams.has(k)) back.set(k, url.searchParams.get(k).slice(0, 2000));
+  return new Response(null, { status: 302, headers: { Location: `${url.origin}/studio/#connect=${encodeURIComponent(back)}`, 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' } });
+}
+
 export function fbCallback(url) {
-  // Connexion lancée depuis le Studio (state « s.<32 hexa> ») : retour au Studio, qui finit la connexion avec sa clé
-  if (/^s\.[0-9a-f]{32}$/.test(url.searchParams.get('state') || '')) {
-    const back = new URLSearchParams();
-    for (const k of ['code', 'state', 'error', 'error_reason', 'error_description']) if (url.searchParams.has(k)) back.set(k, url.searchParams.get(k).slice(0, 2000));
-    return new Response(null, { status: 302, headers: { Location: `${url.origin}/studio/#meta=${encodeURIComponent(back)}`, 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' } });
-  }
+  if (/^s\.[0-9a-f]{32}$/.test(url.searchParams.get('state') || '')) return studioCallback(url);
   const port = Number(FB_STATE.exec(url.searchParams.get('state') || '')?.[1]);
   if (!(port >= 1024 && port <= 65535)) return new Response('Connexion Facebook : demande invalide, recommencez depuis Paddock Live.', { status: 400, headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' } });
   const keep = new URLSearchParams();
@@ -265,6 +268,7 @@ export default {
     // Worker, restent aussi lisibles sur www)
     if (ownDomain && url.hostname.startsWith('www.')) return Response.redirect(`https://${url.hostname.slice(4)}${url.pathname}${url.search}`, 301);
     if (req.method === 'GET' && url.pathname === '/fb-callback') return fbCallback(url);
+    if (req.method === 'GET' && url.pathname === '/studio-callback') return studioCallback(url);
     // Version web du direct : seulement sur son nom, app.paddocklive.app (sa page à la racine). Ailleurs
     // (paddocklive.app/live/, adresse workers.dev) : la page renvoie là-bas, le reste n'existe pas. Les fichiers
     // /live/* passent par le Worker d'abord (run_worker_first, wrangler.toml), avec les en-têtes de sécurité
