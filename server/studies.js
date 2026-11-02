@@ -14,6 +14,7 @@ import { applyEvent, createDerived } from '../shared/derive.js';
 import { addPositions, addCarData } from '../shared/compare.js';
 import { parseUtc, parseLapTime } from '../shared/f1.js';
 import { neutralLaps } from '../shared/pits.js';
+import { sessionCut } from '../shared/race-stats.js';
 
 const KEEP = new Set(['SessionInfo', 'DriverList', 'TimingData', 'TimingAppData', 'TimingStats', 'RaceControlMessages', 'TrackStatus', 'SessionStatus', 'LapCount', 'Heartbeat']);
 const OFF_TRACK = 200;   // unités (≈ 20 m) : au-delà, voie des stands ou hors piste
@@ -38,7 +39,13 @@ export function studyCollector() {
         if (name === 'SessionInfo') info = { ...info, ...data };
       }
     },
-    result: (load) => studies({ events: events.sort((a, b) => a.t - b.t), cars, tel, beats, info, load }),
+    result: (load) => {
+      // Archive commencée à une séance précédente (course de Mexico 2026) : la séance seule, liste des pilotes gardée
+      const all = events.sort((a, b) => a.t - b.t);
+      const cut = sessionCut(all.map((e) => ({ off: e.t })));
+      const kept = cut ? all.filter((e) => e.t >= cut || e.topic === 'DriverList' || e.topic === 'SessionInfo') : all;
+      return studies({ events: kept, cars, tel, beats, info, load });
+    },
   };
 }
 

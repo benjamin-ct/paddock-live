@@ -5,6 +5,7 @@
 import zlib from 'node:zlib';
 import { archiveGet, archiveJSON } from './archive.js';
 import { parseUtc } from '../shared/f1.js';
+import { lineOffset } from '../shared/race-stats.js';
 import { circuit } from './circuits.js';
 import { studyCollector } from './studies.js';
 
@@ -30,7 +31,7 @@ function walk(fields, node, path, parent) {
 
 const inflate = (s) => JSON.parse(zlib.inflateRawSync(Buffer.from(s, 'base64')).toString('utf8'));
 const decode = (v) => (typeof v === 'string' ? inflate(v) : v);
-const offOf = (line) => { const m = /^(\d+):(\d\d):(\d\d)\.(\d+)/.exec(line); return m ? ((+m[1] * 60 + +m[2]) * 60 + +m[3]) * 1000 + Math.round(+`0.${m[4]}` * 1000) : 0; };
+const offOf = (line) => lineOffset(line)?.off ?? 0;
 
 // Chronologie des indices possibles du mode dépassement 2026 : chaque changement d'OvertakeState
 // (DriverRaceInfo) et des indicateurs 4096 / 8192 du statut d'un pilote (TimingData, absents de
