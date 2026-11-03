@@ -2883,4 +2883,11 @@ export default {
   "au mieux {}": "at best {}",
   // Accueil de la version web
   "Replays, actu, alertes": "Replays, news, alerts",
+  // Pilote du jour
+  "Pilote du jour": "Driver of the Day",
+  "jamais dans les 5 premiers": "never in the top 5",
+  "Vote des fans pendant la course (formula1.com), 5 premiers.": "Fan vote during the race (formula1.com), top 5.",
+  "Plus souvent pilote du jour": "Most Driver of the Day awards",
+  "meilleur score : {} %": "best score: {}%",
+  "fois": "times",
 };

@@ -49,6 +49,9 @@ l'application (Réglages → À propos → Nouveautés).
 - Résumé de course : « avec un tour d'avance sur son dauphin » au lieu de « 1L s d'avance ».
 
 ### Saison
+- Pilote du jour (le vote des fans de la F1) : sur la page de chaque Grand Prix, les 5 premiers du vote avec leurs
+  pourcentages ; dans Résultats & records, le pilote du jour de chaque course et le plus souvent élu ; sur la fiche de
+  chaque pilote, son nombre d'élections et son meilleur score. Aussi dans la version web.
 - Course au titre : nouvelles « Places d'honneur », qui peut encore finir 2e ou 3e du championnat pilotes et
   constructeurs (ou qui y est assuré) ; sur la carte d'un pilote ou d'une écurie éliminé de la lutte pour le titre, la
   meilleure place encore possible (« au mieux 2e »).

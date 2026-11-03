@@ -294,6 +294,16 @@ function calDays(r) {
 const gpLink = (r, text, cls = '', pre = '') => `<a href="${seasonPath(year, 'gp', gpSlug(r.name))}" data-szgp="${r.round}"${cls ? ` class="${cls}"` : ''}>${pre}${esc(text)}</a>`;
 
 // Fiche d'un Grand Prix : résultats, sprint, qualifications, arrêts les plus rapides (analyse des archives)
+// Pilote du jour (vote des fans, formula1.com) : les 5 premiers, barres aux couleurs des écuries
+function dotdBlock(r) {
+  if (!r.dotd?.length) return '';
+  const top = r.dotd[0].pct || 1;
+  const who = (code) => r.results.find((x) => x.code === code) || data.drivers.find((x) => x.code === code) || { code, name: code };
+  return `<section class="sz-box"><h3>${t('Pilote du jour')}</h3>
+    <div class="sz-hbars">${r.dotd.map((v) => { const d = who(v.code); return `<div class="sz-hbar"><div class="sz-hb-l">${bar(d.team, d.teamId)}${esc(d.name || d.code)}</div><div class="sz-hb-t"><i style="width:${Math.max(2, (100 * v.pct) / top)}%;background:${color(d.team, d.teamId)}"></i></div><div class="sz-hb-v">${v.pct.toFixed(1).replace('.', DEC)} %</div></div>`; }).join('')}</div>
+    <div class="muted small">${t('Vote des fans pendant la course (formula1.com), 5 premiers.')}</div></section>`;
+}
+
 function renderGp() {
   const r = data.races.find((x) => x.round === gpRound) || data.races.filter(done).at(-1) || data.races[0];
   if (!r) return '<div class="note">Pas encore de Grand Prix.</div>';
@@ -311,6 +321,7 @@ function renderGp() {
   if (r.results.length) {
     parts.push(`<section class="sz-box"><h3>Course</h3><div class="sz-scroll"><table class="sz-table"><tr><th>Pos.</th><th>Pilote</th><th>Temps / écart</th><th>Tours</th><th>Grille</th><th>Points</th></tr>
       ${r.results.map((x) => `<tr><td>${pos(x)}</td><td>${who(x)}</td><td>${gap(x)}</td><td>${x.laps ?? ''}</td><td>${x.grid ? `P${x.grid}` : 'Stands'}</td><td>${x.points || ''}</td></tr>`).join('')}</table></div></section>`);
+    parts.push(dotdBlock(r));
   } else {
     parts.push(`<section class="sz-box"><h3>Programme du week-end</h3>${calDays(r)}${calIcs(r)}</section>`);
   }
@@ -681,6 +692,12 @@ function renderResults(ctx) {
   const km = (v) => Math.round(v).toLocaleString(LOCALE);
   const card = (title, main, sub) => `<div class="sz-card"><div class="muted small">${title}</div><div class="sz-big">${main}</div><div class="muted small">${sub || ''}</div></div>`;
   const who = (x) => (x ? `${bar(x.d.team, x.d.teamId)}${esc(x.d.last)}` : '—');
+  // Pilote du jour : le plus souvent élu (à égalité, le premier au championnat)
+  const dotdN = new Map();
+  for (const r of data.races) if (r.dotd?.[0]) dotdN.set(r.dotd[0].code, (dotdN.get(r.dotd[0].code) || 0) + 1);
+  const dotdTop = [...dotdN].map(([code, n]) => ({ n, d: data.drivers.find((x) => x.code === code) })).filter((x) => x.d).sort((a, b) => b.n - a.n || a.d.pos - b.d.pos)[0];
+  const dotdChip = (r) => { const v = r.dotd?.[0]; const d = v && (r.results.find((x) => x.code === v.code) || data.drivers.find((x) => x.code === v.code)); return d ? chip(d) : '—'; };
+  const hasDotd = data.races.some((r) => r.dotd?.length);
   return `<div class="sz-cards">
       ${card('Plus de victoires', st.wins ? `${st.wins.n} <small>victoires</small>` : '—', who(st.wins))}
       ${card('Plus de podiums', st.podiums ? `${st.podiums.n} <small>podiums</small>` : '—', who(st.podiums))}
@@ -690,6 +707,7 @@ function renderResults(ctx) {
       ${card('Plus belle remontée', st.comeback ? `+${st.comeback.v} <small>places</small>` : '—', st.comeback ? `${who(st.comeback)} · P${st.comeback.from} ${icon('arrow-right', 'ic-s')} P${st.comeback.to} · R${st.comeback.r.round}` : '')}
       ${card('Plus large victoire', st.largest ? `+${st.largest.v.toFixed(3).replace('.', DEC)} s` : '—', st.largest ? `${esc(st.largest.d.last)} · R${st.largest.r.round} ${esc(st.largest.r.locality || '')}` : '')}
       ${card('Victoire la plus serrée', st.closest ? `+${st.closest.v.toFixed(3).replace('.', DEC)} s` : '—', st.closest ? `${esc(st.closest.d.last)} · R${st.closest.r.round} ${esc(st.closest.r.locality || '')}` : '')}
+      ${dotdTop ? card(t('Plus souvent pilote du jour'), `${dotdTop.n} <small>${t('fois')}</small>`, who(dotdTop)) : ''}
       ${card('Plus de kilomètres', miles[0] ? `${km(miles[0].km)} <small>km</small>` : '—', miles[0] ? `${bar(miles[0].team, miles[0].teamId)}${esc(miles[0].team)}` : '')}
     </div>
     ${seasonGrid()}
@@ -697,10 +715,10 @@ function renderResults(ctx) {
       <div class="sz-hbars">${miles.map((m) => `<div class="sz-hbar"><div class="sz-hb-l">${bar(m.team, m.teamId)}${esc(m.team)}</div><div class="sz-hb-t"><i style="width:${Math.max(2, (100 * m.km) / miles[0].km)}%;background:${color(m.team, m.teamId)}"></i></div><div class="sz-hb-v">${km(m.km)} km</div></div>`).join('')}</div>
       <div class="muted small">Courses et sprints : tours bouclés par les deux voitures × longueur du circuit.</div></section>` : ''}
     ${polesVsRecords(data.races.filter(done), Math.max(600, ($('#szContent')?.clientWidth || 934) - 34))}
-    <section class="sz-box"><h3>Grands Prix</h3><table class="sz-table sz-results"><tr><th>Manche</th><th>Grand Prix</th><th>Date</th><th>Vainqueur</th><th>2e</th><th>3e</th><th>Pole</th><th>Vainqueur sprint</th></tr>
+    <section class="sz-box"><h3>Grands Prix</h3><table class="sz-table sz-results"><tr><th>Manche</th><th>Grand Prix</th><th>Date</th><th>Vainqueur</th><th>2e</th><th>3e</th><th>Pole</th><th>Vainqueur sprint</th>${hasDotd ? `<th>${t('Pilote du jour')}</th>` : ''}</tr>
       ${data.races.map((r) => `<tr class="${done(r) ? '' : 'muted'}"><td>R${r.round}</td><td>${gpLink(r, gpShort(r.name, LANG), 'sz-gp-chip', flagOf(r))}</td><td>${fmtDate(r.date)}</td>
         <td>${r.results[0] ? chip(r.results[0]) : '—'}</td><td>${r.results[1] ? chip(r.results[1]) : ''}</td><td>${r.results[2] ? chip(r.results[2]) : ''}</td>
-        <td>${r.quali.find((q) => q.pos === 1) ? chip(r.quali.find((q) => q.pos === 1)) : '—'}</td><td>${r.sprintResults[0] ? chip(r.sprintResults[0]) : '—'}</td></tr>`).join('')}</table></section>`;
+        <td>${r.quali.find((q) => q.pos === 1) ? chip(r.quali.find((q) => q.pos === 1)) : '—'}</td><td>${r.sprintResults[0] ? chip(r.sprintResults[0]) : '—'}</td>${hasDotd ? `<td>${done(r) ? dotdChip(r) : ''}</td>` : ''}</tr>`).join('')}</table></section>`;
 }
 
 // Qualifications : écart de chaque écurie à la pole, Grand Prix par Grand Prix (en % ou en secondes)

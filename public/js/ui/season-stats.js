@@ -143,6 +143,15 @@ const heat = (k, txt) => (k === null ? '<td class="sz-hm muted">—</td>'
   : `<td class="sz-hm" style="background:color-mix(in srgb, ${k < 0.5 ? 'var(--green)' : 'var(--orange)'} ${Math.round(Math.abs(k - 0.5) * 2 * 55)}%, transparent)">${txt}</td>`);
 
 // ---------------- Pilotes ----------------
+// Pilote du jour (vote des fans, formula1.com) : nombre d'élections et meilleur score de la saison
+function dotdCard(data, drv, card) {
+  const votes = data.races.filter((r) => r.dotd?.length);
+  if (!votes.length) return '';
+  const won = votes.filter((r) => r.dotd[0].code === drv.code);
+  const best = votes.map((r) => ({ r, v: r.dotd.find((x) => x.code === drv.code) })).filter((x) => x.v).sort((a, b) => b.v.pct - a.v.pct)[0];
+  return card(t('Pilote du jour'), won.length, best ? `${t('meilleur score : {} %', fr(best.v.pct, 1))} · ${esc(short(best.r.name))}` : t('jamais dans les 5 premiers'));
+}
+
 export function renderDrivers(ctx, code) {
   const { data, stats } = ctx;
   const drv = data.drivers.find((d) => d.code === code) || data.drivers[0];
@@ -206,6 +215,7 @@ export function renderDrivers(ctx, code) {
       ${card('Podiums', fin.filter((x) => x.res.pos <= 3).length)}
       ${card('Poles', rows.filter((x) => x.q?.pos === 1).length)}
       ${card('Meilleurs tours', started.filter((x) => x.res.fastest).length)}
+      ${dotdCard(data, drv, card)}
       ${card('Points par course', fr(started.length ? pts / started.length : null), `${pts} pts en ${started.length} GP (sprints inclus)`)}
       ${card('Dans les points', `${started.filter((x) => x.res.points > 0).length}/${started.length}`)}
       ${card('Moyenne au départ', fr(mean(started.map((x) => x.res.grid).filter(Boolean))))}

@@ -32,6 +32,7 @@ import { packFeeds } from '../shared/feed-pack.js';
 import { cleanPostRequest, rewritePost, cleanSummaryRequest, summarizeArticle } from './summarize.js';
 import { cleanRequest, translateBatch } from './translate.js';
 import { buildSeason, SEASON_TTL, resultsReady } from './season-cache.js';
+import { withDotd } from './dotd.js';
 import { accountStats } from './account-stats.js';
 import { callerIp, studioQuota, neuronBudget, aiCounters, dayLimit } from './quota.js';
 import { served } from './download.js';
@@ -76,7 +77,7 @@ export async function seasonRow(env, year, { now = Date.now(), fetchFn, wait, ma
     throw new Error('Saison indisponible pour l\'instant (Jolpica), nouvel essai dans quelques minutes');
   }
   try {
-    const fresh = { at: now, v: await buildSeason(year, { fetchFn, wait }) };
+    const fresh = { at: now, v: await withDotd(year, await buildSeason(year, { fetchFn, wait }), row?.v, { fetchFn, now }) };
     await setRow(env, key, JSON.stringify(fresh));
     if (row) for (const m of resultsReady(row.v, fresh.v, now)) await notifyPhones(env, m, { now }).catch(() => 0);
     // Alertes du téléphone : résultats pour ceux qui ont choisi de les recevoir
