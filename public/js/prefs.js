@@ -7,6 +7,11 @@ import { LANG } from './i18n.js';
 // Analyse et Duel s'ouvrent dans leur propre fenêtre (bouton + d'un panneau, menu Dispo.) : masqués dans la fenêtre
 // principale (ui/layout.js, ui/tabmove.js). Analyse : 3 onglets selon la séance (les autres : bouton +)
 export const PANELS_HIDDEN = ['analysis', 'duel'];
+// Fil de course (1.32 : radios et messages en un seul fil) : masqué par défaut, sauf en Télémétrie où il remplace
+// Radios et Messages. Les listes de panneaux masqués enregistrées avant lui (réglages, disposition de chaque séance,
+// dispositions enregistrées) le masquent aussi : « +race » marque une liste qui le connaît déjà
+export const withRace = (list) => (!Array.isArray(list) || list.includes('+race') ? list : [...list, 'race', '+race']);
+export const hiddenByDefault = (design) => (design === 'v3' ? [...PANELS_HIDDEN, 'radio', 'feed', '+race'] : [...PANELS_HIDDEN, 'race', '+race']);
 export const TAB_HIDDEN = {
   race: ['laptimes', 'pace', 'tyrehist', 'sectors', 'tyres', 'pitsim', 'battles', 'champ'],
   quali: ['trace', 'positions', 'pits', 'strategy', 'laptimes', 'pace', 'tyrehist', 'tyres', 'pitsim', 'battles', 'champ'],
@@ -16,7 +21,8 @@ const DEFAULTS = {
   favs: [],               // numéros des pilotes favoris
   favTeams: [],           // écuries favorites (clés de shared/news.js : 'ferrari', 'redbull'…)
   alerts: { sound: true, vibrate: true, notify: false, flags: true, fastest: true, favPit: true, favRcm: true, retire: true, finish: true, favCut: true, rain: true, prono: true },
-  hiddenPanels: [...PANELS_HIDDEN],
+  hiddenPanels: hiddenByDefault('v2'),
+  raceFeedFilter: 'all',  // Fil de course : tout, radios, direction, enquêtes ou limites de piste
   hiddenTabs: [...TAB_HIDDEN.race],   // onglets masqués (Réglages → Onglets visibles, bouton +), comme ceux inutiles pour la séance
   hiddenCols: ['name'],   // classement : code du pilote seul (nom complet : menu Colonnes)
   extraCols: [],          // colonnes facultatives ajoutées au classement (voir EXTRA_COLUMNS)
@@ -74,6 +80,7 @@ const DEFAULTS = {
 
 const saved = storageGet('paddock.prefs', {});
 export const prefs = { ...DEFAULTS, ...saved, alerts: { ...DEFAULTS.alerts, ...(saved.alerts || {}) } };
+prefs.hiddenPanels = withRace(prefs.hiddenPanels);
 // v1.28 : nouvelle installation (aucun réglage enregistré) : écrans d'accueil ; v1.30 : déjà au nouvel écran principal
 // (layoutV, ui/layout.js)
 if (!Object.keys(saved).length) {
@@ -147,6 +154,7 @@ function applyTeamColors() {
 }
 
 export function setPref(key, value) {
+  if (key === 'hiddenPanels') value = withRace(value);
   prefs[key] = value;
   if (['vividTeams', 'teamLogos', 'logoColor'].includes(key)) applyTeamColors();
   if (key === 'scheme') { prefs.schemeSet = true; applyScheme(); }

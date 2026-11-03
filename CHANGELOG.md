@@ -15,6 +15,14 @@ l'application (Réglages → À propos → Nouveautés).
   avec en bas Recherche, Fenêtres, Apparence et Réglages ; Résultats, Résumé et Commentaires se choisissent en tête du
   Direct et des replays. Au téléphone, Replays rejoint la barre du bas et Réglages la barre de séance ; tenu en
   paysage, la barre du bas devient un rail à gauche pour laisser la hauteur au classement.
+- Nouveau panneau « Fil de course » : radios d'équipe (à écouter, en texte et traduites), messages de la direction de
+  course, enquêtes et limites de piste dans un seul fil, le plus récent en haut, avec des filtres (Tout, Radios,
+  Direction, Enquêtes, Limites). À ajouter dans Réglages → Disposition ; affiché d'office dans le design Télémétrie, à
+  la place des panneaux Radios et Messages (une disposition déjà enregistrée n'est pas modifiée).
+- Design Télémétrie : la barre de séance tient sur une ligne de 1180 à 1920 px (outils rangés dans un menu « Outils »
+  sur les écrans moins larges), les en-têtes de panneaux à onglets aussi (les onglets défilent) ; au téléphone tenu en
+  paysage, le classement gagne trois lignes (vues de la séance et onglets sur une seule ligne, bouton Colonnes réduit
+  à son icône, barre du replay plus basse).
 - Le design Broadcast n'est plus proposé : ceux qui l'utilisaient passent à Paddock 2 (Paddock 2 et Classique restent au choix).
 - Téléphone tenu en paysage : l'en-tête tient sur une ligne, les onglets et la barre du replay sont resserrés, la barre
   du bas ne montre plus que ses icônes et la page défile ; le classement a enfin de la place (avant, il ne restait que

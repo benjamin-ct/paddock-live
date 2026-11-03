@@ -16,7 +16,7 @@ function list(obj) {
   return Array.isArray(obj) ? obj.filter(Boolean) : Object.keys(obj).sort((a, b) => a - b).map((k) => obj[k]).filter(Boolean);
 }
 
-const FLAG_FR = {
+export const FLAG_FR = {
   GREEN: 'Vert', YELLOW: 'Jaune', 'DOUBLE YELLOW': 'Double jaune', RED: 'Rouge', BLUE: 'Bleu',
   CLEAR: 'Fin de drapeau', CHEQUERED: 'Damier', 'BLACK AND WHITE': 'Noir et blanc', 'BLACK AND ORANGE': 'Noir et orange', BLACK: 'Noir',
 };
@@ -24,7 +24,7 @@ const FLAG_FR = {
 let rcmVer = -1, rcmCount = 0;
 let pitVer = -1;
 
-function rcmFlagClass(m) {
+export function rcmFlagClass(m) {
   if (m.Flag) return `flag-${m.Flag.replace(/ /g, '-')}`;
   if (m.Category === 'SafetyCar') return 'flag-SC';
   if (m.Category === 'Drs') return 'flag-DRS';
@@ -74,6 +74,14 @@ function rcmTranslation(msg) {
   return null;
 }
 
+// Texte d'un message (traduit en français si possible, original au survol) : panneau Messages et Fil de course
+export function rcmMsgHtml(msg, cls = 'rcm-msg') {
+  const t = rcmTranslation(msg);
+  return t ? `<div class="${cls}" data-no-i18n title="${esc(msg)}">${esc(t)}</div>` : `<div class="${cls}">${esc(msg)}</div>`;
+}
+// Version des messages affichés (traductions arrivées comprises) : le Fil de course se redessine avec eux
+export const rcmVersion = () => rcmVer;
+
 export function renderRcm() {
   const v = `${versionOf(['RaceControlMessages', '__reset'])}|${prefs.rcmBlue}|${prefs.rcmDeleted}|${prefs.rcmType}|${rcmTranslating()}|${rcmTrVer}|${prefs.rcmType === 'mine' ? `${prefs.favs}|${store.duel.a}|${store.duel.b}` : ''}`;
   if (v === rcmVer) return;
@@ -85,10 +93,7 @@ export function renderRcm() {
   const fresh = !sameList && all.length > rcmCount && rcmCount > 0 ? all.slice(rcmCount).filter(rcmShown).length : 0;
   rcmCount = all.length;
   const hidden = all.length - msgs.length;
-  const msgHtml = (msg) => {
-    const t = rcmTranslation(msg);
-    return t ? `<div class="rcm-msg" data-no-i18n title="${esc(msg)}">${esc(t)}</div>` : `<div class="rcm-msg">${esc(msg)}</div>`;
-  };
+  const msgHtml = (msg) => rcmMsgHtml(msg);
   $('#rcmHidden').textContent = hidden ? `${hidden} message(s) masqué(s)` : '';
   $('#rcmList').innerHTML = msgs.length
     ? msgs.slice().reverse().map((m, i) => {

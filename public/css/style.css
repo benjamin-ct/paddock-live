@@ -741,6 +741,7 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
 .tower td.c-gapf.ahead { color: var(--green); }
 .tower td.c-gapf.behind { color: var(--orange); }
 .tower-cols .map-layers-menu { min-width: 250px; left: 0; right: auto; }   /* bouton à gauche du panneau : menu ouvert vers la droite */
+.tower-cols .tc-ic { display: none; }   /* icône seule : téléphone en paysage, en Télémétrie (design-v3.css) */
 .tower-cols .col-sep { font-size: 11px; color: var(--muted); padding: 6px 8px 2px; text-transform: uppercase; letter-spacing: .6px; }
 .tag.push { background: var(--purple); color: #1a0030; }
 .pred { font-size: 12px; font-weight: 700; }
@@ -2414,6 +2415,7 @@ body.solo .grid .panel-head { padding-right: 116px; }
 
 /* Outils : documents FIA, vitesses, meilleurs secteurs */
 .tb-tools { display: flex; gap: 2px; align-items: center; }
+.tb-more { display: none; }   /* menu « Outils » : Télémétrie seulement (design-v3.css) */
 body.solo .tb-tools { display: none; }
 .tb-tool { position: relative; width: 32px; height: 32px; display: grid; place-items: center; background: none; border: 1px solid transparent; border-radius: 7px; color: var(--text-2); cursor: pointer; padding: 0; }
 /* Outils de la barre du haut : pictogramme et mot (masqué quand la place manque) */
@@ -3895,3 +3897,30 @@ html.tab-win .p-analysis .panel-head > [data-tab="compare"] { display: inline-fl
 .rail .rail-v3 { display: none; }
 /* Champ de la palette : la fenêtre elle-même montre le focus, pas de cadre autour du champ */
 .cmdk .ck-search input:focus, .cmdk .ck-search input:focus-visible { outline: none; box-shadow: none; border: 0; }
+
+/* ---------- Fil de course : radios et messages en un seul fil (tous les designs) ---------- */
+.rf-chips { position: sticky; top: 0; z-index: 1; display: flex; gap: 4px; padding: 6px 10px; overflow-x: auto; scrollbar-width: none; background: var(--panel); border-bottom: 1px solid var(--line); }
+.rf-chips::-webkit-scrollbar { display: none; }
+.rf-chips.more { -webkit-mask-image: linear-gradient(to left, transparent, #000 40px); mask-image: linear-gradient(to left, transparent, #000 40px); }
+.rf-chip { flex: none; height: 24px; padding: 0 10px; border: 1px solid var(--border); border-radius: 999px; background: none; color: var(--text-2); font: inherit; font-size: 12px; font-weight: 600; white-space: nowrap; cursor: pointer; }
+@media (hover: hover) { .rf-chip:hover { color: var(--text); border-color: var(--line-2); } }
+.rf-chip[aria-pressed="true"] { background: var(--panel-3); border-color: var(--line-2); color: var(--text); }
+.rf-list { list-style: none; margin: 0; padding: 0; }
+.rf-item { display: grid; grid-template-columns: 58px minmax(0, 1fr) auto; gap: 4px 10px; align-items: start; padding: 7px 10px 7px 12px; border-bottom: 1px solid var(--line); }
+.rf-item.note { display: block; color: var(--muted); border: 0; }
+.rf-when { padding-top: 3px; color: var(--muted); font: 500 11.5px/1.3 var(--font-mono); font-variant-numeric: tabular-nums; }
+.rf-head { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; }
+.rf-head small { color: var(--muted); font: 500 11px/1 var(--font-mono); }
+.rf-tag { display: inline-flex; align-items: center; gap: 5px; min-width: 40px; height: 20px; padding: 0 6px; border-left: 3px solid var(--k); border-radius: 4px;
+  background: color-mix(in srgb, var(--k) 14%, transparent); color: var(--text); font: 700 11px/1 var(--font-mono); letter-spacing: .02em; white-space: nowrap; }
+.rf-tag .rcm-flag { width: 10px; height: 8px; margin: 0; border-radius: 1px; }
+.rf-body { min-width: 0; }
+.rf-body .rd-text { font-size: 13.5px; line-height: 1.35; }
+.rf-body .rd-orig { margin-top: 2px; color: var(--muted); font-size: 12px; line-height: 1.3; }
+.rf-body .rcm-msg { font-size: 13px; line-height: 1.35; }
+.rf-radio { cursor: pointer; }
+@media (hover: hover) { .rf-radio:hover { background: var(--hover, var(--panel-2)); } }
+.rf-radio.playing { background: var(--panel-2); box-shadow: inset 2px 0 0 var(--accent); }
+.rf-play { padding: 2px 6px; font-size: 15px; color: var(--text-2); }
+.rf-radio.playing .rf-play { color: var(--text); }
+@media (max-width: 1000px) { .p-race { height: 460px; } }

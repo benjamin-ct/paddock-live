@@ -19,6 +19,7 @@ import { initMap } from './ui/map.js';
 import { initDuel, renderDuel } from './ui/duel.js';
 import { renderRcm, renderPits } from './ui/feed.js';
 import { renderRadios, initRadios } from './ui/radios.js';
+import { renderRaceFeed, initRaceFeed } from './ui/race-feed.js';
 import { initTabMove } from './ui/tabmove.js';
 import { initOnboardRadio } from './ui/onboard-radio.js';
 import { renderTelemetry, renderStrategy, renderWeather, renderChampionship } from './ui/extra.js';
@@ -90,6 +91,7 @@ function loop() {
   safe(renderDuel);
   safe(renderRcm);
   safe(renderRadios);
+  safe(renderRaceFeed);
   safe(renderPits);
   safe(renderTelemetry);
   safe(renderStrategy);
@@ -131,6 +133,7 @@ addEventListener('scroll', () => {
 initLegends();
 legendsToggle(document.querySelector('#legendsOn'));
 initRadios();
+initRaceFeed();
 initOnboardRadio();
 initRcmFilters();
 initStewards();

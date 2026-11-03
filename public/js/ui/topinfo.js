@@ -228,7 +228,8 @@ function show(tool, btn) {
   pop = document.createElement('div');
   pop.className = `tb-pop tb-pop-${tool}`;
   document.body.appendChild(pop);
-  const r = btn.getBoundingClientRect();
+  // Outil choisi dans le menu « Outils » (Télémétrie, barre étroite) : sous le bouton du menu
+  const r = (btn.closest('.tb-tools.open') ? $('#tbMore') : btn).getBoundingClientRect();
   pop.style.top = `${r.bottom + 8}px`;
   // Calé à droite du bouton, sans jamais sortir de l'écran à gauche (téléphone : boutons au milieu de la barre)
   pop.style.right = `${Math.max(8, Math.min(innerWidth - r.right - 40, innerWidth - pop.offsetWidth - 8))}px`;
@@ -273,11 +274,30 @@ function docsBadge() {
 export function initTopInfo() {
   const tools = $('#tbTools');
   if (!tools) return;
+  // Menu « Outils » (Télémétrie, barre de séance étroite : les outils y sont rangés, avec leur nom)
+  const more = $('#tbMore');
+  const menu = (on) => {
+    tools.classList.toggle('open', on);
+    more?.setAttribute('aria-expanded', String(on));
+    if (!on || !more) return;
+    const r = more.getBoundingClientRect();
+    Object.assign(tools.style, { top: `${r.bottom + 6}px`, left: `${r.left}px` });
+    tools.querySelector('[data-tool]')?.focus();
+  };
+  more?.addEventListener('click', () => { const on = !tools.classList.contains('open'); if (on) close(); menu(on); });
   tools.addEventListener('click', (e) => {
     const b = e.target.closest('[data-tool]');
-    if (b) show(b.dataset.tool, b);
+    if (b) { show(b.dataset.tool, b); if (tools.classList.contains('open')) { menu(false); more.focus(); } }
   });
-  document.addEventListener('pointerdown', (e) => { if (pop && !pop.contains(e.target) && !tools.contains(e.target) && !e.target.closest('.csel-pop')) close(); });
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+  document.addEventListener('pointerdown', (e) => {
+    if (pop && !pop.contains(e.target) && !tools.contains(e.target) && !e.target.closest('.csel-pop, #tbMore')) close();
+    if (tools.classList.contains('open') && !tools.contains(e.target) && !more.contains(e.target)) menu(false);
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    if (tools.classList.contains('open')) { menu(false); more.focus(); }
+    close();
+  });
+  addEventListener('resize', () => menu(false));
   setInterval(docsBadge, 3000);
 }

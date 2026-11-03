@@ -95,6 +95,43 @@
 :root[data-design="v3"] .weather-mini .wm b { font: 600 var(--fs-md)/1.1 var(--font-mono); }
 :root[data-design="v3"] .tb-tool { border-radius: var(--r-sm); color: var(--muted); }
 :root[data-design="v3"] .tb-tool:hover { color: var(--text); background: var(--panel-2); }
+/* Barre de séance sur une ligne de 1180 à 1920 px, par paliers : sous 1600 px, les outils passent dans un menu
+   « Outils » (avec leur nom ; point rouge s'il y a de nouveaux documents FIA) ; sous 1440 px, le préréglage du délai se
+   réduit à sa flèche (la valeur reste dans le champ, le préréglage au survol et dans la liste) ; sous 1280 px, écarts
+   resserrés */
+@media (min-width: 901px) and (max-width: 1599px) {
+  :root[data-design="v3"] .topbar .tb-more { position: relative; display: inline-flex; align-items: center; gap: 4px; flex: none; height: 32px; padding: 0 8px 0 10px;
+    border: 1px solid var(--line-2); border-radius: var(--r-sm); background: none; color: var(--text-2); font: 600 var(--fs-sm)/1 var(--font); cursor: pointer; }
+  :root[data-design="v3"] .topbar .tb-more .ic { width: 14px; height: 14px; }
+  :root[data-design="v3"] .topbar .tb-more .tm-ic { display: none; width: 16px; height: 16px; }
+  :root[data-design="v3"] .topbar .tb-more:hover, :root[data-design="v3"] .topbar:has(.tb-tool.on) .tb-more, :root[data-design="v3"] .topbar .tb-more[aria-expanded="true"] { background: var(--panel-2); color: var(--text); }
+  :root[data-design="v3"] .topbar:has(.tb-dot:not([hidden])) .tb-more::after { content: ''; position: absolute; top: -3px; right: -3px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px var(--bg); }
+  :root[data-design="v3"] .topbar .tb-tools { display: none; }
+  :root[data-design="v3"] .topbar .tb-tools.open { position: fixed; z-index: 1000; display: flex; flex-direction: column; align-items: stretch; gap: 2px; min-width: 200px; padding: 6px;
+    background: var(--panel-3); border-radius: var(--r-md); box-shadow: var(--shadow-pop); }
+  :root[data-design="v3"] .topbar .tb-tools.open .tb-tool { width: auto; height: 36px; min-height: 36px; flex-direction: row; justify-content: flex-start; gap: 10px; padding: 0 10px; color: var(--text-2); }
+  :root[data-design="v3"] .topbar .tb-tools.open .tb-tool small { display: block; color: inherit; font: 500 var(--fs-sm)/1 var(--font); letter-spacing: 0; text-transform: none; }
+  :root[data-design="v3"] .topbar .tb-tools.open .tb-tool:hover { background: var(--panel-2); color: var(--text); }
+  :root[data-design="v3"] .topbar .tb-tools.open .tb-dot { position: static; margin-left: auto; }
+  @media (prefers-reduced-motion: no-preference) { :root[data-design="v3"]:not([data-motion="off"]) .topbar .tb-tools.open { animation: v3-pop var(--dur-3) var(--ease-out); } }
+}
+@media (min-width: 1180px) {
+  :root[data-design="v3"] .topbar { flex-wrap: nowrap; }
+  :root[data-design="v3"] .topbar .session { min-width: 0; flex: 0 1 auto; }
+}
+@media (min-width: 901px) and (max-width: 1439px) {
+  :root[data-design="v3"] .topbar .delay .preset { width: 30px; max-width: 30px; min-width: 30px; padding-left: 0; padding-right: 0; color: transparent; background-position: center; }
+  :root[data-design="v3"] .topbar .delay .preset option { color: var(--text); }
+}
+@media (min-width: 901px) and (max-width: 1279px) {
+  :root[data-design="v3"] .topbar { gap: 6px; padding-left: var(--sp-3); padding-right: var(--sp-3); }
+  :root[data-design="v3"] .topbar .session { max-width: 150px; min-width: 96px; }
+  /* « Outils » réduit à son icône (nom au survol et pour les lecteurs d'écran) */
+  :root[data-design="v3"] .topbar .tb-more { font-size: 0; gap: 2px; padding: 0 6px; }
+  :root[data-design="v3"] .topbar .tb-more .tm-ic { display: block; }
+  :root[data-design="v3"] .hstat-label { letter-spacing: .06em; }
+}
+
 /* Délai TV : un seul contrôle (− valeur + · préréglage · synchro) */
 :root[data-design="v3"] .delay { background: transparent; border: 1px solid var(--line-2); border-radius: var(--r-sm); padding: 0; gap: 0; overflow: hidden; }
 :root[data-design="v3"] .delay-input { font: 600 var(--fs-md)/1 var(--font-mono); background: transparent; }
@@ -216,7 +253,7 @@
   :root[data-design="v3"] .mob-nav button.active .mn-svg { stroke: currentColor; }
   :root[data-design="v3"] .mob-panels { background: var(--bg); border-bottom: 1px solid var(--border); }
   :root[data-design="v3"] .mob-panels button { position: relative; background: none !important; border-radius: 0; color: var(--muted); font: 600 var(--fs-sm)/1 var(--font); text-transform: none; letter-spacing: 0; box-shadow: none; }
-  :root[data-design="v3"] .mob-panels button.active { color: var(--text); }
+  :root[data-design="v3"] .mob-panels button.active { color: var(--text); border-color: transparent; }
   :root[data-design="v3"] .mob-panels button.active::after { content: ''; position: absolute; left: 8px; right: 8px; bottom: 0; height: 2px; border-radius: 2px; background: var(--accent); }
   :root[data-design="v3"] .grid.mobile { padding: 0; }
   :root[data-design="v3"] .grid.mobile > .panel { border-radius: 0; border-width: 0; }
@@ -251,6 +288,21 @@
   :root[data-design="v3"] body:has(#replayBar:not([hidden])) .grid.mobile { height: calc(100dvh - 46px); }
   :root[data-design="v3"] .replaybar { bottom: 0; }
   :root[data-design="v3"] .sess-views:not([hidden]) { padding-block: 3px; }
+  /* Vues de la séance au bout de la bande d'onglets (ui/layout.js) */
+  :root[data-design="v3"] .mob-panels > .sess-views:not([hidden]) { flex: none; margin-left: auto; padding: 0; border: 0; background: none; overflow: visible; }
+  /* Classement : le bouton Colonnes réduit à son icône, dans le coin de l'en-tête du tableau (à la place de « Pos ») ;
+     lignes et en-tête resserrés */
+  :root[data-design="v3"] .grid.mobile .p-tower { position: relative; }
+  :root[data-design="v3"] .grid.mobile .p-tower > .panel-head { position: absolute; z-index: 5; top: 0; left: 0; min-height: 0; padding: 0; border: 0; background: none; }
+  :root[data-design="v3"] .grid.mobile .p-tower .tower-cols > summary { width: 32px; height: 26px; min-height: 0; padding: 0; justify-content: center; gap: 0; border: 0; background: none; font-size: 0; }
+  :root[data-design="v3"] .grid.mobile .p-tower .tower-cols > summary .ic { display: none; }
+  :root[data-design="v3"] .grid.mobile .p-tower .tower-cols > summary .tc-ic { display: block; width: 16px; height: 16px; color: var(--text-2); }
+  :root[data-design="v3"] .grid.mobile .tower thead th:first-child { color: transparent; }
+  :root[data-design="v3"] .grid.mobile .tower th { padding-top: 6px; padding-bottom: 6px; }
+  :root[data-design="v3"] .grid.mobile .tower { --tower-row-h: 28px !important; }
+  /* Barre du replay plus basse, sur une ligne */
+  :root[data-design="v3"] .replaybar { padding-top: 3px; padding-bottom: 3px; }
+  :root[data-design="v3"] .rp-play { width: 30px; height: 30px; }
   :root[data-design="v3"] .sv-seg { flex: none; }
   :root[data-design="v3"] .sv-seg button { flex: none; min-height: 26px; padding: 0 14px; font-size: var(--fs-xs); }
 }
@@ -309,3 +361,22 @@
 }
 @keyframes v3-pop { from { opacity: 0; transform: translateY(4px) scale(.98); } }
 @keyframes v3-view { from { opacity: 0; transform: translateY(6px); } }
+
+/* ---------- Fil de course ---------- */
+:root[data-design="v3"] .rf-chip { height: 26px; border-color: var(--border); background: var(--panel-2); color: var(--muted); font: 600 var(--fs-xs)/1 var(--font); transition: color var(--dur-2), background-color var(--dur-2); }
+/* Filtre choisi : inversé (ivoire), comme les bascules allumées */
+:root[data-design="v3"] .rf-chip[aria-pressed="true"] { background: var(--text); border-color: var(--text); color: var(--bg); }
+:root[data-design="v3"] .rf-item { border-bottom-color: var(--line); padding-block: 8px; }
+:root[data-design="v3"] .rf-tag { border-radius: var(--r-xs); font: 600 var(--fs-2xs)/1 var(--font-mono); }
+:root[data-design="v3"] .rf-body .rd-text { font-size: var(--fs-md); }
+:root[data-design="v3"] .rf-radio.playing { background: var(--panel-2); box-shadow: inset 2px 0 0 var(--text); }
+/* Téléphone : le fil est déjà nommé par la bande d'onglets ; les puces font l'en-tête */
+@media (max-width: 900px) { :root[data-design="v3"] .grid.mobile .p-race > .panel-head { display: none; } }
+
+/* ---------- En-têtes à onglets sur une ligne (ordinateur) : les onglets défilent (molette, glisser, clavier), les
+   boutons du panneau restent à droite derrière un fondu, l'engrenage des options suit les onglets ---------- */
+:root[data-design="v3"] .grid:not(.mobile) .panel-head[data-tabs] { flex-wrap: nowrap; overflow: auto hidden; scrollbar-width: none; overscroll-behavior-x: contain; padding-right: 0; }
+:root[data-design="v3"] .grid:not(.mobile) .panel-head[data-tabs]::-webkit-scrollbar { display: none; }
+:root[data-design="v3"] .grid:not(.mobile) .panel-head[data-tabs] > .rd-menu { margin-left: 0; }
+:root[data-design="v3"] .grid:not(.mobile) .panel-head[data-tabs] > .panel-ctrl { position: sticky; right: 0; top: auto; flex: none; align-self: stretch; height: auto; margin-left: auto; padding: 0 8px 0 6px; background: var(--panel); }
+:root[data-design="v3"] .grid:not(.mobile) .panel-head[data-tabs] > .panel-ctrl::before { content: ''; position: absolute; top: 0; bottom: 0; right: 100%; width: 20px; background: linear-gradient(to right, transparent, var(--panel)); pointer-events: none; }
