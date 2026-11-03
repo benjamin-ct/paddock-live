@@ -87,7 +87,7 @@
     .web body:has(#noLiveView:not([hidden])) .grid { display: none; }
     /* Espace Saison ouvert : seule la Saison défile au doigt (pas la page du direct dessous) */
     .web body:has(#seasonView:not([hidden])) { overflow: hidden; }
-    .web body:has(#seasonView:not([hidden]), #homeView:not([hidden])) .grid { display: none; }
+    html.web:not(.only) body:has(#seasonView:not([hidden]), #homeView:not([hidden])) .grid { display: none; }
     /* Bandeau de la direction de course : seulement avec l'écran du direct (pas sur la Saison, hors séance ni dans une fenêtre) */
     html.web:is(.only) .rc-bar, .web body:has(#seasonView:not([hidden]), #noLiveView:not([hidden]), #homeView:not([hidden])) .rc-bar { display: none !important; }
     .web #szContent { overscroll-behavior: contain; }
@@ -255,7 +255,7 @@
         <div class="session-sub" id="sessionSub"></div>
       </div>
     </div>
-    <nav class="web-nav" id="webNavTop" aria-label="Navigation"></nav>
+    <nav class="web-nav" id="webNavTop" aria-label="Navigation"><button type="button" data-nav="home" aria-label="Accueil" class="active" aria-current="page"><svg class="mn-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-7 9 7M5 10v10h5v-6h4v6h5V10"/></svg><span class="mn-l">Accueil</span></button><button type="button" data-nav="live" aria-label="Direct"><svg class="mn-svg" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M5.6 5.6a9 9 0 0 0 0 12.8M18.4 5.6a9 9 0 0 1 0 12.8M8.5 8.5a5 5 0 0 0 0 7M15.5 8.5a5 5 0 0 1 0 7"/></svg><span class="mn-l">Direct</span></button><button type="button" data-nav="season" aria-label="Saison"><svg class="mn-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4h8v5a4 4 0 0 1-8 0zM12 13v4M8 20h8M16 6h3a3 3 0 0 1-3 4M8 6H5a3 3 0 0 0 3 4"/></svg><span class="mn-l">Saison</span></button></nav>
     <div class="track-status" id="trackStatus"><span class="ts-dot"></span><span class="ts-label">—</span></div>
     <button class="icon-btn" id="webMenuBtn" title="Réglages du direct" aria-label="Réglages du direct" aria-expanded="false"><svg class="ic" aria-hidden="true"><use href="#i-gear"/></svg></button>
     <div class="tb-break b1"></div>
@@ -318,7 +318,7 @@
   <div class="rc-bar" id="rcBar" hidden><span class="rc-tag">Direction de course</span><i class="rcm-flag"></i><span class="rc-msg"></span><small class="rc-lap"></small></div>
 
   <!-- Téléphone : Accueil, Direct et Saison en bas de l'écran (web.js) -->
-  <nav class="mob-nav web-mnav" id="webNav" aria-label="Navigation"></nav>
+  <nav class="mob-nav web-mnav" id="webNav" aria-label="Navigation"><button type="button" data-nav="home" aria-label="Accueil" class="active" aria-current="page"><svg class="mn-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-7 9 7M5 10v10h5v-6h4v6h5V10"/></svg><span class="mn-l">Accueil</span></button><button type="button" data-nav="live" aria-label="Direct"><svg class="mn-svg" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M5.6 5.6a9 9 0 0 0 0 12.8M18.4 5.6a9 9 0 0 1 0 12.8M8.5 8.5a5 5 0 0 0 0 7M15.5 8.5a5 5 0 0 1 0 7"/></svg><span class="mn-l">Direct</span></button><button type="button" data-nav="season" aria-label="Saison"><svg class="mn-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4h8v5a4 4 0 0 1-8 0zM12 13v4M8 20h8M16 6h3a3 3 0 0 1-3 4M8 6H5a3 3 0 0 0 3 4"/></svg><span class="mn-l">Saison</span></button></nav>
 
   <dialog id="pairDlg" class="pair-dlg">
     <form method="dialog" class="pair-close"><button value="x" aria-label="Fermer" title="Fermer">✕</button></form>

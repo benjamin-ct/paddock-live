@@ -394,19 +394,16 @@ safe(initSeason);
 // l'adresse suit ensuite la rubrique affichée
 seasonUrls();
 const askedSeason = parseSeasonPath(location.pathname);
-if (askedSeason) safe(() => openSeason(askedSeason.section, askedSeason.year || undefined, askedSeason.item));
+if (askedSeason) { document.querySelector('#homeView').hidden = true; safe(() => openSeason(askedSeason.section, askedSeason.year || undefined, askedSeason.item)); }
 // Accueil au lancement (pas de séance en cours, pas de page de la Saison demandée, pas de fenêtre à un panneau)
 else if (!ONLY) safe(initHome);
+// Fenêtre à un panneau : pas d'accueil (affiché par défaut dans la page)
+if (ONLY) document.querySelector('#homeView').hidden = true;
 
-// Menu : Accueil, Direct, Saison (barre du haut sur ordinateur, barre du bas sur téléphone, comme l'appli)
-const NAV = [
-  ['home', 'Accueil', '<path d="M3 11l9-7 9 7M5 10v10h5v-6h4v6h5V10"/>'],
-  ['live', 'Direct', '<circle cx="12" cy="12" r="3"/><path d="M5.6 5.6a9 9 0 0 0 0 12.8M18.4 5.6a9 9 0 0 1 0 12.8M8.5 8.5a5 5 0 0 0 0 7M15.5 8.5a5 5 0 0 1 0 7"/>'],
-  ['season', 'Saison', '<path d="M8 4h8v5a4 4 0 0 1-8 0zM12 13v4M8 20h8M16 6h3a3 3 0 0 1-3 4M8 6H5a3 3 0 0 0 3 4"/>'],
-];
+// Menu : Accueil, Direct, Saison (barre du haut sur ordinateur, barre du bas sur téléphone, comme l'appli ; boutons
+// écrits dans la page, affichés avant le chargement du code)
 const navs = [document.querySelector('#webNavTop'), document.querySelector('#webNav')].filter(Boolean);
 for (const nav of navs) {
-  nav.innerHTML = NAV.map(([k, label, svg]) => `<button type="button" data-nav="${k}" aria-label="${t(label)}"><svg class="mn-svg" viewBox="0 0 24 24" aria-hidden="true">${svg}</svg><span class="mn-l">${t(label)}</span></button>`).join('');
   nav.addEventListener('click', (e) => {
     const k = e.target.closest('[data-nav]')?.dataset.nav;
     if (!k) return;

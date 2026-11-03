@@ -142,7 +142,8 @@ const livePage = fs.readFileSync(path.join(LIVE_PAGE, 'index.html'), 'utf8').rep
   // Accueil de l'appli : rempli par ui/home.js
   const m = appPage.match(/<div class="season-view home-view" id="homeView" hidden>\s*<div class="hm-main"><\/div>\s*<\/div>/);
   if (!m) throw new Error('public/index.html : accueil introuvable');
-  return m[0];
+  // Affiché dès l'ouverture de la page (avant le chargement du code) : pas de tableau de bord vide en attendant
+  return m[0].replace(' hidden>', '>').replace('<div class="hm-main"></div>', '<div class="hm-main"><h1 class="hm-hello">Paddock Live</h1><p class="muted">Chargement…</p></div>');
 }).replace('<!--season-->', () => {
   // Espace Saison de l'appli : menu des rubriques, contenu rempli par ui/season.js
   const m = appPage.match(/<div class="season-view" id="seasonView"[\s\S]*?<div class="sz-main" id="szContent"><\/div>\s*<\/div>/);
