@@ -331,7 +331,10 @@ function renderMobile(grid) {
   // Téléphone : 5 boutons fixes en bas ; dans « Direct », les panneaux en onglets en haut
   const nav = $('#mobNav');
   nav.hidden = false;
-  if (!nav.children.length) nav.innerHTML = MOB_NAV.map(([k, label, svg]) => `<button data-mob="${k}" aria-label="${label}"><svg class="mn-svg" viewBox="0 0 24 24" aria-hidden="true">${svg}</svg><span class="mn-l">${label}</span></button>`).join('');
+  // Barre refaite quand le design change (Télémétrie : Replays à la place de « Plus »)
+  const design = document.documentElement.dataset.design;
+  if (nav.dataset.design !== design) nav.innerHTML = mobNav().map(([k, label, svg]) => `<button data-mob="${k}" aria-label="${label}"><svg class="mn-svg" viewBox="0 0 24 24" aria-hidden="true">${svg}</svg><span class="mn-l">${label}</span></button>`).join('');
+  nav.dataset.design = design;
   const strip = $('#mobPanels');
   strip.hidden = false;
   strip.innerHTML = tabs.map(([id, label]) => `<button data-mobp="${id}" class="${id === mobTab ? 'active' : ''}">${label}</button>`).join('');
@@ -347,10 +350,14 @@ const MOB_NAV = [
   ['news', 'Actu', '<path d="M4 5h13v14H6a2 2 0 0 1-2-2zM17 9h3v8a2 2 0 0 1-2 2M7 9h7M7 12h7M7 15h4"/>'],
   ['more', 'Plus', '<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>'],
 ];
+// Télémétrie : les cinq espaces, sans « Plus » (Réglages dans la barre de séance ; Résultats, Résumé et Commentaires
+// dans les vues de la séance, en tête du Direct)
+const mobNav = () => (document.documentElement.dataset.design === 'v3'
+  ? [...MOB_NAV.slice(0, 4), ['replay', 'Replays', '<path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M10 9l5 3-5 3z"/>']] : MOB_NAV);
 function syncMobNav() {
   const open = (id) => !$(id)?.hidden;
-  const cur = open('#homeView') ? 'home' : open('#seasonView') ? 'season' : open('#newsView') ? 'news' : open('#replayView') ? 'more' : 'live';
-  for (const b of $$('#mobNav [data-mob]')) b.classList.toggle('active', b.dataset.mob === cur);
+  const cur = open('#homeView') ? 'home' : open('#seasonView') ? 'season' : open('#newsView') ? 'news' : open('#replayView') ? 'replay' : 'live';
+  for (const b of $$('#mobNav [data-mob]')) b.classList.toggle('active', b.dataset.mob === cur || (b.dataset.mob === 'more' && cur === 'replay'));
 }
 
 // Menu « Plus » du téléphone
@@ -383,7 +390,7 @@ function mobMore(btn) {
 function render(force = false) {
   if (resizing) { renderLater = true; return; }
   const grid = $('.grid');
-  const key = `${mobile()}|${simple()}|${narrow()}|${JSON.stringify(layout)}|${PANELS.map((p) => isVisible(p.id)).join()}`;
+  const key = `${mobile()}|${simple()}|${narrow()}|${document.documentElement.dataset.design}|${JSON.stringify(layout)}|${PANELS.map((p) => isVisible(p.id)).join()}`;
   if (key === renderKey && !force) return;
   document.documentElement.classList.toggle('phone', mobile());
   document.documentElement.classList.toggle('simple', simple());
@@ -1215,6 +1222,8 @@ export function initLayout() {
     if (!b) return;
     const k = b.dataset.mob;
     if (k === 'more') { mobMore(b); return; }
+    // Replays (Télémétrie) : comme le bouton de la barre latérale (pendant un replay, retour au replay en cours)
+    if (k === 'replay') { if ($('#replayView').hidden) $('#rail [data-rail="replay"]')?.click(); return; }
     const [home, season, news, replays] = await Promise.all([import('./home.js'), import('./season.js'), import('./news.js'), import('./replays.js')]);
     if (k === 'home') { home.openHome(); return; }
     home.homeTouched();
@@ -1231,7 +1240,7 @@ export function initLayout() {
   // Disposition modifiée dans une autre instance de la même fenêtre (rechargement) : rien à faire ;
   // la fenêtre principale suit seulement les préférences.
   on('prefs', (k) => {
-    if (k === 'hiddenPanels' || k === 'phoneFull') render();
+    if (k === 'hiddenPanels' || k === 'phoneFull' || k === 'design') render();
     if (['hiddenPanels', 'hiddenTabs', 'tabLayout', 'hiddenCols', 'extraCols', 'towerFit'].includes(k)) renderLayoutOptions();
   });
   render(true);

@@ -9,6 +9,12 @@ l'application (Réglages → À propos → Nouveautés).
 ### Affichage
 - Nouveau design « Télémétrie » en aperçu (Réglages → Apparence → Design) : interface plus sobre et plus lisible, le
   rouge réservé à ce qui est actif, classement plus large avec toutes ses colonnes, nouvelle police, thèmes sombre et clair.
+- Palette de commandes (Ctrl + K, ⌘K sur Mac) : quelques lettres suffisent pour ouvrir un espace, les résultats ou le
+  résumé de la séance, une fenêtre, l'apparence, un réglage ou une rubrique de la Saison, sans souris.
+- Navigation du design Télémétrie : la barre latérale garde les cinq espaces (Accueil, Direct, Saison, Actu, Replays),
+  avec en bas Recherche, Fenêtres, Apparence et Réglages ; Résultats, Résumé et Commentaires se choisissent en tête du
+  Direct et des replays. Au téléphone, Replays rejoint la barre du bas et Réglages la barre de séance ; tenu en
+  paysage, la barre du bas devient un rail à gauche pour laisser la hauteur au classement.
 - Le design Broadcast n'est plus proposé : ceux qui l'utilisaient passent à Paddock 2 (Paddock 2 et Classique restent au choix).
 - Téléphone tenu en paysage : l'en-tête tient sur une ligne, les onglets et la barre du replay sont resserrés, la barre
   du bas ne montre plus que ses icônes et la page défile ; le classement a enfin de la place (avant, il ne restait que

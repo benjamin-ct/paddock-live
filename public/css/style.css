@@ -3861,3 +3861,37 @@ html.tab-win .p-analysis .panel-head > [data-tab="compare"] { display: inline-fl
 .ins-wing { width: 100%; max-width: 620px; height: auto; }
 .ins-lbl { font-size: 11px; fill: var(--text-2); }
 .ins-ax { font-size: 11px; fill: var(--muted); }
+
+/* ---------- Palette de commandes (Ctrl+K, ⌘K) : tous les designs, avec leurs variables ---------- */
+.cmdk { width: min(600px, calc(100vw - 24px)); max-height: min(540px, calc(100dvh - 24px)); margin: 12dvh auto auto; padding: 0;
+  border: 1px solid var(--line-2); border-radius: 14px; background: var(--panel); color: var(--text); box-shadow: 0 24px 64px -16px rgb(0 0 0 / .6); overflow: hidden; }
+.cmdk[open] { display: flex; flex-direction: column; }
+.cmdk::backdrop { background: rgb(0 0 0 / .5); }
+.ck-search { display: flex; align-items: center; gap: 10px; padding: 0 14px; border-bottom: 1px solid var(--border); flex: none; }
+.ck-search > .ic { width: 18px; height: 18px; color: var(--muted); flex: none; }
+.ck-search input { flex: 1; min-width: 0; height: 52px; padding: 0; border: 0; background: none; color: var(--text); font-size: 16px; outline: none; }
+.ck-search input::placeholder { color: var(--muted); }
+.ck-list { list-style: none; margin: 0; padding: 6px; overflow-y: auto; overscroll-behavior: contain; flex: 1 1 auto; min-height: 0; }
+.ck-group { padding: 10px 10px 4px; color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.ck-opt { position: relative; display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 10px; border-radius: 8px; color: var(--text-2); cursor: pointer; }
+.ck-opt > .ic { width: 16px; height: 16px; color: var(--muted); flex: none; }
+.ck-opt > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ck-opt > small { flex: none; color: var(--muted); font-size: 12px; }
+.ck-opt .ck-on { width: 14px; height: 14px; color: var(--text); }
+.ck-opt[aria-selected="true"] { background: var(--panel-3); color: var(--text); }
+.ck-opt[aria-selected="true"]::before { content: ''; position: absolute; left: 0; top: 10px; bottom: 10px; width: 2px; border-radius: 2px; background: var(--accent); }
+.ck-opt[aria-selected="true"] > .ic { color: var(--text); }
+.ck-opt[aria-disabled="true"] { opacity: .45; cursor: default; }
+.ck-empty { padding: 28px 16px; color: var(--muted); text-align: center; }
+.ck-foot { display: flex; gap: 16px; padding: 8px 14px; border-top: 1px solid var(--border); color: var(--muted); font-size: 12px; flex: none; }
+.ck-foot span { display: inline-flex; align-items: center; gap: 4px; }
+@media (hover: none) and (pointer: coarse) { .ck-foot, .ck-search kbd { display: none; } .ck-opt { min-height: 44px; } }
+@media (max-width: 600px) { .cmdk { margin-top: calc(8px + env(safe-area-inset-top)); } }
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-motion="off"]) .cmdk[open] { animation: ck-in .18s cubic-bezier(.16, 1, .3, 1); }
+}
+@keyframes ck-in { from { opacity: 0; transform: translateY(-6px) scale(.98); } }
+/* Loupe de la barre latérale et vues de la séance : Télémétrie seulement (design-v3.css) */
+.rail .rail-v3 { display: none; }
+/* Champ de la palette : la fenêtre elle-même montre le focus, pas de cadre autour du champ */
+.cmdk .ck-search input:focus, .cmdk .ck-search input:focus-visible { outline: none; box-shadow: none; border: 0; }

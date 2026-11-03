@@ -119,6 +119,32 @@
 :root[data-design="v3"] .rail-btn small { font: 600 10.5px/1 var(--font); letter-spacing: 0; text-transform: none; bottom: 5px; }
 :root[data-design="v3"] .rail-div { background: var(--border); }
 
+/* Navigation : les cinq espaces, puis en bas Recherche (palette), Fenêtres, Apparence, Réglages ; plus de « Plus »
+   (Résultats, Résumé et Commentaires sont des vues de la séance, Mini est dans Fenêtres) */
+:root[data-design="v3"] .rail :is([data-rail="more"], .rail-div) { display: none; }
+:root[data-design="v3"] .rail .rail-v3 { display: grid; }
+:root[data-design="v3"] .rail [data-rail="scheme"] { display: grid !important; order: 1; }
+:root[data-design="v3"] .rail [data-rail="settings"] { order: 1; }
+
+/* ---------- Vues de la séance : contrôle segmenté en tête du Direct ---------- */
+:root[data-design="v3"] .sess-views:not([hidden]) { display: flex; flex: none; padding: 6px 6px 0; background: var(--bg); overflow-x: auto; scrollbar-width: none; }
+:root[data-design="v3"] .sess-views::-webkit-scrollbar { display: none; }
+:root[data-design="v3"] .sv-seg { display: inline-flex; flex: none; gap: 2px; padding: 2px; border: 1px solid var(--border); border-radius: var(--r-pill); background: var(--panel-2); }
+:root[data-design="v3"] .sv-seg button { min-height: 30px; padding: 0 14px; border: 0; border-radius: var(--r-pill); background: none; color: var(--muted); font: 600 var(--fs-sm)/1 var(--font); white-space: nowrap; cursor: pointer; transition: color var(--dur-2), background-color var(--dur-2); }
+@media (hover: hover) { :root[data-design="v3"] .sv-seg button:hover { color: var(--text); } }
+:root[data-design="v3"] .sv-seg button.on { background: var(--panel-3); color: var(--text); box-shadow: 0 0 0 1px var(--line-2); }
+:root[data-design="v3"] .sv-seg button:active { transform: scale(.97); }
+
+/* ---------- Palette de commandes ---------- */
+:root[data-design="v3"] .cmdk { border: 0; border-radius: var(--r-lg); background: var(--panel); box-shadow: var(--shadow-modal); }
+:root[data-design="v3"] .ck-search input { font: 500 var(--fs-lg)/1 var(--font); }
+:root[data-design="v3"] .ck-search input:focus-visible { outline: none; }
+:root[data-design="v3"] .ck-group { font: 500 var(--fs-2xs)/1 var(--font-mono); letter-spacing: .12em; }
+:root[data-design="v3"] .ck-opt { border-radius: var(--r-sm); font-size: var(--fs-md); }
+:root[data-design="v3"] .ck-opt > small { font: 500 var(--fs-2xs)/1 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; }
+:root[data-design="v3"] .ck-opt[aria-selected="true"] { background: var(--panel-2); }
+:root[data-design="v3"] .ck-foot { font: 500 var(--fs-2xs)/1 var(--font-mono); letter-spacing: .06em; }
+
 /* ---------- Zones (panneaux) ---------- */
 :root[data-design="v3"] .grid { gap: 6px; padding: 6px; background: var(--bg); }
 :root[data-design="v3"] .panel { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: none; }
@@ -203,8 +229,32 @@
     :root[data-design="v3"] .mob-panels button { padding-top: 6px; padding-bottom: 6px; }
   }
   :root[data-design="v3"] .topbar { padding-top: max(6px, env(safe-area-inset-top)); }
+  /* Réglages : icône de la barre de séance (la barre du bas n'a plus de « Plus ») */
+  :root[data-design="v3"] body:has(#mobNav:not([hidden])) .topbar #settingsBtn { display: inline-grid; place-items: center; order: 1; min-width: 40px; min-height: 40px; padding: 0; }
+  /* Vues de la séance : sur toute la largeur, segments égaux */
+  :root[data-design="v3"] .sess-views:not([hidden]) { padding: 6px 8px; border-bottom: 1px solid var(--border); }
+  :root[data-design="v3"] .sv-seg { flex: 1 0 auto; }
+  :root[data-design="v3"] .sv-seg button { flex: 1 0 auto; padding: 0 8px; min-height: 32px; font-size: var(--fs-xs); }
   :root[data-design="v3"] .topbar .hstat-value { font-size: 18px; }
 }
+/* Téléphone en paysage : la barre du bas devient un rail de 56 px à gauche (icônes seules, libellés pour les lecteurs
+   d'écran) ; la hauteur revient aux données */
+@media (max-width: 900px) and (orientation: landscape) and (max-height: 500px) {
+  :root[data-design="v3"] { --mrail: calc(56px + env(safe-area-inset-left)); }
+  :root[data-design="v3"] .mob-nav:not([hidden]) { position: fixed; z-index: 850; left: 0; top: 0; bottom: 0; width: var(--mrail); flex-direction: column; justify-content: center; gap: 4px;
+    padding: env(safe-area-inset-top) 4px env(safe-area-inset-bottom) calc(4px + env(safe-area-inset-left)); border-top: 0; border-right: 1px solid var(--border); }
+  :root[data-design="v3"] .mob-nav button { flex: 0 0 48px; min-height: 48px; justify-content: center; padding: 0; }
+  :root[data-design="v3"] .mob-nav button.active::before { top: 12px; bottom: 12px; left: -4px; right: auto; width: 2px; height: auto; border-radius: 0 2px 2px 0; }
+  :root[data-design="v3"] body:has(#mobNav:not([hidden])) { padding-left: var(--mrail); }
+  :root[data-design="v3"] body:has(#mobNav:not([hidden])) .season-view { left: var(--mrail); }
+  :root[data-design="v3"] .grid.mobile { height: 100dvh; }
+  :root[data-design="v3"] body:has(#replayBar:not([hidden])) .grid.mobile { height: calc(100dvh - 46px); }
+  :root[data-design="v3"] .replaybar { bottom: 0; }
+  :root[data-design="v3"] .sess-views:not([hidden]) { padding-block: 3px; }
+  :root[data-design="v3"] .sv-seg { flex: none; }
+  :root[data-design="v3"] .sv-seg button { flex: none; min-height: 26px; padding: 0 14px; font-size: var(--fs-xs); }
+}
+
 /* Au doigt : cibles d'au moins 24 px partout (WCAG 2.2), 44 px pour la navigation */
 @media (pointer: coarse) {
   :root[data-design="v3"] .mob-nav button { min-height: 48px; }
@@ -254,7 +304,7 @@
 /* ---------- Mouvement (coupé par le système et par Réglages → Affichage) ---------- */
 @media (prefers-reduced-motion: no-preference) {
   :root[data-design="v3"]:not([data-motion="off"]) :is(.lpop-menu, .csel-pop, .tb-pop):not([hidden]) { animation: v3-pop var(--dur-3) var(--ease-out); }
-  :root[data-design="v3"]:not([data-motion="off"]) .modal[open] { animation: v3-pop var(--dur-4) var(--ease-out); }
+  :root[data-design="v3"]:not([data-motion="off"]) :is(.modal, .cmdk)[open] { animation: v3-pop var(--dur-4) var(--ease-out); }
   :root[data-design="v3"]:not([data-motion="off"]) .season-view:not([hidden]) { animation: v3-view var(--dur-3) var(--ease-out); }
 }
 @keyframes v3-pop { from { opacity: 0; transform: translateY(4px) scale(.98); } }
