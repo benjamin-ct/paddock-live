@@ -109,7 +109,7 @@ function defaultLayout(prof = profile) {
   // Télémétrie (v3) : Classement assez large pour toutes ses colonnes principales à 1440 px
   const v3 = document.documentElement.dataset.design === 'v3';
   return { cols: [
-    { w: quali ? 1.2 : v3 ? 1.6 : 1.05, items: [{ id: 'tower', h: 1 }] },
+    { w: quali ? 1.2 : v3 ? 1.75 : 1.05, items: [{ id: 'tower', h: 1 }] },
     { w: 1.15, items: [{ id: 'map', h: 1.6 }, { id: 'duel', h: 0.8 }, { id: 'analysis', h: 1 }] },
     { w: 0.95, items: [{ id: 'extra', h: 1 }, { id: 'radio', h: 1.1 }, { id: 'feed', h: 1.1 }] },
   ] };
