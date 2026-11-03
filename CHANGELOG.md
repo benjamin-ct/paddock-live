@@ -44,6 +44,9 @@ l'application (Réglages → À propos → Nouveautés).
 - Résumé de course : « avec un tour d'avance sur son dauphin » au lieu de « 1L s d'avance ».
 
 ### Saison
+- Course au titre : nouvelles « Places d'honneur », qui peut encore finir 2e ou 3e du championnat pilotes et
+  constructeurs (ou qui y est assuré) ; sur la carte d'un pilote ou d'une écurie éliminé de la lutte pour le titre, la
+  meilleure place encore possible (« au mieux 2e »).
 - Course au titre : un sprint déjà couru n'est plus compté dans les points encore à prendre (le champion est annoncé
   dès qu'il ne peut plus être rattrapé).
 - Séance dont l'horaire n'est pas encore publié : date seule, sans heure inventée ni rappel.

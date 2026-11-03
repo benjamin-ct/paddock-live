@@ -2872,4 +2872,12 @@ export default {
   // audit Worker
   "Code à 8 chiffres": "Codice a 8 cifre",
   "Entrez le code à 8 chiffres.": "Inserisci il codice a 8 cifre.",
+  // Course au titre : places d'honneur
+  "Places d'honneur": "Posti d'onore",
+  "{} place": "{} posto",
+  "{} est assuré de finir {}": "{} è sicuro di finire {}",
+  "{} est assurée de finir {}": "{} è sicura di finire {}",
+  "{} pilotes peuvent encore finir {}": "{} piloti possono ancora finire {}",
+  "{} écuries peuvent encore finir {}": "{} scuderie possono ancora finire {}",
+  "au mieux {}": "al massimo {}",
 };

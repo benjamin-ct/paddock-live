@@ -896,7 +896,7 @@ function renderTitle() {
   const tr = titleRace(data, data.year);
   const dl = Object.values(store.state.DriverList || {});
   const photo = (code) => photoUrl(dl.find((x) => x?.Tla === code) || { Tla: code });
-  const out = (e, team) => (e.alive ? '' : `<div class="tr-out">${team ? t('Éliminée') : t('Éliminé')} · R${e.outRound} ${esc(gpShort(e.outName, LANG))}</div>`);
+  const out = (e, team) => (e.alive ? '' : `<div class="tr-out">${team ? t('Éliminée') : t('Éliminé')} · R${e.outRound} ${esc(gpShort(e.outName, LANG))}${data.races.some((r) => !r.results?.length) ? ` · ${t('au mieux {}', ord(e.best))}` : ''}</div>`);
   // Barre : points actuels (couleur d'écurie) + maximum encore possible (hachures) ; trait = leader
   const bars = (e, list, col) => {
     const lead = Math.max(...list.map((x) => x.points));
@@ -958,13 +958,28 @@ function renderTitle() {
         <div class="tr-cl-note">${t('À égalité de points, le titre va au plus grand nombre de victoires.')}</div>`;
     return `<div class="tr-clinch">${head}${body}</div>`;
   };
+  // Places d'honneur : qui peut encore finir 2e ou 3e du championnat (ou qui y est assuré)
+  const honoursBox = (rows, kind) => {
+    if (!data.races.some(done)) return '';
+    const list = kind === 'd' ? tr.drivers : tr.constructors;
+    const chip = (e) => `<span class="tr-cl-who" style="--tc:${kind === 'd' ? color(e.team, e.teamId) : color(e.name, e.id)}" title="${esc(e.name)}">${esc(kind === 'd' ? e.code : e.name)}</span>`;
+    const line = (h) => {
+      const name = esc(h.sure?.name || '');
+      if (h.sure) return t(kind === 'd' ? '{} est assuré de finir {}' : '{} est assurée de finir {}', `<b>${name}</b>`, ord(h.place));
+      if (h.who.length > 8) return t(kind === 'd' ? '{} pilotes peuvent encore finir {}' : '{} écuries peuvent encore finir {}', h.who.length, ord(h.place));
+      return `<span class="tr-hon-who">${h.who.map(chip).join('')}</span>`;
+    };
+    if (!list.length) return '';
+    return `<div class="tr-honours"><div class="tr-cl-sub">${t('Places d\'honneur')}</div>
+      ${rows.map((h) => `<div class="tr-hon-row"><b>${t('{} place', ord(h.place))}</b><span>${line(h)}</span></div>`).join('')}</div>`;
+  };
   const left = tr.races ? `${t('{} courses', tr.races)}${tr.sprints ? ` ${t('et {} sprints', tr.sprints)}` : ''} ${t('à disputer')}` : t('Saison terminée');
   return `<div class="tr-intro sz-box"><div><div class="muted small">${t('Reste')}</div><div class="tr-big">${left}</div></div>
       <div><div class="muted small">${t('Points encore à prendre')}</div><div class="tr-big">${tr.maxD} <span class="muted small">${t('par pilote')}</span> · ${tr.maxC} <span class="muted small">${t('par écurie')}</span></div></div></div>
     <div class="sz-h2h-pick"><div class="tab-seg">${[['d', 'Championnat pilotes'], ['c', 'Championnat constructeurs']].map(([k, l]) => `<button type="button" data-tr-kind="${k}" class="${trKind === k ? 'on' : ''}">${t(l)}</button>`).join('')}</div></div>
     ${trKind === 'd'
-    ? `<section class="sz-box"><h3>${t('Championnat pilotes')}</h3>${head(tr.drivers, tr.champion, 'd')}${clinchBox(tr.clinchD, 'd')}<div class="tr-grid">${tr.drivers.map(driverCard).join('')}</div></section>`
-    : `<section class="sz-box"><h3>${t('Championnat constructeurs')}</h3>${head(tr.constructors, tr.champTeam, 'c')}${clinchBox(tr.clinchC, 'c')}<div class="tr-grid">${tr.constructors.map(teamCard).join('')}</div></section>`}`;
+    ? `<section class="sz-box"><h3>${t('Championnat pilotes')}</h3>${head(tr.drivers, tr.champion, 'd')}${clinchBox(tr.clinchD, 'd')}${honoursBox(tr.honoursD, 'd')}<div class="tr-grid">${tr.drivers.map(driverCard).join('')}</div></section>`
+    : `<section class="sz-box"><h3>${t('Championnat constructeurs')}</h3>${head(tr.constructors, tr.champTeam, 'c')}${clinchBox(tr.clinchC, 'c')}${honoursBox(tr.honoursC, 'c')}<div class="tr-grid">${tr.constructors.map(teamCard).join('')}</div></section>`}`;
 }
 
 // Comparer deux saisons : le leader de chaque saison et une phrase de résumé, la courbe des points des deux leaders,
