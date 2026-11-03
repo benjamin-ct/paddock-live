@@ -87,9 +87,9 @@
     .web body:has(#noLiveView:not([hidden])) .grid { display: none; }
     /* Espace Saison ouvert : seule la Saison défile au doigt (pas la page du direct dessous) */
     .web body:has(#seasonView:not([hidden])) { overflow: hidden; }
-    .web body:has(#seasonView:not([hidden])) .grid { display: none; }
+    html.web:not(.only) body:has(#seasonView:not([hidden]), #homeView:not([hidden])) .grid { display: none; }
     /* Bandeau de la direction de course : seulement avec l'écran du direct (pas sur la Saison, hors séance ni dans une fenêtre) */
-    html.web:is(.only) .rc-bar, .web body:has(#seasonView:not([hidden]), #noLiveView:not([hidden])) .rc-bar { display: none !important; }
+    html.web:is(.only) .rc-bar, .web body:has(#seasonView:not([hidden]), #noLiveView:not([hidden]), #homeView:not([hidden])) .rc-bar { display: none !important; }
     .web #szContent { overscroll-behavior: contain; }
     html.web:has(#seasonView:not([hidden])), .web body:has(#seasonView:not([hidden])) { overscroll-behavior: none; }   /* pas de rebond de la page (iPhone) */
     /* Saison ouverte : la séance en haut ramène au direct ; pas de favoris à choisir dans la version web */
@@ -133,7 +133,9 @@
     .pair-ok small { color: var(--text-2); }
     .pair-out { width: 100%; margin-top: 14px; }
     .web .topbar :is(#pairBtn, #seasonBtn) { color: var(--text); background: transparent; border: 1px solid rgba(255, 255, 255, .18); }   /* barre toujours sombre, même en apparence claire */
-    #pairBtn.on::before { content: ''; display: inline-block; width: 8px; height: 8px; margin-right: 7px; border-radius: 50%; background: #2ecc71; box-shadow: 0 0 6px #2ecc71; vertical-align: 1px; }
+    /* Point vert avant le texte : ::after placé en tête (::before sert de zone tactile au doigt, style.css) */
+    #pairBtn.on { display: inline-flex; align-items: center; }
+    #pairBtn.on::after { content: ''; order: -1; flex: none; width: 8px; height: 8px; margin-right: 7px; border-radius: 50%; background: #2ecc71; box-shadow: 0 0 6px #2ecc71; }
     #pairForm { display: flex; gap: 8px; }
     #pairInput { flex: 1; min-width: 0; font-weight: 700; font-size: 22px; letter-spacing: .25em; text-align: center; padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel-2); color: var(--text); font-variant-numeric: tabular-nums; }
     .web [data-full], .web .map-mode + label + #mapFloatBtn { display: none !important; }
@@ -195,7 +197,7 @@
       .web .topbar.menu-open #webMenuBtn { background: rgba(255, 255, 255, .14); border-radius: 8px; }
       /* Espace Saison ouvert : la barre du haut ne garde que la séance (délai, F1 TV, chronos servent au direct) ;
          « Retour au direct » est dans le menu ☰ */
-      .web body:has(#seasonView:not([hidden])) .topbar > :not(.session, .track-status) { display: none !important; }
+      .web body:has(#seasonView:not([hidden]), #homeView:not([hidden])) .topbar > :not(.session, .track-status) { display: none !important; }
     }
     /* Téléphone en paysage : rien sous l'encoche ni la Dynamic Island, barre du haut sur une ligne (météo dans le
        direct), classement et carte côte à côte sur toute la hauteur de l'écran, le reste dessous */
@@ -213,9 +215,31 @@
       .web .p-tower { height: auto; min-height: 0; overflow: auto; }
       .web .p-tower .tower-wrap { overflow: auto; }
     }
+    /* Menu : Accueil, Direct, Saison. Ordinateur : dans la barre du haut, à côté du logo ; téléphone : barre fixée en bas
+       (celle de l'appli), la Saison n'a plus d'icône en haut */
+    .web .topbar #seasonBtn { display: none !important; }
+    .web .web-nav { display: flex; gap: 2px; padding: 3px; border-radius: 999px; background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .12); flex: none; }
+    .web .web-nav button { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border: 0; border-radius: 999px; background: none; color: #CBD5E1; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+    .web .web-nav button:hover { color: #fff; background: rgba(255, 255, 255, .08); }
+    .web .web-nav button.active { color: #fff; background: var(--v2-red, #e10600); }
+    .web .web-nav .mn-svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    .web .web-mnav { display: none; }
+    .web a.hm-news-item { text-decoration: none; }
+    @media (max-width: 900px) {
+      .web .web-nav { display: none; }
+      .web .web-mnav { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 900; }
+      .web body { padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
+      /* Accueil, Saison, « Pas de séance » : jusqu'en bas de l'écran, derrière le menu ; place laissée à la fin du contenu */
+      .web :is(#homeView .hm-main, #szContent, #noLiveView) { padding-bottom: calc(96px + env(safe-area-inset-bottom)) !important; }
+      /* Menu caché en faisant défiler vers le bas, revenu en remontant (web.js) */
+      .web .web-mnav { transition: transform .25s ease, opacity .25s ease; }
+      .web .web-mnav.nav-off { transform: translateY(calc(100% + 24px + env(safe-area-inset-bottom))); opacity: 0; pointer-events: none; }
+    }
+    @media (max-width: 1200px) and (min-width: 901px) { .web .web-nav .mn-l { display: none; } .web .web-nav button { padding: 6px 9px; } }
+    html.web.only :is(.web-nav, .web-mnav) { display: none !important; }
     /* Fenêtres « Circuit », « Analyse » et « Duel » (/live/?only=map, analysis, duel) : le panneau seul, sur toute la fenêtre */
     html.web.only body { height: 100dvh; overflow: hidden; padding: 0 !important; }
-    html.web.only :is(.topbar, #seasonView) { display: none !important; }
+    html.web.only :is(.topbar, #seasonView, #homeView) { display: none !important; }
     html.web.only .grid { display: grid; flex: 1; grid-template: "only" minmax(0, 1fr) / minmax(0, 1fr); }
     html.web.only .grid > .panel { display: none; }
     html.web.only-map .grid > .p-map, html.web.only-analysis .grid > .p-analysis, html.web.only-duel .grid > .p-duel, html.web.only-compare .grid > .p-analysis { display: flex; grid-area: only; height: auto; }
@@ -231,6 +255,7 @@
         <div class="session-sub" id="sessionSub"></div>
       </div>
     </div>
+    <nav class="web-nav" id="webNavTop" aria-label="Navigation"><button type="button" data-nav="home" aria-label="Accueil" class="active" aria-current="page"><svg class="mn-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-7 9 7M5 10v10h5v-6h4v6h5V10"/></svg><span class="mn-l">Accueil</span></button><button type="button" data-nav="live" aria-label="Direct"><svg class="mn-svg" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M5.6 5.6a9 9 0 0 0 0 12.8M18.4 5.6a9 9 0 0 1 0 12.8M8.5 8.5a5 5 0 0 0 0 7M15.5 8.5a5 5 0 0 1 0 7"/></svg><span class="mn-l">Direct</span></button><button type="button" data-nav="season" aria-label="Saison"><svg class="mn-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4h8v5a4 4 0 0 1-8 0zM12 13v4M8 20h8M16 6h3a3 3 0 0 1-3 4M8 6H5a3 3 0 0 0 3 4"/></svg><span class="mn-l">Saison</span></button></nav>
     <div class="track-status" id="trackStatus"><span class="ts-dot"></span><span class="ts-label">—</span></div>
     <button class="icon-btn" id="webMenuBtn" title="Réglages du direct" aria-label="Réglages du direct" aria-expanded="false"><svg class="ic" aria-hidden="true"><use href="#i-gear"/></svg></button>
     <div class="tb-break b1"></div>
@@ -276,6 +301,7 @@
     <div class="web-res" id="webResults"><button class="btn" id="webResultsBtn" title="Résultat visible : pas de spoiler tant que vous ne cliquez pas">Voir les résultats et les classements</button></div>
   </div>
 
+  <!--home-->
   <!--season-->
 
   <main class="grid">
@@ -290,6 +316,9 @@
 
   <!-- Bandeau du bas : dernier message de la direction de course, comme l'appli (feed.js, renderRcm) -->
   <div class="rc-bar" id="rcBar" hidden><span class="rc-tag">Direction de course</span><i class="rcm-flag"></i><span class="rc-msg"></span><small class="rc-lap"></small></div>
+
+  <!-- Téléphone : Accueil, Direct et Saison en bas de l'écran (web.js) -->
+  <nav class="mob-nav web-mnav" id="webNav" aria-label="Navigation"><button type="button" data-nav="home" aria-label="Accueil" class="active" aria-current="page"><svg class="mn-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-7 9 7M5 10v10h5v-6h4v6h5V10"/></svg><span class="mn-l">Accueil</span></button><button type="button" data-nav="live" aria-label="Direct"><svg class="mn-svg" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M5.6 5.6a9 9 0 0 0 0 12.8M18.4 5.6a9 9 0 0 1 0 12.8M8.5 8.5a5 5 0 0 0 0 7M15.5 8.5a5 5 0 0 1 0 7"/></svg><span class="mn-l">Direct</span></button><button type="button" data-nav="season" aria-label="Saison"><svg class="mn-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4h8v5a4 4 0 0 1-8 0zM12 13v4M8 20h8M16 6h3a3 3 0 0 1-3 4M8 6H5a3 3 0 0 0 3 4"/></svg><span class="mn-l">Saison</span></button></nav>
 
   <dialog id="pairDlg" class="pair-dlg">
     <form method="dialog" class="pair-close"><button value="x" aria-label="Fermer" title="Fermer">✕</button></form>

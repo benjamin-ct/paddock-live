@@ -19,7 +19,7 @@ import { initRadar } from './ui/radar.js';
 import { renderPitSim, renderBattles, initRaceTools } from './ui/race-tools.js';
 import { initAnalysis, renderAnalysis } from './ui/analysis.js';
 import { renderDuelBand, renderDuel, initDuel } from './ui/duel.js';
-import { initNoLive } from './ui/home.js';
+import { initNoLive, initHome, openHome, closeHome, homeTouched } from './ui/home.js';
 import { initSeason, closeSeason, openSeason, seasonUrls } from './ui/season.js';
 import { parseSeasonPath } from '/shared/season-urls.js';
 import { addPositions, addCarData, compareFrom, raceStartFrom } from '/shared/compare.js';
@@ -38,6 +38,7 @@ if ((prefs.layoutV || 0) < 4) {
 initSelects();   // listes déroulantes aux couleurs de l'appli (sur ordinateur ; le téléphone garde la sienne)
 // Rien n'est traduit dans le navigateur (pas de moteur local) : documents FIA traduits par le serveur, relus plus tard
 store.isHost = false;
+store.web = true;   // version web : accueil sans replays ni Actu (ui/home.js)
 // GPS et télémétrie : texte compressé (deflate brut, base64) du flux F1
 async function inflate(b64) {
   const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
@@ -393,7 +394,50 @@ safe(initSeason);
 // l'adresse suit ensuite la rubrique affichée
 seasonUrls();
 const askedSeason = parseSeasonPath(location.pathname);
-if (askedSeason) safe(() => openSeason(askedSeason.section, askedSeason.year || undefined, askedSeason.item));
+if (askedSeason) { document.querySelector('#homeView').hidden = true; safe(() => openSeason(askedSeason.section, askedSeason.year || undefined, askedSeason.item)); }
+// Accueil au lancement (pas de séance en cours, pas de page de la Saison demandée, pas de fenêtre à un panneau)
+else if (!ONLY) safe(initHome);
+// Fenêtre à un panneau : pas d'accueil (affiché par défaut dans la page)
+if (ONLY) document.querySelector('#homeView').hidden = true;
+
+// Menu : Accueil, Direct, Saison (barre du haut sur ordinateur, barre du bas sur téléphone, comme l'appli ; boutons
+// écrits dans la page, affichés avant le chargement du code)
+const navs = [document.querySelector('#webNavTop'), document.querySelector('#webNav')].filter(Boolean);
+for (const nav of navs) {
+  nav.addEventListener('click', (e) => {
+    const k = e.target.closest('[data-nav]')?.dataset.nav;
+    if (!k) return;
+    webMenu(false);
+    homeTouched();
+    if (k === 'home') openHome();
+    else if (k === 'season') openSeason();
+    else { closeHome(); closeSeason(); }
+    syncNav();
+    scrollTo(0, 0);
+  });
+}
+const syncNav = () => {
+  document.querySelector('#webNav')?.classList.remove('nav-off');   // nouvelle vue : menu de nouveau visible
+  const open = (id) => !document.querySelector(id)?.hidden;
+  const cur = open('#homeView') ? 'home' : open('#seasonView') ? 'season' : 'live';
+  for (const b of document.querySelectorAll('[data-nav]')) { b.classList.toggle('active', b.dataset.nav === cur); b.setAttribute('aria-current', b.dataset.nav === cur ? 'page' : 'false'); }
+};
+// Vues ouvertes ou fermées ailleurs (raccourcis de l'accueil, séance qui commence, retour de la Saison) : menu à jour
+const navWatch = new MutationObserver(syncNav);
+for (const id of ['#homeView', '#seasonView']) { const el = document.querySelector(id); if (el) navWatch.observe(el, { attributes: true, attributeFilter: ['hidden'] }); }
+syncNav();
+// Téléphone : le menu du bas se cache quand on fait défiler vers le bas (page, accueil, Saison…) et revient en remontant,
+// en haut d'une page ou en changeant de vue. Défilement de côté (classement, onglets) : rien ne change
+const mnav = document.querySelector('#webNav');
+const lastTop = new WeakMap();
+document.addEventListener('scroll', (e) => {
+  const el = e.target === document ? document.scrollingElement : e.target;
+  if (!mnav || !el || el.closest?.('#webNav')) return;
+  const y = el.scrollTop, prev = lastTop.get(el) ?? 0;
+  lastTop.set(el, y);
+  if (Math.abs(y - prev) < 6) return;
+  mnav.classList.toggle('nav-off', y > prev && y > 60);
+}, { capture: true, passive: true });
 // Téléphone : réglages du direct derrière l'engrenage. Hauteur de la barre changée (réglages ouverts, police
 // chargée) : écran « Pas de séance en direct » replacé dessous
 const topbar = document.querySelector('.topbar');
