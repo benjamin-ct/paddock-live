@@ -1,6 +1,6 @@
 # Refonte Paddock Live — Étape 2 : direction artistique « Télémétrie »
 
-**Statut : accent validé le 3 novembre 2026 (B, rouge Paddock) ; le reste est à valider sur le prototype (étape 3).** Rien de ce document n'est en production. Les règles actuelles restent celles de
+**Statut : direction et prototype validés le 3 novembre 2026** (accent B rouge, navigation, fil de course, designs actuels conservés au choix). Implémentation progressive : étape 5. Rien de ce document n'est en production. Les règles actuelles restent celles de
 [DESIGN_SYSTEM.md](../DESIGN_SYSTEM.md) tant que la refonte n'est pas validée puis livrée. Constats et mesures :
 [AUDIT.md](AUDIT.md).
 
@@ -231,12 +231,9 @@ extension, langues, Accueil sans spoiler, délai TV, conventions de couleur de l
 
 1. ~~L'accent~~ : **B, rouge Paddock** (validé).
 2. ~~Le logo~~ : inchangé (rouge), conséquence du choix B.
-3. Les **designs actuels** (Paddock 2, Broadcast, Classique) : les garder au choix dans Réglages → Apparence pendant
-   une ou deux versions, puis décider ; ou ne garder que le nouveau.
-4. La **navigation** : Résultats, Résumé et Commentaires passent dans la séance ; « Plus » disparaît au profit du menu
-   et de la palette de commandes.
-5. Le **fil de course** qui fusionne Radios et Direction de course (les deux restent disponibles comme panneaux
-   séparés si on préfère).
+3. ~~Les designs actuels~~ : **conservés au choix** dans Réglages → Apparence (validé ; lesquels exactement : à préciser).
+4. ~~La navigation~~ : **validée** (Résultats, Résumé et Commentaires dans la séance ; menu de l'appli et palette de commandes).
+5. ~~Le fil de course~~ : **validé** (radios et direction de course réunies, panneaux séparés toujours disponibles).
 
 ## 11. Suite (après validation)
 
