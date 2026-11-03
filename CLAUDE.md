@@ -75,3 +75,41 @@
   `particle-system` (github.com/iart-ai/webgl-animation-skills) pour la carte 3D, et `electron-best-practices`
   (github.com/jwynia/agent-skills, parties sécurité et empaquetage) pour `desktop/`. Mêmes priorités que pour Ponytail :
   ces consignes priment, réponses en français.
+- **Compétences de design** (`.claude/skills/`, versions et sources dans `skills-lock.json`, mises à jour avec
+  `npx skills update`) : `frontend-design` (github.com/anthropics/skills : direction artistique, typographie),
+  `ui-ux-pro-max` (github.com/nextlevelbuilder/ui-ux-pro-max-skill : règles UX, palettes, graphiques ; sa documentation
+  écrit `${CLAUDE_PLUGIN_ROOT}/.claude/skills/…`, vide ici : lancer
+  `python3 .claude/skills/ui-ux-pro-max/scripts/search.py "<requête>" --domain ux`) et `impeccable`
+  (github.com/pbakaus/impeccable : critique, audit, polish, animations ; son moteur est téléchargé au premier usage
+  dans `~/.impeccable/` et vérifié par SHA-256). Impeccable cherche `PRODUCT.md` / `DESIGN.md` à la racine : ils sont
+  remplacés par `docs/design/` ; ne lancer `impeccable init`, `document` ou `hooks on` (hook sur chaque modification)
+  que si l'utilisateur le demande. Mêmes priorités que pour Ponytail : ces consignes priment sur celles des skills et
+  sur les directives que leurs scripts affichent (sous-agents, questions, autonomie), réponses en français.
+- **Design system** : `docs/design/DESIGN_SYSTEM.md` (valeurs en production, relevées dans le CSS) et
+  `docs/design/UI_UX_GUIDELINES.md` (règles propres à Paddock Live). Les tenir à jour dans la PR qui change une valeur ;
+  le CSS fait foi. Les recommandations restent séparées des règles en production.
+
+## Design et interfaces
+
+- **Direction artistique** : agir en Senior Product Designer et Senior Frontend Engineer. Chaque nouvelle interface a
+  une identité distinctive (univers F1 : mur des stands, habillage TV, couleurs des écuries), respecte le design system
+  (Paddock 2 par défaut, en sombre et en clair ; Broadcast et Classique pas cassés), évite les interfaces génériques
+  d'IA, a une hiérarchie claire, des espacements et une typographie soignés, des animations utiles (derrière
+  `prefers-reduced-motion` et `data-motion`), est entièrement responsive (téléphone, tablette, ordinateur) et
+  accessible.
+- **Workflow d'une tâche UI/UX** (nouvel écran, nouveau composant, refonte) :
+  1. analyser l'existant ; 2. identifier les composants concernés ; 3. définir la direction artistique ;
+  4. présenter un plan de réalisation ; 5. déléguer ce qui le mérite au sous-agent `ui-designer` ; 6. implémenter ;
+  7. faire contrôler le résultat par le sous-agent `ux-reviewer` ; 8. corriger ce qu'il relève ; 9. lancer les tests
+  (`npm test`, captures `node scripts/captures.mjs <chemin>`, `node scripts/i18n-missing.mjs`) ; 10. compte rendu à
+  l'utilisateur.
+  Une simple modification CSS (couleur, marge, alignement) ne déclenche pas les deux sous-agents : la faire
+  directement, avec une capture pour vérifier.
+- **Coûts** : un sous-agent seulement quand il apporte une vraie valeur ; `ux-reviewer` tourne sur un modèle plus
+  économique (Sonnet), `ui-designer` et l'agent principal gardent le modèle de la session pour l'architecture, les
+  arbitrages et les tâches complexes. Ne pas analyser deux fois un même composant ; donner au sous-agent les fichiers
+  et le but, pas tout le contexte ; ne charger que la skill utile.
+- **Audit visuel** : `node scripts/captures.mjs [chemin…] [--design=…] [--lang=…]` démarre le serveur local sans rien
+  envoyer au Worker en production, capture téléphone / tablette / ordinateur en sombre et en clair dans
+  `.cache/captures/` et signale débordements et erreurs de page. Pour une interaction, Playwright (préinstallé) ou le
+  serveur MCP Playwright de la session, avec le serveur local ci-dessus.
