@@ -256,6 +256,13 @@ input[type=range]:not(#rpRange):disabled { opacity: .45; cursor: default; }
   .p-map { height: 420px; }
   .p-tower { height: 720px; }
   .p-duel, .p-feed, .p-extra { height: 460px; }
+  .rp-speed:is([data-speed="20"], [data-speed="30"]) { display: none; }   /* barre du replay dans la largeur */
+  .replaybar .rp-top { overflow: hidden; white-space: nowrap; }
+}
+/* Petit écran en paysage (Android : 915 × 412) : le classement d'abord, à la hauteur de l'écran */
+@media (min-width: 901px) and (max-width: 1000px) and (orientation: landscape) and (max-height: 500px) {
+  .grid { grid-template-areas: "tower" "map" "duel" "feed" "extra"; }
+  .p-tower, .p-map { height: calc(100dvh - 20px); }
 }
 
 .panel {
@@ -1804,6 +1811,29 @@ html[data-design="classic"] .rc-bar { display: none !important; }
 @media (min-width: 600px) and (max-width: 900px) {
   .grid.mobile .tower .c-last, .grid.mobile .tower .c-best { display: table-cell; }
 }
+/* Téléphone en paysage (iPhone : 852 × 393) : en-tête sur une ligne, onglets, replay et barre du bas réduits ;
+   la page défile et le panneau garde la hauteur de l'écran */
+@media (max-width: 900px) and (orientation: landscape) and (max-height: 500px) {
+  html, body { height: auto; }
+  body { overflow: hidden auto; height: auto; min-height: 100dvh; }
+  /* Rien sous l'encoche ni la Dynamic Island (comme la version web) */
+  body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+  .season-view { left: env(safe-area-inset-left); right: env(safe-area-inset-right); }
+  .topbar { padding-block: 4px; }
+  .topbar :is(.tb-break, .session-sub, .hstat-label, .lap-bar) { display: none !important; }
+  .mob-panels:not([hidden]) { padding-block: 3px; }
+  .mob-panels button { padding-block: 4px; }
+  html[data-theme="pitwall"] .replaybar { grid-template-columns: auto minmax(0, 1fr) auto; padding-block: 4px; }
+  .replaybar .rp-track { margin-top: 0; }
+  .replaybar .rp-side { grid-column: 3; grid-row: 1; }
+  .grid.mobile { flex: none; height: calc(100dvh - 46px); }
+  body:has(#replayBar:not([hidden])) .grid.mobile { height: calc(100dvh - 92px); }
+  /* Barre du bas et barre du replay restent en bas de l'écran pendant le défilement */
+  .mob-nav { position: sticky; bottom: 0; z-index: 5; }
+  .replaybar { position: sticky; bottom: 46px; z-index: 5; }
+  .mob-nav button { padding-block: 4px; }
+  .mob-nav .mn-l { display: none; }
+}
 @media (max-width: 900px) {
   .grid.mobile .p-duel .panel-head { flex-wrap: wrap; row-gap: 6px; }
 }
@@ -1821,6 +1851,13 @@ html[data-design="classic"] .rc-bar { display: none !important; }
 /* Écran tactile sans clavier : pas de raccourcis clavier */
 @media (hover: none) and (pointer: coarse) {
   #shortcutsBlock { display: none !important; }
+}
+/* Au doigt : zone tactile d'au moins 32 px autour des petits boutons, du badge REPLAY et des interrupteurs
+   (zone invisible, la mise en page ne change pas ; :where : une position déjà donnée est gardée) */
+@media (pointer: coarse) {
+  :where(.btn.small, .icon-btn.small, .nw-readbtn, .nw-vo, .source-badge, .toggle) { position: relative; }
+  :is(.btn.small, .icon-btn.small, .nw-readbtn, .nw-vo, .source-badge, .toggle)::before { content: ''; position: absolute; left: 50%; top: 50%;
+    width: max(100%, 32px); height: max(100%, 32px); transform: translate(-50%, -50%); }
 }
 /* Téléphones courants (jusqu'à 420 px) : colonnes serrées, la colonne Arrêts tient dans l'écran */
 @media (max-width: 420px) { .grid.mobile .tower td, .grid.mobile .tower th { padding-left: 3px; padding-right: 3px; } }
@@ -2159,7 +2196,7 @@ body.solo #muteBtn { display: none; }
 [data-theme="pitwall"] .tower th { background: var(--panel); font-size: 10px; letter-spacing: 1.1px; font-weight: 600; border-bottom-color: var(--line); }
 [data-theme="pitwall"] .tower td { border-bottom-color: var(--line); }
 [data-theme="pitwall"] .tower .pos { font-size: 14px; line-height: 1.05; }
-[data-theme="pitwall"] .tower .pos-delta { display: block; font-size: 9px; margin: 0; line-height: 1; }
+[data-theme="pitwall"] .tower .pos-delta { display: block; font-size: 11px; margin: 0; line-height: 1; }
 [data-theme="pitwall"] .tower .drv { gap: 8px; }
 [data-theme="pitwall"] .tower .drv-num { display: none; }
 [data-theme="pitwall"] .tower .drv-tla { font-size: 14.5px; letter-spacing: .6px; min-width: 38px; }
@@ -3401,6 +3438,8 @@ html.float-mini .float-bar { top: auto; bottom: 4px; right: 24px; }   /* en bas 
 #settingsModal .set-block .row > .toggle:only-child { flex: 1; display: flex; flex-direction: row-reverse; justify-content: space-between; align-items: center; gap: 18px; font-size: 13.5px; }
 #settingsModal .set-block .row > label.small:only-child:has(> select) { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 18px; font-size: 13.5px; }
 #settingsModal .set-block .row > label.small:only-child > select { flex: 0 1 auto; width: auto; min-width: 0; max-width: 58%; }
+/* Petit téléphone (iPhone SE) : « Automatique (système) » en entier, le libellé passe sur deux lignes si besoin */
+@media (max-width: 420px) { #settingsModal .set-block .row > label.small:only-child > select { max-width: 72%; } }
 .set-status { padding: 10px 12px; margin: 0 0 12px; border-radius: 10px; background: var(--panel); border: 1px solid var(--border); line-height: 1.5; }
 .set-status:empty { display: none; }
 .set-more { margin-top: 12px; border-top: 1px dashed var(--border); padding-top: 10px; }

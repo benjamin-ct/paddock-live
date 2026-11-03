@@ -2,7 +2,10 @@
 // publique Jolpica (pages « laps » et résultats de la manche). Code pur, partagé par l'appli et la
 // page web du créateur : graphique des positions, vidéo animée, rythme des notes des pilotes.
 
-const lapTime = (t) => {
+import { median } from './season-calc.js';
+
+// « 1:23.456 » -> secondes (null si pas de temps)
+export const lapTime = (t) => {
   const m = /^(?:(\d+):)?(\d+(?:\.\d+)?)$/.exec(String(t || '').trim());
   return m ? Math.round(((Number(m[1]) || 0) * 60 + Number(m[2])) * 1000) / 1000 : null;
 };
@@ -44,12 +47,6 @@ export function parseRaceLaps(lapPages, results, pitPages = []) {
   return { total, drivers };
 }
 
-const median = (a) => {
-  if (!a.length) return null;
-  const s = [...a].sort((x, y) => x - y);
-  const m = s.length >> 1;
-  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
-};
 // Tour médian « propre » d'un pilote : hors 1er tour, sans les tours lents (> 107 % de sa médiane :
 // arrêt au stand, voiture de sécurité, incident) ; null s'il en reste moins de 8
 export function cleanPace(times) {

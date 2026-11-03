@@ -51,10 +51,11 @@ function buzz(kind) {
 // Icône du message selon le type d'alerte
 const KIND_ICON = { red: 'flag', sc: 'siren', green: 'checkered', info: 'warning', fastest: 'stopwatch', fav: 'star' };
 
+// Titre et texte traduits chacun (collés, « Piste dégagée — Reprise de la course » n'avait pas de traduction)
 function notify(title, body, kind) {
   beep(kind);
   buzz(kind);
-  toast(`${title}${body ? ' — ' + body : ''}`, 5000, KIND_ICON[kind] || 'bell');
+  toast(`${tx(title)}${body ? ' — ' + tx(body) : ''}`, 5000, KIND_ICON[kind] || 'bell');
   if (prefs.alerts.notify && document.hidden && 'Notification' in window && Notification.permission === 'granted') {
     try { new Notification(tx(title), { body: tx(body), silent: true }); } catch { /* ignore */ }
   }
@@ -65,7 +66,7 @@ function notify(title, body, kind) {
 export function notifyReminder(title, body) {
   beep('info');
   buzz('info');
-  toast(`${title} — ${body}`, 10000, 'bell');
+  toast(`${tx(title)} — ${tx(body)}`, 10000, 'bell');
   if (prefs.alerts.notify && 'Notification' in window && Notification.permission === 'granted') {
     try { new Notification(tx(title), { body: tx(body), silent: true }); } catch { /* ignore */ }
   }
@@ -76,7 +77,7 @@ export function notifyReminder(title, body) {
 export function notifyNews(title, body, kind, onClick) {
   beep(kind);
   buzz(kind);
-  toast(`${title} — ${body}`, 8000, 'news');
+  toast(`${tx(title)} — ${tx(body)}`, 8000, 'news');
   if (prefs.alerts.notify && document.hidden && 'Notification' in window && Notification.permission === 'granted') {
     try {
       const n = new Notification(tx(title), { body: tx(body), silent: true });

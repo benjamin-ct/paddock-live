@@ -54,16 +54,15 @@ export function applyEvent(state, derived, topic, data, t) {
   state[topic] = merge(state[topic], data);
 
   if (topic === 'Heartbeat' && data?.Utc) {
-    // Décalage heure locale de réception - heure F1. On garde le minimum des derniers
-    // battements (latence la plus faible) pour un recalage stable.
+    // Décalage heure locale de réception - heure F1 : écart médian des derniers battements, comme
+    // clockOffset (shared/compare.js) ; un battement décalé de 20 min ne fausse pas l'heure du circuit.
     const utc = parseUtc(data.Utc);
     const off = t - utc;
     if (Number.isFinite(off)) {
       const list = (derived.hbOffsets ||= []);
       list.push({ off, t, utc });
       if (list.length > 8) list.shift();
-      let best = list[0];
-      for (const h of list) if (h.off < best.off) best = h;
+      const best = [...list].sort((a, b) => a.off - b.off)[list.length >> 1];
       derived.clockOffset = best.off;
       // Point de référence (heure locale, heure F1) : permet aussi le replay accéléré.
       derived.clockRef = { t: best.t, utc: best.utc };

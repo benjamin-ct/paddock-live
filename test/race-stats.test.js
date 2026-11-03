@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { summarizeRace, trackLength, outline } from '../shared/race-stats.js';
+import { summarizeRace, trackLength, outline, findRaceSession } from '../shared/race-stats.js';
 
 // Deux pilotes, 4 tours ; safety car pendant le 3e tour ; arrêt de A au 2e tour.
 const lap = (off, num, n, time, pos, extra = {}) => ({ off, topic: 'TimingData', data: { Lines: { [num]: { NumberOfLaps: n, LastLapTime: { Value: time }, Position: String(pos), ...extra } } } });
@@ -106,4 +106,16 @@ test('version web : statistiques calculées par le serveur, une course à la foi
   // F1 TV retirée du coffre : copie effacée
   await keepArchiveToken(env, null);
   assert.equal(rows.get('racestats:f1tv'), '');
+});
+
+test('findRaceSession : course de l\'archive du même jour (à un jour près), pas le sprint', () => {
+  const index = [
+    { circuitKey: 49, sessions: [{ type: 'Race', name: 'Sprint', start: '2026-10-31T13:00:00', path: '2026/a/sprint/' }, { type: 'Race', name: 'Race', start: '2026-11-01T14:00:00', path: '2026/a/race/' }] },
+    { circuitKey: 65, sessions: [{ type: 'Qualifying', name: 'Qualifying', start: '2026-10-25T15:00:00', path: '2026/b/q/' }, { type: 'Race', name: 'Race', start: '2026-10-26T14:00:00', path: '2026/b/race/' }] },
+  ];
+  assert.deepEqual(findRaceSession(index, { date: '2026-11-01T19:00:00Z' }), { path: '2026/a/race/', circuitKey: 49 });
+  // Course datée la veille en UTC (fuseau du circuit) : trouvée quand même
+  assert.deepEqual(findRaceSession(index, { date: '2026-10-25T23:00:00Z' }), { path: '2026/b/race/', circuitKey: 65 });
+  assert.equal(findRaceSession(index, { date: '2026-10-29T19:00:00Z' }), null, 'aucune course à un jour près');
+  assert.equal(findRaceSession(index, { date: '2026-10-31T13:00:00Z' }).path, '2026/a/race/', 'sprint écarté, la course du lendemain gardée');
 });

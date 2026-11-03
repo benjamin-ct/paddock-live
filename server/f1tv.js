@@ -156,6 +156,18 @@ async function publicTarget(u) {
   try { return !(await dns.promises.lookup(u.hostname, { all: true })).some((a) => privateAddress(a.address)); } catch { return true; }
 }
 
+// Résolution DNS de la connexion elle-même : refuse un nom qui pointe vers une adresse locale au moment de la
+// requête (un nom public à la vérification puis local à la connexion, « DNS rebinding », passait)
+export function publicLookup(hostname, opts, cb) {
+  dns.lookup(hostname, opts, (err, address, family) => {
+    if (err) return cb(err);
+    if ((Array.isArray(address) ? address : [{ address }]).some((a) => privateAddress(a.address))) {
+      return cb(Object.assign(new Error('Adresse locale refusée'), { code: 'ELOCAL' }));
+    }
+    cb(null, address, family);
+  });
+}
+
 // Relais local : GET (manifestes, segments) et POST (licence DRM).
 export async function proxy(req, res, target, token, redirects = 5) {
   let u;
@@ -173,7 +185,7 @@ export async function proxy(req, res, target, token, redirects = 5) {
   if (ent) headers.entitlementtoken = ent;
   if (req.method === 'POST') headers['Content-Type'] = req.headers['content-type'] || 'application/octet-stream';
   const lib = u.protocol === 'http:' ? http : https;
-  const up = lib.request(u, { method: req.method === 'POST' ? 'POST' : 'GET', ...(u.protocol === 'https:' ? { agent } : {}), headers }, (r) => {
+  const up = lib.request(u, { method: req.method === 'POST' ? 'POST' : 'GET', ...(u.protocol === 'https:' ? { agent } : {}), lookup: publicLookup, headers }, (r) => {
     if (r.statusCode >= 300 && r.statusCode < 400 && r.headers.location) {
       r.resume();
       // Redirections limitées (une boucle relançait des requêtes sans fin)
@@ -202,11 +214,12 @@ export async function resolvePlaylist(target, { allowLocal = false } = {}) {
   const u = new URL(target);
   if (u.protocol !== 'https:' && u.protocol !== 'http:') throw new Error('Adresse invalide');
   if (!allowLocal && !(await publicTarget(u))) throw new Error('Adresse locale refusée');
+  const lookup = allowLocal ? undefined : publicLookup;
   const text = (u.protocol === 'https:'
-    ? (await request(u.toString(), { headers: { 'User-Agent': UA } })).body.toString('utf8')
+    ? (await request(u.toString(), { headers: { 'User-Agent': UA }, lookup })).body.toString('utf8')
     : await new Promise((resolve, reject) => {
       // Listes de lecture en HTTP simple (fréquent pour les radios)
-      const rq = http.get(u, { headers: { 'User-Agent': UA } }, (r) => {
+      const rq = http.get(u, { headers: { 'User-Agent': UA }, lookup }, (r) => {
         let data = '';
         r.setEncoding('utf8');
         r.on('data', (c) => { data += c; if (data.length > 20000) r.destroy(); });

@@ -177,9 +177,11 @@ function sectorsHtml() {
 // en onglets
 let season = null;    // { drivers, constructors } de /api/season, chargé à la première ouverture
 function champHtml() {
+  // Classement indisponible (serveur injoignable, saison vide) : nouvel essai au bout de 30 s, ou avec « Réessayer »
+  if (season && !season.loading && !season.drivers?.length && Date.now() - season.at > 30e3) season = null;
   if (!season) {
     season = { drivers: [], constructors: [], loading: true };
-    api(`/api/season?year=${new Date().getFullYear()}`).then((d) => { season = d || {}; render(true); }).catch(() => { season = { error: true }; render(true); });
+    api(`/api/season?year=${new Date().getFullYear()}`).then((d) => { season = { ...d, at: Date.now() }; render(true); }).catch(() => { season = { error: true, at: Date.now() }; render(true); });
   }
   // Pilotes absents de la séance (projection) : leur code d'après le classement de la saison
   const names = Object.fromEntries((season.drivers || []).filter((x) => x.number).map((x) => [String(x.number), x.code || x.name]));
@@ -188,7 +190,7 @@ function champHtml() {
   const head = (sub) => `<div class="tbp-head"><b>Championnat</b><span class="muted small">${sub}</span>${tabs}</div>`;
   if (live) return `${head('projection en direct, d\'après les positions en course')}<div class="tbp-scroll">${live}</div>`;
   const list = champTab === 'teams' ? season.constructors : season.drivers;
-  const body = season.loading ? '<p class="muted small">Chargement…</p>' : season.error || !list?.length ? '<p class="muted small">Classement indisponible pour le moment.</p>'
+  const body = season.loading ? '<p class="muted small">Chargement…</p>' : season.error || !list?.length ? '<p class="muted small">Classement indisponible pour le moment. <button class="btn small" data-champ-retry>Réessayer</button></p>'
     : `<table class="champ"><tr><th>Pos.</th><th>${champTab === 'teams' ? 'Écurie' : 'Pilote'}</th><th>Points</th></tr>${list.map((x) => `<tr><td>${esc(x.pos ?? '')}</td><td>${esc(x.name || '')}</td><td><b>${esc(x.points ?? '')}</b></td></tr>`).join('')}</table>`;
   return `${head('classement après la dernière course · projection en direct pendant les courses')}<div class="tbp-scroll">${body}</div>`;
 }
@@ -244,6 +246,7 @@ function show(tool, btn) {
     if (m) { speedMode = m.dataset.mode; render(true); }
     const c = e.target.closest('[data-champ]');
     if (c) { champTab = c.dataset.champ; render(true); }
+    if (e.target.closest('[data-champ-retry]')) { season = null; render(true); }
   });
   if (tool === 'docs') { markDocsSeen(); $('.tb-tool[data-tool="docs"] .tb-dot').hidden = true; }
   if (tool === 'weather') {

@@ -15,7 +15,7 @@
 // Traduction avec des caractères d'une autre écriture (chinois glissé dans du français…) : refaite.
 import Anthropic from '@anthropic-ai/sdk';
 import { badTranslation, badScript } from '../shared/translation-check.js';
-import { aiQuota, runAI, countClaude, claudeRoom } from './quota.js';
+import { aiQuota, runAI, countClaude, claudeCost, claudeReserve, claudeSettle } from './quota.js';
 export const MODEL = '@cf/mistralai/mistral-small-3.1-24b-instruct';
 export const FALLBACK = '@cf/meta/m2m100-1.2b';
 const MODEL_TAG = 'ms31b';  // dans la clé du cache : changer de modèle ou de consignes = nouvelles traductions
@@ -82,19 +82,28 @@ async function llm(env, texts, to) {
   return parseList(r?.response ?? r?.choices?.[0]?.message?.content, texts.length);
 }
 
-// Claude : liste de traductions, ou null (refus, réponse coupée ou mal formée) ; erreur de l'API levée
-async function claude(env, texts, to, kind) {
+// Claude : liste de traductions, null (refus, réponse coupée ou mal formée) ou false (plafond du jour atteint) ; erreur
+// de l'API levée. Coût estimé réservé avant l'appel (consignes et textes en entrée, 3 000 jetons de réflexion et la
+// traduction en sortie), remplacé ensuite par le coût réel
+async function claude(env, texts, to, kind, day) {
   const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY, fetch: env.CLAUDE_FETCH, maxRetries: 1, timeout: 60e3 });   // CLAUDE_FETCH : tests
   const cfg = claudeFor(kind);
-  const r = await client.messages.create({
-    ...cfg,
-    max_tokens: 16000,   // de la place pour la réflexion d'Opus
-    system: [{ type: 'text', text: system(to), cache_control: { type: 'ephemeral' } }],
-    messages: [{ role: 'user', content: JSON.stringify(texts) }],
-  });
-  const list = r.stop_reason === 'end_turn' ? parseList(r.content.filter((b) => b.type === 'text').map((b) => b.text).join(''), texts.length) : null;
-  await countClaude(env, cfg.model, r.usage, list ? texts.length : 0).catch(() => {});   // suivi dans le Studio
-  return list;
+  const inT = Math.ceil((system(to).length + JSON.stringify(texts).length) / 3);
+  const est = Math.round(claudeCost(cfg.model, { input_tokens: inT, output_tokens: 3000 + inT }) * 1e6);
+  if (!(await claudeReserve(env, day, est).catch(() => false))) return false;
+  let real = 0;
+  try {
+    const r = await client.messages.create({
+      ...cfg,
+      max_tokens: 16000,   // de la place pour la réflexion d'Opus
+      system: [{ type: 'text', text: system(to), cache_control: { type: 'ephemeral' } }],
+      messages: [{ role: 'user', content: JSON.stringify(texts) }],
+    });
+    real = Math.round(claudeCost(cfg.model, r.usage) * 1e6);
+    const list = r.stop_reason === 'end_turn' ? parseList(r.content.filter((b) => b.type === 'text').map((b) => b.text).join(''), texts.length) : null;
+    await countClaude(env, cfg.model, r.usage, list ? texts.length : 0).catch(() => {});   // suivi dans le Studio
+    return list;
+  } finally { await claudeSettle(env, day, est, real).catch(() => {}); }
 }
 
 // Workers AI : « you have used up your daily free allocation of 10,000 neurons »
@@ -177,9 +186,9 @@ export async function translateBatch(env, req, day = new Date().toISOString().sl
     // Claude a répondu, mais traduction refusée ou mal formée : celle de secours est gardée aussi sous sa clé, sinon
     // Claude serait rappelé pour ce texte à chaque demande (pas après une erreur de l'API : retenté après la pause)
     let answered = false;
-    if (claudeOn && await claudeRoom(env, day).catch(() => false)) {
+    if (claudeOn) {
       let list = null;
-      try { list = await claude(env, g.map(({ it }) => it.text), req.to, g[0].it.kind); answered = true; } catch { claudeOffUntil = Date.now() + CLAUDE_PAUSE; }
+      try { list = await claude(env, g.map(({ it }) => it.text), req.to, g[0].it.kind, day); answered = list !== false; } catch { claudeOffUntil = Date.now() + CLAUDE_PAUSE; }
       g.forEach(({ k, it }, j) => { if (list && !bad(list[j], req.to, it)) res[j] = { t: list[j], k }; });
     }
     // Sans Claude : traductions de Mistral déjà gardées, sinon Mistral

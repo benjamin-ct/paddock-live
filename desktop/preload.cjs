@@ -33,4 +33,7 @@ contextBridge.exposeInMainWorld('f1desktop', {
   platform: process.platform,
   getTray: () => ipcRenderer.invoke('tray-get'),
   setTray: (v) => ipcRenderer.invoke('tray-set', !!v),
+  // Taille de l'interface (zoom de toutes les fenêtres, 0,9 à 2)
+  getZoom: () => ipcRenderer.invoke('zoom-get'),
+  setZoom: (v) => ipcRenderer.invoke('zoom-set', v),
 });

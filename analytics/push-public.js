@@ -3,7 +3,7 @@
 // trois sujets au choix : rappel 30 minutes avant chaque séance, résultats (ils dévoilent la course : à
 // cocher soi-même), grosses news. Abonnements dans push_subs (adresse du service de notification et clés de
 // chiffrement du téléphone, sujets, langue : rien d'autre) ; messages en file dans push_out, envoyés par
-// lots chaque minute (appel du Worker à lui-même, avec ses propres limites).
+// lots chaque minute (appels du Worker à lui-même, avec leurs propres limites), enchaînés tant qu'il en reste (worker.js).
 import { vapidKeys, sendPush, validSubscription } from './alerts.js';
 import { ipQuota, callerIp } from './quota.js';
 import { gpFull } from '../shared/gp-names.js';

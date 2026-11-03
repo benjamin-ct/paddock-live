@@ -11,7 +11,7 @@ import qrcode from 'qrcode-generator';
 import fs from 'node:fs';
 import path from 'node:path';
 import { getConfig, saveConfig, ROOT } from './config.js';
-import { localHost } from './guard.js';
+import { localHost, sameSiteRequest } from './guard.js';
 
 const COOKIE = 'paddock_key';
 const DEFAULT_PORT = 3030;
@@ -43,6 +43,9 @@ export function authorized(req, key) {
   const k = new URL(req.url, 'http://x').searchParams.get('k');
   return safeEqual(k, key);
 }
+
+// WebSocket : comme une requête, et ouverte par une page de ce serveur (ou sans origine : outil, overlay)
+export const wsAllowed = (req, key) => authorized(req, key) && sameSiteRequest({ origin: req.headers.origin, host: req.headers.host });
 
 // Adresses IPv4 de cet ordinateur sur le réseau local (les plus probables d'abord)
 export function lanAddresses() {
@@ -127,7 +130,8 @@ export function createLan({ handler, onSocket }) {
     server = http.createServer(onRequest);
     wss = new WebSocketServer({
       server, path: '/ws', perMessageDeflate: { threshold: 4096 },
-      verifyClient: ({ req }) => authorized(req, conf().key),
+      // Pas depuis la page d'un autre site : sans ce contrôle, un site ouvert sur l'ordinateur recevait tout le direct
+      verifyClient: ({ req }) => wsAllowed(req, conf().key),
     });
     wss.on('connection', onSocket);
     server.on('error', (err) => {

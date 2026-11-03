@@ -29,14 +29,22 @@ function fold(line) {
 }
 
 // races : [{ round, name, circuit, locality, country, sessions: [{ label, t }] }]
-// Noms des séances en anglais (le calendrier suit la langue de l'interface)
-const LABEL_EN = { EL1: 'FP1', EL2: 'FP2', EL3: 'FP3', 'Qualif. sprint': 'Sprint qualifying', Sprint: 'Sprint', Qualifications: 'Qualifying', Course: 'Race' };
+// Textes dans la langue de l'interface (fr, en, it, es ; autre : français)
+const LANG = {
+  en: { cal: 'Formula 1', round: 'round', alarm: 'in', desc: 'Follow the session live in Paddock Live.',
+    labels: { EL1: 'FP1', EL2: 'FP2', EL3: 'FP3', 'Qualif. sprint': 'Sprint qualifying', Sprint: 'Sprint', Qualifications: 'Qualifying', Course: 'Race' } },
+  it: { cal: 'Formula 1', round: 'round', alarm: 'tra', desc: 'Segui la sessione in diretta su Paddock Live.',
+    labels: { EL1: 'PL1', EL2: 'PL2', EL3: 'PL3', 'Qualif. sprint': 'Qualifiche sprint', Sprint: 'Sprint', Qualifications: 'Qualifiche', Course: 'Gara' } },
+  es: { cal: 'Fórmula 1', round: 'ronda', alarm: 'en', desc: 'Sigue la sesión en directo en Paddock Live.',
+    labels: { EL1: 'Libres 1', EL2: 'Libres 2', EL3: 'Libres 3', 'Qualif. sprint': 'Clasificación sprint', Sprint: 'Sprint', Qualifications: 'Clasificación', Course: 'Carrera' } },
+  fr: { cal: 'Formule 1', round: 'manche', alarm: 'dans', desc: 'Suivez la séance en direct dans Paddock Live.', labels: {} },
+};
 
 // subscribe : calendrier auquel on s'abonne (adresse fixe, relue par l'agenda toutes les 6 h)
 export function buildIcs(races, { year, round = null, alarmMin = 15, now = Date.now(), lang = 'fr', subscribe = false } = {}) {
-  const en = lang === 'en';
+  const L = Object.hasOwn(LANG, lang) ? LANG[lang] : LANG.fr;
   const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Paddock Live//Calendrier F1//FR', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
-    `X-WR-CALNAME:${text(subscribe ? `${en ? 'Formula 1' : 'Formule 1'} (Paddock Live)` : round ? `F1 ${year} — ${en ? 'round' : 'manche'} ${round}` : `F1 ${year}`)}`,
+    `X-WR-CALNAME:${text(subscribe ? `${L.cal} (Paddock Live)` : round ? `F1 ${year} — ${L.round} ${round}` : `F1 ${year}`)}`,
     ...(subscribe ? ['REFRESH-INTERVAL;VALUE=DURATION:PT6H', 'X-PUBLISHED-TTL:PT6H'] : [])];
   for (const r of races) {
     if (round && r.round !== round) continue;
@@ -45,7 +53,7 @@ export function buildIcs(races, { year, round = null, alarmMin = 15, now = Date.
       if (!Number.isFinite(start)) continue;
       const end = start + sessionMinutes(s.label) * 60e3;
       const gp = String(r.name || '').replace(/ Grand Prix$/, '');
-      const label = en ? LABEL_EN[s.label] || s.label : s.label;
+      const label = L.labels[s.label] || s.label;
       const slug = String(s.label).toLowerCase().normalize('NFD').replace(/[^a-z0-9]+/g, '-');
       lines.push('BEGIN:VEVENT',
         `UID:paddock-${year}-${r.round}-${slug}@paddock-live`,
@@ -54,8 +62,8 @@ export function buildIcs(races, { year, round = null, alarmMin = 15, now = Date.
         `DTEND:${stamp(end)}`,
         `SUMMARY:${text(`F1 ${gp} GP — ${label}`)}`,
         `LOCATION:${text([r.circuit, r.locality, r.country].filter(Boolean).join(', '))}`,
-        `DESCRIPTION:${text(en ? `${r.name} (round ${r.round}). Follow the session live in Paddock Live.` : `${r.name} (manche ${r.round}). Suivez la séance en direct dans Paddock Live.`)}`);
-      if (alarmMin > 0) lines.push('BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${text(en ? `${gp} — ${label} in ${alarmMin} min` : `${gp} — ${label} dans ${alarmMin} min`)}`, `TRIGGER:-PT${alarmMin}M`, 'END:VALARM');
+        `DESCRIPTION:${text(`${r.name} (${L.round} ${r.round}). ${L.desc}`)}`);
+      if (alarmMin > 0) lines.push('BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${text(`${gp} — ${label} ${L.alarm} ${alarmMin} min`)}`, `TRIGGER:-PT${alarmMin}M`, 'END:VALARM');
       lines.push('END:VEVENT');
     }
   }

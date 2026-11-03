@@ -4,6 +4,7 @@
 import { createDerived, applyEvent } from './derive.js';
 import { parseLapTime, sessionStartUtc } from './f1.js';
 import { realStints } from './pits.js';
+import { median } from './season-calc.js';
 
 export const STATS_VERSION = 3;   // 3 : relais sans changement de pneus fusionnés (arrêts réels)
 const NEUTRAL = new Set(['4', '5', '6', '7']);   // SC, drapeau rouge, VSC, fin de VSC
@@ -12,12 +13,6 @@ const list = (o) => (!o ? [] : Array.isArray(o) ? o : Object.values(o));
 const num = (v) => (Number.isFinite(Number(v)) && v !== '' && v !== null ? Number(v) : null);
 const r3 = (v) => Math.round(v * 1000) / 1000;
 const r2 = (v) => (v === null ? null : Math.round(v * 100) / 100);
-const median = (a) => {
-  if (!a.length) return null;
-  const s = [...a].sort((x, y) => x - y);
-  const m = s.length >> 1;
-  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
-};
 
 // Tracé simplifié (≈160 points) dans un carré 100 × 100, orienté comme sur la carte.
 export function outline(track) {

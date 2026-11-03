@@ -4,6 +4,7 @@
 import { store, serverNow, versionOf, emit, replaySpeed } from '../store.js';
 import { $, esc, api, drivers, orderedNumbers, fmtLap, lapSeconds, storageGet, storageSet, driverOpt } from '../util.js';
 import { cornerStats, typeStats, smoothDelta } from './compare-calc.js';
+import { DEC } from '../i18n.js';
 
 const KEY = 'paddock.compare';
 const sel = { a: null, b: null, ...storageGet(KEY, {}), la: null, lb: null };   // null : P1 / P2 automatiques, meilleurs tours
@@ -120,7 +121,7 @@ function deltaSvg(d) {
 // ---------- Comparaison de télémétrie (trace du serveur : K+1 points sur la distance du tour) ----------
 const TW = 640, TL = 46, TR = 10;   // largeur, marges gauche et droite des courbes
 const tx = (tr, i) => TL + (i / tr.K) * (TW - TL - TR);
-const km = (tr, i) => (tr.len ? `${((i / tr.K) * tr.len / 1000).toFixed(2).replace('.', ',')} km` : `${Math.round((i / tr.K) * 100)} %`);
+const km = (tr, i) => (tr.len ? `${((i / tr.K) * tr.len / 1000).toFixed(2).replace('.', DEC)} km` : `${Math.round((i / tr.K) * 100)} %`);
 
 // Courbes empilées : écart cumulé, vitesse, accélérateur, frein, rapport, régime ; numéros des virages en haut
 function traceSvg(d) {

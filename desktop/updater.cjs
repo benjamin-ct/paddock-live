@@ -272,9 +272,11 @@ async function check({ manual = false } = {}) {
       const version = String(release.tag_name || '').replace(/^v/, '');
       set({ checkedAt: Date.now(), latest: { version, notes: release.body || '', url: release.html_url } });
       if (!newer(version, state.current)) { set({ status: 'up-to-date' }); return; }
-      if (state.status === 'ready' && state.latest?.version === version && state.file) return;
       const asset = pickAsset(release);
       if (!asset) throw new Error('Fichier de mise à jour introuvable dans la version publiée');
+      // Fichier prêt de cette version : rien à faire. Prêt mais d'une version plus ancienne (X+1 sortie après le
+      // téléchargement de X) : X+1 téléchargée, sinon l'appli annonçait X+1 et installait X
+      if (state.status === 'ready' && state.file && path.basename(state.file) === asset.name) return;
       if (!state.auto && !manual) { set({ status: 'available', asset: { name: asset.name, size: asset.size } }); return; }
       const dir = path.join(app.getPath('userData'), 'updates');
       fs.mkdirSync(dir, { recursive: true });

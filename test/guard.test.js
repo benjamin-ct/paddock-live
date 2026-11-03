@@ -1,12 +1,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { localHost, sameSiteRequest, decodePath, webUrl } from '../server/guard.js';
+import os from 'node:os';
+import { localHost, directHost, sameSiteRequest, decodePath, webUrl } from '../server/guard.js';
 import { webLink, parseFeed } from '../shared/news.js';
 import { _test as f1tv } from '../server/f1tv.js';
 
 test('sécurité : seules les adresses locales sont acceptées (DNS rebinding)', () => {
   for (const h of ['localhost:3000', '127.0.0.1:3000', '127.0.0.1', '[::1]:3000', 'LOCALHOST:3000']) assert.equal(localHost(h), true, h);
   for (const h of ['evil.example:3000', '127.0.0.1.evil.example', 'localhost.evil.example:3000', '', undefined]) assert.equal(localHost(h), false, String(h));
+});
+
+test('sécurité : HOST=0.0.0.0 accepte les adresses IP et le nom de l\'ordinateur, pas un autre domaine', () => {
+  const me = os.hostname().toLowerCase();
+  for (const h of ['localhost:3000', '127.0.0.1:3000', '192.168.1.20:3000', '10.0.0.5', '[fe80::1]:3000', `${me}:3000`, `${me}.local:3000`]) assert.equal(directHost(h), true, h);
+  for (const h of ['evil.example:3000', '192.168.1.20.evil.example', `${me}.evil.example`, '', undefined]) assert.equal(directHost(h), false, String(h));
 });
 
 test('sécurité : l\'API refuse les requêtes venues d\'un autre site', () => {

@@ -99,3 +99,25 @@ test('alertes du téléphone : abonnement vérifié, file envoyée par lots, abo
   await post('sub', { subscription: sub(0), topics: [] });
   assert.equal(DB.subs.has(sub(0).endpoint), false);
 });
+
+test('alertes du téléphone : lots enchaînés dans la minute tant qu\'il en reste (appels du Worker à lui-même)', async () => {
+  const { publicPush } = await import('../analytics/worker.js');
+  let queue = 7;   // lots en file
+  const DB = { prepare: (sql) => ({ bind: () => ({ first: async () => null }), first: async () => (/push_out/.test(sql) && queue > 0 ? { 1: 1 } : null) }) };
+  let calls = 0;
+  const env = { DB, STATS_KEY: 'k', SELF: { fetch: async () => { calls++; queue--; return new Response('{}'); } } };
+  await publicPush(env, Date.now());
+  assert.deepEqual([calls, queue], [7, 0]);   // tous partis, puis arrêt
+  // Au plus 40 s par minute : la suite à la minute d'après
+  queue = 100;
+  calls = 0;
+  let t = 0;
+  await publicPush(env, Date.now(), () => (t += 15e3));
+  assert.ok(calls >= 1 && calls <= 3, `${calls} lots`);
+  // Appel refusé : arrêt aussitôt
+  queue = 5;
+  calls = 0;
+  env.SELF.fetch = async () => { calls++; return new Response('', { status: 429 }); };
+  await publicPush(env, Date.now());
+  assert.equal(calls, 1);
+});

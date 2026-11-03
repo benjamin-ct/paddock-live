@@ -437,9 +437,9 @@ function describeZone(lay, r0, r1) {
   const turns = lay.corners.filter((c) => mod(c.r - r0, L) <= span).map((c) => c.number).sort((a, b) => a - b);
   const a = locate(lay, r0 + span * 0.02), b = locate(lay, r1 - span * 0.02);
   const parts = [];
-  if (turns.length) parts.push(turns.length > 1 ? `virages ${turns[0]}–${turns[turns.length - 1]}` : `virage ${turns[0]}`);
+  if (turns.length) parts.push(turns.length > 1 ? t('virages {}–{}', turns[0], turns[turns.length - 1]) : t('virage {}', turns[0]));
   if (a.sector) {
-    if (a.sector === b.sector) parts.push(`S${a.sector}${a.mini ? ` · micro-secteur${a.mini !== b.mini ? `s ${a.mini}–${b.mini}` : ` ${a.mini}`}` : ''}`);
+    if (a.sector === b.sector) parts.push(`S${a.sector}${a.mini ? ` · ${a.mini !== b.mini ? t('micro-secteurs {}–{}', a.mini, b.mini) : t('micro-secteur {}', a.mini)}` : ''}`);
     else parts.push(`S${a.sector}${a.mini ? `.${a.mini}` : ''} ${icon('arrow-right', 'ic-s')} S${b.sector}${b.mini ? `.${b.mini}` : ''}`);
   }
   return parts.join(' · ');

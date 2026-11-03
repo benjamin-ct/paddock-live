@@ -137,6 +137,10 @@ html { min-height: 100%; overflow-x: hidden; }
 .seg button:disabled { opacity: .35; cursor: default; }
 .seg.wide { display: flex; width: 100%; }
 .seg.wide button { flex: 1; min-width: 0; padding-inline: 4px; overflow: hidden; text-overflow: ellipsis; }
+/* Sous-onglets du Suivi (6) : libellés entiers, la barre défile de côté si l'écran est trop étroit (iPhone) */
+#svsub { overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+#svsub::-webkit-scrollbar { display: none; }
+#svsub button { flex: 1 0 auto; padding-inline: 10px; overflow: visible; }
 .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 8px; }
 .chip-toggle { position: relative; }
 .chip-toggle input { position: absolute; left: 0; top: 0; width: 1px; height: 1px; margin: 0; opacity: 0; pointer-events: none; }

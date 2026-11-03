@@ -47,7 +47,7 @@ function base(race, year, post, label) {
 const tagsOf = (d, extra = []) => fiveTags(['#F1', gpTag(d.gpEn), ...extra]);
 
 // ---------- 1. Programme du week-end ----------
-// race : manche de /api/season ; tyres : composés Pirelli ; forecast : [{ date: 'AAAA-MM-JJ', tmax, tmin, rain }]
+// race : manche de /api/season ; tyres : composés Pirelli ; forecast : [{ date: 'AAAA-MM-JJ', tmax, tmin, rain }], forecast.tz : fuseau du circuit
 export function weekendData(race, { year, tyres = null, forecast = null } = {}) {
   const d = base(race, year, 'weekend', 'Programme');
   d.sessions = (race.sessions || []).filter((s) => s.t).map((s) => {
@@ -60,8 +60,10 @@ export function weekendData(race, { year, tyres = null, forecast = null } = {}) 
     d.date = `${fr1(fmt(first, sameMonth ? { day: 'numeric' } : { day: 'numeric', month: 'long' }))} au ${fr1(fmt(last, { day: 'numeric', month: 'long', year: 'numeric' }))}`;
   }
   d.tyres = tyres;
-  // Météo prévue pour chaque jour de séance
-  const days = [...new Set(d.sessions.map((s) => fmt(s.t, { year: 'numeric', month: '2-digit', day: '2-digit' }).split('/').reverse().join('-')))];
+  // Météo prévue pour chaque jour de séance, jours dans le fuseau du circuit (forecast.tz, d'Open-Meteo) : la course
+  // du soir à Las Vegas est le lendemain à Paris
+  const ymd = new Intl.DateTimeFormat('en-CA', { timeZone: forecast?.tz || TZ, year: 'numeric', month: '2-digit', day: '2-digit' });
+  const days = [...new Set(d.sessions.map((s) => ymd.format(s.t)))];
   d.forecast = (forecast || []).filter((f) => days.includes(f.date)).map((f) => ({ ...f, day: capFirst(fmt(Date.parse(`${f.date}T12:00:00Z`), { weekday: 'long' })) }));
   d.rows = d.sessions;
   return d;

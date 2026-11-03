@@ -32,6 +32,9 @@
   "appUnlinked": {
     "message": "Pas encore connectée à F1 TV"
   },
+  "appUnknown": {
+    "message": "Pas reconnue (réinstallée ?) : cliquez sur « Envoyer » pour la relier"
+  },
   "send": {
     "message": "Envoyer ma connexion à Paddock Live"
   },

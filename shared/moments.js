@@ -4,6 +4,7 @@
 // Chaque moment : { off (ms depuis le début), kind, text, who (pilotes concernés), lap }.
 
 import { passIsRealStop } from './pits.js';
+import { stoppedInRace } from './f1.js';
 
 const KIND_LABEL = {
   start: 'Départ', sc: 'Voiture de sécurité', vsc: 'VSC', red: 'Drapeau rouge', green: 'Reprise',
@@ -35,6 +36,7 @@ export function keyMoments(events, { kind = 'race', lang = 'fr' } = {}) {
   const name = new Map();      // numéro -> trigramme
   const pos = new Map();       // numéro -> position
   const inPit = new Map();
+  const cars = {};             // numéro -> { InPit, NumberOfLaps } (stoppedInRace)
   const retired = new Set();
   let lap = 0;
   let leader = null;
@@ -106,8 +108,12 @@ export function keyMoments(events, { kind = 'race', lang = 'fr' } = {}) {
               out[out.length - 1].pass = { n, i: pass };
             }
           } else if (l.InPit === false) inPit.set(n, false);
-          // Voitures garées après l'arrivée : pas des abandons
-          if ((l.Retired === true || (l.Stopped === true && kind === 'race')) && !retired.has(n) && started && !finished) {
+          const car = (cars[n] ||= {});
+          car.InPit = inPit.get(n) || false;
+          if (l.NumberOfLaps !== undefined) car.NumberOfLaps = l.NumberOfLaps;
+          // Voitures garées après l'arrivée, ou aux stands sous drapeau rouge : pas des abandons
+          const stopped = l.Stopped === true && kind === 'race' && !stoppedInRace(car, track === '5', cars);
+          if ((l.Retired === true || stopped) && !retired.has(n) && started && !finished) {
             retired.add(n);
             add(e.off, 'retire', l.Retired ? (en ? `${tla(n)} retires` : `Abandon de ${tla(n)}`) : (en ? `${tla(n)} stops on track` : `${tla(n)} s'arrête en piste`), [tla(n)]);
           }

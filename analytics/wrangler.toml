@@ -10,8 +10,9 @@ workers_dev = true
 [assets]
 directory = "./site"
 binding = "ASSETS"
-# Version web du direct : servie seulement sur app.paddocklive.app, décidé par le Worker (analytics/worker.js)
-run_worker_first = ["/live", "/live/*"]
+# Version web du direct : servie seulement sur app.paddocklive.app, décidé par le Worker (analytics/worker.js) ;
+# pages du Studio et des pronostics : seulement sur paddocklive.app (renvoyées là-bas depuis app.paddocklive.app)
+run_worker_first = ["/live", "/live/*", "/studio/", "/studio/index.html", "/p/", "/p/index.html"]
 
 [[d1_databases]]
 binding = "DB"

@@ -2,6 +2,9 @@
 // saison en cours. La F1 ne donne l'immobilisation qu'au dixième ; DHL la donne au centième pour chaque arrêt
 // (écurie, nom du pilote, tour). Reprise à titre d'information, sans but commercial, avec la mention demandée
 // par les conditions d'utilisation de DHL (dhl.com → Terms of use).
+
+import { median } from './season-calc.js';
+
 export const DHL_PAGE = 'https://inmotion.dhl/en/formula-1/fastest-pit-stop-award';
 
 const norm = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z]/g, '');
@@ -10,7 +13,6 @@ const text = (s) => s.replace(/<[^>]+>/g, '')
   .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
   .replace(/&([a-zA-Z])(uml|acute|grave|circ|tilde|cedil|ring);/g, '$1')
   .replace(/&(\w+);/g, (m, k) => ENT[k] ?? m).trim();
-const median = (a) => { const s = [...a].sort((x, y) => x - y); return s.length ? (s.length % 2 ? s[s.length >> 1] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2) : null; };
 
 // Adresses des données de la page (elles changent à chaque saison) : { event, average } ou null
 export function dhlElements(html) {

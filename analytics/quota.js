@@ -115,13 +115,22 @@ export async function aiCounters(env, day) {
 }
 
 // À la place de env.AI.run : refusé (erreur 4006, comme l'allocation épuisée de Cloudflare) passé le plafond, compté sinon
+// Neurones estimés avant l'appel : réservés d'un coup (spend), puis remplacés par ceux de la réponse (rendus si l'appel
+// échoue) : des appels simultanés ne passent plus tous sous le plafond. Estimation : sortie au plus max_tokens ; son :
+// durée d'après la taille du fichier (32 kbit/s, radios des équipes)
+const audioBytes = (a) => (typeof a === 'string' ? a.length * 0.75 : a?.length || 0);
+const guessNeurons = (model, input) => neuronsOf(model, input, PER_MINUTE[model] ? { transcription_info: { duration: audioBytes(input.audio) / 4000 } } : { usage: { completion_tokens: input.max_tokens } });
 export async function runAI(env, model, input) {
   const day = new Date().toISOString().slice(0, 10);
   const { used, top } = await neuronBudget(env, day);
-  if (used >= top) throw new Error('4006: daily allocation of neurons used up (Paddock Live)');
-  const r = await env.AI.run(model, input);
-  await spend(env, `neurons:${day}`, Math.ceil(neuronsOf(model, input, r)), Number.MAX_SAFE_INTEGER);
-  return r;
+  const est = Math.ceil(guessNeurons(model, input));
+  if (used >= top || !(await spend(env, `neurons:${day}`, est, top))) throw new Error('4006: daily allocation of neurons used up (Paddock Live)');
+  let real = 0;
+  try {
+    const r = await env.AI.run(model, input);
+    real = Math.ceil(neuronsOf(model, input, r));
+    return r;
+  } finally { await spend(env, `neurons:${day}`, real - est, Number.MAX_SAFE_INTEGER).catch(() => {}); }
 }
 
 // key : compteur du jour (« 2026-10-18 », « radio:2026-10-18 ») ; day : date du jour ; ip : appelant ; limit : celle
@@ -153,6 +162,15 @@ export async function claudeRoom(env, day) {
   const { results } = await env.DB.prepare('SELECT day, n FROM ai_usage WHERE day IN (?1, ?2)').bind(`claude-opus:${day}`, `claude-sonnet:${day}`).all();
   return (results || []).reduce((a, r) => a + (Number(r.n) || 0), 0) < (Number(env.CLAUDE_DAILY_USD) || 5) * 1e6;
 }
+// Avant chaque appel : coût estimé (millionièmes de dollar) réservé dans « claude:jour », total des deux modèles, vérifié
+// et compté d'un coup (spend) : des appels simultanés ne passent plus tous sous le plafond. claudeRoom en plus : dépense
+// déjà comptée par modèle avant ce total (jour de la mise à jour). false : plafond atteint
+export async function claudeReserve(env, day, est) {
+  if (!(await claudeRoom(env, day))) return false;
+  return spend(env, `claude:${day}`, est, (Number(env.CLAUDE_DAILY_USD) || 5) * 1e6);
+}
+// Après l'appel : coût réel à la place de l'estimation (0 si l'appel a échoué : réserve rendue)
+export const claudeSettle = (env, day, est, real) => spend(env, `claude:${day}`, real - est, Number.MAX_SAFE_INTEGER);
 
 // Studio (code créateur) : plafond à lui, qui ne dépend pas de celui partagé par les applis
 export const studioQuota = (env, day) => ({ key: `${day}|studio`, limit: Number(env.STUDIO_AI_LIMIT) || 500 });

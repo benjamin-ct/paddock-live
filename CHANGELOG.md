@@ -4,6 +4,62 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → À propos → Nouveautés).
 
+## v1.32.0 — à venir
+
+### Affichage
+- Téléphone tenu en paysage : l'en-tête tient sur une ligne, les onglets et la barre du replay sont resserrés, la barre
+  du bas ne montre plus que ses icônes et la page défile ; le classement a enfin de la place (avant, il ne restait que
+  quelques pixels). Le contenu ne passe plus sous l'encoche. Android en paysage : le classement s'affiche d'abord.
+- Onglets du téléphone (Classement, Télémétrie, Messages…) bien lisibles en mode clair.
+- Nouveau réglage « Taille de l'interface » (90 à 200 %, Réglages → Affichage) dans l'appli de bureau, pour les
+  grands écrans et les téléviseurs 4K ; Ctrl + / Ctrl − / Ctrl 0 agrandissent et réduisent aussi sous Windows et Linux.
+- Écran pivoté (plus haut que large) : la disposition par défaut passe à deux colonnes, le classement montre toutes
+  ses colonnes principales. Une disposition déjà choisie n'est pas touchée.
+- Sur téléphone et tablette, les petits boutons (Pronostics, Actu, Calendrier, badge REPLAY, interrupteurs) se
+  touchent plus facilement ; les places gagnées ou perdues du classement s'écrivent plus gros.
+- Dates d'un week-end à cheval sur deux mois écrites en entier (« 30 oct. – 1 nov. »).
+- Réglages sur petit téléphone : les choix des listes s'affichent en entier.
+
+### En direct
+- Les répétitions de la F1 (veille de la course) ne sont plus enregistrées comme de vraies séances : pas de faux
+  replay, ni d'historique rechargé dans le direct, ni d'ajout à la fin du replay des essais libres 3.
+- Drapeau rouge : les voitures arrêtées aux stands ne sont plus comptées comme des abandons (moments clés, résumé), et
+  une safety car suivie d'un drapeau rouge ne neutralise plus le reste de la course dans le simulateur d'arrêt.
+- Championnat : s'il n'a pas pu être chargé, nouvel essai tout seul au bout de 30 s et bouton Réessayer.
+- Correction d'une double connexion au direct quand la connexion F1 TV arrive juste après le lancement de l'appli.
+
+### Version web
+- Radar de pluie réparé (outil Météo) : il était bloqué, et son message cachait les onglets ; on peut de nouveau passer
+  à Windy. Sans réponse du radar, nouvel essai au bout d'une minute.
+- Reconnexion plus douce quand le serveur est plein ou coupé (délai qui augmente jusqu'à une minute), plus de places
+  pendant les séances, et les données GPS et télémétrie sont vidées à chaque nouvelle séance (moins de mémoire).
+- Résultats : bouton Réessayer et nouvel essai tout seul après une coupure.
+- Appairage avec l'appli : codes à 8 chiffres (les codes à 6 chiffres marchent encore) et protection contre les essais
+  en masse.
+
+### Langues
+- Alertes de course (« Piste dégagée », « VER abandonne »…) et plusieurs petits morceaux de texte (pneus neufs ou
+  d'occasion, numéro d'arrêt, virages, distances) traduits en anglais, italien et espagnol.
+- Calendrier (.ics) en italien et en espagnol.
+- Résumé de course : « avec un tour d'avance sur son dauphin » au lieu de « 1L s d'avance ».
+
+### Saison
+- Course au titre : un sprint déjà couru n'est plus compté dans les points encore à prendre (le champion est annoncé
+  dès qu'il ne peut plus être rattrapé).
+- Séance dont l'horaire n'est pas encore publié : date seule, sans heure inventée ni rappel.
+
+### Sécurité
+- Accès téléphone : un site ouvert sur l'ordinateur ne peut plus lire le direct ; serveur lancé pour tout le réseau
+  (version Node.js) : les noms d'hôte inconnus sont refusés.
+- Extension navigateur (1.2.0, à venir dans les boutiques) : elle se relie à l'appli par une clé et ne donne plus la
+  connexion F1 TV qu'à elle.
+- Radios : les adresses du réseau local ne peuvent plus être atteintes par le relais.
+- Mises à jour : quand une version plus récente sort pendant qu'une autre attend d'être installée, c'est la plus
+  récente qui est installée.
+
+### Divers
+- Petites améliorations internes.
+
 ## v1.31.0 — 2026-11-02
 
 ### En direct

@@ -68,3 +68,33 @@ test('relais : jamais vers cet ordinateur ni le réseau local (même autorisé c
   await proxy({ method: 'POST', headers: {} }, { writeHead: (s) => { status = s; }, end() {} }, 'http://127.0.0.1:3000/api/social/publish', null);
   assert.equal(status, 403);
 });
+
+test('relais : nom qui change d\'adresse à la connexion (DNS rebinding) refusé', async () => {
+  const http = await import('node:http');
+  const dns = (await import('node:dns')).default;
+  const { proxy, allowHost, publicLookup } = await import('../server/f1tv.js');
+  let hits = 0;
+  const srv = http.createServer((req, res) => { hits++; res.end('secret'); });
+  await new Promise((r) => srv.listen(0, '127.0.0.1', r));
+  const port = srv.address().port;
+  const real = dns.lookup;
+  const realP = dns.promises.lookup;
+  // Vérification : adresse publique ; connexion : 127.0.0.1
+  dns.promises.lookup = async () => [{ address: '8.8.8.8', family: 4 }];
+  dns.lookup = (host, opts, cb) => (host === 'rebind.example'
+    ? (opts?.all ? cb(null, [{ address: '127.0.0.1', family: 4 }]) : cb(null, '127.0.0.1', 4))
+    : real(host, opts, cb));
+  try {
+    await assert.rejects(new Promise((res, rej) => publicLookup('rebind.example', { all: true }, (e, a) => (e ? rej(e) : res(a)))), /locale refusée/);
+    await assert.rejects(new Promise((res, rej) => publicLookup('rebind.example', {}, (e, a) => (e ? rej(e) : res(a)))), /locale refusée/);
+    allowHost(`rebind.example:${port}`);
+    let status = 0;
+    await new Promise((done) => proxy({ method: 'GET', headers: {} }, { headersSent: false, writeHead: (s) => { status = s; }, end: done, on() {} }, `http://rebind.example:${port}/`, null));
+    assert.equal(status, 502);
+    assert.equal(hits, 0);
+  } finally {
+    dns.lookup = real;
+    dns.promises.lookup = realP;
+    srv.close();
+  }
+});

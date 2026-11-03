@@ -110,8 +110,11 @@ function fakeD1() {
           return {
             sql, a,
             // Essais ratés du mot de passe (studio_fail)
-            async first() { return fails.has(`${a[0]}|${a[1]}`) ? { n: fails.get(`${a[0]}|${a[1]}`) } : null; },
-            async run() { fails.set(`${a[0]}|${a[1]}`, (fails.get(`${a[0]}|${a[1]}`) || 0) + 1); return { meta: { changes: 1 } }; },
+            async first() {
+              if (/RETURNING n/.test(sql)) fails.set(`${a[0]}|${a[1]}`, (fails.get(`${a[0]}|${a[1]}`) || 0) + 1);   // compté et lu d'un coup
+              return fails.has(`${a[0]}|${a[1]}`) ? { n: fails.get(`${a[0]}|${a[1]}`) } : null;
+            },
+            async run() { fails.set(`${a[0]}|${a[1]}`, (fails.get(`${a[0]}|${a[1]}`) || 0) + (/n = n - 1/.test(sql) ? -1 : 1)); return { meta: { changes: 1 } }; },
             async all() {
               const list = [...rows.values()].filter((r) => r.day >= a[0]);
               const tag = sql.match(/\/\*(\w+)\*\//)?.[1];
@@ -222,6 +225,42 @@ test('serveur des statistiques : mot de passe bloqué après 30 essais ratés da
   env.DB.fails.clear();
   assert.equal((await push('mauvais')).status, 403);
   assert.equal(env.DB.fails.get(`local|${new Date().toISOString().slice(0, 10)}`), 1);
+});
+
+test('serveur des statistiques : mot de passe compté avant la comparaison, par bloc /48 en IPv6 et pour tout le monde', async () => {
+  const env = { DB: fakeD1(), STATS_KEY: 'secret-123' };
+  const day = new Date().toISOString().slice(0, 10);
+  const from = (ip, key) => worker.fetch(new Request(`${W}/login`, { method: 'POST', body: new URLSearchParams({ key }), headers: { 'CF-Connecting-IP': ip }, redirect: 'manual' }), env);
+  // Rafale envoyée d'un coup : 30 essais permis, pas un de plus, même si tous partent avant le premier refus
+  const burst = await Promise.all(Array.from({ length: 40 }, () => from('203.0.113.9', 'nope')));
+  assert.equal(burst.filter((r) => r.status === 401).length, 30);
+  assert.equal(burst.filter((r) => r.status === 429).length, 10);
+  // Un /64 différent à chaque essai ne contourne plus la limite : le bloc /48 a la sienne
+  const v6 = [];
+  for (let i = 0; i < 31; i++) v6.push((await from(`2001:db8:5:${i.toString(16)}::1`, 'nope')).status);
+  assert.deepEqual([v6.filter((s) => s === 401).length, v6.at(-1)], [30, 429]);
+  // Bon mot de passe : essai rendu (pas compté parmi les ratés)
+  env.DB.fails.clear();
+  assert.equal((await from('198.51.100.4', 'secret-123')).status, 303);
+  assert.equal(env.DB.fails.get(`198.51.100.4|${day}`), 0);
+  // Plafond pour tout le monde : passé 300 ratés dans la journée, plus aucun essai, d'où qu'il vienne
+  env.DB.fails.set(`*|${day}`, 300);
+  assert.equal((await from('192.0.2.77', 'secret-123')).status, 429);
+});
+
+test('serveur des statistiques : lignes écrites plafonnées pour tout le monde, même réponse que le plafond par adresse', async () => {
+  const env = { DB: fakeD1(), STATS_KEY: 'k' };
+  const usage = new Map();
+  const prepare = env.DB.prepare;
+  // Compteurs ai_usage (plafonds par adresse et pour tout le monde) tenus à part
+  env.DB.prepare = (sql) => (/ai_usage/.test(sql) ? { bind: (k, n, limit) => ({ run: async () => { const v = (usage.get(k) || 0) + n; if (v > limit) return { meta: { changes: 0 } }; usage.set(k, v); return { meta: { changes: 1 } }; } }) } : prepare(sql));
+  const day = new Date().toISOString().slice(0, 10);
+  const post = (ip) => worker.fetch(new Request(`${W}/e`, { method: 'POST', body: JSON.stringify({ v: '1.31.0', os: 'win', items: [['app.active', '-', 1], ['tab.map', 'desktop', 2]] }), headers: { 'CF-Connecting-IP': ip } }), env);
+  assert.equal((await post('203.0.113.1')).status, 204);
+  assert.equal(usage.get(`${day}|*|ingest`), 2);
+  usage.set(`${day}|*|ingest`, 499999);
+  const r = await post('203.0.113.2');
+  assert.deepEqual([r.status, (await r.json()).error], [429, 'Trop d\'envois aujourd\'hui']);
 });
 
 test('serveur des statistiques : chiffres du tableau de bord', async () => {
@@ -352,6 +391,7 @@ test('serveur : ménage du jour (traductions de plus de 90 jours, erreurs de plu
   await prune(env, now);
   assert.deepEqual(ran.slice(1), [
     ['DELETE FROM translations WHERE at < ?1', [now - 90 * 86400e3]], ['DELETE FROM error_details WHERE day < ?1', ['2025-10-22']],
+    ['DELETE FROM counts WHERE day < ?1', ['2024-10-22']],
     ['DELETE FROM studio_fail WHERE day < ?1', ['2026-10-22']], ['DELETE FROM feedback_new WHERE day < ?1', ['2026-10-22']], ['DELETE FROM pronos_new WHERE day < ?1', ['2026-10-22']],
     ['DELETE FROM radio_texts WHERE at < ?1', [now - 365 * 86400e3]], ['DELETE FROM push_sent WHERE at < ?1', [now - 30 * 86400e3]],
     ['DELETE FROM studio WHERE k >= ?1 AND k < ?2 AND at < ?3', ['scheddone:', 'scheddone;', now - 7 * 86400e3]],

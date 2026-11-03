@@ -217,7 +217,9 @@ export function titleRace(data, year) {
   const races = [...(data?.races || [])].sort((a, b) => a.round - b.round);
   const done = races.filter((r) => r.results?.length);
   const future = races.filter((r) => !r.results?.length);
-  const maxRound = { d: (r) => 25 + fl + (r.sprint ? 8 : 0), c: (r) => 43 + fl + (r.sprint ? 15 : 0) };
+  // Sprint encore à prendre : pas celui déjà couru d'un week-end en cours (samedi soir)
+  const sp = (r) => r.sprint && (r.results?.length || !r.sprintResults?.length);
+  const maxRound = { d: (r) => 25 + fl + (sp(r) ? 8 : 0), c: (r) => 43 + fl + (sp(r) ? 15 : 0) };
   const left = (kind, from) => [...done.slice(from), ...future].reduce((s, r) => s + maxRound[kind](r), 0);
   const run = (kind, list, keyOf) => {
     const cum = new Map(), out = new Map();
@@ -258,14 +260,14 @@ export function titleRace(data, year) {
     return {
       leader: { key: leader.key, code: leader.code, name: leader.name, points: leader.points },
       earliest: earliest ? { round: earliest.round, name: earliest.name } : null,
-      next: { round: next.round, name: next.name, sprint: !!next.sprint, max },
+      next: { round: next.round, name: next.name, sprint: !!sp(next), max },
       possibleNext: needs.every((n) => n.margin <= max), needs,
     };
   };
   return {
     drivers, constructors, champion: champ(drivers), champTeam: champ(constructors),
     clinchD: champ(drivers) ? null : clinch(drivers, 'd'), clinchC: champ(constructors) ? null : clinch(constructors, 'c'),
-    races: future.length, sprints: future.filter((r) => r.sprint).length, maxD: left('d', done.length), maxC: left('c', done.length),
+    races: future.length, sprints: future.filter(sp).length, maxD: left('d', done.length), maxC: left('c', done.length),
   };
 }
 

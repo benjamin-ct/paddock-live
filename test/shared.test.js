@@ -60,13 +60,15 @@ test('derive : historique tour par tour avec infos arrivant après le changement
   assert.deepEqual(lap.s, ['28.1', '29.2', '28.2']);
 });
 
-test('derive : décalage d\'horloge = minimum des derniers Heartbeat', () => {
+test('derive : décalage d\'horloge = écart médian des derniers Heartbeat (un battement décalé de 20 min ignoré)', () => {
   const state = {};
   const d = createDerived();
   const utc = Date.parse('2026-09-25T12:00:00Z');
-  applyEvent(state, d, 'Heartbeat', { Utc: '2026-09-25T12:00:00Z' }, utc + 2500);
-  applyEvent(state, d, 'Heartbeat', { Utc: '2026-09-25T12:00:15Z' }, utc + 15000 + 400);
+  applyEvent(state, d, 'Heartbeat', { Utc: '2026-09-25T12:00:00Z' }, utc + 500);
+  applyEvent(state, d, 'Heartbeat', { Utc: '2026-09-25T12:20:15Z' }, utc + 15000 + 400);   // 20 min d'avance
+  applyEvent(state, d, 'Heartbeat', { Utc: '2026-09-25T12:00:30Z' }, utc + 30000 + 400);
   assert.equal(d.clockOffset, 400);
+  assert.equal(d.clockRef.t, utc + 30400);
 });
 
 test('derive : un snapshot n\'est pas modifié par les fusions suivantes', () => {

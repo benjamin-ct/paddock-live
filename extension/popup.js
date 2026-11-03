@@ -11,8 +11,8 @@ function show(s) {
   $('login').hidden = s.signedIn || s.access === false;
   $('diag').hidden = !s.seen;
   if (s.seen) $('diag').textContent = `${t('diag')} ${s.seen.length ? s.seen.join(', ') : t('diagNone')}`;
-  $('appDot').className = `dot ${s.app ? (s.app.linked ? 'on' : '') : 'off'}`;
-  $('appText').textContent = !s.app ? t('appOff') : t(s.app.linked ? 'appLinked' : 'appUnlinked');
+  $('appDot').className = `dot ${s.app ? (s.app.linked && s.app.known !== false ? 'on' : '') : 'off'}`;
+  $('appText').textContent = !s.app ? t('appOff') : t(s.app.known === false ? 'appUnknown' : s.app.linked ? 'appLinked' : 'appUnlinked');
   $('get').hidden = !!s.app;
   $('send').hidden = !(s.signedIn && s.app);
   $('msg').className = s.error ? '' : 'ok';

@@ -97,6 +97,12 @@ const lkey = (win = WIN, prof = profile) => (prof === 'race' || win !== 'main' ?
 function defaultLayout(prof = profile) {
   if (!isMain) return { cols: [] };
   const quali = prof === 'quali';
+  // Fenêtre plus haute que large (écran pivoté) : deux colonnes, le Classement assez large pour ses colonnes principales,
+  // à droite le Circuit, la Télémétrie, les Radios et la Direction de course
+  if (innerHeight > innerWidth) return { cols: [
+    { w: 1.3, items: [{ id: 'tower', h: 1 }] },
+    { w: 1, items: [{ id: 'map', h: 1.3 }, { id: 'duel', h: 0.8 }, { id: 'analysis', h: 1 }, { id: 'extra', h: 1 }, { id: 'radio', h: 0.9 }, { id: 'feed', h: 0.9 }] },
+  ] };
   // Écran principal : Classement à gauche (plus large en qualifs et essais : Q1/Q2/Q3, tour en cours ; le duel passe
   // par-dessus), le Circuit au centre sur toute la hauteur, et à droite la Télémétrie, les Radios et la Direction de
   // course l'une sous l'autre. Analyse et Duel (masqués ici, s'ils sont affichés) : sous le Circuit
@@ -323,7 +329,7 @@ function renderMobile(grid) {
   // Téléphone : 5 boutons fixes en bas ; dans « Direct », les panneaux en onglets en haut
   const nav = $('#mobNav');
   nav.hidden = false;
-  if (!nav.children.length) nav.innerHTML = MOB_NAV.map(([k, label, svg]) => `<button data-mob="${k}"><svg class="mn-svg" viewBox="0 0 24 24" aria-hidden="true">${svg}</svg><span class="mn-l">${label}</span></button>`).join('');
+  if (!nav.children.length) nav.innerHTML = MOB_NAV.map(([k, label, svg]) => `<button data-mob="${k}" aria-label="${label}"><svg class="mn-svg" viewBox="0 0 24 24" aria-hidden="true">${svg}</svg><span class="mn-l">${label}</span></button>`).join('');
   const strip = $('#mobPanels');
   strip.hidden = false;
   strip.innerHTML = tabs.map(([id, label]) => `<button data-mobp="${id}" class="${id === mobTab ? 'active' : ''}">${label}</button>`).join('');

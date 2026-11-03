@@ -96,7 +96,9 @@ async function forecastOf(lat, lon) {
   const q = new URLSearchParams({ latitude: Number(lat).toFixed(4), longitude: Number(lon).toFixed(4), daily: 'temperature_2m_max,temperature_2m_min,precipitation_probability_max', timezone: 'auto', forecast_days: '16' });
   const j = await fetch(`https://api.open-meteo.com/v1/forecast?${q}`).then((r) => r.json()).catch(() => null);
   const d = j?.daily || {};
-  return (d.time || []).map((date, i) => ({ date, tmax: d.temperature_2m_max?.[i] ?? null, tmin: d.temperature_2m_min?.[i] ?? null, rain: d.precipitation_probability_max?.[i] ?? null })).filter((x) => x.tmax !== null);
+  const days = (d.time || []).map((date, i) => ({ date, tmax: d.temperature_2m_max?.[i] ?? null, tmin: d.temperature_2m_min?.[i] ?? null, rain: d.precipitation_probability_max?.[i] ?? null })).filter((x) => x.tmax !== null);
+  days.tz = j?.timezone || null;   // jours datés à l'heure du circuit (weekendData)
+  return days;
 }
 
 const STYPES = [['raceweek', 'Race Week'], ['weekend', 'Programme'], ['records', 'Le saviez-vous'], ['ratings', 'Notes'], ['teamduels', 'Duels'], ['title', 'Course au titre'], ['racelaps', 'Tour par tour']];

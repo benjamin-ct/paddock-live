@@ -20,3 +20,10 @@ test('saison : manches regroupées (pages), séances, résultats et classements'
   assert.equal(r.quali[0].code, 'BBB');
   assert.equal(s.drivers[0].team, 'Mercedes');
 });
+
+test('saison : séance sans heure (horaires pas encore publiés) : pas d\'heure, date seule', () => {
+  const sched = [{ round: '1', raceName: 'Test Grand Prix', date: '2027-03-07', Circuit: { circuitName: 'C', Location: {} }, Qualifying: { date: '2027-03-06' }, FirstPractice: { date: '2027-03-05', time: '01:30:00Z' } }];
+  const r = summarize({ schedule: sched, driverStandings: [], constructorStandings: [], results: [], quali: [], sprint: [] }).races[0];
+  assert.deepEqual(r.sessions, [{ label: 'EL1', t: '2027-03-05T01:30:00Z' }, { label: 'Qualifications', t: null, day: '2027-03-06' }, { label: 'Course', t: null, day: '2027-03-07' }]);
+  assert.equal(r.date, '2027-03-07T00:00:00Z', 'date de la course gardée (tri, manches courues)');
+});

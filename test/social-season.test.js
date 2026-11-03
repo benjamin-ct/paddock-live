@@ -307,3 +307,14 @@ test('vidéo de course : safety car, VSC, drapeaux et moments forts (direction d
   assert.ok(tm.w[3] > tm.w[1]);
   assert.ok(tm.banners.length >= 4 && tm.duration > 25 && tm.duration < 55);
 });
+
+test('programme du week-end : météo des jours de séance dans le fuseau du circuit (Las Vegas)', () => {
+  // Course le samedi 21 novembre à 20 h à Las Vegas (dimanche 5 h à Paris)
+  const lv = { round: 22, name: 'Las Vegas Grand Prix', locality: 'Las Vegas', country: 'USA', date: '2026-11-22T04:00:00Z', sprint: false,
+    sessions: [{ label: 'EL1', t: '2026-11-20T00:30:00Z' }, { label: 'Qualifications', t: '2026-11-21T04:00:00Z' }, { label: 'Course', t: '2026-11-22T04:00:00Z' }] };
+  const fc = ['19', '20', '21', '22'].map((day) => ({ date: `2026-11-${day}`, tmax: 15, tmin: 5, rain: 0 }));
+  fc.tz = 'America/Los_Angeles';
+  const d = weekendData(lv, { year: 2026, forecast: fc });
+  assert.deepEqual(d.forecast.map((f) => f.date), ['2026-11-19', '2026-11-20', '2026-11-21']);
+  assert.equal(d.forecast.at(-1).day, 'Samedi');
+});

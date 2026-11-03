@@ -38,3 +38,21 @@ test('rappels : séances à venir dans le délai choisi, une seule fois', () => 
   assert.deepEqual(dueReminders(list, t - 10 * 60e3, 15, [`${t}|Course`]), [], 'déjà rappelée');
   assert.deepEqual(dueReminders(list, t - 10 * 60e3, 0, []), [], 'rappels désactivés');
 });
+
+test('calendrier : séances et textes en anglais, italien et espagnol (autre langue : français)', () => {
+  const it = buildIcs(races, { year: 2026, now: 0, lang: 'it' });
+  assert.match(it, /SUMMARY:F1 Australian GP — Gara/);
+  assert.match(it, /SUMMARY:F1 Australian GP — PL1/);
+  assert.match(it, /Australian — Gara tra 15 min/);
+  const es = buildIcs(races, { year: 2026, now: 0, lang: 'es', subscribe: true });
+  assert.match(es, /SUMMARY:F1 Chinese GP — Clasificación sprint/);
+  assert.match(es, /X-WR-CALNAME:Fórmula 1 \(Paddock Live\)/);
+  assert.match(buildIcs(races, { year: 2026, now: 0, lang: 'en' }), /SUMMARY:F1 Australian GP — Race/);
+  assert.match(buildIcs(races, { year: 2026, now: 0, lang: 'constructor' }), /SUMMARY:F1 Australian GP — Course/);
+});
+
+test('calendrier et rappels : séance sans heure (t null) ignorée', () => {
+  const r = [{ round: 1, name: 'Australian Grand Prix', sessions: [{ label: 'EL1', t: '2027-03-05T01:30:00Z' }, { label: 'Course', t: null, day: '2027-03-07' }] }];
+  assert.equal(buildIcs(r, { year: 2027, now: 0 }).match(/BEGIN:VEVENT/g).length, 1);
+  assert.deepEqual(dueReminders([{ label: 'Course', t: null }], 0, 15, []), []);
+});

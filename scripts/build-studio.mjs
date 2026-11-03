@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { PAGES, linksPage } from '../analytics/links/pages.mjs';
 import { GUIDES, guidePage, sitemap, robots, englishHome } from '../analytics/launch/guides.mjs';
 import { parseChangelog } from '../shared/changelog.js';
+import { STUDIO_HEADERS } from '../analytics/live-page/headers.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = path.join(ROOT, 'analytics', 'site');
@@ -170,10 +171,7 @@ copy(path.join(ROOT, 'public', 'fonts'), path.join(OUT, 'fonts'), (f) => /^(titi
 copy(path.join(ROOT, 'analytics', 'fonts'), path.join(OUT, 'fonts'));   // Barlow Condensed et Chakra Petch : visuels « Télé premium »
 // En-têtes : la page et l'API ne doivent pas être indexées ni mises en cache trop longtemps
 fs.writeFileSync(path.join(OUT, '_headers'), `/studio/*
-  X-Robots-Tag: noindex, nofollow
-  Cache-Control: no-cache
-  X-Content-Type-Options: nosniff
-  Referrer-Policy: no-referrer
+${Object.entries(STUDIO_HEADERS).map(([k, v]) => `  ${k}: ${v}`).join('\n')}
 /m/*
   Cache-Control: public, max-age=31536000, immutable
   X-Robots-Tag: noindex, nofollow
