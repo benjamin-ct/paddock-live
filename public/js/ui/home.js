@@ -13,6 +13,7 @@ import { teamKey } from '/shared/news.js';
 import { openResults } from './results-view.js';
 import { COUNTRY_ISO } from '/shared/social-season.js';
 import { nearestShape, shapeOutline } from '/shared/circuit-shapes.js';
+import { cloudTranslate } from '../cloud.js';
 
 let schedule = null;   // [{ race, round, label, t }]
 let archive = null;    // dernière séance rejouable { meeting, name, path, t }
@@ -323,19 +324,28 @@ async function news(again = true) {
   } catch { box.innerHTML = '<div class="muted small">Actualités indisponibles.</div>'; }
 }
 
-// Version web : les 4 dernières nouvelles du serveur Paddock Live (titre traduit en français par le serveur), ouvertes
-// sur leur site dans un nouvel onglet
+// Version web : les 4 dernières nouvelles du serveur Paddock Live, ouvertes sur leur site dans un nouvel onglet. Titre
+// dans la langue de la page : déjà traduit par le serveur (fr), sinon demandé au serveur (chaque titre est traduit une
+// fois pour tous, comme pour l'appli) puis réaffiché
 let webList = null;
+const webTitles = new Map();   // titre d'origine -> traduction
 async function webNews(box) {
   try {
     webList ||= fetch('/news/api').then((r) => (r.ok ? r.json() : Promise.reject(new Error(r.status))));
     const d = await webList;
     const src = Object.fromEntries((d.sources || []).map((x) => [x.id, x.name]));
-    // D'abord les nouvelles dans la langue de la page (titre traduit par le serveur en français), puis les autres
-    const all = (d.items || []).filter((it) => it.kind !== 'video' && /^https:\/\//.test(it.link || '')).sort((a, b) => b.t - a.t);
-    const mine = (it) => it.lang === LANG || (LANG === 'fr' && !!it.fr) || (LANG !== 'fr' && it.lang === 'en');
-    const list = [...all.filter(mine), ...all.filter((it) => !mine(it))].slice(0, 4);
-    box.innerHTML = list.length ? list.map((n) => `<a class="hm-news-item" href="${esc(n.link)}" target="_blank" rel="noopener"><span class="hm-news-t" data-no-i18n>${esc(LANG === 'fr' && n.fr ? n.fr : n.title)}</span><span class="muted small"><span data-no-i18n>${esc(src[n.src] || n.src)}</span> · <span>${esc(ago(n.t))}</span></span></a>`).join('') : '<div class="muted small">Aucune actualité pour le moment.</div>';
+    const list = (d.items || []).filter((it) => it.kind !== 'video' && /^https:\/\//.test(it.link || '')).sort((a, b) => b.t - a.t).slice(0, 4);
+    const title = (n) => (n.lang === LANG ? n.title : (LANG === 'fr' && n.fr) || webTitles.get(n.title) || n.title);
+    const draw = () => {
+      box.innerHTML = list.length ? list.map((n) => `<a class="hm-news-item" href="${esc(n.link)}" target="_blank" rel="noopener"><span class="hm-news-t" data-no-i18n>${esc(title(n))}</span><span class="muted small"><span data-no-i18n>${esc(src[n.src] || n.src)}</span> · <span>${esc(ago(n.t))}</span></span></a>`).join('') : '<div class="muted small">Aucune actualité pour le moment.</div>';
+    };
+    draw();
+    const missing = list.filter((n) => title(n) === n.title && n.lang !== LANG);
+    if (missing.length) {
+      const out = await Promise.all(missing.map((n) => cloudTranslate(n.title, n.lang, LANG, 'news')));
+      missing.forEach((n, i) => { if (out[i]) webTitles.set(n.title, out[i]); });
+      if (out.some(Boolean) && box.isConnected) draw();
+    }
   } catch { webList = null; box.innerHTML = '<div class="muted small">Actualités indisponibles.</div>'; }
 }
 
