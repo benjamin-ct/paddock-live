@@ -377,6 +377,7 @@ export default {
   "Automatique (comme le système)": "Automático (como el sistema)",
   "Broadcast (façon TV)": "Broadcast (estilo TV)",
   "Paddock 2 : le nouveau design. Broadcast : habillage façon retransmission TV. Classique : l'ancien design.": "Paddock 2: el nuevo diseño. Broadcast: aspecto de retransmisión de TV. Clásico: el diseño anterior.",
+  "Télémétrie (aperçu)": "Telemetría (vista previa)",
   "Automatique : comme l'ordinateur ou le téléphone": "Automático: como el ordenador o el teléfono",
   "Automatique selon la séance": "Automático según la sesión",
   "Autoriser l'accès depuis le réseau local": "Permitir el acceso desde la red local",

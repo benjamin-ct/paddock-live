@@ -7,6 +7,8 @@ l'application (Réglages → À propos → Nouveautés).
 ## v1.32.0 — à venir
 
 ### Affichage
+- Nouveau design « Télémétrie » en aperçu (Réglages → Apparence → Design) : interface plus sobre et plus lisible, le
+  rouge réservé à ce qui est actif, classement plus large avec toutes ses colonnes, nouvelle police, thèmes sombre et clair.
 - Téléphone tenu en paysage : l'en-tête tient sur une ligne, les onglets et la barre du replay sont resserrés, la barre
   du bas ne montre plus que ses icônes et la page défile ; le classement a enfin de la place (avant, il ne restait que
   quelques pixels). Le contenu ne passe plus sous l'encoche. Android en paysage : le classement s'affiche d'abord.

@@ -1,6 +1,6 @@
 # Refonte Paddock Live — Étape 2 : direction artistique « Télémétrie »
 
-**Statut : proposition, à valider.** Rien de ce document n'est en production. Les règles actuelles restent celles de
+**Statut : accent validé le 3 novembre 2026 (B, rouge Paddock) ; le reste est à valider sur le prototype (étape 3).** Rien de ce document n'est en production. Les règles actuelles restent celles de
 [DESIGN_SYSTEM.md](../DESIGN_SYSTEM.md) tant que la refonte n'est pas validée puis livrée. Constats et mesures :
 [AUDIT.md](AUDIT.md).
 
@@ -30,7 +30,7 @@ Quatre principes :
 
 ## 2. Couleurs
 
-### 2.1 Décision à prendre : l'accent
+### 2.1 L'accent (décision : B, rouge Paddock)
 
 | | **A. Vert citron `#C6F36B`** (votre piste, recommandée) | **B. Rouge Paddock** (héritage) |
 |---|---|---|
@@ -38,6 +38,12 @@ Quatre principes :
 | Collisions | Aucune écurie 2026 dans cette teinte. **Mais** sa luminance est proche du jaune drapeau (rapport 1,12) et du vert « meilleur tour perso » (1,40) : pour un daltonien, citron et jaune se confondent | Rouge = drapeau rouge, pneu tendre, Ferrari, erreurs : **c'est le problème constaté aujourd'hui** (audit § 3.1) |
 | Condition | Interdit dans les tableaux de temps et les graphiques ; la ligne choisie du classement est marquée par un filet ivoire et un fond surélevé, pas par le citron | Le réserver strictement au direct et aux alertes |
 | Thème clair | Remplissage citron + texte graphite (14,3:1) ; en texte et icônes, olive `#476F08` (5,9:1) | Fonctionne tel quel |
+
+**Choix retenu : B.** Accent `#E10600` (survol `#C80500`, texte sur l'accent blanc 5,0:1 ; en texte seul `#FF6B61` en
+sombre, `#C40500` en clair). Pour qu'il garde son sens, il marque seulement l'action principale, l'élément actif
+(onglet, espace) et la synchro TV ; **l'anneau de focus est ivoire** (`--ring`, graphite en clair) pour ne pas se
+confondre avec une erreur ; les bascules allumées (vitesse du replay, pause) sont en ivoire inversé. Le logo « PL »
+reste rouge.
 
 Le **bleu data `#53B9D9`** de votre piste devient l'**encre des graphiques à une seule série** (évolution d'un temps,
 d'un écart) et la couleur d'**information** ; il n'est pas une seconde couleur d'accent.
@@ -139,7 +145,7 @@ métriques de repli réglées (`size-adjust`) pour éviter le décalage au charg
 |---|---|
 | **Bouton** | Hauteurs 32 / 40 / 48 px (44 minimum au doigt), rayon 6, Archivo 600. *Principal* : fond citron, texte graphite, un seul par zone. *Secondaire* : `--surface-3`. *Fantôme* : transparent, texte `--text-2`. *Danger* : texte et filet `--f1-red`. Pression : `scale(.97)` 80 ms |
 | **Champ** | 40 px, fond `--surface-2`, filet `--line-strong`, libellé au-dessus (12 px), aide et erreur en dessous (icône + texte, pas la couleur seule) |
-| **Focus** | Anneau 2 px `--accent` (`--accent-fg` en clair) décalé de 2 px, sur **tous** les éléments interactifs (`:focus-visible`) |
+| **Focus** | Anneau 2 px `--ring` (ivoire en sombre, graphite en clair) décalé de 2 px, sur **tous** les éléments interactifs (`:focus-visible`) |
 | **Onglets** | Texte `--muted`, actif en `--text` souligné d'un trait citron de 2 px qui glisse d'un onglet à l'autre (220 ms) |
 | **Contrôle segmenté** | Pilule `--surface-2`, segment choisi `--surface-3` + texte `--text` |
 | **Menu, liste déroulante** | `--surface-3`, rayon 10, `--shadow-pop` ; ouverture : fondu + 4 px + échelle .98 (180 ms), fermeture 120 ms |
@@ -223,8 +229,8 @@ extension, langues, Accueil sans spoiler, délai TV, conventions de couleur de l
 
 **À valider** (changements structurants) :
 
-1. L'**accent** : vert citron (A) ou rouge Paddock (B).
-2. Le **logo** : passer le monogramme « PL » rouge en ivoire avec la marque citron (si A).
+1. ~~L'accent~~ : **B, rouge Paddock** (validé).
+2. ~~Le logo~~ : inchangé (rouge), conséquence du choix B.
 3. Les **designs actuels** (Paddock 2, Broadcast, Classique) : les garder au choix dans Réglages → Apparence pendant
    une ou deux versions, puis décider ; ou ne garder que le nouveau.
 4. La **navigation** : Résultats, Résumé et Commentaires passent dans la séance ; « Plus » disparaît au profit du menu
