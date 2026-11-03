@@ -23,7 +23,7 @@ const DEFAULTS = {
   bigCols: null,          // colonnes du classement agrandi (bouton ⤢) : { hidden, extra }, sinon les mêmes
   towerFit: true,         // classement agrandi pour remplir la hauteur disponible
   theme: 'pitwall',       // thème unique de l'application
-  design: 'v2',           // habillage : 'v2' (Paddock 2) | 'broadcast' (façon retransmission TV) | 'classic' (ancien design Pitwall)
+  design: 'v2',           // habillage : 'v2' (Paddock 2) | 'broadcast' (façon retransmission TV) | 'classic' (ancien design Pitwall) | 'v3' (Télémétrie, aperçu)
   scheme: 'auto',         // apparence : 'auto' (comme le système) | 'dark' (sombre) | 'light' (clair)
   schemeSet: false,       // apparence choisie par l'utilisateur (sinon : automatique)
   vividTeams: false,      // couleurs d'équipe contrastées plutôt qu'officielles
@@ -124,11 +124,12 @@ function applyScheme() {
   const bar = webDark ? 'black-translucent' : v === 'light' ? 'default' : 'black';
   document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]')?.setAttribute('content', bar);
 }
-// Habillage : la feuille broadcast.css (posée par-dessus le thème Pitwall) est coupée en design classique
+// Habillage : la feuille broadcast.css (posée par-dessus le thème Pitwall) est coupée en design classique et en
+// Télémétrie (v3, prototype de la refonte, posé directement sur le thème Pitwall)
 function applyDesign() {
   document.documentElement.dataset.design = prefs.design;
   const css = document.querySelector('link[href="/css/broadcast.css"]');
-  if (css) css.disabled = prefs.design === 'classic';
+  if (css) css.disabled = prefs.design === 'classic' || prefs.design === 'v3';
 }
 document.documentElement.dataset.theme = 'pitwall';
 applyDesign();

@@ -106,8 +106,10 @@ function defaultLayout(prof = profile) {
   // Écran principal : Classement à gauche (plus large en qualifs et essais : Q1/Q2/Q3, tour en cours ; le duel passe
   // par-dessus), le Circuit au centre sur toute la hauteur, et à droite la Télémétrie, les Radios et la Direction de
   // course l'une sous l'autre. Analyse et Duel (masqués ici, s'ils sont affichés) : sous le Circuit
+  // Télémétrie (v3) : Classement assez large pour toutes ses colonnes principales à 1440 px
+  const v3 = document.documentElement.dataset.design === 'v3';
   return { cols: [
-    { w: quali ? 1.2 : 1.05, items: [{ id: 'tower', h: 1 }] },
+    { w: quali ? 1.2 : v3 ? 2.1 : 1.05, items: [{ id: 'tower', h: 1 }] },
     { w: 1.15, items: [{ id: 'map', h: 1.6 }, { id: 'duel', h: 0.8 }, { id: 'analysis', h: 1 }] },
     { w: 0.95, items: [{ id: 'extra', h: 1 }, { id: 'radio', h: 1.1 }, { id: 'feed', h: 1.1 }] },
   ] };
