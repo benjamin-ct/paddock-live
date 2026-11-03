@@ -7,8 +7,9 @@ l'application (Réglages → À propos → Nouveautés).
 ## v1.32.0 — à venir
 
 ### Affichage
-- Nouveau design « Télémétrie » en aperçu (Réglages → Apparence → Design) : interface plus sobre et plus lisible, le
-  rouge réservé à ce qui est actif, classement plus large avec toutes ses colonnes, nouvelle police, thèmes sombre et clair.
+- Nouveau design « Télémétrie », par défaut dans l'appli : interface plus sobre et plus lisible, le rouge réservé à ce
+  qui est actif, classement plus large avec toutes ses colonnes, nouvelle police, thèmes sombre et clair. Ceux qui
+  utilisaient Paddock 2 passent à Télémétrie ; Paddock 2 et Classique restent au choix (Réglages → Apparence → Design).
 - Palette de commandes (Ctrl + K, ⌘K sur Mac) : quelques lettres suffisent pour ouvrir un espace, les résultats ou le
   résumé de la séance, une fenêtre, l'apparence, un réglage ou une rubrique de la Saison, sans souris.
 - Navigation du design Télémétrie : la barre latérale garde les cinq espaces (Accueil, Direct, Saison, Actu, Replays),

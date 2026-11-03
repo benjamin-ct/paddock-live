@@ -17,11 +17,13 @@ export const TAB_HIDDEN = {
   quali: ['trace', 'positions', 'pits', 'strategy', 'laptimes', 'pace', 'tyrehist', 'tyres', 'pitsim', 'battles', 'champ'],
 };
 
+// Version web (classe posée par sa page avant les modules) : elle garde Paddock 2 tant que Télémétrie n'y est pas prêt
+const WEB = typeof document !== 'undefined' && document.documentElement.classList.contains('web');
 const DEFAULTS = {
   favs: [],               // numéros des pilotes favoris
   favTeams: [],           // écuries favorites (clés de shared/news.js : 'ferrari', 'redbull'…)
   alerts: { sound: true, vibrate: true, notify: false, flags: true, fastest: true, favPit: true, favRcm: true, retire: true, finish: true, favCut: true, rain: true, prono: true },
-  hiddenPanels: hiddenByDefault('v2'),
+  hiddenPanels: hiddenByDefault(WEB ? 'v2' : 'v3'),
   raceFeedFilter: 'all',  // Fil de course : tout, radios, direction, enquêtes ou limites de piste
   hiddenTabs: [...TAB_HIDDEN.race],   // onglets masqués (Réglages → Onglets visibles, bouton +), comme ceux inutiles pour la séance
   hiddenCols: ['name'],   // classement : code du pilote seul (nom complet : menu Colonnes)
@@ -29,7 +31,7 @@ const DEFAULTS = {
   bigCols: null,          // colonnes du classement agrandi (bouton ⤢) : { hidden, extra }, sinon les mêmes
   towerFit: true,         // classement agrandi pour remplir la hauteur disponible
   theme: 'pitwall',       // thème unique de l'application
-  design: 'v2',           // habillage : 'v2' (Paddock 2) | 'classic' (ancien design Pitwall) | 'v3' (Télémétrie, aperçu) ; 'broadcast' n'est plus proposé (v1.32)
+  design: WEB ? 'v2' : 'v3',   // habillage : 'v3' (Télémétrie, défaut depuis la v1.32) | 'v2' (Paddock 2) | 'classic' (ancien design Pitwall) ; 'broadcast' n'est plus proposé (v1.32)
   scheme: 'auto',         // apparence : 'auto' (comme le système) | 'dark' (sombre) | 'light' (clair)
   schemeSet: false,       // apparence choisie par l'utilisateur (sinon : automatique)
   vividTeams: false,      // couleurs d'équipe contrastées plutôt qu'officielles
@@ -101,7 +103,10 @@ prefs.legendsV = 1;
 if (!saved.designV) { if (prefs.design === 'broadcast') prefs.design = 'v2'; storageSet('paddock.prefs', { ...storageGet('paddock.prefs', {}), design: prefs.design, designV: 1 }); }
 // v1.32 : le design Broadcast n'est plus proposé (Paddock 2 garde son habillage, broadcast.css, en dessous)
 else if (prefs.design === 'broadcast') { prefs.design = 'v2'; storageSet('paddock.prefs', { ...storageGet('paddock.prefs', {}), design: 'v2' }); }
-prefs.designV = 1;
+// v1.32 : Télémétrie par défaut dans l'appli (pas encore dans la version web), aussi pour les installations existantes
+// en Paddock 2 ; un choix de Classique est gardé. Une seule fois : Paddock 2 se rechoisit dans Réglages → Apparence
+if (!WEB && (saved.designV || 0) < 2) { if (prefs.design === 'v2') prefs.design = 'v3'; storageSet('paddock.prefs', { ...storageGet('paddock.prefs', {}), design: prefs.design, designV: 2 }); }
+prefs.designV = WEB ? 1 : 2;   // gardé dans chaque enregistrement des préférences
 // Langue retenue dès la première ouverture (sinon une autre fenêtre la redéduirait autrement)
 if (saved.lang !== LANG) storageSet('paddock.prefs', { ...storageGet('paddock.prefs', {}), lang: LANG });
 // Apparence automatique par défaut depuis la v1.20.1. En v1.20.0, « sombre » était enregistré par
@@ -134,11 +139,12 @@ function applyScheme() {
   document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]')?.setAttribute('content', bar);
 }
 // Habillage : la feuille broadcast.css (posée par-dessus le thème Pitwall) est coupée en design classique et en
-// Télémétrie (v3, prototype de la refonte, posé directement sur le thème Pitwall)
+// Télémétrie (v3, posé directement sur le thème Pitwall), seulement dans les pages qui chargent design-v3.css (pas
+// le Mini ni les overlays de streaming, qui gardent leur habillage)
 function applyDesign() {
   document.documentElement.dataset.design = prefs.design;
   const css = document.querySelector('link[href="/css/broadcast.css"]');
-  if (css) css.disabled = prefs.design === 'classic' || prefs.design === 'v3';
+  if (css) css.disabled = prefs.design === 'classic' || (prefs.design === 'v3' && !!document.querySelector('link[href="/css/design-v3.css"]'));
 }
 document.documentElement.dataset.theme = 'pitwall';
 applyDesign();
