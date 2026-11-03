@@ -1,8 +1,8 @@
 // Traduction partagée : chaque texte n'est traduit qu'une fois pour tous les utilisateurs de Paddock Live,
 // puis gardé dans la base. Plafond quotidien contre les abus ; au-delà, l'appli traduit sur l'ordinateur comme avant.
 // Claude (secret ANTHROPIC_API_KEY : crédits API de l'abonnement Max, perdus s'ils ne servent pas) : Opus pour
-// l'Actu et la technique, Sonnet sans réflexion, plus rapide, pour le reste (radios, direction de course, anciennes
-// applis qui n'envoient pas le type de texte). Plafond en dollars du jour atteint (claudeRoom) : Mistral. Pas de
+// la technique (documents FIA), Sonnet sans réflexion, plus rapide et deux fois moins cher, pour le reste (Actu depuis
+// le 3 nov. 2026, radios, direction de course, anciennes applis qui n'envoient pas le type de texte). Plafond en dollars du jour atteint (claudeRoom) : Mistral. Pas de
 // clé, erreur de l'API (crédits du mois épuisés…) : pause de 10 minutes et Mistral comme avant ; réponse refusée
 // ou mal formée : Mistral pour ce paquet, gardé aussi sous la clé de Claude. Traductions gardées
 // séparément (MODEL_TAG, CLAUDE_TAG) : celles de Mistral resservent quand Claude est en pause.
@@ -29,7 +29,7 @@ export const CLAUDE = {
 // Traduction inutilisable : autre écriture, ou réponse au lieu d'une traduction (texte illisible : radios, direction de
 // course, anciennes applis sans type). Pas pour l'Actu et la technique : un vrai titre peut dire « il semble que »
 const bad = (out, to, it) => (it.kind === 'news' || it.kind === 'tech' ? badScript(out, to) : badTranslation(out, to, it.text));
-export const claudeFor = (kind) => (kind === 'news' || kind === 'tech' ? CLAUDE.opus : CLAUDE.sonnet);
+export const claudeFor = (kind) => (kind === 'tech' ? CLAUDE.opus : CLAUDE.sonnet);
 const CLAUDE_PAUSE = 10 * 60e3;
 let claudeOffUntil = 0;
 const PER_CALL = 20;
