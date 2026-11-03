@@ -215,8 +215,9 @@ export async function api(path, opts = {}) {
 // téléphone, la barre d'onglets du bas (qui reste visible)
 export function placeView(view) {
   const nav = document.querySelector('#mobNav');
+  const web = document.querySelector('#webNav');   // version web sur téléphone : barre du bas fixée, posée au-dessus du bord
   view.style.top = `${Math.round(document.querySelector('.topbar').getBoundingClientRect().bottom)}px`;
-  view.style.bottom = nav && !nav.hidden ? `${nav.offsetHeight}px` : '';
+  view.style.bottom = nav && !nav.hidden ? `${nav.offsetHeight}px` : web?.offsetHeight ? `${Math.round(innerHeight - web.getBoundingClientRect().top)}px` : '';
 }
 
 // Écran de chargement du démarrage (index.html) : retiré en fondu une fois l'accueil ou le tableau de bord prêt

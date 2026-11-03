@@ -331,7 +331,10 @@ async function webNews(box) {
     webList ||= fetch('/news/api').then((r) => (r.ok ? r.json() : Promise.reject(new Error(r.status))));
     const d = await webList;
     const src = Object.fromEntries((d.sources || []).map((x) => [x.id, x.name]));
-    const list = (d.items || []).filter((it) => it.kind !== 'video' && /^https:\/\//.test(it.link || '')).sort((a, b) => b.t - a.t).slice(0, 4);
+    // D'abord les nouvelles dans la langue de la page (titre traduit par le serveur en français), puis les autres
+    const all = (d.items || []).filter((it) => it.kind !== 'video' && /^https:\/\//.test(it.link || '')).sort((a, b) => b.t - a.t);
+    const mine = (it) => it.lang === LANG || (LANG === 'fr' && !!it.fr) || (LANG !== 'fr' && it.lang === 'en');
+    const list = [...all.filter(mine), ...all.filter((it) => !mine(it))].slice(0, 4);
     box.innerHTML = list.length ? list.map((n) => `<a class="hm-news-item" href="${esc(n.link)}" target="_blank" rel="noopener"><span class="hm-news-t" data-no-i18n>${esc(LANG === 'fr' && n.fr ? n.fr : n.title)}</span><span class="muted small"><span data-no-i18n>${esc(src[n.src] || n.src)}</span> · <span>${esc(ago(n.t))}</span></span></a>`).join('') : '<div class="muted small">Aucune actualité pour le moment.</div>';
   } catch { webList = null; box.innerHTML = '<div class="muted small">Actualités indisponibles.</div>'; }
 }

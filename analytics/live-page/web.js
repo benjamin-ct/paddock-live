@@ -416,6 +416,7 @@ for (const nav of navs) {
     else if (k === 'season') openSeason();
     else { closeHome(); closeSeason(); }
     syncNav();
+dispatchEvent(new Event('resize'));   // vues déjà ouvertes (accueil) replacées au-dessus de la barre du bas
     scrollTo(0, 0);
   });
 }
