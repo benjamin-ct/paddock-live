@@ -2915,4 +2915,8 @@ export default {
   "Filtrer le fil de course": "Filter the race feed",
   "Outils": "Tools",
   "Outils : documents FIA, vitesses, secteurs, météo, championnat": "Tools: FIA documents, speeds, sectors, weather, championship",
+  "Vue d'ensemble": "Overview",
+  "Pilotes et écuries": "Drivers and teams",
+  "Technique": "Technical",
+  "Jeux": "Games",
 };

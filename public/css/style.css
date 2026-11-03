@@ -3924,3 +3924,5 @@ html.tab-win .p-analysis .panel-head > [data-tab="compare"] { display: inline-fl
 .rf-play { padding: 2px 6px; font-size: 15px; color: var(--text-2); }
 .rf-radio.playing .rf-play { color: var(--text); }
 @media (max-width: 1000px) { .p-race { height: 460px; } }
+/* Saison : titres des groupes de rubriques, seulement en Télémétrie (design-v3.css) */
+#szNav .sz-grp { display: none; }

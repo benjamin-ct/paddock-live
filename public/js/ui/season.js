@@ -1094,6 +1094,7 @@ function render() {
     wanted = null;
   }
   for (const b of document.querySelectorAll('#szNav [data-sz]')) b.classList.toggle('active', b.dataset.sz === section);
+  szGroupSync();
   if ($('#szCur')) $('#szCur').textContent = $('#szNav .active')?.textContent.trim() || (section === 'gp' ? 'Grand Prix' : '');
   const st = stats?.year === data.year || stats?.error ? stats : null;
   const ctx = { data, stats: st, color, bar, opt: seasonOpt, photo: (d) => photoUrl({ Tla: d.code }, 480), flag: roundFlag, logo: (team) => teamLogo(team, false, 512), look: cardLook, official: (id) => OFFICIAL[id] || '8b95a8', ratings: ratingsFor(data, st), prev: prev?.year === data.year - 1 ? prev : null };
@@ -1225,8 +1226,53 @@ export function closeSeason() {
   clearTimeout(statsTimer);
 }
 
+// Télémétrie : rubriques en 5 groupes repliables (titres ajoutés en tête de la liste, rubriques remises dans l'ordre de
+// leur groupe par design-v3.css) ; le groupe de la rubrique ouverte reste déplié. Autres designs : titres masqués, liste
+// d'origine
+const SZ_GROUPS = [
+  ['overview', 'Vue d\'ensemble', ['home', 'calendar', 'standings', 'title', 'review', 'compare']],
+  ['results', 'Résultats', ['results', 'quali', 'destructors']],
+  ['people', 'Pilotes et écuries', ['drivers', 'teams', 'h2h', 'ratings', 'consistency']],
+  ['tech', 'Technique', ['pits', 'speeds', 'circuits', 'tech', 'elements']],
+  ['games', 'Jeux', ['predict']],
+];
+const szOpen = new Set();   // groupes dépliés à la main
+function szGroups() {
+  const nav = $('#szNav');
+  if (!nav || nav.querySelector('.sz-grp')) return;
+  const heads = SZ_GROUPS.map(([g, name, ids], i) => {
+    const items = ids.map((id) => nav.querySelector(`[data-sz="${id}"]`)).filter(Boolean);
+    if (!items.length) return '';
+    items.forEach((b, j) => { b.dataset.grp = g; b.style.setProperty('--o', i); b.style.setProperty('--i', j); });
+    // Version simplifiée du téléphone : groupe sans rubrique affichée, sans titre
+    const full = items.every((b) => b.hasAttribute('data-full')) ? ' data-full' : '';
+    return `<button type="button" class="sz-grp" data-grp-h="${g}" style="--o:${i}" aria-expanded="false"${full}><span>${esc(name)}</span>${icon('chevron-down')}</button>`;
+  }).join('');
+  nav.insertAdjacentHTML('afterbegin', heads);
+  nav.addEventListener('click', (e) => {
+    const h = e.target.closest('[data-grp-h]');
+    if (!h) return;
+    const g = h.dataset.grpH;
+    if (szOpen.has(g)) szOpen.delete(g); else szOpen.add(g);
+    szGroupSync();
+  });
+}
+function szGroupSync() {
+  // Page sans rubrique (fiche d'un Grand Prix) : la vue d'ensemble dépliée
+  const cur = SZ_GROUPS.find(([, , ids]) => ids.includes(section))?.[0] || SZ_GROUPS[0][0];
+  for (const h of document.querySelectorAll('#szNav [data-grp-h]')) {
+    const g = h.dataset.grpH;
+    const open = g === cur || szOpen.has(g);
+    h.setAttribute('aria-expanded', String(open));
+    h.classList.toggle('cur', g === cur);
+    for (const b of document.querySelectorAll(`#szNav [data-grp="${g}"]`)) b.classList.toggle('sz-shut', !open);
+  }
+}
+
 export function initSeason() {
   initPredict();
+  szGroups();
+  szGroupSync();
   initTips($('#seasonView'));
   const sel = $('#szYear');
   const now = new Date().getUTCFullYear();

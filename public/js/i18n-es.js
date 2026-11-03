@@ -2914,4 +2914,8 @@ export default {
   "Filtrer le fil de course": "Filtra el hilo de carrera",
   "Outils": "Herramientas",
   "Outils : documents FIA, vitesses, secteurs, météo, championnat": "Herramientas: documentos FIA, velocidades, sectores, tiempo, campeonato",
+  "Vue d'ensemble": "Resumen",
+  "Pilotes et écuries": "Pilotos y escuderías",
+  "Technique": "Técnica",
+  "Jeux": "Juegos",
 };

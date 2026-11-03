@@ -2914,4 +2914,8 @@ export default {
   "Filtrer le fil de course": "Filtra la cronaca della gara",
   "Outils": "Strumenti",
   "Outils : documents FIA, vitesses, secteurs, météo, championnat": "Strumenti: documenti FIA, velocità, settori, meteo, campionato",
+  "Vue d'ensemble": "Panoramica",
+  "Pilotes et écuries": "Piloti e scuderie",
+  "Technique": "Tecnica",
+  "Jeux": "Giochi",
 };
