@@ -464,6 +464,9 @@
 :root[data-design="v3"] .sz-drv-card > span { position: relative; z-index: 1; max-width: 104px; }
 :root[data-design="v3"] .sz-drv-card .nm { display: flex; flex-direction: column; font: 800 var(--fs-lg)/1.05 var(--font-cond); text-transform: uppercase; }
 :root[data-design="v3"] .sz-drv-card .nm small { font: 500 var(--fs-xs)/1.25 var(--font); text-transform: none; color: var(--text-2); }
+/* Règles de base de ces cartes (style.css, pour Classique) : leurs à-côtés retirés ici */
+:root[data-design="v3"] .sz-rv-card::before { content: none; }
+:root[data-design="v3"] .tm-more, :root[data-design="v3"] .tm-drv small { align-self: auto; font-weight: 400; }
 :root[data-design="v3"] .sz-drv-card .tm { margin-top: 2px; overflow: hidden; color: var(--muted); font-size: var(--fs-2xs); white-space: nowrap; text-overflow: ellipsis; }
 :root[data-design="v3"] .sz-drv-card .ft { margin-top: auto; }
 :root[data-design="v3"] .sz-drv-card .no { color: var(--tc); font: 800 var(--fs-2xl)/1 var(--font-cond); }
@@ -482,7 +485,7 @@
 :root[data-design="v3"] .sz-drv-hero .ft { margin: var(--sp-2) 0 var(--sp-2); gap: 16px; }
 :root[data-design="v3"] .sz-drv-hero .no { color: var(--tc); font: 800 var(--fs-4xl)/1 var(--font-cond); }
 :root[data-design="v3"] .sz-drv-hero .lg { width: 110px; height: 40px; }
-:root[data-design="v3"] .sz-drv-hero .sub { color: var(--text-2); font-size: var(--fs-md); }
+:root[data-design="v3"] .season-view .sz-drv-hero .sub { color: var(--text-2); font-size: var(--fs-md); }
 @media (max-width: 700px) { :root[data-design="v3"] .sz-drv-hero img { height: 140px; right: 0; } :root[data-design="v3"] .sz-drv-hero .sz-drv-name { font-size: var(--fs-2xl); } :root[data-design="v3"] .sz-drv-hero .txt { max-width: 64%; } :root[data-design="v3"] .sz-drv-hero .lg { width: 76px; height: 28px; } :root[data-design="v3"] .sz-drv-hero .no { font-size: var(--fs-3xl); } }
 :root[data-design="v3"] .sz-st-head { display: flex; justify-content: flex-end; margin: 4px 0 10px; }
 :root[data-design="v3"] .sz-svg .sz-tot { font-weight: 700; fill: var(--text); }

@@ -59,6 +59,9 @@ l'application (Réglages → À propos → Nouveautés).
 - Reconnexion plus douce quand le serveur est plein ou coupé (délai qui augmente jusqu'à une minute), plus de places
   pendant les séances, et les données GPS et télémétrie sont vidées à chaque nouvelle séance (moins de mémoire).
 - Résultats : bouton Réessayer et nouvel essai tout seul après une coupure.
+- Pages anglaises de la Saison (/en/season/…) : l'appli s'ouvre en anglais à la première visite (une langue déjà
+  choisie est gardée), et l'adresse et le titre de l'onglet restent en anglais d'une rubrique à l'autre.
+- Sur ordinateur, l'accueil et la barre du haut ne sautent plus pendant le chargement de la page.
 - Appairage avec l'appli : codes à 8 chiffres (les codes à 6 chiffres marchent encore) et protection contre les essais
   en masse.
 
@@ -78,6 +81,8 @@ l'application (Réglages → À propos → Nouveautés).
 - Course au titre : un sprint déjà couru n'est plus compté dans les points encore à prendre (le champion est annoncé
   dès qu'il ne peut plus être rattrapé).
 - Séance dont l'horaire n'est pas encore publié : date seule, sans heure inventée ni rappel.
+- Design Classique : les cartes et la fiche des pilotes, les cartes des écuries et le Bilan de la saison s'affichent de
+  nouveau correctement (leur texte s'affichait en vrac).
 
 ### Sécurité
 - Accès téléphone : un site ouvert sur l'ordinateur ne peut plus lire le direct ; serveur lancé pour tout le réseau

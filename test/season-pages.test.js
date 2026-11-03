@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { seasonSsr, seasonSitemap, legacySeasonUrl, parseEnSeasonPath, enSeasonPath, seasonRewriter } from '../analytics/season-pages.js';
+import { seasonSsr, seasonSitemap, legacySeasonUrl, parseEnSeasonPath, enSeasonPath, seasonRewriter, EN_PATHS } from '../analytics/season-pages.js';
+import * as shared from '../shared/season-urls.js';
 import { seasonPath, parseSeasonPath, seasonTitle, gpSlug, slug } from '../shared/season-urls.js';
 import { STATS_VERSION } from '../shared/race-stats.js';
 
@@ -220,4 +221,22 @@ test('Saison en anglais : servie sur app.paddocklive.app, anciennes adresses de 
     r = await worker.fetch(new Request(`https://paddocklive.app/en/season/${y}/mexico-city/`), env, ctx);
     assert.deepEqual([r.status, r.headers.get('location')], [301, `https://app.paddocklive.app/saison/${y}/grand-prix/mexico/`]);
   } finally { delete globalThis.HTMLRewriter; delete globalThis.caches; globalThis.fetch = oldFetch; }
+});
+
+test('Saison en anglais : l\'appli (shared/season-urls.js) tient les mêmes adresses et titres que le serveur', async () => {
+  assert.deepEqual(shared.EN_PATHS, EN_PATHS);
+  for (const [y, sec, item] of [[2026, 'home'], [2026, 'pits'], [2026, 'drivers', 'lando-norris'], [2025, 'gp', 'mexico-city']]) assert.equal(shared.enSeasonPath(y, sec, item), enSeasonPath(y, sec, item));
+  for (const path of ['/en/season/', '/en/season/2026/', '/en/season/2026/grand-prix/mexico-city/', '/en/season/2026/standings/x/', '/saison/2026/']) assert.deepEqual(shared.parseEnSeasonPath(path), parseEnSeasonPath(path), path);
+  // Titres : ceux des pages du serveur, « · Paddock Live » seulement dans 60 caractères
+  for (const path of ['/en/season/2026/standings/', '/en/season/2026/calendar/', '/en/season/2026/grand-prix/mexico-city/', '/en/season/2026/drivers/lando-norris/']) {
+    const p = parseEnSeasonPath(path);
+    const page = await ssr(path);
+    const race = SEASON.races.find((r) => shared.enGpSlug(r.name) === p.item);
+    const name = p.section === 'drivers' ? 'Lando Norris' : race?.name;
+    assert.equal(shared.enSeasonTitle(p.year, p.section, name, !!race?.results.length), page.title, path);
+  }
+  assert.equal(shared.tabTitle('F1 2026 calendar'), 'F1 2026 calendar · Paddock Live');
+  const long = 'F1 2026 destructors\' championship: crash damage and more';
+  assert.equal(shared.tabTitle(long), long);
+  assert.equal(shared.enGpSlug('Mexico City Grand Prix'), 'mexico-city');
 });

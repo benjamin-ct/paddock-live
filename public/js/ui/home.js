@@ -296,7 +296,9 @@ function render() {
         <div class="hm-actions">${store.web ? '' : `<button class="btn btn-accent" data-home="replay">${icon('play')} Revoir en replay</button>`}
           <button class="btn${store.web ? ' btn-accent' : ''}" data-home="results" title="Résultats de la séance (résultat visible)">${icon('checkered')} Voir les résultats</button></div></section>`
     : '';
-  view.querySelector('.hm-main').innerHTML = `<h1 class="hm-hello">Paddock Live</h1>
+  // Un seul titre H1 dans la page : un paragraphe quand la page en a déjà un (pages de la Saison de la version web)
+  const hello = document.querySelector('h1:not(.hm-hello)') ? 'p' : 'h1';
+  view.querySelector('.hm-main').innerHTML = `<${hello} class="hm-hello">Paddock Live</${hello}>
     ${card}
     <div class="hm-grid">${last}${favHtml()}</div>
     <section class="hm-card hm-news"><div class="hm-kicker"><span class="hm-tag">Dernières actus</span>${store.web ? '' : ` <button class="btn small" data-home="news">Toute l'actu ${icon('arrow-right', 'ic-s')}</button>`}</div><div id="hmNews" class="hm-list"><div class="muted small">Chargement…</div></div></section>
