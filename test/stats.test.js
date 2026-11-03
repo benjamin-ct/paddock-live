@@ -368,6 +368,14 @@ test('statistiques : tirer vers le bas dans un script à part (jamais recopié d
   assert.equal(fs.readFileSync(live('vendor/maplibre/maplibre-gl.js'), 'utf8'), fs.readFileSync(new URL('../public/vendor/maplibre/maplibre-gl.js', import.meta.url), 'utf8'));
   const { LIVE_HEADERS } = await import('../analytics/live-page/headers.js');
   assert.match(LIVE_HEADERS['Content-Security-Policy'], /connect-src [^;]*https:\/\/tiles\.openfreemap\.org/);
+  // Pages du site sans barre finale : renvoi définitif (301), vers une page qui existe
+  const site = (f) => new URL(`../analytics/site/${f}`, import.meta.url);
+  const redirects = fs.readFileSync(site('_redirects'), 'utf8').trim().split('\n');
+  assert.ok(redirects.includes('/live-timing-f1 /live-timing-f1/ 301') && redirects.includes('/en/f1-live-timing /en/f1-live-timing/ 301'));
+  for (const l of redirects) assert.ok(fs.existsSync(site(`${l.split(' ')[1].slice(1)}index.html`)), l);
+  // Images du site : une seule règle de cache (celle de /site/* retirée)
+  assert.match(fs.readFileSync(site('_headers'), 'utf8'), /\/site\/img\/\*\n {2}! Cache-Control\n {2}Cache-Control: public, max-age=86400\n/);
+  assert.match(fs.readFileSync(live('index.html'), 'utf8'), /<meta name="twitter:title" content="[^"]+">/);
 });
 
 test('serveur des statistiques : lignes écrites plafonnées par adresse (IPv6 : par bloc /64)', async () => {

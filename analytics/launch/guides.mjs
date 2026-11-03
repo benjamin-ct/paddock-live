@@ -115,7 +115,7 @@ export const GUIDES = [
     lang: 'fr',
     pair: 'en/f1-live-timing',
     title: 'Live timing F1 gratuit : chronos, écarts et pneus en direct',
-    description: 'Le live timing de la Formule 1 sur ton ordinateur : classement, écarts, secteurs, pneus, arrêts, carte GPS et radios traduites, en direct ou en replay. Gratuit, sans compte, pour Windows, macOS et Linux.',
+    description: 'Le live timing de la F1 sur ton ordinateur : classement, écarts, secteurs, pneus, arrêts, carte GPS et radios traduites, en direct ou en replay. Gratuit.',
     eyebrow: 'Live timing',
     h1: 'Le live timing de la F1, gratuit et en français',
     intro: 'Classement, écarts, secteurs, pneus et arrêts de chaque voiture, mis à jour en direct pendant les essais, les qualifs, le sprint et la course. Paddock Live rassemble tout le live timing de la F1 dans une seule appli, avec la carte du circuit et les radios traduites.',
@@ -456,12 +456,14 @@ export function guidePage(slug) {
     ],
   };
   const [img, w, h, alt] = g.img;
+  // Titre de l'onglet et de Google : sans « · Paddock Live » au-delà de 60 caractères (coupé sinon)
+  const title = `${g.title} · Paddock Live`.length <= 60 ? `${g.title} · Paddock Live` : g.title;
   return `<!doctype html>
 <html lang="${g.lang}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>${esc(g.title)} · Paddock Live</title>
+<title>${esc(title)}</title>
 <meta name="description" content="${esc(g.description)}">
 <meta name="theme-color" content="#020817">
 <link rel="canonical" href="${url}">
@@ -475,6 +477,8 @@ export function guidePage(slug) {
 <meta property="og:url" content="${url}">
 <meta property="og:image" content="${SITE}/site/img/apercu.png">
 <meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="${esc(g.title)}">
+<meta name="twitter:description" content="${esc(g.description)}">
 <link rel="icon" href="/site/img/logo.png">
 <link rel="apple-touch-icon" href="/site/img/apple-touch-icon.png">
 <script type="application/ld+json">${JSON.stringify(ld).replace(/</g, '\\u003c')}</script>
@@ -536,6 +540,8 @@ export function englishHome(html) {
   out = fixed(out, /(<meta name="description" content=")[^"]*"/, `$1${desc}"`);
   out = fixed(out, /(<meta property="og:description" content=")[^"]*"/, `$1${desc}"`);
   out = fixed(out, /(<meta property="og:(?:title|image:alt)" content=")[^"]*"/g, `$1${title}"`);
+  out = fixed(out, /(<meta name="twitter:description" content=")[^"]*"/, `$1${desc}"`);
+  out = fixed(out, /(<meta name="twitter:title" content=")[^"]*"/, `$1${title}"`);
   out = fixed(out, /(<link rel="canonical" href=")[^"]*"/, `$1${SITE}/en/"`);
   out = fixed(out, /(<meta property="og:url" content=")[^"]*"/, `$1${SITE}/en/"`);
   out = fixed(out, /("@type":"SoftwareApplication","name":"Paddock Live","description":")[^"]*"/, `$1${desc}"`);

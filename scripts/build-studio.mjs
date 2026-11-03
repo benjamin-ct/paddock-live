@@ -176,6 +176,7 @@ copy(path.join(ROOT, 'analytics', 'root'), OUT);
 copy(path.join(ROOT, 'public', 'fonts'), path.join(OUT, 'fonts'), (f) => /^(titillium|sairacondensed|jetbrainsmono).*\.woff2$|^OFL/.test(f));
 copy(path.join(ROOT, 'analytics', 'fonts'), path.join(OUT, 'fonts'));   // Barlow Condensed et Chakra Petch : visuels « Télé premium »
 // En-têtes : la page et l'API ne doivent pas être indexées ni mises en cache trop longtemps
+// (les règles qui conviennent s'ajoutent : « ! Cache-Control » retire celle de /site/* pour les images, sinon deux valeurs)
 fs.writeFileSync(path.join(OUT, '_headers'), `/studio/*
 ${Object.entries(STUDIO_HEADERS).map(([k, v]) => `  ${k}: ${v}`).join('\n')}
 /m/*
@@ -197,10 +198,15 @@ ${Object.entries(STUDIO_HEADERS).map(([k, v]) => `  ${k}: ${v}`).join('\n')}
 /benjy/*
   Cache-Control: public, max-age=3600
 /site/img/*
+  ! Cache-Control
   Cache-Control: public, max-age=86400
 /kit/*
   Cache-Control: public, max-age=86400
   X-Robots-Tag: noindex, nofollow
 `);
+// Pages du site sans la barre finale (/live-timing-f1) : renvoi définitif (301) vers leur adresse (le renvoi automatique
+// des fichiers statiques est temporaire, 307)
+const PAGES_DIRS = ['en', ...GUIDES.map((g) => g.slug), 'alertes', 'extension', 'app', ...Object.keys(PAGES)];
+fs.writeFileSync(path.join(OUT, '_redirects'), `${PAGES_DIRS.map((d) => `/${d} /${d}/ 301`).join('\n')}\n`);
 const n = (d) => fs.readdirSync(path.join(OUT, d)).length;
 console.log(`Site prêt : version ${VERSION}, ${n(`m/${VERSION}/studio`)} fichiers studio, ${n(`m/${VERSION}/shared`)} modules partagés (${graph.length} chargés d'emblée), ${n('fonts')} polices, version web : ${liveGraph.size} modules`);
