@@ -139,6 +139,13 @@
 :root[data-design="v2"] .topbar #clockValue { padding: .08em .16em .04em 0; margin: -.08em 0 -.04em 0; }
 :root[data-design="v2"] .topbar .lap-box { border-radius: 14px; background: linear-gradient(180deg, rgba(255, 255, 255, .09), rgba(255, 255, 255, .03)); border: 1px solid var(--v2-rim-2); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08); }
 :root[data-design="v2"] .topbar .lap-box .hstat-value { font-size: 26px; }
+/* Moins de place : chiffres un peu plus petits et marges réduites (la barre reste sur une ligne plus longtemps) */
+@media (min-width: 901px) and (max-width: 1600px) {
+  :root[data-design="v2"] .topbar { padding: 6px 12px; }
+  :root[data-design="v2"] .topbar .session-name { font-size: 18px; }
+  :root[data-design="v2"] .topbar :is(.hstat-value, .lap-box .hstat-value) { font-size: 22px; }
+  :root[data-design="v2"] .topbar #clockValue { font-size: 26px; }
+}
 :root[data-design="v2"] .topbar .lap-box .lap-bar:not([hidden]) { height: 4px; border-radius: 2px; }
 :root[data-design="v2"] .topbar .lap-box .lap-bar i { background: var(--v2-red); box-shadow: 0 0 10px rgba(255, 42, 31, .9); border-radius: 2px; }
 :root[data-design="v2"] .track-status { border-radius: 999px !important; }

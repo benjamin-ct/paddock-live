@@ -64,17 +64,25 @@ code { background: var(--panel-3); padding: 1px 5px; border-radius: 4px; font-si
 .topbar {
   display: flex;
   align-items: center;
-  gap: 18px;
+  gap: 6px 18px;
   padding: 8px 14px;
   background: linear-gradient(180deg, var(--top-1), var(--top-2));
   border-bottom: 1px solid var(--border);
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   flex: none;
   min-width: 0;
 }
 .topbar > * { flex-shrink: 0; }
-.topbar > .session { flex-shrink: 1; min-width: 120px; }
-.topbar > .spacer { flex-shrink: 1; min-width: 0; }
+/* Une seule ligne tant qu'elle tient, sinon deux, jamais de débordement : le nom de la séance se tronque d'abord
+   (jusqu'à 120 px), la météo cède sa place, puis ce qui ne tient plus passe à la ligne, calé à droite */
+.topbar > .session { flex: 100 1 120px; min-width: 120px; max-width: max-content; }   /* servi avant la météo */
+.topbar > .spacer { flex: none; margin-left: auto; }
+@media (min-width: 901px) { .topbar { justify-content: flex-end; } }
+/* Bloc de droite (délai, source, boutons) : passe à la ligne d'un seul tenant (pas une cloche seule) ; sur téléphone,
+   ses éléments se rangent un par un dans la barre (display: contents) */
+.tb-end { display: flex; align-items: center; gap: inherit; }
+.tb-end > * { flex-shrink: 0; }
+@media (max-width: 900px) { .topbar .tb-end { display: contents; } }
 
 .brand { display: flex; align-items: center; gap: 6px; font-weight: 900; letter-spacing: .5px; }
 .logo { width: 28px; height: 28px; display: block; flex: none; }
@@ -896,16 +904,16 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
   .topbar .sb-label { display: none; }
 }
 @media (max-width: 1950px) {
-  .topbar { gap: 12px; }
+  .topbar { column-gap: 12px; }
   .topbar .delay { gap: 6px; }
   .topbar .preset { max-width: 150px; }
 }
 @media (max-width: 1800px) {
   .topbar .weather-mini { display: none; }
-  .topbar .session { max-width: 240px; }
+  .topbar .session-txt { max-width: 200px; }
 }
 @media (max-width: 1600px) {
-  .topbar { gap: 9px; padding: 8px 10px; }
+  .topbar { column-gap: 9px; padding: 8px 10px; }
   .topbar .brand-name { display: none; }
   .topbar .hstat-label { font-size: 10px; }
   .topbar .hstat-value { font-size: 16px; }
@@ -920,11 +928,8 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
 }
 @media (max-width: 1450px) {
   .topbar .dbtn[data-step="-100"], .topbar .dbtn[data-step="100"] { display: none; }
-  .topbar .session { max-width: 170px; }
+  .topbar .session-txt { max-width: 130px; }
   .topbar .preset { max-width: 96px; }
-}
-@media (max-width: 1360px) {
-  .topbar { flex-wrap: wrap; row-gap: 6px; }
 }
 
 /* ---------- Commentaires F1 TV ---------- */
@@ -1669,6 +1674,7 @@ html[data-design="classic"] .rc-bar { display: none !important; }
   .topbar .dbtn[data-step="-100"], .topbar .dbtn[data-step="100"], .topbar .dbtn[data-step="-5000"], .topbar .dbtn[data-step="5000"] { display: none !important; }
   .topbar .brand { order: 0; }
   .topbar .session { order: 1; flex: 1 1 0; min-width: 0; max-width: none !important; }
+  .topbar .session-txt { max-width: none; }
   .topbar .tb-break.b1 { order: 2; }
   .topbar .tb-break.b2 { order: 4; }
   /* En course : les tours remplacent le temps restant, le délai TV remonte sur la 2e ligne (une ligne de moins) */
@@ -2121,12 +2127,12 @@ body.solo #muteBtn { display: none; }
 /* Barre d'état de la séance */
 [data-theme="pitwall"] .topbar { background: var(--bg); border-bottom: 1px solid var(--border); }
 @media (min-width: 901px) {
-  [data-theme="pitwall"] .topbar { min-height: 56px; gap: 22px; padding: 6px 18px; }
+  [data-theme="pitwall"] .topbar { min-height: 56px; column-gap: 22px; padding: 6px 18px; }
   /* Largeur réservée seulement en course (barre d'avancement) : pas de vide après « SQ1 » */
   [data-theme="pitwall"] .lap-box:has(.lap-bar:not([hidden])) { min-width: 96px; }
 }
 /* Titre « Délai » masqué faute de place : pas de case vide */
-@media (max-width: 1600px) {
+@media (max-width: 1700px) {
   [data-theme="pitwall"] .topbar .delay-head:not(:has(.delay-warn:not([hidden]))) { display: none; }
   [data-theme="pitwall"] .topbar .delay-controls { border-left: 0; }
 }
@@ -2244,11 +2250,6 @@ body.solo #muteBtn { display: none; }
 @media (max-width: 1950px) {
   :root:not([data-theme="pitwall"]) .topbar #lapsLeftBox { display: none !important; }
 }
-@media (min-width: 901px) and (max-width: 1500px) {
-  [data-theme="pitwall"] .topbar { gap: 14px; padding: 6px 12px; }
-  [data-theme="pitwall"] .topbar #lapsLeftBox { display: none !important; }
-  [data-theme="pitwall"] .delay .preset { max-width: 150px; }
-}
 
 /* ---------- Onglet Pneus (js/ui/tyres.js) ---------- */
 .ty { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 10px; }
@@ -2328,7 +2329,7 @@ body.solo .grid .panel-head { padding-right: 116px; }
 }
 /* Anciens thèmes : un peu de marge pour la barre de défilement sur portable */
 @media (max-width: 1450px) {
-  :root:not([data-theme="pitwall"]) .topbar { gap: 7px; }
+  :root:not([data-theme="pitwall"]) .topbar { column-gap: 7px; }
 }
 /* Barre du haut : la barre de progression du tour ne décale plus la case « Tour » par rapport
    aux autres (libellés et valeurs alignés) */
@@ -2404,7 +2405,7 @@ body.solo .grid .panel-head { padding-right: 116px; }
 .weather-mini .wind-arrow { font-style: normal; color: var(--blue); font-weight: 800; margin-left: 2px; }
 [data-theme="pitwall"] .topbar .weather-mini { display: flex; gap: 14px; }
 /* Si la barre manque encore de place (barre latérale, infos du replay), les mesures en trop passent sur une 2e ligne masquée */
-.topbar > .weather-mini { flex-shrink: 20; min-width: 0; flex-wrap: wrap; overflow: hidden; max-height: 40px; }
+.topbar > .weather-mini { flex: 1 20 0; max-width: max-content; min-width: 0; flex-wrap: wrap; overflow: hidden; max-height: 40px; }
 /* Moins de place : pression, humidité, vent puis air disparaissent (toute la météo reste dans l'onglet Météo) */
 @media (max-width: 2100px) { [data-theme="pitwall"] .topbar .wm-pres { display: none; } }
 @media (max-width: 1960px) { [data-theme="pitwall"] .topbar .wm-hum { display: none; } }
@@ -2420,7 +2421,7 @@ body.solo .tb-tools { display: none; }
 .tb-tool:has(small) { width: auto; min-width: 32px; height: auto; min-height: 32px; padding: 3px 6px 2px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; }
 .tb-tool small { font-size: 9.5px; line-height: 1; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; color: var(--muted); font-family: var(--font-cond, inherit); }
 .tb-tool:hover small { color: var(--text-2); }
-@media (max-width: 1450px) { .tb-tool small { display: none; } .tb-tool:has(small) { width: 32px; padding: 0; } }
+@media (max-width: 1800px) { .tb-tool small { display: none; } .tb-tool:has(small) { width: 32px; padding: 0; } }
 .tb-tool svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 .tb-tool:hover { background: var(--panel-2); color: var(--text); }
 .tb-tool.on { background: var(--panel-2); border-color: var(--line-2); color: var(--text); }
@@ -2459,10 +2460,25 @@ body.solo .tb-tools { display: none; }
 .tbp-table td.purple { color: var(--purple, #b06cff); font-weight: 700; }
 .tbp-table .drv { gap: 7px; }
 @media (min-width: 1451px) {
-  [data-theme="pitwall"] .topbar > .session { max-width: 300px; }
+  [data-theme="pitwall"] .topbar .session-txt { max-width: 260px; }
 }
+/* Barre du haut : on compacte progressivement selon la largeur (ces règles du thème l'emportaient sur les paliers
+   du début du fichier) ; ce qui ne tient toujours pas passe sur une deuxième ligne */
 @media (min-width: 901px) and (max-width: 2000px) {
-  [data-theme="pitwall"] .topbar { gap: 17px; }
+  [data-theme="pitwall"] .topbar { column-gap: 17px; }
+}
+@media (min-width: 901px) and (max-width: 1950px) {
+  [data-theme="pitwall"] .topbar #lapsLeftBox { display: none !important; }
+}
+@media (min-width: 901px) and (max-width: 1800px) {
+  [data-theme="pitwall"] .topbar { column-gap: 14px; }
+}
+@media (min-width: 901px) and (max-width: 1600px) {
+  [data-theme="pitwall"] .topbar { column-gap: 12px; padding: 6px 12px; }
+  [data-theme="pitwall"] .delay .preset { max-width: 130px; }
+}
+@media (min-width: 901px) and (max-width: 1450px) {
+  [data-theme="pitwall"] .topbar { column-gap: 10px; }
 }
 
 /* ---------- Animations douces (désactivées si le système demande moins d'animations) ---------- */

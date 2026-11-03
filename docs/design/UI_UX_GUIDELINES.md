@@ -43,7 +43,9 @@ Règles de conception propres à Paddock Live, tirées de l'appli telle qu'elle 
 - **Paysage peu haut** : en-tête sur une ligne, la page défile, le classement garde la place.
 - **Tablette** : disposition de l'ordinateur.
 - **Aucun débordement horizontal de la page** ; un tableau large défile dans son panneau, avec la colonne utile
-  collante (Duel, Grand Prix).
+  collante (Duel, Grand Prix). La barre du haut passe sur deux lignes plutôt que de déborder : un nouveau bloc y
+  reste `flex-shrink: 0` et a son palier de compaction ; vérifier de 1280 à 1920 px dans les quatre langues
+  (`node scripts/captures.mjs`).
 - Un nouveau panneau suit la structure existante : `.panel` > `.panel-head` (titre, onglets, outils) > `.panel-body`.
 
 ## 4. Règles visuelles
@@ -129,4 +131,3 @@ Règles de conception propres à Paddock Live, tirées de l'appli telle qu'elle 
 - Anneau de focus clavier commun à toutes les commandes (voir DESIGN_SYSTEM.md § 13).
 - Variante texte du rouge plus claire pour les petits textes sur fond sombre.
 - Légendes de 8,5–9,5 px à porter à 10 px minimum.
-- Barre du haut qui déborde à 1440 px (séance terminée chargée).

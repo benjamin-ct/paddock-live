@@ -19,6 +19,10 @@ l'application (Réglages → À propos → Nouveautés).
   touchent plus facilement ; les places gagnées ou perdues du classement s'écrivent plus gros.
 - Dates d'un week-end à cheval sur deux mois écrites en entier (« 30 oct. – 1 nov. »).
 - Réglages sur petit téléphone : les choix des listes s'affichent en entier.
+- Barre du haut sur ordinateur : elle ne dépasse plus de la fenêtre (la cloche et le badge LIVE étaient coupés à droite,
+  par exemple à 1440 px) : elle se resserre selon la largeur et, si la place manque encore (traductions plus longues),
+  passe sur deux lignes au lieu de déborder. L'Accueil, la Saison, l'Actu et les Replays ne recouvrent plus sa
+  deuxième ligne.
 
 ### En direct
 - Les répétitions de la F1 (veille de la course) ne sont plus enregistrées comme de vraies séances : pas de faux

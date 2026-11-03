@@ -189,7 +189,8 @@ Repères :
 
 - En-tête de panneau : `7px 12px` (base), hauteur min. 42 px dans Paddock 2.
 - Corps de modale : `12px 16px 16px`.
-- Barre du haut : `8px 14px` (base), `6px 20px` et hauteur min. 64 px dans Paddock 2 (grand écran).
+- Barre du haut : `8px 14px` (base), `6px 20px` et hauteur min. 64 px dans Paddock 2 (grand écran), `6px 12px` à
+  1600 px et moins. Écart entre les blocs : 22 px, puis 17 (≤ 2000 px), 14 (≤ 1800), 12 (≤ 1600), 10 px (≤ 1450).
 - Barre latérale (`--rail-w`) : **76 px** (60 px dans l'ancienne partie 1 du thème).
 - Lignes du classement : hauteur `--tower-row-h` (34 px par défaut), cellules `3px 4px`.
 - Note / état vide (`.note`) : `14px`, 13 px, interligne 1,5.
@@ -264,6 +265,8 @@ Au doigt (`pointer: coarse`) : zone tactile invisible d'au moins **32 px** autou
   Commentaires, Mini, Apparence), Fenêtres, Réglages.
 - **Barre du haut** `.topbar` : séance (drapeau, nom, sous-titre), état de la piste, tour, temps restant, heure,
   météo, délai TV, synchro, source, notifications. Liseré bas en dégradé rouge → bleu → turquoise (Paddock 2).
+  Une ligne tant qu'elle tient, sinon deux (`flex-wrap`, la 2ᵉ ligne calée à droite) : le nom de la séance se tronque
+  d'abord (120 px minimum), puis la météo ; les vues plein écran suivent sa hauteur (`placeView`, `util.js`).
 - **Téléphone (≤ 900 px)** : barre du bas `.mob-nav` (icônes 21 px + légende) ; dans Paddock 2, flottante en verre
   (rayon 28 px, marge `env(safe-area-inset-bottom)`), bouton actif fond `rgba(225,6,0,.16)`. Un seul panneau à la
   fois (`.grid.mobile`), choisi dans une bande d'onglets (`.mob-panels`).
@@ -340,7 +343,7 @@ Point de rupture principal : **900 px** (`max-width: 900px` / `min-width: 901px`
 
 | Largeur | Ce qui change |
 |---|---|
-| > 1600 px … 2100 px | paliers de la barre du haut (libellés masqués progressivement : 2100, 1950, 1800, 1600, 1450, 1360 px) |
+| 1450 px … 2100 px | paliers de la barre du haut : libellés Saison / Actu (2100), tours restants (1950), légendes des outils (1800), titre « Délai TV » (1700), météo (1660), chiffres plus petits dans Paddock 2 (1600), réglage ±0,1 s (1450) ; ce qui ne tient toujours pas passe sur une 2ᵉ ligne, sans débordement |
 | ≤ 1250 / 1100 / 1000 px | grilles des panneaux et de la Saison resserrées |
 | ≤ 900 px | mise en page téléphone |
 | ≤ 760 / 700 / 640 / 600 px | tableaux et cartes de la Saison sur une colonne, textes sur deux lignes |
@@ -392,7 +395,5 @@ Ces points sont des pistes relevées pendant l'audit, **pas des règles en produ
    Des variables (`--fs-*`, `--sp-*`, `--r-*`) faciliteraient la cohérence — chantier à part, risque de régressions
    visuelles dans les trois designs.
 5. **Tailles minimales** : légendes à 8,5–9,5 px (barre latérale, barre du bas étroite) ; viser 10 px minimum.
-6. **Barre du haut à 1440 px** : à 1440×900 (séance terminée chargée, français ou anglais), la page déborde de
-   ~90 px à droite (`#sourceBadge`, `#muteBtn`, carte radio). Vérifier les paliers de la barre du haut.
-7. **Contraste sur verre** : mesurer les textes `--muted` sur les panneaux translucides au-dessus des halos les plus
+6. **Contraste sur verre** : mesurer les textes `--muted` sur les panneaux translucides au-dessus des halos les plus
    clairs (clair surtout).

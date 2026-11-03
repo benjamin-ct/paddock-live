@@ -212,11 +212,16 @@ export async function api(path, opts = {}) {
 }
 
 // Espace plein écran (Accueil, Saison, Actu, Replays, Résultats) : entre la barre du haut et, sur
-// téléphone, la barre d'onglets du bas (qui reste visible)
+// téléphone, la barre d'onglets du bas (qui reste visible). Suit la barre du haut quand elle change de hauteur
+// (passage sur deux lignes faute de place, données de la séance arrivées après l'ouverture)
+const placedViews = new Set();
 export function placeView(view) {
   const nav = document.querySelector('#mobNav');
-  view.style.top = `${Math.round(document.querySelector('.topbar').getBoundingClientRect().bottom)}px`;
+  const bar = document.querySelector('.topbar');
+  view.style.top = `${Math.round(bar.getBoundingClientRect().bottom)}px`;
   view.style.bottom = nav && !nav.hidden ? `${nav.offsetHeight}px` : '';
+  if (!placedViews.size) new ResizeObserver(() => placedViews.forEach((v) => { if (!v.hidden) placeView(v); })).observe(bar);
+  placedViews.add(view);
 }
 
 // Écran de chargement du démarrage (index.html) : retiré en fondu une fois l'accueil ou le tableau de bord prêt
