@@ -63,11 +63,12 @@
 :root[data-design="v3"] :is(.btn.on, .rp-speed.on) { background: var(--text); border-color: var(--text); color: var(--bg); }
 :root[data-design="v3"] .icon-btn { border-radius: var(--r-sm); color: var(--text-2); }
 :root[data-design="v3"] .icon-btn:hover { background: var(--panel-2); color: var(--text); }
-:root[data-design="v3"] .toggle input { accent-color: var(--accent); }
+:root[data-design="v3"] .toggle input { accent-color: var(--text); }
 
 /* ---------- Barre de séance (barre du haut) ---------- */
 :root[data-design="v3"] .topbar { background: var(--bg); border-bottom: 1px solid var(--border); gap: var(--sp-3); }
-:root[data-design="v3"] .topbar .preset { max-width: 128px; }
+:root[data-design="v3"] .topbar .preset { max-width: 140px; }
+@media (max-width: 1500px) { :root[data-design="v3"] .topbar .hstat-value { font-size: 20px; } :root[data-design="v3"] .topbar .clock-box .hstat-value { font-size: 16px; } }
 :root[data-design="v3"] .topbar .tb-tools { gap: 0; }
 @media (min-width: 901px) { :root[data-design="v3"] .topbar { min-height: 56px; padding: 4px var(--sp-4) 4px var(--sp-5); } }
 :root[data-design="v3"] .topbar .session-name { font: 800 var(--fs-lg)/1.05 var(--font-cond); text-transform: uppercase; letter-spacing: .01em; }
@@ -82,9 +83,14 @@
 :root[data-design="v3"] .track-status { border-radius: var(--r-pill); font: 600 var(--fs-xs)/1 var(--font); letter-spacing: 0; text-transform: none; min-width: 0; padding: 6px 12px; border: 1px solid transparent; }
 :root[data-design="v3"] .track-status:not(.yellow, .sc, .vsc, .red, .chequered) { background: transparent; border-color: var(--line-2); color: var(--text); }
 :root[data-design="v3"] .track-status.green .ts-dot { background: var(--green); box-shadow: none; }
-:root[data-design="v3"] .track-status.yellow { background: var(--yellow); color: #1A1500; }
-:root[data-design="v3"] .track-status:is(.sc, .vsc) { background: var(--sc); color: #1D1200; }
-:root[data-design="v3"] .track-status.red { background: var(--red); color: #fff; }
+:root[data-design="v3"] .track-status.yellow { background: #FFD43B; color: #1A1500; }
+:root[data-design="v3"] .track-status.yellow .ts-dot { background: #1A1500; }
+:root[data-design="v3"] .track-status:is(.sc, .vsc) { background: #FFA62B; color: #1D1200; }
+:root[data-design="v3"] .track-status:is(.sc, .vsc) .ts-dot { background: #1D1200; }
+:root[data-design="v3"] .track-status.red { background: #C42828; color: #fff; }
+:root[data-design="v3"] .track-status.red .ts-dot { background: #fff; }
+/* Piste sèche : l'état normal, sans couleur (le jaune est réservé au drapeau) ; humide et mouillée gardent la leur */
+:root[data-design="v3"] .hstat.surface.dry .hstat-value { background: none; color: var(--text); padding: 0; }
 :root[data-design="v3"] .weather-mini .wm span { font: 500 10px/1.1 var(--font-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
 :root[data-design="v3"] .weather-mini .wm b { font: 600 var(--fs-md)/1.1 var(--font-mono); }
 :root[data-design="v3"] .tb-tool { border-radius: var(--r-sm); color: var(--muted); }
@@ -110,7 +116,7 @@
 :root[data-design="v3"] .rail-btn.on { color: var(--text); background: var(--panel-2); }
 :root[data-design="v3"] .rail-btn.on::before { left: -8px; top: 14px; bottom: 14px; width: 2px; background: var(--accent); }
 :root[data-design="v3"] .rail-btn svg { stroke-width: 1.6; }
-:root[data-design="v3"] .rail-btn small { font: 600 9.5px/1 var(--font); letter-spacing: .02em; text-transform: none; bottom: 5px; }
+:root[data-design="v3"] .rail-btn small { font: 600 10.5px/1 var(--font); letter-spacing: 0; text-transform: none; bottom: 5px; }
 :root[data-design="v3"] .rail-div { background: var(--border); }
 
 /* ---------- Zones (panneaux) ---------- */
@@ -123,6 +129,8 @@
 :root[data-design="v3"] .panel-head { flex-wrap: nowrap; }
 :root[data-design="v3"] :is(.panel-head.tabs, .panel-head .tabs) { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; min-width: 0; padding-top: 0; padding-bottom: 0; }
 :root[data-design="v3"] .p-tower .panel-head .hint { display: none; }
+/* Outils du panneau collés à droite des onglets : même fond que l'en-tête (les onglets passaient dessous) */
+:root[data-design="v3"] .tabs .panel-ctrl { background: var(--panel); box-shadow: -12px 0 12px -4px var(--panel); }
 /* Onglets : texte, l'onglet choisi souligné d'un trait d'accent */
 :root[data-design="v3"] :is(.panel-head .tabs [data-tab], .panel-head.tabs > .tab, .tab) { position: relative; background: none; border-radius: 0; height: 40px; padding: 0 2px; margin: 0 6px; color: var(--muted); font: 600 var(--fs-sm)/1 var(--font); letter-spacing: 0; text-transform: none; box-shadow: none; }
 :root[data-design="v3"] :is(.panel-head .tabs [data-tab], .panel-head.tabs > .tab, .tab):hover { color: var(--text-2); }
@@ -135,8 +143,9 @@
 
 /* ---------- Classement ---------- */
 :root[data-design="v3"] .tower th { background: var(--panel); color: var(--muted); font: 500 10.5px/1 var(--font-mono); letter-spacing: .1em; text-transform: uppercase; padding-top: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
-:root[data-design="v3"] .tower td { border-bottom-color: var(--line); height: var(--tower-row-h, 32px); padding-left: 3px; padding-right: 3px; }
-:root[data-design="v3"] .tower :is(td.t-gap, td.t-int, td.t-lap, .sector-val) { font-size: 12.5px; letter-spacing: -.3px; }
+:root[data-design="v3"] .tower td { border-bottom-color: var(--line); height: var(--tower-row-h, 32px); padding-left: 2px; padding-right: 2px; }
+:root[data-design="v3"] .tower :is(td.t-gap, td.t-int, td.t-lap) { font-size: 12.5px; letter-spacing: -.3px; }
+:root[data-design="v3"] .tower .sector-val { font-size: 11.5px; letter-spacing: -.3px; }
 :root[data-design="v3"] .tower td.pos { font: 800 16px/1 var(--font-cond); color: var(--text); }
 :root[data-design="v3"] .tower td.pos::before { display: none; }
 :root[data-design="v3"] .tower .drv-tla { font: 700 var(--fs-md)/1 var(--font); letter-spacing: .03em; }
@@ -144,8 +153,8 @@
 :root[data-design="v3"] .tower .team-logo { width: 3px; height: 18px; border-radius: 2px; background: var(--tc) !important; background-image: none !important; box-shadow: none; border: 0; flex: none; }
 /* Mode dépassement : affiché seulement quand il est allumé */
 :root[data-design="v3"] .tower .tag.dep:not(.on) { display: none; }
-:root[data-design="v3"] .tower .tag { border-radius: var(--r-xs); font: 600 10px/1 var(--font-mono); letter-spacing: .04em; }
-:root[data-design="v3"] .tower .tag.dep.on { background: color-mix(in srgb, var(--green) 16%, transparent); color: var(--green); border-color: transparent; }
+:root[data-design="v3"] .tower .tag { border-radius: var(--r-xs); font: 600 10px/1 var(--font-mono); letter-spacing: 0; padding-left: 4px; padding-right: 4px; }
+:root[data-design="v3"] .tower .tag.dep.on { background: color-mix(in srgb, var(--green) 16%, transparent) !important; color: var(--green) !important; border-color: transparent; box-shadow: none; }
 /* Ligne suivie, duel : fond surélevé et filet ivoire, sans accent */
 :root[data-design="v3"] .tower tr:is(.focus, .duel-a, .duel-b) { background: none; }
 :root[data-design="v3"] .tower tr:is(.focus, .duel-a, .duel-b) td { background: var(--panel-2); }
@@ -177,7 +186,7 @@
 /* ---------- Téléphone : barre du bas, bande des panneaux ---------- */
 @media (max-width: 900px) {
   :root[data-design="v3"] .mob-nav { background: var(--bg) !important; border-top: 1px solid var(--border); }
-  :root[data-design="v3"] .mob-nav button { color: var(--muted); font: 600 10.5px/1 var(--font); position: relative; }
+  :root[data-design="v3"] .mob-nav button { color: var(--muted); font: 600 11px/1 var(--font); position: relative; }
   :root[data-design="v3"] .mob-nav button.active { color: var(--text); background: none; }
   :root[data-design="v3"] .mob-nav button.active::before { content: ''; position: absolute; top: 0; left: 30%; right: 30%; height: 2px; border-radius: 0 0 2px 2px; background: var(--accent); }
   :root[data-design="v3"] .mob-nav button.active .mn-svg { stroke: currentColor; }
@@ -189,6 +198,12 @@
   :root[data-design="v3"] .grid.mobile > .panel { border-radius: 0; border-width: 0; }
   /* Le panneau est déjà nommé par la bande d'onglets du haut */
   :root[data-design="v3"] .grid.mobile .panel-head > h2 { display: none; }
+  :root[data-design="v3"] .grid.mobile .panel-head { min-height: 36px; }
+  @media (orientation: landscape) and (max-height: 500px) {
+    :root[data-design="v3"] .grid.mobile .panel-head { min-height: 30px; }
+    :root[data-design="v3"] .grid.mobile .tower { --tower-row-h: 28px; }
+    :root[data-design="v3"] .mob-panels button { padding-top: 6px; padding-bottom: 6px; }
+  }
   :root[data-design="v3"] .topbar { padding-top: max(6px, env(safe-area-inset-top)); }
   :root[data-design="v3"] .topbar .hstat-value { font-size: 18px; }
 }
@@ -221,6 +236,7 @@
 :root[data-design="v3"] .hm-next .cal-days { gap: var(--sp-2); }
 :root[data-design="v3"] .cal-day { background: var(--panel-2) !important; border: 1px solid var(--border) !important; border-radius: var(--r-sm) !important; box-shadow: none !important; }
 :root[data-design="v3"] .hm-wx { gap: var(--sp-2); }
+:root[data-design="v3"] .cal-s.now { background: var(--panel-3); box-shadow: inset 2px 0 0 var(--accent); }
 :root[data-design="v3"] .cal-day-h { background: var(--panel-3); color: var(--text-2); font: 500 var(--fs-2xs)/1.3 var(--font-mono); letter-spacing: .1em; }
 :root[data-design="v3"] .hm-trk { filter: none; }
 :root[data-design="v3"] .hm-go button { background: var(--panel); border: 1px solid var(--border); border-radius: var(--r-md); box-shadow: none; transition: border-color var(--dur-2), transform var(--dur-2) var(--ease-out); }
