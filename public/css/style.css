@@ -161,6 +161,7 @@ code { background: var(--panel-3); padding: 1px 5px; border-radius: 4px; font-si
 .source-badge.replay .src-dot { background: var(--blue); }
 .source-badge.error .src-dot { background: var(--orange); }
 .source-badge.stale .src-dot { background: var(--orange); animation: pulse 1.4s infinite; }
+@media (prefers-reduced-motion: reduce) { .source-badge .src-dot { animation: none; } }   /* mouvement réduit demandé par le système */
 
 /* ---------- Barre de replay ---------- */
 .replaybar {
@@ -3403,6 +3404,7 @@ html.float-mini .float-bar { top: auto; bottom: 4px; right: 24px; }   /* en bas 
 #settingsModal.set-modal::backdrop { background: rgba(4, 5, 8, .62); backdrop-filter: blur(6px); }
 :root:not([data-motion="off"]) #settingsModal.set-modal[open] { animation: set-in .26s var(--ease-out, ease-out); }
 @keyframes set-in { from { opacity: 0; transform: translateY(14px) scale(.985); } }
+@media (prefers-reduced-motion: reduce) { #settingsModal.set-modal[open] { animation: none; } }
 .set-shell { display: grid; grid-template-columns: 268px minmax(0, 1fr); height: 100%; }
 .set-side { display: flex; flex-direction: column; gap: 12px; padding: 18px 12px; background: var(--panel-2); border-right: 1px solid var(--border); min-height: 0; overflow-y: auto; }
 .set-brand { display: flex; align-items: center; gap: 9px; padding: 2px 8px; font-size: 18px; font-weight: 900; }

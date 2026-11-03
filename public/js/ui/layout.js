@@ -113,7 +113,7 @@ function defaultLayout(prof = profile) {
   return { cols: [
     { w: quali ? 1.2 : v3() ? 2.1 : 1.05, items: [{ id: 'tower', h: 1 }] },
     { w: 1.15, items: [{ id: 'map', h: 1.6 }, { id: 'duel', h: 0.8 }, { id: 'analysis', h: 1 }] },
-    { w: 0.95, items: v3() ? [{ id: 'extra', h: 1 }, { id: 'race', h: 2.2 }, { id: 'radio', h: 1.1 }, { id: 'feed', h: 1.1 }]
+    { w: 0.95, items: v3() ? [{ id: 'extra', h: 0.7 }, { id: 'race', h: 2.5 }, { id: 'radio', h: 1.1 }, { id: 'feed', h: 1.1 }]
       : [{ id: 'extra', h: 1 }, { id: 'radio', h: 1.1 }, { id: 'feed', h: 1.1 }] },
   ] };
 }

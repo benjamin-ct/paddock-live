@@ -587,3 +587,18 @@
 :root[data-design="v3"] .nwa-box h3 .ic { color: var(--muted); }
 :root[data-design="v3"] .nwa-box h3 .muted { font: 500 var(--fs-2xs)/1 var(--font-mono); letter-spacing: .08em; }
 :root[data-design="v3"] .nwa-top:first-of-type .nwa-rank { background: var(--text); color: var(--bg); }
+
+/* ---------- Contrôle qualité (étape 6) ---------- */
+/* Focus visible aussi sur les listes (la règle des listes de style.css est plus précise que :focus-visible) */
+:root[data-design="v3"] select:not([multiple]):not([size]):not(.x-native):focus-visible { outline: 2px solid var(--ring); outline-offset: 1px; }
+/* Source des données : point coloré sans pulsation ni lueur, texte neutre (lisible en clair) */
+:root[data-design="v3"] .source-badge { background: transparent; border-color: var(--line-2); color: var(--text-2); }
+:root[data-design="v3"] .source-badge :is(.src-dot) { animation: none; box-shadow: none; }
+/* Boutons des en-têtes de panneaux : 24 px minimum (WCAG 2.2, 2.5.8) */
+:root[data-design="v3"] .panel-head button:not(.tab):not([data-tab]) { min-height: 24px; min-width: 24px; }
+/* Au doigt : zone tactile d'au moins 32 px autour des petits éléments restants */
+@media (pointer: coarse) {
+  :root[data-design="v3"] :where(.tag.battle, .sz-png, button.linkish) { position: relative; }
+  :root[data-design="v3"] :is(.tag.battle, .sz-png, button.linkish)::before { content: ''; position: absolute; left: 50%; top: 50%; width: max(100%, 32px); height: max(100%, 32px); transform: translate(-50%, -50%); }
+}
+:root[data-design="v3"] .hm-round { color: var(--text-2); }
