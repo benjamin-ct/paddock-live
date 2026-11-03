@@ -2882,4 +2882,11 @@ export default {
   "au mieux {}": "al massimo {}",
   // Accueil de la version web
   "Replays, actu, alertes": "Replay, notizie, avvisi",
+  // Pilote du jour
+  "Pilote du jour": "Pilota del giorno",
+  "jamais dans les 5 premiers": "mai nei primi 5",
+  "Vote des fans pendant la course (formula1.com), 5 premiers.": "Voto dei tifosi durante la gara (formula1.com), primi 5.",
+  "Plus souvent pilote du jour": "Più volte pilota del giorno",
+  "meilleur score : {} %": "miglior risultato: {} %",
+  "fois": "volte",
 };
