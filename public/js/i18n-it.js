@@ -2880,4 +2880,6 @@ export default {
   "{} pilotes peuvent encore finir {}": "{} piloti possono ancora finire {}",
   "{} écuries peuvent encore finir {}": "{} scuderie possono ancora finire {}",
   "au mieux {}": "al massimo {}",
+  // Accueil de la version web
+  "Replays, actu, alertes": "Replay, notizie, avvisi",
 };

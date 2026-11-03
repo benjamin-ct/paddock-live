@@ -57,6 +57,7 @@ function archiveStart(s) {
 }
 
 async function loadArchive() {
+  if (store.web) return;   // version web : pas de replays (archives lues par le serveur de l'appli)
   const year = new Date().getFullYear();
   for (const y of [year, year - 1]) {
     let list;
@@ -271,8 +272,8 @@ function render() {
         <div class="muted">${esc(when(nx.t))}</div>`
     : `<div class="hm-title">${t('Calendrier {} bientôt publié', past + 1)}</div>`}
         <div class="hm-actions"><button class="btn btn-accent" data-home="review:${past}">${icon('trophy')} ${t('Bilan de la saison {}', past)}</button>
-          <button class="btn" data-home="replays">${icon('history')} ${t('Revoir les courses')}</button>
-          <button class="btn" data-home="news">${icon('news')} ${t('Transferts et nouveautés')}</button></div></div></section>`
+          ${store.web ? '' : `<button class="btn" data-home="replays">${icon('history')} ${t('Revoir les courses')}</button>
+          <button class="btn" data-home="news">${icon('news')} ${t('Transferts et nouveautés')}</button>`}</div></div></section>`
     : live
     ? `<section class="hm-card hm-live"><div class="hm-kicker"><span class="hm-tag"><span class="hm-dot"></span>Séance en cours</span></div>
         <div class="hm-title">${esc(gp(live.race))} : ${esc(live.label)}</div>
@@ -291,18 +292,18 @@ function render() {
     ? `<section class="hm-card hm-last"><div class="hm-kicker"><span class="hm-tag">Dernière séance</span></div>
         <div class="hm-title"><span>${esc(gp(ls.meeting))} <small>${esc(sessionName(ls.name))}</small></span></div>
         <div class="muted">${esc(ago(ls.t))} · résultat masqué</div>
-        <div class="hm-actions"><button class="btn btn-accent" data-home="replay">${icon('play')} Revoir en replay</button>
-          <button class="btn" data-home="results" title="Résultats de la séance (résultat visible)">${icon('checkered')} Voir les résultats</button></div></section>`
+        <div class="hm-actions">${store.web ? '' : `<button class="btn btn-accent" data-home="replay">${icon('play')} Revoir en replay</button>`}
+          <button class="btn${store.web ? ' btn-accent' : ''}" data-home="results" title="Résultats de la séance (résultat visible)">${icon('checkered')} Voir les résultats</button></div></section>`
     : '';
   view.querySelector('.hm-main').innerHTML = `<h1 class="hm-hello">Paddock Live</h1>
     ${card}
     <div class="hm-grid">${last}${favHtml()}</div>
-    <section class="hm-card hm-news"><div class="hm-kicker"><span class="hm-tag">Dernières actus</span> <button class="btn small" data-home="news">Toute l'actu ${icon('arrow-right', 'ic-s')}</button></div><div id="hmNews" class="hm-list"><div class="muted small">Chargement…</div></div></section>
+    <section class="hm-card hm-news"><div class="hm-kicker"><span class="hm-tag">Dernières actus</span>${store.web ? '' : ` <button class="btn small" data-home="news">Toute l'actu ${icon('arrow-right', 'ic-s')}</button>`}</div><div id="hmNews" class="hm-list"><div class="muted small">Chargement…</div></div></section>
     <nav class="hm-go">
       <button data-home="live">${icon('signal')}<b>Direct</b><small>Tableau de bord</small></button>
       <button data-home="season">${icon('trophy')}<b>Saison</b><small>Calendrier, classements</small></button>
-      <button data-home="news">${icon('news')}<b>Actu</b><small>Toute l'actualité</small></button>
-      <button data-home="replays">${icon('history')}<b>Replays</b><small>Rejouer une séance</small></button>
+      ${store.web ? `<button data-home="app">${icon('window')}<b>${t('Appli complète')}</b><small>${t('Replays, actu, alertes')}</small></button>` : `<button data-home="news">${icon('news')}<b>Actu</b><small>Toute l'actualité</small></button>
+      <button data-home="replays">${icon('history')}<b>Replays</b><small>Rejouer une séance</small></button>`}
     </nav>
     <a class="hm-follow" href="https://paddocklive.app/liens/" target="_blank" rel="noopener">${icon('share')} Suivre Paddock Live sur les réseaux ${icon('arrow-right', 'ic-s')}</a>`;
   if (nx && !live) loadWeather(nx);
@@ -315,19 +316,32 @@ function render() {
 async function news(again = true) {
   const box = $('#hmNews');
   if (!box) return;
+  if (store.web) { webNews(box); return; }
   try {
     const list = await (await import('./news.js')).latestNews(4, again ? () => news(false) : null);
     box.innerHTML = list.length ? list.map((n) => `<button class="hm-news-item" data-home="news"><span class="hm-news-t" data-no-i18n>${esc(n.title)}</span><span class="muted small"><span data-no-i18n>${esc(n.src)}</span> · <span>${esc(n.when)}</span></span></button>`).join('') : '<div class="muted small">Aucune actualité pour le moment.</div>';
   } catch { box.innerHTML = '<div class="muted small">Actualités indisponibles.</div>'; }
 }
 
+// Version web : les 4 dernières nouvelles du serveur Paddock Live (titre traduit en français par le serveur), ouvertes
+// sur leur site dans un nouvel onglet
+let webList = null;
+async function webNews(box) {
+  try {
+    webList ||= fetch('/news/api').then((r) => (r.ok ? r.json() : Promise.reject(new Error(r.status))));
+    const d = await webList;
+    const src = Object.fromEntries((d.sources || []).map((x) => [x.id, x.name]));
+    const list = (d.items || []).filter((it) => it.kind !== 'video' && /^https:\/\//.test(it.link || '')).sort((a, b) => b.t - a.t).slice(0, 4);
+    box.innerHTML = list.length ? list.map((n) => `<a class="hm-news-item" href="${esc(n.link)}" target="_blank" rel="noopener"><span class="hm-news-t" data-no-i18n>${esc(LANG === 'fr' && n.fr ? n.fr : n.title)}</span><span class="muted small"><span data-no-i18n>${esc(src[n.src] || n.src)}</span> · <span>${esc(ago(n.t))}</span></span></a>`).join('') : '<div class="muted small">Aucune actualité pour le moment.</div>';
+  } catch { webList = null; box.innerHTML = '<div class="muted small">Actualités indisponibles.</div>'; }
+}
 
 export function openHome() {
   const view = $('#homeView');
   if (!view) return;
   import('./season.js').then((m) => m.closeSeason());
-  import('./news.js').then((m) => m.closeNews());
-  import('./replays.js').then((m) => m.closeReplays());
+  if ($('#newsView')) import('./news.js').then((m) => m.closeNews());   // pas d'Actu ni de Replays dans la version web
+  if ($('#replayView')) import('./replays.js').then((m) => m.closeReplays());
   placeView($('#homeView'));
   view.hidden = false;
   // Ouverture : cartes en cascade (une fois, pas à chaque mise à jour)
@@ -367,8 +381,14 @@ async function act(k) {
   if (k === 'editfav') { editFav = !editFav; renderFav(); return; }
   if (k.startsWith('favd:')) { toggleDriver(k.slice(5)); return; }
   if (k.startsWith('favt:')) { toggleTeamFav(k.slice(5)); return; }
-  if (k === 'results') { resultsOpen = true; closeHome(); noLiveCheck(); openResults(); return; }
+  if (k === 'results') {
+    resultsOpen = true; closeHome(); noLiveCheck();
+    // Version web : résultats de la dernière séance de l'écran « Pas de séance en direct » (web.js)
+    if (store.web) { resultsOpen = false; noLiveCheck(); $('#webResultsBtn')?.click(); } else openResults();
+    return;
+  }
   if (k === 'live') { closeHome(); noLiveCheck(); return; }
+  if (k === 'app') { open('https://paddocklive.app/', '_blank', 'noopener'); return; }   // version web : l'appli de bureau
   // Saison et Actu ferment l'accueil elles-mêmes ; Replays : l'accueil reste derrière les réglages
   // jusqu'au lancement du replay
   if (k === 'season') { (await import('./season.js')).openSeason(); return; }

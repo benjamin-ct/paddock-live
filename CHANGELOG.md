@@ -29,6 +29,11 @@ l'application (Réglages → À propos → Nouveautés).
 - Correction d'une double connexion au direct quand la connexion F1 TV arrive juste après le lancement de l'appli.
 
 ### Version web
+- Écran d'accueil, comme dans l'appli : prochaine séance avec son compte à rebours, programme et météo du week-end,
+  dernière séance (résultat masqué, « Voir les résultats »), pilotes et écuries favoris, dernières actus (ouvertes sur
+  leur site). Il s'ouvre quand aucune séance n'est en cours.
+- Petit menu pour passer de l'Accueil au Direct et à la Saison : dans la barre du haut sur ordinateur, en bas de
+  l'écran sur téléphone (comme l'appli).
 - Radar de pluie réparé (outil Météo) : il était bloqué, et son message cachait les onglets ; on peut de nouveau passer
   à Windy. Sans réponse du radar, nouvel essai au bout d'une minute.
 - Reconnexion plus douce quand le serveur est plein ou coupé (délai qui augmente jusqu'à une minute), plus de places

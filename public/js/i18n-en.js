@@ -2881,4 +2881,6 @@ export default {
   "{} pilotes peuvent encore finir {}": "{} drivers can still finish {}",
   "{} écuries peuvent encore finir {}": "{} teams can still finish {}",
   "au mieux {}": "at best {}",
+  // Accueil de la version web
+  "Replays, actu, alertes": "Replays, news, alerts",
 };

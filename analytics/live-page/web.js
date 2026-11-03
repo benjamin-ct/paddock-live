@@ -19,7 +19,7 @@ import { initRadar } from './ui/radar.js';
 import { renderPitSim, renderBattles, initRaceTools } from './ui/race-tools.js';
 import { initAnalysis, renderAnalysis } from './ui/analysis.js';
 import { renderDuelBand, renderDuel, initDuel } from './ui/duel.js';
-import { initNoLive } from './ui/home.js';
+import { initNoLive, initHome, openHome, closeHome, homeTouched } from './ui/home.js';
 import { initSeason, closeSeason, openSeason, seasonUrls } from './ui/season.js';
 import { parseSeasonPath } from '/shared/season-urls.js';
 import { addPositions, addCarData, compareFrom, raceStartFrom } from '/shared/compare.js';
@@ -38,6 +38,7 @@ if ((prefs.layoutV || 0) < 4) {
 initSelects();   // listes déroulantes aux couleurs de l'appli (sur ordinateur ; le téléphone garde la sienne)
 // Rien n'est traduit dans le navigateur (pas de moteur local) : documents FIA traduits par le serveur, relus plus tard
 store.isHost = false;
+store.web = true;   // version web : accueil sans replays ni Actu (ui/home.js)
 // GPS et télémétrie : texte compressé (deflate brut, base64) du flux F1
 async function inflate(b64) {
   const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
@@ -394,6 +395,39 @@ safe(initSeason);
 seasonUrls();
 const askedSeason = parseSeasonPath(location.pathname);
 if (askedSeason) safe(() => openSeason(askedSeason.section, askedSeason.year || undefined, askedSeason.item));
+// Accueil au lancement (pas de séance en cours, pas de page de la Saison demandée, pas de fenêtre à un panneau)
+else if (!ONLY) safe(initHome);
+
+// Menu : Accueil, Direct, Saison (barre du haut sur ordinateur, barre du bas sur téléphone, comme l'appli)
+const NAV = [
+  ['home', 'Accueil', '<path d="M3 11l9-7 9 7M5 10v10h5v-6h4v6h5V10"/>'],
+  ['live', 'Direct', '<circle cx="12" cy="12" r="3"/><path d="M5.6 5.6a9 9 0 0 0 0 12.8M18.4 5.6a9 9 0 0 1 0 12.8M8.5 8.5a5 5 0 0 0 0 7M15.5 8.5a5 5 0 0 1 0 7"/>'],
+  ['season', 'Saison', '<path d="M8 4h8v5a4 4 0 0 1-8 0zM12 13v4M8 20h8M16 6h3a3 3 0 0 1-3 4M8 6H5a3 3 0 0 0 3 4"/>'],
+];
+const navs = [document.querySelector('#webNavTop'), document.querySelector('#webNav')].filter(Boolean);
+for (const nav of navs) {
+  nav.innerHTML = NAV.map(([k, label, svg]) => `<button type="button" data-nav="${k}" aria-label="${t(label)}"><svg class="mn-svg" viewBox="0 0 24 24" aria-hidden="true">${svg}</svg><span class="mn-l">${t(label)}</span></button>`).join('');
+  nav.addEventListener('click', (e) => {
+    const k = e.target.closest('[data-nav]')?.dataset.nav;
+    if (!k) return;
+    webMenu(false);
+    homeTouched();
+    if (k === 'home') openHome();
+    else if (k === 'season') openSeason();
+    else { closeHome(); closeSeason(); }
+    syncNav();
+    scrollTo(0, 0);
+  });
+}
+const syncNav = () => {
+  const open = (id) => !document.querySelector(id)?.hidden;
+  const cur = open('#homeView') ? 'home' : open('#seasonView') ? 'season' : 'live';
+  for (const b of document.querySelectorAll('[data-nav]')) { b.classList.toggle('active', b.dataset.nav === cur); b.setAttribute('aria-current', b.dataset.nav === cur ? 'page' : 'false'); }
+};
+// Vues ouvertes ou fermées ailleurs (raccourcis de l'accueil, séance qui commence, retour de la Saison) : menu à jour
+const navWatch = new MutationObserver(syncNav);
+for (const id of ['#homeView', '#seasonView']) { const el = document.querySelector(id); if (el) navWatch.observe(el, { attributes: true, attributeFilter: ['hidden'] }); }
+syncNav();
 // Téléphone : réglages du direct derrière l'engrenage. Hauteur de la barre changée (réglages ouverts, police
 // chargée) : écran « Pas de séance en direct » replacé dessous
 const topbar = document.querySelector('.topbar');
