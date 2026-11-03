@@ -122,20 +122,18 @@
 /* ---------- Zones (panneaux) ---------- */
 :root[data-design="v3"] .grid { gap: 6px; padding: 6px; background: var(--bg); }
 :root[data-design="v3"] .panel { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: none; }
-:root[data-design="v3"] .panel-head { min-height: 40px; padding: 0 var(--sp-3) 0 var(--sp-4); background: transparent; border-bottom: 1px solid var(--border); }
+:root[data-design="v3"] .panel-head { min-height: 40px; row-gap: 0; padding: 4px var(--sp-3) 4px var(--sp-4); background: transparent; border-bottom: 1px solid var(--border); }
 :root[data-design="v3"] .panel-head h2 { height: auto; padding: 0; background: none; color: var(--text); font: 800 var(--fs-sm)/1 var(--font-cond); letter-spacing: .08em; text-transform: uppercase; }
-:root[data-design="v3"] .panel-tools { color: var(--muted); min-width: 0; }
-/* En-tête sur une ligne : onglets qui défilent plutôt que passer à la ligne ; l'aide du classement est déjà dans la Télémétrie */
-:root[data-design="v3"] .panel-head { flex-wrap: nowrap; }
-:root[data-design="v3"] :is(.panel-head.tabs, .panel-head .tabs) { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; min-width: 0; padding-top: 0; padding-bottom: 0; }
+:root[data-design="v3"] .panel-tools { color: var(--muted); }
+/* L'aide du classement est déjà dans le panneau Télémétrie */
 :root[data-design="v3"] .p-tower .panel-head .hint { display: none; }
-/* Outils du panneau collés à droite des onglets : même fond que l'en-tête (les onglets passaient dessous) */
-:root[data-design="v3"] .tabs .panel-ctrl { background: var(--panel); box-shadow: -12px 0 12px -4px var(--panel); }
+/* Outils collés à droite des onglets : même fond que l'en-tête (les onglets ne passent plus dessous) */
+:root[data-design="v3"] .tabs .panel-ctrl { background: var(--panel); }
 /* Onglets : texte, l'onglet choisi souligné d'un trait d'accent */
-:root[data-design="v3"] :is(.panel-head .tabs [data-tab], .panel-head.tabs > .tab, .tab) { position: relative; background: none; border-radius: 0; height: 40px; padding: 0 2px; margin: 0 6px; color: var(--muted); font: 600 var(--fs-sm)/1 var(--font); letter-spacing: 0; text-transform: none; box-shadow: none; }
+:root[data-design="v3"] :is(.panel-head .tabs [data-tab], .panel-head.tabs > .tab, .tab) { position: relative; background: none; border-radius: 0; height: 32px; padding: 0 2px; margin: 0 5px; color: var(--muted); font: 600 var(--fs-sm)/1 var(--font); letter-spacing: 0; text-transform: none; box-shadow: none; }
 :root[data-design="v3"] :is(.panel-head .tabs [data-tab], .panel-head.tabs > .tab, .tab):hover { color: var(--text-2); }
 :root[data-design="v3"] :is(.panel-head .tabs [data-tab], .panel-head.tabs > .tab, .tab):is(.active, .group-on) { background: none; color: var(--text); }
-:root[data-design="v3"] :is(.panel-head .tabs [data-tab], .panel-head.tabs > .tab, .tab).active::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; border-radius: 2px; background: var(--accent); }
+:root[data-design="v3"] :is(.panel-head .tabs [data-tab], .panel-head.tabs > .tab, .tab).active::after { content: ''; position: absolute; left: 0; right: 0; bottom: 2px; height: 2px; border-radius: 2px; background: var(--accent); }
 :root[data-design="v3"] .tab-seg { border-radius: var(--r-pill); background: var(--panel-2); border-color: var(--border); }
 :root[data-design="v3"] .tab-seg button { border-radius: var(--r-pill); }
 :root[data-design="v3"] .tab-seg button.on { background: var(--panel-3); color: var(--text); }
