@@ -23,7 +23,7 @@ const DEFAULTS = {
   bigCols: null,          // colonnes du classement agrandi (bouton ⤢) : { hidden, extra }, sinon les mêmes
   towerFit: true,         // classement agrandi pour remplir la hauteur disponible
   theme: 'pitwall',       // thème unique de l'application
-  design: 'v2',           // habillage : 'v2' (Paddock 2) | 'broadcast' (façon retransmission TV) | 'classic' (ancien design Pitwall) | 'v3' (Télémétrie, aperçu)
+  design: 'v2',           // habillage : 'v2' (Paddock 2) | 'classic' (ancien design Pitwall) | 'v3' (Télémétrie, aperçu) ; 'broadcast' n'est plus proposé (v1.32)
   scheme: 'auto',         // apparence : 'auto' (comme le système) | 'dark' (sombre) | 'light' (clair)
   schemeSet: false,       // apparence choisie par l'utilisateur (sinon : automatique)
   vividTeams: false,      // couleurs d'équipe contrastées plutôt qu'officielles
@@ -92,6 +92,8 @@ prefs.legendsV = 1;
 // v1.30 : design Paddock 2 par défaut, aussi pour les installations existantes restées sur Broadcast (l'ancien
 // défaut) ; un choix de Classique est gardé. Une seule fois : Broadcast se rechoisit dans Réglages → Apparence
 if (!saved.designV) { if (prefs.design === 'broadcast') prefs.design = 'v2'; storageSet('paddock.prefs', { ...storageGet('paddock.prefs', {}), design: prefs.design, designV: 1 }); }
+// v1.32 : le design Broadcast n'est plus proposé (Paddock 2 garde son habillage, broadcast.css, en dessous)
+else if (prefs.design === 'broadcast') { prefs.design = 'v2'; storageSet('paddock.prefs', { ...storageGet('paddock.prefs', {}), design: 'v2' }); }
 prefs.designV = 1;
 // Langue retenue dès la première ouverture (sinon une autre fenêtre la redéduirait autrement)
 if (saved.lang !== LANG) storageSet('paddock.prefs', { ...storageGet('paddock.prefs', {}), lang: LANG });

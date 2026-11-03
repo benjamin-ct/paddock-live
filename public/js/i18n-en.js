@@ -435,7 +435,7 @@ export default {
   "Aucune vidéo récente.": "No recent videos.",
   "Automatique (comme le système)": "Automatic (like the system)",
   "Broadcast (façon TV)": "Broadcast (TV style)",
-  "Paddock 2 : le nouveau design. Broadcast : habillage façon retransmission TV. Classique : l'ancien design.": "Paddock 2: the new design. Broadcast: TV broadcast look. Classic: the previous design.",
+  "Paddock 2 : le design actuel. Classique : l'ancien design. Télémétrie : le nouveau design, en aperçu.": "Paddock 2: the current design. Classic: the previous design. Telemetry: the new design, in preview.",
   "Télémétrie (aperçu)": "Telemetry (preview)",
   "Automatique : comme l'ordinateur ou le téléphone": "Automatic: same as the computer or phone",
   "Automatique selon la séance": "Automatic by session",
