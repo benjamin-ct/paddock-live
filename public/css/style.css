@@ -1588,6 +1588,10 @@ html:is(.float-map, .overlay) #map3dTog { display: none !important; }
 .tr-cl-tbl th { padding: 2px 18px 3px 0; text-align: left; font-size: 11px; font-weight: 600; color: var(--muted); }
 .tr-cl-tbl td { padding: 3px 18px 3px 0; border-top: 1px solid var(--border); }
 .tr-cl-who { padding-left: 6px; border-left: 3px solid var(--tc); font-weight: 800; }
+.tr-honours { margin: 0 0 14px; padding: 10px 14px; border-radius: 12px; border: 1px solid var(--border); border-left: 3px solid var(--line-2, var(--border)); background: var(--panel-2, var(--panel)); font-size: 13px; }
+.tr-hon-row { display: flex; gap: 12px; align-items: baseline; padding: 4px 0; }
+.tr-hon-row > b { flex: none; min-width: 76px; }
+.tr-hon-who { display: flex; flex-wrap: wrap; gap: 6px 12px; }
 @media (max-width: 600px) { .tr-cl-tbl { white-space: normal; } .tr-cl-tbl :is(th, td) { padding-right: 10px; } }
 .tr-cl-note { margin-top: 6px; font-size: 11.5px; color: var(--muted); }
 .tr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; }

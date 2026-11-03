@@ -2873,4 +2873,12 @@ export default {
   // audit Worker
   "Code à 8 chiffres": "8-digit code",
   "Entrez le code à 8 chiffres.": "Enter the 8-digit code.",
+  // Course au titre : places d'honneur
+  "Places d'honneur": "Runner-up places",
+  "{} place": "{} place",
+  "{} est assuré de finir {}": "{} is sure to finish {}",
+  "{} est assurée de finir {}": "{} is sure to finish {}",
+  "{} pilotes peuvent encore finir {}": "{} drivers can still finish {}",
+  "{} écuries peuvent encore finir {}": "{} teams can still finish {}",
+  "au mieux {}": "at best {}",
 };
