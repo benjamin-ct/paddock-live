@@ -65,6 +65,8 @@ l'application (Réglages → À propos → Nouveautés).
 - Correction d'une double connexion au direct quand la connexion F1 TV arrive juste après le lancement de l'appli.
 
 ### Version web
+- Téléphone : la météo du week-end (longueur, course, prévision, pluie) est calée à gauche dans la barre du haut, sans
+  grand vide, et ses valeurs ne se touchent plus.
 - Nouveau design « Télémétrie », comme dans l'appli, en sombre et en clair : barre du haut sur deux lignes régulières
   sur ordinateur (la séance et ses chiffres, puis le délai TV, la connexion F1 TV et les fenêtres), outils rangés dans
   un menu « Outils » sur les écrans moyens, menu Accueil, Direct et Saison sur la gauche du téléphone en paysage.
