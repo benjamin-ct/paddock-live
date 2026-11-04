@@ -119,7 +119,7 @@ export const GUIDES = [
     eyebrow: 'Live timing',
     h1: 'Le live timing de la F1, gratuit et en français',
     intro: 'Classement, écarts, secteurs, pneus et arrêts de chaque voiture, mis à jour en direct pendant les essais, les qualifs, le sprint et la course. Paddock Live rassemble tout le live timing de la F1 dans une seule appli, avec la carte du circuit et les radios traduites.',
-    img: ['v2-tableau-de-bord.webp', 1920, 1200, 'Live timing F1 dans Paddock Live : classement, carte du circuit, radios et direction de course'],
+    img: ['tableau-de-bord.webp', 1600, 888, 'Live timing F1 dans Paddock Live : classement, carte du circuit, radios et direction de course'],
     points: [
       'Classement complet : écart, intervalle, dernier et meilleur tour, secteurs et mini-secteurs',
       'Pneus et âge des gommes, arrêts, speed trap, drapeaux bleus et abandons',
@@ -142,7 +142,7 @@ export const GUIDES = [
     eyebrow: 'Alternative à MultiViewer',
     h1: 'Une alternative à MultiViewer pour la F1',
     intro: 'MultiViewer est surtout connu pour regarder F1 TV sur plusieurs fenêtres. Paddock Live fait autre chose : il ne diffuse pas la vidéo, il l\'accompagne, avec tout le live timing de la course calé sur ta TV, en français.',
-    img: ['v2-tableau-de-bord.webp', 1920, 1200, 'Paddock Live pendant une course : classement, carte du circuit, radios et direction de course'],
+    img: ['tableau-de-bord.webp', 1600, 888, 'Paddock Live pendant une course : classement, carte du circuit, radios et direction de course'],
     points: [
       'Sans abonnement F1 TV : tu regardes la course où tu veux (TV, streaming)',
       'Live timing, carte GPS, pneus, stratégie et analyse de course',
@@ -165,7 +165,7 @@ export const GUIDES = [
     eyebrow: 'Dashboard F1',
     h1: 'Ton dashboard F1, tout sur un seul écran',
     intro: 'Pendant la course, ce qui compte est éparpillé : classement, pneus, radios, messages de la FIA. Paddock Live rassemble tout dans un tableau de bord que tu organises à ta façon, calé sur le retard de ta diffusion TV.',
-    img: ['v2-tableau-de-bord.webp', 1920, 1200, 'Dashboard F1 de Paddock Live : classement, carte du circuit, radios et direction de course sur un seul écran'],
+    img: ['tableau-de-bord.webp', 1600, 888, 'Dashboard F1 de Paddock Live : classement, carte du circuit, radios et direction de course sur un seul écran'],
     points: [
       'Des panneaux à placer où tu veux : classement, carte, radios, pneus, télémétrie, direction de course',
       'Interface essentielle ou complète, onglets à masquer, second écran et carte flottante',
@@ -189,7 +189,7 @@ export const GUIDES = [
     eyebrow: 'Live timing',
     h1: 'F1 live timing, free on your computer',
     intro: 'Standings, gaps, sectors, tyres and pit stops for every car, updated live during practice, qualifying, the sprint and the race. Paddock Live brings all of F1 live timing into one app, with the track map and team radio.',
-    img: ['v2-tableau-de-bord.webp', 1920, 1200, 'F1 live timing in Paddock Live: standings, track map, team radio and race control'],
+    img: ['tableau-de-bord.webp', 1600, 888, 'F1 live timing in Paddock Live: standings, track map, team radio and race control'],
     points: [
       'Full timing tower: gap, interval, last and best lap, sectors and mini-sectors',
       'Tyres and tyre age, pit stops, speed trap, blue flags and retirements',
@@ -212,7 +212,7 @@ export const GUIDES = [
     eyebrow: 'MultiViewer alternative',
     h1: 'A MultiViewer alternative for F1',
     intro: 'MultiViewer is best known for watching F1 TV in several windows. Paddock Live does something else: it doesn\'t stream the video, it goes alongside it, with all the race\'s live timing synced to your TV.',
-    img: ['v2-tableau-de-bord.webp', 1920, 1200, 'Paddock Live during a race: standings, track map, team radio and race control'],
+    img: ['tableau-de-bord.webp', 1600, 888, 'Paddock Live during a race: standings, track map, team radio and race control'],
     points: [
       'No F1 TV subscription needed: watch the race wherever you like (TV, streaming)',
       'Live timing, GPS track map, tyres, strategy and race analysis',
@@ -235,7 +235,7 @@ export const GUIDES = [
     eyebrow: 'F1 dashboard',
     h1: 'Your F1 dashboard, everything on one screen',
     intro: 'During a race, what matters is scattered everywhere: standings, tyres, team radio, FIA messages. Paddock Live brings it all into one dashboard you arrange your way, synced to the delay of your TV broadcast.',
-    img: ['v2-tableau-de-bord.webp', 1920, 1200, 'Paddock Live F1 dashboard: standings, track map, team radio and race control on one screen'],
+    img: ['tableau-de-bord.webp', 1600, 888, 'Paddock Live F1 dashboard: standings, track map, team radio and race control on one screen'],
     points: [
       'Panels you place wherever you like: standings, map, team radio, tyres, telemetry, race control',
       'Essential or full layout, tabs you can hide, second screen and floating map',
@@ -364,79 +364,63 @@ const UI = {
     legal: 'Paddock Live is an independent project, not affiliated with Formula 1, the FIA or the teams. F1, FORMULA 1 and related marks are trademarks of Formula One Licensing B.V.' },
 };
 
-// Style des pages du site écrites ici : design « Paddock 2 » de l'appli et de l'accueil (analytics/launch/design-v2.css)
-const PAGE_STYLE = `@font-face { font-family: 'Titillium Web'; font-weight: 400; font-display: swap; src: url('/fonts/titillium-400.woff2') format('woff2'); }
-@font-face { font-family: 'Titillium Web'; font-weight: 700; font-display: swap; src: url('/fonts/titillium-700.woff2') format('woff2'); }
-@font-face { font-family: 'Saira Condensed'; font-weight: 800; font-display: swap; src: url('/fonts/sairacondensed-800.woff2') format('woff2'); }
-/* Bleu nuit éclairé de lueurs, verre dépoli ; touches aux couleurs officielles des écuries (OFFICIAL, public/js/util.js) */
-:root { color-scheme: dark; --bg: #030814; --line: rgba(148, 163, 184, .16); --line-2: rgba(148, 163, 184, .28); --text: #F8FAFC; --text-2: #CBD5E1; --muted: #94A3B8; --red: #e10600;
-  --glass: linear-gradient(180deg, rgba(20, 32, 58, .7), rgba(14, 24, 46, .55)); --blur: blur(20px) saturate(1.5); --red-grad: linear-gradient(135deg, #ff2a1f, #c80500);
-  --shadow: 0 30px 60px -30px rgba(0, 0, 0, .7), inset 0 1px 0 rgba(255, 255, 255, .06); --title: 'Saira Condensed', 'Arial Narrow', sans-serif;
-  --mercedes: #00D7B6; --mclaren: #F47600; --redbull: #4781D7; --aston: #229971; --alpine: #00A1E8; --rb: #6C98FF; --sauber: #01C00E; --ferrari: #ED1131; --williams: #1868DB; --haas: #9C9FA2; --audi: #F50537; }
+// Style des pages du site écrites ici : design « Télémétrie » de l'appli et de l'accueil (analytics/launch/design-v3.css)
+const PAGE_STYLE = `@font-face { font-family: 'Archivo'; font-style: normal; font-weight: 100 900; font-stretch: 62% 125%; font-display: swap; src: url('/fonts/archivo-var.woff2') format('woff2'); }
+@font-face { font-family: 'Archivo Cond'; font-style: normal; font-weight: 100 900; font-display: swap; src: url('/fonts/archivo-cond-var.woff2') format('woff2'); }
+@font-face { font-family: 'JetBrains Mono'; font-style: normal; font-weight: 400 700; font-display: swap; src: url('/fonts/jetbrainsmono-var.woff2') format('woff2'); }
+/* À plat, filets d'un pixel, titres en Archivo étroit, petits titres en Mono, rouge réservé à l'action principale */
+:root { color-scheme: dark; --bg: #0B0F15; --panel: #10151D; --panel-2: #161D27; --panel-3: #1B2430; --border: #222B37; --line-2: #2E3946;
+  --text: #F2F4F5; --text-2: #B4BDC8; --muted: #8A95A3; --accent: #E10600; --accent-2: #C80500; --ring: #F2F4F5;
+  --font: 'Archivo', system-ui, -apple-system, 'Segoe UI', sans-serif; --title: 'Archivo Cond', 'Archivo', 'Arial Narrow', sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace; }
 * { box-sizing: border-box; }
-body { margin: 0; background: radial-gradient(1200px 700px at 15% -120px, rgba(37, 99, 235, .2), transparent 70%), radial-gradient(1000px 600px at 100% 0, rgba(225, 6, 0, .16), transparent 70%), var(--bg);
-  color: var(--text); font: 17px/1.6 'Titillium Web', system-ui, sans-serif; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 400 16px/1.6 var(--font); font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
 a { color: inherit; }
+:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 img { display: block; max-width: 100%; height: auto; }
-.wrap { max-width: 1000px; margin: 0 auto; padding: 0 max(16px, env(safe-area-inset-left)); }
-/* Barre du haut : pilule de verre flottante, filet aux couleurs des écuries */
-.nav { position: sticky; top: 12px; z-index: 20; margin: 12px auto 0; max-width: 1020px; width: calc(100% - 24px); border-radius: 999px; border: 1px solid var(--line);
-  background: rgba(8, 15, 32, .62); -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur); box-shadow: 0 20px 50px -20px rgba(0, 0, 0, .8), inset 0 1px 0 rgba(255, 255, 255, .06); }
-.nav::after { content: ''; position: absolute; left: 40px; right: 40px; bottom: -1px; height: 1px; opacity: .8; background: linear-gradient(90deg, var(--ferrari) 0 9%, var(--mercedes) 0 18%, var(--mclaren) 0 27%, var(--redbull) 0 36%, var(--aston) 0 45%, var(--alpine) 0 54%, var(--williams) 0 63%, var(--rb) 0 72%, var(--haas) 0 81%, var(--sauber) 0 90%, var(--audi) 0); }
-.nav .wrap { display: flex; align-items: center; gap: 16px; height: 58px; padding: 0 10px 0 18px; }
-.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; font: italic 800 23px/1 var(--title); text-transform: uppercase; }
-.brand img { width: 32px; height: 32px; border-radius: 9px; }
-.brand b { color: var(--red); }
-.btn { display: inline-flex; align-items: center; justify-content: center; padding: 14px 26px; border-radius: 999px; background: var(--red-grad); color: #fff; text-decoration: none; font-weight: 700; white-space: nowrap;
-  box-shadow: 0 12px 34px -8px rgba(225, 6, 0, .7), inset 0 1px 0 rgba(255, 255, 255, .25); transition: transform .15s; }
-.btn:hover { transform: translateY(-1px); }
-.nav .btn { margin-left: auto; padding: 9px 18px; font-size: 14px; }
-.eyebrow { display: inline-flex; align-items: center; gap: 9px; height: 30px; padding: 0 14px 0 12px; border-radius: 999px; background: rgba(225, 6, 0, .12); border: 1px solid rgba(255, 59, 48, .4); color: #FF8A82;
-  font-weight: 700; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; margin: 64px 0 18px; }
-.eyebrow::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: #ff3b30; box-shadow: 0 0 10px #ff3b30; }
-h1, h2 { font-family: var(--title); font-style: italic; font-weight: 800; text-transform: uppercase; letter-spacing: 0; margin: 0; }
-h1 { font-size: clamp(44px, 8vw, 84px); line-height: .9; max-width: 16ch; text-shadow: 0 10px 60px rgba(0, 0, 0, .5); }
-h2 { font-size: clamp(32px, 5vw, 52px); line-height: .95; margin: 64px 0 18px; }
-.lead { color: #D3DCEA; font-size: 19px; max-width: 62ch; margin: 18px 0 0; }
-.frame { margin: 40px 0; padding: 8px; border-radius: 24px; border: 1px solid var(--line-2); background: rgba(12, 20, 40, .8);
-  box-shadow: 0 50px 100px -30px rgba(0, 0, 0, .9), 0 -30px 120px -40px rgba(59, 130, 246, .6), 0 40px 140px -50px rgba(225, 6, 0, .7), inset 0 1px 0 rgba(255, 255, 255, .1); }
-.frame img { border-radius: 17px; }
-ul.points { padding-left: 1.2em; color: var(--text-2); }
-ul.points li { margin: 8px 0; }
-ul.points li::marker { color: var(--mercedes); }
-ul.points li:nth-child(4n+2)::marker { color: var(--mclaren); }
-ul.points li:nth-child(4n+3)::marker { color: var(--redbull); }
-ul.points li:nth-child(4n)::marker { color: var(--aston); }
-details { border: 1px solid var(--line); border-radius: 18px; padding: 16px 22px; margin: 10px 0; background: var(--glass); -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur); box-shadow: var(--shadow); }
-details[open] { border-color: rgba(255, 59, 48, .35); }
-summary { font-weight: 700; cursor: pointer; }
-summary::marker { color: #ff3b30; }
-details p { color: var(--text-2); margin: 10px 0 0; }
+.wrap { max-width: 1000px; margin: 0 auto; padding: 0 max(20px, env(safe-area-inset-left)); }
+/* Barre du haut : à plat, filet d'un pixel */
+.nav { position: sticky; top: 0; z-index: 20; background: var(--bg); border-bottom: 1px solid var(--border); }
+.nav .wrap { display: flex; align-items: center; gap: 16px; height: 56px; }
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; font: 800 20px/1 var(--title); text-transform: uppercase; letter-spacing: .01em; }
+.brand img { width: 30px; height: 30px; border-radius: 6px; }
+.btn { display: inline-flex; align-items: center; justify-content: center; min-height: 48px; padding: 0 22px; border: 1px solid var(--accent); border-radius: 6px; background: var(--accent); color: #fff;
+  text-decoration: none; font: 600 15px/1 var(--font); white-space: nowrap; transition: background-color .14s, border-color .14s, transform .08s; }
+.btn:hover { background: var(--accent-2); border-color: var(--accent-2); }
+.btn:active { transform: scale(.97); }
+.nav .btn { margin-left: auto; min-height: 36px; padding: 0 14px; font-size: 14px; }
+.eyebrow { display: block; margin: 64px 0 18px; color: var(--muted); font: 500 11px/1.3 var(--mono); letter-spacing: .12em; text-transform: uppercase; }
+h1, h2 { font-family: var(--title); font-weight: 800; text-transform: uppercase; letter-spacing: .005em; margin: 0; }
+h1 { font-size: clamp(42px, 7vw, 80px); line-height: .92; max-width: 16ch; }
+h2 { font-size: clamp(30px, 4.4vw, 44px); line-height: .95; margin: 72px 0 20px; }
+.lead { color: var(--text-2); font-size: 18px; line-height: 1.55; max-width: 62ch; margin: 22px 0 0; }
+.frame { margin: 44px 0; border: 1px solid var(--border); border-radius: 10px; background: var(--panel); overflow: hidden; }
+/* Points forts : lignes numérotées en Mono, séparées par des filets */
+ul.points { counter-reset: pt; list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--border); color: var(--text-2); }
+ul.points li { counter-increment: pt; position: relative; padding: 12px 0 12px 44px; border-bottom: 1px solid var(--border); }
+ul.points li::before { content: counter(pt, decimal-leading-zero); position: absolute; left: 0; top: 15px; color: var(--muted); font: 500 12px/1.3 var(--mono); letter-spacing: .08em; }
+details { border-top: 1px solid var(--border); }
+details:last-of-type { border-bottom: 1px solid var(--border); }
+summary { display: flex; justify-content: space-between; gap: 16px; padding: 16px 0; list-style: none; cursor: pointer; font-weight: 600; font-size: 17px; }
+summary::-webkit-details-marker { display: none; }
+summary::after { content: '+'; color: var(--text-2); font: 400 24px/1 var(--font); transition: transform .14s; }
+details[open] summary::after { transform: rotate(45deg); }
+details p { color: var(--text-2); margin: 0 0 18px; }
 .cta { margin: 44px 0; display: flex; gap: 12px 16px; flex-wrap: wrap; align-items: center; }
-.cta small { color: var(--muted); }
-.more { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
-.more a { --acc: var(--red); position: relative; overflow: hidden; display: block; padding: 18px 20px; border: 1px solid var(--line); border-radius: 18px; background: var(--glass); -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur);
-  box-shadow: var(--shadow); text-decoration: none; font: italic 800 19px/1.1 var(--title); text-transform: uppercase; transition: border-color .15s, transform .15s; }
-.more a::after { content: ''; position: absolute; right: -50px; top: -50px; width: 130px; height: 130px; border-radius: 50%; background: radial-gradient(circle, color-mix(in srgb, var(--acc) 40%, transparent), transparent 70%); pointer-events: none; }
-.more a:nth-child(8n+1) { --acc: var(--mercedes); }
-.more a:nth-child(8n+2) { --acc: var(--mclaren); }
-.more a:nth-child(8n+3) { --acc: var(--redbull); }
-.more a:nth-child(8n+4) { --acc: var(--aston); }
-.more a:nth-child(8n+5) { --acc: var(--alpine); }
-.more a:nth-child(8n+6) { --acc: var(--ferrari); }
-.more a:nth-child(8n+7) { --acc: var(--rb); }
-.more a:hover { border-color: color-mix(in srgb, var(--acc) 60%, transparent); transform: translateY(-2px); }
-footer { margin-top: 80px; padding: 28px 0 40px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; }
-footer a { color: #ff5a4f; }
+.cta small { color: var(--muted); font: 500 12px/1.3 var(--mono); letter-spacing: .06em; }
+.more { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.more a { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 56px; padding: 14px 16px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel);
+  text-decoration: none; font: 800 17px/1.1 var(--title); text-transform: uppercase; letter-spacing: .01em; transition: border-color .14s, background-color .14s; }
+.more a::after { content: '→'; color: var(--muted); font: 400 16px/1 var(--font); }
+.more a:hover { border-color: var(--line-2); background: var(--panel-2); }
+footer { margin-top: 88px; padding: 28px 0 40px; border-top: 1px solid var(--border); color: var(--muted); font-size: 14px; }
+footer a { color: var(--text-2); text-underline-offset: 3px; }
 @media (max-width: 520px) {
-  .nav { width: calc(100% - 16px); }
-  .nav .wrap { padding: 0 6px 0 14px; height: 54px; }
   .eyebrow { margin-top: 44px; }
   .cta .btn { width: 100%; }
-  .frame { padding: 5px; border-radius: 16px; }
-  .frame img { border-radius: 12px; }
 }
-@media (prefers-reduced-motion: reduce) { .btn, .more a { transition: none; } .btn:hover, .more a:hover { transform: none; } }
+@media (pointer: coarse) { .nav .btn { min-height: 44px; } }
+@media (prefers-reduced-motion: reduce) { .btn, .more a, summary::after { transition: none; } .btn:active { transform: none; } }
 `;
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -465,7 +449,7 @@ export function guidePage(slug) {
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>${esc(title)}</title>
 <meta name="description" content="${esc(g.description)}">
-<meta name="theme-color" content="#020817">
+<meta name="theme-color" content="#0B0F15">
 <link rel="canonical" href="${url}">
 <link rel="alternate" hreflang="fr" href="${href(fr)}">
 <link rel="alternate" hreflang="en" href="${href(en)}">

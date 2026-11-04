@@ -4,8 +4,8 @@
   "start_url": "/studio/",
   "scope": "/studio/",
   "display": "standalone",
-  "background_color": "#020817",
-  "theme_color": "#0F172A",
+  "background_color": "#0B0F15",
+  "theme_color": "#0B0F15",
   "lang": "fr",
   "icons": [
     { "src": "/studio/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }

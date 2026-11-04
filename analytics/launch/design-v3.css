@@ -1,0 +1,180 @@
+/* =====================================================================================
+   Site · design « Télémétrie », celui de l'appli depuis la v1.32 (public/css/design-v3.css, spécification
+   docs/design/refonte/DIRECTION.md) : avec <html data-design="v3">, posé par défaut (adresse ?design=v2 pour Paddock 2,
+   ?design=off pour l'ancien design). Sans l'attribut, rien ne change.
+   Un écran de chronométrage mis en page comme un magazine : à plat (ni verre ni lueur), filets d'un pixel, titres en
+   Archivo étroit majuscule, petits titres en Mono, rouge réservé à l'action principale et à ce qui est choisi.
+   Polices Archivo et JetBrains Mono (SIL Open Font License, /fonts/OFL-*.txt).
+   ===================================================================================== */
+@font-face { font-family: 'Archivo'; font-style: normal; font-weight: 100 900; font-stretch: 62% 125%; font-display: swap; src: url('/fonts/archivo-var.woff2') format('woff2'); }
+@font-face { font-family: 'Archivo Cond'; font-style: normal; font-weight: 100 900; font-display: swap; src: url('/fonts/archivo-cond-var.woff2') format('woff2'); }
+@font-face { font-family: 'JetBrains Mono'; font-style: normal; font-weight: 400 700; font-display: swap; src: url('/fonts/jetbrainsmono-var.woff2') format('woff2'); }
+
+/* Jetons de l'appli (sombre), et noms de l'accueil (--card, --bg-2…) ramenés dessus */
+html[data-design="v3"] {
+  --bg: #0B0F15; --panel: #10151D; --panel-2: #161D27; --panel-3: #1B2430; --border: #222B37; --line-2: #2E3946;
+  --text: #F2F4F5; --text-2: #B4BDC8; --muted: #8A95A3; --accent: #E10600; --accent-2: #C80500; --ring: #F2F4F5;
+  --bg-2: var(--panel); --card: var(--panel); --card-2: var(--panel-2); --card-3: var(--panel-3); --line: var(--border); --red: var(--accent);
+  --font: 'Archivo', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --title: 'Archivo Cond', 'Archivo', 'Arial Narrow', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  --r-sm: 6px; --r-md: 10px; --r-lg: 16px;
+  --shadow-modal: 0 0 0 1px var(--line-2), 0 32px 80px -24px rgb(0 0 0 / .75);
+  color-scheme: dark;
+}
+html[data-design="v3"] body { background: var(--bg); font: 400 16px/1.6 var(--font); font-variant-numeric: tabular-nums; }
+html[data-design="v3"] :focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+html[data-design="v3"] ::selection { background: color-mix(in srgb, var(--accent) 35%, transparent); }
+html[data-design="v3"] h1, html[data-design="v3"] h2, html[data-design="v3"] h3 { font-family: var(--title); font-weight: 800; text-transform: uppercase; letter-spacing: .005em; }
+html[data-design="v3"] h2 { font-size: clamp(36px, 5vw, 60px); line-height: .95; }
+html[data-design="v3"] .red { color: var(--muted); }
+html[data-design="v3"] .lead { color: var(--text-2); font-size: 18px; line-height: 1.55; max-width: 58ch; }
+html[data-design="v3"] .lead a { color: var(--text); text-underline-offset: 3px; text-decoration-color: var(--muted); }
+/* Petit titre : Mono, capitales espacées, gris (fini l'étiquette rouge) */
+html[data-design="v3"] .eyebrow { display: flex; align-items: center; gap: 10px; height: auto; padding: 0; border-radius: 0; background: none; color: var(--muted);
+  font: 500 11px/1.3 var(--font-mono); letter-spacing: .12em; margin-bottom: 18px; }
+
+/* Barre du haut : à plat, filet d'un pixel (sans le filet aux couleurs des écuries) */
+html[data-design="v3"] .nav { background: var(--bg); border-bottom: 1px solid var(--border); -webkit-backdrop-filter: none; backdrop-filter: none; }
+html[data-design="v3"] .nav::after { display: none; }
+html[data-design="v3"] .nav .wrap { height: 56px; gap: 20px; }
+html[data-design="v3"] .brand img { width: 30px; height: 30px; border-radius: var(--r-sm); }
+html[data-design="v3"] .brand span { font: 800 20px/1 var(--title); text-transform: uppercase; letter-spacing: .01em; }
+html[data-design="v3"] .brand b { color: inherit; }
+html[data-design="v3"] .links { gap: 4px; }
+html[data-design="v3"] .links a { padding: 8px 10px; border-radius: var(--r-sm); font: 500 14px/1 var(--font); letter-spacing: 0; text-transform: none; color: var(--text-2); }
+html[data-design="v3"] .links a:hover { color: var(--text); background: var(--panel-2); }
+html[data-design="v3"] .lang { min-height: 32px; padding: 0 10px; border-radius: var(--r-sm); border-color: var(--line-2); font: 500 12px/1 var(--font-mono); letter-spacing: .08em; }
+html[data-design="v3"] .lang:hover { background: var(--panel-2); border-color: var(--line-2); }
+
+/* Boutons : rayon 6, Archivo 600 ; principal rouge à plat, secondaire graphite ; pression scale(.97) */
+html[data-design="v3"] .btn { min-height: 48px; padding: 0 20px; gap: 8px; border-radius: var(--r-sm); border: 1px solid var(--border); background: var(--panel-3); color: var(--text);
+  font: 600 15px/1 var(--font); box-shadow: none; transition: background-color .14s, border-color .14s, transform .08s var(--e); }
+html[data-design="v3"] .btn:hover { transform: none; border-color: var(--line-2); background: color-mix(in srgb, var(--panel-3) 80%, var(--text) 6%); }
+html[data-design="v3"] .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; box-shadow: none; }
+html[data-design="v3"] .btn.primary:hover { background: var(--accent-2); border-color: var(--accent-2); box-shadow: none; }
+html[data-design="v3"] .btn.primary::after { display: none; }
+html[data-design="v3"] .btn.small { min-height: 36px; padding: 0 14px; font-size: 14px; }
+html[data-design="v3"] .btn svg { width: 18px; height: 18px; }
+@media (pointer: coarse) { html[data-design="v3"] :is(.btn.small, .lang) { min-height: 44px; } }
+
+/* Haut de page : texte aligné à gauche, tracé du circuit (COTA) en filet fin à droite, dessiné une fois à l'ouverture */
+html[data-design="v3"] .hero { padding: 72px 0 0; }
+html[data-design="v3"] .hero::before { display: none; }
+html[data-design="v3"] .hero .wrap { text-align: left; }
+html[data-design="v3"] .hero h1 { font-size: clamp(52px, 7.4vw, 104px); line-height: .92; letter-spacing: -.005em; max-width: 11ch; margin: 0 0 24px; }
+html[data-design="v3"] .hero .lead { margin: 0 0 32px; }
+html[data-design="v3"] .cta { justify-content: flex-start; gap: 10px; }
+html[data-design="v3"] .ver { margin-top: 16px; min-height: 1.3em; color: var(--muted); font: 500 12px/1.3 var(--font-mono); letter-spacing: .04em; }
+html[data-design="v3"] .v2-deco { display: block; position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+html[data-design="v3"] .v2-deco :is(.grid-floor, .horizon) { display: none; }
+html[data-design="v3"] .v2-deco .v2-track { position: absolute; top: 40px; right: max(0px, calc(50% - 600px)); width: min(560px, 44vw); overflow: visible; }
+html[data-design="v3"] .v2-track polygon { fill: none; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+html[data-design="v3"] .v2-track polygon:not(.run) { stroke: var(--border); stroke-width: 7; }
+html[data-design="v3"] .v2-track polygon.run { stroke: var(--line-2); stroke-width: 1.5; stroke-dasharray: 100; }
+@keyframes v3draw { from { stroke-dashoffset: 100; } }
+html[data-design="v3"].anim .v2-track polygon.run { animation: v3draw 1.6s .4s var(--e) backwards; }
+
+/* Capture du haut à plat, puis les points forts en bande de chronométrage (cases séparées par des filets) */
+html[data-design="v3"] .shot { max-width: none; margin: 56px 0 0; border-radius: var(--r-md); border: 1px solid var(--border); background: var(--panel); box-shadow: none; }
+html[data-design="v3"] .facts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; margin: 0; border-bottom: 1px solid var(--border); }
+html[data-design="v3"] .facts span { padding: 16px 16px 16px 0; color: var(--text-2); font: 500 12px/1.3 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; }
+html[data-design="v3"] .facts span + span { padding-left: 16px; border-left: 1px solid var(--border); }
+html[data-design="v3"] .facts span::before { display: none; }
+
+/* Fonctions : numéro en Mono devant le petit titre, blocs séparés par un filet, captures à plat */
+html[data-design="v3"] #fonctions { counter-reset: feat; background: none; }
+html[data-design="v3"] .feature { counter-increment: feat; gap: 64px; padding: 64px 0; }
+html[data-design="v3"] .feature + .feature { border-top: 1px solid var(--border); }
+html[data-design="v3"] .feature .eyebrow::before { content: counter(feat, decimal-leading-zero); color: var(--text); }
+html[data-design="v3"] .feature h3 { font-size: clamp(32px, 3.6vw, 48px); line-height: .95; margin-bottom: 16px; max-width: 16ch; }
+html[data-design="v3"] .feature p { color: var(--text-2); }
+html[data-design="v3"] .feature ul { border-top: 1px solid var(--border); margin-top: 20px; }
+html[data-design="v3"] .feature li { margin: 0; padding: 10px 0 10px 22px; border-bottom: 1px solid var(--border); font-size: 15px; }
+html[data-design="v3"] .feature li::before { top: 21px; width: 8px; height: 1.5px; background: var(--text-2); }
+html[data-design="v3"] .frame { border-radius: var(--r-md); border: 1px solid var(--border); background: var(--panel); box-shadow: none; }
+html[data-design="v3"] .frame::after { display: none; }
+@media (hover: hover) and (pointer: fine) {
+  html[data-design="v3"] .frame { transition: border-color .14s; }
+  html[data-design="v3"] .frame:hover { translate: none; border-color: var(--line-2); }
+  html[data-design="v3"] .frame:hover img { scale: none; }
+}
+
+/* « Et aussi » : zones graphite sans contour coloré, icône grise, comme les raccourcis de l'Accueil de l'appli */
+html[data-design="v3"] .reveal > .eyebrow + h2 { margin-top: 0; }
+html[data-design="v3"] .grid { gap: 12px; margin-top: 32px; }
+html[data-design="v3"] .tile { padding: 20px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--panel); box-shadow: none; }
+html[data-design="v3"] .tile svg { box-sizing: border-box; width: 22px; height: 22px; padding: 0; margin-bottom: 14px; border-radius: 0; background: none; color: var(--text-2); }
+html[data-design="v3"] .tile b { font: 600 16px/1.3 var(--font); text-transform: none; margin-bottom: 4px; }
+html[data-design="v3"] .tile span { color: var(--muted); font-size: 14px; line-height: 1.45; }
+html[data-design="v3"] a.tile:hover { border-color: var(--line-2); background: var(--panel-2); }
+
+/* Téléchargement : l'ordinateur reconnu est la carte choisie (filet rouge), les autres boutons repassent en secondaire */
+html[data-design="v3"] .download { background: none; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+html[data-design="v3"] .oses { gap: 12px; margin-top: 32px; }
+html[data-design="v3"] .os { padding: 24px; gap: 14px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--panel); box-shadow: none; }
+html[data-design="v3"] .os.mine { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+html[data-design="v3"] .oses:has(.os.mine) .os:not(.mine) .btn.primary { background: var(--panel-3); border-color: var(--border); }
+html[data-design="v3"] .oses:has(.os.mine) .os:not(.mine) .btn.primary:hover { border-color: var(--line-2); }
+html[data-design="v3"] .os h3 { font-size: 28px; gap: 10px; }
+html[data-design="v3"] .os h3 svg { width: 22px; height: 22px; color: var(--text-2); }
+html[data-design="v3"] .os small { color: var(--muted); font-size: 13px; }
+html[data-design="v3"] .os .alt a { color: var(--text-2); text-underline-offset: 3px; }
+html[data-design="v3"] .download .lead:last-child { margin-top: 28px; font-size: 16px; }
+
+/* Questions : lignes séparées par des filets, formulaire à plat, champs graphite */
+html[data-design="v3"] details { border-bottom-color: var(--border); }
+html[data-design="v3"] .faq h2 { margin-bottom: 24px; }
+html[data-design="v3"] .faq h2 + details { border-top: 1px solid var(--border); }
+html[data-design="v3"] summary { align-items: center; font: 600 17px/1.35 var(--font); padding: 18px 0; }
+html[data-design="v3"] summary::after { color: var(--text-2); font: 400 24px/1 var(--font); }
+html[data-design="v3"] details p { color: var(--text-2); }
+html[data-design="v3"] details p a { color: var(--text); text-underline-offset: 3px; }
+html[data-design="v3"] .ask { margin-top: 40px; padding: 24px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--panel); }
+html[data-design="v3"] .ask h3 { font: 800 26px/1.05 var(--title); }
+html[data-design="v3"] .ask p { color: var(--muted); }
+html[data-design="v3"] .ask p a { color: var(--text-2); }
+html[data-design="v3"] .ask :is(select, textarea, input) { min-height: 44px; padding: 10px 12px; border: 1px solid var(--line-2); border-radius: var(--r-sm); background: var(--panel-2); color: var(--text); font: 400 15px/1.4 var(--font); }
+html[data-design="v3"] .ask textarea { min-height: 120px; }
+html[data-design="v3"] .ask :is(select, textarea, input):focus-visible { outline: 2px solid var(--ring); outline-offset: 1px; border-color: var(--line-2); }
+html[data-design="v3"] .ask.drag { border: 1px dashed var(--text-2); }
+html[data-design="v3"] .ask-files { color: var(--muted); font-size: 14px; }
+html[data-design="v3"] .ask-files .btn { min-height: 40px; padding: 0 14px; font-size: 14px; }
+html[data-design="v3"] .ask .ok { color: #3DDC84; }
+
+/* Pied de page */
+html[data-design="v3"] footer { background: none; border-top-color: var(--border); }
+html[data-design="v3"] footer .brand span { color: var(--text); }
+html[data-design="v3"] footer h4 { color: var(--muted); font: 500 11px/1.3 var(--font-mono); letter-spacing: .12em; }
+html[data-design="v3"] footer a { color: var(--text-2); }
+html[data-design="v3"] footer .legal { border-top-color: var(--border); font-size: 13px; }
+
+/* Menu caché (accès créateur) : calque flottant, la seule ombre de la page */
+html[data-design="v3"] dialog.hide { border: 0; border-radius: var(--r-lg); background: var(--panel-3); box-shadow: var(--shadow-modal); }
+html[data-design="v3"] dialog.hide::backdrop { background: rgb(0 0 0 / .5); }
+html[data-design="v3"] dialog.hide a { border-radius: var(--r-sm); border-color: var(--border); background: var(--panel-2); font-weight: 600; }
+html[data-design="v3"] dialog.hide a:hover { border-color: var(--line-2); }
+html[data-design="v3"] dialog.hide a:focus-visible { border-color: var(--line-2); box-shadow: none; outline: 2px solid var(--ring); outline-offset: 2px; }
+
+@media (max-width: 1080px) { html[data-design="v3"] .v2-deco { display: none; } }
+@media (max-width: 900px) {
+  html[data-design="v3"] .hero { padding-top: 48px; }
+  html[data-design="v3"] .shot { margin-top: 40px; }
+  html[data-design="v3"] .facts { grid-template-columns: repeat(2, 1fr); }
+  html[data-design="v3"] .facts span:nth-child(3) { padding-left: 0; border-left: 0; }
+  html[data-design="v3"] .facts span:nth-child(n+3) { border-top: 1px solid var(--border); }
+  html[data-design="v3"] .feature { gap: 28px; padding: 48px 0; }
+}
+@media (max-width: 520px) {
+  html[data-design="v3"] .hero h1 { font-size: clamp(44px, 13.5vw, 60px); }
+  html[data-design="v3"] .hero .lead { font-size: 17px; }
+  html[data-design="v3"] .cta .btn { width: 100%; }
+  html[data-design="v3"] .facts span { padding-right: 10px; }
+  html[data-design="v3"] .facts span + span { padding-left: 12px; }
+  html[data-design="v3"] .facts span:nth-child(3) { padding-left: 0; }
+  html[data-design="v3"] .ask { padding: 20px 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-design="v3"] .btn, html[data-design="v3"] .frame { transition: none; }
+  html[data-design="v3"] .btn:active { transform: none; }
+}

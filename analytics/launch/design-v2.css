@@ -1,6 +1,6 @@
 /* =====================================================================================
    Site · design « Paddock 2 », le même que l'appli (public/css/design-v2.css) : avec <html data-design="v2">,
-   posé par défaut (adresse ?design=off pour l'ancien design). Sans l'attribut, rien ne change.
+   posé par l'adresse ?design=v2 (Télémétrie, design-v3.css, par défaut ; ?design=off pour l'ancien design).
    Bleu nuit éclairé (lueurs, sol quadrillé en perspective), verre dépoli, grands titres condensés
    en italique, tracé du circuit lumineux, captures de l'appli en Paddock 2 (img/v2-*.webp).
    ===================================================================================== */

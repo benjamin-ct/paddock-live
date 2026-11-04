@@ -73,7 +73,7 @@ export function linksPage(id) {
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>${esc(p.name)} · tous les liens</title>
 <meta name="description" content="${esc(p.bio)}">
-<meta name="theme-color" content="#030814">
+<meta name="theme-color" content="#0B0F15">
 <meta property="og:type" content="profile">
 <meta property="og:title" content="${esc(p.name)}">
 <meta property="og:description" content="${esc(p.bio)}">
@@ -85,45 +85,44 @@ export function linksPage(id) {
 <link rel="icon" href="/site/img/logo.png">
 <link rel="apple-touch-icon" href="/site/img/apple-touch-icon.png">
 <style>
-@font-face { font-family: 'Titillium Web'; font-weight: 400; font-display: swap; src: url('/fonts/titillium-400.woff2') format('woff2'); }
-@font-face { font-family: 'Titillium Web'; font-weight: 700; font-display: swap; src: url('/fonts/titillium-700.woff2') format('woff2'); }
-@font-face { font-family: 'Saira Condensed'; font-weight: 800; font-display: swap; src: url('/fonts/sairacondensed-800.woff2') format('woff2'); }
-/* Design « Paddock 2 » de l'appli et de l'accueil : bleu nuit éclairé de lueurs, verre dépoli, titres condensés en italique */
-:root { color-scheme: dark; --bg: #030814; --line: rgba(148, 163, 184, .16); --line-2: rgba(148, 163, 184, .28);
-  --text: #F8FAFC; --muted: #94A3B8; --red: #e10600; --red-2: #ff3b30; --red-grad: linear-gradient(135deg, #ff2a1f, #c80500);
-  --glass: linear-gradient(180deg, rgba(20, 32, 58, .7), rgba(14, 24, 46, .55)); --blur: blur(20px) saturate(1.5); }
+@font-face { font-family: 'Archivo'; font-style: normal; font-weight: 100 900; font-stretch: 62% 125%; font-display: swap; src: url('/fonts/archivo-var.woff2') format('woff2'); }
+@font-face { font-family: 'Archivo Cond'; font-style: normal; font-weight: 100 900; font-display: swap; src: url('/fonts/archivo-cond-var.woff2') format('woff2'); }
+@font-face { font-family: 'JetBrains Mono'; font-style: normal; font-weight: 400 700; font-display: swap; src: url('/fonts/jetbrainsmono-var.woff2') format('woff2'); }
+/* Design « Télémétrie » de l'appli et de l'accueil : à plat, filets d'un pixel, titres en Archivo étroit, petits titres en Mono */
+:root { color-scheme: dark; --bg: #0B0F15; --panel: #10151D; --panel-2: #161D27; --panel-3: #1B2430; --border: #222B37; --line-2: #2E3946;
+  --text: #F2F4F5; --text-2: #B4BDC8; --muted: #8A95A3; --accent: #E10600; --accent-2: #C80500; --ring: #F2F4F5;
+  --title: 'Archivo Cond', 'Archivo', 'Arial Narrow', sans-serif; --mono: 'JetBrains Mono', ui-monospace, Consolas, monospace; }
 * { box-sizing: border-box; }
-body { margin: 0; min-height: 100vh; background: radial-gradient(1000px 600px at 15% -120px, rgba(37, 99, 235, .22), transparent 70%), radial-gradient(800px 520px at 100% 0, rgba(225, 6, 0, .2), transparent 70%), var(--bg); color: var(--text);
-  font: 16px/1.45 'Titillium Web', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--text); font: 400 16px/1.45 'Archivo', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
 main { width: 100%; max-width: 480px; margin: 0 auto; padding: max(40px, env(safe-area-inset-top)) 16px 40px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
-.av { width: 96px; height: 96px; border-radius: 28px; overflow: hidden; display: grid; place-items: center; background: var(--red-grad);
-  box-shadow: 0 16px 40px -10px rgba(225, 6, 0, .7), 0 0 0 1px rgba(255, 255, 255, .08), inset 0 1px 0 rgba(255, 255, 255, .25); margin-bottom: 8px; }
+.av { width: 88px; height: 88px; border-radius: 16px; overflow: hidden; display: grid; place-items: center; background: var(--accent); margin-bottom: 10px; }
 .av img { width: 100%; height: 100%; object-fit: cover; }
-.mono { font: italic 800 44px/1 'Saira Condensed', 'Arial Narrow', sans-serif; letter-spacing: -.5px; color: #fff; }
-h1 { margin: 0; font: italic 800 40px/.95 'Saira Condensed', 'Arial Narrow', sans-serif; text-transform: uppercase; text-shadow: 0 10px 40px rgba(0, 0, 0, .5); }
-.bio { margin: 0 0 12px; text-align: center; color: #CBD5E1; max-width: 400px; }
-.list { width: 100%; display: flex; flex-direction: column; gap: 10px; }
-.lk { display: flex; align-items: center; gap: 14px; padding: 12px 16px; border-radius: 18px; background: var(--glass); border: 1px solid var(--line);
-  -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur); box-shadow: 0 20px 40px -24px rgba(0, 0, 0, .7), inset 0 1px 0 rgba(255, 255, 255, .06);
-  color: var(--text); text-decoration: none; transition: transform .15s, border-color .15s, background-color .15s; }
-.lk:hover { border-color: var(--line-2); transform: translateY(-1px); }
-.lk:focus-visible { outline: 2px solid var(--red-2); outline-offset: 2px; }
-.lk.main { background: var(--red-grad); border-color: transparent; box-shadow: 0 12px 34px -8px rgba(225, 6, 0, .7), inset 0 1px 0 rgba(255, 255, 255, .25); }
-.lk.main:hover { border-color: transparent; }
-.lk.main .ic { background: rgba(0, 0, 0, .22); color: #fff; box-shadow: none; }
-.lk.main small { color: rgba(255, 255, 255, .85); }
-.ic { width: 40px; height: 40px; flex: none; border-radius: 13px; display: grid; place-items: center; background: rgba(255, 255, 255, .05); box-shadow: inset 0 0 0 1px var(--line-2); color: var(--text); }
+.mono { font: 800 40px/1 var(--title); letter-spacing: 0; color: #fff; }
+h1 { margin: 0; font: 800 40px/.95 var(--title); text-transform: uppercase; letter-spacing: .005em; text-align: center; }
+.bio { margin: 0 0 14px; text-align: center; color: var(--text-2); max-width: 400px; }
+.list { width: 100%; display: flex; flex-direction: column; gap: 8px; }
+.lk { display: flex; align-items: center; gap: 14px; min-height: 64px; padding: 10px 16px 10px 12px; border-radius: 10px; background: var(--panel); border: 1px solid var(--border);
+  color: var(--text); text-decoration: none; transition: border-color .14s, background-color .14s, transform .08s; }
+.lk:hover { border-color: var(--line-2); background: var(--panel-2); }
+.lk:active { transform: scale(.98); }
+.lk:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.lk.main { background: var(--accent); border-color: var(--accent); }
+.lk.main:hover { background: var(--accent-2); border-color: var(--accent-2); }
+.lk.main .ic { background: rgb(0 0 0 / .2); color: #fff; box-shadow: none; }
+.lk.main small { color: rgb(255 255 255 / .88); }
+.lk.main > svg { opacity: .9; }
+.ic { width: 40px; height: 40px; flex: none; border-radius: 6px; display: grid; place-items: center; background: var(--panel-2); box-shadow: inset 0 0 0 1px var(--border); color: var(--text); }
 .ic svg, .lk > svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-.lk > svg { width: 18px; height: 18px; margin-left: auto; opacity: .55; }
+.lk > svg { width: 18px; height: 18px; margin-left: auto; color: var(--muted); }
 .tx { display: flex; flex-direction: column; min-width: 0; }
-.tx b { font-weight: 700; }
+.tx b { font-weight: 600; }
 .tx small { color: var(--muted); font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ic-other { background: var(--red-grad); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .25); } .ic-other .mono { font-size: 19px; }
-.ic-instagram { color: #ff4f8b; } .ic-facebook { color: #4f8cff; } .ic-tiktok { color: #25f4ee; } .ic-youtube { color: #ff3b30; } .ic-threads, .ic-x { color: #F8FAFC; } .ic-bluesky { color: #4f9bff; }
-.sep { width: 100%; margin: 16px 0 4px; font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: #FF8A82; }
-footer { margin-top: 22px; font-size: 13px; color: var(--muted); text-align: center; }
-footer a { color: var(--muted); }
-@media (prefers-reduced-motion: reduce) { .lk { transition: none; } .lk:hover { transform: none; } }
+.ic-other { background: var(--panel-3); } .ic-other .mono { font-size: 18px; color: var(--text); }
+.ic-instagram { color: #ff4f8b; } .ic-facebook { color: #4f8cff; } .ic-tiktok { color: #25f4ee; } .ic-youtube { color: #ff5a5f; } .ic-threads, .ic-x { color: var(--text); } .ic-bluesky { color: #4f9bff; }
+.sep { width: 100%; margin: 18px 0 2px; color: var(--muted); font: 500 11px/1.3 var(--mono); letter-spacing: .12em; text-transform: uppercase; }
+footer { margin-top: 24px; font-size: 13px; color: var(--muted); text-align: center; }
+footer a { color: var(--text-2); text-underline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) { .lk { transition: none; } .lk:active { transform: none; } }
 </style>
 </head>
 <body>

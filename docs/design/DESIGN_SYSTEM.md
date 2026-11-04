@@ -48,7 +48,9 @@ doivent rester lisibles (pas cassés), sans recevoir forcément les nouveaux eff
 
 Autres surfaces, avec leurs propres styles : `public/mini.html` (fenêtre Mini, `body.mini-body`),
 `public/overlay.html` (overlays OBS), la page web du Studio (`analytics/studio-page/style.css`, mode créateur), les
-pages du site (`analytics/home`, `analytics/launch`, `analytics/live-page`…).
+pages du site (`analytics/home`, `analytics/launch`, `analytics/live-page`…). Depuis la v1.32, le site (accueil, guides,
+pages légales et de liens : surcouche `analytics/launch/design-v3.css`, `?design=v2` pour Paddock 2) et le Studio
+reprennent aussi les jetons et les polices de Télémétrie.
 
 ---
 
