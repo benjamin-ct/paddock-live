@@ -173,7 +173,7 @@ const LIVE_VERSION = liveHash.digest('hex').slice(0, 12);
 fs.writeFileSync(path.join(LIVE, 'index.html'), livePage.replace('</head>', `<meta name="pl-version" content="${LIVE_VERSION}">\n${[...liveGraph].map((f) => `<link rel="modulepreload" href="${rel(f)}">`).join('\n')}\n</head>`));
 // Fichiers servis à la racine du site (vérification du domaine par TikTok)
 copy(path.join(ROOT, 'analytics', 'root'), OUT);
-copy(path.join(ROOT, 'public', 'fonts'), path.join(OUT, 'fonts'), (f) => /^(titillium|sairacondensed|jetbrainsmono).*\.woff2$|^OFL/.test(f));
+copy(path.join(ROOT, 'public', 'fonts'), path.join(OUT, 'fonts'), (f) => /^(titillium|sairacondensed|jetbrainsmono|archivo).*\.woff2$|^OFL/.test(f));
 copy(path.join(ROOT, 'analytics', 'fonts'), path.join(OUT, 'fonts'));   // Barlow Condensed et Chakra Petch : visuels « Télé premium »
 // En-têtes : la page et l'API ne doivent pas être indexées ni mises en cache trop longtemps
 // (les règles qui conviennent s'ajoutent : « ! Cache-Control » retire celle de /site/* pour les images, sinon deux valeurs)
