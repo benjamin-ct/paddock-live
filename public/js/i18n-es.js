@@ -2895,6 +2895,8 @@ export default {
   "Palette de commandes : trouver un écran, une vue de la séance, un réglage (⌘K sur Mac)": "Paleta de comandos: encuentra una pantalla, una vista de la sesión, un ajuste (⌘K en Mac)",
   "Aucun résultat": "Sin resultados",
   "Vues de la séance": "Vistas de la sesión",
+  "Vues de la séance : tableau de bord, résultats, résumé, commentaires": "Vistas de la sesión: panel, resultados, resumen, comentarios",
+  "Plus de commandes : ±10 s, vitesse, moments, quitter le replay": "Más controles: ±10 s, velocidad, momentos clave, salir de la repetición",
   "Espaces": "Espacios",
   "Rechercher": "Buscar",
   "Recherche": "Buscar",

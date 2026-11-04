@@ -119,7 +119,7 @@ function build() {
   dlg.innerHTML = `<div class="ck-search">${icon('search')}
       <input id="ckInput" class="x-native" type="text" role="combobox" aria-expanded="true" aria-controls="ckList" aria-autocomplete="list" autocomplete="off" spellcheck="false"
         placeholder="${esc(t('Rechercher un écran, une vue de la séance, un réglage…'))}" aria-label="${esc(t('Rechercher'))}">
-      <kbd>${esc(t('Échap'))}</kbd></div>
+      <kbd>${esc(t('Échap'))}</kbd><button type="button" class="icon-btn ck-close" aria-label="${esc(t('Fermer'))}">${icon('close')}</button></div>
     <ul class="ck-list" id="ckList" role="listbox" aria-label="${esc(t('Commandes'))}"></ul>
     <div class="ck-empty" id="ckEmpty" hidden>${esc(t('Aucun résultat'))}</div>
     <div class="ck-foot" aria-hidden="true"><span><kbd>↑</kbd><kbd>↓</kbd> ${esc(t('choisir'))}</span><span><kbd>↵</kbd> ${esc(t('ouvrir'))}</span></div>`;
@@ -149,7 +149,7 @@ function build() {
     if (o && Number(o.dataset.i) !== active) move(Number(o.dataset.i));
   });
   // Clic sur le fond : fermeture
-  dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close(); });
+  dlg.addEventListener('click', (e) => { if (e.target === dlg || e.target.closest('.ck-close')) dlg.close(); });
   dlg.addEventListener('close', () => { if (opener?.isConnected) opener.focus({ preventScroll: true }); opener = null; });
 }
 

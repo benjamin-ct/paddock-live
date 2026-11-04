@@ -21,6 +21,8 @@ let lastVer = -1;
 export function renderHeader() {
   // Entre deux séances : le prochain Grand Prix plutôt que le dernier direct
   const nx = upcoming();
+  // Hors séance : la case « Tours » (tours de la course à venir) masquée en Télémétrie (design-v3.css)
+  $('.topbar')?.classList.toggle('tb-upcoming', !!nx);
   if (nx) { renderUpcoming(nx); return; }
   if (upKey) { upKey = ''; lastVer = -1; $('#clockBox .hstat-label').textContent = 'Temps restant'; }
   const s = store.state;

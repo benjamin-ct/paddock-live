@@ -110,6 +110,7 @@
 
   <!-- Télémétrie : vues de la séance chargée (direct ou replay), sous la barre de séance -->
   <nav class="sess-views" id="sessViews" hidden aria-label="Vues de la séance">
+    <button type="button" class="sv-more" aria-expanded="false" aria-haspopup="true" title="Vues de la séance : tableau de bord, résultats, résumé, commentaires"><span>Séance</span><svg class="ic" aria-hidden="true"><use href="#i-chevron-down"/></svg></button>
     <div class="sv-seg">
       <button type="button" data-sv="board">Tableau de bord</button>
       <button type="button" data-sv="results">Résultats</button>
@@ -141,6 +142,7 @@
       <button class="icon-btn" id="rpStart" title="Aller au départ de la séance"><svg class="ic" aria-hidden="true"><use href="#i-skip-start"/></svg></button>
       <button class="icon-btn" id="rpClose" title="Quitter le replay et revenir au direct"><svg class="ic" aria-hidden="true"><use href="#i-close"/></svg></button>
     </div>
+    <button class="icon-btn rp-more" id="rpMore" type="button" aria-expanded="false" title="Plus de commandes : ±10 s, vitesse, moments, quitter le replay"><svg class="ic" aria-hidden="true"><use href="#i-sliders"/></svg></button>
   </div>
 
   <div class="season-view" id="seasonView" hidden>

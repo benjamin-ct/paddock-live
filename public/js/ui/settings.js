@@ -352,6 +352,8 @@ export function initSettings() {
     const d = e.target.closest('[data-seek]');
     if (d) control({ action: 'seek', toMs: Number(d.dataset.seek) + store.delay * (store.status?.source?.speed || 1) });
   });
+  // Téléphone (Télémétrie) : le mini-lecteur garde lecture, curseur et temps ; les autres commandes dans un tiroir
+  $('#rpMore').addEventListener('click', (e) => e.currentTarget.setAttribute('aria-expanded', String($('#replayBar').classList.toggle('rp-open'))));
   $('#rpClose').addEventListener('click', async () => {
     await api('/api/live', { method: 'POST' }).catch((err) => toast(err.message));
     toast('Retour au direct');
