@@ -134,6 +134,7 @@ html { min-height: 100%; overflow-x: hidden; }
 .card.busy::after { position: absolute; right: 14px; top: 14px; }
 .row-item.busy > .ic:last-child { display: none; }
 .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.row + .row { margin-top: 8px; }   /* rangées de boutons l'une sous l'autre : même écart qu'entre deux boutons */
 .row.end { justify-content: flex-end; margin-top: 8px; }
 .linkbtn { padding: 0; border: 0; background: none; color: var(--brand-fg); font: inherit; text-decoration: underline; cursor: pointer; }
 
