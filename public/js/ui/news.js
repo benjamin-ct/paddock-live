@@ -594,7 +594,7 @@ function watchEmbed(frame, link, id) {
 // ---- Ouverture / fermeture ----
 export function openNews(sec) {
   if (sec) section = sec;
-  import('./season.js').then((m) => m.closeSeason());
+  import('./season-lazy.js').then((m) => m.closeSeason());
   import('./home.js').then((m) => { m.homeTouched(); m.closeHome(); });
   import('./replays.js').then((m) => m.closeReplays());
   placeView($('#newsView'));

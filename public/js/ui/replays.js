@@ -73,7 +73,7 @@ function render() {
 
 export function openReplays(sec) {
   if (sec) section = sec;
-  import('./season.js').then((m) => m.closeSeason());
+  import('./season-lazy.js').then((m) => m.closeSeason());
   import('./news.js').then((m) => m.closeNews());
   import('./home.js').then((m) => { m.homeTouched(); m.closeHome(); });
   placeView($('#replayView'));

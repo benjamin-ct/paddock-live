@@ -107,6 +107,8 @@ l'application (Réglages → À propos → Nouveautés).
   récente qui est installée.
 
 ### Divers
+- Démarrage plus léger, dans l'appli et la version web : l'espace Saison (environ 300 Ko de code) n'est chargé qu'à sa
+  première ouverture.
 - Petites améliorations internes.
 
 ## v1.31.0 — 2026-11-02

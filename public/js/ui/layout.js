@@ -1272,7 +1272,7 @@ export function initLayout() {
     if (k === 'more') { mobMore(b); return; }
     // Replays (Télémétrie) : comme le bouton de la barre latérale (pendant un replay, retour au replay en cours)
     if (k === 'replay') { if ($('#replayView').hidden) $('#rail [data-rail="replay"]')?.click(); return; }
-    const [home, season, news, replays] = await Promise.all([import('./home.js'), import('./season.js'), import('./news.js'), import('./replays.js')]);
+    const [home, season, news, replays] = await Promise.all([import('./home.js'), import('./season-lazy.js'), import('./news.js'), import('./replays.js')]);
     if (k === 'home') { home.openHome(); return; }
     home.homeTouched();
     home.closeHome();

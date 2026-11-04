@@ -6,7 +6,7 @@ import { icon } from '../icons.js';
 import { prefs, setPref } from '../prefs.js';
 import { t } from '../i18n.js';
 import { WIN, openInWindow } from './layout.js';
-import { openSeason } from './season.js';
+import { openSeason } from './season-lazy.js';
 import { isResultsOpen } from './results-view.js';
 
 // Apparence : automatique (comme le système), sombre ou clair (aussi bouton Apparence de la barre latérale)

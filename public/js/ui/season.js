@@ -17,7 +17,7 @@ import { renderPace, setPaceCut, setPaceScope } from './season-pace.js';
 import { tip, hit, initTips } from './season-tip.js';
 import { DEC, LOCALE, LANG, ord, t } from '../i18n.js';
 import { gpShort, gpFull } from '/shared/gp-names.js';
-import { COUNTRY_ISO } from '/shared/social-season.js';
+import { COUNTRY_ISO } from '/shared/country-iso.js';
 import { seasonPath, seasonTitle, slug, gpSlug, parseSeasonPath, enSeasonPath, parseEnSeasonPath, enSeasonTitle, enGpSlug, tabTitle } from '/shared/season-urls.js';
 import { circuitInfo } from '/shared/circuits-info.js';
 
@@ -371,14 +371,16 @@ function syncUrl() {
 // puis au direct
 export function seasonUrls() {
   urls = true;
-  addEventListener('popstate', (e) => {
-    const p = parseSeasonPath(location.pathname) || parseEnSeasonPath(location.pathname);
-    if (p) openSeason(p.section, p.year || undefined, p.item, true);
-    else if (!$('#seasonView').hidden) closeSeason();
-    // Retour à l'endroit où l'on était (encore une fois une fois les tableaux ou les statistiques affichés)
-    const top = e.state?.szTop;
-    if (p && top) for (const ms of [0, 400, 1200]) setTimeout(() => { $('#szContent').scrollTop = top; }, ms);
-  });
+  addEventListener('popstate', seasonPop);
+}
+// Retour en arrière (aussi appelé par ui/season-lazy.js pour le premier, arrivé avant le chargement de ce module)
+export function seasonPop(e) {
+  const p = parseSeasonPath(location.pathname) || parseEnSeasonPath(location.pathname);
+  if (p) openSeason(p.section, p.year || undefined, p.item, true);
+  else if (!$('#seasonView').hidden) closeSeason();
+  // Retour à l'endroit où l'on était (encore une fois une fois les tableaux ou les statistiques affichés)
+  const top = e.state?.szTop;
+  if (p && top) for (const ms of [0, 400, 1200]) setTimeout(() => { $('#szContent').scrollTop = top; }, ms);
 }
 
 // Calendrier sur un globe (ui/cal-globe.js, chargé à l'ouverture du Calendrier) : emplacement vide rempli après
@@ -1273,6 +1275,7 @@ function szGroupSync() {
   }
 }
 
+// Appelé une fois, au premier chargement (ui/season-lazy.js, qui tient aussi le bouton Saison de la barre du haut)
 export function initSeason() {
   initPredict();
   szGroups();
@@ -1282,7 +1285,6 @@ export function initSeason() {
   const now = new Date().getUTCFullYear();
   sel.innerHTML = Array.from({ length: 8 }, (_, i) => now - i).map((y) => `<option value="${y}">${y}</option>`).join('');
   sel.addEventListener('change', () => { year = Number(sel.value); push = true; data = null; stats = null; fia = null; clearTimeout(statsTimer); clearTimeout(fiaTimer); setTechFilter(null, 'all'); load(); });
-  $('#seasonBtn').addEventListener('click', () => ($('#seasonView').hidden ? openSeason() : closeSeason()));
   $('#szClose').addEventListener('click', closeSeason);
   $('#szNav').addEventListener('click', (e) => { const b = e.target.closest('[data-sz]'); if (b) { section = b.dataset.sz; jump = true; push = true; szMenu(false); animate(); render(); } });
   $('#szMenu')?.addEventListener('click', () => szMenu(true));

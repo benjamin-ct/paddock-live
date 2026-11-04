@@ -36,7 +36,7 @@ import { initUpdates } from './ui/updates.js';
 import { initChangelog } from './ui/changelog.js';
 import { initCommentary } from './ui/commentary.js';
 import { initAnalysis, renderAnalysis } from './ui/analysis.js';
-import { initSeason } from './ui/season.js';
+import { initSeason } from './ui/season-lazy.js';   // Saison chargée à sa première ouverture
 import { initNews } from './ui/news.js';
 import { initHome, initNoLive } from './ui/home.js';
 import { initWelcome } from './ui/welcome.js';

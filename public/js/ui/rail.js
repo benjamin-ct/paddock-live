@@ -1,7 +1,7 @@
 // Barre de navigation latérale (Accueil, Direct, Résultats, Saison, Replays, Radios,
 // Réglages). Elle reprend les actions des boutons du haut, masqués.
 import { $, $$, api, esc, placeView } from '../util.js';
-import { openSeason, closeSeason } from './season.js';
+import { openSeason, closeSeason } from './season-lazy.js';
 import { openNews, closeNews } from './news.js';
 import { openHome, closeHome, homeTouched, startWindows } from './home.js';
 import { openReplays, closeReplays } from './replays.js';

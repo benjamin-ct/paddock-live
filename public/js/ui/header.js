@@ -6,7 +6,7 @@ import { FLAG_ISO } from '/shared/flags.js';
 import { gpShort, gpFull, sessionLabel } from '/shared/gp-names.js';
 import { EN, LANG, LOCALE, DEC, DAY, t } from '../i18n.js';
 import { upcoming } from './home.js';
-import { COUNTRY_ISO } from '/shared/social-season.js';
+import { COUNTRY_ISO } from '/shared/country-iso.js';
 import { circuitInfo } from '/shared/circuits-info.js';
 import { flagBanner, timeLeft } from './session-info.js';
 import { toast } from './delay.js';

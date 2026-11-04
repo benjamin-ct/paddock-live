@@ -11,7 +11,7 @@ import { toast } from './delay.js';
 import { prefs, setPref, toggleFav, toggleTeamFav } from '../prefs.js';
 import { teamKey } from '/shared/news.js';
 import { openResults } from './results-view.js';
-import { COUNTRY_ISO } from '/shared/social-season.js';
+import { COUNTRY_ISO } from '/shared/country-iso.js';
 import { nearestShape, shapeOutline } from '/shared/circuit-shapes.js';
 import { cloudTranslate } from '../cloud.js';
 
@@ -354,7 +354,7 @@ async function webNews(box) {
 export function openHome() {
   const view = $('#homeView');
   if (!view) return;
-  import('./season.js').then((m) => m.closeSeason());
+  import('./season-lazy.js').then((m) => m.closeSeason());
   if ($('#newsView')) import('./news.js').then((m) => m.closeNews());   // pas d'Actu ni de Replays dans la version web
   if ($('#replayView')) import('./replays.js').then((m) => m.closeReplays());
   placeView($('#homeView'));
@@ -406,8 +406,8 @@ async function act(k) {
   if (k === 'app') { open('https://paddocklive.app/', '_blank', 'noopener'); return; }   // version web : l'appli de bureau
   // Saison et Actu ferment l'accueil elles-mêmes ; Replays : l'accueil reste derrière les réglages
   // jusqu'au lancement du replay
-  if (k === 'season') { (await import('./season.js')).openSeason(); return; }
-  if (k.startsWith('review:')) { (await import('./season.js')).openSeason('review', Number(k.slice(7))); return; }
+  if (k === 'season') { (await import('./season-lazy.js')).openSeason(); return; }
+  if (k.startsWith('review:')) { (await import('./season-lazy.js')).openSeason('review', Number(k.slice(7))); return; }
   if (k === 'news') { (await import('./news.js')).openNews(); return; }
   if (k === 'replays') { (await import('./replays.js')).openReplays(); return; }
   if (k === 'replay') {
