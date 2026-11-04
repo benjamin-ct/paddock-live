@@ -1239,7 +1239,7 @@ export function closeSeason() {
 }
 
 // Télémétrie : rubriques en 5 groupes repliables (titres ajoutés en tête de la liste, rubriques remises dans l'ordre de
-// leur groupe par design-v3.css) ; le groupe de la rubrique ouverte reste déplié. Autres designs : titres masqués, liste
+// leur groupe par design-v3.css) ; le groupe de la rubrique ouverte est déplié (repliable à la main). Autres designs : titres masqués, liste
 // d'origine
 const SZ_GROUPS = [
   ['overview', 'Vue d\'ensemble', ['home', 'calendar', 'standings', 'title', 'review', 'compare']],
@@ -1249,6 +1249,8 @@ const SZ_GROUPS = [
   ['games', 'Jeux', ['predict']],
 ];
 const szOpen = new Set();   // groupes dépliés à la main
+const szShut = new Set();   // groupes repliés à la main (aussi celui de la rubrique ouverte)
+let szCur = '';
 function szGroups() {
   const nav = $('#szNav');
   if (!nav || nav.querySelector('.sz-grp')) return;
@@ -1265,16 +1267,17 @@ function szGroups() {
     const h = e.target.closest('[data-grp-h]');
     if (!h) return;
     const g = h.dataset.grpH;
-    if (szOpen.has(g)) szOpen.delete(g); else szOpen.add(g);
+    if (h.getAttribute('aria-expanded') === 'true') { szOpen.delete(g); szShut.add(g); } else { szShut.delete(g); szOpen.add(g); }
     szGroupSync();
   });
 }
 function szGroupSync() {
   // Page sans rubrique (fiche d'un Grand Prix) : la vue d'ensemble dépliée
   const cur = SZ_GROUPS.find(([, , ids]) => ids.includes(section))?.[0] || SZ_GROUPS[0][0];
+  if (cur !== szCur) { szShut.delete(cur); szCur = cur; }   // autre rubrique : son groupe de nouveau déplié
   for (const h of document.querySelectorAll('#szNav [data-grp-h]')) {
     const g = h.dataset.grpH;
-    const open = g === cur || szOpen.has(g);
+    const open = !szShut.has(g) && (g === cur || szOpen.has(g));
     h.setAttribute('aria-expanded', String(open));
     h.classList.toggle('cur', g === cur);
     for (const b of document.querySelectorAll(`#szNav [data-grp="${g}"]`)) b.classList.toggle('sz-shut', !open);
