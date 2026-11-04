@@ -84,7 +84,8 @@
     .web .topbar #seasonBtn:not(.on) { border-color: rgba(255, 255, 255, .18); }
     /* Espace Saison : toutes les rubriques de l'appli, avec les intertitres du menu */
     .web #szNav button[data-full]:not(.sz-shut) { display: flex !important; }   /* sauf rubriques d'un groupe replié (Télémétrie) */
-    .web #szNav .sz-nav-sep { display: block !important; }
+    html.web:not([data-design="v3"]) #szNav .sz-nav-sep { display: block !important; }   /* Télémétrie : groupes repliables à la place */
+    html.web:not([data-design="v3"]) #szNav .sz-grp { display: none !important; }   /* titres des groupes : Télémétrie seulement */
     /* Écran affiché : les panneaux vides dessous sont retirés, la page ne défile plus */
     .web body:has(#noLiveView:not([hidden])) { overflow: hidden; }
     .web body:has(#noLiveView:not([hidden])) .grid { display: none; }

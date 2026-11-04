@@ -37,7 +37,7 @@ l'application (Réglages → À propos → Nouveautés).
 - Design Télémétrie : Saison, Actu, Replays, Résultats, Résumé et Réglages prennent son style (pages à plat, grands
   titres étroits, chiffres mis en avant, écuries en traits de couleur, articles plus lisibles) ; les rubriques de la
   Saison se rangent en cinq groupes repliables (Vue d'ensemble, Résultats, Pilotes et écuries, Technique, Jeux), tous
-  repliables à la main, aussi celui de la rubrique ouverte et dans la version web.
+  repliables à la main, aussi celui de la rubrique ouverte et dans la version web (sans les anciens intertitres vides).
 - Mouvement réduit demandé par le système : le point de la source des données ne pulse plus et la fenêtre des
   Réglages s'ouvre sans animation.
 - Le design Broadcast n'est plus proposé : ceux qui l'utilisaient passent à Paddock 2 (Paddock 2 et Classique restent au choix).
