@@ -392,8 +392,12 @@ safe(initNoLive);
 safe(initSeason);
 // Adresse d'une rubrique de la Saison (app.paddocklive.app/saison/2026/pilotes/lando-norris/) : ouverte directement ;
 // l'adresse suit ensuite la rubrique affichée
+// Page anglaise de la Saison (/en/season/…, écrite par le serveur) : la rubrique est donnée par la page (data-sz-*,
+// noms français) ; l'appli en anglais tient ensuite les adresses anglaises (ui/season.js), en français les françaises
+const enSeason = document.querySelector('#szContent')?.dataset;
+const askedEn = enSeason?.szYear ? { year: Number(enSeason.szYear), section: enSeason.szSection, item: enSeason.szItem || null } : null;
 seasonUrls();
-const askedSeason = parseSeasonPath(location.pathname);
+const askedSeason = parseSeasonPath(location.pathname) || askedEn;
 if (askedSeason) { document.querySelector('#homeView').hidden = true; safe(() => openSeason(askedSeason.section, askedSeason.year || undefined, askedSeason.item)); }
 // Accueil au lancement (pas de séance en cours, pas de page de la Saison demandée, pas de fenêtre à un panneau)
 else if (!ONLY) safe(initHome);

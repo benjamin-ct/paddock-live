@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { englishHome, sitemap, robots, GUIDES } from '../analytics/launch/guides.mjs';
+import { englishHome, sitemap, robots, GUIDES, guidePage } from '../analytics/launch/guides.mjs';
 
 const FR = fs.readFileSync(new URL('../analytics/launch/index.html', import.meta.url), 'utf8');
 
@@ -36,4 +36,29 @@ test('référencement : robots.txt ferme les adresses internes et les fichiers, 
   const blocked = (p) => rules.some((r) => (r.endsWith('$') ? p === r.slice(0, -1) : p.startsWith(r)));
   for (const p of ['/f', '/p/api/new', '/download/windows', '/download/latest.json', '/dl/Paddock-Live.exe', '/studio/', '/login']) assert.ok(blocked(p), p);
   for (const p of ['/', '/en/', '/en/f1-live-track-map/', '/carte-gps-f1/', '/p/', '/saison/2026/', '/legal/privacy']) assert.ok(!blocked(p), p);
+});
+
+test('référencement : descriptions de 155 caractères au plus, titres de 60, Twitter et organisation sur l\'accueil', () => {
+  const meta = (html, name) => new RegExp(`<meta (?:name|property)="${name}" content="([^"]*)"`).exec(html)?.[1];
+  const desc = meta(FR, 'description');
+  assert.ok(desc.length >= 140 && desc.length <= 155, `accueil : ${desc.length}`);
+  assert.ok(meta(FR, 'twitter:title') && meta(FR, 'twitter:description'));
+  const en = englishHome(FR);
+  assert.equal(meta(en, 'twitter:description'), meta(en, 'description'));
+  assert.match(meta(en, 'twitter:title'), /^Paddock Live · Free F1/);
+  const ld = JSON.parse(/<script type="application\/ld\+json">(.*?)<\/script>/.exec(FR)[1]);
+  assert.deepEqual(ld['@graph'].find((x) => x['@type'] === 'Organization'), { '@type': 'Organization', name: 'Paddock Live', url: 'https://paddocklive.app/', logo: 'https://paddocklive.app/site/img/logo.png' });
+  const lt = guidePage('live-timing-f1');
+  assert.ok(meta(lt, 'description').length <= 155, 'live-timing-f1');
+  assert.equal(meta(lt, 'twitter:title'), GUIDES.find((g) => g.slug === 'live-timing-f1').title);
+  for (const g of GUIDES) assert.ok(/<title>([^<]*)<\/title>/.exec(guidePage(g.slug))[1].length <= 60, g.slug);
+  assert.match(guidePage('radios-f1-traduites'), /<title>Radios F1 traduites en français, en direct · Paddock Live<\/title>/);
+});
+
+test('référencement : un seul H1 par page légale, et une vraie description', () => {
+  for (const f of ['terms', 'privacy', 'mentions', 'publication']) {
+    const html = fs.readFileSync(new URL(`../analytics/legal/${f}.html`, import.meta.url), 'utf8');
+    assert.equal(html.match(/<h1\b/g).length, 1, f);
+    assert.ok(/<meta name="description" content="([^"]{120,155})">/.test(html), f);
+  }
 });

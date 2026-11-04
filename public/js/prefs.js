@@ -7,23 +7,31 @@ import { LANG } from './i18n.js';
 // Analyse et Duel s'ouvrent dans leur propre fenêtre (bouton + d'un panneau, menu Dispo.) : masqués dans la fenêtre
 // principale (ui/layout.js, ui/tabmove.js). Analyse : 3 onglets selon la séance (les autres : bouton +)
 export const PANELS_HIDDEN = ['analysis', 'duel'];
+// Fil de course (1.32 : radios et messages en un seul fil) : masqué par défaut, sauf en Télémétrie où il remplace
+// Radios et Messages. Les listes de panneaux masqués enregistrées avant lui (réglages, disposition de chaque séance,
+// dispositions enregistrées) le masquent aussi : « +race » marque une liste qui le connaît déjà
+export const withRace = (list) => (!Array.isArray(list) || list.includes('+race') ? list : [...list, 'race', '+race']);
+export const hiddenByDefault = (design) => (design === 'v3' ? [...PANELS_HIDDEN, 'radio', 'feed', '+race'] : [...PANELS_HIDDEN, 'race', '+race']);
 export const TAB_HIDDEN = {
   race: ['laptimes', 'pace', 'tyrehist', 'sectors', 'tyres', 'pitsim', 'battles', 'champ'],
   quali: ['trace', 'positions', 'pits', 'strategy', 'laptimes', 'pace', 'tyrehist', 'tyres', 'pitsim', 'battles', 'champ'],
 };
 
+// Version web (classe posée par sa page avant les modules) : elle garde Paddock 2 tant que Télémétrie n'y est pas prêt
+const WEB = typeof document !== 'undefined' && document.documentElement.classList.contains('web');
 const DEFAULTS = {
   favs: [],               // numéros des pilotes favoris
   favTeams: [],           // écuries favorites (clés de shared/news.js : 'ferrari', 'redbull'…)
   alerts: { sound: true, vibrate: true, notify: false, flags: true, fastest: true, favPit: true, favRcm: true, retire: true, finish: true, favCut: true, rain: true, prono: true },
-  hiddenPanels: [...PANELS_HIDDEN],
+  hiddenPanels: hiddenByDefault(WEB ? 'v2' : 'v3'),
+  raceFeedFilter: 'all',  // Fil de course : tout, radios, direction, enquêtes ou limites de piste
   hiddenTabs: [...TAB_HIDDEN.race],   // onglets masqués (Réglages → Onglets visibles, bouton +), comme ceux inutiles pour la séance
   hiddenCols: ['name'],   // classement : code du pilote seul (nom complet : menu Colonnes)
   extraCols: [],          // colonnes facultatives ajoutées au classement (voir EXTRA_COLUMNS)
   bigCols: null,          // colonnes du classement agrandi (bouton ⤢) : { hidden, extra }, sinon les mêmes
   towerFit: true,         // classement agrandi pour remplir la hauteur disponible
   theme: 'pitwall',       // thème unique de l'application
-  design: 'v2',           // habillage : 'v2' (Paddock 2) | 'broadcast' (façon retransmission TV) | 'classic' (ancien design Pitwall) | 'v3' (Télémétrie, aperçu)
+  design: WEB ? 'v2' : 'v3',   // habillage : 'v3' (Télémétrie, défaut depuis la v1.32) | 'v2' (Paddock 2) | 'classic' (ancien design Pitwall) ; 'broadcast' n'est plus proposé (v1.32)
   scheme: 'auto',         // apparence : 'auto' (comme le système) | 'dark' (sombre) | 'light' (clair)
   schemeSet: false,       // apparence choisie par l'utilisateur (sinon : automatique)
   vividTeams: false,      // couleurs d'équipe contrastées plutôt qu'officielles
@@ -74,6 +82,7 @@ const DEFAULTS = {
 
 const saved = storageGet('paddock.prefs', {});
 export const prefs = { ...DEFAULTS, ...saved, alerts: { ...DEFAULTS.alerts, ...(saved.alerts || {}) } };
+prefs.hiddenPanels = withRace(prefs.hiddenPanels);
 // v1.28 : nouvelle installation (aucun réglage enregistré) : écrans d'accueil ; v1.30 : déjà au nouvel écran principal
 // (layoutV, ui/layout.js)
 if (!Object.keys(saved).length) {
@@ -92,7 +101,12 @@ prefs.legendsV = 1;
 // v1.30 : design Paddock 2 par défaut, aussi pour les installations existantes restées sur Broadcast (l'ancien
 // défaut) ; un choix de Classique est gardé. Une seule fois : Broadcast se rechoisit dans Réglages → Apparence
 if (!saved.designV) { if (prefs.design === 'broadcast') prefs.design = 'v2'; storageSet('paddock.prefs', { ...storageGet('paddock.prefs', {}), design: prefs.design, designV: 1 }); }
-prefs.designV = 1;
+// v1.32 : le design Broadcast n'est plus proposé (Paddock 2 garde son habillage, broadcast.css, en dessous)
+else if (prefs.design === 'broadcast') { prefs.design = 'v2'; storageSet('paddock.prefs', { ...storageGet('paddock.prefs', {}), design: 'v2' }); }
+// v1.32 : Télémétrie par défaut dans l'appli (pas encore dans la version web), aussi pour les installations existantes
+// en Paddock 2 ; un choix de Classique est gardé. Une seule fois : Paddock 2 se rechoisit dans Réglages → Apparence
+if (!WEB && (saved.designV || 0) < 2) { if (prefs.design === 'v2') prefs.design = 'v3'; storageSet('paddock.prefs', { ...storageGet('paddock.prefs', {}), design: prefs.design, designV: 2 }); }
+prefs.designV = WEB ? 1 : 2;   // gardé dans chaque enregistrement des préférences
 // Langue retenue dès la première ouverture (sinon une autre fenêtre la redéduirait autrement)
 if (saved.lang !== LANG) storageSet('paddock.prefs', { ...storageGet('paddock.prefs', {}), lang: LANG });
 // Apparence automatique par défaut depuis la v1.20.1. En v1.20.0, « sombre » était enregistré par
@@ -125,11 +139,12 @@ function applyScheme() {
   document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]')?.setAttribute('content', bar);
 }
 // Habillage : la feuille broadcast.css (posée par-dessus le thème Pitwall) est coupée en design classique et en
-// Télémétrie (v3, prototype de la refonte, posé directement sur le thème Pitwall)
+// Télémétrie (v3, posé directement sur le thème Pitwall), seulement dans les pages qui chargent design-v3.css (pas
+// le Mini ni les overlays de streaming, qui gardent leur habillage)
 function applyDesign() {
   document.documentElement.dataset.design = prefs.design;
   const css = document.querySelector('link[href="/css/broadcast.css"]');
-  if (css) css.disabled = prefs.design === 'classic' || prefs.design === 'v3';
+  if (css) css.disabled = prefs.design === 'classic' || (prefs.design === 'v3' && !!document.querySelector('link[href="/css/design-v3.css"]'));
 }
 document.documentElement.dataset.theme = 'pitwall';
 applyDesign();
@@ -145,6 +160,7 @@ function applyTeamColors() {
 }
 
 export function setPref(key, value) {
+  if (key === 'hiddenPanels') value = withRace(value);
   prefs[key] = value;
   if (['vividTeams', 'teamLogos', 'logoColor'].includes(key)) applyTeamColors();
   if (key === 'scheme') { prefs.schemeSet = true; applyScheme(); }

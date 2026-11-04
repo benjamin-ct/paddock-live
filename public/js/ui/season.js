@@ -18,7 +18,7 @@ import { tip, hit, initTips } from './season-tip.js';
 import { DEC, LOCALE, LANG, ord, t } from '../i18n.js';
 import { gpShort, gpFull } from '/shared/gp-names.js';
 import { COUNTRY_ISO } from '/shared/social-season.js';
-import { seasonPath, seasonTitle, slug, gpSlug, parseSeasonPath } from '/shared/season-urls.js';
+import { seasonPath, seasonTitle, slug, gpSlug, parseSeasonPath, enSeasonPath, parseEnSeasonPath, enSeasonTitle, enGpSlug, tabTitle } from '/shared/season-urls.js';
 import { circuitInfo } from '/shared/circuits-info.js';
 
 const color = (team, teamId) => teamColor({ TeamName: team, TeamColour: OFFICIAL[teamId] || '8b95a8' });
@@ -291,7 +291,10 @@ function calDays(r) {
     ${d.list.map((s) => `<div class="cal-s ${Date.parse(s.t) < Date.now() ? 'past' : ''} ${s === nx ? 'now' : ''}"><span>${esc(s.label)}</span><b>${s.t ? fmtTime(s.t) : '—'}</b></div>`).join('')}</div>`).join('')}</div>`;
 }
 // Lien vers la fiche d'un Grand Prix (vraie adresse dans la version web, pour la partager et pour les moteurs de recherche)
-const gpLink = (r, text, cls = '', pre = '') => `<a href="${seasonPath(year, 'gp', gpSlug(r.name))}" data-szgp="${r.round}"${cls ? ` class="${cls}"` : ''}>${pre}${esc(text)}</a>`;
+// Version web en anglais : adresses anglaises (/en/season/…, nom anglais du Grand Prix), comme les pages du serveur
+const enUrls = () => urls && LANG === 'en';
+const gpPath = (y, r) => (enUrls() ? enSeasonPath(y, 'gp', enGpSlug(r.name)) : seasonPath(y, 'gp', gpSlug(r.name)));
+const gpLink = (r, text, cls = '', pre = '') => `<a href="${gpPath(year, r)}" data-szgp="${r.round}"${cls ? ` class="${cls}"` : ''}>${pre}${esc(text)}</a>`;
 
 // Fiche d'un Grand Prix : résultats, sprint, qualifications, arrêts les plus rapides (analyse des archives)
 // Pilote du jour (vote des fans, formula1.com) : les 5 premiers, barres aux couleurs des écuries
@@ -352,14 +355,15 @@ function syncUrl() {
   if (!urls || !data || $('#seasonView').hidden) return;
   const d = section === 'drivers' ? data.drivers.find((x) => x.code === drvCode) : null;
   const r = section === 'gp' ? data.races.find((x) => x.round === gpRound) : null;
-  const p = seasonPath(data.year, section, d ? slug(d.name) : r ? gpSlug(r.name) : null);
+  const en = enUrls();
+  const p = en ? enSeasonPath(data.year, section, d ? slug(d.name) : r ? enGpSlug(r.name) : null) : seasonPath(data.year, section, d ? slug(d.name) : r ? gpSlug(r.name) : null);
   if (location.pathname !== p && push) {
     history.replaceState({ szTop: leaveTop }, '');
     history.pushState(null, '', p);
   } else if (location.pathname !== p) history.replaceState(history.state, '', p);
   push = false;
   document.documentElement.dataset.seasonTitle = '1';
-  document.title = `${seasonTitle(data.year, section, d?.name || r?.name, !!r?.results.length)} · Paddock Live`;
+  document.title = tabTitle((en ? enSeasonTitle : seasonTitle)(data.year, section, d?.name || r?.name, !!r?.results.length));
 }
 
 // Version web : adresses de la Saison (appelé par la page, analytics/live-page/web.js). Chaque rubrique ou fiche
@@ -368,7 +372,7 @@ function syncUrl() {
 export function seasonUrls() {
   urls = true;
   addEventListener('popstate', (e) => {
-    const p = parseSeasonPath(location.pathname);
+    const p = parseSeasonPath(location.pathname) || parseEnSeasonPath(location.pathname);
     if (p) openSeason(p.section, p.year || undefined, p.item, true);
     else if (!$('#seasonView').hidden) closeSeason();
     // Retour à l'endroit où l'on était (encore une fois une fois les tableaux ou les statistiques affichés)
@@ -395,7 +399,7 @@ function calendarMap(next) {
   const X = (lon) => ((lon + 180) / 360) * world.w, Y = (lat) => ((world.lat0 - lat) / (world.lat0 - world.lat1)) * world.h;
   const dots = races.map((r) => {
     const state = done(r) ? 'done' : next?.round === r.round ? 'next' : 'future';
-    return `<a href="${seasonPath(year, 'gp', gpSlug(r.name))}" data-szgp="${r.round}" class="cal-pin ${state}"${tip(gpHead(r), [calSpan(r).replace(/<[^>]+>/g, '')])}>
+    return `<a href="${gpPath(year, r)}" data-szgp="${r.round}" class="cal-pin ${state}"${tip(gpHead(r), [calSpan(r).replace(/<[^>]+>/g, '')])}>
       <circle cx="${X(r.lon).toFixed(1)}" cy="${Y(r.lat).toFixed(1)}" r="${state === 'next' ? 9 : 7}"/><text x="${X(r.lon).toFixed(1)}" y="${(Y(r.lat) + 3.5).toFixed(1)}" text-anchor="middle">${r.round}</text></a>`;
   }).join('');
   // Cadrage : du nord de l'Europe (65° N) au sud de l'Australie (48° S)
@@ -410,7 +414,7 @@ function globeSlot() {
   const next = nextSession()?.race;
   const list = data.races.filter((r) => Number.isFinite(r.lat) && Number.isFinite(r.lon)).map((r) => ({
     round: r.round, lat: r.lat, lon: r.lon, state: done(r) ? 'done' : next?.round === r.round ? 'next' : 'future', sprint: !!r.sprint,
-    name: gpShort(r.name, LANG), place: [r.circuit, r.locality].filter(Boolean).join(' · '), dates: calSpan(r), flag: flagOf(r), href: seasonPath(year, 'gp', gpSlug(r.name)),
+    name: gpShort(r.name, LANG), place: [r.circuit, r.locality].filter(Boolean).join(' · '), dates: calSpan(r), flag: flagOf(r), href: gpPath(year, r),
   }));
   const off = () => { flat = true; if (section === 'calendar' && !$('#seasonView').hidden) render(); };
   const mount = (m) => { globe = m; m.mountGlobe(slot, list, off); };
@@ -1090,10 +1094,11 @@ function render() {
   // Pilote ou Grand Prix demandé par l'adresse : retrouvé dans la saison chargée
   if (wanted?.year === data.year) {
     if (wanted.section === 'drivers') drvCode = data.drivers.find((d) => slug(d.name) === wanted.item)?.code ?? drvCode;
-    if (wanted.section === 'gp') gpRound = data.races.find((r) => gpSlug(r.name) === wanted.item)?.round ?? null;
+    if (wanted.section === 'gp') gpRound = data.races.find((r) => gpSlug(r.name) === wanted.item || enGpSlug(r.name) === wanted.item)?.round ?? null;
     wanted = null;
   }
   for (const b of document.querySelectorAll('#szNav [data-sz]')) b.classList.toggle('active', b.dataset.sz === section);
+  szGroupSync();
   if ($('#szCur')) $('#szCur').textContent = $('#szNav .active')?.textContent.trim() || (section === 'gp' ? 'Grand Prix' : '');
   const st = stats?.year === data.year || stats?.error ? stats : null;
   const ctx = { data, stats: st, color, bar, opt: seasonOpt, photo: (d) => photoUrl({ Tla: d.code }, 480), flag: roundFlag, logo: (team) => teamLogo(team, false, 512), look: cardLook, official: (id) => OFFICIAL[id] || '8b95a8', ratings: ratingsFor(data, st), prev: prev?.year === data.year - 1 ? prev : null };
@@ -1218,15 +1223,60 @@ export function closeSeason() {
   szMenu(false);
   $('#seasonView').hidden = true;
   $('#seasonBtn').classList.remove('on');
-  if (urls && location.pathname.startsWith('/saison/')) history.pushState(null, '', '/');
+  if (urls && /^\/(saison|en\/season)\//.test(location.pathname)) history.pushState(null, '', '/');
   if (urls) { delete document.documentElement.dataset.seasonTitle; document.title = 'Paddock Live'; }
   clearInterval(timer);
   clearTimeout(fiaTimer);
   clearTimeout(statsTimer);
 }
 
+// Télémétrie : rubriques en 5 groupes repliables (titres ajoutés en tête de la liste, rubriques remises dans l'ordre de
+// leur groupe par design-v3.css) ; le groupe de la rubrique ouverte reste déplié. Autres designs : titres masqués, liste
+// d'origine
+const SZ_GROUPS = [
+  ['overview', 'Vue d\'ensemble', ['home', 'calendar', 'standings', 'title', 'review', 'compare']],
+  ['results', 'Résultats', ['results', 'quali', 'destructors']],
+  ['people', 'Pilotes et écuries', ['drivers', 'teams', 'h2h', 'ratings', 'consistency']],
+  ['tech', 'Technique', ['pits', 'speeds', 'circuits', 'tech', 'elements']],
+  ['games', 'Jeux', ['predict']],
+];
+const szOpen = new Set();   // groupes dépliés à la main
+function szGroups() {
+  const nav = $('#szNav');
+  if (!nav || nav.querySelector('.sz-grp')) return;
+  const heads = SZ_GROUPS.map(([g, name, ids], i) => {
+    const items = ids.map((id) => nav.querySelector(`[data-sz="${id}"]`)).filter(Boolean);
+    if (!items.length) return '';
+    items.forEach((b, j) => { b.dataset.grp = g; b.style.setProperty('--o', i); b.style.setProperty('--i', j); });
+    // Version simplifiée du téléphone : groupe sans rubrique affichée, sans titre
+    const full = items.every((b) => b.hasAttribute('data-full')) ? ' data-full' : '';
+    return `<button type="button" class="sz-grp" data-grp-h="${g}" style="--o:${i}" aria-expanded="false"${full}><span>${esc(name)}</span>${icon('chevron-down')}</button>`;
+  }).join('');
+  nav.insertAdjacentHTML('afterbegin', heads);
+  nav.addEventListener('click', (e) => {
+    const h = e.target.closest('[data-grp-h]');
+    if (!h) return;
+    const g = h.dataset.grpH;
+    if (szOpen.has(g)) szOpen.delete(g); else szOpen.add(g);
+    szGroupSync();
+  });
+}
+function szGroupSync() {
+  // Page sans rubrique (fiche d'un Grand Prix) : la vue d'ensemble dépliée
+  const cur = SZ_GROUPS.find(([, , ids]) => ids.includes(section))?.[0] || SZ_GROUPS[0][0];
+  for (const h of document.querySelectorAll('#szNav [data-grp-h]')) {
+    const g = h.dataset.grpH;
+    const open = g === cur || szOpen.has(g);
+    h.setAttribute('aria-expanded', String(open));
+    h.classList.toggle('cur', g === cur);
+    for (const b of document.querySelectorAll(`#szNav [data-grp="${g}"]`)) b.classList.toggle('sz-shut', !open);
+  }
+}
+
 export function initSeason() {
   initPredict();
+  szGroups();
+  szGroupSync();
   initTips($('#seasonView'));
   const sel = $('#szYear');
   const now = new Date().getUTCFullYear();

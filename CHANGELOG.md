@@ -7,8 +7,29 @@ l'application (Réglages → À propos → Nouveautés).
 ## v1.32.0 — à venir
 
 ### Affichage
-- Nouveau design « Télémétrie » en aperçu (Réglages → Apparence → Design) : interface plus sobre et plus lisible, le
-  rouge réservé à ce qui est actif, classement plus large avec toutes ses colonnes, nouvelle police, thèmes sombre et clair.
+- Nouveau design « Télémétrie », par défaut dans l'appli : interface plus sobre et plus lisible, le rouge réservé à ce
+  qui est actif, classement plus large avec toutes ses colonnes, nouvelle police, thèmes sombre et clair. Ceux qui
+  utilisaient Paddock 2 passent à Télémétrie ; Paddock 2 et Classique restent au choix (Réglages → Apparence → Design).
+- Palette de commandes (Ctrl + K, ⌘K sur Mac) : quelques lettres suffisent pour ouvrir un espace, les résultats ou le
+  résumé de la séance, une fenêtre, l'apparence, un réglage ou une rubrique de la Saison, sans souris.
+- Navigation du design Télémétrie : la barre latérale garde les cinq espaces (Accueil, Direct, Saison, Actu, Replays),
+  avec en bas Recherche, Fenêtres, Apparence et Réglages ; Résultats, Résumé et Commentaires se choisissent en tête du
+  Direct et des replays. Au téléphone, Replays rejoint la barre du bas et Réglages la barre de séance ; tenu en
+  paysage, la barre du bas devient un rail à gauche pour laisser la hauteur au classement.
+- Nouveau panneau « Fil de course » : radios d'équipe (à écouter, en texte et traduites), messages de la direction de
+  course, enquêtes et limites de piste dans un seul fil, le plus récent en haut, avec des filtres (Tout, Radios,
+  Direction, Enquêtes, Limites). À ajouter dans Réglages → Disposition ; affiché d'office dans le design Télémétrie, à
+  la place des panneaux Radios et Messages (une disposition déjà enregistrée n'est pas modifiée).
+- Design Télémétrie : la barre de séance tient sur une ligne de 1180 à 1920 px (outils rangés dans un menu « Outils »
+  sur les écrans moins larges), les en-têtes de panneaux à onglets aussi (les onglets défilent) ; au téléphone tenu en
+  paysage, le classement gagne trois lignes (vues de la séance et onglets sur une seule ligne, bouton Colonnes réduit
+  à son icône, barre du replay plus basse).
+- Design Télémétrie : Saison, Actu, Replays, Résultats, Résumé et Réglages prennent son style (pages à plat, grands
+  titres étroits, chiffres mis en avant, écuries en traits de couleur, articles plus lisibles) ; les rubriques de la
+  Saison se rangent en cinq groupes repliables (Vue d'ensemble, Résultats, Pilotes et écuries, Technique, Jeux).
+- Mouvement réduit demandé par le système : le point de la source des données ne pulse plus et la fenêtre des
+  Réglages s'ouvre sans animation.
+- Le design Broadcast n'est plus proposé : ceux qui l'utilisaient passent à Paddock 2 (Paddock 2 et Classique restent au choix).
 - Téléphone tenu en paysage : l'en-tête tient sur une ligne, les onglets et la barre du replay sont resserrés, la barre
   du bas ne montre plus que ses icônes et la page défile ; le classement a enfin de la place (avant, il ne restait que
   quelques pixels). Le contenu ne passe plus sous l'encoche. Android en paysage : le classement s'affiche d'abord.
@@ -41,6 +62,9 @@ l'application (Réglages → À propos → Nouveautés).
 - Reconnexion plus douce quand le serveur est plein ou coupé (délai qui augmente jusqu'à une minute), plus de places
   pendant les séances, et les données GPS et télémétrie sont vidées à chaque nouvelle séance (moins de mémoire).
 - Résultats : bouton Réessayer et nouvel essai tout seul après une coupure.
+- Pages anglaises de la Saison (/en/season/…) : l'appli s'ouvre en anglais à la première visite (une langue déjà
+  choisie est gardée), et l'adresse et le titre de l'onglet restent en anglais d'une rubrique à l'autre.
+- Sur ordinateur, l'accueil et la barre du haut ne sautent plus pendant le chargement de la page.
 - Appairage avec l'appli : codes à 8 chiffres (les codes à 6 chiffres marchent encore) et protection contre les essais
   en masse.
 
@@ -60,6 +84,8 @@ l'application (Réglages → À propos → Nouveautés).
 - Course au titre : un sprint déjà couru n'est plus compté dans les points encore à prendre (le champion est annoncé
   dès qu'il ne peut plus être rattrapé).
 - Séance dont l'horaire n'est pas encore publié : date seule, sans heure inventée ni rappel.
+- Design Classique : les cartes et la fiche des pilotes, les cartes des écuries et le Bilan de la saison s'affichent de
+  nouveau correctement (leur texte s'affichait en vrac).
 
 ### Sécurité
 - Accès téléphone : un site ouvert sur l'ordinateur ne peut plus lire le direct ; serveur lancé pour tout le réseau

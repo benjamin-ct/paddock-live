@@ -18,7 +18,10 @@ function storedLang() {
 
 // Première ouverture : la langue du système (français, italien, espagnol, sinon anglais)
 const sysLang = () => { const l = (navigator.language || 'fr').toLowerCase().slice(0, 2); return LANGS.includes(l) ? l : 'en'; };
-export const LANG = storedLang() ?? sysLang();
+// Page servie en anglais (version web : app.paddocklive.app/en/season/…, <html lang="en"> posé par le serveur) : l'anglais
+// à la première ouverture ; une langue déjà choisie par le visiteur est gardée
+const pageLang = () => (typeof document !== 'undefined' && document.documentElement.lang === 'en' ? 'en' : null);
+export const LANG = storedLang() ?? pageLang() ?? sysLang();
 export const FR = LANG === 'fr';
 export const EN = LANG === 'en';
 export const LOCALE = { fr: 'fr-FR', en: 'en-GB', it: 'it-IT', es: 'es-ES' }[LANG];

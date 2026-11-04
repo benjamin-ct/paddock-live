@@ -37,7 +37,7 @@ import { zonesTick } from './zones.js';
 import { recordsTick } from './records.js';
 import { surroundingsTick } from './surroundings.js';
 import { newsTick, newsApi } from './news.js';
-import { seasonSsr, seasonSitemap, legacySeasonUrl } from './season-pages.js';
+import { seasonSsr, seasonSitemap, legacySeasonUrl, parseEnSeasonPath, seasonRewriter } from './season-pages.js';
 import { parseSeasonPath } from '../shared/season-urls.js';
 import { LIVE_HEADERS, STUDIO_HEADERS } from './live-page/headers.js';
 
@@ -51,15 +51,17 @@ async function liveAsset(env, req) {
 
 // Rubrique de la Saison à son adresse (app.paddocklive.app/saison/2026/…) : page de la version web avec le titre, la
 // description, l'adresse canonique et un premier contenu de la rubrique déjà écrits (moteurs de recherche, partage),
-// remplacés par l'appli dès qu'elle démarre. Gardée 15 minutes : un robot qui parcourt tout ne refait pas chaque page
+// remplacés par l'appli dès qu'elle démarre. Gardée 15 minutes : un robot qui parcourt tout ne refait pas chaque page.
+// Version anglaise (/en/season/…, analytics/season-pages.js) : contenu, titre et langue de la page en anglais, rubrique
+// donnée à l'appli par la page (data-sz-*, lue par web.js) ; adresses réciproques des deux langues (hreflang)
 async function seasonAppPage(env, req, url, ctx) {
-  const p = parseSeasonPath(url.pathname);
+  const p = parseSeasonPath(url.pathname) || parseEnSeasonPath(url.pathname);
   if (!p) return new Response('Introuvable', { status: 404 });
   // /saison/ : la saison en cours dès son premier Grand Prix couru, la précédente avant (sinon une saison vide en janvier)
   if (!p.year) {
     const y = new Date().getUTCFullYear();
     const cur = JSON.parse(await env.DB?.prepare('SELECT v FROM studio WHERE k = ?1').bind(`season:${y}`).first('v').catch(() => null) || 'null')?.v;
-    return Response.redirect(`${url.origin}/saison/${cur?.races?.some((r) => r.results?.length) || !env.DB ? y : y - 1}/`, 302);
+    return Response.redirect(`${url.origin}${p.lang === 'en' ? '/en/season/' : '/saison/'}${cur?.races?.some((r) => r.results?.length) || !env.DB ? y : y - 1}/`, 302);
   }
   const key = new Request(`${url.origin}${url.pathname}`);
   const hit = await caches.default.match(key).catch(() => null);
@@ -69,18 +71,7 @@ async function seasonAppPage(env, req, url, ctx) {
   // Sans les en-têtes du visiteur : un If-None-Match ferait répondre 304 sans contenu, gardé 15 min pour tout le monde
   const page = await liveAsset(env, new Request(new URL('/live/', url)));
   if (!ssr.url || page.status !== 200) return page;
-  const attr = (name, v) => ({ element(e) { e.setAttribute(name, v); } });
-  const out = new HTMLRewriter()
-    .on('title', { element(e) { e.setInnerContent(`${ssr.title} · Paddock Live`); } })
-    .on('meta[name="description"]', attr('content', ssr.desc))
-    .on('meta[property="og:title"]', attr('content', ssr.title))
-    .on('meta[property="og:description"]', attr('content', ssr.desc))
-    .on('meta[property="og:url"]', attr('content', ssr.url))
-    .on('link[rel="canonical"]', attr('href', ssr.url))
-    .on('head', { element(e) { if (ssr.ld) e.append(`<script type="application/ld+json">${JSON.stringify({ '@context': 'https://schema.org', '@graph': ssr.ld }).replace(/</g, '\\u003c')}</script>`, { html: true }); } })
-    .on('#seasonView', { element(e) { if (ssr.html) e.removeAttribute('hidden'); } })
-    .on('#szContent', { element(e) { if (ssr.html) e.setInnerContent(ssr.html, { html: true }); } })
-    .transform(page);
+  const out = seasonRewriter(ssr).transform(page);
   const body = await out.text();
   const res = new Response(body, { status: 200, headers: out.headers });
   res.headers.set('Content-Type', 'text/html; charset=utf-8');
@@ -292,7 +283,7 @@ export default {
     }
     // Espace Saison à son adresse (version web) ; sur paddocklive.app : plan du site, anciennes pages publiques redirigées
     if (req.method === 'GET' && env.DB && (url.pathname === '/saison' || url.pathname.startsWith('/saison/') || url.pathname.startsWith('/en/season/'))) {
-      if (app && env.ASSETS && !url.pathname.startsWith('/en/')) return seasonAppPage(env, req, url, ctx);
+      if (app && env.ASSETS) return seasonAppPage(env, req, url, ctx);
       if (!app && url.pathname === '/saison/sitemap.xml') return new Response(await seasonSitemap(env), { headers: { 'Content-Type': 'application/xml; charset=utf-8', 'Cache-Control': 'public, max-age=3600' } });
       const to = !app && await legacySeasonUrl(env, url).catch(() => null);
       if (to) return Response.redirect(to, 301);

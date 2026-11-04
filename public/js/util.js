@@ -215,8 +215,11 @@ export async function api(path, opts = {}) {
 // téléphone, la barre d'onglets du bas (qui reste visible)
 export function placeView(view) {
   const nav = document.querySelector('#mobNav');
-  view.style.top = `${Math.round(document.querySelector('.topbar').getBoundingClientRect().bottom)}px`;
-  view.style.bottom = nav && !nav.hidden ? `${nav.offsetHeight}px` : '';
+  // Télémétrie : la page Résultats commence sous les vues de la séance (contrôle segmenté du Direct)
+  const top = (view.id === 'resultsView' && document.querySelector('#sessViews:not([hidden])')) || document.querySelector('.topbar');
+  view.style.top = `${Math.round(top.getBoundingClientRect().bottom)}px`;
+  // Barre du bas (pas le rail de gauche du téléphone en paysage, en Télémétrie)
+  view.style.bottom = nav && !nav.hidden && nav.offsetWidth > nav.offsetHeight ? `${nav.offsetHeight}px` : '';
 }
 
 // Écran de chargement du démarrage (index.html) : retiré en fondu une fois l'accueil ou le tableau de bord prêt

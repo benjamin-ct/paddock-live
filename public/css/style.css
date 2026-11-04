@@ -161,6 +161,7 @@ code { background: var(--panel-3); padding: 1px 5px; border-radius: 4px; font-si
 .source-badge.replay .src-dot { background: var(--blue); }
 .source-badge.error .src-dot { background: var(--orange); }
 .source-badge.stale .src-dot { background: var(--orange); animation: pulse 1.4s infinite; }
+@media (prefers-reduced-motion: reduce) { .source-badge .src-dot { animation: none; } }   /* mouvement réduit demandé par le système */
 
 /* ---------- Barre de replay ---------- */
 .replaybar {
@@ -741,6 +742,7 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
 .tower td.c-gapf.ahead { color: var(--green); }
 .tower td.c-gapf.behind { color: var(--orange); }
 .tower-cols .map-layers-menu { min-width: 250px; left: 0; right: auto; }   /* bouton à gauche du panneau : menu ouvert vers la droite */
+.tower-cols .tc-ic { display: none; }   /* icône seule : téléphone en paysage, en Télémétrie (design-v3.css) */
 .tower-cols .col-sep { font-size: 11px; color: var(--muted); padding: 6px 8px 2px; text-transform: uppercase; letter-spacing: .6px; }
 .tag.push { background: var(--purple); color: #1a0030; }
 .pred { font-size: 12px; font-weight: 700; }
@@ -2414,6 +2416,7 @@ body.solo .grid .panel-head { padding-right: 116px; }
 
 /* Outils : documents FIA, vitesses, meilleurs secteurs */
 .tb-tools { display: flex; gap: 2px; align-items: center; }
+.tb-more { display: none; }   /* menu « Outils » : Télémétrie seulement (design-v3.css) */
 body.solo .tb-tools { display: none; }
 .tb-tool { position: relative; width: 32px; height: 32px; display: grid; place-items: center; background: none; border: 1px solid transparent; border-radius: 7px; color: var(--text-2); cursor: pointer; padding: 0; }
 /* Outils de la barre du haut : pictogramme et mot (masqué quand la place manque) */
@@ -3401,6 +3404,7 @@ html.float-mini .float-bar { top: auto; bottom: 4px; right: 24px; }   /* en bas 
 #settingsModal.set-modal::backdrop { background: rgba(4, 5, 8, .62); backdrop-filter: blur(6px); }
 :root:not([data-motion="off"]) #settingsModal.set-modal[open] { animation: set-in .26s var(--ease-out, ease-out); }
 @keyframes set-in { from { opacity: 0; transform: translateY(14px) scale(.985); } }
+@media (prefers-reduced-motion: reduce) { #settingsModal.set-modal[open] { animation: none; } }
 .set-shell { display: grid; grid-template-columns: 268px minmax(0, 1fr); height: 100%; }
 .set-side { display: flex; flex-direction: column; gap: 12px; padding: 18px 12px; background: var(--panel-2); border-right: 1px solid var(--border); min-height: 0; overflow-y: auto; }
 .set-brand { display: flex; align-items: center; gap: 9px; padding: 2px 8px; font-size: 18px; font-weight: 900; }
@@ -3861,3 +3865,177 @@ html.tab-win .p-analysis .panel-head > [data-tab="compare"] { display: inline-fl
 .ins-wing { width: 100%; max-width: 620px; height: auto; }
 .ins-lbl { font-size: 11px; fill: var(--text-2); }
 .ins-ax { font-size: 11px; fill: var(--muted); }
+
+/* ---------- Palette de commandes (Ctrl+K, ⌘K) : tous les designs, avec leurs variables ---------- */
+.cmdk { width: min(600px, calc(100vw - 24px)); max-height: min(540px, calc(100dvh - 24px)); margin: 12dvh auto auto; padding: 0;
+  border: 1px solid var(--line-2); border-radius: 14px; background: var(--panel); color: var(--text); box-shadow: 0 24px 64px -16px rgb(0 0 0 / .6); overflow: hidden; }
+.cmdk[open] { display: flex; flex-direction: column; }
+.cmdk::backdrop { background: rgb(0 0 0 / .5); }
+.ck-search { display: flex; align-items: center; gap: 10px; padding: 0 14px; border-bottom: 1px solid var(--border); flex: none; }
+.ck-search > .ic { width: 18px; height: 18px; color: var(--muted); flex: none; }
+.ck-search input { flex: 1; min-width: 0; height: 52px; padding: 0; border: 0; background: none; color: var(--text); font-size: 16px; outline: none; }
+.ck-search input::placeholder { color: var(--muted); }
+.ck-list { list-style: none; margin: 0; padding: 6px; overflow-y: auto; overscroll-behavior: contain; flex: 1 1 auto; min-height: 0; }
+.ck-group { padding: 10px 10px 4px; color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.ck-opt { position: relative; display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 10px; border-radius: 8px; color: var(--text-2); cursor: pointer; }
+.ck-opt > .ic { width: 16px; height: 16px; color: var(--muted); flex: none; }
+.ck-opt > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ck-opt > small { flex: none; color: var(--muted); font-size: 12px; }
+.ck-opt .ck-on { width: 14px; height: 14px; color: var(--text); }
+.ck-opt[aria-selected="true"] { background: var(--panel-3); color: var(--text); }
+.ck-opt[aria-selected="true"]::before { content: ''; position: absolute; left: 0; top: 10px; bottom: 10px; width: 2px; border-radius: 2px; background: var(--accent); }
+.ck-opt[aria-selected="true"] > .ic { color: var(--text); }
+.ck-opt[aria-disabled="true"] { opacity: .45; cursor: default; }
+.ck-empty { padding: 28px 16px; color: var(--muted); text-align: center; }
+.ck-foot { display: flex; gap: 16px; padding: 8px 14px; border-top: 1px solid var(--border); color: var(--muted); font-size: 12px; flex: none; }
+.ck-foot span { display: inline-flex; align-items: center; gap: 4px; }
+@media (hover: none) and (pointer: coarse) { .ck-foot, .ck-search kbd { display: none; } .ck-opt { min-height: 44px; } }
+@media (max-width: 600px) { .cmdk { margin-top: calc(8px + env(safe-area-inset-top)); } }
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-motion="off"]) .cmdk[open] { animation: ck-in .18s cubic-bezier(.16, 1, .3, 1); }
+}
+@keyframes ck-in { from { opacity: 0; transform: translateY(-6px) scale(.98); } }
+/* Loupe de la barre latérale et vues de la séance : Télémétrie seulement (design-v3.css) */
+.rail .rail-v3 { display: none; }
+/* Champ de la palette : la fenêtre elle-même montre le focus, pas de cadre autour du champ */
+.cmdk .ck-search input:focus, .cmdk .ck-search input:focus-visible { outline: none; box-shadow: none; border: 0; }
+
+/* ---------- Fil de course : radios et messages en un seul fil (tous les designs) ---------- */
+.rf-chips { position: sticky; top: 0; z-index: 1; display: flex; gap: 4px; padding: 6px 10px; overflow-x: auto; scrollbar-width: none; background: var(--panel); border-bottom: 1px solid var(--line); }
+.rf-chips::-webkit-scrollbar { display: none; }
+.rf-chips.more { -webkit-mask-image: linear-gradient(to left, transparent, #000 40px); mask-image: linear-gradient(to left, transparent, #000 40px); }
+.rf-chip { flex: none; height: 24px; padding: 0 10px; border: 1px solid var(--border); border-radius: 999px; background: none; color: var(--text-2); font: inherit; font-size: 12px; font-weight: 600; white-space: nowrap; cursor: pointer; }
+@media (hover: hover) { .rf-chip:hover { color: var(--text); border-color: var(--line-2); } }
+.rf-chip[aria-pressed="true"] { background: var(--panel-3); border-color: var(--line-2); color: var(--text); }
+.rf-list { list-style: none; margin: 0; padding: 0; }
+.rf-item { display: grid; grid-template-columns: 58px minmax(0, 1fr) auto; gap: 4px 10px; align-items: start; padding: 7px 10px 7px 12px; border-bottom: 1px solid var(--line); }
+.rf-item.note { display: block; color: var(--muted); border: 0; }
+.rf-when { padding-top: 3px; color: var(--muted); font: 500 11.5px/1.3 var(--font-mono); font-variant-numeric: tabular-nums; }
+.rf-head { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; }
+.rf-head small { color: var(--muted); font: 500 11px/1 var(--font-mono); }
+.rf-tag { display: inline-flex; align-items: center; gap: 5px; min-width: 40px; height: 20px; padding: 0 6px; border-left: 3px solid var(--k); border-radius: 4px;
+  background: color-mix(in srgb, var(--k) 14%, transparent); color: var(--text); font: 700 11px/1 var(--font-mono); letter-spacing: .02em; white-space: nowrap; }
+.rf-tag .rcm-flag { width: 10px; height: 8px; margin: 0; border-radius: 1px; }
+.rf-body { min-width: 0; }
+.rf-body .rd-text { font-size: 13.5px; line-height: 1.35; }
+.rf-body .rd-orig { margin-top: 2px; color: var(--muted); font-size: 12px; line-height: 1.3; }
+.rf-body .rcm-msg { font-size: 13px; line-height: 1.35; }
+.rf-radio { cursor: pointer; }
+@media (hover: hover) { .rf-radio:hover { background: var(--hover, var(--panel-2)); } }
+.rf-radio.playing { background: var(--panel-2); box-shadow: inset 2px 0 0 var(--accent); }
+.rf-play { padding: 2px 6px; font-size: 15px; color: var(--text-2); }
+.rf-radio.playing .rf-play { color: var(--text); }
+@media (max-width: 1000px) { .p-race { height: 460px; } }
+/* Saison : titres des groupes de rubriques, seulement en Télémétrie (design-v3.css) */
+#szNav .sz-grp { display: none; }
+
+/* ---------- Saison : cartes et fiche des pilotes, cartes des écuries, Bilan de la saison ----------
+   Venues de broadcast.css (coupé en Classique et en Télémétrie : ces rubriques y étaient cassées) ; en dernier, comme
+   avant (Paddock 2 inchangé) ; Télémétrie les redessine à plat (design-v3.css) */
+/* Pilotes : cartes de tous les pilotes, dans l'esprit des cartes officielles (prénom, nom, écurie, numéro et logo net sur
+   la couleur de l'écurie, portrait à droite), puis le pilote choisi en grand */
+.sz-drv-strip { display: flex; gap: 10px; overflow-x: auto; padding: 3px 3px 14px; margin-bottom: 8px; scroll-snap-type: x proximity; }
+.sz-drv-card { all: unset; box-sizing: border-box; position: relative; flex: none; width: 204px; height: 132px; padding: 11px 12px; border-radius: 12px; overflow: hidden; cursor: pointer; color: #fff; scroll-snap-align: start;
+  border: 1px solid color-mix(in srgb, var(--tc) 55%, #1E293B);
+  background: radial-gradient(circle at 76% 42%, color-mix(in srgb, var(--tc) 60%, transparent), transparent 60%), linear-gradient(150deg, color-mix(in srgb, var(--tc) 62%, #0B1324), color-mix(in srgb, var(--tc) 20%, #0B1324) 85%);
+  display: flex; flex-direction: column; transition: transform .15s, box-shadow .15s; }
+.sz-drv-card img { position: absolute; right: -8px; bottom: 0; height: 120px; width: auto; pointer-events: none; }
+.sz-drv-card > span { position: relative; z-index: 1; max-width: 104px; }
+.sz-drv-card .nm { display: flex; flex-direction: column; font: 800 16px/1.1 var(--font); }
+.sz-drv-card .nm small { font: 500 12px/1.25 var(--font); color: rgba(255, 255, 255, .8); }
+.sz-drv-card .tm { margin-top: 2px; font-size: 11px; color: rgba(255, 255, 255, .72); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sz-drv-card .ft { margin-top: auto; }
+.sz-drv-card .no { font: 900 26px/1 var(--font-cond, var(--font)); }
+.sz-drv-card .lg { width: 60px; height: 30px; }
+.sz-drv-card:hover { transform: translateY(-2px); }
+.sz-drv-card.on { box-shadow: 0 0 0 2px var(--tc), 0 4px 10px color-mix(in srgb, var(--tc) 30%, transparent); }
+.sz-drv-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* Numéro et logo de l'écurie côte à côte (cartes des pilotes, pilote en grand) ; logo blanc net, en couleur sur le clair */
+:is(.sz-drv-card, .sz-drv-hero) .ft { display: flex; align-items: center; gap: 10px; }
+:is(.sz-drv-card, .sz-drv-hero, .sz-team-card) .lg { display: block; flex: none; background: var(--logo, none) left center / contain no-repeat; }
+.sz-drv-hero { position: relative; min-height: 180px; margin-bottom: 12px; padding: 22px 26px; border-radius: 12px; overflow: hidden; color: #fff;
+  border: 1px solid color-mix(in srgb, var(--tc) 55%, #1E293B);
+  background: radial-gradient(circle at 80% 45%, color-mix(in srgb, var(--tc) 60%, transparent), transparent 58%), linear-gradient(120deg, color-mix(in srgb, var(--tc) 62%, #0B1324), color-mix(in srgb, var(--tc) 18%, #0B1324) 75%); }
+.sz-drv-hero img { position: absolute; right: 26px; bottom: 0; height: 196px; width: auto; }
+.sz-drv-hero .txt { position: relative; z-index: 1; max-width: 60%; }
+.sz-drv-hero .sz-drv-name { font-size: 34px; line-height: 1.05; }
+.sz-drv-hero .ft { margin: 8px 0 10px; gap: 16px; }
+.sz-drv-hero .no { font: 900 46px/1 var(--font-cond, var(--font)); }
+.sz-drv-hero .lg { width: 130px; height: 50px; }
+.sz-drv-hero .sub { color: rgba(255, 255, 255, .82); font-size: 14px; }
+@media (max-width: 700px) { .sz-drv-hero img { height: 150px; right: 0; } .sz-drv-hero .sz-drv-name { font-size: 26px; } .sz-drv-hero .txt { max-width: 62%; } .sz-drv-hero .lg { width: 84px; height: 30px; } .sz-drv-hero .no { font-size: 38px; } }
+/* Classements : choix Pilotes / Constructeurs des graphiques, totaux au bout des barres */
+.sz-st-head { display: flex; justify-content: flex-end; margin: 4px 0 10px; }
+.sz-svg .sz-tot { font-weight: 700; fill: var(--text); }
+/* Écuries : cartes à la couleur de chaque écurie, logo net en haut à droite, pilotes en portrait, bilan en bas */
+.sz-team-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; margin-bottom: 12px; }
+.sz-team-card { all: unset; box-sizing: border-box; position: relative; display: grid; grid-template-columns: 1fr auto; grid-template-rows: auto auto auto 1fr auto; gap: 0 12px; padding: 16px 18px 0; border-radius: 12px; overflow: hidden; cursor: pointer; color: #fff;
+  border: 1px solid color-mix(in srgb, var(--tc) 55%, #1E293B);
+  background: radial-gradient(circle at 85% 20%, color-mix(in srgb, var(--tc) 55%, transparent), transparent 60%), linear-gradient(150deg, color-mix(in srgb, var(--tc) 60%, #0B1324), color-mix(in srgb, var(--tc) 18%, #0B1324) 85%);
+  transition: transform .15s, box-shadow .15s; }
+.sz-team-card:hover { transform: translateY(-2px); box-shadow: 0 10px 26px color-mix(in srgb, var(--tc) 28%, transparent); }
+.sz-team-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.sz-team-card .tm-pos { font: 800 12px/1 var(--font); letter-spacing: .1em; color: rgba(255, 255, 255, .8); }
+.sz-team-card .lg { grid-column: 2; grid-row: 1 / 4; align-self: start; width: 120px; height: 52px; background-position: right top; }
+.sz-team-card .tm-name { margin-top: 4px; font: 800 24px/1.1 var(--font); }
+.sz-team-card .tm-pts { font: 900 22px/1.15 var(--font-cond, var(--font)); }
+.sz-team-card .tm-pts small { font-size: 12px; font-weight: 600; color: rgba(255, 255, 255, .75); }
+.sz-team-card .tm-drvs { grid-column: 1 / -1; display: flex; gap: 18px; margin: 14px 0 16px; }
+.tm-drv { display: grid; grid-template-columns: 56px auto; grid-template-rows: auto auto; column-gap: 10px; align-items: center; }
+.tm-drv img { grid-row: 1 / 3; width: 56px; height: 56px; border-radius: 50%; object-fit: cover; object-position: top; background: color-mix(in srgb, var(--tc) 55%, #0B1324); box-shadow: 0 0 0 2px rgba(255, 255, 255, .85); }
+.tm-drv b { font-size: 15px; align-self: end; }
+.tm-more { align-self: center; font-weight: 700; font-size: 13px; color: rgba(255, 255, 255, .75); }
+.tm-drv small { font-size: 12px; color: rgba(255, 255, 255, .75); align-self: start; }
+.sz-team-card .tm-stats { grid-column: 1 / -1; display: flex; gap: 16px; margin: 0 -18px; padding: 10px 18px; font-size: 12.5px; color: rgba(255, 255, 255, .8); background: rgba(2, 8, 23, .28); border-top: 1px solid rgba(255, 255, 255, .08); }
+.sz-team-card .tm-stats b { font-size: 16px; color: #fff; }
+/* Clair : cartes claires comme le reste de la page ; couleur de l'écurie en bandeau, en dégradé léger, sur le numéro, et logo en couleur */
+[data-theme="pitwall"][data-scheme="light"] :is(.sz-drv-card, .sz-drv-hero, .sz-team-card) { color: var(--text); border-color: var(--border);
+  background: linear-gradient(var(--tc), var(--tc)) top / 100% 4px no-repeat, linear-gradient(140deg, var(--panel) 35%, color-mix(in srgb, var(--tc) 18%, var(--panel))); }
+[data-theme="pitwall"][data-scheme="light"] :is(.sz-drv-card, .sz-drv-hero, .sz-team-card) .lg { background-image: var(--logo-c, none); }
+[data-theme="pitwall"][data-scheme="light"] :is(.sz-drv-card .no, .sz-drv-hero .no, .sz-team-card .tm-pos) { color: var(--tc); }
+[data-theme="pitwall"][data-scheme="light"] :is(.sz-drv-card :is(.tm, .nm small), .sz-drv-hero .sub, .sz-team-card :is(.tm-pts small, .tm-more, .tm-drv small, .tm-stats)) { color: var(--muted); }
+[data-theme="pitwall"][data-scheme="light"] .sz-team-card .tm-stats { background: color-mix(in srgb, var(--tc) 7%, var(--panel-2)); border-top-color: var(--border); }
+[data-theme="pitwall"][data-scheme="light"] .sz-team-card .tm-stats b { color: var(--text); }
+[data-theme="pitwall"][data-scheme="light"] .tm-drv img { background: color-mix(in srgb, var(--tc) 30%, var(--panel-2)); box-shadow: 0 0 0 2px var(--tc); }
+/* Bilan de la saison : leader en grand, cartes aux couleurs de l'écurie du premier (portrait, logo en filigrane), trois premiers en barres */
+.rv-progress { height: 6px; margin: -4px 0 14px; border-radius: 3px; background: var(--panel-3); overflow: hidden; }
+.rv-progress i { display: block; height: 100%; width: var(--w); background: var(--accent); border-radius: inherit; }
+.sz-rv-hero .rv-label { color: rgba(255, 255, 255, .78); }
+.sz-rv-hero .no small { font-size: 16px; font-weight: 700; }
+.sz-rv-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.sz-rv-card { position: relative; display: flex; flex-direction: column; gap: 4px; min-height: 190px; padding: 16px 18px; border-radius: 12px; overflow: hidden; color: #fff;
+  border: 1px solid color-mix(in srgb, var(--tc) 40%, #1E293B);
+  background: radial-gradient(circle at 85% 20%, color-mix(in srgb, var(--tc) 42%, transparent), transparent 60%), linear-gradient(150deg, color-mix(in srgb, var(--tc) 38%, #0B1324), #0B1324 80%); }
+.sz-rv-card[style*="--logo"]::before { content: ''; position: absolute; right: 10px; bottom: 10px; width: 110px; height: 80px; background: var(--logo, none) right bottom / contain no-repeat; opacity: .14; }
+.sz-rv-card > img { position: absolute; right: -4px; top: 6px; height: 104px; width: auto; pointer-events: none; -webkit-mask-image: linear-gradient(#000 55%, transparent 92%); mask-image: linear-gradient(#000 55%, transparent 92%); }
+.sz-rv-card > :not(img) { position: relative; z-index: 1; }
+.sz-rv-card .rv-label, .sz-rv-hero .rv-label { font: 700 11.5px/1 var(--font); letter-spacing: .1em; text-transform: uppercase; color: rgba(255, 255, 255, .72); }
+.sz-rv-card .rv-big { max-width: 62%; font: 900 30px/1.05 var(--font-cond, var(--font)); }
+.sz-rv-card .rv-big small { font-size: 20px; color: color-mix(in srgb, var(--tc) 55%, #fff); }
+.rv-bars { display: grid; gap: 5px; margin-top: auto; padding-top: 12px; }
+.rv-bar { display: grid; grid-template-columns: 82px 1fr 24px; align-items: center; gap: 8px; font-size: 12.5px; }
+.rv-bar b { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rv-bar i { height: 8px; border-radius: 4px; background: linear-gradient(90deg, var(--c) var(--w), rgba(255, 255, 255, .1) var(--w)); }
+.rv-bar em { font-style: normal; font-weight: 700; text-align: right; }
+.rv-foot { font-size: 12.5px; color: rgba(255, 255, 255, .72); }
+.rv-climb { display: flex; align-items: center; gap: 8px; margin-top: auto; padding-top: 12px; font: 800 18px/1 var(--font-cond, var(--font)); }
+.rv-climb i { flex: 1; height: 3px; border-radius: 2px; background: linear-gradient(90deg, rgba(255, 255, 255, .25), var(--tc)); position: relative; }
+.rv-climb i::after { content: ''; position: absolute; right: -2px; top: -4px; border: 5px solid transparent; border-left: 8px solid var(--tc); }
+.sz-rv-card .rv-dnf { margin: auto 0 4px; background: rgba(255, 255, 255, .1); }
+.sz-rv-card .rv-dnf i { background: #94A3B8; }
+[data-theme="pitwall"][data-scheme="light"] .sz-rv-card { color: var(--text); border-color: var(--border);
+  background: linear-gradient(var(--tc), var(--tc)) top / 100% 3px no-repeat, linear-gradient(140deg, var(--panel) 40%, color-mix(in srgb, var(--tc) 16%, var(--panel))); }
+[data-theme="pitwall"][data-scheme="light"] .sz-rv-card[style*="--logo"]::before { background: var(--tc); mask: var(--logo, none) right bottom / contain no-repeat luminance; opacity: .12; }
+[data-theme="pitwall"][data-scheme="light"] .sz-rv-card :is(.rv-label, .rv-foot) { color: var(--muted); }
+[data-theme="pitwall"][data-scheme="light"] .sz-rv-card .rv-big small { color: var(--tc); }
+[data-theme="pitwall"][data-scheme="light"] .rv-bar i { background: linear-gradient(90deg, var(--c) var(--w), var(--panel-3) var(--w)); }
+[data-theme="pitwall"][data-scheme="light"] .sz-rv-card .rv-dnf { background: var(--panel-3); }
+@media (max-width: 700px) { .sz-rv-card > img { height: 90px; } .sz-rv-card .rv-big { font-size: 26px; } }
+
+/* ---------- Version web : pas de décalage au premier affichage (CLS) ----------
+   L'Accueil, écrit dans la page, n'apparaît qu'une fois placé sous la barre du haut (ui/util.js placeView) : il ne saute
+   plus de 62 px à la hauteur réelle de la barre ; sur ordinateur, la séance (drapeau, nom) garde sa largeur pendant que
+   la barre se remplit, les autres éléments ne glissent plus */
+:root.web #homeView:not([style*="top"]) { visibility: hidden; }
+@media (min-width: 901px) { :root.web:not(.only) .topbar .session { flex: 0 0 190px; width: 190px; max-width: 190px; } }
+@media (min-width: 1801px) { :root.web:not(.only) .topbar .session { flex-basis: 260px; width: 260px; max-width: 260px; } }

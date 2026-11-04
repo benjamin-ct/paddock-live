@@ -313,7 +313,7 @@ export function canHideTab(t) {
 // Sur un onglet : le fermer ; ailleurs sur la barre d'onglets d'un panneau : tous ses onglets, pour remettre
 // ceux qui sont fermés (mêmes onglets masqués que Réglages → Onglets visibles)
 const groupOf = (t) => GROUPS[t] || [t];
-const PANEL_NAMES = { feed: 'Messages', radio: 'Radios', analysis: 'Analyse', extra: 'Télémétrie', tower: 'Classement', map: 'Circuit', duel: 'Duel' };
+const PANEL_NAMES = { feed: 'Messages', radio: 'Radios', race: 'Fil de course', analysis: 'Analyse', extra: 'Télémétrie', tower: 'Classement', map: 'Circuit', duel: 'Duel' };
 const tabName = (t) => esc(tabList().find((x) => x[1] === t)?.[2] || t);
 function setTabHidden(t, hide) {
   const g = groupOf(t);

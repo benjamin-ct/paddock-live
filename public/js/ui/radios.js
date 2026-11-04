@@ -56,7 +56,7 @@ function markHeard(url) {
 
 // Tour du pilote au moment de la radio (tours bouclés avant + 1). Les tours sont datés à l'heure
 // locale de réception, la radio à l'heure F1.
-function lapAt(num, utc) {
+export function lapAt(num, utc) {
   const laps = store.derived.laps?.[num];
   const t = Number.isFinite(utc) ? utcToLocal(utc) : null;
   if (!laps?.length || !Number.isFinite(t)) return null;
@@ -74,7 +74,7 @@ function avatar(d, num, playing) {
 
 const fullName = (d, num) => esc([d.FirstName, d.LastName].filter(Boolean).join(' ') || d.FullName || d.Tla || num);
 const when = (c) => { const lap = lapAt(c.num, c.utc); return `${lap ? `Tour ${lap} · ` : ''}${fmtClock(c.utc)}`; };
-const isPlaying = (url) => cur?.url === url && audio && !audio.paused;
+export const isPlaying = (url) => cur?.url === url && audio && !audio.paused;
 
 function cardHtml(c, d) {
   const dur = durations.get(c.url) ?? radioEntry(c.url)?.d;
@@ -85,7 +85,8 @@ function cardHtml(c, d) {
 // Traduction vide : rien que « […] » (transcription jugée incompréhensible par le traducteur) ; l'original est montré
 const blankTr = (s) => !String(s).replace(/\[…\]|\[\.\.\.\]|[\s.,;:!?…«»"'-]/g, '');
 
-function lineHtml(c, d) {
+// Texte d'une radio (transcription, traduction, original) : fil des radios et Fil de course
+export function radioTextHtml(c) {
   const e = c.ob || radioEntry(c.url);
   const lang = prefs.radioLang;
   let text;
@@ -95,6 +96,11 @@ function lineHtml(c, d) {
   else if (e.tr?.[lang] && blankTr(e.tr[lang])) text = `<div class="rd-text">${esc(e.en)}</div><div class="rd-orig">radio peu audible : pas de traduction</div>`;
   else if (e.tr?.[lang]) text = `<div class="rd-text">${esc(e.tr[lang])}</div><div class="rd-orig">${esc(e.en)}</div>`;
   else text = `<div class="rd-text">${esc(e.en)}</div><div class="rd-orig pending">traduction…</div>`;
+  return text;
+}
+
+function lineHtml(c, d) {
+  const text = radioTextHtml(c);
   const tag = c.ob ? ' <span class="rd-ob" title="Radio captée sur le son de la caméra embarquée F1 TV">caméra embarquée</span>' : '';
   return `${avatar(d, c.num, isPlaying(c.url))}<div class="rd-l-main">${text}<div class="rd-l-who">${fullName(d, c.num)} · ${when(c)}${tag}</div></div>`;
 }
@@ -141,6 +147,16 @@ function sync(container, store_, items, tag, html, cls) {
   for (const [url, r] of store_) if (!keep.has(url)) { r.el.remove(); store_.delete(url); }
 }
 
+// Radios publiées par la F1 (au rythme du délai TV, comme tout store.state), filtre des pilotes appliqué, plus récentes
+// d'abord : [{ url, num, utc }]
+export function radioCaptures() {
+  const b = base();
+  return b ? list(store.state.TeamRadio?.Captures)
+    .filter((c) => c.Path && radioAllowed(c.RacingNumber))
+    .map((c) => ({ url: b + c.Path, num: String(c.RacingNumber), utc: parseUtc(c.Utc) }))
+    .sort((x, y) => y.utc - x.utc) : [];
+}
+
 export function renderRadios(force = false) {
   const strip = $('#radioStrip'), feed = $('#radioList');
   if (!strip || !feed) return;
@@ -151,10 +167,7 @@ export function renderRadios(force = false) {
   $('#radioOpts').hidden = !prefs.radioText;
   const b = base();
   const dl = drivers(store.state);
-  ordered = b ? list(store.state.TeamRadio?.Captures)
-    .filter((c) => c.Path && radioAllowed(c.RacingNumber))
-    .map((c) => ({ url: b + c.Path, num: String(c.RacingNumber), utc: parseUtc(c.Utc) }))
-    .sort((x, y) => y.utc - x.utc) : [];
+  ordered = radioCaptures();
   const empty = $('#radioEmpty');
   empty.hidden = !!ordered.length;
   empty.textContent = !b ? 'Pas de séance en cours.' : store.status?.source?.noRadio ? 'Aucune radio d\'équipe publiée par la F1 pour cette séance.' : 'Aucune radio d\'équipe pour l\'instant.';

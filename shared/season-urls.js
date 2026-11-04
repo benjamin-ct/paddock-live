@@ -39,3 +39,41 @@ export function parseSeasonPath(path) {
   if (!section || (m[3] && section !== 'drivers' && section !== 'gp') || (section === 'gp' && !m[3])) return null;
   return { year: Number(m[1]), section, item: m[3] || null };
 }
+
+// Version anglaise (app.paddocklive.app/en/season/…) : mêmes rubriques, chemins anglais ; le nom du Grand Prix en anglais
+// (« /en/season/2026/grand-prix/mexico-city/ »). Même table que analytics/season-pages.js (vérifié par
+// test/season-pages.test.js), pour que l'appli tienne ses adresses et ses titres anglais.
+export const EN_PATHS = {
+  home: '', calendar: 'calendar', standings: 'standings', title: 'title-race', compare: 'compare', destructors: 'destructors', review: 'review', results: 'results', quali: 'qualifying',
+  h2h: 'head-to-head', ratings: 'ratings', predict: 'predictions', drivers: 'drivers', teams: 'teams', consistency: 'consistency', pits: 'pit-stops',
+  speeds: 'top-speeds', circuits: 'circuits', tech: 'upgrades', elements: 'power-unit-elements', gp: 'grand-prix',
+};
+export const enGpSlug = (name) => slug(gpShort(name, 'en'));
+export function enSeasonPath(year, section = 'home', item = null) {
+  const p = EN_PATHS[section] || '';
+  return `/en/season/${year}/${p ? `${p}/` : ''}${p && item ? `${item}/` : ''}`;
+}
+// « /en/season/2026/drivers/lando-norris/ » -> { year, section, item, lang: 'en' } ; year null pour « /en/season/ » ; null sinon
+export function parseEnSeasonPath(path) {
+  if (path === '/en/season/' || path === '/en/season') return { year: null, section: 'home', item: null, lang: 'en' };
+  const m = /^\/en\/season\/(\d{4})\/(?:([a-z-]+)\/(?:([a-z0-9-]+)\/)?)?$/.exec(path);
+  if (!m) return null;
+  const section = m[2] ? Object.keys(EN_PATHS).find((k) => EN_PATHS[k] === m[2]) : 'home';
+  if (!section || (m[3] && section !== 'drivers' && section !== 'gp') || (section === 'gp' && !m[3])) return null;
+  return { year: Number(m[1]), section, item: m[3] || null, lang: 'en' };
+}
+const EN_TITLES = {
+  home: 'F1 {} season: standings, calendar and results', calendar: 'F1 {} calendar', standings: 'F1 {} standings: drivers and constructors',
+  title: 'F1 {} title race', compare: 'Compare the F1 {} season with another', destructors: 'F1 {} destructors\' championship: crash damage', review: 'F1 {} season review',
+  results: 'F1 {} results: every Grand Prix', quali: 'F1 {} qualifying: gap to pole by team', h2h: 'F1 {} teammate head-to-heads', ratings: 'F1 {} driver ratings',
+  predict: 'F1 {} predictions with friends', drivers: 'F1 {} drivers', teams: 'F1 {} teams: drivers, points and results', consistency: 'F1 {} driver consistency',
+  pits: 'F1 {} pit stops: fastest, by team', speeds: 'F1 {} top speeds', circuits: 'F1 {} circuit profiles', tech: 'F1 {} technical upgrades',
+  elements: 'F1 {} power unit elements', gp: 'F1 {} Grands Prix',
+};
+export function enSeasonTitle(year, section, name = null, run = true) {
+  if (section === 'drivers' && name) return `${name}: ${year} F1 season results`;
+  if (section === 'gp' && name) return `${gpFull(name, 'en')} ${year}: ${run ? 'results' : 'schedule'}`;
+  return (EN_TITLES[section] || EN_TITLES.home).replace('{}', year);
+}
+// Titre de l'onglet : « · Paddock Live » ajouté seulement s'il tient dans 60 caractères (comme les pages du serveur)
+export const tabTitle = (title) => (`${title} · Paddock Live`.length <= 60 ? `${title} · Paddock Live` : title);
