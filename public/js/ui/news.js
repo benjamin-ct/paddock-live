@@ -108,6 +108,9 @@ async function load() {
   loaded ||= api('/api/news').then((d) => {
     items = d.items || [];
     setSources(d.sources || []);
+    // Serveur de l'appli qui n'a pas encore lu les actualités (juste après son lancement) : réponse vide, à ne pas
+    // garder (sinon seules les nouvelles arrivées ensuite s'affichaient) ; nouvel essai quelques secondes plus tard
+    if (!sources.length && (load.tries = (load.tries || 0) + 1) <= 10) { loaded = null; clearTimeout(load.retry); load.retry = setTimeout(() => { if (!sources.length) reload(); }, 8000); }
   }).catch(() => { loaded = null; });
   await Promise.all([loaded, loadTranslations()]);
 }
@@ -439,6 +442,8 @@ async function onFresh(list) {
 
 on('news', (list) => {
   if (!Array.isArray(list) || !list.length) return;
+  // Liste pas encore chargée (serveur pas prêt au lancement) : la liste complète plutôt que les seules nouvelles
+  if (!sources.length) reload();
   const known = new Set(items.map((x) => x.id));
   const sizes = {};
   for (const it of list) sizes[it.cluster] = it.sources;

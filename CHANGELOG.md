@@ -7,6 +7,8 @@ l'application (Réglages → À propos → Nouveautés).
 ## v1.32.0 — à venir
 
 ### Affichage
+- Actu : au lancement de l'appli, toute l'actualité s'affiche (il arrivait que la liste reste vide, ou ne montre que les
+  dernières nouvelles avec « 0 sources suivies », quand l'appli la demandait avant que son serveur l'ait lue).
 - Nouveau design « Télémétrie », par défaut dans l'appli : interface plus sobre et plus lisible, le rouge réservé à ce
   qui est actif, classement plus large avec toutes ses colonnes, nouvelle police, thèmes sombre et clair. Ceux qui
   utilisaient Paddock 2 passent à Télémétrie ; Paddock 2 et Classique restent au choix (Réglages → Apparence → Design).
