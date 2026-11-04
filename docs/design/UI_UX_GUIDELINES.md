@@ -19,7 +19,7 @@ Règles de conception propres à Paddock Live, tirées de l'appli telle qu'elle 
 ## 2. Principes
 
 1. **Données d'abord, décor ensuite.** Le tableau de bord est dense par nature (mode « Operate ») : la précision, la
-   lisibilité et la stabilité priment sur l'effet. Les effets de Paddock 2 (verre, lueurs) habillent ; ils ne doivent
+   lisibilité et la stabilité priment sur l'effet. Télémétrie (design par défaut) est à plat pour cela ; les effets de Paddock 2 (verre, lueurs) ne doivent
    jamais gêner la lecture d'un chiffre.
 2. **Aucun spoiler.** Rien ne doit révéler un résultat que l'utilisateur n'a pas encore vu : l'Accueil affiche
    « résultat masqué », le replay démarre avant le départ, les notifications et titres d'actualités respectent le
@@ -48,12 +48,12 @@ Règles de conception propres à Paddock Live, tirées de l'appli telle qu'elle 
 
 ## 4. Règles visuelles
 
-- **Design de référence : Paddock 2** (`data-design="v2"`), **en sombre et en clair**. Broadcast et Classique
+- **Design de référence : Télémétrie** (`data-design="v3"`, défaut de l'appli depuis la v1.32), **en sombre et en clair**. Paddock 2 (encore défaut de la version web) et Classique
   doivent rester lisibles sans casser.
 - Réutiliser **les variables** (`--panel`, `--text-2`, `--muted`, `--accent`, `--tc`…) et les classes existantes
   (`.btn`, `.btn-accent`, `.btn.small`, `.tab`, `.tab-seg`, `.note`, `.toast`, `.modal`) ; ne jamais écrire une
   couleur de surface ou de texte en dur dans un composant (elle casserait l'apparence claire).
-- Nouveau style propre à Paddock 2 : dans `design-v2.css`, préfixé `:root[data-design="v2"]`.
+- Nouveau style propre à Télémétrie : dans `design-v3.css`, préfixé `:root[data-design="v3"]` (Paddock 2 : `design-v2.css`, `:root[data-design="v2"]`).
 - Barre du haut, barre du replay et overlays de streaming : **toujours sombres**.
 - Couleur d'écurie : passer `--tc` sur l'élément ; en clair, passer par `onLight()` (`shared/colors.js`).
 - Titres : condensés (Saira Condensed) ; texte courant en Titillium Web ; temps et écarts en JetBrains Mono.
@@ -118,7 +118,7 @@ Règles de conception propres à Paddock Live, tirées de l'appli telle qu'elle 
    lancer un replay (page Replays) ou `node scripts/fiabilite.mjs --appli` (demande un compte F1 TV).
 4. Détecteur d'Impeccable sur les fichiers modifiés (mécanique, à trier : il ne connaît pas les conventions F1) :
    ```bash
-   .claude/skills/impeccable/scripts/impeccable detect --json public/css/design-v2.css
+   .claude/skills/impeccable/scripts/impeccable detect --json public/css/design-v3.css
    ```
 5. `npm test` avant de pousser.
 
