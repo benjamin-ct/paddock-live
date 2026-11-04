@@ -232,11 +232,8 @@
       .web .web-nav { display: none; }
       .web .web-mnav { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 900; }
       .web body { padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
-      /* Accueil, Saison, « Pas de séance » : jusqu'en bas de l'écran, derrière le menu ; place laissée à la fin du contenu */
-      .web :is(#homeView .hm-main, #szContent, #noLiveView) { padding-bottom: calc(96px + env(safe-area-inset-bottom)) !important; }
-      /* Menu caché en faisant défiler vers le bas, revenu en remontant (web.js) */
-      .web .web-mnav { transition: transform .25s ease, opacity .25s ease; }
-      .web .web-mnav.nav-off { transform: translateY(calc(100% + 24px + env(safe-area-inset-bottom))); opacity: 0; pointer-events: none; }
+      /* Accueil, Saison (et son menu des rubriques), « Pas de séance » : jusqu'en bas de l'écran, derrière le menu fixé ; place laissée à la fin du contenu */
+      .web :is(#homeView .hm-main, #szContent, #noLiveView, #seasonView .sz-side) { padding-bottom: calc(96px + env(safe-area-inset-bottom)) !important; }
     }
     @media (max-width: 1200px) and (min-width: 901px) { .web .web-nav .mn-l { display: none; } .web .web-nav button { padding: 6px 9px; } }
     html.web.only :is(.web-nav, .web-mnav) { display: none !important; }
@@ -281,7 +278,6 @@
       html.web[data-design="v3"] body { padding-left: var(--mrail) !important; padding-bottom: env(safe-area-inset-bottom); }
       html.web[data-design="v3"] body .topbar { left: var(--mrail); padding-right: max(var(--sp-3), env(safe-area-inset-right)); }
       html.web[data-design="v3"] .season-view { left: var(--mrail) !important; }
-      html.web[data-design="v3"] .web-mnav.nav-off { transform: none; opacity: 1; pointer-events: auto; }
     }
   </style>
 </head>

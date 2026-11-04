@@ -421,7 +421,6 @@ for (const nav of navs) {
   });
 }
 const syncNav = () => {
-  document.querySelector('#webNav')?.classList.remove('nav-off');   // nouvelle vue : menu de nouveau visible
   const open = (id) => !document.querySelector(id)?.hidden;
   const cur = open('#homeView') ? 'home' : open('#seasonView') ? 'season' : 'live';
   for (const b of document.querySelectorAll('[data-nav]')) { b.classList.toggle('active', b.dataset.nav === cur); b.setAttribute('aria-current', b.dataset.nav === cur ? 'page' : 'false'); }
@@ -430,18 +429,6 @@ const syncNav = () => {
 const navWatch = new MutationObserver(syncNav);
 for (const id of ['#homeView', '#seasonView']) { const el = document.querySelector(id); if (el) navWatch.observe(el, { attributes: true, attributeFilter: ['hidden'] }); }
 syncNav();
-// Téléphone : le menu du bas se cache quand on fait défiler vers le bas (page, accueil, Saison…) et revient en remontant,
-// en haut d'une page ou en changeant de vue. Défilement de côté (classement, onglets) : rien ne change
-const mnav = document.querySelector('#webNav');
-const lastTop = new WeakMap();
-document.addEventListener('scroll', (e) => {
-  const el = e.target === document ? document.scrollingElement : e.target;
-  if (!mnav || !el || el.closest?.('#webNav')) return;
-  const y = el.scrollTop, prev = lastTop.get(el) ?? 0;
-  lastTop.set(el, y);
-  if (Math.abs(y - prev) < 6) return;
-  mnav.classList.toggle('nav-off', y > prev && y > 60);
-}, { capture: true, passive: true });
 // Téléphone : réglages du direct derrière l'engrenage. Hauteur de la barre changée (réglages ouverts, police
 // chargée) : écran « Pas de séance en direct » replacé dessous
 const topbar = document.querySelector('.topbar');
