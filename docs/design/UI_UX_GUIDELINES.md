@@ -48,7 +48,7 @@ Règles de conception propres à Paddock Live, tirées de l'appli telle qu'elle 
 
 ## 4. Règles visuelles
 
-- **Design de référence : Télémétrie** (`data-design="v3"`, défaut de l'appli depuis la v1.32), **en sombre et en clair**. Paddock 2 (encore défaut de la version web) et Classique
+- **Design de référence : Télémétrie** (`data-design="v3"`, défaut de l'appli et de la version web depuis la v1.32), **en sombre et en clair**. Paddock 2 et Classique
   doivent rester lisibles sans casser.
 - Réutiliser **les variables** (`--panel`, `--text-2`, `--muted`, `--accent`, `--tc`…) et les classes existantes
   (`.btn`, `.btn-accent`, `.btn.small`, `.tab`, `.tab-seg`, `.note`, `.toast`, `.modal`) ; ne jamais écrire une

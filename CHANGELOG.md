@@ -62,6 +62,9 @@ l'application (Réglages → À propos → Nouveautés).
 - Correction d'une double connexion au direct quand la connexion F1 TV arrive juste après le lancement de l'appli.
 
 ### Version web
+- Nouveau design « Télémétrie », comme dans l'appli, en sombre et en clair : barre du haut sur deux lignes régulières
+  sur ordinateur (la séance et ses chiffres, puis le délai TV, la connexion F1 TV et les fenêtres), outils rangés dans
+  un menu « Outils » sur les écrans moyens, menu Accueil, Direct et Saison sur la gauche du téléphone en paysage.
 - Écran d'accueil, comme dans l'appli : prochaine séance avec son compte à rebours, programme et météo du week-end,
   dernière séance (résultat masqué, « Voir les résultats »), pilotes et écuries favoris, dernières actus (titres traduits,
   ouvertes sur leur site). Il s'ouvre quand aucune séance n'est en cours.

@@ -231,7 +231,7 @@ extension, langues, Accueil sans spoiler, délai TV, conventions de couleur de l
 
 1. ~~L'accent~~ : **B, rouge Paddock** (validé).
 2. ~~Le logo~~ : inchangé (rouge), conséquence du choix B.
-3. ~~Les designs actuels~~ : **Paddock 2 et Classique conservés au choix**, Broadcast retiré (validé). **Télémétrie devient le design par défaut à la fin de l'étape 5** : nouvelles installations, et passage unique de Paddock 2 à Télémétrie (comme en v1.30), Classique gardé, retour possible dans Réglages → Apparence. **Version web : passage en Télémétrie après la bêta de l'appli** (décision du 3 novembre 2026 ; pas de bêta pour la version web, chaque push la met en production).
+3. ~~Les designs actuels~~ : **Paddock 2 et Classique conservés au choix**, Broadcast retiré (validé). **Télémétrie devient le design par défaut à la fin de l'étape 5** : nouvelles installations, et passage unique de Paddock 2 à Télémétrie (comme en v1.30), Classique gardé, retour possible dans Réglages → Apparence. **Version web : passage en Télémétrie après la bêta de l'appli** (décision du 3 novembre 2026 ; pas de bêta pour la version web, chaque push la met en production) : fait le 4 novembre 2026, après la bêta 7 (pas de choix du design dans la version web).
 4. ~~La navigation~~ : **validée** (Résultats, Résumé et Commentaires dans la séance ; menu de l'appli et palette de commandes).
 5. ~~Le fil de course~~ : **validé** (radios et direction de course réunies, panneaux séparés toujours disponibles).
 
