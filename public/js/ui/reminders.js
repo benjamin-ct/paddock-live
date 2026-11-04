@@ -7,7 +7,6 @@ import { notifyReminder } from './alerts.js';
 import { dueReminders } from '/shared/ics.js';
 import { LOCALE, LANG } from '../i18n.js';
 import { gpFull } from '/shared/gp-names.js';
-import { pronoMissing } from './predict-view.js';
 
 const PRONO = { Qualifications: ['pole', 'Pole'], Course: ['p1', 'Podium'] };
 
@@ -33,7 +32,7 @@ async function pronoCheck() {
   storageSet('paddock.reminded', [...done, ...due.map((s) => `prono|${s.t}|${s.label}`)].slice(-60));
   for (const s of due) {
     const [field, what] = PRONO[s.label];
-    if (await pronoMissing(new Date(s.t).getFullYear(), field)) {
+    if (await (await import('./predict-view.js')).pronoMissing(new Date(s.t).getFullYear(), field)) {   // module de la Saison, chargé ici à la demande
       notifyReminder(`Pronostics — ${gpFull(s.name, LANG, 'GP')}`, `${what} : fermeture dans ${Math.max(1, Math.round((s.t - Date.now()) / 60e3))} min, votre pronostic n'est pas encore fait`);
     }
   }

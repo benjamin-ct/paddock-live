@@ -309,8 +309,7 @@ const SIMPLE_TABS = ['tower', 'extra', 'race', 'feed', 'radio', 'map'];
 const phoneVisible = (id) => (v3() ? id === 'race' || (id !== 'feed' && id !== 'radio' && isVisible(id)) : isVisible(id)) || PANELS_HIDDEN.includes(id);
 
 export function showMobilePanel(id) {
-  mobTab = id;
-  storageSet(MOB_KEY, id);
+  if (dual()) { mobTab2 = id; storageSet(MOB_KEY2, id); } else { mobTab = id; storageSet(MOB_KEY, id); }
   render(true);
   // Panneau choisi : glisse en place
   if (!mobile()) return;
@@ -319,9 +318,15 @@ export function showMobilePanel(id) {
   setTimeout(() => el?.classList.remove('mob-in'), 300);
 }
 
-// Télémétrie, téléphone en paysage : les vues de la séance au bout de la bande d'onglets (une ligne de moins au-dessus
-// du classement) ; ailleurs, sous la barre de séance
+// Télémétrie, téléphone et tablette : les vues de la séance au bout de la bande d'onglets (une ligne de moins au-dessus
+// du classement ; au téléphone, réduites à un bouton « Séance », design-v3.css) ; ailleurs, sous la barre de séance
 const LAND = matchMedia('(orientation: landscape) and (max-height: 500px)');
+// Télémétrie, téléphone en paysage et tablette en portrait : deux zones, le classement et une zone au choix (bande
+// d'onglets), côte à côte en paysage, l'une sous l'autre en portrait
+const TABP = matchMedia('(min-width: 600px) and (max-width: 900px) and (orientation: portrait)');
+const dual = () => v3() && mobile() && (LAND.matches || TABP.matches);
+const MOB_KEY2 = 'paddock.mobileTab2';
+let mobTab2 = storageGet(MOB_KEY2, 'map');
 let sessViews = null;   // gardé ici : la bande d'onglets redessinée le retire un instant de la page
 function placeSessViews(inStrip) {
   const sv = (sessViews ||= $('#sessViews')), strip = $('#mobPanels');
@@ -334,13 +339,18 @@ function renderMobile(grid) {
   grid.classList.remove('custom', 'has-max', 'free');
   for (const p of PANELS) clearFree(panelEl(p.id));
   grid.classList.add('mobile');
-  const tabs = MOB_TABS.filter(([id]) => phoneVisible(id) && (!simple() || SIMPLE_TABS.includes(id)));
-  if (!tabs.some(([id]) => id === mobTab)) mobTab = tabs[0]?.[0] || 'tower';
+  const two = dual();
+  grid.classList.toggle('dual', two);
+  // Deux zones : le classement toujours là, la bande d'onglets choisit l'autre zone
+  const tabs = MOB_TABS.filter(([id]) => phoneVisible(id) && (!simple() || SIMPLE_TABS.includes(id)) && !(two && id === 'tower'));
+  if (two) { if (!tabs.some(([id]) => id === mobTab2)) mobTab2 = tabs[0]?.[0] || 'map'; }
+  else if (!tabs.some(([id]) => id === mobTab)) mobTab = tabs[0]?.[0] || 'tower';
+  const cur = two ? mobTab2 : mobTab;
   for (const p of PANELS) {
     const el = panelEl(p.id);
     el.style.flex = '';
     el.classList.remove('maximized');
-    el.classList.toggle('hidden-panel', p.id !== mobTab || !phoneVisible(p.id));
+    el.classList.toggle('hidden-panel', !(p.id === cur || (two && p.id === 'tower')) || !phoneVisible(p.id));
     grid.appendChild(el);
   }
   for (const el of grid.querySelectorAll('.lcol, .lsplit-v, .lstash')) el.remove();
@@ -354,8 +364,8 @@ function renderMobile(grid) {
   const strip = $('#mobPanels');
   strip.hidden = false;
   sessViews ||= $('#sessViews');
-  strip.innerHTML = tabs.map(([id, label]) => `<button data-mobp="${id}" class="${id === mobTab ? 'active' : ''}">${label}</button>`).join('');
-  placeSessViews(v3() && LAND.matches);
+  strip.innerHTML = tabs.map(([id, label]) => `<button data-mobp="${id}" class="${id === cur ? 'active' : ''}">${label}</button>`).join('');
+  placeSessViews(v3());
   strip.querySelector('.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   syncMobNav();
 }
@@ -408,7 +418,7 @@ function mobMore(btn) {
 function render(force = false) {
   if (resizing) { renderLater = true; return; }
   const grid = $('.grid');
-  const key = `${mobile()}|${simple()}|${narrow()}|${LAND.matches}|${document.documentElement.dataset.design}|${JSON.stringify(layout)}|${PANELS.map((p) => isVisible(p.id)).join()}`;
+  const key = `${mobile()}|${simple()}|${narrow()}|${LAND.matches}|${TABP.matches}|${document.documentElement.dataset.design}|${JSON.stringify(layout)}|${PANELS.map((p) => isVisible(p.id)).join()}`;
   if (key === renderKey && !force) return;
   document.documentElement.classList.toggle('phone', mobile());
   document.documentElement.classList.toggle('simple', simple());
@@ -1262,7 +1272,7 @@ export function initLayout() {
     if (k === 'more') { mobMore(b); return; }
     // Replays (Télémétrie) : comme le bouton de la barre latérale (pendant un replay, retour au replay en cours)
     if (k === 'replay') { if ($('#replayView').hidden) $('#rail [data-rail="replay"]')?.click(); return; }
-    const [home, season, news, replays] = await Promise.all([import('./home.js'), import('./season.js'), import('./news.js'), import('./replays.js')]);
+    const [home, season, news, replays] = await Promise.all([import('./home.js'), import('./season-lazy.js'), import('./news.js'), import('./replays.js')]);
     if (k === 'home') { home.openHome(); return; }
     home.homeTouched();
     home.closeHome();
@@ -1271,7 +1281,13 @@ export function initLayout() {
     else if (k === 'news') news.openNews();
     else { season.closeSeason(); news.closeNews(); (await import('./results-view.js')).closeResults(); }
   });
-  $('#mobPanels')?.addEventListener('click', (e) => { const b = e.target.closest('[data-mobp]'); if (b) showMobilePanel(b.dataset.mobp); });
+  $('#mobPanels')?.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-mobp]');
+    if (!b) return;
+    // Télémétrie : un panneau choisi pendant Résultats, Résumé ou Commentaires ramène au tableau de bord
+    if (v3()) $('#sessViews:not([hidden]) [data-sv="board"]:not(.on)')?.click();
+    showMobilePanel(b.dataset.mobp);
+  });
   // Bouton actif de la barre du bas : suit les espaces ouverts (accueil, saison, actu, replays)
   const mo = new MutationObserver(syncMobNav);
   for (const id of ['#homeView', '#seasonView', '#newsView', '#replayView']) if ($(id)) mo.observe($(id), { attributes: true, attributeFilter: ['hidden'] });

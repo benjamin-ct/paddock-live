@@ -1,7 +1,7 @@
 // Barre de navigation latérale (Accueil, Direct, Résultats, Saison, Replays, Radios,
 // Réglages). Elle reprend les actions des boutons du haut, masqués.
 import { $, $$, api, esc, placeView } from '../util.js';
-import { openSeason, closeSeason } from './season.js';
+import { openSeason, closeSeason } from './season-lazy.js';
 import { openNews, closeNews } from './news.js';
 import { openHome, closeHome, homeTouched, startWindows } from './home.js';
 import { openReplays, closeReplays } from './replays.js';
@@ -174,6 +174,25 @@ function syncViews() {
     b.classList.toggle('on', b.dataset.sv === cur);
     if (b.dataset.sv === cur) b.setAttribute('aria-current', 'true'); else b.removeAttribute('aria-current');
   }
+  // Téléphone : bouton « Séance » qui ouvre les vues ; il prend le nom de la vue ouverte (hors tableau de bord)
+  const more = bar.querySelector('.sv-more');
+  if (more) {
+    more.classList.toggle('on', cur !== 'board');
+    const label = cur === 'board' ? t('Séance') : bar.querySelector(`[data-sv="${cur}"]`).textContent;
+    if (more.firstElementChild.textContent !== label) more.firstElementChild.textContent = label;
+  }
+}
+// Menu des vues au téléphone : la pilule des vues s'ouvre sous le bouton « Séance »
+function svMenu(open) {
+  const bar = $('#sessViews'), more = bar?.querySelector('.sv-more');
+  if (!more) return;
+  bar.classList.toggle('open', open);
+  more.setAttribute('aria-expanded', String(open));
+  if (!open) return;
+  const r = more.getBoundingClientRect(), seg = bar.querySelector('.sv-seg');
+  seg.style.top = `${Math.round(r.bottom + 6)}px`;
+  seg.style.right = `${Math.round(innerWidth - r.right)}px`;
+  (seg.querySelector('.on') || seg.querySelector('button'))?.focus({ preventScroll: true });
 }
 
 export function initRail() {
@@ -188,11 +207,15 @@ export function initRail() {
     sync();
   });
   $('#sessViews')?.addEventListener('click', (e) => {
+    if (e.target.closest('.sv-more')) { svMenu(!$('#sessViews').classList.contains('open')); return; }
     const k = e.target.closest('[data-sv]')?.dataset.sv;
     if (!k) return;
+    svMenu(false);
     VIEWS[k]();
     sync();
   });
+  document.addEventListener('pointerdown', (e) => { if ($('#sessViews')?.classList.contains('open') && !e.target.closest('#sessViews')) svMenu(false); });
+  addEventListener('resize', () => svMenu(false));
   // Résumé (fenêtre de dialogue) : ouvert par son bouton, d'où qu'il vienne ; refermé : retour au segment d'avant
   $('#summaryBtn')?.addEventListener('click', () => setTimeout(syncViews));
   document.addEventListener('close', (e) => { if (e.target.id === 'summaryDlg') syncViews(); }, true);
@@ -200,6 +223,7 @@ export function initRail() {
   // (Accueil, Saison, Actu, Replays : leur propre Échap)
   window.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape' || document.querySelector('dialog[open]')) return;
+    if ($('#sessViews')?.classList.contains('open')) { e.stopPropagation(); svMenu(false); $('#sessViews .sv-more').focus(); return; }
     const menu = document.querySelector('.lpop-menu');
     if (menu) { e.stopPropagation(); menu.remove(); return; }
     if (isResultsOpen()) { closeResults(); sync(); }

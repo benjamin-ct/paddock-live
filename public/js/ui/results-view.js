@@ -66,7 +66,7 @@ export function initResults() {
   $('#resContent')?.addEventListener('click', async (e) => {
     const k = e.target.closest('[data-res]')?.dataset.res;
     if (k === 'summary') $('#summaryBtn')?.click();
-    else if (k) { closeResults(); (await import('./season.js')).openSeason(k); }
+    else if (k) { closeResults(); (await import('./season-lazy.js')).openSeason(k); }
   });
   // Une autre page s'ouvre (Accueil, Saison, Actu, Replays) : la page Résultats se ferme
   const mo = new MutationObserver(() => {

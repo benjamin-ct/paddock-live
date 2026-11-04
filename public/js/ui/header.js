@@ -6,7 +6,7 @@ import { FLAG_ISO } from '/shared/flags.js';
 import { gpShort, gpFull, sessionLabel } from '/shared/gp-names.js';
 import { EN, LANG, LOCALE, DEC, DAY, t } from '../i18n.js';
 import { upcoming } from './home.js';
-import { COUNTRY_ISO } from '/shared/social-season.js';
+import { COUNTRY_ISO } from '/shared/country-iso.js';
 import { circuitInfo } from '/shared/circuits-info.js';
 import { flagBanner, timeLeft } from './session-info.js';
 import { toast } from './delay.js';
@@ -21,6 +21,8 @@ let lastVer = -1;
 export function renderHeader() {
   // Entre deux séances : le prochain Grand Prix plutôt que le dernier direct
   const nx = upcoming();
+  // Hors séance : la case « Tours » (tours de la course à venir) masquée en Télémétrie (design-v3.css)
+  $('.topbar')?.classList.toggle('tb-upcoming', !!nx);
   if (nx) { renderUpcoming(nx); return; }
   if (upKey) { upKey = ''; lastVer = -1; $('#clockBox .hstat-label').textContent = 'Temps restant'; }
   const s = store.state;

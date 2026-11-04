@@ -7,6 +7,8 @@ l'application (Réglages → À propos → Nouveautés).
 ## v1.32.0 — à venir
 
 ### Affichage
+- Actu : au lancement de l'appli, toute l'actualité s'affiche (il arrivait que la liste reste vide, ou ne montre que les
+  dernières nouvelles avec « 0 sources suivies », quand l'appli la demandait avant que son serveur l'ait lue).
 - Nouveau design « Télémétrie », par défaut dans l'appli : interface plus sobre et plus lisible, le rouge réservé à ce
   qui est actif, classement plus large avec toutes ses colonnes, nouvelle police, thèmes sombre et clair. Ceux qui
   utilisaient Paddock 2 passent à Télémétrie ; Paddock 2 et Classique restent au choix (Réglages → Apparence → Design).
@@ -24,6 +26,14 @@ l'application (Réglages → À propos → Nouveautés).
   sur les écrans moins larges), les en-têtes de panneaux à onglets aussi (les onglets défilent) ; au téléphone tenu en
   paysage, le classement gagne trois lignes (vues de la séance et onglets sur une seule ligne, bouton Colonnes réduit
   à son icône, barre du replay plus basse).
+- Design Télémétrie au téléphone et à la tablette : barre de séance plus basse (deux lignes au téléphone, une à la
+  tablette), Résultats, Résumé et Commentaires dans un bouton « Séance » au bout des onglets, replay en mini-lecteur
+  (lecture, curseur et temps ; les autres commandes à côté) : le classement montre trois à cinq lignes de plus. Tenu
+  en paysage, et à la tablette en portrait, le classement et une seconde zone au choix (carte, fil, télémétrie)
+  s'affichent ensemble. Aussi : favoris de l'Accueil remis en ordre (aussi en Classique), classements Pilotes et
+  Constructeurs de la Saison à la même hauteur de ligne, filtres de l'Actu harmonisés, puces du Fil de course qui
+  défilent à la molette, bouton Fermer de la palette au doigt, plus de « Tours » de la course à venir hors séance ;
+  en Paddock 2 et Classique, la barre du haut ne dépasse plus de l'écran vers 1440 px pendant une séance.
 - Design Télémétrie : Saison, Actu, Replays, Résultats, Résumé et Réglages prennent son style (pages à plat, grands
   titres étroits, chiffres mis en avant, écuries en traits de couleur, articles plus lisibles) ; les rubriques de la
   Saison se rangent en cinq groupes repliables (Vue d'ensemble, Résultats, Pilotes et écuries, Technique, Jeux).
@@ -65,6 +75,8 @@ l'application (Réglages → À propos → Nouveautés).
 - Pages anglaises de la Saison (/en/season/…) : l'appli s'ouvre en anglais à la première visite (une langue déjà
   choisie est gardée), et l'adresse et le titre de l'onglet restent en anglais d'une rubrique à l'autre.
 - Sur ordinateur, l'accueil et la barre du haut ne sautent plus pendant le chargement de la page.
+- Pages de la Saison : un seul titre principal, aussi une fois l'appli lancée (pour les moteurs de recherche et les
+  lecteurs d'écran).
 - Appairage avec l'appli : codes à 8 chiffres (les codes à 6 chiffres marchent encore) et protection contre les essais
   en masse.
 
@@ -97,6 +109,8 @@ l'application (Réglages → À propos → Nouveautés).
   récente qui est installée.
 
 ### Divers
+- Démarrage plus léger, dans l'appli et la version web : l'espace Saison (environ 300 Ko de code) n'est chargé qu'à sa
+  première ouverture.
 - Petites améliorations internes.
 
 ## v1.31.0 — 2026-11-02

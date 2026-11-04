@@ -84,10 +84,16 @@ export function initRaceFeed() {
   if (!chips) return;
   const paint = () => { for (const b of chips.querySelectorAll('[data-rf]')) b.setAttribute('aria-pressed', String(b.dataset.rf === (prefs.raceFeedFilter || 'all'))); };
   paint();
-  // Puces plus larges que le panneau : elles défilent, un fondu à droite le signale
-  const more = () => chips.classList.toggle('more', chips.scrollLeft + chips.clientWidth < chips.scrollWidth - 1);
+  // Puces plus larges que le panneau : elles défilent, un fondu sur le bord le signale (à droite, puis à gauche)
+  const more = () => { chips.classList.toggle('more', chips.scrollLeft + chips.clientWidth < chips.scrollWidth - 1); chips.classList.toggle('less', chips.scrollLeft > 1); };
   new ResizeObserver(more).observe(chips);
   chips.addEventListener('scroll', more, { passive: true });
+  // Molette verticale : les puces défilent de côté (au doigt, le glissement suffit)
+  chips.addEventListener('wheel', (e) => {
+    if (!e.deltaY || Math.abs(e.deltaX) > Math.abs(e.deltaY) || chips.scrollWidth <= chips.clientWidth) return;
+    e.preventDefault();
+    chips.scrollLeft += e.deltaY;
+  }, { passive: false });
   chips.addEventListener('click', (e) => { const b = e.target.closest('[data-rf]'); if (b) setPref('raceFeedFilter', b.dataset.rf); });
   on('prefs', (k) => { if (k === 'raceFeedFilter') { paint(); renderRaceFeed(); } });
   // Une radio se lit au clic sur sa ligne ou son bouton (comme dans le panneau Radios)

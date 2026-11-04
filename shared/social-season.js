@@ -17,13 +17,9 @@ const capFirst = (s) => String(s).charAt(0).toUpperCase() + String(s).slice(1);
 const dec = (v, n = 1) => (v == null ? '—' : Number(v).toFixed(n).replace('.', ','));
 export const lapStr = (s) => (s ? `${Math.floor(s / 60)}:${(s % 60).toFixed(3).padStart(6, '0')}` : '—');
 
-// Pays du calendrier (noms de l'API des résultats) -> code ISO des drapeaux
-export const COUNTRY_ISO = {
-  Australia: 'au', China: 'cn', Japan: 'jp', Bahrain: 'bh', 'Saudi Arabia': 'sa', USA: 'us', 'United States': 'us', Italy: 'it', Monaco: 'mc',
-  Spain: 'es', Canada: 'ca', Austria: 'at', UK: 'gb', 'United Kingdom': 'gb', Belgium: 'be', Hungary: 'hu', Netherlands: 'nl', Azerbaijan: 'az',
-  Singapore: 'sg', Mexico: 'mx', Brazil: 'br', Qatar: 'qa', UAE: 'ae', 'United Arab Emirates': 'ae', Portugal: 'pt', Turkey: 'tr', France: 'fr',
-  Germany: 'de', Russia: 'ru', Argentina: 'ar', 'South Africa': 'za', Korea: 'kr', India: 'in', Malaysia: 'my', Vietnam: 'vn', Thailand: 'th', Morocco: 'ma',
-};
+// Pays du calendrier -> code ISO des drapeaux (shared/country-iso.js, petit fichier lu par la barre du haut de l'appli)
+import { COUNTRY_ISO } from './country-iso.js';
+export { COUNTRY_ISO };
 // Couleurs des écuries (identifiant ou nom), à défaut de la liste des pilotes de la séance
 const TEAM_COLORS = [
   [/racing_bulls|racing bulls|^rb\b|visa cash/i, '#6692FF'], [/red_bull|red bull/i, '#3671C6'], [/ferrari/i, '#E80020'], [/mercedes/i, '#27F4D2'],

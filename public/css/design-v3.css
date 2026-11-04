@@ -268,11 +268,86 @@
   :root[data-design="v3"] .topbar { padding-top: max(6px, env(safe-area-inset-top)); }
   /* Réglages : icône de la barre de séance (la barre du bas n'a plus de « Plus ») */
   :root[data-design="v3"] body:has(#mobNav:not([hidden])) .topbar #settingsBtn { display: inline-grid; place-items: center; order: 1; min-width: 40px; min-height: 40px; padding: 0; }
-  /* Vues de la séance : sur toute la largeur, segments égaux */
-  :root[data-design="v3"] .sess-views:not([hidden]) { padding: 6px 8px; border-bottom: 1px solid var(--border); }
-  :root[data-design="v3"] .sv-seg { flex: 1 0 auto; }
-  :root[data-design="v3"] .sv-seg button { flex: 1 0 auto; padding: 0 8px; min-height: 32px; font-size: var(--fs-xs); }
+  /* Vues de la séance au bout de la bande d'onglets (ui/layout.js), collées à droite derrière un fondu quand les
+     onglets défilent */
+  :root[data-design="v3"] .mob-panels > .sess-views:not([hidden]) { position: sticky; right: 0; z-index: 1; display: flex; align-items: center; flex: none; margin-left: auto;
+    padding: 0 0 0 16px; border: 0; background: linear-gradient(to right, transparent, var(--bg) 14px); overflow: visible; }
+  :root[data-design="v3"] .sv-seg button { min-height: 28px; padding: 0 12px; font-size: var(--fs-xs); }
   :root[data-design="v3"] .topbar .hstat-value { font-size: 18px; }
+  /* Barre de séance : une ligne à la tablette, deux au téléphone (plus de ligne vide entre les deux) */
+  :root[data-design="v3"] .topbar { row-gap: 2px; column-gap: 8px; padding: max(4px, env(safe-area-inset-top)) 8px 4px; }
+  :root[data-design="v3"] .topbar .tb-break.b2 { display: none !important; }
+  /* Piste sèche : l'état normal, sans case ; humide et mouillée restent affichées */
+  :root[data-design="v3"] .topbar .hstat.surface.dry { display: none; }
+  :root[data-design="v3"] .topbar .hstat-label { font-size: 9.5px; }
+  :root[data-design="v3"] .topbar > .hstat { height: 32px; justify-content: center; gap: 2px; }
+  :root[data-design="v3"] .topbar .lap-bar:not([hidden]) { bottom: -3px; }
+  :root[data-design="v3"] .topbar :is(.brand, #muteBtn) { height: 34px; display: inline-grid; place-items: center; }
+  :root[data-design="v3"] body:has(#mobNav:not([hidden])) .topbar #settingsBtn { min-width: 34px; min-height: 34px; }
+  :root[data-design="v3"] .topbar .delay { height: 32px; }
+  :root[data-design="v3"] .topbar .delay :is(.dbtn, .dmore, .dpause) { min-height: 30px; height: 30px; }
+  :root[data-design="v3"] .topbar #syncBtn { height: 30px; min-height: 30px; padding: 0 10px; }
+  :root[data-design="v3"] .topbar .delay-input { font-size: 15px; }
+  /* Classement : le bouton Colonnes réduit à son icône, dans le coin de l'en-tête du tableau (à la place de « Pos ») */
+  :root[data-design="v3"] .grid.mobile .p-tower { position: relative; }
+  :root[data-design="v3"] .grid.mobile .p-tower > .panel-head { position: absolute; z-index: 5; top: 0; left: 0; min-height: 0; padding: 0; border: 0; background: none; }
+  :root[data-design="v3"] .grid.mobile .p-tower .tower-cols > summary { width: 32px; height: 30px; min-height: 0; padding: 0; justify-content: center; gap: 0; border: 0; background: none; font-size: 0; }
+  :root[data-design="v3"] .grid.mobile .p-tower .tower-cols > summary .ic { display: none; }
+  :root[data-design="v3"] .grid.mobile .p-tower .tower-cols > summary .tc-ic { display: block; width: 16px; height: 16px; color: var(--text-2); }
+  :root[data-design="v3"] .grid.mobile .tower thead th:first-child { color: transparent; }
+  :root[data-design="v3"] .grid.mobile .tower th { padding-top: 8px; padding-bottom: 8px; }
+  /* Deux zones (tablette en portrait, téléphone en paysage) : un filet entre le classement et la zone au choix */
+  :root[data-design="v3"] .grid.mobile.dual > .panel:not(.p-tower) { border: 0 solid var(--border); }
+}
+/* Tablette en portrait : la barre de séance sur une ligne, le classement en haut (60 %), la zone au choix dessous,
+   la barre du replay sur une ligne */
+@media (min-width: 600px) and (max-width: 900px) {
+  :root[data-design="v3"] .topbar .tb-break { display: none !important; }
+  :root[data-design="v3"] .topbar .session { flex: 1 1 140px; min-width: 120px; }
+  :root[data-design="v3"] .replaybar { grid-template-columns: auto minmax(0, 1fr) auto; padding-block: 6px; }
+  :root[data-design="v3"] .replaybar .rp-track { grid-column: 2; grid-row: 1; margin-top: 6px; }
+  :root[data-design="v3"] .replaybar .rp-side { grid-column: 3; grid-row: 1; }
+}
+@media (min-width: 600px) and (max-width: 900px) and (orientation: portrait) {
+  :root[data-design="v3"] .grid.mobile.dual > .p-tower { flex: 3 1 0; }
+  :root[data-design="v3"] .grid.mobile.dual > .panel:not(.p-tower) { flex: 2 1 0; border-top-width: 1px; }
+}
+:root[data-design="v3"] .sess-views .sv-more { display: none; }
+/* Téléphone (portrait, et paysage plus bas) : les vues de la séance dans un menu « Séance » au bout de la bande */
+@media (max-width: 599px), (max-width: 900px) and (orientation: landscape) and (max-height: 500px) {
+  :root[data-design="v3"] .sess-views .sv-more { display: inline-flex; align-items: center; gap: 4px; height: 30px; padding: 0 9px 0 12px; border: 1px solid var(--line-2); border-radius: var(--r-pill);
+    background: var(--panel-2); color: var(--text-2); font: 600 var(--fs-sm)/1 var(--font); white-space: nowrap; cursor: pointer; transition: color var(--dur-2), background-color var(--dur-2); }
+  :root[data-design="v3"] .sess-views .sv-more .ic { width: 14px; height: 14px; transition: transform var(--dur-2) var(--ease-out); }
+  :root[data-design="v3"] .sess-views .sv-more:active { transform: scale(.97); }
+  :root[data-design="v3"] .sess-views :is(.sv-more.on, .sv-more[aria-expanded="true"]) { background: var(--panel-3); border-color: var(--text); color: var(--text); }
+  :root[data-design="v3"] .sess-views.open .sv-more .ic { transform: rotate(180deg); }
+  :root[data-design="v3"] .sess-views:not(.open) .sv-seg { display: none; }
+  :root[data-design="v3"] .mob-panels:not([hidden]) { gap: 2px; padding-inline: 6px; }
+  :root[data-design="v3"] .mob-panels > button { padding-inline: 9px; }
+  :root[data-design="v3"] .mob-panels > .sess-views:not([hidden]) { padding-left: 10px; background: linear-gradient(to right, transparent, var(--bg) 8px); }
+  :root[data-design="v3"] .sess-views.open .sv-seg { position: fixed; z-index: 1000; flex-direction: column; align-items: stretch; gap: 2px; min-width: 210px; padding: 6px;
+    border: 0; border-radius: var(--r-md); background: var(--panel-3); box-shadow: var(--shadow-pop); }
+  :root[data-design="v3"] .sess-views.open .sv-seg button { flex: none; min-height: 44px; padding: 0 12px; border-radius: var(--r-sm); font-size: var(--fs-md); text-align: left; box-shadow: none; }
+  :root[data-design="v3"] .sess-views.open .sv-seg button.on { background: var(--panel-2); box-shadow: inset 2px 0 0 var(--accent); }
+  /* Résultats, Résumé ou Commentaires ouverts : plus d'onglet de panneau souligné */
+  :root[data-design="v3"] .mob-panels:has(.sv-more.on) > button.active { color: var(--muted); }
+  :root[data-design="v3"] .mob-panels:has(.sv-more.on) > button.active::after { display: none; }
+  @media (prefers-reduced-motion: no-preference) { :root[data-design="v3"]:not([data-motion="off"]) .sess-views.open .sv-seg { animation: v3-pop var(--dur-3) var(--ease-out); } }
+}
+/* Téléphone en portrait : le replay en mini-lecteur de 56 px (lecture, curseur, temps) ; les autres commandes dans
+   un tiroir (bouton à droite) */
+@media (max-width: 599px) {
+  :root[data-design="v3"] .replaybar { position: relative; grid-template-columns: 36px minmax(0, 1fr) 60px 36px; grid-template-rows: 55px; gap: 0 8px; align-items: center; padding: 0 6px 0 10px; }
+  :root[data-design="v3"] .replaybar .rp-play { grid-column: 1; grid-row: 1; }
+  :root[data-design="v3"] .replaybar .rp-track { grid-column: 2; grid-row: 1; margin: 8px 4px 0; }
+  :root[data-design="v3"] .replaybar .rp-side { grid-column: 3; grid-row: 1; justify-content: flex-end; }
+  :root[data-design="v3"] .replaybar:not(.rp-open) .rp-side > :not(.rp-time) { display: none !important; }
+  :root[data-design="v3"] .replaybar .rp-time { margin: 0; font-size: var(--fs-xs); }
+  :root[data-design="v3"] .replaybar .rp-more { display: grid; place-items: center; grid-column: 4; grid-row: 1; width: 36px; height: 36px; padding: 0; }
+  :root[data-design="v3"] .replaybar .rp-more[aria-expanded="true"] { background: var(--panel-3); color: var(--text); }
+  :root[data-design="v3"] .replaybar.rp-open { grid-template-rows: 55px auto; }
+  :root[data-design="v3"] .replaybar.rp-open .rp-side { grid-column: 1 / -1; grid-row: 2; flex-wrap: wrap; justify-content: flex-start; gap: 6px; padding: 0 0 8px; }
+  :root[data-design="v3"] .replaybar.rp-open .rp-time { position: absolute; top: 0; right: 50px; display: flex; align-items: center; justify-content: flex-end; width: 60px; height: 55px; }
 }
 /* Téléphone en paysage : la barre du bas devient un rail de 56 px à gauche (icônes seules, libellés pour les lecteurs
    d'écran) ; la hauteur revient aux données */
@@ -288,23 +363,19 @@
   :root[data-design="v3"] body:has(#replayBar:not([hidden])) .grid.mobile { height: calc(100dvh - 46px); }
   :root[data-design="v3"] .replaybar { bottom: 0; }
   :root[data-design="v3"] .sess-views:not([hidden]) { padding-block: 3px; }
-  /* Vues de la séance au bout de la bande d'onglets (ui/layout.js) */
-  :root[data-design="v3"] .mob-panels > .sess-views:not([hidden]) { flex: none; margin-left: auto; padding: 0; border: 0; background: none; overflow: visible; }
-  /* Classement : le bouton Colonnes réduit à son icône, dans le coin de l'en-tête du tableau (à la place de « Pos ») ;
-     lignes et en-tête resserrés */
-  :root[data-design="v3"] .grid.mobile .p-tower { position: relative; }
-  :root[data-design="v3"] .grid.mobile .p-tower > .panel-head { position: absolute; z-index: 5; top: 0; left: 0; min-height: 0; padding: 0; border: 0; background: none; }
-  :root[data-design="v3"] .grid.mobile .p-tower .tower-cols > summary { width: 32px; height: 26px; min-height: 0; padding: 0; justify-content: center; gap: 0; border: 0; background: none; font-size: 0; }
-  :root[data-design="v3"] .grid.mobile .p-tower .tower-cols > summary .ic { display: none; }
-  :root[data-design="v3"] .grid.mobile .p-tower .tower-cols > summary .tc-ic { display: block; width: 16px; height: 16px; color: var(--text-2); }
-  :root[data-design="v3"] .grid.mobile .tower thead th:first-child { color: transparent; }
+  /* Classement : en-tête resserré, lignes de 28 px */
+  :root[data-design="v3"] .grid.mobile .p-tower .tower-cols > summary { height: 26px; }
   :root[data-design="v3"] .grid.mobile .tower th { padding-top: 6px; padding-bottom: 6px; }
   :root[data-design="v3"] .grid.mobile .tower { --tower-row-h: 28px !important; }
   /* Barre du replay plus basse, sur une ligne */
   :root[data-design="v3"] .replaybar { padding-top: 3px; padding-bottom: 3px; }
   :root[data-design="v3"] .rp-play { width: 30px; height: 30px; }
-  :root[data-design="v3"] .sv-seg { flex: none; }
-  :root[data-design="v3"] .sv-seg button { flex: none; min-height: 26px; padding: 0 14px; font-size: var(--fs-xs); }
+  :root[data-design="v3"] .sess-views .sv-more { height: 26px; }
+  /* Deux zones côte à côte : le classement (colonnes du téléphone) et la carte ou le fil */
+  :root[data-design="v3"] .grid.mobile.dual { flex-direction: row; }
+  :root[data-design="v3"] .grid.mobile.dual > .p-tower { flex: 11 1 0; min-width: 0; }
+  :root[data-design="v3"] .grid.mobile.dual > .panel:not(.p-tower) { flex: 9 1 0; min-width: 0; border-left-width: 1px; }
+  :root[data-design="v3"] .grid.mobile.dual .tower :is(.c-last, .c-best) { display: none; }
 }
 
 /* Au doigt : cibles d'au moins 24 px partout (WCAG 2.2), 44 px pour la navigation */
@@ -602,3 +673,40 @@
   :root[data-design="v3"] :is(.tag.battle, .sz-png, button.linkish)::before { content: ''; position: absolute; left: 50%; top: 50%; width: max(100%, 32px); height: max(100%, 32px); transform: translate(-50%, -50%); }
 }
 :root[data-design="v3"] .hm-round { color: var(--text-2); }
+
+/* ---------- Finitions (étape 6) ---------- */
+/* Hors séance : pas de « Tours » de la course à venir dans la barre de séance (ui/header.js) */
+:root[data-design="v3"] .topbar.tb-upcoming .lap-box { display: none; }
+/* Un seul bouton principal rouge à l'écran : la Synchro TV de la barre de séance ; ceux de l'Accueil et de l'écran
+   « Pas de séance en direct » passent en secondaire */
+:root[data-design="v3"] :is(#homeView, #noLiveView) .btn-accent { background: var(--panel-3); border-color: var(--line-2); color: var(--text); }
+:root[data-design="v3"] :is(#homeView, #noLiveView) .btn-accent:hover { background: color-mix(in srgb, var(--panel-3) 80%, var(--text) 8%); border-color: var(--text-2); }
+/* Saison : deux tableaux côte à côte gardent la même hauteur de ligne (le plus court ne s'étire plus) */
+:root[data-design="v3"] .sz-grid2 > .sz-box > :is(.sz-table, .sz-scroll) { flex: none; }
+:root[data-design="v3"] .sz-grid2 > .sz-box > .sz-scroll > .sz-table { height: auto; }
+/* Actu, colonne des filtres : champ, listes et bascules à la même hauteur, dans la même police */
+:root[data-design="v3"] .nw-opts { gap: 10px; }
+:root[data-design="v3"] .nw-opts :is(input[type="search"], select) { height: 34px; min-height: 34px; border: 1px solid var(--line-2); border-radius: var(--r-sm); background-color: var(--panel-2); color: var(--text); font-family: var(--font); font-weight: 500; }
+:root[data-design="v3"] .nw-opts .toggle { gap: 10px; color: var(--text-2); font: 500 var(--fs-sm)/1.3 var(--font); }
+:root[data-design="v3"] .nw-alerts { gap: 6px; color: var(--muted); font: 500 var(--fs-2xs)/1 var(--font-mono); letter-spacing: .1em; text-transform: uppercase; }
+:root[data-design="v3"] .nw-alerts select { letter-spacing: 0; text-transform: none; }
+@media (min-width: 901px) { :root[data-design="v3"] .nw-opts :is(input[type="search"], select) { font-size: var(--fs-sm); } }
+/* Accueil, Mes favoris : lignes de 44 px à filet, position en case, portrait rond de 30 px, écurie en trait de couleur,
+   points et victoires à droite */
+:root[data-design="v3"] .hm-favs { grid-template-columns: 34px minmax(0, 1fr) minmax(0, 100px) auto; gap: 0 12px; }
+:root[data-design="v3"] .hm-fav-row { align-items: center; min-height: 44px; border-top: 1px solid var(--line); }
+:root[data-design="v3"] .hm-fav-group { margin: 0; padding: 14px 0 8px; color: var(--muted); font: 500 var(--fs-2xs)/1 var(--font-mono); letter-spacing: .12em; }
+:root[data-design="v3"] .hm-fav-group:first-child { padding-top: 4px; }
+:root[data-design="v3"] .hm-fav-group + .hm-fav-row { border-top: 0; }
+:root[data-design="v3"] .hm-fav-row > * { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+:root[data-design="v3"] .hm-fav-pos { display: grid; place-items: center; width: 34px; height: 24px; }
+:root[data-design="v3"] .hm-fav-who { display: block; font: 700 var(--fs-md)/30px var(--font); }
+:root[data-design="v3"] .hm-fav-who :is(.hm-fav-pic, .team-logo) { display: inline-block; margin-right: 10px; vertical-align: middle; }
+:root[data-design="v3"] .hm-fav-pic { width: 30px; height: 30px; border-width: 1.5px; margin-top: -2px; }
+:root[data-design="v3"] .hm-fav-row > span.muted { color: var(--muted); font-size: var(--fs-sm); }
+:root[data-design="v3"] .hm-fav-row > span.muted:last-child { color: var(--text-2); font: 500 var(--fs-xs)/1 var(--font-mono); text-align: right; }
+/* Téléphone : points et victoires sur deux lignes, le nom garde la place */
+@media (max-width: 600px) {
+  :root[data-design="v3"] .hm-favs { grid-template-columns: 34px minmax(0, 1fr) auto; }
+  :root[data-design="v3"] .hm-fav-row > span.muted:last-child { max-width: 9em; white-space: normal; line-height: 1.35; }
+}

@@ -17,7 +17,7 @@ import { renderPace, setPaceCut, setPaceScope } from './season-pace.js';
 import { tip, hit, initTips } from './season-tip.js';
 import { DEC, LOCALE, LANG, ord, t } from '../i18n.js';
 import { gpShort, gpFull } from '/shared/gp-names.js';
-import { COUNTRY_ISO } from '/shared/social-season.js';
+import { COUNTRY_ISO } from '/shared/country-iso.js';
 import { seasonPath, seasonTitle, slug, gpSlug, parseSeasonPath, enSeasonPath, parseEnSeasonPath, enSeasonTitle, enGpSlug, tabTitle } from '/shared/season-urls.js';
 import { circuitInfo } from '/shared/circuits-info.js';
 
@@ -363,7 +363,13 @@ function syncUrl() {
   } else if (location.pathname !== p) history.replaceState(history.state, '', p);
   push = false;
   document.documentElement.dataset.seasonTitle = '1';
-  document.title = tabTitle((en ? enSeasonTitle : seasonTitle)(data.year, section, d?.name || r?.name, !!r?.results.length));
+  const title = (en ? enSeasonTitle : seasonTitle)(data.year, section, d?.name || r?.name, !!r?.results.length);
+  document.title = tabTitle(title);
+  // Titre principal de la page (H1) pour les moteurs de recherche et les lecteurs d'écran : le H1 envoyé par le serveur
+  // est remplacé quand la Saison s'affiche. Hors de #szContent (redessiné), masqué à l'écran
+  let h1 = $('#szH1');
+  if (!h1) { h1 = document.createElement('h1'); h1.id = 'szH1'; h1.className = 'sr-only'; $('#szContent').before(h1); }
+  h1.textContent = title;
 }
 
 // Version web : adresses de la Saison (appelé par la page, analytics/live-page/web.js). Chaque rubrique ou fiche
@@ -371,14 +377,16 @@ function syncUrl() {
 // puis au direct
 export function seasonUrls() {
   urls = true;
-  addEventListener('popstate', (e) => {
-    const p = parseSeasonPath(location.pathname) || parseEnSeasonPath(location.pathname);
-    if (p) openSeason(p.section, p.year || undefined, p.item, true);
-    else if (!$('#seasonView').hidden) closeSeason();
-    // Retour à l'endroit où l'on était (encore une fois une fois les tableaux ou les statistiques affichés)
-    const top = e.state?.szTop;
-    if (p && top) for (const ms of [0, 400, 1200]) setTimeout(() => { $('#szContent').scrollTop = top; }, ms);
-  });
+  addEventListener('popstate', seasonPop);
+}
+// Retour en arrière (aussi appelé par ui/season-lazy.js pour le premier, arrivé avant le chargement de ce module)
+export function seasonPop(e) {
+  const p = parseSeasonPath(location.pathname) || parseEnSeasonPath(location.pathname);
+  if (p) openSeason(p.section, p.year || undefined, p.item, true);
+  else if (!$('#seasonView').hidden) closeSeason();
+  // Retour à l'endroit où l'on était (encore une fois une fois les tableaux ou les statistiques affichés)
+  const top = e.state?.szTop;
+  if (p && top) for (const ms of [0, 400, 1200]) setTimeout(() => { $('#szContent').scrollTop = top; }, ms);
 }
 
 // Calendrier sur un globe (ui/cal-globe.js, chargé à l'ouverture du Calendrier) : emplacement vide rempli après
@@ -1224,7 +1232,7 @@ export function closeSeason() {
   $('#seasonView').hidden = true;
   $('#seasonBtn').classList.remove('on');
   if (urls && /^\/(saison|en\/season)\//.test(location.pathname)) history.pushState(null, '', '/');
-  if (urls) { delete document.documentElement.dataset.seasonTitle; document.title = 'Paddock Live'; }
+  if (urls) { delete document.documentElement.dataset.seasonTitle; document.title = 'Paddock Live'; $('#szH1')?.remove(); }
   clearInterval(timer);
   clearTimeout(fiaTimer);
   clearTimeout(statsTimer);
@@ -1273,6 +1281,7 @@ function szGroupSync() {
   }
 }
 
+// Appelé une fois, au premier chargement (ui/season-lazy.js, qui tient aussi le bouton Saison de la barre du haut)
 export function initSeason() {
   initPredict();
   szGroups();
@@ -1282,7 +1291,6 @@ export function initSeason() {
   const now = new Date().getUTCFullYear();
   sel.innerHTML = Array.from({ length: 8 }, (_, i) => now - i).map((y) => `<option value="${y}">${y}</option>`).join('');
   sel.addEventListener('change', () => { year = Number(sel.value); push = true; data = null; stats = null; fia = null; clearTimeout(statsTimer); clearTimeout(fiaTimer); setTechFilter(null, 'all'); load(); });
-  $('#seasonBtn').addEventListener('click', () => ($('#seasonView').hidden ? openSeason() : closeSeason()));
   $('#szClose').addEventListener('click', closeSeason);
   $('#szNav').addEventListener('click', (e) => { const b = e.target.closest('[data-sz]'); if (b) { section = b.dataset.sz; jump = true; push = true; szMenu(false); animate(); render(); } });
   $('#szMenu')?.addEventListener('click', () => szMenu(true));

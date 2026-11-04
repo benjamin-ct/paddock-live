@@ -20,7 +20,7 @@ import { renderPitSim, renderBattles, initRaceTools } from './ui/race-tools.js';
 import { initAnalysis, renderAnalysis } from './ui/analysis.js';
 import { renderDuelBand, renderDuel, initDuel } from './ui/duel.js';
 import { initNoLive, initHome, openHome, closeHome, homeTouched } from './ui/home.js';
-import { initSeason, closeSeason, openSeason, seasonUrls } from './ui/season.js';
+import { initSeason, closeSeason, openSeason, seasonUrls } from './ui/season-lazy.js';   // Saison chargée à sa première ouverture
 import { parseSeasonPath } from '/shared/season-urls.js';
 import { addPositions, addCarData, compareFrom, raceStartFrom } from '/shared/compare.js';
 import './ui/calendar-menu.js';   // « Ajouter à mon agenda » (Saison)
