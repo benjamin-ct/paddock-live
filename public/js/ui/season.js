@@ -363,7 +363,13 @@ function syncUrl() {
   } else if (location.pathname !== p) history.replaceState(history.state, '', p);
   push = false;
   document.documentElement.dataset.seasonTitle = '1';
-  document.title = tabTitle((en ? enSeasonTitle : seasonTitle)(data.year, section, d?.name || r?.name, !!r?.results.length));
+  const title = (en ? enSeasonTitle : seasonTitle)(data.year, section, d?.name || r?.name, !!r?.results.length);
+  document.title = tabTitle(title);
+  // Titre principal de la page (H1) pour les moteurs de recherche et les lecteurs d'écran : le H1 envoyé par le serveur
+  // est remplacé quand la Saison s'affiche. Hors de #szContent (redessiné), masqué à l'écran
+  let h1 = $('#szH1');
+  if (!h1) { h1 = document.createElement('h1'); h1.id = 'szH1'; h1.className = 'sr-only'; $('#szContent').before(h1); }
+  h1.textContent = title;
 }
 
 // Version web : adresses de la Saison (appelé par la page, analytics/live-page/web.js). Chaque rubrique ou fiche
@@ -1226,7 +1232,7 @@ export function closeSeason() {
   $('#seasonView').hidden = true;
   $('#seasonBtn').classList.remove('on');
   if (urls && /^\/(saison|en\/season)\//.test(location.pathname)) history.pushState(null, '', '/');
-  if (urls) { delete document.documentElement.dataset.seasonTitle; document.title = 'Paddock Live'; }
+  if (urls) { delete document.documentElement.dataset.seasonTitle; document.title = 'Paddock Live'; $('#szH1')?.remove(); }
   clearInterval(timer);
   clearTimeout(fiaTimer);
   clearTimeout(statsTimer);

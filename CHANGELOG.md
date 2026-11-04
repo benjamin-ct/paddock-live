@@ -75,6 +75,8 @@ l'application (Réglages → À propos → Nouveautés).
 - Pages anglaises de la Saison (/en/season/…) : l'appli s'ouvre en anglais à la première visite (une langue déjà
   choisie est gardée), et l'adresse et le titre de l'onglet restent en anglais d'une rubrique à l'autre.
 - Sur ordinateur, l'accueil et la barre du haut ne sautent plus pendant le chargement de la page.
+- Pages de la Saison : un seul titre principal, aussi une fois l'appli lancée (pour les moteurs de recherche et les
+  lecteurs d'écran).
 - Appairage avec l'appli : codes à 8 chiffres (les codes à 6 chiffres marchent encore) et protection contre les essais
   en masse.
 

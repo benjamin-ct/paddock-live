@@ -4055,3 +4055,6 @@ html.tab-win .p-analysis .panel-head > [data-tab="compare"] { display: inline-fl
 :root.web #homeView:not([style*="top"]) { visibility: hidden; }
 @media (min-width: 901px) { :root.web:not(.only) .topbar .session { flex: 0 0 190px; width: 190px; max-width: 190px; } }
 @media (min-width: 1801px) { :root.web:not(.only) .topbar .session { flex-basis: 260px; width: 260px; max-width: 260px; } }
+
+/* Texte lu par les lecteurs d'écran et les moteurs de recherche, masqué à l'écran (titre H1 de la Saison en version web) */
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }

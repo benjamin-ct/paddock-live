@@ -297,7 +297,9 @@ function render() {
           <button class="btn${store.web ? ' btn-accent' : ''}" data-home="results" title="Résultats de la séance (résultat visible)">${icon('checkered')} Voir les résultats</button></div></section>`
     : '';
   // Un seul titre H1 dans la page : un paragraphe quand la page en a déjà un (pages de la Saison de la version web)
-  const hello = document.querySelector('h1:not(.hm-hello)') ? 'p' : 'h1';
+  // Un seul H1 : pas celui de l'Accueil quand la page en a un autre, ni sur une adresse de la Saison (version web : la
+  // Saison pose le sien, #szH1)
+  const hello = document.querySelector('h1:not(.hm-hello)') || /^\/(saison|en\/season)\//.test(location.pathname) ? 'p' : 'h1';
   view.querySelector('.hm-main').innerHTML = `<${hello} class="hm-hello">Paddock Live</${hello}>
     ${card}
     <div class="hm-grid">${last}${favHtml()}</div>
