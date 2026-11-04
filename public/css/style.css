@@ -37,6 +37,9 @@
 
 * { box-sizing: border-box; }
 html, body { height: 100%; }
+/* Téléphone et tablette : pas de zoom au double appui (deux appuis rapides sur un menu ou une rubrique zoomaient la
+   page) ; le zoom à deux doigts et le défilement restent */
+html { touch-action: manipulation; }
 /* Appli : un clic ou un double-clic dans le vide ne surligne rien ; texte sélectionnable seulement là
    où on peut vouloir le copier (champs, article, radios, direction de course, adresses) */
 body { -webkit-user-select: none; user-select: none; }

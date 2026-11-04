@@ -7,6 +7,8 @@ l'application (Réglages → À propos → Nouveautés).
 ## v1.32.0 — à venir
 
 ### Affichage
+- Téléphone et tablette : plus de zoom quand on touche deux fois vite un menu ou une rubrique (le zoom à deux doigts
+  reste), dans l'appli et la version web.
 - Actu : au lancement de l'appli, toute l'actualité s'affiche (il arrivait que la liste reste vide, ou ne montre que les
   dernières nouvelles avec « 0 sources suivies », quand l'appli la demandait avant que son serveur l'ait lue).
 - Nouveau design « Télémétrie », par défaut dans l'appli : interface plus sobre et plus lisible, le rouge réservé à ce
