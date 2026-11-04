@@ -93,7 +93,7 @@
 
 - **Direction artistique** : agir en Senior Product Designer et Senior Frontend Engineer. Chaque nouvelle interface a
   une identité distinctive (univers F1 : mur des stands, habillage TV, couleurs des écuries), respecte le design system
-  (Télémétrie par défaut depuis la v1.32, spécification dans `docs/design/refonte/DIRECTION.md`, en sombre et en clair ; Paddock 2 — encore défaut de la version web — et Classique pas cassés ; Broadcast n'est plus proposé), évite les interfaces génériques
+  (Télémétrie par défaut depuis la v1.32, spécification dans `docs/design/refonte/DIRECTION.md`, en sombre et en clair ; Paddock 2 et Classique pas cassés ; version web en Télémétrie aussi ; Broadcast n'est plus proposé), évite les interfaces génériques
   d'IA, a une hiérarchie claire, des espacements et une typographie soignés, des animations utiles (derrière
   `prefers-reduced-motion` et `data-motion`), est entièrement responsive (téléphone, tablette, ordinateur) et
   accessible.

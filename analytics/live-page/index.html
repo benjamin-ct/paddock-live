@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#0C1326">
+  <meta name="theme-color" content="#0B0F15">
   <title>Paddock Live · Live timing F1 dans le navigateur</title>
   <meta name="description" content="Le direct de la F1 dans le navigateur, sans rien installer : classement, carte du circuit, télémétrie, direction de course et radios d'équipe traduites, calés sur ta TV.">
   <meta property="og:type" content="website">
@@ -28,7 +28,8 @@
   <link rel="stylesheet" href="/live/css/style.css">
   <link rel="stylesheet" href="/live/css/broadcast.css">
   <link rel="stylesheet" href="/live/css/design-v2.css">
-  <script>/* Apparence (sombre / clair / système) et design posés avant l'affichage : pas d'éclair */ try { const p = JSON.parse(localStorage.getItem('paddock.prefs') || '{}'); const s = p.schemeSet || p.scheme === 'light' ? p.scheme : 'auto'; const light = s === 'light' || (s === 'auto' && matchMedia('(prefers-color-scheme: light)').matches); document.documentElement.dataset.scheme = light ? 'light' : 'dark'; document.documentElement.dataset.design = p.designV || p.design === 'classic' ? p.design || 'v2' : 'v2'; if (light && document.documentElement.dataset.design !== 'v2') document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]').content = 'default'; } catch { document.documentElement.dataset.scheme = 'dark'; document.documentElement.dataset.design = 'v2'; } document.documentElement.dataset.theme = 'pitwall'; document.documentElement.classList.add('web'); const only = /[?&]only=(map|analysis|duel|compare)\b/.exec(location.search)?.[1]; if (only) document.documentElement.classList.add('only', `only-${only}`);</script>
+  <link rel="stylesheet" href="/live/css/design-v3.css">
+  <script>/* Apparence (sombre / clair / système) et design posés avant l'affichage : pas d'éclair */ try { const p = JSON.parse(localStorage.getItem('paddock.prefs') || '{}'); const s = p.schemeSet || p.scheme === 'light' ? p.scheme : 'auto'; const light = s === 'light' || (s === 'auto' && matchMedia('(prefers-color-scheme: light)').matches); document.documentElement.dataset.scheme = light ? 'light' : 'dark'; document.documentElement.dataset.design = p.designV >= 2 ? p.design || 'v3' : p.design === 'classic' ? 'classic' : 'v3'; if (light && document.documentElement.dataset.design !== 'v2') document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]').content = 'default'; } catch { document.documentElement.dataset.scheme = 'dark'; document.documentElement.dataset.design = 'v3'; } document.documentElement.dataset.theme = 'pitwall'; document.documentElement.classList.add('web'); const only = /[?&]only=(map|analysis|duel|compare)\b/.exec(location.search)?.[1]; if (only) document.documentElement.classList.add('only', `only-${only}`);</script>
   <style>
     /* Version web : écran principal de l'appli, sans menu latéral ni outils. Classement à gauche, circuit au centre,
        télémétrie, radios et direction de course l'une sous l'autre à droite ; Analyse et Duel dans des fenêtres à part */
@@ -82,8 +83,9 @@
     .web .topbar #seasonBtn { display: inline-flex !important; }
     .web .topbar #seasonBtn:not(.on) { border-color: rgba(255, 255, 255, .18); }
     /* Espace Saison : toutes les rubriques de l'appli, avec les intertitres du menu */
-    .web #szNav button[data-full] { display: flex !important; }
-    .web #szNav .sz-nav-sep { display: block !important; }
+    .web #szNav button[data-full]:not(.sz-shut) { display: flex !important; }   /* sauf rubriques d'un groupe replié (Télémétrie) */
+    html.web:not([data-design="v3"]) #szNav .sz-nav-sep { display: block !important; }   /* Télémétrie : groupes repliables à la place */
+    html.web:not([data-design="v3"]) #szNav .sz-grp { display: none !important; }   /* titres des groupes : Télémétrie seulement */
     /* Écran affiché : les panneaux vides dessous sont retirés, la page ne défile plus */
     .web body:has(#noLiveView:not([hidden])) { overflow: hidden; }
     .web body:has(#noLiveView:not([hidden])) .grid { display: none; }
@@ -231,11 +233,8 @@
       .web .web-nav { display: none; }
       .web .web-mnav { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 900; }
       .web body { padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
-      /* Accueil, Saison, « Pas de séance » : jusqu'en bas de l'écran, derrière le menu ; place laissée à la fin du contenu */
-      .web :is(#homeView .hm-main, #szContent, #noLiveView) { padding-bottom: calc(96px + env(safe-area-inset-bottom)) !important; }
-      /* Menu caché en faisant défiler vers le bas, revenu en remontant (web.js) */
-      .web .web-mnav { transition: transform .25s ease, opacity .25s ease; }
-      .web .web-mnav.nav-off { transform: translateY(calc(100% + 24px + env(safe-area-inset-bottom))); opacity: 0; pointer-events: none; }
+      /* Accueil, Saison (et son menu des rubriques), « Pas de séance » : jusqu'en bas de l'écran, derrière le menu fixé ; place laissée à la fin du contenu */
+      .web :is(#homeView .hm-main, #szContent, #noLiveView, #seasonView .sz-side) { padding-bottom: calc(96px + env(safe-area-inset-bottom)) !important; }
     }
     @media (max-width: 1200px) and (min-width: 901px) { .web .web-nav .mn-l { display: none; } .web .web-nav button { padding: 6px 9px; } }
     html.web.only :is(.web-nav, .web-mnav) { display: none !important; }
@@ -245,6 +244,42 @@
     html.web.only .grid { display: grid; flex: 1; grid-template: "only" minmax(0, 1fr) / minmax(0, 1fr); }
     html.web.only .grid > .panel { display: none; }
     html.web.only-map .grid > .p-map, html.web.only-analysis .grid > .p-analysis, html.web.only-duel .grid > .p-duel, html.web.only-compare .grid > .p-analysis { display: flex; grid-area: only; height: auto; }
+    /* Télémétrie (design par défaut, v1.32) : barre du haut couleur du fond, en sombre comme en clair ; elle passe à la
+       ligne plutôt que de couper sa fin (la version web y a plus de commandes que l'appli) */
+    html.web[data-design="v3"] .topbar { flex-wrap: wrap; row-gap: 4px; }
+    html.web[data-design="v3"]:is([data-scheme="dark"]) { background-color: var(--bg); }
+    html.web[data-design="v3"][data-scheme="dark"]::before { background: var(--bg); }
+    html.web[data-design="v3"] .web-nav { border-radius: var(--r-sm); background: var(--panel-2); border-color: var(--border); padding: 2px; }
+    html.web[data-design="v3"] .web-nav button { border-radius: var(--r-xs); color: var(--text-2); font: 600 var(--fs-sm)/1 var(--font); min-height: 32px; position: relative; }
+    html.web[data-design="v3"] .web-nav button:hover { color: var(--text); background: var(--panel-3); }
+    html.web[data-design="v3"] .web-nav button.active { color: var(--text); background: var(--panel-3); }
+    html.web[data-design="v3"] .web-nav button.active::after { content: ''; position: absolute; left: 10px; right: 10px; bottom: 0; height: 2px; border-radius: 2px 2px 0 0; background: var(--accent); }
+    html.web[data-design="v3"] .topbar :is(#pairBtn, #seasonBtn) { color: var(--text); border-color: var(--line-2); }
+    html.web[data-design="v3"] .topbar #webMenuBtn { color: var(--text); }
+    html.web[data-design="v3"] .topbar .web-delay input { font-family: var(--font-mono); font-weight: 600; border-radius: var(--r-sm); }
+    html.web[data-design="v3"] .web-res-card { border-radius: var(--r-md); }
+    html.web[data-design="v3"] .web-res-card h3 { font: 500 var(--fs-2xs)/1.3 var(--font-mono); letter-spacing: .08em; color: var(--muted); }
+    /* Ordinateur : deuxième ligne régulière, réglages du direct à gauche (délai, F1 TV, source), fenêtres, Nouveautés et
+       appli complète à droite, avec leur nom dès 1200 px */
+    @media (min-width: 901px) and (max-width: 2399px) {
+      html.web[data-design="v3"] .topbar .tb-break.b2 { display: block !important; flex-basis: 100%; height: 0; margin: 0; }
+      html.web[data-design="v3"] .topbar .win-btn[data-win="analysis"] { margin-left: auto; }
+    }
+    @media (min-width: 1200px) {
+      html.web[data-design="v3"] .topbar .win-btn { padding: 0 var(--sp-3); }
+      html.web[data-design="v3"] .topbar .win-btn .wb-lbl { display: inline; }
+    }
+    @media (max-width: 900px), (max-height: 500px) and (orientation: landscape) {
+      html.web .win-btn { display: none !important; }   /* téléphone : pas de fenêtres à part (Télémétrie affiche les .btn) */
+      html.web[data-design="v3"] .topbar #webMenuBtn { min-width: 40px; min-height: 40px; }
+      html.web[data-design="v3"] .topbar.menu-open #webMenuBtn { background: var(--panel-3); }
+    }
+    /* Téléphone en paysage : le menu devient le rail de gauche de Télémétrie ; la page et la barre du haut commencent après */
+    @media (max-width: 900px) and (orientation: landscape) and (max-height: 500px) {
+      html.web[data-design="v3"] body { padding-left: var(--mrail) !important; padding-bottom: env(safe-area-inset-bottom); }
+      html.web[data-design="v3"] body .topbar { left: var(--mrail); padding-right: max(var(--sp-3), env(safe-area-inset-right)); }
+      html.web[data-design="v3"] .season-view { left: var(--mrail) !important; }
+    }
   </style>
 </head>
 <body>
@@ -267,6 +302,7 @@
     <div class="hstat" id="circuitTimeBox" hidden><div class="hstat-label">Heure circuit</div><div class="hstat-value" id="circuitTime">—</div></div>
     <div class="hstat weather-mini" id="weatherMini"></div>
     <div class="hstat surface" id="surfaceBox" hidden><div class="hstat-label">État piste</div><div class="hstat-value" id="surfaceValue">—</div></div>
+    <button type="button" class="tb-more" id="tbMore" aria-expanded="false" aria-controls="tbTools" title="Outils : documents FIA, vitesses, secteurs, météo, championnat"><svg class="ic tm-ic" aria-hidden="true"><use href="#i-wrench"/></svg>Outils <svg class="ic" aria-hidden="true"><use href="#i-chevron-down"/></svg></button>
     <div class="tb-tools" id="tbTools">
       <button class="tb-tool" data-tool="docs" title="Documents officiels de la FIA (Grand Prix en cours)"><svg viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h6"/></svg><small>FIA</small><i class="tb-dot" hidden></i></button>
       <button class="tb-tool" data-tool="speeds" title="Vitesses aux points de mesure"><svg viewBox="0 0 24 24"><path d="M4 17a8 8 0 1 1 16 0"/><path d="M12 17l4-5"/><circle cx="12" cy="17" r="1.3"/></svg><small>Vitesses</small></button>

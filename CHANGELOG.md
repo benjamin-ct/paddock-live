@@ -7,6 +7,8 @@ l'application (Réglages → À propos → Nouveautés).
 ## v1.32.0 — à venir
 
 ### Affichage
+- Téléphone et tablette : plus de zoom quand on touche deux fois vite un menu ou une rubrique (le zoom à deux doigts
+  reste), dans l'appli et la version web.
 - Actu : au lancement de l'appli, toute l'actualité s'affiche (il arrivait que la liste reste vide, ou ne montre que les
   dernières nouvelles avec « 0 sources suivies », quand l'appli la demandait avant que son serveur l'ait lue).
 - Nouveau design « Télémétrie », par défaut dans l'appli : interface plus sobre et plus lisible, le rouge réservé à ce
@@ -36,7 +38,8 @@ l'application (Réglages → À propos → Nouveautés).
   en Paddock 2 et Classique, la barre du haut ne dépasse plus de l'écran vers 1440 px pendant une séance.
 - Design Télémétrie : Saison, Actu, Replays, Résultats, Résumé et Réglages prennent son style (pages à plat, grands
   titres étroits, chiffres mis en avant, écuries en traits de couleur, articles plus lisibles) ; les rubriques de la
-  Saison se rangent en cinq groupes repliables (Vue d'ensemble, Résultats, Pilotes et écuries, Technique, Jeux).
+  Saison se rangent en cinq groupes repliables (Vue d'ensemble, Résultats, Pilotes et écuries, Technique, Jeux), tous
+  repliables à la main, aussi celui de la rubrique ouverte et dans la version web (sans les anciens intertitres vides).
 - Mouvement réduit demandé par le système : le point de la source des données ne pulse plus et la fenêtre des
   Réglages s'ouvre sans animation.
 - Le design Broadcast n'est plus proposé : ceux qui l'utilisaient passent à Paddock 2 (Paddock 2 et Classique restent au choix).
@@ -62,11 +65,15 @@ l'application (Réglages → À propos → Nouveautés).
 - Correction d'une double connexion au direct quand la connexion F1 TV arrive juste après le lancement de l'appli.
 
 ### Version web
+- Nouveau design « Télémétrie », comme dans l'appli, en sombre et en clair : barre du haut sur deux lignes régulières
+  sur ordinateur (la séance et ses chiffres, puis le délai TV, la connexion F1 TV et les fenêtres), outils rangés dans
+  un menu « Outils » sur les écrans moyens, menu Accueil, Direct et Saison sur la gauche du téléphone en paysage.
 - Écran d'accueil, comme dans l'appli : prochaine séance avec son compte à rebours, programme et météo du week-end,
   dernière séance (résultat masqué, « Voir les résultats »), pilotes et écuries favoris, dernières actus (titres traduits,
   ouvertes sur leur site). Il s'ouvre quand aucune séance n'est en cours.
 - Petit menu pour passer de l'Accueil au Direct et à la Saison : dans la barre du haut sur ordinateur, en bas de
-  l'écran sur téléphone (comme l'appli), qui se cache quand on fait défiler vers le bas et revient en remontant.
+  l'écran sur téléphone (comme l'appli), toujours visible ; rien ne reste caché derrière en bas des pages, ni en bas du
+  menu des rubriques de la Saison.
 - Radar de pluie réparé (outil Météo) : il était bloqué, et son message cachait les onglets ; on peut de nouveau passer
   à Windy. Sans réponse du radar, nouvel essai au bout d'une minute.
 - Reconnexion plus douce quand le serveur est plein ou coupé (délai qui augmente jusqu'à une minute), plus de places

@@ -13,7 +13,7 @@ Les règles de conception propres à l'appli (quoi faire, quoi éviter) sont dan
 > **Depuis la v1.32 : Télémétrie (`data-design="v3"`, `public/css/design-v3.css`) est le design par défaut de
 > l'appli.** Ses valeurs en production (couleurs sombre et clair, Archivo et JetBrains Mono, échelles, rayons,
 > composants, mouvement, navigation) sont dans [refonte/DIRECTION.md](refonte/DIRECTION.md) §2 à §9. Ce document
-> décrit aussi Paddock 2 (défaut de la version web, au choix dans l'appli) et Classique. Broadcast n'est plus proposé :
+> décrit aussi Paddock 2 (au choix dans l'appli) et Classique. Broadcast n'est plus proposé :
 > `broadcast.css` reste l'habillage de base de Paddock 2.
 
 ---
@@ -30,7 +30,7 @@ Trois feuilles, chargées dans cet ordre par `public/index.html` :
 |---|---|---|---|
 | Base + thème **Pitwall** | `style.css` | toujours (`<html data-theme="pitwall">`, forcé par `prefs.js`) | mise en page, composants, thème « Pitwall moderne » (section à partir de la ligne ~2484) |
 | Habillage **Broadcast** | `broadcast.css` | design `v2` (la feuille est coupée en `classic` et en `v3` ; le design Broadcast seul n'est plus proposé depuis la v1.32) | habillage TV : barre du haut toujours sombre, étiquettes rouges, chiffres condensés |
-| Design **Paddock 2** | `design-v2.css` | `<html data-design="v2">` (défaut de la v1.30 à la v1.31 ; défaut de la version web) | verre dépoli, bleu nuit éclairé, titres condensés italiques, lueurs |
+| Design **Paddock 2** | `design-v2.css` | `<html data-design="v2">` (défaut de la v1.30 à la v1.31, et de la version web jusqu'à la v1.32) | verre dépoli, bleu nuit éclairé, titres condensés italiques, lueurs |
 | Design **Télémétrie** | `design-v3.css` | `<html data-design="v3">` (**par défaut dans l'appli depuis la v1.32** ; `broadcast.css` coupé) | zones à plat, filets d'un pixel, Archivo, rouge réservé à ce qui est actif |
 
 Attributs posés sur `<html>` (script en tête de `index.html`, puis `public/js/prefs.js`) :
@@ -38,7 +38,7 @@ Attributs posés sur `<html>` (script en tête de `index.html`, puis `public/js/
 | Attribut | Valeurs | Réglage |
 |---|---|---|
 | `data-theme` | `pitwall` (seule valeur) | — |
-| `data-design` | `v3` (défaut de l'appli), `v2` (défaut de la version web), `classic` | Réglages → Apparence → Design |
+| `data-design` | `v3` (défaut de l'appli et de la version web), `v2`, `classic` | Réglages → Apparence → Design |
 | `data-scheme` | `dark`, `light` (résolu depuis `auto` = système) | Réglages → Apparence |
 | `data-motion` | `on`, `off` | Réglages → Affichage (animations) |
 | classes `web`, `overlay`, `float-map` | version web, overlays de streaming (toujours sombres), carte flottante | — |
