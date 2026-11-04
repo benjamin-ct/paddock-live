@@ -40,16 +40,26 @@ const trackOf = (year, key) => {
   }
   return tracks.get(`${key}-${year}`);
 };
-// Style des visuels : choix gardé sur l'appareil
-if (state.tv === undefined) state.tv = !!store.get('tvstyle')?.v;
+// Style des visuels (Télémétrie : celui de l'appli ; Classique : titres penchés, fonds en dégradé ; Télé premium) : choix
+// gardé sur l'appareil, sous l'ancienne clé de la case « Télé premium » (cochée : Télé premium)
+const STYLES = [['v3', 'Télémétrie'], ['base', 'Classique'], ['tv', 'Télé premium']];
+const STYLE_DEFAULT = 'base';
+if (state.vstyle === undefined) {
+  const v = store.get('tvstyle')?.v;
+  state.vstyle = v === true ? 'tv' : STYLES.some(([k]) => k === v) ? v : STYLE_DEFAULT;
+}
+const STYLE_FONTS = {
+  tv: ['italic 900 40px "Barlow Condensed"', 'italic 800 40px "Barlow Condensed"', '700 20px "Chakra Petch"', '600 20px "Chakra Petch"'],
+  v3: ['800 40px "Archivo Cond"', '700 40px "Archivo Cond"', '400 30px "Archivo"', '500 30px "Archivo"', '600 30px "Archivo"', '700 30px "Archivo"', '600 30px "JetBrains Mono"'],
+};
 export async function assets(d) {
   await Promise.all(['800 40px "Saira Condensed"', '700 40px "Saira Condensed"', '600 30px "Titillium Web"', '400 30px "Titillium Web"', '700 30px "JetBrains Mono"',
-    ...(state.tv ? ['italic 900 40px "Barlow Condensed"', 'italic 800 40px "Barlow Condensed"', '700 20px "Chakra Petch"', '600 20px "Chakra Petch"'] : [])].map((f) => document.fonts.load(f).catch(() => {})));
+    ...(STYLE_FONTS[state.vstyle] || [])].map((f) => document.fonts.load(f).catch(() => {})));
   const photos = {};
   if (state.photos) await Promise.all((d.rows || []).slice(0, 3).map(async (r) => { photos[r.num] = await headshot(r.headshot); }));
   const iso = d.iso || FLAG_ISO[String(d.country || '').toUpperCase()];
   const [flag, logos, track] = await Promise.all([iso ? loadImage(`https://flagcdn.com/${d.post === 'raceweek' ? 'w1280' : 'w160'}/${iso}.png`) : null, loadTeamLogos(loadImage), d.circuitKey ? trackOf(d.year, d.circuitKey) : null]);
-  return { photos, flag, logos, signature: SIG, shape: trackShape(track), style: state.tv ? 'tv' : null };
+  return { photos, flag, logos, signature: SIG, shape: trackShape(track), style: state.vstyle === 'base' ? null : state.vstyle };
 }
 
 // Post : Instagram, Facebook, Threads et Bluesky ; X : images de X et Bluesky (4 par post, la suite en réponse,
@@ -137,7 +147,7 @@ export function editor({ back, title, subtitle = '', head = '', vhead = '', note
       <section class="panel" id="opts" data-in="visuels">
         <h3 class="section">Options</h3>
         ${toggle('photos', 'Photos des pilotes', state.photos)}
-        ${toggle('tvstyle', 'Style « Télé premium » (fibre de carbone, chiffres or)', state.tv)}
+        <div class="field"><span>Style des visuels</span><div class="seg wide" id="vstyle" role="group" aria-label="Style des visuels">${STYLES.map(([k, v]) => `<button type="button" data-vstyle="${k}" class="${state.vstyle === k ? 'on' : ''}" aria-pressed="${state.vstyle === k}">${v}</button>`).join('')}</div></div>
         ${toggle('follow', 'Image « Abonnez-vous »', state.follow, '', state.question ? 'disabled' : '')}
         ${toggle('question', 'Question pour faire réagir', state.question, '', state.follow ? 'disabled' : '')}
       </section>
@@ -295,7 +305,14 @@ export function editor({ back, title, subtitle = '', head = '', vhead = '', note
   };
   $$('[data-fmt]').forEach((b) => { b.onclick = () => { state.fmt = b.dataset.fmt; $$('[data-fmt]').forEach((x) => x.classList.toggle('on', x === b)); glide(); redraw(); }; });
   $('#photos').onchange = (e) => { state.photos = e.target.checked; redraw(); };
-  $('#tvstyle').onchange = (e) => { state.tv = e.target.checked; store.set('tvstyle', state.tv); redraw(); };
+  $$('[data-vstyle]').forEach((b) => {
+    b.onclick = () => {
+      state.vstyle = b.dataset.vstyle;
+      store.set('tvstyle', state.vstyle);
+      $$('[data-vstyle]').forEach((x) => { x.classList.toggle('on', x === b); x.setAttribute('aria-pressed', String(x === b)); });
+      glide(); redraw();
+    };
+  });
   // Question et abonnement : un seul appel par post
   $('#follow').onchange = (e) => { state.follow = e.target.checked; $('#question').disabled = state.follow; redraw(true); };
   $('#question').onchange = (e) => { state.question = e.target.checked; $('#follow').disabled = state.question; redraw(true); };

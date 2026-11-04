@@ -1,7 +1,8 @@
 // Visuels des posts de saison (mode créateur) : horaires du week-end, pneus et météo, records du
 // circuit, notes des pilotes, duels entre coéquipiers, positions tour par tour, récap de la semaine,
 // et images de la vidéo animée de la course. Mêmes outils de dessin que les autres posts.
-import { C, TITLE, BODY, MONO, MEDAL, rr, txt, fitLines, vivid, alpha, background, frame, newsSlide, teamLogo, card, pill, kicker, footer, topY, footY, tv } from './social-draw.js';
+import { C, TITLE, BODY, MONO, MEDAL, rr, txt, fitLines, vivid, alpha, background, frame, newsSlide, teamLogo, card, pill, kicker, footer, topY, footY, tv, v3 } from './social-draw.js';
+import { BEST, v3Footer } from './social-draw-v3.js';
 import { tvBackground, tvFooter, tt, slant } from './social-draw-tv.js';
 import { lapStr } from './social-season.js';
 
@@ -9,7 +10,7 @@ const dec = (v, n = 1) => (v == null ? '—' : Number(v).toFixed(n).replace('.',
 const TYRE = { hard: ['DURS', '#f3f5f9'], medium: ['MÉDIUMS', '#f5c518'], soft: ['TENDRES', '#e10600'] };
 
 const panel = (ctx, x, y, w, h, r = 22) => card(ctx, x, y, w, h, r);
-const note = (ctx, W, f, text) => txt(ctx, text, W - f.pad, f.bottom + 20, { size: 28, weight: 600, color: C.muted, align: 'right' });
+const note = (ctx, W, f, text) => txt(ctx, text, W - f.pad, f.bottom + 20, { size: 28, weight: 600, color: C.muted, align: 'right', max: v3 ? W - f.pad * 2 : 0 });
 
 // ---------- Programme : horaires (heure de Paris), groupés par jour ----------
 export function horaires(ctx, W, H, d, o) {
@@ -21,11 +22,11 @@ export function horaires(ctx, W, H, d, o) {
   const unit = Math.min(H > 1600 ? 190 : 120, (f.bottom - f.top - 20) / Math.max(rows, 1));
   let y = f.top + 10;
   for (const g of days) {
-    txt(ctx, `${g.day} ${g.k}`.toUpperCase(), f.pad, y + unit * 0.62, { size: Math.round(unit * 0.32), weight: 800, family: TITLE, color: C.red, spacing: 3 });
+    txt(ctx, `${g.day} ${g.k}`.toUpperCase(), f.pad, y + unit * 0.62, { size: Math.round(unit * 0.32), weight: 800, family: TITLE, color: v3 ? C.text : C.red, spacing: 3 });
     ctx.fillStyle = C.line; ctx.fillRect(f.pad, y + unit * 0.8, W - f.pad * 2, 2);
     y += unit;
     for (const s of g.list) {
-      if (s.main) { panel(ctx, f.pad, y + 6, W - f.pad * 2, unit - 12, 14); ctx.fillStyle = C.red; ctx.fillRect(f.pad, y + unit * 0.2, 8, unit * 0.6); }
+      if (s.main) { panel(ctx, f.pad, y + 6, W - f.pad * 2, unit - 12, 14); ctx.fillStyle = v3 ? C.text : C.red; ctx.fillRect(f.pad, y + unit * 0.2, 8, unit * 0.6); }
       txt(ctx, s.time, f.pad + 34, y + unit * 0.64, { size: Math.round(unit * 0.44), weight: 700, family: MONO, color: s.main ? C.text : C.muted });
       txt(ctx, s.label.toUpperCase(), f.pad + 34 + unit * 1.75, y + unit * 0.62, { size: Math.round(unit * 0.36), weight: s.main ? 800 : 700, family: TITLE, color: s.main ? C.text : C.muted, spacing: 1, max: W - f.pad * 2 - unit * 2.2 });
       y += unit;
@@ -91,7 +92,7 @@ export function editions(ctx, W, H, d, o) {
     if (!p) { txt(ctx, '—', x, y, { size: 40, weight: 700, family: TITLE, color: C.muted }); return; }
     ctx.fillStyle = vivid(p.color); ctx.fillRect(x, y - rowH * 0.36, 6, rowH * 0.5);
     txt(ctx, p.name.toUpperCase(), x + 22, y - rowH * 0.06, { size: Math.round(rowH * 0.26), weight: 800, family: TITLE, max: (W - f.pad * 2) * 0.36 });
-    txt(ctx, lapStr(p.time), x + 22, y + rowH * 0.22, { size: Math.round(rowH * 0.22), weight: 700, family: MONO, color: best ? C.gold : C.muted });
+    txt(ctx, lapStr(p.time), x + 22, y + rowH * 0.22, { size: Math.round(rowH * 0.22), weight: 700, family: MONO, color: best ? (v3 ? BEST : C.gold) : C.muted });
   };
   list.forEach((e, i) => {
     const y = f.top + head + i * rowH;
@@ -101,7 +102,7 @@ export function editions(ctx, W, H, d, o) {
     cell(cols[1], mid, e.pole, e.pole && d.bestPole && e.year === d.bestPole.year);
     cell(cols[2], mid, e.fastest, e.fastest && d.bestRaceLap && e.year === d.bestRaceLap.year);
   });
-  note(ctx, W, f, 'En doré : record du circuit sur ces éditions');
+  note(ctx, W, f, `En ${v3 ? 'violet' : 'doré'} : record du circuit sur ces éditions`);
 }
 
 // ---------- Notes des pilotes ----------
@@ -397,7 +398,7 @@ export function recapCover(ctx, W, H, d, o) {
   const kept = o.slides ? o.slides.filter((s) => /^recap-\d+$/.test(s)).map((s) => d.items[Number(s.slice(6)) - 1]).filter(Boolean) : d.items;
   const each = Math.min((end - ly) / Math.max(1, kept.length), 230 * u);
   kept.forEach((it, i) => {
-    txt(ctx, String(i + 1).padStart(2, '0'), lx, ly + 46 * u, { size: Math.round(48 * u), weight: 800, family: TITLE, color: C.red });
+    txt(ctx, String(i + 1).padStart(2, '0'), lx, ly + 46 * u, { size: Math.round((v3 ? 36 : 48) * u), weight: v3 ? 600 : 800, family: v3 ? MONO : TITLE, color: v3 ? C.muted : C.red });
     txt(ctx, it.badge.label, lx + 90 * u, ly + 22 * u, { size: Math.round(27 * u), weight: 700, family: TITLE, color: it.badge.color, spacing: 3 });
     const t = fitLines(ctx, it.title.toUpperCase(), lw - 90 * u, [44, 38, 32, 28].map((v) => Math.round(v * u)), each > 170 * u ? 3 : each > 120 * u ? 2 : 1, TITLE, 800);
     t.lines.forEach((l, k) => txt(ctx, l, lx + 90 * u, ly + 64 * u + k * t.size * 1.02, { size: t.size, weight: 800, family: TITLE, italic: true }));
@@ -523,7 +524,7 @@ export function raceFrame(ctx, W, H, d, o, time) {
   const st = done || intro ? 'green' : story.status[Math.min(d.total, lap + 1) - 1] || 'green';
   const flag = FLAG[st] || FLAG.green;
   background(ctx, W, H, st === 'green' ? C.red : flag.color);
-  if (st !== 'green') {
+  if (st !== 'green' && !v3) {
     const rg = ctx.createRadialGradient(W / 2, H * 0.1, 0, W / 2, H * 0.1, W * 1.1);
     rg.addColorStop(0, `${flag.color}30`); rg.addColorStop(1, `${flag.color}00`);
     ctx.fillStyle = rg; ctx.fillRect(0, 0, W, H);
@@ -680,7 +681,7 @@ export function raceFrame(ctx, W, H, d, o, time) {
       ctx.beginPath(); ctx.arc(lx + 46 * u + k * 92 * u, ly + 50 * u, 32 * u, 0, Math.PI * 2);
       const lit = !out && k < on;
       ctx.fillStyle = lit ? '#ff1a1a' : '#2a0b0b';
-      if (lit) { ctx.shadowColor = '#ff1a1a'; ctx.shadowBlur = 30 * u; }
+      if (lit && !v3) { ctx.shadowColor = '#ff1a1a'; ctx.shadowBlur = 30 * u; }
       ctx.fill(); ctx.shadowBlur = 0;
     }
     txt(ctx, out ? "C'EST PARTI !" : 'GRILLE DE DÉPART', cx, ly + 150 * u, { size: Math.round(46 * tu), weight: 800, family: TITLE, align: 'center', color: out ? C.green : C.text, italic: true });
@@ -768,6 +769,7 @@ export function raceFrame(ctx, W, H, d, o, time) {
 // ---------- Race Week : visuel propre à chaque Grand Prix ----------
 // Couleurs du drapeau du pays, drapeau en fond, nom de la ville en filigrane, tracé lumineux du
 // circuit ; mise en page qui alterne selon la manche (tracé à droite, en bas ou à gauche).
+const T_LINE = '#222B37';
 const rgba = (hex, a) => {
   const m = /^#?([0-9a-f]{6})$/i.exec(hex || '');
   const v = m ? parseInt(m[1], 16) : 0xe10600;
@@ -781,7 +783,15 @@ function drawTrack(ctx, shape, box, color, u) {
   const path = () => { ctx.beginPath(); shape.pts.forEach((p, i) => { const [x, y] = P(p); if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); }); ctx.closePath(); };
   ctx.save();
   ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-  // Halo, piste, ligne centrale
+  // Halo, piste, ligne centrale (Télémétrie : tracé à plat, ligne de départ en trait blanc)
+  if (v3) {
+    ctx.strokeStyle = T_LINE; ctx.lineWidth = 30 * u; path(); ctx.stroke();
+    ctx.strokeStyle = color; ctx.lineWidth = 10 * u; path(); ctx.stroke();
+    const [sx, sy] = P(shape.pts[0]);
+    ctx.fillStyle = '#fff'; ctx.fillRect(sx - 3 * u, sy - 22 * u, 6 * u, 44 * u);
+    ctx.restore();
+    return;
+  }
   ctx.shadowColor = color; ctx.shadowBlur = 60 * u;
   ctx.strokeStyle = rgba(color, 0.55); ctx.lineWidth = 34 * u; path(); ctx.stroke();
   ctx.shadowBlur = 0;
@@ -799,6 +809,7 @@ export function raceweek(ctx, W, H, d, o) {
   const v = d.variant || 0;
   // Fond : dégradé sombre teinté aux couleurs du pays (style télé : fibre de carbone et bandes obliques)
   if (tv) tvBackground(ctx, W, H, /^#F5F5F5$/i.test(c1) ? c2 : c1);
+  else if (v3) background(ctx, W, H, /^#F5F5F5$/i.test(c1) ? c2 : c1);   // Télémétrie : à plat, trait du pays à gauche
   else {
     const g = ctx.createLinearGradient(0, 0, W, H);
     g.addColorStop(0, '#07080c'); g.addColorStop(1, '#10131b');
@@ -808,7 +819,7 @@ export function raceweek(ctx, W, H, d, o) {
     glow(v === 2 ? W * 0.9 : W * 0.1, H * 0.95, Math.max(W, H) * 0.6, c2, 0.16);
   }
   // Drapeau en grand, incliné et fondu
-  if (o.flag) {
+  if (o.flag && !v3) {
     ctx.save();
     ctx.globalAlpha = 0.09;
     ctx.translate(W * (v === 2 ? 0.25 : 0.72), H * 0.32);
@@ -818,7 +829,7 @@ export function raceweek(ctx, W, H, d, o) {
     ctx.restore();
   }
   // Nom de la ville en filigrane
-  if (d.city) {
+  if (d.city && !v3) {
     ctx.save();
     ctx.translate(W / 2, H * 0.56);
     ctx.rotate(-0.14);
@@ -835,7 +846,7 @@ export function raceweek(ctx, W, H, d, o) {
   ctx.save();
   ctx.translate(v === 2 ? 0 : W, 0);
   if (v !== 2) ctx.scale(-1, 1);
-  [[c1, 0], [c2, 1], ['#ffffff', 2]].forEach(([col, i]) => {
+  if (!v3) [[c1, 0], [c2, 1], ['#ffffff', 2]].forEach(([col, i]) => {
     ctx.fillStyle = rgba(col, i === 2 ? 0.5 : 0.85);
     ctx.beginPath(); ctx.moveTo(0, H * (0.06 + i * 0.035)); ctx.lineTo(W * 0.22 - i * 40 * u, H * (0.06 + i * 0.035)); ctx.lineTo(W * 0.2 - i * 40 * u, H * (0.06 + i * 0.035) + 12 * u); ctx.lineTo(0, H * (0.06 + i * 0.035) + 12 * u); ctx.fill();
   });
@@ -883,8 +894,8 @@ export function raceweek(ctx, W, H, d, o) {
   ctx.font = `800 ${big}px ${TITLE}`;
   ctx.textAlign = align; ctx.textBaseline = 'alphabetic';
   if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
-  ctx.lineWidth = 5 * u; ctx.strokeStyle = c1; ctx.fillStyle = rgba(c1, 0.18);
-  ctx.fillText('WEEK', tx, y + big * 0.9); ctx.strokeText('WEEK', tx, y + big * 0.9);
+  ctx.lineWidth = 5 * u; ctx.strokeStyle = c1; ctx.fillStyle = v3 ? c1 : rgba(c1, 0.18);
+  ctx.fillText('WEEK', tx, y + big * 0.9); if (!v3) ctx.strokeText('WEEK', tx, y + big * 0.9);
   ctx.restore();
   y += big * 0.9 + 46 * u;
   const t = m.t;
@@ -909,7 +920,7 @@ export function raceweek(ctx, W, H, d, o) {
     ctx.font = `800 ${Math.round(30 * u)}px ${TITLE}`;
     const w = ctx.measureText(label).width + 40 * u + label.length * 2 * u;
     const bx = right ? tx - w : tx;
-    if (tv) slant(ctx, bx, y, w, 54 * u, 12 * u); else rr(ctx, bx, y, w, 54 * u, 27 * u);
+    if (tv) slant(ctx, bx, y, w, 54 * u, 12 * u); else rr(ctx, bx, y, w, 54 * u, (v3 ? 6 : 27) * u);
     ctx.fillStyle = C.red; ctx.fill();
     txt(ctx, label, bx + w / 2, y + 37 * u, { size: Math.round(30 * u), weight: 800, family: TITLE, color: '#fff', align: 'center', spacing: 2 * u });
     y += 80 * u;
@@ -917,6 +928,7 @@ export function raceweek(ctx, W, H, d, o) {
   if (withPrev && d.prev) txt(ctx, `VAINQUEUR ${d.prev.year} : ${d.prev.name.toUpperCase()}`, tx, y + 20 * u, { size: Math.round(27 * u), weight: 700, family: TITLE, color: C.muted, align, spacing: 2 * u, max: colW });
   // Pied
   if (tv) { tvFooter(ctx, W, H, o, 'HEURE DE PARIS'); return; }
+  if (v3) { v3Footer(ctx, W, H, o, 'Heure de Paris'); return; }
   txt(ctx, o.signature || '@BenjyPaddock', pad, fy, { size: Math.round(Math.min(W, H) * 0.032), weight: 700, family: TITLE, spacing: 1 });
   txt(ctx, 'HEURE DE PARIS', W - pad, fy, { size: Math.round(Math.min(W, H) * 0.02), weight: 700, family: TITLE, color: C.muted, align: 'right', spacing: 2 });
 }

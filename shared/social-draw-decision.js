@@ -2,7 +2,7 @@
 // (portrait sur la couleur de leur écurie, côte à côte), motif et, quand les virages sont connus, le tracé du
 // circuit en filigrane avec ces virages mis en évidence. Fond : celui des posts, ou votre photo (« Vos photos »).
 
-import { C, BODY, TITLE, tv, rr, txt, alpha, vivid, background, kicker, footer, topY, footY, fitLines, photo } from './social-draw.js';
+import { C, BODY, TITLE, tv, v3, rr, txt, alpha, vivid, background, kicker, footer, topY, footY, fitLines, photo } from './social-draw.js';
 import { tt, slant } from './social-draw-tv.js';
 
 // Couleur de la bande selon la sanction (texte foncé sur le jaune)
@@ -39,7 +39,7 @@ function turnMap(ctx, shape, turns, x, y, w, h, u) {
     const i0 = near(a); const len = (near(b) - i0 + n) % n + 2 * m;
     const seg = Array.from({ length: len + 1 }, (_, k) => shape.pts[(i0 - m + k + n) % n]);
     path(seg, false);
-    ctx.shadowColor = alpha(C.red, 0.9); ctx.shadowBlur = 22 * u;
+    ctx.shadowColor = alpha(C.red, 0.9); ctx.shadowBlur = v3 ? 0 : 22 * u;
     ctx.strokeStyle = C.red; ctx.lineWidth = 13 * u; ctx.stroke();
     ctx.shadowBlur = 0;
     ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = 3 * u; ctx.stroke();
@@ -70,11 +70,13 @@ function turnMap(ctx, shape, turns, x, y, w, h, u) {
 function driverCard(ctx, r, img, x, y, w, h, u, withPhoto = true) {
   const col = vivid(r.color);
   const ph = withPhoto ? Math.min(Math.round(h * 0.3), Math.round(118 * u)) : h;   // hauteur de la plaque
-  const rad = 22 * u;
+  const rad = (v3 ? 10 : 22) * u;
   ctx.save();
   if (tv) slant(ctx, x, y, w, h, 18 * u); else rr(ctx, x, y, w, h, rad);
   ctx.clip();
-  if (withPhoto) {
+  if (withPhoto && v3) {   // Télémétrie : zone à plat
+    ctx.fillStyle = C.panel; ctx.fillRect(x, y, w, h - ph);
+  } else if (withPhoto) {
     const g = ctx.createLinearGradient(x, y, x + w * 0.4, y + h);
     g.addColorStop(0, alpha(col, 1)); g.addColorStop(0.6, alpha(col, 0.72)); g.addColorStop(1, alpha(col, 0.42));
     ctx.fillStyle = g; ctx.fillRect(x, y, w, h - ph);
@@ -83,16 +85,18 @@ function driverCard(ctx, r, img, x, y, w, h, u, withPhoto = true) {
     ctx.beginPath(); for (let i = -h; i < w + h; i += 22 * u) { ctx.moveTo(x + i, y + h - ph); ctx.lineTo(x + i + (h - ph) * 0.6, y); } ctx.stroke();
     const hi = ctx.createLinearGradient(0, y, 0, y + (h - ph)); hi.addColorStop(0, 'rgba(255,255,255,0.16)'); hi.addColorStop(0.5, 'rgba(255,255,255,0)'); hi.addColorStop(1, 'rgba(0,0,0,0.25)');
     ctx.fillStyle = hi; ctx.fillRect(x, y, w, h - ph);
+  }
+  if (withPhoto) {
     const ih = h - ph - 10 * u;
     if (img) photo(ctx, img, x, y + h - ph - ih, w, ih, r.color, 0);
     else txt(ctx, r.tla, x + w / 2, y + (h - ph) * 0.62, { size: Math.round((h - ph) * 0.4), weight: 800, family: TITLE, align: 'center', italic: true, color: 'rgba(255,255,255,0.9)', max: w * 0.8 });
   }
   // Plaque : fond sombre, liseré de la couleur
-  ctx.fillStyle = 'rgba(9,10,14,0.92)'; ctx.fillRect(x, y + h - ph, w, ph);
+  ctx.fillStyle = v3 ? '#161D27' : 'rgba(9,10,14,0.92)'; ctx.fillRect(x, y + h - ph, w, ph);
   ctx.fillStyle = col; ctx.fillRect(x, y + h - ph, w, 5 * u);
   ctx.restore();
   if (tv) slant(ctx, x, y, w, h, 18 * u); else rr(ctx, x, y, w, h, rad);
-  ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.lineWidth = 1.5 * u; ctx.stroke();
+  ctx.strokeStyle = v3 ? C.line : 'rgba(255,255,255,0.18)'; ctx.lineWidth = 1.5 * u; ctx.stroke();
   // Nom : numéro à la couleur de l'écurie, puis prénom et nom en capitales ; écurie dessous
   const inner = w - 36 * u;
   const ns = Math.round(Math.min(46 * u, ph * 0.38));
@@ -148,8 +152,8 @@ export function decision(ctx, W, H, d, o) {
   const lh = f.size * 1.02;
   const bh = Math.round(f.lines.length * lh + f.size * 0.42);
   ctx.save();
-  if (tv) slant(ctx, -30 * u, y, W - pad + 30 * u, bh, 26 * u); else rr(ctx, -30 * u, y, W - pad + 30 * u, bh, 14 * u);
-  ctx.shadowColor = 'rgba(0,0,0,0.45)'; ctx.shadowBlur = 30 * u; ctx.shadowOffsetY = 8 * u;
+  if (tv) slant(ctx, -30 * u, y, W - pad + 30 * u, bh, 26 * u); else rr(ctx, -30 * u, y, W - pad + 30 * u, bh, (v3 ? 8 : 14) * u);
+  ctx.shadowColor = v3 ? 'transparent' : 'rgba(0,0,0,0.45)'; ctx.shadowBlur = 30 * u; ctx.shadowOffsetY = 8 * u;
   ctx.fillStyle = bandBg; ctx.fill();
   ctx.restore();
   f.lines.forEach((l, i) => txt(ctx, l, pad + 4 * u, y + f.size * 0.21 + f.size * 0.8 + i * lh, { size: f.size, weight: 800, family: TITLE, color: bandFg, italic: true, max: bw }));

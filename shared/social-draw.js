@@ -8,6 +8,7 @@ import { teamLogoPath } from './team-logos.js';
 import { followReason, questionFor } from './social-follow.js';
 import { appSlides, appPage, plain } from './social-app.js';
 import { TV_TITLE, tvBackground, tvFrame, tvFooter, tvCover, tvPodium, tvClassement, slant } from './social-draw-tv.js';
+import { V3_TITLE, V3_BODY, V3_C, V3_MEDAL, BEST, v3Kicker, v3Background, v3Frame, v3Footer, v3Pill, v3Card, v3Cover, v3Podium, v3Classement } from './social-draw-v3.js';
 import { horaires, infos, editions, topflop, notes, equipes, positions, recapCover, recapItem, raceweek, titre, titreComment, titleBlocks } from './social-draw-season.js';
 import { decision, decisionAlt } from './social-draw-decision.js';
 
@@ -19,9 +20,11 @@ export const FORMATS = {
 
 export const C = { bg: '#06070b', bg2: '#11141c', panel: 'rgba(255,255,255,0.055)', line: 'rgba(255,255,255,0.12)', text: '#f5f7fb', muted: '#aeb6c6', red: '#ff1e0f', gold: '#f2c94c', silver: '#d3d8e2', bronze: '#e0955a', green: '#3ddc84' };
 const SAIRA = '"Saira Condensed", "Titillium Web", sans-serif';
-// Police des titres : Barlow Condensed le temps d'un dessin en style « Télé premium » (styled)
+// Police des titres : Barlow Condensed le temps d'un dessin en style « Télé premium », Archivo Cond en
+// « Télémétrie » (styled) ; texte en Archivo en « Télémétrie »
 export let TITLE = SAIRA;
-export const BODY = '"Titillium Web", sans-serif';
+const TITILLIUM = '"Titillium Web", sans-serif';
+export let BODY = TITILLIUM;
 export const MONO = '"JetBrains Mono", monospace';
 export const MEDAL = [C.gold, C.silver, C.bronze];
 
@@ -152,6 +155,8 @@ export function fit(ctx, text, max, size, weight, family) {
 }
 // italic : penché vers l'avant (titres « vitesse ») ; stroke : contour seul, de cette épaisseur
 export function txt(ctx, text, x, y, { size = 32, weight = 400, family = BODY, color = C.text, align = 'left', max = 0, base = 'alphabetic', spacing = 0, italic = false, stroke = 0 } = {}) {
+  // Télémétrie : petits titres en capitales espacées en JetBrains Mono (le rouge en texte : sa teinte claire)
+  if (v3 && family === TITLE && spacing >= 1.5 && size <= 40) ({ family, size, spacing, weight, color } = v3Kicker(size, weight, color));
   // Espacement des lettres (fixe, en px) compté dans la largeur permise : sinon le texte espacé déborde
   const s = max ? fit(ctx, text, Math.max(1, max - spacing * text.length), size, weight, family) : size;
   ctx.font = `${weight} ${s}px ${family}`;
@@ -161,7 +166,7 @@ export function txt(ctx, text, x, y, { size = 32, weight = 400, family = BODY, c
   if ('letterSpacing' in ctx) ctx.letterSpacing = `${spacing}px`;
   ctx.save();
   ctx.translate(x, y);
-  if (italic) ctx.transform(1, 0, -SKEW, 1, 0, 0);
+  if (italic && !v3) ctx.transform(1, 0, -SKEW, 1, 0, 0);
   if (stroke) { ctx.strokeStyle = color; ctx.lineWidth = stroke; ctx.lineJoin = 'round'; ctx.strokeText(text, 0, 0); } else ctx.fillText(text, 0, 0);
   ctx.restore();
   if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
@@ -172,6 +177,7 @@ export const SKEW = 0.16;
 // Carte « verre » : fond légèrement clair, reflet en haut, liseré fin ; tint : couleur (écurie) qui
 // teinte la carte depuis la gauche
 export function card(ctx, x, y, w, h, r, { tint = null, strong = false, light = false } = {}) {
+  if (v3) { v3Card(ctx, x, y, w, h, r, { tint, strong }); return; }
   ctx.save();
   rr(ctx, x, y, w, h, r);
   const g = ctx.createLinearGradient(x, y, x, y + h);
@@ -194,6 +200,7 @@ const hexOf = (c) => {
 };
 // Pastille arrondie (étiquette) : renvoie sa largeur
 export function pill(ctx, label, x, y, h, { bg = C.red, color = '#fff', align = 'left', outline = false, dot = false } = {}) {
+  if (v3) return v3Pill(ctx, label, x, y, h, { bg, color, align, outline, dot });
   const size = Math.round(h * 0.52);
   ctx.font = `800 ${size}px ${TITLE}`;
   const sp = size * 0.12;
@@ -245,6 +252,7 @@ export function vivid(hex) {
 // gauche, un trait de lumière oblique et un grain fin (rendu « photo », sans aplats)
 export function background(ctx, W, H, accent) {
   if (tv) { tvBackground(ctx, W, H, accent); return; }
+  if (v3) { v3Background(ctx, W, H, accent); return; }
   const g = ctx.createLinearGradient(0, 0, W * 0.3, H);
   g.addColorStop(0, C.bg2);
   g.addColorStop(1, C.bg);
@@ -291,7 +299,7 @@ export function grain(ctx, W, H) {
 }
 
 // Page du carrousel en cours de dessin (paintSlide) : points de progression dans le pied
-let page = null;
+export let page = null;
 // Story (image ou vidéo des visuels) : Instagram pose sa barre de progression et le nom du compte en haut (~230 px),
 // le champ « Envoyer un message » en bas (~300 px), comme Reels, TikTok et Shorts leur interface ; rien d'important
 // dessous.
@@ -299,11 +307,24 @@ let safe = false;
 // Style « Télé premium » choisi dans le Studio (o.style = 'tv') : fond, en-tête, pied, pastilles et visuels de
 // social-draw-tv.js, titres en Barlow Condensed
 export let tv = false;
-// Dessin (image, vidéo) dans le style choisi
+// Style « Télémétrie » (o.style = 'v3', celui de l'appli depuis la v1.32) : fond à plat, filets, Archivo et JetBrains
+// Mono, palette C et médailles de social-draw-v3.js le temps du dessin
+export let v3 = false;
+const BASE_C = { ...C };
+const BASE_MEDAL = [...MEDAL];
+// Dessin (image, vidéo) dans le style choisi ; le style d'avant remis ensuite (dessins imbriqués)
 export function styled(o, draw) {
+  const prev = { tv, v3, TITLE, BODY };
+  const palette = (on) => { Object.assign(C, on ? V3_C : BASE_C); MEDAL.splice(0, 3, ...(on ? V3_MEDAL : BASE_MEDAL)); };
   tv = o?.style === 'tv';
-  TITLE = tv ? TV_TITLE : SAIRA;
-  try { return draw(); } finally { tv = false; TITLE = SAIRA; }
+  v3 = o?.style === 'v3';
+  TITLE = tv ? TV_TITLE : v3 ? V3_TITLE : SAIRA;
+  BODY = v3 ? V3_BODY : TITILLIUM;
+  if (v3 !== prev.v3) palette(v3);
+  try { return draw(); } finally {
+    if (v3 !== prev.v3) palette(prev.v3);
+    ({ tv, v3, TITLE, BODY } = prev);
+  }
 }
 export const topY = (W, H) => (safe ? 230 : Math.round(Math.min(W, H) * 0.06));
 export const footY = (W, H) => H - (safe ? 300 : Math.round(Math.min(W, H) * 0.045));
@@ -326,6 +347,7 @@ export function footer(ctx, W, H, o, { dots = true } = {}) {
   const u = m / 1080;
   const pad = Math.round(W * 0.055);
   if (tv) return tvFooter(ctx, W, H, o, '', dots);
+  if (v3) return v3Footer(ctx, W, H, o, '', dots);
   const fy = footY(W, H);
   ctx.fillStyle = C.red;
   rr(ctx, pad, fy - 27 * u, 8 * u, 30 * u, 3 * u); ctx.fill();
@@ -347,6 +369,7 @@ export function frame(ctx, W, H, d, o, title) {
   const u = m / 1080;
   trackMark(ctx, W, H, o.shape);
   if (tv) return tvFrame(ctx, W, H, d, o, title);
+  if (v3) return v3Frame(ctx, W, H, d, o, title);
   const pad = Math.round(W * 0.055);
   const top = topY(W, H);
   let x = pad;
@@ -452,6 +475,13 @@ export function teamLogo(ctx, o, team, x, cy, h, align = 'left', maxW = h * 1.8)
 // Portrait détouré (tête et épaules) dans un carré de côté 2r centré sur (cx, cy) : halo aux couleurs
 // de l'écurie, bas fondu ; sans photo, le trigramme
 export function driverPhoto(ctx, img, cx, cy, r, color, label) {
+  if (v3) {   // Télémétrie : portrait sur une zone à plat, trait de l'écurie dessous
+    rr(ctx, cx - r, cy - r, r * 2, r * 2, 10); ctx.fillStyle = C.panel; ctx.fill(); ctx.strokeStyle = C.line; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.fillStyle = vivid(color); ctx.fillRect(cx - r, cy + r - 6, r * 2, 6);
+    if (img) { ctx.save(); rr(ctx, cx - r, cy - r, r * 2, r * 2 - 6, 10); ctx.clip(); photo(ctx, img, cx - r, cy - r, r * 2, r * 2 - 6, color, 0); ctx.restore(); }
+    else if (label) txt(ctx, label, cx, cy + r * 0.2, { size: Math.round(r * 0.6), weight: 800, family: TITLE, align: 'center' });
+    return;
+  }
   const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
   g.addColorStop(0, alpha(color, 0.45)); g.addColorStop(1, alpha(color, 0));
   ctx.fillStyle = g; ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
@@ -462,6 +492,7 @@ export function driverPhoto(ctx, img, cx, cy, r, color, label) {
 // ---------- Diapositives ----------
 // Grand nom en contour, très pâle, derrière la photo (effet affiche)
 function ghost(ctx, text, x, y, size, maxW, align = 'center') {
+  if (v3) return;   // Télémétrie : pas d'effet d'affiche
   ctx.save();
   ctx.globalAlpha = 0.07;
   txt(ctx, text, x, y, { size, weight: 800, family: TITLE, align, italic: true, max: maxW });
@@ -692,6 +723,7 @@ function strategie(ctx, W, H, d, o) {
 function bar(ctx, x, y, w, h, color, strong) {
   if (w <= 0) return;
   const c = vivid(color);
+  if (v3) { rr(ctx, x, y, w, h, Math.min(3, w / 2)); ctx.fillStyle = strong ? c : alpha(c, 0.78); ctx.fill(); return; }
   const g = ctx.createLinearGradient(x, 0, x + w, 0);
   g.addColorStop(0, alpha(c, strong ? 0.75 : 0.6)); g.addColorStop(1, alpha(c, 1));
   if (tv) slant(ctx, x, y, w, h, Math.min(h * 0.35, w)); else rr(ctx, x, y, w, h, Math.min(h * 0.3, w / 2));
@@ -712,6 +744,7 @@ function barRow(ctx, x, cy, fs, i, r, u) {
 }
 // Fond sombre sous un graphique en barres : le fond du visuel (teinté de la couleur du premier) ne se mélange pas aux barres
 function chartPanel(ctx, x, y, w, h, u) {
+  if (v3) { card(ctx, x, y, w, h, 10 * u); return; }
   if (tv) slant(ctx, x, y, w, h, 14 * u); else rr(ctx, x, y, w, h, 18 * u);
   ctx.fillStyle = 'rgba(4,8,16,0.62)'; ctx.fill();
 }
@@ -760,7 +793,7 @@ function vitesses(ctx, W, H, d, o) {
     const mid = barRow(ctx, f.pad, cy, fs, i, r, u);
     const h = Math.min(rowH * 0.62, 40 * u);
     bar(ctx, bx, cy - h / 2, X(r.kmh) - bx, h, r.color, i === 0);
-    txt(ctx, String(r.kmh), vx, mid, { size: fs, weight: 800, family: TITLE, color: i === 0 ? C.gold : C.text, align: 'right', italic: true });
+    txt(ctx, String(r.kmh), vx, mid, { size: fs, weight: 800, family: TITLE, color: i === 0 ? (v3 ? BEST : C.gold) : C.text, align: 'right', italic: true });
     txt(ctx, diffs[i], right, mid, { size: Math.round(fs * 0.8), weight: 700, family: tv ? TITLE : MONO, color: C.muted, align: 'right', italic: tv });
   });
 }
@@ -784,7 +817,7 @@ function secteurs(ctx, W, H, d, o) {
   chartPanel(ctx, f.pad - 16 * u, top - rowH * 0.7, W - f.pad * 2 + 32 * u, n * rowH + rowH * 0.9, u);
   d.sectors.forEach((list, k) => {
     const x = f.pad + k * (cw + gap);
-    ctx.fillStyle = C.red;
+    ctx.fillStyle = v3 ? C.muted : C.red;
     if (tv) slant(ctx, x, f.top + 6 * u, 10 * u, 38 * u, 5 * u); else rr(ctx, x, f.top + 6 * u, 8 * u, 38 * u, 3 * u);
     ctx.fill();
     txt(ctx, `SECTEUR ${k + 1}`, x + 22 * u, f.top + 38 * u, { size: Math.round(36 * u), weight: 800, family: TITLE, italic: true, max: cw - 30 * u });
@@ -796,24 +829,25 @@ function secteurs(ctx, W, H, d, o) {
     list.slice(0, 22).forEach((r, i) => {
       const cy = top + (i + 0.5) * rowH;
       if (i === 0) {   // meilleur temps du secteur : bande dorée derrière la ligne
-        ctx.fillStyle = alpha(C.gold, 0.14);
+        ctx.fillStyle = alpha(v3 ? BEST : C.gold, v3 ? 0.12 : 0.14);
         if (tv) slant(ctx, x - 6 * u, cy - rowH * 0.48, cw + 12 * u, rowH * 0.96, 10 * u); else rr(ctx, x - 6 * u, cy - rowH * 0.48, cw + 12 * u, rowH * 0.96, rowH * 0.3);
         ctx.fill();
       }
       const mid = barRow(ctx, x, cy, fs, i, r, u);
       const h = Math.min(rowH * 0.56, 34 * u);
       bar(ctx, bx, cy - h / 2, bw * (1 - 0.8 * (r.gap / span)), h, r.color, i === 0);
-      txt(ctx, i === 0 ? r.time : num(r.gap), tx, mid, { size: Math.round(fs * (i === 0 ? 0.9 : 0.82)), weight: 800, family: fam, color: i === 0 ? C.gold : C.text, align: 'right', italic: tv });
+      txt(ctx, i === 0 ? r.time : num(r.gap), tx, mid, { size: Math.round(fs * (i === 0 ? 0.9 : 0.82)), weight: v3 ? 600 : 800, family: fam, color: i === 0 ? (v3 ? BEST : C.gold) : C.text, align: 'right', italic: tv });
     });
   });
   if (!d.ideal) return;
   // Tour idéal : bande en bas, sur toute la largeur
   const y = top + n * rowH + 22 * u;
   const h = note - 22 * u;
-  card(ctx, f.pad, y, W - f.pad * 2, h, tv ? 6 * u : 22 * u, { tint: C.gold, light: true });
-  const pw = pill(ctx, 'TOUR IDÉAL', f.pad + 20 * u, y + (h - 40 * u) / 2, 40 * u, { bg: 'rgba(0,0,0,0.3)', color: C.text, dot: C.gold });
+  const gold = v3 ? BEST : C.gold;
+  card(ctx, f.pad, y, W - f.pad * 2, h, tv ? 6 * u : 22 * u, { tint: gold, light: true });
+  const pw = pill(ctx, 'TOUR IDÉAL', f.pad + 20 * u, y + (h - 40 * u) / 2, 40 * u, { bg: v3 ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.3)', color: C.text, dot: gold });
   const ix = f.pad + 20 * u + pw + 22 * u;
-  const s = txt(ctx, d.ideal.time, ix, y + h / 2 + 17 * u, { size: Math.round(48 * u), weight: 800, family: TITLE, color: C.gold, italic: true });
+  const s = txt(ctx, d.ideal.time, ix, y + h / 2 + 17 * u, { size: Math.round(48 * u), weight: 800, family: TITLE, color: gold, italic: true });
   ctx.font = `800 ${s}px ${TITLE}`;
   const sx = ix + ctx.measureText(d.ideal.time).width + 24 * u;
   const sub = d.ideal.gain > 0 ? `${d.ideal.gain.toFixed(3).replace('.', ',')} s de mieux que le meilleur tour (${d.ideal.best})` : 'les trois meilleurs secteurs réunis';
@@ -881,6 +915,12 @@ function championnat(ctx, W, H, d, o) {
   txt(ctx, d.final ? 'Après la course' : 'Projection en cours de course', W - f.pad, f.bottom + 24, { size: 28, weight: 600, color: C.muted, align: 'right' });
 }
 
+// Grand mot et étiquette de la séance des couvertures
+export const coverWord = (d) => ({ prerace: 'AVANT-COURSE', champ: 'CHAMPIONNAT', weekend: 'PROGRAMME', records: 'LE SAVIEZ-VOUS', ratings: 'LES NOTES', teamduels: 'LES DUELS', racelaps: 'LA COURSE', title: 'LE TITRE' }[d.post] || 'RÉSULTATS');
+export const coverTag = (d) => (d.post === 'prerace' ? (d.sprint ? 'Sprint' : 'Course') : d.post === 'champ' ? (d.final ? 'Après la course' : 'En direct')
+  : d.post === 'weekend' ? (d.sprint ? 'Week-end sprint' : `Manche ${d.round || ''}`) : d.post === 'records' ? 'Records du circuit'
+    : d.post === 'ratings' ? 'Après la course' : d.post === 'teamduels' || d.post === 'title' ? `Après ${d.after} course${d.after > 1 ? 's' : ''}` : d.post === 'racelaps' ? 'Tour par tour'
+      : d.kind === 'race' && !d.sprint ? 'Course' : d.label).toUpperCase();
 // Couverture du carrousel : Grand Prix, séance, date, circuit et sommaire des images suivantes
 function cover(ctx, W, H, d, o, next, fmt) {
   background(ctx, W, H, C.red);
@@ -919,7 +959,7 @@ function cover(ctx, W, H, d, o, next, fmt) {
     rr(ctx, pad, y, fw, fh, 8); ctx.save(); ctx.clip(); ctx.drawImage(o.flag, pad, y, fw, fh); ctx.restore();
     y += fh + 30 * u;
   }
-  const word = { prerace: 'AVANT-COURSE', champ: 'CHAMPIONNAT', weekend: 'PROGRAMME', records: 'LE SAVIEZ-VOUS', ratings: 'LES NOTES', teamduels: 'LES DUELS', racelaps: 'LA COURSE', title: 'LE TITRE' }[d.post] || 'RÉSULTATS';
+  const word = coverWord(d);
   if (pic) {
     // Course en cours (résultats provisoires) : en tête, pas encore vainqueur
     const verb = d.kind === 'race' && d.final ? (d.sprint ? 'GAGNE LE SPRINT' : 'GAGNE') : d.kind === 'quali' ? (d.sprint ? 'EN POLE DU SPRINT' : 'EN POLE') : 'EN TÊTE';
@@ -933,10 +973,7 @@ function cover(ctx, W, H, d, o, next, fmt) {
     y += 190 * u;
   }
   // Séance dans une étiquette rouge
-  const tag = (d.post === 'prerace' ? (d.sprint ? 'Sprint' : 'Course') : d.post === 'champ' ? (d.final ? 'Après la course' : 'En direct')
-    : d.post === 'weekend' ? (d.sprint ? 'Week-end sprint' : `Manche ${d.round || ''}`) : d.post === 'records' ? 'Records du circuit'
-      : d.post === 'ratings' ? 'Après la course' : d.post === 'teamduels' || d.post === 'title' ? `Après ${d.after} course${d.after > 1 ? 's' : ''}` : d.post === 'racelaps' ? 'Tour par tour'
-        : d.kind === 'race' && !d.sprint ? 'Course' : d.label).toUpperCase();
+  const tag = coverTag(d);
   pill(ctx, tag, pad, y, 62 * u, { bg: C.red, dot: '#fff' });
   y += 62 * u + 70 * u;
   const lines = wrap(ctx, d.gp.toUpperCase(), pad, y + 20 * u, colW, 92 * u, 2, { size: Math.round(92 * u), weight: 800, family: TITLE, italic: true });
@@ -1418,8 +1455,8 @@ function essentiel(ctx, W, H, d, o, page, fmt) {
       const bh = Math.max(lines.length * pick.lh, numW * 0.7);
       card(ctx, pad, y, colW, bh + px * 2, 28 * u, { tint: d.color || C.red });
       const n = Math.round(numW * 0.62);
-      rr(ctx, pad + px, y + px, n, n, n * 0.28); ctx.fillStyle = C.red; ctx.fill();
-      txt(ctx, String(first + i + 1).padStart(2, '0'), pad + px + n / 2, y + px + n * 0.74, { size: Math.round(n * 0.5), weight: 800, family: TITLE, color: '#fff', align: 'center', italic: true });
+      rr(ctx, pad + px, y + px, n, n, v3 ? 6 : n * 0.28); ctx.fillStyle = v3 ? C.line : C.red; ctx.fill();
+      txt(ctx, String(first + i + 1).padStart(2, '0'), pad + px + n / 2, y + px + n * (v3 ? 0.66 : 0.74), { size: Math.round(n * (v3 ? 0.42 : 0.5)), weight: v3 ? 700 : 800, family: v3 ? MONO : TITLE, color: '#fff', align: 'center', italic: true });
       lines.forEach((l, k) => { if (y + px + (k + 1) * pick.lh <= bottom + pick.lh * 0.3) txt(ctx, l, pad + px + numW, y + px + pick.size * 0.92 + k * pick.lh, { size: pick.size, weight: 600, color: C.text }); });
       y += bh + px * 2 + gap;
     });
@@ -1543,12 +1580,12 @@ function paintOne(ctx, slide, fmt, d, o, size) {
   else if (slide === 'flash') flash(ctx, w, h, d, o);
   else if (slide === 'decision' && d.decision) decision(ctx, w, h, d, o);
   else if (slide === 'couverture' && tv && !d.post && d.rows?.length) tvCover(ctx, w, h, d, o, fmt);
-  else if (slide === 'couverture') cover(ctx, w, h, d, o, (o.slides ? o.slides.filter((s) => s !== 'couverture' && s !== 'abonnement' && s !== 'question') : slidesFor(d).slice(1)).slice(0, fmt === 'x' ? 3 : undefined), fmt);
+  else if (slide === 'couverture') (v3 ? v3Cover : cover)(ctx, w, h, d, o, (o.slides ? o.slides.filter((s) => s !== 'couverture' && s !== 'abonnement' && s !== 'question') : slidesFor(d).slice(1)).slice(0, fmt === 'x' ? 3 : undefined), fmt);
   else if (slide === 'vainqueur') hero(ctx, w, h, d, o, 'VAINQUEUR');
   else if (slide === 'pole') hero(ctx, w, h, d, o, 'POLE POSITION');
   else if (slide === 'meilleurtemps') hero(ctx, w, h, d, o, 'MEILLEUR TEMPS');
-  else if (slide === 'podium') (tv ? tvPodium : podium)(ctx, w, h, d, o);
-  else if (slide === 'classement') (tv ? tvClassement : classement)(ctx, w, h, d, o);
+  else if (slide === 'podium') (tv ? tvPodium : v3 ? v3Podium : podium)(ctx, w, h, d, o);
+  else if (slide === 'classement') (tv ? tvClassement : v3 ? v3Classement : classement)(ctx, w, h, d, o);
   else if (slide === 'remontees') remontees(ctx, w, h, d, o);
   else if (slide === 'strategie') strategie(ctx, w, h, d, o);
   else if (slide === 'vitesses' && d.speeds) vitesses(ctx, w, h, d, o);
