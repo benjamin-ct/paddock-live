@@ -769,7 +769,6 @@ export function raceFrame(ctx, W, H, d, o, time) {
 // ---------- Race Week : visuel propre à chaque Grand Prix ----------
 // Couleurs du drapeau du pays, drapeau en fond, nom de la ville en filigrane, tracé lumineux du
 // circuit ; mise en page qui alterne selon la manche (tracé à droite, en bas ou à gauche).
-const T_LINE = '#222B37';
 const rgba = (hex, a) => {
   const m = /^#?([0-9a-f]{6})$/i.exec(hex || '');
   const v = m ? parseInt(m[1], 16) : 0xe10600;
@@ -783,16 +782,8 @@ function drawTrack(ctx, shape, box, color, u) {
   const path = () => { ctx.beginPath(); shape.pts.forEach((p, i) => { const [x, y] = P(p); if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); }); ctx.closePath(); };
   ctx.save();
   ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-  // Halo, piste, ligne centrale (Télémétrie : tracé à plat, ligne de départ en trait blanc)
-  if (v3) {
-    ctx.strokeStyle = T_LINE; ctx.lineWidth = 30 * u; path(); ctx.stroke();
-    ctx.strokeStyle = color; ctx.lineWidth = 10 * u; path(); ctx.stroke();
-    const [sx, sy] = P(shape.pts[0]);
-    ctx.fillStyle = '#fff'; ctx.fillRect(sx - 3 * u, sy - 22 * u, 6 * u, 44 * u);
-    ctx.restore();
-    return;
-  }
-  ctx.shadowColor = color; ctx.shadowBlur = 60 * u;
+  // Halo, piste, ligne centrale (Télémétrie : même tracé, sans la lueur)
+  if (!v3) { ctx.shadowColor = color; ctx.shadowBlur = 60 * u; }
   ctx.strokeStyle = rgba(color, 0.55); ctx.lineWidth = 34 * u; path(); ctx.stroke();
   ctx.shadowBlur = 0;
   ctx.strokeStyle = color; ctx.lineWidth = 16 * u; path(); ctx.stroke();
@@ -818,8 +809,8 @@ export function raceweek(ctx, W, H, d, o) {
     glow(v === 2 ? W * 0.15 : W * 0.85, H * 0.18, Math.max(W, H) * 0.75, c1, 0.42);
     glow(v === 2 ? W * 0.9 : W * 0.1, H * 0.95, Math.max(W, H) * 0.6, c2, 0.16);
   }
-  // Drapeau en grand, incliné et fondu
-  if (o.flag && !v3) {
+  // Drapeau en grand, incliné et fondu (tous les styles)
+  if (o.flag) {
     ctx.save();
     ctx.globalAlpha = 0.09;
     ctx.translate(W * (v === 2 ? 0.25 : 0.72), H * 0.32);
@@ -828,21 +819,8 @@ export function raceweek(ctx, W, H, d, o) {
     ctx.drawImage(o.flag, -fw / 2, -fw * o.flag.height / o.flag.width / 2, fw, fw * o.flag.height / o.flag.width);
     ctx.restore();
   }
-  // Télémétrie : drapeau en grand, droit, en filigrane derrière le tracé, fondu vers le bas dans le fond
-  if (o.flag && v3) {
-    const fh = H * 0.62, fw = Math.max(W, fh * o.flag.width / o.flag.height), x0 = Math.round(10 * u);   // trait du pays gardé à gauche
-    ctx.save();
-    ctx.beginPath(); ctx.rect(x0, 0, W - x0, fh + 2); ctx.clip();
-    ctx.globalAlpha = 0.16;
-    ctx.drawImage(o.flag, (W - fw) / 2, 0, fw, fw * o.flag.height / o.flag.width);
-    ctx.globalAlpha = 1;
-    const fade = ctx.createLinearGradient(0, fh * 0.35, 0, fh);
-    fade.addColorStop(0, rgba(C.bg, 0)); fade.addColorStop(1, rgba(C.bg, 1));
-    ctx.fillStyle = fade; ctx.fillRect(x0, 0, W - x0, fh + 2);
-    ctx.restore();
-  }
   // Nom de la ville en filigrane
-  if (d.city && !v3) {
+  if (d.city) {
     ctx.save();
     ctx.translate(W / 2, H * 0.56);
     ctx.rotate(-0.14);
@@ -859,7 +837,7 @@ export function raceweek(ctx, W, H, d, o) {
   ctx.save();
   ctx.translate(v === 2 ? 0 : W, 0);
   if (v !== 2) ctx.scale(-1, 1);
-  if (!v3) [[c1, 0], [c2, 1], ['#ffffff', 2]].forEach(([col, i]) => {
+  [[c1, 0], [c2, 1], ['#ffffff', 2]].forEach(([col, i]) => {
     ctx.fillStyle = rgba(col, i === 2 ? 0.5 : 0.85);
     ctx.beginPath(); ctx.moveTo(0, H * (0.06 + i * 0.035)); ctx.lineTo(W * 0.22 - i * 40 * u, H * (0.06 + i * 0.035)); ctx.lineTo(W * 0.2 - i * 40 * u, H * (0.06 + i * 0.035) + 12 * u); ctx.lineTo(0, H * (0.06 + i * 0.035) + 12 * u); ctx.fill();
   });
@@ -907,8 +885,8 @@ export function raceweek(ctx, W, H, d, o) {
   ctx.font = `800 ${big}px ${TITLE}`;
   ctx.textAlign = align; ctx.textBaseline = 'alphabetic';
   if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
-  ctx.lineWidth = 5 * u; ctx.strokeStyle = c1; ctx.fillStyle = v3 ? c1 : rgba(c1, 0.18);
-  ctx.fillText('WEEK', tx, y + big * 0.9); if (!v3) ctx.strokeText('WEEK', tx, y + big * 0.9);
+  ctx.lineWidth = 5 * u; ctx.strokeStyle = c1; ctx.fillStyle = rgba(c1, 0.18);
+  ctx.fillText('WEEK', tx, y + big * 0.9); ctx.strokeText('WEEK', tx, y + big * 0.9);
   ctx.restore();
   y += big * 0.9 + 46 * u;
   const t = m.t;
