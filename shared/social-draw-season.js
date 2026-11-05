@@ -828,6 +828,19 @@ export function raceweek(ctx, W, H, d, o) {
     ctx.drawImage(o.flag, -fw / 2, -fw * o.flag.height / o.flag.width / 2, fw, fw * o.flag.height / o.flag.width);
     ctx.restore();
   }
+  // Télémétrie : drapeau en grand, droit, en filigrane derrière le tracé, fondu vers le bas dans le fond
+  if (o.flag && v3) {
+    const fh = H * 0.62, fw = Math.max(W, fh * o.flag.width / o.flag.height), x0 = Math.round(10 * u);   // trait du pays gardé à gauche
+    ctx.save();
+    ctx.beginPath(); ctx.rect(x0, 0, W - x0, fh + 2); ctx.clip();
+    ctx.globalAlpha = 0.16;
+    ctx.drawImage(o.flag, (W - fw) / 2, 0, fw, fw * o.flag.height / o.flag.width);
+    ctx.globalAlpha = 1;
+    const fade = ctx.createLinearGradient(0, fh * 0.35, 0, fh);
+    fade.addColorStop(0, rgba(C.bg, 0)); fade.addColorStop(1, rgba(C.bg, 1));
+    ctx.fillStyle = fade; ctx.fillRect(x0, 0, W - x0, fh + 2);
+    ctx.restore();
+  }
   // Nom de la ville en filigrane
   if (d.city && !v3) {
     ctx.save();
