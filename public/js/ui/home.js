@@ -462,7 +462,7 @@ function render() {
         ${weatherHtml(nx)}
         <div class="hm-actions"><a class="btn small" href="#" data-cal="${nx.year}" data-round="${nx.round}" title="Séances dans votre agenda (Google, Apple, Outlook)">${icon('calendar')} Ajouter ce week-end à mon agenda</a></div></div>
         ${daysHtml(nx)}`
-          : `<div class="hm-title">${schedule ? 'Saison terminée' : scheduleFailed ? 'Calendrier indisponible pour l\'instant' : 'Calendrier en chargement…'}</div></div>`}</section>`;
+          : `${schedule ? '<div class="hm-title">Saison terminée</div>' : state(scheduleFailed ? 'Calendrier indisponible pour l\'instant' : 'Calendrier en chargement…')}</div>`}</section>`;
   const ls = live ? null : lastSession();
   const last = ls
     ? `<section class="hm-card hm-last"><div class="hm-kicker"><span class="hm-tag">Dernière séance</span></div>
