@@ -3316,6 +3316,8 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; gap: 5
 .hm-fav-row > :last-child { white-space: nowrap; text-align: right; }
 .hm-fav-group { grid-column: 1 / -1; margin-top: 8px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
 .hm-fav-group:first-child { margin-top: 0; }
+.hm-fav-col { grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; gap: inherit; }   /* Pilotes, Écuries */
+.hm-fav-col + .hm-fav-col > .hm-fav-group { margin-top: 8px; }
 @media (max-width: 600px) { .hm-favs { grid-template-columns: minmax(2.8em, auto) minmax(0, 1fr) auto; } .hm-fav-row > :nth-child(3) { display: none; } }
 .hm-fav-row b { font-size: 16px; }
 .hm-fav-pos { font-size: 20px; font-weight: 900; color: var(--accent); }

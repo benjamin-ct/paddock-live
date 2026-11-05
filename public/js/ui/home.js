@@ -204,7 +204,8 @@ export function favAction(k) {
 const driverNums = (d) => [Object.entries(drivers(store.state)).find(([, x]) => x.Tla === d.code)?.[0], d.number && String(d.number)].filter(Boolean);
 const isFavDriver = (d) => driverNums(d).some((n) => prefs.favs.includes(n));
 const teamsOf = (cs) => cs.map((c) => ({ ...c, key: teamKey(c.id, c.name) })).filter((c, i, all) => c.key && all.findIndex((x) => x.key === c.key) === i);
-const pts = (x) => `${x.points} pts${x.wins ? ` · ${x.wins} victoire${x.wins > 1 ? 's' : ''}` : ''}`;
+// Points, puis victoires (sous les points quand les favoris sont sur deux colonnes)
+const pts = (x) => `${x.points} pts${x.wins ? `<i class="hm-fav-sep"> · </i><span class="hm-fav-w">${x.wins} victoire${x.wins > 1 ? 's' : ''}</span>` : ''}`;
 const byName = (a, b) => a.localeCompare(b, LOCALE);
 
 function favEditor(ds, teams) {
@@ -237,11 +238,12 @@ function favHtml() {
   const tc = (team, id) => teamColor({ TeamName: team, TeamColour: OFFICIAL[id] || '8b95a8' });
   const face = (d) => { const u = photoUrl({ Tla: d.code }); return u ? `<img class="hm-fav-pic" src="${u}" alt="" loading="lazy" style="--tc:${tc(d.team, d.teamId)}" onerror="this.remove()">` : ''; };
   const logo = (c) => { const u = teamLogo(c.name); return u ? `<span class="team-logo color" style="--tc:${tc(c.name, c.id || c.key)};background-image:url('${u}')"></span>` : ''; };
+  // Une colonne par groupe : côte à côte sur ordinateur (la carte reste à la hauteur des classements), l'une sous l'autre
+  // ailleurs ; sur deux colonnes, le prénom s'efface
+  const name = (d) => (d.last && d.name.endsWith(d.last) ? `<span class="hm-fav-first">${esc(d.name.slice(0, -d.last.length))}</span>${esc(d.last)}` : esc(d.name));
   const rows = [
-    ...(favD.length ? ['<div class="hm-fav-group muted">Pilotes</div>'] : []),
-    ...favD.map((d) => `<div class="hm-fav-row"><span class="hm-fav-pos">P${d.pos}</span><b class="hm-fav-who">${face(d)}${esc(d.name)}</b><span class="muted">${esc(d.team)}</span><span class="muted">${pts(d)}</span></div>`),
-    ...(favT.length ? ['<div class="hm-fav-group muted">Écuries</div>'] : []),
-    ...favT.map((c) => `<div class="hm-fav-row"><span class="hm-fav-pos">P${c.pos}</span><b class="hm-fav-who">${logo(c)}${esc(c.name)}</b><span></span><span class="muted">${pts(c)}</span></div>`),
+    ...(favD.length ? [`<div class="hm-fav-col"><div class="hm-fav-group muted">Pilotes</div>${favD.map((d) => `<div class="hm-fav-row"><span class="hm-fav-pos">P${d.pos}</span><b class="hm-fav-who">${face(d)}${name(d)}</b><span class="muted">${esc(d.team)}</span><span class="muted">${pts(d)}</span></div>`).join('')}</div>`] : []),
+    ...(favT.length ? [`<div class="hm-fav-col"><div class="hm-fav-group muted">Écuries</div>${favT.map((c) => `<div class="hm-fav-row"><span class="hm-fav-pos">P${c.pos}</span><b class="hm-fav-who">${logo(c)}${esc(c.name)}</b><span></span><span class="muted">${pts(c)}</span></div>`).join('')}</div>`] : []),
   ];
   return `<section class="hm-card hm-fav" id="hmFav">${head}
     <div class="hm-favs${hide ? ' hm-blur' : ''}">${rows.join('')}</div>
@@ -405,7 +407,7 @@ async function loadExtra(src) {
     // (la demande bloquée est oubliée, pour que « Réessayer » en fasse une nouvelle)
     const path = `/api/season/${src}?year=${boardYear()}`;
     let timer;
-    const late = new Promise((_, no) => { timer = setTimeout(() => { K.takeEarly(path); no(new Error('délai dépassé')); }, 30e3); });
+    const late = new Promise((_, no) => { timer = setTimeout(() => { K.takeEarly(path); no(new Error()); }, 30e3); });
     extra[src] = { v: await Promise.race([K.seasonGet(path), late]).finally(() => clearTimeout(timer)) };
   } catch (err) { extra[src] = { error: true, offline: offline(err) }; }
   renderKpis(src);

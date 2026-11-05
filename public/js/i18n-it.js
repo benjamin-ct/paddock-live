@@ -2117,6 +2117,8 @@ export default {
   "Modifier": "Modifica",
   "Choisir mes favoris": "Scegli i miei preferiti",
   "{} pts": "{} pt",
+  "{} victoire": "{} vittoria",
+  "{} victoires": "{} vittorie",
   "Suivre Paddock Live": "Segui Paddock Live",
   "Tous nos réseaux": "Tutti i nostri social",
   "Instagram, Facebook, TikTok, YouTube, X, Threads et Bluesky": "Instagram, Facebook, TikTok, YouTube, X, Threads e Bluesky",

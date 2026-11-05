@@ -791,3 +791,18 @@
   :root[data-design="v3"] .hm-favs { grid-template-columns: 34px minmax(0, 1fr) auto; }
   :root[data-design="v3"] .hm-fav-row > span.muted:last-child { max-width: 9em; white-space: normal; line-height: 1.35; }
 }
+:root[data-design="v3"] .hm-fav-col + .hm-fav-col > .hm-fav-group { padding-top: 14px; }
+/* Tablette et ordinateur (carte d'une à deux colonnes de large) : nom de famille, écurie effacée (le portrait en a la
+   couleur), victoires sous les points ; ordinateur : Pilotes et Écuries côte à côte, la carte ne dépasse plus les
+   classements à côté d'elle */
+@media (min-width: 600px) {
+  :root[data-design="v3"] .hm-board .hm-fav-col { grid-template-columns: 34px minmax(0, 1fr) auto; column-gap: 12px; }
+  :root[data-design="v3"] .hm-board .hm-fav-row > :nth-child(3),
+  :root[data-design="v3"] .hm-board :is(.hm-fav-first, .hm-fav-sep) { display: none; }
+  :root[data-design="v3"] .hm-board .hm-fav-w { display: block; margin-top: 4px; color: var(--muted); }
+}
+@media (min-width: 1200px) {
+  :root[data-design="v3"] .hm-board .hm-favs:has(> .hm-fav-col + .hm-fav-col) { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--sp-6); }
+  :root[data-design="v3"] .hm-board .hm-fav-col:not(:only-child) { grid-column: auto; align-content: start; }
+  :root[data-design="v3"] .hm-board .hm-fav-col + .hm-fav-col > .hm-fav-group { padding-top: 4px; }
+}
