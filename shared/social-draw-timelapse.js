@@ -51,13 +51,23 @@ function rankAt(d, l) {
   return (all[l] = r);
 }
 
-// Durée : celle de la vidéo du graphique (tours importants ralentis, bandeaux) ; en plus, pour chaque tour, le
-// défilement de la piste (vitesse du leader : plus lent sous neutralisation, à l'arrêt au drapeau rouge) et
-// l'échelle des écarts (les trois quarts du peloton dans la piste, lissée d'un tour à l'autre)
+// Durée : le déroulé de la vidéo du graphique (tours importants ralentis, bandeaux), étiré pour que la course se
+// suive mieux : ~1,1 s par tour, entre 45 et 80 s (Mexique, 71 tours : 88 s avec le départ et l'arrivée, sous les
+// 90 s des Reels) ; en plus, pour chaque tour, le défilement de la piste (vitesse du leader : plus lent sous
+// neutralisation, à l'arrêt au drapeau rouge) et l'échelle des écarts (les trois quarts du peloton dans la piste,
+// lissée d'un tour à l'autre)
 const memo = new WeakMap();
+function stretched(d) {
+  const b = raceVideoTiming(d);
+  const f = Math.max(45, Math.min(80, d.total * 1.1)) / b.race;
+  const at = (t) => b.intro + (t - b.intro) * f;
+  const starts = b.starts.map(at);
+  const banners = b.banners.map((e) => ({ ...e, t0: at(e.t0), t1: at(e.t0) + (e.t1 - e.t0) * Math.min(f, 1.4) }));
+  return { ...b, per: b.per * f, race: b.race * f, starts, banners, duration: starts.at(-1) + b.outro };
+}
 export function timelapseTiming(d) {
   if (memo.has(d)) return memo.get(d);
-  const tm = raceVideoTiming(d);
+  const tm = stretched(d);
   const g = gapsOf(d);
   const n = d.drivers.length;
   const speed = [];

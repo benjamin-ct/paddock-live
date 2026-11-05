@@ -306,11 +306,13 @@ test('vidéo de course : safety car, VSC, drapeaux et moments forts (direction d
   const tm = raceVideoTiming(d);
   assert.ok(tm.w[3] > tm.w[1]);
   assert.ok(tm.banners.length >= 4 && tm.duration > 25 && tm.duration < 55);
-  // Course en accéléré : même durée, dessinée sans erreur à chaque instant (canvas factice), en vertical et paysage
+  // Course en accéléré : plus longue que le graphique (45 s de course au moins), dessinée sans erreur à chaque
+  // instant (canvas factice), en vertical et paysage
   const { timelapseTiming, timelapseFrame } = await import('../shared/social-draw-timelapse.js');
   const { styled } = await import('../shared/social-draw.js');
   const tl = timelapseTiming(d);
-  assert.ok(Number.isFinite(tl.duration) && tl.duration === tm.duration);
+  assert.ok(Number.isFinite(tl.duration) && tl.duration > tm.duration && tl.duration <= tl.intro + 80 + tl.outro);
+  assert.ok(tl.starts.every((s, i) => !i || s > tl.starts[i - 1]) && tl.banners.every((b) => b.t1 > b.t0 && b.t0 >= tl.intro));
   assert.ok(tl.win.every(Number.isFinite) && tl.phase.every(Number.isFinite));
   const texts = [];
   const ctx = new Proxy({}, {
