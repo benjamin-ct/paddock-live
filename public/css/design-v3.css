@@ -281,6 +281,7 @@
   :root[data-design="v3"] .topbar .hstat.surface.dry { display: none; }
   :root[data-design="v3"] .topbar .hstat-label { font-size: 9.5px; }
   :root[data-design="v3"] .topbar > .hstat { height: 32px; justify-content: center; gap: 2px; }
+  :root[data-design="v3"] .topbar > .hstat.weather-mini { justify-content: flex-start; gap: 14px; }   /* météo (version web) : rangée calée à gauche, blocs séparés */
   :root[data-design="v3"] .topbar .lap-bar:not([hidden]) { bottom: -3px; }
   :root[data-design="v3"] .topbar :is(.brand, #muteBtn) { height: 34px; display: inline-grid; place-items: center; }
   :root[data-design="v3"] body:has(#mobNav:not([hidden])) .topbar #settingsBtn { min-width: 34px; min-height: 34px; }
