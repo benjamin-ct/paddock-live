@@ -248,7 +248,12 @@ export function timelapseFrame(ctx, W, H, d, o, time) {
   const Wc = Lc * 0.42;
   const laneL = padL + fs * 1.5;
   const minNose = laneL + fs * 2.3 + Lc;
-  const frontX = laneR - (Lc * 0.85 + 16 * u);   // nez du leader ; devant, la place de la voiture de sécurité
+  // Devant le nez du leader : ses pneus et sa jauge, « PIT » s'il y a une neutralisation, puis la voiture de sécurité
+  const tr = fs * 0.42;
+  ctx.font = `700 ${Math.round(fs * 0.72)}px ${MONO}`;
+  const hasSC = story.status.some((x) => x === 'sc' || x === 'neutral');
+  const infoW = 8 * u + (d.tyres ? 2 * tr + 6 * u + Math.max(7 * u, tr * 0.75) + 8 * u : 0) + (hasSC ? ctx.measureText('PIT').width + 8 * u : 0);
+  const frontX = laneR - (Lc * 0.85 + 16 * u + infoW);
   const compW = Math.min(60 * u, (frontX - minNose) * 0.14);
   const edgeX = minNose + compW;
   const span = frontX - edgeX;
@@ -311,6 +316,11 @@ export function timelapseFrame(ctx, W, H, d, o, time) {
     ctx.globalAlpha = 1;
   }
 
+  // Départ : grille en quinconce, un petit décalage par place ; départ des stands (sans place sur la grille) un peu plus
+  // loin derrière. Le décalage s'efface pendant le premier tour.
+  const gridOff = (x) => (x.grid ? x.grid - 1 : n - 1 + 6) * Lc * 0.07;
+  const startK = L === 0 ? 1 - ease(fr) : 0;
+
   // Voitures
   const cars = [];
   d.drivers.forEach((x, i) => {
@@ -325,7 +335,7 @@ export function timelapseFrame(ctx, W, H, d, o, time) {
     // Abandon : la voiture grise et recule dans la zone tassée, à gauche, où elle reste jusqu'à l'arrivée
     const k = gone0 ? 1 : gone1 ? ease(clamp01(fr * 1.6)) : 0;
     const y = Y(p0) + (Y(p1) - Y(p0)) * fe;
-    const nx0 = X(gp ?? win * 3);
+    const nx0 = X(gp ?? win * 3) - gridOff(x) * startK;
     const nx = nx0 + (X(win * 3) - nx0) * k;
     let tag = '';
     if (k >= 1) tag = 'ABANDON';
@@ -357,7 +367,7 @@ export function timelapseFrame(ctx, W, H, d, o, time) {
     // (pleine et verte sur des pneus neufs, elle se vide en passant au jaune puis au rouge)
     if (c.tyre) {
       const [tc, letter] = TYRE[c.tyre.c];
-      const r = fs * 0.42;
+      const r = tr;
       ctx.beginPath(); ctx.arc(tx + r, c.y, r, 0, Math.PI * 2);
       ctx.fillStyle = v3 ? T.bg : '#101318'; ctx.fill();
       ctx.lineWidth = Math.max(2, r * 0.3); ctx.strokeStyle = tc; ctx.stroke();
