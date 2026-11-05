@@ -20,6 +20,10 @@ import { gpShort, gpFull } from '/shared/gp-names.js';
 import { COUNTRY_ISO } from '/shared/country-iso.js';
 import { seasonPath, seasonTitle, slug, gpSlug, parseSeasonPath, enSeasonPath, parseEnSeasonPath, enSeasonTitle, enGpSlug, tabTitle } from '/shared/season-urls.js';
 import { circuitInfo } from '/shared/circuits-info.js';
+import { takeEarly } from './season-kpi.js';
+
+// Réponse déjà demandée par l'Accueil (ses cartes), sinon lue sur le serveur
+const read = (path) => takeEarly(path) || api(path);
 
 const color = (team, teamId) => teamColor({ TeamName: team, TeamColour: OFFICIAL[teamId] || '8b95a8' });
 const seasonOpt = (d) => driverOpt({ TeamName: d.team, TeamColour: OFFICIAL[d.teamId] || '8b95a8' }, d.number);
@@ -78,7 +82,7 @@ async function loadPrev() {
 async function loadDest(y) {
   if (dest?.year === y) return;
   dest = { year: y, loading: true };
-  try { dest = shortTeams(await api(`/api/season/destructors?year=${y}`)); } catch (err) { dest = { year: y, error: err.message }; }
+  try { dest = shortTeams(await read(`/api/season/destructors?year=${y}`)); } catch (err) { dest = { year: y, error: err.message }; }
   if (section === 'destructors' && !$('#seasonView').hidden) { animate(); render(); }
 }
 // Saison comparée (Comparer deux saisons) : chargée une fois, gardée pour la session
@@ -100,7 +104,7 @@ async function loadFia() {
   const y = year;
   let first = false;
   try {
-    const f = shortTeams(await api(`/api/season/fia?year=${y}`));
+    const f = shortTeams(await read(`/api/season/fia?year=${y}`));
     if (y !== year) return;
     const same = fia?.year === f.year && fia.done === f.done && fia.total === f.total && fia.pending === f.pending && !fia.error;
     first = !fia?.events?.length && !!f.events?.length;   // premiers documents : la rubrique s'anime à leur arrivée
@@ -121,7 +125,7 @@ async function loadStats() {
   const y = year;
   let first = false;
   try {
-    const s = shortTeams(await api(`/api/season/stats?year=${y}`));
+    const s = shortTeams(await read(`/api/season/stats?year=${y}`));
     if (y !== year) return;
     const same = stats?.year === s.year && stats.done === s.done && stats.total === s.total && stats.pending === s.pending && !stats.error;
     first = !stats?.races?.length && !!s.races?.length;   // premières courses analysées : la rubrique s'anime à leur arrivée
@@ -149,7 +153,7 @@ async function load(force = false) {
   $('#szContent').innerHTML = skeleton(t('Chargement de la saison {}…', y));
   let d;
   try {
-    d = shortTeams(await api(`/api/season?year=${y}`));
+    d = shortTeams(await read(`/api/season?year=${y}`));
   } catch (err) {
     if (y !== year) return;
     loading = false;

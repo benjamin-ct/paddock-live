@@ -416,6 +416,86 @@
 :root[data-design="v3"] .hm-go button .ic { color: var(--text-2); }
 :root[data-design="v3"] .hm-news-t { font-weight: 600; }
 :root[data-design="v3"] .hm-fav-pos { background: var(--text); color: var(--bg); border-radius: var(--r-xs); font: 800 15px/1 var(--font-cond); }
+/* Accueil, tableau de bord : 4 colonnes (ordinateur), 2 (tablette), 1 (téléphone, l'ordre du code : compte à rebours,
+   dernière séance, classements, favoris, calendrier, chiffres, actus) */
+:root[data-design="v3"] .home-view .hm-main { max-width: 1320px; }
+:root[data-design="v3"] .hm-board { grid-template-columns: minmax(0, 1fr); gap: var(--sp-3); }
+@media (min-width: 600px) {
+  :root[data-design="v3"] .hm-board { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-areas: "next next" "last cal" "drv cons" "fav news" "pits dmg" "el tech"; }
+  :root[data-design="v3"] .hm-board.hm-nolast { grid-template-areas: "next next" "cal cal" "drv cons" "fav news" "pits dmg" "el tech"; }
+  :root[data-design="v3"] .hm-board > :is(.hm-next, .hm-live) { grid-area: next; }
+  :root[data-design="v3"] .hm-board > .hm-last { grid-area: last; }
+  :root[data-design="v3"] .hm-board > #hmCal { grid-area: cal; }
+  :root[data-design="v3"] .hm-board > #hmStdD { grid-area: drv; }
+  :root[data-design="v3"] .hm-board > #hmStdC { grid-area: cons; }
+  :root[data-design="v3"] .hm-board > .hm-fav { grid-area: fav; }
+  :root[data-design="v3"] .hm-board > .hm-news { grid-area: news; }
+  :root[data-design="v3"] .hm-board > #hmK-pits { grid-area: pits; }
+  :root[data-design="v3"] .hm-board > #hmK-dmg { grid-area: dmg; }
+  :root[data-design="v3"] .hm-board > #hmK-el { grid-area: el; }
+  :root[data-design="v3"] .hm-board > #hmK-tech { grid-area: tech; }
+}
+/* Ordinateur : le compte à rebours sur deux rangées, à côté du calendrier, de la dernière séance et de deux chiffres ;
+   les classements à gauche ; les actus en bandeau, quatre titres côte à côte */
+@media (min-width: 1200px) {
+  :root[data-design="v3"] .hm-board { grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-areas: "next next cal last" "next next pits dmg" "drv cons el tech" "drv cons fav fav" "news news news news"; }
+  :root[data-design="v3"] .hm-board.hm-nolast { grid-template-areas: "next next cal cal" "next next pits dmg" "drv cons el tech" "drv cons fav fav" "news news news news"; }
+  :root[data-design="v3"] .hm-board .hm-news .hm-list { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0 var(--sp-6); }
+  :root[data-design="v3"] .hm-board .hm-news .hm-news-item:first-child { border-top: 1px solid var(--line); }
+}
+:root[data-design="v3"] .hm-board > .hm-card { padding: var(--sp-5); }
+:root[data-design="v3"] .hm-board > :is(.hm-next, .hm-live) { padding: var(--sp-6); }
+:root[data-design="v3"] .hm-board .hm-kicker { min-height: 16px; }
+:root[data-design="v3"] .hm-link .hm-open { width: 14px; height: 14px; }
+:root[data-design="v3"] .hm-big { margin-top: var(--sp-2); font: 800 var(--fs-3xl)/1 var(--font-cond); letter-spacing: 0; }
+:root[data-design="v3"] .hm-big small { font: 700 var(--fs-xl)/1 var(--font-cond); }
+:root[data-design="v3"] .hm-trend { font: 500 var(--fs-xs)/1.4 var(--font-mono); color: var(--text-2); }
+:root[data-design="v3"] .hm-trend b { font-weight: 600; }
+:root[data-design="v3"] .hm-trend :is(.team-logo, .drv-bar) + b { font: 700 var(--fs-sm)/1.4 var(--font); }
+:root[data-design="v3"] .hm-trend .muted { color: var(--muted); }
+:root[data-design="v3"] .hm-ctx { font: 500 var(--fs-2xs)/1.4 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+:root[data-design="v3"] .hm-state { font-size: var(--fs-sm); }
+/* Chiffres : manche de référence en bas de la carte (même ligne d'une carte à l'autre) */
+:root[data-design="v3"] .hm-kpi > .hm-ctx { margin-top: auto; padding-top: var(--sp-2); }
+:root[data-design="v3"] .hm-std-t :is(th, td) { padding-inline: 4px; }
+:root[data-design="v3"] .hm-sk { background: var(--panel-2); border-radius: var(--r-xs); }
+:root[data-design="v3"] .hm-sk.big { height: 34px; }
+/* Dernière séance : boutons en bas de la carte (rangée partagée avec le calendrier) */
+:root[data-design="v3"] .hm-board .hm-last .hm-actions { margin-top: auto; padding-top: var(--sp-2); }
+:root[data-design="v3"] .hm-board .hm-title { font-size: var(--fs-xl); }
+:root[data-design="v3"] .hm-board > :is(.hm-next, .hm-live) .hm-title { font-size: var(--fs-2xl); }
+/* Compte à rebours : cases du chronométrage (jours, heures, minutes, secondes) séparées par des filets */
+:root[data-design="v3"] .hm-count { display: flex; margin: var(--sp-3) 0 var(--sp-2); font: inherit; }
+:root[data-design="v3"] .hm-cd { display: flex; flex-direction: column; gap: var(--sp-2); padding-right: var(--sp-4); }
+:root[data-design="v3"] .hm-cd + .hm-cd { padding-left: var(--sp-4); border-left: 1px solid var(--line-2); }
+:root[data-design="v3"] .hm-cd b { font: 800 clamp(44px, 5vw, 76px)/.84 var(--font-cond); letter-spacing: -.01em; font-variant-numeric: tabular-nums; }
+:root[data-design="v3"] .hm-cd small { font: 500 var(--fs-2xs)/1 var(--font-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+@media (max-width: 420px) {
+  :root[data-design="v3"] .hm-cd { padding-right: var(--sp-3); }
+  :root[data-design="v3"] .hm-cd + .hm-cd { padding-left: var(--sp-3); }
+  :root[data-design="v3"] .hm-cd b { font-size: 40px; }
+  :root[data-design="v3"] .hm-cd small { letter-spacing: .06em; }
+}
+/* Calendrier, classements */
+:root[data-design="v3"] .hm-prog i { border-radius: 1px; }
+:root[data-design="v3"] .hm-std-t th { font: 500 var(--fs-2xs)/1 var(--font-mono); letter-spacing: .04em; padding-bottom: var(--sp-2); }
+:root[data-design="v3"] .hm-std-t td { height: 32px; font-size: var(--fs-sm); }
+:root[data-design="v3"] .hm-std-t td.n { font: 500 var(--fs-xs)/1 var(--font-mono); }
+:root[data-design="v3"] .hm-std-pos { font: 800 var(--fs-lg)/1 var(--font-cond); }
+:root[data-design="v3"] .hm-std-who b { font-weight: 600; }
+:root[data-design="v3"] .hm-std-who .team-logo { width: 3px !important; height: 16px !important; margin-right: 10px; }
+:root[data-design="v3"] .hm-evo { font: 500 var(--fs-2xs)/1 var(--font-mono); }
+@media (pointer: coarse) { :root[data-design="v3"] .hm-std-t td { height: 36px; } }
+/* Ouverture : les cartes arrivent l'une après l'autre (pas le tableau entier) */
+@media (prefers-reduced-motion: no-preference) {
+  :root[data-design="v3"]:not([data-motion="off"]) .hm-main.hm-anim > .hm-board { animation: none; }
+  :root[data-design="v3"]:not([data-motion="off"]) .hm-main.hm-anim .hm-board > * { animation: rise-in var(--dur-4) var(--ease-out) both; }
+  :root[data-design="v3"]:not([data-motion="off"]) .hm-main.hm-anim .hm-board > :nth-child(2) { animation-delay: 30ms; }
+  :root[data-design="v3"]:not([data-motion="off"]) .hm-main.hm-anim .hm-board > :nth-child(3) { animation-delay: 60ms; }
+  :root[data-design="v3"]:not([data-motion="off"]) .hm-main.hm-anim .hm-board > :nth-child(4) { animation-delay: 90ms; }
+  :root[data-design="v3"]:not([data-motion="off"]) .hm-main.hm-anim .hm-board > :nth-child(5) { animation-delay: 120ms; }
+  :root[data-design="v3"]:not([data-motion="off"]) .hm-main.hm-anim .hm-board > :nth-child(n+6) { animation-delay: 150ms; }
+}
 /* Écran « Pas de séance en direct » */
 :root[data-design="v3"] .nl-box h2, :root[data-design="v3"] .nl-box h3 { font-family: var(--font-cond); font-weight: 800; text-transform: uppercase; letter-spacing: .01em; }
 :root[data-design="v3"] .nl-count { font: 800 var(--fs-4xl)/1 var(--font-cond); color: var(--text); }

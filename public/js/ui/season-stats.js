@@ -9,6 +9,7 @@ import { gpShort } from '/shared/gp-names.js';
 import { CIRCUIT_DNA, DNA_KEYS } from '/shared/circuit-dna.js';
 import { nearestShape, shapeOutline } from '/shared/circuit-shapes.js';
 import { tip, hit } from './season-tip.js';
+import { stopTxt, pitStops, validStop } from './season-kpi.js';
 
 const median = (a) => {
   if (!a.length) return null;
@@ -22,8 +23,7 @@ const sd = (a) => {
   return a.length > 1 ? Math.sqrt(a.reduce((s, v) => s + (v - m) ** 2, 0) / (a.length - 1)) : null;
 };
 const fr = (v, d = 1) => (v === null || v === undefined || Number.isNaN(v) ? '—' : v.toFixed(d).replace('.', DEC));
-// Immobilisation : au centième quand elle vient de DHL, au dixième (F1) sinon
-export const stopTxt = (s) => `${fr(s.stop, s.dhl ? 2 : 1)} s`;
+export { stopTxt };
 export const DHL_NOTE = '<p class="muted small">Immobilisations au centième : DHL Fastest Pit Stop Award ; sans relevé DHL, au dixième (chronos de la F1). Copyright © DHL International GmbH. All Rights Reserved.</p>';
 export const fmtLap = (s) => {
   if (!s) return '—';
@@ -348,15 +348,14 @@ export function renderPits(ctx) {
   const { data, stats } = ctx;
   const R = byRound(stats);
   if (!R.size) return pendingNote(stats);
-  const all = [];
-  for (const { race } of R.values()) for (const d of race.drivers) for (const s of d.stops) all.push({ ...s, d, round: race.round });
-  const valid = all.filter((s) => s.stop > 0 && s.stop < 15);
+  const all = pitStops(stats);
+  const valid = all.filter(validStop);
   const name = (rd) => short(data.races.find((r) => r.round === rd)?.name);
   const teams = new Map();
   for (const s of all) {
     const t = teams.get(s.d.team) || { team: s.d.team, color: s.d.color, stops: [], n: 0, best: null };
     t.n++;
-    if (s.stop > 0 && s.stop < 15) { t.stops.push(s.stop); if (!t.best || s.stop < t.best.stop) t.best = s; }
+    if (validStop(s)) { t.stops.push(s.stop); if (!t.best || s.stop < t.best.stop) t.best = s; }
     teams.set(s.d.team, t);
   }
   const tl = [...teams.values()].filter((t) => t.stops.length).map((t) => ({ ...t, med: median(t.stops), under25: t.stops.filter((v) => v < 2.5).length }))

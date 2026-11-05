@@ -6,6 +6,16 @@ l'application (Réglages → À propos → Nouveautés).
 
 ## v1.32.0 — à venir
 
+### Accueil
+- L'Accueil devient un tableau de bord de cartes : compte à rebours de la prochaine séance (jours, heures, minutes,
+  secondes) avec son programme et sa météo, dernière séance (résultat toujours masqué), classements des pilotes et des
+  constructeurs (10 premiers, écart et places gagnées ou perdues), Mes favoris, calendrier (manche, tracé du circuit,
+  part de la saison courue), arrêt au stand le plus rapide, coût des dégâts, éléments moteur et évolutions techniques,
+  dernières actus. Chaque carte ouvre sa rubrique de la Saison. Quatre colonnes sur ordinateur, deux sur tablette, une
+  au téléphone avec l'essentiel en premier.
+- Sans spoiler : dans les 72 h qui suivent une course ou un sprint, les classements restent ceux d'avant cette manche
+  (et les arrêts et les dégâts ne la comptent pas) jusqu'au clic sur « Afficher le classement à jour ».
+
 ### Affichage
 - Téléphone et tablette : plus de zoom quand on touche deux fois vite un menu ou une rubrique (le zoom à deux doigts
   reste), dans l'appli et la version web.
