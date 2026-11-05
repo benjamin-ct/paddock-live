@@ -680,7 +680,7 @@ function remontees(ctx, W, H, d, o) {
 }
 
 // Stratégie des pneus : une bande par pilote (ordre d'arrivée), un segment par relais à la couleur du composé
-const TYRE = { SOFT: ['#ff3b3b', 'T'], MEDIUM: ['#ffd12e', 'M'], HARD: ['#eef0f4', 'D'], INTERMEDIATE: ['#3ddc84', 'I'], WET: ['#3d8bff', 'P'] };
+export const TYRE = { SOFT: ['#ff3b3b', 'T'], MEDIUM: ['#ffd12e', 'M'], HARD: ['#eef0f4', 'D'], INTERMEDIATE: ['#3ddc84', 'I'], WET: ['#3d8bff', 'P'] };
 const TYRE_NAME = { SOFT: 'Tendres', MEDIUM: 'Médiums', HARD: 'Durs', INTERMEDIATE: 'Intermédiaires', WET: 'Pluie' };
 function strategie(ctx, W, H, d, o) {
   background(ctx, W, H, d.rows[0]?.color);

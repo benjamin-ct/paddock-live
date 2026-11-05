@@ -3,7 +3,7 @@
 import { builtinNomination } from '/shared/tyres.js';
 import { raceWeekData, weekendData, recordsData, ratingsData, teamDuelsData, titleData, titleSide, raceLapsData, seasonCaptions } from '/shared/social-season.js';
 import { raceFrame, raceVideoTiming } from '/shared/social-draw-season.js';
-import { timelapseFrame, timelapseTiming } from '/shared/social-draw-timelapse.js';
+import { timelapseFrame, timelapseTiming, tyreStints } from '/shared/social-draw-timelapse.js';
 import { parseRaceLaps } from '/shared/race-laps.js';
 import { circuitInfo } from '/shared/circuits-info.js';
 import { recordsOf, recordYears, editionFromResults } from '/shared/circuit-records.js';
@@ -83,9 +83,25 @@ const trackOf = (year, key) => memoOf(`c${key}-${year}`, async () => {
   }
   return null;
 });
-const raceControlOf = (year, race) => memoOf(`rc${year}-${race.round}`, async () => {
+const racePathOf = (year, race) => memoOf(`rp${year}-${race.round}`, async () => {
   const p = raceSessionPath(await readArchive(`${year}/Index.json`), { name: race.name, circuitKey: circuitInfo(race.circuitId)?.key });
   if (!p) throw new Error('Course introuvable dans les archives');
+  return p;
+});
+// Pneus de chaque relais (Course en accéléré) : TimingAppData et DriverList des archives, sinon du direct de la F1
+const tyresOf = (year, race) => memoOf(`ty${year}-${race.round}`, async () => {
+  const p = await racePathOf(year, race);
+  try {
+    const [app, list] = await Promise.all([readArchive(`${p}TimingAppData.json`), readArchive(`${p}DriverList.json`)]);
+    return tyreStints(app, list);
+  } catch (err) {
+    const live = await api(`live-state?p=${encodeURIComponent(p)}`).catch(() => null);
+    if (live?.TimingAppData && live?.DriverList) return tyreStints(live.TimingAppData, live.DriverList);
+    throw err;
+  }
+});
+const raceControlOf = (year, race) => memoOf(`rc${year}-${race.round}`, async () => {
+  const p = await racePathOf(year, race);
   try { return parseRaceControl(await readArchive(`${p}RaceControlMessages.json`)); } catch (err) {
     // Course qui vient de finir : archive pas encore publiée, le direct de la F1 garde ses messages
     const live = await api(`live-state?p=${encodeURIComponent(p)}`).catch(() => null);
@@ -202,9 +218,10 @@ async function seasonEditor(year, data, race, back) {
     d = titleSide(full, state.titleSide);
     note = 'Éliminés grisés.';
   } else {
-    const [laps, rcm] = await Promise.all([lapsOf(year, race.round), raceControlOf(year, race).catch(() => null)]);
+    const [laps, rcm, tyres] = await Promise.all([lapsOf(year, race.round), raceControlOf(year, race).catch(() => null), tyresOf(year, race).catch(() => null)]);
     if (!laps.total) throw new Error('Tours de cette course pas encore publiés');
     d = raceLapsData(race, laps, { year, live, rcm: rcm?.length ? rcm : null });
+    if (tyres && Object.keys(tyres).length) d.tyres = tyres;   // pneus de la Course en accéléré (sans : pas de pastille)
     if (d.story.estimated) note = 'Direction de course indisponible : neutralisations estimées.';
   }
   const video = state.stype === 'racelaps';

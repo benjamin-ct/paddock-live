@@ -322,6 +322,14 @@ test('vidéo de course : safety car, VSC, drapeaux et moments forts (direction d
   });
   for (const style of [null, 'v3']) for (const [w, h] of [[1080, 1920], [1920, 1080]]) for (let t = 0; t <= tl.duration; t += 0.7) styled({ style }, () => timelapseFrame(ctx, w, h, d, { signature: '@x' }, t));
   for (const t of ['DÉPART', 'TOUR', 'SAFETY CAR', 'VAINQUEUR', 'PIT']) assert.ok(texts.includes(t), t);
+  // Pneus : relais de la F1 (TimingAppData + DriverList) en plages de tours, relais « mêmes pneus » fusionnés
+  const { tyreStints } = await import('../shared/social-draw-timelapse.js');
+  const ty = tyreStints({ Lines: { 1: { Stints: { 0: { Compound: 'MEDIUM', New: 'true', StartLaps: 2, TotalLaps: 12 }, 1: { Compound: 'MEDIUM', TyresNotChanged: '1', StartLaps: 12, TotalLaps: 20 }, 2: { Compound: 'HARD', New: 'true', StartLaps: 0, TotalLaps: 33 } } } } }, { 1: { Tla: 'VER' } });
+  assert.deepEqual(ty.VER, [{ c: 'MEDIUM', from: 1, to: 18, age0: 2 }, { c: 'HARD', from: 19, to: 51, age0: 0 }]);
+  d.tyres = { [d.drivers[0].code]: ty.VER };
+  texts.length = 0;
+  styled({ style: 'v3' }, () => timelapseFrame(ctx, 1080, 1920, d, { signature: '@x' }, tl.starts[1] + 0.1));
+  assert.ok(texts.includes('M') && texts.includes('3'), 'pastille et âge des pneus au tour 2');
 });
 
 test('programme du week-end : météo des jours de séance dans le fuseau du circuit (Las Vegas)', () => {

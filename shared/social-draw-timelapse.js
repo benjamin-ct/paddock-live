@@ -6,7 +6,8 @@
 // glisse d'une rangée à l'autre ; arrêts au stand marqués PIT ; abandon : la voiture grise, recule à gauche et reste
 // en bas du classement (« ABANDON ») jusqu'à l'arrivée. Feux, safety car en tête des voitures, bandeaux des
 // moments forts (mêmes que la vidéo du graphique, raceVideoTiming), podium à l'arrivée.
-import { C, TITLE, MONO, MEDAL, rr, txt, fitLines, vivid, background, card, pill, v3 } from './social-draw.js';
+import { C, TITLE, MONO, MEDAL, TYRE, rr, txt, fitLines, vivid, background, card, pill, v3 } from './social-draw.js';
+import { realStints, stintList } from './pits.js';
 import { BEST, T } from './social-draw-v3.js';
 import { FLAG, BANNER, BANNER_COLOR, ease, clamp01, gapsOf, lapAt, raceVideoTiming, NEUTRAL } from './social-draw-season.js';
 import { lapStr } from './social-season.js';
@@ -32,6 +33,34 @@ function lapsDown(d, g, i, l) {
   let n = 0;
   for (let j = k + 1; j <= d.total; j++) if (g.lead[j] <= c) n++;
   return n;
+}
+
+// Relais de pneus de chaque pilote (trigramme) d'après TimingAppData et DriverList de la F1 : [{ c, from, to, age0 }]
+// (from…to : tours de course roulés avec ces pneus ; age0 : tours qu'ils avaient déjà au montage). Les relais
+// « mêmes pneus » sont fusionnés (realStints)
+export function tyreStints(app, list) {
+  const out = {};
+  for (const [num, line] of Object.entries(app?.Lines || {})) {
+    const code = list?.[num]?.Tla;
+    if (!code) continue;
+    let lap = 1;
+    const st = [];
+    for (const s of realStints(stintList(line).filter((x) => TYRE[x?.Compound]))) {
+      const age0 = Number(s.StartLaps) || 0;
+      const n = Math.max(0, (Number(s.TotalLaps) || 0) - age0);
+      st.push({ c: s.Compound, from: lap, to: lap + n - 1, age0 });
+      lap += n;
+    }
+    if (st.length) out[code] = st;
+  }
+  return out;
+}
+// Pneus pendant le tour « lap » (1 : premier tour ; 0 : grille) : composé et tours déjà roulés avec ces pneus
+function tyreAt(d, code, lap) {
+  const st = d.tyres?.[code];
+  if (!st) return null;
+  const s = st.find((x) => lap <= x.to) || st[st.length - 1];
+  return { c: s.c, age: s.age0 + Math.max(0, lap - s.from) };
 }
 
 // Rangée affichée au tour l : les pilotes en course dans l'ordre de leur place, puis les abandons en bas (le dernier
@@ -288,7 +317,9 @@ export function timelapseFrame(ctx, W, H, d, o, time) {
     if (k >= 1) tag = 'ABANDON';
     else if (!intro && !done && (x.pits || []).includes(L + 1)) tag = 'PIT';
     else if (!intro && L >= 1) { const dn = lapsDown(d, g, i, L); if (dn) tag = `+${dn}T`; }
-    cars.push({ x, y, nx, out: k > 0, k, tag, gain: !k && fe > 0 && fe < 1 && p1 < p0 });
+    // Pneus du tour en cours (grille : ceux du départ ; arrivée : ceux du dernier relais), pas pour un abandon
+    const tyre = k ? null : tyreAt(d, x.code, done ? d.total + 1 : intro ? 0 : L + 1);
+    cars.push({ x, y, nx, out: k > 0, k, tag, tyre, gain: !k && fe > 0 && fe < 1 && p1 < p0 });
   });
   cars.sort((a, b) => (b.out - a.out) || (b.y - a.y));
   for (const c of cars) {
@@ -307,7 +338,20 @@ export function timelapseFrame(ctx, W, H, d, o, time) {
       ctx.fillStyle = C.green; ctx.beginPath(); ctx.moveTo(ax - s, c.y + s * 0.6); ctx.lineTo(ax + s, c.y + s * 0.6); ctx.lineTo(ax, c.y - s * 0.8); ctx.closePath(); ctx.fill();
     }
     ctx.globalAlpha = 1 - 0.45 * c.k;
-    if (c.tag) txt(ctx, c.tag, c.nx + 8 * u, c.y + fs * 0.3, { size: Math.round(fs * 0.72), weight: 700, family: MONO, color: c.tag === 'PIT' ? (v3 ? T.sc : '#ff8a3d') : C.muted });
+    let tx = c.nx + 8 * u;
+    // Pneus : pastille de la couleur du composé (lettre française, comme l'appli), puis leur âge en tours
+    if (c.tyre) {
+      const [tc, letter] = TYRE[c.tyre.c];
+      const r = fs * 0.42;
+      ctx.beginPath(); ctx.arc(tx + r, c.y, r, 0, Math.PI * 2);
+      ctx.fillStyle = v3 ? T.bg : '#101318'; ctx.fill();
+      ctx.lineWidth = Math.max(2, r * 0.3); ctx.strokeStyle = tc; ctx.stroke();
+      txt(ctx, letter, tx + r, c.y + r * 0.4, { size: Math.round(r * 1.1), weight: 800, family: MONO, color: C.text, align: 'center' });
+      const age = String(c.tyre.age);
+      txt(ctx, age, tx + 2 * r + 5 * u, c.y + fs * 0.3, { size: Math.round(fs * 0.62), weight: 600, family: MONO, color: C.muted });
+      tx += 2 * r + 5 * u + ctx.measureText(age).width + 8 * u;
+    }
+    if (c.tag) txt(ctx, c.tag, tx, c.y + fs * 0.3, { size: Math.round(fs * 0.72), weight: 700, family: MONO, color: c.tag === 'PIT' ? (v3 ? T.sc : '#ff8a3d') : C.muted });
     ctx.globalAlpha = 1;
   }
 
