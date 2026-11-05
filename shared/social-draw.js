@@ -8,7 +8,7 @@ import { teamLogoPath } from './team-logos.js';
 import { followReason, questionFor } from './social-follow.js';
 import { appSlides, appPage, plain } from './social-app.js';
 import { TV_TITLE, tvBackground, tvFrame, tvFooter, tvCover, tvPodium, tvClassement, slant } from './social-draw-tv.js';
-import { V3_TITLE, V3_BODY, V3_C, V3_MEDAL, BEST, v3Kicker, v3Background, v3Frame, v3Footer, v3Pill, v3Card, v3Cover, v3Podium, v3Classement } from './social-draw-v3.js';
+import { T as V3T, V3_TITLE, V3_BODY, V3_C, V3_MEDAL, BEST, v3Kicker, v3Background, v3Frame, v3Footer, v3Pill, v3Card, v3Cover, v3Podium, v3Classement } from './social-draw-v3.js';
 import { horaires, infos, editions, topflop, notes, equipes, positions, recapCover, recapItem, raceweek, titre, titreComment, titleBlocks } from './social-draw-season.js';
 import { decision, decisionAlt } from './social-draw-decision.js';
 
@@ -1372,7 +1372,63 @@ function question(ctx, W, H, d, o) {
   txt(ctx, 'ON LIT TOUT', W - pad, fy, { size: Math.round(27 * u), weight: 700, family: TITLE, color: C.muted, align: 'right', spacing: 2 });
 }
 
+// Télémétrie : « Abonne-toi » façon affiche. Titre sur deux lignes (TOI en rouge), bandes de vitesse comme le Race
+// Week, le compte dans un bouton rouge pleine largeur, le programme du compte en lignes façon classement de l'appli
+const FOLLOW_RAILS = ['#E10600', '#3671C6', '#27F4D2', '#FF8000'];
+function v3Follow(ctx, W, H, d, o) {
+  background(ctx, W, H, null);
+  const u = Math.min(W, H) / 1080;
+  const pad = Math.round(W * 0.055);
+  const colW = W - pad * 2;
+  const top = topY(W, H);
+  const fy = footY(W, H);
+  const tall = H / W > 1.5;
+  // Bandes de vitesse, en haut à droite
+  [[V3T.accent, 0, 1], ['#ffffff', 1, 0.55], [V3T.line2, 2, 1]].forEach(([col, i, a]) => {
+    const y = top + (8 + i * 40) * u, len = W * 0.3 - i * 46 * u;
+    ctx.globalAlpha = a; ctx.fillStyle = col;
+    ctx.beginPath(); ctx.moveTo(W, y); ctx.lineTo(W - len, y); ctx.lineTo(W - len - 14 * u, y + 14 * u); ctx.lineTo(W, y + 14 * u); ctx.closePath(); ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+  kicker(ctx, pad, top, u, 'FORMULE 1', `SAISON ${d.year || ''}`.trim());
+  // Titre : « ABONNE- » puis « TOI » en rouge, le plus grand possible sur la largeur
+  let y = top + (tall ? 120 : 110) * u;
+  ctx.font = `800 100px ${TITLE}`;
+  const size = Math.round(Math.min((tall ? 200 : 175) * u, (100 * colW) / ctx.measureText('ABONNE-').width));
+  txt(ctx, 'ABONNE-', pad - 6 * u, y + size * 0.78, { size, weight: 800, family: TITLE });
+  y += size * 0.9;
+  txt(ctx, 'TOI', pad - 6 * u, y + size * 0.78, { size, weight: 800, family: TITLE, color: V3T.accent });
+  y += size * 0.78 + 50 * u;
+  const reason = followReason(d);
+  const r = fitLines(ctx, reason.charAt(0).toUpperCase() + reason.slice(1), colW, [46, 42, 38].map((v) => Math.round(v * u)), 3, BODY, 600);
+  r.lines.forEach((l, i) => txt(ctx, l, pad, y + r.size * 0.8 + i * r.size * 1.3, { size: r.size, weight: 600, color: V3T.text }));
+  y += r.lines.length * r.size * 1.3 + 40 * u;
+  // Le compte : bouton rouge pleine largeur, flèche à droite
+  const bh = Math.round(118 * u);
+  rr(ctx, pad, y, colW, bh, 8 * u); ctx.fillStyle = V3T.accent; ctx.fill();
+  const handle = o.signature || '@BenjyPaddock';
+  txt(ctx, handle, pad + 36 * u, y + bh * 0.66, { size: Math.round(64 * u), weight: 800, family: TITLE, color: '#fff', max: colW - 160 * u });
+  txt(ctx, '→', W - pad - 36 * u, y + bh * 0.68, { size: Math.round(64 * u), weight: 700, family: BODY, color: '#fff', align: 'right' });
+  y += bh + 40 * u;
+  txt(ctx, 'ACTIVE LES NOTIFICATIONS', pad, y, { size: Math.round(24 * u), weight: 600, family: MONO, color: V3T.muted, spacing: 3 * u });
+  // Programme du compte : lignes numérotées, trait de couleur à gauche, filets
+  let ty = y + 70 * u;
+  const end = fy - 70 * u;
+  txt(ctx, 'AU PROGRAMME DU COMPTE', pad, ty, { size: Math.round(24 * u), weight: 600, family: MONO, color: V3T.redText, spacing: 3 * u });
+  ty += 22 * u;
+  const rowH = Math.min((tall ? 150 : 112) * u, (end - ty) / FOLLOW_TOPICS.length);
+  FOLLOW_TOPICS.forEach(([k, v], i) => {
+    ctx.fillStyle = V3T.line; ctx.fillRect(pad, ty, colW, Math.max(1, u));
+    ctx.fillStyle = FOLLOW_RAILS[i % FOLLOW_RAILS.length]; ctx.fillRect(pad, ty + rowH * 0.2, 6 * u, rowH * 0.6);
+    txt(ctx, String(i + 1).padStart(2, '0'), pad + 28 * u, ty + rowH * 0.47, { size: Math.round(Math.min(26 * u, rowH * 0.24)), weight: 600, family: MONO, color: V3T.muted });
+    txt(ctx, k, pad + 92 * u, ty + rowH * 0.47, { size: Math.round(Math.min(42 * u, rowH * 0.36)), weight: 800, family: TITLE, max: colW - 110 * u });
+    txt(ctx, v, pad + 92 * u, ty + rowH * 0.8, { size: Math.round(Math.min(27 * u, rowH * 0.24)), weight: 400, color: V3T.muted, max: colW - 110 * u });
+    ty += rowH;
+  });
+  footer(ctx, W, H, o);
+}
 function follow(ctx, W, H, d, o) {
+  if (v3) { v3Follow(ctx, W, H, d, o); return; }
   background(ctx, W, H, C.red);
   const u = Math.min(W, H) / 1080;
   const pad = Math.round(W * 0.055);
