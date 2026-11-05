@@ -55,12 +55,26 @@ export function tyreStints(app, list) {
   }
   return out;
 }
-// Pneus pendant le tour « lap » (1 : premier tour ; 0 : grille) : composé et tours déjà roulés avec ces pneus
+// Pneus pendant le tour « lap » (1 : premier tour ; 0 : grille) : composé, tours déjà roulés avec ces pneus et part
+// d'usure (0 : neufs, 1 : à bout). Durée de vie d'un composé : son plus long relais de la course (âge à la fin du
+// relais), un peu majorée ; à défaut d'autre relais, 20 / 30 / 40 tours (tendres, médiums, durs)
+const LIFE = { SOFT: 20, MEDIUM: 30, HARD: 40, INTERMEDIATE: 30, WET: 30 };
+const lifeMemo = new WeakMap();
+function lifeOf(d, c) {
+  let m = lifeMemo.get(d);
+  if (!m) {
+    m = {};
+    for (const st of Object.values(d.tyres || {})) for (const s of st) m[s.c] = Math.max(m[s.c] || 0, s.age0 + s.to - s.from + 1);
+    lifeMemo.set(d, m);
+  }
+  return Math.max(10, (m[c] || LIFE[c] || 30) * 1.1);
+}
 function tyreAt(d, code, lap) {
   const st = d.tyres?.[code];
   if (!st) return null;
   const s = st.find((x) => lap <= x.to) || st[st.length - 1];
-  return { c: s.c, age: s.age0 + Math.max(0, lap - s.from) };
+  const age = s.age0 + Math.max(0, lap - s.from);
+  return { c: s.c, age, wear: Math.min(1, age / lifeOf(d, s.c)) };
 }
 
 // Rangée affichée au tour l : les pilotes en course dans l'ordre de leur place, puis les abandons en bas (le dernier
@@ -339,7 +353,8 @@ export function timelapseFrame(ctx, W, H, d, o, time) {
     }
     ctx.globalAlpha = 1 - 0.45 * c.k;
     let tx = c.nx + 8 * u;
-    // Pneus : pastille de la couleur du composé (lettre française, comme l'appli), puis leur âge en tours
+    // Pneus : pastille de la couleur du composé (lettre française, comme l'appli), puis jauge d'usure verticale
+    // (pleine et verte sur des pneus neufs, elle se vide en passant au jaune puis au rouge)
     if (c.tyre) {
       const [tc, letter] = TYRE[c.tyre.c];
       const r = fs * 0.42;
@@ -347,9 +362,13 @@ export function timelapseFrame(ctx, W, H, d, o, time) {
       ctx.fillStyle = v3 ? T.bg : '#101318'; ctx.fill();
       ctx.lineWidth = Math.max(2, r * 0.3); ctx.strokeStyle = tc; ctx.stroke();
       txt(ctx, letter, tx + r, c.y + r * 0.4, { size: Math.round(r * 1.1), weight: 800, family: MONO, color: C.text, align: 'center' });
-      const age = String(c.tyre.age);
-      txt(ctx, age, tx + 2 * r + 5 * u, c.y + fs * 0.3, { size: Math.round(fs * 0.62), weight: 600, family: MONO, color: C.muted });
-      tx += 2 * r + 5 * u + ctx.measureText(age).width + 8 * u;
+      const left = 1 - c.tyre.wear;
+      const gw = Math.max(7 * u, r * 0.75), gh = r * 2, gx = tx + 2 * r + 6 * u, gy = c.y - r;
+      ctx.fillStyle = v3 ? T.panel3 : 'rgba(255,255,255,0.12)'; ctx.fillRect(gx, gy, gw, gh);
+      ctx.fillStyle = left > 0.6 ? (v3 ? T.green : '#3ddc84') : left > 0.3 ? (v3 ? T.yellow : '#ffd12e') : (v3 ? T.red : '#ff3b3b');
+      const fh = Math.max(2 * u, gh * left);
+      ctx.fillRect(gx, gy + gh - fh, gw, fh);
+      tx = gx + gw + 8 * u;
     }
     if (c.tag) txt(ctx, c.tag, tx, c.y + fs * 0.3, { size: Math.round(fs * 0.72), weight: 700, family: MONO, color: c.tag === 'PIT' ? (v3 ? T.sc : '#ff8a3d') : C.muted });
     ctx.globalAlpha = 1;

@@ -329,7 +329,7 @@ test('vidéo de course : safety car, VSC, drapeaux et moments forts (direction d
   d.tyres = { [d.drivers[0].code]: ty.VER };
   texts.length = 0;
   styled({ style: 'v3' }, () => timelapseFrame(ctx, 1080, 1920, d, { signature: '@x' }, tl.starts[1] + 0.1));
-  assert.ok(texts.includes('M') && texts.includes('3'), 'pastille et âge des pneus au tour 2');
+  assert.ok(texts.includes('M'), 'pastille des pneus au tour 2');
 });
 
 test('programme du week-end : météo des jours de séance dans le fuseau du circuit (Las Vegas)', () => {
