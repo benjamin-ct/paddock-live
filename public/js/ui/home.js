@@ -381,11 +381,16 @@ function kpiBody(k, v) {
   const x = k.id === 'el' ? K.elementsTotal(races, v) : K.techTotal(races, v);
   return x && `${big(num(x.total))}${trend(x.delta, x.total - x.delta)}${where(x.ev.round)}`;
 }
+// Calcul qui échoue sur des données inattendues : la carte le dit (et propose de relire) au lieu de rester en chargement
+function kpiSafe(k, v) {
+  try { return kpiBody(k, v) || state(v?.pending ? 'Analyse en cours…' : t('Pas encore de données pour {}', boardYear())); }
+  catch (err) { console.warn('[accueil]', k.id, err); return unavailable({}, k.src); }
+}
 function kpiHtml(k) {
   const e = extra[k.src];
   const body = !e || e.loading || !K ? `${sk('big')}${sk('line')}${sk('line short')}`
     : e.error || e.v?.error ? unavailable(e, k.src)
-    : kpiBody(k, e.v) || state(e.v?.pending ? 'Analyse en cours…' : t('Pas encore de données pour {}', boardYear()));
+    : kpiSafe(k, e.v);
   return linkCard('hm-kpi', `hmK-${k.id}`, k.title, k.sz, body, !e || e.loading, ` data-src="${k.src}"`);
 }
 function renderKpis(src) {
@@ -396,7 +401,12 @@ async function loadExtra(src) {
   extra[src] = { loading: true };
   try {
     K ||= await kpi();
-    extra[src] = { v: await K.seasonGet(`/api/season/${src}?year=${boardYear()}`) };
+    // Réponse qui n'arrive pas (serveur lent ou en cours de mise à jour) : « Indisponible » et « Réessayer » après 30 s
+    // (la demande bloquée est oubliée, pour que « Réessayer » en fasse une nouvelle)
+    const path = `/api/season/${src}?year=${boardYear()}`;
+    let timer;
+    const late = new Promise((_, no) => { timer = setTimeout(() => { K.takeEarly(path); no(new Error('délai dépassé')); }, 30e3); });
+    extra[src] = { v: await Promise.race([K.seasonGet(path), late]).finally(() => clearTimeout(timer)) };
   } catch (err) { extra[src] = { error: true, offline: offline(err) }; }
   renderKpis(src);
 }

@@ -259,9 +259,10 @@
     html.web[data-design="v3"] .topbar .web-delay input { font-family: var(--font-mono); font-weight: 600; border-radius: var(--r-sm); }
     html.web[data-design="v3"] .web-res-card { border-radius: var(--r-md); }
     html.web[data-design="v3"] .web-res-card h3 { font: 500 var(--fs-2xs)/1.3 var(--font-mono); letter-spacing: .08em; color: var(--muted); }
-    /* Ordinateur : deuxième ligne régulière, réglages du direct à gauche (délai, F1 TV, source), fenêtres, Nouveautés et
-       appli complète à droite, avec leur nom dès 1200 px */
-    @media (min-width: 901px) and (max-width: 2399px) {
+    /* Ordinateur, quelle que soit la largeur : deuxième ligne régulière, réglages du direct à gauche (délai, F1 TV,
+       source), fenêtres, Nouveautés et appli complète à droite, avec leur nom dès 1200 px (sur une seule ligne, la fin
+       passait à la ligne toute seule dès que la séance affichait une info de plus) */
+    @media (min-width: 901px) {
       html.web[data-design="v3"] .topbar .tb-break.b2 { display: block !important; flex-basis: 100%; height: 0; margin: 0; }
       html.web[data-design="v3"] .topbar .win-btn[data-win="analysis"] { margin-left: auto; }
     }
