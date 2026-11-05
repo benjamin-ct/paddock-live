@@ -2,8 +2,9 @@
 // Chaque pilote est une petite F1 vue de dessus aux couleurs de son écurie (tracés simples : aileron arrière,
 // pontons, cockpit, nez, aileron avant, roues), son trigramme derrière elle ; la voiture du leader en tête, les
 // autres en arrière à proportion de leur écart (échelle en secondes qui suit le peloton, écarts trop grands tassés
-// au bord). Dépassements : la voiture glisse d'une rangée à l'autre ; arrêts au stand marqués PIT ; abandon : la
-// voiture grise et quitte la piste. Feux puis grille au départ, safety car en tête des voitures, bandeaux des
+// au bord). Départ : toutes les voitures sur la même ligne, dans l'ordre de la grille. Dépassements : la voiture
+// glisse d'une rangée à l'autre ; arrêts au stand marqués PIT ; abandon : la voiture grise, recule à gauche et reste
+// en bas du classement (« ABANDON ») jusqu'à l'arrivée. Feux, safety car en tête des voitures, bandeaux des
 // moments forts (mêmes que la vidéo du graphique, raceVideoTiming), podium à l'arrivée.
 import { C, TITLE, MONO, MEDAL, rr, txt, fitLines, vivid, background, card, pill, v3 } from './social-draw.js';
 import { BEST, T } from './social-draw-v3.js';
@@ -11,14 +12,13 @@ import { FLAG, BANNER, BANNER_COLOR, ease, clamp01, gapsOf, lapAt, raceVideoTimi
 import { lapStr } from './social-season.js';
 
 const dec = (v, n = 1) => Number(v).toFixed(n).replace('.', ',');
-const GRID_GAP = 0.3;   // écart (s) entre deux places sur la grille, pour l'image de départ
 
 // Place au tour l (0 : grille) ; null une fois sorti
 const posAt = (x, l, n) => (l === 0 ? (x.grid || n) : x.pos[l - 1] || (x.classified && l > x.laps ? x.finish : null));
 // Écart au leader (s) à la fin du tour l, au dernier tour bouclé pour un pilote à un tour ou sorti
 function gapAt(d, g, i, l) {
   const x = d.drivers[i];
-  if (l === 0) return ((x.grid || d.drivers.length) - 1) * GRID_GAP;
+  if (l === 0) return 0;   // départ : tout le monde sur la même ligne, rangé dans l'ordre de la grille
   const k = Math.min(l, x.laps);
   const c = k ? g.cum[i][k - 1] : null;
   return c == null ? null : c - g.lead[k];
@@ -32,6 +32,23 @@ function lapsDown(d, g, i, l) {
   let n = 0;
   for (let j = k + 1; j <= d.total; j++) if (g.lead[j] <= c) n++;
   return n;
+}
+
+// Rangée affichée au tour l : les pilotes en course dans l'ordre de leur place, puis les abandons en bas (le dernier
+// sorti juste sous les pilotes en course), gardés et grisés pour qu'on voie toujours qui est hors course
+const ranksMemo = new WeakMap();
+function rankAt(d, l) {
+  let all = ranksMemo.get(d);
+  if (!all) ranksMemo.set(d, (all = []));
+  if (all[l]) return all[l];
+  const n = d.drivers.length;
+  const run = d.drivers.map((x, i) => [i, posAt(x, l, n)]).filter(([, p]) => p).sort((a, b) => a[1] - b[1]);
+  const inRace = new Set(run.map(([i]) => i));
+  const gone = d.drivers.map((x, i) => [i, x.laps || 0]).filter(([i]) => !inRace.has(i)).sort((a, b) => b[1] - a[1]);
+  const r = new Array(n);
+  run.forEach(([i], k) => { r[i] = k + 1; });
+  gone.forEach(([i], k) => { r[i] = run.length + k + 1; });
+  return (all[l] = r);
 }
 
 // Durée : celle de la vidéo du graphique (tours importants ralentis, bandeaux) ; en plus, pour chaque tour, le
@@ -186,14 +203,11 @@ export function timelapseFrame(ctx, W, H, d, o, time) {
   const win = tm.win[L] + (tm.win[Lw] - tm.win[L]) * fr;
   const X = (gp) => (gp <= win ? frontX - (gp / win) * span : edgeX - compW * (1 - Math.exp(-(gp - win) / (win * 0.8))));
   const fe = done ? 1 : intro ? 0 : ease(clamp01((fr - 0.1) * 1.8));   // dépassements : glissade vive, au milieu du tour
-  // Rangées occupées : celle d'un abandon s'efface
-  const count = (l) => d.drivers.filter((x) => posAt(x, l, n)).length;
-  const rowsNow = count(L);
-  const rowsNext = done || L >= d.total ? rowsNow : count(L + 1);
-  for (let p = 1; p <= rowsNow; p++) {
-    const a = p > rowsNext ? 1 - fe : 1;
-    ctx.globalAlpha = a;
-    if (p % 2 === 0) { ctx.globalAlpha = a * (v3 ? 1 : 0.6); ctx.fillStyle = C.panel; ctx.fillRect(padL, Y(p) - rowH / 2, laneR - padL, rowH); ctx.globalAlpha = a; }
+  // Rangées : toutes gardées ; celles des abandons, en bas, ont leur numéro estompé
+  const running = L === 0 ? n : d.drivers.filter((x) => posAt(x, L, n)).length;
+  for (let p = 1; p <= n; p++) {
+    if (p % 2 === 0) { ctx.globalAlpha = v3 ? 1 : 0.6; ctx.fillStyle = C.panel; ctx.fillRect(padL, Y(p) - rowH / 2, laneR - padL, rowH); }
+    ctx.globalAlpha = p > running ? 0.45 : 1;
     txt(ctx, String(p), laneL - 12 * u, Y(p) + fs * 0.36, { size: Math.round(fs * 0.9), weight: v3 ? 600 : 800, family: v3 ? MONO : TITLE, color: p <= 3 ? MEDAL[p - 1] : C.muted, align: 'right', italic: true });
     ctx.globalAlpha = 1;
   }
@@ -247,28 +261,29 @@ export function timelapseFrame(ctx, W, H, d, o, time) {
   // Voitures
   const cars = [];
   d.drivers.forEach((x, i) => {
-    const p0 = posAt(x, L, n);
-    if (!p0) return;
     const last = done || L >= d.total;
-    const p1 = last ? p0 : posAt(x, L + 1, n);
-    const out = !p1;
+    const p0 = rankAt(d, L)[i];
+    const p1 = last ? p0 : rankAt(d, L + 1)[i];
+    const gone0 = L > 0 && !posAt(x, L, n);                 // déjà hors course
+    const gone1 = gone0 || (!last && !posAt(x, L + 1, n));   // sort pendant ce tour
     const g0 = gapAt(d, g, i, L);
-    const g1 = out || last ? g0 : gapAt(d, g, i, L + 1);
+    const g1 = last || gone1 ? g0 : gapAt(d, g, i, L + 1);
     const gp = g0 == null ? g1 : g1 == null ? g0 : g0 + (g1 - g0) * fr;
-    const k = out ? ease(clamp01(fr * 1.6)) : 0;
-    let y = Y(p0) + ((p1 ? Y(p1) : Y(p0)) - Y(p0)) * fe;
-    let nx = X(gp ?? win * 3);
-    if (out) { y += k * rowH * 0.6; nx -= k * Lc * 1.6; }
+    // Abandon : la voiture grise et recule dans la zone tassée, à gauche, où elle reste jusqu'à l'arrivée
+    const k = gone0 ? 1 : gone1 ? ease(clamp01(fr * 1.6)) : 0;
+    const y = Y(p0) + (Y(p1) - Y(p0)) * fe;
+    const nx0 = X(gp ?? win * 3);
+    const nx = nx0 + (X(win * 3) - nx0) * k;
     let tag = '';
-    if (!intro && !done && (x.pits || []).includes(L + 1)) tag = 'PIT';
+    if (k >= 1) tag = 'ABANDON';
+    else if (!intro && !done && (x.pits || []).includes(L + 1)) tag = 'PIT';
     else if (!intro && L >= 1) { const dn = lapsDown(d, g, i, L); if (dn) tag = `+${dn}T`; }
-    cars.push({ x, y, nx, out, k, tag, gain: !out && fe > 0 && fe < 1 && p1 < p0 });
+    cars.push({ x, y, nx, out: k > 0, k, tag, gain: !k && fe > 0 && fe < 1 && p1 < p0 });
   });
   cars.sort((a, b) => (b.out - a.out) || (b.y - a.y));
   for (const c of cars) {
-    // Abandon : la voiture quitte la piste (coupée à son bord)
-    if (c.out) { ctx.save(); ctx.beginPath(); ctx.rect(laneL, rowsTop, laneR - laneL, rowsBot - rowsTop); ctx.clip(); }
-    ctx.globalAlpha = 1 - c.k;
+    // Abandon : voiture et trigramme grisés, estompés, gardés dans leur rangée
+    ctx.globalAlpha = 1 - 0.45 * c.k;
     const col = c.out && c.k > 0.15 ? '#5b636e' : vivid(c.x.color);
     car(ctx, c.nx, c.y, Lc, Wc, col, tyre);
     const ty = c.y + fs * 0.36;
@@ -281,10 +296,9 @@ export function timelapseFrame(ctx, W, H, d, o, time) {
       ctx.globalAlpha = (1 - c.k) * Math.sin(fe * Math.PI);
       ctx.fillStyle = C.green; ctx.beginPath(); ctx.moveTo(ax - s, c.y + s * 0.6); ctx.lineTo(ax + s, c.y + s * 0.6); ctx.lineTo(ax, c.y - s * 0.8); ctx.closePath(); ctx.fill();
     }
-    ctx.globalAlpha = 1 - c.k;
+    ctx.globalAlpha = 1 - 0.45 * c.k;
     if (c.tag) txt(ctx, c.tag, c.nx + 8 * u, c.y + fs * 0.3, { size: Math.round(fs * 0.72), weight: 700, family: MONO, color: c.tag === 'PIT' ? (v3 ? T.sc : '#ff8a3d') : C.muted });
     ctx.globalAlpha = 1;
-    if (c.out) ctx.restore();
   }
 
   // ---- Bandeau (sous la piste ; colonne de droite en paysage) ----
