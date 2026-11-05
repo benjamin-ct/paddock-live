@@ -521,7 +521,7 @@ dialog.sheet .group, dialog.sheet .card { background: var(--bg); }
 
 /* ---------- Onglet Suivi : tâches, posts, réseaux, journal, guides (serveur Paddock Live) ---------- */
 #svsub { margin-bottom: var(--gap); }
-#svsub .sv-gear { flex: none; width: 44px; padding: 0; }
+#svsub .sv-gear { flex: none; width: 44px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
 #svsub .sv-gear .ic { width: 20px; height: 20px; }
 .sv-note { margin: 8px 12px; color: var(--muted); font-size: 14px; }
 .panel .sv-note { margin: 6px 0; }
