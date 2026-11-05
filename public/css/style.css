@@ -3318,6 +3318,13 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; gap: 5
 .hm-fav-group:first-child { margin-top: 0; }
 .hm-fav-col { grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; gap: inherit; }   /* Pilotes, Écuries */
 .hm-fav-col + .hm-fav-col > .hm-fav-group { margin-top: 8px; }
+/* Tableau de bord (tablette, ordinateur) : carte d'une colonne de large, nom de famille et points seuls, victoires
+   dessous ; l'écurie est dans la couleur du portrait */
+@media (min-width: 600px) {
+  .hm-board .hm-fav-col { grid-template-columns: minmax(2.8em, auto) minmax(0, 1fr) auto; }
+  .hm-board .hm-fav-row > :nth-child(3), .hm-board :is(.hm-fav-first, .hm-fav-sep) { display: none; }
+  .hm-board .hm-fav-w { display: block; margin-top: 3px; }
+}
 @media (max-width: 600px) { .hm-favs { grid-template-columns: minmax(2.8em, auto) minmax(0, 1fr) auto; } .hm-fav-row > :nth-child(3) { display: none; } }
 .hm-fav-row b { font-size: 16px; }
 .hm-fav-pos { font-size: 20px; font-weight: 900; color: var(--accent); }

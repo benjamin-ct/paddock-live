@@ -240,7 +240,7 @@ function favHtml() {
   const logo = (c) => { const u = teamLogo(c.name); return u ? `<span class="team-logo color" style="--tc:${tc(c.name, c.id || c.key)};background-image:url('${u}')"></span>` : ''; };
   // Une colonne par groupe : côte à côte sur ordinateur (la carte reste à la hauteur des classements), l'une sous l'autre
   // ailleurs ; sur deux colonnes, le prénom s'efface
-  const name = (d) => (d.last && d.name.endsWith(d.last) ? `<span class="hm-fav-first">${esc(d.name.slice(0, -d.last.length))}</span>${esc(d.last)}` : esc(d.name));
+  const name = (d) => `<span>${d.last && d.name.endsWith(d.last) ? `<span class="hm-fav-first">${esc(d.name.slice(0, -d.last.length))}</span>${esc(d.last)}` : esc(d.name)}</span>`;
   const rows = [
     ...(favD.length ? [`<div class="hm-fav-col"><div class="hm-fav-group muted">Pilotes</div>${favD.map((d) => `<div class="hm-fav-row"><span class="hm-fav-pos">P${d.pos}</span><b class="hm-fav-who">${face(d)}${name(d)}</b><span class="muted">${esc(d.team)}</span><span class="muted">${pts(d)}</span></div>`).join('')}</div>`] : []),
     ...(favT.length ? [`<div class="hm-fav-col"><div class="hm-fav-group muted">Écuries</div>${favT.map((c) => `<div class="hm-fav-row"><span class="hm-fav-pos">P${c.pos}</span><b class="hm-fav-who">${logo(c)}${esc(c.name)}</b><span></span><span class="muted">${pts(c)}</span></div>`).join('')}</div>`] : []),
