@@ -423,22 +423,22 @@ export function recapItem(ctx, W, H, d, o, i, fmt) {
 // arrêts au stand et abandons marqués, périodes de safety car, VSC et drapeau rouge en bandes de
 // couleur, dépassements mis en lumière, bandeau des moments forts ; pour finir le podium et les
 // chiffres de la course.
-const FLAG = {
+export const FLAG = {
   green: { color: '#3ddc84', label: 'DRAPEAU VERT' }, yellow: { color: '#ffd60a', label: 'DRAPEAU JAUNE' },
   sc: { color: '#ffc400', label: 'SAFETY CAR' }, vsc: { color: '#ff9f1c', label: 'VIRTUAL SAFETY CAR' },
   neutral: { color: '#ffc400', label: 'COURSE NEUTRALISÉE' }, red: { color: '#ff2d2d', label: 'DRAPEAU ROUGE' },
 };
-const BANNER = {
+export const BANNER = {
   sc: ['SAFETY CAR', () => 'Voiture de sécurité en piste'], vsc: ['VIRTUAL SAFETY CAR', () => 'Course neutralisée'],
   neutral: ['COURSE NEUTRALISÉE', () => 'Safety car ou VSC'], red: ['DRAPEAU ROUGE', () => 'Course interrompue'],
   restart: ['DRAPEAU VERT', () => 'La course reprend'], lead: ['NOUVEAU LEADER', (e, n) => n],
   out: ['ABANDON', (e, n) => n], penalty: ['PÉNALITÉ', (e, n) => `${n} · ${e.text}`], fastest: ['MEILLEUR TOUR', (e, n) => `${n} · ${lapStr(e.time)}`],
 };
-const BANNER_COLOR = { restart: '#3ddc84', lead: '#e8c35a', out: '#ff4d4d', penalty: '#ff8a3d', fastest: '#b36bff' };
-const NEUTRAL = new Set(['sc', 'vsc', 'red', 'neutral']);
+export const BANNER_COLOR = { restart: '#3ddc84', lead: '#e8c35a', out: '#ff4d4d', penalty: '#ff8a3d', fastest: '#b36bff' };
+export const NEUTRAL = new Set(['sc', 'vsc', 'red', 'neutral']);
 const BIG = new Set(['restart', 'lead', 'out', 'penalty']);
-const ease = (x) => (x < 0.5 ? 2 * x * x : 1 - (-2 * x + 2) ** 2 / 2);
-const clamp01 = (x) => Math.max(0, Math.min(1, x));
+export const ease = (x) => (x < 0.5 ? 2 * x * x : 1 - (-2 * x + 2) ** 2 / 2);
+export const clamp01 = (x) => Math.max(0, Math.min(1, x));
 
 // Durées : feux de départ, course (tours des neutralisations et des moments forts plus lents), arrivée.
 // Bandeaux programmés à la suite les uns des autres, à partir du tour de l'événement.
@@ -470,7 +470,7 @@ export function raceVideoTiming(d) {
   return out;
 }
 // Tours bouclés par le leader (0..total) et avancée dans le tour suivant
-function lapAt(tm, total, time) {
+export function lapAt(tm, total, time) {
   if (time <= tm.intro) return { lap: 0, f: 0 };
   for (let l = 0; l < total; l++) if (time < tm.starts[l + 1]) return { lap: l, f: (time - tm.starts[l]) / (tm.starts[l + 1] - tm.starts[l]) };
   return { lap: total, f: 0 };
@@ -478,7 +478,7 @@ function lapAt(tm, total, time) {
 
 // Temps cumulés et écarts au leader à la fin de chaque tour
 const gapsMemo = new WeakMap();
-function gapsOf(d) {
+export function gapsOf(d) {
   if (gapsMemo.has(d)) return gapsMemo.get(d);
   const cum = d.drivers.map((x) => { let s = 0; return x.times.map((t) => (t ? (s += t) : null)); });
   const lead = [0];

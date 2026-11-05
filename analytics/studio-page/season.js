@@ -3,6 +3,7 @@
 import { builtinNomination } from '/shared/tyres.js';
 import { raceWeekData, weekendData, recordsData, ratingsData, teamDuelsData, titleData, titleSide, raceLapsData, seasonCaptions } from '/shared/social-season.js';
 import { raceFrame, raceVideoTiming } from '/shared/social-draw-season.js';
+import { timelapseFrame, timelapseTiming } from '/shared/social-draw-timelapse.js';
 import { parseRaceLaps } from '/shared/race-laps.js';
 import { circuitInfo } from '/shared/circuits-info.js';
 import { recordsOf, recordYears, editionFromResults } from '/shared/circuit-records.js';
@@ -214,6 +215,10 @@ async function seasonEditor(year, data, race, back) {
   const SIDES = { drivers: 'Pilotes', teams: 'Constructeurs' };
   const side = () => (state.titleSide === 'teams' ? 'teams' : 'drivers');
   const other = () => (side() === 'teams' ? 'drivers' : 'teams');
+  // Vidéo de la course : graphique des positions ou course en accéléré (choix gardé sur l'appareil)
+  const VKINDS = { chart: ['Graphique', raceFrame, raceVideoTiming], timelapse: ['Course en accéléré', timelapseFrame, timelapseTiming] };
+  const vkind = () => (VKINDS[store.get('racevid')?.v] ? store.get('racevid').v : 'chart');
+  const vdur = () => Math.round(VKINDS[vkind()][2](d).duration);
   const recordOf = (k) => (full ? { key: `title:${year}-${race.round}:${k}`, kind: 'title', title: `Titre ${SIDES[k].toLowerCase()} · ${d.gp}` }
     : { key: `${state.stype}:${year}-${race.round}`, kind: state.stype, title: `${typeName} · ${d.gp}` });
   editor({
@@ -223,7 +228,7 @@ async function seasonEditor(year, data, race, back) {
     note,
     head: full ? `<h3 class="section">Championnat</h3><div class="seg wide" id="tside">${Object.entries(SIDES).map(([k, v]) => `<button data-side="${k}" class="${side() === k ? 'on' : ''}">${v}</button>`).join('')}</div>
       <p class="hint">Un post par championnat ; l'autre peut partir en même temps (étape Publier).</p>` : '',
-    vhead: `${video ? `<h3 class="section">Vidéo de la course</h3>${musicField('race', 'depart')}<div class="row"><button class="btn" id="mkvid">${icon('video')}Créer la vidéo (${Math.round(raceVideoTiming(d).duration)} s)</button><button class="btn" id="sharevid" disabled>${icon('share')}Partager</button></div>
+    vhead: `${video ? `<h3 class="section">Vidéo de la course</h3><div class="seg wide" id="vkind">${Object.entries(VKINDS).map(([k, [l]]) => `<button data-vkind="${k}" class="${vkind() === k ? 'on' : ''}">${l}</button>`).join('')}</div>${musicField('race', 'depart')}<div class="row"><button class="btn" id="mkvid">${icon('video')}Créer la vidéo (<span id="vdur">${vdur()}</span> s)</button><button class="btn" id="sharevid" disabled>${icon('share')}Partager</button></div>
         <p class="hint" id="vidst">Garder l'écran allumé pendant l'enregistrement.</p>
         <video id="vid" controls playsinline hidden></video>` : ''}`,
     data: () => d, caps: (dd) => seasonCaptions(dd, SIG),
@@ -242,6 +247,14 @@ async function seasonEditor(year, data, race, back) {
       });
       if (!video) return;
       const track = bindMusic('race');
+      $$('[data-vkind]').forEach((b) => {
+        b.onclick = () => {
+          store.set('racevid', b.dataset.vkind);
+          $$('[data-vkind]').forEach((x) => x.classList.toggle('on', x === b));
+          $('#vdur').textContent = vdur();
+          glide();
+        };
+      });
       $('#mkvid').onclick = async () => {
         unlockAudio();   // pendant le toucher, avant toute attente (sinon vidéo muette sur iPhone)
         $('#mkvid').disabled = true;
@@ -251,7 +264,8 @@ async function seasonEditor(year, data, race, back) {
           // Paysage : sans couverture au début, la vidéo commence sur la course
           const cover = opts.format === 'wide' ? null : (ctx, w, h) => styled(o, () => videoCover(ctx, w, h, d, o));
           const ro = { ...o, insta: opts.format === 'insta' };   // marges d'Instagram
-          clip = await makeAnimation((ctx, t, w, h) => styled(ro, () => raceFrame(ctx, w, h, d, ro, t)), raceVideoTiming(d).duration, { cover, ...opts, onProgress: (p) => { $('#vidst').textContent = `Enregistrement… ${Math.round(p * 100)} %`; } });
+          const [, frame, timing] = VKINDS[vkind()];
+          clip = await makeAnimation((ctx, t, w, h) => styled(ro, () => frame(ctx, w, h, d, ro, t)), timing(d).duration, { cover, ...opts, onProgress: (p) => { $('#vidst').textContent = `Enregistrement… ${Math.round(p * 100)} %`; } });
           $('#vid').src = URL.createObjectURL(clip.blob); $('#vid').hidden = false;
           $('#sharevid').disabled = false;
           $('#vidst').textContent = `Vidéo prête (${(clip.blob.size / 1e6).toFixed(1).replace('.', ',')} Mo)${clip.silent ? ' · sans son : le navigateur a bloqué la musique, recommencez' : ''}${(file = clipFile(clip, `course-${race.round}`)) ? ' · jointe au post : Reel, vidéo, TikTok et Short à choisir à l\'étape Publier' : ' · format WebM : à partager seulement (publication en MP4)'}`;
