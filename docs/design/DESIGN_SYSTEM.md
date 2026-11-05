@@ -262,6 +262,12 @@ Au doigt (`pointer: coarse`) : zone tactile invisible d'au moins **32 px** autou
   rectangulaire `--accent`, rayon 4 px, 24 px (Broadcast).
 - Cartes de la Saison / Accueil : `.sz-card`, `.sz-box`, `.hm-card` ; cartes pilote / écurie `.sz-drv-card`,
   `.sz-team-card` (focus visible : contour 2 px `--accent`, décalé de 2 px).
+- Tableau de bord de l'Accueil `.hm-board` : grille automatique (300 px minimum) en Classique et Paddock 2 ; en
+  Télémétrie, zones nommées sur 4 colonnes à partir de 1200 px, 2 de 600 à 1199 px, 1 en dessous (ordre du code),
+  gouttière 12 px. Carte qui ouvre sa rubrique de la Saison `.hm-link` : bouton `.hm-hit` sur toute la carte (anneau
+  `--ring` à l'intérieur, -2 px), flèche `.hm-open` 14 px. Chiffre `.hm-big` (Archivo étroit 800, 34 px), tendance
+  `.hm-trend` (Mono 12 px), manche `.hm-ctx` (Mono 11 px capitales) ; compte à rebours en cases `.hm-cd` (Archivo étroit
+  800, 44–76 px, filet `--line-2` entre les cases) ; squelettes `.hm-sk` (pulsation d'opacité 1,2 s).
 - Dans Paddock 2, toutes ces surfaces reçoivent le verre (dégradé `--v2-glass-2 → --v2-glass`, filet `--v2-rim`, flou).
   Un panneau qui contient un menu ouvert perd son flou (sinon les menus fixés du téléphone se calent dessus).
 

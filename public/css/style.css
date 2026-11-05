@@ -3226,6 +3226,65 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; gap: 5
 .hm-follow { align-self: center; display: inline-flex; align-items: center; gap: 7px; padding: 8px 14px; border-radius: 999px; color: var(--text-2); font-size: 13px; font-weight: 600; text-decoration: none; }
 .hm-follow:hover { color: var(--text); background: var(--panel-2); }
 .hm-follow .ic { width: 15px; height: 15px; }
+/* Accueil, tableau de bord de cartes (ui/home.js) : séances, classements, favoris, calendrier, chiffres de la saison,
+   actus. Grille automatique ici (Classique, Paddock 2) ; Télémétrie place les cartes (design-v3.css) */
+.hm-board { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+.hm-board > :is(.hm-next, .hm-live, .hm-news) { grid-column: 1 / -1; }
+.hm-board > * { min-width: 0; }
+/* Carte qui ouvre sa rubrique de la Saison : bouton sur toute la carte, ses propres boutons au-dessus */
+.hm-link { position: relative; }
+.hm-hit { position: absolute; inset: 0; z-index: 0; width: 100%; margin: 0; padding: 0; border: 0; border-radius: inherit; background: none; cursor: pointer; }
+.hm-link :is(.btn, a) { position: relative; z-index: 1; }
+.hm-hit:focus-visible { outline: 2px solid var(--ring, var(--text)); outline-offset: -2px; }
+.hm-open { width: 16px; height: 16px; flex: none; color: var(--muted); transition: transform .14s, color .14s; }
+@media (hover: hover) {
+  .hm-link:hover { border-color: var(--line-2); }
+  .hm-link:hover .hm-open { color: var(--text); transform: translateX(2px); }
+}
+.hm-link .hm-kicker { justify-content: space-between; }
+.hm-big { font-size: 30px; font-weight: 800; line-height: 1.05; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.hm-big small { font-size: .6em; color: var(--text-2); }
+.hm-trend, .hm-ctx { display: flex; flex-wrap: wrap; align-items: center; gap: 0 6px; min-width: 0; font-size: 12.5px; color: var(--text-2); }
+.hm-ctx { color: var(--muted); }
+.hm-trend b { color: var(--text); }
+.hm-trend :is(.team-logo, .drv-bar) { width: 4px; height: 14px; border-radius: 2px; background: var(--tc, currentColor); background-image: none !important; box-shadow: none; }
+.hm-state { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; margin-top: 4px; color: var(--muted); font-size: 13px; }
+/* Chargement : blocs à la taille du contenu attendu */
+.hm-sk { display: block; width: 70%; height: 12px; margin: 3px 0; border-radius: 4px; background: var(--panel-2); }
+.hm-sk.big { width: 45%; height: 30px; margin: 6px 0 4px; }
+.hm-sk.title { width: 60%; height: 22px; }
+.hm-sk.short { width: 40%; }
+.hm-sk.row { width: 100%; height: 22px; margin: 4px 0; }
+@media (prefers-reduced-motion: no-preference) { :root:not([data-motion="off"]) .hm-sk { animation: hm-sk 1.2s ease-in-out infinite alternate; } }
+@keyframes hm-sk { to { opacity: .4; } }
+/* Calendrier : tracé du circuit à droite, une case par manche (courues, prochaine) */
+.hm-cal { overflow: hidden; }
+.hm-cal-main { display: flex; flex-direction: column; gap: 4px; max-width: 64%; }
+.hm-cal-trk { position: absolute; top: 46px; right: 18px; width: 32%; max-width: 120px; aspect-ratio: 1; pointer-events: none; }
+.hm-cal-trk svg { width: 100%; height: 100%; overflow: visible; }
+.hm-cal-trk polygon { fill: none; stroke: var(--text-2); stroke-width: 2; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.hm-prog { display: flex; gap: 2px; margin-top: auto; padding-top: 12px; }
+.hm-prog i { flex: 1; height: 6px; border-radius: 1px; background: var(--line-2); }
+.hm-prog i.done { background: var(--text-2); }
+.hm-prog i.now { background: var(--accent); }
+/* Classements : 10 premiers, nom qui prend la place restante (ellipse), favoris surlignés */
+.hm-std-t { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+.hm-std-t th { padding: 0 6px 6px; text-align: left; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+.hm-std-t td { height: 30px; padding: 0 6px; border-top: 1px solid var(--line); white-space: nowrap; }
+.hm-std-t :is(th, td):first-child { padding-left: 2px; }
+.hm-std-t :is(th, td):last-child { padding-right: 2px; }
+.hm-std-t .n { text-align: right; }
+.hm-std-pos { width: 2em; font-weight: 800; }
+.hm-std-who { width: 100%; max-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.hm-std-who :is(.team-logo, .drv-bar) { display: inline-block; width: 4px; height: 16px; margin-right: 8px; vertical-align: -3px; border-radius: 2px; background: var(--tc, currentColor); background-image: none !important; box-shadow: none; }
+.hm-std-gap { color: var(--muted); }
+.hm-evo { width: 2.4em; color: var(--muted); font-size: 12px; }
+.hm-evo .ic { width: 8px; height: 8px; margin-right: 2px; vertical-align: 0; }
+.hm-evo.up { color: var(--green); }
+.hm-evo.down { color: var(--red); }
+.hm-std-t tr.fav td { background: var(--panel-2); }
+.hm-std-t tr.fav td:first-child { box-shadow: inset 2px 0 0 var(--text); }
+.hm-std-mask { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; margin: 2px 0 10px; font-size: 12.5px; }
 .hm-go .ic { width: 20px; height: 20px; color: var(--accent); margin-bottom: 4px; }
 .hm-go small { color: var(--muted); font-size: 12px; }
 @media (max-width: 700px) {
@@ -3257,6 +3316,15 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; gap: 5
 .hm-fav-row > :last-child { white-space: nowrap; text-align: right; }
 .hm-fav-group { grid-column: 1 / -1; margin-top: 8px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
 .hm-fav-group:first-child { margin-top: 0; }
+.hm-fav-col { grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; gap: inherit; }   /* Pilotes, Écuries */
+.hm-fav-col + .hm-fav-col > .hm-fav-group { margin-top: 8px; }
+/* Tableau de bord (tablette, ordinateur) : carte d'une colonne de large, nom de famille et points seuls, victoires
+   dessous ; l'écurie est dans la couleur du portrait */
+@media (min-width: 600px) {
+  .hm-board .hm-fav-col { grid-template-columns: minmax(2.8em, auto) minmax(0, 1fr) auto; }
+  .hm-board .hm-fav-row > :nth-child(3), .hm-board :is(.hm-fav-first, .hm-fav-sep) { display: none; }
+  .hm-board .hm-fav-w { display: block; margin-top: 3px; }
+}
 @media (max-width: 600px) { .hm-favs { grid-template-columns: minmax(2.8em, auto) minmax(0, 1fr) auto; } .hm-fav-row > :nth-child(3) { display: none; } }
 .hm-fav-row b { font-size: 16px; }
 .hm-fav-pos { font-size: 20px; font-weight: 900; color: var(--accent); }

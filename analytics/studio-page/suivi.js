@@ -415,6 +415,19 @@ async function showSub(body, { force, current }) {
   }
 }
 
+// Cases cochées : envoyées une à une, dans l'ordre (pas deux écritures en même temps), sans relire la page ; la copie
+// gardée du suivi est mise à jour pour rester juste d'un onglet à l'autre
+let checks = Promise.resolve();
+const parisDay = () => new Date().toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris', day: 'numeric', month: 'numeric', year: 'numeric' });
+function keepTask(id, fields) {
+  const known = store.get('suivi.data');
+  const t = known?.v?.tasks?.find((x) => x.id === id);
+  if (!t) return;
+  Object.assign(t, fields);
+  store.set('suivi.data', known.v);
+}
+const sendCheck = (id, fields) => (checks = checks.catch(() => {}).then(() => api('suivi/ops', { method: 'POST', body: JSON.stringify({ ops: [{ op: 'task.set', id, ...fields }] }) })));
+
 // Opérations envoyées au serveur, puis suivi relu
 async function ops(list) {
   const r = await api('suivi/ops', { method: 'POST', body: JSON.stringify({ ops: list }) });
@@ -481,16 +494,24 @@ function bind(body, d, opts) {
   if (older) older.onclick = () => { state.vlogSince = back(+older.dataset.next, LOG_DAYS - 1); again(); };
   const guide = $('#svguide', body);
   if (guide) guide.onchange = () => { state.vguide = guide.value; again(); scrollTo(0, 0); };
-  // Case cochée : tâche marquée faite tout de suite (rangée dans « Fait » avec la date du jour), puis liste relue
+  // Case cochée : tâche faite tout de suite (date du jour), laissée à sa place, barrée, pour en cocher plusieurs
+  // d'affilée ; touchée de nouveau, remise à faire. Rangée dans « Fait » au prochain affichage de l'onglet
   $$('[data-check]', body).forEach((b) => {
-    b.onclick = async (e) => {
+    b.onclick = (e) => {
       e.stopPropagation();
       const card = b.closest('.sv-task');
-      if (card.classList.contains('done')) return;
-      card.classList.add('done');
-      b.setAttribute('aria-checked', 'true');
-      try { await ops([{ op: 'task.set', id: b.dataset.check, status: 'Fait' }]); toast('Fait : rangé dans « Fait »', 'ok'); } catch (err) { toast(err.message, 'bad'); }
-      again(true);
+      const on = !card.classList.contains('done');
+      if (!on && !card.dataset.mine) return;   // déjà faite avant : inchangée
+      const id = b.dataset.check;
+      const set = (yes) => { card.classList.toggle('done', yes); b.setAttribute('aria-checked', String(yes)); if (yes) card.dataset.mine = '1'; else delete card.dataset.mine; };
+      const fields = on ? { status: 'Fait', doneAt: parisDay() } : { status: 'À faire', doneAt: '' };
+      set(on);
+      keepTask(id, fields);
+      sendCheck(id, fields).then(() => toast(on ? 'Fait' : 'Remis à faire', 'ok'), (err) => {
+        set(!on);
+        keepTask(id, on ? { status: 'À faire', doneAt: '' } : { status: 'Fait', doneAt: fields.doneAt || parisDay() });
+        toast(`Non enregistré : ${err.message}`, 'bad');
+      });
     };
   });
   $$('#svtags [data-tag]', body).forEach((b) => { b.onclick = () => { state.vtag = b.dataset.tag; again(); }; });

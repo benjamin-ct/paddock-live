@@ -617,9 +617,10 @@ if (anim) {
     }
   }, { rootMargin: '0px 0px -8% 0px' });
   document.querySelectorAll('.reveal > :not(.copy):not(.grid):not(.oses), .reveal > .copy > *, .reveal > .grid > *, .reveal > .oses > *').forEach((el) => io.observe(el));
-  // Très légère parallaxe de la capture du haut (grand écran) : elle descend un peu moins vite que la page
+  // Très légère parallaxe de la capture du haut (grand écran) : elle descend un peu moins vite que la page.
+  // Pas en Télémétrie : la capture y est collée à la ligne « Gratuit · Sans compte… », qu'elle recouvrait
   const shot = document.querySelector('.hero .shot');
-  if (shot && matchMedia('(min-width: 901px)').matches) {
+  if (shot && matchMedia('(min-width: 901px)').matches && document.documentElement.dataset.design !== 'v3') {
     let raf = 0;
     shot.style.willChange = 'transform';
     addEventListener('scroll', () => {

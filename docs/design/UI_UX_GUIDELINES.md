@@ -24,6 +24,8 @@ Règles de conception propres à Paddock Live, tirées de l'appli telle qu'elle 
 2. **Aucun spoiler.** Rien ne doit révéler un résultat que l'utilisateur n'a pas encore vu : l'Accueil affiche
    « résultat masqué », le replay démarre avant le départ, les notifications et titres d'actualités respectent le
    délai TV. Tout nouvel écran qui montre un résultat se demande : « et si la personne regarde en différé ? ».
+   Dans les 72 h qui suivent une course ou un sprint, les classements de l'Accueil sont ceux d'avant cette manche (arrêts
+   et dégâts sans elle) jusqu'au clic sur « Afficher », qui dévoile aussi Mes favoris.
 3. **Le délai TV est sacré.** Toute donnée « en direct » s'affiche au moment où la TV la montre, pas avant
    (classement, radios, messages, alertes, commentaires).
 4. **Le rouge F1 est réservé** au direct, à l'élément choisi, à l'action principale et aux vraies alertes. Pas de
