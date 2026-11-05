@@ -724,7 +724,15 @@ export async function liveApi(req, url, env = {}) {
   if (url.pathname === '/live/api/season/stats' && req.method === 'GET') {
     const year = Number(url.searchParams.get('year')), now = new Date().getUTCFullYear();
     if (!env.DB || !Number.isInteger(year) || year < 2018 || year > now) return json({ error: 'Année invalide' }, 400);
-    return json(await seasonStatsWeb(env, year).catch((err) => ({ year, total: 0, done: 0, pending: false, races: [], error: err.message })));
+    // Calcul de toute la saison (1 à 2 s, ~570 ko) : gardé 5 minutes par le serveur, 1 minute pendant une analyse,
+    // jamais en cas d'erreur (accueil et rubrique Arrêts de l'appli et de la version web)
+    const ck = new Request(`https://live.cache/season-stats/${year}`);
+    const hit = await caches.default.match(ck).catch(() => null);
+    if (hit) return hit;
+    const d = await seasonStatsWeb(env, year).catch((err) => ({ year, total: 0, done: 0, pending: false, races: [], error: err.message }));
+    const res = json(d, 200, d.error ? {} : { 'Cache-Control': `public, max-age=${d.pending ? 60 : 300}` });
+    if (!d.error) await caches.default.put(ck, res.clone()).catch(() => {});
+    return res;
   }
   // Évolutions techniques et éléments moteur (documents FIA), lus par le serveur : même forme que /api/season/fia
   if (url.pathname === '/live/api/season/fia' && req.method === 'GET') {
