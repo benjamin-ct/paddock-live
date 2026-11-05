@@ -433,14 +433,16 @@ function cdParts(ms) {
   return [Math.floor(s / 86400), Math.floor((s % 86400) / 3600), Math.floor((s % 3600) / 60), s % 60].map((v) => String(v).padStart(2, '0'));
 }
 const countHtml = (ms) => (v3()
-  ? cdParts(ms).map((v, i) => `<span class="hm-cd"><b>${v}</b><small>${CD_UNITS[i]}</small></span>`).join('')
+  ? cdParts(ms).map((v, i) => `<span class="hm-cd"><b data-v="${v}">${v}</b><small>${CD_UNITS[i]}</small></span>`).join('')
   : esc(countdown(ms)));
+// Chiffre qui change : il roule comme celui de la Saison (l'ancien sort par le bas, le nouveau entre par le haut)
+const roll = (v, old) => [...v].map((c, k) => (old.length === v.length && old[k] !== c ? `<i class="chg"><em class="o">${old[k]}</em><em>${c}</em></i>` : `<i>${c}</i>`)).join('');
 function tickCount() {
   const nx = nextSession(), box = $('#hmCount');
   if (!box || !nx) return;
   if (!v3()) { box.textContent = countdown(nx.t - Date.now()); return; }
   const v = cdParts(nx.t - Date.now());
-  box.querySelectorAll('b').forEach((b, i) => { if (b.textContent !== v[i]) b.textContent = v[i]; });
+  box.querySelectorAll('b').forEach((b, i) => { if (b.dataset.v !== v[i]) { b.innerHTML = roll(v[i], b.dataset.v || ''); b.dataset.v = v[i]; } });
 }
 
 function render() {
