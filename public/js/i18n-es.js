@@ -3072,4 +3072,6 @@ export default {
   "Grille provisoire : la grille définitive n'est pas encore publiée.": "Parrilla provisional: la definitiva aún no está publicada.",
   "Relire": "Recargar",
   "Pneus Pirelli": "Neumáticos Pirelli",
+  "Copier le code": "Copiar el código",
+  "Code copié": "Código copiado",
 };
