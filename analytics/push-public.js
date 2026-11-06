@@ -17,7 +17,9 @@ const BATCH = 40;                // envois par appel (sous la limite de sous-req
 const STALE = 6 * 3600e3;        // message pas encore parti au bout de 6 h : abandonné
 const REMIND = 30 * 60e3;        // rappel 30 minutes avant la séance
 const ALERTES = '/alertes/';
-const EVE = 'eve@';              // sujet interne « veille au soir » : eve@Europe/Paris, toujours en dernier dans topics
+const TZ = 'tz@';                // fuseau envoyé par la page : sujet interne tz@Europe/Paris, toujours en dernier dans topics
+const QUIET = [23, 7];           // heures calmes chez l'abonné : grosses news gardées et regroupées à 7 h
+const tzOf = (topics) => { const i = topics.indexOf(TZ); return i < 0 ? null : topics.slice(i + TZ.length); };
 
 // Fuseau envoyé par la page (Intl) : nom IANA connu du moteur, sinon rien
 export function cleanTz(tz) {
@@ -48,9 +50,9 @@ export async function publicPushApi(req, env, path) {
     }
     const known = await env.DB.prepare('SELECT 1 FROM push_subs WHERE endpoint = ?1').bind(s.endpoint).first();
     if (!known && ((await env.DB.prepare('SELECT COUNT(*) AS n FROM push_subs').first())?.n || 0) >= MAX_SUBS) return json({ error: 'Trop d\'abonnés pour le moment, réessayez plus tard' }, 503);
-    const tz = topics.includes('sessions') && cleanTz(body?.tz);
+    const tz = cleanTz(body?.tz);
     await env.DB.prepare('INSERT INTO push_subs (endpoint, p256dh, auth, topics, lang, at) VALUES (?1, ?2, ?3, ?4, ?5, ?6) ON CONFLICT (endpoint) DO UPDATE SET p256dh = excluded.p256dh, auth = excluded.auth, topics = excluded.topics, lang = excluded.lang')
-      .bind(s.endpoint, s.keys.p256dh, s.keys.auth, [...topics, ...(tz ? [EVE + tz] : [])].join(','), body?.lang === 'en' ? 'en' : 'fr', Date.now()).run();
+      .bind(s.endpoint, s.keys.p256dh, s.keys.auth, [...topics, ...(tz ? [TZ + tz] : [])].join(','), body?.lang === 'en' ? 'en' : 'fr', Date.now()).run();
     return json({ ok: true, topics });
   }
   if (path === 'off') {
@@ -132,7 +134,7 @@ export function eveReminders(season, tzs, now = Date.now()) {
     const gp = night[0].r;
     out.push({
       k: `eve:${tz}:${here.day}`,
-      topic: EVE + tz,
+      topic: `sessions,${TZ}${tz}`,
       msg: {
         fr: { title: `Cette nuit : ${night.map((x) => `${FR_SESSION[x.s.label] || x.s.label} à ${hourFr(x.at)}`).join(', ')}`, body: `${gpFull(gp.name)} · rappel 30 minutes avant` },
         en: { title: `Overnight: ${night.map((x) => `${EN_SESSION[x.s.label] || x.s.label} at ${hourEn(x.at)}`).join(', ')}`, body: `${gpFull(gp.name, true)} · reminder 30 minutes before` },
@@ -143,10 +145,39 @@ export function eveReminders(season, tzs, now = Date.now()) {
   return out;
 }
 
-// Fuseaux des abonnés au rappel de la veille (sujet eve@…, en dernier dans topics)
+// Fuseaux des abonnés au rappel des séances (sujet tz@…, en dernier dans topics)
 export async function eveZones(env) {
-  const { results = [] } = await env.DB.prepare('SELECT DISTINCT substr(topics, instr(topics, ?1) + 4) AS tz FROM push_subs WHERE instr(topics, ?1) > 0').bind(EVE).all();
+  const { results = [] } = await env.DB.prepare('SELECT DISTINCT substr(topics, instr(topics, ?1) + 3) AS tz FROM push_subs WHERE instr(topics, ?1) > 0 AND instr(\',\' || topics || \',\', \',sessions,\') > 0').bind(TZ).all();
   return results.map((x) => cleanTz(x.tz)).filter(Boolean);
+}
+
+// Heures calmes (23 h à 7 h chez l'abonné) : les grosses news de la nuit, gardées par fuseau (studio, night:<fuseau>),
+// partent en un seul message à 7 h
+const quiet = (now, tz) => { const h = localOf(now, tz).h; return h >= QUIET[0] || h < QUIET[1]; };
+async function keepForMorning(env, tz, job, msg, now) {
+  const k = `night:${tz}`;
+  const list = JSON.parse(await env.DB.prepare('SELECT v FROM studio WHERE k = ?1').bind(k).first('v') || '[]');
+  if (list.some((x) => x.id === job.id)) return;
+  list.push({ id: job.id, fr: msg.fr, en: msg.en, url: msg.url });
+  await env.DB.prepare('INSERT INTO studio (k, v, at) VALUES (?1, ?2, ?3) ON CONFLICT (k) DO UPDATE SET v = excluded.v, at = excluded.at').bind(k, JSON.stringify(list.slice(-10)), now).run();
+}
+const plural = (n, one, many) => `${n} ${n > 1 ? many : one}`;
+export async function morningDigests(env, now = Date.now()) {
+  const { results = [] } = await env.DB.prepare('SELECT k, v, at FROM studio WHERE k >= \'night:\' AND k < \'night;\'').all();
+  for (const row of results) {
+    const tz = cleanTz(row.k.slice(6));
+    const here = tz && localOf(now, tz);
+    if (tz && !(here.h === QUIET[1] && here.m < 10) && now - row.at < 24 * 3600e3) continue;
+    await env.DB.prepare('DELETE FROM studio WHERE k = ?1').bind(row.k).run();
+    const list = JSON.parse(row.v || '[]');
+    if (!tz || !list.length || now - row.at >= 24 * 3600e3) continue;
+    const one = list.length === 1 ? list[0] : null;
+    await queuePush(env, `night:${tz}:${here.day}`, `news,${TZ}${tz}`, one || {
+      fr: { title: `Cette nuit : ${plural(list.length, 'grosse news', 'grosses news')}`, body: list.map((x) => x.fr.body).join(' · ') },
+      en: { title: `Overnight: ${plural(list.length, 'big story', 'big stories')}`, body: list.map((x) => x.en.body).join(' · ') },
+      url: ALERTES,
+    }, now);
+  }
 }
 
 // Résultats parus depuis la lecture précédente de la saison (vainqueur, poleman) : seulement pour ceux qui
@@ -170,19 +201,24 @@ export async function pushRun(env, { fetchFn = fetch, now = Date.now(), batch = 
   await env.DB.prepare('DELETE FROM push_out WHERE at < ?1').bind(now - STALE).run();
   const job = await env.DB.prepare('SELECT id, topic, msg, cursor FROM push_out ORDER BY id LIMIT 1').first();
   if (!job) return { sent: 0 };
-  const { results: subs = [] } = await env.DB.prepare('SELECT endpoint, p256dh, auth, lang FROM push_subs WHERE instr(\',\' || topics || \',\', ?1) > 0 AND endpoint > ?2 ORDER BY endpoint LIMIT ?3')
-    .bind(`,${job.topic},`, job.cursor, batch).all();
+  // Sujet du message, et fuseau visé s'il y en a un (« sessions,tz@Europe/Paris » : rappel de la veille, news du matin)
+  const [topic, only] = job.topic.split(',');
+  const { results: subs = [] } = await env.DB.prepare('SELECT endpoint, p256dh, auth, lang, topics FROM push_subs WHERE instr(\',\' || topics || \',\', ?1) > 0 AND endpoint > ?2 AND instr(\',\' || topics || \',\', ?4) > 0 ORDER BY endpoint LIMIT ?3')
+    .bind(`,${topic},`, job.cursor, batch, only ? `,${only},` : ',').all();
   const msg = JSON.parse(job.msg);
   const keys = await vapidKeys(env);
-  const gone = [];
+  const gone = [], night = new Set();
   let sent = 0;
   await Promise.all(subs.map(async (s) => {
+    const tz = topic === 'news' && !only && cleanTz(tzOf(s.topics || ''));
+    if (tz && quiet(now, tz)) { night.add(tz); return; }
     const m = msg[s.lang] || msg.fr;
     const r = await sendPush(keys, subOf(s), { title: m.title, body: m.body, url: msg.url, id: job.id }, { fetchFn, now }).catch(() => false);
     if (r === 'gone') gone.push(s.endpoint);
     else if (r) sent++;
   }));
   for (const e of gone) await env.DB.prepare('DELETE FROM push_subs WHERE endpoint = ?1').bind(e).run();
+  for (const tz of night) await keepForMorning(env, tz, job, msg, now);
   if (subs.length < batch) await env.DB.prepare('DELETE FROM push_out WHERE id = ?1').bind(job.id).run();
   else await env.DB.prepare('UPDATE push_out SET cursor = ?1 WHERE id = ?2').bind(subs.at(-1).endpoint, job.id).run();
   return { sent, gone: gone.length, more: subs.length === batch };
