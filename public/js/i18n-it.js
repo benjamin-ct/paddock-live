@@ -2988,5 +2988,5 @@ export default {
   "Écuries au complet": "Squadre al completo",
   "Nouveaux pilotes": "Nuovi piloti",
   "aucun pour l'instant": "nessuno per ora",
-  "Annonces officielles seulement : communiqué de l'écurie ou de la F1, ou déclaration officielle d'un dirigeant de l'écurie. Un baquet sans annonce reste « à confirmer », sans nom, même quand la presse cite un favori. À jour au {}.": "Solo annunci ufficiali: comunicato della squadra o della F1, oppure dichiarazione ufficiale di un dirigente della squadra. Un sedile senza annuncio resta «da confermare», senza nome, anche quando la stampa indica un favorito. Aggiornato al {}.",
+  "Annonces officielles seulement : communiqué de l'écurie ou de la F1. Un baquet sans annonce reste « à confirmer », sans nom, même quand la presse cite un favori. À jour au {}.": "Solo annunci ufficiali: comunicato della squadra o della F1. Un sedile senza annuncio resta «da confermare», senza nome, anche quando la stampa indica un favorito. Aggiornato al {}.",
 };

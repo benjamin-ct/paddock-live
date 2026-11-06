@@ -251,7 +251,7 @@ test('Saison : page publique de la grille de la saison suivante (shared/grid-nex
   assert.equal((fr.html.match(/<tr><td>/g) || []).length, 22);
   assert.match(fr.html, /<td><b>McLaren<\/b><\/td><td><b>Lando Norris<\/b><\/td><td>Confirmé<\/td><td>29 août 2026 · <a href="https:\/\/www\.mclaren\.com\/[^"]+" rel="noopener">mclaren\.com<\/a><\/td>/);
   assert.match(fr.html, /<td><b>Mercedes<\/b><\/td><td>—<\/td><td>À confirmer<\/td><td><\/td>/);
-  assert.match(fr.html, /déclaration de Frédéric Vasseur/);
+  assert.doesNotMatch(fr.html, /déclaration de/);
   assert.match(fr.html, /Rafael Câmara remplace Esteban Ocon/);
   assert.match(fr.html, new RegExp(`<a href="/saison/${y}/grille/">`));   // dans la liste des rubriques
   const en = await ssr(`/en/season/${y}/grid/`);

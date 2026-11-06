@@ -35,5 +35,5 @@ export function renderGrid({ color }) {
       ${card(t('Nouveaux pilotes'), String(g.arrivals.length), g.arrivals.map((a) => esc(a.driver)).join(', ') || t('aucun pour l\'instant'))}
     </div>
     <div class="sz-team-grid gr-grid">${teams}</div>
-    <div class="note small">${t('Annonces officielles seulement : communiqué de l\'écurie ou de la F1, ou déclaration officielle d\'un dirigeant de l\'écurie. Un baquet sans annonce reste « à confirmer », sans nom, même quand la presse cite un favori. À jour au {}.', esc(day(GRID_NEXT.updated)))}</div>`;
+    <div class="note small">${t('Annonces officielles seulement : communiqué de l\'écurie ou de la F1. Un baquet sans annonce reste « à confirmer », sans nom, même quand la presse cite un favori. À jour au {}.', esc(day(GRID_NEXT.updated)))}</div>`;
 }

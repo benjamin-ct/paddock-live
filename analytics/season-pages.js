@@ -80,7 +80,7 @@ const FR = {
   raceLine: (r, day) => `Manche ${r.round} · ${day}`, winLine: 'Vainqueur : ', poleLine: ' · Pole : ',
   gridHead: ['Écurie', 'Pilote', 'Statut', 'Annonce'], confirmed: 'Confirmé', tbc: 'À confirmer', changes: (y) => `Changements par rapport à ${y}`,
   replaces: (a, b) => `${a} remplace ${b}`, same: (teams) => `Même duo qu'en ${GRID_NEXT.year - 1} : ${teams.join(', ')}`, by: (who) => `déclaration de ${who}`,
-  gridLine: (n, c, upd) => `${c} baquets confirmés sur ${n}. Annonces officielles seulement (communiqué de l'écurie, de la F1 ou déclaration officielle de l'écurie) : un baquet sans annonce reste « à confirmer ». À jour au ${upd}.`,
+  gridLine: (n, c, upd) => `${c} baquets confirmés sur ${n}. Annonces officielles seulement (communiqué de l'écurie ou de la F1) : un baquet sans annonce reste « à confirmer ». À jour au ${upd}.`,
   home: (done, n, d) => `${done} Grands Prix courus sur ${n}${d ? `, ${d.name} en tête avec ${d.points} points` : ''}.`,
   driverDesc: (d, year) => `Saison ${year} de ${d.name} en Formule 1 : ${FR.nth(d.pos)} du championnat avec ${d.points} points, résultats Grand Prix par Grand Prix, qualifications, grilles et points.`,
   gpDesc: (r, year, win, pole) => (r.results.length ? `Résultats du ${gpFull(r.name)} ${year} (${r.circuit}) : vainqueur ${win?.name}${pole ? `, pole ${pole.name}` : ''}, classement complet, qualifications${r.sprint ? ', sprint' : ''} et arrêts aux stands les plus rapides.`
@@ -105,7 +105,7 @@ const EN = {
   raceLine: (r, day) => `Round ${r.round} · ${day}`, winLine: 'Winner: ', poleLine: ' · Pole: ',
   gridHead: ['Team', 'Driver', 'Status', 'Announcement'], confirmed: 'Confirmed', tbc: 'To be confirmed', changes: (y) => `Changes from ${y}`,
   replaces: (a, b) => `${a} replaces ${b}`, same: (teams) => `Same pairing as in ${GRID_NEXT.year - 1}: ${teams.join(', ')}`, by: (who) => `statement by ${who}`,
-  gridLine: (n, c, upd) => `${c} of ${n} seats confirmed. Official announcements only (team or F1 announcement, or official statement by the team): a seat without one stays "to be confirmed". Updated ${upd}.`,
+  gridLine: (n, c, upd) => `${c} of ${n} seats confirmed. Official announcements only (team or F1 announcement): a seat without one stays "to be confirmed". Updated ${upd}.`,
   home: (done, n, d) => `${done} of ${n} Grands Prix run${d ? `, ${d.name} leads with ${d.points} points` : ''}.`,
   driverDesc: (d, year) => `${d.name}'s ${year} Formula 1 season: ${enNth(d.pos)} in the championship with ${d.points} points, race-by-race results, qualifying, grid positions and points.`,
   gpDesc: (r, year, win, pole) => (r.results.length ? `${gpFull(r.name, 'en')} ${year} results (${r.circuit}): won by ${win?.name}${pole ? `, pole for ${pole.name}` : ''}, full classification, qualifying${r.sprint ? ', sprint' : ''} and fastest pit stops.`

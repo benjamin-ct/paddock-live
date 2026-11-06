@@ -1,6 +1,6 @@
 // Grille de la saison suivante (marché des transferts) : aucune API avant la saison, liste tenue à la main. Annonces
-// OFFICIELLES seulement : communiqué de l'écurie, article de formula1.com, ou déclaration officielle d'un dirigeant
-// de l'écurie rapportée avec sa source (by : qui l'a faite). Un baquet sans annonce officielle reste à confirmer, sans
+// OFFICIELLES seulement : communiqué de l'écurie ou article de formula1.com (choix du 6 nov. 2026 : pas les
+// propos d'un dirigeant rapportés par la presse). Un baquet sans annonce officielle reste à confirmer, sans
 // nom (driver absent), même quand la presse cite un favori. Chaque baquet : date de l'annonce et lien vers elle ;
 // replaces : pilote de l'écurie en 2026 qu'il remplace, d'après l'annonce. was : duo de l'écurie au début de 2026.
 // Lu par l'appli (rubrique « Grille 2027 » de la Saison, ui/season-grid.js) et par le serveur (page publique,
@@ -22,8 +22,7 @@ export const GRID_NEXT = {
     ] },
     { team: 'Ferrari', id: 'ferrari', was: ['Charles Leclerc', 'Lewis Hamilton'], seats: [
       { driver: 'Charles Leclerc', date: '2026-06-03', url: 'https://www.formula1.com/en/latest/article/ferrari-announce-new-multi-year-deal-with-leclerc-ahead-of-monaco-gp.5Mz0PYSKh0YT40Af4LEJdT' },
-      // « Je peux confirmer que Lewis Hamilton sera pilote Ferrari en 2027 » (Corriere della Sera)
-      { driver: 'Lewis Hamilton', date: '2026-07-03', by: 'Frédéric Vasseur', url: 'https://www.autohebdof1.com/news/f1/Frederic-Vasseur-confirms-that-Lewis-Hamilton-will-be-a-Ferrari-driver-in-2027.html' },
+      {},   // Hamilton : déclaration de Frédéric Vasseur à la presse (juillet 2026), pas d'annonce officielle de Ferrari
     ] },
     { team: 'Williams', id: 'williams', was: ['Alex Albon', 'Carlos Sainz'], seats: [
       { driver: 'Alex Albon', date: '2026-08-18', url: 'https://www.formula1.com/en/latest/article/williams-confirm-albon-will-remain-with-the-team-in-2027.3ZwdrAmEY4MGL5Ce1eXHIQ' },
@@ -40,8 +39,8 @@ export const GRID_NEXT = {
     ] },
     // Conférence de presse de la FIA à Bakou : « nos pilotes avaient un contrat », aucun communiqué
     { team: 'Audi', id: 'audi', was: ['Nico Hülkenberg', 'Gabriel Bortoleto'], seats: [
-      { driver: 'Nico Hülkenberg', date: '2026-09-24', by: 'Mattia Binotto', url: 'https://www.grandprix.com/news/audi-confirms-hulkenberg-and-bortoleto-for-2027.html' },
-      { driver: 'Gabriel Bortoleto', date: '2026-09-24', by: 'Mattia Binotto', url: 'https://www.grandprix.com/news/audi-confirms-hulkenberg-and-bortoleto-for-2027.html' },
+      {},   // Hülkenberg et Bortoleto : propos de Mattia Binotto rapportés par la presse (sept. 2026), pas d'annonce d'Audi
+      {},
     ] },
     { team: 'Alpine', id: 'alpine', was: ['Pierre Gasly', 'Franco Colapinto'], seats: [
       { driver: 'Pierre Gasly', date: '2026-08-27', url: 'https://www.formula1.com/en/latest/article/alpine-announce-colapinto-contract-extension-as-team-confirms-unchanged-2027-line-up.DL3dVyZLJm5cHryWcHyPq' },

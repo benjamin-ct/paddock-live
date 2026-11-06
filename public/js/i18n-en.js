@@ -2989,5 +2989,5 @@ export default {
   "Écuries au complet": "Complete line-ups",
   "Nouveaux pilotes": "New drivers",
   "aucun pour l'instant": "none so far",
-  "Annonces officielles seulement : communiqué de l'écurie ou de la F1, ou déclaration officielle d'un dirigeant de l'écurie. Un baquet sans annonce reste « à confirmer », sans nom, même quand la presse cite un favori. À jour au {}.": "Official announcements only: team or F1 press release, or an official statement by a team executive. A seat without an announcement stays \"to be confirmed\", with no name, even when the press names a favourite. Updated {}.",
+  "Annonces officielles seulement : communiqué de l'écurie ou de la F1. Un baquet sans annonce reste « à confirmer », sans nom, même quand la presse cite un favori. À jour au {}.": "Official announcements only: team or F1 press release. A seat without an announcement stays \"to be confirmed\", with no name, even when the press names a favourite. Updated {}.",
 };
