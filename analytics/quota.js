@@ -8,6 +8,11 @@ async function spend(env, key, n, limit) {
   return r?.meta?.changes === 1;
 }
 
+// Jolpica (résultats officiels publics) : 500 demandes par heure au plus pour tout le Worker (JOLPICA_HOUR), comptées
+// dans « jolpica:AAAA-MM-JJTHH » avant chaque demande ; false : plafond de l'heure atteint (la demande attend l'heure
+// suivante). Base injoignable : demande permise (rien ne serait gardé de toute façon)
+export const jolpicaQuota = (env, now = Date.now()) => spend(env, `jolpica:${new Date(now).toISOString().slice(0, 13)}`, 1, Number(env.JOLPICA_HOUR) || 500).catch(() => true);
+
 // Adresse de l'appelant pour les plafonds : en IPv6, son bloc /64 (une connexion en a des milliards, qu'un
 // abuseur changerait à chaque appel) ; null hors de Cloudflare
 export function callerIp(req) {

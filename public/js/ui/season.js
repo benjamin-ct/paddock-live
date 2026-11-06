@@ -23,6 +23,7 @@ import { COUNTRY_ISO } from '/shared/country-iso.js';
 import { seasonPath, seasonTitle, slug, gpSlug, parseSeasonPath, enSeasonPath, parseEnSeasonPath, enSeasonTitle, enGpSlug, tabTitle } from '/shared/season-urls.js';
 import { circuitInfo } from '/shared/circuits-info.js';
 import { takeEarly } from './season-kpi.js';
+import { historyBlock } from './season-history.js';
 
 // Réponse déjà demandée par l'Accueil (ses cartes), sinon lue sur le serveur
 const read = (path) => takeEarly(path) || api(path);
@@ -333,6 +334,7 @@ function renderGp() {
     parts.push(dotdBlock(r));
   } else {
     parts.push(`<section class="sz-box"><h3>Programme du week-end</h3>${calDays(r)}${calIcs(r)}</section>`);
+    parts.push(historyBlock(r.circuitId, { chip, rerender: () => { if (section === 'gp' && !$('#seasonView').hidden) render(); } }));
   }
   if (r.sprintResults.length) {
     parts.push(`<section class="sz-box"><h3>Sprint</h3><div class="sz-scroll"><table class="sz-table"><tr><th>Pos.</th><th>Pilote</th><th>Temps / écart</th><th>Points</th></tr>

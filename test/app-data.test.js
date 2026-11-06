@@ -11,7 +11,7 @@ function fakeEnv() {
       prepare: (sql) => ({
         bind: (...a) => ({
           first: async () => (sql.startsWith('SELECT v FROM studio') && rows.has(a[0]) ? { v: rows.get(a[0]) } : null),
-          run: async () => { if (sql.startsWith('INSERT INTO studio')) rows.set(a[0], a[1]); return {}; },
+          run: async () => { if (sql.startsWith('INSERT INTO studio')) rows.set(a[0], a[1]); return { meta: { changes: 1 } }; },   // plafond de Jolpica : permis
           all: async () => ({ results: [] }),
         }),
       }),

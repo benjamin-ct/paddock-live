@@ -17,6 +17,7 @@ import { seasonFiaWeb, fiaTranslations, fiaDocsWeb } from './fia-tech.js';
 import { weekendTyres } from './tyres.js';
 import { destructorsWeb } from './destructors.js';
 import { circuitRecords } from './records.js';
+import { circuitHistory } from './circuit-history.js';
 import { zonesWeb } from './zones.js';
 import { surroundingsWeb, surroundingsStatus } from './surroundings.js';
 import { forecast } from '../shared/forecast.js';
@@ -853,6 +854,19 @@ export async function liveApi(req, url, env = {}) {
     const key = Number(url.searchParams.get('key')), year = Number(url.searchParams.get('year'));
     if (!env.DB || !circuitKey(key) || !Number.isInteger(year) || year < 2018 || year > new Date().getUTCFullYear() + 1) return json({ error: 'Paramètres invalides' }, 400);
     return json(await circuitRecords(env, key, year), 200, { 'Cache-Control': 'public, max-age=3600' });
+  }
+  // Le circuit dans l'histoire (fiche d'un Grand Prix à venir de la Saison) : gardé 30 min par le serveur, rien tant que
+  // la tâche planifiée ne l'a pas lu (pending)
+  if (url.pathname === '/live/api/circuit-history' && req.method === 'GET') {
+    const id = url.searchParams.get('circuit') || '';
+    if (!env.DB || !/^[a-z0-9_]{2,40}$/.test(id)) return json({ error: 'Paramètres invalides' }, 400);
+    const ck = new Request(`https://live.cache/circuit-history/${id}`);
+    const hit = await caches.default.match(ck).catch(() => null);
+    if (hit) return hit;
+    const d = await circuitHistory(env, id);
+    const res = json(d, 200, { 'Cache-Control': `public, max-age=${d.pending ? 60 : 1800}` });
+    if (!d.pending) await caches.default.put(ck, res.clone()).catch(() => {});
+    return res;
   }
   // Météo prévue sur un circuit (accueil, onglet Météo), gardée 30 min par endroit (Open-Meteo limite les demandes)
   if (url.pathname === '/live/api/forecast' && req.method === 'GET') {

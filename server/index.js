@@ -206,11 +206,12 @@ async function handleApi(req, res, url) {
       return sendJSON(res, 200, await compareLaps(hub, { a, b, until: Math.min(until, hub.clock()), la: lapNo('la'), lb: lapNo('lb') }));
     }
 
-    // Pneus du week-end, records du circuit, météo, documents FIA (et leurs PDF), photos des pilotes, statistiques
+    // Pneus du week-end, records et histoire du circuit, météo, documents FIA (et leurs PDF), photos des pilotes, statistiques
     // détaillées et documents FIA de la Saison, zones, boucles de chronométrage, altitude et alentours du circuit : lus
     // sur le serveur de Paddock Live
     case 'GET /api/tyres':
     case 'GET /api/records':
+    case 'GET /api/circuit-history':
     case 'GET /api/forecast':
     case 'GET /api/fia-docs':
     case 'GET /api/fia-pdf':
