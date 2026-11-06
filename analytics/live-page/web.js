@@ -359,6 +359,112 @@ clBtn?.addEventListener('click', () => {
   if (clList?.[0]) { try { localStorage.setItem('pl.changelog', clKey(clList[0])); } catch { /* sans stockage */ } clBtn.classList.remove('fresh'); }
 });
 
+// Alertes sur cet appareil (bouton « Alertes », derrière l'engrenage sur téléphone ; tuile de l'Accueil ; raccourci
+// /?alertes de l'icône) : mêmes abonnements que la page paddocklive.app/alertes/ (/a/key, /a/sub, /a/off, /a/test,
+// analytics/push-public.js), reçus par le service worker de la version web (/live/sw.js, notifications seulement). Un
+// appareil déjà abonné sur /alertes/ a là-bas un autre abonnement (autre origine) : il recevrait tout deux fois, d'où
+// le lien pour le désactiver. Sur iPhone et iPad : seulement dans la version web ajoutée à l'écran d'accueil
+const alertBtn = document.querySelector('#alertBtn');
+const alertBody = document.querySelector('#alertBody');
+const ALERTS_KEY = 'pl.alerts';   // { topics, tz, lang } envoyés au serveur depuis cet appareil
+const pushOk = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+const installed = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+let tz = '';
+try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch { /* moteur sans fuseau */ }
+const alertsSaved = () => { try { return JSON.parse(localStorage.getItem(ALERTS_KEY) || 'null'); } catch { return null; } };
+const pushApi = async (path, body) => {
+  const r = await fetch(`/a/${path}`, body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {});
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || `Erreur ${r.status}`);
+  return j;
+};
+const urlKey = (s) => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(s.length / 4) * 4, '=')), (c) => c.charCodeAt(0));
+let alertReg = null, alertSub = null;
+async function alertsInit() {
+  if (!pushOk || alertReg) return;
+  alertReg = await navigator.serviceWorker.register('/live/sw.js', { scope: '/' });
+  alertSub = await alertReg.pushManager.getSubscription();
+  alertBtn?.classList.toggle('on', !!alertSub);
+}
+const ALERT_TOPICS = [
+  ['sessions', 'Avant chaque séance', '30 minutes avant les essais, les qualifs, le sprint et la course, et la veille à 21 h quand une séance tombe en pleine nuit chez vous.'],
+  ['results', 'Résultats', 'Vainqueur et pole dès leur publication.', 'Dévoile la course si vous la regardez plus tard.'],
+  ['news', 'Grosses news', 'Transferts, pénalités, annonces officielles : quelques fois par semaine au plus. La nuit (23 h à 7 h), regroupées dans un seul message à 7 h.'],
+];
+function alertsRender(msg = '', ok = false) {
+  if (pushOk && !(ios && !installed)) {
+    const on = alertsSaved()?.topics || ['sessions', 'news'];
+    alertBody.innerHTML = `<p class="pair-h">${esc(t('Un rappel avant chaque séance, les résultats si vous le voulez et les grosses news, même l\'appli fermée.'))}</p>
+      <div class="al-topics">${ALERT_TOPICS.map(([k, title, sub, warn]) => `<label class="al-topic"><input type="checkbox" name="alt" value="${k}"${on.includes(k) ? ' checked' : ''}><span><b>${esc(t(title))}</b><small>${esc(t(sub))}${warn ? ` <em>${esc(t(warn))}</em>` : ''}</small></span></label>`).join('')}</div>
+      <div class="al-acts">${alertSub
+    ? `<button type="button" class="btn" data-al="save">${esc(t('Enregistrer'))}</button><button type="button" class="btn" data-al="test">${esc(t('Envoyer un essai'))}</button><button type="button" class="btn" data-al="off">${esc(t('Tout désactiver'))}</button>`
+    : `<button type="button" class="btn btn-accent" data-al="on">${esc(t('Activer les alertes'))}</button>`}</div>
+      <p class="pair-note al-state${ok ? ' ok' : msg ? ' err' : ''}" role="status">${esc(msg || (alertSub ? t('Alertes actives sur cet appareil.') : ''))}</p>
+      ${!installed && !ios && matchMedia('(pointer: coarse)').matches ? `<p class="pair-note">${esc(t('Pour tout avoir sous une seule icône : menu du navigateur, puis « Installer l\'appli » ou « Ajouter à l\'écran d\'accueil ».'))}</p>` : ''}
+      <div class="al-fine"><p>${esc(t('Déjà abonné sur la page des alertes du site ? Désactivez-les là-bas, sinon chaque alerte arrive deux fois :'))} <a href="https://paddocklive.app/alertes/" target="_blank" rel="noopener">paddocklive.app/alertes</a></p>
+      <p>${esc(t('Gardés sur notre serveur : l\'adresse de notification et les clés de cet appareil, vos sujets, votre langue et votre fuseau horaire. Rien d\'autre, sans compte. Effacés quand vous désactivez les alertes.'))} <a href="https://paddocklive.app/legal/privacy#alertes" target="_blank" rel="noopener">${esc(t('Confidentialité'))}</a></p></div>`;
+    return;
+  }
+  // iPhone et iPad dans Safari : notifications seulement depuis l'écran d'accueil (iOS 16.4 et plus récents)
+  alertBody.innerHTML = ios
+    ? `<p class="al-kicker">${esc(t('iPhone et iPad'))}</p><p class="pair-h">${esc(t('Les alertes arrivent dans Paddock Live ajouté à l\'écran d\'accueil (iOS 16.4 ou plus récent) :'))}</p>
+      <ol class="al-steps"><li>${esc(t('Dans Safari, touchez Partager (sous « ··· » depuis iOS 26).'))}</li><li>${esc(t('Choisissez « Sur l\'écran d\'accueil », puis « Ajouter ».'))}</li><li>${esc(t('Ouvrez Paddock Live depuis sa nouvelle icône, puis Alertes.'))}</li></ol>`
+    : `<p class="pair-h">${esc(t('Ce navigateur ne peut pas recevoir de notifications. Essayez Chrome, Firefox, Edge ou Safari.'))}</p>`;
+}
+const alertTopics = () => [...alertBody.querySelectorAll('input[name=alt]:checked')].map((x) => x.value);
+async function alertsSave(topics = alertTopics()) {
+  if (!topics.length) return alertsOff();
+  await pushApi('sub', { subscription: alertSub.toJSON(), topics, lang: LANG, tz });
+  try { localStorage.setItem(ALERTS_KEY, JSON.stringify({ topics, tz, lang: LANG })); } catch { /* sans stockage */ }
+  alertBtn?.classList.add('on');
+}
+async function alertsOff() {
+  if (alertSub) {
+    await pushApi('off', { endpoint: alertSub.endpoint }).catch(() => {});
+    await alertSub.unsubscribe().catch(() => {});
+  }
+  alertSub = null;
+  try { localStorage.removeItem(ALERTS_KEY); } catch { /* sans stockage */ }
+  alertBtn?.classList.remove('on');
+}
+const ALERT_ACTS = {
+  // Permission demandée d'abord, dans le geste du doigt (exigé par Safari sur iPhone)
+  on: async () => {
+    const topics = alertTopics();
+    if (!topics.length) throw new Error(t('Choisissez au moins un sujet.'));
+    if (await Notification.requestPermission() !== 'granted') throw new Error(t('Notifications refusées : autorisez-les dans les réglages du navigateur ou de l\'appareil.'));
+    await alertsInit();
+    const { key } = await pushApi('key');
+    alertSub = await alertReg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlKey(key) });
+    await alertsSave(topics);
+    return t('Alertes actives sur cet appareil.');
+  },
+  save: async () => { await alertsSave(); return alertSub ? t('Alertes actives sur cet appareil.') : t('Alertes désactivées.'); },
+  test: async () => { await pushApi('test', { endpoint: alertSub.endpoint }); return t('Essai envoyé : il arrive dans quelques secondes.'); },
+  off: async () => { await alertsOff(); return t('Alertes désactivées.'); },
+};
+alertBody?.addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-al]');
+  if (!b) return;
+  b.disabled = true;
+  try { alertsRender(await ALERT_ACTS[b.dataset.al](), true); } catch (err) { alertsRender(err.message); }
+});
+alertBtn?.addEventListener('click', async () => {
+  webMenu(false);
+  alertsRender();
+  document.querySelector('#alertDlg').showModal();
+  try { await alertsInit(); alertsRender(); } catch (err) { alertsRender(err.message); }
+});
+// Abonné depuis cet appareil : fuseau ou langue changés depuis, renvoyés au serveur (rappel de la veille à 21 h chez soi)
+if (pushOk && alertsSaved()) {
+  alertsInit().then(() => {
+    const s = alertsSaved();
+    if (!alertSub) { try { localStorage.removeItem(ALERTS_KEY); } catch { /* sans stockage */ } return; }
+    if (s.tz !== tz || s.lang !== LANG) alertsSave(s.topics).catch(() => {});
+  }).catch(() => {});
+}
+
 const safe = (fn) => { try { fn(); } catch (err) { console.error(err); } };
 // Relais qui vient de redémarrer : rien n'est montré avant que le délai TV l'ait rattrapé (pas de spoiler)
 const waitBar = document.querySelector('#webWait');
@@ -448,6 +554,13 @@ const webMenu = (open) => {
 };
 document.querySelector('#webMenuBtn').addEventListener('click', () => webMenu(!topbar.classList.contains('menu-open')));
 document.querySelector('#seasonBtn').addEventListener('click', () => webMenu(false));
+// Raccourcis de l'icône (Android, manifest.webmanifest) : /?direct ouvre le Direct, /?alertes les alertes ; adresse nettoyée
+const shortcut = /^\?(direct|alertes)$/.exec(location.search)?.[1];
+if (shortcut) {
+  history.replaceState(null, '', location.pathname);
+  if (shortcut === 'direct') document.querySelector('#webNav [data-nav="live"]')?.click();
+  else alertBtn?.click();
+}
 // Saison ouverte : toucher la séance en haut revient au direct
 document.querySelector('.topbar .session').addEventListener('click', () => { if (!document.querySelector('#seasonView').hidden) closeSeason(); });
 // Panneau Analyse : la télémétrie du pilote suivi dans l'écran principal, les autres onglets dans la fenêtre « Analyse »

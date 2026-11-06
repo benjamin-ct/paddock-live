@@ -43,11 +43,13 @@ import { seasonSsr, seasonSitemap, legacySeasonUrl, parseEnSeasonPath, seasonRew
 import { parseSeasonPath } from '../shared/season-urls.js';
 import { LIVE_HEADERS, STUDIO_HEADERS } from './live-page/headers.js';
 
-// Fichier de la version web, avec ses en-têtes de sécurité (le fichier _headers ne s'applique pas ici)
+// Fichier de la version web, avec ses en-têtes de sécurité (le fichier _headers ne s'applique pas ici). Service worker
+// des alertes (/live/sw.js) : permis pour toute la page, servie à la racine
 async function liveAsset(env, req) {
   const res = await env.ASSETS.fetch(req);
   const out = new Response(res.body, res);
   for (const [k, v] of Object.entries(LIVE_HEADERS)) out.headers.set(k, v);
+  if (new URL(req.url).pathname === '/live/sw.js') out.headers.set('Service-Worker-Allowed', '/');
   return out;
 }
 

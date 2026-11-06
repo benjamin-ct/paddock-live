@@ -159,6 +159,12 @@ l'application (Réglages → À propos → Nouveautés).
   recharge sur la Saison au lieu de ne rien faire.
 - Appairage avec l'appli : codes à 8 chiffres (les codes à 6 chiffres marchent encore) et protection contre les essais
   en masse.
+- Alertes dans la version web, sans passer par une autre page : bouton « Alertes » (derrière l'engrenage sur téléphone)
+  et tuile de l'Accueil. Rappel 30 minutes avant chaque séance, résultats si vous le voulez, grosses news, avec un
+  essai. Une notification ouvre la version web (ou l'article d'une grosse news). Sur iPhone et iPad, un petit guide
+  pour ajouter Paddock Live à l'écran d'accueil, où les alertes arrivent. Déjà abonné sur paddocklive.app/alertes ?
+  Désactivez les alertes là-bas pour ne pas tout recevoir deux fois.
+- Android : appui long sur l'icône de la version web installée pour aller droit au Direct, à la Saison ou aux Alertes.
 
 ### Langues
 - Alertes de course (« Piste dégagée », « VER abandonne »…) et plusieurs petits morceaux de texte (pneus neufs ou

@@ -11,5 +11,10 @@
   "icons": [
     { "src": "/live/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
     { "src": "/live/apple-touch-icon.png", "sizes": "180x180", "type": "image/png" }
+  ],
+  "shortcuts": [
+    { "name": "Direct", "url": "/?direct", "icons": [{ "src": "/live/icon-512.png", "sizes": "512x512", "type": "image/png" }] },
+    { "name": "Saison", "description": "Calendrier, classements et résultats", "url": "/saison/", "icons": [{ "src": "/live/icon-512.png", "sizes": "512x512", "type": "image/png" }] },
+    { "name": "Alertes", "description": "Rappel avant chaque séance, résultats, grosses news", "url": "/?alertes", "icons": [{ "src": "/live/icon-512.png", "sizes": "512x512", "type": "image/png" }] }
   ]
 }
