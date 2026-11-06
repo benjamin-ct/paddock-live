@@ -13,6 +13,7 @@ l'application (Réglages → À propos → Nouveautés).
 - Carte avec le GPS sur un réseau mobile : les voitures ne font plus de petits sauts toutes les quelques secondes.
   L'heure du serveur, qui cale l'affichage sur la TV, se rattrape en douceur au lieu de bondir quand un message
   arrive en retard.
+- Téléphone : l'engrenage des réglages du direct est bien centré dans son bouton.
 
 ## v1.32.0 — 2026-11-06
 
