@@ -1276,6 +1276,8 @@ body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-selec
 .cal-s { display: flex; justify-content: space-between; gap: 12px; padding: 6px 10px; font-size: 13px; border-top: 1px solid var(--line); }
 .cal-s:first-of-type { border-top: 0; }
 .cal-s b { font-variant-numeric: tabular-nums; }
+.night { display: inline-flex; vertical-align: -2px; margin-right: 5px; color: var(--muted); }
+.night .ic { width: 13px; height: 13px; }
 .cal-s.past { color: var(--muted); }
 .cal-progress { display: flex; align-items: center; gap: 14px; color: var(--text-2); font-size: 13px; }
 .cal-progress .sz-progress { flex: 1; margin: 0; }

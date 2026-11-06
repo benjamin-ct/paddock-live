@@ -2,7 +2,7 @@
 // résultat (replay depuis le début ou tableau de bord), dernières actualités, raccourcis.
 // Ouverte au lancement quand aucune séance n'est en cours ; pendant une séance, l'appli s'ouvre
 // directement sur le Direct.
-import { $, $$, esc, api, drivers, placeView, hideBoot, dayIn, teamColor, teamLogo, teamMark, photoUrl, OFFICIAL } from '../util.js';
+import { $, $$, esc, api, drivers, placeView, hideBoot, dayIn, teamColor, teamLogo, teamMark, photoUrl, OFFICIAL, nightMark } from '../util.js';
 import { store, on } from '../store.js';
 import { icon } from '../icons.js';
 import { DEC, LOCALE, LANG, t } from '../i18n.js';
@@ -104,7 +104,7 @@ function daysHtml(nx) {
   }
   const hm = (t) => new Date(t).toLocaleTimeString(LOCALE, { hour: '2-digit', minute: '2-digit' });
   return `<div class="cal-days">${[...days.values()].map((d) => `<div class="cal-day"><div class="cal-day-h">${esc(new Date(d.t).toLocaleDateString(LOCALE, { weekday: 'short', day: 'numeric' }))}</div>
-    ${d.list.map((s) => `<div class="cal-s ${s.t < Date.now() ? 'past' : ''} ${s === nx ? 'now' : ''}"><span>${esc(s.label)}</span><b>${hm(s.t)}</b></div>`).join('')}</div>`).join('')}</div>`;
+    ${d.list.map((s) => `<div class="cal-s ${s.t < Date.now() ? 'past' : ''} ${s === nx ? 'now' : ''}"><span>${esc(s.label)}</span><b>${nightMark(s.t)}${hm(s.t)}</b></div>`).join('')}</div>`).join('')}</div>`;
 }
 const gp = (name) => gpShort(name, LANG);
 
@@ -459,7 +459,7 @@ function render() {
     ? `<section class="hm-card hm-next hm-off"><div class="hm-next-main"><div class="hm-kicker"><span class="hm-tag">${t('Hors saison')}</span></div>
         ${nx ? `<div class="hm-title">${flag(nx.country)}<span>${t('Saison {}', nx.year)} : ${esc(gp(nx.race))} <small>${esc(nx.label)}</small></span></div>
         <div class="hm-count" id="hmCount" role="timer">${countHtml(nx.t - Date.now())}</div>
-        <div class="muted">${esc(when(nx.t))}</div>`
+        <div class="muted">${nightMark(nx.t)}${esc(when(nx.t))}</div>`
     : `<div class="hm-title">${t('Calendrier {} bientôt publié', past + 1)}</div>`}
         <div class="hm-actions"><button class="btn btn-accent" data-home="review:${past}">${icon('trophy')} ${t('Bilan de la saison {}', past)}</button>
           ${store.web ? '' : `<button class="btn" data-home="replays">${icon('history')} ${t('Revoir les courses')}</button>
@@ -472,7 +472,7 @@ function render() {
     : `<section class="hm-card hm-next"><div class="hm-next-main"><div class="hm-kicker"><span class="hm-tag">Prochaine séance</span>${nx ? `<span class="hm-round">Manche ${nx.round}</span>` : ''}</div>
         ${nx ? `<div class="hm-title">${flag(nx.country)}<span>${esc(gp(nx.race))} <small>${esc(nx.label)}</small></span></div>
         <div class="hm-count" id="hmCount" role="timer">${countHtml(nx.t - Date.now())}</div>
-        <div class="muted">${esc(when(nx.t))}</div>
+        <div class="muted">${nightMark(nx.t)}${esc(when(nx.t))}</div>
         ${weatherHtml(nx)}
         <div class="hm-actions"><a class="btn small" href="#" data-cal="${nx.year}" data-round="${nx.round}" title="Séances dans votre agenda (Google, Apple, Outlook)">${icon('calendar')} Ajouter ce week-end à mon agenda</a></div></div>
         ${daysHtml(nx)}`

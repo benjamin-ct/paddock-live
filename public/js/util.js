@@ -3,7 +3,8 @@ import { parseLapTime, parseUtc } from '/shared/f1.js';
 import { onLight } from '/shared/colors.js';
 import { portraitUrl } from '/shared/portraits.js';
 import { teamLogoUrl } from '/shared/team-logos.js';
-import { DEC, LOCALE } from './i18n.js';
+import { DEC, LOCALE, t } from './i18n.js';
+import { icon } from './icons.js';
 
 export const $ = (sel, root = document) => root.querySelector(sel);
 export const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
@@ -229,3 +230,9 @@ export function hideBoot() {
   el.classList.add('out');
   setTimeout(() => el.remove(), 400);
 }
+
+// Lune devant l'heure d'une séance qui commence entre minuit et 7 h chez soi (accueil, calendrier)
+export const nightMark = (at) => {
+  const d = new Date(at);
+  return at && d.getHours() < 7 ? `<span class="night" title="${t('Séance de nuit chez vous')}">${icon('moon')}</span>` : '';
+};
