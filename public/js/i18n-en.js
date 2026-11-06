@@ -2957,4 +2957,12 @@ export default {
   "Commissaires sur la piste": "Marshals on track",
   "Véhicule de dépannage sur la piste": "Recovery vehicle on track",
   "Tours supprimés par virage, incidents et piste glissante des dernières minutes (pilotes au survol)": "Deleted laps per corner, incidents and slippery surface from the last few minutes (drivers on hover)",
+  "DERNIER TOUR": "FINAL LAP",
+  "À TEMPS": "IN TIME",
+  "JUSTE": "TIGHT",
+  "TROP TARD": "TOO LATE",
+  "Dernier tour : commencé avant le drapeau, il finira après": "Final lap: started before the flag, it will end after it",
+  "Passe la ligne environ {} s avant le drapeau : encore un tour possible": "Crosses the line about {} s before the flag: one more lap possible",
+  "Juste : la ligne et le drapeau à quelques secondes près": "Tight: the line and the flag within a few seconds",
+  "Trop tard : passe la ligne environ {} s après le drapeau": "Too late: crosses the line about {} s after the flag",
 };

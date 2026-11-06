@@ -2956,4 +2956,12 @@ export default {
   "Commissaires sur la piste": "Comisarios en pista",
   "Véhicule de dépannage sur la piste": "Vehículo de rescate en pista",
   "Tours supprimés par virage, incidents et piste glissante des dernières minutes (pilotes au survol)": "Vueltas anuladas por curva, incidentes y pista deslizante de los últimos minutos (pilotos al pasar el ratón)",
+  "DERNIER TOUR": "ÚLTIMA VUELTA",
+  "À TEMPS": "A TIEMPO",
+  "JUSTE": "JUSTO",
+  "TROP TARD": "SIN TIEMPO",
+  "Dernier tour : commencé avant le drapeau, il finira après": "Última vuelta: empezada antes de la bandera, terminará después",
+  "Passe la ligne environ {} s avant le drapeau : encore un tour possible": "Cruza la línea unos {} s antes de la bandera: aún cabe otra vuelta",
+  "Juste : la ligne et le drapeau à quelques secondes près": "Justo: la línea y la bandera con pocos segundos de diferencia",
+  "Trop tard : passe la ligne environ {} s après le drapeau": "Sin tiempo: cruza la línea unos {} s después de la bandera",
 };

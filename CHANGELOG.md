@@ -91,6 +91,10 @@ l'application (Réglages → À propos → Nouveautés).
 - Tendances, en essais libres : nouvelle partie « Relais longs », avec chaque relais de 5 tours propres ou plus par
   pilote et par pneu (rythme médian corrigé de l'allègement en carburant, perte par tour), puis le classement des
   écuries sur chaque pneu. Une indication seulement : l'essence embarquée par chaque écurie n'est pas connue.
+- Qualifs, « Encore un tour ? » : dans les 3 dernières minutes de Q1, Q2 et Q3, avec le GPS F1 TV, une étiquette par
+  pilote dans le classement dit s'il passera la ligne avant le drapeau (À TEMPS, en vert), de justesse (JUSTE, en
+  orange) ou trop tard (TROP TARD, en gris), d'après sa place sur le tour et son allure ; DERNIER TOUR pour un tour lancé
+  commencé à temps qui finira après le drapeau.
 
 ### Version web
 - Téléphone : la météo du week-end (longueur, course, prévision, pluie) est calée à gauche dans la barre du haut, sans
