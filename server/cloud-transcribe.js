@@ -21,8 +21,8 @@ export function createCloudTranscriber({ url = RADIO_URL, fetch = request, audio
   const available = () => !!url && now() >= pausedUntil;
   const pause = () => { pausedUntil = now() + PAUSE_MS; };
 
-  async function ask(rel) {
-    const body = await audio(rel);   // erreur d'archive (fichier absent, accès refusé) : remontée telle quelle
+  async function ask(rel, given = null) {
+    const body = given || await audio(rel);   // erreur d'archive (fichier absent, accès refusé) : remontée telle quelle
     if (!body?.length || body.length > MAX_AUDIO) return null;
     const hash = crypto.createHash('sha256').update(body).digest('hex');
     try {
@@ -54,6 +54,12 @@ export function createCloudTranscriber({ url = RADIO_URL, fetch = request, audio
       if (!available()) return Promise.resolve(null);
       if (!running.has(rel)) running.set(rel, ask(rel).finally(() => running.delete(rel)));
       return running.get(rel);
+    },
+    // Son déjà pris par l'interface (navigateur de l'appli, la F1 refusant le serveur local) -> { text, d }, ou null
+    transcribeAudio(rel, body) {
+      if (memo.has(rel)) return Promise.resolve(memo.get(rel));
+      if (!available()) return Promise.resolve(null);
+      return ask(rel, body);
     },
   };
 }

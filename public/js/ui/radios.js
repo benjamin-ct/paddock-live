@@ -25,9 +25,10 @@ const list = (o) => (!o ? [] : Array.isArray(o) ? o.filter(Boolean) : Object.key
 const base = () => (store.state.SessionInfo?.Path ? `https://livetiming.formula1.com/static/${store.state.SessionInfo.Path}` : null);
 // Les archives de la F1 ne sont plus ouvertes à tous : les radios passent par l'appli (connexion F1 TV)
 const ARCHIVE = 'https://livetiming.formula1.com/static/';
-// Son d'une radio : par le serveur local (appli de bureau). Version web : pris directement chez la F1 par le téléphone
-// ou l'ordinateur, la F1 refusant les réseaux de serveurs (le relais du Worker n'y a plus accès)
-const playable = (url) => (store.web || !url.startsWith(ARCHIVE) ? url : `/api/archive/file?p=${encodeURIComponent(url.slice(ARCHIVE.length))}`);
+// Son d'une radio : pris directement chez la F1 par le navigateur de l'appli ou de la version web (la F1 refuse les
+// réseaux de serveurs et les programmes, pas les navigateurs) ; appli de bureau, échec : par son serveur local
+// (archives, connexion F1 TV, miroir public)
+const viaServer = (url) => `/api/archive/file?p=${encodeURIComponent(url.slice(ARCHIVE.length))}`;
 const fmtDur = (s) => (Number.isFinite(s) && s > 0 ? `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}` : '');
 
 let heard = new Set(storageGet(HEARD_KEY, []));
@@ -227,7 +228,10 @@ function player() {
     else if (done) refresh(done.url);
   });
   // Son introuvable (la F1 ne l'a pas donné) : la carte ne reste pas « en lecture » en silence
-  audio.addEventListener('error', () => { const done = cur; cur = null; if (done) refresh(done.url); });
+  audio.addEventListener('error', () => {
+    if (cur && !store.web && !cur.viaServer && cur.url.startsWith(ARCHIVE)) { cur.viaServer = true; audio.src = viaServer(cur.url); audio.play().catch(() => {}); return; }
+    const done = cur; cur = null; if (done) refresh(done.url);
+  });
   return audio;
 }
 
@@ -240,7 +244,7 @@ export function playRadio(url) {
   const prev = cur;
   track('feature.radio-play');
   cur = { url, num: ordered.find((x) => x.url === url)?.num };
-  a.src = playable(url);
+  a.src = url;
   a.playbackRate = speed;
   markHeard(url);
   if (prev) refresh(prev.url);

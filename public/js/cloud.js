@@ -22,8 +22,9 @@ export async function cloudTranscribe(url) {
       const r = await res.json();
       return typeof r?.text === 'string' ? r : null;
     }
-    // Version web : le serveur n'a pas eu le son (la F1 refuse les réseaux de serveurs) : pris ici, puis envoyé
-    if (res.status === 400 && document.documentElement.classList.contains('web')) return await sendAudio(url);
+    // Le serveur n'a pas eu le son (la F1 refuse les serveurs et les programmes) : pris ici, puis envoyé (version web :
+    // 400 du Worker ; appli : 401 ou 403 de son serveur local, archives refusées)
+    if ([400, 401, 403].includes(res.status)) return await sendAudio(url);
     if (res.status >= 500 || res.status === 429) asrOffUntil = Date.now() + 10 * 60e3;   // 502 (archive F1 lente)… : pas « sans parole »
   } catch { asrOffUntil = Date.now() + 10 * 60e3; }
   return null;
@@ -37,8 +38,10 @@ async function sendAudio(url) {
   const body = await a.arrayBuffer();
   if (!body.byteLength || body.byteLength > 2 * 1024 * 1024) return null;
   const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', body))].map((b) => b.toString(16).padStart(2, '0')).join('');
-  let r = await fetch(`/r/${hash}`).catch(() => null);
-  if (r?.status !== 200) r = await fetch('/r', { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body }).catch(() => null);
+  const web = document.documentElement.classList.contains('web');
+  // Appli de bureau : par son serveur local (même transcription partagée)
+  let r = web ? await fetch(`/r/${hash}`).catch(() => null) : null;
+  if (r?.status !== 200) r = await fetch(web ? '/r' : `/api/radio-text?u=${encodeURIComponent(url)}`, { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body }).catch(() => null);
   if (r && (r.status === 429 || r.status >= 500)) asrOffUntil = Date.now() + 10 * 60e3;
   const j = r?.ok ? await r.json().catch(() => null) : null;
   return typeof j?.text === 'string' ? j : null;
