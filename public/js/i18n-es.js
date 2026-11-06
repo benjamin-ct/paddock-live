@@ -3032,5 +3032,4 @@ export default {
   "Tours neutralisés": "Vueltas neutralizadas",
   "Toutes les courses disputées sur ce circuit comptent, même avant une modification du tracé.": "Cuentan todas las carreras disputadas en este circuito, incluso antes de un cambio de trazado.",
   "Neutralisations, arrêts et places gagnées : analyse des archives de la F1, depuis {}.": "Neutralizaciones, paradas y posiciones ganadas: análisis de los archivos de la F1, desde {}.",
-  "Courses passées en cours d'analyse.": "Carreras pasadas en análisis.",
 };

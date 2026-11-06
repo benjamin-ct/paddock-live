@@ -129,9 +129,7 @@ test('histoire du circuit : réponse gardée, chiffres des courses analysées, s
   const h = await circuitHistory(env, 'rodriguez', { now });
   assert.equal(h.races, 3);
   assert.deepEqual([h.recent.analysed, h.recent.neutralised, h.recent.stops], [1, 1, 3]);
-  assert.equal(h.pendingStats, true);
-  assert.equal(env.DB.studio.get('racewant:2024'), String(now));   // 2023 a échoué : pas redemandée
-  assert.equal(env.DB.studio.has('racewant:2023'), false);
+  assert.equal([...env.DB.studio.keys()].some((k) => k.startsWith('racewant:')), false, 'aucune analyse demandée');
   // Adresse : paramètres vérifiés, réponse gardée par le serveur une fois prête
   const kept = new Map();
   globalThis.caches = { default: { match: async (r) => kept.get(r.url)?.clone() || null, put: async (r, res) => { kept.set(r.url, res); } } };

@@ -10,7 +10,6 @@ import { winnersOf, historySummary, raceFigures } from '../shared/circuit-histor
 import { FIRST_YEAR } from '../shared/circuit-records.js';
 
 const RETRY = 3600e3;   // lecture ratée, ou course terminée pas encore chez Jolpica : nouvel essai une heure plus tard
-const WANT = 10 * 60e3;
 export const historyKey = (id) => `cirhist:${id}`;
 
 // Tâche planifiée : le premier circuit des calendriers (saison en cours, et la suivante si la base l'a déjà) jamais lu,
@@ -37,21 +36,17 @@ export async function historyTick(env, { now = Date.now(), fetchFn = fetch, wait
   return null;
 }
 
-// Réponse de /live/api/circuit-history : { pending } tant que la tâche planifiée n'a pas lu le circuit. Course d'une
-// saison passée pas encore analysée : sa saison est demandée à l'analyse des archives (racewant, comme l'espace Saison
-// de la version web quand on ouvre ses statistiques), la plus récente d'abord
-export async function circuitHistory(env, id, { now = Date.now() } = {}) {
+// Réponse de /live/api/circuit-history : { pending } tant que la tâche planifiée n'a pas lu le circuit. Chiffres depuis
+// 2018 : seulement les courses déjà analysées (choix du 6 nov. 2026 : aucune analyse d'archives demandée pour ce bloc)
+export async function circuitHistory(env, id) {
   const row = await readJSON(env, historyKey(id), null);
   if (!row?.v) return { circuitId: id, pending: true };
   const figures = new Map();
-  let want = null;
   for (const w of row.v.filter((x) => x.y >= FIRST_YEAR)) {
     if (figures.has(`${w.y}:${w.round}`)) continue;
     let d = null;
     try { d = JSON.parse(await getRow(env, `racestats:${w.y}:${w.round}`) || 'null'); } catch { /* ligne illisible */ }
     if (d?.v === STATS_VERSION) figures.set(`${w.y}:${w.round}`, raceFigures(d));
-    else if (!d?.failed && w.y < new Date(now).getUTCFullYear()) want = w.y;
   }
-  if (want && now - Number(await getRow(env, `racewant:${want}`) || 0) > WANT) await setRow(env, `racewant:${want}`, String(now));
-  return { circuitId: id, ...historySummary(row.v, figures), pendingStats: !!want, at: row.at };
+  return { circuitId: id, ...historySummary(row.v, figures), at: row.at };
 }

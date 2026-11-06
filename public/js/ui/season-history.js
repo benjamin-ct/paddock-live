@@ -54,5 +54,5 @@ export function historyBlock(id, { chip, rerender }) {
     <div class="muted">${t('{} course(s) sur ce circuit depuis {}', h.races, h.first)}${since}</div>
     <div class="sz-cards sz-kpis">${cards.join('')}</div>
     <div class="sz-scroll"><table class="sz-table"><tr><th>${t('Année')}</th><th>${t('Vainqueur')}</th><th>${t('Départ')}</th><th>${t('Tours neutralisés')}</th><th>${t('Arrêts')}</th><th>${t('Places gagnées')}</th></tr>${rows}</table></div>
-    <div class="muted small">${t('Toutes les courses disputées sur ce circuit comptent, même avant une modification du tracé.')} ${t('Neutralisations, arrêts et places gagnées : analyse des archives de la F1, depuis {}.', r?.from || 2018)}${h.pendingStats ? ` ${t('Courses passées en cours d\'analyse.')}` : ''}</div></section>`;
+    <div class="muted small">${t('Toutes les courses disputées sur ce circuit comptent, même avant une modification du tracé.')} ${t('Neutralisations, arrêts et places gagnées : analyse des archives de la F1, depuis {}.', r?.from || 2018)}</div></section>`;
 }
