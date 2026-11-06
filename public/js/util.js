@@ -236,3 +236,16 @@ export const nightMark = (at) => {
   const d = new Date(at);
   return at && d.getHours() < 7 ? `<span class="night" title="${t('Séance de nuit chez vous')}">${icon('moon')}</span>` : '';
 };
+
+// Programme du week-end expliqué (accueil, calendrier) : une phrase courte sous chaque séance, étoile sur celles à ne
+// pas rater ; libellés du calendrier (shared/season-data.js). time : heure déjà mise en forme (lune comprise)
+const SESSION_NOTES = {
+  EL1: 'Premiers tours et réglages', EL2: 'Simulations de qualifs et de course', EL3: 'Derniers réglages avant les qualifs',
+  'Qualif. sprint': 'Décident l\'ordre de départ du sprint', Sprint: 'Course courte, points aux 8 premiers',
+  Qualifications: 'Décident l\'ordre de départ, à ne pas rater', Course: 'Le Grand Prix, le plus de points en jeu',
+};
+const KEY_SESSIONS = new Set(['Qualifications', 'Sprint', 'Course']);
+export const calSession = (label, time, cls, sprint) => {
+  const note = label === 'EL1' && sprint ? 'Seuls essais libres du week-end' : SESSION_NOTES[label];
+  return `<div class="cal-s ${cls}"><span>${KEY_SESSIONS.has(label) ? `<span class="cal-key" title="À ne pas rater">${icon('star')}</span>` : ''}${esc(label)}</span><b>${time}</b>${note ? `<small class="cal-why">${note}</small>` : ''}</div>`;
+};

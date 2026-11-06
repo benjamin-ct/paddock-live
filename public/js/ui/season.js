@@ -2,7 +2,7 @@
 // séance, calendrier, classements avec évolution des points, résultats et records, duels entre
 // coéquipiers, statistiques détaillées. Données : API Jolpica (via le serveur, /api/season) et
 // analyse des archives F1 Live Timing (/api/season/stats).
-import { $, esc, api, teamColor, teamLogo, photoUrl, placeView, driverOpt, OFFICIAL, ink, nightMark } from '../util.js';
+import { $, esc, api, teamColor, teamLogo, photoUrl, placeView, driverOpt, OFFICIAL, ink, nightMark, calSession } from '../util.js';
 import { store } from '../store.js';
 import { cellBar, skeleton, renderDrivers, renderConsistency, renderPits, renderSpeeds, renderCircuits, renderRatings, gradeBadge, stopTxt, DHL_NOTE, statusFr, fmtLap, dnaBlock, setHistKind, circuitLength } from './season-stats.js';
 import { driverRatings, qualiGaps, titleRace, placeForMaxPoints, retired, standingsAfter, lineage, pointsPath, shortTeams, teamPoleGaps, median, teamMileage } from '/shared/season-calc.js';
@@ -296,7 +296,7 @@ function calDays(r) {
   }
   const nx = nextSession()?.s;   // prochaine séance en rouge, comme sur l'accueil
   return `<div class="cal-days">${[...days.values()].map((d) => `<div class="cal-day"><div class="cal-day-h">${esc(fmtDate(d.t, { weekday: 'short', day: 'numeric' }))}</div>
-    ${d.list.map((s) => `<div class="cal-s ${Date.parse(s.t) < Date.now() ? 'past' : ''} ${s === nx ? 'now' : ''}"><span>${esc(s.label)}</span><b>${s.t ? nightMark(s.t) + fmtTime(s.t) : '—'}</b></div>`).join('')}</div>`).join('')}</div>`;
+    ${d.list.map((s) => calSession(s.label, s.t ? nightMark(s.t) + fmtTime(s.t) : '—', `${Date.parse(s.t) < Date.now() ? 'past' : ''} ${s === nx ? 'now' : ''}`, r.sprint)).join('')}</div>`).join('')}</div>`;
 }
 // Lien vers la fiche d'un Grand Prix (vraie adresse dans la version web, pour la partager et pour les moteurs de recherche)
 // Version web en anglais : adresses anglaises (/en/season/…, nom anglais du Grand Prix), comme les pages du serveur
@@ -447,7 +447,7 @@ function renderCalendar() {
   const iso = next && COUNTRY_ISO[next.country];
   const hero = next ? `<section class="cal-hero"${iso ? ` style="--flag:url('https://flagcdn.com/w640/${iso}.png')"` : ''}>
       <div class="cal-hero-main">
-        <div class="cal-hero-top"><span class="cal-tag">Prochain Grand Prix</span><span class="cal-round">Manche ${next.round} / ${data.races.length}</span>${next.sprint ? '<span class="sz-tag sprint">Sprint</span>' : ''}</div>
+        <div class="cal-hero-top"><span class="cal-tag">Prochain Grand Prix</span><span class="cal-round">Manche ${next.round} / ${data.races.length}</span>${next.sprint ? '<span class="sz-tag sprint">Week-end sprint</span>' : ''}</div>
         <h2 class="cal-hero-name">${flagOf(next)}${esc(gpShort(next.name, LANG))}</h2>
         <div class="cal-hero-sub">${esc([next.circuit, next.locality].filter(Boolean).join(' · '))} · ${calSpan(next)}</div>
         <div class="cal-next">${esc(nx.s.label)} dans</div>
