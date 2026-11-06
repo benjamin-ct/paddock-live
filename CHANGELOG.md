@@ -21,6 +21,11 @@ l'application (Réglages → À propos → Nouveautés).
   phrase simple dit à quoi elle sert (« Qualifications : décident l'ordre de départ, à ne pas rater »), une étoile
   marque celles à ne pas rater (qualifications, sprint, course) et un repère « Week-end sprint » signale les week-ends
   au format sprint.
+- « Avant le départ en une minute » : dans l'heure qui précède la course, une carte en tête de l'Accueil réunit les
+  pneus choisis par Pirelli pour le week-end, le risque de pluie pendant la course et l'enjeu du championnat (avance du
+  leader, titre possible dès cette course). La grille de départ officielle de la FIA, avec les départs des stands et
+  les pénalités, reste cachée jusqu'au clic sur « Voir la grille » (elle dévoile le résultat des qualifications) ;
+  grille provisoire signalée, et « pas encore publiée » tant que la FIA ne l'a pas mise en ligne.
 - Compte à rebours de l'Accueil : comme celui de la Saison, le chiffre qui change roule (l'ancien descend, le nouveau
   arrive d'en haut), sauf si les animations sont coupées.
 - Hors saison, l'Accueil montre les prochaines dates de l'intersaison annoncées officiellement (lancement de la saison

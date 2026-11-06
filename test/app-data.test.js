@@ -101,6 +101,31 @@ test('serveur : météo, documents FIA du Grand Prix et photos des pilotes', asy
   });
 });
 
+test('serveur : grille de départ officielle (définitive de préférence), « pas encore publiée » sans document', async () => {
+  const env = fakeEnv();
+  const champ = '<option value="/documents/championships/fia-formula-one-world-championship-14/season/season-2026-2072">2026</option>'
+    + '<option value="/documents/championships/fia-formula-one-world-championship-14/event/S%C3%A3o%20Paulo%20Grand%20Prix">São Paulo Grand Prix</option>';
+  const doc = (n, title, file) => `<li class="document-row key-${n}"><a href="/system/files/decision-document/${file}.pdf"><div class="title">${title}</div>`
+    + '<div class="published">Published on <span class="date-display-single">08.11.26 15:00</span></div></a></li>';
+  let page = doc(40, 'Doc 40 - Summons - Car 4', 'summons');
+  // Grille déjà lue dans son PDF (un document publié ne change plus) : gardée dans la base
+  const url = 'https://www.fia.com/system/files/decision-document/final_grid.pdf';
+  const key = [...new Uint8Array(await crypto.subtle.digest('SHA-1', new TextEncoder().encode(url)))].map((b) => b.toString(16).padStart(2, '0')).join('').slice(0, 20);
+  const { FIA_VERSION } = await import('../shared/fia-tech.js');
+  env.rows.set(`fiadoc:${key}`, JSON.stringify({ v: FIA_VERSION, data: { final: true, sprint: false, rows: [{ num: '1', last: 'Norris', pos: 1, pitlane: false }], penalties: [] } }));
+  await withNet((u) => (u.endsWith('-14') ? new Response(champ) : u.includes('/event/') ? new Response(page) : new Response('', { status: 404 })), async () => {
+    const q = '/live/api/fia-grid?year=2026&name=S%C3%A3o%20Paulo%20Grand%20Prix&location=S%C3%A3o%20Paulo';
+    assert.deepEqual((await call(env, q)).body, { grid: null });
+    page += doc(52, 'Doc 52 - Provisional Starting Grid', 'provisional_grid') + doc(58, 'Doc 58 - Final Starting Grid', 'final_grid');
+    globalThis.caches = { default: { match: async () => null, put: async () => {} } };   // liste des documents relue
+    const r = await call(env, q);
+    assert.equal(r.body.grid.title, 'Doc 58 - Final Starting Grid');
+    assert.equal(r.body.grid.rows[0].last, 'Norris');
+    assert.deepEqual((await call(env, `${q}&sprint=1`)).body, { grid: null });
+    assert.equal((await call(env, '/live/api/fia-grid?year=2026')).status, 400);
+  });
+});
+
 test('serveur : composés Pirelli de chaque manche dans les statistiques de la Saison', async () => {
   const env = fakeEnv();
   const races = [{ round: 20, name: 'Mexico City Grand Prix', locality: 'Mexico City', circuit: 'Autódromo Hermanos Rodríguez', date: '2026-11-01' }, { round: 30, name: 'Grand Prix inconnu', locality: 'Nulle part', date: '2026-12-20' }];

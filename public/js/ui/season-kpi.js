@@ -7,7 +7,7 @@ import { gpShort } from '/shared/gp-names.js';
 import { shortTeams } from '/shared/season-calc.js';
 import { destructors } from '/shared/destructors.js';
 
-export { standingsAfter, teamShort } from '/shared/season-calc.js';
+export { standingsAfter, teamShort, titleRace } from '/shared/season-calc.js';
 
 // Réponses demandées par l'Accueil, gardées 10 minutes : la Saison ouverte entre-temps les reprend une fois (takeEarly)
 const KEEP = 10 * 60e3;

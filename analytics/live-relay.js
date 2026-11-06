@@ -13,7 +13,7 @@ import { cleanRequest, translateBatch } from './translate.js';
 import { callerIp, ipQuota } from './quota.js';
 import { pronosApi, GROUP_RE } from './pronos.js';
 import { circuitData, seasonStatsWeb } from './race-stats.js';
-import { seasonFiaWeb, fiaTranslations, fiaDocsWeb } from './fia-tech.js';
+import { seasonFiaWeb, fiaTranslations, fiaDocsWeb, fiaGridWeb } from './fia-tech.js';
 import { weekendTyres } from './tyres.js';
 import { destructorsWeb } from './destructors.js';
 import { circuitRecords } from './records.js';
@@ -889,12 +889,16 @@ export async function liveApi(req, url, env = {}) {
     await caches.default.put(ck, res.clone());
     return res;
   }
-  // Documents officiels de la FIA d'un Grand Prix (documents des commissaires du direct)
-  if (url.pathname === '/live/api/fia-docs' && req.method === 'GET') {
+  // Documents officiels de la FIA d'un Grand Prix (documents des commissaires du direct), et sa grille de départ
+  // officielle lue dans le document de la FIA (accueil, carte « Avant le départ » ; sprint=1 : grille du sprint)
+  if (['/live/api/fia-docs', '/live/api/fia-grid'].includes(url.pathname) && req.method === 'GET') {
     const year = Number(url.searchParams.get('year')), name = url.searchParams.get('name');
     if (!Number.isInteger(year) || year < 2018 || !name) return json({ error: 'Paramètres year et name requis' }, 400);
     const meeting = { name, country: url.searchParams.get('country'), location: url.searchParams.get('location') };
-    return fiaDocsWeb(year, meeting).then((d) => json(d), (err) => json({ error: err.message }, 502));
+    const grid = url.pathname.endsWith('grid');
+    if (grid && !env.DB) return json({ error: 'Indisponible' }, 503);
+    return (grid ? fiaGridWeb(env, year, meeting, { sprint: url.searchParams.get('sprint') === '1' }) : fiaDocsWeb(year, meeting))
+      .then((d) => json(d), (err) => json({ error: err.message }, 502));
   }
   // Zones du mode dépassement, boucles de chronométrage (mini-secteurs) et profil d'altitude (carte 3D : z de chaque
   // point du tracé de /live/api/circuit, 1/10 m) du circuit, calculés par le serveur
