@@ -491,7 +491,7 @@ function focusMinis(lay) {
     let from = sec.from;
     for (const m of lay.minis.filter((x) => x.i === sec.i)) {
       const v = SEG_VARS[segmentClass(list(secs[sec.i]?.Segments)[m.j]?.Status)];
-      if (v) out.push({ from, to: m.r, color: css.getPropertyValue(v).trim() });
+      if (v) out.push({ from, to: m.r, color: css.getPropertyValue(v).trim(), cls: segmentClass(list(secs[sec.i]?.Segments)[m.j]?.Status) });
       from = m.r;
     }
   }
@@ -500,8 +500,10 @@ function focusMinis(lay) {
 function drawFocusMinis(lay, W) {
   if (!focusSecs()?.length) return;
   ctx.save();
-  ctx.lineWidth = Math.max(3, W * 0.5);
-  for (const m of focusMinis(lay)) { ctx.strokeStyle = m.color; strokeDist(m.from, m.to); }
+  const lw = ctx.lineWidth = Math.max(3, W * 0.5);
+  // Mode daltonien : violet plein, vert en tirets, jaune en points, stand en tirets courts (comme le classement)
+  const dash = document.documentElement.dataset.cvd === 'on' ? { 'seg-green': [lw * 3, lw * 1.5], 'seg-yellow': [lw * 0.6, lw * 1.4], 'seg-pit': [lw, lw] } : {};
+  for (const m of focusMinis(lay)) { ctx.strokeStyle = m.color; ctx.setLineDash(dash[m.cls] || []); strokeDist(m.from, m.to); }
   ctx.restore();
 }
 
@@ -609,7 +611,7 @@ function draw() {
 
   const animated = red || scMode || [...flags.values()].includes('DOUBLE YELLOW');
   const bgKey = [size.w, size.h, size.dpr, view.x.toFixed(1), view.y.toFixed(1), view.z.toFixed(3), ts, [...flags].join(),
-    lay?.key, !!zones, store.positions.lineFrac().toFixed(4), MAP_OPTS.map((k) => $(`#${k}`).checked).join(), trackKey, document.fonts?.status, document.documentElement.dataset.scheme, versionOf(['TimingStats']), focusMinisKey(), turnMarksNow().map((m) => `${m.turn}:${m.limits}:${m.events.length}`).join()].join('|');
+    lay?.key, !!zones, store.positions.lineFrac().toFixed(4), MAP_OPTS.map((k) => $(`#${k}`).checked).join(), trackKey, document.fonts?.status, document.documentElement.dataset.scheme, document.documentElement.dataset.cvd, versionOf(['TimingStats']), focusMinisKey(), turnMarksNow().map((m) => `${m.turn}:${m.limits}:${m.events.length}`).join()].join('|');
   let flagZones;
   if (!animated && bg.key === bgKey && bg.canvas) {
     ctx.drawImage(bg.canvas, 0, 0, size.w, size.h);

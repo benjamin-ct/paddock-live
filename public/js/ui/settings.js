@@ -243,6 +243,8 @@ export function initSettings() {
   syncContrast();
   $('#contrastOpt').addEventListener('change', (e) => setPref('contrast', e.target.checked));
   on('prefs', (k) => { if (k === 'contrast') syncContrast(); });
+  $('#colorblindOpt').checked = !!prefs.colorblind;
+  $('#colorblindOpt').addEventListener('change', (e) => setPref('colorblind', e.target.checked));
   $('#motionOpt').checked = prefs.motion !== false;
   $('#motionOpt').addEventListener('change', (e) => setPref('motion', e.target.checked));
   // Taille de l'interface dans le navigateur d'un téléphone ou d'une tablette, de 90 à 150 % (zoom par la balise

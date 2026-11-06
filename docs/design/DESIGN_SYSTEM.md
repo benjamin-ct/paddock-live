@@ -405,6 +405,11 @@ Autres : `env(safe-area-inset-*)` (encoche, barre d'accueil iPhone), `100dvh`, `
   | `--line-2` | `#7D8896` | `#5A6470` | 5,1:1 / 5,7:1 |
   | `--border` | `#5C6878` | `#808A96` | 3,2:1 / 3,3:1 |
   | `--line` | `#414B58` | `#B5BDC7` | 2,1:1 / 1,8:1 (séparateurs de lignes) |
+- **Mode daltonien** (`<html data-cvd="on">`, `prefs.colorblind`, fin de `style.css`) : violet (meilleur absolu)
+  souligné d'un trait plein de 2 px, vert (record personnel) en pointillés ; mini-secteurs de hauteur 100 % (violet),
+  67 % (vert), 33 % (jaune), stand en tirets de 2 px ; sur la carte, mini-secteurs du pilote suivi en tirets (vert)
+  et en points (jaune) ; drapeaux `.rcm-flag` : vert rayé verticalement, rouge barré, bleu à diagonale blanche,
+  safety car à pois, jaune plein ; lettre du pneu (`data-l`) dans `.strat-stint` et `.tyre-hist`.
 - Zones tactiles : 32 px minimum garantis au doigt pour les petits boutons ; boutons de la barre latérale 46 px.
 - Textes sélectionnables seulement là où c'est utile (champs, articles, radios, messages de la direction de course).
 

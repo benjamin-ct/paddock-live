@@ -305,6 +305,8 @@ export default {
   "Anglais": "Inglese",
   "Contraste renforcé": "Contrasto elevato",
   "Textes secondaires et filets plus marqués, en sombre comme en clair. Activé aussi quand l'ordinateur ou le téléphone demande plus de contraste": "Testi secondari e linee più marcati, in modalità scura e chiara. Attivo anche quando il tuo computer o telefono chiede più contrasto",
+  "Mode daltonien": "Modalità daltonici",
+  "Formes et motifs en plus des couleurs : mini-secteurs et meilleurs temps, drapeaux de la direction de course, pneus de la stratégie": "Forme e motivi oltre ai colori: minisettori e tempi migliori, bandiere della direzione gara, gomme della strategia",
   "Animations de l'interface": "Animazioni dell'interfaccia",
   "Annuler": "Annulla",
   "Anti-spoiler pendant les séances": "Anti-spoiler durante le sessioni",

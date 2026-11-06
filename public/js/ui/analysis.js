@@ -372,7 +372,7 @@ function renderTyres() {
       const ci = compoundInfo(l.compound);
       const v = lapSeconds(l.time);
       const cls = l.pit ? 'pit' : v && v <= best + 0.001 ? 'best' : '';
-      return `<td class="${cls}${v ? ' cmp-link' : ''}" style="--tc:${ci.color}" ${v ? `data-cmp="${n}|${i + 1}"` : ''} title="Tour ${i + 1} · ${esc(ci.name)}${l.pit ? ' · stand' : ''}${v ? ' · clic : comparer ce tour' : ''}">${v ? fmtLap(v) : '—'}</td>`;
+      return `<td class="${cls}${v ? ' cmp-link' : ''}" style="--tc:${ci.color}" data-l="${ci.letter}" ${v ? `data-cmp="${n}|${i + 1}"` : ''} title="Tour ${i + 1} · ${esc(ci.name)}${l.pit ? ' · stand' : ''}${v ? ' · clic : comparer ce tour' : ''}">${v ? fmtLap(v) : '—'}</td>`;
     }).join('');
     return `<tr><th class="sticky"><span class="drv">${teamMark(dl[n])}${esc(dl[n]?.Tla || n)}</span></th>${cells}</tr>`;
   }).join('');
