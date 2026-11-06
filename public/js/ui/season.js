@@ -24,6 +24,7 @@ import { seasonPath, seasonTitle, slug, gpSlug, parseSeasonPath, enSeasonPath, p
 import { circuitInfo } from '/shared/circuits-info.js';
 import { takeEarly } from './season-kpi.js';
 import { historyBlock } from './season-history.js';
+import { careerBlock } from './season-career.js';
 
 // Réponse déjà demandée par l'Accueil (ses cartes), sinon lue sur le serveur
 const read = (path) => takeEarly(path) || api(path);
@@ -1121,7 +1122,8 @@ function render() {
   szGroupSync();
   if ($('#szCur')) $('#szCur').textContent = $('#szNav .active')?.textContent.trim() || (section === 'gp' ? 'Grand Prix' : '');
   const st = stats?.year === data.year || stats?.error ? stats : null;
-  const ctx = { data, stats: st, color, bar, opt: seasonOpt, photo: (d) => photoUrl({ Tla: d.code }, 480), flag: roundFlag, logo: (team) => teamLogo(team, false, 512), look: cardLook, official: (id) => OFFICIAL[id] || '8b95a8', ratings: ratingsFor(data, st), prev: prev?.year === data.year - 1 ? prev : null };
+  const ctx = { data, stats: st, color, bar, opt: seasonOpt, photo: (d) => photoUrl({ Tla: d.code }, 480), flag: roundFlag, logo: (team) => teamLogo(team, false, 512), look: cardLook, official: (id) => OFFICIAL[id] || '8b95a8', ratings: ratingsFor(data, st), prev: prev?.year === data.year - 1 ? prev : null,
+    career: (d) => careerBlock(d, { color, rerender: () => { if (section === 'drivers' && !$('#seasonView').hidden) render(); } }) };
   if (section === 'drivers') loadPrev();
   const fiaData = fia?.year === data.year ? fia : null;
   const html = {

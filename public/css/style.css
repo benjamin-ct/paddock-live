@@ -1274,6 +1274,9 @@ body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-selec
 .sz-table .dest-drv { all: unset; cursor: pointer; }
 .sz-table .dest-drv:hover b, .sz-table .dest-drv:focus-visible b { color: var(--accent); }
 .sz-table tr.on td { background: var(--panel-2); }
+/* Carrière d'un pilote (Saison → Pilotes) : écurie de chaque saison, pastille à sa couleur */
+.sz-team-y { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; margin-right: 10px; }
+.sz-team-y i { width: 4px; height: 14px; border-radius: 2px; flex: none; }
 .sz-chip { display: inline-block; border-left: 3px solid var(--tc); background: color-mix(in srgb, var(--tc) 18%, transparent); padding: 1px 7px; border-radius: 4px; font-weight: 700; font-size: 12.5px; }
 .sz-tag { display: inline-block; font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .4px; padding: 1px 6px; border-radius: 4px; background: var(--panel-3); color: var(--text-2); margin-right: 3px; }
 .sz-tag.done { background: rgba(53, 208, 127, .15); color: var(--green); }

@@ -18,6 +18,7 @@ import { weekendTyres } from './tyres.js';
 import { destructorsWeb } from './destructors.js';
 import { circuitRecords } from './records.js';
 import { circuitHistory } from './circuit-history.js';
+import { careerWeb, DRIVER_ID } from './career.js';
 import { zonesWeb } from './zones.js';
 import { surroundingsWeb, surroundingsStatus } from './surroundings.js';
 import { forecast } from '../shared/forecast.js';
@@ -867,6 +868,14 @@ export async function liveApi(req, url, env = {}) {
     const res = json(d, 200, { 'Cache-Control': `public, max-age=${d.pending ? 60 : 1800}` });
     if (!d.pending) await caches.default.put(ck, res.clone()).catch(() => {});
     return res;
+  }
+  // Carrière d'un pilote de la saison (Saison → Pilotes) : saisons passées gardées par la tâche planifiée (pending tant
+  // qu'elle ne les a pas lues), saison en cours d'après la saison gardée
+  if (url.pathname === '/live/api/career' && req.method === 'GET') {
+    const id = url.searchParams.get('driver') || '';
+    if (!env.DB || !DRIVER_ID.test(id)) return json({ error: 'Paramètres invalides' }, 400);
+    const d = await careerWeb(env, id);
+    return json(d, 200, { 'Cache-Control': `public, max-age=${d.pending ? 60 : 600}` });
   }
   // Météo prévue sur un circuit (accueil, onglet Météo), gardée 30 min par endroit (Open-Meteo limite les demandes)
   if (url.pathname === '/live/api/forecast' && req.method === 'GET') {

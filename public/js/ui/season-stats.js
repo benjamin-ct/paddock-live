@@ -231,6 +231,7 @@ export function renderDrivers(ctx, code) {
       ${card('Note de la saison', rt ? gradeBadge(rt.season, rt.seasonGrade, true) : '—', rt?.season !== null && rt ? `<button class="linkish" data-szgo="ratings">voir le détail ${icon('arrow-right', 'ic-s')}</button>` : 'pas assez de courses')}
       ${card('Note face au coéquipier', rt ? gradeBadge(rt.mate, rt.mateGrade, true) : '—', rt?.mates?.length ? `face à ${esc(rt.mates.join(', '))}` : '')}
     </div>
+    ${ctx.career?.(drv) || ''}
     <section class="sz-box"><h3>Départ (pointillés) et arrivée, course par course</h3>${chart}</section>
     <div class="sz-grid2">
       <section class="sz-box"><h3>Répartition des places</h3>
