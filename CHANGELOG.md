@@ -15,6 +15,8 @@ l'application (Réglages → À propos → Nouveautés).
   au téléphone avec l'essentiel en premier.
 - Sans spoiler : dans les 72 h qui suivent une course ou un sprint, les classements restent ceux d'avant cette manche
   (et les arrêts et les dégâts ne la comptent pas) jusqu'au clic sur « Afficher le classement à jour ».
+- Séances de nuit : une petite lune devant l'heure des séances qui commencent entre minuit et 7 h chez vous (accueil,
+  calendrier de la Saison), comme Las Vegas à 5 h du matin en Europe.
 - Compte à rebours de l'Accueil : comme celui de la Saison, le chiffre qui change roule (l'ancien descend, le nouveau
   arrive d'en haut), sauf si les animations sont coupées.
 

@@ -2942,4 +2942,5 @@ export default {
   "heures": "hours",
   "minutes": "minutes",
   "secondes": "seconds",
+  "Séance de nuit chez vous": "Night session for you",
 };
