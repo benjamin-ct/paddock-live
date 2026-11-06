@@ -193,6 +193,12 @@ test('version web : son des radios relayé par le relais du visiteur (séance en
     assert.equal((await get(locked)).status, 404);
     assert.equal((await get(locked, { Cookie: `plu=${id}` })).status, 200);
     assert.equal(asked.at(-1)[1], `Bearer ${token}`);
+    // Nom de Grand Prix accentué (« São Paulo ») : la radio est servie, pas refusée comme adresse invalide
+    const sao = '2026/2026-11-08_São_Paulo_Grand_Prix/2026-11-06_Practice_1/';
+    relays.f1.onFrame(JSON.stringify({ type: 3, invocationId: '1', result: { SessionInfo: { Key: 11, Path: sao } } }), 1e12 + 1);
+    r = await get(`${sao}TeamRadio/VER_3_20261106_130000.mp3`);
+    assert.equal(r.status, 200);
+    assert.equal(asked.at(-1)[0], `https://livetiming.formula1.com/static/${sao}TeamRadio/VER_3_20261106_130000.mp3`);
   } finally {
     globalThis.fetch = realFetch;
     delete globalThis.caches;
