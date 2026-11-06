@@ -3043,4 +3043,6 @@ export default {
   "Grands Prix seulement (sans les sprints). Poles : 1er des qualifications (avant 2003 : 1er sur la grille).": "Grands Prix only (no sprints). Poles: fastest in qualifying (before 2003: first on the grid).",
   "Première saison en Formule 1.": "First season in Formula 1.",
   "Titres en cours de vérification.": "Titles being checked.",
+  "Copier le code": "Copy the code",
+  "Code copié": "Code copied",
 };

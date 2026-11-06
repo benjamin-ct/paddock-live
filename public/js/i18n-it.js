@@ -3042,4 +3042,6 @@ export default {
   "Grands Prix seulement (sans les sprints). Poles : 1er des qualifications (avant 2003 : 1er sur la grille).": "Solo Gran Premi (senza sprint). Pole: primo in qualifica (prima del 2003: primo in griglia).",
   "Première saison en Formule 1.": "Prima stagione in Formula 1.",
   "Titres en cours de vérification.": "Titoli in corso di verifica.",
+  "Copier le code": "Copia il codice",
+  "Code copié": "Codice copiato",
 };
