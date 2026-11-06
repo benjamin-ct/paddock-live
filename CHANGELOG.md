@@ -11,6 +11,8 @@ l'application (Réglages → À propos → Nouveautés).
   (en anglais pour les autres langues).
 
 ### En direct
+- Radios d'équipe de nouveau avec le son dans l'appli : il est pris directement chez la F1 par la fenêtre de l'appli
+  (la F1 refuse désormais les programmes et les serveurs), et le texte suit le même chemin quand la F1 le permet.
 - Radios d'équipe dont la F1 ne fournit pas le son : « radio indisponible » au lieu de « pas de parole reconnue », et
   la radio ne reste plus affichée en lecture sans aucun son. Nouvel essai à la prochaine ouverture.
 
