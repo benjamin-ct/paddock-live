@@ -3456,6 +3456,18 @@ html.float-mini .float-bar { top: auto; bottom: 4px; right: 24px; }   /* en bas 
 .rp-best { font: 800 24px "JetBrains Mono", Consolas, monospace; color: var(--purple); }
 .rp-best.plain { color: var(--text); }
 .rp-tile.fl { border-color: color-mix(in srgb, var(--purple) 45%, var(--border)); }
+/* Page Résultats : course de chaque pilote favori (filet à la couleur de l'écurie) */
+.rp-favs { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
+.rp-fav { flex: 1 1 300px; border-left: 3px solid var(--tc); gap: 10px; }
+.rp-fav h4 .ic { color: var(--tc); }
+.rp-fav-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; font-size: 15px; }
+.rp-fav-run { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+.rp-fav-run b { font: 800 26px/1 "Saira Condensed", sans-serif; color: var(--text); }
+.rp-fav-facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px 14px; margin: 0; }
+.rp-fav-facts > div { min-width: 0; }
+.rp-fav-facts dt { font-size: 10.5px; letter-spacing: .7px; text-transform: uppercase; color: var(--muted); }
+.rp-fav-facts dd { margin: 2px 0 0; font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.rp-fav > .btn { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; }
 /* Page Résultats : graphique sous les cartes (stratégies ou écarts) */
 .rp-chart { margin-top: 10px; gap: 4px; }
 .rp-bar-row { display: flex; align-items: center; gap: 8px; height: 20px; }

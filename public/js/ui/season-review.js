@@ -7,7 +7,7 @@ import { seasonReview, titleRace } from '/shared/season-calc.js';
 import { gpFull } from '/shared/gp-names.js';
 import { LANG, ord, t } from '../i18n.js';
 import { toast } from './delay.js';
-import { saveImage, shareReady } from './season-png.js';
+import { saveImage, shareReady, rowsImage } from './season-png.js';
 
 function facts(data) {
   const r = seasonReview(data);
@@ -59,22 +59,8 @@ export function renderReview(ctx) {
 }
 
 // Image à partager (1080 × 1350, format des réseaux) : les mêmes chiffres, sans rien d'autre
-async function reviewImage(data) {
+function reviewImage(data) {
   const { r, champ } = facts(data);
-  await Promise.all(['800 64px "Saira Condensed"', '700 30px "Titillium Web"', '400 30px "Titillium Web"'].map((f) => document.fonts?.load(f).catch(() => null)));
-  const c = document.createElement('canvas');
-  c.width = 1080; c.height = 1350;
-  const g = c.getContext('2d');
-  const bg = g.createLinearGradient(0, 0, 0, c.height);
-  bg.addColorStop(0, '#0F172A'); bg.addColorStop(1, '#020817');
-  g.fillStyle = bg; g.fillRect(0, 0, c.width, c.height);
-  g.fillStyle = '#e10600'; g.fillRect(80, 110, 120, 10);
-  g.fillStyle = '#fff';
-  g.font = '800 96px "Saira Condensed", sans-serif';
-  g.fillText(t('BILAN {}', data.year), 80, 230);
-  g.font = '400 34px "Titillium Web", sans-serif';
-  g.fillStyle = '#CBD5E1';
-  g.fillText(t('{} Grands Prix courus sur {}', r.done, r.races), 80, 290);
   const name = (x) => (x ? x.last || x.name : '—');
   const rows = [
     [champ ? t('Champion du monde') : t('En tête du championnat'), champ ? champ.name : (r.leader?.name || '—')],
@@ -84,16 +70,7 @@ async function reviewImage(data) {
     [t('Plus belle remontée'), r.comeback ? `${name(r.comeback)} · ${ord(r.comeback.from)} → ${ord(r.comeback.to)}` : '—'],
     [t('Abandons'), String(r.dnf)],
   ];
-  rows.forEach(([label, value], i) => {
-    const y = 420 + i * 140;
-    g.fillStyle = '#94A3B8'; g.font = '700 30px "Titillium Web", sans-serif';
-    g.fillText(label.toUpperCase(), 80, y);
-    g.fillStyle = '#fff'; g.font = '800 64px "Saira Condensed", sans-serif';
-    g.fillText(value, 80, y + 70, 920);
-  });
-  g.fillStyle = '#94A3B8'; g.font = '400 28px "Titillium Web", sans-serif';
-  g.fillText('paddocklive.app', 80, 1290);
-  return new Promise((ok) => c.toBlob(ok, 'image/png'));
+  return rowsImage(t('BILAN {}', data.year), t('{} Grands Prix courus sur {}', r.done, r.races), rows);
 }
 
 export async function reviewAction(kind, data) {

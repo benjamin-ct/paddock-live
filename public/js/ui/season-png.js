@@ -62,6 +62,36 @@ export function shareReady(key) {
   return true;
 }
 
+// Image à partager (1080 × 1350, format des réseaux) : titre, sous-titre, puis une ligne par chiffre (libellé, valeur).
+// Bilan de la saison, course d'un favori ; accent : trait au-dessus du titre (couleur de l'écurie)
+export async function rowsImage(title, sub, rows, accent = '#e10600') {
+  await Promise.all(['800 64px "Saira Condensed"', '700 30px "Titillium Web"', '400 30px "Titillium Web"'].map((f) => document.fonts?.load(f).catch(() => null)));
+  const c = document.createElement('canvas');
+  c.width = 1080; c.height = 1350;
+  const g = c.getContext('2d');
+  const bg = g.createLinearGradient(0, 0, 0, c.height);
+  bg.addColorStop(0, '#0F172A'); bg.addColorStop(1, '#020817');
+  g.fillStyle = bg; g.fillRect(0, 0, c.width, c.height);
+  g.fillStyle = accent; g.fillRect(80, 110, 120, 10);
+  g.fillStyle = '#fff';
+  g.font = '800 96px "Saira Condensed", sans-serif';
+  g.fillText(title, 80, 230, 920);
+  g.font = '400 34px "Titillium Web", sans-serif';
+  g.fillStyle = '#CBD5E1';
+  g.fillText(sub, 80, 290, 920);
+  const step = Math.min(140, 840 / Math.max(1, rows.length));   // jusqu'à 6 lignes à 140 px, plus serrées au-delà
+  rows.forEach(([label, value], i) => {
+    const y = 420 + i * step;
+    g.fillStyle = '#94A3B8'; g.font = '700 30px "Titillium Web", sans-serif';
+    g.fillText(label.toUpperCase(), 80, y);
+    g.fillStyle = '#fff'; g.font = '800 64px "Saira Condensed", sans-serif';
+    g.fillText(value, 80, y + 70, 920);
+  });
+  g.fillStyle = '#94A3B8'; g.font = '400 28px "Titillium Web", sans-serif';
+  g.fillText('paddocklive.app', 80, 1290);
+  return new Promise((ok) => c.toBlob(ok, 'image/png'));
+}
+
 export async function savePng(box, year, sub = '') {
   const svg = box.querySelector('svg.sz-svg');
   if (!svg || shareReady(box)) return;
