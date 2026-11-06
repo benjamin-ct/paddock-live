@@ -3009,4 +3009,6 @@ export default {
   "La course de {}": "La gara di {}",
   "Image à partager": "Immagine da condividere",
   "Départ → arrivée": "Partenza → arrivo",
+  "Copier le code": "Copia il codice",
+  "Code copié": "Codice copiato",
 };

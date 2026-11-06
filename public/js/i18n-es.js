@@ -3009,4 +3009,6 @@ export default {
   "La course de {}": "La carrera de {}",
   "Image à partager": "Imagen para compartir",
   "Départ → arrivée": "Salida → llegada",
+  "Copier le code": "Copiar el código",
+  "Code copié": "Código copiado",
 };

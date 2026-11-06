@@ -3010,4 +3010,6 @@ export default {
   "La course de {}": "{}'s race",
   "Image à partager": "Image to share",
   "Départ → arrivée": "Start → finish",
+  "Copier le code": "Copy the code",
+  "Code copié": "Code copied",
 };
