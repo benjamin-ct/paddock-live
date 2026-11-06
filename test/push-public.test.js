@@ -150,7 +150,7 @@ test('alertes du téléphone : grosses news de la nuit gardées et regroupées �
   await pushRun(env, { fetchFn, now: night });
   await queuePush(env, 'news:b', 'news', news(2, 'Seconde news'), night + 3600e3);
   await pushRun(env, { fetchFn, now: night + 3600e3 });
-  assert.deepEqual(calls.map((u) => u.slice(-2)), ['n2', 'n3', 'n2', 'n3'], 'Paris dort : rien envoyé');
+  assert.deepEqual(calls.map((u) => u.slice(-2)).sort(), ['n2', 'n2', 'n3', 'n3'], 'Paris dort : rien envoyé (envois en parallèle : ordre libre)');
   assert.equal(JSON.parse(DB.kv.get('night:Europe/Paris').v).length, 2);
   // 6 h 30 à Paris : pas encore
   await morningDigests(env, Date.parse('2026-11-20T05:30:00Z'));
