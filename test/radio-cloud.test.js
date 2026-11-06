@@ -158,6 +158,22 @@ test('transcription en ligne côté appli : erreur d\'archive remontée', async 
   assert.equal(c.available(), true);
 });
 
+test('transcription en ligne côté appli : son pris par l\'interface quand la F1 refuse le serveur local', async () => {
+  const seen = [];
+  const body = Buffer.from('ID3 son pris par le navigateur');
+  const c = createCloudTranscriber({
+    url: 'https://w.example/r',
+    audio: async () => { const e = new Error('refusé'); e.status = 401; throw e; },
+    fetch: async (url, opts = {}) => { seen.push([opts.method || 'GET', url, opts.body?.length]); return opts.method === 'POST' ? { status: 200, body: Buffer.from('{"text":"Copy."}') } : { status: 404, body: Buffer.from('{}') }; },
+  });
+  await assert.rejects(c.transcribe('2026/x/TeamRadio/E.mp3'), /refusé/);
+  assert.deepEqual(await c.transcribeAudio('2026/x/TeamRadio/E.mp3', body), { text: 'Copy.' });
+  assert.deepEqual(seen, [['GET', `https://w.example/r/${sha(body)}`, undefined], ['POST', 'https://w.example/r', body.length]]);
+  // Gardée ensuite : plus d'appel au serveur
+  assert.deepEqual(await c.transcribe('2026/x/TeamRadio/E.mp3'), { text: 'Copy.' });
+  assert.equal(seen.length, 2);
+});
+
 test('caméras embarquées : fenêtre WAV retranscrite par le serveur avec l\'heure de chaque phrase, plafond du jour', async () => {
   const { transcribeWindow } = await import('../analytics/transcribe.js');
   const wav = (n = 32000) => { const b = new Uint8Array(44 + n); b.set([...'RIFF'].map((c) => c.charCodeAt(0)), 0); b.set([...'WAVE'].map((c) => c.charCodeAt(0)), 8); return b; };
