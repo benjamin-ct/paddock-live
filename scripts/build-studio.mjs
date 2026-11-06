@@ -7,6 +7,7 @@ import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { PAGES, linksPage } from '../analytics/links/pages.mjs';
 import { GUIDES, guidePage, sitemap, robots, englishHome } from '../analytics/launch/guides.mjs';
+import { PATHS as GAME_PATHS, gamePage } from '../analytics/jeu/page.mjs';
 import { parseChangelog } from '../shared/changelog.js';
 import { STUDIO_HEADERS } from '../analytics/live-page/headers.js';
 
@@ -87,6 +88,12 @@ for (const g of GUIDES) {
   fs.mkdirSync(path.join(OUT, g.slug), { recursive: true });
   fs.writeFileSync(path.join(OUT, g.slug, 'index.html'), guidePage(g.slug));
 }
+// Jeu du jour « Devine le circuit » (/jeu/, /en/guess-the-circuit/) : une page par langue, son code dans /jeu/
+for (const [lang, dir] of Object.entries(GAME_PATHS)) {
+  fs.mkdirSync(path.join(OUT, dir), { recursive: true });
+  fs.writeFileSync(path.join(OUT, dir, 'index.html'), gamePage(lang));
+}
+copy(path.join(ROOT, 'analytics', 'jeu'), path.join(OUT, 'jeu'), (f) => f.endsWith('.js'));
 // Accueil en anglais (/en/), page à part pour les moteurs de recherche
 fs.writeFileSync(path.join(OUT, 'en', 'index.html'), englishHome(fs.readFileSync(path.join(ROOT, 'analytics', 'launch', 'index.html'), 'utf8')));
 fs.writeFileSync(path.join(OUT, 'sitemap.xml'), sitemap());
@@ -190,6 +197,10 @@ ${Object.entries(STUDIO_HEADERS).map(([k, v]) => `  ${k}: ${v}`).join('\n')}
   Cache-Control: public, max-age=3600
 /alertes/*
   Cache-Control: no-cache
+/jeu/*
+  Cache-Control: public, max-age=3600
+/en/guess-the-circuit/*
+  Cache-Control: public, max-age=3600
 /app/*
   Cache-Control: public, max-age=3600
 /site/*
@@ -207,7 +218,7 @@ ${Object.entries(STUDIO_HEADERS).map(([k, v]) => `  ${k}: ${v}`).join('\n')}
 `);
 // Pages du site sans la barre finale (/live-timing-f1) : renvoi définitif (301) vers leur adresse (le renvoi automatique
 // des fichiers statiques est temporaire, 307)
-const PAGES_DIRS = ['en', ...GUIDES.map((g) => g.slug), 'alertes', 'extension', 'app', ...Object.keys(PAGES)];
+const PAGES_DIRS = ['en', ...GUIDES.map((g) => g.slug), ...Object.values(GAME_PATHS), 'alertes', 'extension', 'app', ...Object.keys(PAGES)];
 fs.writeFileSync(path.join(OUT, '_redirects'), `${PAGES_DIRS.map((d) => `/${d} /${d}/ 301`).join('\n')}\n`);
 const n = (d) => fs.readdirSync(path.join(OUT, d)).length;
 console.log(`Site prêt : version ${VERSION}, ${n(`m/${VERSION}/studio`)} fichiers studio, ${n(`m/${VERSION}/shared`)} modules partagés (${graph.length} chargés d'emblée), ${n('fonts')} polices, version web : ${liveGraph.size} modules`);
