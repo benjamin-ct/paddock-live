@@ -35,6 +35,7 @@ import { statsTick } from './race-stats.js';
 import { fiaTick } from './fia-tech.js';
 import { zonesTick } from './zones.js';
 import { recordsTick } from './records.js';
+import { historyTick } from './circuit-history.js';
 import { surroundingsTick } from './surroundings.js';
 import { newsTick, newsApi } from './news.js';
 import { seasonSsr, seasonSitemap, legacySeasonUrl, parseEnSeasonPath, seasonRewriter } from './season-pages.js';
@@ -219,10 +220,10 @@ export default {
       if (env.DB && t.getUTCHours() === 3 && t.getUTCMinutes() === 0) await prune(env, t.getTime()).catch(() => null);
       // Toutes les 6 heures : bilan de santé (flux F1, erreurs de l'appli, jetons), sur le téléphone si besoin
       if (t.getUTCMinutes() === 7 && t.getUTCHours() % HEALTH.every === 1) await healthCheck(env).catch(() => null);
-      // Statistiques des courses, documents FIA, zones, alentours et records des circuits : chacun sa minute à tour de rôle (le
-      // suivant prend la minute de celui qui n'a rien à faire), pour qu'aucun n'attende que les autres aient tout fini
+      // Statistiques des courses, documents FIA, zones, alentours, records et histoire des circuits : chacun sa minute à tour
+      // de rôle (le suivant prend la minute de celui qui n'a rien à faire), pour qu'aucun n'attende que les autres aient tout fini
       if (!sent) {
-        const ticks = [statsTick, fiaTick, zonesTick, surroundingsTick, recordsTick];
+        const ticks = [statsTick, fiaTick, zonesTick, surroundingsTick, recordsTick, historyTick];
         for (let i = 0; i < ticks.length; i++) {
           if (await ticks[(t.getUTCMinutes() + i) % ticks.length](env, { now: t.getTime() }).catch(() => null)) break;
         }
@@ -462,6 +463,8 @@ export async function prune(env, now) {
   await env.DB.prepare('DELETE FROM push_sent WHERE at < ?1').bind(now - 30 * 86400e3).run();
   // Témoins des programmations publiées (un nouvel envoi du même post n'est pas republié) : 7 jours
   await env.DB.prepare('DELETE FROM studio WHERE k >= ?1 AND k < ?2 AND at < ?3').bind('scheddone:', 'scheddone;', now - 7 * 86400e3).run();
+  // Compteurs horaires des demandes à Jolpica (plafond du Worker) des jours passés
+  await env.DB.prepare('DELETE FROM ai_usage WHERE day >= ?1 AND day < ?2').bind('jolpica:', `jolpica:${today}`).run();
 }
 
 // Calendrier des séances auquel on s'abonne depuis l'appli (webcal://paddocklive.app/calendar.ics,

@@ -2,13 +2,15 @@
 // le Studio la reçoit en une seule demande, déjà résumée, au lieu d'une douzaine de demandes
 // espacées depuis le téléphone. Gardée dans la base et relue par la tâche planifiée.
 import { summarize } from '../shared/season-data.js';
+import { jolpicaQuota } from './quota.js';
 
 const JOLPICA = 'https://api.jolpi.ca/ergast/f1';
 export const SEASON_TTL = 30 * 60e3;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// Toutes les pages d'une liste (100 par page), une demande à la fois (4 par seconde au plus chez Jolpica)
-export async function pages(path, fetchFn, wait = sleep) {
+// Toutes les pages d'une liste (100 par page), une demande à la fois (4 par seconde au plus chez Jolpica) ; avec env,
+// chaque demande compte dans le plafond horaire du Worker (jolpicaQuota) et rien n'est demandé au-delà
+export async function pages(path, fetchFn, wait = sleep, env = null) {
   const out = [];
   for (let offset = 0, total = 1; offset < total; offset += 100) {
     let j = null, last = null;
@@ -16,6 +18,7 @@ export async function pages(path, fetchFn, wait = sleep) {
       // Trop de demandes (429) : attente demandée par Jolpica (10 s au plus), sinon de plus en plus longue
       const after = Number(last?.headers?.get('Retry-After'));
       await wait(attempt ? Math.min(10000, after > 0 ? after * 1000 : 1000 * 2 ** attempt) : 300);
+      if (env?.DB && !(await jolpicaQuota(env))) throw new Error('Plafond horaire des demandes à Jolpica atteint');
       last = await fetchFn(`${JOLPICA}/${path}.json?limit=100&offset=${offset}`, { signal: AbortSignal.timeout(20000) }).catch(() => null);
       if (last?.ok) j = await last.json();
       else if (last && last.status !== 429 && last.status < 500) throw new Error(`Résultats indisponibles (erreur ${last.status})`);
@@ -43,9 +46,9 @@ export function resultsReady(before, after, now = Date.now()) {
   return out;
 }
 
-export async function buildSeason(year, { fetchFn = fetch, wait = sleep } = {}) {
+export async function buildSeason(year, { fetchFn = fetch, wait = sleep, env = null } = {}) {
   const races = (list) => list.flatMap((m) => m?.RaceTable?.Races || []);
-  const get = (p) => pages(p, fetchFn, wait);
+  const get = (p) => pages(p, fetchFn, wait, env);
   const schedule = races(await get(`${year}`));
   const ds = await get(`${year}/driverstandings`);
   const cs = await get(`${year}/constructorstandings`);

@@ -144,6 +144,11 @@ l'application (Réglages → À propos → Nouveautés).
   l'info-bulle le dit, et sur écran tactile une confirmation le rappelle avant d'ouvrir.
 
 ### Saison
+- Fiche d'un Grand Prix à venir : nouveau bloc « Dans l'histoire », avec les derniers vainqueurs sur ce circuit et leur
+  place au départ, le recordman des victoires, la part des victoires depuis la pole, et depuis 2018 le nombre de courses
+  neutralisées (voiture de sécurité, virtuelle ou drapeau rouge), les arrêts et les places gagnées en piste de chaque
+  course. Toutes les courses disputées sur le circuit comptent, avec l'année de la première et celle du retour au
+  calendrier après une longue absence. Aussi dans la version web.
 - Pilote du jour (le vote des fans de la F1) : sur la page de chaque Grand Prix, les 5 premiers du vote avec leurs
   pourcentages ; dans Résultats & records, le pilote du jour de chaque course et le plus souvent élu ; sur la fiche de
   chaque pilote, son nombre d'élections et son meilleur score. Aussi dans la version web.
