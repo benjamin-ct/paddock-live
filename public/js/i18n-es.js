@@ -3106,4 +3106,6 @@ export default {
   "{} : en piste aujourd’hui": "{}: en pista hoy",
   "Premier Grand Prix": "Primer Gran Premio",
   "Essais en cours": "Test en curso",
+  "Copier le code": "Copiar el código",
+  "Code copié": "Código copiado",
 };

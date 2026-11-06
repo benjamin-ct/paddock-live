@@ -115,6 +115,9 @@ l'application (Réglages → À propos → Nouveautés).
   pilotes concernés et leur nombre d'infractions. Les incidents, la piste glissante, les commissaires ou la dépanneuse
   en piste y sont signalés pendant cinq minutes. Les virages proches se regroupent dans une seule pastille, et tout
   suit le délai TV, comme les messages de la direction de course. Aussi dans la version web.
+- Documents FIA du Grand Prix du Brésil (appelé « São Paulo Grand Prix » par la FIA) : la liste s'affiche de nouveau,
+  comme la grille de départ officielle sur l'Accueil. Une course sans document encore publié indique « Aucun document
+  publié pour l'instant », et une erreur s'affiche au lieu d'un chargement sans fin.
 
 ### Analyse
 - Tendances, en essais libres : nouvelle partie « Relais longs », avec chaque relais de 5 tours propres ou plus par
@@ -132,6 +135,8 @@ l'application (Réglages → À propos → Nouveautés).
   iPhone, seulement si les notifications sont déjà permises). Effacés à l'arrivée, hors course et replay en pause.
 
 ### Version web
+- Connexion F1 TV au téléphone : bouton « Copier le code » sous le code à 8 chiffres (il n'était pas possible de le
+  sélectionner), et le code se sélectionne aussi à la main.
 - Téléphone : la météo du week-end (longueur, course, prévision, pluie) est calée à gauche dans la barre du haut, sans
   grand vide, et ses valeurs ne se touchent plus.
 - Nouveau design « Télémétrie », comme dans l'appli, en sombre et en clair : barre du haut sur deux lignes régulières
@@ -153,6 +158,8 @@ l'application (Réglages → À propos → Nouveautés).
 - Sur ordinateur, l'accueil et la barre du haut ne sautent plus pendant le chargement de la page.
 - Pages de la Saison : un seul titre principal, aussi une fois l'appli lancée (pour les moteurs de recherche et les
   lecteurs d'écran).
+- La Saison s'ouvre de nouveau d'un toucher quand la page est restée ouverte pendant une mise à jour du site : elle se
+  recharge sur la Saison au lieu de ne rien faire.
 - Appairage avec l'appli : codes à 8 chiffres (les codes à 6 chiffres marchent encore) et protection contre les essais
   en masse.
 - Alertes dans la version web, sans passer par une autre page : bouton « Alertes » (derrière l'engrenage sur téléphone)
