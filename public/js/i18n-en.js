@@ -3053,4 +3053,6 @@ export default {
   "Seuls essais libres du week-end": "The weekend's only practice",
   "À ne pas rater": "Not to be missed",
   "Week-end sprint": "Sprint weekend",
+  "Copier le code": "Copy the code",
+  "Code copié": "Code copied",
 };

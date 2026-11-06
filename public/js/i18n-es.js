@@ -3052,4 +3052,6 @@ export default {
   "Seuls essais libres du week-end": "Únicos libres del fin de semana",
   "À ne pas rater": "No te la pierdas",
   "Week-end sprint": "Formato sprint",
+  "Copier le code": "Copiar el código",
+  "Code copié": "Código copiado",
 };

@@ -3052,4 +3052,6 @@ export default {
   "Seuls essais libres du week-end": "Uniche libere del weekend",
   "À ne pas rater": "Da non perdere",
   "Week-end sprint": "Weekend Sprint",
+  "Copier le code": "Copia il codice",
+  "Code copié": "Codice copiato",
 };

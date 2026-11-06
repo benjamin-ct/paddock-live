@@ -109,6 +109,8 @@ l'application (Réglages → À propos → Nouveautés).
   voiture lente devant elle (« HAM arrive sur ALB (tour de lancement) à 3,1 s »), pour les trois plus proches.
 
 ### Version web
+- Connexion F1 TV au téléphone : bouton « Copier le code » sous le code à 8 chiffres (il n'était pas possible de le
+  sélectionner), et le code se sélectionne aussi à la main.
 - Téléphone : la météo du week-end (longueur, course, prévision, pluie) est calée à gauche dans la barre du haut, sans
   grand vide, et ses valeurs ne se touchent plus.
 - Nouveau design « Télémétrie », comme dans l'appli, en sombre et en clair : barre du haut sur deux lignes régulières
