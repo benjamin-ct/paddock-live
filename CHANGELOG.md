@@ -132,6 +132,12 @@ l'application (Réglages → À propos → Nouveautés).
 - Calendrier (.ics) en italien et en espagnol.
 - Résumé de course : « avec un tour d'avance sur son dauphin » au lieu de « 1L s d'avance ».
 
+### Replays
+- Nouveau bouton « Analyser » (icône de graphique) à côté de chaque séance des Grands Prix et de « Revoir » dans Mes
+  enregistrements : la séance s'ouvre directement à la fin, en pause, avec la fenêtre Analyse (au téléphone en
+  version complète, son onglet) et tous les tours, relais et tendances déjà calculés. Le résultat est donc visible :
+  l'info-bulle le dit, et sur écran tactile une confirmation le rappelle avant d'ouvrir.
+
 ### Saison
 - Pilote du jour (le vote des fans de la F1) : sur la page de chaque Grand Prix, les 5 premiers du vote avec leurs
   pourcentages ; dans Résultats & records, le pilote du jour de chaque course et le plus souvent élu ; sur la fiche de

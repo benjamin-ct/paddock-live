@@ -2996,4 +2996,6 @@ export default {
   "F1 · intersaison": "F1 · pausa invernale",
   "Lancement de la saison 2027 à Milan, avec les 11 écuries": "Presentazione della stagione 2027 a Milano, con tutte le 11 squadre",
   "Essais d’hiver à Bahreïn (4 jours)": "Test invernali in Bahrein (4 giorni)",
+  "Analyser : la séance s'ouvre à la fin, en pause, avec l'Analyse (résultat visible)": "Analizza: la sessione si apre alla fine, in pausa, con l'Analisi (risultato visibile)",
+  "Analyser ouvre la séance à la fin : le résultat sera visible. Continuer ?": "Analizza apre la sessione alla fine: vedrai il risultato. Vuoi continuare?",
 };

@@ -540,7 +540,7 @@ async function handleApi(req, res, url) {
       else return sendJSON(res, 400, { error: 'Session invalide' });
       live.stop();
       stats.record('session.replay');
-      replay.start(source, body.startOffsetMs).catch((err) => console.warn('[replay]', err.message));
+      replay.start(source, body.startOffsetMs, body.pause === true).catch((err) => console.warn('[replay]', err.message));
       return sendJSON(res, 202, { ok: true });
     }
 

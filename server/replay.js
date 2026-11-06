@@ -164,7 +164,8 @@ export class ReplaySource {
   }
 
   // source : chemin d'archive officielle ("2026/…/") ou {local: id} pour un enregistrement.
-  async start(source, startOffsetMs) {
+  // startOffsetMs : position de départ, bornée à la durée (« Analyser » des Replays : à la fin) ; pause : en pause dès le chargement
+  async start(source, startOffsetMs, pause = false) {
     const id = ++this.loadId;
     const local = typeof source === 'object' && source?.local;
     const path = local ? `local:${local}` : source;
@@ -180,7 +181,7 @@ export class ReplaySource {
     }
     if (id !== this.loadId) return;
 
-    const start = Number.isFinite(startOffsetMs) ? startOffsetMs : Math.max(0, archive.startOff - 60000);
+    const start = Number.isFinite(startOffsetMs) ? Math.max(0, Math.min(archive.duration, startOffsetMs)) : Math.max(0, archive.startOff - 60000);
     this.duration = archive.duration;
     this.startOff = archive.startOff;
     // Moments clés (liste du replay) : servis à part (GET /api/replay/moments)
@@ -213,6 +214,7 @@ export class ReplaySource {
       speed: this.speed,
       noRadio: !!archive.noRadio,
     };
+    if (pause) this.pause();
   }
 
   isActive() {

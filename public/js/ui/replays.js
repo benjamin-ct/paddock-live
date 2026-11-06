@@ -1,7 +1,8 @@
 // Espace Replays : rejouer une séance des archives officielles F1 (compte F1 TV) ou une séance
 // enregistrée sur cet ordinateur, et revenir au direct. Remplace l'ancien onglet « Source » des réglages.
 import { $, $$, esc, api, placeView } from '../util.js';
-import { store, on } from '../store.js';
+import { store, on, emit } from '../store.js';
+import { prefs } from '../prefs.js';
 import { toast } from './delay.js';
 import { icon } from '../icons.js';
 import { LOCALE, LANG, DEC } from '../i18n.js';
@@ -11,6 +12,11 @@ let section = 'gp';
 let openedAt = 0;
 let year = new Date().getFullYear();
 const cache = new Map();   // année -> { meetings } | { error }
+
+// « Analyser » : la séance s'ouvre à la fin, en pause, fenêtre Analyse ouverte. Le résultat est dévoilé : dit avant le clic
+// (info-bulle ; sur écran tactile, sans survol, une confirmation)
+const ANALYSE_TIP = 'Analyser : la séance s\'ouvre à la fin, en pause, avec l\'Analyse (résultat visible)';
+const analyseBtn = (attr, id, name, label = '') => `<button class="btn small" ${attr}="${esc(id)}" data-rv-name="${esc(name)}" title="${ANALYSE_TIP}">${icon('chart')}${label}</button>`;
 
 const fmtDay = (iso) => (iso ? new Date(`${iso.slice(0, 10)}T12:00:00`).toLocaleDateString(LOCALE, { day: 'numeric', month: 'short' }) : '');
 
@@ -41,7 +47,7 @@ async function renderGps(body) {
   const playing = store.status?.source?.mode === 'replay' ? store.status.source.path : null;
   body.innerHTML = `<div class="rv-grid">${d.meetings.map((m) => `<section class="sz-box rv-gp">
       <div class="rv-gp-head"><b>${esc(gpFull(m.name, LANG))}</b><span class="muted small">${esc([m.location, fmtDay(m.sessions.at(-1)?.start)].filter(Boolean).join(' · '))}</span></div>
-      <div class="rv-sessions">${m.sessions.map((s) => `<button class="btn small${s.path === playing ? ' on' : ''}" data-rv-path="${esc(s.path)}" data-rv-name="${esc(`${gpFull(m.name, LANG)} — ${sessionLabel(s.name, LANG)}`)}">${icon('play')} ${esc(sessionLabel(s.name, LANG))}</button>`).join('')}</div>
+      <div class="rv-sessions">${m.sessions.map((s) => { const name = `${gpFull(m.name, LANG)} — ${sessionLabel(s.name, LANG)}`; return `<span class="rv-pair"><button class="btn small${s.path === playing ? ' on' : ''}" data-rv-path="${esc(s.path)}" data-rv-name="${esc(name)}">${icon('play')} ${esc(sessionLabel(s.name, LANG))}</button>${analyseBtn('data-rv-apath', s.path, name)}</span>`; }).join('')}</div>
     </section>`).join('')}</div>`;
 }
 
@@ -60,7 +66,7 @@ async function renderRecordings(body) {
   const total = recs.reduce((n, r) => n + r.size, 0);
   body.innerHTML = `${recs.length ? `<div class="row small muted rec-total">${recs.length} enregistrement${recs.length > 1 ? 's' : ''} · ${(total / 1e6).toFixed(0)} Mo · les 15 plus récents sont gardés<span class="spacer"></span><button class="btn small" data-rv-delall>${icon('close')} Tout supprimer</button></div>` : ''}${recs.length ? `<div class="sz-box rec-list">${recs.map((r) => { const l = recLabel(r.name); return `<div class="rec"><span class="rec-name" title="${esc(r.name)}">${esc(l.title)}${l.date ? ` <span class="muted small">${esc(l.date)}</span>` : ''}</span>
       <span class="muted">${(r.size / 1e6).toFixed(1).replace('.', DEC)} Mo</span>
-      <button class="btn small" data-rv-local="${esc(r.id)}" data-rv-name="${esc(l.title)}">${icon('play')} Revoir</button><button class="btn small" data-rv-del="${esc(r.id)}" title="Supprimer">${icon('trash')}</button></div>`; }).join('')}</div>`
+      <button class="btn small" data-rv-local="${esc(r.id)}" data-rv-name="${esc(l.title)}">${icon('play')} Revoir</button>${analyseBtn('data-rv-alocal', r.id, l.title, ' Analyser')}<button class="btn small" data-rv-del="${esc(r.id)}" title="Supprimer">${icon('trash')}</button></div>`; }).join('')}</div>`
       : '<div class="muted">Aucun enregistrement : ils se créent pendant les séances en direct.</div>'}`;
 }
 
@@ -84,13 +90,20 @@ export function openReplays(sec) {
 
 export function closeReplays() { if ($('#replayView')) $('#replayView').hidden = true; }
 
-async function play(body, name) {
+async function play(body, name, analyse = false) {
   // Séance en direct : le replay l'interrompt (« Direct » pour y revenir)
   const live = store.status?.source?.mode === 'live' && ['Started', 'Aborted'].includes(store.state?.SessionStatus?.Status);
   if (live && !confirm('Une séance est en cours : le replay interrompt le direct (« Direct » dans le menu de gauche pour y revenir). Lancer le replay ?')) return;
+  if (analyse && matchMedia('(hover: none)').matches && !confirm('Analyser ouvre la séance à la fin : le résultat sera visible. Continuer ?')) return;
+  const phone = document.documentElement.classList.contains('phone');
+  // Fenêtre Analyse ouverte pendant le clic (sinon bloquée par le navigateur) ; au téléphone, son onglet
+  if (analyse && !phone && prefs.hiddenPanels.includes('analysis')) emit('openWindow', 'analysis');
+  // Analyser : à la fin (le serveur borne la position à la durée de la séance), en pause
+  if (analyse) Object.assign(body, { startOffsetMs: Number.MAX_SAFE_INTEGER, pause: true });
   try {
     await api('/api/replay', { method: 'POST', body });
     closeReplays();
+    if (analyse && phone) import('./layout.js').then((m) => m.showMobilePanel('analysis'));
     toast(`Chargement du replay : ${name}`, 4000);
   } catch (err) { toast(err.message, 6000); }
 }
@@ -108,10 +121,12 @@ export function initReplays() {
     toast('Connexion au flux live…');
   });
   view.addEventListener('click', async (e) => {
-    const t = e.target.closest('[data-rv-path], [data-rv-local], [data-rv-del], [data-rv-delall], [data-rv-f1tv], [data-rv-go]');
+    const t = e.target.closest('[data-rv-path], [data-rv-local], [data-rv-apath], [data-rv-alocal], [data-rv-del], [data-rv-delall], [data-rv-f1tv], [data-rv-go]');
     if (!t) return;
     if (t.dataset.rvPath) play({ path: t.dataset.rvPath }, t.dataset.rvName);
     else if (t.dataset.rvLocal) play({ local: t.dataset.rvLocal }, t.dataset.rvName);
+    else if (t.dataset.rvApath) play({ path: t.dataset.rvApath }, t.dataset.rvName, true);
+    else if (t.dataset.rvAlocal) play({ local: t.dataset.rvAlocal }, t.dataset.rvName, true);
     else if (t.dataset.rvGo) { section = t.dataset.rvGo; render(); }
     else if ('rvF1tv' in t.dataset) { $('#settingsBtn').click(); $('#setNav [data-sgroup="f1tv"]')?.click(); }
     else if ('rvDelall' in t.dataset) {

@@ -2996,4 +2996,6 @@ export default {
   "F1 · intersaison": "F1 · pretemporada",
   "Lancement de la saison 2027 à Milan, avec les 11 écuries": "Presentación de la temporada 2027 en Milán, con los 11 equipos",
   "Essais d’hiver à Bahreïn (4 jours)": "Test de pretemporada en Baréin (4 días)",
+  "Analyser : la séance s'ouvre à la fin, en pause, avec l'Analyse (résultat visible)": "Analizar: la sesión se abre al final, en pausa, con el Análisis (resultado visible)",
+  "Analyser ouvre la séance à la fin : le résultat sera visible. Continuer ?": "Analizar abre la sesión al final: verás el resultado. ¿Quieres continuar?",
 };
