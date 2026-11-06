@@ -11,6 +11,8 @@ import { icon } from '../icons.js';
 import { renderPredict, initPredict } from './predict-view.js';
 import { renderReview, reviewAction } from './season-review.js';
 import { renderDestructors, showDestructorsDriver } from './season-destructors.js';
+import { renderGrid } from './season-grid.js';
+import { GRID_NEXT } from '/shared/grid-next.js';
 import { addPngButtons, savePng } from './season-png.js';
 import { toast } from './delay.js';
 import { renderPace, setPaceCut, setPaceScope } from './season-pace.js';
@@ -1109,6 +1111,10 @@ function render() {
     if (wanted.section === 'gp') gpRound = data.races.find((r) => gpSlug(r.name) === wanted.item || enGpSlug(r.name) === wanted.item)?.round ?? null;
     wanted = null;
   }
+  // Grille de la saison suivante : rubrique de la saison qui la précède seulement
+  const gridBtn = $('#szNav [data-sz="grid"]');
+  if (gridBtn) gridBtn.hidden = data.year !== GRID_NEXT.year - 1;
+  if (section === 'grid' && gridBtn?.hidden) section = 'home';
   for (const b of document.querySelectorAll('#szNav [data-sz]')) b.classList.toggle('active', b.dataset.sz === section);
   szGroupSync();
   if ($('#szCur')) $('#szCur').textContent = $('#szNav .active')?.textContent.trim() || (section === 'gp' ? 'Grand Prix' : '');
@@ -1121,7 +1127,7 @@ function render() {
     drivers: () => renderDrivers(ctx, drvCode), consistency: () => renderConsistency(ctx), pits: () => renderPits(ctx),
     speeds: () => renderSpeeds(ctx, speedPt), circuits: () => renderCircuits(ctx, circSort), ratings: () => renderRatings(ctx, rateSort),
     tech: () => renderTech(ctx, fiaData), elements: () => renderElements(ctx, fiaData), predict: () => renderPredict(data.year, (code) => { const d = data.drivers.find((x) => x.code === code); return d ? seasonOpt(d) : ''; }), review: () => renderReview(ctx),
-    gp: renderGp,
+    gp: renderGp, grid: () => renderGrid(ctx),
   }[section]();
   // Tableaux larges : défilement de côté gardé quand la rubrique est redessinée (nouvelle course analysée…)
   const wide = () => $('#szContent').querySelectorAll('.sz-box, .sz-scroll');
@@ -1248,7 +1254,7 @@ export function closeSeason() {
 const SZ_GROUPS = [
   ['overview', 'Vue d\'ensemble', ['home', 'calendar', 'standings', 'title', 'review', 'compare']],
   ['results', 'Résultats', ['results', 'quali', 'destructors']],
-  ['people', 'Pilotes et écuries', ['drivers', 'teams', 'h2h', 'ratings', 'consistency']],
+  ['people', 'Pilotes et écuries', ['drivers', 'teams', 'grid', 'h2h', 'ratings', 'consistency']],
   ['tech', 'Technique', ['pits', 'speeds', 'circuits', 'tech', 'elements']],
   ['games', 'Jeux', ['predict']],
 ];

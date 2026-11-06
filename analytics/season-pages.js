@@ -10,7 +10,8 @@ import { getRow } from './alerts.js';
 import { raceStatsOf } from './race-stats.js';
 import { gpShort, gpFull } from '../shared/gp-names.js';
 import { retired } from '../shared/season-calc.js';
-import { SECTION_PATHS, seasonPath, seasonTitle, slug, gpSlug, parseSeasonPath } from '../shared/season-urls.js';
+import { SECTION_PATHS, seasonPath, seasonTitle, slug, gpSlug, parseSeasonPath, titleYear } from '../shared/season-urls.js';
+import { GRID_NEXT, gridSummary } from '../shared/grid-next.js';
 
 export const APP = 'https://app.paddocklive.app';
 const IMAGE = 'https://paddocklive.app/site/img/apercu.png';   // aperçu de la version web (balise og:image)
@@ -25,7 +26,7 @@ export const firstYear = (now = Date.now()) => new Date(now).getUTCFullYear() - 
 export const EN_PATHS = {
   home: '', calendar: 'calendar', standings: 'standings', title: 'title-race', compare: 'compare', destructors: 'destructors', review: 'review', results: 'results', quali: 'qualifying',
   h2h: 'head-to-head', ratings: 'ratings', predict: 'predictions', drivers: 'drivers', teams: 'teams', consistency: 'consistency', pits: 'pit-stops',
-  speeds: 'top-speeds', circuits: 'circuits', tech: 'upgrades', elements: 'power-unit-elements', gp: 'grand-prix',
+  speeds: 'top-speeds', circuits: 'circuits', tech: 'upgrades', elements: 'power-unit-elements', gp: 'grand-prix', grid: 'grid',
 };
 export function enSeasonPath(year, section = 'home', item = null) {
   const p = EN_PATHS[section] || '';
@@ -46,12 +47,12 @@ const EN_TITLES = {
   results: 'F1 {} results: every Grand Prix', quali: 'F1 {} qualifying: gap to pole by team', h2h: 'F1 {} teammate head-to-heads', ratings: 'F1 {} driver ratings',
   predict: 'F1 {} predictions with friends', drivers: 'F1 {} drivers', teams: 'F1 {} teams: drivers, points and results', consistency: 'F1 {} driver consistency',
   pits: 'F1 {} pit stops: fastest, by team', speeds: 'F1 {} top speeds', circuits: 'F1 {} circuit profiles', tech: 'F1 {} technical upgrades',
-  elements: 'F1 {} power unit elements', gp: 'F1 {} Grands Prix',
+  elements: 'F1 {} power unit elements', gp: 'F1 {} Grands Prix', grid: 'F1 {} grid: confirmed drivers and seats to be confirmed',
 };
 function enTitle(year, section, name = null, run = true) {
   if (section === 'drivers' && name) return `${name}: ${year} F1 season results`;
   if (section === 'gp' && name) return `${gpFull(name, 'en')} ${year}: ${run ? 'results' : 'schedule'}`;
-  return (EN_TITLES[section] || EN_TITLES.home).replace('{}', year);
+  return (EN_TITLES[section] || EN_TITLES.home).replace('{}', titleYear(year, section));
 }
 
 const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -77,6 +78,9 @@ const FR = {
   season: (y) => `Saison ${y}`, other: ['en', 'English version'],
   driverLine: (d) => `${FR.nth(d.pos)} du championnat avec ${d.points} point${d.points > 1 ? 's' : ''}${d.wins ? `, ${d.wins} victoire${d.wins > 1 ? 's' : ''}` : ''} · ${d.team}`,
   raceLine: (r, day) => `Manche ${r.round} · ${day}`, winLine: 'Vainqueur : ', poleLine: ' · Pole : ',
+  gridHead: ['Écurie', 'Pilote', 'Statut', 'Annonce'], confirmed: 'Confirmé', tbc: 'À confirmer', changes: (y) => `Changements par rapport à ${y}`,
+  replaces: (a, b) => `${a} remplace ${b}`, same: (teams) => `Même duo qu'en ${GRID_NEXT.year - 1} : ${teams.join(', ')}`, by: (who) => `déclaration de ${who}`,
+  gridLine: (n, c, upd) => `${c} baquets confirmés sur ${n}. Annonces officielles seulement (communiqué de l'écurie, de la F1 ou déclaration officielle de l'écurie) : un baquet sans annonce reste « à confirmer ». À jour au ${upd}.`,
   home: (done, n, d) => `${done} Grands Prix courus sur ${n}${d ? `, ${d.name} en tête avec ${d.points} points` : ''}.`,
   driverDesc: (d, year) => `Saison ${year} de ${d.name} en Formule 1 : ${FR.nth(d.pos)} du championnat avec ${d.points} points, résultats Grand Prix par Grand Prix, qualifications, grilles et points.`,
   gpDesc: (r, year, win, pole) => (r.results.length ? `Résultats du ${gpFull(r.name)} ${year} (${r.circuit}) : vainqueur ${win?.name}${pole ? `, pole ${pole.name}` : ''}, classement complet, qualifications${r.sprint ? ', sprint' : ''} et arrêts aux stands les plus rapides.`
@@ -99,6 +103,9 @@ const EN = {
   season: (y) => `${y} season`, other: ['fr', 'Version française'],
   driverLine: (d) => `${enNth(d.pos)} in the championship with ${d.points} point${d.points > 1 ? 's' : ''}${d.wins ? `, ${d.wins} win${d.wins > 1 ? 's' : ''}` : ''} · ${d.team}`,
   raceLine: (r, day) => `Round ${r.round} · ${day}`, winLine: 'Winner: ', poleLine: ' · Pole: ',
+  gridHead: ['Team', 'Driver', 'Status', 'Announcement'], confirmed: 'Confirmed', tbc: 'To be confirmed', changes: (y) => `Changes from ${y}`,
+  replaces: (a, b) => `${a} replaces ${b}`, same: (teams) => `Same pairing as in ${GRID_NEXT.year - 1}: ${teams.join(', ')}`, by: (who) => `statement by ${who}`,
+  gridLine: (n, c, upd) => `${c} of ${n} seats confirmed. Official announcements only (team or F1 announcement, or official statement by the team): a seat without one stays "to be confirmed". Updated ${upd}.`,
   home: (done, n, d) => `${done} of ${n} Grands Prix run${d ? `, ${d.name} leads with ${d.points} points` : ''}.`,
   driverDesc: (d, year) => `${d.name}'s ${year} Formula 1 season: ${enNth(d.pos)} in the championship with ${d.points} points, race-by-race results, qualifying, grid positions and points.`,
   gpDesc: (r, year, win, pole) => (r.results.length ? `${gpFull(r.name, 'en')} ${year} results (${r.circuit}): won by ${win?.name}${pole ? `, pole for ${pole.name}` : ''}, full classification, qualifying${r.sprint ? ', sprint' : ''} and fastest pit stops.`
@@ -137,6 +144,7 @@ const DESC = {
   circuits: 'Profil des circuits de la saison {} de F1 : longueur, virages, vitesse moyenne, arrêts et dépassements.',
   tech: 'Évolutions techniques apportées par les écuries de F1 en {}, Grand Prix par Grand Prix, d\'après les documents de la FIA.',
   elements: 'Éléments moteur utilisés par chaque pilote de F1 en {}, d\'après les documents de la FIA.',
+  grid: 'Grille F1 {} : les deux pilotes de chaque écurie, baquets confirmés par une annonce officielle (date et lien) ou encore à confirmer, changements de l\'intersaison.',
 };
 const EN_DESC = {
   home: '{} Formula 1 season: drivers\' and constructors\' standings, calendar, winners and results of every Grand Prix, detailed statistics.',
@@ -159,9 +167,10 @@ const EN_DESC = {
   circuits: 'Circuit profiles of the {} F1 season: length, corners, average speed, pit stops and overtakes.',
   tech: 'Technical upgrades brought by the F1 teams in {}, Grand Prix by Grand Prix, from the FIA documents.',
   elements: 'Power unit elements used by every F1 driver in {}, from the FIA documents.',
+  grid: 'F1 {} grid: both drivers of every team, seats confirmed by an official announcement (date and link) or still to be confirmed, off-season changes.',
 };
-FR.desc = (section, year) => (DESC[section] || DESC.home).replace('{}', year);
-EN.desc = (section, year) => (EN_DESC[section] || EN_DESC.home).replace('{}', year);
+FR.desc = (section, year) => (DESC[section] || DESC.home).replace('{}', titleYear(year, section));
+EN.desc = (section, year) => (EN_DESC[section] || EN_DESC.home).replace('{}', titleYear(year, section));
 
 function standings(t, s, year, limit = Infinity) {
   return box(t.standingsD, table([t.pos, t.driver, t.team, t.points, t.wins], s.drivers.slice(0, limit).map((d) => [d.pos ?? '', dLink(t, year, d.name), esc(d.team), d.points, d.wins])))
@@ -170,7 +179,17 @@ function standings(t, s, year, limit = Infinity) {
 const calendar = (t, s, year) => box(t.calendar, table([t.round, t.gp, t.date, t.winner, t.pole], s.races.map((r) => [r.round, gLink(t, year, r), t.day(r.date),
   esc(r.results.find((x) => x.pos === 1)?.name || ''), esc(r.quali.find((x) => x.pos === 1)?.name || '')])));
 // Toutes les rubriques de la saison en liens (les boutons de l'appli n'en sont pas)
-const nav = (t, year) => `<nav class="sz-box">${Object.keys(SECTION_PATHS).filter((k) => k !== 'gp' && k !== 'predict').map((k) => `<a href="${t.path(year, k)}">${esc(t.title(year, k))}</a>`).join(' · ')}</nav>`;
+const nav = (t, year) => `<nav class="sz-box">${Object.keys(SECTION_PATHS).filter((k) => k !== 'gp' && k !== 'predict' && (k !== 'grid' || year === GRID_NEXT.year - 1)).map((k) => `<a href="${t.path(year, k)}">${esc(t.title(year, k))}</a>`).join(' · ')}</nav>`;
+
+// Grille de la saison suivante (shared/grid-next.js) : les 22 baquets, l'annonce de chacun, changements par rapport à 2026
+function gridBody(t) {
+  const g = gridSummary(), day = (iso) => t.day(`${iso}T12:00:00Z`);
+  const ann = (s) => `${esc(day(s.date))} · <a href="${esc(s.url)}" rel="noopener">${esc(s.by ? t.by(s.by) : new URL(s.url).hostname.replace(/^www\./, ''))}</a>`;
+  const rows = g.teams.flatMap((x) => x.seats.map((s) => [`<b>${esc(x.team)}</b>`, s.driver ? `<b>${esc(s.driver)}</b>` : '—', s.driver ? t.confirmed : t.tbc, s.driver ? ann(s) : '']));
+  const same = g.teams.filter((x) => x.same).map((x) => x.team);
+  const chg = [...g.arrivals.map((a) => (a.replaces ? t.replaces(a.driver, a.replaces) : a.driver)), ...(same.length ? [t.same(same)] : [])];
+  return `<p class="muted">${esc(t.gridLine(g.seats, g.confirmed, day(GRID_NEXT.updated)))}</p>${box(t.season(GRID_NEXT.year), table(t.gridHead, rows))}${box(t.changes(GRID_NEXT.year - 1), `<ul>${chg.map((c) => `<li>${esc(c)}</li>`).join('')}</ul>`)}`;
+}
 
 function driverBody(t, s, year, d) {
   const key = slug(d.name);
@@ -215,12 +234,12 @@ const crumbs = (items) => ({ '@type': 'BreadcrumbList', itemListElement: items.m
 // l'appli ({ section, year, item } aux noms français), pour la version anglaise dont l'appli ne lit pas l'adresse
 export async function seasonSsr(env, p, { now = Date.now() } = {}) {
   const current = new Date(now).getUTCFullYear(), year = p.year;
-  if (year < firstYear(now) || year > current) return null;
+  if (year < firstYear(now) || year > current || (p.section === 'grid' && year !== GRID_NEXT.year - 1)) return null;
   const t = LANG[p.lang] || FR;
   const row = await seasonRow(env, year, { now, maxAge: year < current ? 7 * 86400e3 : 6 * 3600e3 }).catch(() => null);
   const s = row?.v;
   const alt = (fr, en) => ({ fr: `${APP}${seasonPath(year, p.section, fr)}`, en: `${APP}${enSeasonPath(year, p.section, en)}` });
-  if (!s?.races) {
+  if (!s?.races && p.section !== 'grid') {
     return { url: `${APP}${t.path(year, p.section, p.item)}`, title: t.title(year, p.section), desc: t.desc(p.section, year), lang: t.lang,
       ...(p.section !== 'gp' ? { alt: alt(p.item, p.item) } : {}) };
   }
@@ -244,6 +263,8 @@ export async function seasonSsr(env, p, { now = Date.now() } = {}) {
     links = alt(FR.gpItem(r), EN.gpItem(r));
     appItem = FR.gpItem(r);
     trail.push([t.gpName(r).replace(/ GP$/, ''), t.path(year, 'gp', p.item)]);
+  } else if (p.section === 'grid') {
+    body = gridBody(t);
   } else if (p.section === 'drivers') {
     body = box(t.drivers, table([t.pos, t.driver, t.team, t.points], s.drivers.map((d) => [d.pos ?? '', dLink(t, year, d.name), esc(d.team), d.points])));
   } else if (p.section === 'standings') {
@@ -311,6 +332,7 @@ export async function seasonSitemap(env, now = Date.now()) {
     const last = isoDay(s?.races?.filter((r) => r.results?.length).at(-1)?.date);
     for (const t of [FR, EN]) {
       urls.push(...OWN.map((k) => [t.path(y, k), last]));
+      if (y === GRID_NEXT.year - 1) urls.push([t.path(y, 'grid'), GRID_NEXT.updated]);
       if (s?.races?.length) urls.push(...s.drivers.map((d) => [t.path(y, 'drivers', slug(d.name)), last]), ...s.races.map((r) => [t.path(y, 'gp', t.gpItem(r)), r.results?.length ? isoDay(r.date) : null]));
     }
   }
