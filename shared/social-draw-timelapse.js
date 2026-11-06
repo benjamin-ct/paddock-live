@@ -7,6 +7,9 @@
 // en bas du classement (« ABANDON ») jusqu'à l'arrivée. Feux, safety car en tête des voitures, bandeaux des
 // moments forts (mêmes que la vidéo du graphique, raceVideoTiming), podium à l'arrivée.
 import { C, TITLE, MONO, MEDAL, TYRE, rr, txt, fitLines, vivid, background, card, pill, v3 } from './social-draw.js';
+
+// Lettres des pneus sur les pastilles : celles de Pirelli, comprises partout (Soft, Medium, Hard, Intermediate, Wet)
+const LETTER = { SOFT: 'S', MEDIUM: 'M', HARD: 'H', INTERMEDIATE: 'I', WET: 'W' };
 import { realStints, stintList } from './pits.js';
 import { BEST, T } from './social-draw-v3.js';
 import { FLAG, BANNER, BANNER_COLOR, ease, clamp01, gapsOf, lapAt, raceVideoTiming, NEUTRAL } from './social-draw-season.js';
@@ -363,10 +366,11 @@ export function timelapseFrame(ctx, W, H, d, o, time) {
     }
     ctx.globalAlpha = 1 - 0.45 * c.k;
     let tx = c.nx + 8 * u;
-    // Pneus : pastille de la couleur du composé (lettre française, comme l'appli), puis jauge d'usure verticale
+    // Pneus : pastille de la couleur du composé (lettre internationale de Pirelli : la vidéo circule hors de France), puis
+    // jauge d'usure verticale
     // (pleine et verte sur des pneus neufs, elle se vide en passant au jaune puis au rouge)
     if (c.tyre) {
-      const [tc, letter] = TYRE[c.tyre.c];
+      const tc = TYRE[c.tyre.c][0], letter = LETTER[c.tyre.c];
       const r = tr;
       ctx.beginPath(); ctx.arc(tx + r, c.y, r, 0, Math.PI * 2);
       ctx.fillStyle = v3 ? T.bg : '#101318'; ctx.fill();
