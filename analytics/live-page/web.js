@@ -203,8 +203,17 @@ function pairSend() {
 
 updatePairUI();
 
+// Horloge du relais : chaque message donne « heure du serveur − heure du téléphone », moins le temps de trajet. Un
+// message retardé par le réseau du téléphone faisait reculer l'heure affichée d'un coup (voitures qui sautent sur la
+// carte, tout rechargé au-delà de 200 ms) : écart le plus grand des 30 dernières secondes (trajet le plus court),
+// rattrapé en douceur dans loop (3 % au plus) ; recalé d'un coup seulement au début ou après un écart de 2 s
+const skews = [];
+let skewGoal = null, skewAt = 0;
 function status(now) {
-  store.skew = store.skew === 0 ? now - Date.now() : store.skew * 0.8 + (now - Date.now()) * 0.2;
+  skews.push(now - Date.now());
+  if (skews.length > 6) skews.shift();
+  skewGoal = Math.max(...skews);
+  if (store.skew === 0 || Math.abs(skewGoal - store.skew) > 2000) store.skew = skewGoal;
   store.status = {
     type: 'status', serverNow: now, clock: now, paused: false,
     source: { mode: 'live', label: 'Live', ...relay, authenticated: !!relay.authenticated },
@@ -474,6 +483,9 @@ function showWait() {
   if (s) waitBar.textContent = `Mise en mémoire : affichage calé sur votre TV dans ${s} s`;
 }
 function loop() {
+  const dt = Math.min(1000, performance.now() - skewAt);
+  skewAt = performance.now();
+  if (skewGoal !== null) store.skew += Math.max(-0.03 * dt, Math.min(0.03 * dt, skewGoal - store.skew));
   safe(() => hub.tick(serverNow() - store.delay));
   safe(showWait);
   safe(renderHeader);
