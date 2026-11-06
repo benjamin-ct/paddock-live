@@ -303,6 +303,8 @@ export default {
   "Analyse affichée en grand dans l'autre fenêtre (second écran)": "Análisis mostrado en grande en la otra ventana (segunda pantalla)",
   "Analyse des courses de la saison": "Análisis de las carreras de la temporada",
   "Anglais": "Inglés",
+  "Contraste renforcé": "Contraste alto",
+  "Textes secondaires et filets plus marqués, en sombre comme en clair. Activé aussi quand l'ordinateur ou le téléphone demande plus de contraste": "Textos secundarios y líneas más marcados, en modo oscuro y claro. También activo cuando tu ordenador o teléfono pide más contraste",
   "Animations de l'interface": "Animaciones de la interfaz",
   "Annuler": "Cancelar",
   "Anti-spoiler pendant les séances": "Antispoiler durante las sesiones",

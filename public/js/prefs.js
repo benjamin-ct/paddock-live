@@ -39,6 +39,7 @@ const DEFAULTS = {
   phoneFull: false,       // téléphone : tous les onglets et réglages de l'ordinateur (sinon version simplifiée)
   welcomed: true,         // écrans d'accueil du premier lancement déjà vus
   motion: true,           // animations de l'interface (désactivées aussi si le système le demande)
+  contrast: false,        // contraste renforcé (aussi quand le système le demande : prefers-contrast: more)
   textScale: 1,           // taille de l'interface dans le navigateur d'un téléphone ou d'une tablette (0,9 à 1,5 ; l'appli de bureau garde la sienne, desktop/main.cjs)
   momentsSpoil: false,    // replay : détail des moments clés à venir affiché
   lang: LANG,             // langue de l'interface : 'fr' | 'en' | 'it' | 'es' (voir i18n.js)
@@ -157,9 +158,19 @@ function applyTextScale() {
   const s = prefs.textScale;
   meta.content = s > 0 && s !== 1 ? meta.dataset.base.replace(/width=device-width,\s*initial-scale=1\b/, `initial-scale=${s}`) : meta.dataset.base;
 }
+// Contraste renforcé (Réglages → Affichage, ou réglage du système) : data-contrast="more" sur <html>, jetons de texte
+// et de filets plus marqués dans style.css
+const systemContrast = window.matchMedia?.('(prefers-contrast: more)');
+export const systemMoreContrast = () => !!systemContrast?.matches;
+function applyContrast() {
+  if (prefs.contrast || systemMoreContrast()) document.documentElement.dataset.contrast = 'more';
+  else delete document.documentElement.dataset.contrast;
+}
 document.documentElement.dataset.theme = 'pitwall';
 applyDesign();
 applyTextScale();
+applyContrast();
+systemContrast?.addEventListener?.('change', () => { applyContrast(); emit('prefs', 'contrast'); });
 applyScheme();
 systemLight?.addEventListener?.('change', () => { if (prefs.scheme === 'auto') applyScheme(); });
 
@@ -178,6 +189,7 @@ export function setPref(key, value) {
   if (key === 'scheme') { prefs.schemeSet = true; applyScheme(); }
   if (key === 'design') applyDesign();
   if (key === 'textScale') applyTextScale();
+  if (key === 'contrast') applyContrast();
   if (key === 'motion') document.documentElement.dataset.motion = value ? 'on' : 'off';
   storageSet('paddock.prefs', prefs);
   emit('prefs', key);
@@ -209,6 +221,7 @@ window.addEventListener('storage', (e) => {
     if (key === 'scheme') applyScheme();
     if (key === 'design') applyDesign();
     if (key === 'textScale') applyTextScale();
+    if (key === 'contrast') applyContrast();
     emit('prefs', key);
   }
 });

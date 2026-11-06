@@ -36,6 +36,9 @@ l'application (Réglages → À propos → Nouveautés).
 - Taille de l'interface aussi dans le navigateur d'un téléphone ou d'une tablette (Réglages → Affichage → Général), de
   90 à 150 % : textes, boutons, classement et graphiques grandissent ensemble, la page se réorganise sans déborder.
   L'application de bureau garde la sienne (de 90 à 200 %, ou Ctrl + / Ctrl − / Ctrl 0).
+- Contraste renforcé (Réglages → Affichage → Général) : textes secondaires, libellés et contours des panneaux plus
+  marqués, dans tous les designs, en sombre comme en clair. Activé tout seul quand l'ordinateur ou le téléphone demande
+  plus de contraste.
 - Téléphone et tablette : plus de zoom quand on touche deux fois vite un menu ou une rubrique (le zoom à deux doigts
   reste), dans l'appli et la version web.
 - Actu : au lancement de l'appli, toute l'actualité s'affiche (il arrivait que la liste reste vide, ou ne montre que les

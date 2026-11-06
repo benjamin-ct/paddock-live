@@ -3,7 +3,7 @@
 import { store, serverNow, on } from '../store.js';
 import { $, $$, esc, api, fmtDuration, drivers, orderedNumbers, storageGet, storageSet } from '../util.js';
 import { toast } from './delay.js';
-import { prefs, setPref, toggleFav, toggleTeamFav } from '../prefs.js';
+import { prefs, setPref, toggleFav, toggleTeamFav, systemMoreContrast } from '../prefs.js';
 import { NEWS_TEAMS, fold } from '/shared/news.js';
 import { saveWindowsSnapshot, restoreWindowsSnapshot, windowSetups, deleteWindowSetup, setWindowSetupKind, migrateWindowSetups } from './layout.js';
 import { icon } from '../icons.js';
@@ -238,6 +238,11 @@ export function initSettings() {
   on('role', (host) => { $('#followHostBlock').hidden = host; });
   $('#followHost').checked = storageGet('paddock.followHost', true);
   $('#followHost').addEventListener('change', (e) => storageSet('paddock.followHost', e.target.checked));
+  // Contraste renforcé : coché et grisé tant que le système le demande (prefers-contrast: more)
+  const syncContrast = () => { $('#contrastOpt').checked = !!prefs.contrast || systemMoreContrast(); $('#contrastOpt').disabled = systemMoreContrast(); };
+  syncContrast();
+  $('#contrastOpt').addEventListener('change', (e) => setPref('contrast', e.target.checked));
+  on('prefs', (k) => { if (k === 'contrast') syncContrast(); });
   $('#motionOpt').checked = prefs.motion !== false;
   $('#motionOpt').addEventListener('change', (e) => setPref('motion', e.target.checked));
   // Taille de l'interface dans le navigateur d'un téléphone ou d'une tablette, de 90 à 150 % (zoom par la balise

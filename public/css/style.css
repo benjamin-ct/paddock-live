@@ -4229,3 +4229,14 @@ html.tab-win .p-analysis .panel-head > [data-tab="compare"] { display: inline-fl
   :root:not([data-motion="off"]) .sz-main.sz-anim:not(.sz-again) .gr-bar i.on { transform-origin: bottom; animation: gr-fill .35s var(--ease-out, ease-out) both; animation-delay: calc(.15s + var(--i) * 25ms); }
 }
 @keyframes gr-fill { from { opacity: 0; transform: scaleY(.2); } to { opacity: 1; transform: none; } }
+/* ---------- Contraste renforcé (Réglages → Affichage, ou prefers-contrast: more du système ; prefs.js) ----------
+   Tous les designs, sombre et clair : textes secondaires à 8:1 au moins, contours des panneaux et des boutons à 3:1.
+   `:root:root` : passe devant les jetons de chaque design (design-v2.css, design-v3.css, chargés après) */
+:root:root[data-contrast="more"] {
+  --text: #FFFFFF; --text-2: #E3E8EE; --muted: #C3CBD5;
+  --border: #5C6878; --line: #414B58; --line-2: #7D8896;
+}
+:root:root[data-contrast="more"][data-scheme="light"] {
+  --text: #000000; --text-2: #1C232D; --muted: #36404C;
+  --border: #808A96; --line: #B5BDC7; --line-2: #5A6470;
+}
