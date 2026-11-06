@@ -7,9 +7,9 @@ l'application (Réglages → À propos → Nouveautés).
 ## v1.33.0 — à venir
 
 ### Version web
-- Téléphone : le menu des réglages des radios (pilotes écoutés, lecture auto, volume, vitesse) et les autres menus du
-  même genre s'ouvrent au-dessus de la barre Accueil, Direct, Saison au lieu de passer dessous ; en paysage, ils ne
-  passent plus sous le menu de gauche.
+- Téléphone : les menus des réglages des radios (lecture auto, volume, vitesse), de la direction de course (drapeaux
+  bleus, temps supprimés, type de messages, traduction) et des calques de la carte s'ouvrent au-dessus de la barre
+  Accueil, Direct, Saison au lieu de passer dessous ; en paysage, ils ne passent plus sous le menu de gauche.
 
 ## v1.32.0 — 2026-11-06
 
