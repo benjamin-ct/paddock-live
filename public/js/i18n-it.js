@@ -2128,6 +2128,7 @@ export default {
   "Instagram, Facebook, TikTok, YouTube, X, Threads et Bluesky": "Instagram, Facebook, TikTok, YouTube, X, Threads e Bluesky",
   "{} Suivre Paddock Live sur les réseaux {}": "{} Segui Paddock Live sui social {}",
   "Suivre Paddock Live sur les réseaux": "Segui Paddock Live sui social",
+  "Jeu du jour : devine le circuit": "Gioco del giorno: indovina il circuito",
   "Pas de séance en direct": "Nessuna sessione in diretta",
   "Saison terminée.": "Stagione conclusa.",
   "Le tableau de bord s'ouvre tout seul au début de la séance.": "La dashboard si apre da sola all'inizio della sessione.",

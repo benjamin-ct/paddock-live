@@ -6,6 +6,10 @@ l'application (Réglages → À propos → Nouveautés).
 
 ## v1.33.0 — à venir
 
+### Accueil
+- Entre deux week-ends de course, un lien sous les raccourcis mène au jeu du jour « Devine le circuit » sur le site
+  (en anglais pour les autres langues).
+
 ### Version web
 - Téléphone : les menus des réglages des radios (lecture auto, volume, vitesse), de la direction de course (drapeaux
   bleus, temps supprimés, type de messages, traduction) et des calques de la carte s'ouvrent au-dessus de la barre
