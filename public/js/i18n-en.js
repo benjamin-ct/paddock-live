@@ -364,6 +364,8 @@ export default {
   "Anglais": "English",
   "Contraste renforcé": "High contrast",
   "Textes secondaires et filets plus marqués, en sombre comme en clair. Activé aussi quand l'ordinateur ou le téléphone demande plus de contraste": "Stronger secondary text and lines, in dark and light mode. Also on when your computer or phone asks for more contrast",
+  "Mode daltonien": "Colour-blind mode",
+  "Formes et motifs en plus des couleurs : mini-secteurs et meilleurs temps, drapeaux de la direction de course, pneus de la stratégie": "Shapes and patterns on top of colours: mini-sectors and best times, race control flags, strategy tyres",
   "Animations de l'interface": "Interface animations",
   "Annuler": "Cancel",
   "Anti-spoiler pendant les séances": "Anti-spoiler during sessions",

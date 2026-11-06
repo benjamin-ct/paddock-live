@@ -40,6 +40,7 @@ const DEFAULTS = {
   welcomed: true,         // écrans d'accueil du premier lancement déjà vus
   motion: true,           // animations de l'interface (désactivées aussi si le système le demande)
   contrast: false,        // contraste renforcé (aussi quand le système le demande : prefers-contrast: more)
+  colorblind: false,      // mode daltonien : formes et motifs en plus des couleurs (secteurs, drapeaux, pneus)
   textScale: 1,           // taille de l'interface dans le navigateur d'un téléphone ou d'une tablette (0,9 à 1,5 ; l'appli de bureau garde la sienne, desktop/main.cjs)
   momentsSpoil: false,    // replay : détail des moments clés à venir affiché
   lang: LANG,             // langue de l'interface : 'fr' | 'en' | 'it' | 'es' (voir i18n.js)
@@ -170,6 +171,7 @@ document.documentElement.dataset.theme = 'pitwall';
 applyDesign();
 applyTextScale();
 applyContrast();
+document.documentElement.dataset.cvd = prefs.colorblind ? 'on' : 'off';   // mode daltonien (style.css, carte)
 systemContrast?.addEventListener?.('change', () => { applyContrast(); emit('prefs', 'contrast'); });
 applyScheme();
 systemLight?.addEventListener?.('change', () => { if (prefs.scheme === 'auto') applyScheme(); });
@@ -190,6 +192,7 @@ export function setPref(key, value) {
   if (key === 'design') applyDesign();
   if (key === 'textScale') applyTextScale();
   if (key === 'contrast') applyContrast();
+  if (key === 'colorblind') document.documentElement.dataset.cvd = value ? 'on' : 'off';
   if (key === 'motion') document.documentElement.dataset.motion = value ? 'on' : 'off';
   storageSet('paddock.prefs', prefs);
   emit('prefs', key);
@@ -222,6 +225,7 @@ window.addEventListener('storage', (e) => {
     if (key === 'design') applyDesign();
     if (key === 'textScale') applyTextScale();
     if (key === 'contrast') applyContrast();
+    if (key === 'colorblind') document.documentElement.dataset.cvd = next[key] ? 'on' : 'off';
     emit('prefs', key);
   }
 });

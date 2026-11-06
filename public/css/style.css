@@ -4240,3 +4240,24 @@ html.tab-win .p-analysis .panel-head > [data-tab="compare"] { display: inline-fl
   --text: #000000; --text-2: #1C232D; --muted: #36404C;
   --border: #808A96; --line: #B5BDC7; --line-2: #5A6470;
 }
+
+/* ---------- Mode daltonien (Réglages → Affichage ; <html data-cvd="on">, prefs.js) ----------
+   La couleur n'est plus le seul signal (tous les designs). Meilleur temps absolu (violet) souligné d'un trait plein,
+   record personnel (vert) d'un pointillé */
+:root[data-cvd="on"] :is(.tower, .sector-board, .tbp-table) :is(.purple, .green),
+:root[data-cvd="on"] .tyre-hist td.best { text-decoration: underline 2px; text-underline-offset: 3px; }
+:root[data-cvd="on"] :is(.tower, .sector-board, .tbp-table) .green { text-decoration-style: dotted; }
+/* Mini-secteurs : la hauteur dit le résultat (violet plein, vert aux deux tiers, jaune au tiers), stand en tirets ;
+   sur la carte, tirets et points (ui/map.js) */
+:root[data-cvd="on"] .seg-green { clip-path: inset(33% 0 0 0); }
+:root[data-cvd="on"] .seg-yellow { clip-path: inset(66% 0 0 0); }
+:root[data-cvd="on"] .seg-pit { background: repeating-linear-gradient(90deg, var(--blue) 0 2px, transparent 2px 4px); }
+/* Drapeaux de la direction de course : un motif par drapeau (jaune : plein ; double jaune : déjà rayé) */
+:root[data-cvd="on"] .flag-GREEN { background: repeating-linear-gradient(90deg, var(--green) 0 3px, #0B0F15 3px 5px); }
+:root[data-cvd="on"] .flag-RED { background: linear-gradient(transparent 38%, #0B0F15 38% 62%, transparent 62%), var(--red); }
+:root[data-cvd="on"] .flag-BLUE { background: linear-gradient(135deg, var(--blue) 38%, #FFFFFF 38% 62%, var(--blue) 62%); }
+:root[data-cvd="on"] .flag-SC { background: radial-gradient(circle, #0B0F15 1.2px, transparent 1.6px) 0 0 / 5px 5px, var(--sc); }
+/* Pneus de la stratégie et de l'historique des tours : leur lettre en plus de la couleur */
+:root[data-cvd="on"] .strat-stint[data-l] { display: flex; justify-content: center; align-items: center; white-space: nowrap; }
+:root[data-cvd="on"] .strat-stint[data-l]::before { content: attr(data-l) '\00a0'; }
+:root[data-cvd="on"] .tyre-hist td[data-l]::before { content: attr(data-l) '\00a0'; font-size: 9px; font-weight: 800; opacity: .75; }

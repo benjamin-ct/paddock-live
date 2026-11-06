@@ -39,6 +39,11 @@ l'application (Réglages → À propos → Nouveautés).
 - Contraste renforcé (Réglages → Affichage → Général) : textes secondaires, libellés et contours des panneaux plus
   marqués, dans tous les designs, en sombre comme en clair. Activé tout seul quand l'ordinateur ou le téléphone demande
   plus de contraste.
+- Mode daltonien (Réglages → Affichage → Général) : des formes et des motifs en plus des couleurs. Mini-secteurs de
+  hauteurs différentes (violet plein, vert aux deux tiers, jaune au tiers, stand en tirets), aussi en tirets et en
+  points sur le circuit pour le pilote suivi ; meilleurs temps soulignés (trait plein pour le meilleur de tous,
+  pointillés pour le record personnel) ; drapeaux de la direction de course à motifs (vert rayé, rouge barré, bleu en
+  diagonale, safety car à pois) ; lettre du pneu dans la stratégie et l'historique des pneus.
 - Téléphone et tablette : plus de zoom quand on touche deux fois vite un menu ou une rubrique (le zoom à deux doigts
   reste), dans l'appli et la version web.
 - Actu : au lancement de l'appli, toute l'actualité s'affiche (il arrivait que la liste reste vide, ou ne montre que les
