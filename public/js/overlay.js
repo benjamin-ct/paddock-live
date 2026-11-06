@@ -1,11 +1,14 @@
 // Overlays de streaming (OBS Studio, Streamlabs, Meld Studio) : une source navigateur par élément,
 // fond transparent, même délai TV que l'appli. ?w= : banner (bandeaux de drapeau), laps (compteur de
 // tours), countdown (compte à rebours), podium (trois premiers), telemetry (compteur du pilote suivi
-// dans l'appli, sinon du leader). Le contenu est mis à l'échelle de la source.
-import { translatePage, EN, LANG, LOCALE, DAY, t } from './i18n.js';
-import { store, versionOf, on } from './store.js';
+// dans l'appli, sinon du leader), rcm (direction de course), gap (écarts du pilote suivi), weather (météo),
+// fastest (meilleur tour). Le contenu est mis à l'échelle de la source.
+import { translatePage, EN, FR, LANG, LOCALE, DAY, DEC, t } from './i18n.js';
+import { store, versionOf, on, f1Now } from './store.js';
 import { $, esc, api, drivers, orderedNumbers, sessionKind, teamColor, fmtDuration } from './util.js';
 import { gpShort, gpFull, sessionLabel } from '/shared/gp-names.js';
+import { parseUtc, parseLapTime } from '/shared/f1.js';
+import { rcmFr, rcmTag } from '/shared/rcm-fr.js';
 import { connect } from './conn.js';
 import { flagBanner, timeLeft } from './ui/session-info.js';
 import { Dial, animate, carNow, energyOf } from './ui/gauge.js';
@@ -38,6 +41,11 @@ const WAIT = '<div class="ov-card ov-wait">En attente des données de la séance
 const finished = () => ['Finished', 'Finalised', 'Ends'].includes(store.state.SessionStatus?.Status);
 const session = () => { const i = store.state.SessionInfo; return i ? `${EN ? gpFull(i.Meeting?.Name, true, 'GP') : gpShort(i.Meeting?.Name, LANG)} · ${sessionLabel(i.Name, LANG)}` : ''; };
 const clock = (ms) => (ms === null ? '—' : fmtDuration(ms, ms >= 3600e3));
+// Pilote : place, trait de l'écurie, prénom et nom, écurie ; valeur à droite (écart, temps)
+const who = (d, pos, val = '') => `<div class="ov-pod"><b class="ov-pos">${esc(pos || '')}</b><i style="background:${teamColor(d)}"></i>
+  <span class="ov-name">${esc(d.FirstName || '')} <b>${esc(d.LastName || d.Tla || '')}</b><small>${esc(d.TeamName || '')}</small></span>${val ? `<span class="ov-val">${esc(val)}</span>` : ''}</div>`;
+const list = (o) => (Array.isArray(o) ? o : Object.values(o || {})).filter(Boolean);
+
 
 // Bandeaux : drapeau rouge, SC, VSC, jaune, vert à la reprise ; damier 30 s à l'arrivée
 let endAt = 0;
@@ -112,8 +120,7 @@ function podium() {
     return i ? st?.TimeDiffToFastest || l.TimeDiffToFastest || '' : Object.values(l.BestLapTimes || {})[part - 1]?.Value || l.BestLapTime?.Value || '';
   };
   show(`<div class="ov-card"><div class="ov-label">${race && finished() ? 'Podium' : 'Top 3'} · ${esc(session())}</div>
-    ${top.map((n, i) => `<div class="ov-pod"><b class="ov-pos">${i + 1}</b><i style="background:${teamColor(dl[n])}"></i>
-      <span class="ov-name">${esc(dl[n].FirstName || '')} <b>${esc(dl[n].LastName || dl[n].Tla || n)}</b><small>${esc(dl[n].TeamName || '')}</small></span><span class="ov-val">${esc(val(n, i))}</span></div>`).join('')}</div>`);
+    ${top.map((n, i) => who(dl[n], i + 1, val(n, i))).join('')}</div>`);
 }
 
 // Télémétrie : compteur (vitesse, régime, rapport, accélérateur, frein) du pilote suivi dans l'appli
@@ -123,9 +130,10 @@ function telemetry() {
   const dl = drivers(s);
   const num = dl[store.focus] ? store.focus : orderedNumbers(s).find((n) => dl[n]);
   if (!num) { dialNum = null; return show(WAIT); }
+  // Séance sans télémétrie (pas de F1 TV, replay sans données des voitures) : rien plutôt qu'un compteur vide
+  if (store.status?.hasCarData === false) { dialNum = null; return show(''); }
   const d = dl[num];
-  show(`<div class="ov-card"><div class="ov-pod"><b class="ov-pos">${esc(s.TimingData?.Lines?.[num]?.Position || '')}</b><i style="background:${teamColor(d)}"></i>
-    <span class="ov-name">${esc(d.FirstName || '')} <b>${esc(d.LastName || d.Tla)}</b><small>${esc(d.TeamName || '')}</small></span></div><div id="ovDial"></div></div>`);
+  show(`<div class="ov-card">${who(d, s.TimingData?.Lines?.[num]?.Position)}<div id="ovDial"></div></div>`);
   if (!dial || dialNum !== num || !$('#ovDial').firstChild) {
     dial = dial || new Dial(teamColor(d));
     dial.setColor(teamColor(d));
@@ -136,9 +144,70 @@ function telemetry() {
 }
 if (W === 'telemetry') animate('ov', (dt) => { if (dial && dialNum) dial.update(carNow(dialNum), dt, energyOf(dialNum)); });
 
-const RENDER = { banner, laps, countdown, podium, telemetry };
+// Direction de course : les 3 derniers messages (drapeaux, neutralisations, enquêtes, limites de piste), en français
+// quand la formule est connue, chacun affiché 90 s ; rien entre deux (fond transparent). Pas les drapeaux bleus
+const RCM_SHOW = 90e3;
+function rcm() {
+  const now = f1Now();
+  const msgs = list(store.state.RaceControlMessages?.Messages)
+    .filter((m) => m.Flag !== 'BLUE' && m.Message && now - parseUtc(m.Utc) < RCM_SHOW && now - parseUtc(m.Utc) > -5e3).slice(-3).reverse();
+  if (!msgs.length) return show('');
+  show(`<div class="ov-card ov-rcms"><div class="ov-label">${esc(t('Direction de course'))}</div>${msgs.map((m) => {
+    const [k, label] = rcmTag(m);
+    const txt = (FR && rcmFr(m.Message)) || m.Message;
+    return `<div class="ov-msg"><span class="ov-tag k-${k}">${esc(t(label))}</span><span class="ov-msg-t"${txt !== m.Message ? ' data-no-i18n' : ''}>${esc(txt)}</span></div>`;
+  }).join('')}</div>`);
+}
+
+// Écarts du pilote suivi dans l'appli (sinon le leader) : le pilote devant, lui, celui derrière, avec l'intervalle
+// (course) ou l'écart au temps de devant (essais, qualifications)
+function gap() {
+  const s = store.state, dl = drivers(s), lines = s.TimingData?.Lines || {};
+  const order = orderedNumbers(s).filter((n) => dl[n] && lines[n]?.Position);
+  if (!order.length) return show(WAIT);
+  const num = order.includes(String(store.focus)) ? String(store.focus) : order[0];
+  const i = order.indexOf(num);
+  const race = sessionKind(s) === 'race';
+  const ahead = (n) => String((race ? lines[n]?.IntervalToPositionAhead?.Value : lines[n]?.TimeDiffToPositionAhead) || '');
+  const rows = [order[i - 1], num, order[i + 1]].filter(Boolean);
+  show(`<div class="ov-card"><div class="ov-label">${esc(t(race ? 'Intervalles' : 'Écarts'))} · ${esc(session())}</div>${rows.map((n) => {
+    // Comme à la TV : « − » pour la voiture de devant, « + » pour celle de derrière (tours d'écart gardés tels quels)
+    const raw = n === num ? '' : n === order[i - 1] ? ahead(num) : ahead(n);
+    const val = raw.replace(/^[+-]/, '');
+    const shown = !val || /L/i.test(val) ? val : `${n === order[i - 1] ? '−' : '+'}${val}`;
+    return `<div class="${n === num ? 'ov-me' : ''}">${who(dl[n], lines[n].Position, shown)}</div>`;
+  }).join('')}</div>`);
+}
+
+// Météo de la piste : air, piste, humidité, vent, pluie
+function weather() {
+  const w = store.state.WeatherData;
+  if (!w) return show(WAIT);
+  const wind = Number(w.WindSpeed);
+  const rain = w.Rainfall === '1' || w.Rainfall === 1;
+  const num = (v, d = 0) => (Number.isFinite(Number(v)) ? Number(v).toFixed(d).replace('.', DEC) : '—');
+  const cell = (label, val, unit = '') => `<div class="ov-wx"><span class="ov-label">${esc(t(label))}</span><b>${val}${unit ? `<small>${unit}</small>` : ''}</b></div>`;
+  show(`<div class="ov-card"><div class="ov-label">${esc(t('Météo'))} · ${esc(session())}</div><div class="ov-wxs">
+    ${cell('Air', num(w.AirTemp, 1), '°')}${cell('Piste', num(w.TrackTemp, 1), '°')}${cell('Humidité', num(w.Humidity), ' %')}
+    ${cell('Vent', Number.isFinite(wind) ? num(wind * 3.6) : '—', ' km/h')}${cell('Pluie', esc(t(rain ? 'Oui' : 'Non')))}</div></div>`);
+}
+
+// Meilleur tour de la séance : pilote, temps et tour où il l'a signé
+function fastest() {
+  const s = store.state, dl = drivers(s), lines = s.TimingData?.Lines || {};
+  let best = null;
+  for (const [n, l] of Object.entries(lines)) {
+    const v = l?.BestLapTime?.Value, ms = parseLapTime(v);
+    if (dl[n] && ms && (!best || ms < best.ms)) best = { n, ms, v, lap: l.BestLapTime.Lap };
+  }
+  if (!best) return show(WAIT);
+  show(`<div class="ov-card ov-fast"><div class="ov-label">${esc(t('Meilleur tour'))} · ${esc(session())}</div>
+    <div class="ov-big">${esc(best.v)}</div>${who(dl[best.n], lines[best.n]?.Position, best.lap ? t('Tour {}', best.lap) : '')}</div>`);
+}
+
+const RENDER = { banner, laps, countdown, podium, telemetry, rcm, gap, weather, fastest };
 const render = RENDER[W] || laps;
-const topics = ['SessionInfo', 'SessionStatus', 'TrackStatus', 'LapCount', 'TimingData', 'DriverList', 'ExtrapolatedClock', '__reset'];
+const topics = ['SessionInfo', 'SessionStatus', 'TrackStatus', 'LapCount', 'TimingData', 'DriverList', 'ExtrapolatedClock', 'RaceControlMessages', 'WeatherData', '__reset'];
 let ver = '';
 on('focus', () => { ver = ''; });
 on('connection', () => { ver = ''; });

@@ -9,17 +9,15 @@ import { DEC, FR, t, ord } from '../i18n.js';
 import { cloudOn, cloudTranslate } from '../cloud.js';
 import { continuesStint } from '/shared/pits.js';
 import { pdfHref } from './pdf-view.js';
-import { rcmFr, reasonFr as rcmReasonFr } from '/shared/rcm-fr.js';
+import { rcmFr, reasonFr as rcmReasonFr, FLAG_FR, rcmType } from '/shared/rcm-fr.js';
+
+export { rcmType };   // aussi lu par le Fil de course
 
 function list(obj) {
   if (!obj) return [];
   return Array.isArray(obj) ? obj.filter(Boolean) : Object.keys(obj).sort((a, b) => a - b).map((k) => obj[k]).filter(Boolean);
 }
 
-export const FLAG_FR = {
-  GREEN: 'Vert', YELLOW: 'Jaune', 'DOUBLE YELLOW': 'Double jaune', RED: 'Rouge', BLUE: 'Bleu',
-  CLEAR: 'Fin de drapeau', CHEQUERED: 'Damier', 'BLACK AND WHITE': 'Noir et blanc', 'BLACK AND ORANGE': 'Noir et orange', BLACK: 'Noir',
-};
 
 let rcmVer = -1, rcmCount = 0;
 let pitVer = -1;
@@ -31,15 +29,6 @@ export function rcmFlagClass(m) {
   return '';
 }
 
-// Type d'un message de la direction de course (filtre « Type »)
-export function rcmType(m) {
-  const t = String(m.Message || '').toUpperCase();
-  if (m.Category === 'SafetyCar' || /SAFETY CAR|\bVSC\b/.test(t)) return 'sc';
-  if (/TRACK LIMITS|\bDELETED\b/.test(t)) return 'limits';
-  if (/STEWARDS|INVESTIGAT|PENALTY|NOTED|REPRIMAND|NO FURTHER ACTION|SUMMONED|DECISION/.test(t)) return 'stewards';
-  if (m.Flag || m.Category === 'Flag') return 'flags';
-  return 'other';
-}
 
 function rcmShown(m) {
   if (!prefs.rcmBlue && m.Flag === 'BLUE') return false;

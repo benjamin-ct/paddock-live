@@ -98,7 +98,7 @@ export const GUIDES = [
     eyebrow: 'Pour les streamers',
     h1: 'La course de F1 en overlay sur ton live',
     intro: 'Classement, carte, drapeaux, compteur de tours et télémétrie, à ajouter comme source navigateur dans ton logiciel de stream. Tout est calé sur ton délai TV, pour que ton chat ne soit pas spoilé.',
-    img: ['obs-course.webp', 1600, 900, 'Overlays Paddock Live dans OBS : classement, tours, carte, télémétrie et bandeau de drapeau'],
+    img: ['obs-course.webp', 1920, 1080, 'Overlays Paddock Live dans OBS : classement, tours, carte, télémétrie et bandeau de drapeau'],
     points: [
       'Classement (colonnes au choix), carte du circuit, bandeaux de drapeaux',
       'Compteur de tours, compte à rebours, podium, télémétrie du pilote suivi',
@@ -119,7 +119,7 @@ export const GUIDES = [
     eyebrow: 'Live timing',
     h1: 'Le live timing de la F1, gratuit et en français',
     intro: 'Classement, écarts, secteurs, pneus et arrêts de chaque voiture, mis à jour en direct pendant les essais, les qualifs, le sprint et la course. Paddock Live rassemble tout le live timing de la F1 dans une seule appli, avec la carte du circuit et les radios traduites.',
-    img: ['tableau-de-bord.webp', 1600, 888, 'Live timing F1 dans Paddock Live : classement, carte du circuit, radios et direction de course'],
+    img: ['tableau-de-bord.webp', 2560, 1440, 'Live timing F1 dans Paddock Live : classement, carte du circuit, radios et direction de course'],
     points: [
       'Classement complet : écart, intervalle, dernier et meilleur tour, secteurs et mini-secteurs',
       'Pneus et âge des gommes, arrêts, speed trap, drapeaux bleus et abandons',
@@ -142,7 +142,7 @@ export const GUIDES = [
     eyebrow: 'Alternative à MultiViewer',
     h1: 'Une alternative à MultiViewer pour la F1',
     intro: 'MultiViewer est surtout connu pour regarder F1 TV sur plusieurs fenêtres. Paddock Live fait autre chose : il ne diffuse pas la vidéo, il l\'accompagne, avec tout le live timing de la course calé sur ta TV, en français.',
-    img: ['tableau-de-bord.webp', 1600, 888, 'Paddock Live pendant une course : classement, carte du circuit, radios et direction de course'],
+    img: ['tableau-de-bord.webp', 2560, 1440, 'Paddock Live pendant une course : classement, carte du circuit, radios et direction de course'],
     points: [
       'Sans abonnement F1 TV : tu regardes la course où tu veux (TV, streaming)',
       'Live timing, carte GPS, pneus, stratégie et analyse de course',
@@ -165,7 +165,7 @@ export const GUIDES = [
     eyebrow: 'Dashboard F1',
     h1: 'Ton dashboard F1, tout sur un seul écran',
     intro: 'Pendant la course, ce qui compte est éparpillé : classement, pneus, radios, messages de la FIA. Paddock Live rassemble tout dans un tableau de bord que tu organises à ta façon, calé sur le retard de ta diffusion TV.',
-    img: ['tableau-de-bord.webp', 1600, 888, 'Dashboard F1 de Paddock Live : classement, carte du circuit, radios et direction de course sur un seul écran'],
+    img: ['tableau-de-bord.webp', 2560, 1440, 'Dashboard F1 de Paddock Live : classement, carte du circuit, radios et direction de course sur un seul écran'],
     points: [
       'Des panneaux à placer où tu veux : classement, carte, radios, pneus, télémétrie, direction de course',
       'Interface essentielle ou complète, onglets à masquer, second écran et carte flottante',
@@ -189,7 +189,7 @@ export const GUIDES = [
     eyebrow: 'Live timing',
     h1: 'F1 live timing, free on your computer',
     intro: 'Standings, gaps, sectors, tyres and pit stops for every car, updated live during practice, qualifying, the sprint and the race. Paddock Live brings all of F1 live timing into one app, with the track map and team radio.',
-    img: ['tableau-de-bord.webp', 1600, 888, 'F1 live timing in Paddock Live: standings, track map, team radio and race control'],
+    img: ['tableau-de-bord.webp', 2560, 1440, 'F1 live timing in Paddock Live: standings, track map, team radio and race control'],
     points: [
       'Full timing tower: gap, interval, last and best lap, sectors and mini-sectors',
       'Tyres and tyre age, pit stops, speed trap, blue flags and retirements',
@@ -212,7 +212,7 @@ export const GUIDES = [
     eyebrow: 'MultiViewer alternative',
     h1: 'A MultiViewer alternative for F1',
     intro: 'MultiViewer is best known for watching F1 TV in several windows. Paddock Live does something else: it doesn\'t stream the video, it goes alongside it, with all the race\'s live timing synced to your TV.',
-    img: ['tableau-de-bord.webp', 1600, 888, 'Paddock Live during a race: standings, track map, team radio and race control'],
+    img: ['tableau-de-bord.webp', 2560, 1440, 'Paddock Live during a race: standings, track map, team radio and race control'],
     points: [
       'No F1 TV subscription needed: watch the race wherever you like (TV, streaming)',
       'Live timing, GPS track map, tyres, strategy and race analysis',
@@ -235,7 +235,7 @@ export const GUIDES = [
     eyebrow: 'F1 dashboard',
     h1: 'Your F1 dashboard, everything on one screen',
     intro: 'During a race, what matters is scattered everywhere: standings, tyres, team radio, FIA messages. Paddock Live brings it all into one dashboard you arrange your way, synced to the delay of your TV broadcast.',
-    img: ['tableau-de-bord.webp', 1600, 888, 'Paddock Live F1 dashboard: standings, track map, team radio and race control on one screen'],
+    img: ['tableau-de-bord.webp', 2560, 1440, 'Paddock Live F1 dashboard: standings, track map, team radio and race control on one screen'],
     points: [
       'Panels you place wherever you like: standings, map, team radio, tyres, telemetry, race control',
       'Essential or full layout, tabs you can hide, second screen and floating map',
@@ -342,7 +342,7 @@ export const GUIDES = [
     eyebrow: 'For streamers',
     h1: 'The F1 race as overlays on your stream',
     intro: 'Standings, map, flags, lap counter and telemetry, to add as a browser source in your streaming software. Everything follows your TV delay, so your chat never gets spoiled.',
-    img: ['obs-course.webp', 1600, 900, 'Paddock Live overlays in OBS: standings, laps, track map, telemetry and flag banner'],
+    img: ['obs-course.webp', 1920, 1080, 'Paddock Live overlays in OBS: standings, laps, track map, telemetry and flag banner'],
     points: [
       'Standings (columns of your choice), track map, flag banners',
       'Lap counter, countdown, podium, telemetry of the driver you follow',
@@ -465,6 +465,7 @@ export function guidePage(slug) {
 <meta name="twitter:description" content="${esc(g.description)}">
 <link rel="icon" href="/site/img/logo.png">
 <link rel="apple-touch-icon" href="/site/img/apple-touch-icon.png">
+<script src="/site/zoom.js" defer></script>
 <script type="application/ld+json">${JSON.stringify(ld).replace(/</g, '\\u003c')}</script>
 <style>
 ${PAGE_STYLE}</style>

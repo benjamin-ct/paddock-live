@@ -314,6 +314,18 @@ Au doigt (`pointer: coarse`) : zone tactile invisible d'au moins **32 px** autou
 - `.toast` : fixe, centré à 18 px du bas, fond `--panel-3`, rayon 9 px, ombre `0 8px 30px rgba(0,0,0,.5)`, 600,
   icône 18 px `--accent`, entrée `toast-in`.
 
+### 8.6 Overlays de streaming et fenêtre Mini
+
+- `overlay.html` (`?w=banner|laps|countdown|podium|telemetry|rcm|gap|weather|fastest`) et `mini.html` sont en
+  Télémétrie (`design-v3.css`, plus `broadcast.css`) ; overlays toujours en sombre (aussi `mini.html?overlay=1`).
+- `.ov-card` : fond `--panel` à `--ov-bg` (85 % par défaut, réglable), filet 1 px `--line-2`, rayon `--r-md`, filet
+  d'accent de 3 px à gauche (`::before`, `--accent`) ; `.ov-label` Mono 12 px, `.14em`, `--muted` ; `.ov-big` Archivo
+  Cond 800, 58 px ; place `.ov-pos` en case `--text` sur `--bg`, Archivo Cond 800, 17 px ; nom de famille Archivo Cond
+  800, 20 px ; écurie Mono 11 px majuscules ; valeurs Mono 16 px `--text-2` ; meilleur tour `--purple`.
+- Direction de course : étiquettes `.ov-tag` Mono 11 px de 88 px au moins (textes alignés), couleur du sens du message.
+- Mini : chiffres en Mono, pilotes en Archivo Cond 700 15 px ; drapeaux jaune `#FFD43B` et voiture de sécurité
+  `#FFA62B` en dur (en clair, `--yellow` et `--sc` sont des couleurs de texte).
+
 ---
 
 ## 9. États interactifs

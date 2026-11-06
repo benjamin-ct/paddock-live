@@ -8,26 +8,23 @@ import { parseUtc } from '/shared/f1.js';
 import { icon } from '../icons.js';
 import { t } from '../i18n.js';
 import { radioCaptures, radioTextHtml, lapAt, isPlaying, playRadio } from './radios.js';
-import { rcmType, rcmFlagClass, rcmMsgHtml, rcmVersion, FLAG_FR } from './feed.js';
+import { rcmType, rcmFlagClass, rcmMsgHtml, rcmVersion } from './feed.js';
+import { rcmTag as sharedTag } from '/shared/rcm-fr.js';
 
 const MAX = 200;   // lignes affichées au plus
 const list = (o) => (!o ? [] : Array.isArray(o) ? o.filter(Boolean) : Object.keys(o).sort((a, b) => a - b).map((k) => o[k]).filter(Boolean));
 // Puce de chaque message : radios, direction de course (drapeaux, safety car, autres), enquêtes, limites de piste
 const KIND = { flags: 'rcm', sc: 'rcm', other: 'rcm', stewards: 'stewards', limits: 'limits' };
-// Couleur de l'étiquette : le sens du message (drapeau, neutralisation, enquête) ; une radio : la couleur de l'écurie
-const FLAG_K = { GREEN: 'green', CLEAR: 'green', YELLOW: 'yellow', 'DOUBLE YELLOW': 'yellow', RED: 'red', BLUE: 'blue', CHEQUERED: 'text', 'BLACK AND WHITE': 'text', 'BLACK AND ORANGE': 'orange', BLACK: 'text' };
+// Couleur de l'étiquette : le sens du message (drapeau, neutralisation, enquête, shared/rcm-fr.js) ; une radio : la
+// couleur de l'écurie
 
 let ver = 0;   // transcriptions, traductions, lecture d'une radio
 let key = '';
 let html = '';
 
 function rcmTag(m) {
-  const type = rcmType(m);
-  if (type === 'stewards') return ['orange', t('Enquête')];
-  if (type === 'limits') return ['text-2', t('Limites')];
-  if (type === 'sc') return ['orange', /VSC|VIRTUAL/i.test(m.Message || '') ? 'VSC' : 'SC'];
-  if (m.Flag) return [FLAG_K[m.Flag] || 'muted', t(FLAG_FR[m.Flag] || m.Flag)];
-  return ['muted', t('Direction')];
+  const [k, label] = sharedTag(m);
+  return [k, t(label)];
 }
 
 function rows() {
