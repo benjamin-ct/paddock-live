@@ -3,7 +3,7 @@
 import { gpShort, gpFull } from './gp-names.js';
 
 export const SECTION_PATHS = {
-  home: '', calendar: 'calendrier', standings: 'classements', title: 'course-au-titre', compare: 'comparer', destructors: 'casseurs', review: 'bilan', results: 'resultats', quali: 'qualifications',
+  home: '', calendar: 'calendrier', standings: 'classements', title: 'course-au-titre', compare: 'comparer', destructors: 'casseurs', penalties: 'sanctions', review: 'bilan', results: 'resultats', quali: 'qualifications',
   h2h: 'duels', ratings: 'notes', predict: 'pronostics', drivers: 'pilotes', teams: 'ecuries', consistency: 'regularite', pits: 'arrets-aux-stands',
   speeds: 'vitesses', circuits: 'circuits', tech: 'evolutions-techniques', elements: 'elements-moteur', gp: 'grand-prix', grid: 'grille',
 };
@@ -19,7 +19,7 @@ export function seasonPath(year, section = 'home', item = null) {
 // Titre de chaque rubrique (onglet du navigateur, moteurs de recherche) ; name : pilote ou nom du Grand Prix (Jolpica)
 const TITLES = {
   home: 'Saison {} de F1 : classements, calendrier et résultats', calendar: 'Calendrier F1 {}', standings: 'Classements F1 {} : pilotes et constructeurs',
-  title: 'Course au titre F1 {}', compare: 'Comparer la saison F1 {} à une autre', destructors: 'Championnat des casseurs F1 {} : coût des dégâts', review: 'Bilan de la saison F1 {}', results: 'Résultats F1 {} : tous les Grands Prix', quali: 'Qualifications F1 {} : écart à la pole par écurie', h2h: 'Duels entre coéquipiers F1 {}',
+  title: 'Course au titre F1 {}', compare: 'Comparer la saison F1 {} à une autre', destructors: 'Championnat des casseurs F1 {} : coût des dégâts', penalties: 'Sanctions F1 {} : permis à points des pilotes', review: 'Bilan de la saison F1 {}', results: 'Résultats F1 {} : tous les Grands Prix', quali: 'Qualifications F1 {} : écart à la pole par écurie', h2h: 'Duels entre coéquipiers F1 {}',
   ratings: 'Notes des pilotes F1 {}', predict: 'Pronostics F1 {} entre amis', drivers: 'Pilotes F1 {}', teams: 'Écuries F1 {} : pilotes, points et résultats', consistency: 'Régularité des pilotes F1 {}',
   pits: 'Arrêts aux stands F1 {} : les plus rapides, par écurie', speeds: 'Vitesses de pointe F1 {}', circuits: 'Profil des circuits F1 {}',
   tech: 'Évolutions techniques F1 {}', elements: 'Éléments moteur F1 {}', gp: 'Grands Prix F1 {}', grid: 'Grille F1 {} : pilotes confirmés et baquets à confirmer',
@@ -46,7 +46,7 @@ export function parseSeasonPath(path) {
 // (« /en/season/2026/grand-prix/mexico-city/ »). Même table que analytics/season-pages.js (vérifié par
 // test/season-pages.test.js), pour que l'appli tienne ses adresses et ses titres anglais.
 export const EN_PATHS = {
-  home: '', calendar: 'calendar', standings: 'standings', title: 'title-race', compare: 'compare', destructors: 'destructors', review: 'review', results: 'results', quali: 'qualifying',
+  home: '', calendar: 'calendar', standings: 'standings', title: 'title-race', compare: 'compare', destructors: 'destructors', penalties: 'penalties', review: 'review', results: 'results', quali: 'qualifying',
   h2h: 'head-to-head', ratings: 'ratings', predict: 'predictions', drivers: 'drivers', teams: 'teams', consistency: 'consistency', pits: 'pit-stops',
   speeds: 'top-speeds', circuits: 'circuits', tech: 'upgrades', elements: 'power-unit-elements', gp: 'grand-prix', grid: 'grid',
 };
@@ -66,7 +66,7 @@ export function parseEnSeasonPath(path) {
 }
 const EN_TITLES = {
   home: 'F1 {} season: standings, calendar and results', calendar: 'F1 {} calendar', standings: 'F1 {} standings: drivers and constructors',
-  title: 'F1 {} title race', compare: 'Compare the F1 {} season with another', destructors: 'F1 {} destructors\' championship: crash damage', review: 'F1 {} season review',
+  title: 'F1 {} title race', compare: 'Compare the F1 {} season with another', destructors: 'F1 {} destructors\' championship: crash damage', penalties: 'F1 {} penalties: drivers\' penalty points', review: 'F1 {} season review',
   results: 'F1 {} results: every Grand Prix', quali: 'F1 {} qualifying: gap to pole by team', h2h: 'F1 {} teammate head-to-heads', ratings: 'F1 {} driver ratings',
   predict: 'F1 {} predictions with friends', drivers: 'F1 {} drivers', teams: 'F1 {} teams: drivers, points and results', consistency: 'F1 {} driver consistency',
   pits: 'F1 {} pit stops: fastest, by team', speeds: 'F1 {} top speeds', circuits: 'F1 {} circuit profiles', tech: 'F1 {} technical upgrades',

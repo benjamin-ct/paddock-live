@@ -13,7 +13,7 @@ import { cleanRequest, translateBatch } from './translate.js';
 import { callerIp, ipQuota } from './quota.js';
 import { pronosApi, GROUP_RE } from './pronos.js';
 import { circuitData, seasonStatsWeb } from './race-stats.js';
-import { seasonFiaWeb, fiaTranslations, fiaDocsWeb, fiaGridWeb } from './fia-tech.js';
+import { seasonFiaWeb, seasonPenaltiesWeb, fiaTranslations, fiaDocsWeb, fiaGridWeb } from './fia-tech.js';
 import { weekendTyres } from './tyres.js';
 import { destructorsWeb } from './destructors.js';
 import { circuitRecords } from './records.js';
@@ -742,6 +742,13 @@ export async function liveApi(req, url, env = {}) {
     const year = Number(url.searchParams.get('year')), now = new Date().getUTCFullYear();
     if (!env.DB || !Number.isInteger(year) || year < 2018 || year > now) return json({ error: 'Année invalide' }, 400);
     return json(await seasonFiaWeb(env, year).catch((err) => ({ year, pending: false, done: 0, total: 0, events: [], error: err.message })));
+  }
+  // Permis à points et sanctions de la saison (décisions des commissaires des documents FIA, lues par le serveur)
+  if (url.pathname === '/live/api/season/penalties' && req.method === 'GET') {
+    const year = Number(url.searchParams.get('year')), now = new Date().getUTCFullYear();
+    if (!env.DB || !Number.isInteger(year) || year < 2018 || year > now) return json({ error: 'Année invalide' }, 400);
+    const d = await seasonPenaltiesWeb(env, year).catch((err) => ({ year, pending: false, done: 0, total: 0, drivers: [], penalties: [], error: err.message }));
+    return json(d, 200, d.pending || d.error ? {} : { 'Cache-Control': 'public, max-age=600' });
   }
   // Championnat des casseurs : dégâts estimés de la saison (analytics/destructors.js) ; autre saison : liste vide
   if (url.pathname === '/live/api/season/destructors' && req.method === 'GET') {
