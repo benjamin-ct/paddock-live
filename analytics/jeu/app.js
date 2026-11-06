@@ -1,6 +1,6 @@
 // Page du jeu « Devine le circuit » (/jeu/, /en/guess-the-circuit/) : tracé du jour, essais, indices, partage et série.
 // Tracés et textes dans la page (analytics/jeu/page.mjs) ; partie et série dans ce navigateur seulement (localStorage).
-import { TRIES, FIRST_DAY, parisDay, dailyIndex, hints, mark, stats, shareText } from './game.js';
+import { TRIES, FIRST_DAY, parisDay, dailyIndex, hints, mark, stats, shareText, revealed, revealStart } from './game.js';
 
 const { t, circuits } = JSON.parse(document.getElementById('data').textContent);
 const $ = (id) => document.getElementById(id);
@@ -49,6 +49,12 @@ function render() {
       : `<div class="lock"><dt>${label}</dt><dd>${i + 1 === 1 ? t.locked1 : fmt(t.locked, i + 1)}</dd></div>`;
   }).join('');
   shown = { tries: game.g.length, hints: open };
+  // Tracé : seulement une partie au départ, dévoilée au fil des erreurs (trait du tour, longueur 1 : pathLength)
+  const f = revealed(misses, done);
+  for (const el of [$('trk'), $('trkU')]) {
+    el.style.strokeDasharray = f < 1 ? `${f} ${1 - f}` : 'none';
+    el.style.strokeDashoffset = f < 1 ? String(-revealStart(today)) : '0';
+  }
   $('form').hidden = done;
   if (!done) return;
   const won = game.r === 'w';
@@ -107,6 +113,5 @@ function tick() {
 
 $('trkU').setAttribute('points', answer.outline);
 $('trk').setAttribute('points', answer.outline);
-if (!game.g.length) $('track').classList.add('draw');   // tracé dessiné à l'arrivée, pas à chaque retour sur la page
 render();
 tick();

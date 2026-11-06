@@ -49,9 +49,9 @@ export function gameData(lang) {
 const T = {
   fr: {
     locale: 'fr-FR', ogLocale: 'fr_FR', home: '/', title: 'Devine le circuit : le jeu F1 du jour · Paddock Live',
-    description: 'Chaque jour, un tracé de F1 en silhouette, le même pour tous. Six essais, un indice par erreur, ta série et ton résultat à partager. Gratuit.',
+    description: 'Chaque jour, un tracé de F1 à deviner, dévoilé à chaque erreur. Six essais, un indice par erreur, ta série et ton résultat à partager. Gratuit.',
     eyebrow: 'Jeu du jour', num: 'n° {}', h1: 'Devine le circuit',
-    lead: 'Un tracé de F1 par jour, le même pour tout le monde. Tu as six essais : chaque erreur dévoile un indice.',
+    lead: 'Un tracé de F1 par jour, le même pour tout le monde, dont tu ne vois d\'abord qu\'un morceau. Tu as six essais : chaque erreur en dévoile un peu plus, avec un indice.',
     trackLabel: 'Tracé du circuit du jour, nord en haut', trackShort: 'Tracé du jour', north: 'N', next: 'Prochain circuit dans {}', fresh: 'Nouveau circuit disponible', reload: 'Recharger',
     guessLabel: 'Ton essai', placeholder: 'Nom du circuit ou ville', submit: 'Valider', tries: 'Essais', hintsTitle: 'Indices',
     hit: 'Trouvé', near: 'Même pays', miss: 'Raté', locked1: 'Après 1 erreur', locked: 'Après {} erreurs',
@@ -64,7 +64,7 @@ const T = {
     noscript: 'Le jeu a besoin de JavaScript pour fonctionner.',
     howTitle: 'Comment jouer',
     how: ['Un nouveau circuit chaque jour à minuit, heure de Paris, le même pour tout le monde.',
-      'Six essais. Après chaque erreur, un indice : le pays, la longueur, le nombre de virages, l\'année du premier Grand Prix de F1, puis la ville.',
+      'Au départ, seul un quart du tracé est visible. Six essais : chaque erreur dévoile un peu plus le tracé, et un indice : le pays, la longueur, le nombre de virages, l\'année du premier Grand Prix de F1, puis la ville.',
       'Carré jaune : bon pays, mauvais circuit. Les 40 circuits de la liste ont tous accueilli la F1, ou vont l\'accueillir.',
       'Ta série reste dans ce navigateur : rien n\'est envoyé.'],
     cta: 'Chaque Grand Prix en direct, calé sur ta TV et sans spoiler', dl: 'Télécharger', ctaBtn: 'Télécharger Paddock Live', os: 'Gratuit · Windows, macOS et Linux',
@@ -74,9 +74,9 @@ const T = {
   },
   en: {
     locale: 'en-US', ogLocale: 'en_US', home: '/en/', title: 'Guess the Circuit: the daily F1 game · Paddock Live',
-    description: 'Every day, one F1 track layout in silhouette, the same for everyone. Six guesses, one clue per miss, your streak and a result to share. Free.',
+    description: 'Every day, an F1 track layout to guess, revealed with every miss. Six guesses, one clue per miss, your streak and a result to share. Free.',
     eyebrow: 'Daily game', num: '#{}', h1: 'Guess the circuit',
-    lead: 'One F1 track a day, the same for everyone. You get six guesses: every miss reveals a clue.',
+    lead: 'One F1 track a day, the same for everyone, and at first you only see a piece of it. You get six guesses: every miss reveals a bit more, with a clue.',
     trackLabel: 'Today\'s circuit layout, north up', trackShort: 'Today\'s track', north: 'N', next: 'Next circuit in {}', fresh: 'New circuit available', reload: 'Reload',
     guessLabel: 'Your guess', placeholder: 'Circuit name or city', submit: 'Guess', tries: 'Guesses', hintsTitle: 'Clues',
     hit: 'Correct', near: 'Same country', miss: 'Wrong', locked1: 'After 1 miss', locked: 'After {} misses',
@@ -89,7 +89,7 @@ const T = {
     noscript: 'The game needs JavaScript to work.',
     howTitle: 'How to play',
     how: ['A new circuit every day at midnight, Paris time, the same for everyone.',
-      'Six guesses. After each miss, a clue: the country, the length, the number of turns, the year of the first F1 Grand Prix, then the city.',
+      'At first only a quarter of the layout is shown. Six guesses: every miss reveals more of the track, and a clue: the country, the length, the number of turns, the year of the first F1 Grand Prix, then the city.',
       'Yellow square: right country, wrong circuit. All 40 circuits in the list have hosted F1, or are about to.',
       'Your streak stays in this browser: nothing is sent.'],
     cta: 'Every Grand Prix live, synced to your TV and spoiler-free', dl: 'Download', ctaBtn: 'Download Paddock Live', os: 'Free · Windows, macOS and Linux',
@@ -153,10 +153,8 @@ h2 { font-size: clamp(26px, 3.6vw, 36px); line-height: .95; margin: 64px 0 16px;
 .stage .north { position: absolute; top: 10px; left: 12px; color: var(--muted); font: 500 11px/1 var(--mono); letter-spacing: .12em; }
 .stage .north::before { content: '↑ '; }
 .trk-under { fill: none; stroke: var(--bg); stroke-width: 5; stroke-linejoin: round; stroke-linecap: round; }
-.trk { fill: none; stroke: var(--text); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; transition: stroke .4s; }
+.trk { fill: none; stroke: var(--text); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; transition: stroke .4s, stroke-dasharray .6s var(--ease), stroke-dashoffset .6s var(--ease); }
 .track.won .trk { stroke: var(--best); }
-.draw .trk { stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw .9s var(--ease) .1s forwards; }
-@keyframes draw { to { stroke-dashoffset: 0; } }
 .answer { padding: 14px; border-top: 1px solid var(--border); }
 .answer b { display: block; font: 800 24px/1.05 var(--title); text-transform: uppercase; }
 .answer span { color: var(--text-2); font-size: 14px; }
@@ -220,7 +218,7 @@ footer a { color: var(--text-2); text-underline-offset: 3px; }
 @media (pointer: coarse) { .nav .btn { min-height: 44px; } }
 @media (prefers-reduced-motion: reduce) {
   .btn, .trk { transition: none; } .btn:active { transform: none; }
-  .draw .trk { animation: none; stroke-dashoffset: 0; } .hints .new dd, .tries .new { animation: none; }
+  .hints .new dd, .tries .new { animation: none; }
 }
 `;
 
@@ -275,7 +273,7 @@ ${STYLE}</style>
     <figure class="track" id="track">
       <div class="bar"><span class="label">${esc(t.trackShort)}</span><span class="label" id="clock" aria-live="off"></span></div>
       <div class="stage"><span class="north" aria-hidden="true">${t.north}</span>
-        <svg viewBox="-4 -4 108 108" role="img" aria-label="${esc(t.trackLabel)}"><polygon class="trk-under" id="trkU" points=""/><polygon class="trk" id="trk" points="" pathLength="1"/></svg>
+        <svg viewBox="-4 -4 108 108" role="img" aria-label="${esc(t.trackLabel)}"><polygon class="trk-under" id="trkU" points="" pathLength="1"/><polygon class="trk" id="trk" points="" pathLength="1"/></svg>
       </div>
       <figcaption class="answer" id="answer" hidden></figcaption>
       <noscript><p class="noscript">${esc(t.noscript)}</p></noscript>
