@@ -39,6 +39,7 @@ const DEFAULTS = {
   phoneFull: false,       // téléphone : tous les onglets et réglages de l'ordinateur (sinon version simplifiée)
   welcomed: true,         // écrans d'accueil du premier lancement déjà vus
   motion: true,           // animations de l'interface (désactivées aussi si le système le demande)
+  textScale: 1,           // taille de l'interface dans le navigateur d'un téléphone ou d'une tablette (0,9 à 1,5 ; l'appli de bureau garde la sienne, desktop/main.cjs)
   momentsSpoil: false,    // replay : détail des moments clés à venir affiché
   lang: LANG,             // langue de l'interface : 'fr' | 'en' | 'it' | 'es' (voir i18n.js)
   autoSyncAdj: 0,         // synchro TV par le son : correction ajoutée au délai trouvé (s)
@@ -145,8 +146,20 @@ function applyDesign() {
   const css = document.querySelector('link[href="/css/broadcast.css"]');
   if (css) css.disabled = prefs.design === 'classic' || (prefs.design === 'v3' && !!document.querySelector('link[href="/css/design-v3.css"]'));
 }
+// Taille de l'interface dans le navigateur (téléphone, tablette) : zoom de la page par la balise viewport, comme
+// webContents.setZoomFactor dans l'appli de bureau (largeur de page réduite d'autant, menus, canevas et 100vh justes).
+// Pas de `zoom` CSS : il agrandit aussi les vh / vw (barre du bas hors de l'écran) et décale les menus placés en JS.
+// Ignoré par les navigateurs d'ordinateur (leur zoom : Ctrl +), réglage montré seulement au doigt (ui/settings.js)
+function applyTextScale() {
+  const meta = document.querySelector('meta[name="viewport"]');
+  if (!meta || window.f1desktop || document.documentElement.classList.contains('overlay')) return;
+  meta.dataset.base ||= meta.content;
+  const s = prefs.textScale;
+  meta.content = s > 0 && s !== 1 ? meta.dataset.base.replace(/width=device-width,\s*initial-scale=1\b/, `initial-scale=${s}`) : meta.dataset.base;
+}
 document.documentElement.dataset.theme = 'pitwall';
 applyDesign();
+applyTextScale();
 applyScheme();
 systemLight?.addEventListener?.('change', () => { if (prefs.scheme === 'auto') applyScheme(); });
 
@@ -164,6 +177,7 @@ export function setPref(key, value) {
   if (['vividTeams', 'teamLogos', 'logoColor'].includes(key)) applyTeamColors();
   if (key === 'scheme') { prefs.schemeSet = true; applyScheme(); }
   if (key === 'design') applyDesign();
+  if (key === 'textScale') applyTextScale();
   if (key === 'motion') document.documentElement.dataset.motion = value ? 'on' : 'off';
   storageSet('paddock.prefs', prefs);
   emit('prefs', key);
@@ -194,6 +208,7 @@ window.addEventListener('storage', (e) => {
     if (['vividTeams', 'teamLogos', 'logoColor'].includes(key)) applyTeamColors();
     if (key === 'scheme') applyScheme();
     if (key === 'design') applyDesign();
+    if (key === 'textScale') applyTextScale();
     emit('prefs', key);
   }
 });
