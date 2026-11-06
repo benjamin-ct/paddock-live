@@ -2,7 +2,7 @@
 // résultat (replay depuis le début ou tableau de bord), dernières actualités, raccourcis.
 // Ouverte au lancement quand aucune séance n'est en cours ; pendant une séance, l'appli s'ouvre
 // directement sur le Direct.
-import { $, $$, esc, api, drivers, placeView, hideBoot, dayIn, teamColor, teamLogo, teamMark, photoUrl, OFFICIAL, nightMark } from '../util.js';
+import { $, $$, esc, api, drivers, placeView, hideBoot, dayIn, teamColor, teamLogo, teamMark, photoUrl, OFFICIAL, nightMark, calSession } from '../util.js';
 import { store, on } from '../store.js';
 import { icon } from '../icons.js';
 import { DEC, LOCALE, LANG, t } from '../i18n.js';
@@ -96,9 +96,10 @@ function ago(t) {
 }
 const when = (t) => new Date(t).toLocaleString(LOCALE, { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
 const flag = (country) => (COUNTRY_ISO[country] ? `<img class="cal-flag" src="https://flagcdn.com/w80/${COUNTRY_ISO[country]}.png" alt="" onerror="this.remove()">` : '');
+const isSprint = (nx) => schedule.some((s) => s.race === nx.race && s.year === nx.year && s.label === 'Sprint');
 // Programme du week-end du prochain Grand Prix, jour par jour (même présentation que le calendrier)
 function daysHtml(nx) {
-  const days = new Map();
+  const days = new Map(), sprint = isSprint(nx);
   for (const s of schedule.filter((x) => x.race === nx.race && x.year === nx.year)) {
     const k = new Date(s.t).toDateString();
     if (!days.has(k)) days.set(k, { t: s.t, list: [] });
@@ -106,7 +107,7 @@ function daysHtml(nx) {
   }
   const hm = (t) => new Date(t).toLocaleTimeString(LOCALE, { hour: '2-digit', minute: '2-digit' });
   return `<div class="cal-days">${[...days.values()].map((d) => `<div class="cal-day"><div class="cal-day-h">${esc(new Date(d.t).toLocaleDateString(LOCALE, { weekday: 'short', day: 'numeric' }))}</div>
-    ${d.list.map((s) => `<div class="cal-s ${s.t < Date.now() ? 'past' : ''} ${s === nx ? 'now' : ''}"><span>${esc(s.label)}</span><b>${nightMark(s.t)}${hm(s.t)}</b></div>`).join('')}</div>`).join('')}</div>`;
+    ${d.list.map((s) => calSession(s.label, nightMark(s.t) + hm(s.t), `${s.t < Date.now() ? 'past' : ''} ${s === nx ? 'now' : ''}`, sprint)).join('')}</div>`).join('')}</div>`;
 }
 const gp = (name) => gpShort(name, LANG);
 
@@ -492,7 +493,7 @@ function render() {
         <div class="hm-title">${esc(gp(live.race))} : ${esc(live.label)}</div>
         <div class="muted">Commencée à ${esc(new Date(live.t).toLocaleTimeString(LOCALE, { hour: '2-digit', minute: '2-digit' }))}</div>
         <div class="hm-actions"><button class="btn btn-accent" data-home="live">${icon('signal')} Regarder en direct</button></div></section>`
-    : `<section class="hm-card hm-next"><div class="hm-next-main"><div class="hm-kicker"><span class="hm-tag">Prochaine séance</span>${nx ? `<span class="hm-round">Manche ${nx.round}</span>` : ''}</div>
+    : `<section class="hm-card hm-next"><div class="hm-next-main"><div class="hm-kicker"><span class="hm-tag">Prochaine séance</span>${nx ? `<span class="hm-round">Manche ${nx.round}</span>${isSprint(nx) ? '<span class="sz-tag sprint">Week-end sprint</span>' : ''}` : ''}</div>
         ${nx ? `<div class="hm-title">${flag(nx.country)}<span>${esc(gp(nx.race))} <small>${esc(nx.label)}</small></span></div>
         <div class="hm-count" id="hmCount" role="timer">${countHtml(nx.t - Date.now())}</div>
         <div class="muted">${nightMark(nx.t)}${esc(when(nx.t))}</div>

@@ -17,6 +17,10 @@ l'application (Réglages → À propos → Nouveautés).
   (et les arrêts et les dégâts ne la comptent pas) jusqu'au clic sur « Afficher le classement à jour ».
 - Séances de nuit : une petite lune devant l'heure des séances qui commencent entre minuit et 7 h chez vous (accueil,
   calendrier de la Saison), comme Las Vegas à 5 h du matin en Europe.
+- Programme du week-end expliqué : sous chaque séance du prochain Grand Prix (accueil, calendrier de la Saison), une
+  phrase simple dit à quoi elle sert (« Qualifications : décident l'ordre de départ, à ne pas rater »), une étoile
+  marque celles à ne pas rater (qualifications, sprint, course) et un repère « Week-end sprint » signale les week-ends
+  au format sprint.
 - Compte à rebours de l'Accueil : comme celui de la Saison, le chiffre qui change roule (l'ancien descend, le nouveau
   arrive d'en haut), sauf si les animations sont coupées.
 - Hors saison, l'Accueil montre les prochaines dates de l'intersaison annoncées officiellement (lancement de la saison
