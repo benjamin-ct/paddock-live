@@ -76,10 +76,15 @@ test('serveur : météo, documents FIA du Grand Prix et photos des pilotes', asy
   const env = fakeEnv();
   const champ = '<option value="/documents/championships/fia-formula-one-world-championship-14/season/season-2026-2072">2026</option>'
     + '<option value="/documents/championships/fia-formula-one-world-championship-14/event/Mexican%20Grand%20Prix">Mexican Grand Prix</option>'
-    + '<option value="/documents/championships/fia-formula-one-world-championship-14/event/Mexico%20City%20Grand%20Prix">Mexico City Grand Prix</option>';
+    + '<option value="/documents/championships/fia-formula-one-world-championship-14/event/Mexico%20City%20Grand%20Prix">Mexico City Grand Prix</option>'
+    + '<option value="/documents/championships/fia-formula-one-world-championship-14/event/Brazilian%20Grand%20Prix">Brazilian Grand Prix</option>';
+  // Page de la saison : ses épreuves seulement (le Brésil s'y appelle « São Paulo Grand Prix »)
+  const S = '/documents/championships/fia-formula-one-world-championship-14/season/season-2026-2072';
+  const season = `<option value="${S}/event/Mexico%20City%20Grand%20Prix">Mexico City Grand Prix</option><option value="${S}/event/S%C3%A3o%20Paulo%20Grand%20Prix">São Paulo Grand Prix</option>`;
   await withNet((u) => {
     if (u.startsWith('https://api.open-meteo.com/')) return new Response(JSON.stringify({ daily: { time: ['2026-10-25'], temperature_2m_max: [24] }, timezone: 'America/Mexico_City' }));
     if (u.endsWith('-14')) return new Response(champ);
+    if (u.endsWith('-2072')) return new Response(season);
     if (u.includes('/event/')) return new Response('<div>pas de document</div>');
     if (u.startsWith('https://media.formula1.com/')) return new Response(new Uint8Array([0x89, 0x50, 0x4e, 0x47]), { headers: { 'Content-Type': 'image/png' } });
     return new Response('', { status: 404 });
@@ -93,6 +98,10 @@ test('serveur : météo, documents FIA du Grand Prix et photos des pilotes', asy
     assert.equal(d.body.event, 'Mexico City Grand Prix');
     assert.match(d.body.page, /\/event\/Mexico%20City%20Grand%20Prix$/);
     assert.deepEqual(d.body.docs, []);
+    const br = await call(env, '/live/api/fia-docs?year=2026&name=Brazilian%20Grand%20Prix&location=S%C3%A3o%20Paulo&country=Brazil');
+    assert.equal(br.body.event, 'São Paulo Grand Prix', 'nom de la saison, pas celui des anciennes saisons');
+    const lv = await call(env, '/live/api/fia-docs?year=2026&name=Las%20Vegas%20Grand%20Prix&location=Las%20Vegas&country=United%20States');
+    assert.deepEqual([lv.status, lv.body.event, lv.body.docs], [200, null, []], 'épreuve pas encore listée : pas encore de documents');
 
     const h = await call(env, `/live/api/headshot?u=${encodeURIComponent('https://media.formula1.com/image/upload/x/lannor01right.webp')}`);
     assert.equal(h.status, 200);
@@ -113,7 +122,8 @@ test('serveur : grille de départ officielle (définitive de préférence), « p
   const key = [...new Uint8Array(await crypto.subtle.digest('SHA-1', new TextEncoder().encode(url)))].map((b) => b.toString(16).padStart(2, '0')).join('').slice(0, 20);
   const { FIA_VERSION } = await import('../shared/fia-tech.js');
   env.rows.set(`fiadoc:${key}`, JSON.stringify({ v: FIA_VERSION, data: { final: true, sprint: false, rows: [{ num: '1', last: 'Norris', pos: 1, pitlane: false }], penalties: [] } }));
-  await withNet((u) => (u.endsWith('-14') ? new Response(champ) : u.includes('/event/') ? new Response(page) : new Response('', { status: 404 })), async () => {
+  const season = `<option value="/documents/championships/fia-formula-one-world-championship-14/season/season-2026-2072/event/S%C3%A3o%20Paulo%20Grand%20Prix">São Paulo Grand Prix</option>`;
+  await withNet((u) => (u.endsWith('-14') ? new Response(champ) : u.endsWith('-2072') ? new Response(season) : u.includes('/event/') ? new Response(page) : new Response('', { status: 404 })), async () => {
     const q = '/live/api/fia-grid?year=2026&name=S%C3%A3o%20Paulo%20Grand%20Prix&location=S%C3%A3o%20Paulo';
     assert.deepEqual((await call(env, q)).body, { grid: null });
     page += doc(52, 'Doc 52 - Provisional Starting Grid', 'provisional_grid') + doc(58, 'Doc 58 - Final Starting Grid', 'final_grid');

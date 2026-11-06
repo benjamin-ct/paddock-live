@@ -54,7 +54,7 @@ function otherState(r) {
     otherDocs.set(r.name, o);
     o.job = api(`/api/fia-docs?${new URLSearchParams({ year: r.year, name: r.name, location: r.locality, country: '' })}`)
       .then((x) => { o.docs = x.docs || []; o.page = x.page; })
-      .catch((err) => { o.error = err.message; otherDocs.delete(r.name); })
+      .catch((err) => { o.error = err.message; setTimeout(() => otherDocs.delete(r.name), 30000); })   // erreur affichée, nouvel essai 30 s plus tard (pas en boucle)
       .finally(() => { o.loading = false; if (shownGp() === r.name) render(true); });
   }
   return o;
