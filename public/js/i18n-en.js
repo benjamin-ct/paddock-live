@@ -3033,4 +3033,6 @@ export default {
   "Tours neutralisés": "Neutralised laps",
   "Toutes les courses disputées sur ce circuit comptent, même avant une modification du tracé.": "Every race held at this circuit counts, even before a layout change.",
   "Neutralisations, arrêts et places gagnées : analyse des archives de la F1, depuis {}.": "Neutralisations, pit stops and places gained: analysis of the F1 archives, since {}.",
+  "Copier le code": "Copy the code",
+  "Code copié": "Code copied",
 };
