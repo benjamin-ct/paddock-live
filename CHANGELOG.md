@@ -17,6 +17,10 @@ l'application (Réglages → À propos → Nouveautés).
   secours.
 - Radios d'équipe dont la F1 ne fournit pas le son : « radio indisponible » au lieu de « pas de parole reconnue », et
   la radio ne reste plus affichée en lecture sans aucun son. Nouvel essai à la prochaine ouverture.
+- Documents FIA, pendant le Grand Prix du Brésil : la liste ne propose plus deux fois le même Grand Prix (« du
+  Brésil » et « de São Paulo »), et le Grand Prix de la séance est choisi d'office.
+- Image de résultat d'un pilote : le nom du fichier garde les noms avec un accent (« sao-paulo » au lieu de
+  « s-o-paulo »).
 
 ### Version web
 - Radios d'équipe : le son est pris directement chez la F1 par le téléphone ou l'ordinateur.
