@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { gpShort, gpFull, sessionLabel } from '../shared/gp-names.js';
+import { gpShort, gpFull, sessionLabel, sameGp } from '../shared/gp-names.js';
 
 test('noms des Grands Prix : courant et couru dans un autre pays', () => {
   assert.equal(gpShort('Australian Grand Prix'), 'Australie');
@@ -25,4 +25,13 @@ test('noms des Grands Prix et des séances en italien et en espagnol', () => {
   assert.equal(sessionLabel('Practice 1', 'es'), 'Libres 1');
   assert.equal(sessionLabel('Race'), 'Course');
   assert.equal(sessionLabel('Race', true), 'Race');
+});
+
+test('Grand Prix du calendrier reconnu dans la séance de la F1 même sous un autre nom (Brésil 2026)', () => {
+  const info = { Path: '2026/2026-11-08_São_Paulo_Grand_Prix/2026-11-06_Practice_1/', Meeting: { Name: 'São Paulo Grand Prix', Location: 'São Paulo' } };
+  assert.equal(sameGp({ name: 'Brazilian Grand Prix', locality: 'São Paulo', year: 2026 }, info), true);
+  assert.equal(sameGp({ name: 'São Paulo Grand Prix', locality: '', year: 2026 }, info), true);
+  assert.equal(sameGp({ name: 'Brazilian Grand Prix', locality: 'São Paulo', year: 2027 }, info), false);   // replay d'une autre saison
+  assert.equal(sameGp({ name: 'Las Vegas Grand Prix', locality: 'Las Vegas', year: 2026 }, info), false);
+  assert.equal(sameGp({ name: 'Brazilian Grand Prix', locality: 'São Paulo', year: 2026 }, null), false);
 });
