@@ -11,6 +11,8 @@ l'application (Réglages → À propos → Nouveautés).
   (en anglais pour les autres langues).
 
 ### En direct
+- Télémétrie : le bouton ± à côté du délai TV ouvre de nouveau ses réglages (−5, −1, −0,1, +0,1, +1, +5 s), qui
+  restaient cachés.
 - Radios d'équipe dont la F1 ne fournit pas le son : « radio indisponible » au lieu de « pas de parole reconnue », et
   la radio ne reste plus affichée en lecture sans aucun son. Nouvel essai à la prochaine ouverture.
 
