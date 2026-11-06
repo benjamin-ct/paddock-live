@@ -26,6 +26,8 @@ l'application (Réglages → À propos → Nouveautés).
   L'heure du serveur, qui cale l'affichage sur la TV, se rattrape en douceur au lieu de bondir quand un message
   arrive en retard.
 - Téléphone : l'engrenage des réglages du direct est bien centré dans son bouton.
+- iPhone, Paddock Live ajouté à l'écran d'accueil : la barre Accueil, Direct, Saison reste en bas de l'écran au lieu
+  de remonter au milieu en faisant défiler (défaut de Safari sur iOS 26).
 
 ## v1.32.0 — 2026-11-06
 
