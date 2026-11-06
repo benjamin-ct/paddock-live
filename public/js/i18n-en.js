@@ -3100,4 +3100,6 @@ export default {
   "Alertes désactivées.": "Alerts are off.",
   "Essai envoyé : il arrive dans quelques secondes.": "Test sent: it arrives in a few seconds.",
   "Alertes sur cet appareil : rappel avant chaque séance, résultats, grosses news": "Alerts on this device: reminder before each session, results, big news",
+  "Copier le code": "Copy the code",
+  "Code copié": "Code copied",
 };

@@ -3099,4 +3099,6 @@ export default {
   "Alertes désactivées.": "Avvisi disattivati.",
   "Essai envoyé : il arrive dans quelques secondes.": "Prova inviata: arriva tra qualche secondo.",
   "Alertes sur cet appareil : rappel avant chaque séance, résultats, grosses news": "Avvisi su questo dispositivo: promemoria prima di ogni sessione, risultati, grandi notizie",
+  "Copier le code": "Copia il codice",
+  "Code copié": "Codice copiato",
 };
