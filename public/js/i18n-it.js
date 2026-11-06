@@ -3147,4 +3147,6 @@ export default {
   "{} sanction": "{} sanzione",
   "Aucune sanction.": "Nessuna sanzione.",
   "D'après les décisions publiées par la FIA : une décision rectifiée ou annulée en appel peut ne pas être prise en compte. Fait foi : le document de la FIA.": "In base alle decisioni pubblicate dalla FIA: una decisione rettificata o annullata in appello potrebbe non essere considerata. Fa fede il documento della FIA.",
+  "Copier le code": "Copia il codice",
+  "Code copié": "Codice copiato",
 };

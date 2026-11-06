@@ -3148,4 +3148,6 @@ export default {
   "{} sanction": "{} penalty",
   "Aucune sanction.": "No penalties.",
   "D'après les décisions publiées par la FIA : une décision rectifiée ou annulée en appel peut ne pas être prise en compte. Fait foi : le document de la FIA.": "Based on the decisions published by the FIA: a decision corrected or overturned on appeal may not be reflected. The FIA document is authoritative.",
+  "Copier le code": "Copy the code",
+  "Code copié": "Code copied",
 };
