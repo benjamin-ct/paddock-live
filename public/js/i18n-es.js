@@ -3099,4 +3099,11 @@ export default {
   "Alertes désactivées.": "Alertas desactivadas.",
   "Essai envoyé : il arrive dans quelques secondes.": "Prueba enviada: llega en unos segundos.",
   "Alertes sur cet appareil : rappel avant chaque séance, résultats, grosses news": "Alertas en este dispositivo: aviso antes de cada sesión, resultados, grandes noticias",
+  "Dans {} jours": "Dentro de {} días",
+  "horaires pas encore annoncés": "horarios aún no anunciados",
+  "Horaire pas encore annoncé": "Horario aún no anunciado",
+  "Essais d’hiver {}": "Test de pretemporada {}",
+  "{} : en piste aujourd’hui": "{}: en pista hoy",
+  "Premier Grand Prix": "Primer Gran Premio",
+  "Essais en cours": "Test en curso",
 };

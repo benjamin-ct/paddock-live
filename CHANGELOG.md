@@ -31,6 +31,9 @@ l'application (Réglages → À propos → Nouveautés).
 - Hors saison, l'Accueil montre les prochaines dates de l'intersaison annoncées officiellement (lancement de la saison
   2027 à Milan avec les 11 écuries, essais d'hiver à Bahreïn), chacune avec le lien de son annonce, et les ajoute
   toutes à son agenda d'un clic.
+- Essais d'hiver sur l'Accueil : compte à rebours de la prochaine journée d'essais (en jours tant que la F1 n'a pas
+  annoncé les horaires) et programme jour par jour ; pendant une journée d'essais, « Regarder en direct ». Le compte à
+  rebours du premier Grand Prix reprend une fois les essais terminés.
 
 ### Affichage
 - Taille de l'interface aussi dans le navigateur d'un téléphone ou d'une tablette (Réglages → Affichage → Général), de
