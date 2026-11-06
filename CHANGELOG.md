@@ -149,6 +149,9 @@ l'application (Réglages → À propos → Nouveautés).
   neutralisées (voiture de sécurité, virtuelle ou drapeau rouge), les arrêts et les places gagnées en piste de chaque
   course. Toutes les courses disputées sur le circuit comptent, avec l'année de la première et celle du retour au
   calendrier après une longue absence. Aussi dans la version web.
+- Pilotes : nouveau bloc « Carrière » sur la fiche de chaque pilote de la saison, avec ses titres, départs, victoires,
+  podiums et poles depuis ses débuts, et ses écuries saison par saison. La saison en cours est comptée après chaque
+  course. Aussi dans la version web.
 - Pilote du jour (le vote des fans de la F1) : sur la page de chaque Grand Prix, les 5 premiers du vote avec leurs
   pourcentages ; dans Résultats & records, le pilote du jour de chaque course et le plus souvent élu ; sur la fiche de
   chaque pilote, son nombre d'élections et son meilleur score. Aussi dans la version web.

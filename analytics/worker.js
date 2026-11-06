@@ -36,6 +36,7 @@ import { fiaTick } from './fia-tech.js';
 import { zonesTick } from './zones.js';
 import { recordsTick } from './records.js';
 import { historyTick } from './circuit-history.js';
+import { careerTick } from './career.js';
 import { surroundingsTick } from './surroundings.js';
 import { newsTick, newsApi } from './news.js';
 import { seasonSsr, seasonSitemap, legacySeasonUrl, parseEnSeasonPath, seasonRewriter } from './season-pages.js';
@@ -220,10 +221,11 @@ export default {
       if (env.DB && t.getUTCHours() === 3 && t.getUTCMinutes() === 0) await prune(env, t.getTime()).catch(() => null);
       // Toutes les 6 heures : bilan de santé (flux F1, erreurs de l'appli, jetons), sur le téléphone si besoin
       if (t.getUTCMinutes() === 7 && t.getUTCHours() % HEALTH.every === 1) await healthCheck(env).catch(() => null);
-      // Statistiques des courses, documents FIA, zones, alentours, records et histoire des circuits : chacun sa minute à tour
-      // de rôle (le suivant prend la minute de celui qui n'a rien à faire), pour qu'aucun n'attende que les autres aient tout fini
+      // Statistiques des courses, documents FIA, zones, alentours, records et histoire des circuits, carrière des pilotes :
+      // chacun sa minute à tour de rôle (le suivant prend la minute de celui qui n'a rien à faire), pour qu'aucun n'attende
+      // que les autres aient tout fini
       if (!sent) {
-        const ticks = [statsTick, fiaTick, zonesTick, surroundingsTick, recordsTick, historyTick];
+        const ticks = [statsTick, fiaTick, zonesTick, surroundingsTick, recordsTick, historyTick, careerTick];
         for (let i = 0; i < ticks.length; i++) {
           if (await ticks[(t.getUTCMinutes() + i) % ticks.length](env, { now: t.getTime() }).catch(() => null)) break;
         }

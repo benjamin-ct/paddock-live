@@ -15,7 +15,8 @@ function byRound(races, key) {
   return [...m.values()];
 }
 
-const driverOf = (d) => ({ code: d?.code || d?.familyName?.slice(0, 3).toUpperCase(), name: `${d?.givenName || ''} ${d?.familyName || ''}`.trim(), last: d?.familyName || '', number: d?.permanentNumber || null });
+// id : identifiant Jolpica du pilote (carrière, /api/career)
+const driverOf = (d) => ({ id: d?.driverId || '', code: d?.code || d?.familyName?.slice(0, 3).toUpperCase(), name: `${d?.givenName || ''} ${d?.familyName || ''}`.trim(), last: d?.familyName || '', number: d?.permanentNumber || null });
 const iso = (s) => (s?.date ? `${s.date}T${s.time || '00:00:00Z'}` : null);
 // Séance sans heure (calendrier publié avant les horaires) : t null (ni rappel ni agenda), date seule dans day
 const session = (label, s) => (s?.date && !s.time ? { label, t: null, day: s.date } : { label, t: iso(s) });
