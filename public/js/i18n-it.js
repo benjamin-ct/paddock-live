@@ -3068,4 +3068,6 @@ export default {
   "Grille provisoire : la grille définitive n'est pas encore publiée.": "Griglia provvisoria: quella definitiva non è ancora pubblicata.",
   "Relire": "Ricarica",
   "Pneus Pirelli": "Gomme Pirelli",
+  "Copier le code": "Copia il codice",
+  "Code copié": "Codice copiato",
 };
