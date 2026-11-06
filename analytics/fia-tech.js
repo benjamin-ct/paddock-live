@@ -54,7 +54,11 @@ export async function fiaDocsWeb(year, meeting, { now = Date.now(), fetchFn = fe
   const s = await cached('fia-championship', 3600, async () => parseSeasons(await (await get(BASE + CHAMPIONSHIP, fetchFn)).text()));
   const season = s.bySeason[year];
   if (!season) return { event: null, page: null, docs: [] };
-  const event = pickEvent(s.events, meeting);
+  // Épreuves de la saison (relues toutes les 15 minutes) : la page du championnat mêle les noms de toutes les saisons
+  // (« Brazilian Grand Prix » d'avant 2021 alors que celle de 2026 est « São Paulo Grand Prix »). Sans le pays (Las Vegas
+  // n'est pas « United States Grand Prix ») ; épreuve pas encore listée : pas encore de documents (fia.com : HTTP 500)
+  const list = await cached(`fia-season/${year}`, 900, async () => seasonEventList(await (await get(BASE + season, fetchFn)).text()).map((e) => e.name));
+  const event = pickEvent(list, { ...meeting, country: '' });
   if (!event) return { event: null, page: BASE + season, docs: [] };
   const page = `${BASE}${season}/event/${encodeURIComponent(event)}`;
   return cached(`fia-docs/${await sha(page)}`, (d) => {
