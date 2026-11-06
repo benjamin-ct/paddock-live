@@ -362,6 +362,8 @@ export default {
   "Analyse affichée en grand dans l'autre fenêtre (second écran)": "Analysis shown enlarged in the other window (second screen)",
   "Analyse des courses de la saison": "Analysing the season's races",
   "Anglais": "English",
+  "Contraste renforcé": "High contrast",
+  "Textes secondaires et filets plus marqués, en sombre comme en clair. Activé aussi quand l'ordinateur ou le téléphone demande plus de contraste": "Stronger secondary text and lines, in dark and light mode. Also on when your computer or phone asks for more contrast",
   "Animations de l'interface": "Interface animations",
   "Annuler": "Cancel",
   "Anti-spoiler pendant les séances": "Anti-spoiler during sessions",

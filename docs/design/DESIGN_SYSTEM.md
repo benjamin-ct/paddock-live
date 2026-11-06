@@ -392,6 +392,19 @@ Autres : `env(safe-area-inset-*)` (encoche, barre d'accueil iPhone), `100dvh`, `
   aussi `vh` / `vw` et décale les menus placés en JS). Appli de bureau : `webContents.setZoomFactor`, 90 à 200 %
   (`desktop/main.cjs`) ; navigateur au doigt (téléphone, tablette) : balise viewport `initial-scale`, 90 à 150 %
   (`prefs.textScale`, `prefs.js`). À 150 % un téléphone de 390 px a une page de 260 px : rien ne doit déborder.
+- **Contraste renforcé** (`<html data-contrast="more">` : case de Réglages → Affichage ou `prefers-contrast: more` du
+  système, `prefs.js`) : jetons communs à tous les designs, fin de `style.css` (`:root:root`, devant les jetons des
+  designs). Les zones toujours sombres qui redéfinissent leurs jetons (barre du haut de Paddock 2, cartes sombres de
+  l'accueil en clair) gardent les leurs.
+
+  | Variable | Sombre | Clair | Rapport sur `--panel` (Télémétrie) |
+  |---|---|---|---|
+  | `--text` | `#FFFFFF` | `#000000` | 18:1 et plus |
+  | `--text-2` | `#E3E8EE` | `#1C232D` | 14,9:1 / 14,9:1 |
+  | `--muted` | `#C3CBD5` | `#36404C` | 11,2:1 / 9,9:1 |
+  | `--line-2` | `#7D8896` | `#5A6470` | 5,1:1 / 5,7:1 |
+  | `--border` | `#5C6878` | `#808A96` | 3,2:1 / 3,3:1 |
+  | `--line` | `#414B58` | `#B5BDC7` | 2,1:1 / 1,8:1 (séparateurs de lignes) |
 - Zones tactiles : 32 px minimum garantis au doigt pour les petits boutons ; boutons de la barre latérale 46 px.
 - Textes sélectionnables seulement là où c'est utile (champs, articles, radios, messages de la direction de course).
 
