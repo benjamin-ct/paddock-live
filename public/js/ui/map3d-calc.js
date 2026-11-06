@@ -95,6 +95,15 @@ export function accentColor(hex) {
 
 // Volet de l'aileron arrière ouvert : canal DRS de la télémétrie (CarData, canal 45) ; 10, 12 et 14 : ouvert
 export const drsOpen = (drs) => Number(drs) >= 10;
+// Volets des ailerons ouverts [arrière, avant] d'une voiture (échantillon de télémétrie). Jusqu'en 2025 : DRS, aileron
+// arrière seul. 2026 : aileron actif (mode ligne droite, avant et arrière), que la F1 ne donne pas (canal 45 absent) :
+// estimé à plein gaz, sans frein, au-dessus de 250 km/h
+export function wingsOpen(car) {
+  if (!car) return [false, false];
+  if (car.drs != null) return [drsOpen(car.drs), false];
+  const open = car.thr >= 95 && !(car.brk > 0) && car.speed >= 250;
+  return [open, open];
+}
 
 // Pneus montés : composé du dernier relais qui en donne un (Stints de TimingAppData, tableau ou objet indexé ; le
 // relais d'après un arrêt arrive parfois avant son composé) ; null si inconnu

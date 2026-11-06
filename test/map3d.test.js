@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { QUALITY, nearFirst, autoQuality, frameCap, weatherState, compoundOf, accentColor, drsOpen, seconds, pickBattle, bestLap, sessionBest, lapTrace, traceAt, wallCuts, pitRoute, steering, wheelSpin, kerbMask, barrierOffsets, standSpots, runoffPlan, groundClimate, GROUND } from '../public/js/ui/map3d-calc.js';
+import { QUALITY, nearFirst, autoQuality, frameCap, weatherState, compoundOf, accentColor, drsOpen, wingsOpen, seconds, pickBattle, bestLap, sessionBest, lapTrace, traceAt, wallCuts, pitRoute, steering, wheelSpin, kerbMask, barrierOffsets, standSpots, runoffPlan, groundClimate, GROUND } from '../public/js/ui/map3d-calc.js';
 
 // Images à cadence fixe (fps) pendant ms, à partir de t ; -> [instant de fin, niveaux choisis en route]
 function run(auto, t, ms, fps, cap = Infinity) {
@@ -382,4 +382,13 @@ test('sol : sable dans le désert, herbe jaunie au sec, verte ailleurs', () => {
     assert.ok(pal.patches.length >= 4);
   }
   assert.equal(GROUND.vert.field, '#4f7f36', 'vert : la couleur d\'avant');
+});
+
+test('ailerons mobiles : DRS jusqu\'en 2025, aileron actif estimé en 2026 (canal 45 absent)', () => {
+  assert.deepEqual(wingsOpen({ drs: 12, thr: 100, brk: 0, speed: 310 }), [true, false]);    // 2025, DRS ouvert : arrière seul
+  assert.deepEqual(wingsOpen({ drs: 8, thr: 100, brk: 0, speed: 310 }), [false, false]);    // 2025, DRS fermé
+  assert.deepEqual(wingsOpen({ thr: 100, brk: 0, speed: 310 }), [true, true]);              // 2026, ligne droite : les deux
+  assert.deepEqual(wingsOpen({ thr: 100, brk: 100, speed: 310 }), [false, false]);          // 2026, freinage
+  assert.deepEqual(wingsOpen({ thr: 100, brk: 0, speed: 200 }), [false, false]);            // 2026, virage lent
+  assert.deepEqual(wingsOpen(null), [false, false]);
 });
