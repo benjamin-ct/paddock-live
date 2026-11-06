@@ -12,6 +12,9 @@ test('alertes du téléphone : rappel 30 minutes avant une séance, une fois, en
   assert.equal(r[0].msg.fr.title, 'Qualifications dans 30 minutes');
   assert.equal(r[0].msg.fr.body, 'Grand Prix des États-Unis');
   assert.equal(r[0].msg.en.title, 'Qualifying in 30 minutes');
+  assert.equal(r[0].msg.it.title, 'Qualifiche tra 30 minuti');
+  assert.equal(r[0].msg.es.title, 'Clasificación en 30 minutos');
+  assert.equal(r[0].msg.it.body, 'Gran Premio degli Stati Uniti');
   assert.equal(sessionReminders(season, at('2026-10-24T20:50:00Z')).length, 0);   // moins de 20 minutes : trop tard
 });
 
@@ -22,6 +25,8 @@ test('alertes du téléphone : résultats parus depuis la lecture précédente s
   const m = resultMessages(before, after, now);
   assert.deepEqual(m.map((x) => x.msg.fr.title), ['Victoire de Max Verstappen']);
   assert.equal(m[0].msg.en.title, 'Max Verstappen wins');
+  assert.equal(m[0].msg.it.title, 'Vittoria di Max Verstappen');
+  assert.equal(m[0].msg.es.title, 'Victoria de Max Verstappen');
 });
 
 test('alertes du téléphone : la veille à 21 h, séances entre minuit et 7 h chez l\'abonné (Las Vegas)', () => {
@@ -34,6 +39,12 @@ test('alertes du téléphone : la veille à 21 h, séances entre minuit et 7 h c
   assert.equal(r[0].msg.fr.title, 'Cette nuit : Qualifications à 5 h');
   assert.equal(r[0].msg.fr.body, 'Grand Prix de Las Vegas · rappel 30 minutes avant');
   assert.equal(r[0].msg.en.title, 'Overnight: Qualifying at 5:00 am');
+  assert.equal(r[0].msg.it.title, 'Stanotte: Qualifiche alle 5:00');
+  assert.equal(r[0].msg.es.title, 'Esta noche: Clasificación a las 5:00');
+  const fp = eveReminders({ races: [{ round: 22, name: 'Las Vegas Grand Prix', sessions: [{ label: 'EL1', t: '2026-11-20T00:30:00Z' }, { label: 'EL2', t: '2026-11-20T04:00:00Z' }] }] }, ['Europe/Paris'], Date.parse('2026-11-19T20:00:00Z'));
+  assert.equal(fp[0].msg.fr.title, 'Cette nuit : Essais libres 1 à 1 h 30, Essais libres 2 à 5 h');
+  assert.equal(fp[0].msg.es.title, 'Esta noche: Libres 1 a la 1:30, Libres 2 a las 5:00');
+  assert.equal(fp[0].msg.it.title, 'Stanotte: Prove libere 1 all\'1:30, Prove libere 2 alle 5:00');
   assert.equal(eveReminders(vegas, tzs, Date.parse('2026-11-20T20:12:00Z')).length, 0, 'après 21 h 10 : plus de rappel');
   assert.equal(eveReminders(vegas, ['America/New_York'], Date.parse('2026-11-21T02:00:00Z')).length, 0, 'New York : 23 h le jour même, pas la nuit');
   assert.equal(eveReminders({ races: [] }, tzs, Date.parse('2026-11-20T20:03:00Z')).length, 0);
@@ -106,12 +117,15 @@ test('alertes du téléphone : abonnement vérifié, file envoyée par lots, abo
   const withTz = await (await post('sub', { subscription: sub(5), topics: ['sessions'], lang: 'fr', tz: 'Europe/Paris' })).json();
   assert.deepEqual(withTz.topics, ['sessions']);
   assert.equal(DB.subs.get(sub(5).endpoint).topics, 'sessions,tz@Europe/Paris');
-  await post('sub', { subscription: sub(6), topics: ['news'], tz: 'Asia/Tokyo' });
+  await post('sub', { subscription: sub(6), topics: ['news'], tz: 'Asia/Tokyo', lang: 'it' });
+  assert.equal(DB.subs.get(sub(6).endpoint).lang, 'it');
+  await post('sub', { subscription: sub(8), topics: ['news'], lang: 'de' });
+  assert.equal(DB.subs.get(sub(8).endpoint).lang, 'fr', 'langue inconnue : français');
   await post('sub', { subscription: sub(7), topics: ['sessions'], tz: 'Pas/Un,fuseau' });
   assert.equal(DB.subs.get(sub(6).endpoint).topics, 'news,tz@Asia/Tokyo');
   assert.equal(DB.subs.get(sub(7).endpoint).topics, 'sessions');
   assert.deepEqual(await eveZones(env), ['Europe/Paris'], 'Tokyo : pas abonné aux séances');
-  for (const i of [5, 6, 7]) await post('sub', { subscription: sub(i), topics: [] });
+  for (const i of [5, 6, 7, 8]) await post('sub', { subscription: sub(i), topics: [] });
   assert.equal((await (await publicPushApi(new Request('https://p.test/a/key'), env, 'key')).json()).key.length, 87);
 
   assert.equal(await queuePush(env, 'remind:x', 'sessions', { fr: { title: 'Course dans 30 minutes', body: 'GP' }, en: { title: 'Race in 30 minutes', body: 'GP' }, url: '/alertes/' }), true);

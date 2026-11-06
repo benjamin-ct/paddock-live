@@ -37,7 +37,8 @@ a { color: inherit; }
 .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; font: italic 800 23px/1 'Saira Condensed', sans-serif; text-transform: uppercase; }
 .brand img { width: 32px; height: 32px; border-radius: 9px; }
 .brand b { color: var(--red); }
-#lang { margin-left: auto; min-height: 40px; background: rgba(255, 255, 255, .05); border: 1px solid var(--line-2); color: var(--text-2); border-radius: 999px; padding: 6px 16px; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+#lang { margin-left: auto; appearance: none; text-align: center; min-height: 40px; background: rgba(255, 255, 255, .05); border: 1px solid var(--line-2); color: var(--text-2); border-radius: 999px; padding: 6px 16px; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+#lang option { color: #000; }
 #lang:hover { color: var(--text); background: rgba(255, 255, 255, .1); }
 h1 { font: italic 800 clamp(42px, 12vw, 64px)/.92 'Saira Condensed', 'Arial Narrow', sans-serif; text-transform: uppercase; margin: 0 0 16px; text-shadow: 0 10px 60px rgba(0, 0, 0, .5); }
 .lead { color: var(--text-2); margin: 0 0 26px; font-size: 18px; }
@@ -71,47 +72,48 @@ footer a { color: #ff5a4f; }
 <div class="wrap">
   <div class="top">
     <a class="brand" href="/"><img src="/site/img/logo.png" alt="" width="32" height="32">Paddock <b>Live</b></a>
-    <button id="lang" type="button">English</button>
+    <select id="lang" aria-label="Langue · Language"><option value="fr">Français</option><option value="en">English</option><option value="it">Italiano</option><option value="es">Español</option></select>
   </div>
-  <h1 data-en="F1 alerts on your phone">Les alertes F1 sur ton téléphone</h1>
-  <p class="lead" data-en="Even away from your computer: a reminder before each session, the results if you want them, and the big news.">Même loin de ton ordinateur : un rappel avant chaque séance, les résultats si tu le veux, et les grosses news.</p>
+  <h1 data-en="F1 alerts on your phone" data-it="Gli avvisi F1 sul tuo telefono" data-es="Las alertas de F1 en tu móvil">Les alertes F1 sur ton téléphone</h1>
+  <p class="lead" data-en="Even away from your computer: a reminder before each session, the results if you want them, and the big news." data-it="Anche lontano dal computer: un promemoria prima di ogni sessione, i risultati se li vuoi e le grandi notizie." data-es="Incluso lejos del ordenador: un aviso antes de cada sesión, los resultados si los quieres y las grandes noticias.">Même loin de ton ordinateur : un rappel avant chaque séance, les résultats si tu le veux, et les grosses news.</p>
 
-  <p class="note" id="ios" hidden data-en="On iPhone, <b>first add this page to your home screen</b> (Share button → « Add to Home Screen »), then open it from its icon to turn alerts on.">Sur iPhone, <b>ajoute d'abord cette page à l'écran d'accueil</b> (bouton Partager → « Sur l'écran d'accueil »), puis ouvre-la depuis son icône pour activer les alertes.</p>
-  <p class="note" id="nosupport" hidden data-en="This browser can't receive notifications. Try Chrome, Firefox, Edge or Safari (iPhone: from the home screen).">Ce navigateur ne peut pas recevoir de notifications. Essaie Chrome, Firefox, Edge ou Safari (iPhone : depuis l'écran d'accueil).</p>
+  <p class="note" id="ios" hidden data-en="On iPhone, <b>first add this page to your home screen</b> (Share button → « Add to Home Screen »), then open it from its icon to turn alerts on." data-it="Su iPhone, <b>aggiungi prima questa pagina alla schermata Home</b> (pulsante Condividi → « Aggiungi alla schermata Home »), poi aprila dalla sua icona per attivare gli avvisi." data-es="En iPhone, <b>añade primero esta página a la pantalla de inicio</b> (botón Compartir → « Añadir a pantalla de inicio »), luego ábrela desde su icono para activar las alertas.">Sur iPhone, <b>ajoute d'abord cette page à l'écran d'accueil</b> (bouton Partager → « Sur l'écran d'accueil »), puis ouvre-la depuis son icône pour activer les alertes.</p>
+  <p class="note" id="nosupport" hidden data-en="This browser can't receive notifications. Try Chrome, Firefox, Edge or Safari (iPhone: from the home screen)." data-it="Questo browser non può ricevere notifiche. Prova Chrome, Firefox, Edge o Safari (iPhone: dalla schermata Home)." data-es="Este navegador no puede recibir notificaciones. Prueba Chrome, Firefox, Edge o Safari (iPhone: desde la pantalla de inicio).">Ce navigateur ne peut pas recevoir de notifications. Essaie Chrome, Firefox, Edge ou Safari (iPhone : depuis l'écran d'accueil).</p>
 
-  <label class="topic"><input type="checkbox" name="t" value="sessions" checked><span><b data-en="Before each session">Avant chaque séance</b><small data-en="30 minutes before practice, qualifying, sprint and race, and the evening before (9 pm) when a session falls in the middle of your night.">30 minutes avant les essais, les qualifs, le sprint et la course, et la veille à 21 h quand une séance tombe en pleine nuit chez toi.</small></span></label>
-  <label class="topic warn"><input type="checkbox" name="t" value="results"><span><b data-en="Results">Résultats</b><small data-en="Winner and pole as soon as they're published. <em>Spoils the race if you watch it later.</em>">Vainqueur et pole dès leur publication. <em>Dévoile la course si tu la regardes plus tard.</em></small></span></label>
-  <label class="topic"><input type="checkbox" name="t" value="news" checked><span><b data-en="Big news">Grosses news</b><small data-en="Transfers, penalties, official announcements: a few times a week at most. At night (11 pm to 7 am), grouped into a single message at 7 am.">Transferts, pénalités, annonces officielles : quelques fois par semaine au plus. La nuit (23 h à 7 h), regroupées dans un seul message à 7 h.</small></span></label>
+  <label class="topic"><input type="checkbox" name="t" value="sessions" checked><span><b data-en="Before each session" data-it="Prima di ogni sessione" data-es="Antes de cada sesión">Avant chaque séance</b><small data-en="30 minutes before practice, qualifying, sprint and race, and the evening before (9 pm) when a session falls in the middle of your night." data-it="30 minuti prima di prove libere, qualifiche, sprint e gara, e la sera prima (alle 21) quando una sessione cade in piena notte da te." data-es="30 minutos antes de los libres, la clasificación, el sprint y la carrera, y la víspera a las 21 h cuando una sesión cae en plena noche para ti.">30 minutes avant les essais, les qualifs, le sprint et la course, et la veille à 21 h quand une séance tombe en pleine nuit chez toi.</small></span></label>
+  <label class="topic warn"><input type="checkbox" name="t" value="results"><span><b data-en="Results" data-it="Risultati" data-es="Resultados">Résultats</b><small data-en="Winner and pole as soon as they're published. <em>Spoils the race if you watch it later.</em>" data-it="Vincitore e pole appena pubblicati. <em>Ti svela la gara se la guardi più tardi.</em>" data-es="Ganador y pole en cuanto se publican. <em>Te desvela la carrera si la ves más tarde.</em>">Vainqueur et pole dès leur publication. <em>Dévoile la course si tu la regardes plus tard.</em></small></span></label>
+  <label class="topic"><input type="checkbox" name="t" value="news" checked><span><b data-en="Big news" data-it="Grandi notizie" data-es="Grandes noticias">Grosses news</b><small data-en="Transfers, penalties, official announcements: a few times a week at most. At night (11 pm to 7 am), grouped into a single message at 7 am." data-it="Mercato piloti, penalità, annunci ufficiali: al massimo qualche volta a settimana. Di notte (dalle 23 alle 7), riunite in un solo messaggio alle 7." data-es="Fichajes, sanciones, anuncios oficiales: unas pocas veces por semana como mucho. De noche (de 23 h a 7 h), agrupadas en un solo mensaje a las 7 h.">Transferts, pénalités, annonces officielles : quelques fois par semaine au plus. La nuit (23 h à 7 h), regroupées dans un seul message à 7 h.</small></span></label>
 
-  <button class="btn primary" id="on" type="button" data-en="Turn alerts on">Activer les alertes</button>
+  <button class="btn primary" id="on" type="button" data-en="Turn alerts on" data-it="Attiva gli avvisi" data-es="Activar las alertas">Activer les alertes</button>
   <div id="active" hidden>
-    <div class="row"><button class="btn" id="save" type="button" data-en="Save">Enregistrer</button><button class="btn" id="test" type="button" data-en="Send a test">Envoyer un essai</button></div>
-    <button class="btn" id="off" type="button" data-en="Turn all alerts off">Tout désactiver</button>
+    <div class="row"><button class="btn" id="save" type="button" data-en="Save" data-it="Salva" data-es="Guardar">Enregistrer</button><button class="btn" id="test" type="button" data-en="Send a test" data-it="Invia una prova" data-es="Enviar una prueba">Envoyer un essai</button></div>
+    <button class="btn" id="off" type="button" data-en="Turn all alerts off" data-it="Disattiva tutto" data-es="Desactivar todo">Tout désactiver</button>
   </div>
   <p id="state" role="status"></p>
 
   <footer>
-    <p data-en="Kept on our server: your phone's notification address and keys, your topics, language and time zone. Nothing else, no account. Deleted when you turn alerts off.">Gardés sur notre serveur : l'adresse de notification et les clés de ton téléphone, tes sujets, ta langue et ton fuseau horaire. Rien d'autre, sans compte. Effacés quand tu désactives les alertes.</p>
-    <p><a href="/legal/privacy#alertes" data-en="Privacy">Confidentialité</a> · <a href="/" data-en="Paddock Live, the app">Paddock Live, l'appli</a></p>
+    <p data-en="Kept on our server: your phone's notification address and keys, your topics, language and time zone. Nothing else, no account. Deleted when you turn alerts off." data-it="Conservati sul nostro server: l'indirizzo di notifica e le chiavi del tuo telefono, i tuoi argomenti, la tua lingua e il tuo fuso orario. Nient'altro, senza account. Cancellati quando disattivi gli avvisi." data-es="Guardados en nuestro servidor: la dirección de notificación y las claves de tu móvil, tus temas, tu idioma y tu zona horaria. Nada más, sin cuenta. Se borran cuando desactivas las alertas.">Gardés sur notre serveur : l'adresse de notification et les clés de ton téléphone, tes sujets, ta langue et ton fuseau horaire. Rien d'autre, sans compte. Effacés quand tu désactives les alertes.</p>
+    <p><a href="/legal/privacy#alertes" data-en="Privacy" data-it="Privacy" data-es="Privacidad">Confidentialité</a> · <a href="/" data-en="Paddock Live, the app" data-it="Paddock Live, l'app" data-es="Paddock Live, la app">Paddock Live, l'appli</a></p>
   </footer>
 </div>
 <script>
 const $ = (s) => document.querySelector(s);
 const els = [...document.querySelectorAll('[data-en]')];
 for (const el of els) el.dataset.fr = el.innerHTML;
-let en = false;
-const t = (fr, e) => (en ? e : fr);
+const LANGS = ['fr', 'en', 'it', 'es'];
+let lang = 'fr';
+const t = (fr, en, it, es) => ({ fr, en, it, es })[lang];
 function setLang(l) {
-  en = l === 'en';
-  document.documentElement.lang = l;
-  for (const el of els) el.innerHTML = en ? el.dataset.en : el.dataset.fr;
-  $('#lang').textContent = en ? 'Français' : 'English';
-  try { localStorage.setItem('alertes.lang', l); } catch { /* stockage bloqué */ }
+  lang = LANGS.includes(l) ? l : 'en';
+  document.documentElement.lang = lang;
+  for (const el of els) el.innerHTML = el.dataset[lang];
+  $('#lang').value = lang;
+  try { localStorage.setItem('alertes.lang', lang); } catch { /* stockage bloqué */ }
 }
 let saved = null;
 try { saved = localStorage.getItem('alertes.lang'); } catch { /* stockage bloqué */ }
-setLang(saved || (/^fr\b/i.test(navigator.language) ? 'fr' : 'en'));
-$('#lang').onclick = () => setLang(en ? 'fr' : 'en');
+setLang(saved || navigator.language.slice(0, 2).toLowerCase());
+$('#lang').onchange = () => { setLang($('#lang').value); if (sub) save().catch((err) => say(err.message, 'bad')); };   // abonné : langue des messages mise à jour
 
 const say = (msg, cls = '') => { $('#state').textContent = msg; $('#state').className = cls; };
 const topics = () => [...document.querySelectorAll('input[name=t]:checked')].map((x) => x.value);
@@ -146,7 +148,7 @@ async function init() {
   try { mine = JSON.parse(localStorage.getItem('alertes.topics') || 'null'); } catch { /* stockage bloqué */ }
   if (sub && Array.isArray(mine)) for (const x of document.querySelectorAll('input[name=t]')) x.checked = mine.includes(x.value);
   show(!!sub);
-  if (sub) say(t('Alertes actives sur ce téléphone.', 'Alerts are on for this phone.'), 'ok');
+  if (sub) say(t('Alertes actives sur ce téléphone.', 'Alerts are on for this phone.', 'Avvisi attivi su questo telefono.', 'Alertas activas en este móvil.'), 'ok');
   let tzSent = null;
   try { tzSent = localStorage.getItem('alertes.tz'); } catch { /* stockage bloqué */ }
   if (sub && Array.isArray(mine) && TZ && tzSent !== TZ) await save().catch(() => {});
@@ -155,10 +157,10 @@ async function init() {
 async function save() {
   const list = topics();
   if (!list.length) return off();
-  await api('sub', { subscription: sub.toJSON(), topics: list, lang: en ? 'en' : 'fr', tz: TZ });
+  await api('sub', { subscription: sub.toJSON(), topics: list, lang, tz: TZ });
   try { localStorage.setItem('alertes.topics', JSON.stringify(list)); localStorage.setItem('alertes.tz', TZ); } catch { /* stockage bloqué */ }
   show(true);
-  say(t('Alertes actives sur ce téléphone.', 'Alerts are on for this phone.'), 'ok');
+  say(t('Alertes actives sur ce téléphone.', 'Alerts are on for this phone.', 'Avvisi attivi su questo telefono.', 'Alertas activas en este móvil.'), 'ok');
 }
 
 async function off() {
@@ -168,13 +170,13 @@ async function off() {
   }
   sub = null;
   show(false);
-  say(t('Alertes désactivées.', 'Alerts are off.'));
+  say(t('Alertes désactivées.', 'Alerts are off.', 'Avvisi disattivati.', 'Alertas desactivadas.'));
 }
 
 $('#on').onclick = async () => {
   try {
-    if (!topics().length) throw new Error(t('Choisis au moins un sujet.', 'Pick at least one topic.'));
-    if (await Notification.requestPermission() !== 'granted') throw new Error(t('Notifications refusées : autorise-les dans les réglages du navigateur.', 'Notifications blocked: allow them in your browser settings.'));
+    if (!topics().length) throw new Error(t('Choisis au moins un sujet.', 'Pick at least one topic.', 'Scegli almeno un argomento.', 'Elige al menos un tema.'));
+    if (await Notification.requestPermission() !== 'granted') throw new Error(t('Notifications refusées : autorise-les dans les réglages du navigateur.', 'Notifications blocked: allow them in your browser settings.', 'Notifiche bloccate: consentile nelle impostazioni del browser.', 'Notificaciones bloqueadas: permítelas en los ajustes del navegador.'));
     const { key } = await api('key');
     sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64(key) });
     await save();
@@ -183,7 +185,7 @@ $('#on').onclick = async () => {
 $('#save').onclick = () => save().catch((err) => say(err.message, 'bad'));
 $('#off').onclick = () => off().catch((err) => say(err.message, 'bad'));
 $('#test').onclick = async () => {
-  try { await api('test', { endpoint: sub.endpoint }); say(t('Essai envoyé : il arrive dans quelques secondes.', 'Test sent: it arrives in a few seconds.'), 'ok'); } catch (err) { say(err.message, 'bad'); }
+  try { await api('test', { endpoint: sub.endpoint }); say(t('Essai envoyé : il arrive dans quelques secondes.', 'Test sent: it arrives in a few seconds.', 'Prova inviata: arriva tra pochi secondi.', 'Prueba enviada: llega en unos segundos.'), 'ok'); } catch (err) { say(err.message, 'bad'); }
 };
 init().catch((err) => say(err.message, 'bad'));
 </script>
