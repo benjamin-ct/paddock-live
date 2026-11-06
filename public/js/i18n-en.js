@@ -2855,6 +2855,9 @@ export default {
   "4e quart": "4th quarter",
   "en {} min": "in {} min",
   "Il faut au moins 8 tours propres sur un même relais.": "At least 8 clean laps on the same stint are needed.",
+  "Relais longs": "Long runs",
+  "Il faut au moins 5 tours propres sur un même relais.": "At least 5 clean laps on the same stint are needed.",
+  "Indication seulement : l'essence embarquée par chaque écurie n'est pas connue. Rythme : médiane des tours propres du plus long relais de chaque pilote sur chaque pneu, ramenée au carburant du début du relais (environ {} s par tour) ; écuries classées sur leur meilleur pilote.": "An indication only: the fuel load each team carries is not known. Pace: median of the clean laps of each driver's longest stint on each compound, brought back to the fuel level at the start of the stint (about {} s per lap); teams ranked on their best driver.",
   // audit interface
   "Taille de l'interface": "Interface size",
   "Grand écran (4K…) : tout agrandir. Aussi Ctrl + / Ctrl − / Ctrl 0": "Large screen (4K…): make everything bigger. Also Ctrl + / Ctrl − / Ctrl 0",

@@ -2854,6 +2854,9 @@ export default {
   "4e quart": "4° quarto",
   "en {} min": "in {} min",
   "Il faut au moins 8 tours propres sur un même relais.": "Servono almeno 8 giri puliti nello stesso stint.",
+  "Relais longs": "Long run",
+  "Il faut au moins 5 tours propres sur un même relais.": "Servono almeno 5 giri puliti nello stesso stint.",
+  "Indication seulement : l'essence embarquée par chaque écurie n'est pas connue. Rythme : médiane des tours propres du plus long relais de chaque pilote sur chaque pneu, ramenée au carburant du début du relais (environ {} s par tour) ; écuries classées sur leur meilleur pilote.": "Solo un'indicazione: la benzina imbarcata da ogni squadra non è nota. Ritmo: mediana dei giri puliti dello stint più lungo di ogni pilota su ogni mescola, riportata al carico di benzina d'inizio stint (circa {} s al giro); squadre classificate in base al loro pilota migliore.",
   // audit interface
   "Taille de l'interface": "Dimensione dell'interfaccia",
   "Grand écran (4K…) : tout agrandir. Aussi Ctrl + / Ctrl − / Ctrl 0": "Schermo grande (4K…): ingrandisci tutto. Anche Ctrl + / Ctrl − / Ctrl 0",

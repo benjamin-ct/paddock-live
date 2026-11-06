@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { trackEvolution, wingChoice, tyreWear, FUEL_GAIN } from '../shared/insights.js';
+import { trackEvolution, wingChoice, tyreWear, longRuns, FUEL_GAIN } from '../shared/insights.js';
 import { clockOffset } from '../shared/compare.js';
 
 const lt = (s) => `1:${(s - 60).toFixed(3).padStart(6, '0')}`;
@@ -37,6 +37,33 @@ test('Tendances : usure des pneus sur le relais en cours, corrigée du carburant
   assert.equal(w.laps, 10);
   assert.ok(Math.abs(w.wear - (0.02 + FUEL_GAIN)) < 0.003, `usure ${w.wear}`);
   assert.deepEqual(tyreWear({ 1: laps[1].slice(0, 7) }), []);   // moins de 8 tours propres
+});
+
+test('Tendances : relais longs des essais, 5 tours propres ou plus par pilote et par pneu, écuries par pneu', () => {
+  // Relais de n tours au rythme base (perte brute d par tour), entre un tour de sortie et un tour d'entrée aux stands
+  const run = (lap0, n, base, d, compound) => [{ lap: lap0, time: lt(base + 10), compound, pit: true },
+    ...Array.from({ length: n }, (_, i) => ({ lap: lap0 + 1 + i, time: lt(base + d * i), compound })), { lap: lap0 + n + 1, time: lt(base + 12), compound, pit: true }];
+  const laps = {
+    1: [...run(1, 3, 79, 0, 'SOFT'), ...run(6, 6, 81, 0.02, 'MEDIUM'), ...run(14, 8, 81.5, 0.01, 'MEDIUM')],   // relais tendre trop court
+    22: run(1, 5, 81.2, 0.03, 'MEDIUM'),
+    16: [...run(1, 7, 81.4, 0, 'MEDIUM'), ...run(10, 5, 82, 0.05, 'HARD')],
+  };
+  const dl = { 1: { TeamName: 'Red Bull', TeamColour: '3671C6' }, 22: { TeamName: 'Red Bull' }, 16: { TeamName: 'Ferrari', TeamColour: 'E8002D' } };
+  const { runs, teams } = longRuns(laps, dl);
+  // VER : le plus long de ses deux relais en médiums (8 tours) ; médiane ramenée au carburant du 1er tour (+0,04 s par tour)
+  assert.deepEqual(runs.map((r) => [r.num, r.compound, r.clean]), [['22', 'MEDIUM', 5], ['16', 'MEDIUM', 7], ['1', 'MEDIUM', 8], ['16', 'HARD', 5]]);
+  const ver = runs.find((r) => r.num === '1');
+  assert.ok(Math.abs(ver.median - (81.5 + 0.05 * 3.5)) < 0.002, `médiane ${ver.median}`);
+  assert.ok(Math.abs(ver.wear - (0.01 + FUEL_GAIN)) < 0.002, `usure ${ver.wear}`);
+  // Écuries par pneu : la meilleure médiane de leurs pilotes, écart au premier
+  assert.deepEqual(teams.MEDIUM.map((t) => [t.team, t.num]), [['Red Bull', '22'], ['Ferrari', '16']]);
+  assert.equal(teams.MEDIUM[0].gap, 0);
+  assert.ok(Math.abs(teams.MEDIUM[1].gap - ((81.4 + 0.04 * 3) - (81.2 + 0.07 * 2))) < 0.002, `écart ${teams.MEDIUM[1].gap}`);
+  assert.deepEqual(teams.HARD.map((t) => t.team), ['Ferrari']);
+  assert.deepEqual(longRuns({ 1: run(1, 4, 80, 0, 'SOFT') }).runs, []);   // moins de 5 tours propres
+  // Course : seulement le relais en cours, 8 tours minimum (inchangé) ; VER est reparti pour 8 tours après son dernier arrêt
+  assert.deepEqual(tyreWear(laps), []);
+  assert.deepEqual(tyreWear({ 1: laps[1].slice(0, -1) }).map((r) => [r.num, r.laps]), [['1', 8]]);
 });
 
 test('heure F1 de l\'archive : écart médian des Heartbeat (Mexico 2026 : quelques-uns décalés de 20 min)', () => {
