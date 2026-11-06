@@ -2854,6 +2854,9 @@ export default {
   "4e quart": "4.º cuarto",
   "en {} min": "en {} min",
   "Il faut au moins 8 tours propres sur un même relais.": "Hacen falta al menos 8 vueltas limpias en el mismo stint.",
+  "Relais longs": "Tandas largas",
+  "Il faut au moins 5 tours propres sur un même relais.": "Hacen falta al menos 5 vueltas limpias en el mismo stint.",
+  "Indication seulement : l'essence embarquée par chaque écurie n'est pas connue. Rythme : médiane des tours propres du plus long relais de chaque pilote sur chaque pneu, ramenée au carburant du début du relais (environ {} s par tour) ; écuries classées sur leur meilleur pilote.": "Solo una indicación: no se conoce la gasolina que lleva cada equipo. Ritmo: mediana de las vueltas limpias de la tanda más larga de cada piloto con cada compuesto, llevada a la carga de gasolina del inicio de la tanda (unos {} s por vuelta); equipos clasificados según su mejor piloto.",
   // audit interface
   "Taille de l'interface": "Tamaño de la interfaz",
   "Grand écran (4K…) : tout agrandir. Aussi Ctrl + / Ctrl − / Ctrl 0": "Pantalla grande (4K…): agranda todo. También Ctrl + / Ctrl − / Ctrl 0",

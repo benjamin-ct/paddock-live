@@ -3,6 +3,7 @@
 // - évolution de la piste (essais, qualifs) : meilleur tour de chaque quart de la séance ;
 // - choix d'aileron : vitesse de pointe face au meilleur tour, par écurie ;
 // - usure des pneus (course) : perte par tour sur le relais en cours, corrigée de l'allègement en carburant ;
+// - relais longs (essais) : rythme et perte par tour de chaque relais de 5 tours propres ou plus, par pneu et par écurie ;
 // - départ (course) : places gagnées entre la grille et le premier virage, d'après le GPS.
 // Les trajectoires et les points de freinage ne sont pas mesurables : la F1 publie des positions recalées sur une
 // ligne de référence (à 4 cm près) et environ 4 mesures par seconde.
@@ -46,26 +47,53 @@ export const FUEL_GAIN = 0.04;
 // Relais en cours de chaque pilote (tours propres depuis son dernier arrêt, hors 1er tour) : perte par tour corrigée du
 // carburant (pente des temps + FUEL_GAIN), avec le type de pneu et l'âge du relais. Tours propres : à moins de 3 % du
 // quart le plus rapide du relais, ce qui écarte safety car, VSC et incidents d'après leur seul temps (la liste des
-// tours neutralisés peut se tromper : Mexico 2026, safety car sans message de fin avant le drapeau rouge)
-export function tyreWear(laps, minLaps = 8) {
+// tours neutralisés peut se tromper : Mexico 2026, safety car sans message de fin avant le drapeau rouge).
+// all : tous les relais (essais), pas seulement le dernier. median : médiane des tours propres ramenés au carburant du
+// premier d'entre eux (chaque tour suivant reprend FUEL_GAIN par tour d'écart) ; clean : nombre de tours propres
+export function tyreWear(laps, minLaps = 8, all = false) {
   const out = [];
   for (const [num, list] of Object.entries(laps || {})) {
-    let stint = [];
+    const stints = [[]];
     for (const l of list) {
-      if (l.pit) { stint = []; continue; }
-      if (stint.length && l.compound && stint.at(-1).compound && stint.at(-1).compound !== l.compound) stint = [];
-      stint.push(l);
+      if (l.pit) { stints.push([]); continue; }
+      const cur = stints.at(-1);
+      if (cur.length && l.compound && cur.at(-1).compound && cur.at(-1).compound !== l.compound) stints.push([]);
+      stints.at(-1).push(l);
     }
-    const all = stint.map((l) => ({ lap: l.lap, s: parseLapTime(l.time), compound: l.compound }));
-    const times = all.map((l) => l.s).filter(Boolean).sort((a, b) => a - b);
-    const ref = times[Math.floor(times.length / 4)];
-    const clean = all.filter((l) => l.lap > 1 && l.s && l.s < ref * 1.03);
-    if (clean.length < minLaps) continue;
-    const mx = clean.reduce((a, l) => a + l.lap, 0) / clean.length, my = clean.reduce((a, l) => a + l.s, 0) / clean.length;
-    const slope = clean.reduce((a, l) => a + (l.lap - mx) * (l.s - my), 0) / clean.reduce((a, l) => a + (l.lap - mx) ** 2, 0);
-    out.push({ num, compound: stint.findLast((l) => l.compound)?.compound || null, laps: stint.length, wear: Math.round((slope + FUEL_GAIN) * 1000) / 1000 });
+    for (const stint of all ? stints : stints.slice(-1)) {
+      const run = stint.map((l) => ({ lap: l.lap, s: parseLapTime(l.time), compound: l.compound }));
+      const times = run.map((l) => l.s).filter(Boolean).sort((a, b) => a - b);
+      const ref = times[Math.floor(times.length / 4)];
+      const clean = run.filter((l) => l.lap > 1 && l.s && l.s < ref * 1.03);
+      if (clean.length < minLaps) continue;
+      const mx = clean.reduce((a, l) => a + l.lap, 0) / clean.length, my = clean.reduce((a, l) => a + l.s, 0) / clean.length;
+      const slope = clean.reduce((a, l) => a + (l.lap - mx) * (l.s - my), 0) / clean.reduce((a, l) => a + (l.lap - mx) ** 2, 0);
+      out.push({ num, compound: stint.findLast((l) => l.compound)?.compound || null, laps: stint.length, clean: clean.length,
+        median: median(clean.map((l) => l.s + FUEL_GAIN * (l.lap - clean[0].lap))), wear: Math.round((slope + FUEL_GAIN) * 1000) / 1000 });
+    }
   }
   return out.sort((a, b) => a.wear - b.wear);
+}
+
+// Relais longs des essais (5 tours propres ou plus) : le plus long de chaque pilote sur chaque pneu (runs, triés du
+// pneu le plus tendre au plus dur puis par médiane), et par pneu les écuries classées sur la meilleure médiane de
+// leurs pilotes (teams : { pneu: [{ team, color, num, median, gap }] }). dl : DriverList (TeamName, TeamColour)
+export function longRuns(laps, dl = {}, minLaps = 5) {
+  const best = new Map();
+  for (const r of tyreWear(laps, minLaps, true)) {
+    const k = `${r.num}|${r.compound}`, o = best.get(k);
+    if (!o || r.clean > o.clean || (r.clean === o.clean && r.median < o.median)) best.set(k, r);
+  }
+  const rank = (c) => ['SOFT', 'MEDIUM', 'HARD', 'INTERMEDIATE', 'WET'].indexOf(c) + 1 || 9;
+  const runs = [...best.values()].sort((a, b) => rank(a.compound) - rank(b.compound) || a.median - b.median);
+  const teams = {};
+  for (const r of runs) {
+    const d = dl[r.num], c = r.compound || '?', list = (teams[c] ||= []);
+    if (!d?.TeamName || list.some((t) => t.team === d.TeamName)) continue;   // trié par médiane : le premier pilote est le meilleur
+    list.push({ team: d.TeamName, color: d.TeamColour || '', num: r.num, median: r.median });
+  }
+  for (const list of Object.values(teams)) for (const t of list) t.gap = t.median - list[0].median;
+  return { runs, teams };
 }
 
 // ---------- Départ (GPS) ----------

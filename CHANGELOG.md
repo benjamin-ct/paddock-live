@@ -78,6 +78,11 @@ l'application (Réglages → À propos → Nouveautés).
 - Championnat : s'il n'a pas pu être chargé, nouvel essai tout seul au bout de 30 s et bouton Réessayer.
 - Correction d'une double connexion au direct quand la connexion F1 TV arrive juste après le lancement de l'appli.
 
+### Analyse
+- Tendances, en essais libres : nouvelle partie « Relais longs », avec chaque relais de 5 tours propres ou plus par
+  pilote et par pneu (rythme médian corrigé de l'allègement en carburant, perte par tour), puis le classement des
+  écuries sur chaque pneu. Une indication seulement : l'essence embarquée par chaque écurie n'est pas connue.
+
 ### Version web
 - Téléphone : la météo du week-end (longueur, course, prévision, pluie) est calée à gauche dans la barre du haut, sans
   grand vide, et ses valeurs ne se touchent plus.
