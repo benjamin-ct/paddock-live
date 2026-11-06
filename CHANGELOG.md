@@ -13,6 +13,11 @@ l'application (Réglages → À propos → Nouveautés).
 ### Saison
 - Jeux : « Devine le circuit », sous « Pronostics entre amis », ouvre le jeu du jour sur le site.
 
+### Carte 3D
+- Aileron actif 2026 : en ligne droite, les volets de l'aileron arrière et de l'aileron avant s'ouvrent, puis se
+  referment au freinage. La F1 ne transmet plus le DRS ni le mode ligne droite : l'ouverture est estimée d'après la
+  télémétrie (plein gaz, sans frein, au-dessus de 250 km/h). Les replays jusqu'en 2025 gardent le vrai DRS.
+
 ### En direct
 - Télémétrie : le bouton ± à côté du délai TV ouvre de nouveau ses réglages (−5, −1, −0,1, +0,1, +1, +5 s), qui
   restaient cachés.
