@@ -31,6 +31,7 @@ export const COLUMNS = [
 ];
 // Colonnes facultatives, masquées par défaut (prefs.extraCols : celles ajoutées)
 export const EXTRA_COLUMNS = [
+  ['pen', 'Avec pénalités (course : 5 derniers tours et arrivée provisoire)'],   // affichée seulement à ces moments-là
   ['grid', 'Position de départ'], ['laps', 'Tours effectués'], ['gapf', 'Écart au pilote suivi'],
   ['spd', 'Vitesses I1 / I2 / arrivée'], ['bsec', 'Meilleurs secteurs (S1 / S2 / S3)'], ['team', 'Écurie'],
 ];

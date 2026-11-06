@@ -71,6 +71,10 @@ l'application (Réglages → À propos → Nouveautés).
 - Réglages sur petit téléphone : les choix des listes s'affichent en entier.
 
 ### En direct
+- Classement de la course, option « Avec pénalités » (menu Colonnes) : pendant les 5 derniers tours et après le
+  drapeau, la place de chacun avec les pénalités en temps pas encore purgées (ex. « NOR P3 → P5 »), et un bandeau
+  « Arrivée provisoire » après le drapeau (les décisions prises après la course ne sont pas comptées). Un pilote
+  doublé reste derrière ceux qui ont fait plus de tours.
 - Les répétitions de la F1 (veille de la course) ne sont plus enregistrées comme de vraies séances : pas de faux
   replay, ni d'historique rechargé dans le direct, ni d'ajout à la fin du replay des essais libres 3.
 - Drapeau rouge : les voitures arrêtées aux stands ne sont plus comptées comme des abandons (moments clés, résumé), et

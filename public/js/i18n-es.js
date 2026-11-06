@@ -2945,4 +2945,10 @@ export default {
   "minutes": "minutos",
   "secondes": "segundos",
   "Séance de nuit chez vous": "Sesión nocturna para ti",
+  "Avec pénalités (course : 5 derniers tours et arrivée provisoire)": "Con sanciones (carrera: últimas 5 vueltas y llegada provisional)",
+  "Avec pén.": "Con san.",
+  "Place avec les pénalités en temps pas encore purgées (provisoire : décisions après la course non comptées)": "Posición con las sanciones de tiempo aún no cumplidas (provisional: decisiones tras la carrera no contadas)",
+  "Arrivée provisoire avec les pénalités en temps (décisions après la course non comptées) :": "Llegada provisional con las sanciones de tiempo (decisiones tras la carrera no contadas):",
+  "Avec les pénalités en temps :": "Con las sanciones de tiempo:",
+  "aucun changement": "sin cambios",
 };

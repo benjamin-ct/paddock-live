@@ -296,6 +296,8 @@
   :root[data-design="v3"] .grid.mobile .p-tower .tower-cols > summary .ic { display: none; }
   :root[data-design="v3"] .grid.mobile .p-tower .tower-cols > summary .tc-ic { display: block; width: 16px; height: 16px; color: var(--text-2); }
   :root[data-design="v3"] .grid.mobile .tower thead th:first-child { color: transparent; }
+  /* Bandeau au-dessus du tableau (limite de qualification, arrivée provisoire) : le texte laisse la place au bouton */
+  :root[data-design="v3"] .grid.mobile .p-tower .cutline { padding-left: 34px; }
   :root[data-design="v3"] .grid.mobile .tower th { padding-top: 8px; padding-bottom: 8px; }
   /* Deux zones (tablette en portrait, téléphone en paysage) : un filet entre le classement et la zone au choix */
   :root[data-design="v3"] .grid.mobile.dual > .panel:not(.p-tower) { border: 0 solid var(--border); }
