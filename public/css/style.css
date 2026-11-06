@@ -3331,6 +3331,10 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; gap: 5
 .rv-gp-head b { font-size: 15px; }
 .rv-sessions { display: flex; flex-wrap: wrap; gap: 6px; }
 .rv-sessions .btn { display: inline-flex; align-items: center; gap: 5px; }
+/* Séance et son bouton « Analyser » : toujours sur la même ligne */
+.rv-pair { display: inline-flex; gap: 2px; }
+/* Téléphone en version simplifiée : pas d'Analyse (ni onglet ni fenêtre), donc pas de bouton « Analyser » */
+:root.simple .replay-view :is([data-rv-apath], [data-rv-alocal]) { display: none; }
 .rv-sessions .btn.on { border-color: var(--accent); color: var(--text); }
 .rv-empty { display: flex; gap: 14px; align-items: flex-start; }
 .rv-empty > .ic { width: 26px; height: 26px; color: var(--accent); flex: none; }
