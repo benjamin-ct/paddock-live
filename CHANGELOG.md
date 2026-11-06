@@ -139,6 +139,10 @@ l'application (Réglages → À propos → Nouveautés).
 - Course au titre : un sprint déjà couru n'est plus compté dans les points encore à prendre (le champion est annoncé
   dès qu'il ne peut plus être rattrapé).
 - Séance dont l'horaire n'est pas encore publié : date seule, sans heure inventée ni rappel.
+- Nouvelle rubrique « Grille 2027 » (Pilotes et écuries) : le marché des transferts, les deux baquets des 11 écuries,
+  confirmés (date et lien de l'annonce officielle de l'écurie ou de la F1) ou encore à confirmer, et les changements
+  par rapport à 2026. Seules les annonces officielles comptent : pas de rumeur. Aussi dans la version web, avec sa
+  page à partager.
 - Design Classique : les cartes et la fiche des pilotes, les cartes des écuries et le Bilan de la saison s'affichent de
   nouveau correctement (leur texte s'affichait en vrac).
 

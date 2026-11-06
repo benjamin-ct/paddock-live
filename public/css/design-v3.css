@@ -808,3 +808,12 @@
   :root[data-design="v3"] .hm-board .hm-fav-col:not(:only-child) { grid-column: auto; align-content: start; }
   :root[data-design="v3"] .hm-board .hm-fav-col + .hm-fav-col > .hm-fav-group { padding-top: 4px; }
 }
+
+/* Saison → Grille 2027 : zones à plat, noms en titres étroits, dates en police à chasse fixe */
+:root[data-design="v3"] .gr-team { border: 0; border-top: 2px solid var(--tc); border-radius: var(--r-md); padding: var(--sp-4); }
+:root[data-design="v3"] .gr-team h3 { font: 800 var(--fs-lg)/1.1 var(--font-cond); text-transform: uppercase; letter-spacing: .02em; }
+:root[data-design="v3"] .gr-state { font: 500 var(--fs-2xs)/1.3 var(--font-mono); letter-spacing: .1em; }
+:root[data-design="v3"] .gr-seat { border-radius: var(--r-sm); border-left-width: 2px; }
+:root[data-design="v3"] .gr-name { font: 700 var(--fs-lg)/1.15 var(--font-cond); letter-spacing: .01em; }
+:root[data-design="v3"] :is(.gr-meta, .gr-src, .gr-was) { font-size: var(--fs-2xs); }
+:root[data-design="v3"] .gr-ok { font: 500 var(--fs-2xs)/1.3 var(--font-mono); letter-spacing: .1em; text-transform: uppercase; }

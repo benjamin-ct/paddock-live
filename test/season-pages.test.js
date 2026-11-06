@@ -240,3 +240,25 @@ test('Saison en anglais : l\'appli (shared/season-urls.js) tient les mêmes adre
   assert.equal(shared.tabTitle(long), long);
   assert.equal(shared.enGpSlug('Mexico City Grand Prix'), 'mexico-city');
 });
+
+test('Saison : page publique de la grille de la saison suivante (shared/grid-next.js)', async () => {
+  const { GRID_NEXT } = await import('../shared/grid-next.js');
+  const y = GRID_NEXT.year - 1;
+  const fr = await ssr(`/saison/${y}/grille/`);
+  assert.equal(fr.title, `Grille F1 ${GRID_NEXT.year} : pilotes confirmés et baquets à confirmer`);
+  assert.equal(fr.title, seasonTitle(y, 'grid'));
+  assert.equal(fr.alt.en, `https://app.paddocklive.app/en/season/${y}/grid/`);
+  assert.equal((fr.html.match(/<tr><td>/g) || []).length, 22);
+  assert.match(fr.html, /<td><b>McLaren<\/b><\/td><td><b>Lando Norris<\/b><\/td><td>Confirmé<\/td><td>29 août 2026 · <a href="https:\/\/www\.mclaren\.com\/[^"]+" rel="noopener">mclaren\.com<\/a><\/td>/);
+  assert.match(fr.html, /<td><b>Mercedes<\/b><\/td><td>—<\/td><td>À confirmer<\/td><td><\/td>/);
+  assert.doesNotMatch(fr.html, /déclaration de/);
+  assert.match(fr.html, /Rafael Câmara remplace Esteban Ocon/);
+  assert.match(fr.html, new RegExp(`<a href="/saison/${y}/grille/">`));   // dans la liste des rubriques
+  const en = await ssr(`/en/season/${y}/grid/`);
+  assert.equal(en.title, shared.enSeasonTitle(y, 'grid'));
+  assert.match(en.html, /<td>To be confirmed<\/td>/);
+  // Autre saison : pas de grille (404), ni de lien vers elle
+  assert.equal(await ssr('/saison/2025/grille/'), null);
+  assert.doesNotMatch((await ssr('/saison/2025/')).html || '', /grille/);
+  assert.ok((await seasonSitemap(fakeEnv(), now)).includes(`<loc>https://app.paddocklive.app/saison/${y}/grille/</loc><lastmod>${GRID_NEXT.updated}</lastmod>`));
+});

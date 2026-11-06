@@ -4155,3 +4155,30 @@ html.tab-win .p-analysis .panel-head > [data-tab="compare"] { display: inline-fl
 
 /* Texte lu par les lecteurs d'écran et les moteurs de recherche, masqué à l'écran (titre H1 de la Saison en version web) */
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+/* Saison → Grille 2027 : une zone par écurie (filet à sa couleur) et ses deux baquets ; à confirmer en pointillés ;
+   les 22 baquets en une barre (plein à la couleur de l'écurie quand il est confirmé) */
+.gr-team { min-width: 0; display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; background: var(--panel); border: 1px solid var(--border); border-top: 3px solid var(--tc); border-radius: 12px; }
+.gr-team h3 { margin: 0; display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 16px; }
+.gr-state { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+.gr-state.full { color: var(--green); }
+.gr-seats { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.gr-seat { min-width: 0; display: flex; flex-direction: column; gap: 3px; padding: 8px 10px; background: var(--panel-2); border-left: 3px solid var(--tc); border-radius: 8px; }
+.gr-seat.gr-open { background: none; border: 1px dashed var(--line-2); }
+.gr-name { font-size: 15px; line-height: 1.2; overflow-wrap: anywhere; }
+.gr-open .gr-name { color: var(--muted); font-weight: 600; }
+.gr-meta, .gr-src { font-size: 11.5px; color: var(--muted); }
+.gr-ok { color: var(--green); font-weight: 700; }
+.gr-src { color: var(--text-2); text-decoration: none; overflow-wrap: anywhere; }
+.gr-src:hover { color: var(--text); text-decoration: underline; }
+.gr-src .ic { width: 11px; height: 11px; vertical-align: -1px; }
+.gr-was { margin: auto 0 0; font-size: 12px; color: var(--muted); }
+.gr-was b { color: var(--text-2); font-weight: 600; }
+.sz-tag.gr-new { margin: 0 0 0 4px; vertical-align: 2px; background: color-mix(in srgb, var(--tc) 28%, transparent); color: var(--text); }
+.gr-bar { display: grid; grid-template-columns: repeat(22, minmax(0, 1fr)); gap: 2px; height: 10px; margin-top: 4px; }
+.gr-bar i { border-radius: 2px; box-shadow: inset 0 0 0 1px var(--line-2); }
+.gr-bar i.on { background: var(--tc); box-shadow: none; }
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-motion="off"]) .sz-main.sz-anim:not(.sz-again) .gr-bar i.on { transform-origin: bottom; animation: gr-fill .35s var(--ease-out, ease-out) both; animation-delay: calc(.15s + var(--i) * 25ms); }
+}
+@keyframes gr-fill { from { opacity: 0; transform: scaleY(.2); } to { opacity: 1; transform: none; } }
