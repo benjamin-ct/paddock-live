@@ -4,6 +4,13 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → À propos → Nouveautés).
 
+## v1.33.0 — à venir
+
+### Version web
+- Téléphone : le menu des réglages des radios (pilotes écoutés, lecture auto, volume, vitesse) et les autres menus du
+  même genre s'ouvrent au-dessus de la barre Accueil, Direct, Saison au lieu de passer dessous ; en paysage, ils ne
+  passent plus sous le menu de gauche.
+
 ## v1.32.0 — 2026-11-06
 
 ### Accueil

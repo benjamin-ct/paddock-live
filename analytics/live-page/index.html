@@ -258,6 +258,8 @@
       .web .web-nav { display: none; }
       .web .web-mnav { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 900; }
       .web body { padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
+      /* Menus (réglages des radios, calques…) au-dessus du menu fixé, pas dessous (comme l'appli sur téléphone) */
+      .web .map-layers-menu { bottom: calc(76px + env(safe-area-inset-bottom)); }
       /* Accueil, Saison (et son menu des rubriques), « Pas de séance » : jusqu'en bas de l'écran, derrière le menu fixé ; place laissée à la fin du contenu */
       .web :is(#homeView .hm-main, #szContent, #noLiveView, #seasonView .sz-side) { padding-bottom: calc(96px + env(safe-area-inset-bottom)) !important; }
     }
@@ -304,6 +306,7 @@
     /* Téléphone en paysage : le menu devient le rail de gauche de Télémétrie ; la page et la barre du haut commencent après */
     @media (max-width: 900px) and (orientation: landscape) and (max-height: 500px) {
       html.web[data-design="v3"] body { padding-left: var(--mrail) !important; padding-bottom: env(safe-area-inset-bottom); }
+      html.web[data-design="v3"] .map-layers-menu { bottom: calc(12px + env(safe-area-inset-bottom)); left: calc(var(--mrail) + 8px); }   /* menu en rail à gauche */
       html.web[data-design="v3"] body .topbar { left: var(--mrail); padding-right: max(var(--sp-3), env(safe-area-inset-right)); }
       html.web[data-design="v3"] .season-view { left: var(--mrail) !important; }
     }
