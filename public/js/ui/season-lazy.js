@@ -13,6 +13,13 @@ export function loadSeason() {
     if (urls) { m.seasonUrls(); removeEventListener('popstate', pop); }
     mod = m;
     return m;
+  }).catch((err) => {
+    loading = null;   // réseau coupé : nouvel essai au prochain clic
+    // Version web mise à jour depuis l'ouverture de la page : le code de la Saison ne va plus avec celui déjà chargé
+    // (SyntaxError, export absent de l'ancien util.js…) et ne s'ouvrirait jamais ; page rechargée sur la Saison (une
+    // fois : déjà sur une adresse de la Saison, pas de nouveau rechargement)
+    if (urls && err instanceof SyntaxError && !SEASON_PATH.test(location.pathname)) location.assign('/saison/');
+    throw err;
   }));
 }
 
