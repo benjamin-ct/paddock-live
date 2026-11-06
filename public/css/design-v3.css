@@ -876,3 +876,10 @@
 /* Drapeaux de la Mini : couleurs vives fixes (en clair, --yellow et --sc sont des couleurs de texte, trop sombres en fond) */
 :root[data-design="v3"] .mini-flag.f-yellow { background: #FFD43B; color: #1d1500; }
 :root[data-design="v3"] :is(.mini-flag, .mini-banner):is(.f-sc, .f-vsc) { background: #FFA62B; color: #1d1200; }
+
+/* Livrées spéciales : cartes à plat, Grand Prix en Mono, titre en Archivo étroit */
+:root[data-design="v3"] .sz-liv { border-radius: var(--r-md); background: var(--panel); border-color: var(--border); }
+:root[data-design="v3"] .sz-liv-gp { font: 500 var(--fs-2xs)/1.2 var(--font-mono); letter-spacing: .1em; text-transform: uppercase; }
+:root[data-design="v3"] .sz-liv h4 { font: 800 var(--fs-xl)/1.1 var(--font-cond); text-transform: uppercase; letter-spacing: .005em; }
+:root[data-design="v3"] .sz-liv a { font: 600 var(--fs-sm) var(--font); }
+:root[data-design="v3"] .sz-team-card .tm-liv { font: 500 var(--fs-2xs)/1.2 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; }

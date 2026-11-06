@@ -11,6 +11,9 @@ l'application (Réglages → À propos → Nouveautés).
   langues).
 
 ### Saison
+- Écuries : les livrées spéciales de chaque écurie, de 2018 à aujourd'hui (127 au total), sur sa page : photo de
+  l'annonce, Grand Prix, thème, et lien vers l'annonce officielle ou l'article. Chaque carte d'écurie indique son
+  nombre de livrées. Les nouvelles livrées s'ajoutent au fil de la saison, sans mise à jour de l'appli.
 - Jeux : « Devine le circuit », sous « Pronostics entre amis », ouvre le jeu du jour sur le site.
 
 ### Carte 3D

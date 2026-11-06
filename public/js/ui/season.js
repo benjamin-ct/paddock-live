@@ -83,6 +83,34 @@ async function loadPrev() {
   }
   if (section === 'drivers' && !$('#seasonView').hidden) { animate(); render(); }
 }
+// Livrées spéciales de l'année affichée (serveur de Paddock Live : données vérifiées, image de l'annonce), lues une fois
+let liv = null;
+async function loadLiveries(y) {
+  if (liv?.year === y) return;
+  liv = { year: y, loading: true };
+  try { liv = await api(`/api/season/liveries?year=${y}`); } catch (err) { liv = { year: y, error: err.message }; }
+  if (['teams', 'h2h'].includes(section) && !$('#seasonView').hidden) render();
+}
+const liveriesOf = (teamId) => (liv?.year === data.year && Array.isArray(liv.liveries) ? liv.liveries.filter((l) => l.team === teamId) : []);
+// Cartes des livrées d'une écurie : photo de l'annonce (sinon la couleur de l'écurie), Grand Prix, titre, une phrase,
+// lien vers l'annonce. Textes en français, en anglais dans les autres langues
+function liveriesBox(teamId, name) {
+  loadLiveries(data.year);
+  if (!liv || liv.year !== data.year || liv.loading || liv.error) return '';
+  const list = liveriesOf(teamId).sort((a, b) => a.round - b.round);
+  const fr = LANG === 'fr';
+  const cards = list.map((l) => {
+    const r = data.races.find((x) => Number(x.round) === Number(l.round));
+    return `<article class="sz-liv" style="--tc:${color(name, teamId)}">
+      <div class="sz-liv-img">${l.image ? `<img src="${esc(l.image)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ''}</div>
+      <div class="sz-liv-body"><div class="sz-liv-gp">R${esc(l.round)}${r ? ` · ${flagOf(r)}${esc(gpShort(r.name, LANG))}` : ''}</div>
+        <h4 data-no-i18n>${esc(fr ? l.title_fr : l.title_en)}</h4><p data-no-i18n>${esc(fr ? l.desc_fr : l.desc_en)}</p>
+        ${l.url ? `<a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">${icon('external')} ${t('Voir l\'annonce')}${l.source ? ` · <span data-no-i18n>${esc(l.source)}</span>` : ''}</a>` : ''}</div></article>`;
+  }).join('');
+  return `<section class="sz-box sz-livs"><h3>${esc(t('Livrées spéciales {}', data.year))}</h3>${list.length ? `<div class="sz-liv-grid">${cards}</div>`
+    : `<p class="muted">${esc(t('Pas de livrée spéciale cette saison.'))}</p>`}</section>`;
+}
+
 // Championnat des casseurs : dégâts estimés de l'année affichée, lus une fois sur le serveur
 async function loadDest(y) {
   if (dest?.year === y) return;
@@ -643,6 +671,7 @@ const cardLook = (team, teamId) => {
 // poles) ; toucher une carte ouvre le duel de ses pilotes
 function renderTeams() {
   if (!data.constructors.length) return '<div class="note">Pas encore de résultats.</div>';
+  loadLiveries(data.year);
   const races = data.races.filter((r) => r.results.length);
   const count = (id, test) => races.reduce((n, r) => n + r.results.filter((x) => x.teamId === id && test(x)).length, 0);
   const poles = (id) => races.filter((r) => r.quali.find((q) => q.pos === 1)?.teamId === id).length;
@@ -652,7 +681,8 @@ function renderTeams() {
     return `<button type="button" class="sz-team-card" data-team-duel="${esc(c.id)}" style="${cardLook(c.name, c.id)}">
       <span class="tm-pos">P${c.pos}</span><i class="lg" aria-hidden="true"></i><span class="tm-name">${esc(c.name)}</span><span class="tm-pts">${c.points} <small>pts</small></span>
       <span class="tm-drvs">${drivers.slice(0, 2).map(face).join('')}${drivers.length > 2 ? `<span class="tm-more" title="${esc(drivers.slice(2).map((d) => d.last || d.name).join(', '))}">+${drivers.length - 2}</span>` : ''}</span>
-      <span class="tm-stats"><span><b>${count(c.id, (x) => x.pos === 1)}</b> ${t('victoires')}</span><span><b>${count(c.id, (x) => x.pos && x.pos <= 3)}</b> ${t('podiums')}</span><span><b>${poles(c.id)}</b> ${t('poles')}</span></span></button>`;
+      <span class="tm-stats"><span><b>${count(c.id, (x) => x.pos === 1)}</b> ${t('victoires')}</span><span><b>${count(c.id, (x) => x.pos && x.pos <= 3)}</b> ${t('podiums')}</span><span><b>${poles(c.id)}</b> ${t('poles')}</span></span>
+      ${liveriesOf(c.id).length ? `<span class="tm-liv">${icon('car')} ${esc(t(liveriesOf(c.id).length > 1 ? '{} livrées spéciales' : '{} livrée spéciale', liveriesOf(c.id).length))}</span>` : ''}</button>`;
   }).join('');
   return `<div class="sz-team-grid">${cards}</div>`;
 }
@@ -944,7 +974,8 @@ function renderH2H() {
     </section>
     ${qualiGapBox(gaps, A, B, ca)}
     </div>
-    <p class="muted small">Course : meilleure place à l'arrivée (abandon = défaite). Qualif : dernière partie disputée par les deux ; écarts de plus de 3 % non comptés.</p>`;
+    <p class="muted small">Course : meilleure place à l'arrivée (abandon = défaite). Qualif : dernière partie disputée par les deux ; écarts de plus de 3 % non comptés.</p>
+    ${h2hMode === 'team' ? liveriesBox(h2hTeam, teams.find((x) => x.id === h2hTeam)?.name || '') : ''}`;
 }
 
 // Course au titre : pilotes et constructeurs encore capables d'être champions ; les autres grisés,

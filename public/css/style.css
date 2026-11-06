@@ -4164,6 +4164,21 @@ html.tab-win .p-analysis .panel-head > [data-tab="compare"] { display: inline-fl
 .tm-drv small { font-size: 12px; color: rgba(255, 255, 255, .75); align-self: start; }
 .sz-team-card .tm-stats { grid-column: 1 / -1; display: flex; gap: 16px; margin: 0 -18px; padding: 10px 18px; font-size: 12.5px; color: rgba(255, 255, 255, .8); background: rgba(2, 8, 23, .28); border-top: 1px solid rgba(255, 255, 255, .08); }
 .sz-team-card .tm-stats b { font-size: 16px; color: #fff; }
+.sz-team-card .tm-liv { grid-column: 1 / -1; display: flex; align-items: center; gap: 6px; margin: 0 -18px; padding: 8px 18px; font-size: 12px; font-weight: 600; color: rgba(255, 255, 255, .85); border-top: 1px solid rgba(255, 255, 255, .12); }
+.sz-team-card .tm-liv .ic { width: 14px; height: 14px; }
+/* Livrées spéciales d'une écurie (page de l'écurie, sous le duel) : une carte par Grand Prix, photo de l'annonce */
+.sz-liv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
+.sz-liv { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: var(--panel-2); }
+.sz-liv-img { aspect-ratio: 16 / 9; overflow: hidden; background: linear-gradient(135deg, color-mix(in srgb, var(--tc) 70%, #0b0f15), color-mix(in srgb, var(--tc) 25%, #0b0f15)); }
+.sz-liv-img img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.sz-liv-body { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px 14px; flex: 1; }
+.sz-liv-gp { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+.sz-liv-gp .cal-flag { width: 18px; height: auto; border-radius: 2px; margin: 0; }
+.sz-liv h4 { margin: 0; font-size: 17px; line-height: 1.2; }
+.sz-liv p { margin: 0; font-size: 13.5px; line-height: 1.45; color: var(--text-2); }
+.sz-liv a { margin-top: auto; padding-top: 6px; display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--text); text-decoration: none; }
+.sz-liv a:hover { text-decoration: underline; }
+.sz-liv a .ic { width: 14px; height: 14px; }
 /* Clair : cartes claires comme le reste de la page ; couleur de l'écurie en bandeau, en dégradé léger, sur le numéro, et logo en couleur */
 [data-theme="pitwall"][data-scheme="light"] :is(.sz-drv-card, .sz-drv-hero, .sz-team-card) { color: var(--text); border-color: var(--border);
   background: linear-gradient(var(--tc), var(--tc)) top / 100% 4px no-repeat, linear-gradient(140deg, var(--panel) 35%, color-mix(in srgb, var(--tc) 18%, var(--panel))); }
