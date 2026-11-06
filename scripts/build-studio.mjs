@@ -129,8 +129,9 @@ fs.copyFileSync(path.join(ROOT, 'public', 'logo.svg'), path.join(LIVE, 'logo.svg
 fs.writeFileSync(path.join(LIVE, 'changelog.json'), JSON.stringify(parseChangelog(fs.readFileSync(path.join(ROOT, 'CHANGELOG.md'), 'utf8')).slice(0, 3)));
 // Code de la page : chemins absolus et chemin relatif du code partagé (lisible tel quel par les tests) vers /live/shared/
 for (const f of ['web.js', 'web-hub.js']) fs.writeFileSync(path.join(LIVE, 'js', f), toLive(fs.readFileSync(path.join(LIVE_PAGE, f), 'utf8')).replace(/(['"])\.\.\/\.\.\/shared\//g, '$1/live/shared/'));
-// Écran d'accueil du téléphone : manifeste et icônes de l'appli
+// Écran d'accueil du téléphone : manifeste, icônes de l'appli et service worker des alertes (notifications seulement)
 fs.copyFileSync(path.join(LIVE_PAGE, 'manifest.webmanifest'), path.join(LIVE, 'manifest.webmanifest'));
+fs.copyFileSync(path.join(LIVE_PAGE, 'sw.js'), path.join(LIVE, 'sw.js'));
 for (const f of ['apple-touch-icon.png', 'icon-512.png']) fs.copyFileSync(path.join(ROOT, 'public', f), path.join(LIVE, f));
 // Panneaux repris tels quels de la page de l'appli
 const appPage = fs.readFileSync(path.join(ROOT, 'public', 'index.html'), 'utf8');

@@ -136,6 +136,28 @@
     .pair-ok { margin: 0 0 14px; padding: 10px 12px; border-radius: 10px; background: rgba(46, 204, 113, .12); color: var(--text); font-size: 14px; line-height: 1.45; }
     .pair-ok small { color: var(--text-2); }
     .pair-out { width: 100%; margin-top: 14px; }
+    /* Alertes de la version web (web.js) : sujets en lignes séparées par un filet, action principale en accent */
+    #alertBtn { display: inline-flex; align-items: center; gap: 6px; }
+    #alertBtn .ic { width: 15px; height: 15px; }
+    #alertBtn.on::after { content: ''; flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--green, #2ecc71); }
+    .al-dlg { max-width: 460px; max-height: min(88dvh, 760px); overflow-y: auto; }
+    .al-kicker { margin: 0 0 6px; font: 600 11px/1.3 var(--font-mono, ui-monospace, monospace); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+    .al-topics { margin: 0 0 4px; border-top: 1px solid var(--line, var(--border)); }
+    .al-topic { display: flex; gap: 12px; align-items: flex-start; padding: 12px 2px; border-bottom: 1px solid var(--line, var(--border)); cursor: pointer; }
+    .al-topic input { flex: none; margin: 1px 0 0; }
+    .al-topic b { display: block; font-size: 15px; line-height: 1.3; }
+    .al-topic small { display: block; margin-top: 2px; font-size: 13px; line-height: 1.45; color: var(--text-2); }
+    .al-topic em { font-style: normal; font-weight: 700; color: var(--text); }
+    .al-acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+    .al-acts .btn { flex: 1 1 140px; min-height: 44px; justify-content: center; }
+    .al-state { min-height: 1.45em; }
+    .al-state.ok { color: var(--green, #2ecc71); }
+    .al-steps { margin: 0 0 12px; padding-left: 22px; font-size: 14px; line-height: 1.5; }
+    .al-steps li { margin: 6px 0; padding-left: 2px; }
+    .al-steps li::marker { font: 600 13px var(--font-mono, ui-monospace, monospace); color: var(--muted); }
+    .al-dlg a { color: var(--accent-fg, #ff6b61); }
+    .al-fine { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line, var(--border)); font-size: 12px; color: var(--muted); line-height: 1.45; }
+    .al-fine p { margin: 0 0 6px; }
     .web .topbar :is(#pairBtn, #seasonBtn) { color: var(--text); background: transparent; border: 1px solid rgba(255, 255, 255, .18); }   /* barre toujours sombre, même en apparence claire */
     /* Point vert avant le texte : ::after placé en tête (::before sert de zone tactile au doigt, style.css) */
     #pairBtn.on { display: inline-flex; align-items: center; }
@@ -194,7 +216,7 @@
       /* Réglages du direct (délai, F1 TV, état du serveur, Saison, appli) derrière l'engrenage : la barre du haut
          garde la séance, le chrono et les infos (longueur, course, météo, piste) */
       .web #webMenuBtn { display: inline-flex; order: 2; margin-left: 2px; color: #fff; }   /* après l’état de la piste et la Saison */
-      .web .topbar:not(.menu-open) > :is(.web-delay, #pairBtn, #sourceBadge, #clBtn, a.btn, #tbTools) { display: none !important; }
+      .web .topbar:not(.menu-open) > :is(.web-delay, #pairBtn, #sourceBadge, #alertBtn, #clBtn, a.btn, #tbTools) { display: none !important; }
       /* Saison : icône à côté de l'engrenage, toujours là */
       .web .topbar #seasonBtn, .web .topbar #seasonBtn:not(.on) { order: 1; padding: 6px; gap: 0; border-color: transparent; color: #fff; }
       .web .topbar #seasonBtn .sz-lbl { display: none; }
@@ -328,6 +350,7 @@
     <button class="btn small win-btn" data-win="duel" title="Duel des deux pilotes cliqués dans le classement, dans une fenêtre à part"><svg class="ic" aria-hidden="true"><use href="#i-duel"/></svg><span class="wb-lbl">Duel</span></button>
     <button class="btn small win-btn" data-win="compare" title="Comparaison des tours de deux pilotes, dans une fenêtre à part"><svg class="ic" aria-hidden="true"><use href="#i-swap"/></svg><span class="wb-lbl">Comparaison</span></button>
     <button class="btn small" id="seasonBtn" title="Calendrier, classements et résultats de la saison" aria-label="Saison"><svg class="ic" aria-hidden="true"><use href="#i-trophy"/></svg><span class="sz-lbl">Saison</span></button>
+    <button class="btn small" id="alertBtn" title="Alertes sur cet appareil : rappel avant chaque séance, résultats, grosses news"><svg class="ic" aria-hidden="true"><use href="#i-bell"/></svg><span>Alertes</span></button>
     <button class="btn small" id="clBtn" title="Ce qui a changé dans Paddock Live">Nouveautés</button>
     <a class="btn small btn-accent" href="https://paddocklive.app/" title="Télécharger l'appli Paddock Live">Appli complète</a>
   </header>
@@ -370,6 +393,12 @@
     <form method="dialog" class="pair-close"><button value="x" aria-label="Fermer" title="Fermer">✕</button></form>
     <h2 class="pair-title">Nouveautés</h2>
     <div id="clBody" class="cl-web" data-no-i18n></div>
+  </dialog>
+
+  <dialog id="alertDlg" class="pair-dlg al-dlg" aria-labelledby="alertTitle">
+    <form method="dialog" class="pair-close"><button value="x" aria-label="Fermer" title="Fermer">✕</button></form>
+    <h2 class="pair-title" id="alertTitle">Alertes</h2>
+    <div id="alertBody"></div>
   </dialog>
 
   <div class="toast" id="toast" popover="manual" hidden></div>

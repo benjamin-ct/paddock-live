@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import zlib from 'node:zlib';
+import { readFileSync, existsSync } from 'node:fs';
 import { LiveRelay, KEEP_MS, AUTH_MS, PRIVATE_MS, LEAD_MS, liveApi, pairSend, liveDevices, liveState } from '../analytics/live-relay.js';
 import { WebHub } from '../analytics/live-page/web-hub.js';
 import { applyEvent, createDerived } from '../shared/derive.js';
@@ -634,4 +635,61 @@ test('relais : une appli de bureau reçoit aussi l\'état de base en tête des m
   assert.deepEqual([a.events[0][0], a.events[0][1].LapCount.CurrentLap, a.events[0][2]], ['__snapshot', 1, t0]);
   assert.equal(a.events.length, w.events.length + 1);
   assert.ok(!w.events.some((e) => e[0] === '__snapshot' && e[2] === t0), 'pas de doublon de l\'état de base pour un navigateur');
+});
+
+// Alertes de la version web installée : service worker à notifications seulement, mêmes messages que /alertes/
+const liveFile = (f) => new URL(`../analytics/live-page/${f}`, import.meta.url);
+function fakeSw(wins = []) {
+  const on = {}, shown = [], opened = [], focused = [];
+  const self = {
+    location: new URL('https://app.paddocklive.app/live/sw.js'),
+    addEventListener: (type, fn) => { on[type] = fn; },
+    skipWaiting() {},
+    registration: { showNotification: async (title, opts) => { shown.push({ title, ...opts }); } },
+    clients: { claim: async () => {}, matchAll: async () => wins.map((url) => ({ url, focus: async () => { focused.push(url); } })), openWindow: async (u) => { opened.push(u); } },
+  };
+  new Function('self', readFileSync(liveFile('sw.js'), 'utf8'))(self);
+  const click = async (url) => {
+    let wait = null;
+    on.notificationclick({ notification: { data: { url }, close() {} }, waitUntil: (p) => { wait = p; } });
+    await wait;
+  };
+  return { on, shown, opened, focused, click };
+}
+
+test('version web : service worker des alertes sans cache ni fetch, notification ouverte au bon endroit', async () => {
+  const src = readFileSync(liveFile('sw.js'), 'utf8').replace(/\/\/.*$/gm, '');
+  assert.doesNotMatch(src, /\bcaches\b|['"]fetch['"]|importScripts/, 'notifications seulement : rien en cache, aucune requête interceptée');
+  const sw = fakeSw();
+  assert.deepEqual(Object.keys(sw.on).sort(), ['activate', 'install', 'notificationclick', 'push']);
+  let wait = null;
+  sw.on.push({ data: { json: () => ({ title: 'Course dans 30 minutes', body: 'Grand Prix du Brésil', url: '/alertes/', id: 7 }) }, waitUntil: (p) => { wait = p; } });
+  await wait;
+  assert.deepEqual(sw.shown, [{ title: 'Course dans 30 minutes', body: 'Grand Prix du Brésil', tag: '7', icon: '/live/icon-512.png', data: { url: '/alertes/' } }]);
+  // Rappels, résultats, essai (/alertes/, adresse des messages du serveur) : accueil de la version web ; article : tel quel
+  await sw.click('/alertes/');
+  await sw.click('https://www.formula1.com/en/latest/article/x');
+  await sw.click('javascript:alert(1)');
+  await sw.click('http://exemple.test/');
+  assert.deepEqual(sw.opened, ['https://app.paddocklive.app/', 'https://www.formula1.com/en/latest/article/x']);
+  // Version web déjà ouverte : ramenée devant, pas de seconde fenêtre
+  const open = fakeSw(['https://app.paddocklive.app/saison/2026/']);
+  await open.click('/alertes/');
+  assert.deepEqual([open.opened, open.focused], [[], ['https://app.paddocklive.app/saison/2026/']]);
+});
+
+test('version web : raccourcis de l\'icône (Android), abonnement aux mêmes adresses que /alertes/, service worker pour toute la page', async () => {
+  const m = JSON.parse(readFileSync(liveFile('manifest.webmanifest'), 'utf8'));
+  assert.deepEqual(m.shortcuts.map((s) => s.url), ['/?direct', '/saison/', '/?alertes']);
+  for (const s of m.shortcuts) assert.ok(s.name && s.icons.every((i) => existsSync(new URL(`../public/${i.src.replace('/live/', '')}`, import.meta.url))), s.url);
+  const web = readFileSync(liveFile('web.js'), 'utf8');
+  assert.ok(web.includes('/^\\?(direct|alertes)$/.exec(location.search)'), 'raccourcis lus par la page');
+  assert.match(web, /serviceWorker\.register\('\/live\/sw\.js', \{ scope: '\/' \}\)/);
+  for (const p of ['key', 'sub', 'off', 'test']) assert.ok(web.includes(`pushApi('${p}'`), p);
+  assert.match(web, /pushApi\('sub', \{ subscription: alertSub\.toJSON\(\), topics, lang: LANG, tz \}\)/);   // langue et fuseau, comme /alertes/
+  const { default: worker } = await import('../analytics/worker.js');
+  const env = { ASSETS: { fetch: async () => new Response('// sw') } };
+  const r = await worker.fetch(new Request('https://app.paddocklive.app/live/sw.js'), env, { waitUntil() {} });
+  assert.equal(r.headers.get('Service-Worker-Allowed'), '/');
+  assert.equal((await worker.fetch(new Request('https://app.paddocklive.app/live/manifest.webmanifest'), env, { waitUntil() {} })).headers.get('Service-Worker-Allowed'), null);
 });

@@ -592,7 +592,8 @@ function render() {
     <nav class="hm-go">
       <button data-home="live">${icon('signal')}<b>Direct</b><small>Tableau de bord</small></button>
       <button data-home="season">${icon('trophy')}<b>Saison</b><small>Calendrier, classements</small></button>
-      ${store.web ? `<button data-home="app">${icon('window')}<b>${t('Appli complète')}</b><small>${t('Replays, actu, alertes')}</small></button>` : `<button data-home="news">${icon('news')}<b>Actu</b><small>Toute l'actualité</small></button>
+      ${store.web ? `<button data-home="alerts">${icon('bell')}<b>${t('Alertes')}</b><small>${t('Rappels, résultats, news')}</small></button>
+      <button data-home="app">${icon('window')}<b>${t('Appli complète')}</b><small>${t('Replays, actu, alertes')}</small></button>` : `<button data-home="news">${icon('news')}<b>Actu</b><small>Toute l'actualité</small></button>
       <button data-home="replays">${icon('history')}<b>Replays</b><small>Rejouer une séance</small></button>`}
     </nav>
     <a class="hm-follow" href="https://paddocklive.app/liens/" target="_blank" rel="noopener">${icon('share')} Suivre Paddock Live sur les réseaux ${icon('arrow-right', 'ic-s')}</a>`;
@@ -702,6 +703,7 @@ async function act(k) {
   if (k === 'live') { closeHome(); noLiveCheck(); return; }
   if (k === 'agenda') { agendaFile(); return; }
   if (k === 'app') { open('https://paddocklive.app/', '_blank', 'noopener'); return; }   // version web : l'appli de bureau
+  if (k === 'alerts') { $('#alertBtn')?.click(); return; }   // version web : alertes sur cet appareil (web.js)
   // Saison et Actu ferment l'accueil elles-mêmes ; Replays : l'accueil reste derrière les réglages
   // jusqu'au lancement du replay
   if (k === 'season') { (await import('./season-lazy.js')).openSeason(); return; }
