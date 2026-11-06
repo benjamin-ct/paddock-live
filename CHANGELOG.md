@@ -4,7 +4,7 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → À propos → Nouveautés).
 
-## v1.32.0 — à venir
+## v1.32.0 — 2026-11-06
 
 ### Accueil
 - L'Accueil devient un tableau de bord de cartes : compte à rebours de la prochaine séance (jours, heures, minutes,
