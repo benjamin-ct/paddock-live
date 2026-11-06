@@ -25,7 +25,9 @@ const list = (o) => (!o ? [] : Array.isArray(o) ? o.filter(Boolean) : Object.key
 const base = () => (store.state.SessionInfo?.Path ? `https://livetiming.formula1.com/static/${store.state.SessionInfo.Path}` : null);
 // Les archives de la F1 ne sont plus ouvertes à tous : les radios passent par l'appli (connexion F1 TV)
 const ARCHIVE = 'https://livetiming.formula1.com/static/';
-const playable = (url) => (url.startsWith(ARCHIVE) ? `/api/archive/file?p=${encodeURIComponent(url.slice(ARCHIVE.length))}` : url);
+// Son d'une radio : par le serveur local (appli de bureau). Version web : pris directement chez la F1 par le téléphone
+// ou l'ordinateur, la F1 refusant les réseaux de serveurs (le relais du Worker n'y a plus accès)
+const playable = (url) => (store.web || !url.startsWith(ARCHIVE) ? url : `/api/archive/file?p=${encodeURIComponent(url.slice(ARCHIVE.length))}`);
 const fmtDur = (s) => (Number.isFinite(s) && s > 0 ? `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}` : '');
 
 let heard = new Set(storageGet(HEARD_KEY, []));

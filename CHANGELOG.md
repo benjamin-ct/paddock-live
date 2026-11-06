@@ -15,6 +15,8 @@ l'application (Réglages → À propos → Nouveautés).
   la radio ne reste plus affichée en lecture sans aucun son. Nouvel essai à la prochaine ouverture.
 
 ### Version web
+- Radios d'équipe de nouveau avec le son : il est pris directement chez la F1 par le téléphone ou l'ordinateur, la F1
+  refusant désormais les serveurs. Le texte des radios suit le même chemin quand la F1 le permet.
 - Téléphone : les menus des réglages des radios (lecture auto, volume, vitesse), de la direction de course (drapeaux
   bleus, temps supprimés, type de messages, traduction) et des calques de la carte s'ouvrent au-dessus de la barre
   Accueil, Direct, Saison au lieu de passer dessous ; en paysage, ils ne passent plus sous le menu de gauche.

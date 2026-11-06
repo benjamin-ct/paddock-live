@@ -22,9 +22,26 @@ export async function cloudTranscribe(url) {
       const r = await res.json();
       return typeof r?.text === 'string' ? r : null;
     }
+    // Version web : le serveur n'a pas eu le son (la F1 refuse les réseaux de serveurs) : pris ici, puis envoyé
+    if (res.status === 400 && document.documentElement.classList.contains('web')) return await sendAudio(url);
     if (res.status >= 500 || res.status === 429) asrOffUntil = Date.now() + 10 * 60e3;   // 502 (archive F1 lente)… : pas « sans parole »
   } catch { asrOffUntil = Date.now() + 10 * 60e3; }
   return null;
+}
+
+// Son pris par le navigateur chez la F1, transcrit par le serveur Paddock Live comme pour l'appli de bureau
+// (server/cloud-transcribe.js) : empreinte d'abord (déjà transcrite pour quelqu'un d'autre), sinon le son est envoyé
+async function sendAudio(url) {
+  const a = await fetch(url, { credentials: 'omit' }).catch(() => null);
+  if (!a?.ok) return null;
+  const body = await a.arrayBuffer();
+  if (!body.byteLength || body.byteLength > 2 * 1024 * 1024) return null;
+  const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', body))].map((b) => b.toString(16).padStart(2, '0')).join('');
+  let r = await fetch(`/r/${hash}`).catch(() => null);
+  if (r?.status !== 200) r = await fetch('/r', { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body }).catch(() => null);
+  if (r && (r.status === 429 || r.status >= 500)) asrOffUntil = Date.now() + 10 * 60e3;
+  const j = r?.ok ? await r.json().catch(() => null) : null;
+  return typeof j?.text === 'string' ? j : null;
 }
 
 async function flush() {
