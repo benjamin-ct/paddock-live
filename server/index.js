@@ -222,6 +222,7 @@ async function handleApi(req, res, url) {
     case 'GET /api/season/fia':
     case 'GET /api/season/penalties':
     case 'GET /api/season/destructors':
+    case 'GET /api/season/liveries':
     case 'GET /api/zones':
     case 'GET /api/loops':
     case 'GET /api/elevation':

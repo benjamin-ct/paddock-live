@@ -16,6 +16,7 @@ import { circuitData, seasonStatsWeb } from './race-stats.js';
 import { seasonFiaWeb, seasonPenaltiesWeb, fiaTranslations, fiaDocsWeb, fiaGridWeb } from './fia-tech.js';
 import { weekendTyres } from './tyres.js';
 import { destructorsWeb } from './destructors.js';
+import { liveriesWeb } from './liveries.js';
 import { circuitRecords } from './records.js';
 import { circuitHistory } from './circuit-history.js';
 import { careerWeb, DRIVER_ID } from './career.js';
@@ -749,6 +750,12 @@ export async function liveApi(req, url, env = {}) {
     if (!env.DB || !Number.isInteger(year) || year < 2018 || year > now) return json({ error: 'Année invalide' }, 400);
     const d = await seasonPenaltiesWeb(env, year).catch((err) => ({ year, pending: false, done: 0, total: 0, drivers: [], penalties: [], error: err.message }));
     return json(d, 200, d.pending || d.error ? {} : { 'Cache-Control': 'public, max-age=600' });
+  }
+  // Livrées spéciales de la saison (analytics/liveries.js) : données à la main, image de l'article source
+  if (url.pathname === '/live/api/season/liveries' && req.method === 'GET') {
+    const year = Number(url.searchParams.get('year'));
+    if (!Number.isInteger(year) || year < 2018 || year > new Date().getUTCFullYear()) return json({ error: 'Année invalide' }, 400);
+    return json(await liveriesWeb(year), 200, { 'Cache-Control': 'public, max-age=3600' });
   }
   // Championnat des casseurs : dégâts estimés de la saison (analytics/destructors.js) ; autre saison : liste vide
   if (url.pathname === '/live/api/season/destructors' && req.method === 'GET') {
