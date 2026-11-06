@@ -24,7 +24,7 @@ export const firstYear = (now = Date.now()) => new Date(now).getUTCFullYear() - 
 // /saison/2026/pilotes/lando-norris/ ↔ /en/season/2026/drivers/lando-norris/ (même nom du pilote),
 // /saison/2026/grand-prix/mexico/ ↔ /en/season/2026/grand-prix/mexico-city/ (nom anglais du Grand Prix, gpShort(…, 'en'))
 export const EN_PATHS = {
-  home: '', calendar: 'calendar', standings: 'standings', title: 'title-race', compare: 'compare', destructors: 'destructors', review: 'review', results: 'results', quali: 'qualifying',
+  home: '', calendar: 'calendar', standings: 'standings', title: 'title-race', compare: 'compare', destructors: 'destructors', penalties: 'penalties', review: 'review', results: 'results', quali: 'qualifying',
   h2h: 'head-to-head', ratings: 'ratings', predict: 'predictions', drivers: 'drivers', teams: 'teams', consistency: 'consistency', pits: 'pit-stops',
   speeds: 'top-speeds', circuits: 'circuits', tech: 'upgrades', elements: 'power-unit-elements', gp: 'grand-prix', grid: 'grid',
 };
@@ -43,7 +43,7 @@ export function parseEnSeasonPath(path) {
 }
 const EN_TITLES = {
   home: 'F1 {} season: standings, calendar and results', calendar: 'F1 {} calendar', standings: 'F1 {} standings: drivers and constructors',
-  title: 'F1 {} title race', compare: 'Compare the F1 {} season with another', destructors: 'F1 {} destructors\' championship: crash damage', review: 'F1 {} season review',
+  title: 'F1 {} title race', compare: 'Compare the F1 {} season with another', destructors: 'F1 {} destructors\' championship: crash damage', penalties: 'F1 {} penalties: drivers\' penalty points', review: 'F1 {} season review',
   results: 'F1 {} results: every Grand Prix', quali: 'F1 {} qualifying: gap to pole by team', h2h: 'F1 {} teammate head-to-heads', ratings: 'F1 {} driver ratings',
   predict: 'F1 {} predictions with friends', drivers: 'F1 {} drivers', teams: 'F1 {} teams: drivers, points and results', consistency: 'F1 {} driver consistency',
   pits: 'F1 {} pit stops: fastest, by team', speeds: 'F1 {} top speeds', circuits: 'F1 {} circuit profiles', tech: 'F1 {} technical upgrades',
@@ -130,6 +130,7 @@ const DESC = {
   title: 'Course au titre {} de Formule 1 : qui peut encore être champion, points encore à prendre et conditions pour le titre.',
   compare: 'Saison {} de Formule 1 comparée à une autre : classements des pilotes et des constructeurs après le même nombre de Grands Prix.',
   destructors: 'Championnat des casseurs {} de Formule 1 : coût estimé des dégâts de chaque pilote et de chaque écurie, Grand Prix par Grand Prix.',
+  penalties: 'Sanctions de la saison {} de Formule 1 : points de pénalité de chaque pilote sur 12 mois et pénalités par pilote et par écurie, d\'après les décisions des commissaires de la FIA.',
   review: 'Bilan de la saison {} de Formule 1 : champion, victoires, poles, podiums, plus belles remontées et abandons.',
   results: 'Résultats de tous les Grands Prix de la saison {} de Formule 1 : vainqueurs, poles, podiums et records.',
   quali: 'Qualifications {} de Formule 1 : écart de chaque écurie à la pole, Grand Prix par Grand Prix.',
@@ -153,6 +154,7 @@ const EN_DESC = {
   title: '{} Formula 1 title race: who can still be champion, points still available and what each contender needs.',
   compare: 'The {} Formula 1 season compared with another: drivers\' and constructors\' standings after the same number of Grands Prix.',
   destructors: '{} Formula 1 destructors\' championship: estimated crash damage cost of every driver and team, Grand Prix by Grand Prix.',
+  penalties: '{} Formula 1 penalties: each driver\'s penalty points over 12 months and penalties by driver and team, from the FIA stewards\' decisions.',
   review: '{} Formula 1 season review: champion, wins, poles, podiums, best comebacks and retirements.',
   results: 'Results of every Grand Prix of the {} Formula 1 season: winners, poles, podiums and records.',
   quali: '{} Formula 1 qualifying: each team\'s gap to pole, Grand Prix by Grand Prix.',

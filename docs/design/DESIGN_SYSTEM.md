@@ -268,6 +268,9 @@ Au doigt (`pointer: coarse`) : zone tactile invisible d'au moins **32 px** autou
   `--ring` à l'intérieur, -2 px), flèche `.hm-open` 14 px. Chiffre `.hm-big` (Archivo étroit 800, 34 px), tendance
   `.hm-trend` (Mono 12 px), manche `.hm-ctx` (Mono 11 px capitales) ; compte à rebours en cases `.hm-cd` (Archivo étroit
   800, 44–76 px, filet `--line-2` entre les cases) ; squelettes `.hm-sk` (pulsation d'opacité 1,2 s).
+- Permis à points (Saison → Sanctions) `.sz-lic` : 12 cases de 11 × 16 px (8 × 14 px sous 520 px), écart 2 px et 3 px
+  toutes les 4 cases, rayon 2 px ; case vide `--panel-3`, case de point à la couleur de l'écurie (`--tc`) ; 8 points et
+  plus : cases vides cerclées de `--orange` ; 12 : cases pleines `--red`. Lignes `.sz-lic-row` séparées d'un filet `--line`.
 - Dans Paddock 2, toutes ces surfaces reçoivent le verre (dégradé `--v2-glass-2 → --v2-glass`, filet `--v2-rim`, flou).
   Un panneau qui contient un menu ouvert perd son flou (sinon les menus fixés du téléphone se calent dessus).
 

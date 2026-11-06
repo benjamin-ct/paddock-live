@@ -205,6 +205,10 @@ l'application (Réglages → À propos → Nouveautés).
   page à partager.
 - Design Classique : les cartes et la fiche des pilotes, les cartes des écuries et le Bilan de la saison s'affichent de
   nouveau correctement (leur texte s'affichait en vrac).
+- Nouvelle rubrique « Sanctions » : le permis à points de chaque pilote sur 12 mois glissants (jauge jusqu'à 12, la
+  suspension pour une course, et la date à laquelle chaque point sera retiré), puis les pénalités de la saison par
+  pilote et par écurie (temps, places sur la grille, amendes, réprimandes) et chaque décision des commissaires avec son
+  document FIA, d'après les décisions publiées par la FIA. Aussi dans la version web.
 
 ### Sécurité
 - Accès téléphone : un site ouvert sur l'ordinateur ne peut plus lire le direct ; serveur lancé pour tout le réseau

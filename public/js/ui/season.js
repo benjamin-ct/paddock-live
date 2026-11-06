@@ -13,6 +13,7 @@ import { renderReview, reviewAction } from './season-review.js';
 import { renderDestructors, showDestructorsDriver } from './season-destructors.js';
 import { renderGrid } from './season-grid.js';
 import { GRID_NEXT } from '/shared/grid-next.js';
+import { renderPenalties } from './season-penalties.js';
 import { addPngButtons, savePng } from './season-png.js';
 import { toast } from './delay.js';
 import { renderPace, setPaceCut, setPaceScope } from './season-pace.js';
@@ -88,6 +89,23 @@ async function loadDest(y) {
   dest = { year: y, loading: true };
   try { dest = shortTeams(await read(`/api/season/destructors?year=${y}`)); } catch (err) { dest = { year: y, error: err.message }; }
   if (section === 'destructors' && !$('#seasonView').hidden) { animate(); render(); }
+}
+// Sanctions : permis à points et décisions des commissaires (documents FIA lus par le serveur) ; relu toutes les 30 s
+// pendant la lecture des documents, tant que la rubrique est ouverte
+let pens = null;
+let pensTimer = null;
+let pensBusy = false;
+// (relecture en attente, ou lecture finie : rien à refaire)
+async function loadPens(y, again = false) {
+  if (pensBusy || (pens?.year === y && !again && (pensTimer || !(pens.pending || pens.error)))) return;
+  pensBusy = true;
+  clearTimeout(pensTimer);
+  pensTimer = null;
+  try { pens = shortTeams(await read(`/api/season/penalties?year=${y}`)); } catch (err) { pens = { year: y, error: err.message }; }
+  pensBusy = false;
+  const open = section === 'penalties' && !$('#seasonView').hidden;
+  if (open && (pens.pending || pens.error)) pensTimer = setTimeout(() => loadPens(y, true), FOLLOW_MS);
+  if (open) render();
 }
 // Saison comparée (Comparer deux saisons) : chargée une fois, gardée pour la session
 async function loadOther(y) {
@@ -1128,6 +1146,7 @@ function render() {
   const fiaData = fia?.year === data.year ? fia : null;
   const html = {
     home: renderHome, calendar: renderCalendar, standings: renderStandings, teams: renderTeams, title: renderTitle, compare: renderCompare, destructors: () => { loadDest(data.year); return renderDestructors({ ...ctx, chart: lineChartSvg, w: Math.max(600, ($('#szContent')?.clientWidth || 934) - 34) }, dest?.year === data.year && !dest.loading ? dest : null); }, results: () => renderResults(ctx), quali: renderQuali, h2h: renderH2H,
+    penalties: () => { loadPens(data.year); return renderPenalties(ctx, pens?.year === data.year ? pens : null); },
     drivers: () => renderDrivers(ctx, drvCode), consistency: () => renderConsistency(ctx), pits: () => renderPits(ctx),
     speeds: () => renderSpeeds(ctx, speedPt), circuits: () => renderCircuits(ctx, circSort), ratings: () => renderRatings(ctx, rateSort),
     tech: () => renderTech(ctx, fiaData), elements: () => renderElements(ctx, fiaData), predict: () => renderPredict(data.year, (code) => { const d = data.drivers.find((x) => x.code === code); return d ? seasonOpt(d) : ''; }), review: () => renderReview(ctx),
@@ -1250,6 +1269,8 @@ export function closeSeason() {
   clearInterval(timer);
   clearTimeout(fiaTimer);
   clearTimeout(statsTimer);
+  clearTimeout(pensTimer);
+  pensTimer = null;
 }
 
 // Télémétrie : rubriques en 5 groupes repliables (titres ajoutés en tête de la liste, rubriques remises dans l'ordre de
@@ -1257,7 +1278,7 @@ export function closeSeason() {
 // d'origine
 const SZ_GROUPS = [
   ['overview', 'Vue d\'ensemble', ['home', 'calendar', 'standings', 'title', 'review', 'compare']],
-  ['results', 'Résultats', ['results', 'quali', 'destructors']],
+  ['results', 'Résultats', ['results', 'quali', 'destructors', 'penalties']],
   ['people', 'Pilotes et écuries', ['drivers', 'teams', 'grid', 'h2h', 'ratings', 'consistency']],
   ['tech', 'Technique', ['pits', 'speeds', 'circuits', 'tech', 'elements']],
   ['games', 'Jeux', ['predict']],

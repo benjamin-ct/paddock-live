@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseTechUpdates, parsePuUsed, parsePuNew, parsePuPenalty, classify, teamOf, lines } from '../shared/fia-tech.js';
+import { parseTechUpdates, parsePuUsed, parsePuNew, parseDecision, classify, teamOf, lines } from '../shared/fia-tech.js';
 
 // Morceaux de texte positionnés comme dans les PDF de la FIA ({ x, y, s })
 const it = (x, y, s) => ({ x, y, s });
@@ -29,7 +29,7 @@ test('éléments moteur : nouveaux éléments et pénalité', () => {
     it(43, 444, 'The internal combustion engine used by Max Verstappen is one (1) of the four (4) new'),
   ]]);
   assert.deepEqual(fresh, [{ num: '3', driver: 'Max Verstappen', element: 'ICE', previous: 3 }]);
-  const pen = parsePuPenalty([[
+  const pen = parseDecision([[
     it(46, 544, 'No / Driver'), it(119, 544, '14 - Fernando Alonso'),
     it(46, 454, 'Fact'), it(119, 454, 'The following Power Unit elements have been used:'), it(119, 437, '7th Energy Store (ES)'),
     it(46, 416, 'Infringement'), it(119, 416, 'Breaches of Articles B8.2.2'),
