@@ -2130,6 +2130,7 @@ export default {
   "{} Suivre Paddock Live sur les réseaux {}": "{} Sigue a Paddock Live en redes {}",
   "Suivre Paddock Live sur les réseaux": "Sigue a Paddock Live en redes",
   "Jeu du jour : devine le circuit": "Juego del día: adivina el circuito",
+  "Devine le circuit": "Adivina el circuito",
   "Pas de séance en direct": "Ninguna sesión en directo",
   "Saison terminée.": "Temporada terminada.",
   "Le tableau de bord s'ouvre tout seul au début de la séance.": "El panel se abre solo al empezar la sesión.",

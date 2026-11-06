@@ -10,6 +10,9 @@ l'application (Réglages → À propos → Nouveautés).
 - Un lien sous les raccourcis mène au jeu du jour « Devine le circuit » sur le site (en anglais pour les autres
   langues).
 
+### Saison
+- Jeux : « Devine le circuit », sous « Pronostics entre amis », ouvre le jeu du jour sur le site.
+
 ### En direct
 - Télémétrie : le bouton ± à côté du délai TV ouvre de nouveau ses réglages (−5, −1, −0,1, +0,1, +1, +5 s), qui
   restaient cachés.
