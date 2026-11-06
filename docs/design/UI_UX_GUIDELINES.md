@@ -102,6 +102,8 @@ Règles de conception propres à Paddock Live, tirées de l'appli telle qu'elle 
 - Commandes au clavier, `aria-label` sur les boutons à icône seule, `aria-pressed` / `aria-expanded` sur les
   bascules et menus, `<dialog>` pour les modales.
 - Graphiques : `role="img"` et une étiquette ; infobulle aussi accessible au toucher.
+- Taille de l'interface jusqu'à 150 % : vérifier un écran à 260 px de large (téléphone) et à 853 px (ordinateur de
+  1280 px) ; agrandir par le zoom de la page (viewport, `setZoomFactor`), jamais par le `zoom` CSS.
 
 ## 9. Vérifier un changement d'interface
 

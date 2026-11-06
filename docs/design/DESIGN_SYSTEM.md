@@ -388,6 +388,10 @@ Autres : `env(safe-area-inset-*)` (encoche, barre d'accueil iPhone), `100dvh`, `
 - `index.html` : 135 `aria-hidden` (icônes décoratives), 55 `aria-label`, 7 `aria-pressed`, 6 `aria-expanded`.
 - Graphiques SVG `role="img"`.
 - Animations : `prefers-reduced-motion` + interrupteur `data-motion`.
+- Taille de l'interface (Réglages → Affichage → Général) : zoom de la page entière, jamais le `zoom` CSS (il agrandit
+  aussi `vh` / `vw` et décale les menus placés en JS). Appli de bureau : `webContents.setZoomFactor`, 90 à 200 %
+  (`desktop/main.cjs`) ; navigateur au doigt (téléphone, tablette) : balise viewport `initial-scale`, 90 à 150 %
+  (`prefs.textScale`, `prefs.js`). À 150 % un téléphone de 390 px a une page de 260 px : rien ne doit déborder.
 - Zones tactiles : 32 px minimum garantis au doigt pour les petits boutons ; boutons de la barre latérale 46 px.
 - Textes sélectionnables seulement là où c'est utile (champs, articles, radios, messages de la direction de course).
 

@@ -240,6 +240,15 @@ export function initSettings() {
   $('#followHost').addEventListener('change', (e) => storageSet('paddock.followHost', e.target.checked));
   $('#motionOpt').checked = prefs.motion !== false;
   $('#motionOpt').addEventListener('change', (e) => setPref('motion', e.target.checked));
+  // Taille de l'interface dans le navigateur d'un téléphone ou d'une tablette, de 90 à 150 % (zoom par la balise
+  // viewport, prefs.js) ; appli de bureau : son propre zoom (ui/updates.js)
+  if (!window.f1desktop && matchMedia('(pointer: coarse)').matches) {
+    const sel = $('#zoomSel');
+    for (const o of [...sel.options]) if (Number(o.value) > 150) o.remove();
+    sel.value = String(Math.round(prefs.textScale * 100));
+    $('#zoomRow').hidden = false;
+    sel.addEventListener('change', () => setPref('textScale', Number(sel.value) / 100));
+  }
   $('#phoneFull').checked = !!prefs.phoneFull;
   $('#phoneFull').addEventListener('change', (e) => setPref('phoneFull', e.target.checked));
   $('#keepAwake').checked = prefs.keepAwake;
