@@ -2990,4 +2990,6 @@ export default {
   "Nouveaux pilotes": "New drivers",
   "aucun pour l'instant": "none so far",
   "Annonces officielles seulement : communiqué de l'écurie ou de la F1. Un baquet sans annonce reste « à confirmer », sans nom, même quand la presse cite un favori. À jour au {}.": "Official announcements only: team or F1 press release. A seat without an announcement stays \"to be confirmed\", with no name, even when the press names a favourite. Updated {}.",
+  "Copier le code": "Copy the code",
+  "Code copié": "Code copied",
 };

@@ -2989,4 +2989,6 @@ export default {
   "Nouveaux pilotes": "Nuovi piloti",
   "aucun pour l'instant": "nessuno per ora",
   "Annonces officielles seulement : communiqué de l'écurie ou de la F1. Un baquet sans annonce reste « à confirmer », sans nom, même quand la presse cite un favori. À jour au {}.": "Solo annunci ufficiali: comunicato della squadra o della F1. Un sedile senza annuncio resta «da confermare», senza nome, anche quando la stampa indica un favorito. Aggiornato al {}.",
+  "Copier le code": "Copia il codice",
+  "Code copié": "Codice copiato",
 };
