@@ -624,9 +624,6 @@ function render() {
   // Un seul titre H1 dans la page : un paragraphe quand la page en a déjà un (pages de la Saison de la version web)
   // Un seul H1 : pas celui de l'Accueil quand la page en a un autre, ni sur une adresse de la Saison (version web : la
   // Saison pose le sien, #szH1)
-  // Jeu du jour du site (/jeu/, en anglais pour les autres langues) : entre deux week-ends de course, plus de 2 jours
-  // avant la prochaine séance
-  const game = !live && !!schedule && (!nx || nx.t - Date.now() > 2 * 86400e3);
   const hello = document.querySelector('h1:not(.hm-hello)') || /^\/(saison|en\/season)\//.test(location.pathname) ? 'p' : 'h1';
   view.querySelector('.hm-main').innerHTML = `<${hello} class="hm-hello">Paddock Live</${hello}>${preHtml()}
     <div class="hm-board${ls ? '' : ' hm-nolast'}">${card}${last}
@@ -640,7 +637,7 @@ function render() {
       <button data-home="app">${icon('window')}<b>${t('Appli complète')}</b><small>${t('Replays, actu, alertes')}</small></button>` : `<button data-home="news">${icon('news')}<b>Actu</b><small>Toute l'actualité</small></button>
       <button data-home="replays">${icon('history')}<b>Replays</b><small>Rejouer une séance</small></button>`}
     </nav>
-    ${game ? `<a class="hm-follow" href="https://paddocklive.app/${LANG === 'fr' ? 'jeu' : 'en/guess-the-circuit'}/" target="_blank" rel="noopener">${icon('flag')} ${t('Jeu du jour : devine le circuit')} ${icon('arrow-right', 'ic-s')}</a>` : ''}
+    <a class="hm-follow" href="https://paddocklive.app/${LANG === 'fr' ? 'jeu' : 'en/guess-the-circuit'}/" target="_blank" rel="noopener">${icon('flag')} ${t('Jeu du jour : devine le circuit')} ${icon('arrow-right', 'ic-s')}</a>
     <a class="hm-follow" href="https://paddocklive.app/liens/" target="_blank" rel="noopener">${icon('share')} Suivre Paddock Live sur les réseaux ${icon('arrow-right', 'ic-s')}</a>`;
   if (nx && !live) loadWeather(nx);
   if (nx && !live && prefs.design === 'v2') drawTrack(nx);

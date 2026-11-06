@@ -7,8 +7,8 @@ l'application (Réglages → À propos → Nouveautés).
 ## v1.33.0 — à venir
 
 ### Accueil
-- Entre deux week-ends de course, un lien sous les raccourcis mène au jeu du jour « Devine le circuit » sur le site
-  (en anglais pour les autres langues).
+- Un lien sous les raccourcis mène au jeu du jour « Devine le circuit » sur le site (en anglais pour les autres
+  langues).
 
 ### En direct
 - Télémétrie : le bouton ± à côté du délai TV ouvre de nouveau ses réglages (−5, −1, −0,1, +0,1, +1, +5 s), qui
