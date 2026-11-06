@@ -2946,4 +2946,10 @@ export default {
   "minutes": "minutes",
   "secondes": "seconds",
   "Séance de nuit chez vous": "Night session for you",
+  "Avec pénalités (course : 5 derniers tours et arrivée provisoire)": "With penalties (race: last 5 laps and provisional result)",
+  "Avec pén.": "With pen.",
+  "Place avec les pénalités en temps pas encore purgées (provisoire : décisions après la course non comptées)": "Position with time penalties not yet served (provisional: post-race decisions not counted)",
+  "Arrivée provisoire avec les pénalités en temps (décisions après la course non comptées) :": "Provisional result with time penalties (post-race decisions not counted):",
+  "Avec les pénalités en temps :": "With time penalties:",
+  "aucun changement": "no change",
 };

@@ -2,7 +2,7 @@
 import { store, setDuelPair, setFocus, versionOf, displayNow, f1Now, on, utcToLocal } from '../store.js';
 import { $, esc, drivers, orderedNumbers, sessionKind, teamMark, tyreBadge, currentStint, lapSeconds, fmtLap } from '../util.js';
 import { prefs, isFav, toggleFav, towerCols, towerBig } from '../prefs.js';
-import { segmentClass, parseUtc, chequeredUtc, parseGap, overtakeEnabled } from '/shared/f1.js';
+import { segmentClass, parseUtc, chequeredUtc, parseGap, overtakeEnabled, provisionalOrder } from '/shared/f1.js';
 import { icon } from '../icons.js';
 import { realStopCount } from '/shared/pits.js';
 import { stewardsData } from './feed.js';
@@ -56,7 +56,7 @@ function gapText(v) {
 export function renderTower(force = false) {
   const now = performance.now();
   // Pilotes A et B marqués seulement quand le panneau Duel est affiché (comme sur la carte)
-  const key = `${versionOf(['TimingData', 'TimingAppData', 'DriverList', 'TimingStats', 'RaceControlMessages', '__reset'])}|${store.duel.a}|${store.duel.b}|${store.duel.manual}|${store.focus}|${towerBig()}|${towerCols().hidden.join()}|${towerCols().extra.join()}|${prefs.favs.join()}|${prefs.hotLapDim}`;
+  const key = `${versionOf(['TimingData', 'TimingAppData', 'DriverList', 'TimingStats', 'RaceControlMessages', 'LapCount', '__reset'])}|${store.duel.a}|${store.duel.b}|${store.duel.manual}|${store.focus}|${towerBig()}|${towerCols().hidden.join()}|${towerCols().extra.join()}|${prefs.favs.join()}|${prefs.hotLapDim}`;
   const carTick = store.positions.car.size ? Math.floor(now / 500) : 0;
   if (!force && key + carTick === lastKey) return;
   if (!force && now - lastRender < 250) return;
@@ -83,7 +83,8 @@ export function renderTower(force = false) {
   const TH = (cls, label, title = '') => `<th class="${cls}"${title ? ` title="${title}"` : ''}>${label}</th>`;
   const secHead = TH('c-sec', 'S1') + TH('c-sec', 'S2') + TH('c-sec', 'S3');
   // Colonnes facultatives (menu « Colonnes » du classement)
-  const extraHead = TH('c-grid', 'Grille', 'Position de départ') + TH('c-laps', 'Tours', 'Tours effectués')
+  const extraHead = TH('c-pen', 'Avec pén.', 'Place avec les pénalités en temps pas encore purgées (provisoire : décisions après la course non comptées)')
+    + TH('c-grid', 'Grille', 'Position de départ') + TH('c-laps', 'Tours', 'Tours effectués')
     + TH('c-gapf', 'Suivi', 'Écart au pilote suivi (clic sur un pilote)') + TH('c-spd', 'I1 · I2 · Arr.', 'Vitesses aux intermédiaires 1 et 2 et sur la ligne d\'arrivée (km/h)')
     + [1, 2, 3].map((i) => TH('t-lap c-bsec', `Meill. S${i}`, `Meilleur secteur ${i} du pilote dans la séance (violet : meilleur de tous)`)).join('') + TH('c-team', 'Écurie');
   // Écart au pilote suivi : course = écart au leader, essais / qualifs = meilleur tour
@@ -127,6 +128,12 @@ export function renderTower(force = false) {
   }
   const flagUtc = chequeredUtc(s.RaceControlMessages?.Messages);
   const flagAt = flagUtc === null ? null : utcToLocal(flagUtc);
+  // Arrivée provisoire avec ces pénalités (option « Avec pénalités » du menu Colonnes) : course, 5 derniers tours et
+  // après le drapeau. Mêmes données retardées que le classement
+  const cols = towerCols();
+  const lapNow = Number(s.LapCount?.CurrentLap) || 0, lapTotal = Number(s.LapCount?.TotalLaps) || 0;
+  const penOn = kind === 'race' && cols.extra.includes('pen') && (flagAt !== null || (lapTotal > 0 && lapNow > lapTotal - 5));
+  const prov = penOn ? new Map(provisionalOrder(nums.map((n) => ({ num: n, gap: lines[n]?.GapToLeader, int: lines[n]?.IntervalToPositionAhead?.Value, out: lines[n]?.Retired })), pens).map((r) => [r.num, r])) : null;
   // Bataille repérée toute seule (course, aucun duel ouvert, pas sous voiture de sécurité ni drapeau rouge) : pastille sur
   // le pilote derrière, un clic ouvre le duel (data-battle, comme les Bagarres)
   const spotBattles = kind === 'race' && !(store.duel.manual && store.duel.a && store.duel.b) && !['4', '5', '6', '7'].includes(String(s.TrackStatus?.Status || ''));
@@ -188,7 +195,9 @@ export function renderTower(force = false) {
     const dg = g !== null ? g - focusGap : null;
     const sp = l.Speeds || {};
     const v = (k) => (sp[k]?.Value ? `<b class="${timingClass(sp[k])}">${esc(sp[k].Value)}</b>` : '<span class="dim">—</span>');
-    const extra = `<td class="c-grid">${a.GridPos ? `P${esc(a.GridPos)}` : '<span class="dim">—</span>'}</td>`
+    const pv = !l.Retired && prov?.get(num), pd = pv ? pv.from - pv.to : 0;
+    const extra = `<td class="c-pen">${pv ? `P${pv.to}${pd ? `<span class="pos-delta ${pd > 0 ? 'up' : 'down'}">${icon(pd > 0 ? 'tri-up' : 'tri-down')}${Math.abs(pd)}</span>` : ''}` : '<span class="dim">—</span>'}</td>`
+      + `<td class="c-grid">${a.GridPos ? `P${esc(a.GridPos)}` : '<span class="dim">—</span>'}</td>`
       + `<td class="c-laps">${esc(l.NumberOfLaps ?? '') || '<span class="dim">—</span>'}</td>`
       + `<td class="c-gapf ${dg === null ? '' : dg < 0 ? 'ahead' : 'behind'}">${store.focus === num ? '<span class="dim">suivi</span>' : dg === null ? '<span class="dim">—</span>' : `${dg < 0 ? '−' : '+'}${Math.abs(dg).toFixed(3)}`}</td>`
       + `<td class="c-spd">${v('I1')} · ${v('I2')} · ${v('FL')}</td>`
@@ -248,9 +257,16 @@ export function renderTower(force = false) {
     if (t) cutInfo = `<caption class="cutline">Limite ${/sprint/i.test(s.SessionInfo?.Name || '') ? 'SQ' : 'Q'}${part} (P${cutoff}) : <b>${fmtLap(t)}</b>${threatened.length ? ` · en danger : ${esc(threatened.join(', '))}` : ''}</caption>`;
   }
 
+  // Bandeau : places qui changent avec les pénalités (« NOR P3 → P5 ») ; après le drapeau, arrivée provisoire
+  if (prov) {
+    const moved = [...prov.values()].filter((r) => r.from !== r.to && !lines[r.num]?.Retired)
+      .map((r) => `<b>${esc(dl[r.num]?.Tla || r.num)}</b> P${r.from} → P${r.to}`).join(' · ');
+    if (flagAt !== null) cutInfo = `<caption class="cutline"><span>Arrivée provisoire avec les pénalités en temps (décisions après la course non comptées) :</span> ${moved || '<span>aucun changement</span>'}</caption>`;
+    else if (moved) cutInfo = `<caption class="cutline"><span>Avec les pénalités en temps :</span> ${moved}</caption>`;
+  }
+
   const table = $('#tower');
-  const cols = towerCols();
-  table.className = `tower ${cols.hidden.map((c) => `hide-${c}`).join(' ')} ${cols.extra.map((c) => `show-${c}`).join(' ')}`;
+  table.className = `tower ${cols.hidden.map((c) => `hide-${c}`).join(' ')} ${cols.extra.filter((c) => c !== 'pen' || penOn).map((c) => `show-${c}`).join(' ')}`;
   syncTable(table, cutInfo, head, rows);
   fitTower();
 }

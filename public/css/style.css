@@ -734,12 +734,14 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
 .tower.hide-pred .c-pred, .tower.hide-q .c-q, .tower.hide-tags .c-tags, .tower.hide-name .drv-last { display: none !important; }
 /* Colonnes facultatives (masquées tant qu'on ne les a pas ajoutées) */
 .tower:not(.show-grid) .c-grid, .tower:not(.show-laps) .c-laps, .tower:not(.show-gapf) .c-gapf,
-.tower:not(.show-spd) .c-spd, .tower:not(.show-team) .c-team, .tower:not(.show-bsec) .c-bsec { display: none; }
+.tower:not(.show-spd) .c-spd, .tower:not(.show-team) .c-team, .tower:not(.show-bsec) .c-bsec,
+.tower:not(.show-pen) .c-pen { display: none; }
 /* État (STAND, SORTIE, TOUR…) dans sa propre colonne : les étiquettes sont alignées d'une ligne à l'autre */
 .tower td.c-tags { padding-left: 2px; padding-right: 4px; }
 .tower td.c-tags:empty, .tower th.c-tags { padding: 0; }
 .tower .c-tags .drv-tags { justify-content: flex-start; }
-.tower td.c-grid, .tower td.c-laps, .tower th.c-grid, .tower th.c-laps { text-align: center; }
+.tower td.c-grid, .tower td.c-laps, .tower th.c-grid, .tower th.c-laps, .tower .c-pen { text-align: center; }
+.tower td.c-pen { white-space: nowrap; font-weight: 700; }
 .tower td.c-spd { white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--text-2); }
 .tower td.c-spd b { color: var(--text); font-weight: 600; }
 .tower td.c-team { white-space: nowrap; color: var(--text-2); max-width: 130px; overflow: hidden; text-overflow: ellipsis; }
@@ -2521,7 +2523,7 @@ body.solo .tb-tools { display: none; }
 [data-theme="pitwall"] body { font-size: 13.5px; background: var(--bg); }
 
 /* Chiffres en chasse fixe : temps, écarts, vitesses, horloges */
-[data-theme="pitwall"] :is(.tower td.t-gap, .tower td.t-int, .tower td.t-lap, .tower td.pos, .tower td.c-pits, .tower td.c-speed, .tower td.c-grid, .tower td.c-laps, .tower td.c-gapf, .tower td.c-spd,
+[data-theme="pitwall"] :is(.tower td.t-gap, .tower td.t-int, .tower td.t-lap, .tower td.pos, .tower td.c-pits, .tower td.c-speed, .tower td.c-grid, .tower td.c-laps, .tower td.c-gapf, .tower td.c-spd, .tower td.c-pen,
   .tower .sector-val, .tyre-age, .hstat-value, .delay-input, .rp-time, .pit-big, .pit-val, .champ td, .strat-pace, .strat-deg,
   .tbp-table td, .tbd-time, .rcm-time, .weather-mini .wm b, .dl-speed-val, .dl-rpm) { font-family: var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: -.2px; }
 [data-theme="pitwall"] .tower td.pos { font-weight: 700; }
