@@ -3107,4 +3107,6 @@ export default {
   "{} : en piste aujourd’hui": "{}: on track today",
   "Premier Grand Prix": "First Grand Prix",
   "Essais en cours": "Testing under way",
+  "Copier le code": "Copy the code",
+  "Code copié": "Code copied",
 };
