@@ -260,6 +260,8 @@
       .web body { padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
       /* Menus (réglages des radios, calques…) au-dessus du menu fixé, pas dessous (comme l'appli sur téléphone) */
       .web .map-layers-menu { bottom: calc(76px + env(safe-area-inset-bottom)); }
+      /* iPhone, écran d'accueil : barre et menus du bas recalés sur la zone visible (web.js, --vv-dy) */
+      .web :is(.web-mnav, .map-layers-menu) { translate: 0 var(--vv-dy, 0px); }
       /* Accueil, Saison (et son menu des rubriques), « Pas de séance » : jusqu'en bas de l'écran, derrière le menu fixé ; place laissée à la fin du contenu */
       .web :is(#homeView .hm-main, #szContent, #noLiveView, #seasonView .sz-side) { padding-bottom: calc(96px + env(safe-area-inset-bottom)) !important; }
     }
