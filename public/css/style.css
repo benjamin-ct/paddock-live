@@ -751,6 +751,13 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
 .tower-cols .tc-ic { display: none; }   /* icône seule : téléphone en paysage, en Télémétrie (design-v3.css) */
 .tower-cols .col-sep { font-size: 11px; color: var(--muted); padding: 6px 8px 2px; text-transform: uppercase; letter-spacing: .6px; }
 .tag.push { background: var(--purple); color: #1a0030; }
+/* Qualifs, 3 dernières minutes : passera la ligne avant le drapeau (vert), juste (orange), trop tard (gris) ; dernier tour
+   commencé à temps, en noir et blanc comme le damier */
+.tag.line-go { background: color-mix(in srgb, var(--green) 18%, transparent); color: var(--green); }
+.tag.line-tight { background: color-mix(in srgb, var(--orange) 20%, transparent); color: var(--orange); }
+.tag.line-late { color: var(--muted); box-shadow: inset 0 0 0 1px var(--line-2); }
+.tag.last { background: var(--text); color: var(--bg); }
+.tag:is(.line-go, .line-tight, .line-late, .last) { white-space: nowrap; }
 .pred { font-size: 12px; font-weight: 700; }
 .pred small { color: var(--muted); font-weight: 600; }
 .cutline { padding: 4px 10px; font-size: 12px; color: var(--text-2); background: rgba(255,59,48,.08); border-bottom: 1px solid var(--border); }

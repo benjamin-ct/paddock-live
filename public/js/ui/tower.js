@@ -1,8 +1,10 @@
 // Tableau de classement (course / qualifications / essais).
-import { store, setDuelPair, setFocus, versionOf, displayNow, f1Now, on, utcToLocal } from '../store.js';
+import { store, setDuelPair, setFocus, versionOf, displayNow, f1Now, on, utcToLocal, replaySpeed } from '../store.js';
 import { $, esc, drivers, orderedNumbers, sessionKind, teamMark, tyreBadge, currentStint, lapSeconds, fmtLap } from '../util.js';
 import { prefs, isFav, toggleFav, towerCols, towerBig } from '../prefs.js';
-import { segmentClass, parseUtc, chequeredUtc, parseGap, overtakeEnabled, provisionalOrder } from '/shared/f1.js';
+import { segmentClass, parseUtc, parseLapTime, chequeredUtc, parseGap, overtakeEnabled, provisionalOrder } from '/shared/f1.js';
+import { lineCall, LAST_LAP_WINDOW } from '/shared/last-lap.js';
+import { timeLeft } from './session-info.js';
 import { icon } from '../icons.js';
 import { realStopCount } from '/shared/pits.js';
 import { stewardsData } from './feed.js';
@@ -55,8 +57,9 @@ function gapText(v) {
 
 export function renderTower(force = false) {
   const now = performance.now();
+  const clock = lastLapClock();
   // Pilotes A et B marqués seulement quand le panneau Duel est affiché (comme sur la carte)
-  const key = `${versionOf(['TimingData', 'TimingAppData', 'DriverList', 'TimingStats', 'RaceControlMessages', 'LapCount', '__reset'])}|${store.duel.a}|${store.duel.b}|${store.duel.manual}|${store.focus}|${towerBig()}|${towerCols().hidden.join()}|${towerCols().extra.join()}|${prefs.favs.join()}|${prefs.hotLapDim}`;
+  const key = `${clock ? Math.floor(now / 1000) : ''}|${versionOf(['TimingData', 'TimingAppData', 'DriverList', 'TimingStats', 'RaceControlMessages', 'LapCount', '__reset'])}|${store.duel.a}|${store.duel.b}|${store.duel.manual}|${store.focus}|${towerBig()}|${towerCols().hidden.join()}|${towerCols().extra.join()}|${prefs.favs.join()}|${prefs.hotLapDim}`;
   const carTick = store.positions.car.size ? Math.floor(now / 500) : 0;
   if (!force && key + carTick === lastKey) return;
   if (!force && now - lastRender < 250) return;
@@ -161,7 +164,11 @@ export function renderTower(force = false) {
       tags.push(`<span class="tag drs dep${on ? ' on' : ''}" title="Mode dépassement : allumé à moins d'une seconde de la voiture devant">DÉP</span>`);
     }
     const pred = kind !== 'race' && !done ? predictLap(l, stats[num]) : null;
-    if (pred) tags.push('<span class="tag push" title="Tour rapide en cours">TOUR</span>');
+    // Qualifs, 3 dernières minutes (GPS) : passera-t-il la ligne avant le drapeau ?
+    const call = clock && !done ? lastLapCall(num, l, !!pred, clock, dispNow) : null;
+    if (call?.call === 'last') tags.push('<span class="tag last" title="Dernier tour : commencé avant le drapeau, il finira après">DERNIER TOUR</span>');
+    else if (pred) tags.push('<span class="tag push" title="Tour rapide en cours">TOUR</span>');
+    if (call && call.call !== 'last') tags.push(LINE_TAGS[call.call](Math.round(Math.abs(call.margin))));
     if (pens[num]) tags.push(`<span class="tag pen" title="Pénalité en temps : purgée au prochain arrêt, sinon ajoutée à son temps de course">+${pens[num]} s</span>`);
     const fight = spotBattles && i > 0 && !l.Retired && !l.InPit && !done && ahead > 0 && ahead < 1 ? battleLaps(nums[i - 1], num) : 0;
     if (fight >= 3) tags.push(`<button type="button" class="tag battle" data-battle="${nums[i - 1]},${num}" title="Bataille avec ${esc(dl[nums[i - 1]]?.Tla || nums[i - 1])} depuis ${fight} tours : ouvrir le duel">${icon('duel')}</button>`);
@@ -403,6 +410,39 @@ export function fitTower(force = false) {
     if (wrap.scrollHeight <= wrap.clientHeight + 1) return;   // la largeur ne change pas
   }
   table.style.removeProperty('--tower-row-h');
+}
+
+// « Encore un tour ? » : qualifs, 3 dernières minutes de chaque partie, avec le GPS seulement (sa place sur le tour et son
+// allure des 20 dernières secondes) ; horloge qui tourne, pas de drapeau rouge. rem : temps restant (s) ; flag : heure
+// locale du drapeau
+function lastLapClock() {
+  const s = store.state, ec = s.ExtrapolatedClock, P = store.positions;
+  if (sessionKind(s) !== 'quali' || !P.track || !P.hasGps(displayNow()) || String(s.TrackStatus?.Status) === '5') return null;
+  const rem = timeLeft();
+  if (rem === null || rem > LAST_LAP_WINDOW * 1000 || (rem > 0 && !ec.Extrapolating)) return null;
+  return { rem: rem / 1000, flag: utcToLocal(parseUtc(ec.Utc) + parseLapTime(ec.Remaining) * 1000) };
+}
+
+const LINE_TAGS = {
+  go: (s) => `<span class="tag line-go" title="Passe la ligne environ ${s} s avant le drapeau : encore un tour possible">À TEMPS</span>`,
+  tight: () => '<span class="tag line-tight" title="Juste : la ligne et le drapeau à quelques secondes près">JUSTE</span>',
+  late: (s) => `<span class="tag line-late" title="Trop tard : passe la ligne environ ${s} s après le drapeau">TROP TARD</span>`,
+};
+
+function lastLapCall(num, l, hot, clock, now) {
+  if (l.InPit || l.Retired || l.Stopped || l.KnockedOut) return null;
+  const P = store.positions, arr = P.gps.get(num), L = P.track.L;
+  const t0 = Math.max(now - 20000, arr?.[0]?.t ?? Infinity);
+  const p = arr?.at(-1)?.t > now - 3000 ? P.progressAt(num, now) : null, p0 = now - t0 >= 5000 ? P.progressAt(num, t0) : null;
+  const from = p === null ? NaN : p - P.lineFrac() * L;
+  const lap = store.derived.laps?.[num]?.at(-1);
+  return lineCall({
+    remaining: clock.rem,
+    toLine: L - (((from % L) + L) % L),
+    rate: p0 === null ? NaN : (p - p0) / (((now - t0) / 1000) * replaySpeed()),
+    hot,
+    startedInTime: !clock.flag || !lap || lap.t < clock.flag,
+  });
 }
 
 // Temps prévu d'un tour lancé : secteurs réalisés + meilleurs secteurs personnels restants.
