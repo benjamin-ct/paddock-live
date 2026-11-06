@@ -4,6 +4,17 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → À propos → Nouveautés).
 
+## v1.33.0 — à venir
+
+### Version web
+- Téléphone : les menus des réglages des radios (lecture auto, volume, vitesse), de la direction de course (drapeaux
+  bleus, temps supprimés, type de messages, traduction) et des calques de la carte s'ouvrent au-dessus de la barre
+  Accueil, Direct, Saison au lieu de passer dessous ; en paysage, ils ne passent plus sous le menu de gauche.
+- Carte avec le GPS sur un réseau mobile : les voitures ne font plus de petits sauts toutes les quelques secondes.
+  L'heure du serveur, qui cale l'affichage sur la TV, se rattrape en douceur au lieu de bondir quand un message
+  arrive en retard.
+- Téléphone : l'engrenage des réglages du direct est bien centré dans son bouton.
+
 ## v1.32.0 — 2026-11-06
 
 ### Accueil
