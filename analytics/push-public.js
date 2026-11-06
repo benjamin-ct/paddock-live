@@ -27,6 +27,7 @@ export function cleanTz(tz) {
   try { new Intl.DateTimeFormat('en', { timeZone: tz }); return tz; } catch { return null; }
 }
 
+const LANGS = ['fr', 'en', 'it', 'es'];
 const json = (obj, status = 200) => new Response(JSON.stringify(obj), { status, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' } });
 const cleanTopics = (t) => (Array.isArray(t) ? TOPICS.filter((x) => t.includes(x)) : []);
 
@@ -52,7 +53,7 @@ export async function publicPushApi(req, env, path) {
     if (!known && ((await env.DB.prepare('SELECT COUNT(*) AS n FROM push_subs').first())?.n || 0) >= MAX_SUBS) return json({ error: 'Trop d\'abonnés pour le moment, réessayez plus tard' }, 503);
     const tz = cleanTz(body?.tz);
     await env.DB.prepare('INSERT INTO push_subs (endpoint, p256dh, auth, topics, lang, at) VALUES (?1, ?2, ?3, ?4, ?5, ?6) ON CONFLICT (endpoint) DO UPDATE SET p256dh = excluded.p256dh, auth = excluded.auth, topics = excluded.topics, lang = excluded.lang')
-      .bind(s.endpoint, s.keys.p256dh, s.keys.auth, [...topics, ...(tz ? [TZ + tz] : [])].join(','), body?.lang === 'en' ? 'en' : 'fr', Date.now()).run();
+      .bind(s.endpoint, s.keys.p256dh, s.keys.auth, [...topics, ...(tz ? [TZ + tz] : [])].join(','), LANGS.includes(body?.lang) ? body.lang : 'fr', Date.now()).run();
     return json({ ok: true, topics });
   }
   if (path === 'off') {
@@ -63,8 +64,13 @@ export async function publicPushApi(req, env, path) {
     if (ip && !(await ipQuota(env, { key: 'push-test', day, ip, limit: TESTS_PER_IP }))) return json({ error: 'Trop d\'essais aujourd\'hui' }, 429);
     const row = await env.DB.prepare('SELECT endpoint, p256dh, auth, lang FROM push_subs WHERE endpoint = ?1').bind(String(body?.endpoint || '')).first();
     if (!row) return json({ error: 'Ce téléphone n\'est pas abonné' }, 404);
-    const en = row.lang === 'en';
-    const r = await sendPush(await vapidKeys(env), subOf(row), { title: en ? 'Alerts are on' : 'Alertes activées', body: en ? 'Paddock Live alerts will arrive here.' : 'Les alertes de Paddock Live arriveront ici.', url: ALERTES }).catch(() => false);
+    const m = {
+      fr: { title: 'Alertes activées', body: 'Les alertes de Paddock Live arriveront ici.' },
+      en: { title: 'Alerts are on', body: 'Paddock Live alerts will arrive here.' },
+      it: { title: 'Avvisi attivati', body: 'Gli avvisi di Paddock Live arriveranno qui.' },
+      es: { title: 'Alertas activadas', body: 'Las alertas de Paddock Live llegarán aquí.' },
+    }[row.lang] || {};
+    const r = await sendPush(await vapidKeys(env), subOf(row), { ...m, url: ALERTES }).catch(() => false);
     return r === true ? json({ ok: true }) : json({ error: 'Envoi refusé par le service de notification' }, 502);
   }
   return json({ error: 'Introuvable' }, 404);
@@ -73,7 +79,7 @@ export async function publicPushApi(req, env, path) {
 const subOf = (r) => ({ endpoint: r.endpoint, keys: { p256dh: r.p256dh, auth: r.auth } });
 
 // ---------- Messages mis en file (une seule fois chacun : clé dans push_sent) ----------
-// msg : { fr: { title, body }, en: { title, body }, url }
+// msg : { fr: { title, body }, en: { title, body }, it: …, es: …, url } (sans it ou es : anglais)
 export async function queuePush(env, k, topic, msg, now = Date.now()) {
   const r = await env.DB.prepare('INSERT INTO push_sent (k, at) VALUES (?1, ?2) ON CONFLICT (k) DO NOTHING').bind(k, now).run();
   if (r?.meta?.changes !== 1) return false;
@@ -84,6 +90,8 @@ export async function queuePush(env, k, topic, msg, now = Date.now()) {
 // Rappel des séances qui commencent dans 20 à 30 minutes (saison gardée en base par la tâche planifiée)
 const EN_SESSION = { EL1: 'FP1', EL2: 'FP2', EL3: 'FP3', 'Qualif. sprint': 'Sprint Qualifying', Sprint: 'Sprint', Qualifications: 'Qualifying', Course: 'Race' };
 const FR_SESSION = { EL1: 'Essais libres 1', EL2: 'Essais libres 2', EL3: 'Essais libres 3', 'Qualif. sprint': 'Qualifications sprint', Sprint: 'Sprint', Qualifications: 'Qualifications', Course: 'Course' };
+const IT_SESSION = { EL1: 'Prove libere 1', EL2: 'Prove libere 2', EL3: 'Prove libere 3', 'Qualif. sprint': 'Qualifiche sprint', Sprint: 'Sprint', Qualifications: 'Qualifiche', Course: 'Gara' };
+const ES_SESSION = { EL1: 'Libres 1', EL2: 'Libres 2', EL3: 'Libres 3', 'Qualif. sprint': 'Clasificación sprint', Sprint: 'Sprint', Qualifications: 'Clasificación', Course: 'Carrera' };
 export function sessionReminders(season, now = Date.now()) {
   const out = [];
   for (const r of season?.races || []) {
@@ -95,6 +103,8 @@ export function sessionReminders(season, now = Date.now()) {
         msg: {
           fr: { title: `${FR_SESSION[s.label] || s.label} dans 30 minutes`, body: gpFull(r.name) },
           en: { title: `${EN_SESSION[s.label] || s.label} in 30 minutes`, body: gpFull(r.name, true) },
+          it: { title: `${IT_SESSION[s.label] || s.label} tra 30 minuti`, body: gpFull(r.name, 'it') },
+          es: { title: `${ES_SESSION[s.label] || s.label} en 30 minutos`, body: gpFull(r.name, 'es') },
           url: ALERTES,
         },
       });
@@ -112,6 +122,9 @@ const localOf = (ms, tz) => {
 };
 const hourFr = ({ h, m }) => `${h} h${m ? ` ${String(m).padStart(2, '0')}` : ''}`;
 const hourEn = ({ h, m }) => `${h || 12}:${String(m).padStart(2, '0')} am`;
+const hour24 = ({ h, m }) => `${h}:${String(m).padStart(2, '0')}`;
+const atIt = (at) => `${at.h === 1 ? 'all\'' : 'alle '}${hour24(at)}`;      // « all'1:30 », « alle 5:00 »
+const atEs = (at) => `${at.h === 1 ? 'a la' : 'a las'} ${hour24(at)}`;      // « a la 1:30 », « a las 5:00 »
 // Séances dans 2 h 30 à 10 h 30 : les seules qui peuvent tomber dans la nuit qui suit 21 h quelque part
 export function eveSoon(season, now = Date.now()) {
   const soon = [];
@@ -138,6 +151,8 @@ export function eveReminders(season, tzs, now = Date.now()) {
       msg: {
         fr: { title: `Cette nuit : ${night.map((x) => `${FR_SESSION[x.s.label] || x.s.label} à ${hourFr(x.at)}`).join(', ')}`, body: `${gpFull(gp.name)} · rappel 30 minutes avant` },
         en: { title: `Overnight: ${night.map((x) => `${EN_SESSION[x.s.label] || x.s.label} at ${hourEn(x.at)}`).join(', ')}`, body: `${gpFull(gp.name, true)} · reminder 30 minutes before` },
+        it: { title: `Stanotte: ${night.map((x) => `${IT_SESSION[x.s.label] || x.s.label} ${atIt(x.at)}`).join(', ')}`, body: `${gpFull(gp.name, 'it')} · promemoria 30 minuti prima` },
+        es: { title: `Esta noche: ${night.map((x) => `${ES_SESSION[x.s.label] || x.s.label} ${atEs(x.at)}`).join(', ')}`, body: `${gpFull(gp.name, 'es')} · aviso 30 minutos antes` },
         url: ALERTES,
       },
     });
@@ -158,7 +173,7 @@ async function keepForMorning(env, tz, job, msg, now) {
   const k = `night:${tz}`;
   const list = JSON.parse(await env.DB.prepare('SELECT v FROM studio WHERE k = ?1').bind(k).first('v') || '[]');
   if (list.some((x) => x.id === job.id)) return;
-  list.push({ id: job.id, fr: msg.fr, en: msg.en, url: msg.url });
+  list.push({ ...msg, id: job.id });
   await env.DB.prepare('INSERT INTO studio (k, v, at) VALUES (?1, ?2, ?3) ON CONFLICT (k) DO UPDATE SET v = excluded.v, at = excluded.at').bind(k, JSON.stringify(list.slice(-10)), now).run();
 }
 const plural = (n, one, many) => `${n} ${n > 1 ? many : one}`;
@@ -175,6 +190,8 @@ export async function morningDigests(env, now = Date.now()) {
     await queuePush(env, `night:${tz}:${here.day}`, `news,${TZ}${tz}`, one || {
       fr: { title: `Cette nuit : ${plural(list.length, 'grosse news', 'grosses news')}`, body: list.map((x) => x.fr.body).join(' · ') },
       en: { title: `Overnight: ${plural(list.length, 'big story', 'big stories')}`, body: list.map((x) => x.en.body).join(' · ') },
+      it: { title: `Stanotte: ${plural(list.length, 'grande notizia', 'grandi notizie')}`, body: list.map((x) => (x.it || x.en).body).join(' · ') },
+      es: { title: `Esta noche: ${plural(list.length, 'gran noticia', 'grandes noticias')}`, body: list.map((x) => (x.es || x.en).body).join(' · ') },
       url: ALERTES,
     }, now);
   }
@@ -187,11 +204,12 @@ export function resultMessages(before, after, now = Date.now()) {
   for (const r of after?.races || []) {
     if (Math.abs(now - Date.parse(r.date)) > 3 * 86400e3) continue;
     const old = before?.races?.find((x) => x.round === r.round);
-    const fr = gpFull(r.name), en = gpFull(r.name, true);
+    const fr = gpFull(r.name), en = gpFull(r.name, true), it = gpFull(r.name, 'it'), es = gpFull(r.name, 'es');
     const done = (k) => r[k]?.length && !old?.[k]?.length;
-    if (done('sprintResults')) out.push({ k: `res:${r.date}:sprint`, msg: { fr: { title: `Sprint : victoire de ${r.sprintResults[0].name}`, body: fr }, en: { title: `Sprint: ${r.sprintResults[0].name} wins`, body: en }, url: ALERTES } });
-    if (done('quali')) out.push({ k: `res:${r.date}:quali`, msg: { fr: { title: `Pole position pour ${r.quali[0].name}`, body: fr }, en: { title: `Pole position for ${r.quali[0].name}`, body: en }, url: ALERTES } });
-    if (done('results')) out.push({ k: `res:${r.date}:race`, msg: { fr: { title: `Victoire de ${r.results[0].name}`, body: fr }, en: { title: `${r.results[0].name} wins`, body: en }, url: ALERTES } });
+    const msg = (who, t) => ({ fr: { title: t.fr(who), body: fr }, en: { title: t.en(who), body: en }, it: { title: t.it(who), body: it }, es: { title: t.es(who), body: es }, url: ALERTES });
+    if (done('sprintResults')) out.push({ k: `res:${r.date}:sprint`, msg: msg(r.sprintResults[0].name, { fr: (w) => `Sprint : victoire de ${w}`, en: (w) => `Sprint: ${w} wins`, it: (w) => `Sprint: vince ${w}`, es: (w) => `Sprint: gana ${w}` }) });
+    if (done('quali')) out.push({ k: `res:${r.date}:quali`, msg: msg(r.quali[0].name, { fr: (w) => `Pole position pour ${w}`, en: (w) => `Pole position for ${w}`, it: (w) => `Pole position per ${w}`, es: (w) => `Pole position para ${w}` }) });
+    if (done('results')) out.push({ k: `res:${r.date}:race`, msg: msg(r.results[0].name, { fr: (w) => `Victoire de ${w}`, en: (w) => `${w} wins`, it: (w) => `Vittoria di ${w}`, es: (w) => `Victoria de ${w}` }) });
   }
   return out;
 }
@@ -212,7 +230,7 @@ export async function pushRun(env, { fetchFn = fetch, now = Date.now(), batch = 
   await Promise.all(subs.map(async (s) => {
     const tz = topic === 'news' && !only && cleanTz(tzOf(s.topics || ''));
     if (tz && quiet(now, tz)) { night.add(tz); return; }
-    const m = msg[s.lang] || msg.fr;
+    const m = msg[s.lang] || (s.lang === 'fr' ? msg.fr : msg.en) || msg.fr;   // italien ou espagnol absents : anglais
     const r = await sendPush(keys, subOf(s), { title: m.title, body: m.body, url: msg.url, id: job.id }, { fetchFn, now }).catch(() => false);
     if (r === 'gone') gone.push(s.endpoint);
     else if (r) sent++;
