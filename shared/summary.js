@@ -2,9 +2,10 @@
 // (donc au rythme du délai TV, sans rien dévoiler d'avance) : podium, écart, remontées, stratégies,
 // voitures de sécurité, abandons, pénalités, meilleur tour. Course, qualifications et essais.
 
-import { realStints } from './pits.js';
+import { realStints, realStopCount } from './pits.js';
 import { stoppedInRace, parseGap } from './f1.js';
 import { gpFull } from './gp-names.js';
+import { RACE_POINTS } from './season-calc.js';
 
 const list = (o) => (!o ? [] : Array.isArray(o) ? o : Object.keys(o).sort((a, b) => a - b).map((k) => o[k]));
 const COMP = { SOFT: 'tendres', MEDIUM: 'médiums', HARD: 'durs', INTERMEDIATE: 'intermédiaires', WET: 'pluie' };
@@ -39,16 +40,22 @@ export function sessionKindOf(state) {
   return 'practice';
 }
 
-// Pénalités annoncées par les commissaires (messages de la direction de course)
+// Pénalité annoncée par les commissaires (message de la direction de course) : voitures [numéro, trigramme],
+// genre ('sec', 'dt', 'sg', 'grid', 'pen'), secondes et tour ; null si le message n'en annonce pas
+function penaltyOf(m) {
+  const t = String(m?.Message || '');
+  if (!/^FIA STEWARDS:.*PENALTY FOR/.test(t) || /NO FURTHER|REVIEWED|PENALTY SERVED/.test(t)) return null;   // purgée : déjà comptée
+  const sec = t.match(/(\d+) SECOND TIME PENALTY/);
+  const kind = sec ? 'sec' : /DRIVE THROUGH/.test(t) ? 'dt' : /STOP\/GO/.test(t) ? 'sg' : /GRID/.test(t) ? 'grid' : 'pen';
+  return { cars: [...t.matchAll(/CAR (\d+) \((\w{3})\)/g)].map((x) => [x[1], x[2]]), kind, sec: sec ? Number(sec[1]) : null, lap: m.Lap || null };
+}
+
 function penalties(msgs, name, en = false) {
   const out = [];
-  for (const m of msgs) {
-    const t = String(m?.Message || '');
-    if (!/^FIA STEWARDS:.*PENALTY FOR/.test(t) || /NO FURTHER|REVIEWED|PENALTY SERVED/.test(t)) continue;   // purgée : déjà comptée
-    const who = [...t.matchAll(/CAR (\d+) \((\w{3})\)/g)].map((x) => name(x[1]) || x[2]);
-    const sec = t.match(/(\d+) SECOND TIME PENALTY/);
-    const what = sec ? `${sec[1]} s` : /DRIVE THROUGH/.test(t) ? 'drive-through' : /STOP\/GO/.test(t) ? 'stop & go' : /GRID/.test(t) ? (en ? 'grid penalty' : 'pénalité sur la grille') : (en ? 'penalty' : 'pénalité');
-    if (who.length) out.push(`${(en ? joinEn : joinFr)(who)} (${what})`);
+  for (const p of msgs.map(penaltyOf)) {
+    if (!p?.cars.length) continue;
+    const what = p.kind === 'sec' ? `${p.sec} s` : { dt: 'drive-through', sg: 'stop & go', grid: en ? 'grid penalty' : 'pénalité sur la grille', pen: en ? 'penalty' : 'pénalité' }[p.kind];
+    out.push(`${(en ? joinEn : joinFr)(p.cars.map(([n, tla]) => name(n) || tla))} (${what})`);
   }
   return out;
 }
@@ -296,4 +303,38 @@ export function summaryFacts(state, { lang = 'fr' } = {}) {
   const name = (n) => dl[n]?.LastName || dl[n]?.Tla || null;
   f.penalties = penalties(msgs, name, lang === 'en');
   return f;
+}
+
+// La course d'un pilote (page Résultats, carte d'un favori) : grille → arrivée, place au premier tour, relais,
+// meilleur tour, duel avec le coéquipier, pénalités, points (course terminée). car : numéro de la voiture ;
+// laps : son historique tour par tour (store.derived.laps[car], facultatif). null hors course ou sans le pilote.
+const SPRINT_POINTS = [8, 7, 6, 5, 4, 3, 2, 1];
+export function favRace(state, car, laps = []) {
+  car = String(car);
+  const lines = state?.TimingData?.Lines || {};
+  const l = lines[car];
+  if (sessionKindOf(state) !== 'race' || !(Number(l?.Position) > 0)) return null;
+  const dl = state?.DriverList || {};
+  const app = state?.TimingAppData?.Lines || {};
+  const finished = ['Finished', 'Finalised', 'Ends'].includes(state?.SessionStatus?.Status);
+  const ranked = Object.keys(lines).filter((n) => Number(lines[n]?.Position) > 0).sort((a, b) => Number(lines[a].Position) - Number(lines[b].Position));
+  const isOut = outOfRace(state, finished, Number(lines[ranked[0]]?.NumberOfLaps) || 0);
+  const d = dl[car] || {};
+  const pos = Number(l.Position), out = !!isOut(car);
+  const pb = state?.TimingStats?.Lines?.[car]?.PersonalBestLapTime;
+  // Coéquipier : même écurie dans la liste des pilotes, classé dans la séance
+  const mate = d.TeamName ? ranked.find((n) => n !== car && dl[n]?.TeamName === d.TeamName) : null;
+  const pts = /sprint/i.test(state?.SessionInfo?.Name || '') ? SPRINT_POINTS : RACE_POINTS;
+  return {
+    n: car, tla: d.Tla || car, name: d.LastName || d.Tla || car, team: d.TeamName || '', color: d.TeamColour ? `#${d.TeamColour}` : '#8b95a8',
+    final: finished, grid: Number(app[car]?.GridPos) || null, pos, out,
+    lap1: (laps || []).find((x) => Number(x.lap) === 1)?.pos || null,
+    stints: realStints(list(app[car]?.Stints)).filter((s) => s?.Compound)
+      .map((s) => ({ comp: s.Compound, laps: Math.max(0, (Number(s.TotalLaps) || 0) - (Number(s.StartLaps) || 0)) })),
+    stops: realStopCount(app[car], l),
+    best: pb?.Value ? { time: pb.Value, lap: pb.Lap || null, rank: Number(pb.Position) || null } : null,
+    mate: mate ? { n: mate, tla: dl[mate]?.Tla || mate, name: dl[mate]?.LastName || dl[mate]?.Tla || mate, pos: Number(lines[mate].Position), out: !!isOut(mate) } : null,
+    penalties: list(state?.RaceControlMessages?.Messages).map(penaltyOf).filter((p) => p?.cars.some(([n]) => n === car)).map(({ kind, sec, lap }) => ({ kind, sec, lap })),
+    points: finished ? (out ? 0 : pts[pos - 1] || 0) : null,
+  };
 }

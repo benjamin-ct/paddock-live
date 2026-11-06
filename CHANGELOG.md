@@ -78,6 +78,9 @@ l'application (Réglages → À propos → Nouveautés).
   drapeau, la place de chacun avec les pénalités en temps pas encore purgées (ex. « NOR P3 → P5 »), et un bandeau
   « Arrivée provisoire » après le drapeau (les décisions prises après la course ne sont pas comptées). Un pilote
   doublé reste derrière ceux qui ont fait plus de tours.
+- La course de mon favori : en course et en sprint, la page Résultats montre en tête une carte par pilote
+  favori (grille → arrivée, place au premier tour, relais et arrêts, meilleur tour, duel avec le coéquipier,
+  pénalités, points gagnés), avec une image à partager. Rien n'apparaît avant d'avoir ouvert les résultats.
 - Les répétitions de la F1 (veille de la course) ne sont plus enregistrées comme de vraies séances : pas de faux
   replay, ni d'historique rechargé dans le direct, ni d'ajout à la fin du replay des essais libres 3.
 - Drapeau rouge : les voitures arrêtées aux stands ne sont plus comptées comme des abandons (moments clés, résumé), et

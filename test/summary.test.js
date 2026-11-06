@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildSummary, gpNameFr, summaryFacts } from '../shared/summary.js';
+import { buildSummary, gpNameFr, summaryFacts, favRace } from '../shared/summary.js';
 
 const state = {
   SessionInfo: { Type: 'Race', Name: 'Race', Meeting: { Name: 'Italian Grand Prix' } },
@@ -81,4 +81,26 @@ test('résumé : noms des Grands Prix tirés de la même liste que l\'appli (gp-
   assert.equal(gpNameFr('Bahrain Grand Prix in Malaysia'), 'le Grand Prix de Bahreïn');
   assert.equal(gpNameFr('Atlantis Grand Prix'), "le Grand Prix d'Atlantis");
   assert.equal(gpNameFr(''), 'ce Grand Prix');
+});
+
+test('course d\'un favori : grille → arrivée, premier tour, relais, meilleur tour, coéquipier, pénalités, points', () => {
+  const dl = { ...state.DriverList, 18: { Tla: 'STR', LastName: 'Stroll', TeamName: 'Aston Martin', TeamColour: '229971' }, 14: { Tla: 'ALO', LastName: 'Alonso', TeamName: 'Aston Martin' } };
+  const app = { ...state.TimingAppData.Lines, 18: { GridPos: '8', Stints: [{ Compound: 'MEDIUM', New: 'true', StartLaps: 0, TotalLaps: 20 }, { Compound: 'HARD', New: 'true', StartLaps: 0, TotalLaps: 32 }] } };
+  const s = { ...state, DriverList: dl, TimingAppData: { Lines: app }, TimingStats: { Lines: { ...state.TimingStats.Lines, 18: { PersonalBestLapTime: { Value: '1:21.500', Position: 3, Lap: 48 } } } } };
+  const r = favRace(s, 18, [{ lap: 1, pos: 6 }, { lap: 2, pos: 5 }]);
+  assert.deepEqual([r.tla, r.color, r.grid, r.pos, r.out, r.lap1], ['STR', '#229971', 8, 4, false, 6]);
+  assert.deepEqual(r.stints, [{ comp: 'MEDIUM', laps: 20 }, { comp: 'HARD', laps: 32 }]);
+  assert.equal(r.stops, 1);
+  assert.deepEqual(r.best, { time: '1:21.500', lap: 48, rank: 3 });
+  assert.deepEqual(r.mate, { n: '14', tla: 'ALO', name: 'Alonso', pos: 5, out: true });
+  assert.deepEqual(r.penalties, [{ kind: 'sec', sec: 5, lap: null }], 'pénalité purgée : pas comptée deux fois');
+  assert.equal(r.points, 12);
+  // Abandon : aucun point ; sans historique, pas de premier tour ; course pas terminée : pas encore de points
+  assert.equal(favRace(s, '14').points, 0);
+  assert.equal(favRace(s, '14').lap1, null);
+  assert.equal(favRace({ ...s, SessionStatus: { Status: 'Started' } }, '18').points, null);
+  // Sprint : barème du sprint ; hors course ou pilote absent : rien
+  assert.equal(favRace({ ...s, SessionInfo: { ...s.SessionInfo, Name: 'Sprint' } }, '1').points, 8);
+  assert.equal(favRace(s, '99'), null);
+  assert.equal(favRace({ ...s, SessionInfo: { Type: 'Qualifying', Name: 'Qualifying' } }, '18'), null);
 });
