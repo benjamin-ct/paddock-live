@@ -14,7 +14,8 @@ import { openResults } from './results-view.js';
 import { COUNTRY_ISO } from '/shared/country-iso.js';
 import { nearestShape, shapeOutline } from '/shared/circuit-shapes.js';
 import { cloudTranslate } from '../cloud.js';
-import { upcomingAgenda } from '/shared/agenda.js';
+import { upcomingAgenda, localDay } from '/shared/agenda.js';
+import { openf1TestDays, testState } from '/shared/testing.js';
 import { buildDayIcs } from '/shared/ics.js';
 
 let schedule = null;   // [{ race, round, label, t }]
@@ -130,6 +131,39 @@ function agendaFile() {
   const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(new Blob([ics], { type: 'text/calendar' })), download: 'f1-intersaison.ics' });
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+}
+
+// Essais d'hiver de la saison (shared/testing.js) : jours connus dès la publication du calendrier, heures quand la F1
+// les publie. Appli : son serveur (OpenF1 et index des archives de la F1) ; version web : OpenF1 directement
+let tests = null, testsKey = '';
+function loadTests(year) {
+  const key = `${year}|${Math.floor(Date.now() / (6 * 3600e3))}`;   // relus toutes les 6 h
+  if (testsKey === key) return;
+  testsKey = key;
+  (store.web ? fetch(`https://api.openf1.org/v1/sessions?year=${year}`).then((r) => r.json()).then(openf1TestDays)
+    : api(`/api/testing?year=${year}`).then((d) => d.days || []))
+    .catch(() => tests || []).then((days) => { tests = days; if (isHomeOpen()) render(); });
+}
+const testDay = (n) => sessionName(`Day ${n}`);
+// Compte à rebours de la prochaine journée (en jours tant que son heure n'est pas annoncée) ou journée en cours
+function testsHead(ts, nx, year) {
+  const d = ts.current || ts.next, first = tests[0];
+  const days = Math.round((Date.parse(`${d.day}T12:00:00Z`) - Date.parse(`${localDay(Date.now())}T12:00:00Z`)) / 86400e3);
+  const count = ts.current ? ''
+    : d.start ? `<div class="hm-count" id="hmCount" role="timer">${countHtml(d.start - Date.now())}</div>`
+    : `<div class="hm-count">${v3() ? `<span class="hm-cd"><b>${days}</b><small>${CD_UNITS[0]}</small></span>` : esc(t('Dans {} jours', days))}</div>`;
+  return `<div class="hm-title">${flag(first.country)}<span>${t('Essais d’hiver {}', year)} <small>${esc(first.place)}</small></span></div>
+    ${count}
+    <div class="muted">${ts.current ? esc(t('{} : en piste aujourd’hui', testDay(d.n)))
+      : `${esc(testDay(d.n))} · ${d.start ? `${nightMark(d.start)}${esc(when(d.start))}` : `${esc(dayOf(d.day, { weekday: 'long', day: 'numeric', month: 'long' }))} · ${t('horaires pas encore annoncés')}`}`}</div>
+    ${nx ? `<div class="muted small">${t('Premier Grand Prix')} : ${esc(gp(nx.race))}, ${esc(when(nx.t))}</div>` : ''}`;
+}
+// Programme des essais, jour par jour (même présentation que celui d'un week-end de Grand Prix)
+function testDaysHtml(ts) {
+  const at = ts.next ? tests.indexOf(ts.next) : tests.length;
+  const hm = (ms) => new Date(ms).toLocaleTimeString(LOCALE, { hour: '2-digit', minute: '2-digit' });
+  return `<div class="cal-days hm-tests">${tests.map((d, i) => `<div class="cal-day"><div class="cal-day-h">${esc(dayOf(d.day, { weekday: 'short', day: 'numeric', month: 'short' }))}</div>
+    <div class="cal-s${d === ts.current ? ' now' : i < at ? ' past' : ''}"><span>${esc(testDay(d.n))}</span><b>${d.start ? `${nightMark(d.start)}${hm(d.start)}` : `<span title="${t('Horaire pas encore annoncé')}">–</span>`}</b></div></div>`).join('')}</div>`;
 }
 
 // Météo prévue des jours du prochain week-end (Open-Meteo, 16 jours au plus)
@@ -532,11 +566,12 @@ const countHtml = (ms) => (v3()
   : esc(countdown(ms)));
 // Chiffre qui change : il roule comme celui de la Saison (l'ancien sort par le bas, le nouveau entre par le haut)
 const roll = (v, old) => [...v].map((c, k) => (old.length === v.length && old[k] !== c ? `<i class="chg"><em class="o">${old[k]}</em><em>${c}</em></i>` : `<i>${c}</i>`)).join('');
+let countTo = null;   // heure visée par le compte à rebours affiché (prochaine séance, ou essais d'hiver)
 function tickCount() {
-  const nx = nextSession(), box = $('#hmCount');
-  if (!box || !nx) return;
-  if (!v3()) { box.textContent = countdown(nx.t - Date.now()); return; }
-  const v = cdParts(nx.t - Date.now());
+  const box = $('#hmCount');
+  if (!box || !countTo) return;
+  if (!v3()) { box.textContent = countdown(countTo - Date.now()); return; }
+  const v = cdParts(countTo - Date.now());
   box.querySelectorAll('b').forEach((b, i) => { if (b.dataset.v !== v[i]) { b.innerHTML = roll(v[i], b.dataset.v || ''); b.dataset.v = v[i]; } });
 }
 
@@ -548,17 +583,23 @@ function render() {
   // Hors saison (premier Grand Prix de la saison suivante à plus de 3 semaines, ou calendrier pas encore publié) : la
   // saison passée, les replays et l'actu (transferts, présentations des voitures) plutôt qu'un long compte à rebours.
   // Pas pendant la trêve d'été (prochaine manche de la même saison)
-  const off = !live && schedule && (!nx || (nx.t - Date.now() > 21 * 86400e3 && Number(nx.round) === 1));
+  // Essais d'hiver à venir ou en cours : la carte reste « Hors saison » jusqu'à leur fin, avec leur compte à rebours
   const past = nx ? nx.year - 1 : new Date().getFullYear();
+  if (!live && schedule && (!nx || Number(nx.round) === 1)) loadTests(past + 1);
+  const ts = testState(tests || []), testing = !!(ts.current || ts.next);
+  const off = !live && schedule && (!nx || (Number(nx.round) === 1 && (nx.t - Date.now() > 21 * 86400e3 || testing)));
+  countTo = off && testing ? ts.next?.start ?? null : nx?.t;
   const card = off
-    ? `<section class="hm-card hm-next hm-off"><div class="hm-next-main"><div class="hm-kicker"><span class="hm-tag">${t('Hors saison')}</span></div>
-        ${nx ? `<div class="hm-title">${flag(nx.country)}<span>${t('Saison {}', nx.year)} : ${esc(gp(nx.race))} <small>${esc(nx.label)}</small></span></div>
+    ? `<section class="hm-card hm-next hm-off${ts.current ? ' hm-tlive' : ''}"><div class="hm-next-main"><div class="hm-kicker"><span class="hm-tag">${ts.current ? `<span class="hm-dot"></span>${t('Essais en cours')}` : t('Hors saison')}</span></div>
+        ${testing ? testsHead(ts, nx, past + 1) : nx ? `<div class="hm-title">${flag(nx.country)}<span>${t('Saison {}', nx.year)} : ${esc(gp(nx.race))} <small>${esc(nx.label)}</small></span></div>
         <div class="hm-count" id="hmCount" role="timer">${countHtml(nx.t - Date.now())}</div>
         <div class="muted">${nightMark(nx.t)}${esc(when(nx.t))}</div>`
     : `<div class="hm-title">${t('Calendrier {} bientôt publié', past + 1)}</div>`}
-        <div class="hm-actions"><button class="btn btn-accent" data-home="review:${past}">${icon('trophy')} ${t('Bilan de la saison {}', past)}</button>
+        <div class="hm-actions">${ts.current ? `<button class="btn btn-accent" data-home="live">${icon('signal')} ${t('Regarder en direct')}</button>` : ''}
+          <button class="btn${ts.current ? '' : ' btn-accent'}" data-home="review:${past}">${icon('trophy')} ${t('Bilan de la saison {}', past)}</button>
           ${store.web ? '' : `<button class="btn" data-home="replays">${icon('history')} ${t('Revoir les courses')}</button>
-          <button class="btn" data-home="news">${icon('news')} ${t('Transferts et nouveautés')}</button>`}</div></div>${agendaHtml(upcomingAgenda())}</section>`
+          <button class="btn" data-home="news">${icon('news')} ${t('Transferts et nouveautés')}</button>`}</div></div>
+        ${testing ? testDaysHtml(ts) : ''}${agendaHtml(upcomingAgenda().filter((e) => !(testing && e.kind === 'tests')))}</section>`
     : live
     ? `<section class="hm-card hm-live"><div class="hm-kicker"><span class="hm-tag"><span class="hm-dot"></span>Séance en cours</span></div>
         <div class="hm-title">${esc(gp(live.race))} : ${esc(live.label)}</div>
@@ -661,7 +702,7 @@ export function openHome() {
   timer = setInterval(() => {
     tickCount();
     // Séance qui commence pendant que l'accueil est affiché : carte « en cours »
-    if (!!liveNow() !== !!$('#homeView .hm-live') || !!preRace() !== !!$('#hmPre')) render();
+    if (!!liveNow() !== !!$('#homeView .hm-live') || !!preRace() !== !!$('#hmPre') || (tests && !!testState(tests).current !== !!$('#homeView .hm-tlive'))) render();
   }, v3() ? 1e3 : 30e3);
   document.dispatchEvent(new Event('viewchange'));
 }

@@ -4,7 +4,7 @@
 // (style, tuiles, polices et icônes de la carte, lus par MapLibre) ; RainViewer : liste des images du radar de pluie
 // (images elles-mêmes : img-src https:) ; Windy : carte animée de l'onglet Météo, dans un cadre
 export const LIVE_HEADERS = {
-  'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' data: blob:; connect-src 'self' wss://app.paddocklive.app https://cloudflareinsights.com https://tiles.openfreemap.org https://api.rainviewer.com; frame-src https://embed.windy.com; font-src 'self' data:; manifest-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'",
+  'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' data: blob:; connect-src 'self' wss://app.paddocklive.app https://cloudflareinsights.com https://tiles.openfreemap.org https://api.rainviewer.com https://api.openf1.org; frame-src https://embed.windy.com; font-src 'self' data:; manifest-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'",
   'Strict-Transport-Security': 'max-age=31536000',
   'X-Frame-Options': 'DENY',
   'X-Content-Type-Options': 'nosniff',

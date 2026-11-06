@@ -405,7 +405,8 @@
 :root[data-design="v3"] :is(.hm-next, .hm-live) .muted { color: var(--text-2); }
 @media (max-width: 600px) { :root[data-design="v3"] :is(.hm-next, .hm-live, .hm-card) { padding: var(--sp-5); } :root[data-design="v3"] .home-view .hm-main { padding: var(--sp-5) var(--sp-4) 40px; } }
 :root[data-design="v3"] .hm-live { border-color: color-mix(in srgb, var(--accent) 55%, var(--border)); }
-:root[data-design="v3"] .hm-live .hm-tag { color: var(--accent-fg); }
+:root[data-design="v3"] :is(.hm-live, .hm-tlive) .hm-tag { color: var(--accent-fg); }
+:root[data-design="v3"] .hm-tlive .hm-dot { background: var(--accent); }   /* essais d'hiver en cours */
 :root[data-design="v3"] .hm-count { font: 800 clamp(40px, 11vw, 96px)/.9 var(--font-cond); letter-spacing: -.01em; margin: var(--sp-2) 0 var(--sp-1); background: none; color: var(--text); -webkit-text-fill-color: currentColor; }
 :root[data-design="v3"] .hm-next .cal-days { gap: var(--sp-2); }
 :root[data-design="v3"] .cal-day { background: var(--panel-2) !important; border: 1px solid var(--border) !important; border-radius: var(--r-sm) !important; box-shadow: none !important; }

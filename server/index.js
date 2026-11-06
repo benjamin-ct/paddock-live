@@ -8,7 +8,7 @@ import { LiveSource } from './live.js';
 import { ReplaySource, seasonIndex } from './replay.js';
 import { HttpError, request } from './net.js';
 import { circuit } from './circuits.js';
-import { season, SEASON_URL } from './season.js';
+import { season, SEASON_URL, testDays } from './season.js';
 import { findSessionContent, playback, proxy as f1tvProxy, allowHost, resolvePlaylist, localTarget } from './f1tv.js';
 import { Recorder, listRecordings, pruneRecordings, recordingPath } from './recorder.js';
 import { ROOT, settings, getConfig, saveConfig, parseF1tvToken, tokenInfo } from './config.js';
@@ -277,6 +277,11 @@ async function handleApi(req, res, url) {
       const year = yearOf(url.searchParams.get('year'));
       const d = await season(year);
       return sendJSON(res, 200, { year, races: d.races.map((r) => ({ round: r.round, name: r.name, locality: r.locality, country: r.country, circuitId: r.circuitId, lat: r.lat, lon: r.lon, sessions: r.sessions })) });
+    }
+    // Essais d'hiver (Accueil hors saison) : journées de la saison, heures quand la F1 les a publiées
+    case 'GET /api/testing': {
+      const year = yearOf(url.searchParams.get('year'));
+      return sendJSON(res, 200, { year, days: await testDays(year) });
     }
     case 'GET /api/calendar.ics': {
       const year = yearOf(url.searchParams.get('year'));

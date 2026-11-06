@@ -7,6 +7,8 @@ import path from 'node:path';
 import { getJSON } from './net.js';
 import { CACHE_DIR } from './circuits.js';
 import { summarize } from '../shared/season-data.js';
+import { openf1TestDays, indexTestDays, mergeTestDays } from '../shared/testing.js';
+import { archiveJSON } from './archive.js';
 export { summarize };
 
 // Serveur de Paddock Live (version web) : saison et autres données publiques (server/index.js, fromServer)
@@ -57,4 +59,19 @@ export async function season(year) {
 // Message lisible quand le serveur de Paddock Live ne répond pas
 function apiError(err) {
   return `serveur de Paddock Live injoignable : ${err?.message || err}`;
+}
+
+// Essais d'hiver d'une saison (Accueil hors saison) : jours du calendrier d'OpenF1, heures officielles de l'index des
+// archives de la F1 dès qu'il les a (shared/testing.js) ; relus toutes les heures, rien si les deux sont injoignables
+const OPENF1 = 'https://api.openf1.org/v1';
+const tests = new Map();
+export function testDays(year) {
+  const hit = tests.get(year);
+  if (hit && Date.now() - hit.at < 3600e3) return hit.job;
+  const job = Promise.all([
+    getJSON(`${OPENF1}/sessions?year=${year}`, { timeout: 15000 }).then(openf1TestDays).catch(() => []),
+    archiveJSON(`${year}/Index.json`, { timeout: 15000 }).then(indexTestDays).catch(() => []),
+  ]).then(([a, b]) => mergeTestDays(a, b));
+  tests.set(year, { at: Date.now(), job });
+  return job;
 }

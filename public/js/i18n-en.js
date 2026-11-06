@@ -3100,6 +3100,13 @@ export default {
   "Alertes désactivées.": "Alerts are off.",
   "Essai envoyé : il arrive dans quelques secondes.": "Test sent: it arrives in a few seconds.",
   "Alertes sur cet appareil : rappel avant chaque séance, résultats, grosses news": "Alerts on this device: reminder before each session, results, big news",
+  "Dans {} jours": "In {} days",
+  "horaires pas encore annoncés": "times not announced yet",
+  "Horaire pas encore annoncé": "Time not announced yet",
+  "Essais d’hiver {}": "{} pre-season testing",
+  "{} : en piste aujourd’hui": "{}: on track today",
+  "Premier Grand Prix": "First Grand Prix",
+  "Essais en cours": "Testing under way",
   "Copier le code": "Copy the code",
   "Code copié": "Code copied",
 };
