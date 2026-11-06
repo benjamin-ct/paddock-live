@@ -2997,4 +2997,6 @@ export default {
   "F1 · intersaison": "F1 · off-season",
   "Lancement de la saison 2027 à Milan, avec les 11 écuries": "2027 season launch in Milan, with all 11 teams",
   "Essais d’hiver à Bahreïn (4 jours)": "Pre-season testing in Bahrain (4 days)",
+  "Copier le code": "Copy the code",
+  "Code copié": "Code copied",
 };

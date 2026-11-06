@@ -2996,4 +2996,6 @@ export default {
   "F1 · intersaison": "F1 · pausa invernale",
   "Lancement de la saison 2027 à Milan, avec les 11 écuries": "Presentazione della stagione 2027 a Milano, con tutte le 11 squadre",
   "Essais d’hiver à Bahreïn (4 jours)": "Test invernali in Bahrein (4 giorni)",
+  "Copier le code": "Copia il codice",
+  "Code copié": "Codice copiato",
 };
