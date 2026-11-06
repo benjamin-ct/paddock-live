@@ -3071,4 +3071,6 @@ export default {
   "Grille provisoire : la grille définitive n'est pas encore publiée.": "Provisional grid: the final grid isn't published yet.",
   "Relire": "Reload",
   "Pneus Pirelli": "Pirelli tyres",
+  "Copier le code": "Copy the code",
+  "Code copié": "Code copied",
 };
