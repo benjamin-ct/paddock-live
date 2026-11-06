@@ -11,16 +11,17 @@ l'application (Réglages → À propos → Nouveautés).
   langues).
 
 ### En direct
+- Grand Prix au nom accentué (São Paulo) : les radios d'équipe, leur texte et leur traduction marchent de nouveau, en
+  direct comme en replay, et le replay des séances ne s'arrête plus sur « Session invalide ».
 - Télémétrie : le bouton ± à côté du délai TV ouvre de nouveau ses réglages (−5, −1, −0,1, +0,1, +1, +5 s), qui
   restaient cachés.
-- Radios d'équipe de nouveau avec le son dans l'appli : il est pris directement chez la F1 par la fenêtre de l'appli
-  (la F1 refuse désormais les programmes et les serveurs), et le texte suit le même chemin quand la F1 le permet.
+- Radios d'équipe : le son est pris directement chez la F1 par la fenêtre de l'appli, avec le serveur de l'appli en
+  secours.
 - Radios d'équipe dont la F1 ne fournit pas le son : « radio indisponible » au lieu de « pas de parole reconnue », et
   la radio ne reste plus affichée en lecture sans aucun son. Nouvel essai à la prochaine ouverture.
 
 ### Version web
-- Radios d'équipe de nouveau avec le son : il est pris directement chez la F1 par le téléphone ou l'ordinateur, la F1
-  refusant désormais les serveurs. Le texte des radios suit le même chemin quand la F1 le permet.
+- Radios d'équipe : le son est pris directement chez la F1 par le téléphone ou l'ordinateur.
 - Téléphone : les menus des réglages des radios (lecture auto, volume, vitesse), de la direction de course (drapeaux
   bleus, temps supprimés, type de messages, traduction) et des calques de la carte s'ouvrent au-dessus de la barre
   Accueil, Direct, Saison au lieu de passer dessous ; en paysage, ils ne passent plus sous le menu de gauche.

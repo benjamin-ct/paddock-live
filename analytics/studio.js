@@ -324,7 +324,7 @@ export async function feeds({ fetchFn = fetch, now = Date.now() } = {}) {
 
 async function archive(req, url, vault) {
   const p = url.searchParams.get('p') || '';
-  if (!/^\d{4}\/[\w .,'()-]+(\/[\w .,'()-]+)*\.(json|jsonStream)$/.test(p) || p.includes('..')) return json({ error: 'Chemin invalide' }, 400);
+  if (!/^\d{4}\/[\p{L}\p{N}_ .,'()-]+(\/[\p{L}\p{N}_ .,'()-]+)*\.(json|jsonStream)$/u.test(p) || p.includes('..')) return json({ error: 'Chemin invalide' }, 400);
   const ttl = p.endsWith('Index.json') ? 300 : 600;
   // Archives de la F1 : accès libre, sinon avec la connexion F1 TV de l'appli (refusées sans depuis octobre 2026)
   let res = await cached(req, ARCHIVE + p, { headers: { 'User-Agent': UA } }, ttl);
