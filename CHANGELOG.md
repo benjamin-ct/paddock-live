@@ -4,7 +4,7 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → À propos → Nouveautés).
 
-## v1.32.1 — à venir
+## v1.32.1 — 2026-11-06
 
 ### Corrections
 - Grand Prix au nom accentué (São Paulo) : le replay des séances ne s'arrête plus sur « Session invalide », et les
