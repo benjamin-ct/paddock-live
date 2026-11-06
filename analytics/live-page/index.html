@@ -125,7 +125,9 @@
     .cl-web h5 { margin: 14px 0 4px; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
     .cl-web ul { margin: 0; padding-left: 18px; } .cl-web li { margin: 4px 0; line-height: 1.45; font-size: 14px; }
     .cl-web details { border-top: 1px solid var(--line); padding: 8px 0; } .cl-web summary { cursor: pointer; font-weight: 700; }
-    #clBtn.fresh::after { content: ''; width: 7px; height: 7px; margin-left: 6px; border-radius: 50%; background: var(--red, #e10600); display: inline-block; }
+    /* Nouveautés non lues : pastille dans le coin, sans changer la largeur du bouton (la barre ne saute plus) */
+    #clBtn { position: relative; }
+    #clBtn.fresh::after { content: ''; position: absolute; top: -3px; right: -3px; width: 9px; height: 9px; border-radius: 50%; background: var(--red, #e10600); box-shadow: 0 0 0 2px var(--bg, #0b0f15); }
     .pair-close { display: flex; justify-content: flex-end; margin: -8px -8px 0 0; }
     .pair-close button { background: none; border: none; color: var(--text-2); font-size: 18px; line-height: 1; cursor: pointer; padding: 4px 8px; }
     .pair-title { margin: 0 0 12px; font-size: 18px; }
