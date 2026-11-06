@@ -126,6 +126,10 @@ l'application (Réglages → À propos → Nouveautés).
   commencé à temps qui finira après le drapeau.
 - Qualifs, trafic : avec le GPS F1 TV, la carte prévient quand une voiture en tour lancé arrive à moins de 5 s d'une
   voiture lente devant elle (« HAM arrive sur ALB (tour de lancement) à 3,1 s »), pour les trois plus proches.
+- Avancement de la course sur l'icône, au délai TV : dans l'appli de bureau, une barre sur l'icône de la barre des
+  tâches (Windows), du Dock (Mac) et des docks Linux qui l'acceptent, rouge sous drapeau rouge et jaune sous voiture de
+  sécurité (couleurs sous Windows) ; dans la version web installée, les tours restants en pastille sur l'icône (sur
+  iPhone, seulement si les notifications sont déjà permises). Effacés à l'arrivée, hors course et replay en pause.
 
 ### Version web
 - Connexion F1 TV au téléphone : bouton « Copier le code » sous le code à 8 chiffres (il n'était pas possible de le

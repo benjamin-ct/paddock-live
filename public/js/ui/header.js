@@ -1,7 +1,7 @@
 // En-tête : session, drapeau/état de la piste, tour, temps restant, météo, source.
 import { store, f1Now, versionOf } from '../store.js';
 import { $, esc, api, fmtDuration, sessionKind, currentStint } from '../util.js';
-import { trackStatusInfo, SESSION_STATUS_FR } from '/shared/f1.js';
+import { trackStatusInfo, SESSION_STATUS_FR, raceProgress } from '/shared/f1.js';
 import { FLAG_ISO } from '/shared/flags.js';
 import { gpShort, gpFull, sessionLabel } from '/shared/gp-names.js';
 import { EN, LANG, LOCALE, DEC, DAY, t } from '../i18n.js';
@@ -21,6 +21,7 @@ let lastVer = -1;
 export function renderHeader() {
   // Entre deux séances : le prochain Grand Prix plutôt que le dernier direct
   const nx = upcoming();
+  raceIcon(nx || store.status?.paused ? null : raceProgress(store.state, sessionKind(store.state)));
   // Hors séance : la case « Tours » (tours de la course à venir) masquée en Télémétrie (design-v3.css)
   $('.topbar')?.classList.toggle('tb-upcoming', !!nx);
   if (nx) { renderUpcoming(nx); return; }
@@ -196,6 +197,18 @@ function parseGmtOffset(v) {
 }
 
 // Barre de progression de la course (tour en cours / total)
+// Avancement de la course sur l'icône, au délai TV (fenêtre principale) : barre de l'appli de bureau ; tours restants
+// en pastille de la version web installée (sur iPhone, visible seulement si les notifications sont déjà permises :
+// la permission n'est jamais demandée pour ça). Effacées hors course, à l'arrivée et replay en pause
+let iconKey = null;
+function raceIcon(p) {
+  const key = p ? `${p.progress.toFixed(3)}|${p.mode}|${p.left}` : '';
+  if (POPOUT || key === iconKey) return;
+  iconKey = key;
+  if (window.f1desktop) window.f1desktop.setRaceProgress(p && { progress: p.progress, mode: p.mode });
+  else if (navigator.setAppBadge) (p ? navigator.setAppBadge(p.left) : navigator.clearAppBadge()).catch(() => {});
+}
+
 function lapBar(frac) {
   const bar = $('#lapBar');
   bar.hidden = frac === null;
