@@ -11,8 +11,6 @@ l'application (Réglages → À propos → Nouveautés).
   langues).
 
 ### En direct
-- Grand Prix au nom accentué (São Paulo) : les radios d'équipe, leur texte et leur traduction marchent de nouveau, en
-  direct comme en replay, et le replay des séances ne s'arrête plus sur « Session invalide ».
 - Télémétrie : le bouton ± à côté du délai TV ouvre de nouveau ses réglages (−5, −1, −0,1, +0,1, +1, +5 s), qui
   restaient cachés.
 - Radios d'équipe : le son est pris directement chez la F1 par la fenêtre de l'appli, avec le serveur de l'appli en
@@ -31,6 +29,12 @@ l'application (Réglages → À propos → Nouveautés).
 - Téléphone : l'engrenage des réglages du direct est bien centré dans son bouton.
 - iPhone, Paddock Live ajouté à l'écran d'accueil : la barre Accueil, Direct, Saison reste en bas de l'écran au lieu
   de remonter au milieu en faisant défiler (défaut de Safari sur iOS 26).
+
+## v1.32.1 — 2026-11-06
+
+### Corrections
+- Grand Prix au nom accentué (São Paulo) : le replay des séances ne s'arrête plus sur « Session invalide », et les
+  radios d'équipe (son et texte) marchent de nouveau, en direct comme en replay.
 
 ## v1.32.0 — 2026-11-06
 
