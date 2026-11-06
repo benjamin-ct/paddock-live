@@ -119,6 +119,7 @@ export default {
   "(occasion)": "(usados)",
   "(ou formula1.com) dans votre navigateur.": "(o formula1.com) en tu navegador.",
   "(pas de parole reconnue)": "(no se ha reconocido voz)",
+  "(radio indisponible : son non fourni par la F1)": "(radio no disponible: la F1 no ha facilitado el audio)",
   "(position estimée)": "(posición estimada)",
   "(purgée)": "(cumplida)",
   "(réglage manuel)": "(ajuste manual)",

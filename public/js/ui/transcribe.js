@@ -88,7 +88,7 @@ function setStatus(state, msg = '') {
 function save() {
   const keys = Object.keys(texts);
   if (keys.length > MAX_KEEP) for (const k of keys.slice(0, keys.length - MAX_KEEP)) delete texts[k];
-  storageSet(KEY, texts);
+  storageSet(KEY, Object.fromEntries(Object.entries(texts).filter(([, v]) => !v.na)));
 }
 
 export function setTranscribe(on, language) {
@@ -164,8 +164,9 @@ async function pump() {
       const c = await cloudTranscribe(task.url);
       if (!c) {
         if (!cloudAsrOn()) { later(task, 'Transcription'); return; }
-        // Refusée par le serveur (radio introuvable dans les archives…) : sans texte
-        texts[task.url] = { en: '', tr: {} };
+        // Refusée par le serveur (fichier son que la F1 n'a pas donné) : radio indisponible, pas « sans parole » ;
+        // pas gardée d'une ouverture à l'autre (nouvel essai)
+        texts[task.url] = { en: '', tr: {}, na: true };
       } else {
         const en = collapseLoops(c.text);
         texts[task.url] = { en, tr: {}, tq: {}, q: 'cloud', ...(c.d ? { d: c.d } : {}) };

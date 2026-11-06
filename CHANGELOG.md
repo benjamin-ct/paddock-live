@@ -10,6 +10,10 @@ l'application (Réglages → À propos → Nouveautés).
 - Entre deux week-ends de course, un lien sous les raccourcis mène au jeu du jour « Devine le circuit » sur le site
   (en anglais pour les autres langues).
 
+### En direct
+- Radios d'équipe dont la F1 ne fournit pas le son : « radio indisponible » au lieu de « pas de parole reconnue », et
+  la radio ne reste plus affichée en lecture sans aucun son. Nouvel essai à la prochaine ouverture.
+
 ### Version web
 - Téléphone : les menus des réglages des radios (lecture auto, volume, vitesse), de la direction de course (drapeaux
   bleus, temps supprimés, type de messages, traduction) et des calques de la carte s'ouvrent au-dessus de la barre
