@@ -71,6 +71,23 @@ export function buildIcs(races, { year, round = null, alarmMin = 15, now = Date.
   return `${lines.map(fold).join('\r\n')}\r\n`;
 }
 
+// Dates sans heure (agenda de l'intersaison) : une journée entière, ou plusieurs jusqu'à « end » compris.
+// events : [{ date: 'AAAA-MM-JJ', end?, title (déjà dans la langue de l'interface), key? (identifiant, sinon le titre), link? }]
+const ymd = (s) => s.replace(/-/g, '');
+const nextDay = (s) => new Date(Date.parse(`${s}T00:00:00Z`) + 86400e3).toISOString().slice(0, 10);
+export function buildDayIcs(events, { name = 'F1', now = Date.now() } = {}) {
+  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Paddock Live//Calendrier F1//FR', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', `X-WR-CALNAME:${text(name)}`];
+  for (const e of events) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(e.date || '')) continue;
+    const slug = String(e.key ?? e.title).toLowerCase().normalize('NFD').replace(/[^a-z0-9]+/g, '-').slice(0, 40);
+    lines.push('BEGIN:VEVENT', `UID:paddock-${ymd(e.date)}-${slug}@paddock-live`, `DTSTAMP:${stamp(now)}`,
+      `DTSTART;VALUE=DATE:${ymd(e.date)}`, `DTEND;VALUE=DATE:${ymd(nextDay(e.end || e.date))}`, `SUMMARY:${text(e.title)}`,
+      ...(e.link ? [`URL:${e.link}`, `DESCRIPTION:${text(e.link)}`] : []), 'TRANSP:TRANSPARENT', 'END:VEVENT');
+  }
+  lines.push('END:VCALENDAR');
+  return `${lines.map(fold).join('\r\n')}\r\n`;
+}
+
 // Rappels à faire : séances qui commencent dans les « beforeMin » prochaines minutes et pas encore
 // rappelées (done : clés « début|séance »)
 export function dueReminders(list, now, beforeMin, done) {

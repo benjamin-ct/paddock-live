@@ -19,6 +19,9 @@ l'application (Réglages → À propos → Nouveautés).
   calendrier de la Saison), comme Las Vegas à 5 h du matin en Europe.
 - Compte à rebours de l'Accueil : comme celui de la Saison, le chiffre qui change roule (l'ancien descend, le nouveau
   arrive d'en haut), sauf si les animations sont coupées.
+- Hors saison, l'Accueil montre les prochaines dates de l'intersaison annoncées officiellement (lancement de la saison
+  2027 à Milan avec les 11 écuries, essais d'hiver à Bahreïn), chacune avec le lien de son annonce, et les ajoute
+  toutes à son agenda d'un clic.
 
 ### Affichage
 - Téléphone et tablette : plus de zoom quand on touche deux fois vite un menu ou une rubrique (le zoom à deux doigts

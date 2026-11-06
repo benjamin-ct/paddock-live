@@ -2989,6 +2989,13 @@ export default {
   "Nouveaux pilotes": "Nuovi piloti",
   "aucun pour l'instant": "nessuno per ora",
   "Annonces officielles seulement : communiqué de l'écurie ou de la F1. Un baquet sans annonce reste « à confirmer », sans nom, même quand la presse cite un favori. À jour au {}.": "Solo annunci ufficiali: comunicato della squadra o della F1. Un sedile senza annuncio resta «da confermare», senza nome, anche quando la stampa indica un favorito. Aggiornato al {}.",
+  "Annonces officielles seulement : communiqué de l'écurie ou de la F1, ou déclaration officielle d'un dirigeant de l'écurie. Un baquet sans annonce reste « à confirmer », sans nom, même quand la presse cite un favori. À jour au {}.": "Solo annunci ufficiali: comunicato della squadra o della F1, oppure dichiarazione ufficiale di un dirigente della squadra. Un sedile senza annuncio resta «da confermare», senza nome, anche quando la stampa indica un favorito. Aggiornato al {}.",
+  "Prochaines dates": "Prossime date",
+  "Google Agenda, Apple Calendrier, Outlook…": "Google Calendar, Calendario di Apple, Outlook…",
+  "Ajouter ces dates à mon agenda": "Aggiungi queste date al mio calendario",
+  "F1 · intersaison": "F1 · pausa invernale",
+  "Lancement de la saison 2027 à Milan, avec les 11 écuries": "Presentazione della stagione 2027 a Milano, con tutte le 11 squadre",
+  "Essais d’hiver à Bahreïn (4 jours)": "Test invernali in Bahrein (4 giorni)",
   "Copier le code": "Copia il codice",
   "Code copié": "Codice copiato",
 };
