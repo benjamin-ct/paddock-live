@@ -492,6 +492,13 @@ ipcMain.handle('float-bounds-get', (e) => {
   const w = BrowserWindow.fromWebContents(e.sender);
   return w && !w.isDestroyed() ? w.getBounds() : null;
 });
+// Avancement de la course sur l'icône (barre des tâches de Windows, Dock de macOS, docks Linux compatibles), envoyé par
+// la fenêtre principale seulement ; rouge (drapeau rouge) et jaune (voiture de sécurité) : sous Windows seulement
+ipcMain.on('race-progress', (e, p) => {
+  if (!mainWindow || mainWindow.isDestroyed() || e.sender !== mainWindow.webContents) return;
+  const v = Number(p?.progress);
+  mainWindow.setProgressBar(Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : -1, { mode: ['error', 'paused'].includes(p?.mode) ? p.mode : 'normal' });
+});
 ipcMain.handle('window-focus', (e) => {
   const w = BrowserWindow.fromWebContents(e.sender);
   if (!w) return false;

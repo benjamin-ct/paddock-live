@@ -141,6 +141,18 @@ export function trackStatusInfo(status) {
   return TRACK_STATUS[String(status)] || { label: 'Statut inconnu', short: '—', color: 'none' };
 }
 
+// Avancement de la course pour l'icône de l'appli (état retardé, comme le classement ; kind : sessionKind de util.js) :
+// { progress 0-1 (tour en cours / tours), mode ('error' drapeau rouge, 'paused' voiture de sécurité ou VSC, sinon
+// 'normal'), left : tours restants, le tour en cours compris } ; null hors course, sans tours connus et à l'arrivée
+export function raceProgress(state, kind) {
+  const status = state.SessionStatus?.Status || state.SessionInfo?.SessionStatus;
+  const cur = Number(state.LapCount?.CurrentLap) || 0, total = Number(state.LapCount?.TotalLaps) || 0;
+  if (kind !== 'race' || !cur || !total || ['Finished', 'Finalised', 'Ends'].includes(status)) return null;
+  const color = trackStatusInfo(state.TrackStatus?.Status).color;
+  const mode = status === 'Aborted' || color === 'red' ? 'error' : color === 'sc' || color === 'vsc' ? 'paused' : 'normal';
+  return { progress: Math.min(1, cur / total), mode, left: Math.max(0, total - cur + 1) };
+}
+
 export const SESSION_STATUS_FR = {
   Inactive: 'Pas commencée',
   Started: 'En cours',

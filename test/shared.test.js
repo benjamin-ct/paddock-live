@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { merge } from '../shared/merge.js';
-import { parseGap, parseLapTime, parseUtc, chequeredUtc, overtakeEnabled, catchLaps } from '../shared/f1.js';
+import { parseGap, parseLapTime, parseUtc, chequeredUtc, overtakeEnabled, catchLaps, raceProgress } from '../shared/f1.js';
 import { applyEvent, createDerived, createSyncContext, extractSyncEvents } from '../shared/derive.js';
 
 test('merge : mises à jour indexées dans un tableau', () => {
@@ -128,4 +128,20 @@ test('carte : voiture arrêtée encore en course seulement sous drapeau rouge, d
   assert.equal(stoppedInRace(lines[44], false, lines), false, 'sans drapeau rouge : arrêtée = hors course');
   assert.equal(stoppedInRace(lines[77], true, lines), false, 'arrêtée en piste (Bottas)');
   assert.equal(stoppedInRace(lines[18], true, lines), false, 'abandon au tour 5 (Stroll)');
+});
+
+test('raceProgress : avancement de la course sur l\'icône (tours, drapeau rouge, voiture de sécurité)', () => {
+  const race = (status, track, lc = { CurrentLap: 14, TotalLaps: 56 }) => ({ SessionStatus: { Status: status }, TrackStatus: { Status: track }, LapCount: lc });
+  assert.deepEqual(raceProgress(race('Started', '1'), 'race'), { progress: 0.25, mode: 'normal', left: 43 });
+  assert.equal(raceProgress(race('Started', '2'), 'race').mode, 'normal', 'drapeau jaune : barre normale');
+  assert.equal(raceProgress(race('Started', '5'), 'race').mode, 'error', 'drapeau rouge');
+  assert.equal(raceProgress(race('Aborted', '1'), 'race').mode, 'error', 'course interrompue');
+  assert.equal(raceProgress(race('Started', '4'), 'race').mode, 'paused', 'voiture de sécurité');
+  assert.equal(raceProgress(race('Started', '6'), 'race').mode, 'paused', 'VSC');
+  assert.deepEqual(raceProgress(race('Started', '1', { CurrentLap: '56', TotalLaps: '56' }), 'race'), { progress: 1, mode: 'normal', left: 1 }, 'dernier tour');
+  assert.equal(raceProgress(race('Finished', '1'), 'race'), null, 'arrivée');
+  assert.equal(raceProgress(race('Finalised', '1'), 'race'), null);
+  assert.equal(raceProgress(race('Started', '1'), 'quali'), null, 'hors course');
+  assert.equal(raceProgress(race('Started', '1', { TotalLaps: 56 }), 'race'), null, 'tour inconnu');
+  assert.equal(raceProgress({}, 'race'), null, 'pas de données');
 });
