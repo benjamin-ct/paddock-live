@@ -1,8 +1,9 @@
 // Alertes sur le téléphone pour tout le monde, même loin de l'ordinateur : page paddocklive.app/alertes/
 // (ajoutée à l'écran d'accueil sur iPhone), abonnée par Web Push (standard des navigateurs, gratuit) à
-// trois sujets au choix : rappel 30 minutes avant chaque séance, résultats (ils dévoilent la course : à
+// trois sujets au choix : rappel 30 minutes avant chaque séance (et la veille vers 21 h quand elle tombe entre minuit et
+// 7 h chez soi), résultats (ils dévoilent la course : à
 // cocher soi-même), grosses news. Abonnements dans push_subs (adresse du service de notification et clés de
-// chiffrement du téléphone, sujets, langue : rien d'autre) ; messages en file dans push_out, envoyés par
+// chiffrement du téléphone, sujets, langue, fuseau horaire : rien d'autre) ; messages en file dans push_out, envoyés par
 // lots chaque minute (appels du Worker à lui-même, avec leurs propres limites), enchaînés tant qu'il en reste (worker.js).
 import { vapidKeys, sendPush, validSubscription } from './alerts.js';
 import { ipQuota, callerIp } from './quota.js';
@@ -16,6 +17,13 @@ const BATCH = 40;                // envois par appel (sous la limite de sous-req
 const STALE = 6 * 3600e3;        // message pas encore parti au bout de 6 h : abandonné
 const REMIND = 30 * 60e3;        // rappel 30 minutes avant la séance
 const ALERTES = '/alertes/';
+const EVE = 'eve@';              // sujet interne « veille au soir » : eve@Europe/Paris, toujours en dernier dans topics
+
+// Fuseau envoyé par la page (Intl) : nom IANA connu du moteur, sinon rien
+export function cleanTz(tz) {
+  if (typeof tz !== 'string' || tz.length > 64 || !/^[A-Za-z]+(\/[A-Za-z0-9_+-]+)+$/.test(tz)) return null;
+  try { new Intl.DateTimeFormat('en', { timeZone: tz }); return tz; } catch { return null; }
+}
 
 const json = (obj, status = 200) => new Response(JSON.stringify(obj), { status, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' } });
 const cleanTopics = (t) => (Array.isArray(t) ? TOPICS.filter((x) => t.includes(x)) : []);
@@ -40,8 +48,9 @@ export async function publicPushApi(req, env, path) {
     }
     const known = await env.DB.prepare('SELECT 1 FROM push_subs WHERE endpoint = ?1').bind(s.endpoint).first();
     if (!known && ((await env.DB.prepare('SELECT COUNT(*) AS n FROM push_subs').first())?.n || 0) >= MAX_SUBS) return json({ error: 'Trop d\'abonnés pour le moment, réessayez plus tard' }, 503);
+    const tz = topics.includes('sessions') && cleanTz(body?.tz);
     await env.DB.prepare('INSERT INTO push_subs (endpoint, p256dh, auth, topics, lang, at) VALUES (?1, ?2, ?3, ?4, ?5, ?6) ON CONFLICT (endpoint) DO UPDATE SET p256dh = excluded.p256dh, auth = excluded.auth, topics = excluded.topics, lang = excluded.lang')
-      .bind(s.endpoint, s.keys.p256dh, s.keys.auth, topics.join(','), body?.lang === 'en' ? 'en' : 'fr', Date.now()).run();
+      .bind(s.endpoint, s.keys.p256dh, s.keys.auth, [...topics, ...(tz ? [EVE + tz] : [])].join(','), body?.lang === 'en' ? 'en' : 'fr', Date.now()).run();
     return json({ ok: true, topics });
   }
   if (path === 'off') {
@@ -90,6 +99,54 @@ export function sessionReminders(season, now = Date.now()) {
     }
   }
   return out;
+}
+
+// Veille au soir (21 h à 21 h 10 chez l'abonné) : séances qui commencent entre minuit et 7 h la nuit suivante, dans
+// chacun des fuseaux des abonnés (tzs). Une fois par fuseau et par soir.
+const localOf = (ms, tz) => {
+  const p = Object.fromEntries(new Intl.DateTimeFormat('en-GB', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+    .formatToParts(ms).map((x) => [x.type, x.value]));
+  return { day: `${p.year}-${p.month}-${p.day}`, h: +p.hour, m: +p.minute };
+};
+const hourFr = ({ h, m }) => `${h} h${m ? ` ${String(m).padStart(2, '0')}` : ''}`;
+const hourEn = ({ h, m }) => `${h || 12}:${String(m).padStart(2, '0')} am`;
+// Séances dans 2 h 30 à 10 h 30 : les seules qui peuvent tomber dans la nuit qui suit 21 h quelque part
+export function eveSoon(season, now = Date.now()) {
+  const soon = [];
+  for (const r of season?.races || []) for (const s of r.sessions || []) {
+    const t = Date.parse(s.t);
+    if (t - now > 2.5 * 3600e3 && t - now <= 10.5 * 3600e3) soon.push({ r, s, t });
+  }
+  return soon;
+}
+export function eveReminders(season, tzs, now = Date.now()) {
+  const soon = eveSoon(season, now);
+  const out = [];
+  if (!soon.length) return out;
+  for (const tz of tzs) {
+    const here = localOf(now, tz);
+    if (here.h !== 21 || here.m >= 10) continue;
+    const tomorrow = localOf(now + 12 * 3600e3, tz).day;
+    const night = soon.map((x) => ({ ...x, at: localOf(x.t, tz) })).filter((x) => x.at.day === tomorrow && x.at.h < 7).sort((a, b) => a.t - b.t);
+    if (!night.length) continue;
+    const gp = night[0].r;
+    out.push({
+      k: `eve:${tz}:${here.day}`,
+      topic: EVE + tz,
+      msg: {
+        fr: { title: `Cette nuit : ${night.map((x) => `${FR_SESSION[x.s.label] || x.s.label} à ${hourFr(x.at)}`).join(', ')}`, body: `${gpFull(gp.name)} · rappel 30 minutes avant` },
+        en: { title: `Overnight: ${night.map((x) => `${EN_SESSION[x.s.label] || x.s.label} at ${hourEn(x.at)}`).join(', ')}`, body: `${gpFull(gp.name, true)} · reminder 30 minutes before` },
+        url: ALERTES,
+      },
+    });
+  }
+  return out;
+}
+
+// Fuseaux des abonnés au rappel de la veille (sujet eve@…, en dernier dans topics)
+export async function eveZones(env) {
+  const { results = [] } = await env.DB.prepare('SELECT DISTINCT substr(topics, instr(topics, ?1) + 4) AS tz FROM push_subs WHERE instr(topics, ?1) > 0').bind(EVE).all();
+  return results.map((x) => cleanTz(x.tz)).filter(Boolean);
 }
 
 // Résultats parus depuis la lecture précédente de la saison (vainqueur, poleman) : seulement pour ceux qui

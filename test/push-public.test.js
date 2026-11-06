@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { sessionReminders, resultMessages, pushRun, queuePush, publicPushApi } from '../analytics/push-public.js';
+import { sessionReminders, resultMessages, pushRun, queuePush, publicPushApi, eveReminders, eveZones, cleanTz } from '../analytics/push-public.js';
 
 const season = { races: [{ round: 19, name: 'United States Grand Prix', date: '2026-10-25T19:00:00Z', sessions: [{ label: 'Qualifications', t: '2026-10-24T21:00:00Z' }, { label: 'Course', t: '2026-10-25T19:00:00Z' }] }] };
 
@@ -24,6 +24,23 @@ test('alertes du téléphone : résultats parus depuis la lecture précédente s
   assert.equal(m[0].msg.en.title, 'Max Verstappen wins');
 });
 
+test('alertes du téléphone : la veille à 21 h, séances entre minuit et 7 h chez l\'abonné (Las Vegas)', () => {
+  const vegas = { races: [{ round: 22, name: 'Las Vegas Grand Prix', sessions: [{ label: 'Qualifications', t: '2026-11-21T04:00:00Z' }, { label: 'Course', t: '2026-11-22T04:00:00Z' }] }] };
+  const tzs = ['Europe/Paris', 'America/New_York', 'Asia/Tokyo'];
+  const r = eveReminders(vegas, tzs, Date.parse('2026-11-20T20:03:00Z'));   // 21 h 03 à Paris
+  assert.equal(r.length, 1);
+  assert.equal(r[0].topic, 'eve@Europe/Paris');
+  assert.equal(r[0].k, 'eve:Europe/Paris:2026-11-20');
+  assert.equal(r[0].msg.fr.title, 'Cette nuit : Qualifications à 5 h');
+  assert.equal(r[0].msg.fr.body, 'Grand Prix de Las Vegas · rappel 30 minutes avant');
+  assert.equal(r[0].msg.en.title, 'Overnight: Qualifying at 5:00 am');
+  assert.equal(eveReminders(vegas, tzs, Date.parse('2026-11-20T20:12:00Z')).length, 0, 'après 21 h 10 : plus de rappel');
+  assert.equal(eveReminders(vegas, ['America/New_York'], Date.parse('2026-11-21T02:00:00Z')).length, 0, 'New York : 23 h le jour même, pas la nuit');
+  assert.equal(eveReminders({ races: [] }, tzs, Date.parse('2026-11-20T20:03:00Z')).length, 0);
+  assert.equal(cleanTz('Europe/Paris'), 'Europe/Paris');
+  for (const bad of ['Mars/Olympus', 'UTC', '../x', 'Europe/Paris,news', 42]) assert.equal(cleanTz(bad), null, String(bad));
+});
+
 // Base réduite aux requêtes des alertes
 function fakeDB() {
   const subs = new Map(), out = [], sent = new Set();
@@ -44,6 +61,7 @@ function fakeDB() {
         return col ? null : null;
       },
       async all() {
+        if (/DISTINCT substr/.test(sql)) return { results: [...new Set([...subs.values()].filter((s) => s.topics.includes(a[0])).map((s) => s.topics.slice(s.topics.indexOf(a[0]) + 4)))].map((tz) => ({ tz })) };
         const list = [...subs.values()].filter((s) => `,${s.topics},`.includes(a[0]) && s.endpoint > a[1]).sort((x, y) => (x.endpoint < y.endpoint ? -1 : 1)).slice(0, a[2]);
         return { results: list };
       },
@@ -80,6 +98,16 @@ test('alertes du téléphone : abonnement vérifié, file envoyée par lots, abo
   assert.equal((await post('sub', { subscription: { endpoint: 'https://pirate.example/x', keys: { p256dh, auth } }, topics: ['news'] })).status, 400);
   for (let i = 0; i < 5; i++) assert.equal((await post('sub', { subscription: sub(i), topics: i === 4 ? ['news'] : ['sessions', 'news', 'inconnu'], lang: i === 1 ? 'en' : 'fr' })).status, 200);
   assert.equal(DB.subs.get(sub(0).endpoint).topics, 'sessions,news');
+  // Fuseau gardé avec le rappel des séances seulement (sujet interne en dernier), jamais renvoyé à la page
+  const withTz = await (await post('sub', { subscription: sub(5), topics: ['sessions'], lang: 'fr', tz: 'Europe/Paris' })).json();
+  assert.deepEqual(withTz.topics, ['sessions']);
+  assert.equal(DB.subs.get(sub(5).endpoint).topics, 'sessions,eve@Europe/Paris');
+  await post('sub', { subscription: sub(6), topics: ['news'], tz: 'Asia/Tokyo' });
+  await post('sub', { subscription: sub(7), topics: ['sessions'], tz: 'Pas/Un,fuseau' });
+  assert.equal(DB.subs.get(sub(6).endpoint).topics, 'news');
+  assert.equal(DB.subs.get(sub(7).endpoint).topics, 'sessions');
+  assert.deepEqual(await eveZones(env), ['Europe/Paris']);
+  for (const i of [5, 6, 7]) await post('sub', { subscription: sub(i), topics: [] });
   assert.equal((await (await publicPushApi(new Request('https://p.test/a/key'), env, 'key')).json()).key.length, 87);
 
   assert.equal(await queuePush(env, 'remind:x', 'sessions', { fr: { title: 'Course dans 30 minutes', body: 'GP' }, en: { title: 'Race in 30 minutes', body: 'GP' }, url: '/alertes/' }), true);

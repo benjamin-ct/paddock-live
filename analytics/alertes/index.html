@@ -79,7 +79,7 @@ footer a { color: #ff5a4f; }
   <p class="note" id="ios" hidden data-en="On iPhone, <b>first add this page to your home screen</b> (Share button → « Add to Home Screen »), then open it from its icon to turn alerts on.">Sur iPhone, <b>ajoute d'abord cette page à l'écran d'accueil</b> (bouton Partager → « Sur l'écran d'accueil »), puis ouvre-la depuis son icône pour activer les alertes.</p>
   <p class="note" id="nosupport" hidden data-en="This browser can't receive notifications. Try Chrome, Firefox, Edge or Safari (iPhone: from the home screen).">Ce navigateur ne peut pas recevoir de notifications. Essaie Chrome, Firefox, Edge ou Safari (iPhone : depuis l'écran d'accueil).</p>
 
-  <label class="topic"><input type="checkbox" name="t" value="sessions" checked><span><b data-en="Before each session">Avant chaque séance</b><small data-en="30 minutes before practice, qualifying, sprint and race.">30 minutes avant les essais, les qualifs, le sprint et la course.</small></span></label>
+  <label class="topic"><input type="checkbox" name="t" value="sessions" checked><span><b data-en="Before each session">Avant chaque séance</b><small data-en="30 minutes before practice, qualifying, sprint and race, and the evening before (9 pm) when a session falls in the middle of your night.">30 minutes avant les essais, les qualifs, le sprint et la course, et la veille à 21 h quand une séance tombe en pleine nuit chez toi.</small></span></label>
   <label class="topic warn"><input type="checkbox" name="t" value="results"><span><b data-en="Results">Résultats</b><small data-en="Winner and pole as soon as they're published. <em>Spoils the race if you watch it later.</em>">Vainqueur et pole dès leur publication. <em>Dévoile la course si tu la regardes plus tard.</em></small></span></label>
   <label class="topic"><input type="checkbox" name="t" value="news" checked><span><b data-en="Big news">Grosses news</b><small data-en="Transfers, penalties, official announcements: a few times a week at most.">Transferts, pénalités, annonces officielles : quelques fois par semaine au plus.</small></span></label>
 
@@ -91,7 +91,7 @@ footer a { color: #ff5a4f; }
   <p id="state" role="status"></p>
 
   <footer>
-    <p data-en="Kept on our server: your phone's notification address and keys, your topics and language. Nothing else, no account. Deleted when you turn alerts off.">Gardés sur notre serveur : l'adresse de notification et les clés de ton téléphone, tes sujets et ta langue. Rien d'autre, sans compte. Effacés quand tu désactives les alertes.</p>
+    <p data-en="Kept on our server: your phone's notification address and keys, your topics, language and time zone. Nothing else, no account. Deleted when you turn alerts off.">Gardés sur notre serveur : l'adresse de notification et les clés de ton téléphone, tes sujets, ta langue et ton fuseau horaire. Rien d'autre, sans compte. Effacés quand tu désactives les alertes.</p>
     <p><a href="/legal/privacy#alertes" data-en="Privacy">Confidentialité</a> · <a href="/" data-en="Paddock Live, the app">Paddock Live, l'appli</a></p>
   </footer>
 </div>
@@ -129,6 +129,9 @@ $('#ios').hidden = !ios;
 $('#nosupport').hidden = ios || supported;
 let reg = null;
 let sub = null;
+// Fuseau du téléphone : rappel de la veille à 21 h chez soi (abonnement d'avant, ou fuseau changé : renvoyé à l'ouverture)
+let TZ = '';
+try { TZ = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch { /* moteur sans fuseau */ }
 
 function show(on) {
   $('#on').hidden = on;
@@ -144,13 +147,16 @@ async function init() {
   if (sub && Array.isArray(mine)) for (const x of document.querySelectorAll('input[name=t]')) x.checked = mine.includes(x.value);
   show(!!sub);
   if (sub) say(t('Alertes actives sur ce téléphone.', 'Alerts are on for this phone.'), 'ok');
+  let tzSent = null;
+  try { tzSent = localStorage.getItem('alertes.tz'); } catch { /* stockage bloqué */ }
+  if (sub && Array.isArray(mine) && TZ && tzSent !== TZ) await save().catch(() => {});
 }
 
 async function save() {
   const list = topics();
   if (!list.length) return off();
-  await api('sub', { subscription: sub.toJSON(), topics: list, lang: en ? 'en' : 'fr' });
-  try { localStorage.setItem('alertes.topics', JSON.stringify(list)); } catch { /* stockage bloqué */ }
+  await api('sub', { subscription: sub.toJSON(), topics: list, lang: en ? 'en' : 'fr', tz: TZ });
+  try { localStorage.setItem('alertes.topics', JSON.stringify(list)); localStorage.setItem('alertes.tz', TZ); } catch { /* stockage bloqué */ }
   show(true);
   say(t('Alertes actives sur ce téléphone.', 'Alerts are on for this phone.'), 'ok');
 }

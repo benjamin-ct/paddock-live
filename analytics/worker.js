@@ -29,7 +29,7 @@ import { buildIcs } from '../shared/ics.js';
 import { pronosApi, GROUP_RE } from './pronos.js';
 import { pruneIpQuota, callerIp, ipQuota } from './quota.js';
 import { healthCheck, HEALTH } from './health.js';
-import { publicPushApi, pushRun, queuePush, sessionReminders } from './push-public.js';
+import { publicPushApi, pushRun, queuePush, sessionReminders, eveSoon, eveReminders, eveZones } from './push-public.js';
 import { liveSocket, liveApi } from './live-relay.js';
 import { statsTick } from './race-stats.js';
 import { fiaTick } from './fia-tech.js';
@@ -433,6 +433,10 @@ const PUSH_LOTS = 50, PUSH_MS = 40e3;
 export async function publicPush(env, now, clock = Date.now) {
   const row = JSON.parse(await env.DB.prepare('SELECT v FROM studio WHERE k = ?1').bind(`season:${new Date(now).getUTCFullYear()}`).first('v') || 'null');
   for (const r of sessionReminders(row?.v, now)) await queuePush(env, r.k, 'sessions', r.msg, now);
+  // Veille au soir : fuseaux lus seulement aux minutes où il peut être 21 h pile quelque part (décalages par quarts d'heure)
+  if (new Date(now).getUTCMinutes() % 15 < 2 && eveSoon(row?.v, now).length) {
+    for (const r of eveReminders(row.v, await eveZones(env), now)) await queuePush(env, r.k, r.topic, r.msg, now);
+  }
   const left = async () => !!(await env.DB.prepare('SELECT 1 FROM push_out LIMIT 1').first());
   if (!(await left())) return;
   if (!env.SELF || !env.STATS_KEY) { await pushRun(env, { now }); return; }
