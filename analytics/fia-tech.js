@@ -5,6 +5,7 @@
 import { getRow, setRow, rowsWithPrefix } from './alerts.js';
 import { BASE, CHAMPIONSHIP, parseDocumentList, parseSeasons, seasonEventList, pickEvent } from '../shared/fia-list.js';
 import { FIA_VERSION, pdfPages, eventData } from '../shared/fia-tech.js';
+import { gridDocument, parseStartingGrid } from '../shared/fia-grid.js';
 import { translateBatch } from './translate.js';
 
 const UA = 'Mozilla/5.0 (Paddock-Live web relay)';
@@ -70,6 +71,14 @@ async function parsed(env, url, parser, fetchFn) {
   const data = parser(await pdfPages(new Uint8Array(await (await get(url, fetchFn)).arrayBuffer())));
   await setRow(env, k, JSON.stringify({ v: FIA_VERSION, data }));
   return data;
+}
+
+// Grille de départ officielle d'un Grand Prix (carte « Avant le départ » de l'accueil) : document le plus récent de la
+// FIA, définitif de préférence (shared/fia-grid.js), lu une fois ; grid null tant qu'aucune grille n'est publiée
+export async function fiaGridWeb(env, year, meeting, { sprint = false, fetchFn = fetch } = {}) {
+  const doc = gridDocument((await fiaDocsWeb(year, meeting, { fetchFn })).docs, { sprint });
+  const grid = doc && await parsed(env, doc.url, parseStartingGrid, fetchFn);
+  return { grid: grid ? { ...grid, title: doc.title, published: doc.published } : null };
 }
 
 // Épreuves déjà lues de l'année : page -> { v, at, data } (data null : pas de documents). Lecture d'une version

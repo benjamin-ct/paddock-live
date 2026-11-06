@@ -3287,7 +3287,7 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; gap: 5
 .hm-trend, .hm-ctx { display: flex; flex-wrap: wrap; align-items: center; gap: 0 6px; min-width: 0; font-size: 12.5px; color: var(--text-2); }
 .hm-ctx { color: var(--muted); }
 .hm-trend b { color: var(--text); }
-.hm-trend :is(.team-logo, .drv-bar) { width: 4px; height: 14px; border-radius: 2px; background: var(--tc, currentColor); background-image: none !important; box-shadow: none; }
+:is(.hm-trend, .hm-pre-grid) :is(.team-logo, .drv-bar) { width: 4px; height: 14px; border-radius: 2px; background: var(--tc, currentColor); background-image: none !important; box-shadow: none; }
 .hm-state { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; margin-top: 4px; color: var(--muted); font-size: 13px; }
 /* Chargement : blocs à la taille du contenu attendu */
 .hm-sk { display: block; width: 70%; height: 12px; margin: 3px 0; border-radius: 4px; background: var(--panel-2); }
@@ -3297,6 +3297,21 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; gap: 5
 .hm-sk.row { width: 100%; height: 22px; margin: 4px 0; }
 @media (prefers-reduced-motion: no-preference) { :root:not([data-motion="off"]) .hm-sk { animation: hm-sk 1.2s ease-in-out infinite alternate; } }
 @keyframes hm-sk { to { opacity: .4; } }
+/* Avant le départ en une minute (dans l'heure avant la course) : pneus, pluie, championnat, puis la grille après le clic */
+.hm-pre-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px 24px; margin: 4px 0; }
+.hm-pre-facts > div { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.hm-pre-facts .ic { width: 15px; height: 15px; vertical-align: -2px; }
+.hm-pre-ty { display: flex; align-items: center; gap: 6px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.hm-pre-ty .tyre + .tyre, .hm-pre-ty .tyre:not(:first-child) { margin-left: 6px; }
+.hm-pre .hm-kicker { justify-content: flex-start; flex-wrap: wrap; gap: 4px 10px; }
+.hm-pre .hm-actions { align-items: center; }
+.hm-pre-note { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; }
+.hm-pre-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0 16px; margin: 4px 0 0; padding: 0; list-style: none; }
+.hm-pre-grid li { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 5px 0; border-top: 1px solid var(--line); font-size: 13.5px; }
+.hm-pre-grid li > b { min-width: 3.4em; font-variant-numeric: tabular-nums; }
+.hm-pre-grid li > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hm-pre-grid li.pit > b { color: var(--muted); font-weight: 600; }
+.hm-pre-pen { margin: 6px 0 0; padding-left: 18px; color: var(--text-2); font-size: 13px; }
 /* Calendrier : tracé du circuit à droite, une case par manche (courues, prochaine) */
 .hm-cal { overflow: hidden; }
 .hm-cal-main { display: flex; flex-direction: column; gap: 4px; max-width: 64%; }

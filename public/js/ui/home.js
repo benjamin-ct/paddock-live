@@ -2,7 +2,7 @@
 // résultat (replay depuis le début ou tableau de bord), dernières actualités, raccourcis.
 // Ouverte au lancement quand aucune séance n'est en cours ; pendant une séance, l'appli s'ouvre
 // directement sur le Direct.
-import { $, $$, esc, api, drivers, placeView, hideBoot, dayIn, teamColor, teamLogo, teamMark, photoUrl, OFFICIAL, nightMark, calSession } from '../util.js';
+import { $, $$, esc, api, drivers, placeView, hideBoot, dayIn, teamColor, teamLogo, teamMark, photoUrl, OFFICIAL, nightMark, calSession, tyreBadge } from '../util.js';
 import { store, on } from '../store.js';
 import { icon } from '../icons.js';
 import { DEC, LOCALE, LANG, t } from '../i18n.js';
@@ -182,6 +182,75 @@ function weatherHtml(nx) {
   return `<div class="hm-wx">${days.map((d) => `<span title="Météo prévue sur le circuit"><b>${esc(new Date(`${d.date}T12:00:00`).toLocaleDateString(LOCALE, { weekday: 'short' }))}</b> ${Math.round(d.tmax)}° ${d.rain != null ? `<small>${icon('rain')} ${d.rain} %</small>` : ''}</span>`).join('')}</div>`;
 }
 
+// ---------- Avant le départ en une minute : dans l'heure avant la course ----------
+// Pneus Pirelli du week-end, pluie prévue pendant la course, enjeu du championnat ; la grille officielle de la FIA (départs
+// des stands, pénalités : elle dévoile le résultat des qualifications) seulement après le clic sur « Voir la grille »
+let pre = null;   // { key, open, loading, grid: undefined (pas lue) | null (pas encore publiée) | {…}, error }
+const preRace = () => schedule?.find((s) => s.label === 'Course' && s.t > Date.now() && s.t - Date.now() <= 3600e3);
+function preRain(r) {
+  if (weather?.key !== `${r.race}|${r.year}`) return null;
+  const during = (weather.hours || []).filter((h) => h.t >= r.t - 1800e3 && h.t <= r.t + 2 * 3600e3 && h.rain != null);
+  if (during.length) return Math.max(...during.map((h) => h.rain));
+  return weather.days?.find((d) => d.date === dayIn(r.t, weather.tz))?.rain ?? null;
+}
+// Enjeu du championnat des pilotes (course au titre de la Saison) ; résultat du sprint du week-end pas encore vu : masqué
+function preStake(r) {
+  if (!K || !standings?.drivers?.length) return standings?.loading ? sk('line') : '—';
+  const sp = spoiler();
+  if (sp) return `<span class="muted">${esc(t('Masqué : il dévoile le résultat de la manche {}.', sp.round))}</span>`;
+  const tr = K.titleRace(standings, boardYear());
+  if (tr.champion) return esc(t('{} est champion du monde', tr.champion.name));
+  const [a, b] = tr.drivers.filter((e) => e.alive).sort((x, y) => y.points - x.points);
+  const now = tr.clinchD?.earliest?.round === Number(r.round) ? t('Titre possible dès cette course pour {}', a.last || a.name)
+    : `${tr.drivers.filter((e) => e.alive).length} ${t('pilotes encore en lice')}`;
+  return `${b ? esc(t('{} mène avec {} pts d\'avance sur {}', a.last || a.name, a.points - b.points, b.last || b.name)) : ''}<div class="muted small">${esc(now)}</div>`;
+}
+// Grille de la FIA (après le clic) : P1, P2… dans l'ordre de lecture, départs des stands, puis les pénalités
+function preGrid() {
+  if (pre.loading) return `<div class="hm-pre-grid">${sk('row').repeat(4)}</div>`;
+  if (pre.error) return state('Grille indisponible pour l\'instant', 'grid');
+  if (!pre.grid) return state('Grille pas encore publiée par la FIA', 'grid');
+  const g = pre.grid, ds = standings?.drivers || [];
+  const who = (n) => g.rows.find((x) => x.num === n);
+  const mark = (x) => { const d = ds.find((y) => String(y.number) === x.num) || ds.find((y) => y.last === x.last); return `<span class="drv-bar" style="background:${teamColor(d ? { TeamName: d.team, TeamColour: OFFICIAL[d.teamId] || '8b95a8' } : { TeamName: x.team })}"></span>`; };
+  return `${g.final ? '' : `<div class="hm-pre-note">${esc(t('Grille provisoire : la grille définitive n\'est pas encore publiée.'))} <button class="btn small" data-home="grid">${icon('refresh')} ${t('Relire')}</button></div>`}
+    <ol class="hm-pre-grid">${g.rows.map((x) => `<li${x.pitlane ? ' class="pit"' : ''}><b>${x.pitlane ? t('Stands') : `P${x.pos}`}</b>${mark(x)}<span data-no-i18n>${esc(x.last)}</span></li>`).join('')}</ol>
+    ${g.penalties?.length ? `<ul class="hm-pre-pen">${g.penalties.map((p) => `<li><b data-no-i18n>${esc(p.cars.map((n) => who(n)?.last || `#${n}`).join(', '))}</b> <span${LANG === 'fr' ? '' : ' data-no-i18n'}>${esc(LANG === 'fr' ? p.fr : p.text)}</span></li>`).join('')}</ul>` : ''}`;
+}
+function preHtml() {
+  const r = preRace();
+  if (!r) return '';
+  const key = `${r.race}|${r.year}`;
+  if (pre?.key !== key) pre = { key, open: false };
+  loadWeather(r);
+  if (!extra.stats) loadExtra('stats');
+  const ty = extra.stats?.v?.tyres?.[r.round];
+  const rain = preRain(r);
+  const hm = new Date(r.t).toLocaleTimeString(LOCALE, { hour: '2-digit', minute: '2-digit' });
+  return `<section class="hm-card hm-pre" id="hmPre"><div class="hm-kicker"><span class="hm-tag">${icon('flag')} Avant le départ en une minute</span><span class="hm-round">${esc(t('Départ à {}', hm))}</span></div>
+    <div class="hm-pre-facts">
+      <div><div class="hm-ctx">Pneus Pirelli</div>${ty ? `<div class="hm-pre-ty">${tyreBadge('HARD')} C${ty.hard} ${tyreBadge('MEDIUM')} C${ty.medium} ${tyreBadge('SOFT')} C${ty.soft}</div>` : `<div class="muted small">${extra.stats?.loading ? 'Chargement…' : 'Composés pas encore annoncés'}</div>`}</div>
+      <div><div class="hm-ctx">Pluie prévue</div>${rain == null ? '<div class="muted small">Météo indisponible</div>' : `<div>${icon('rain')} <b>${rain} %</b> <span class="muted small">${rain >= 40 ? 'de risque pendant la course' : 'risque faible'}</span></div>`}</div>
+      <div><div class="hm-ctx">Championnat</div><div>${preStake(r)}</div></div>
+    </div>
+    ${pre.open ? preGrid() : `<div class="hm-actions"><button class="btn btn-accent" data-home="grid">${icon('eye-off')} Voir la grille</button><span class="muted small">${t('Départs des stands et pénalités : dévoile le résultat des qualifications')}</span></div>`}</section>`;
+}
+function renderPre() {
+  const box = $('#hmPre');
+  if (box) box.outerHTML = preHtml();
+}
+async function openGrid() {
+  const r = preRace();
+  if (!r || !pre) return;
+  Object.assign(pre, { open: true, loading: true, error: false });
+  renderPre();
+  try {
+    pre.grid = (await api(`/api/fia-grid?${new URLSearchParams({ year: r.year, name: r.race, location: r.locality || '', country: r.country || '' })}`)).grid;
+  } catch { pre.error = true; }
+  pre.loading = false;
+  renderPre();
+}
+
 // Barre du haut entre deux séances : le prochain Grand Prix (prochaine séance, course, fiche du
 // circuit, météo prévue, fuseau horaire). null pendant une séance, un replay ou les résultats.
 export function upcoming() {
@@ -211,6 +280,7 @@ function loadStandings() {
     renderFav();
     renderStd();
     renderKpis();   // manches des chiffres (nom du Grand Prix) connues avec la saison
+    renderPre();
   })());
 }
 
@@ -435,6 +505,7 @@ async function loadExtra(src) {
     extra[src] = { v: await Promise.race([K.seasonGet(path), late]).finally(() => clearTimeout(timer)) };
   } catch (err) { extra[src] = { error: true, offline: offline(err) }; }
   renderKpis(src);
+  if (src === 'stats') renderPre();
 }
 // Après l'affichage : données des cartes de chiffres quand elles approchent de l'écran, tracé du circuit du calendrier
 function watchBoard() {
@@ -513,7 +584,7 @@ function render() {
   // Un seul H1 : pas celui de l'Accueil quand la page en a un autre, ni sur une adresse de la Saison (version web : la
   // Saison pose le sien, #szH1)
   const hello = document.querySelector('h1:not(.hm-hello)') || /^\/(saison|en\/season)\//.test(location.pathname) ? 'p' : 'h1';
-  view.querySelector('.hm-main').innerHTML = `<${hello} class="hm-hello">Paddock Live</${hello}>
+  view.querySelector('.hm-main').innerHTML = `<${hello} class="hm-hello">Paddock Live</${hello}>${preHtml()}
     <div class="hm-board${ls ? '' : ' hm-nolast'}">${card}${last}
       ${stdHtml('d')}${stdHtml('c')}${favHtml()}${calHtml(nx)}${KPIS.map(kpiHtml).join('')}
       <section class="hm-card hm-news"><div class="hm-kicker"><span class="hm-tag">Dernières actus</span>${store.web ? '' : ` <button class="btn small" data-home="news">Toute l'actu ${icon('arrow-right', 'ic-s')}</button>`}</div><div id="hmNews" class="hm-list"><div class="muted small">Chargement…</div></div></section>
@@ -589,7 +660,7 @@ export function openHome() {
   timer = setInterval(() => {
     tickCount();
     // Séance qui commence pendant que l'accueil est affiché : carte « en cours »
-    if (!!liveNow() !== !!$('#homeView .hm-live')) render();
+    if (!!liveNow() !== !!$('#homeView .hm-live') || !!preRace() !== !!$('#hmPre')) render();
   }, v3() ? 1e3 : 30e3);
   document.dispatchEvent(new Event('viewchange'));
 }
@@ -611,7 +682,8 @@ export const isHomeOpen = () => !$('#homeView')?.hidden;
 
 async function act(k) {
   touched = true;
-  if (k === 'showfav') { reveal = true; renderFav(); renderStd(); renderKpis(); return; }
+  if (k === 'showfav') { reveal = true; renderFav(); renderStd(); renderKpis(); renderPre(); return; }
+  if (k === 'grid' || k === 'retry:grid') { openGrid(); return; }
   if (k.startsWith('sz:')) { (await import('./season-lazy.js')).openSeason(k.slice(3)); return; }
   if (k.startsWith('retry:')) {
     const src = k.slice(6);
