@@ -1,12 +1,13 @@
 // Carte du circuit : tracé, secteurs sous drapeau, voitures (GPS ou estimées), virages.
 import { store, displayNow, f1Now, on, versionOf } from '../store.js';
 import { prefs, setPref } from '../prefs.js';
-import { $, api, drivers, teamColor, storageGet, storageSet } from '../util.js';
+import { $, api, drivers, teamColor, storageGet, storageSet, esc } from '../util.js';
 import { loadTrack } from '../track.js';
 import { parseUtc, segmentClass, stoppedInRace } from '/shared/f1.js';
 import { hotLaps } from './tower.js';
+import { turnMarks } from '/shared/stewards.js';
 import { icon } from '../icons.js';
-import { DEC, tx, t } from '../i18n.js';
+import { DEC, tx, t, LANG } from '../i18n.js';
 import { FONT, MONO, inkOn, drawPuck, drawBadge, drawSectorBadge, drawCornerChip, drawFlagBadge, drawScBadge } from './map-draw.js';
 
 const canvas = () => $('#mapCanvas');
@@ -607,7 +608,7 @@ function draw() {
 
   const animated = red || scMode || [...flags.values()].includes('DOUBLE YELLOW');
   const bgKey = [size.w, size.h, size.dpr, view.x.toFixed(1), view.y.toFixed(1), view.z.toFixed(3), ts, [...flags].join(),
-    lay?.key, !!zones, store.positions.lineFrac().toFixed(4), MAP_OPTS.map((k) => $(`#${k}`).checked).join(), trackKey, document.fonts?.status, document.documentElement.dataset.scheme, versionOf(['TimingStats']), focusMinisKey()].join('|');
+    lay?.key, !!zones, store.positions.lineFrac().toFixed(4), MAP_OPTS.map((k) => $(`#${k}`).checked).join(), trackKey, document.fonts?.status, document.documentElement.dataset.scheme, versionOf(['TimingStats']), focusMinisKey(), turnMarksNow().map((m) => `${m.turn}:${m.limits}:${m.events.length}`).join()].join('|');
   let flagZones;
   if (!animated && bg.key === bgKey && bg.canvas) {
     ctx.drawImage(bg.canvas, 0, 0, size.w, size.h);
@@ -816,32 +817,167 @@ function drawBackground(now, red, sc, vsc, scMode, flags, lay) {
 
   drawStartLine(W);
 
-  // Numéros de virage (pastilles à l'extérieur de la piste)
+  // Numéros de virage (pastilles à l'extérieur de la piste) ; ceux du calque « Limites de piste » sont remplacés
+  // par sa pastille, qui porte le numéro
+  const groups = markGroups();
+  const marked = new Set(groups.flatMap((g) => g.marks.map((m) => m.turn)));
   if ($('#mapCorners').checked && detail() > 1) {
     const fs = Math.min(13, 10 + (view.z - 1) * 1.2);
     ctx.font = `700 ${fs}px ${FONT()}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     for (const c of track.corners) {
-      const a = (c.angle * Math.PI) / 180;
-      const [x0, y0] = xf(c.x, c.y), [x1, y1] = xf(c.x + Math.cos(a) * 560, c.y + Math.sin(a) * 560);
-      const len = Math.hypot(x1 - x0, y1 - y0) || 1;
+      if (marked.has(c.number)) continue;
+      const { x0, y0, ux, uy } = cornerDir(c);
       const rad = fs * 0.75 + (c.number >= 10 ? 2 : 0);
       const off = W / 2 + rad + 9;
-      const x = x0 + ((x1 - x0) / len) * off, y = y0 + ((y1 - y0) / len) * off;
+      const x = x0 + ux * off, y = y0 + uy * off;
       // Trait qui relie la pastille au bord de la piste
       ctx.strokeStyle = pal().chipEdge;
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(x0 + ((x1 - x0) / len) * (W / 2 + 1), y0 + ((y1 - y0) / len) * (W / 2 + 1));
-      ctx.lineTo(x - ((x1 - x0) / len) * rad, y - ((y1 - y0) / len) * rad);
+      ctx.moveTo(x0 + ux * (W / 2 + 1), y0 + uy * (W / 2 + 1));
+      ctx.lineTo(x - ux * rad, y - uy * rad);
       ctx.stroke();
       drawCornerChip(ctx, x, y, rad, c.number, pal());
     }
   }
+  drawTurnMarks(groups, W);
 
   if (!red && !scMode && $('#mapSectors').checked && detail() > 1) drawSectorLabels(lay);
   return flagZones;
+}
+
+// Point du virage c à l'écran et direction (unitaire) vers l'extérieur de la piste
+function cornerDir(c) {
+  const a = (c.angle * Math.PI) / 180;
+  const [x0, y0] = xf(c.x, c.y), [x1, y1] = xf(c.x + Math.cos(a) * 560, c.y + Math.sin(a) * 560);
+  const len = Math.hypot(x1 - x0, y1 - y0) || 1;
+  return { x0, y0, ux: (x1 - x0) / len, uy: (y1 - y0) / len };
+}
+
+// Calque « Limites de piste » : par virage, tours supprimés et événements des dernières minutes (incident, piste
+// glissante, commissaires ou dépanneuse en piste), d'après les messages de la direction de course (au délai TV
+// comme eux) ; recalculé à chaque message et toutes les 10 s (les événements expirent)
+let marks = { key: '', list: [] };
+let markHits = [];   // pastilles dessinées (survol) : { x, y, w, h, g }
+function turnMarksNow() {
+  if (!$('#mapLimits').checked || detail() < 1 || !track) return [];
+  const now = f1Now();
+  const key = `${versionOf(['RaceControlMessages', '__reset'])}|${Math.floor(now / 10e3)}`;
+  if (key !== marks.key) marks = { key, list: turnMarks(list(store.state.RaceControlMessages?.Messages), now) };
+  return marks.list;
+}
+
+// Virages proches à l'écran regroupés dans une seule pastille (lisible même sur une petite carte) ; virage absent
+// du tracé : ignoré
+function markGroups() {
+  const out = [];
+  for (const m of turnMarksNow()) {
+    const c = track.corners.find((k) => k.number === m.turn);
+    if (!c) continue;
+    const d = cornerDir(c);
+    const g = out.find((o) => Math.hypot(o.d.x0 - d.x0, o.d.y0 - d.y0) < 46);
+    if (g) g.marks.push(m);
+    else out.push({ d, marks: [m] });
+  }
+  return out;
+}
+
+// Pastille « V4 · 7 » à l'extérieur du virage : numéro(s) du virage et tours supprimés ; onglet de couleur à gauche
+// pour un événement récent (orange et « ! » : incident ; jaune rayé de rouge : piste glissante ; jaune : commissaires
+// ou dépanneuse). Toujours sombre, comme les autres pastilles de la carte
+// Virage abrégé : V4, T4 (turn), C4 (curva)
+const TURN_ABBR = { en: 'T', it: 'C', es: 'C' }[LANG] || 'V';
+const MARK_TAB = { incident: '#FFA62B', slippery: '#FFD43B', marshals: '#FFD43B', recovery: '#FFD43B' };
+function drawTurnMarks(groups, W) {
+  markHits = [];
+  for (const g of groups) {
+    const limits = g.marks.reduce((s, m) => s + m.limits, 0);
+    const kinds = g.marks.flatMap((m) => m.events.map((e) => e.kind));
+    const kind = kinds.includes('incident') ? 'incident' : kinds[0];
+    const head = TURN_ABBR + g.marks.map((m) => m.turn).join('/');
+    const h = 18, tab = kind ? 14 : 0;
+    ctx.font = `700 11px ${FONT()}`;
+    const hw = ctx.measureText(head).width;
+    ctx.font = `700 11px ${MONO()}`;
+    const cw = limits ? ctx.measureText(String(limits)).width + 12 : 0;
+    const w = tab + hw + cw + 12;
+    const { x0, y0, ux, uy } = g.d;
+    const off = W / 2 + 9 + Math.abs(ux) * (w / 2) + Math.abs(uy) * (h / 2);
+    // Pastille gardée dans la carte (virage au bord de l'écran)
+    const x = Math.min(size.w - w / 2 - 2, Math.max(w / 2 + 2, x0 + ux * off)), y = Math.min(size.h - h / 2 - 2, Math.max(h / 2 + 2, y0 + uy * off));
+    const l = x - w / 2, top = y - h / 2;
+    ctx.strokeStyle = pal().chipEdge;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x0 + ux * (W / 2 + 1), y0 + uy * (W / 2 + 1));
+    ctx.lineTo(x0 + ux * (W / 2 + 9), y0 + uy * (W / 2 + 9));
+    ctx.stroke();
+    ctx.fillStyle = pal().chip;
+    ctx.beginPath();
+    ctx.roundRect(l, top, w, h, 4);
+    ctx.fill();
+    ctx.strokeStyle = limits ? 'rgba(242, 244, 245, .55)' : pal().chipEdge;
+    ctx.stroke();
+    if (kind) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.roundRect(l, top, tab, h, [4, 0, 0, 4]);
+      ctx.clip();
+      ctx.fillStyle = MARK_TAB[kind];
+      ctx.fillRect(l, top, tab, h);
+      if (kind === 'slippery') {
+        ctx.fillStyle = '#E8202A';
+        for (const sx of [3, 9]) ctx.fillRect(l + sx, top, 2.5, h);
+      }
+      ctx.restore();
+      if (kind === 'incident') {
+        ctx.fillStyle = '#1D1200';
+        ctx.font = `900 12px ${FONT()}`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('!', l + tab / 2, y + 0.5);
+      }
+    }
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.font = `700 11px ${FONT()}`;
+    ctx.fillStyle = pal().chipText;
+    ctx.fillText(head, l + tab + 6, y + 0.5);
+    if (limits) {
+      ctx.fillStyle = '#8A95A3';
+      ctx.fillText('·', l + tab + 6 + hw + 3, y + 0.5);
+      ctx.font = `700 11px ${MONO()}`;
+      ctx.fillStyle = '#F2F4F5';
+      ctx.fillText(String(limits), l + tab + 6 + hw + 12, y + 0.5);
+    }
+    markHits.push({ x: l, y: top, w, h, g });
+  }
+}
+
+// Bulle d'une pastille (survol à la souris, toucher sur téléphone) : virage, tours supprimés et pilotes concernés,
+// événements récents ; masquée hors d'une pastille
+const MARK_EV = { incident: 'Incident', slippery: 'Piste glissante', marshals: 'Commissaires sur la piste', recovery: 'Véhicule de dépannage sur la piste' };
+function markTip(e) {
+  const tip = $('#mapTip'), r = canvas().getBoundingClientRect();
+  const x = e.clientX - r.left, y = e.clientY - r.top;
+  const hit = e.type === 'pointerleave' ? null : markHits.find((b) => x >= b.x - 4 && x <= b.x + b.w + 4 && y >= b.y - 4 && y <= b.y + b.h + 4);
+  canvas().style.cursor = hit ? 'help' : '';
+  if (!hit) { tip.hidden = true; return; }
+  const dl = drivers(store.state), now = f1Now();
+  const tla = (c) => esc(dl[c.num]?.Tla || c.tla);
+  const ago = (ts) => (now - ts < 60e3 ? t('à l\'instant') : t('il y a {} min', Math.round((now - ts) / 60e3)));
+  tip.innerHTML = hit.g.marks.map((m) => `<div class="mt-head"><b>${esc(t('Virage {}', m.turn))}</b>${m.limits ? ` · ${esc(t('{} tour(s) supprimé(s)', m.limits))}` : ''}</div>
+    ${m.drivers.length ? `<div class="mt-drv">${m.drivers.map((d) => `<span><i style="background:${teamColor(dl[d.num])}"></i>${tla(d)}${d.n > 1 ? ` ×${d.n}` : ''}</span>`).join('')}</div>` : ''}
+    ${m.events.map((ev) => `<div class="mt-ev ${ev.kind}">${esc(t(MARK_EV[ev.kind]))}${ev.cars.length ? ` : ${ev.cars.map(tla).join(', ')}` : ''} <span class="mt-ago">· ${esc(ago(ev.t))}</span></div>`).join('')}`).join('');
+  tip.hidden = false;
+  const wrap = tip.parentElement.getBoundingClientRect();
+  let left = e.clientX - wrap.left + 14, top = e.clientY - wrap.top + 16;
+  if (left + tip.offsetWidth > wrap.width - 8) left = Math.max(8, e.clientX - wrap.left - tip.offsetWidth - 14);
+  if (top + tip.offsetHeight > wrap.height - 8) top = Math.max(8, e.clientY - wrap.top - tip.offsetHeight - 12);
+  tip.style.left = `${left}px`;
+  tip.style.top = `${top}px`;
 }
 
 // Écarts de moins d'une seconde entre deux voitures qui se suivent (course) : bulle entre les deux
@@ -1201,7 +1337,7 @@ function drawCars(dt) {
 }
 
 // Cases de la carte mémorisées d'une session à l'autre
-const MAP_OPTS = ['mapLabels', 'mapCorners', 'mapSectors', 'mapMiniNums', 'mapZones', 'mapPit', 'mapFlagText', 'mapShowOut', 'mapTrails', 'mapGrid', 'mapPosBadges', 'mapGaps', 'mapFocusCard', 'mapRibbon2'];
+const MAP_OPTS = ['mapLabels', 'mapCorners', 'mapSectors', 'mapMiniNums', 'mapZones', 'mapPit', 'mapFlagText', 'mapShowOut', 'mapTrails', 'mapGrid', 'mapPosBadges', 'mapGaps', 'mapFocusCard', 'mapRibbon2', 'mapLimits'];
 // Calques décochés par défaut sur téléphone : traînées, bulles d'écart et de télémétrie, bande de l'ordre,
 // numéros de virage, zones de dépassement, liste des drapeaux (restent : pastilles, positions, secteurs, stands)
 const MOBILE_OFF = ['mapTrails', 'mapGaps', 'mapFocusCard', 'mapRibbon2', 'mapCorners', 'mapZones', 'mapFlagText'];
@@ -1253,14 +1389,21 @@ export function initMap() {
     if (view.z === 1) resetView();
   }, { passive: false });
   let drag = null;
-  c.addEventListener('pointerdown', (e) => { drag = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y }; c.setPointerCapture(e.pointerId); });
+  c.addEventListener('pointerdown', (e) => { drag = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y }; c.setPointerCapture(e.pointerId); $('#mapTip').hidden = true; });
   c.addEventListener('pointermove', (e) => {
-    if (!drag) return;
+    if (!drag) { if (e.pointerType === 'mouse') markTip(e); return; }
     view.x = drag.vx + e.clientX - drag.x;
     view.y = drag.vy + e.clientY - drag.y;
     if (Math.abs(e.clientX - drag.x) + Math.abs(e.clientY - drag.y) > 4) $('#mapFollow').checked = false;
   });
-  c.addEventListener('pointerup', () => { drag = null; });
+  // Toucher sans glisser : bulle de la pastille touchée
+  c.addEventListener('pointerup', (e) => {
+    if (drag && e.pointerType !== 'mouse' && Math.abs(e.clientX - drag.x) + Math.abs(e.clientY - drag.y) <= 4) markTip(e);
+    drag = null;
+  });
+  // Souris sortie de la carte, ou toucher ailleurs : bulle masquée
+  c.addEventListener('pointerleave', (e) => { if (!drag && e.pointerType === 'mouse') markTip(e); });
+  document.addEventListener('pointerdown', (e) => { if (e.target !== c) $('#mapTip').hidden = true; });
   const reset = () => { resetView(); $('#mapFollow').checked = false; };
   c.addEventListener('dblclick', reset);
   $('#mapReset').addEventListener('click', reset);

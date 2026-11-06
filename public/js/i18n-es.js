@@ -2951,4 +2951,9 @@ export default {
   "Arrivée provisoire avec les pénalités en temps (décisions après la course non comptées) :": "Llegada provisional con las sanciones de tiempo (decisiones tras la carrera no contadas):",
   "Avec les pénalités en temps :": "Con las sanciones de tiempo:",
   "aucun changement": "sin cambios",
+  "{} tour(s) supprimé(s)": "vueltas anuladas: {}",
+  "Piste glissante": "Pista deslizante",
+  "Commissaires sur la piste": "Comisarios en pista",
+  "Véhicule de dépannage sur la piste": "Vehículo de rescate en pista",
+  "Tours supprimés par virage, incidents et piste glissante des dernières minutes (pilotes au survol)": "Vueltas anuladas por curva, incidentes y pista deslizante de los últimos minutos (pilotos al pasar el ratón)",
 };

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { analyzeStewards, isOpen } from '../shared/stewards.js';
+import { analyzeStewards, isOpen, turnMarks } from '../shared/stewards.js';
 
 const M = (Message, Lap = 10) => ({ Utc: '2026-09-13T15:00:00', Lap, Category: 'Other', Message });
 
@@ -55,4 +55,28 @@ test('limites de piste : comptage, drapeau noir et blanc, autres suppressions', 
   const law = r.trackLimits.find((d) => d.tla === 'LAW');
   assert.equal(law.deletions.length, 0);
   assert.equal(law.otherDeletions.length, 1);
+});
+
+test('carte : pastilles par virage (limites de piste, incidents et piste glissante récents)', () => {
+  const At = (Utc, Message) => ({ Utc, Lap: 5, Category: 'Other', Message });
+  const msgs = [
+    At('2026-09-13T15:00:00', 'CAR 1 (VER) TIME 1:43.512 DELETED - TRACK LIMITS AT TURN 4 LAP 3 15:00:00'),
+    At('2026-09-13T15:01:00', 'CAR 4 (NOR) LAP DELETED - TRACK LIMITS AT TURN 4 LAP 4 15:01:00'),
+    At('2026-09-13T15:02:00', 'CAR 1 (VER) TIME 1:43.100 DELETED - TRACK LIMITS AT TURN 4 LAP 5 15:02:00'),
+    At('2026-09-13T15:02:30', 'CAR 30 (LAW) TIME 2:00.207 DELETED - DOUBLE YELLOW AT TURN 7 LAP 5 15:02:30'),
+    At('2026-09-13T15:03:00', 'TURN 9 INCIDENT INVOLVING CARS 16 (LEC) AND 44 (HAM) NOTED'),
+    At('2026-09-13T15:03:30', 'TRACK SURFACE SLIPPERY AT TURN 9'),
+    At('2026-09-13T15:04:00', 'TRACK SURFACE SLIPPERY IN TRACK SECTOR 3'),   // sans virage : ignoré
+    At('2026-09-13T15:05:00', 'CAR 4 (NOR) LAP DELETED - TRACK LIMITS AT TURN 12 LAP 6 15:05:00'),
+  ];
+  const now = Date.parse('2026-09-13T15:04:30Z');
+  const r = turnMarks(msgs, now);
+  assert.deepEqual(r.map((m) => m.turn), [4, 9], 'virage 7 (double jaune) et tour supprimé après « maintenant » exclus');
+  assert.equal(r[0].limits, 3);
+  assert.deepEqual(r[0].drivers, [{ num: '1', tla: 'VER', n: 2 }, { num: '4', tla: 'NOR', n: 1 }]);
+  assert.deepEqual(r[1].events.map((e) => e.kind), ['incident', 'slippery']);
+  assert.deepEqual(r[1].events[0].cars.map((c) => c.tla), ['LEC', 'HAM']);
+  // Quelques minutes plus tard : les événements ont disparu, les compteurs restent
+  const later = turnMarks(msgs, now + 10 * 60e3);
+  assert.deepEqual(later.map((m) => [m.turn, m.limits, m.events.length]), [[4, 3, 0], [12, 1, 0]]);
 });
