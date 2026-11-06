@@ -91,6 +91,7 @@ export function radioTextHtml(c) {
   const lang = prefs.radioLang;
   let text;
   if (!e) text = '<div class="rd-text pending">transcription…</div>';
+  else if (e.na) text = '<div class="rd-text muted">(radio indisponible : son non fourni par la F1)</div>';
   else if (!e.en) text = '<div class="rd-text muted">(pas de parole reconnue)</div>';
   else if (lang === 'none') text = `<div class="rd-text">${esc(e.en)}</div>`;
   else if (e.tr?.[lang] && blankTr(e.tr[lang])) text = `<div class="rd-text">${esc(e.en)}</div><div class="rd-orig">radio peu audible : pas de traduction</div>`;
@@ -223,7 +224,8 @@ function player() {
     if (!playQueued()) { cur = null; if (done) refresh(done.url); }
     else if (done) refresh(done.url);
   });
-  audio.addEventListener('error', () => { if (cur) refresh(cur.url); });
+  // Son introuvable (la F1 ne l'a pas donné) : la carte ne reste pas « en lecture » en silence
+  audio.addEventListener('error', () => { const done = cur; cur = null; if (done) refresh(done.url); });
   return audio;
 }
 
