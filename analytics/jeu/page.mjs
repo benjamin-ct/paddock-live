@@ -12,7 +12,8 @@ export const PATHS = { fr: 'jeu', en: 'en/guess-the-circuit' };
 // Indices de chaque tracé : ville (et son nom anglais s'il diffère), premier Grand Prix de F1, longueur en mètres et
 // nombre de virages. Ville, année et longueur d'après bacinger/f1-circuits (Monaco : 1950, premier Grand Prix du
 // championnat, et non 1929 ; Madring : 5 414 m, formula1.com) ; la longueur officielle de shared/circuits-info.js
-// remplace celle-ci pour les circuits du calendrier. Virages : nombre officiel du tracé dessiné. Virages inconnus
+// remplace celle-ci pour les circuits du calendrier. Virages : nombre du dernier tracé couru en F1, vérifié le 6 nov. 2026 (guides des circuits de formula1.com,
+// sinon article du circuit ; Kyalami 13 = tracé 1992-1993) ; sources contradictoires (Buenos Aires, Watkins Glen) : null. Virages inconnus
 // (null) : le tracé reste dans la liste des réponses possibles mais n'est jamais le circuit du jour.
 const FACTS = {
   'au-1953': ['Melbourne', null, 1996, 5278, 14], 'bh-2002': ['Sakhir', null, 2004, 5412, 15], 'cn-2004': ['Shanghai', null, 2004, 5451, 16],
@@ -24,11 +25,11 @@ const FACTS = {
   'br-1940': ['São Paulo', null, 1973, 4309, 15], 'ae-2009': ['Abou Dabi', 'Abu Dhabi', 2009, 5281, 16], 'it-1953': ['Imola', null, 1980, 4909, 19],
   'de-1927': ['Nürburg', null, 1984, 5148, 15], 'pt-2008': ['Portimão', null, 2020, 4653, 15], 'it-1914': ['Scarperia', null, 2020, 5245, 15],
   'my-1999': ['Sepang', null, 1999, 5543, 15], 'tr-2005': ['Istanbul', null, 2005, 5338, 14], 'nl-1948': ['Zandvoort', null, 1952, 4259, 14],
-  'fr-1960': ['Magny-Cours', null, 1991, 4412, 17], 'pt-1972': ['Estoril', null, 1984, 4349, 13], 'br-1977': ['Rio de Janeiro', null, 1978, 5031, null],
+  'fr-1960': ['Magny-Cours', null, 1991, 4412, 17], 'pt-1972': ['Estoril', null, 1984, 4349, 13], 'br-1977': ['Rio de Janeiro', null, 1978, 5031, 11],
   'sa-2021': ['Djeddah', 'Jeddah', 2021, 6175, 27], 'us-2022': ['Miami', null, 2022, 5412, 19], 'qa-2004': ['Lusail', null, 2021, 5380, 16],
   'es-2026': ['Madrid', null, 2026, 5414, 22], 'az-2016': ['Bakou', 'Baku', 2016, 6003, 20], 'us-2023': ['Las Vegas', null, 2023, 6201, 17],
-  'us-1909': ['Indianapolis', null, 2000, 4192, 13], 'ar-1952': ['Buenos Aires', null, 1953, 4322, null], 'za-1961': ['Johannesbourg', 'Johannesburg', 1967, 4529, 16],
-  'us-1956': ['Watkins Glen', null, 1961, 5430, 11],
+  'us-1909': ['Indianapolis', null, 2000, 4192, 13], 'ar-1952': ['Buenos Aires', null, 1953, 4322, null], 'za-1961': ['Johannesbourg', 'Johannesburg', 1967, 4529, 13],
+  'us-1956': ['Watkins Glen', null, 1961, 5430, null],
 };
 
 // Tracés et indices dans la langue de la page (pays : nom donné par le navigateur de la machine qui écrit la page)
