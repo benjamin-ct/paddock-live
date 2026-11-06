@@ -354,7 +354,7 @@ async function handleApi(req, res, url) {
     // Transcription d'une radio d'équipe par le serveur Paddock Live : ?u=<adresse d'archive> -> { text, d }
     case 'GET /api/radio-text': {
       const rel = archivePath(url.searchParams.get('u') || '');
-      if (!rel || !/^\d{4}\/[\w\-./]+\.(mp3|m4a|aac)$/i.test(rel) || rel.includes('..')) return sendJSON(res, 400, { error: 'Radio invalide' });
+      if (!rel || !/^\d{4}\/[\p{L}\p{N}_\-./]+\.(mp3|m4a|aac)$/iu.test(rel) || rel.includes('..')) return sendJSON(res, 400, { error: 'Radio invalide' });
       if (!cloudRadio.available()) return sendJSON(res, 503, { error: 'Transcription en ligne indisponible' });
       try {
         const r = await cloudRadio.transcribe(rel);
@@ -362,6 +362,16 @@ async function handleApi(req, res, url) {
       } catch (err) {
         return sendJSON(res, err.status || 502, { error: err.message });
       }
+    }
+
+    // Son d'une radio pris par l'interface chez la F1 (qui refuse le serveur local) : transcrit de la même façon
+    case 'POST /api/radio-text': {
+      const rel = archivePath(url.searchParams.get('u') || '');
+      if (!rel || !/^\d{4}\/[\p{L}\p{N}_\-./]+\.(mp3|m4a|aac)$/iu.test(rel) || rel.includes('..')) return sendJSON(res, 400, { error: 'Radio invalide' });
+      if (!cloudRadio.available()) return sendJSON(res, 503, { error: 'Transcription en ligne indisponible' });
+      const body = await readRaw(req, 2 * 1024 * 1024);
+      const r = await cloudRadio.transcribeAudio(rel, body);
+      return r ? sendJSON(res, 200, r) : sendJSON(res, 503, { error: 'Transcription en ligne indisponible' });
     }
 
     // Son des caméras embarquées (fenêtre WAV de 30 s) : retranscrit par le serveur Paddock Live, avec l'heure de chaque
@@ -504,7 +514,7 @@ async function handleApi(req, res, url) {
       // Mode créateur, sur l'ordinateur seulement : la lecture d'une séance entière peut prendre plusieurs secondes
       if (!isLoopback(req.socket.remoteAddress) || !creatorEnabled()) return sendJSON(res, 403, { error: 'Mode créateur désactivé' });
       const p = url.searchParams.get('path') || '';
-      if (!/^\d{4}\/[\w\-./]+\/$/.test(p) || p.includes('..')) return sendJSON(res, 400, { error: 'Chemin invalide' });
+      if (!/^\d{4}\/[\p{L}\p{N}_\-./]+\/$/u.test(p) || p.includes('..')) return sendJSON(res, 400, { error: 'Chemin invalide' });
       try {
         if (!feedDiags.has(p)) feedDiags.set(p, feedDiag(p).catch((err) => { feedDiags.delete(p); throw err; }));
         return sendJSON(res, 200, await feedDiags.get(p));
@@ -545,7 +555,7 @@ async function handleApi(req, res, url) {
       const body = await readBody(req);
       let source;
       if (typeof body.local === 'string' && recordingPath(body.local)) source = { local: body.local };
-      else if (typeof body.path === 'string' && /^\d{4}\/[\w\-./]+\/$/.test(body.path)) source = body.path;
+      else if (typeof body.path === 'string' && /^\d{4}\/[\p{L}\p{N}_\-./]+\/$/u.test(body.path)) source = body.path;
       else return sendJSON(res, 400, { error: 'Session invalide' });
       live.stop();
       stats.record('session.replay');

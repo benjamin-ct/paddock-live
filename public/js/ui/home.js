@@ -637,6 +637,7 @@ function render() {
       <button data-home="app">${icon('window')}<b>${t('Appli complète')}</b><small>${t('Replays, actu, alertes')}</small></button>` : `<button data-home="news">${icon('news')}<b>Actu</b><small>Toute l'actualité</small></button>
       <button data-home="replays">${icon('history')}<b>Replays</b><small>Rejouer une séance</small></button>`}
     </nav>
+    <a class="hm-follow" href="https://paddocklive.app/${LANG === 'fr' ? 'jeu' : 'en/guess-the-circuit'}/" target="_blank" rel="noopener">${icon('flag')} ${t('Jeu du jour : devine le circuit')} ${icon('arrow-right', 'ic-s')}</a>
     <a class="hm-follow" href="https://paddocklive.app/liens/" target="_blank" rel="noopener">${icon('share')} Suivre Paddock Live sur les réseaux ${icon('arrow-right', 'ic-s')}</a>`;
   if (nx && !live) loadWeather(nx);
   if (nx && !live && prefs.design === 'v2') drawTrack(nx);

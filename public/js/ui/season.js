@@ -1281,7 +1281,7 @@ const SZ_GROUPS = [
   ['results', 'Résultats', ['results', 'quali', 'destructors', 'penalties']],
   ['people', 'Pilotes et écuries', ['drivers', 'teams', 'grid', 'h2h', 'ratings', 'consistency']],
   ['tech', 'Technique', ['pits', 'speeds', 'circuits', 'tech', 'elements']],
-  ['games', 'Jeux', ['predict']],
+  ['games', 'Jeux', ['predict', 'game']],
 ];
 const szOpen = new Set();   // groupes dépliés à la main
 const szShut = new Set();   // groupes repliés à la main (aussi celui de la rubrique ouverte)
@@ -1290,7 +1290,7 @@ function szGroups() {
   const nav = $('#szNav');
   if (!nav || nav.querySelector('.sz-grp')) return;
   const heads = SZ_GROUPS.map(([g, name, ids], i) => {
-    const items = ids.map((id) => nav.querySelector(`[data-sz="${id}"]`)).filter(Boolean);
+    const items = ids.map((id) => nav.querySelector(`[data-sz="${id}"], [data-szlink="${id}"]`)).filter(Boolean);
     if (!items.length) return '';
     items.forEach((b, j) => { b.dataset.grp = g; b.style.setProperty('--o', i); b.style.setProperty('--i', j); });
     // Version simplifiée du téléphone : groupe sans rubrique affichée, sans titre
@@ -1330,6 +1330,8 @@ export function initSeason() {
   sel.innerHTML = Array.from({ length: 8 }, (_, i) => now - i).map((y) => `<option value="${y}">${y}</option>`).join('');
   sel.addEventListener('change', () => { year = Number(sel.value); push = true; data = null; stats = null; fia = null; clearTimeout(statsTimer); clearTimeout(fiaTimer); setTechFilter(null, 'all'); load(); });
   $('#szClose').addEventListener('click', closeSeason);
+  // Jeu du jour « Devine le circuit » : page du site (navigateur par défaut dans l'appli de bureau)
+  $('#szNav [data-szlink="game"]')?.addEventListener('click', () => window.open(`https://paddocklive.app/${LANG === 'fr' ? 'jeu' : 'en/guess-the-circuit'}/`, '_blank', 'noopener'));
   $('#szNav').addEventListener('click', (e) => { const b = e.target.closest('[data-sz]'); if (b) { section = b.dataset.sz; jump = true; push = true; szMenu(false); animate(); render(); } });
   $('#szMenu')?.addEventListener('click', () => szMenu(true));
   addEventListener('resize', () => { if (!$('#seasonView').hidden) balanceCards(); });

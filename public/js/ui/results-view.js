@@ -6,6 +6,7 @@ import { $, placeView } from '../util.js';
 import { store, versionOf } from '../store.js';
 import { t, LANG } from '../i18n.js';
 import { gpShort, sessionLabel } from '/shared/gp-names.js';
+import { slug } from '/shared/season-urls.js';
 import { summaryFacts, favRace } from '/shared/summary.js';
 import { reportHtml, classificationHtml, chartHtml, numbersHtml, statusLabel, favHtml, favFacts } from './report.js';
 import { icon } from '../icons.js';
@@ -28,7 +29,7 @@ async function favImage(num) {
     ...favFacts(r).map(([k, label, v]) => [label, k === 'stints' ? `${r.stints.map((s) => `${compoundInfo(s.comp).letter}${s.laps ? ` ${s.laps}` : ''}`).join(' → ')} · ${v}` : v])];
   try {
     const blob = await rowsImage(r.name.toUpperCase(), `${gpShort(info.Meeting?.Name || '', LANG)} · ${sessionLabel(info.Name || '', LANG)}`, rows, r.color);
-    await saveImage(blob, `paddock-live-${r.tla.toLowerCase()}-${String(info.Meeting?.Name || 'course').toLowerCase().replace(/[^a-z0-9]+/g, '-')}.png`, `fav${num}`);
+    await saveImage(blob, `paddock-live-${r.tla.toLowerCase()}-${slug(info.Meeting?.Name || 'course')}.png`, `fav${num}`);
   } catch (err) {
     toast(t('Image impossible : {}', err.message));
   }

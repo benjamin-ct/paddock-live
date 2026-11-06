@@ -7,7 +7,7 @@ import { parseFiaDoc } from '/shared/stewards.js';
 import { fiaState } from './feed.js';
 import { icon } from '../icons.js';
 import { LOCALE, LANG } from '../i18n.js';
-import { gpFull } from '/shared/gp-names.js';
+import { gpFull, sameGp } from '/shared/gp-names.js';
 import { pdfHref } from './pdf-view.js';
 import { upcoming } from './home.js';
 import { championshipHtml } from './extra.js';
@@ -32,7 +32,7 @@ let docGp = null;     // null : choix automatique ; '' : Grand Prix de la séanc
 let races = null;     // Grands Prix commencés ou tout proches, du plus récent au plus ancien
 const nextGp = () => {
   const nx = upcoming();
-  return nx && nx.race !== store.state.SessionInfo?.Meeting?.Name && races?.some((r) => r.name === nx.race) ? nx.race : '';
+  return nx && !sameGp({ name: nx.race, locality: nx.locality, year: nx.year }, store.state.SessionInfo) && races?.some((r) => r.name === nx.race) ? nx.race : '';
 };
 const shownGp = () => docGp ?? nextGp();
 const otherDocs = new Map();
@@ -90,7 +90,7 @@ function docsHtml() {
   loadRaces();
   const current = store.state.SessionInfo?.Meeting?.Name || '';
   // Prochain Grand Prix en tête, puis celui de la séance affichée, puis les précédents
-  const others = (races || []).filter((r) => r.name !== current);
+  const others = (races || []).filter((r) => !sameGp(r, store.state.SessionInfo));
   const choices = [...others.filter((r) => r.next).map((r) => [r.name, `${gpFull(r.name, LANG)} (à venir)`]),
     ['', current ? `${gpFull(current, LANG)} (séance affichée)` : 'Grand Prix de la séance'], ...others.filter((r) => !r.next).map((r) => [r.name, gpFull(r.name, LANG)])];
   const sel = shownGp();

@@ -6,6 +6,37 @@ l'application (Réglages → À propos → Nouveautés).
 
 ## v1.33.0 — à venir
 
+### Accueil
+- Un lien sous les raccourcis mène au jeu du jour « Devine le circuit » sur le site (en anglais pour les autres
+  langues).
+
+### Saison
+- Jeux : « Devine le circuit », sous « Pronostics entre amis », ouvre le jeu du jour sur le site.
+
+### En direct
+- Télémétrie : le bouton ± à côté du délai TV ouvre de nouveau ses réglages (−5, −1, −0,1, +0,1, +1, +5 s), qui
+  restaient cachés.
+- Radios d'équipe : le son est pris directement chez la F1 par la fenêtre de l'appli, avec le serveur de l'appli en
+  secours.
+- Radios d'équipe dont la F1 ne fournit pas le son : « radio indisponible » au lieu de « pas de parole reconnue », et
+  la radio ne reste plus affichée en lecture sans aucun son. Nouvel essai à la prochaine ouverture.
+- Documents FIA, pendant le Grand Prix du Brésil : la liste ne propose plus deux fois le même Grand Prix (« du
+  Brésil » et « de São Paulo »), et le Grand Prix de la séance est choisi d'office.
+- Image de résultat d'un pilote : le nom du fichier garde les noms avec un accent (« sao-paulo » au lieu de
+  « s-o-paulo »).
+
+### Version web
+- Radios d'équipe : le son est pris directement chez la F1 par le téléphone ou l'ordinateur.
+- Téléphone : les menus des réglages des radios (lecture auto, volume, vitesse), de la direction de course (drapeaux
+  bleus, temps supprimés, type de messages, traduction) et des calques de la carte s'ouvrent au-dessus de la barre
+  Accueil, Direct, Saison au lieu de passer dessous ; en paysage, ils ne passent plus sous le menu de gauche.
+- Carte avec le GPS sur un réseau mobile : les voitures ne font plus de petits sauts toutes les quelques secondes.
+  L'heure du serveur, qui cale l'affichage sur la TV, se rattrape en douceur au lieu de bondir quand un message
+  arrive en retard.
+- Téléphone : l'engrenage des réglages du direct est bien centré dans son bouton.
+- iPhone, Paddock Live ajouté à l'écran d'accueil : la barre Accueil, Direct, Saison reste en bas de l'écran au lieu
+  de remonter au milieu en faisant défiler (défaut de Safari sur iOS 26).
+
 ### Streaming
 - Les overlays pour OBS, Streamlabs et Meld Studio (Réglages → Streaming) prennent le design Télémétrie de l'appli :
   cartes à plat avec un filet rouge comme les graphiques TV, chiffres en grand, place des pilotes en case.
@@ -13,6 +44,12 @@ l'application (Réglages → À propos → Nouveautés).
   neutralisations, enquêtes, limites de piste), Écarts du pilote suivi (le pilote devant et celui derrière), Météo de
   la piste (air, piste, humidité, vent, pluie) et Meilleur tour de la séance.
 - La fenêtre Mini (mini-classement) passe aussi au design Télémétrie, en sombre comme en clair.
+
+## v1.32.1 — 2026-11-06
+
+### Corrections
+- Grand Prix au nom accentué (São Paulo) : le replay des séances ne s'arrête plus sur « Session invalide », et les
+  radios d'équipe (son et texte) marchent de nouveau, en direct comme en replay.
 
 ## v1.32.0 — 2026-11-06
 

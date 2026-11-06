@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { TRIES, FIRST_DAY, parisDay, dailyIndex, hints, mark, stats, shareText } from '../analytics/jeu/game.js';
+import { TRIES, FIRST_DAY, parisDay, dailyIndex, hints, mark, stats, shareText, revealed, revealStart } from '../analytics/jeu/game.js';
 import { gameData, gamePage, PATHS } from '../analytics/jeu/page.mjs';
 import { sitemap } from '../analytics/launch/guides.mjs';
 
@@ -90,4 +90,13 @@ test('jeu du jour : pages française et anglaise, crédit MIT, liées entre elle
   // Page anglaise sans texte français visible
   const body = gamePage('en').split('<body>')[1].replace(/<(script|style)[\s\S]*?<\/\1>/g, '').replace(/<datalist[\s\S]*?<\/datalist>/, '');
   assert.deepEqual(body.split(/<[^>]+>/).map((s) => s.trim()).filter((s) => s !== 'Français' && /[éèàêç]|\b(les|des|pour|avec|dans|ton|ta)\b/.test(s)), []);
+});
+
+test('jeu du jour : un quart du tracé au départ, un peu plus à chaque erreur, tout en fin de partie', () => {
+  assert.deepEqual([0, 1, 2, 3, 4, 5].map((m) => revealed(m, false)), [0.25, 0.4, 0.55, 0.7, 0.85, 0.85]);
+  assert.equal(revealed(2, true), 1);
+  // Début du morceau visible : le même pour tous le même jour, différent d'un jour à l'autre, dans le tour
+  assert.equal(revealStart(FIRST_DAY), revealStart(FIRST_DAY));
+  assert.notEqual(revealStart(FIRST_DAY), revealStart(FIRST_DAY + 1));
+  for (let d = FIRST_DAY; d < FIRST_DAY + 50; d++) assert.ok(revealStart(d) >= 0 && revealStart(d) < 1);
 });

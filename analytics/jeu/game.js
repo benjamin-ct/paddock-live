@@ -34,6 +34,12 @@ export function dailyIndex(day, n) {
   return p[day - cycle * n];
 }
 
+// Part du tracé visible : un quart au départ, un peu plus à chaque erreur (40, 55, 70, 85 %), tout en fin de partie
+export const REVEAL = [0.25, 0.4, 0.55, 0.7, 0.85];
+export const revealed = (misses, done) => (done ? 1 : REVEAL[Math.min(misses, REVEAL.length - 1)]);
+// Début de la partie visible (fraction du tour), tiré du jour : le même pour tous, pas toujours la ligne de départ
+export const revealStart = (day) => (day * 0.6180339887) % 1;
+
 // Indices révélés après chaque erreur, dans l'ordre : pays, longueur, virages, premier Grand Prix de F1, ville
 export function hints(c, t) {
   const km = c.km.toLocaleString(t.locale, { minimumFractionDigits: 3, maximumFractionDigits: 3 });

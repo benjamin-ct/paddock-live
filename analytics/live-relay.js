@@ -290,7 +290,7 @@ export class LiveRelay {
   // l'abonné ; une autre adresse est refusée sans rien demander à la F1
   async radio(rel) {
     const path = this.base.state.SessionInfo?.Path;
-    if (!path || !rel.startsWith(path) || !/^\d{4}\/[\w\-./]+\.(mp3|m4a|aac)$/i.test(rel) || rel.includes('..')) return new Response(null, { status: 404 });
+    if (!path || !rel.startsWith(path) || !/^\d{4}\/[\p{L}\p{N}_\-./]+\.(mp3|m4a|aac)$/iu.test(rel) || rel.includes('..')) return new Response(null, { status: 404 });
     let res = await fetch(ARCHIVE + rel, { headers: { 'User-Agent': UA } }).catch(() => null);
     if (res && (res.status === 401 || res.status === 403) && this.userToken) res = await fetch(ARCHIVE + rel, { headers: { 'User-Agent': UA, Authorization: `Bearer ${this.userToken}`, ascendontoken: this.userToken } }).catch(() => null);
     return res?.status === 200 ? new Response(res.body) : new Response(null, { status: 404 });
@@ -663,7 +663,7 @@ export async function pairSend(env, code, token) {
 // (seulement une radio de la séance en cours ; avec sa connexion F1 TV s'il en a une). Octets, ou null
 const ARCHIVE = 'https://livetiming.formula1.com/static/';
 async function radioFile(env, req, rel) {
-  if (!/^\d{4}\/[\w\-./]+\.(mp3|m4a|aac)$/i.test(rel) || rel.includes('..') || !env.LIVE) return null;
+  if (!/^\d{4}\/[\p{L}\p{N}_\-./]+\.(mp3|m4a|aac)$/iu.test(rel) || rel.includes('..') || !env.LIVE) return null;
   const cache = caches.default;
   const ck = new Request(`https://live.cache/radio/${rel}`);
   const hit = await cache.match(ck);
@@ -852,7 +852,7 @@ export async function liveApi(req, url, env = {}) {
   // Pneus du week-end (onglet Pneus) : même forme que /api/tyres des anciennes applis
   if (url.pathname === '/live/api/tyres' && req.method === 'GET') {
     const p = url.searchParams.get('path') || '';
-    if (!env.DB || !/^\d{4}\/[\w\-./]+\/$/.test(p)) return json({ error: 'Séance invalide' }, 400);
+    if (!env.DB || !/^\d{4}\/[\p{L}\p{N}_\-./]+\/$/u.test(p)) return json({ error: 'Séance invalide' }, 400);
     const until = Number(url.searchParams.get('until')) || Date.now();
     const hint = Object.fromEntries(['name', 'location', 'country', 'session'].map((k) => [k, (url.searchParams.get(k) || '').slice(0, 80)]));
     return weekendTyres(env, p, until, hint).then((d) => json(d), (err) => json({ error: err.message }, /introuvable/i.test(err.message) ? 404 : 502));

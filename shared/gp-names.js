@@ -110,3 +110,12 @@ export function sessionLabel(name, en = false) {
   const lang = langOf(en);
   return lang === 'en' ? String(name || '') : SESSIONS[lang][name] || String(name || '');
 }
+
+// Grand Prix du calendrier { name, locality, year } = celui de la séance de la F1 (SessionInfo) : même nom, ou même
+// ville la même année (le calendrier et la F1 ne le nomment pas toujours pareil : « Brazilian Grand Prix » et
+// « São Paulo Grand Prix » en 2026)
+export function sameGp(race, info) {
+  const m = info?.Meeting;
+  if (!race || !m) return false;
+  return race.name === m.Name || (!!race.locality && race.locality === m.Location && String(race.year) === String(info.Path || info.StartDate || '').slice(0, 4));
+}

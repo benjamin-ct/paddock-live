@@ -203,8 +203,17 @@ function pairSend() {
 
 updatePairUI();
 
+// Horloge du relais : chaque message donne « heure du serveur − heure du téléphone », moins le temps de trajet. Un
+// message retardé par le réseau du téléphone faisait reculer l'heure affichée d'un coup (voitures qui sautent sur la
+// carte, tout rechargé au-delà de 200 ms) : écart le plus grand des 30 dernières secondes (trajet le plus court),
+// rattrapé en douceur dans loop (3 % au plus) ; recalé d'un coup seulement au début ou après un écart de 2 s
+const skews = [];
+let skewGoal = null, skewAt = 0;
 function status(now) {
-  store.skew = store.skew === 0 ? now - Date.now() : store.skew * 0.8 + (now - Date.now()) * 0.2;
+  skews.push(now - Date.now());
+  if (skews.length > 6) skews.shift();
+  skewGoal = Math.max(...skews);
+  if (store.skew === 0 || Math.abs(skewGoal - store.skew) > 2000) store.skew = skewGoal;
   store.status = {
     type: 'status', serverNow: now, clock: now, paused: false,
     source: { mode: 'live', label: 'Live', ...relay, authenticated: !!relay.authenticated },
@@ -474,6 +483,9 @@ function showWait() {
   if (s) waitBar.textContent = `Mise en mémoire : affichage calé sur votre TV dans ${s} s`;
 }
 function loop() {
+  const dt = Math.min(1000, performance.now() - skewAt);
+  skewAt = performance.now();
+  if (skewGoal !== null) store.skew += Math.max(-0.03 * dt, Math.min(0.03 * dt, skewGoal - store.skew));
   safe(() => hub.tick(serverNow() - store.delay));
   safe(showWait);
   safe(renderHeader);
@@ -518,6 +530,24 @@ if (ONLY) document.querySelector('#homeView').hidden = true;
 
 // Menu : Accueil, Direct, Saison (barre du haut sur ordinateur, barre du bas sur téléphone, comme l'appli ; boutons
 // écrits dans la page, affichés avant le chargement du code)
+// Version web ajoutée à l'écran d'accueil de l'iPhone (iOS 26) : la zone visible se décale de la page (bug de WebKit)
+// et la barre du bas fixée « marche » avec le défilement, jusqu'au milieu de l'écran. Barre et menus du bas recalés
+// sur le bas de la zone visible (--vv-dy, index.html) ; sans le bug l'écart est nul et rien ne bouge
+if (installed && ios && window.visualViewport) {
+  const vv = window.visualViewport, root = document.documentElement;
+  let frame = 0;
+  const fit = () => {
+    frame = 0;
+    const dy = Math.round(vv.offsetTop + vv.height - innerHeight);
+    root.style.setProperty('--vv-dy', `${Math.abs(dy) > 1 ? dy : 0}px`);
+  };
+  const ask = () => { if (!frame) frame = requestAnimationFrame(fit); };
+  for (const ev of ['resize', 'scroll']) vv.addEventListener(ev, ask);
+  addEventListener('scroll', ask, { passive: true });
+  addEventListener('pageshow', ask);
+  document.addEventListener('visibilitychange', ask);
+  fit();
+}
 const navs = [document.querySelector('#webNavTop'), document.querySelector('#webNav')].filter(Boolean);
 for (const nav of navs) {
   nav.addEventListener('click', (e) => {

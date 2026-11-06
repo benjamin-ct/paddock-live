@@ -61,7 +61,7 @@ export async function archiveJSON(rel, opts) {
 // Fichier d'archive servi tel quel à l'interface (radios d'équipe d'un replay : lecture, transcription)
 const TYPES = { mp3: 'audio/mpeg', m4a: 'audio/mp4', aac: 'audio/aac', json: 'application/json', jsonStream: 'text/plain' };
 export async function sendArchiveFile(res, rel) {
-  if (typeof rel !== 'string' || !/^\d{4}\/[\w\-./]+$/.test(rel) || rel.includes('..')) { res.writeHead(400); res.end('Chemin invalide'); return; }
+  if (typeof rel !== 'string' || !/^\d{4}\/[\p{L}\p{N}_\-./]+$/u.test(rel) || rel.includes('..')) { res.writeHead(400); res.end('Chemin invalide'); return; }
   try {
     const body = await archiveGet(rel, { raw: true, timeout: 30000 });
     res.writeHead(200, { 'Content-Type': TYPES[rel.split('.').pop()] || 'application/octet-stream', 'Content-Length': body.length, 'Cache-Control': 'private, max-age=86400' });

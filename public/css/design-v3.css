@@ -134,6 +134,7 @@
 
 /* Délai TV : un seul contrôle (− valeur + · préréglage · synchro) */
 :root[data-design="v3"] .delay { background: transparent; border: 1px solid var(--line-2); border-radius: var(--r-sm); padding: 0; gap: 0; overflow: hidden; }
+:root[data-design="v3"] .delay.open { overflow: visible; }   /* menu ± (−5 à +5 s) sous le délai : pas coupé */
 :root[data-design="v3"] .delay-input { font: 600 var(--fs-md)/1 var(--font-mono); background: transparent; }
 :root[data-design="v3"] .delay :is(.dbtn, .dmore, .dpause) { background: none; border: 0; border-radius: 0; color: var(--text-2); }
 :root[data-design="v3"] .delay :is(.dbtn, .dmore, .dpause):hover { background: var(--panel-2); color: var(--text); }
