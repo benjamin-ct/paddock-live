@@ -2965,4 +2965,8 @@ export default {
   "Passe la ligne environ {} s avant le drapeau : encore un tour possible": "Crosses the line about {} s before the flag: one more lap possible",
   "Juste : la ligne et le drapeau à quelques secondes près": "Tight: the line and the flag within a few seconds",
   "Trop tard : passe la ligne environ {} s après le drapeau": "Too late: crosses the line about {} s after the flag",
+  "Trafic": "Traffic",
+  "· {} arrive sur {} ({}) à {} s": "· {} closing on {} ({}), {} s away",
+  "tour de retour": "in lap",
+  "tour de lancement": "out lap",
 };
