@@ -2999,4 +2999,6 @@ export default {
   "Essais d’hiver à Bahreïn (4 jours)": "Pre-season testing in Bahrain (4 days)",
   "Analyser : la séance s'ouvre à la fin, en pause, avec l'Analyse (résultat visible)": "Analyse: the session opens at the end, paused, with Analysis (result visible)",
   "Analyser ouvre la séance à la fin : le résultat sera visible. Continuer ?": "Analyse opens the session at the end: the result will be visible. Continue?",
+  "Copier le code": "Copy the code",
+  "Code copié": "Code copied",
 };

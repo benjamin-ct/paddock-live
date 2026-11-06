@@ -2998,4 +2998,6 @@ export default {
   "Essais d’hiver à Bahreïn (4 jours)": "Test de pretemporada en Baréin (4 días)",
   "Analyser : la séance s'ouvre à la fin, en pause, avec l'Analyse (résultat visible)": "Analizar: la sesión se abre al final, en pausa, con el Análisis (resultado visible)",
   "Analyser ouvre la séance à la fin : le résultat sera visible. Continuer ?": "Analizar abre la sesión al final: verás el resultado. ¿Quieres continuar?",
+  "Copier le code": "Copiar el código",
+  "Code copié": "Código copiado",
 };

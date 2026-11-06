@@ -2998,4 +2998,6 @@ export default {
   "Essais d’hiver à Bahreïn (4 jours)": "Test invernali in Bahrein (4 giorni)",
   "Analyser : la séance s'ouvre à la fin, en pause, avec l'Analyse (résultat visible)": "Analizza: la sessione si apre alla fine, in pausa, con l'Analisi (risultato visibile)",
   "Analyser ouvre la séance à la fin : le résultat sera visible. Continuer ?": "Analizza apre la sessione alla fine: vedrai il risultato. Vuoi continuare?",
+  "Copier le code": "Copia il codice",
+  "Code copié": "Codice copiato",
 };
