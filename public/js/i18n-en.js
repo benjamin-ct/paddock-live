@@ -2952,4 +2952,9 @@ export default {
   "Arrivée provisoire avec les pénalités en temps (décisions après la course non comptées) :": "Provisional result with time penalties (post-race decisions not counted):",
   "Avec les pénalités en temps :": "With time penalties:",
   "aucun changement": "no change",
+  "{} tour(s) supprimé(s)": "laps deleted: {}",
+  "Piste glissante": "Slippery surface",
+  "Commissaires sur la piste": "Marshals on track",
+  "Véhicule de dépannage sur la piste": "Recovery vehicle on track",
+  "Tours supprimés par virage, incidents et piste glissante des dernières minutes (pilotes au survol)": "Deleted laps per corner, incidents and slippery surface from the last few minutes (drivers on hover)",
 };

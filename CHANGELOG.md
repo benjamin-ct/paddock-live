@@ -81,6 +81,11 @@ l'application (Réglages → À propos → Nouveautés).
   une safety car suivie d'un drapeau rouge ne neutralise plus le reste de la course dans le simulateur d'arrêt.
 - Championnat : s'il n'a pas pu être chargé, nouvel essai tout seul au bout de 30 s et bouton Réessayer.
 - Correction d'une double connexion au direct quand la connexion F1 TV arrive juste après le lancement de l'appli.
+- Carte du circuit : nouveau calque « Limites de piste » (menu Calques). Au virage concerné, une pastille donne le
+  nombre de tours supprimés pour limites de piste (« V4 · 7 ») ; au survol, ou en la touchant sur téléphone, les
+  pilotes concernés et leur nombre d'infractions. Les incidents, la piste glissante, les commissaires ou la dépanneuse
+  en piste y sont signalés pendant cinq minutes. Les virages proches se regroupent dans une seule pastille, et tout
+  suit le délai TV, comme les messages de la direction de course. Aussi dans la version web.
 
 ### Analyse
 - Tendances, en essais libres : nouvelle partie « Relais longs », avec chaque relais de 5 tours propres ou plus par

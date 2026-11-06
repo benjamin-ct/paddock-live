@@ -274,6 +274,7 @@
               <label class="toggle" title="Vitesse, rapport, régime, gaz et frein du pilote suivi"><input type="checkbox" id="mapFocusCard" checked> Télémétrie du pilote suivi</label>
               <label class="toggle" title="Chaque voiture le long du tour, sous la carte"><input type="checkbox" id="mapRibbon2" checked> Ordre sur la piste</label>
               <label class="toggle"><input type="checkbox" id="mapCorners" checked> Numéros de virage</label>
+              <label class="toggle" title="Tours supprimés par virage, incidents et piste glissante des dernières minutes (pilotes au survol)"><input type="checkbox" id="mapLimits" checked> Limites de piste</label>
               <label class="toggle" title="Secteurs S1/S2/S3 et micro-secteurs du chronométrage"><input type="checkbox" id="mapSectors" checked> Secteurs</label>
               <label class="toggle" title="Numéros des micro-secteurs au zoom"><input type="checkbox" id="mapMiniNums"> N° micro-secteurs (zoom)</label>
               <label class="toggle" title="Zones ligne droite (vert), points de détection (rose) et d'activation (vert) du mode dépassement"><input type="checkbox" id="mapZones" checked> Zones LD / détection</label>
@@ -291,6 +292,7 @@
         <canvas id="mapRibbon" class="map-ribbon" hidden aria-label="Ordre des voitures sur la piste"></canvas>
         <div class="map-legend" id="mapLegend"></div>
         <div class="map-flags" id="mapFlags"></div>
+        <div class="map-tip" id="mapTip" role="tooltip" data-no-i18n hidden></div>
         <div class="map-empty" id="mapEmpty">Chargement du tracé…</div>
         <div class="map-zoom">
           <button class="icon-btn" data-mz="in" title="Zoomer (ou molette)">+</button>
