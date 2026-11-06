@@ -136,7 +136,13 @@ async function pairReceive() {
   const kind = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) || matchMedia('(pointer: coarse)').matches ? 'phone' : 'browser';
   const r = await fetch('/live/api/pair', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pub: await pubJwk(keys), kind }) }).then((x) => x.json()).catch(() => null);
   if (!r?.code) return pairNote(t('Connexion impossible pour le moment. Réessayez.'), true);
-  pairBody.innerHTML = `<p class="pair-h">${esc(t('Sur un appareil déjà connecté à F1 TV, ouvrez Paddock Live, touchez « F1 TV connecté » et tapez ce code :'))}</p><div class="pair-code">${r.code}</div><p class="pair-note">${esc(t('En attente de l\'ordinateur…'))}</p>`;
+  pairBody.innerHTML = `<p class="pair-h">${esc(t('Sur un appareil déjà connecté à F1 TV, ouvrez Paddock Live, touchez « F1 TV connecté » et tapez ce code :'))}</p><div class="pair-code selectable">${r.code}</div><button class="btn pair-copy" type="button">${esc(t('Copier le code'))}</button><p class="pair-note">${esc(t('En attente de l\'ordinateur…'))}</p>`;
+  // Copier le code (il se tape sur un autre appareil ; sans presse-papiers : le code est sélectionné)
+  const copy = pairBody.querySelector('.pair-copy');
+  copy.onclick = async () => {
+    try { await navigator.clipboard.writeText(String(r.code)); copy.textContent = t('Code copié'); }
+    catch { getSelection()?.selectAllChildren(pairBody.querySelector('.pair-code')); }
+  };
   const until = Date.now() + (r.ttl || 180) * 1000;
   pairTimer = setInterval(async () => {
     if (Date.now() > until) { stopPair(); return pairNote(t('Code expiré. Fermez et réessayez.'), true); }
