@@ -1,11 +1,12 @@
 // Carte du circuit : tracé, secteurs sous drapeau, voitures (GPS ou estimées), virages.
 import { store, displayNow, f1Now, on, versionOf } from '../store.js';
 import { prefs, setPref } from '../prefs.js';
-import { $, api, drivers, teamColor, storageGet, storageSet, esc } from '../util.js';
+import { $, api, drivers, teamColor, storageGet, storageSet, esc, sessionKind, lapSeconds } from '../util.js';
 import { loadTrack } from '../track.js';
 import { parseUtc, segmentClass, stoppedInRace } from '/shared/f1.js';
-import { hotLaps } from './tower.js';
+import { hotLaps, flyingLaps } from './tower.js';
 import { turnMarks } from '/shared/stewards.js';
+import { trafficAlerts } from '/shared/quali-traffic.js';
 import { icon } from '../icons.js';
 import { DEC, tx, t, LANG } from '../i18n.js';
 import { FONT, MONO, inkOn, drawPuck, drawBadge, drawSectorBadge, drawCornerChip, drawFlagBadge, drawScBadge } from './map-draw.js';
@@ -645,7 +646,33 @@ function draw() {
     }
   }
 
-  renderFlagInfo(flagInfo(red, sc, ts, flagZones));
+  renderFlagInfo(flagInfo(red, sc, ts, flagZones) + trafficInfo());
+}
+
+// Qualifs, avec le GPS (carte 2D) : voiture en tour lancé à moins de 5 s d'une voiture lente devant elle
+// (shared/quali-traffic.js), les 3 plus proches ; recalculé deux fois par seconde. Tour de retour : la voiture lente
+// sort d'un tour rapide (dernier tour à moins de 7 % de son meilleur de la partie), sinon tour de lancement
+const traffic = { at: 0, html: '' };
+function trafficInfo() {
+  const now = performance.now();
+  if (now - traffic.at < 500) return traffic.html;
+  traffic.at = now;
+  const s = store.state, P = store.positions, disp = displayNow(), hot = flyingLaps();
+  if (sessionKind(s) !== 'quali' || !hot || !P.hasGps(disp) || String(s.TrackStatus?.Status) === '5') return (traffic.html = '');
+  const lines = s.TimingData?.Lines || {}, dl = drivers(s), part = Number(s.TimingData?.SessionPart) || 1;
+  const cars = [];
+  for (const [num, l] of Object.entries(lines)) {
+    if (l.InPit || l.Retired || l.Stopped || l.KnockedOut) continue;
+    const g = P.paceAt(num, disp, 4000);
+    if (g) cars.push({ num, p: g.p, rate: g.rate, hot: hot.has(num) });
+  }
+  const tla = (n) => esc(dl[n]?.Tla || n);
+  traffic.html = trafficAlerts(cars, track.L).slice(0, 3).map((a) => {
+    const l = lines[a.slow], best = lapSeconds(list(l.BestLapTimes)[part - 1]?.Value), last = lapSeconds(l.LastLapTime?.Value);
+    const lap = best && last && last < best * 1.07 ? 'tour de retour' : 'tour de lancement';
+    return `<div class="mf-item traffic"><b>Trafic</b> · ${tla(a.hot)} arrive sur ${tla(a.slow)} (${lap}) à ${a.gap.toFixed(1).replace('.', DEC)} s</div>`;
+  }).join('');
+  return traffic.html;
 }
 
 // Informations (HTML) : bandeau drapeau rouge / SC / VSC et zones sous drapeau jaune

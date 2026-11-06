@@ -2964,4 +2964,8 @@ export default {
   "Passe la ligne environ {} s avant le drapeau : encore un tour possible": "Passa la linea circa {} s prima della bandiera: ancora un giro possibile",
   "Juste : la ligne et le drapeau à quelques secondes près": "Al limite: la linea e la bandiera a pochi secondi l'una dall'altra",
   "Trop tard : passe la ligne environ {} s après le drapeau": "Fuori tempo: passa la linea circa {} s dopo la bandiera",
+  "Trafic": "Traffico",
+  "· {} arrive sur {} ({}) à {} s": "· {} arriva su {} ({}) a {} s",
+  "tour de retour": "giro di rientro",
+  "tour de lancement": "giro di lancio",
 };

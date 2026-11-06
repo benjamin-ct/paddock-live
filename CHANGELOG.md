@@ -95,6 +95,8 @@ l'application (Réglages → À propos → Nouveautés).
   pilote dans le classement dit s'il passera la ligne avant le drapeau (À TEMPS, en vert), de justesse (JUSTE, en
   orange) ou trop tard (TROP TARD, en gris), d'après sa place sur le tour et son allure ; DERNIER TOUR pour un tour lancé
   commencé à temps qui finira après le drapeau.
+- Qualifs, trafic : avec le GPS F1 TV, la carte prévient quand une voiture en tour lancé arrive à moins de 5 s d'une
+  voiture lente devant elle (« HAM arrive sur ALB (tour de lancement) à 3,1 s »), pour les trois plus proches.
 
 ### Version web
 - Téléphone : la météo du week-end (longueur, course, prévision, pluie) est calée à gauche dans la barre du haut, sans

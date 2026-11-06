@@ -1,5 +1,5 @@
 // Tableau de classement (course / qualifications / essais).
-import { store, setDuelPair, setFocus, versionOf, displayNow, f1Now, on, utcToLocal, replaySpeed } from '../store.js';
+import { store, setDuelPair, setFocus, versionOf, displayNow, f1Now, on, utcToLocal } from '../store.js';
 import { $, esc, drivers, orderedNumbers, sessionKind, teamMark, tyreBadge, currentStint, lapSeconds, fmtLap } from '../util.js';
 import { prefs, isFav, toggleFav, towerCols, towerBig } from '../prefs.js';
 import { segmentClass, parseUtc, parseLapTime, chequeredUtc, parseGap, overtakeEnabled, provisionalOrder } from '/shared/f1.js';
@@ -431,15 +431,13 @@ const LINE_TAGS = {
 
 function lastLapCall(num, l, hot, clock, now) {
   if (l.InPit || l.Retired || l.Stopped || l.KnockedOut) return null;
-  const P = store.positions, arr = P.gps.get(num), L = P.track.L;
-  const t0 = Math.max(now - 20000, arr?.[0]?.t ?? Infinity);
-  const p = arr?.at(-1)?.t > now - 3000 ? P.progressAt(num, now) : null, p0 = now - t0 >= 5000 ? P.progressAt(num, t0) : null;
-  const from = p === null ? NaN : p - P.lineFrac() * L;
+  const P = store.positions, L = P.track.L, g = P.paceAt(num, now, 20000);
+  const from = g ? g.p - P.lineFrac() * L : NaN;
   const lap = store.derived.laps?.[num]?.at(-1);
   return lineCall({
     remaining: clock.rem,
     toLine: L - (((from % L) + L) % L),
-    rate: p0 === null ? NaN : (p - p0) / (((now - t0) / 1000) * replaySpeed()),
+    rate: g?.rate,
     hot,
     startedInTime: !clock.flag || !lap || lap.t < clock.flag,
   });
@@ -448,10 +446,15 @@ function lastLapCall(num, l, hot, clock, now) {
 // Temps prévu d'un tour lancé : secteurs réalisés + meilleurs secteurs personnels restants.
 // Pilotes dans un tour lancé (essais / qualifs), pour estomper les autres (option, comme
 // MultiViewer). Vide en course ou si l'option est coupée.
-let hotKey = '', hotSet = new Set();
 export function hotLaps() {
+  return prefs.hotLapDim ? flyingLaps() : null;
+}
+
+// Pilotes dans un tour lancé (essais / qualifs) ; null en course
+let hotKey = '', hotSet = new Set();
+export function flyingLaps() {
   const s = store.state;
-  if (!prefs.hotLapDim || sessionKind(s) === 'race') return null;
+  if (sessionKind(s) === 'race') return null;
   const k = versionOf(['TimingData', 'TimingStats', '__reset']);
   if (k !== hotKey) {
     hotKey = k;
