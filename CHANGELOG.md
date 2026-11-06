@@ -4,6 +4,226 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → À propos → Nouveautés).
 
+## v1.32.0 — 2026-11-06
+
+### Accueil
+- L'Accueil devient un tableau de bord de cartes : compte à rebours de la prochaine séance (jours, heures, minutes,
+  secondes) avec son programme et sa météo, dernière séance (résultat toujours masqué), classements des pilotes et des
+  constructeurs (10 premiers, écart et places gagnées ou perdues), Mes favoris, calendrier (manche, tracé du circuit,
+  part de la saison courue), arrêt au stand le plus rapide, coût des dégâts, éléments moteur et évolutions techniques,
+  dernières actus. Chaque carte ouvre sa rubrique de la Saison. Quatre colonnes sur ordinateur, deux sur tablette, une
+  au téléphone avec l'essentiel en premier.
+- Sans spoiler : dans les 72 h qui suivent une course ou un sprint, les classements restent ceux d'avant cette manche
+  (et les arrêts et les dégâts ne la comptent pas) jusqu'au clic sur « Afficher le classement à jour ».
+- Séances de nuit : une petite lune devant l'heure des séances qui commencent entre minuit et 7 h chez vous (accueil,
+  calendrier de la Saison), comme Las Vegas à 5 h du matin en Europe.
+- Programme du week-end expliqué : sous chaque séance du prochain Grand Prix (accueil, calendrier de la Saison), une
+  phrase simple dit à quoi elle sert (« Qualifications : décident l'ordre de départ, à ne pas rater »), une étoile
+  marque celles à ne pas rater (qualifications, sprint, course) et un repère « Week-end sprint » signale les week-ends
+  au format sprint.
+- « Avant le départ en une minute » : dans l'heure qui précède la course, une carte en tête de l'Accueil réunit les
+  pneus choisis par Pirelli pour le week-end, le risque de pluie pendant la course et l'enjeu du championnat (avance du
+  leader, titre possible dès cette course). La grille de départ officielle de la FIA, avec les départs des stands et
+  les pénalités, reste cachée jusqu'au clic sur « Voir la grille » (elle dévoile le résultat des qualifications) ;
+  grille provisoire signalée, et « pas encore publiée » tant que la FIA ne l'a pas mise en ligne.
+- Compte à rebours de l'Accueil : comme celui de la Saison, le chiffre qui change roule (l'ancien descend, le nouveau
+  arrive d'en haut), sauf si les animations sont coupées.
+- Hors saison, l'Accueil montre les prochaines dates de l'intersaison annoncées officiellement (lancement de la saison
+  2027 à Milan avec les 11 écuries, essais d'hiver à Bahreïn), chacune avec le lien de son annonce, et les ajoute
+  toutes à son agenda d'un clic.
+- Essais d'hiver sur l'Accueil : compte à rebours de la prochaine journée d'essais (en jours tant que la F1 n'a pas
+  annoncé les horaires) et programme jour par jour ; pendant une journée d'essais, « Regarder en direct ». Le compte à
+  rebours du premier Grand Prix reprend une fois les essais terminés.
+
+### Affichage
+- Taille de l'interface aussi dans le navigateur d'un téléphone ou d'une tablette (Réglages → Affichage → Général), de
+  90 à 150 % : textes, boutons, classement et graphiques grandissent ensemble, la page se réorganise sans déborder.
+  L'application de bureau garde la sienne (de 90 à 200 %, ou Ctrl + / Ctrl − / Ctrl 0).
+- Contraste renforcé (Réglages → Affichage → Général) : textes secondaires, libellés et contours des panneaux plus
+  marqués, dans tous les designs, en sombre comme en clair. Activé tout seul quand l'ordinateur ou le téléphone demande
+  plus de contraste.
+- Mode daltonien (Réglages → Affichage → Général) : des formes et des motifs en plus des couleurs. Mini-secteurs de
+  hauteurs différentes (violet plein, vert aux deux tiers, jaune au tiers, stand en tirets), aussi en tirets et en
+  points sur le circuit pour le pilote suivi ; meilleurs temps soulignés (trait plein pour le meilleur de tous,
+  pointillés pour le record personnel) ; drapeaux de la direction de course à motifs (vert rayé, rouge barré, bleu en
+  diagonale, safety car à pois) ; lettre du pneu dans la stratégie et l'historique des pneus.
+- Téléphone et tablette : plus de zoom quand on touche deux fois vite un menu ou une rubrique (le zoom à deux doigts
+  reste), dans l'appli et la version web.
+- Actu : au lancement de l'appli, toute l'actualité s'affiche (il arrivait que la liste reste vide, ou ne montre que les
+  dernières nouvelles avec « 0 sources suivies », quand l'appli la demandait avant que son serveur l'ait lue).
+- Nouveau design « Télémétrie », par défaut dans l'appli : interface plus sobre et plus lisible, le rouge réservé à ce
+  qui est actif, classement plus large avec toutes ses colonnes, nouvelle police, thèmes sombre et clair. Ceux qui
+  utilisaient Paddock 2 passent à Télémétrie ; Paddock 2 et Classique restent au choix (Réglages → Apparence → Design).
+- Palette de commandes (Ctrl + K, ⌘K sur Mac) : quelques lettres suffisent pour ouvrir un espace, les résultats ou le
+  résumé de la séance, une fenêtre, l'apparence, un réglage ou une rubrique de la Saison, sans souris.
+- Navigation du design Télémétrie : la barre latérale garde les cinq espaces (Accueil, Direct, Saison, Actu, Replays),
+  avec en bas Recherche, Fenêtres, Apparence et Réglages ; Résultats, Résumé et Commentaires se choisissent en tête du
+  Direct et des replays. Au téléphone, Replays rejoint la barre du bas et Réglages la barre de séance ; tenu en
+  paysage, la barre du bas devient un rail à gauche pour laisser la hauteur au classement.
+- Nouveau panneau « Fil de course » : radios d'équipe (à écouter, en texte et traduites), messages de la direction de
+  course, enquêtes et limites de piste dans un seul fil, le plus récent en haut, avec des filtres (Tout, Radios,
+  Direction, Enquêtes, Limites). À ajouter dans Réglages → Disposition ; affiché d'office dans le design Télémétrie, à
+  la place des panneaux Radios et Messages (une disposition déjà enregistrée n'est pas modifiée).
+- Design Télémétrie : la barre de séance tient sur une ligne de 1180 à 1920 px (outils rangés dans un menu « Outils »
+  sur les écrans moins larges), les en-têtes de panneaux à onglets aussi (les onglets défilent) ; au téléphone tenu en
+  paysage, le classement gagne trois lignes (vues de la séance et onglets sur une seule ligne, bouton Colonnes réduit
+  à son icône, barre du replay plus basse).
+- Design Télémétrie au téléphone et à la tablette : barre de séance plus basse (deux lignes au téléphone, une à la
+  tablette), Résultats, Résumé et Commentaires dans un bouton « Séance » au bout des onglets, replay en mini-lecteur
+  (lecture, curseur et temps ; les autres commandes à côté) : le classement montre trois à cinq lignes de plus. Tenu
+  en paysage, et à la tablette en portrait, le classement et une seconde zone au choix (carte, fil, télémétrie)
+  s'affichent ensemble. Aussi : favoris de l'Accueil remis en ordre (aussi en Classique), classements Pilotes et
+  Constructeurs de la Saison à la même hauteur de ligne, filtres de l'Actu harmonisés, puces du Fil de course qui
+  défilent à la molette, bouton Fermer de la palette au doigt, plus de « Tours » de la course à venir hors séance ;
+  en Paddock 2 et Classique, la barre du haut ne dépasse plus de l'écran vers 1440 px pendant une séance.
+- Design Télémétrie : Saison, Actu, Replays, Résultats, Résumé et Réglages prennent son style (pages à plat, grands
+  titres étroits, chiffres mis en avant, écuries en traits de couleur, articles plus lisibles) ; les rubriques de la
+  Saison se rangent en cinq groupes repliables (Vue d'ensemble, Résultats, Pilotes et écuries, Technique, Jeux), tous
+  repliables à la main, aussi celui de la rubrique ouverte et dans la version web (sans les anciens intertitres vides).
+- Mouvement réduit demandé par le système : le point de la source des données ne pulse plus et la fenêtre des
+  Réglages s'ouvre sans animation.
+- Le design Broadcast n'est plus proposé : ceux qui l'utilisaient passent à Paddock 2 (Paddock 2 et Classique restent au choix).
+- Téléphone tenu en paysage : l'en-tête tient sur une ligne, les onglets et la barre du replay sont resserrés, la barre
+  du bas ne montre plus que ses icônes et la page défile ; le classement a enfin de la place (avant, il ne restait que
+  quelques pixels). Le contenu ne passe plus sous l'encoche. Android en paysage : le classement s'affiche d'abord.
+- Onglets du téléphone (Classement, Télémétrie, Messages…) bien lisibles en mode clair.
+- Nouveau réglage « Taille de l'interface » (90 à 200 %, Réglages → Affichage) dans l'appli de bureau, pour les
+  grands écrans et les téléviseurs 4K ; Ctrl + / Ctrl − / Ctrl 0 agrandissent et réduisent aussi sous Windows et Linux.
+- Écran pivoté (plus haut que large) : la disposition par défaut passe à deux colonnes, le classement montre toutes
+  ses colonnes principales. Une disposition déjà choisie n'est pas touchée.
+- Sur téléphone et tablette, les petits boutons (Pronostics, Actu, Calendrier, badge REPLAY, interrupteurs) se
+  touchent plus facilement ; les places gagnées ou perdues du classement s'écrivent plus gros.
+- Dates d'un week-end à cheval sur deux mois écrites en entier (« 30 oct. – 1 nov. »).
+- Réglages sur petit téléphone : les choix des listes s'affichent en entier.
+
+### En direct
+- Classement de la course, option « Avec pénalités » (menu Colonnes) : pendant les 5 derniers tours et après le
+  drapeau, la place de chacun avec les pénalités en temps pas encore purgées (ex. « NOR P3 → P5 »), et un bandeau
+  « Arrivée provisoire » après le drapeau (les décisions prises après la course ne sont pas comptées). Un pilote
+  doublé reste derrière ceux qui ont fait plus de tours.
+- La course de mon favori : en course et en sprint, la page Résultats montre en tête une carte par pilote
+  favori (grille → arrivée, place au premier tour, relais et arrêts, meilleur tour, duel avec le coéquipier,
+  pénalités, points gagnés), avec une image à partager. Rien n'apparaît avant d'avoir ouvert les résultats.
+- Les répétitions de la F1 (veille de la course) ne sont plus enregistrées comme de vraies séances : pas de faux
+  replay, ni d'historique rechargé dans le direct, ni d'ajout à la fin du replay des essais libres 3.
+- Drapeau rouge : les voitures arrêtées aux stands ne sont plus comptées comme des abandons (moments clés, résumé), et
+  une safety car suivie d'un drapeau rouge ne neutralise plus le reste de la course dans le simulateur d'arrêt.
+- Championnat : s'il n'a pas pu être chargé, nouvel essai tout seul au bout de 30 s et bouton Réessayer.
+- Correction d'une double connexion au direct quand la connexion F1 TV arrive juste après le lancement de l'appli.
+- Carte du circuit : nouveau calque « Limites de piste » (menu Calques). Au virage concerné, une pastille donne le
+  nombre de tours supprimés pour limites de piste (« V4 · 7 ») ; au survol, ou en la touchant sur téléphone, les
+  pilotes concernés et leur nombre d'infractions. Les incidents, la piste glissante, les commissaires ou la dépanneuse
+  en piste y sont signalés pendant cinq minutes. Les virages proches se regroupent dans une seule pastille, et tout
+  suit le délai TV, comme les messages de la direction de course. Aussi dans la version web.
+- Documents FIA du Grand Prix du Brésil (appelé « São Paulo Grand Prix » par la FIA) : la liste s'affiche de nouveau,
+  comme la grille de départ officielle sur l'Accueil. Une course sans document encore publié indique « Aucun document
+  publié pour l'instant », et une erreur s'affiche au lieu d'un chargement sans fin.
+
+### Analyse
+- Tendances, en essais libres : nouvelle partie « Relais longs », avec chaque relais de 5 tours propres ou plus par
+  pilote et par pneu (rythme médian corrigé de l'allègement en carburant, perte par tour), puis le classement des
+  écuries sur chaque pneu. Une indication seulement : l'essence embarquée par chaque écurie n'est pas connue.
+- Qualifs, « Encore un tour ? » : dans les 3 dernières minutes de Q1, Q2 et Q3, avec le GPS F1 TV, une étiquette par
+  pilote dans le classement dit s'il passera la ligne avant le drapeau (À TEMPS, en vert), de justesse (JUSTE, en
+  orange) ou trop tard (TROP TARD, en gris), d'après sa place sur le tour et son allure ; DERNIER TOUR pour un tour lancé
+  commencé à temps qui finira après le drapeau.
+- Qualifs, trafic : avec le GPS F1 TV, la carte prévient quand une voiture en tour lancé arrive à moins de 5 s d'une
+  voiture lente devant elle (« HAM arrive sur ALB (tour de lancement) à 3,1 s »), pour les trois plus proches.
+- Avancement de la course sur l'icône, au délai TV : dans l'appli de bureau, une barre sur l'icône de la barre des
+  tâches (Windows), du Dock (Mac) et des docks Linux qui l'acceptent, rouge sous drapeau rouge et jaune sous voiture de
+  sécurité (couleurs sous Windows) ; dans la version web installée, les tours restants en pastille sur l'icône (sur
+  iPhone, seulement si les notifications sont déjà permises). Effacés à l'arrivée, hors course et replay en pause.
+
+### Version web
+- Connexion F1 TV au téléphone : bouton « Copier le code » sous le code à 8 chiffres (il n'était pas possible de le
+  sélectionner), et le code se sélectionne aussi à la main.
+- Téléphone : la météo du week-end (longueur, course, prévision, pluie) est calée à gauche dans la barre du haut, sans
+  grand vide, et ses valeurs ne se touchent plus.
+- Nouveau design « Télémétrie », comme dans l'appli, en sombre et en clair : barre du haut sur deux lignes régulières
+  sur ordinateur (la séance et ses chiffres, puis le délai TV, la connexion F1 TV et les fenêtres), outils rangés dans
+  un menu « Outils » sur les écrans moyens, menu Accueil, Direct et Saison sur la gauche du téléphone en paysage.
+- Écran d'accueil, comme dans l'appli : prochaine séance avec son compte à rebours, programme et météo du week-end,
+  dernière séance (résultat masqué, « Voir les résultats »), pilotes et écuries favoris, dernières actus (titres traduits,
+  ouvertes sur leur site). Il s'ouvre quand aucune séance n'est en cours.
+- Petit menu pour passer de l'Accueil au Direct et à la Saison : dans la barre du haut sur ordinateur, en bas de
+  l'écran sur téléphone (comme l'appli), toujours visible ; rien ne reste caché derrière en bas des pages, ni en bas du
+  menu des rubriques de la Saison.
+- Radar de pluie réparé (outil Météo) : il était bloqué, et son message cachait les onglets ; on peut de nouveau passer
+  à Windy. Sans réponse du radar, nouvel essai au bout d'une minute.
+- Reconnexion plus douce quand le serveur est plein ou coupé (délai qui augmente jusqu'à une minute), plus de places
+  pendant les séances, et les données GPS et télémétrie sont vidées à chaque nouvelle séance (moins de mémoire).
+- Résultats : bouton Réessayer et nouvel essai tout seul après une coupure.
+- Pages anglaises de la Saison (/en/season/…) : l'appli s'ouvre en anglais à la première visite (une langue déjà
+  choisie est gardée), et l'adresse et le titre de l'onglet restent en anglais d'une rubrique à l'autre.
+- Sur ordinateur, l'accueil et la barre du haut ne sautent plus pendant le chargement de la page.
+- Pages de la Saison : un seul titre principal, aussi une fois l'appli lancée (pour les moteurs de recherche et les
+  lecteurs d'écran).
+- La Saison s'ouvre de nouveau d'un toucher quand la page est restée ouverte pendant une mise à jour du site : elle se
+  recharge sur la Saison au lieu de ne rien faire.
+- Appairage avec l'appli : codes à 8 chiffres (les codes à 6 chiffres marchent encore) et protection contre les essais
+  en masse.
+- Alertes dans la version web, sans passer par une autre page : bouton « Alertes » (derrière l'engrenage sur téléphone)
+  et tuile de l'Accueil. Rappel 30 minutes avant chaque séance, résultats si vous le voulez, grosses news, avec un
+  essai. Une notification ouvre la version web (ou l'article d'une grosse news). Sur iPhone et iPad, un petit guide
+  pour ajouter Paddock Live à l'écran d'accueil, où les alertes arrivent. Déjà abonné sur paddocklive.app/alertes ?
+  Désactivez les alertes là-bas pour ne pas tout recevoir deux fois.
+- Android : appui long sur l'icône de la version web installée pour aller droit au Direct, à la Saison ou aux Alertes.
+
+### Langues
+- Alertes de course (« Piste dégagée », « VER abandonne »…) et plusieurs petits morceaux de texte (pneus neufs ou
+  d'occasion, numéro d'arrêt, virages, distances) traduits en anglais, italien et espagnol.
+- Calendrier (.ics) en italien et en espagnol.
+- Résumé de course : « avec un tour d'avance sur son dauphin » au lieu de « 1L s d'avance ».
+
+### Replays
+- Nouveau bouton « Analyser » (icône de graphique) à côté de chaque séance des Grands Prix et de « Revoir » dans Mes
+  enregistrements : la séance s'ouvre directement à la fin, en pause, avec la fenêtre Analyse (au téléphone en
+  version complète, son onglet) et tous les tours, relais et tendances déjà calculés. Le résultat est donc visible :
+  l'info-bulle le dit, et sur écran tactile une confirmation le rappelle avant d'ouvrir.
+
+### Saison
+- Fiche d'un Grand Prix à venir : nouveau bloc « Dans l'histoire », avec les derniers vainqueurs sur ce circuit et leur
+  place au départ, le recordman des victoires, la part des victoires depuis la pole, et depuis 2018 le nombre de courses
+  neutralisées (voiture de sécurité, virtuelle ou drapeau rouge), les arrêts et les places gagnées en piste de chaque
+  course. Toutes les courses disputées sur le circuit comptent, avec l'année de la première et celle du retour au
+  calendrier après une longue absence. Aussi dans la version web.
+- Pilotes : nouveau bloc « Carrière » sur la fiche de chaque pilote de la saison, avec ses titres, départs, victoires,
+  podiums et poles depuis ses débuts, et ses écuries saison par saison. La saison en cours est comptée après chaque
+  course. Aussi dans la version web.
+- Pilote du jour (le vote des fans de la F1) : sur la page de chaque Grand Prix, les 5 premiers du vote avec leurs
+  pourcentages ; dans Résultats & records, le pilote du jour de chaque course et le plus souvent élu ; sur la fiche de
+  chaque pilote, son nombre d'élections et son meilleur score. Aussi dans la version web.
+- Course au titre : nouvelles « Places d'honneur », qui peut encore finir 2e ou 3e du championnat pilotes et
+  constructeurs (ou qui y est assuré) ; sur la carte d'un pilote ou d'une écurie éliminé de la lutte pour le titre, la
+  meilleure place encore possible (« au mieux 2e »).
+- Course au titre : un sprint déjà couru n'est plus compté dans les points encore à prendre (le champion est annoncé
+  dès qu'il ne peut plus être rattrapé).
+- Séance dont l'horaire n'est pas encore publié : date seule, sans heure inventée ni rappel.
+- Nouvelle rubrique « Grille 2027 » (Pilotes et écuries) : le marché des transferts, les deux baquets des 11 écuries,
+  confirmés (date et lien de l'annonce officielle de l'écurie ou de la F1) ou encore à confirmer, et les changements
+  par rapport à 2026. Seules les annonces officielles comptent : pas de rumeur. Aussi dans la version web, avec sa
+  page à partager.
+- Design Classique : les cartes et la fiche des pilotes, les cartes des écuries et le Bilan de la saison s'affichent de
+  nouveau correctement (leur texte s'affichait en vrac).
+- Nouvelle rubrique « Sanctions » : le permis à points de chaque pilote sur 12 mois glissants (jauge jusqu'à 12, la
+  suspension pour une course, et la date à laquelle chaque point sera retiré), puis les pénalités de la saison par
+  pilote et par écurie (temps, places sur la grille, amendes, réprimandes) et chaque décision des commissaires avec son
+  document FIA, d'après les décisions publiées par la FIA. Aussi dans la version web.
+
+### Sécurité
+- Accès téléphone : un site ouvert sur l'ordinateur ne peut plus lire le direct ; serveur lancé pour tout le réseau
+  (version Node.js) : les noms d'hôte inconnus sont refusés.
+- Extension navigateur (1.2.0, à venir dans les boutiques) : elle se relie à l'appli par une clé et ne donne plus la
+  connexion F1 TV qu'à elle.
+- Radios : les adresses du réseau local ne peuvent plus être atteintes par le relais.
+- Mises à jour : quand une version plus récente sort pendant qu'une autre attend d'être installée, c'est la plus
+  récente qui est installée.
+
+### Divers
+- Démarrage plus léger, dans l'appli et la version web : l'espace Saison (environ 300 Ko de code) n'est chargé qu'à sa
+  première ouverture.
+- Petites améliorations internes.
+
 ## v1.31.0 — 2026-11-02
 
 ### En direct

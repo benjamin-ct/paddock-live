@@ -122,7 +122,7 @@ test('serveur : OpenFreeMap occupé, deux essais puis erreur passagère qui nomm
 function db(rows) {
   return { prepare: (sql) => ({ bind: (...a) => ({
     first: async () => (rows.has(a[0]) ? { v: rows.get(a[0]) } : null),
-    run: async () => { rows.set(a[0], a[1]); return {}; },
+    run: async () => { if (sql.startsWith('INSERT INTO ai_usage')) return { meta: { changes: 1 } }; rows.set(a[0], a[1]); return {}; },   // plafond de Jolpica : permis
     all: async () => ({ results: [...rows].filter(([k]) => k >= a[0] && k < a[1]).map(([k, v]) => ({ k, v })) }),
   }) }) };
 }

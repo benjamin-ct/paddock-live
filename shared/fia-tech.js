@@ -2,7 +2,7 @@
 // Grand Prix (fia.com) : lecture des PDF et des tableaux, communs à l'appli (server/fia-tech.js) et au serveur de la
 // version web (analytics/fia-tech.js).
 
-export const FIA_VERSION = 5;
+export const FIA_VERSION = 6;
 
 // ---------------- Lecture des PDF ----------------
 let pdfLib = null;
@@ -180,8 +180,8 @@ export function parsePuNew(pages) {
   return out;
 }
 
-// Décision des commissaires sur des éléments moteur : { num, driver, fact, decision }
-export function parsePuPenalty(pages) {
+// Décision des commissaires (éléments moteur, sanctions) : { num, driver, competitor, session, fact, decision }
+export function parseDecision(pages) {
   const rows = pages.flatMap((p) => lines(p));
   const field = (label) => {
     const i = rows.findIndex((r) => new RegExp(`^${label}\\b`).test(r.text));
@@ -191,7 +191,7 @@ export function parsePuPenalty(pages) {
     return txt.join(' ').trim();
   };
   const who = /(\d{1,2})\s*-\s*(.+)/.exec(field('No / Driver'));
-  return { num: who ? String(Number(who[1])) : null, driver: who?.[2] || '', fact: field('Fact'), decision: field('Decision') };
+  return { num: who ? String(Number(who[1])) : null, driver: who?.[2] || '', competitor: field('Competitor'), session: field('Session'), fact: field('Fact'), decision: field('Decision') };
 }
 
 // ---------------- Équipes ----------------
@@ -225,7 +225,7 @@ export async function eventData(ev, { documents, parsed }) {
   const docs = await documents(ev.page);
   if (!docs.length) return null;
   const dates = docs.map((d) => d.published).filter(Boolean);
-  const out = { name: ev.name, page: ev.page, first: Math.min(...dates), last: Math.max(...dates), tech: null, noUpdates: [], used: null, fresh: [], penalties: [], docs: {} };
+  const out = { name: ev.name, page: ev.page, first: Math.min(...dates), last: Math.max(...dates), tech: null, noUpdates: [], used: null, fresh: [], penalties: [], decisions: [], docs: {} };
   const cps = docs.find((d) => /Car Presentation Submissions/i.test(d.title));
   if (cps) {
     const t = await parsed(cps.url, parseTechUpdates);
@@ -243,8 +243,14 @@ export async function eventData(ev, { documents, parsed }) {
     for (const e of await parsed(d.url, parsePuNew)) if (!out.fresh.some((f) => f.num === e.num && f.element === e.element && f.previous === e.previous)) out.fresh.push(e);
   }
   for (const d of docs.filter((x) => /Infringement|Decision/i.test(x.title) && /\bPU\b|power unit/i.test(x.title))) {
-    const p = await parsed(d.url, parsePuPenalty);
+    const p = await parsed(d.url, parseDecision);
     out.penalties.push({ ...p, title: d.title, url: d.url, published: d.published });
+  }
+  // Décisions des commissaires visant un pilote (sanctions, points de pénalité) ; document corrigé : fia.com retire
+  // l'original de la liste. Convocations et temps supprimés exclus
+  for (const d of docs.filter((x) => /\b(Decision|Infringement|Offence)\b/i.test(x.title) && /\bCars?\s+\d/i.test(x.title) && !/Summons|Deleted Lap Times/i.test(x.title))) {
+    const p = await parsed(d.url, parseDecision);
+    if (p.num) out.decisions.push({ ...p, title: d.title, url: d.url, published: d.published });
   }
   return out;
 }

@@ -3,6 +3,7 @@
 import { builtinNomination } from '/shared/tyres.js';
 import { raceWeekData, weekendData, recordsData, ratingsData, teamDuelsData, titleData, titleSide, raceLapsData, seasonCaptions } from '/shared/social-season.js';
 import { raceFrame, raceVideoTiming } from '/shared/social-draw-season.js';
+import { timelapseFrame, timelapseTiming, tyreStints } from '/shared/social-draw-timelapse.js';
 import { parseRaceLaps } from '/shared/race-laps.js';
 import { circuitInfo } from '/shared/circuits-info.js';
 import { recordsOf, recordYears, editionFromResults } from '/shared/circuit-records.js';
@@ -82,9 +83,25 @@ const trackOf = (year, key) => memoOf(`c${key}-${year}`, async () => {
   }
   return null;
 });
-const raceControlOf = (year, race) => memoOf(`rc${year}-${race.round}`, async () => {
+const racePathOf = (year, race) => memoOf(`rp${year}-${race.round}`, async () => {
   const p = raceSessionPath(await readArchive(`${year}/Index.json`), { name: race.name, circuitKey: circuitInfo(race.circuitId)?.key });
   if (!p) throw new Error('Course introuvable dans les archives');
+  return p;
+});
+// Pneus de chaque relais (Course en accéléré) : TimingAppData et DriverList des archives, sinon du direct de la F1
+const tyresOf = (year, race) => memoOf(`ty${year}-${race.round}`, async () => {
+  const p = await racePathOf(year, race);
+  try {
+    const [app, list] = await Promise.all([readArchive(`${p}TimingAppData.json`), readArchive(`${p}DriverList.json`)]);
+    return tyreStints(app, list);
+  } catch (err) {
+    const live = await api(`live-state?p=${encodeURIComponent(p)}`).catch(() => null);
+    if (live?.TimingAppData && live?.DriverList) return tyreStints(live.TimingAppData, live.DriverList);
+    throw err;
+  }
+});
+const raceControlOf = (year, race) => memoOf(`rc${year}-${race.round}`, async () => {
+  const p = await racePathOf(year, race);
   try { return parseRaceControl(await readArchive(`${p}RaceControlMessages.json`)); } catch (err) {
     // Course qui vient de finir : archive pas encore publiée, le direct de la F1 garde ses messages
     const live = await api(`live-state?p=${encodeURIComponent(p)}`).catch(() => null);
@@ -96,7 +113,9 @@ async function forecastOf(lat, lon) {
   const q = new URLSearchParams({ latitude: Number(lat).toFixed(4), longitude: Number(lon).toFixed(4), daily: 'temperature_2m_max,temperature_2m_min,precipitation_probability_max', timezone: 'auto', forecast_days: '16' });
   const j = await fetch(`https://api.open-meteo.com/v1/forecast?${q}`).then((r) => r.json()).catch(() => null);
   const d = j?.daily || {};
-  return (d.time || []).map((date, i) => ({ date, tmax: d.temperature_2m_max?.[i] ?? null, tmin: d.temperature_2m_min?.[i] ?? null, rain: d.precipitation_probability_max?.[i] ?? null })).filter((x) => x.tmax !== null);
+  const days = (d.time || []).map((date, i) => ({ date, tmax: d.temperature_2m_max?.[i] ?? null, tmin: d.temperature_2m_min?.[i] ?? null, rain: d.precipitation_probability_max?.[i] ?? null })).filter((x) => x.tmax !== null);
+  days.tz = j?.timezone || null;   // jours datés à l'heure du circuit (weekendData)
+  return days;
 }
 
 const STYPES = [['raceweek', 'Race Week'], ['weekend', 'Programme'], ['records', 'Le saviez-vous'], ['ratings', 'Notes'], ['teamduels', 'Duels'], ['title', 'Course au titre'], ['racelaps', 'Tour par tour']];
@@ -199,9 +218,10 @@ async function seasonEditor(year, data, race, back) {
     d = titleSide(full, state.titleSide);
     note = 'Éliminés grisés.';
   } else {
-    const [laps, rcm] = await Promise.all([lapsOf(year, race.round), raceControlOf(year, race).catch(() => null)]);
+    const [laps, rcm, tyres] = await Promise.all([lapsOf(year, race.round), raceControlOf(year, race).catch(() => null), tyresOf(year, race).catch(() => null)]);
     if (!laps.total) throw new Error('Tours de cette course pas encore publiés');
     d = raceLapsData(race, laps, { year, live, rcm: rcm?.length ? rcm : null });
+    if (tyres && Object.keys(tyres).length) d.tyres = tyres;   // pneus de la Course en accéléré (sans : pas de pastille)
     if (d.story.estimated) note = 'Direction de course indisponible : neutralisations estimées.';
   }
   const video = state.stype === 'racelaps';
@@ -212,6 +232,10 @@ async function seasonEditor(year, data, race, back) {
   const SIDES = { drivers: 'Pilotes', teams: 'Constructeurs' };
   const side = () => (state.titleSide === 'teams' ? 'teams' : 'drivers');
   const other = () => (side() === 'teams' ? 'drivers' : 'teams');
+  // Vidéo de la course : graphique des positions ou course en accéléré (choix gardé sur l'appareil)
+  const VKINDS = { chart: ['Graphique', raceFrame, raceVideoTiming], timelapse: ['Course en accéléré', timelapseFrame, timelapseTiming] };
+  const vkind = () => (VKINDS[store.get('racevid')?.v] ? store.get('racevid').v : 'chart');
+  const vdur = () => Math.round(VKINDS[vkind()][2](d).duration);
   const recordOf = (k) => (full ? { key: `title:${year}-${race.round}:${k}`, kind: 'title', title: `Titre ${SIDES[k].toLowerCase()} · ${d.gp}` }
     : { key: `${state.stype}:${year}-${race.round}`, kind: state.stype, title: `${typeName} · ${d.gp}` });
   editor({
@@ -221,7 +245,7 @@ async function seasonEditor(year, data, race, back) {
     note,
     head: full ? `<h3 class="section">Championnat</h3><div class="seg wide" id="tside">${Object.entries(SIDES).map(([k, v]) => `<button data-side="${k}" class="${side() === k ? 'on' : ''}">${v}</button>`).join('')}</div>
       <p class="hint">Un post par championnat ; l'autre peut partir en même temps (étape Publier).</p>` : '',
-    vhead: `${video ? `<h3 class="section">Vidéo de la course</h3>${musicField('race', 'depart')}<div class="row"><button class="btn" id="mkvid">${icon('video')}Créer la vidéo (${Math.round(raceVideoTiming(d).duration)} s)</button><button class="btn" id="sharevid" disabled>${icon('share')}Partager</button></div>
+    vhead: `${video ? `<h3 class="section">Vidéo de la course</h3><div class="seg wide" id="vkind">${Object.entries(VKINDS).map(([k, [l]]) => `<button data-vkind="${k}" class="${vkind() === k ? 'on' : ''}">${l}</button>`).join('')}</div>${musicField('race', 'depart')}<div class="row"><button class="btn" id="mkvid">${icon('video')}Créer la vidéo (<span id="vdur">${vdur()}</span> s)</button><button class="btn" id="sharevid" disabled>${icon('share')}Partager</button></div>
         <p class="hint" id="vidst">Garder l'écran allumé pendant l'enregistrement.</p>
         <video id="vid" controls playsinline hidden></video>` : ''}`,
     data: () => d, caps: (dd) => seasonCaptions(dd, SIG),
@@ -240,6 +264,14 @@ async function seasonEditor(year, data, race, back) {
       });
       if (!video) return;
       const track = bindMusic('race');
+      $$('[data-vkind]').forEach((b) => {
+        b.onclick = () => {
+          store.set('racevid', b.dataset.vkind);
+          $$('[data-vkind]').forEach((x) => x.classList.toggle('on', x === b));
+          $('#vdur').textContent = vdur();
+          glide();
+        };
+      });
       $('#mkvid').onclick = async () => {
         unlockAudio();   // pendant le toucher, avant toute attente (sinon vidéo muette sur iPhone)
         $('#mkvid').disabled = true;
@@ -249,7 +281,8 @@ async function seasonEditor(year, data, race, back) {
           // Paysage : sans couverture au début, la vidéo commence sur la course
           const cover = opts.format === 'wide' ? null : (ctx, w, h) => styled(o, () => videoCover(ctx, w, h, d, o));
           const ro = { ...o, insta: opts.format === 'insta' };   // marges d'Instagram
-          clip = await makeAnimation((ctx, t, w, h) => styled(ro, () => raceFrame(ctx, w, h, d, ro, t)), raceVideoTiming(d).duration, { cover, ...opts, onProgress: (p) => { $('#vidst').textContent = `Enregistrement… ${Math.round(p * 100)} %`; } });
+          const [, frame, timing] = VKINDS[vkind()];
+          clip = await makeAnimation((ctx, t, w, h) => styled(ro, () => frame(ctx, w, h, d, ro, t)), timing(d).duration, { cover, ...opts, onProgress: (p) => { $('#vidst').textContent = `Enregistrement… ${Math.round(p * 100)} %`; } });
           $('#vid').src = URL.createObjectURL(clip.blob); $('#vid').hidden = false;
           $('#sharevid').disabled = false;
           $('#vidst').textContent = `Vidéo prête (${(clip.blob.size / 1e6).toFixed(1).replace('.', ',')} Mo)${clip.silent ? ' · sans son : le navigateur a bloqué la musique, recommencez' : ''}${(file = clipFile(clip, `course-${race.round}`)) ? ' · jointe au post : Reel, vidéo, TikTok et Short à choisir à l\'étape Publier' : ' · format WebM : à partager seulement (publication en MP4)'}`;

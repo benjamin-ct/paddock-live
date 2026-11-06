@@ -1,11 +1,11 @@
 <!doctype html>
-<html lang="fr" data-title-en="Paddock Live · Free F1 live timing, synced to your TV" data-desc-en="Free F1 live timing on your computer: timing, GPS track map, team radio and strategy for every Grand Prix, synced to your TV so the race is never spoiled. Windows, macOS, Linux.">
+<html lang="fr" data-title-en="Paddock Live · Free F1 live timing, synced to your TV" data-desc-en="Free F1 live timing for Windows, macOS and Linux: timing, GPS track map, team radio and strategy, synced to your TV so the race is never spoiled.">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Paddock Live · Live timing F1 gratuit, calé sur ta TV</title>
-<meta name="description" content="Live timing F1 gratuit sur ton ordinateur : chronos, carte GPS, radios traduites et stratégie de chaque Grand Prix, calés sur ta diffusion TV pour ne jamais te spoiler la course. Windows, macOS, Linux.">
-<meta name="theme-color" content="#020817">
+<meta name="description" content="Live timing F1 gratuit pour Windows, macOS et Linux : chronos, carte GPS, radios traduites et stratégie, calés sur ta TV pour ne pas te spoiler la course.">
+<meta name="theme-color" content="#0B0F15">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Paddock Live : la F1 en direct, calée sur ta TV">
 <meta property="og:description" content="Chronos, carte GPS, radios traduites et stratégie en direct, sans spoiler. Gratuit, pour Windows, macOS et Linux.">
@@ -21,22 +21,26 @@
 <link rel="alternate" hreflang="fr" href="https://paddocklive.app/">
 <link rel="alternate" hreflang="en" href="https://paddocklive.app/en/">
 <link rel="alternate" hreflang="x-default" href="https://paddocklive.app/">
-<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Paddock Live","url":"https://paddocklive.app/"},{"@type":"SoftwareApplication","name":"Paddock Live","description":"Live timing F1 gratuit : chronos, carte GPS, radios traduites et stratégie, calés sur ta diffusion TV.","operatingSystem":"Windows, macOS, Linux","applicationCategory":"SportsApplication","offers":{"@type":"Offer","price":"0","priceCurrency":"EUR"},"url":"https://paddocklive.app/","image":"https://paddocklive.app/site/img/apercu.png","sameAs":["https://www.instagram.com/paddockliveapp/","https://www.facebook.com/paddockliveapp","https://www.tiktok.com/@paddockliveapp","https://x.com/paddockliveapp","https://www.threads.com/@paddockliveapp","https://bsky.app/profile/paddocklive.app","https://www.youtube.com/@paddockliveapp","https://github.com/benjamin-ct/paddock-live"]}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Paddock Live","url":"https://paddocklive.app/"},{"@type":"Organization","name":"Paddock Live","url":"https://paddocklive.app/","logo":"https://paddocklive.app/site/img/logo.png"},{"@type":"SoftwareApplication","name":"Paddock Live","description":"Live timing F1 gratuit : chronos, carte GPS, radios traduites et stratégie, calés sur ta diffusion TV.","operatingSystem":"Windows, macOS, Linux","applicationCategory":"SportsApplication","offers":{"@type":"Offer","price":"0","priceCurrency":"EUR"},"url":"https://paddocklive.app/","image":"https://paddocklive.app/site/img/apercu.png","sameAs":["https://www.instagram.com/paddockliveapp/","https://www.facebook.com/paddockliveapp","https://www.tiktok.com/@paddockliveapp","https://x.com/paddockliveapp","https://www.threads.com/@paddockliveapp","https://bsky.app/profile/paddocklive.app","https://www.youtube.com/@paddockliveapp","https://github.com/benjamin-ct/paddock-live"]}]}</script>
 <meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Paddock Live : la F1 en direct, calée sur ta TV">
+<meta name="twitter:description" content="Chronos, carte GPS, radios traduites et stratégie en direct, sans spoiler. Gratuit, pour Windows, macOS et Linux.">
 <link rel="icon" href="/site/img/logo.png">
 <link rel="apple-touch-icon" href="/site/img/apple-touch-icon.png">
-<link rel="preload" href="/fonts/sairacondensed-800.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="/fonts/titillium-400.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/archivo-cond-var.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/archivo-var.woff2" as="font" type="font/woff2" crossorigin>
 <script>
 // Animations : seulement avec IntersectionObserver et sans « réduire les animations ». Classe posée avant le premier
 // affichage (pas de clignotement) ; sans script, elle manque et tout le contenu reste visible
 if ('IntersectionObserver' in window && !matchMedia('(prefers-reduced-motion: reduce)').matches) document.documentElement.classList.add('anim');
-// Design Paddock 2 (design-v2.css) par défaut ; adresse ?design=off pour l'ancien, gardé pour les pages suivantes (?design=v2 pour revenir)
-{ let design = 'v2';
-  try { const d = new URLSearchParams(location.search).get('design'); if (d) localStorage.setItem('pl.design', d); design = localStorage.getItem('pl.design') || 'v2'; } catch { /* sans stockage */ }
-  if (design !== 'off') document.documentElement.dataset.design = 'v2'; }
+// Design Télémétrie (design-v3.css) par défaut, celui de l'appli ; adresse ?design=v2 pour Paddock 2 (design-v2.css),
+// ?design=off pour l'ancien, gardé pour les pages suivantes (?design=v3 pour revenir)
+{ let design = 'v3';
+  try { const d = new URLSearchParams(location.search).get('design'); if (d) localStorage.setItem('pl.design', d); design = localStorage.getItem('pl.design') || 'v3'; } catch { /* sans stockage */ }
+  if (design !== 'off') document.documentElement.dataset.design = design === 'v2' ? 'v2' : 'v3'; }
 </script>
 <link rel="stylesheet" href="/site/design-v2.css">
+<link rel="stylesheet" href="/site/design-v3.css">
 <style>
 @font-face { font-family: 'Titillium Web'; font-weight: 400; font-display: swap; src: url('/fonts/titillium-400.woff2') format('woff2'); }
 @font-face { font-family: 'Titillium Web'; font-weight: 600; font-display: swap; src: url('/fonts/titillium-600.woff2') format('woff2'); }
@@ -613,9 +617,10 @@ if (anim) {
     }
   }, { rootMargin: '0px 0px -8% 0px' });
   document.querySelectorAll('.reveal > :not(.copy):not(.grid):not(.oses), .reveal > .copy > *, .reveal > .grid > *, .reveal > .oses > *').forEach((el) => io.observe(el));
-  // Très légère parallaxe de la capture du haut (grand écran) : elle descend un peu moins vite que la page
+  // Très légère parallaxe de la capture du haut (grand écran) : elle descend un peu moins vite que la page.
+  // Pas en Télémétrie : la capture y est collée à la ligne « Gratuit · Sans compte… », qu'elle recouvrait
   const shot = document.querySelector('.hero .shot');
-  if (shot && matchMedia('(min-width: 901px)').matches) {
+  if (shot && matchMedia('(min-width: 901px)').matches && document.documentElement.dataset.design !== 'v3') {
     let raf = 0;
     shot.style.willChange = 'transform';
     addEventListener('scroll', () => {

@@ -1,12 +1,12 @@
 // En-tête : session, drapeau/état de la piste, tour, temps restant, météo, source.
 import { store, f1Now, versionOf } from '../store.js';
 import { $, esc, api, fmtDuration, sessionKind, currentStint } from '../util.js';
-import { trackStatusInfo, SESSION_STATUS_FR } from '/shared/f1.js';
+import { trackStatusInfo, SESSION_STATUS_FR, raceProgress } from '/shared/f1.js';
 import { FLAG_ISO } from '/shared/flags.js';
 import { gpShort, gpFull, sessionLabel } from '/shared/gp-names.js';
 import { EN, LANG, LOCALE, DEC, DAY, t } from '../i18n.js';
 import { upcoming } from './home.js';
-import { COUNTRY_ISO } from '/shared/social-season.js';
+import { COUNTRY_ISO } from '/shared/country-iso.js';
 import { circuitInfo } from '/shared/circuits-info.js';
 import { flagBanner, timeLeft } from './session-info.js';
 import { toast } from './delay.js';
@@ -21,6 +21,9 @@ let lastVer = -1;
 export function renderHeader() {
   // Entre deux séances : le prochain Grand Prix plutôt que le dernier direct
   const nx = upcoming();
+  raceIcon(nx || store.status?.paused ? null : raceProgress(store.state, sessionKind(store.state)));
+  // Hors séance : la case « Tours » (tours de la course à venir) masquée en Télémétrie (design-v3.css)
+  $('.topbar')?.classList.toggle('tb-upcoming', !!nx);
   if (nx) { renderUpcoming(nx); return; }
   if (upKey) { upKey = ''; lastVer = -1; $('#clockBox .hstat-label').textContent = 'Temps restant'; }
   const s = store.state;
@@ -146,7 +149,11 @@ function renderUpcoming(nx) {
     sn.textContent = `${EN ? gpFull(nx.race, true, 'GP') : gpShort(nx.race, LANG)} — ${t(nx.label)}`;
     sn.title = gpFull(nx.race, LANG);
     const day = (t, o) => new Date(t).toLocaleDateString(LOCALE, o);
-    $('#sessionSub').textContent = [nx.locality, nx.country, `${day(nx.first, { day: 'numeric' })}–${day(nx.raceT, { day: 'numeric', month: 'long' })}`].filter(Boolean).join(' · ');
+    // Week-end sur deux mois : « 30 oct. – 1 nov. » (comme le calendrier de la Saison), sinon « 23–25 octobre »
+    const same = new Date(nx.first).getMonth() === new Date(nx.raceT).getMonth();
+    const span = same ? `${day(nx.first, { day: 'numeric' })}–${day(nx.raceT, { day: 'numeric', month: 'long' })}`
+      : `${day(nx.first, { day: 'numeric', month: 'short' })} – ${day(nx.raceT, { day: 'numeric', month: 'short' })}`;
+    $('#sessionSub').textContent = [nx.locality, nx.country, span].filter(Boolean).join(' · ');
     if (!POPOUT && !document.documentElement.dataset.seasonTitle) document.title = `Paddock Live · ${nx.race}`;
     const ts = $('#trackStatus');
     ts.className = 'track-status none';
@@ -190,6 +197,18 @@ function parseGmtOffset(v) {
 }
 
 // Barre de progression de la course (tour en cours / total)
+// Avancement de la course sur l'icône, au délai TV (fenêtre principale) : barre de l'appli de bureau ; tours restants
+// en pastille de la version web installée (sur iPhone, visible seulement si les notifications sont déjà permises :
+// la permission n'est jamais demandée pour ça). Effacées hors course, à l'arrivée et replay en pause
+let iconKey = null;
+function raceIcon(p) {
+  const key = p ? `${p.progress.toFixed(3)}|${p.mode}|${p.left}` : '';
+  if (POPOUT || key === iconKey) return;
+  iconKey = key;
+  if (window.f1desktop) window.f1desktop.setRaceProgress(p && { progress: p.progress, mode: p.mode });
+  else if (navigator.setAppBadge) (p ? navigator.setAppBadge(p.left) : navigator.clearAppBadge()).catch(() => {});
+}
+
 function lapBar(frac) {
   const bar = $('#lapBar');
   bar.hidden = frac === null;

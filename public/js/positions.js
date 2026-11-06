@@ -389,6 +389,17 @@ export class Positions {
     return a.p + (b.p - a.p) * u;
   }
 
+  // Progression (GPS) à l'heure now et allure moyenne sur les win dernières ms (secondes du tour de référence par
+  // seconde de séance : 1 = rythme du tour de référence) ; null sans GPS récent ou sans assez d'historique
+  paceAt(num, now, win) {
+    const arr = this.gps.get(num);
+    if (!arr?.length || arr.at(-1).t < now - 3000) return null;
+    const t0 = Math.max(now - win, arr[0].t);
+    const p = this.progressAt(num, now), p0 = this.progressAt(num, t0);
+    if (p === null || p0 === null || now - t0 < win / 4) return null;
+    return { p, rate: (p - p0) / (((now - t0) / 1000) * this.speed()) };
+  }
+
   // Position estimée lissée (x, y) pour l'affichage sans GPS. Elle suit l'estimation par sa vitesse, jamais par
   // bonds : en retard, la voiture accélère (1,8 fois son rythme au plus) ; un peu en avance, elle ralentit (0,3 fois
   // au moins) ; nettement en avance (voiture au ralenti, voiture de sécurité), elle attend ; elle ne recule pas.

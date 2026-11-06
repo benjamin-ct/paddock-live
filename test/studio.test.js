@@ -39,7 +39,7 @@ function fakeDB() {
           if (/^UPDATE studio SET v = \?, at = \? WHERE k = \? AND v = \?$/.test(sql)) { if (studio.get(args[2]) !== args[3]) return { meta: { changes: 0 } }; studio.set(args[2], args[0]); return { meta: { changes: 1 } }; }
           if (/^INSERT INTO studio \(/.test(sql)) studio.set(args[0], args[1]);
           else if (/^INSERT INTO studio_fail/.test(sql)) fails.set(`${args[0]}|${args[1]}`, (fails.get(`${args[0]}|${args[1]}`) || 0) + 1);
-          else if (/^DELETE FROM studio$/.test(sql)) studio.clear();
+          else if (/^DELETE FROM studio WHERE k IN \(/.test(sql)) for (const k of args) studio.delete(k);
           else if (/^DELETE FROM studio WHERE k >= \? AND k < \?$/.test(sql)) { for (const k of [...studio.keys()]) if (k >= args[0] && k < args[1]) studio.delete(k); }
           else throw new Error(`SQL inattendu : ${sql}`);
           return {};
@@ -136,6 +136,19 @@ test('page du créateur : coffre chiffré, sans le code rien n\'est lisible', as
   await disableStudio({ fetchFn });
   assert.equal(studioInfo().enabled, false);
   assert.equal(env.DB.studio.size, 0);
+});
+
+test('page du créateur : « Désactiver » n\'efface que ses lignes (Suivi, alertes, actu et données calculées gardés)', async () => {
+  saveConfig({ creator: true, social: { meta: { pageId: 'p1', pageName: 'Ma page', pageToken: 'jeton-page', igId: 'ig1', igUsername: 'moi' } } });
+  const fetchFn = (url, init) => worker(url, init);
+  await enableStudio(CODE, { fetchFn });
+  const others = { 'suivi:tasks': '[{"title":"T"}]', 'suivi:log': '[]', 'suivi:key': 'empreinte', vapid: '{"pub":"k"}', 'news:custom': '[]', 'news:items': '[]',
+    'season:2026': '{}', 'racestats:2026:1': '{}', 'zoneswant:10:2026': '1', history: '[]', poststats: '[]', health: '{}' };
+  const mine = { 'oauth:login': 'meta|n|1', 'sched:abc': '{"id":"abc","posts":[]}', 'schedpost:abc:facebook': '{}', 'scheddone:abd': '{}', 'draft:x': '{}', drafts: '[]', todo: '[]', push: '[]', 'live:f1tv': 'x', 'racestats:f1tv': 'x' };
+  for (const [k, v] of Object.entries({ ...others, ...mine })) env.DB.studio.set(k, v);
+  await disableStudio({ fetchFn });
+  assert.deepEqual([...env.DB.studio.keys()].sort(), Object.keys(others).sort());
+  for (const k of Object.keys(others)) env.DB.studio.delete(k);
 });
 
 test('page du créateur : comptes repris sur un nouvel ordinateur, copie illisible par le serveur', async () => {
@@ -496,7 +509,10 @@ test('page du créateur : publication programmée, publiée par le serveur à l\
     assert.equal((await post('retry', { id: bad2.id, net: 'facebook' })).status, 410);
     await runSchedule(env, { now: at + 8 * 86400e3 });
     assert.equal([...env.DB.studio.keys()].filter((k) => k.startsWith('sched') && !k.startsWith('scheddone:')).length, 0);   // témoins : purge du jour
-  } finally { globalThis.fetch = realFetch; }
+  } finally {
+    globalThis.fetch = realFetch;
+    env.DB.studio.delete('push');   // téléphone fictif (push.test) : plus aucune notification après le simulacre
+  }
 
   // Modifier avant l'heure : nouvelle heure et textes ; plus possible une fois parti
   const ed = (await (await add()).json()).item;
@@ -1141,6 +1157,27 @@ test('onglet Suivi : photos et vidéos des posts gardées par le serveur, adress
   // Lignes ajoutées à une table des réseaux
   await call('suivi/ops', { method: 'POST', body: JSON.stringify({ ops: [{ op: 'net.add', table: 'posts', rows: [['08/11/2026', '12:00', 'Instagram', 'Test']] }] }) });
   assert.equal((await (await call('suivi/net')).json()).net.posts.at(-1)[3], 'Test');
+});
+
+test('onglet Suivi : modifications envoyées en même temps, aucune perdue (écriture conditionnelle)', async () => {
+  const skey = { 'X-Studio-Key': studioKey(CODE) };
+  const call = (p, init = {}) => worker(`https://s.test/studio/api/${p}`, { ...init, headers: { ...skey, ...(init.headers || {}) } });
+  const before = (await (await call('suivi/tasks')).json()).tasks.length;
+  // Deux sessions Claude ajoutent chacune une tâche et une ligne du journal au même moment
+  const rs = await Promise.all(['A', 'B', 'C'].map((x) => call('suivi/ops', { method: 'POST', body: JSON.stringify({ ops: [{ op: 'task.add', task: { title: `Tâche ${x}` } }, { op: 'log.add', entry: { text: `Ligne ${x}` } }] }) })));
+  assert.deepEqual(rs.map((r) => r.status), [200, 200, 200]);
+  const ids = await Promise.all(rs.map(async (r) => (await r.json()).ids[0]));
+  const tasks = (await (await call('suivi/tasks')).json()).tasks;
+  assert.equal(tasks.length, before + 3);
+  for (const x of ['A', 'B', 'C']) assert.equal(tasks.filter((t) => t.title === `Tâche ${x}`).length, 1);
+  assert.deepEqual(ids.map((i) => tasks.some((t) => t.id === i)), [true, true, true], 'identifiants rendus = ceux gardés');
+  const log = (await (await call('suivi/log')).json()).log.map((e) => e.text);
+  for (const x of ['A', 'B', 'C']) assert.ok(log.includes(`Ligne ${x}`));
+  // Photos d'un même Grand Prix envoyées ensemble : toutes gardées
+  const put = (f) => call(`suivi/file?gp=GP%20test&f=${f}`, { method: 'PUT', body: new Uint8Array([1]), headers: { 'Content-Type': 'image/png', 'Content-Length': '1' } });
+  assert.deepEqual((await Promise.all(['p1.png', 'p2.png', 'p3.png'].map(put))).map((r) => r.status), [200, 200, 200]);
+  const doc = (await (await call('suivi/posts')).json()).posts.find((x) => x.name === 'GP test');
+  assert.deepEqual(doc.files.map((f) => f.name).sort(), ['p1.png', 'p2.png', 'p3.png']);
 });
 
 test('onglet Suivi : feuille « Suivi réseaux » remplie avec les chiffres du Studio', async () => {

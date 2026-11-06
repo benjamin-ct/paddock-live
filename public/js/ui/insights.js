@@ -1,10 +1,10 @@
 // Analyse → Tendances : ce que les données de la F1 permettent de mesurer de façon fiable (shared/insights.js) :
 // en course, places gagnées au départ, usure des pneus et choix d'aileron ; en qualifs et en essais, évolution de la
-// piste et choix d'aileron. Tout au rythme du délai TV.
+// piste et choix d'aileron, plus les relais longs en essais. Tout au rythme du délai TV.
 import { store, serverNow } from '../store.js';
-import { $, esc, api, drivers, sessionKind, teamColor, tyreBadge } from '../util.js';
+import { $, esc, api, drivers, fmtLap, sessionKind, teamColor, tyreBadge } from '../util.js';
 import { DEC } from '../i18n.js';
-import { trackEvolution, wingChoice, tyreWear, FUEL_GAIN } from '/shared/insights.js';
+import { trackEvolution, wingChoice, tyreWear, longRuns, FUEL_GAIN } from '/shared/insights.js';
 
 const num = (v, d) => (v === null || v === undefined || !Number.isFinite(v) ? '—' : v.toFixed(d).replace('.', DEC));
 const signed = (v, d) => `${v > 0 ? '+' : v < 0 ? '−' : '±'}${num(Math.abs(v), d)}`;
@@ -39,6 +39,18 @@ function wearHtml(dl) {
     <td><span class="ins-bar" style="background:${teamColor(dl[r.num])}"></span><b>${esc(dl[r.num]?.Tla || r.num)}</b></td><td>${tyreBadge(r.compound)}</td><td>${r.laps}</td>
     <td><span class="ins-gauge"><i style="width:${Math.round((Math.max(0, r.wear) / max) * 100)}%"></i></span> ${signed(r.wear, 3)} s</td></tr>`).join('')}</table>
     <p class="muted small">Relais en cours, tours propres seulement ; corrigé de l'allègement en carburant (environ ${num(FUEL_GAIN, 2)} s par tour). Plus la perte est faible, mieux le pilote préserve ses pneus.</p>`;
+}
+
+// Relais longs (essais) : rythme et perte par tour de chaque pilote sur chaque pneu, puis les écuries par pneu
+function longRunsHtml(dl) {
+  const { runs, teams } = longRuns(store.derived.laps, dl);
+  if (!runs.length) return '<p class="muted small">Il faut au moins 5 tours propres sur un même relais.</p>';
+  const chip = (t, i) => `<span class="ins-move"><span class="ins-bar" style="background:${teamColor(dl[t.num])}"></span><b>${esc(t.team)}</b> ${i ? `${signed(t.gap, 3)} s` : fmtLap(t.median)}</span>`;
+  return `<table class="ins-table"><tr><th>Pilote</th><th>Pneu</th><th>Tours</th><th>Rythme</th><th>Perte par tour</th></tr>${runs.map((r) => `<tr>
+    <td><span class="ins-bar" style="background:${teamColor(dl[r.num])}"></span><b>${esc(dl[r.num]?.Tla || r.num)}</b></td><td>${tyreBadge(r.compound)}</td><td>${r.clean}</td>
+    <td>${fmtLap(r.median)}</td><td>${signed(r.wear, 3)} s</td></tr>`).join('')}</table>
+    ${Object.entries(teams).filter(([, list]) => list.length).map(([c, list]) => `<div class="ins-moves">${tyreBadge(c)}${list.map(chip).join('')}</div>`).join('')}
+    <p class="muted small">Indication seulement : l'essence embarquée par chaque écurie n'est pas connue. Rythme : médiane des tours propres du plus long relais de chaque pilote sur chaque pneu, ramenée au carburant du début du relais (environ ${num(FUEL_GAIN, 2)} s par tour) ; écuries classées sur leur meilleur pilote.</p>`;
 }
 
 function evolutionHtml() {
@@ -78,10 +90,10 @@ export function renderInsights() {
   const el = $('#anaInsights');
   if (!el) return;
   const dl = drivers(store.state);
-  const race = sessionKind(store.state) === 'race';
+  const kind = sessionKind(store.state), race = kind === 'race';
   if (race) loadStart();
   const block = (title, html) => `<section class="ins-block"><h4>${title}</h4>${html}</section>`;
   el.innerHTML = race
     ? block('Départ : places gagnées jusqu\'au premier virage', startHtml(dl)) + block('Usure des pneus', wearHtml(dl)) + block('Choix d\'aileron', wingHtml())
-    : block('Évolution de la piste', evolutionHtml()) + block('Choix d\'aileron', wingHtml());
+    : block('Évolution de la piste', evolutionHtml()) + (kind === 'practice' ? block('Relais longs', longRunsHtml(dl)) : '') + block('Choix d\'aileron', wingHtml());
 }

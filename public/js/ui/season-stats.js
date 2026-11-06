@@ -9,6 +9,7 @@ import { gpShort } from '/shared/gp-names.js';
 import { CIRCUIT_DNA, DNA_KEYS } from '/shared/circuit-dna.js';
 import { nearestShape, shapeOutline } from '/shared/circuit-shapes.js';
 import { tip, hit } from './season-tip.js';
+import { stopTxt, pitStops, validStop } from './season-kpi.js';
 
 const median = (a) => {
   if (!a.length) return null;
@@ -22,8 +23,7 @@ const sd = (a) => {
   return a.length > 1 ? Math.sqrt(a.reduce((s, v) => s + (v - m) ** 2, 0) / (a.length - 1)) : null;
 };
 const fr = (v, d = 1) => (v === null || v === undefined || Number.isNaN(v) ? '—' : v.toFixed(d).replace('.', DEC));
-// Immobilisation : au centième quand elle vient de DHL, au dixième (F1) sinon
-export const stopTxt = (s) => `${fr(s.stop, s.dhl ? 2 : 1)} s`;
+export { stopTxt };
 export const DHL_NOTE = '<p class="muted small">Immobilisations au centième : DHL Fastest Pit Stop Award ; sans relevé DHL, au dixième (chronos de la F1). Copyright © DHL International GmbH. All Rights Reserved.</p>';
 export const fmtLap = (s) => {
   if (!s) return '—';
@@ -143,6 +143,15 @@ const heat = (k, txt) => (k === null ? '<td class="sz-hm muted">—</td>'
   : `<td class="sz-hm" style="background:color-mix(in srgb, ${k < 0.5 ? 'var(--green)' : 'var(--orange)'} ${Math.round(Math.abs(k - 0.5) * 2 * 55)}%, transparent)">${txt}</td>`);
 
 // ---------------- Pilotes ----------------
+// Pilote du jour (vote des fans, formula1.com) : nombre d'élections et meilleur score de la saison
+function dotdCard(data, drv, card) {
+  const votes = data.races.filter((r) => r.dotd?.length);
+  if (!votes.length) return '';
+  const won = votes.filter((r) => r.dotd[0].code === drv.code);
+  const best = votes.map((r) => ({ r, v: r.dotd.find((x) => x.code === drv.code) })).filter((x) => x.v).sort((a, b) => b.v.pct - a.v.pct)[0];
+  return card(t('Pilote du jour'), won.length, best ? `${t('meilleur score : {} %', fr(best.v.pct, 1))} · ${esc(short(best.r.name))}` : t('jamais dans les 5 premiers'));
+}
+
 export function renderDrivers(ctx, code) {
   const { data, stats } = ctx;
   const drv = data.drivers.find((d) => d.code === code) || data.drivers[0];
@@ -206,6 +215,7 @@ export function renderDrivers(ctx, code) {
       ${card('Podiums', fin.filter((x) => x.res.pos <= 3).length)}
       ${card('Poles', rows.filter((x) => x.q?.pos === 1).length)}
       ${card('Meilleurs tours', started.filter((x) => x.res.fastest).length)}
+      ${dotdCard(data, drv, card)}
       ${card('Points par course', fr(started.length ? pts / started.length : null), `${pts} pts en ${started.length} GP (sprints inclus)`)}
       ${card('Dans les points', `${started.filter((x) => x.res.points > 0).length}/${started.length}`)}
       ${card('Moyenne au départ', fr(mean(started.map((x) => x.res.grid).filter(Boolean))))}
@@ -221,6 +231,7 @@ export function renderDrivers(ctx, code) {
       ${card('Note de la saison', rt ? gradeBadge(rt.season, rt.seasonGrade, true) : '—', rt?.season !== null && rt ? `<button class="linkish" data-szgo="ratings">voir le détail ${icon('arrow-right', 'ic-s')}</button>` : 'pas assez de courses')}
       ${card('Note face au coéquipier', rt ? gradeBadge(rt.mate, rt.mateGrade, true) : '—', rt?.mates?.length ? `face à ${esc(rt.mates.join(', '))}` : '')}
     </div>
+    ${ctx.career?.(drv) || ''}
     <section class="sz-box"><h3>Départ (pointillés) et arrivée, course par course</h3>${chart}</section>
     <div class="sz-grid2">
       <section class="sz-box"><h3>Répartition des places</h3>
@@ -338,15 +349,14 @@ export function renderPits(ctx) {
   const { data, stats } = ctx;
   const R = byRound(stats);
   if (!R.size) return pendingNote(stats);
-  const all = [];
-  for (const { race } of R.values()) for (const d of race.drivers) for (const s of d.stops) all.push({ ...s, d, round: race.round });
-  const valid = all.filter((s) => s.stop > 0 && s.stop < 15);
+  const all = pitStops(stats);
+  const valid = all.filter(validStop);
   const name = (rd) => short(data.races.find((r) => r.round === rd)?.name);
   const teams = new Map();
   for (const s of all) {
     const t = teams.get(s.d.team) || { team: s.d.team, color: s.d.color, stops: [], n: 0, best: null };
     t.n++;
-    if (s.stop > 0 && s.stop < 15) { t.stops.push(s.stop); if (!t.best || s.stop < t.best.stop) t.best = s; }
+    if (validStop(s)) { t.stops.push(s.stop); if (!t.best || s.stop < t.best.stop) t.best = s; }
     teams.set(s.d.team, t);
   }
   const tl = [...teams.values()].filter((t) => t.stops.length).map((t) => ({ ...t, med: median(t.stops), under25: t.stops.filter((v) => v < 2.5).length }))

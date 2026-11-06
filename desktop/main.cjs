@@ -297,6 +297,16 @@ function setupContents(wc, url) {
     if (/^(https?|webcal):\/\//i.test(target)) shell.openExternal(target);
     return { action: 'deny' };
   });
+  // Taille de l'interface : à chaque chargement, et Ctrl (Cmd sur macOS) + / − / 0 (pas de menu sous Windows et Linux)
+  wc.on('did-finish-load', () => wc.setZoomFactor(zoomNow()));
+  wc.on('before-input-event', (e, i) => {
+    if (i.type !== 'keyDown' || i.alt || !(process.platform === 'darwin' ? i.meta : i.control)) return;
+    const step = ['+', '=', 'Add'].includes(i.key) ? 1 : ['-', 'Subtract'].includes(i.key) ? -1 : i.key === '0' ? 0 : null;
+    if (step === null) return;
+    e.preventDefault();
+    const at = ZOOMS.indexOf(zoomNow());
+    setZoom(step ? ZOOMS[Math.max(0, Math.min(ZOOMS.length - 1, at + step))] : 1);
+  });
   wc.on('did-create-window', (win, { url: target }) => {
     setupContents(win.webContents, url);
     if (isFloatUrl(target)) { floatOnTop(win); return; }
@@ -399,6 +409,20 @@ app.on('web-contents-created', (_e, wc) => {
   });
 });
 
+// Taille de l'interface (Réglages → Affichage ; écran 4K à 100 %…) : gardée, appliquée à toutes les fenêtres de l'appli
+const ZOOMS = [0.9, 1, 1.1, 1.25, 1.5, 1.75, 2];
+const zoomNow = () => { const z = readState().zoom; return ZOOMS.includes(z) ? z : 1; };
+function setZoom(v) {
+  const z = ZOOMS.includes(v) ? v : 1;
+  writeState({ zoom: z });
+  for (const w of BrowserWindow.getAllWindows()) {
+    if (!w.isDestroyed() && w !== loginWindow && w.webContents.getURL().startsWith('http://127.0.0.1:')) w.webContents.setZoomFactor(z);
+  }
+  return z;
+}
+ipcMain.handle('zoom-get', () => zoomNow());
+ipcMain.handle('zoom-set', (_e, v) => setZoom(Number(v)));
+
 // Langue choisie dans l'interface (écran de démarrage suivant)
 ipcMain.on('ui-lang', (_e, l) => { if (UI_LANGS.includes(l) && readState().uiLang !== l) { writeState({ uiLang: l }); trayUpdate(); } });
 ipcMain.handle('restore-windows-get', () => readState().restoreWindows !== false);
@@ -467,6 +491,13 @@ ipcMain.on('float-bounds', (e, b) => {
 ipcMain.handle('float-bounds-get', (e) => {
   const w = BrowserWindow.fromWebContents(e.sender);
   return w && !w.isDestroyed() ? w.getBounds() : null;
+});
+// Avancement de la course sur l'icône (barre des tâches de Windows, Dock de macOS, docks Linux compatibles), envoyé par
+// la fenêtre principale seulement ; rouge (drapeau rouge) et jaune (voiture de sécurité) : sous Windows seulement
+ipcMain.on('race-progress', (e, p) => {
+  if (!mainWindow || mainWindow.isDestroyed() || e.sender !== mainWindow.webContents) return;
+  const v = Number(p?.progress);
+  mainWindow.setProgressBar(Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : -1, { mode: ['error', 'paused'].includes(p?.mode) ? p.mode : 'normal' });
 });
 ipcMain.handle('window-focus', (e) => {
   const w = BrowserWindow.fromWebContents(e.sender);

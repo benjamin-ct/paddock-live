@@ -10,6 +10,7 @@ import { setRow, readJSON, rowsWithPrefix } from './alerts.js';
 import { archiveToken } from './studio.js';
 import { circuitData } from './race-stats.js';
 import { seasonIndex } from './tyres.js';
+import { jolpicaQuota } from './quota.js';
 import { wantedCircuits } from './zones.js';
 import { CIRCUITS } from '../shared/circuits-info.js';
 import { decodeMvt } from '../shared/mvt.js';
@@ -104,8 +105,10 @@ export async function catalogue(env, { now = Date.now(), fetchFn = fetch, pause 
   if (!token) errors.push('connexion F1 TV absente');
   for (let y = new Date(now).getUTCFullYear(); y >= FIRST_YEAR; y--) {
     const idx = token ? await seasonIndex(y, token, fetchFn).catch((err) => { errors.push(`archives ${y} : ${err.message}`); return []; }) : [];
-    const list = await getJSON(`${JOLPICA}${y}/races.json?limit=100`, `Jolpica ${y}`, fetchFn, pause)
-      .then((d) => d.MRData?.RaceTable?.Races || []).catch((err) => { errors.push(err.message); return []; });
+    // Plafond horaire de Jolpica atteint : catalogue relu plus tard (erreur notée)
+    const list = env.DB && !(await jolpicaQuota(env, now)) ? (errors.push(`Jolpica ${y} : plafond horaire atteint`), [])
+      : await getJSON(`${JOLPICA}${y}/races.json?limit=100`, `Jolpica ${y}`, fetchFn, pause)
+        .then((d) => d.MRData?.RaceTable?.Races || []).catch((err) => { errors.push(err.message); return []; });
     for (const gp of list) {
       const day = Date.parse(gp.date), id = gp.Circuit?.circuitId;
       const m = idx.find((x) => x.sessions.some((s) => s.type === 'Race' && Math.abs(Date.parse(s.start?.slice(0, 10)) - day) <= 86400e3));

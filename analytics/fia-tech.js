@@ -4,8 +4,10 @@
 // toutes les heures ; épreuve sans documents (pas encore courue) : revue 6 heures plus tard.
 import { getRow, setRow, rowsWithPrefix } from './alerts.js';
 import { BASE, CHAMPIONSHIP, parseDocumentList, parseSeasons, seasonEventList, pickEvent } from '../shared/fia-list.js';
-import { FIA_VERSION, pdfPages, eventData } from '../shared/fia-tech.js';
+import { FIA_VERSION, pdfPages, eventData, teamOf } from '../shared/fia-tech.js';
+import { gridDocument, parseStartingGrid } from '../shared/fia-grid.js';
 import { translateBatch } from './translate.js';
+import { licencePoints, pointsOf, sanctionOf } from '../shared/penalties.js';
 
 const UA = 'Mozilla/5.0 (Paddock-Live web relay)';
 const EMPTY = 6 * 3600e3;     // épreuve sans documents ou illisible : nouvel essai 6 heures plus tard
@@ -53,7 +55,11 @@ export async function fiaDocsWeb(year, meeting, { now = Date.now(), fetchFn = fe
   const s = await cached('fia-championship', 3600, async () => parseSeasons(await (await get(BASE + CHAMPIONSHIP, fetchFn)).text()));
   const season = s.bySeason[year];
   if (!season) return { event: null, page: null, docs: [] };
-  const event = pickEvent(s.events, meeting);
+  // Épreuves de la saison (relues toutes les 15 minutes) : la page du championnat mêle les noms de toutes les saisons
+  // (« Brazilian Grand Prix » d'avant 2021 alors que celle de 2026 est « São Paulo Grand Prix »). Sans le pays (Las Vegas
+  // n'est pas « United States Grand Prix ») ; épreuve pas encore listée : pas encore de documents (fia.com : HTTP 500)
+  const list = await cached(`fia-season/${year}`, 900, async () => seasonEventList(await (await get(BASE + season, fetchFn)).text()).map((e) => e.name));
+  const event = pickEvent(list, { ...meeting, country: '' });
   if (!event) return { event: null, page: BASE + season, docs: [] };
   const page = `${BASE}${season}/event/${encodeURIComponent(event)}`;
   return cached(`fia-docs/${await sha(page)}`, (d) => {
@@ -70,6 +76,14 @@ async function parsed(env, url, parser, fetchFn) {
   const data = parser(await pdfPages(new Uint8Array(await (await get(url, fetchFn)).arrayBuffer())));
   await setRow(env, k, JSON.stringify({ v: FIA_VERSION, data }));
   return data;
+}
+
+// Grille de départ officielle d'un Grand Prix (carte « Avant le départ » de l'accueil) : document le plus récent de la
+// FIA, définitif de préférence (shared/fia-grid.js), lu une fois ; grid null tant qu'aucune grille n'est publiée
+export async function fiaGridWeb(env, year, meeting, { sprint = false, fetchFn = fetch } = {}) {
+  const doc = gridDocument((await fiaDocsWeb(year, meeting, { fetchFn })).docs, { sprint });
+  const grid = doc && await parsed(env, doc.url, parseStartingGrid, fetchFn);
+  return { grid: grid ? { ...grid, title: doc.title, published: doc.published } : null };
 }
 
 // Épreuves déjà lues de l'année : page -> { v, at, data } (data null : pas de documents). Lecture d'une version
@@ -150,15 +164,38 @@ export async function fiaTick(env, { now = Date.now(), fetchFn = fetch } = {}) {
 
 // /live/api/season/fia : même forme que /api/season/fia de l'appli. Épreuves pas encore lues : demandées à la
 // tâche planifiée (pending : la page relit l'avancement)
-export async function seasonFiaWeb(env, year, { now = Date.now() } = {}) {
+// Épreuves lues de l'année et avancement ; épreuves pas encore lues (ou par une version précédente du lecteur) :
+// demandées à la tâche planifiée
+async function season(env, year, now) {
   const events = JSON.parse(await getRow(env, `fiaevents:${year}`) || 'null')?.events;
   const have = await kept(env, year);
   const pending = !events || events.some((e) => have.get(e.page)?.v !== FIA_VERSION);
   if (pending && now - Number(await getRow(env, `fiawant:${year}`) || 0) > 10 * 60e3) await setRow(env, `fiawant:${year}`, String(now));
-  const list = [...have.values()].map((e) => e.data).filter(Boolean).sort((a, b) => a.first - b.first);
+  return { events, have, pending };
+}
+export async function seasonFiaWeb(env, year, { now = Date.now() } = {}) {
+  const { events, have, pending } = await season(env, year, now);
+  // Décisions des commissaires : servies par /live/api/season/penalties seulement (réponse de même taille qu'avant)
+  const list = [...have.values()].map((e) => e.data).filter(Boolean).map(({ decisions, ...d }) => d).sort((a, b) => a.first - b.first);
   // failed : épreuves pas lues pour l'instant et la raison (nouvel essai automatique)
   const failed = [...have.values()].filter((e) => e.error).map((e) => ({ page: e.page, error: e.error, fails: e.fails }));
   return { year, pending: pending || failed.length > 0, done: have.size - failed.length, total: events?.length || have.size, events: list, failed };
+}
+
+// /live/api/season/penalties : permis à points (12 mois glissants : saison et saison précédente) et sanctions de la
+// saison, d'après les décisions des commissaires lues dans les documents FIA. Saison passée : points à sa fin
+export async function seasonPenaltiesWeb(env, year, { now = Date.now() } = {}) {
+  const [cur, prev] = await Promise.all([year, year - 1].map((y) => season(env, y, now)));
+  const at = Math.min(now, Date.UTC(year + 1, 0, 1));
+  const of = (s) => [...s.have.values()].flatMap((e) => (e.data?.decisions || []).map((d) => ({ ...d, event: e.data.name, ...teamOf(d.competitor) })));
+  const decisions = of(cur);
+  const all = [...of(prev), ...decisions];
+  // Sanctions de la saison (décisions sans sanction exclues), la plus récente d'abord
+  const penalties = decisions.map((d) => ({ ...d, sanction: sanctionOf(d.decision), points: pointsOf(d.decision)?.points || 0 }))
+    .filter((d) => d.sanction).sort((a, b) => b.published - a.published)
+    .map(({ fact, ...d }) => d);
+  const failed = [...cur.have.values(), ...prev.have.values()].filter((e) => e.error).length;
+  return { year, at, pending: cur.pending || prev.pending || failed > 0, done: cur.have.size + prev.have.size - failed, total: (cur.events?.length || cur.have.size) + (prev.events?.length || prev.have.size), drivers: licencePoints(all, at).map((d) => ({ ...d, ...teamOf(d.competitor) })), penalties };
 }
 
 // /live/api/translations : traductions des textes FIA faites par le serveur, sous la forme lue par la page

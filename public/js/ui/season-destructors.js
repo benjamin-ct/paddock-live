@@ -6,6 +6,7 @@ import { DEC, EN, LANG, t } from '../i18n.js';
 import { gpShort } from '/shared/gp-names.js';
 import { destructors } from '/shared/destructors.js';
 import { cellBar } from './season-stats.js';
+import { usd } from './season-kpi.js';
 
 const PARTS = {
   'Front Wing': 'Aileron avant', 'Front Suspension': 'Suspension avant', 'Rear Suspension': 'Suspension arrière', Floor: 'Fond plat',
@@ -15,11 +16,6 @@ const PARTS = {
 // Plafond budgétaire de base de la FIA (en $) : 215 millions en 2026 (135 en 2025, avant d'y ajouter des dépenses
 // jusque-là exclues)
 const CAP = { 2026: 215e6 };
-// Montants arrondis : 2,24 M$ ou 960 k$ (anglais : $2.24M, $960k)
-const usd = (v) => {
-  const n = v >= 1e6 ? `${(v / 1e6).toFixed(v % 1e6 ? 2 : 0).replace('.', DEC)} M` : `${Math.round(v / 1e3)} k`;
-  return EN ? `$${n.replace(' ', '')}` : `${n}$`;
-};
 const partName = (p) => esc(EN ? p : PARTS[p] || p);
 
 let shown = null;   // pilote dont le détail est ouvert (numéro)

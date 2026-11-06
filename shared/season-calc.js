@@ -217,7 +217,9 @@ export function titleRace(data, year) {
   const races = [...(data?.races || [])].sort((a, b) => a.round - b.round);
   const done = races.filter((r) => r.results?.length);
   const future = races.filter((r) => !r.results?.length);
-  const maxRound = { d: (r) => 25 + fl + (r.sprint ? 8 : 0), c: (r) => 43 + fl + (r.sprint ? 15 : 0) };
+  // Sprint encore à prendre : pas celui déjà couru d'un week-end en cours (samedi soir)
+  const sp = (r) => r.sprint && (r.results?.length || !r.sprintResults?.length);
+  const maxRound = { d: (r) => 25 + fl + (sp(r) ? 8 : 0), c: (r) => 43 + fl + (sp(r) ? 15 : 0) };
   const left = (kind, from) => [...done.slice(from), ...future].reduce((s, r) => s + maxRound[kind](r), 0);
   const run = (kind, list, keyOf) => {
     const cum = new Map(), out = new Map();
@@ -234,8 +236,19 @@ export function titleRace(data, year) {
       const alive = e.points + rest >= lead;
       const r = alive ? null : out.get(e.key) || done.at(-1) || null;
       return { ...e, alive, maxPts: e.points + rest, behind: lead - e.points, outRound: r?.round || null, outName: r?.name || '' };
-    });
+    }).map((e, _, all) => ({
+      ...e,
+      // Place finale : au mieux, derrière ceux qu'il ne peut plus rejoindre ; au pire, derrière tous ceux qui peuvent
+      // encore le rejoindre (borne sûre : à égalité de points, départage aux victoires, donc compté contre lui)
+      best: 1 + all.filter((x) => x !== e && x.points > e.maxPts).length,
+      worst: 1 + all.filter((x) => x !== e && x.maxPts >= e.points).length,
+    }));
   };
+  // Places d'honneur (2e et 3e) : qui peut encore y finir ; assuré quand un seul y reste et ne peut ni monter ni descendre
+  const honours = (list) => [2, 3].map((place) => {
+    const who = list.filter((e) => e.best <= place && place <= e.worst);
+    return { place, who, sure: who.length === 1 && who[0].best === place && who[0].worst === place ? who[0] : null };
+  });
   const drivers = run('d', (data?.drivers || []).map((d) => ({ ...d, key: d.code })), (x) => x.code);
   const constructors = run('c', (data?.constructors || []).map((c) => ({ ...c, key: c.id })), (x) => x.teamId);
   const champ = (list) => (list.filter((e) => e.alive).length === 1 && done.length ? list.find((e) => e.alive) : null);
@@ -258,14 +271,15 @@ export function titleRace(data, year) {
     return {
       leader: { key: leader.key, code: leader.code, name: leader.name, points: leader.points },
       earliest: earliest ? { round: earliest.round, name: earliest.name } : null,
-      next: { round: next.round, name: next.name, sprint: !!next.sprint, max },
+      next: { round: next.round, name: next.name, sprint: !!sp(next), max },
       possibleNext: needs.every((n) => n.margin <= max), needs,
     };
   };
   return {
     drivers, constructors, champion: champ(drivers), champTeam: champ(constructors),
     clinchD: champ(drivers) ? null : clinch(drivers, 'd'), clinchC: champ(constructors) ? null : clinch(constructors, 'c'),
-    races: future.length, sprints: future.filter((r) => r.sprint).length, maxD: left('d', done.length), maxC: left('c', done.length),
+    honoursD: honours(drivers), honoursC: honours(constructors),
+    races: future.length, sprints: future.filter(sp).length, maxD: left('d', done.length), maxC: left('c', done.length),
   };
 }
 

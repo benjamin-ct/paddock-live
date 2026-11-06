@@ -1,6 +1,7 @@
 // Grille de départ officielle de la FIA (« Provisional / Final Starting Grid », « … Sprint Starting
 // Grid ») : document des commissaires lu dans le PDF (texte positionné { x, y, s } de pdf.js), avec
-// les départs des stands et les pénalités. Partagé entre l'appli (serveur) et la page du créateur.
+// les départs des stands et les pénalités. Partagé entre le serveur de Paddock Live (carte « Avant le départ » de
+// l'accueil, analytics/fia-tech.js) et la page du créateur.
 
 // Documents de grille d'un Grand Prix : le plus récent du bon type (sprint ou course), définitif
 // de préférence

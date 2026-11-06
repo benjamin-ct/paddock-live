@@ -198,3 +198,14 @@ test('hub : heure d\'émission du chronométrage transmise au navigateur avec l\
     assert.equal(events[0][3], '2026-10-30T18:00:00.123Z');
   } finally { hub.close(); }
 });
+
+test('hub : message « null » ou nombre ignoré sans exception', () => {
+  const hub = new Hub({ maxDelayMs: 600000 });
+  try {
+    const ws = new FakeWs();
+    hub.addClient(ws);
+    for (const raw of ['null', '42', '"texte"']) ws.emit('message', Buffer.from(raw));
+    ws.emit('message', Buffer.from(JSON.stringify({ type: 'ping', id: 1 })));
+    assert.equal(ws.sent.at(-1).type, 'pong');
+  } finally { hub.close(); }
+});

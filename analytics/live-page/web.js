@@ -19,8 +19,8 @@ import { initRadar } from './ui/radar.js';
 import { renderPitSim, renderBattles, initRaceTools } from './ui/race-tools.js';
 import { initAnalysis, renderAnalysis } from './ui/analysis.js';
 import { renderDuelBand, renderDuel, initDuel } from './ui/duel.js';
-import { initNoLive } from './ui/home.js';
-import { initSeason, closeSeason, openSeason, seasonUrls } from './ui/season.js';
+import { initNoLive, initHome, openHome, closeHome, homeTouched } from './ui/home.js';
+import { initSeason, closeSeason, openSeason, seasonUrls } from './ui/season-lazy.js';   // Saison chargée à sa première ouverture
 import { parseSeasonPath } from '/shared/season-urls.js';
 import { addPositions, addCarData, compareFrom, raceStartFrom } from '/shared/compare.js';
 import './ui/calendar-menu.js';   // « Ajouter à mon agenda » (Saison)
@@ -38,6 +38,7 @@ if ((prefs.layoutV || 0) < 4) {
 initSelects();   // listes déroulantes aux couleurs de l'appli (sur ordinateur ; le téléphone garde la sienne)
 // Rien n'est traduit dans le navigateur (pas de moteur local) : documents FIA traduits par le serveur, relus plus tard
 store.isHost = false;
+store.web = true;   // version web : accueil sans replays ni Actu (ui/home.js)
 // GPS et télémétrie : texte compressé (deflate brut, base64) du flux F1
 async function inflate(b64) {
   const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
@@ -47,6 +48,7 @@ let ws = null;
 // Comparaison (fenêtres Analyse et Comparaison) : GPS et télémétrie gardés depuis l'ouverture de la page (le relais
 // n'en garde que quelques minutes), calculés ici comme le fait le serveur de l'appli (shared/compare.js)
 const gps = new Map(), tel = new Map();
+let gpsSession;   // séance de ce GPS (Path du relais)
 const keepTel = /[?&]only=(analysis|compare)\b/.test(location.search);
 const hub = new WebHub({
   apply: applyEvent, reset: handleReset, batch: handleBatch, inflate,
@@ -134,7 +136,13 @@ async function pairReceive() {
   const kind = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) || matchMedia('(pointer: coarse)').matches ? 'phone' : 'browser';
   const r = await fetch('/live/api/pair', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pub: await pubJwk(keys), kind }) }).then((x) => x.json()).catch(() => null);
   if (!r?.code) return pairNote(t('Connexion impossible pour le moment. Réessayez.'), true);
-  pairBody.innerHTML = `<p class="pair-h">${esc(t('Sur un appareil déjà connecté à F1 TV, ouvrez Paddock Live, touchez « F1 TV connecté » et tapez ce code :'))}</p><div class="pair-code">${r.code}</div><p class="pair-note">${esc(t('En attente de l\'ordinateur…'))}</p>`;
+  pairBody.innerHTML = `<p class="pair-h">${esc(t('Sur un appareil déjà connecté à F1 TV, ouvrez Paddock Live, touchez « F1 TV connecté » et tapez ce code :'))}</p><div class="pair-code selectable">${r.code}</div><button class="btn pair-copy" type="button">${esc(t('Copier le code'))}</button><p class="pair-note">${esc(t('En attente de l\'ordinateur…'))}</p>`;
+  // Copier le code (il se tape sur un autre appareil ; sans presse-papiers : le code est sélectionné)
+  const copy = pairBody.querySelector('.pair-copy');
+  copy.onclick = async () => {
+    try { await navigator.clipboard.writeText(String(r.code)); copy.textContent = t('Code copié'); }
+    catch { getSelection()?.selectAllChildren(pairBody.querySelector('.pair-code')); }
+  };
   const until = Date.now() + (r.ttl || 180) * 1000;
   pairTimer = setInterval(async () => {
     if (Date.now() > until) { stopPair(); return pairNote(t('Code expiré. Fermez et réessayez.'), true); }
@@ -157,7 +165,7 @@ function pairSend() {
   const until = new Date(exp).toLocaleString(LOCALE, { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
   pairBody.innerHTML = `<p class="pair-ok">${esc(t('Connecté à F1 TV sur cet appareil : GPS et télémétrie en direct.'))}${exp ? `<br><small>${esc(t('Connexion valable jusqu\'au {}.', until))}</small>` : ''}</p>`
     + `<p class="pair-h">${esc(t('Sur le téléphone ou l\'autre navigateur, ouvrez Paddock Live et touchez « Connexion F1 TV » pour afficher un code, puis tapez-le ici :'))}</p>`
-    + `<form id="pairForm"><input id="pairInput" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" placeholder="------" aria-label="${esc(t('Code à 6 chiffres'))}"><button class="btn btn-accent" type="submit">${esc(t('Relier'))}</button></form>`
+    + `<form id="pairForm"><input id="pairInput" inputmode="numeric" autocomplete="one-time-code" maxlength="8" pattern="[0-9]{6}([0-9]{2})?" placeholder="--------" aria-label="${esc(t('Code à 8 chiffres'))}"><button class="btn btn-accent" type="submit">${esc(t('Relier'))}</button></form>`
     + '<p class="pair-note" id="pairSendMsg"></p>'
     + `<button class="btn pair-out" id="pairOut">${esc(t('Se déconnecter de F1 TV sur cet appareil'))}</button>`;
   const form = pairBody.querySelector('#pairForm');
@@ -175,8 +183,8 @@ function pairSend() {
   const msg = pairBody.querySelector('#pairSendMsg');
   form.addEventListener('submit', async (ev) => {
     ev.preventDefault();
-    const code = (input.value.match(/\d/g) || []).join('').slice(0, 6);
-    if (code.length !== 6) { msg.textContent = t('Entrez le code à 6 chiffres.'); return; }
+    const code = (input.value.match(/\d/g) || []).join('').slice(0, 8);
+    if (code.length !== 8 && code.length !== 6) { msg.textContent = t('Entrez le code à 8 chiffres.'); return; }   // 6 : code d'avant la mise à jour
     if (!f1tv) { msg.textContent = t('Aucune connexion F1 TV sur cet appareil.'); return; }
     msg.textContent = t('Envoi…');
     const pr = await fetch(`/live/api/pair?code=${code}`).then((x) => (x.status === 200 ? x.json() : null)).catch(() => null);
@@ -209,10 +217,14 @@ function status(now) {
 store.takeGps = () => { if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'here' })); };
 
 let fails = 0;   // tentatives d'affilée sans connexion
+// Nouvel essai : 3 s, puis doublé à chaque échec jusqu'à 60 s, avec une part au hasard (des visiteurs refusés ensemble
+// ne reviennent pas ensemble) ; 3 s de nouveau après une connexion réussie
+let wait = 3000;
 function connect() {
   ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/live/ws?d=${store.delay}${relayId ? `&u=${relayId}` : ''}`);
   ws.onopen = () => {
     fails = 0;
+    wait = 3000;
     store.connected = true;
     emit('connection', true);
     if (f1tv) ws.send(JSON.stringify({ type: 'auth', token: f1tv }));
@@ -220,7 +232,12 @@ function connect() {
   ws.onmessage = (ev) => {
     let msg;
     try { msg = JSON.parse(ev.data); } catch { return; }
-    if (msg.type === 'hello') { relay = msg.status || {}; hub.hello(msg); status(msg.now); setDelay(store.delay); }
+    if (msg.type === 'hello') {
+      // Nouvelle séance : GPS et télémétrie de la précédente oubliés (sinon gardés tout le week-end)
+      const ses = msg.base?.state?.SessionInfo?.Path ?? null;
+      if (ses !== gpsSession) { gpsSession = ses; gps.clear(); tel.clear(); }
+      relay = msg.status || {}; hub.hello(msg); status(msg.now); setDelay(store.delay);
+    }
     else if (msg.type === 'evs') { hub.push(msg.events); hub.pushStream(msg.stream || []); }
     else if (msg.type === 'stream') hub.pushStream(msg.items || [], true);
     else if (msg.type === 'up') { relay = msg.status || {}; status(msg.now); }
@@ -233,7 +250,8 @@ function connect() {
     // Son relais injoignable trois fois de suite (refusé, plafond du jour) : relais commun, sans GPS, plutôt que
     // « Serveur déconnecté » jusqu'au lendemain
     else if (!opened && relayId && ++fails >= 3) relayId = '';
-    setTimeout(connect, 3000);
+    setTimeout(connect, Math.min(60e3, wait * (1 + Math.random() / 3)));
+    wait = Math.min(60e3, wait * 2);
   };
   ws.onerror = () => ws.close();
 }
@@ -298,20 +316,28 @@ function lastSession(races) {
   return out.filter((s) => s.rows.length && s.t < Date.now()).sort((a, b) => b.t - a.t)[0] || null;
 }
 const resCard = (title, rows) => `<div class="web-res-card"><h3>${esc(title)}</h3><ol>${rows.map(([p, n, v]) => `<li><b>${esc(p ?? '')}</b><span>${esc(n)}</span><small>${esc(v ?? '')}</small></li>`).join('')}</ol></div>`;
-document.querySelector('#webResultsBtn')?.addEventListener('click', async (e) => {
+// Serveur injoignable : bouton Réessayer, et nouvel essai tout seul au bout de 30 s
+let resRetry = null;
+async function loadResults() {
+  clearTimeout(resRetry);
   const box = document.querySelector('#webResults');
-  e.currentTarget.disabled = true;
   let d = null;
   for (const y of [new Date().getFullYear(), new Date().getFullYear() - 1]) {
     d = await fetch(`/live/api/season?year=${y}`).then((r) => r.json()).catch(() => null);
     if (d?.races?.some((r) => r.results?.length)) break;
   }
-  if (!d?.races) { box.innerHTML = '<p class="muted">Résultats indisponibles pour le moment.</p>'; return; }
+  if (!d?.races) {
+    box.innerHTML = `<p class="muted">${esc(t('Résultats indisponibles pour le moment.'))} <button class="btn small" id="webResRetry">${esc(t('Réessayer'))}</button></p>`;
+    box.querySelector('#webResRetry').addEventListener('click', loadResults);
+    resRetry = setTimeout(loadResults, 30e3);
+    return;
+  }
   const last = lastSession(d.races);
   box.innerHTML = `<div class="web-res-grid">${last ? resCard(`${gpShort(last.race, LANG)} · ${last.label}`, last.rows.slice(0, 10)) : ''}
     ${resCard('Championnat pilotes', (d.drivers || []).slice(0, 10).map((x) => [x.pos, x.name, `${x.points} pts`]))}
     ${resCard('Championnat constructeurs', (d.constructors || []).map((x) => [x.pos, x.name, `${x.points} pts`]))}</div>`;
-});
+}
+document.querySelector('#webResultsBtn')?.addEventListener('click', (e) => { e.currentTarget.disabled = true; loadResults(); });
 
 // Nouveautés : les 3 dernières sections du journal (fichier écrit à la construction), la plus récente ouverte.
 // Point rouge sur le bouton tant que la plus récente n'a pas été lue (mémorisée dans ce navigateur)
@@ -332,6 +358,112 @@ clBtn?.addEventListener('click', () => {
   dlg.showModal();
   if (clList?.[0]) { try { localStorage.setItem('pl.changelog', clKey(clList[0])); } catch { /* sans stockage */ } clBtn.classList.remove('fresh'); }
 });
+
+// Alertes sur cet appareil (bouton « Alertes », derrière l'engrenage sur téléphone ; tuile de l'Accueil ; raccourci
+// /?alertes de l'icône) : mêmes abonnements que la page paddocklive.app/alertes/ (/a/key, /a/sub, /a/off, /a/test,
+// analytics/push-public.js), reçus par le service worker de la version web (/live/sw.js, notifications seulement). Un
+// appareil déjà abonné sur /alertes/ a là-bas un autre abonnement (autre origine) : il recevrait tout deux fois, d'où
+// le lien pour le désactiver. Sur iPhone et iPad : seulement dans la version web ajoutée à l'écran d'accueil
+const alertBtn = document.querySelector('#alertBtn');
+const alertBody = document.querySelector('#alertBody');
+const ALERTS_KEY = 'pl.alerts';   // { topics, tz, lang } envoyés au serveur depuis cet appareil
+const pushOk = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+const installed = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+let tz = '';
+try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch { /* moteur sans fuseau */ }
+const alertsSaved = () => { try { return JSON.parse(localStorage.getItem(ALERTS_KEY) || 'null'); } catch { return null; } };
+const pushApi = async (path, body) => {
+  const r = await fetch(`/a/${path}`, body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {});
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || `Erreur ${r.status}`);
+  return j;
+};
+const urlKey = (s) => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(s.length / 4) * 4, '=')), (c) => c.charCodeAt(0));
+let alertReg = null, alertSub = null;
+async function alertsInit() {
+  if (!pushOk || alertReg) return;
+  alertReg = await navigator.serviceWorker.register('/live/sw.js', { scope: '/' });
+  alertSub = await alertReg.pushManager.getSubscription();
+  alertBtn?.classList.toggle('on', !!alertSub);
+}
+const ALERT_TOPICS = [
+  ['sessions', 'Avant chaque séance', '30 minutes avant les essais, les qualifs, le sprint et la course, et la veille à 21 h quand une séance tombe en pleine nuit chez vous.'],
+  ['results', 'Résultats', 'Vainqueur et pole dès leur publication.', 'Dévoile la course si vous la regardez plus tard.'],
+  ['news', 'Grosses news', 'Transferts, pénalités, annonces officielles : quelques fois par semaine au plus. La nuit (23 h à 7 h), regroupées dans un seul message à 7 h.'],
+];
+function alertsRender(msg = '', ok = false) {
+  if (pushOk && !(ios && !installed)) {
+    const on = alertsSaved()?.topics || ['sessions', 'news'];
+    alertBody.innerHTML = `<p class="pair-h">${esc(t('Un rappel avant chaque séance, les résultats si vous le voulez et les grosses news, même l\'appli fermée.'))}</p>
+      <div class="al-topics">${ALERT_TOPICS.map(([k, title, sub, warn]) => `<label class="al-topic"><input type="checkbox" name="alt" value="${k}"${on.includes(k) ? ' checked' : ''}><span><b>${esc(t(title))}</b><small>${esc(t(sub))}${warn ? ` <em>${esc(t(warn))}</em>` : ''}</small></span></label>`).join('')}</div>
+      <div class="al-acts">${alertSub
+    ? `<button type="button" class="btn" data-al="save">${esc(t('Enregistrer'))}</button><button type="button" class="btn" data-al="test">${esc(t('Envoyer un essai'))}</button><button type="button" class="btn" data-al="off">${esc(t('Tout désactiver'))}</button>`
+    : `<button type="button" class="btn btn-accent" data-al="on">${esc(t('Activer les alertes'))}</button>`}</div>
+      <p class="pair-note al-state${ok ? ' ok' : msg ? ' err' : ''}" role="status">${esc(msg || (alertSub ? t('Alertes actives sur cet appareil.') : ''))}</p>
+      ${!installed && !ios && matchMedia('(pointer: coarse)').matches ? `<p class="pair-note">${esc(t('Pour tout avoir sous une seule icône : menu du navigateur, puis « Installer l\'appli » ou « Ajouter à l\'écran d\'accueil ».'))}</p>` : ''}
+      <div class="al-fine"><p>${esc(t('Déjà abonné sur la page des alertes du site ? Désactivez-les là-bas, sinon chaque alerte arrive deux fois :'))} <a href="https://paddocklive.app/alertes/" target="_blank" rel="noopener">paddocklive.app/alertes</a></p>
+      <p>${esc(t('Gardés sur notre serveur : l\'adresse de notification et les clés de cet appareil, vos sujets, votre langue et votre fuseau horaire. Rien d\'autre, sans compte. Effacés quand vous désactivez les alertes.'))} <a href="https://paddocklive.app/legal/privacy#alertes" target="_blank" rel="noopener">${esc(t('Confidentialité'))}</a></p></div>`;
+    return;
+  }
+  // iPhone et iPad dans Safari : notifications seulement depuis l'écran d'accueil (iOS 16.4 et plus récents)
+  alertBody.innerHTML = ios
+    ? `<p class="al-kicker">${esc(t('iPhone et iPad'))}</p><p class="pair-h">${esc(t('Les alertes arrivent dans Paddock Live ajouté à l\'écran d\'accueil (iOS 16.4 ou plus récent) :'))}</p>
+      <ol class="al-steps"><li>${esc(t('Dans Safari, touchez Partager (sous « ··· » depuis iOS 26).'))}</li><li>${esc(t('Choisissez « Sur l\'écran d\'accueil », puis « Ajouter ».'))}</li><li>${esc(t('Ouvrez Paddock Live depuis sa nouvelle icône, puis Alertes.'))}</li></ol>`
+    : `<p class="pair-h">${esc(t('Ce navigateur ne peut pas recevoir de notifications. Essayez Chrome, Firefox, Edge ou Safari.'))}</p>`;
+}
+const alertTopics = () => [...alertBody.querySelectorAll('input[name=alt]:checked')].map((x) => x.value);
+async function alertsSave(topics = alertTopics()) {
+  if (!topics.length) return alertsOff();
+  await pushApi('sub', { subscription: alertSub.toJSON(), topics, lang: LANG, tz });
+  try { localStorage.setItem(ALERTS_KEY, JSON.stringify({ topics, tz, lang: LANG })); } catch { /* sans stockage */ }
+  alertBtn?.classList.add('on');
+}
+async function alertsOff() {
+  if (alertSub) {
+    await pushApi('off', { endpoint: alertSub.endpoint }).catch(() => {});
+    await alertSub.unsubscribe().catch(() => {});
+  }
+  alertSub = null;
+  try { localStorage.removeItem(ALERTS_KEY); } catch { /* sans stockage */ }
+  alertBtn?.classList.remove('on');
+}
+const ALERT_ACTS = {
+  // Permission demandée d'abord, dans le geste du doigt (exigé par Safari sur iPhone)
+  on: async () => {
+    const topics = alertTopics();
+    if (!topics.length) throw new Error(t('Choisissez au moins un sujet.'));
+    if (await Notification.requestPermission() !== 'granted') throw new Error(t('Notifications refusées : autorisez-les dans les réglages du navigateur ou de l\'appareil.'));
+    await alertsInit();
+    const { key } = await pushApi('key');
+    alertSub = await alertReg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlKey(key) });
+    await alertsSave(topics);
+    return t('Alertes actives sur cet appareil.');
+  },
+  save: async () => { await alertsSave(); return alertSub ? t('Alertes actives sur cet appareil.') : t('Alertes désactivées.'); },
+  test: async () => { await pushApi('test', { endpoint: alertSub.endpoint }); return t('Essai envoyé : il arrive dans quelques secondes.'); },
+  off: async () => { await alertsOff(); return t('Alertes désactivées.'); },
+};
+alertBody?.addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-al]');
+  if (!b) return;
+  b.disabled = true;
+  try { alertsRender(await ALERT_ACTS[b.dataset.al](), true); } catch (err) { alertsRender(err.message); }
+});
+alertBtn?.addEventListener('click', async () => {
+  webMenu(false);
+  alertsRender();
+  document.querySelector('#alertDlg').showModal();
+  try { await alertsInit(); alertsRender(); } catch (err) { alertsRender(err.message); }
+});
+// Abonné depuis cet appareil : fuseau ou langue changés depuis, renvoyés au serveur (rappel de la veille à 21 h chez soi)
+if (pushOk && alertsSaved()) {
+  alertsInit().then(() => {
+    const s = alertsSaved();
+    if (!alertSub) { try { localStorage.removeItem(ALERTS_KEY); } catch { /* sans stockage */ } return; }
+    if (s.tz !== tz || s.lang !== LANG) alertsSave(s.topics).catch(() => {});
+  }).catch(() => {});
+}
 
 const safe = (fn) => { try { fn(); } catch (err) { console.error(err); } };
 // Relais qui vient de redémarrer : rien n'est montré avant que le délai TV l'ait rattrapé (pas de spoiler)
@@ -372,9 +504,43 @@ safe(initNoLive);
 safe(initSeason);
 // Adresse d'une rubrique de la Saison (app.paddocklive.app/saison/2026/pilotes/lando-norris/) : ouverte directement ;
 // l'adresse suit ensuite la rubrique affichée
+// Page anglaise de la Saison (/en/season/…, écrite par le serveur) : la rubrique est donnée par la page (data-sz-*,
+// noms français) ; l'appli en anglais tient ensuite les adresses anglaises (ui/season.js), en français les françaises
+const enSeason = document.querySelector('#szContent')?.dataset;
+const askedEn = enSeason?.szYear ? { year: Number(enSeason.szYear), section: enSeason.szSection, item: enSeason.szItem || null } : null;
 seasonUrls();
-const askedSeason = parseSeasonPath(location.pathname);
-if (askedSeason) safe(() => openSeason(askedSeason.section, askedSeason.year || undefined, askedSeason.item));
+const askedSeason = parseSeasonPath(location.pathname) || askedEn;
+if (askedSeason) { document.querySelector('#homeView').hidden = true; safe(() => openSeason(askedSeason.section, askedSeason.year || undefined, askedSeason.item)); }
+// Accueil au lancement (pas de séance en cours, pas de page de la Saison demandée, pas de fenêtre à un panneau)
+else if (!ONLY) safe(initHome);
+// Fenêtre à un panneau : pas d'accueil (affiché par défaut dans la page)
+if (ONLY) document.querySelector('#homeView').hidden = true;
+
+// Menu : Accueil, Direct, Saison (barre du haut sur ordinateur, barre du bas sur téléphone, comme l'appli ; boutons
+// écrits dans la page, affichés avant le chargement du code)
+const navs = [document.querySelector('#webNavTop'), document.querySelector('#webNav')].filter(Boolean);
+for (const nav of navs) {
+  nav.addEventListener('click', (e) => {
+    const k = e.target.closest('[data-nav]')?.dataset.nav;
+    if (!k) return;
+    webMenu(false);
+    homeTouched();
+    if (k === 'home') openHome();
+    else if (k === 'season') openSeason();
+    else { closeHome(); closeSeason(); }
+    syncNav();
+    scrollTo(0, 0);
+  });
+}
+const syncNav = () => {
+  const open = (id) => !document.querySelector(id)?.hidden;
+  const cur = open('#homeView') ? 'home' : open('#seasonView') ? 'season' : 'live';
+  for (const b of document.querySelectorAll('[data-nav]')) { b.classList.toggle('active', b.dataset.nav === cur); b.setAttribute('aria-current', b.dataset.nav === cur ? 'page' : 'false'); }
+};
+// Vues ouvertes ou fermées ailleurs (raccourcis de l'accueil, séance qui commence, retour de la Saison) : menu à jour
+const navWatch = new MutationObserver(syncNav);
+for (const id of ['#homeView', '#seasonView']) { const el = document.querySelector(id); if (el) navWatch.observe(el, { attributes: true, attributeFilter: ['hidden'] }); }
+syncNav();
 // Téléphone : réglages du direct derrière l'engrenage. Hauteur de la barre changée (réglages ouverts, police
 // chargée) : écran « Pas de séance en direct » replacé dessous
 const topbar = document.querySelector('.topbar');
@@ -388,6 +554,13 @@ const webMenu = (open) => {
 };
 document.querySelector('#webMenuBtn').addEventListener('click', () => webMenu(!topbar.classList.contains('menu-open')));
 document.querySelector('#seasonBtn').addEventListener('click', () => webMenu(false));
+// Raccourcis de l'icône (Android, manifest.webmanifest) : /?direct ouvre le Direct, /?alertes les alertes ; adresse nettoyée
+const shortcut = /^\?(direct|alertes)$/.exec(location.search)?.[1];
+if (shortcut) {
+  history.replaceState(null, '', location.pathname);
+  if (shortcut === 'direct') document.querySelector('#webNav [data-nav="live"]')?.click();
+  else alertBtn?.click();
+}
 // Saison ouverte : toucher la séance en haut revient au direct
 document.querySelector('.topbar .session').addEventListener('click', () => { if (!document.querySelector('#seasonView').hidden) closeSeason(); });
 // Panneau Analyse : la télémétrie du pilote suivi dans l'écran principal, les autres onglets dans la fenêtre « Analyse »

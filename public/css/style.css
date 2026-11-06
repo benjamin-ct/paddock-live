@@ -37,6 +37,9 @@
 
 * { box-sizing: border-box; }
 html, body { height: 100%; }
+/* Téléphone et tablette : pas de zoom au double appui (deux appuis rapides sur un menu ou une rubrique zoomaient la
+   page) ; le zoom à deux doigts et le défilement restent */
+html { touch-action: manipulation; }
 /* Appli : un clic ou un double-clic dans le vide ne surligne rien ; texte sélectionnable seulement là
    où on peut vouloir le copier (champs, article, radios, direction de course, adresses) */
 body { -webkit-user-select: none; user-select: none; }
@@ -161,6 +164,7 @@ code { background: var(--panel-3); padding: 1px 5px; border-radius: 4px; font-si
 .source-badge.replay .src-dot { background: var(--blue); }
 .source-badge.error .src-dot { background: var(--orange); }
 .source-badge.stale .src-dot { background: var(--orange); animation: pulse 1.4s infinite; }
+@media (prefers-reduced-motion: reduce) { .source-badge .src-dot { animation: none; } }   /* mouvement réduit demandé par le système */
 
 /* ---------- Barre de replay ---------- */
 .replaybar {
@@ -209,6 +213,7 @@ input[type=range]:not(#rpRange):disabled { opacity: .45; cursor: default; }
 .rp-track input[type=range]::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: #fff; border: 3px solid #3d7bff; }
 .rp-track input[type=range]::-moz-range-track { background: transparent; }
 .rp-side { flex: none; display: flex; align-items: center; gap: 8px; }
+.replaybar .rp-more { display: none; }   /* tiroir des commandes : mini-lecteur du téléphone en Télémétrie (design-v3.css) */
 /* Grand écran : la barre de lecture occupe toute la largeur, sous le titre et les commandes */
 @media (min-width: 901px) {
   .replaybar { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-rows: auto auto; column-gap: 14px; row-gap: 12px; align-items: center; padding: 8px 18px 10px 16px; }
@@ -256,6 +261,13 @@ input[type=range]:not(#rpRange):disabled { opacity: .45; cursor: default; }
   .p-map { height: 420px; }
   .p-tower { height: 720px; }
   .p-duel, .p-feed, .p-extra { height: 460px; }
+  .rp-speed:is([data-speed="20"], [data-speed="30"]) { display: none; }   /* barre du replay dans la largeur */
+  .replaybar .rp-top { overflow: hidden; white-space: nowrap; }
+}
+/* Petit écran en paysage (Android : 915 × 412) : le classement d'abord, à la hauteur de l'écran */
+@media (min-width: 901px) and (max-width: 1000px) and (orientation: landscape) and (max-height: 500px) {
+  .grid { grid-template-areas: "tower" "map" "duel" "feed" "extra"; }
+  .p-tower, .p-map { height: calc(100dvh - 20px); }
 }
 
 .panel {
@@ -722,20 +734,30 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
 .tower.hide-pred .c-pred, .tower.hide-q .c-q, .tower.hide-tags .c-tags, .tower.hide-name .drv-last { display: none !important; }
 /* Colonnes facultatives (masquées tant qu'on ne les a pas ajoutées) */
 .tower:not(.show-grid) .c-grid, .tower:not(.show-laps) .c-laps, .tower:not(.show-gapf) .c-gapf,
-.tower:not(.show-spd) .c-spd, .tower:not(.show-team) .c-team, .tower:not(.show-bsec) .c-bsec { display: none; }
+.tower:not(.show-spd) .c-spd, .tower:not(.show-team) .c-team, .tower:not(.show-bsec) .c-bsec,
+.tower:not(.show-pen) .c-pen { display: none; }
 /* État (STAND, SORTIE, TOUR…) dans sa propre colonne : les étiquettes sont alignées d'une ligne à l'autre */
 .tower td.c-tags { padding-left: 2px; padding-right: 4px; }
 .tower td.c-tags:empty, .tower th.c-tags { padding: 0; }
 .tower .c-tags .drv-tags { justify-content: flex-start; }
-.tower td.c-grid, .tower td.c-laps, .tower th.c-grid, .tower th.c-laps { text-align: center; }
+.tower td.c-grid, .tower td.c-laps, .tower th.c-grid, .tower th.c-laps, .tower .c-pen { text-align: center; }
+.tower td.c-pen { white-space: nowrap; font-weight: 700; }
 .tower td.c-spd { white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--text-2); }
 .tower td.c-spd b { color: var(--text); font-weight: 600; }
 .tower td.c-team { white-space: nowrap; color: var(--text-2); max-width: 130px; overflow: hidden; text-overflow: ellipsis; }
 .tower td.c-gapf.ahead { color: var(--green); }
 .tower td.c-gapf.behind { color: var(--orange); }
 .tower-cols .map-layers-menu { min-width: 250px; left: 0; right: auto; }   /* bouton à gauche du panneau : menu ouvert vers la droite */
+.tower-cols .tc-ic { display: none; }   /* icône seule : téléphone en paysage, en Télémétrie (design-v3.css) */
 .tower-cols .col-sep { font-size: 11px; color: var(--muted); padding: 6px 8px 2px; text-transform: uppercase; letter-spacing: .6px; }
 .tag.push { background: var(--purple); color: #1a0030; }
+/* Qualifs, 3 dernières minutes : passera la ligne avant le drapeau (vert), juste (orange), trop tard (gris) ; dernier tour
+   commencé à temps, en noir et blanc comme le damier */
+.tag.line-go { background: color-mix(in srgb, var(--green) 18%, transparent); color: var(--green); }
+.tag.line-tight { background: color-mix(in srgb, var(--orange) 20%, transparent); color: var(--orange); }
+.tag.line-late { color: var(--muted); box-shadow: inset 0 0 0 1px var(--line-2); }
+.tag.last { background: var(--text); color: var(--bg); }
+.tag:is(.line-go, .line-tight, .line-late, .last) { white-space: nowrap; }
 .pred { font-size: 12px; font-weight: 700; }
 .pred small { color: var(--muted); font-weight: 600; }
 .cutline { padding: 4px 10px; font-size: 12px; color: var(--text-2); background: rgba(255,59,48,.08); border-bottom: 1px solid var(--border); }
@@ -919,6 +941,11 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
 @media (max-width: 1360px) {
   .topbar { flex-wrap: wrap; row-gap: 6px; }
 }
+/* Paddock 2 et Classique, de 1361 à 1540 px : l'heure du circuit cède sa place (la barre sur une ligne débordait de
+   50 à 75 px pendant une séance avec l'état de la piste) ; Télémétrie a sa propre compaction (design-v3.css) */
+@media (min-width: 1361px) and (max-width: 1540px) {
+  :root:not([data-design="v3"]) .topbar #circuitTimeBox { display: none !important; }
+}
 
 /* ---------- Commentaires F1 TV ---------- */
 .comm-btn { position: relative; }
@@ -952,6 +979,19 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
 .mf-item.dy { border-left-color: #ff9f1a; }
 .mf-item b { color: #f5c518; }
 .mf-item.dy b { color: #ff9f1a; }
+/* Bulle d'une pastille du calque « Limites de piste » (virage, pilotes concernés, événements récents) */
+.map-tip { position: absolute; z-index: 4; pointer-events: none; max-width: min(260px, calc(100% - 16px)); padding: 7px 10px 8px; border-radius: var(--r-md, 8px);
+  background: var(--panel-3); color: var(--text); border: 1px solid var(--border); box-shadow: var(--shadow-pop, 0 12px 32px rgba(0, 0, 0, .45)); font-size: 12px; line-height: 1.4; }
+.map-tip .mt-head + .mt-drv, .map-tip .mt-ev { margin-top: 3px; }
+.map-tip .mt-head ~ .mt-head { margin-top: 7px; padding-top: 6px; border-top: 1px solid var(--border); }
+.map-tip .mt-drv { display: flex; flex-wrap: wrap; gap: 2px 10px; font-variant-numeric: tabular-nums; }
+.map-tip .mt-drv span { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; }
+.map-tip .mt-drv i { width: 3px; height: 12px; border-radius: 1px; }
+.map-tip .mt-ev { padding-left: 7px; border-left: 3px solid #FFD43B; }
+.map-tip .mt-ev.incident { border-left-color: #FFA62B; }
+.map-tip .mt-ago { color: var(--muted); }
+.mf-item.traffic { border-left-color: #c77dff; }   /* qualifs : tour lancé (violet) qui arrive sur une voiture lente */
+.mf-item.traffic b { color: #c77dff; }
 /* Les classes utilitaires .yellow / .green (texte coloré) ne doivent pas s'appliquer aux bandeaux pleins */
 .track-status.yellow, .flag-banner.yellow { color: #1a1500 !important; }
 .flag-banner.green { color: #002012 !important; }
@@ -1114,9 +1154,9 @@ body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-selec
 .sz-countdown { display: flex; gap: 18px; margin-top: 6px; }
 .sz-countdown span { display: flex; flex-direction: column; }
 .sz-countdown b { font-size: 34px; font-weight: 900; line-height: 1; font-variant-numeric: tabular-nums; }
-.sz-countdown b i { display: inline-block; font-style: normal; }   /* un chiffre par case (animé seul quand il change) */
-.sz-countdown b em { font-style: inherit; }
-.sz-countdown b em.o { display: none; }   /* ancien chiffre : seulement pendant l'animation */
+:is(.sz-countdown, .hm-cd) b i { display: inline-block; font-style: normal; }   /* un chiffre par case (animé seul quand il change) */
+:is(.sz-countdown, .hm-cd) b em { font-style: inherit; }
+:is(.sz-countdown, .hm-cd) b em.o { display: none; }   /* ancien chiffre : seulement pendant l'animation */
 .sz-countdown small { font-size: 11px; text-transform: uppercase; opacity: .8; letter-spacing: .5px; }
 .sz-when { opacity: .85; }
 .sz-progress { height: 6px; background: var(--panel-3); border-radius: 3px; overflow: hidden; margin: 4px 0; }
@@ -1234,6 +1274,9 @@ body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-selec
 .sz-table .dest-drv { all: unset; cursor: pointer; }
 .sz-table .dest-drv:hover b, .sz-table .dest-drv:focus-visible b { color: var(--accent); }
 .sz-table tr.on td { background: var(--panel-2); }
+/* Carrière d'un pilote (Saison → Pilotes) : écurie de chaque saison, pastille à sa couleur */
+.sz-team-y { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; margin-right: 10px; }
+.sz-team-y i { width: 4px; height: 14px; border-radius: 2px; flex: none; }
 .sz-chip { display: inline-block; border-left: 3px solid var(--tc); background: color-mix(in srgb, var(--tc) 18%, transparent); padding: 1px 7px; border-radius: 4px; font-weight: 700; font-size: 12.5px; }
 .sz-tag { display: inline-block; font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .4px; padding: 1px 6px; border-radius: 4px; background: var(--panel-3); color: var(--text-2); margin-right: 3px; }
 .sz-tag.done { background: rgba(53, 208, 127, .15); color: var(--green); }
@@ -1258,6 +1301,14 @@ body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-selec
 .cal-s { display: flex; justify-content: space-between; gap: 12px; padding: 6px 10px; font-size: 13px; border-top: 1px solid var(--line); }
 .cal-s:first-of-type { border-top: 0; }
 .cal-s b { font-variant-numeric: tabular-nums; }
+/* Programme expliqué : phrase sous la séance, à la largeur de la colonne du jour (contain : elle ne l'élargit jamais) */
+.cal-s { flex-wrap: wrap; row-gap: 1px; }
+.cal-why { flex-basis: 100%; contain: inline-size; color: var(--muted); font-size: 11.5px; font-weight: 400; line-height: 1.3; }
+.cal-key .ic { width: 11px; height: 11px; margin-right: 4px; vertical-align: -1px; fill: currentColor; }
+/* Téléphone : jours en pleine largeur, la phrase tient sur une ligne */
+@media (max-width: 600px) { .cal-days { flex-flow: column nowrap !important; width: 100%; } }
+.night { display: inline-flex; vertical-align: -2px; margin-right: 5px; color: var(--muted); }
+.night .ic { width: 13px; height: 13px; }
 .cal-s.past { color: var(--muted); }
 .cal-progress { display: flex; align-items: center; gap: 14px; color: var(--text-2); font-size: 13px; }
 .cal-progress .sz-progress { flex: 1; margin: 0; }
@@ -1566,6 +1617,22 @@ html:is(.float-map, .overlay) #map3dTog { display: none !important; }
 .sz-fresh-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 @media (max-width: 700px) { .sz-pen { grid-template-columns: minmax(0, 1fr) auto; } .sz-pen > .sz-els { grid-column: 1; grid-row: 2; } .sz-pen > a { grid-column: 2; grid-row: 2; justify-self: end; } }
 .sz-h2h-pick { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+/* Sanctions : permis à points, une case par point (12 = suspension), couleur de l'écurie ; 8 points et plus : orange */
+.sz-lics { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr)); gap: 0 28px; align-items: start; }
+.sz-lic-row { display: grid; grid-template-columns: minmax(0, 1fr) auto 44px; align-items: center; align-content: start; gap: 4px 12px; padding: 7px 2px; border-top: 1px solid var(--line); }
+.sz-lic { display: grid; grid-template-columns: repeat(12, 11px); gap: 2px; }
+.sz-lic > i { height: 16px; border-radius: 2px; background: var(--panel-3); }
+.sz-lic > i:nth-child(4n) { margin-right: 3px; }
+.sz-lic > i.on { background: var(--tc, var(--text-2)); }
+.sz-lic.near > i:not(.on) { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--orange) 55%, transparent); }
+.sz-lic.ban > i.on { background: var(--red); }
+.sz-lic-n { font-variant-numeric: tabular-nums; text-align: right; font-size: 16px; }
+.sz-lic-n small { color: var(--muted); font-weight: 600; font-size: 11px; }
+.sz-lic-pts { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 4px; padding-left: 27px; }
+.sz-lic-pt { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.sz-lic-pt .btn-doc { padding: 1px 6px; }
+.sz-lic-add { color: var(--text); white-space: nowrap; }
+@media (max-width: 520px) { .sz-lic { grid-template-columns: repeat(12, 8px); } .sz-lic > i { height: 14px; } .sz-lic > i:nth-child(4n) { margin-right: 1px; } .sz-lic-pts { padding-left: 0; } }
 /* Course au titre : portraits, éliminés grisés, barre points actuels + maximum possible */
 .tr-intro { display: flex; gap: 40px; flex-wrap: wrap; }
 .tr-big { font-size: 20px; font-weight: 800; }
@@ -1581,6 +1648,10 @@ html:is(.float-map, .overlay) #map3dTog { display: none !important; }
 .tr-cl-tbl th { padding: 2px 18px 3px 0; text-align: left; font-size: 11px; font-weight: 600; color: var(--muted); }
 .tr-cl-tbl td { padding: 3px 18px 3px 0; border-top: 1px solid var(--border); }
 .tr-cl-who { padding-left: 6px; border-left: 3px solid var(--tc); font-weight: 800; }
+.tr-honours { margin: 0 0 14px; padding: 10px 14px; border-radius: 12px; border: 1px solid var(--border); border-left: 3px solid var(--line-2, var(--border)); background: var(--panel-2, var(--panel)); font-size: 13px; }
+.tr-hon-row { display: flex; gap: 12px; align-items: baseline; padding: 4px 0; }
+.tr-hon-row > b { flex: none; min-width: 76px; }
+.tr-hon-who { display: flex; flex-wrap: wrap; gap: 6px 12px; }
 @media (max-width: 600px) { .tr-cl-tbl { white-space: normal; } .tr-cl-tbl :is(th, td) { padding-right: 10px; } }
 .tr-cl-note { margin-top: 6px; font-size: 11.5px; color: var(--muted); }
 .tr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; }
@@ -1804,6 +1875,29 @@ html[data-design="classic"] .rc-bar { display: none !important; }
 @media (min-width: 600px) and (max-width: 900px) {
   .grid.mobile .tower .c-last, .grid.mobile .tower .c-best { display: table-cell; }
 }
+/* Téléphone en paysage (iPhone : 852 × 393) : en-tête sur une ligne, onglets, replay et barre du bas réduits ;
+   la page défile et le panneau garde la hauteur de l'écran */
+@media (max-width: 900px) and (orientation: landscape) and (max-height: 500px) {
+  html, body { height: auto; }
+  body { overflow: hidden auto; height: auto; min-height: 100dvh; }
+  /* Rien sous l'encoche ni la Dynamic Island (comme la version web) */
+  body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+  .season-view { left: env(safe-area-inset-left); right: env(safe-area-inset-right); }
+  .topbar { padding-block: 4px; }
+  .topbar :is(.tb-break, .session-sub, .hstat-label, .lap-bar) { display: none !important; }
+  .mob-panels:not([hidden]) { padding-block: 3px; }
+  .mob-panels button { padding-block: 4px; }
+  html[data-theme="pitwall"] .replaybar { grid-template-columns: auto minmax(0, 1fr) auto; padding-block: 4px; }
+  .replaybar .rp-track { margin-top: 0; }
+  .replaybar .rp-side { grid-column: 3; grid-row: 1; }
+  .grid.mobile { flex: none; height: calc(100dvh - 46px); }
+  body:has(#replayBar:not([hidden])) .grid.mobile { height: calc(100dvh - 92px); }
+  /* Barre du bas et barre du replay restent en bas de l'écran pendant le défilement */
+  .mob-nav { position: sticky; bottom: 0; z-index: 5; }
+  .replaybar { position: sticky; bottom: 46px; z-index: 5; }
+  .mob-nav button { padding-block: 4px; }
+  .mob-nav .mn-l { display: none; }
+}
 @media (max-width: 900px) {
   .grid.mobile .p-duel .panel-head { flex-wrap: wrap; row-gap: 6px; }
 }
@@ -1821,6 +1915,13 @@ html[data-design="classic"] .rc-bar { display: none !important; }
 /* Écran tactile sans clavier : pas de raccourcis clavier */
 @media (hover: none) and (pointer: coarse) {
   #shortcutsBlock { display: none !important; }
+}
+/* Au doigt : zone tactile d'au moins 32 px autour des petits boutons, du badge REPLAY et des interrupteurs
+   (zone invisible, la mise en page ne change pas ; :where : une position déjà donnée est gardée) */
+@media (pointer: coarse) {
+  :where(.btn.small, .icon-btn.small, .nw-readbtn, .nw-vo, .source-badge, .toggle) { position: relative; }
+  :is(.btn.small, .icon-btn.small, .nw-readbtn, .nw-vo, .source-badge, .toggle)::before { content: ''; position: absolute; left: 50%; top: 50%;
+    width: max(100%, 32px); height: max(100%, 32px); transform: translate(-50%, -50%); }
 }
 /* Téléphones courants (jusqu'à 420 px) : colonnes serrées, la colonne Arrêts tient dans l'écran */
 @media (max-width: 420px) { .grid.mobile .tower td, .grid.mobile .tower th { padding-left: 3px; padding-right: 3px; } }
@@ -2159,7 +2260,7 @@ body.solo #muteBtn { display: none; }
 [data-theme="pitwall"] .tower th { background: var(--panel); font-size: 10px; letter-spacing: 1.1px; font-weight: 600; border-bottom-color: var(--line); }
 [data-theme="pitwall"] .tower td { border-bottom-color: var(--line); }
 [data-theme="pitwall"] .tower .pos { font-size: 14px; line-height: 1.05; }
-[data-theme="pitwall"] .tower .pos-delta { display: block; font-size: 9px; margin: 0; line-height: 1; }
+[data-theme="pitwall"] .tower .pos-delta { display: block; font-size: 11px; margin: 0; line-height: 1; }
 [data-theme="pitwall"] .tower .drv { gap: 8px; }
 [data-theme="pitwall"] .tower .drv-num { display: none; }
 [data-theme="pitwall"] .tower .drv-tla { font-size: 14.5px; letter-spacing: .6px; min-width: 38px; }
@@ -2373,6 +2474,7 @@ body.solo .grid .panel-head { padding-right: 116px; }
 
 /* Outils : documents FIA, vitesses, meilleurs secteurs */
 .tb-tools { display: flex; gap: 2px; align-items: center; }
+.tb-more { display: none; }   /* menu « Outils » : Télémétrie seulement (design-v3.css) */
 body.solo .tb-tools { display: none; }
 .tb-tool { position: relative; width: 32px; height: 32px; display: grid; place-items: center; background: none; border: 1px solid transparent; border-radius: 7px; color: var(--text-2); cursor: pointer; padding: 0; }
 /* Outils de la barre du haut : pictogramme et mot (masqué quand la place manque) */
@@ -2466,7 +2568,7 @@ body.solo .tb-tools { display: none; }
 [data-theme="pitwall"] body { font-size: 13.5px; background: var(--bg); }
 
 /* Chiffres en chasse fixe : temps, écarts, vitesses, horloges */
-[data-theme="pitwall"] :is(.tower td.t-gap, .tower td.t-int, .tower td.t-lap, .tower td.pos, .tower td.c-pits, .tower td.c-speed, .tower td.c-grid, .tower td.c-laps, .tower td.c-gapf, .tower td.c-spd,
+[data-theme="pitwall"] :is(.tower td.t-gap, .tower td.t-int, .tower td.t-lap, .tower td.pos, .tower td.c-pits, .tower td.c-speed, .tower td.c-grid, .tower td.c-laps, .tower td.c-gapf, .tower td.c-spd, .tower td.c-pen,
   .tower .sector-val, .tyre-age, .hstat-value, .delay-input, .rp-time, .pit-big, .pit-val, .champ td, .strat-pace, .strat-deg,
   .tbp-table td, .tbd-time, .rcm-time, .weather-mini .wm b, .dl-speed-val, .dl-rpm) { font-family: var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: -.2px; }
 [data-theme="pitwall"] .tower td.pos { font-weight: 700; }
@@ -2796,10 +2898,10 @@ kbd .ic { width: 12px; height: 12px; opacity: 1; }
   :root:not([data-motion="off"]) .hm-main.hm-anim > :nth-child(n+5) { animation-delay: .2s; }
   /* Comptes à rebours : le chiffre qui change descend en place */
   /* Compte à rebours : chiffre qui roule (l'ancien sort par le bas, le nouveau entre par le haut), fondu sur les bords */
-  :root:not([data-motion="off"]) .sz-countdown b { padding: .15em 0; margin: -.15em 0; -webkit-mask-image: linear-gradient(transparent, #000 11%, #000 89%, transparent); mask-image: linear-gradient(transparent, #000 11%, #000 89%, transparent); }
-  :root:not([data-motion="off"]) .sz-countdown b i.chg { position: relative; }
-  :root:not([data-motion="off"]) .sz-countdown b i.chg em { display: inline-block; animation: digit-in .6s cubic-bezier(.22, 1, .36, 1) both; }
-  :root:not([data-motion="off"]) .sz-countdown b i.chg em.o { position: absolute; left: 0; top: 0; animation-name: digit-out; }
+  :root:not([data-motion="off"]) :is(.sz-countdown, .hm-cd) b { padding: .15em 0; margin: -.15em 0; -webkit-mask-image: linear-gradient(transparent, #000 11%, #000 89%, transparent); mask-image: linear-gradient(transparent, #000 11%, #000 89%, transparent); }
+  :root:not([data-motion="off"]) :is(.sz-countdown, .hm-cd) b i.chg { position: relative; }
+  :root:not([data-motion="off"]) :is(.sz-countdown, .hm-cd) b i.chg em { display: inline-block; animation: digit-in .6s cubic-bezier(.22, 1, .36, 1) both; }
+  :root:not([data-motion="off"]) :is(.sz-countdown, .hm-cd) b i.chg em.o { position: absolute; left: 0; top: 0; animation-name: digit-out; }
   /* Téléphone : le panneau choisi dans la bande du haut glisse en place */
   :root:not([data-motion="off"]) .grid.mobile .panel.mob-in { animation: view-in .26s var(--ease-out); }
   /* Boutons principaux : reflet qui balaie le bouton au survol */
@@ -3152,11 +3254,18 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; gap: 5
 .hm-tag { display: inline-flex; align-items: center; gap: 6px; }
 .hm-next { flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 18px; }
 .hm-next-main { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; }
-.hm-next .hm-kicker { justify-content: flex-start; gap: 10px; }
+.hm-next .hm-kicker { justify-content: flex-start; gap: 4px 10px; flex-wrap: wrap; }
+.hm-kicker > * { white-space: nowrap; }
 .hm-next .cal-days { flex-wrap: wrap; align-self: center; }
 .hm-title { display: flex; align-items: center; gap: 10px; }
 .hm-title small { margin-left: 6px; font-size: .78em; font-weight: 700; opacity: .8; }
 .cal-s.now { background: color-mix(in srgb, var(--accent) 20%, transparent); font-weight: 700; }
+/* Hors saison : prochaines dates de l'intersaison, chacune liée à son annonce officielle */
+.hm-agenda .cal-day { width: min(100%, 380px); }
+.hm-agenda a.cal-s { color: inherit; text-decoration: none; align-items: baseline; }
+.hm-agenda a.cal-s:hover span { text-decoration: underline; }
+.hm-agenda .cal-s b { white-space: nowrap; }
+.hm-ag-add { padding: 8px 10px; border-top: 1px solid var(--line); }
 .hm-count { font-size: 34px; font-weight: 900; line-height: 1.1; font-variant-numeric: tabular-nums; }
 .hm-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .hm-actions .btn { display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }
@@ -3173,6 +3282,80 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; gap: 5
 .hm-follow { align-self: center; display: inline-flex; align-items: center; gap: 7px; padding: 8px 14px; border-radius: 999px; color: var(--text-2); font-size: 13px; font-weight: 600; text-decoration: none; }
 .hm-follow:hover { color: var(--text); background: var(--panel-2); }
 .hm-follow .ic { width: 15px; height: 15px; }
+/* Accueil, tableau de bord de cartes (ui/home.js) : séances, classements, favoris, calendrier, chiffres de la saison,
+   actus. Grille automatique ici (Classique, Paddock 2) ; Télémétrie place les cartes (design-v3.css) */
+.hm-board { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+.hm-board > :is(.hm-next, .hm-live, .hm-news) { grid-column: 1 / -1; }
+.hm-board > * { min-width: 0; }
+/* Carte qui ouvre sa rubrique de la Saison : bouton sur toute la carte, ses propres boutons au-dessus */
+.hm-link { position: relative; }
+.hm-hit { position: absolute; inset: 0; z-index: 0; width: 100%; margin: 0; padding: 0; border: 0; border-radius: inherit; background: none; cursor: pointer; }
+.hm-link :is(.btn, a) { position: relative; z-index: 1; }
+.hm-hit:focus-visible { outline: 2px solid var(--ring, var(--text)); outline-offset: -2px; }
+.hm-open { width: 16px; height: 16px; flex: none; color: var(--muted); transition: transform .14s, color .14s; }
+@media (hover: hover) {
+  .hm-link:hover { border-color: var(--line-2); }
+  .hm-link:hover .hm-open { color: var(--text); transform: translateX(2px); }
+}
+.hm-link .hm-kicker { justify-content: space-between; }
+.hm-big { font-size: 30px; font-weight: 800; line-height: 1.05; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.hm-big small { font-size: .6em; color: var(--text-2); }
+.hm-trend, .hm-ctx { display: flex; flex-wrap: wrap; align-items: center; gap: 0 6px; min-width: 0; font-size: 12.5px; color: var(--text-2); }
+.hm-ctx { color: var(--muted); }
+.hm-trend b { color: var(--text); }
+:is(.hm-trend, .hm-pre-grid) :is(.team-logo, .drv-bar) { width: 4px; height: 14px; border-radius: 2px; background: var(--tc, currentColor); background-image: none !important; box-shadow: none; }
+.hm-state { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; margin-top: 4px; color: var(--muted); font-size: 13px; }
+/* Chargement : blocs à la taille du contenu attendu */
+.hm-sk { display: block; width: 70%; height: 12px; margin: 3px 0; border-radius: 4px; background: var(--panel-2); }
+.hm-sk.big { width: 45%; height: 30px; margin: 6px 0 4px; }
+.hm-sk.title { width: 60%; height: 22px; }
+.hm-sk.short { width: 40%; }
+.hm-sk.row { width: 100%; height: 22px; margin: 4px 0; }
+@media (prefers-reduced-motion: no-preference) { :root:not([data-motion="off"]) .hm-sk { animation: hm-sk 1.2s ease-in-out infinite alternate; } }
+@keyframes hm-sk { to { opacity: .4; } }
+/* Avant le départ en une minute (dans l'heure avant la course) : pneus, pluie, championnat, puis la grille après le clic */
+.hm-pre-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px 24px; margin: 4px 0; }
+.hm-pre-facts > div { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.hm-pre-facts .ic { width: 15px; height: 15px; vertical-align: -2px; }
+.hm-pre-ty { display: flex; align-items: center; gap: 6px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.hm-pre-ty .tyre + .tyre, .hm-pre-ty .tyre:not(:first-child) { margin-left: 6px; }
+.hm-pre .hm-kicker { justify-content: flex-start; flex-wrap: wrap; gap: 4px 10px; }
+.hm-pre .hm-actions { align-items: center; }
+.hm-pre-note { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; }
+.hm-pre-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0 16px; margin: 4px 0 0; padding: 0; list-style: none; }
+.hm-pre-grid li { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 5px 0; border-top: 1px solid var(--line); font-size: 13.5px; }
+.hm-pre-grid li > b { min-width: 3.4em; font-variant-numeric: tabular-nums; }
+.hm-pre-grid li > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hm-pre-grid li.pit > b { color: var(--muted); font-weight: 600; }
+.hm-pre-pen { margin: 6px 0 0; padding-left: 18px; color: var(--text-2); font-size: 13px; }
+/* Calendrier : tracé du circuit à droite, une case par manche (courues, prochaine) */
+.hm-cal { overflow: hidden; }
+.hm-cal-main { display: flex; flex-direction: column; gap: 4px; max-width: 64%; }
+.hm-cal-trk { position: absolute; top: 46px; right: 18px; width: 32%; max-width: 120px; aspect-ratio: 1; pointer-events: none; }
+.hm-cal-trk svg { width: 100%; height: 100%; overflow: visible; }
+.hm-cal-trk polygon { fill: none; stroke: var(--text-2); stroke-width: 2; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.hm-prog { display: flex; gap: 2px; margin-top: auto; padding-top: 12px; }
+.hm-prog i { flex: 1; height: 6px; border-radius: 1px; background: var(--line-2); }
+.hm-prog i.done { background: var(--text-2); }
+.hm-prog i.now { background: var(--accent); }
+/* Classements : 10 premiers, nom qui prend la place restante (ellipse), favoris surlignés */
+.hm-std-t { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+.hm-std-t th { padding: 0 6px 6px; text-align: left; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+.hm-std-t td { height: 30px; padding: 0 6px; border-top: 1px solid var(--line); white-space: nowrap; }
+.hm-std-t :is(th, td):first-child { padding-left: 2px; }
+.hm-std-t :is(th, td):last-child { padding-right: 2px; }
+.hm-std-t .n { text-align: right; }
+.hm-std-pos { width: 2em; font-weight: 800; }
+.hm-std-who { width: 100%; max-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.hm-std-who :is(.team-logo, .drv-bar) { display: inline-block; width: 4px; height: 16px; margin-right: 8px; vertical-align: -3px; border-radius: 2px; background: var(--tc, currentColor); background-image: none !important; box-shadow: none; }
+.hm-std-gap { color: var(--muted); }
+.hm-evo { width: 2.4em; color: var(--muted); font-size: 12px; }
+.hm-evo .ic { width: 8px; height: 8px; margin-right: 2px; vertical-align: 0; }
+.hm-evo.up { color: var(--green); }
+.hm-evo.down { color: var(--red); }
+.hm-std-t tr.fav td { background: var(--panel-2); }
+.hm-std-t tr.fav td:first-child { box-shadow: inset 2px 0 0 var(--text); }
+.hm-std-mask { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; margin: 2px 0 10px; font-size: 12.5px; }
 .hm-go .ic { width: 20px; height: 20px; color: var(--accent); margin-bottom: 4px; }
 .hm-go small { color: var(--muted); font-size: 12px; }
 @media (max-width: 700px) {
@@ -3189,6 +3372,10 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; gap: 5
 .rv-gp-head b { font-size: 15px; }
 .rv-sessions { display: flex; flex-wrap: wrap; gap: 6px; }
 .rv-sessions .btn { display: inline-flex; align-items: center; gap: 5px; }
+/* Séance et son bouton « Analyser » : toujours sur la même ligne */
+.rv-pair { display: inline-flex; gap: 2px; }
+/* Téléphone en version simplifiée : pas d'Analyse (ni onglet ni fenêtre), donc pas de bouton « Analyser » */
+:root.simple .replay-view :is([data-rv-apath], [data-rv-alocal]) { display: none; }
 .rv-sessions .btn.on { border-color: var(--accent); color: var(--text); }
 .rv-empty { display: flex; gap: 14px; align-items: flex-start; }
 .rv-empty > .ic { width: 26px; height: 26px; color: var(--accent); flex: none; }
@@ -3204,6 +3391,15 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; gap: 5
 .hm-fav-row > :last-child { white-space: nowrap; text-align: right; }
 .hm-fav-group { grid-column: 1 / -1; margin-top: 8px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
 .hm-fav-group:first-child { margin-top: 0; }
+.hm-fav-col { grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; gap: inherit; }   /* Pilotes, Écuries */
+.hm-fav-col + .hm-fav-col > .hm-fav-group { margin-top: 8px; }
+/* Tableau de bord (tablette, ordinateur) : carte d'une colonne de large, nom de famille et points seuls, victoires
+   dessous ; l'écurie est dans la couleur du portrait */
+@media (min-width: 600px) {
+  .hm-board .hm-fav-col { grid-template-columns: minmax(2.8em, auto) minmax(0, 1fr) auto; }
+  .hm-board .hm-fav-row > :nth-child(3), .hm-board :is(.hm-fav-first, .hm-fav-sep) { display: none; }
+  .hm-board .hm-fav-w { display: block; margin-top: 3px; }
+}
 @media (max-width: 600px) { .hm-favs { grid-template-columns: minmax(2.8em, auto) minmax(0, 1fr) auto; } .hm-fav-row > :nth-child(3) { display: none; } }
 .hm-fav-row b { font-size: 16px; }
 .hm-fav-pos { font-size: 20px; font-weight: 900; color: var(--accent); }
@@ -3213,6 +3409,11 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; gap: 5
 .hm-fav-edit { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; padding-top: 10px; border-top: 1px solid var(--border); }
 .hm-fav-edit .fav-list { gap: 6px; }
 .hm-fav-edit .fav { padding: 4px 11px; font-size: 13px; font-weight: 600; }
+/* Accueil : favoris avec le portrait du pilote (cerclé de la couleur de son écurie) ou le logo de l'écurie (dans tous
+   les designs : broadcast.css est coupé en Classique et en Télémétrie) */
+.hm-fav-who { display: inline-flex; align-items: center; gap: 9px; }
+.hm-fav-pic { width: 30px; height: 30px; flex: none; border-radius: 50%; object-fit: cover; object-position: top; background: color-mix(in srgb, var(--tc) 40%, var(--panel-2)); border: 2px solid var(--tc); box-sizing: border-box; }   /* bordure (pas une ombre) : la case du nom coupe ce qui dépasse */
+.hm-fav-who .team-logo { width: 26px; height: 26px; }
 
 /* ---------- Carte flottante (application de bureau) : la carte seule, sans fond ni fenêtre ---------- */
 html.float-map, html.float-map body { background: transparent !important; overflow: hidden; }
@@ -3296,6 +3497,18 @@ html.float-mini .float-bar { top: auto; bottom: 4px; right: 24px; }   /* en bas 
 .rp-best { font: 800 24px "JetBrains Mono", Consolas, monospace; color: var(--purple); }
 .rp-best.plain { color: var(--text); }
 .rp-tile.fl { border-color: color-mix(in srgb, var(--purple) 45%, var(--border)); }
+/* Page Résultats : course de chaque pilote favori (filet à la couleur de l'écurie) */
+.rp-favs { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
+.rp-fav { flex: 1 1 300px; border-left: 3px solid var(--tc); gap: 10px; }
+.rp-fav h4 .ic { color: var(--tc); }
+.rp-fav-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; font-size: 15px; }
+.rp-fav-run { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+.rp-fav-run b { font: 800 26px/1 "Saira Condensed", sans-serif; color: var(--text); }
+.rp-fav-facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px 14px; margin: 0; }
+.rp-fav-facts > div { min-width: 0; }
+.rp-fav-facts dt { font-size: 10.5px; letter-spacing: .7px; text-transform: uppercase; color: var(--muted); }
+.rp-fav-facts dd { margin: 2px 0 0; font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.rp-fav > .btn { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; }
 /* Page Résultats : graphique sous les cartes (stratégies ou écarts) */
 .rp-chart { margin-top: 10px; gap: 4px; }
 .rp-bar-row { display: flex; align-items: center; gap: 8px; height: 20px; }
@@ -3360,6 +3573,7 @@ html.float-mini .float-bar { top: auto; bottom: 4px; right: 24px; }   /* en bas 
 #settingsModal.set-modal::backdrop { background: rgba(4, 5, 8, .62); backdrop-filter: blur(6px); }
 :root:not([data-motion="off"]) #settingsModal.set-modal[open] { animation: set-in .26s var(--ease-out, ease-out); }
 @keyframes set-in { from { opacity: 0; transform: translateY(14px) scale(.985); } }
+@media (prefers-reduced-motion: reduce) { #settingsModal.set-modal[open] { animation: none; } }
 .set-shell { display: grid; grid-template-columns: 268px minmax(0, 1fr); height: 100%; }
 .set-side { display: flex; flex-direction: column; gap: 12px; padding: 18px 12px; background: var(--panel-2); border-right: 1px solid var(--border); min-height: 0; overflow-y: auto; }
 .set-brand { display: flex; align-items: center; gap: 9px; padding: 2px 8px; font-size: 18px; font-weight: 900; }
@@ -3401,6 +3615,8 @@ html.float-mini .float-bar { top: auto; bottom: 4px; right: 24px; }   /* en bas 
 #settingsModal .set-block .row > .toggle:only-child { flex: 1; display: flex; flex-direction: row-reverse; justify-content: space-between; align-items: center; gap: 18px; font-size: 13.5px; }
 #settingsModal .set-block .row > label.small:only-child:has(> select) { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 18px; font-size: 13.5px; }
 #settingsModal .set-block .row > label.small:only-child > select { flex: 0 1 auto; width: auto; min-width: 0; max-width: 58%; }
+/* Petit téléphone (iPhone SE) : « Automatique (système) » en entier, le libellé passe sur deux lignes si besoin */
+@media (max-width: 420px) { #settingsModal .set-block .row > label.small:only-child > select { max-width: 72%; } }
 .set-status { padding: 10px 12px; margin: 0 0 12px; border-radius: 10px; background: var(--panel); border: 1px solid var(--border); line-height: 1.5; }
 .set-status:empty { display: none; }
 .set-more { margin-top: 12px; border-top: 1px dashed var(--border); padding-top: 10px; }
@@ -3596,6 +3812,7 @@ html:is(.float-map, .overlay) .boot-cover { display: none; }
   .p-map .map-tool-txt { display: none; }
   .p-map .map-tool-ic { display: inline-block; }
   .p-map .map-mode { position: absolute; left: 10px; top: calc(100% + 8px); padding: 2px 8px; border-radius: 6px; font-size: 11.5px; background: color-mix(in srgb, var(--panel) 82%, transparent); pointer-events: none; }
+  .p-map .map-flags { top: 38px; }   /* drapeaux jaunes, trafic : sous cette étiquette */
 }
 
 /* ---------- Duel façon bataille de la retransmission (ui/duel.js) ----------
@@ -3803,7 +4020,8 @@ html.tab-win .p-analysis .panel-head > [data-tab="compare"] { display: inline-fl
 /* Analyse → Tendances (ui/insights.js) : départ, usure des pneus, évolution de la piste, choix d'aileron */
 .ins { display: grid; gap: 14px; padding: 10px 12px 16px; }
 .ins-block h4 { margin: 0 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-2); }
-.ins-moves { display: flex; flex-wrap: wrap; gap: 6px; }
+.ins-moves { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.ins-table + .ins-moves, .ins-moves + .ins-moves { margin-top: 8px; }
 .ins-move { display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px; border: 1px solid var(--line-2); border-radius: 8px; background: var(--panel-2); font-variant-numeric: tabular-nums; }
 .ins-move small { color: var(--muted); }
 .ins-move.up { border-color: color-mix(in srgb, var(--green, #22c55e) 55%, var(--line-2)); }
@@ -3818,3 +4036,244 @@ html.tab-win .p-analysis .panel-head > [data-tab="compare"] { display: inline-fl
 .ins-wing { width: 100%; max-width: 620px; height: auto; }
 .ins-lbl { font-size: 11px; fill: var(--text-2); }
 .ins-ax { font-size: 11px; fill: var(--muted); }
+
+/* ---------- Palette de commandes (Ctrl+K, ⌘K) : tous les designs, avec leurs variables ---------- */
+.cmdk { width: min(600px, calc(100vw - 24px)); max-height: min(540px, calc(100dvh - 24px)); margin: 12dvh auto auto; padding: 0;
+  border: 1px solid var(--line-2); border-radius: 14px; background: var(--panel); color: var(--text); box-shadow: 0 24px 64px -16px rgb(0 0 0 / .6); overflow: hidden; }
+.cmdk[open] { display: flex; flex-direction: column; }
+.cmdk::backdrop { background: rgb(0 0 0 / .5); }
+.ck-search { display: flex; align-items: center; gap: 10px; padding: 0 14px; border-bottom: 1px solid var(--border); flex: none; }
+.ck-search > .ic { width: 18px; height: 18px; color: var(--muted); flex: none; }
+.ck-search input { flex: 1; min-width: 0; height: 52px; padding: 0; border: 0; background: none; color: var(--text); font-size: 16px; outline: none; }
+.ck-search input::placeholder { color: var(--muted); }
+.ck-list { list-style: none; margin: 0; padding: 6px; overflow-y: auto; overscroll-behavior: contain; flex: 1 1 auto; min-height: 0; }
+.ck-group { padding: 10px 10px 4px; color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.ck-opt { position: relative; display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 10px; border-radius: 8px; color: var(--text-2); cursor: pointer; }
+.ck-opt > .ic { width: 16px; height: 16px; color: var(--muted); flex: none; }
+.ck-opt > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ck-opt > small { flex: none; color: var(--muted); font-size: 12px; }
+.ck-opt .ck-on { width: 14px; height: 14px; color: var(--text); }
+.ck-opt[aria-selected="true"] { background: var(--panel-3); color: var(--text); }
+.ck-opt[aria-selected="true"]::before { content: ''; position: absolute; left: 0; top: 10px; bottom: 10px; width: 2px; border-radius: 2px; background: var(--accent); }
+.ck-opt[aria-selected="true"] > .ic { color: var(--text); }
+.ck-opt[aria-disabled="true"] { opacity: .45; cursor: default; }
+.ck-empty { padding: 28px 16px; color: var(--muted); text-align: center; }
+.ck-foot { display: flex; gap: 16px; padding: 8px 14px; border-top: 1px solid var(--border); color: var(--muted); font-size: 12px; flex: none; }
+.ck-foot span { display: inline-flex; align-items: center; gap: 4px; }
+@media (hover: none) and (pointer: coarse) { .ck-foot, .ck-search kbd { display: none; } .ck-opt { min-height: 44px; } }
+/* Bouton Fermer : au doigt et sur un écran étroit (Échap ferme toujours) */
+.ck-close { display: none; flex: none; width: 40px; height: 40px; margin-right: -8px; place-items: center; }
+@media (hover: none) and (pointer: coarse), (max-width: 600px) { .ck-close { display: grid; } .ck-search kbd { display: none; } }
+@media (max-width: 600px) { .cmdk { margin-top: calc(8px + env(safe-area-inset-top)); } }
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-motion="off"]) .cmdk[open] { animation: ck-in .18s cubic-bezier(.16, 1, .3, 1); }
+}
+@keyframes ck-in { from { opacity: 0; transform: translateY(-6px) scale(.98); } }
+/* Loupe de la barre latérale et vues de la séance : Télémétrie seulement (design-v3.css) */
+.rail .rail-v3 { display: none; }
+/* Champ de la palette : la fenêtre elle-même montre le focus, pas de cadre autour du champ */
+.cmdk .ck-search input:focus, .cmdk .ck-search input:focus-visible { outline: none; box-shadow: none; border: 0; }
+
+/* ---------- Fil de course : radios et messages en un seul fil (tous les designs) ---------- */
+.rf-chips { position: sticky; top: 0; z-index: 1; display: flex; gap: 4px; padding: 6px 10px; overflow-x: auto; scrollbar-width: none; background: var(--panel); border-bottom: 1px solid var(--line); }
+.rf-chips::-webkit-scrollbar { display: none; }
+.rf-chips.more { -webkit-mask-image: linear-gradient(to left, transparent, #000 40px); mask-image: linear-gradient(to left, transparent, #000 40px); }
+.rf-chips.less { -webkit-mask-image: linear-gradient(to right, transparent, #000 40px); mask-image: linear-gradient(to right, transparent, #000 40px); }
+.rf-chips.more.less { -webkit-mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent); }
+.rf-chip { flex: none; height: 24px; padding: 0 10px; border: 1px solid var(--border); border-radius: 999px; background: none; color: var(--text-2); font: inherit; font-size: 12px; font-weight: 600; white-space: nowrap; cursor: pointer; }
+@media (hover: hover) { .rf-chip:hover { color: var(--text); border-color: var(--line-2); } }
+.rf-chip[aria-pressed="true"] { background: var(--panel-3); border-color: var(--line-2); color: var(--text); }
+.rf-list { list-style: none; margin: 0; padding: 0; }
+.rf-item { display: grid; grid-template-columns: 58px minmax(0, 1fr) auto; gap: 4px 10px; align-items: start; padding: 7px 10px 7px 12px; border-bottom: 1px solid var(--line); }
+.rf-item.note { display: block; color: var(--muted); border: 0; }
+.rf-when { padding-top: 3px; color: var(--muted); font: 500 11.5px/1.3 var(--font-mono); font-variant-numeric: tabular-nums; }
+.rf-head { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; }
+.rf-head small { color: var(--muted); font: 500 11px/1 var(--font-mono); }
+.rf-tag { display: inline-flex; align-items: center; gap: 5px; min-width: 40px; height: 20px; padding: 0 6px; border-left: 3px solid var(--k); border-radius: 4px;
+  background: color-mix(in srgb, var(--k) 14%, transparent); color: var(--text); font: 700 11px/1 var(--font-mono); letter-spacing: .02em; white-space: nowrap; }
+.rf-tag .rcm-flag { width: 10px; height: 8px; margin: 0; border-radius: 1px; }
+.rf-body { min-width: 0; }
+.rf-body .rd-text { font-size: 13.5px; line-height: 1.35; }
+.rf-body .rd-orig { margin-top: 2px; color: var(--muted); font-size: 12px; line-height: 1.3; }
+.rf-body .rcm-msg { font-size: 13px; line-height: 1.35; }
+.rf-radio { cursor: pointer; }
+@media (hover: hover) { .rf-radio:hover { background: var(--hover, var(--panel-2)); } }
+.rf-radio.playing { background: var(--panel-2); box-shadow: inset 2px 0 0 var(--accent); }
+.rf-play { padding: 2px 6px; font-size: 15px; color: var(--text-2); }
+.rf-radio.playing .rf-play { color: var(--text); }
+@media (max-width: 1000px) { .p-race { height: 460px; } }
+/* Saison : titres des groupes de rubriques, seulement en Télémétrie (design-v3.css) */
+#szNav .sz-grp { display: none; }
+
+/* ---------- Saison : cartes et fiche des pilotes, cartes des écuries, Bilan de la saison ----------
+   Venues de broadcast.css (coupé en Classique et en Télémétrie : ces rubriques y étaient cassées) ; en dernier, comme
+   avant (Paddock 2 inchangé) ; Télémétrie les redessine à plat (design-v3.css) */
+/* Pilotes : cartes de tous les pilotes, dans l'esprit des cartes officielles (prénom, nom, écurie, numéro et logo net sur
+   la couleur de l'écurie, portrait à droite), puis le pilote choisi en grand */
+.sz-drv-strip { display: flex; gap: 10px; overflow-x: auto; padding: 3px 3px 14px; margin-bottom: 8px; scroll-snap-type: x proximity; }
+.sz-drv-card { all: unset; box-sizing: border-box; position: relative; flex: none; width: 204px; height: 132px; padding: 11px 12px; border-radius: 12px; overflow: hidden; cursor: pointer; color: #fff; scroll-snap-align: start;
+  border: 1px solid color-mix(in srgb, var(--tc) 55%, #1E293B);
+  background: radial-gradient(circle at 76% 42%, color-mix(in srgb, var(--tc) 60%, transparent), transparent 60%), linear-gradient(150deg, color-mix(in srgb, var(--tc) 62%, #0B1324), color-mix(in srgb, var(--tc) 20%, #0B1324) 85%);
+  display: flex; flex-direction: column; transition: transform .15s, box-shadow .15s; }
+.sz-drv-card img { position: absolute; right: -8px; bottom: 0; height: 120px; width: auto; pointer-events: none; }
+.sz-drv-card > span { position: relative; z-index: 1; max-width: 104px; }
+.sz-drv-card .nm { display: flex; flex-direction: column; font: 800 16px/1.1 var(--font); }
+.sz-drv-card .nm small { font: 500 12px/1.25 var(--font); color: rgba(255, 255, 255, .8); }
+.sz-drv-card .tm { margin-top: 2px; font-size: 11px; color: rgba(255, 255, 255, .72); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sz-drv-card .ft { margin-top: auto; }
+.sz-drv-card .no { font: 900 26px/1 var(--font-cond, var(--font)); }
+.sz-drv-card .lg { width: 60px; height: 30px; }
+.sz-drv-card:hover { transform: translateY(-2px); }
+.sz-drv-card.on { box-shadow: 0 0 0 2px var(--tc), 0 4px 10px color-mix(in srgb, var(--tc) 30%, transparent); }
+.sz-drv-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* Numéro et logo de l'écurie côte à côte (cartes des pilotes, pilote en grand) ; logo blanc net, en couleur sur le clair */
+:is(.sz-drv-card, .sz-drv-hero) .ft { display: flex; align-items: center; gap: 10px; }
+:is(.sz-drv-card, .sz-drv-hero, .sz-team-card) .lg { display: block; flex: none; background: var(--logo, none) left center / contain no-repeat; }
+.sz-drv-hero { position: relative; min-height: 180px; margin-bottom: 12px; padding: 22px 26px; border-radius: 12px; overflow: hidden; color: #fff;
+  border: 1px solid color-mix(in srgb, var(--tc) 55%, #1E293B);
+  background: radial-gradient(circle at 80% 45%, color-mix(in srgb, var(--tc) 60%, transparent), transparent 58%), linear-gradient(120deg, color-mix(in srgb, var(--tc) 62%, #0B1324), color-mix(in srgb, var(--tc) 18%, #0B1324) 75%); }
+.sz-drv-hero img { position: absolute; right: 26px; bottom: 0; height: 196px; width: auto; }
+.sz-drv-hero .txt { position: relative; z-index: 1; max-width: 60%; }
+.sz-drv-hero .sz-drv-name { font-size: 34px; line-height: 1.05; }
+.sz-drv-hero .ft { margin: 8px 0 10px; gap: 16px; }
+.sz-drv-hero .no { font: 900 46px/1 var(--font-cond, var(--font)); }
+.sz-drv-hero .lg { width: 130px; height: 50px; }
+.sz-drv-hero .sub { color: rgba(255, 255, 255, .82); font-size: 14px; }
+@media (max-width: 700px) { .sz-drv-hero img { height: 150px; right: 0; } .sz-drv-hero .sz-drv-name { font-size: 26px; } .sz-drv-hero .txt { max-width: 62%; } .sz-drv-hero .lg { width: 84px; height: 30px; } .sz-drv-hero .no { font-size: 38px; } }
+/* Classements : choix Pilotes / Constructeurs des graphiques, totaux au bout des barres */
+.sz-st-head { display: flex; justify-content: flex-end; margin: 4px 0 10px; }
+.sz-svg .sz-tot { font-weight: 700; fill: var(--text); }
+/* Écuries : cartes à la couleur de chaque écurie, logo net en haut à droite, pilotes en portrait, bilan en bas */
+.sz-team-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; margin-bottom: 12px; }
+.sz-team-card { all: unset; box-sizing: border-box; position: relative; display: grid; grid-template-columns: 1fr auto; grid-template-rows: auto auto auto 1fr auto; gap: 0 12px; padding: 16px 18px 0; border-radius: 12px; overflow: hidden; cursor: pointer; color: #fff;
+  border: 1px solid color-mix(in srgb, var(--tc) 55%, #1E293B);
+  background: radial-gradient(circle at 85% 20%, color-mix(in srgb, var(--tc) 55%, transparent), transparent 60%), linear-gradient(150deg, color-mix(in srgb, var(--tc) 60%, #0B1324), color-mix(in srgb, var(--tc) 18%, #0B1324) 85%);
+  transition: transform .15s, box-shadow .15s; }
+.sz-team-card:hover { transform: translateY(-2px); box-shadow: 0 10px 26px color-mix(in srgb, var(--tc) 28%, transparent); }
+.sz-team-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.sz-team-card .tm-pos { font: 800 12px/1 var(--font); letter-spacing: .1em; color: rgba(255, 255, 255, .8); }
+.sz-team-card .lg { grid-column: 2; grid-row: 1 / 4; align-self: start; width: 120px; height: 52px; background-position: right top; }
+.sz-team-card .tm-name { margin-top: 4px; font: 800 24px/1.1 var(--font); }
+.sz-team-card .tm-pts { font: 900 22px/1.15 var(--font-cond, var(--font)); }
+.sz-team-card .tm-pts small { font-size: 12px; font-weight: 600; color: rgba(255, 255, 255, .75); }
+.sz-team-card .tm-drvs { grid-column: 1 / -1; display: flex; gap: 18px; margin: 14px 0 16px; }
+.tm-drv { display: grid; grid-template-columns: 56px auto; grid-template-rows: auto auto; column-gap: 10px; align-items: center; }
+.tm-drv img { grid-row: 1 / 3; width: 56px; height: 56px; border-radius: 50%; object-fit: cover; object-position: top; background: color-mix(in srgb, var(--tc) 55%, #0B1324); box-shadow: 0 0 0 2px rgba(255, 255, 255, .85); }
+.tm-drv b { font-size: 15px; align-self: end; }
+.tm-more { align-self: center; font-weight: 700; font-size: 13px; color: rgba(255, 255, 255, .75); }
+.tm-drv small { font-size: 12px; color: rgba(255, 255, 255, .75); align-self: start; }
+.sz-team-card .tm-stats { grid-column: 1 / -1; display: flex; gap: 16px; margin: 0 -18px; padding: 10px 18px; font-size: 12.5px; color: rgba(255, 255, 255, .8); background: rgba(2, 8, 23, .28); border-top: 1px solid rgba(255, 255, 255, .08); }
+.sz-team-card .tm-stats b { font-size: 16px; color: #fff; }
+/* Clair : cartes claires comme le reste de la page ; couleur de l'écurie en bandeau, en dégradé léger, sur le numéro, et logo en couleur */
+[data-theme="pitwall"][data-scheme="light"] :is(.sz-drv-card, .sz-drv-hero, .sz-team-card) { color: var(--text); border-color: var(--border);
+  background: linear-gradient(var(--tc), var(--tc)) top / 100% 4px no-repeat, linear-gradient(140deg, var(--panel) 35%, color-mix(in srgb, var(--tc) 18%, var(--panel))); }
+[data-theme="pitwall"][data-scheme="light"] :is(.sz-drv-card, .sz-drv-hero, .sz-team-card) .lg { background-image: var(--logo-c, none); }
+[data-theme="pitwall"][data-scheme="light"] :is(.sz-drv-card .no, .sz-drv-hero .no, .sz-team-card .tm-pos) { color: var(--tc); }
+[data-theme="pitwall"][data-scheme="light"] :is(.sz-drv-card :is(.tm, .nm small), .sz-drv-hero .sub, .sz-team-card :is(.tm-pts small, .tm-more, .tm-drv small, .tm-stats)) { color: var(--muted); }
+[data-theme="pitwall"][data-scheme="light"] .sz-team-card .tm-stats { background: color-mix(in srgb, var(--tc) 7%, var(--panel-2)); border-top-color: var(--border); }
+[data-theme="pitwall"][data-scheme="light"] .sz-team-card .tm-stats b { color: var(--text); }
+[data-theme="pitwall"][data-scheme="light"] .tm-drv img { background: color-mix(in srgb, var(--tc) 30%, var(--panel-2)); box-shadow: 0 0 0 2px var(--tc); }
+/* Bilan de la saison : leader en grand, cartes aux couleurs de l'écurie du premier (portrait, logo en filigrane), trois premiers en barres */
+.rv-progress { height: 6px; margin: -4px 0 14px; border-radius: 3px; background: var(--panel-3); overflow: hidden; }
+.rv-progress i { display: block; height: 100%; width: var(--w); background: var(--accent); border-radius: inherit; }
+.sz-rv-hero .rv-label { color: rgba(255, 255, 255, .78); }
+.sz-rv-hero .no small { font-size: 16px; font-weight: 700; }
+.sz-rv-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.sz-rv-card { position: relative; display: flex; flex-direction: column; gap: 4px; min-height: 190px; padding: 16px 18px; border-radius: 12px; overflow: hidden; color: #fff;
+  border: 1px solid color-mix(in srgb, var(--tc) 40%, #1E293B);
+  background: radial-gradient(circle at 85% 20%, color-mix(in srgb, var(--tc) 42%, transparent), transparent 60%), linear-gradient(150deg, color-mix(in srgb, var(--tc) 38%, #0B1324), #0B1324 80%); }
+.sz-rv-card[style*="--logo"]::before { content: ''; position: absolute; right: 10px; bottom: 10px; width: 110px; height: 80px; background: var(--logo, none) right bottom / contain no-repeat; opacity: .14; }
+.sz-rv-card > img { position: absolute; right: -4px; top: 6px; height: 104px; width: auto; pointer-events: none; -webkit-mask-image: linear-gradient(#000 55%, transparent 92%); mask-image: linear-gradient(#000 55%, transparent 92%); }
+.sz-rv-card > :not(img) { position: relative; z-index: 1; }
+.sz-rv-card .rv-label, .sz-rv-hero .rv-label { font: 700 11.5px/1 var(--font); letter-spacing: .1em; text-transform: uppercase; color: rgba(255, 255, 255, .72); }
+.sz-rv-card .rv-big { max-width: 62%; font: 900 30px/1.05 var(--font-cond, var(--font)); }
+.sz-rv-card .rv-big small { font-size: 20px; color: color-mix(in srgb, var(--tc) 55%, #fff); }
+.rv-bars { display: grid; gap: 5px; margin-top: auto; padding-top: 12px; }
+.rv-bar { display: grid; grid-template-columns: 82px 1fr 24px; align-items: center; gap: 8px; font-size: 12.5px; }
+.rv-bar b { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rv-bar i { height: 8px; border-radius: 4px; background: linear-gradient(90deg, var(--c) var(--w), rgba(255, 255, 255, .1) var(--w)); }
+.rv-bar em { font-style: normal; font-weight: 700; text-align: right; }
+.rv-foot { font-size: 12.5px; color: rgba(255, 255, 255, .72); }
+.rv-climb { display: flex; align-items: center; gap: 8px; margin-top: auto; padding-top: 12px; font: 800 18px/1 var(--font-cond, var(--font)); }
+.rv-climb i { flex: 1; height: 3px; border-radius: 2px; background: linear-gradient(90deg, rgba(255, 255, 255, .25), var(--tc)); position: relative; }
+.rv-climb i::after { content: ''; position: absolute; right: -2px; top: -4px; border: 5px solid transparent; border-left: 8px solid var(--tc); }
+.sz-rv-card .rv-dnf { margin: auto 0 4px; background: rgba(255, 255, 255, .1); }
+.sz-rv-card .rv-dnf i { background: #94A3B8; }
+[data-theme="pitwall"][data-scheme="light"] .sz-rv-card { color: var(--text); border-color: var(--border);
+  background: linear-gradient(var(--tc), var(--tc)) top / 100% 3px no-repeat, linear-gradient(140deg, var(--panel) 40%, color-mix(in srgb, var(--tc) 16%, var(--panel))); }
+[data-theme="pitwall"][data-scheme="light"] .sz-rv-card[style*="--logo"]::before { background: var(--tc); mask: var(--logo, none) right bottom / contain no-repeat luminance; opacity: .12; }
+[data-theme="pitwall"][data-scheme="light"] .sz-rv-card :is(.rv-label, .rv-foot) { color: var(--muted); }
+[data-theme="pitwall"][data-scheme="light"] .sz-rv-card .rv-big small { color: var(--tc); }
+[data-theme="pitwall"][data-scheme="light"] .rv-bar i { background: linear-gradient(90deg, var(--c) var(--w), var(--panel-3) var(--w)); }
+[data-theme="pitwall"][data-scheme="light"] .sz-rv-card .rv-dnf { background: var(--panel-3); }
+@media (max-width: 700px) { .sz-rv-card > img { height: 90px; } .sz-rv-card .rv-big { font-size: 26px; } }
+
+/* ---------- Version web : pas de décalage au premier affichage (CLS) ----------
+   L'Accueil, écrit dans la page, n'apparaît qu'une fois placé sous la barre du haut (ui/util.js placeView) : il ne saute
+   plus de 62 px à la hauteur réelle de la barre ; sur ordinateur, la séance (drapeau, nom) garde sa largeur pendant que
+   la barre se remplit, les autres éléments ne glissent plus */
+:root.web #homeView:not([style*="top"]) { visibility: hidden; }
+@media (min-width: 901px) { :root.web:not(.only) .topbar .session { flex: 0 0 190px; width: 190px; max-width: 190px; } }
+@media (min-width: 1801px) { :root.web:not(.only) .topbar .session { flex-basis: 260px; width: 260px; max-width: 260px; } }
+
+/* Texte lu par les lecteurs d'écran et les moteurs de recherche, masqué à l'écran (titre H1 de la Saison en version web) */
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+/* Saison → Grille 2027 : une zone par écurie (filet à sa couleur) et ses deux baquets ; à confirmer en pointillés ;
+   les 22 baquets en une barre (plein à la couleur de l'écurie quand il est confirmé) */
+.gr-team { min-width: 0; display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; background: var(--panel); border: 1px solid var(--border); border-top: 3px solid var(--tc); border-radius: 12px; }
+.gr-team h3 { margin: 0; display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 16px; }
+.gr-state { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+.gr-state.full { color: var(--green); }
+.gr-seats { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.gr-seat { min-width: 0; display: flex; flex-direction: column; gap: 3px; padding: 8px 10px; background: var(--panel-2); border-left: 3px solid var(--tc); border-radius: 8px; }
+.gr-seat.gr-open { background: none; border: 1px dashed var(--line-2); }
+.gr-name { font-size: 15px; line-height: 1.2; overflow-wrap: anywhere; }
+.gr-open .gr-name { color: var(--muted); font-weight: 600; }
+.gr-meta, .gr-src { font-size: 11.5px; color: var(--muted); }
+.gr-ok { color: var(--green); font-weight: 700; }
+.gr-src { color: var(--text-2); text-decoration: none; overflow-wrap: anywhere; }
+.gr-src:hover { color: var(--text); text-decoration: underline; }
+.gr-src .ic { width: 11px; height: 11px; vertical-align: -1px; }
+.gr-was { margin: auto 0 0; font-size: 12px; color: var(--muted); }
+.gr-was b { color: var(--text-2); font-weight: 600; }
+.sz-tag.gr-new { margin: 0 0 0 4px; vertical-align: 2px; background: color-mix(in srgb, var(--tc) 28%, transparent); color: var(--text); }
+.gr-bar { display: grid; grid-template-columns: repeat(22, minmax(0, 1fr)); gap: 2px; height: 10px; margin-top: 4px; }
+.gr-bar i { border-radius: 2px; box-shadow: inset 0 0 0 1px var(--line-2); }
+.gr-bar i.on { background: var(--tc); box-shadow: none; }
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-motion="off"]) .sz-main.sz-anim:not(.sz-again) .gr-bar i.on { transform-origin: bottom; animation: gr-fill .35s var(--ease-out, ease-out) both; animation-delay: calc(.15s + var(--i) * 25ms); }
+}
+@keyframes gr-fill { from { opacity: 0; transform: scaleY(.2); } to { opacity: 1; transform: none; } }
+/* ---------- Contraste renforcé (Réglages → Affichage, ou prefers-contrast: more du système ; prefs.js) ----------
+   Tous les designs, sombre et clair : textes secondaires à 8:1 au moins, contours des panneaux et des boutons à 3:1.
+   `:root:root` : passe devant les jetons de chaque design (design-v2.css, design-v3.css, chargés après) */
+:root:root[data-contrast="more"] {
+  --text: #FFFFFF; --text-2: #E3E8EE; --muted: #C3CBD5;
+  --border: #5C6878; --line: #414B58; --line-2: #7D8896;
+}
+:root:root[data-contrast="more"][data-scheme="light"] {
+  --text: #000000; --text-2: #1C232D; --muted: #36404C;
+  --border: #808A96; --line: #B5BDC7; --line-2: #5A6470;
+}
+
+/* ---------- Mode daltonien (Réglages → Affichage ; <html data-cvd="on">, prefs.js) ----------
+   La couleur n'est plus le seul signal (tous les designs). Meilleur temps absolu (violet) souligné d'un trait plein,
+   record personnel (vert) d'un pointillé */
+:root[data-cvd="on"] :is(.tower, .sector-board, .tbp-table) :is(.purple, .green),
+:root[data-cvd="on"] .tyre-hist td.best { text-decoration: underline 2px; text-underline-offset: 3px; }
+:root[data-cvd="on"] :is(.tower, .sector-board, .tbp-table) .green { text-decoration-style: dotted; }
+/* Mini-secteurs : la hauteur dit le résultat (violet plein, vert aux deux tiers, jaune au tiers), stand en tirets ;
+   sur la carte, tirets et points (ui/map.js) */
+:root[data-cvd="on"] .seg-green { clip-path: inset(33% 0 0 0); }
+:root[data-cvd="on"] .seg-yellow { clip-path: inset(66% 0 0 0); }
+:root[data-cvd="on"] .seg-pit { background: repeating-linear-gradient(90deg, var(--blue) 0 2px, transparent 2px 4px); }
+/* Drapeaux de la direction de course : un motif par drapeau (jaune : plein ; double jaune : déjà rayé) */
+:root[data-cvd="on"] .flag-GREEN { background: repeating-linear-gradient(90deg, var(--green) 0 3px, #0B0F15 3px 5px); }
+:root[data-cvd="on"] .flag-RED { background: linear-gradient(transparent 38%, #0B0F15 38% 62%, transparent 62%), var(--red); }
+:root[data-cvd="on"] .flag-BLUE { background: linear-gradient(135deg, var(--blue) 38%, #FFFFFF 38% 62%, var(--blue) 62%); }
+:root[data-cvd="on"] .flag-SC { background: radial-gradient(circle, #0B0F15 1.2px, transparent 1.6px) 0 0 / 5px 5px, var(--sc); }
+/* Pneus de la stratégie et de l'historique des tours : leur lettre en plus de la couleur */
+:root[data-cvd="on"] .strat-stint[data-l] { display: flex; justify-content: center; align-items: center; white-space: nowrap; }
+:root[data-cvd="on"] .strat-stint[data-l]::before { content: attr(data-l) '\00a0'; }
+:root[data-cvd="on"] .tyre-hist td[data-l]::before { content: attr(data-l) '\00a0'; font-size: 9px; font-weight: 800; opacity: .75; }

@@ -93,17 +93,17 @@ const SESSIONS = {
   fr: {
     Race: 'Course', Qualifying: 'Qualifications', Sprint: 'Sprint', 'Sprint Qualifying': 'Qualifications sprint',
     'Sprint Shootout': 'Qualifications sprint', 'Practice 1': 'Essais libres 1', 'Practice 2': 'Essais libres 2', 'Practice 3': 'Essais libres 3',
-    'Day 1': 'Jour 1', 'Day 2': 'Jour 2', 'Day 3': 'Jour 3',
+    'Day 1': 'Jour 1', 'Day 2': 'Jour 2', 'Day 3': 'Jour 3', 'Day 4': 'Jour 4',
   },
   it: {
     Race: 'Gara', Qualifying: 'Qualifiche', Sprint: 'Sprint', 'Sprint Qualifying': 'Qualifiche sprint',
     'Sprint Shootout': 'Qualifiche sprint', 'Practice 1': 'Prove libere 1', 'Practice 2': 'Prove libere 2', 'Practice 3': 'Prove libere 3',
-    'Day 1': 'Giorno 1', 'Day 2': 'Giorno 2', 'Day 3': 'Giorno 3',
+    'Day 1': 'Giorno 1', 'Day 2': 'Giorno 2', 'Day 3': 'Giorno 3', 'Day 4': 'Giorno 4',
   },
   es: {
     Race: 'Carrera', Qualifying: 'Clasificación', Sprint: 'Sprint', 'Sprint Qualifying': 'Clasificación sprint',
     'Sprint Shootout': 'Clasificación sprint', 'Practice 1': 'Libres 1', 'Practice 2': 'Libres 2', 'Practice 3': 'Libres 3',
-    'Day 1': 'Día 1', 'Day 2': 'Día 2', 'Day 3': 'Día 3',
+    'Day 1': 'Día 1', 'Day 2': 'Día 2', 'Day 3': 'Día 3', 'Day 4': 'Día 4',
   },
 };
 export function sessionLabel(name, en = false) {

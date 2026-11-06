@@ -14,17 +14,19 @@ export class HttpError extends Error {
   }
 }
 
-export function request(url, { method = 'GET', headers = {}, body, timeout = 20000, redirects = 3 } = {}) {
+// lookup : résolution DNS de la connexion (relais radio : adresses locales refusées)
+export function request(url, { method = 'GET', headers = {}, body, timeout = 20000, redirects = 3, lookup } = {}) {
   return new Promise((resolve, reject) => {
     const req = https.request(url, {
       method,
       agent,
+      ...(lookup ? { lookup } : {}),
       headers: { 'User-Agent': USER_AGENT, ...headers },
     }, (res) => {
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location && redirects > 0) {
         res.resume();
         const next = new URL(res.headers.location, url).toString();
-        request(next, { method, headers, body, timeout, redirects: redirects - 1 }).then(resolve, reject);
+        request(next, { method, headers, body, timeout, redirects: redirects - 1, lookup }).then(resolve, reject);
         return;
       }
       const chunks = [];

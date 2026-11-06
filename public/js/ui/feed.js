@@ -5,7 +5,7 @@ import { $, esc, drivers, teamColor, fmtClock, fmtLap, api, stintsOf, tyreBadge,
 import { parseUtc, parseLapTime } from '/shared/f1.js';
 import { analyzeStewards, isOpen, STATUS_LABEL, linkFiaDocs, parseFiaDoc, deletedLapsDoc } from '/shared/stewards.js';
 import { icon } from '../icons.js';
-import { DEC, FR, t } from '../i18n.js';
+import { DEC, FR, t, ord } from '../i18n.js';
 import { cloudOn, cloudTranslate } from '../cloud.js';
 import { continuesStint } from '/shared/pits.js';
 import { pdfHref } from './pdf-view.js';
@@ -16,7 +16,7 @@ function list(obj) {
   return Array.isArray(obj) ? obj.filter(Boolean) : Object.keys(obj).sort((a, b) => a - b).map((k) => obj[k]).filter(Boolean);
 }
 
-const FLAG_FR = {
+export const FLAG_FR = {
   GREEN: 'Vert', YELLOW: 'Jaune', 'DOUBLE YELLOW': 'Double jaune', RED: 'Rouge', BLUE: 'Bleu',
   CLEAR: 'Fin de drapeau', CHEQUERED: 'Damier', 'BLACK AND WHITE': 'Noir et blanc', 'BLACK AND ORANGE': 'Noir et orange', BLACK: 'Noir',
 };
@@ -24,7 +24,7 @@ const FLAG_FR = {
 let rcmVer = -1, rcmCount = 0;
 let pitVer = -1;
 
-function rcmFlagClass(m) {
+export function rcmFlagClass(m) {
   if (m.Flag) return `flag-${m.Flag.replace(/ /g, '-')}`;
   if (m.Category === 'SafetyCar') return 'flag-SC';
   if (m.Category === 'Drs') return 'flag-DRS';
@@ -74,6 +74,14 @@ function rcmTranslation(msg) {
   return null;
 }
 
+// Texte d'un message (traduit en français si possible, original au survol) : panneau Messages et Fil de course
+export function rcmMsgHtml(msg, cls = 'rcm-msg') {
+  const t = rcmTranslation(msg);
+  return t ? `<div class="${cls}" data-no-i18n title="${esc(msg)}">${esc(t)}</div>` : `<div class="${cls}">${esc(msg)}</div>`;
+}
+// Version des messages affichés (traductions arrivées comprises) : le Fil de course se redessine avec eux
+export const rcmVersion = () => rcmVer;
+
 export function renderRcm() {
   const v = `${versionOf(['RaceControlMessages', '__reset'])}|${prefs.rcmBlue}|${prefs.rcmDeleted}|${prefs.rcmType}|${rcmTranslating()}|${rcmTrVer}|${prefs.rcmType === 'mine' ? `${prefs.favs}|${store.duel.a}|${store.duel.b}` : ''}`;
   if (v === rcmVer) return;
@@ -85,10 +93,7 @@ export function renderRcm() {
   const fresh = !sameList && all.length > rcmCount && rcmCount > 0 ? all.slice(rcmCount).filter(rcmShown).length : 0;
   rcmCount = all.length;
   const hidden = all.length - msgs.length;
-  const msgHtml = (msg) => {
-    const t = rcmTranslation(msg);
-    return t ? `<div class="rcm-msg" data-no-i18n title="${esc(msg)}">${esc(t)}</div>` : `<div class="rcm-msg">${esc(msg)}</div>`;
-  };
+  const msgHtml = (msg) => rcmMsgHtml(msg);
   $('#rcmHidden').textContent = hidden ? `${hidden} message(s) masqué(s)` : '';
   $('#rcmList').innerHTML = msgs.length
     ? msgs.slice().reverse().map((m, i) => {
@@ -207,7 +212,7 @@ export function renderPits() {
   const fitted = (s) => {
     if (!s) return '<span class="muted">?</span>';
     const used = s.New === false || s.New === 'false' || Number(s.StartLaps) > 0;
-    return `${tyreBadge(s.Compound, null, s.New)} <span class="muted small">${used ? `occasion${Number(s.StartLaps) > 0 ? ` (${Number(s.StartLaps)} t.)` : ''}` : 'neufs'}</span>`;
+    return `${tyreBadge(s.Compound, null, s.New)} <span class="muted small">${used ? (Number(s.StartLaps) > 0 ? t('occasion ({} t.)', Number(s.StartLaps)) : t('occasion')) : t('neufs')}</span>`;
   };
   const bar = (val, min, max, cls) => {
     const w = Number.isFinite(min) && max > min ? 12 + 88 * Math.max(0, Math.min(1, (val - min) / (max - min))) : 50;
@@ -247,7 +252,7 @@ export function renderPits() {
   } else {
     body = `<table class="pits"><tr><th>Tour</th><th>Pilote</th><th title="Pneus retirés (tours effectués), puis pneus montés">Pneus</th><th>Voie des stands</th><th>Immobilisation</th></tr>${stops.slice().sort((a, b) => b.t - a.t).map((p) => `<tr>
       <td><span class="lap-pill">T${esc(p.lap ?? '—')}</span></td>
-      <td>${chip(p.num)} <span class="muted small">${p.k ? `${p.k}${p.k === 1 ? 'er' : 'e'} arrêt` : 'passage'}</span></td>
+      <td>${chip(p.num)} <span class="muted small">${p.k ? t('{} arrêt', ord(p.k)) : t('passage')}</span></td>
       <td class="pit-tyres">${sameTyres(p) ? `${tyre(p.from)} <span class="muted small">mêmes pneus</span>` : p.from || p.to ? `${tyre(p.from)} <span class="muted">${icon('arrow-right', 'ic-s')}</span> ${fitted(p.to)}` : '<span class="muted">—</span>'}</td>
       <td>${p.duration ? `<div class="pit-cell">${bar(p.duration, laneMin, laneMax, 'lane')}<span class="pit-val">${sec(p.duration)}</span>${laneNote(p)}</div>` : '—'}</td>
       <td>${p.st ? `<div class="pit-cell">${bar(p.st, stMin, stMax, stClass(p.st))}<span class="pit-val ${stClass(p.st)}"${p.est ? ' title="Estimé par la télémétrie (pas de temps officiel)"' : ''}>${p.est ? '≈' : ''}${sec(p.st)}</span></div>` : '<span class="muted">—</span>'}</td></tr>`).join('')}</table>`;
@@ -318,7 +323,7 @@ const DOC_KIND = { decision: 'Décision', infringement: 'Infraction', offence: '
 function docLink(doc, dl) {
   if (!doc) return '';
   const info = parseFiaDoc(doc);
-  const who = info.cars[0] ? ` — ${esc(dl[info.cars[0]]?.Tla || `voiture ${info.cars[0]}`)}` : '';
+  const who = info.cars[0] ? ` — ${esc(dl[info.cars[0]]?.Tla || t('voiture {}', info.cars[0]))}` : '';
   return `<a class="fia-doc" href="${esc(pdfHref(doc.url))}" data-pdf="${esc(doc.title)}" target="_blank" rel="noopener" title="${esc(doc.title)}">${icon('doc')} ${esc(DOC_KIND[info.type] || 'Document')} FIA${info.num ? ` n° ${info.num}` : ''}${who}<span class="muted"> · ${esc(info.subject.replace(/^Cars?\s+[\d\s,&and]+-\s*/i, ''))}</span> ${icon('external', 'ic-s')}</a>`;
 }
 

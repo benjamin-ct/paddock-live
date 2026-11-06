@@ -52,7 +52,8 @@ export function addTranslations(lang, items) {
     // « __proto__ », « constructor »… : noms réservés des objets JavaScript, jamais enregistrés
     if (!en || !t || en.length > MAX_LEN || t.length > MAX_LEN || en in Object.prototype || badScript(t, lang)) continue;
     if (Object.hasOwn(data, en)) continue;
-    if (Object.keys(data).length >= MAX_ENTRIES) break;
+    // Cache plein : la plus ancienne retirée (ordre d'ajout), sinon plus rien n'était gardé
+    if (Object.keys(data).length >= MAX_ENTRIES) for (const k in data) { delete data[k]; break; }
     data[en] = { t, q: 'cloud' };
     n++;
   }

@@ -6,6 +6,7 @@ import { icon } from '../icons.js';
 import { pdfHref } from './pdf-view.js';
 import { DEC, FR, LANG, t } from '../i18n.js';
 import { gpShort } from '/shared/gp-names.js';
+import { fiaEvents, elementsUsed } from './season-kpi.js';
 
 const TYPES_FR = { Performance: 'Performance', 'Circuit specific': 'Spécifique au circuit', Reliability: 'Fiabilité', 'Structural Improvement': 'Structure' };
 const REASONS_FR = {
@@ -115,15 +116,7 @@ const count = (arr, key) => {
 };
 
 // Épreuves réelles (hors essais) rattachées à une manche du calendrier
-function events(ctx, fia) {
-  return (fia?.events || []).filter((e) => e.tech || e.used).map((e) => {
-    const race = ctx.data.races.find((r) => {
-      const d = Date.parse(r.date);
-      return d >= e.first - 2 * 86400e3 && d <= e.first + 10 * 86400e3;
-    });
-    return { ...e, round: race?.round || null, label: race ? `R${race.round}` : short(e.name).slice(0, 3) };
-  }).sort((a, b) => (a.round ?? 99) - (b.round ?? 99) || a.first - b.first);
-}
+const events = (ctx, fia) => fiaEvents(ctx.data.races, fia);
 
 // ---------------- Évolutions techniques ----------------
 let techGp = null;
@@ -238,15 +231,13 @@ export function renderElements(ctx, fia) {
   const lim = limitsFor(ctx.data.year);
   const els = base.used.elements;
   // Relevé du dernier Grand Prix + éléments neufs montés pendant ce Grand Prix
-  const drivers = base.used.drivers.map((d) => {
-    const used = { ...d.used };
-    for (const f of base.fresh.filter((x) => x.num === d.num)) used[f.element] = Math.max(used[f.element] || 0, (f.previous || 0) + 1);
-    const total = els.reduce((n, e) => n + (used[e] || 0), 0);
+  const drivers = elementsUsed(base).map((d) => {
+    const { used } = d;
     const over = els.filter((e) => lim[e] && used[e] > lim[e]);
     // Nom comme ailleurs dans la Saison (les documents FIA écrivent « Sergio Perez », « Kimi Antonelli »)
     const plain = (n) => String(n || '').normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
     const sd = ctx.data.drivers.find((x) => plain(x.last) === plain(d.driver.split(' ').slice(-1)[0])) || ctx.data.drivers.find((x) => String(x.number) === String(d.num));
-    return { ...d, used, total, over, label: sd?.name || d.driver, last: sd?.last || d.driver.split(' ').slice(-1)[0] };
+    return { ...d, over, label: sd?.name || d.driver, last: sd?.last || d.driver.split(' ').slice(-1)[0] };
   }).sort((a, b) => b.total - a.total);
   const pens = evs.flatMap((e) => e.penalties.map((p) => ({ ...p, ev: e }))).sort((a, b) => a.published - b.published);
   const byTeam = count(drivers.flatMap((d) => Array(d.total).fill(d)), (d) => d.team).map(([team, n]) => ({ team, n, teamId: drivers.find((d) => d.team === team)?.teamId }));

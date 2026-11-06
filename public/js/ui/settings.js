@@ -3,7 +3,7 @@
 import { store, serverNow, on } from '../store.js';
 import { $, $$, esc, api, fmtDuration, drivers, orderedNumbers, storageGet, storageSet } from '../util.js';
 import { toast } from './delay.js';
-import { prefs, setPref, toggleFav, toggleTeamFav } from '../prefs.js';
+import { prefs, setPref, toggleFav, toggleTeamFav, systemMoreContrast } from '../prefs.js';
 import { NEWS_TEAMS, fold } from '/shared/news.js';
 import { saveWindowsSnapshot, restoreWindowsSnapshot, windowSetups, deleteWindowSetup, setWindowSetupKind, migrateWindowSetups } from './layout.js';
 import { icon } from '../icons.js';
@@ -238,8 +238,24 @@ export function initSettings() {
   on('role', (host) => { $('#followHostBlock').hidden = host; });
   $('#followHost').checked = storageGet('paddock.followHost', true);
   $('#followHost').addEventListener('change', (e) => storageSet('paddock.followHost', e.target.checked));
+  // Contraste renforcé : coché et grisé tant que le système le demande (prefers-contrast: more)
+  const syncContrast = () => { $('#contrastOpt').checked = !!prefs.contrast || systemMoreContrast(); $('#contrastOpt').disabled = systemMoreContrast(); };
+  syncContrast();
+  $('#contrastOpt').addEventListener('change', (e) => setPref('contrast', e.target.checked));
+  on('prefs', (k) => { if (k === 'contrast') syncContrast(); });
+  $('#colorblindOpt').checked = !!prefs.colorblind;
+  $('#colorblindOpt').addEventListener('change', (e) => setPref('colorblind', e.target.checked));
   $('#motionOpt').checked = prefs.motion !== false;
   $('#motionOpt').addEventListener('change', (e) => setPref('motion', e.target.checked));
+  // Taille de l'interface dans le navigateur d'un téléphone ou d'une tablette, de 90 à 150 % (zoom par la balise
+  // viewport, prefs.js) ; appli de bureau : son propre zoom (ui/updates.js)
+  if (!window.f1desktop && matchMedia('(pointer: coarse)').matches) {
+    const sel = $('#zoomSel');
+    for (const o of [...sel.options]) if (Number(o.value) > 150) o.remove();
+    sel.value = String(Math.round(prefs.textScale * 100));
+    $('#zoomRow').hidden = false;
+    sel.addEventListener('change', () => setPref('textScale', Number(sel.value) / 100));
+  }
   $('#phoneFull').checked = !!prefs.phoneFull;
   $('#phoneFull').addEventListener('change', (e) => setPref('phoneFull', e.target.checked));
   $('#keepAwake').checked = prefs.keepAwake;
@@ -352,6 +368,8 @@ export function initSettings() {
     const d = e.target.closest('[data-seek]');
     if (d) control({ action: 'seek', toMs: Number(d.dataset.seek) + store.delay * (store.status?.source?.speed || 1) });
   });
+  // Téléphone (Télémétrie) : le mini-lecteur garde lecture, curseur et temps ; les autres commandes dans un tiroir
+  $('#rpMore').addEventListener('click', (e) => e.currentTarget.setAttribute('aria-expanded', String($('#replayBar').classList.toggle('rp-open'))));
   $('#rpClose').addEventListener('click', async () => {
     await api('/api/live', { method: 'POST' }).catch((err) => toast(err.message));
     toast('Retour au direct');

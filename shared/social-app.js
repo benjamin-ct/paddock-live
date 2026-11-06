@@ -2,7 +2,7 @@
 // visuel (logo, petit titre rouge, grand titre aux mots en rouge, texte, capture ou photo dans un cadre, pied
 // « Gratuit · Windows, Mac, Linux » et le site), une image par page du carrousel, et ses textes. Une vidéo à soi
 // (enregistrement d'écran) prend la place de la capture de la première page.
-import { C, TITLE, BODY, MONO, txt, rr, photoCredit, background, pill } from './social-draw.js';
+import { C, TITLE, BODY, MONO, txt, rr, photoCredit, background, pill, v3 } from './social-draw.js';
 import { xLength } from './social.js';
 
 export const APP_SITE = 'paddocklive.app';
@@ -32,9 +32,9 @@ export const appSlides = (d) => (d.pages || []).map((_, i) => `app-${i + 1}`);
 function logo(ctx, x, y, s) {
   const g = ctx.createLinearGradient(x, y, x + s, y + s);
   g.addColorStop(0, '#ff2a1a'); g.addColorStop(0.55, '#d40500'); g.addColorStop(1, '#8e0300');
-  rr(ctx, x, y, s, s, s * 0.22); ctx.fillStyle = g; ctx.fill();
+  rr(ctx, x, y, s, s, v3 ? s * 0.14 : s * 0.22); ctx.fillStyle = v3 ? C.red : g; ctx.fill();   // Télémétrie : à plat
   ctx.save();
-  ctx.translate(x + s / 2, y + s / 2); ctx.transform(1, 0, -0.25, 1, 0, 0);
+  ctx.translate(x + s / 2, y + s / 2); if (!v3) ctx.transform(1, 0, -0.25, 1, 0, 0);
   txt(ctx, 'PL', 0, s * 0.2, { size: Math.round(s * 0.56), weight: 800, family: TITLE, align: 'center' });
   ctx.restore();
   const size = Math.round(s * 0.78);

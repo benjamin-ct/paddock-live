@@ -1,7 +1,7 @@
 // Disposition libre : colonnes et panneaux redimensionnables, panneaux déplaçables par glisser-déposer,
 // fenêtres secondaires (second écran) pouvant regrouper plusieurs panneaux, colonnes du classement.
 import { $, $$, esc, storageGet, storageSet, sessionKind } from '../util.js';
-import { prefs, setPref, towerCols, towerBig, PANELS_HIDDEN, TAB_HIDDEN } from '../prefs.js';
+import { prefs, setPref, towerCols, towerBig, PANELS_HIDDEN, TAB_HIDDEN, hiddenByDefault } from '../prefs.js';
 import { store, on, emit } from '../store.js';
 import { toast } from './delay.js';
 import { t } from '../i18n.js';
@@ -15,14 +15,15 @@ export const PANELS = [
   { id: 'map', cls: 'p-map', name: 'Circuit' },
   { id: 'feed', cls: 'p-feed', name: 'Messages (direction de course, enquêtes, limites de piste)' },
   { id: 'radio', cls: 'p-radio', name: 'Radios' },
+  { id: 'race', cls: 'p-race', name: 'Fil de course (radios, direction de course, enquêtes, limites de piste)' },
   { id: 'duel', cls: 'p-duel', name: 'Duel' },
   { id: 'analysis', cls: 'p-analysis', name: 'Analyse (écarts, arrêts et stratégie, télémétrie, secteurs, comparaison…)' },
   { id: 'extra', cls: 'p-extra', name: 'Télémétrie' },
 ];
-const SHORT = { tower: 'Classement', map: 'Circuit', feed: 'Messages', radio: 'Radios', duel: 'Duel', analysis: 'Analyse', extra: 'Télémétrie' };
+const SHORT = { tower: 'Classement', map: 'Circuit', feed: 'Messages', radio: 'Radios', race: 'Fil de course', duel: 'Duel', analysis: 'Analyse', extra: 'Télémétrie' };
 // Panneaux ajoutés dans une version plus récente : placés à côté d'un panneau existant
 // (dans la même colonne) quand on reprend une disposition enregistrée.
-const ADDED_NEAR = { radio: ['feed', 1], analysis: ['extra', 0] }; // [voisin, 1 = après / 0 = avant]
+const ADDED_NEAR = { radio: ['feed', 1], analysis: ['extra', 0], race: ['feed', 1] }; // [voisin, 1 = après / 0 = avant]
 
 export const COLUMNS = [
   ['name', 'Nom complet du pilote'], ['tags', 'État (stand, sortie, tour rapide…)'], ['int', 'Intervalle'], ['last', 'Dernier tour'], ['best', 'Meilleur tour'], ['sec', 'Secteurs'], ['pred', 'Tour en cours (qualifs)'],
@@ -30,6 +31,7 @@ export const COLUMNS = [
 ];
 // Colonnes facultatives, masquées par défaut (prefs.extraCols : celles ajoutées)
 export const EXTRA_COLUMNS = [
+  ['pen', 'Avec pénalités (course : 5 derniers tours et arrivée provisoire)'],   // affichée seulement à ces moments-là
   ['grid', 'Position de départ'], ['laps', 'Tours effectués'], ['gapf', 'Écart au pilote suivi'],
   ['spd', 'Vitesses I1 / I2 / arrivée'], ['bsec', 'Meilleurs secteurs (S1 / S2 / S3)'], ['team', 'Écurie'],
 ];
@@ -86,7 +88,8 @@ const TAB_DEFAULTS = {
   race: { feed: 'rcm', analysis: 'trace' },
   quali: { feed: 'rcm', analysis: 'compare' },
 };
-const profileDefaults = (prof = profile) => ({ hiddenPanels: [...PANELS_HIDDEN], hiddenCols: ['name'], hiddenTabs: [...TAB_HIDDEN[prof]] });
+const v3 = () => document.documentElement.dataset.design === 'v3';
+const profileDefaults = (prof = profile) => ({ hiddenPanels: hiddenByDefault(document.documentElement.dataset.design), hiddenCols: ['name'], hiddenTabs: [...TAB_HIDDEN[prof]] });
 const profileFor = (mode, kind) => (mode === 'race' || mode === 'quali' ? mode : kind === 'race' ? 'race' : 'quali');
 let profile = prefs.layoutMode === 'race' || prefs.layoutMode === 'quali' ? prefs.layoutMode : storageGet('paddock.lastProfile', 'race');
 if (!PROFILES[profile]) profile = 'race';
@@ -97,13 +100,22 @@ const lkey = (win = WIN, prof = profile) => (prof === 'race' || win !== 'main' ?
 function defaultLayout(prof = profile) {
   if (!isMain) return { cols: [] };
   const quali = prof === 'quali';
+  // Fenêtre plus haute que large (écran pivoté) : deux colonnes, le Classement assez large pour ses colonnes principales,
+  // à droite le Circuit, la Télémétrie, les Radios et la Direction de course
+  if (innerHeight > innerWidth) return { cols: [
+    { w: 1.3, items: [{ id: 'tower', h: 1 }] },
+    { w: 1, items: [{ id: 'map', h: 1.3 }, { id: 'duel', h: 0.8 }, { id: 'analysis', h: 1 }, { id: 'extra', h: 1 }, { id: 'radio', h: 0.9 }, { id: 'feed', h: 0.9 }] },
+  ] };
   // Écran principal : Classement à gauche (plus large en qualifs et essais : Q1/Q2/Q3, tour en cours ; le duel passe
   // par-dessus), le Circuit au centre sur toute la hauteur, et à droite la Télémétrie, les Radios et la Direction de
   // course l'une sous l'autre. Analyse et Duel (masqués ici, s'ils sont affichés) : sous le Circuit
+  // Télémétrie (v3) : Classement assez large pour toutes ses colonnes principales à 1440 px
+  // et à droite la Télémétrie et le Fil de course (Radios et Messages masqués, sous le fil)
   return { cols: [
-    { w: quali ? 1.2 : 1.05, items: [{ id: 'tower', h: 1 }] },
+    { w: quali ? 1.2 : v3() ? 2.1 : 1.05, items: [{ id: 'tower', h: 1 }] },
     { w: 1.15, items: [{ id: 'map', h: 1.6 }, { id: 'duel', h: 0.8 }, { id: 'analysis', h: 1 }] },
-    { w: 0.95, items: [{ id: 'extra', h: 1 }, { id: 'radio', h: 1.1 }, { id: 'feed', h: 1.1 }] },
+    { w: 0.95, items: v3() ? [{ id: 'extra', h: 0.7 }, { id: 'race', h: 2.5 }, { id: 'radio', h: 1.1 }, { id: 'feed', h: 1.1 }]
+      : [{ id: 'extra', h: 1 }, { id: 'radio', h: 1.1 }, { id: 'feed', h: 1.1 }] },
   ] };
 }
 
@@ -270,7 +282,7 @@ function narrow() {
 
 // Téléphone (et tablette en portrait) : un seul panneau à la fois, choisi dans la barre du bas.
 const MOB_TABS = [
-  ['tower', 'Classement'], ['extra', 'Télémétrie'], ['feed', 'Messages'], ['radio', 'Radios'], ['map', 'Carte'],
+  ['tower', 'Classement'], ['extra', 'Télémétrie'], ['race', 'Fil'], ['feed', 'Messages'], ['radio', 'Radios'], ['map', 'Carte'],
   ['duel', 'Duel'], ['analysis', 'Analyse'],
 ];
 // Icônes dessinées, dans tous les thèmes
@@ -278,6 +290,7 @@ const MOB_SVG = {
   tower: '<path d="M4 6h16M4 12h16M4 18h10"/>',
   map: '<path d="M3 7l6-3 6 3 6-3v13l-6 3-6-3-6 3z"/><path d="M9 4v13M15 7v13"/>',
   feed: '<path d="M4 5h16v11H8l-4 4z"/>',
+  race: '<path d="M4 6h3M4 12h3M4 18h3M10 6h10M10 12h10M10 18h7"/>',
   duel: '<path d="M14.5 17.5L3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M9.5 17.5L21 6V3h-3L6.5 14.5M11 19l-6-6M8 16l-4 4"/>',
   analysis: '<path d="M4 19V5M4 19h16M8 15l3-4 3 2 5-7"/>',
   extra: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4v5M12 15v5M4 12h5M15 12h5"/>',
@@ -291,13 +304,13 @@ function mobile() {
 }
 // Téléphone : version simplifiée (l'essentiel seulement), sauf « version complète » dans les réglages
 const simple = () => mobile() && !prefs.phoneFull;
-const SIMPLE_TABS = ['tower', 'extra', 'feed', 'radio', 'map'];
+const SIMPLE_TABS = ['tower', 'extra', 'race', 'feed', 'radio', 'map'];
 // Téléphone : pas de fenêtres séparées, les panneaux qui s'ouvrent dans une fenêtre sur ordinateur restent des onglets
-const phoneVisible = (id) => isVisible(id) || PANELS_HIDDEN.includes(id);
+// Télémétrie : le Fil de course à la place de Messages et Radios
+const phoneVisible = (id) => (v3() ? id === 'race' || (id !== 'feed' && id !== 'radio' && isVisible(id)) : isVisible(id)) || PANELS_HIDDEN.includes(id);
 
 export function showMobilePanel(id) {
-  mobTab = id;
-  storageSet(MOB_KEY, id);
+  if (dual()) { mobTab2 = id; storageSet(MOB_KEY2, id); } else { mobTab = id; storageSet(MOB_KEY, id); }
   render(true);
   // Panneau choisi : glisse en place
   if (!mobile()) return;
@@ -306,27 +319,54 @@ export function showMobilePanel(id) {
   setTimeout(() => el?.classList.remove('mob-in'), 300);
 }
 
+// Télémétrie, téléphone et tablette : les vues de la séance au bout de la bande d'onglets (une ligne de moins au-dessus
+// du classement ; au téléphone, réduites à un bouton « Séance », design-v3.css) ; ailleurs, sous la barre de séance
+const LAND = matchMedia('(orientation: landscape) and (max-height: 500px)');
+// Télémétrie, téléphone en paysage et tablette en portrait : deux zones, le classement et une zone au choix (bande
+// d'onglets), côte à côte en paysage, l'une sous l'autre en portrait
+const TABP = matchMedia('(min-width: 600px) and (max-width: 900px) and (orientation: portrait)');
+const dual = () => v3() && mobile() && (LAND.matches || TABP.matches);
+const MOB_KEY2 = 'paddock.mobileTab2';
+let mobTab2 = storageGet(MOB_KEY2, 'map');
+let sessViews = null;   // gardé ici : la bande d'onglets redessinée le retire un instant de la page
+function placeSessViews(inStrip) {
+  const sv = (sessViews ||= $('#sessViews')), strip = $('#mobPanels');
+  if (!sv || !strip) return;
+  if (inStrip) strip.appendChild(sv);
+  else if (sv.parentElement === strip) $('.topbar').after(sv);
+}
+
 function renderMobile(grid) {
   grid.classList.remove('custom', 'has-max', 'free');
   for (const p of PANELS) clearFree(panelEl(p.id));
   grid.classList.add('mobile');
-  const tabs = MOB_TABS.filter(([id]) => phoneVisible(id) && (!simple() || SIMPLE_TABS.includes(id)));
-  if (!tabs.some(([id]) => id === mobTab)) mobTab = tabs[0]?.[0] || 'tower';
+  const two = dual();
+  grid.classList.toggle('dual', two);
+  // Deux zones : le classement toujours là, la bande d'onglets choisit l'autre zone
+  const tabs = MOB_TABS.filter(([id]) => phoneVisible(id) && (!simple() || SIMPLE_TABS.includes(id)) && !(two && id === 'tower'));
+  if (two) { if (!tabs.some(([id]) => id === mobTab2)) mobTab2 = tabs[0]?.[0] || 'map'; }
+  else if (!tabs.some(([id]) => id === mobTab)) mobTab = tabs[0]?.[0] || 'tower';
+  const cur = two ? mobTab2 : mobTab;
   for (const p of PANELS) {
     const el = panelEl(p.id);
     el.style.flex = '';
     el.classList.remove('maximized');
-    el.classList.toggle('hidden-panel', p.id !== mobTab || !phoneVisible(p.id));
+    el.classList.toggle('hidden-panel', !(p.id === cur || (two && p.id === 'tower')) || !phoneVisible(p.id));
     grid.appendChild(el);
   }
   for (const el of grid.querySelectorAll('.lcol, .lsplit-v, .lstash')) el.remove();
   // Téléphone : 5 boutons fixes en bas ; dans « Direct », les panneaux en onglets en haut
   const nav = $('#mobNav');
   nav.hidden = false;
-  if (!nav.children.length) nav.innerHTML = MOB_NAV.map(([k, label, svg]) => `<button data-mob="${k}"><svg class="mn-svg" viewBox="0 0 24 24" aria-hidden="true">${svg}</svg><span class="mn-l">${label}</span></button>`).join('');
+  // Barre refaite quand le design change (Télémétrie : Replays à la place de « Plus »)
+  const design = document.documentElement.dataset.design;
+  if (nav.dataset.design !== design) nav.innerHTML = mobNav().map(([k, label, svg]) => `<button data-mob="${k}" aria-label="${label}"><svg class="mn-svg" viewBox="0 0 24 24" aria-hidden="true">${svg}</svg><span class="mn-l">${label}</span></button>`).join('');
+  nav.dataset.design = design;
   const strip = $('#mobPanels');
   strip.hidden = false;
-  strip.innerHTML = tabs.map(([id, label]) => `<button data-mobp="${id}" class="${id === mobTab ? 'active' : ''}">${label}</button>`).join('');
+  sessViews ||= $('#sessViews');
+  strip.innerHTML = tabs.map(([id, label]) => `<button data-mobp="${id}" class="${id === cur ? 'active' : ''}">${label}</button>`).join('');
+  placeSessViews(v3());
   strip.querySelector('.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   syncMobNav();
 }
@@ -339,10 +379,14 @@ const MOB_NAV = [
   ['news', 'Actu', '<path d="M4 5h13v14H6a2 2 0 0 1-2-2zM17 9h3v8a2 2 0 0 1-2 2M7 9h7M7 12h7M7 15h4"/>'],
   ['more', 'Plus', '<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>'],
 ];
+// Télémétrie : les cinq espaces, sans « Plus » (Réglages dans la barre de séance ; Résultats, Résumé et Commentaires
+// dans les vues de la séance, en tête du Direct)
+const mobNav = () => (document.documentElement.dataset.design === 'v3'
+  ? [...MOB_NAV.slice(0, 4), ['replay', 'Replays', '<path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M10 9l5 3-5 3z"/>']] : MOB_NAV);
 function syncMobNav() {
   const open = (id) => !$(id)?.hidden;
-  const cur = open('#homeView') ? 'home' : open('#seasonView') ? 'season' : open('#newsView') ? 'news' : open('#replayView') ? 'more' : 'live';
-  for (const b of $$('#mobNav [data-mob]')) b.classList.toggle('active', b.dataset.mob === cur);
+  const cur = open('#homeView') ? 'home' : open('#seasonView') ? 'season' : open('#newsView') ? 'news' : open('#replayView') ? 'replay' : 'live';
+  for (const b of $$('#mobNav [data-mob]')) b.classList.toggle('active', b.dataset.mob === cur || (b.dataset.mob === 'more' && cur === 'replay'));
 }
 
 // Menu « Plus » du téléphone
@@ -375,7 +419,7 @@ function mobMore(btn) {
 function render(force = false) {
   if (resizing) { renderLater = true; return; }
   const grid = $('.grid');
-  const key = `${mobile()}|${simple()}|${narrow()}|${JSON.stringify(layout)}|${PANELS.map((p) => isVisible(p.id)).join()}`;
+  const key = `${mobile()}|${simple()}|${narrow()}|${LAND.matches}|${TABP.matches}|${document.documentElement.dataset.design}|${JSON.stringify(layout)}|${PANELS.map((p) => isVisible(p.id)).join()}`;
   if (key === renderKey && !force) return;
   document.documentElement.classList.toggle('phone', mobile());
   document.documentElement.classList.toggle('simple', simple());
@@ -383,6 +427,7 @@ function render(force = false) {
   renderKey = key;
   if (mobile()) { renderMobile(grid); return; }
   grid.classList.remove('mobile');
+  placeSessViews(false);
   if ($('#mobNav')) $('#mobNav').hidden = true;
   if ($('#mobPanels')) $('#mobPanels').hidden = true;
   const stash = grid.querySelector('.lstash') || Object.assign(document.createElement('div'), { className: 'lstash', hidden: true });
@@ -1042,6 +1087,18 @@ function visibleTabs() {
   }
 }
 
+// Design changé (ou fenêtre ouverte) sans disposition enregistrée : disposition et panneaux par défaut du design
+// (Télémétrie : Fil de course à la place de Radios et Messages). Panneaux choisis à la main : gardés tels quels
+const sameSet = (a, b) => a.length === b.length && a.every((x) => b.includes(x));
+function fitDesign() {
+  if (!isMain || TAB_WIN || allLayouts()[lkey()]) return false;
+  const d = document.documentElement.dataset.design;
+  const other = hiddenByDefault(d === 'v3' ? 'v2' : 'v3');
+  if (sameSet(prefs.hiddenPanels, other)) setPref('hiddenPanels', hiddenByDefault(d));
+  layout = normalize(defaultLayout());
+  return true;
+}
+
 function switchProfile(next, quiet = false) {
   if (!PROFILES[next] || next === profile) return;
   if (isMain) {
@@ -1058,7 +1115,7 @@ function switchProfile(next, quiet = false) {
     setPref('hiddenTabs', n.hiddenTabs || TAB_HIDDEN[next]);
   } else profile = next;
   // Fenêtre secondaire : elle garde ses panneaux (même disposition pour toutes les séances)
-  if (isMain) layout = normalize(allLayouts()[lkey()] || defaultLayout());
+  if (isMain && !fitDesign()) layout = normalize(allLayouts()[lkey()] || defaultLayout());
   unmaximize();
   render(true);
   save();
@@ -1151,6 +1208,7 @@ on('openWindow', openInWindow);
 
 export function initLayout() {
   if (isMain) migrateLayout();
+  fitDesign();
   if (!isMain) {
     document.body.classList.add('solo');
     if (legacyPanel && !allLayouts()[lkey()]) storeLayout(lkey(), layout);
@@ -1175,6 +1233,12 @@ export function initLayout() {
         : `<button data-act="back" title="Remettre ce panneau dans la fenêtre principale">${icon('window-in')}</button>`);
     head.appendChild(ctrl);
     headObserver?.observe(head);
+    // Télémétrie : en-tête à onglets sur une ligne (design-v3.css), défilé aussi à la molette
+    if (head.matches('[data-tabs]')) head.addEventListener('wheel', (e) => {
+      if (!v3() || head.scrollWidth <= head.clientWidth || Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+      head.scrollLeft += e.deltaY;
+      e.preventDefault();
+    }, { passive: false });
     ctrl.querySelector('.lgrip').addEventListener('pointerdown', (e) => {
       if (narrow() || mobile()) return;
       if (layout.free) freeDrag(p.id, e, 'move'); else startDrag(p.id, e);
@@ -1207,7 +1271,9 @@ export function initLayout() {
     if (!b) return;
     const k = b.dataset.mob;
     if (k === 'more') { mobMore(b); return; }
-    const [home, season, news, replays] = await Promise.all([import('./home.js'), import('./season.js'), import('./news.js'), import('./replays.js')]);
+    // Replays (Télémétrie) : comme le bouton de la barre latérale (pendant un replay, retour au replay en cours)
+    if (k === 'replay') { if ($('#replayView').hidden) $('#rail [data-rail="replay"]')?.click(); return; }
+    const [home, season, news, replays] = await Promise.all([import('./home.js'), import('./season-lazy.js'), import('./news.js'), import('./replays.js')]);
     if (k === 'home') { home.openHome(); return; }
     home.homeTouched();
     home.closeHome();
@@ -1216,14 +1282,21 @@ export function initLayout() {
     else if (k === 'news') news.openNews();
     else { season.closeSeason(); news.closeNews(); (await import('./results-view.js')).closeResults(); }
   });
-  $('#mobPanels')?.addEventListener('click', (e) => { const b = e.target.closest('[data-mobp]'); if (b) showMobilePanel(b.dataset.mobp); });
+  $('#mobPanels')?.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-mobp]');
+    if (!b) return;
+    // Télémétrie : un panneau choisi pendant Résultats, Résumé ou Commentaires ramène au tableau de bord
+    if (v3()) $('#sessViews:not([hidden]) [data-sv="board"]:not(.on)')?.click();
+    showMobilePanel(b.dataset.mobp);
+  });
   // Bouton actif de la barre du bas : suit les espaces ouverts (accueil, saison, actu, replays)
   const mo = new MutationObserver(syncMobNav);
   for (const id of ['#homeView', '#seasonView', '#newsView', '#replayView']) if ($(id)) mo.observe($(id), { attributes: true, attributeFilter: ['hidden'] });
   // Disposition modifiée dans une autre instance de la même fenêtre (rechargement) : rien à faire ;
   // la fenêtre principale suit seulement les préférences.
   on('prefs', (k) => {
-    if (k === 'hiddenPanels' || k === 'phoneFull') render();
+    if (k === 'design' && fitDesign()) render(true);
+    if (k === 'hiddenPanels' || k === 'phoneFull' || k === 'design') render();
     if (['hiddenPanels', 'hiddenTabs', 'tabLayout', 'hiddenCols', 'extraCols', 'towerFit'].includes(k)) renderLayoutOptions();
   });
   render(true);

@@ -44,6 +44,7 @@ function renderPresets() {
   const match = presets.findIndex((p) => p.ms === store.delay);
   sel.innerHTML = `<option value="">${match < 0 ? `Personnalisé (${fmtDelay(store.delay)})` : 'Préréglages…'}</option>` +
     presets.map((p, i) => `<option value="${i}" ${i === match ? 'selected' : ''}>${esc(p.name)}${p.builtin ? '' : ` — ${fmtDelay(p.ms)}`}</option>`).join('');
+  sel.title = sel.selectedOptions[0]?.textContent || '';   // préréglage en entier au survol (liste réduite en Télémétrie)
 
   const custom = customPresets();
   $('#presetManage').innerHTML = custom.length

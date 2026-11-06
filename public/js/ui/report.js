@@ -2,7 +2,7 @@
 // classement complet : fenêtre « Résumé » et page Résultats. Au rythme du délai TV (état affiché).
 import { esc, teamMark, tyreBadge, compoundInfo } from '../util.js';
 import { icon } from '../icons.js';
-import { t, FR, LANG, DEC } from '../i18n.js';
+import { t, ord, FR, LANG, DEC } from '../i18n.js';
 import { summaryFacts } from '/shared/summary.js';
 import { realStints, realStopCount } from '/shared/pits.js';
 
@@ -77,6 +77,44 @@ export function reportHtml(state) {
   if (f.kind !== 'race' && f.red.length) tiles.push(tile(t('Drapeaux rouges'), `<div class="rp-chips">${f.red.map((l) => `<span class="rp-chip red">${t('Drapeau rouge')}${l ? ` · ${lapNo(l)}` : ''}</span>`).join('')}</div>`));
   if (f.penalties.length) tiles.push(tile(t('Pénalités'), f.penalties.map((p) => `<div class="rp-row">${esc(p)}</div>`).join('')));
   return `${podium(f, dl)}${tiles.length ? `<div class="rp-tiles">${tiles.join('')}</div>` : ''}`;
+}
+
+// Course d'un favori (shared/summary.js favRace) : une ligne par fait, en texte (carte et image à partager)
+const PEN = { dt: 'Drive-through', sg: 'Stop & go', grid: 'Pénalité sur la grille', pen: 'Pénalité' };
+const penText = (p) => `${p.kind === 'sec' ? `${p.sec} s` : t(PEN[p.kind])}${p.lap ? ` · ${lapNo(p.lap)}` : ''}`;
+const finishText = (r) => (r.out ? t('Abandon') : `P${r.pos}`);
+export function favFacts(r) {
+  const rows = [];
+  if (r.lap1) rows.push(['lap1', t('Premier tour'), `P${r.lap1}`]);
+  if (r.stints.length) rows.push(['stints', t('Relais'), r.stops === 1 ? t('1 arrêt') : r.stops ? t('{} arrêts', r.stops) : t('Aucun arrêt')]);
+  if (r.best) rows.push(['best', t('Meilleur tour'), `${r.best.time}${r.best.rank === 1 ? ` · ${t('le plus rapide de la course')}` : r.best.rank ? ` · ${t('{} temps', ord(r.best.rank))}` : ''}`]);
+  if (r.mate) {
+    const ahead = !r.out && (r.mate.out || r.pos < r.mate.pos);
+    rows.push(['mate', t('Face à {}', r.mate.name), r.out && r.mate.out ? t('Abandon tous les deux') : `${ahead ? t('Devant') : t('Derrière')} (${finishText(r.mate)})`]);
+  }
+  rows.push(['pen', t('Pénalités'), r.penalties.length ? r.penalties.map(penText).join(', ') : t('Aucune')]);
+  if (r.points !== null) rows.push(['pts', t('Points'), `+${r.points}`]);
+  return rows;
+}
+
+// Cartes des pilotes favoris (page Résultats, course seulement) ; rs : favRace de chaque favori
+export function favHtml(rs, dl) {
+  if (!rs.length) return '';
+  const card = (r) => {
+    const d = r.grid ? r.grid - r.pos : 0;
+    const val = (k, v) => {
+      if (k === 'stints') return `<span class="rp-tyres">${r.stints.map((s) => tyreBadge(s.comp, s.laps || null)).join(`<span class="rp-arr">${icon('arrow-right', 'ic-s')}</span>`)}</span> <span class="muted">${esc(v)}</span>`;
+      if (k === 'best') return `<span class="rp-num${r.best.rank === 1 ? ' rp-purple' : ''}">${esc(v)}</span>`;
+      return esc(v);
+    };
+    return `<section class="rp-tile rp-fav" style="--tc:${r.color}">
+      <h4>${icon('star-fill', 'ic-s')} ${t('La course de {}', esc(r.name))}</h4>
+      <div class="rp-fav-head">${who(r, dl, true)}
+        <span class="rp-fav-run">${r.grid ? `P${r.grid} ${icon('arrow-right', 'ic-s')} ` : ''}<b>${finishText(r)}</b>${!r.out && d ? ` <span class="rp-delta ${d > 0 ? 'up' : 'down'}">${d > 0 ? '+' : ''}${d}</span>` : ''}</span></div>
+      <dl class="rp-fav-facts">${favFacts(r).map(([k, label, v]) => `<div><dt>${esc(label)}</dt><dd>${val(k, v)}</dd></div>`).join('')}</dl>
+      <button class="btn small" data-res="favimg:${esc(r.n)}">${icon('share', 'ic-s')} ${t('Image à partager')}</button></section>`;
+  };
+  return `<div class="rp-favs">${rs.map(card).join('')}</div>`;
 }
 
 // Classement complet de la séance

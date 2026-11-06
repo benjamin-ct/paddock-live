@@ -5,13 +5,14 @@
 // voiture sont interpolés entre leurs voisins, puis le profil est lissé (le Z brut est bruité de quelques mètres).
 // Calculé par le serveur (analytics/zones.js), d'après une séance archivée.
 
+import { median } from './season-calc.js';
+
 const NEAR = 150;      // 15 m du tracé au plus
 const SMOOTH = 4;      // moyenne glissante sur 2 × 4 + 1 points
 const MIN_COVER = 0.5; // au moins la moitié des points du tracé vus par une voiture, sinon pas de profil
 const SPIKE = 150;     // 15 m d'écart à la médiane des 2 × 12 voisins : point aberrant (une piste ne fait pas ça)
 export const VERSION = 2;   // profils gardés par le serveur d'une version plus ancienne : recalculés
 
-const median = (a) => { const v = a.slice().sort((x, y) => x - y), m = v.length >> 1; return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2; };
 
 // Z brut médian par point du tracé : samples = [{ car, x, y, z }] dans l'ordre du temps (recherche locale par voiture)
 export function accumulate(track, samples) {

@@ -81,5 +81,9 @@ CREATE TABLE IF NOT EXISTS link_clicks (day TEXT NOT NULL, id TEXT NOT NULL, net
 -- clés de chiffrement du téléphone, sujets, langue), messages en file envoyés par lots, et clés des messages déjà
 -- mis en file (un rappel ou un résultat ne part qu'une fois)
 CREATE TABLE IF NOT EXISTS push_subs (endpoint TEXT PRIMARY KEY, p256dh TEXT NOT NULL, auth TEXT NOT NULL, topics TEXT NOT NULL, lang TEXT NOT NULL, at INTEGER NOT NULL);
+-- Fuseau des abonnés (sujet interne tz@…, toujours en dernier : rappel de la veille, heures calmes). Ancien nom eve@
+-- renommé ; abonnés en français d'avant l'envoi du fuseau à l'heure de Paris jusqu'à ce que la page envoie le leur
+UPDATE push_subs SET topics = replace(topics, 'eve@', 'tz@') WHERE instr(topics, 'eve@') > 0;
+UPDATE push_subs SET topics = topics || ',tz@Europe/Paris' WHERE lang = 'fr' AND instr(topics, 'tz@') = 0;
 CREATE TABLE IF NOT EXISTS push_out (id INTEGER PRIMARY KEY AUTOINCREMENT, topic TEXT NOT NULL, msg TEXT NOT NULL, cursor TEXT NOT NULL, at INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS push_sent (k TEXT PRIMARY KEY, at INTEGER NOT NULL);

@@ -163,12 +163,14 @@ function known(it, alerts) {
     newsSimilarity(a, it) >= 0.45 || (newsKind(a).key === newsKind(it).key && !['actu', 'officiel'].includes(newsKind(it).key) && sameStoryOf(a, it)))));
 }
 
-async function frenchTitle(env, it) {
-  if (it.lang === 'fr' || !env.AI) return it.title;
+// Titre dans une langue (fr pour le Studio et les alertes ; it et es pour les alertes du téléphone : quelques par semaine)
+async function titleIn(env, it, to) {
+  if (it.lang === to || !env.AI) return it.title;
   try {
-    return (await translateBatch(env, { to: 'fr', items: [{ text: it.title, from: it.lang, kind: 'news' }] })).out?.[0] || it.title;
+    return (await translateBatch(env, { to, items: [{ text: it.title, from: it.lang, kind: 'news' }] })).out?.[0] || it.title;
   } catch { return it.title; }
 }
+const frenchTitle = (env, it) => titleIn(env, it, 'fr');
 
 export async function newsAlerts(env, { fetchFn = fetch, now = Date.now() } = {}) {
   if (!env.DB) return { skipped: 'db' };
@@ -210,7 +212,11 @@ export async function newsAlerts(env, { fetchFn = fetch, now = Date.now() } = {}
     const title = `${isBreaking(a) ? 'BREAKING · ' : ''}${newsKind(a).label} · ${a.srcName}`;
     sent += await notifyPhones(env, { title, body: a.titleFr, id: a.id, url: `/studio/?alert=${encodeURIComponent(a.id)}` }, { fetchFn, now });
     // Téléphones abonnés aux grosses news (page /alertes/) : l'article lui-même
-    if (/^https:\/\//.test(a.link || '')) await queuePush(env, `news:${a.id}`, 'news', { fr: { title, body: a.titleFr }, en: { title: `${isBreaking(a) ? 'BREAKING · ' : ''}${a.srcName}`, body: a.lang === 'en' ? a.title : a.titleFr }, url: a.link }, now).catch(() => false);
+    if (/^https:\/\//.test(a.link || '')) {
+      const short = `${isBreaking(a) ? 'BREAKING · ' : ''}${a.srcName}`;
+      const [it, es] = await Promise.all([titleIn(env, a, 'it'), titleIn(env, a, 'es')]);
+      await queuePush(env, `news:${a.id}`, 'news', { fr: { title, body: a.titleFr }, en: { title: short, body: a.lang === 'en' ? a.title : a.titleFr }, it: { title: short, body: it }, es: { title: short, body: es }, url: a.link }, now).catch(() => false);
+    }
   }
   return { checked: picked.length, items: items.length, alerts: added.length, sent };
 }

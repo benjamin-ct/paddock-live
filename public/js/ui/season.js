@@ -2,7 +2,7 @@
 // séance, calendrier, classements avec évolution des points, résultats et records, duels entre
 // coéquipiers, statistiques détaillées. Données : API Jolpica (via le serveur, /api/season) et
 // analyse des archives F1 Live Timing (/api/season/stats).
-import { $, esc, api, teamColor, teamLogo, photoUrl, placeView, driverOpt, OFFICIAL, ink } from '../util.js';
+import { $, esc, api, teamColor, teamLogo, photoUrl, placeView, driverOpt, OFFICIAL, ink, nightMark, calSession } from '../util.js';
 import { store } from '../store.js';
 import { cellBar, skeleton, renderDrivers, renderConsistency, renderPits, renderSpeeds, renderCircuits, renderRatings, gradeBadge, stopTxt, DHL_NOTE, statusFr, fmtLap, dnaBlock, setHistKind, circuitLength } from './season-stats.js';
 import { driverRatings, qualiGaps, titleRace, placeForMaxPoints, retired, standingsAfter, lineage, pointsPath, shortTeams, teamPoleGaps, median, teamMileage } from '/shared/season-calc.js';
@@ -11,15 +11,24 @@ import { icon } from '../icons.js';
 import { renderPredict, initPredict } from './predict-view.js';
 import { renderReview, reviewAction } from './season-review.js';
 import { renderDestructors, showDestructorsDriver } from './season-destructors.js';
+import { renderGrid } from './season-grid.js';
+import { GRID_NEXT } from '/shared/grid-next.js';
+import { renderPenalties } from './season-penalties.js';
 import { addPngButtons, savePng } from './season-png.js';
 import { toast } from './delay.js';
 import { renderPace, setPaceCut, setPaceScope } from './season-pace.js';
 import { tip, hit, initTips } from './season-tip.js';
 import { DEC, LOCALE, LANG, ord, t } from '../i18n.js';
 import { gpShort, gpFull } from '/shared/gp-names.js';
-import { COUNTRY_ISO } from '/shared/social-season.js';
-import { seasonPath, seasonTitle, slug, gpSlug, parseSeasonPath } from '/shared/season-urls.js';
+import { COUNTRY_ISO } from '/shared/country-iso.js';
+import { seasonPath, seasonTitle, slug, gpSlug, parseSeasonPath, enSeasonPath, parseEnSeasonPath, enSeasonTitle, enGpSlug, tabTitle } from '/shared/season-urls.js';
 import { circuitInfo } from '/shared/circuits-info.js';
+import { takeEarly } from './season-kpi.js';
+import { historyBlock } from './season-history.js';
+import { careerBlock } from './season-career.js';
+
+// Réponse déjà demandée par l'Accueil (ses cartes), sinon lue sur le serveur
+const read = (path) => takeEarly(path) || api(path);
 
 const color = (team, teamId) => teamColor({ TeamName: team, TeamColour: OFFICIAL[teamId] || '8b95a8' });
 const seasonOpt = (d) => driverOpt({ TeamName: d.team, TeamColour: OFFICIAL[d.teamId] || '8b95a8' }, d.number);
@@ -78,8 +87,25 @@ async function loadPrev() {
 async function loadDest(y) {
   if (dest?.year === y) return;
   dest = { year: y, loading: true };
-  try { dest = shortTeams(await api(`/api/season/destructors?year=${y}`)); } catch (err) { dest = { year: y, error: err.message }; }
+  try { dest = shortTeams(await read(`/api/season/destructors?year=${y}`)); } catch (err) { dest = { year: y, error: err.message }; }
   if (section === 'destructors' && !$('#seasonView').hidden) { animate(); render(); }
+}
+// Sanctions : permis à points et décisions des commissaires (documents FIA lus par le serveur) ; relu toutes les 30 s
+// pendant la lecture des documents, tant que la rubrique est ouverte
+let pens = null;
+let pensTimer = null;
+let pensBusy = false;
+// (relecture en attente, ou lecture finie : rien à refaire)
+async function loadPens(y, again = false) {
+  if (pensBusy || (pens?.year === y && !again && (pensTimer || !(pens.pending || pens.error)))) return;
+  pensBusy = true;
+  clearTimeout(pensTimer);
+  pensTimer = null;
+  try { pens = shortTeams(await read(`/api/season/penalties?year=${y}`)); } catch (err) { pens = { year: y, error: err.message }; }
+  pensBusy = false;
+  const open = section === 'penalties' && !$('#seasonView').hidden;
+  if (open && (pens.pending || pens.error)) pensTimer = setTimeout(() => loadPens(y, true), FOLLOW_MS);
+  if (open) render();
 }
 // Saison comparée (Comparer deux saisons) : chargée une fois, gardée pour la session
 async function loadOther(y) {
@@ -100,7 +126,7 @@ async function loadFia() {
   const y = year;
   let first = false;
   try {
-    const f = shortTeams(await api(`/api/season/fia?year=${y}`));
+    const f = shortTeams(await read(`/api/season/fia?year=${y}`));
     if (y !== year) return;
     const same = fia?.year === f.year && fia.done === f.done && fia.total === f.total && fia.pending === f.pending && !fia.error;
     first = !fia?.events?.length && !!f.events?.length;   // premiers documents : la rubrique s'anime à leur arrivée
@@ -121,7 +147,7 @@ async function loadStats() {
   const y = year;
   let first = false;
   try {
-    const s = shortTeams(await api(`/api/season/stats?year=${y}`));
+    const s = shortTeams(await read(`/api/season/stats?year=${y}`));
     if (y !== year) return;
     const same = stats?.year === s.year && stats.done === s.done && stats.total === s.total && stats.pending === s.pending && !stats.error;
     first = !stats?.races?.length && !!s.races?.length;   // premières courses analysées : la rubrique s'anime à leur arrivée
@@ -149,7 +175,7 @@ async function load(force = false) {
   $('#szContent').innerHTML = skeleton(t('Chargement de la saison {}…', y));
   let d;
   try {
-    d = shortTeams(await api(`/api/season?year=${y}`));
+    d = shortTeams(await read(`/api/season?year=${y}`));
   } catch (err) {
     if (y !== year) return;
     loading = false;
@@ -280,19 +306,33 @@ function calSpan(r) {
 }
 function calDays(r) {
   const days = new Map();
-  for (const s of r.sessions.filter((x) => x.t)) {
-    const k = new Date(s.t).toDateString();
-    if (!days.has(k)) days.set(k, { t: s.t, list: [] });
+  // Séance sans heure (horaires pas encore publiés) : date seule (day, à midi UTC pour le bon jour)
+  for (const s of r.sessions.filter((x) => x.t || x.day)) {
+    const at = s.t || `${s.day}T12:00:00Z`, k = new Date(at).toDateString();
+    if (!days.has(k)) days.set(k, { t: at, list: [] });
     days.get(k).list.push(s);
   }
   const nx = nextSession()?.s;   // prochaine séance en rouge, comme sur l'accueil
   return `<div class="cal-days">${[...days.values()].map((d) => `<div class="cal-day"><div class="cal-day-h">${esc(fmtDate(d.t, { weekday: 'short', day: 'numeric' }))}</div>
-    ${d.list.map((s) => `<div class="cal-s ${Date.parse(s.t) < Date.now() ? 'past' : ''} ${s === nx ? 'now' : ''}"><span>${esc(s.label)}</span><b>${fmtTime(s.t)}</b></div>`).join('')}</div>`).join('')}</div>`;
+    ${d.list.map((s) => calSession(s.label, s.t ? nightMark(s.t) + fmtTime(s.t) : '—', `${Date.parse(s.t) < Date.now() ? 'past' : ''} ${s === nx ? 'now' : ''}`, r.sprint)).join('')}</div>`).join('')}</div>`;
 }
 // Lien vers la fiche d'un Grand Prix (vraie adresse dans la version web, pour la partager et pour les moteurs de recherche)
-const gpLink = (r, text, cls = '', pre = '') => `<a href="${seasonPath(year, 'gp', gpSlug(r.name))}" data-szgp="${r.round}"${cls ? ` class="${cls}"` : ''}>${pre}${esc(text)}</a>`;
+// Version web en anglais : adresses anglaises (/en/season/…, nom anglais du Grand Prix), comme les pages du serveur
+const enUrls = () => urls && LANG === 'en';
+const gpPath = (y, r) => (enUrls() ? enSeasonPath(y, 'gp', enGpSlug(r.name)) : seasonPath(y, 'gp', gpSlug(r.name)));
+const gpLink = (r, text, cls = '', pre = '') => `<a href="${gpPath(year, r)}" data-szgp="${r.round}"${cls ? ` class="${cls}"` : ''}>${pre}${esc(text)}</a>`;
 
 // Fiche d'un Grand Prix : résultats, sprint, qualifications, arrêts les plus rapides (analyse des archives)
+// Pilote du jour (vote des fans, formula1.com) : les 5 premiers, barres aux couleurs des écuries
+function dotdBlock(r) {
+  if (!r.dotd?.length) return '';
+  const top = r.dotd[0].pct || 1;
+  const who = (code) => r.results.find((x) => x.code === code) || data.drivers.find((x) => x.code === code) || { code, name: code };
+  return `<section class="sz-box"><h3>${t('Pilote du jour')}</h3>
+    <div class="sz-hbars">${r.dotd.map((v) => { const d = who(v.code); return `<div class="sz-hbar"><div class="sz-hb-l">${bar(d.team, d.teamId)}${esc(d.name || d.code)}</div><div class="sz-hb-t"><i style="width:${Math.max(2, (100 * v.pct) / top)}%;background:${color(d.team, d.teamId)}"></i></div><div class="sz-hb-v">${v.pct.toFixed(1).replace('.', DEC)} %</div></div>`; }).join('')}</div>
+    <div class="muted small">${t('Vote des fans pendant la course (formula1.com), 5 premiers.')}</div></section>`;
+}
+
 function renderGp() {
   const r = data.races.find((x) => x.round === gpRound) || data.races.filter(done).at(-1) || data.races[0];
   if (!r) return '<div class="note">Pas encore de Grand Prix.</div>';
@@ -310,8 +350,10 @@ function renderGp() {
   if (r.results.length) {
     parts.push(`<section class="sz-box"><h3>Course</h3><div class="sz-scroll"><table class="sz-table"><tr><th>Pos.</th><th>Pilote</th><th>Temps / écart</th><th>Tours</th><th>Grille</th><th>Points</th></tr>
       ${r.results.map((x) => `<tr><td>${pos(x)}</td><td>${who(x)}</td><td>${gap(x)}</td><td>${x.laps ?? ''}</td><td>${x.grid ? `P${x.grid}` : 'Stands'}</td><td>${x.points || ''}</td></tr>`).join('')}</table></div></section>`);
+    parts.push(dotdBlock(r));
   } else {
     parts.push(`<section class="sz-box"><h3>Programme du week-end</h3>${calDays(r)}${calIcs(r)}</section>`);
+    parts.push(historyBlock(r.circuitId, { chip, rerender: () => { if (section === 'gp' && !$('#seasonView').hidden) render(); } }));
   }
   if (r.sprintResults.length) {
     parts.push(`<section class="sz-box"><h3>Sprint</h3><div class="sz-scroll"><table class="sz-table"><tr><th>Pos.</th><th>Pilote</th><th>Temps / écart</th><th>Points</th></tr>
@@ -340,14 +382,21 @@ function syncUrl() {
   if (!urls || !data || $('#seasonView').hidden) return;
   const d = section === 'drivers' ? data.drivers.find((x) => x.code === drvCode) : null;
   const r = section === 'gp' ? data.races.find((x) => x.round === gpRound) : null;
-  const p = seasonPath(data.year, section, d ? slug(d.name) : r ? gpSlug(r.name) : null);
+  const en = enUrls();
+  const p = en ? enSeasonPath(data.year, section, d ? slug(d.name) : r ? enGpSlug(r.name) : null) : seasonPath(data.year, section, d ? slug(d.name) : r ? gpSlug(r.name) : null);
   if (location.pathname !== p && push) {
     history.replaceState({ szTop: leaveTop }, '');
     history.pushState(null, '', p);
   } else if (location.pathname !== p) history.replaceState(history.state, '', p);
   push = false;
   document.documentElement.dataset.seasonTitle = '1';
-  document.title = `${seasonTitle(data.year, section, d?.name || r?.name, !!r?.results.length)} · Paddock Live`;
+  const title = (en ? enSeasonTitle : seasonTitle)(data.year, section, d?.name || r?.name, !!r?.results.length);
+  document.title = tabTitle(title);
+  // Titre principal de la page (H1) pour les moteurs de recherche et les lecteurs d'écran : le H1 envoyé par le serveur
+  // est remplacé quand la Saison s'affiche. Hors de #szContent (redessiné), masqué à l'écran
+  let h1 = $('#szH1');
+  if (!h1) { h1 = document.createElement('h1'); h1.id = 'szH1'; h1.className = 'sr-only'; $('#szContent').before(h1); }
+  h1.textContent = title;
 }
 
 // Version web : adresses de la Saison (appelé par la page, analytics/live-page/web.js). Chaque rubrique ou fiche
@@ -355,14 +404,16 @@ function syncUrl() {
 // puis au direct
 export function seasonUrls() {
   urls = true;
-  addEventListener('popstate', (e) => {
-    const p = parseSeasonPath(location.pathname);
-    if (p) openSeason(p.section, p.year || undefined, p.item, true);
-    else if (!$('#seasonView').hidden) closeSeason();
-    // Retour à l'endroit où l'on était (encore une fois une fois les tableaux ou les statistiques affichés)
-    const top = e.state?.szTop;
-    if (p && top) for (const ms of [0, 400, 1200]) setTimeout(() => { $('#szContent').scrollTop = top; }, ms);
-  });
+  addEventListener('popstate', seasonPop);
+}
+// Retour en arrière (aussi appelé par ui/season-lazy.js pour le premier, arrivé avant le chargement de ce module)
+export function seasonPop(e) {
+  const p = parseSeasonPath(location.pathname) || parseEnSeasonPath(location.pathname);
+  if (p) openSeason(p.section, p.year || undefined, p.item, true);
+  else if (!$('#seasonView').hidden) closeSeason();
+  // Retour à l'endroit où l'on était (encore une fois une fois les tableaux ou les statistiques affichés)
+  const top = e.state?.szTop;
+  if (p && top) for (const ms of [0, 400, 1200]) setTimeout(() => { $('#szContent').scrollTop = top; }, ms);
 }
 
 // Calendrier sur un globe (ui/cal-globe.js, chargé à l'ouverture du Calendrier) : emplacement vide rempli après
@@ -383,7 +434,7 @@ function calendarMap(next) {
   const X = (lon) => ((lon + 180) / 360) * world.w, Y = (lat) => ((world.lat0 - lat) / (world.lat0 - world.lat1)) * world.h;
   const dots = races.map((r) => {
     const state = done(r) ? 'done' : next?.round === r.round ? 'next' : 'future';
-    return `<a href="${seasonPath(year, 'gp', gpSlug(r.name))}" data-szgp="${r.round}" class="cal-pin ${state}"${tip(gpHead(r), [calSpan(r).replace(/<[^>]+>/g, '')])}>
+    return `<a href="${gpPath(year, r)}" data-szgp="${r.round}" class="cal-pin ${state}"${tip(gpHead(r), [calSpan(r).replace(/<[^>]+>/g, '')])}>
       <circle cx="${X(r.lon).toFixed(1)}" cy="${Y(r.lat).toFixed(1)}" r="${state === 'next' ? 9 : 7}"/><text x="${X(r.lon).toFixed(1)}" y="${(Y(r.lat) + 3.5).toFixed(1)}" text-anchor="middle">${r.round}</text></a>`;
   }).join('');
   // Cadrage : du nord de l'Europe (65° N) au sud de l'Australie (48° S)
@@ -398,7 +449,7 @@ function globeSlot() {
   const next = nextSession()?.race;
   const list = data.races.filter((r) => Number.isFinite(r.lat) && Number.isFinite(r.lon)).map((r) => ({
     round: r.round, lat: r.lat, lon: r.lon, state: done(r) ? 'done' : next?.round === r.round ? 'next' : 'future', sprint: !!r.sprint,
-    name: gpShort(r.name, LANG), place: [r.circuit, r.locality].filter(Boolean).join(' · '), dates: calSpan(r), flag: flagOf(r), href: seasonPath(year, 'gp', gpSlug(r.name)),
+    name: gpShort(r.name, LANG), place: [r.circuit, r.locality].filter(Boolean).join(' · '), dates: calSpan(r), flag: flagOf(r), href: gpPath(year, r),
   }));
   const off = () => { flat = true; if (section === 'calendar' && !$('#seasonView').hidden) render(); };
   const mount = (m) => { globe = m; m.mountGlobe(slot, list, off); };
@@ -414,7 +465,7 @@ function renderCalendar() {
   const iso = next && COUNTRY_ISO[next.country];
   const hero = next ? `<section class="cal-hero"${iso ? ` style="--flag:url('https://flagcdn.com/w640/${iso}.png')"` : ''}>
       <div class="cal-hero-main">
-        <div class="cal-hero-top"><span class="cal-tag">Prochain Grand Prix</span><span class="cal-round">Manche ${next.round} / ${data.races.length}</span>${next.sprint ? '<span class="sz-tag sprint">Sprint</span>' : ''}</div>
+        <div class="cal-hero-top"><span class="cal-tag">Prochain Grand Prix</span><span class="cal-round">Manche ${next.round} / ${data.races.length}</span>${next.sprint ? '<span class="sz-tag sprint">Week-end sprint</span>' : ''}</div>
         <h2 class="cal-hero-name">${flagOf(next)}${esc(gpShort(next.name, LANG))}</h2>
         <div class="cal-hero-sub">${esc([next.circuit, next.locality].filter(Boolean).join(' · '))} · ${calSpan(next)}</div>
         <div class="cal-next">${esc(nx.s.label)} dans</div>
@@ -680,6 +731,12 @@ function renderResults(ctx) {
   const km = (v) => Math.round(v).toLocaleString(LOCALE);
   const card = (title, main, sub) => `<div class="sz-card"><div class="muted small">${title}</div><div class="sz-big">${main}</div><div class="muted small">${sub || ''}</div></div>`;
   const who = (x) => (x ? `${bar(x.d.team, x.d.teamId)}${esc(x.d.last)}` : '—');
+  // Pilote du jour : le plus souvent élu (à égalité, le premier au championnat)
+  const dotdN = new Map();
+  for (const r of data.races) if (r.dotd?.[0]) dotdN.set(r.dotd[0].code, (dotdN.get(r.dotd[0].code) || 0) + 1);
+  const dotdTop = [...dotdN].map(([code, n]) => ({ n, d: data.drivers.find((x) => x.code === code) })).filter((x) => x.d).sort((a, b) => b.n - a.n || a.d.pos - b.d.pos)[0];
+  const dotdChip = (r) => { const v = r.dotd?.[0]; const d = v && (r.results.find((x) => x.code === v.code) || data.drivers.find((x) => x.code === v.code)); return d ? chip(d) : '—'; };
+  const hasDotd = data.races.some((r) => r.dotd?.length);
   return `<div class="sz-cards">
       ${card('Plus de victoires', st.wins ? `${st.wins.n} <small>victoires</small>` : '—', who(st.wins))}
       ${card('Plus de podiums', st.podiums ? `${st.podiums.n} <small>podiums</small>` : '—', who(st.podiums))}
@@ -689,6 +746,7 @@ function renderResults(ctx) {
       ${card('Plus belle remontée', st.comeback ? `+${st.comeback.v} <small>places</small>` : '—', st.comeback ? `${who(st.comeback)} · P${st.comeback.from} ${icon('arrow-right', 'ic-s')} P${st.comeback.to} · R${st.comeback.r.round}` : '')}
       ${card('Plus large victoire', st.largest ? `+${st.largest.v.toFixed(3).replace('.', DEC)} s` : '—', st.largest ? `${esc(st.largest.d.last)} · R${st.largest.r.round} ${esc(st.largest.r.locality || '')}` : '')}
       ${card('Victoire la plus serrée', st.closest ? `+${st.closest.v.toFixed(3).replace('.', DEC)} s` : '—', st.closest ? `${esc(st.closest.d.last)} · R${st.closest.r.round} ${esc(st.closest.r.locality || '')}` : '')}
+      ${dotdTop ? card(t('Plus souvent pilote du jour'), `${dotdTop.n} <small>${t('fois')}</small>`, who(dotdTop)) : ''}
       ${card('Plus de kilomètres', miles[0] ? `${km(miles[0].km)} <small>km</small>` : '—', miles[0] ? `${bar(miles[0].team, miles[0].teamId)}${esc(miles[0].team)}` : '')}
     </div>
     ${seasonGrid()}
@@ -696,10 +754,10 @@ function renderResults(ctx) {
       <div class="sz-hbars">${miles.map((m) => `<div class="sz-hbar"><div class="sz-hb-l">${bar(m.team, m.teamId)}${esc(m.team)}</div><div class="sz-hb-t"><i style="width:${Math.max(2, (100 * m.km) / miles[0].km)}%;background:${color(m.team, m.teamId)}"></i></div><div class="sz-hb-v">${km(m.km)} km</div></div>`).join('')}</div>
       <div class="muted small">Courses et sprints : tours bouclés par les deux voitures × longueur du circuit.</div></section>` : ''}
     ${polesVsRecords(data.races.filter(done), Math.max(600, ($('#szContent')?.clientWidth || 934) - 34))}
-    <section class="sz-box"><h3>Grands Prix</h3><table class="sz-table sz-results"><tr><th>Manche</th><th>Grand Prix</th><th>Date</th><th>Vainqueur</th><th>2e</th><th>3e</th><th>Pole</th><th>Vainqueur sprint</th></tr>
+    <section class="sz-box"><h3>Grands Prix</h3><table class="sz-table sz-results"><tr><th>Manche</th><th>Grand Prix</th><th>Date</th><th>Vainqueur</th><th>2e</th><th>3e</th><th>Pole</th><th>Vainqueur sprint</th>${hasDotd ? `<th>${t('Pilote du jour')}</th>` : ''}</tr>
       ${data.races.map((r) => `<tr class="${done(r) ? '' : 'muted'}"><td>R${r.round}</td><td>${gpLink(r, gpShort(r.name, LANG), 'sz-gp-chip', flagOf(r))}</td><td>${fmtDate(r.date)}</td>
         <td>${r.results[0] ? chip(r.results[0]) : '—'}</td><td>${r.results[1] ? chip(r.results[1]) : ''}</td><td>${r.results[2] ? chip(r.results[2]) : ''}</td>
-        <td>${r.quali.find((q) => q.pos === 1) ? chip(r.quali.find((q) => q.pos === 1)) : '—'}</td><td>${r.sprintResults[0] ? chip(r.sprintResults[0]) : '—'}</td></tr>`).join('')}</table></section>`;
+        <td>${r.quali.find((q) => q.pos === 1) ? chip(r.quali.find((q) => q.pos === 1)) : '—'}</td><td>${r.sprintResults[0] ? chip(r.sprintResults[0]) : '—'}</td>${hasDotd ? `<td>${done(r) ? dotdChip(r) : ''}</td>` : ''}</tr>`).join('')}</table></section>`;
 }
 
 // Qualifications : écart de chaque écurie à la pole, Grand Prix par Grand Prix (en % ou en secondes)
@@ -895,7 +953,7 @@ function renderTitle() {
   const tr = titleRace(data, data.year);
   const dl = Object.values(store.state.DriverList || {});
   const photo = (code) => photoUrl(dl.find((x) => x?.Tla === code) || { Tla: code });
-  const out = (e, team) => (e.alive ? '' : `<div class="tr-out">${team ? t('Éliminée') : t('Éliminé')} · R${e.outRound} ${esc(gpShort(e.outName, LANG))}</div>`);
+  const out = (e, team) => (e.alive ? '' : `<div class="tr-out">${team ? t('Éliminée') : t('Éliminé')} · R${e.outRound} ${esc(gpShort(e.outName, LANG))}${data.races.some((r) => !r.results?.length) ? ` · ${t('au mieux {}', ord(e.best))}` : ''}</div>`);
   // Barre : points actuels (couleur d'écurie) + maximum encore possible (hachures) ; trait = leader
   const bars = (e, list, col) => {
     const lead = Math.max(...list.map((x) => x.points));
@@ -957,13 +1015,28 @@ function renderTitle() {
         <div class="tr-cl-note">${t('À égalité de points, le titre va au plus grand nombre de victoires.')}</div>`;
     return `<div class="tr-clinch">${head}${body}</div>`;
   };
+  // Places d'honneur : qui peut encore finir 2e ou 3e du championnat (ou qui y est assuré)
+  const honoursBox = (rows, kind) => {
+    if (!data.races.some(done)) return '';
+    const list = kind === 'd' ? tr.drivers : tr.constructors;
+    const chip = (e) => `<span class="tr-cl-who" style="--tc:${kind === 'd' ? color(e.team, e.teamId) : color(e.name, e.id)}" title="${esc(e.name)}">${esc(kind === 'd' ? e.code : e.name)}</span>`;
+    const line = (h) => {
+      const name = esc(h.sure?.name || '');
+      if (h.sure) return t(kind === 'd' ? '{} est assuré de finir {}' : '{} est assurée de finir {}', `<b>${name}</b>`, ord(h.place));
+      if (h.who.length > 8) return t(kind === 'd' ? '{} pilotes peuvent encore finir {}' : '{} écuries peuvent encore finir {}', h.who.length, ord(h.place));
+      return `<span class="tr-hon-who">${h.who.map(chip).join('')}</span>`;
+    };
+    if (!list.length) return '';
+    return `<div class="tr-honours"><div class="tr-cl-sub">${t('Places d\'honneur')}</div>
+      ${rows.map((h) => `<div class="tr-hon-row"><b>${t('{} place', ord(h.place))}</b><span>${line(h)}</span></div>`).join('')}</div>`;
+  };
   const left = tr.races ? `${t('{} courses', tr.races)}${tr.sprints ? ` ${t('et {} sprints', tr.sprints)}` : ''} ${t('à disputer')}` : t('Saison terminée');
   return `<div class="tr-intro sz-box"><div><div class="muted small">${t('Reste')}</div><div class="tr-big">${left}</div></div>
       <div><div class="muted small">${t('Points encore à prendre')}</div><div class="tr-big">${tr.maxD} <span class="muted small">${t('par pilote')}</span> · ${tr.maxC} <span class="muted small">${t('par écurie')}</span></div></div></div>
     <div class="sz-h2h-pick"><div class="tab-seg">${[['d', 'Championnat pilotes'], ['c', 'Championnat constructeurs']].map(([k, l]) => `<button type="button" data-tr-kind="${k}" class="${trKind === k ? 'on' : ''}">${t(l)}</button>`).join('')}</div></div>
     ${trKind === 'd'
-    ? `<section class="sz-box"><h3>${t('Championnat pilotes')}</h3>${head(tr.drivers, tr.champion, 'd')}${clinchBox(tr.clinchD, 'd')}<div class="tr-grid">${tr.drivers.map(driverCard).join('')}</div></section>`
-    : `<section class="sz-box"><h3>${t('Championnat constructeurs')}</h3>${head(tr.constructors, tr.champTeam, 'c')}${clinchBox(tr.clinchC, 'c')}<div class="tr-grid">${tr.constructors.map(teamCard).join('')}</div></section>`}`;
+    ? `<section class="sz-box"><h3>${t('Championnat pilotes')}</h3>${head(tr.drivers, tr.champion, 'd')}${clinchBox(tr.clinchD, 'd')}${honoursBox(tr.honoursD, 'd')}<div class="tr-grid">${tr.drivers.map(driverCard).join('')}</div></section>`
+    : `<section class="sz-box"><h3>${t('Championnat constructeurs')}</h3>${head(tr.constructors, tr.champTeam, 'c')}${clinchBox(tr.clinchC, 'c')}${honoursBox(tr.honoursC, 'c')}<div class="tr-grid">${tr.constructors.map(teamCard).join('')}</div></section>`}`;
 }
 
 // Comparer deux saisons : le leader de chaque saison et une phrase de résumé, la courbe des points des deux leaders,
@@ -1056,21 +1129,28 @@ function render() {
   // Pilote ou Grand Prix demandé par l'adresse : retrouvé dans la saison chargée
   if (wanted?.year === data.year) {
     if (wanted.section === 'drivers') drvCode = data.drivers.find((d) => slug(d.name) === wanted.item)?.code ?? drvCode;
-    if (wanted.section === 'gp') gpRound = data.races.find((r) => gpSlug(r.name) === wanted.item)?.round ?? null;
+    if (wanted.section === 'gp') gpRound = data.races.find((r) => gpSlug(r.name) === wanted.item || enGpSlug(r.name) === wanted.item)?.round ?? null;
     wanted = null;
   }
+  // Grille de la saison suivante : rubrique de la saison qui la précède seulement
+  const gridBtn = $('#szNav [data-sz="grid"]');
+  if (gridBtn) gridBtn.hidden = data.year !== GRID_NEXT.year - 1;
+  if (section === 'grid' && gridBtn?.hidden) section = 'home';
   for (const b of document.querySelectorAll('#szNav [data-sz]')) b.classList.toggle('active', b.dataset.sz === section);
+  szGroupSync();
   if ($('#szCur')) $('#szCur').textContent = $('#szNav .active')?.textContent.trim() || (section === 'gp' ? 'Grand Prix' : '');
   const st = stats?.year === data.year || stats?.error ? stats : null;
-  const ctx = { data, stats: st, color, bar, opt: seasonOpt, photo: (d) => photoUrl({ Tla: d.code }, 480), flag: roundFlag, logo: (team) => teamLogo(team, false, 512), look: cardLook, official: (id) => OFFICIAL[id] || '8b95a8', ratings: ratingsFor(data, st), prev: prev?.year === data.year - 1 ? prev : null };
+  const ctx = { data, stats: st, color, bar, opt: seasonOpt, photo: (d) => photoUrl({ Tla: d.code }, 480), flag: roundFlag, logo: (team) => teamLogo(team, false, 512), look: cardLook, official: (id) => OFFICIAL[id] || '8b95a8', ratings: ratingsFor(data, st), prev: prev?.year === data.year - 1 ? prev : null,
+    career: (d) => careerBlock(d, { color, rerender: () => { if (section === 'drivers' && !$('#seasonView').hidden) render(); } }) };
   if (section === 'drivers') loadPrev();
   const fiaData = fia?.year === data.year ? fia : null;
   const html = {
     home: renderHome, calendar: renderCalendar, standings: renderStandings, teams: renderTeams, title: renderTitle, compare: renderCompare, destructors: () => { loadDest(data.year); return renderDestructors({ ...ctx, chart: lineChartSvg, w: Math.max(600, ($('#szContent')?.clientWidth || 934) - 34) }, dest?.year === data.year && !dest.loading ? dest : null); }, results: () => renderResults(ctx), quali: renderQuali, h2h: renderH2H,
+    penalties: () => { loadPens(data.year); return renderPenalties(ctx, pens?.year === data.year ? pens : null); },
     drivers: () => renderDrivers(ctx, drvCode), consistency: () => renderConsistency(ctx), pits: () => renderPits(ctx),
     speeds: () => renderSpeeds(ctx, speedPt), circuits: () => renderCircuits(ctx, circSort), ratings: () => renderRatings(ctx, rateSort),
     tech: () => renderTech(ctx, fiaData), elements: () => renderElements(ctx, fiaData), predict: () => renderPredict(data.year, (code) => { const d = data.drivers.find((x) => x.code === code); return d ? seasonOpt(d) : ''; }), review: () => renderReview(ctx),
-    gp: renderGp,
+    gp: renderGp, grid: () => renderGrid(ctx),
   }[section]();
   // Tableaux larges : défilement de côté gardé quand la rubrique est redessinée (nouvelle course analysée…)
   const wide = () => $('#szContent').querySelectorAll('.sz-box, .sz-scroll');
@@ -1184,21 +1264,71 @@ export function closeSeason() {
   szMenu(false);
   $('#seasonView').hidden = true;
   $('#seasonBtn').classList.remove('on');
-  if (urls && location.pathname.startsWith('/saison/')) history.pushState(null, '', '/');
-  if (urls) { delete document.documentElement.dataset.seasonTitle; document.title = 'Paddock Live'; }
+  if (urls && /^\/(saison|en\/season)\//.test(location.pathname)) history.pushState(null, '', '/');
+  if (urls) { delete document.documentElement.dataset.seasonTitle; document.title = 'Paddock Live'; $('#szH1')?.remove(); }
   clearInterval(timer);
   clearTimeout(fiaTimer);
   clearTimeout(statsTimer);
+  clearTimeout(pensTimer);
+  pensTimer = null;
 }
 
+// Télémétrie : rubriques en 5 groupes repliables (titres ajoutés en tête de la liste, rubriques remises dans l'ordre de
+// leur groupe par design-v3.css) ; le groupe de la rubrique ouverte est déplié (repliable à la main). Autres designs : titres masqués, liste
+// d'origine
+const SZ_GROUPS = [
+  ['overview', 'Vue d\'ensemble', ['home', 'calendar', 'standings', 'title', 'review', 'compare']],
+  ['results', 'Résultats', ['results', 'quali', 'destructors', 'penalties']],
+  ['people', 'Pilotes et écuries', ['drivers', 'teams', 'grid', 'h2h', 'ratings', 'consistency']],
+  ['tech', 'Technique', ['pits', 'speeds', 'circuits', 'tech', 'elements']],
+  ['games', 'Jeux', ['predict']],
+];
+const szOpen = new Set();   // groupes dépliés à la main
+const szShut = new Set();   // groupes repliés à la main (aussi celui de la rubrique ouverte)
+let szCur = '';
+function szGroups() {
+  const nav = $('#szNav');
+  if (!nav || nav.querySelector('.sz-grp')) return;
+  const heads = SZ_GROUPS.map(([g, name, ids], i) => {
+    const items = ids.map((id) => nav.querySelector(`[data-sz="${id}"]`)).filter(Boolean);
+    if (!items.length) return '';
+    items.forEach((b, j) => { b.dataset.grp = g; b.style.setProperty('--o', i); b.style.setProperty('--i', j); });
+    // Version simplifiée du téléphone : groupe sans rubrique affichée, sans titre
+    const full = items.every((b) => b.hasAttribute('data-full')) ? ' data-full' : '';
+    return `<button type="button" class="sz-grp" data-grp-h="${g}" style="--o:${i}" aria-expanded="false"${full}><span>${esc(name)}</span>${icon('chevron-down')}</button>`;
+  }).join('');
+  nav.insertAdjacentHTML('afterbegin', heads);
+  nav.addEventListener('click', (e) => {
+    const h = e.target.closest('[data-grp-h]');
+    if (!h) return;
+    const g = h.dataset.grpH;
+    if (h.getAttribute('aria-expanded') === 'true') { szOpen.delete(g); szShut.add(g); } else { szShut.delete(g); szOpen.add(g); }
+    szGroupSync();
+  });
+}
+function szGroupSync() {
+  // Page sans rubrique (fiche d'un Grand Prix) : la vue d'ensemble dépliée
+  const cur = SZ_GROUPS.find(([, , ids]) => ids.includes(section))?.[0] || SZ_GROUPS[0][0];
+  if (cur !== szCur) { szShut.delete(cur); szCur = cur; }   // autre rubrique : son groupe de nouveau déplié
+  for (const h of document.querySelectorAll('#szNav [data-grp-h]')) {
+    const g = h.dataset.grpH;
+    const open = !szShut.has(g) && (g === cur || szOpen.has(g));
+    h.setAttribute('aria-expanded', String(open));
+    h.classList.toggle('cur', g === cur);
+    for (const b of document.querySelectorAll(`#szNav [data-grp="${g}"]`)) b.classList.toggle('sz-shut', !open);
+  }
+}
+
+// Appelé une fois, au premier chargement (ui/season-lazy.js, qui tient aussi le bouton Saison de la barre du haut)
 export function initSeason() {
   initPredict();
+  szGroups();
+  szGroupSync();
   initTips($('#seasonView'));
   const sel = $('#szYear');
   const now = new Date().getUTCFullYear();
   sel.innerHTML = Array.from({ length: 8 }, (_, i) => now - i).map((y) => `<option value="${y}">${y}</option>`).join('');
   sel.addEventListener('change', () => { year = Number(sel.value); push = true; data = null; stats = null; fia = null; clearTimeout(statsTimer); clearTimeout(fiaTimer); setTechFilter(null, 'all'); load(); });
-  $('#seasonBtn').addEventListener('click', () => ($('#seasonView').hidden ? openSeason() : closeSeason()));
   $('#szClose').addEventListener('click', closeSeason);
   $('#szNav').addEventListener('click', (e) => { const b = e.target.closest('[data-sz]'); if (b) { section = b.dataset.sz; jump = true; push = true; szMenu(false); animate(); render(); } });
   $('#szMenu')?.addEventListener('click', () => szMenu(true));

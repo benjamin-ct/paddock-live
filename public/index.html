@@ -16,8 +16,9 @@
   <link rel="stylesheet" href="/css/style.css">
   <link rel="stylesheet" href="/css/broadcast.css">
   <link rel="stylesheet" href="/css/design-v2.css">
+  <link rel="stylesheet" href="/css/design-v3.css">
   <script>/* Carte flottante : page transparente dès l'affichage ; overlay de streaming (OBS…) : sans barre d'outils */ if (/[?&]float=1(&|$)/.test(location.search)) document.documentElement.classList.add('float-map'); if (/[?&]overlay=1(&|$)/.test(location.search)) document.documentElement.classList.add('overlay'); /* Opacité du fond (&bg=0 à 100, Réglages → Streaming) */ const bg = new URLSearchParams(location.search).get('bg'); if (bg !== null) document.documentElement.style.setProperty('--ov-bg', `${Math.min(100, Math.max(0, Number(bg) || 0))}%`);</script>
-  <script>/* Thème Pitwall, apparence (sombre / clair / système) et design posés avant l'affichage : pas d'éclair */ try { const p = JSON.parse(localStorage.getItem('paddock.prefs') || '{}'); const s = p.schemeSet || p.scheme === 'light' ? p.scheme : 'auto'; const light = s === 'light' || (s === 'auto' && matchMedia('(prefers-color-scheme: light)').matches); document.documentElement.dataset.scheme = light ? 'light' : 'dark'; document.documentElement.dataset.design = p.designV || p.design === 'classic' ? p.design || 'v2' : 'v2'; if (light) { document.querySelector('meta[name="theme-color"]').content = '#F4F5F7'; document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]').content = 'default'; } } catch { document.documentElement.dataset.scheme = 'dark'; document.documentElement.dataset.design = 'v2'; } document.documentElement.dataset.theme = 'pitwall';</script>
+  <script>/* Thème Pitwall, apparence (sombre / clair / système) et design posés avant l'affichage : pas d'éclair */ try { const p = JSON.parse(localStorage.getItem('paddock.prefs') || '{}'); const s = p.schemeSet || p.scheme === 'light' ? p.scheme : 'auto'; const light = s === 'light' || (s === 'auto' && matchMedia('(prefers-color-scheme: light)').matches); document.documentElement.dataset.scheme = light ? 'light' : 'dark'; document.documentElement.dataset.design = p.designV >= 2 ? p.design || 'v3' : p.design === 'classic' ? 'classic' : 'v3'; if (p.contrast || matchMedia('(prefers-contrast: more)').matches) document.documentElement.dataset.contrast = 'more'; if (light) { document.querySelector('meta[name="theme-color"]').content = '#F4F5F7'; document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]').content = 'default'; } } catch { document.documentElement.dataset.scheme = 'dark'; document.documentElement.dataset.design = 'v3'; } document.documentElement.dataset.theme = 'pitwall';</script>
 </head>
 <body>
   <!-- Nouveau design : barre de navigation latérale (fenêtre principale, grand écran) -->
@@ -35,6 +36,7 @@
     <button class="rail-btn rail-in-more" data-rail="summary" id="summaryBtn" title="Résumé de la séance, rédigé automatiquement"><svg viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 12h6M10 15h6M10 18h4"/></svg><small>Résumé</small></button>
     <button class="rail-btn rail-in-more" data-rail="mini" id="miniBtn" title="Mini-classement, par-dessus la vidéo"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><rect x="12" y="11" width="7" height="7" rx="1"/></svg><small>Mini</small></button>
     <div class="rail-sp"></div>
+    <button class="rail-btn rail-v3" data-rail="search" title="Rechercher un écran, une vue de la séance, un réglage (Ctrl+K)" aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.3-4.3"/></svg><small>Recherche</small></button>
     <button class="rail-btn rail-in-more" data-rail="scheme" title="Apparence : automatique, sombre ou clair"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></svg><small>Auto</small></button>
     <button class="rail-btn" data-rail="reset" title="Fenêtres : ouvrir le Circuit, l'Analyse ou le Duel dans une fenêtre, dispositions enregistrées, réglages de la disposition"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M10 4v16M3 10h7"/></svg><small>Fenêtres</small></button>
     <button class="rail-btn" data-rail="settings" title="Réglages : source, compte F1 TV, affichage, alertes, application"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><small>Réglages</small></button>
@@ -59,6 +61,8 @@
     <div data-full class="hstat" id="circuitTimeBox" hidden title="Heure locale sur le circuit"><div class="hstat-label">Heure circuit</div><div class="hstat-value" id="circuitTime">—</div></div>
     <div data-full class="hstat weather-mini" id="weatherMini" title="Météo"></div>
     <div class="hstat surface" id="surfaceBox" hidden><div class="hstat-label">État piste</div><div class="hstat-value" id="surfaceValue">—</div></div>
+    <!-- Télémétrie, barre de séance étroite : les outils dans un menu -->
+    <button data-full type="button" class="tb-more" id="tbMore" aria-expanded="false" aria-controls="tbTools" title="Outils : documents FIA, vitesses, secteurs, météo, championnat"><svg class="ic tm-ic" aria-hidden="true"><use href="#i-wrench"/></svg>Outils <svg class="ic" aria-hidden="true"><use href="#i-chevron-down"/></svg></button>
     <div data-full class="tb-tools" id="tbTools">
       <button class="tb-tool" data-tool="docs" title="Documents officiels de la FIA (Grand Prix en cours)"><svg viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h6"/></svg><small>FIA</small><i class="tb-dot" hidden></i></button>
       <button class="tb-tool" data-tool="speeds" title="Vitesses aux points de mesure"><svg viewBox="0 0 24 24"><path d="M4 17a8 8 0 1 1 16 0"/><path d="M12 17l4-5"/><circle cx="12" cy="17" r="1.3"/></svg><small>Vitesses</small></button>
@@ -104,6 +108,17 @@
     <button class="icon-btn" id="settingsBtn" title="Réglages : compte F1 TV, apparence, disposition, alertes, application"><svg class="ic" aria-hidden="true"><use href="#i-gear"/></svg></button>
   </header>
 
+  <!-- Télémétrie : vues de la séance chargée (direct ou replay), sous la barre de séance -->
+  <nav class="sess-views" id="sessViews" hidden aria-label="Vues de la séance">
+    <button type="button" class="sv-more" aria-expanded="false" aria-haspopup="true" title="Vues de la séance : tableau de bord, résultats, résumé, commentaires"><span>Séance</span><svg class="ic" aria-hidden="true"><use href="#i-chevron-down"/></svg></button>
+    <div class="sv-seg">
+      <button type="button" data-sv="board">Tableau de bord</button>
+      <button type="button" data-sv="results">Résultats</button>
+      <button type="button" data-sv="summary">Résumé</button>
+      <button type="button" data-sv="radio">Commentaires</button>
+    </div>
+  </nav>
+
   <div class="flag-banner" id="flagBanner" hidden><span class="fb-icon"></span><span class="fb-text"></span><span class="fb-sub"></span></div>
 
   <div class="replaybar" id="replayBar" hidden>
@@ -127,6 +142,7 @@
       <button class="icon-btn" id="rpStart" title="Aller au départ de la séance"><svg class="ic" aria-hidden="true"><use href="#i-skip-start"/></svg></button>
       <button class="icon-btn" id="rpClose" title="Quitter le replay et revenir au direct"><svg class="ic" aria-hidden="true"><use href="#i-close"/></svg></button>
     </div>
+    <button class="icon-btn rp-more" id="rpMore" type="button" aria-expanded="false" title="Plus de commandes : ±10 s, vitesse, moments, quitter le replay"><svg class="ic" aria-hidden="true"><use href="#i-sliders"/></svg></button>
   </div>
 
   <div class="season-view" id="seasonView" hidden>
@@ -139,9 +155,11 @@
         <button data-sz="title"><svg class="ic" aria-hidden="true"><use href="#i-star"/></svg> Course au titre</button>
         <button data-sz="compare"><svg class="ic" aria-hidden="true"><use href="#i-duel"/></svg> Comparer deux saisons</button>
         <button data-sz="review"><svg class="ic" aria-hidden="true"><use href="#i-medal"/></svg> Bilan de la saison</button>
+        <button data-sz="grid"><svg class="ic" aria-hidden="true"><use href="#i-swap"/></svg> Grille 2027</button>
         <button data-sz="results"><svg class="ic" aria-hidden="true"><use href="#i-checkered"/></svg> Résultats & records</button>
         <button data-sz="quali"><svg class="ic" aria-hidden="true"><use href="#i-stopwatch"/></svg> Qualifications</button>
         <button data-sz="destructors"><svg class="ic" aria-hidden="true"><use href="#i-wrench"/></svg> Championnat des casseurs</button>
+        <button data-sz="penalties"><svg class="ic" aria-hidden="true"><use href="#i-scales"/></svg> Sanctions</button>
         <button data-full data-sz="h2h"><svg class="ic" aria-hidden="true"><use href="#i-duel"/></svg> Duels</button>
         <button data-full data-sz="ratings"><svg class="ic" aria-hidden="true"><use href="#i-medal"/></svg> Notes des pilotes</button>
         <button data-sz="predict"><svg class="ic" aria-hidden="true"><use href="#i-target"/></svg> Pronostics entre amis</button>
@@ -232,7 +250,7 @@
       <div class="panel-head">
         <h2>Classement</h2>
         <div class="panel-tools"><span class="hint">Clic sur un pilote = suivi · sur deux pilotes = duel</span>
-          <details class="map-layers tower-cols" id="towerCols"><summary class="btn small" title="Ajouter ou retirer des colonnes du classement">Colonnes <svg class="ic ic-s" aria-hidden="true"><use href="#i-chevron-down"/></svg></summary><div class="map-layers-menu" id="towerColOpts"></div></details></div>
+          <details class="map-layers tower-cols" id="towerCols"><summary class="btn small" title="Ajouter ou retirer des colonnes du classement"><svg class="ic tc-ic" aria-hidden="true"><use href="#i-columns"/></svg>Colonnes <svg class="ic ic-s" aria-hidden="true"><use href="#i-chevron-down"/></svg></summary><div class="map-layers-menu" id="towerColOpts"></div></details></div>
       </div>
       <div class="panel-body tower-wrap"><table class="tower" id="tower"></table></div>
       <div class="duel-band bt-hostband" id="duelBand" hidden></div>
@@ -258,6 +276,7 @@
               <label class="toggle" title="Vitesse, rapport, régime, gaz et frein du pilote suivi"><input type="checkbox" id="mapFocusCard" checked> Télémétrie du pilote suivi</label>
               <label class="toggle" title="Chaque voiture le long du tour, sous la carte"><input type="checkbox" id="mapRibbon2" checked> Ordre sur la piste</label>
               <label class="toggle"><input type="checkbox" id="mapCorners" checked> Numéros de virage</label>
+              <label class="toggle" title="Tours supprimés par virage, incidents et piste glissante des dernières minutes (pilotes au survol)"><input type="checkbox" id="mapLimits" checked> Limites de piste</label>
               <label class="toggle" title="Secteurs S1/S2/S3 et micro-secteurs du chronométrage"><input type="checkbox" id="mapSectors" checked> Secteurs</label>
               <label class="toggle" title="Numéros des micro-secteurs au zoom"><input type="checkbox" id="mapMiniNums"> N° micro-secteurs (zoom)</label>
               <label class="toggle" title="Zones ligne droite (vert), points de détection (rose) et d'activation (vert) du mode dépassement"><input type="checkbox" id="mapZones" checked> Zones LD / détection</label>
@@ -275,6 +294,7 @@
         <canvas id="mapRibbon" class="map-ribbon" hidden aria-label="Ordre des voitures sur la piste"></canvas>
         <div class="map-legend" id="mapLegend"></div>
         <div class="map-flags" id="mapFlags"></div>
+        <div class="map-tip" id="mapTip" role="tooltip" data-no-i18n hidden></div>
         <div class="map-empty" id="mapEmpty">Chargement du tracé…</div>
         <div class="map-zoom">
           <button class="icon-btn" data-mz="in" title="Zoomer (ou molette)">+</button>
@@ -349,6 +369,23 @@
           <div class="note rd-text-off" id="radioTextOff" hidden>Radios en texte, traduites : <button class="btn small btn-accent" id="radioTextOn">Activer</button></div>
           <ul class="rd-list" id="radioList"></ul>
         </div>
+      </div>
+    </section>
+
+    <!-- Fil de course : radios et messages (direction de course, enquêtes, limites de piste) en un seul fil -->
+    <section class="panel p-race">
+      <div class="panel-head">
+        <h2>Fil de course</h2>
+      </div>
+      <div class="panel-body">
+        <div class="rf-chips" id="rfChips" role="group" aria-label="Filtrer le fil de course">
+          <button type="button" class="rf-chip" data-rf="all">Tout</button>
+          <button type="button" class="rf-chip" data-rf="radio">Radios</button>
+          <button type="button" class="rf-chip" data-rf="rcm">Direction</button>
+          <button type="button" class="rf-chip" data-rf="stewards">Enquêtes</button>
+          <button type="button" class="rf-chip" data-rf="limits">Limites</button>
+        </div>
+        <ul class="rf-list" id="rfList"></ul>
       </div>
     </section>
 
@@ -534,8 +571,11 @@
       <section class="set-block" data-sgroup="display">
         <div class="set-bhead"><h4><svg class="ic" aria-hidden="true"><use href="#i-sliders"/></svg> Général</h4></div>
         <div class="row"><label class="small" title="Automatique : comme l'ordinateur ou le téléphone">Apparence <select id="schemeSel"><option value="auto">Automatique (système)</option><option value="dark">Sombre</option><option value="light">Clair</option></select></label></div>
-        <div class="row"><label class="small" title="Paddock 2 : le nouveau design. Broadcast : habillage façon retransmission TV. Classique : l'ancien design.">Design <select id="designSel"><option value="v2">Paddock 2</option><option value="broadcast">Broadcast (façon TV)</option><option value="classic">Classique</option></select></label></div>
+        <div class="row"><label class="small" title="Télémétrie : le design par défaut. Paddock 2 : le design précédent. Classique : l'ancien design.">Design <select id="designSel"><option value="v3">Télémétrie</option><option value="v2">Paddock 2</option><option value="classic">Classique</option></select></label></div>
         <div class="row"><label class="small">Langue / Language <select id="langSel" data-no-i18n><option value="fr">Français</option><option value="en">English</option><option value="it">Italiano</option><option value="es">Español</option></select></label></div>
+        <div class="row" id="zoomRow" hidden><label class="small" title="Grand écran (4K…) : tout agrandir. Aussi Ctrl + / Ctrl − / Ctrl 0">Taille de l'interface <select id="zoomSel"><option value="90">90 %</option><option value="100">100 %</option><option value="110">110 %</option><option value="125">125 %</option><option value="150">150 %</option><option value="175">175 %</option><option value="200">200 %</option></select></label></div>
+        <div class="row"><label class="toggle small" title="Textes secondaires et filets plus marqués, en sombre comme en clair. Activé aussi quand l'ordinateur ou le téléphone demande plus de contraste"><input type="checkbox" id="contrastOpt"> Contraste renforcé</label></div>
+        <div class="row"><label class="toggle small" title="Formes et motifs en plus des couleurs : mini-secteurs et meilleurs temps, drapeaux de la direction de course, pneus de la stratégie"><input type="checkbox" id="colorblindOpt"> Mode daltonien</label></div>
         <div class="row"><label class="toggle small" title="Panneaux et menus qui apparaissent en douceur"><input type="checkbox" id="motionOpt"> Animations de l'interface</label></div>
         <div class="row"><label class="toggle small"><input type="checkbox" id="keepAwake"> Garder l'écran allumé pendant une séance</label></div>
       </section>
@@ -709,6 +749,7 @@
           <span><kbd>Espace</kbd></span><span>Pause (replay)</span>
           <span><kbd>M</kbd></span><span>Couper les alertes sonores</span>
           <span><kbd>Échap</kbd></span><span>Quitter le panneau agrandi</span>
+          <span><kbd>Ctrl</kbd><kbd>K</kbd></span><span>Palette de commandes : trouver un écran, une vue de la séance, un réglage (⌘K sur Mac)</span>
         </div>
       </section>
 

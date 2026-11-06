@@ -32,6 +32,13 @@ export async function readPart(env, part) {
   try { return JSON.parse(await getRow(env, `suivi:${part}`)) ?? structuredClone(EMPTY[part]); } catch { return structuredClone(EMPTY[part]); }
 }
 const writePart = (env, part, v) => setRow(env, `suivi:${part}`, JSON.stringify(v));
+// Ligne écrite seulement si elle vaut encore raw (null : absente) ; false si quelqu'un l'a changée entre-temps
+async function writeIf(env, k, raw, v) {
+  const r = raw === null
+    ? await env.DB.prepare('INSERT INTO studio (k, v, at) VALUES (?, ?, ?) ON CONFLICT(k) DO NOTHING').bind(k, v, Date.now()).run()
+    : await env.DB.prepare('UPDATE studio SET v = ?, at = ? WHERE k = ? AND v = ?').bind(v, Date.now(), k, raw).run();
+  return r?.meta?.changes === 1;
+}
 
 // ---------- Nettoyage de ce qui est envoyé ----------
 const cleanTask = (t, old = {}) => {
@@ -246,11 +253,24 @@ export async function suiviApi(env, req, sub, { studio = false, rows = async () 
   if (sub === 'ops') {
     const ops = Array.isArray(body) ? body : body?.ops;
     if (!Array.isArray(ops) || !ops.length || ops.length > 200) return json({ error: 'Liste d\'opérations attendue' }, 400);
-    const parts = Object.fromEntries(await Promise.all(PARTS.map(async (p) => [p, await readPart(env, p)])));
-    let touched;
-    const gone = [];
-    try { touched = applyOps(parts, ops, now, gone); } catch (err) { return json({ error: err.message }, 400); }
-    for (const p of touched) await writePart(env, p, parts[p]);
+    // Écriture conditionnelle (comme le journal des publications) : une partie n'est écrite que si personne ne l'a changée
+    // depuis sa lecture ; sinon relue et les opérations refaites dessus (5 essais). Chaque opération ne touche qu'une partie :
+    // celles déjà écrites ne sont pas refaites
+    let touched, parts, pending = null, gone = [];
+    for (let i = 0; i < 5 && pending?.size !== 0; i++) {
+      const raw = Object.fromEntries(await Promise.all(PARTS.map(async (p) => [p, await getRow(env, `suivi:${p}`)])));
+      parts = Object.fromEntries(PARTS.map((p) => { try { return [p, JSON.parse(raw[p]) ?? structuredClone(EMPTY[p])]; } catch { return [p, structuredClone(EMPTY[p])]; } }));
+      const g = [];
+      try { touched = applyOps(parts, ops, now, g); } catch (err) { return json({ error: err.message }, 400); }
+      for (const o of ops) if (o?.op === 'task.add' && o.result) o.task = { ...o.task, id: o.result };   // même identifiant si refaite
+      pending ??= new Set(touched);
+      for (const p of [...pending]) {
+        if (!(await writeIf(env, `suivi:${p}`, raw[p], JSON.stringify(parts[p])))) continue;
+        pending.delete(p);
+        if (p === 'posts') gone = g;   // fichiers retirés : ceux de l'écriture qui a réussi
+      }
+    }
+    if (pending.size) return json({ error: 'Suivi modifié en même temps ailleurs : réessaie' }, 409);
     if (gone.length) await env.MEDIA?.delete(gone.map(fileKey)).catch(() => {});
     return json({ ok: true, ids: ops.map((o) => o.result).filter(Boolean), ...Object.fromEntries([...touched].map((p) => [p, parts[p]])) });
   }
@@ -282,13 +302,20 @@ async function putFile(env, req, now) {
   if (!size || size > MAX_FILE) return json({ error: 'Fichier vide ou trop gros (90 Mo au plus)' }, 413);
   const f = { key: hex(crypto.getRandomValues(new Uint8Array(8))), name, type, size, at: now };
   await env.MEDIA.put(fileKey(f), req.body, { httpMetadata: { contentType: type } });
-  const posts = await readPart(env, 'posts');
-  let doc = posts.find((x) => x.name === gp);
-  if (!doc) { doc = cleanDoc({ name: gp, text: '', at: now }); posts.push(doc); }
-  const old = (doc.files ||= []).findIndex((x) => x.name === name);
-  const gone = old >= 0 ? doc.files.splice(old, 1, f) : (doc.files.push(f), []);
-  if (posts.length > POSTS_KEPT) gone.push(...posts.splice(0, posts.length - POSTS_KEPT).flatMap((x) => x.files || []));
-  await writePart(env, 'posts', posts);
+  // Plusieurs fichiers envoyés en même temps : écriture conditionnelle, relue et refaite si un autre envoi est passé avant
+  let gone = null;
+  for (let i = 0; i < 5 && !gone; i++) {
+    const raw = await getRow(env, 'suivi:posts');
+    let posts;
+    try { posts = JSON.parse(raw) ?? []; } catch { posts = []; }
+    let doc = posts.find((x) => x.name === gp);
+    if (!doc) { doc = cleanDoc({ name: gp, text: '', at: now }); posts.push(doc); }
+    const old = (doc.files ||= []).findIndex((x) => x.name === name);
+    const g = old >= 0 ? doc.files.splice(old, 1, f) : (doc.files.push(f), []);
+    if (posts.length > POSTS_KEPT) g.push(...posts.splice(0, posts.length - POSTS_KEPT).flatMap((x) => x.files || []));
+    if (await writeIf(env, 'suivi:posts', raw, JSON.stringify(posts))) gone = g;
+  }
+  if (!gone) { await env.MEDIA.delete(fileKey(f)).catch(() => {}); return json({ error: 'Suivi modifié en même temps ailleurs : réessaie' }, 409); }
   if (gone.length) await env.MEDIA.delete(gone.map(fileKey)).catch(() => {});
   return json({ ok: true, file: { ...f, url: fileUrl(f) } });
 }

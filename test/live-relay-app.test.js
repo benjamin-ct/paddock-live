@@ -64,3 +64,21 @@ test('appli de bureau : direct par le relais du compte F1 TV, reconnexion sans d
     wss.close();
   }
 });
+
+test('appli de bureau : relance pendant la préparation de la connexion, une seule connexion au direct', async () => {
+  const wss = new WebSocketServer({ port: 0, host: '127.0.0.1' });
+  await new Promise((r) => wss.on('listening', r));
+  let conns = 0;
+  wss.on('connection', () => { conns++; });
+  const live = new LiveSource(fakeHub(), () => token, null, `ws://127.0.0.1:${wss.address().port}/live/ws`);
+  try {
+    live.start();
+    live.restart();   // jeton reçu de l'extension juste après le lancement
+    await until(() => conns >= 1);
+    await new Promise((r) => setTimeout(r, 200));
+    assert.equal(conns, 1);
+  } finally {
+    live.stop();
+    wss.close();
+  }
+});

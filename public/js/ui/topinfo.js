@@ -54,7 +54,7 @@ function otherState(r) {
     otherDocs.set(r.name, o);
     o.job = api(`/api/fia-docs?${new URLSearchParams({ year: r.year, name: r.name, location: r.locality, country: '' })}`)
       .then((x) => { o.docs = x.docs || []; o.page = x.page; })
-      .catch((err) => { o.error = err.message; otherDocs.delete(r.name); })
+      .catch((err) => { o.error = err.message; setTimeout(() => otherDocs.delete(r.name), 30000); })   // erreur affichée, nouvel essai 30 s plus tard (pas en boucle)
       .finally(() => { o.loading = false; if (shownGp() === r.name) render(true); });
   }
   return o;
@@ -177,9 +177,11 @@ function sectorsHtml() {
 // en onglets
 let season = null;    // { drivers, constructors } de /api/season, chargé à la première ouverture
 function champHtml() {
+  // Classement indisponible (serveur injoignable, saison vide) : nouvel essai au bout de 30 s, ou avec « Réessayer »
+  if (season && !season.loading && !season.drivers?.length && Date.now() - season.at > 30e3) season = null;
   if (!season) {
     season = { drivers: [], constructors: [], loading: true };
-    api(`/api/season?year=${new Date().getFullYear()}`).then((d) => { season = d || {}; render(true); }).catch(() => { season = { error: true }; render(true); });
+    api(`/api/season?year=${new Date().getFullYear()}`).then((d) => { season = { ...d, at: Date.now() }; render(true); }).catch(() => { season = { error: true, at: Date.now() }; render(true); });
   }
   // Pilotes absents de la séance (projection) : leur code d'après le classement de la saison
   const names = Object.fromEntries((season.drivers || []).filter((x) => x.number).map((x) => [String(x.number), x.code || x.name]));
@@ -188,7 +190,7 @@ function champHtml() {
   const head = (sub) => `<div class="tbp-head"><b>Championnat</b><span class="muted small">${sub}</span>${tabs}</div>`;
   if (live) return `${head('projection en direct, d\'après les positions en course')}<div class="tbp-scroll">${live}</div>`;
   const list = champTab === 'teams' ? season.constructors : season.drivers;
-  const body = season.loading ? '<p class="muted small">Chargement…</p>' : season.error || !list?.length ? '<p class="muted small">Classement indisponible pour le moment.</p>'
+  const body = season.loading ? '<p class="muted small">Chargement…</p>' : season.error || !list?.length ? '<p class="muted small">Classement indisponible pour le moment. <button class="btn small" data-champ-retry>Réessayer</button></p>'
     : `<table class="champ"><tr><th>Pos.</th><th>${champTab === 'teams' ? 'Écurie' : 'Pilote'}</th><th>Points</th></tr>${list.map((x) => `<tr><td>${esc(x.pos ?? '')}</td><td>${esc(x.name || '')}</td><td><b>${esc(x.points ?? '')}</b></td></tr>`).join('')}</table>`;
   return `${head('classement après la dernière course · projection en direct pendant les courses')}<div class="tbp-scroll">${body}</div>`;
 }
@@ -226,7 +228,8 @@ function show(tool, btn) {
   pop = document.createElement('div');
   pop.className = `tb-pop tb-pop-${tool}`;
   document.body.appendChild(pop);
-  const r = btn.getBoundingClientRect();
+  // Outil choisi dans le menu « Outils » (Télémétrie, barre étroite) : sous le bouton du menu
+  const r = (btn.closest('.tb-tools.open') ? $('#tbMore') : btn).getBoundingClientRect();
   pop.style.top = `${r.bottom + 8}px`;
   // Calé à droite du bouton, sans jamais sortir de l'écran à gauche (téléphone : boutons au milieu de la barre)
   pop.style.right = `${Math.max(8, Math.min(innerWidth - r.right - 40, innerWidth - pop.offsetWidth - 8))}px`;
@@ -244,6 +247,7 @@ function show(tool, btn) {
     if (m) { speedMode = m.dataset.mode; render(true); }
     const c = e.target.closest('[data-champ]');
     if (c) { champTab = c.dataset.champ; render(true); }
+    if (e.target.closest('[data-champ-retry]')) { season = null; render(true); }
   });
   if (tool === 'docs') { markDocsSeen(); $('.tb-tool[data-tool="docs"] .tb-dot').hidden = true; }
   if (tool === 'weather') {
@@ -270,11 +274,30 @@ function docsBadge() {
 export function initTopInfo() {
   const tools = $('#tbTools');
   if (!tools) return;
+  // Menu « Outils » (Télémétrie, barre de séance étroite : les outils y sont rangés, avec leur nom)
+  const more = $('#tbMore');
+  const menu = (on) => {
+    tools.classList.toggle('open', on);
+    more?.setAttribute('aria-expanded', String(on));
+    if (!on || !more) return;
+    const r = more.getBoundingClientRect();
+    Object.assign(tools.style, { top: `${r.bottom + 6}px`, left: `${r.left}px` });
+    tools.querySelector('[data-tool]')?.focus();
+  };
+  more?.addEventListener('click', () => { const on = !tools.classList.contains('open'); if (on) close(); menu(on); });
   tools.addEventListener('click', (e) => {
     const b = e.target.closest('[data-tool]');
-    if (b) show(b.dataset.tool, b);
+    if (b) { show(b.dataset.tool, b); if (tools.classList.contains('open')) { menu(false); more.focus(); } }
   });
-  document.addEventListener('pointerdown', (e) => { if (pop && !pop.contains(e.target) && !tools.contains(e.target) && !e.target.closest('.csel-pop')) close(); });
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+  document.addEventListener('pointerdown', (e) => {
+    if (pop && !pop.contains(e.target) && !tools.contains(e.target) && !e.target.closest('.csel-pop, #tbMore')) close();
+    if (tools.classList.contains('open') && !tools.contains(e.target) && !more.contains(e.target)) menu(false);
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    if (tools.classList.contains('open')) { menu(false); more.focus(); }
+    close();
+  });
+  addEventListener('resize', () => menu(false));
   setInterval(docsBadge, 3000);
 }

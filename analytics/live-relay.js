@@ -13,10 +13,12 @@ import { cleanRequest, translateBatch } from './translate.js';
 import { callerIp, ipQuota } from './quota.js';
 import { pronosApi, GROUP_RE } from './pronos.js';
 import { circuitData, seasonStatsWeb } from './race-stats.js';
-import { seasonFiaWeb, fiaTranslations, fiaDocsWeb } from './fia-tech.js';
+import { seasonFiaWeb, seasonPenaltiesWeb, fiaTranslations, fiaDocsWeb, fiaGridWeb } from './fia-tech.js';
 import { weekendTyres } from './tyres.js';
 import { destructorsWeb } from './destructors.js';
 import { circuitRecords } from './records.js';
+import { circuitHistory } from './circuit-history.js';
+import { careerWeb, DRIVER_ID } from './career.js';
 import { zonesWeb } from './zones.js';
 import { surroundingsWeb, surroundingsStatus } from './surroundings.js';
 import { forecast } from '../shared/forecast.js';
@@ -32,12 +34,15 @@ export const KEEP_MS = 5 * 60e3;   // délai TV possible en ligne
 export const HIST_MS = WEB_HIST_MS; // GPS et télémétrie d'avant le délai (traînées, vitesse des 30 dernières secondes)
 const IDLE_MS = 60e3;              // plus personne : connexion à la F1 fermée au bout d'une minute
 export const LIVE_IDLE_MS = 15 * 60e3;   // pendant une séance : au bout de 15 min (appli quittée, téléphone en veille)
-const MAX_CLIENTS = 1000;
+const MAX_CLIENTS = 20000;        // connexions en veille (hibernation) : un Durable Object en tient bien plus que 1 000
 const MAX_PER_IP = 10;             // relais commun : un seul appelant ne peut pas prendre toutes les places
 const MAX_PER_NET = 30;            // et en IPv6, un bloc /48 (donné gratuitement par certains fournisseurs) pas plus
 const MAX_PRIVATE = 4;             // relais d'un abonné F1 TV : ses onglets et appareils
 export const AUTH_MS = 15e3, PRIVATE_MS = 6 * 3600e3;   // relais d'un abonné : connexion F1 TV attendue, durée d'une connexion
 const ORIGINS = ['https://app.paddocklive.app'];
+// Code d'appairage : 8 chiffres (6 pour ceux donnés avant la mise à jour, encore acceptés) ; codes inconnus permis par adresse
+const PAIR_CODE = /^\d{6}(\d{2})?$/;
+const PAIR_FAILS = 20;
 const STREAM_EVERY = 2000;         // GPS plus ancien : une demande toutes les 2 s au plus par connexion
 // Hors séance (calendrier de la saison, pas de chronos depuis 2 min) : relais au repos, F1 débranchée et connexions
 // des navigateurs en veille (Durable Object en hibernation, plus facturé à la durée) ; réveillé LEAD_MS avant la
@@ -223,13 +228,25 @@ export class LiveRelay {
       if ([...this.pairs.values()].filter((v) => v.ip === ip).length >= 5) return json({ error: 'Trop de codes en attente, réessayez dans 3 minutes' }, 429);
       if (this.pairs.size >= 300) return json({ error: 'Réessayez dans un instant' }, 503);
       let c, n = 0;
-      do { c = String(crypto.getRandomValues(new Uint32Array(1))[0] % 1e6).padStart(6, '0'); } while (this.pairs.has(c) && ++n < 30);
+      do { c = String(crypto.getRandomValues(new Uint32Array(1))[0] % 1e8).padStart(8, '0'); } while (this.pairs.has(c) && ++n < 30);
       this.pairs.set(c, { pub: body.pub, kind: body.kind === 'browser' ? 'browser' : 'phone', box: null, exp: now + 180e3, ip });
       return json({ code: c, ttl: 180 });
     }
-    if (!/^\d{6}$/.test(code || '')) return json({ error: 'Code invalide' }, 400);
+    if (!PAIR_CODE.test(code || '')) return json({ error: 'Code invalide' }, 400);
+    // Codes inconnus : 20 au plus par adresse en 10 minutes (deviner un code en attente demanderait des millions d'essais)
+    const ip = callerIp(req) || '?';
+    this.pairFails ||= new Map();
+    const f = this.pairFails.get(ip);
+    if (f?.exp < now) this.pairFails.delete(ip);
+    if (this.pairFails.get(ip)?.n >= PAIR_FAILS) return json({ error: 'Trop d\'essais, réessayez dans 10 minutes' }, 429);
     const e = this.pairs.get(code);
-    if (!e) return json({ error: 'Code expiré' }, 404);
+    if (!e) {
+      const g = this.pairFails.get(ip) || { n: 0, exp: now + 600e3 };
+      g.n++;
+      this.pairFails.set(ip, g);
+      if (this.pairFails.size > 5000) for (const [k, v] of this.pairFails) if (v.exp < now) this.pairFails.delete(k);
+      return json({ error: 'Code expiré' }, 404);
+    }
     if (req.method === 'GET' && url.searchParams.has('claim')) {       // téléphone : récupère la connexion déposée
       if (!e.box) return new Response(null, { status: 204 });
       this.pairs.delete(code);
@@ -239,6 +256,7 @@ export class LiveRelay {
     if (req.method === 'PUT') {                                        // ordinateur : dépose la connexion chiffrée
       const body = await req.json().catch(() => null);
       if (!pairKey(body?.spub) || typeof body?.iv !== 'string' || body.iv.length > 32 || typeof body?.data !== 'string' || body.data.length > 16384) return json({ error: 'Données invalides' }, 400);
+      if (e.box) return json({ error: 'Connexion déjà déposée pour ce code' }, 409);   // jamais remplacée par une autre
       e.box = { spub: body.spub, iv: body.iv, data: body.data };
       return json({ ok: true });
     }
@@ -460,11 +478,13 @@ export class LiveRelay {
       const token = this.elsewhere ? null : this.userToken;
       const auth = token ? { Authorization: `Bearer ${token}` } : {};
       const neg = await fetch(`${BASE}/negotiate?negotiateVersion=1`, { method: 'POST', headers: { 'User-Agent': UA, ...auth } });
+      if (token && (neg.status === 401 || neg.status === 403)) return this.refused();
       if (!neg.ok) throw new Error(`Négociation SignalR : HTTP ${neg.status}`);
       const { connectionToken, connectionId } = await neg.json();
       const cookie = (neg.headers.getSetCookie?.() || []).map((c) => c.split(';')[0]).join('; ');
       const res = await fetch(`${BASE}?id=${encodeURIComponent(connectionToken || connectionId)}`, { headers: { Upgrade: 'websocket', 'User-Agent': UA, ...auth, ...(cookie ? { Cookie: cookie } : {}) } });
       const ws = res.webSocket;
+      if (!ws && token && (res.status === 401 || res.status === 403)) return this.refused();
       if (!ws) throw new Error(`Connexion refusée (HTTP ${res.status})`);
       ws.accept();
       this.up = ws;
@@ -504,6 +524,16 @@ export class LiveRelay {
       this.setStatus({ connected: false, error: String(err?.message || err).slice(0, 200) });
       this.reconnectLater();
     }
+  }
+
+  // Connexion F1 TV refusée par la F1 (jeton inventé, expiré ou révoqué) : appareils fermés avec le code 4001 (la page et
+  // l'appli repassent au relais commun ou à la connexion directe), relais arrêté au lieu de réessayer sans fin
+  refused() {
+    console.log('[relais] connexion F1 TV refusée par la F1 : relais d\'abonné fermé');
+    this.userToken = null;
+    for (const ws of [...this.clients]) { try { ws.close(4001, 'Connexion F1 TV refusée'); } catch { /* déjà fermée */ } this.drop(ws); }
+    clearTimeout(this.idle);
+    this.stop();
   }
 
   // Séance en cours avec la connexion F1 TV mais sans GPS une minute après la connexion : la F1 ne l'envoie pas
@@ -579,7 +609,8 @@ const relaySeen = async (env, day, ip, name) => !!(await env.DB.prepare('SELECT 
 const toRelay = (req, name, url = req.url) => { const r = new Request(url, req); r.headers.set('X-Relay', name); return r; };
 
 // /live/ws : navigateur relié au relais commun, ou à son propre relais s'il a une connexion F1 TV. Relais
-// d'abonné ouverts par une même adresse : 50 différents par jour au plus (chacun ouvre une connexion à la F1).
+// d'abonné ouverts par une même adresse : 3 différents par jour au plus (chacun ouvre une connexion à la F1 ; un jeton
+// inventé passe le contrôle d'ici, la F1 le refuse ensuite : voir refused()).
 // Revenir sur un relais déjà ouvert dans la journée (coupure, mise à jour du serveur) n'est pas recompté
 export async function liveSocket(req, env) {
   if (!env.LIVE) return new Response('Relais indisponible', { status: 503 });
@@ -587,7 +618,7 @@ export async function liveSocket(req, env) {
   if (name && env.DB) {
     const ip = callerIp(req), day = new Date().toISOString().slice(0, 10);
     if (ip && !(await relaySeen(env, day, ip, name).catch(() => true))) {
-      if (!(await ipQuota(env, { key: 'live-relais', day, ip, limit: 50 }).catch(() => true))) return new Response('Trop de connexions aujourd\'hui', { status: 429 });
+      if (!(await ipQuota(env, { key: 'live-relais', day, ip, limit: 3 }).catch(() => true))) return new Response('Trop de connexions aujourd\'hui', { status: 429 });
       await ipQuota(env, { key: `live-${name}`, day, ip, limit: 1 }).catch(() => null);
     }
   }
@@ -610,7 +641,7 @@ export async function liveState(env, path) {
 // téléphone qui a publié le code, et la dépose dans le même rendez-vous que la version web. Le Studio tient le
 // rôle de l'ordinateur « émetteur ». Le rendez-vous ne voit que des clés publiques et un message chiffré.
 export async function pairSend(env, code, token) {
-  if (!env.LIVE || !/^\d{6}$/.test(code || '')) return { error: 'Code invalide' };
+  if (!env.LIVE || !PAIR_CODE.test(code || '')) return { error: 'Code invalide' };
   if (!f1tvToken(token)) return { error: 'Connexion F1 TV absente ou expirée' };
   const box = relay(env, 'pair');
   const got = await box.fetch(new Request(`https://relay/pair?code=${code}`, { headers: { 'X-Relay': 'pair' } }));
@@ -695,13 +726,29 @@ export async function liveApi(req, url, env = {}) {
   if (url.pathname === '/live/api/season/stats' && req.method === 'GET') {
     const year = Number(url.searchParams.get('year')), now = new Date().getUTCFullYear();
     if (!env.DB || !Number.isInteger(year) || year < 2018 || year > now) return json({ error: 'Année invalide' }, 400);
-    return json(await seasonStatsWeb(env, year).catch((err) => ({ year, total: 0, done: 0, pending: false, races: [], error: err.message })));
+    // Calcul de toute la saison (1 à 2 s, ~570 ko) : gardé 5 minutes par le serveur, 1 minute pendant une analyse,
+    // jamais en cas d'erreur (accueil et rubrique Arrêts de l'appli et de la version web). Réponse toujours refaite :
+    // celle du cache revient avec la durée du domaine (4 h), trop longue pour le navigateur après une course
+    const ck = new Request(`https://live.cache/season-stats/${year}`);
+    const hit = await caches.default.match(ck).catch(() => null);
+    if (hit) return new Response(hit.body, { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=60' } });
+    const d = await seasonStatsWeb(env, year).catch((err) => ({ year, total: 0, done: 0, pending: false, races: [], error: err.message }));
+    const body = JSON.stringify(d);
+    if (!d.error) await caches.default.put(ck, new Response(body, { headers: { 'Content-Type': 'application/json', 'Cache-Control': `public, max-age=${d.pending ? 60 : 300}` } })).catch(() => {});
+    return new Response(body, { headers: { 'Content-Type': 'application/json', ...(d.error ? {} : { 'Cache-Control': 'public, max-age=60' }) } });
   }
   // Évolutions techniques et éléments moteur (documents FIA), lus par le serveur : même forme que /api/season/fia
   if (url.pathname === '/live/api/season/fia' && req.method === 'GET') {
     const year = Number(url.searchParams.get('year')), now = new Date().getUTCFullYear();
     if (!env.DB || !Number.isInteger(year) || year < 2018 || year > now) return json({ error: 'Année invalide' }, 400);
     return json(await seasonFiaWeb(env, year).catch((err) => ({ year, pending: false, done: 0, total: 0, events: [], error: err.message })));
+  }
+  // Permis à points et sanctions de la saison (décisions des commissaires des documents FIA, lues par le serveur)
+  if (url.pathname === '/live/api/season/penalties' && req.method === 'GET') {
+    const year = Number(url.searchParams.get('year')), now = new Date().getUTCFullYear();
+    if (!env.DB || !Number.isInteger(year) || year < 2018 || year > now) return json({ error: 'Année invalide' }, 400);
+    const d = await seasonPenaltiesWeb(env, year).catch((err) => ({ year, pending: false, done: 0, total: 0, drivers: [], penalties: [], error: err.message }));
+    return json(d, 200, d.pending || d.error ? {} : { 'Cache-Control': 'public, max-age=600' });
   }
   // Championnat des casseurs : dégâts estimés de la saison (analytics/destructors.js) ; autre saison : liste vide
   if (url.pathname === '/live/api/season/destructors' && req.method === 'GET') {
@@ -718,7 +765,7 @@ export async function liveApi(req, url, env = {}) {
     const row = await seasonRow(env, year, kept(year)).catch(() => null);
     if (!row) return json({ error: 'Calendrier indisponible' }, 503);
     const alarm = Math.max(0, Math.min(120, Number(url.searchParams.get('alarm') ?? 15) || 0));
-    return new Response(buildIcs(row.v.races, { year, round, alarmMin: alarm, lang: url.searchParams.get('lang') === 'en' ? 'en' : 'fr' }), {
+    return new Response(buildIcs(row.v.races, { year, round, alarmMin: alarm, lang: url.searchParams.get('lang') || 'fr' }), {
       headers: { 'Content-Type': 'text/calendar; charset=utf-8', 'Content-Disposition': `attachment; filename="f1-${year}${round ? `-manche-${round}` : ''}.ics"`, 'Cache-Control': 'no-store' },
     });
   }
@@ -816,6 +863,27 @@ export async function liveApi(req, url, env = {}) {
     if (!env.DB || !circuitKey(key) || !Number.isInteger(year) || year < 2018 || year > new Date().getUTCFullYear() + 1) return json({ error: 'Paramètres invalides' }, 400);
     return json(await circuitRecords(env, key, year), 200, { 'Cache-Control': 'public, max-age=3600' });
   }
+  // Le circuit dans l'histoire (fiche d'un Grand Prix à venir de la Saison) : gardé 30 min par le serveur, rien tant que
+  // la tâche planifiée ne l'a pas lu (pending)
+  if (url.pathname === '/live/api/circuit-history' && req.method === 'GET') {
+    const id = url.searchParams.get('circuit') || '';
+    if (!env.DB || !/^[a-z0-9_]{2,40}$/.test(id)) return json({ error: 'Paramètres invalides' }, 400);
+    const ck = new Request(`https://live.cache/circuit-history/${id}`);
+    const hit = await caches.default.match(ck).catch(() => null);
+    if (hit) return hit;
+    const d = await circuitHistory(env, id);
+    const res = json(d, 200, { 'Cache-Control': `public, max-age=${d.pending ? 60 : 1800}` });
+    if (!d.pending) await caches.default.put(ck, res.clone()).catch(() => {});
+    return res;
+  }
+  // Carrière d'un pilote de la saison (Saison → Pilotes) : saisons passées gardées par la tâche planifiée (pending tant
+  // qu'elle ne les a pas lues), saison en cours d'après la saison gardée
+  if (url.pathname === '/live/api/career' && req.method === 'GET') {
+    const id = url.searchParams.get('driver') || '';
+    if (!env.DB || !DRIVER_ID.test(id)) return json({ error: 'Paramètres invalides' }, 400);
+    const d = await careerWeb(env, id);
+    return json(d, 200, { 'Cache-Control': `public, max-age=${d.pending ? 60 : 600}` });
+  }
   // Météo prévue sur un circuit (accueil, onglet Météo), gardée 30 min par endroit (Open-Meteo limite les demandes)
   if (url.pathname === '/live/api/forecast' && req.method === 'GET') {
     const lat = url.searchParams.get('lat'), lon = url.searchParams.get('lon');
@@ -828,12 +896,16 @@ export async function liveApi(req, url, env = {}) {
     await caches.default.put(ck, res.clone());
     return res;
   }
-  // Documents officiels de la FIA d'un Grand Prix (documents des commissaires du direct)
-  if (url.pathname === '/live/api/fia-docs' && req.method === 'GET') {
+  // Documents officiels de la FIA d'un Grand Prix (documents des commissaires du direct), et sa grille de départ
+  // officielle lue dans le document de la FIA (accueil, carte « Avant le départ » ; sprint=1 : grille du sprint)
+  if (['/live/api/fia-docs', '/live/api/fia-grid'].includes(url.pathname) && req.method === 'GET') {
     const year = Number(url.searchParams.get('year')), name = url.searchParams.get('name');
     if (!Number.isInteger(year) || year < 2018 || !name) return json({ error: 'Paramètres year et name requis' }, 400);
     const meeting = { name, country: url.searchParams.get('country'), location: url.searchParams.get('location') };
-    return fiaDocsWeb(year, meeting).then((d) => json(d), (err) => json({ error: err.message }, 502));
+    const grid = url.pathname.endsWith('grid');
+    if (grid && !env.DB) return json({ error: 'Indisponible' }, 503);
+    return (grid ? fiaGridWeb(env, year, meeting, { sprint: url.searchParams.get('sprint') === '1' }) : fiaDocsWeb(year, meeting))
+      .then((d) => json(d), (err) => json({ error: err.message }, 502));
   }
   // Zones du mode dépassement, boucles de chronométrage (mini-secteurs) et profil d'altitude (carte 3D : z de chaque
   // point du tracé de /live/api/circuit, 1/10 m) du circuit, calculés par le serveur
@@ -853,12 +925,28 @@ export async function liveApi(req, url, env = {}) {
   }
   if (url.pathname === '/live/api/circuit') {
     const key = Number(url.searchParams.get('key')), year = Number(url.searchParams.get('year'));
-    if (!Number.isInteger(key) || !Number.isInteger(year)) return json({ error: 'Paramètres invalides' }, 400);
+    if (!circuitKey(key) || !Number.isInteger(year) || year < 2018 || year > new Date().getUTCFullYear() + 1) return json({ error: 'Paramètres invalides' }, 400);
     const d = await circuitData(key, year, fetch, env);
     return d ? json(d, 200, { 'Cache-Control': 'public, max-age=86400' }) : json({ error: 'Tracé introuvable' }, 404);
   }
+  // Fond de carte du radar de pluie (onglet Météo) : tuiles OpenStreetMap relayées avec l'identification de l'appli,
+  // comme le serveur de l'appli (server/tiles.js), gardées une semaine
+  if (url.pathname === '/live/api/tile' && req.method === 'GET') {
+    const [z, x, y] = ['z', 'x', 'y'].map((k) => Number(url.searchParams.get(k)));
+    if (!(Number.isInteger(z) && z >= 0 && z <= 16 && [x, y].every((v) => Number.isInteger(v) && v >= 0 && v < 2 ** z))) return json({ error: 'Tuile invalide' }, 404);
+    const ck = new Request(`https://live.cache/tile/${z}/${x}/${y}.png`);
+    let res = await caches.default.match(ck);
+    if (!res) {
+      const r = await fetch(`https://tile.openstreetmap.org/${z}/${x}/${y}.png`, { headers: { 'User-Agent': TILE_UA } }).catch(() => null);
+      if (r?.status !== 200) return json({ error: `Tuile indisponible (HTTP ${r?.status || 0})` }, 404);
+      res = new Response(await r.arrayBuffer(), { headers: { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=604800' } });
+      await caches.default.put(ck, res.clone());
+    }
+    return res;
+  }
   return json({ error: 'Pas disponible dans la version web' }, 404);
 }
+const TILE_UA = 'PaddockLive/web (tableau de bord F1 ; +https://github.com/benjamin-ct/paddock-live)';
 
 // Numéro de circuit de la F1 (10 Albert Park… 152 Las Vegas) : les numéros inventés au-delà sont refusés (chacun
 // demanderait un calcul des zones ou une lecture des archives). Pas la seule liste du calendrier (shared/circuits-info.js) :

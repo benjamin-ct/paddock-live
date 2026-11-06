@@ -175,6 +175,7 @@ export class Hub {
     ws.on('message', (buf) => {
       let msg;
       try { msg = JSON.parse(buf.toString()); } catch { return; }
+      if (!msg || typeof msg !== 'object') return;   // « null », nombre : ignorés
       if (msg.type === 'delay') {
         const ms = Number(msg.ms);
         if (Number.isFinite(ms)) c.delay = Math.max(MIN_DELAY_MS, Math.min(this.maxDelayMs, ms));

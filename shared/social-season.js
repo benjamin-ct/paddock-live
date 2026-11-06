@@ -17,13 +17,9 @@ const capFirst = (s) => String(s).charAt(0).toUpperCase() + String(s).slice(1);
 const dec = (v, n = 1) => (v == null ? '—' : Number(v).toFixed(n).replace('.', ','));
 export const lapStr = (s) => (s ? `${Math.floor(s / 60)}:${(s % 60).toFixed(3).padStart(6, '0')}` : '—');
 
-// Pays du calendrier (noms de l'API des résultats) -> code ISO des drapeaux
-export const COUNTRY_ISO = {
-  Australia: 'au', China: 'cn', Japan: 'jp', Bahrain: 'bh', 'Saudi Arabia': 'sa', USA: 'us', 'United States': 'us', Italy: 'it', Monaco: 'mc',
-  Spain: 'es', Canada: 'ca', Austria: 'at', UK: 'gb', 'United Kingdom': 'gb', Belgium: 'be', Hungary: 'hu', Netherlands: 'nl', Azerbaijan: 'az',
-  Singapore: 'sg', Mexico: 'mx', Brazil: 'br', Qatar: 'qa', UAE: 'ae', 'United Arab Emirates': 'ae', Portugal: 'pt', Turkey: 'tr', France: 'fr',
-  Germany: 'de', Russia: 'ru', Argentina: 'ar', 'South Africa': 'za', Korea: 'kr', India: 'in', Malaysia: 'my', Vietnam: 'vn', Thailand: 'th', Morocco: 'ma',
-};
+// Pays du calendrier -> code ISO des drapeaux (shared/country-iso.js, petit fichier lu par la barre du haut de l'appli)
+import { COUNTRY_ISO } from './country-iso.js';
+export { COUNTRY_ISO };
 // Couleurs des écuries (identifiant ou nom), à défaut de la liste des pilotes de la séance
 const TEAM_COLORS = [
   [/racing_bulls|racing bulls|^rb\b|visa cash/i, '#6692FF'], [/red_bull|red bull/i, '#3671C6'], [/ferrari/i, '#E80020'], [/mercedes/i, '#27F4D2'],
@@ -47,7 +43,7 @@ function base(race, year, post, label) {
 const tagsOf = (d, extra = []) => fiveTags(['#F1', gpTag(d.gpEn), ...extra]);
 
 // ---------- 1. Programme du week-end ----------
-// race : manche de /api/season ; tyres : composés Pirelli ; forecast : [{ date: 'AAAA-MM-JJ', tmax, tmin, rain }]
+// race : manche de /api/season ; tyres : composés Pirelli ; forecast : [{ date: 'AAAA-MM-JJ', tmax, tmin, rain }], forecast.tz : fuseau du circuit
 export function weekendData(race, { year, tyres = null, forecast = null } = {}) {
   const d = base(race, year, 'weekend', 'Programme');
   d.sessions = (race.sessions || []).filter((s) => s.t).map((s) => {
@@ -60,8 +56,10 @@ export function weekendData(race, { year, tyres = null, forecast = null } = {}) 
     d.date = `${fr1(fmt(first, sameMonth ? { day: 'numeric' } : { day: 'numeric', month: 'long' }))} au ${fr1(fmt(last, { day: 'numeric', month: 'long', year: 'numeric' }))}`;
   }
   d.tyres = tyres;
-  // Météo prévue pour chaque jour de séance
-  const days = [...new Set(d.sessions.map((s) => fmt(s.t, { year: 'numeric', month: '2-digit', day: '2-digit' }).split('/').reverse().join('-')))];
+  // Météo prévue pour chaque jour de séance, jours dans le fuseau du circuit (forecast.tz, d'Open-Meteo) : la course
+  // du soir à Las Vegas est le lendemain à Paris
+  const ymd = new Intl.DateTimeFormat('en-CA', { timeZone: forecast?.tz || TZ, year: 'numeric', month: '2-digit', day: '2-digit' });
+  const days = [...new Set(d.sessions.map((s) => ymd.format(s.t)))];
   d.forecast = (forecast || []).filter((f) => days.includes(f.date)).map((f) => ({ ...f, day: capFirst(fmt(Date.parse(`${f.date}T12:00:00Z`), { weekday: 'long' })) }));
   d.rows = d.sessions;
   return d;

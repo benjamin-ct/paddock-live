@@ -1,7 +1,7 @@
 // Barre de navigation latérale (Accueil, Direct, Résultats, Saison, Replays, Radios,
 // Réglages). Elle reprend les actions des boutons du haut, masqués.
-import { $, $$, api, esc } from '../util.js';
-import { openSeason, closeSeason } from './season.js';
+import { $, $$, api, esc, placeView } from '../util.js';
+import { openSeason, closeSeason } from './season-lazy.js';
 import { openNews, closeNews } from './news.js';
 import { openHome, closeHome, homeTouched, startWindows } from './home.js';
 import { openReplays, closeReplays } from './replays.js';
@@ -12,13 +12,8 @@ import { icon } from '../icons.js';
 import { prefs, setPref } from '../prefs.js';
 import { on, store } from '../store.js';
 import { t } from '../i18n.js';
+import { SCHEMES, openPalette } from './palette.js';
 
-// Apparence : automatique (comme le système), sombre ou clair
-const SCHEMES = [
-  ['auto', 'Auto', 'Automatique (comme le système)', '<circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/>'],
-  ['dark', 'Sombre', 'Sombre', '<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>'],
-  ['light', 'Clair', 'Clair', '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>'],
-];
 const schemeOf = () => SCHEMES.find(([k]) => k === (prefs.scheme || 'auto')) || SCHEMES[0];
 function schemeButton() {
   const b = $('#rail [data-rail="scheme"]');
@@ -53,8 +48,9 @@ function layoutMenu(btn) {
   const menu = document.createElement('div');
   menu.className = 'lpop-menu rail-menu';
   // Fenêtres à ouvrir (Circuit, Analyse, Duel, Comparaison seule), puis dispositions enregistrées et réglages
-  const wins = [['map', 'Circuit'], ['analysis', 'Analyse'], ['duel', 'Duel'], ['compare', 'Comparaison']];
-  menu.innerHTML = `<div class="muted small">Ouvrir dans une fenêtre</div>${wins.map(([id, name]) => `<button data-open="${id}">${icon('external')} ${name}</button>`).join('')}
+  // Télémétrie (sans menu « Plus ») : le mini-classement aussi, grisé sans séance comme son bouton
+  const wins = [['map', 'Circuit'], ['analysis', 'Analyse'], ['duel', 'Duel'], ['compare', 'Comparaison'], ...(v3() ? [['mini', 'Mini-classement']] : [])];
+  menu.innerHTML = `<div class="muted small">Ouvrir dans une fenêtre</div>${wins.map(([id, name]) => `<button data-open="${id}"${id === 'mini' && $('#miniBtn')?.disabled ? ' disabled' : ''}>${icon(id === 'mini' ? 'window' : 'external')} ${name}</button>`).join('')}
     ${list.length ? `<div class="rail-sep"></div><div class="muted small">Dispositions enregistrées</div>${list.map((w, i) => `<button data-w="${i}">${icon('layout')} <span data-no-i18n>${esc(w.name)}</span></button>`).join('')}` : ''}<div class="rail-sep"></div><button data-w="set">${icon('sliders')} Réglages de la disposition</button>`;
   const r = btn.getBoundingClientRect();
   menu.style.left = `${r.right + 8}px`;
@@ -62,7 +58,7 @@ function layoutMenu(btn) {
   menu.style.top = `${Math.max(8, Math.min(r.top - 20, innerHeight - menu.offsetHeight - 8))}px`;
   menu.addEventListener('click', (e) => {
     const o = e.target.closest('[data-open]')?.dataset.open;
-    if (o) { menu.remove(); openInWindow(o); return; }
+    if (o) { menu.remove(); if (o === 'mini') $('#miniBtn').click(); else openInWindow(o); return; }
     const k = e.target.closest('[data-w]')?.dataset.w;
     if (!k) return;
     menu.remove();
@@ -123,6 +119,7 @@ const ACTIONS = {
   },
   radio: () => $('#commBtn').click(),
   more: (btn) => moreMenu(btn),
+  search: (btn) => openPalette(btn),   // Télémétrie : palette de commandes (aussi Ctrl+K, ⌘K)
   reset: (btn) => layoutMenu(btn),   // Dispo. : dispositions enregistrées, réglages de la disposition (panneaux, onglets, colonnes, fenêtres)
   scheme: (btn) => schemeMenu(btn),
   settings: () => openSettings(),
@@ -137,7 +134,8 @@ function sync() {
   const replays = !$('#replayView')?.hidden;
   const results = isResultsOpen();
   const page = home ? 'home' : replays ? 'replay' : news ? 'news' : season ? 'season' : results ? 'results' : null;
-  const cur = page || (store.status?.source?.mode === 'replay' ? 'replay' : 'live');
+  // Télémétrie : Résultats est une vue de la séance (contrôle segmenté du Direct), Direct ou Replays restent allumés
+  const cur = (page === 'results' && v3() ? null : page) || (store.status?.source?.mode === 'replay' ? 'replay' : 'live');
   // Tableau de bord affiché : fenêtres du second écran rouvertes (pas sur l'accueil)
   if (!page) startWindows();
   for (const b of $$('#rail [data-rail]')) {
@@ -145,6 +143,56 @@ function sync() {
     b.classList.toggle('on', k === cur || (k === 'more' && cur === 'results'));   // Résultats : rangé dans Plus
     if (k === 'radio') b.classList.toggle('playing', $('#commBtn').classList.contains('on'));
   }
+  syncViews();
+}
+
+// Télémétrie : vues de la séance (Tableau de bord · Résultats · Résumé · Commentaires) en tête du Direct, quand une
+// séance ou un replay est chargé. Chaque segment reprend l'action existante ; le segment choisi suit la vue ouverte.
+const v3 = () => document.documentElement.dataset.design === 'v3';
+const shown = (id) => !!$(id) && !$(id).hidden;
+const VIEWS = {
+  board: () => { closeResults(); $('#summaryDlg')?.close(); $('#commPanel').hidden = true; },
+  results: () => { $('#commPanel').hidden = true; if (!isResultsOpen()) ACTIONS.results(); },
+  summary: () => $('#summaryBtn').click(),
+  radio: () => { closeResults(); if ($('#commPanel').hidden) $('#commBtn').click(); },
+};
+function syncViews() {
+  const bar = $('#sessViews');
+  if (!bar) return;
+  const page = ['#homeView', '#seasonView', '#newsView', '#replayView', '#noLiveView'].some(shown);
+  const off = !v3() || page || !store.state.SessionInfo || document.body.classList.contains('solo');
+  if (bar.hidden !== off) {
+    bar.hidden = off;
+    if (isResultsOpen()) placeView($('#resultsView'));   // la page Résultats commence sous le contrôle
+  }
+  // Panneau des commentaires : sous le contrôle, sans le recouvrir
+  const comm = $('#commPanel');
+  if (comm) comm.style.top = off ? '' : `${Math.round(bar.getBoundingClientRect().bottom) + 8}px`;
+  if (off) return;
+  const cur = $('#summaryDlg')?.open ? 'summary' : isResultsOpen() ? 'results' : shown('#commPanel') ? 'radio' : 'board';
+  for (const b of bar.querySelectorAll('[data-sv]')) {
+    b.classList.toggle('on', b.dataset.sv === cur);
+    if (b.dataset.sv === cur) b.setAttribute('aria-current', 'true'); else b.removeAttribute('aria-current');
+  }
+  // Téléphone : bouton « Séance » qui ouvre les vues ; il prend le nom de la vue ouverte (hors tableau de bord)
+  const more = bar.querySelector('.sv-more');
+  if (more) {
+    more.classList.toggle('on', cur !== 'board');
+    const label = cur === 'board' ? t('Séance') : bar.querySelector(`[data-sv="${cur}"]`).textContent;
+    if (more.firstElementChild.textContent !== label) more.firstElementChild.textContent = label;
+  }
+}
+// Menu des vues au téléphone : la pilule des vues s'ouvre sous le bouton « Séance »
+function svMenu(open) {
+  const bar = $('#sessViews'), more = bar?.querySelector('.sv-more');
+  if (!more) return;
+  bar.classList.toggle('open', open);
+  more.setAttribute('aria-expanded', String(open));
+  if (!open) return;
+  const r = more.getBoundingClientRect(), seg = bar.querySelector('.sv-seg');
+  seg.style.top = `${Math.round(r.bottom + 6)}px`;
+  seg.style.right = `${Math.round(innerWidth - r.right)}px`;
+  (seg.querySelector('.on') || seg.querySelector('button'))?.focus({ preventScroll: true });
 }
 
 export function initRail() {
@@ -158,10 +206,24 @@ export function initRail() {
     ACTIONS[b.dataset.rail]?.(b);
     sync();
   });
+  $('#sessViews')?.addEventListener('click', (e) => {
+    if (e.target.closest('.sv-more')) { svMenu(!$('#sessViews').classList.contains('open')); return; }
+    const k = e.target.closest('[data-sv]')?.dataset.sv;
+    if (!k) return;
+    svMenu(false);
+    VIEWS[k]();
+    sync();
+  });
+  document.addEventListener('pointerdown', (e) => { if ($('#sessViews')?.classList.contains('open') && !e.target.closest('#sessViews')) svMenu(false); });
+  addEventListener('resize', () => svMenu(false));
+  // Résumé (fenêtre de dialogue) : ouvert par son bouton, d'où qu'il vienne ; refermé : retour au segment d'avant
+  $('#summaryBtn')?.addEventListener('click', () => setTimeout(syncViews));
+  document.addEventListener('close', (e) => { if (e.target.id === 'summaryDlg') syncViews(); }, true);
   // Échap : ferme d'abord un petit menu ouvert (Dispo., thème), seul ; sinon la page Résultats
   // (Accueil, Saison, Actu, Replays : leur propre Échap)
   window.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape' || document.querySelector('dialog[open]')) return;
+    if ($('#sessViews')?.classList.contains('open')) { e.stopPropagation(); svMenu(false); $('#sessViews .sv-more').focus(); return; }
     const menu = document.querySelector('.lpop-menu');
     if (menu) { e.stopPropagation(); menu.remove(); return; }
     if (isResultsOpen()) { closeResults(); sync(); }
@@ -169,7 +231,7 @@ export function initRail() {
   const mo = new MutationObserver(sync);
   mo.observe($('#seasonView'), { attributes: true, attributeFilter: ['hidden'] });
   mo.observe($('#newsView'), { attributes: true, attributeFilter: ['hidden'] });
-  for (const id of ['#homeView', '#replayView', '#resultsView']) if ($(id)) mo.observe($(id), { attributes: true, attributeFilter: ['hidden'] });
+  for (const id of ['#homeView', '#replayView', '#resultsView', '#noLiveView', '#commPanel']) if ($(id)) mo.observe($(id), { attributes: true, attributeFilter: ['hidden'] });
   mo.observe($('.grid'), { attributes: true, attributeFilter: ['class'] });
   mo.observe($('#commBtn'), { attributes: true, attributeFilter: ['class'] });
   // Replay lancé ou arrêté : Replays ou Direct
@@ -178,8 +240,8 @@ export function initRail() {
   sync();
   schemeButton();
   // Résumé et mini-classement : grisés tant qu'aucune séance n'est chargée
-  const noSession = () => { const off = !store.state.SessionInfo; for (const k of ['summary', 'mini', 'results']) { const b = $(`#rail [data-rail="${k}"]`); if (b) b.disabled = off; } };
+  const noSession = () => { const off = !store.state.SessionInfo; for (const k of ['summary', 'mini', 'results']) { const b = $(`#rail [data-rail="${k}"]`); if (b) b.disabled = off; } syncViews(); };
   noSession();
   setInterval(noSession, 2000);
-  on('prefs', (k) => { if (k === 'scheme') schemeButton(); });
+  on('prefs', (k) => { if (k === 'scheme') schemeButton(); if (k === 'design') sync(); });
 }

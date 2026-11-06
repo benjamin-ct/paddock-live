@@ -7,6 +7,11 @@ import { LANG } from './i18n.js';
 // Analyse et Duel s'ouvrent dans leur propre fenêtre (bouton + d'un panneau, menu Dispo.) : masqués dans la fenêtre
 // principale (ui/layout.js, ui/tabmove.js). Analyse : 3 onglets selon la séance (les autres : bouton +)
 export const PANELS_HIDDEN = ['analysis', 'duel'];
+// Fil de course (1.32 : radios et messages en un seul fil) : masqué par défaut, sauf en Télémétrie où il remplace
+// Radios et Messages. Les listes de panneaux masqués enregistrées avant lui (réglages, disposition de chaque séance,
+// dispositions enregistrées) le masquent aussi : « +race » marque une liste qui le connaît déjà
+export const withRace = (list) => (!Array.isArray(list) || list.includes('+race') ? list : [...list, 'race', '+race']);
+export const hiddenByDefault = (design) => (design === 'v3' ? [...PANELS_HIDDEN, 'radio', 'feed', '+race'] : [...PANELS_HIDDEN, 'race', '+race']);
 export const TAB_HIDDEN = {
   race: ['laptimes', 'pace', 'tyrehist', 'sectors', 'tyres', 'pitsim', 'battles', 'champ'],
   quali: ['trace', 'positions', 'pits', 'strategy', 'laptimes', 'pace', 'tyrehist', 'tyres', 'pitsim', 'battles', 'champ'],
@@ -16,14 +21,15 @@ const DEFAULTS = {
   favs: [],               // numéros des pilotes favoris
   favTeams: [],           // écuries favorites (clés de shared/news.js : 'ferrari', 'redbull'…)
   alerts: { sound: true, vibrate: true, notify: false, flags: true, fastest: true, favPit: true, favRcm: true, retire: true, finish: true, favCut: true, rain: true, prono: true },
-  hiddenPanels: [...PANELS_HIDDEN],
+  hiddenPanels: hiddenByDefault('v3'),
+  raceFeedFilter: 'all',  // Fil de course : tout, radios, direction, enquêtes ou limites de piste
   hiddenTabs: [...TAB_HIDDEN.race],   // onglets masqués (Réglages → Onglets visibles, bouton +), comme ceux inutiles pour la séance
   hiddenCols: ['name'],   // classement : code du pilote seul (nom complet : menu Colonnes)
   extraCols: [],          // colonnes facultatives ajoutées au classement (voir EXTRA_COLUMNS)
   bigCols: null,          // colonnes du classement agrandi (bouton ⤢) : { hidden, extra }, sinon les mêmes
   towerFit: true,         // classement agrandi pour remplir la hauteur disponible
   theme: 'pitwall',       // thème unique de l'application
-  design: 'v2',           // habillage : 'v2' (Paddock 2) | 'broadcast' (façon retransmission TV) | 'classic' (ancien design Pitwall)
+  design: 'v3',            // habillage : 'v3' (Télémétrie, défaut depuis la v1.32, version web comprise) | 'v2' (Paddock 2) | 'classic' (ancien design Pitwall) ; 'broadcast' n'est plus proposé (v1.32)
   scheme: 'auto',         // apparence : 'auto' (comme le système) | 'dark' (sombre) | 'light' (clair)
   schemeSet: false,       // apparence choisie par l'utilisateur (sinon : automatique)
   vividTeams: false,      // couleurs d'équipe contrastées plutôt qu'officielles
@@ -33,6 +39,9 @@ const DEFAULTS = {
   phoneFull: false,       // téléphone : tous les onglets et réglages de l'ordinateur (sinon version simplifiée)
   welcomed: true,         // écrans d'accueil du premier lancement déjà vus
   motion: true,           // animations de l'interface (désactivées aussi si le système le demande)
+  contrast: false,        // contraste renforcé (aussi quand le système le demande : prefers-contrast: more)
+  colorblind: false,      // mode daltonien : formes et motifs en plus des couleurs (secteurs, drapeaux, pneus)
+  textScale: 1,           // taille de l'interface dans le navigateur d'un téléphone ou d'une tablette (0,9 à 1,5 ; l'appli de bureau garde la sienne, desktop/main.cjs)
   momentsSpoil: false,    // replay : détail des moments clés à venir affiché
   lang: LANG,             // langue de l'interface : 'fr' | 'en' | 'it' | 'es' (voir i18n.js)
   autoSyncAdj: 0,         // synchro TV par le son : correction ajoutée au délai trouvé (s)
@@ -74,6 +83,7 @@ const DEFAULTS = {
 
 const saved = storageGet('paddock.prefs', {});
 export const prefs = { ...DEFAULTS, ...saved, alerts: { ...DEFAULTS.alerts, ...(saved.alerts || {}) } };
+prefs.hiddenPanels = withRace(prefs.hiddenPanels);
 // v1.28 : nouvelle installation (aucun réglage enregistré) : écrans d'accueil ; v1.30 : déjà au nouvel écran principal
 // (layoutV, ui/layout.js)
 if (!Object.keys(saved).length) {
@@ -92,7 +102,12 @@ prefs.legendsV = 1;
 // v1.30 : design Paddock 2 par défaut, aussi pour les installations existantes restées sur Broadcast (l'ancien
 // défaut) ; un choix de Classique est gardé. Une seule fois : Broadcast se rechoisit dans Réglages → Apparence
 if (!saved.designV) { if (prefs.design === 'broadcast') prefs.design = 'v2'; storageSet('paddock.prefs', { ...storageGet('paddock.prefs', {}), design: prefs.design, designV: 1 }); }
-prefs.designV = 1;
+// v1.32 : le design Broadcast n'est plus proposé (Paddock 2 garde son habillage, broadcast.css, en dessous)
+else if (prefs.design === 'broadcast') { prefs.design = 'v2'; storageSet('paddock.prefs', { ...storageGet('paddock.prefs', {}), design: 'v2' }); }
+// v1.32 : Télémétrie par défaut (appli et version web), aussi pour les installations existantes
+// en Paddock 2 ; un choix de Classique est gardé. Une seule fois : Paddock 2 se rechoisit dans Réglages → Apparence
+if ((saved.designV || 0) < 2) { if (prefs.design === 'v2') prefs.design = 'v3'; storageSet('paddock.prefs', { ...storageGet('paddock.prefs', {}), design: prefs.design, designV: 2 }); }
+prefs.designV = 2;   // gardé dans chaque enregistrement des préférences
 // Langue retenue dès la première ouverture (sinon une autre fenêtre la redéduirait autrement)
 if (saved.lang !== LANG) storageSet('paddock.prefs', { ...storageGet('paddock.prefs', {}), lang: LANG });
 // Apparence automatique par défaut depuis la v1.20.1. En v1.20.0, « sombre » était enregistré par
@@ -118,20 +133,46 @@ function applyScheme() {
     touch('DriverList');   // panneaux redessinés avec les couleurs de l'apparence (pneus, carte…)
   }
   const webDark = document.documentElement.classList.contains('web') && (v === 'dark' || document.documentElement.dataset.design === 'v2');
-  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', webDark ? '#0C1326' : v === 'light' ? '#F4F5F7' : '#07080A');   // version web : couleur de la barre du haut
+  const v3 = document.documentElement.dataset.design === 'v3';   // Télémétrie : barre du haut couleur du fond (--bg)
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', v3 ? (v === 'light' ? '#F3F5F7' : '#0B0F15') : webDark ? '#0C1326' : v === 'light' ? '#F4F5F7' : '#07080A');   // version web : couleur de la barre du haut
   // Appli installée sur iPhone : barre d'état claire ou noire (prise en compte au lancement suivant). Version web à barre
   // du haut sombre (Paddock 2, ou apparence sombre) : transparente, la barre du haut remonte derrière l'heure et la batterie
   const bar = webDark ? 'black-translucent' : v === 'light' ? 'default' : 'black';
   document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]')?.setAttribute('content', bar);
 }
-// Habillage : la feuille broadcast.css (posée par-dessus le thème Pitwall) est coupée en design classique
+// Habillage : la feuille broadcast.css (posée par-dessus le thème Pitwall) est coupée en design classique et en
+// Télémétrie (v3, posé directement sur le thème Pitwall), seulement dans les pages qui chargent design-v3.css (pas
+// le Mini ni les overlays de streaming, qui gardent leur habillage)
 function applyDesign() {
   document.documentElement.dataset.design = prefs.design;
   const css = document.querySelector('link[href="/css/broadcast.css"]');
-  if (css) css.disabled = prefs.design === 'classic';
+  if (css) css.disabled = prefs.design === 'classic' || (prefs.design === 'v3' && !!document.querySelector('link[href="/css/design-v3.css"]'));
+}
+// Taille de l'interface dans le navigateur (téléphone, tablette) : zoom de la page par la balise viewport, comme
+// webContents.setZoomFactor dans l'appli de bureau (largeur de page réduite d'autant, menus, canevas et 100vh justes).
+// Pas de `zoom` CSS : il agrandit aussi les vh / vw (barre du bas hors de l'écran) et décale les menus placés en JS.
+// Ignoré par les navigateurs d'ordinateur (leur zoom : Ctrl +), réglage montré seulement au doigt (ui/settings.js)
+function applyTextScale() {
+  const meta = document.querySelector('meta[name="viewport"]');
+  if (!meta || window.f1desktop || document.documentElement.classList.contains('overlay')) return;
+  meta.dataset.base ||= meta.content;
+  const s = prefs.textScale;
+  meta.content = s > 0 && s !== 1 ? meta.dataset.base.replace(/width=device-width,\s*initial-scale=1\b/, `initial-scale=${s}`) : meta.dataset.base;
+}
+// Contraste renforcé (Réglages → Affichage, ou réglage du système) : data-contrast="more" sur <html>, jetons de texte
+// et de filets plus marqués dans style.css
+const systemContrast = window.matchMedia?.('(prefers-contrast: more)');
+export const systemMoreContrast = () => !!systemContrast?.matches;
+function applyContrast() {
+  if (prefs.contrast || systemMoreContrast()) document.documentElement.dataset.contrast = 'more';
+  else delete document.documentElement.dataset.contrast;
 }
 document.documentElement.dataset.theme = 'pitwall';
 applyDesign();
+applyTextScale();
+applyContrast();
+document.documentElement.dataset.cvd = prefs.colorblind ? 'on' : 'off';   // mode daltonien (style.css, carte)
+systemContrast?.addEventListener?.('change', () => { applyContrast(); emit('prefs', 'contrast'); });
 applyScheme();
 systemLight?.addEventListener?.('change', () => { if (prefs.scheme === 'auto') applyScheme(); });
 
@@ -144,10 +185,14 @@ function applyTeamColors() {
 }
 
 export function setPref(key, value) {
+  if (key === 'hiddenPanels') value = withRace(value);
   prefs[key] = value;
   if (['vividTeams', 'teamLogos', 'logoColor'].includes(key)) applyTeamColors();
   if (key === 'scheme') { prefs.schemeSet = true; applyScheme(); }
   if (key === 'design') applyDesign();
+  if (key === 'textScale') applyTextScale();
+  if (key === 'contrast') applyContrast();
+  if (key === 'colorblind') document.documentElement.dataset.cvd = value ? 'on' : 'off';
   if (key === 'motion') document.documentElement.dataset.motion = value ? 'on' : 'off';
   storageSet('paddock.prefs', prefs);
   emit('prefs', key);
@@ -178,6 +223,9 @@ window.addEventListener('storage', (e) => {
     if (['vividTeams', 'teamLogos', 'logoColor'].includes(key)) applyTeamColors();
     if (key === 'scheme') applyScheme();
     if (key === 'design') applyDesign();
+    if (key === 'textScale') applyTextScale();
+    if (key === 'contrast') applyContrast();
+    if (key === 'colorblind') document.documentElement.dataset.cvd = next[key] ? 'on' : 'off';
     emit('prefs', key);
   }
 });

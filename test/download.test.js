@@ -114,6 +114,27 @@ test('version web : seulement sur app.paddocklive.app, paddocklive.app/live renv
   }
 });
 
+test('Studio et pronostics : pages seulement sur paddocklive.app (renvoyées depuis app.), Studio avec sa CSP, API inchangées', async () => {
+  const { default: worker } = await import('../analytics/worker.js');
+  const env = { SITE_ORIGIN: 'https://paddocklive.app', ASSETS: { fetch: async (req) => new Response(`site:${new URL(req.url).pathname}`) } };
+  for (const p of ['/studio/', '/studio/index.html', '/p/', '/p/index.html', '/p/abcdefgh12']) {
+    const r = await worker.fetch(new Request(`https://app.paddocklive.app${p}?x=1`), env);
+    assert.equal(r.status, 301, p);
+    assert.equal(r.headers.get('location'), `https://paddocklive.app${p}?x=1`);
+  }
+  let r = await worker.fetch(new Request('https://paddocklive.app/studio/'), env);
+  assert.equal(await r.text(), 'site:/studio/');
+  assert.match(r.headers.get('content-security-policy'), /frame-ancestors 'none'/);
+  assert.match(r.headers.get('content-security-policy'), /script-src 'self' https:\/\/cdnjs\.cloudflare\.com;/);
+  assert.equal(r.headers.get('x-frame-options'), 'DENY');
+  assert.equal(await (await worker.fetch(new Request('https://paddocklive.app/p/abcdefgh12'), env)).text(), 'site:/p/');
+  // Appels des applis et retours de connexion : pas renvoyés ailleurs
+  r = await worker.fetch(new Request('https://app.paddocklive.app/studio/api/me'), env);
+  assert.equal(r.status, 503);   // API du Studio (base absente ici), pas une redirection
+  r = await worker.fetch(new Request('https://app.paddocklive.app/studio-callback?code=c&state=s.1'), env);
+  assert.match(r.headers.get('location'), /^https:\/\/app\.paddocklive\.app\/studio\/#connect=/);
+});
+
 test('ancienne adresse workers.dev : connexion et statistiques renvoyées sur le nom de domaine, appels de l\'appli inchangés', async () => {
   const { default: worker } = await import('../analytics/worker.js');
   const env = { SITE_ORIGIN: 'https://paddocklive.app', STATS_KEY: 'k' };

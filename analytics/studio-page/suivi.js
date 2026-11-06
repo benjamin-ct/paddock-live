@@ -3,14 +3,10 @@
 // avec la clé du suivi (Réglages de l'onglet) et scripts/suivi.mjs.
 import { $, $$, esc, api, fmtN, icon, toast, skeleton, empty, failure, store, state, glide } from './ui.js';
 
+// Réglages du suivi en icône (une clé, pour ne pas les confondre avec les Réglages du Studio) au bout des onglets :
+// les cinq rubriques tiennent sur un téléphone sans être coupées
+const KEY_ICON = '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="M10.9 12.1L20 3M16.5 6.5l3 3M14 9l2.5 2.5"/></svg>';
 const SUBS = [['todo', 'À faire'], ['posts', 'Posts'], ['net', 'Réseaux'], ['log', 'Journal'], ['guides', 'Guides'], ['set', 'Réglages']];
-const TAGS = [
-  { key: 'res', icon: '📣', label: 'Réseaux', also: ['📊'] },
-  { key: 'app', icon: '💻', label: 'Appli et site' },
-  { key: 'seo', icon: '🔍', label: 'Référencement' },
-  { key: 'sec', icon: '🔒', label: 'Sécurité' },
-  { key: 'bug', icon: '🐞', label: 'Bug' },
-];
 const NET_COLORS = { instagram: '#d62976', facebook: '#1877f2', threads: '#9a9fa7', bluesky: '#1185fe', x: '#c9c8c2', tiktok: '#00c2b8', youtube: '#ff0000' };
 const netColor = (n) => NET_COLORS[String(n || '').toLowerCase().split(' ')[0]] || '#8e8c86';
 const MONTHS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
@@ -19,33 +15,48 @@ const linkify = (s) => esc(s).replace(/https?:\/\/[^\s)»<]+[^\s).,»<]/g, (u) =
 const num = (v) => { if (v == null || v === '') return null; const n = Number(String(v).replace(/[\s  ]/g, '').replace(',', '.')); return Number.isFinite(n) ? n : null; };
 const parseFr = (s) => { const m = String(s || '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/); return m ? new Date(+m[3], +m[2] - 1, +m[1]) : null; };
 const today0 = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); };
+const back = (t, n) => { const d = new Date(t); d.setDate(d.getDate() - n); return d.getTime(); };
+// Jour d'une date écrite à la main ou par le serveur : « 03/11/2026 », « 30/10 », « 30 oct. », « 1er novembre »
+// (sans année : la plus proche dans le passé)
+const MON = ['janv', 'fevr', 'mars', 'avr', 'mai', 'juin', 'juil', 'aout', 'sept', 'oct', 'nov', 'dec'];
+function dayOf(s) {
+  const t = plain(String(s || '').trim());
+  let k = t.match(/^(\d{1,2})\/(\d{1,2})(?:\/(\d{4}))?/), d, m, y;
+  if (k) [d, m, y] = [+k[1], +k[2] - 1, k[3] ? +k[3] : null];
+  else if ((k = t.match(/^(\d{1,2})(?:er)?\s+([a-z]+)/))) [d, m, y] = [+k[1], MON.findIndex((x) => k[2].startsWith(x)), null];
+  if (d == null || m < 0 || m > 11) return null;
+  const now = new Date();
+  let day = new Date(y || now.getFullYear(), m, d).getTime();
+  if (!y && day > now.getTime() + 864e5) day = new Date(now.getFullYear() - 1, m, d).getTime();
+  return day;
+}
+const dayTxt = (t) => (t === today0() ? 'aujourd\'hui' : t === back(today0(), 1) ? 'hier' : new Date(t).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }));
 let copies = [];
 const copyBtn = (text) => `<button type="button" class="btn small" data-copy="${copies.push(text) - 1}">${icon('copy')}Copier</button>`;
 
 // ---------- Tâches, posts et guides (texte gardé par le serveur) ----------
-// À faire : une tâche par entrée (statut, liste, quand, domaine, titre, détails, lien, fait le), une colonne par liste
-// dans l'ordre d'arrivée, les tâches faites à la fin
-const LIST_COLORS = [[/tester/, '#6d28d9'], [/semaine de|cette semaine|week-end/, '#e10600'], [/chaque semaine/, '#0284c7'], [/attente/, '#64748b'], [/lien/, '#334155'], [/urgence/, '#475569']];
-const DONE_SHOWN = 25;
+// À faire : une tâche par entrée (statut, liste, quand, domaine, titre, détails, lien, fait le), une liste par nom.
+// Ordre d'après le nom : « Cette semaine », puis ce qu'il faut vérifier (versions à tester, dernières courses), les
+// autres listes, et tout en bas, repliées au départ, celles qui attendent (attente, pause, idées, liens…)
+const RANKS = [[/cette semaine/, 0], [/tester|a verifier/, 1], [/pause|attente|idees|plus tard|sans urgence|version 2\.0|liens/, 3]];
+const LIST_COLORS = [[/cette semaine/, 'var(--brand)'], [/tester|a verifier/, 'var(--data)'], [/pause|attente/, 'var(--warn)']];
+const DONE_DAYS = 7, DONE_SHOWN = 15;
+const canCheck = (it) => it.status !== 'En attente' && it.status !== 'Lien';
 function parseTasks(tasks) {
   const lists = new Map(), done = [];
   tasks.forEach((r) => {
     if (!r.title) return;
-    const tag = TAGS.find((t) => t.label === r.domain)?.key || null;
-    const it = { id: r.id, when: r.when, title: r.title, detail: String(r.detail || '').split(' / ').filter((l) => l.trim()), tag, box: true, link: r.link || null };
-    if (r.status === 'Fait') { done.push({ ...it, done: true, when: r.doneAt || it.when, recent: r.list !== 'Archive' }); return; }
-    const name = r.list || 'Sans liste';
-    if (!lists.has(name)) {
-      const t = plain(name);
-      lists.set(name, { title: name, color: LIST_COLORS.find(([re]) => re.test(t))?.[1] || 'var(--surface-2)', kind: r.status === 'Lien' ? 'links' : r.status === 'En attente' ? 'info' : 'tasks', items: [], notes: [] });
+    const it = { id: r.id, status: r.status, when: r.when || '', domain: r.domain || '', title: r.title, detail: String(r.detail || '').split(' / ').filter((l) => l.trim()), link: r.link || null, list: r.list || 'Sans liste' };
+    if (r.status === 'Fait') { done.push({ ...it, done: true, day: dayOf(r.doneAt), doneAt: r.doneAt || '', i: done.length }); return; }
+    if (!lists.has(it.list)) {
+      const t = plain(it.list), rank = RANKS.find(([re]) => re.test(t))?.[1] ?? 2;
+      lists.set(it.list, { title: it.list, rank, parked: rank === 3, color: LIST_COLORS.find(([re]) => re.test(t))?.[1] || 'var(--line-3)', items: [] });
     }
-    lists.get(name).items.push({ ...it, done: false });
+    lists.get(it.list).items.push(it);
   });
-  // Faites : les plus récentes d'abord (ajoutées en dernier), l'archive à la fin
-  done.reverse().sort((a, b) => b.recent - a.recent);
-  const sections = [...lists.values()];
-  if (done.length) sections.push({ title: 'Fait', color: '#0f766e', kind: 'done', items: done.slice(0, DONE_SHOWN), notes: done.length > DONE_SHOWN ? [`Les ${DONE_SHOWN} dernières sur ${done.length}.`] : [] });
-  return { sections };
+  // Faites : les plus récentes d'abord (date « fait le », puis ajoutées en dernier)
+  done.sort((a, b) => (b.day ?? -1) - (a.day ?? -1) || b.i - a.i);
+  return { sections: [...lists.values()].sort((a, b) => a.rank - b.rank), done };
 }
 
 // Textes des posts d'un Grand Prix : « 1. JOUR · HEURE · TITRE », puis images et textes à copier
@@ -53,7 +64,7 @@ function postDate(head, year) {
   const m = plain(head).match(/(\d{1,2})(?:er)?\s+(janvier|fevrier|mars|avril|mai|juin|juillet|aout|septembre|octobre|novembre|decembre)/);
   return m ? new Date(year, MONTHS.findIndex((x) => plain(x) === m[2]), +m[1]).getTime() : null;
 }
-const isWhen = (s) => /(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche|ce soir|\d+\s*h\b)/i.test(s);
+const isWhen = (s) => /^(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche|ce soir|\d+\s*h\b)/i.test(s);
 function parsePosts(d) {
   const year = new Date(d.at || Date.now()).getFullYear();
   const info = [], posts = [];
@@ -61,10 +72,15 @@ function parsePosts(d) {
   for (const raw of String(d.text || '').split(/\r?\n/)) {
     const text = raw.trim();
     if (!text) continue;
+    // Titre en capitales, parenthèse finale en minuscules possible (« 5. BENJY · IDÉES (@benjypaddock, idées seulement) ») ;
+    // « quand » = les morceaux qui commencent par un jour ou une heure, le reste est le titre (« QUALIFS À 19 H » compris)
     const head = text.match(/^(\d+)\.\s+(.+)$/);
-    if (head && head[2] === head[2].toUpperCase()) {
-      const parts = head[2].split(/\s+·\s+/);
-      post = { n: head[1], when: parts.filter(isWhen).join(' · '), title: parts.filter((x) => !isWhen(x)).join(' · ') || head[2], date: postDate(head[2], year), media: [], blocks: [], notes: [] };
+    const aside = head?.[2].match(/^(.*?)\s*\(([^()]*)\)$/);
+    const h = aside && aside[2] !== aside[2].toUpperCase() ? aside[1] : head?.[2];
+    if (head && h === h.toUpperCase() && /\p{Lu}/u.test(h)) {
+      const parts = h.split(/\s+·\s+/);
+      const title = parts.filter((x) => !isWhen(x)).join(' · ');
+      post = { n: head[1], when: title ? parts.filter(isWhen).join(' · ') : '', title: title || h, date: postDate(h, year), media: [], blocks: [], notes: h !== head[2] ? [aside[2]] : [] };
       posts.push(post);
       block = null;
       continue;
@@ -124,47 +140,66 @@ const VIEW = {
 };
 
 // ---------- Affichage ----------
-// Listes repliées (titres des sections), gardées sur cet appareil
-const folded = () => new Set(store.get('suivi.shut')?.v || []);
+// Listes repliées ou dépliées (titre → vrai si repliée), gardées sur cet appareil ; sans choix, les listes en réserve
+// sont repliées. Reprend l'ancienne liste des titres repliés (« suivi.shut ») tant qu'aucun nouveau choix n'est fait.
+const foldMap = () => store.get('suivi.fold')?.v || Object.fromEntries((store.get('suivi.shut')?.v || []).map((t) => [t, true]));
+const isShut = (title, parked, f = foldMap()) => f[title] ?? parked;
+
+// Une tâche par ligne : case, titre (deux lignes au plus), méta en Mono (quand · domaine) ; détails au toucher
+function taskHtml(it, { filter, done }) {
+  if (it.status === 'Lien' && it.link) {
+    const host = it.link.replace(/^https?:\/\/(www\.)?/, '').split('/')[0];
+    return `<a class="sv-task" href="${esc(it.link)}" target="_blank" rel="noopener"><span class="sv-box link" aria-hidden="true">${icon('link')}</span><span class="sv-row"><b>${esc(it.title)}</b><small class="sv-meta">${esc(host)}</small></span></a>`;
+  }
+  const wait = !done && !canCheck(it);
+  const meta = [done ? (it.day != null ? `fait ${dayTxt(it.day)}` : it.doneAt) : it.when, wait ? 'en attente' : '', filter === 'all' ? it.domain : ''].filter(Boolean);
+  const box = done ? '<span class="sv-box on" aria-hidden="true"></span>'
+    : wait ? '<span class="sv-box wait" aria-hidden="true"></span>'
+      // Case cochée : statut « Fait » sur le serveur, avec la date du jour
+      : `<button type="button" class="sv-box" data-check="${esc(it.id)}" role="checkbox" aria-checked="false" aria-label="Faite : ${esc(it.title)}"></button>`;
+  const body = `<b>${esc(it.title)}</b>${meta.length ? `<small class="sv-meta">${meta.map(esc).join(' · ')}</small>` : ''}`;
+  return `<div class="sv-task${done ? ' done' : ''}" data-id="${esc(it.id)}">${box}${it.detail.length
+    ? `<button type="button" class="sv-row" aria-expanded="false">${body}</button><div class="sv-detail" hidden>${it.detail.map((x) => `<p>${linkify(x)}</p>`).join('')}</div>`
+    : `<div class="sv-row">${body}</div>`}</div>`;
+}
 
 function todoHtml(m) {
-  const tasks = m.sections.filter((s) => s.kind === 'tasks').flatMap((s) => s.items.map((it) => ({ ...it, sec: s })));
-  const open = tasks.filter((t) => !t.done);
-  const next = open.find((t) => t.when) || open[0];
-  const bugs = open.filter((t) => t.tag === 'bug').length;
+  if (!m.sections.length && !m.done.length) return empty('Aucune tâche pour le moment : les sessions Claude les ajoutent avec la clé du suivi (Réglages), ou importe le fichier de l\'ancienne feuille.', 'list');
+  const open = m.sections.flatMap((s) => s.items.filter((it) => it.status !== 'Lien'));
+  const todo = open.filter(canCheck);
+  const doms = Object.entries(open.reduce((a, it) => (it.domain ? { ...a, [it.domain]: (a[it.domain] || 0) + 1 } : a), {})).sort((a, b) => b[1] - a[1]);
+  if (state.vtag && !doms.some(([d]) => d === state.vtag)) state.vtag = 'all';
   const filter = state.vtag || 'all';
-  const shut = folded();
-  const counts = Object.fromEntries(TAGS.map((t) => [t.key, open.filter((x) => x.tag === t.key).length]));
-  const card = (it, s) => {
-    if (s.kind === 'links' && it.link) return `<a class="sv-card" href="${esc(it.link)}" target="_blank" rel="noopener"><span class="sv-box link">↗</span><span><b>${esc(it.title)}</b></span></a>`;
-    const t = TAGS.find((x) => x.key === it.tag);
-    const dot = (!it.box || s.kind === 'info') && !it.done;
-    // Tâche à cocher : statut « Fait » sur le serveur, avec la date du jour
-    const check = s.kind === 'tasks' && it.box && !it.done ? ` data-check="${esc(it.id)}" role="checkbox" aria-checked="false" title="Cocher (rangée dans « Fait »)"` : '';
-    return `<button type="button" class="sv-card${it.done ? ' done' : ''}"${it.detail.length ? ' data-open' : ''}><span class="sv-box${dot ? ' dot' : ''}"${check}></span><span>
-      ${it.when ? `<small class="sv-when" style="color:${s.color}">${esc(it.when)}</small>` : ''}<b>${esc(it.title)}</b>
-      ${t || it.detail.length ? `<span class="sv-meta">${t ? `<i class="sv-tag">${t.icon} ${t.label}</i>` : ''}${it.detail.length ? '<i class="sv-more">Détails ▾</i>' : ''}</span>` : ''}
-      ${it.detail.length ? `<span class="sv-detail">${it.detail.map((x) => `<span>${linkify(x)}</span>`).join('')}</span>` : ''}</span></button>`;
+  const keep = (it) => filter === 'all' || it.domain === filter;
+  const bugs = todo.filter((it) => plain(it.domain) === 'bug').length;
+  const since = back(today0(), DONE_DAYS - 1);
+  const recent = m.done.filter((it) => it.day != null && it.day >= since);
+  const next = m.sections.filter((s) => !s.parked).map((s) => s.items.filter(canCheck)).find((l) => l.length);
+  const nx = next && (next.find((it) => it.when) || next[0]);
+  const f = foldMap();
+  const col = (s) => {
+    const items = s.items.filter((it) => it.status === 'Lien' || keep(it));
+    if (filter !== 'all' && !items.some((it) => it.status !== 'Lien')) return '';
+    const shut = isShut(s.title, s.parked, f);
+    return `<section class="sv-col${shut ? ' shut' : ''}" data-col="${esc(s.title)}"${s.parked ? ' data-park="1"' : ''} style="--col:${s.color}">
+      <h3><button type="button" class="sv-colhead" aria-expanded="${!shut}"><span>${esc(s.title)}</span><small>${items.length}</small></button></h3>
+      <div class="sv-items">${items.map((it) => taskHtml(it, { filter })).join('')}</div></section>`;
   };
-  if (!m.sections.length) return empty('Aucune tâche pour le moment : les sessions Claude les ajoutent avec la clé du suivi (Réglages), ou importe le fichier de l\'ancienne feuille.', 'list');
-  return `<div class="sv-sum">
-      <div class="tile"><b>${open.length}</b><small>à faire</small></div>
-      <div class="tile"><b>${tasks.length - open.length + (m.sections.find((s) => s.kind === 'done')?.items.length || 0)}</b><small>faites</small></div>
-      <div class="tile"><b${bugs ? ' class="sv-warn"' : ''}>${bugs}</b><small>bug${bugs > 1 ? 's' : ''}</small></div>
-    </div>
-    ${next ? `<div class="panel sv-next"><small>Prochaine tâche</small><b>${esc(next.title)}</b>${next.when ? `<span class="sv-when">${esc(next.when)} · ${esc(next.sec.title.replace(/^\W+/u, ''))}</span>` : ''}</div>` : ''}
-    <div class="sv-tools"><div class="chips" id="svtags"><button data-tag="all" class="${filter === 'all' ? 'on' : ''}">Tout <small>${open.length}</small></button>${TAGS.filter((t) => counts[t.key]).map((t) => `<button data-tag="${t.key}" class="${filter === t.key ? 'on' : ''}">${t.icon} ${t.label} <small>${counts[t.key]}</small></button>`).join('')}</div>
-      <button type="button" class="btn small" id="svfold">${m.sections.every((s) => shut.has(s.title)) ? 'Tout déplier' : 'Tout replier'}</button></div>
-    <div class="sv-board">${m.sections.map((s) => {
-      const items = filter === 'all' || s.kind === 'links' ? s.items : s.items.filter((it) => it.tag === filter);
-      if (filter !== 'all' && !items.length) return '';
-      const left = s.items.filter((it) => !it.done).length;
-      const pct = s.items.length ? Math.round(((s.items.length - left) / s.items.length) * 100) : 0;
-      return `<section class="sv-col${shut.has(s.title) ? ' shut' : ''}" data-col="${esc(s.title)}"><h3 style="--col:${s.color}" role="button" tabindex="0" aria-expanded="${!shut.has(s.title)}" title="Replier ou déplier">${esc(s.title)}<i>${s.kind === 'tasks' ? (left ? `${left} à faire` : 'tout fait ✓') : s.items.length}</i></h3>
-        ${s.kind === 'tasks' && s.items.length ? `<div class="sv-prog"><i style="width:${pct}%"></i></div>` : ''}
-        ${s.notes.map((n) => `<p class="sv-note">${esc(n)}</p>`).join('')}
-        <div class="sv-items">${items.length ? items.map((it) => card(it, s)).join('') : '<p class="sv-note">Rien ici pour le moment.</p>'}</div></section>`;
-    }).join('')}</div>`;
+  // Faites : celles des 7 derniers jours (les plus récentes), le reste derrière « Voir tout »
+  const doneAll = m.done.filter(keep), doneRecent = recent.filter(keep);
+  const shown = state.vdoneAll ? doneAll : doneRecent.slice(0, DONE_SHOWN);
+  const doneShut = isShut('Fait', false, f);
+  const doneCol = doneAll.length ? `<section class="sv-col${doneShut ? ' shut' : ''}" data-col="Fait" style="--col:var(--ok)">
+      <h3><button type="button" class="sv-colhead" aria-expanded="${!doneShut}"><span>Faites</span><small>${doneRecent.length} en ${DONE_DAYS} j</small></button></h3>
+      <div class="sv-items">${shown.map((it) => taskHtml(it, { filter, done: true })).join('') || '<p class="sv-note">Rien de fait ces 7 derniers jours.</p>'}
+        ${shown.length < doneAll.length || state.vdoneAll ? `<button type="button" class="btn small sv-all" id="svdone">${state.vdoneAll ? 'Seulement les récentes' : `Voir tout <small>${doneAll.length}</small>`}</button>` : ''}</div></section>` : '';
+  const active = m.sections.filter((s) => !s.parked).map(col).join(''), parked = m.sections.filter((s) => s.parked).map(col).join('');
+  const allShut = [...m.sections.map((s) => isShut(s.title, s.parked, f)), ...(doneCol ? [doneShut] : [])].every(Boolean);
+  return `<p class="sv-kpis"><span><b>${todo.length}</b> à faire</span><span><b>${recent.length}</b> faites en ${DONE_DAYS} j</span><span${bugs ? ' class="sv-warn"' : ''}><b>${bugs}</b> bug${bugs > 1 ? 's' : ''}</span></p>
+    ${nx ? `<button type="button" class="panel sv-next" data-goto="${esc(nx.id)}"><small>Prochaine tâche · ${esc(nx.list)}</small><b>${esc(nx.title)}</b>${nx.when ? `<span class="sv-when">${esc(nx.when)}</span>` : ''}</button>` : ''}
+    <div class="sv-tools"><div class="chips" id="svtags"><button data-tag="all" class="${filter === 'all' ? 'on' : ''}">Tout <small>${open.length}</small></button>${doms.map(([d, n]) => `<button data-tag="${esc(d)}" class="${filter === d ? 'on' : ''}">${esc(d)} <small>${n}</small></button>`).join('')}</div>
+      <button type="button" class="btn small" id="svfold">${allShut ? 'Tout déplier' : 'Tout replier'}</button></div>
+    <div class="sv-board">${active}${doneCol}</div>${parked ? `<p class="sv-group">En réserve</p><div class="sv-board park">${parked}</div>` : ''}`;
 }
 
 // Photos et vidéos d'un Grand Prix (stockage du serveur) : vignette, lecture, téléchargement
@@ -188,9 +223,9 @@ function postsHtml(list) {
       return `<article class="sv-post ${when}"><header><span class="sv-num">${esc(p.n)}</span><span class="grow">
           <small class="sv-when">${esc(p.when || 'Quand tu veux')}${when === 'today' ? ' <i class="sv-pill ok">Aujourd\'hui</i>' : when === 'past' ? ' <i class="sv-pill">Passé</i>' : ''}</small>
           <b>${esc(p.title)}</b></span></header>
-        ${p.media.map(([k, v]) => { const f = gp.files.find((x) => v.includes(x.name)); return f ? fileCard(f) : `<p class="sv-media">${/vid/i.test(k) ? '🎬' : '🖼️'} <span>${linkify(v)}</span></p>`; }).join('')}
+        ${p.media.map(([k, v]) => { const f = gp.files.find((x) => v.includes(x.name)); return f ? fileCard(f) : `<p class="sv-media"><small>${/vid/i.test(k) ? 'Vidéo' : 'Image'}</small><span>${linkify(v)}</span></p>`; }).join('')}
         ${p.blocks.map((b) => { const text = b.lines.join('\n\n'); return `<div class="sv-txt"><div class="sv-txthead"><small>${esc(b.label)}</small>${copyBtn(text)}</div><p>${linkify(text)}</p></div>`; }).join('')}
-        ${p.notes.map((n) => `<p class="sv-media">ℹ️ <span>${linkify(n)}</span></p>`).join('')}</article>`;
+        ${p.notes.map((n) => `<p class="sv-media note"><span>${linkify(n)}</span></p>`).join('')}</article>`;
     }).join('')}</div>
     <section class="panel"><div class="sv-h"><b>Photos et vidéos</b><small>${gp.files.length}</small></div>
       ${gp.files.length ? `<div class="sv-files">${gp.files.map(fileCard).join('')}</div>` : '<p class="sv-note">Aucun fichier pour ce Grand Prix.</p>'}
@@ -233,7 +268,7 @@ function netHtml(m) {
     subs = `<p class="sv-note">Pas encore de relevé. Premier relevé le lundi ${next ? next.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' }) : 'prochain'} : le Studio remplit la ligne du lundi tout seul.</p>`;
   } else {
     const max = Math.max(1, ...nets.map((n) => num(last[col(n)]) || 0));
-    subs = `<div class="tiles"><div class="tile"><b>${fmtN(total(last))}</b><small>abonnés au ${esc(last[0])}</small></div><div class="tile"><b class="ok">${prev ? `+${fmtN(total(last) - total(prev))}` : '—'}</b><small>en une semaine</small></div></div>
+    subs = `<p class="sv-kpis"><span><b>${fmtN(total(last))}</b> abonnés au ${esc(String(last[0]).slice(0, 5))}</span><span class="sv-ok"><b>${prev ? `+${fmtN(total(last) - total(prev))}` : '—'}</b> en une semaine</span></p>
       <div class="sv-bars">${nets.map((n) => bar(n, netColor(n), num(last[col(n)]), max)).join('')}</div>
       ${filled.length > 1 ? `${chart([{ values: filled.map(total), color: 'var(--brand)', bold: true }, ...nets.map((n) => ({ values: filled.map((r) => num(r[col(n)])), color: netColor(n) }))], filled.map((r) => r[0]))}
         <div class="sv-legend"><span><i style="background:var(--brand)"></i>Total</span>${nets.map((n) => `<span><i style="background:${netColor(n)}"></i>${esc(n)}</span>`).join('')}</div>` : ''}`;
@@ -246,11 +281,7 @@ function netHtml(m) {
   const streamers = m.streamers.filter((s) => s['Nom']);
   const lastFill = store.get('suivi.filled')?.at;
   const auto = `<p class="sv-note">Abonnés du lundi, meilleur post de Benjy, liens et chiffres des posts (Instagram, Facebook, Threads, Bluesky ; YouTube publié depuis le Studio) remplis par le Studio${lastFill ? ` · dernier passage ${new Date(lastFill).toLocaleString('fr-FR', { weekday: 'long', hour: '2-digit', minute: '2-digit' })}` : ''}.</p>`;
-  return `${auto}<div class="tiles">
-      <div class="tile"><b>${posts.length}</b><small>posts prévus</small></div>
-      <div class="tile"><b>${posts.filter((p) => p['Lien du post']).length}</b><small>avec leur lien</small></div>
-      <div class="tile"><b>${views.length ? fmtN(views.reduce((a, p) => a + num(p['Vues']), 0)) : '—'}</b><small>vues relevées</small></div>
-    </div>
+  return `<p class="sv-kpis"><span><b>${posts.length}</b> posts prévus</span><span><b>${posts.filter((p) => p['Lien du post']).length}</b> avec leur lien</span><span><b>${views.length ? fmtN(views.reduce((a, p) => a + num(p['Vues']), 0)) : '—'}</b> vues relevées</span></p>
     ${best ? `<div class="panel sv-next"><small>Meilleur post</small><b>${esc(best['Sujet'])}</b><span class="sv-when">${esc(best['Réseau'])} · ${fmtN(num(best['Vues']))} vues</span></div>` : ''}
     <div class="sv-grid">
       <section class="panel"><div class="sv-h"><b>Abonnés</b><div class="seg" id="svacc"><button data-acc="app" class="${acc === 'app' ? 'on' : ''}">@paddockliveapp</button><button data-acc="benjy" class="${acc === 'benjy' ? 'on' : ''}">@benjypaddock</button></div></div>${subs}</section>
@@ -259,23 +290,37 @@ function netHtml(m) {
     </div>
     <section class="panel"><div class="sv-h"><b>Posts @paddockliveapp</b><small>${posts.length} lignes</small></div>
       <div class="sv-scroll"><table class="sv-table"><thead><tr><th>Date</th><th>Réseau</th><th>Sujet</th>${metrics.map((x) => `<th class="n">${x}</th>`).join('')}<th>Lien</th></tr></thead>
-      <tbody>${sorted.map((p) => `<tr><td class="nw">${esc(p['Date'].slice(0, 5))} ${esc(p['Heure'])}</td><td class="nw"><i class="sv-dot" style="background:${netColor(p['Réseau'])}"></i>${esc(p['Réseau'])}</td><td>${esc(p['Sujet'])}</td>${metrics.map((x) => `<td class="n">${fmtN(num(p[x]))}</td>`).join('')}<td>${p['Lien du post'] ? `<a href="${esc(p['Lien du post'])}" target="_blank" rel="noopener">Voir ↗</a>` : '—'}</td></tr>`).join('')}</tbody></table></div></section>
+      <tbody>${sorted.map((p) => `<tr><td class="nw">${esc(p['Date'].slice(0, 5))} ${esc(p['Heure'])}</td><td class="nw"><i class="sv-dot" style="background:${netColor(p['Réseau'])}"></i>${esc(p['Réseau'])}</td><td class="sj">${esc(p['Sujet'])}</td>${metrics.map((x) => `<td class="n">${fmtN(num(p[x]))}</td>`).join('')}<td>${p['Lien du post'] ? `<a href="${esc(p['Lien du post'])}" target="_blank" rel="noopener">Voir ↗</a>` : '—'}</td></tr>`).join('')}</tbody></table></div></section>
     <section class="panel"><div class="sv-h"><b>Streamers</b><small>${streamers.length} notés</small></div>
       ${streamers.length ? `<div class="sv-scroll"><table class="sv-table"><thead><tr><th>Nom</th><th>Plateforme</th><th class="n">Abonnés</th><th>Statut</th><th>Contacté le</th><th>Relance</th><th>Notes</th></tr></thead><tbody>${streamers.map((s) => `<tr><td>${s['Lien de la chaîne'] ? `<a href="${esc(s['Lien de la chaîne'])}" target="_blank" rel="noopener">${esc(s['Nom'])}</a>` : esc(s['Nom'])}</td><td>${esc(s['Plateforme'])}</td><td class="n">${fmtN(num(s['Abonnés']))}</td><td><i class="sv-tag">${esc(s['Statut'] || 'À contacter')}</i></td><td>${esc(s['Contacté le'])}</td><td>${esc(s['Relance prévue'])}</td><td>${esc(s['Notes'])}</td></tr>`).join('')}</tbody></table></div>` : '<p class="sv-note">Aucun streamer noté pour le moment.</p>'}</section>
-`;
+    ${auto}`;
 }
 
-const DOMAINS = { code: '#1a66d2', site: '#0e7490', suivi: '#6b4fbb', reseaux: '#d62976', version: '#0f8a4f', securite: '#c2410c' };
-const domColor = (d) => DOMAINS[plain(d || '')] || '#5a616c';
+// Journal : couleur du domaine (texte en Mono sur fond sombre, contraste AA)
+const DOMAINS = { code: 'var(--link)', developpement: '#8FA3FF', site: 'var(--data)', 'version web': 'var(--data)', suivi: '#B79CFF', reseaux: '#FF7AB8', version: 'var(--ok)', appli: 'var(--ok)', securite: 'var(--warn)', referencement: '#E9C46A' };
+const domColor = (d) => DOMAINS[plain(d || '')] || 'var(--muted)';
+// 14 derniers jours (depuis la ligne la plus récente), une journée par bloc, les trois plus récentes ouvertes ;
+// « Plus ancien » ajoute les 14 jours qui précèdent la journée suivante. Le domaine n'est écrit qu'au premier d'une
+// suite de lignes du même domaine.
+const LOG_DAYS = 14;
 function logHtml(m) {
   if (!m.rows.length) return empty('Le Journal est vide.', 'news');
-  const days = [];
-  for (const r of m.rows) { if (days[days.length - 1]?.d !== r.date) days.push({ d: r.date, items: [] }); days[days.length - 1].items.push(r); }
-  const label = (d) => parseFr(d)?.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }) || d;
-  return `<div class="sv-log">${days.map((g) => `<section><h3 class="sv-day">${esc(label(g.d))}</h3>${g.items.map((r) => `<div class="sv-entry">
-      <i class="sv-dom" style="background:${domColor(r.domain)}">${esc(r.domain || '—')}</i><p>${linkify(r.text)}</p>${r.where ? `<small>→ ${linkify(r.where)}</small>` : ''}</div>`).join('')}</section>`).join('')}</div>`;
+  const days = new Map();
+  for (const r of m.rows) { const t = dayOf(r.date), k = t ?? r.date; if (!days.has(k)) days.set(k, { t, d: r.date, items: [] }); days.get(k).items.push(r); }
+  const groups = [...days.values()].sort((a, b) => (b.t ?? -Infinity) - (a.t ?? -Infinity));
+  const since = state.vlogSince ?? back(groups[0].t ?? today0(), LOG_DAYS - 1);
+  const dated = groups.filter((g) => g.t != null && g.t >= since);
+  const shown = dated.length === groups.filter((g) => g.t != null).length ? groups : dated;
+  const label = (g) => (g.t != null ? new Date(g.t).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }) : g.d || 'Sans date');
+  const line = (r, prev) => `<div class="sv-line"><span class="sv-dom" style="color:${domColor(r.domain)}">${prev?.domain === r.domain ? '' : esc(r.domain || '—')}</span><p>${linkify(r.text)}${r.where ? ` <small>→ ${linkify(r.where)}</small>` : ''}</p></div>`;
+  const older = groups.length - shown.length;
+  return `<div class="sv-log">${shown.map((g, i) => `<details class="sv-daybox"${i < 3 ? ' open' : ''}><summary class="sv-day"><span>${esc(label(g))}</span><small>${g.items.length}</small></summary>
+      ${g.items.map((r, j) => line(r, g.items[j - 1])).join('')}</details>`).join('')}
+    ${older ? `<button type="button" class="btn wide" id="svolder" data-next="${groups.find((g) => g.t != null && g.t < since)?.t ?? since}">Plus ancien <small>${older} jour${older > 1 ? 's' : ''}</small></button>` : ''}</div>`;
 }
 
+// Guides : choix du guide dans un menu, sommaire numéroté (ouvert sur ordinateur, à déplier au téléphone), texte
+// en colonne de lecture
 function guidesHtml(m) {
   if (!m.list.length) return empty('Aucun guide pour le moment.', 'news');
   let html = '', list = false, h2 = 0;
@@ -291,9 +336,11 @@ function guidesHtml(m) {
   }
   if (list) html += '</ul>';
   const toc = m.blocks.filter((b) => b.t === 'h2');
-  return `<div class="chips" id="svguides">${m.list.map((f) => `<button data-guide="${f.id}" class="${f.id === m.id ? 'on' : ''}">${esc(f.name.replace(/\s*·\s*Paddock Live$/i, ''))}</button>`).join('')}</div>
-    ${toc.length > 2 ? `<div class="chips wrap sv-toc">${toc.map((b, i) => `<button data-toc="${i}">${esc(b.text.replace(/^\d+\.\s*/, ''))}</button>`).join('')}</div>` : ''}
-    <article class="sv-doc">${html}</article>`;
+  const wide = matchMedia('(min-width: 960px)').matches;
+  return `<label class="sv-pick"><small>Guide <i>${m.list.length}</i></small><select id="svguide">${m.list.map((g) => `<option value="${esc(g.id)}"${g.id === m.id ? ' selected' : ''}>${esc(g.name.replace(/\s*·\s*Paddock Live$/i, ''))}</option>`).join('')}</select></label>
+    <div class="sv-guide">${toc.length > 1 ? `<details class="sv-toc"${wide ? ' open' : ''}><summary>Sommaire <small>${toc.length} parties</small></summary>
+      <ol>${toc.map((b, i) => `<li><button type="button" data-toc="${i}"><i>${String(i + 1).padStart(2, '0')}</i><span>${esc(b.text.replace(/^\d+\.\s*/, ''))}</span></button></li>`).join('')}</ol></details>` : ''}
+    <article class="sv-doc">${html}</article></div>`;
 }
 
 // Réglages : clé des sessions Claude, import de l'ancienne feuille
@@ -346,7 +393,9 @@ async function showSub(body, { force, current }) {
   const paint = (d, stale) => {
     if (!current() || state.vsub !== sub) return;
     copies = [];
-    body.innerHTML = `<div class="seg wide" id="svsub">${SUBS.map(([k, v]) => `<button data-sub="${k}" class="${k === sub ? 'on' : ''}">${v}</button>`).join('')}</div>
+    body.innerHTML = `<div class="seg wide" id="svsub">${SUBS.map(([k, v]) => (k === 'set'
+      ? `<button data-sub="${k}" class="sv-gear${k === sub ? ' on' : ''}" aria-label="${v} du suivi" title="${v} du suivi : clé des sessions Claude, import">${KEY_ICON}</button>`
+      : `<button data-sub="${k}" class="${k === sub ? 'on' : ''}">${v}</button>`)).join('')}</div>
       ${stale ? '<p class="status"><span class="dot"></span>Mise à jour…</p>' : ''}<div id="svpane">${d ? RENDER[sub](VIEW[sub](d)) : skeleton(3)}</div>`;
     bind(body, d, { force, current });
     glide(body);
@@ -365,6 +414,19 @@ async function showSub(body, { force, current }) {
     $('[data-retry]', body).onclick = () => showSub(body, { force: true, current });
   }
 }
+
+// Cases cochées : envoyées une à une, dans l'ordre (pas deux écritures en même temps), sans relire la page ; la copie
+// gardée du suivi est mise à jour pour rester juste d'un onglet à l'autre
+let checks = Promise.resolve();
+const parisDay = () => new Date().toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris', day: 'numeric', month: 'numeric', year: 'numeric' });
+function keepTask(id, fields) {
+  const known = store.get('suivi.data');
+  const t = known?.v?.tasks?.find((x) => x.id === id);
+  if (!t) return;
+  Object.assign(t, fields);
+  store.set('suivi.data', known.v);
+}
+const sendCheck = (id, fields) => (checks = checks.catch(() => {}).then(() => api('suivi/ops', { method: 'POST', body: JSON.stringify({ ops: [{ op: 'task.set', id, ...fields }] }) })));
 
 // Opérations envoyées au serveur, puis suivi relu
 async function ops(list) {
@@ -396,36 +458,67 @@ function bind(body, d, opts) {
   // Repli : titre d'une liste (une seule) ou bouton « Tout replier / Tout déplier », appliqué sur place
   // (sans redessiner l'onglet) et gardé sur cet appareil
   const all = $('#svfold', body);
-  const fold = (titles) => {
-    store.set('suivi.shut', [...titles]);
-    const cols = $$('.sv-col', body);
-    for (const c of cols) { c.classList.toggle('shut', titles.has(c.dataset.col)); $('h3', c).setAttribute('aria-expanded', !titles.has(c.dataset.col)); }
-    if (all) all.textContent = cols.every((c) => titles.has(c.dataset.col)) ? 'Tout déplier' : 'Tout replier';
+  const cols = () => $$('.sv-col', body);
+  const fold = (f) => {
+    store.set('suivi.fold', f);
+    for (const c of cols()) { const shut = isShut(c.dataset.col, !!c.dataset.park, f); c.classList.toggle('shut', shut); $('.sv-colhead', c).setAttribute('aria-expanded', !shut); }
+    if (all) all.textContent = cols().every((c) => c.classList.contains('shut')) ? 'Tout déplier' : 'Tout replier';
   };
-  $$('.sv-col h3', body).forEach((h) => {
-    const toggle = () => { const s = folded(), k = h.parentElement.dataset.col; if (!s.delete(k)) s.add(k); fold(s); };
-    h.onclick = toggle;
-    h.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } };
-  });
-  if (all) all.onclick = () => { const cols = $$('.sv-col', body).map((c) => c.dataset.col); fold(new Set(cols.every((k) => folded().has(k)) ? [] : cols)); };
-  $$('.sv-card[data-open]', body).forEach((c) => { c.onclick = (e) => { if (!e.target.closest('a, [data-check]')) c.classList.toggle('open'); }; });
-  // Case cochée : tâche marquée faite tout de suite (rangée dans « Fait » avec la date du jour), puis liste relue
+  $$('.sv-colhead', body).forEach((h) => { h.onclick = () => { const c = h.closest('.sv-col'); fold({ ...foldMap(), [c.dataset.col]: !c.classList.contains('shut') }); }; });
+  if (all) all.onclick = () => { const shut = !cols().every((c) => c.classList.contains('shut')), f = foldMap(); for (const c of cols()) f[c.dataset.col] = shut; fold(f); };
+  // Détails d'une tâche : ouverts en touchant la ligne
+  const openTask = (t, on = !t.classList.contains('open')) => {
+    const row = $('.sv-row[aria-expanded]', t);
+    if (!row) return;
+    t.classList.toggle('open', on);
+    row.setAttribute('aria-expanded', on);
+    $('.sv-detail', t).hidden = !on;
+  };
+  $$('.sv-row[aria-expanded]', body).forEach((r) => { r.onclick = () => openTask(r.closest('.sv-task')); });
+  // Prochaine tâche : sa ligne montrée (liste dépliée) et ses détails ouverts
+  const go = $('[data-goto]', body);
+  if (go) go.onclick = () => {
+    const t = $$('.sv-task', body).find((x) => x.dataset.id === go.dataset.goto);
+    if (!t) return;
+    const c = t.closest('.sv-col');
+    if (c.classList.contains('shut')) $('.sv-colhead', c).click();
+    openTask(t, true);
+    t.scrollIntoView({ block: 'center' });
+    t.classList.toggle('flash', false);
+    void t.offsetWidth;
+    t.classList.toggle('flash', true);
+  };
+  const doneBtn = $('#svdone', body);
+  if (doneBtn) doneBtn.onclick = () => { state.vdoneAll = !state.vdoneAll; again(); };
+  const older = $('#svolder', body);
+  if (older) older.onclick = () => { state.vlogSince = back(+older.dataset.next, LOG_DAYS - 1); again(); };
+  const guide = $('#svguide', body);
+  if (guide) guide.onchange = () => { state.vguide = guide.value; again(); scrollTo(0, 0); };
+  // Case cochée : tâche faite tout de suite (date du jour), laissée à sa place, barrée, pour en cocher plusieurs
+  // d'affilée ; touchée de nouveau, remise à faire. Rangée dans « Fait » au prochain affichage de l'onglet
   $$('[data-check]', body).forEach((b) => {
-    b.onclick = async (e) => {
+    b.onclick = (e) => {
       e.stopPropagation();
-      const card = b.closest('.sv-card');
-      if (card.classList.contains('done')) return;
-      card.classList.add('done');
-      b.setAttribute('aria-checked', 'true');
-      try { await ops([{ op: 'task.set', id: b.dataset.check, status: 'Fait' }]); toast('Fait : rangé dans « Fait »', 'ok'); } catch (err) { toast(err.message, 'bad'); }
-      again(true);
+      const card = b.closest('.sv-task');
+      const on = !card.classList.contains('done');
+      if (!on && !card.dataset.mine) return;   // déjà faite avant : inchangée
+      const id = b.dataset.check;
+      const set = (yes) => { card.classList.toggle('done', yes); b.setAttribute('aria-checked', String(yes)); if (yes) card.dataset.mine = '1'; else delete card.dataset.mine; };
+      const fields = on ? { status: 'Fait', doneAt: parisDay() } : { status: 'À faire', doneAt: '' };
+      set(on);
+      keepTask(id, fields);
+      sendCheck(id, fields).then(() => toast(on ? 'Fait' : 'Remis à faire', 'ok'), (err) => {
+        set(!on);
+        keepTask(id, on ? { status: 'À faire', doneAt: '' } : { status: 'Fait', doneAt: fields.doneAt || parisDay() });
+        toast(`Non enregistré : ${err.message}`, 'bad');
+      });
     };
   });
   $$('#svtags [data-tag]', body).forEach((b) => { b.onclick = () => { state.vtag = b.dataset.tag; again(); }; });
   $$('#svgps [data-gp]', body).forEach((b) => { b.onclick = () => { state.vgp = b.dataset.gp; again(); }; });
   $$('#svacc [data-acc]', body).forEach((b) => { b.onclick = () => { state.vacc = b.dataset.acc; again(); }; });
-  $$('#svguides [data-guide]', body).forEach((b) => { b.onclick = () => { state.vguide = b.dataset.guide; again(); }; });
-  $$('[data-toc]', body).forEach((b) => { b.onclick = () => $(`#svh${b.dataset.toc}`, body)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+  // Sauts directs, sans défilement animé : le recalage de la page (ui.js, à la perte du focus) l'interromprait
+  $$('[data-toc]', body).forEach((b) => { b.onclick = () => $(`#svh${b.dataset.toc}`, body)?.scrollIntoView({ block: 'start' }); });
   // Réglages : nouvelle clé (montrée une seule fois), import d'un fichier
   const keyBtn = $('#svkey', body);
   if (keyBtn) keyBtn.onclick = async () => {

@@ -2,7 +2,9 @@
 import { store, setDuelPair, setFocus, versionOf, displayNow, f1Now, on, utcToLocal } from '../store.js';
 import { $, esc, drivers, orderedNumbers, sessionKind, teamMark, tyreBadge, currentStint, lapSeconds, fmtLap } from '../util.js';
 import { prefs, isFav, toggleFav, towerCols, towerBig } from '../prefs.js';
-import { segmentClass, parseUtc, chequeredUtc, parseGap, overtakeEnabled } from '/shared/f1.js';
+import { segmentClass, parseUtc, parseLapTime, chequeredUtc, parseGap, overtakeEnabled, provisionalOrder } from '/shared/f1.js';
+import { lineCall, LAST_LAP_WINDOW } from '/shared/last-lap.js';
+import { timeLeft } from './session-info.js';
 import { icon } from '../icons.js';
 import { realStopCount } from '/shared/pits.js';
 import { stewardsData } from './feed.js';
@@ -55,8 +57,9 @@ function gapText(v) {
 
 export function renderTower(force = false) {
   const now = performance.now();
+  const clock = lastLapClock();
   // Pilotes A et B marqués seulement quand le panneau Duel est affiché (comme sur la carte)
-  const key = `${versionOf(['TimingData', 'TimingAppData', 'DriverList', 'TimingStats', 'RaceControlMessages', '__reset'])}|${store.duel.a}|${store.duel.b}|${store.duel.manual}|${store.focus}|${towerBig()}|${towerCols().hidden.join()}|${towerCols().extra.join()}|${prefs.favs.join()}|${prefs.hotLapDim}`;
+  const key = `${clock ? Math.floor(now / 1000) : ''}|${versionOf(['TimingData', 'TimingAppData', 'DriverList', 'TimingStats', 'RaceControlMessages', 'LapCount', '__reset'])}|${store.duel.a}|${store.duel.b}|${store.duel.manual}|${store.focus}|${towerBig()}|${towerCols().hidden.join()}|${towerCols().extra.join()}|${prefs.favs.join()}|${prefs.hotLapDim}`;
   const carTick = store.positions.car.size ? Math.floor(now / 500) : 0;
   if (!force && key + carTick === lastKey) return;
   if (!force && now - lastRender < 250) return;
@@ -83,7 +86,8 @@ export function renderTower(force = false) {
   const TH = (cls, label, title = '') => `<th class="${cls}"${title ? ` title="${title}"` : ''}>${label}</th>`;
   const secHead = TH('c-sec', 'S1') + TH('c-sec', 'S2') + TH('c-sec', 'S3');
   // Colonnes facultatives (menu « Colonnes » du classement)
-  const extraHead = TH('c-grid', 'Grille', 'Position de départ') + TH('c-laps', 'Tours', 'Tours effectués')
+  const extraHead = TH('c-pen', 'Avec pén.', 'Place avec les pénalités en temps pas encore purgées (provisoire : décisions après la course non comptées)')
+    + TH('c-grid', 'Grille', 'Position de départ') + TH('c-laps', 'Tours', 'Tours effectués')
     + TH('c-gapf', 'Suivi', 'Écart au pilote suivi (clic sur un pilote)') + TH('c-spd', 'I1 · I2 · Arr.', 'Vitesses aux intermédiaires 1 et 2 et sur la ligne d\'arrivée (km/h)')
     + [1, 2, 3].map((i) => TH('t-lap c-bsec', `Meill. S${i}`, `Meilleur secteur ${i} du pilote dans la séance (violet : meilleur de tous)`)).join('') + TH('c-team', 'Écurie');
   // Écart au pilote suivi : course = écart au leader, essais / qualifs = meilleur tour
@@ -127,6 +131,12 @@ export function renderTower(force = false) {
   }
   const flagUtc = chequeredUtc(s.RaceControlMessages?.Messages);
   const flagAt = flagUtc === null ? null : utcToLocal(flagUtc);
+  // Arrivée provisoire avec ces pénalités (option « Avec pénalités » du menu Colonnes) : course, 5 derniers tours et
+  // après le drapeau. Mêmes données retardées que le classement
+  const cols = towerCols();
+  const lapNow = Number(s.LapCount?.CurrentLap) || 0, lapTotal = Number(s.LapCount?.TotalLaps) || 0;
+  const penOn = kind === 'race' && cols.extra.includes('pen') && (flagAt !== null || (lapTotal > 0 && lapNow > lapTotal - 5));
+  const prov = penOn ? new Map(provisionalOrder(nums.map((n) => ({ num: n, gap: lines[n]?.GapToLeader, int: lines[n]?.IntervalToPositionAhead?.Value, out: lines[n]?.Retired })), pens).map((r) => [r.num, r])) : null;
   // Bataille repérée toute seule (course, aucun duel ouvert, pas sous voiture de sécurité ni drapeau rouge) : pastille sur
   // le pilote derrière, un clic ouvre le duel (data-battle, comme les Bagarres)
   const spotBattles = kind === 'race' && !(store.duel.manual && store.duel.a && store.duel.b) && !['4', '5', '6', '7'].includes(String(s.TrackStatus?.Status || ''));
@@ -154,7 +164,11 @@ export function renderTower(force = false) {
       tags.push(`<span class="tag drs dep${on ? ' on' : ''}" title="Mode dépassement : allumé à moins d'une seconde de la voiture devant">DÉP</span>`);
     }
     const pred = kind !== 'race' && !done ? predictLap(l, stats[num]) : null;
-    if (pred) tags.push('<span class="tag push" title="Tour rapide en cours">TOUR</span>');
+    // Qualifs, 3 dernières minutes (GPS) : passera-t-il la ligne avant le drapeau ?
+    const call = clock && !done ? lastLapCall(num, l, !!pred, clock, dispNow) : null;
+    if (call?.call === 'last') tags.push('<span class="tag last" title="Dernier tour : commencé avant le drapeau, il finira après">DERNIER TOUR</span>');
+    else if (pred) tags.push('<span class="tag push" title="Tour rapide en cours">TOUR</span>');
+    if (call && call.call !== 'last') tags.push(LINE_TAGS[call.call](Math.round(Math.abs(call.margin))));
     if (pens[num]) tags.push(`<span class="tag pen" title="Pénalité en temps : purgée au prochain arrêt, sinon ajoutée à son temps de course">+${pens[num]} s</span>`);
     const fight = spotBattles && i > 0 && !l.Retired && !l.InPit && !done && ahead > 0 && ahead < 1 ? battleLaps(nums[i - 1], num) : 0;
     if (fight >= 3) tags.push(`<button type="button" class="tag battle" data-battle="${nums[i - 1]},${num}" title="Bataille avec ${esc(dl[nums[i - 1]]?.Tla || nums[i - 1])} depuis ${fight} tours : ouvrir le duel">${icon('duel')}</button>`);
@@ -188,7 +202,9 @@ export function renderTower(force = false) {
     const dg = g !== null ? g - focusGap : null;
     const sp = l.Speeds || {};
     const v = (k) => (sp[k]?.Value ? `<b class="${timingClass(sp[k])}">${esc(sp[k].Value)}</b>` : '<span class="dim">—</span>');
-    const extra = `<td class="c-grid">${a.GridPos ? `P${esc(a.GridPos)}` : '<span class="dim">—</span>'}</td>`
+    const pv = !l.Retired && prov?.get(num), pd = pv ? pv.from - pv.to : 0;
+    const extra = `<td class="c-pen">${pv ? `P${pv.to}${pd ? `<span class="pos-delta ${pd > 0 ? 'up' : 'down'}">${icon(pd > 0 ? 'tri-up' : 'tri-down')}${Math.abs(pd)}</span>` : ''}` : '<span class="dim">—</span>'}</td>`
+      + `<td class="c-grid">${a.GridPos ? `P${esc(a.GridPos)}` : '<span class="dim">—</span>'}</td>`
       + `<td class="c-laps">${esc(l.NumberOfLaps ?? '') || '<span class="dim">—</span>'}</td>`
       + `<td class="c-gapf ${dg === null ? '' : dg < 0 ? 'ahead' : 'behind'}">${store.focus === num ? '<span class="dim">suivi</span>' : dg === null ? '<span class="dim">—</span>' : `${dg < 0 ? '−' : '+'}${Math.abs(dg).toFixed(3)}`}</td>`
       + `<td class="c-spd">${v('I1')} · ${v('I2')} · ${v('FL')}</td>`
@@ -248,9 +264,16 @@ export function renderTower(force = false) {
     if (t) cutInfo = `<caption class="cutline">Limite ${/sprint/i.test(s.SessionInfo?.Name || '') ? 'SQ' : 'Q'}${part} (P${cutoff}) : <b>${fmtLap(t)}</b>${threatened.length ? ` · en danger : ${esc(threatened.join(', '))}` : ''}</caption>`;
   }
 
+  // Bandeau : places qui changent avec les pénalités (« NOR P3 → P5 ») ; après le drapeau, arrivée provisoire
+  if (prov) {
+    const moved = [...prov.values()].filter((r) => r.from !== r.to && !lines[r.num]?.Retired)
+      .map((r) => `<b>${esc(dl[r.num]?.Tla || r.num)}</b> P${r.from} → P${r.to}`).join(' · ');
+    if (flagAt !== null) cutInfo = `<caption class="cutline"><span>Arrivée provisoire avec les pénalités en temps (décisions après la course non comptées) :</span> ${moved || '<span>aucun changement</span>'}</caption>`;
+    else if (moved) cutInfo = `<caption class="cutline"><span>Avec les pénalités en temps :</span> ${moved}</caption>`;
+  }
+
   const table = $('#tower');
-  const cols = towerCols();
-  table.className = `tower ${cols.hidden.map((c) => `hide-${c}`).join(' ')} ${cols.extra.map((c) => `show-${c}`).join(' ')}`;
+  table.className = `tower ${cols.hidden.map((c) => `hide-${c}`).join(' ')} ${cols.extra.filter((c) => c !== 'pen' || penOn).map((c) => `show-${c}`).join(' ')}`;
   syncTable(table, cutInfo, head, rows);
   fitTower();
 }
@@ -389,13 +412,49 @@ export function fitTower(force = false) {
   table.style.removeProperty('--tower-row-h');
 }
 
+// « Encore un tour ? » : qualifs, 3 dernières minutes de chaque partie, avec le GPS seulement (sa place sur le tour et son
+// allure des 20 dernières secondes) ; horloge qui tourne, pas de drapeau rouge. rem : temps restant (s) ; flag : heure
+// locale du drapeau
+function lastLapClock() {
+  const s = store.state, ec = s.ExtrapolatedClock, P = store.positions;
+  if (sessionKind(s) !== 'quali' || !P.track || !P.hasGps(displayNow()) || String(s.TrackStatus?.Status) === '5') return null;
+  const rem = timeLeft();
+  if (rem === null || rem > LAST_LAP_WINDOW * 1000 || (rem > 0 && !ec.Extrapolating)) return null;
+  return { rem: rem / 1000, flag: utcToLocal(parseUtc(ec.Utc) + parseLapTime(ec.Remaining) * 1000) };
+}
+
+const LINE_TAGS = {
+  go: (s) => `<span class="tag line-go" title="Passe la ligne environ ${s} s avant le drapeau : encore un tour possible">À TEMPS</span>`,
+  tight: () => '<span class="tag line-tight" title="Juste : la ligne et le drapeau à quelques secondes près">JUSTE</span>',
+  late: (s) => `<span class="tag line-late" title="Trop tard : passe la ligne environ ${s} s après le drapeau">TROP TARD</span>`,
+};
+
+function lastLapCall(num, l, hot, clock, now) {
+  if (l.InPit || l.Retired || l.Stopped || l.KnockedOut) return null;
+  const P = store.positions, L = P.track.L, g = P.paceAt(num, now, 20000);
+  const from = g ? g.p - P.lineFrac() * L : NaN;
+  const lap = store.derived.laps?.[num]?.at(-1);
+  return lineCall({
+    remaining: clock.rem,
+    toLine: L - (((from % L) + L) % L),
+    rate: g?.rate,
+    hot,
+    startedInTime: !clock.flag || !lap || lap.t < clock.flag,
+  });
+}
+
 // Temps prévu d'un tour lancé : secteurs réalisés + meilleurs secteurs personnels restants.
 // Pilotes dans un tour lancé (essais / qualifs), pour estomper les autres (option, comme
 // MultiViewer). Vide en course ou si l'option est coupée.
-let hotKey = '', hotSet = new Set();
 export function hotLaps() {
+  return prefs.hotLapDim ? flyingLaps() : null;
+}
+
+// Pilotes dans un tour lancé (essais / qualifs) ; null en course
+let hotKey = '', hotSet = new Set();
+export function flyingLaps() {
   const s = store.state;
-  if (!prefs.hotLapDim || sessionKind(s) === 'race') return null;
+  if (sessionKind(s) === 'race') return null;
   const k = versionOf(['TimingData', 'TimingStats', '__reset']);
   if (k !== hotKey) {
     hotKey = k;

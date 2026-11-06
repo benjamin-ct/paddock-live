@@ -14,7 +14,7 @@
 //   toutes les 6 heures, bilan de santé (health.js) : flux F1, erreurs de l'appli, jetons.
 import { cleanBatch } from '../shared/stats.js';
 import { summary } from './usage.js';
-import { studioApi, runSchedule, schedInternal, schedVideo, seasonRow, fails, failed, MAX_FAILS } from './studio.js';
+import { studioApi, runSchedule, schedInternal, schedVideo, seasonRow, fails, failed, tryKey, MAX_FAILS } from './studio.js';
 import { suiviFile } from './suivi.js';
 import { loginPage, dashboardPage } from './page.js';
 import { cleanRequest, translateBatch } from './translate.js';
@@ -29,37 +29,43 @@ import { buildIcs } from '../shared/ics.js';
 import { pronosApi, GROUP_RE } from './pronos.js';
 import { pruneIpQuota, callerIp, ipQuota } from './quota.js';
 import { healthCheck, HEALTH } from './health.js';
-import { publicPushApi, pushRun, queuePush, sessionReminders } from './push-public.js';
+import { publicPushApi, pushRun, queuePush, sessionReminders, eveSoon, eveReminders, eveZones, morningDigests } from './push-public.js';
 import { liveSocket, liveApi } from './live-relay.js';
 import { statsTick } from './race-stats.js';
 import { fiaTick } from './fia-tech.js';
 import { zonesTick } from './zones.js';
 import { recordsTick } from './records.js';
+import { historyTick } from './circuit-history.js';
+import { careerTick } from './career.js';
 import { surroundingsTick } from './surroundings.js';
 import { newsTick, newsApi } from './news.js';
-import { seasonSsr, seasonSitemap, legacySeasonUrl } from './season-pages.js';
+import { seasonSsr, seasonSitemap, legacySeasonUrl, parseEnSeasonPath, seasonRewriter } from './season-pages.js';
 import { parseSeasonPath } from '../shared/season-urls.js';
-import { LIVE_HEADERS } from './live-page/headers.js';
+import { LIVE_HEADERS, STUDIO_HEADERS } from './live-page/headers.js';
 
-// Fichier de la version web, avec ses en-têtes de sécurité (le fichier _headers ne s'applique pas ici)
+// Fichier de la version web, avec ses en-têtes de sécurité (le fichier _headers ne s'applique pas ici). Service worker
+// des alertes (/live/sw.js) : permis pour toute la page, servie à la racine
 async function liveAsset(env, req) {
   const res = await env.ASSETS.fetch(req);
   const out = new Response(res.body, res);
   for (const [k, v] of Object.entries(LIVE_HEADERS)) out.headers.set(k, v);
+  if (new URL(req.url).pathname === '/live/sw.js') out.headers.set('Service-Worker-Allowed', '/');
   return out;
 }
 
 // Rubrique de la Saison à son adresse (app.paddocklive.app/saison/2026/…) : page de la version web avec le titre, la
 // description, l'adresse canonique et un premier contenu de la rubrique déjà écrits (moteurs de recherche, partage),
-// remplacés par l'appli dès qu'elle démarre. Gardée 15 minutes : un robot qui parcourt tout ne refait pas chaque page
+// remplacés par l'appli dès qu'elle démarre. Gardée 15 minutes : un robot qui parcourt tout ne refait pas chaque page.
+// Version anglaise (/en/season/…, analytics/season-pages.js) : contenu, titre et langue de la page en anglais, rubrique
+// donnée à l'appli par la page (data-sz-*, lue par web.js) ; adresses réciproques des deux langues (hreflang)
 async function seasonAppPage(env, req, url, ctx) {
-  const p = parseSeasonPath(url.pathname);
+  const p = parseSeasonPath(url.pathname) || parseEnSeasonPath(url.pathname);
   if (!p) return new Response('Introuvable', { status: 404 });
   // /saison/ : la saison en cours dès son premier Grand Prix couru, la précédente avant (sinon une saison vide en janvier)
   if (!p.year) {
     const y = new Date().getUTCFullYear();
     const cur = JSON.parse(await env.DB?.prepare('SELECT v FROM studio WHERE k = ?1').bind(`season:${y}`).first('v').catch(() => null) || 'null')?.v;
-    return Response.redirect(`${url.origin}/saison/${cur?.races?.some((r) => r.results?.length) || !env.DB ? y : y - 1}/`, 302);
+    return Response.redirect(`${url.origin}${p.lang === 'en' ? '/en/season/' : '/saison/'}${cur?.races?.some((r) => r.results?.length) || !env.DB ? y : y - 1}/`, 302);
   }
   const key = new Request(`${url.origin}${url.pathname}`);
   const hit = await caches.default.match(key).catch(() => null);
@@ -69,18 +75,7 @@ async function seasonAppPage(env, req, url, ctx) {
   // Sans les en-têtes du visiteur : un If-None-Match ferait répondre 304 sans contenu, gardé 15 min pour tout le monde
   const page = await liveAsset(env, new Request(new URL('/live/', url)));
   if (!ssr.url || page.status !== 200) return page;
-  const attr = (name, v) => ({ element(e) { e.setAttribute(name, v); } });
-  const out = new HTMLRewriter()
-    .on('title', { element(e) { e.setInnerContent(`${ssr.title} · Paddock Live`); } })
-    .on('meta[name="description"]', attr('content', ssr.desc))
-    .on('meta[property="og:title"]', attr('content', ssr.title))
-    .on('meta[property="og:description"]', attr('content', ssr.desc))
-    .on('meta[property="og:url"]', attr('content', ssr.url))
-    .on('link[rel="canonical"]', attr('href', ssr.url))
-    .on('head', { element(e) { if (ssr.ld) e.append(`<script type="application/ld+json">${JSON.stringify({ '@context': 'https://schema.org', '@graph': ssr.ld }).replace(/</g, '\\u003c')}</script>`, { html: true }); } })
-    .on('#seasonView', { element(e) { if (ssr.html) e.removeAttribute('hidden'); } })
-    .on('#szContent', { element(e) { if (ssr.html) e.setInnerContent(ssr.html, { html: true }); } })
-    .transform(page);
+  const out = seasonRewriter(ssr).transform(page);
   const body = await out.text();
   const res = new Response(body, { status: 200, headers: out.headers });
   res.headers.set('Content-Type', 'text/html; charset=utf-8');
@@ -94,6 +89,7 @@ async function seasonAppPage(env, req, url, ctx) {
 export { LiveRelay } from './live-relay.js';
 
 const MAX_BODY = 32 * 1024;
+const INGEST_DAY = 500000;   // lignes de statistiques écrites par jour, toutes adresses confondues
 const COOKIE = 'pl_stats';
 const SESSION_DAYS = 30;
 
@@ -165,6 +161,9 @@ async function ingest(req, env) {
   const rows = batch.items.length + (batch.errors?.length || 0);
   const ip = clientIp(req);
   if (ip && rows && !(await ipQuota(env, { key: 'ingest', day, ip, n: rows, limit: 10000 }))) return json({ error: 'Trop d\'envois aujourd\'hui' }, 429);
+  // Et pour tout le monde (INGEST_DAY lignes par jour) : quelques centaines d'adresses ne remplissent pas la base. Même
+  // réponse que le plafond par adresse : l'appli garde ses compteurs et les renvoie plus tard
+  if (rows && !(await ipQuota(env, { key: 'ingest', day, ip: '*', n: rows, limit: INGEST_DAY }))) return json({ error: 'Trop d\'envois aujourd\'hui' }, 429);
   const stmt = env.DB.prepare('INSERT INTO counts (day, event, device, version, os, n) VALUES (?1, ?2, ?3, ?4, ?5, ?6) ON CONFLICT (day, event, device, version, os) DO UPDATE SET n = n + excluded.n');
   const estmt = env.DB.prepare('INSERT INTO error_details (day, version, os, device, kind, place, msg, stack, n) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9) ON CONFLICT (day, version, os, device, kind, place, msg, stack) DO UPDATE SET n = n + excluded.n');
   const all = [
@@ -224,10 +223,11 @@ export default {
       if (env.DB && t.getUTCHours() === 3 && t.getUTCMinutes() === 0) await prune(env, t.getTime()).catch(() => null);
       // Toutes les 6 heures : bilan de santé (flux F1, erreurs de l'appli, jetons), sur le téléphone si besoin
       if (t.getUTCMinutes() === 7 && t.getUTCHours() % HEALTH.every === 1) await healthCheck(env).catch(() => null);
-      // Statistiques des courses, documents FIA, zones, alentours et records des circuits : chacun sa minute à tour de rôle (le
-      // suivant prend la minute de celui qui n'a rien à faire), pour qu'aucun n'attende que les autres aient tout fini
+      // Statistiques des courses, documents FIA, zones, alentours, records et histoire des circuits, carrière des pilotes :
+      // chacun sa minute à tour de rôle (le suivant prend la minute de celui qui n'a rien à faire), pour qu'aucun n'attende
+      // que les autres aient tout fini
       if (!sent) {
-        const ticks = [statsTick, fiaTick, zonesTick, surroundingsTick, recordsTick];
+        const ticks = [statsTick, fiaTick, zonesTick, surroundingsTick, recordsTick, historyTick, careerTick];
         for (let i = 0; i < ticks.length; i++) {
           if (await ticks[(t.getUTCMinutes() + i) % ticks.length](env, { now: t.getTime() }).catch(() => null)) break;
         }
@@ -257,7 +257,7 @@ export default {
     if (env.SITE_ORIGIN && url.hostname === new URL(SHORT).hostname) return Response.redirect(`${env.SITE_ORIGIN}${url.pathname}${url.search}`, 301);
     // Page des streamers : le bloc Streaming du site
     if (req.method === 'GET' && url.pathname === '/streaming') return Response.redirect(new URL('/#streaming', url), 302);
-    if (req.method === 'GET' && /^\/calendar(-en)?\.ics$/.test(url.pathname)) return calendar(env, new Date().getUTCFullYear(), url.pathname.includes('-en'));
+    if (req.method === 'GET' && /^\/calendar(-(en|it|es))?\.ics$/.test(url.pathname)) return calendar(env, new Date().getUTCFullYear(), url.pathname.match(/-(\w+)\./)?.[1] || 'fr');
     // Ancienne adresse (*.workers.dev) : les pages ouvertes dans un navigateur (connexion,
     // statistiques) passent sur le nom de domaine (SITE_ORIGIN) ; l'appli y garde ses appels
     if (env.SITE_ORIGIN && url.hostname.endsWith('.workers.dev') && req.method === 'GET' && ['/', '/login', '/stats'].includes(url.pathname)) {
@@ -273,9 +273,22 @@ export default {
     // (paddocklive.app/live/, adresse workers.dev) : la page renvoie là-bas, le reste n'existe pas. Les fichiers
     // /live/* passent par le Worker d'abord (run_worker_first, wrangler.toml), avec les en-têtes de sécurité
     const app = url.hostname.startsWith('app.');
+    // Pages du Studio et des pronostics : seulement sur paddocklive.app, pas sur l'origine de la version web (qui garde la
+    // connexion F1 TV des visiteurs) ; leurs API, fichiers et retours de connexion ne changent pas
+    const studioPage = ['/studio/', '/studio/index.html'].includes(url.pathname);
+    if (req.method === 'GET' && (studioPage || ['/p/', '/p/index.html'].includes(url.pathname) || (url.pathname.startsWith('/p/') && GROUP_RE.test(url.pathname.slice(3).replace(/\/$/, ''))))) {
+      if (app) return Response.redirect(`${env.SITE_ORIGIN || 'https://paddocklive.app'}${url.pathname}${url.search}`, 301);
+      if (studioPage && env.ASSETS) {
+        const res = await env.ASSETS.fetch(req);
+        const out = new Response(res.body, res);
+        for (const [k, v] of Object.entries(STUDIO_HEADERS)) out.headers.set(k, v);
+        return out;
+      }
+      if (['/p/', '/p/index.html'].includes(url.pathname) && env.ASSETS) return env.ASSETS.fetch(req);
+    }
     // Espace Saison à son adresse (version web) ; sur paddocklive.app : plan du site, anciennes pages publiques redirigées
     if (req.method === 'GET' && env.DB && (url.pathname === '/saison' || url.pathname.startsWith('/saison/') || url.pathname.startsWith('/en/season/'))) {
-      if (app && env.ASSETS && !url.pathname.startsWith('/en/')) return seasonAppPage(env, req, url, ctx);
+      if (app && env.ASSETS) return seasonAppPage(env, req, url, ctx);
       if (!app && url.pathname === '/saison/sitemap.xml') return new Response(await seasonSitemap(env), { headers: { 'Content-Type': 'application/xml; charset=utf-8', 'Cache-Control': 'public, max-age=3600' } });
       const to = !app && await legacySeasonUrl(env, url).catch(() => null);
       if (to) return Response.redirect(to, 301);
@@ -417,25 +430,35 @@ export default {
 };
 
 // Mot de passe des statistiques : true, false (raté, compté et freiné) ou null (trop d'essais aujourd'hui)
-async function statsKey(req, env, key) {
-  if (await fails(env, req) >= MAX_FAILS) return null;
-  if (sameKey(key, env.STATS_KEY)) return true;
-  await failed(env, req);
-  return false;
-}
+const statsKey = (req, env, key) => tryKey(env, req, () => sameKey(key, env.STATS_KEY));
 
-async function publicPush(env, now) {
+// Lots enchaînés tant qu'il en reste (chaque appel du Worker à lui-même a ses propres limites de sous-requêtes), au plus
+// PUSH_LOTS par minute ou PUSH_MS : 2 000 abonnés reçoivent le rappel « dans 30 min » à temps
+const PUSH_LOTS = 50, PUSH_MS = 40e3;
+export async function publicPush(env, now, clock = Date.now) {
   const row = JSON.parse(await env.DB.prepare('SELECT v FROM studio WHERE k = ?1').bind(`season:${new Date(now).getUTCFullYear()}`).first('v') || 'null');
   for (const r of sessionReminders(row?.v, now)) await queuePush(env, r.k, 'sessions', r.msg, now);
-  if (!(await env.DB.prepare('SELECT 1 FROM push_out LIMIT 1').first())) return;
-  if (env.SELF && env.STATS_KEY) await env.SELF.fetch(new Request('https://self/internal/push', { method: 'POST', headers: { 'X-Sched-Key': env.STATS_KEY } }));
-  else await pushRun(env, { now });
+  // Veille au soir et news de la nuit à 7 h : seulement aux minutes où il peut être l'heure pile quelque part
+  if (new Date(now).getUTCMinutes() % 15 < 2) {
+    if (eveSoon(row?.v, now).length) for (const r of eveReminders(row.v, await eveZones(env), now)) await queuePush(env, r.k, r.topic, r.msg, now);
+    await morningDigests(env, now).catch(() => null);
+  }
+  const left = async () => !!(await env.DB.prepare('SELECT 1 FROM push_out LIMIT 1').first());
+  if (!(await left())) return;
+  if (!env.SELF || !env.STATS_KEY) { await pushRun(env, { now }); return; }
+  const t0 = clock();
+  for (let i = 0; i < PUSH_LOTS && clock() - t0 < PUSH_MS; i++) {
+    const r = await env.SELF.fetch(new Request('https://self/internal/push', { method: 'POST', headers: { 'X-Sched-Key': env.STATS_KEY } }));
+    if (!r.ok || !(await left())) break;
+  }
 }
 
 export async function prune(env, now) {
   await pruneIpQuota(env, new Date(now).toISOString().slice(0, 10));
   await env.DB.prepare('DELETE FROM translations WHERE at < ?1').bind(now - 90 * 86400e3).run();
   await env.DB.prepare('DELETE FROM error_details WHERE day < ?1').bind(new Date(now - 365 * 86400e3).toISOString().slice(0, 10)).run();
+  // Compteurs de plus de deux ans (le tableau de bord lit au plus 365 jours et les 365 d'avant pour comparer)
+  await env.DB.prepare('DELETE FROM counts WHERE day < ?1').bind(new Date(now - 730 * 86400e3).toISOString().slice(0, 10)).run();
   // Compteurs par adresse des jours passés (essais ratés, messages, groupes de pronostics) et textes des radios
   // de plus d'un an (redemandés si quelqu'un revoit une si vieille séance)
   const today = new Date(now).toISOString().slice(0, 10);
@@ -444,16 +467,20 @@ export async function prune(env, now) {
   await env.DB.prepare('DELETE FROM push_sent WHERE at < ?1').bind(now - 30 * 86400e3).run();
   // Témoins des programmations publiées (un nouvel envoi du même post n'est pas republié) : 7 jours
   await env.DB.prepare('DELETE FROM studio WHERE k >= ?1 AND k < ?2 AND at < ?3').bind('scheddone:', 'scheddone;', now - 7 * 86400e3).run();
+  // Compteurs horaires des demandes à Jolpica (plafond du Worker) des jours passés
+  await env.DB.prepare('DELETE FROM ai_usage WHERE day >= ?1 AND day < ?2').bind('jolpica:', `jolpica:${today}`).run();
 }
 
 // Calendrier des séances auquel on s'abonne depuis l'appli (webcal://paddocklive.app/calendar.ics,
 // ou Google Agenda) : saison en cours, gardée dans la base et relue par la tâche planifiée ; l'agenda
 // se met à jour tout seul quand les horaires changent. Jamais relue chez Jolpica pour un abonné (la tâche
-// planifiée s'en charge toutes les 30 minutes) : seulement si la saison gardée a plus de 6 heures
-export async function calendar(env, year, en = false, opts = {}) {
+// planifiée s'en charge toutes les 30 minutes) : seulement si la saison gardée a plus de 6 heures.
+// lang : 'fr', 'en', 'it' ou 'es' (calendar-en.ics…)
+export async function calendar(env, year, lang = 'fr', opts = {}) {
+  const tag = lang && lang !== 'fr' ? `-${lang}` : '';
   const row = await seasonRow(env, year, { maxAge: 6 * 3600e3, ...opts }).catch(() => null);
   if (!row) return new Response('Calendrier indisponible', { status: 503 });
-  return new Response(buildIcs(row.v.races, { year, lang: en ? 'en' : 'fr', subscribe: true }), {
-    headers: { 'Content-Type': 'text/calendar; charset=utf-8', 'Content-Disposition': `inline; filename="f1${en ? '-en' : ''}.ics"`, 'Cache-Control': 'public, max-age=3600', 'Access-Control-Allow-Origin': '*' },
+  return new Response(buildIcs(row.v.races, { year, lang: lang || 'fr', subscribe: true }), {
+    headers: { 'Content-Type': 'text/calendar; charset=utf-8', 'Content-Disposition': `inline; filename="f1${tag}.ics"`, 'Cache-Control': 'public, max-age=3600', 'Access-Control-Allow-Origin': '*' },
   });
 }

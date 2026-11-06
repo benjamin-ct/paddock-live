@@ -93,6 +93,26 @@ test('course au titre : éliminés quand points + maximum restant < leader, manc
   assert.equal(titleRace(data, 2022).maxD, 26);
 });
 
+test('course au titre : qui peut encore finir 2e ou 3e, et qui y est assuré', () => {
+  const drv = (list) => list.map(([code, points], i) => ({ pos: i + 1, code, points, team: code, teamId: code }));
+  const race = (n, done) => ({ round: n, name: `GP ${n}`, results: done ? [{ code: 'AAA', teamId: 'AAA', points: 25 }] : [], sprintResults: [] });
+  // Une course de 25 points à disputer
+  const data = { races: [race(1, true), race(2, false)], drivers: drv([['AAA', 100], ['BBB', 80], ['CCC', 70], ['DDD', 50], ['EEE', 10]]), constructors: [] };
+  const t = titleRace(data, 2026);
+  const d = Object.fromEntries(t.drivers.map((e) => [e.code, e]));
+  assert.deepEqual([d.BBB.best, d.BBB.worst], [1, 3], 'BBB peut rattraper AAA (80 + 25 ≥ 100), CCC peut le rejoindre (95 ≥ 80)');
+  assert.deepEqual([d.DDD.best, d.DDD.worst], [3, 4], 'DDD (max 75) peut passer CCC mais plus BBB ; EEE (max 35) ne le rejoint plus');
+  assert.deepEqual([d.EEE.best, d.EEE.worst], [5, 5]);
+  const [p2, p3] = t.honoursD;
+  assert.deepEqual(p2.who.map((e) => e.code), ['AAA', 'BBB', 'CCC']);
+  assert.deepEqual(p3.who.map((e) => e.code), ['BBB', 'CCC', 'DDD']);
+  assert.equal(p2.sure, null);
+  // Saison terminée : places figées
+  const end = titleRace({ ...data, races: [race(1, true), race(2, true)] }, 2026);
+  assert.equal(end.honoursD[0].sure.code, 'BBB');
+  assert.equal(end.honoursD[1].sure.code, 'CCC');
+});
+
 test('course au titre : au plus tôt et conditions au prochain GP', () => {
   const pts = (o) => Object.entries(o).map(([code, points]) => ({ code, teamId: code, points }));
   const data = {
@@ -236,4 +256,22 @@ test('kilomètres par écurie : tours bouclés en course et en sprint × longueu
   ];
   const m = teamMileage(races, (r) => (r === 1 ? 5 : null));
   assert.deepEqual(m.map((t) => [t.teamId, t.laps, t.km]), [['a', 60, 300], ['b', 20, 100]]);
+});
+
+test('course au titre : le sprint déjà couru du week-end en cours n\'est plus à prendre', () => {
+  const pts = (o) => Object.entries(o).map(([code, points]) => ({ code, teamId: code, points }));
+  // Samedi soir : sprint couru (8 pts à AAA), course du dimanche à venir, dernière manche
+  const data = {
+    races: [
+      { round: 1, name: 'GP 1', results: pts({ AAA: 25, BBB: 0 }), sprintResults: [] },
+      { round: 2, name: 'GP 2', sprint: true, results: [], sprintResults: pts({ AAA: 8, BBB: 0 }) },
+    ],
+    drivers: [{ pos: 1, code: 'AAA', name: 'A', points: 33, teamId: 'AAA' }, { pos: 2, code: 'BBB', name: 'B', points: 7, teamId: 'BBB' }],
+    constructors: [],
+  };
+  const t = titleRace(data, 2026);
+  assert.equal(t.maxD, 25, 'seule la course reste');
+  assert.equal(t.sprints, 0);
+  assert.equal(t.drivers.find((e) => e.code === 'BBB').alive, false, '7 + 25 < 33');
+  assert.equal(t.champion.code, 'AAA');
 });

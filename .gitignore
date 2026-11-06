@@ -10,3 +10,4 @@ stats-pending.json
 feed-probe.json
 analytics/site/
 paddock-live-companion-*.zip
+__pycache__/

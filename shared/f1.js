@@ -106,6 +106,27 @@ export function parseGap(s) {
   return { s: n };
 }
 
+// Arrivée provisoire avec les pénalités en temps pas encore purgées. rows : les pilotes dans l'ordre du classement,
+// { num, gap (écart au leader), int (intervalle), out (abandon) } ; pens : { num: secondes }. Rend [{ num, from, to }]
+// dans le nouvel ordre. Un pilote doublé reste derrière ceux qui ont plus de tours (la pénalité ne joue qu'entre pilotes
+// dans le même tour, comme au classement officiel) ; dans un groupe de doublés, temps = intervalles additionnés.
+// Égalité : l'ordre du classement est gardé ; les abandons restent à la fin.
+export function provisionalOrder(rows, pens = {}) {
+  let prev = null;
+  const run = rows.filter((r) => !r.out).map((r, i) => {
+    const g = parseGap(r.gap);
+    const laps = i === 0 || g?.leader ? 0 : g?.laps || 0;
+    let time = 0;
+    if (i > 0 && laps === 0 && g?.s !== undefined) time = g.s;
+    else if (prev && prev.laps === laps) time = prev.time + (parseGap(r.int)?.s || 0);
+    prev = { laps, time };
+    return { num: r.num, laps, t: time + (Number(pens[r.num]) || 0), i };
+  });
+  run.sort((a, b) => a.laps - b.laps || a.t - b.t || a.i - b.i);
+  const from = new Map(rows.map((r, i) => [r.num, i + 1]));
+  return [...run.map((r) => r.num), ...rows.filter((r) => r.out).map((r) => r.num)].map((num, i) => ({ num, from: from.get(num), to: i + 1 }));
+}
+
 export const TRACK_STATUS = {
   '1': { label: 'Piste dégagée', short: 'VERT', color: 'green' },
   '2': { label: 'Drapeau jaune', short: 'JAUNE', color: 'yellow' },
@@ -118,6 +139,18 @@ export const TRACK_STATUS = {
 
 export function trackStatusInfo(status) {
   return TRACK_STATUS[String(status)] || { label: 'Statut inconnu', short: '—', color: 'none' };
+}
+
+// Avancement de la course pour l'icône de l'appli (état retardé, comme le classement ; kind : sessionKind de util.js) :
+// { progress 0-1 (tour en cours / tours), mode ('error' drapeau rouge, 'paused' voiture de sécurité ou VSC, sinon
+// 'normal'), left : tours restants, le tour en cours compris } ; null hors course, sans tours connus et à l'arrivée
+export function raceProgress(state, kind) {
+  const status = state.SessionStatus?.Status || state.SessionInfo?.SessionStatus;
+  const cur = Number(state.LapCount?.CurrentLap) || 0, total = Number(state.LapCount?.TotalLaps) || 0;
+  if (kind !== 'race' || !cur || !total || ['Finished', 'Finalised', 'Ends'].includes(status)) return null;
+  const color = trackStatusInfo(state.TrackStatus?.Status).color;
+  const mode = status === 'Aborted' || color === 'red' ? 'error' : color === 'sc' || color === 'vsc' ? 'paused' : 'normal';
+  return { progress: Math.min(1, cur / total), mode, left: Math.max(0, total - cur + 1) };
 }
 
 export const SESSION_STATUS_FR = {

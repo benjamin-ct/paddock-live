@@ -170,6 +170,42 @@ export function analyzeStewards(messages) {
   return { incidents, trackLimits, decisions };
 }
 
+// Pastilles de la carte, par virage : tours / temps supprimés pour limites de piste (et pilotes concernés), puis
+// événements récents au virage (incident, piste glissante, commissaires ou dépanneuse en piste) des `recent` dernières
+// ms avant `now`. Messages sans numéro de virage ignorés.
+// -> [{ turn, limits, drivers: [{ num, tla, n }], events: [{ kind: 'incident'|'slippery'|'marshals'|'recovery', t, cars }] }]
+const TURN_EVENTS = { 'TRACK SURFACE SLIPPERY': 'slippery', 'MARSHALS ON TRACK': 'marshals', 'RECOVERY VEHICLE ON TRACK': 'recovery' };
+export function turnMarks(messages, now = Infinity, recent = 5 * 60e3) {
+  const by = new Map();
+  const at = (turn) => { if (!by.has(turn)) by.set(turn, { turn, limits: 0, drivers: [], events: [] }); return by.get(turn); };
+  const fresh = (t) => Number.isFinite(t) && t <= now && now - t <= recent;
+  const { incidents, trackLimits } = analyzeStewards(messages);
+  for (const d of trackLimits) {
+    for (const x of d.deletions) {
+      if (x.t > now) continue;
+      const m = at(x.turn);
+      m.limits++;
+      const drv = m.drivers.find((c) => c.num === d.num) || m.drivers[m.drivers.push({ num: d.num, tla: d.tla, n: 0 }) - 1];
+      drv.n++;
+    }
+  }
+  for (const inc of incidents) {
+    const turn = /^Virage (\d+)$/.exec(inc.location || '')?.[1];
+    if (turn && fresh(inc.created)) at(Number(turn)).events.push({ kind: 'incident', t: inc.created, cars: inc.cars });
+  }
+  for (const msg of messages) {
+    const m = /^(TRACK SURFACE SLIPPERY|MARSHALS ON TRACK|RECOVERY VEHICLE ON TRACK) AT TURN (\d+)$/.exec(String(msg?.Message || '').trim().replace(/\s+/g, ' '));
+    const t = parseUtc(msg?.Utc);
+    if (!m || !fresh(t)) continue;
+    const ev = at(Number(m[2])).events, kind = TURN_EVENTS[m[1]];
+    const prev = ev.find((e) => e.kind === kind);
+    if (prev) prev.t = Math.max(prev.t, t);
+    else ev.push({ kind, t, cars: [] });
+  }
+  for (const m of by.values()) m.drivers.sort((a, b) => b.n - a.n || a.num - b.num);
+  return [...by.values()].sort((a, b) => a.turn - b.turn);
+}
+
 export function isOpen(incident) {
   return incident.status === 'noted' || incident.status === 'investigating' || incident.status === 'after';
 }

@@ -295,7 +295,7 @@
 :root[data-design="v2"] .sz-main { padding: 22px 26px 40px; }
 :root[data-design="v2"] .sz-card { padding: 18px 20px; position: relative; overflow: hidden; }
 :root[data-design="v2"] .sz-card > .muted.small:first-child { font: 700 11px/1.2 var(--font); letter-spacing: .12em; text-transform: uppercase; color: #8EA0BC; }
-:root[data-design="v2"] .sz-big { font: italic 800 40px/1 var(--font-cond) !important; letter-spacing: .01em; }
+:root[data-design="v2"] .sz-big { font: italic 800 clamp(26px, 2.6vw, 40px)/1 var(--font-cond) !important; letter-spacing: .01em; }   /* 720p : « Verstappen » tient dans sa carte */
 :root[data-design="v2"] .sz-box h3 { font: italic 800 24px/1 var(--font-cond) !important; text-transform: uppercase; letter-spacing: .03em; }
 :root[data-design="v2"] .sz-box h3::before { content: ''; width: 5px; height: 18px; border-radius: 2px; background: var(--v2-red); transform: skewX(-18deg); box-shadow: 0 0 12px rgba(255, 42, 31, .7); flex: none; }
 :root[data-design="v2"] .sz-countdown b { font: italic 800 52px/1 var(--font-cond); }
@@ -373,7 +373,8 @@
   :root[data-design="v2"] .topbar .lap-box .hstat-value { font-size: 24px; }
   :root[data-design="v2"] .mob-panels:not([hidden]) { margin: 10px 12px 4px; padding: 4px; gap: 2px; border-radius: 999px; background: rgba(16, 26, 48, .6) !important; border: 1px solid var(--v2-rim) !important;
     -webkit-backdrop-filter: var(--v2-blur); backdrop-filter: var(--v2-blur); }
-  :root[data-design="v2"] .mob-panels button { flex: 1 0 auto; padding: 8px 14px; border: 0 !important; font: italic 800 15.5px/1 var(--font-cond); letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+  :root[data-design="v2"] .mob-panels button { flex: 1 0 auto; padding: 8px 14px; border: 0 !important; font: italic 800 15.5px/1 var(--font-cond); letter-spacing: .04em; text-transform: uppercase; color: #CBD5E1; }   /* pilule toujours sombre : texte clair, même en mode clair */
+  :root[data-design="v2"][data-scheme="light"] .mob-panels:not([hidden]) { background: rgba(16, 26, 48, .88) !important; }   /* fond clair : pilule plus opaque, texte lisible */
   :root[data-design="v2"] .mob-panels button.active { background: var(--v2-red) !important; color: #fff; box-shadow: var(--v2-red-glow); }
   :root[data-design="v2"] .grid.mobile { padding: 8px 12px; }
   :root[data-design="v2"] .grid.mobile > .panel { border-radius: 22px !important; }
@@ -394,6 +395,21 @@
   :root[data-design="v2"] .sz-drv-card { width: 196px; height: 148px; }
   :root[data-design="v2"] .sz-drv-card img { height: 138px; }
   :root[data-design="v2"] #seasonView .sz-menu { background: rgba(10, 18, 36, .75); -webkit-backdrop-filter: var(--v2-blur); backdrop-filter: var(--v2-blur); }
+}
+
+/* Téléphone en paysage : barres resserrées (voir style.css) */
+@media (max-width: 900px) and (orientation: landscape) and (max-height: 500px) {
+  :root[data-design="v2"] .topbar { padding-top: 4px; }
+  :root[data-design="v2"] .topbar .session-name { font-size: 18px; }
+  :root[data-design="v2"] .topbar #clockValue, :root[data-design="v2"] .topbar .lap-box .hstat-value { font-size: 20px; }
+  :root[data-design="v2"] .mob-panels:not([hidden]) { margin: 4px 12px 2px; padding: 3px; }
+  :root[data-design="v2"] .mob-panels button { padding: 5px 12px; font-size: 13px; }
+  :root[data-design="v2"] .grid.mobile { padding: 4px 12px; }
+  :root[data-design="v2"] .grid.mobile .panel-head { min-height: 38px; }
+  :root[data-design="v2"] .replaybar { margin-bottom: 2px; }
+  :root[data-design="v2"] .replaybar .rp-play { width: 32px; height: 32px; }
+  :root[data-design="v2"] .mob-nav { margin: 2px 12px calc(4px + env(safe-area-inset-bottom)); padding: 3px; }
+  :root[data-design="v2"] .mob-nav button { padding: 5px 2px; }
 }
 
 @media (prefers-reduced-motion: reduce) { :root[data-design="v2"] :is(.hm-go button, .sz-drv-card):hover { transform: none; } }

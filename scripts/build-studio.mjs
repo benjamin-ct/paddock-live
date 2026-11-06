@@ -7,7 +7,9 @@ import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { PAGES, linksPage } from '../analytics/links/pages.mjs';
 import { GUIDES, guidePage, sitemap, robots, englishHome } from '../analytics/launch/guides.mjs';
+import { PATHS as GAME_PATHS, gamePage } from '../analytics/jeu/page.mjs';
 import { parseChangelog } from '../shared/changelog.js';
+import { STUDIO_HEADERS } from '../analytics/live-page/headers.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = path.join(ROOT, 'analytics', 'site');
@@ -86,6 +88,12 @@ for (const g of GUIDES) {
   fs.mkdirSync(path.join(OUT, g.slug), { recursive: true });
   fs.writeFileSync(path.join(OUT, g.slug, 'index.html'), guidePage(g.slug));
 }
+// Jeu du jour « Devine le circuit » (/jeu/, /en/guess-the-circuit/) : une page par langue, son code dans /jeu/
+for (const [lang, dir] of Object.entries(GAME_PATHS)) {
+  fs.mkdirSync(path.join(OUT, dir), { recursive: true });
+  fs.writeFileSync(path.join(OUT, dir, 'index.html'), gamePage(lang));
+}
+copy(path.join(ROOT, 'analytics', 'jeu'), path.join(OUT, 'jeu'), (f) => f.endsWith('.js'));
 // Accueil en anglais (/en/), page à part pour les moteurs de recherche
 fs.writeFileSync(path.join(OUT, 'en', 'index.html'), englishHome(fs.readFileSync(path.join(ROOT, 'analytics', 'launch', 'index.html'), 'utf8')));
 fs.writeFileSync(path.join(OUT, 'sitemap.xml'), sitemap());
@@ -128,8 +136,9 @@ fs.copyFileSync(path.join(ROOT, 'public', 'logo.svg'), path.join(LIVE, 'logo.svg
 fs.writeFileSync(path.join(LIVE, 'changelog.json'), JSON.stringify(parseChangelog(fs.readFileSync(path.join(ROOT, 'CHANGELOG.md'), 'utf8')).slice(0, 3)));
 // Code de la page : chemins absolus et chemin relatif du code partagé (lisible tel quel par les tests) vers /live/shared/
 for (const f of ['web.js', 'web-hub.js']) fs.writeFileSync(path.join(LIVE, 'js', f), toLive(fs.readFileSync(path.join(LIVE_PAGE, f), 'utf8')).replace(/(['"])\.\.\/\.\.\/shared\//g, '$1/live/shared/'));
-// Écran d'accueil du téléphone : manifeste et icônes de l'appli
+// Écran d'accueil du téléphone : manifeste, icônes de l'appli et service worker des alertes (notifications seulement)
 fs.copyFileSync(path.join(LIVE_PAGE, 'manifest.webmanifest'), path.join(LIVE, 'manifest.webmanifest'));
+fs.copyFileSync(path.join(LIVE_PAGE, 'sw.js'), path.join(LIVE, 'sw.js'));
 for (const f of ['apple-touch-icon.png', 'icon-512.png']) fs.copyFileSync(path.join(ROOT, 'public', f), path.join(LIVE, f));
 // Panneaux repris tels quels de la page de l'appli
 const appPage = fs.readFileSync(path.join(ROOT, 'public', 'index.html'), 'utf8');
@@ -137,6 +146,12 @@ const livePage = fs.readFileSync(path.join(LIVE_PAGE, 'index.html'), 'utf8').rep
   const m = appPage.match(new RegExp(`<section class="panel p-${id}">[\\s\\S]*?</section>`));
   if (!m) throw new Error(`public/index.html : panneau ${id} introuvable`);
   return toLive(m[0]);
+}).replace('<!--home-->', () => {
+  // Accueil de l'appli : rempli par ui/home.js
+  const m = appPage.match(/<div class="season-view home-view" id="homeView" hidden>\s*<div class="hm-main"><\/div>\s*<\/div>/);
+  if (!m) throw new Error('public/index.html : accueil introuvable');
+  // Affiché dès l'ouverture de la page (avant le chargement du code) : pas de tableau de bord vide en attendant
+  return m[0].replace(' hidden>', '>').replace('<div class="hm-main"></div>', '<div class="hm-main"><h1 class="hm-hello">Paddock Live</h1><p class="muted">Chargement…</p></div>');
 }).replace('<!--season-->', () => {
   // Espace Saison de l'appli : menu des rubriques, contenu rempli par ui/season.js
   const m = appPage.match(/<div class="season-view" id="seasonView"[\s\S]*?<div class="sz-main" id="szContent"><\/div>\s*<\/div>/);
@@ -166,14 +181,12 @@ const LIVE_VERSION = liveHash.digest('hex').slice(0, 12);
 fs.writeFileSync(path.join(LIVE, 'index.html'), livePage.replace('</head>', `<meta name="pl-version" content="${LIVE_VERSION}">\n${[...liveGraph].map((f) => `<link rel="modulepreload" href="${rel(f)}">`).join('\n')}\n</head>`));
 // Fichiers servis à la racine du site (vérification du domaine par TikTok)
 copy(path.join(ROOT, 'analytics', 'root'), OUT);
-copy(path.join(ROOT, 'public', 'fonts'), path.join(OUT, 'fonts'), (f) => /^(titillium|sairacondensed|jetbrainsmono).*\.woff2$|^OFL/.test(f));
+copy(path.join(ROOT, 'public', 'fonts'), path.join(OUT, 'fonts'), (f) => /^(titillium|sairacondensed|jetbrainsmono|archivo).*\.woff2$|^OFL/.test(f));
 copy(path.join(ROOT, 'analytics', 'fonts'), path.join(OUT, 'fonts'));   // Barlow Condensed et Chakra Petch : visuels « Télé premium »
 // En-têtes : la page et l'API ne doivent pas être indexées ni mises en cache trop longtemps
+// (les règles qui conviennent s'ajoutent : « ! Cache-Control » retire celle de /site/* pour les images, sinon deux valeurs)
 fs.writeFileSync(path.join(OUT, '_headers'), `/studio/*
-  X-Robots-Tag: noindex, nofollow
-  Cache-Control: no-cache
-  X-Content-Type-Options: nosniff
-  Referrer-Policy: no-referrer
+${Object.entries(STUDIO_HEADERS).map(([k, v]) => `  ${k}: ${v}`).join('\n')}
 /m/*
   Cache-Control: public, max-age=31536000, immutable
   X-Robots-Tag: noindex, nofollow
@@ -184,6 +197,10 @@ fs.writeFileSync(path.join(OUT, '_headers'), `/studio/*
   Cache-Control: public, max-age=3600
 /alertes/*
   Cache-Control: no-cache
+/jeu/*
+  Cache-Control: public, max-age=3600
+/en/guess-the-circuit/*
+  Cache-Control: public, max-age=3600
 /app/*
   Cache-Control: public, max-age=3600
 /site/*
@@ -193,10 +210,15 @@ fs.writeFileSync(path.join(OUT, '_headers'), `/studio/*
 /benjy/*
   Cache-Control: public, max-age=3600
 /site/img/*
+  ! Cache-Control
   Cache-Control: public, max-age=86400
 /kit/*
   Cache-Control: public, max-age=86400
   X-Robots-Tag: noindex, nofollow
 `);
+// Pages du site sans la barre finale (/live-timing-f1) : renvoi définitif (301) vers leur adresse (le renvoi automatique
+// des fichiers statiques est temporaire, 307)
+const PAGES_DIRS = ['en', ...GUIDES.map((g) => g.slug), ...Object.values(GAME_PATHS), 'alertes', 'extension', 'app', ...Object.keys(PAGES)];
+fs.writeFileSync(path.join(OUT, '_redirects'), `${PAGES_DIRS.map((d) => `/${d} /${d}/ 301`).join('\n')}\n`);
 const n = (d) => fs.readdirSync(path.join(OUT, d)).length;
 console.log(`Site prêt : version ${VERSION}, ${n(`m/${VERSION}/studio`)} fichiers studio, ${n(`m/${VERSION}/shared`)} modules partagés (${graph.length} chargés d'emblée), ${n('fonts')} polices, version web : ${liveGraph.size} modules`);

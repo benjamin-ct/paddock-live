@@ -2,7 +2,7 @@
 // (newsPost), enregistrée dans le navigateur par makeAnimation. Quatre temps : intro (« BREAKING » ou
 // « ACTU F1 »), l'info (photo, type, titre, résumé), les points clés un par un, puis « Abonnez-vous ».
 // Très grosse info (d.breaking) : même style que l'image, liseré rouge tout autour, étiquette « ● BREAKING ».
-import { C, TITLE, BODY, rr, txt, fitLines, vivid, alpha, lightColor, background, photo, coverPhoto, photoCredit, driverPhoto, breakingFrame, breakingTag, pill, kicker, card } from './social-draw.js';
+import { C, TITLE, BODY, rr, txt, fitLines, vivid, alpha, lightColor, background, photo, coverPhoto, photoCredit, driverPhoto, breakingFrame, breakingTag, pill, kicker, card, v3 } from './social-draw.js';
 
 const clamp01 = (x) => Math.max(0, Math.min(1, x));
 const out3 = (x) => 1 - (1 - clamp01(x)) ** 3;
@@ -147,7 +147,7 @@ function mainScene(ctx, W, H, d, o, u, s, dur) {
     const w = W * 0.7 * zoom; const h = L.visH * zoom;
     const g = ctx.createRadialGradient(W / 2, L.top + L.visH * 0.6, 0, W / 2, L.top + L.visH * 0.6, W * 0.45);
     g.addColorStop(0, alpha(p.color, 0.4)); g.addColorStop(1, alpha(p.color, 0));
-    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    if (!v3) { ctx.fillStyle = g; ctx.fillRect(0, 0, W, H); }   // Télémétrie : sans halo
     photo(ctx, o.photos[p.num], (W - w) / 2, L.top + L.visH - h + dy, w, h, p.color, 0.3);
   } else if (L.vis === 'row') {
     const n = Math.min(d.drivers.length, 3);

@@ -55,6 +55,7 @@ export class LiveSource {
   }
 
   cleanup() {
+    this.attempt = (this.attempt || 0) + 1;   // connexion en cours de préparation (négociation) abandonnée
     for (const t of this.timers) clearInterval(t), clearTimeout(t);
     this.timers = [];
     if (this.ws) {
@@ -115,7 +116,9 @@ export class LiveSource {
   async connect() {
     if (!this.active) return;
     const token = this.elsewhere ? null : this.getToken();
-    if (token && this.relayUrl && this.relayOff !== token) return this.connectRelay(token);
+    // Relance (jeton reçu…) pendant la négociation : une seule connexion, sinon deux recevaient le direct
+    const attempt = this.attempt;
+    if (token && this.relayUrl && this.relayOff !== token) return this.connectRelay(token, attempt);
     const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
     try {
       const res = await request(`${BASE}/negotiate?negotiateVersion=1`, {
@@ -129,7 +132,7 @@ export class LiveSource {
       const neg = JSON.parse(res.body.toString('utf8'));
       const cookies = (res.headers['set-cookie'] || []).map((c) => c.split(';')[0]).join('; ');
       const id = neg.connectionToken || neg.connectionId;
-      if (!this.active) return;
+      if (!this.active || attempt !== this.attempt) return;
 
       const ws = new WebSocket(`${WS_URL}?id=${encodeURIComponent(id)}`, {
         agent,
@@ -179,6 +182,7 @@ export class LiveSource {
         this.scheduleReconnect();
       });
     } catch (err) {
+      if (attempt !== this.attempt) return;   // abandonnée entre-temps : la nouvelle connexion suit son cours
       this.setStatus({ connected: false, error: err.message });
       this.scheduleReconnect();
     }
@@ -186,9 +190,9 @@ export class LiveSource {
 
   // Relais du compte F1 TV (?u= : empreinte du compte) : il envoie l'état d'il y a 5 min (base), les messages depuis,
   // le GPS (hello), puis au fil de l'eau (evs) et son état (up). Horodatages du relais remis à l'heure de l'ordinateur
-  async connectRelay(token) {
+  async connectRelay(token, attempt = this.attempt) {
     const url = `${this.relayUrl}?d=${RELAY_KEEP_MS}&u=${await relayId(token)}`;
-    if (!this.active) return;
+    if (!this.active || attempt !== this.attempt) return;
     const ws = new WebSocket(url, {
       ...(url.startsWith('wss:') ? { agent } : {}),
       headers: { 'User-Agent': `${USER_AGENT} (relais)`, Origin: 'https://app.paddocklive.app' },
@@ -249,7 +253,7 @@ export class LiveSource {
         this.hub.reset({ mode: 'live', label: 'Live', ...this.status });
         this.hub.sessionKey = info.Key;
         this.relayT = this.relayS = -Infinity;
-        const file = this.recorder?.open(info);
+        const file = this.record(info);
         const { events, stream } = file ? await readRecording(file).catch(() => ({ events: [], stream: [] })) : { events: [], stream: [] };
         if (events.length || stream.length) {
           this.hub.preload(events, stream);
@@ -316,8 +320,7 @@ export class LiveSource {
     }
     const fresh = this.hub.sessionKey === null && this.hub.events.length === 0;
     if (key !== null) this.hub.sessionKey = key;
-    // Répétition d'une séance à venir (la F1 teste son flux la veille) : pas enregistrée, sinon un faux « replay »
-    const file = this.recorder && result.SessionInfo && !futureSession(result.SessionInfo) ? this.recorder.open(result.SessionInfo) : null;
+    const file = this.record(result.SessionInfo);
 
     const apply = () => {
       const snapshot = {};
@@ -352,6 +355,14 @@ export class LiveSource {
       return;
     }
     apply();
+  }
+
+  // Répétition d'une séance à venir (la F1 teste son flux la veille) : pas enregistrée (sinon un faux « replay ») et
+  // enregistrement de la séance d'avant fermé (sinon la répétition s'écrit à sa fin). Renvoie le fichier ou null
+  record(info) {
+    if (!this.recorder || !info) return null;
+    if (futureSession(info)) { this.recorder.close(); return null; }
+    return this.recorder.open(info);
   }
 
   addEvent(topic, data, t, utc) {

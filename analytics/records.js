@@ -17,7 +17,7 @@ async function edition(env, year, circuitKey, fetchFn, wait) {
   let out;
   try {
     if (id) {
-      const races = async (what) => (await pages(`${year}/circuits/${id}/${what}`, fetchFn, wait)).flatMap((m) => m?.RaceTable?.Races || []);
+      const races = async (what) => (await pages(`${year}/circuits/${id}/${what}`, fetchFn, wait, env)).flatMap((m) => m?.RaceTable?.Races || []);
       out = editionFromResults(year, await races('results'), await races('qualifying'));
     } else {
       const token = await archiveToken(env, { fetchFn });

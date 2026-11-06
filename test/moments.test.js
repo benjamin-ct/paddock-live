@@ -46,3 +46,18 @@ test('moments clés : qualifications (parties, pole en Q3 seulement)', () => {
   const m = keyMoments(events, { kind: 'quali' });
   assert.deepEqual(m.map((x) => x.text), ['Début de Q1', 'Fin de Q1', 'Début de Q3', 'NOR passe en tête (Q3)', 'Fin de Q3 : pole pour NOR']);
 });
+
+test('moments clés : sous drapeau rouge, les voitures arrêtées aux stands ne sont pas des abandons', () => {
+  const events = [
+    ev(0, 'DriverList', { 1: { Tla: 'NOR' }, 16: { Tla: 'LEC' }, 77: { Tla: 'BOT' } }),
+    pos(500, { 1: 1, 16: 2, 77: 3 }),
+    ev(1000, 'SessionStatus', { Status: 'Started' }),
+    ev(2000, 'TimingData', { Lines: { 1: { NumberOfLaps: 20 }, 16: { NumberOfLaps: 20 }, 77: { NumberOfLaps: 20 } } }),
+    ev(3000, 'TimingData', { Lines: { 77: { Stopped: true } } }),
+    ev(4000, 'TrackStatus', { Status: '5' }),
+    ev(5000, 'TimingData', { Lines: { 1: { InPit: true }, 16: { InPit: true } } }),
+    ev(6000, 'TimingData', { Lines: { 1: { Stopped: true }, 16: { Stopped: true } } }),
+  ];
+  const out = keyMoments(events, { kind: 'race' }).filter((x) => x.kind === 'retire');
+  assert.deepEqual(out.map((x) => x.who), [['BOT']]);
+});
