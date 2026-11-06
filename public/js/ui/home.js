@@ -14,6 +14,8 @@ import { openResults } from './results-view.js';
 import { COUNTRY_ISO } from '/shared/country-iso.js';
 import { nearestShape, shapeOutline } from '/shared/circuit-shapes.js';
 import { cloudTranslate } from '../cloud.js';
+import { upcomingAgenda } from '/shared/agenda.js';
+import { buildDayIcs } from '/shared/ics.js';
 
 let schedule = null;   // [{ race, round, label, t }]
 let archive = null;    // dernière séance rejouable { meeting, name, path, t }
@@ -107,6 +109,27 @@ function daysHtml(nx) {
     ${d.list.map((s) => `<div class="cal-s ${s.t < Date.now() ? 'past' : ''} ${s === nx ? 'now' : ''}"><span>${esc(s.label)}</span><b>${nightMark(s.t)}${hm(s.t)}</b></div>`).join('')}</div>`).join('')}</div>`;
 }
 const gp = (name) => gpShort(name, LANG);
+
+// Intersaison : prochaines dates annoncées officiellement (présentations, lancement de la saison, essais ; liste tenue
+// à la main, shared/agenda.js), chacune avec le lien de son annonce, et toutes ensemble dans son agenda (.ics)
+const dayOf = (s, o) => new Date(`${s}T12:00:00`).toLocaleDateString(LOCALE, o);
+function agendaDate(e) {
+  if (!e.end) return dayOf(e.date, { day: 'numeric', month: 'short' });
+  return e.end.slice(0, 7) === e.date.slice(0, 7) ? `${dayOf(e.date, { day: 'numeric' })}–${dayOf(e.end, { day: 'numeric', month: 'short' })}`
+    : `${dayOf(e.date, { day: 'numeric', month: 'short' })} – ${dayOf(e.end, { day: 'numeric', month: 'short' })}`;
+}
+function agendaHtml(list) {
+  if (!list.length) return '';
+  return `<div class="cal-days hm-agenda"><div class="cal-day"><div class="cal-day-h">${t('Prochaines dates')}</div>
+    ${list.map((e) => `<a class="cal-s" href="${esc(e.link)}" target="_blank" rel="noopener" title="${t('Annonce officielle')}"><span>${esc(t(e.title))}</span><b>${esc(agendaDate(e))}</b></a>`).join('')}
+    <div class="hm-ag-add"><button class="btn small" data-home="agenda" title="${t('Google Agenda, Apple Calendrier, Outlook…')}">${icon('calendar')} ${t('Ajouter ces dates à mon agenda')}</button></div></div></div>`;
+}
+function agendaFile() {
+  const ics = buildDayIcs(upcomingAgenda().map((e) => ({ ...e, key: e.title, title: `F1 · ${t(e.title)}` })), { name: t('F1 · intersaison') });
+  const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(new Blob([ics], { type: 'text/calendar' })), download: 'f1-intersaison.ics' });
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+}
 
 // Météo prévue des jours du prochain week-end (Open-Meteo, 16 jours au plus)
 // Design Paddock 2 : tracé lumineux du circuit derrière la prochaine séance (tracés déjà utilisés par le Calendrier)
@@ -463,7 +486,7 @@ function render() {
     : `<div class="hm-title">${t('Calendrier {} bientôt publié', past + 1)}</div>`}
         <div class="hm-actions"><button class="btn btn-accent" data-home="review:${past}">${icon('trophy')} ${t('Bilan de la saison {}', past)}</button>
           ${store.web ? '' : `<button class="btn" data-home="replays">${icon('history')} ${t('Revoir les courses')}</button>
-          <button class="btn" data-home="news">${icon('news')} ${t('Transferts et nouveautés')}</button>`}</div></div></section>`
+          <button class="btn" data-home="news">${icon('news')} ${t('Transferts et nouveautés')}</button>`}</div></div>${agendaHtml(upcomingAgenda())}</section>`
     : live
     ? `<section class="hm-card hm-live"><div class="hm-kicker"><span class="hm-tag"><span class="hm-dot"></span>Séance en cours</span></div>
         <div class="hm-title">${esc(gp(live.race))} : ${esc(live.label)}</div>
@@ -604,6 +627,7 @@ async function act(k) {
     return;
   }
   if (k === 'live') { closeHome(); noLiveCheck(); return; }
+  if (k === 'agenda') { agendaFile(); return; }
   if (k === 'app') { open('https://paddocklive.app/', '_blank', 'noopener'); return; }   // version web : l'appli de bureau
   // Saison et Actu ferment l'accueil elles-mêmes ; Replays : l'accueil reste derrière les réglages
   // jusqu'au lancement du replay

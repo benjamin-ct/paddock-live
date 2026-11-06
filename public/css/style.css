@@ -3234,6 +3234,12 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; gap: 5
 .hm-title { display: flex; align-items: center; gap: 10px; }
 .hm-title small { margin-left: 6px; font-size: .78em; font-weight: 700; opacity: .8; }
 .cal-s.now { background: color-mix(in srgb, var(--accent) 20%, transparent); font-weight: 700; }
+/* Hors saison : prochaines dates de l'intersaison, chacune liée à son annonce officielle */
+.hm-agenda .cal-day { width: min(100%, 380px); }
+.hm-agenda a.cal-s { color: inherit; text-decoration: none; align-items: baseline; }
+.hm-agenda a.cal-s:hover span { text-decoration: underline; }
+.hm-agenda .cal-s b { white-space: nowrap; }
+.hm-ag-add { padding: 8px 10px; border-top: 1px solid var(--line); }
 .hm-count { font-size: 34px; font-weight: 900; line-height: 1.1; font-variant-numeric: tabular-nums; }
 .hm-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .hm-actions .btn { display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }
