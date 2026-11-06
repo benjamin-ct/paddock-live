@@ -109,6 +109,10 @@
   économique (Sonnet), `ui-designer` et l'agent principal gardent le modèle de la session pour l'architecture, les
   arbitrages et les tâches complexes. Ne pas analyser deux fois un même composant ; donner au sous-agent les fichiers
   et le but, pas tout le contexte ; ne charger que la skill utile.
+- **Idées de nouveautés** : le sous-agent `idea-scout` (Sonnet, lecture seule) cherche de nouvelles fonctions pour
+  l'appli, la version web et le site : il vérifie qu'elles n'existent pas déjà et ne sont pas déjà notées dans le Suivi,
+  qu'elles sont faisables et légales, et rend une liste classée. Il est utilisé par la session « Idées et nouveautés »
+  (prompt dans le guide « Prompts des sessions · Paddock Live » du Suivi) ; une idée retenue devient une tâche du Suivi.
 - **Audit visuel** : `node scripts/captures.mjs [chemin…] [--design=…] [--lang=…]` démarre le serveur local sans rien
   envoyer au Worker en production, capture téléphone / tablette / ordinateur en sombre et en clair dans
   `.cache/captures/` et signale débordements et erreurs de page. Pour une interaction, Playwright (préinstallé) ou le

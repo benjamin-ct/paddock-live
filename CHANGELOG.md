@@ -15,6 +15,8 @@ l'application (Réglages → À propos → Nouveautés).
   au téléphone avec l'essentiel en premier.
 - Sans spoiler : dans les 72 h qui suivent une course ou un sprint, les classements restent ceux d'avant cette manche
   (et les arrêts et les dégâts ne la comptent pas) jusqu'au clic sur « Afficher le classement à jour ».
+- Compte à rebours de l'Accueil : comme celui de la Saison, le chiffre qui change roule (l'ancien descend, le nouveau
+  arrive d'en haut), sauf si les animations sont coupées.
 
 ### Affichage
 - Téléphone et tablette : plus de zoom quand on touche deux fois vite un menu ou une rubrique (le zoom à deux doigts
