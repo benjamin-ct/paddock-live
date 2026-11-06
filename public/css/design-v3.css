@@ -820,3 +820,58 @@
 :root[data-design="v3"] .gr-name { font: 700 var(--fs-lg)/1.15 var(--font-cond); letter-spacing: .01em; }
 :root[data-design="v3"] :is(.gr-meta, .gr-src, .gr-was) { font-size: var(--fs-2xs); }
 :root[data-design="v3"] .gr-ok { font: 500 var(--fs-2xs)/1.3 var(--font-mono); letter-spacing: .1em; text-transform: uppercase; }
+
+/* Overlays de streaming (overlay.html dans OBS…) : habillage TV de Télémétrie. Cartes à plat (fond réglable, --ov-bg),
+   filet rouge à gauche comme les graphiques de la F1, libellés en Mono, chiffres en Archivo étroit, place en case */
+:root[data-design="v3"] .ov-card { position: relative; border: 1px solid color-mix(in srgb, var(--line-2) var(--ov-bg, 85%), transparent);
+  border-radius: var(--r-md); padding: 14px 18px 14px 22px; box-shadow: none; }
+:root[data-design="v3"] .ov-card::before { content: ''; position: absolute; left: -1px; top: 14px; bottom: 14px; width: 3px; border-radius: 0 2px 2px 0; background: var(--accent); }
+:root[data-design="v3"] .ov-label { font: 500 12px/1.25 var(--font-mono); letter-spacing: .14em; color: var(--muted); }
+:root[data-design="v3"] .ov-big { font: 800 58px/1 var(--font-cond); letter-spacing: -.005em; margin: 8px 0 6px; }
+:root[data-design="v3"] .ov-big small { font: 600 .42em/1 var(--font-mono); color: var(--muted); letter-spacing: 0; }
+:root[data-design="v3"] .ov-sub { font: 500 14px/1.35 var(--font); color: var(--text-2); }
+:root[data-design="v3"] .ov-bar { height: 4px; border-radius: 2px; background: var(--panel-3); margin: 8px 0; }
+:root[data-design="v3"] .ov-bar i { background: var(--accent); }
+:root[data-design="v3"] .ov-wait { font: 500 13px var(--font-mono); letter-spacing: .06em; color: var(--muted); }
+:root[data-design="v3"] .ov-pod { gap: 12px; padding: 9px 0; }
+:root[data-design="v3"] .ov-pod + .ov-pod, :root[data-design="v3"] .ov-card > div + div > .ov-pod { border-top: 1px solid var(--line); }
+:root[data-design="v3"] .ov-pod > i { width: 3px; border-radius: 2px; }
+:root[data-design="v3"] .ov-pos { display: grid; place-items: center; min-width: 30px; height: 26px; padding: 0 4px; box-sizing: border-box; border-radius: var(--r-xs);
+  background: var(--text); color: var(--bg); font: 800 17px/1 var(--font-cond); }
+:root[data-design="v3"] .ov-name { font: 400 16px/1.15 var(--font); }
+:root[data-design="v3"] .ov-name b { font: 800 20px/1 var(--font-cond); letter-spacing: .01em; }
+:root[data-design="v3"] .ov-name small { margin-top: 4px; font: 500 11px/1.2 var(--font-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+:root[data-design="v3"] .ov-val { font: 600 16px/1 var(--font-mono); color: var(--text-2); }
+:root[data-design="v3"] .ov-banner .flag-banner { border-radius: var(--r-md); font: 800 28px/1 var(--font-cond); letter-spacing: .03em; }
+:root[data-design="v3"] .ov-banner .flag-banner .fb-sub { font: 500 15px/1 var(--font-mono); letter-spacing: .06em; text-transform: none; }
+/* Nouveaux overlays : direction de course, écarts, météo, meilleur tour */
+.ov-rcm { width: 560px; } .ov-gap { width: 400px; } .ov-weather { width: 560px; } .ov-fastest { width: 380px; }
+:root[data-design="v3"] .ov-msg { display: flex; align-items: baseline; gap: 12px; padding: 10px 0 0; }
+:root[data-design="v3"] .ov-msg .ov-tag { min-width: 88px; box-sizing: border-box; text-align: center; }   /* textes alignés en colonne */
+:root[data-design="v3"] .ov-msg + .ov-msg { margin-top: 10px; border-top: 1px solid var(--line); }
+:root[data-design="v3"] .ov-tag { flex: none; padding: 4px 7px; border-radius: var(--r-xs); background: var(--panel-3); font: 600 11px/1 var(--font-mono);
+  letter-spacing: .08em; text-transform: uppercase; color: var(--text-2); }
+:root[data-design="v3"] .ov-tag:is(.k-orange) { color: var(--orange); } :root[data-design="v3"] .ov-tag.k-yellow { color: var(--yellow); }
+:root[data-design="v3"] .ov-tag.k-red { color: var(--red); } :root[data-design="v3"] .ov-tag.k-green { color: var(--green); }
+:root[data-design="v3"] .ov-tag.k-blue { color: var(--blue); } :root[data-design="v3"] .ov-tag.k-text { color: var(--text); }
+:root[data-design="v3"] .ov-msg-t { font: 500 17px/1.3 var(--font); color: var(--text); }
+:root[data-design="v3"] .ov-me .ov-name b { color: var(--text); }
+:root[data-design="v3"] .ov-me { margin: 0 -18px 0 -22px; padding: 0 18px 0 22px; background: color-mix(in srgb, var(--panel-3) var(--ov-bg, 85%), transparent); }
+:root[data-design="v3"] .ov-wxs { display: grid; grid-template-columns: repeat(5, 1fr); gap: 18px; margin-top: 12px; }
+:root[data-design="v3"] .ov-wx { display: flex; flex-direction: column; gap: 6px; }
+:root[data-design="v3"] .ov-wx b { font: 800 34px/1 var(--font-cond); white-space: nowrap; }
+:root[data-design="v3"] .ov-wx b small { font: 600 .5em/1 var(--font-mono); color: var(--muted); }
+:root[data-design="v3"] .ov-fast .ov-big { color: var(--purple); }
+
+/* Mini-classement (fenêtre Mini de l'appli, overlay Classement) : Mono pour les chiffres, Archivo étroit pour les pilotes */
+:root[data-design="v3"] body.mini-body { font-family: var(--font); }
+:root[data-design="v3"] .mini-head { border-bottom-color: var(--line); }
+:root[data-design="v3"] :is(.mini-lap, .mini-table .m-pos, .mini-table .m-val, .mini-table .m-dl, .mini-table .m-pits) { font-family: var(--font-mono); }
+:root[data-design="v3"] .mini-mode { border-radius: var(--r-xs); font: 600 10.5px var(--font-mono); letter-spacing: .06em; }
+:root[data-design="v3"] .mini-flag, :root[data-design="v3"] .mini-banner { font-family: var(--font-mono); letter-spacing: .08em; border-radius: var(--r-xs); }
+:root[data-design="v3"] .mini-table .m-drv { font: 700 15px var(--font-cond); letter-spacing: .02em; }
+:root[data-design="v3"] .mini-table .m-tag { font: 600 9.5px var(--font-mono); letter-spacing: .06em; }
+:root[data-design="v3"] .mini-table td { border-bottom-color: var(--line); }
+/* Drapeaux de la Mini : couleurs vives fixes (en clair, --yellow et --sc sont des couleurs de texte, trop sombres en fond) */
+:root[data-design="v3"] .mini-flag.f-yellow { background: #FFD43B; color: #1d1500; }
+:root[data-design="v3"] :is(.mini-flag, .mini-banner):is(.f-sc, .f-vsc) { background: #FFA62B; color: #1d1200; }

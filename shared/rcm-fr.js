@@ -167,3 +167,27 @@ export function rcmFr(message) {
   }
   return null;
 }
+
+// Noms des drapeaux (français, traduits à l'affichage), type d'un message (filtres du Fil de course et des Messages)
+// et son étiquette [couleur, texte] : Fil de course de l'appli et overlay de streaming « Direction de course »
+export const FLAG_FR = {
+  GREEN: 'Vert', YELLOW: 'Jaune', 'DOUBLE YELLOW': 'Double jaune', RED: 'Rouge', BLUE: 'Bleu',
+  CLEAR: 'Fin de drapeau', CHEQUERED: 'Damier', 'BLACK AND WHITE': 'Noir et blanc', 'BLACK AND ORANGE': 'Noir et orange', BLACK: 'Noir',
+};
+export function rcmType(m) {
+  const t = String(m.Message || '').toUpperCase();
+  if (m.Category === 'SafetyCar' || /SAFETY CAR|\bVSC\b/.test(t)) return 'sc';
+  if (/TRACK LIMITS|\bDELETED\b/.test(t)) return 'limits';
+  if (/STEWARDS|INVESTIGAT|PENALTY|NOTED|REPRIMAND|NO FURTHER ACTION|SUMMONED|DECISION/.test(t)) return 'stewards';
+  if (m.Flag || m.Category === 'Flag') return 'flags';
+  return 'other';
+}
+const FLAG_K = { GREEN: 'green', CLEAR: 'green', YELLOW: 'yellow', 'DOUBLE YELLOW': 'yellow', RED: 'red', BLUE: 'blue', CHEQUERED: 'text', 'BLACK AND WHITE': 'text', 'BLACK AND ORANGE': 'orange', BLACK: 'text' };
+export function rcmTag(m) {
+  const type = rcmType(m);
+  if (type === 'stewards') return ['orange', 'Enquête'];
+  if (type === 'limits') return ['text-2', 'Limites'];
+  if (type === 'sc') return ['orange', /VSC|VIRTUAL/i.test(m.Message || '') ? 'VSC' : 'SC'];
+  if (m.Flag) return [FLAG_K[m.Flag] || 'muted', FLAG_FR[m.Flag] || m.Flag];
+  return ['muted', 'Direction'];
+}

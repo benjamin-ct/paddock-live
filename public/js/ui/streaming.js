@@ -19,6 +19,10 @@ const OVERLAYS = [
   ['Compte à rebours (séance en cours ou prochaine séance)', '/overlay.html?w=countdown', '880 × 260', 85],
   ['Podium (trois premiers)', '/overlay.html?w=podium', '920 × 440', 85],
   ['Télémétrie du pilote suivi', '/overlay.html?w=telemetry', '640 × 700', 85],
+  ['Direction de course (derniers messages)', '/overlay.html?w=rcm', '1120 × 560', 85],
+  ['Écarts du pilote suivi (devant, derrière)', '/overlay.html?w=gap', '800 × 440', 85],
+  ['Météo de la piste', '/overlay.html?w=weather', '1040 × 260', 85],
+  ['Meilleur tour de la séance', '/overlay.html?w=fastest', '760 × 360', 85],
 ];
 // Calques de la carte sans effet dans l'overlay (fond texturé, bande « ordre sur la piste »)
 const NO_LAYER = ['mapGrid', 'mapRibbon2'];

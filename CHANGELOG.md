@@ -4,6 +4,16 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → À propos → Nouveautés).
 
+## v1.33.0 — à venir
+
+### Streaming
+- Les overlays pour OBS, Streamlabs et Meld Studio (Réglages → Streaming) prennent le design Télémétrie de l'appli :
+  cartes à plat avec un filet rouge comme les graphiques TV, chiffres en grand, place des pilotes en case.
+- Quatre nouveaux overlays : Direction de course (les 3 derniers messages, en français, affichés 90 s : drapeaux,
+  neutralisations, enquêtes, limites de piste), Écarts du pilote suivi (le pilote devant et celui derrière), Météo de
+  la piste (air, piste, humidité, vent, pluie) et Meilleur tour de la séance.
+- La fenêtre Mini (mini-classement) passe aussi au design Télémétrie, en sombre comme en clair.
+
 ## v1.32.0 — 2026-11-06
 
 ### Accueil
