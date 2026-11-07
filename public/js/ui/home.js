@@ -12,7 +12,6 @@ import { prefs, setPref, toggleFav, toggleTeamFav } from '../prefs.js';
 import { teamKey } from '/shared/news.js';
 import { openResults } from './results-view.js';
 import { COUNTRY_ISO } from '/shared/country-iso.js';
-import { nearestShape, shapeOutline } from '/shared/circuit-shapes.js';
 import { cloudTranslate } from '../cloud.js';
 import { upcomingAgenda, localDay } from '/shared/agenda.js';
 import { openf1TestDays, testState } from '/shared/testing.js';
@@ -154,7 +153,7 @@ function testsHead(ts, nx, year) {
   const days = Math.round((Date.parse(`${d.day}T12:00:00Z`) - Date.parse(`${localDay(Date.now())}T12:00:00Z`)) / 86400e3);
   const count = ts.current ? ''
     : d.start ? `<div class="hm-count" id="hmCount" role="timer">${countHtml(d.start - Date.now())}</div>`
-    : `<div class="hm-count">${v3() ? `<span class="hm-cd"><b>${days}</b><small>${CD_UNITS[0]}</small></span>` : esc(t('Dans {} jours', days))}</div>`;
+    : `<div class="hm-count"><span class="hm-cd"><b>${days}</b><small>${CD_UNITS[0]}</small></span></div>`;
   return `<div class="hm-title">${flag(first.country)}<span>${t('Essais d’hiver {}', year)} <small>${esc(first.place)}</small></span></div>
     ${count}
     <div class="muted">${ts.current ? esc(t('{} : en piste aujourd’hui', testDay(d.n)))
@@ -170,33 +169,6 @@ function testDaysHtml(ts) {
 }
 
 // Météo prévue des jours du prochain week-end (Open-Meteo, 16 jours au plus)
-// Design Paddock 2 : tracé lumineux du circuit derrière la prochaine séance (tracés déjà utilisés par le Calendrier)
-let shapes = null, shapeList = null;
-const loadShapes = () => (shapes ??= fetch('/data/f1-circuits.json').then((r) => r.json()).then((d) => (shapeList = d.circuits || [])).catch(() => []));
-function drawTrack(nx) {
-  loadShapes().then((all) => {
-    const s = nearestShape(all, Number(nx.lat), Number(nx.lon));
-    const card = $('#homeView .hm-next');
-    if (!s || !card || card.querySelector('.hm-trk')) return;
-    card.insertAdjacentHTML('beforeend', `<svg class="hm-trk" viewBox="-4 -4 108 108" aria-hidden="true"><polygon points="${shapeOutline(s.line)}"/><polygon class="run" points="${shapeOutline(s.line)}" pathLength="100"/></svg>`);
-    placeTrack(card);
-    new ResizeObserver(() => placeTrack(card)).observe(card);
-  });
-}
-// Tracé dans l'espace libre entre la fin des textes (compte à rebours, titre…) et le programme du week-end : jamais
-// par-dessus un texte, quelle que soit sa longueur ; pas de tracé s'il n'y a pas la place
-function placeTrack(card) {
-  const svg = card.querySelector('.hm-trk'), main = card.querySelector('.hm-next-main'), days = card.querySelector('.cal-days');
-  if (!svg || !main) return;
-  const box = card.getBoundingClientRect();
-  const r = document.createRange();
-  let right = box.left;
-  for (const el of main.children) { r.selectNodeContents(el); right = Math.max(right, r.getBoundingClientRect().right); }
-  const end = days ? days.getBoundingClientRect().left : box.right - 24;
-  const size = Math.min(270, end - right - 40, box.height - 40);
-  svg.style.cssText = size < 120 ? 'display:none' : `left:${Math.round((right + end) / 2 - box.left)}px;width:${Math.round(size)}px;height:${Math.round(size)}px`;
-}
-
 async function loadWeather(nx) {
   if (!nx?.lat) return;
   const key = `${nx.race}|${nx.year}`;
@@ -557,23 +529,19 @@ function watchBoard() {
   if (trk) loadShapes().then(() => { if (trk.isConnected && shapeList) $('#hmCal').outerHTML = calHtml(nextSession()); });
 }
 
-// Compte à rebours : jours, heures, minutes, secondes en Télémétrie (cases du chronométrage), texte ailleurs
-const v3 = () => document.documentElement.dataset.design === 'v3';
+// Compte à rebours : jours, heures, minutes, secondes (cases du chronométrage)
 const CD_UNITS = ['jours', 'heures', 'minutes', 'secondes'];
 function cdParts(ms) {
   const s = Math.max(0, Math.floor(ms / 1e3));
   return [Math.floor(s / 86400), Math.floor((s % 86400) / 3600), Math.floor((s % 3600) / 60), s % 60].map((v) => String(v).padStart(2, '0'));
 }
-const countHtml = (ms) => (v3()
-  ? cdParts(ms).map((v, i) => `<span class="hm-cd"><b data-v="${v}">${v}</b><small>${CD_UNITS[i]}</small></span>`).join('')
-  : esc(countdown(ms)));
+const countHtml = (ms) => cdParts(ms).map((v, i) => `<span class="hm-cd"><b data-v="${v}">${v}</b><small>${CD_UNITS[i]}</small></span>`).join('');
 // Chiffre qui change : il roule comme celui de la Saison (l'ancien sort par le bas, le nouveau entre par le haut)
 const roll = (v, old) => [...v].map((c, k) => (old.length === v.length && old[k] !== c ? `<i class="chg"><em class="o">${old[k]}</em><em>${c}</em></i>` : `<i>${c}</i>`)).join('');
 let countTo = null;   // heure visée par le compte à rebours affiché (prochaine séance, ou essais d'hiver)
 function tickCount() {
   const box = $('#hmCount');
   if (!box || !countTo) return;
-  if (!v3()) { box.textContent = countdown(countTo - Date.now()); return; }
   const v = cdParts(countTo - Date.now());
   box.querySelectorAll('b').forEach((b, i) => { if (b.dataset.v !== v[i]) { b.innerHTML = roll(v[i], b.dataset.v || ''); b.dataset.v = v[i]; } });
 }
@@ -643,7 +611,6 @@ function render() {
     <a class="hm-follow" href="https://paddocklive.app/${LANG === 'fr' ? 'jeu' : 'en/guess-the-circuit'}/" target="_blank" rel="noopener">${icon('flag')} ${t('Jeu du jour : devine le circuit')} ${icon('arrow-right', 'ic-s')}</a>
     <a class="hm-follow" href="https://paddocklive.app/liens/" target="_blank" rel="noopener">${icon('share')} Suivre Paddock Live sur les réseaux ${icon('arrow-right', 'ic-s')}</a>`;
   if (nx && !live) loadWeather(nx);
-  if (nx && !live && prefs.design === 'v2') drawTrack(nx);
   (window.requestIdleCallback || setTimeout)(watchBoard, { timeout: 1500 });
   // Actualités et favoris : l'accueil est complet quand les deux sont là
   return Promise.allSettled([news(), loadStandings()]);
@@ -702,12 +669,12 @@ export function openHome() {
   if (boardAt && Date.now() - boardAt > 30 * 60e3) { standingsLoad = null; extra = {}; boardAt = 0; }
   render();
   clearInterval(timer);
-  // Télémétrie : secondes du compte à rebours ; ailleurs, minutes
+  // Secondes du compte à rebours
   timer = setInterval(() => {
     tickCount();
     // Séance qui commence pendant que l'accueil est affiché : carte « en cours »
     if (!!liveNow() !== !!$('#homeView .hm-live') || !!preRace() !== !!$('#hmPre') || (tests && !!testState(tests).current !== !!$('#homeView .hm-tlive'))) render();
-  }, v3() ? 1e3 : 30e3);
+  }, 1e3);
   document.dispatchEvent(new Event('viewchange'));
 }
 

@@ -99,7 +99,7 @@
 
 - **Direction artistique** : agir en Senior Product Designer et Senior Frontend Engineer. Chaque nouvelle interface a
   une identité distinctive (univers F1 : mur des stands, habillage TV, couleurs des écuries), respecte le design system
-  (Télémétrie par défaut depuis la v1.32, spécification dans `docs/design/refonte/DIRECTION.md`, en sombre et en clair ; Paddock 2 et Classique pas cassés ; version web en Télémétrie aussi ; Broadcast n'est plus proposé), évite les interfaces génériques
+  (Télémétrie, le seul design depuis la v1.33, spécification dans `docs/design/refonte/DIRECTION.md`, en sombre et en clair, appli et version web), évite les interfaces génériques
   d'IA, a une hiérarchie claire, des espacements et une typographie soignés, des animations utiles (derrière
   `prefers-reduced-motion` et `data-motion`), est entièrement responsive (téléphone, tablette, ordinateur) et
   accessible.
@@ -119,7 +119,7 @@
   l'appli, la version web et le site : il vérifie qu'elles n'existent pas déjà et ne sont pas déjà notées dans le Suivi,
   qu'elles sont faisables et légales, et rend une liste classée. Il est utilisé par la session « Idées et nouveautés »
   (prompt dans le guide « Prompts des sessions · Paddock Live » du Suivi) ; une idée retenue devient une tâche du Suivi.
-- **Audit visuel** : `node scripts/captures.mjs [chemin…] [--design=…] [--lang=…]` démarre le serveur local sans rien
+- **Audit visuel** : `node scripts/captures.mjs [chemin…] [--lang=…]` démarre le serveur local sans rien
   envoyer au Worker en production, capture téléphone / tablette / ordinateur en sombre et en clair dans
   `.cache/captures/` et signale débordements et erreurs de page. Pour une interaction, Playwright (préinstallé) ou le
   serveur MCP Playwright de la session, avec le serveur local ci-dessus.

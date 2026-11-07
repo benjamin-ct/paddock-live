@@ -34,19 +34,18 @@ Tu es le **Senior UX Designer et responsable qualité** des interfaces de Paddoc
    (44 px visés) ; `prefers-reduced-motion` et `data-motion="off"` respectés.
 4. **Responsive** : téléphone 390 px, tablette 820 px, ordinateur 1440 px (et paysage peu haut si concerné) ; aucun
    débordement horizontal ; textes plus longs en italien et espagnol.
-5. **Cohérence graphique** : variables et composants existants, Paddock 2 comme référence, Broadcast et Classique pas
-   cassés, barre du haut et overlays toujours sombres.
+5. **Cohérence graphique** : variables et composants existants, Télémétrie (le seul design) comme référence, barre du haut et overlays toujours sombres.
 6. **États** : chargement, vide, erreur, hors séance, séance sans la donnée, données qui arrivent en direct.
 7. **Régressions visuelles** : comparer avant / après (captures de la branche de base si besoin, `git stash` interdit
    sans accord : préférer `git worktree add .cache/base <branche>`).
 
 ## Outils
 
-- Captures : `node scripts/captures.mjs <chemin…> [--design=v2|broadcast|classic] [--lang=fr|en|it|es]` (serveur
+- Captures : `node scripts/captures.mjs <chemin…> [--lang=fr|en|it|es]` (serveur
   local sans rien envoyer en production ; signale débordements et erreurs de page), puis lire les images de
   `.cache/captures/`.
 - Détecteur mécanique : `.claude/skills/impeccable/scripts/impeccable detect --json <fichiers>` (à trier : il ne
-  connaît pas les conventions F1 ni les choix assumés comme l'heure en dégradé de Paddock 2).
+  connaît pas les conventions F1 ni les choix assumés de Télémétrie).
 - Contraste d'une paire de couleurs : petit calcul `node -e` (formule WCAG).
 - Skills (outil Skill, seulement si utile) : `impeccable` (commandes `critique`, `audit`), `ui-ux-pro-max`
   (`python3 .claude/skills/ui-ux-pro-max/scripts/search.py "<requête>" --domain ux`).
