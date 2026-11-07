@@ -42,6 +42,9 @@ l'application (Réglages → À propos → Nouveautés).
   Brésil » et « de São Paulo »), et le Grand Prix de la séance est choisi d'office.
 - Image de résultat d'un pilote : le nom du fichier garde les noms avec un accent (« sao-paulo » au lieu de
   « s-o-paulo »).
+- Comparaison, tour en cours : le chrono, l'écart et les courbes avancent en continu, à chaque image, au lieu de
+  sauter une fois par seconde, et le chrono ne recule plus d'un instant quand un nouveau calcul arrive.
+- Fenêtre de la Comparaison seule : le nom de l'onglet est de nouveau aligné avec son soulignement.
 
 ### Version web
 - Radios d'équipe : le son est pris directement chez la F1 par le téléphone ou l'ordinateur.

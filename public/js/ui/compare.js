@@ -137,6 +137,14 @@ function traceSvg(d) {
     ] : []),
   ];
   const dt = smoothDelta(tr);
+  // Tour en cours : ses courbes (et l'écart) se dévoilent en douceur jusqu'au dernier point calculé (voir tick)
+  const live = d.live && !d.live.done;
+  if (live) {
+    const lastI = Math.max(...[dt, ...Object.values(B).filter(Array.isArray)].map((arr) => arr.findLastIndex((v) => v !== null)));
+    const to = tx(tr, Math.max(0, lastI));
+    reveal = { from: reveal && reveal.to <= to ? revealX() : to, to, at: performance.now() };
+  } else reveal = null;
+  const clip = (svg) => (live ? `<g clip-path="url(#ctlLive)">${svg}</g>` : svg);
   let y = 28, body = '';
   for (const r of rows) {
     const sa = r.key === 'dt' ? dt : A[r.key], sb = r.key === 'dt' ? null : B[r.key];
@@ -159,11 +167,11 @@ function traceSvg(d) {
       // Au-dessus de 0 : B devant (A perd du temps) ; zone colorée selon le pilote devant
       const z = Y(0);
       body += `<line x1="${TL}" x2="${TW - TR}" y1="${z}" y2="${z}" class="cmp-zero"/>
-        <path d="${line(dt)}" fill="none" stroke="var(--text)" stroke-width="1.6"/>
+        ${clip(`<path d="${line(dt)}" fill="none" stroke="var(--text)" stroke-width="1.6"/>`)}
         <text x="${TW - TR - 4}" y="${y + 12}" class="ctl-label" text-anchor="end" style="fill:${COL_B}">${esc(d.b.tla)} devant ▲</text>
         <text x="${TW - TR - 4}" y="${y + r.h - 4}" class="ctl-label" text-anchor="end" style="fill:${COL_A}">${esc(d.a.tla)} devant ▼</text>`;
     } else {
-      body += `<path d="${line(sb)}" fill="none" stroke="${COL_B}" stroke-width="1.4" opacity=".95"/><path d="${line(sa)}" fill="none" stroke="${COL_A}" stroke-width="1.4"/>`;
+      body += `${clip(`<path d="${line(sb)}" fill="none" stroke="${COL_B}" stroke-width="1.4" opacity=".95"/>`)}<path d="${line(sa)}" fill="none" stroke="${COL_A}" stroke-width="1.4"/>`;
     }
     body += '</g>';
     y += r.h + 6;
@@ -177,7 +185,8 @@ function traceSvg(d) {
     return `<line x1="${x.toFixed(1)}" x2="${x.toFixed(1)}" y1="${row ? 22 : 13}" y2="${y - 6}" class="ctl-corner"/><text x="${x.toFixed(1)}" y="${row ? 21 : 11}" class="cmp-ax" text-anchor="middle">${c.n}</text>`;
   }).join('');
   const ticks = tr.len ? Array.from({ length: Math.floor(tr.len / 500) + 1 }, (_, k) => k * 500).map((m) => { const x = tx(tr, (m / tr.len) * tr.K).toFixed(1); return `<text x="${x}" y="${y + 8}" class="cmp-ax" text-anchor="middle">${(m / 1000).toFixed(1).replace('.', ',')}</text>`; }).join('') : '';
-  return `<svg class="ctl-svg" viewBox="0 0 ${TW} ${y + 12}">${marks}${body}${ticks}
+  const defs = live ? `<defs><clipPath id="ctlLive"><rect class="ctl-live-clip" x="0" y="0" width="${revealX().toFixed(1)}" height="${y + 12}"/></clipPath></defs>` : '';
+  return `<svg class="ctl-svg" viewBox="0 0 ${TW} ${y + 12}">${defs}${marks}${body}${ticks}
     <line class="ctl-cursor" x1="0" x2="0" y1="24" y2="${y - 6}" visibility="hidden"/><rect class="ctl-hit" x="${TL}" y="0" width="${TW - TL - TR}" height="${y}" fill="transparent"/></svg>`;
 }
 
@@ -347,24 +356,37 @@ export function renderCompare(force = false) {
 // pause compris, 3 s d'avance au plus si les calculs s'arrêtent) et l'écart glisse en 0,9 s vers la nouvelle valeur
 // (mêmes valeurs dans le dessin de la comparaison et dans le tick, sinon chaque dessin ramènerait un instant en arrière)
 let shownGap = null;
+// Courbes du tour en cours : bord droit dévoilé (x du dessin), glissé en 1 s vers le dernier point calculé
+let reveal = null;
+const revealX = () => (reveal ? reveal.from + (reveal.to - reveal.from) * Math.min(1, (performance.now() - reveal.at) / 1000) : 0);
+// Chrono : jamais en arrière dans un même tour quand un calcul arrive un peu en retard sur l'estimation (sauf retour
+// en arrière dans le replay, plus de 2 s)
+let shownClock = null;
 function liveClock(run) {
-  return run.until === undefined ? run.elapsed : run.elapsed + Math.min(3, Math.max(0, ((serverNow() - store.delay - run.until) * replaySpeed()) / 1000));
+  let v = run.until === undefined ? run.elapsed : run.elapsed + Math.min(3, Math.max(0, ((serverNow() - store.delay - run.until) * replaySpeed()) / 1000));
+  const lap = `${data?.b?.num}|${data?.b?.lap?.lap}`;
+  if (shownClock?.lap === lap && v < shownClock.v && shownClock.v - v < 2) v = shownClock.v;
+  shownClock = { lap, v };
+  return v;
 }
 function liveGap(run) {
   if (run.gap === null || run.from === null || run.from === undefined) return run.gap;
   return run.from + (run.gap - run.from) * Math.min(1, (performance.now() - run.at) / 900);
 }
+// À chaque image (requestAnimationFrame) : chrono, écart et courbes du tour en cours, sans à-coups
 function tick() {
+  requestAnimationFrame(tick);
   const run = data?.live && !data.live.done ? data.live : null;
   if (!run) { shownGap = null; return; }
   const clock = document.querySelector('#anaCompare .cmp-live-clock'), gapEl = document.querySelector('#anaCompare .cmp-live-gap');
   if (clock) clock.textContent = fmtLap(liveClock(run));
   shownGap = liveGap(run);
   if (gapEl && shownGap !== null) gapEl.textContent = sgn(shownGap);
+  document.querySelector('#anaCompare .ctl-live-clip')?.setAttribute('width', revealX().toFixed(1));
 }
 
 export function initCompare() {
-  setInterval(tick, 100);
+  requestAnimationFrame(tick);
   const set = (k, v) => { sel[k] = v; storageSet(KEY, { a: sel.a, b: sel.b }); data = null; renderCompare(true); };
   $('#cmpA').addEventListener('change', (e) => { sel.la = null; set('a', e.target.value); });
   $('#cmpB').addEventListener('change', (e) => { if (sel.lb !== 'live') sel.lb = null; set('b', e.target.value); });   // tour en cours gardé
