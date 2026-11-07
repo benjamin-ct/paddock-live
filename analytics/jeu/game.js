@@ -1,10 +1,12 @@
 // Jeu du jour « Devine le circuit » (paddocklive.app/jeu/) : fonctions pures, lues telles quelles par la page
-// (/jeu/game.js) et par les tests (test/jeu.test.js).
+// (/jeu/game.js), par le classement du serveur (analytics/jeu-board.js) et par les tests (test/jeu.test.js).
 // Le jour est celui de Paris : le circuit change à minuit en France (le site est d'abord français), le même pour tous,
 // où qu'on soit. Le navigateur calcule le jour lui-même : la page reste un fichier statique.
 
 export const TRIES = 6;
 export const FIRST_DAY = 20763;   // 6 novembre 2026, circuit n° 1
+export const MIX_DAY = 20765;     // 8 novembre 2026 : premiers jours « pilote » et premières difficultés
+export const LEVELS = ['easy', 'medium', 'hard'];
 
 // Jour de Paris d'une date : nombre de jours depuis le 1er janvier 1970 (calendrier de Paris, pas l'heure UTC)
 const PARIS = new Intl.DateTimeFormat('en-US', { timeZone: 'Europe/Paris', year: 'numeric', month: 'numeric', day: 'numeric' });
@@ -34,9 +36,31 @@ export function dailyIndex(day, n) {
   return p[day - cycle * n];
 }
 
-// Part du tracé visible : un quart au départ, un peu plus à chaque erreur (40, 55, 70, 85 %), tout en fin de partie
-export const REVEAL = [0.25, 0.4, 0.55, 0.7, 0.85];
-export const revealed = (misses, done) => (done ? 1 : REVEAL[Math.min(misses, REVEAL.length - 1)]);
+// Programme du jour, le même pour tous : circuit ou pilote à deviner, et difficulté (facile, moyen, difficile), tirés
+// du jour (jamais trois jours de suite le même type). Avant MIX_DAY : circuit, moyen (parties déjà jouées)
+const mix = (d) => { let x = Math.imul(d ^ 0x9e3779b9, 0x85ebca6b); x ^= x >>> 13; x = Math.imul(x, 0xc2b2ae35); return (x ^ (x >>> 16)) >>> 0; };
+const rawMode = (d) => (mix(d) % 2 ? 'driver' : 'circuit');
+export function plan(day) {
+  if (day < MIX_DAY) return { mode: 'circuit', level: 'medium' };
+  // Types des jours depuis MIX_DAY, dans l'ordre : un troisième jour de suite du même type passe à l'autre
+  let a = null, b = null;
+  for (let d = MIX_DAY; d <= day; d++) {
+    let m = rawMode(d);
+    if (m === a && m === b) m = m === 'driver' ? 'circuit' : 'driver';
+    [b, a] = [a, m];
+  }
+  return { mode: a, level: LEVELS[Math.floor(mix(day) / 2) % 3] };
+}
+
+// Points du classement : essais restants (6 du premier coup, 1 au sixième), fois 1, 2 ou 3 selon la difficulté ; 0 si perdu
+export const points = (level, tries, won) => (won && tries >= 1 && tries <= TRIES ? (TRIES - tries + 1) * (LEVELS.indexOf(level) + 1) : 0);
+
+// Part du tracé visible au départ, puis après chaque erreur, selon la difficulté ; tout en fin de partie
+export const REVEAL = { easy: [0.4, 0.55, 0.7, 0.85, 0.95], medium: [0.25, 0.4, 0.55, 0.7, 0.85], hard: [0.12, 0.25, 0.4, 0.55, 0.7] };
+export const revealed = (misses, done, level = 'medium') => (done ? 1 : REVEAL[level][Math.min(misses, REVEAL[level].length - 1)]);
+// Pilote : indices visibles au départ (3, 2 ou 1 selon la difficulté), un de plus à chaque erreur
+export const CLUES = { easy: 3, medium: 2, hard: 1 };
+export const cluesShown = (misses, done, level = 'medium') => (done ? 6 : Math.min(6, CLUES[level] + misses));
 // Début de la partie visible (fraction du tour), tiré du jour : le même pour tous, pas toujours la ligne de départ
 export const revealStart = (day) => (day * 0.6180339887) % 1;
 
@@ -46,8 +70,15 @@ export function hints(c, t) {
   return [[t.country, c.country], [t.length, `${km} km`], [t.turns, String(c.turns)], [t.first, String(c.first)], [t.city, c.city]];
 }
 
-// Essai comparé à la réponse : trouvé, même pays (identifiant « au-1953 » : code du pays, année d'ouverture) ou raté
-export const mark = (guess, answer) => (guess === answer ? 'hit' : guess.split('-')[0] === answer.split('-')[0] ? 'near' : 'miss');
+// Indices d'un pilote, du plus difficile au plus facile : débuts en F1, titres, victoires, pays, dernière écurie, initiales
+export function driverHints(d, t) {
+  const initials = d.name.split(/[\s-]+/).filter(Boolean).map((w) => `${w[0].toUpperCase()}.`).join(' ');
+  return [[t.debut, String(d.first)], [t.titles, String(d.titles)], [t.wins, String(d.wins)], [t.nat, d.country], [t.team, d.team], [t.initials, initials]];
+}
+
+// Essai comparé à la réponse : trouvé, presque (circuit : même pays, identifiant « au-1953 » = code du pays et année
+// d'ouverture ; pilote : même nationalité, comparée par la fonction same) ou raté
+export const mark = (guess, answer, same = (a, b) => a.split('-')[0] === b.split('-')[0]) => (guess === answer ? 'hit' : same(guess, answer) ? 'near' : 'miss');
 
 // games : { [jour]: { g: [identifiants essayés], r: 'w' (trouvé) | 'l' (perdu) | absent (en cours) } }
 // Série : jours trouvés d'affilée jusqu'à aujourd'hui (ou hier si celui du jour n'est pas encore joué)
@@ -66,7 +97,7 @@ export function stats(games, today) {
 
 // Texte à partager, façon Wordle : un carré par essai (vert trouvé, jaune même pays, rouge raté)
 const SQUARE = { hit: '🟩', near: '🟨', miss: '🟥' };
-export function shareText({ num, marks, won, streak, t }) {
-  return [`${t.shareTitle} · ${t.num.replace('{}', num)} · ${won ? marks.length : 'X'}/${TRIES}`, marks.map((m) => SQUARE[m]).join(''),
+export function shareText({ num, marks, won, streak, t, title = t.shareTitle, level = '' }) {
+  return [`${title} · ${t.num.replace('{}', num)}${level ? ` · ${level}` : ''} · ${won ? marks.length : 'X'}/${TRIES}`, marks.map((m) => SQUARE[m]).join(''),
     ...(streak > 1 ? [t.shareStreak.replace('{}', streak)] : []), t.url].join('\n');
 }

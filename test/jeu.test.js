@@ -79,7 +79,7 @@ test('jeu du jour : pages française et anglaise, crédit MIT, liées entre elle
     assert.match(html, /bacinger\/f1-circuits/);
     assert.match(html, /MIT/);
     assert.match(html, /<script type="module" src="\/jeu\/app\.js"><\/script>/);
-    assert.equal((html.match(/<h1>/g) || []).length, 1);
+    assert.equal((html.match(/<h1[ >]/g) || []).length, 1);
     assert.ok(/<title>([^<]*)<\/title>/.exec(html)[1].length <= 60, lang);
     assert.ok(/<meta name="description" content="([^"]*)"/.exec(html)[1].length <= 155, lang);
     const data = JSON.parse(/<script type="application\/json" id="data">(.*?)<\/script>/s.exec(html)[1]);
@@ -99,4 +99,94 @@ test('jeu du jour : un quart du tracé au départ, un peu plus à chaque erreur,
   assert.equal(revealStart(FIRST_DAY), revealStart(FIRST_DAY));
   assert.notEqual(revealStart(FIRST_DAY), revealStart(FIRST_DAY + 1));
   for (let d = FIRST_DAY; d < FIRST_DAY + 50; d++) assert.ok(revealStart(d) >= 0 && revealStart(d) < 1);
+});
+
+// ---------- Pilotes, difficultés et classement ----------
+import { MIX_DAY, LEVELS, plan, points, cluesShown, driverHints, REVEAL } from '../analytics/jeu/game.js';
+import { driverData } from '../analytics/jeu/page.mjs';
+import { jeuApi, nameOk, cleanName } from '../analytics/jeu-board.js';
+import fs from 'node:fs';
+
+test('jeu du jour : programme (circuit ou pilote, difficulté) le même pour tous, jamais trois fois de suite le même type', () => {
+  assert.deepEqual(plan(FIRST_DAY), { mode: 'circuit', level: 'medium' });   // parties déjà jouées avant le mélange
+  assert.deepEqual(plan(MIX_DAY - 1), { mode: 'circuit', level: 'medium' });
+  const days = Array.from({ length: 2000 }, (_, i) => plan(MIX_DAY + i));
+  for (const [i, p] of days.entries()) {
+    assert.ok(['circuit', 'driver'].includes(p.mode) && LEVELS.includes(p.level), `jour ${i}`);
+    if (i >= 2) assert.ok(!(p.mode === days[i - 1].mode && p.mode === days[i - 2].mode), `trois fois ${p.mode} au jour ${i}`);
+  }
+  for (const m of ['circuit', 'driver']) assert.ok(days.filter((p) => p.mode === m).length > 800, m);
+  for (const l of LEVELS) assert.ok(days.filter((p) => p.level === l).length > 550, l);
+});
+
+test('jeu du jour : difficulté (part du tracé, indices du pilote) et points du classement', () => {
+  assert.ok(REVEAL.easy[0] > REVEAL.medium[0] && REVEAL.medium[0] > REVEAL.hard[0]);
+  assert.equal(revealed(0, false, 'hard'), 0.12);
+  assert.equal(revealed(2, true, 'hard'), 1);
+  assert.deepEqual([cluesShown(0, false, 'easy'), cluesShown(0, false, 'medium'), cluesShown(0, false, 'hard')], [3, 2, 1]);
+  assert.equal(cluesShown(9, false, 'hard'), 6);
+  assert.equal(cluesShown(0, true, 'hard'), 6);
+  assert.equal(points('easy', 1, true), 6);
+  assert.equal(points('hard', 1, true), 18);
+  assert.equal(points('medium', 6, true), 2);
+  assert.equal(points('hard', 6, false), 0);
+  assert.equal(points('hard', 7, true), 0);
+});
+
+test('jeu du jour : pilotes (indices complets, noms uniques, nationalités connues), indices dans l\'ordre', () => {
+  for (const lang of ['fr', 'en']) {
+    const d = driverData(lang);
+    assert.ok(d.length >= 40, `${d.length} pilotes`);
+    assert.equal(new Set(d.map((x) => x.name)).size, d.length);
+    for (const x of d) assert.ok(x.country && x.team && x.first >= 1950 && x.wins >= 0 && x.titles >= 0 && x.flag.length, x.id);
+  }
+  const ham = driverData('fr').find((x) => x.id === 'hamilton');
+  assert.equal(ham.titles, 7);
+  const h = driverHints(ham, { debut: 'Débuts', titles: 'Titres', wins: 'Victoires', nat: 'Pays', team: 'Écurie', initials: 'Initiales' });
+  assert.deepEqual(h.map((x) => x[0]), ['Débuts', 'Titres', 'Victoires', 'Pays', 'Écurie', 'Initiales']);
+  assert.deepEqual(h[0], ['Débuts', '2007']);
+  assert.deepEqual(h[5], ['Initiales', 'L. H.']);
+  assert.equal(mark('alonso', 'hamilton', (a, b) => a === 'norris' && b === 'hamilton'), 'miss');
+  assert.equal(mark('norris', 'hamilton', (a, b) => a === 'norris' && b === 'hamilton'), 'near');
+});
+
+test('jeu du jour : pseudos du classement (nettoyés, insultes refusées, faux comptes officiels refusés)', () => {
+  assert.equal(cleanName('  <b>Max</b>  33 '), 'bMaxb 33');
+  for (const ok of ['Dominique', 'Hitchcock', 'Violette', 'Max33', 'Lé o', 'Scunthorpe', 'Computer']) assert.ok(nameOk(ok), ok);
+  for (const bad of ['connard', 'C0nn4rd', 'FDP', 'gros pd', 'Fuck you', 'admin', 'PaddockLive', 'x']) assert.ok(!nameOk(cleanName(bad)), bad);
+});
+
+// Base SQLite de Node (22 et plus) habillée comme D1, avec le schéma du serveur
+const sqlite = await import('node:sqlite').catch(() => null);
+function d1() {
+  const db = new sqlite.DatabaseSync(':memory:');
+  db.exec(fs.readFileSync(new URL('../analytics/schema.sql', import.meta.url), 'utf8'));
+  return { prepare: (sql) => ({ bind: (...a) => ({ first: async () => db.prepare(sql).get(...a) ?? null, all: async () => ({ results: db.prepare(sql).all(...a) }), run: async () => db.prepare(sql).run(...a) }),
+    first: async () => db.prepare(sql).get() ?? null, all: async () => ({ results: db.prepare(sql).all() }) }) };
+}
+test('jeu du jour : classement du serveur (un résultat par jour, points du jour, pseudo réservé, jours refusés)', { skip: !sqlite && 'node:sqlite absent (Node 20)' }, async () => {
+  const env = { DB: d1() }, now = Date.UTC(2026, 10, 9, 12), day = parisDay(new Date(now));
+  const send = (b, ip = '1.2.3.4') => jeuApi(new Request('https://paddocklive.app/jeu/api/score', { method: 'POST', headers: { 'CF-Connecting-IP': ip }, body: JSON.stringify(b) }), env, new URL('https://paddocklive.app/jeu/api/score'), { now });
+  const A = 'a'.repeat(24), B = 'b'.repeat(24);
+  let r = await send({ uid: A, name: 'Max', day, tries: 2, won: true });
+  assert.equal(r.status, 200);
+  let j = await r.json();
+  assert.equal(j.today[0].pts, points(plan(day).level, 2, true));
+  // Deuxième envoi du même jour : le premier reste
+  await send({ uid: A, name: 'Max', day, tries: 1, won: true });
+  r = await send({ uid: B, name: 'max', day, tries: 1, won: true });
+  assert.equal(r.status, 409);   // pseudo pris (sans tenir compte des majuscules)
+  r = await send({ uid: B, name: 'Leo', day, tries: 6, won: false });
+  j = await r.json();
+  assert.deepEqual(j.today.map((x) => [x.name, x.pts]), [['Max', points(plan(day).level, 2, true)], ['Leo', 0]]);
+  assert.equal(j.count, 2);
+  assert.deepEqual(j.me.day, { pts: 0, rank: 2 });
+  for (const bad of [{ uid: B, name: 'Leo', day: day + 1, tries: 1, won: true }, { uid: B, name: 'Leo', day: day - 2, tries: 1, won: true },
+    { uid: B, name: 'Leo', day, tries: 3, won: false }, { uid: 'court', name: 'Leo', day, tries: 1, won: true }, { uid: B, name: 'connard', day, tries: 1, won: true }]) {
+    assert.equal((await send(bad)).status, 400, JSON.stringify(bad));
+  }
+  const g = await (await jeuApi(new Request(`https://paddocklive.app/jeu/api/board?day=${day}&uid=${A}`), env, new URL(`https://paddocklive.app/jeu/api/board?day=${day}&uid=${A}`), { now })).json();
+  assert.deepEqual(g.me.day, { pts: points(plan(day).level, 2, true), rank: 1 });
+  assert.equal(g.all[0].name, 'Max');
+  assert.equal(g.players, 2);
 });

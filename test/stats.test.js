@@ -400,7 +400,7 @@ test('serveur : ménage du jour (traductions de plus de 90 jours, erreurs de plu
   assert.deepEqual(ran.slice(1), [
     ['DELETE FROM translations WHERE at < ?1', [now - 90 * 86400e3]], ['DELETE FROM error_details WHERE day < ?1', ['2025-10-22']],
     ['DELETE FROM counts WHERE day < ?1', ['2024-10-22']],
-    ['DELETE FROM studio_fail WHERE day < ?1', ['2026-10-22']], ['DELETE FROM feedback_new WHERE day < ?1', ['2026-10-22']], ['DELETE FROM pronos_new WHERE day < ?1', ['2026-10-22']],
+    ['DELETE FROM studio_fail WHERE day < ?1', ['2026-10-22']], ['DELETE FROM feedback_new WHERE day < ?1', ['2026-10-22']], ['DELETE FROM pronos_new WHERE day < ?1', ['2026-10-22']], ['DELETE FROM jeu_new WHERE day < ?1', ['2026-10-22']],
     ['DELETE FROM radio_texts WHERE at < ?1', [now - 365 * 86400e3]], ['DELETE FROM push_sent WHERE at < ?1', [now - 30 * 86400e3]],
     ['DELETE FROM studio WHERE k >= ?1 AND k < ?2 AND at < ?3', ['scheddone:', 'scheddone;', now - 7 * 86400e3]],
     ['DELETE FROM ai_usage WHERE day >= ?1 AND day < ?2', ['jolpica:', 'jolpica:2026-10-22']],
